@@ -1,0 +1,22 @@
+
+License Overview of the Software used in CADET
+
+
+Software		License				Usage
+-----------------------------------------------
+CADET			GPLv3				--
+ADOL-C			GPLv2 (or *later*)  Distributed
+CMake			BSD					Used
+Sundials		BSD					Linked
+LAPACK			BSD					Linked
+BLAS			BSD					Linked
+HDF5			BSD					Linked
+TCLAP			MIT					Distributed
+pugixml			MIT					Distributed
+
+
+Legend
+------
+Used: Using the program (e.g., for building CADET)
+Linked: Usage of library by linking to its binaries and including its headers
+Distributed: Distribute library along with CADET

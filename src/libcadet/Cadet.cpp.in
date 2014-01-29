@@ -1,0 +1,61 @@
+// =============================================================================
+//  CADET - The Chromatography Analysis and Design Toolkit
+//  
+//  Copyright © 2008-2014: Eric von Lieres¹, Joel Andersson,
+//                         Andreas Puettmann¹, Sebastian Schnittert¹,
+//                         Samuel Leweke¹
+//                                      
+//    ¹ Forschungszentrum Juelich GmbH, IBG-1, Juelich, Germany.
+//  
+//  All rights reserved. This program and the accompanying materials
+//  are made available under the terms of the GNU Public License v3.0 (or, at
+//  your option, any later version) which accompanies this distribution, and
+//  is available at http://www.gnu.org/licenses/gpl.html
+// =============================================================================
+
+#include "Cadet.hpp"
+
+namespace adtl
+{
+    extern int ADOLC_numDir;
+}
+
+namespace cadet
+{
+	const char GIT_COMMIT_HASH[] = "@GIT_SHA1@";
+	const char LIBCADET_VERSION[] = CADET_VERSION;
+
+    const char* getLibraryVersion()
+    {
+    	return cadet::LIBCADET_VERSION;
+    }
+
+	const char* getLibraryCommitHash()
+	{
+		return cadet::GIT_COMMIT_HASH;
+	}
+
+	void resetGlobals()
+	{
+		adtl::ADOLC_numDir = 80;
+	}
+}
+
+extern "C"
+{
+    
+    CADET_API const char* cadetGetLibraryVersion()
+    {
+    	return cadet::getLibraryVersion();
+    }
+
+	CADET_API const char* cadetGetLibraryCommitHash()
+	{
+		return cadet::getLibraryCommitHash();
+	}
+	
+	CADET_API void cadetResetGlobals()
+	{
+		cadet::resetGlobals();
+	}
+}

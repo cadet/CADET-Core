@@ -1,0 +1,175 @@
+% =============================================================================
+%  CADET - The Chromatography Analysis and Design Toolkit
+%  
+%  Copyright © 2008-2014: Eric von Lieres¹, Joel Andersson,
+%                         Andreas Puettmann¹, Sebastian Schnittert¹,
+%                         Samuel Leweke¹
+%                                      
+%    ¹ Forschungszentrum Juelich GmbH, IBG-1, Juelich, Germany.
+%  
+%  All rights reserved. This program and the accompanying materials
+%  are made available under the terms of the GNU Public License v3.0 (or, at
+%  your option, any later version) which accompanies this distribution, and
+%  is available at http://www.gnu.org/licenses/gpl.html
+% =============================================================================
+
+\documentclass[%
+paper=A4, % Uses A4-Paper
+pagesize, % This option passes the paper size to all output formats
+DIV=14,
+fontsize=10pt,
+headsepline,
+titlepage,
+twoside,
+bibtotoc,
+final     % Write in draft mode to see overfull boxes, etc. Create in final mode
+]{scrartcl}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%   Include packages
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+% Encoding packages
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[english]{babel}
+
+% Font packages
+\usepackage{lmodern}          % A) provides latin modern fonts which are successor of the computer modern font
+%\usepackage{charter}          % B) provides charter font family
+%\usepackage[osf,sc]{mathpazo} % C) provides palatino as font using old style digits and true small caps
+%\usepackage{bera}             % D) provides bera font family -- if used: remove scaling in beramono !!!
+\usepackage[scaled=0.85]{beramono} % provides the bera typewriter font
+\usepackage[activate={true,nocompatibility},final,tracking=true,kerning=true,spacing=true,factor=1100,stretch=10,shrink=10]{microtype}
+% activate={true,nocompatibility} - activate protrusion and expansion
+% final - enable microtype; use "draft" to disable
+% tracking=true, kerning=true, spacing=true - activate these techniques
+% factor=1100 - add 10% to the protrusion amount (default is 1000)
+% stretch=10, shrink=10 - reduce stretchability/shrinkability (default is 20/20)
+\microtypecontext{spacing=nonfrench}
+
+\usepackage{fixltx2e,ellipsis}       % fixes spacing around \dots
+\usepackage{pifont,dsfont,bbold}     % provides e.g. the return-symbol and proper math spaces (R, Z, N etc.)
+
+% Bibliographic packages
+\usepackage[style=english]{csquotes} % provides advanced quotation options; needed for biblatex
+\usepackage[style=alphabetic,isbn=false,url=false,doi=false,eprint=true,backend=biber,sortlocale=en,language=american]{biblatex}
+
+% Misc packages
+\usepackage{graphicx}  % provides support for figure importing
+\usepackage{listings}  % provides an environment for code listings etc.
+\usepackage{color}     % provides colored text and colored boxes; colors can be defined by user
+\usepackage[normalem]{ulem}      % provides multiline underline and other usefull highlighting commands
+
+% Plotting packages
+% \usepackage{pgfplots}  	% provides ??? 
+\usepackage{tikz}      		% provides basic PGF drawing layer and easy-to-use frontend "TikZ" for drawing pictures
+\usetikzlibrary{decorations,trees}% provides additionally libraries
+
+
+% Mathematics packages
+\usepackage{amsmath}   % provides many enhancements for mathematical formulas
+\usepackage{amssymb}   % provides symbols from the AMS package
+\usepackage[binary-units,exponent-product=\cdot]{siunitx}  % provides units
+
+% Table packages
+\usepackage[font=small]{caption}   % provides formatting for captions
+\usepackage[font=footnotesize]{subcaption}% provides formatting for subcaptions
+\usepackage{longtable} % provides tables spanning multiple pages
+\usepackage{tabu}      % provides tables with defined widths
+\usepackage{array}     % provides formatting tools for tables and arrays
+\usepackage{booktabs}  % provides well designed tables
+\usepackage{multirow}  % provides conected rows in tables
+
+% Header and footer
+\usepackage[headsepline,automark,komastyle]{scrpage2}
+\pagestyle{scrheadings}
+\clearscrheadings
+\clearscrplain
+
+\ofoot[\pagemark]{\pagemark}
+\ihead[\headmark]{\headmark}
+\automark[subsection]{section}
+
+% Last packages
+\usepackage[hidelinks]{hyperref}  % provides hyperreferences in pdf documents; SHOULD be included as last package!
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%   Definitions and settings
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+% define my own colors
+\definecolor{lightgray}{gray}{0.95}
+\definecolor{darkgrey}{gray}{0.4}
+
+% define settings for biblatex
+\addbibresource{library.bib}    % for main .tex file
+
+% define settings for the listing environment
+\lstset{
+%language=bash,
+breaklines=true,
+basicstyle=\ttfamily,
+backgroundcolor=\color{lightgray},
+frame=single,
+%frameround=tttf,
+moredelim=[is][\color{darkgrey}]{|}{|}
+}
+
+% Define settings for captions of figures, tables, etc.
+\captionsetup{format=plain, indention=.5cm, labelsep=colon, labelfont=bf, textfont=it, figurewithin=section, tablewithin=section, hypcap=false, subrefformat=parens} % figurename=Fig.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+% TEXTS
+\newcommand{\cadet}{\textsc{Cadet}}
+\hyphenation{CADET}
+
+% define settings for the hyperref package
+%\hypersetup{%
+%pdftitle={Notes},
+%colorlinks=false,
+%}
+
+\DeclareSIUnit\ExternalUnit{[T]}
+\DeclareSIUnit\ParamUnit{[Param]}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\makeatletter
+\immediate\write18{git log -1 --pretty=format:"\@percentchar H made on \@percentchar ad" > all.gitinfo }
+\makeatother
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\begin{document}
+
+\begin{titlepage}
+	\begin{center}
+		\includegraphics[width=0.6\linewidth]{../logo/CADET-Logo} \\
+		\vspace{8cm}
+		{\Huge\textbf{Manual}}\\
+		\vspace{9cm}
+		\textbf{CADET Version \input{../../version.txt}}\\
+		\vspace{0.8cm}
+		{\footnotesize Created from commit \input{all.gitinfo}}
+	\end{center}
+\end{titlepage}
+
+\pagenumbering{Roman}
+\tableofcontents
+
+\newpage
+\listoffigures
+
+\newpage
+\listoftables
+
+\newpage
+\pagenumbering{arabic}
+\setcounter{page}{1}
+
+\include{docs/fileformat}
+\include{docs/isotherms}
+
+\end{document}

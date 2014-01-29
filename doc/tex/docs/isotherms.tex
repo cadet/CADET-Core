@@ -1,0 +1,153 @@
+% =============================================================================
+%  CADET - The Chromatography Analysis and Design Toolkit
+%  
+%  Copyright © 2008-2014: Eric von Lieres¹, Joel Andersson,
+%                         Andreas Puettmann¹, Sebastian Schnittert¹,
+%                         Samuel Leweke¹
+%                                      
+%    ¹ Forschungszentrum Juelich GmbH, IBG-1, Juelich, Germany.
+%  
+%  All rights reserved. This program and the accompanying materials
+%  are made available under the terms of the GNU Public License v3.0 (or, at
+%  your option, any later version) which accompanies this distribution, and
+%  is available at http://www.gnu.org/licenses/gpl.html
+% =============================================================================
+
+\section{Isotherms}
+
+\subsection{Multi Component Langmuir}
+
+\begin{align*}
+  \frac{\mathrm{d} q_i}{\mathrm{d} t} = k_a\: c_{p,i}\: q_{\text{max},i} \left( 1 - \sum_{j=1}^{N_{\text{comp}}} \frac{q_j}{q_{\text{max},j}} \right) - k_d q_i && \forall i = 1, \dots, N_{\text{comp}}
+\end{align*}
+
+\begin{table}[!ht]
+  \footnotesize
+  \begin{tabu}to \linewidth[m]{lX[m]c}
+    \toprule
+      \textbf{Constant} & \textbf{Description} & \textbf{Unit} \\
+    \midrule
+      $k_a$ & Adsorption rate & \si{\cubic\metre\of{MP}\per\mol\per\second} \\ \midrule
+      $k_d$ & Desorption rate & \si{\per\second} \\ \midrule
+      $q_{\text{max}}$ & Maximum adsorption capacity; Maximum concentration & \si{\mol\per\cubic\metre\of{SP}} \\
+    \bottomrule
+  \end{tabu}
+  \caption{Parameters of the Multi Component Langmuir adsorption model}
+\end{table}
+
+\subsection{Steric Mass Action}
+
+\begin{align*}
+  \frac{\mathrm{d} q_i}{\mathrm{d} t} = k_a c_{p,i}\left( \Lambda - \sum_{j=1}^{N_{\text{comp}}} \left( \nu_j + \sigma_j \right) q_j \right)^{\nu_i} - k_d\: q_i\: c_{p,0}^{\nu_i} && \forall i = 1, \dots, N_{\text{comp}}
+\end{align*}
+where $c_{p,0}$ and $q_0$ denote the salt concentrations in the liquid and solid phase of the beads respectively. A neutrality condition compensating for the missing equation for $\frac{\mathrm{d} q_0}{\mathrm{d}t}$ is required:
+\begin{align*}
+  q_0 = \Lambda - \sum_{j=1}^{N_{\text{comp}}} \nu_j q_j
+\end{align*}
+
+\begin{table}[!ht]
+  \footnotesize
+  \begin{tabu}to \linewidth[m]{lX[m]c}
+    \toprule
+      \textbf{Constant} & \textbf{Description} & \textbf{Unit} \\
+    \midrule
+      $\Lambda$ & Stationary phase capacity (monovalent salt counterions); The total number of binding sites available on the resin surface & \si{\mol\per\cubic\metre\of{SP}} \\ \midrule
+      $k_a$ & Adsorption rate & \si{\raiseto{3(\nu_i-1)}\metre\of{MP}\raiseto{3}\metre\of{SP}\per\raiseto{\nu_i}\mol\per\second} \\ \midrule
+      $k_d$ & Desorption rate & \si{\raiseto{3\nu_i}\metre\of{MP}\per\raiseto{\nu_i}\mol\per\second} \\ \midrule
+      $\nu$ & Characteristic charges of the protein; The number of sites $\nu$ that the protein interacts with on the resin surface & -- \\ \midrule
+      $\sigma$ & Steric factors of the protein; The number of sites $\sigma$ on the surface that are shielded by the protein and prevented from exchange with the salt counterions in solution & -- \\
+    \bottomrule
+  \end{tabu}
+  \caption{Parameters of the Steric Mass Action adsorption model}
+\end{table}
+
+\subsection{Self Association}
+
+\begin{align*}
+  \frac{\mathrm{d} q_i}{\mathrm{d} t} = c_{p,i}\left( \Lambda - \sum_{j=1}^{N_{\text{comp}}} \left( \nu_j + \sigma_j \right) q_j \right)^{\nu_i} \left[ k_{a,1} + k_{a,2} c_{p,i} \right] - k_d\: q_i\: c_{p,0}^{\nu_i} && \forall i = 1, \dots, N_{\text{comp}}
+\end{align*}
+where $c_{p,0}$ and $q_0$ denote the salt concentrations in the liquid and solid phase of the beads respectively. A neutrality condition compensating for the missing equation for $\frac{\mathrm{d} q_0}{\mathrm{d}t}$ is required:
+\begin{align*}
+  q_0 = \Lambda - \sum_{j=1}^{N_{\text{comp}}} \nu_j q_j
+\end{align*}
+
+\begin{table}[!ht]
+  \footnotesize
+  \begin{tabu}to \linewidth[m]{lX[m]c}
+    \toprule
+      \textbf{Constant} & \textbf{Description} & \textbf{Unit} \\
+    \midrule
+      $\Lambda$ & Stationary phase capacity (monovalent salt counterions); The total number of binding sites available on the resin surface & \si{\mol\per\cubic\metre\of{SP}} \\ \midrule
+      $k_{a,1}$ & Adsorption rate & \si{\raiseto{3(\nu_i-1)}\metre\of{SP}\raiseto{3}\metre\of{MP}\per\raiseto{\nu_i}\mol\per\second} \\ \midrule
+      $k_{a,2}$ & Adsorption rate of dimerization & \si{\raiseto{3(\nu_i-1)}\metre\of{SP}\raiseto{6}\metre\of{MP}\per\raiseto{\nu_i+1}\mol\per\second} \\ \midrule
+      $k_d$ & Desorption rate & \si{\raiseto{3\nu_i}\metre\of{MP}\per\raiseto{\nu_i}\mol\per\second} \\ \midrule
+      $\nu$ & Characteristic charges of the protein; The number of sites $\nu$ that the protein interacts with on the resin surface & -- \\ \midrule
+      $\sigma$ & Steric factors of the protein; The number of sites $\sigma$ on the surface that are shielded by the protein and prevented from exchange with the salt counterions in solution & -- \\
+    \bottomrule
+  \end{tabu}
+  \caption{Parameters of the Self Association adsorption model}
+\end{table}
+
+\subsection{Mobile Phase Modulators Langmuir}
+
+\begin{align*}
+  \frac{\mathrm{d} q_i}{\mathrm{d} t} = k_a e^{\gamma c_{p,0}} c_{p,i}\: q_{\text{max},i} \left( 1 - \sum_{j=1}^{N_{\text{comp}}} \frac{q_j}{q_{\text{max},j}} \right) - k_d \: c_{p,0}^\beta \: q_i && \forall i = 1, \dots, N_{\text{comp}}
+\end{align*}
+where $c_{p,0}$ and $q_0$ denote the salt concentrations in the liquid and solid phase of the beads respectively. Salt is considered to be inert, therefore
+\begin{align*}
+  \frac{\mathrm{d} q_0}{\mathrm{d} t} = 0.
+\end{align*}
+
+\begin{table}[!ht]
+  \footnotesize
+  \begin{tabu}to \linewidth[m]{lX[m]c}
+    \toprule
+      \textbf{Constant} & \textbf{Description} & \textbf{Unit} \\
+    \midrule
+      $k_a$ & Adsorption rate & \si{\cubic\metre\of{MP}\per\mol\per\second} \\ \midrule
+      $k_d$ & Desorption rate & \si{\raiseto{3\beta}\metre\of{MP}\per\raiseto{\beta}\mol\per\second} \\ \midrule
+      $q_{\text{max}}$ & Maximum adsorption capacity; Maximum concentration & \si{\mol\per\cubic\metre\of{SP}} \\ \midrule
+      $\gamma$ & Hydrophobicity & \si{\cubic\metre\of{MP}\per\mol} \\ \midrule
+      $\beta$ & Describes ion-exchange characteristics & -- \\
+    \bottomrule
+  \end{tabu}
+  \caption{Parameters of the Mobile Phase Modulators Langmuir adsorption model}
+\end{table}
+
+\subsection{External Function Multi Component Langmuir}
+
+The same as ordinary Multi Component Langmuir but with coefficients $k_a$, $k_d$, and $q_{\text{max}}$ depending on an external quantity denoted by $T$:
+\begin{align*}
+  \frac{\mathrm{d} q_i}{\mathrm{d} t} = k_a(T)\: c_{p,i}\: q_{\text{max},i}(T) \left( 1 - \sum_{j=1}^{N_{\text{comp}}} \frac{q_j}{q_{\text{max},j}(T)} \right) - k_d(T) q_i && \forall i = 1, \dots, N_{\text{comp}}
+\end{align*}
+where the dependence is modeled by a polynomial of third degree, i.e.
+\begin{align*}
+  k_a(T) &= k_{a,3} T^3 + k_{a,2} T^2 + k_{a,1} T + k_{a,0}, \\
+  k_d(T) &= k_{d,3} T^3 + k_{d,2} T^2 + k_{d,1} T + k_{d,0}, \\
+  q_{\text{max}}(T) &= q_{\text{max},3} T^3 + q_{\text{max},2} T^2 + q_{\text{max},1} T + q_{\text{max},0}.
+\end{align*}
+The quantity $T(t, z)$ is a function of time $t$ and space $z$, i.e.\ $T\colon [0, t_{\text{max}}] \times [0, L] \rightarrow \mathds{R}$, which is externally given to the simulator.
+
+\begin{table}[!ht]
+  \footnotesize
+  \begin{tabu}to \linewidth[m]{lX[m]c}
+    \toprule
+      \textbf{Constant} & \textbf{Description} & \textbf{Unit} \\
+    \midrule
+      $k_{a,3}$ & \multirow{4}{*}{Adsorption rate} & \si{\cubic\metre\of{MP}\per\mol\per\second\per\raiseto{3}\ExternalUnit} \\
+      $k_{a,2}$ & & \si{\cubic\metre\of{MP}\per\mol\per\second\per\raiseto{2}\ExternalUnit} \\
+      $k_{a,1}$ & & \si{\cubic\metre\of{MP}\per\mol\per\second\per\ExternalUnit} \\
+      $k_{a,0}$ & & \si{\cubic\metre\of{MP}\per\mol\per\second} \\ \midrule
+      $k_{d,3}$ & \multirow{4}{*}{Desorption rate} & \si{\per\second\per\raiseto{3}\ExternalUnit} \\
+      $k_{d,2}$ & & \si{\per\second\per\raiseto{2}\ExternalUnit} \\
+      $k_{d,1}$ & & \si{\per\second\per\ExternalUnit} \\
+      $k_{d,0}$ & & \si{\per\second} \\ \midrule
+      $q_{\text{max},3}$ & \multirow{4}{*}{Maximum adsorption capacity; Maximum concentration} & \si{\mol\per\cubic\metre\of{SP}\per\raiseto{3}\ExternalUnit} \\
+      $q_{\text{max},2}$ & & \si{\mol\per\cubic\metre\of{SP}\per\raiseto{2}\ExternalUnit} \\
+      $q_{\text{max},1}$ & & \si{\mol\per\cubic\metre\of{SP}\per\ExternalUnit} \\
+      $q_{\text{max},0}$ & & \si{\mol\per\cubic\metre\of{SP}} \\ \midrule
+      $T$ & External quantity & \si{\ExternalUnit} \\ 
+    \bottomrule
+  \end{tabu}
+  \caption{Parameters of the External Function Multi Component Langmuir adsorption model}
+\end{table}

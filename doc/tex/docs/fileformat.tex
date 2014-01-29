@@ -1,0 +1,472 @@
+% =============================================================================
+%  CADET - The Chromatography Analysis and Design Toolkit
+%  
+%  Copyright © 2008-2014: Eric von Lieres¹, Joel Andersson,
+%                         Andreas Puettmann¹, Sebastian Schnittert¹,
+%                         Samuel Leweke¹
+%                                      
+%    ¹ Forschungszentrum Juelich GmbH, IBG-1, Juelich, Germany.
+%  
+%  All rights reserved. This program and the accompanying materials
+%  are made available under the terms of the GNU Public License v3.0 (or, at
+%  your option, any later version) which accompanies this distribution, and
+%  is available at http://www.gnu.org/licenses/gpl.html
+% =============================================================================
+
+\section{CADET File Format Specifications}
+The CADET framework is designed to work on a file format structured into groups and datasets. This
+concept may be implemented by different file formats.
+So far readers and writers for the HDF5 and XML formats have been implemented. The choice is not
+limited to those two formats but can be extended as needed.
+The layout of such files is described in this section. 
+
+Most of the names of the groups and datasets are predefined in the C++ header file
+\texttt{CadetEnumeration.hpp}.
+Every valid CADET file needs an \texttt{input} group. It does not need an \texttt{output} group,
+since this is created when results are written. If not explicitly stated otherwise, all datasets
+are mandatory. By convention all group names are lowercase, whereas all dataset names are uppercase.
+
+\begin{figure}[!ht]
+\centering
+\begin{tikzpicture}[%
+  every node/.style={draw=black,semithick,font=\footnotesize},
+  level 2/.style={sibling distance=16mm},
+  ]
+  \node {\hyperref[tab:FFInput]{input}} [edge from parent fork down]
+    child[sibling distance=30mm] { node {\hyperref[tab:FFModel]{model} } [edge from parent fork down]
+              child { node { \hyperref[tab:FFModelAdsorption]{adsorption} } }
+              child { node { \hyperref[tab:FFModelInlet]{inlet} } [edge from parent fork down]
+                        child { node { \hyperref[tab:FFModelInletSection]{sec\_000} } }
+                        child { node { \hyperref[tab:FFModelInletSection]{sec\_001} } }
+                        child { node { \hyperref[tab:FFModelInletSection]{sec\_002} } }
+                    }
+              child { node { \hyperref[tab:FFModelExternal]{external} } }
+          }   
+    child[sibling distance=20mm] { node { \hyperref[tab:FFDiscretization]{discretization} } [edge from parent fork down]
+              child { node { \hyperref[tab:FFDiscretizationWeno]{weno} } }
+          }
+    child[sibling distance=45mm] { node { \hyperref[tab:FFSolver]{solver} } [edge from parent fork down]
+              child[sibling distance=25mm] { node { \hyperref[tab:FFSolverSchur]{schur\_solver} } }
+              child[sibling distance=25mm] { node { \hyperref[tab:FFSolverTime]{time\_integrator} } }
+          }
+    child[sibling distance=45mm] { node { \hyperref[tab:FFSensitivity]{sensitivity} } [edge from parent fork down]
+              child[sibling distance=20mm] { node { \hyperref[tab:FFSensitivityParam]{param\_000} } }
+              child[sibling distance=20mm] { node { \hyperref[tab:FFSensitivityParam]{param\_001} } }
+          };
+\end{tikzpicture}
+\caption{\label{fig:FFInput}Structure of the groups in the input part of the file format}
+\end{figure}
+
+\begin{figure}[!ht]
+\centering
+\begin{tikzpicture}[%
+  every node/.style={draw=black,semithick,font=\footnotesize},
+  ]
+  \node {output} [edge from parent fork down]
+    child[sibling distance=45mm] { node { \hyperref[tab:FFOutputSolution]{solution} } }   
+    child[sibling distance=45mm] { node { \hyperref[tab:FFOutputSensitivity]{sensitivity} } [edge from parent fork down]
+              child[sibling distance=20mm] { node { \hyperref[tab:FFOutputSensitivityParam]{param\_000} } }
+              child[sibling distance=20mm] { node { \hyperref[tab:FFOutputSensitivityParam]{param\_001} } }
+          };
+\end{tikzpicture}
+\caption{\label{fig:FFOutput}Structure of the groups in the output part of the file format}
+\end{figure}
+
+\subsection{Description of datasets}
+
+Reference volumes are denoted by subscripts:
+\begin{itemize}
+  \item[\si{\cubic\metre\of{Int}}] Interstitial volume
+  \item[\si{\cubic\metre\of{MP}}] Bead mobile phase volume
+  \item[\si{\cubic\metre\of{SP}}] Bead solid phase volume
+\end{itemize}
+
+\newpage
+
+\newcommand{\GroupHeadline}[1]{\small\textbf{Group} \texttt{#1}}
+
+\begin{table}[!ht]
+\footnotesize
+\begin{tabu}to \linewidth[m]{lXcc} \toprule
+\multicolumn{4}{c}{\GroupHeadline{/input}} \\
+\rowfont[c]\normalfont Dataset & Description & Type & Range \everyrow{\midrule}\\
+\texttt{CHROMATOGRAPHY\_TYPE} & Specifies the type of mass transport model & string &
+      \texttt{GENERAL\_RATE\_MODEL} \everyrow{}\\
+\bottomrule
+\end{tabu}
+\caption{\label{tab:FFInput}Datasets in the \texttt{/input} group}
+\end{table}
+
+\begin{table}[!ht]
+\footnotesize
+\begin{tabu}to \linewidth[m]{lX[m]cccc} \toprule
+\multicolumn{6}{c}{\GroupHeadline{/input/model}} \\
+\rowfont[c]\normalfont Dataset & Description & Unit & Type & Range & Length \everyrow{\midrule}\\
+\texttt{NCOMP}& Number of chemical components in the chromatographic media & -- & int  & $\geq 1$ & 1 \\
+\texttt{ADSORPTION\_TYPE} & Specifies the type of adsorption model & -- & string & See Table~\ref{tab:FFModelAdsorption} & 1 \\
+\texttt{INIT\_C} & A vector with initial concentrations for each comp.\ in the mobile phase & \si{\mol\per\cubic\metre\of{Int \& MP}} & double & $\geq 0.0$ & \texttt{NCOMP}\\
+\texttt{INIT\_Q} & Same as \texttt{INIT\_C} but for the bound phase & \si{\mol\per\cubic\metre\of{SP}} & double & $\geq 0.0$ & \texttt{NCOMP}\\
+\texttt{COL\_DISPERSION} & Axial dispersion coefficient & \si{\square\metre\of{Int}\per\second} & double & $\geq 0.0$ & 1\\
+\texttt{COL\_LENGTH} & Column length & \si{\metre} & double & $\geq 0.0$ & 1\\
+\texttt{COL\_POROSITY} & Column porosity & -- & double & $\geq 0.0$ & 1\\
+\texttt{FILM\_DIFFUSION} & A vector with film diffusion coefficients & \si{\metre\per\second} & double & $\geq 0.0$ & \texttt{NCOMP}\\
+\texttt{PAR\_DIFFUSION} & A vector with particle diffusion coefficients & \si{\square\metre\of{MP}\per\second} & double & $\geq 0.0$ & \texttt{NCOMP}\\
+\texttt{PAR\_POROSITY} & Particle porosity & -- & double & $\geq 0.0$ & 1\\
+\texttt{PAR\_RADIUS} & Particle radius & \si{\metre} & double & $\geq 0.0$ & 1\\
+\texttt{PAR\_SURFDIFFUSION} & A vector with particle surface diffusion coefficients & \si{\square\metre\of{SP}\per\second} & double & $\geq 0.0$ & \texttt{NCOMP}\\
+\texttt{VELOCITY} & Interstitial velocity of the mobile phase & \si{\metre\per\second} & double & $\geq 0.0$ & 1\everyrow{}\\
+\bottomrule
+\end{tabu}
+\caption{\label{tab:FFModel}Datasets in the \texttt{/input/model} group}
+\end{table}
+
+\begin{footnotesize}
+\tabulinesep=3pt
+\begin{longtabu}to \linewidth[m]{lX[m]cccc} \toprule
+\multicolumn{6}{c}{\GroupHeadline{/input/model/adsorption}} \\
+\rowfont[c]\normalfont Dataset & Description & Unit & Type & Range & Length\\
+\endfirsthead
+%
+\toprule
+\multicolumn{6}{c}{\GroupHeadline{/input/model/adsorption} Continued} \\
+\rowfont[c]\normalfont Dataset & Description & Unit & Type & Range & Length\\
+\midrule
+\endhead
+%
+\bottomrule
+\endfoot
+%
+\bottomrule
+\caption{\label{tab:FFModelAdsorption}Datasets in the \texttt{/input/model/adsorption} group}\\
+\endlastfoot
+%\multicolumn{5}{c}{\texttt{/input/model/adsorption}} \\
+%\rowfont[c]\normalfont Dataset & Description & Unit & Type & Range\\
+\midrule
+\texttt{IS\_KINETIC} & Selects kinetic or stationary adsorbance mode: 1 = kinetic, 0 = stationary & -- & int & 0/1 & 1\\
+\midrule
+\multicolumn{6}{l}{If \texttt{ADSORPTION\_MODEL} = \texttt{MULTI\_COMPONENT\_LANGMUIR}:} \\ % Top level heading
+\midrule
+\texttt{MCL\_KA} & A vector with adsorption rate constants in the multi component langmuir model & \si{\cubic\metre\of{MP}\per\mol\per\second} & double & $\geq 0.0$ & \texttt{NCOMP}\\
+\midrule
+\texttt{MCL\_KD} & A vector with desorption rate constants in the multi component langmuir model & \si{\per\second} & double & $\geq 0.0$ & \texttt{NCOMP}\\
+\midrule
+\texttt{MCL\_QMAX} & A vector with maximum adsorption capacities in the multi component langmuir model & \si{\mol\per\cubic\metre\of{SP}} & double & $> 0.0$ & \texttt{NCOMP}\\
+\midrule
+\multicolumn{6}{l}{If \texttt{ADSORPTION\_MODEL} = \texttt{MOBILE\_PHASE\_MODULATORS}:} \\ % Top level heading
+\midrule
+\texttt{MPM\_KA} & A vector with adsorption rate constants in the mobile phase modulator model & \si{\cubic\metre\of{MP}\per\mol\per\second} & double & $\geq 0.0$ & \texttt{NCOMP}\\
+\midrule
+\texttt{MPM\_KD} & A vector with desorption rate constants in the mobile phase modulator model & \si{\raiseto{3\beta}\metre\of{MP}\per\raiseto{\beta}\mol\per\second} & double & $\geq 0.0$ & \texttt{NCOMP}\\
+\midrule
+\texttt{MPM\_QMAX} & A vector with maximum adsorption capacities in the mobile phase modulator model & \si{\mol\per\cubic\metre\of{SP}} & double & $\geq 0.0$ & \texttt{NCOMP}\\
+\midrule
+\texttt{MPM\_BETA} & A vector with parameters describing the ion-exchange characteristics (IEX) & -- & double & $\geq 0.0$ & \texttt{NCOMP}\\
+\midrule
+\texttt{MPM\_GAMMA} & A vector with parameters describing the hydrophobicity (HIC) & \si{\cubic\metre\of{MP}\per\mol} & double & $\geq 0.0$ & \texttt{NCOMP}\\
+\midrule
+\multicolumn{6}{l}{If \texttt{ADSORPTION\_MODEL} = \texttt{EXTERNAL\_LANGMUIR}:} \\ % Top level heading
+\midrule
+\begin{tabular}{c}
+  \texttt{EXTL\_KA} \\
+  \texttt{EXTL\_KA\_T} \\
+  \texttt{EXTL\_KA\_TT} \\
+  \texttt{EXTL\_KA\_TTT} \\
+\end{tabular} & All vectors with adsorption rate constant coefficients in the External Function Langmuir model & \begin{tabular}{c}
+  \si{\mol\per\cubic\metre\of{MP}} \\
+  \si{\mol\per\cubic\metre\of{MP}\per\ExternalUnit} \\
+  \si{\mol\per\cubic\metre\of{MP}\per\raiseto{2}\ExternalUnit} \\
+  \si{\mol\per\cubic\metre\of{MP}\per\raiseto{3}\ExternalUnit} \\
+\end{tabular} & double & $-\infty - \infty$ & \texttt{NCOMP}\\
+\midrule
+\begin{tabular}{c}
+  \texttt{EXTL\_KD} \\
+  \texttt{EXTL\_KD\_T} \\
+  \texttt{EXTL\_KD\_TT} \\
+  \texttt{EXTL\_KD\_TTT} \\
+\end{tabular} & All vectors with desorption rate constant coefficients in the External Function Langmuir model & \begin{tabular}{c}
+  \si{\per\second} \\
+  \si{\per\second\per\ExternalUnit} \\
+  \si{\per\second\per\raiseto{2}\ExternalUnit} \\
+  \si{\per\second\per\raiseto{3}\ExternalUnit} \\
+\end{tabular} & double & $-\infty - \infty$ & \texttt{NCOMP}\\
+\midrule
+\begin{tabular}{c}
+  \texttt{EXTL\_QMAX} \\
+  \texttt{EXTL\_QMAX\_T} \\
+  \texttt{EXTL\_QMAX\_TT} \\
+  \texttt{EXTL\_QMAX\_TTT} \\
+\end{tabular} & All vectors with maximum adsorption capacity coefficients in the External Function Langmuir model & \begin{tabular}{c}
+  \si{\mol\per\cubic\metre\of{SP}} \\
+  \si{\mol\per\cubic\metre\of{SP}\per\ExternalUnit} \\
+  \si{\mol\per\cubic\metre\of{SP}\per\raiseto{2}\ExternalUnit} \\
+  \si{\mol\per\cubic\metre\of{SP}\per\raiseto{3}\ExternalUnit} \\
+\end{tabular} & double & $-\infty - \infty$ & \texttt{NCOMP}\\
+\midrule
+\multicolumn{6}{l}{If \texttt{ADSORPTION\_MODEL} = \texttt{STERIC\_MASS\_ACTION}:} \\ % Top level heading
+\midrule
+\texttt{SMA\_LAMBDA} & Stationary phase capacity (monovalent salt counterions); The total number of binding sites available on the resin surface & \si{\mol\per\cubic\metre\of{SP}} & double & $\geq 0.0$ & 1\\
+\midrule
+\texttt{SMA\_KA} & A vector with adsorption rate constants in the steric mass action model & \si{\raiseto{3(\nu_i-1)}\metre\of{MP}\raiseto{3}\metre\of{SP}\per\raiseto{\nu_i}\mol\per\second} & double & $\geq 0.0$ & \texttt{NCOMP}\\
+\midrule
+\texttt{SMA\_KD} & A vector with desorption rate constants in the steric mass action model & \si{\raiseto{3\nu_i}\metre\of{MP}\per\raiseto{\nu_i}\mol\per\second} & double & $\geq 0.0$ & \texttt{NCOMP}\\
+\midrule
+\texttt{SMA\_NU} & A vector with characteristic charges of the protein; The number of sites $\nu$ that the protein interacts with on the resin surface & -- & double & $\geq 0.0$ & \texttt{NCOMP}\\
+\midrule
+\texttt{SMA\_SIGMA} & A vector with steric factors of the protein; The number of sites $\sigma$ on the surface that are shielded by the protein and prevented from exchange with the salt counterions in solution & -- & double & $\geq 0.0$ & \texttt{NCOMP}\\
+\midrule
+\multicolumn{6}{l}{If \texttt{ADSORPTION\_MODEL} = \texttt{SELF\_ASSOCIATION}:} \\ % Top level heading
+\midrule
+\texttt{SAI\_LAMBDA} & Stationary phase capacity (monovalent salt counterions); The total number of binding sites available on the resin surface & \si{\mol\per\cubic\metre\of{SP}} & double & $\geq 0.0$ & 1\\
+\midrule
+\texttt{SAI\_KA1} & A vector with adsorption rate constants in the self association model & \si{\raiseto{3(\nu_i-1)}\metre\of{SP}\raiseto{3}\metre\of{MP}\per\raiseto{\nu_i}\mol\per\second} & double & $\geq 0.0$ & \texttt{NCOMP}\\
+\midrule
+\texttt{SAI\_KA2} & A vector with adsorption rate constants of dimerization in the self association model & \si{\raiseto{3(\nu_i-1)}\metre\of{SP}\raiseto{6}\metre\of{MP}\per\raiseto{\nu_i+1}\mol\per\second}  & double & $\geq 0.0$ & \texttt{NCOMP}\\
+\midrule
+\texttt{SAI\_KD} & A vector with desorption rate constants in the self association model & \si{\raiseto{3\nu_i}\metre\of{MP}\per\raiseto{\nu_i}\mol\per\second} & double & $\geq 0.0$ & \texttt{NCOMP}\\
+\midrule
+\texttt{SAI\_NU} & A vector with characteristic charges $\nu$ of the protein & -- & double & $\geq 0.0$ & \texttt{NCOMP}\\
+\midrule
+\texttt{SAI\_SIGMA} & A vector with steric factors $\sigma$ of the protein & -- & double & $\geq 0.0$ & \texttt{NCOMP}\everyrow{}\\
+\end{longtabu}
+\end{footnotesize}
+
+
+\begin{table}[!ht]
+\footnotesize
+\begin{tabu}to \linewidth[m]{lX[m]cccc} \toprule
+\multicolumn{6}{c}{\GroupHeadline{/input/model/inlet}} \\
+\rowfont[c]\normalfont Dataset & Description & Unit & Type & Range & Length \everyrow{\midrule}\\
+\texttt{NSEC} & Number of sections & -- & int & $\geq 1$ & 1\\
+\texttt{SECTION\_TIMES} & A vector with simulation times at which inlet function is discontinous; including start and end times & \si{\second} & double & $\geq 0.0$ & \texttt{NSEC}+1\\
+\texttt{SECTION\_CONTINUITY} & A vector indicating continuity of each section transition & -- & int &  
+  \begin{tabular}{c}
+    0 (discontinuous) \\
+    1 (continuous)
+  \end{tabular} & \texttt{NSEC}-1
+\everyrow{}\\
+\bottomrule
+\end{tabu}
+\caption{\label{tab:FFModelInlet}Datasets in the \texttt{/input/model/inlet} group}
+\end{table}
+
+
+\begin{table}[!ht]
+\footnotesize
+\begin{tabu}to \linewidth[m]{lX[m]cccc} \toprule
+\multicolumn{6}{c}{\GroupHeadline{/input/model/inlet/sec\_XXX}} \\
+\rowfont[c]\normalfont Dataset & Description & Unit & Type & Range & Length \everyrow{\midrule}\\
+\texttt{CONST\_COEFF} & A vector with constant coefficients for inlet concentrations & \si{\mol\per\cubic\metre\of{Int}} & double & $-\infty - \infty$ & \texttt{NCOMP} \\
+\texttt{LIN\_COEFF} & A vector with linear coefficients for inlet concentrations & \si{\mol\per\cubic\metre\of{Int}\per\second} & double & $-\infty - \infty$ & \texttt{NCOMP} \\
+\texttt{QUAD\_COEFF} & A vector with quadratic coefficients for inlet concentrations & \si{\mol\per\cubic\metre\of{Int}\per\square\second} & double & $-\infty - \infty$ & \texttt{NCOMP} \\
+\texttt{CUBE\_COEFF} & A vector with cubic coefficients for inlet concentrations & \si{\mol\per\cubic\metre\of{Int}\per\cubic\second} & double & $-\infty - \infty$ & \texttt{NCOMP} 
+\everyrow{}\\
+\bottomrule
+\end{tabu}
+\caption{\label{tab:FFModelInletSection}Datasets in the \texttt{/input/model/inlet/sec\_XXX} groups}
+\end{table}
+
+
+\begin{table}[!ht]
+\footnotesize
+\begin{tabu}to \linewidth[m]{lX[m]cccc} \toprule
+\multicolumn{6}{c}{\GroupHeadline{/input/model/external}} \\
+\rowfont[c]\normalfont Dataset & Description & Unit & Type & Range & Length \everyrow{\midrule}\\
+\texttt{EXT\_VELOCITY} & Velocity of the external profile in positive column axial direction & \si{\metre\per\second} & double & $-\infty - \infty$ & 1\\
+\texttt{EXT\_PROFILE} & A vector with external measurements & \si{\ExternalUnit} & double & $\geq 0$ & Arbitrary\\
+\texttt{EXT\_PROF\_DELTA} & A vector with distances of the external measurements (first entry must be $0.0$) & \si{\metre} & double & $\geq 0.0$ & Same as \texttt{EXT\_PROFILE}
+\everyrow{}\\
+\bottomrule
+\end{tabu}
+\caption{\label{tab:FFModelExternal}Datasets in the \texttt{/input/model/external} group}
+\end{table}
+
+
+\begin{table}[!ht]
+\footnotesize
+\begin{tabu}to \linewidth[m]{lX[m]cccc} \toprule
+\multicolumn{6}{c}{\GroupHeadline{/input/discretization}} \\
+\rowfont[c]\normalfont Dataset & Description & Unit & Type & Range & Length \everyrow{\midrule}\\
+\texttt{NCOL} & Number of column (axial) discretization cells & -- & int & $\geq 1$ & 1\\
+\texttt{NPAR} & Number of particle (radial) discretization cells & -- & int & $\geq 1$ & 1\\
+\texttt{PAR\_DISC\_TYPE} & Specifies the discretization scheme inside the particles & -- & string
+& \begin{tabular}{c}
+  \texttt{EQUIDISTANT\_PAR} \\
+  \texttt{EQUIVOLUME\_PAR} \\
+  \texttt{USER\_DEFINED\_PAR} \\
+  \end{tabular} & 1\\
+\texttt{PAR\_DISC\_VECTOR} & A vector with node coordinates for the cell boundaries & \si{\metre} & double
+  & $0.0-1.0$ & \texttt{NPAR}+1 \\
+\texttt{RECONSTRUCTION} & Type of reconstruction method for fluxes & -- & string
+& \begin{tabular}{c}
+  \texttt{WENO}
+  \end{tabular} & 1\everyrow{}\\
+\bottomrule
+\end{tabu}
+\caption{\label{tab:FFDiscretization}Datasets in the \texttt{/input/discretization} group}
+\end{table}
+
+
+\begin{table}[!ht]
+\footnotesize
+\begin{tabu}to \linewidth[m]{lX[m]cc} \toprule
+\multicolumn{4}{c}{\GroupHeadline{/input/discretization/weno}} \\
+\rowfont[c]\normalfont Dataset & Description & Type & Range \everyrow{\midrule}\\
+\texttt{BOUNDARY\_MODEL} & Boundary model type: 0 = Lower WENO order (stable), 1 = Zero weights (unstable for small $D_{ax}$), 2 = Zero weights for p $\neq$ 0 (stable?), 3 = Large ghost points & int & $0-3$\\
+\texttt{WENO\_EPS} & WENO $\varepsilon$ & double & $\geq 0.0$\\
+\texttt{WENO\_ORDER} & WENO Order: 1 = standard upwind scheme, 2, 3; also called WENO K & int & $1-3$ \everyrow{}\\
+\bottomrule
+\end{tabu}
+\caption{\label{tab:FFDiscretizationWeno}Datasets in the \texttt{/input/discretization/weno} group}
+\end{table}
+
+
+\begin{table}[!ht]
+\footnotesize
+\begin{tabu}to \linewidth[m]{lX[m]ccc} \toprule
+\multicolumn{5}{c}{\GroupHeadline{/input/solver}} \\
+\rowfont[c]\normalfont Dataset & Description & Unit & Type & Range \everyrow{\midrule}\\      
+\texttt{NTHREADS} & Number of used OpenMP threads & -- & int & $\geq 1$ \\
+\texttt{LOG\_LEVEL} & Specifies the verbosity of the logging output (Only errors;
+warning and errors; info and warnings and errors, etc.) & -- & string &
+\begin{tabular}{@{}c@{}} \texttt{ERROR} \\
+  \texttt{WARNING} \\
+  \texttt{INFO} \\
+  \texttt{DEBUG1} \\
+  \texttt{DEBUG2} \\
+  \texttt{TRACE1} \\
+  \texttt{TRACE2} \\
+\end{tabular} \\
+\texttt{PRINT\_CONFIG} & Print configuration message before simulation & -- & int & 0/1 \\
+\texttt{PRINT\_PARAMLIST} & Print list of parameters before simulation & -- & int & 0/1 \\
+\texttt{PRINT\_PROGRESS} & Print current state of simulation & -- & int & 0/1 \\
+\texttt{PRINT\_STATISTICS} & Print integrator statistics after each section & -- & int & 0/1 \\
+\texttt{PRINT\_TIMING} & Print timing information after simulation & -- & int & 0/1 \\
+\texttt{USE\_ANALYTIC\_JACOBIAN} & Use analytically computed jacobian matrix (faster) instead of jacobian generated by algorithmic differentiation (slower) & -- & int & 0/1 \\
+\texttt{USER\_SOLUTION\_TIMES} & A \emph{vector} with timepoints at which a solution is desired & \si{\second} & double & $\geq 0.0$ \\
+\texttt{WRITE\_AT\_USER\_TIMES} & Write solutions at times specified by \texttt{USER\_SOLUTION\_TIMES} (write integration timepoints otherwise) & -- & int & 0/1 \\
+\texttt{WRITE\_SOLUTION\_TIMES} & Write times at which a solution was produced & -- & int & 0/1 \\
+\texttt{WRITE\_SOLUTION\_COLUMN\_INLET} & Write solutions at column inlet (boundary condition) & -- & int & 0/1 \\
+\texttt{WRITE\_SOLUTION\_COLUMN\_OUTLET} & Write solutions at column outlet (chromatograms) & -- & int & 0/1 \\
+\texttt{WRITE\_SOLUTION\_ALL} & Write all (intermediate) solutions & -- & int & 0/1 \\
+\texttt{WRITE\_SENS\_COLUMN\_OUTLET} & Write sensitivity data at column outlet & -- & int & 0/1 \\
+\texttt{WRITE\_SENS\_ALL} & Write all (intermediate) sensitivity data & -- & int & 0/1 \everyrow{}\\
+\bottomrule
+\end{tabu}
+\caption{\label{tab:FFSolver}Datasets in the \texttt{/input/solver} group}
+\end{table}
+
+
+\begin{table}[!ht]
+\footnotesize
+\begin{tabu}to \linewidth[m]{lX[m]cc} \toprule
+\multicolumn{4}{c}{\GroupHeadline{/input/solver/schur\_solver}} \\
+\rowfont[c]\normalfont Dataset & Description & Type & Range \everyrow{\midrule}\\      
+\texttt{GS\_TYPE} & Type of Gram-Schmidt orthogonalization, see IDAS guide
+4.5.7.3, 41f. & int &
+\begin{tabular}{c}
+  0 (\texttt{CLASSICAL\_GS}) \\
+  1 (\texttt{MODIFIED\_GS})
+\end{tabular} \\
+\texttt{MAX\_KRYLOV} & Defines the size of the iterative linear SPGMR solver (0: \texttt{MAX\_KRYLOV} = \texttt{NCOL}) & int & $0-\texttt{NCOL}$\\
+\texttt{MAX\_RESTARTS} & Maximum number of restarts in the GMRES algorithm. If lack of memory isn't an issue, better use a larger Krylov space than restarts & int & $\geq 0$ \\
+\texttt{SCHUR\_SAFETY} & Schur safety factor; Influences the tradeof between linear iterations and nonlinear error control; see IDAS guide 2.1, 5 & double & $\geq 0.0$ \everyrow{}\\
+\bottomrule
+\end{tabu}
+\caption{\label{tab:FFSolverSchur}Datasets in the \texttt{/input/solver/schur\_solver} group}
+\end{table}
+
+
+\begin{table}[!ht]
+\footnotesize
+\begin{tabu}to \linewidth[m]{lX[m]cc} \toprule
+\multicolumn{4}{c}{\GroupHeadline{/input/solver/time\_integrator}} \\
+\rowfont[c]\normalfont Dataset & Description & Type & Range \everyrow{\midrule}\\      
+\texttt{ABSTOL} & Absolute tolerance in the solution of the original system & double & $>0.0$\\
+\texttt{RELTOL} & Relative tolerance in the solution of the original system & double & $\geq 0.0$\\
+\texttt{INIT\_STEP\_SIZE} & Factor which is multiplied by the section length to get initial integrator stepsize (0.0: IDAS default value), see IDAS guide 4.5, 36f. & double & $0.0-1.0$\\
+\texttt{MAX\_STEPS} & Maximum number of timesteps taken by IDAS (0: IDAS default = 500), see IDAS guide 4.5, 36 & int & $\geq 0$ \everyrow{}\\
+\bottomrule
+\end{tabu}
+\caption{\label{tab:FFSolverTime}Datasets in the \texttt{/input/solver/time\_integrator} group}
+\end{table}
+
+
+\begin{table}[!ht]
+\footnotesize
+\begin{tabu}to \linewidth[m]{lX[m]cc} \toprule
+\multicolumn{4}{c}{\GroupHeadline{/input/sensitivity}} \\
+\rowfont[c]\normalfont Dataset & Description & Type & Range \everyrow{\midrule}\\      
+\texttt{NSENS} & Number of sensitivities to be computed & int & $\geq 0$\\
+\texttt{SENS\_METHOD} & Method used for computation of sensitivities; algorithmic differentiation or finite differences of order $1-4$ & string
+& \begin{tabular}{@{}c@{}}
+  \texttt{ad1} \\
+  \texttt{fd1} \\
+  \texttt{fd2} \\
+  \texttt{fd4} \\
+  \end{tabular} \everyrow{}\\
+\bottomrule
+\end{tabu}
+\caption{\label{tab:FFSensitivity}Datasets in the \texttt{/input/sensitivity} group}
+\end{table}
+
+
+\begin{table}[!ht]
+\footnotesize
+\begin{tabu}to \linewidth[m]{lX[m]cc} \toprule
+\multicolumn{4}{c}{\GroupHeadline{/input/sensitivity/param\_XXX}} \\
+\rowfont[c]\normalfont Dataset & Description & Type & Range \everyrow{\midrule}\\      
+\texttt{SENS\_NAME} & Name of the parameter & string & *\footnote{All parameter names allowed that occur in group \texttt{input\_model} except \texttt{NCOMP}, \texttt{INIT\_C}, \texttt{INIT\_Q}, \texttt{ADSORPTION\_TYPE}, \texttt{adsorption/IS\_KINETIC}, \texttt{inlet/NSEC}, \texttt{inlet/SECTION\_TIMES}, \texttt{inlet/SECTION\_CONTINUITY}, and everything in \texttt{external/}} \\
+\texttt{SENS\_COMP} & Component index; only for parameters defined for each component (-1 otherwise) & int & $\geq -1$\\
+\texttt{SENS\_SECTION} & Section index; only for inlet parameters (-1 otherwise) & int & $\geq -1$\\
+\texttt{SENS\_ABSTOL} & Absolute tolerance used in the computation of the sensitivities. Rule of thumb: \texttt{ABSTOL} / \texttt{PARAM\_VALUE} & double & $\geq 0.0$\\
+\texttt{SENS\_FD\_DELTA} & Relative disturbance $\Delta p$ in finite difference sensitivity computations & double & $\geq 0.0$\everyrow{}\\
+\bottomrule
+\end{tabu}
+\caption{\label{tab:FFSensitivityParam}Datasets in the \texttt{/input/sensitivity/param\_XXX} groups}
+\end{table}
+
+
+\begin{table}[!ht]
+\footnotesize
+\begin{tabu}to \linewidth[m]{lX[m]cc} \toprule
+\multicolumn{4}{c}{\GroupHeadline{/output/solution}} \\
+\rowfont[c]\normalfont Dataset & Description & Unit & Type \everyrow{\midrule}\\      
+\texttt{SOLUTION\_TIMES} & Time points at which the solution is written & \si{\second} & double \\
+\texttt{SOLUTION\_COLUMN} & Interstitial solution as $n_{\text{Time}} \times n_{\text{Comp}} \times n_{\text{ColCells}}$ tensor in row-major storage & \si{\mol\per\cubic\metre\of{Int}} & double \\
+\texttt{SOLUTION\_PARTICLE} & Solution inside the beads as $n_{\text{Time}} \times n_{\text{ColCells}} \times n_{\text{ParCells}} \times 2 \times n_{\text{Comp}}$ tensor in row-major storage & \si{\mol\per\cubic\metre\of{MP \& SP}} & double \\
+\texttt{SOLUTION\_BOUNDARY} & Flux solution as $n_{\text{Time}} \times n_{\text{Comp}} \times n_{\text{ColCells}}$ tensor in row-major storage & \si{\mol\per\square\metre\per\second} & double \\
+\texttt{SOLUTION\_COLUMN\_OUTLET\_COMP\_XXX} & Component \texttt{XXX} of the solution at the column outlet & \si{\mol\per\cubic\metre\of{Int}} & double \\
+\texttt{SOLUTION\_COLUMN\_INLET\_COMP\_XXX} & Component \texttt{XXX} of the solution at the column inlet & \si{\mol\per\cubic\metre\of{Int}} & double 
+\everyrow{}\\
+\bottomrule
+\end{tabu}
+\caption{\label{tab:FFOutputSolution}Datasets in the \texttt{/output/solution} group}
+\end{table}
+
+
+\begin{table}[!ht]
+\footnotesize
+\begin{tabu}to \linewidth[m]{lX[m]cc} \toprule
+\multicolumn{3}{c}{\GroupHeadline{/output/sensitivity}} \\
+\rowfont[c]\normalfont Dataset & Description & Type \everyrow{\midrule}\\      
+\texttt{SENS\_COLUMN} & Interstitial solution as $n_{\text{Time}} \times n_{\text{Comp}} \times n_{\text{ColCells}} \times n_{\text{Params}}$ tensor in row-major storage & double \\
+\texttt{SENS\_PARTICLE} & Solution inside the beads as $n_{\text{Time}} \times n_{\text{ColCells}} \times n_{\text{ParCells}} \times 2 \times n_{\text{Comp}} \times n_{\text{Params}}$ tensor in row-major storage & double \\
+\texttt{SENS\_BOUNDARY} & Flux solution as $n_{\text{Time}} \times n_{\text{Comp}} \times n_{\text{ColCells}} \times n_{\text{Params}}$ tensor in row-major storage & double
+\everyrow{}\\
+\bottomrule
+\end{tabu}
+\caption{\label{tab:FFOutputSensitivity}Datasets in the \texttt{/output/sensitivity} group}
+\end{table}
+
+
+\begin{table}[!ht]
+\footnotesize
+\begin{tabu}to \linewidth[m]{lX[m]cc} \toprule
+\multicolumn{4}{c}{\GroupHeadline{/output/sensitivity/param\_XXX}} \\
+\rowfont[c]\normalfont Dataset & Description & Unit & Type \everyrow{\midrule}\\      
+\texttt{SENS\_COLUMN\_OUTLET\_COMP\_YYY} & Sensitivity of component \texttt{YYY} at the column outlet with respect to parameter \texttt{XXX} & \si{\mol\per\cubic\metre\of{Int}\per\ParamUnit} & double
+\everyrow{}\\
+\bottomrule
+\end{tabu}
+\caption{\label{tab:FFOutputSensitivityParam}Datasets in the \texttt{/output/sensitivity/param\_XXX} groups}
+\end{table}
