@@ -18,10 +18,10 @@
 
 
 #ifdef BENCHMARK_MODE
- #define LOGGING_DISABLE
+    #define LOGGING_DISABLE
 #else
-// uncomment here to completely switch off logging
- //#define LOGGING_DISABLE
+    // uncomment here to completely switch off logging
+    //#define LOGGING_DISABLE
 #endif
 
 // uncomment to extend the logging to output own types
@@ -39,103 +39,138 @@
 #include "logging/Logger.h"
 
 namespace cadet {
-// Embed logging namespace in cadet
-using namespace logging;
+    // Embed logging namespace in cadet
+    using namespace logging;
 }
 
 
 // Set appropriate compiler macros for windows or linux otherwise
 #ifdef _WIN32
-#define CURRENT_FUNCTION (__FUNCTION__)
+    #define CURRENT_FUNCTION (__FUNCTION__)
 #else
-#define CURRENT_FUNCTION (__FUNCTION__)
-//#define CURRENT_FUNCTION (__PRETTY_FUNCTION__) // GCC: Function names including their type signature of the function as well as its bare name
+    #define CURRENT_FUNCTION (__FUNCTION__)
+//    #define CURRENT_FUNCTION (__PRETTY_FUNCTION__) // GCC: Function names including their type signature of the function as well as its bare name
 #endif
 
 
 
-#ifndef LOGGING_DEFINE_OWN_OUTPUT_TYPE
+#if !defined(LOGGING_DEFINE_OWN_OUTPUT_TYPE) && !defined(MATLAB_MEX_FILE)
 
-#ifdef LOGGING_DISABLE
+    #ifdef LOGGING_DISABLE
 
-/*! \brief define NullOutput as output %device */
-LOGGING_DEFINE_OUTPUT( ::logging::NullOutput )
+        /*! \brief define NullOutput as output %device */
+        LOGGING_DEFINE_OUTPUT( ::logging::NullOutput )
 
-// undefine the macro and redefine it as empty to switch off all
-// user created output types and ensure that only the NullOutput
-// is used as logging type
-#undef LOGGING_DEFINE_OUTPUT
-#define LOGGING_DEFINE_OUTPUT(NAME)
+        // undefine the macro and redefine it as empty to switch off all
+        // user created output types and ensure that only the NullOutput
+        // is used as logging type
+        #undef LOGGING_DEFINE_OUTPUT
+        #define LOGGING_DEFINE_OUTPUT(NAME)
 
-#else // LOGGING_DISABLE
+    #else // LOGGING_DISABLE
 
-#include "logging/loggingConfigGeneralPurposeOS.h"
+        #include "logging/loggingConfigGeneralPurposeOS.h"
 
 
-#ifndef LOGGING_DEFINE_EXTENDED_OUTPUT_TYPE
-LOGGING_DEFINE_OUTPUT( ::logging::LoggingType )
-#endif // LOGGING_DEFINE_EXTENDED_OUTPUT_TYPE
+        #ifndef LOGGING_DEFINE_EXTENDED_OUTPUT_TYPE
+            LOGGING_DEFINE_OUTPUT( ::logging::LoggingType )
+        #endif // LOGGING_DEFINE_EXTENDED_OUTPUT_TYPE
 
-#endif // LOGGING_DISABLE
+    #endif // LOGGING_DISABLE
+
+#elif defined(MATLAB_MEX_FILE)
+    
+    #include "logging/MexOutput.h"
+
+    /*!\brief StdLogRunTimeSwitchType is a %logging type
+     *        supporting %logging to MATLAB by means of mexPrintf
+     *        function with the additional feature of switching
+     *        the verbosity of the %logging framework at runtime.
+     */
+    typedef ::logging::OutputLevelRunTimeSwitch <
+                ::logging::OutputStream <
+                    ::logging::MexOutput
+                >
+            > StdLogRunTimeSwitchType;
+
+    typedef StdLogRunTimeSwitchType LoggingType;
 
 #endif // LOGGING_DEFINE_OWN_OUTPUT_TYPE
 
 
 
-#ifndef _WIN32
+#if !defined(MATLAB_MEX_FILE) && !defined(_WIN32)
 
-// extensions start
-/*! \brief define a simple ansi console colors struct
- *
- * The contained values correspond to ansi color definitions
- * However, the colors are only working on platforms that are
- * able to interpret these ansi escape sequences, like
- * [L|U]nix
- */
-struct Color {
-    enum Colors {
-        reset   = 0,
-        black   = 30,
-        red     = 31,
-        green   = 32,
-        yellow  = 33,
-        blue    = 34,
-        magenta = 35,
-        cyan    = 36,
-        white   = 37
+    // extensions start
+    /*! \brief define a simple ansi console colors struct
+     *
+     * The contained values correspond to ansi color definitions
+     * However, the colors are only working on platforms that are
+     * able to interpret these ansi escape sequences, like
+     * [L|U]nix
+     */
+    struct Color {
+        enum Colors {
+            reset   = 0,
+            black   = 30,
+            red     = 31,
+            green   = 32,
+            yellow  = 33,
+            blue    = 34,
+            magenta = 35,
+            cyan    = 36,
+            white   = 37
+        };
     };
-};
 
-#define GENERATE_OPERATOR_CONTENT   \
-        unsigned char tmp=Base::getBase();  \
-        *this << ::logging::log::dec << "\033[" << static_cast<unsigned short>(l) << 'm';  \
-        Base::setBase(tmp);
+    #define GENERATE_OPERATOR_CONTENT   \
+            unsigned char tmp=Base::getBase();  \
+            *this << ::logging::log::dec << "\033[" << static_cast<unsigned short>(l) << 'm';  \
+            Base::setBase(tmp);
 
+
+#elif !defined(MATLAB_MEX_FILE)
+
+    #include <windows.h> // WinApi header
+
+    /*! \brief define a simple console colors struct for windows terminals
+     */
+    struct Color {
+        enum Colors {
+            reset   = 7,
+            blue    = 9,
+            green,//= 10
+            cyan, //= 11
+            red,  //= ...
+            magenta,
+            yellow,
+            white,
+            black   = 0
+        };
+    };
+
+    #define GENERATE_OPERATOR_CONTENT   \
+        HANDLE hConsole; \
+        hConsole = GetStdHandle(STD_OUTPUT_HANDLE); \
+        SetConsoleTextAttribute(hConsole, l);
 
 #else
 
-#include <windows.h> // WinApi header
-
-/*! \brief define a simple console colors struct for windows terminals
- */
-struct Color {
-    enum Colors {
-        reset   = 7,
-        blue    = 9,
-        green,//= 10
-        cyan, //= 11
-        red,  //= ...
-        magenta,
-        yellow,
-        white,
-        black   = 0
+    struct Color {
+        enum Colors {
+            reset   = 0,
+            black,
+            red,
+            green,
+            yellow,
+            blue,
+            magenta,
+            cyan,
+            white
+        };
     };
-};
 
-#define GENERATE_OPERATOR_CONTENT   \
-    HANDLE hConsole; \
-    hConsole = GetStdHandle(STD_OUTPUT_HANDLE); \
-    SetConsoleTextAttribute(hConsole, l);
+    #define GENERATE_OPERATOR_CONTENT
 
 #endif
 

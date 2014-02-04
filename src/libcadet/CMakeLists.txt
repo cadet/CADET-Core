@@ -155,6 +155,9 @@ if (MATLAB_FOUND AND BUILD_MEX_LIBS)
 
     set (LIBCADET_NAME_MEX "${LIBCADET_NAME}_mex" CACHE INTERNAL "Name of shared cadet library target")
 
+    # Add include directories for Matlab header files
+    include_directories (${MATLAB_INCLUDE_DIR})
+
     # Add the build target for the static chromsim library
     add_library (${LIBCADET_NAME_MEX} SHARED ${LIBCADET_SOURCES})
 
@@ -181,6 +184,7 @@ if (MATLAB_FOUND AND BUILD_MEX_LIBS)
     set (MATLAB_MEX_LIB ${MATLAB_MEX_LIB} PARENT_SCOPE)
     set (MATLAB_MX_LIB ${MATLAB_MX_LIB} PARENT_SCOPE)
     set (MATLAB_MAT_LIB ${MATLAB_MAT_LIB} PARENT_SCOPE)
+    set (MATLAB_INCLUDE_DIR ${MATLAB_INCLUDE_DIR} PARENT_SCOPE)
 
 else ()
 
@@ -246,6 +250,10 @@ endif()
 #   Use full RPATH on the mex library
 # ------------------------------------------------------------------------------------------------------------------------
 if (MATLAB_FOUND AND BUILD_MEX_LIBS)
+
+    # link to MEX libraries
+    target_link_libraries(${LIBCADET_NAME_MEX} ${MATLAB_MEX_LIB} ${MATLAB_MX_LIB} ${MATLAB_MAT_LIB})
+
     # use, i.e. don't skip the full RPATH for the build tree
     set_target_properties (${LIBCADET_NAME_MEX} PROPERTIES SKIP_BUILD_RPATH  FALSE)
 
@@ -266,13 +274,14 @@ if (MATLAB_FOUND AND BUILD_MEX_LIBS)
        set_target_properties (${LIBCADET_NAME_MEX} PROPERTIES INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib")
     endif ("${ISSYSTEMDIR}" STREQUAL "-1")
 
-    # Add MATLABMEX define to compile flags
+    # Add MATLABMEX and MATLAB_MEX_FILE define to compile flags
     get_target_property (MEX_DEFINES ${LIBCADET_NAME_MEX} COMPILE_DEFINITIONS)
     
     if (MEX_DEFINES)
         list (APPEND MEX_DEFINES "MATLABMEX=1")
+        list (APPEND MEX_DEFINES "MATLAB_MEX_FILE=1")
     else ()
-        set (MEX_DEFINES "MATLABMEX=1")
+        set (MEX_DEFINES "MATLABMEX=1" "MATLAB_MEX_FILE=1")
     endif ()
     set_target_properties (${LIBCADET_NAME_MEX} PROPERTIES COMPILE_DEFINITIONS "${MEX_DEFINES}")
 

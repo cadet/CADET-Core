@@ -1084,7 +1084,7 @@ classdef Simulator < handle
             so.USE_ANALYTIC_JACOBIAN        = true;
             so.WRITE_AT_USER_TIMES          = false;
             so.USER_SOLUTION_TIMES          = [];
-            so.LOG_LEVEL                    = 'INFO';
+            so.LOG_LEVEL                    = 'ERROR';
             so.WRITE_SOLUTION_TIMES         = true;
             so.WRITE_SOLUTION_COLUMN_OUTLET = true;
             so.WRITE_SOLUTION_COLUMN_INLET  = false;

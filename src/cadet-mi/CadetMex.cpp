@@ -30,7 +30,7 @@
 #include <iostream>
 
 // Comment out to enable logging
-#define LOGGING_DISABLE
+//#define LOGGING_DISABLE
 #include "CadetLogger.hpp"
 
 // Take care of namespace pollution / macros
