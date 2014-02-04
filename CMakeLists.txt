@@ -29,8 +29,7 @@ set (CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake/Modules")
 # Write the current version number to variable and file
 if (UNIX)
   if (EXISTS "${CMAKE_SOURCE_DIR}/.git")
-    execute_process(COMMAND git describe --abbrev=4 HEAD
-                    COMMAND sed -e "s/-/./g"
+    execute_process(COMMAND git describe --abbrev=0 HEAD
                     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
                     OUTPUT_VARIABLE CADET_VERSION
                     OUTPUT_STRIP_TRAILING_WHITESPACE)
