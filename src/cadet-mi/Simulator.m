@@ -412,7 +412,7 @@ classdef Simulator < handle
                     result = out.output;
                 catch e
                     % Something went wrong
-                    error('CADET:simulationFailed', 'Simulation failed! Check your settings and try again.');
+                    error('CADET:simulationFailed', 'Simulation failed! Check your settings and try again.\n%s', e.message);
                 end
             end
                         
@@ -576,6 +576,11 @@ classdef Simulator < handle
             
             obj.sensitivities = [];
             obj.sensitivityAccess = [];
+        end
+        
+        function saveAsHDF5(obj, task, fileName)
+            % saveAsHDF5 Saves the simulation task to a cadet-cs compatible HDF5 file
+            Simulator.struct2hdf(fileName, task, '/input', [], []);
         end
         
         function val = get.solutionTimes(obj)

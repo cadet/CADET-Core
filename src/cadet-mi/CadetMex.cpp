@@ -212,8 +212,19 @@ DLL_EXPORT_SYM void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArr
     MatlabCadetTranslator input(&temp);
     MatlabCadetTranslator output(&plhs[0]);
 
-    cadet::CadetCS<MatlabCadetTranslator, MatlabCadetTranslator> cs("", input, output);
-    cs.run();
+    try
+    {
+        cadet::CadetCS<MatlabCadetTranslator, MatlabCadetTranslator> cs("", input, output);
+        cs.run();            
+    }
+    catch(const cadet::CadetException& e)
+    {
+        mexErrMsgIdAndTxt("CADET:mexError", "Error in simulation: %s\n", e.msg().c_str());
+    }
+    catch(...)
+    {
+        mexErrMsgIdAndTxt("CADET:mexError", "Error in simulation: Unkown error.\n");
+    }
 }
 
 
