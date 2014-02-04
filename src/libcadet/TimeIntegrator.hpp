@@ -197,7 +197,6 @@ public:
     inline void setPrintTiming(const bool decision)     { _printTiming = decision; }
     inline void setPrintParamList(const bool decision)  { _printParamList = decision; }
     inline void setPrintConfig(const bool decision)     { _printConfig = decision; }
-    inline void setOpenMPThreads(const int threads)     { _nThreads = threads; }
 
     inline double timerAll()   const { return _timerAll.getTime(); }
     inline double timerOther() const {
@@ -218,7 +217,6 @@ private:
     typedef std::vector<double>::const_iterator     vdc_it;  //!< (v)ector (d)ouble  (c)onst_(it)erator
 
     // Parameters set by user
-    int                     _nThreads;
     int                     _maxSteps;
     double                  _initStepSize;
     double                  _absTol;
