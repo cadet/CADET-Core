@@ -84,17 +84,17 @@ public:
 
 private:
 
-    ParameterName   _id;
-    ParamType       _value;
+    ParameterName   _id;              //!< parameter ID
+    ParamType       _value;           //!< value of the parameter
     int             _comp;            //!< chemical component index. -1 if global
     int             _sec;             //!< section index. -1 if global
     double          _absTolS;         //!< absolute tolerance for sensitivity computation
-    double          _lowerbound;
-    double          _upperbound;
+    double          _lowerbound;      //!< lower bound for the parameter's value
+    double          _upperbound;      //!< upper bound for the parameter's value
     bool            _lowerbndstrict;  //!< decides whether the lower bound is strict ( < ) or loose ( <= )
     bool            _upperbndstrict;  //!< decides whether the upper bound is strict ( > ) or loose ( >= )
-    bool            _issensitive;
-    std::string     _name;
+    bool            _issensitive;     //!< determines whether derivatives are computed with respect to this parameter
+    std::string     _name;            //!< name of the parameter
 
     double*         _returnval;         //!< used only for returning references on double values
                                         // really a dirty hack ... should be replaced by some nicer construct
@@ -197,7 +197,7 @@ const Parameter<ParamType>& Parameter<ParamType>::operator=(const Parameter<Para
     _upperbndstrict = p._upperbndstrict;
     _issensitive    = p._issensitive;
     _name           = p._name;
-    *_returnval     = *(p._returnval);
+    *_returnval     = *(p._returnval);  // TODO: Check for memory leaks and double-delete
 
     return *this;
 }
