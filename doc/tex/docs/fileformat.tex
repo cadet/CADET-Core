@@ -106,15 +106,15 @@ Reference volumes are denoted by subscripts:
 \texttt{ADSORPTION\_TYPE} & Specifies the type of adsorption model & -- & string & See Table~\ref{tab:FFModelAdsorption} & 1 \\
 \texttt{INIT\_C} & A vector with initial concentrations for each comp.\ in the mobile phase & \si{\mol\per\cubic\metre\of{Int \& MP}} & double & $\geq 0.0$ & \texttt{NCOMP}\\
 \texttt{INIT\_Q} & Same as \texttt{INIT\_C} but for the bound phase & \si{\mol\per\cubic\metre\of{SP}} & double & $\geq 0.0$ & \texttt{NCOMP}\\
-\texttt{COL\_DISPERSION} & Axial dispersion coefficient & \si{\square\metre\of{Int}\per\second} & double & $\geq 0.0$ & 1\\
-\texttt{COL\_LENGTH} & Column length & \si{\metre} & double & $\geq 0.0$ & 1\\
+\texttt{COL\_DISPERSION} & Axial dispersion coefficient & \si{\square\metre\of{Int}\per\second} & double & $\geq 0.0$ & 1 / \texttt{NSEC}\\
+\texttt{COL\_LENGTH} & Column length & \si{\metre} & double & $> 0.0$ & 1\\
 \texttt{COL\_POROSITY} & Column porosity & -- & double & $\geq 0.0$ & 1\\
-\texttt{FILM\_DIFFUSION} & A vector with film diffusion coefficients & \si{\metre\per\second} & double & $\geq 0.0$ & \texttt{NCOMP}\\
-\texttt{PAR\_DIFFUSION} & A vector with particle diffusion coefficients & \si{\square\metre\of{MP}\per\second} & double & $\geq 0.0$ & \texttt{NCOMP}\\
-\texttt{PAR\_POROSITY} & Particle porosity & -- & double & $\geq 0.0$ & 1\\
-\texttt{PAR\_RADIUS} & Particle radius & \si{\metre} & double & $\geq 0.0$ & 1\\
-\texttt{PAR\_SURFDIFFUSION} & A vector with particle surface diffusion coefficients & \si{\square\metre\of{SP}\per\second} & double & $\geq 0.0$ & \texttt{NCOMP}\\
-\texttt{VELOCITY} & Interstitial velocity of the mobile phase & \si{\metre\per\second} & double & $\geq 0.0$ & 1\everyrow{}\\
+\texttt{FILM\_DIFFUSION} & A vector with film diffusion coefficients & \si{\metre\per\second} & double & $\geq 0.0$ & \texttt{NCOMP} / {$\texttt{NCOMP} \times \texttt{NSEC}$}\\
+\texttt{PAR\_DIFFUSION} & A vector with particle diffusion coefficients & \si{\square\metre\of{MP}\per\second} & double & $\geq 0.0$ & \texttt{NCOMP} / {$\texttt{NCOMP} \times \texttt{NSEC}$}\\
+\texttt{PAR\_POROSITY} & Particle porosity & -- & double & $> 0.0$ & 1\\
+\texttt{PAR\_RADIUS} & Particle radius & \si{\metre} & double & $> 0.0$ & 1\\
+\texttt{PAR\_SURFDIFFUSION} & A vector with particle surface diffusion coefficients & \si{\square\metre\of{SP}\per\second} & double & $\geq 0.0$ & \texttt{NCOMP} / {$\texttt{NCOMP} \times \texttt{NSEC}$}\\
+\texttt{VELOCITY} & Interstitial velocity of the mobile phase & \si{\metre\per\second} & double & $> 0.0$ & 1 / \texttt{NSEC}\everyrow{}\\
 \bottomrule
 \end{tabu}
 \caption{\label{tab:FFModel}Datasets in the \texttt{/input/model} group}
@@ -470,3 +470,30 @@ warning and errors; info and warnings and errors, etc.) & -- & string &
 \end{tabu}
 \caption{\label{tab:FFOutputSensitivityParam}Datasets in the \texttt{/output/sensitivity/param\_XXX} groups}
 \end{table}
+
+
+\FloatBarrier
+\subsection{Section dependent model parameters}
+
+Some model parameters (see Table~\ref{tab:FFSectionDependentParams}) can be assigned different values for each section. For example, the velocity the column is operated with could differ in the load, wash, and elution phases.
+Section dependency is recognized by specifying the appropriate number of values for the parameters (see Length in Table~\ref{tab:FFModel}). 
+If a parameter depends on the component and the section, the ordering is such that the values for the components are listed within each section (i.e., ``component-major''):
+For example, in a three component system the ordering is \texttt{comp0sec0}, \texttt{comp1sec0}, \texttt{comp2sec0}, \texttt{comp0sec1}, \texttt{comp1sec1}, \texttt{comp2sec1}, \ldots
+
+Note that single components of component dependent datasets cannot be section dependent.
+
+\begin{table}[!ht]
+\centering
+\footnotesize
+\begin{tabu}to \linewidth[m]{lcc} \toprule
+\rowfont[c]\normalfont Dataset & Component dependent & Section dependent \everyrow{\midrule}\\      
+\texttt{COL\_DISPERSION} & & \checkmark \\
+\texttt{FILM\_DIFFUSION} & \checkmark  & \checkmark \\
+\texttt{PAR\_DIFFUSION} & \checkmark  & \checkmark \\
+\texttt{PAR\_SURFDIFFUSION} & \checkmark  & \checkmark \\
+\texttt{VELOCITY} & & \checkmark \everyrow{}\\
+\bottomrule
+\end{tabu}
+\caption{\label{tab:FFSectionDependentParams}Section dependent datasets in the \texttt{/input/model} group}
+\end{table}
+
