@@ -438,8 +438,8 @@ void TimeIntegrator::initializeSensitivities() throw (CadetException)
         //==================================================================================================
         // Set initial solution sensitivity w.r.t. SMA/SAI lambda = 1 for salt concentration in bound phase
         //==================================================================================================
-        vpc_it it1 = std::find(_sensModelParams.begin(), _sensModelParams.end(), ParamID(SMA_LAMBDA, -1));  // search for a sensitive SMA_LAMBDA
-        vpc_it it2 = std::find(_sensModelParams.begin(), _sensModelParams.end(), ParamID(SAI_LAMBDA, -1));  // search for a sensitive SAI_LAMBDA
+        vpc_it it1 = std::find(_sensModelParams.begin(), _sensModelParams.end(), ParamID(SMA_LAMBDA, -1, -1));  // search for a sensitive SMA_LAMBDA
+        vpc_it it2 = std::find(_sensModelParams.begin(), _sensModelParams.end(), ParamID(SAI_LAMBDA, -1, -1));  // search for a sensitive SAI_LAMBDA
         vpc_it it = (it1 != _sensModelParams.end()) ? it1 : it2;
 
         if (it != _sensModelParams.end())                       // One lambda was set sensitive!
