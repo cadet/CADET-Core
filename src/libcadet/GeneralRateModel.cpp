@@ -27,35 +27,43 @@
 
 namespace cadet {
 
-//int GeneralRateModel::count = 0;
-//int GeneralRateModel::countS = 0;
 
 GeneralRateModel::GeneralRateModel(SimulatorPImpl& sim) :
     ChromatographyModel(sim, GENERAL_RATE_MODEL),
     _psim(sim),
     _jac (sim.getSchurSolver().getJacobianData()),
     _ws  (sim.getWenoScheme()),
-    _c_in(_cc.ncomp(), 0.0)
+    _c_in(_cc.ncomp(), 0.0),
+    _secDepVelocity(false),
+    _secDepColDispersion(false),
+    _secDepParDiffusion(false),
+    _secDepParSurfDiffusion(false),
+    _secDepFilmDiffusion(false)
 {
     log::emit<Trace1>() << CURRENT_FUNCTION << Color::cyan << ": Called!" << Color::reset << log::endl;
 
     double inf = std::numeric_limits<double>::infinity();
 
     // Scalar parameters
-    addParam(Parameter<active> (COL_LENGTH,     e2s(COL_LENGTH),     -1, 0.0, 0.0, 0.0, CADET_STRICT, inf, CADET_STRICT)); ///todo re-check loose / strict
-    addParam(Parameter<active> (COL_POROSITY,   e2s(COL_POROSITY),   -1, 0.0, 0.0, 0.0, CADET_LOOSE,  1.0, CADET_LOOSE));
-    addParam(Parameter<active> (COL_DISPERSION, e2s(COL_DISPERSION), -1, 0.0, 0.0, 0.0, CADET_LOOSE,  inf, CADET_STRICT));
-    addParam(Parameter<active> (VELOCITY,       e2s(VELOCITY),       -1, 0.0, 0.0, 0.0, CADET_STRICT, inf, CADET_STRICT));
+    addParam(Parameter<active> (COL_LENGTH,     e2s(COL_LENGTH),     -1, -1, 0.0, 0.0, 0.0, CADET_STRICT, inf, CADET_STRICT)); ///todo re-check loose / strict
+    addParam(Parameter<active> (COL_POROSITY,   e2s(COL_POROSITY),   -1, -1, 0.0, 0.0, 0.0, CADET_LOOSE,  1.0, CADET_LOOSE));
 
-    addParam(Parameter<active> (PAR_RADIUS,     e2s(PAR_RADIUS),     -1, 0.0, 0.0, 0.0, CADET_STRICT, inf, CADET_STRICT));
-    addParam(Parameter<active> (PAR_POROSITY,   e2s(PAR_POROSITY),   -1, 0.0, 0.0, 0.0, CADET_STRICT, 1.0, CADET_STRICT));
+    addParam(Parameter<active> (PAR_RADIUS,     e2s(PAR_RADIUS),     -1, -1, 0.0, 0.0, 0.0, CADET_STRICT, inf, CADET_STRICT));
+    addParam(Parameter<active> (PAR_POROSITY,   e2s(PAR_POROSITY),   -1, -1, 0.0, 0.0, 0.0, CADET_STRICT, 1.0, CADET_STRICT));
 
-    // Vectorial parameters
-    for (int comp = 0; comp < _cc.ncomp(); ++comp)
+    // Section dependent parameters
+    for (int sec = -1; sec < _cc.nsec(); ++sec)
     {
-        addParam(Parameter<active> (FILM_DIFFUSION,    e2s(FILM_DIFFUSION),    comp, 0.0, 0.0, 0.0, CADET_LOOSE, inf, CADET_STRICT));
-        addParam(Parameter<active> (PAR_DIFFUSION,     e2s(PAR_DIFFUSION),     comp, 0.0, 0.0, 0.0, CADET_LOOSE, inf, CADET_STRICT));
-        addParam(Parameter<active> (PAR_SURFDIFFUSION, e2s(PAR_SURFDIFFUSION), comp, 0.0, 0.0, 0.0, CADET_LOOSE, inf, CADET_STRICT));
+        addParam(Parameter<active> (COL_DISPERSION, e2s(COL_DISPERSION), -1, sec, 0.0, 0.0, 0.0, CADET_LOOSE,  inf, CADET_STRICT));
+        addParam(Parameter<active> (VELOCITY,       e2s(VELOCITY),       -1, sec, 0.0, 0.0, 0.0, CADET_STRICT, inf, CADET_STRICT));
+
+        // Vectorial parameters
+        for (int comp = 0; comp < _cc.ncomp(); ++comp)
+        {
+            addParam(Parameter<active> (FILM_DIFFUSION,    e2s(FILM_DIFFUSION),    comp, sec, 0.0, 0.0, 0.0, CADET_LOOSE, inf, CADET_STRICT));
+            addParam(Parameter<active> (PAR_DIFFUSION,     e2s(PAR_DIFFUSION),     comp, sec, 0.0, 0.0, 0.0, CADET_LOOSE, inf, CADET_STRICT));
+            addParam(Parameter<active> (PAR_SURFDIFFUSION, e2s(PAR_SURFDIFFUSION), comp, sec, 0.0, 0.0, 0.0, CADET_LOOSE, inf, CADET_STRICT));
+        }
     }
 
     log::emit<Trace1>() << CURRENT_FUNCTION << Color::green << ": Finished!" << Color::reset << log::endl;
@@ -260,11 +268,18 @@ void GeneralRateModel::specialSetup()
 
     _dc_indp = std::vector<std::vector<double> >(_cc.ncomp(), std::vector<double>(_ti.getMaxSensInletParams(), 0.0));
 
-    assembleOffdiagJac();
+    assembleOffdiagJac(0, 0.0);
 
     log::emit<Trace2>() << CURRENT_FUNCTION << Color::green << ": Finished!" << Color::reset << log::endl;
 }
 
+
+void GeneralRateModel::sectionSetup(int section, double t)
+{
+    // Boundary Jacobian blocks only change for section dependent film or particle diffusion coefficients
+    if (_secDepFilmDiffusion || _secDepParDiffusion)
+        assembleOffdiagJac(section, t);
+}
 
 
 // this residual function now only handles column and particles
@@ -333,10 +348,18 @@ int GeneralRateModel::residualColumn(const double t, const StateType* y, const d
 {
     log::emit<Trace2>() << CURRENT_FUNCTION << Color::cyan << ": Called!" << Color::reset << log::endl;
 
-    ParamType u   = getValue<ParamType>(VELOCITY);
+    int secVel = -1;
+    if (_secDepVelocity)
+        secVel = _ti.getCurrentSection();
+
+    int secColDisp = -1;
+    if (_secDepColDispersion)
+        secColDisp = _ti.getCurrentSection();
+
+    ParamType u   = getValue<ParamType>(VELOCITY, -1, secVel);
+    ParamType d_c = getValue<ParamType>(COL_DISPERSION, -1, secColDisp);
     ParamType h   = getValue<ParamType>(COL_LENGTH) / double(_cc.ncol());
     ParamType h2  = h * h;
-    ParamType d_c = getValue<ParamType>(COL_DISPERSION);
 
     // WENO help variables
     const int& WK   = _cc.max_wk();           // Max. WENO-order
@@ -531,8 +554,17 @@ int GeneralRateModel::residualParticle(const double t, const int pblk, const Sta
     // Simulation parameters
     ParamType radius            = getValue<ParamType> (PAR_RADIUS);
     ParamType inv_beta_p        = 1.0 / getValue<ParamType> (PAR_POROSITY) - 1.0;
-    std::vector<ParamType> d_p  = getValueForAllComp<ParamType> (PAR_DIFFUSION);
-    std::vector<ParamType> d_s  = getValueForAllComp<ParamType> (PAR_SURFDIFFUSION);
+
+    int secParDiff = -1;
+    if (_secDepParDiffusion)
+        secParDiff = _ti.getCurrentSection();
+
+    int secParSurfDiff = -1;
+    if (_secDepParSurfDiffusion)
+        secParSurfDiff = _ti.getCurrentSection();
+
+    std::vector<ParamType> d_p  = getValueForAllComp<ParamType> (PAR_DIFFUSION, secParDiff);
+    std::vector<ParamType> d_s  = getValueForAllComp<ParamType> (PAR_SURFDIFFUSION, secParSurfDiff);
 
     double z = 1.0 / double(_cc.npblk()) * (0.5 + pblk) ; // Current z coordinate in the column - needed in externally dependent adsorption kinetic
     ParamType dr;
@@ -656,8 +688,17 @@ int GeneralRateModel::residualBoundaries(const double* y, const double* yDot, Re
     ParamType invBetaC          = 1.0 / getValue<ParamType>(COL_POROSITY) - 1.0;
     ParamType epsP              = getValue<ParamType>(PAR_POROSITY);
     ParamType radius            = getValue<ParamType>(PAR_RADIUS);
-    std::vector<ParamType> kf   = getValueForAllComp<ParamType>(FILM_DIFFUSION);
-    std::vector<ParamType> dp   = getValueForAllComp<ParamType>(PAR_DIFFUSION);
+
+    int secFilmDiff = -1;
+    if (_secDepFilmDiffusion)
+        secFilmDiff = _ti.getCurrentSection();
+
+    int secParDiff = -1;
+    if (_secDepParDiffusion)
+        secParDiff = _ti.getCurrentSection();
+
+    std::vector<ParamType> kf   = getValueForAllComp<ParamType>(FILM_DIFFUSION, secFilmDiff);
+    std::vector<ParamType> dp   = getValueForAllComp<ParamType>(PAR_DIFFUSION, secParDiff);
 
     ParamType surfaceToVolumeRatio = 3.0 / radius;
     ParamType outerAreaPerVolume   = _pd.getOuterSurfAreaPerVolume(0) / radius;
@@ -864,7 +905,7 @@ void GeneralRateModel::dFdyDot_times_sDot(N_Vector NV_sDot, N_Vector NV_ret)
 }
 
 
-void GeneralRateModel::assembleOffdiagJac() throw (CadetException)
+void GeneralRateModel::assembleOffdiagJac(int section, double t) throw (CadetException)
 {
     log::emit<Trace1>() << CURRENT_FUNCTION << Color::cyan << ": Called!" << Color::reset << log::endl;
 
@@ -876,9 +917,19 @@ void GeneralRateModel::assembleOffdiagJac() throw (CadetException)
     double invBetaC          = 1.0 / getValue<double>(COL_POROSITY) - 1.0;
     double epsP              = getValue<double>(PAR_POROSITY);
     double radius            = getValue<double>(PAR_RADIUS);
-    std::vector<double> kf   = getValueForAllComp<double>(FILM_DIFFUSION);
-    std::vector<double> dp   = getValueForAllComp<double>(PAR_DIFFUSION);
 
+    int secFilmDiff = -1;
+    if (_secDepFilmDiffusion)
+        secFilmDiff = section;
+
+    int secParDiff = -1;
+    if (_secDepParDiffusion)
+        secParDiff = section;
+
+    log::emit<Debug2>() << CURRENT_FUNCTION << ": Cur sec " << _ti.getCurrentSection() << " FilmDiff sec " << secFilmDiff << " ParDiff sec " << secParDiff << log::endl;
+
+    std::vector<double> kf   = getValueForAllComp<double>(FILM_DIFFUSION, secFilmDiff);
+    std::vector<double> dp   = getValueForAllComp<double>(PAR_DIFFUSION, secParDiff);
 
     double surfaceToVolumeRatio = 3.0 / radius;
     double outerAreaPerVolume   = _pd.getOuterSurfAreaPerVolume(0) / radius;
@@ -968,6 +1019,60 @@ void GeneralRateModel::assembleOffdiagJac() throw (CadetException)
     delete [] kf_FV;
 
     log::emit<Trace1>() << CURRENT_FUNCTION << Color::green << ": Finished!" << Color::reset << log::endl;
+}
+
+
+void GeneralRateModel::setParameterSectionDependent(const ParameterName id, bool depends)
+{
+    int startSec = -1;
+    int endSec = 0;
+    int startComp = 0;
+    int endComp = _cc.ncomp();
+
+    if (!depends)
+    {
+        startSec = 0;
+        endSec = _cc.nsec();
+    }
+
+    switch(id)
+    {
+        case COL_DISPERSION:
+            _secDepColDispersion = depends;
+            startComp = -1;
+            endComp = 0;
+            log::emit<Debug2>() << CURRENT_FUNCTION << ": Setting section dependency of COL_DISPERSION to " << _secDepColDispersion << log::endl;
+            break;
+        case VELOCITY:
+            _secDepVelocity = depends;
+            startComp = -1;
+            endComp = 0;
+            log::emit<Debug2>() << CURRENT_FUNCTION << ": Setting section dependency of VELOCITY to " << _secDepVelocity << log::endl;
+            break;
+        case PAR_DIFFUSION:
+            _secDepParDiffusion = depends;
+            log::emit<Debug2>() << CURRENT_FUNCTION << ": Setting section dependency of PAR_DIFFUSION to " << _secDepParDiffusion << log::endl;
+            break;    
+        case PAR_SURFDIFFUSION:
+            _secDepParSurfDiffusion = depends;
+            log::emit<Debug2>() << CURRENT_FUNCTION << ": Setting section dependency of PAR_SURFDIFFUSION to " << _secDepParSurfDiffusion << log::endl;
+            break;
+        case FILM_DIFFUSION:
+            _secDepFilmDiffusion = depends;
+            log::emit<Debug2>() << CURRENT_FUNCTION << ": Setting section dependency of FILM_DIFFUSION to " << _secDepFilmDiffusion << log::endl;
+            break;
+        default:
+            return;
+    }
+
+    // Remove superfluous parameters
+    for (int sec = startSec; sec < endSec; ++sec)
+    {
+        for (int comp = startComp; comp < endComp; ++comp)
+        {
+            removeParam(id, comp, sec);
+        }
+    }
 }
 
 

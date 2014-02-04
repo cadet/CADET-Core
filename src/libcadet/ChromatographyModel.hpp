@@ -88,7 +88,8 @@ public:
     //
     virtual void calcICSens(const double t) = 0;
 
-    virtual void specialSetup() {};
+    virtual void specialSetup() { }
+    virtual void sectionSetup(int section, double t) { }
 
     // Timer read functions
     virtual double timerResDae()     const { return _timerResDae.getTime(); }
@@ -96,6 +97,8 @@ public:
     virtual double timerResDaePar()  const { return _timerResDaePar.getTime(); }
     virtual double timerResSensPar() const { return _timerResSensPar.getTime(); }
 
+    // sets the section dependence of a parameter (group)
+    virtual void setParameterSectionDependent(const ParameterName id, bool depends) { }
 
 protected:
 

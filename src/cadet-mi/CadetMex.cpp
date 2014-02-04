@@ -21,7 +21,7 @@
     #define DLL_EXPORT_SYM
 #endif
 
-#include "mex.h"
+#include <mex.h>
 
 #include <vector>
 #include <string>
@@ -29,6 +29,7 @@
 #include <sstream>
 #include <iostream>
 
+// Comment out to enable logging
 #define LOGGING_DISABLE
 #include "CadetLogger.hpp"
 
@@ -77,6 +78,10 @@ public:
     /// \brief Checks if the given dataset or group exists in the file
     inline bool exists(const std::string& elementName) { return exists(elementName.c_str()); }
     inline bool exists(const char* elementName);
+
+    /// \brief Checks if the given dataset is a vector (i.e., has more than one value)
+    inline bool isVector(const std::string& elementName) { return isVector(elementName.c_str()); }
+    inline bool isVector(const char* elementName);
 
     /// \brief Convenience wrapper for reading vectors
     template <typename T>
@@ -220,6 +225,12 @@ bool MatlabCadetTranslator::exists(const char* elementName)
 {
     openGroup();
     return mxGetField(_group, 0, elementName);
+}
+
+bool MatlabCadetTranslator::isVector(const char* elementName)
+{
+    openGroup();
+    return mxGetNumberOfElements(mxGetField(_group, 0, elementName)) > 1;
 }
 
 void MatlabCadetTranslator::openGroup(bool create)

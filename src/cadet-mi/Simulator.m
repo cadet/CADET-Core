@@ -323,10 +323,21 @@ classdef Simulator < handle
 
                     % Taylor path to value in struct
                     if curSens.SENS_COMP ~= -1
+                        s = struct('type', repmat({'.'}, length(acc.path), 1), 'subs', acc.path');
+                        
                         % Attention: SENS_COMP is zero-based
-                        s = struct('type', [repmat({'.'}, length(acc.path), 1); {'()'}], 'subs', [acc.path'; {[{curSens.SENS_COMP + 1}]}]);
+                        if (curSens.SENS_SECTION ~= -1) && (length(subsref(task, s)) >= task.model.NCOMP * task.model.inlet.NSEC)
+                            % Attention: SENS_SECTION is zero-based
+                            s = struct('type', [repmat({'.'}, length(acc.path), 1); {'()'}], 'subs', [acc.path'; {[{curSens.SENS_SECTION * task.model.NCOMP + (curSens.SENS_COMP + 1)}]}]);
+                        else
+                            s = struct('type', [repmat({'.'}, length(acc.path), 1); {'()'}], 'subs', [acc.path'; {[{curSens.SENS_COMP + 1}]}]);                        
+                        end
                     else
                         s = struct('type', repmat({'.'}, length(acc.path), 1), 'subs', acc.path');
+                        if (curSens.SENS_SECTION ~= -1) && (length(subsref(task, s)) >= task.model.inlet.NSEC)
+                            % Attention: SENS_SECTION is zero-based
+                            s = struct('type', [repmat({'.'}, length(acc.path), 1); {'()'}], 'subs', [acc.path'; {[{curSens.SENS_SECTION + 1}]}]);
+                        end
                     end
 
                     % Assign new parameter value

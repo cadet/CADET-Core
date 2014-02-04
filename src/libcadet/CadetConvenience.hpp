@@ -32,8 +32,8 @@ namespace cadet
 class CadetConstants
 {
 public:
-    /// \brief Set all default constants that depend on ncomp, ncol, npar
-    CadetConstants(int ncomp, int ncol, int npar);
+    /// \brief Set all default constants that depend on ncomp, ncol, npar, nsec
+    CadetConstants(int ncomp, int ncol, int npar, int nsec);
 
     // Inline getter member functions ...
     // ... for basic discretization parameters
@@ -41,6 +41,7 @@ public:
     inline int    ncol()      const { return _ncol; }
     inline int    npar()      const { return _npar; }
     inline int    nbnd()      const { return _nbnd; }
+    inline int    nsec()      const { return _nsec; }
 
     inline int    nstatec()   const { return _nstatec; }
     inline int    nstateq()   const { return _nstateq; }
@@ -128,6 +129,7 @@ private:
     int _ncol;      //!< Number of spatial discretization on column level
     int _npar;      //!< Number of spatial discretization on particle level
     int _nbnd;      //!< Number of spatial discretization on boundary level
+    int _nsec;      //!< Number of sections
 
     int _nstatec;   //!< Number of mobile states a species in the bead can be in
     int _nstateq;   //!< Number of bound states a species in the bead can be in (e.g. q_1, q_2 ...)

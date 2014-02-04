@@ -40,9 +40,9 @@ public:
 
         for (int comp = 0; comp < _cc.ncomp(); ++comp)
         {
-            addParam(Parameter<active> (MCL_KA,   e2s(MCL_KA),   comp, 0.0, 0.0, 0.0, false, inf, true));
-            addParam(Parameter<active> (MCL_KD,   e2s(MCL_KD),   comp, 0.0, 0.0, 0.0, false, inf, true));
-            addParam(Parameter<active> (MCL_QMAX, e2s(MCL_QMAX), comp, 0.0, 0.0, 0.0, false, inf, true));
+            addParam(Parameter<active> (MCL_KA,   e2s(MCL_KA),   comp, -1, 0.0, 0.0, 0.0, false, inf, true));
+            addParam(Parameter<active> (MCL_KD,   e2s(MCL_KD),   comp, -1, 0.0, 0.0, 0.0, false, inf, true));
+            addParam(Parameter<active> (MCL_QMAX, e2s(MCL_QMAX), comp, -1, 0.0, 0.0, 0.0, false, inf, true));
         }
 
         log::emit<Trace1>() << CURRENT_FUNCTION << Color::green << ": Finished!" << Color::reset << log::endl;

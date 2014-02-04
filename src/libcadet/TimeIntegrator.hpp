@@ -68,7 +68,7 @@ public:
     void getSolutionColumnInlet(std::vector<double>& userVector, const int comp) const throw (CadetException);
     /// \brief Returns the sensitivity at the column outlet (sensogram) w.r.t. a given
     ///        parameter and component
-    void getSensitivityColumnOutlet(std::vector<double>& userVector, const ParamID param, const int comp) const throw (CadetException);
+    void getSensitivityColumnOutlet(std::vector<double>& userVector, const ParamID param, const int comp, const int sec = -1) const throw (CadetException);
 
     void printIntegratorStats() const;
     void printConfiguration() const;

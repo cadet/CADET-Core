@@ -346,6 +346,7 @@ private:
 
     std::vector<ParameterName>  _sensParamIds;
     std::vector<int>            _sensComps;
+    std::vector<int>            _sensSecs;
     std::vector<std::string>    _sensNames;
     std::vector<double>         _sensFdDeltaAbs;    //!< A vector holding the absolute values of the disturbances used in finite difference sensitivity computation
 
@@ -476,17 +477,17 @@ void CadetCS<reader_t, writer_t>::setupInstance()
     _ncol  = _reader.template scalar<int>(e2s(NCOL));
     _npar  = _reader.template scalar<int>(e2s(NPAR));
 
+    _reader.setGroup(e2s(GRP_IN_INLET));
+    _nsec  = _reader.template scalar<int>(e2s(NSEC));
+
     for (std::size_t sim = 0; sim < _nsim; ++sim)
-        _sim.push_back(new Simulator(_ncomp, _ncol, _npar, _adsType, _chromType));
+        _sim.push_back(new Simulator(_ncomp, _ncol, _npar, _nsec, _adsType, _chromType));
     // ============================================================================================================
 
 
     // ============================================================================================================
     //    Create as many instances of inletParams as needed
     // ============================================================================================================
-    _reader.setGroup(e2s(GRP_IN_INLET));
-    _nsec = _reader.template scalar<int>(e2s(NSEC));
-
     for (std::size_t sim = 0; sim < _nsim; ++sim)
         _inletParams.push_back(new inletParams(_ncomp, _nsec));
     // ============================================================================================================
@@ -715,20 +716,88 @@ void CadetCS<reader_t, writer_t>::setParameters()
 
         // Chromatography model parameters
         _reader.setGroup(e2s(GRP_IN_MODEL));
-        (*sim)->setParameterValue(_reader.template scalar<double>(e2s(VELOCITY)), VELOCITY);
 
-        (*sim)->setParameterValue(_reader.template scalar<double>(e2s(COL_LENGTH)    ), COL_LENGTH);
-        (*sim)->setParameterValue(_reader.template scalar<double>(e2s(COL_POROSITY)  ), COL_POROSITY);
-        (*sim)->setParameterValue(_reader.template scalar<double>(e2s(COL_DISPERSION)), COL_DISPERSION);
+        // Check for section dependent column dispersion
+        bool secDep = _reader.isVector(e2s(COL_DISPERSION));
+        (*sim)->setParameterSectionDependent(COL_DISPERSION, secDep);
+        if (secDep)
+        {
+            for (std::size_t i = 0; i < _nsec; ++i)
+                (*sim)->setParameterValue(_reader.template scalar<double>(e2s(COL_DISPERSION), i), COL_DISPERSION, -1, i);
+        }
+        else
+        {
+            (*sim)->setParameterValue(_reader.template scalar<double>(e2s(COL_DISPERSION)), COL_DISPERSION);
+        }
 
+        // Check for section dependent velocity
+        secDep = _reader.isVector(e2s(VELOCITY));
+        (*sim)->setParameterSectionDependent(VELOCITY, secDep);
+        if (secDep)
+        {
+            for (int i = 0; i < _nsec; ++i)
+                (*sim)->setParameterValue(_reader.template scalar<double>(e2s(VELOCITY), i), VELOCITY, -1, i);
+        }
+        else
+        {
+            (*sim)->setParameterValue(_reader.template scalar<double>(e2s(VELOCITY)), VELOCITY);
+        }
+
+        (*sim)->setParameterValue(_reader.template scalar<double>(e2s(COL_LENGTH)  ), COL_LENGTH);
+        (*sim)->setParameterValue(_reader.template scalar<double>(e2s(COL_POROSITY)), COL_POROSITY);
         (*sim)->setParameterValue(_reader.template scalar<double>(e2s(PAR_RADIUS)  ), PAR_RADIUS);
         (*sim)->setParameterValue(_reader.template scalar<double>(e2s(PAR_POROSITY)), PAR_POROSITY);
 
-        for (std::size_t comp = 0; comp < _ncomp; ++comp) // vectorial parameters
+        // Vectorial parameters
+        const std::vector<double> filmDiff = _reader.template vector<double>(e2s(FILM_DIFFUSION));
+        if ((filmDiff.size() == _nsec * _ncomp) && (_nsec > 1))
         {
-            (*sim)->setParameterValue(_reader.template scalar<double>(e2s(FILM_DIFFUSION),    comp), FILM_DIFFUSION, comp);
-            (*sim)->setParameterValue(_reader.template scalar<double>(e2s(PAR_DIFFUSION),     comp), PAR_DIFFUSION, comp);
-            (*sim)->setParameterValue(_reader.template scalar<double>(e2s(PAR_SURFDIFFUSION), comp), PAR_SURFDIFFUSION, comp);
+            (*sim)->setParameterSectionDependent(FILM_DIFFUSION, true);
+            for (std::size_t i = 0; i < _nsec; ++i)
+            {
+                for (std::size_t comp = 0; comp < _ncomp; ++comp)
+                    (*sim)->setParameterValue(filmDiff[comp + i * _ncomp], FILM_DIFFUSION, comp, i);
+            }
+        }
+        else
+        {
+            (*sim)->setParameterSectionDependent(FILM_DIFFUSION, false);
+            for (std::size_t comp = 0; comp < _ncomp; ++comp)
+                (*sim)->setParameterValue(filmDiff[comp], FILM_DIFFUSION, comp);
+        }
+
+        const std::vector<double> parDiff = _reader.template vector<double>(e2s(PAR_DIFFUSION));
+        if ((parDiff.size() == _nsec * _ncomp) && (_nsec > 1))
+        {
+            (*sim)->setParameterSectionDependent(PAR_DIFFUSION, true);
+            for (std::size_t i = 0; i < _nsec; ++i)
+            {
+                for (std::size_t comp = 0; comp < _ncomp; ++comp)
+                    (*sim)->setParameterValue(parDiff[comp + i * _ncomp], PAR_DIFFUSION, comp, i);
+            }
+        }
+        else
+        {
+            (*sim)->setParameterSectionDependent(PAR_DIFFUSION, false);
+            for (std::size_t comp = 0; comp < _ncomp; ++comp)
+                (*sim)->setParameterValue(parDiff[comp], PAR_DIFFUSION, comp);
+        }
+
+        const std::vector<double> parSurfDiff = _reader.template vector<double>(e2s(PAR_SURFDIFFUSION));
+        if ((parSurfDiff.size() == _nsec * _ncomp) && (_nsec > 1))
+        {
+            (*sim)->setParameterSectionDependent(PAR_SURFDIFFUSION, true);
+            for (std::size_t i = 0; i < _nsec; ++i)
+            {
+                for (std::size_t comp = 0; comp < _ncomp; ++comp)
+                    (*sim)->setParameterValue(parSurfDiff[comp + i * _ncomp], PAR_SURFDIFFUSION, comp, i);
+            }
+        }
+        else
+        {
+            (*sim)->setParameterSectionDependent(PAR_SURFDIFFUSION, false);
+            for (std::size_t comp = 0; comp < _ncomp; ++comp)
+                (*sim)->setParameterValue(parSurfDiff[comp], PAR_SURFDIFFUSION, comp);
         }
 
         // Adsorption model parameters
@@ -859,7 +928,7 @@ void CadetCS<reader_t, writer_t>::setSensitivities()
             }
 
             // Set the parameter sensitive
-            _sim.at(0)->setSensitiveParameter(paramId, absTolS, comp);
+            _sim.at(0)->setSensitiveParameter(paramId, absTolS, comp, sec);
 
             break;
         // ============================================================================================================
@@ -897,8 +966,8 @@ void CadetCS<reader_t, writer_t>::setSensitivities()
             else
             {
                 // Care about chromatography and adsorption parameters
-                paramValue = _sim.at(sim)->getParameterValue(paramId, comp);
-                _sim.at(sim)->setParameterValue(paramValue * (1 + fdDelta), paramId, comp);
+                paramValue = _sim.at(sim)->getParameterValue(paramId, comp, sec);
+                _sim.at(sim)->setParameterValue(paramValue * (1 + fdDelta), paramId, comp, sec);
                 fdDeltaAbs = fdDelta * paramValue;
             }
 
@@ -943,9 +1012,9 @@ void CadetCS<reader_t, writer_t>::setSensitivities()
             else
             {
                 // Care about chromatography and adsorption parameters
-                paramValue = _sim.at(sim)->getParameterValue(paramId, comp);
-                _sim.at(sim + 0)->setParameterValue(paramValue * (1 + fdDelta), paramId, comp);
-                _sim.at(sim + 1)->setParameterValue(paramValue * (1 - fdDelta), paramId, comp);
+                paramValue = _sim.at(sim)->getParameterValue(paramId, comp, sec);
+                _sim.at(sim + 0)->setParameterValue(paramValue * (1 + fdDelta), paramId, comp, sec);
+                _sim.at(sim + 1)->setParameterValue(paramValue * (1 - fdDelta), paramId, comp, sec);
                 fdDeltaAbs = fdDelta * paramValue;
             }
 
@@ -998,11 +1067,11 @@ void CadetCS<reader_t, writer_t>::setSensitivities()
             else
             {
                 // Care about chromatography and adsorption parameters
-                paramValue = _sim.at(sim)->getParameterValue(paramId, comp);
-                _sim.at(sim + 0)->setParameterValue(paramValue * (1 + fdDelta * 2), paramId, comp);
-                _sim.at(sim + 1)->setParameterValue(paramValue * (1 + fdDelta)    , paramId, comp);
-                _sim.at(sim + 2)->setParameterValue(paramValue * (1 - fdDelta)    , paramId, comp);
-                _sim.at(sim + 3)->setParameterValue(paramValue * (1 - fdDelta * 2), paramId, comp);
+                paramValue = _sim.at(sim)->getParameterValue(paramId, comp, sec);
+                _sim.at(sim + 0)->setParameterValue(paramValue * (1 + fdDelta * 2), paramId, comp, sec);
+                _sim.at(sim + 1)->setParameterValue(paramValue * (1 + fdDelta)    , paramId, comp, sec);
+                _sim.at(sim + 2)->setParameterValue(paramValue * (1 - fdDelta)    , paramId, comp, sec);
+                _sim.at(sim + 3)->setParameterValue(paramValue * (1 - fdDelta * 2), paramId, comp, sec);
                 fdDeltaAbs = fdDelta * paramValue;
             }
 
@@ -1017,6 +1086,7 @@ void CadetCS<reader_t, writer_t>::setSensitivities()
         // Store sensitive parameter associated data for later extraction
         _sensParamIds.push_back(paramId);
         _sensComps.push_back(comp);
+        _sensSecs.push_back(sec);
         _sensFdDeltaAbs.push_back(fdDeltaAbs);
     }
 
@@ -1072,15 +1142,16 @@ void CadetCS<reader_t, writer_t>::simulate()
             (*sim)->setSolutionTimes(_solutionTimes);
             (*sim)->initialize(_reader.template vector<double>(e2s(INIT_C)), _reader.template vector<double>(e2s(INIT_Q)));
 
-            log::emit<Debug1>() << "Initial conditions for sens. " << _sensNames.at(sens) << "[" << _sensComps.at(sens) << "]"<<
-                    " in FD run " << run << " set!" << log::endl;
+            log::emit<Debug1>() << "Initial conditions for sens. " << _sensNames.at(sens) << "[comp " << _sensComps.at(sens)
+                    << ", sec " << _sensSecs.at(sens) << "]" <<" in FD run " << run << " set!" << log::endl;
             // ============================================================================================================
 
 
             // ============================================================================================================
             //    Solve the finite difference systems
             // ============================================================================================================
-            log::emit<Info>() << "FD run #" << run << ": " << _sensNames.at(sens) << "[" << _sensComps.at(sens) << "]" << log::endl;
+            log::emit<Info>() << "FD run #" << run << ": " << _sensNames.at(sens) << "[comp " << _sensComps.at(sens) 
+                    << ", sec " << _sensSecs.at(sens) << "]" << log::endl;
             (*sim)->integrate();
             // ============================================================================================================
 
@@ -1207,7 +1278,7 @@ void CadetCS<reader_t, writer_t>::extractSolutionData()
         for (std::size_t sens = 0; sens < _nsens; ++sens)
             for (std::size_t comp = 0; comp < _ncomp; ++comp)
                 _sim.at(0)->getSensitivityColumnOutlet(_sensitivityColumnOutlet.at(sens).at(comp),
-                        comp, _sensParamIds.at(sens), _sensComps.at(sens));
+                        comp, _sensParamIds.at(sens), _sensComps.at(sens), _sensSecs.at(sens));
         break;
 
     case FINITE_DIFFERENCES_1: // Forward difference, 1st order
@@ -1472,7 +1543,7 @@ void CadetCS<reader_t, writer_t>::writeOutput()
     // Close the file
     _writer.closeFile();
 
-    log::emit() << "done." << log::endl;
+    log::emit<Info>() << "done." << log::endl;
     // ============================================================================================================
 }
 

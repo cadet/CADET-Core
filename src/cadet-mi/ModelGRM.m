@@ -134,14 +134,30 @@ classdef ModelGRM < handle
             ok = Helpers.checkNonnegativeVector(obj.initialSolidConcentration, obj.nComponents, 'initialSolidConcentration') && ok;
             
             % Transport
-            ok = Helpers.checkNonnegativeScalar(obj.dispersionColumn, 'dispersionColumn') && ok;
-            ok = Helpers.checkPositiveScalar(obj.interstitialVelocity, 'interstitialVelocity') && ok;
+            if any(obj.dispersionColumn) < 0
+                ok = false;
+                disp(['Error: Each entry of dispersionColumn has to be nonnegative, i.e., greater than or equal 0']);
+            end
+            if (length(obj.dispersionColumn) ~= length(obj.sectionTimes) - 1) && ~isscalar(obj.dispersionColumn)
+                ok = false;
+                disp(['Error: dispersionColumn has to be scalar or a vector of length ' num2str(length(obj.sectionTimes) - 1)]);
+            end
+            
+            if any(obj.interstitialVelocity <= 0)
+                ok = false;
+                disp(['Error: Each entry of interstitialVelocity has to be positive, i.e., greater than 0']);
+            end
+            if (length(obj.interstitialVelocity) ~= length(obj.sectionTimes) - 1) && ~isscalar(obj.interstitialVelocity)
+                ok = false;
+                disp(['Error: interstitialVelocity has to be scalar or a vector of length ' num2str(length(obj.sectionTimes) - 1)]);
+            end
+
             ok = Helpers.checkNonnegativeScalar(obj.porosityColumn, 'porosityColumn') && ok;
             ok = Helpers.checkNonnegativeScalar(obj.porosityParticle, 'porosityParticle') && ok;
-
-            ok = Helpers.checkNonnegativeVector(obj.filmDiffusion, obj.nComponents, 'filmDiffusion') && ok;
-            ok = Helpers.checkNonnegativeVector(obj.diffusionParticle, obj.nComponents, 'diffusionParticle') && ok;
-            ok = Helpers.checkNonnegativeVector(obj.diffusionParticleSurface, obj.nComponents, 'diffusionParticleSurface') && ok;
+            
+            ok = Helpers.checkNonnegativeVector(obj.filmDiffusion, obj.nComponents .* [1, length(obj.sectionTimes)-1], 'filmDiffusion') && ok;
+            ok = Helpers.checkNonnegativeVector(obj.diffusionParticle, obj.nComponents .* [1, length(obj.sectionTimes)-1], 'diffusionParticle') && ok;
+            ok = Helpers.checkNonnegativeVector(obj.diffusionParticleSurface, obj.nComponents .* [1, length(obj.sectionTimes)-1], 'diffusionParticleSurface') && ok;
 
             % Geometry
             ok = Helpers.checkPositiveScalar(obj.columnLength, 'columnLength') && ok;
@@ -550,25 +566,25 @@ classdef ModelGRM < handle
                 return;
             end
             
-            if strcmpi(paramName, 'CONST_COEFF')
+            if strcmpi(paramName, 'CONST_COEFF') || strcmpi(paramName, 'sectionconstant')
                 result = true;
                 path = 'model.inlet.sec_%03d.CONST_COEFF';
                 return;
             end
                 
-            if strcmpi(paramName, 'LIN_COEFF')
+            if strcmpi(paramName, 'LIN_COEFF') || strcmpi(paramName, 'sectionlinear')
                 result = true;
                 path = 'model.inlet.sec_%03d.LIN_COEFF';
                 return;
             end
             
-            if strcmpi(paramName, 'QUAD_COEFF')
+            if strcmpi(paramName, 'QUAD_COEFF') || strcmpi(paramName, 'sectionquadratic')
                 result = true;
                 path = 'model.inlet.sec_%03d.QUAD_COEFF';
                 return;
             end
             
-            if strcmpi(paramName, 'CUBE_COEFF')
+            if strcmpi(paramName, 'CUBE_COEFF') || strcmpi(paramName, 'sectioncubic')
                 result = true;
                 path = 'model.inlet.sec_%03d.CUBE_COEFF';
                 return;

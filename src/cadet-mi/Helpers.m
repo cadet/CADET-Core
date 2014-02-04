@@ -81,7 +81,7 @@ classdef Helpers
 
         function ok = checkPositiveVector(val, len, name)
             ok = true;
-            if length(val(:)) ~= len
+            if ~any(length(val(:)) == len)
                 ok = false;
                 disp(['Error: ' name ' has to be a vector of length ' num2str(len)]);
             end
@@ -93,7 +93,7 @@ classdef Helpers
 
         function ok = checkNonnegativeVector(val, len, name)
             ok = true;
-            if length(val(:)) ~= len
+            if ~any(length(val(:)) == len)
                 ok = false;
                 disp(['Error: ' name ' has to be a vector of length ' num2str(len)]);
             end

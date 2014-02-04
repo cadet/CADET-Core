@@ -40,7 +40,7 @@ class Parameter
 public:
 
     // Constructor
-    Parameter(ParameterName id, const std::string& name, const int comp, const double value, const double absTolS,
+    Parameter(ParameterName id, const std::string& name, const int comp, const int sec, const double value, const double absTolS,
               const double lowerbound, const bool lowerbndstrict,
               const double upperbound, const bool upperbndstrict);
 
@@ -58,13 +58,14 @@ public:
     inline ParameterName getId() const { return _id; }
     inline const std::string& getName() const { return _name; }
     inline int getComp() const { return _comp; }
+    inline int getSec() const { return _sec; }
     inline double getAbsTolS() const { return _absTolS; }
     inline void setAbsTolS(double absTolS) { _absTolS = absTolS; }
     inline void setSensitive() { _issensitive = true; }
     inline void resetSensitive() { _issensitive = false; }
     inline bool isSensitive() const { return _issensitive; }
 
-    // Check if parameter has a meaningful value
+    // Check if parameter has a valid and meaningful value
     bool check() const;
 
     // GetValue() and setValue() need to be implemented for any ParamType
@@ -86,6 +87,7 @@ private:
     ParameterName   _id;
     ParamType       _value;
     int             _comp;            //!< chemical component index. -1 if global
+    int             _sec;             //!< section index. -1 if global
     double          _absTolS;         //!< absolute tolerance for sensitivity computation
     double          _lowerbound;
     double          _upperbound;
@@ -119,12 +121,13 @@ std::ostream& operator<<(std::ostream& out, const Parameter<ParamType>& p)
 
 // Constructor
 template <typename ParamType>
-Parameter<ParamType>::Parameter(ParameterName id, const std::string& name, const int comp, const double value, const double absTolS,
+Parameter<ParamType>::Parameter(ParameterName id, const std::string& name, const int comp, const int sec, const double value, const double absTolS,
         const double lowerbound, const bool lowerbndstrict,
         const double upperbound, const bool upperbndstrict) :
     _id             (id),
     _value          (value),
     _comp           (comp),
+    _sec            (sec),
     _absTolS        (absTolS),
     _lowerbound     (lowerbound),
     _upperbound     (upperbound),
@@ -149,6 +152,7 @@ Parameter<ParamType>::Parameter(const Parameter<ParamType>& p) :
     _id             (p._id),
     _value          (p._value),
     _comp           (p._comp),
+    _sec            (p._sec),
     _absTolS        (p._absTolS),
     _lowerbound     (p._lowerbound),
     _upperbound     (p._upperbound),
@@ -185,6 +189,7 @@ const Parameter<ParamType>& Parameter<ParamType>::operator=(const Parameter<Para
     _id             = p._id;
     _value          = p._value;
     _comp           = p._comp;
+    _sec            = p._sec;
     _absTolS        = p._absTolS;
     _lowerbound     = p._lowerbound;
     _upperbound     = p._upperbound;
@@ -221,6 +226,7 @@ const std::string Parameter<ParamType>::info() const
     info                 << std::setw(17) << std::left  << _name.substr(0,17);
     info << " | Id: "    << std::setw(3)  << std::right << _id;
     info << " | Comp: "  << std::setw(3)  << _comp;
+    info << " | Sec: "   << std::setw(3)  << _sec;
     info << " | Value: " << std::setw(9)  << getValue<double> ();
     info << " | Type: "  << std::setw(8)  << _type();
     info << " | LB: "    << std::setw(3)  << _lowerbound;
@@ -265,12 +271,13 @@ inline std::string Parameter<double>::_type() const
 
 // Constructor specialization
 template <>
-inline Parameter<active>::Parameter(ParameterName id, const std::string& name, const int comp, const double value, const double absTolS,
+inline Parameter<active>::Parameter(ParameterName id, const std::string& name, const int comp, const int sec, const double value, const double absTolS,
         const double lowerbound, const bool lowerbndstrict,
         const double upperbound, const bool upperbndstrict) :
     _id             (id),
     _value          (value),
     _comp           (comp),
+    _sec            (sec),
     _absTolS        (absTolS),
     _lowerbound     (lowerbound),
     _upperbound     (upperbound),

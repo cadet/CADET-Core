@@ -33,8 +33,14 @@ int main(int argc, char** argv)
     using namespace cadet;
     int ncomp = 1;
     std::cout << "Creating simulator... ";
-    Simulator sim(ncomp, 16, 4, MULTI_COMPONENT_LANGMUIR, GENERAL_RATE_MODEL);
+    Simulator sim(ncomp, 16, 4, 1, MULTI_COMPONENT_LANGMUIR, GENERAL_RATE_MODEL);
     std::cout << "done." << std::endl;
+
+    sim.setParameterSectionDependent(VELOCITY,          false);
+    sim.setParameterSectionDependent(COL_DISPERSION,    false);
+    sim.setParameterSectionDependent(PAR_DIFFUSION,     false);
+    sim.setParameterSectionDependent(FILM_DIFFUSION,    false);
+    sim.setParameterSectionDependent(PAR_SURFDIFFUSION, false);
 
     sim.setParameterValue(5.75e-4,  VELOCITY);                // Chromatography model parameters
     sim.setParameterValue(0.014,    COL_LENGTH);
@@ -57,8 +63,11 @@ int main(int argc, char** argv)
 
 
     inletParams inPar;
-    sim.setInletProfile(&inPar);                                // Register class that implements the inlet concentration function
-    init.push_back(12000);                                    // Make init the section times vector
+    sim.setInletProfile(&inPar);                              // Register class that implements the inlet concentration function
+
+    init.clear();                                             // Make init the section times vector
+    init.push_back(0);
+    init.push_back(12000);
     sim.setSectionTimes(init);                                // Set section times vector
 
     std::cout << "Start simulation... ";

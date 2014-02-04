@@ -42,6 +42,10 @@ public:
     void calcICSens(const double t);
 
     void specialSetup();
+    void sectionSetup(int section, double t);
+
+    // sets the section dependence of a parameter (group)
+    virtual void setParameterSectionDependent(const ParameterName id, bool depends);
 
 private:
 
@@ -67,7 +71,7 @@ private:
     template <typename ResidType, typename ParamType>
     int residualBoundaries(const double* y, const double* ydot, ResidType* res) throw (CadetException);
 
-    void assembleOffdiagJac() throw (CadetException);
+    void assembleOffdiagJac(int section, double t) throw (CadetException);
 
     template <typename ParamType>
     void setInletParamDerivatives(std::vector<ParamType>& concInlet);
@@ -78,6 +82,12 @@ private:
     const WenoScheme&       _ws;
     std::vector<double>     _c_in;
     std::vector<std::vector<double> > _dc_indp;
+
+    bool        _secDepVelocity;
+    bool        _secDepColDispersion;
+    bool        _secDepParDiffusion;
+    bool        _secDepParSurfDiffusion;
+    bool        _secDepFilmDiffusion;
 
     void dFdy_times_s(N_Vector NV_s, N_Vector NV_ret);
     void dFdyDot_times_sDot(N_Vector NV_sDot, N_Vector NV_ret);

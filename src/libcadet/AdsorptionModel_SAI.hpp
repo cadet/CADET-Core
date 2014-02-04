@@ -35,15 +35,15 @@ public:
 
         double inf = std::numeric_limits<double>::infinity();
 
-        addParam(Parameter<active> (SAI_LAMBDA, e2s(SAI_LAMBDA), -1, 0.0, 0.0, 0.0, false, inf, true));
+        addParam(Parameter<active> (SAI_LAMBDA, e2s(SAI_LAMBDA), -1, -1, 0.0, 0.0, 0.0, false, inf, true));
 
         for (int comp = 0; comp < _cc.ncomp(); ++comp)
         {
-            addParam(Parameter<active> (SAI_KA1,   e2s(SAI_KA1),   comp, 0.0, 0.0, 0.0, false, inf, true));
-            addParam(Parameter<active> (SAI_KA2,   e2s(SAI_KA2),   comp, 0.0, 0.0, 0.0, false, inf, true));
-            addParam(Parameter<active> (SAI_KD,    e2s(SAI_KD),    comp, 0.0, 0.0, 0.0, false, inf, true));
-            addParam(Parameter<active> (SAI_NU,    e2s(SAI_NU),    comp, 0.0, 0.0, 0.0, false, inf, true));
-            addParam(Parameter<active> (SAI_SIGMA, e2s(SAI_SIGMA), comp, 0.0, 0.0, 0.0, false, inf, true));
+            addParam(Parameter<active> (SAI_KA1,   e2s(SAI_KA1),   comp, -1, 0.0, 0.0, 0.0, false, inf, true));
+            addParam(Parameter<active> (SAI_KA2,   e2s(SAI_KA2),   comp, -1, 0.0, 0.0, 0.0, false, inf, true));
+            addParam(Parameter<active> (SAI_KD,    e2s(SAI_KD),    comp, -1, 0.0, 0.0, 0.0, false, inf, true));
+            addParam(Parameter<active> (SAI_NU,    e2s(SAI_NU),    comp, -1, 0.0, 0.0, 0.0, false, inf, true));
+            addParam(Parameter<active> (SAI_SIGMA, e2s(SAI_SIGMA), comp, -1, 0.0, 0.0, 0.0, false, inf, true));
         }
 
         log::emit<Trace1>() << CURRENT_FUNCTION << Color::green << ": Finished!" << Color::reset << log::endl;

@@ -45,27 +45,41 @@ public:
     /// The parameter must have been created before
     void addParam(const Parameter<ParamType>& param);
 
-    /// \brief Returns a refernce to the parameter named 'pname' describing the component 'comp'
-    /// comp is by default -1 (parameter does not depend on any component)
-    const Parameter<ParamType>& getParam(const ParameterName id, int comp = -1) const throw (CadetException);
+    /// \brief Removes a parameter from the container
+    void removeParam(const Parameter<ParamType>& param);
+
+    /// \brief Removes all matching parameters from the container
+    void removeParam(const ParameterName id, int comp = -1, int sec = -1);
+
+    /// \brief Removes all matching parameters from the container
+    void removeParamsOfSection(const ParameterName id, int sec);
+
+    /// \brief Returns a refernce to the parameter named 'pname' describing the component 'comp' in section 'sec'
+    /// by default, comp and sec are -1 (parameter does not depend on any component and section)
+    const Parameter<ParamType>& getParam(const ParameterName id, int comp = -1, int sec = -1) const throw (CadetException);
     Parameter<ParamType>& getParam(const ParamID& param) throw (CadetException);
 
-    /// \brief Set the value of the parameter named 'pname' describing the component 'comp'
-    /// comp is by default -1 (parameter does not depend on any component)
-    void setValue(double value, const ParameterName id, int comp = -1) throw (CadetException);
+    /// \brief Set the value of the parameter named 'pname' describing the component 'comp' in section 'sec'
+    /// by default, comp and sec are -1 (parameter does not depend on any component and section)
+    void setValue(double value, const ParameterName id, int comp = -1, int sec = -1) throw (CadetException);
 
-    /// \brief Get the value of the parameter named 'pname' describing the component 'comp'
-    /// comp is by default -1 (parameter does not depend on any component)
+    /// \brief Get the value of the parameter named 'pname' describing the component 'comp' in section 'sec'
+    /// by default, comp and sec are -1 (parameter does not depend on any component and section)
     template<typename ReturnType>
-    const ReturnType& getValue(const ParameterName id, int comp = -1) const throw (CadetException);
+    const ReturnType& getValue(const ParameterName id, int comp = -1, int sec = -1) const throw (CadetException);
 
-    /// \brief Get the values of the parameter named 'pname' for all components
+    /// \brief Get the values of the parameter named 'pname' for all components in section 'sec'
+    /// by default, sec is -1 (parameters do not depend on any section)
     template <typename ReturnType>
-    const std::vector<ReturnType> getValueForAllComp(const ParameterName id) const;
+    const std::vector<ReturnType> getValueForAllComp(const ParameterName id, int sec = -1) const;
+
+    /// \brief Get the values of the parameter named 'pname' for all components and sections
+    template <typename ReturnType>
+    const std::vector<ReturnType> getValueForAllCompAndSec(const ParameterName id) const;
 
     /// \brief Mark the parameter named 'pname' describing the component 'comp' as sensitive
-    /// comp is by default -1 (parameter does not depend on any component)
-    void setSensitive(const ParameterName id, double absTolS = 1e-5, int comp = -1) throw (CadetException);
+    /// by default, comp and sec are -1 (parameter does not depend on any component and section)
+    void setSensitive(const ParameterName id, double absTolS = 1e-5, int comp = -1, int sec = -1) throw (CadetException);
 
     /// \brief Mark all parameters as non sensitive
     void resetSensParams();
@@ -82,6 +96,9 @@ public:
     /// \brief Get the component numbers of all parameters marked sensitive in the map
     const std::vector<int> getSensParamComps() const;
 
+    /// \brief Get the section numbers of all parameters marked sensitive in the map
+    const std::vector<int> getSensParamSecs() const;
+
     /// \brief Get the number of parameters marked sensitive in the map
     int getNumSens() const;
 
@@ -93,8 +110,8 @@ public:
     // A string containing info on all hold parameters
     const std::string info() const;
 
-    /// \brief Check if the parameter 'pname' with component 'comp' is contained in our map
-    bool contains(const ParameterName id, int comp = -1);
+    /// \brief Check if the parameter 'pname' with component 'comp' and section 'sec' is contained in our map
+    bool contains(const ParameterName id, int comp = -1, int sec = -1);
     bool contains(const ParamID& param);
 
 protected:
@@ -150,7 +167,7 @@ void ParameterContainer<ParamType>::addParam(const Parameter<ParamType>& param)
 {
     log::emit<Trace2>() << CURRENT_FUNCTION << Color::cyan << ": Called!" << Color::reset << log::endl;
 
-    ParamID id = ParamID(param.getId(), param.getComp());
+    ParamID id = ParamID(param.getId(), param.getComp(), param.getSec());
     _params.insert(std::pair<ParamID, Parameter<ParamType> >(id, param));
 
     log::emit<Trace2>() << CURRENT_FUNCTION << Color::green << ": Finished!" << Color::reset << log::endl;
@@ -158,11 +175,38 @@ void ParameterContainer<ParamType>::addParam(const Parameter<ParamType>& param)
 
 
 template <typename ParamType>
-const Parameter<ParamType>& ParameterContainer<ParamType>::getParam(const ParameterName id, int comp) const throw (CadetException)
+void ParameterContainer<ParamType>::removeParam(const Parameter<ParamType>& param)
+{
+    _params.erase(ParamID(param.getId(), param.getComp(), param.getSec()));
+}
+
+
+template <typename ParamType>
+void ParameterContainer<ParamType>::removeParam(const ParameterName id, int comp, int sec)
+{
+    _params.erase(ParamID(id, comp, sec));
+}
+
+
+template <typename ParamType>
+void ParameterContainer<ParamType>::removeParamsOfSection(const ParameterName id, int sec)
+{
+    for (auto it = _params.cbegin(); it != _params.cend(); /* no increment */)
+    {
+        if ((std::get<0>(it->first) == id) && (std::get<2>(it->first) == sec))
+            _params.erase(it++);
+        else
+            ++it;
+    }    
+}
+
+
+template <typename ParamType>
+const Parameter<ParamType>& ParameterContainer<ParamType>::getParam(const ParameterName id, int comp, int sec) const throw (CadetException)
 {
     log::emit<Trace2>() << CURRENT_FUNCTION << Color::cyan << ": Called!" << Color::reset << log::endl;
 
-    ConstMapIt it = _params.find(ParamID(id,comp));
+    ConstMapIt it = _params.find(ParamID(id, comp, sec));
 
     if (it != _params.end())
     {
@@ -172,7 +216,7 @@ const Parameter<ParamType>& ParameterContainer<ParamType>::getParam(const Parame
     else
     {
         std::ostringstream ss;
-        ss << "getParam(): Parameter not existent in map: " << e2s(id) << "[" << comp << "]";
+        ss << "getParam(): Parameter not existent in map: " << e2s(id) << "[comp " << comp << ", sec " << sec << "]";
         throw CadetException(ss.str());
     }
 }
@@ -193,25 +237,25 @@ Parameter<ParamType>& ParameterContainer<ParamType>::getParam(const ParamID& par
     else
     {
         std::ostringstream ss;
-        ss << "getParam(): Parameter not existent in map: " << e2s(param.first) << "[" << param.second << "]";
+        ss << "getParam(): Parameter not existent in map: " << e2s(std::get<0>(param)) << "[comp " << std::get<1>(param) << ", sec " << std::get<2>(param) << "]";
         throw CadetException(ss.str());
     }
 }
 
 
 template <typename ParamType>
-void ParameterContainer<ParamType>::setValue(double value, const ParameterName id, int comp) throw (CadetException)
+void ParameterContainer<ParamType>::setValue(double value, const ParameterName id, int comp, int sec) throw (CadetException)
 {
     log::emit<Trace2>() << CURRENT_FUNCTION << Color::cyan << ": Called!" << Color::reset << log::endl;
 
-    MapIt it = _params.find(ParamID(id,comp));
+    MapIt it = _params.find(ParamID(id, comp, sec));
 
     if (it != _params.end())
         it->second.setValue(value);
     else
     {
         std::ostringstream ss;
-        ss << "setValue(): Parameter not existent in map: " << e2s(id) << "[" << comp << "]";
+        ss << "setValue(): Parameter not existent in map: " << e2s(id) << "[comp " << comp << ", sec" << sec << "]";
         throw CadetException(ss.str());
     }
 
@@ -220,11 +264,11 @@ void ParameterContainer<ParamType>::setValue(double value, const ParameterName i
 
 
 template <typename ParamType> template<typename ReturnType>
-const ReturnType & ParameterContainer<ParamType>::getValue(const ParameterName id, int comp) const throw (CadetException)
+const ReturnType & ParameterContainer<ParamType>::getValue(const ParameterName id, int comp, int sec) const throw (CadetException)
 {
     log::emit<Trace2>() << CURRENT_FUNCTION << Color::cyan << ": Called!" << Color::reset << log::endl;
 
-    ConstMapIt it = _params.find(ParamID(id,comp));
+    ConstMapIt it = _params.find(ParamID(id, comp, sec));
 
     if (it != _params.end())
     {
@@ -234,31 +278,46 @@ const ReturnType & ParameterContainer<ParamType>::getValue(const ParameterName i
     else
     {
         std::ostringstream ss;
-        ss << "getValue(): Parameter not existent in map: " << e2s(id) << "[" << comp << "]";
+        ss << "getValue(): Parameter not existent in map: " << e2s(id) << "[comp " << comp << ", sec " << sec << "]";
         throw CadetException(ss.str());
     }
 }
 
 template <typename ParamType> template <typename ReturnType>
-const std::vector<ReturnType> ParameterContainer<ParamType>::getValueForAllComp(const ParameterName id) const
+const std::vector<ReturnType> ParameterContainer<ParamType>::getValueForAllComp(const ParameterName id, int sec) const
 {
     log::emit<Trace2>() << CURRENT_FUNCTION << Color::cyan << ": Called!" << Color::reset << log::endl;
 
     std::vector<ReturnType> retAllComp(_cc.ncomp());
     for (int i = 0; i < _cc.ncomp(); ++i)
-        retAllComp.at(i) = getValue<ReturnType>(id, i);
+        retAllComp.at(i) = getValue<ReturnType>(id, i, sec);
 
     log::emit<Trace2>() << CURRENT_FUNCTION << Color::green << ": Finished!" << Color::reset << log::endl;
     return retAllComp;
 }
 
-
-template<typename ParamType>
-void ParameterContainer<ParamType>::setSensitive(const ParameterName id, double absTolS, int comp) throw (CadetException)
+template <typename ParamType> template <typename ReturnType>
+const std::vector<ReturnType> ParameterContainer<ParamType>::getValueForAllCompAndSec(const ParameterName id) const
 {
     log::emit<Trace2>() << CURRENT_FUNCTION << Color::cyan << ": Called!" << Color::reset << log::endl;
 
-    MapIt it = _params.find(ParamID(id,comp));
+    std::vector<ReturnType> retAllComp(_cc.ncomp() * _cc.nsec());
+    for (int i = 0; i < _cc.nsec(); ++i)
+    {
+        for (int j = 0; j < _cc.ncomp(); ++j)
+            retAllComp.at(i * _cc.ncomp() + j) = getValue<ReturnType>(id, i, j);
+    }
+
+    log::emit<Trace2>() << CURRENT_FUNCTION << Color::green << ": Finished!" << Color::reset << log::endl;
+    return retAllComp;
+}
+
+template<typename ParamType>
+void ParameterContainer<ParamType>::setSensitive(const ParameterName id, double absTolS, int comp, int sec) throw (CadetException)
+{
+    log::emit<Trace2>() << CURRENT_FUNCTION << Color::cyan << ": Called!" << Color::reset << log::endl;
+
+    MapIt it = _params.find(ParamID(id, comp, sec));
 
     if (it != _params.end())
     {
@@ -268,7 +327,7 @@ void ParameterContainer<ParamType>::setSensitive(const ParameterName id, double 
     else
     {
         std::ostringstream ss;
-        ss << "setSensitive(): Parameter not existent in map: " << e2s(id) << "[" << comp << "]";
+        ss << "setSensitive(): Parameter not existent in map: " << e2s(id) << "[comp " << comp << ", sec " << sec << "]";
         throw CadetException(ss.str());
     }
 
@@ -360,6 +419,23 @@ const std::vector<int> ParameterContainer<ParamType>::getSensParamComps() const
 
 
 template <typename ParamType>
+const std::vector<int> ParameterContainer<ParamType>::getSensParamSecs() const
+{
+    log::emit<Trace2>() << CURRENT_FUNCTION << Color::cyan << ": Called!" << Color::reset << log::endl;
+
+    std::vector<int> sensParamSecs;
+    for (ConstMapIt it = _params.begin(); it != _params.end(); ++it)
+    {
+        if (it->second.isSensitive())
+            sensParamSecs.push_back(it->second.getSec());
+    }
+
+    log::emit<Trace2>() << CURRENT_FUNCTION << Color::green << ": Finished!" << Color::reset << log::endl;
+    return sensParamSecs;
+}
+
+
+template <typename ParamType>
 int ParameterContainer<ParamType>::getNumSens() const
 {
     log::emit<Trace2>() << CURRENT_FUNCTION << Color::cyan << ": Called!" << Color::reset << log::endl;
@@ -402,11 +478,11 @@ const std::string ParameterContainer<ParamType>::info() const
 
 
 template <typename ParamType>
-bool ParameterContainer<ParamType>::contains(const ParameterName id, int comp)
+bool ParameterContainer<ParamType>::contains(const ParameterName id, int comp, int sec)
 {
     log::emit<Trace2>() << CURRENT_FUNCTION << Color::cyan << ": Called!" << Color::reset << log::endl;
 
-    ConstMapIt it = _params.find(ParamID(id,comp));
+    ConstMapIt it = _params.find(ParamID(id, comp, sec));
     if (it != _params.end())
     {
         log::emit<Trace2>() << CURRENT_FUNCTION << Color::green << ": Finished!" << Color::reset << log::endl;

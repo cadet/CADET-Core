@@ -17,7 +17,7 @@
 #include <string>
 #include <vector>
 
-#include "Simulator.hpp"
+#include "CadetEnumeration.hpp"
 #include "hdf5/HDF5Writer.hpp"
 #include "CadetLogger.hpp"
 

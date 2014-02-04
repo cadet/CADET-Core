@@ -21,7 +21,7 @@
 namespace cadet
 {
 
-CadetConstants::CadetConstants(int ncomp, int ncol, int npar) :
+CadetConstants::CadetConstants(int ncomp, int ncol, int npar, int nsec) :
     _max_wk(3)
 {
     // Set basic constants
@@ -29,6 +29,7 @@ CadetConstants::CadetConstants(int ncomp, int ncol, int npar) :
     _ncol = ncol;
     _npar = npar;
     _nbnd = ncol;
+    _nsec = nsec;
 
     _nstatec = 1;
     _nstateq = 1;

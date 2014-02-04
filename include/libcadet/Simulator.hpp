@@ -30,6 +30,7 @@
 
 #include <string>
 #include <vector>
+#include <tuple>
 
 #include "CadetException.hpp"
 #include "CadetEnumeration.hpp"
@@ -93,10 +94,11 @@ public:
     //! \param  [in]    ncomp       The number of chemical species (components) taking part in the separation
     //! \param  [in]    ncol        The number of axial discretization cells in the column
     //! \param  [in]    npar        The number of radial discretization cells in the beads
+    //! \param  [in]    nsec        The number of sections
     //! \param  [in]    adsType     The type of adsorption model used
     //! \param  [in]    chromType   The type of chromatography model used
     //!
-    Simulator(int ncomp, int ncol, int npar, AdsorptionType adsType, ChromatographyType chromType);
+    Simulator(int ncomp, int ncol, int npar, int nsec, AdsorptionType adsType, ChromatographyType chromType);
 
 
     //! \brief Destructor for a Simulator object
@@ -110,17 +112,20 @@ public:
     //!
     //! The value of a parameter can be modified through this setter method.
     //! All potentially sensitive parameters (exept for inlet-parameters) are handled by this method.
-    //! The parameter is identified by its enum name through \p id and its respective component \p comp.
+    //! The parameter is identified by its enum name through \p id, its respective component \p comp,
+    //! and its section \p sec.
     //!
     //!     double  newValue = 2e-3;
     //!     int     comp     = 2;
-    //!     setParameterValue(newValue, MCL_KA, comp);
+    //!     int     sec      = -1;
+    //!     setParameterValue(newValue, MCL_KA, comp, sec);
     //!
     //! \param  [in]    value   The new value assigned to the parameter
     //! \param  [in]    id      The enum name of the parameter
     //! \param  [in]    comp    The chemical species (component) adressed by the parameter
+    //! \param  [in]    sec     The section adressed by the parameter
     //!
-    void setParameterValue(double value, const ParameterName id, int comp = -1);
+    void setParameterValue(double value, const ParameterName id, int comp = -1, int sec = -1);
 
 
     //! \brief Returns the value of a chromatography- or adsorption-model parameter
@@ -131,10 +136,11 @@ public:
     //!
     //! \param  [in]    id      The enum name of the parameter
     //! \param  [in]    comp    The chemical species (component) adressed by the parameter
+    //! \param  [in]    sec     The section adressed by the parameter
     //!
     //! \return The current value of the parameter
     //!
-    double getParameterValue(const ParameterName id, int comp = -1) const;
+    double getParameterValue(const ParameterName id, int comp = -1, int sec = -1) const;
 
 
     //! \brief Sets a parameter sensitive
@@ -146,8 +152,20 @@ public:
     //! \param	[in]	id	    The enum name of the parameter
     //! \param	[in]	absTolS Absolute tolerance used in the sensitivity computation for this parameter
     //! \param  [in]    comp    The chemical species (component) adressed by the parameter
+    //! \param  [in]    sec     The section adressed by the parameter
     //!
-    void setSensitiveParameter(const ParameterName id, double absTolS = 1e-5, int comp = -1);
+    void setSensitiveParameter(const ParameterName id, double absTolS = 1e-5, int comp = -1, int sec = -1);
+
+
+    //! \brief Sets a parameter group section dependent
+    //!
+    //! Some parameters are not section dependent (e.g., the porosities in a General Rate Model).
+    //! Other parameters may be section dependent. This function sets whether they are section dependent.
+    //!
+    //! \param  [in]    id      The enum name of the parameter
+    //! \param  [in]    depends Decides whether this parameter (group) is section dependent
+    //!
+    void setParameterSectionDependent(const ParameterName id, bool depends);
 
 
     //! \brief Sets the maximum number of potentially sensitive parameters in the inlet function
@@ -181,6 +199,13 @@ public:
     //! \return A vector containing the components adressed by the sensitive parameters.
     //!
     std::vector<int> getSensModelParamComps() const;
+
+
+    //! \brief Returns the sections adressed by all parameters set sensitive
+    //!
+    //! \return A vector containing the sections adressed by the sensitive parameters.
+    //!
+    std::vector<int> getSensModelParamSecs() const;
 
 
     //! \brief Returns the number of sensitive parameters
@@ -467,8 +492,8 @@ public:
 
     void getSolutionColumnOutlet(std::vector<double>& userVector, const int comp) const;
     void getSolutionColumnInlet(std::vector<double>& userVector, const int comp) const;
-    void getSensitivityColumnOutlet(std::vector<double>& userVector, const int comp, const std::pair<ParameterName, int>& param) const;
-    void getSensitivityColumnOutlet(std::vector<double>& userVector, const int comp, const ParameterName id, const int paramComp = -1) const;
+    void getSensitivityColumnOutlet(std::vector<double>& userVector, const int comp, const std::tuple<ParameterName, int, int>& param) const;
+    void getSensitivityColumnOutlet(std::vector<double>& userVector, const int comp, const ParameterName id, const int paramComp = -1, const int paramSec = -1) const;
 
 
     // use analytical jacobian implementation for computations instead of automatical derivative information

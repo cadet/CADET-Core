@@ -83,6 +83,10 @@ TimeIntegrator::TimeIntegrator(SimulatorPImpl& sim) :
     // Allocate memory for AD computations
     _yAd    = new active[_cc.neq()];
     _resAd  = new active[_cc.neq()];
+    // ========================================================================================
+
+    // Misc initializations
+    _sec = 0;
 
     log::emit<Trace1>() << CURRENT_FUNCTION << Color::green << ": Finished!" << Color::reset << log::endl;
 }
@@ -505,7 +509,7 @@ void TimeIntegrator::initializeSensitivities() throw (CadetException)
 
         // Collect absolute sensitivities tolerances for inlet parameters
         for (vpc_it it = _sensInletParams.begin(); it < _sensInletParams.end(); ++it)
-            _absTolS[getNSensModelParams() + (it - _sensInletParams.begin())] = _inletParamAbsTolS.at(it->second);
+            _absTolS[getNSensModelParams() + (it - _sensInletParams.begin())] = _inletParamAbsTolS.at(std::get<1>(*it));
 
         IDASensSStolerances(_idaMemBlock, _relTolS, _absTolS);
 
@@ -615,6 +619,9 @@ void TimeIntegrator::integrate() throw (CadetException)
         _psim.getChromatographyModel().calcICSens(_t);
         // =========================================================================
         log::emit<Debug1>() << CURRENT_FUNCTION << ": Consistent initial conditions computed" << log::endl;
+
+        // Update Jacobian
+        _psim.getChromatographyModel().sectionSetup(_sec, _t);
 
         // Inititalize the IDA solver flag
         _solverFlag = IDA_SUCCESS;
@@ -818,17 +825,32 @@ void TimeIntegrator::getSolutionColumnInlet(std::vector<double>& userVector, con
 }
 
 
-void TimeIntegrator::getSensitivityColumnOutlet(std::vector<double>& userVector, const ParamID param, const int comp) const throw (CadetException)
+void TimeIntegrator::getSensitivityColumnOutlet(std::vector<double>& userVector, const ParamID param, const int comp, const int sec) const throw (CadetException)
 {
     // Ensure 0 <= comp < ncomp
     if ((comp >= _cc.ncomp()) || (comp < 0)) throw CadetException("Component out of range!");
+    // Ensure -1 <= sec < nsec
+    if ((sec >= _cc.nsec()) || (sec < -1)) throw CadetException("Section out of range!");
 
     userVector.clear();
     std::vector<ParamID> sensParams(_sensModelParams.begin(), _sensModelParams.end());
     sensParams.insert(sensParams.end(), _sensInletParams.begin(), _sensInletParams.end());
 
-    vpc_it it1 = std::find(sensParams.begin(), sensParams.end(), param);
-    if (it1 == sensParams.end()) throw CadetException("Parameter is not sensitive");
+    ParamID pid = param;
+    if (std::get<0>(param) == INLET_PARAMETER)
+    {
+        // Special treatment of inlet parameters since they use comp as global index and do not have a section
+        pid = ParamID(std::get<0>(param), std::get<1>(param), -2);
+    }
+
+    vpc_it it1 = std::find(sensParams.begin(), sensParams.end(), pid);
+    if (it1 == sensParams.end())
+    {
+        std::ostringstream ss;
+        ss << "getSensitivityColumnOutlet(): Parameter " << e2s(std::get<0>(param)) << "[comp " << std::get<1>(param) << ", sec " << std::get<2>(param) << "] is not sensitive"
+            << "; called with [comp " << comp << ", sec " << sec << "]";
+        throw CadetException(ss.str());
+    }
 
     int parIdx = it1 - sensParams.begin();
     // iterator.begin() + skip sensitivities + skip components
@@ -1183,7 +1205,7 @@ std::vector<ParamID> TimeIntegrator::getSensInletParams() const
     std::vector<ParamID> sensInletParams;
     for (int i = 0; i < getMaxSensInletParams(); ++i)
         if (_inletParamIsSensitive.at(i))
-            sensInletParams.push_back(ParamID(INLET_PARAMETER, i));
+            sensInletParams.push_back(ParamID(INLET_PARAMETER, i, -2));
     return sensInletParams;
 }
 

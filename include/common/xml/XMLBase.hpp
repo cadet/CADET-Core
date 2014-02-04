@@ -50,6 +50,10 @@ public:
     inline bool exists(const std::string& elementName) { return exists(elementName.c_str()); }
     inline bool exists(const char* elementName);
 
+    /// \brief Checks if the given dataset is a vector (i.e., has more than one value)
+    inline bool isVector(const std::string& elementName) { return isVector(elementName.c_str()); }
+    inline bool isVector(const char* elementName);
+
 protected:
 
     xml_document _doc;                          //!< Root of the XML document
@@ -163,6 +167,39 @@ bool XMLBase::exists(const char* elementName)
     bool exists = _groupOpened.node().child(elementName);
     closeGroup();
     return exists;
+}
+
+
+bool XMLBase::isVector(const char* elementName)
+{
+    openGroup();
+
+    // Open dataset and throw if it does not exist
+    xml_node dataset = _groupOpened.node().find_child_by_attribute(_nodeDset.c_str(), _attrName.c_str(), elementName);
+    if (!dataset)
+    {
+        std::ostringstream oss;
+        oss << "Dataset '" << elementName << "' does not exist!";
+        throw CadetException(oss.str());
+    }
+
+    // Read text and attributes
+    size_t rank          = dataset.attribute(_attrRank.c_str()).as_int();
+    std::string dims_str = dataset.attribute(_attrDims.c_str()).value();
+
+    // Get dims and compute buffer size
+    std::vector<std::string> dims_vec = split(dims_str, _dimsSeparator.c_str());
+    int items = 1;
+    for (size_t i = 0; i < rank; ++i)
+    {
+        int j;
+        std::stringstream ss(dims_vec.at(i));
+        ss >> j;
+        items *= j;
+    }
+
+    closeGroup();
+    return items > 1;
 }
 
 

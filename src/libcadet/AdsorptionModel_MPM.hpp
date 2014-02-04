@@ -37,11 +37,11 @@ public:
 
         for (int comp = 0; comp < _cc.ncomp(); ++comp)
         {
-            addParam(Parameter<active> (MPM_KA,    e2s(MPM_KA),    comp, 0.0, 0.0, 0.0, false, inf, true));
-            addParam(Parameter<active> (MPM_KD,    e2s(MPM_KD),    comp, 0.0, 0.0, 0.0, false, inf, true));
-            addParam(Parameter<active> (MPM_QMAX,  e2s(MPM_QMAX),  comp, 0.0, 0.0, 0.0, false, inf, true));
-            addParam(Parameter<active> (MPM_BETA,  e2s(MPM_BETA),  comp, 0.0, 0.0, 0.0, false, inf, true));
-            addParam(Parameter<active> (MPM_GAMMA, e2s(MPM_GAMMA), comp, 0.0, 0.0, 0.0, false, inf, true));
+            addParam(Parameter<active> (MPM_KA,    e2s(MPM_KA),    comp, -1, 0.0, 0.0, 0.0, false, inf, true));
+            addParam(Parameter<active> (MPM_KD,    e2s(MPM_KD),    comp, -1, 0.0, 0.0, 0.0, false, inf, true));
+            addParam(Parameter<active> (MPM_QMAX,  e2s(MPM_QMAX),  comp, -1, 0.0, 0.0, 0.0, false, inf, true));
+            addParam(Parameter<active> (MPM_BETA,  e2s(MPM_BETA),  comp, -1, 0.0, 0.0, 0.0, false, inf, true));
+            addParam(Parameter<active> (MPM_GAMMA, e2s(MPM_GAMMA), comp, -1, 0.0, 0.0, 0.0, false, inf, true));
         }
 
         log::emit<Trace1>() << CURRENT_FUNCTION << Color::green << ": Finished!" << Color::reset << log::endl;

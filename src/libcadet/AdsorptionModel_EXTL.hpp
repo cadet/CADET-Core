@@ -40,18 +40,18 @@ public:
 
         for (int comp = 0; comp < _cc.ncomp(); ++comp)
         {
-            addParam(Parameter<active> (EXTL_KA,       e2s(EXTL_KA),       comp, 0.0, 0.0, -inf, true, inf, true));
-            addParam(Parameter<active> (EXTL_KA_T,     e2s(EXTL_KA_T),     comp, 0.0, 0.0, -inf, true, inf, true));
-            addParam(Parameter<active> (EXTL_KA_TT,    e2s(EXTL_KA_TT),    comp, 0.0, 0.0, -inf, true, inf, true));
-            addParam(Parameter<active> (EXTL_KA_TTT,   e2s(EXTL_KA_TTT),   comp, 0.0, 0.0, -inf, true, inf, true));
-            addParam(Parameter<active> (EXTL_KD,       e2s(EXTL_KD),       comp, 0.0, 0.0, -inf, true, inf, true));
-            addParam(Parameter<active> (EXTL_KD_T,     e2s(EXTL_KD_T),     comp, 0.0, 0.0, -inf, true, inf, true));
-            addParam(Parameter<active> (EXTL_KD_TT,    e2s(EXTL_KD_TT),    comp, 0.0, 0.0, -inf, true, inf, true));
-            addParam(Parameter<active> (EXTL_KD_TTT,   e2s(EXTL_KD_TTT),   comp, 0.0, 0.0, -inf, true, inf, true));
-            addParam(Parameter<active> (EXTL_QMAX,     e2s(EXTL_QMAX),     comp, 0.0, 0.0, -inf, true, inf, true));
-            addParam(Parameter<active> (EXTL_QMAX_T,   e2s(EXTL_QMAX_T),   comp, 0.0, 0.0, -inf, true, inf, true));
-            addParam(Parameter<active> (EXTL_QMAX_TT,  e2s(EXTL_QMAX_TT),  comp, 0.0, 0.0, -inf, true, inf, true));
-            addParam(Parameter<active> (EXTL_QMAX_TTT, e2s(EXTL_QMAX_TTT), comp, 0.0, 0.0, -inf, true, inf, true));
+            addParam(Parameter<active> (EXTL_KA,       e2s(EXTL_KA),       comp, -1, 0.0, 0.0, -inf, true, inf, true));
+            addParam(Parameter<active> (EXTL_KA_T,     e2s(EXTL_KA_T),     comp, -1, 0.0, 0.0, -inf, true, inf, true));
+            addParam(Parameter<active> (EXTL_KA_TT,    e2s(EXTL_KA_TT),    comp, -1, 0.0, 0.0, -inf, true, inf, true));
+            addParam(Parameter<active> (EXTL_KA_TTT,   e2s(EXTL_KA_TTT),   comp, -1, 0.0, 0.0, -inf, true, inf, true));
+            addParam(Parameter<active> (EXTL_KD,       e2s(EXTL_KD),       comp, -1, 0.0, 0.0, -inf, true, inf, true));
+            addParam(Parameter<active> (EXTL_KD_T,     e2s(EXTL_KD_T),     comp, -1, 0.0, 0.0, -inf, true, inf, true));
+            addParam(Parameter<active> (EXTL_KD_TT,    e2s(EXTL_KD_TT),    comp, -1, 0.0, 0.0, -inf, true, inf, true));
+            addParam(Parameter<active> (EXTL_KD_TTT,   e2s(EXTL_KD_TTT),   comp, -1, 0.0, 0.0, -inf, true, inf, true));
+            addParam(Parameter<active> (EXTL_QMAX,     e2s(EXTL_QMAX),     comp, -1, 0.0, 0.0, -inf, true, inf, true));
+            addParam(Parameter<active> (EXTL_QMAX_T,   e2s(EXTL_QMAX_T),   comp, -1, 0.0, 0.0, -inf, true, inf, true));
+            addParam(Parameter<active> (EXTL_QMAX_TT,  e2s(EXTL_QMAX_TT),  comp, -1, 0.0, 0.0, -inf, true, inf, true));
+            addParam(Parameter<active> (EXTL_QMAX_TTT, e2s(EXTL_QMAX_TTT), comp, -1, 0.0, 0.0, -inf, true, inf, true));
         }
 
         log::emit<Trace1>() << CURRENT_FUNCTION << Color::green << ": Finished!" << Color::reset << log::endl;

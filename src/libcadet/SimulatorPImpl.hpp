@@ -84,6 +84,7 @@ void mydgbmv(char *trans, int *m, int *n, int *kl, int *ku,
 
 #include <string>
 #include <vector>
+#include <tuple>
 
 #include "Simulator.hpp"        // to have enumeration types available
 #include "CadetException.hpp"   // to have exception types available
@@ -102,8 +103,8 @@ class WenoScheme;
 class SchurSolver;
 class OmpTimer;
 
-// Pair of ParameterName and component makes up for the identification type of a parameter
-typedef std::pair<ParameterName, int> ParamID;
+// Tuple of ParameterName, component, and section makes up for the identification type of a parameter
+typedef std::tuple<ParameterName, int, int> ParamID;
 
 
 // Private implementation of class Simulator
@@ -111,17 +112,19 @@ class SimulatorPImpl
 {
 public:
 
-    SimulatorPImpl(int ncomp, int ncol, int npar, AdsorptionType adsType, ChromatographyType chromType) throw (CadetException);
+    SimulatorPImpl(int ncomp, int ncol, int npar, int nsec, AdsorptionType adsType, ChromatographyType chromType) throw (CadetException);
     ~SimulatorPImpl();
 
-    void setParameterValue(double value, const ParameterName id, int comp = -1) throw (CadetException);
-    double getParameterValue(const ParameterName id, int comp = -1) const throw (CadetException);
+    void setParameterValue(double value, const ParameterName id, int comp = -1, int sec = -1) throw (CadetException);
+    double getParameterValue(const ParameterName id, int comp = -1, int sec = -1) const throw (CadetException);
 
-    void setSensitiveParameter(const ParameterName id, double absTolS = 1e-5, int comp = -1) throw (CadetException);
+    void setSensitiveParameter(const ParameterName id, double absTolS = 1e-5, int comp = -1, int sec = -1) throw (CadetException);
+    void setParameterSectionDependent(const ParameterName id, bool depends);
 
     void resetSensParams();
 
     std::vector<ParamID> getSensModelParams() const;
+    std::vector<int> getSensModelParamSecs() const;
     std::vector<int> getSensModelParamComps() const;
     std::vector<std::string> getSensModelParamNames() const;
 

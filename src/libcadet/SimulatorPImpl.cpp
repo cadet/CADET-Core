@@ -47,8 +47,8 @@ namespace cadet
 // Public Simulator interface implementation details
 // ================================================================================================
 
-Simulator::Simulator(int ncomp, int ncol, int npar, AdsorptionType ads_type, ChromatographyType chromType) :
-    _sim(new SimulatorPImpl(ncomp, ncol, npar, ads_type, chromType))
+Simulator::Simulator(int ncomp, int ncol, int npar, int nsec, AdsorptionType ads_type, ChromatographyType chromType) :
+    _sim(new SimulatorPImpl(ncomp, ncol, npar, nsec, ads_type, chromType))
 {
 }
 
@@ -57,19 +57,24 @@ Simulator::~Simulator()
     delete _sim;
 }
 
-void Simulator::setParameterValue(double value, const ParameterName id, int comp)
+void Simulator::setParameterValue(double value, const ParameterName id, int comp, int sec)
 {
-    _sim->setParameterValue(value, id, comp);
+    _sim->setParameterValue(value, id, comp, sec);
 }
 
-double Simulator::getParameterValue(const ParameterName id, int comp) const
+double Simulator::getParameterValue(const ParameterName id, int comp, int sec) const
 {
-    return _sim->getParameterValue(id, comp);
+    return _sim->getParameterValue(id, comp, sec);
 }
 
-void Simulator::setSensitiveParameter(const ParameterName id, double absTolS, int comp)
+void Simulator::setSensitiveParameter(const ParameterName id, double absTolS, int comp, int sec)
 {
-    _sim->setSensitiveParameter(id, absTolS, comp);
+    _sim->setSensitiveParameter(id, absTolS, comp, sec);
+}
+
+void Simulator::setParameterSectionDependent(const ParameterName id, bool depends)
+{
+    _sim->setParameterSectionDependent(id, depends);
 }
 
 void Simulator::setMaxSensInletParams(const int nInPar)
@@ -90,6 +95,11 @@ std::vector<std::string> Simulator::getSensModelParamNames() const
 std::vector<int> Simulator::getSensModelParamComps() const
 {
     return _sim->getSensModelParamComps();
+}
+
+std::vector<int> Simulator::getSensModelParamSecs() const
+{
+    return _sim->getSensModelParamSecs();
 }
 
 int Simulator::getNSensParams() const
@@ -240,9 +250,9 @@ void Simulator::getSensitivityColumnOutlet(std::vector<double>& userVector, cons
 {
     _sim->getTimeIntegrator().getSensitivityColumnOutlet(userVector, param, comp);
 }
-void Simulator::getSensitivityColumnOutlet(std::vector<double>& userVector, const int comp, const ParameterName id, const int paramComp) const
+void Simulator::getSensitivityColumnOutlet(std::vector<double>& userVector, const int comp, const ParameterName id, const int paramComp, const int paramSec) const
 {
-    getSensitivityColumnOutlet(userVector, comp, ParamID(id, paramComp));
+    getSensitivityColumnOutlet(userVector, comp, ParamID(id, paramComp, paramSec));
 }
 
 
@@ -277,12 +287,12 @@ void Simulator::configurePrinting(bool printProgress, bool printStatistics, bool
 // SimulatorPImpl implementation details
 // ================================================================================================
 
-SimulatorPImpl::SimulatorPImpl(int ncomp, int ncol, int npar, AdsorptionType adsType, ChromatographyType chromType) throw (CadetException)
+SimulatorPImpl::SimulatorPImpl(int ncomp, int ncol, int npar, int nsec, AdsorptionType adsType, ChromatographyType chromType) throw (CadetException)
 {
     log::emit<Trace1>() << CURRENT_FUNCTION << Color::cyan << ": Called!" << Color::reset << log::endl;
 
     // Set the default set of constants
-    _cc = new CadetConstants(ncomp, ncol, npar);
+    _cc = new CadetConstants(ncomp, ncol, npar, nsec);
 
     // Create a new adsorption model, according to given adsorption type
     switch (adsType)
@@ -347,38 +357,38 @@ SimulatorPImpl::~SimulatorPImpl()
     log::emit<Trace1>() << CURRENT_FUNCTION << Color::green << ": Finished!" << Color::reset << log::endl;
 }
 
-void SimulatorPImpl::setParameterValue(double value, const ParameterName id, int comp) throw (CadetException)
+void SimulatorPImpl::setParameterValue(double value, const ParameterName id, int comp, int sec) throw (CadetException)
 {
-    if (_chromModel->contains(id, comp))
+    if (_chromModel->contains(id, comp, sec))
     {
-        _chromModel->setValue(value, id, comp);
+        _chromModel->setValue(value, id, comp, sec);
     }
-    else if (_adsModel->contains(id, comp))
+    else if (_adsModel->contains(id, comp, sec))
     {
-        _adsModel->setValue(value, id, comp);
+        _adsModel->setValue(value, id, comp, sec);
     }
     else
     {
         std::ostringstream ss;
-        ss << "SimulatorPImpl::setParameterValue(): Parameter does not exist: " << e2s(id) << "[" << comp << "]";
+        ss << "SimulatorPImpl::setParameterValue(): Parameter does not exist: " << e2s(id) << "[comp " << comp << ", sec " << sec << "]";
         throw CadetException(ss.str());
     }
 }
 
-double SimulatorPImpl::getParameterValue(const ParameterName id, int comp) const throw (CadetException)
+double SimulatorPImpl::getParameterValue(const ParameterName id, int comp, int sec) const throw (CadetException)
 {
-    if (_chromModel->contains(id, comp))
+    if (_chromModel->contains(id, comp, sec))
     {
-        return _chromModel->getValue<double>(id, comp);
+        return _chromModel->getValue<double>(id, comp, sec);
     }
-    else if (_adsModel->contains(id, comp))
+    else if (_adsModel->contains(id, comp, sec))
     {
-        return _adsModel->getValue<double>(id, comp);
+        return _adsModel->getValue<double>(id, comp, sec);
     }
     else
     {
         std::ostringstream ss;
-        ss << "SimulatorPImpl::getParameterValue(): Parameter does not exist: " << e2s(id) << "[" << comp << "]";
+        ss << "SimulatorPImpl::getParameterValue(): Parameter does not exist: " << e2s(id) << "[comp " << comp << ", sec " << sec << "]";
         throw CadetException(ss.str());
     }
 }
@@ -389,15 +399,15 @@ double SimulatorPImpl::getParameterValue(const ParameterName id, int comp) const
 
 
 // activate sensitivity computation for parameter identified by pname
-void SimulatorPImpl::setSensitiveParameter(const ParameterName id, double absTolS, int comp) throw (CadetException)
+void SimulatorPImpl::setSensitiveParameter(const ParameterName id, double absTolS, int comp, int sec) throw (CadetException)
 {
-    if (_chromModel->contains(id, comp))
+    if (_chromModel->contains(id, comp, sec))
     {
-        _chromModel->setSensitive(id, absTolS, comp);
+        _chromModel->setSensitive(id, absTolS, comp, sec);
     }
-    else if (_adsModel->contains(id, comp))
+    else if (_adsModel->contains(id, comp, sec))
     {
-        _adsModel->setSensitive(id, absTolS, comp);
+        _adsModel->setSensitive(id, absTolS, comp, sec);
     }
     else if (id == INLET_PARAMETER)
     {
@@ -406,11 +416,16 @@ void SimulatorPImpl::setSensitiveParameter(const ParameterName id, double absTol
     else
     {
         std::ostringstream ss;
-        ss << "SimulatorPImpl::setSensitiveParameter(): Parameter does not exist: " << e2s(id) << "[" << comp << "]";
+        ss << "SimulatorPImpl::setSensitiveParameter(): Parameter does not exist: " << e2s(id) << "[comp " << comp << ", sec " << sec << "]";
         throw CadetException(ss.str());
     }
 }
 
+// sets the section dependence of a parameter (group)
+void SimulatorPImpl::setParameterSectionDependent(const ParameterName id, bool depends)
+{
+    _chromModel->setParameterSectionDependent(id, depends);
+}
 
 // reset to no sensitivity computation
 void SimulatorPImpl::resetSensParams()
@@ -447,6 +462,15 @@ std::vector<int> SimulatorPImpl::getSensModelParamComps() const
     std::vector<int> tmpVec = _adsModel->getSensParamComps();
     sensParamComps.insert(sensParamComps.end(), tmpVec.begin(), tmpVec.end());
     return sensParamComps;
+}
+
+// get the sections of all sensitive parameters
+std::vector<int> SimulatorPImpl::getSensModelParamSecs() const
+{
+    std::vector<int> sensParamSecs = _chromModel->getSensParamSecs();
+    std::vector<int> tmpVec = _adsModel->getSensParamSecs();
+    sensParamSecs.insert(sensParamSecs.end(), tmpVec.begin(), tmpVec.end());
+    return sensParamSecs;
 }
 
 // get number of activated sensitivities

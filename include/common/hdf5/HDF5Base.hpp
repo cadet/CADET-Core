@@ -26,7 +26,6 @@
   #endif
 #endif
 
-
 #include <vector>
 #include <string>
 #include <stack>
@@ -58,6 +57,10 @@ public:
     /// \brief Checks if the given dataset or group exists in the file
     inline bool exists(const std::string& elementName);
     inline bool exists(const char* elementName) { return exists(std::string(elementName)); }
+
+    /// \brief Checks if the given dataset is a vector (i.e., has more than one value)
+    inline bool isVector(const std::string& elementName);
+    inline bool isVector(const char* elementName) { return isVector(std::string(elementName)); }
 
 protected:
     H5::H5File      _file;
@@ -138,6 +141,24 @@ bool HDF5Base::exists(const std::string& elementName)
     // Not found
     closeGroup();
     return false;
+}
+
+
+bool HDF5Base::isVector(const std::string& elementName)
+{
+    openGroup();
+    bool isVector = false;
+    try
+    {
+        H5::DataSet ds = _groupsOpened.top().openDataSet(elementName);
+        isVector = ds.getSpace().getSimpleExtentNpoints() > 1;
+        ds.close();
+    }
+    catch ( const H5::Exception& ) { }
+
+    // Not found
+    closeGroup();
+    return isVector;
 }
 
 
