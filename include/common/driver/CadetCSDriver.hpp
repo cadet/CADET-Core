@@ -863,6 +863,32 @@ void CadetCS<reader_t, writer_t>::setParameters()
             }
             (*sim)->setExternalProfile(&_externalProfile);
             break;
+        case EXTERNAL_STERIC_MASS_ACTION:
+            (*sim)->setParameterValue(_reader.template scalar<double>(e2s(EXTSMA_LAMBDA)),     EXTSMA_LAMBDA);
+            (*sim)->setParameterValue(_reader.template scalar<double>(e2s(EXTSMA_LAMBDA_T)),   EXTSMA_LAMBDA_T);
+            (*sim)->setParameterValue(_reader.template scalar<double>(e2s(EXTSMA_LAMBDA_TT)),  EXTSMA_LAMBDA_TT);
+            (*sim)->setParameterValue(_reader.template scalar<double>(e2s(EXTSMA_LAMBDA_TTT)), EXTSMA_LAMBDA_TTT);
+            for (std::size_t comp = 0; comp < _ncomp; ++comp) // vectorial parameters
+            {
+                (*sim)->setParameterValue(_reader.template scalar<double>(e2s(EXTSMA_KA),       comp), EXTSMA_KA, comp);
+                (*sim)->setParameterValue(_reader.template scalar<double>(e2s(EXTSMA_KA_T),     comp), EXTSMA_KA_T, comp);
+                (*sim)->setParameterValue(_reader.template scalar<double>(e2s(EXTSMA_KA_TT),    comp), EXTSMA_KA_TT, comp);
+                (*sim)->setParameterValue(_reader.template scalar<double>(e2s(EXTSMA_KA_TTT),   comp), EXTSMA_KA_TTT, comp);
+                (*sim)->setParameterValue(_reader.template scalar<double>(e2s(EXTSMA_KD),       comp), EXTSMA_KD, comp);
+                (*sim)->setParameterValue(_reader.template scalar<double>(e2s(EXTSMA_KD_T),     comp), EXTSMA_KD_T, comp);
+                (*sim)->setParameterValue(_reader.template scalar<double>(e2s(EXTSMA_KD_TT),    comp), EXTSMA_KD_TT, comp);
+                (*sim)->setParameterValue(_reader.template scalar<double>(e2s(EXTSMA_KD_TTT),   comp), EXTSMA_KD_TTT, comp);
+                (*sim)->setParameterValue(_reader.template scalar<double>(e2s(EXTSMA_NU),       comp), EXTSMA_NU, comp);
+                (*sim)->setParameterValue(_reader.template scalar<double>(e2s(EXTSMA_NU_T),     comp), EXTSMA_NU_T, comp);
+                (*sim)->setParameterValue(_reader.template scalar<double>(e2s(EXTSMA_NU_TT),    comp), EXTSMA_NU_TT, comp);
+                (*sim)->setParameterValue(_reader.template scalar<double>(e2s(EXTSMA_NU_TTT),   comp), EXTSMA_NU_TTT, comp);
+                (*sim)->setParameterValue(_reader.template scalar<double>(e2s(EXTSMA_SIGMA),    comp), EXTSMA_SIGMA, comp);
+                (*sim)->setParameterValue(_reader.template scalar<double>(e2s(EXTSMA_SIGMA_T),  comp), EXTSMA_SIGMA_T, comp);
+                (*sim)->setParameterValue(_reader.template scalar<double>(e2s(EXTSMA_SIGMA_TT), comp), EXTSMA_SIGMA_TT, comp);
+                (*sim)->setParameterValue(_reader.template scalar<double>(e2s(EXTSMA_SIGMA_TTT),comp), EXTSMA_SIGMA_TTT, comp);
+            }
+            (*sim)->setExternalProfile(&_externalProfile);
+            break;
         default:
             throw CadetException("Wrong adsorption type specified");
         }

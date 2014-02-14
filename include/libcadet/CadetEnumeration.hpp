@@ -39,6 +39,7 @@ enum AdsorptionType {
     STERIC_MASS_ACTION,
     SELF_ASSOCIATION,
     EXTERNAL_LANGMUIR,
+    EXTERNAL_STERIC_MASS_ACTION,
 
     AdsorptionType_end          // Must be last
 };
@@ -112,6 +113,27 @@ enum ParameterName {
     EXTL_QMAX_T,
     EXTL_QMAX_TT,
     EXTL_QMAX_TTT,
+
+    EXTSMA_KA,
+    EXTSMA_KA_T,
+    EXTSMA_KA_TT,
+    EXTSMA_KA_TTT,
+    EXTSMA_KD,
+    EXTSMA_KD_T,
+    EXTSMA_KD_TT,
+    EXTSMA_KD_TTT,
+    EXTSMA_NU,
+    EXTSMA_NU_T,
+    EXTSMA_NU_TT,
+    EXTSMA_NU_TTT,
+    EXTSMA_SIGMA,
+    EXTSMA_SIGMA_T,
+    EXTSMA_SIGMA_TT,
+    EXTSMA_SIGMA_TTT,
+    EXTSMA_LAMBDA,
+    EXTSMA_LAMBDA_T,
+    EXTSMA_LAMBDA_TT,
+    EXTSMA_LAMBDA_TTT,
 
     INLET_PARAMETER,
 
@@ -256,6 +278,7 @@ inline const char* e2s(AdsorptionType adsType)
     case STERIC_MASS_ACTION:          return "STERIC_MASS_ACTION";
     case SELF_ASSOCIATION:            return "SELF_ASSOCIATION";
     case EXTERNAL_LANGMUIR:           return "EXTERNAL_LANGMUIR";
+    case EXTERNAL_STERIC_MASS_ACTION: return "EXTERNAL_STERIC_MASS_ACTION";
     default:                          return "UNKNOWN_ADSORPTION_TYPE";
     }
 }
@@ -333,6 +356,27 @@ inline const char* e2s(ParameterName param)
     case EXTL_QMAX_TT:                return "EXTL_QMAX_TT";
     case EXTL_QMAX_TTT:               return "EXTL_QMAX_TTT";
 
+    case EXTSMA_KA:                   return "EXTSMA_KA";
+    case EXTSMA_KA_T:                 return "EXTSMA_KA_T";
+    case EXTSMA_KA_TT:                return "EXTSMA_KA_TT";
+    case EXTSMA_KA_TTT:               return "EXTSMA_KA_TTT";
+    case EXTSMA_KD:                   return "EXTSMA_KD";
+    case EXTSMA_KD_T:                 return "EXTSMA_KD_T";
+    case EXTSMA_KD_TT:                return "EXTSMA_KD_TT";
+    case EXTSMA_KD_TTT:               return "EXTSMA_KD_TTT";
+    case EXTSMA_NU:                   return "EXTSMA_NU";
+    case EXTSMA_NU_T:                 return "EXTSMA_NU_T";
+    case EXTSMA_NU_TT:                return "EXTSMA_NU_TT";
+    case EXTSMA_NU_TTT:               return "EXTSMA_NU_TTT";
+    case EXTSMA_SIGMA:                return "EXTSMA_SIGMA";
+    case EXTSMA_SIGMA_T:              return "EXTSMA_SIGMA_T";
+    case EXTSMA_SIGMA_TT:             return "EXTSMA_SIGMA_TT";
+    case EXTSMA_SIGMA_TTT:            return "EXTSMA_SIGMA_TTT";
+    case EXTSMA_LAMBDA:               return "EXTSMA_LAMBDA";
+    case EXTSMA_LAMBDA_T:             return "EXTSMA_LAMBDA_T";
+    case EXTSMA_LAMBDA_TT:            return "EXTSMA_LAMBDA_TT";
+    case EXTSMA_LAMBDA_TTT:           return "EXTSMA_LAMBDA_TTT";
+
     case INLET_PARAMETER:             return "INLET_PARAMETER";
 
     default:                          return "UNKNOWN_PARAMETER";
@@ -363,7 +407,7 @@ inline const char* e2s(OtherName other)
     case NPAR:                        return "NPAR";
     case PAR_DISC_TYPE:               return "PAR_DISC_TYPE";
     case PAR_DISC_VECTOR:             return "PAR_DISC_VECTOR";
-    case RECONSTRUCTION:               return "RECONSTRUCTION";
+    case RECONSTRUCTION:              return "RECONSTRUCTION";
 
     case BOUNDARY_MODEL:              return "BOUNDARY_MODEL";
     case WENO_EPS:                    return "WENO_EPS";

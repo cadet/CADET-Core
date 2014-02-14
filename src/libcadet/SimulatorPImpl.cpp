@@ -35,6 +35,7 @@
 #include "AdsorptionModel_SMA.hpp"
 #include "AdsorptionModel_SAI.hpp"
 #include "AdsorptionModel_EXTL.hpp"
+#include "AdsorptionModel_EXTSMA.hpp"
 #include "GeneralRateModel.hpp"
 #include "active.hpp"
 
@@ -311,6 +312,9 @@ SimulatorPImpl::SimulatorPImpl(int ncomp, int ncol, int npar, int nsec, Adsorpti
         break;
     case EXTERNAL_LANGMUIR:
         _adsModel = new AdsorptionModel_EXTL(*this);
+        break;
+    case EXTERNAL_STERIC_MASS_ACTION:
+        _adsModel = new AdsorptionModel_EXTSMA(*this);
         break;
     default:
         std::ostringstream ss;

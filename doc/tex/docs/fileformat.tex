@@ -226,7 +226,69 @@ Reference volumes are denoted by subscripts:
 \midrule
 \texttt{SAI\_NU} & A vector with characteristic charges $\nu$ of the protein & -- & double & $\geq 0.0$ & \texttt{NCOMP}\\
 \midrule
-\texttt{SAI\_SIGMA} & A vector with steric factors $\sigma$ of the protein & -- & double & $\geq 0.0$ & \texttt{NCOMP}\everyrow{}\\
+\texttt{SAI\_SIGMA} & A vector with steric factors $\sigma$ of the protein & -- & double & $\geq 0.0$ & \texttt{NCOMP}\\
+\midrule
+\multicolumn{6}{l}{If \texttt{ADSORPTION\_MODEL} = \texttt{EXTERNAL\_STERIC\_MASS\_ACTION}:} \\ % Top level heading
+\midrule
+\begin{tabular}{@{}l@{}}
+  \texttt{EXTSMA\_KA} \\
+  \texttt{EXTSMA\_KA\_T} \\
+  \texttt{EXTSMA\_KA\_TT} \\
+  \texttt{EXTSMA\_KA\_TTT} \\
+\end{tabular} & All vectors with adsorption rate constants in the thermal steric mass action model & \begin{tabular}{@{}l@{}}
+  \si{\raiseto{3(\nu_i-1)}\metre\of{MP}\raiseto{3}\metre\of{SP}\per\raiseto{\nu_i}\mol\per\second} \\
+  \si{\raiseto{3(\nu_i-1)}\metre\of{MP}\raiseto{3}\metre\of{SP}\per\raiseto{\nu_i}\mol\per\second\per\kelvin} \\
+  \si{\raiseto{3(\nu_i-1)}\metre\of{MP}\raiseto{3}\metre\of{SP}\per\raiseto{\nu_i}\mol\per\second\per\raiseto{2}\kelvin} \\
+  \si{\raiseto{3(\nu_i-1)}\metre\of{MP}\raiseto{3}\metre\of{SP}\per\raiseto{\nu_i}\mol\per\second\per\raiseto{3}\kelvin} \\
+\end{tabular} & double & $-\infty - \infty$ & \texttt{NCOMP}\\
+\midrule 
+\begin{tabular}{@{}l@{}}
+  \texttt{EXTSMA\_KD} \\
+  \texttt{EXTSMA\_KD\_T} \\
+  \texttt{EXTSMA\_KD\_TT} \\
+  \texttt{EXTSMA\_KD\_TTT} \\
+\end{tabular} & All vectors with desorption rate constant coefficients in the thermal steric mass action model & \begin{tabular}{@{}l@{}}
+  \si{\raiseto{3\nu_i}\metre\of{MP}\per\raiseto{\nu_i}\mol\per\second} \\
+  \si{\raiseto{3\nu_i}\metre\of{MP}\per\raiseto{\nu_i}\mol\per\second\per\kelvin} \\
+  \si{\raiseto{3\nu_i}\metre\of{MP}\per\raiseto{\nu_i}\mol\per\second\per\raiseto{2}\kelvin} \\
+  \si{\raiseto{3\nu_i}\metre\of{MP}\per\raiseto{\nu_i}\mol\per\second\per\raiseto{3}\kelvin} \\
+\end{tabular} & double & $-\infty - \infty$ & \texttt{NCOMP}\\
+\midrule
+\begin{tabular}{@{}l@{}}
+  \texttt{EXTSMA\_NU} \\
+  \texttt{EXTSMA\_NU\_T} \\
+  \texttt{EXTSMA\_NU\_TT} \\
+  \texttt{EXTSMA\_NU\_TTT} \\
+\end{tabular} & All vectors with characteristic charges of the protein in the thermal steric mass action model & \begin{tabular}{@{}l@{}}
+  \\
+  \si{\per\kelvin} \\
+  \si{\per\raiseto{2}\kelvin} \\
+  \si{\per\raiseto{3}\kelvin} \\
+\end{tabular} & double & $-\infty - \infty$ & \texttt{NCOMP}\\
+\midrule
+\begin{tabular}{@{}l@{}}
+  \texttt{EXTSMA\_SIGMA} \\
+  \texttt{EXTSMA\_SIGMA\_T} \\
+  \texttt{EXTSMA\_SIGMA\_TT} \\
+  \texttt{EXTSMA\_SIGMA\_TTT} \\
+\end{tabular} & All vectors with steric factors of the protein in the thermal steric mass action model & \begin{tabular}{@{}l@{}}
+  \\
+  \si{\per\kelvin} \\
+  \si{\per\raiseto{2}\kelvin} \\
+  \si{\per\raiseto{3}\kelvin} \\
+\end{tabular} & double & $-\infty - \infty$ & \texttt{NCOMP}\\
+\midrule
+\begin{tabular}{@{}l@{}}
+  \texttt{EXTSMA\_LAMBDA} \\
+  \texttt{EXTSMA\_LAMBDA\_T} \\
+  \texttt{EXTSMA\_LAMBDA\_TT} \\
+  \texttt{EXTSMA\_LAMBDA\_TTT} \\
+\end{tabular} & Stationary phase capacity (monovalent salt counterions) in the thermal steric mass action model & \begin{tabular}{@{}l@{}}
+  \si{\mol\per\cubic\metre\of{SP}}\\
+  \si{\mol\per\cubic\metre\of{SP}\per\kelvin} \\
+  \si{\mol\per\cubic\metre\of{SP}\per\raiseto{2}\kelvin} \\
+  \si{\mol\per\cubic\metre\of{SP}\per\raiseto{3}\kelvin} \\
+\end{tabular} & double & $-\infty - \infty$ & 1\everyrow{}\\
 \end{longtabu}
 \end{footnotesize}
 
