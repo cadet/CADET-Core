@@ -225,7 +225,7 @@ function [outParams, res] = fitColumn(fitData, initParams, loBound, upBound, qui
                 end
             else
                 if ~isempty(loBound)
-                    tmp = loBound(j);
+                    tmp = loBound(i);
                     loBound(i) = max(-upBound(i), 0);
                 end
                 if ~isempty(upBound)
