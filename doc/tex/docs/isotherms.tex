@@ -151,3 +151,52 @@ The quantity $T(t, z)$ is a function of time $t$ and space $z$, i.e.\ $T\colon [
   \end{tabu}
   \caption{Parameters of the External Function Multi Component Langmuir adsorption model}
 \end{table}
+
+\subsection{External Function Steric Mass Action}
+
+The same as ordinary Steric Mass Action but with coefficients $k_a$, $k_d$, $\nu$, $\sigma$ and $\Lambda$ depending on an external quantity denoted by $T$:
+\begin{align*}
+  \frac{\mathrm{d} q_i}{\mathrm{d} t} &= k_a(T) c_{p,i}\left( \Lambda(T) - \sum_{j=1}^{N_{\text{comp}}} \left( \nu_j(T) + \sigma_j(T) \right) q_j \right)^{\nu_i(T)} - k_d(T)\: q_i\: c_{p,0}^{\nu_i(T)} && \forall i = 1, \dots, N_{\text{comp}} \\
+  q_0 &= \Lambda(T) - \sum_{j=1}^{N_{\text{comp}}} \nu_j(T) q_j
+\end{align*}
+where the dependence is modeled by a polynomial of third degree, i.e.
+\begin{align*}
+  k_a(T) &= k_{a,3} T^3 + k_{a,2} T^2 + k_{a,1} T + k_{a,0}, \\
+  k_d(T) &= k_{d,3} T^3 + k_{d,2} T^2 + k_{d,1} T + k_{d,0}, \\
+  \nu(T) &= \nu_3 T^3 + \nu_2 T^2 + \nu_1 T + \nu_0, \\
+  \sigma(T) &= \sigma_3 T^3 + \sigma_2 T^2 + \sigma_1 T + \sigma_0, \\
+  \Lambda(T) &= \Lambda_3 T^3 + \Lambda_2 T^2 + \Lambda_1 T + \Lambda_0.
+\end{align*}
+The quantity $T(t, z)$ is a function of time $t$ and space $z$, i.e.\ $T\colon [0, t_{\text{max}}] \times [0, L] \rightarrow \mathds{R}$, which is externally given to the simulator.
+
+\begin{table}[!ht]
+  \footnotesize
+  \begin{tabu}to \linewidth[m]{lX[m]c}
+    \toprule
+      \textbf{Constant} & \textbf{Description} & \textbf{Unit} \\
+    \midrule
+      $k_{a,3}$ & \multirow{4}{*}{Adsorption rate} & \si{\raiseto{3(\nu(T)-1)}\metre\of{MP}\raiseto{3}\metre\of{SP}\per\raiseto{\nu(T)}\mol\per\second\per\raiseto{3}\ExternalUnit} \\
+      $k_{a,2}$ & & \si{\raiseto{3(\nu(T)-1)}\metre\of{MP}\raiseto{3}\metre\of{SP}\per\raiseto{\nu(T)}\mol\per\second\per\raiseto{2}\ExternalUnit} \\
+      $k_{a,1}$ & & \si{\raiseto{3(\nu(T)-1)}\metre\of{MP}\raiseto{3}\metre\of{SP}\per\raiseto{\nu(T)}\mol\per\second\per\ExternalUnit} \\
+      $k_{a,0}$ & & \si{\raiseto{3(\nu(T)-1)}\metre\of{MP}\raiseto{3}\metre\of{SP}\per\raiseto{\nu(T)}\mol\per\second} \\ \midrule
+      $k_{d,3}$ & \multirow{4}{*}{Desorption rate} & \si{\raiseto{3\nu(T)}\metre\of{MP}\per\raiseto{\nu(T)}\mol\per\second\per\raiseto{3}\ExternalUnit} \\
+      $k_{d,2}$ & & \si{\raiseto{3\nu(T)}\metre\of{MP}\per\raiseto{\nu(T)}\mol\per\second\per\raiseto{2}\ExternalUnit} \\
+      $k_{d,1}$ & & \si{\raiseto{3\nu(T)}\metre\of{MP}\per\raiseto{\nu(T)}\mol\per\second\per\ExternalUnit} \\
+      $k_{d,0}$ & & \si{\raiseto{3\nu(T)}\metre\of{MP}\per\raiseto{\nu(T)}\mol\per\second} \\ \midrule
+      $\Lambda_3$ & \multirow{4}{*}{Stationary phase capacity (monovalent salt counterions)} & \si{\mol\per\cubic\metre\of{SP}\per\raiseto{3}\ExternalUnit} \\
+      $\Lambda_2$ & & \si{\mol\per\cubic\metre\of{SP}\per\raiseto{2}\ExternalUnit} \\
+      $\Lambda_1$ & & \si{\mol\per\cubic\metre\of{SP}\per\raiseto{1}\ExternalUnit} \\
+      $\Lambda_0$ & & \si{\mol\per\cubic\metre\of{SP}} \\ \midrule
+      $\nu_3$ & \multirow{4}{*}{Characteristic charges of the protein} & \si{\per\raiseto{3}\ExternalUnit} \\ 
+      $\nu_2$ & & \si{\per\raiseto{2}\ExternalUnit} \\ 
+      $\nu_1$ & & \si{\per\raiseto{1}\ExternalUnit} \\ 
+      $\nu_0$ & & -- \\ \midrule
+      $\sigma$ & \multirow{4}{*}{Steric factors of the protein} & \si{\per\raiseto{3}\ExternalUnit} \\
+      $\sigma$ & & \si{\per\raiseto{2}\ExternalUnit} \\
+      $\sigma$ & & \si{\per\raiseto{1}\ExternalUnit} \\    
+      $\sigma$ & & -- \\ \midrule
+      $T$ & External quantity & \si{\ExternalUnit} \\ 
+    \bottomrule
+  \end{tabu}
+  \caption{Parameters of the External Function Steric Mass Action adsorption model}
+\end{table}

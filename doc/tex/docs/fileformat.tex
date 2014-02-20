@@ -172,10 +172,10 @@ Reference volumes are denoted by subscripts:
   \texttt{EXTL\_KA\_TT} \\
   \texttt{EXTL\_KA\_TTT} \\
 \end{tabular} & All vectors with adsorption rate constant coefficients in the External Function Langmuir model & \begin{tabular}{c}
-  \si{\mol\per\cubic\metre\of{MP}} \\
-  \si{\mol\per\cubic\metre\of{MP}\per\ExternalUnit} \\
-  \si{\mol\per\cubic\metre\of{MP}\per\raiseto{2}\ExternalUnit} \\
-  \si{\mol\per\cubic\metre\of{MP}\per\raiseto{3}\ExternalUnit} \\
+  \si{\cubic\metre\of{MP}\per\mol\per\second} \\
+  \si{\cubic\metre\of{MP}\per\mol\per\second\per\ExternalUnit} \\
+  \si{\cubic\metre\of{MP}\per\mol\per\second\per\raiseto{2}\ExternalUnit} \\
+  \si{\cubic\metre\of{MP}\per\mol\per\second\per\raiseto{3}\ExternalUnit} \\
 \end{tabular} & double & $-\infty - \infty$ & \texttt{NCOMP}\\
 \midrule
 \begin{tabular}{c}
@@ -237,9 +237,9 @@ Reference volumes are denoted by subscripts:
   \texttt{EXTSMA\_KA\_TTT} \\
 \end{tabular} & All vectors with adsorption rate constants in the thermal steric mass action model & \begin{tabular}{@{}l@{}}
   \si{\raiseto{3(\nu_i-1)}\metre\of{MP}\raiseto{3}\metre\of{SP}\per\raiseto{\nu_i}\mol\per\second} \\
-  \si{\raiseto{3(\nu_i-1)}\metre\of{MP}\raiseto{3}\metre\of{SP}\per\raiseto{\nu_i}\mol\per\second\per\kelvin} \\
-  \si{\raiseto{3(\nu_i-1)}\metre\of{MP}\raiseto{3}\metre\of{SP}\per\raiseto{\nu_i}\mol\per\second\per\raiseto{2}\kelvin} \\
-  \si{\raiseto{3(\nu_i-1)}\metre\of{MP}\raiseto{3}\metre\of{SP}\per\raiseto{\nu_i}\mol\per\second\per\raiseto{3}\kelvin} \\
+  \si{\raiseto{3(\nu_i-1)}\metre\of{MP}\raiseto{3}\metre\of{SP}\per\raiseto{\nu_i}\mol\per\second\per\ExternalUnit} \\
+  \si{\raiseto{3(\nu_i-1)}\metre\of{MP}\raiseto{3}\metre\of{SP}\per\raiseto{\nu_i}\mol\per\second\per\raiseto{2}\ExternalUnit} \\
+  \si{\raiseto{3(\nu_i-1)}\metre\of{MP}\raiseto{3}\metre\of{SP}\per\raiseto{\nu_i}\mol\per\second\per\raiseto{3}\ExternalUnit} \\
 \end{tabular} & double & $-\infty - \infty$ & \texttt{NCOMP}\\
 \midrule 
 \begin{tabular}{@{}l@{}}
@@ -249,9 +249,9 @@ Reference volumes are denoted by subscripts:
   \texttt{EXTSMA\_KD\_TTT} \\
 \end{tabular} & All vectors with desorption rate constant coefficients in the thermal steric mass action model & \begin{tabular}{@{}l@{}}
   \si{\raiseto{3\nu_i}\metre\of{MP}\per\raiseto{\nu_i}\mol\per\second} \\
-  \si{\raiseto{3\nu_i}\metre\of{MP}\per\raiseto{\nu_i}\mol\per\second\per\kelvin} \\
-  \si{\raiseto{3\nu_i}\metre\of{MP}\per\raiseto{\nu_i}\mol\per\second\per\raiseto{2}\kelvin} \\
-  \si{\raiseto{3\nu_i}\metre\of{MP}\per\raiseto{\nu_i}\mol\per\second\per\raiseto{3}\kelvin} \\
+  \si{\raiseto{3\nu_i}\metre\of{MP}\per\raiseto{\nu_i}\mol\per\second\per\ExternalUnit} \\
+  \si{\raiseto{3\nu_i}\metre\of{MP}\per\raiseto{\nu_i}\mol\per\second\per\raiseto{2}\ExternalUnit} \\
+  \si{\raiseto{3\nu_i}\metre\of{MP}\per\raiseto{\nu_i}\mol\per\second\per\raiseto{3}\ExternalUnit} \\
 \end{tabular} & double & $-\infty - \infty$ & \texttt{NCOMP}\\
 \midrule
 \begin{tabular}{@{}l@{}}
@@ -260,10 +260,10 @@ Reference volumes are denoted by subscripts:
   \texttt{EXTSMA\_NU\_TT} \\
   \texttt{EXTSMA\_NU\_TTT} \\
 \end{tabular} & All vectors with characteristic charges of the protein in the thermal steric mass action model & \begin{tabular}{@{}l@{}}
-  \\
-  \si{\per\kelvin} \\
-  \si{\per\raiseto{2}\kelvin} \\
-  \si{\per\raiseto{3}\kelvin} \\
+  --\\
+  \si{\per\ExternalUnit} \\
+  \si{\per\raiseto{2}\ExternalUnit} \\
+  \si{\per\raiseto{3}\ExternalUnit} \\
 \end{tabular} & double & $-\infty - \infty$ & \texttt{NCOMP}\\
 \midrule
 \begin{tabular}{@{}l@{}}
@@ -272,10 +272,10 @@ Reference volumes are denoted by subscripts:
   \texttt{EXTSMA\_SIGMA\_TT} \\
   \texttt{EXTSMA\_SIGMA\_TTT} \\
 \end{tabular} & All vectors with steric factors of the protein in the thermal steric mass action model & \begin{tabular}{@{}l@{}}
-  \\
-  \si{\per\kelvin} \\
-  \si{\per\raiseto{2}\kelvin} \\
-  \si{\per\raiseto{3}\kelvin} \\
+  --\\
+  \si{\per\ExternalUnit} \\
+  \si{\per\raiseto{2}\ExternalUnit} \\
+  \si{\per\raiseto{3}\ExternalUnit} \\
 \end{tabular} & double & $-\infty - \infty$ & \texttt{NCOMP}\\
 \midrule
 \begin{tabular}{@{}l@{}}
@@ -285,9 +285,9 @@ Reference volumes are denoted by subscripts:
   \texttt{EXTSMA\_LAMBDA\_TTT} \\
 \end{tabular} & Stationary phase capacity (monovalent salt counterions) in the thermal steric mass action model & \begin{tabular}{@{}l@{}}
   \si{\mol\per\cubic\metre\of{SP}}\\
-  \si{\mol\per\cubic\metre\of{SP}\per\kelvin} \\
-  \si{\mol\per\cubic\metre\of{SP}\per\raiseto{2}\kelvin} \\
-  \si{\mol\per\cubic\metre\of{SP}\per\raiseto{3}\kelvin} \\
+  \si{\mol\per\cubic\metre\of{SP}\per\ExternalUnit} \\
+  \si{\mol\per\cubic\metre\of{SP}\per\raiseto{2}\ExternalUnit} \\
+  \si{\mol\per\cubic\metre\of{SP}\per\raiseto{3}\ExternalUnit} \\
 \end{tabular} & double & $-\infty - \infty$ & 1\everyrow{}\\
 \end{longtabu}
 \end{footnotesize}
@@ -334,7 +334,7 @@ Reference volumes are denoted by subscripts:
 \multicolumn{6}{c}{\GroupHeadline{/input/model/external}} \\
 \rowfont[c]\normalfont Dataset & Description & Unit & Type & Range & Length \everyrow{\midrule}\\
 \texttt{EXT\_VELOCITY} & Velocity of the external profile in positive column axial direction & \si{\metre\per\second} & double & $-\infty - \infty$ & 1\\
-\texttt{EXT\_PROFILE} & A vector with external measurements & \si{\ExternalUnit} & double & $\geq 0$ & Arbitrary\\
+\texttt{EXT\_PROFILE} & A vector with external measurements $T$ & \si{\ExternalUnit} & double & $\geq 0$ & Arbitrary\\
 \texttt{EXT\_PROF\_DELTA} & A vector with distances of the external measurements (first entry must be $0.0$) & \si{\metre} & double & $\geq 0.0$ & Same as \texttt{EXT\_PROFILE}
 \everyrow{}\\
 \bottomrule
