@@ -40,29 +40,29 @@ public:
         this->configure();
         log::emit<Debug1>() << CURRENT_FUNCTION << ": Configured" << log::endl;
 
-        addParam(Parameter<active> (EXTSMA_LAMBDA,     e2s(EXTSMA_LAMBDA),     -1, -1, 0.0, 0.0, 0.0, false, inf, true));
-        addParam(Parameter<active> (EXTSMA_LAMBDA_T,   e2s(EXTSMA_LAMBDA_T),   -1, -1, 0.0, 0.0, 0.0, false, inf, true));
-        addParam(Parameter<active> (EXTSMA_LAMBDA_TT,  e2s(EXTSMA_LAMBDA_TT),  -1, -1, 0.0, 0.0, 0.0, false, inf, true));
-        addParam(Parameter<active> (EXTSMA_LAMBDA_TTT, e2s(EXTSMA_LAMBDA_TTT), -1, -1, 0.0, 0.0, 0.0, false, inf, true));
+        addParam(Parameter<active> (EXTSMA_LAMBDA,     e2s(EXTSMA_LAMBDA),     -1, -1, 0.0, 0.0, -inf, true, inf, true));
+        addParam(Parameter<active> (EXTSMA_LAMBDA_T,   e2s(EXTSMA_LAMBDA_T),   -1, -1, 0.0, 0.0, -inf, true, inf, true));
+        addParam(Parameter<active> (EXTSMA_LAMBDA_TT,  e2s(EXTSMA_LAMBDA_TT),  -1, -1, 0.0, 0.0, -inf, true, inf, true));
+        addParam(Parameter<active> (EXTSMA_LAMBDA_TTT, e2s(EXTSMA_LAMBDA_TTT), -1, -1, 0.0, 0.0, -inf, true, inf, true));
 
         for (int comp = 0; comp < _cc.ncomp(); ++comp)
         {
-            addParam(Parameter<active> (EXTSMA_KA,         e2s(EXTSMA_KA),         comp, -1, 0.0, 0.0, 0.0, false, inf, true));
-            addParam(Parameter<active> (EXTSMA_KA_T,       e2s(EXTSMA_KA_T),       comp, -1, 0.0, 0.0, 0.0, false, inf, true));
-            addParam(Parameter<active> (EXTSMA_KA_TT,      e2s(EXTSMA_KA_TT),      comp, -1, 0.0, 0.0, 0.0, false, inf, true));
-            addParam(Parameter<active> (EXTSMA_KA_TTT,     e2s(EXTSMA_KA_TTT),     comp, -1, 0.0, 0.0, 0.0, false, inf, true));
-            addParam(Parameter<active> (EXTSMA_KD,         e2s(EXTSMA_KD),         comp, -1, 0.0, 0.0, 0.0, false, inf, true));
-            addParam(Parameter<active> (EXTSMA_KD_T,       e2s(EXTSMA_KD_T),       comp, -1, 0.0, 0.0, 0.0, false, inf, true));
-            addParam(Parameter<active> (EXTSMA_KD_TT,      e2s(EXTSMA_KD_TT),      comp, -1, 0.0, 0.0, 0.0, false, inf, true));
-            addParam(Parameter<active> (EXTSMA_KD_TTT,     e2s(EXTSMA_KD_TTT),     comp, -1, 0.0, 0.0, 0.0, false, inf, true));
-            addParam(Parameter<active> (EXTSMA_NU,         e2s(EXTSMA_NU),         comp, -1, 0.0, 0.0, 0.0, false, inf, true));
-            addParam(Parameter<active> (EXTSMA_NU_T,       e2s(EXTSMA_NU_T),       comp, -1, 0.0, 0.0, 0.0, false, inf, true));
-            addParam(Parameter<active> (EXTSMA_NU_TT,      e2s(EXTSMA_NU_TT),      comp, -1, 0.0, 0.0, 0.0, false, inf, true));
-            addParam(Parameter<active> (EXTSMA_NU_TTT,     e2s(EXTSMA_NU_TTT),     comp, -1, 0.0, 0.0, 0.0, false, inf, true));
-            addParam(Parameter<active> (EXTSMA_SIGMA,      e2s(EXTSMA_SIGMA),      comp, -1, 0.0, 0.0, 0.0, false, inf, true));
-            addParam(Parameter<active> (EXTSMA_SIGMA_T,    e2s(EXTSMA_SIGMA_T),    comp, -1, 0.0, 0.0, 0.0, false, inf, true));
-            addParam(Parameter<active> (EXTSMA_SIGMA_TT,   e2s(EXTSMA_SIGMA_TT),   comp, -1, 0.0, 0.0, 0.0, false, inf, true));
-            addParam(Parameter<active> (EXTSMA_SIGMA_TTT,  e2s(EXTSMA_SIGMA_TTT),  comp, -1, 0.0, 0.0, 0.0, false, inf, true));
+            addParam(Parameter<active> (EXTSMA_KA,         e2s(EXTSMA_KA),         comp, -1, 0.0, 0.0, -inf, true, inf, true));
+            addParam(Parameter<active> (EXTSMA_KA_T,       e2s(EXTSMA_KA_T),       comp, -1, 0.0, 0.0, -inf, true, inf, true));
+            addParam(Parameter<active> (EXTSMA_KA_TT,      e2s(EXTSMA_KA_TT),      comp, -1, 0.0, 0.0, -inf, true, inf, true));
+            addParam(Parameter<active> (EXTSMA_KA_TTT,     e2s(EXTSMA_KA_TTT),     comp, -1, 0.0, 0.0, -inf, true, inf, true));
+            addParam(Parameter<active> (EXTSMA_KD,         e2s(EXTSMA_KD),         comp, -1, 0.0, 0.0, -inf, true, inf, true));
+            addParam(Parameter<active> (EXTSMA_KD_T,       e2s(EXTSMA_KD_T),       comp, -1, 0.0, 0.0, -inf, true, inf, true));
+            addParam(Parameter<active> (EXTSMA_KD_TT,      e2s(EXTSMA_KD_TT),      comp, -1, 0.0, 0.0, -inf, true, inf, true));
+            addParam(Parameter<active> (EXTSMA_KD_TTT,     e2s(EXTSMA_KD_TTT),     comp, -1, 0.0, 0.0, -inf, true, inf, true));
+            addParam(Parameter<active> (EXTSMA_NU,         e2s(EXTSMA_NU),         comp, -1, 0.0, 0.0, -inf, true, inf, true));
+            addParam(Parameter<active> (EXTSMA_NU_T,       e2s(EXTSMA_NU_T),       comp, -1, 0.0, 0.0, -inf, true, inf, true));
+            addParam(Parameter<active> (EXTSMA_NU_TT,      e2s(EXTSMA_NU_TT),      comp, -1, 0.0, 0.0, -inf, true, inf, true));
+            addParam(Parameter<active> (EXTSMA_NU_TTT,     e2s(EXTSMA_NU_TTT),     comp, -1, 0.0, 0.0, -inf, true, inf, true));
+            addParam(Parameter<active> (EXTSMA_SIGMA,      e2s(EXTSMA_SIGMA),      comp, -1, 0.0, 0.0, -inf, true, inf, true));
+            addParam(Parameter<active> (EXTSMA_SIGMA_T,    e2s(EXTSMA_SIGMA_T),    comp, -1, 0.0, 0.0, -inf, true, inf, true));
+            addParam(Parameter<active> (EXTSMA_SIGMA_TT,   e2s(EXTSMA_SIGMA_TT),   comp, -1, 0.0, 0.0, -inf, true, inf, true));
+            addParam(Parameter<active> (EXTSMA_SIGMA_TTT,  e2s(EXTSMA_SIGMA_TTT),  comp, -1, 0.0, 0.0, -inf, true, inf, true));
         }
 
         log::emit<Trace1>() << CURRENT_FUNCTION << Color::green << ": Finished!" << Color::reset << log::endl;
