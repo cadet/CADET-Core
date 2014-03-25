@@ -806,6 +806,13 @@ void CadetCS<reader_t, writer_t>::setParameters()
 
         switch (_adsType)
         {
+        case LINEAR:
+            for (std::size_t comp = 0; comp < _ncomp; ++comp) // vectorial parameters
+            {
+                (*sim)->setParameterValue(_reader.template scalar<double>(e2s(LIN_KA),   comp), LIN_KA, comp);
+                (*sim)->setParameterValue(_reader.template scalar<double>(e2s(LIN_KD),   comp), LIN_KD, comp);
+            }
+            break;
         case MULTI_COMPONENT_LANGMUIR:
             for (std::size_t comp = 0; comp < _ncomp; ++comp) // vectorial parameters
             {

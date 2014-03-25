@@ -144,6 +144,12 @@ Reference volumes are denoted by subscripts:
 \midrule
 \texttt{IS\_KINETIC} & Selects kinetic or stationary adsorbance mode: 1 = kinetic, 0 = stationary & -- & int & 0/1 & 1\\
 \midrule
+\multicolumn{6}{l}{If \texttt{ADSORPTION\_MODEL} = \texttt{LINEAR}:} \\ % Top level heading
+\midrule
+\texttt{LIN\_KA} & A vector with adsorption rate constants in the linear binding model & \si{\cubic\metre\of{MP}\per\cubic\metre\of{SP}\per\second} & double & $\geq 0.0$ & \texttt{NCOMP}\\
+\midrule
+\texttt{LIN\_KD} & A vector with desorption rate constants in the linear binding model & \si{\per\second} & double & $\geq 0.0$ & \texttt{NCOMP}\\
+\midrule
 \multicolumn{6}{l}{If \texttt{ADSORPTION\_MODEL} = \texttt{MULTI\_COMPONENT\_LANGMUIR}:} \\ % Top level heading
 \midrule
 \texttt{MCL\_KA} & A vector with adsorption rate constants in the multi component langmuir model & \si{\cubic\metre\of{MP}\per\mol\per\second} & double & $\geq 0.0$ & \texttt{NCOMP}\\

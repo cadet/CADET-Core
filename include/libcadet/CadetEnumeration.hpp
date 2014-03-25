@@ -40,6 +40,7 @@ enum AdsorptionType {
     SELF_ASSOCIATION,
     EXTERNAL_LANGMUIR,
     EXTERNAL_STERIC_MASS_ACTION,
+    LINEAR,
 
     AdsorptionType_end          // Must be last
 };
@@ -134,6 +135,9 @@ enum ParameterName {
     EXTSMA_LAMBDA_T,
     EXTSMA_LAMBDA_TT,
     EXTSMA_LAMBDA_TTT,
+
+    LIN_KA,
+    LIN_KD,
 
     INLET_PARAMETER,
 
@@ -279,6 +283,7 @@ inline const char* e2s(AdsorptionType adsType)
     case SELF_ASSOCIATION:            return "SELF_ASSOCIATION";
     case EXTERNAL_LANGMUIR:           return "EXTERNAL_LANGMUIR";
     case EXTERNAL_STERIC_MASS_ACTION: return "EXTERNAL_STERIC_MASS_ACTION";
+    case LINEAR:                      return "LINEAR";
     default:                          return "UNKNOWN_ADSORPTION_TYPE";
     }
 }
@@ -376,6 +381,9 @@ inline const char* e2s(ParameterName param)
     case EXTSMA_LAMBDA_T:             return "EXTSMA_LAMBDA_T";
     case EXTSMA_LAMBDA_TT:            return "EXTSMA_LAMBDA_TT";
     case EXTSMA_LAMBDA_TTT:           return "EXTSMA_LAMBDA_TTT";
+
+    case LIN_KA:                      return "LIN_KA";
+    case LIN_KD:                      return "LIN_KD";
 
     case INLET_PARAMETER:             return "INLET_PARAMETER";
 

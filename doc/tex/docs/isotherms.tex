@@ -15,6 +15,25 @@
 
 \section{Isotherms}
 
+\subsection{Linear}
+
+\begin{align*}
+  \frac{\mathrm{d} q_i}{\mathrm{d} t} = k_a c_{p,i} - k_d q_i && \forall i = 1, \dots, N_{\text{comp}}
+\end{align*}
+
+\begin{table}[!ht]
+  \footnotesize
+  \begin{tabu}to \linewidth[m]{lX[m]c}
+    \toprule
+      \textbf{Constant} & \textbf{Description} & \textbf{Unit} \\
+    \midrule
+      $k_a$ & Adsorption rate & \si{\cubic\metre\of{MP}\per\cubic\metre\of{SP}\per\second} \\ \midrule
+      $k_d$ & Desorption rate & \si{\per\second} \\
+    \bottomrule
+  \end{tabu}
+  \caption{Parameters of the linear adsorption model}
+\end{table}
+
 \subsection{Multi Component Langmuir}
 
 \begin{align*}
