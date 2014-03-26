@@ -45,8 +45,8 @@ JacobianData::JacobianData(const CadetConstants& cc) :
     _numel_jbp = _cc.ncomp();
 
     // Set AD assembled jacobian constants
-    _jacAdDirs = max(_ku_col, _ku_par) + max(_kl_col, _kl_par) + 1;
-    _diagDir   = max(_ku_col, _ku_par);
+    _jacAdDirs = std::max(_ku_col, _ku_par) + std::max(_kl_col, _kl_par) + 1;
+    _diagDir   = std::max(_ku_col, _ku_par);
 
     log::emit<Debug1>() << CURRENT_FUNCTION << ": AD directions needed for Jacobian: " << _jacAdDirs << log::endl;
     log::emit<Debug1>() << CURRENT_FUNCTION << ": Direction corresponding to main diagonal: " << _diagDir << log::endl;

@@ -131,6 +131,7 @@ namespace cadet {
 
 #elif !defined(MATLAB_MEX_FILE)
 
+    #define NOMINMAX
     #include <windows.h> // WinApi header
 
     /*! \brief define a simple console colors struct for windows terminals

@@ -16,6 +16,7 @@
 #include <iomanip>
 #include <limits>
 #include <typeinfo>
+#include <algorithm>
 
 #include "GeneralRateModel.hpp"
 #include "TimeIntegrator.hpp"
@@ -471,7 +472,7 @@ int GeneralRateModel::residualColumn(const double t, const StateType* y, const d
             case 0: // Lower WENO order
                 // This very statement selects the max. weno order for the current column cell
                 // wk = min(maxWKleft, maxWKright)
-                wk = min(min(col + 1, _ws.getWenoOrder()), min(_cc.ncol() - col, _ws.getWenoOrder()));
+                wk = std::min(std::min(col + 1, _ws.getWenoOrder()), std::min(_cc.ncol() - col, _ws.getWenoOrder()));
                 break;
 
             case 1: // Zero weights

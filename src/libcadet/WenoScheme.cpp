@@ -14,6 +14,7 @@
 // =============================================================================
 
 #include <vector>
+#include <algorithm>
 
 #include "WenoScheme.hpp"
 #include "TimeIntegrator.hpp"
@@ -104,7 +105,7 @@ void WenoScheme::setWenoEpsilons(N_Vector NV_y, const std::vector<double>& secti
 
         ///todo rethink this!
         // Set references (i.e. typical concentrations) for the weno epsilons
-        _weps.at(comp) = _wenoEps * max(pow(maxC,2), 1.0e-6);
+        _weps.at(comp) = _wenoEps * std::max(pow(maxC,2), 1.0e-6);
     }
     // ==========================================================================
 

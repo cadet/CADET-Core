@@ -14,6 +14,7 @@
 // =============================================================================
 
 #include <cstdlib>
+#include <algorithm>
 
 #include "SchurSolver.hpp"
 
@@ -98,7 +99,7 @@ void SchurSolver::assembleJacPDisc(int pblk, double alpha)
     log::emit<Trace2>() << CURRENT_FUNCTION << Color::cyan << ": Called!" << Color::reset << log::endl;
 
     double *jacP      = _jac.getJacP(pblk);
-    double *jacP_disc = _jac.getJacPDisc(pblk) + _jac.kl_par();
+    double *jacP_disc = _jac.getJacPDisc(pblk) + _jac.kl_par(); // Skip one kl in jacP_disc in every column to give LAPACK some space
 
     double invBetaP = 1.0 / _sim.getChromatographyModel().getValue<double>(PAR_POROSITY) - 1.0;
 
@@ -287,7 +288,7 @@ int SchurSolver::schurComplementTimesVector(void *userData, N_Vector NV_v, N_Vec
         int numel;
         SparseMatrixElement* jdata;
 
-        double* tmp = new double[max(_cc.neq_col(),_cc.neq_par())];
+        double* tmp = new double[std::max(_cc.neq_col(),_cc.neq_par())];
 
         if (pblk == -1)
         {
