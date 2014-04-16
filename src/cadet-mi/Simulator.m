@@ -268,9 +268,9 @@ classdef Simulator < handle
                 % Taylor path to value in struct
                 if curSens.SENS_COMP ~= -1
                     % Attention: SENS_COMP is zero-based
-                    s = struct('type', [repmat({'.'}, length(acc.path), 1); {'()'}], 'subs', [acc.path'; {[{curSens.SENS_COMP + 1}]}]);
+                    s = struct('type', [repmat({'.'}, length(acc.path), 1); {'()'}], 'subs', [acc.path(:); {[{curSens.SENS_COMP + 1}]}]);
                 else
-                    s = struct('type', repmat({'.'}, length(acc.path), 1), 'subs', acc.path');
+                    s = struct('type', repmat({'.'}, length(acc.path), 1), 'subs', acc.path(:));
                 end
                 
                 % Fetch parameter value
@@ -323,20 +323,20 @@ classdef Simulator < handle
 
                     % Taylor path to value in struct
                     if curSens.SENS_COMP ~= -1
-                        s = struct('type', repmat({'.'}, length(acc.path), 1), 'subs', acc.path');
+                        s = struct('type', repmat({'.'}, length(acc.path), 1), 'subs', acc.path(:));
                         
                         % Attention: SENS_COMP is zero-based
                         if (curSens.SENS_SECTION ~= -1) && (length(subsref(task, s)) >= task.model.NCOMP * task.model.inlet.NSEC)
                             % Attention: SENS_SECTION is zero-based
-                            s = struct('type', [repmat({'.'}, length(acc.path), 1); {'()'}], 'subs', [acc.path'; {[{curSens.SENS_SECTION * task.model.NCOMP + (curSens.SENS_COMP + 1)}]}]);
+                            s = struct('type', [repmat({'.'}, length(acc.path), 1); {'()'}], 'subs', [acc.path(:); {[{curSens.SENS_SECTION * task.model.NCOMP + (curSens.SENS_COMP + 1)}]}]);
                         else
-                            s = struct('type', [repmat({'.'}, length(acc.path), 1); {'()'}], 'subs', [acc.path'; {[{curSens.SENS_COMP + 1}]}]);                        
+                            s = struct('type', [repmat({'.'}, length(acc.path), 1); {'()'}], 'subs', [acc.path(:); {[{curSens.SENS_COMP + 1}]}]);                        
                         end
                     else
-                        s = struct('type', repmat({'.'}, length(acc.path), 1), 'subs', acc.path');
+                        s = struct('type', repmat({'.'}, length(acc.path), 1), 'subs', acc.path(:));
                         if (curSens.SENS_SECTION ~= -1) && (length(subsref(task, s)) >= task.model.inlet.NSEC)
                             % Attention: SENS_SECTION is zero-based
-                            s = struct('type', [repmat({'.'}, length(acc.path), 1); {'()'}], 'subs', [acc.path'; {[{curSens.SENS_SECTION + 1}]}]);
+                            s = struct('type', [repmat({'.'}, length(acc.path), 1); {'()'}], 'subs', [acc.path(:); {[{curSens.SENS_SECTION + 1}]}]);
                         end
                     end
 
@@ -1258,7 +1258,7 @@ function [status, h] = operate(obj, name, h)
 
                 % Read data and store in handles.hdf structure
                 path = strsplit(h.group, '.');
-                path = struct('type', repmat({'.'}, length(path) + 1, 1), 'subs', [path'; {dset_name}]);
+                path = struct('type', repmat({'.'}, length(path) + 1, 1), 'subs', [path(:); {dset_name}]);
                 h.hdf = subsasgn(h.hdf, path, H5D.read(dataset, 'H5ML_DEFAULT', 'H5S_ALL', 'H5S_ALL', 'H5P_DEFAULT'));
            
                 H5D.close(dataset);
