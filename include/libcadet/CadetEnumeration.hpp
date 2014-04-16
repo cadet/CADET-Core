@@ -510,7 +510,7 @@ inline void s2e(const std::string& name, ChromatographyType& enum_ret)
         enum_ret = static_cast<ChromatographyType>(enum_it);
         if (name == e2s(enum_ret)) return;
     }
-    throw CadetException("No enum entry for given chromatography type!");
+    throw CadetException("No enum entry for given chromatography type \"" + name + "\"!");
 }
 
 inline void s2e(const std::string& name, AdsorptionType& enum_ret)
@@ -520,7 +520,7 @@ inline void s2e(const std::string& name, AdsorptionType& enum_ret)
         enum_ret = static_cast<AdsorptionType>(enum_it);
         if (name == e2s(enum_ret)) return;
     }
-    throw CadetException("No enum entry for given adsorption type!");
+    throw CadetException("No enum entry for given adsorption type \"" + name + "\"!");
 }
 
 inline void s2e(const std::string& name, ReconstructionType& enum_ret)
@@ -530,7 +530,7 @@ inline void s2e(const std::string& name, ReconstructionType& enum_ret)
         enum_ret = static_cast<ReconstructionType>(enum_it);
         if (name == e2s(enum_ret)) return;
     }
-    throw CadetException("No enum entry for given reconstruction type!");
+    throw CadetException("No enum entry for given reconstruction type \"" + name + "\"!");
 }
 
 inline void s2e(const std::string& name, ParticleDiscType& enum_ret)
@@ -540,7 +540,7 @@ inline void s2e(const std::string& name, ParticleDiscType& enum_ret)
         enum_ret = static_cast<ParticleDiscType>(enum_it);
         if (name == e2s(enum_ret)) return;
     }
-    throw CadetException("No enum entry for given particle discretization type!");
+    throw CadetException("No enum entry for given particle discretization type \"" + name + "\"!");
 }
 
 inline void s2e(const std::string& name, ParameterName& enum_ret)
@@ -550,7 +550,7 @@ inline void s2e(const std::string& name, ParameterName& enum_ret)
         enum_ret = static_cast<ParameterName>(enum_it);
         if (name == e2s(enum_ret)) return;
     }
-    throw CadetException("No enum entry for given parameter name!");
+    throw CadetException("No enum entry for given parameter name \"" + name + "\"!");
 }
 
 inline void s2e(const std::string& name, OtherName& enum_ret)
@@ -560,7 +560,7 @@ inline void s2e(const std::string& name, OtherName& enum_ret)
         enum_ret = static_cast<OtherName>(enum_it);
         if (name == e2s(enum_ret)) return;
     }
-    throw CadetException("No enum entry for given parameter name!");
+    throw CadetException("No enum entry for given parameter name \"" + name + "\"!");
 }
 
 inline void s2e(const std::string& name, GroupName& enum_ret)
@@ -570,7 +570,7 @@ inline void s2e(const std::string& name, GroupName& enum_ret)
         enum_ret = static_cast<GroupName>(enum_it);
         if (name == e2s(enum_ret)) return;
     }
-    throw CadetException("No enum entry for given group name!");
+    throw CadetException("No enum entry for given group name \"" + name + "\"!");
 }
 
 
