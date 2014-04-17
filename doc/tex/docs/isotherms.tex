@@ -71,7 +71,7 @@ where $c_{p,0}$ and $q_0$ denote the salt concentrations in the liquid and solid
       \textbf{Constant} & \textbf{Description} & \textbf{Unit} \\
     \midrule
       $\Lambda$ & Stationary phase capacity (monovalent salt counterions); The total number of binding sites available on the resin surface & \si{\mol\per\cubic\metre\of{SP}} \\ \midrule
-      $k_a$ & Adsorption rate & \si{\raiseto{3(\nu_i-1)}\metre\of{MP}\raiseto{3}\metre\of{SP}\per\raiseto{\nu_i}\mol\per\second} \\ \midrule
+      $k_a$ & Adsorption rate & \si{\raiseto{3(\nu_i-1)}\metre\of{SP}\raiseto{3}\metre\of{MP}\per\raiseto{\nu_i}\mol\per\second} \\ \midrule
       $k_d$ & Desorption rate & \si{\raiseto{3\nu_i}\metre\of{MP}\per\raiseto{\nu_i}\mol\per\second} \\ \midrule
       $\nu$ & Characteristic charges of the protein; The number of sites $\nu$ that the protein interacts with on the resin surface & -- \\ \midrule
       $\sigma$ & Steric factors of the protein; The number of sites $\sigma$ on the surface that are shielded by the protein and prevented from exchange with the salt counterions in solution & -- \\
@@ -98,7 +98,7 @@ where $c_{p,0}$ and $q_0$ denote the salt concentrations in the liquid and solid
     \midrule
       $\Lambda$ & Stationary phase capacity (monovalent salt counterions); The total number of binding sites available on the resin surface & \si{\mol\per\cubic\metre\of{SP}} \\ \midrule
       $k_{a,1}$ & Adsorption rate & \si{\raiseto{3(\nu_i-1)}\metre\of{SP}\raiseto{3}\metre\of{MP}\per\raiseto{\nu_i}\mol\per\second} \\ \midrule
-      $k_{a,2}$ & Adsorption rate of dimerization & \si{\raiseto{3(\nu_i-1)}\metre\of{SP}\raiseto{6}\metre\of{MP}\per\raiseto{\nu_i+1}\mol\per\second} \\ \midrule
+      $k_{a,2}$ & Adsorption rate of dimerization & \si{\raiseto{3(\nu_i-1)}\metre\of{SP}\raiseto{6}\metre\of{MP}\per\raiseto{(\nu_i+1)}\mol\per\second} \\ \midrule
       $k_d$ & Desorption rate & \si{\raiseto{3\nu_i}\metre\of{MP}\per\raiseto{\nu_i}\mol\per\second} \\ \midrule
       $\nu$ & Characteristic charges of the protein; The number of sites $\nu$ that the protein interacts with on the resin surface & -- \\ \midrule
       $\sigma$ & Steric factors of the protein; The number of sites $\sigma$ on the surface that are shielded by the protein and prevented from exchange with the salt counterions in solution & -- \\
@@ -194,10 +194,10 @@ The quantity $T(t, z)$ is a function of time $t$ and space $z$, i.e.\ $T\colon [
     \toprule
       \textbf{Constant} & \textbf{Description} & \textbf{Unit} \\
     \midrule
-      $k_{a,3}$ & \multirow{4}{*}{Adsorption rate} & \si{\raiseto{3(\nu(T)-1)}\metre\of{MP}\raiseto{3}\metre\of{SP}\per\raiseto{\nu(T)}\mol\per\second\per\raiseto{3}\ExternalUnit} \\
-      $k_{a,2}$ & & \si{\raiseto{3(\nu(T)-1)}\metre\of{MP}\raiseto{3}\metre\of{SP}\per\raiseto{\nu(T)}\mol\per\second\per\raiseto{2}\ExternalUnit} \\
-      $k_{a,1}$ & & \si{\raiseto{3(\nu(T)-1)}\metre\of{MP}\raiseto{3}\metre\of{SP}\per\raiseto{\nu(T)}\mol\per\second\per\ExternalUnit} \\
-      $k_{a,0}$ & & \si{\raiseto{3(\nu(T)-1)}\metre\of{MP}\raiseto{3}\metre\of{SP}\per\raiseto{\nu(T)}\mol\per\second} \\ \midrule
+      $k_{a,3}$ & \multirow{4}{*}{Adsorption rate} & \si{\raiseto{3(\nu(T)-1)}\metre\of{SP}\raiseto{3}\metre\of{MP}\per\raiseto{\nu(T)}\mol\per\second\per\raiseto{3}\ExternalUnit} \\
+      $k_{a,2}$ & & \si{\raiseto{3(\nu(T)-1)}\metre\of{SP}\raiseto{3}\metre\of{MP}\per\raiseto{\nu(T)}\mol\per\second\per\raiseto{2}\ExternalUnit} \\
+      $k_{a,1}$ & & \si{\raiseto{3(\nu(T)-1)}\metre\of{SP}\raiseto{3}\metre\of{MP}\per\raiseto{\nu(T)}\mol\per\second\per\ExternalUnit} \\
+      $k_{a,0}$ & & \si{\raiseto{3(\nu(T)-1)}\metre\of{SP}\raiseto{3}\metre\of{MP}\per\raiseto{\nu(T)}\mol\per\second} \\ \midrule
       $k_{d,3}$ & \multirow{4}{*}{Desorption rate} & \si{\raiseto{3\nu(T)}\metre\of{MP}\per\raiseto{\nu(T)}\mol\per\second\per\raiseto{3}\ExternalUnit} \\
       $k_{d,2}$ & & \si{\raiseto{3\nu(T)}\metre\of{MP}\per\raiseto{\nu(T)}\mol\per\second\per\raiseto{2}\ExternalUnit} \\
       $k_{d,1}$ & & \si{\raiseto{3\nu(T)}\metre\of{MP}\per\raiseto{\nu(T)}\mol\per\second\per\ExternalUnit} \\

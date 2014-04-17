@@ -122,14 +122,14 @@ Reference volumes are denoted by subscripts:
 
 \begin{footnotesize}
 \tabulinesep=3pt
-\begin{longtabu}to \linewidth[m]{lX[m]cccc} \toprule
+\begin{longtabu}to \linewidth[m]{l>{\scriptsize}X[m]cccc} \toprule
 \multicolumn{6}{c}{\GroupHeadline{/input/model/adsorption}} \\
-\rowfont[c]\normalfont Dataset & Description & Unit & Type & Range & Length\\
+\rowfont[c]\normalfont Dataset & \normalsize Description & Unit & Type & Range & Length\\
 \endfirsthead
 %
 \toprule
 \multicolumn{6}{c}{\GroupHeadline{/input/model/adsorption} Continued} \\
-\rowfont[c]\normalfont Dataset & Description & Unit & Type & Range & Length\\
+\rowfont[c]\normalfont Dataset & \normalsize Description & Unit & Type & Range & Length\\
 \midrule
 \endhead
 %
@@ -212,7 +212,7 @@ Reference volumes are denoted by subscripts:
 \midrule
 \texttt{SMA\_LAMBDA} & Stationary phase capacity (monovalent salt counterions); The total number of binding sites available on the resin surface & \si{\mol\per\cubic\metre\of{SP}} & double & $\geq 0.0$ & 1\\
 \midrule
-\texttt{SMA\_KA} & A vector with adsorption rate constants in the steric mass action model & \si{\raiseto{3(\nu_i-1)}\metre\of{MP}\raiseto{3}\metre\of{SP}\per\raiseto{\nu_i}\mol\per\second} & double & $\geq 0.0$ & \texttt{NCOMP}\\
+\texttt{SMA\_KA} & A vector with adsorption rate constants in the steric mass action model & \si{\raiseto{3(\nu_i-1)}\metre\of{SP}\raiseto{3}\metre\of{MP}\per\raiseto{\nu_i}\mol\per\second} & double & $\geq 0.0$ & \texttt{NCOMP}\\
 \midrule
 \texttt{SMA\_KD} & A vector with desorption rate constants in the steric mass action model & \si{\raiseto{3\nu_i}\metre\of{MP}\per\raiseto{\nu_i}\mol\per\second} & double & $\geq 0.0$ & \texttt{NCOMP}\\
 \midrule
@@ -226,7 +226,7 @@ Reference volumes are denoted by subscripts:
 \midrule
 \texttt{SAI\_KA1} & A vector with adsorption rate constants in the self association model & \si{\raiseto{3(\nu_i-1)}\metre\of{SP}\raiseto{3}\metre\of{MP}\per\raiseto{\nu_i}\mol\per\second} & double & $\geq 0.0$ & \texttt{NCOMP}\\
 \midrule
-\texttt{SAI\_KA2} & A vector with adsorption rate constants of dimerization in the self association model & \si{\raiseto{3(\nu_i-1)}\metre\of{SP}\raiseto{6}\metre\of{MP}\per\raiseto{\nu_i+1}\mol\per\second}  & double & $\geq 0.0$ & \texttt{NCOMP}\\
+\texttt{SAI\_KA2} & A vector with adsorption rate constants of dimerization in the self association model & \si{\raiseto{3(\nu_i-1)}\metre\of{SP}\raiseto{6}\metre\of{MP}\per\raiseto{(\nu_i+1)}\mol\per\second}  & double & $\geq 0.0$ & \texttt{NCOMP}\\
 \midrule
 \texttt{SAI\_KD} & A vector with desorption rate constants in the self association model & \si{\raiseto{3\nu_i}\metre\of{MP}\per\raiseto{\nu_i}\mol\per\second} & double & $\geq 0.0$ & \texttt{NCOMP}\\
 \midrule
@@ -242,10 +242,10 @@ Reference volumes are denoted by subscripts:
   \texttt{EXTSMA\_KA\_TT} \\
   \texttt{EXTSMA\_KA\_TTT} \\
 \end{tabular} & All vectors with adsorption rate constants in the thermal steric mass action model & \begin{tabular}{@{}l@{}}
-  \si{\raiseto{3(\nu_i-1)}\metre\of{MP}\raiseto{3}\metre\of{SP}\per\raiseto{\nu_i}\mol\per\second} \\
-  \si{\raiseto{3(\nu_i-1)}\metre\of{MP}\raiseto{3}\metre\of{SP}\per\raiseto{\nu_i}\mol\per\second\per\ExternalUnit} \\
-  \si{\raiseto{3(\nu_i-1)}\metre\of{MP}\raiseto{3}\metre\of{SP}\per\raiseto{\nu_i}\mol\per\second\per\raiseto{2}\ExternalUnit} \\
-  \si{\raiseto{3(\nu_i-1)}\metre\of{MP}\raiseto{3}\metre\of{SP}\per\raiseto{\nu_i}\mol\per\second\per\raiseto{3}\ExternalUnit} \\
+  \si{\raiseto{3(\nu_i-1)}\metre\of{SP}\raiseto{3}\metre\of{MP}\per\raiseto{\nu_i}\mol\per\second} \\
+  \si{\raiseto{3(\nu_i-1)}\metre\of{SP}\raiseto{3}\metre\of{MP}\per\raiseto{\nu_i}\mol\per\second\per\ExternalUnit} \\
+  \si{\raiseto{3(\nu_i-1)}\metre\of{SP}\raiseto{3}\metre\of{MP}\per\raiseto{\nu_i}\mol\per\second\per\raiseto{2}\ExternalUnit} \\
+  \si{\raiseto{3(\nu_i-1)}\metre\of{SP}\raiseto{3}\metre\of{MP}\per\raiseto{\nu_i}\mol\per\second\per\raiseto{3}\ExternalUnit} \\
 \end{tabular} & double & $-\infty - \infty$ & \texttt{NCOMP}\\
 \midrule 
 \begin{tabular}{@{}l@{}}
