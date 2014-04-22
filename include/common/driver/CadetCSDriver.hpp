@@ -852,6 +852,17 @@ void CadetCS<reader_t, writer_t>::setParameters()
                 (*sim)->setParameterValue(_reader.template scalar<double>(e2s(SAI_SIGMA), comp), SAI_SIGMA, comp);
             }
             break;
+        case MULTI_COMPONENT_BILANGMUIR:
+            for (std::size_t comp = 0; comp < _ncomp / 2; ++comp) // vectorial parameters
+            {
+                (*sim)->setParameterValue(_reader.template scalar<double>(e2s(MCBL_KA1),   comp), MCBL_KA1,   comp);
+                (*sim)->setParameterValue(_reader.template scalar<double>(e2s(MCBL_KD1),   comp), MCBL_KD1,   comp);
+                (*sim)->setParameterValue(_reader.template scalar<double>(e2s(MCBL_KA2),   comp), MCBL_KA2,   comp);
+                (*sim)->setParameterValue(_reader.template scalar<double>(e2s(MCBL_KD2),   comp), MCBL_KD2,   comp);
+                (*sim)->setParameterValue(_reader.template scalar<double>(e2s(MCBL_QMAX1), comp), MCBL_QMAX1, comp);
+                (*sim)->setParameterValue(_reader.template scalar<double>(e2s(MCBL_QMAX2), comp), MCBL_QMAX2, comp);
+            }
+            break;
         case EXTERNAL_LANGMUIR:
             for (std::size_t comp = 0; comp < _ncomp; ++comp) // vectorial parameters
             {

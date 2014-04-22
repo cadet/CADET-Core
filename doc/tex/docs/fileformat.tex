@@ -294,7 +294,21 @@ Reference volumes are denoted by subscripts:
   \si{\mol\per\cubic\metre\of{SP}\per\ExternalUnit} \\
   \si{\mol\per\cubic\metre\of{SP}\per\raiseto{2}\ExternalUnit} \\
   \si{\mol\per\cubic\metre\of{SP}\per\raiseto{3}\ExternalUnit} \\
-\end{tabular} & double & $-\infty - \infty$ & 1\everyrow{}\\
+\end{tabular} & double & $-\infty - \infty$ & 1\\
+\midrule
+\multicolumn{6}{l}{If \texttt{ADSORPTION\_MODEL} = \texttt{MULTI\_COMPONENT\_BILANGMUIR}:} \\ % Top level heading
+\midrule
+\texttt{MCBL\_KA1} & A vector with adsorption rate constants of the first binding site type in the multi component Bi-Langmuir model & \si{\cubic\metre\of{MP}\per\mol\per\second} & double & $\geq 0.0$ & \texttt{NCOMP} / 2 \\
+\midrule
+\texttt{MCBL\_KA2} & A vector with adsorption rate constants of the second binding site type in the multi component Bi-Langmuir model & \si{\cubic\metre\of{MP}\per\mol\per\second} & double & $\geq 0.0$ & \texttt{NCOMP} / 2 \\
+\midrule
+\texttt{MCBL\_KD1} & A vector with desorption rate constants of the first binding site type in the multi component Bi-Langmuir model & \si{\per\second} & double & $\geq 0.0$ & \texttt{NCOMP} / 2\\
+\midrule
+\texttt{MCBL\_KD2} & A vector with desorption rate constants of the second binding site type in the multi component Bi-Langmuir model & \si{\per\second} & double & $\geq 0.0$ & \texttt{NCOMP} / 2\\
+\midrule
+\texttt{MCBL\_QMAX1} & A vector with with maximum adsorption capacities of the first binding site type & \si{\mol\per\cubic\metre\of{SP}} & double & $> 0.0$ & \texttt{NCOMP} / 2\\
+\midrule
+\texttt{MCBL\_QMAX2} & A vector with with maximum adsorption capacities of the second binding site type & \si{\mol\per\cubic\metre\of{SP}} & double & $> 0.0$ & \texttt{NCOMP} / 2 \everyrow{}\\
 \end{longtabu}
 \end{footnotesize}
 

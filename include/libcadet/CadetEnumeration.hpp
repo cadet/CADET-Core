@@ -41,6 +41,7 @@ enum AdsorptionType {
     EXTERNAL_LANGMUIR,
     EXTERNAL_STERIC_MASS_ACTION,
     LINEAR,
+    MULTI_COMPONENT_BILANGMUIR,
 
     AdsorptionType_end          // Must be last
 };
@@ -101,6 +102,13 @@ enum ParameterName {
     SAI_NU,
     SAI_SIGMA,
     SAI_LAMBDA,
+
+    MCBL_KA1,
+    MCBL_KD1,
+    MCBL_KA2,
+    MCBL_KD2,
+    MCBL_QMAX1,
+    MCBL_QMAX2,
 
     EXTL_KA,
     EXTL_KA_T,
@@ -277,14 +285,15 @@ inline const char* e2s(AdsorptionType adsType)
 {
     switch (adsType)
     {
-    case MULTI_COMPONENT_LANGMUIR:    return "MULTI_COMPONENT_LANGMUIR";
-    case MOBILE_PHASE_MODULATORS:     return "MOBILE_PHASE_MODULATORS";
-    case STERIC_MASS_ACTION:          return "STERIC_MASS_ACTION";
-    case SELF_ASSOCIATION:            return "SELF_ASSOCIATION";
-    case EXTERNAL_LANGMUIR:           return "EXTERNAL_LANGMUIR";
-    case EXTERNAL_STERIC_MASS_ACTION: return "EXTERNAL_STERIC_MASS_ACTION";
-    case LINEAR:                      return "LINEAR";
-    default:                          return "UNKNOWN_ADSORPTION_TYPE";
+    case MULTI_COMPONENT_LANGMUIR:     return "MULTI_COMPONENT_LANGMUIR";
+    case MOBILE_PHASE_MODULATORS:      return "MOBILE_PHASE_MODULATORS";
+    case STERIC_MASS_ACTION:           return "STERIC_MASS_ACTION";
+    case SELF_ASSOCIATION:             return "SELF_ASSOCIATION";
+    case EXTERNAL_LANGMUIR:            return "EXTERNAL_LANGMUIR";
+    case EXTERNAL_STERIC_MASS_ACTION:  return "EXTERNAL_STERIC_MASS_ACTION";
+    case LINEAR:                       return "LINEAR";
+    case MULTI_COMPONENT_BILANGMUIR:   return "MULTI_COMPONENT_BILANGMUIR";
+    default:                           return "UNKNOWN_ADSORPTION_TYPE";
     }
 }
 
@@ -347,6 +356,13 @@ inline const char* e2s(ParameterName param)
     case SAI_NU:                      return "SAI_NU";
     case SAI_SIGMA:                   return "SAI_SIGMA";
     case SAI_LAMBDA:                  return "SAI_LAMBDA";
+
+    case MCBL_KA1:                    return "MCBL_KA1";
+    case MCBL_KD1:                    return "MCBL_KD1";
+    case MCBL_KA2:                    return "MCBL_KA2";
+    case MCBL_KD2:                    return "MCBL_KD2";
+    case MCBL_QMAX1:                  return "MCBL_QMAX1";
+    case MCBL_QMAX2:                  return "MCBL_QMAX2";
 
     case EXTL_KA:                     return "EXTL_KA";
     case EXTL_KA_T:                   return "EXTL_KA_T";

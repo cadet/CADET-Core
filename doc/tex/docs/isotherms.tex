@@ -219,3 +219,29 @@ The quantity $T(t, z)$ is a function of time $t$ and space $z$, i.e.\ $T\colon [
   \end{tabu}
   \caption{Parameters of the External Function Steric Mass Action adsorption model}
 \end{table}
+
+\subsection{Multi Component Bi-Langmuir}
+
+The Multi Component Bi-Langmuir model adds a second type of binding site $q_i^B$ to the Langmuir model without allowing an exchange between the two sites $q_i^A$ and $q_i^B$.
+Therefore, there are no competitivity effects between the two types of binding sites and they have independent capacities.
+\begin{align*}
+  \frac{\mathrm{d} q_i^A}{\mathrm{d} t} &=  k_a^A\: c_{p,i}\: q_{\text{max},i}^A \left( 1 - \sum_{j=1}^{N_{\text{comp}}} \frac{q_j^A}{q_{\text{max},j}^A}\right) - k_d^A q_i^A & \forall i = 1, \dots, N_{\text{comp}} \\
+  \frac{\mathrm{d} q_i^B}{\mathrm{d} t} &=  k_a^B\: c_{p,i}\: q_{\text{max},i}^B \left( 1 - \sum_{j=1}^{N_{\text{comp}}} \frac{q_j^B}{q_{\text{max},j}^B}\right) - k_d^B q_i^B & \forall i = 1, \dots, N_{\text{comp}}
+\end{align*}
+
+\begin{table}[!ht]
+  \footnotesize
+  \begin{tabu}to \linewidth[m]{lX[m]c}
+    \toprule
+      \textbf{Constant} & \textbf{Description} & \textbf{Unit} \\
+    \midrule
+      $k_a^A$ & Adsorption rate of first binding site type & \si{\cubic\metre\of{MP}\per\mol\per\second} \\ \midrule
+      $k_a^B$ & Adsorption rate of second binding site type & \si{\cubic\metre\of{MP}\per\mol\per\second} \\ \midrule
+      $k_d^A$ & Desorption rate of first binding site type & \si{\per\second} \\ \midrule
+      $k_d^B$ & Desorption rate of second binding site type & \si{\per\second} \\ \midrule
+      $q_{\text{max}}^A$ & Maximum adsorption capacity; Maximum concentration of first binding site type & \si{\mol\per\cubic\metre\of{SP}} \\ \midrule
+      $q_{\text{max}}^B$ & Maximum adsorption capacity; Maximum concentration of second binding site type & \si{\mol\per\cubic\metre\of{SP}} \\
+    \bottomrule
+  \end{tabu}
+  \caption{Parameters of the Multi Component Bi-Langmuir adsorption model}
+\end{table}

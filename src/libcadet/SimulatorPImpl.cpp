@@ -34,6 +34,7 @@
 #include "AdsorptionModel_MPM.hpp"
 #include "AdsorptionModel_SMA.hpp"
 #include "AdsorptionModel_SAI.hpp"
+#include "AdsorptionModel_MCBL.hpp"
 #include "AdsorptionModel_EXTL.hpp"
 #include "AdsorptionModel_EXTSMA.hpp"
 #include "AdsorptionModel_LINEAR.hpp"
@@ -311,6 +312,9 @@ SimulatorPImpl::SimulatorPImpl(int ncomp, int ncol, int npar, int nsec, Adsorpti
     case SELF_ASSOCIATION:
         _adsModel = new AdsorptionModel_SAI(*this);
         break;
+    case MULTI_COMPONENT_BILANGMUIR:
+        _adsModel = new AdsorptionModel_MCBL(*this);
+        break;
     case EXTERNAL_LANGMUIR:
         _adsModel = new AdsorptionModel_EXTL(*this);
         break;
@@ -346,6 +350,11 @@ SimulatorPImpl::SimulatorPImpl(int ncomp, int ncol, int npar, int nsec, Adsorpti
         throw CadetException(ss.str());
         break;
     }
+
+    if (adsType == MULTI_COMPONENT_BILANGMUIR)
+        _chromModel->setMultipleBoundStatesMode(1);
+    else
+        _chromModel->setMultipleBoundStatesMode(0);
 
     log::emit<Trace1>() << CURRENT_FUNCTION << Color::green << ": Finished!" << Color::reset << log::endl;
 }
