@@ -100,6 +100,9 @@ public:
     // sets the section dependence of a parameter (group)
     virtual void setParameterSectionDependent(const ParameterName id, bool depends) { }
 
+    virtual void setMultipleBoundStatesMode(int mode) { }
+    virtual int getMultipleBoundStatesMode() const { return 0; }
+
 protected:
 
     ChromatographyType _chromType;

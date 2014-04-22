@@ -39,7 +39,8 @@ GeneralRateModel::GeneralRateModel(SimulatorPImpl& sim) :
     _secDepColDispersion(false),
     _secDepParDiffusion(false),
     _secDepParSurfDiffusion(false),
-    _secDepFilmDiffusion(false)
+    _secDepFilmDiffusion(false),
+    _multiBoundMode(0)
 {
     log::emit<Trace1>() << CURRENT_FUNCTION << Color::cyan << ": Called!" << Color::reset << log::endl;
 
@@ -572,7 +573,7 @@ int GeneralRateModel::residualParticle(const double t, const int pblk, const Sta
 
     ParamType pTypeInfo; // This is only to determine the residual function that is called
 
-    // go to the first diagonal element of Jacobian (ie. skip undefined values)
+    // Add ku_par such that jac[0] is always the main diagonal element and negative indices are well-defined
     double* jac = _jac.getJacP(pblk) + _jac.ku_par();
 
     // Loop over particle cells
@@ -586,7 +587,31 @@ int GeneralRateModel::residualParticle(const double t, const int pblk, const Sta
         for (int comp = 0; comp < _cc.ncomp(); ++comp, ++res, ++y, ++ydot, jac += _jac.ld_jp())
         {
             // Add time derivatives
-            *res = *ydot + inv_beta_p * ydot[_cc.ncomp()];
+
+            if (_multiBoundMode == 1)
+            {
+                // Add sum of dq1 / dt + dq2 / dt to the residual of the first half of components
+                // Only transport second (virtual) half of components
+                if (2 * comp < _cc.ncomp())
+                    *res = *ydot + inv_beta_p * (ydot[_cc.ncomp()] + ydot[_cc.ncomp() + _cc.ncomp() / 2]);
+                else
+                    *res = *ydot;
+            }
+            else if (_multiBoundMode == 2)
+            {
+                // Add sum of dq1 / dt + dq2 / dt to the residual of the first half of components, but watch out for salt
+                // Only transport second (virtual) half of components
+                if (comp == 0)
+                    *res = *ydot + inv_beta_p * ydot[_cc.ncomp()]; // Salt has no second bound state
+                else if (2 * comp < _cc.ncomp())
+                    *res = *ydot + inv_beta_p * (ydot[_cc.ncomp()] + ydot[_cc.ncomp() + (_cc.ncomp() - 1) / 2]);
+                else
+                    *res = *ydot;
+            }
+            else
+            {
+                *res = *ydot + inv_beta_p * ydot[_cc.ncomp()];
+            }
 
             // set dres / dc_i and dres / dq_i = 0
             if (wantJac)

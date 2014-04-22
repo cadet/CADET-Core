@@ -47,6 +47,9 @@ public:
     // sets the section dependence of a parameter (group)
     virtual void setParameterSectionDependent(const ParameterName id, bool depends);
 
+    virtual void setMultipleBoundStatesMode(int mode) { _multiBoundMode = mode; }
+    virtual int getMultipleBoundStatesMode() const { return _multiBoundMode; }
+
 private:
 
     // this residual function now only handles column and particles
@@ -88,6 +91,7 @@ private:
     bool        _secDepParDiffusion;
     bool        _secDepParSurfDiffusion;
     bool        _secDepFilmDiffusion;
+    int         _multiBoundMode;
 
     void dFdy_times_s(N_Vector NV_s, N_Vector NV_ret);
     void dFdyDot_times_sDot(N_Vector NV_sDot, N_Vector NV_ret);

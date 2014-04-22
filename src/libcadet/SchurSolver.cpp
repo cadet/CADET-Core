@@ -111,8 +111,43 @@ void SchurSolver::assembleJacPDisc(int pblk, double alpha)
             for (int r = 0; r < _jac.ld_jp(); ++r)
                 jacP_disc[r] = jacP[r];
 
-            jacP_disc[_jac.ku_par()]               += alpha;
-            jacP_disc[_jac.ku_par() + _cc.ncomp()] += alpha * invBetaP;
+            // Add derviative with respect to dc_p / dt to Jacobian
+            jacP_disc[_jac.ku_par()] += alpha;
+
+            if (_sim.getChromatographyModel().getMultipleBoundStatesMode() == 1)
+            {
+                // Multi bound state emulation, last half of components is used for second bound state
+                if (comp * 2 < _cc.ncomp())
+                {
+                    // Add derivative of dq1 / dt + dq2 / dt to Jacobian
+                    jacP_disc[_jac.ku_par() + _cc.ncomp()] += alpha * invBetaP;
+                    jacP_disc[_jac.ku_par() + _cc.ncomp() + _cc.ncomp() / 2] += alpha * invBetaP;
+                }
+                // No dq / dt terms for second half of components
+            }
+            else if (_sim.getChromatographyModel().getMultipleBoundStatesMode() == 2)
+            {
+                // Multi bound state emulation with salt, last half of components is used for second bound state
+                // In this mode first component is salt
+                if (comp == 0)
+                {
+                    // Normal equations for salt
+                    jacP_disc[_jac.ku_par() + _cc.ncomp()] = alpha * invBetaP;
+                }
+                else if (comp * 2 < _cc.ncomp())
+                {
+                    // Handle non-salt components
+                    // Add derivative of dq1 / dt + dq2 / dt to Jacobian
+                    jacP_disc[_jac.ku_par() + _cc.ncomp()] = alpha * invBetaP;
+                    jacP_disc[_jac.ku_par() + _cc.ncomp() + (_cc.ncomp() - 1) / 2] = alpha * invBetaP;
+                }
+                // No dq / dt terms for second half of components
+            }
+            else
+            {
+                // Add derivative with respect to dq / dt to Jacobian (normal equations)
+                jacP_disc[_jac.ku_par() + _cc.ncomp()] += alpha * invBetaP;
+            }
 
             jacP      += _jac.ld_jp();
             jacP_disc += _jac.ld_jp_disc();
@@ -378,15 +413,7 @@ int SchurSolver::schurSolve(IDAMem IDA_mem, N_Vector NV_rhs, N_Vector weight,
         #pragma omp parallel for
         for (int pblk = 0; pblk < _cc.npblk(); ++pblk)
         {
-            if (pblk == -1) // column
-            {
-//                factorizeJacCDisc();
-            }
-
-            else // particle
-            {
-                factorizeJacPDisc(pblk);
-            }
+            factorizeJacPDisc(pblk);
         }
 
 /*

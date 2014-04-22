@@ -73,6 +73,11 @@ public:
     template <typename ReturnType>
     const std::vector<ReturnType> getValueForAllComp(const ParameterName id, int sec = -1) const;
 
+    /// \brief Get the values of the parameter named 'pname' for the first 'count' components in section 'sec'
+    /// by default, sec is -1 (parameters do not depend on any section)
+    template <typename ReturnType>
+    const std::vector<ReturnType> getValueForFirstNComp(const ParameterName id, int count, int sec = -1) const;
+
     /// \brief Get the values of the parameter named 'pname' for all components and sections
     template <typename ReturnType>
     const std::vector<ReturnType> getValueForAllCompAndSec(const ParameterName id) const;
@@ -294,6 +299,19 @@ const std::vector<ReturnType> ParameterContainer<ParamType>::getValueForAllComp(
 
     log::emit<Trace2>() << CURRENT_FUNCTION << Color::green << ": Finished!" << Color::reset << log::endl;
     return retAllComp;
+}
+
+template <typename ParamType> template <typename ReturnType>
+const std::vector<ReturnType> ParameterContainer<ParamType>::getValueForFirstNComp(const ParameterName id, int count, int sec) const
+{
+    log::emit<Trace2>() << CURRENT_FUNCTION << Color::cyan << ": Called!" << Color::reset << log::endl;
+
+    std::vector<ReturnType> retFirstComps(count);
+    for (int i = 0; i < count; ++i)
+        retFirstComps.at(i) = getValue<ReturnType>(id, i, sec);
+
+    log::emit<Trace2>() << CURRENT_FUNCTION << Color::green << ": Finished!" << Color::reset << log::endl;
+    return retFirstComps;
 }
 
 template <typename ParamType> template <typename ReturnType>
