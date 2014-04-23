@@ -97,22 +97,22 @@ public:
     {
         log::emit<Trace2>() << CURRENT_FUNCTION << Color::cyan << ": Called!" << Color::reset << log::endl;
 
-        double              ka        = getValue<double>           (EXTSMA_KA,     comp);
-        double              ka_T      = getValue<double>           (EXTSMA_KA_T,   comp);
-        double              ka_TT     = getValue<double>           (EXTSMA_KA_TT,  comp);
-        double              ka_TTT    = getValue<double>           (EXTSMA_KA_TTT, comp);
-        double              kd        = getValue<double>           (EXTSMA_KD,     comp);
-        double              kd_T      = getValue<double>           (EXTSMA_KD_T,   comp);
-        double              kd_TT     = getValue<double>           (EXTSMA_KD_TT,  comp);
-        double              kd_TTT    = getValue<double>           (EXTSMA_KD_TTT, comp);
-        std::vector<double> nu        = getValueForAllComp<double> (EXTSMA_NU);
-        std::vector<double> nu_T      = getValueForAllComp<double> (EXTSMA_NU_T);
-        std::vector<double> nu_TT     = getValueForAllComp<double> (EXTSMA_NU_TT);
-        std::vector<double> nu_TTT    = getValueForAllComp<double> (EXTSMA_NU_TTT);
-        std::vector<double> sigma     = getValueForAllComp<double> (EXTSMA_SIGMA);
-        std::vector<double> sigma_T   = getValueForAllComp<double> (EXTSMA_SIGMA_T);
-        std::vector<double> sigma_TT  = getValueForAllComp<double> (EXTSMA_SIGMA_TT);
-        std::vector<double> sigma_TTT = getValueForAllComp<double> (EXTSMA_SIGMA_TTT);
+        const double              ka        = getValue<double>           (EXTSMA_KA,     comp);
+        const double              ka_T      = getValue<double>           (EXTSMA_KA_T,   comp);
+        const double              ka_TT     = getValue<double>           (EXTSMA_KA_TT,  comp);
+        const double              ka_TTT    = getValue<double>           (EXTSMA_KA_TTT, comp);
+        const double              kd        = getValue<double>           (EXTSMA_KD,     comp);
+        const double              kd_T      = getValue<double>           (EXTSMA_KD_T,   comp);
+        const double              kd_TT     = getValue<double>           (EXTSMA_KD_TT,  comp);
+        const double              kd_TTT    = getValue<double>           (EXTSMA_KD_TTT, comp);
+        const std::vector<double> nu        = getValueForAllComp<double> (EXTSMA_NU);
+        const std::vector<double> nu_T      = getValueForAllComp<double> (EXTSMA_NU_T);
+        const std::vector<double> nu_TT     = getValueForAllComp<double> (EXTSMA_NU_TT);
+        const std::vector<double> nu_TTT    = getValueForAllComp<double> (EXTSMA_NU_TTT);
+        const std::vector<double> sigma     = getValueForAllComp<double> (EXTSMA_SIGMA);
+        const std::vector<double> sigma_T   = getValueForAllComp<double> (EXTSMA_SIGMA_T);
+        const std::vector<double> sigma_TT  = getValueForAllComp<double> (EXTSMA_SIGMA_TT);
+        const std::vector<double> sigma_TTT = getValueForAllComp<double> (EXTSMA_SIGMA_TTT);
 
         // Temperature
         double temp;
@@ -132,8 +132,8 @@ public:
         else  // Protein component
         {
             // Salt concentrations in liquid and solid phase
-            double c0 = c[-comp];
-            double q0 = q[-comp];
+            const double c0 = c[-comp];
+            const double q0 = q[-comp];
 
             double q0_bar = q0;
 
@@ -144,8 +144,8 @@ public:
             }
 
             const double finalNu = nu.at(comp) + temp * (nu_T.at(comp) + temp * (nu_TT.at(comp) + temp * nu_TTT.at(comp)));
-            double c0_pow_nu     = pow(c0, finalNu);
-            double q0_bar_pow_nu = pow(q0_bar, finalNu);
+            const double c0_pow_nu     = pow(c0, finalNu);
+            const double q0_bar_pow_nu = pow(q0_bar, finalNu);
 
             const double finalKa = ka + temp * (ka_T + temp * (ka_TT + temp * ka_TTT));
             const double finalKd = kd + temp * (kd_T + temp * (kd_TT + temp * kd_TTT));
@@ -217,8 +217,8 @@ private:
         {
             // Protein 
             // Salt concentrations in liquid and solid phase
-            StateType c0 = c[-comp];
-            StateType q0 = q[-comp];
+            const StateType c0 = c[-comp];
+            const StateType q0 = q[-comp];
 
             ResidType q0_bar = q0;
 

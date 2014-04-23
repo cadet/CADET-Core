@@ -33,7 +33,7 @@ public:
     {
         log::emit<Trace1>() << CURRENT_FUNCTION << Color::cyan << ": Called!" << Color::reset << log::endl;
 
-        double inf = std::numeric_limits<double>::infinity();
+        const double inf = std::numeric_limits<double>::infinity();
 
         this->configure();
         log::emit<Debug1>() << CURRENT_FUNCTION << ": Configured" << log::endl;
@@ -86,18 +86,18 @@ public:
 
     virtual void setJacobian(const double t, const double z, const int comp, const double* q, double* jac) const throw (CadetException)
     {
-        double              ka       = getValue<double>           (EXTL_KA,     comp);
-        double              ka_T     = getValue<double>           (EXTL_KA_T,   comp);
-        double              ka_TT    = getValue<double>           (EXTL_KA_TT,  comp);
-        double              ka_TTT   = getValue<double>           (EXTL_KA_TTT, comp);
-        double              kd       = getValue<double>           (EXTL_KD,     comp);
-        double              kd_T     = getValue<double>           (EXTL_KD_T,   comp);
-        double              kd_TT    = getValue<double>           (EXTL_KD_TT,  comp);
-        double              kd_TTT   = getValue<double>           (EXTL_KD_TTT, comp);
-        std::vector<double> qmax     = getValueForAllComp<double> (EXTL_QMAX);
-        std::vector<double> qmax_T   = getValueForAllComp<double> (EXTL_QMAX_T);
-        std::vector<double> qmax_TT  = getValueForAllComp<double> (EXTL_QMAX_TT);
-        std::vector<double> qmax_TTT = getValueForAllComp<double> (EXTL_QMAX_TTT);
+        const double              ka       = getValue<double>           (EXTL_KA,     comp);
+        const double              ka_T     = getValue<double>           (EXTL_KA_T,   comp);
+        const double              ka_TT    = getValue<double>           (EXTL_KA_TT,  comp);
+        const double              ka_TTT   = getValue<double>           (EXTL_KA_TTT, comp);
+        const double              kd       = getValue<double>           (EXTL_KD,     comp);
+        const double              kd_T     = getValue<double>           (EXTL_KD_T,   comp);
+        const double              kd_TT    = getValue<double>           (EXTL_KD_TT,  comp);
+        const double              kd_TTT   = getValue<double>           (EXTL_KD_TTT, comp);
+        const std::vector<double> qmax     = getValueForAllComp<double> (EXTL_QMAX);
+        const std::vector<double> qmax_T   = getValueForAllComp<double> (EXTL_QMAX_T);
+        const std::vector<double> qmax_TT  = getValueForAllComp<double> (EXTL_QMAX_TT);
+        const std::vector<double> qmax_TTT = getValueForAllComp<double> (EXTL_QMAX_TTT);
 
         // Liquid phase concentration
         const double* c = q -_cc.ncomp();
@@ -105,12 +105,12 @@ public:
         double temp;
         _externalBase->externalProfile(z, t, &temp);
 
-        double temp2 = pow(temp, 2); // T^2: we use it again
-        double temp3 = pow(temp, 3); // T^3: we use it again
+        const double temp2 = pow(temp, 2); // T^2: we use it again
+        const double temp3 = pow(temp, 3); // T^3: we use it again
 
         // Compute overall parameters from their coefficients, depending on the externally given value
-        double ka_all = ka_TTT * temp3 + ka_TT * temp2 + ka_T * temp + ka;
-        double kd_all = kd_TTT * temp3 + kd_TT * temp2 + kd_T * temp + kd;
+        const double ka_all = ka_TTT * temp3 + ka_TT * temp2 + ka_T * temp + ka;
+        const double kd_all = kd_TTT * temp3 + kd_TT * temp2 + kd_T * temp + kd;
         std::vector<double> qmax_all(_cc.ncomp(), 0.0);
         for (int j = 0; j < _cc.ncomp(); ++j)
             qmax_all.at(j) = qmax_TTT.at(j) * temp3 + qmax_TT.at(j) * temp2 + qmax_T.at(j) * temp + qmax.at(j);

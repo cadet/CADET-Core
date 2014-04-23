@@ -33,7 +33,7 @@ public:
     {
         log::emit<Trace1>() << CURRENT_FUNCTION << Color::cyan << ": Called!" << Color::reset << log::endl;
 
-        double inf = std::numeric_limits<double>::infinity();
+        const double inf = std::numeric_limits<double>::infinity();
 
         this->configure();
         log::emit<Debug1>() << CURRENT_FUNCTION << ": Configured" << log::endl;
@@ -42,7 +42,7 @@ public:
         {
             addParam(Parameter<active> (MCL_KA,   e2s(MCL_KA),   comp, -1, 0.0, 0.0, 0.0, false, inf, true));
             addParam(Parameter<active> (MCL_KD,   e2s(MCL_KD),   comp, -1, 0.0, 0.0, 0.0, false, inf, true));
-            addParam(Parameter<active> (MCL_QMAX, e2s(MCL_QMAX), comp, -1, 0.0, 0.0, 0.0, false, inf, true));
+            addParam(Parameter<active> (MCL_QMAX, e2s(MCL_QMAX), comp, -1, 0.0, 0.0, 0.0, true,  inf, true));
         }
 
         log::emit<Trace1>() << CURRENT_FUNCTION << Color::green << ": Finished!" << Color::reset << log::endl;
@@ -77,9 +77,9 @@ public:
 
     virtual void setJacobian(const double t, const double z, const int comp, const double* q, double* jac) const throw (CadetException)
     {
-        double              ka   = getValue<double>           (MCL_KA, comp);
-        double              kd   = getValue<double>           (MCL_KD, comp);
-        std::vector<double> qmax = getValueForAllComp<double> (MCL_QMAX);
+        const double              ka   = getValue<double>           (MCL_KA, comp);
+        const double              kd   = getValue<double>           (MCL_KD, comp);
+        const std::vector<double> qmax = getValueForAllComp<double> (MCL_QMAX);
 
         // Liquid phase concentration
         const double* c = q -_cc.ncomp();

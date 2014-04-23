@@ -33,7 +33,7 @@ public:
     {
         log::emit<Trace1>() << CURRENT_FUNCTION << Color::cyan << ": Called!" << Color::reset << log::endl;
 
-        double inf = std::numeric_limits<double>::infinity();
+        const double inf = std::numeric_limits<double>::infinity();
 
         this->configure();
         log::emit<Debug1>() << CURRENT_FUNCTION << ": Configured" << log::endl;

@@ -43,10 +43,10 @@ public:
         {
             addParam(Parameter<active> (MCBL_KA1,   e2s(MCBL_KA1),   comp, -1, 0.0, 0.0, 0.0, false, inf, true));
             addParam(Parameter<active> (MCBL_KD1,   e2s(MCBL_KD1),   comp, -1, 0.0, 0.0, 0.0, false, inf, true));
-            addParam(Parameter<active> (MCBL_QMAX1, e2s(MCBL_QMAX1), comp, -1, 0.0, 0.0, 0.0, false, inf, true));
+            addParam(Parameter<active> (MCBL_QMAX1, e2s(MCBL_QMAX1), comp, -1, 0.0, 0.0, 0.0, true,  inf, true));
             addParam(Parameter<active> (MCBL_KA2,   e2s(MCBL_KA2),   comp, -1, 0.0, 0.0, 0.0, false, inf, true));
             addParam(Parameter<active> (MCBL_KD2,   e2s(MCBL_KD2),   comp, -1, 0.0, 0.0, 0.0, false, inf, true));
-            addParam(Parameter<active> (MCBL_QMAX2, e2s(MCBL_QMAX2), comp, -1, 0.0, 0.0, 0.0, false, inf, true));
+            addParam(Parameter<active> (MCBL_QMAX2, e2s(MCBL_QMAX2), comp, -1, 0.0, 0.0, 0.0, true,  inf, true));
         }
 
         log::emit<Trace1>() << CURRENT_FUNCTION << Color::green << ": Finished!" << Color::reset << log::endl;
@@ -83,12 +83,12 @@ public:
     {
         const int clampedComp = (comp >= _nRealComp) ? comp - _nRealComp : comp;
 
-        double              ka1   = getValue<double>              (MCBL_KA1, clampedComp);
-        double              kd1   = getValue<double>              (MCBL_KD1, clampedComp);
-        std::vector<double> qmax1 = getValueForFirstNComp<double> (MCBL_QMAX1, _nRealComp);
-        double              ka2   = getValue<double>              (MCBL_KA2, clampedComp);
-        double              kd2   = getValue<double>              (MCBL_KD2, clampedComp);
-        std::vector<double> qmax2 = getValueForFirstNComp<double> (MCBL_QMAX2, _nRealComp);
+        const double              ka1   = getValue<double>              (MCBL_KA1, clampedComp);
+        const double              kd1   = getValue<double>              (MCBL_KD1, clampedComp);
+        const std::vector<double> qmax1 = getValueForFirstNComp<double> (MCBL_QMAX1, _nRealComp);
+        const double              ka2   = getValue<double>              (MCBL_KA2, clampedComp);
+        const double              kd2   = getValue<double>              (MCBL_KD2, clampedComp);
+        const std::vector<double> qmax2 = getValueForFirstNComp<double> (MCBL_QMAX2, _nRealComp);
 
         // Residual
         if (comp < _nRealComp)

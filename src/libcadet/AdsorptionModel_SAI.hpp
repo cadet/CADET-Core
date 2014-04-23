@@ -33,7 +33,10 @@ public:
     {
         log::emit<Trace1>() << CURRENT_FUNCTION << Color::cyan << ": Called!" << Color::reset << log::endl;
 
-        double inf = std::numeric_limits<double>::infinity();
+        const double inf = std::numeric_limits<double>::infinity();
+
+        this->configure();
+        log::emit<Debug1>() << CURRENT_FUNCTION << ": Configured" << log::endl;
 
         addParam(Parameter<active> (SAI_LAMBDA, e2s(SAI_LAMBDA), -1, -1, 0.0, 0.0, 0.0, false, inf, true));
 
@@ -78,11 +81,11 @@ public:
     {
         log::emit<Trace2>() << CURRENT_FUNCTION << Color::cyan << ": Called!" << Color::reset << log::endl;
 
-        double              ka1    = getValue<double>           (SAI_KA1, comp);
-        double              ka2    = getValue<double>           (SAI_KA2, comp);
-        double              kd     = getValue<double>           (SAI_KD, comp);
-        std::vector<double> nu     = getValueForAllComp<double> (SAI_NU);
-        std::vector<double> sigma  = getValueForAllComp<double> (SAI_SIGMA);
+        const double              ka1    = getValue<double>           (SAI_KA1, comp);
+        const double              ka2    = getValue<double>           (SAI_KA2, comp);
+        const double              kd     = getValue<double>           (SAI_KD, comp);
+        const std::vector<double> nu     = getValueForAllComp<double> (SAI_NU);
+        const std::vector<double> sigma  = getValueForAllComp<double> (SAI_SIGMA);
 
         // Liquid phase concentration
         const double* c = q -_cc.ncomp();
@@ -96,19 +99,19 @@ public:
         else // Protein component
         {
             // Salt concentrations in liquid and solid phase
-            double c0 = c[-comp];
-            double q0 = q[-comp];
+            const double c0 = c[-comp];
+            const double q0 = q[-comp];
 
             double q0_bar = q0;
             
             for (int j = 1; j < _cc.ncomp(); ++j)
                 q0_bar -= sigma.at(j) * q[-comp + j];
 
-            double c0_pow_nu     = pow(c0, nu.at(comp));
-            double q0_bar_pow_nu = pow(q0_bar, nu.at(comp));
+            const double c0_pow_nu     = pow(c0, nu.at(comp));
+            const double q0_bar_pow_nu = pow(q0_bar, nu.at(comp));
 
-            double c0_pow_nuMINUS1     = pow(c0, nu.at(comp) - 1);
-            double q0_bar_pow_nuMINUS1 = pow(q0_bar, nu.at(comp) - 1);
+            const double c0_pow_nuMINUS1     = pow(c0, nu.at(comp) - 1);
+            const double q0_bar_pow_nuMINUS1 = pow(q0_bar, nu.at(comp) - 1);
 
             // Jacobian entrys
             jac[-_cc.ncomp() - comp] = kd * (*q) * (nu.at(comp) * c0_pow_nuMINUS1);         // dres / dc0
@@ -157,8 +160,8 @@ private:
         else // Protein component
         {
             // Salt concentrations in liquid and solid phase
-            StateType c0 = c[-comp];
-            StateType q0 = q[-comp];
+            const StateType c0 = c[-comp];
+            const StateType q0 = q[-comp];
 
             ResidType q0_bar = q0;
 

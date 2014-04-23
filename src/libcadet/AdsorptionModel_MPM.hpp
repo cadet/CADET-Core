@@ -33,13 +33,16 @@ public:
     {
         log::emit<Trace1>() << CURRENT_FUNCTION << Color::cyan << ": Called!" << Color::reset << log::endl;
 
-        double inf = std::numeric_limits<double>::infinity();
+        const double inf = std::numeric_limits<double>::infinity();
+
+        this->configure();
+        log::emit<Debug1>() << CURRENT_FUNCTION << ": Configured" << log::endl;
 
         for (int comp = 0; comp < _cc.ncomp(); ++comp)
         {
             addParam(Parameter<active> (MPM_KA,    e2s(MPM_KA),    comp, -1, 0.0, 0.0, 0.0, false, inf, true));
             addParam(Parameter<active> (MPM_KD,    e2s(MPM_KD),    comp, -1, 0.0, 0.0, 0.0, false, inf, true));
-            addParam(Parameter<active> (MPM_QMAX,  e2s(MPM_QMAX),  comp, -1, 0.0, 0.0, 0.0, false, inf, true));
+            addParam(Parameter<active> (MPM_QMAX,  e2s(MPM_QMAX),  comp, -1, 0.0, 0.0, 0.0, true,  inf, true));
             addParam(Parameter<active> (MPM_BETA,  e2s(MPM_BETA),  comp, -1, 0.0, 0.0, 0.0, false, inf, true));
             addParam(Parameter<active> (MPM_GAMMA, e2s(MPM_GAMMA), comp, -1, 0.0, 0.0, 0.0, false, inf, true));
         }
@@ -77,11 +80,11 @@ public:
     {
         log::emit<Trace2>() << CURRENT_FUNCTION << Color::cyan << ": Called!" << Color::reset << log::endl;
 
-        double              ka    = getValue<double>           (MPM_KA, comp);
-        double              kd    = getValue<double>           (MPM_KD, comp);
-        std::vector<double> qmax  = getValueForAllComp<double> (MPM_QMAX);
-        double              beta  = getValue<double>           (MPM_BETA, comp);
-        double              gamma = getValue<double>           (MPM_GAMMA, comp);
+        const double              ka    = getValue<double>           (MPM_KA, comp);
+        const double              kd    = getValue<double>           (MPM_KD, comp);
+        const std::vector<double> qmax  = getValueForAllComp<double> (MPM_QMAX);
+        const double              beta  = getValue<double>           (MPM_BETA, comp);
+        const double              gamma = getValue<double>           (MPM_GAMMA, comp);
 
         // Only protein components
         if (comp > 0)
@@ -90,10 +93,10 @@ public:
             const double* c = q - _cc.ncomp();
 
             // Liquid phase salt concentration
-            double c0 = c[-comp];
+            const double c0 = c[-comp];
 
-            double ka_mpm = ka * exp(gamma * c0);
-            double kd_mpm = kd * pow(c0, beta);
+            const double ka_mpm = ka * exp(gamma * c0);
+            const double kd_mpm = kd * pow(c0, beta);
 
             double qsum = 1.0;
             for (int j = 1; j < _cc.ncomp(); ++j)
@@ -139,7 +142,7 @@ private:
             // Protein components
             
             // Liquid phase salt concentration
-            StateType c0 = c[-comp];
+            const StateType c0 = c[-comp];
             
             ResidType ka_mpm = ka * exp(gamma * c0);
             ResidType kd_mpm = kd * pow(c0, beta);
