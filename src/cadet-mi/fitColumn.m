@@ -542,13 +542,13 @@ function [hasError, fitData, numJoins] = checkInput(fitData)
             for j = 1:length(fitData{i}.links)
                 % Check if links have the correct range
                 if any((fitData{i}.links{j} <= 0) | (fitData{i}.links{j} > length(fitData)))
-                    disp(['Error in fit ' num2str(i) ': Link indices of parameter ' num2str(j) ' ("' paramInfo.params{j} '") are out of range']);
+                    disp(['Error in fit ' num2str(i) ': Link indices of parameter ' num2str(j) ' are out of range']);
                     hasError = true;
                 end
 
                 % Check if links include the current fit
                 if any(fitData{i}.links{j} == i)
-                    disp(['Error in fit ' num2str(i) ': Cannot link parameter ' num2str(j) ' ("' paramInfo.params{j} '") to itself']);
+                    disp(['Error in fit ' num2str(i) ': Cannot link parameter ' num2str(j) ' to itself']);
                     hasError = true;
                 end
             end
