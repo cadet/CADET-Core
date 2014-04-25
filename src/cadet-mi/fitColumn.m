@@ -1,7 +1,8 @@
-function [outParams, res] = fitColumn(fitData, initParams, loBound, upBound, logScale, quietMode )
+function [outParams, res] = fitColumn(fitData, initParams, loBound, upBound, logScale, parameterTransform, quietMode )
 %FITCOLUMN Fits a model to the given datasets.
 %
 % [outParams, res] = fitColumn(fitData, initParams, loBound, upBound, logScale, quietMode )
+% [outParams, res] = fitColumn(fitData, initParams, loBound, upBound, logScale, parameterTransform, quietMode )
 %
 % Parameters:
 %   - fitData: Array of structs, one for each experiment. Each struct has
@@ -34,6 +35,33 @@ function [outParams, res] = fitColumn(fitData, initParams, loBound, upBound, log
 %       parameters have the same scale. Scaling can be enabled/disabled for
 %       each parameter by setting logScale to true/false (scalar). See
 %       initParams for ordering. Default is all true.
+%   - parameterTransform: Optional. Struct which specifies a parameter
+%       transformation. Fields:
+%           o postLogTransform: Set to true to apply this transform after
+%               the logarithmic transformation, i.e., the final transform
+%               is
+%                   p_opt = transform( log( p_sim ) ),
+%               where p_sim is the parameter vector given to the simulator
+%               and p_opt is the parameter vector used by the optimizer.
+%               If set to false, the ordering is
+%                   p_opt = log( transform( p_sim ) ).
+%           o transform: Function handle to the function applying the
+%               transformation from simulator parameter space to optimizer
+%               parameter space
+%           o invTransform: Function handle to the function applying the
+%               transformation from optimizer parameter space to simulator
+%               parameter space, i.e., the inverse of transform()
+%           o chainRuleInvTransform: Function handle to the function
+%               applying the chain rule to the Jacobian of the system. The
+%               function is given an (N x nParams)-matrix and the current
+%               point in simulator space (with respect to potential
+%               logarithmization). It should then return a matrix of the
+%               same size as the input matrix with the chain rule applied.
+%               The ordering of the columns in the Jacobian and the current
+%               parameters is the same as for initParams.
+%           o transformBounds: Optional. Set to true to transform the upper
+%               and lower bounds of the optimization problem. Defaults to
+%               true.
 %   - quietMode: Optional. Enables quiet mode, i.e. disables plots and
 %       iteration monitoring. Defaults to false (quiet mode disabled).
 %
@@ -91,10 +119,26 @@ function [outParams, res] = fitColumn(fitData, initParams, loBound, upBound, log
         logScale = ones(size(initParams)) .* logScale;
     end
     
-    if (nargin <= 5) || isempty(quietMode)
+    customTransform = true;
+    if (nargin <= 5) || isempty(parameterTransform)
+        customTransform = false;
+    end
+
+    if (nargin <= 6) || isempty(quietMode)
         quietMode = false;
     end
+
+    if (nargin == 6) && islogical(parameterTransform) && (numel(parameterTransform) == 1) && ~isstruct(parameterTransform)
+        quietMode = parameterTransform;
+        customTransform = false;
+        parameterTransform = [];
+    end
+
     enablePlot = ~quietMode;  % Enables or disables plots in each iteration
+
+    if customTransform && (~isfield(parameterTransform, 'transformBounds') || isempty(parameterTransform.transformBounds))
+        parameterTransform.transformBounds = true;
+    end
 
     % Convert param vector from column (n x 1) to row (1 x n)
     if size(initParams, 1) > 1
@@ -200,6 +244,20 @@ function [outParams, res] = fitColumn(fitData, initParams, loBound, upBound, log
         return;
     end
 
+    % Transform to optimizer space
+    if customTransform && ~parameterTransform.postLogTransform
+        initParams = parameterTransform.transform(initParams);
+
+        if parameterTransform.transformBounds
+            if ~isempty(upBound)
+                upBound = parameterTransform.transform(upBound);
+            end
+            if ~isempty(loBound)
+                loBound = parameterTransform.transform(loBound);
+            end
+        end
+    end
+
     % Convert parameters to log scale
     globalLogScale = zeros(1, length(globalToLocalFit));
     for i = 1:length(globalToLocalFit)
@@ -241,6 +299,20 @@ function [outParams, res] = fitColumn(fitData, initParams, loBound, upBound, log
         end
     end
     
+    % Transform to optimizer space
+    if customTransform && parameterTransform.postLogTransform
+        initParams = parameterTransform.transform(initParams);
+
+        if parameterTransform.transformBounds
+            if ~isempty(upBound)
+                upBound = parameterTransform.transform(upBound);
+            end
+            if ~isempty(loBound)
+                loBound = parameterTransform.transform(loBound);
+            end
+        end
+    end
+
     % Fit
     opts = optimset('TolFun', 1e-8, 'TolX', 1e-8, 'MaxIter', 100, 'Diagnostics', 'off');
     options_monitor = optimset('Display', 'iter');
@@ -263,22 +335,44 @@ function [outParams, res] = fitColumn(fitData, initParams, loBound, upBound, log
         res = -1;
     end
 
+    % Transform back to simulator space
+    if customTransform && parameterTransform.postLogTransform
+        cadetparams = parameterTransform.invTransform(cadetparams);
+    end
+
     % Convert back to normal scale
     idxLog = globalLogScale ~= 0;
     outParams = cadetparams;
     outParams(idxLog) = globalLogScale(idxLog) .* exp(cadetparams(idxLog));
+
+    % Transform back to simulator space
+    if customTransform && ~parameterTransform.postLogTransform
+        outParams = parameterTransform.invTransform(outParams);
+    end
 
     function [globRes, globJac] = residual(cadetparams)
     %RESIDUAL Calculates the residual of the optimization problem
         
         % Save the current parameters 
         lastParamsTried = cadetparams;
+        lastParamsTriedExp = cadetparams;
 
         nf = length(fitData);
+
+        % Transform back to simulator space
+        if customTransform && parameterTransform.postLogTransform
+            cadetparams = parameterTransform.invTransform(cadetparams);
+        end
 
         % Convert from log scale to normal scale
         idxLog = globalLogScale ~= 0;
         cadetparams(idxLog) = globalLogScale(idxLog) .* exp(cadetparams(idxLog));
+        lastParamsTriedExp(idxLog) = globalLogScale(idxLog) .* exp(lastParamsTriedExp(idxLog));
+
+        % Transform back to simulator space
+        if customTransform && ~parameterTransform.postLogTransform
+            cadetparams = parameterTransform.invTransform(cadetparams);
+        end
 
         globRes = [];
         globJac = [];
@@ -330,10 +424,18 @@ function [outParams, res] = fitColumn(fitData, initParams, loBound, upBound, log
                 jacSimGlobalized = zeros(size(jacSim,1), length(cadetparams));
                 jacSimGlobalized(:, idxLocal) = jacSim;
 
+                if customTransform && parameterTransform.postLogTransform
+                    jacSimGlobalized = parameterTransform.chainRuleInvTransform(jacSimGlobalized, lastParamsTried);
+                end
+
                 % Adapt Jacobian to log scale by chain rule
                 idxMask = false(size(idxLog));
                 idxMask(idxLocal) = true;
                 jacSimGlobalized(:, idxLog & idxMask) = jacSim(:, idxLog(idxLocal)) .* repmat(localParams(idxLog(idxLocal)), size(jacSim,1), 1);
+
+                if customTransform && ~parameterTransform.postLogTransform
+                    jacSimGlobalized = parameterTransform.chainRuleInvTransform(jacSimGlobalized, lastParamsTriedExp);
+                end
 
                 % Concatenate local jacobians to obtain global Jacobian
                 globJac = [globJac; jacSimGlobalized];
