@@ -13,7 +13,6 @@ function exampleK()
     secs = [-1 -1 -1];
 
     fit = [];
-    fit.logScale = true;       % Enable log scaling
 
     fit.joins = [{[3]}, {[]}]; % Join 3rd declared parameter with 1st 
                                % declared parameter
@@ -39,7 +38,6 @@ function exampleK()
     secs = [-1 -1 -1];
     
     fit = [];
-    fit.logScale = true;       % Enable log scaling
 
     fit.joins = [{[3]}, {[]}]; % Join 3rd declared parameter with 1st 
                                % declared parameter
@@ -58,7 +56,9 @@ function exampleK()
     upBound = [];
     
     initParams = [2, 5e-3, 0.03];  % True values: [1.14, 0.002, 0.01]
-    [params, residual] = fitColumn(fitData, initParams, loBound, upBound, quietMode);
+    logScale = true(length(initParams), 1); % Enable log scaling
+
+    [params, residual] = fitColumn(fitData, initParams, loBound, upBound, logScale, quietMode);
 end
 
 function [sim] = createModel(tOut, k)

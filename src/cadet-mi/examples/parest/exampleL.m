@@ -10,7 +10,6 @@ function exampleL()
     
     % First fit
     fit = [];
-    fit.logScale = true;        % Enable log scaling
     fit.idxComp = [1];
     fit.tOut = linspace(0, 10000, 1001);
     fit.sim = createModel(fit.tOut);
@@ -32,7 +31,9 @@ function exampleL()
     % Parameters in order of first appearance:
     % interstitialVelocity, diffusionParticle
     initParams = [9.75e-4 1.8e-9];  % True values: [5.75e-4 6.8e-9]
-    [params, residual] = fitColumn(fitData, initParams, loBound, upBound, quietMode);
+    logScale = true(length(initParams), 1); % Enable log scaling
+
+    [params, residual] = fitColumn(fitData, initParams, loBound, upBound, logScale, quietMode);
 end
 
 function [sim] = createModel(tOut)

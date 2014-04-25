@@ -10,7 +10,6 @@ function exampleM()
     
     % First fit
     fit = [];
-    fit.logScale = true;        % Enable log scaling
     fit.idxComp = [2 3 4];
     fit.tOut = linspace(0, 1500, 1001);
     fit.sim = createModel(fit.tOut);
@@ -32,7 +31,9 @@ function exampleM()
     
     % Parameters
     initParams = [4e-6 6e-5 6e-11 6e-10];  % True values: [6e-6 9e-5 4e-11 4e-10]
-    [params, residual] = fitColumn(fitData, initParams, loBound, upBound, quietMode);
+    logScale = true(length(initParams), 1); % Enable log scaling
+
+    [params, residual] = fitColumn(fitData, initParams, loBound, upBound, logScale, quietMode);
 end
 
 function [sim] = createModel(tOut)

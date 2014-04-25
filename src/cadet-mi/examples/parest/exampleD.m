@@ -10,7 +10,6 @@ function exampleD()
     
     % First fit: Step elution
     fit = [];
-    fit.logScale = true;                  % Enable log scaling
     fit.links = [{[2]}, {[2]}, {[2]}];    % Link all parameters to second fit
     fit.idxComp = [2];
     fit.tOut = linspace(0, 1500, 1001);
@@ -44,7 +43,9 @@ function exampleD()
     % Parameters in order of first appearance:
     % sma_ka, sma_nu, sma_sigma
     initParams = [40.1, 3.5, 9.3];  % True values: [35.5, 4.7, 11.83]
-    [params, residual] = fitColumn(fitData, initParams, loBound, upBound, quietMode);
+    logScale = true(length(initParams), 1); % Enable log scaling
+
+    [params, residual] = fitColumn(fitData, initParams, loBound, upBound, logScale, quietMode);
 end
 
 function [sim] = createStep(tOut)

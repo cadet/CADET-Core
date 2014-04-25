@@ -10,7 +10,6 @@ function exampleC()
     
     % First fit with flow rate 5.75e-4
     fit = [];
-    fit.logScale = true;          % Enable log scaling
     fit.links = [{[2]}, {[]}];    % Link first parameters to second fit
                                   % velocity is independent
     fit.idxComp = [1];
@@ -22,9 +21,6 @@ function exampleC()
     
     % Second fit with same model but flow rate 4.25e-4
     fit = [];
-    fit.logScale = true;        % Enable log scaling for velocity of 
-                                % this fit
-
     fit.links = [{[1]}, {[]}];  % Link first parameters to first fit,
                                 % unnecessary in this case since
                                 % one link (regardless of its position) 
@@ -51,7 +47,9 @@ function exampleC()
     % Parameters in order of first appearance:
     % mcl_ka, velocity of model 1, velocity of model 2
     initParams = [2.5, 5e-4, 5e-4];  % True values: [1.14, X]
-    [params, residual] = fitColumn(fitData, initParams, loBound, upBound, quietMode);
+    logScale = true(length(initParams), 1); % Enable log scaling
+
+    [params, residual] = fitColumn(fitData, initParams, loBound, upBound, logScale, quietMode);
 end
 
 function [sim] = createModel(tOut, k)

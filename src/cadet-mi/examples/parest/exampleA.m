@@ -10,7 +10,6 @@ function exampleA()
     
     % First fit
     fit = [];
-    fit.logScale = true;        % Enable log scaling
     fit.idxComp = [1];
     fit.tOut = linspace(0, 10000, 1001);
     fit.sim = createModel(fit.tOut);
@@ -32,7 +31,9 @@ function exampleA()
     % Parameters in order of first appearance:
     % mcl_ka, mcl_kd
     initParams = [2.5, 7.2e-3];  % True values: [1.14, 0.002]
-    [params, residual] = fitColumn(fitData, initParams, loBound, upBound, quietMode);
+    logScale = true(length(initParams), 1); % Enable log scaling
+
+    [params, residual] = fitColumn(fitData, initParams, loBound, upBound, logScale, quietMode);
 end
 
 function [sim] = createModel(tOut)

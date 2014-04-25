@@ -13,7 +13,6 @@ function exampleJ()
 
     % First fit: Step elution
     fit = [];
-    fit.logScale = true;                    % Enable log scaling
     fit.joins = [{[5]}, {[]}, {[]}, {[]}];  % Join 5th declared parameter
                                             % with first declared parameter
     fit.idxComp = [2 3 4];
@@ -38,7 +37,9 @@ function exampleJ()
     % Parameters in order of first appearance:
     % sma_ka (comp 2+3), sma_ka (comp 4), sma_nu, sma_sigma
     initParams = [40.1, 12, 3.5, 9.3];  % True values: [15.5, 7.7, 4.7, 11.83]
-    [params, residual] = fitColumn(fitData, initParams, loBound, upBound, quietMode);
+    logScale = true(length(initParams), 1); % Enable log scaling
+
+    [params, residual] = fitColumn(fitData, initParams, loBound, upBound, logScale, quietMode);
 end
 
 function [sim] = createModel(tOut)

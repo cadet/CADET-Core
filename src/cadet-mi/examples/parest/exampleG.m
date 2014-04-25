@@ -10,7 +10,6 @@ function exampleG()
     
     % First fit
     fit = [];
-    fit.logScale = true;      % Enable log scaling
     fit.idxComp = [1 2];
     fit.tOut = linspace(0, 10000, 1001);
     fit.sim = createModel(fit.tOut);
@@ -30,7 +29,9 @@ function exampleG()
     upBound = [];
     
     initParams = [2.5, 7.2e-3, 0.8, 0.001];  % True values: [1.14, 0.002, 0.9, 0.005]
-    [params, residual] = fitColumn(fitData, initParams, loBound, upBound, quietMode);
+    logScale = true(length(initParams), 1); % Enable log scaling
+
+    [params, residual] = fitColumn(fitData, initParams, loBound, upBound, logScale, quietMode);
 end
 
 function [sim] = createModel(tOut)

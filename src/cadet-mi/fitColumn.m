@@ -1,7 +1,7 @@
-function [outParams, res] = fitColumn(fitData, initParams, loBound, upBound, quietMode )
+function [outParams, res] = fitColumn(fitData, initParams, loBound, upBound, logScale, quietMode )
 %FITCOLUMN Fits a model to the given datasets.
 %
-% [outParams, res] = fitColumn(fitData, initParams, loBound, upBound, quietMode )
+% [outParams, res] = fitColumn(fitData, initParams, loBound, upBound, logScale, quietMode )
 %
 % Parameters:
 %   - fitData: Array of structs, one for each experiment. Each struct has
@@ -20,12 +20,6 @@ function [outParams, res] = fitColumn(fitData, initParams, loBound, upBound, qui
 %               one parameter within this fit. The vectors contain the
 %               indices (one-based!) of the parameters joined to the 
 %               current one.
-%           o logScale: Optional. Boolean determining whether the
-%               parameters are transformed to log scale in optimization.
-%               Performance and robustness of most optimizers are 
-%               substantially improved if all parameters have the same
-%               scale. Scaling can be enabled/disabled by setting logScale
-%               to true/false (scalar). Default is true.
 %   - initParams: Vector with initial parameters for the optimization. The
 %       order of the parameters is in the order of the fitData's paramInfo.
 %       Linked parameters are only given once at their first (possibly 
@@ -34,6 +28,12 @@ function [outParams, res] = fitColumn(fitData, initParams, loBound, upBound, qui
 %       be empty to indicate no lower bound. See initParams for ordering.
 %   - upBound: Vector with upper bounds of parameters for optimization. Can
 %       be empty to indicate no upper bound. See initParams for ordering.
+%   - logScale: Optional. Vector of booleans determining whether a
+%       parameter is transformed to log scale in optimization. Performance
+%       and robustness of most optimizers are substantially improved if all
+%       parameters have the same scale. Scaling can be enabled/disabled for
+%       each parameter by setting logScale to true/false (scalar). See
+%       initParams for ordering. Default is all true.
 %   - quietMode: Optional. Enables quiet mode, i.e. disables plots and
 %       iteration monitoring. Defaults to false (quiet mode disabled).
 %
@@ -60,12 +60,6 @@ function [outParams, res] = fitColumn(fitData, initParams, loBound, upBound, qui
 %   parameters and v <= 0 for negative parameters. Therefore, 0 is always a
 %   lower or upper bound.
 %
-%   Log scaling can be set per fit. However, when using linked parameters
-%   the setting of the first occurrence of the parameter decides whether
-%   log scaling is applied. Hence, linked parameters can be scaled or
-%   non-scaled even if the setting in a linked fit is set to non-scaled or
-%   scaled, respectively.
-%
 %   Important: Initial parameters and boundaries are always specified in
 %       normal scale.
 %
@@ -83,16 +77,21 @@ function [outParams, res] = fitColumn(fitData, initParams, loBound, upBound, qui
 % Copyright: © 2008-2014 Eric von Lieres, Joel Andersson, Andreas Püttmann, Sebastian Schnittert, Samuel Leweke
 %            See the license note at the end of the file.
 
-    nFits = length(fitData);
-    
     if nargin <= 2
         loBound = [];
     end
     if nargin <= 3
         upBound = [];
     end
+
+    if (nargin <= 4) || isempty(logScale)
+        logScale = true(size(initParams));
+    end
+    if numel(logScale) == 1
+        logScale = ones(size(initParams)) .* logScale;
+    end
     
-    if (nargin <= 4) || isempty(quietMode)
+    if (nargin <= 5) || isempty(quietMode)
         quietMode = false;
     end
     enablePlot = ~quietMode;  % Enables or disables plots in each iteration
@@ -193,19 +192,19 @@ function [outParams, res] = fitColumn(fitData, initParams, loBound, upBound, qui
     end
     
     % Check parameters and bounds for errors
-    [hasError] = checkParamSize(length(globalToLocalFit), length(initParams), length(loBound), length(upBound));
+    [hasError] = checkParamSize(length(globalToLocalFit), length(initParams), length(loBound), length(upBound), length(logScale));
     if hasError
         disp('Aborting due to errors.');
         outParams = initParams;
         res = -1;
         return;
     end
-    
+
     % Convert parameters to log scale
     globalLogScale = zeros(1, length(globalToLocalFit));
     for i = 1:length(globalToLocalFit)
         idxFit = globalToLocalFit(i);
-        if fitData{idxFit}.logScale
+        if logScale(i)
 
             if initParams(i) == 0
                 error('Error: Initial parameter %d must not be zero if using log scale for parameter %d in fit %d!', i, globalToLocalParam(i), idxFit);
@@ -274,16 +273,16 @@ function [outParams, res] = fitColumn(fitData, initParams, loBound, upBound, qui
         
         % Save the current parameters 
         lastParamsTried = cadetparams;
-                            
+
         nf = length(fitData);
-        
+
         % Convert from log scale to normal scale
         idxLog = globalLogScale ~= 0;
         cadetparams(idxLog) = globalLogScale(idxLog) .* exp(cadetparams(idxLog));
-        
+
         globRes = [];
         globJac = [];
-        
+
         for k = 1:nf
 
             % Get local params from global params
@@ -335,14 +334,14 @@ function [outParams, res] = fitColumn(fitData, initParams, loBound, upBound, qui
                 idxMask = false(size(idxLog));
                 idxMask(idxLocal) = true;
                 jacSimGlobalized(:, idxLog & idxMask) = jacSim(:, idxLog(idxLocal)) .* repmat(localParams(idxLog(idxLocal)), size(jacSim,1), 1);
-                
+
                 % Concatenate local jacobians to obtain global Jacobian
                 globJac = [globJac; jacSimGlobalized];
             end
 
             % Concatenate local residuals to obtain global residual
             globRes = [globRes; r];
-            
+
             % Plot
             if enablePlot
                 
@@ -573,13 +572,18 @@ function [hasError, fitData, numJoins] = checkInput(fitData)
     end
 end
 
-function hasError = checkParamSize(numParams, numInitParams, numLower, numUpper)
+function hasError = checkParamSize(numParams, numInitParams, numLower, numUpper, numLogScale)
 %CHECKPARAMSIZE Checks whether the initial params and bounds have the correct number of entries
 
     hasError = false;
 
     if numInitParams ~= numParams
         disp(['Error: Fit setup has ' num2str(numParams) ' parameters but ' num2str(numInitParams) ' initial parameters were given']);
+        hasError = true;
+    end
+    
+    if numLogScale ~= numParams
+        disp(['Error: Fit setup has ' num2str(numParams) ' parameters but ' num2str(numLogScale) ' logScale settings were given']);
         hasError = true;
     end
     

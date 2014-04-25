@@ -10,7 +10,6 @@ function exampleB()
     
     % First fit with noise of standard deviation 0.1 * max(data)
     fit = [];
-    fit.logScale = true;        % Enable log scaling
     fit.links = [{[2]}, {[2]}]; % Link parameters to second fit
     fit.idxComp = [1];
     fit.tOut = linspace(0, 10000, 1001);
@@ -22,9 +21,6 @@ function exampleB()
     
     % Second fit with same model and noise of standard deviation 0.05 * max(data)
     fit = [];
-    fit.logScale = true;        % Enable log scaling, unnecessary since 
-                                % for linked parameters the settings of
-                                % their first appearance are taken
 
     fit.links = [{[1]}, {[1]}]; % Link parameters to first fit,
                                 % unnecessary in this case since
@@ -46,13 +42,16 @@ function exampleB()
 
     % Fit the data
     quietMode = false;      % Disable quiet mode
+    
     loBound = [];
     upBound = [];
     
     % Parameters in order of first appearance:
     % mcl_ka, mcl_kd
     initParams = [2.5, 7.2e-3];  % True values: [1.14, 0.002]
-    [params, residual] = fitColumn(fitData, initParams, loBound, upBound, quietMode);
+    logScale = true(length(initParams), 1); % Enable log scaling
+
+    [params, residual] = fitColumn(fitData, initParams, loBound, upBound, logScale, quietMode);
 end
 
 function [sim] = createModel(tOut)

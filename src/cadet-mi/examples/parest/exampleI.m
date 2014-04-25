@@ -25,9 +25,6 @@ function exampleI()
     fit.links = [{[2,3]}, {[3]}, {[2]}];    % Link mcl_ka to fit 2, 3
                                             % Link mcl_kd to fit 3
                                             % Link velocity to fit 2
-    fit.logScale = true;     % Enables log scaling for all mcl_ka, 
-                             % mcl_kd of fit 1 and 3, and 
-                             % velocity of fit 1 and 2.
 
     fit.idxComp = [1];
     fit.tOut = linspace(0, 10000, 1001);
@@ -47,7 +44,6 @@ function exampleI()
 
     fit = [];
     fit.links = [{[]}, {[]}, {[3]}];        % Link col_dispersion to fit 3
-    fit.logScale = true;    % Enables log scaling for col_dispersion of fit 2 and 3
     fit.idxComp = [1];
     fit.tOut = linspace(0, 10000, 1001);
     fit.sim = createModel(fit.tOut, 2);
@@ -65,7 +61,6 @@ function exampleI()
     secs = [-1 -1 -1];
 
     fit = [];
-    fit.logScale = true;    % Does nothing since log scalign is already enabled for all parameters
     fit.idxComp = [1];
     fit.tOut = linspace(0, 10000, 1001);
     fit.sim = createModel(fit.tOut, 3);
@@ -83,7 +78,9 @@ function exampleI()
     % Parameters in order of first appearance:
     % mcl_ka, mcl_kd, velocity, col_dispersion
     initParams = [2.5, 5e-3, 5e-3, 1e-7];  % True values: [1.14, 0.002, 7e-4, 5.75e-8]
-    [params, residual] = fitColumn(fitData, initParams, loBound, upBound, quietMode);
+    logScale = true(length(initParams), 1); % Enable log scaling
+
+    [params, residual] = fitColumn(fitData, initParams, loBound, upBound, logScale, quietMode);
 end
 
 function [sim] = createModel(tOut, k)

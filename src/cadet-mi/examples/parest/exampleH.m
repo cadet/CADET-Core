@@ -16,7 +16,6 @@ function exampleH()
     fit.sim = createModel(fit.tOut, 1);
     fit.outMeas = generateArtificialData(fit);
     
-    fit.logScale = true;
     fit.links = [{[]}, {[]}];
 
     fit.sim.setParameters(params, comps, secs, true(length(params), 1));
@@ -39,12 +38,6 @@ function exampleH()
     fit.links = [{[1]}, {[]}, {[]}];  % Link mcl_ka of this fit to 
                                       % the one of the first fit
     
-    fit.logScale = false;   % velocity and col_dispersion in normal scale.
-                            % mcl_ka is log scaled since it is linked to 
-                            % the first fit which uses log scaling. For 
-                            % linked parameters the settings of their first 
-                            % appearance count.
-
     fit.sim.setParameters(params, comps, secs, true(length(params), 1));
     fit.task = fit.sim.prepareSimulation();
     fitData{2} = fit;
@@ -57,7 +50,9 @@ function exampleH()
     % Parameters in order of first appearance:
     % mcl_ka, velocity of model 1, velocity of model 2, col_dispersion
     initParams = [2.5, 5e-4, 5e-4, 5e-8];  % True values: [1.14, 5.75e-4, 4.25e-4, 5.75e-8]
-    [params, residual] = fitColumn(fitData, initParams, loBound, upBound, quietMode);
+    logScale = true(length(initParams), 1); % Enable log scaling
+
+    [params, residual] = fitColumn(fitData, initParams, loBound, upBound, logScale, quietMode);
 end
 
 function [sim] = createModel(tOut, k)
