@@ -275,7 +275,7 @@ classdef ModelGRM < handle
                 ti = obj.trackingInfo{i};
                 
                 if ~ti.optional || (ti.optional && ~isempty(obj.(ti.propName)))
-                    obj.input = Helpers.setValueToNestedStruct(obj.input, strsplit(ti.structName, '.'), ti.convToStruct(obj.(ti.propName)));
+                    obj.input = Helpers.setValueToNestedStruct(obj.input, splitstring(ti.structName, '.'), ti.convToStruct(obj.(ti.propName)));
                 end
             end
 
@@ -322,7 +322,7 @@ classdef ModelGRM < handle
             for i = 1:length(obj.trackingInfo)
                 ti = obj.trackingInfo{i};
                 
-                [exists, value] = Helpers.getValueFromNestedStruct(obj.input, strsplit(ti.structName, '.'));
+                [exists, value] = Helpers.getValueFromNestedStruct(obj.input, splitstring(ti.structName, '.'));
                 if ~exists && ~ti.optional
                     warning('CADET:trackedFieldNotInStruct', ...
                         'The tracked field %s, which corresponds to the property %s, is not in the given struct', ti.structName, ti.propName);

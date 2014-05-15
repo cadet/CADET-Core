@@ -1,5 +1,5 @@
-function splitted = strsplit( str, delim )
-%STRSPLIT Splits a string using a given delimiter
+function splitted = splitstring( str, delim )
+%SPLITSTRING Splits a string using a given delimiter
 %
 % Parameters:
 %	- str: String to split

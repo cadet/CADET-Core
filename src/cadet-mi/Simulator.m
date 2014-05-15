@@ -617,8 +617,8 @@ classdef Simulator < handle
                 [~, msgText] = system(fullfile(obj.binPath, obj.binaryName));
                 
                 % Parse message
-                parts = strsplit(msgText, '\n');
-                parts = strsplit(parts{5}, ' ');
+                parts = splitstring(msgText, '\n');
+                parts = splitstring(parts{5}, ' ');
                 
                 version = parts{5};
                 commit = parts{9};
@@ -862,7 +862,7 @@ classdef Simulator < handle
                 end
 
                 s = [];
-                s.path = strsplit(sprintf(path, secIdx), '.');
+                s.path = splitstring(sprintf(path, secIdx), '.');
                 s.name = actualName;
             else
                 s = [];
@@ -1257,7 +1257,7 @@ function [status, h] = operate(obj, name, h)
                 dataset = H5D.open(obj, name, 'H5P_DEFAULT');
 
                 % Read data and store in handles.hdf structure
-                path = strsplit(h.group, '.');
+                path = splitstring(h.group, '.');
                 path = struct('type', repmat({'.'}, length(path) + 1, 1), 'subs', [path(:); {dset_name}]);
                 h.hdf = subsasgn(h.hdf, path, H5D.read(dataset, 'H5ML_DEFAULT', 'H5S_ALL', 'H5S_ALL', 'H5P_DEFAULT'));
            

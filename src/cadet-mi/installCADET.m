@@ -24,17 +24,6 @@ function success = installCADET()
         path([localPath filesep 'bin'], path);
     end
 
-    % Check for strsplit function
-    if ~(exist('strsplit', 'file') || exist('strsplit', 'builtin'))
-        if exist([localPath filesep 'strsplit_workaround.m'], 'file')
-            % Use workaround
-            movefile([localPath filesep 'strsplit_workaround.m'], [localPath filesep 'strsplit.m']);
-        else
-            fprintf('The function "strsplit" is not present on your system. Unfortunately, the workaround %s is also missing.\n', [localPath filesep 'strsplit_workaround.m']);
-            fprintf('CADET will most likely not work. Please check the wiki on GitHub for further instructions or file an issue.\n');
-        end
-    end
-
     % Test installation
     success = true;
     try
