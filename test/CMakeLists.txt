@@ -29,7 +29,7 @@ if (NOT WIN32)
     include_directories (${HDF5_INCLUDE_DIRS} "${HDF5_INCLUDE_DIRS}/cpp")
     add_definitions (${HDF5_DEFINITIONS})
 else () # On WINDOWS environment var HDF5_ROOT must be set!
-    set (HDF5_DIR "$ENV{HDF5_ROOT}/share/cmake/hdf5")
+    set (HDF5_DIR "$ENV{HDF5_ROOT}/cmake/hdf5")
     find_package(HDF5 NO_MODULE)
     include_directories (${HDF5_INCLUDE_DIR} ${HDF5_INCLUDE_DIR_CPP})
 endif ()
