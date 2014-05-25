@@ -220,6 +220,54 @@ The quantity $T(t, z)$ is a function of time $t$ and space $z$, i.e.\ $T\colon [
   \caption{Parameters of the External Function Steric Mass Action adsorption model}
 \end{table}
 
+\subsection{External Function Mobile Phase Modulators Langmuir}
+
+The same as ordinary Mobile Phase Modulators Langmuir but with coefficients $k_a, k_d, q_{\text{max}}, \gamma$ and $\beta$ depending on an external quantity denoted by $T$:
+\begin{align*}
+  \frac{\mathrm{d} q_i}{\mathrm{d} t} = k_a(T) e^{\gamma(T) c_{p,0}} c_{p,i}\: q_{\text{max},i}(T) \left( 1 - \sum_{j=1}^{N_{\text{comp}}} \frac{q_j}{q_{\text{max},j}(T)} \right) - k_d(T) \: c_{p,0}^{\beta(T)} \: q_i && \forall i = 1, \dots, N_{\text{comp}}
+\end{align*}
+where the dependence is modeled by a polynomial of third degree, i.e.
+\begin{align*}
+  k_a(T) &= k_{a,3} T^3 + k_{a,2} T^2 + k_{a,1} T + k_{a,0}, \\
+  k_d(T) &= k_{d,3} T^3 + k_{d,2} T^2 + k_{d,1} T + k_{d,0}, \\
+  q_{\text{max}}(T) &= q_{\text{max},3} T^3 + q_{\text{max},2} T^2 + q_{\text{max},1} T + q_{\text{max},0}, \\
+  \gamma(T) &= \gamma_3 T^3 + \gamma_2 T^2 + \gamma_1 T + \gamma_0, \\
+  \beta(T) &= \beta_3 T^3 + \beta_2 T^2 + \beta_1 T + \beta_0.
+\end{align*}
+The quantity $T(t, z)$ is a function of time $t$ and space $z$, i.e.\ $T\colon [0, t_{\text{max}}] \times [0, L] \rightarrow \mathds{R}$, which is externally given to the simulator.
+
+\begin{table}[!ht]
+  \footnotesize
+  \begin{tabu}to \linewidth[m]{lX[m]c}
+    \toprule
+      \textbf{Constant} & \textbf{Description} & \textbf{Unit} \\
+    \midrule
+      $k_{a,3}$ & \multirow{4}{*}{Adsorption rate} & \si{\cubic\metre\of{MP}\per\mol\per\second\per\raiseto{3}\ExternalUnit} \\
+      $k_{a,2}$ & & \si{\cubic\metre\of{MP}\per\mol\per\second\per\raiseto{2}\ExternalUnit} \\
+      $k_{a,1}$ & & \si{\cubic\metre\of{MP}\per\mol\per\second\per\ExternalUnit} \\
+      $k_{a,0}$ & & \si{\cubic\metre\of{MP}\per\mol\per\second} \\ \midrule
+      $k_{d,3}$ & \multirow{4}{*}{Desorption rate} & \si{\raiseto{3\beta}\metre\of{MP}\per\raiseto{\beta}\mol\per\second\per\raiseto{3}\ExternalUnit} \\
+      $k_{d,2}$ & & \si{\raiseto{3\beta}\metre\of{MP}\per\raiseto{\beta}\mol\per\second\per\raiseto{2}\ExternalUnit} \\
+      $k_{d,1}$ & & \si{\raiseto{3\beta}\metre\of{MP}\per\raiseto{\beta}\mol\per\second\per\ExternalUnit} \\
+      $k_{d,0}$ & & \si{\raiseto{3\beta}\metre\of{MP}\per\raiseto{\beta}\mol\per\second} \\ \midrule
+      $q_{\text{max},3}$ & \multirow{4}{*}{Maximum adsorption capacity; Maximum concentration} & \si{\mol\per\cubic\metre\of{SP}} \\
+      $q_{\text{max},2}$ & & \si{\mol\per\cubic\metre\of{SP}\per\raiseto{2}\ExternalUnit} \\
+      $q_{\text{max},1}$ & & \si{\mol\per\cubic\metre\of{SP}\per\ExternalUnit} \\
+      $q_{\text{max},0}$ & & \si{\mol\per\cubic\metre\of{SP}} \\ \midrule
+      $\gamma_3$ & \multirow{4}{*}{Hydrophobicity} & \si{\cubic\metre\of{MP}\per\mol\per\raiseto{3}\ExternalUnit} \\
+      $\gamma_2$ & & \si{\cubic\metre\of{MP}\per\mol\per\raiseto{2}\ExternalUnit} \\
+      $\gamma_1$ & & \si{\cubic\metre\of{MP}\per\mol\per\ExternalUnit} \\
+      $\gamma_0$ & & \si{\cubic\metre\of{MP}\per\mol} \\ \midrule
+      $\beta_3$ & \multirow{4}{*}{Describes ion-exchange characteristics} & \si{\per\raiseto{3}\ExternalUnit} \\
+      $\beta_2$ & & \si{\per\raiseto{2}\ExternalUnit} \\
+      $\beta_1$ & & \si{\per\ExternalUnit} \\
+      $\beta_0$ & & -- \\ \midrule
+      $T$ & External quantity & \si{\ExternalUnit} \\ 
+    \bottomrule
+  \end{tabu}
+  \caption{Parameters of the External Function Mobile Phase Modulators Langmuir adsorption model}
+\end{table}
+
 \subsection{Multi Component Bi-Langmuir}
 
 The Multi Component Bi-Langmuir model adds a second type of binding site $q_i^B$ to the Langmuir model without allowing an exchange between the two sites $q_i^A$ and $q_i^B$.

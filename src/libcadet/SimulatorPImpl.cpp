@@ -37,6 +37,7 @@
 #include "AdsorptionModel_MCBL.hpp"
 #include "AdsorptionModel_EXTL.hpp"
 #include "AdsorptionModel_EXTSMA.hpp"
+#include "AdsorptionModel_EXTMPM.hpp"
 #include "AdsorptionModel_LINEAR.hpp"
 #include "GeneralRateModel.hpp"
 #include "active.hpp"
@@ -320,6 +321,9 @@ SimulatorPImpl::SimulatorPImpl(int ncomp, int ncol, int npar, int nsec, Adsorpti
         break;
     case EXTERNAL_STERIC_MASS_ACTION:
         _adsModel = new AdsorptionModel_EXTSMA(*this);
+        break;
+    case EXTERNAL_MOBILE_PHASE_MODULATORS:
+        _adsModel = new AdsorptionModel_EXTMPM(*this);
         break;
     case LINEAR:
         _adsModel = new AdsorptionModel_LINEAR(*this);

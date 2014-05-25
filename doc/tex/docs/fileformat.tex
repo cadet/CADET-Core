@@ -170,38 +170,100 @@ Reference volumes are denoted by subscripts:
 \midrule
 \texttt{MPM\_GAMMA} & A vector with parameters describing the hydrophobicity (HIC) & \si{\cubic\metre\of{MP}\per\mol} & double & $\geq 0.0$ & \texttt{NCOMP}\\
 \midrule
-\multicolumn{6}{l}{If \texttt{ADSORPTION\_MODEL} = \texttt{EXTERNAL\_LANGMUIR}:} \\ % Top level heading
+\multicolumn{6}{l}{If \texttt{ADSORPTION\_MODEL} = \texttt{EXTERNAL\_MOBILE\_PHASE\_MODULATORS}:} \\ % Top level heading
 \midrule
-\begin{tabular}{c}
-  \texttt{EXTL\_KA} \\
-  \texttt{EXTL\_KA\_T} \\
-  \texttt{EXTL\_KA\_TT} \\
-  \texttt{EXTL\_KA\_TTT} \\
-\end{tabular} & All vectors with adsorption rate constant coefficients in the External Function Langmuir model & \begin{tabular}{c}
+\begin{tabular}{@{}l@{}}
+  \texttt{EXTMPM\_KA} \\
+  \texttt{EXTMPM\_KA\_T} \\
+  \texttt{EXTMPM\_KA\_TT} \\
+  \texttt{EXTMPM\_KA\_TTT} \\
+\end{tabular} & All vectors with adsorption rate constants in the external function mobile phase modulator model & \begin{tabular}{@{}l@{}}
   \si{\cubic\metre\of{MP}\per\mol\per\second} \\
   \si{\cubic\metre\of{MP}\per\mol\per\second\per\ExternalUnit} \\
   \si{\cubic\metre\of{MP}\per\mol\per\second\per\raiseto{2}\ExternalUnit} \\
   \si{\cubic\metre\of{MP}\per\mol\per\second\per\raiseto{3}\ExternalUnit} \\
 \end{tabular} & double & $-\infty - \infty$ & \texttt{NCOMP}\\
 \midrule
-\begin{tabular}{c}
+\begin{tabular}{@{}l@{}}
+  \texttt{EXTMPM\_KD} \\
+  \texttt{EXTMPM\_KD\_T} \\
+  \texttt{EXTMPM\_KD\_TT} \\
+  \texttt{EXTMPM\_KD\_TTT} \\
+\end{tabular} & All vectors with desorption rate constants in the external function mobile phase modulator model & \begin{tabular}{@{}l@{}} 
+  \si{\raiseto{3\beta}\metre\of{MP}\per\raiseto{\beta}\mol\per\second} \\ 
+  \si{\raiseto{3\beta}\metre\of{MP}\per\raiseto{\beta}\mol\per\second\per\ExternalUnit} \\
+  \si{\raiseto{3\beta}\metre\of{MP}\per\raiseto{\beta}\mol\per\second\per\raiseto{2}\ExternalUnit} \\
+  \si{\raiseto{3\beta}\metre\of{MP}\per\raiseto{\beta}\mol\per\second\per\raiseto{3}\ExternalUnit} \\
+\end{tabular} & double & $-\infty - \infty$ & \texttt{NCOMP}\\
+\midrule
+\begin{tabular}{@{}l@{}}
+  \texttt{EXTMPM\_QMAX} \\
+  \texttt{EXTMPM\_QMAX\_T} \\
+  \texttt{EXTMPM\_QMAX\_TT} \\
+  \texttt{EXTMPM\_QMAX\_TTT} \\
+\end{tabular} & All vectors with maximum adsorption capacities in the external function mobile phase modulator model & \begin{tabular}{@{}l@{}} 
+  \si{\mol\per\cubic\metre\of{SP}} \\
+  \si{\mol\per\cubic\metre\of{SP}\per\ExternalUnit} \\
+  \si{\mol\per\cubic\metre\of{SP}\per\raiseto{2}\ExternalUnit} \\
+  \si{\mol\per\cubic\metre\of{SP}\per\raiseto{3}\ExternalUnit} \\
+\end{tabular} & double & $-\infty - \infty$ & \texttt{NCOMP}\\
+\midrule
+\begin{tabular}{@{}l@{}}  
+  \texttt{EXTMPM\_BETA} \\
+  \texttt{EXTMPM\_BETA\_T} \\
+  \texttt{EXTMPM\_BETA\_TT} \\
+  \texttt{EXTMPM\_BETA\_TTT} \\
+\end{tabular} & All vectors with parameters describing the ion-exchange characteristics (IEX) & \begin{tabular}{@{}l@{}} 
+  -- \\
+  \si{\per\ExternalUnit} \\
+  \si{\per\raiseto{2}\ExternalUnit} \\
+  \si{\per\raiseto{3}\ExternalUnit} \\
+\end{tabular} & double & $-\infty - \infty$ & \texttt{NCOMP}\\
+\midrule
+\begin{tabular}{@{}l@{}} 
+  \texttt{EXTMPM\_GAMMA} \\
+  \texttt{EXTMPM\_GAMMA\_T} \\
+  \texttt{EXTMPM\_GAMMA\_TT} \\
+  \texttt{EXTMPM\_GAMMA\_TTT} \\
+\end{tabular} & All vectors with parameters describing the hydrophobicity (HIC) & \begin{tabular}{@{}l@{}} 
+  \si{\cubic\metre\of{MP}\per\mol} \\
+  \si{\cubic\metre\of{MP}\per\mol\per\ExternalUnit} \\
+  \si{\cubic\metre\of{MP}\per\mol\per\raiseto{2}\ExternalUnit} \\
+  \si{\cubic\metre\of{MP}\per\mol\per\raiseto{3}\ExternalUnit} \\
+\end{tabular} & double & $-\infty - \infty$ & \texttt{NCOMP}\\
+\midrule
+\multicolumn{6}{l}{If \texttt{ADSORPTION\_MODEL} = \texttt{EXTERNAL\_LANGMUIR}:} \\ % Top level heading
+\midrule
+\begin{tabular}{@{}l@{}}
+  \texttt{EXTL\_KA} \\
+  \texttt{EXTL\_KA\_T} \\
+  \texttt{EXTL\_KA\_TT} \\
+  \texttt{EXTL\_KA\_TTT} \\
+\end{tabular} & All vectors with adsorption rate constant coefficients in the External Function Langmuir model & \begin{tabular}{@{}l@{}}
+  \si{\cubic\metre\of{MP}\per\mol\per\second} \\
+  \si{\cubic\metre\of{MP}\per\mol\per\second\per\ExternalUnit} \\
+  \si{\cubic\metre\of{MP}\per\mol\per\second\per\raiseto{2}\ExternalUnit} \\
+  \si{\cubic\metre\of{MP}\per\mol\per\second\per\raiseto{3}\ExternalUnit} \\
+\end{tabular} & double & $-\infty - \infty$ & \texttt{NCOMP}\\
+\midrule
+\begin{tabular}{@{}l@{}}
   \texttt{EXTL\_KD} \\
   \texttt{EXTL\_KD\_T} \\
   \texttt{EXTL\_KD\_TT} \\
   \texttt{EXTL\_KD\_TTT} \\
-\end{tabular} & All vectors with desorption rate constant coefficients in the External Function Langmuir model & \begin{tabular}{c}
+\end{tabular} & All vectors with desorption rate constant coefficients in the External Function Langmuir model & \begin{tabular}{@{}l@{}}
   \si{\per\second} \\
   \si{\per\second\per\ExternalUnit} \\
   \si{\per\second\per\raiseto{2}\ExternalUnit} \\
   \si{\per\second\per\raiseto{3}\ExternalUnit} \\
 \end{tabular} & double & $-\infty - \infty$ & \texttt{NCOMP}\\
 \midrule
-\begin{tabular}{c}
+\begin{tabular}{@{}l@{}}
   \texttt{EXTL\_QMAX} \\
   \texttt{EXTL\_QMAX\_T} \\
   \texttt{EXTL\_QMAX\_TT} \\
   \texttt{EXTL\_QMAX\_TTT} \\
-\end{tabular} & All vectors with maximum adsorption capacity coefficients in the External Function Langmuir model & \begin{tabular}{c}
+\end{tabular} & All vectors with maximum adsorption capacity coefficients in the External Function Langmuir model & \begin{tabular}{@{}l@{}}
   \si{\mol\per\cubic\metre\of{SP}} \\
   \si{\mol\per\cubic\metre\of{SP}\per\ExternalUnit} \\
   \si{\mol\per\cubic\metre\of{SP}\per\raiseto{2}\ExternalUnit} \\

@@ -40,6 +40,7 @@ enum AdsorptionType {
     SELF_ASSOCIATION,
     EXTERNAL_LANGMUIR,
     EXTERNAL_STERIC_MASS_ACTION,
+    EXTERNAL_MOBILE_PHASE_MODULATORS,
     LINEAR,
     MULTI_COMPONENT_BILANGMUIR,
 
@@ -143,6 +144,27 @@ enum ParameterName {
     EXTSMA_LAMBDA_T,
     EXTSMA_LAMBDA_TT,
     EXTSMA_LAMBDA_TTT,
+
+    EXTMPM_KA,
+    EXTMPM_KA_T,
+    EXTMPM_KA_TT,
+    EXTMPM_KA_TTT,
+    EXTMPM_KD,
+    EXTMPM_KD_T,
+    EXTMPM_KD_TT,
+    EXTMPM_KD_TTT,
+    EXTMPM_QMAX,
+    EXTMPM_QMAX_T,
+    EXTMPM_QMAX_TT,
+    EXTMPM_QMAX_TTT,
+    EXTMPM_BETA,
+    EXTMPM_BETA_T,
+    EXTMPM_BETA_TT,
+    EXTMPM_BETA_TTT,
+    EXTMPM_GAMMA,
+    EXTMPM_GAMMA_T,
+    EXTMPM_GAMMA_TT,
+    EXTMPM_GAMMA_TTT,
 
     LIN_KA,
     LIN_KD,
@@ -291,6 +313,7 @@ inline const char* e2s(AdsorptionType adsType)
     case SELF_ASSOCIATION:             return "SELF_ASSOCIATION";
     case EXTERNAL_LANGMUIR:            return "EXTERNAL_LANGMUIR";
     case EXTERNAL_STERIC_MASS_ACTION:  return "EXTERNAL_STERIC_MASS_ACTION";
+    case EXTERNAL_MOBILE_PHASE_MODULATORS: return "EXTERNAL_MOBILE_PHASE_MODULATORS";
     case LINEAR:                       return "LINEAR";
     case MULTI_COMPONENT_BILANGMUIR:   return "MULTI_COMPONENT_BILANGMUIR";
     default:                           return "UNKNOWN_ADSORPTION_TYPE";
@@ -397,6 +420,27 @@ inline const char* e2s(ParameterName param)
     case EXTSMA_LAMBDA_T:             return "EXTSMA_LAMBDA_T";
     case EXTSMA_LAMBDA_TT:            return "EXTSMA_LAMBDA_TT";
     case EXTSMA_LAMBDA_TTT:           return "EXTSMA_LAMBDA_TTT";
+
+    case EXTMPM_KA:                   return "EXTMPM_KA";
+    case EXTMPM_KA_T:                 return "EXTMPM_KA_T";
+    case EXTMPM_KA_TT:                return "EXTMPM_KA_TT";
+    case EXTMPM_KA_TTT:               return "EXTMPM_KA_TTT";
+    case EXTMPM_KD:                   return "EXTMPM_KD";
+    case EXTMPM_KD_T:                 return "EXTMPM_KD_T";
+    case EXTMPM_KD_TT:                return "EXTMPM_KD_TT";
+    case EXTMPM_KD_TTT:               return "EXTMPM_KD_TTT";
+    case EXTMPM_QMAX:                 return "EXTMPM_QMAX";
+    case EXTMPM_QMAX_T:               return "EXTMPM_QMAX_T";
+    case EXTMPM_QMAX_TT:              return "EXTMPM_QMAX_TT";
+    case EXTMPM_QMAX_TTT:             return "EXTMPM_QMAX_TTT";
+    case EXTMPM_BETA:                 return "EXTMPM_BETA";
+    case EXTMPM_BETA_T:               return "EXTMPM_BETA_T";
+    case EXTMPM_BETA_TT:              return "EXTMPM_BETA_TT";
+    case EXTMPM_BETA_TTT:             return "EXTMPM_BETA_TTT";
+    case EXTMPM_GAMMA:                return "EXTMPM_GAMMA";
+    case EXTMPM_GAMMA_T:              return "EXTMPM_GAMMA_T";
+    case EXTMPM_GAMMA_TT:             return "EXTMPM_GAMMA_TT";
+    case EXTMPM_GAMMA_TTT:            return "EXTMPM_GAMMA_TTT";
 
     case LIN_KA:                      return "LIN_KA";
     case LIN_KD:                      return "LIN_KD";

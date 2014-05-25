@@ -10,7 +10,7 @@ classdef MobilePhaseModulatorsBinding < BindingModel
     methods
         
         function obj = MobilePhaseModulatorsBinding()
-            %MOBILEPHASEMODULATORSADSORPTION Constructs a MobilePhaseModulators object
+            %MOBILEPHASEMODULATORSBINDING Constructs a MobilePhaseModulatorsBinding object
             obj.name = 'MOBILE_PHASE_MODULATORS';
             obj.parameters = cell(5,1);
 
