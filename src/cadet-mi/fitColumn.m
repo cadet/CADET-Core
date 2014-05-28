@@ -21,6 +21,10 @@ function [outParams, res] = fitColumn(fitData, initParams, loBound, upBound, log
 %               one parameter within this fit. The vectors contain the
 %               indices (one-based!) of the parameters joined to the 
 %               current one.
+%           o weight: Optional. Global weight of the experiments in a set
+%               of experiments.
+%           o weightComponent: Optional. Weight of each observed component
+%               in this experiment.
 %   - initParams: Vector with initial parameters for the optimization. The
 %       order of the parameters is in the order of the fitData's paramInfo.
 %       Linked parameters are only given once at their first (possibly 
@@ -98,6 +102,18 @@ function [outParams, res] = fitColumn(fitData, initParams, loBound, upBound, log
 %       log(x - lower), log(upper - x), logit( (x-lower) / (upper-lower)),
 %       where logit(x) = log(x / (1-x)).
 %
+% Weighting: There are two different types of weights: Global weights
+%   applied to an experiment in a set of experiments and local weights
+%   applied to each observed component in one single experiment. Both are
+%   optional and can be used separately and independent from each other.
+%   If no weights are given, weighting is disabled, i.e., every element
+%   receives the weight 1.
+%
+%   The weights are not normalized in the by default, this has to be done 
+%   by the user. Also note that the weights are multiplicative, i.e.,
+%          weight * (simulated - measured)
+%   is computed.
+%
 % Returns:
 %   - outParams: Optimized parameters in the same order as initParams.
 %   - res: Residual value.
@@ -135,7 +151,8 @@ function [outParams, res] = fitColumn(fitData, initParams, loBound, upBound, log
     end
 
     enablePlot = ~quietMode;  % Enables or disables plots in each iteration
-
+    enableWeightedPlot = enablePlot;
+    
     if customTransform && (~isfield(parameterTransform, 'transformBounds') || isempty(parameterTransform.transformBounds))
         parameterTransform.transformBounds = true;
     end
@@ -235,9 +252,46 @@ function [outParams, res] = fitColumn(fitData, initParams, loBound, upBound, log
         end
     end
     
+    % Collect weights
+    globalWeights = zeros(length(fitData), 1);
+    localWeights = cell(length(fitData), 1);
+    hasWeightError = false;
+    for i = 1:length(fitData)
+        curFit = fitData{i};
+
+        if ~isfield(curFit, 'weight')
+            globalWeights(i) = 1;
+        else
+            globalWeights(i) = curFit.weight;
+            if curFit.weight < 0
+                disp(['Error in fit ' num2str(i) ' weights: Global weight is negative which is not allowed']);
+                hasWeightError = true;
+            end
+        end
+        
+        if ~isfield(curFit, 'weightComponent')
+            localWeights{i} = ones(1, size(curFit.outMeas, 2));
+        else
+            localWeights{i} = curFit.weightComponent;
+            if length(curFit.weightComponent) ~= size(curFit.outMeas, 2)
+                disp(['Error in fit ' num2str(i) ' weights: Number of weights in weightComponent (' num2str(length(curFit.weightComponent)) ') does not match number of observed components (' num2str(size(curFit.outMeas, 2)) ')']);
+                hasWeightError = true;
+            end
+            if any(curFit.weightComponent < 0)
+                disp(['Error in fit ' num2str(i) ' weights: Some weights in weightComponent are negative which is not allowed']);
+                hasWeightError = true;
+            end
+        end
+    end
+    
+    if any(~cellfun(@(x) isfield(x, 'weight'), fitData)) && any(cellfun(@(x) isfield(x, 'weight'), fitData))
+        hasWeightError = true;
+        disp('Error in fit setup: Experiments must either all have weights or none');
+    end
+    
     % Check parameters and bounds for errors
     [hasError] = checkParamSize(length(globalToLocalFit), length(initParams), length(loBound), length(upBound), length(logScale));
-    if hasError
+    if hasError || hasWeightError
         disp('Aborting due to errors.');
         outParams = initParams;
         res = -1;
@@ -409,14 +463,20 @@ function [outParams, res] = fitColumn(fitData, initParams, loBound, upBound, log
                 sim = out(:, curFit.idxComp);
 
                 % Calculate local residual
-                r = sim - curFit.outMeas;
-                r = r(:);
+                r = (sim - curFit.outMeas);
+                locWeights = repmat(localWeights{k}, size(r,1), 1);
+                r = r .* locWeights;
+                r = globalWeights(k) * r(:);
+                
+                locWeights = locWeights(:);
             else
                 % Sum simulated signals since only sum is observed
                 sim = sum(out(:,curFit.idxComp), 2);
 
                 % Calculate local residual
-                r = sim - curFit.outMeas;
+                r = globalWeights(k) * (sim - curFit.outMeas);
+                
+                locWeights = ones(length(r), 1);
             end
             
             if nargout > 1
@@ -437,6 +497,9 @@ function [outParams, res] = fitColumn(fitData, initParams, loBound, upBound, log
                     jacSimGlobalized = parameterTransform.chainRuleInvTransform(jacSimGlobalized, lastParamsTriedExp);
                 end
 
+                % Apply weights
+                jacSimGlobalized(:, idxLocal) = jacSimGlobalized(:, idxLocal) .* repmat(locWeights, 1, length(idxLocal)) .* globalWeights(k);
+                
                 % Concatenate local jacobians to obtain global Jacobian
                 globJac = [globJac; jacSimGlobalized];
             end
@@ -475,9 +538,15 @@ function [outParams, res] = fitColumn(fitData, initParams, loBound, upBound, log
                     subplot(nf, 1, k);
                 end
                 
-                hdMeas = plot(curFit.tOut, curFit.outMeas);
-                hold on;
-                hdSim = plot(curFit.tOut, sim);
+                if enableWeightedPlot && (size(curFit.outMeas, 2) > 1)
+                    hdMeas = plot(curFit.tOut, repmat(localWeights{k}, size(curFit.outMeas, 1), 1) .* curFit.outMeas);
+                    hold on;
+                    hdSim = plot(curFit.tOut, repmat(localWeights{k}, size(sim, 1), 1) .* sim);
+                else
+                    hdMeas = plot(curFit.tOut, curFit.outMeas);
+                    hold on;
+                    hdSim = plot(curFit.tOut, sim);
+                end
                 hold off;
                 grid on;
                 
