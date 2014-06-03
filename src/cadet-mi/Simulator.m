@@ -618,7 +618,7 @@ classdef Simulator < handle
                 
                 % Parse message
                 parts = splitstring(msgText, '\n');
-                parts = splitstring(parts{5}, ' ');
+                parts = splitstring(parts{6}, ' ');
                 
                 version = parts{5};
                 commit = parts{9};
