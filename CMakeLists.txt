@@ -26,19 +26,18 @@ endif ()
 # Set module path in order to use custom CMake modules
 set (CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake/Modules")
 
+find_package(Git)
+
 # Write the current version number to variable and file
-if (UNIX)
+if (GIT_FOUND)
   if (EXISTS "${CMAKE_SOURCE_DIR}/.git")
-    execute_process(COMMAND git describe --abbrev=0 HEAD
+    execute_process(COMMAND ${GIT_EXECUTABLE} describe --abbrev=0 HEAD
                     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
                     OUTPUT_VARIABLE CADET_VERSION
                     OUTPUT_STRIP_TRAILING_WHITESPACE)
 
     # In case of missing tags, default to versions.txt file
-    if ("${CADET_VERSION}" STREQUAL "")
-      message(STATUS "Fallback to version from file since fetching it from git did not work")
-      file (STRINGS "${CMAKE_SOURCE_DIR}/version.txt" CADET_VERSION)
-    else ()
+    if (NOT "${CADET_VERSION}" STREQUAL "")
       message(STATUS "Get version from git")
       
       # Remove first character ("v")
@@ -46,17 +45,19 @@ if (UNIX)
       math(EXPR CADET_VERSION_STRLEN "${CADET_VERSION_STRLEN}-1")
       string(SUBSTRING "${CADET_VERSION}" 1 ${CADET_VERSION_STRLEN}  CADET_VERSION)
       
-      # Save to file
-      execute_process (COMMAND bash -c "echo \"${CADET_VERSION}\" > ${CMAKE_SOURCE_DIR}/version.txt")
+      # Save to file; Use shell since writing to source directory is forbidden by CMAKE_DISABLE_SOURCE_CHANGES
+      if (UNIX)
+        execute_process (COMMAND sh -c "echo \"${CADET_VERSION}\" > ${CMAKE_SOURCE_DIR}/version.txt")
+      else ()
+        execute_process (COMMAND cmd /C "echo ${CADET_VERSION} > ${CMAKE_SOURCE_DIR}/version.txt")
+      endif ()
     endif ()
-  else ()
-    message(STATUS "Get version from file")
-    execute_process(COMMAND cat ${CMAKE_SOURCE_DIR}/version.txt
-                    OUTPUT_VARIABLE CADET_VERSION
-                    OUTPUT_STRIP_TRAILING_WHITESPACE)
   endif ()
-else ()
-  file (STRINGS "${CMAKE_SOURCE_DIR}/version.txt" CADET_VERSION)
+endif ()
+
+if ("${CADET_VERSION}" STREQUAL "")
+  message(STATUS "Get version from file")
+  file(STRINGS "${CMAKE_SOURCE_DIR}/version.txt" CADET_VERSION)
 endif ()
 
 message(STATUS "CADET version is ${CADET_VERSION}")
@@ -64,6 +65,10 @@ message(STATUS "CADET version is ${CADET_VERSION}")
 # Get current commit hash from git
 include(GetGitRevisionDescription)
 get_git_head_revision(GIT_REFSPEC GIT_SHA1)
+if (NOT DEFINED GIT_SHA1)
+  set(GIT_SHA1 "NO-COMMIT-HASH")
+  set(GIT_REFSPEC "NO-REFSPEC")
+endif()
 message(STATUS "Current git HEAD: ${GIT_REFSPEC} SHA1 ${GIT_SHA1}")
 
 # Names of the executables
@@ -104,7 +109,7 @@ project (${CADET_PRJ} CXX)
 
 string (TOUPPER CADET_NAME CADET_NAME_UP)
 # Set some variables with info on the CADET project
-set (PACKAGE_VERSION   "1.0.0")
+set (PACKAGE_VERSION   "${CADET_VERSION}")
 set (PACKAGE_BUGREPORT "cadet@fz-juelich.de")
 set (PACKAGE_NAME      "${CADET_NAME_UP}")
 set (PACKAGE_STRING    "${CADET_NAME_UP} ${PACKAGE_VERSION}")
