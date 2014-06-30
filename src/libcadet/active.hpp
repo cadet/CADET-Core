@@ -54,14 +54,14 @@ public:
     // operators
     const active& operator=(const adtl::adouble& rhs)
     {
-        *(dynamic_cast<adtl::adouble*> (this)) = rhs;
+        *(static_cast<adtl::adouble*> (this)) = rhs;
         return *this;
     }
 
     // operators
     const active& operator=(double rhs)
     {
-        *(dynamic_cast<adtl::adouble*> (this)) = rhs;
+        *(static_cast<adtl::adouble*> (this)) = rhs;
         return *this;
     }
 

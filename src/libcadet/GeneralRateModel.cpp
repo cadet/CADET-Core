@@ -15,7 +15,6 @@
 
 #include <iomanip>
 #include <limits>
-#include <typeinfo>
 #include <algorithm>
 
 #include "GeneralRateModel.hpp"
@@ -546,6 +545,29 @@ int GeneralRateModel::residualColumn(const double t, const StateType* y, const d
 }
 
 
+template <>
+int GeneralRateModel::residualParticle<active, double, double, true>(const double t, const int pblk, const active* y, const double* ydot, double* res) throw (CadetException)
+{
+    throw CadetException("You cannot compute sensitivities and analytical jacobian!");
+}
+
+template <>
+int GeneralRateModel::residualParticle<active, double, active, true>(const double t, const int pblk, const active* y, const double* ydot, double* res) throw (CadetException)
+{
+    throw CadetException("You cannot compute sensitivities and analytical jacobian!");
+}
+
+template <>
+int GeneralRateModel::residualParticle<active, active, double, true>(const double t, const int pblk, const active* y, const double* ydot, active* res) throw (CadetException)
+{
+    throw CadetException("You cannot compute sensitivities and analytical jacobian!");
+}
+
+template <>
+int GeneralRateModel::residualParticle<active, active, active, true>(const double t, const int pblk, const active* y, const double* ydot, active* res) throw (CadetException)
+{
+    throw CadetException("You cannot compute sensitivities and analytical jacobian!");
+}
 
 
 template <typename StateType, typename ResidType, typename ParamType, bool wantJac>
@@ -689,10 +711,8 @@ int GeneralRateModel::residualParticle(const double t, const int pblk, const Sta
             _am.evaluateResidual(t, z, comp, y, res, &pTypeInfo);
             if (wantJac)
             {
-                if (typeid(y) == typeid(const double*))
-                    _am.setJacobian(t, z, comp, (const double*)(y), jac);
-                else
-                    throw CadetException("You cannot compute sensitivities and analytical jacobian!");
+                // static_cast should be sufficient here, but this statement is compiled even when wantJac = false
+                _am.setJacobian(t, z, comp, reinterpret_cast<const double*>(y), jac);
             }
 
             // === Add time derivative for adsorption models ===============
