@@ -209,10 +209,13 @@ include_directories (${SUNDIALS_INCLUDE_DIRS})
 
 # Link to native BLAS and LAPACK on all other than WINDOWS machines
 if (NOT WIN32)
-    find_package (LAPACK)
-    foreach (_TARGET ${LIBCADET_TARGETS})
-        target_link_libraries (${_TARGET} ${LAPACK_LIBRARIES})
-    endforeach ()
+    # Intel compiler uses Intel MKL
+    if (NOT ((CXX_COMPILER_NAME STREQUAL "icpc") OR ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Intel") OR (CXX_COMPILER_NAME STREQUAL "icc")))    
+         find_package (LAPACK)
+         foreach (_TARGET ${LIBCADET_TARGETS})
+             target_link_libraries (${_TARGET} ${LAPACK_LIBRARIES})
+         endforeach ()
+    endif()
 else () # On WINDOWS environment var LAPACK_ROOT must be set!
     find_library (F2C_LIBRARIES
                       NAMES         libf2c
