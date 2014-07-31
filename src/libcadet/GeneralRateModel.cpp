@@ -929,9 +929,41 @@ void GeneralRateModel::dFdyDot_times_sDot(N_Vector NV_sDot, N_Vector NV_ret)
             double* ret  = _cc.offsetPar(NV_ret, pblk);
 
             for (int par = 0; par < _cc.npar(); ++par)
+            {
                 for (int comp = 0; comp < _cc.ncomp(); ++comp)
-                    _cc.parC<double> (ret, par, comp) = _cc.parC<double> (sDot, par, comp)
-                    + invBetaP * _cc.parQ<double> (sDot, par, comp);
+                {
+                    // Add time derivatives
+                    if (_multiBoundMode == 1)
+                    {
+                        // Add sum of dq1 / dt + dq2 / dt to the residual of the first half of components
+                        // Only transport second (virtual) half of components
+                        if (2 * comp < _cc.ncomp())
+                            _cc.parC<double> (ret, par, comp) = _cc.parC<double> (sDot, par, comp)
+                            + invBetaP * (_cc.parQ<double> (sDot, par, comp) + _cc.parQ<double> (sDot, par, comp + _cc.ncomp() / 2));
+                        else
+                            _cc.parC<double> (ret, par, comp) = _cc.parC<double> (sDot, par, comp);
+                    }
+                    else if (_multiBoundMode == 2)
+                    {
+                        // Add sum of dq1 / dt + dq2 / dt to the residual of the first half of components, but watch out for salt
+                        // Only transport second (virtual) half of components
+                        if (comp == 0)
+                            // Salt has no second bound state
+                            _cc.parC<double> (ret, par, comp) = _cc.parC<double> (sDot, par, comp)
+                            + invBetaP * _cc.parQ<double> (sDot, par, comp);
+                        else if (2 * comp < _cc.ncomp())
+                            _cc.parC<double> (ret, par, comp) = _cc.parC<double> (sDot, par, comp)
+                            + invBetaP * (_cc.parQ<double> (sDot, par, comp) + _cc.parQ<double> (sDot, par, comp + (_cc.ncomp() - 1) / 2));
+                        else
+                            _cc.parC<double> (ret, par, comp) = _cc.parC<double> (sDot, par, comp);
+                    }
+                    else
+                    {
+                        _cc.parC<double> (ret, par, comp) = _cc.parC<double> (sDot, par, comp)
+                        + invBetaP * _cc.parQ<double> (sDot, par, comp);
+                    }
+                }
+            }
 
             for (int par = 0; par < _cc.npar(); ++par)
                 for (int comp = 0; comp < _cc.ncomp(); ++comp)
