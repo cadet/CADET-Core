@@ -317,7 +317,7 @@ int SchurSolver::schurComplementTimesVector(void *userData, N_Vector NV_v, N_Vec
 
     _timerSolSpgmrAxbPar.start();
 
-    #pragma omp parallel for schedule(dynamic)
+    #pragma omp parallel for schedule(static)
     for (int pblk = -1; pblk < _cc.npblk(); ++pblk)
     {
         int numel;
@@ -394,7 +394,7 @@ int SchurSolver::schurSolve(IDAMem IDA_mem, N_Vector NV_rhs, N_Vector weight,
         // Assemble and factorize discretized system Jacobians
         //===============================================================
 
-        #pragma omp parallel for
+        #pragma omp parallel for schedule(static)
         for (int pblk = -1; pblk < _cc.npblk(); ++pblk)
         {
             if (pblk == -1) // column
@@ -410,7 +410,7 @@ int SchurSolver::schurSolve(IDAMem IDA_mem, N_Vector NV_rhs, N_Vector weight,
 
         factorizeJacCDisc();
 
-        #pragma omp parallel for
+        #pragma omp parallel for schedule(static)
         for (int pblk = 0; pblk < _cc.npblk(); ++pblk)
         {
             factorizeJacPDisc(pblk);
@@ -449,7 +449,7 @@ int SchurSolver::schurSolve(IDAMem IDA_mem, N_Vector NV_rhs, N_Vector weight,
 
     _timerSolPar.start();
 
-    #pragma omp parallel for
+    #pragma omp parallel for schedule(static)
     for (int pblk = -1; pblk < _cc.npblk(); ++pblk)
     {
         if (pblk == -1) // column
@@ -556,7 +556,7 @@ int SchurSolver::schurSolve(IDAMem IDA_mem, N_Vector NV_rhs, N_Vector weight,
 
     _timerSolPar.start();
 
-    #pragma omp parallel for
+    #pragma omp parallel for schedule(static)
     for (int pblk = -1; pblk < _cc.npblk(); ++pblk)
     {
         if (pblk == -1) // column

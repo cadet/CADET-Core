@@ -29,7 +29,8 @@ public:
 
     // Constructor
     AdsorptionModel_SMA(const SimulatorPImpl & sim) :
-        AdsorptionModel(sim, STERIC_MASS_ACTION)
+        AdsorptionModel(sim, STERIC_MASS_ACTION),
+        _lambda(SMA_LAMBDA, e2s(SMA_LAMBDA), -1, -1, 0.0, 0.0, 0.0, false, std::numeric_limits<double>::infinity(), true)
     {
         log::emit<Trace1>() << CURRENT_FUNCTION << Color::cyan << ": Called!" << Color::reset << log::endl;
 
@@ -38,14 +39,23 @@ public:
         this->configure();
         log::emit<Debug1>() << CURRENT_FUNCTION << ": Configured" << log::endl;
 
-        addParam(Parameter<active> (SMA_LAMBDA, e2s(SMA_LAMBDA), -1, -1, 0.0, 0.0, 0.0, false, inf, true));
+        addParam(_lambda);
+
+        _kA.reserve(_cc.ncomp());
+        _kD.reserve(_cc.ncomp());
+        _nu.reserve(_cc.ncomp());
+        _sigma.reserve(_cc.ncomp());
 
         for (int comp = 0; comp < _cc.ncomp(); ++comp)
         {
-            addParam(Parameter<active> (SMA_KA,    e2s(SMA_KA),    comp, -1, 0.0, 0.0, 0.0, false, inf, true));
-            addParam(Parameter<active> (SMA_KD,    e2s(SMA_KD),    comp, -1, 0.0, 0.0, 0.0, false, inf, true));
-            addParam(Parameter<active> (SMA_NU,    e2s(SMA_NU),    comp, -1, 0.0, 0.0, 0.0, false, inf, true));
-            addParam(Parameter<active> (SMA_SIGMA, e2s(SMA_SIGMA), comp, -1, 0.0, 0.0, 0.0, false, inf, true));
+            _kA.push_back(Parameter<active> (SMA_KA,    e2s(SMA_KA),    comp, -1, 0.0, 0.0, 0.0, false, inf, true));
+            addParam(_kA[comp]);
+            _kD.push_back(Parameter<active> (SMA_KD,    e2s(SMA_KD),    comp, -1, 0.0, 0.0, 0.0, false, inf, true));
+            addParam(_kD[comp]);
+            _nu.push_back(Parameter<active> (SMA_NU,    e2s(SMA_NU),    comp, -1, 0.0, 0.0, 0.0, false, inf, true));
+            addParam(_nu[comp]);
+            _sigma.push_back(Parameter<active> (SMA_SIGMA, e2s(SMA_SIGMA), comp, -1, 0.0, 0.0, 0.0, false, inf, true));
+            addParam(_sigma[comp]);
         }
 
         log::emit<Trace1>() << CURRENT_FUNCTION << Color::green << ": Finished!" << Color::reset << log::endl;
@@ -80,10 +90,8 @@ public:
     {
         log::emit<Trace2>() << CURRENT_FUNCTION << Color::cyan << ": Called!" << Color::reset << log::endl;
 
-        const double              ka     = getValue<double>           (SMA_KA, comp);
-        const double              kd     = getValue<double>           (SMA_KD, comp);
-        const std::vector<double> nu     = getValueForAllComp<double> (SMA_NU);
-        const std::vector<double> sigma  = getValueForAllComp<double> (SMA_SIGMA);
+        const double              ka     = _kA[comp].getValue<double>();
+        const double              kd     = _kD[comp].getValue<double>();
 
         // Liquid phase concentration
         const double* c = q -_cc.ncomp();
@@ -92,7 +100,7 @@ public:
         {
             jac[0] = 1.0;
             for (int j = 1; j < _cc.ncomp(); ++j)
-                jac[j] = nu.at(j);
+                jac[j] = _nu[j].getValue<double>();
         }
         else  // Protein component
         {
@@ -103,18 +111,18 @@ public:
             double q0_bar = q0;
 
             for (int j = 1; j < _cc.ncomp(); ++j)
-                q0_bar -= sigma.at(j) * q[-comp + j];
+                q0_bar -= _sigma[j].getValue<double>() * q[-comp + j];
 
-            const double c0_pow_nu     = pow(c0, nu.at(comp));
-            const double q0_bar_pow_nu = pow(q0_bar, nu.at(comp));
+            const double c0_pow_nu     = pow(c0, _nu[comp].getValue<double>());
+            const double q0_bar_pow_nu = pow(q0_bar, _nu[comp].getValue<double>());
 
             // Jacobian
-            jac[-_cc.ncomp() - comp] = kd * *q * nu.at(comp) * c0_pow_nu / c0;                      // dres_i / dc0
+            jac[-_cc.ncomp() - comp] = kd * (*q) * _nu[comp].getValue<double>() * c0_pow_nu / c0;                      // dres_i / dc0
             jac[-_cc.ncomp()] = -ka * q0_bar_pow_nu;                                                // dres_i / dci
-            jac[-comp] = -ka * *c * nu.at(comp) * q0_bar_pow_nu / q0_bar;                              // dres_i / dq0
+            jac[-comp] = -ka * (*c) * _nu[comp].getValue<double>() * q0_bar_pow_nu / q0_bar;                              // dres_i / dq0
 
             for (int j = 1; j < _cc.ncomp(); ++j)
-                jac[-comp + j] = -ka * *c * nu.at(comp) * q0_bar_pow_nu / q0_bar * (-sigma.at(j));  // dres_i / dqj
+                jac[-comp + j] = -ka * (*c) * _nu[comp].getValue<double>() * q0_bar_pow_nu / q0_bar * (-_sigma[j].getValue<double>());  // dres_i / dqj
 
             jac[0] += kd * c0_pow_nu;                                                               // dres_i / dqi
         }
@@ -130,11 +138,8 @@ private:
     {
         log::emit<Trace2>() << CURRENT_FUNCTION << Color::cyan << ": Called!" << Color::reset << log::endl;
 
-        ParamType              lambda = getValue<ParamType>           (SMA_LAMBDA);
-        ParamType              ka     = getValue<ParamType>           (SMA_KA, comp);
-        ParamType              kd     = getValue<ParamType>           (SMA_KD, comp);
-        std::vector<ParamType> nu     = getValueForAllComp<ParamType> (SMA_NU);
-        std::vector<ParamType> sigma  = getValueForAllComp<ParamType> (SMA_SIGMA);
+        const ParamType              ka     = _kA[comp].getValue<ParamType>();
+        const ParamType              kd     = _kD[comp].getValue<ParamType>();
 
         // Liquid phase concentration
         const StateType* c = q -_cc.ncomp();
@@ -142,10 +147,10 @@ private:
         if (comp == 0)
         {
             // Salt component
-            *res = *q - lambda;
+            *res = *q - _lambda.getValue<ParamType>();
 
             for (int j = 1; j < _cc.ncomp(); ++j)
-                *res += nu.at(j) * q[j];
+                *res += _nu[j].getValue<ParamType>() * q[j];
         }
         else
         {
@@ -157,17 +162,24 @@ private:
             ResidType q0_bar = q0;
 
             for (int j = 1; j < _cc.ncomp(); ++j)
-                q0_bar -= sigma.at(j) * q[-comp + j];
+                q0_bar -= _sigma[j].getValue<ParamType>() * q[-comp + j];
 
-            ResidType c0_pow_nu = pow(c0, nu.at(comp));
-            ResidType q0_bar_pow_nu = pow(q0_bar, nu.at(comp));
+            ResidType c0_pow_nu = pow(c0, _nu[comp].getValue<ParamType>());
+            ResidType q0_bar_pow_nu = pow(q0_bar, _nu[comp].getValue<ParamType>());
 
             // Residual
-            *res = kd * *q * c0_pow_nu - ka * *c * q0_bar_pow_nu;
+            *res = kd * (*q) * c0_pow_nu - ka * (*c) * q0_bar_pow_nu;
         }
 
         log::emit<Trace2>() << CURRENT_FUNCTION << Color::green << ": Finished!" << Color::reset << log::endl;
     }
+
+    std::vector<Parameter<active>>  _kA;
+    std::vector<Parameter<active>>  _kD;
+    std::vector<Parameter<active>>  _nu;
+    std::vector<Parameter<active>>  _sigma;
+
+    Parameter<active> _lambda;    
 };
 
 } // namespace cadet

@@ -93,9 +93,29 @@ private:
     bool        _secDepFilmDiffusion;
     int         _multiBoundMode;
 
+    // Scalar parameters
+    Parameter<active> _colLength;
+    Parameter<active> _colPorosity;
+    Parameter<active> _parRadius;
+    Parameter<active> _parPorosity;
+
+    // Section dependent parameters
+    std::vector< Parameter<active> > _colDispersion;
+    std::vector< Parameter<active> > _velocity;
+
+    // Vectorial parameters
+    std::vector< Parameter<active> > _filmDiffusion;
+    std::vector< Parameter<active> > _parDiffusion;
+    std::vector< Parameter<active> > _parSurfDiffusion;
+
     void dFdy_times_s(N_Vector NV_s, N_Vector NV_ret);
     void dFdyDot_times_sDot(N_Vector NV_sDot, N_Vector NV_ret);
 
+    template <typename T>
+    T getVelocity() const;
+
+    template <typename T>
+    T getDispersion() const;
 };
 
 } // namespace cadet

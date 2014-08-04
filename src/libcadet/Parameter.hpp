@@ -70,9 +70,9 @@ public:
 
     // GetValue() and setValue() need to be implemented for any ParamType
     template <typename ReturnType>
-    inline const ReturnType& getValue() const;
+    inline const ReturnType getValue() const;
 
-    inline void setValue(const double& value);
+    inline void setValue(const double value);
 
     // The AD functions should only be implemented for active types
     // (they are meaningless for passives!)
@@ -95,9 +95,6 @@ private:
     bool            _upperbndstrict;  //!< decides whether the upper bound is strict ( > ) or loose ( >= )
     bool            _issensitive;     //!< determines whether derivatives are computed with respect to this parameter
     std::string     _name;            //!< name of the parameter
-
-    double*         _returnval;         //!< used only for returning references on double values
-                                        // really a dirty hack ... should be replaced by some nicer construct
 
     inline std::string _type() const;
 
@@ -138,10 +135,6 @@ Parameter<ParamType>::Parameter(ParameterName id, const std::string& name, const
 {
     log::emit<Trace2>() << CURRENT_FUNCTION << Color::cyan << ": Called!" << Color::reset << log::endl;
 
-    // allocate memory for returning on the heap
-    _returnval  = new double;
-    *_returnval = 0.0;
-
     log::emit<Trace2>() << CURRENT_FUNCTION << Color::green << ": Finished!" << Color::reset << log::endl;
 }
 
@@ -163,9 +156,6 @@ Parameter<ParamType>::Parameter(const Parameter<ParamType>& p) :
 {
     log::emit<Trace2>() << CURRENT_FUNCTION << Color::cyan << ": Called!" << Color::reset << log::endl;
 
-    _returnval  = new double;
-    *_returnval = *(p._returnval);
-
     log::emit<Trace2>() << CURRENT_FUNCTION << Color::green << ": Finished!" << Color::reset << log::endl;
 }
 
@@ -175,8 +165,6 @@ template <typename ParamType>
 Parameter<ParamType>::~Parameter()
 {
     log::emit<Trace2>() << CURRENT_FUNCTION << Color::cyan << ": Called!" << Color::reset << log::endl;
-
-    delete _returnval;
 
     log::emit<Trace2>() << CURRENT_FUNCTION << Color::green << ": Finished!" << Color::reset << log::endl;
 }
@@ -197,7 +185,6 @@ const Parameter<ParamType>& Parameter<ParamType>::operator=(const Parameter<Para
     _upperbndstrict = p._upperbndstrict;
     _issensitive    = p._issensitive;
     _name           = p._name;
-    *_returnval     = *(p._returnval);  // TODO: Check for memory leaks and double-delete
 
     return *this;
 }
@@ -245,13 +232,13 @@ const std::string Parameter<ParamType>::info() const
 // specializations for doubles
 //==============================================================
 template <> template <>
-inline const double & Parameter<double>::getValue<double>() const
+inline const double Parameter<double>::getValue<double>() const
 {
     return _value;
 }
 
 template <>
-inline void Parameter<double>::setValue(const double& value)
+inline void Parameter<double>::setValue(const double value)
 {
     _value = value;
 }
@@ -289,27 +276,22 @@ inline Parameter<active>::Parameter(ParameterName id, const std::string& name, c
     // Initialize all directional derivatives with 0.0
     for (int dir = 0; dir < active::getMaxDirections(); ++dir)
         _value.setADValue(dir, 0.0);
-
-    // allocate memory for returning on the heap
-    _returnval  = new double;
-    *_returnval = 0.0;
 }
 
 template <> template <>
-inline const double& Parameter<active>::getValue<double>() const
+inline const double Parameter<active>::getValue<double>() const
 {
-    *_returnval = _value.getValue();
-    return *_returnval;
+    return _value.getValue();
 }
 
 template <> template <>
-inline const active& Parameter<active>::getValue<active>() const
+inline const active Parameter<active>::getValue<active>() const
 {
     return _value;
 }
 
 template <>
-inline void Parameter<active>::setValue(const double& value)
+inline void Parameter<active>::setValue(const double value)
 {
     _value.setValue(value);
 }

@@ -38,20 +38,47 @@ public:
         this->configure();
         log::emit<Debug1>() << CURRENT_FUNCTION << ": Configured" << log::endl;
 
+        _kA.reserve(_cc.ncomp());
+        _kAT.reserve(_cc.ncomp());
+        _kATT.reserve(_cc.ncomp());
+        _kATTT.reserve(_cc.ncomp());
+
+        _kD.reserve(_cc.ncomp());
+        _kDT.reserve(_cc.ncomp());
+        _kDTT.reserve(_cc.ncomp());
+        _kDTTT.reserve(_cc.ncomp());
+
+        _qMax.reserve(_cc.ncomp());
+        _qMaxT.reserve(_cc.ncomp());
+        _qMaxTT.reserve(_cc.ncomp());
+        _qMaxTTT.reserve(_cc.ncomp());
+
         for (int comp = 0; comp < _cc.ncomp(); ++comp)
         {
-            addParam(Parameter<active> (EXTL_KA,       e2s(EXTL_KA),       comp, -1, 0.0, 0.0, -inf, true, inf, true));
-            addParam(Parameter<active> (EXTL_KA_T,     e2s(EXTL_KA_T),     comp, -1, 0.0, 0.0, -inf, true, inf, true));
-            addParam(Parameter<active> (EXTL_KA_TT,    e2s(EXTL_KA_TT),    comp, -1, 0.0, 0.0, -inf, true, inf, true));
-            addParam(Parameter<active> (EXTL_KA_TTT,   e2s(EXTL_KA_TTT),   comp, -1, 0.0, 0.0, -inf, true, inf, true));
-            addParam(Parameter<active> (EXTL_KD,       e2s(EXTL_KD),       comp, -1, 0.0, 0.0, -inf, true, inf, true));
-            addParam(Parameter<active> (EXTL_KD_T,     e2s(EXTL_KD_T),     comp, -1, 0.0, 0.0, -inf, true, inf, true));
-            addParam(Parameter<active> (EXTL_KD_TT,    e2s(EXTL_KD_TT),    comp, -1, 0.0, 0.0, -inf, true, inf, true));
-            addParam(Parameter<active> (EXTL_KD_TTT,   e2s(EXTL_KD_TTT),   comp, -1, 0.0, 0.0, -inf, true, inf, true));
-            addParam(Parameter<active> (EXTL_QMAX,     e2s(EXTL_QMAX),     comp, -1, 0.0, 0.0, -inf, true, inf, true));
-            addParam(Parameter<active> (EXTL_QMAX_T,   e2s(EXTL_QMAX_T),   comp, -1, 0.0, 0.0, -inf, true, inf, true));
-            addParam(Parameter<active> (EXTL_QMAX_TT,  e2s(EXTL_QMAX_TT),  comp, -1, 0.0, 0.0, -inf, true, inf, true));
-            addParam(Parameter<active> (EXTL_QMAX_TTT, e2s(EXTL_QMAX_TTT), comp, -1, 0.0, 0.0, -inf, true, inf, true));
+            _kA.push_back(Parameter<active> (EXTL_KA,       e2s(EXTL_KA),       comp, -1, 0.0, 0.0, -inf, true, inf, true));
+            addParam(_kA[comp]);
+            _kAT.push_back(Parameter<active> (EXTL_KA_T,     e2s(EXTL_KA_T),     comp, -1, 0.0, 0.0, -inf, true, inf, true));
+            addParam(_kAT[comp]);
+            _kATT.push_back(Parameter<active> (EXTL_KA_TT,    e2s(EXTL_KA_TT),    comp, -1, 0.0, 0.0, -inf, true, inf, true));
+            addParam(_kATT[comp]);
+            _kATTT.push_back(Parameter<active> (EXTL_KA_TTT,   e2s(EXTL_KA_TTT),   comp, -1, 0.0, 0.0, -inf, true, inf, true));
+            addParam(_kATTT[comp]);
+            _kD.push_back(Parameter<active> (EXTL_KD,       e2s(EXTL_KD),       comp, -1, 0.0, 0.0, -inf, true, inf, true));
+            addParam(_kD[comp]);
+            _kDT.push_back(Parameter<active> (EXTL_KD_T,     e2s(EXTL_KD_T),     comp, -1, 0.0, 0.0, -inf, true, inf, true));
+            addParam(_kDT[comp]);
+            _kDTT.push_back(Parameter<active> (EXTL_KD_TT,    e2s(EXTL_KD_TT),    comp, -1, 0.0, 0.0, -inf, true, inf, true));
+            addParam(_kDTT[comp]);
+            _kDTTT.push_back(Parameter<active> (EXTL_KD_TTT,   e2s(EXTL_KD_TTT),   comp, -1, 0.0, 0.0, -inf, true, inf, true));
+            addParam(_kDTTT[comp]);
+            _qMax.push_back(Parameter<active> (EXTL_QMAX,     e2s(EXTL_QMAX),     comp, -1, 0.0, 0.0, -inf, true, inf, true));
+            addParam(_qMax[comp]);
+            _qMaxT.push_back(Parameter<active> (EXTL_QMAX_T,   e2s(EXTL_QMAX_T),   comp, -1, 0.0, 0.0, -inf, true, inf, true));
+            addParam(_qMaxT[comp]);
+            _qMaxTT.push_back(Parameter<active> (EXTL_QMAX_TT,  e2s(EXTL_QMAX_TT),  comp, -1, 0.0, 0.0, -inf, true, inf, true));
+            addParam(_qMaxTT[comp]);
+            _qMaxTTT.push_back(Parameter<active> (EXTL_QMAX_TTT, e2s(EXTL_QMAX_TTT), comp, -1, 0.0, 0.0, -inf, true, inf, true));
+            addParam(_qMaxTTT[comp]);
         }
 
         log::emit<Trace1>() << CURRENT_FUNCTION << Color::green << ": Finished!" << Color::reset << log::endl;
@@ -86,18 +113,14 @@ public:
 
     virtual void setJacobian(const double t, const double z, const int comp, const double* q, double* jac) const throw (CadetException)
     {
-        const double              ka       = getValue<double>           (EXTL_KA,     comp);
-        const double              ka_T     = getValue<double>           (EXTL_KA_T,   comp);
-        const double              ka_TT    = getValue<double>           (EXTL_KA_TT,  comp);
-        const double              ka_TTT   = getValue<double>           (EXTL_KA_TTT, comp);
-        const double              kd       = getValue<double>           (EXTL_KD,     comp);
-        const double              kd_T     = getValue<double>           (EXTL_KD_T,   comp);
-        const double              kd_TT    = getValue<double>           (EXTL_KD_TT,  comp);
-        const double              kd_TTT   = getValue<double>           (EXTL_KD_TTT, comp);
-        const std::vector<double> qmax     = getValueForAllComp<double> (EXTL_QMAX);
-        const std::vector<double> qmax_T   = getValueForAllComp<double> (EXTL_QMAX_T);
-        const std::vector<double> qmax_TT  = getValueForAllComp<double> (EXTL_QMAX_TT);
-        const std::vector<double> qmax_TTT = getValueForAllComp<double> (EXTL_QMAX_TTT);
+        const double              ka       = _kA[comp].getValue<double>();
+        const double              ka_T     = _kAT[comp].getValue<double>();
+        const double              ka_TT    = _kATT[comp].getValue<double>();
+        const double              ka_TTT   = _kATTT[comp].getValue<double>();
+        const double              kd       = _kD[comp].getValue<double>();
+        const double              kd_T     = _kDT[comp].getValue<double>();
+        const double              kd_TT    = _kDTT[comp].getValue<double>();
+        const double              kd_TTT   = _kDTTT[comp].getValue<double>();
 
         // Liquid phase concentration
         const double* c = q -_cc.ncomp();
@@ -113,7 +136,7 @@ public:
         const double kd_all = kd_TTT * temp3 + kd_TT * temp2 + kd_T * temp + kd;
         std::vector<double> qmax_all(_cc.ncomp(), 0.0);
         for (int j = 0; j < _cc.ncomp(); ++j)
-            qmax_all.at(j) = qmax_TTT.at(j) * temp3 + qmax_TT.at(j) * temp2 + qmax_T.at(j) * temp + qmax.at(j);
+            qmax_all.at(j) = _qMaxTTT[j].getValue<double>() * temp3 + _qMaxTT[j].getValue<double>() * temp2 + _qMaxT[j].getValue<double>() * temp + _qMax[j].getValue<double>();
 
         double qsum = 1.0;
         for (int j = 0; j < _cc.ncomp(); ++j)
@@ -121,7 +144,7 @@ public:
 
         // Jacobian
         for (int j = 0; j < _cc.ncomp(); ++j)
-            jac[-comp + j] = ka_all * *c * qmax_all.at(comp) / qmax_all.at(j);  // dres/dq_j
+            jac[-comp + j] = ka_all * (*c) * qmax_all.at(comp) / qmax_all.at(j);  // dres/dq_j
 
         jac[0]            += kd_all;                                            // dres/dq_i
         jac[-_cc.ncomp()]  = -ka_all * qmax_all.at(comp) * qsum;                // dres/dc
@@ -134,18 +157,14 @@ private:
     {
         log::emit<Trace2>() << CURRENT_FUNCTION << Color::cyan << ": Called!" << Color::reset << log::endl;
 
-        ParamType              ka       = getValue<ParamType>           (EXTL_KA,     comp);
-        ParamType              ka_T     = getValue<ParamType>           (EXTL_KA_T,   comp);
-        ParamType              ka_TT    = getValue<ParamType>           (EXTL_KA_TT,  comp);
-        ParamType              ka_TTT   = getValue<ParamType>           (EXTL_KA_TTT, comp);
-        ParamType              kd       = getValue<ParamType>           (EXTL_KD,     comp);
-        ParamType              kd_T     = getValue<ParamType>           (EXTL_KD_T,   comp);
-        ParamType              kd_TT    = getValue<ParamType>           (EXTL_KD_TT,  comp);
-        ParamType              kd_TTT   = getValue<ParamType>           (EXTL_KD_TTT, comp);
-        std::vector<ParamType> qmax     = getValueForAllComp<ParamType> (EXTL_QMAX);
-        std::vector<ParamType> qmax_T   = getValueForAllComp<ParamType> (EXTL_QMAX_T);
-        std::vector<ParamType> qmax_TT  = getValueForAllComp<ParamType> (EXTL_QMAX_TT);
-        std::vector<ParamType> qmax_TTT = getValueForAllComp<ParamType> (EXTL_QMAX_TTT);
+        const ParamType ka     = _kA[comp].getValue<ParamType>();
+        const ParamType ka_T   = _kAT[comp].getValue<ParamType>();
+        const ParamType ka_TT  = _kATT[comp].getValue<ParamType>();
+        const ParamType ka_TTT = _kATTT[comp].getValue<ParamType>();
+        const ParamType kd     = _kD[comp].getValue<ParamType>();
+        const ParamType kd_T   = _kDT[comp].getValue<ParamType>();
+        const ParamType kd_TT  = _kDTT[comp].getValue<ParamType>();
+        const ParamType kd_TTT = _kDTTT[comp].getValue<ParamType>();
 
         // Liquid phase concentration
         const StateType* c = q -_cc.ncomp();
@@ -161,18 +180,32 @@ private:
         ResidType kd_all = kd_TTT * temp3 + kd_TT * temp2 + kd_T * temp + kd;
         std::vector<ResidType> qmax_all(_cc.ncomp(), 0.0);
         for (int j = 0; j < _cc.ncomp(); ++j)
-            qmax_all.at(j) = qmax_TTT.at(j) * temp3 + qmax_TT.at(j) * temp2 + qmax_T.at(j) * temp + qmax.at(j);
+            qmax_all.at(j) = _qMaxTTT[j].getValue<ParamType>() * temp3 + _qMaxTT[j].getValue<ParamType>() * temp2 + _qMaxT[j].getValue<ParamType>() * temp + _qMax[j].getValue<ParamType>();
 
         ResidType qsum = 1.0;
         for (int j = 0; j < _cc.ncomp(); ++j)
             qsum -= q[-comp + j] / qmax_all.at(j);
 
         // Residual
-        *res = - (ka_all * *c * qmax_all.at(comp) * qsum - kd_all * *q);
+        *res = - (ka_all * (*c) * qmax_all.at(comp) * qsum - kd_all * *q);
 
         log::emit<Trace2>() << CURRENT_FUNCTION << Color::green << ": Finished!" << Color::reset << log::endl;
     }
 
+    std::vector<Parameter<active>>  _kA;
+    std::vector<Parameter<active>>  _kAT;
+    std::vector<Parameter<active>>  _kATT;
+    std::vector<Parameter<active>>  _kATTT;
+
+    std::vector<Parameter<active>>  _kD;
+    std::vector<Parameter<active>>  _kDT;
+    std::vector<Parameter<active>>  _kDTT;
+    std::vector<Parameter<active>>  _kDTTT;
+
+    std::vector<Parameter<active>>  _qMax;
+    std::vector<Parameter<active>>  _qMaxT;
+    std::vector<Parameter<active>>  _qMaxTT;
+    std::vector<Parameter<active>>  _qMaxTTT;
 };
 
 } // namespace cadet

@@ -39,14 +39,28 @@ public:
         this->configure();
         log::emit<Debug1>() << CURRENT_FUNCTION << ": Configured" << log::endl;
 
+        _kA1.reserve(_cc.ncomp());
+        _kD1.reserve(_cc.ncomp());
+        _qMax1.reserve(_cc.ncomp());
+
+        _kA2.reserve(_cc.ncomp());
+        _kD2.reserve(_cc.ncomp());
+        _qMax2.reserve(_cc.ncomp());
+
         for (int comp = 0; comp < _nRealComp; ++comp)
         {
-            addParam(Parameter<active> (MCBL_KA1,   e2s(MCBL_KA1),   comp, -1, 0.0, 0.0, 0.0, false, inf, true));
-            addParam(Parameter<active> (MCBL_KD1,   e2s(MCBL_KD1),   comp, -1, 0.0, 0.0, 0.0, false, inf, true));
-            addParam(Parameter<active> (MCBL_QMAX1, e2s(MCBL_QMAX1), comp, -1, 0.0, 0.0, 0.0, true,  inf, true));
-            addParam(Parameter<active> (MCBL_KA2,   e2s(MCBL_KA2),   comp, -1, 0.0, 0.0, 0.0, false, inf, true));
-            addParam(Parameter<active> (MCBL_KD2,   e2s(MCBL_KD2),   comp, -1, 0.0, 0.0, 0.0, false, inf, true));
-            addParam(Parameter<active> (MCBL_QMAX2, e2s(MCBL_QMAX2), comp, -1, 0.0, 0.0, 0.0, true,  inf, true));
+            _kA1.push_back(Parameter<active> (MCBL_KA1,   e2s(MCBL_KA1),   comp, -1, 0.0, 0.0, 0.0, false, inf, true));
+            addParam(_kA1[comp]);
+            _kD1.push_back(Parameter<active> (MCBL_KD1,   e2s(MCBL_KD1),   comp, -1, 0.0, 0.0, 0.0, false, inf, true));
+            addParam(_kD1[comp]);
+            _qMax1.push_back(Parameter<active> (MCBL_QMAX1, e2s(MCBL_QMAX1), comp, -1, 0.0, 0.0, 0.0, true,  inf, true));
+            addParam(_qMax1[comp]);
+            _kA2.push_back(Parameter<active> (MCBL_KA2,   e2s(MCBL_KA2),   comp, -1, 0.0, 0.0, 0.0, false, inf, true));
+            addParam(_kA2[comp]);
+            _kD2.push_back(Parameter<active> (MCBL_KD2,   e2s(MCBL_KD2),   comp, -1, 0.0, 0.0, 0.0, false, inf, true));
+            addParam(_kD2[comp]);
+            _qMax2.push_back(Parameter<active> (MCBL_QMAX2, e2s(MCBL_QMAX2), comp, -1, 0.0, 0.0, 0.0, true,  inf, true));
+            addParam(_qMax2[comp]);
         }
 
         log::emit<Trace1>() << CURRENT_FUNCTION << Color::green << ": Finished!" << Color::reset << log::endl;
@@ -83,51 +97,49 @@ public:
     {
         const int clampedComp = (comp >= _nRealComp) ? comp - _nRealComp : comp;
 
-        const double              ka1   = getValue<double>              (MCBL_KA1, clampedComp);
-        const double              kd1   = getValue<double>              (MCBL_KD1, clampedComp);
-        const std::vector<double> qmax1 = getValueForFirstNComp<double> (MCBL_QMAX1, _nRealComp);
-        const double              ka2   = getValue<double>              (MCBL_KA2, clampedComp);
-        const double              kd2   = getValue<double>              (MCBL_KD2, clampedComp);
-        const std::vector<double> qmax2 = getValueForFirstNComp<double> (MCBL_QMAX2, _nRealComp);
+        const double              ka1   = _kA1[clampedComp].getValue<double>();
+        const double              kd1   = _kD1[clampedComp].getValue<double>();
+        const double              ka2   = _kA2[clampedComp].getValue<double>();
+        const double              kd2   = _kD2[clampedComp].getValue<double>();
 
         // Residual
         if (comp < _nRealComp)
         {
             double qsum = 1.0;
             for (int j = 0; j < _nRealComp; ++j)
-                qsum -= q[-comp + j] / qmax1.at(j);
+                qsum -= q[-comp + j] / _qMax1[j].getValue<double>();
 
             // Liquid phase concentration
             const double* c = q - _cc.ncomp();
 
-            const double factor = ka1 * (*c) * qmax1.at(comp);
+            const double factor = ka1 * (*c) * _qMax1[comp].getValue<double>();
 
             // dres / dq1
             for (int j = 0; j < _nRealComp; ++j)
-                jac[-comp + j] = factor / qmax1.at(j);  // dres/dq1_j
+                jac[-comp + j] = factor / _qMax1[j].getValue<double>();  // dres/dq1_j
             jac[0] += kd1; // last summand by product rule
 
             // dres / dc
-            jac[-_cc.ncomp()] = -ka1 * qmax1.at(comp) * qsum;
+            jac[-_cc.ncomp()] = -ka1 * _qMax1[comp].getValue<double>() * qsum;
         }
         else
         {
             double qsum = 1.0;
             for (int j = 0; j < _nRealComp; ++j)
-                qsum -= q[-comp + j + _nRealComp] / qmax2.at(j);
+                qsum -= q[-comp + j + _nRealComp] / _qMax2[j].getValue<double>();
 
             // Liquid phase concentration
             const double* c = q - _cc.ncomp() - _nRealComp;
 
-            const double factor = ka2 * (*c) * qmax2.at(clampedComp);
+            const double factor = ka2 * (*c) * _qMax2[clampedComp].getValue<double>();
 
             // dres / dq2
             for (int j = 0; j < _nRealComp; ++j)
-                jac[-comp + j + _nRealComp] = factor / qmax2.at(j);  // dres/dq2_j
+                jac[-comp + j + _nRealComp] = factor / _qMax2[j].getValue<double>();  // dres/dq2_j
             jac[0] += kd2;
 
             // dres / dc
-            jac[-_cc.ncomp() - _nRealComp] = -ka2 * qmax2.at(clampedComp) * qsum;
+            jac[-_cc.ncomp() - _nRealComp] = -ka2 * _qMax2[clampedComp].getValue<double>() * qsum;
         }
     }
 
@@ -140,41 +152,46 @@ private:
 
         const int clampedComp = (comp >= _nRealComp) ? comp - _nRealComp : comp;
 
-        ParamType              ka1   = getValue<ParamType>              (MCBL_KA1, clampedComp);
-        ParamType              kd1   = getValue<ParamType>              (MCBL_KD1, clampedComp);
-        std::vector<ParamType> qmax1 = getValueForFirstNComp<ParamType> (MCBL_QMAX1, _nRealComp);
-        ParamType              ka2   = getValue<ParamType>              (MCBL_KA2, clampedComp);
-        ParamType              kd2   = getValue<ParamType>              (MCBL_KD2, clampedComp);
-        std::vector<ParamType> qmax2 = getValueForFirstNComp<ParamType> (MCBL_QMAX2, _nRealComp);
+        const ParamType              ka1   = _kA1[clampedComp].getValue<ParamType>();
+        const ParamType              kd1   = _kA1[clampedComp].getValue<ParamType>();
+        const ParamType              ka2   = _kA1[clampedComp].getValue<ParamType>();
+        const ParamType              kd2   = _kA1[clampedComp].getValue<ParamType>();
 
         // Residual
         if (comp < _nRealComp)
         {
             ResidType qsum = 1.0;
             for (int j = 0; j < _nRealComp; ++j)
-                qsum -= q[-comp + j] / qmax1.at(j);
+                qsum -= q[-comp + j] / _qMax1[j].getValue<ParamType>();
 
             // Liquid phase concentration
             const StateType* c = q -_cc.ncomp();
 
-            *res = - (ka1 * (*c) * qmax1.at(comp) * qsum - kd1 * (*q));
+            *res = - (ka1 * (*c) * _qMax1[comp].getValue<ParamType>() * qsum - kd1 * (*q));
         }
         else
         {
             ResidType qsum = 1.0;
             for (int j = 0; j < _nRealComp; ++j)
-                qsum -= q[-comp + j + _nRealComp] / qmax2.at(j);
+                qsum -= q[-comp + j + _nRealComp] / _qMax2[j].getValue<ParamType>();
 
             // Liquid phase concentration
             const StateType* c = q -_cc.ncomp() - _nRealComp;
 
-            *res = - (ka2 * (*c) * qmax2.at(clampedComp) * qsum - kd2 * (*q));
+            *res = - (ka2 * (*c) * _qMax2[clampedComp].getValue<ParamType>() * qsum - kd2 * (*q));
         }
 
         log::emit<Trace2>() << CURRENT_FUNCTION << Color::green << ": Finished!" << Color::reset << log::endl;
     }
 
     int _nRealComp;
+
+    std::vector<Parameter<active>>  _kA1;
+    std::vector<Parameter<active>>  _kD1;
+    std::vector<Parameter<active>>  _qMax1;
+    std::vector<Parameter<active>>  _kA2;
+    std::vector<Parameter<active>>  _kD2;
+    std::vector<Parameter<active>>  _qMax2;    
 };
 
 } // namespace cadet

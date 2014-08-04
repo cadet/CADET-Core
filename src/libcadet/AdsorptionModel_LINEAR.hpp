@@ -38,10 +38,14 @@ public:
         this->configure();
         log::emit<Debug1>() << CURRENT_FUNCTION << ": Configured" << log::endl;
 
+        _kA.reserve(_cc.ncomp());
+        _kD.reserve(_cc.ncomp());
         for (int comp = 0; comp < _cc.ncomp(); ++comp)
         {
-            addParam(Parameter<active> (LIN_KA,   e2s(LIN_KA),   comp, -1, 0.0, 0.0, 0.0, false, inf, true));
-            addParam(Parameter<active> (LIN_KD,   e2s(LIN_KD),   comp, -1, 0.0, 0.0, 0.0, false, inf, true));
+            _kA.push_back(Parameter<active> (LIN_KA,   e2s(LIN_KA),   comp, -1, 0.0, 0.0, 0.0, false, inf, true));
+            addParam(_kA[comp]);
+            _kD.push_back(Parameter<active> (LIN_KD,   e2s(LIN_KD),   comp, -1, 0.0, 0.0, 0.0, false, inf, true));
+            addParam(_kD[comp]);
         }
 
         log::emit<Trace1>() << CURRENT_FUNCTION << Color::green << ": Finished!" << Color::reset << log::endl;
@@ -76,8 +80,8 @@ public:
 
     virtual void setJacobian(const double t, const double z, const int comp, const double* q, double* jac) const throw (CadetException)
     {
-        const double ka = getValue<double>(LIN_KA, comp);
-        const double kd = getValue<double>(LIN_KD, comp);
+        const double ka = _kA[comp].getValue<double>();
+        const double kd = _kD[comp].getValue<double>();
 
         jac[0]            = kd;   // dres/dq_i
         jac[-_cc.ncomp()] = -ka;  // dres/dc_i
@@ -90,8 +94,8 @@ private:
     {
         log::emit<Trace2>() << CURRENT_FUNCTION << Color::cyan << ": Called!" << Color::reset << log::endl;
 
-        ParamType ka = getValue<ParamType>(LIN_KA, comp);
-        ParamType kd = getValue<ParamType>(LIN_KD, comp);
+        const ParamType ka = _kA[comp].getValue<ParamType>();
+        const ParamType kd = _kD[comp].getValue<ParamType>();
 
         // Liquid phase concentration
         const StateType* c = q -_cc.ncomp();
@@ -101,6 +105,10 @@ private:
 
         log::emit<Trace2>() << CURRENT_FUNCTION << Color::green << ": Finished!" << Color::reset << log::endl;
     }
+
+    std::vector<Parameter<active>>  _kA;
+    std::vector<Parameter<active>>  _kD;
+
 };
 
 } // namespace cadet

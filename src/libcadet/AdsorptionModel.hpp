@@ -27,7 +27,7 @@ namespace cadet
 {
 
 /// \brief Abstract base class for an adsorption model implementation
-class AdsorptionModel: public ParameterContainer<active>
+class AdsorptionModel : public ParameterContainer<active>
 {
 public:
 

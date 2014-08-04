@@ -39,31 +39,48 @@ GeneralRateModel::GeneralRateModel(SimulatorPImpl& sim) :
     _secDepParDiffusion(false),
     _secDepParSurfDiffusion(false),
     _secDepFilmDiffusion(false),
-    _multiBoundMode(0)
+    _multiBoundMode(0),
+    _colLength(COL_LENGTH,     e2s(COL_LENGTH),     -1, -1, 0.0, 0.0, 0.0, CADET_STRICT, std::numeric_limits<double>::infinity(), CADET_STRICT),
+    _colPorosity(COL_POROSITY,   e2s(COL_POROSITY),   -1, -1, 0.0, 0.0, 0.0, CADET_LOOSE,  1.0, CADET_LOOSE),
+    _parRadius(PAR_RADIUS,     e2s(PAR_RADIUS),     -1, -1, 0.0, 0.0, 0.0, CADET_STRICT, std::numeric_limits<double>::infinity(), CADET_STRICT),
+    _parPorosity(PAR_POROSITY,   e2s(PAR_POROSITY),   -1, -1, 0.0, 0.0, 0.0, CADET_STRICT, 1.0, CADET_STRICT)
 {
     log::emit<Trace1>() << CURRENT_FUNCTION << Color::cyan << ": Called!" << Color::reset << log::endl;
 
     double inf = std::numeric_limits<double>::infinity();
 
-    // Scalar parameters
-    addParam(Parameter<active> (COL_LENGTH,     e2s(COL_LENGTH),     -1, -1, 0.0, 0.0, 0.0, CADET_STRICT, inf, CADET_STRICT)); ///todo re-check loose / strict
-    addParam(Parameter<active> (COL_POROSITY,   e2s(COL_POROSITY),   -1, -1, 0.0, 0.0, 0.0, CADET_LOOSE,  1.0, CADET_LOOSE));
+    // Section dependent parameters
+    _colDispersion.reserve(_cc.nsec()+1);
+    _velocity.reserve(_cc.nsec()+1);
 
-    addParam(Parameter<active> (PAR_RADIUS,     e2s(PAR_RADIUS),     -1, -1, 0.0, 0.0, 0.0, CADET_STRICT, inf, CADET_STRICT));
-    addParam(Parameter<active> (PAR_POROSITY,   e2s(PAR_POROSITY),   -1, -1, 0.0, 0.0, 0.0, CADET_STRICT, 1.0, CADET_STRICT));
+    // Vectorial parameters
+    _filmDiffusion.reserve((_cc.nsec()+1) * _cc.ncomp());
+    _parDiffusion.reserve((_cc.nsec()+1) * _cc.ncomp());
+    _parSurfDiffusion.reserve((_cc.nsec()+1) * _cc.ncomp());
+
+    // Scalar parameters
+    addParam(_colLength);
+    addParam(_colPorosity);
+    addParam(_parRadius);
+    addParam(_parPorosity);
 
     // Section dependent parameters
     for (int sec = -1; sec < _cc.nsec(); ++sec)
     {
-        addParam(Parameter<active> (COL_DISPERSION, e2s(COL_DISPERSION), -1, sec, 0.0, 0.0, 0.0, CADET_LOOSE,  inf, CADET_STRICT));
-        addParam(Parameter<active> (VELOCITY,       e2s(VELOCITY),       -1, sec, 0.0, 0.0, 0.0, CADET_STRICT, inf, CADET_STRICT));
+        _colDispersion.push_back(Parameter<active> (COL_DISPERSION, e2s(COL_DISPERSION), -1, sec, 0.0, 0.0, 0.0, CADET_LOOSE,  inf, CADET_STRICT));
+        addParam(_colDispersion[_colDispersion.size() - 1]);
+        _velocity.push_back(Parameter<active> (VELOCITY,       e2s(VELOCITY),       -1, sec, 0.0, 0.0, 0.0, CADET_STRICT, inf, CADET_STRICT));
+        addParam(_velocity[_velocity.size()-1]);
 
         // Vectorial parameters
         for (int comp = 0; comp < _cc.ncomp(); ++comp)
         {
-            addParam(Parameter<active> (FILM_DIFFUSION,    e2s(FILM_DIFFUSION),    comp, sec, 0.0, 0.0, 0.0, CADET_LOOSE, inf, CADET_STRICT));
-            addParam(Parameter<active> (PAR_DIFFUSION,     e2s(PAR_DIFFUSION),     comp, sec, 0.0, 0.0, 0.0, CADET_LOOSE, inf, CADET_STRICT));
-            addParam(Parameter<active> (PAR_SURFDIFFUSION, e2s(PAR_SURFDIFFUSION), comp, sec, 0.0, 0.0, 0.0, CADET_LOOSE, inf, CADET_STRICT));
+            _filmDiffusion.push_back(Parameter<active> (FILM_DIFFUSION,    e2s(FILM_DIFFUSION),    comp, sec, 0.0, 0.0, 0.0, CADET_LOOSE, inf, CADET_STRICT));
+            addParam(_filmDiffusion[_filmDiffusion.size()-1]);
+            _parDiffusion.push_back(Parameter<active> (PAR_DIFFUSION,     e2s(PAR_DIFFUSION),     comp, sec, 0.0, 0.0, 0.0, CADET_LOOSE, inf, CADET_STRICT));
+            addParam(_parDiffusion[_parDiffusion.size() - 1]);
+            _parSurfDiffusion.push_back(Parameter<active> (PAR_SURFDIFFUSION, e2s(PAR_SURFDIFFUSION), comp, sec, 0.0, 0.0, 0.0, CADET_LOOSE, inf, CADET_STRICT));
+            addParam(_parSurfDiffusion[_parSurfDiffusion.size() - 1]);
         }
     }
 
@@ -192,7 +209,7 @@ int GeneralRateModel::residualSens(int ns, double t, N_Vector NV_y, N_Vector NV_
         _timerResSensPar.start();
 
         // Complete sens residual is the sum:
-        #pragma omp parallel for
+        #pragma omp parallel for schedule(static)
         for (int i = 0; i < _cc.neq(); i++)
             resS[i] = tmp1[i] + tmp2[i] + _ti.getResAd(i).getADValue(_ti.getJacAdDirs() + param);
 
@@ -218,8 +235,8 @@ void GeneralRateModel::calcIC(const double t)
     // This means ydot will contain the sum of the convective and the dispersive flux term.
     residualColumn<double, double, double, false>(t, _ti.getY(), nullptr, _ti.getYDot());
 
-    double invBetaC              = 1.0 / getValue<double>(COL_POROSITY) - 1.0;
-    double surfaceToVolumeRatio  = 3.0 / getValue<double>(PAR_RADIUS);
+    const double invBetaC              = 1.0 / _colPorosity.getValue<double>() - 1.0;
+    const double surfaceToVolumeRatio  = 3.0 / _parRadius.getValue<double>();
 
     // ydot shall fulfill ydot = -column_residual - film_flux
     // ==> negate and subtract boundary contribution
@@ -290,7 +307,7 @@ int GeneralRateModel::residualColumnParticle(const double t, const StateType* y,
 {
     log::emit<Trace2>() << CURRENT_FUNCTION << Color::cyan << ": Called!" << Color::reset << log::endl;
 
-    #pragma omp parallel for
+    #pragma omp parallel for schedule(static)
     for (int pblk = -1; pblk < _cc.npblk(); ++pblk)
     {
         if (pblk == -1)
@@ -349,18 +366,10 @@ int GeneralRateModel::residualColumn(const double t, const StateType* y, const d
 {
     log::emit<Trace2>() << CURRENT_FUNCTION << Color::cyan << ": Called!" << Color::reset << log::endl;
 
-    int secVel = -1;
-    if (_secDepVelocity)
-        secVel = _ti.getCurrentSection();
-
-    int secColDisp = -1;
-    if (_secDepColDispersion)
-        secColDisp = _ti.getCurrentSection();
-
-    ParamType u   = getValue<ParamType>(VELOCITY, -1, secVel);
-    ParamType d_c = getValue<ParamType>(COL_DISPERSION, -1, secColDisp);
-    ParamType h   = getValue<ParamType>(COL_LENGTH) / double(_cc.ncol());
-    ParamType h2  = h * h;
+    const ParamType u   = getVelocity<ParamType>();
+    const ParamType d_c = getDispersion<ParamType>();
+    const ParamType h   = _colLength.getValue<ParamType>() / double(_cc.ncol());
+    const ParamType h2  = h * h;
 
     // WENO help variables
     const int& WK   = _cc.max_wk();           // Max. WENO-order
@@ -576,19 +585,16 @@ int GeneralRateModel::residualParticle(const double t, const int pblk, const Sta
     log::emit<Trace2>() << CURRENT_FUNCTION << Color::cyan << ": Called!" << Color::reset << log::endl;
 
     // Simulation parameters
-    ParamType radius            = getValue<ParamType> (PAR_RADIUS);
-    ParamType inv_beta_p        = 1.0 / getValue<ParamType> (PAR_POROSITY) - 1.0;
+    const ParamType radius            = _parRadius.getValue<ParamType>();
+    const ParamType inv_beta_p        = 1.0 / _parPorosity.getValue<ParamType>() - 1.0;
 
-    int secParDiff = -1;
+    int parDiffOffset = 0;
     if (_secDepParDiffusion)
-        secParDiff = _ti.getCurrentSection();
+        parDiffOffset = (_ti.getCurrentSection()+1) * _cc.ncomp();
 
-    int secParSurfDiff = -1;
+    int parSurfDiffOffset = 0;
     if (_secDepParSurfDiffusion)
-        secParSurfDiff = _ti.getCurrentSection();
-
-    std::vector<ParamType> d_p  = getValueForAllComp<ParamType> (PAR_DIFFUSION, secParDiff);
-    std::vector<ParamType> d_s  = getValueForAllComp<ParamType> (PAR_SURFDIFFUSION, secParSurfDiff);
+        parSurfDiffOffset = (_ti.getCurrentSection()+1) * _cc.ncomp();
 
     double z = 1.0 / double(_cc.npblk()) * (0.5 + pblk) ; // Current z coordinate in the column - needed in externally dependent adsorption kinetic
     ParamType dr;
@@ -602,8 +608,8 @@ int GeneralRateModel::residualParticle(const double t, const int pblk, const Sta
     for (int par = 0; par < _cc.npar(); ++par)
     {
         // Geometry
-        ParamType outer_area_per_volume = _pd.getOuterSurfAreaPerVolume(par) / radius;
-        ParamType inner_area_per_volume = _pd.getInnerSurfAreaPerVolume(par) / radius;
+        const ParamType outer_area_per_volume = _pd.getOuterSurfAreaPerVolume(par) / radius;
+        const ParamType inner_area_per_volume = _pd.getInnerSurfAreaPerVolume(par) / radius;
 
         // Mobile phase
         for (int comp = 0; comp < _cc.ncomp(); ++comp, ++res, ++y, ++ydot, jac += _jac.ld_jp())
@@ -642,6 +648,9 @@ int GeneralRateModel::residualParticle(const double t, const int pblk, const Sta
                 jac[_cc.ncomp()] = 0.0;
             }
 
+            const ParamType dp = _parDiffusion.at(comp + parDiffOffset).getValue<ParamType>();
+            const ParamType ds = _parSurfDiffusion.at(comp + parSurfDiffOffset).getValue<ParamType>();
+
             // Add flow through outer surface
             if (par != 0)
             {
@@ -653,20 +662,20 @@ int GeneralRateModel::residualParticle(const double t, const int pblk, const Sta
                 ResidType grad_q = (y[-_cc.ncomp()] - y[_cc.ncomp()]) / dr;
 
                 // Molecular diffusion contribution
-                *res -= outer_area_per_volume * d_p.at(comp) * grad_c;
+                *res -= outer_area_per_volume * dp * grad_c;
 
                 // Surface diffusion contribution
-                *res -= outer_area_per_volume * d_s.at(comp) * inv_beta_p * grad_q;
+                *res -= outer_area_per_volume * ds * inv_beta_p * grad_q;
 
                 if (wantJac)
                 {
                         // Jacobian entrys w.r.t. this cell's concentrations
-                        jac[0]           += ParamType(outer_area_per_volume * d_p.at(comp) / dr);                      // dres / dc_p,i^(p,j)
-                        jac[_cc.ncomp()] += ParamType(outer_area_per_volume * inv_beta_p * d_s.at(comp) / dr);         // dres / dq_i^(p,j)
+                        jac[0]           += ParamType(outer_area_per_volume * dp / dr);                      // dres / dc_p,i^(p,j)
+                        jac[_cc.ncomp()] += ParamType(outer_area_per_volume * inv_beta_p * ds / dr);         // dres / dq_i^(p,j)
 
                         // Jacobian entrys w.r.t. neighboring cell's concentrations
-                        jac[-2 * _cc.ncomp()] = ParamType(-outer_area_per_volume * d_p.at(comp) / dr);                 // dres / dc_p,i^(p,j-1)
-                        jac[-_cc.ncomp()]     = ParamType(-outer_area_per_volume * inv_beta_p * d_s.at(comp) / dr);    // dres / dq_i^(p,j-1)
+                        jac[-2 * _cc.ncomp()] = ParamType(-outer_area_per_volume * dp / dr);                 // dres / dc_p,i^(p,j-1)
+                        jac[-_cc.ncomp()]     = ParamType(-outer_area_per_volume * inv_beta_p * ds / dr);    // dres / dq_i^(p,j-1)
                 }
 //                else
 //                    throw CadetException("You cannot compute sensitivities and analytical jacobian!");
@@ -683,20 +692,20 @@ int GeneralRateModel::residualParticle(const double t, const int pblk, const Sta
                 ResidType grad_q = (y[_cc.ncomp()] - y[3 * _cc.ncomp()]) / dr;
 
                 // Molecular diffusion contribution
-                *res += inner_area_per_volume * d_p.at(comp) * grad_c;
+                *res += inner_area_per_volume * dp * grad_c;
 
                 // Surface diffusion contribution
-                *res += inner_area_per_volume * d_s.at(comp) * inv_beta_p * grad_q;
+                *res += inner_area_per_volume * ds * inv_beta_p * grad_q;
 
                 if (wantJac)
                 {
                         // Jacobian entrys w.r.t. this cell's concentrations
-                        jac[0]           += ParamType(inner_area_per_volume * d_p.at(comp) / dr);                    // dres / dc_p,i^(p,j)
-                        jac[_cc.ncomp()] += ParamType(inner_area_per_volume * inv_beta_p * d_s.at(comp) / dr);       // dres / dq_i^(p,j)
+                        jac[0]           += ParamType(inner_area_per_volume * dp / dr);                    // dres / dc_p,i^(p,j)
+                        jac[_cc.ncomp()] += ParamType(inner_area_per_volume * inv_beta_p * ds / dr);       // dres / dq_i^(p,j)
 
                         // Jacobian entrys w.r.t. neighboring cell's concentrations
-                        jac[2 * _cc.ncomp()] = ParamType(-inner_area_per_volume * d_p.at(comp) / dr);                // dres / dc_p,i^(p,j+1)
-                        jac[3 * _cc.ncomp()] = ParamType(-inner_area_per_volume * inv_beta_p * d_s.at(comp) / dr);   // dres / dq_i^(p,j+1)
+                        jac[2 * _cc.ncomp()] = ParamType(-inner_area_per_volume * dp / dr);                // dres / dc_p,i^(p,j+1)
+                        jac[3 * _cc.ncomp()] = ParamType(-inner_area_per_volume * inv_beta_p * ds / dr);   // dres / dq_i^(p,j+1)
                 }
 //                still a bad hack with the operator double() !!! ///todo remove this bad hack
 //                else
@@ -731,32 +740,29 @@ int GeneralRateModel::residualBoundaries(const double* y, const double* yDot, Re
 {
     log::emit<Trace2>() << CURRENT_FUNCTION << Color::cyan << ": Called!" << Color::reset << log::endl;
 
-    ParamType invBetaC          = 1.0 / getValue<ParamType>(COL_POROSITY) - 1.0;
-    ParamType epsP              = getValue<ParamType>(PAR_POROSITY);
-    ParamType radius            = getValue<ParamType>(PAR_RADIUS);
+    const ParamType invBetaC          = 1.0 / _colPorosity.getValue<ParamType>() - 1.0;
+    const ParamType epsP              = _parPorosity.getValue<ParamType>();
+    const ParamType radius            = _parRadius.getValue<ParamType>();
 
-    int secFilmDiff = -1;
+    int filmDiffOffset = 0;
     if (_secDepFilmDiffusion)
-        secFilmDiff = _ti.getCurrentSection();
+        filmDiffOffset = (_ti.getCurrentSection()+1) * _cc.ncomp();
 
-    int secParDiff = -1;
+    int parDiffOffset = 0;
     if (_secDepParDiffusion)
-        secParDiff = _ti.getCurrentSection();
+        parDiffOffset = (_ti.getCurrentSection()+1) * _cc.ncomp();
 
-    std::vector<ParamType> kf   = getValueForAllComp<ParamType>(FILM_DIFFUSION, secFilmDiff);
-    std::vector<ParamType> dp   = getValueForAllComp<ParamType>(PAR_DIFFUSION, secParDiff);
+    const ParamType surfaceToVolumeRatio = 3.0 / radius;
+    const ParamType outerAreaPerVolume   = _pd.getOuterSurfAreaPerVolume(0) / radius;
 
-    ParamType surfaceToVolumeRatio = 3.0 / radius;
-    ParamType outerAreaPerVolume   = _pd.getOuterSurfAreaPerVolume(0) / radius;
+    const ParamType jacCB_val = invBetaC * surfaceToVolumeRatio;
+    const ParamType jacPB_val = -outerAreaPerVolume / epsP;
 
-    ParamType jacCB_val = invBetaC * surfaceToVolumeRatio;
-    ParamType jacPB_val = -outerAreaPerVolume / epsP;
-
-    ParamType* kf_FV = new ParamType[_cc.ncomp()];  // kf for finite volumes
+    ParamType* const kf_FV = new ParamType[_cc.ncomp()];  // kf for finite volumes
 
     const double relOuterShellHalfRadius = 0.5 * _pd.getCellSize(0);
     for (int comp = 0; comp < _cc.ncomp(); ++comp)
-        kf_FV[comp] = 1.0 / (radius * relOuterShellHalfRadius / epsP / dp.at(comp) + 1.0 / kf.at(comp));
+        kf_FV[comp] = 1.0 / (radius * relOuterShellHalfRadius / epsP / _parDiffusion[comp + parDiffOffset].getValue<ParamType>() + 1.0 / _filmDiffusion[comp + filmDiffOffset].getValue<ParamType>());
 
     int eq;  // Index for the current equation we work on
 
@@ -851,7 +857,7 @@ void GeneralRateModel::dFdy_times_s(N_Vector NV_s, N_Vector NV_ret)
 
     _timerResSensPar.start();
 
-    #pragma omp parallel for private(n, kl, ku, lda)
+    #pragma omp parallel for private(n, kl, ku, lda) schedule(static)
     for (int pblk = -1; pblk < _cc.npblk(); ++pblk)
     {
         //==========================================================================
@@ -908,11 +914,11 @@ void GeneralRateModel::dFdyDot_times_sDot(N_Vector NV_sDot, N_Vector NV_ret)
 {
     log::emit<Trace1>() << CURRENT_FUNCTION << Color::cyan << ": Called!" << Color::reset << log::endl;
 
-    double invBetaP = 1.0 / getValue<double> (PAR_POROSITY) - 1.0;
+    const double invBetaP = 1.0 / _parPorosity.getValue<double>() - 1.0;
 
     _timerResSensPar.start();
 
-    #pragma omp parallel for
+    #pragma omp parallel for schedule(static)
     for (int pblk = -1; pblk < _cc.npblk(); ++pblk)
     {
         if (pblk == -1) // column
@@ -992,25 +998,22 @@ void GeneralRateModel::assembleOffdiagJac(int section, double t) throw (CadetExc
     SparseMatrixElement* jpb;
     SparseMatrixElement* jbp;
 
-    double invBetaC          = 1.0 / getValue<double>(COL_POROSITY) - 1.0;
-    double epsP              = getValue<double>(PAR_POROSITY);
-    double radius            = getValue<double>(PAR_RADIUS);
+    const double invBetaC          = 1.0 / _colPorosity.getValue<double>() - 1.0;
+    const double epsP              = _parPorosity.getValue<double>();
+    const double radius            = _parRadius.getValue<double>();
 
-    int secFilmDiff = -1;
+    int filmDiffOffset = 0;
     if (_secDepFilmDiffusion)
-        secFilmDiff = section;
+        filmDiffOffset = (_ti.getCurrentSection()+1) * _cc.ncomp();
 
-    int secParDiff = -1;
+    int parDiffOffset = 0;
     if (_secDepParDiffusion)
-        secParDiff = section;
+        parDiffOffset = (_ti.getCurrentSection()+1) * _cc.ncomp();
 
-    log::emit<Debug2>() << CURRENT_FUNCTION << ": Cur sec " << _ti.getCurrentSection() << " FilmDiff sec " << secFilmDiff << " ParDiff sec " << secParDiff << log::endl;
+    log::emit<Debug2>() << CURRENT_FUNCTION << ": Cur sec " << _ti.getCurrentSection() << " FilmDiff offset " << filmDiffOffset << " ParDiff offset " << parDiffOffset << log::endl;
 
-    std::vector<double> kf   = getValueForAllComp<double>(FILM_DIFFUSION, secFilmDiff);
-    std::vector<double> dp   = getValueForAllComp<double>(PAR_DIFFUSION, secParDiff);
-
-    double surfaceToVolumeRatio = 3.0 / radius;
-    double outerAreaPerVolume   = _pd.getOuterSurfAreaPerVolume(0) / radius;
+    const double surfaceToVolumeRatio = 3.0 / radius;
+    const double outerAreaPerVolume   = _pd.getOuterSurfAreaPerVolume(0) / radius;
 
     log::emit<Debug2>() << CURRENT_FUNCTION << ": radius = " << radius << log::endl;
     log::emit<Debug2>() << CURRENT_FUNCTION << ": _pd.getOuterSurfAreaPerVolume(0) = " << _pd.getOuterSurfAreaPerVolume(0) << log::endl;
@@ -1025,11 +1028,11 @@ void GeneralRateModel::assembleOffdiagJac(int section, double t) throw (CadetExc
     log::emit<Debug2>() << CURRENT_FUNCTION << ": jacCB_val = " << jacCB_val << log::endl;
     log::emit<Debug2>() << CURRENT_FUNCTION << ": jacPB_val = " << jacPB_val << log::endl;
 
-    double* kf_FV = new double[_cc.ncomp()];  // kf for finite volumes ///todo compute and store kf_FV in the specialSetup routine!!!
+    double* const kf_FV = new double[_cc.ncomp()];  // kf for finite volumes ///todo compute and store kf_FV in the specialSetup routine!!!
 
     for (int comp = 0; comp < _cc.ncomp(); ++comp)
     {
-        kf_FV[comp] = 1.0 / (relOuterShellHalfRadius * radius / epsP / dp.at(comp) + 1.0 / kf.at(comp));
+        kf_FV[comp] = 1.0 / (relOuterShellHalfRadius * radius / epsP / _parDiffusion[comp + parDiffOffset].getValue<double>() + 1.0 / _filmDiffusion[comp + filmDiffOffset].getValue<double>());
         log::emit<Debug2>() << CURRENT_FUNCTION << ": kf_FV[" << comp << "] = " << kf_FV[comp] << log::endl;
     }
 
@@ -1154,5 +1157,22 @@ void GeneralRateModel::setParameterSectionDependent(const ParameterName id, bool
     }
 }
 
+template <typename T>
+T GeneralRateModel::getVelocity() const
+{
+    if (_secDepVelocity)
+        return _velocity[_ti.getCurrentSection()+1].getValue<T>();
+    else
+        return _velocity[0].getValue<T>();
+}
+
+template <typename T>
+T GeneralRateModel::getDispersion() const
+{
+    if (_secDepColDispersion)
+        return _colDispersion[_ti.getCurrentSection()+1].getValue<T>();
+    else
+        return _colDispersion[0].getValue<T>();
+}
 
 } // namespace cadet

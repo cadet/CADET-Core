@@ -29,34 +29,45 @@
 namespace cadet
 {
 
-/// \brief An abstract base class holding a hash map of parameters
+/// \brief An abstract base class holding a hash map of pointers to parameters
 template<typename ParamType>
 class ParameterContainer
 {
 public:
 
     // Constructor
-    ParameterContainer(const SimulatorPImpl& sim);
+    ParameterContainer(const SimulatorPImpl& sim) : _sim(sim), _cc(sim.getCadetConstants()) { }
 
     // Destructor
-    ~ParameterContainer();
+    ~ParameterContainer() { }
 
     /// \brief Adds a new parameter to the container
     /// The parameter must have been created before
-    void addParam(const Parameter<ParamType>& param);
+    void addParam(Parameter<ParamType>& param) { addParam(ParamID(param.getId(), param.getComp(), param.getSec()), &param); }
+
+    /// \brief Adds a new parameter to the container
+    /// The parameter must have been created before
+    void addParam(const ParameterName id, int comp, int section, Parameter<ParamType>* const ptr) { addParam(ParamID(id, comp, section), ptr); }
+
+    /// \brief Adds a new parameter to the container
+    /// The parameter must have been created before
+    void addParam(const ParamID& pid, Parameter<ParamType>* const ptr) { _params[pid] = ptr; }
 
     /// \brief Removes a parameter from the container
-    void removeParam(const Parameter<ParamType>& param);
+    void removeParam(const ParameterName id, int comp, int section) { removeParam(ParamID(id, comp, section)); }
 
-    /// \brief Removes all matching parameters from the container
-    void removeParam(const ParameterName id, int comp = -1, int sec = -1);
+    /// \brief Removes a parameter from the container
+    void removeParam(const ParamID& pid) { _params.erase(pid); }
+
+    /// \brief Removes a parameter from the container
+    void removeParam(const Parameter<ParamType>& param) { _params.erase(ParamID(param.getId(), param.getComp(), param.getSec())); }
 
     /// \brief Removes all matching parameters from the container
     void removeParamsOfSection(const ParameterName id, int sec);
 
     /// \brief Returns a refernce to the parameter named 'pname' describing the component 'comp' in section 'sec'
     /// by default, comp and sec are -1 (parameter does not depend on any component and section)
-    const Parameter<ParamType>& getParam(const ParameterName id, int comp = -1, int sec = -1) const throw (CadetException);
+    virtual const Parameter<ParamType>& getParam(const ParameterName id, int comp = -1, int sec = -1) const throw (CadetException);
     Parameter<ParamType>& getParam(const ParamID& param) throw (CadetException);
 
     /// \brief Set the value of the parameter named 'pname' describing the component 'comp' in section 'sec'
@@ -66,21 +77,7 @@ public:
     /// \brief Get the value of the parameter named 'pname' describing the component 'comp' in section 'sec'
     /// by default, comp and sec are -1 (parameter does not depend on any component and section)
     template<typename ReturnType>
-    const ReturnType& getValue(const ParameterName id, int comp = -1, int sec = -1) const throw (CadetException);
-
-    /// \brief Get the values of the parameter named 'pname' for all components in section 'sec'
-    /// by default, sec is -1 (parameters do not depend on any section)
-    template <typename ReturnType>
-    const std::vector<ReturnType> getValueForAllComp(const ParameterName id, int sec = -1) const;
-
-    /// \brief Get the values of the parameter named 'pname' for the first 'count' components in section 'sec'
-    /// by default, sec is -1 (parameters do not depend on any section)
-    template <typename ReturnType>
-    const std::vector<ReturnType> getValueForFirstNComp(const ParameterName id, int count, int sec = -1) const;
-
-    /// \brief Get the values of the parameter named 'pname' for all components and sections
-    template <typename ReturnType>
-    const std::vector<ReturnType> getValueForAllCompAndSec(const ParameterName id) const;
+    const ReturnType getValue(const ParameterName id, int comp = -1, int sec = -1) const throw (CadetException);
 
     /// \brief Mark the parameter named 'pname' describing the component 'comp' as sensitive
     /// by default, comp and sec are -1 (parameter does not depend on any component and section)
@@ -121,11 +118,11 @@ public:
 
 protected:
     // Const and Non-const versions of map-iterators
-    typedef typename std::map<ParamID, Parameter<ParamType> >::iterator MapIt;
-    typedef typename std::map<ParamID, Parameter<ParamType> >::const_iterator ConstMapIt;
+    typedef typename std::map<ParamID, Parameter<ParamType>* >::iterator MapIt;
+    typedef typename std::map<ParamID, Parameter<ParamType>* >::const_iterator ConstMapIt;
 
     // STL map to hold the Parameter objects
-    std::map<ParamID, Parameter<ParamType> > _params;
+    std::map<ParamID, Parameter<ParamType>* > _params;
 
     const SimulatorPImpl& _sim;
     const CadetConstants& _cc;
@@ -146,51 +143,6 @@ std::ostream& operator<<(std::ostream& out, const ParameterContainer<ParamType>&
 
 
 // Implementation details
-
-template <typename ParamType>
-ParameterContainer<ParamType>::ParameterContainer(const SimulatorPImpl& sim) :
-    _sim(sim),
-    _cc(sim.getCadetConstants())
-{
-    log::emit<Trace1>() << CURRENT_FUNCTION << Color::cyan << ": Called!" << Color::reset << log::endl;
-
-    log::emit<Trace1>() << CURRENT_FUNCTION << Color::green << ": Finished!" << Color::reset << log::endl;
-}
-
-
-template <typename ParamType>
-ParameterContainer<ParamType>::~ParameterContainer()
-{
-    log::emit<Trace1>() << CURRENT_FUNCTION << Color::cyan << ": Called!" << Color::reset << log::endl;
-
-    log::emit<Trace1>() << CURRENT_FUNCTION << Color::green << ": Finished!" << Color::reset << log::endl;
-}
-
-
-template <typename ParamType>
-void ParameterContainer<ParamType>::addParam(const Parameter<ParamType>& param)
-{
-    log::emit<Trace2>() << CURRENT_FUNCTION << Color::cyan << ": Called!" << Color::reset << log::endl;
-
-    ParamID id = ParamID(param.getId(), param.getComp(), param.getSec());
-    _params.insert(std::pair<ParamID, Parameter<ParamType> >(id, param));
-
-    log::emit<Trace2>() << CURRENT_FUNCTION << Color::green << ": Finished!" << Color::reset << log::endl;
-}
-
-
-template <typename ParamType>
-void ParameterContainer<ParamType>::removeParam(const Parameter<ParamType>& param)
-{
-    _params.erase(ParamID(param.getId(), param.getComp(), param.getSec()));
-}
-
-
-template <typename ParamType>
-void ParameterContainer<ParamType>::removeParam(const ParameterName id, int comp, int sec)
-{
-    _params.erase(ParamID(id, comp, sec));
-}
 
 
 template <typename ParamType>
@@ -216,7 +168,7 @@ const Parameter<ParamType>& ParameterContainer<ParamType>::getParam(const Parame
     if (it != _params.end())
     {
         log::emit<Trace2>() << CURRENT_FUNCTION << Color::green << ": Finished!" << Color::reset << log::endl;
-        return it->second;
+        return *(it->second);
     }
     else
     {
@@ -237,7 +189,7 @@ Parameter<ParamType>& ParameterContainer<ParamType>::getParam(const ParamID& par
     if (it != _params.end())
     {
         log::emit<Trace2>() << CURRENT_FUNCTION << Color::green << ": Finished!" << Color::reset << log::endl;
-        return it->second;
+        return *(it->second);
     }
     else
     {
@@ -256,7 +208,7 @@ void ParameterContainer<ParamType>::setValue(double value, const ParameterName i
     MapIt it = _params.find(ParamID(id, comp, sec));
 
     if (it != _params.end())
-        it->second.setValue(value);
+        it->second->setValue(value);
     else
     {
         std::ostringstream ss;
@@ -269,7 +221,7 @@ void ParameterContainer<ParamType>::setValue(double value, const ParameterName i
 
 
 template <typename ParamType> template<typename ReturnType>
-const ReturnType & ParameterContainer<ParamType>::getValue(const ParameterName id, int comp, int sec) const throw (CadetException)
+const ReturnType ParameterContainer<ParamType>::getValue(const ParameterName id, int comp, int sec) const throw (CadetException)
 {
     log::emit<Trace2>() << CURRENT_FUNCTION << Color::cyan << ": Called!" << Color::reset << log::endl;
 
@@ -278,7 +230,7 @@ const ReturnType & ParameterContainer<ParamType>::getValue(const ParameterName i
     if (it != _params.end())
     {
         log::emit<Trace2>() << CURRENT_FUNCTION << Color::green << ": Finished!" << Color::reset << log::endl;
-        return it->second.template getValue<ReturnType> ();
+        return it->second->template getValue<ReturnType> ();
     }
     else
     {
@@ -286,48 +238,6 @@ const ReturnType & ParameterContainer<ParamType>::getValue(const ParameterName i
         ss << "getValue(): Parameter not existent in map: " << e2s(id) << "[comp " << comp << ", sec " << sec << "]";
         throw CadetException(ss.str());
     }
-}
-
-template <typename ParamType> template <typename ReturnType>
-const std::vector<ReturnType> ParameterContainer<ParamType>::getValueForAllComp(const ParameterName id, int sec) const
-{
-    log::emit<Trace2>() << CURRENT_FUNCTION << Color::cyan << ": Called!" << Color::reset << log::endl;
-
-    std::vector<ReturnType> retAllComp(_cc.ncomp());
-    for (int i = 0; i < _cc.ncomp(); ++i)
-        retAllComp.at(i) = getValue<ReturnType>(id, i, sec);
-
-    log::emit<Trace2>() << CURRENT_FUNCTION << Color::green << ": Finished!" << Color::reset << log::endl;
-    return retAllComp;
-}
-
-template <typename ParamType> template <typename ReturnType>
-const std::vector<ReturnType> ParameterContainer<ParamType>::getValueForFirstNComp(const ParameterName id, int count, int sec) const
-{
-    log::emit<Trace2>() << CURRENT_FUNCTION << Color::cyan << ": Called!" << Color::reset << log::endl;
-
-    std::vector<ReturnType> retFirstComps(count);
-    for (int i = 0; i < count; ++i)
-        retFirstComps.at(i) = getValue<ReturnType>(id, i, sec);
-
-    log::emit<Trace2>() << CURRENT_FUNCTION << Color::green << ": Finished!" << Color::reset << log::endl;
-    return retFirstComps;
-}
-
-template <typename ParamType> template <typename ReturnType>
-const std::vector<ReturnType> ParameterContainer<ParamType>::getValueForAllCompAndSec(const ParameterName id) const
-{
-    log::emit<Trace2>() << CURRENT_FUNCTION << Color::cyan << ": Called!" << Color::reset << log::endl;
-
-    std::vector<ReturnType> retAllComp(_cc.ncomp() * _cc.nsec());
-    for (int i = 0; i < _cc.nsec(); ++i)
-    {
-        for (int j = 0; j < _cc.ncomp(); ++j)
-            retAllComp.at(i * _cc.ncomp() + j) = getValue<ReturnType>(id, i, j);
-    }
-
-    log::emit<Trace2>() << CURRENT_FUNCTION << Color::green << ": Finished!" << Color::reset << log::endl;
-    return retAllComp;
 }
 
 template<typename ParamType>
@@ -339,8 +249,8 @@ void ParameterContainer<ParamType>::setSensitive(const ParameterName id, double 
 
     if (it != _params.end())
     {
-        it->second.setSensitive();
-        it->second.setAbsTolS(absTolS);
+        it->second->setSensitive();
+        it->second->setAbsTolS(absTolS);
     }
     else
     {
@@ -360,8 +270,8 @@ void ParameterContainer<ParamType>::resetSensParams()
 
     for (MapIt it = _params.begin(); it != _params.end(); ++it)
     {
-        it->second.resetSensitive();
-        it->second.setAbsTolS(1e-5);
+        it->second->resetSensitive();
+        it->second->setAbsTolS(1e-5);
     }
 
     log::emit<Trace2>() << CURRENT_FUNCTION << Color::green << ": Finished!" << Color::reset << log::endl;
@@ -376,7 +286,7 @@ const std::vector<ParamID> ParameterContainer<ParamType>::getSensParams() const
     std::vector<ParamID> sensParams;
     for (ConstMapIt it = _params.begin(); it != _params.end(); ++it)
     {
-        if (it->second.isSensitive())
+        if (it->second->isSensitive())
             sensParams.push_back(it->first);
     }
 
@@ -393,8 +303,8 @@ const std::vector<std::string> ParameterContainer<ParamType>::getSensParamNames(
     std::vector<std::string> sensParamNames;
     for (ConstMapIt it = _params.begin(); it != _params.end(); ++it)
     {
-        if (it->second.isSensitive())
-            sensParamNames.push_back(it->second.getName());
+        if (it->second->isSensitive())
+            sensParamNames.push_back(it->second->getName());
     }
 
     log::emit<Trace2>() << CURRENT_FUNCTION << Color::green << ": Finished!" << Color::reset << log::endl;
@@ -410,8 +320,8 @@ const std::vector<ParameterName> ParameterContainer<ParamType>::getSensParamIds(
     std::vector<ParameterName> sensParamIds;
     for (ConstMapIt it = _params.begin(); it != _params.end(); ++it)
     {
-        if (it->second.isSensitive())
-            sensParamIds.push_back(it->second.getId());
+        if (it->second->isSensitive())
+            sensParamIds.push_back(it->second->getId());
     }
 
     log::emit<Trace2>() << CURRENT_FUNCTION << Color::green << ": Finished!" << Color::reset << log::endl;
@@ -427,8 +337,8 @@ const std::vector<int> ParameterContainer<ParamType>::getSensParamComps() const
     std::vector<int> sensParamComps;
     for (ConstMapIt it = _params.begin(); it != _params.end(); ++it)
     {
-        if (it->second.isSensitive())
-            sensParamComps.push_back(it->second.getComp());
+        if (it->second->isSensitive())
+            sensParamComps.push_back(it->second->getComp());
     }
 
     log::emit<Trace2>() << CURRENT_FUNCTION << Color::green << ": Finished!" << Color::reset << log::endl;
@@ -444,8 +354,8 @@ const std::vector<int> ParameterContainer<ParamType>::getSensParamSecs() const
     std::vector<int> sensParamSecs;
     for (ConstMapIt it = _params.begin(); it != _params.end(); ++it)
     {
-        if (it->second.isSensitive())
-            sensParamSecs.push_back(it->second.getSec());
+        if (it->second->isSensitive())
+            sensParamSecs.push_back(it->second->getSec());
     }
 
     log::emit<Trace2>() << CURRENT_FUNCTION << Color::green << ": Finished!" << Color::reset << log::endl;
@@ -461,7 +371,7 @@ int ParameterContainer<ParamType>::getNumSens() const
     int sensCount = 0;
     for (ConstMapIt it = _params.begin(); it != _params.end(); ++it)
     {
-        if (it->second.isSensitive())
+        if (it->second->isSensitive())
             sensCount++;
     }
 
@@ -478,7 +388,7 @@ bool ParameterContainer<ParamType>::checkAll() const
     bool ok = true;
 
     for (ConstMapIt it = _params.begin(); it != _params.end(); ++it)
-        ok = ok && it->second.check();
+        ok = ok && it->second->check();
 
     log::emit<Trace2>() << CURRENT_FUNCTION << Color::green << ": Finished!" << Color::reset << log::endl;
     return ok;
@@ -490,7 +400,7 @@ const std::string ParameterContainer<ParamType>::info() const
 {
     std::ostringstream oss;
     for (ConstMapIt it = _params.begin(); it != _params.end(); ++it)
-        oss << it->second.info() << std::endl;
+        oss << it->second->info() << std::endl;
     return oss.str();
 }
 

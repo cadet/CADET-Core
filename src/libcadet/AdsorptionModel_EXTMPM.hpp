@@ -38,28 +38,73 @@ public:
         this->configure();
         log::emit<Debug1>() << CURRENT_FUNCTION << ": Configured" << log::endl;
 
+        _kA.reserve(_cc.ncomp());
+        _kAT.reserve(_cc.ncomp());
+        _kATT.reserve(_cc.ncomp());
+        _kATTT.reserve(_cc.ncomp());
+
+        _kD.reserve(_cc.ncomp());
+        _kDT.reserve(_cc.ncomp());
+        _kDTT.reserve(_cc.ncomp());
+        _kDTTT.reserve(_cc.ncomp());
+
+        _qMax.reserve(_cc.ncomp());
+        _qMaxT.reserve(_cc.ncomp());
+        _qMaxTT.reserve(_cc.ncomp());
+        _qMaxTTT.reserve(_cc.ncomp());
+
+        _beta.reserve(_cc.ncomp());
+        _betaT.reserve(_cc.ncomp());
+        _betaTT.reserve(_cc.ncomp());
+        _betaTTT.reserve(_cc.ncomp());
+
+        _gamma.reserve(_cc.ncomp());
+        _gammaT.reserve(_cc.ncomp());
+        _gammaTT.reserve(_cc.ncomp());
+        _gammaTTT.reserve(_cc.ncomp());
+
         for (int comp = 0; comp < _cc.ncomp(); ++comp)
         {
-            addParam(Parameter<active> (EXTMPM_KA,        e2s(EXTMPM_KA),        comp, -1, 0.0, 0.0, -inf, true, inf, true));
-            addParam(Parameter<active> (EXTMPM_KA_T,      e2s(EXTMPM_KA_T),      comp, -1, 0.0, 0.0, -inf, true, inf, true));
-            addParam(Parameter<active> (EXTMPM_KA_TT,     e2s(EXTMPM_KA_TT),     comp, -1, 0.0, 0.0, -inf, true, inf, true));
-            addParam(Parameter<active> (EXTMPM_KA_TTT,    e2s(EXTMPM_KA_TTT),    comp, -1, 0.0, 0.0, -inf, true, inf, true));
-            addParam(Parameter<active> (EXTMPM_KD,        e2s(EXTMPM_KD),        comp, -1, 0.0, 0.0, -inf, true, inf, true));
-            addParam(Parameter<active> (EXTMPM_KD_T,      e2s(EXTMPM_KD_T),      comp, -1, 0.0, 0.0, -inf, true, inf, true));
-            addParam(Parameter<active> (EXTMPM_KD_TT,     e2s(EXTMPM_KD_TT),     comp, -1, 0.0, 0.0, -inf, true, inf, true));
-            addParam(Parameter<active> (EXTMPM_KD_TTT,    e2s(EXTMPM_KD_TTT),    comp, -1, 0.0, 0.0, -inf, true, inf, true));
-            addParam(Parameter<active> (EXTMPM_QMAX,      e2s(EXTMPM_QMAX),      comp, -1, 0.0, 0.0, -inf, true, inf, true));
-            addParam(Parameter<active> (EXTMPM_QMAX_T,    e2s(EXTMPM_QMAX_T),    comp, -1, 0.0, 0.0, -inf, true, inf, true));
-            addParam(Parameter<active> (EXTMPM_QMAX_TT,   e2s(EXTMPM_QMAX_TT),   comp, -1, 0.0, 0.0, -inf, true, inf, true));
-            addParam(Parameter<active> (EXTMPM_QMAX_TTT,  e2s(EXTMPM_QMAX_TTT),  comp, -1, 0.0, 0.0, -inf, true, inf, true));
-            addParam(Parameter<active> (EXTMPM_BETA,      e2s(EXTMPM_BETA),      comp, -1, 0.0, 0.0, -inf, true, inf, true));
-            addParam(Parameter<active> (EXTMPM_BETA_T,    e2s(EXTMPM_BETA_T),    comp, -1, 0.0, 0.0, -inf, true, inf, true));
-            addParam(Parameter<active> (EXTMPM_BETA_TT,   e2s(EXTMPM_BETA_TT),   comp, -1, 0.0, 0.0, -inf, true, inf, true));
-            addParam(Parameter<active> (EXTMPM_BETA_TTT,  e2s(EXTMPM_BETA_TTT),  comp, -1, 0.0, 0.0, -inf, true, inf, true));
-            addParam(Parameter<active> (EXTMPM_GAMMA,     e2s(EXTMPM_GAMMA),     comp, -1, 0.0, 0.0, -inf, true, inf, true));
-            addParam(Parameter<active> (EXTMPM_GAMMA_T,   e2s(EXTMPM_GAMMA_T),   comp, -1, 0.0, 0.0, -inf, true, inf, true));
-            addParam(Parameter<active> (EXTMPM_GAMMA_TT,  e2s(EXTMPM_GAMMA_TT),  comp, -1, 0.0, 0.0, -inf, true, inf, true));
-            addParam(Parameter<active> (EXTMPM_GAMMA_TTT, e2s(EXTMPM_GAMMA_TTT), comp, -1, 0.0, 0.0, -inf, true, inf, true));
+            _kA.push_back(   Parameter<active> (EXTMPM_KA,        e2s(EXTMPM_KA),        comp, -1, 0.0, 0.0, -inf, true, inf, true));
+            addParam(_kA[comp]);
+            _kAT.push_back(  Parameter<active> (EXTMPM_KA_T,      e2s(EXTMPM_KA_T),      comp, -1, 0.0, 0.0, -inf, true, inf, true));
+            addParam(_kAT[comp]);
+            _kATT.push_back( Parameter<active> (EXTMPM_KA_TT,     e2s(EXTMPM_KA_TT),     comp, -1, 0.0, 0.0, -inf, true, inf, true));
+            addParam(_kATT[comp]);
+            _kATTT.push_back(Parameter<active> (EXTMPM_KA_TTT,    e2s(EXTMPM_KA_TTT),    comp, -1, 0.0, 0.0, -inf, true, inf, true));
+            addParam(_kATTT[comp]);
+            _kD.push_back(   Parameter<active> (EXTMPM_KD,        e2s(EXTMPM_KD),        comp, -1, 0.0, 0.0, -inf, true, inf, true));
+            addParam(_kD[comp]);
+            _kDT.push_back(  Parameter<active> (EXTMPM_KD_T,      e2s(EXTMPM_KD_T),      comp, -1, 0.0, 0.0, -inf, true, inf, true));
+            addParam(_kDT[comp]);
+            _kDTT.push_back( Parameter<active> (EXTMPM_KD_TT,     e2s(EXTMPM_KD_TT),     comp, -1, 0.0, 0.0, -inf, true, inf, true));
+            addParam(_kDTT[comp]);
+            _kDTTT.push_back(Parameter<active> (EXTMPM_KD_TTT,    e2s(EXTMPM_KD_TTT),    comp, -1, 0.0, 0.0, -inf, true, inf, true));
+            addParam(_kDTTT[comp]);
+            _qMax.push_back(   Parameter<active> (EXTMPM_QMAX,      e2s(EXTMPM_QMAX),      comp, -1, 0.0, 0.0, -inf, true, inf, true));
+            addParam(_qMax[comp]);
+            _qMaxT.push_back(  Parameter<active> (EXTMPM_QMAX_T,    e2s(EXTMPM_QMAX_T),    comp, -1, 0.0, 0.0, -inf, true, inf, true));
+            addParam(_qMaxT[comp]);
+            _qMaxTT.push_back( Parameter<active> (EXTMPM_QMAX_TT,   e2s(EXTMPM_QMAX_TT),   comp, -1, 0.0, 0.0, -inf, true, inf, true));
+            addParam(_qMaxTT[comp]);
+            _qMaxTTT.push_back(Parameter<active> (EXTMPM_QMAX_TTT,  e2s(EXTMPM_QMAX_TTT),  comp, -1, 0.0, 0.0, -inf, true, inf, true));
+            addParam(_qMaxTTT[comp]);
+            _beta.push_back(   Parameter<active> (EXTMPM_BETA,      e2s(EXTMPM_BETA),      comp, -1, 0.0, 0.0, -inf, true, inf, true));
+            addParam(_beta[comp]);
+            _betaT.push_back(  Parameter<active> (EXTMPM_BETA_T,    e2s(EXTMPM_BETA_T),    comp, -1, 0.0, 0.0, -inf, true, inf, true));
+            addParam(_betaT[comp]);
+            _betaTT.push_back( Parameter<active> (EXTMPM_BETA_TT,   e2s(EXTMPM_BETA_TT),   comp, -1, 0.0, 0.0, -inf, true, inf, true));
+            addParam(_betaTT[comp]);
+            _betaTTT.push_back(Parameter<active> (EXTMPM_BETA_TTT,  e2s(EXTMPM_BETA_TTT),  comp, -1, 0.0, 0.0, -inf, true, inf, true));
+            addParam(_betaTTT[comp]);
+            _gamma.push_back(   Parameter<active> (EXTMPM_GAMMA,     e2s(EXTMPM_GAMMA),     comp, -1, 0.0, 0.0, -inf, true, inf, true));
+            addParam(_gamma[comp]);
+            _gammaT.push_back(  Parameter<active> (EXTMPM_GAMMA_T,   e2s(EXTMPM_GAMMA_T),   comp, -1, 0.0, 0.0, -inf, true, inf, true));
+            addParam(_gammaT[comp]);
+            _gammaTT.push_back( Parameter<active> (EXTMPM_GAMMA_TT,  e2s(EXTMPM_GAMMA_TT),  comp, -1, 0.0, 0.0, -inf, true, inf, true));
+            addParam(_gammaTT[comp]);
+            _gammaTTT.push_back(Parameter<active> (EXTMPM_GAMMA_TTT, e2s(EXTMPM_GAMMA_TTT), comp, -1, 0.0, 0.0, -inf, true, inf, true));
+            addParam(_gammaTTT[comp]);
         }
 
         log::emit<Trace1>() << CURRENT_FUNCTION << Color::green << ": Finished!" << Color::reset << log::endl;
@@ -95,26 +140,22 @@ public:
     {
         log::emit<Trace2>() << CURRENT_FUNCTION << Color::cyan << ": Called!" << Color::reset << log::endl;
 
-        const double              ka        = getValue<double>           (EXTMPM_KA,     comp);
-        const double              ka_T      = getValue<double>           (EXTMPM_KA_T,   comp);
-        const double              ka_TT     = getValue<double>           (EXTMPM_KA_TT,  comp);
-        const double              ka_TTT    = getValue<double>           (EXTMPM_KA_TTT, comp);
-        const double              kd        = getValue<double>           (EXTMPM_KD,     comp);
-        const double              kd_T      = getValue<double>           (EXTMPM_KD_T,   comp);
-        const double              kd_TT     = getValue<double>           (EXTMPM_KD_TT,  comp);
-        const double              kd_TTT    = getValue<double>           (EXTMPM_KD_TTT, comp);
-        const std::vector<double> qmax      = getValueForAllComp<double> (EXTMPM_QMAX);
-        const std::vector<double> qmax_T    = getValueForAllComp<double> (EXTMPM_QMAX_T);
-        const std::vector<double> qmax_TT   = getValueForAllComp<double> (EXTMPM_QMAX_TT);
-        const std::vector<double> qmax_TTT  = getValueForAllComp<double> (EXTMPM_QMAX_TTT);
-        const double              beta      = getValue<double>           (EXTMPM_BETA,      comp);
-        const double              beta_T    = getValue<double>           (EXTMPM_BETA_T,    comp);
-        const double              beta_TT   = getValue<double>           (EXTMPM_BETA_TT,   comp);
-        const double              beta_TTT  = getValue<double>           (EXTMPM_BETA_TTT,  comp);
-        const double              gamma     = getValue<double>           (EXTMPM_GAMMA,     comp);
-        const double              gamma_T   = getValue<double>           (EXTMPM_GAMMA_T,   comp);
-        const double              gamma_TT  = getValue<double>           (EXTMPM_GAMMA_TT,  comp);
-        const double              gamma_TTT = getValue<double>           (EXTMPM_GAMMA_TTT, comp);
+        const double              ka        = _kA[comp].getValue<double>();
+        const double              ka_T      = _kAT[comp].getValue<double>();
+        const double              ka_TT     = _kATT[comp].getValue<double>();
+        const double              ka_TTT    = _kATTT[comp].getValue<double>();
+        const double              kd        = _kD[comp].getValue<double>();
+        const double              kd_T      = _kDT[comp].getValue<double>();
+        const double              kd_TT     = _kDTT[comp].getValue<double>();
+        const double              kd_TTT    = _kDTTT[comp].getValue<double>();
+        const double              beta      = _beta[comp].getValue<double>();
+        const double              beta_T    = _betaT[comp].getValue<double>();
+        const double              beta_TT   = _betaTT[comp].getValue<double>();
+        const double              beta_TTT  = _betaTTT[comp].getValue<double>();
+        const double              gamma     = _gamma[comp].getValue<double>();
+        const double              gamma_T   = _gammaT[comp].getValue<double>();
+        const double              gamma_TT  = _gammaTT[comp].getValue<double>();
+        const double              gamma_TTT = _gammaTTT[comp].getValue<double>();
 
         // Temperature
         double temp;
@@ -140,15 +181,15 @@ public:
             double qsum = 1.0;
             for (int j = 1; j < _cc.ncomp(); ++j)
             {
-                const double finalQmax = qmax.at(j) + temp * (qmax_T.at(j) + temp * (qmax_TT.at(j) + temp * qmax_TTT.at(j)));
+                const double finalQmax = _qMax[j].getValue<double>() + temp * (_qMaxT[j].getValue<double>() + temp * (_qMaxTT[j].getValue<double>() + temp * _qMaxTTT[j].getValue<double>()));
                 qsum -= q[-comp + j] / finalQmax;
             }
 
             // Jacobian
-            const double finalQmax = qmax.at(comp) + temp * (qmax_T.at(comp) + temp * (qmax_TT.at(comp) + temp * qmax_TTT.at(comp)));
+            const double finalQmax = _qMax[comp].getValue<double>() + temp * (_qMaxT[comp].getValue<double>() + temp * (_qMaxTT[comp].getValue<double>() + temp * _qMaxTTT[comp].getValue<double>()));
             for (int j = 1; j < _cc.ncomp(); ++j)
             {
-                const double finalQmaxJ = qmax.at(j) + temp * (qmax_T.at(j) + temp * (qmax_TT.at(j) + temp * qmax_TTT.at(j)));
+                const double finalQmaxJ = _qMax[j].getValue<double>() + temp * (_qMaxT[j].getValue<double>() + temp * (_qMaxTT[j].getValue<double>() + temp * _qMaxTTT[j].getValue<double>()));
                 jac[-comp + j] = ka_mpm * (*c) * finalQmax / finalQmaxJ;              // dresi/dqj
             }
 
@@ -167,26 +208,22 @@ private:
     {
         log::emit<Trace2>() << CURRENT_FUNCTION << Color::cyan << ": Called!" << Color::reset << log::endl;
 
-        ParamType              ka        = getValue<ParamType>           (EXTMPM_KA,     comp);
-        ParamType              ka_T      = getValue<ParamType>           (EXTMPM_KA_T,   comp);
-        ParamType              ka_TT     = getValue<ParamType>           (EXTMPM_KA_TT,  comp);
-        ParamType              ka_TTT    = getValue<ParamType>           (EXTMPM_KA_TTT, comp);
-        ParamType              kd        = getValue<ParamType>           (EXTMPM_KD,     comp);
-        ParamType              kd_T      = getValue<ParamType>           (EXTMPM_KD_T,   comp);
-        ParamType              kd_TT     = getValue<ParamType>           (EXTMPM_KD_TT,  comp);
-        ParamType              kd_TTT    = getValue<ParamType>           (EXTMPM_KD_TTT, comp);
-        std::vector<ParamType> qmax      = getValueForAllComp<ParamType> (EXTMPM_QMAX);
-        std::vector<ParamType> qmax_T    = getValueForAllComp<ParamType> (EXTMPM_QMAX_T);
-        std::vector<ParamType> qmax_TT   = getValueForAllComp<ParamType> (EXTMPM_QMAX_TT);
-        std::vector<ParamType> qmax_TTT  = getValueForAllComp<ParamType> (EXTMPM_QMAX_TTT);
-        ParamType              beta      = getValue<ParamType>           (EXTMPM_BETA,      comp);
-        ParamType              beta_T    = getValue<ParamType>           (EXTMPM_BETA_T,    comp);
-        ParamType              beta_TT   = getValue<ParamType>           (EXTMPM_BETA_TT,   comp);
-        ParamType              beta_TTT  = getValue<ParamType>           (EXTMPM_BETA_TTT,  comp);
-        ParamType              gamma     = getValue<ParamType>           (EXTMPM_GAMMA,     comp);
-        ParamType              gamma_T   = getValue<ParamType>           (EXTMPM_GAMMA_T,   comp);
-        ParamType              gamma_TT  = getValue<ParamType>           (EXTMPM_GAMMA_TT,  comp);
-        ParamType              gamma_TTT = getValue<ParamType>           (EXTMPM_GAMMA_TTT, comp);
+        const ParamType ka        = _kA[comp].getValue<ParamType>();
+        const ParamType ka_T      = _kAT[comp].getValue<ParamType>();
+        const ParamType ka_TT     = _kATT[comp].getValue<ParamType>();
+        const ParamType ka_TTT    = _kATTT[comp].getValue<ParamType>();
+        const ParamType kd        = _kD[comp].getValue<ParamType>();
+        const ParamType kd_T      = _kDT[comp].getValue<ParamType>();
+        const ParamType kd_TT     = _kDTT[comp].getValue<ParamType>();
+        const ParamType kd_TTT    = _kDTTT[comp].getValue<ParamType>();
+        const ParamType beta      = _beta[comp].getValue<ParamType>();
+        const ParamType beta_T    = _betaT[comp].getValue<ParamType>();
+        const ParamType beta_TT   = _betaTT[comp].getValue<ParamType>();
+        const ParamType beta_TTT  = _betaTTT[comp].getValue<ParamType>();
+        const ParamType gamma     = _gamma[comp].getValue<ParamType>();
+        const ParamType gamma_T   = _gammaT[comp].getValue<ParamType>();
+        const ParamType gamma_TT  = _gammaTT[comp].getValue<ParamType>();
+        const ParamType gamma_TTT = _gammaTTT[comp].getValue<ParamType>();
 
         // Liquid phase concentration
         const StateType* c = q - _cc.ncomp();
@@ -207,11 +244,11 @@ private:
             // Liquid phase salt concentration
             const StateType c0 = c[-comp];
 
-            ParamType finalKa = ka + temp * (ka_T + temp * (ka_TT + temp * ka_TTT));
-            ParamType finalKd = kd + temp * (kd_T + temp * (kd_TT + temp * kd_TTT));
-            ParamType finalGamma = gamma + temp * (gamma_T + temp * (gamma_TT + temp * gamma_TTT));
-            ParamType finalBeta = beta + temp * (beta_T + temp * (beta_TT + temp * beta_TTT));
-            ParamType finalQmax = qmax.at(comp) + temp * (qmax_T.at(comp) + temp * (qmax_TT.at(comp) + temp * qmax_TTT.at(comp)));
+            const ParamType finalKa = ka + temp * (ka_T + temp * (ka_TT + temp * ka_TTT));
+            const ParamType finalKd = kd + temp * (kd_T + temp * (kd_TT + temp * kd_TTT));
+            const ParamType finalGamma = gamma + temp * (gamma_T + temp * (gamma_TT + temp * gamma_TTT));
+            const ParamType finalBeta = beta + temp * (beta_T + temp * (beta_TT + temp * beta_TTT));
+            const ParamType finalQmax = _qMax[comp].getValue<ParamType>() + temp * (_qMaxT[comp].getValue<ParamType>() + temp * (_qMaxTT[comp].getValue<ParamType>() + temp * _qMaxTTT[comp].getValue<ParamType>()));
             
             ResidType ka_mpm = finalKa * exp(finalGamma * c0);
             ResidType kd_mpm = finalKd * pow(c0, finalBeta);
@@ -219,7 +256,7 @@ private:
             ResidType qsum = 1.0;
             for (int j = 1; j < _cc.ncomp(); ++j)
             {
-                ParamType finalQmaxJ = qmax.at(j) + temp * (qmax_T.at(j) + temp * (qmax_TT.at(j) + temp * qmax_TTT.at(j)));
+                const ParamType finalQmaxJ = _qMax[j].getValue<ParamType>() + temp * (_qMaxT[j].getValue<ParamType>() + temp * (_qMaxTT[j].getValue<ParamType>() + temp * _qMaxTTT[j].getValue<ParamType>()));
                 qsum -= q[-comp + j] / finalQmaxJ;
             }
 
@@ -229,6 +266,31 @@ private:
 
         log::emit<Trace2>() << CURRENT_FUNCTION << Color::green << ": Finished!" << Color::reset << log::endl;
     }
+
+    std::vector<Parameter<active>>  _kA;
+    std::vector<Parameter<active>>  _kAT;
+    std::vector<Parameter<active>>  _kATT;
+    std::vector<Parameter<active>>  _kATTT;
+
+    std::vector<Parameter<active>>  _kD;
+    std::vector<Parameter<active>>  _kDT;
+    std::vector<Parameter<active>>  _kDTT;
+    std::vector<Parameter<active>>  _kDTTT;
+
+    std::vector<Parameter<active>>  _qMax;
+    std::vector<Parameter<active>>  _qMaxT;
+    std::vector<Parameter<active>>  _qMaxTT;
+    std::vector<Parameter<active>>  _qMaxTTT;
+
+    std::vector<Parameter<active>>  _beta;
+    std::vector<Parameter<active>>  _betaT;
+    std::vector<Parameter<active>>  _betaTT;
+    std::vector<Parameter<active>>  _betaTTT;
+
+    std::vector<Parameter<active>>  _gamma;
+    std::vector<Parameter<active>>  _gammaT;
+    std::vector<Parameter<active>>  _gammaTT;
+    std::vector<Parameter<active>>  _gammaTTT;
 };
 
 } // namespace cadet
