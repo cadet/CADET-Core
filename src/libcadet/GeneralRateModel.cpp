@@ -1018,8 +1018,9 @@ void GeneralRateModel::assembleOffdiagJac(int section, double t) throw (CadetExc
     log::emit<Debug2>() << CURRENT_FUNCTION << ": surfaceToVolumeRatio = " << surfaceToVolumeRatio << log::endl;
     log::emit<Debug2>() << CURRENT_FUNCTION << ": outerAreaPerVolume = " << outerAreaPerVolume << log::endl;
 
-    double jacCB_val = invBetaC * surfaceToVolumeRatio;
-    double jacPB_val = -outerAreaPerVolume / epsP;
+    const double jacCB_val = invBetaC * surfaceToVolumeRatio;
+    const double jacPB_val = -outerAreaPerVolume / epsP;
+    const double relOuterShellHalfRadius = 0.5 * _pd.getCellSize(0);
 
     log::emit<Debug2>() << CURRENT_FUNCTION << ": jacCB_val = " << jacCB_val << log::endl;
     log::emit<Debug2>() << CURRENT_FUNCTION << ": jacPB_val = " << jacPB_val << log::endl;
@@ -1028,7 +1029,7 @@ void GeneralRateModel::assembleOffdiagJac(int section, double t) throw (CadetExc
 
     for (int comp = 0; comp < _cc.ncomp(); ++comp)
     {
-        kf_FV[comp] = 1.0 / (0.5 * radius / _cc.npar() / epsP / dp.at(comp) + 1.0 / kf.at(comp));
+        kf_FV[comp] = 1.0 / (relOuterShellHalfRadius * radius / epsP / dp.at(comp) + 1.0 / kf.at(comp));
         log::emit<Debug2>() << CURRENT_FUNCTION << ": kf_FV[" << comp << "] = " << kf_FV[comp] << log::endl;
     }
 
