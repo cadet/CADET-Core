@@ -38,7 +38,16 @@ function success = installCADET()
 
     if success
         fprintf('\nCADET version %s is now installed. Try an example to test the installation.\n', version);
-        fprintf('To avoid calling this script on every startup of MATLAB, save the current path.\n');
+        fprintf('To avoid calling this script on every startup of MATLAB, save the current path.\n\n');
+        
+        % Check for updates
+        if (~isCADETupdateAvailable(false))
+            fprintf('There are no updates available.\n');
+        end
+        
+        startupPath = userpath();
+        startupPath = [startupPath(1:end-1), filesep, 'startup.m'];
+        fprintf('\nIf you like to check for updates on each startup of MATLAB,\nplease add the following line to %s:\n   isCADETupdateAvailable();\n', startupPath);
     end
 end
 
