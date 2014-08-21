@@ -46,7 +46,11 @@ void printHelp()
     log::emit() << "FILE can be either an XML file or an HDF5 file in CADET format" << log::endl;
     log::emit() << "Example: cadet-cs input{.h5|.xml}" << log::endl;
     log::emit() << log::endl;
+#ifdef CADET_PUBLISH_BRANCH_INFO
+    log::emit() << "This is CADET version " << cadet::getLibraryVersion() << " built from commit " << cadet::getLibraryCommitHash() << " on branch " << cadet::getLibraryBranchRefspec() << log::endl;
+#else
     log::emit() << "This is CADET version " << cadet::getLibraryVersion() << " built from commit " << cadet::getLibraryCommitHash() << log::endl;
+#endif
     log::emit() << "Report bugs to: cadet@fz-juelich.de" << log::endl;
     log::emit() << "CADET homepage: <http://www.cadet-web.de>" << log::endl;
     log::emit() << "Fork CADET on GitHub: <https://github.com/modsim/CADET>" << log::endl;

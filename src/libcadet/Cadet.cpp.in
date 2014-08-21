@@ -23,6 +23,7 @@ namespace adtl
 namespace cadet
 {
 	const char GIT_COMMIT_HASH[] = "@GIT_SHA1@";
+	const char GIT_BRANCH[] = "@GIT_REFSPEC@";
 	const char LIBCADET_VERSION[] = CADET_VERSION;
 
     const char* getLibraryVersion()
@@ -33,6 +34,11 @@ namespace cadet
 	const char* getLibraryCommitHash()
 	{
 		return cadet::GIT_COMMIT_HASH;
+	}
+
+	const char* getLibraryBranchRefspec()
+	{
+		return cadet::GIT_BRANCH;
 	}
 
 	void resetGlobals()
@@ -52,6 +58,11 @@ extern "C"
 	CADET_API const char* cadetGetLibraryCommitHash()
 	{
 		return cadet::getLibraryCommitHash();
+	}
+
+	CADET_API const char* cadetGetLibraryBranchRefspec()
+	{
+		return cadet::getLibraryBranchRefspec();
 	}
 	
 	CADET_API void cadetResetGlobals()

@@ -139,6 +139,19 @@ option (BENCHMARK_MODE "In benchmark mode logging framework is disabled, only ti
 if (BENCHMARK_MODE)
   add_definitions(-DBENCHMARK_MODE)
 endif ()
+
+# Determine default value for publishing the git branch in the binaries
+if ( GIT_REFSPEC STREQUAL "refs/heads/master" )
+  # Don't publish if we are on the master branch
+  set (PUBLISH_BRANCH_INFO_DEFAULT OFF)
+else ()
+  # Publish if we are on any other branch
+  set (PUBLISH_BRANCH_INFO_DEFAULT ON)  
+endif ()
+option (PUBLISH_BRANCH_INFO "Publish the git branch info in the binaries" PUBLISH_BRANCH_INFO_DEFAULT)
+if (PUBLISH_BRANCH_INFO)
+  add_definitions(-DCADET_PUBLISH_BRANCH_INFO)
+endif ()
 # ------------------------------------------------------------------------------------------------------------------------
 
 

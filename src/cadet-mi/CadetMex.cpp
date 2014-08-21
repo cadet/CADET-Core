@@ -184,16 +184,24 @@ DLL_EXPORT_SYM void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArr
     {
         // Print version
         if (nlhs == 0)
+#ifdef CADET_PUBLISH_BRANCH_INFO
+            mexPrintf("This is CADET version %s built from commit %s on branch %s\n", cadet::getLibraryVersion(), cadet::getLibraryCommitHash(), cadet::getLibraryBranchRefspec());
+#else
             mexPrintf("This is CADET version %s built from commit %s\n", cadet::getLibraryVersion(), cadet::getLibraryCommitHash());
+#endif
 
         // Return version
         if (nlhs >= 1)
         {
             plhs[0] = mxCreateString(cadet::getLibraryVersion());
         }
-        if (nlhs == 2)
+        if (nlhs >= 2)
         {
             plhs[1] = mxCreateString(cadet::getLibraryCommitHash());
+        }
+        if (nlhs >= 3)
+        {
+            plhs[2] = mxCreateString(cadet::getLibraryBranchRefspec());
         }
         return;
     }

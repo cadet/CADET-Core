@@ -37,6 +37,9 @@ extern "C"
     //! \brief Returns the git commit hash of the source which was used to build the binaries
     CADET_API const char* cadetGetLibraryCommitHash();
 
+    //! \brief Returns the git refspec of the source which was used to build the binaries
+    CADET_API const char* cadetGetLibraryBranchRefspec();
+
     //! \brief Resets global variables
     CADET_API void cadetResetGlobals();
 }
@@ -49,6 +52,9 @@ namespace cadet
 
     //! \brief Returns the git commit hash of the source which was used to build the binaries (same as cadetGetLibraryCommitHash())
     CADET_API const char* getLibraryCommitHash();
+
+    //! \brief Returns the git refspec of the source which was used to build the binaries
+    CADET_API const char* getLibraryBranchRefspec();
 
     //! \brief Resets global variables (same as cadetResetGlobals())
     CADET_API void resetGlobals();
