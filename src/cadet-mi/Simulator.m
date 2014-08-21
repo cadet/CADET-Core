@@ -639,12 +639,17 @@ classdef Simulator < handle
             if obj.solverOptions.WRITE_AT_USER_TIMES
                 if isempty(obj.solverOptions.USER_SOLUTION_TIMES)
                     ok = false;
-                    disp('Error: WRITE_AT_USER_TIMES in solverOptions is set but USER_SOLUTION_TIMES is empty');
+                    disp('Error: WRITE_AT_USER_TIMES in solverOptions is set but USER_SOLUTION_TIMES in solverOptions / solutionTimes is empty');
                 end
                 
                 if any(obj.solverOptions.USER_SOLUTION_TIMES(2:end) <= obj.solverOptions.USER_SOLUTION_TIMES(1:end-1))
                     ok = false;
-                    disp('Error: USER_SOLUTION_TIMES in solverOptions has to be monotonically increasing');
+                    disp('Error: USER_SOLUTION_TIMES in solverOptions / solutionTimes has to be monotonically increasing');
+                end
+                
+                if max(obj.solverOptions.USER_SOLUTION_TIMES) > max(obj.model.sectionTimes)
+                    ok = false;
+                    disp('Error: USER_SOLUTION_TIMES in solverOptions / solutionTimes must not exceed inlet time specified in the model');
                 end
             end
             
