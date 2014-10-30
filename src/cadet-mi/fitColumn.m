@@ -1,8 +1,9 @@
-function [outParams, res] = fitColumn(fitData, initParams, loBound, upBound, logScale, parameterTransform, quietMode )
+function [outParams, res, success] = fitColumn(fitData, initParams, loBound, upBound, logScale, parameterTransform, quietMode, optOptions )
 %FITCOLUMN Fits a model to the given datasets.
 %
-% [outParams, res] = fitColumn(fitData, initParams, loBound, upBound, logScale, quietMode )
-% [outParams, res] = fitColumn(fitData, initParams, loBound, upBound, logScale, parameterTransform, quietMode )
+% [outParams, res, success] = fitColumn(fitData, initParams, loBound, upBound, logScale, quietMode )
+% [outParams, res, success] = fitColumn(fitData, initParams, loBound, upBound, logScale, parameterTransform, quietMode )
+% [outParams, res, success] = fitColumn(fitData, initParams, loBound, upBound, logScale, parameterTransform, quietMode, optOptions )
 %
 % Parameters:
 %   - fitData: Array of structs, one for each experiment. Each struct has
@@ -68,6 +69,9 @@ function [outParams, res] = fitColumn(fitData, initParams, loBound, upBound, log
 %               true.
 %   - quietMode: Optional. Enables quiet mode, i.e. disables plots and
 %       iteration monitoring. Defaults to false (quiet mode disabled).
+%   - optOptions: Optional. Additional optimizer settings for the chosen
+%       optimizer (MATLAB's lsqnonlin at the moment). The settings are
+%       applied last and may overwrite options set by fitColumn().
 %
 % Links and joins: While links combine parameters across several fits,
 %   joins combine parameters within one fit. Only parameters sharing the
@@ -116,7 +120,9 @@ function [outParams, res] = fitColumn(fitData, initParams, loBound, upBound, log
 %
 % Returns:
 %   - outParams: Optimized parameters in the same order as initParams.
-%   - res: Residual value.
+%   - res: Residual value returned by the optimizer or -1 in case of
+%       failure.
+%   - success: True if the optimizer returned successful, otherwise false.
 %
 % Copyright: © 2008-2014 Eric von Lieres, Joel Andersson, Andreas Püttmann, Sebastian Schnittert, Samuel Leweke
 %            See the license note at the end of the file.
@@ -148,6 +154,10 @@ function [outParams, res] = fitColumn(fitData, initParams, loBound, upBound, log
         quietMode = parameterTransform;
         customTransform = false;
         parameterTransform = [];
+    end
+
+    if nargin <= 7
+        optOptions = [];
     end
 
     enablePlot = ~quietMode;  % Enables or disables plots in each iteration
@@ -370,23 +380,29 @@ function [outParams, res] = fitColumn(fitData, initParams, loBound, upBound, log
     % Fit
     opts = optimset('TolFun', 1e-8, 'TolX', 1e-8, 'MaxIter', 100, 'Diagnostics', 'off');
     options_monitor = optimset('Display', 'iter');
-    options_lsq = optimset('Jacobian','on');%, 'DerivativeCheck', 'on');
+    options_lsq = optimset('Jacobian','on');
     
     opts =  optimset(opts, options_lsq);
     if ~quietMode
         opts = optimset(opts, options_monitor);
+    end
+    if ~isempty(optOptions)
+        % Apply custom optimizer settings
+        opts = optimset(opts, optOptions);
     end
     
     lastParamsTried = [];
 
     % Call the optimizer
     try
-        [cadetparams, res] = lsqnonlin(@residual, initParams, loBound, upBound, opts);
+        [cadetparams, res, ~, exitflag] = lsqnonlin(@residual, initParams, loBound, upBound, opts);
+        success = (exitflag > 0);
     catch exc
         disp('ERROR in lsqnonlin. Probably due to failed CADET simulation.');
         disp(exc.message);
         cadetparams = lastParamsTried;
         res = -1;
+        success = false;
     end
 
     % Transform back to simulator space
@@ -491,7 +507,9 @@ function [outParams, res] = fitColumn(fitData, initParams, loBound, upBound, log
                 % Adapt Jacobian to log scale by chain rule
                 idxMask = false(size(idxLog));
                 idxMask(idxLocal) = true;
-                jacSimGlobalized(:, idxLog & idxMask) = jacSim(:, idxLog(idxLocal)) .* repmat(localParams(idxLog(idxLocal)), size(jacSim,1), 1);
+                if any(idxLog & idxMask)
+                    jacSimGlobalized(:, idxLog & idxMask) = jacSim(:, idxLog(idxLocal)) .* repmat(localParams(idxLog(idxLocal)), size(jacSim,1), 1);
+                end
 
                 if customTransform && ~parameterTransform.postLogTransform
                     jacSimGlobalized = parameterTransform.chainRuleInvTransform(jacSimGlobalized, lastParamsTriedExp);
