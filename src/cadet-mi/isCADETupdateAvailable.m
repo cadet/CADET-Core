@@ -21,6 +21,9 @@ function updateAvailable = isCADETupdateAvailable(quiet)
         disp(['There is an updated version (' newVer ' > ' oldVer ') of CADET available.']);
         disp(['You can download the release suitable for your machine from ' link '.']);
     end
+    if ~updateAvailable && ~quiet && isempty(newVer)
+        disp(['Update check failed because the GitHub servers could not be reached.']);
+    end
 end
 
 function [updateAvailable, oldVer, newVer, link] = checkStable()
@@ -31,6 +34,8 @@ function [updateAvailable, oldVer, newVer, link] = checkStable()
 
     version = getInstalledVersion();
     if isempty(version)
+        oldVer = '';
+        newVer = '';
         return;
     end
     
@@ -44,6 +49,7 @@ function [updateAvailable, oldVer, newVer, link] = checkStable()
     end
     
     if isempty(stableVersion)
+        newVer = '';
         return;
     end
 
