@@ -153,9 +153,9 @@ private:
         const int clampedComp = (comp >= _nRealComp) ? comp - _nRealComp : comp;
 
         const ParamType              ka1   = _kA1[clampedComp].getValue<ParamType>();
-        const ParamType              kd1   = _kA1[clampedComp].getValue<ParamType>();
-        const ParamType              ka2   = _kA1[clampedComp].getValue<ParamType>();
-        const ParamType              kd2   = _kA1[clampedComp].getValue<ParamType>();
+        const ParamType              kd1   = _kD1[clampedComp].getValue<ParamType>();
+        const ParamType              ka2   = _kA2[clampedComp].getValue<ParamType>();
+        const ParamType              kd2   = _kD2[clampedComp].getValue<ParamType>();
 
         // Residual
         if (comp < _nRealComp)
