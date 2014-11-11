@@ -44,13 +44,6 @@ if (GIT_FOUND)
       string(LENGTH "${CADET_VERSION}" CADET_VERSION_STRLEN)
       math(EXPR CADET_VERSION_STRLEN "${CADET_VERSION_STRLEN}-1")
       string(SUBSTRING "${CADET_VERSION}" 1 ${CADET_VERSION_STRLEN}  CADET_VERSION)
-      
-      # Save to file; Use shell since writing to source directory is forbidden by CMAKE_DISABLE_SOURCE_CHANGES
-      if (UNIX)
-        execute_process (COMMAND sh -c "echo \"${CADET_VERSION}\" > ${CMAKE_SOURCE_DIR}/version.txt")
-      else ()
-        execute_process (COMMAND cmd /C "echo ${CADET_VERSION} > ${CMAKE_SOURCE_DIR}/version.txt")
-      endif ()
     endif ()
   endif ()
 endif ()
