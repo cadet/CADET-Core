@@ -689,11 +689,15 @@ function [hasError, fitData, numJoins] = checkInput(fitData)
             fitData{i}.joins = [];
         else
             
+            % Total number of joined parameters in this fit
+            numJoins(i) = sum(arrayfun(@(x) length(x{1}), fitData{i}.joins));
+            
             % Check the joins
             for j = 1:length(fitData{i}.joins)
                 curJoin = fitData{i}.joins{j};
-                numJoins(i) = numJoins(i) + length(curJoin);
 
+                % Check if a join is in an invalid index range (joins are
+                % the last parameters)
                 if any((curJoin <= length(fitData{i}.sim.sensitivities) - numJoins(i)) | (curJoin > length(fitData{i}.sim.sensitivities)))
                     disp(['Error in fit ' num2str(i) ': Parameter indices of join ' num2str(j) ' are out of range']);
                     hasError = true;
