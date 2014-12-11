@@ -332,11 +332,11 @@ classdef ModelGRM < handle
 
             % Try to find the binding model by looking through all classes in the "binding" folder
             obj.bindingHandle = [];
-            pathToIsotherms = fullfile(fileparts(mfilename('fullpath')), 'binding');
+            pathToIsotherms = fullfile(fileparts(mfilename('fullpath')), 'bindings');
             classes = dir(fullfile(pathToIsotherms, '*.m'));
             for i = 1:length(classes)
                 % Create instance of class
-                [~, name, ~] = fileparts(classes{i});
+                [~, name, ~] = fileparts(classes(i).name);
                 instance = eval([name '();']);
 
                 if strcmpi(instance.name, obj.input.model.ADSORPTION_TYPE)

@@ -27,6 +27,10 @@ classdef Helpers
             
             found = false;
             while ~found
+                if ~isfield(strct, fieldPath{1})
+                    % Not found
+                    break;
+                end
                 strct = strct.(fieldPath{1});
                 
                 if length(fieldPath) == 1
