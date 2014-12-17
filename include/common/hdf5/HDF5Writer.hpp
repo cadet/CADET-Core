@@ -71,6 +71,9 @@ public:
     /// \brief Removes an existing group from the file
     inline void unlinkGroup(const std::string& groupName);
 
+    /// \brief Removes an existing dataset from the current group
+    inline void unlinkDataset(const std::string& dsName);
+
     /// \brief Enable/disable compression for tensors of 2nd order and above
     inline void compressFields(bool setCompression) {_writeCompressed = setCompression;}
 
@@ -230,6 +233,24 @@ void HDF5Writer::unlinkGroup(const std::string& groupName)
     {
         return;
     }
+}
+
+
+void HDF5Writer::unlinkDataset(const std::string& dsName)
+{
+    bool wasOpen = !_groupsOpened.empty();
+
+    if (!wasOpen)
+        openGroup(false);
+
+    try {
+        _groupsOpened.top().unlink(dsName.c_str());
+    } catch (H5::Exception& e)
+    {
+    }
+
+    if (!wasOpen)
+        closeGroup();
 }
 
 

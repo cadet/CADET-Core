@@ -616,6 +616,22 @@ warning and errors; info and warnings and errors, etc.) & -- & string &
 \end{table}
 
 
+
+\begin{table}[!ht]
+\footnotesize
+\begin{tabu}to \linewidth[m]{lX[m]cc} \toprule
+\multicolumn{4}{c}{\GroupHeadline{/meta}} \\
+\rowfont[c]\normalfont Dataset & Description & In / out & Type \everyrow{\midrule}\\      
+\texttt{FILE\_FORMAT} & Version of the file format (defaults to 1.0 if omitted) & In & string \\
+\texttt{CADET\_VERSION} & Version of the executed CADET simulator & Out & string \\
+\texttt{CADET\_COMMIT} & Git commit SHA1 from which the CADET simulator was built & Out & string \\
+\texttt{CADET\_BRANCH} & Git branch from which the CADET simulator was built & Out & string 
+\everyrow{}\\
+\bottomrule
+\end{tabu}
+\caption{\label{tab:FFMeta}Datasets in the \texttt{/meta} group}
+\end{table}
+
 \FloatBarrier
 \subsection{Section dependent model parameters}
 

@@ -1610,6 +1610,31 @@ void CadetCS<reader_t, writer_t>::writeOutput()
         }
     }
 
+
+    // ============================================================================================================
+    //    Write meta data
+    // ============================================================================================================
+    
+    _writer.setGroup("/");
+    if (_writer.exists(e2s(GRP_META)))
+    {
+        _writer.setGroup(e2s(GRP_META));
+        if (_writer.exists(e2s(CADET_VERSION_STR)))
+            _writer.unlinkDataset(e2s(CADET_VERSION_STR));
+        if (_writer.exists(e2s(CADET_COMMIT)))
+            _writer.unlinkDataset(e2s(CADET_COMMIT));
+        if (_writer.exists(e2s(CADET_BRANCH)))
+            _writer.unlinkDataset(e2s(CADET_BRANCH));
+    }
+    else
+    {
+        _writer.setGroup(e2s(GRP_META));
+    }
+
+    _writer.template scalar<std::string>(e2s(CADET_VERSION_STR), cadet::getLibraryVersion());
+    _writer.template scalar<std::string>(e2s(CADET_COMMIT), cadet::getLibraryCommitHash());
+    _writer.template scalar<std::string>(e2s(CADET_BRANCH), cadet::getLibraryBranchRefspec());
+
     // Close the file
     _writer.closeFile();
 

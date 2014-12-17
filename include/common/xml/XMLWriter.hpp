@@ -71,6 +71,10 @@ public:
     inline void unlinkGroup(const std::string& groupName) {}
 
     /// \brief This functionality is not supported by XML - this is a stub.
+    ///        Removes an existing dataset from the current group.
+    inline void unlinkDataset(const std::string& dsName) {}
+
+    /// \brief This functionality is not supported by XML - this is a stub.
     ///        Set the level of compression used for tensors of 2nd order and above
     inline void compressFields(bool setCompression) {}
 

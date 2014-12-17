@@ -260,6 +260,13 @@ enum OtherName {
     SENS_BOUNDARY,
     SENS_COLUMN_OUTLET,
 
+    // Meta group
+    FILE_FORMAT,
+    // Next enum has been named CADET_VERSION_STR to avoid naming issues with CMake macro
+    CADET_VERSION_STR,
+    CADET_COMMIT,
+    CADET_BRANCH,
+
     OtherName_end           // Must be last
 };
 
@@ -287,6 +294,8 @@ enum GroupName {
 
     GRP_OUT_SOLUTION,
     GRP_OUT_SENS,
+
+    GRP_META,
 
     GroupName_end           // Must be last
 };
@@ -527,6 +536,12 @@ inline const char* e2s(OtherName other)
     case SENS_BOUNDARY:               return "SENS_BOUNDARY";
     case SENS_COLUMN_OUTLET:          return "SENS_COLUMN_OUTLET";
 
+    case FILE_FORMAT:                 return "FILE_FORMAT";
+    // Next enum has been named CADET_VERSION_STR to avoid naming issues with CMake macro
+    case CADET_VERSION_STR:           return "CADET_VERSION";
+    case CADET_COMMIT:                return "CADET_COMMIT";
+    case CADET_BRANCH:                return "CADET_BRANCH";
+
     default:                          return "UNKNOWN_PARAMETER";
     }
 }
@@ -556,6 +571,8 @@ inline const char* e2s(GroupName group)
 
     case GRP_OUT_SOLUTION:            return "/output/solution";
     case GRP_OUT_SENS:                return "/output/sensitivity";
+
+    case GRP_META:                    return "/meta";
 
     default:                          return "UNKNOWN_GROUP";
     }

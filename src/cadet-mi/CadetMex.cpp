@@ -126,6 +126,9 @@ public:
     /// \brief Removes an existing group from the file
     inline void unlinkGroup(const std::string& groupName);
 
+    /// \brief Removes an existing dataset from the current group
+    inline void unlinkDataset(const std::string& dsName);
+
     /// \brief Enable/disable compression for tensors of 2nd order and above
     inline void compressFields(bool setCompression) { }
 
@@ -740,5 +743,9 @@ void MatlabCadetTranslator::scalar(const std::string& dataSetName, const T buffe
 
 
 void MatlabCadetTranslator::unlinkGroup(const std::string& groupName)
+{
+}
+
+void MatlabCadetTranslator::unlinkDataset(const std::string& dsName)
 {
 }
