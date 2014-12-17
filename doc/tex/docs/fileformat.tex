@@ -22,9 +22,25 @@ The layout of such files is described in this section.
 
 Most of the names of the groups and datasets are predefined in the C++ header file
 \texttt{CadetEnumeration.hpp}.
-Every valid CADET file needs an \texttt{input} group. It does not need an \texttt{output} group,
-since this is created when results are written. If not explicitly stated otherwise, all datasets
+Every valid CADET file needs an \texttt{input} group (see Fig.~\ref{fig:FFInput}). 
+It does not need an \texttt{output} (see Fig.~\ref{fig:FFOutput}) or \texttt{meta} (see Fig.~\ref{fig:FFRoot}) group,
+since those are created when results are written. If not explicitly stated otherwise, all datasets
 are mandatory. By convention all group names are lowercase, whereas all dataset names are uppercase.
+Note that the \texttt{meta} group contains input as well as output datasets.
+
+\begin{figure}[!ht]
+\centering
+\begin{tikzpicture}[%
+  every node/.style={draw=black,semithick,font=\footnotesize},
+  level 2/.style={sibling distance=16mm},
+  ]
+  \node {/ (Root)} [edge from parent fork down]
+    child[sibling distance=30mm] { node {\hyperref[fig:FFInput]{input} } }   
+    child[sibling distance=30mm] { node {\hyperref[fig:FFOutput]{output} } }   
+    child[sibling distance=30mm] { node {\hyperref[tab:FFMeta]{meta} } };
+\end{tikzpicture}
+\caption{\label{fig:FFRoot}Structure of the groups in the root group of the file format}
+\end{figure}
 
 \begin{figure}[!ht]
 \centering
@@ -72,6 +88,7 @@ are mandatory. By convention all group names are lowercase, whereas all dataset 
 \caption{\label{fig:FFOutput}Structure of the groups in the output part of the file format}
 \end{figure}
 
+\newpage
 \subsection{Description of datasets}
 
 Reference volumes are denoted by subscripts:
@@ -81,7 +98,8 @@ Reference volumes are denoted by subscripts:
   \item[\si{\cubic\metre\of{SP}}] Bead solid phase volume
 \end{itemize}
 
-\newpage
+\FloatBarrier
+\subsubsection{Input group}
 
 \newcommand{\GroupHeadline}[1]{\small\textbf{Group} \texttt{#1}}
 
@@ -573,6 +591,8 @@ warning and errors; info and warnings and errors, etc.) & -- & string &
 \caption{\label{tab:FFSensitivityParam}Datasets in the \texttt{/input/sensitivity/param\_XXX} groups}
 \end{table}
 
+\FloatBarrier
+\subsubsection{Output group}
 
 \begin{table}[!ht]
 \footnotesize
@@ -622,6 +642,9 @@ warning and errors; info and warnings and errors, etc.) & -- & string &
 \end{table}
 
 
+\FloatBarrier
+\subsubsection{Meta group}
+
 
 \begin{table}[!ht]
 \footnotesize
@@ -637,6 +660,7 @@ warning and errors; info and warnings and errors, etc.) & -- & string &
 \end{tabu}
 \caption{\label{tab:FFMeta}Datasets in the \texttt{/meta} group}
 \end{table}
+
 
 \FloatBarrier
 \subsection{Section dependent model parameters}
