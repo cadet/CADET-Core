@@ -180,6 +180,16 @@ void Simulator::initialize(const std::vector<double>& initC, const std::vector<d
     _sim->initialize(initC, initQ);
 }
 
+void Simulator::initialize(const std::vector<double>& initState)
+{
+    _sim->initialize(initState);
+}
+
+void Simulator::initializeWithGivenSensitivities(const std::vector<double>& initState, const std::vector<double>& initSens)
+{
+    _sim->initializeWithGivenSensitivities(initState, initSens);
+}
+
 void Simulator::integrate()
 {
     _sim->integrate();
@@ -197,6 +207,11 @@ void Simulator::getSolutionTimes(std::vector<double>& userVector) const
     _sim->getTimeIntegrator().getSolutionTimes(userVector);
 }
 
+
+void Simulator::getLastSolution(std::vector<double>& userVector) const
+{
+    _sim->getTimeIntegrator().getLastSolution(userVector);
+}
 
 void Simulator::getAllSolutions(std::vector<double>& userVector) const
 {
@@ -218,6 +233,11 @@ void Simulator::getBndSolutions(std::vector<double>& userVector) const
     _sim->getTimeIntegrator().getBndSolutions(userVector);
 }
 
+
+void Simulator::getLastSensitivities(std::vector<double>& userVector) const
+{
+    _sim->getTimeIntegrator().getLastSensitivities(userVector);
+}
 
 void Simulator::getAllSensitivities(std::vector<double>& userVector) const
 {
@@ -566,6 +586,22 @@ void SimulatorPImpl::initialize(const std::vector<double>& initC, const std::vec
     _timeIntegrator->setInitialConditions(initC, initQ);
     _timeIntegrator->initializeIntegrator();
     _timeIntegrator->initializeSensitivities();
+}
+
+// initialize all the IDA stuff, compute AD directions etc.
+void SimulatorPImpl::initialize(const std::vector<double>& initState)
+{
+    _timeIntegrator->setInitialConditions(initState);
+    _timeIntegrator->initializeIntegrator();
+    _timeIntegrator->initializeSensitivities();
+}
+
+// initialize all the IDA stuff, compute AD directions etc.
+void SimulatorPImpl::initializeWithGivenSensitivities(const std::vector<double>& initState, const std::vector<double>& initSens)
+{
+    _timeIntegrator->setInitialConditions(initState);
+    _timeIntegrator->initializeIntegrator();
+    _timeIntegrator->initializeSensitivities(initSens);
 }
 
 // run the integration from tstart till tend

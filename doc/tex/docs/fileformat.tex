@@ -106,6 +106,8 @@ Reference volumes are denoted by subscripts:
 \texttt{ADSORPTION\_TYPE} & Specifies the type of adsorption model & -- & string & See Table~\ref{tab:FFModelAdsorption} & 1 \\
 \texttt{INIT\_C} & A vector with initial concentrations for each comp.\ in the mobile phase & \si{\mol\per\cubic\metre\of{Int \& MP}} & double & $\geq 0.0$ & \texttt{NCOMP}\\
 \texttt{INIT\_Q} & Same as \texttt{INIT\_C} but for the bound phase & \si{\mol\per\cubic\metre\of{SP}} & double & $\geq 0.0$ & \texttt{NCOMP}\\
+\texttt{INIT\_STATE} & Full state vector for initialization (optional, \texttt{INIT\_C} and \texttt{INIT\_Q} will be ignored); Length $\texttt{NCOMP} \times \texttt{NCOL} \times 2 \times \left( \texttt{NPAR} + 1 \right)$ & various & double & -- & See description \\
+\texttt{INIT\_SENS} & Full state vectors of all sensitivity systems (optional, can only be used if \texttt{INIT\_STATE} is set); Length $\texttt{NSENS} \times \texttt{NCOMP} \times \texttt{NCOL} \times 2 \times \left( \texttt{NPAR} + 1 \right)$ & various & double & -- & See description \\
 \texttt{COL\_DISPERSION} & Axial dispersion coefficient & \si{\square\metre\of{Int}\per\second} & double & $\geq 0.0$ & 1 / \texttt{NSEC}\\
 \texttt{COL\_LENGTH} & Column length & \si{\metre} & double & $> 0.0$ & 1\\
 \texttt{COL\_POROSITY} & Column porosity & -- & double & $\geq 0.0$ & 1\\
@@ -492,8 +494,10 @@ warning and errors; info and warnings and errors, etc.) & -- & string &
 \texttt{WRITE\_SOLUTION\_COLUMN\_INLET} & Write solutions at column inlet (boundary condition) & -- & int & 0/1 \\
 \texttt{WRITE\_SOLUTION\_COLUMN\_OUTLET} & Write solutions at column outlet (chromatograms) & -- & int & 0/1 \\
 \texttt{WRITE\_SOLUTION\_ALL} & Write all (intermediate) solutions & -- & int & 0/1 \\
+\texttt{WRITE\_SOLUTION\_LAST} & Write full solution state vector at last time point & -- & int & 0/1 \\
 \texttt{WRITE\_SENS\_COLUMN\_OUTLET} & Write sensitivity data at column outlet & -- & int & 0/1 \\
-\texttt{WRITE\_SENS\_ALL} & Write all (intermediate) sensitivity data & -- & int & 0/1 \everyrow{}\\
+\texttt{WRITE\_SENS\_ALL} & Write all (intermediate) sensitivity data & -- & int & 0/1 \\
+\texttt{WRITE\_SENS\_LAST} & Write full sensitivity state vectors at last time point & -- & int & 0/1 \everyrow{}\\
 \bottomrule
 \end{tabu}
 \caption{\label{tab:FFSolver}Datasets in the \texttt{/input/solver} group}
@@ -580,7 +584,8 @@ warning and errors; info and warnings and errors, etc.) & -- & string &
 \texttt{SOLUTION\_PARTICLE} & Solution inside the beads as $n_{\text{Time}} \times n_{\text{ColCells}} \times n_{\text{ParCells}} \times 2 \times n_{\text{Comp}}$ tensor in row-major storage & \si{\mol\per\cubic\metre\of{MP \& SP}} & double \\
 \texttt{SOLUTION\_BOUNDARY} & Flux solution as $n_{\text{Time}} \times n_{\text{Comp}} \times n_{\text{ColCells}}$ tensor in row-major storage & \si{\mol\per\square\metre\per\second} & double \\
 \texttt{SOLUTION\_COLUMN\_OUTLET\_COMP\_XXX} & Component \texttt{XXX} of the solution at the column outlet & \si{\mol\per\cubic\metre\of{Int}} & double \\
-\texttt{SOLUTION\_COLUMN\_INLET\_COMP\_XXX} & Component \texttt{XXX} of the solution at the column inlet & \si{\mol\per\cubic\metre\of{Int}} & double 
+\texttt{SOLUTION\_COLUMN\_INLET\_COMP\_XXX} & Component \texttt{XXX} of the solution at the column inlet & \si{\mol\per\cubic\metre\of{Int}} & double \\
+\texttt{SOLUTION\_LAST} & Full state vector of the solution at the last time point & various & double 
 \everyrow{}\\
 \bottomrule
 \end{tabu}
@@ -595,7 +600,8 @@ warning and errors; info and warnings and errors, etc.) & -- & string &
 \rowfont[c]\normalfont Dataset & Description & Type \everyrow{\midrule}\\      
 \texttt{SENS\_COLUMN} & Interstitial solution as $n_{\text{Time}} \times n_{\text{Comp}} \times n_{\text{ColCells}} \times n_{\text{Params}}$ tensor in row-major storage & double \\
 \texttt{SENS\_PARTICLE} & Solution inside the beads as $n_{\text{Time}} \times n_{\text{ColCells}} \times n_{\text{ParCells}} \times 2 \times n_{\text{Comp}} \times n_{\text{Params}}$ tensor in row-major storage & double \\
-\texttt{SENS\_BOUNDARY} & Flux solution as $n_{\text{Time}} \times n_{\text{Comp}} \times n_{\text{ColCells}} \times n_{\text{Params}}$ tensor in row-major storage & double
+\texttt{SENS\_BOUNDARY} & Flux solution as $n_{\text{Time}} \times n_{\text{Comp}} \times n_{\text{ColCells}} \times n_{\text{Params}}$ tensor in row-major storage & double \\
+\texttt{SENS\_LAST} & Concatenated full state vectors of all sensitivity systems at the last time point & double
 \everyrow{}\\
 \bottomrule
 \end{tabu}

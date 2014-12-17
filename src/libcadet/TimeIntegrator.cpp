@@ -129,7 +129,7 @@ void TimeIntegrator::setInitialConditions(const std::vector<double>& initC, cons
     log::emit<Trace1>() << CURRENT_FUNCTION << Color::cyan << ": Called!" << Color::reset << log::endl;
 
     // ========================================================================================
-    // Make shure the initial condition for the salt component in bound phase
+    // Make sure the initial condition for the salt component in bound phase
     // is equivalent to lambda in case of SMA or SAI kinetics.
     // ========================================================================================
     double lambda;
@@ -188,6 +188,16 @@ void TimeIntegrator::setInitialConditions(const std::vector<double>& initC, cons
     log::emit<Trace1>() << CURRENT_FUNCTION << Color::green << ": Finished!" << Color::reset << log::endl;
 }
 
+void TimeIntegrator::setInitialConditions(const std::vector<double>& initState)
+{
+    log::emit<Trace1>() << CURRENT_FUNCTION << Color::cyan << ": Called!" << Color::reset << log::endl;
+
+    double* const yc = NV_DATA_S(_NV_y);
+    for (int i = 0; i < _cc.neq(); ++i)
+        yc[i] = initState[i];
+
+    log::emit<Trace1>() << CURRENT_FUNCTION << Color::green << ": Finished!" << Color::reset << log::endl;
+}
 
 void TimeIntegrator::setSectionTimes(const std::vector<double>& sectionTimes) throw (CadetException)
 {
@@ -374,10 +384,19 @@ void TimeIntegrator::initializeSensitivities() throw (CadetException)
 {
     log::emit<Trace1>() << CURRENT_FUNCTION << Color::cyan << ": Called!" << Color::reset << log::endl;
 
+    initializeSensitivities(std::vector<double>());
+
+    log::emit<Trace1>() << CURRENT_FUNCTION << Color::green << ": Finished!" << Color::reset << log::endl;
+}
+
+void TimeIntegrator::initializeSensitivities(const std::vector<double>& initialSens) throw (CadetException)
+{
+    log::emit<Trace1>() << CURRENT_FUNCTION << Color::cyan << ": Called!" << Color::reset << log::endl;
+
     checkSufficientDirections();
 
     //==========================================================================
-    // AD Jacobi Setup
+    // AD Jacobian Setup
     //==========================================================================
     // Initialize all actives and their AD values to 0.0
     for (int eq = 0; eq < _cc.neq(); ++eq)  // Loop over all equations
@@ -417,45 +436,64 @@ void TimeIntegrator::initializeSensitivities() throw (CadetException)
         double* yS;
         double* ySDot;
 
-        //==============================================
-        // Initialize sensitivity vectors with 0.0
-        //==============================================
-        for (int dir = 0; dir < active::getMaxDirections(); ++dir)  // Iterate over all directions
+        if (initialSens.empty())
         {
-            yS    = NV_DATA_S(_NVp_yS[dir]);
-            ySDot = NV_DATA_S(_NVp_ySDot[dir]);
-
-            for (int eq = 0; eq < _cc.neq(); ++eq)
+            //==============================================
+            // Initialize sensitivity vectors with 0.0
+            //==============================================
+            for (int dir = 0; dir < active::getMaxDirections(); ++dir)  // Iterate over all directions
             {
-                yS   [eq] = 0.0;
-                ySDot[eq] = 0.0;
+                yS    = NV_DATA_S(_NVp_yS[dir]);
+                ySDot = NV_DATA_S(_NVp_ySDot[dir]);
+
+                for (int eq = 0; eq < _cc.neq(); ++eq)
+                {
+                    yS   [eq] = 0.0;
+                    ySDot[eq] = 0.0;
+                }
+            }
+            //==============================================
+
+            //==================================================================================================
+            // Set initial solution sensitivity w.r.t. SMA/SAI lambda = 1 for salt concentration in bound phase
+            //==================================================================================================
+            vpc_it it1 = std::find(_sensModelParams.begin(), _sensModelParams.end(), ParamID(SMA_LAMBDA, -1, -1));  // search for a sensitive SMA_LAMBDA
+            vpc_it it2 = std::find(_sensModelParams.begin(), _sensModelParams.end(), ParamID(SAI_LAMBDA, -1, -1));  // search for a sensitive SAI_LAMBDA
+            vpc_it it = (it1 != _sensModelParams.end()) ? it1 : it2;
+
+            if (it != _sensModelParams.end())                       // One lambda was set sensitive!
+            {
+                int posLambda = it - _sensModelParams.begin();      // Index of the current lambda in the _sensModelParams vector
+
+                for (int pblk = 0; pblk < _cc.npblk(); ++pblk)      // Iterate over particle blocks
+                {
+                    yS = _cc.offsetPar(_NVp_yS[posLambda], pblk);
+                    for (int par = 0; par < _cc.npar(); ++par)      // Iterate over particle cells
+                        _cc.parQ<double>(yS, par, 0) = 1.0;
+                }
+
+                log::emit<Debug1>() << CURRENT_FUNCTION << ": SMA/SAI_LAMBDA correction" << log::endl;
+            }
+            //==================================================================================================
+        }
+        else
+        {
+            //==============================================
+            // Initialize sensitivity vectors with given data
+            //==============================================
+            for (int dir = 0; dir < active::getMaxDirections(); ++dir)  // Iterate over all directions
+            {
+                yS    = NV_DATA_S(_NVp_yS[dir]);
+                ySDot = NV_DATA_S(_NVp_ySDot[dir]);
+
+                for (int eq = 0; eq < _cc.neq(); ++eq)
+                {
+                    yS   [eq] = initialSens[eq + _cc.neq() * dir];
+                    ySDot[eq] = 0.0;
+                }
             }
         }
-        //==============================================
         log::emit<Debug1>() << CURRENT_FUNCTION << ": AD for Sens inititialized" << log::endl;
-
-
-        //==================================================================================================
-        // Set initial solution sensitivity w.r.t. SMA/SAI lambda = 1 for salt concentration in bound phase
-        //==================================================================================================
-        vpc_it it1 = std::find(_sensModelParams.begin(), _sensModelParams.end(), ParamID(SMA_LAMBDA, -1, -1));  // search for a sensitive SMA_LAMBDA
-        vpc_it it2 = std::find(_sensModelParams.begin(), _sensModelParams.end(), ParamID(SAI_LAMBDA, -1, -1));  // search for a sensitive SAI_LAMBDA
-        vpc_it it = (it1 != _sensModelParams.end()) ? it1 : it2;
-
-        if (it != _sensModelParams.end())                       // One lambda was set sensitive!
-        {
-            int posLambda = it - _sensModelParams.begin();      // Index of the current lambda in the _sensModelParams vector
-
-            for (int pblk = 0; pblk < _cc.npblk(); ++pblk)      // Iterate over particle blocks
-            {
-                yS = _cc.offsetPar(_NVp_yS[posLambda], pblk);
-                for (int par = 0; par < _cc.npar(); ++par)      // Iterate over particle cells
-                    _cc.parQ<double>(yS, par, 0) = 1.0;
-            }
-
-            log::emit<Debug1>() << CURRENT_FUNCTION << ": SMA/SAI_LAMBDA correction" << log::endl;
-        }
-        //==================================================================================================
 
 
         //============================================================================
@@ -727,6 +765,10 @@ void TimeIntegrator::getSolutionTimes(std::vector<double>& userVector) const
     userVector.assign(_solutionTimes.begin(), _solutionTimes.end());
 }
 
+void TimeIntegrator::getLastSolution(std::vector<double>& userVector) const
+{
+    userVector.assign(_stateAllTimes.end()-_cc.neq(), _stateAllTimes.end());
+}
 
 void TimeIntegrator::getAllSolutions(std::vector<double>& userVector) const
 {
@@ -755,6 +797,11 @@ void TimeIntegrator::getBndSolutions(std::vector<double>& userVector) const
         userVector.insert(userVector.end(), it, it + _cc.neq_bnd());
 }
 
+
+void TimeIntegrator::getLastSensitivities(std::vector<double>& userVector) const
+{
+    userVector.assign(_sensAllTimes.end() - _cc.neq() * getNSensParams(), _sensAllTimes.end());
+}
 
 void TimeIntegrator::getAllSensitivities(std::vector<double>& userVector) const
 {

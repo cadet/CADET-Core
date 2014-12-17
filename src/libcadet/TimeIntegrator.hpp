@@ -41,21 +41,25 @@ public:
 
 
     void setInitialConditions(const std::vector<double>& initC, const std::vector<double>& initQ);
+    void setInitialConditions(const std::vector<double>& initState);
     void setSectionTimes(const std::vector<double>& sectionTimes) throw (CadetException);
     void setSectionTimes(const std::vector<double>& sectionTimes, const std::vector<bool>& sectionContinuity) throw (CadetException);
     void setSolutionTimes(const std::vector<double>& solutionTimes) throw (CadetException);
 
     void initializeIntegrator();
     void initializeSensitivities() throw (CadetException);
+    void initializeSensitivities(const std::vector<double>& initialSens) throw (CadetException);
     void integrate() throw (CadetException);
 
     void getSolutionTimes(std::vector<double>& userVector) const;
 
+    void getLastSolution(std::vector<double>& userVector) const;
     void getAllSolutions(std::vector<double>& userVector) const;
     void getColSolutions(std::vector<double>& userVector) const;
     void getParSolutions(std::vector<double>& userVector) const;
     void getBndSolutions(std::vector<double>& userVector) const;
 
+    void getLastSensitivities(std::vector<double>& userVector) const;
     void getAllSensitivities(std::vector<double>& userVector) const;
     void getColSensitivities(std::vector<double>& userVector) const;
     void getParSensitivities(std::vector<double>& userVector) const;

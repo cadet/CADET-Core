@@ -261,8 +261,8 @@ void MatlabCadetTranslator::openGroup(bool create)
     if (create)
         return openAndCreateGroup();
 
-    // Early out if empty group
-    if (_groupName.empty())
+    // Early out if empty group or root
+    if (_groupName.empty() || (_groupName == "/"))
         return;
 
     // Ignore root slash if present

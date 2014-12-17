@@ -170,6 +170,7 @@ classdef Simulator < handle
             %       o column: Tensor with the raw column solution
             %       o particle: Tensor with the raw particle solution
             %       o flux: Tensor with the raw fluxes
+            %       o lastState: Vector with the last state of the solution
             %   - sensitivity
             %       o jacobian: Tensor with the derivatives of the
             %           components with respect to the different
@@ -187,7 +188,8 @@ classdef Simulator < handle
             %       o column: Tensor with the raw column derivatives
             %       o particle: Tensor with the raw particle derivatives
             %       o flux: Tensor with the raw flux derivatives
- 
+            %       o lastState: Vector with the last state of all sensitivities
+
             if nargin <= 1 || isempty(skipValidation)
                 skipValidation = false;
             end
@@ -711,8 +713,10 @@ classdef Simulator < handle
             so.WRITE_SOLUTION_COLUMN_OUTLET = int32(logical(so.WRITE_SOLUTION_COLUMN_OUTLET));
             so.WRITE_SOLUTION_COLUMN_INLET  = int32(logical(so.WRITE_SOLUTION_COLUMN_INLET));
             so.WRITE_SOLUTION_ALL           = int32(logical(so.WRITE_SOLUTION_ALL));
+            so.WRITE_SOLUTION_LAST          = int32(logical(so.WRITE_SOLUTION_LAST));
             so.WRITE_SENS_COLUMN_OUTLET     = int32(logical(so.WRITE_SENS_COLUMN_OUTLET));
             so.WRITE_SENS_ALL               = int32(logical(so.WRITE_SENS_ALL));
+            so.WRITE_SENS_LAST              = int32(logical(so.WRITE_SENS_LAST));
             so.NTHREADS                     = int32(so.NTHREADS);
             
             % Integers
@@ -917,6 +921,7 @@ classdef Simulator < handle
             %       o column: Tensor with the raw column solution
             %       o particle: Tensor with the raw particle solution
             %       o flux: Tensor with the raw fluxes
+            %       o lastState: Vector with the last state of the solution
             %   - sensitivity
             %       o jacobian: Tensor with the derivatives of the
             %           components with respect to the different
@@ -934,6 +939,7 @@ classdef Simulator < handle
             %       o column: Tensor with the raw column derivatives
             %       o particle: Tensor with the raw particle derivatives
             %       o flux: Tensor with the raw flux derivatives
+            %       o lastState: Vector with the last state of all sensitivities
             
             ext = [];
 
@@ -945,6 +951,7 @@ classdef Simulator < handle
             idxColumn = find(cellfun(@(x) strcmp(x, 'SOLUTION_COLUMN'), solNames), 1);
             idxParticle = find(cellfun(@(x) strcmp(x, 'SOLUTION_PARTICLE'), solNames), 1);
             idxBoundary = find(cellfun(@(x) strcmp(x, 'SOLUTION_BOUNDARY'), solNames), 1);
+            idxLastState = find(cellfun(@(x) strcmp(x, 'SOLUTION_LAST'), solNames), 1);
             
             ext.solution = [];
             ext.solution.time = [];
@@ -957,6 +964,7 @@ classdef Simulator < handle
             ext.solution.column = [];
             ext.solution.particle = [];
             ext.solution.flux = [];
+            ext.solution.lastState = [];
 
             if ~isempty(idxTime)
                 ext.solution.time = result.solution.SOLUTION_TIMES;
@@ -974,6 +982,10 @@ classdef Simulator < handle
                 ext.solution.flux = result.solution.SOLUTION_BOUNDARY;
             end
             
+            if ~isempty(idxLastState)
+                ext.solution.lastState = result.solution.SOLUTION_LAST;
+            end
+
             % Extract outlet signals
             if ~isempty(idxOutlet)
                 % Convert to component indices
@@ -1019,6 +1031,7 @@ classdef Simulator < handle
             ext.sensitivity.column = [];
             ext.sensitivity.particle = [];
             ext.sensitivity.flux = [];
+            ext.sensitivity.lastState = [];
             
             if ~isfield(result, 'sensitivity')
                 return;
@@ -1029,6 +1042,7 @@ classdef Simulator < handle
             idxColumn = find(cellfun(@(x) strcmp(x, 'SENS_COLUMN'), solNames), 1);
             idxParticle = find(cellfun(@(x) strcmp(x, 'SENS_PARTICLE'), solNames), 1);
             idxBoundary = find(cellfun(@(x) strcmp(x, 'SENS_BOUNDARY'), solNames), 1);
+            idxLastState = find(cellfun(@(x) strcmp(x, 'SENS_LAST'), solNames), 1);
             
             if ~isempty(idxColumn)
                 ext.sensitivity.column = result.sensitivity.SENS_COLUMN;
@@ -1040,6 +1054,10 @@ classdef Simulator < handle
             
             if ~isempty(idxBoundary)
                 ext.sensitivity.flux = result.sensitivity.SENS_BOUNDARY;
+            end
+
+            if ~isempty(idxLastState)
+                ext.sensitivity.lastState = result.sensitivity.SENS_LAST;
             end
             
             idxParams = find(cellfun(@(x) (length(x) >= 5) && strcmp(x(1:5), 'param'), solNames));
@@ -1094,8 +1112,10 @@ classdef Simulator < handle
             so.WRITE_SOLUTION_COLUMN_OUTLET = true;
             so.WRITE_SOLUTION_COLUMN_INLET  = false;
             so.WRITE_SOLUTION_ALL           = false;
+            so.WRITE_SOLUTION_LAST          = false;
             so.WRITE_SENS_COLUMN_OUTLET     = true;
             so.WRITE_SENS_ALL               = false;
+            so.WRITE_SENS_LAST              = false;
             so.NTHREADS                     = 1;
              
             % Schur solver

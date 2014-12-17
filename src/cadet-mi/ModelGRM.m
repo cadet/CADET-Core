@@ -26,6 +26,8 @@ classdef ModelGRM < handle
         
         initialMobileConcentration;     % Initial concentration of the mobile phase for each component
         initialSolidConcentration;      % Initial concentration of the solid phase for each component
+        initialState;                   % Initial state vector
+        initialSensitivities;           % Initial state variables of all sensitive parameters
 
         % Binding model
         
@@ -130,8 +132,10 @@ classdef ModelGRM < handle
             ok = Helpers.checkScalar(obj.kineticBindingModel, 'kineticBindingModel') && ok;
 
             % Initial conditions
-            ok = Helpers.checkNonnegativeVector(obj.initialMobileConcentration, obj.nComponents, 'initialMobileConcentration') && ok;
-            ok = Helpers.checkNonnegativeVector(obj.initialSolidConcentration, obj.nComponents, 'initialSolidConcentration') && ok;
+            if (isempty(obj.initialState))
+                ok = Helpers.checkNonnegativeVector(obj.initialMobileConcentration, obj.nComponents, 'initialMobileConcentration') && ok;
+                ok = Helpers.checkNonnegativeVector(obj.initialSolidConcentration, obj.nComponents, 'initialSolidConcentration') && ok;
+            end
             
             % Transport
             if any(obj.dispersionColumn) < 0
@@ -286,7 +290,15 @@ classdef ModelGRM < handle
             for i = 1:length(params)
                 par = params{i};
                 obj.input.model.adsorption.(par.name) = obj.bindingParameters.(par.name);
-            end            
+            end
+
+            % Initial state
+            if (~isempty(obj.initialState))
+                obj.input.model.INIT_STATE = obj.initialState;
+            end
+            if (~isempty(obj.initialSensitivities))
+                obj.input.model.INIT_SENS = obj.initialSensitivities;
+            end
 
             % Inlet
             for i = 1:obj.nInletSections
@@ -382,6 +394,16 @@ classdef ModelGRM < handle
                 obj.sectionLinear(:, i) = obj.input.model.inlet.(sec_str).LIN_COEFF;
                 obj.sectionQuadratic(:, i) = obj.input.model.inlet.(sec_str).QUAD_COEFF;
                 obj.sectionCubic(:, i) = obj.input.model.inlet.(sec_str).CUBE_COEFF;
+            end
+
+            % Initial state
+            obj.initialState = [];
+            if (isfield(obj.input.model, 'INIT_STATE'))
+                obj.initialState = obj.input.model.INIT_STATE;
+            end
+            obj.initialSensitivities = [];
+            if (isfield(obj.input.model, 'INIT_SENS'))
+                obj.initialSensitivities = obj.input.model.INIT_SENS;
             end
         end
         

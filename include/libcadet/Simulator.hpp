@@ -390,6 +390,32 @@ public:
     void initialize(const std::vector<double>& initC, const std::vector<double>& initQ);
 
 
+    //! \brief Sets the initial conditions, initializes the time integrator and the sensitivity setup
+    //!
+    //! The method sets the initial state using the state supplied in \p initState. All initialization
+    //! for the time integration by IDAS, e.g. specifying tolerances, setting up the linear solver, etc.
+    //! is then done. Furthermore sensitivity related setup routines are processed, e.g. activating the
+    //! sensitivities, setting seed vectors for AD computations, specifying integration tolerances, etc.
+    //!
+    //! \param  [in]    initState   A vector containing \c neq initial values for all state variables
+    //!
+    void initialize(const std::vector<double>& initState);
+
+
+    //! \brief Sets the initial conditions, initializes the time integrator and the sensitivity setup
+    //!
+    //! The method sets the initial state using the state supplied in \p initState. All initialization
+    //! for the time integration by IDAS, e.g. specifying tolerances, setting up the linear solver, etc.
+    //! is then done. Furthermore sensitivity related setup routines are processed, e.g. activating the
+    //! sensitivities, setting seed vectors for AD computations, specifying integration tolerances, etc.
+    //! The initial sensitivity conditions are taken from the supplied \p initSens vector.
+    //!
+    //! \param  [in]    initState   A vector containing \c neq initial values for all state variables
+    //! \param  [in]    initSens   A vector containing \c nsens times \c neq initial values for all state variables of all sensitivities
+    //!
+    void initializeWithGivenSensitivities(const std::vector<double>& initState, const std::vector<double>& initSens);
+
+
     //! \brief Starts the solution of the system specified for this simulator object
     //!
     //!	Checks all model parameters to lie inside their possible bounds and then runs the time integration
@@ -409,6 +435,18 @@ public:
     //! \param	[out]	userVector	A reference to a vector which will be filled with the solution times
     //!
     void getSolutionTimes(std::vector<double>& userVector) const;
+
+
+    //! \brief Returns the bare state vectors for the last timepoint
+    //!
+    //! The method returns the last solution as it was written to the memory.
+    //! The whole state vetor (including column, particle and boundary parts) is assigned to the supplied 
+    //! vector. The ordering is rather unhandy, since the column, the particle and the boundary parts
+    //! are of different size.
+    //!
+    //! \param  [out]   userVector  A reference to a vector which will be filled with the last solution
+    //!
+    void getLastSolution(std::vector<double>& userVector) const;
 
 
     //! \brief Returns the bare state vectors concatenated for all timepoints
@@ -485,6 +523,7 @@ public:
     void getParSolutions(std::vector<double>& userVector) const;
     void getBndSolutions(std::vector<double>& userVector) const;
 
+    void getLastSensitivities(std::vector<double>& userVector) const;
     void getAllSensitivities(std::vector<double>& userVector) const;
     void getColSensitivities(std::vector<double>& userVector) const;
     void getParSensitivities(std::vector<double>& userVector) const;

@@ -341,8 +341,10 @@ private:
     bool _writeSolutionColumnOutlet;
     bool _writeSolutionColumnInlet;
     bool _writeSolutionAll;
+    bool _writeSolutionLast;
     bool _writeSensColumnOutlet;
     bool _writeSensAll;
+    bool _writeSensLast;
 
     std::vector<ParameterName>  _sensParamIds;
     std::vector<int>            _sensComps;
@@ -624,8 +626,10 @@ void CadetCS<reader_t, writer_t>::initialize()
     _writeSolutionColumnOutlet = _reader.template scalar<int>(e2s(WRITE_SOLUTION_COLUMN_OUTLET));
     _writeSolutionColumnInlet  = _reader.template scalar<int>(e2s(WRITE_SOLUTION_COLUMN_INLET));
     _writeSolutionAll          = _reader.template scalar<int>(e2s(WRITE_SOLUTION_ALL));
+    _writeSolutionLast         = _reader.template scalar<int>(e2s(WRITE_SOLUTION_LAST));
     _writeSensColumnOutlet     = _reader.template scalar<int>(e2s(WRITE_SENS_COLUMN_OUTLET));
     _writeSensAll              = _reader.template scalar<int>(e2s(WRITE_SENS_ALL));
+    _writeSensLast             = _reader.template scalar<int>(e2s(WRITE_SENS_LAST));
     // ============================================================================================================
     
     // ============================================================================================================
@@ -1172,7 +1176,24 @@ void CadetCS<reader_t, writer_t>::simulate()
     //    Create and set initial conditions vector
     // ============================================================================================================
     _reader.setGroup(e2s(GRP_IN_MODEL));
-    _sim.at(0)->initialize(_reader.template vector<double>(e2s(INIT_C)), _reader.template vector<double>(e2s(INIT_Q)));
+    if (_reader.exists(e2s(INIT_STATE)))
+    {
+        if (_reader.exists(e2s(INIT_SENS)))
+        {
+            // Initialize with full state for solution and sensitivities
+            _sim.at(0)->initializeWithGivenSensitivities(_reader.template vector<double>(e2s(INIT_STATE)), _reader.template vector<double>(e2s(INIT_SENS)));
+        }
+        else
+        {
+            // Initialize with full state of solution only
+            _sim.at(0)->initialize(_reader.template vector<double>(e2s(INIT_STATE)));
+        }
+    }
+    else
+    {
+        // Initialize with reduced initial state
+        _sim.at(0)->initialize(_reader.template vector<double>(e2s(INIT_C)), _reader.template vector<double>(e2s(INIT_Q)));
+    }
 
     // ============================================================================================================
 
@@ -1210,7 +1231,24 @@ void CadetCS<reader_t, writer_t>::simulate()
             //    Create and set initial conditions vector
             // ============================================================================================================
             (*sim)->setSolutionTimes(_solutionTimes);
-            (*sim)->initialize(_reader.template vector<double>(e2s(INIT_C)), _reader.template vector<double>(e2s(INIT_Q)));
+            if (_reader.exists(e2s(INIT_STATE)))
+            {
+                if (_reader.exists(e2s(INIT_SENS)))
+                {
+                    // Initialize with full state for solution and sensitivities
+                    (*sim)->initializeWithGivenSensitivities(_reader.template vector<double>(e2s(INIT_STATE)), _reader.template vector<double>(e2s(INIT_SENS)));
+                }
+                else
+                {
+                    // Initialize with full state of solution only
+                    (*sim)->initialize(_reader.template vector<double>(e2s(INIT_STATE)));
+                }
+            }
+            else
+            {
+                // Initialize with reduced initial state
+                (*sim)->initialize(_reader.template vector<double>(e2s(INIT_C)), _reader.template vector<double>(e2s(INIT_Q)));
+            }
 
             log::emit<Debug1>() << "Initial conditions for sens. " << _sensNames.at(sens) << "[comp " << _sensComps.at(sens)
                     << ", sec " << _sensSecs.at(sens) << "]" <<" in FD run " << run << " set!" << log::endl;
@@ -1571,6 +1609,14 @@ void CadetCS<reader_t, writer_t>::writeOutput()
         _writer.template tensor<double>(e2s(SOLUTION_BOUNDARY), colRank, &colDims[0], _bndSolutions);
     }
 
+    // Write last state vector of solution
+    if (_writeSolutionLast)
+    {
+        std::vector<double> tmpVec;
+        _sim.at(0)->getLastSolution(tmpVec);
+        _writer.template vector<double>(e2s(SOLUTION_LAST), tmpVec);
+    }
+
     // Only write sensitivity data when at least one sensitivity was computed.
     if (_nsens > 0)
     {
@@ -1608,6 +1654,19 @@ void CadetCS<reader_t, writer_t>::writeOutput()
             _writer.template tensor<double>(e2s(SENS_PARTICLE), parRank, &parDims[0], _parSensitivities);
             _writer.template tensor<double>(e2s(SENS_BOUNDARY), colRank, &colDims[0], _bndSensitivities);
         }
+
+        // Write last state vector of solution
+        if (_writeSolutionLast)
+        {
+            if (_sensMethod == ALGORITHMIC_DIFFERENTIATION_1)
+            {
+                std::vector<double> tmpVec;
+                _sim.at(0)->getLastSensitivities(tmpVec);
+                _writer.template vector<double>(e2s(SENS_LAST), tmpVec);
+            }
+            // TODO: Collect last sensitivities from FD calculations
+        }
+
     }
 
 

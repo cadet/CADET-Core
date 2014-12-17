@@ -186,6 +186,8 @@ enum OtherName {
     NCOMP,
     INIT_C,
     INIT_Q,
+    INIT_STATE,
+    INIT_SENS,
 
     // Column inlet group
     NSEC,
@@ -234,7 +236,9 @@ enum OtherName {
     WRITE_SOLUTION_COLUMN_INLET,
     WRITE_SENS_COLUMN_OUTLET,
     WRITE_SOLUTION_ALL,
+    WRITE_SOLUTION_LAST,
     WRITE_SENS_ALL,
+    WRITE_SENS_LAST,
     LOG_LEVEL,
     USER_SOLUTION_TIMES,
     NTHREADS,
@@ -255,10 +259,12 @@ enum OtherName {
     SOLUTION_BOUNDARY,
     SOLUTION_COLUMN_OUTLET,
     SOLUTION_COLUMN_INLET,
+    SOLUTION_LAST,
     SENS_COLUMN,
     SENS_PARTICLE,
     SENS_BOUNDARY,
     SENS_COLUMN_OUTLET,
+    SENS_LAST,
 
     // Meta group
     FILE_FORMAT,
@@ -471,6 +477,8 @@ inline const char* e2s(OtherName other)
     case NCOMP:                       return "NCOMP";
     case INIT_C:                      return "INIT_C";
     case INIT_Q:                      return "INIT_Q";
+    case INIT_STATE:                  return "INIT_STATE";
+    case INIT_SENS:                   return "INIT_SENS";
     case IS_KINETIC:                  return "IS_KINETIC";
     case EXT_PROFILE:                 return "EXT_PROFILE";
     case EXT_PROF_DELTA:              return "EXT_PROF_DELTA";
@@ -512,7 +520,9 @@ inline const char* e2s(OtherName other)
     case WRITE_SOLUTION_COLUMN_INLET: return "WRITE_SOLUTION_COLUMN_INLET";
     case WRITE_SENS_COLUMN_OUTLET:    return "WRITE_SENS_COLUMN_OUTLET";
     case WRITE_SOLUTION_ALL:          return "WRITE_SOLUTION_ALL";
+    case WRITE_SOLUTION_LAST:         return "WRITE_SOLUTION_LAST";
     case WRITE_SENS_ALL:              return "WRITE_SENS_ALL";
+    case WRITE_SENS_LAST:             return "WRITE_SENS_LAST";
     case LOG_LEVEL:                   return "LOG_LEVEL";
     case USER_SOLUTION_TIMES:         return "USER_SOLUTION_TIMES";
     case NTHREADS:                    return "NTHREADS";
@@ -531,10 +541,12 @@ inline const char* e2s(OtherName other)
     case SOLUTION_BOUNDARY:           return "SOLUTION_BOUNDARY";
     case SOLUTION_COLUMN_OUTLET:      return "SOLUTION_COLUMN_OUTLET";
     case SOLUTION_COLUMN_INLET:       return "SOLUTION_COLUMN_INLET";
+    case SOLUTION_LAST:               return "SOLUTION_LAST";
     case SENS_COLUMN:                 return "SENS_COLUMN";
     case SENS_PARTICLE:               return "SENS_PARTICLE";
     case SENS_BOUNDARY:               return "SENS_BOUNDARY";
     case SENS_COLUMN_OUTLET:          return "SENS_COLUMN_OUTLET";
+    case SENS_LAST:                   return "SENS_LAST";
 
     case FILE_FORMAT:                 return "FILE_FORMAT";
     // Next enum has been named CADET_VERSION_STR to avoid naming issues with CMake macro
