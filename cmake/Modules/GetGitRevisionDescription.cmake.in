@@ -14,6 +14,11 @@
 # http://www.boost.org/LICENSE_1_0.txt)
 #
 # From https://github.com/rpavlik/cmake-modules
+#
+# Modifications by Samuel Leweke in 2014 in order to cope with
+# missing .git/refs/heads/* files. Falls back to calling
+#   git show-ref --hash ${HEAD_REF}
+# in this case.
 
 set(HEAD_HASH)
 
@@ -25,9 +30,9 @@ if(HEAD_CONTENTS MATCHES "ref")
 	string(REPLACE "ref: " "" HEAD_REF "${HEAD_CONTENTS}")
 	if(EXISTS "@GIT_DIR@/${HEAD_REF}")
 		configure_file("@GIT_DIR@/${HEAD_REF}" "@GIT_DATA@/head-ref" COPYONLY)
-	elseif(EXISTS "@GIT_DIR@/logs/${HEAD_REF}")
-		configure_file("@GIT_DIR@/logs/${HEAD_REF}" "@GIT_DATA@/head-ref" COPYONLY)
-		set(HEAD_HASH "${HEAD_REF}")
+	else()
+		execute_process(COMMAND @GIT_EXECUTABLE@ show-ref --hash ${HEAD_REF} WORKING_DIRECTORY "@CMAKE_SOURCE_DIR@" RESULT_VARIABLE res OUTPUT_VARIABLE out ERROR_QUIET OUTPUT_STRIP_TRAILING_WHITESPACE)
+		set(HEAD_HASH "${out}")
 	endif()
 else()
 	# detached HEAD
