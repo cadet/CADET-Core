@@ -626,10 +626,20 @@ void CadetCS<reader_t, writer_t>::initialize()
     _writeSolutionColumnOutlet = _reader.template scalar<int>(e2s(WRITE_SOLUTION_COLUMN_OUTLET));
     _writeSolutionColumnInlet  = _reader.template scalar<int>(e2s(WRITE_SOLUTION_COLUMN_INLET));
     _writeSolutionAll          = _reader.template scalar<int>(e2s(WRITE_SOLUTION_ALL));
-    _writeSolutionLast         = _reader.template scalar<int>(e2s(WRITE_SOLUTION_LAST));
+    
+    if (_reader.exists(e2s(WRITE_SOLUTION_LAST)))
+        _writeSolutionLast     = _reader.template scalar<int>(e2s(WRITE_SOLUTION_LAST));
+    else
+        _writeSolutionLast     = false;
+
     _writeSensColumnOutlet     = _reader.template scalar<int>(e2s(WRITE_SENS_COLUMN_OUTLET));
     _writeSensAll              = _reader.template scalar<int>(e2s(WRITE_SENS_ALL));
-    _writeSensLast             = _reader.template scalar<int>(e2s(WRITE_SENS_LAST));
+
+    if (_reader.exists(e2s(WRITE_SENS_LAST)))
+        _writeSensLast         = _reader.template scalar<int>(e2s(WRITE_SENS_LAST));
+    else
+        _writeSensLast         = false;
+
     // ============================================================================================================
     
     // ============================================================================================================
