@@ -125,9 +125,7 @@ std::vector<std::string> HDF5Reader::vector<std::string>(const std::string& data
         // Read data from file and write it to buffer
         _dataSet.read(buffer, _dataType);
 
-        std::string s(buffer);
-
-        stringVector.push_back(s.substr(0,s.npos-1));// -1 for Null terminating character
+        stringVector.push_back(std::string(buffer));
         delete [] buffer;
     }
     
