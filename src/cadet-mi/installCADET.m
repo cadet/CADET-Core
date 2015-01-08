@@ -8,7 +8,7 @@ function success = installCADET()
 %
 % Returns true if CADET is installed correctly, otherwise false.
 %
-% Copyright: © 2008-2014 Eric von Lieres, Joel Andersson, Andreas Püttmann, Sebastian Schnittert, Samuel Leweke
+% Copyright: © 2008-2015 Eric von Lieres, Joel Andersson, Andreas Püttmann, Sebastian Schnittert, Samuel Leweke
 %            See the license note at the end of the file.
 
     % Get the path of this file
@@ -54,7 +54,7 @@ end
 % =============================================================================
 %  CADET - The Chromatography Analysis and Design Toolkit
 %  
-%  Copyright © 2008-2014: Eric von Lieres¹, Joel Andersson,
+%  Copyright © 2008-2015: Eric von Lieres¹, Joel Andersson,
 %                         Andreas Puettmann¹, Sebastian Schnittert¹,
 %                         Samuel Leweke¹
 %                                      

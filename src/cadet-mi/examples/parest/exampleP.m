@@ -143,7 +143,7 @@ end
 % =============================================================================
 %  CADET - The Chromatography Analysis and Design Toolkit
 %  
-%  Copyright © 2008-2014: Eric von Lieres¹, Joel Andersson,
+%  Copyright © 2008-2015: Eric von Lieres¹, Joel Andersson,
 %                         Andreas Puettmann¹, Sebastian Schnittert¹,
 %                         Samuel Leweke¹
 %                                      
