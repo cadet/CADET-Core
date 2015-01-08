@@ -3,6 +3,9 @@ function loadWashElution( gradientSlope )
 %
 % Parameters:
 %   - gradientSlope: Optional. Slope of the gradient (default: 0.2)
+%
+% Copyright: © 2008-2015 Eric von Lieres, Joel Andersson, Andreas Püttmann, Sebastian Schnittert, Samuel Leweke
+%            See the license note at the end of the file.
 
     if (nargin <= 0) || isempty(gradientSlope)
         gradientSlope = 0.2;

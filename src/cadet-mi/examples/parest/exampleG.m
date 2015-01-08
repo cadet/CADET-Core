@@ -1,5 +1,8 @@
 function exampleG()
 %EXAMPLEG Single fit with artificial data of 2 separately observed components
+%
+% Copyright: © 2008-2015 Eric von Lieres, Joel Andersson, Andreas Püttmann, Sebastian Schnittert, Samuel Leweke
+%            See the license note at the end of the file.
 
     % Param Info
     params = [{'mcl_ka'}, {'mcl_kd'}, {'mcl_ka'}, {'mcl_kd'}];

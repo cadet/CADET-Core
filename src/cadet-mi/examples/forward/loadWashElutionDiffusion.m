@@ -1,5 +1,8 @@
 function loadWashElutionDiffusion()
 %LOADWASHELUTIONDIFFUSION Simple Load-Wash-Elution cycle with 4 component SMA and different diffusion coefficients
+%
+% Copyright: © 2008-2015 Eric von Lieres, Joel Andersson, Andreas Püttmann, Sebastian Schnittert, Samuel Leweke
+%            See the license note at the end of the file.
 
     model = ModelGRM();
 

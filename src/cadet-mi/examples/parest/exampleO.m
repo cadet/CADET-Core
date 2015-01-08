@@ -1,5 +1,8 @@
 function exampleO()
 %EXAMPLEO One fit with artificial data. The peaks are weighted by their mass.
+%
+% Copyright: © 2008-2015 Eric von Lieres, Joel Andersson, Andreas Püttmann, Sebastian Schnittert, Samuel Leweke
+%            See the license note at the end of the file.
 
     % Param Info
     params = [{'SMA_KA'}, {'SMA_KA'}, {'SMA_KA'}];

@@ -1,6 +1,9 @@
 function exampleC()
 %EXAMPLEC Two fits with artificial data but different flow rates.
-    
+%
+% Copyright: © 2008-2015 Eric von Lieres, Joel Andersson, Andreas Püttmann, Sebastian Schnittert, Samuel Leweke
+%            See the license note at the end of the file.
+
     % Param Info
     params = [{'MCL_KA'}, {'VELOCITY'}];
     comps = [1 -1];

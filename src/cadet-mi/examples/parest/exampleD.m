@@ -1,5 +1,8 @@
 function exampleD()
 %EXAMPLED Two fits with artificial data but different models (same isotherm).
+%
+% Copyright: © 2008-2015 Eric von Lieres, Joel Andersson, Andreas Püttmann, Sebastian Schnittert, Samuel Leweke
+%            See the license note at the end of the file.
 
     % Param Info
     params = [{'SMA_KA'}, {'SMA_NU'}, {'SMA_SIGMA'}];

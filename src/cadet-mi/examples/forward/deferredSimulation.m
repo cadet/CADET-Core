@@ -1,6 +1,9 @@
 function deferredSimulation()
 %DEFERREDSIMULATION Prepares a simulation for later execution
-    
+%
+% Copyright: © 2008-2015 Eric von Lieres, Joel Andersson, Andreas Püttmann, Sebastian Schnittert, Samuel Leweke
+%            See the license note at the end of the file.
+
     [model, disc] = createModelDiscretization();
 
     % Simulator

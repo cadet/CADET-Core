@@ -1,5 +1,8 @@
 function exampleK()
 %EXAMPLEK Two fits with artificial data of 2 separately observed components, parameter joins, and parameter links
+%
+% Copyright: © 2008-2015 Eric von Lieres, Joel Andersson, Andreas Püttmann, Sebastian Schnittert, Samuel Leweke
+%            See the license note at the end of the file.
 
     fitData = cell(2, 1);
     

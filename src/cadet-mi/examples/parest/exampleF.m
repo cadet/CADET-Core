@@ -1,6 +1,9 @@
 function exampleF()
 %EXAMPLEF One fit with two components, artifical data, and external inlet 
 % profile
+%
+% Copyright: © 2008-2015 Eric von Lieres, Joel Andersson, Andreas Püttmann, Sebastian Schnittert, Samuel Leweke
+%            See the license note at the end of the file.
 
     tIn = cell(2,1);
     inMeas = cell(2,1);

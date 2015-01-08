@@ -1,5 +1,8 @@
 function resumedSimulation()
 %RESUMEDSIMULATION Simulates for some time and then resumes the simulation
+%
+% Copyright: © 2008-2015 Eric von Lieres, Joel Andersson, Andreas Püttmann, Sebastian Schnittert, Samuel Leweke
+%            See the license note at the end of the file.
 
     % Param Info
     params = [{'MCL_KA'}, {'MCL_KD'}];
