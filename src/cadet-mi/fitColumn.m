@@ -660,7 +660,10 @@ function [hasError, fitData, numJoins] = checkInput(fitData)
 
     numJoins = zeros(length(fitData), 1);
 
-    hasError = false;
+    hasError = ((size(fitData,1) > 1) && (size(fitData,2) > 1));
+    if hasError
+        disp(['Error in fitData: No matrix supported, fitData has to be a vector of cells']);
+    end
     for i = 1:length(fitData)
 
         % Check for necessary fields
