@@ -272,7 +272,7 @@ void JacobianData::compareWithAd(const active* resAd, int diagDir)
     _maxDiffP = (_maxDiffP < maxP) ? maxP : _maxDiffP;
     //=============================================================================
 
-    log::emit<Debug1>() << "JacDiff: Col = " << maxC << " Part = " << maxP << std::endl;
+    log::emit<Debug1>() << "JacDiff: Col = " << maxC << " Part = " << maxP << log::endl;
     log::emit<Trace2>() << CURRENT_FUNCTION << Color::green << ": Finished!" << Color::reset << log::endl;
 }
 #endif
