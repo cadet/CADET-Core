@@ -26,6 +26,9 @@ function [outParams, res, success] = fitColumn(fitData, initParams, loBound, upB
 %               of experiments.
 %           o weightComponent: Optional. Weight of each observed component
 %               in this experiment.
+%           o weightSignal: Optional. Weight for each data point of the
+%               measurements. Defaults to 1.0 for each data point if
+%               neglected. Has to have the same size as outMeas.
 %   - initParams: Vector with initial parameters for the optimization. The
 %       order of the parameters is in the order of the fitData's paramInfo.
 %       Linked parameters are only given once at their first (possibly 
@@ -108,13 +111,13 @@ function [outParams, res, success] = fitColumn(fitData, initParams, loBound, upB
 %
 % Weighting: There are two different types of weights: Global weights
 %   applied to an experiment in a set of experiments and local weights
-%   applied to each observed component in one single experiment. Both are
-%   optional and can be used separately and independent from each other.
-%   If no weights are given, weighting is disabled, i.e., every element
-%   receives the weight 1.
+%   applied to each observed component or data point in one single 
+%   experiment. Both are optional and can be used separately and 
+%   independent from each other. If no weights are given, weighting is 
+%   disabled, i.e., every element receives the weight 1.
 %
-%   The weights are not normalized in the by default, this has to be done 
-%   by the user. Also note that the weights are multiplicative, i.e.,
+%   The weights are not normalized by default, this has to be done by the
+%   user. Also note that the weights are multiplicative, i.e.,
 %          weight * (simulated - measured)
 %   is computed.
 %
@@ -265,6 +268,7 @@ function [outParams, res, success] = fitColumn(fitData, initParams, loBound, upB
     % Collect weights
     globalWeights = zeros(length(fitData), 1);
     localWeights = cell(length(fitData), 1);
+    signalWeights = cell(length(fitData), 1);
     hasWeightError = false;
     for i = 1:length(fitData)
         curFit = fitData{i};
@@ -272,10 +276,11 @@ function [outParams, res, success] = fitColumn(fitData, initParams, loBound, upB
         if ~isfield(curFit, 'weight')
             globalWeights(i) = 1;
         else
-            globalWeights(i) = curFit.weight;
-            if curFit.weight < 0
+            if (numel(curFit.weight) ~= 1) || any(curFit.weight < 0)
                 disp(['Error in fit ' num2str(i) ' weights: Global weight is negative which is not allowed']);
                 hasWeightError = true;
+            else
+                globalWeights(i) = curFit.weight;
             end
         end
         
@@ -283,12 +288,28 @@ function [outParams, res, success] = fitColumn(fitData, initParams, loBound, upB
             localWeights{i} = ones(1, size(curFit.outMeas, 2));
         else
             localWeights{i} = curFit.weightComponent;
-            if length(curFit.weightComponent) ~= size(curFit.outMeas, 2)
-                disp(['Error in fit ' num2str(i) ' weights: Number of weights in weightComponent (' num2str(length(curFit.weightComponent)) ') does not match number of observed components (' num2str(size(curFit.outMeas, 2)) ')']);
+            if numel(curFit.weightComponent) ~= size(curFit.outMeas, 2)
+                disp(['Error in fit ' num2str(i) ' weights: Number of weights in weightComponent vector (' num2str(numel(curFit.weightComponent)) ') does not match number of observed components (' num2str(size(curFit.outMeas, 2)) ')']);
                 hasWeightError = true;
             end
             if any(curFit.weightComponent < 0)
                 disp(['Error in fit ' num2str(i) ' weights: Some weights in weightComponent are negative which is not allowed']);
+                hasWeightError = true;
+            end
+        end
+        
+        if ~isfield(curFit, 'weightSignal')
+            signalWeights{i} = ones(size(curFit.outMeas));
+        else
+            signalWeights{i} = curFit.weightSignal;
+            if any(size(curFit.weightSignal) ~= size(curFit.outMeas))
+                disp(['Error in fit ' num2str(i) ' weights: Format of weights in weightSignal matrix (' ...
+                    num2str(size(curFit.weightSignal,1)) 'x' num2str(size(curFit.weightSignal,2)) ') does not match format of data points (' ...
+                    num2str(size(curFit.outMeas, 1)) 'x' num2str(size(curFit.outMeas, 2)) ')']);
+                hasWeightError = true;
+            end
+            if any(curFit.weightSignal(:) < 0)
+                disp(['Error in fit ' num2str(i) ' weights: Some weights in weightSignal are negative which is not allowed']);
                 hasWeightError = true;
             end
         end
@@ -474,6 +495,7 @@ function [outParams, res, success] = fitColumn(fitData, initParams, loBound, upB
                 out = forwardSim(curFit.tOut, curFit.sim, curFit.task, curFit.joins, localParams);
             end
 
+            weightSig = signalWeights{k};
             if size(curFit.outMeas, 2) > 1
                 % Select observed components
                 sim = out(:, curFit.idxComp);
@@ -481,7 +503,7 @@ function [outParams, res, success] = fitColumn(fitData, initParams, loBound, upB
                 % Calculate local residual
                 r = (sim - curFit.outMeas);
                 locWeights = repmat(localWeights{k}, size(r,1), 1);
-                r = r .* locWeights;
+                r = r .* weightSig .* locWeights;
                 r = globalWeights(k) * r(:);
                 
                 locWeights = locWeights(:);
@@ -490,7 +512,7 @@ function [outParams, res, success] = fitColumn(fitData, initParams, loBound, upB
                 sim = sum(out(:,curFit.idxComp), 2);
 
                 % Calculate local residual
-                r = globalWeights(k) * (sim - curFit.outMeas);
+                r = globalWeights(k) .* weightSig .* (sim - curFit.outMeas);
                 
                 locWeights = ones(length(r), 1);
             end
@@ -516,7 +538,7 @@ function [outParams, res, success] = fitColumn(fitData, initParams, loBound, upB
                 end
 
                 % Apply weights
-                jacSimGlobalized(:, idxLocal) = jacSimGlobalized(:, idxLocal) .* repmat(locWeights, 1, length(idxLocal)) .* globalWeights(k);
+                jacSimGlobalized(:, idxLocal) = jacSimGlobalized(:, idxLocal) .* repmat(weightSig(:), 1, length(idxLocal)) .* repmat(locWeights, 1, length(idxLocal)) .* globalWeights(k);
                 
                 % Concatenate local jacobians to obtain global Jacobian
                 globJac = [globJac; jacSimGlobalized];
