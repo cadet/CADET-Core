@@ -1665,8 +1665,8 @@ void CadetCS<reader_t, writer_t>::writeOutput()
             _writer.template tensor<double>(e2s(SENS_BOUNDARY), colRank, &colDims[0], _bndSensitivities);
         }
 
-        // Write last state vector of solution
-        if (_writeSolutionLast)
+        // Write last state vector of sensitivities
+        if (_writeSensLast)
         {
             if (_sensMethod == ALGORITHMIC_DIFFERENTIATION_1)
             {
