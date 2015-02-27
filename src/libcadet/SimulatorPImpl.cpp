@@ -195,6 +195,11 @@ void Simulator::integrate()
     _sim->integrate();
 }
 
+void Simulator::setStorageMode(bool outlet, bool column, bool particle, bool bnd, bool sensOutlet, bool sensColumn, bool sensParticle, bool sensBnd)
+{
+    _sim->getTimeIntegrator().setStorageMode(outlet, column, particle, bnd, sensOutlet, sensColumn, sensParticle, sensBnd);
+}
+
 void Simulator::useAnalyticJacobian(const bool analyticJac)
 {
     _sim->getTimeIntegrator().useAnalyticJacobian(analyticJac);

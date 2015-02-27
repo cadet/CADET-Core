@@ -367,8 +367,8 @@ void TimeIntegrator::initializeIntegrator()
     if (_writeAtUserTimes)
     {
         // Allocate all needed space once
-        _stateAllTimes.reserve(_solutionTimes.size() * _cc.neq());
-        _sensAllTimes.reserve(getNSensParams() * _solutionTimes.size() * _cc.neq());
+        _stateAllTimes.reserve(_solutionTimes.size() * storedNeq());
+        _sensAllTimes.reserve(getNSensParams() * _solutionTimes.size() * storedSensNeq());
         log::emit<Debug1>() << CURRENT_FUNCTION << ": Solution output memory allocated" << log::endl;
     }
     else
@@ -767,7 +767,8 @@ void TimeIntegrator::getSolutionTimes(std::vector<double>& userVector) const
 
 void TimeIntegrator::getLastSolution(std::vector<double>& userVector) const
 {
-    userVector.assign(_stateAllTimes.end()-_cc.neq(), _stateAllTimes.end());
+    double const* y = NV_DATA_S(_NV_y);
+    userVector.assign(y, y + _cc.neq());
 }
 
 void TimeIntegrator::getAllSolutions(std::vector<double>& userVector) const
@@ -777,30 +778,62 @@ void TimeIntegrator::getAllSolutions(std::vector<double>& userVector) const
 
 void TimeIntegrator::getColSolutions(std::vector<double>& userVector) const
 {
+    if (!_storeColumn)
+        return;
+
     userVector.clear();
-    for (vdc_it it = _stateAllTimes.begin(); it < _stateAllTimes.end(); it += _cc.neq())
+    userVector.reserve(_solutionTimes.size() * _cc.neq_col());
+    for (vdc_it it = _stateAllTimes.begin(); it < _stateAllTimes.end(); it += storedNeq())
         userVector.insert(userVector.end(), it, it + _cc.neq_col());
 }
 
 void TimeIntegrator::getParSolutions(std::vector<double>& userVector) const
 {
+    if (!_storeParticle)
+        return;
+
+    int offset = 0;
+    if (_storeColumn)
+        offset += _cc.neq_col();
+    else if (_storeOutlet)
+        offset += _cc.ncomp();
+
     userVector.clear();
-    for (vdc_it it = _stateAllTimes.begin() + _cc.neq_col(); it < _stateAllTimes.end(); it += _cc.neq())
+    userVector.reserve(_solutionTimes.size() * (_cc.npblk() * _cc.neq_par()));
+    for (vdc_it it = _stateAllTimes.begin() + offset; it < _stateAllTimes.end(); it += storedNeq())
         userVector.insert(userVector.end(), it, it + (_cc.npblk() * _cc.neq_par()));
 }
 
 void TimeIntegrator::getBndSolutions(std::vector<double>& userVector) const
 {
+    if (!_storeBnd)
+        return;
+
+    int offset = 0;
+    if (_storeColumn)
+        offset += _cc.neq_col();
+    else if (_storeOutlet)
+        offset += _cc.ncomp();
+
+    if (_storeParticle)
+        offset += _cc.npblk() * _cc.neq_par();
+
     userVector.clear();
-    for (vdc_it it = _stateAllTimes.begin() + _cc.neq_col() + (_cc.npblk() * _cc.neq_par());
-            it < _stateAllTimes.end(); it += _cc.neq())
+    userVector.reserve(_solutionTimes.size() * _cc.neq_bnd());
+    for (vdc_it it = _stateAllTimes.begin() + offset; it < _stateAllTimes.end(); it += storedNeq())
         userVector.insert(userVector.end(), it, it + _cc.neq_bnd());
 }
 
 
 void TimeIntegrator::getLastSensitivities(std::vector<double>& userVector) const
 {
-    userVector.assign(_sensAllTimes.end() - _cc.neq() * getNSensParams(), _sensAllTimes.end());
+    userVector.clear();
+    userVector.reserve(getNSensParams() * _cc.neq());
+    for (int sens = 0; sens < getNSensParams(); ++sens)
+    {
+        double const* yyS = NV_DATA_S(_NVp_yS[sens]);
+        userVector.insert(userVector.end(), yyS, yyS + _cc.neq());
+    }
 }
 
 void TimeIntegrator::getAllSensitivities(std::vector<double>& userVector) const
@@ -810,27 +843,54 @@ void TimeIntegrator::getAllSensitivities(std::vector<double>& userVector) const
 
 void TimeIntegrator::getColSensitivities(std::vector<double>& userVector) const
 {
+    if (!_storeSensColumn)
+        return;
+
     userVector.clear();
+    userVector.reserve(getNSensParams() * _solutionTimes.size() * _cc.neq_col());
     for (int sens = 0; sens < getNSensParams(); ++sens)
-        for (vdc_it it = _sensAllTimes.begin() + sens * _cc.neq(); it < _sensAllTimes.end(); it += _cc.neq() * getNSensParams())
+        for (vdc_it it = _sensAllTimes.begin() + sens * storedSensNeq(); it < _sensAllTimes.end(); it += storedSensNeq() * getNSensParams())
             userVector.insert(userVector.end(), it, it + _cc.neq_col());
 }
 
 void TimeIntegrator::getParSensitivities(std::vector<double>& userVector) const
 {
+    if (!_storeSensParticle)
+        return;
+
+    int offset = 0;
+    if (_storeSensColumn)
+        offset += _cc.neq_col();
+    else if (_storeSensOutlet)
+        offset += _cc.ncomp();
+
     userVector.clear();
+    userVector.reserve(getNSensParams() * _solutionTimes.size() * (_cc.npblk() * _cc.neq_par()));
     for (int sens = 0; sens < getNSensParams(); ++sens)
-        for (vdc_it it = _sensAllTimes.begin() + sens * _cc.neq() + _cc.neq_col();
-                it < _sensAllTimes.end(); it += _cc.neq() * getNSensParams())
+        for (vdc_it it = _sensAllTimes.begin() + sens * storedSensNeq() + offset;
+                it < _sensAllTimes.end(); it += storedSensNeq() * getNSensParams())
             userVector.insert(userVector.end(), it, it + (_cc.npblk() * _cc.neq_par()));
 }
 
 void TimeIntegrator::getBndSensitivities(std::vector<double>& userVector) const
 {
+    if (!_storeSensBnd)
+        return;
+
+    int offset = 0;
+    if (_storeSensColumn)
+        offset += _cc.neq_col();
+    else if (_storeSensOutlet)
+        offset += _cc.ncomp();
+
+    if (_storeSensParticle)
+        offset += _cc.npblk() * _cc.neq_par();
+
     userVector.clear();
+    userVector.reserve(getNSensParams() * _solutionTimes.size() * _cc.neq_bnd());
     for (int sens = 0; sens < getNSensParams(); ++sens)
-        for (vdc_it it = _sensAllTimes.begin() + sens * _cc.neq() + _cc.neq_col() + (_cc.npblk() * _cc.neq_par());
-                it < _sensAllTimes.end(); it += _cc.neq() * getNSensParams())
+        for (vdc_it it = _sensAllTimes.begin() + sens * storedSensNeq() + offset;
+                it < _sensAllTimes.end(); it += storedSensNeq() * getNSensParams())
             userVector.insert(userVector.end(), it, it + _cc.neq_bnd());
 }
 
@@ -838,13 +898,25 @@ void TimeIntegrator::getBndSensitivities(std::vector<double>& userVector) const
 
 void TimeIntegrator::getSolutionColumnOutlet(std::vector<double>& userVector, const int comp) const throw (CadetException)
 {
+    if (!_storeOutlet && !_storeColumn)
+        return;
+
     // Ensure 0 <= comp < ncomp
     if ((comp >= _cc.ncomp()) || (comp < 0)) throw CadetException("Component out of range!");
 
     // Copy column outlet entries
     userVector.clear();
-    for (vdc_it it = _stateAllTimes.begin() + (comp + 1) * _cc.ncol() - 1; it < _stateAllTimes.end(); it += _cc.neq())
-        userVector.push_back(*it);
+    userVector.reserve(_solutionTimes.size());
+    if (_storeColumn)
+    {
+        for (vdc_it it = _stateAllTimes.begin() + (comp + 1) * _cc.ncol() - 1; it < _stateAllTimes.end(); it += storedNeq())
+            userVector.push_back(*it);
+    }
+    else
+    {
+        for (vdc_it it = _stateAllTimes.begin() + comp; it < _stateAllTimes.end(); it += storedNeq())
+            userVector.push_back(*it);
+    }
 }
 
 void TimeIntegrator::getSolutionColumnInlet(std::vector<double>& userVector, const int comp) const throw (CadetException)
@@ -853,6 +925,8 @@ void TimeIntegrator::getSolutionColumnInlet(std::vector<double>& userVector, con
     if ((comp >= _cc.ncomp()) || (comp < 0)) throw CadetException("Component out of range!");
 
     userVector.clear();
+    userVector.reserve(_solutionTimes.size());
+
     size_t sec;
     std::vector<double> concInlet(_cc.ncomp(), 0.0);
 
@@ -874,12 +948,17 @@ void TimeIntegrator::getSolutionColumnInlet(std::vector<double>& userVector, con
 
 void TimeIntegrator::getSensitivityColumnOutlet(std::vector<double>& userVector, const ParamID param, const int comp, const int sec) const throw (CadetException)
 {
+    if (!_storeSensOutlet && !_storeSensColumn)
+        return;
+
     // Ensure 0 <= comp < ncomp
     if ((comp >= _cc.ncomp()) || (comp < 0)) throw CadetException("Component out of range!");
     // Ensure -1 <= sec < nsec
     if ((sec >= _cc.nsec()) || (sec < -1)) throw CadetException("Section out of range!");
 
     userVector.clear();
+    userVector.reserve(_solutionTimes.size());
+
     std::vector<ParamID> sensParams(_sensModelParams.begin(), _sensModelParams.end());
     sensParams.insert(sensParams.end(), _sensInletParams.begin(), _sensInletParams.end());
 
@@ -900,10 +979,20 @@ void TimeIntegrator::getSensitivityColumnOutlet(std::vector<double>& userVector,
     }
 
     int parIdx = it1 - sensParams.begin();
-    // iterator.begin() + skip sensitivities + skip components
-    for (vdc_it it2 = _sensAllTimes.begin() + parIdx * _cc.neq() + (comp + 1) * _cc.ncol() - 1;
-            it2 < _sensAllTimes.end(); it2 += getNSensParams() * _cc.neq())
-        userVector.push_back(*it2);
+    if (_storeSensColumn)
+    {
+        // iterator.begin() + skip sensitivities + skip components
+        for (vdc_it it2 = _sensAllTimes.begin() + parIdx * storedSensNeq() + (comp + 1) * _cc.ncol() - 1;
+                it2 < _sensAllTimes.end(); it2 += getNSensParams() * storedSensNeq())
+            userVector.push_back(*it2);
+    }
+    else
+    {
+        // iterator.begin() + skip sensitivities + skip components
+        for (vdc_it it2 = _sensAllTimes.begin() + parIdx * storedSensNeq() + comp;
+                it2 < _sensAllTimes.end(); it2 += getNSensParams() * storedSensNeq())
+            userVector.push_back(*it2);
+    }
 }
 
 
@@ -1209,10 +1298,10 @@ void TimeIntegrator::checkParameters() const  throw (CadetException)
 
 void TimeIntegrator::incStorageVectorSize(bool force)
 {
-    if ((_stateAllTimes.capacity() < _stateAllTimes.size() + _cc.neq()) || (force == true))
+    if ((_stateAllTimes.capacity() < _stateAllTimes.size() + storedNeq()) || (force == true))
     {
-        _stateAllTimes.reserve(_nVecInc * _storeSizeInc * _cc.neq());
-        _sensAllTimes.reserve(_nVecInc * _storeSizeInc * getNSensParams() * _cc.neq());
+        _stateAllTimes.reserve(_nVecInc * _storeSizeInc * storedNeq());
+        _sensAllTimes.reserve(_nVecInc * _storeSizeInc * getNSensParams() * storedSensNeq());
 
         log::emit<Debug1>() << CURRENT_FUNCTION << ": Solution output memory incremented: " << _nVecInc << log::endl;
         ++_nVecInc;
@@ -1234,14 +1323,44 @@ void TimeIntegrator::writeSolution()
     log::emit<Debug2>() << "Writing solution at time: " << _t << log::endl;
 
     // Append the current solution (current state state vector) to the storage vector
-    double* y = NV_DATA_S(_NV_y);
-    _stateAllTimes.insert(_stateAllTimes.end(), y, y + _cc.neq());
+    double const* y = NV_DATA_S(_NV_y);
+
+    if (_storeColumn)
+        _stateAllTimes.insert(_stateAllTimes.end(), y, y + _cc.neq_col());
+    else if (_storeOutlet)
+    {
+        for (int i = 0; i < _cc.ncomp(); ++i)
+            _stateAllTimes.push_back(y[(i+1) * _cc.ncol() - 1]);
+    }
+    y += _cc.neq_col();
+
+    if (_storeParticle)
+        _stateAllTimes.insert(_stateAllTimes.end(), y, y + _cc.npblk() * _cc.neq_par());
+
+    y += _cc.npblk() * _cc.neq_par();
+    if (_storeBnd)
+        _stateAllTimes.insert(_stateAllTimes.end(), y, y + _cc.neq_bnd());
 
     // Append all the current sensitivities (current sensitivities vectors) to the storage vector
     for (int sens = 0; sens < getNSensParams(); ++sens)
     {
-        double* yyS = NV_DATA_S(_NVp_yS[sens]);
-        _sensAllTimes.insert(_sensAllTimes.end(), yyS, yyS + _cc.neq());
+        double const* yyS = NV_DATA_S(_NVp_yS[sens]);
+
+        if (_storeColumn)
+            _sensAllTimes.insert(_sensAllTimes.end(), yyS, yyS + _cc.neq_col());
+        else if (_storeOutlet)
+        {
+            for (int i = 0; i < _cc.ncomp(); ++i)
+                _sensAllTimes.push_back(yyS[(i+1) * _cc.ncol() - 1]);
+        }
+        yyS += _cc.neq_col();
+
+        if (_storeParticle)
+            _sensAllTimes.insert(_sensAllTimes.end(), yyS, yyS + _cc.npblk() * _cc.neq_par());
+
+        yyS += _cc.npblk() * _cc.neq_par();
+        if (_storeBnd)
+            _sensAllTimes.insert(_sensAllTimes.end(), yyS, yyS + _cc.neq_bnd());
     }
     log::emit<Debug2>() << CURRENT_FUNCTION << ": Solution written to memory" << log::endl;
 }

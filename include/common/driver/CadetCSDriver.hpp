@@ -542,6 +542,30 @@ void CadetCS<reader_t, writer_t>::initialize()
     log::emit<Info>() << "This is " << Color::green << cadet::getLibraryVersion() << Color::reset << "!" << log::endl << log::endl;
     // ============================================================================================================
 
+    // ============================================================================================================
+    //    Store information on writing output
+    // ============================================================================================================
+    _reader.setGroup(e2s(GRP_IN_SOLVER));
+    _writeSolutionTimes        = _reader.template scalar<int>(e2s(WRITE_SOLUTION_TIMES));
+    _writeSolutionColumnOutlet = _reader.template scalar<int>(e2s(WRITE_SOLUTION_COLUMN_OUTLET));
+    _writeSolutionColumnInlet  = _reader.template scalar<int>(e2s(WRITE_SOLUTION_COLUMN_INLET));
+    _writeSolutionAll          = _reader.template scalar<int>(e2s(WRITE_SOLUTION_ALL));
+    
+    if (_reader.exists(e2s(WRITE_SOLUTION_LAST)))
+        _writeSolutionLast     = _reader.template scalar<int>(e2s(WRITE_SOLUTION_LAST));
+    else
+        _writeSolutionLast     = false;
+
+    _writeSensColumnOutlet     = _reader.template scalar<int>(e2s(WRITE_SENS_COLUMN_OUTLET));
+    _writeSensAll              = _reader.template scalar<int>(e2s(WRITE_SENS_ALL));
+
+    if (_reader.exists(e2s(WRITE_SENS_LAST)))
+        _writeSensLast         = _reader.template scalar<int>(e2s(WRITE_SENS_LAST));
+    else
+        _writeSensLast         = false;
+
+    // ============================================================================================================
+
 
     for (std::vector<Simulator*>::iterator sim = _sim.begin(); sim < _sim.end(); ++sim)
     {
@@ -616,32 +640,16 @@ void CadetCS<reader_t, writer_t>::initialize()
 
         log::emit<Debug1>() << "Particle discretization scheme set!" << log::endl;
         // ============================================================================================================
+
+
+        // ============================================================================================================
+        //    Set storage mode
+        // ============================================================================================================
+        (*sim)->setStorageMode(_writeSolutionColumnOutlet, _writeSolutionAll, _writeSolutionAll, _writeSolutionAll, _writeSensColumnOutlet, _writeSensAll, _writeSensAll, _writeSensAll);
+        log::emit<Debug1>() << "Storage mode set!" << log::endl;
+        // ============================================================================================================
     }
 
-    // ============================================================================================================
-    //    Store information on writing output
-    // ============================================================================================================
-    _reader.setGroup(e2s(GRP_IN_SOLVER));
-    _writeSolutionTimes        = _reader.template scalar<int>(e2s(WRITE_SOLUTION_TIMES));
-    _writeSolutionColumnOutlet = _reader.template scalar<int>(e2s(WRITE_SOLUTION_COLUMN_OUTLET));
-    _writeSolutionColumnInlet  = _reader.template scalar<int>(e2s(WRITE_SOLUTION_COLUMN_INLET));
-    _writeSolutionAll          = _reader.template scalar<int>(e2s(WRITE_SOLUTION_ALL));
-    
-    if (_reader.exists(e2s(WRITE_SOLUTION_LAST)))
-        _writeSolutionLast     = _reader.template scalar<int>(e2s(WRITE_SOLUTION_LAST));
-    else
-        _writeSolutionLast     = false;
-
-    _writeSensColumnOutlet     = _reader.template scalar<int>(e2s(WRITE_SENS_COLUMN_OUTLET));
-    _writeSensAll              = _reader.template scalar<int>(e2s(WRITE_SENS_ALL));
-
-    if (_reader.exists(e2s(WRITE_SENS_LAST)))
-        _writeSensLast         = _reader.template scalar<int>(e2s(WRITE_SENS_LAST));
-    else
-        _writeSensLast         = false;
-
-    // ============================================================================================================
-    
     // ============================================================================================================
     //    Set number of OpenMP threads
     // ============================================================================================================

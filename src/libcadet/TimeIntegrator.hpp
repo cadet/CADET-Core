@@ -51,6 +51,18 @@ public:
     void initializeSensitivities(const std::vector<double>& initialSens) throw (CadetException);
     void integrate() throw (CadetException);
 
+    void setStorageMode(bool outlet, bool column, bool particle, bool bnd, bool sensOutlet, bool sensColumn, bool sensParticle, bool sensBnd)
+    {
+        _storeOutlet = outlet;
+        _storeColumn = column;
+        _storeParticle = particle;
+        _storeBnd = bnd;
+        _storeSensOutlet = sensOutlet;
+        _storeSensColumn = sensColumn;
+        _storeSensParticle = sensParticle;
+        _storeSensBnd = sensBnd;
+    }
+
     void getSolutionTimes(std::vector<double>& userVector) const;
 
     void getLastSolution(std::vector<double>& userVector) const;
@@ -233,6 +245,16 @@ private:
     bool                    _printParamList;
     bool                    _printConfig;
 
+    // Booleans configuring the storage behaviour
+    bool _storeOutlet;
+    bool _storeColumn;
+    bool _storeParticle;
+    bool _storeBnd;
+    bool _storeSensOutlet;
+    bool _storeSensColumn;
+    bool _storeSensParticle;
+    bool _storeSensBnd;
+
     /// \brief  Contains the start time of the first section, the start/end times of all intermediate sections
     ///         and the end time of the last section, (size = nsec + 1)
     std::vector<double>     _sectionTimes;
@@ -314,6 +336,36 @@ private:
     template <typename T>
     void putStat(const std::string& str, const T& val,     const std::string& delim = "|||") const;
     void putTime(const std::string& str, double val, const std::string& delim = "|||") const;
+
+    inline std::size_t storedNeq() const
+    {
+        std::size_t neq = 0;
+        if (_storeColumn)
+            neq += _cc.neq_col();
+        else if (_storeOutlet)
+            neq += _cc.ncomp();
+
+        if (_storeParticle)
+            neq += _cc.npblk() * _cc.neq_par();
+        if (_storeBnd)
+            neq += _cc.neq_bnd();
+        return neq;
+    }
+
+    inline std::size_t storedSensNeq() const
+    {
+        std::size_t neq = 0;
+        if (_storeSensColumn)
+            neq += _cc.neq_col();
+        else if (_storeSensOutlet)
+            neq += _cc.ncomp();
+        
+        if (_storeSensParticle)
+            neq += _cc.npblk() * _cc.neq_par();
+        if (_storeSensBnd)
+            neq += _cc.neq_bnd();
+        return neq;
+    }
 
 };
 

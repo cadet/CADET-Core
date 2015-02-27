@@ -535,6 +535,9 @@ public:
     void getSensitivityColumnOutlet(std::vector<double>& userVector, const int comp, const ParameterName id, const int paramComp = -1, const int paramSec = -1) const;
 
 
+    void setStorageMode(bool outlet, bool column, bool particle, bool bnd, bool sensOutlet, bool sensColumn, bool sensParticle, bool sensBnd);
+
+
     // use analytical jacobian implementation for computations instead of automatical derivative information
     void useAnalyticJacobian(const bool analyticJac = false);
 
