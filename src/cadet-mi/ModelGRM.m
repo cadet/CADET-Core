@@ -151,9 +151,9 @@ classdef ModelGRM < handle
                 disp(['Error: dispersionColumn has to be scalar or a vector of length ' num2str(length(obj.sectionTimes) - 1)]);
             end
             
-            if any(obj.interstitialVelocity <= 0)
+            if any(obj.interstitialVelocity < 0)
                 ok = false;
-                disp(['Error: Each entry of interstitialVelocity has to be positive, i.e., greater than 0']);
+                disp(['Error: Each entry of interstitialVelocity has to be nonnegative, i.e., greater than or equal 0']);
             end
             if (length(obj.interstitialVelocity) ~= length(obj.sectionTimes) - 1) && ~isscalar(obj.interstitialVelocity)
                 ok = false;

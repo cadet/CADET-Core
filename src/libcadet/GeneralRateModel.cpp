@@ -69,7 +69,7 @@ GeneralRateModel::GeneralRateModel(SimulatorPImpl& sim) :
     {
         _colDispersion.push_back(Parameter<active> (COL_DISPERSION, e2s(COL_DISPERSION), -1, sec, 0.0, 0.0, 0.0, CADET_LOOSE,  inf, CADET_STRICT));
         addParam(_colDispersion[_colDispersion.size() - 1]);
-        _velocity.push_back(Parameter<active> (VELOCITY,       e2s(VELOCITY),       -1, sec, 0.0, 0.0, 0.0, CADET_STRICT, inf, CADET_STRICT));
+        _velocity.push_back(Parameter<active> (VELOCITY,       e2s(VELOCITY),       -1, sec, 0.0, 0.0, 0.0, CADET_LOOSE, inf, CADET_STRICT));
         addParam(_velocity[_velocity.size()-1]);
 
         // Vectorial parameters
