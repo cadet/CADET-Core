@@ -124,7 +124,7 @@ int TimeIntegrator::getDiagDir()   const { return _psim.getSchurSolver().getJaco
 
 
 
-void TimeIntegrator::setInitialConditions(const std::vector<double>& initC, const std::vector<double>& initQ)
+void TimeIntegrator::setInitialConditions(const std::vector<double>& initC, const std::vector<double>& initCp, const std::vector<double>& initQ)
 {
     log::emit<Trace1>() << CURRENT_FUNCTION << Color::cyan << ": Called!" << Color::reset << log::endl;
 
@@ -171,7 +171,7 @@ void TimeIntegrator::setInitialConditions(const std::vector<double>& initC, cons
         for (int par = 0; par < _cc.npar(); ++par)          // Iterate over particle cells
             for (int comp = 0; comp < _cc.ncomp(); ++comp)  // Iterate over components
             {
-                _cc.parC<double>(yp, par, comp) = initC.at(comp);
+                _cc.parC<double>(yp, par, comp) = initCp.at(comp);
                 _cc.parQ<double>(yp, par, comp) = initQ_wrt.at(comp);
             }
     }
@@ -184,6 +184,15 @@ void TimeIntegrator::setInitialConditions(const std::vector<double>& initC, cons
             _cc.bndJ<double>(yb, bnd, comp) = 0.0;
 
     // ========================================================================================
+
+    log::emit<Trace1>() << CURRENT_FUNCTION << Color::green << ": Finished!" << Color::reset << log::endl;
+}
+
+void TimeIntegrator::setInitialConditions(const std::vector<double>& initC, const std::vector<double>& initQ)
+{
+    log::emit<Trace1>() << CURRENT_FUNCTION << Color::cyan << ": Called!" << Color::reset << log::endl;
+
+    setInitialConditions(initC, initC, initQ);
 
     log::emit<Trace1>() << CURRENT_FUNCTION << Color::green << ": Finished!" << Color::reset << log::endl;
 }

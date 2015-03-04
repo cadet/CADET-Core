@@ -137,6 +137,7 @@ public:
 
     std::vector<double> getParCellCoords() const;
 
+    void initialize(const std::vector<double>& initC, const std::vector<double>& initCp, const std::vector<double>& initQ);
     void initialize(const std::vector<double>& initC, const std::vector<double>& initQ);
     void initialize(const std::vector<double>& initState);
     void initializeWithGivenSensitivities(const std::vector<double>& initState, const std::vector<double>& initSens);

@@ -180,6 +180,11 @@ void Simulator::initialize(const std::vector<double>& initC, const std::vector<d
     _sim->initialize(initC, initQ);
 }
 
+void Simulator::initialize(const std::vector<double>& initC, const std::vector<double>& initCp, const std::vector<double>& initQ)
+{
+    _sim->initialize(initC, initCp, initQ);
+}
+
 void Simulator::initialize(const std::vector<double>& initState)
 {
     _sim->initialize(initState);
@@ -589,6 +594,14 @@ std::vector<double> SimulatorPImpl::getParCellCoords() const
 void SimulatorPImpl::initialize(const std::vector<double>& initC, const std::vector<double>& initQ)
 {
     _timeIntegrator->setInitialConditions(initC, initQ);
+    _timeIntegrator->initializeIntegrator();
+    _timeIntegrator->initializeSensitivities();
+}
+
+// initialize all the IDA stuff, compute AD directions etc.
+void SimulatorPImpl::initialize(const std::vector<double>& initC, const std::vector<double>& initCp, const std::vector<double>& initQ)
+{
+    _timeIntegrator->setInitialConditions(initC, initCp, initQ);
     _timeIntegrator->initializeIntegrator();
     _timeIntegrator->initializeSensitivities();
 }

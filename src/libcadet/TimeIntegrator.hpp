@@ -40,6 +40,7 @@ public:
     ~TimeIntegrator();
 
 
+    void setInitialConditions(const std::vector<double>& initC, const std::vector<double>& initCp, const std::vector<double>& initQ);
     void setInitialConditions(const std::vector<double>& initC, const std::vector<double>& initQ);
     void setInitialConditions(const std::vector<double>& initState);
     void setSectionTimes(const std::vector<double>& sectionTimes) throw (CadetException);

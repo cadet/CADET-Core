@@ -392,6 +392,22 @@ public:
 
     //! \brief Sets the initial conditions, initializes the time integrator and the sensitivity setup
     //!
+    //! The method sets the initial conditions for all components in the mobile phase, the liquid bead phase
+    //! as well as in the bound phase using the concentrations supplied in \p initC, \p initCp, and \p initQ.
+    //! All initialization for the time integration by IDAS, e.g. specifying tolerances, setting up the
+    //! linear solver, etc. is then done. Furthermore, sensitivity related setup routines are processed,
+    //! e.g. activating the sensitivities, setting seed vectors for AD computations, specifying integration
+    //! tolerances, etc.
+    //!
+    //! \param  [in]    initC   A vector containing \c ncomp initial concentration values for the mobile phase
+    //! \param  [in]    initCp  A vector containing \c ncomp initial concentration values for the liquid phase in the beads
+    //! \param  [in]    initQ   A vector containing \c ncomp initial concentration values for the bound phase
+    //!
+    void initialize(const std::vector<double>& initC, const std::vector<double>& initCp, const std::vector<double>& initQ);
+
+
+    //! \brief Sets the initial conditions, initializes the time integrator and the sensitivity setup
+    //!
     //! The method sets the initial state using the state supplied in \p initState. All initialization
     //! for the time integration by IDAS, e.g. specifying tolerances, setting up the linear solver, etc.
     //! is then done. Furthermore sensitivity related setup routines are processed, e.g. activating the

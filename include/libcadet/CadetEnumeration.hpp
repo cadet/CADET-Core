@@ -185,6 +185,7 @@ enum OtherName {
     ADSORPTION_TYPE,
     NCOMP,
     INIT_C,
+    INIT_CP,
     INIT_Q,
     INIT_STATE,
     INIT_SENS,
@@ -476,6 +477,7 @@ inline const char* e2s(OtherName other)
     case ADSORPTION_TYPE:             return "ADSORPTION_TYPE";
     case NCOMP:                       return "NCOMP";
     case INIT_C:                      return "INIT_C";
+    case INIT_CP:                     return "INIT_CP";
     case INIT_Q:                      return "INIT_Q";
     case INIT_STATE:                  return "INIT_STATE";
     case INIT_SENS:                   return "INIT_SENS";

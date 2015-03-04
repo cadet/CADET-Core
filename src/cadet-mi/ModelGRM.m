@@ -25,6 +25,7 @@ classdef ModelGRM < handle
         % Initial conditions
         
         initialMobileConcentration;     % Initial concentration of the mobile phase for each component
+        initialBeadConcentration;       % Initial concentration of the liquid phase in the beads for each component
         initialSolidConcentration;      % Initial concentration of the solid phase for each component
         initialState;                   % Initial state vector
         initialSensitivities;           % Initial state variables of all sensitive parameters
@@ -135,6 +136,9 @@ classdef ModelGRM < handle
             if (isempty(obj.initialState))
                 ok = Helpers.checkNonnegativeVector(obj.initialMobileConcentration, obj.nComponents, 'initialMobileConcentration') && ok;
                 ok = Helpers.checkNonnegativeVector(obj.initialSolidConcentration, obj.nComponents, 'initialSolidConcentration') && ok;
+                if (~isempty(obj.initialBeadConcentration))
+                    ok = Helpers.checkNonnegativeVector(obj.initialBeadConcentration, obj.nComponents, 'initialBeadConcentration') && ok;
+                end
             end
             
             % Transport
@@ -299,6 +303,9 @@ classdef ModelGRM < handle
             if (~isempty(obj.initialSensitivities))
                 obj.input.model.INIT_SENS = obj.initialSensitivities;
             end
+            if (~isempty(obj.initialBeadConcentration))
+                obj.input.model.INIT_CP = obj.initialBeadConcentration;
+            end
 
             % Inlet
             for i = 1:obj.nInletSections
@@ -404,6 +411,10 @@ classdef ModelGRM < handle
             obj.initialSensitivities = [];
             if (isfield(obj.input.model, 'INIT_SENS'))
                 obj.initialSensitivities = obj.input.model.INIT_SENS;
+            end
+            obj.initialBeadConcentration = [];
+            if (isfield(obj.input.model, 'INIT_CP'))
+                obj.initialBeadConcentration = obj.input.model.INIT_CP;
             end
         end
         

@@ -1210,7 +1210,10 @@ void CadetCS<reader_t, writer_t>::simulate()
     else
     {
         // Initialize with reduced initial state
-        _sim.at(0)->initialize(_reader.template vector<double>(e2s(INIT_C)), _reader.template vector<double>(e2s(INIT_Q)));
+        if (_reader.exists(e2s(INIT_CP)))
+            _sim.at(0)->initialize(_reader.template vector<double>(e2s(INIT_C)), _reader.template vector<double>(e2s(INIT_CP)), _reader.template vector<double>(e2s(INIT_Q)));
+        else
+            _sim.at(0)->initialize(_reader.template vector<double>(e2s(INIT_C)), _reader.template vector<double>(e2s(INIT_Q)));
     }
 
     // ============================================================================================================
@@ -1265,7 +1268,10 @@ void CadetCS<reader_t, writer_t>::simulate()
             else
             {
                 // Initialize with reduced initial state
-                (*sim)->initialize(_reader.template vector<double>(e2s(INIT_C)), _reader.template vector<double>(e2s(INIT_Q)));
+                if (_reader.exists(e2s(INIT_CP)))
+                    (*sim)->initialize(_reader.template vector<double>(e2s(INIT_C)), _reader.template vector<double>(e2s(INIT_CP)), _reader.template vector<double>(e2s(INIT_Q)));
+                else
+                    (*sim)->initialize(_reader.template vector<double>(e2s(INIT_C)), _reader.template vector<double>(e2s(INIT_Q)));
             }
 
             log::emit<Debug1>() << "Initial conditions for sens. " << _sensNames.at(sens) << "[comp " << _sensComps.at(sens)
