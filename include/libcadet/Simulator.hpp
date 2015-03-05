@@ -22,7 +22,7 @@
 //! The library provides a fast and accurate forward simulator for the general rate model of liquid chromatography
 //!
 //! \authors    Eric von Lieres, Joel Andersson, Andreas Puettmann, Sebastian Schnittert, Samuel Leweke
-//! \version    2.3.1
+//! \version    2.3.2
 //!
 //! \date       2008-2015
 //! \copyright  GNU General Public License v3.0 (or, at your option, any later version).
