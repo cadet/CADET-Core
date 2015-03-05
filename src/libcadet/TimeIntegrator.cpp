@@ -1355,20 +1355,20 @@ void TimeIntegrator::writeSolution()
     {
         double const* yyS = NV_DATA_S(_NVp_yS[sens]);
 
-        if (_storeColumn)
+        if (_storeSensColumn)
             _sensAllTimes.insert(_sensAllTimes.end(), yyS, yyS + _cc.neq_col());
-        else if (_storeOutlet)
+        else if (_storeSensOutlet)
         {
             for (int i = 0; i < _cc.ncomp(); ++i)
                 _sensAllTimes.push_back(yyS[(i+1) * _cc.ncol() - 1]);
         }
         yyS += _cc.neq_col();
 
-        if (_storeParticle)
+        if (_storeSensParticle)
             _sensAllTimes.insert(_sensAllTimes.end(), yyS, yyS + _cc.npblk() * _cc.neq_par());
 
         yyS += _cc.npblk() * _cc.neq_par();
-        if (_storeBnd)
+        if (_storeSensBnd)
             _sensAllTimes.insert(_sensAllTimes.end(), yyS, yyS + _cc.neq_bnd());
     }
     log::emit<Debug2>() << CURRENT_FUNCTION << ": Solution written to memory" << log::endl;
