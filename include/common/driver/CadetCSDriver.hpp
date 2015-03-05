@@ -654,6 +654,7 @@ void CadetCS<reader_t, writer_t>::initialize()
     //    Set number of OpenMP threads
     // ============================================================================================================
 #ifdef _OPENMP    
+    _reader.setGroup(e2s(GRP_IN_SOLVER));
     if (_reader.exists(e2s(NTHREADS)))
     {
         const int nThreads = _reader.template scalar<int>(e2s(NTHREADS));
