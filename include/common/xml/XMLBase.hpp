@@ -56,13 +56,15 @@ public:
 
 protected:
 
-    xml_document _doc;                          //!< Root of the XML document
+    xml_document _doc;                          //!< XML document
+    xml_node _root;                             //!< XML root node
     bool _enable_write;                         //!< Specifies write permission for currently opened XML file
     std::string _fileName;                      //!< Name of the currently opened XML file
 
     static const std::string _textSeparator;    //!< Character sequence for separation of text entries
     static const std::string _dimsSeparator;    //!< Character sequence for separation of dimensions
 
+    static const std::string _nodeRoot;         //!< Name used for the root node
     static const std::string _nodeGrp;          //!< Name used for creation of 'group' nodes
     static const std::string _nodeDset;         //!< Name used for creation of 'dataset' nodes
 
@@ -84,6 +86,8 @@ protected:
     void openGroup(bool forceCreation = false);
     void closeGroup();
 
+    void findOrCreateRootNode();
+
     // Some helper methods
     std::vector<std::string>& split(const std::string& s, const char* delim, std::vector<std::string>& elems);
     std::vector<std::string> split(const std::string& s, const char* delim);
@@ -94,6 +98,7 @@ protected:
 const std::string XMLBase::_textSeparator = ", ";
 const std::string XMLBase::_dimsSeparator = "x";
 
+const std::string XMLBase::_nodeRoot  = "cadet";
 const std::string XMLBase::_nodeGrp   = "group";
 const std::string XMLBase::_nodeDset  = "dataset";
 
@@ -149,6 +154,7 @@ void XMLBase::openFile(const std::string& fileName, const std::string& mode)
     else
         throw CadetException("Wrong file open mode");
 
+    findOrCreateRootNode();
     _fileName = fileName;
 }
 
@@ -212,7 +218,7 @@ void XMLBase::setGroup(const std::string& groupName)
     std::string delimiter("/");
 
     // Quick return when called with empty group name
-    if (groupName.empty())
+    if (groupName.empty() || (groupName == "/"))
         return;
 
     // Don't care for a preceding delimiter
@@ -239,16 +245,23 @@ void XMLBase::openGroup(bool forceCreation)
     while (_groupExists.size() > 0)  _groupExists.pop();
 
     // Generate xpath query string
-    std::ostringstream query;
+    std::ostringstream query(std::ostringstream::ate);
     for (std::vector<std::string>::const_iterator it = _groupNames.begin(); it < _groupNames.end(); ++it)
     {
         query << "/" << _nodeGrp << "[@" << _attrName << "='" << *it << "']";
         // Store query string of parent groups for potential later usage
-        if (_doc.select_single_node(query.str().c_str())) _groupExists.push(query.str());
+        if (_root.select_single_node(("/" + _nodeRoot + query.str()).c_str())) { _groupExists.push(query.str()); }
+    }
+
+    if (_groupNames.empty())
+    {
+        // Select root node
+        _groupOpened = _root.select_single_node(("/" + _nodeRoot).c_str());
+        return;
     }
 
     // Try to open the selected group
-    _groupOpened = _doc.select_single_node(query.str().c_str());
+    _groupOpened = _root.select_single_node(("/" + _nodeRoot + query.str()).c_str());
 
     // Create new group if not existent, creation is forced and write is permitted
     if (!_groupOpened)
@@ -264,12 +277,12 @@ void XMLBase::openGroup(bool forceCreation)
                 // Select the least group
                 if (_groupExists.size() > 0)
                 {
-                    _groupOpened = _doc.select_single_node(_groupExists.top().c_str());
+                    _groupOpened = _root.select_single_node(("/" + _nodeRoot + _groupExists.top()).c_str());
                     // Create a new group
                     newNode = _groupOpened.node().append_child(_nodeGrp.c_str());
                     query << _groupExists.top();
                 }
-                else newNode = _doc.append_child(_nodeGrp.c_str());
+                else newNode = _root.append_child(_nodeGrp.c_str());
 
                 // Set attribute name
                 newNode.append_attribute(_attrName.c_str()) = it->c_str();
@@ -279,9 +292,10 @@ void XMLBase::openGroup(bool forceCreation)
                 _groupExists.push(query.str());
             }
             // Open newly created group
-            _groupOpened = _doc.select_single_node(query.str().c_str());
+            _groupOpened = _root.select_single_node(("/" + _nodeRoot + query.str()).c_str());
         }
-        else throw CadetException("Group was not opened/created! Either not existent, creation not forced or file not opened in write mode");
+        else
+            throw CadetException("Group was not opened/created! Either not existent, creation not forced or file not opened in write mode");
     }
 }
 
@@ -290,6 +304,23 @@ void XMLBase::openGroup(bool forceCreation)
 void XMLBase::closeGroup()
 {
     while (_groupExists.size() > 0)  _groupExists.pop();
+}
+
+
+
+void XMLBase::findOrCreateRootNode()
+{
+    xpath_node rootNode = _doc.select_single_node(("/" + _nodeRoot).c_str());
+    if (!rootNode && _enable_write)
+    {
+        // Root node not found and we can write -> create one
+        _root = _doc.append_child(_nodeRoot.c_str());
+    }
+    else if (rootNode)
+    {
+        // Root node found
+        _root = rootNode.node();
+    }
 }
 
 
