@@ -1,7 +1,7 @@
 // =============================================================================
 //  CADET - The Chromatography Analysis and Design Toolkit
 //  
-//  Copyright © 2008-2015: Eric von Lieres¹, Joel Andersson,
+//  Copyright © 2008-2015: Eric von Lieres¹, Joel Andersson¹,
 //                         Andreas Puettmann¹, Sebastian Schnittert¹,
 //                         Samuel Leweke¹
 //                                      
@@ -21,7 +21,7 @@
 //!
 //! The library provides a fast and accurate forward simulator for the general rate model of liquid chromatography
 //!
-//! \authors    Eric von Lieres, Joel Andersson, Andreas Puettmann, Sebastian Schnittert, Samuel Leweke
+//! \authors    Eric von Lieres, Joel Andersson¹, Andreas Puettmann, Sebastian Schnittert, Samuel Leweke
 //! \version    2.3.2
 //!
 //! \date       2008-2015

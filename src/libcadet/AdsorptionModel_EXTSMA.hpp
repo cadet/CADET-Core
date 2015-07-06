@@ -1,7 +1,7 @@
 // =============================================================================
 //  CADET - The Chromatography Analysis and Design Toolkit
 //  
-//  Copyright (c) 2008-2012: Eric von Lieres¹, Joel Andersson,
+//  Copyright (c) 2008-2012: Eric von Lieres¹, Joel Andersson¹,
 //                           Andreas Puettmann¹, Sebastian Schnittert¹
 //                                      
 //    ¹ Forschungszentrum Juelich GmbH, IBG-1, Juelich, Germany.
