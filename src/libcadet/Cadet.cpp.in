@@ -15,10 +15,15 @@
 
 #include "Cadet.hpp"
 
-namespace adtl
+#if defined(ACTIVE_ADOLC) || defined(ACTIVE_SFAD)
+namespace cadet
 {
-    extern int ADOLC_numDir;
+	namespace AD
+	{
+	    void setMaxDirections(size_t numDir);
+	}
 }
+#endif
 
 namespace cadet
 {
@@ -43,7 +48,9 @@ namespace cadet
 
 	void resetGlobals()
 	{
-		adtl::ADOLC_numDir = 80;
+#if defined(ACTIVE_ADOLC) || defined(ACTIVE_SFAD)
+		AD::setMaxDirections(80);
+#endif
 	}
 }
 

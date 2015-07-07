@@ -125,6 +125,7 @@ bool HDF5Base::exists(const std::string& elementName)
         return true;
     }
     catch ( const H5::Exception& ) { }
+    catch ( ... ) { }
 
     // Try to open elementName as dataset
     try
@@ -137,6 +138,7 @@ bool HDF5Base::exists(const std::string& elementName)
         return true;
     }
     catch ( const H5::Exception& ) { }
+    catch ( ... ) { }
 
     // Not found
     closeGroup();

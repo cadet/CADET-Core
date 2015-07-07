@@ -19,6 +19,8 @@
 
 #include "SimulatorPImpl.hpp"
 
+#include "active.hpp"
+
 #include "CadetConvenience.hpp"
 #include "ParticleDiscretization.hpp"
 #include "WenoScheme.hpp"
@@ -40,9 +42,6 @@
 #include "AdsorptionModel_EXTMPM.hpp"
 #include "AdsorptionModel_LINEAR.hpp"
 #include "GeneralRateModel.hpp"
-#include "active.hpp"
-
-ACTIVE_INIT;
 
 namespace cadet
 {

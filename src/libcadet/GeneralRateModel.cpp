@@ -336,6 +336,11 @@ void GeneralRateModel::setInletParamDerivatives<double>(std::vector<double>& con
 template <>
 void GeneralRateModel::setInletParamDerivatives<active>(std::vector<active>& concInlet)
 {
+#if defined(ACTIVE_SFAD) || defined(ACTIVE_SETFAD)
+    for (std::vector<active>::iterator it = concInlet.begin(); it != concInlet.end(); ++it)
+        it->resizeGradient();
+#endif
+
     if (_ti.getNSensInletParams() > 0)
     {
         int localParamIndex = 0;
@@ -373,8 +378,8 @@ int GeneralRateModel::residualColumn(const double t, const StateType* y, const d
 
     // WENO help variables
     const int& WK   = _cc.max_wk();           // Max. WENO-order
-    StateType* work = new StateType[3 * WK];  // required by "wenoReconstruct"
-    StateType* v    = new StateType[2 * WK];  // Stencil space
+    StateType* work = allocateArray<StateType>(3 * WK);  // required by "wenoReconstruct"
+    StateType* v    = allocateArray<StateType>(2 * WK);  // Stencil space
     double*    Dvm  = new double[2 * WK - 1]; // Derivatives of vm
 
     StateType* w = v + WK;  // Stencil pointer bend for readability - shortcut for v[WK + x]
@@ -412,7 +417,7 @@ int GeneralRateModel::residualColumn(const double t, const StateType* y, const d
         w[1] = _cc.colC<StateType> (y, 1, comp);
         w[0] = _cc.colC<StateType> (y, 0, comp);
 
-        StateType vm = 0.0; // reconstructed value
+        StateType vm(0.0); // reconstructed value
 
         for (int i = 0; i < 2 * WK - 1; ++i)
             Dvm[i] = 0.0;
@@ -437,8 +442,8 @@ int GeneralRateModel::residualColumn(const double t, const StateType* y, const d
                 // Jacobian entries
                 if (wantJac)
                 {
-                    jac[WK]     += ParamType(d_c / h2);
-                    jac[WK + 1] -= ParamType(d_c / h2);
+                    jac[WK]     += static_cast<double>(d_c) / static_cast<double>(h2); // ParamType(d_c / h2);
+                    jac[WK + 1] -= static_cast<double>(d_c) / static_cast<double>(h2); // ParamType(d_c / h2);
                 }
             }
 
@@ -448,8 +453,8 @@ int GeneralRateModel::residualColumn(const double t, const StateType* y, const d
                 // Jacobian entries
                 if (wantJac)
                 {
-                    jac[WK]     += ParamType(d_c / h2);
-                    jac[WK - 1] -= ParamType(d_c / h2);
+                    jac[WK]     += static_cast<double>(d_c) / static_cast<double>(h2); // ParamType(d_c / h2);
+                    jac[WK - 1] -= static_cast<double>(d_c) / static_cast<double>(h2); // ParamType(d_c / h2);
                 }
             }
 
@@ -469,7 +474,7 @@ int GeneralRateModel::residualColumn(const double t, const StateType* y, const d
             if (wantJac)
             {
                 for (int i = 0; i < 2 * wk - 1; ++i)
-                    jac[WK - wk + i] -= ParamType(u / h * Dvm[i]);
+                    jac[WK - wk + i] -= static_cast<double>(u) / static_cast<double>(h) * static_cast<double>(Dvm[i]); // ParamType(u / h * Dvm[i]);
             }
             //-----------------------------------------------------------------
 
@@ -533,7 +538,7 @@ int GeneralRateModel::residualColumn(const double t, const StateType* y, const d
             // Jacobian entries
             if (wantJac)
                 for (int i = 0; i < 2 * wk - 1; ++i)
-                    jac[WK - wk + i + 1] += ParamType(u / h * Dvm[i]);
+                    jac[WK - wk + i + 1] += static_cast<double>(u) / static_cast<double>(h) * Dvm[i]; // ParamType(u / h * Dvm[i]);
 
             // Update stencil
             w[-3] = w[-2];
@@ -545,9 +550,9 @@ int GeneralRateModel::residualColumn(const double t, const StateType* y, const d
         }
     }
 
-    delete [] work;
+    destroyArray(work, 3 * WK);
+    destroyArray(v, 2 * WK);
     delete [] Dvm;
-    delete [] v;
 
     log::emit<Trace2>() << CURRENT_FUNCTION << Color::green << ": Finished!" << Color::reset << log::endl;
     return 0;
@@ -670,12 +675,12 @@ int GeneralRateModel::residualParticle(const double t, const int pblk, const Sta
                 if (wantJac)
                 {
                         // Jacobian entrys w.r.t. this cell's concentrations
-                        jac[0]           += ParamType(outer_area_per_volume * dp / dr);                      // dres / dc_p,i^(p,j)
-                        jac[_cc.ncomp()] += ParamType(outer_area_per_volume * inv_beta_p * ds / dr);         // dres / dq_i^(p,j)
+                        jac[0]           += static_cast<double>(outer_area_per_volume) * static_cast<double>(dp) / static_cast<double>(dr); // ParamType(outer_area_per_volume * dp / dr);                      // dres / dc_p,i^(p,j)
+                        jac[_cc.ncomp()] += static_cast<double>(outer_area_per_volume) * static_cast<double>(inv_beta_p) * static_cast<double>(ds) / static_cast<double>(dr); // ParamType(outer_area_per_volume * inv_beta_p * ds / dr);         // dres / dq_i^(p,j)
 
                         // Jacobian entrys w.r.t. neighboring cell's concentrations
-                        jac[-2 * _cc.ncomp()] = ParamType(-outer_area_per_volume * dp / dr);                 // dres / dc_p,i^(p,j-1)
-                        jac[-_cc.ncomp()]     = ParamType(-outer_area_per_volume * inv_beta_p * ds / dr);    // dres / dq_i^(p,j-1)
+                        jac[-2 * _cc.ncomp()] = -static_cast<double>(outer_area_per_volume) * static_cast<double>(dp) / static_cast<double>(dr); // ParamType(-outer_area_per_volume * dp / dr);                 // dres / dc_p,i^(p,j-1)
+                        jac[-_cc.ncomp()]     = -static_cast<double>(outer_area_per_volume) * static_cast<double>(inv_beta_p) * static_cast<double>(ds) / static_cast<double>(dr); // ParamType(-outer_area_per_volume * inv_beta_p * ds / dr);    // dres / dq_i^(p,j-1)
                 }
 //                else
 //                    throw CadetException("You cannot compute sensitivities and analytical jacobian!");
@@ -700,12 +705,12 @@ int GeneralRateModel::residualParticle(const double t, const int pblk, const Sta
                 if (wantJac)
                 {
                         // Jacobian entrys w.r.t. this cell's concentrations
-                        jac[0]           += ParamType(inner_area_per_volume * dp / dr);                    // dres / dc_p,i^(p,j)
-                        jac[_cc.ncomp()] += ParamType(inner_area_per_volume * inv_beta_p * ds / dr);       // dres / dq_i^(p,j)
+                        jac[0]           += static_cast<double>(inner_area_per_volume) * static_cast<double>(dp) / static_cast<double>(dr); // ParamType(inner_area_per_volume * dp / dr);                    // dres / dc_p,i^(p,j)
+                        jac[_cc.ncomp()] += static_cast<double>(inner_area_per_volume) * static_cast<double>(inv_beta_p) * static_cast<double>(ds) / static_cast<double>(dr); // ParamType(inner_area_per_volume * inv_beta_p * ds / dr);       // dres / dq_i^(p,j)
 
                         // Jacobian entrys w.r.t. neighboring cell's concentrations
-                        jac[2 * _cc.ncomp()] = ParamType(-inner_area_per_volume * dp / dr);                // dres / dc_p,i^(p,j+1)
-                        jac[3 * _cc.ncomp()] = ParamType(-inner_area_per_volume * inv_beta_p * ds / dr);   // dres / dq_i^(p,j+1)
+                        jac[2 * _cc.ncomp()] = -static_cast<double>(inner_area_per_volume) * static_cast<double>(dp) / static_cast<double>(dr); // ParamType(-inner_area_per_volume * dp / dr);                // dres / dc_p,i^(p,j+1)
+                        jac[3 * _cc.ncomp()] = -static_cast<double>(inner_area_per_volume) * static_cast<double>(inv_beta_p) * static_cast<double>(ds) / static_cast<double>(dr); // ParamType(-inner_area_per_volume * inv_beta_p * ds / dr);   // dres / dq_i^(p,j+1)
                 }
 //                still a bad hack with the operator double() !!! ///todo remove this bad hack
 //                else
@@ -758,7 +763,7 @@ int GeneralRateModel::residualBoundaries(const double* y, const double* yDot, Re
     const ParamType jacCB_val = invBetaC * surfaceToVolumeRatio;
     const ParamType jacPB_val = -outerAreaPerVolume / epsP;
 
-    ParamType* const kf_FV = new ParamType[_cc.ncomp()];  // kf for finite volumes
+    ParamType* const kf_FV = allocateArray<ParamType>(_cc.ncomp()); // kf for finite volumes
 
     const double relOuterShellHalfRadius = 0.5 * _pd.getCellSize(0);
     for (int comp = 0; comp < _cc.ncomp(); ++comp)
@@ -829,7 +834,7 @@ int GeneralRateModel::residualBoundaries(const double* y, const double* yDot, Re
         }
     //========================================================================
 
-    delete [] kf_FV;
+    destroyArray(kf_FV, _cc.ncomp());
 
     log::emit<Trace2>() << CURRENT_FUNCTION << Color::green << ": Finished!" << Color::reset << log::endl;
     return 0;
@@ -1173,6 +1178,30 @@ T GeneralRateModel::getDispersion() const
         return _colDispersion[_ti.getCurrentSection()+1].getValue<T>();
     else
         return _colDispersion[0].getValue<T>();
+}
+
+template <>
+double* GeneralRateModel::allocateArray(size_t n)
+{
+    return new double[n];
+}
+
+template <>
+active* GeneralRateModel::allocateArray(size_t n)
+{
+    return new active[n];
+}
+
+template <>
+void GeneralRateModel::destroyArray(double* const ptr, size_t)
+{
+    delete[] ptr;
+}
+
+template <>
+void GeneralRateModel::destroyArray(active* const ptr, size_t n)
+{
+    delete[] ptr;
 }
 
 } // namespace cadet

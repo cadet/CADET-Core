@@ -24,7 +24,8 @@
 #include "CadetException.hpp"
 #include "CadetConvenience.hpp"
 #include "CadetLogger.hpp"
-
+#include "MathUtil.hpp"
+#include "active.hpp"
 
 namespace cadet {
 
@@ -112,6 +113,13 @@ void WenoScheme::wenoReconstruct(int wk, int comp, int bnd, StateType* v, StateT
 {
     log::emit<Trace2>() << CURRENT_FUNCTION << Color::cyan << ": Called!" << Color::reset << log::endl;
 
+#if defined(ACTIVE_SETFAD) || defined(ACTIVE_SFAD)
+    using cadet::sqr;
+    using sfad::sqr;
+#elif defined(ACTIVE_ADOLC)
+    using cadet::sqr;
+#endif
+
     // quick return if we have order 1 (i.e. simple upwind)
     if (wk == 1)
     {
@@ -144,16 +152,16 @@ void WenoScheme::wenoReconstruct(int wk, int comp, int bnd, StateType* v, StateT
     switch (wk)
     {
         case 2:
-            beta[0] = pow(w[1] - w[0],  2);
-            beta[1] = pow(w[0] - w[-1], 2);
+            beta[0] = sqr(w[1] - w[0]);
+            beta[1] = sqr(w[0] - w[-1]);
             d = _wenoD2;
             c = _wenoC2;
             Jbvv = _wenoJbvv2;
             break;
         case 3:
-            beta[0] = 13.0/12.0 * pow(w[ 0] - 2.0 * w[ 1] + w[2], 2) + 0.25 * pow(3.0 * w[ 0] - 4.0 * w[ 1] +       w[2], 2);
-            beta[1] = 13.0/12.0 * pow(w[-1] - 2.0 * w[ 0] + w[1], 2) + 0.25 * pow(      w[-1] -       w[ 1]             , 2);
-            beta[2] = 13.0/12.0 * pow(w[-2] - 2.0 * w[-1] + w[0], 2) + 0.25 * pow(      w[-2] - 4.0 * w[-1] + 3.0 * w[0], 2);
+            beta[0] = 13.0/12.0 * sqr(w[ 0] - 2.0 * w[ 1] + w[2]) + 0.25 * sqr(3.0 * w[ 0] - 4.0 * w[ 1] +       w[2]);
+            beta[1] = 13.0/12.0 * sqr(w[-1] - 2.0 * w[ 0] + w[1]) + 0.25 * sqr(      w[-1] -       w[ 1]             );
+            beta[2] = 13.0/12.0 * sqr(w[-2] - 2.0 * w[-1] + w[0]) + 0.25 * sqr(      w[-2] - 4.0 * w[-1] + 3.0 * w[0]);
             d = _wenoD3;
             c = _wenoC3;
             Jbvv = _wenoJbvv3;
@@ -171,7 +179,7 @@ void WenoScheme::wenoReconstruct(int wk, int comp, int bnd, StateType* v, StateT
 
     // Calculate weights
     for (r = 0; r < wk; ++r)
-        alpha[r] = d[r] / pow(beta[r], 2.0);
+        alpha[r] = d[r] / sqr(beta[r]);
 
     // Avoid boundaries
     if (bnd != 0)
@@ -186,8 +194,8 @@ void WenoScheme::wenoReconstruct(int wk, int comp, int bnd, StateType* v, StateT
     }
 
     // Norm weights
-    StateType alpha_sum = 0;
-    for (r = 0; r < wk; ++r)
+    StateType alpha_sum = alpha[0];
+    for (r = 1; r < wk; ++r)
         alpha_sum += alpha[r];
     for (r = 0; r < wk; ++r)
         omega[r] /= alpha_sum;
@@ -215,7 +223,7 @@ void WenoScheme::wenoReconstruct(int wk, int comp, int bnd, StateType* v, StateT
         // multiply with "d(omega)/d(alpha)" to get "d(vm)/d(alpha)"
         double dot = 0;
         for (r = 0; r < wk; ++r)
-            dot += StateType(vr[r] * omega[r]);
+            dot += static_cast<double>(vr[r]) * static_cast<double>(omega[r]); //StateType(vr[r] * omega[r]);
         for (r = 0; r < wk; ++r)
             vr[r] = (vr[r] - dot) / alpha_sum;
 
@@ -231,16 +239,16 @@ void WenoScheme::wenoReconstruct(int wk, int comp, int bnd, StateType* v, StateT
             {
                 dot = 0;
                 for (i = 0; i < sl; ++i)
-                    dot += StateType(Jbvv[r + wk * j + wk * sl * i] * v[i]);
+                    dot += static_cast<double>(Jbvv[r + wk * j + wk * sl * i]) * static_cast<double>(v[i]); // StateType(Jbvv[r + wk * j + wk * sl * i] * v[i]);
                 // To do: re-arange Jbvv to reduce cache misses !
-                Dvm[j] += StateType(vr[r] * dot);
+                Dvm[j] += static_cast<double>(vr[r]) * dot; // StateType(vr[r] * dot);
             }
         }
 
         // 2. Constant omega[r] in (*)
         for (r = 0; r < wk; ++r)
             for (j = 0; j < wk; ++j)
-                Dvm[wk - 1 + j - r] += StateType(omega[r] * c[r + wk * j]);
+                Dvm[wk - 1 + j - r] += static_cast<double>(omega[r]) * c[r + wk * j]; // StateType(omega[r] * c[r + wk * j]);
 
     }
 

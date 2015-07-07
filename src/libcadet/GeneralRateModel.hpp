@@ -79,6 +79,11 @@ private:
     template <typename ParamType>
     void setInletParamDerivatives(std::vector<ParamType>& concInlet);
 
+    template <typename ParamType>
+    ParamType* allocateArray(size_t n);
+
+    template <typename ParamType>
+    void destroyArray(ParamType* const ptr, size_t n);
 
     SimulatorPImpl&         _psim;
     const JacobianData&     _jac;

@@ -116,6 +116,14 @@ public:
     bool contains(const ParameterName id, int comp = -1, int sec = -1);
     bool contains(const ParamID& param);
 
+    /// \brief Get iterator to first parameter
+    typename std::map<ParamID, Parameter<ParamType>* >::iterator begin() { return _params.begin(); }
+    typename std::map<ParamID, Parameter<ParamType>* >::const_iterator begin() const { return _params.begin(); }
+
+    /// \brief Get iterator to end of parameters
+    typename std::map<ParamID, Parameter<ParamType>* >::iterator end() { return _params.end(); }
+    typename std::map<ParamID, Parameter<ParamType>* >::const_iterator end() const { return _params.end(); }
+
 protected:
     // Const and Non-const versions of map-iterators
     typedef typename std::map<ParamID, Parameter<ParamType>* >::iterator MapIt;

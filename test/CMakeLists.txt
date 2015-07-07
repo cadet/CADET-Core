@@ -21,7 +21,7 @@ set (LIBCADET_INC_DIR "${CMAKE_SOURCE_DIR}/include/libcadet")
 set (COMMON_INC_DIR "${CMAKE_SOURCE_DIR}/include/common")
 
 # Add include directories for access to exported header files.
-include_directories (${LIBCADET_INC_DIR} ${COMMON_INC_DIR} "${CMAKE_SOURCE_DIR}/ThirdParty/tclap/include")
+include_directories (${LIBCADET_INC_DIR} ${COMMON_INC_DIR} "${CMAKE_SOURCE_DIR}/ThirdParty/tclap/include" "${CMAKE_SOURCE_DIR}/ThirdParty/ADOL-C/include" "${CMAKE_SOURCE_DIR}/src/libcadet")
 
 # Find HDF5
 if (NOT WIN32)
@@ -53,3 +53,24 @@ target_link_libraries (createRegTestLWE ${HDF5_LIBRARIES})
 
 add_executable (createRegTestSCL createRegTestSCL.cpp)
 target_link_libraries (createRegTestSCL ${HDF5_LIBRARIES})
+
+# ------------------------------------------------------------------------------------------------------------------------
+#   Build SFAD tests
+# ------------------------------------------------------------------------------------------------------------------------
+
+add_executable (compareSFADadolC compareSFADadolC.cpp)
+target_link_libraries (compareSFADadolC)
+
+add_executable (compareSETFADadolC compareSETFADadolC.cpp)
+target_link_libraries (compareSETFADadolC)
+
+if (("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Intel") OR (CXX_COMPILER_NAME STREQUAL "icpc") OR (CXX_COMPILER_NAME STREQUAL "icc"))
+  set_target_properties (compareSFADadolC PROPERTIES COMPILE_FLAGS "-w2 -std=c++0x")
+  set_target_properties (compareSETFADadolC PROPERTIES COMPILE_FLAGS "-w2 -std=c++0x")
+elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
+  set_target_properties (compareSFADadolC PROPERTIES COMPILE_FLAGS "-Wall -Wvla -std=c++0x -fno-rtti")
+  set_target_properties (compareSETFADadolC PROPERTIES COMPILE_FLAGS "-Wall -Wvla -std=c++0x -fno-rtti")
+elseif (CMAKE_COMPILER_IS_GNUCXX OR CXX_COMPILER_NAME STREQUAL "g++" OR CXX_COMPILER_NAME STREQUAL "c++" OR CXX_COMPILER_NAME STREQUAL "g++.exe")
+  set_target_properties (compareSFADadolC PROPERTIES COMPILE_FLAGS "-Wall -Wvla -std=c++0x")
+  set_target_properties (compareSETFADadolC PROPERTIES COMPILE_FLAGS "-Wall -Wvla -std=c++0x")
+endif ()

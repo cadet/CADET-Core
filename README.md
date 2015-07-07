@@ -36,9 +36,9 @@ CADET has been successfully built and run on the following platforms:
 
 * A C++11 capable compiler (e.g., GCC >= 4.7, Clang >= 3.3, MS Visual Studio >= 2010)
 * [CMake](http://cmake.org/)
-* [ADOL-C](https://projects.coin-or.org/ADOL-C) (header-only, distributed along with CADET)
 * [TCLAP: Templatized C++ Command Line Parser](http://sourceforge.net/projects/tclap/) (header-only, distributed along with CADET)
 * [pugixml](http://code.google.com/p/pugixml/) (distributed along with CADET)
+* [ADOL-C](https://projects.coin-or.org/ADOL-C) (optional, header-only, distributed along with CADET)
 
 ### Running
 

@@ -78,6 +78,9 @@ public:
     // (they are meaningless for passives!)
     inline double getADValue(int dir) const;
     inline void setADValue(int dir, double adval);
+#if defined(ACTIVE_SFAD) || defined(ACTIVE_SETFAD)
+    inline void resizeGradient();
+#endif
 
     // A string containing info on this parameter
     const std::string info() const;
@@ -274,7 +277,9 @@ inline Parameter<active>::Parameter(ParameterName id, const std::string& name, c
     _name           (name)
 {
     // Initialize all directional derivatives with 0.0
-    for (int dir = 0; dir < active::getMaxDirections(); ++dir)
+#if defined(ACTIVE_ADOLC) || defined(ACTIVE_SFAD) || defined(ACTIVE_SETFAD)
+    for (size_t dir = 0; dir < _value.gradientSize(); ++dir)
+#endif
         _value.setADValue(dir, 0.0);
 }
 
@@ -307,6 +312,14 @@ inline void Parameter<active>::setADValue(int dir, double adval)
 {
     _value.setADValue(dir, adval);
 }
+
+#if defined(ACTIVE_SFAD) || defined(ACTIVE_SETFAD)
+template <>
+inline void Parameter<active>::resizeGradient()
+{
+    _value.resizeGradient();
+}
+#endif
 
 template <>
 inline std::string Parameter<active>::_type() const

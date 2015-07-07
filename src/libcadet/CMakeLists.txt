@@ -36,6 +36,7 @@ set (LIBCADET_SOURCES
      ${LIBCADET_SRC_DIR}/SimulatorPImpl.cpp
      ${LIBCADET_SRC_DIR}/TimeIntegrator.cpp
      ${LIBCADET_SRC_DIR}/WenoScheme.cpp
+     ${LIBCADET_SRC_DIR}/active.cpp
      ${LIBCADET_SRC_DIR}/mylapack.cpp
      ${CMAKE_CURRENT_BINARY_DIR}/Cadet.cpp
     )
@@ -70,7 +71,7 @@ option (BUILD_MEX_LIBS    "Build MATLAB mex interface" ON)
 if (NOT BUILD_STATIC_LIBS AND NOT BUILD_SHARED_LIBS)
     print_warning ("Both static and shared library generation were disabled"
         "Building shared libraries was re-enabled")
-    set (BUILD_SHARED_LIBS ON CACHE BOOL "Build shared libraries" FORCE)
+    set (BUILD_SHARED_LIBS ON CACHE BOOL "Build shared libraries")
 endif ()
 
 
@@ -81,18 +82,26 @@ set (LIBCADET_SOVERSION "0")
 
 # Option that allows users to switch on verification of analytical Jacobian by AD
 option (VERIFY_ANALYTICAL_JAC "Toggle verification of analytical Jacobian by AD (only DEBUG builds)" OFF)
-if (VERIFY_ANALYTICAL_JAC AND CMAKE_BUILD_TYPE STREQUAL "debug")
+if (VERIFY_ANALYTICAL_JAC AND CMAKE_BUILD_TYPE STREQUAL "Debug")
     add_definitions (-DVERIFY_ANALYTICAL_JAC)
 endif ()
 
 
-# Option that allows users to specify the datatype used as active type for AD code parts
-set (USE_ACTIVE_TYPE "adouble" CACHE STRING "Defines the type used as active type for AD code parts, options are 'adouble'" FORCE)
-if (USE_ACTIVE_TYPE STREQUAL "adouble")
+# Option that allows users to specify the AD library
+set (AD_LIB "sfad" CACHE STRING "Selects the AD library, options are 'adolc', 'sfad', 'setfad'")
+if (AD_LIB STREQUAL "adolc")
     add_definitions (-DACTIVE_ADOLC)             # Use ADOLC as active type
 
     # Add ADOLC headers
     include_directories ("${CMAKE_SOURCE_DIR}/ThirdParty/ADOL-C/include")
+
+    message (STATUS "AD library: ADOL-C")
+elseif (AD_LIB STREQUAL "sfad")
+    add_definitions (-DACTIVE_SFAD)             # Use SFAD as active type
+    message (STATUS "AD library: SFAD")
+elseif (AD_LIB STREQUAL "setfad")
+    add_definitions (-DACTIVE_SETFAD)           # Use SETFAD as active type
+    message (STATUS "AD library: SETFAD")
 endif ()
 # ------------------------------------------------------------------------------------------------------------------------
 

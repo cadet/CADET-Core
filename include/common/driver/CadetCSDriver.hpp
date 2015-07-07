@@ -539,6 +539,7 @@ void CadetCS<reader_t, writer_t>::initialize()
     else if (logLevel == "TRACE2")   { log::emit() += Level::info; log::emit() += Level::debug1; log::emit() += Level::debug2; log::emit() += Level::trace1; log::emit() += Level::trace2; }
     else                             { log::emit() += Level::info; } // For wrong log level specification assume info level
 #endif
+
     log::emit<Info>() << "This is " << Color::green << cadet::getLibraryVersion() << Color::reset << "!" << log::endl << log::endl;
     // ============================================================================================================
 

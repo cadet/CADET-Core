@@ -19,6 +19,7 @@
 
 #include "ParticleDiscretization.hpp"
 #include "CadetLogger.hpp"
+#include "MathUtil.hpp"
 
 namespace cadet
 {
@@ -48,10 +49,10 @@ void ParticleDiscretization::setEquidistantRadialDisc()
         _par_center_radius.at(cell) = 1.0 - (0.5 + static_cast<double>(cell)) * dr;
 
         // compute denominator -> corresponding to cell volume
-        double vol = pow(1.0 - static_cast<double>(cell) * dr, 3) - pow(1.0 - static_cast<double>(cell + 1) * dr, 3);
+        double vol = pow(1.0 - static_cast<double>(cell) * dr, 3.0) - pow(1.0 - static_cast<double>(cell + 1) * dr, 3.0);
 
-        _par_outer_surf_area_per_volume.at(cell) = 3.0 * pow(1.0 - static_cast<double>(cell) * dr, 2) / vol;
-        _par_inner_surf_area_per_volume.at(cell) = 3.0 * pow(1.0 - static_cast<double>(cell + 1) * dr, 2) / vol;
+        _par_outer_surf_area_per_volume.at(cell) = 3.0 * sqr(1.0 - static_cast<double>(cell) * dr) / vol;
+        _par_inner_surf_area_per_volume.at(cell) = 3.0 * sqr(1.0 - static_cast<double>(cell + 1) * dr) / vol;
     }
 
     log::emit<Trace1>() << CURRENT_FUNCTION << Color::green << ": Finished!" << Color::reset << log::endl;
@@ -66,7 +67,7 @@ void ParticleDiscretization::setEquivolumeRadialDisc()
 
     for (int cell = 0; cell < _npar; ++cell)
     {
-        if (cell != (_npar - 1)) r_in = pow(pow(r_out, 3) - 1.0 / _npar, (1.0 / 3.0));
+        if (cell != (_npar - 1)) r_in = pow(pow(r_out, 3.0) - 1.0 / _npar, (1.0 / 3.0));
 
         _par_cell_size.at(cell) = r_out - r_in;
 
@@ -74,8 +75,8 @@ void ParticleDiscretization::setEquivolumeRadialDisc()
 
         double vol = 1.0 / _npar;
 
-        _par_outer_surf_area_per_volume.at(cell) = 3.0 * pow(r_out, 2) / vol;
-        _par_inner_surf_area_per_volume.at(cell) = 3.0 * pow(r_in, 2) / vol;
+        _par_outer_surf_area_per_volume.at(cell) = 3.0 * sqr(r_out) / vol;
+        _par_inner_surf_area_per_volume.at(cell) = 3.0 * sqr(r_in) / vol;
 
         // for the next cell: r_out==r_in of the current cell
         r_out = r_in;
@@ -106,10 +107,10 @@ void ParticleDiscretization::setUserdefinedRadialDisc(const std::vector<double>&
         _par_center_radius.at(cell) = orderedInterfaces.at(cell) - 0.5 * _par_cell_size.at(cell);
 
         // compute denominator -> corresponding to cell volume
-        double vol = pow(orderedInterfaces.at(cell), 3) - pow(orderedInterfaces.at(cell + 1), 3);
+        double vol = pow(orderedInterfaces.at(cell), 3.0) - pow(orderedInterfaces.at(cell + 1), 3.0);
 
-        _par_outer_surf_area_per_volume.at(cell) = 3.0 * pow(orderedInterfaces.at(cell), 2) / vol;
-        _par_inner_surf_area_per_volume.at(cell) = 3.0 * pow(orderedInterfaces.at(cell + 1), 2) / vol;
+        _par_outer_surf_area_per_volume.at(cell) = 3.0 * sqr(orderedInterfaces.at(cell)) / vol;
+        _par_inner_surf_area_per_volume.at(cell) = 3.0 * sqr(orderedInterfaces.at(cell + 1)) / vol;
     }
 
     log::emit<Trace1>() << CURRENT_FUNCTION << Color::green << ": Finished!" << Color::reset << log::endl;

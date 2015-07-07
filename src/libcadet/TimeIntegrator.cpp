@@ -43,6 +43,8 @@ namespace cadet {
 // Constructor
 TimeIntegrator::TimeIntegrator(SimulatorPImpl& sim) :
     _writeAtUserTimes(false),
+    _NVp_yS(0),
+    _NVp_ySDot(0),
     _psim(sim),
     _cc(sim.getCadetConstants())
 {
@@ -71,18 +73,15 @@ TimeIntegrator::TimeIntegrator(SimulatorPImpl& sim) :
     N_VConst(0.0, _NV_temp1);
     N_VConst(0.0, _NV_temp2);
 
-    // Allocate and initialize sensitivities vectors
-    _NVp_yS     = N_VCloneVectorArray_Serial(NUMBER_DIRECTIONS, _NV_y);
-    _NVp_ySDot  = N_VCloneVectorArray_Serial(NUMBER_DIRECTIONS, _NV_yDot);
-
-    // ========================================================================================
     log::emit<Debug1>() << CURRENT_FUNCTION << ": N_Vector memory allocated" << log::endl;
+    // ========================================================================================
 
     _idaMemBlock  = nullptr;
 
     // Allocate memory for AD computations
     _yAd    = new active[_cc.neq()];
     _resAd  = new active[_cc.neq()];
+
     // ========================================================================================
 
     // Misc initializations
@@ -106,8 +105,10 @@ TimeIntegrator::~TimeIntegrator()
     N_VDestroy_Serial(_NV_temp1);
     N_VDestroy_Serial(_NV_temp2);
 
-    N_VDestroyVectorArray_Serial(_NVp_yS, NUMBER_DIRECTIONS);
-    N_VDestroyVectorArray_Serial(_NVp_ySDot, NUMBER_DIRECTIONS);
+#if defined(ACTIVE_ADOLC) || defined(ACTIVE_SFAD) || defined(ACTIVE_SETFAD)
+    N_VDestroyVectorArray_Serial(_NVp_yS, getRequiredAdDirs());
+    N_VDestroyVectorArray_Serial(_NVp_ySDot, getRequiredAdDirs());
+#endif
     // ========================================================================================
 
     delete [] _yAd;
@@ -119,8 +120,22 @@ TimeIntegrator::~TimeIntegrator()
 }
 
 
-int TimeIntegrator::getJacAdDirs() const { return _psim.getSchurSolver().getJacobianData().jacAdDirs(); }
+int TimeIntegrator::getJacAdDirs() const 
+{
+#ifdef VERIFY_ANALYTIC_JAC
+    // In case of Jacobian verification we always need Jacobian directions
+    return _psim.getSchurSolver().getJacobianData().jacAdDirs();
+#endif
+
+    // We only need Jacobian directions if we do not compute it analytically
+    if (!_useAnalyticJac)
+        return _psim.getSchurSolver().getJacobianData().jacAdDirs();
+
+    return 0;
+}
+
 int TimeIntegrator::getDiagDir()   const { return _psim.getSchurSolver().getJacobianData().diagDir(); }
+int TimeIntegrator::getRequiredAdDirs() const { return getJacAdDirs() + getNSensParams(); }
 
 
 
@@ -404,6 +419,41 @@ void TimeIntegrator::initializeSensitivities(const std::vector<double>& initialS
 
     checkSufficientDirections();
 
+#if defined(ACTIVE_ADOLC) || defined(ACTIVE_SFAD) || defined(ACTIVE_SETFAD)
+    // Decrease the number of directions in active type to needed ones
+    AD::setMaxDirections(getRequiredAdDirs());
+
+    // Allocate and initialize sensitivities vectors
+    _NVp_yS     = N_VCloneVectorArray_Serial(getRequiredAdDirs(), _NV_y);
+    _NVp_ySDot  = N_VCloneVectorArray_Serial(getRequiredAdDirs(), _NV_yDot);
+#endif
+
+#if defined(ACTIVE_SFAD) || defined(ACTIVE_SETFAD)
+
+    // Resize gradients of AD data type
+    for (int i = 0; i < _cc.neq(); ++i)
+    {
+        // Initialize with number of required directions
+        _yAd[i].resizeGradient();
+        _resAd[i].resizeGradient();
+    }
+
+    ChromatographyModel& cm = _psim.getChromatographyModel();
+    for (std::map<ParamID, Parameter<active>* >::iterator it = cm.begin(); it != cm.end(); ++it)
+    {
+        it->second->resizeGradient();
+    }
+
+    AdsorptionModel& am = _psim.getAdsorptionModel();
+    for (std::map<ParamID, Parameter<active>* >::iterator it = am.begin(); it != am.end(); ++it)
+    {
+        it->second->resizeGradient();
+    }
+
+    log::emit<Debug1>() << CURRENT_FUNCTION << ": Resized AD gradients to " << getRequiredAdDirs() << log::endl;
+
+#endif
+
     //==========================================================================
     // AD Jacobian Setup
     //==========================================================================
@@ -413,7 +463,7 @@ void TimeIntegrator::initializeSensitivities(const std::vector<double>& initialS
         getYAd(eq)   = 0.0;
         getResAd(eq) = 0.0;
 
-        for (int dir = 0; dir < active::getMaxDirections(); ++dir)  // Iterate over all directions
+        for (int dir = 0; dir < getRequiredAdDirs(); ++dir)  // Iterate over all directions
         {
             getYAd(eq)  .setADValue(dir, 0.0);
             getResAd(eq).setADValue(dir, 0.0);
@@ -421,7 +471,8 @@ void TimeIntegrator::initializeSensitivities(const std::vector<double>& initialS
     }
 
     // Set AD seeds for Jacobian assembly
-    _psim.getSchurSolver().getJacobianData().initAdForJac(getYAd(), getDiagDir());
+    if (getJacAdDirs() > 0)
+        _psim.getSchurSolver().getJacobianData().initAdForJac(getYAd(), getDiagDir());
     //==========================================================================
     log::emit<Debug1>() << CURRENT_FUNCTION << ": AD for Jac inititialized" << log::endl;
 
@@ -450,7 +501,7 @@ void TimeIntegrator::initializeSensitivities(const std::vector<double>& initialS
             //==============================================
             // Initialize sensitivity vectors with 0.0
             //==============================================
-            for (int dir = 0; dir < active::getMaxDirections(); ++dir)  // Iterate over all directions
+            for (int dir = 0; dir < getRequiredAdDirs(); ++dir)  // Iterate over all directions
             {
                 yS    = NV_DATA_S(_NVp_yS[dir]);
                 ySDot = NV_DATA_S(_NVp_ySDot[dir]);
@@ -490,7 +541,7 @@ void TimeIntegrator::initializeSensitivities(const std::vector<double>& initialS
             //==============================================
             // Initialize sensitivity vectors with given data
             //==============================================
-            for (int dir = 0; dir < active::getMaxDirections(); ++dir)  // Iterate over all directions
+            for (int dir = 0; dir < getRequiredAdDirs(); ++dir)  // Iterate over all directions
             {
                 yS    = NV_DATA_S(_NVp_yS[dir]);
                 ySDot = NV_DATA_S(_NVp_ySDot[dir]);
@@ -503,6 +554,9 @@ void TimeIntegrator::initializeSensitivities(const std::vector<double>& initialS
             }
         }
         log::emit<Debug1>() << CURRENT_FUNCTION << ": AD for Sens inititialized" << log::endl;
+
+        log::emit<Debug1>() << "Directions required for Jacobian assembly: " << getJacAdDirs() << log::endl;
+        log::emit<Debug1>() << "Directions required for sensitivities:     " << getNSensParams() << log::endl;
 
 
         //============================================================================
@@ -574,9 +628,6 @@ void TimeIntegrator::initializeSensitivities(const std::vector<double>& initialS
     //==========================================================================
     // END SENSITIVITY ANALYSIS SETUP
     //==========================================================================
-
-    // Decrease the number of directions in active type to needed ones
-    adtl::setNumDir(getJacAdDirs() + getNSensParams());
 
     log::emit<Trace1>() << CURRENT_FUNCTION << Color::green << ": Finished!" << Color::reset << log::endl;
 }
@@ -757,10 +808,10 @@ void TimeIntegrator::integrate() throw (CadetException)
 
 #ifdef VERIFY_ANALYTICAL_JAC
     std::ostringstream oss;
-    oss << scientific << setprecision(2) << _psim.getSchurSolver().getJacobianData().maxDiffC();
+    oss << _psim.getSchurSolver().getJacobianData().maxDiffC();
     log::emit<Info>() << Color::red << "Jacobian column   part max diff: " << oss.str() << Color::reset << log::endl;
     oss.str("");
-    oss << scientific << setprecision(2) << _psim.getSchurSolver().getJacobianData().maxDiffP();
+    oss << _psim.getSchurSolver().getJacobianData().maxDiffP();
     log::emit<Info>() << Color::red << "Jacobian particle part max diff: " << oss.str() << Color::reset << log::endl;
 #endif
 
@@ -1261,15 +1312,17 @@ int TimeIntegrator::schurComplementTimesVectorWrapper(void* userData, N_Vector N
 
 void TimeIntegrator::checkSufficientDirections() const throw (CadetException)
 {
-    if (getJacAdDirs() + getNSensParams() > active::getMaxDirections())
+#if defined(ACTIVE_ADOLC) || defined(ACTIVE_SFAD) || defined(ACTIVE_SETFAD)
+    if (getRequiredAdDirs() > AD::getMaxDirections())
     {
         std::ostringstream ss;
         ss << "FATAL ERROR: Not enough directions available for active data types!" << std::endl;
-        ss << "Maximum active data type directions:       " << active::getMaxDirections() << std::endl;
+        ss << "Maximum active data type directions:       " << AD::getMaxDirections() << std::endl;
         ss << "Directions required for Jacobian assembly: " << getJacAdDirs() << std::endl;
         ss << "Directions required for sensitivities:     " << getNSensParams() << std::endl;
         throw CadetException(ss.str());
     }
+#endif
 }
 
 

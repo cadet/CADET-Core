@@ -18,7 +18,7 @@
 
 // wrapper classes for active data types
 
-#if defined ACTIVE_ADOLC
+#if defined(ACTIVE_ADOLC)
 
 #define ADOLC_TAPELESS
 #define NUMBER_DIRECTIONS 80
@@ -30,56 +30,100 @@
 namespace cadet
 {
 
-
-class active: public adtl::adouble
-{
-public:
-
-    // constructors
-    active() :
-        adtl::adouble()
+    class active: public adtl::adouble
     {
-    }
+    public:
 
-    active(const double& d) :
-        adtl::adouble(d)
+        typedef size_t idx_t;
+
+        // constructors
+        active() :
+            adtl::adouble()
+        {
+        }
+
+        active(const double& d) :
+            adtl::adouble(d)
+        {
+        }
+
+        active(const adtl::adouble& ad) :
+            adtl::adouble(ad)
+        {
+        }
+
+        // operators
+        const active& operator=(const adtl::adouble& rhs)
+        {
+            *(static_cast<adtl::adouble*> (this)) = rhs;
+            return *this;
+        }
+
+        // operators
+        const active& operator=(double rhs)
+        {
+            *(static_cast<adtl::adouble*> (this)) = rhs;
+            return *this;
+        }
+
+        inline size_t gradientSize() const { return adtl::ADOLC_numDir; }
+
+        ///todo remove this cast operator - dirty hack to cast actives to doubles in some residual functions
+        // that are actually not called. Should be no problem with C++11 (using constexpr) ???
+        explicit operator double() const
+        {
+            return getValue();
+        }
+    };
+
+    namespace AD
     {
+        size_t getMaxDirections();
+        void setMaxDirections(size_t numDir);
     }
-
-    active(const adtl::adouble& ad) :
-        adtl::adouble(ad)
-    {
-    }
-
-    // operators
-    const active& operator=(const adtl::adouble& rhs)
-    {
-        *(static_cast<adtl::adouble*> (this)) = rhs;
-        return *this;
-    }
-
-    // operators
-    const active& operator=(double rhs)
-    {
-        *(static_cast<adtl::adouble*> (this)) = rhs;
-        return *this;
-    }
-
-
-    ///todo remove this cast operator - dirty hack to cast actives to doubles in some residual functions
-    // that are actually not called. Should be no problem with C++11 (using constexpr) ???
-    operator double() const
-    {
-        throw CadetException("Cast from active to double is not allowed!");
-    }
-
-    static int getMaxDirections() { return adtl::ADOLC_numDir; }
-
-};
-
 }
 
-#elif defined ACTIVE_DCO
+#elif defined(ACTIVE_SFAD)
+
+#define SFAD_DEFAULT_DIR 80
+
+#include "sfad.hpp"
+#include "CadetException.hpp"
+
+#define ACTIVE_INIT SFAD_GLOBAL_GRAD_SIZE
+
+namespace cadet
+{
+    typedef sfad::Fwd<double, sfad::StackStorage> active;
+
+    namespace AD
+    {
+        size_t getMaxDirections();
+        void setMaxDirections(size_t n);
+    }
+}
+
+#elif defined(ACTIVE_SETFAD)
+
+#define SFAD_DEFAULT_DIR 80
+
+#include "setfad.hpp"
+#include "CadetException.hpp"
+
+#define ACTIVE_INIT SFAD_GLOBAL_GRAD_SIZE
+
+namespace cadet
+{
+    typedef sfad::FwdET<double, sfad::StackStorage> active;
+
+    namespace AD
+    {
+        size_t getMaxDirections();
+        void setMaxDirections(size_t n);
+    }
+}
+
+#elif defined(ACTIVE_DCO)
 
 #include dco.h
 

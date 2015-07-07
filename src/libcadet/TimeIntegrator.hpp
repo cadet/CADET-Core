@@ -147,6 +147,7 @@ public:
     inline bool factorizeJac()              const { return _factorizeJac; }
     inline void setFactorizeJac(bool factorizeJac = true) { _factorizeJac = factorizeJac; }
 
+    int getRequiredAdDirs() const;
     int getJacAdDirs() const;
     int getDiagDir()   const;
 
