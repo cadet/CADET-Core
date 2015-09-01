@@ -106,8 +106,8 @@ TimeIntegrator::~TimeIntegrator()
     N_VDestroy_Serial(_NV_temp2);
 
 #if defined(ACTIVE_ADOLC) || defined(ACTIVE_SFAD) || defined(ACTIVE_SETFAD)
-    N_VDestroyVectorArray_Serial(_NVp_yS, getRequiredAdDirs());
-    N_VDestroyVectorArray_Serial(_NVp_ySDot, getRequiredAdDirs());
+    N_VDestroyVectorArray_Serial(_NVp_yS, getNSensParams());
+    N_VDestroyVectorArray_Serial(_NVp_ySDot, getNSensParams());
 #endif
     // ========================================================================================
 
@@ -424,8 +424,8 @@ void TimeIntegrator::initializeSensitivities(const std::vector<double>& initialS
     AD::setMaxDirections(getRequiredAdDirs());
 
     // Allocate and initialize sensitivities vectors
-    _NVp_yS     = N_VCloneVectorArray_Serial(getRequiredAdDirs(), _NV_y);
-    _NVp_ySDot  = N_VCloneVectorArray_Serial(getRequiredAdDirs(), _NV_yDot);
+    _NVp_yS     = N_VCloneVectorArray_Serial(getNSensParams(), _NV_y);
+    _NVp_ySDot  = N_VCloneVectorArray_Serial(getNSensParams(), _NV_yDot);
 #endif
 
 #if defined(ACTIVE_SFAD) || defined(ACTIVE_SETFAD)
@@ -501,7 +501,7 @@ void TimeIntegrator::initializeSensitivities(const std::vector<double>& initialS
             //==============================================
             // Initialize sensitivity vectors with 0.0
             //==============================================
-            for (int dir = 0; dir < getRequiredAdDirs(); ++dir)  // Iterate over all directions
+            for (int dir = 0; dir < getNSensParams(); ++dir)  // Iterate over all directions
             {
                 yS    = NV_DATA_S(_NVp_yS[dir]);
                 ySDot = NV_DATA_S(_NVp_ySDot[dir]);
@@ -541,7 +541,7 @@ void TimeIntegrator::initializeSensitivities(const std::vector<double>& initialS
             //==============================================
             // Initialize sensitivity vectors with given data
             //==============================================
-            for (int dir = 0; dir < getRequiredAdDirs(); ++dir)  // Iterate over all directions
+            for (int dir = 0; dir < getNSensParams(); ++dir)  // Iterate over all directions
             {
                 yS    = NV_DATA_S(_NVp_yS[dir]);
                 ySDot = NV_DATA_S(_NVp_ySDot[dir]);
