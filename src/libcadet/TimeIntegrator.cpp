@@ -704,9 +704,6 @@ void TimeIntegrator::integrate() throw (CadetException)
         // IDAS Step 7.4: Set the stop time
         IDASetStopTime(_idaMemBlock, _endTime);
 
-        // IDAS Step 5.2: Re-initialization of the solver ///todo get to know why!
-        IDAReInit(_idaMemBlock, _startTime, _NV_y, _NV_yDot);
-
         // =========================================================================
         log::emit<Debug1>() << CURRENT_FUNCTION << ": IDA init part 2 done" << log::endl;
 
@@ -717,6 +714,11 @@ void TimeIntegrator::integrate() throw (CadetException)
         _psim.getChromatographyModel().calcICSens(_t);
         // =========================================================================
         log::emit<Debug1>() << CURRENT_FUNCTION << ": Consistent initial conditions computed" << log::endl;
+
+        // IDAS Step 5.2: Re-initialization of the solver 
+        IDAReInit(_idaMemBlock, _startTime, _NV_y, _NV_yDot);
+        if (getNSensParams() > 0)
+            IDASensReInit(_idaMemBlock, IDA_STAGGERED, _NVp_yS, _NVp_ySDot);
 
         // Update Jacobian
         _psim.getChromatographyModel().sectionSetup(_sec, _t);
