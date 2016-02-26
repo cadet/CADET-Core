@@ -50,7 +50,13 @@ if (WIN32)
     # Find the most recent Matlab version in the registry
     if (NOT DEFINED MATLAB_ROOT)
 
-        set (ROOT_CANDIDATES    "[HKEY_LOCAL_MACHINE\\SOFTWARE\\MathWorks\\MATLAB\\8.3;MATLABROOT]"     # Future
+        set (ROOT_CANDIDATES    "[HKEY_LOCAL_MACHINE\\SOFTWARE\\MathWorks\\MATLAB\\8.9;MATLABROOT]"     # Future
+                                "[HKEY_LOCAL_MACHINE\\SOFTWARE\\MathWorks\\MATLAB\\8.8;MATLABROOT]"     # R2016b
+                                "[HKEY_LOCAL_MACHINE\\SOFTWARE\\MathWorks\\MATLAB\\8.7;MATLABROOT]"     # R2016a
+                                "[HKEY_LOCAL_MACHINE\\SOFTWARE\\MathWorks\\MATLAB\\8.6;MATLABROOT]"     # R2015b
+                                "[HKEY_LOCAL_MACHINE\\SOFTWARE\\MathWorks\\MATLAB\\8.5;MATLABROOT]"     # R2015a
+                                "[HKEY_LOCAL_MACHINE\\SOFTWARE\\MathWorks\\MATLAB\\8.4;MATLABROOT]"     # R2014b
+                                "[HKEY_LOCAL_MACHINE\\SOFTWARE\\MathWorks\\MATLAB\\8.3;MATLABROOT]"     # R2014a
                                 "[HKEY_LOCAL_MACHINE\\SOFTWARE\\MathWorks\\MATLAB\\8.2;MATLABROOT]"     # R2013b
                                 "[HKEY_LOCAL_MACHINE\\SOFTWARE\\MathWorks\\MATLAB\\8.1;MATLABROOT]"     # R2013a
                                 "[HKEY_LOCAL_MACHINE\\SOFTWARE\\MathWorks\\MATLAB\\8.0;MATLABROOT]"     # R2012b
@@ -91,7 +97,12 @@ else (WIN32)
     if (NOT DEFINED MATLAB_ROOT)
 
         if (APPLE)
-            set (ROOT_CANDIDATES    "/Applications/MATLAB\ R2014a"
+            set (ROOT_CANDIDATES    "/Applications/MATLAB\ R2016b"
+                                    "/Applications/MATLAB\ R2016a"
+                                    "/Applications/MATLAB\ R2015b"
+                                    "/Applications/MATLAB\ R2015a"
+                                    "/Applications/MATLAB\ R2014b"
+                                    "/Applications/MATLAB\ R2014a"
                                     "/Applications/MATLAB\ R2013b"
                                     "/Applications/MATLAB\ R2013a"
                                     "/Applications/MATLAB\ R2012b"
@@ -106,7 +117,12 @@ else (WIN32)
                                     "/Applications/MATLAB\ R2009a"
                 )
         else (APPLE)
-            set (ROOT_CANDIDATES    "/usr/local/MATLAB/R2014a"
+            set (ROOT_CANDIDATES    "/usr/local/MATLAB/R2016b"
+                                    "/usr/local/MATLAB/R2016a"
+                                    "/usr/local/MATLAB/R2015b"
+                                    "/usr/local/MATLAB/R2015a"
+                                    "/usr/local/MATLAB/R2014b"
+                                    "/usr/local/MATLAB/R2014a"
                                     "/usr/local/MATLAB/R2013b"
                                     "/usr/local/MATLAB/R2013a"
                                     "/usr/local/MATLAB/R2012b"
@@ -132,6 +148,11 @@ else (WIN32)
                                     "/usr/local/matlab/R2009bSP1"
                                     "/usr/local/matlab/R2009b"
                                     "/usr/local/matlab/R2009a"
+                                    "/opt/MATLAB/R2016b"
+                                    "/opt/MATLAB/R2016a"
+                                    "/opt/MATLAB/R2015b"
+                                    "/opt/MATLAB/R2015a"
+                                    "/opt/MATLAB/R2014b"
                                     "/opt/MATLAB/R2014a"
                                     "/opt/MATLAB/R2013b"
                                     "/opt/MATLAB/R2013a"
