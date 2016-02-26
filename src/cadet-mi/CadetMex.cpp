@@ -1,5 +1,5 @@
 // =============================================================================
-//  Copyright © 2008-2015: Eric von Lieres¹, Joel Andersson¹,
+//  Copyright © 2008-2016: Eric von Lieres¹, Joel Andersson¹,
 //                         Andreas Puettmann¹, Sebastian Schnittert¹,
 //                         Samuel Leweke¹
 //                                      

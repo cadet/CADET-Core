@@ -18,7 +18,7 @@ function batchResinUptake()
 %                         + (1 - eps_p) * D_si * dq_i / dr ( . , R_p)
 % dc_pi / dr ( . , 0) = 0
 %
-% Copyright: © 2008-2015 Eric von Lieres, Joel Andersson, Andreas Püttmann, Sebastian Schnittert, Samuel Leweke
+% Copyright: © 2008-2016 Eric von Lieres, Joel Andersson, Andreas Püttmann, Sebastian Schnittert, Samuel Leweke
 %            See the license note at the end of the file.
 
     simTime = 50; % Simulated time in sec
@@ -152,7 +152,7 @@ end
 % =============================================================================
 %  CADET - The Chromatography Analysis and Design Toolkit
 %  
-%  Copyright © 2008-2015: Eric von Lieres¹, Joel Andersson¹,
+%  Copyright © 2008-2016: Eric von Lieres¹, Joel Andersson¹,
 %                         Andreas Puettmann¹, Sebastian Schnittert¹,
 %                         Samuel Leweke¹
 %                                      

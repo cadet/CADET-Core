@@ -4,7 +4,7 @@ classdef ExternalFunctionLangmuirBinding < BindingModel
     % Provides the parameters of the External Function Langmuir isotherm along with the methods to validate and convert them to
     % the types specified in the CADET file format.
     %
-    % Copyright: © 2008-2015 Eric von Lieres, Joel Andersson, Andreas Püttmann, Sebastian Schnittert, Samuel Leweke
+    % Copyright: © 2008-2016 Eric von Lieres, Joel Andersson, Andreas Püttmann, Sebastian Schnittert, Samuel Leweke
     %            See the license note at the end of the file.
     
     methods
@@ -66,7 +66,7 @@ end
 % =============================================================================
 %  CADET - The Chromatography Analysis and Design Toolkit
 %  
-%  Copyright © 2008-2015: Eric von Lieres¹, Joel Andersson¹,
+%  Copyright © 2008-2016: Eric von Lieres¹, Joel Andersson¹,
 %                         Andreas Puettmann¹, Sebastian Schnittert¹,
 %                         Samuel Leweke¹
 %                                      

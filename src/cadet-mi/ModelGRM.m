@@ -10,7 +10,7 @@ classdef ModelGRM < handle
     %   2. Add a tracking info line to the createTrackingInfo() function
     %   3. Add validation code to checkValues() function
     %
-    % Copyright: © 2008-2015 Eric von Lieres, Joel Andersson, Andreas Püttmann, Sebastian Schnittert, Samuel Leweke
+    % Copyright: © 2008-2016 Eric von Lieres, Joel Andersson, Andreas Püttmann, Sebastian Schnittert, Samuel Leweke
     %            See the license note at the end of the file.
     
     properties
@@ -791,7 +791,7 @@ end
 % =============================================================================
 %  CADET - The Chromatography Analysis and Design Toolkit
 %  
-%  Copyright © 2008-2015: Eric von Lieres¹, Joel Andersson¹,
+%  Copyright © 2008-2016: Eric von Lieres¹, Joel Andersson¹,
 %                         Andreas Puettmann¹, Sebastian Schnittert¹,
 %                         Samuel Leweke¹
 %                                      

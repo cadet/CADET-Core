@@ -1,7 +1,7 @@
 // =============================================================================
 //  CADET - The Chromatography Analysis and Design Toolkit
 //  
-//  Copyright © 2008-2015: Eric von Lieres¹, Joel Andersson¹,
+//  Copyright © 2008-2016: Eric von Lieres¹, Joel Andersson¹,
 //                         Andreas Puettmann¹, Sebastian Schnittert¹,
 //                         Samuel Leweke¹
 //                                      
@@ -24,7 +24,7 @@
 //! \authors    Eric von Lieres, Joel Andersson¹, Andreas Puettmann, Sebastian Schnittert, Samuel Leweke
 //! \version    2.3.2
 //!
-//! \date       2008-2015
+//! \date       2008-2016
 //! \copyright  GNU General Public License v3.0 (or, at your option, any later version).
 //!
 

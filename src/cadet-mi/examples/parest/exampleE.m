@@ -2,7 +2,7 @@ function exampleE()
 %EXAMPLEE One fit with artificial but noisy data. Only the sum signal of
 % the three components is observed.
 %
-% Copyright: © 2008-2015 Eric von Lieres, Joel Andersson, Andreas Püttmann, Sebastian Schnittert, Samuel Leweke
+% Copyright: © 2008-2016 Eric von Lieres, Joel Andersson, Andreas Püttmann, Sebastian Schnittert, Samuel Leweke
 %            See the license note at the end of the file.
 
     % Param Info
@@ -121,7 +121,7 @@ end
 % =============================================================================
 %  CADET - The Chromatography Analysis and Design Toolkit
 %  
-%  Copyright © 2008-2015: Eric von Lieres¹, Joel Andersson¹,
+%  Copyright © 2008-2016: Eric von Lieres¹, Joel Andersson¹,
 %                         Andreas Puettmann¹, Sebastian Schnittert¹,
 %                         Samuel Leweke¹
 %                                      
