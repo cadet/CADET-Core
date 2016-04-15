@@ -8,6 +8,8 @@ The CADET framework also comprises a MATLAB interface and standard routines for 
 
 * von Lieres, E.; Andersson, J.: [A fast and accurate solver for the general rate model of column liquid chromatography](http://dx.doi.org/10.1016/j.compchemeng.2010.03.008), Computers and Chemical Engineering 34,8 (2010), 1180–1191.
 * Püttmann, A.; Schnittert, S.; Naumann, U.; von Lieres, E.: [Fast and accurate parameter sensitivities for the general rate model of column liquid chromatography](http://dx.doi.org/10.1016/j.compchemeng.2013.04.021), Computers and Chemical Engineering 56,13 (2013), 46-57.
+* Püttmann, A.; Schnittert, S.; Leweke, S.; von Lieres, E.: [Utilizing algorithmic differentiation to efficiently compute chromatograms and parameter sensitivities](http://dx.doi.org/10.1016/j.ces.2015.08.050), Chemical Engineering Science 139 (2016), 152–162.
+* Leweke, S.; von Lieres, E.: [Fast arbitrary order moments and arbitrary precision solution of the general rate model of column liquid chromatography with linear isotherm](http://dx.doi.org/10.1016/j.compchemeng.2015.09.009), Computers and Chemical Engineering 84 (2016), 350–362.
 
 ## Features
 
