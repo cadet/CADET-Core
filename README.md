@@ -75,4 +75,4 @@ For non-developers it is recommended to upgrade from release to release instead 
 
 ## Donations
 
-[Donations](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=FCQ2M89558ZAG) for helping to host, maintain and further develop CADET and related projects are highly appreciated.
+[Donations](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=FCQ2M89558ZAG) for helping to host, maintain and further develop the CADET project are highly appreciated.
