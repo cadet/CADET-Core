@@ -72,3 +72,8 @@ Try CADET in the browser using the [online simulator web service](http://www.cad
 
 Since CADET is actively developed, **do not expect a stable API**. Breaking changes and extensive restructuring may occur in any commit and release.
 For non-developers it is recommended to upgrade from release to release instead of always working with the most recent commit.
+
+## Donations
+
+[Donations](http://paypal.me/modsim) for helping to host, maintain and further extend CADET and related projects are highly appreciated.
+
