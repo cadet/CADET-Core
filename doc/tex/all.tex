@@ -1,0 +1,209 @@
+% =============================================================================
+%  CADET - The Chromatography Analysis and Design Toolkit
+%  
+%  Copyright © 2008-2016: Eric von Lieres¹, Joel Andersson,
+%                         Andreas Puettmann¹, Sebastian Schnittert¹,
+%                         Samuel Leweke¹
+%                                      
+%    ¹ Forschungszentrum Juelich GmbH, IBG-1, Juelich, Germany.
+%  
+%  All rights reserved. This program and the accompanying materials
+%  are made available under the terms of the GNU Public License v3.0 (or, at
+%  your option, any later version) which accompanies this distribution, and
+%  is available at http://www.gnu.org/licenses/gpl.html
+% =============================================================================
+
+\documentclass[%
+a4paper, % Uses A4-Paper
+DIV=14,
+BCOR=8mm,
+10pt,
+titlepage,
+twoside,
+toc=bibliography,
+toc=index,
+toc=listof,
+toc=graduated,
+]{scrreprt}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%   Include packages
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+% Encoding packages
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[english]{babel}
+
+% Font packages
+\usepackage{lmodern}          % A) provides latin modern fonts which are successor of the computer modern font
+\usepackage[scaled=0.85]{beramono} % provides the bera typewriter font
+\usepackage[activate={true,nocompatibility},final,tracking=true,kerning=true,spacing=true,factor=1100,stretch=10,shrink=10]{microtype}
+% activate={true,nocompatibility} - activate protrusion and expansion
+% final - enable microtype; use "draft" to disable
+% tracking=true, kerning=true, spacing=true - activate these techniques
+% factor=1100 - add 10% to the protrusion amount (default is 1000)
+% stretch=10, shrink=10 - reduce stretchability/shrinkability (default is 20/20)
+\microtypecontext{spacing=nonfrench}
+
+\usepackage{amsmath,amsthm,amssymb,}
+\usepackage[english]{babel}
+\usepackage[english]{isodate}
+\usepackage{pifont,bbold,dsfont}
+\usepackage{setspace}
+\usepackage{ellipsis}
+
+% Bibliographic packages
+\usepackage[style=english]{csquotes} % provides advanced quotation options; needed for biblatex
+\usepackage[style=alphabetic,isbn=false,url=false,doi=true,eprint=true,backend=biber,sortlocale=en,language=american]{biblatex}
+
+% Misc packages
+\usepackage{graphicx}  % provides support for figure importing
+\usepackage{listings}  % provides an environment for code listings etc.
+\usepackage{xcolor}     % provides colored text and colored boxes; colors can be defined by user
+
+% Mathematics packages
+\usepackage{amsmath}   % provides many enhancements for mathematical formulas
+\usepackage{amssymb}   % provides symbols from the AMS package
+\usepackage{mathtools,xfrac}
+\usepackage[binary-units,exponent-product=\cdot]{siunitx}  % provides units
+
+% Table packages
+\usepackage[font=small]{caption}   % provides formatting for captions
+\usepackage[font=footnotesize]{subcaption}% provides formatting for subcaptions
+\usepackage{longtable} % provides tables spanning multiple pages
+\usepackage{tabu}      % provides tables with defined widths
+\usepackage{array}     % provides formatting tools for tables and arrays
+\usepackage{booktabs}  % provides well designed tables
+\usepackage{multirow}  % provides conected rows in tables
+\usepackage{placeins}  % provides FloatBarriers
+
+% TikZ
+\usepackage{tikz}
+%\usepackage{pgfplots}
+%\usepackage{pgfplotstable}
+
+\usetikzlibrary{arrows,shapes,intersections,patterns,decorations}
+\usetikzlibrary{plotmarks}
+\usetikzlibrary{trees}
+\usetikzlibrary{calc}
+\usetikzlibrary{positioning}
+\usetikzlibrary{topaths}
+\usetikzlibrary{fit}
+
+% Header and footer
+\usepackage[]{scrlayer-scrpage}
+\pagestyle{scrheadings}
+
+% Indexing
+\usepackage[texindy,]{imakeidx}
+\usepackage[columns=2,itemlayout=relhang,columnsep=20pt]{idxlayout}
+
+% Last packages
+\usepackage[hidelinks]{hyperref}  % provides hyperreferences in pdf documents; SHOULD be included as last package!
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%   Definitions and settings
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+% Literature
+\addbibresource{../literature.bib}    % for main .tex file
+
+% Code listings
+\lstset{
+%language=bash,
+breaklines=true,
+basicstyle=\ttfamily,
+backgroundcolor=\color{lightgray},
+frame=single,
+%frameround=tttf,
+moredelim=[is][\color{darkgrey}]{|}{|}
+}
+
+% Captions
+\captionsetup{format=plain, indention=.5cm, labelsep=colon, labelfont=bf, textfont=it, figurewithin=section, tablewithin=section, hypcap=false, subrefformat=parens} % figurename=Fig.
+
+% Indexes
+\makeindex[options={-L english -M lang/english/utf8 -M tex/inputenc/utf8},columns=2,]
+\indexsetup{toclevel=chapter,}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+% Texts
+\newcommand{\cadet}{\textsc{Cadet}}
+\hyphenation{CADET}
+
+% Units
+\DeclareSIUnit\ExternalUnit{[T]}
+\DeclareSIUnit\ParamUnit{[Param]}
+
+% Commands
+\newcommand*\diff{\mathop{}\!\mathrm{d}}
+\newcommand*\pdiff{\mathop{}\!\mathrm{\partial}}
+\newcommand{\abs}[1]{\ensuremath{\left\lvert#1\right\rvert}}
+\newcommand{\norm}[1]{\ensuremath{\left\lVert#1\right\rVert}}
+\newcommand{\cmark}{\ding{51}}
+\newcommand{\xmark}{\ding{55}}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+% Git integration
+\makeatletter
+\immediate\write18{git log -1 --pretty=format:"\@percentchar H made on \@percentchar ad" > all.gitinfo }
+\makeatother
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\setcounter{tocdepth}{3}
+
+\makeatletter
+%\renewcommand*\l@figure{\@dottedtocline{1}{1.5em}{2.3em}} % original values in scrreprt
+\renewcommand*\l@figure{\@dottedtocline{1}{1.5em}{3em}} % modified.
+\let\l@table\l@figure
+\makeatother
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\begin{document}
+\KOMAoptions{twoside=false}%
+\begin{titlepage}%
+	\setcounter{page}{-100}%
+	\begin{center}
+		\includegraphics[width=0.6\linewidth]{../logo/CADET-Logo} \\
+		\vspace{8cm}
+		{\Huge\textbf{Manual}}\\
+		\vspace{3cm}
+		The CADET Authors
+		\vspace{5cm}
+		\textbf{CADET Version \input{../../version.txt}}\\
+		\vspace{0.8cm}
+		{\footnotesize Created from commit \input{all.gitinfo}}
+	\end{center}
+\end{titlepage}
+\KOMAoptions{twoside}
+
+\newpage
+\cleardoublepage
+
+\pagenumbering{roman}
+\tableofcontents
+
+\newpage
+\listoffigures
+
+\newpage
+\listoftables
+
+\newpage
+\pagenumbering{arabic}
+
+%\include{docs/intro}
+\include{docs/models}
+\include{docs/binding}
+\include{docs/fileformat}
+
+\printbibliography
+
+\printindex
+
+\end{document}

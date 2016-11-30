@@ -1,0 +1,86 @@
+// =============================================================================
+//  CADET - The Chromatography Analysis and Design Toolkit
+//  
+//  Copyright © 2008-2016: The CADET Authors
+//            Please see the AUTHORS and CONTRIBUTORS file.
+//  
+//  All rights reserved. This program and the accompanying materials
+//  are made available under the terms of the GNU Public License v3.0 (or, at
+//  your option, any later version) which accompanies this distribution, and
+//  is available at http://www.gnu.org/licenses/gpl.html
+// =============================================================================
+
+#include "BindingModelFactory.hpp"
+#include "cadet/Exceptions.hpp"
+
+namespace cadet
+{
+	namespace model
+	{
+		namespace binding
+		{
+			void registerLinearModel(std::unordered_map<std::string, std::function<model::IBindingModel*()>>& bindings);
+			void registerLangmuirModel(std::unordered_map<std::string, std::function<model::IBindingModel*()>>& bindings);
+			void registerAntiLangmuirModel(std::unordered_map<std::string, std::function<model::IBindingModel*()>>& bindings);
+			void registerBiLangmuirModel(std::unordered_map<std::string, std::function<model::IBindingModel*()>>& bindings);
+			void registerKumarLangmuirModel(std::unordered_map<std::string, std::function<model::IBindingModel*()>>& bindings);
+			void registerMobilePhaseModulatorLangmuirModel(std::unordered_map<std::string, std::function<model::IBindingModel*()>>& bindings);
+			void registerStericMassActionModel(std::unordered_map<std::string, std::function<model::IBindingModel*()>>& bindings);
+			void registerBiStericMassActionModel(std::unordered_map<std::string, std::function<model::IBindingModel*()>>& bindings);
+			void registerSelfAssociationModel(std::unordered_map<std::string, std::function<model::IBindingModel*()>>& bindings);
+			void registerSaskaModel(std::unordered_map<std::string, std::function<model::IBindingModel*()>>& bindings);
+		}
+	}
+
+	BindingModelFactory::BindingModelFactory()
+	{
+		// Register all BindingModels here
+		model::binding::registerLinearModel(_bindingModels);
+		model::binding::registerLangmuirModel(_bindingModels);
+		model::binding::registerAntiLangmuirModel(_bindingModels);
+		model::binding::registerBiLangmuirModel(_bindingModels);
+		model::binding::registerKumarLangmuirModel(_bindingModels);
+		model::binding::registerMobilePhaseModulatorLangmuirModel(_bindingModels);
+		model::binding::registerStericMassActionModel(_bindingModels);
+		model::binding::registerBiStericMassActionModel(_bindingModels);
+		model::binding::registerSelfAssociationModel(_bindingModels);
+		model::binding::registerSaskaModel(_bindingModels);
+	}
+
+	BindingModelFactory::~BindingModelFactory() { }
+
+	template <class BindingModel_t>
+	void BindingModelFactory::registerModel(const std::string& name)
+	{
+		_bindingModels[name] = []() { return new BindingModel_t(); };
+	}
+
+	template <class BindingModel_t>
+	void BindingModelFactory::registerModel()
+	{
+		registerModel<BindingModel_t>(BindingModel_t::identifier());
+	}
+
+	model::IBindingModel* BindingModelFactory::create(const std::string& name) const
+	{
+		const auto it = _bindingModels.find(name);
+		if (it == _bindingModels.end())
+		{
+			// BindingModel was not found
+			return nullptr;
+		}
+
+		// Call factory function (thanks to type erasure of std::function we can store 
+		// all factory functions in one container)
+		return it->second();
+	}
+
+	void BindingModelFactory::registerModel(const std::string& name, std::function<model::IBindingModel*()> factory)
+	{
+		if (_bindingModels.find(name) == _bindingModels.end())
+			_bindingModels[name] = factory;
+		else
+			throw InvalidParameterException("IBindingModel implementation with the name " + name + " is already registered and cannot be overwritten");
+	}
+
+} // namespace cadet

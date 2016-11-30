@@ -1,0 +1,45 @@
+#
+# Internal file for GetGitRevisionDescription.cmake
+#
+# Requires CMake 2.6 or newer (uses the 'function' command)
+#
+# Original Author:
+# 2009-2010 Ryan Pavlik <rpavlik@iastate.edu> <abiryan@ryand.net>
+# http://academic.cleardefinition.com
+# Iowa State University HCI Graduate Program/VRAC
+#
+# Copyright Iowa State University 2009-2010.
+# Distributed under the Boost Software License, Version 1.0.
+# (See accompanying file LICENSE_1_0.txt or copy at
+# http://www.boost.org/LICENSE_1_0.txt)
+#
+# From https://github.com/rpavlik/cmake-modules
+#
+# Modifications by Samuel Leweke in 2014 in order to cope with
+# missing .git/refs/heads/* files. Falls back to calling
+#   git show-ref --hash ${HEAD_REF}
+# in this case.
+
+set(HEAD_HASH)
+
+file(READ "@HEAD_FILE@" HEAD_CONTENTS LIMIT 1024)
+
+string(STRIP "${HEAD_CONTENTS}" HEAD_CONTENTS)
+if(HEAD_CONTENTS MATCHES "ref")
+	# named branch
+	string(REPLACE "ref: " "" HEAD_REF "${HEAD_CONTENTS}")
+	if(EXISTS "@GIT_DIR@/${HEAD_REF}")
+		configure_file("@GIT_DIR@/${HEAD_REF}" "@GIT_DATA@/head-ref" COPYONLY)
+	else()
+		execute_process(COMMAND @GIT_EXECUTABLE@ show-ref --hash ${HEAD_REF} WORKING_DIRECTORY "@CMAKE_SOURCE_DIR@" RESULT_VARIABLE res OUTPUT_VARIABLE out ERROR_QUIET OUTPUT_STRIP_TRAILING_WHITESPACE)
+		set(HEAD_HASH "${out}")
+	endif()
+else()
+	# detached HEAD
+	configure_file("@GIT_DIR@/HEAD" "@GIT_DATA@/head-ref" COPYONLY)
+endif()
+
+if(NOT HEAD_HASH)
+	file(READ "@GIT_DATA@/head-ref" HEAD_HASH LIMIT 1024)
+	string(STRIP "${HEAD_HASH}" HEAD_HASH)
+endif()

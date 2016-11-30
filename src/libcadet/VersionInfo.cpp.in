@@ -1,0 +1,59 @@
+// =============================================================================
+//  CADET - The Chromatography Analysis and Design Toolkit
+//  
+//  Copyright © 2008-2016: Eric von Lieres¹, Joel Andersson¹,
+//                         Andreas Puettmann¹, Sebastian Schnittert¹,
+//                         Samuel Leweke¹
+//                                      
+//    ¹ Forschungszentrum Juelich GmbH, IBG-1, Juelich, Germany.
+//  
+//  All rights reserved. This program and the accompanying materials
+//  are made available under the terms of the GNU Public License v3.0 (or, at
+//  your option, any later version) which accompanies this distribution, and
+//  is available at http://www.gnu.org/licenses/gpl.html
+// =============================================================================
+
+#include "cadet/LibVersionInfo.hpp"
+
+namespace cadet
+{
+	const char GIT_COMMIT_HASH[] = "@GIT_SHA1@";
+	const char GIT_BRANCH[] = "@GIT_REFSPEC@";
+	const char LIBCADET_VERSION[] = "@CADET_VERSION@";
+
+	const char* getLibraryVersion() noexcept
+	{
+		return cadet::LIBCADET_VERSION;
+	}
+
+	const char* getLibraryCommitHash() noexcept
+	{
+		return cadet::GIT_COMMIT_HASH;
+	}
+
+	const char* getLibraryBranchRefspec() noexcept
+	{
+		return cadet::GIT_BRANCH;
+	}
+
+}
+
+extern "C"
+{
+	
+	CADET_API const char* cadetGetLibraryVersion()
+	{
+		return cadet::getLibraryVersion();
+	}
+
+	CADET_API const char* cadetGetLibraryCommitHash()
+	{
+		return cadet::getLibraryCommitHash();
+	}
+
+	CADET_API const char* cadetGetLibraryBranchRefspec()
+	{
+		return cadet::getLibraryBranchRefspec();
+	}
+	
+}

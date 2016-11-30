@@ -1,0 +1,267 @@
+%!TEX root = ../all.tex
+% =============================================================================
+%  CADET - The Chromatography Analysis and Design Toolkit
+%  
+%  Copyright © 2008-2016: Eric von Lieres¹, Joel Andersson,
+%                         Andreas Puettmann¹, Sebastian Schnittert¹,
+%                         Samuel Leweke¹
+%                                      
+%    ¹ Forschungszentrum Juelich GmbH, IBG-1, Juelich, Germany.
+%  
+%  All rights reserved. This program and the accompanying materials
+%  are made available under the terms of the GNU Public License v3.0 (or, at
+%  your option, any later version) which accompanies this distribution, and
+%  is available at http://www.gnu.org/licenses/gpl.html
+% =============================================================================
+
+\section{Binding models}
+
+The following binding models \index{Binding!Models}\index{Model!Binding model} are presented in dynamic binding mode.
+By replacing all occurrences of $\mathrm{d}q / \mathrm{d}t$ with $0$, quasi-stationary (rapid-equlibrium) binding mode is achieved. 
+In quasi-stationary binding it is assumed that ad- and desorption take place on a much faster time scale than the other transport processes such that bead liquid phase $c_{p,i}$ (or bulk liquid phase $c_i$ for certain unit operation models) are always in equilibrium with the solid phase $q_i$.
+
+\paragraph{Equilibrium constants}
+\phantomsection\label{par:MBEquilibriumConstants}
+
+For the quasi-stationary binding mode, adsorption and desorption rate are no longer separate entities. \index{Binding!Equilibrium constant}
+Instead, the quotient $k_{\text{eq}} = k_a / k_d$ of adsorption and desorption coefficient is the relevant parameter as shown for the linear binding model (see Section~\ref{sec:MBLinear}):
+\begin{align*}
+  \frac{\mathrm{d} q_i}{\mathrm{d} t} &= k_{a,i} c_{p,i} - k_{d,i} q_i \qquad \Rightarrow 0 = k_{a,i} c_{p,i} - k_{d,i} q_i \qquad \Leftrightarrow q_i = \frac{k_{a,i}}{k_{d,i}} c_{p,i} = k_{\text{eq},i} c_{p,i}.
+\end{align*}
+The equilibrium constant $k_{\text{eq},i}$ is used in CADET by setting $k_{d,i} = 1$ and $k_{a,i} = k_{\text{eq},i}$.
+
+\paragraph{Correlation of ad- and desorption rates}
+
+Note that adsorption rate $k_{a,i}$ and desorption rate $k_{d,i}$ are linearly correlated in both binding modes due to the form of the equilibrium constant $k_{\text{eq}}$:
+\begin{align*}
+  k_{a,i} = k_{\text{eq}} k_{d,i}.
+\end{align*}
+This correlation can potentially degrade performance of some optimization algorithms.
+While in quasi-stationary binding mode this is prevented by using the technique above, a dynamic binding model has to be reparameterized in order to decouple parameters:
+\begin{align*}
+  \frac{\mathrm{d} q_i}{\mathrm{d} t} &= k_{a,i} c_{p,i} - k_{d,i} q_i = k_{d,i} \left[ k_{\text{eq},i} c_{p,i} - q_i \right] = k_{a,i} \left[ c_{p,i} - \frac{1}{k_{\text{eq},i}} q_i \right].
+\end{align*}
+This can be achieved by a (nonlinear) parameter transform
+\begin{align*}
+  F\left( k_{\text{eq},i}, k_{d,i} \right) = \begin{pmatrix} k_{\text{eq},i} k_{d,i} \\ k_{d,i} \end{pmatrix} \text{ with Jacobian } J_F\left( k_{\text{eq},i}, k_{d,i} \right) = \begin{pmatrix} k_{d,i} & k_{\text{eq},i} \\ 0 & 1 \end{pmatrix}.
+\end{align*}
+
+\paragraph{Dependence on external function}
+\phantomsection\label{par:MBExternalFunctions}
+
+A binding model may depend on an external function or profile $T\colon \left[ 0, T_{\text{end}}\right] \times [0, L] \to \mathds{R}$, where $L$ denotes the physical length of the unit operation, or $T\colon \left[0, T_{\text{end}}\right] \to \mathds{R}$ if the unit operation model has no axial length. \index{Binding!External function}
+By using an external profile it is possible to account for effects that are not directly modeled in CADET (e.g., temperature).
+The dependence of each parameter is modeled by a polynomial of third degree.
+For example, the adsorption rate $k_a$ is really given by
+\begin{align*}
+  k_a(T) &= k_{a,3} T^3 + k_{a,2} T^2 + k_{a,1} T + k_{a,0}.
+\end{align*}
+While $k_{a,0}$ is set by the original parameter \texttt{XXX\_KA} of the file format (\texttt{XXX} being a placeholder for the binding model), the parameters $k_{a,3}$, $k_{a,2}$, and $k_{a,1}$ are given by \texttt{XXX\_KA\_TTT}, \texttt{XXX\_KA\_TT}, and \texttt{XXX\_KA\_T}, respectively.
+The identifier of the externally dependent binding model is constructed from the original identifier by prepending \texttt{EXT\_} (e.g., \texttt{MULTI\_COMPONENT\_LANGMUIR} is changed into \texttt{EXT\_MULTI\_COMPONENT\_LANGMUIR}).
+This pattern applies to all parameters and supporting binding models (see Table~\ref{tab:MBFeatureMatrix}).
+Note that the parameter units have to be adapted to the unit of the external profile by dividing with an appropriate power.
+
+Each parameter of the externally dependent binding model can depend on a different external source.
+The 0-based indices of the external source for each parameter is given in the dataset \texttt{EXTFUN}.
+By assigning only one index to \texttt{EXTFUN}, all parameters use the same source.
+The ordering of the parameters in \texttt{EXTFUN} is given by the ordering in the file format specification in Section~\ref{sec:FFAdsorption}.
+
+\paragraph{Binding model feature matrix}
+\phantomsection\label{par:MBFeatureMatrix}
+
+A short comparison of the most prominent binding model features is given in Table~\ref{tab:MBFeatureMatrix}.
+The implemented binding models can be divided into two main classes: Single-state and multi-state binding.
+While single-state models only have one bound state per component (or less), multi-state models provide multiple (possibly different) bound states for each component, which may correspond to different binding orientations or binding site types.
+The models also differ in whether a mobile phase modifier (e.g., salt) is supported to modulate the binding behaviour.
+
+\begin{table}[!ht]
+\centering
+\begin{tabu}to \linewidth[m]{X>{\centering\arraybackslash}p{1.8cm}>{\centering\arraybackslash}p{2cm}>{\centering\arraybackslash}p{1.4cm}>{\centering\arraybackslash}p{1.8cm}} \toprule
+\rowfont[c]\normalfont Binding model & Competitive & Mobile phase modifier & External function & Multi-state \\ \midrule
+Linear & \xmark & \xmark & \cmark & \xmark \\
+Multi component Langmuir & \cmark & \xmark & \cmark & \xmark \\
+Multi component Anti-Langmuir & \cmark & \xmark & \cmark & \xmark \\
+Steric mass action & \cmark & \cmark & \cmark & \xmark \\
+Self association & \cmark & \cmark & \cmark & \xmark \\
+Mobile phase modulator Langmuir & \cmark & \cmark & \cmark & \xmark \\
+Kumar-Langmuir & \cmark & \cmark & \cmark & \xmark \\
+Saska & \xmark & \xmark & \cmark & \xmark \\
+Multi component Bi-Langmuir & \cmark & \xmark & \cmark & \cmark \\
+Bi steric mass action & \cmark & \cmark & \cmark & \cmark \\
+\bottomrule
+\end{tabu}
+\caption{\label{tab:MBFeatureMatrix}Supported features of the different binding models}
+\end{table}
+
+\paragraph{Reference concentrations}
+\phantomsection\label{par:MBReferenceConcentrations}
+
+Some binding models use reference concentrations $c_{\text{ref}}$ and $q_{\text{ref}}$ of the mobile phase modulator (e.g., salt) in the particle liquid and solid phase, respectively. \index{Binding!Reference concentrations}
+The reference values are mainly used for normalizing adsorption and desorption rates, but also for other parameters that appear with those concentrations.
+They amount to a simple parameter transformation that is exemplified at one equation of the steric mass action binding model
+\begin{align*}
+  \frac{\mathrm{d} q_i}{\mathrm{d} t} = k_{a,i} c_{p,i}\bar{q}_0^{\nu_i} - k_{d,i} q_i c_{p,0}^{\nu_i},
+\end{align*}
+where $c_{p,0}$ denotes the mobile phase salt concentration and
+\begin{align*}
+  \bar{q}_0 = \Lambda - \sum_{j=1}^{N_{\text{comp}} - 1} \left( \nu_j + \sigma_j \right) q_j
+\end{align*}
+is the number of available binding sites which is related to the number of bound salt ions.
+Using the parameter transformation
+\begin{align*}
+  k_{a,i} &= \tilde{k}_{a,i} q_{\text{ref}}^{-\nu_i}, \\
+  k_{d,i} &= \tilde{k}_{d,i} c_{\text{ref}}^{-\nu_i},
+\end{align*}
+we obtain the modified model equation
+\begin{align*}
+  \frac{\mathrm{d} q_i}{\mathrm{d} t} = \tilde{k}_{a,i} c_{p,i} \left(\frac{\bar{q}_0}{q_{\text{ref}}}\right)^{\nu_i} - \tilde{k}_{d,i} q_i \left(\frac{c_{p,0}}{c_{\text{ref}}}\right)^{\nu_i}.
+\end{align*}
+This transformation serves as a (partial) nondimensionalization of the adsorption and desorption rates and, by properly choosing the reference concentrations $c_{\text{ref}}$ and $q_{\text{ref}}$, may improve the optimizer performance.
+
+Recommended choices for $c_{\text{ref}}$ are the average or maximum inlet concentration of the mobile phase modifier $c_0$, and for $q_{\text{ref}}$ the ionic capacity $\Lambda$.
+Note that setting the reference concentrations to $\num{1.0}$ each results in the original binding model.
+
+\subsection{Linear}\label{sec:MBLinear}
+
+A linear \index{Binding!Linear} binding model, which is often employed for low concentrations or in analytic settings \cite{Guiochon2006}.
+\begin{align*}
+  \frac{\mathrm{d} q_i}{\mathrm{d} t} = k_{a,i} c_{p,i} - k_{d,i} q_i && i = 0, \dots, N_{\text{comp}} - 1.
+\end{align*}
+See Table~\ref{tab:FFAdsorptionLinear}.
+
+\subsection{Multi Component Langmuir}\label{sec:MBLangmuir}
+
+The Langmuir binding model includes a saturation term and takes into account the capacity of the resin \cite{Langmuir1916,Guiochon2006}. \index{Binding!Multi component Langmuir}
+All components compete for the same binding sites.
+\begin{align*}
+  \frac{\mathrm{d} q_i}{\mathrm{d} t} = k_{a,i}\: c_{p,i}\: q_{\text{max},i} \left( 1 - \sum_{j=0}^{N_{\text{comp}} - 1} \frac{q_j}{q_{\text{max},j}} \right) - k_{d,i} q_i && i = 0, \dots, N_{\text{comp}} - 1.
+\end{align*}
+See Table~\ref{tab:FFAdsorptionMultiCompLangmuir}.
+
+\subsection{Multi Component Anti-Langmuir}\label{sec:MBAntiLangmuir}
+
+The Anti-Langmuir (or generalized Langmuir) binding model extends the Langmuir model (see Section~\ref{sec:MBLangmuir}). \index{Binding!Multi component Anti-Langmuir}
+The factor $p_j \in \{ -1, 1 \}$ determines the shape of the isotherm.
+For $p_j = 1$ (standard Langmuir) the chromatograms have sharp fronts and a dispersed tail (isotherm is concave).
+In case of the Anti-Langmuir ($p_j = -1$) it is the other way around (isotherm is convex).
+\begin{align*}
+    \frac{\mathrm{d} q_i}{\mathrm{d} t} = k_{a,i} c_{p,i} q_{\text{max},i} \left( 1 - \sum_{j=0}^{N_{\text{comp}} - 1} p_j \frac{q_j}{q_{\text{max},j}} \right) - k_{d,i} q_i && i = 0, \dots, N_{\text{comp}} - 1.
+\end{align*}
+See Table~\ref{tab:FFAdsorptionMultiCompAntiLangmuir}.
+
+\subsection{Steric Mass Action}\label{sec:MBStericMassAction}
+
+The steric mass action model takes charges of the molecules into account \cite{Brooks1992} and is, thus, often used in ion-exchange chromatography. \index{Binding!Steric mass action}
+Each component has a characteristic charge $\nu$ that determines the number of available binding sites $\Lambda$ (ionic capacity) used up by a molecule.
+Due to the molecule's shape, some additional binding sites (steric shielding factor $\sigma$) may be shielded from other molecules and are not available for binding.
+\begin{align*}
+  \frac{\mathrm{d} q_i}{\mathrm{d} t} = k_{a,i} c_{p,i}\left( \frac{\bar{q}_0 }{q_{\text{ref}}} \right)^{\nu_i} - k_{d,i}\: q_i\: \left(\frac{c_{p,0}}{c_{\text{ref}}}\right)^{\nu_i} && i = 1, \dots, N_{\text{comp}} - 1,
+\end{align*}
+where $c_{p,0}$ and $q_0$ denote the salt concentrations in the liquid and solid phase of the beads, respectively.
+The number of free binding sites
+\begin{align*}
+  \bar{q}_0 = \Lambda - \sum_{j=1}^{N_{\text{comp}} - 1} \left( \nu_j + \sigma_j \right) q_j = q_0 - \sum_{j=1}^{N_{\text{comp}} - 1} \sigma_j q_j
+\end{align*}
+is calculated from the number of bound counter ions $q_0$ by taking steric shielding into account.
+In turn, the number of bound counter ions $q_0$ (electro-neutrality condition) is given by
+\begin{align*}
+  q_0 = \Lambda - \sum_{j=1}^{N_{\text{comp}} - 1} \nu_j q_j,
+\end{align*}
+which also compensates for the missing equation for $\frac{\mathrm{d} q_0}{\mathrm{d}t}$.
+See Table~\ref{tab:FFAdsorptionStericMassAction}.
+
+The concept of reference concentrations ($c_{\text{ref}}$ and $q_{\text{ref}}$) is explained in the respective paragraph in Section~\ref{par:MBReferenceConcentrations}.
+
+\subsection{Self Association}
+
+This binding model is similar to the steric mass action model (see Section~\ref{sec:MBStericMassAction}) but is also capable of describing dimerization \cite{Mollerup2008,Westerberg2012}. \index{Binding!Self association}
+The dimerization, which is the immobilization of protein at some already bound protein, is also termed ``self-association''.
+It is modeled by adding a quadratic (in $c_{p,i}$) term to the adsorption part of the equation.
+\begin{align*}
+  \frac{\mathrm{d} q_i}{\mathrm{d} t} &= c_{p,i}\left( \frac{\bar{q}_0}{q_{\text{ref}}} \right)^{\nu_i} \left[ k_{a,i,1} + k_{a,i,2} c_{p,i} \right] - k_{d,i}\: q_i\: \left(\frac{c_{p,0}}{c_{\text{ref}}}\right)^{\nu_i} && i = 1, \dots, N_{\text{comp}} - 1, \\
+  q_0 &= \Lambda - \sum_{j=1}^{N_{\text{comp}} - 1} \nu_j q_j,
+\end{align*}
+where the number of available binding sites is given by
+\begin{align*}
+  \bar{q}_0 = \Lambda - \sum_{j=1}^{N_{\text{comp}} - 1} \left( \nu_j + \sigma_j \right) q_j = q_0 - \sum_{j=1}^{N_{\text{comp}} - 1} \sigma_j q_j.
+\end{align*}
+See Table~\ref{tab:FFAdsorptionSelfAssociation}.
+
+The concept of reference concentrations ($c_{\text{ref}}$ and $q_{\text{ref}}$) is explained in the respective paragraph in Section~\ref{par:MBReferenceConcentrations}.
+
+\subsection{Mobile Phase Modulator Langmuir}
+
+This model is a modified Langmuir model (see Section~\ref{sec:MBLangmuir}) which can be used to describe hydrophobic interaction chromatography \cite{Melander1989,Karlsson2004}. \index{Binding!Mobile phase modulator}
+A modulator component (termed ``salt'', $c_{p,0}$ and $q_0$) influences ad- and desorption processes:
+\begin{align*}
+  \frac{\mathrm{d} q_i}{\mathrm{d} t} = k_{a,i} e^{\gamma c_{p,0}} c_{p,i}\: q_{\text{max},i} \left( 1 - \sum_{j=1}^{N_{\text{comp}} - 1} \frac{q_j}{q_{\text{max},j}} \right) - k_{d,i} \: c_{p,0}^\beta \: q_i && i = 1, \dots, N_{\text{comp}} - 1.
+\end{align*}
+where $c_{p,0}$ and $q_0$ denote the salt concentrations in the liquid and solid phase of the beads respectively. 
+Salt is considered to be inert, therefore either
+\begin{align*}
+  \frac{\mathrm{d} q_0}{\mathrm{d} t} = 0
+\end{align*}
+is used if salt has one bound state, or salt can be used without a bound state.
+Parameter $\gamma$ describes the hydrophobicity and $\beta$ the ion-exchange characteristics.
+See Table~\ref{tab:FFAdsorptionMobilePhaseModulator}.
+
+\subsection{Kumar-Langmuir}
+
+This extension of the Langmuir isotherm (see Section~\ref{sec:MBLangmuir}) developed in \cite{Kumar2015} was used to model charge variants of monoclonal antibodies in ion-exchange chromatography. \index{Binding!Kumar-Langmuir}
+A non-binding salt component $c_{p,0}$ is added to modulate the ad- and desorption process.
+\begin{align*}
+  \frac{\mathrm{d} q_i}{\mathrm{d} t} &= k_{a,i} \exp\left( \frac{k_{\text{act},i}}{T} \right) c_{p,i} q_{\text{max},i} \left( 1 - \sum_{j=0}^{N_{\text{comp}} - 1} \frac{q_j}{q_{\text{max},j}} \right) - k_{d,i} \left( c_{p,0} \right)^{\nu_i} q_i && i = 1, \dots, N_{\text{comp}} - 1
+\end{align*}
+In this model, the true adsorption rate $k_{a,i,\text{true}}$ is governed by the Arrhenius law in order to take temperature into account
+\begin{align*}
+  k_{a,i,\text{true}} = k_{a,i} \exp\left( \frac{k_{\text{act},i}}{T} \right).
+\end{align*}
+Here, $k_{a,i}$ is the frequency or pre-exponential factor, $k_{\text{act},i} = E / R$ is the activation temperature ($E$ denotes the activation energy and $R$ the Boltzmann gas constant), and $T$ is the temperature.
+The characteristic charge $\nu$ of the protein is taken into account by the power law.
+See Table~\ref{tab:FFAdsorptionKumarLangmuir}.
+
+\subsection{Saska}
+
+In this binding model an additional quadratic term is added to the linear model \cite{Saska1992}. \index{Binding!Saska}
+The quadratic term allows to take interactions of liquid phase components into account.
+\begin{align*}
+  \frac{\mathrm{d} q_i}{\mathrm{d} t} = H_i c_{p,i} + \sum_{j=0}^{N_{\text{comp}} - 1} k_{ij} c_{p,i} c_{p,j} - q_i && i = 0, \dots, N_{\text{comp}} - 1
+\end{align*}
+See Table~\ref{tab:FFAdsorptionSaska}.
+
+\subsection{Multi Component Bi-Langmuir}\label{sec:MBBiLangmuir}
+
+The multi component Bi-Langmuir model \cite{Guiochon2006} adds $M - 1$ \emph{additional} types of binding sites $q_{i,j}$ ($0 \leq j \leq M - 1$) to the Langmuir model (see Section~\ref{sec:MBLangmuir}) without allowing an exchange between the different sites $q_{i,j}$ and $q_{i,k}$ ($k \neq j$). \index{Binding!Multi component Bi-Langmuir}
+Therefore, there are no competitivity effects between the different types of binding sites and they have independent capacities.
+\begin{align*}
+  \frac{\mathrm{d} q_{i,j}}{\mathrm{d} t} &=  k_{a,i}^{(j)}\: c_{p,i}\: q_{\text{max},i}^{(j)} \left( 1 - \sum_{k=0}^{N_{\text{comp}} - 1} \frac{q_{k,j}}{q_{\text{max},k}^{(j)}}\right) - k_{d,i}^{(j)} q_{i,j} & i = 0, \dots, N_{\text{comp}} - 1, \: j = 0, \dots, M - 1.% (0 \leq i \leq N_{\text{comp}} - 1, \: 0 \leq j \leq M - 1).
+\end{align*}
+Note that all binding components must have exactly the same number of binding site types $M \geq 1$.
+See the Langmuir isotherm in Section~\ref{sec:MBLangmuir} and Table~\ref{tab:FFAdsorptionBiLangmuir}.
+
+Originally, the Bi-Langmuir model is limited to two different binding site types.
+Here, the model has been extended to arbitrary many binding site types.
+
+\subsection{Bi Steric Mass Action}
+
+Similar to the Bi-Langmuir model (see Section~\ref{sec:MBBiLangmuir}), the Bi-SMA model adds $M - 1$ \emph{additional} types of binding sites $q_{i,j}$ ($0 \leq j \leq M - 1$) to the SMA model (see Section~\ref{sec:MBStericMassAction}) without allowing an exchange between the different sites $q_{i,j}$ and $q_{i,k}$ ($k \neq j$). \index{Binding!Bi steric mass action}
+Therefore, there are no competitivity effects between the two types of binding sites and they have independent capacities.
+\begin{align*}
+  \frac{\mathrm{d} q_{i,j}}{\mathrm{d} t} &= k_{a,i,j} c_{p,i} \left(\frac{\bar{q}_{0,j}}{q_{\text{ref},j}} \right)^{\nu_{i,j}} - k_{d,i,j}\: q_{i,j}\: \left(\frac{c_{p,0}}{c_{\text{ref},j}}\right)^{\nu_{i,j}} & i = 1, \dots, N_{\text{comp}} - 1, \quad j = 0, \dots, M - 1,
+\end{align*}
+where $c_{p,0}$ and $q_{0,j}$ ($0 \leq j \leq M - 1$) denote the salt concentrations in the liquid and solid phases of the beads respectively. The number of available salt ions $\bar{q}_{0,j}$ for each binding site type $0 \leq j \leq M - 1$ is given by
+\begin{align*}
+  \bar{q}_{0,j} &= \Lambda_j - \sum_{k=1}^{N_{\text{comp}} - 1} \left( \nu_{k,j} + \sigma_{k,j} \right) q_{k,j}.
+\end{align*}
+Electro-neutrality conditions compensating for the missing equations for $\frac{\mathrm{d} q_{0,j}}{\mathrm{d}t}$ are required:
+\begin{align*}
+  q_{0,j} &= \Lambda_j - \sum_{k=1}^{N_{\text{comp}} - 1} \nu_{k,j} q_{k,j} & j = 0, \dots, M - 1.
+\end{align*}
+Note that all binding components must have exactly the same number of binding site types $M \geq 1$.
+See Table~\ref{tab:FFAdsorptionBiStericMassAction}.
+
+The reference concentrations $c_{\text{ref},j}$ and $q_{\text{ref},j}$ can be specified for each binding site type $0 \leq j \leq M - 1$.
+The concept of reference concentrations is explained in the respective paragraph in Section~\ref{par:MBReferenceConcentrations}.
+
+Originally, the Bi-SMA model is limited to two different binding site types.
+Here, the model has been extended to arbitrary many binding site types.

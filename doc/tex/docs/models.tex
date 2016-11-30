@@ -1,0 +1,305 @@
+%!TEX root = ../all.tex
+% =============================================================================
+%  CADET - The Chromatography Analysis and Design Toolkit
+%  
+%  Copyright © 2008-2016: Eric von Lieres¹, Joel Andersson,
+%                         Andreas Puettmann¹, Sebastian Schnittert¹,
+%                         Samuel Leweke¹
+%                                      
+%    ¹ Forschungszentrum Juelich GmbH, IBG-1, Juelich, Germany.
+%  
+%  All rights reserved. This program and the accompanying materials
+%  are made available under the terms of the GNU Public License v3.0 (or, at
+%  your option, any later version) which accompanies this distribution, and
+%  is available at http://www.gnu.org/licenses/gpl.html
+% =============================================================================
+
+\chapter{Models}
+
+%\section{Terms and physical phenomena}
+%
+%\begin{description}
+%	\item[Convective transport] Transport of the solute molecules by convection (i.e., movement with the flow of the liquid).
+%	\item[Dispersion] Band broadening effect caused by the non-ideal flow due to the packed bed.
+%	\item[Diffusion] Brownian motion of the molecules.
+%	\item[Film diffusion] 
+%\end{description}
+
+\section{Unit operation models}
+
+\subsection{General rate model (GRM)}
+
+The general rate model \index{Model!General rate model} is the most comprehensive model of mass transfer in column liquid chromatography, when only the axial coordinate in the column and the radial coordinate in the beads are considered \cite{Kucera1965,Gu1995,Guiochon2006,Felinger2004}.
+
+The main assumptions are:
+\begin{enumerate}
+	\item The cross sections of the column are homogenous in terms of interstitial volume, fluid flow, and distribution of components. Thus, only one spatial coordinate in axial direction is needed.
+	\item The bead radii $r_{p}$ are much smaller than the column radius $r_c$ and the column length $L$. Therefore, the beads can be seen as continuously distributed inside the column (i.e., at each point there is interstitial and bead volume).
+\end{enumerate}
+
+\begin{table}[!hptb]
+\centering
+\begin{tabular}{llp{8cm}}
+\toprule
+Variable & Domain & Description \\
+\midrule
+$i$ & $\left\{ 0, \dots, N_{\text{comp}} - 1 \right\}$ & Component index\\
+$m_i$ & $\left\{ 0, \dots, N_{\text{bnd},i} - 1 \right\}$ & Bound state index of $i$th component\\
+$m$ & $\left\{ 0, \dots, \sum_{i=0}^{N_{\text{comp}}-1} N_{\text{bnd},i} - 1 \right\}$ & Total bound state index\\
+$t$ & $\left[0, T_{\text{end}}\right]$ & Time coordinate\\
+$z$ & $[0, L]$ & Axial coordinate\\
+$r$ & $\left[0, r_p\right]$ & Radial coordinate\\
+$c_{i}(t,z)$ & $\left[0, T_{\text{end}}\right] \times [0, L]$ & Interstitial concentration of the $i$th component\\
+$c_{p,i}(t, z, r)$ & $\left[0, T_{\text{end}}\right] \times [0, L] \times \left[0, r_p\right]$ & Mobile phase concentration of the $i$th component\\
+$q_{i,m_i}(t, z, r)$ & $\left[0, T_{\text{end}}\right] \times [0,L] \times \left[0, r_p\right]$ & Solid phase concentration of the $i$th component's $m_i$th bound state\\
+$j_{f,i}(t, z)$ & $\left[0, T_{\text{end}}\right] \times [0, L]$ & Flux of the $i$th component through stagnant film into the bead\\
+\bottomrule
+\end{tabular}
+\caption{Variables and unkowns}
+\end{table}
+
+\begin{figure}[!htb]
+	\centering
+	\subcaptionbox{Column geometry\label{fig:ModelGRMColumnGeometry}}[0.48 \linewidth]{%
+		\begin{tikzpicture}[>=stealth]
+			\draw[semithick] (0,0) -- (4,0);% bottom line
+			\draw[semithick] (0,1) -- (4,1);% top line
+			\draw[semithick] (0,0.5) ellipse (0.166 and 0.5);% left ellipse
+			\draw[semithick] (4,0) arc (-90:90:0.166 and 0.5);% right half of the right ellipse
+			\draw[|-,semithick] (0,-0.5) -- (4,-0.5);
+			\draw[|->,semithick] (4,-0.5) -- (4.5,-0.5);
+			\draw (0,-1) node {$z=0$};
+			\draw (4,-1) node {$z=L$};
+			\node at (4.75, -0.5) {$z$};
+
+			\draw[->] (-1.5,0.5) -- (-0.25,0.5) node[above,midway,sloped] {\footnotesize Influx};
+			\draw[->] (4.25,0.5) -- (5.5,0.5) node[above,midway,sloped] {\footnotesize Efflux};
+
+			\draw[dashed,color=gray] (2,0.5) ellipse (0.166 and 0.5);% mid ellipse
+			\fill (2,0.5) ellipse (0.0332 and 0.075);
+			\draw[semithick] (2,0.5) -- (2,1) node[above] {$r_c$};
+		\end{tikzpicture}
+	}
+	\subcaptionbox{A section of the column\label{fig:ModelGRMColumnSection}}[0.48 \linewidth]{%
+		\begin{tikzpicture}[>=stealth]
+			\begin{scope}
+				\clip (0.25,0.25) rectangle (3.75,1.75);
+				\fill[semithick,color=black!25!white] (0.25,0.25) rectangle (3.75,1.75);
+%				\draw[semithick] (0,0) rectangle (4,2);
+				\filldraw[color=black,fill=white] (0.4,0.4) circle[radius=0.35cm];
+				\filldraw[color=black,fill=white] (0.35,1.05) circle[radius=0.25cm];
+				\filldraw[color=black,fill=white] (0.42,1.67) circle[radius=0.3cm];
+				\filldraw[color=black,fill=white] (0.98,0.3) circle[radius=0.2cm];
+				\filldraw[color=black,fill=white] (1,0.9) circle[radius=0.35cm];
+				\filldraw[color=black,fill=white] (1.04,1.6) circle[radius=0.25cm];
+				\filldraw[color=black,fill=white] (1.6,0.39) circle[radius=0.35cm];
+				\filldraw[color=black,fill=white] (1.6,0.98) circle[radius=0.2cm];
+				\filldraw[color=black,fill=white] (1.5,1.4) circle[radius=0.2cm];
+				\filldraw[color=black,fill=white] (1.82,1.72) circle[radius=0.25cm];
+				\filldraw[color=black,fill=white] (2.48,0.28) circle[radius=0.25cm];
+				\filldraw[color=black,fill=white] (2.14,0.62) circle[radius=0.2cm];
+				\filldraw[color=black,fill=white] (2.17,1.19) circle[radius=0.35cm];
+				\filldraw[color=black,fill=white] (2.3,1.78) circle[radius=0.2cm];
+				\filldraw[color=black,fill=white] (3.02,0.26) circle[radius=0.25cm];
+				\filldraw[color=black,fill=white] (2.82,0.84) circle[radius=0.35cm];
+				\filldraw[color=black,fill=white] (2.86,1.58) circle[radius=0.35cm];
+				\filldraw[color=black,fill=white] (3.64,0.38) circle[radius=0.35cm];
+				\filldraw[color=black,fill=white] (3.37,1.24) circle[radius=0.2cm];
+				\filldraw[color=black,fill=white] (3.37,0.85) circle[radius=0.16cm];
+				\filldraw[color=black,fill=white] (3.48,1.72) circle[radius=0.25cm];
+				\filldraw[color=black,fill=white] (3.77,0.93) circle[radius=0.2cm];
+				\filldraw[color=black,fill=white] (3.77,1.34) circle[radius=0.2cm];
+			\end{scope}
+			\draw[thin,color=black] (0.25,0.25) rectangle (3.75,1.75);
+
+			\draw[<-] (1.4, 1.61) -- (1.4, 2);
+			\node at (1.4, 2.17) {\footnotesize Ref. volume of $c_i$};
+			\node[anchor=west,align=center] at (4,1) {\footnotesize Porosity\\ \footnotesize$\varepsilon_c = \frac{\text{Vol.~interstitial}}{\text{Vol.~interstitial} + \text{Vol.~beads}}$};
+		\end{tikzpicture}
+	}
+	\caption{Column bulk model\label{fig:ModelGRMColumn}}
+\end{figure}
+
+The GRM describes transport of solute molecules through the interstitial column volume by convective flow, band broadening caused by axial dispersion, mass transfer resistance through a stagnant film around the beads, pore (and surface) diffusion in the porous beads \cite{Ma1996, Schneider1968a, Miyabe2007}, and adsorption to the inner bead surfaces.
+
+Consider a column of length $L>0$ filled with spherical beads of radius $r_p \ll L$ (see Fig.~\ref{fig:ModelGRMColumn}). 
+The mass balance in the interstitial column volume is described by
+\begin{align}
+	\frac{\partial c_i}{\partial t} &= -u \frac{\partial c_i}{\partial z} + D_{\text{ax}} \frac{\partial^2 c_i}{\partial z^2} - \frac{1}{\beta_c}\frac{3}{r_p}k_{f,i}\left[ c_i - c_{p,i}(\cdot, \cdot, r_p) \right]. \label{eq:ModelColumn}
+\end{align}
+Here, $c_i\colon \left[0, T_{\text{end}}\right] \times [0, L] \rightarrow \mathds{R}^{\geq 0}$ denotes the concentration in the interstitial column volume, $c_{p,i}\colon \left[0, T_{\text{end}}\right] \times [0, L] \times [0, r_p] \rightarrow \mathds{R}^{\geq 0}$ the liquid phase concentration in the beads, $k_{f,i}$ the film diffusion coefficient, $D_{\text{ax}}$ the dispersion coefficient, $u$ the interstitial velocity, and $\beta_c = \varepsilon_c / (1 - \varepsilon_c)$ the column phase ratio, where $\varepsilon_c$ is the column porosity (ratio of interstitial volume to total column volume).
+
+In the liquid phase of the porous beads (see Fig.~\ref{fig:ModelGRMBead}) the mass balance is given by
+\begin{align}
+	\frac{\pdiff c_{p,i}}{\pdiff t} + \frac{1}{\beta_p} \frac{\pdiff}{\pdiff t} \sum_{m_i} q_{i,m_i} = \underbrace{D_{p,i} \left[\frac{\pdiff^2}{\pdiff r^2} + \frac{2}{r} \frac{\pdiff}{\pdiff r} \right]c_{p,i}}_{\text{Pore diffusion}} + \underbrace{\frac{1}{\beta_p} D_{s,i} \left[\frac{\pdiff^2}{\pdiff r^2} + \frac{2}{r} \frac{\pdiff }{\pdiff r} \right] \sum_{m_i} q_{i,m_i} }_{\text{Surface diffusion}}, \label{eq:ModelBead}
+\end{align}
+where $q_{i,m_i}\colon \left[0, T_{\text{end}}\right] \times [0,L] \times [0, r_p] \rightarrow \mathds{R}^{\geq 0}$ denotes the solid phase concentration of the $i$th component's $m_i$th bound state in the beads, $D_{p,i}$ the effective diffusion coefficient in the beads, $D_{s,i}$ the surface diffusion coefficient, and $\beta_p = \varepsilon_p / (1 - \varepsilon_p)$ the particle phase ratio, where $\varepsilon_p$ is the particle porosity (ratio of pore volume to total bead volume).
+The GRM is used with both quasi-stationary (Eq.~\eqref{eq:REqBinding}) and dynamic (Eq.~\eqref{eq:DynBinding}) binding models. \index{Binding!Models}\index{Binding!Dynamic}\index{Binding!Quasi-stationary}
+\begin{alignat}{2}
+	\text{quasi-stationary: }& & 0 &= f_{\text{ads}}( c_p, q), \label{eq:REqBinding} \\
+	\text{dynamic: }& & \frac{\partial q}{\partial t} &= f_{\text{ads}}( c_p, q). \label{eq:DynBinding}
+\end{alignat}
+Note that $c_p$ and $q$ denote the vector of all $c_{p,i}$ and $q_{i,m_i}$, respectively.
+The boundary conditions of the bead model the film diffusion and are given for all ${t \in (0,\infty)}$ and $z \in [0,L]$ by
+\begin{align}
+	k_{f,i}\left[ c_i - c_{p,i}(\cdot, \cdot, r_p) \right] &= \varepsilon_p D_{p,i} \frac{\partial c_{p,i}}{\partial r}(\cdot, \cdot, r_p) + \left( 1 - \varepsilon_p\right) D_{s,i} \sum_{m_i} \frac{\partial q_{i,m_i}}{\partial r}(\cdot, \cdot, r_p), \label{eq:BCBeadIn} \\
+	\frac{\partial c_{p,i}}{\partial r}(\cdot, \cdot, 0) &= 0. \label{eq:BCBeadCenter}
+\end{align}
+By default, the following initial conditions are applied for all $z \in [0,L]$ and $r \in \left[0, r_p\right]$:
+\begin{align}
+	c_i(0, z) &= 0, & c_{p,i}(0, z, r) &= 0, & q_{i,m_i}(0,z,r) &= 0. \label{eq:InitialConditions}
+\end{align}
+
+\begin{figure}[!hptb]
+	\centering
+	\subcaptionbox{Mass transport into beads\label{fig:ModelGRMBeadTransport}}[0.38 \linewidth]{%
+		\begin{tikzpicture}[>=stealth]
+
+			\fill[line width=2pt,color=black!25!white] ($(-35:2cm) + (-1,0)$) -- (-35:2cm) arc[start angle=-35,end angle=35,radius=2] -- +(-1,0) -- cycle;
+			\draw[line width=0.15cm,color=black!45!white] (-35:2.075cm) arc[start angle=-35,end angle=35,radius=2.075];
+
+			\draw[semithick] (-35:2cm) arc[start angle=-35,end angle=-10,radius=2];
+			\draw[semithick] (10:2cm) arc[start angle=10,end angle=35,radius=2];
+			\fill[semithick,white] ($(-1.35,0)+(-10:2cm)$) -- (-10:2cm) arc[start angle=-10,end angle=10,radius=2] -- +(-1.35,0) -- cycle;
+
+			\node[anchor=east] at (1.65,0.75) {\footnotesize Bead};
+
+			\node[anchor=east] at (0.5, -0) {\footnotesize $c_{p,i}$};
+			\node[anchor=west] at (2.5, -0) {\footnotesize $c_{i}$};
+
+			% Channel
+			\filldraw[blue] (1,0) circle (0.08cm);
+			\filldraw[blue] (1.3,0.01) circle (0.08cm);
+			\filldraw[blue] (1.5,0.1) circle (0.08cm);
+			\filldraw[blue] (1.2,0.23) circle (0.08cm);
+			\filldraw[blue] (1.13,-0.21) circle (0.08cm);
+			\filldraw[blue] (0.9,0.18) circle (0.08cm);
+			\filldraw[blue] (0.8,-0.25) circle (0.08cm);
+			\filldraw[blue] (1.47,-0.22) circle (0.08cm);
+			\filldraw[blue] (1.59,-0.05) circle (0.08cm);
+			\filldraw[blue] (1.64,0.24) circle (0.08cm);
+			\filldraw[blue] (1.79,-0.19) circle (0.08cm);
+			\filldraw[blue] (1.79,0) circle (0.08cm);
+			\filldraw[blue] (1.84,0.2) circle (0.08cm);
+
+			% Outside
+			\filldraw[blue] (2.27,-0.39) circle (0.08cm);
+			\filldraw[blue] (2.25,-0.2) circle (0.08cm);
+			\filldraw[blue] (2.4,0.02) circle (0.08cm);
+			\filldraw[blue] (2.3,0.18) circle (0.08cm);
+			\filldraw[blue] (2.34,0.36) circle (0.08cm);
+			\filldraw[blue] (2.14,0.73) circle (0.08cm);
+			\filldraw[blue] (2.19,0.52) circle (0.08cm);
+			\filldraw[blue] (2.13,-0.79) circle (0.08cm);
+			\filldraw[blue] (2.17,-0.58) circle (0.08cm);
+			\filldraw[blue] (2.07,0.93) circle (0.08cm);
+			\filldraw[blue] (2,1.1) circle (0.08cm);
+			\filldraw[blue] (2.04,-0.97) circle (0.08cm);
+			\filldraw[blue] (1.95,-1.15) circle (0.08cm);
+
+			\begin{scope}[rotate=-2,xshift=0.32cm,yshift=-0.10cm]
+				\filldraw[blue] (2.14,0.75) circle (0.08cm);
+				\filldraw[blue] (2.19,0.51) circle (0.08cm);
+				\filldraw[blue] (2.07,1.01) circle (0.08cm);
+				\filldraw[blue] (2,1.21) circle (0.08cm);
+			\end{scope}
+
+			\begin{scope}[rotate=5,xshift=0.32cm,yshift=0.14cm]
+				\filldraw[blue] (2.13,-0.73) circle (0.08cm);
+				\filldraw[blue] (2.17,-0.56) circle (0.08cm);
+				\filldraw[blue] (2.04,-0.97) circle (0.08cm);
+				\filldraw[blue] (1.95,-1.19) circle (0.08cm);
+			\end{scope}
+
+			\draw[semithick,<->] (1.88,0) -- (2.28,0);
+		\end{tikzpicture}
+	}
+	\subcaptionbox{Mass transport inside bead\label{fig:ModelGRMBeadDiff}}[0.58 \linewidth]{%
+		\begin{tikzpicture}[>=stealth]
+
+			\fill[semithick,fill=black!25!white] (0,0) circle (1);
+
+			\draw[semithick] (0,0)+(xyz polar cs:angle=35,radius=1) arc[start angle=35,end angle=115,radius=1];
+			\draw[semithick] (0,0)+(xyz polar cs:angle=125,radius=1) arc[start angle=125,end angle=215,radius=1];
+			\draw[semithick] (0,0)+(xyz polar cs:angle=225,radius=1) arc[start angle=225,end angle=285,radius=1];
+			\draw[semithick] (0,0)+(xyz polar cs:angle=295,radius=1) arc[start angle=295,end angle=385,radius=1];
+
+			\draw[color=white,line width=5pt,line cap=round,line join=round] (xyz polar cs:angle=30,radius=1) .. controls (xyz polar cs:angle=30,radius=0.9) and (xyz polar cs:angle=55,radius=0.7) .. (0.2,0.1);
+			\draw[color=white,line width=5pt,line cap=round,line join=round] (xyz polar cs:angle=120,radius=1) .. controls (xyz polar cs:angle=120,radius=0.9) and (xyz polar cs:angle=55,radius=0.7) .. (0.3,0.3);
+
+			\draw[color=white,line width=3pt,line cap=round,line join=round] (0.1,0.5) .. controls (-0.2,0.3) .. (-0.3,0.3);
+			\draw[color=white,line width=3pt,line cap=round,line join=round] (-0.2,0.3) .. controls (-0.2,0.3) .. (0.2,0.15);
+
+			\draw[color=white,line width=5pt,line cap=round,line join=round] (xyz polar cs:angle=220,radius=1) .. controls (xyz polar cs:angle=220,radius=0.98) and (xyz polar cs:angle=205,radius=0.7) .. (0.3,-0.3) .. controls (0.2,-0.4) and (0.5,0) .. (0.7,0);
+			\draw[color=white,line width=5pt,line cap=round,line join=round] (xyz polar cs:angle=290,radius=1) .. controls (xyz polar cs:angle=290,radius=0.98) and (xyz polar cs:angle=330,radius=0.7) .. (-0.5,0.4);
+
+			\draw[color=white,line width=3pt,line cap=round,line join=round] (-0.2,0.1) .. controls (-0.5,-0.3) and (-0.4, -0.3) .. (-0.5,-0.4);
+			\draw[color=white,line width=3pt,line cap=round,line join=round] (-0.7,-0.55) .. controls (-0.6,-0.75) and (-0.15,-0.8) .. (-0.1,-0.7);
+			\draw[color=white,line width=3pt,line cap=round,line join=round] (-0.4,0.35) .. controls (-0.4,0.15) and (-0.9,0.1) .. (-0.8,-0.1);
+
+			\draw[line width=0.1cm,color=black!45!white] (0,0) circle (1.051);
+
+			\draw[<->] (xyz polar cs:angle=117.5,radius=0.85) -- (xyz polar cs:angle=120,radius=1.3) node[pos=0.5,xshift=-0.05cm] (FD) {};
+			\node[anchor=south east,inner sep=1pt] (FDdesc) at (-1.2,1.2) {\footnotesize Film diffusion};
+			\draw[very thin] (FD.center) -- (FDdesc);
+
+			\draw[<->] (0,0.82) -- (0.3,0.66) node[midway,xshift=0.05cm,yshift=0.05cm] (SD) {};
+			\node[anchor=south west,right=1.8cm of FDdesc,inner sep=1pt] (SDdesc) {\footnotesize Surface diffusion};
+			\draw[very thin] (SD.center) -- (SDdesc);
+
+			\draw[<->] (-0.60,-0.52) -- (-0.72,-0.28) node[midway,xshift=-0.05cm,yshift=-0.025cm] (S) {};
+			\node[anchor=base east,inner sep=1pt] (Sdesc) at (-1.2,-0.9) {\footnotesize Adsorption};
+			\draw[very thin] (S.center) -- (Sdesc);
+
+			\draw[<->] (xyz polar cs:angle=297,radius=0.85) -- (xyz polar cs:angle=305,radius=0.4) node[pos=0.5,xshift=0.05cm] (PD) {};
+			\node[anchor=base west,right=2.4cm of Sdesc,inner sep=1pt] (PDdesc)  {\footnotesize Pore diffusion\vphantom{p}};
+			\draw[very thin] (PD.center) -- (PDdesc);
+
+			\draw[<-] (-0.6,0.62) -- (-1.2,0.62);
+			\node[anchor=east] at (-1.2,0.62) {\footnotesize Ref. volume of $q_{i,m_i}$};
+
+			\draw[<-] (-0.8,0) -- (-1.2,0);
+			\node[anchor=east] at (-1.2,0) {\footnotesize Ref. volume of $c_{p,i}$};
+
+			\node[anchor=west,align=center] at (1.5,0.2) {\footnotesize Porosity\\ \footnotesize$\varepsilon_p = \frac{\text{Vol.~channels}}{\text{Vol.~channels} + \text{Vol.~solid}}$};
+
+%			\draw[step=0.1cm,gray,thin] (-1,-1) grid (1,1);
+		\end{tikzpicture}
+	}
+	\caption{Column bead model\label{fig:ModelGRMBead}}
+\end{figure}
+
+
+\begin{figure}[!hptb]
+	\centering
+	\begin{tikzpicture}[>=stealth]
+
+		\fill[fill=black!25!white] (-0.5,0) rectangle (3.5,0.5);
+		\draw[semithick] (-0.5,0.5) -- (3.5,0.5);.
+
+		\begin{scope}[xshift=1.5cm,yshift=2.8cm]
+%			\draw (0.2,0.2) -- (0,0.2) -- (-0.2,0) -- (-0.2,-0.2) -- (0.2,-0.2) -- (0.2,0.2);
+%			\draw (0.4,0.2) -- (-0.2,0.2)  arc[radius=0.2cm,start angle=90,end angle=180] -- (-0.4,-0.2) -- (0.4,-0.2) -- (0.4,0.2);
+			\draw (0.4,0.4) -- (-0.2,0.4)  arc[radius=0.2cm,start angle=90,end angle=180] -- (-0.4,-0.4) -- (0.4,-0.4) -- (0.4,0.4);
+			\node at (0,0) {\footnotesize $c_{p,i}$};
+		\end{scope}
+
+		\begin{scope}[xshift=0.5cm,yshift=0.9cm]
+			\draw (0.4,0.4) -- (-0.2,0.4)  arc[radius=0.2cm,start angle=90,end angle=180] -- (-0.4,-0.4) -- (0.4,-0.4) -- (0.4,0.4);
+			\node at (0,0) {\footnotesize $q_{i,1}$};
+		\end{scope}
+
+		\begin{scope}[xshift=2.5cm,yshift=0.9cm,rotate=-90]
+			\draw (0.4,0.4) -- (-0.2,0.4)  arc[radius=0.2cm,start angle=90,end angle=180] -- (-0.4,-0.4) -- (0.4,-0.4) -- (0.4,0.4);
+			\node at (0,0) {\footnotesize $q_{i,2}$};
+		\end{scope}
+
+		\node at (1.5, 0.25) {\footnotesize Surface};
+
+		\draw[<->] (0.7,1.4) -- (1.3,2.3);
+		\draw[<->] (2.3,1.4) -- (1.7,2.3);
+		\draw[<->] (1,0.9) -- (2,0.9);
+	\end{tikzpicture}
+	\caption{Binding with multiple bound states}
+\end{figure}
+
