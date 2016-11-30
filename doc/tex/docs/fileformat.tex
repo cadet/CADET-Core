@@ -589,6 +589,69 @@ However, if only one index is passed in \texttt{EXTFUN}, this external source is
 \begin{table}[!ht]
 \footnotesize
 \begin{tabu}to \linewidth[m]{lX[m]cccc} \toprule
+\multicolumn{6}{c}{\GroupHeadlineX{ADSORPTION\_MODEL = MULTI\_COMPONENT\_SPREADING}{/input/model/unit\_XXX/adsorption}} \\
+\rowfont[c]\normalfont Dataset & Description & Unit & Type & Range & Length \everyrow{\midrule}\\
+\texttt{IS\_KINETIC} & Selects kinetic or quasi-stationary adsorption mode: 1 = kinetic, 0 = quasi-stationary & -- & int & 0/1 & 1\\
+\texttt{MCSPR\_KA} & Adsorption rate constants in state-major ordering & \si{\cubic\metre\of{MP}\per\mol\per\second} & double & $\geq 0.0$ & \texttt{NTOTALBND} \\
+\texttt{MCSPR\_KD} & Desorption rate constants in state-major ordering & \si{\per\second} & double & $\geq 0.0$ & \texttt{NTOTALBND} \\
+\texttt{MCSPR\_QMAX} & Maximum adsorption capacities in state-major ordering & \si{\mol\per\cubic\metre\of{SP}} & double & $> 0.0$ & \texttt{NTOTALBND} \\
+\texttt{MCSPR\_K12} & Exchange rates from the first to the second bound state & \si{\per\second} & double & $\geq 0.0$ & \texttt{NCOMP} \\
+\texttt{MCSPR\_K21} & Exchange rates from the second to the first bound state & \si{\per\second} & double & $\geq 0.0$ & \texttt{NCOMP} \everyrow{}\\
+\bottomrule
+\end{tabu}
+\caption[Datasets for the multi component spreading adsorption model]{\label{tab:FFAdsorptionMultiCompSpreading}Datasets for the multi component spreading adsorption model (\texttt{/input/model/unit\_XXX/adsorption} group)}
+\end{table}
+
+\begin{table}[!ht]
+\footnotesize
+\begin{tabu}to \linewidth[m]{lX[m]cccc} \toprule
+\multicolumn{6}{c}{\GroupHeadlineX{ADSORPTION\_MODEL = MULTISTATE\_STERIC\_MASS\_ACTION}{/input/model/unit\_XXX/adsorption}} \\
+\rowfont[c]\normalfont Dataset & Description & Unit & Type & Range & Length \everyrow{\midrule}\\
+\texttt{IS\_KINETIC} & Selects kinetic or quasi-stationary adsorption mode: 1 = kinetic, 0 = quasi-stationary & -- & int & 0/1 & 1\\
+\texttt{MSSMA\_KA} & Adsorption rate constants of the components to the different bound states in component-major ordering & \si{\raiseto{3}\metre\of{MP}\per\raiseto{3}\metre\of{SP}\per\second} & double & $\geq 0.0$ & \texttt{NTOTALBND}\\
+\texttt{MSSMA\_KD} & Desorption rate constants of the components in the different bound states in component-major ordering & \si{\per\second} & double & $\geq 0.0$ & \texttt{NTOTALBND}\\
+\texttt{MSSMA\_NU} & Characteristic charges of the components in the different bound states in component-major ordering & -- & double & $\geq 0.0$ & \texttt{NTOTALBND}\\
+\texttt{MSSMA\_SIGMA} & Steric factors of the components in the different bound states in component-major ordering & -- & double & $\geq 0.0$ & \texttt{NTOTALBND}\\
+\texttt{MSSMA\_RATES} & Conversion rates between different bound states in component-row-major ordering & \si{\per\second} & double & $\geq 0.0$ & $\sum_{i=0}^{\texttt{NCOMP} - 1} \texttt{NBND}_i^2$\\
+\texttt{MSSMA\_LAMBDA} & Stationary phase capacity (monovalent salt counterions); The total number of binding sites available on the resin surface & \si{\mol\per\cubic\metre\of{SP}} & double & $\geq 0.0$ & 1\\
+\texttt{MSSMA\_REFC0} & Reference liquid phase concentration (optional, defaults to $1.0$) & \si{\mol\per\raiseto{3}\metre\of{MP}} & double & $> 0.0$ & 1\\
+\texttt{MSSMA\_REFQ} & Reference solid phase concentration (optional, defaults to $1.0$) & \si{\mol\per\raiseto{3}\metre\of{SP}} & double & $> 0.0$ & 1\everyrow{}\\
+\bottomrule
+\end{tabu}
+\caption[Datasets for the multi state steric mass action adsorption model]{\label{tab:FFAdsorptionMultiStateStericMassAction}Datasets for the multi state steric mass action adsorption model (\texttt{/input/model/unit\_XXX/adsorption} group)}
+\end{table}
+
+\begin{table}[!ht]
+\footnotesize
+\begin{tabu}to \linewidth[m]{lX[m]cccc} \toprule
+\multicolumn{6}{c}{\GroupHeadlineX{ADSORPTION\_MODEL = SIMPLE\_MULTISTATE\_STERIC\_MASS\_ACTION}{/input/model/unit\_XXX/adsorption}} \\
+\rowfont[c]\normalfont Dataset & Description & Unit & Type & Range & Length \everyrow{\midrule}\\
+\texttt{IS\_KINETIC} & Selects kinetic or quasi-stationary adsorption mode: 1 = kinetic, 0 = quasi-stationary & -- & int & 0/1 & 1\\
+\texttt{SMSSMA\_LAMBDA} & Stationary phase capacity (monovalent salt counterions); The total number of binding sites available on the resin surface & \si{\mol\per\cubic\metre\of{SP}} & double & $\geq 0.0$ & 1\\
+\texttt{SMSSMA\_KA} & Adsorption rate constants of the components to the different bound states in component-major ordering & \si{\raiseto{3}\metre\of{MP}\per\raiseto{3}\metre\of{SP}\per\second} & double & $\geq 0.0$ & \texttt{NTOTALBND}\\
+\texttt{SMSSMA\_KD} & Desorption rate constants of the components to the different bound states in component-major ordering & \si{\per\second} & double & $\geq 0.0$ & \texttt{NTOTALBND}\\
+\texttt{SMSSMA\_NU\_MIN} & Characteristic charges of the components in the first (weakest) bound state & -- & double & $\geq 0.0$ & \texttt{NCOMP}\\
+\texttt{SMSSMA\_NU\_MAX} & Characteristic charges of the components in the last (strongest) bound state & -- & double & $\geq 0.0$ & \texttt{NCOMP}\\
+\texttt{SMSSMA\_NU\_QUAD} & Quadratic modifiers of the characteristic charges of the different components depending on the index of the bound state & -- & double & $\mathds{R}$ & \texttt{NCOMP}\\
+\texttt{SMSSMA\_SIGMA\_MIN} & Steric factors of the components in the first (weakest) bound state & -- & double & $\geq 0.0$ & \texttt{NCOMP} \\
+\texttt{SMSSMA\_SIGMA\_MAX} & Steric factors of the components in the last (strongest) bound state & -- & double & $\geq 0.0$ & \texttt{NCOMP} \\
+\texttt{SMSSMA\_SIGMA\_QUAD} & Quadratic modifiers of steric factors of the different components depending on the index of the bound state & -- & double & $\mathds{R}$ & \texttt{NCOMP} \\
+\texttt{SMSSMA\_KWS} & Exchange rates from a weakly bound state to the next stronger bound state & \si{\per\second} & double & $\geq 0.0$ & \texttt{NCOMP} \\
+\texttt{SMSSMA\_KWS\_LIN} & Linear exchange rate coefficients from a weakly bound state to the next stronger bound state & \si{\per\second} & double & $\mathds{R}$ & \texttt{NCOMP} \\
+\texttt{SMSSMA\_KWS\_QUAD} & Quadratic exchange rate coefficients from a weakly bound state to the next stronger bound state & \si{\per\second} & double & $\mathds{R}$ & \texttt{NCOMP} \\
+\texttt{SMSSMA\_KSW} & Exchange rates from a strongly bound state to the next weaker bound state & \si{\per\second} & double & $\geq 0.0$ & \texttt{NCOMP} \\
+\texttt{SMSSMA\_KSW\_LIN} & Linear exchange rate coefficients from a strongly bound state to the next weaker bound state & \si{\per\second} & double & $\mathds{R}$ & \texttt{NCOMP} \\
+\texttt{SMSSMA\_KSW\_QUAD} & Quadratic exchange rate coefficients from a strongly bound state to the next weaker bound state & \si{\per\second} & double & $\mathds{R}$ & \texttt{NCOMP} \\
+\texttt{SMSSMA\_REFC0} & Reference liquid phase concentration (optional, defaults to $1.0$) & \si{\mol\per\raiseto{3}\metre\of{MP}} & double & $> 0.0$ & 1\\
+\texttt{SMSSMA\_REFQ} & Reference solid phase concentration (optional, defaults to $1.0$) & \si{\mol\per\raiseto{3}\metre\of{SP}} & double & $> 0.0$ & 1\everyrow{}\\
+\bottomrule
+\end{tabu}
+\caption[Datasets for the simplified multi state steric mass action adsorption model]{\label{tab:FFAdsorptionSimpleMultiStateStericMassAction}Datasets for the simplified multi state steric mass action adsorption model (\texttt{/input/model/unit\_XXX/adsorption} group)}
+\end{table}
+
+\begin{table}[!ht]
+\footnotesize
+\begin{tabu}to \linewidth[m]{lX[m]cccc} \toprule
 \multicolumn{6}{c}{\GroupHeadlineX{ADSORPTION\_MODEL = BI\_STERIC\_MASS\_ACTION}{/input/model/unit\_XXX/adsorption}} \\
 \rowfont[c]\normalfont Dataset & Description & Unit & Type & Range & Length \everyrow{\midrule}\\
 \texttt{IS\_KINETIC} & Selects kinetic or quasi-stationary adsorption mode: 1 = kinetic, 0 = quasi-stationary & -- & int & 0/1 & 1\\

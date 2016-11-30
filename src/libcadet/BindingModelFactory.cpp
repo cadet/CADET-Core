@@ -13,6 +13,8 @@
 #include "BindingModelFactory.hpp"
 #include "cadet/Exceptions.hpp"
 
+#include "model/binding/SimplifiedMultiStateStericMassActionBinding.hpp"
+
 namespace cadet
 {
 	namespace model
@@ -27,8 +29,11 @@ namespace cadet
 			void registerMobilePhaseModulatorLangmuirModel(std::unordered_map<std::string, std::function<model::IBindingModel*()>>& bindings);
 			void registerStericMassActionModel(std::unordered_map<std::string, std::function<model::IBindingModel*()>>& bindings);
 			void registerBiStericMassActionModel(std::unordered_map<std::string, std::function<model::IBindingModel*()>>& bindings);
+			void registerMultiStateStericMassActionModel(std::unordered_map<std::string, std::function<model::IBindingModel*()>>& bindings);
+//			void registerSimplifiedMultiStateStericMassActionModel(std::unordered_map<std::string, std::function<model::IBindingModel*()>>& bindings);
 			void registerSelfAssociationModel(std::unordered_map<std::string, std::function<model::IBindingModel*()>>& bindings);
 			void registerSaskaModel(std::unordered_map<std::string, std::function<model::IBindingModel*()>>& bindings);
+			void registerMultiComponentSpreadingModel(std::unordered_map<std::string, std::function<model::IBindingModel*()>>& bindings);
 		}
 	}
 
@@ -43,8 +48,12 @@ namespace cadet
 		model::binding::registerMobilePhaseModulatorLangmuirModel(_bindingModels);
 		model::binding::registerStericMassActionModel(_bindingModels);
 		model::binding::registerBiStericMassActionModel(_bindingModels);
+		model::binding::registerMultiStateStericMassActionModel(_bindingModels);
+//		model::binding::registerSimplifiedMultiStateStericMassActionModel(_bindingModels);
 		model::binding::registerSelfAssociationModel(_bindingModels);
 		model::binding::registerSaskaModel(_bindingModels);
+		model::binding::registerMultiComponentSpreadingModel(_bindingModels);
+		registerModel<model::SimplifiedMultiStateStericMassActionBinding>();
 	}
 
 	BindingModelFactory::~BindingModelFactory() { }

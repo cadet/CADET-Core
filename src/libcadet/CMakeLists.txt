@@ -116,6 +116,9 @@ set (LIBCADET_SOURCES
 	${CMAKE_SOURCE_DIR}/src/libcadet/model/binding/SelfAssociationBinding.cpp
 	${CMAKE_SOURCE_DIR}/src/libcadet/model/binding/BiStericMassActionBinding.cpp
 	${CMAKE_SOURCE_DIR}/src/libcadet/model/binding/SaskaBinding.cpp
+	${CMAKE_SOURCE_DIR}/src/libcadet/model/binding/MultiStateStericMassActionBinding.cpp
+	${CMAKE_SOURCE_DIR}/src/libcadet/model/binding/SimplifiedMultiStateStericMassActionBinding.cpp
+	${CMAKE_SOURCE_DIR}/src/libcadet/model/binding/MultiComponentSpreadingBinding.cpp
 	${CMAKE_SOURCE_DIR}/src/libcadet/model/inlet/PiecewiseCubicPoly.cpp
 	${CMAKE_SOURCE_DIR}/src/libcadet/model/extfun/LinearInterpolationExternalFunction.cpp
 	${CMAKE_SOURCE_DIR}/src/libcadet/model/extfun/PiecewiseCubicPolyExternalFunction.cpp
