@@ -105,14 +105,14 @@ public:
 	virtual void configureTimeIntegrator(double relTol, double absTol, const std::vector<double>& initStepSizes, unsigned int maxSteps);
 	virtual void setSensitivityErrorTolerance(double relTol, double const* absTol);
 
-	virtual void setRelativeErrorTolerance(double relTol) CADET_NOEXCEPT { _relTol = relTol; }
+	virtual void setRelativeErrorTolerance(double relTol);
 	virtual void setAbsoluteErrorTolerance(double absTol);
 	virtual void setAbsoluteErrorTolerance(const std::vector<double>& absTol);
 	virtual void setAlgebraicErrorTolerance(double algTol) CADET_NOEXCEPT { _algTol = algTol; }
 	virtual void setInitialStepSize(double stepSize);
 	virtual void setInitialStepSize(const std::vector<double>& stepSize);
-	virtual void setMaximumSteps(unsigned int maxSteps) CADET_NOEXCEPT { _maxSteps = maxSteps; }
-	virtual void setRelativeErrorToleranceSens(double relTol) CADET_NOEXCEPT { _relTolS = relTol; }
+	virtual void setMaximumSteps(unsigned int maxSteps);
+	virtual void setRelativeErrorToleranceSens(double relTol);
 
 	virtual bool reconfigureModel(IParameterProvider& paramProvider);
 	virtual bool reconfigureModel(IParameterProvider& paramProvider, unsigned int unitOpIdx);
@@ -207,6 +207,16 @@ protected:
 	 * @param [in] resetSens Set to @c true if AD directions should be updated, otherwise @c false
 	 */
 	void calculateTimeTransformation(bool resetSens);
+
+	/**
+	 * @brief Updates the error tolerances in IDAS
+	 * @details Sets the absolute and relative error tolerances in IDAS. If the absolute error
+	 *          tolerances are given as vector / array, a model is required to expand the
+	 *          error specification or fill in missing DOFs. If a model is not present, nothing
+	 *          happens (i.e., the errors are not updated within IDAS). If IDAS has not been
+	 *          initialized yet, nothing happens.
+	 */
+	void updateMainErrorTolerances();
 
 	const active timeFactor(unsigned int curSec) const;
 	inline const active timeFactor() const { return timeFactor(_curSec); }

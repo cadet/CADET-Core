@@ -235,33 +235,8 @@ namespace cadet
 		else
 			IDAInit(_idaMemBlock, &residualDaeWrapper, 0.0, _vecStateY, _vecStateYdot);			
 
-		// IDAS Step 6: Specify integration tolerances (SS: scalar/scalar)
-		if (_absTol.size() > 1)
-		{
-			N_Vector absTolTemp = NVec_New(nDOFs);
-			const unsigned int pureDofs = _model->numPureDofs();
-
-			// Check whether user has given us full absolute error for all (pure) DOFs
-			if (_absTol.size() >= pureDofs)
-			{
-				// Copy error tolerances for pure data
-				std::copy(_absTol.data(), _absTol.data() + pureDofs, NVEC_DATA(absTolTemp));
-
-				// Calculate error tolerances for coupling DOFs and append them
-				const std::vector<double> addAbsErrTol = _model->calculateErrorTolsForAdditionalDofs(_absTol.data(), _absTol.size());
-				std::copy(addAbsErrTol.data(), addAbsErrTol.data() + addAbsErrTol.size(), NVEC_DATA(absTolTemp) + pureDofs);
-			}
-			else
-			{
-				// We've received an expandable error specification
-				_model->expandErrorTol(_absTol.data(), _absTol.size(), NVEC_DATA(absTolTemp));
-			}
-
-			IDASVtolerances(_idaMemBlock, _relTol, absTolTemp);
-			NVec_Destroy(_vecStateYdot);
-		}
-		else
-			IDASStolerances(_idaMemBlock, _relTol, _absTol[0]);
+		// IDAS Step 6: Specify integration tolerances (S: scalar; V: array)
+		updateMainErrorTolerances();
 
 		// IDAS Step 7.1: Set optional inputs
 
@@ -291,6 +266,42 @@ namespace cadet
 			_vecADres = new active[nDOFs];
 			_vecADy = new active[nDOFs];
 		}
+	}
+
+	void Simulator::updateMainErrorTolerances()
+	{
+		if (!_idaMemBlock)
+			return;
+
+		if (_absTol.size() > 1)
+		{
+			if (!_model)
+				return;
+
+			N_Vector absTolTemp = NVec_New(_model->numDofs());
+			const unsigned int pureDofs = _model->numPureDofs();
+
+			// Check whether user has given us full absolute error for all (pure) DOFs
+			if (_absTol.size() >= pureDofs)
+			{
+				// Copy error tolerances for pure data
+				std::copy(_absTol.data(), _absTol.data() + pureDofs, NVEC_DATA(absTolTemp));
+
+				// Calculate error tolerances for coupling DOFs and append them
+				const std::vector<double> addAbsErrTol = _model->calculateErrorTolsForAdditionalDofs(_absTol.data(), _absTol.size());
+				std::copy(addAbsErrTol.data(), addAbsErrTol.data() + addAbsErrTol.size(), NVEC_DATA(absTolTemp) + pureDofs);
+			}
+			else
+			{
+				// We've received an expandable error specification
+				_model->expandErrorTol(_absTol.data(), _absTol.size(), NVEC_DATA(absTolTemp));
+			}
+
+			IDASVtolerances(_idaMemBlock, _relTol, absTolTemp);
+			NVec_Destroy(absTolTemp);
+		}
+		else
+			IDASStolerances(_idaMemBlock, _relTol, _absTol[0]);		
 	}
 
 	void Simulator::preFwdSensInit(unsigned int nSens)
@@ -1204,7 +1215,7 @@ namespace cadet
 		_absTolS.clear();
 
 		const unsigned int nSens = _sensitiveParams.slices();
-		if ((nSens > 0) && _vecFwdYs && absTol)
+		if (_idaMemBlock && (nSens > 0) && _vecFwdYs && absTol)
 		{
 			_absTolS.insert(_absTolS.end(), absTol, absTol + nSens);
 
@@ -1213,15 +1224,33 @@ namespace cadet
 		}
 	}
 
+	void Simulator::setRelativeErrorToleranceSens(double relTol)
+	{
+		_relTolS = relTol;
+		if (_idaMemBlock && (_sensitiveParams.slices() > 0) && _vecFwdYs)
+		{
+			// Set sensitivity integration tolerances
+			IDASensSStolerances(_idaMemBlock, _relTolS, _absTolS.data());
+		}
+	}
+
+	void Simulator::setRelativeErrorTolerance(double relTol)
+	{
+		_relTol = relTol;
+		updateMainErrorTolerances();
+	}
+
 	void Simulator::setAbsoluteErrorTolerance(double absTol)
 	{
 		_absTol.clear();
 		_absTol.push_back(absTol);
+		updateMainErrorTolerances();
 	}
 
 	void Simulator::setAbsoluteErrorTolerance(const std::vector<double>& absTol)
 	{
 		_absTol = absTol;
+		updateMainErrorTolerances();
 	}
 
 	void Simulator::setInitialStepSize(double stepSize)
@@ -1233,6 +1262,13 @@ namespace cadet
 	void Simulator::setInitialStepSize(const std::vector<double>& stepSize)
 	{
 		_initStepSize = stepSize;
+	}
+
+	void Simulator::setMaximumSteps(unsigned int maxSteps)
+	{
+		_maxSteps = maxSteps;
+		if (_idaMemBlock)
+			IDASetMaxNumSteps(_idaMemBlock, _maxSteps);
 	}
 
 

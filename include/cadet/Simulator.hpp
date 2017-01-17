@@ -536,7 +536,7 @@ public:
 	 *          @f[ \frac{1}{\text{relTol} \left|r_i\right| + \text{absTol}_i}. @f]
 	 * @param [in] relTol Relative error tolerance
 	 */
-	virtual void setRelativeErrorTolerance(double relTol) CADET_NOEXCEPT = 0;
+	virtual void setRelativeErrorTolerance(double relTol) = 0;
 
 	/**
 	 * @brief Sets the absolute error tolerance of the time integrator
@@ -585,7 +585,7 @@ public:
 	 *          the time integrator aborts with an exception.
 	 * @param [in] maxSteps Maximum number of time steps in each section
 	 */
-	virtual void setMaximumSteps(unsigned int maxSteps) CADET_NOEXCEPT = 0;
+	virtual void setMaximumSteps(unsigned int maxSteps) = 0;
 
 	/**
 	 * @brief Sets the relative error tolerance for sensitivity systems in the time integrator
@@ -594,7 +594,7 @@ public:
 	 *          weighted by @f[ \frac{1}{\text{relTol} \left|r_i\right| + \text{absTol}_i}. @f]
 	 * @param [in] relTol Relative error tolerance
 	 */
-	virtual void setRelativeErrorToleranceSens(double relTol) CADET_NOEXCEPT = 0;
+	virtual void setRelativeErrorToleranceSens(double relTol) = 0;
 
 	/**
 	 * @brief Returns the elapsed time of the last simulation run in seconds
