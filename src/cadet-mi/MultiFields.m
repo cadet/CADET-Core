@@ -79,7 +79,12 @@ classdef MultiFields
 			end
 
 			idx = arrayfun(@(x) str2double(names{x}(len+2:end)), idx);
+			idx = idx(~isnan(idx));
 			idx = sort(idx);
+			if isempty(idx)
+				val = [];
+				return;
+			end
 			
 			% Preallocate
 			dset = sprintf('%s_%03d', baseName, idx(1));

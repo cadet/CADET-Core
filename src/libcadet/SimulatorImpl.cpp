@@ -48,12 +48,22 @@ namespace
 
 	const std::vector<double*> convertNVectorToStdVectorPtrs(unsigned int& len, N_Vector* vec, unsigned int numVec)
 	{
+		if (!vec || (numVec == 0))
+		{
+			return std::vector<double*>(0, nullptr);
+		}
+
 		len = NVEC_LENGTH(vec[0]);
 		return convertNVectorToStdVectorPtrs<double*>(vec, numVec);
 	}
 
 	const std::vector<const double*> convertNVectorToStdVectorConstPtrs(unsigned int& len, N_Vector* vec, unsigned int numVec)
 	{
+		if (!vec || (numVec == 0))
+		{
+			return std::vector<const double*>(0, nullptr);
+		}
+
 		len = NVEC_LENGTH(vec[0]);
 		return convertNVectorToStdVectorPtrs<const double*>(vec, numVec);
 	}
