@@ -728,7 +728,7 @@ int GeneralRateModel::residualBulk(const ParamType& t, unsigned int secIdx, cons
 
 	// The stencil caches parts of the state vector for better spatial coherence
 	typedef CachingStencil<StateType, ArrayPool> StencilType;
-	StencilType stencil(Weno::maxStencilSize(), _stencilMemory, _weno.order() - 1);
+	StencilType stencil(_weno.stencilSize(), _stencilMemory, _weno.order() - 1);
 
 	for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
 	{
@@ -834,7 +834,7 @@ int GeneralRateModel::residualBulk(const ParamType& t, unsigned int secIdx, cons
 			}
 
 			// Update stencil
-			stencil.advance(idxr.c<StateType>(y, col + _weno.maxOrder(), comp));
+			stencil.advance(idxr.c<StateType>(y, col + _weno.order(), comp));
 			++jac;
 		}
 	}
@@ -1456,8 +1456,8 @@ void GeneralRateModel::expandErrorTol(double const* errorSpec, unsigned int erro
  * @details Normalized coordinates are used (i.e., outer bead shell has radius @c 1.0). The radial size
  *          of each shell is @f$ \Delta r = \frac{1}{n} @f$, where @f$ n @f$ is the number of shells.
  *          Thus, the @f$i@f$-th shell (from outside to inside of the bead starting from 0) has outer radius
- *          @f$ r_{\test{out}} = \left(1 - \Delta r i \right) @f$ and inner radius
- *          @f$ r_{\test{in}} = \left(1 - \Delta r (i+1) \right). @f$
+ *          @f$ r_{\text{out}} = \left(1 - \Delta r i \right) @f$ and inner radius
+ *          @f$ r_{\text{in}} = \left(1 - \Delta r (i+1) \right). @f$
  */
 void GeneralRateModel::setEquidistantRadialDisc()
 {
