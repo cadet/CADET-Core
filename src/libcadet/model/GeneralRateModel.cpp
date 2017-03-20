@@ -187,8 +187,9 @@ bool GeneralRateModel::configure(IParameterProvider& paramProvider, IConfigHelpe
 		// Note that we have to increase the lower bandwidth by 1 because the WENO stencil is applied to the
 		// right cell face (lower + 1 + upper) and to the left cell face (shift the stencil by -1 because influx of cell i
 		// is outflux of cell i-1)
-		_jacC[i].resize(_disc.nCol, _weno.lowerBandwidth() + 1, _weno.upperBandwidth());
-		_jacCdisc[i].resize(_disc.nCol, _weno.lowerBandwidth() + 1, _weno.upperBandwidth());
+		// We also have to make sure that there's at least one sub and super diagonal for the dispersion term
+		_jacC[i].resize(_disc.nCol, std::max(_weno.lowerBandwidth() + 1u, 1u), std::max(_weno.upperBandwidth(), 1u));
+		_jacCdisc[i].resize(_disc.nCol, std::max(_weno.lowerBandwidth() + 1u, 1u), std::max(_weno.upperBandwidth(), 1u));
 	}
 
 	_jacP = new linalg::BandMatrix[_disc.nCol];
