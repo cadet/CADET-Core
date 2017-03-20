@@ -729,7 +729,7 @@ int GeneralRateModel::residualBulk(const ParamType& t, unsigned int secIdx, cons
 
 	// The stencil caches parts of the state vector for better spatial coherence
 	typedef CachingStencil<StateType, ArrayPool> StencilType;
-	StencilType stencil(_weno.stencilSize(), _stencilMemory, _weno.order() - 1);
+	StencilType stencil(std::max(_weno.stencilSize(), 3u), _stencilMemory, std::max(_weno.order() - 1, 1));
 
 	for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
 	{
@@ -757,9 +757,9 @@ int GeneralRateModel::residualBulk(const ParamType& t, unsigned int secIdx, cons
 		}
 
 		// Fill stencil (left side with zeros, right side with states)
-		for (int i = -_weno.order() + 1; i < 0; ++i)
+		for (int i = -std::max(_weno.order(), 2) + 1; i < 0; ++i)
 			stencil[i] = 0.0;
-		for (int i = 0; i < _weno.order(); ++i)
+		for (int i = 0; i < std::max(_weno.order(), 2); ++i)
 			stencil[i] = idxr.c<StateType>(y, static_cast<unsigned int>(i), comp);
 
 		// Reset WENO output
@@ -835,7 +835,7 @@ int GeneralRateModel::residualBulk(const ParamType& t, unsigned int secIdx, cons
 			}
 
 			// Update stencil
-			stencil.advance(idxr.c<StateType>(y, col + _weno.order(), comp));
+			stencil.advance(idxr.c<StateType>(y, col + std::max(_weno.order(), 2), comp));
 			++jac;
 		}
 	}
