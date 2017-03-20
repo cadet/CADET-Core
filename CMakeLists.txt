@@ -108,7 +108,7 @@ if (NOT CMAKE_BUILD_TYPE)
 endif ()
 
 if (CMAKE_BUILD_TYPE STREQUAL "Debug")
-    add_definitions(-DCADET_LOGLEVEL_MIN=Trace)
+    add_definitions(-DCADET_LOGLEVEL_MIN=Trace -DDEBUG)
 else()
     add_definitions(-DCADET_LOGLEVEL_MIN=Warning)
 endif()
