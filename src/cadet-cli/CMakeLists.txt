@@ -59,7 +59,7 @@ install (TARGETS cadet-cli RUNTIME DESTINATION bin)
 
 # ---------------------------------------------------
 
-set (CADETCLI_TARGETS cadet-cli PARENT_SCOPE)
+set (CADET_CLI_TARGETS cadet-cli PARENT_SCOPE)
 
 # Info message
 message (STATUS "Added CADET-CLI module")
