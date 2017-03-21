@@ -70,7 +70,6 @@ public:
 		BenchScope() : _timer() { _timer.start(); }
 		~BenchScope() CADET_NOEXCEPT
 		{
-			const typename std::chrono::high_resolution_clock::time_point end = std::chrono::high_resolution_clock::now();
 			const double t = _timer.stop();
 			std::cout << "Total elapsed time: " << t << " sec" << std::endl;
 		}
