@@ -55,6 +55,10 @@ For example, there are tutorials on
 
 Try CADET in the browser using the [online simulator web service](http://www.cadet-web.de).
 
+## Commercial software using CADET
+
+For commercial software built on top of CADET and designed for experimentalists [KBI](http://www.kbibiopharma.com/) has built [![REVEAL CHROME Powered by CADET](https://www.cadet-web.de/static/simulation/RevealChromLogo.png)](http://reveal.kbibiopharma.com/chromatography).
+
 ## Ongoing Development
 
 Since CADET is actively developed, **do not expect a stable API**. Breaking changes and extensive restructuring may occur in any commit and release.
