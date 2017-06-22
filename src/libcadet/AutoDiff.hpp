@@ -1,7 +1,7 @@
 // =============================================================================
 //  CADET - The Chromatography Analysis and Design Toolkit
 //  
-//  Copyright © 2008-2016: The CADET Authors
+//  Copyright © 2008-2017: The CADET Authors
 //            Please see the AUTHORS and CONTRIBUTORS file.
 //  
 //  All rights reserved. This program and the accompanying materials
@@ -78,6 +78,21 @@
 			{
 				return getValue();
 			}
+
+			inline void fillADValue(const real_t v)
+			{
+				fillADValue(0, adtl::ADOLC_numDir, v);
+			}
+			inline void fillADValue(const size_t start, const real_t v)
+			{
+				fillADValue(start, adtl::ADOLC_numDir, v);
+			}
+			inline void fillADValue(const size_t start, const size_t end, const real_t v)
+			{
+				for (size_t i = start; i < end; ++i)
+					setADValue(i, v);
+			}
+
 		};
 
 		namespace ad

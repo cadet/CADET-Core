@@ -1,7 +1,7 @@
 // =============================================================================
 //  CADET - The Chromatography Analysis and Design Toolkit
 //  
-//  Copyright © 2008-2016: The CADET Authors
+//  Copyright © 2008-2017: The CADET Authors
 //            Please see the AUTHORS and CONTRIBUTORS file.
 //  
 //  All rights reserved. This program and the accompanying materials
@@ -44,6 +44,16 @@
 
 #define CADET_UPDATE_EXTDEP_VARIABLE(VAR, EXTVAL) \
 	VAR = VAR##T0 + EXTVAL * (VAR##T1 + EXTVAL * (VAR##T2 + EXTVAL * VAR##T3));
+
+
+#define CADET_UPDATE_EXTDEP_VARIABLE_TDIFF_BRACES(VAR, IDXEXPR, EXTVAL, TDIFFVAL) \
+	VAR[IDXEXPR] = TDIFFVAL * (static_cast<double>(VAR##T1[IDXEXPR]) + EXTVAL * (2.0 *  static_cast<double>(VAR##T2[IDXEXPR]) + 3.0 * EXTVAL * static_cast<double>(VAR##T3[IDXEXPR])));
+
+#define CADET_UPDATE_EXTDEP_VARIABLE_TDIFF_NATIVE(VAR, IDXEXPR, EXTVAL, TDIFFVAL) \
+	VAR.native(IDXEXPR) = TDIFFVAL * (static_cast<double>(VAR##T1.native(IDXEXPR)) + EXTVAL * (2.0 *  static_cast<double>(VAR##T2.native(IDXEXPR)) + 3.0 * EXTVAL * static_cast<double>(VAR##T3.native(IDXEXPR))));
+
+#define CADET_UPDATE_EXTDEP_VARIABLE_TDIFF(VAR, EXTVAL, TDIFFVAL) \
+	VAR = TDIFFVAL * (static_cast<double>(VAR##T1) + EXTVAL * (2.0 * static_cast<double>(VAR##T2) + 3.0 * EXTVAL * static_cast<double>(VAR##T3)));
 
 
 #define CADET_RESERVE_SPACE(VAR, NUMELEM) \
@@ -162,6 +172,24 @@ namespace model
 		 * @param [in] size Number of elements in the IExternalFunction array @p extFuns
 		 */
 		inline void setExternalFunctions(IExternalFunction** extFuns, unsigned int size) { }
+
+		/**
+		 * @brief Updates local parameter cache and calculates time derivative in case of external dependence
+		 * @param [in] t Current time
+		 * @param [in] z Axial coordinate in the column
+		 * @param [in] r Radial coordinate in the bead
+		 * @param [in] secIdx Index of the current section
+		 * @param [in] nComp Number of components
+		 * @param [in] nBoundStates Array with number of bound states for each component
+		 */
+		inline void updateTimeDerivative(double t, double z, double r, unsigned int secIdx, unsigned int nComp, unsigned int const* nBoundStates) const { }
+
+		/**
+		 * @brief Returns whether this binding model depends on time
+		 * @details Binding models that do not use external functions do not depend on time.
+		 * @return @c true if the binding model depends on time, otherwise @c false
+		 */
+		static bool dependsOnTime() { return false; }
 	};
 
 	/**
@@ -195,6 +223,13 @@ namespace model
 				}
 			}
 		}
+
+		/**
+		 * @brief Returns whether this binding model depends on time
+		 * @details Binding models that use external functions do depend on time.
+		 * @return @c true if the binding model depends on time, otherwise @c false
+		 */
+		static bool dependsOnTime() { return true; }
 
 	protected:
 
@@ -255,6 +290,25 @@ namespace model
 			}
 		}
 
+		/**
+		 * @brief Evaluates the time derivative of the external functions for the different parameters
+		 * @param [in] t Current time
+		 * @param [in] z Axial coordinate in the column
+		 * @param [in] r Radial coordinate in the bead
+		 * @param [in] secIdx Index of the current section
+		 * @return A vector with time derivatives of each external function
+		 */
+		inline std::vector<double> evaluateTimeDerivativeExternalFunctions(double t, double z, double r, unsigned int secIdx) const
+		{
+			std::vector<double> buffer(_extFunBuffer.size(), 0.0);
+			for (unsigned int i = 0; i < buffer.size(); ++i)
+			{
+				IExternalFunction* const fun = _extFun[i];
+				if (fun)
+					buffer[i] = fun->timeDerivative(t, z, r, secIdx);
+			}
+			return buffer;
+		}
 	};
 
 }  // namespace model

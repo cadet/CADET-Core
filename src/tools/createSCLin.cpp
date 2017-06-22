@@ -1,7 +1,7 @@
 // =============================================================================
 //  CADET - The Chromatography Analysis and Design Toolkit
 //  
-//  Copyright © 2008-2016: The CADET Authors
+//  Copyright © 2008-2017: The CADET Authors
 //            Please see the AUTHORS and CONTRIBUTORS file.
 //  
 //  All rights reserved. This program and the accompanying materials
@@ -18,7 +18,7 @@
 #include <tclap/CmdLine.h>
 #include "common/TclapUtils.hpp"
 #include "io/hdf5/HDF5Writer.hpp"
-#include "TestCaseHelper.hpp"
+#include "ToolsHelper.hpp"
 
 struct ProgramOptions
 {
@@ -32,14 +32,14 @@ struct ProgramOptions
 int main(int argc, char** argv)
 {
 	ProgramOptions opts;
-
+	
 	try
 	{
-		TCLAP::CustomOutputWithoutVersion customOut("createMCL");
-		TCLAP::CmdLine cmd("Create an HDF5 input file for a two component linear benchmark case", ' ', "1.0");
+		TCLAP::CustomOutputWithoutVersion customOut("createSCL");
+		TCLAP::CmdLine cmd("Create an HDF5 input file for a single component linear benchmark case", ' ', "1.0");
 		cmd.setOutput(&customOut);
 
-		cmd >> (new TCLAP::ValueArg<std::string>("o", "out", "Write output to file (default: MCLin.h5)", false, "MCLin.h5", "File"))->storeIn(&opts.fileName);
+		cmd >> (new TCLAP::ValueArg<std::string>("o", "out", "Write output to file (default: SCLin.h5)", false, "SCLin.h5", "File"))->storeIn(&opts.fileName);
 		cmd >> (new TCLAP::SwitchArg("k", "kinetic", "Kinetic adsorption model used (default: quasi-stationary)"))->storeIn(&opts.isKinetic);
 		addSensitivitiyParserToCmdLine(cmd, opts.sensitivities);
 		addOutputParserToCmdLine(cmd, opts.outSol, opts.outSens);
@@ -66,19 +66,22 @@ int main(int argc, char** argv)
 			Scope<cadet::io::HDF5Writer> su(writer, "unit_000");
 
 			writer.scalar("UNIT_TYPE", std::string("GENERAL_RATE_MODEL"));
-			writer.scalar<int>("NCOMP", 2);
+			writer.scalar<int>("NCOMP", 1);
+
+			//Flow
+			writer.scalar<double>("FLOW", 1.0);
 
 			// Transport
 			writer.scalar<double>("VELOCITY", 5.75e-4);
 			writer.scalar<double>("COL_DISPERSION", 5.75e-8);
 
-			const double filmDiff[] = {6.9e-6, 6.9e-6};
-			const double parDiff[] = {7e-10, 7e-10};
-			const double parSurfDiff[] = {0.0, 1e-10};
+			const double filmDiff[] = {6.9e-6};
+			const double parDiff[] = {7e-10};
+			const double parSurfDiff[] = {0.0};
 
-			writer.vector<double>("FILM_DIFFUSION", 2, filmDiff);
-			writer.vector<double>("PAR_DIFFUSION", 2, parDiff);
-			writer.vector<double>("PAR_SURFDIFFUSION", 2, parSurfDiff);
+			writer.vector<double>("FILM_DIFFUSION", 1, filmDiff);
+			writer.vector<double>("PAR_DIFFUSION", 1, parDiff);
+			writer.vector<double>("PAR_SURFDIFFUSION", 1, parSurfDiff);
 
 			// Geometry
 			writer.scalar<double>("COL_LENGTH", 0.014);
@@ -87,24 +90,25 @@ int main(int argc, char** argv)
 			writer.scalar<double>("PAR_POROSITY", 0.75);
 
 			// Initial conditions
-			const double initC[] = {0.0, 0.0};
-			const double initQ[] = {0.0, 0.0};
-			writer.vector<double>("INIT_C", 2, initC);
-			writer.vector<double>("INIT_Q", 2, initQ);
+			const double initC[] = {0.0};
+			const double initQ[] = {0.0};
+			writer.vector<double>("INIT_C", 1, initC);
+			writer.vector<double>("INIT_Q", 1, initQ);
 
 			// Adsorption
 			writer.scalar("ADSORPTION_MODEL", std::string("LINEAR"));
 			{
 				Scope<cadet::io::HDF5Writer> s2(writer, "adsorption");
+				
 				if (opts.isKinetic)
 					writer.scalar<int>("IS_KINETIC", 1);
 				else
 					writer.scalar<int>("IS_KINETIC", 0);
 
-				const double kA[] = {35.5, 20.0};
-				const double kD[] = {1000.0, 1000.0};
-				writer.vector<double>("LIN_KA", 2, kA);
-				writer.vector<double>("LIN_KD", 2, kD);
+				const double kA[] = {35.5};
+				const double kD[] = {1000.0};
+				writer.vector<double>("LIN_KA", 1, kA);
+				writer.vector<double>("LIN_KD", 1, kD);
 			}
 
 			// Discretization
@@ -113,8 +117,8 @@ int main(int argc, char** argv)
 
 				writer.scalar<int>("NCOL", 10); // 64
 				writer.scalar<int>("NPAR", 4); // 16
-				const int nBound[] = {1, 1};
-				writer.vector<int>("NBOUND", 2, nBound);
+				const int nBound[] = {1};
+				writer.vector<int>("NBOUND", 1, nBound);
 
 				writer.scalar("PAR_DISC_TYPE", std::string("EQUIDISTANT_PAR"));
 
@@ -141,44 +145,47 @@ int main(int argc, char** argv)
 
 			writer.scalar("UNIT_TYPE", std::string("INLET"));
 			writer.scalar("INLET_TYPE", std::string("PIECEWISE_CUBIC_POLY"));
-			writer.scalar<int>("NCOMP", 2);
+			writer.scalar<int>("NCOMP", 1);
+
+			//Flow
+			writer.scalar<double>("FLOW", 1.0);
 
 			{
 				Scope<cadet::io::HDF5Writer> s3(writer, "sec_000");
 
-				const double constCoeff[] = {0.0, 0.0};
-				const double linCoeff[] = {1.0, 2.0};
-				const double quadCoeff[] = {0.0, 0.0};
+				const double constCoeff[] = {0.0};
+				const double linCoeff[] = {1.0};
+				const double quadCoeff[] = {0.0};
 
-				writer.vector<double>("CONST_COEFF", 2, constCoeff);
-				writer.vector<double>("LIN_COEFF", 2, linCoeff);
-				writer.vector<double>("QUAD_COEFF", 2, quadCoeff);
-				writer.vector<double>("CUBE_COEFF", 2, quadCoeff);
+				writer.vector<double>("CONST_COEFF", 1, constCoeff);
+				writer.vector<double>("LIN_COEFF", 1, linCoeff);
+				writer.vector<double>("QUAD_COEFF", 1, quadCoeff);
+				writer.vector<double>("CUBE_COEFF", 1, quadCoeff);
 			}
 
 			{
 				Scope<cadet::io::HDF5Writer> s3(writer, "sec_001");
 
-				const double constCoeff[] = {10.0, 20.0};
-				const double linCoeff[] = {0.0, 0.0};
+				const double constCoeff[] = {10.0};
+				const double linCoeff[] = {0.0};
 
-				writer.vector<double>("CONST_COEFF", 2, constCoeff);
-				writer.vector<double>("LIN_COEFF", 2, linCoeff);
-				writer.vector<double>("QUAD_COEFF", 2, linCoeff);
-				writer.vector<double>("CUBE_COEFF", 2, linCoeff);
+				writer.vector<double>("CONST_COEFF", 1, constCoeff);
+				writer.vector<double>("LIN_COEFF", 1, linCoeff);
+				writer.vector<double>("QUAD_COEFF", 1, linCoeff);
+				writer.vector<double>("CUBE_COEFF", 1, linCoeff);
 			}
 
 			{
 				Scope<cadet::io::HDF5Writer> s3(writer, "sec_002");
 
-				const double constCoeff[] = {10.0, 20.0};
-				const double linCoeff[] = {-10.0 / 1410.0, -20.0 / 1410.0};
-				const double quadCoeff[] = {0.0, 0.0, 0.0, 0.0};
+				const double constCoeff[] = {10.0};
+				const double linCoeff[] = {-0.00709219858};
+				const double quadCoeff[] = {0.0};
 
-				writer.vector<double>("CONST_COEFF", 2, constCoeff);
-				writer.vector<double>("LIN_COEFF", 2, linCoeff);
-				writer.vector<double>("QUAD_COEFF", 2, quadCoeff);
-				writer.vector<double>("CUBE_COEFF", 2, quadCoeff);
+				writer.vector<double>("CONST_COEFF", 1, constCoeff);
+				writer.vector<double>("LIN_COEFF", 1, linCoeff);
+				writer.vector<double>("QUAD_COEFF", 1, quadCoeff);
+				writer.vector<double>("CUBE_COEFF", 1, quadCoeff);
 			}
 		}
 
@@ -190,17 +197,28 @@ int main(int argc, char** argv)
 			{
 				Scope<cadet::io::HDF5Writer> s1(writer, "switch_000");
 
-				// Connection list is 1x4 since we have 1 connection between
-				// the two unit operations (and we need to have 4 columns)
-				const int connMatrix[] = {1, 0, -1, -1};
+				// Connection list is 1x5 since we have 1 connection between
+				// the two unit operations (and we need to have 5 columns)
+				const double connMatrix[] = {1, 0, -1, -1, 1.0};
 				// Connections: From unit operation 1 to unit operation 0,
 				//              connect component -1 (i.e., all components)
-				//              to component -1 (i.e., all components)
+				//              to component -1 (i.e., all components) with
+				//              a flow rate of 1.0
 
 				// This switch occurs at beginning of section 0 (initial configuration)
 				writer.scalar<int>("SECTION", 0);
-				writer.vector<int>("CONNECTIONS", 4, connMatrix);
+				writer.vector<double>("CONNECTIONS", 5, connMatrix);
 			}
+		}
+
+		// Solver settings
+		{
+			Scope<cadet::io::HDF5Writer> su(writer, "solver");
+
+			writer.scalar<int>("MAX_KRYLOV", 0);
+			writer.scalar<int>("GS_TYPE", 1);
+			writer.scalar<int>("MAX_RESTARTS", 10);
+			writer.scalar<double>("SCHUR_SAFETY", 1e-8);
 		}
 	}
 
@@ -226,6 +244,7 @@ int main(int argc, char** argv)
 			solTimes.push_back(t);
 
 		writer.vector<double>("USER_SOLUTION_TIMES", solTimes.size(), solTimes.data());
+
 		writer.scalar<int>("NTHREADS", 1);
 
 		// Sections

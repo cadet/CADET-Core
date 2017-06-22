@@ -1,7 +1,7 @@
 // =============================================================================
 //  CADET - The Chromatography Analysis and Design Toolkit
 //  
-//  Copyright © 2008-2016: The CADET Authors
+//  Copyright © 2008-2017: The CADET Authors
 //            Please see the AUTHORS and CONTRIBUTORS file.
 //  
 //  All rights reserved. This program and the accompanying materials
@@ -126,7 +126,7 @@ public:
 		cadet_assert(!empty());
 		
 		// Increase end index of last slice
-		_index.back()++;
+		++_index.back();
 		_values.push_back(value);
 	}
 
@@ -139,7 +139,7 @@ public:
 		cadet_assert(sliceSize(slices() - 1) > 0);
 
 		// Decrease end index of last slice
-		_index.back()--;
+		--_index.back();
 		_values.pop_back();
 	}
 

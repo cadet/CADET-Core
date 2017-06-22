@@ -102,6 +102,8 @@
 # ``Matlab_BLAS_LIBRARY``
 #   Matlab's BLAS implementation (Intel MKL). Available only if the component ``LAPACK_LIBRARY``
 #   is requested.
+# ``Matlab_TBB_LIBRARY``
+#   Matlab's TBB library. Available only if the component ``TBB_LIBRARY`` is requested.
 # ``Matlab_LIBRARIES``
 #   the whole set of libraries of Matlab
 # ``Matlab_MEX_COMPILER``
@@ -120,6 +122,9 @@
 #   determines whether the (prior to R2015a undocumented) function mxCreateUninitNumericMatrix is
 #   declared (should be defined, but not always declared). Available only if the component 
 #   ``MX_LIBRARY`` is requested.
+# ``Matlab_TBB_INTERFACE_VERSION``
+#   determines the interface version number of Matlab's TBB library. Available only if the component 
+#   ``TBB_LIBRARY`` is requested.
 #
 # Cached variables
 # """"""""""""""""
@@ -273,6 +278,8 @@ if(NOT MATLAB_ADDITIONAL_VERSIONS)
 endif()
 
 set(MATLAB_VERSIONS_MAPPING
+  "R2017b=9.3"
+  "R2017a=9.2"
   "R2016b=9.1"
   "R2016a=9.0"
   "R2015b=8.6"
@@ -1302,6 +1309,7 @@ if(DEFINED Matlab_ROOT_DIR_LAST_CACHED)
         Matlab_ENG_LIBRARY
         Matlab_BLAS_LIBRARY
         Matlab_LAPACK_LIBRARY
+        Matlab_TBB_LIBRARY
         Matlab_MEX_EXTENSION
 
         # internal
@@ -1585,11 +1593,33 @@ endif()
 unset(_matlab_find_lapack)
 
 
+# Component TBB library
+list(FIND Matlab_FIND_COMPONENTS TBB_LIBRARY _matlab_find_tbb)
+if(_matlab_find_tbb GREATER -1)
+  _Matlab_find_library(
+    ${_matlab_lib_prefix_for_search}
+    Matlab_TBB_LIBRARY
+    tbb
+    PATHS ${_matlab_lib_dir_for_search}
+    NO_DEFAULT_PATH
+  )
+  if(Matlab_TBB_LIBRARY)
+    set(Matlab_TBB_LIBRARY_FOUND TRUE)
+
+    # Determine TBB interface version
+    try_run(Matlab_TBB_INTERFACE_VERSION_ran Matlab_TBB_INTERFACE_VERSION_compiled
+        ${CMAKE_BINARY_DIR} ${CMAKE_CURRENT_LIST_DIR}/MatlabTBBversion.cpp 
+        LINK_LIBRARIES ${Matlab_TBB_LIBRARY} RUN_OUTPUT_VARIABLE Matlab_TBB_INTERFACE_VERSION)
+
+  endif()
+endif()
+unset(_matlab_find_tbb)
+
 
 unset(_matlab_lib_dir_for_search)
 
 
-set(Matlab_LIBRARIES ${Matlab_MEX_LIBRARY} ${Matlab_MX_LIBRARY} ${Matlab_ENG_LIBRARY} ${Matlab_LAPACK_LIBRARY} ${Matlab_BLAS_LIBRARY})
+set(Matlab_LIBRARIES ${Matlab_MEX_LIBRARY} ${Matlab_MX_LIBRARY} ${Matlab_ENG_LIBRARY} ${Matlab_LAPACK_LIBRARY} ${Matlab_BLAS_LIBRARY} ${Matlab_TBB_LIBRARY})
 
 
 find_package_handle_standard_args(
@@ -1616,7 +1646,10 @@ if(Matlab_INCLUDE_DIRS AND Matlab_LIBRARIES)
     Matlab_BLAS_LIBRARY
     Matlab_LAPACK_LIBRARY
     Matlab_LAPACK_TRAILING_UNDERSCORE
+    Matlab_TBB_LIBRARY
+    Matlab_TBB_INTERFACE_VERSION
     Matlab_INCLUDE_DIRS
+    Matlab_DECLARES_CREATEUNINITNUMERICARRAY
     Matlab_DECLARES_CREATEUNINITNUMERICMATRIX
     Matlab_FOUND
     #Matlab_ROOT_DIR

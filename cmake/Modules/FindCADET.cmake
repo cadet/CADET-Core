@@ -1,11 +1,8 @@
 # =============================================================================
 #  CADET - The Chromatography Analysis and Design Toolkit
 #  
-#  Copyright © 2008-2016: Eric von Lieres¹, Joel Andersson¹,
-#                         Andreas Puettmann¹, Sebastian Schnittert¹,
-#                         Samuel Leweke¹
-#                                      
-#    ¹ Forschungszentrum Juelich GmbH, IBG-1, Juelich, Germany.
+#  Copyright © 2008-2017: The CADET Authors
+#            Please see the AUTHORS and CONTRIBUTORS file.
 #  
 #  All rights reserved. This program and the accompanying materials
 #  are made available under the terms of the GNU Public License v3.0 (or, at
@@ -66,10 +63,10 @@ set (CADET_USER_PATHS
 
     # find the CADET include directories
     find_path( CADET_INCLUDE_DIRS Simulator.hpp
-        ENV
-            CADET_ROOT
         PATHS
             ${CADET_USER_PATHS}
+        ENV
+            CADET_ROOT
         PATH_SUFFIXES
             include
             Include
@@ -90,10 +87,10 @@ set (CADET_USER_PATHS
 
     find_library( CADET_LIBRARIES
         NAMES ${THIS_LIBRARY_SEARCH}
-        ENV
-            CADET_ROOT
         PATHS
             ${CADET_USER_PATHS}
+        ENV
+            CADET_ROOT
         PATH_SUFFIXES
             lib
             Lib

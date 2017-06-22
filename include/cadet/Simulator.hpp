@@ -1,7 +1,7 @@
 // =============================================================================
 //  CADET - The Chromatography Analysis and Design Toolkit
 //  
-//  Copyright © 2008-2016: The CADET Authors
+//  Copyright © 2008-2017: The CADET Authors
 //            Please see the AUTHORS and CONTRIBUTORS file.
 //  
 //  All rights reserved. This program and the accompanying materials
@@ -56,6 +56,18 @@ enum class ConsistentInitialization : int
 	 * @brief Perform lean consistent initialization once at the beginning
 	 */
 	LeanFirstOnly = 4,
+	/**
+	 * @brief Perform full consistent initialization at the beginning and lean initialization on every following discontinuous section transition
+	 */
+	FullOnceThenLean = 5,
+	/**
+	 * @brief Do not initialize at the beginning but perform full initialization on every following discontinuous section transition
+	 */
+	NoneOnceThenFull = 6,
+	/**
+	 * @brief Do not initialize at the beginning but perform lean initialization on every following discontinuous section transition
+	 */
+	NoneOnceThenLean = 7,
 };
 
 /**
@@ -77,6 +89,12 @@ inline const char* to_string(ConsistentInitialization ci) CADET_NOEXCEPT
 			return "Full";
 		case ConsistentInitialization::Lean:
 			return "Lean";
+		case ConsistentInitialization::FullOnceThenLean:
+			return "FullOnceThenLean";
+		case ConsistentInitialization::NoneOnceThenFull:
+			return "NoneOnceThenFull";
+		case ConsistentInitialization::NoneOnceThenLean:
+			return "NoneOnceThenLean";
 	}
 	return "Unkown";
 }
@@ -98,6 +116,12 @@ inline ConsistentInitialization to_consistentinitialization(const std::string& c
 		return ConsistentInitialization::Full;
 	else if (ci == "Lean")
 		return ConsistentInitialization::Lean;
+	else if (ci == "FullOnceThenLean")
+		return ConsistentInitialization::FullOnceThenLean;
+	else if (ci == "NoneOnceThenFull")
+		return ConsistentInitialization::NoneOnceThenFull;
+	else if (ci == "NoneOnceThenLean")
+		return ConsistentInitialization::NoneOnceThenLean;
 
 	return ConsistentInitialization::Full;
 }
@@ -510,9 +534,10 @@ public:
 	 * @param [in] absTol Absolute error tolerance for each DOF
 	 * @param [in] initStepSize Initial step size for each section
 	 * @param [in] maxSteps Maximum number of time integration steps
+	 * @param [in] maxStepSize Maximum step size of the time integrator
 	 */
-	virtual void configureTimeIntegrator(double relTol, double absTol, double initStepSize, unsigned int maxSteps) = 0;
-	virtual void configureTimeIntegrator(double relTol, double absTol, const std::vector<double>& initStepSizes, unsigned int maxSteps) = 0;
+	virtual void configureTimeIntegrator(double relTol, double absTol, double initStepSize, unsigned int maxSteps, double maxStepSize) = 0;
+	virtual void configureTimeIntegrator(double relTol, double absTol, const std::vector<double>& initStepSizes, unsigned int maxSteps, double maxStepSize) = 0;
 
 	/**
 	 * @brief Sets the error tolerances of the sensitivity systems
@@ -527,7 +552,7 @@ public:
 	 * @details If the number of threads @p nThreads is @c 0, the maximum number of threads is used.
 	 * @param [in] nThreads Number of threads
 	 */
-	virtual void setNumThreads(unsigned int nThreads) const = 0;
+	virtual void setNumThreads(unsigned int nThreads) CADET_NOEXCEPT = 0;
 
 	/**
 	 * @brief Sets the relative error tolerance of the time integrator
@@ -586,6 +611,13 @@ public:
 	 * @param [in] maxSteps Maximum number of time steps in each section
 	 */
 	virtual void setMaximumSteps(unsigned int maxSteps) = 0;
+
+	/**
+	 * @brief Sets the maximum time step size
+	 * @details Set to @c 0.0 to not impose any step size restriction.
+	 * @param [in] maxStepSize Maximum size of time steps
+	 */
+	virtual void setMaximumStepSize(double maxStepSize) = 0;
 
 	/**
 	 * @brief Sets the relative error tolerance for sensitivity systems in the time integrator

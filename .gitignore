@@ -1,8 +1,49 @@
-.DS_Store
+### Linux ###
+*~
+
+# temporary files which can be created if a process still has a handle open of a deleted file
+.fuse_hidden*
+
+# KDE directory preferences
+.directory
+
+# Linux trash folder which might appear on any partition or disk
+.Trash-*
+
+# .nfs files are created when an open file is removed but is still being accessed
+.nfs*
+
+### macOS ###
+*.DS_Store
+.AppleDouble
+.LSOverride
+
+# Thumbnails
+._*
+
+### Windows ###
+# Windows thumbnail cache files
+Thumbs.db
+ehthumbs.db
+ehthumbs_vista.db
+
+# Folder config file
+Desktop.ini
+
+# Recycle Bin used on file shares
+$RECYCLE.BIN/
+
+# Windows shortcuts
+*.lnk
+
+
+### Ignore temporary editor files ###
 *.m~
 *.asv
 *._*
 *.*~
+
+### Ignore binaries ###
 *.mexmaci64
 *.mexa64
 *.mexw64
@@ -10,6 +51,8 @@
 *.dll
 *.dylib
 *.so
+
+### Ignore generated documentation and LaTeX aux files ###
 doc/doxy/html
 doc/tex/*.aux
 doc/tex/*.fdb_latexmk
@@ -28,3 +71,10 @@ doc/tex/*.gitinfo
 doc/tex/*.synctex.gz
 doc/tex/*.pdf
 doc/tex/docs/*.aux
+
+### Ignore IDE files ###
+.vs/
+.idea/
+*.iws
+*.kdev4
+.kdev4/

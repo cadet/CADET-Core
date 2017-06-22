@@ -1,7 +1,7 @@
 // =============================================================================
 //  CADET - The Chromatography Analysis and Design Toolkit
 //  
-//  Copyright © 2008-2016: The CADET Authors
+//  Copyright © 2008-2017: The CADET Authors
 //            Please see the AUTHORS and CONTRIBUTORS file.
 //  
 //  All rights reserved. This program and the accompanying materials
@@ -397,7 +397,7 @@ namespace detail
 		 */
 		inline void multiplyVector(const double* const x, double* const y) const
 		{
-			addMultiplyVector(x, 1.0, 0.0, y);
+			multiplyVector(x, 1.0, 0.0, y);
 		}
 
 		/**
@@ -414,7 +414,7 @@ namespace detail
 		inline void submatrixMultiplyVector(const double* const x, unsigned int startRow, unsigned int startCol, 
 			unsigned int numRows, unsigned int numCols, double* const y) const
 		{
-			addSubmatrixMultiplyVector(x, startRow, startCol, numRows, numCols, 1.0, 0.0, y);
+			submatrixMultiplyVector(x, startRow, startCol, numRows, numCols, 1.0, 0.0, y);
 		}
 
 		/**
@@ -425,7 +425,7 @@ namespace detail
 		 */
 		inline void transposedMultiplyVector(const double* const x, double* const y) const
 		{
-			addTransposedMultiplyVector(x, 1.0, 0.0, y);
+			transposedMultiplyVector(x, 1.0, 0.0, y);
 		}
 
 		/**
@@ -442,7 +442,7 @@ namespace detail
 		inline void transposedSubmatrixMultiplyVector(const double* const x, unsigned int startRow, unsigned int startCol, 
 			unsigned int numRows, unsigned int numCols, double* const y) const
 		{
-			addTransposedSubmatrixMultiplyVector(x, startRow, startCol, numRows, numCols, 1.0, 0.0, y);
+			transposedSubmatrixMultiplyVector(x, startRow, startCol, numRows, numCols, 1.0, 0.0, y);
 		}
 
 		/**
@@ -453,7 +453,7 @@ namespace detail
 		 * @param [in] beta Factor @f$ \beta @f$ in front of @f$ y @f$
 		 * @param [out] y Result of the matrix-vector multiplication
 		 */
-		void addMultiplyVector(const double* const x, double alpha, double beta, double* const y) const;
+		void multiplyVector(const double* const x, double alpha, double beta, double* const y) const;
 
 		/**
 		 * @brief Multiplies a submatrix @f$ A @f$ with a given vector @f$ x @f$ and adds it to another vector using LAPACK
@@ -468,7 +468,7 @@ namespace detail
 		 * @param [in] beta Factor @f$ \beta @f$ in front of @f$ y @f$
 		 * @param [out] y Result of the submatrix-vector multiplication
 		 */
-		void addSubmatrixMultiplyVector(const double* const x, unsigned int startRow, unsigned int startCol, 
+		void submatrixMultiplyVector(const double* const x, unsigned int startRow, unsigned int startCol, 
 			unsigned int numRows, unsigned int numCols, double alpha, double beta, double* const y) const;
 
 		/**
@@ -479,7 +479,7 @@ namespace detail
 		 * @param [in] beta Factor @f$ \beta @f$ in front of @f$ y @f$
 		 * @param [out] y Result of the matrix-vector multiplication
 		 */
-		void addTransposedMultiplyVector(const double* const x, double alpha, double beta, double* const y) const;
+		void transposedMultiplyVector(const double* const x, double alpha, double beta, double* const y) const;
 
 		/**
 		 * @brief Multiplies the transpose of a submatrix @f$ A @f$ with a given vector @f$ x @f$ and adds it to another vector using LAPACK
@@ -494,7 +494,7 @@ namespace detail
 		 * @param [in] beta Factor @f$ \beta @f$ in front of @f$ y @f$
 		 * @param [out] y Result of the submatrix-vector multiplication
 		 */
-		void addTransposedSubmatrixMultiplyVector(const double* const x, unsigned int startRow, unsigned int startCol, 
+		void transposedSubmatrixMultiplyVector(const double* const x, unsigned int startRow, unsigned int startCol, 
 			unsigned int numRows, unsigned int numCols, double alpha, double beta, double* const y) const;
 
 		/**
@@ -553,6 +553,13 @@ namespace detail
 		 * @return @c true if the solution process was successful, otherwise @c false
 		 */
 		bool robustSolve(double* rhs, double* const workspace) const;
+
+		/**
+		 * @brief Returns the size of the workspace required for calling robustFactorize()
+		 * @details The workspace size is @f$ 2n @f$ for an @f$ n \times n@f$ matrix.
+		 * @return Size of the workspace required for robustFactorize()
+		 */
+		inline unsigned int robustWorkspaceSize() const { return 2 * rows(); }
 
 		/**
 		 * @brief Scales rows by dividing them with a given factor

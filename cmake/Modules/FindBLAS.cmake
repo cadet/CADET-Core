@@ -671,12 +671,17 @@ if (BLA_VENDOR MATCHES "Intel" OR BLA_VENDOR STREQUAL "All")
       # Add threading/sequential libs
       set(BLAS_SEARCH_LIBS_WIN_THREAD "")
       if (NOT BLA_VENDOR MATCHES "_seq$" OR BLA_VENDOR STREQUAL "All")
+        if (BLA_VENDOR MATCHES "_tbb$")
+            list(APPEND BLAS_SEARCH_LIBS_WIN_THREAD
+              "mkl_tbb_thread${BLAS_mkl_DLL_SUFFIX}")
+        else()
         # old version
         list(APPEND BLAS_SEARCH_LIBS_WIN_THREAD
           "libguide40 mkl_intel_thread${BLAS_mkl_DLL_SUFFIX}")
         # mkl >= 10.3
         list(APPEND BLAS_SEARCH_LIBS_WIN_THREAD
           "libiomp5md mkl_intel_thread${BLAS_mkl_DLL_SUFFIX}")
+        endif()
       endif()
       if (BLA_VENDOR MATCHES "_seq$" OR BLA_VENDOR STREQUAL "All")
         list(APPEND BLAS_SEARCH_LIBS_WIN_THREAD
@@ -695,8 +700,15 @@ if (BLA_VENDOR MATCHES "Intel" OR BLA_VENDOR STREQUAL "All")
         list(APPEND BLAS_SEARCH_LIBS
           "mkl_intel mkl_intel_thread mkl_core guide")
       endif ()
+      
+      if (BLA_VENDOR STREQUAL "Intel10_64lp_tbb" OR BLA_VENDOR STREQUAL "All")
+        list(APPEND BLAS_SEARCH_LIBS
+          "mkl_intel_lp64 mkl_tbb_thread mkl_core")
+        find_package(TBB COMPONENTS tbbmalloc tbbmalloc_proxy tbb_preview)
+        list(APPEND CMAKE_THREAD_LIBS_INIT "${TBB_LIBRARIES_RELEASE}")
+      endif ()
+      
       if (BLA_VENDOR STREQUAL "Intel10_64lp" OR BLA_VENDOR STREQUAL "All")
-
         # old version
         list(APPEND BLAS_SEARCH_LIBS
           "mkl_intel_lp64 mkl_intel_thread mkl_core guide")

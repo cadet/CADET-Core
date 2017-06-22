@@ -1,7 +1,7 @@
 // =============================================================================
 //  CADET - The Chromatography Analysis and Design Toolkit
 //
-//  Copyright © 2008-2016: The CADET Authors
+//  Copyright © 2008-2017: The CADET Authors
 //            Please see the AUTHORS and CONTRIBUTORS file.
 //
 //  All rights reserved. This program and the accompanying materials
@@ -13,6 +13,7 @@
 #include "model/GeneralRateModel.hpp"
 #include "linalg/DenseMatrix.hpp"
 #include "linalg/BandMatrix.hpp"
+#include "AdUtils.hpp"
 
 #include <algorithm>
 #include <functional>
@@ -20,15 +21,13 @@
 #include "LoggingUtils.hpp"
 #include "Logging.hpp"
 
-#include "OpenMPSupport.hpp"
+#include "ParallelSupport.hpp"
 
-// For hardcore debugging sessions, uncomment the following line:
-//#define GRM_WRITE_DEBUG_OUTPUT
+#ifdef CADET_PARALLELIZE
+	#include <tbb/tbb.h>
 
-#ifdef GRM_WRITE_DEBUG_OUTPUT
-	#include <iostream>
-	#include <iomanip>
-	#include <limits>
+	typedef tbb::flow::continue_node< tbb::flow::continue_msg > node_t;
+	typedef const tbb::flow::continue_msg & msg_t;
 #endif
 
 namespace cadet
@@ -113,35 +112,32 @@ namespace model
 int GeneralRateModel::linearSolve(double t, double timeFactor, double alpha, double outerTol, double* const rhs, double const* const weight,
 	double const* const y, double const* const yDot, double const* const res)
 {
-#ifdef GRM_WRITE_DEBUG_OUTPUT
-	std::cout << std::setprecision(std::numeric_limits<double>::digits10 + 1);
-	LOG(Debug) << std::setprecision(std::numeric_limits<double>::digits10 + 1) << "=========================== LINEAR SOLVE ===========================================\n"
-	           << "t = " << t << " alpha = " << alpha << "\n"
-	           << "y = " << log::VectorPtr<double>(y, numDofs()) << "\n"
-	           << "yDot = " << log::VectorPtr<double>(yDot, numDofs()) << "\n"
-	           << "rhs = " << log::VectorPtr<double>(rhs, numDofs());
-#endif
+	BENCH_SCOPE(_timerLinearSolve);
 
 	Indexer idxr(_disc);
 
 	// ==== Step 1: Factorize diagonal Jacobian blocks
 
 	// Factorize partial Jacobians only if required
-	if (_factorizeJacobian)
+
+#ifdef CADET_PARALLELIZE
+	tbb::flow::graph g;
+#endif
+
+#ifdef CADET_PARALLELIZE
+	node_t A(g, [&](msg_t)
 	{
-		BENCH_SCOPE(_timerFactorize);
-
-		// Do not factorize again at next call without changed Jacobians
-		_factorizeJacobian = false;
-
-		BENCH_START(_timerFactorizePar);
-
-		// Assemble and factorize discretized system Jacobians
-		#pragma omp parallel
+#endif
+		if (_factorizeJacobian)
 		{
+			// Assemble and factorize discretized system Jacobians
 			// Threads that are done with the bulk column blocks can proceed to the particle blocks
-			#pragma omp for schedule(static) nowait
-			for (ompuint_t comp = 0; comp < _disc.nComp; ++comp)
+
+#ifdef CADET_PARALLELIZE
+			tbb::parallel_for(size_t(0), size_t(_disc.nComp), [&](size_t comp)
+#else
+			for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
+#endif
 			{
 				// Assemble
 				assembleDiscretizedJacobianColumnBlock(comp, alpha, idxr, timeFactor);
@@ -150,16 +146,25 @@ int GeneralRateModel::linearSolve(double t, double timeFactor, double alpha, dou
 				const bool result = _jacCdisc[comp].factorize();
 				if (cadet_unlikely(!result))
 				{
-					#pragma omp critical
-					{
-						LOG(Error) << "Factorize() failed for comp " << comp;
-					}
+					LOG(Error) << "Factorize() failed for comp " << comp;
 				}
-			}
+			} CADET_PARFOR_END;
+		}
+	CADET_PARNODE_END;
 
-			// Process the particle blocks
-			#pragma omp for schedule(static)
-			for (ompuint_t pblk = 0; pblk < _disc.nCol; ++pblk)
+
+	// Process the particle blocks
+#ifdef CADET_PARALLELIZE
+	node_t B(g, [&](msg_t)
+	{
+#endif
+		if (_factorizeJacobian)
+		{
+#ifdef CADET_PARALLELIZE
+			tbb::parallel_for(size_t(0), size_t(_disc.nCol), [&](size_t pblk)
+#else
+			for (unsigned int pblk = 0; pblk < _disc.nCol; ++pblk)
+#endif
 			{
 				// Assemble
 				assembleDiscretizedJacobianParticleBlock(pblk, alpha, idxr, timeFactor);
@@ -168,196 +173,153 @@ int GeneralRateModel::linearSolve(double t, double timeFactor, double alpha, dou
 				const bool result = _jacPdisc[pblk].factorize();
 				if (cadet_unlikely(!result))
 				{
-					#pragma omp critical
 					{
 						LOG(Error) << "Factorize() failed for par block " << pblk;
 					}
 				}
-			}
+			} CADET_PARFOR_END;
 		}
+	CADET_PARNODE_END;
 
-		BENCH_STOP(_timerFactorizePar);
-	}
+	// ====== Step 1.5: Solve J c_uo = b_uo - A * c_in = b_uo - A*b_in
 
-#ifdef GRM_WRITE_DEBUG_OUTPUT
-	for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
+	// rhs is passed twice but due to the values in jacA the writes happen to a different area of the rhs than the reads.
+#ifdef CADET_PARALLELIZE
+	node_t C(g, [&](msg_t) 
 	{
-		std::cout << "------- Col comp " << comp << " -------------" << std::endl; 
-		std::cout << _jacCdisc[comp] << std::endl;
-	}
-	for (unsigned int pblk = 0; pblk < _disc.nCol; ++pblk)
-	{
-		std::cout << "------- Par block " << pblk << " -------------" << std::endl; 
-		std::cout << _jacPdisc[pblk] << std::endl;
-	}
-	for (int pblk = -1; pblk < static_cast<int>(_disc.nCol); ++pblk)
-	{
-		if (pblk == -1)
-		{
-			std::cout << "------- FluxCol -------------" << std::endl; 
-			std::cout << _jacFC << "\nsize: " << _disc.nCol * _disc.nComp << "\n";
-		}
-		else
-		{
-			std::cout << "------- FluxPar " << pblk << " -------------" << std::endl; 
-			std::cout << _jacFP[pblk] << "\nsize: " << _disc.nPar * (_disc.nComp + _disc.strideBound) << "\n";
-		}
-	}
-	for (int pblk = -1; pblk < static_cast<int>(_disc.nCol); ++pblk)
-	{
-		if (pblk == -1) // column
-		{
-			std::cout << "------- ColFlux -------------" << std::endl; 
-			std::cout << _jacCF << "\nsize: " << _disc.nCol * _disc.nComp << "\n";
-		}
-		else // particle
-		{
-			std::cout << "------- ParFlux " << pblk << " -------------" << std::endl; 
-			std::cout << _jacPF[pblk] << "\nsize: " << _disc.nCol * _disc.nComp << "\n";
-		}
-	}
-
-	std::cout << "\n";
 #endif
+		// Do not factorize again at next call without changed Jacobians
+		_factorizeJacobian = false;
 
-	BENCH_START(_timerLinearSolve);
+		_jacInlet.multiplySubtract(rhs, rhs + idxr.offsetC());
+	CADET_PARNODE_END;
 
 	// ==== Step 2: Solve diagonal Jacobian blocks J_i to get y_i = J_i^{-1} b_i
 	// The result is stored in rhs (in-place solution)
 
-	BENCH_START(_timerLinearSolvePar);
 
-	#pragma omp parallel
+	// Threads that are done with solving the bulk column blocks can proceed
+	// to solving the particle blocks
+#ifdef CADET_PARALLELIZE
+	node_t D(g, [&](msg_t)
 	{
-		// Threads that are done with solving the bulk column blocks can proceed
-		// to solving the particle blocks
-		#pragma omp for schedule(static) nowait
-		for (ompuint_t comp = 0; comp < _disc.nComp; ++comp)
+#endif
+#ifdef CADET_PARALLELIZE
+		tbb::parallel_for(size_t(0), size_t(_disc.nComp), [&](size_t comp)
+#else
+		for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
+#endif
 		{
-			const bool result = _jacCdisc[comp].solve(rhs + comp * idxr.strideColComp());
+			const bool result = _jacCdisc[comp].solve(rhs + comp * idxr.strideColComp() + idxr.offsetC());
 			if (cadet_unlikely(!result))
 			{
-				#pragma omp critical
-				{
-					LOG(Error) << "Solve() failed for comp " << comp;
-				}
+				LOG(Error) << "Solve() failed for comp " << comp;
 			}
-		}
+		} CADET_PARFOR_END;
+	CADET_PARNODE_END;
 
-		#pragma omp for schedule(static)
-		for (ompuint_t pblk = 0; pblk < _disc.nCol; ++pblk)
+#ifdef CADET_PARALLELIZE
+	node_t E(g, [&](msg_t)
+	{
+#endif
+#ifdef CADET_PARALLELIZE
+		tbb::parallel_for(size_t(0), size_t(_disc.nCol), [&](size_t pblk)
+#else
+		for (unsigned int pblk = 0; pblk < _disc.nCol; ++pblk)
+#endif
 		{
 			const bool result = _jacPdisc[pblk].solve(rhs + idxr.offsetCp(pblk));
 			if (cadet_unlikely(!result))
 			{
-				#pragma omp critical
-				{
-					LOG(Error) << "Solve() failed for par block " << pblk;
-				}
+				LOG(Error) << "Solve() failed for par block " << pblk;
 			}
-		}
-	}
-
-	BENCH_STOP(_timerLinearSolvePar);
-
-#ifdef GRM_WRITE_DEBUG_OUTPUT
-	LOG(Debug) << std::setprecision(std::numeric_limits<double>::digits10 + 1)
-	           << "solveFirst = " << log::VectorPtr<double>(rhs, numDofs());
-#endif
+		} CADET_PARFOR_END;
+	CADET_PARNODE_END;
 
 	// Solve last row of L with backwards substitution: y_f = b_f - \sum_{i=0}^{N_z} J_{f,i} y_i
 	// Note that we cannot easily parallelize this loop since the results of the sparse
 	// matrix-vector multiplications are added in-place to rhs. We would need one copy of rhs
 	// for each thread and later fuse them together (reduction statement).
-	_jacFC.multiplySubtract(rhs, rhs + idxr.offsetJf());
-
-#ifdef GRM_WRITE_DEBUG_OUTPUT
-	LOG(Debug) << std::setprecision(std::numeric_limits<double>::digits10 + 1)
-	           << "afterFC = " << log::VectorPtr<double>(rhs + idxr.offsetJf(), _disc.nCol * _disc.nComp);
-#endif
-
-	for (unsigned int pblk = 0; pblk < _disc.nCol; ++pblk)
+#ifdef CADET_PARALLELIZE
+	node_t F(g, [&](msg_t) 
 	{
-		_jacFP[pblk].multiplySubtract(rhs + idxr.offsetCp(pblk), rhs + idxr.offsetJf());
-	}
-
-	// Now, rhs contains the full intermediate solution y = L^{-1} b
-#ifdef GRM_WRITE_DEBUG_OUTPUT
-	LOG(Debug) << std::setprecision(std::numeric_limits<double>::digits10 + 1)
-	           << "rhsPreGMRES = " << log::VectorPtr<double>(rhs, numDofs());
 #endif
+		_jacFC.multiplySubtract(rhs + idxr.offsetC(), rhs + idxr.offsetJf());
 
-	// Initialize temporary storage by copying over the fluxes
-	// Note that the rest of _tempState is zeroed out in schurComplementMatrixVector()
-	std::copy(rhs + idxr.offsetJf(), rhs + numDofs(), _tempState + idxr.offsetJf());
-
-	// ==== Step 3: Solve Schur-complement to get x_f = S^{-1} y_f
-	// Column and particle parts remain unchanged.
-	// The only thing to be done is the iterative (and approximate)
-	// solution of the Schur complement system:
-	//     S * x_f = y_f
-
-	// Note that rhs is updated in-place with the solution of the Schur-complement
-	// The temporary storage is only needed to hold the right hand side of the Schur-complement
-	const double tolerance = std::sqrt(static_cast<double>(numDofs())) * outerTol * _schurSafety;
-
-#ifdef GRM_WRITE_DEBUG_OUTPUT
-	LOG(Debug) << std::setprecision(std::numeric_limits<double>::digits10 + 1)
-	           << "tol = " << tolerance << "\n"
-	           << "weight = " << log::VectorPtr<double>(weight + idxr.offsetJf(), _disc.nCol * _disc.nComp) << "\n"
-	           << "init = " << log::VectorPtr<double>(_tempState + idxr.offsetJf(), _disc.nCol * _disc.nComp) << "\n"
-	           << "rhs = " << log::VectorPtr<double>(rhs + idxr.offsetJf(), _disc.nCol * _disc.nComp);
-#endif
-
-	BENCH_START(_timerGmres);
-	const int gmresResult = _gmres.solve(tolerance, weight + idxr.offsetJf(), _tempState + idxr.offsetJf(), rhs + idxr.offsetJf());
-	BENCH_STOP(_timerGmres);
-//  std::cout << "GMRES = " << _gmres.getReturnFlagName(gmresResult) << std::endl;
-
-	// Remove temporary results that are leftovers from schurComplementMatrixVector()
-	std::fill(_tempState, _tempState + idxr.offsetJf(), 0.0);
-
-	// At this point, rhs contains the intermediate solution [y_0, ..., y_{N_z}, x_f]
-
-	// ==== Step 4: Solve U * x = y by backward substitution
-	// The fluxes are already solved and remain unchanged
-
-#ifdef GRM_WRITE_DEBUG_OUTPUT
-	LOG(Debug) << std::setprecision(std::numeric_limits<double>::digits10 + 1)
-	           << "gmresSol = " << log::VectorPtr<double>(_tempState + idxr.offsetJf(), _disc.nCol * _disc.nComp);
-#endif
-
-	// Compute tempState_0 = J_{0,f} * y_f
-	_jacCF.multiplyAdd(rhs + idxr.offsetJf(), _tempState);
-
-	BENCH_START(_timerLinearSolvePar);
-	#pragma omp parallel
-	{
-		// Threads that are done with solving the bulk column blocks can proceed
-		// to solving the particle blocks
-		#pragma omp for schedule(static) nowait
-		for (ompuint_t comp = 0; comp < _disc.nComp; ++comp)
+		for (unsigned int pblk = 0; pblk < _disc.nCol; ++pblk)
 		{
-			double* const localCol = _tempState + comp * idxr.strideColComp();
-			double* const rhsCol = rhs + comp * idxr.strideColComp();
+			_jacFP[pblk].multiplySubtract(rhs + idxr.offsetCp(pblk), rhs + idxr.offsetJf());
+		}
+
+		// Now, rhs contains the full intermediate solution y = L^{-1} b
+
+		// Initialize temporary storage by copying over the fluxes
+		// Note that the rest of _tempState is zeroed out in schurComplementMatrixVector()
+		std::copy(rhs + idxr.offsetJf(), rhs + numDofs(), _tempState + idxr.offsetJf());
+
+		// ==== Step 3: Solve Schur-complement to get x_f = S^{-1} y_f
+		// Column and particle parts remain unchanged.
+		// The only thing to be done is the iterative (and approximate)
+		// solution of the Schur complement system:
+		//     S * x_f = y_f
+
+		// Note that rhs is updated in-place with the solution of the Schur-complement
+		// The temporary storage is only needed to hold the right hand side of the Schur-complement
+		const double tolerance = std::sqrt(static_cast<double>(numDofs())) * outerTol * _schurSafety;
+
+		BENCH_START(_timerGmres);
+		const int gmresResult = _gmres.solve(tolerance, weight + idxr.offsetJf(), _tempState + idxr.offsetJf(), rhs + idxr.offsetJf());
+		BENCH_STOP(_timerGmres);
+
+			// Remove temporary results that are leftovers from schurComplementMatrixVector()
+		std::fill(_tempState + idxr.offsetC(), _tempState + idxr.offsetJf(), 0.0);
+
+		// At this point, rhs contains the intermediate solution [y_0, ..., y_{N_z}, x_f]
+
+		// ==== Step 4: Solve U * x = y by backward substitution
+		// The fluxes are already solved and remain unchanged
+
+		// Compute tempState_0 = J_{0,f} * y_f
+		_jacCF.multiplyAdd(rhs + idxr.offsetJf(), _tempState + idxr.offsetC());
+	CADET_PARNODE_END;
+
+	// Threads that are done with solving the bulk column blocks can proceed
+	// to solving the particle blocks
+#ifdef CADET_PARALLELIZE
+	node_t G(g, [&](msg_t) 
+	{
+#endif
+#ifdef CADET_PARALLELIZE
+		tbb::parallel_for(size_t(0), size_t(_disc.nComp), [&](size_t comp)
+#else
+		for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
+#endif
+		{
+			double* const localCol = _tempState + comp * idxr.strideColComp() + idxr.offsetC();
+			double* const rhsCol = rhs + comp * idxr.strideColComp() + idxr.offsetC();
 
 			// Apply J_0^{-1} to tempState_0
 			const bool result = _jacCdisc[comp].solve(localCol);
 			if (cadet_unlikely(!result))
 			{
-				#pragma omp critical
-				{
-					LOG(Error) << "Solve() failed for comp " << comp;
-				}
+				LOG(Error) << "Solve() failed for comp " << comp;
 			}
 
 			// Compute rhs_0 = y_0 - J_0^{-1} * J_{0,f} * y_f = y_0 - tempState_0
 			for (unsigned int i = 0; i < _disc.nCol; ++i)
 				rhsCol[i] -= localCol[i];
-		}
+		} CADET_PARFOR_END;
+	CADET_PARNODE_END;
 
-		#pragma omp for schedule(static)
-		for (ompuint_t pblk = 0; pblk < _disc.nCol; ++pblk)
+#ifdef CADET_PARALLELIZE
+	node_t H(g, [&](msg_t) 
+	{
+#endif
+#ifdef CADET_PARALLELIZE
+		tbb::parallel_for(size_t(0), size_t(_disc.nCol), [&](size_t pblk)
+#else
+		for (unsigned int pblk = 0; pblk < _disc.nCol; ++pblk)
+#endif
 		{
 			double* const localPar = _tempState + idxr.offsetCp(pblk);
 			double* const rhsPar = rhs + idxr.offsetCp(pblk);
@@ -368,23 +330,33 @@ int GeneralRateModel::linearSolve(double t, double timeFactor, double alpha, dou
 			const bool result = _jacPdisc[pblk].solve(localPar);
 			if (cadet_unlikely(!result))
 			{
-				#pragma omp critical
-				{
-					LOG(Error) << "Solve() failed for par block " << pblk;
-				}
+				LOG(Error) << "Solve() failed for par block " << pblk;
 			}
 
 			// Compute rhs_i = y_i - J_i^{-1} * J_{i,f} * y_f = y_i - tempState_i
 			for (int i = 0; i < idxr.strideParBlock(); ++i)
 				rhsPar[i] -= localPar[i];
-		}
-	}
-	BENCH_STOP(_timerLinearSolvePar);
-	BENCH_STOP(_timerLinearSolve);
+		} CADET_PARFOR_END;
+	CADET_PARNODE_END;
 
-#ifdef GRM_WRITE_DEBUG_OUTPUT
-	LOG(Debug) << std::setprecision(std::numeric_limits<double>::digits10 + 1)
-	           << "rhsFinal = " << log::VectorPtr<double>(rhs, numDofs());
+#ifdef CADET_PARALLELIZE
+	// Create TBB dependency graph
+	make_edge(A, C);
+	make_edge(B, C);
+
+	make_edge(C, D);
+	make_edge(C, E);
+	make_edge(D, F);
+	make_edge(E, F);
+	make_edge(F, G);
+	make_edge(F, H);
+
+	// Start the graph running
+	A.try_put(tbb::flow::continue_msg());
+	B.try_put(tbb::flow::continue_msg());
+
+	// Wait for results
+	g.wait_for_all();
 #endif
 
 	// The full solution is now stored in rhs
@@ -416,40 +388,48 @@ int GeneralRateModel::schurComplementMatrixVector(double const* x, double* z) co
 	// Copy x over to result z, which corresponds to the application of the identity matrix
 	std::copy(x, x + _disc.nCol * _disc.nComp, z);
 
-#ifdef GRM_WRITE_DEBUG_OUTPUT
-	LOG(Debug) << std::setprecision(std::numeric_limits<double>::digits10 + 1)
-	           << "x = " << log::VectorPtr<double>(x, _disc.nCol * _disc.nComp);
-#endif
-
 	Indexer idxr(_disc);
-	std::fill(_tempState, _tempState + idxr.offsetJf(), 0.0);
+	std::fill(_tempState + idxr.offsetC(), _tempState + idxr.offsetJf(), 0.0);
+
+#ifdef CADET_PARALLELIZE
+	tbb::flow::graph g;
+#endif
 
 	// Solve bulk column blocks first
 
 	// Apply J_{0,f}
-	_jacCF.multiplyAdd(x, _tempState);
+	_jacCF.multiplyAdd(x, _tempState + idxr.offsetC());
 
-	BENCH_START(_timerMatVecPar);
-
-	#pragma omp parallel
+#ifdef CADET_PARALLELIZE
+	node_t A(g, [&](msg_t) 
 	{
-		#pragma omp for schedule(static) nowait
-		for (ompuint_t comp = 0; comp < _disc.nComp; ++comp)
+#endif
+
+#ifdef CADET_PARALLELIZE
+		tbb::parallel_for(size_t(0), size_t(_disc.nComp), [&](size_t comp)
+#else
+		for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
+#endif
 		{
 			// Apply J_0^{-1} of each component
-			const bool result = _jacCdisc[comp].solve(_tempState + comp * idxr.strideColComp());
+			const bool result = _jacCdisc[comp].solve(_tempState + comp * idxr.strideColComp() + idxr.offsetC());
 			if (cadet_unlikely(!result))
 			{
-				#pragma omp critical
-				{
-					LOG(Error) << "Solve() failed for comp " << comp;
-				}
+				LOG(Error) << "Solve() failed for comp " << comp;
 			}
-		}
+		} CADET_PARFOR_END;
+	CADET_PARNODE_END;
 
+#ifdef CADET_PARALLELIZE
+	node_t B(g, [&](msg_t)
+	{
+#endif
 		// Handle particle blocks
-		#pragma omp for schedule(static)
-		for (ompuint_t pblk = 0; pblk < _disc.nCol; ++pblk)
+#ifdef CADET_PARALLELIZE
+		tbb::parallel_for(size_t(0), size_t(_disc.nCol), [&](size_t pblk)
+#else
+		for (unsigned int pblk = 0; pblk < _disc.nCol; ++pblk)
+#endif
 		{
 			// Get this thread's temporary memory block
 			double* const tmp = _tempState + idxr.offsetCp(pblk);
@@ -460,34 +440,37 @@ int GeneralRateModel::schurComplementMatrixVector(double const* x, double* z) co
 			const bool result = _jacPdisc[pblk].solve(tmp);
 			if (cadet_unlikely(!result))
 			{
-				#pragma omp critical
-				{
-					LOG(Error) << "Solve() failed for par block " << pblk;
-				}
+				LOG(Error) << "Solve() failed for par block " << pblk;
 			}
-		}
-	}
+		} CADET_PARFOR_END;
+	CADET_PARNODE_END;
 
-#ifdef GRM_WRITE_DEBUG_OUTPUT
-	LOG(Debug) << std::setprecision(std::numeric_limits<double>::digits10 + 1)
-	           << "tempState = " << log::VectorPtr<double>(_tempState, numDofs());
-#endif
-
-	BENCH_STOP(_timerMatVecPar);
-
-	// Apply J_{f,0} and subtract results from z
-	_jacFC.multiplySubtract(_tempState, z);
-
-	for (unsigned int pblk = 0; pblk < _disc.nCol; ++pblk)
+#ifdef CADET_PARALLELIZE
+	node_t C(g, [&](msg_t) 
 	{
-		// Apply J_{f,i} and subtract results from z
-		_jacFP[pblk].multiplySubtract(_tempState + idxr.offsetCp() + idxr.strideParBlock() * pblk, z);
-	}
-
-#ifdef GRM_WRITE_DEBUG_OUTPUT
-	LOG(Debug) << std::setprecision(std::numeric_limits<double>::digits10 + 1)
-	           << "z = " << log::VectorPtr<double>(z, _disc.nCol * _disc.nComp);
 #endif
+		// Apply J_{f,0} and subtract results from z
+		_jacFC.multiplySubtract(_tempState + idxr.offsetC(), z);
+
+		for (unsigned int pblk = 0; pblk < _disc.nCol; ++pblk)
+		{
+			// Apply J_{f,i} and subtract results from z
+			_jacFP[pblk].multiplySubtract(_tempState + idxr.offsetCp() + idxr.strideParBlock() * pblk, z);
+		}
+	CADET_PARNODE_END;
+
+#ifdef CADET_PARALLELIZE
+	make_edge(A, C);
+	make_edge(B, C);
+
+	// Start the graph running
+	A.try_put(tbb::flow::continue_msg());
+	B.try_put(tbb::flow::continue_msg());
+
+	// Wait for results
+	g.wait_for_all();
+#endif
+
 	return 0;
 }
 

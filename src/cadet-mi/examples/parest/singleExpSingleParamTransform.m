@@ -10,7 +10,7 @@ function singleExpSingleParamTransform()
 %
 %   See also LOADWASHELUTIONSMASINGLE, SINGLEEXPSEPARATECOMPONENTS, SINGLEEXPMULTIPLEPARAMTRANSFORM
 
-% Copyright: (C) 2008-2016 The CADET Authors
+% Copyright: (C) 2008-2017 The CADET Authors
 %            See the license note at the end of the file.
 
 	% Create simulation and obtain artificial data
@@ -152,7 +152,7 @@ function sim = createSimulation()
 	mSys = ModelSystem();
 	mSys.models = [mGrm, mIn];
 	mSys.connectionStartSection = [0];
-	mSys.connections = {[1, 0, -1, -1]};
+	mSys.connections = {[1, 0, -1, -1, 1.0]};
 
 	% Configure simulator
 	sim = Simulator.create();
@@ -167,7 +167,7 @@ end
 % =============================================================================
 %  CADET - The Chromatography Analysis and Design Toolkit
 %  
-%  Copyright (C) 2008-2016: The CADET Authors
+%  Copyright (C) 2008-2017: The CADET Authors
 %            Please see the AUTHORS and CONTRIBUTORS file.
 %  
 %  All rights reserved. This program and the accompanying materials

@@ -21,7 +21,7 @@ function [result, solution] = loadWashElutionSMAsystem()
 %
 %   See also LOADWASHELUTIONSMASINGLE.
 
-% Copyright: (C) 2008-2016 The CADET Authors
+% Copyright: (C) 2008-2017 The CADET Authors
 %            See the license note at the end of the file.
 
 
@@ -111,10 +111,10 @@ function [result, solution] = loadWashElutionSMAsystem()
 	% Define valve configurations / unit operation connections
 	% Valve configuration active on entering section 0
 	mSys.connectionStartSection = [0];
-	% Connect unit 0 with unit 1 (-1 = all components)
-	% Connect unit 1 with unit 2 (-1 = all components)
-	mSys.connections = {[0, 1, -1, -1; ...
-	                     1, 2, -1, -1]};
+	% Connect unit 0 with unit 1 (-1 = all components), flow rate 1.0
+	% Connect unit 1 with unit 2 (-1 = all components), flow rate 1.0
+	mSys.connections = {[0, 1, -1, -1, 1.0; ...
+	                     1, 2, -1, -1, 1.0]};
 
 
 	% Step 5: Create simulator and configure it
@@ -155,7 +155,7 @@ end
 % =============================================================================
 %  CADET - The Chromatography Analysis and Design Toolkit
 %  
-%  Copyright (C) 2008-2016: The CADET Authors
+%  Copyright (C) 2008-2017: The CADET Authors
 %            Please see the AUTHORS and CONTRIBUTORS file.
 %  
 %  All rights reserved. This program and the accompanying materials

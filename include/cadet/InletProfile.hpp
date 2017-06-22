@@ -1,7 +1,7 @@
 // =============================================================================
 //  CADET - The Chromatography Analysis and Design Toolkit
 //  
-//  Copyright © 2008-2016: The CADET Authors
+//  Copyright © 2008-2017: The CADET Authors
 //            Please see the AUTHORS and CONTRIBUTORS file.
 //  
 //  All rights reserved. This program and the accompanying materials
@@ -97,6 +97,18 @@ public:
 	 * @param [out] timeDerivative Pointer to first element of contiguous array receiving the time derivative of all components
 	 */
 	virtual void timeDerivative(double t, unsigned int sec, double* timeDerivative) = 0;
+
+	/**
+	 * @brief Returns the second derivative of all components with respect to a given parameter and time
+	 * @details The given parameter @p id matches one of the availableParameters() (when unit operation id is ignored).
+	 *          In other words, this function is only called for parameters that belong to this IInletProfile.
+	 * 
+	 * @param [in]  t     Absolute simulation time
+	 * @param [in]  sec   Index of the current time section
+	 * @param [in]  pId   ID of the parameter to be differentiated with respect to
+	 * @param [out] deriv Pointer to first element of contiguous array receiving the derivative of all components
+	 */
+	virtual void timeParameterDerivative(double t, unsigned int sec, const ParameterId& pId, double* deriv) = 0;
 
 	/**
 	 * @brief Returns the value of the given parameter

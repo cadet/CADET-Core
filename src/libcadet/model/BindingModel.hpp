@@ -1,7 +1,7 @@
 // =============================================================================
 //  CADET - The Chromatography Analysis and Design Toolkit
 //  
-//  Copyright © 2008-2016: The CADET Authors
+//  Copyright © 2008-2017: The CADET Authors
 //            Please see the AUTHORS and CONTRIBUTORS file.
 //  
 //  All rights reserved. This program and the accompanying materials
@@ -182,6 +182,13 @@ public:
 	virtual bool hasAlgebraicEquations() const CADET_NOEXCEPT = 0;
 
 	/**
+	 * @brief Returns whether this binding model depends on time
+	 * @details Binding models may depend on time if external functions are used.
+	 * @return @c true if the model is time-dependent, otherwise @c false
+	 */
+	virtual bool dependsOnTime() const CADET_NOEXCEPT = 0;
+
+	/**
 	 * @brief Returns the size of the required workspace (number of doubles) for consistent initialization
 	 * @details The additional memory is required by the nonlinear solver.
 	 * @return Size of the workspace for consistent initialization
@@ -293,6 +300,19 @@ public:
 	 * @param [in] timeFactor Factor of the time derivatives that comes from time transformation
 	 */
 	virtual void multiplyWithDerivativeJacobian(double const* yDotS, double* const res, double timeFactor) const = 0;
+
+	/**
+	 * @brief Calculates the time derivative of the algebraic residual equations
+	 * @details Calculates @f$ \frac{\partial \text{res}_{\text{alg}}}{\partial t} @f$ for the algebraic equations
+	 *          in the residual.
+	 * @param [in] t Current time point
+	 * @param [in] z Axial position in normalized coordinates (column inlet = 0, column outlet = 1)
+	 * @param [in] r Radial position in normalized coordinates (outer shell = 1, inner center = 0)
+	 * @param [in] secIdx Index of the current section
+	 * @param [in] y Pointer to first bound state of the first component in the current particle shell
+	 * @param [out] dResDt Pointer to array that stores the time derivative
+	 */
+	virtual void timeDerivativeAlgebraicResidual(double t, double z, double r, unsigned int secIdx, double const* y, double* dResDt) const = 0;
 protected:
 };
 

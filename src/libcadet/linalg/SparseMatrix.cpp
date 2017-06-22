@@ -1,7 +1,7 @@
 // =============================================================================
 //  CADET - The Chromatography Analysis and Design Toolkit
 //  
-//  Copyright © 2008-2016: The CADET Authors
+//  Copyright © 2008-2017: The CADET Authors
 //            Please see the AUTHORS and CONTRIBUTORS file.
 //  
 //  All rights reserved. This program and the accompanying materials
@@ -21,7 +21,7 @@ namespace cadet
 namespace linalg
 {
 
-std::ostream& operator<<(std::ostream& out, const SparseMatrix& sm)
+std::ostream& operator<<(std::ostream& out, const DoubleSparseMatrix& sm)
 {
 	std::ostringstream cols;
 	std::ostringstream rows;

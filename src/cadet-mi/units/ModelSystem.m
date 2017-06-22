@@ -25,10 +25,8 @@ classdef ModelSystem < handle
 	%   The ModelSystem assigns the unit operation IDs to the Model objects
 	%   registered in the system. The numbering is sequential and starts
 	%   with 0.
-	%
-	% @todo Add support for external functions
 	
-	% Copyright: (C) 2008-2016 The CADET Authors
+	% Copyright: (C) 2008-2017 The CADET Authors
 	%            See the license note at the end of the file.
 	
 	properties (Hidden, Access = 'protected')
@@ -39,13 +37,20 @@ classdef ModelSystem < handle
 		models; % Array with unit operation models
 		externalFunctions; % Array with external functions
 		connectionStartSection; % Vector with section indices (0-based) that trigger a connection setup
-		connections; % Cell array of connection matrices (4 columns: UOID from, UOID to, comp from, comp to)
+		connections; % Cell array of connection matrices (5 columns: UOID from, UOID to, comp from, comp to, flow  rate)
 	end
 
 	properties (Transient, Access = 'protected')
 		hasSystemChanged; % Determines whether this system object has changed after the last synchronization with CADET (C++ layer)
 	end
 
+	properties (Dependent)
+		systemGramSchmidtType; % Type of Gram-Schmidt orthogonalization process
+		systemMaxKrylovSize; % Maximum size of the Krylov subspace
+		systemMaxRestarts; % Maximum number of restarts in GMRES
+		systemSchurSafetyTol; % Schur-complement safety error tolerance
+	end
+	
 	properties (Dependent, Transient)
 		hasChanged; % Determines whether an object in this system has changed after the last synchronization with CADET (C++ layer)
 		initStateY; % Initial state vector of the full system (all DOFs)
@@ -65,6 +70,12 @@ classdef ModelSystem < handle
 			obj.data = [];
 			obj.data.connections = [];
 			obj.data.external = [];
+			obj.data.solver = [];
+
+			obj.systemGramSchmidtType = 1; % Modified Gram-Schmidt (more stable)
+			obj.systemMaxKrylovSize = 0; % Use largest possible size
+			obj.systemMaxRestarts = 0;
+			obj.systemSchurSafetyTol = 1e-8;
 		end
 
 		function res = validate(obj, sectionTimes, subModels)
@@ -109,11 +120,16 @@ classdef ModelSystem < handle
 
 			validateattributes(obj.connectionStartSection, {'numeric'}, {'vector', 'nonempty', 'increasing', '>=', 0, 'finite', 'real'}, '', 'connectionStartSection');
 			validateattributes(obj.connections, {'cell'}, {'vector', 'numel', numel(obj.connectionStartSection)}, '', 'connections');
-			arrayfun(@(x) validateattributes(obj.connections{x}, {'numeric'}, {'2d', 'finite', 'real', 'size', [NaN, 4], '>=', -1}, '', sprintf('connections{%d}', x)), 1:length(obj.connections));
+			arrayfun(@(x) validateattributes(obj.connections{x}, {'numeric'}, {'2d', 'finite', 'real', 'size', [NaN, 5], '>=', -1}, '', sprintf('connections{%d}', x)), 1:length(obj.connections));
 
 			for i = 1:length(obj.connections)
 				curCon = obj.connections{i};
 				for j = 1:size(curCon, 1)
+					% Detect invalid flow rate
+					if (curCon(j, 5) < 0.0)
+						error('CADET:invalidConfig', 'Expected non-negative flow rate in connection %d in valve configuration connections{%d} in the last column.', j, i);
+					end
+
 					% Detect 'connect all' operation
 					if (curCon(j, 3) == -1) && (curCon(j, 4) == -1)
 						continue;
@@ -198,7 +214,7 @@ classdef ModelSystem < handle
 			% Assemble switches
 			res.connections.NSWITCHES = int32(length(obj.connectionStartSection));
 			for i = 1:length(obj.connectionStartSection)
-				curMat = int32(obj.connections{i}.');
+				curMat = obj.connections{i}.';
 				curSwitch = [];
 				curSwitch.SECTION = int32(obj.connectionStartSection(i));
 				curSwitch.CONNECTIONS = curMat(:);
@@ -425,6 +441,53 @@ classdef ModelSystem < handle
 
 			obj.hasSystemChanged = true;
 		end
+		
+		function val = get.systemGramSchmidtType(obj)
+			val = double(obj.data.solver.GS_TYPE);
+		end
+
+		function set.systemGramSchmidtType(obj, val)
+			validateattributes(val, {'numeric'}, {'>=', 0, '<=', 1, 'scalar', 'nonempty', 'finite', 'real'}, '', 'gramSchmidtType');
+			obj.data.solver.GS_TYPE = int32(val);
+			obj.hasSystemChanged = true;
+		end
+
+		function val = get.systemMaxKrylovSize(obj)
+			val = double(obj.data.solver.MAX_KRYLOV);
+		end
+
+		function set.systemMaxKrylovSize(obj, val)
+			validateattributes(val, {'numeric'}, {'nonnegative', 'scalar', 'nonempty', 'finite', 'real'}, '', 'maxKrylovSize');
+			obj.data.solver.MAX_KRYLOV = int32(val);
+			obj.hasSystemChanged = true;
+		end
+
+		function val = get.systemMaxRestarts(obj)
+			val = double(obj.data.solver.MAX_RESTARTS);
+		end
+
+		function set.systemMaxRestarts(obj, val)
+			validateattributes(val, {'numeric'}, {'nonnegative', 'scalar', 'nonempty', 'finite', 'real'}, '', 'maxRestarts');
+			obj.data.solver.MAX_RESTARTS = int32(val);
+			obj.hasSystemChanged = true;
+		end
+
+		function val = get.systemSchurSafetyTol(obj)
+			val = obj.data.solver.SCHUR_SAFETY;
+		end
+
+		function set.systemSchurSafetyTol(obj, val)
+			validateattributes(val, {'double'}, {'positive', 'scalar', 'nonempty', 'finite', 'real'}, '', 'schurSafetyTol');
+			obj.data.solver.SCHUR_SAFETY = val;
+			obj.hasSystemChanged = true;
+		end
+		
+		function val = get.hasSystemChanged(obj)
+			val = obj.hasSystemChanged;
+			for i = 1:length(obj.externalFunctions)
+				val = val || obj.externalFunctions(i).hasChanged;
+			end
+		end
 
 		function val = get.hasChanged(obj)
 			val = obj.hasSystemChanged;
@@ -460,6 +523,19 @@ classdef ModelSystem < handle
 			% See also MEXSIMULATOR.GETPARAMETERVALUE, MODELSYSTEM.SETPARAMETERVALUE, MAKESENSITIVITY
 
 			val = nan;
+			if (strcmp(param.SENS_NAME, 'CONNECTION'))
+				if ((param.SENS_SECTION >= 0) && (param.SENS_SECTION < length(obj.connections)))
+					idxSource = param.SENS_BOUNDPHASE;
+					idxDest = param.SENS_REACTION;
+					conn = obj.connections{param.SENS_SECTION + 1};
+					idx = find((conn(:, 1) == idxSource) & (conn(:,2) == idxDest), 1, 'first');
+					if ~isempty(idx)
+						val = conn(idx, 5);
+					end
+				end
+				return;
+			end
+
 			for i = 1:length(obj.models)
 				if (param.SENS_UNIT == obj.models(i).unitOpIdx)
 					val = obj.models(i).getParameterValue(param);
@@ -481,6 +557,23 @@ classdef ModelSystem < handle
 			% See also MEXSIMULATOR.SETPARAMETERVALUE, MODELSYSTEM.GETPARAMETERVALUE, MAKESENSITIVITY
 
 			oldVal = nan;
+			if (strcmp(param.SENS_NAME, 'CONNECTION'))
+				if ((param.SENS_SECTION >= 0) && (param.SENS_SECTION < length(obj.connections)))
+					idxSource = param.SENS_BOUNDPHASE;
+					idxDest = param.SENS_REACTION;
+					conn = obj.connections{param.SENS_SECTION + 1};
+					idx = (conn(:, 1) == idxSource) & (conn(:,2) == idxDest);
+					idxFirst = find(idx, 1, 'first');
+
+					if ~isempty(idxFirst)
+						oldVal = conn(idxFirst, 5);
+						conn(idx, 5) = newVal;
+						obj.connections{param.SENS_SECTION + 1} = conn;
+					end
+				end
+				return;
+			end
+
 			for i = 1:length(obj.models)
 				if (param.SENS_UNIT == obj.models(i).unitOpIdx)
 					oldVal = obj.models(i).setParameterValue(param, newVal);
@@ -550,7 +643,7 @@ end
 % =============================================================================
 %  CADET - The Chromatography Analysis and Design Toolkit
 %  
-%  Copyright (C) 2008-2016: The CADET Authors
+%  Copyright (C) 2008-2017: The CADET Authors
 %            Please see the AUTHORS and CONTRIBUTORS file.
 %  
 %  All rights reserved. obj program and the accompanying materials

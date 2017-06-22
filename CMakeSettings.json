@@ -1,0 +1,581 @@
+{
+  // See https://go.microsoft.com//fwlink//?linkid=834763 for more information about this file.
+  "configurations": [
+    {
+      "name": "MS_MKL_DEBUG",
+      "generator": "Visual Studio 15 2017 Win64",
+      "configurationType": "Debug",
+      "buildRoot": "${env.LOCALAPPDATA}\\CMakeBuild\\${workspaceHash}\\build\\${name}",
+      "cmakeCommandArgs": "",
+      "buildCommandArgs": "-m -v:minimal",
+      "variables": [
+        {
+          "name": "TBB_ROOT_DIR:PATH",
+          "value": "C:/Program Files (x86)/IntelSWTools/compilers_and_libraries/windows/tbb"
+        },
+        {
+          "name": "CMAKE_LIBRARY_PATH:PATH",
+          "value": "C:/Program Files (x86)/IntelSWTools/compilers_and_libraries/windows/mkl/lib/intel64_win"
+        },
+        {
+          "name": "PATH_SUNDIALS_ROOT:PATH",
+          "value": "${projectDir}/../libs/sundials"
+        },
+        {
+          "name": "HDF5_ROOT:PATH",
+          "value": "${projectDir}/../libs/hdf5"
+        },
+        {
+          "name": "HDF5_ZLIB",
+          "value": "${projectDir}/../libs/hdf5/lib/zlib.lib"
+        },
+        {
+          "name": "HDF5_SZLIB",
+          "value": "${projectDir}/../libs/hdf5/lib/szip.lib"
+        },
+        {
+          "name": "BUILD_SHARED_LIBS",
+          "value": "1"
+        },
+        {
+          "name": "BUILD_STATIC_LIBS",
+          "value": "0"
+        },
+        {
+          "name": "BUILD_TESTS",
+          "value": "0"
+        },
+        {
+          "name": "BLA_VENDOR",
+          "value": "Intel10_64lp_tbb"
+        },
+        {
+          "name": "CMAKE_INSTALL_PREFIX",
+          "value": "${projectDir}/../cadet/${name}"
+        },
+        {
+          "name": "CMAKE_BUILD_TYPE",
+          "value": "Debug"
+        }
+      ]
+
+    },
+    {
+      "name": "MS_MKL_RELEASE",
+      "generator": "Visual Studio 15 2017 Win64",
+      "configurationType": "Release",
+      "buildRoot": "${env.LOCALAPPDATA}\\CMakeBuild\\${workspaceHash}\\build\\${name}",
+      "cmakeCommandArgs": "",
+      "buildCommandArgs": "-m -v:minimal",
+      "variables": [
+        {
+          "name": "TBB_ROOT_DIR:PATH",
+          "value": "C:/Program Files (x86)/IntelSWTools/compilers_and_libraries/windows/tbb"
+        },
+        {
+          "name": "CMAKE_LIBRARY_PATH:PATH",
+          "value": "C:/Program Files (x86)/IntelSWTools/compilers_and_libraries/windows/mkl/lib/intel64_win"
+        },
+        {
+          "name": "PATH_SUNDIALS_ROOT:PATH",
+          "value": "${projectDir}/../libs/sundials"
+        },
+        {
+          "name": "HDF5_ROOT:PATH",
+          "value": "${projectDir}/../libs/hdf5"
+        },
+        {
+          "name": "HDF5_ZLIB",
+          "value": "${projectDir}/../libs/hdf5/lib/zlib.lib"
+        },
+        {
+          "name": "HDF5_SZLIB",
+          "value": "${projectDir}/../libs/hdf5/lib/szip.lib"
+        },
+        {
+          "name": "HDF5_USE_STATIC_LIBRARIES",
+          "value": "1"
+        },
+        {
+          "name": "BUILD_SHARED_LIBS",
+          "value": "1"
+        },
+        {
+          "name": "BUILD_STATIC_LIBS",
+          "value": "0"
+        },
+        {
+          "name": "BUILD_TESTS",
+          "value": "0"
+        },
+        {
+          "name": "BLA_VENDOR",
+          "value": "Intel10_64lp_tbb"
+        },
+        {
+          "name": "CMAKE_INSTALL_PREFIX",
+          "value": "${projectDir}/../cadet/${name}"
+        },
+        {
+          "name": "CMAKE_BUILD_TYPE",
+          "value": "Release"
+        }
+      ]
+    },
+    {
+      "name": "MS_MKL_RELDEBINFO",
+      "generator": "Visual Studio 15 2017 Win64",
+      "configurationType": "RelWithDebInfo",
+      "buildRoot": "${env.LOCALAPPDATA}\\CMakeBuild\\${workspaceHash}\\build\\${name}",
+      "cmakeCommandArgs": "",
+      "buildCommandArgs": "-m -v:minimal",
+      "variables": [
+        {
+          "name": "TBB_ROOT_DIR:PATH",
+          "value": "C:/Program Files (x86)/IntelSWTools/compilers_and_libraries/windows/tbb"
+        },
+        {
+          "name": "CMAKE_LIBRARY_PATH:PATH",
+          "value": "C:/Program Files (x86)/IntelSWTools/compilers_and_libraries/windows/mkl/lib/intel64_win"
+        },
+        {
+          "name": "PATH_SUNDIALS_ROOT:PATH",
+          "value": "${projectDir}/../libs/sundials"
+        },
+        {
+          "name": "HDF5_ROOT:PATH",
+          "value": "${projectDir}/../libs/hdf5"
+        },
+        {
+          "name": "HDF5_ZLIB",
+          "value": "${projectDir}/../libs/hdf5/lib/zlib.lib"
+        },
+        {
+          "name": "HDF5_SZLIB",
+          "value": "${projectDir}/../libs/hdf5/lib/szip.lib"
+        },
+        {
+          "name": "HDF5_USE_STATIC_LIBRARIES",
+          "value": "1"
+        },
+        {
+          "name": "BUILD_SHARED_LIBS",
+          "value": "1"
+        },
+        {
+          "name": "BUILD_STATIC_LIBS",
+          "value": "0"
+        },
+        {
+          "name": "BUILD_TESTS",
+          "value": "0"
+        },
+        {
+          "name": "BLA_VENDOR",
+          "value": "Intel10_64lp_tbb"
+        },
+        {
+          "name": "CMAKE_INSTALL_PREFIX",
+          "value": "${projectDir}/../cadet/${name}"
+        },
+        {
+          "name": "CMAKE_BUILD_TYPE",
+          "value": "Release"
+        }
+      ]
+    },
+    {
+      "name": "MS_CLAPACK_DEBUG",
+      "generator": "Visual Studio 15 2017 Win64",
+      "configurationType": "Debug",
+      "buildRoot": "${env.LOCALAPPDATA}\\CMakeBuild\\${workspaceHash}\\build\\${name}",
+      "cmakeCommandArgs": "",
+      "buildCommandArgs": "-m -v:minimal",
+      "variables": [
+        {
+          "name": "TBB_ROOT_DIR:PATH",
+          "value": "C:/Program Files (x86)/IntelSWTools/compilers_and_libraries/windows/tbb"
+        },
+        {
+          "name": "CMAKE_LIBRARY_PATH:PATH",
+          "value": "${projectDir}/../libs/clapack/lib"
+        },
+        {
+          "name": "PATH_SUNDIALS_ROOT:PATH",
+          "value": "${projectDir}/../libs/sundials"
+        },
+        {
+          "name": "HDF5_ROOT:PATH",
+          "value": "${projectDir}/../libs/hdf5"
+        },
+        {
+          "name": "HDF5_ZLIB",
+          "value": "${projectDir}/../libs/hdf5/lib/zlib.lib"
+        },
+        {
+          "name": "HDF5_SZLIB",
+          "value": "${projectDir}/../libs/hdf5/lib/szip.lib"
+        },
+        {
+          "name": "HDF5_USE_STATIC_LIBRARIES",
+          "value": "1"
+        },
+        {
+          "name": "BUILD_SHARED_LIBS",
+          "value": "1"
+        },
+        {
+          "name": "BUILD_STATIC_LIBS",
+          "value": "0"
+        },
+        {
+          "name": "BUILD_TESTS",
+          "value": "0"
+        },
+        {
+          "name": "BLA_VENDOR",
+          "value": "CLAPACK"
+        },
+        {
+          "name": "CMAKE_INSTALL_PREFIX",
+          "value": "${projectDir}/../cadet/${name}"
+        },
+        {
+          "name": "CMAKE_BUILD_TYPE",
+          "value": "Debug"
+        },
+        {
+          "name": "BLA_STATIC",
+          "value": "1"
+        }
+      ]
+    },
+    {
+      "name": "MS_CLAPACK_RELEASE",
+      "generator": "Visual Studio 15 2017 Win64",
+      "configurationType": "Release",
+      "buildRoot": "${env.LOCALAPPDATA}\\CMakeBuild\\${workspaceHash}\\build\\${name}",
+      "cmakeCommandArgs": "",
+      "buildCommandArgs": "-m -v:minimal",
+      "variables": [
+        {
+          "name": "TBB_ROOT_DIR:PATH",
+          "value": "C:/Program Files (x86)/IntelSWTools/compilers_and_libraries/windows/tbb"
+        },
+        {
+          "name": "CMAKE_LIBRARY_PATH:PATH",
+          "value": "${projectDir}/../libs/clapack/lib"
+        },
+        {
+          "name": "PATH_SUNDIALS_ROOT:PATH",
+          "value": "${projectDir}/../libs/sundials"
+        },
+        {
+          "name": "HDF5_ROOT:PATH",
+          "value": "${projectDir}/../libs/hdf5"
+        },
+        {
+          "name": "HDF5_ZLIB",
+          "value": "${projectDir}/../libs/hdf5/lib/zlib.lib"
+        },
+        {
+          "name": "HDF5_SZLIB",
+          "value": "${projectDir}/../libs/hdf5/lib/szip.lib"
+        },
+        {
+          "name": "HDF5_USE_STATIC_LIBRARIES",
+          "value": "1"
+        },
+        {
+          "name": "BUILD_SHARED_LIBS",
+          "value": "1"
+        },
+        {
+          "name": "BUILD_STATIC_LIBS",
+          "value": "0"
+        },
+        {
+          "name": "BUILD_TESTS",
+          "value": "0"
+        },
+        {
+          "name": "BLA_VENDOR",
+          "value": "CLAPACK"
+        },
+        {
+          "name": "CMAKE_INSTALL_PREFIX",
+          "value": "${projectDir}/../cadet/${name}"
+        },
+        {
+          "name": "CMAKE_BUILD_TYPE",
+          "value": "Release"
+        },
+        {
+          "name": "BLA_STATIC",
+          "value": "1"
+        }
+      ]
+    },
+    {
+      "name": "MS_CLAPACK_RELDEBINFO",
+      "generator": "Visual Studio 15 2017 Win64",
+      "configurationType": "RelWithDebInfo",
+      "buildRoot": "${env.LOCALAPPDATA}\\CMakeBuild\\${workspaceHash}\\build\\${name}",
+      "cmakeCommandArgs": "",
+      "buildCommandArgs": "-m -v:minimal",
+      "variables": [
+        {
+          "name": "TBB_ROOT_DIR:PATH",
+          "value": "C:/Program Files (x86)/IntelSWTools/compilers_and_libraries/windows/tbb"
+        },
+        {
+          "name": "CMAKE_LIBRARY_PATH:PATH",
+          "value": "${projectDir}/../libs/clapack/lib"
+        },
+        {
+          "name": "PATH_SUNDIALS_ROOT:PATH",
+          "value": "${projectDir}/../libs/sundials"
+        },
+        {
+          "name": "HDF5_ROOT:PATH",
+          "value": "${projectDir}/../libs/hdf5"
+        },
+        {
+          "name": "HDF5_ZLIB",
+          "value": "${projectDir}/../libs/hdf5/lib/zlib.lib"
+        },
+        {
+          "name": "HDF5_SZLIB",
+          "value": "${projectDir}/../libs/hdf5/lib/szip.lib"
+        },
+        {
+          "name": "HDF5_USE_STATIC_LIBRARIES",
+          "value": "1"
+        },
+        {
+          "name": "BUILD_SHARED_LIBS",
+          "value": "1"
+        },
+        {
+          "name": "BUILD_STATIC_LIBS",
+          "value": "0"
+        },
+        {
+          "name": "BUILD_TESTS",
+          "value": "0"
+        },
+        {
+          "name": "BLA_VENDOR",
+          "value": "CLAPACK"
+        },
+        {
+          "name": "CMAKE_INSTALL_PREFIX",
+          "value": "${projectDir}/../cadet/${name}"
+        },
+        {
+          "name": "CMAKE_BUILD_TYPE",
+          "value": "Release"
+        },
+        {
+          "name": "BLA_STATIC",
+          "value": "1"
+        }
+      ]
+    },
+    {
+      "name": "MS_SMKL_DEBUG",
+      "generator": "Visual Studio 15 2017 Win64",
+      "configurationType": "Debug",
+      "buildRoot": "${env.LOCALAPPDATA}\\CMakeBuild\\${workspaceHash}\\build\\${name}",
+      "cmakeCommandArgs": "",
+      "buildCommandArgs": "-m -v:minimal",
+      "variables": [
+        {
+          "name": "TBB_ROOT_DIR:PATH",
+          "value": "C:/Program Files (x86)/IntelSWTools/compilers_and_libraries/windows/tbb"
+        },
+        {
+          "name": "CMAKE_LIBRARY_PATH:PATH",
+          "value": "C:/Program Files (x86)/IntelSWTools/compilers_and_libraries/windows/mkl/lib/intel64_win"
+        },
+        {
+          "name": "PATH_SUNDIALS_ROOT:PATH",
+          "value": "${projectDir}/../libs/sundials"
+        },
+        {
+          "name": "HDF5_ROOT:PATH",
+          "value": "${projectDir}/../libs/hdf5"
+        },
+        {
+          "name": "HDF5_ZLIB",
+          "value": "${projectDir}/../libs/hdf5/lib/zlib.lib"
+        },
+        {
+          "name": "HDF5_SZLIB",
+          "value": "${projectDir}/../libs/hdf5/lib/szip.lib"
+        },
+        {
+          "name": "BUILD_SHARED_LIBS",
+          "value": "1"
+        },
+        {
+          "name": "BUILD_STATIC_LIBS",
+          "value": "0"
+        },
+        {
+          "name": "BUILD_TESTS",
+          "value": "0"
+        },
+        {
+          "name": "BLA_VENDOR",
+          "value": "Intel10_64lp_tbb"
+        },
+        {
+          "name": "CMAKE_INSTALL_PREFIX",
+          "value": "${projectDir}/../cadet/${name}"
+        },
+        {
+          "name": "CMAKE_BUILD_TYPE",
+          "value": "Debug"
+        },
+        {
+          "name": "BLA_STATIC",
+          "value": "1"
+        }
+      ]
+
+    },
+    {
+      "name": "MS_SMKL_RELEASE",
+      "generator": "Visual Studio 15 2017 Win64",
+      "configurationType": "Release",
+      "buildRoot": "${env.LOCALAPPDATA}\\CMakeBuild\\${workspaceHash}\\build\\${name}",
+      "cmakeCommandArgs": "",
+      "buildCommandArgs": "-m -v:minimal",
+      "variables": [
+        {
+          "name": "TBB_ROOT_DIR:PATH",
+          "value": "C:/Program Files (x86)/IntelSWTools/compilers_and_libraries/windows/tbb"
+        },
+        {
+          "name": "CMAKE_LIBRARY_PATH:PATH",
+          "value": "C:/Program Files (x86)/IntelSWTools/compilers_and_libraries/windows/mkl/lib/intel64_win"
+        },
+        {
+          "name": "PATH_SUNDIALS_ROOT:PATH",
+          "value": "${projectDir}/../libs/sundials"
+        },
+        {
+          "name": "HDF5_ROOT:PATH",
+          "value": "${projectDir}/../libs/hdf5"
+        },
+        {
+          "name": "HDF5_ZLIB",
+          "value": "${projectDir}/../libs/hdf5/lib/zlib.lib"
+        },
+        {
+          "name": "HDF5_SZLIB",
+          "value": "${projectDir}/../libs/hdf5/lib/szip.lib"
+        },
+        {
+          "name": "HDF5_USE_STATIC_LIBRARIES",
+          "value": "1"
+        },
+        {
+          "name": "BUILD_SHARED_LIBS",
+          "value": "1"
+        },
+        {
+          "name": "BUILD_STATIC_LIBS",
+          "value": "0"
+        },
+        {
+          "name": "BUILD_TESTS",
+          "value": "0"
+        },
+        {
+          "name": "BLA_VENDOR",
+          "value": "Intel10_64lp_tbb"
+        },
+        {
+          "name": "CMAKE_INSTALL_PREFIX",
+          "value": "${projectDir}/../cadet/${name}"
+        },
+        {
+          "name": "CMAKE_BUILD_TYPE",
+          "value": "Release"
+        },
+        {
+          "name": "BLA_STATIC",
+          "value": "1"
+        }
+      ]
+    },
+    {
+      "name": "MS_SMKL_RELDEBINFO",
+      "generator": "Visual Studio 15 2017 Win64",
+      "configurationType": "RelWithDebInfo",
+      "buildRoot": "${env.LOCALAPPDATA}\\CMakeBuild\\${workspaceHash}\\build\\${name}",
+      "cmakeCommandArgs": "",
+      "buildCommandArgs": "-m -v:minimal",
+      "variables": [
+        {
+          "name": "TBB_ROOT_DIR:PATH",
+          "value": "C:/Program Files (x86)/IntelSWTools/compilers_and_libraries/windows/tbb"
+        },
+        {
+          "name": "CMAKE_LIBRARY_PATH:PATH",
+          "value": "C:/Program Files (x86)/IntelSWTools/compilers_and_libraries/windows/mkl/lib/intel64_win"
+        },
+        {
+          "name": "PATH_SUNDIALS_ROOT:PATH",
+          "value": "${projectDir}/../libs/sundials"
+        },
+        {
+          "name": "HDF5_ROOT:PATH",
+          "value": "${projectDir}/../libs/hdf5"
+        },
+        {
+          "name": "HDF5_ZLIB",
+          "value": "${projectDir}/../libs/hdf5/lib/zlib.lib"
+        },
+        {
+          "name": "HDF5_SZLIB",
+          "value": "${projectDir}/../libs/hdf5/lib/szip.lib"
+        },
+        {
+          "name": "HDF5_USE_STATIC_LIBRARIES",
+          "value": "1"
+        },
+        {
+          "name": "BUILD_SHARED_LIBS",
+          "value": "1"
+        },
+        {
+          "name": "BUILD_STATIC_LIBS",
+          "value": "0"
+        },
+        {
+          "name": "BUILD_TESTS",
+          "value": "0"
+        },
+        {
+          "name": "BLA_VENDOR",
+          "value": "Intel10_64lp_tbb"
+        },
+        {
+          "name": "CMAKE_INSTALL_PREFIX",
+          "value": "${projectDir}/../cadet/${name}"
+        },
+        {
+          "name": "CMAKE_BUILD_TYPE",
+          "value": "Release"
+        },
+        {
+          "name": "BLA_STATIC",
+          "value": "1"
+        }
+      ]
+    }
+  ]
+}

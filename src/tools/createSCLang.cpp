@@ -1,7 +1,7 @@
 // =============================================================================
 //  CADET - The Chromatography Analysis and Design Toolkit
 //  
-//  Copyright © 2008-2016: The CADET Authors
+//  Copyright © 2008-2017: The CADET Authors
 //            Please see the AUTHORS and CONTRIBUTORS file.
 //  
 //  All rights reserved. This program and the accompanying materials
@@ -22,7 +22,7 @@
 #include <tclap/CmdLine.h>
 #include "common/TclapUtils.hpp"
 #include "io/hdf5/HDF5Writer.hpp"
-#include "TestCaseHelper.hpp"
+#include "ToolsHelper.hpp"
 
 struct ProgramOptions
 {
@@ -79,6 +79,9 @@ int main(int argc, char** argv)
 			writer.scalar("UNIT_TYPE", std::string("GENERAL_RATE_MODEL"));
 			const int nComp = 1;
 			writer.scalar<int>("NCOMP", nComp);
+
+			//Flow
+			writer.scalar<double>("FLOW", 1.0);
 
 			// Transport
 			writer.scalar<double>("VELOCITY", 5.75e-4);
@@ -155,6 +158,9 @@ int main(int argc, char** argv)
 			writer.scalar("INLET_TYPE", std::string("PIECEWISE_CUBIC_POLY"));
 			writer.scalar<int>("NCOMP", 1);
 
+			//Flow
+			writer.scalar<double>("FLOW", 1.0);
+
 			{
 				Scope<cadet::io::HDF5Writer> s3(writer, "sec_000");
 
@@ -176,17 +182,28 @@ int main(int argc, char** argv)
 			{
 				Scope<cadet::io::HDF5Writer> s1(writer, "switch_000");
 
-				// Connection list is 1x4 since we have 1 connection between
-				// the two unit operations (and we need to have 4 columns)
-				const int connMatrix[] = {1, 0, -1, -1};
+				// Connection list is 1x5 since we have 1 connection between
+				// the two unit operations (and we need to have 5 columns)
+				const double connMatrix[] = {1, 0, -1, -1, 1.0};
 				// Connections: From unit operation 1 to unit operation 0,
 				//              connect component -1 (i.e., all components)
-				//              to component -1 (i.e., all components)
+				//              to component -1 (i.e., all components) with
+				//              a flow rate of 1.0
 
 				// This switch occurs at beginning of section 0 (initial configuration)
 				writer.scalar<int>("SECTION", 0);
-				writer.vector<int>("CONNECTIONS", 4, connMatrix);
+				writer.vector<double>("CONNECTIONS", 5, connMatrix);
 			}
+		}
+
+		// Solver settings
+		{
+			Scope<cadet::io::HDF5Writer> su(writer, "solver");
+
+			writer.scalar<int>("MAX_KRYLOV", 0);
+			writer.scalar<int>("GS_TYPE", 1);
+			writer.scalar<int>("MAX_RESTARTS", 10);
+			writer.scalar<double>("SCHUR_SAFETY", 1e-8);
 		}
 	}
 

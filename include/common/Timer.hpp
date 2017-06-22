@@ -1,7 +1,7 @@
 // =============================================================================
 //  CADET - The Chromatography Analysis and Design Toolkit
 //  
-//  Copyright © 2008-2016: The CADET Authors
+//  Copyright © 2008-2017: The CADET Authors
 //            Please see the AUTHORS and CONTRIBUTORS file.
 //  
 //  All rights reserved. This program and the accompanying materials
@@ -268,6 +268,47 @@ namespace cadet
 			};
 
 			typedef BaseTimer<OpenMPTimer> Timer;
+
+		} // namespace cadet
+
+	#elif defined(CADET_PARALLELIZE)
+
+		#include <tbb/tbb.h>
+		
+		namespace cadet 
+		{
+
+			/**
+			 * @brief TBB timer implementation using tbb:tick_count::now()
+			 */
+			class TBBTimer
+			{
+			public:
+				// Constructor
+				TBBTimer() : _startTime() { }
+
+				inline void start()
+				{
+					_startTime = tbb::tick_count::now();
+				}
+
+				inline double resolution() const
+				{
+					return tbb::tick_count::resolution();
+				}
+
+			protected:
+
+				inline double stopCore() const
+				{
+					return (tbb::tick_count::now() - _startTime).seconds();
+				}
+
+			protected:
+				tbb::tick_count _startTime;
+			};
+
+			typedef BaseTimer<TBBTimer> Timer;
 
 		} // namespace cadet
 

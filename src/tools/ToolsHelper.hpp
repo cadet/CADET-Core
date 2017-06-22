@@ -1,7 +1,7 @@
 // =============================================================================
 //  CADET - The Chromatography Analysis and Design Toolkit
 //  
-//  Copyright © 2008-2016: The CADET Authors
+//  Copyright © 2008-2017: The CADET Authors
 //            Please see the AUTHORS and CONTRIBUTORS file.
 //  
 //  All rights reserved. This program and the accompanying materials
@@ -12,11 +12,11 @@
 
 /**
  * @file 
- * Provides helper functions for test case creator apps
+ * Provides helper functions for tools apps
  */
 
-#ifndef CADETTEST_TESTCASEHELPER_HPP_
-#define CADETTEST_TESTCASEHELPER_HPP_
+#ifndef CADETTEST_TOOLSHELPER_HPP_
+#define CADETTEST_TOOLSHELPER_HPP_
 
 #include <string>
 #include <vector>
@@ -220,4 +220,4 @@ inline void parseAndWriteOutputFormatsFromCmdLine(Writer_t& writer, const std::s
 	writer.template scalar<int>("WRITE_SOLUTION_TIMES", true);
 }
 
-#endif  // CADETTEST_TESTCASEHELPER_HPP_
+#endif  // CADETTEST_TOOLSHELPER_HPP_

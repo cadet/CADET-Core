@@ -1,11 +1,8 @@
 // =============================================================================
 //  CADET - The Chromatography Analysis and Design Toolkit
 //  
-//  Copyright © 2008-2016: Eric von Lieres¹, Joel Andersson¹,
-//                         Andreas Puettmann¹, Sebastian Schnittert¹,
-//                         Samuel Leweke¹
-//                                      
-//    ¹ Forschungszentrum Juelich GmbH, IBG-1, Juelich, Germany.
+//  Copyright © 2008-2017: The CADET Authors
+//            Please see the AUTHORS and CONTRIBUTORS file.
 //  
 //  All rights reserved. This program and the accompanying materials
 //  are made available under the terms of the GNU Public License v3.0 (or, at
@@ -20,22 +17,51 @@ namespace cadet
 	const char GIT_COMMIT_HASH[] = "@GIT_SHA1@";
 	const char GIT_BRANCH[] = "@GIT_REFSPEC@";
 	const char LIBCADET_VERSION[] = "@CADET_VERSION@";
+	const char DEPENDENCY_VERSIONS[] = "HDF5=@HDF5_VERSION@;TBB=@TBB_VERSION@;MATLAB=@Matlab_VERSION_STRING@;SUNDIALS=@SUNDIALS_VERSION@;MKL=@MKL_VERSION@;";
+	const char BUILD_TYPE[] = "@CMAKE_BUILD_TYPE@";
+	const char COMPILER[] = "@CMAKE_CXX_COMPILER_ID@ @CMAKE_CXX_COMPILER_VERSION@";
+	const char BUILD_HOST[] = "@CMAKE_SYSTEM@";
+	const char COMPILER_FLAGS[] = "@CMAKE_CXX_FLAGS@";
 
-	const char* getLibraryVersion() noexcept
+	const char* getLibraryVersion() CADET_NOEXCEPT
 	{
 		return cadet::LIBCADET_VERSION;
 	}
 
-	const char* getLibraryCommitHash() noexcept
+	const char* getLibraryCommitHash() CADET_NOEXCEPT
 	{
 		return cadet::GIT_COMMIT_HASH;
 	}
 
-	const char* getLibraryBranchRefspec() noexcept
+	const char* getLibraryBranchRefspec() CADET_NOEXCEPT
 	{
 		return cadet::GIT_BRANCH;
 	}
 
+	const char* getLibraryDependencyVersions() CADET_NOEXCEPT
+	{
+		return cadet::DEPENDENCY_VERSIONS;
+	}
+
+	const char* getLibraryBuildType() CADET_NOEXCEPT
+	{
+		return cadet::BUILD_TYPE;
+	}
+
+	const char* getLibraryCompiler() CADET_NOEXCEPT
+	{
+		return cadet::COMPILER;
+	}
+
+	const char* getLibraryCompilerFlags() CADET_NOEXCEPT
+	{
+		return cadet::COMPILER_FLAGS;
+	}
+
+	const char* getLibraryBuildHost() CADET_NOEXCEPT
+	{
+		return cadet::BUILD_HOST;
+	}
 }
 
 extern "C"
@@ -56,4 +82,28 @@ extern "C"
 		return cadet::getLibraryBranchRefspec();
 	}
 	
+	CADET_API const char* cadetGetLibraryDependencyVersions()
+	{
+		return cadet::getLibraryDependencyVersions();
+	}
+
+	CADET_API const char* cadetGetLibraryBuildType()
+	{
+		return cadet::getLibraryBuildType();
+	}
+
+	CADET_API const char* cadetGetLibraryCompiler()
+	{
+		return cadet::getLibraryCompiler();
+	}
+
+	CADET_API const char* cadetGetLibraryCompilerFlags()
+	{
+		return cadet::getLibraryCompilerFlags();
+	}
+
+	CADET_API const char* cadetGetLibraryBuildHost()
+	{
+		return cadet::getLibraryBuildHost();
+	}
 }

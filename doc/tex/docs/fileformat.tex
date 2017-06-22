@@ -2,11 +2,8 @@
 % =============================================================================
 %  CADET - The Chromatography Analysis and Design Toolkit
 %  
-%  Copyright © 2008-2015: Eric von Lieres¹, Joel Andersson,
-%                         Andreas Puettmann¹, Sebastian Schnittert¹,
-%                         Samuel Leweke¹
-%                                      
-%    ¹ Forschungszentrum Juelich GmbH, IBG-1, Juelich, Germany.
+%  Copyright © 2008-2017: The CADET Authors
+%            Please see the AUTHORS and CONTRIBUTORS file.
 %  
 %  All rights reserved. This program and the accompanying materials
 %  are made available under the terms of the GNU Public License v3.0 (or, at
@@ -55,13 +52,14 @@ For the latter, please refer to the corresponding sections in the previous chapt
   level 2/.style={sibling distance=16mm},
   ]
   \node {\hyperref[sec:FFInput]{input}} [edge from parent fork down]
-    child[sibling distance=40mm] { node {\hyperref[tab:FFModelSystem]{model} } [edge from parent fork down]
+    child[sibling distance=45mm] { node {\hyperref[tab:FFModelSystem]{model} } [edge from parent fork down]
               child[sibling distance=17mm] { node { \hyperref[tab:FFModelSystemConnections]{connections} } [edge from parent fork down]
                   child { node { \hyperref[tab:FFModelConnectionSwitch]{switch\_000} } }
               }
               child { node { external } [edge from parent fork down]
                   child { node { \hyperref[tab:FFModelExternalSourceLinInterp]{source\_000} } }
               }
+              child { node { \hyperref[tab:FFModelSolver]{solver} } }
               child { node { \hyperref[sec:FFModelUnitOp]{unit\_000} } }
           }   
     child[sibling distance=40mm] { node { \hyperref[tab:FFSolver]{solver} } [edge from parent fork down]
@@ -225,7 +223,7 @@ Note that all components of component dependent datasets have to be section depe
 \multicolumn{6}{c}{\GroupHeadline{/input/model/connections/switch\_XXX}} \\
 \rowfont[c]\normalfont Dataset & Description & Unit & Type & Range & Length \everyrow{\midrule}\\
 \texttt{SECTION}& Index of the section which activates this connection set & -- & int & $\geq 0$ & 1 \\
-\texttt{CONNECTIONS}& Matrix with list of connections in row-major storage. Columns are \emph{UnitOpID from}, \emph{UnitOpID to}, \emph{Component from}, \emph{Component to}. If the last two entries are $-1$, all components are connected. & -- & int & $\geq -1$ & $\texttt{NCONNECTIONS} \times 4$ \everyrow{}\\
+\texttt{CONNECTIONS}& Matrix with list of connections in row-major storage. Columns are \emph{UnitOpID from}, \emph{UnitOpID to}, \emph{Component from}, \emph{Component to}, \emph{volumetric flow rate}. If both component indices are $-1$, all components are connected. & -- & double & $\geq -1$ & $\texttt{NCONNECTIONS} \times 5$ \everyrow{}\\
 \bottomrule
 \end{tabu}
 \caption{\label{tab:FFModelConnectionSwitch}Datasets in the \texttt{/input/model/connections/switch\_XXX} group}
@@ -262,6 +260,25 @@ Note that all components of component dependent datasets have to be section depe
 \caption{\label{tab:FFModelExternalSourcePieceCubicPoly}Datasets in the \texttt{/input/model/external/source\_XXX} group}
 \end{table}
 
+\begin{table}[!ht]
+\footnotesize
+\begin{tabu}to \linewidth[m]{lX[m]ccc} \toprule
+\multicolumn{5}{c}{\GroupHeadline{/input/model/solver}} \\
+\rowfont[c]\normalfont Dataset & Description & Type & Range & Length \everyrow{\midrule}\\
+\texttt{GS\_TYPE} & Type of Gram-Schmidt orthogonalization, see IDAS guide
+4.5.7.3, 41f. & int &
+\begin{tabular}{c}
+  0 (\texttt{CLASSICAL\_GS}) \\
+  1 (\texttt{MODIFIED\_GS})
+\end{tabular} & 1 \\
+\texttt{MAX\_KRYLOV} & Defines the size of the Krylov subspace in the iterative linear GMRES solver (0: \texttt{MAX\_KRYLOV} = \texttt{NCOL}) & int & $0-\texttt{NCOL}$ & 1\\
+\texttt{MAX\_RESTARTS} & Maximum number of restarts in the GMRES algorithm. If lack of memory isn't an issue, better use a larger Krylov space than restarts & int & $\geq 0$ & 1 \\
+\texttt{SCHUR\_SAFETY} & Schur safety factor; Influences the tradeof between linear iterations and nonlinear error control; see IDAS guide 2.1, 5 & double & $\geq 0.0$ & 1\everyrow{}\\
+\bottomrule
+\end{tabu}
+\caption{\label{tab:FFModelSolver}Datasets in the \texttt{/input/model/solver} group}
+\end{table}
+
 \FloatBarrier
 \subsection{Unit operation models}\label{sec:FFModelUnitOp}
 
@@ -274,7 +291,8 @@ Note that all components of component dependent datasets have to be section depe
 \rowfont[c]\normalfont Dataset & Description & Unit & Type & Range & Length \everyrow{\midrule}\\
 \texttt{UNIT\_TYPE} & Specifies the type of unit operation model & -- & string & \texttt{INLET} & 1 \\
 \texttt{NCOMP}& Number of chemical components in the chromatographic media & -- & int  & $\geq 1$ & 1 \\
-\texttt{INLET\_TYPE} & Specifies the type of inlet profile & -- & string & \texttt{PIECEWISE\_CUBIC\_POLY} & 1 \everyrow{}\\
+\texttt{INLET\_TYPE} & Specifies the type of inlet profile & -- & string & \texttt{PIECEWISE\_CUBIC\_POLY} & 1
+\everyrow{}\\
 \bottomrule
 \end{tabu}
 \caption[Datasets for the inlet unit operation]{\label{tab:FFModelUnitOpInlet}Datasets for the inlet unit operation (\texttt{/input/model/unit\_XXX} group)}
@@ -293,6 +311,21 @@ Note that all components of component dependent datasets have to be section depe
 \bottomrule
 \end{tabu}
 \caption{\label{tab:FFModelInletPiecewiseCubicPoly}Datasets in the \texttt{/input/model/unit\_XXX/sec\_XXX} groups}
+\end{table}
+
+\subsubsection{Outlet}
+
+\begin{table}[!ht]
+\footnotesize
+\begin{tabu}to \linewidth[m]{lX[m]cccc} \toprule
+\multicolumn{6}{c}{\GroupHeadlineX{UNIT\_TYPE = OUTLET}{/input/model/unit\_XXX}} \\
+\rowfont[c]\normalfont Dataset & Description & Unit & Type & Range & Length \everyrow{\midrule}\\
+\texttt{UNIT\_TYPE} & Specifies the type of unit operation model & -- & string & \texttt{OUTLET} & 1 \\
+\texttt{NCOMP}& Number of chemical components in the chromatographic media & -- & int  & $\geq 1$ & 1
+\everyrow{}\\
+\bottomrule
+\end{tabu}
+\caption[Datasets for the outlet unit operation]{\label{tab:FFModelUnitOpOutlet}Datasets for the outlet unit operation (\texttt{/input/model/unit\_XXX} group)}
 \end{table}
 
 \FloatBarrier
@@ -318,7 +351,9 @@ Note that all components of component dependent datasets have to be section depe
 \texttt{PAR\_POROSITY} & Particle porosity & -- & double & $> 0.0$ & 1\\
 \texttt{PAR\_RADIUS} & Particle radius & \si{\metre} & double & $> 0.0$ & 1\\
 \texttt{PAR\_SURFDIFFUSION} & Particle surface diffusion coefficients & \si{\square\metre\of{SP}\per\second} & double & $\geq 0.0$ & \texttt{NTOTALBND} / {$\texttt{NTOTALBND} \times \texttt{NSEC}$}\\
-\texttt{VELOCITY} & Interstitial velocity of the mobile phase & \si{\metre\per\second} & double & $> 0.0$ & 1 / \texttt{NSEC}\everyrow{}\\
+\texttt{VELOCITY} & Interstitial velocity of the mobile phase (optional if \texttt{CROSS\_SECTION\_AREA} is present, see Section~\ref{par:MUOPGRMflow}) & \si{\metre\per\second} & double & & 1 / \texttt{NSEC} \\
+\texttt{CROSS\_SECTION\_AREA} & Cross section area of the column (optional if \texttt{VELOCITY} is present, see Section~\ref{par:MUOPGRMflow}) & \si{\square\metre} & double & $> 0.0$ & 1
+\everyrow{}\\
 \bottomrule
 \end{tabu}
 \caption[Datasets for the general rate model unit operation]{\label{tab:FFModelUnitOpGRM}Datasets for the general rate model unit operation (\texttt{/input/model/unit\_XXX} group)}
@@ -351,7 +386,7 @@ Note that all components of component dependent datasets have to be section depe
   0 (\texttt{CLASSICAL\_GS}) \\
   1 (\texttt{MODIFIED\_GS})
 \end{tabular} & 1 \\
-\texttt{MAX\_KRYLOV} & Defines the size of the Krylov subspace in the iterative linear SPGMR solver (0: \texttt{MAX\_KRYLOV} = \texttt{NCOL}) & -- & int & $0-\texttt{NCOL}$ & 1\\
+\texttt{MAX\_KRYLOV} & Defines the size of the Krylov subspace in the iterative linear GMRES solver (0: \texttt{MAX\_KRYLOV} = \texttt{NCOL}) & -- & int & $0-\texttt{NCOL}$ & 1\\
 \texttt{MAX\_RESTARTS} & Maximum number of restarts in the GMRES algorithm. If lack of memory isn't an issue, better use a larger Krylov space than restarts & -- & int & $\geq 0$ & 1 \\
 \texttt{SCHUR\_SAFETY} & Schur safety factor; Influences the tradeof between linear iterations and nonlinear error control; see IDAS guide 2.1, 5 & -- & double & $\geq 0.0$ & 1\everyrow{}\\
 \bottomrule
@@ -660,21 +695,27 @@ However, if only one index is passed in \texttt{EXTFUN}, this external source is
 \begin{tabu}to \linewidth[m]{lX[m]cccc} \toprule
 \multicolumn{6}{c}{\GroupHeadline{/input/solver}} \\
 \rowfont[c]\normalfont Dataset & Description & Unit & Type & Range & Length \everyrow{\midrule}\\      
-\texttt{NTHREADS} & Number of used OpenMP threads & -- & int & $\geq 1$ & 1\\
+\texttt{NTHREADS} & Number of used threads & -- & int & $\geq 1$ & 1\\
 \texttt{USER\_SOLUTION\_TIMES} & Vector with timepoints at which a solution is desired & \si{\second} & double & $\geq 0.0$ & Arbitrary \\
 \texttt{CONSISTENT\_INIT\_MODE} & Consistent initialization mode (optional, defaults to $1$) & -- & int & \begin{tabular}{c}
     0 (none) \\
     1 (full) \\
     2 (once, full) \\
     3 (lean) \\
-    4 (once, lean)
+    4 (once, lean) \\
+    5 (full once, then lean) \\
+    6 (none once, then full) \\
+    7 (none once, then lean)
   \end{tabular} & 1 \\
 \texttt{CONSISTENT\_INIT\_MODE\_SENS} & Consistent initialization mode (optional, defaults to $1$) & -- & int & \begin{tabular}{c}
     0 (none) \\
     1 (full) \\
     2 (once, full) \\
     3 (lean) \\
-    4 (once, lean)
+    4 (once, lean) \\
+    5 (full once, then lean) \\
+    6 (none once, then full) \\
+    7 (none once, then lean)
   \end{tabular} & 1 \everyrow{}\\
 \bottomrule
 \end{tabu}
@@ -691,7 +732,8 @@ However, if only one index is passed in \texttt{EXTFUN}, this external source is
 \texttt{RELTOL} & Relative tolerance in the solution of the original system & double & $\geq 0.0$ & 1\\
 \texttt{RELTOL\_SENS} & Relative tolerance in the solution of the sensitivity systems & double & $\geq 0.0$ & 1 / \texttt{NSENS}\\
 \texttt{INIT\_STEP\_SIZE} & Initial time integrator step size for each section or one value for all sections (0.0: IDAS default value), see IDAS guide 4.5, 36f. & double & $\geq 0.0$ & 1 / \texttt{NSEC}\\
-\texttt{MAX\_STEPS} & Maximum number of timesteps taken by IDAS (0: IDAS default = 500), see IDAS guide 4.5, 36 & int & $\geq 0$ & 1 \everyrow{}\\
+\texttt{MAX\_STEPS} & Maximum number of timesteps taken by IDAS (0: IDAS default = 500), see IDAS guide Sec.~4.5 & int & $\geq 0$ & 1 \\
+\texttt{MAX\_STEP\_SIZE} & Maximum size of timesteps taken by IDAS (0.0: unlimited), see IDAS guide Sec.~4.5 & double & $\geq 0$ & 1 \everyrow{}\\
 \bottomrule
 \end{tabu}
 \caption{\label{tab:FFSolverTime}Datasets in the \texttt{/input/solver/time\_integrator} group}

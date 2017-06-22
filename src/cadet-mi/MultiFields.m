@@ -7,7 +7,7 @@ classdef MultiFields
 	%   from a matrix, for removing them from the structure completely, and for
 	%   extracting them (taking gaps into account) into a matrix.
 	
-	% Copyright: (C) 2008-2016 The CADET Authors
+	% Copyright: (C) 2008-2017 The CADET Authors
 	%            See the license note at the end of the file.
 
 	methods (Static)
@@ -102,7 +102,7 @@ end
 % =============================================================================
 %  CADET - The Chromatography Analysis and Design Toolkit
 %  
-%  Copyright (C) 2008-2016: The CADET Authors
+%  Copyright (C) 2008-2017: The CADET Authors
 %            Please see the AUTHORS and CONTRIBUTORS file.
 %  
 %  All rights reserved. obj program and the accompanying materials

@@ -1,7 +1,7 @@
 // =============================================================================
 //  CADET - The Chromatography Analysis and Design Toolkit
 //  
-//  Copyright © 2008-2016: The CADET Authors
+//  Copyright © 2008-2017: The CADET Authors
 //            Please see the AUTHORS and CONTRIBUTORS file.
 //  
 //  All rights reserved. This program and the accompanying materials
@@ -36,7 +36,7 @@ class IInletProfile;
 /**
  * @brief Provides functionality to build a model
  */
-class ModelBuilder : public IModelBuilder, IConfigHelper
+class ModelBuilder : public IModelBuilder, public IConfigHelper
 {
 public:
 

@@ -11,7 +11,7 @@ function [result, solution] = pulseLinearSingle()
 %
 %   See also BREAKTHROUGHLANGMUIRSINGLE.
 
-% Copyright: (C) 2008-2016 The CADET Authors
+% Copyright: (C) 2008-2017 The CADET Authors
 %            See the license note at the end of the file.
 
 

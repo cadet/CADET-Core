@@ -1,7 +1,7 @@
 // =============================================================================
 //  CADET - The Chromatography Analysis and Design Toolkit
 //
-//  Copyright © 2008-2016: The CADET Authors
+//  Copyright © 2008-2017: The CADET Authors
 //            Please see the AUTHORS and CONTRIBUTORS file.
 //
 //  All rights reserved. This program and the accompanying materials
@@ -12,6 +12,7 @@
 
 #include "linalg/BandMatrix.hpp"
 #include "linalg/DenseMatrix.hpp"
+#include "linalg/SparseMatrix.hpp"
 #include "AutoDiff.hpp"
 
 #include <limits>
@@ -30,6 +31,9 @@ void prepareAdVectorSeedsForBandMatrix(active* const adVec, unsigned int adDirOf
 	unsigned int dir = diagDir;
 	for (unsigned int eq = 0; eq < rows; ++eq)
 	{
+		// Clear previously set directions
+		adVec[eq].fillADValue(adDirOffset, 0.0);
+		// Set direction
 		adVec[eq].setADValue(adDirOffset + dir, 1.0);
 
 		// Wrap around at end of row and jump to lowest subdiagonal
@@ -171,6 +175,19 @@ double compareDenseJacobianWithBandedAd(active const* const adVec, unsigned int 
 		}
 	}
 	return maxDiff;
+}
+
+void adMatrixVectorMultiply(const linalg::SparseMatrix<active>& mat, double const* x, double* y, double alpha, double beta, unsigned int adDir)
+{
+	const std::vector<unsigned int>& rows = mat.rows();
+	const std::vector<unsigned int>& cols = mat.cols();
+	const std::vector<active>& values = mat.values();
+	const unsigned int numNonZero = mat.numNonZero();
+
+	for (unsigned int i = 0; i < numNonZero; ++i)
+	{
+		y[rows[i]] = alpha * values[i].getADValue(adDir) * x[cols[i]] + beta * y[rows[i]];
+	}
 }
 
 }  // namespace ad

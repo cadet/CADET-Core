@@ -1,7 +1,7 @@
 // =============================================================================
 //  CADET - The Chromatography Analysis and Design Toolkit
 //  
-//  Copyright © 2008-2016: The CADET Authors
+//  Copyright © 2008-2017: The CADET Authors
 //            Please see the AUTHORS and CONTRIBUTORS file.
 //  
 //  All rights reserved. This program and the accompanying materials
@@ -263,9 +263,15 @@ namespace cadet
 	inline const active& getSectionDependentScalar(const std::vector<active>& data, unsigned int secIdx)
 	{
 		if (cadet_unlikely(data.size() > 1))
+		{
+			cadet_assert(data.size() > secIdx);
 			return data[secIdx];
+		}
 		else
+		{
+			cadet_assert(data.size() == 1);
 			return data[0];
+		}
 	}
 
 

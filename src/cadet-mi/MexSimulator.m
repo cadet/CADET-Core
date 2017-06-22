@@ -50,7 +50,7 @@ classdef MexSimulator < handle
 	%   forced (for specific parts of the layer, that is, the simulator, or 
 	%   certain models) by calling MEXSIMULATOR.RECONFIGURE.
 	
-	% Copyright: (C) 2008-2016 The CADET Authors
+	% Copyright: (C) 2008-2017 The CADET Authors
 	%            See the license note at the end of the file.
 	
 	properties (Hidden, Transient, Access = 'protected')
@@ -71,7 +71,7 @@ classdef MexSimulator < handle
 	properties (Dependent, Transient)
 		% Requested time points at which solution is returned (all time points returned if empty) in [s]
 		solutionTimes;
-		% Number of threads used by CADET (OpenMP)
+		% Number of threads used by CADET
 		nThreads;
 		% Absolute error tolerance (scalar or vector with number of DOFs elements)
 		absTol;
@@ -85,6 +85,8 @@ classdef MexSimulator < handle
 		initStepSize;
 		% Maximum number of time integration steps
 		maxSteps;
+		% Maximum step size of the time integrator
+		maxStepSize;
 		% Determines how the system is initialized consistently
 		consistentInitMode;
 		% Determines how the sensitivity systems are initialized consistently
@@ -138,6 +140,7 @@ classdef MexSimulator < handle
 			obj.relTolSens = 1e-8;
 			obj.initStepSize = 1e-6;
 			obj.maxSteps = 10000;
+			obj.maxStepSize = 0.0;
 			obj.nThreads = 1;
 			obj.consistentInitMode = 1;
 			obj.consistentInitModeSens = 1;
@@ -201,7 +204,7 @@ classdef MexSimulator < handle
 			validateattributes(val, {'double'}, {'nonnegative', 'scalar', 'nonempty', 'finite', 'real'}, '', 'absTol');
 			obj.data.solver.time_integrator.ABSTOL = val;
 			if obj.isConfigured
-				CadetMex('settimeintopts', obj.mexHandle, [], val, [], [], [], []);
+				CadetMex('settimeintopts', obj.mexHandle, [], val, [], [], [], [], []);
 			end
 		end
 
@@ -213,7 +216,7 @@ classdef MexSimulator < handle
 			validateattributes(val, {'double'}, {'nonnegative', 'scalar', 'nonempty', 'finite', 'real'}, '', 'relTol');
 			obj.data.solver.time_integrator.RELTOL = val;
 			if obj.isConfigured
-				CadetMex('settimeintopts', obj.mexHandle, val, [], [], [], [], []);
+				CadetMex('settimeintopts', obj.mexHandle, val, [], [], [], [], [], []);
 			end
 		end
 
@@ -225,7 +228,7 @@ classdef MexSimulator < handle
 			validateattributes(val, {'double'}, {'nonnegative', 'scalar', 'nonempty', 'finite', 'real'}, '', 'relTolSens');
 			obj.data.solver.time_integrator.RELTOL_SENS = val;
 			if obj.isConfigured
-				CadetMex('settimeintopts', obj.mexHandle, [], [], [], [], [], val);
+				CadetMex('settimeintopts', obj.mexHandle, [], [], [], [], [], [], val);
 			end
 		end
 
@@ -237,7 +240,7 @@ classdef MexSimulator < handle
 			validateattributes(val, {'double'}, {'nonnegative', 'scalar', 'nonempty', 'finite', 'real'}, '', 'algTol');
 			obj.data.solver.time_integrator.ALGTOL = val;
 			if obj.isConfigured
-				CadetMex('settimeintopts', obj.mexHandle, [], [], val, [], [], []);
+				CadetMex('settimeintopts', obj.mexHandle, [], [], val, [], [], [], []);
 			end
 		end
 
@@ -249,7 +252,7 @@ classdef MexSimulator < handle
 			validateattributes(val, {'double'}, {'positive', 'vector', 'nonempty', 'finite', 'real'}, '', 'initStepSize');
 			obj.data.solver.time_integrator.INIT_STEP_SIZE = val;
 			if obj.isConfigured
-				CadetMex('settimeintopts', obj.mexHandle, [], [], [], val, [], []);
+				CadetMex('settimeintopts', obj.mexHandle, [], [], [], val, [], [], []);
 			end
 		end
 
@@ -261,7 +264,19 @@ classdef MexSimulator < handle
 			validateattributes(val, {'numeric'}, {'>=', 1.0, 'scalar', 'nonempty', 'finite', 'real'}, '', 'maxSteps');
 			obj.data.solver.time_integrator.MAX_STEPS = int32(val);
 			if obj.isConfigured
-				CadetMex('settimeintopts', obj.mexHandle, [], [], [], [], int32(val), []);
+				CadetMex('settimeintopts', obj.mexHandle, [], [], [], [], int32(val), [], []);
+			end
+		end
+
+		function val = get.maxStepSize(obj)
+			val = double(obj.data.solver.time_integrator.MAX_STEP_SIZE);
+		end
+
+		function set.maxStepSize(obj, val)
+			validateattributes(val, {'double'}, {'>=', 0.0, 'scalar', 'nonempty', 'finite', 'real'}, '', 'maxStepSize');
+			obj.data.solver.time_integrator.MAX_STEP_SIZE = val;
+			if obj.isConfigured
+				CadetMex('settimeintopts', obj.mexHandle, [], [], [], [], [], val, []);
 			end
 		end
 
@@ -270,7 +285,7 @@ classdef MexSimulator < handle
 		end
 
 		function set.consistentInitMode(obj, val)
-			validateattributes(val, {'numeric'}, {'>=', 0.0, '<=', 4.0 'scalar', 'nonempty', 'finite', 'real'}, '', 'consistentInitMode');
+			validateattributes(val, {'numeric'}, {'>=', 0.0, '<=', 7.0 'scalar', 'nonempty', 'finite', 'real'}, '', 'consistentInitMode');
 			obj.data.solver.CONSISTENT_INIT_MODE = int32(val);
 			if obj.isConfigured
 				CadetMex('setconsinitmode', obj.mexHandle, int32(val));
@@ -282,7 +297,7 @@ classdef MexSimulator < handle
 		end
 
 		function set.consistentInitModeSens(obj, val)
-			validateattributes(val, {'numeric'}, {'>=', 0.0, '<=', 4.0 'scalar', 'nonempty', 'finite', 'real'}, '', 'consistentInitModeSens');
+			validateattributes(val, {'numeric'}, {'>=', 0.0, '<=', 7.0 'scalar', 'nonempty', 'finite', 'real'}, '', 'consistentInitModeSens');
 			obj.data.solver.CONSISTENT_INIT_MODE_SENS = int32(val);
 			if obj.isConfigured
 				CadetMex('setconsinitmode', obj.mexHandle, [], int32(val));
@@ -1201,7 +1216,7 @@ end
 % =============================================================================
 %  CADET - The Chromatography Analysis and Design Toolkit
 %  
-%  Copyright (C) 2008-2016: The CADET Authors
+%  Copyright (C) 2008-2017: The CADET Authors
 %            Please see the AUTHORS and CONTRIBUTORS file.
 %  
 %  All rights reserved. obj program and the accompanying materials

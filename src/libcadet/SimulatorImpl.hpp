@@ -1,7 +1,7 @@
 // =============================================================================
 //  CADET - The Chromatography Analysis and Design Toolkit
 //  
-//  Copyright © 2008-2016: The CADET Authors
+//  Copyright © 2008-2017: The CADET Authors
 //            Please see the AUTHORS and CONTRIBUTORS file.
 //  
 //  All rights reserved. This program and the accompanying materials
@@ -40,10 +40,9 @@ int residualSensWrapper(int ns, double t, N_Vector y, N_Vector yDot, N_Vector re
 		N_Vector* yS, N_Vector* ySDot, N_Vector* resS,
 		void *userData, N_Vector tmp1, N_Vector tmp2, N_Vector tmp3);
 
-namespace model
-{
-	class ModelSystem;
-}
+//int weightWrapper(N_Vector y, N_Vector ewt, void *user_data);
+
+class ISimulatableModel;
 
 /**
  * @brief Provides functionality to simulate a model using a time integrator
@@ -101,8 +100,8 @@ public:
 
 	virtual void configure(IParameterProvider& paramProvider);
 	virtual void reconfigure(IParameterProvider& paramProvider);
-	virtual void configureTimeIntegrator(double relTol, double absTol, double initStepSize, unsigned int maxSteps);
-	virtual void configureTimeIntegrator(double relTol, double absTol, const std::vector<double>& initStepSizes, unsigned int maxSteps);
+	virtual void configureTimeIntegrator(double relTol, double absTol, double initStepSize, unsigned int maxSteps, double maxStepSize);
+	virtual void configureTimeIntegrator(double relTol, double absTol, const std::vector<double>& initStepSizes, unsigned int maxSteps, double maxStepSize);
 	virtual void setSensitivityErrorTolerance(double relTol, double const* absTol);
 
 	virtual void setRelativeErrorTolerance(double relTol);
@@ -112,6 +111,7 @@ public:
 	virtual void setInitialStepSize(double stepSize);
 	virtual void setInitialStepSize(const std::vector<double>& stepSize);
 	virtual void setMaximumSteps(unsigned int maxSteps);
+	virtual void setMaximumStepSize(double maxStepSize);
 	virtual void setRelativeErrorToleranceSens(double relTol);
 
 	virtual bool reconfigureModel(IParameterProvider& paramProvider);
@@ -121,7 +121,7 @@ public:
 	virtual IModelSystem const* const model() const CADET_NOEXCEPT;
 
 	virtual unsigned int numDofs() const CADET_NOEXCEPT;
-	virtual void setNumThreads(unsigned int nThreads) const;
+	virtual void setNumThreads(unsigned int nThreads) CADET_NOEXCEPT;
 
 	virtual double lastSimulationDuration() const CADET_NOEXCEPT { return _lastIntTime; }
 	virtual double totalSimulationDuration() const CADET_NOEXCEPT { return _timerIntegration.totalElapsedTime(); }
@@ -232,11 +232,13 @@ protected:
 
 	friend int ::cadet::linearSolveWrapper(IDAMem IDA_mem, N_Vector rhs, N_Vector weight, N_Vector yCur, N_Vector yDotCur, N_Vector resCur);
 
+//	friend int ::cadet::weightWrapper(N_Vector y, N_Vector ewt, void *user_data);
+
 	friend int ::cadet::residualSensWrapper(int ns, double t, N_Vector y, N_Vector yDot, N_Vector res, 
 			N_Vector* yS, N_Vector* ySDot, N_Vector* resS,
 			void *userData, N_Vector tmp1, N_Vector tmp2, N_Vector tmp3);
 
-	model::ModelSystem* _model; //!< Simulated model, not owned by the Simulator
+	ISimulatableModel* _model; //!< Simulated model, not owned by the Simulator
 
 	ISolutionRecorder* _solRecorder;
 
@@ -271,6 +273,8 @@ protected:
 	double _algTol; //!< Tolerance for the solution of algebraic equations in the consistent initialization
 	std::vector<double> _initStepSize; //!< Initial step size for the time integrator
 	unsigned int _maxSteps; //!< Maximum number of time integration steps
+	double _maxStepSize; //!< Maximum time step size
+	unsigned int _nThreads; //!< Maximum number of threads CADET is allowed to use 0, disables maximum setting
 
 	SectionIdx _curSec; //!< Index of the current section
 

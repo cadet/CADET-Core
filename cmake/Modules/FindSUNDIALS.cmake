@@ -1,11 +1,8 @@
 # =============================================================================
 #  CADET - The Chromatography Analysis and Design Toolkit
 #  
-#  Copyright © 2008-2016: Eric von Lieres¹, Joel Andersson¹,
-#                         Andreas Puettmann¹, Sebastian Schnittert¹,
-#                         Samuel Leweke¹
-#                                      
-#    ¹ Forschungszentrum Juelich GmbH, IBG-1, Juelich, Germany.
+#  Copyright © 2008-2017: The CADET Authors
+#            Please see the AUTHORS and CONTRIBUTORS file.
 #  
 #  All rights reserved. This program and the accompanying materials
 #  are made available under the terms of the GNU Public License v3.0 (or, at
@@ -33,25 +30,13 @@
 #  SUNDIALS_FOUND - true if SUNDIALS was found on the system
 #  SUNDIALS_INCLUDE_DIRS - Location of the SUNDIALS includes
 #  SUNDIALS_LIBRARIES - Required libraries for all requested components
+#  SUNDIALS_VERSION_MAJOR - Major version
+#  SUNDIALS_VERSION_MINOR - Minro version
+#  SUNDIALS_VERSION_PATCH - Patch level
+#  SUNDIALS_VERSION - Full version string
+
 
 include(FindPackageHandleStandardArgs)
-
-
-# Option that allows users to specify custom SUNDIALS path
-if (NOT "$ENV{SUNDIALS_ROOT}" STREQUAL "")
-    list (APPEND CMAKE_INCLUDE_PATH "$ENV{SUNDIALS_ROOT}")
-    list (APPEND CMAKE_LIBRARY_PATH "$ENV{SUNDIALS_ROOT}")
-#else ()
-#    message (STATUS "No environment variable 'SUNDIALS_ROOT' found,\n\tyou may specify custom path in 'PATH_SUNDIALS_ROOT' cache variable")
-endif ()
-
-
-#if (NOT PATH_SUNDIALS_ROOT)
-#    set (PATH_SUNDIALS_ROOT "" CACHE STRING "Optional path to the SUNDIALS lib and include direrctory" FORCE)
-#else ()
-#    list (APPEND CMAKE_INCLUDE_PATH "${PATH_SUNDIALS_ROOT}")
-#    list (APPEND CMAKE_LIBRARY_PATH "${PATH_SUNDIALS_ROOT}")
-#endif ()
 
 
 # List of user definable search paths
@@ -92,10 +77,13 @@ endif()
 
 # find the SUNDIALS include directories
 find_path( SUNDIALS_INCLUDE_DIR sundials_types.h
-    ENV
-        SUNDIALS_ROOT
     PATHS
         ${SUNDIALS_USER_PATHS}
+        ${SUNDIALS_ROOT}
+        ${SUNDIALS_ROOT_DIR}
+    ENV
+        SUNDIALS_ROOT
+        SUNDIALS_ROOT_DIR
     PATH_SUFFIXES
         include
         include/sundials
@@ -104,6 +92,15 @@ set( SUNDIALS_INCLUDE_DIRS
     "${SUNDIALS_INCLUDE_DIR}/.."
     "${SUNDIALS_INCLUDE_DIR}"
 )
+
+# extract version
+if(SUNDIALS_INCLUDE_DIR)
+    file(READ "${SUNDIALS_INCLUDE_DIR}/sundials_config.h" _SUNDIALS_VERSION_FILE)
+    string(REGEX REPLACE ".*#define SUNDIALS_PACKAGE_VERSION \"([0-9]+)\\.([0-9]+)\\.([0-9]+)\".*" "\\1" SUNDIALS_VERSION_MAJOR "${_SUNDIALS_VERSION_FILE}")
+    string(REGEX REPLACE ".*#define SUNDIALS_PACKAGE_VERSION \"([0-9]+)\\.([0-9]+)\\.([0-9]+)\".*" "\\2" SUNDIALS_VERSION_MINOR "${_SUNDIALS_VERSION_FILE}")
+    string(REGEX REPLACE ".*#define SUNDIALS_PACKAGE_VERSION \"([0-9]+)\\.([0-9]+)\\.([0-9]+)\".*" "\\3" SUNDIALS_VERSION_PATCH "${_SUNDIALS_VERSION_FILE}")
+    set(SUNDIALS_VERSION "${SUNDIALS_VERSION_MAJOR}.${SUNDIALS_VERSION_MINOR}.${SUNDIALS_VERSION_PATCH}")
+endif()
 
 
 # find the SUNDIALS libraries
@@ -121,10 +118,14 @@ foreach( LIB ${SUNDIALS_WANT_COMPONENTS} )
 
     find_library( SUNDIALS_${LIB}_LIBRARY
         NAMES ${THIS_LIBRARY_SEARCH}
-        ENV
-            SUNDIALS_ROOT
         PATHS
             ${SUNDIALS_USER_PATHS}
+            ${SUNDIALS_ROOT}
+            ${SUNDIALS_ROOT_DIR}
+            ${SUNDIALS_INCLUDE_DIR}/..
+        ENV
+            SUNDIALS_ROOT
+            SUNDIALS_ROOT_DIR
         PATH_SUFFIXES
             lib
             Lib
@@ -136,10 +137,9 @@ foreach( LIB ${SUNDIALS_WANT_COMPONENTS} )
     mark_as_advanced(SUNDIALS_${LIB}_LIBRARY)
 endforeach()
 
-
-find_package_handle_standard_args( SUNDIALS DEFAULT_MSG
-    SUNDIALS_LIBRARIES
-    SUNDIALS_INCLUDE_DIRS
+find_package_handle_standard_args( SUNDIALS
+    REQUIRED_VARS SUNDIALS_LIBRARIES SUNDIALS_INCLUDE_DIRS
+    VERSION_VAR SUNDIALS_VERSION
 )
 
 mark_as_advanced(

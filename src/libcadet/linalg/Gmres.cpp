@@ -1,7 +1,7 @@
 // =============================================================================
 //  CADET - The Chromatography Analysis and Design Toolkit
 //  
-//  Copyright © 2008-2016: The CADET Authors
+//  Copyright © 2008-2017: The CADET Authors
 //            Please see the AUTHORS and CONTRIBUTORS file.
 //  
 //  All rights reserved. This program and the accompanying materials
@@ -53,6 +53,9 @@ void Gmres::initialize(unsigned int matrixSize, unsigned int maxKrylov, Orthogon
 	if (maxKrylov == 0)
 		maxKrylov = _matrixSize;
 
+	_maxRestarts = maxRestarts;
+	_ortho = om;
+
 	// Create a template vector for the malloc routine of SPGMR
 	N_Vector NV_tmpl = NVec_New(matrixSize);
 	NVec_Const(0.0, NV_tmpl);
@@ -82,12 +85,12 @@ int Gmres::solve(double tolerance, double const* weight, double const* rhs, doub
 	const int gsType = static_cast<typename std::underlying_type<Orthogonalization>::type>(_ortho);
 	int nIter = 0;
 	int nPrecondSolve = 0;
-	double res_norm = -1.0;
+	double resNorm = -1.0;
 
 	const int flag = SpgmrSolve(_mem, this, NV_sol, NV_rhs,
 			PREC_NONE, gsType, tolerance, _maxRestarts, NULL,
 			NV_weight, NV_weight, &gmresCallback, NULL, 
-			&res_norm, &nIter, &nPrecondSolve);
+			&resNorm, &nIter, &nPrecondSolve);
 
 	// Free NVector memory space
 	NVec_Destroy(NV_rhs);

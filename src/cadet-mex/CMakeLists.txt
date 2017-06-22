@@ -1,7 +1,7 @@
 # =============================================================================
 #  CADET - The Chromatography Analysis and Design Toolkit
 #  
-#  Copyright © 2008-2016: The CADET Authors
+#  Copyright © 2008-2017: The CADET Authors
 #            Please see the AUTHORS and CONTRIBUTORS file.
 #  
 #  All rights reserved. This program and the accompanying materials
@@ -17,15 +17,12 @@ project (CadetMex CXX C)
 # ---------------------------------------------------
 #   Create mex file 
 # ---------------------------------------------------
-matlab_add_mex(NAME cadet-mex SRC cadet-mex.cpp MatlabCommands.cpp MatlabExternalFunction.cpp OUTPUT_NAME CadetMex LINK_TO libcadet_mex ${Matlab_LAPACK_LIBRARY} ${Matlab_BLAS_LIBRARY})
+matlab_add_mex(NAME cadet-mex SRC cadet-mex.cpp MatlabCommands.cpp MatlabExternalFunction.cpp OUTPUT_NAME CadetMex LINK_TO libcadet_mex ${Matlab_LAPACK_LIBRARY} ${Matlab_BLAS_LIBRARY} ${Matlab_TBB_LIBRARY})
 
 # Add include directories for access to exported LIBCADET header files.
 target_include_directories (cadet-mex PRIVATE ${CMAKE_SOURCE_DIR}/include ${CMAKE_SOURCE_DIR}/src/cadet-mex ${CMAKE_BINARY_DIR})
 
-target_compile_features(cadet-mex PRIVATE cxx_alias_templates cxx_defaulted_functions cxx_delegating_constructors
-        cxx_explicit_conversions cxx_generalized_initializers cxx_inheriting_constructors cxx_rvalue_references
-        cxx_lambdas cxx_nullptr cxx_auto_type cxx_range_for cxx_right_angle_brackets cxx_deleted_functions
-        cxx_strong_enums cxx_uniform_initialization cxx_template_template_parameters cxx_nullptr)
+cadet_target_compile_features(cadet-mex)
 
 target_compile_definitions(cadet-mex PRIVATE -DCADET_MATLABMEX -DMATLAB_MEX_FILE)
 
@@ -48,68 +45,16 @@ endif()
 
 # ---------------------------------------------------
 
-if (CMAKE_BUILD_TYPE STREQUAL "Debug")
-  if (DEBUG_OPENMP AND OPENMP_FOUND)
-	  if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Intel")
-	      target_compile_options(cadet-mex PRIVATE ${OpenMP_CXX_FLAGS} -w2 -std=c++0x -fno-rtti)
-	  elseif (("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang") OR ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "AppleClang"))
-	      set_target_properties (cadet-mex PROPERTIES LINK_FLAGS "${OpenMP_CXX_FLAGS}")
-	      target_compile_options(cadet-mex PRIVATE ${OpenMP_CXX_FLAGS} -Wall -Wvla -pedantic -fno-rtti)
-	  elseif (CMAKE_COMPILER_IS_GNUCXX OR ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU"))
-	      set_target_properties (cadet-mex PROPERTIES LINK_FLAGS "${OpenMP_CXX_FLAGS}")
-	      target_compile_options(cadet-mex PRIVATE ${OpenMP_CXX_FLAGS} -Wall -Wvla -pedantic -fno-rtti)
-	  elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
-	      # GR-= Disable RTTI
-	      target_compile_options(cadet-mex PRIVATE "/GR-" ${OpenMP_CXX_FLAGS})
-	  endif()
-  else()
-	  if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Intel")
-	      target_compile_options(cadet-mex PRIVATE -w2 -std=c++0x -fno-rtti)
-	  elseif (("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang") OR ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "AppleClang"))
-	      target_compile_options(cadet-mex PRIVATE -Wall -Wvla -pedantic -fno-rtti)
-	  elseif (CMAKE_COMPILER_IS_GNUCXX OR ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU"))
-	      target_compile_options(cadet-mex PRIVATE -Wall -Wvla -pedantic -fno-rtti)
-	  elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
-	      # GR-= Disable RTTI
-	      target_compile_options(cadet-mex PRIVATE "/GR-")
-	  endif()
-  endif()
-else()
-  if (OPENMP_FOUND)
-	  if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Intel")
-	      target_compile_options(cadet-mex PRIVATE ${OpenMP_CXX_FLAGS} -w2 -std=c++0x -fno-rtti)
-	  elseif (("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang") OR ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "AppleClang"))
-	      set_target_properties (cadet-mex PROPERTIES LINK_FLAGS "${OpenMP_CXX_FLAGS}")
-	      target_compile_options(cadet-mex PRIVATE ${OpenMP_CXX_FLAGS} -Wall -Wvla -pedantic -fno-rtti)
-	  elseif (CMAKE_COMPILER_IS_GNUCXX OR ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU"))
-	      set_target_properties (cadet-mex PROPERTIES LINK_FLAGS "${OpenMP_CXX_FLAGS}")
-	      target_compile_options(cadet-mex PRIVATE ${OpenMP_CXX_FLAGS} -Wall -Wvla -pedantic -std=c++0x -fno-rtti)
-	  elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
-	      # GR-= Disable RTTI, LTCG = Link time code generation, /GL = Whole program optimization
-	      set_target_properties (cadet-mex PROPERTIES LINK_FLAGS "/LTCG")
-	      target_compile_options(cadet-mex PRIVATE "/GL" "/GR-" ${OpenMP_CXX_FLAGS})
-	  endif ()
-  else()
-	  if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Intel")
-	      target_compile_options(cadet-mex PRIVATE -w2 -std=c++0x -fno-rtti)
-	  elseif (("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang") OR ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "AppleClang"))
-	      target_compile_options(cadet-mex PRIVATE -Wall -Wvla -pedantic -fno-rtti)
-	  elseif (CMAKE_COMPILER_IS_GNUCXX OR ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU"))
-	      target_compile_options(cadet-mex PRIVATE -Wall -Wvla -pedantic -std=c++0x -fno-rtti)
-	  elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
-	      # GR-= Disable RTTI, LTCG = Link time code generation, /GL = Whole program optimization
-	      set_target_properties (cadet-mex PROPERTIES LINK_FLAGS "/LTCG")
-	      target_compile_options(cadet-mex PRIVATE "/GL" "/GR-")
-	  endif ()
-  endif()
-endif()
+cadet_apply_compile_options(cadet-mex)
 
 # ---------------------------------------------------
 #   Setup installation
 # ---------------------------------------------------
 
-# Install the cadet-cs executable
+# Install the cadet-mex executable
 install (CODE "MESSAGE(\"\nInstall CADET-MEX\n\")")
+install (DIRECTORY ../cadet-mi/ DESTINATION matlab)
+install (TARGETS cadet-mex RUNTIME DESTINATION matlab/bin LIBRARY DESTINATION matlab/bin)
 
 # ---------------------------------------------------
 

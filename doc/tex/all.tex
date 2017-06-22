@@ -1,11 +1,8 @@
 % =============================================================================
 %  CADET - The Chromatography Analysis and Design Toolkit
 %  
-%  Copyright © 2008-2016: Eric von Lieres¹, Joel Andersson,
-%                         Andreas Puettmann¹, Sebastian Schnittert¹,
-%                         Samuel Leweke¹
-%                                      
-%    ¹ Forschungszentrum Juelich GmbH, IBG-1, Juelich, Germany.
+%  Copyright © 2008-2017: The CADET Authors
+%            Please see the AUTHORS and CONTRIBUTORS file.
 %  
 %  All rights reserved. This program and the accompanying materials
 %  are made available under the terms of the GNU Public License v3.0 (or, at
@@ -83,7 +80,7 @@ toc=graduated,
 %\usepackage{pgfplots}
 %\usepackage{pgfplotstable}
 
-\usetikzlibrary{arrows,shapes,intersections,patterns,decorations}
+\usetikzlibrary{arrows,shapes,intersections,patterns,decorations,chains}
 \usetikzlibrary{plotmarks}
 \usetikzlibrary{trees}
 \usetikzlibrary{calc}
@@ -173,7 +170,7 @@ moredelim=[is][\color{darkgrey}]{|}{|}
 		\vspace{8cm}
 		{\Huge\textbf{Manual}}\\
 		\vspace{3cm}
-		The CADET Authors
+		{The CADET Authors}\\
 		\vspace{5cm}
 		\textbf{CADET Version \input{../../version.txt}}\\
 		\vspace{0.8cm}
@@ -198,6 +195,7 @@ moredelim=[is][\color{darkgrey}]{|}{|}
 \pagenumbering{arabic}
 
 %\include{docs/intro}
+\include{docs/simulation}
 \include{docs/models}
 \include{docs/binding}
 \include{docs/fileformat}

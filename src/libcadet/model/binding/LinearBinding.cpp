@@ -1,7 +1,7 @@
 // =============================================================================
 //  CADET - The Chromatography Analysis and Design Toolkit
 //  
-//  Copyright © 2008-2016: The CADET Authors
+//  Copyright © 2008-2017: The CADET Authors
 //            Please see the AUTHORS and CONTRIBUTORS file.
 //  
 //  All rights reserved. This program and the accompanying materials
@@ -159,6 +159,27 @@ struct ExtLinearParamHandler : public ExternalBindingParamHandlerBase
 		{
 			CADET_UPDATE_EXTDEP_VARIABLE_BRACES(kA, i, _extFunBuffer[0]);
 			CADET_UPDATE_EXTDEP_VARIABLE_BRACES(kD, i, _extFunBuffer[1]);
+		}
+	}
+
+	/**
+	 * @brief Updates local parameter cache and calculates time derivative in case of external dependence
+	 * @details This function is declared const since the actual parameters are left unchanged by the method.
+	 *         The cache is marked as mutable in order to make it writable.
+	 * @param [in] t Current time
+	 * @param [in] z Axial coordinate in the column
+	 * @param [in] r Radial coordinate in the bead
+	 * @param [in] secIdx Index of the current section
+	 * @param [in] nComp Number of components
+	 * @param [in] nBoundStates Array with number of bound states for each component
+	 */
+	inline void updateTimeDerivative(double t, double z, double r, unsigned int secIdx, unsigned int nComp, unsigned int const* nBoundStates) const
+	{
+		const std::vector<double> extTimeDeriv = evaluateTimeDerivativeExternalFunctions(t, z, r, secIdx);
+		for (unsigned int i = 0; i < nComp; ++i)
+		{
+			CADET_UPDATE_EXTDEP_VARIABLE_TDIFF_BRACES(kA, i, _extFunBuffer[0], extTimeDeriv[0]);
+			CADET_UPDATE_EXTDEP_VARIABLE_TDIFF_BRACES(kD, i, _extFunBuffer[1], extTimeDeriv[1]);
 		}
 	}
 
@@ -375,12 +396,42 @@ public:
 		}
 	}
 
+	virtual void timeDerivativeAlgebraicResidual(double t, double z, double r, unsigned int secIdx, double const* y, double* dResDt) const
+	{
+		if (!hasAlgebraicEquations())
+			return;
+
+		if (!ParamHandler_t::dependsOnTime())
+			return;
+
+		// Update external function and compute time derivative of parameters
+		_p.update(t, z, r, secIdx, _nComp, _nBoundStates);
+		ParamHandler_t dpDt = _p;
+		dpDt.updateTimeDerivative(t, z, r, secIdx, _nComp, _nBoundStates);
+
+		// Pointer to first component in liquid phase
+		double const* yCp = y - _nComp;
+
+		unsigned int bndIdx = 0;
+		for (int i = 0; i < _nComp; ++i)
+		{
+			// Skip components without bound states (bound state index bndIdx is not advanced)
+			if (_nBoundStates[i] == 0)
+				continue;
+
+			dResDt[bndIdx] = -(static_cast<double>(dpDt.kA[i]) * yCp[i] - static_cast<double>(dpDt.kD[i]) * y[bndIdx]);
+
+			// Next bound component
+			++bndIdx;
+		}
+	}
 
 	virtual bool hasSalt() const CADET_NOEXCEPT { return false; }
 	virtual bool supportsMultistate() const CADET_NOEXCEPT { return false; }
 	virtual bool supportsNonBinding() const CADET_NOEXCEPT { return true; }
 	virtual bool hasAlgebraicEquations() const CADET_NOEXCEPT { return !_kineticBinding; }
-	
+	virtual bool dependsOnTime() const CADET_NOEXCEPT { return ParamHandler_t::dependsOnTime(); }
+
 protected:
 	int _nComp; //!< Number of components
 	unsigned int const* _nBoundStates; //!< Array with number of bound states for each component

@@ -1,7 +1,7 @@
 // =============================================================================
 //  CADET - The Chromatography Analysis and Design Toolkit
 //  
-//  Copyright © 2008-2016: The CADET Authors
+//  Copyright © 2008-2017: The CADET Authors
 //            Please see the AUTHORS and CONTRIBUTORS file.
 //  
 //  All rights reserved. This program and the accompanying materials
@@ -63,7 +63,7 @@ void DenseMatrixBase::submatrixAssign(const DenseMatrixBase& mat, unsigned int s
 	}
 }
 
-void DenseMatrixBase::addMultiplyVector(const double* const x, double alpha, double beta, double* const y) const
+void DenseMatrixBase::multiplyVector(const double* const x, double alpha, double beta, double* const y) const
 {
 	// Since LAPACK uses column-major storage and we use row-major,
 	// we actually have constructed the transposed matrix. Thus,
@@ -81,7 +81,7 @@ void DenseMatrixBase::addMultiplyVector(const double* const x, double alpha, dou
 	LapackMultiplyDense(trans, &m, &n, &alpha, const_cast<double*>(_data), &lda, const_cast<double*>(x), &inc, &beta, const_cast<double*>(y), &inc);
 }
 
-void DenseMatrixBase::addSubmatrixMultiplyVector(const double* const x, unsigned int startRow, unsigned int startCol, 
+void DenseMatrixBase::submatrixMultiplyVector(const double* const x, unsigned int startRow, unsigned int startCol, 
 			unsigned int numRows, unsigned int numCols, double alpha, double beta, double* const y) const
 {
 	cadet_assert(_rows > startRow);
@@ -108,7 +108,7 @@ void DenseMatrixBase::addSubmatrixMultiplyVector(const double* const x, unsigned
 	LapackMultiplyDense(trans, &m, &n, &alpha, data, &lda, const_cast<double*>(x), &inc, &beta, const_cast<double*>(y), &inc);
 }
 
-void DenseMatrixBase::addTransposedMultiplyVector(const double* const x, double alpha, double beta, double* const y) const
+void DenseMatrixBase::transposedMultiplyVector(const double* const x, double alpha, double beta, double* const y) const
 {
 	// Since LAPACK uses column-major storage and we use row-major,
 	// we actually have constructed the transposed matrix. Thus,
@@ -124,7 +124,7 @@ void DenseMatrixBase::addTransposedMultiplyVector(const double* const x, double 
 	LapackMultiplyDense(trans, &m, &n, &alpha, const_cast<double*>(_data), &lda, const_cast<double*>(x), &inc, &beta, const_cast<double*>(y), &inc);
 }
 
-void DenseMatrixBase::addTransposedSubmatrixMultiplyVector(const double* const x, unsigned int startRow, unsigned int startCol, 
+void DenseMatrixBase::transposedSubmatrixMultiplyVector(const double* const x, unsigned int startRow, unsigned int startCol, 
 			unsigned int numRows, unsigned int numCols, double alpha, double beta, double* const y) const
 {
 	cadet_assert(_rows > startRow);

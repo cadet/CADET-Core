@@ -1,0 +1,14 @@
+// =============================================================================
+//  CADET - The Chromatography Analysis and Design Toolkit
+//  
+//  Copyright © 2008-2017: The CADET Authors
+//            Please see the AUTHORS and CONTRIBUTORS file.
+//  
+//  All rights reserved. This program and the accompanying materials
+//  are made available under the terms of the GNU Public License v3.0 (or, at
+//  your option, any later version) which accompanies this distribution, and
+//  is available at http://www.gnu.org/licenses/gpl.html
+// =============================================================================
+
+#define CATCH_CONFIG_MAIN
+#include <catch.hpp>

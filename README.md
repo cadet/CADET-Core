@@ -14,7 +14,7 @@ The CADET framework also comprises a MATLAB interface and standard routines for 
 
 * Fast and accurate solution of the partial differential algebraic equations (PDAE) based on the finite volume method and the WENO scheme
 * Computation of derivatives with respect to model parameters by a forward sensitivity approach combined with algorithmic differentiation (AD)
-* Shared memory parallelization using OpenMP
+* Shared memory parallelization using Intel TBB
 * Native MATLAB interface (MEX) with many examples for rapid development
 * Modular design allows for easy experimenting with the code (e.g., adding a new binding model or unit operation)
 * Supports XML and HDF5 as data formats
@@ -57,7 +57,7 @@ Try CADET in the browser using the [online simulator web service](http://www.cad
 
 ## Commercial software using CADET
 
-For commercial software built on top of CADET and designed for experimentalists [KBI](http://www.kbibiopharma.com/) has built [![REVEAL CHROME Powered by CADET](https://www.cadet-web.de/static/simulation/RevealChromLogo.png)](http://reveal.kbibiopharma.com/chromatography).
+For commercial software built on top of CADET and designed for experimentalists [KBI](http://www.kbibiopharma.com/) has built [![Reveal Chromatography](https://www.cadet-web.de/static/simulation/RevealChromLogo.png)](http://reveal.kbibiopharma.com/chromatography).
 
 ## Ongoing Development
 

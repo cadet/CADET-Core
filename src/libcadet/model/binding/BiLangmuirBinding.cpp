@@ -1,7 +1,7 @@
 // =============================================================================
 //  CADET - The Chromatography Analysis and Design Toolkit
 //  
-//  Copyright © 2008-2016: The CADET Authors
+//  Copyright © 2008-2017: The CADET Authors
 //            Please see the AUTHORS and CONTRIBUTORS file.
 //  
 //  All rights reserved. This program and the accompanying materials
@@ -158,6 +158,28 @@ struct ExtBiLangmuirParamHandler : public ExternalBindingParamHandlerBase
 		}
 	}
 
+	/**
+	 * @brief Updates local parameter cache and calculates time derivative in case of external dependence
+	 * @details This function is declared const since the actual parameters are left unchanged by the method.
+	 *         The cache is marked as mutable in order to make it writable.
+	 * @param [in] t Current time
+	 * @param [in] z Axial coordinate in the column
+	 * @param [in] r Radial coordinate in the bead
+	 * @param [in] secIdx Index of the current section
+	 * @param [in] nComp Number of components
+	 * @param [in] nBoundStates Array with number of bound states for each component
+	 */
+	inline void updateTimeDerivative(double t, double z, double r, unsigned int secIdx, unsigned int nComp, unsigned int const* nBoundStates) const
+	{
+		const std::vector<double> extTimeDeriv = evaluateTimeDerivativeExternalFunctions(t, z, r, secIdx);
+		for (unsigned int i = 0; i < nComp; ++i)
+		{
+			CADET_UPDATE_EXTDEP_VARIABLE_TDIFF_NATIVE(kA, i, _extFunBuffer[0], extTimeDeriv[0]);
+			CADET_UPDATE_EXTDEP_VARIABLE_TDIFF_NATIVE(kD, i, _extFunBuffer[1], extTimeDeriv[1]);
+			CADET_UPDATE_EXTDEP_VARIABLE_TDIFF_NATIVE(qMax, i, _extFunBuffer[2], extTimeDeriv[2]);
+		}
+	}
+
 	CADET_DEFINE_EXTDEP_VARIABLE(util::SlicedVector<active>, kA)
 	CADET_DEFINE_EXTDEP_VARIABLE(util::SlicedVector<active>, kD)
 	CADET_DEFINE_EXTDEP_VARIABLE(util::SlicedVector<active>, qMax)
@@ -233,6 +255,87 @@ public:
 	virtual bool hasSalt() const CADET_NOEXCEPT { return false; }
 	virtual bool supportsMultistate() const CADET_NOEXCEPT { return true; }
 	virtual bool supportsNonBinding() const CADET_NOEXCEPT { return true; }
+	virtual bool dependsOnTime() const CADET_NOEXCEPT { return ParamHandler_t::dependsOnTime(); }
+
+	virtual void timeDerivativeAlgebraicResidual(double t, double z, double r, unsigned int secIdx, double const* y, double* dResDt) const
+	{
+		if (!hasAlgebraicEquations())
+			return;
+
+		if (!ParamHandler_t::dependsOnTime())
+			return;
+
+		// Update external function and compute time derivative of parameters
+		_p.update(t, z, r, secIdx, _nComp, _nBoundStates);
+		ParamHandler_t dpDt = _p;
+		dpDt.updateTimeDerivative(t, z, r, secIdx, _nComp, _nBoundStates);
+
+		// Protein equations: dq_i^j / dt - ( k_{a,i}^j * c_{p,i} * (1 - \sum q_i^j / q_{max,i}^j) - k_{d,i}^j * q_i^j) == 0
+		//               <=>  dq_i^j / dt == k_{a,i}^j * c_{p,i} * (1 - \sum q_i^j / q_{max,i}^j) - k_{d,i}^j * q_i^j
+
+		double const* const yCp = y - _nComp;
+		const unsigned int nSites = _p.kA.slices();
+
+		// Ordering of the states is (q_{comp,state})
+		// q_{0,0}, q{0,1}, q_{0,2}, q_{1,0}, q_{1,1}, q_{1,2}, ...
+		// A state corresponds to a type of binding site. It is assumed that all components have either 0
+		// or the same number of states. Thus, a component is either non-binding or has nSites bound states.
+		//
+		// The same ordering is used for the equations. That is, q_{0,0}, q_{1,0} and q_{0,1}, q_{1,1} and ... each
+		// form one Langmuir binding model system.
+
+		// Loop over all binding site types
+		for (unsigned int site = 0; site < nSites; ++site, ++y, ++dResDt)
+		{
+			// y, and dResDt point to q_{0,site}
+
+			// Get parameter slice for current binding site type
+			active const* const localKa = _p.kA[site];
+			active const* const localKd = _p.kD[site];
+			active const* const localQmax = _p.qMax[site];
+			active const* const localKaT = dpDt.kA[site];
+			active const* const localKdT = dpDt.kD[site];
+			active const* const localQmaxT = dpDt.qMax[site];
+
+			double qSum = 1.0;
+			double qSumT = 0.0;
+			unsigned int bndIdx = 0;
+
+			// bndIdx is used as a counter inside one binding site type
+			// Getting from one component to another requires a step size of nSites (stride)
+
+			for (int i = 0; i < _nComp; ++i)
+			{
+				// Skip components without bound states (bound state index bndIdx is not advanced)
+				if (_nBoundStates[i] == 0)
+					continue;
+
+				const double summand = y[bndIdx * nSites] / static_cast<double>(localQmax[i]);
+				qSum -= summand;
+				qSumT += summand / static_cast<double>(localQmax[i]) * static_cast<double>(localQmaxT[i]);
+
+				// Next bound component
+				++bndIdx;
+			}
+
+			bndIdx = 0;
+			for (int i = 0; i < _nComp; ++i)
+			{
+				// Skip components without bound states (bound state index bndIdx is not advanced)
+				if (_nBoundStates[i] == 0)
+					continue;
+
+				// Residual
+				dResDt[bndIdx * nSites] = static_cast<double>(localKdT[i]) * y[bndIdx * nSites] 
+					- yCp[i] * (static_cast<double>(localKaT[i]) * static_cast<double>(localQmax[i]) * qSum 
+					           + static_cast<double>(localKa[i]) * static_cast<double>(localQmaxT[i]) * qSum
+					           + static_cast<double>(localKa[i]) * static_cast<double>(localQmax[i]) * qSumT);
+
+				// Next bound component
+				++bndIdx;
+			}
+		}
+	}
 
 protected:
 	ParamHandler_t _p; //!< Handles parameters and their dependence on external functions

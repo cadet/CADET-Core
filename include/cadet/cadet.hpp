@@ -1,7 +1,7 @@
 // =============================================================================
 //  CADET - The Chromatography Analysis and Design Toolkit
 //  
-//  Copyright © 2008-2016: The CADET Authors
+//  Copyright © 2008-2017: The CADET Authors
 //            Please see the AUTHORS and CONTRIBUTORS file.
 //  
 //  All rights reserved. This program and the accompanying materials
@@ -14,9 +14,9 @@
  * @mainpage The Chromatography Analysis and Design Toolkit (CADET)
  * The library provides a fast and accurate forward simulator for the general rate model of column liquid chromatography
  * 
- * @authors    Eric von Lieres, Joel Andersson, Andreas Puettmann, Sebastian Schnittert, Samuel Leweke
- * @version    3.0.0
- * @date       2008-2016
+ * @authors    Eric von Lieres, Joel Andersson, Andreas Puettmann, Sebastian Schnittert, Samuel Leweke, William Heymann
+ * @version    3.1.0
+ * @date       2008-2017
  * @copyright  GNU General Public License v3.0 (or, at your option, any later version).
  */
 

@@ -1,7 +1,7 @@
 // =============================================================================
 //  CADET - The Chromatography Analysis and Design Toolkit
 //  
-//  Copyright © 2008-2016: The CADET Authors
+//  Copyright © 2008-2017: The CADET Authors
 //            Please see the AUTHORS and CONTRIBUTORS file.
 //  
 //  All rights reserved. This program and the accompanying materials
@@ -68,6 +68,116 @@ public:
 	 * @return Maximum stencil size
 	 */
 	CADET_CONSTEXPR static inline unsigned int maxStencilSize() CADET_NOEXCEPT { return 2 * maxOrder() - 1; }
+
+	/**
+	 * @brief Reconstructs a cell face value from volume averages
+	 * @param [in] epsilon \f$ \varepsilon \f$ of the WENO emthod (prevents division by zero in the weights) 
+	 * @param [in] cellIdx Index of the current cell
+	 * @param [in] numCells Number of cells
+	 * @param [in] w Stencil that contains the \f$ 2r-1 \f$ volume averages from which the cell face values are reconstructed centered at the 
+	 *               current cell (i.e., index 0 is the current cell, -2 the next to previous cell, 2 the next but one cell)
+	 * @param [out] result Reconstructed cell face value
+	 * @param [out] Dvm Gradient of the reconstructed cell face value (array has to be of size \f$ 2r-1\f$ where \f$ r \f$ is the WENO order)
+	 * @tparam StateType Type of the state variables
+	 * @tparam StencilType Type of the stencil (can be a dedicated class with overloaded operator[] or a simple pointer)
+	 * @return Order of the WENO scheme that was used in the computation
+	 */
+	template <typename StateType, typename StencilType>
+	int reconstruct(double epsilon, unsigned int cellIdx, unsigned int numCells, const StencilType& w, StateType& result, double* const Dvm)
+	{
+		return reconstruct<StateType, StencilType, true>(epsilon, cellIdx, numCells, w, result, Dvm);
+	}
+
+	/**
+	 * @brief Reconstructs a cell face value from volume averages
+	 * @param [in] epsilon \f$ \varepsilon \f$ of the WENO emthod (prevents division by zero in the weights) 
+	 * @param [in] cellIdx Index of the current cell
+	 * @param [in] numCells Number of cells
+	 * @param [in] w Stencil that contains the \f$ 2r-1 \f$ volume averages from which the cell face values are reconstructed centered at the 
+	 *               current cell (i.e., index 0 is the current cell, -2 the next to previous cell, 2 the next but one cell)
+	 * @param [out] result Reconstructed cell face value
+	 * @tparam StateType Type of the state variables
+	 * @tparam StencilType Type of the stencil (can be a dedicated class with overloaded operator[] or a simple pointer)
+	 * @return Order of the WENO scheme that was used in the computation
+	 */
+	template <typename StateType, typename StencilType>
+	int reconstruct(double epsilon, unsigned int cellIdx, unsigned int numCells, const StencilType& w, StateType& result)
+	{
+		return reconstruct<StateType, StencilType, false>(epsilon, cellIdx, numCells, w, result, nullptr);
+	}
+
+	/**
+	 * @brief Sets the WENO order
+	 * @param [in] order Order of the WENO method
+	 */
+	inline void order(int order)
+	{
+		cadet_assert(order <= static_cast<int>(maxOrder()));
+		cadet_assert(order > 0);
+		_order = order;
+	}
+	
+	/**
+	 * @brief Returns the WENO order
+	 * @return Order of the WENO method
+	 */
+	inline int order() const CADET_NOEXCEPT { return _order; }
+
+	/**
+	 * @brief Sets the boundary treatment method
+	 * @param [in] bndTreatment Boundary treatment method
+	 */
+	inline void boundaryTreatment(BoundaryTreatment bndTreatment) { _boundaryTreatment = bndTreatment; }
+
+	/**
+	 * @brief Returns the boundary treatment method
+	 * @return Boundary treatment method
+	 */
+	inline BoundaryTreatment boundaryTreatment() const CADET_NOEXCEPT { return _boundaryTreatment; }
+
+	/**
+	 * @brief Sets the boundary treatment method
+	 * @param [in] bndTreatment Boundary treatment method, is converted to the BoundaryTreatment enum
+	 */
+	inline void boundaryTreatment(int bndTreatment)
+	{
+		switch(bndTreatment)
+		{
+			case static_cast<typename std::underlying_type<BoundaryTreatment>::type>(BoundaryTreatment::ReduceOrder):
+				_boundaryTreatment = BoundaryTreatment::ReduceOrder;
+				return;
+			case static_cast<typename std::underlying_type<BoundaryTreatment>::type>(BoundaryTreatment::ZeroWeights):
+				_boundaryTreatment = BoundaryTreatment::ZeroWeights;
+				return;
+			case static_cast<typename std::underlying_type<BoundaryTreatment>::type>(BoundaryTreatment::ZeroWeightsForPnotZero):
+				_boundaryTreatment = BoundaryTreatment::ZeroWeightsForPnotZero;
+				return;
+			case static_cast<typename std::underlying_type<BoundaryTreatment>::type>(BoundaryTreatment::LargeGhostNodes):
+				_boundaryTreatment = BoundaryTreatment::LargeGhostNodes;
+				return;
+		}
+		throw InvalidParameterException("Unknown boundary treatment type");
+	}
+
+	/**
+	 * @brief Returns the number of upper diagonals required in the Jacobian
+	 * @return Number of required Jacobian upper diagonals
+	 */
+	inline unsigned int upperBandwidth() const CADET_NOEXCEPT { return _order - 1; }
+
+	/**
+	 * @brief Returns the number of lower diagonals required in the Jacobian
+	 * @return Number of required Jacobian lower diagonals
+	 */
+	inline unsigned int lowerBandwidth() const CADET_NOEXCEPT { return _order - 1; }
+
+	/**
+	 * @brief Returns the size of the stencil (i.e., the number of required elements)
+	 * @return Size of the stencil
+	 */
+	inline unsigned int stencilSize() const CADET_NOEXCEPT { return 2 * _order - 1; }
+
+private:
 
 	/**
 	 * @brief Reconstructs a cell face value from volume averages
@@ -269,79 +379,6 @@ public:
 		_intermediateValues.destroy<StateType>();
 		return order;
 	}
-
-	/**
-	 * @brief Sets the WENO order
-	 * @param [in] order Order of the WENO method
-	 */
-	inline void order(int order)
-	{
-		cadet_assert(order <= static_cast<int>(maxOrder()));
-		cadet_assert(order > 0);
-		_order = order;
-	}
-	
-	/**
-	 * @brief Returns the WENO order
-	 * @return Order of the WENO method
-	 */
-	inline int order() const CADET_NOEXCEPT { return _order; }
-
-	/**
-	 * @brief Sets the boundary treatment method
-	 * @param [in] bndTreatment Boundary treatment method
-	 */
-	inline void boundaryTreatment(BoundaryTreatment bndTreatment) { _boundaryTreatment = bndTreatment; }
-
-	/**
-	 * @brief Returns the boundary treatment method
-	 * @return Boundary treatment method
-	 */
-	inline BoundaryTreatment boundaryTreatment() const CADET_NOEXCEPT { return _boundaryTreatment; }
-
-	/**
-	 * @brief Sets the boundary treatment method
-	 * @param [in] bndTreatment Boundary treatment method, is converted to the BoundaryTreatment enum
-	 */
-	inline void boundaryTreatment(int bndTreatment)
-	{
-		switch(bndTreatment)
-		{
-			case static_cast<typename std::underlying_type<BoundaryTreatment>::type>(BoundaryTreatment::ReduceOrder):
-				_boundaryTreatment = BoundaryTreatment::ReduceOrder;
-				return;
-			case static_cast<typename std::underlying_type<BoundaryTreatment>::type>(BoundaryTreatment::ZeroWeights):
-				_boundaryTreatment = BoundaryTreatment::ZeroWeights;
-				return;
-			case static_cast<typename std::underlying_type<BoundaryTreatment>::type>(BoundaryTreatment::ZeroWeightsForPnotZero):
-				_boundaryTreatment = BoundaryTreatment::ZeroWeightsForPnotZero;
-				return;
-			case static_cast<typename std::underlying_type<BoundaryTreatment>::type>(BoundaryTreatment::LargeGhostNodes):
-				_boundaryTreatment = BoundaryTreatment::LargeGhostNodes;
-				return;
-		}
-		throw InvalidParameterException("Unknown boundary treatment type");
-	}
-
-	/**
-	 * @brief Returns the number of upper diagonals required in the Jacobian
-	 * @return Number of required Jacobian upper diagonals
-	 */
-	inline unsigned int upperBandwidth() const CADET_NOEXCEPT { return _order - 1; }
-
-	/**
-	 * @brief Returns the number of lower diagonals required in the Jacobian
-	 * @return Number of required Jacobian lower diagonals
-	 */
-	inline unsigned int lowerBandwidth() const CADET_NOEXCEPT { return _order - 1; }
-
-	/**
-	 * @brief Returns the size of the stencil (i.e., the number of required elements)
-	 * @return Size of the stencil
-	 */
-	inline unsigned int stencilSize() const CADET_NOEXCEPT { return 2 * _order - 1; }
-
-private:
 
 	int _order; //!< Selected WENO order
 	BoundaryTreatment _boundaryTreatment; //!< Controls how to treat boundary cells

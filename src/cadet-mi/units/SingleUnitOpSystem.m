@@ -14,7 +14,7 @@ classdef SingleUnitOpSystem < handle
 	%
 	% See also MODELSYSTEM
 
-	% Copyright: (C) 2008-2016 The CADET Authors
+	% Copyright: (C) 2008-2017 The CADET Authors
 	%            See the license note at the end of the file.
 
 	properties
@@ -23,6 +23,14 @@ classdef SingleUnitOpSystem < handle
 		initStateYdot; % Initial time derivative state vector of the full system (all DOFs)
 		initSensY; % Initial state of each sensitivity system (columns)
 		initSensYdot; % Initial time derivative state of each sensitivity system (columns)
+		flowRate; % Volumetric flow rate
+	end
+
+	properties (Dependent)
+		systemGramSchmidtType; % Type of Gram-Schmidt orthogonalization process
+		systemMaxKrylovSize; % Maximum size of the Krylov subspace
+		systemMaxRestarts; % Maximum number of restarts in GMRES
+		systemSchurSafetyTol; % Schur-complement safety error tolerance
 	end
 
 	properties (Constant)
@@ -33,6 +41,10 @@ classdef SingleUnitOpSystem < handle
 		hasChanged; % Determines whether the main unit operation has changed after the last synchronization with CADET (C++ layer)
 	end
 
+	properties (Access = 'protected')
+		solverOptions; % Schur complement solver options
+	end
+	
 	properties (Access = 'protected', Transient)
 		hasSystemChanged; % Determines whether this object has changed after the last synchronization with CADET (C++ layer)
 		hasInletChanged; % Determines whether the inlet has changed after the last synchronization with CADET (C++ layer)
@@ -45,6 +57,13 @@ classdef SingleUnitOpSystem < handle
 
 			obj.hasSystemChanged = true;
 			obj.hasInletChanged = true;
+			
+			obj.flowRate = 1.0;
+
+			obj.systemGramSchmidtType = 1; % Modified Gram-Schmidt (more stable)
+			obj.systemMaxKrylovSize = 0; % Use largest possible size
+			obj.systemMaxRestarts = 0;
+			obj.systemSchurSafetyTol = 1e-8;
 		end
 
 		function res = validate(obj, sectionTimes, subModels)
@@ -64,6 +83,8 @@ classdef SingleUnitOpSystem < handle
 			for i = 1:length(obj.externalFunctions)
 				res = obj.externalFunctions(i).validate(sectionTimes) && res;
 			end
+
+			validateattributes(obj.flowRate, {'double'}, {'>=', 0.0, 'scalar', 'nonempty', 'finite', 'real'}, '', 'flowRate');
 
 			if ~isempty(obj.initStateY)
 				validateattributes(obj.initStateY, {'double'}, {'vector', 'finite', 'real'}, '', 'initStateY');
@@ -86,6 +107,8 @@ classdef SingleUnitOpSystem < handle
 			S.initStateYdot = obj.initStateYdot;
 			S.initSensY = obj.initSensY;
 			S.initSensYdot = obj.initSensYdot;
+			S.flowRate = obj.flowRate;
+			S.solverOptions = obj.solverOptions;
 
 			S.extfuns = cell(numel(obj.externalFunctions), 1);
 			for i = 1:length(obj.externalFunctions)
@@ -139,10 +162,97 @@ classdef SingleUnitOpSystem < handle
 			obj.hasSystemChanged = true;
 		end
 
+		function val = get.systemGramSchmidtType(obj)
+			val = double(obj.solverOptions.GS_TYPE);
+		end
+
+		function set.systemGramSchmidtType(obj, val)
+			validateattributes(val, {'numeric'}, {'>=', 0, '<=', 1, 'scalar', 'nonempty', 'finite', 'real'}, '', 'gramSchmidtType');
+			obj.solverOptions.GS_TYPE = int32(val);
+			obj.hasSystemChanged = true;
+		end
+
+		function val = get.systemMaxKrylovSize(obj)
+			val = double(obj.solverOptions.MAX_KRYLOV);
+		end
+
+		function set.systemMaxKrylovSize(obj, val)
+			validateattributes(val, {'numeric'}, {'nonnegative', 'scalar', 'nonempty', 'finite', 'real'}, '', 'maxKrylovSize');
+			obj.solverOptions.MAX_KRYLOV = int32(val);
+			obj.hasSystemChanged = true;
+		end
+
+		function val = get.systemMaxRestarts(obj)
+			val = double(obj.solverOptions.MAX_RESTARTS);
+		end
+
+		function set.systemMaxRestarts(obj, val)
+			validateattributes(val, {'numeric'}, {'nonnegative', 'scalar', 'nonempty', 'finite', 'real'}, '', 'maxRestarts');
+			obj.solverOptions.MAX_RESTARTS = int32(val);
+			obj.hasSystemChanged = true;
+		end
+
+		function val = get.systemSchurSafetyTol(obj)
+			val = obj.solverOptions.SCHUR_SAFETY;
+		end
+
+		function set.systemSchurSafetyTol(obj, val)
+			validateattributes(val, {'double'}, {'positive', 'scalar', 'nonempty', 'finite', 'real'}, '', 'schurSafetyTol');
+			obj.solverOptions.SCHUR_SAFETY = val;
+			obj.hasSystemChanged = true;
+		end
+		
+		function set.flowRate(obj, val)
+			validateattributes(val, {'double'}, {'>=', 0.0, 'scalar', 'nonempty', 'finite', 'real'}, '', 'flowRate');
+			obj.flowRate = val;
+			obj.hasSystemChanged = true;
+		end
+
 		function val = get.hasSystemChanged(obj)
 			val = obj.hasSystemChanged;
 			for i = 1:length(obj.externalFunctions)
 				val = val || obj.externalFunctions(i).hasChanged;
+			end
+		end
+
+		function val = getParameterValue(obj, param)
+			%GETPARAMETERVALUE Retrieves a parameter value from the model or inlet
+			%   VAL = GETPARAMETERVALUE(PARAM) searches for the (single) parameter identified by
+			%   the struct PARAM with the fields SENS_NAME, SENS_UNIT, SENS_COMP, SENS_BOUNDPHASE,
+			%   SENS_REACTION, and SENS_SECTION (as returned by MAKESENSITIVITY()). The returned
+			%   value VAL contains the current value of the parameter (on the Matlab side, not in
+			%   the current CADET configuration) or NaN if the parameter could not be found.
+			%
+			% See also MODEL.GETPARAMETERVALUE, MEXSIMULATOR.GETPARAMETERVALUE, SINGLEGRM.SETPARAMETERVALUE,
+			%   MAKESENSITIVITY
+
+			val = nan;
+			if (strcmp(param.SENS_NAME, 'CONNECTION'))
+				if ((param.SENS_SECTION == 0) && (param.SENS_BOUNDPHASE == 1) && (param.SENS_REACTION == 0))
+					val = obj.flowRate;
+				end
+			end
+		end
+
+		function oldVal = setParameterValue(obj, param, newVal)
+			%SETPARAMETERVALUE Sets a parameter value in the model or inlet
+			%   OLDVAL = SETPARAMETERVALUE(PARAM, NEWVAL) searches for the parameter
+			%   identified by the struct PARAM with the fields SENS_NAME, SENS_UNIT,
+			%   SENS_COMP, SENS_BOUNDPHASE, SENS_REACTION, and SENS_SECTION (as returned
+			%   by MAKESENSITIVITY()). The returned value OLDVAL contains the old value
+			%   of the parameter (on the Matlab side, not in the current CADET configuration)
+			%   or NaN if the parameter could not be found. The value of the parameter is
+			%   set to NEWVAL. The changes are not propagated to the underlying CADET simulator.
+			%
+			% See also MODEL.SETPARAMETERVALUE, MEXSIMULATOR.SETPARAMETERVALUE, SINGLEGRM.GETPARAMETERVALUE,
+			%   MAKESENSITIVITY
+
+			oldVal = nan;
+			if (strcmp(param.SENS_NAME, 'CONNECTION'))
+				if ((param.SENS_SECTION == 0) && (param.SENS_BOUNDPHASE == 1) && (param.SENS_REACTION == 0))
+					oldVal = obj.flowRate;
+					obj.flowRate = newVal;
+				end
 			end
 		end
 
@@ -201,6 +311,8 @@ classdef SingleUnitOpSystem < handle
 			obj.initStateYdot = S.initStateYdot;
 			obj.initSensY = S.initSensY;
 			obj.initSensYdot = S.initSensYdot;
+			obj.flowRate = S.flowRate;
+			obj.solverOptions = S.solverOptions;
 
 			tempExtFuns = ExternalFunction.empty();
 			for i = 1:length(S.extfuns)
@@ -241,12 +353,14 @@ classdef SingleUnitOpSystem < handle
 			end
 
 			% Assemble switches
-			conMat = [1, 0, -1, -1].';
+			conMat = [1, 0, -1, -1, obj.flowRate].';
 			res.connections.NSWITCHES = int32(1);
 			res.connections.switch_000 = [];
 			res.connections.switch_000.SECTION = int32(0);
-			res.connections.switch_000.CONNECTIONS = int32(conMat(:));
+			res.connections.switch_000.CONNECTIONS = conMat(:);
 
+			res.solver = obj.solverOptions;
+			
 			if ~isempty(obj.initStateY)
 				res.INIT_STATE_Y = obj.initStateY;
 			end
@@ -328,7 +442,7 @@ end
 % =============================================================================
 %  CADET - The Chromatography Analysis and Design Toolkit
 %  
-%  Copyright (C) 2008-2016: The CADET Authors
+%  Copyright (C) 2008-2017: The CADET Authors
 %            Please see the AUTHORS and CONTRIBUTORS file.
 %  
 %  All rights reserved. obj program and the accompanying materials

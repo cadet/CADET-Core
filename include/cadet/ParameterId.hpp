@@ -1,7 +1,7 @@
 // =============================================================================
 //  CADET - The Chromatography Analysis and Design Toolkit
 //  
-//  Copyright © 2008-2016: The CADET Authors
+//  Copyright © 2008-2017: The CADET Authors
 //            Please see the AUTHORS and CONTRIBUTORS file.
 //  
 //  All rights reserved. This program and the accompanying materials
@@ -29,7 +29,7 @@
 namespace cadet
 {
 
-typedef uint8_t UnitOpIdx;
+typedef uint16_t UnitOpIdx;
 typedef uint8_t ComponentIdx;
 typedef uint8_t BoundPhaseIdx;
 typedef uint8_t ReactionIdx;

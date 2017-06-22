@@ -1,7 +1,7 @@
 // =============================================================================
 //  CADET - The Chromatography Analysis and Design Toolkit
 //  
-//  Copyright © 2008-2016: The CADET Authors
+//  Copyright © 2008-2017: The CADET Authors
 //            Please see the AUTHORS and CONTRIBUTORS file.
 //  
 //  All rights reserved. This program and the accompanying materials
@@ -91,10 +91,12 @@ public:
 		cadet_assert(sec < _sectionTimes.size());
 
 		const double tShift = t - _sectionTimes[sec];
-		double const* const con = _const.data() + sec * _nComp;
-		double const* const lin = _lin.data() + sec * _nComp;
-		double const* const quad = _quad.data() + sec * _nComp;
-		double const* const cub = _cub.data() + sec * _nComp;
+		const unsigned int wrapSec = sec % (_const.size()/_nComp);
+
+		double const* const con = _const.data() + wrapSec * _nComp;
+		double const* const lin = _lin.data() + wrapSec * _nComp;
+		double const* const quad = _quad.data() + wrapSec * _nComp;
+		double const* const cub = _cub.data() + wrapSec * _nComp;
 
 		// Evaluate polynomial using Horner's scheme
 		for (unsigned int comp = 0; comp < _nComp; ++comp)
@@ -117,9 +119,11 @@ public:
 		if ((pId.name == _hashSectionTimes) && (pId.unitOperation == cadet::UnitOpIndep) && (pId.reaction == cadet::ReactionIndep) &&
 			(pId.component == cadet::CompIndep) && (pId.boundPhase == cadet::BoundPhaseIndep))
 		{
-			double const* const lin = _lin.data() + sec * _nComp;
-			double const* const quad = _quad.data() + sec * _nComp;
-			double const* const cub = _cub.data() + sec * _nComp;
+			const unsigned int wrapSec = sec % (_const.size()/_nComp);
+
+			double const* const lin = _lin.data() + wrapSec * _nComp;
+			double const* const quad = _quad.data() + wrapSec * _nComp;
+			double const* const cub = _cub.data() + wrapSec * _nComp;
 
 			// p_i(t) = CUBE_COEFF[i] * (t - t_i)^3 + QUAD_COEFF[i] * (t - t_i)^2 + LIN_COEFF[i] * (t - t_i) + CONST_COEFF[i]
 			// Now suppose t_i = t_i(q) and t = t(q), then
@@ -163,32 +167,96 @@ public:
 	virtual void timeDerivative(double t, unsigned int sec, double* timeDerivative)
 	{
 		cadet_assert(sec < _sectionTimes.size());
+
 		const double tShift = t - _sectionTimes[sec];
-		double const* const lin = _lin.data() + sec * _nComp;
-		double const* const quad = _quad.data() + sec * _nComp;
-		double const* const cub = _cub.data() + sec * _nComp;
+		const unsigned int wrapSec = sec % (_const.size()/_nComp);
+
+		double const* const lin = _lin.data() + wrapSec * _nComp;
+		double const* const quad = _quad.data() + wrapSec * _nComp;
+		double const* const cub = _cub.data() + wrapSec * _nComp;
 
 		// Evaluate polynomial using Horner's scheme
 		for (unsigned int comp = 0; comp < _nComp; ++comp)
 			timeDerivative[comp] = lin[comp] + tShift * (2.0 * quad[comp] + tShift * 3.0 * cub[comp]);
 	}
 
+	virtual void timeParameterDerivative(double t, unsigned int sec, const ParameterId& pId, double* deriv)
+	{
+		cadet_assert(sec < _sectionTimes.size());
+
+		std::fill(deriv, deriv + _nComp, 0.0);
+
+		if (pId.section != sec)
+			// Wrong section leads to zero derivative
+			return;
+
+		const double tShift = t - _sectionTimes[sec];
+
+		// SECTION_TIMES is global and, thus, has no associated unitOp
+		if ((pId.name == _hashSectionTimes) && (pId.unitOperation == cadet::UnitOpIndep) && (pId.reaction == cadet::ReactionIndep) &&
+			(pId.component == cadet::CompIndep) && (pId.boundPhase == cadet::BoundPhaseIndep))
+		{
+			const unsigned int wrapSec = sec % (_const.size()/_nComp);
+
+			double const* const quad = _quad.data() + wrapSec * _nComp;
+			double const* const cub = _cub.data() + wrapSec * _nComp;
+
+			// p_i(t) = CUBE_COEFF[i] * (t - t_i)^3 + QUAD_COEFF[i] * (t - t_i)^2 + LIN_COEFF[i] * (t - t_i) + CONST_COEFF[i]
+			// Now suppose t_i = t_i(q) and t = t(q), then
+			// dp_i / dt_i = -3 * CUBE_COEFF[i] * (t - t_i)^2 - 2 * QUAD_COEFF[i] * (t - t_i) - LIN_COEFF[i]
+			for (unsigned int i = 0; i < _nComp; ++i)
+				deriv[i] = -(2.0 * quad[i] + tShift * 6.0 * cub[i]);
+
+			return;
+		}
+
+#if CADET_COMPILETIME_HASH
+		// Assume that t' = dt / dq = 0 for all handled parameters q
+		switch (pId.name)
+		{
+			case _hashCons:
+				deriv[pId.component] = 0.0;
+				break;
+			case _hashLin:
+				deriv[pId.component] = 1.0;
+				break;
+			case _hashQuad:
+				deriv[pId.component] = 2.0 * tShift;
+				break;
+			case _hashCub:
+				deriv[pId.component] = 3.0 * tShift * tShift;
+				break;
+		}
+#else
+		// Assume that t' = dt / dq = 0 for all handled parameters q
+		if (pId.name == _hashCons)
+			deriv[pId.component] = 0.0;
+		else if (pId.name == _hashLin)
+			deriv[pId.component] = 1.0;
+		else if (pId.name == _hashQuad)
+			deriv[pId.component] = 2.0 * tShift;
+		else if (pId.name == _hashCub)
+			deriv[pId.component] = 3.0 * tShift * tShift;
+#endif
+	}
+
 	virtual void setParameterValue(const cadet::ParameterId& pId, double value)
 	{
+		const unsigned int wrapSec = pId.section % (_const.size()/_nComp);
 #if CADET_COMPILETIME_HASH
 		switch (pId.name)
 		{
 			case _hashCons:
-				_const[pId.component + pId.section * _nComp] = value;
+				_const[pId.component + wrapSec * _nComp] = value;
 				break;
 			case _hashLin:
-				_lin[pId.component + pId.section * _nComp] = value;
+				_lin[pId.component + wrapSec * _nComp] = value;
 				break;
 			case _hashQuad:
-				_quad[pId.component + pId.section * _nComp] = value;
+				_quad[pId.component + wrapSec * _nComp] = value;
 				break;
 			case _hashCub:
-				_cub[pId.component + pId.section * _nComp] = value;
+				_cub[pId.component + wrapSec * _nComp] = value;
 				break;
 			case _hashSectionTimes:
 				_sectionTimes[pId.section] = value;
@@ -196,13 +264,13 @@ public:
 		}
 #else
 		if (pId.name == _hashCons)
-			_const[pId.component + pId.section * _nComp] = value;
+			_const[pId.component + wrapSec * _nComp] = value;
 		else if (pId.name == _hashLin)
-			_lin[pId.component + pId.section * _nComp] = value;
+			_lin[pId.component + wrapSec * _nComp] = value;
 		else if (pId.name == _hashQuad)
-			_quad[pId.component + pId.section * _nComp] = value;
+			_quad[pId.component + wrapSec * _nComp] = value;
 		else if (pId.name == _hashCub)
-			_cub[pId.component + pId.section * _nComp] = value;
+			_cub[pId.component + wrapSec * _nComp] = value;
 		else if (pId.name == _hashSectionTimes)
 			_sectionTimes[pId.section] = value;
 #endif
@@ -210,17 +278,18 @@ public:
 
 	virtual double getParameterValue(const cadet::ParameterId& pId)
 	{
+		const unsigned int wrapSec = pId.section % (_const.size()/_nComp);
 #if CADET_COMPILETIME_HASH
 		switch (pId.name)
 		{
 			case _hashCons:
-				return _const[pId.component + pId.section * _nComp];
+				return _const[pId.component + wrapSec * _nComp];
 			case _hashLin:
-				return _lin[pId.component + pId.section * _nComp];
+				return _lin[pId.component + wrapSec * _nComp];
 			case _hashQuad:
-				return _quad[pId.component + pId.section * _nComp];
+				return _quad[pId.component + wrapSec * _nComp];
 			case _hashCub:
-				return _cub[pId.component + pId.section * _nComp];
+				return _cub[pId.component + wrapSec * _nComp];
 			case _hashSectionTimes:
 				return _sectionTimes[pId.section];
 		}

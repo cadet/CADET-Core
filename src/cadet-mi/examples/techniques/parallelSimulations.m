@@ -1,7 +1,7 @@
 function parallelSimulations()
 %PARALLELSIMULATIONS Shows how to run several simulations in parallel using Matlab's parallel computing toolbox
 %
-%   CADET itself only offers parallelization on shared memory machines using OpenMP.
+%   CADET itself only offers parallelization on shared memory machines using Intel TBB.
 %   The number of threads employed is controlled by the MEXSIMULATOR.NTHREADS
 %   property.
 %
@@ -17,7 +17,7 @@ function parallelSimulations()
 %
 %   See also BREAKTHROUGHLANGMUIRSINGLE, PARAMETERIZEDSIMULATIONWITHOUTSENSITIVITIES
 
-% Copyright: (C) 2008-2016 The CADET Authors
+% Copyright: (C) 2008-2017 The CADET Authors
 %            See the license note at the end of the file.
 
 	% Create simulator
@@ -119,7 +119,7 @@ end
 % =============================================================================
 %  CADET - The Chromatography Analysis and Design Toolkit
 %  
-%  Copyright (C) 2008-2016: The CADET Authors
+%  Copyright (C) 2008-2017: The CADET Authors
 %            Please see the AUTHORS and CONTRIBUTORS file.
 %  
 %  All rights reserved. This program and the accompanying materials

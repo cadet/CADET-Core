@@ -1,7 +1,7 @@
 // =============================================================================
 //  CADET - The Chromatography Analysis and Design Toolkit
 //  
-//  Copyright © 2008-2016: The CADET Authors
+//  Copyright © 2008-2017: The CADET Authors
 //            Please see the AUTHORS and CONTRIBUTORS file.
 //  
 //  All rights reserved. This program and the accompanying materials
@@ -39,7 +39,9 @@ namespace linalg
  *          
  *          This matrix format is meant as intermediate format for constructing a sparse matrix. Users are encouraged to
  *          convert their SparseMatrix to a CompressedSparseMatrix, which requires significantly less storage.
+ * @tparam real_t Type of the stored elements
  */
+template <class real_t>
 class SparseMatrix
 {
 public:
@@ -69,6 +71,52 @@ public:
 	SparseMatrix& operator=(SparseMatrix&& cpy) = default;
 #endif
 	
+	/**
+	 * @brief Copies a SparseMatrix of different type
+	 * @details The cast from @c otherReal_t to @c real_t has to be possible.
+	 * @param [in] cpy Source matrix to be copied
+	 * @tparam otherReal_t Element type of source matrix
+	 */
+	template <class otherReal_t>
+	SparseMatrix(const SparseMatrix<otherReal_t>& cpy) : _rows(cpy._rows), _cols(cpy._cols), _curIdx(cpy._curIdx)
+	{
+		_values.reserve(cpy._values.size());
+		for (unsigned int i = 0; i < cpy._values.size(); ++i)
+			_values.push_back(static_cast<real_t>(cpy._values[i]));
+	}
+
+	/**
+	 * @brief Copies a SparseMatrix
+	 * @param [in] src Source matrix to be copied
+	 */
+	inline void copyFrom(const SparseMatrix<real_t>& src)
+	{
+		_rows = src.rows();
+		_cols = src.cols();
+		_curIdx = src.numNonZero();
+		_values = src.values();
+	}
+
+	/**
+	 * @brief Copies a SparseMatrix of different type
+	 * @details The cast from @c otherReal_t to @c real_t has to be possible.
+	 * @param [in] src Source matrix to be copied
+	 * @tparam otherReal_t Element type of source matrix
+	 */
+	template <class otherReal_t>
+	inline void copyFrom(const SparseMatrix<otherReal_t>& src)
+	{
+		_rows = src.rows();
+		_cols = src.cols();
+		_curIdx = src.numNonZero();
+
+		const std::vector<otherReal_t>& srcVals = src.values();
+		_values.clear();
+		_values.reserve(srcVals.size());
+		for (unsigned int i = 0; i < srcVals.size(); ++i)
+			_values.push_back(static_cast<real_t>(srcVals[i]));
+	}
+
 	/**
 	 * @brief Resets all elements to @c 0
 	 * @details The capacity of the SparseMatrix is not changed.
@@ -113,7 +161,7 @@ public:
 	 * @param [in] col Column index
 	 * @param [in] val Value of the element at the given position
 	 */
-	inline void addElement(unsigned int row, unsigned int col, double val)
+	inline void addElement(unsigned int row, unsigned int col, const real_t& val)
 	{
 		cadet_assert(_curIdx < _rows.size());
 
@@ -124,7 +172,18 @@ public:
 		++_curIdx;
 	}
 
-	inline double& operator()(unsigned int row, unsigned int col)
+	/**
+	 * @brief Accesses an element at the given position
+	 * @details If the element does not exist and the capacity is not exhausted,
+	 *          a new element is created. As the capacity is not increased by
+	 *          this method, it will fail when the capacity is exhausted and
+	 *          a new element would have to be created.
+	 * 
+	 * @param [in] row Row index
+	 * @param [in] col Column index
+	 * @return Value of the element at the given position
+	 */
+	inline real_t& operator()(unsigned int row, unsigned int col)
 	{
 		// Try to find the element
 		for (unsigned int i = 0; i < _curIdx; ++i)
@@ -145,7 +204,14 @@ public:
 		return _values[_curIdx-1];
 	}
 
-	inline const double operator()(unsigned int row, unsigned int col) const
+	/**
+	 * @brief Accesses an element at the given position
+	 * @details If the element does not exist, @ç 0.0 is returned.
+	 * @param [in] row Row index
+	 * @param [in] col Column index
+	 * @return Value of the element at the given position
+	 */
+	inline const real_t operator()(unsigned int row, unsigned int col) const
 	{
 		// Try to find the element
 		for (unsigned int i = 0; i < _curIdx; ++i)
@@ -153,7 +219,38 @@ public:
 			if ((_rows[i] == row) && (_cols[i] == col))
 				return _values[i];
 		}
-		return 0.0;
+		return real_t();
+	}
+
+	/**
+	 * @brief Multiplies this sparse matrix with a vector
+	 * @details Computes the matrix vector operation \f$y = Ax. \f$
+	 * @param [in] x Vector @f$ x @f$ to multiply with
+	 * @param [out] out Vector @f$ y @f$ to write to
+	 * @tparam arg_t Type of the vector \f$ x \f$
+	 * @tparam result_t Type of the vector \f$ y \f$
+	 */
+	template <typename arg_t, typename result_t>
+	inline void multiplyVector(arg_t const* const x, result_t* const out) const
+	{
+		for (unsigned int i = 0; i < _curIdx; ++i)
+			out[_rows[i]] = _values[i] * x[_cols[i]];
+	}
+
+	/**
+	 * @brief Multiplies this sparse matrix with a vector
+	 * @details Computes the matrix vector operation \f$y = \alpha Ax. \f$
+	 * @param [in] x Vector @f$ x @f$ to multiply with
+	 * @param [in] alpha Factor @f$ \alpha @f$ in front of @f$ Ax @f$
+	 * @param [out] out Vector @f$ y @f$ to write to
+	 * @tparam arg_t Type of the vector \f$ x \f$
+	 * @tparam result_t Type of the vector \f$ y \f$
+	 */
+	template <typename arg_t, typename result_t>
+	inline void multiplyVector(arg_t const* const x, double alpha, result_t* const out) const
+	{
+		for (unsigned int i = 0; i < _curIdx; ++i)
+			out[_rows[i]] = alpha * _values[i] * x[_cols[i]];
 	}
 
 	/**
@@ -163,8 +260,11 @@ public:
 	 * @param [in] alpha Factor @f$ \alpha @f$ in front of @f$ Ax @f$
 	 * @param [in] beta Factor @f$ \beta @f$ in front of @f$ y @f$
 	 * @param [in,out] out Vector @f$ y @f$ to write to
+	 * @tparam arg_t Type of the vector \f$ x \f$
+	 * @tparam result_t Type of the vector \f$ y \f$
 	 */
-	inline void multiplyVector(double const* const x, double alpha, double beta, double* const out) const
+	template <typename arg_t, typename result_t>
+	inline void multiplyVector(arg_t const* const x, double alpha, double beta, result_t* const out) const
 	{
 		for (unsigned int i = 0; i < _curIdx; ++i)
 			out[_rows[i]] = alpha * _values[i] * x[_cols[i]] + beta * out[_rows[i]];
@@ -177,11 +277,32 @@ public:
 	 *
 	 * @param [in] x Vector to multiply with
 	 * @param [in,out] out Vector to add the matrix-vector product to
+	 * @tparam arg_t Type of the vector \f$ x \f$
+	 * @tparam result_t Type of the vector \f$ y \f$
 	 */
-	inline void multiplyAdd(double const* const x, double* const out) const
+	template <typename arg_t, typename result_t>
+	inline void multiplyAdd(arg_t const* const x, result_t* const out) const
 	{
 		for (unsigned int i = 0; i < _curIdx; ++i)
 			out[_rows[i]] += _values[i] * x[_cols[i]];
+	}
+
+	/**
+	 * @brief Multiplies this sparse matrix with a vector and adds the scaled result to another vector
+	 * @details Computes the matrix vector operation \f$ b + \alpha Ax \f$, where the matrix vector
+	 *          product is added to @p out, which is \f$ b \f$.
+	 *
+	 * @param [in] x Vector to multiply with
+	 * @param [in,out] out Vector to add the matrix-vector product to
+	 * @param [in] alpha Scale factor
+	 * @tparam arg_t Type of the vector \f$ x \f$
+	 * @tparam result_t Type of the vector \f$ y \f$
+	 */
+	template <typename arg_t, typename result_t>
+	inline void multiplyAdd(arg_t const* const x, result_t* const out, double alpha) const
+	{
+		for (unsigned int i = 0; i < _curIdx; ++i)
+			out[_rows[i]] += alpha * _values[i] * x[_cols[i]];
 	}
 
 	/**
@@ -191,11 +312,32 @@ public:
 	 *
 	 * @param [in] x Vector to multiply with
 	 * @param [in,out] out Vector to subtract the matrix-vector product from
+	 * @tparam arg_t Type of the vector \f$ x \f$
+	 * @tparam result_t Type of the vector \f$ y \f$
 	 */
-	inline void multiplySubtract(double const* const x, double* const out) const
+	template <typename arg_t, typename result_t>
+	inline void multiplySubtract(arg_t const* const x, result_t* const out) const
 	{
 		for (unsigned int i = 0; i < _curIdx; ++i)
 			out[_rows[i]] -= _values[i] * x[_cols[i]];
+	}
+
+	/**
+	 * @brief Multiplies this sparse matrix with a vector and adds the scaled result to another vector
+	 * @details Computes the matrix vector operation \f$ b - \alpha Ax \f$, where the matrix vector
+	 *          product is subtracted from @p out, which is \f$ b \f$.
+	 *
+	 * @param [in] x Vector to multiply with
+	 * @param [in,out] out Vector to subtract the matrix-vector product from
+	 * @param [in] alpha Scale factor
+	 * @tparam arg_t Type of the vector \f$ x \f$
+	 * @tparam result_t Type of the vector \f$ y \f$
+	 */
+	template <typename arg_t, typename result_t>
+	inline void multiplySubtract(arg_t const* const x, result_t* const out, double alpha) const
+	{
+		for (unsigned int i = 0; i < _curIdx; ++i)
+			out[_rows[i]] -= alpha * _values[i] * x[_cols[i]];
 	}
 
 	/**
@@ -220,7 +362,7 @@ public:
 	 *          elements are used.
 	 * @return Vector with element values
 	 */
-	inline const std::vector<double>& values() const CADET_NOEXCEPT { return _values; }
+	inline const std::vector<real_t>& values() const CADET_NOEXCEPT { return _values; }
 
 	/**
 	 * @brief Returns the number of (structurally) non-zero elements in the matrix
@@ -231,12 +373,13 @@ public:
 private:
 	std::vector<unsigned int> _rows; //!< List with row indices of elements
 	std::vector<unsigned int> _cols; //!< List with column indices of elements
-	std::vector<double> _values; //!< List with values of elements
+	std::vector<real_t> _values; //!< List with values of elements
 	unsigned int _curIdx; //!< Index of the first unused element
 };
 
-std::ostream& operator<<(std::ostream& out, const SparseMatrix& sm);
+typedef SparseMatrix<double> DoubleSparseMatrix;
 
+std::ostream& operator<<(std::ostream& out, const DoubleSparseMatrix& sm);
 
 class CompressedSparseMatrix
 {

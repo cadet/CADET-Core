@@ -2,11 +2,8 @@
 % =============================================================================
 %  CADET - The Chromatography Analysis and Design Toolkit
 %  
-%  Copyright © 2008-2016: Eric von Lieres¹, Joel Andersson,
-%                         Andreas Puettmann¹, Sebastian Schnittert¹,
-%                         Samuel Leweke¹
-%                                      
-%    ¹ Forschungszentrum Juelich GmbH, IBG-1, Juelich, Germany.
+%  Copyright © 2008-2017: The CADET Authors
+%            Please see the AUTHORS and CONTRIBUTORS file.
 %  
 %  All rights reserved. This program and the accompanying materials
 %  are made available under the terms of the GNU Public License v3.0 (or, at
@@ -25,11 +22,107 @@
 %	\item[Film diffusion] 
 %\end{description}
 
+\section{Network of unit operation models}\label{sec:MUOPNetwork}
+
+Unit operation models can be composed into a network \index{Model!Network}\index{Network} or graph, in which a node represents a unit operation and an edge denotes a connection between two unit operations.
+When utilized to full extent, this allows the simulation of complicated setups and processes (e.g., SMB, MCSGP).
+A more simple use case is the addition of plug flows and stirred tanks up- and downstream of a column in order to account for dead volume and additional dispersion from the tubing.
+
+In a network, outlets of unit operations can be connected to any number of inlets of unit operations.
+Even direct cycles, where an outlet of a unit operation is connected to its own inlet, are possible.
+A unit operation does not have to possess both inlet and outlet, but it has to have at least one of them.
+Pseudo unit operations such as inlet and outlet serve as sources and sinks for the network.
+However, the latter is not strictly required as any terminal node (i.e., a unit operation that possesses an outlet but does not have an outgoing connection) serves as a sink.
+
+Each connection between two unit operations (i.e., an edge in the graph) is equipped with a volumetric flow rate that determines the mass flow from source to target unit operation. 
+Those flow rates are used to determine the weight of the different incoming feeds at a unit operation's inlet port.
+Some unit operations can infer their internal flow rate (e.g., interstitial velocity) from their total incoming volumetric flow rate.
+In general, the mass balance at a unit operation has to be closed, except for unit operations that act as source or sink in the network and variable volume units (e.g., stirred tanks).
+
+The network of unit operations uses ``connection''-variables $c_{\text{con}}$ to connect the different unit operations with each other.
+The inlet port variables $c_{\text{in},n}$ of unit operation $n$ are attached to $c_{\text{con},n}$ via 
+\begin{align}
+	c_{\text{in},n,i} &= c_{\text{con},n,i}, \qquad i = 1, \dots, N_{\text{comp},n}. \label{eq:NetworkInletConnection}
+\end{align}
+The connection variables $c_{\text{con},n,i}$ collect all inflows of component $i$ into unit operation $n$:
+\begin{align}
+	c_{\text{con},n,i} &= \frac{\sum_{m=1}^{N_{\text{units}}} \sum_{j = 1}^{N_{\text{comp},m}} S_{(n,i),(m,j)} F_m c_{\text{out},m,j}}{\sum_{m=1}^{N_{\text{units}}} \hat{S}_{n,m} F_m }, \label{eq:NetworkConnection}
+\end{align}
+where $F_m$ denotes the volumetric flow rate of unit operation $m$, $S_{(n,i),(m,j)} \in \{0, 1\}$ is a connection matrix indicating whether component $i$ of unit operation $n$ is connected to component $j$ of unit operation $m$, and $\hat{S}_{n,m} \in \{0, 1\}$ is another connection matrix indicating whether unit operation $n$ is connected to unit operation $m$, that is
+\begin{align*}
+	\hat{S}_{n,m} = \begin{cases}
+		1 & \text{if } \sum_{i = 1}^{N_{\text{comp},n}} \sum_{j = 1}^{N_{\text{comp},m}} S_{(n,i),(m,j)} \geq 1, \\
+		0 & \text{otherwise}.
+	\end{cases}
+\end{align*}
+
+\paragraph{Specification of network connections}
+\phantomsection\label{par:MUOPNetworkConfig}
+
+The connections \index{Network!Connectivity} between the different unit operations in the network are specified by a table.
+The first two columns specify source and destination unit operation id.
+The next two columns give source and destination component indices.
+Finally, the fith column specifies the volumetric flow rate of this connection.
+
+With this setup it is possible to connect single components of unit operations with each other yielding a maximum in flexibility.
+However, the predominant case is to connect all components of the source unit operations with their respective counterparts in the destination unit.
+This can easily be done by setting both component indices to $-1$ instead of writing a separate row for each component of the connection.
+
+Note that in case of multiple rows for one connection between two unit operations (e.g., in case of separate component connections) the flow rate of the first row of that connection is used and all following flow rates are ignored.
+Consequently, there can only be one flow rate for a connection between two unit operations regardless of which components are connected.
+
+The connection table is expected in row-major storage format (i.e., the rows are appended to one long array).
+See Table~\ref{tab:FFModelConnectionSwitch}.
+
+\paragraph{Valve switches}
+\phantomsection\label{par:MUOPNetworkValveSwitches}
+
+The connectivity of the network can only change on a discontinuous section transition.
+Such a transition with changing connectivity is referred to as valve switch and the connectivity itself as valve configuration. \index{Network!Valve switch}
+
+A list of valve configurations with at least one entry is required.
+Each valve configuration consists of a network connectivity table as described in Section~\ref{par:MUOPNetworkConfig} and a section index.
+The latter denotes the section in which the connectivity table becomes active.
+Hence, the one required (i.e., the first) entry must have a section index of $0$ denoting the initial connectivity.
+
+Note that the section index has to be monotonically increasing throughout the list of valve configurations.
+See Tables~\ref{tab:FFModelSystemConnections} and \ref{tab:FFModelConnectionSwitch}.
+
 \section{Unit operation models}
 
-\subsection{General rate model (GRM)}
+\subsection{Inlet}\label{sec:MUOPInlet}
 
-The general rate model \index{Model!General rate model} is the most comprehensive model of mass transfer in column liquid chromatography, when only the axial coordinate in the column and the radial coordinate in the beads are considered \cite{Kucera1965,Gu1995,Guiochon2006,Felinger2004}.
+A system inlet unit operation \index{Model!Inlet}\index{Unit operation!Inlet} is a pseudo unit operation since there is no physical correspondence.
+The inlet serves as a mass source in the network of unit operations.
+Consequently, it only possesses an outlet port and no inlet port.
+Note that an inlet unit operation can provide arbitrary many components and there can be arbitrary many inlet unit operations in a network.
+
+An inlet unit operation provides a feed in which the concentration of each component is given by a profile.
+The most common profile is a piecewise cubic polynomial, which can both represent discontinuous signals (e.g., pulse or step) and smooth $C^2$ signals (cubic spline):
+\begin{align*}
+	c_i(t) = \sum_{k = 1}^{N_{\text{sect}}} \mathds{1}_{\left[t_k, t_{k+1} \right)}(t) \left[ a_{k,i} \left( t - t_k \right)^3 + b_{k,i} \left( t - t_k \right)^2 + d_{k,i} \left( t - t_k \right) + f_{k,i} \right],
+\end{align*}
+where $0 \leq t_1 < t_2 < \dots < t_{N_{\text{sect}} + 1} \leq T_{\text{sim}}$ is a decomposition of the simulation time interval $\left[0, T_{\text{sim}}\right]$ into pieces $\left[t_k, t_{k+1} \right)$.
+On each piece, the profile is given by a cubic (fourth order) polynomial shifted to the beginning $t_k$ of the piece.
+
+See Tables~\ref{tab:FFModelUnitOpInlet} and \ref{tab:FFModelInletPiecewiseCubicPoly}.
+
+\subsection{Outlet}\label{sec:MUOPOutlet}
+
+A system outlet unit operation \index{Model!Outlet}\index{Unit operation!Outlet} is a pseudo unit operation since there is no physical correspondence.
+The outlet serves as a sink (terminal node) in the network of unit operations.
+Since any terminal node in the network is a sink (see Section~\ref{sec:MUOPNetwork}), outlet unit operations are not strictly necessary.
+However, in some applications (e.g., SMB) only a certain fraction of a unit operation's output is taken out of the system and the rest is recycled.
+In this case, outlet unit operations are required in order to avoid unbalanced mass flow in the other unit operations.
+
+Outlets can also be of help if the output of multiple unit operations merges together leaving the network.
+Instead of manually adding the streams together in a post-processing step, the unit operations can be connected to the same outlet unit.
+
+See Table~\ref{tab:FFModelUnitOpOutlet}.
+
+\subsection{General rate model (GRM)}\label{sec:MUOPGRM}
+
+The general rate model \index{Model!General rate model}\index{Unit operation!General rate model} is the most comprehensive model of mass transfer in column liquid chromatography, when only the axial coordinate in the column and the radial coordinate in the beads are considered \cite{Kucera1965,Gu1995,Guiochon2006,Felinger2004}.
 
 The main assumptions are:
 \begin{enumerate}
@@ -303,3 +396,25 @@ By default, the following initial conditions are applied for all $z \in [0,L]$ a
 	\caption{Binding with multiple bound states}
 \end{figure}
 
+See Table~\ref{tab:FFModelUnitOpGRM}.
+
+\paragraph{Specification of flow rate / velocity and direction}
+\phantomsection\label{par:MUOPGRMflow}
+
+Since volumetric flow rates are specified for each network connection, the unit operation can infer its interstitial velocity via
+\begin{align*}
+	u = u_{\text{int}} = \frac{F_{\text{in}}}{A \varepsilon_c},
+\end{align*}
+where $F_{\text{in}}$ denotes the volumetric flow rate and $A$ the cross section area.
+Note that without the bulk porosity $\varepsilon_c$, the superficial velocity would be obtained.
+
+The direction of flow inside the unit operation is governed by the sign of the interstitial velocity $u$.
+A positive sign results in (standard) forward flow, whereas a negative sign reverses the flow direction.
+Note that in case of reversed flow the chromatogram is returned at the unit operation's \emph{inlet}, which may not be returned from simulation by default.
+
+The final behavior is controlled by the interplay of cross section area and interstitial velocity:
+\begin{enumerate}
+	\item If cross section area $A$ is given and $u$ is not, $u$ is inferred from the volumetric flow rate.
+	\item If $u$ is given and $A$ is not, the volumetric flow rate is ignored and the provided interstitial velocity is used.
+	\item If both cross section area $A$ and interstitial velocity $u$ are given, the magnitude of the actual interstitial velocity $u$ is inferred from the volumetric flow rate and the flow direction is given by the sign of the provided $u$.
+\end{enumerate}

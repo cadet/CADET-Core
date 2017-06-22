@@ -1,7 +1,7 @@
 // =============================================================================
 //  CADET - The Chromatography Analysis and Design Toolkit
 //  
-//  Copyright © 2008-2016: The CADET Authors
+//  Copyright © 2008-2017: The CADET Authors
 //            Please see the AUTHORS and CONTRIBUTORS file.
 //  
 //  All rights reserved. This program and the accompanying materials
@@ -16,7 +16,6 @@
 #include "SimulatorImpl.hpp"
 #include "SimulatableModel.hpp"
 #include "UnitOperation.hpp"
-#include "model/ModelSystemImpl.hpp"
 #include "ParamIdUtil.hpp"
 
 #include <idas/idas.h>
@@ -30,8 +29,11 @@
 #include "LoggingUtils.hpp"
 #include "Logging.hpp"
 
-#ifdef _OPENMP
-	#include <omp.h>
+#ifdef CADET_PARALLELIZE
+	#include <tbb/tbb.h>
+
+	#define TBB_PREVIEW_GLOBAL_CONTROL 1
+	#include <tbb/global_control.h>
 #endif
 
 namespace
@@ -79,6 +81,73 @@ namespace
 		return ((id.name == cadet::hashString("SECTION_TIMES")) && (id.section < nSectionTimes) && (id.component == cadet::CompIndep) &&
 			(id.boundPhase == cadet::BoundPhaseIndep) && (id.reaction == cadet::ReactionIndep) && (id.unitOperation == cadet::UnitOpIndep));
 	}
+
+	/**
+	 * @brief Determines the method of consistent initialization for the transition into the given section
+	 * @param [in] mode Consistent initialization mode set by user
+	 * @param [in] curSec Index of current section
+	 * @return One of @c Full, @c Lean, @c None
+	 */
+	inline cadet::ConsistentInitialization currentConsistentInitMode(cadet::ConsistentInitialization mode, unsigned int curSec)
+	{
+		switch (mode)
+		{
+			case cadet::ConsistentInitialization::None:
+				return cadet::ConsistentInitialization::None;
+
+			case cadet::ConsistentInitialization::Full:
+				return cadet::ConsistentInitialization::Full;
+
+			case cadet::ConsistentInitialization::FullFirstOnly:
+				if (curSec == 0)
+					return cadet::ConsistentInitialization::Full;
+				else
+					return cadet::ConsistentInitialization::None;
+
+			case cadet::ConsistentInitialization::Lean:
+				return cadet::ConsistentInitialization::Lean;
+
+			case cadet::ConsistentInitialization::LeanFirstOnly:
+				if (curSec == 0)
+					return cadet::ConsistentInitialization::Lean;
+				else
+					return cadet::ConsistentInitialization::None;
+
+			case cadet::ConsistentInitialization::FullOnceThenLean:
+				if (curSec == 0)
+					return cadet::ConsistentInitialization::Full;
+				else
+					return cadet::ConsistentInitialization::Lean;
+
+			case cadet::ConsistentInitialization::NoneOnceThenFull:
+				if (curSec == 0)
+					return cadet::ConsistentInitialization::None;
+				else
+					return cadet::ConsistentInitialization::Full;
+
+			case cadet::ConsistentInitialization::NoneOnceThenLean:
+				if (curSec == 0)
+					return cadet::ConsistentInitialization::None;
+				else
+					return cadet::ConsistentInitialization::Lean;
+		}
+		return cadet::ConsistentInitialization::None;
+	}
+
+	inline bool hasNaN(double const* const y, unsigned int size)
+	{
+		for (unsigned int i = 0; i < size; ++i)
+		{
+			if (std::isnan(y[i]))
+				return true;
+		}
+		return false;
+	}
+
+	inline bool hasNaN(const N_Vector p)
+	{
+		return hasNaN(NVEC_DATA(p), NVEC_LENGTH(p));
+	}
 }
 
 namespace cadet
@@ -120,17 +189,101 @@ namespace cadet
 		}
 	}
 
+	/**
+	* @brief IDAS wrapper function to call the model's residual() method
+	*/
 	int residualDaeWrapper(double t, N_Vector y, N_Vector yDot, N_Vector res, void* userData)
 	{
 		cadet::Simulator* const sim = static_cast<cadet::Simulator*>(userData);
 		const unsigned int secIdx = sim->getCurrentSection(t);
 		const active timeFactor = sim->timeFactor();
-		const int retVal = sim->_model->residualWithJacobian(sim->toRealTime(t), secIdx, timeFactor, NVEC_DATA(y), NVEC_DATA(yDot), NVEC_DATA(res), 
+		return sim->_model->residualWithJacobian(sim->toRealTime(t), secIdx, timeFactor, NVEC_DATA(y), NVEC_DATA(yDot), NVEC_DATA(res), 
 			sim->_vecADres, sim->_vecADy, sim->numSensitivityAdDirections());
-
-		return retVal;
 	}
 
+	/**
+	* @brief Change the error weights in the state vector
+	* @details This sets the error weight to 0 for the network coupling equations, duplicated inlets
+	*          and inlet and outlet state vector entries. Those entries are all solved exactly and
+	*          without this the solver takes more steps and smaller steps for some simulations. 
+	*          The problem is the largest error is usually on the first and last column cells in the GRM
+	*          and since the algebraic systems are solved exactly they end up duplicating those errors exactly.
+	*          In many cases this leads to a system that would have passed error control failing due to the error
+	*          doubleing or more in size.
+	* @param [in] y Current state vector
+	* @param [out] ewt Weight vector
+	* @param [in] user_data User data originally supplied to IDAS
+	*/
+/*	
+	int weightWrapper(N_Vector y, N_Vector ewt, void *user_data)
+	{
+		cadet::Simulator* const sim = static_cast<cadet::Simulator*>(user_data);
+		double * localY = NVEC_DATA(y);
+		double * localEWT = NVEC_DATA(ewt);
+
+		const double rtol = sim->_relTol;
+		const double abstolV = sim->_absTol;
+		const double abstol = abstolV[0];
+		const unsigned int numDofs = sim->numDofs();
+
+		unsigned int index = 0;
+
+		for (unsigned int i = 0; i < sim->_model->numModels(); ++i)
+		{
+			IUnitOperation* const m = sim->_model->getUnitOperationModel(i);
+			const unsigned int modelDof = m->numDofs();
+
+			//Handle Inlets
+			if (m->hasOutlet() && !m->hasInlet())
+			{
+				for (unsigned int j = 0; j < modelDof; ++j, ++index)
+				{
+					localEWT[index] = 0;
+				}
+			}
+
+			//Handle Normal Operations
+			if (m->hasOutlet() && m->hasInlet())
+			{
+				const unsigned int numComps = m->numComponents();
+				const unsigned int remaining = modelDof - numComps;
+				for (unsigned int j = 0; j < numComps; ++j, ++index)
+				{
+					localEWT[index] = 0;
+				}
+				for (unsigned int j = 0; j < remaining; ++j, ++index)
+				{
+					localEWT[index] = 1 / (rtol * localY[i] + abstol);
+				}
+			}
+
+			//Handle Outlets
+			if (!m->hasOutlet() && m->hasInlet())
+			{
+				for (unsigned int j = 0; j < modelDof; ++j, ++index)
+				{
+					localEWT[index] = 0;
+				}
+			}
+
+		}
+
+		const unsigned int remaining = numDofs - index;
+
+		for (unsigned int i = 0; i < remaining; ++i, ++index)
+		{
+			localEWT[index] = 0;
+		}
+
+		NVEC_DATA(ewt) = localEWT;
+
+		return 0;
+	}
+*/
+
+	/**
+	* @brief IDAS wrapper function to call the model's linearSolve() method
+	*/
 	int linearSolveWrapper(IDAMem IDA_mem, N_Vector rhs, N_Vector weight, N_Vector y, N_Vector yDot, N_Vector res)
 	{
 		cadet::Simulator* const sim = static_cast<cadet::Simulator*>(IDA_mem->ida_lmem);
@@ -139,10 +292,12 @@ namespace cadet
 		const double tol = IDA_mem->ida_epsNewt;
 		const active timeFactor = sim->timeFactor();
 
-		const int retVal =  sim->_model->linearSolve(t, static_cast<double>(timeFactor), alpha, tol, NVEC_DATA(rhs), NVEC_DATA(weight), NVEC_DATA(y), NVEC_DATA(yDot), NVEC_DATA(res));
-		return retVal;
+		return sim->_model->linearSolve(t, static_cast<double>(timeFactor), alpha, tol, NVEC_DATA(rhs), NVEC_DATA(weight), NVEC_DATA(y), NVEC_DATA(yDot), NVEC_DATA(res));
 	}
 
+	/**
+	* @brief IDAS wrapper function to call the model's residualSensFwd() method
+	*/
 	int residualSensWrapper(int ns, double t, N_Vector y, N_Vector yDot, N_Vector res, 
 			N_Vector* yS, N_Vector* ySDot, N_Vector* resS,
 			void *userData, N_Vector tmp1, N_Vector tmp2, N_Vector tmp3)
@@ -153,6 +308,9 @@ namespace cadet
 		std::vector<double*> sensRes = convertNVectorToStdVectorPtrs<double*>(resS, ns);
 		const unsigned int secIdx = sim->getCurrentSection(t);
 		const active timeFactor = sim->timeFactor();
+		
+		//sim->_model->genJacobian(ns, sim->toRealTime(t), secIdx, timeFactor, NVEC_DATA(y), NVEC_DATA(yDot), NVEC_DATA(res),
+		//	sensY, sensYdot, sensRes, sim->_vecADres, NVEC_DATA(tmp1), NVEC_DATA(tmp2), NVEC_DATA(tmp3));
 
 		return sim->_model->residualSensFwd(ns, sim->toRealTime(t), secIdx, timeFactor, NVEC_DATA(y), NVEC_DATA(yDot), NVEC_DATA(res), 
 			sensY, sensYdot, sensRes, sim->_vecADres, NVEC_DATA(tmp1), NVEC_DATA(tmp2), NVEC_DATA(tmp3));
@@ -165,9 +323,9 @@ namespace cadet
 		_consistentInitModeSens(ConsistentInitialization::Full), _vecADres(nullptr), _vecADy(nullptr), _lastIntTime(0.0)
 	{
 #if defined(ACTIVE_ADOLC) || defined(ACTIVE_SFAD) || defined(ACTIVE_SETFAD)
-		LOG(Debug) << "Resetting AD directions from " << ad::getDirections() << " to default " << SFAD_DEFAULT_DIR;
-		ad::setDirections(SFAD_DEFAULT_DIR);
-#endif		
+		LOG(Debug) << "Resetting AD directions from " << ad::getDirections() << " to default " << ad::getMaxDirections();
+		ad::setDirections(ad::getMaxDirections());
+#endif
 	}
 
 	Simulator::~Simulator() CADET_NOEXCEPT
@@ -201,8 +359,8 @@ namespace cadet
 		// Clean up
 		clearModel();
 
-		// We only provide model::ModelSystem as implementation
-		_model = static_cast<model::ModelSystem*>(&model);
+		// Require ISimulatableModel descendant
+		_model = reinterpret_cast<ISimulatableModel*>(&model);
 
 		// Allocate and initialize state vectors
 		const unsigned int nDOFs = _model->numDofs();
@@ -256,8 +414,8 @@ namespace cadet
 		// Set maximum number of steps
 		IDASetMaxNumSteps(_idaMemBlock, _maxSteps);
 
-//		// Set maximum step size ///todo make that user choosable
-//		IDASetMaxStep(_idaMemBlock, 50.0);
+		// Set maximum time step size
+		IDASetMaxStep(_idaMemBlock, _maxStepSize);
 
 		// Specify the linear solver.
 		IDAMem IDA_mem = static_cast<IDAMem>(_idaMemBlock);
@@ -269,6 +427,10 @@ namespace cadet
 		IDA_mem->ida_lfree          = nullptr;
 		IDA_mem->ida_setupNonNull   = false;
 		IDA_mem->ida_lmem           = this;
+//		IDA_mem->ida_efun           = &weightWrapper;
+//		IDA_mem->ida_user_efun      = 1;
+
+		IDASetUserData(IDA_mem, this);
 
 		// Allocate memory for AD if required
 		if (_model->usesAD())
@@ -477,8 +639,8 @@ namespace cadet
 
 		IDAReInit(_idaMemBlock, _transformedTimes[0], _vecStateY, _vecStateYdot);
 
-		// Assume the initial state is consistent
-		_skipConsistencyStateY = true;
+		// Do not assume that the initial state is consistent
+		_skipConsistencyStateY = false;
 	}
 
 	void Simulator::skipConsistentInitialization()
@@ -590,7 +752,8 @@ namespace cadet
 		if (isSectionTimeParameter(id, _sectionTimes.size()))
 		{
 			// Correct adValue
-			LOG(Debug) << "Found parameter " << id << " in SECTION_TIMES: Dir " << adDirection << " is set to " << adValue << " [" << static_cast<double>(_sectionTimes[id.section]) << " < " << _sectionTimes.size() << "]";
+			LOG(Debug) << "Found parameter " << id << " in SECTION_TIMES: Dir " << adDirection << " is set to " 
+				<< adValue << " [" << static_cast<double>(_sectionTimes[id.section]) << " < " << _sectionTimes.size() << "]";
 			_sectionTimes[id.section].setADValue(adDirection, adValue);
 
 			return true;
@@ -857,6 +1020,30 @@ namespace cadet
 		// discontinuitites and the solver is restarted accordingly. This also requires
 		// the computation of consistent initial values for each restart.
 
+		// This sets up the tbb thread limiter
+		// TBB can use up to _nThreads but it may use fewer
+#ifdef CADET_PARALLELIZE
+		tbb::task_scheduler_init init(tbb::task_scheduler_init::deferred);
+		if (_nThreads > 0)
+			init.initialize(_nThreads);
+		else
+			init.initialize(tbb::task_scheduler_init::default_num_threads());
+#endif
+
+		// Set number of threads in SUNDIALS OpenMP-enabled implementation
+		#ifdef CADET_SUNDIALS_OPENMP
+			if (_vecStateY)
+				NVec_SetThreads(_vecStateY, nThreads);
+			if (_vecStateYdot)
+				NVec_SetThreads(_vecStateYdot, nThreads);
+
+			for (unsigned int i = 0; i < _sensitiveParams.slices(); ++i)
+			{
+				NVec_SetThreads(_vecFwdYs[i], nThreads);
+				NVec_SetThreads(_vecFwdYsDot[i], nThreads);
+			}
+		#endif
+
 		_timerIntegration.start();
 
 		// Set number of AD directions
@@ -866,7 +1053,6 @@ namespace cadet
 		ad::setDirections(numSensitivityAdDirections() + _model->requiredADdirs());
 #endif
 		// Setup AD vectors by model
-		// @todo Check if this is necessary (dirty flag)
 		_model->prepareADvectors(_vecADres, _vecADy, numSensitivityAdDirections());
 
 		std::vector<double>::const_iterator it;
@@ -934,7 +1120,7 @@ namespace cadet
 
 			// Update Jacobian
 			active realT = toRealTime(transformedT, _curSec);
-			_model->notifyDiscontinuousSectionTransition(static_cast<double>(realT), _curSec);
+			_model->notifyDiscontinuousSectionTransition(static_cast<double>(realT), _curSec, _vecADres, _vecADy, numSensitivityAdDirections());
 
 			// Get time factor
 			const active curTimeFactor = timeFactor(_curSec);
@@ -946,7 +1132,8 @@ namespace cadet
 
 			if (!_skipConsistencyStateY && (_consistentInitMode != ConsistentInitialization::None))
 			{
-				if ((_consistentInitMode == ConsistentInitialization::Full) || ((_curSec == 0) && (_consistentInitMode == ConsistentInitialization::FullFirstOnly)))
+				const ConsistentInitialization mode = currentConsistentInitMode(_consistentInitMode, _curSec);
+				if (mode == ConsistentInitialization::Full)
 				{
 					_model->consistentInitialConditions(static_cast<double>(realT), _curSec, static_cast<double>(curTimeFactor), NVEC_DATA(_vecStateY), NVEC_DATA(_vecStateYdot), 
 						_vecADres, _vecADy, numSensitivityAdDirections(), _algTol);
@@ -954,7 +1141,7 @@ namespace cadet
 					const double consPost = _model->residualNorm(static_cast<double>(realT), _curSec, static_cast<double>(curTimeFactor), NVEC_DATA(_vecStateY), NVEC_DATA(_vecStateYdot));
 					LOG(Debug) << " ==========> Consistency error post Full: " << consPost;
 				}
-				else if ((_consistentInitMode == ConsistentInitialization::Lean) || ((_curSec == 0) && (_consistentInitMode == ConsistentInitialization::LeanFirstOnly)))
+				else if (mode == ConsistentInitialization::Lean)
 				{
 					_model->leanConsistentInitialConditions(static_cast<double>(realT), _curSec, static_cast<double>(curTimeFactor), NVEC_DATA(_vecStateY), NVEC_DATA(_vecStateYdot), 
 						_vecADres, _vecADy, numSensitivityAdDirections(), _algTol);
@@ -967,57 +1154,68 @@ namespace cadet
 					LOG(Debug) << " ==========> Consistent initialization NOT performed (mode " << to_string(_consistentInitMode) << ")";
 				}
 
-				LOG(Debug) << "y = " << _vecStateY << ";";
-				LOG(Debug) << "yDot = " << _vecStateYdot << ";";
+				LOG(Debug) << "y = " << log::VectorPtr<double>(NVEC_DATA(_vecStateY), _model->numDofs()) << ";";
+				LOG(Debug) << "yDot = " << log::VectorPtr<double>(NVEC_DATA(_vecStateYdot), _model->numDofs()) << ";";
+				LOG(Debug) << "Contains NaN: y = " << hasNaN(_vecStateY) << " yDot = " << hasNaN(_vecStateYdot);
 			}
 			_skipConsistencyStateY = false;
 
 			if ((_sensitiveParams.slices() > 0) && !_skipConsistencySensitivity && (_consistentInitModeSens != ConsistentInitialization::None))
 			{
+#ifdef CADET_DEBUG
 				const std::vector<const double*> sensYdbg = convertNVectorToStdVectorPtrs<const double*>(_vecFwdYs, _sensitiveParams.slices());
 				const std::vector<const double*> sensYdotDbg = convertNVectorToStdVectorPtrs<const double*>(_vecFwdYsDot, _sensitiveParams.slices());
 
-				std::vector<double> norms(sensYdbg.size(), 0.0);
+				std::vector<double> norms(_sensitiveParams.slices(), 0.0);
 				std::vector<double> temp(_model->numDofs(), 0.0);
-				_model->residualSensFwdNorm(sensYdbg.size(), realT, _curSec, curTimeFactor, NVEC_DATA(_vecStateY), NVEC_DATA(_vecStateYdot),
+				_model->residualSensFwdNorm(_sensitiveParams.slices(), realT, _curSec, curTimeFactor, NVEC_DATA(_vecStateY), NVEC_DATA(_vecStateYdot),
 					sensYdbg, sensYdotDbg, norms.data(), _vecADres, temp.data());
 
 				LOG(Debug) << " ==========> Sens consistency error prev: " << norms;
+#endif
 
-				if ((_consistentInitModeSens == ConsistentInitialization::Full) || ((_curSec == 0) && (_consistentInitModeSens == ConsistentInitialization::FullFirstOnly)))
+				const ConsistentInitialization mode = currentConsistentInitMode(_consistentInitModeSens, _curSec);
+				if (mode == ConsistentInitialization::Full)
 				{
 					// Compute consistent initial conditions for sensitivity subsystems
 					std::vector<double*> sensY = convertNVectorToStdVectorPtrs<double*>(_vecFwdYs, _sensitiveParams.slices());
 					std::vector<double*> sensYdot = convertNVectorToStdVectorPtrs<double*>(_vecFwdYsDot, _sensitiveParams.slices());
-					_model->consistentIntialSensitivity(realT, _curSec, curTimeFactor, NVEC_DATA(_vecStateY), NVEC_DATA(_vecStateYdot), sensY, sensYdot, _vecADres, _vecADy);
+					_model->consistentInitialSensitivity(realT, _curSec, curTimeFactor, NVEC_DATA(_vecStateY), NVEC_DATA(_vecStateYdot), sensY, sensYdot, _vecADres, _vecADy);
 
-					_model->residualSensFwdNorm(sensYdbg.size(), realT, _curSec, curTimeFactor, NVEC_DATA(_vecStateY), NVEC_DATA(_vecStateYdot),
+#ifdef CADET_DEBUG
+					_model->residualSensFwdNorm(_sensitiveParams.slices(), realT, _curSec, curTimeFactor, NVEC_DATA(_vecStateY), NVEC_DATA(_vecStateYdot),
 						sensYdbg, sensYdotDbg, norms.data(), _vecADres, temp.data());
 
 					LOG(Debug) << " ==========> Sens consistency error post Full: " << norms;
+#endif
 				}
-				else if ((_consistentInitModeSens == ConsistentInitialization::Lean) || ((_curSec == 0) && (_consistentInitModeSens == ConsistentInitialization::LeanFirstOnly)))
+				else if (mode == ConsistentInitialization::Lean)
 				{
 					// Compute consistent initial conditions for sensitivity subsystems
 					std::vector<double*> sensY = convertNVectorToStdVectorPtrs<double*>(_vecFwdYs, _sensitiveParams.slices());
 					std::vector<double*> sensYdot = convertNVectorToStdVectorPtrs<double*>(_vecFwdYsDot, _sensitiveParams.slices());
-					_model->leanConsistentIntialSensitivity(realT, _curSec, curTimeFactor, NVEC_DATA(_vecStateY), NVEC_DATA(_vecStateYdot), sensY, sensYdot, _vecADres, _vecADy);
+					_model->leanConsistentInitialSensitivity(realT, _curSec, curTimeFactor, NVEC_DATA(_vecStateY), NVEC_DATA(_vecStateYdot), sensY, sensYdot, _vecADres, _vecADy);
 
-					_model->residualSensFwdNorm(sensYdbg.size(), realT, _curSec, curTimeFactor, NVEC_DATA(_vecStateY), NVEC_DATA(_vecStateYdot),
+#ifdef CADET_DEBUG
+					_model->residualSensFwdNorm(_sensitiveParams.slices(), realT, _curSec, curTimeFactor, NVEC_DATA(_vecStateY), NVEC_DATA(_vecStateYdot),
 						sensYdbg, sensYdotDbg, norms.data(), _vecADres, temp.data());
 
 					LOG(Debug) << " ==========> Sens consistency error post Lean: " << norms;
+#endif
 				}
 				else
 				{
 					LOG(Debug) << " ==========> Sens consistent initialization NOT performed (mode " << to_string(_consistentInitModeSens) << ")";
 				}
 
+#ifdef CADET_DEBUG
 				for (unsigned int j = 0; j < norms.size(); ++j)
 				{
-					LOG(Debug) << "sensY[" << j << "] = " << _vecFwdYs[j] << ";";
-					LOG(Debug) << "sensYdot[" << j << "] = " << _vecFwdYsDot[j] << ";";
+					LOG(Debug) << "sensY[" << j << "] = " << log::VectorPtr<double>(NVEC_DATA(_vecFwdYs[j]), _model->numDofs()) << ";";
+					LOG(Debug) << "sensYdot[" << j << "] = " << log::VectorPtr<double>(NVEC_DATA(_vecFwdYsDot[j]), _model->numDofs()) << ";";
+					LOG(Debug) << "Contains NaN: sensY[" << j << "] = " << hasNaN(_vecFwdYs[j]) << " sensYdot[" << j << "] = " << hasNaN(_vecFwdYsDot[j]);
 				}
+#endif
 			}
 			_skipConsistencySensitivity = false;
 
@@ -1066,7 +1264,8 @@ namespace cadet
 
 				// IDA Step 11: Advance solution in time
 				solverFlag = IDASolve(_idaMemBlock, tOut, &transformedT, _vecStateY, _vecStateYdot, idaTask);
-				LOG(Debug) << "Solve from " << transformedT << " to " << tOut << " => " << (solverFlag == IDA_SUCCESS ? "IDA_SUCCESS" : "") << (solverFlag == IDA_TSTOP_RETURN ? "IDA_TSTOP_RETURN" : "");
+				LOG(Debug) << "Solve from " << transformedT << " to " << tOut << " => " 
+					<< (solverFlag == IDA_SUCCESS ? "IDA_SUCCESS" : "") << (solverFlag == IDA_TSTOP_RETURN ? "IDA_TSTOP_RETURN" : "");
 				realT = toRealTime(transformedT, _curSec);
 
 				switch (solverFlag)
@@ -1143,25 +1342,27 @@ namespace cadet
 		return convertNVectorToStdVectorConstPtrs(len, _vecFwdYsDot, _sensitiveParams.slices());
 	}
 
-	void Simulator::configureTimeIntegrator(double relTol, double absTol, double initStepSize, unsigned int maxSteps)
+	void Simulator::configureTimeIntegrator(double relTol, double absTol, double initStepSize, unsigned int maxSteps, double maxStepSize)
 	{
 		_absTol.clear();
 		_absTol.push_back(absTol);
 
 		_relTol = relTol;
 		_maxSteps = maxSteps;
+		_maxStepSize = maxStepSize;
 		
 		_initStepSize.clear();
 		_initStepSize.push_back(initStepSize);
 	}
 
-	void Simulator::configureTimeIntegrator(double relTol, double absTol, const std::vector<double>& initStepSizes, unsigned int maxSteps)
+	void Simulator::configureTimeIntegrator(double relTol, double absTol, const std::vector<double>& initStepSizes, unsigned int maxSteps, double maxStepSize)
 	{
 		_absTol.clear();
 		_absTol.push_back(absTol);
 
 		_relTol = relTol;
 		_maxSteps = maxSteps;
+		_maxStepSize = maxStepSize;
 		_initStepSize = initStepSizes;
 	}
 
@@ -1179,6 +1380,10 @@ namespace cadet
 		_algTol = paramProvider.getDouble("ALGTOL");
 		_maxSteps = paramProvider.getInt("MAX_STEPS");
 
+		_maxStepSize = 0.0;
+		if (paramProvider.exists("MAX_STEP_SIZE"))
+			_maxStepSize = paramProvider.getDouble("MAX_STEP_SIZE");
+
 		_initStepSize.clear();
 		if (paramProvider.isArray("INIT_STEP_SIZE"))
 			_initStepSize = paramProvider.getDoubleArray("INIT_STEP_SIZE");
@@ -1192,10 +1397,10 @@ namespace cadet
 
 		paramProvider.popScope();
 
-#ifdef _OPENMP
 		if (paramProvider.exists("NTHREADS"))
-			setNumThreads(paramProvider.getInt("NTHREADS"));
-#endif
+			_nThreads = paramProvider.getInt("NTHREADS");
+		else
+			_nThreads = 0;
 
 		_solutionTimes.clear();
 		_solutionTimesOriginal.clear();
@@ -1279,6 +1484,13 @@ namespace cadet
 		_maxSteps = maxSteps;
 		if (_idaMemBlock)
 			IDASetMaxNumSteps(_idaMemBlock, _maxSteps);
+	}
+
+	void Simulator::setMaximumStepSize(double maxStepSize)
+	{
+		_maxStepSize = std::max(0.0, maxStepSize);
+		if (_idaMemBlock)
+			IDASetMaxStep(_idaMemBlock, _maxStepSize);
 	}
 
 
@@ -1383,26 +1595,9 @@ namespace cadet
 		return 0;
 	}
 
-	void Simulator::setNumThreads(unsigned int nThreads) const
+	void Simulator::setNumThreads(unsigned int nThreads) CADET_NOEXCEPT
 	{
-#ifdef _OPENMP
-		if (nThreads == 0)
-			nThreads = omp_get_max_threads();
-		omp_set_num_threads(nThreads);
-
-		#ifdef CADET_SUNDIALS_OPENMP
-			if (_vecStateY)
-				NVec_SetThreads(_vecStateY, nThreads);
-			if (_vecStateYdot)
-				NVec_SetThreads(_vecStateYdot, nThreads);
-
-			for (unsigned int i = 0; i < _sensitiveParams.slices(); ++i)
-			{
-				NVec_SetThreads(_vecFwdYs[i], nThreads);
-				NVec_SetThreads(_vecFwdYsDot[i], nThreads);
-			}
-		#endif
-#endif
+		_nThreads = nThreads;
 	}
 
 } // namespace cadet

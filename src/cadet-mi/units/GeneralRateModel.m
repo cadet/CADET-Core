@@ -7,7 +7,7 @@ classdef GeneralRateModel < Model
 	%
 	% See also MODEL, SINGLEGRM, MODELSYSTEM
 	
-	% Copyright: (C) 2008-2016 The CADET Authors
+	% Copyright: (C) 2008-2017 The CADET Authors
 	%            See the license note at the end of the file.
 
 	properties
@@ -49,6 +49,7 @@ classdef GeneralRateModel < Model
 
 		columnLength; % Length of the column in [m]
 		particleRadius; % Radius of the particles in [m]
+		crossSectionArea; % Cross section area of the column in [m]
 
 		% Numerical method for advection
 		
@@ -327,6 +328,20 @@ classdef GeneralRateModel < Model
 			obj.hasChanged = true;
 		end
 
+		function val = get.crossSectionArea(obj)
+			val = obj.data.CROSS_SECTION_AREA;
+		end
+
+		function set.crossSectionArea(obj, val)
+			if isempty(val)
+				obj.data = rmfield(obj.data, 'CROSS_SECTION_AREA');
+			else
+				validateattributes(val, {'double'}, {'scalar', 'finite', 'real'}, '', 'crossSectionArea');
+				obj.data.CROSS_SECTION_AREA = val;
+			end
+			obj.hasChanged = true;
+		end
+
 		% Numerical method for advection
 		
 		function val = get.reconstructionType(obj)
@@ -443,8 +458,8 @@ classdef GeneralRateModel < Model
 			if ~isfield(obj.data, 'COL_DISPERSION')
 				error('CADET:invalidConfig', 'Property dispersionColumn must be set.');
 			end
-			if ~isfield(obj.data, 'VELOCITY')
-				error('CADET:invalidConfig', 'Property interstitialVelocity must be set.');
+			if (~isfield(obj.data, 'VELOCITY')) && (~isfield(obj.data, 'CROSS_SECTION_AREA'))
+				error('CADET:invalidConfig', 'Property interstitialVelocity or crossSectionArea must be set.');
 			end
 			if ~isfield(obj.data, 'FILM_DIFFUSION')
 				error('CADET:invalidConfig', 'Property filmDiffusion must be set.');
@@ -693,7 +708,7 @@ end
 % =============================================================================
 %  CADET - The Chromatography Analysis and Design Toolkit
 %  
-%  Copyright (C) 2008-2016: The CADET Authors
+%  Copyright (C) 2008-2017: The CADET Authors
 %            Please see the AUTHORS and CONTRIBUTORS file.
 %  
 %  All rights reserved. This program and the accompanying materials

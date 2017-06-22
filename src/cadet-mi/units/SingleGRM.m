@@ -11,7 +11,7 @@ classdef SingleGRM < GeneralRateModel & SingleUnitOpSystem
 	%
 	% See also GENERALRATEMODEL, SINGLEUNITOPSYSTEM, PIECEWISECUBICPOLYPROFILE
 	
-	% Copyright: (C) 2008-2016 The CADET Authors
+	% Copyright: (C) 2008-2017 The CADET Authors
 	%            See the license note at the end of the file.
 
 	properties
@@ -211,7 +211,10 @@ classdef SingleGRM < GeneralRateModel & SingleUnitOpSystem
 			% See also MODEL.GETPARAMETERVALUE, MEXSIMULATOR.GETPARAMETERVALUE, SINGLEGRM.SETPARAMETERVALUE,
 			%   MAKESENSITIVITY
 
-			val = nan;
+			val = obj.getParameterValue@SingleUnitOpSystem(param);
+			if ~isnan(val)
+				return;
+			end
 
 			if param.SENS_UNIT == 0
 				val = obj.getParameterValue@GeneralRateModel(param);
@@ -233,7 +236,10 @@ classdef SingleGRM < GeneralRateModel & SingleUnitOpSystem
 			% See also MODEL.SETPARAMETERVALUE, MEXSIMULATOR.SETPARAMETERVALUE, SINGLEGRM.GETPARAMETERVALUE,
 			%   MAKESENSITIVITY
 
-			oldVal = nan;
+			oldVal = obj.setParameterValue@SingleUnitOpSystem(param, newVal);
+			if ~isnan(oldVal)
+				return;
+			end
 
 			if param.SENS_UNIT == 0
 				oldVal = obj.setParameterValue@GeneralRateModel(param, newVal);
@@ -313,7 +319,7 @@ end
 % =============================================================================
 %  CADET - The Chromatography Analysis and Design Toolkit
 %  
-%  Copyright (C) 2008-2016: The CADET Authors
+%  Copyright (C) 2008-2017: The CADET Authors
 %            Please see the AUTHORS and CONTRIBUTORS file.
 %  
 %  All rights reserved. This program and the accompanying materials

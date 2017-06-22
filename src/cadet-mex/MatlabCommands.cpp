@@ -1,7 +1,7 @@
 // =============================================================================
 //  CADET - The Chromatography Analysis and Design Toolkit
 //  
-//  Copyright © 2008-2016: The CADET Authors
+//  Copyright © 2008-2017: The CADET Authors
 //            Please see the AUTHORS and CONTRIBUTORS file.
 //  
 //  All rights reserved. This program and the accompanying materials
@@ -788,7 +788,7 @@ void setReturnConfiguration(cadet::Driver& drv, int nlhs, mxArray** plhs, int nr
  */
 void setTimeIntegratorOptions(cadet::Driver& drv, int nlhs, mxArray** plhs, int nrhs, const mxArray** prhs)
 {
-	checkInputArgs(nrhs, 8, "settimeintopts");
+	checkInputArgs(nrhs, 9, "settimeintopts");
 	checkOutputArgs(nlhs, 0, "settimeintopts");
 
 	if (!drv.simulator())
@@ -849,10 +849,17 @@ void setTimeIntegratorOptions(cadet::Driver& drv, int nlhs, mxArray** plhs, int 
 		drv.simulator()->setMaximumSteps(val);
 	}
 
-	// Relative error tolerance for sensitivities
+	// Maximum time step size
 	if (!io::isEmpty(prhs[7]))
 	{
-		const double val = cadet::mex::io::scalar<double>(prhs[7]);
+		const unsigned int val = cadet::mex::io::scalar<int32_t>(prhs[7]);
+		drv.simulator()->setMaximumStepSize(val);
+	}
+
+	// Relative error tolerance for sensitivities
+	if (!io::isEmpty(prhs[8]))
+	{
+		const double val = cadet::mex::io::scalar<double>(prhs[8]);
 		drv.simulator()->setRelativeErrorToleranceSens(val);
 	}
 }

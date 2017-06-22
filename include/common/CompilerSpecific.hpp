@@ -1,7 +1,7 @@
 // =============================================================================
 //  CADET - The Chromatography Analysis and Design Toolkit
 //  
-//  Copyright © 2008-2016: The CADET Authors
+//  Copyright © 2008-2017: The CADET Authors
 //            Please see the AUTHORS and CONTRIBUTORS file.
 //  
 //  All rights reserved. This program and the accompanying materials
@@ -44,6 +44,7 @@
 #endif
 #if defined(DEBUG) || defined(CADET_DEBUG)
 	#define CADET_DEBUG
+	#undef CADET_NO_DEBUG
 	#include <cassert>
 #endif
 

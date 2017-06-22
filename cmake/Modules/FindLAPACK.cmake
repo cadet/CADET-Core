@@ -288,6 +288,11 @@ if (BLA_VENDOR MATCHES "Intel" OR BLA_VENDOR STREQUAL "All")
     else()
       find_package(Threads REQUIRED)
     endif()
+    
+    if (BLA_VENDOR STREQUAL "Intel10_64lp_tbb" OR BLA_VENDOR STREQUAL "All")
+        find_package(TBB COMPONENTS tbbmalloc tbbmalloc_proxy tbb_preview)
+        list(APPEND CMAKE_THREAD_LIBS_INIT "${TBB_LIBRARIES_RELEASE}")
+      endif ()
 
     set(LAPACK_SEARCH_LIBS "")
 

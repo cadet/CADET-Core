@@ -1,7 +1,7 @@
 // =============================================================================
 //  CADET - The Chromatography Analysis and Design Toolkit
 //  
-//  Copyright © 2008-2016: The CADET Authors
+//  Copyright © 2008-2017: The CADET Authors
 //            Please see the AUTHORS and CONTRIBUTORS file.
 //  
 //  All rights reserved. This program and the accompanying materials
@@ -27,6 +27,7 @@
 
 #include <array>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 #include <tuple>
 
@@ -51,18 +52,21 @@ public:
 	virtual ~InletModel() CADET_NOEXCEPT;
 
 	virtual unsigned int numDofs() const CADET_NOEXCEPT;
+	virtual unsigned int numPureDofs() const CADET_NOEXCEPT;
 	virtual bool usesAD() const CADET_NOEXCEPT;
 	virtual unsigned int requiredADdirs() const CADET_NOEXCEPT;
 
 	virtual UnitOpIdx unitOperationId() const CADET_NOEXCEPT { return _unitOpIdx; }
 	virtual unsigned int numComponents() const CADET_NOEXCEPT { return _nComp; }
+	virtual void setFlowRates(const active& in, const active& out) CADET_NOEXCEPT { }
+	virtual bool canAccumulate() const CADET_NOEXCEPT { return true; }
 
 	static const char* identifier() { return "INLET"; }
 	virtual const char* unitOperationName() const CADET_NOEXCEPT { return "INLET"; }
 
 	virtual bool configure(IParameterProvider& paramProvider, IConfigHelper& helper);
 	virtual bool reconfigure(IParameterProvider& paramProvider);
-	virtual void notifyDiscontinuousSectionTransition(double t, unsigned int secIdx);
+	virtual void notifyDiscontinuousSectionTransition(double t, unsigned int secIdx, active* const adRes, active* const adY, unsigned int adDirOffset);
 	
 	virtual std::unordered_map<ParameterId, double> getAllParameterValues() const;
 	virtual bool hasParameter(const ParameterId& pId) const;
@@ -82,14 +86,7 @@ public:
 	virtual void reportSolutionStructure(ISolutionRecorder& recorder) const;
 
 	virtual int residual(double t, unsigned int secIdx, double timeFactor, double const* const y, double const* const yDot, double* const res);
-	virtual int residualWithJacobian(const active& t, unsigned int secIdx, const active& timeFactor, double const* const y, double const* const yDot, double* const res, active* const adRes, active* const adY, unsigned int numSensAdDirs);
-
-	virtual double residualNorm(double t, unsigned int secIdx, double timeFactor, double const* const y, double const* const yDot);
-
-	virtual int residualSensFwd(unsigned int nSens, const active& t, unsigned int secIdx, const active& timeFactor,
-		double const* const y, double const* const yDot, double const* const res,
-		const std::vector<const double*>& yS, const std::vector<const double*>& ySdot, const std::vector<double*>& resS,
-		active* const adRes, double* const tmp1, double* const tmp2, double* const tmp3);
+	virtual int residualWithJacobian(const active& t, unsigned int secIdx, const active& timeFactor, double const* const y, double const* const yDot, double* const res, active* const adRes, active* const adY, unsigned int adDirOffset);
 
 	virtual int residualSensFwdAdOnly(const active& t, unsigned int secIdx, const active& timeFactor,
 		double const* const y, double const* const yDot, active* const adRes);
@@ -97,51 +94,43 @@ public:
 	virtual int residualSensFwdCombine(const active& timeFactor, const std::vector<const double*>& yS, const std::vector<const double*>& ySdot,
 		const std::vector<double*>& resS, active const* adRes, double* const tmp1, double* const tmp2, double* const tmp3);
 
-	virtual int residualSensFwdWithJacobian(const active& t, unsigned int secIdx, const active& timeFactor, double const* const y, double const* const yDot, active* const adRes, active* const adY, unsigned int numSensAdDirs);
+	virtual int residualSensFwdWithJacobian(const active& t, unsigned int secIdx, const active& timeFactor, double const* const y, double const* const yDot, active* const adRes, active* const adY, unsigned int adDirOffset);
 
-	virtual void residualSensFwdNorm(unsigned int nSens, const active& t, unsigned int secIdx, const active& timeFactor, 
-		double const* const y, double const* const yDot,
-		const std::vector<const double*>& yS, const std::vector<const double*>& ySdot, double* const norms,
-		active* const adRes, double* const tmp);
-
+	// linearSolve is a null operation (the result is I^-1 *rhs -> rhs) since the Jacobian is an identity matrix
 	virtual int linearSolve(double t, double timeFactor, double alpha, double tol, double* const rhs, double const* const weight,
 		double const* const y, double const* const yDot, double const* const res) { return 0; }
 
-	virtual void prepareADvectors(active* const adRes, active* const adY, unsigned int numSensAdDirs) const;
+	virtual void prepareADvectors(active* const adRes, active* const adY, unsigned int adDirOffset) const;
 
-	virtual void applyInitialCondition(double* const vecStateY, double* const vecStateYdot) { }
-	virtual void applyInitialCondition(IParameterProvider& paramProvider, double* const vecStateY, double* const vecStateYdot) { }
+	virtual void applyInitialCondition(double* const vecStateY, double* const vecStateYdot);
+	virtual void applyInitialCondition(IParameterProvider& paramProvider, double* const vecStateY, double* const vecStateYdot);
 
-	virtual void consistentInitialState(double t, unsigned int secIdx, double timeFactor, double* const vecStateY, active* const adRes, active* const adY, unsigned int numSensAdDirs, double errorTol) { }
-	virtual void consistentInitialTimeDerivative(double t, double timeFactor, double* const vecStateYdot) { }
-	virtual void consistentInitialConditions(double t, unsigned int secIdx, double timeFactor, double* const vecStateY, double* const vecStateYdot, active* const adRes, active* const adY, unsigned int numSensAdDirs, double errorTol) { }
+	virtual void consistentInitialState(double t, unsigned int secIdx, double timeFactor, double* const vecStateY, active* const adRes, active* const adY, unsigned int adDirOffset, double errorTol);
+	virtual void consistentInitialTimeDerivative(double t, unsigned int secIdx, double timeFactor, double const* vecStateY, double* const vecStateYdot);
 
-	virtual void consistentIntialSensitivity(const active& t, unsigned int secIdx, const active& timeFactor, double const* vecStateY, double const* vecStateYdot,
-		std::vector<double*>& vecSensY, std::vector<double*>& vecSensYdot, active* const adRes, active* const adY) { }
-	virtual void consistentIntialSensitivity(const active& t, unsigned int secIdx, const active& timeFactor, double const* vecStateY, double const* vecStateYdot,
-		std::vector<double*>& vecSensY, std::vector<double*>& vecSensYdot, active const* const adRes) { }
+	virtual void consistentInitialSensitivity(const active& t, unsigned int secIdx, const active& timeFactor, double const* vecStateY, double const* vecStateYdot,
+		std::vector<double*>& vecSensY, std::vector<double*>& vecSensYdot, active const* const adRes);
 
-	virtual void leanConsistentInitialState(double t, unsigned int secIdx, double timeFactor, double* const vecStateY, active* const adRes, active* const adY, unsigned int numSensAdDirs, double errorTol) { }
-	virtual void leanConsistentInitialTimeDerivative(double t, double timeFactor, double* const vecStateYdot, double* const res) { }
-	virtual void leanConsistentInitialConditions(double t, unsigned int secIdx, double timeFactor, double* const vecStateY, double* const vecStateYdot, active* const adRes, active* const adY, unsigned int numSensAdDirs, double errorTol) { }
+	virtual void leanConsistentInitialState(double t, unsigned int secIdx, double timeFactor, double* const vecStateY, active* const adRes, active* const adY, unsigned int adDirOffset, double errorTol);
+	virtual void leanConsistentInitialTimeDerivative(double t, double timeFactor, double* const vecStateYdot, double* const res);
 
-	virtual void leanConsistentIntialSensitivity(const active& t, unsigned int secIdx, const active& timeFactor, double const* vecStateY, double const* vecStateYdot,
-		std::vector<double*>& vecSensY, std::vector<double*>& vecSensYdot, active* const adRes, active* const adY) { }
-	virtual void leanConsistentIntialSensitivity(const active& t, unsigned int secIdx, const active& timeFactor, double const* vecStateY, double const* vecStateYdot,
-		std::vector<double*>& vecSensY, std::vector<double*>& vecSensYdot, active const* const adRes) { }
+	virtual void leanConsistentInitialSensitivity(const active& t, unsigned int secIdx, const active& timeFactor, double const* vecStateY, double const* vecStateYdot,
+		std::vector<double*>& vecSensY, std::vector<double*>& vecSensYdot, active const* const adRes);
 
 	virtual void setExternalFunctions(IExternalFunction** extFuns, unsigned int size) { }
 
+	virtual void multiplyWithJacobian(double const* yS, double alpha, double beta, double* ret);
+	virtual void multiplyWithDerivativeJacobian(double const* sDot, double* ret, double timeFactor);
+	virtual inline void multiplyWithJacobian(double const* yS, double* ret)
+	{
+		multiplyWithJacobian(yS, 1.0, 0.0, ret);
+	}
+
 	virtual bool hasInlet() const CADET_NOEXCEPT { return false; }
 	virtual bool hasOutlet() const CADET_NOEXCEPT { return true; }
-	virtual double const* const getData() const CADET_NOEXCEPT { return _inletConcentrationsRaw; }
-	virtual active const* const getDataActive() const CADET_NOEXCEPT { return _inletConcentrations; }
-
-	virtual active inletConnectionFactorActive(unsigned int compIdx, unsigned int secIdx) const CADET_NOEXCEPT;
-	virtual double inletConnectionFactor(unsigned int compIdx, unsigned int secIdx) const CADET_NOEXCEPT;
 
 	virtual unsigned int localOutletComponentIndex() const CADET_NOEXCEPT { return 0; }
-	virtual unsigned int localOutletComponentStride() const CADET_NOEXCEPT { return 0; }
+	virtual unsigned int localOutletComponentStride() const CADET_NOEXCEPT { return 1; }
 	virtual unsigned int localInletComponentIndex() const CADET_NOEXCEPT { return 0; }
 	virtual unsigned int localInletComponentStride() const CADET_NOEXCEPT { return 0; }
 
@@ -158,8 +147,14 @@ protected:
 
 	template <typename T> T const* moveInletValues(double const* const rawValues, const active& t, unsigned int secIdx) const;
 
+	template <typename T> T const* const getData() const;
+
+	template <typename ResidualType, typename ParamType>
+	int residualImpl(const ParamType& t, unsigned int secIdx, const ParamType& timeFactor, double const* const y, double const* const yDot, ResidualType* const res);
+
 	UnitOpIdx _unitOpIdx; //!< Unit operation index
 	unsigned int _nComp; //!< Number of components
+	std::vector<double> _tempState; // Temporary storage for the state vector
 
 	IInletProfile* _inlet; //!< Inlet profile (owned by library user)
 

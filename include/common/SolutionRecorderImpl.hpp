@@ -1,7 +1,7 @@
 // =============================================================================
 //  CADET - The Chromatography Analysis and Design Toolkit
 //  
-//  Copyright © 2008-2016: The CADET Authors
+//  Copyright © 2008-2017: The CADET Authors
 //            Please see the AUTHORS and CONTRIBUTORS file.
 //  
 //  All rights reserved. This program and the accompanying materials
@@ -499,7 +499,29 @@ public:
 	inline void unitOperation(UnitOpIdx idx) CADET_NOEXCEPT { _unitOp = idx; }
 
 	inline unsigned int numDataPoints() const CADET_NOEXCEPT { return _numTimesteps; }
+	inline unsigned int numComponents() const CADET_NOEXCEPT { return _nComp; }
 
+	inline double const* time() const CADET_NOEXCEPT { return _time.data(); }
+	inline double const* inlet() const CADET_NOEXCEPT { return _inlet.data(); }
+	inline double const* outlet() const CADET_NOEXCEPT { return _outlet.data(); }
+	inline double const* column() const CADET_NOEXCEPT { return _column.data(); }
+	inline double const* particle() const CADET_NOEXCEPT { return _particle.data(); }
+	inline double const* flux() const CADET_NOEXCEPT { return _flux.data(); }
+	inline double const* inletDot() const CADET_NOEXCEPT { return _inletDot.data(); }
+	inline double const* outletDot() const CADET_NOEXCEPT { return _outletDot.data(); }
+	inline double const* columnDot() const CADET_NOEXCEPT { return _columnDot.data(); }
+	inline double const* particleDot() const CADET_NOEXCEPT { return _particleDot.data(); }
+	inline double const* fluxDot() const CADET_NOEXCEPT { return _fluxDot.data(); }
+	inline double const* sensInlet(unsigned int idx) const CADET_NOEXCEPT { return _sensInlet[idx]->data(); }
+	inline double const* sensOutlet(unsigned int idx) const CADET_NOEXCEPT { return _sensOutlet[idx]->data(); }
+	inline double const* sensColumn(unsigned int idx) const CADET_NOEXCEPT { return _sensColumn[idx]->data(); }
+	inline double const* sensParticle(unsigned int idx) const CADET_NOEXCEPT { return _sensParticle[idx]->data(); }
+	inline double const* sensFlux(unsigned int idx) const CADET_NOEXCEPT { return _sensFlux[idx]->data(); }
+	inline double const* sensInletDot(unsigned int idx) const CADET_NOEXCEPT { return _sensInletDot[idx]->data(); }
+	inline double const* sensOutletDot(unsigned int idx) const CADET_NOEXCEPT { return _sensOutletDot[idx]->data(); }
+	inline double const* sensColumnDot(unsigned int idx) const CADET_NOEXCEPT { return _sensColumnDot[idx]->data(); }
+	inline double const* sensParticleDot(unsigned int idx) const CADET_NOEXCEPT { return _sensParticleDot[idx]->data(); }
+	inline double const* sensFluxDot(unsigned int idx) const CADET_NOEXCEPT { return _sensFluxDot[idx]->data(); }
 protected:
 
 	inline void beginSensitivity(unsigned int sensIdx)
@@ -846,6 +868,25 @@ public:
 	inline unsigned int numRecorders() const CADET_NOEXCEPT { return _recorders.size(); }
 	inline InternalStorageUnitOpRecorder* recorder(unsigned int idx) CADET_NOEXCEPT { return _recorders[idx]; }
 	inline InternalStorageUnitOpRecorder* const recorder(unsigned int idx) const CADET_NOEXCEPT { return _recorders[idx]; }
+
+	inline InternalStorageUnitOpRecorder* unitOperation(UnitOpIdx idx) CADET_NOEXCEPT
+	{
+		for (InternalStorageUnitOpRecorder* rec : _recorders)
+		{
+			if (rec->unitOperation() == idx)
+				return rec;
+		}
+		return nullptr;
+	}
+	inline InternalStorageUnitOpRecorder const* unitOperation(UnitOpIdx idx) const CADET_NOEXCEPT
+	{
+		for (InternalStorageUnitOpRecorder const* rec : _recorders)
+		{
+			if (rec->unitOperation() == idx)
+				return rec;
+		}
+		return nullptr;
+	}
 
 	inline void deleteRecorders()
 	{

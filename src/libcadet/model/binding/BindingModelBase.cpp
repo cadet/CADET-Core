@@ -1,7 +1,7 @@
 // =============================================================================
 //  CADET - The Chromatography Analysis and Design Toolkit
 //  
-//  Copyright © 2008-2016: The CADET Authors
+//  Copyright © 2008-2017: The CADET Authors
 //            Please see the AUTHORS and CONTRIBUTORS file.
 //  
 //  All rights reserved. This program and the accompanying materials
@@ -141,6 +141,20 @@ unsigned int BindingModelBase::consistentInitializationWorkspaceSize() const
 	return _nonlinearSolver->workspaceSize(eqSize);
 }
 
+/*
+void BindingModelBase::timeDerivativeAlgebraicResidual(double t, double z, double r, unsigned int secIdx, double* const y, double* dResDt) const
+{
+	if (!hasAlgebraicEquations())
+		return;
+
+	unsigned int start = 0;
+	unsigned int len = 0;
+	getAlgebraicBlock(start, len);
+
+	// Assumes no external dependence
+	std::fill_n(dResDt, len, 0.0);
+}
+*/
 
 
 PureBindingModelBase::PureBindingModelBase() { }
@@ -239,14 +253,16 @@ void PureBindingModelBase::consistentInitialState(double t, double z, double r, 
 	else
 	{
 		// Analytic Jacobian
-		jacobianFunc = [&](double const* const x, linalg::detail::DenseMatrixBase& mat) -> bool { 
+		jacobianFunc = [&](double const* const x, linalg::detail::DenseMatrixBase& mat) -> bool
+		{ 
 			mat.setAll(0.0);
 			analyticJacobianCore(t, z, r, secIdx, x, vecStateY - _nComp, mat.row(0));
 			return true;
 		};
 	}
 
-	const bool conv = _nonlinearSolver->solve([&](double const* const x, double* const res) -> bool {
+	const bool conv = _nonlinearSolver->solve([&](double const* const x, double* const res) -> bool
+		{
 			residualCore(t, z, r, secIdx, 1.0, x, vecStateY - _nComp, nullptr, res); 
 			return true; 
 		}, 

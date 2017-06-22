@@ -1,7 +1,7 @@
 // =============================================================================
 //  CADET - The Chromatography Analysis and Design Toolkit
 //  
-//  Copyright © 2008-2016: The CADET Authors
+//  Copyright © 2008-2017: The CADET Authors
 //            Please see the AUTHORS and CONTRIBUTORS file.
 //  
 //  All rights reserved. This program and the accompanying materials
@@ -40,6 +40,38 @@ extern "C"
 	 * @return Git refspec
 	 */
 	CADET_API const char* cadetGetLibraryBranchRefspec();
+
+	/**
+	 * @brief Returns the versions of the dependencies used for building the binaries
+	 * @details The format is DEPNAME1=VERSION;DEPNAME2=VERSION; where each dependency is
+	 *          terminated by a semicolon.
+	 * @return Dependency versions string
+	 */
+	CADET_API const char* cadetGetLibraryDependencyVersions();
+
+	/**
+	 * @brief Returns the build type (Debug, Release, RelWithDebInfo, RelMinSize)
+	 * @return Build type
+	 */
+	CADET_API const char* cadetGetLibraryBuildType();
+
+	/**
+	 * @brief Returns the compiler including its version used for building the library
+	 * @return Compiler and its version
+	 */
+	CADET_API const char* cadetGetLibraryCompiler();
+
+	/**
+	 * @brief Returns the compiler flags used for building the library
+	 * @return Compiler flags
+	 */
+	CADET_API const char* cadetGetLibraryCompilerFlags();
+
+	/**
+	 * @brief Returns the git refspec of the source which was used to build the binaries
+	 * @return Git refspec
+	 */
+	CADET_API const char* cadetGetLibraryBuildHost();
 }
 
 namespace cadet
@@ -66,6 +98,42 @@ namespace cadet
 	 */
 	CADET_API const char* getLibraryBranchRefspec() CADET_NOEXCEPT;
 
+	/**
+	 * @brief Returns the versions of the dependencies used for building the binaries
+	 * @details The format is DEPNAME1=VERSION;DEPNAME2=VERSION; where each dependency is
+	 *          terminated by a semicolon.
+	 * @sa cadetGetLibraryDependencyVersions()
+	 * @return Dependency versions string
+	 */
+	CADET_API const char* getLibraryDependencyVersions() CADET_NOEXCEPT;
+
+	/**
+	 * @brief Returns the build type (Debug, Release, RelWithDebInfo, RelMinSize)
+	 * @sa cadetGetLibraryBuildType()
+	 * @return Build type
+	 */
+	CADET_API const char* getLibraryBuildType() CADET_NOEXCEPT;
+
+	/**
+	 * @brief Returns the compiler including its version used for building the library
+	 * @sa cadetGetLibraryCompiler()
+	 * @return Compiler and its version
+	 */
+	CADET_API const char* getLibraryCompiler() CADET_NOEXCEPT;
+
+	/**
+	 * @brief Returns the compiler flags used for building the library
+	 * @sa cadetGetLibraryCompilerFlags()
+	 * @return Compiler flags
+	 */
+	CADET_API const char* getLibraryCompilerFlags() CADET_NOEXCEPT;
+
+	/**
+	 * @brief Returns the git refspec of the source which was used to build the binaries
+	 * @sa cadetGetLibraryBuildHost()
+	 * @return Git refspec
+	 */
+	CADET_API const char* getLibraryBuildHost() CADET_NOEXCEPT;
 } // namespace cadet
 
 #endif  // LIBCADET_LIBVERSIONINFO_HPP_

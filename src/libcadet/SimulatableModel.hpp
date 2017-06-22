@@ -1,7 +1,7 @@
 // =============================================================================
 //  CADET - The Chromatography Analysis and Design Toolkit
 //  
-//  Copyright © 2008-2016: The CADET Authors
+//  Copyright © 2008-2017: The CADET Authors
 //            Please see the AUTHORS and CONTRIBUTORS file.
 //  
 //  All rights reserved. This program and the accompanying materials
@@ -22,6 +22,7 @@
 
 #include "cadet/Model.hpp"
 #include "AutoDiff.hpp"
+#include "cadet/ModelSystem.hpp"
 
 namespace cadet
 {
@@ -34,7 +35,7 @@ class IExternalFunction;
 /**
  * @brief Defines a model that can be simulated
  */
-class ISimulatableModel
+class ISimulatableModel : public IModelSystem
 {
 public:
 
@@ -95,6 +96,8 @@ public:
 	 */
 	virtual bool reconfigure(IParameterProvider& paramProvider) = 0;
 
+	virtual bool reconfigureModel(IParameterProvider& paramProvider, unsigned int unitOpIdx) = 0;
+
 	/**
 	 * @brief Reports the given solution to the cadet::ISolutionRecorder
 	 * @param [in] reporter Where to report the solution to
@@ -140,10 +143,19 @@ public:
 	 *          section is about to be integrated. This allows the model to update internal state before
 	 *          consistent initialization is performed.
 	 * 
+	 *          This function is also called at the beginning of the time integration, which allows
+	 *          the model to perform setup operations.
+	 *          
+	 *          If AD is used by the model, the function has the opportunity to update the seed vectors.
+	 *          The general initialization of the seed vectors is performed by prepareADvectors().
+	 *          
 	 * @param [in] t Current time point
 	 * @param [in] secIdx Index of the new section that is about to be integrated
+	 * @param [in,out] adRes Pointer to global residual vector of AD datatypes to be set up (or @c nullptr if AD is disabled)
+	 * @param [in,out] adY Pointer to global state vector of AD datatypes to be set up (or @c nullptr if AD is disabled)
+	 * @param [in] adDirOffset Number of AD directions used for non-Jacobian purposes (e.g., parameter sensitivities)
 	 */
-	virtual void notifyDiscontinuousSectionTransition(double t, unsigned int secIdx) = 0;
+	virtual void notifyDiscontinuousSectionTransition(double t, unsigned int secIdx, active* const adRes, active* const adY, unsigned int adDirOffset) = 0;
 
 	/**
 	 * @brief Applies initial conditions to the state vector and its time derivative
@@ -191,15 +203,16 @@ public:
 	 * @param [in,out] vecStateYdot State vector with initial time derivatives that are to be overwritten for consistency
 	 * @param [in,out] adRes Pointer to global residual vector of AD datatypes that can be used for computing the Jacobian (or @c nullptr if AD is disabled)
 	 * @param [in,out] adY Pointer to global state vector of AD datatypes that can be used for computing the Jacobian (or @c nullptr if AD is disabled)
-	 * @param [in] numSensAdDirs Number of AD directions used for parameter sensitivities
+	 * @param [in] adDirOffset Number of AD directions used for non-Jacobian purposes (e.g., parameter sensitivities)
 	 * @param [in] errorTol Error tolerance for algebraic equations
 	 */
-	virtual void consistentInitialConditions(double t, unsigned int secIdx, double timeFactor, double* const vecStateY, double* const vecStateYdot, active* const adRes, active* const adY, unsigned int numSensAdDirs, double errorTol) = 0;
+	virtual void consistentInitialConditions(double t, unsigned int secIdx, double timeFactor, double* const vecStateY, double* const vecStateYdot, active* const adRes, active* const adY, unsigned int adDirOffset, double errorTol) = 0;
 
 	/**
 	 * @brief Computes consistent initial conditions for all sensitivity subsystems
 	 * @details Given the DAE \f[ F(t, y, \dot{y}, p) = 0, \f] the corresponding (linear) forward sensitivity
-	 *          system reads \f[ \frac{\partial F}{\partial y}(t, y, \dot{y}) s + \frac{\partial F}{\partial \dot{y}}(t, y, \dot{y}) \dot{s} + \frac{\partial F}{\partial p}(t, y, \dot{y}) = 0. \f]
+	 *          system reads 
+	 *          \f[ \frac{\partial F}{\partial y}(t, y, \dot{y}) s + \frac{\partial F}{\partial \dot{y}}(t, y, \dot{y}) \dot{s} + \frac{\partial F}{\partial p}(t, y, \dot{y}) = 0. \f]
 	 *          The initial values of \f$ s_0 = \frac{\mathrm{d} y_0}{\mathrm{d}p} \f$ and \f$ \dot{s}_0 = \frac{\mathrm{d} \dot{y}_0}{\mathrm{d}p} \f$
 	 *          have to be consistent, that means, they have to satisfy the sensitivity equation. This function computes the correct \f$ s_0 \f$ and \f$ \dot{s}_0 \f$
 	 *          given \f$ y_0 \f$ and \f$ s_0 \f$.
@@ -214,7 +227,7 @@ public:
 	 * @param [in,out] adRes Pointer to global residual vector of AD datatypes for computing the parameter sensitivities
 	 * @param [in,out] adY Pointer to global state vector of AD datatypes that can be used for computing the Jacobian (or @c nullptr if AD is disabled)
 	 */
-	virtual void consistentIntialSensitivity(const active& t, unsigned int secIdx, const active& timeFactor, double const* vecStateY, double const* vecStateYdot,
+	virtual void consistentInitialSensitivity(const active& t, unsigned int secIdx, const active& timeFactor, double const* vecStateY, double const* vecStateYdot,
 		std::vector<double*>& vecSensY, std::vector<double*>& vecSensYdot, active* const adRes, active* const adY) = 0;
 
 	/**
@@ -233,20 +246,21 @@ public:
 	 * @param [in,out] vecStateYdot State vector with initial time derivatives that are to be overwritten for consistency
 	 * @param [in,out] adRes Pointer to global residual vector of AD datatypes that can be used for computing the Jacobian (or @c nullptr if AD is disabled)
 	 * @param [in,out] adY Pointer to global state vector of AD datatypes that can be used for computing the Jacobian (or @c nullptr if AD is disabled)
-	 * @param [in] numSensAdDirs Number of AD directions used for parameter sensitivities
+	 * @param [in] adDirOffset Number of AD directions used for non-Jacobian purposes (e.g., parameter sensitivities)
 	 * @param [in] errorTol Error tolerance for algebraic equations
 	 */
-	virtual void leanConsistentInitialConditions(double t, unsigned int secIdx, double timeFactor, double* const vecStateY, double* const vecStateYdot, active* const adRes, active* const adY, unsigned int numSensAdDirs, double errorTol) = 0;
+	virtual void leanConsistentInitialConditions(double t, unsigned int secIdx, double timeFactor, double* const vecStateY, double* const vecStateYdot, active* const adRes, active* const adY, unsigned int adDirOffset, double errorTol) = 0;
 
 	/**
 	 * @brief Computes approximately / partially consistent initial conditions for all sensitivity subsystems
 	 * @details Given the DAE \f[ F(t, y, \dot{y}, p) = 0, \f] the corresponding (linear) forward sensitivity
-	 *          system reads \f[ \frac{\partial F}{\partial y}(t, y, \dot{y}) s + \frac{\partial F}{\partial \dot{y}}(t, y, \dot{y}) \dot{s} + \frac{\partial F}{\partial p}(t, y, \dot{y}) = 0. \f]
+	 *          system reads 
+	 *          \f[ \frac{\partial F}{\partial y}(t, y, \dot{y}) s + \frac{\partial F}{\partial \dot{y}}(t, y, \dot{y}) \dot{s} + \frac{\partial F}{\partial p}(t, y, \dot{y}) = 0. \f]
 	 *          The initial values of \f$ s_0 = \frac{\mathrm{d} y_0}{\mathrm{d}p} \f$ and \f$ \dot{s}_0 = \frac{\mathrm{d} \dot{y}_0}{\mathrm{d}p} \f$
 	 *          have to be consistent, that means, they have to satisfy the sensitivity equation. This function computes the correct \f$ s_0 \f$ and \f$ \dot{s}_0 \f$
 	 *          given \f$ y_0 \f$ and \f$ s_0 \f$.
 	 *          
-	 *          This function is possibly faster than consistentIntialSensitivity(), but updates only a part of the
+	 *          This function is possibly faster than consistentInitialSensitivity(), but updates only a part of the
 	 *          vectors. Hence, the result is not guaranteed to be consistent. 
 	 * 
 	 * @param [in] t Current time point
@@ -259,7 +273,7 @@ public:
 	 * @param [in,out] adRes Pointer to global residual vector of AD datatypes for computing the parameter sensitivities
 	 * @param [in,out] adY Pointer to global state vector of AD datatypes that can be used for computing the Jacobian (or @c nullptr if AD is disabled)
 	 */
-	virtual void leanConsistentIntialSensitivity(const active& t, unsigned int secIdx, const active& timeFactor, double const* vecStateY, double const* vecStateYdot,
+	virtual void leanConsistentInitialSensitivity(const active& t, unsigned int secIdx, const active& timeFactor, double const* vecStateY, double const* vecStateYdot,
 		std::vector<double*>& vecSensY, std::vector<double*>& vecSensYdot, active* const adRes, active* const adY) = 0;
 
 	/**
@@ -286,10 +300,10 @@ public:
 	 * @param [out] res Pointer to global residual vector
 	 * @param [in,out] adRes Pointer to global residual vector of AD datatypes that can be used for computing the Jacobian (or @c nullptr if AD is disabled)
 	 * @param [in,out] adY Pointer to global state vector of AD datatypes that can be used for computing the Jacobian (or @c nullptr if AD is disabled)
-	 * @param [in] numSensAdDirs Number of AD directions used for parameter sensitivities
+	 * @param [in] adDirOffset Number of AD directions used for non-Jacobian purposes (e.g., parameter sensitivities)
 	 * @return @c 0 on success, @c -1 on non-recoverable error, and @c +1 on recoverable error
 	 */
-	virtual int residualWithJacobian(const active& t, unsigned int secIdx, const active& timeFactor, double const* const y, double const* const yDot, double* const res, active* const adRes, active* const adY, unsigned int numSensAdDirs) = 0;
+	virtual int residualWithJacobian(const active& t, unsigned int secIdx, const active& timeFactor, double const* const y, double const* const yDot, double* const res, active* const adRes, active* const adY, unsigned int adDirOffset) = 0;
 
 	/**
 	 * @brief Computes the @f$ \ell^\infty@f$-norm of the residual vector
@@ -328,6 +342,32 @@ public:
 		active* const adRes, double* const tmp1, double* const tmp2, double* const tmp3) = 0;
 
 	/**
+	 * @brief Computes the residual of the forward sensitivity systems and evaluates the Jacobian
+	 * 
+	 * @param [in] nSens Number of sensitivity subsystems
+	 * @param [in] t Current time point
+	 * @param [in] secIdx Index of the current section
+	 * @param [in] timeFactor Used for time transformation (pre factor of time derivatives) and to compute parameter derivatives with respect to section length
+	 * @param [in] y Pointer to global state vector
+	 * @param [in] yDot Pointer to global time derivative state vector
+	 * @param [out] res Pointer to global residual vector
+	 * @param [in] yS Pointers to global sensitivity state vectors
+	 * @param [in] ySdot Pointers to global sensitivity time derivative state vectors
+	 * @param [out] resS Pointers to global sensitivity residuals
+	 * @param [in,out] adRes Pointer to global residual vector of AD datatypes for computing the sensitivity derivatives
+	 * @param [in,out] adY Pointer to global state vector of AD datatypes that can be used for computing the Jacobian (or @c nullptr if AD is disabled)
+	 * @param [in] adDirOffset Number of AD directions used for non-Jacobian purposes (e.g., parameter sensitivities)
+	 * @param [in] tmp1 Temporary storage in the size of global state vector @p y
+	 * @param [in] tmp2 Temporary storage in the size of global state vector of @p y
+	 * @param [in] tmp3 Temporary storage in the size of global state vector of @p y
+	 * @return @c 0 on success, @c -1 on non-recoverable error, and @c +1 on recoverable error
+	 */
+	virtual int residualSensFwdWithJacobian(unsigned int nSens, const active& t, unsigned int secIdx, const active& timeFactor,
+		double const* const y, double const* const yDot, double const* const res,
+		const std::vector<const double*>& yS, const std::vector<const double*>& ySdot, const std::vector<double*>& resS,
+		active* const adRes, active* const adY, unsigned int adDirOffset, double* const tmp1, double* const tmp2, double* const tmp3) = 0;
+
+	/**
 	 * @brief Computes the @f$ \ell^\infty@f$-norms of the forward sensitivity residual vectors
 	 * 
 	 * @param [in] nSens Number of sensitivity subsystems
@@ -353,6 +393,9 @@ public:
 	 *          has to be solved. The right hand side \f$ b \f$ is given by @p rhs, the Jacobians are evaluated at the
 	 *          point \f$(y, \dot{y})\f$ given by @p y and @p yDot. The residual @p res at this point, \f$ F(t, y, \dot{y}) \f$,
 	 *          may help with this. Error weights (see IDAS guide) are given in @p weight. The solution is returned in @p rhs.
+	 *          
+	 *          Prior to calling linearSolve() the time integrator calls assembleDAEJacobian() with the same point
+	 *          in time and state \f$(t, y, \dot{y})\f$.
 	 *
 	 * @param [in] t Current time point
 	 * @param [in] timeFactor Used for time transformation (pre factor of time derivatives) and to compute parameter derivatives with respect to section length
@@ -370,15 +413,20 @@ public:
 
 	/**
 	 * @brief Prepares the AD system vectors by constructing seed vectors
-	 * @details Sets the seed vectors used in AD. Since the slice of the AD vector is fully managed by the model,
-	 *          the seeds are unchanged during one time integration. To take care of changed settings, this
-	 *          function is called at the beginning of every time integration. 
+	 * @details Sets the seed vectors used in AD. Since the AD vector is fully managed by the model,
+	 *          the seeds are unchanged during one time integration (except for possible changes in
+	 *          notifyDiscontinuousSectionTransition()). This function is called at the beginning of
+	 *          every time integration and should initialize the AD seed vectors. 
+	 *          
+	 *          If those vectors do not change during one time integration, their initialization should
+	 *          be performed in this function. The notifyDiscontinuousSectionTransition() function is
+	 *          only used to update seed vectors during time integration.
 	 * 
 	 * @param [in,out] adRes Pointer to global residual vector of AD datatypes to be set up (or @c nullptr if AD is disabled)
 	 * @param [in,out] adY Pointer to global state vector of AD datatypes to be set up (or @c nullptr if AD is disabled)
-	 * @param [in] numSensAdDirs Number of AD directions used for parameter sensitivities
+	 * @param [in] adDirOffset Number of AD directions used for non-Jacobian purposes (e.g., parameter sensitivities)
 	 */
-	virtual void prepareADvectors(active* const adRes, active* const adY, unsigned int numSensAdDirs) const = 0;
+	virtual void prepareADvectors(active* const adRes, active* const adY, unsigned int adDirOffset) const = 0;
 
 	/**
 	 * @brief Sets the section time vector
@@ -417,6 +465,19 @@ public:
 	 * @param [out] expandOut Pointer to the first element of an array receiving the full error specification
 	 */
 	virtual void expandErrorTol(double const* errorSpec, unsigned int errorSpecSize, double* expandOut) = 0;
+
+	/**
+	 * @brief Calculates error tolerances for additional coupling DOFs
+	 * @details ModelSystem uses additional DOFs to decouple a system of unit operations for parallelization.
+	 *          These additional DOFs don't get an error tolerance from the user because he shouldn't be
+	 *          aware of those (implementation detail). This function is responsible for calculating error
+	 *          tolerances for these additional coupling DOFs.
+	 * 
+	 * @param [in] errorTol Pointer to array of error tolerances for system without coupling DOFs
+	 * @param [in] errorTolLength Length of @p errorTol array
+	 * @return Vector with error tolerances for additional coupling DOFs
+	 */
+	virtual std::vector<double> calculateErrorTolsForAdditionalDofs(double const* errorTol, unsigned int errorTolLength) = 0;
 
 protected:
 };

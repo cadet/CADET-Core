@@ -1,7 +1,7 @@
 // =============================================================================
 //  SFAD - Simple Forward Automatic Differentiation
 //  
-//  Copyright © 2015-2016: Samuel Leweke¹
+//  Copyright © 2015-2017: Samuel Leweke¹
 //                                      
 //    ¹ Forschungszentrum Juelich GmbH, IBG-1, Juelich, Germany.
 //  
@@ -80,7 +80,20 @@ namespace sfad
 		inline void setADValue(const idx_t idx, const real_t v) { storage_t<real_t>::_grad[idx] = v; }
 		inline void setADValue(const real_t v)
 		{
-			std::fill(storage_t<real_t>::_grad, storage_t<real_t>::_grad + detail::globalGradSize, v);
+			fillADValue(v);
+		}
+
+		inline void fillADValue(const real_t v)
+		{
+			fillADValue(0, detail::globalGradSize, v);
+		}
+		inline void fillADValue(const idx_t start, const real_t v)
+		{
+			fillADValue(start, detail::globalGradSize, v);
+		}
+		inline void fillADValue(const idx_t start, const idx_t end, const real_t v)
+		{
+			std::fill(storage_t<real_t>::_grad + start, storage_t<real_t>::_grad + end, v);
 		}
 
 		// Modern C++ accessor

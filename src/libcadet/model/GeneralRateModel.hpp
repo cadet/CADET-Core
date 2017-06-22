@@ -1,7 +1,7 @@
 // =============================================================================
 //  CADET - The Chromatography Analysis and Design Toolkit
 //  
-//  Copyright © 2008-2016: The CADET Authors
+//  Copyright © 2008-2017: The CADET Authors
 //            Please see the AUTHORS and CONTRIBUTORS file.
 //  
 //  All rights reserved. This program and the accompanying materials
@@ -79,18 +79,21 @@ public:
 	virtual ~GeneralRateModel() CADET_NOEXCEPT;
 
 	virtual unsigned int numDofs() const CADET_NOEXCEPT;
+	virtual unsigned int numPureDofs() const CADET_NOEXCEPT;
 	virtual bool usesAD() const CADET_NOEXCEPT;
 	virtual unsigned int requiredADdirs() const CADET_NOEXCEPT;
 
 	virtual UnitOpIdx unitOperationId() const CADET_NOEXCEPT { return _unitOpIdx; }
 	virtual unsigned int numComponents() const CADET_NOEXCEPT { return _disc.nComp; }
+	virtual void setFlowRates(const active& in, const active& out) CADET_NOEXCEPT;
+	virtual bool canAccumulate() const CADET_NOEXCEPT { return false; }
 
 	static const char* identifier() { return "GENERAL_RATE_MODEL"; }
 	virtual const char* unitOperationName() const CADET_NOEXCEPT { return "GENERAL_RATE_MODEL"; }
 
 	virtual bool configure(IParameterProvider& paramProvider, IConfigHelper& helper);
 	virtual bool reconfigure(IParameterProvider& paramProvider);
-	virtual void notifyDiscontinuousSectionTransition(double t, unsigned int secIdx);
+	virtual void notifyDiscontinuousSectionTransition(double t, unsigned int secIdx, active* const adRes, active* const adY, unsigned int adDirOffset);
 
 	virtual std::unordered_map<ParameterId, double> getAllParameterValues() const;
 	virtual bool hasParameter(const ParameterId& pId) const;
@@ -110,60 +113,39 @@ public:
 	virtual void reportSolutionStructure(ISolutionRecorder& recorder) const;
 
 	virtual int residual(double t, unsigned int secIdx, double timeFactor, double const* const y, double const* const yDot, double* const res);
-	virtual int residualWithJacobian(const active& t, unsigned int secIdx, const active& timeFactor, double const* const y, double const* const yDot, double* const res, active* const adRes, active* const adY, unsigned int numSensAdDirs);
-	virtual double residualNorm(double t, unsigned int secIdx, double timeFactor, double const* const y, double const* const yDot);
 
-	virtual int residualSensFwd(unsigned int nSens, const active& t, unsigned int secIdx, const active& timeFactor,
-		double const* const y, double const* const yDot, double const* const res,
-		const std::vector<const double*>& yS, const std::vector<const double*>& ySdot, const std::vector<double*>& resS,
-		active* const adRes, double* const tmp1, double* const tmp2, double* const tmp3);
+	virtual int residualWithJacobian(const active& t, unsigned int secIdx, const active& timeFactor, double const* const y, double const* const yDot, double* const res, active* const adRes, active* const adY, unsigned int adDirOffset);
 
 	virtual int residualSensFwdAdOnly(const active& t, unsigned int secIdx, const active& timeFactor,
 		double const* const y, double const* const yDot, active* const adRes);
 
-	virtual int residualSensFwdWithJacobian(const active& t, unsigned int secIdx, const active& timeFactor, double const* const y, double const* const yDot, active* const adRes, active* const adY, unsigned int numSensAdDirs);
+	virtual int residualSensFwdWithJacobian(const active& t, unsigned int secIdx, const active& timeFactor, double const* const y, double const* const yDot, active* const adRes, active* const adY, unsigned int adDirOffset);
 
 	virtual int residualSensFwdCombine(const active& timeFactor, const std::vector<const double*>& yS, const std::vector<const double*>& ySdot,
 		const std::vector<double*>& resS, active const* adRes, double* const tmp1, double* const tmp2, double* const tmp3);
 
-	virtual void residualSensFwdNorm(unsigned int nSens, const active& t, unsigned int secIdx, const active& timeFactor, 
-		double const* const y, double const* const yDot,
-		const std::vector<const double*>& yS, const std::vector<const double*>& ySdot, double* const norms,
-		active* const adRes, double* const tmp);
-
 	virtual int linearSolve(double t, double timeFactor, double alpha, double tol, double* const rhs, double const* const weight,
 		double const* const y, double const* const yDot, double const* const res);
 
-	virtual void prepareADvectors(active* const adRes, active* const adY, unsigned int numSensAdDirs) const;
+	virtual void prepareADvectors(active* const adRes, active* const adY, unsigned int adDirOffset) const;
 
 	virtual void applyInitialCondition(double* const vecStateY, double* const vecStateYdot) { }
 	virtual void applyInitialCondition(IParameterProvider& paramProvider, double* const vecStateY, double* const vecStateYdot);
 
-	virtual void consistentInitialState(double t, unsigned int secIdx, double timeFactor, double* const vecStateY, active* const adRes, active* const adY, unsigned int numSensAdDirs, double errorTol);
-	virtual void consistentInitialTimeDerivative(double t, double timeFactor, double* const vecStateYdot);
-	virtual void consistentInitialConditions(double t, unsigned int secIdx, double timeFactor, double* const vecStateY, double* const vecStateYdot, active* const adRes, active* const adY, unsigned int numSensAdDirs, double errorTol);
+	virtual void consistentInitialState(double t, unsigned int secIdx, double timeFactor, double* const vecStateY, active* const adRes, active* const adY, unsigned int adDirOffset, double errorTol);
+	virtual void consistentInitialTimeDerivative(double t, unsigned int secIdx, double timeFactor, double const* vecStateY, double* const vecStateYdot);
 
-	virtual void consistentIntialSensitivity(const active& t, unsigned int secIdx, const active& timeFactor, double const* vecStateY, double const* vecStateYdot,
-		std::vector<double*>& vecSensY, std::vector<double*>& vecSensYdot, active* const adRes, active* const adY);
-	virtual void consistentIntialSensitivity(const active& t, unsigned int secIdx, const active& timeFactor, double const* vecStateY, double const* vecStateYdot,
+	virtual void consistentInitialSensitivity(const active& t, unsigned int secIdx, const active& timeFactor, double const* vecStateY, double const* vecStateYdot,
 		std::vector<double*>& vecSensY, std::vector<double*>& vecSensYdot, active const* const adRes);
 
-	virtual void leanConsistentInitialState(double t, unsigned int secIdx, double timeFactor, double* const vecStateY, active* const adRes, active* const adY, unsigned int numSensAdDirs, double errorTol);
+	virtual void leanConsistentInitialState(double t, unsigned int secIdx, double timeFactor, double* const vecStateY, active* const adRes, active* const adY, unsigned int adDirOffset, double errorTol);
 	virtual void leanConsistentInitialTimeDerivative(double t, double timeFactor, double* const vecStateYdot, double* const res);
-	virtual void leanConsistentInitialConditions(double t, unsigned int secIdx, double timeFactor, double* const vecStateY, double* const vecStateYdot, active* const adRes, active* const adY, unsigned int numSensAdDirs, double errorTol);
 
-	virtual void leanConsistentIntialSensitivity(const active& t, unsigned int secIdx, const active& timeFactor, double const* vecStateY, double const* vecStateYdot,
-		std::vector<double*>& vecSensY, std::vector<double*>& vecSensYdot, active* const adRes, active* const adY);
-	virtual void leanConsistentIntialSensitivity(const active& t, unsigned int secIdx, const active& timeFactor, double const* vecStateY, double const* vecStateYdot,
+	virtual void leanConsistentInitialSensitivity(const active& t, unsigned int secIdx, const active& timeFactor, double const* vecStateY, double const* vecStateYdot,
 		std::vector<double*>& vecSensY, std::vector<double*>& vecSensYdot, active const* const adRes);
 
 	virtual bool hasInlet() const CADET_NOEXCEPT { return true; }
 	virtual bool hasOutlet() const CADET_NOEXCEPT { return true; }
-	virtual double const* const getData() const CADET_NOEXCEPT { return nullptr; }
-	virtual active const* const getDataActive() const CADET_NOEXCEPT { return nullptr; }
-
-	virtual active inletConnectionFactorActive(unsigned int compIdx, unsigned int secIdx) const CADET_NOEXCEPT;
-	virtual double inletConnectionFactor(unsigned int compIdx, unsigned int secIdx) const CADET_NOEXCEPT;
 
 	virtual unsigned int localOutletComponentIndex() const CADET_NOEXCEPT;
 	virtual unsigned int localOutletComponentStride() const CADET_NOEXCEPT;
@@ -175,6 +157,13 @@ public:
 
 	virtual void expandErrorTol(double const* errorSpec, unsigned int errorSpecSize, double* expandOut);
 
+	virtual void multiplyWithJacobian(double const* yS, double alpha, double beta, double* ret);
+	virtual void multiplyWithDerivativeJacobian(double const* sDot, double* ret, double timeFactor);
+	inline void multiplyWithJacobian(double const* yS, double* ret)
+	{
+		multiplyWithJacobian(yS, 1.0, 0.0, ret);
+	}
+
 #ifdef CADET_BENCHMARK_MODE
 	virtual std::vector<double> benchmarkTimings() const
 	{
@@ -183,14 +172,13 @@ public:
 			_timerResidualPar.totalElapsedTime(),
 			_timerResidualSens.totalElapsedTime(),
 			_timerResidualSensPar.totalElapsedTime(),
+			_timerJacobianPar.totalElapsedTime(),
 			_timerConsistentInit.totalElapsedTime(),
 			_timerConsistentInitPar.totalElapsedTime(),
 			_timerLinearSolve.totalElapsedTime(),
-			_timerLinearSolvePar.totalElapsedTime(),
 			_timerFactorize.totalElapsedTime(),
 			_timerFactorizePar.totalElapsedTime(),
 			_timerMatVec.totalElapsedTime(),
-			_timerMatVecPar.totalElapsedTime(),
 			_timerGmres.totalElapsedTime()
 		});
 	}
@@ -202,14 +190,13 @@ public:
 			"ResidualPar",
 			"ResidualSens",
 			"ResidualSensPar",
+			"JacobianPar",
 			"ConsistentInit",
 			"ConsistentInitPar",
 			"LinearSolve",
-			"LinearSolvePar",
 			"Factorize",
 			"FactorizePar",
 			"MatVec",
-			"MatVecPar",
 			"Gmres"
 		};
 		return desc;
@@ -220,7 +207,7 @@ protected:
 
 	class Indexer;
 
-	int residual(const active& t, unsigned int secIdx, const active& timeFactor, double const* const y, double const* const yDot, double* const res, active* const adRes, active* const adY, unsigned int numSensAdDirs, bool updateJacobian, bool paramSensitivity);
+	virtual int residual(const active& t, unsigned int secIdx, const active& timeFactor, double const* const y, double const* const yDot, double* const res, active* const adRes, active* const adY, unsigned int adDirOffset, bool updateJacobian, bool paramSensitivity);
 
 	template <typename StateType, typename ResidualType, typename ParamType, bool wantJac>
 	int residualImpl(const ParamType& t, unsigned int secIdx, const ParamType& timeFactor, StateType const* const y, double const* const yDot, ResidualType* const res);
@@ -229,18 +216,25 @@ protected:
 	int residualBulk(const ParamType& t, unsigned int secIdx, const ParamType& timeFactor, StateType const* y, double const* yDot, ResidualType* res);
 
 	template <typename StateType, typename ResidualType, typename ParamType, bool wantJac>
+	int residualBulkForwardsFlow(const ParamType& t, unsigned int secIdx, const ParamType& timeFactor, StateType const* y, double const* yDot, ResidualType* res);
+
+	template <typename StateType, typename ResidualType, typename ParamType, bool wantJac>
+	int residualBulkBackwardsFlow(const ParamType& t, unsigned int secIdx, const ParamType& timeFactor, StateType const* y, double const* yDot, ResidualType* res);
+
+	template <typename StateType, typename ResidualType, typename ParamType, bool wantJac>
 	int residualParticle(const ParamType& t, unsigned int colCell, unsigned int secIdx, const ParamType& timeFactor, StateType const* y, double const* yDot, ResidualType* res);
 
 	template <typename StateType, typename ResidualType, typename ParamType>
 	int residualFlux(const ParamType& t, unsigned int secIdx, StateType const* y, double const* yDot, ResidualType* res);
 
 	void assembleOffdiagJac(double t, unsigned int secIdx);
-	void extractJacobianFromAD(active const* const adRes, unsigned int numSensAdDirs);
+	void extractJacobianFromAD(active const* const adRes, unsigned int adDirOffset);
+	void prepareBulkADvectors(active* const adRes, active* const adY, unsigned int adDirOffset) const;
 
 	int schurComplementMatrixVector(double const* x, double* z) const;
 	void assembleDiscretizedJacobianColumnBlock(unsigned int comp, double alpha, const Indexer& idxr, double timeFactor);
 	void assembleDiscretizedJacobianParticleBlock(unsigned int pblk, double alpha, const Indexer& idxr, double timeFactor);
-
+	
 	void setEquidistantRadialDisc();
 	void setEquivolumeRadialDisc();
 	void setUserdefinedRadialDisc(const std::vector<double>& cellInterfaces);
@@ -249,15 +243,8 @@ protected:
 	void addMobilePhaseTimeDerivativeToJacobianParticleBlock(linalg::FactorizableBandMatrix::RowIterator& jac, const Indexer& idxr, double alpha, double invBetaP, double timeFactor);
 	void solveForFluxes(double* const vecState, const Indexer& idxr);
 
-	void multiplyWithJacobian(double const* yS, double alpha, double beta, double* ret);
-	void multiplyWithDerivativeJacobian(double const* sDot, double* ret, double timeFactor);
-	inline void multiplyWithJacobian(double const* yS, double* ret)
-	{
-		multiplyWithJacobian(yS, 1.0, 0.0, ret);
-	}
-
 #ifdef CADET_CHECK_ANALYTIC_JACOBIAN
-	void checkAnalyticJacobianAgainstAd(active const* const adRes, unsigned int numSensAdDirs) const;
+	void checkAnalyticJacobianAgainstAd(active const* const adRes, unsigned int adDirOffset) const;
 #endif
 
 	struct Discretization
@@ -278,22 +265,26 @@ protected:
 	linalg::BandMatrix* _jacC; //!< Interstitial jacobian diagonal block
 	linalg::BandMatrix* _jacP; //!< Particle jacobian diagonal blocks (all of them)
 
-	linalg::SparseMatrix _jacCF; //!< Jacobian block connecting interstitial states and fluxes (interstitial transport equation)
-	linalg::SparseMatrix _jacFC; //!< Jacobian block connecting fluxes and interstitial states (flux equation)
-	linalg::SparseMatrix* _jacPF; //!< Jacobian blocks connecting particle states and fluxes (particle transport boundary condition)
-	linalg::SparseMatrix* _jacFP; //!< Jacobian blocks connecting fluxes and particle states (flux equation)
+	linalg::DoubleSparseMatrix _jacCF; //!< Jacobian block connecting interstitial states and fluxes (interstitial transport equation)
+	linalg::DoubleSparseMatrix _jacFC; //!< Jacobian block connecting fluxes and interstitial states (flux equation)
+	linalg::DoubleSparseMatrix* _jacPF; //!< Jacobian blocks connecting particle states and fluxes (particle transport boundary condition)
+	linalg::DoubleSparseMatrix* _jacFP; //!< Jacobian blocks connecting fluxes and particle states (flux equation)
 
 	linalg::FactorizableBandMatrix* _jacCdisc; //!< Interstitial jacobian diagonal block with time derivatives from BDF method
 	linalg::FactorizableBandMatrix* _jacPdisc; //!< Particle jacobian diagonal blocks (all of them) with time derivatives from BDF method
+
+	linalg::DoubleSparseMatrix _jacInlet; //!< Jacobian inlet DOF block matrix connects inlet DOFs to first bulk cells
 
 	active _colLength; //!< Column length \f$ L \f$
 	active _colPorosity; //!< Column porosity (external porosity) \f$ \varepsilon_c \f$
 	active _parRadius; //!< Particle radius \f$ r_p \f$
 	active _parPorosity; //!< Particle porosity (internal porosity) \f$ \varepsilon_p \f$
+	active _crossSection; //!< Cross section area 
 
 	// Section dependent parameters
 	std::vector<active> _colDispersion; //!< Column dispersion (may be section dependent) \f$ D_{\text{ax}} \f$
 	std::vector<active> _velocity; //!< Interstitial velocity (may be section dependent) \f$ u \f$
+	active _curVelocity; //!< Current interstitial velocity \f$ u \f$ in this time section
 
 	// Vectorial parameters
 	std::vector<active> _filmDiffusion; //!< Film diffusion coefficient \f$ k_f \f$
@@ -319,7 +310,7 @@ protected:
 	ArrayPool _discParFlux; //!< Storage for discretized @f$ k_f @f$ value
 
 	bool _factorizeJacobian; //!< Determines whether the Jacobian needs to be factorized
-	double* _tempState; //!< Temporary storage with the size of the state vector
+	double* _tempState; //!< Temporary storage with the size of the state vector or nCol * nPar * _binding->consistentInitializationWorkspaceSize() whichever is larger
 	linalg::Gmres _gmres; //!< GMRES algorithm for the Schur-complement in linearSolve()
 	double _schurSafety; //!< Safety factor for Schur-complement solution
 
@@ -327,18 +318,17 @@ protected:
 	BENCH_TIMER(_timerResidualPar)
 	BENCH_TIMER(_timerResidualSens)
 	BENCH_TIMER(_timerResidualSensPar)
+	BENCH_TIMER(_timerJacobianPar)
 	BENCH_TIMER(_timerConsistentInit)
 	BENCH_TIMER(_timerConsistentInitPar)
 	BENCH_TIMER(_timerLinearSolve)
-	BENCH_TIMER(_timerLinearSolvePar)
 	BENCH_TIMER(_timerFactorize)
 	BENCH_TIMER(_timerFactorizePar)
 	BENCH_TIMER(_timerMatVec)
-	BENCH_TIMER(_timerMatVecPar)
 	BENCH_TIMER(_timerGmres)
 
 	// Wrapper for calling the corresponding function in GeneralRateModel class
-	friend int schurComplementMultiplier(void* userData, double const* x, double* z);
+	friend int schurComplementMultiplierGRM(void* userData, double const* x, double* z);
 
 	class Indexer
 	{
@@ -359,10 +349,11 @@ protected:
 		inline const int strideFluxComp() const CADET_NOEXCEPT { return static_cast<int>(_disc.nCol); }
 
 		// Offsets
-		inline const int offsetC() const CADET_NOEXCEPT { return 0; }
-		inline const int offsetCp() const CADET_NOEXCEPT { return _disc.nComp * _disc.nCol; }
+		inline const int offsetC() const CADET_NOEXCEPT { return _disc.nComp; }
+		inline const int offsetCp() const CADET_NOEXCEPT { return _disc.nComp * _disc.nCol + offsetC(); }
 		inline const int offsetCp(unsigned int colCell) const CADET_NOEXCEPT { return offsetCp() + strideParBlock() * colCell; }
-		inline const int offsetJf() const CADET_NOEXCEPT { return (_disc.nComp + strideParBlock()) * _disc.nCol; }
+		inline const int offsetCp(unsigned int colCell, unsigned int parCell) const CADET_NOEXCEPT { return offsetCp() + strideParBlock() * colCell + strideParShell() * parCell; }
+		inline const int offsetJf() const CADET_NOEXCEPT { return (_disc.nComp + strideParBlock()) * _disc.nCol + offsetC(); }
 		inline const int offsetBoundComp(unsigned int comp) const CADET_NOEXCEPT { return _disc.boundOffset[comp]; }
 
 		// Return pointer to first element of state variable in state vector

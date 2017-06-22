@@ -1,7 +1,7 @@
 // =============================================================================
 //  CADET - The Chromatography Analysis and Design Toolkit
 //  
-//  Copyright © 2008-2016: The CADET Authors
+//  Copyright © 2008-2017: The CADET Authors
 //            Please see the AUTHORS and CONTRIBUTORS file.
 //  
 //  All rights reserved. This program and the accompanying materials
@@ -20,6 +20,8 @@
 
 #include "cadet/cadetCompilerInfo.hpp"
 #include "cadet/Exceptions.hpp"
+
+#include <functional>
 
 // Forward declare SUNDIALS types
 typedef struct _SpgmrMemRec SpgmrMemRec;
@@ -64,7 +66,7 @@ class Gmres
 {
 public:
 
- 	/**
+	/**
  	 * @brief Prototype of matrix-vector multiplication function provided to GMRES algorithm
  	 * @details Performs a matrix vector multiplication @f$ z = Ax @f$.
  	 * 
@@ -73,7 +75,7 @@ public:
  	 * @param [out] z Result of the multiplication (memory is provided by the caller)
  	 * @return @c 0 if successful, any other value in case of failure
  	 */
-	typedef int (*MatrixVectorMultFun)(void* userData, double const* x, double* z);
+	typedef std::function<int(void* userData, double const* x, double* z)> MatrixVectorMultFun;
 
 	Gmres() CADET_NOEXCEPT;
 	~Gmres() CADET_NOEXCEPT;
