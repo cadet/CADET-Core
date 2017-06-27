@@ -23,6 +23,7 @@
 
 #include <cmath>
 #include <functional>
+#include <cstdio>
 
 namespace
 {
@@ -46,7 +47,60 @@ namespace
 		jpp.popScope();
 		jpp.popScope();
 	}
+
+	/**
+	 * @brief Reads reference chromatograms from a test data file
+	 * @details The file format is as follows:
+	 *          Number of data points (uint32)
+	 *          Time points (array of doubles)
+	 *          Chromatogram for analytic binding (array of doubles)
+	 *          Chromatogram for quasi-stationary binding (array of doubles)
+	 */
+	class ReferenceDataReader
+	{
+	public:
+		ReferenceDataReader(const char* fileName) : _f(nullptr)
+		{
+			_f = std::fopen(fileName, "rb");
+			std::fread(&_numElements, 4, 1, _f);
+		}
+
+		std::vector<double> time()
+		{
+			std::vector<double> v(_numElements, 0.0);
+			std::fseek(_f, 4, SEEK_SET);
+			std::fread(v.data(), 8, _numElements, _f);
+			return v;
+		}
+
+		std::vector<double> analyticDynamic()
+		{
+			std::vector<double> v(_numElements, 0.0);
+			std::fseek(_f, 4 + _numElements * 8, SEEK_SET);
+			std::fread(v.data(), 8, _numElements, _f);
+			return v;
+		}
+
+		std::vector<double> analyticQuasiStationary()
+		{
+			std::vector<double> v(_numElements, 0.0);
+			std::fseek(_f, 4 + 2 * _numElements * 8, SEEK_SET);
+			std::fread(v.data(), 8, _numElements, _f);
+			return v;
+		}
+
+	private:
+		std::FILE* _f;
+		uint32_t _numElements;
+	};
 }
+
+/**
+ * @brief Returns the absolute path to the test/ folder of the project
+ * @details Absolute path to the test/ folder of the project without trailing slash
+ * @return Absolute path to the test/ folder
+ */
+const char* getTestDirectory();
 
 /**
  * @brief Reverses the flow of the GRM unit operation
@@ -82,7 +136,7 @@ void testWenoForwardBackward(int wenoOrder)
 		drvFwd.run();
 
 		// Backward flow
-		reverseFlow(jpp);	
+		reverseFlow(jpp);
 		cadet::Driver drvBwd;
 		drvBwd.configure(jpp);
 		drvBwd.run();
@@ -108,9 +162,54 @@ void testWenoForwardBackward(int wenoOrder)
 	}
 }
 
+void testAnalyticBenchmark(bool forwardFlow, bool dynamicBinding)
+{
+	const std::string fwdStr = (forwardFlow ? "forward" : "backward");
+	SECTION("Analytic" + fwdStr + " flow with " + (dynamicBinding ? "dynamic" : "quasi-stationary") + " binding")
+	{
+		// Setup simulation
+		cadet::JsonParameterProvider jpp = createLinearBenchmark(dynamicBinding);
+		if (!forwardFlow)
+			reverseFlow(jpp);
+
+		// Run simulation
+		cadet::Driver drv;
+		drv.configure(jpp);
+		drv.run();
+
+		// Read reference data from test file
+		const std::string refFile = std::string(getTestDirectory()) + "/data/pulseBenchmark.data";
+		ReferenceDataReader rd(refFile.c_str());
+		const std::vector<double> ref = (dynamicBinding ? rd.analyticDynamic() : rd.analyticQuasiStationary());
+
+		// Get data from simulation
+		cadet::InternalStorageUnitOpRecorder const* const simData = drv.solution()->unitOperation(0);
+		double const* outlet = (forwardFlow ? simData->outlet() : simData->inlet());
+
+		// Compare
+		for (unsigned int i = 0; i < simData->numDataPoints(); ++i, ++outlet)
+		{
+			// Compare with relative error 1e-6 and absolute error 4e-5
+
+			// Note that the simulation only saves the chromatogram at multiples of 2 (i.e., 0s, 2s, 4s, ...)
+			// whereas the reference solution is given at every second (0s, 1s, 2s, 3s, ...)
+			// Thus, we only take the even indices of the reference array
+			CHECK((*outlet) == makeApprox(ref[2 * i], 1e-6, 4e-5));
+		}
+	}
+}
+
 TEST_CASE("LWE forward vs backward flow", "[GRM],[Simulation]")
 {
 	// Test all WENO orders
 	for (unsigned int i = 1; i < cadet::Weno::maxOrder(); ++i)
 		testWenoForwardBackward(i);
+}
+
+TEST_CASE("GRM linear pulse vs analytic solution", "[GRM],[Simulation],[Analytic]")
+{
+	testAnalyticBenchmark(true, true);
+	testAnalyticBenchmark(true, false);
+	testAnalyticBenchmark(false, true);
+	testAnalyticBenchmark(false, false);
 }

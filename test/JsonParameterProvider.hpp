@@ -92,5 +92,6 @@ std::ostream& operator<<(std::ostream& out, const JsonParameterProvider& jpp);
 cadet::JsonParameterProvider createGRMwithSMA();
 cadet::JsonParameterProvider createGRMwithLinear();
 cadet::JsonParameterProvider createLWE();
+cadet::JsonParameterProvider createLinearBenchmark(bool dynamicBinding);
 
 #endif  // CADETTEST_JSONPARAMETERPROVIDER_HPP_

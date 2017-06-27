@@ -213,7 +213,6 @@ json createGRMwithSMAJson()
 	json config;
 	config["UNIT_TYPE"] = std::string("GENERAL_RATE_MODEL");
 	config["NCOMP"] = 4;
-	config["FLOW"] = 1.0;
 	config["VELOCITY"] = 5.75e-4;
 	config["COL_DISPERSION"] = 5.75e-8;
 	config["FILM_DIFFUSION"] = {6.9e-6, 6.9e-6, 6.9e-6, 6.9e-6};
@@ -277,7 +276,6 @@ json createGRMwithSMAJson()
 	return R"json({
 	"UNIT_TYPE": "GENERAL_RATE_MODEL",
 	"NCOMP": 4,
-	"FLOW": 1.0,
 	"VELOCITY": 5.75e-4,
 	"COL_DISPERSION": 5.75e-8,
 	"FILM_DIFFUSION": [6.9e-6, 6.9e-6, 6.9e-6, 6.9e-6],
@@ -331,7 +329,6 @@ json createGRMwithLinearJson()
 	json config;
 	config["UNIT_TYPE"] = std::string("GENERAL_RATE_MODEL");
 	config["NCOMP"] = 2;
-	config["FLOW"] = 1.0;
 	config["VELOCITY"] = 5.75e-4;
 	config["COL_DISPERSION"] = 5.75e-8;
 	config["FILM_DIFFUSION"] = {6.9e-6, 6.9e-6};
@@ -411,9 +408,6 @@ json createLWEJson()
 			inlet["INLET_TYPE"] = std::string("PIECEWISE_CUBIC_POLY");
 			inlet["NCOMP"] = 4;
 
-			//Flow
-			inlet["FLOW"] = 1.0;
-
 			{
 				json sec;
 
@@ -461,12 +455,13 @@ json createLWEJson()
 				// This switch occurs at beginning of section 0 (initial configuration)
 				sw["SECTION"] = 0;
 
-				// Connection list is 1x4 since we have 1 connection between
-				// the two unit operations (and we need to have 4 columns)
+				// Connection list is 1x5 since we have 1 connection between
+				// the two unit operations (and we need to have 5 columns)
 				sw["CONNECTIONS"] = {1.0, 0.0, -1.0, -1.0, 1.0};
 				// Connections: From unit operation 1 to unit operation 0,
 				//              connect component -1 (i.e., all components)
-				//              to component -1 (i.e., all components)
+				//              to component -1 (i.e., all components) with
+				//              volumetric flow rate 1.0 m^3/s
 
 				con["switch_000"] = sw;
 			}
@@ -552,3 +547,203 @@ cadet::JsonParameterProvider createLWE()
 	return cadet::JsonParameterProvider(createLWEJson());
 }
 
+cadet::JsonParameterProvider createLinearBenchmark(bool dynamicBinding)
+{
+	json config;	
+	// Model
+	{
+		json model;
+		model["NUNITS"] = 2;
+
+		// GRM - unit 000
+		{
+			json grm;
+			grm["UNIT_TYPE"] = std::string("GENERAL_RATE_MODEL");
+			grm["NCOMP"] = 1;
+			grm["VELOCITY"] = 0.5 / (100.0 * 60.0);
+			grm["COL_DISPERSION"] = 0.002 / (100.0 * 100.0 * 60.0);
+			grm["FILM_DIFFUSION"] = {0.01 / (100.0 * 60.0)};
+			grm["PAR_DIFFUSION"] = {3.003e-6};
+			grm["PAR_SURFDIFFUSION"] = {0.0};
+
+			// Geometry
+			grm["COL_LENGTH"] = 0.017;
+			grm["PAR_RADIUS"] = 4e-5;
+			grm["COL_POROSITY"] = 0.4;
+			grm["PAR_POROSITY"] = 0.333;
+
+			// Initial conditions
+			grm["INIT_C"] = {0.0};
+			grm["INIT_Q"] = {0.0};
+
+			// Adsorption
+			grm["ADSORPTION_MODEL"] = std::string("LINEAR");
+			{
+				json ads;
+				ads["IS_KINETIC"] = (dynamicBinding ? 1 : 0);
+				ads["LIN_KA"] = {2.5};
+				ads["LIN_KD"] = {1.0};
+				grm["adsorption"] = ads;
+			}
+
+			// Discretization
+			{
+				json disc;
+
+				disc["NCOL"] = 512;
+				disc["NPAR"] = 4;
+				disc["NBOUND"] = {1};
+
+				disc["PAR_DISC_TYPE"] = std::string("EQUIDISTANT_PAR");
+
+				disc["USE_ANALYTIC_JACOBIAN"] = true;
+				disc["MAX_KRYLOV"] = 0;
+				disc["GS_TYPE"] = 1;
+				disc["MAX_RESTARTS"] = 10;
+				disc["SCHUR_SAFETY"] = 1e-8;
+
+				// WENO
+				{
+					json weno;
+
+					weno["WENO_ORDER"] = 3;
+					weno["BOUNDARY_MODEL"] = 0;
+					weno["WENO_EPS"] = 1e-10;
+					disc["weno"] = weno;
+				}
+				grm["discretization"] = disc;
+			}
+
+			model["unit_000"] = grm;
+		}
+
+		// Inlet - unit 001
+		{
+			json inlet;
+
+			inlet["UNIT_TYPE"] = std::string("INLET");
+			inlet["INLET_TYPE"] = std::string("PIECEWISE_CUBIC_POLY");
+			inlet["NCOMP"] = 1;
+
+			{
+				json sec;
+
+				sec["CONST_COEFF"] = {1.0};
+				sec["LIN_COEFF"] = {0.0};
+				sec["QUAD_COEFF"] = {0.0};
+				sec["CUBE_COEFF"] = {0.0};
+
+				inlet["sec_000"] = sec;
+			}
+
+			{
+				json sec;
+
+				sec["CONST_COEFF"] = {0.0};
+				sec["LIN_COEFF"] = {0.0};
+				sec["QUAD_COEFF"] = {0.0};
+				sec["CUBE_COEFF"] = {0.0};
+
+				inlet["sec_001"] = sec;
+			}
+
+			model["unit_001"] = inlet;
+		}
+
+		// Valve switches
+		{
+			json con;
+			con["NSWITCHES"] = 1;
+
+			{
+				json sw;
+
+				// This switch occurs at beginning of section 0 (initial configuration)
+				sw["SECTION"] = 0;
+
+				// Connection list is 1x5 since we have 1 connection between
+				// the two unit operations (and we need to have 5 columns)
+				sw["CONNECTIONS"] = {1.0, 0.0, -1.0, -1.0, 1.0};
+				// Connections: From unit operation 1 to unit operation 0,
+				//              connect component -1 (i.e., all components)
+				//              to component -1 (i.e., all components) with
+				//              volumetric flow rate 1.0 m^3/s
+
+				con["switch_000"] = sw;
+			}
+			model["connections"] = con;
+		}
+
+		// Solver settings
+		{
+			json solver;
+
+			solver["MAX_KRYLOV"] = 0;
+			solver["GS_TYPE"] = 1;
+			solver["MAX_RESTARTS"] = 10;
+			solver["SCHUR_SAFETY"] = 1e-8;
+			model["solver"] = solver;
+		}
+
+		config["model"] = model;
+	}
+
+	// Return
+	{
+		json ret;
+		ret["WRITE_SOLUTION_TIMES"] = true;
+	
+		json grm;
+		grm["WRITE_SOLUTION_COLUMN"] = false;
+		grm["WRITE_SOLUTION_PARTICLE"] = false;
+		grm["WRITE_SOLUTION_FLUX"] = false;
+		grm["WRITE_SOLUTION_COLUMN_INLET"] = true;
+		grm["WRITE_SOLUTION_COLUMN_OUTLET"] = true;
+		
+		ret["unit_000"] = grm;
+		config["return"] = ret;
+	}
+
+	// Solver
+	{
+		json solver;
+
+		{
+			std::vector<double> solTimes;
+			solTimes.reserve(3001);
+			for (double t = 0.0; t <= 100.0 * 60.0; t += 2.0)
+				solTimes.push_back(t);
+
+			solver["USER_SOLUTION_TIMES"] = solTimes;
+		}
+
+		solver["NTHREADS"] = 1;
+
+		// Sections
+		{
+			json sec;
+
+			sec["NSEC"] = 2;
+			sec["SECTION_TIMES"] = {0.0, 20.0 * 60.0, 100.0 * 60.0};
+			sec["SECTION_CONTINUITY"] = {false, false};
+
+			solver["sections"] = sec;
+		}
+
+		// Time integrator
+		{
+			json ti;
+
+			ti["ABSTOL"] = 1e-8;
+			ti["RELTOL"] = 1e-6;
+			ti["ALGTOL"] = 1e-12;
+			ti["INIT_STEP_SIZE"] = 1e-6;
+			ti["MAX_STEPS"] = 10000;
+
+			solver["time_integrator"] = ti;
+		}
+
+		config["solver"] = solver;
+	}
+	return cadet::JsonParameterProvider(config);
+}
