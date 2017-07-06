@@ -42,7 +42,7 @@ namespace cadet
 		 */
 		StridedStencil(T const* const data, const unsigned int stride) : _data(data), _stride(stride) { }
 
-		inline const T& operator[](const int idx) const { return _data[idx * _stride]; }
+		inline const T& operator[](const int idx) const { return _data[idx * static_cast<int>(_stride)]; }
 
 		/**
 		 * @brief Advances the stencil to the next cell
