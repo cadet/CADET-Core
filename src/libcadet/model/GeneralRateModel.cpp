@@ -278,7 +278,7 @@ bool GeneralRateModel::reconfigure(IParameterProvider& paramProvider)
 
 	if (_velocity.empty() && (_crossSection <= 0.0))
 	{
-		throw InvalidParameterException("At least one of CROSS_SECTION_AREA and VELOCITY has to be set");;
+		throw InvalidParameterException("At least one of CROSS_SECTION_AREA and VELOCITY has to be set");
 	}
 
 	// Read vectorial parameters (which may also be section dependent; transport)
@@ -1685,7 +1685,7 @@ void GeneralRateModel::multiplyWithDerivativeJacobian(double t, unsigned int sec
 	double* const dFdyDot = ret + idxr.offsetJf();
 	std::fill(dFdyDot, dFdyDot + _disc.nCol * _disc.nComp, 0.0);
 
-	//Hnadle duplicate inlets (all algebraic)
+	// Handle inlet DOFs (all algebraic)
 	std::fill_n(ret, _disc.nComp, 0.0);
 }
 
@@ -1697,7 +1697,7 @@ void GeneralRateModel::setExternalFunctions(IExternalFunction** extFuns, unsigne
 
 unsigned int GeneralRateModel::localOutletComponentIndex() const CADET_NOEXCEPT
 {
-	//Inlets are duplicated so need to be accounted for
+	// Inlets are duplicated so need to be accounted for
 	if (static_cast<double>(_curVelocity) >= 0.0)
 		// Forward Flow: outlet is last cell
 		return _disc.nCol - 1 + _disc.nComp;
