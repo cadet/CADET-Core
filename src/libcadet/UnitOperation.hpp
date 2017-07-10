@@ -364,18 +364,23 @@ public:
 	 * @brief Computes the residual of the forward sensitivity systems using the result of residualSensFwdAdOnly()
 	 * @details Assembles and evaluates the residuals of the sensitivity systems
 	 *          @f[ \frac{F}{\partial y} s + \frac{F}{\partial \dot{y}} \dot{s} + \frac{\partial F}{\partial p_i} = 0. @f]
+	 * @param [in] t Current time point
+	 * @param [in] secIdx Index of the current section
 	 * @param [in] timeFactor Used for time transformation (pre factor of time derivatives) and to compute parameter derivatives with respect to section length
-	 * @param [in] yS Pointers to global sensitivity state vectors
-	 * @param [in] ySdot Pointers to global sensitivity time derivative state vectors
-	 * @param [out] resS Pointers to global sensitivity residuals
-	 * @param [in] adRes Pointer to global residual vector of AD datatypes with the sensitivity derivatives from residualSensFwdAdOnly()
-	 * @param [in] tmp1 Temporary storage in the size of global state vector @p y
-	 * @param [in] tmp2 Temporary storage in the size of global state vector of @p y
-	 * @param [in] tmp3 Temporary storage in the size of global state vector of @p y
+	 * @param [in] y Pointer to local state vector
+	 * @param [in] yDot Pointer to local time derivative state vector
+	 * @param [in] yS Pointers to local sensitivity state vectors
+	 * @param [in] ySdot Pointers to local sensitivity time derivative state vectors
+	 * @param [out] resS Pointers to local sensitivity residuals
+	 * @param [in] adRes Pointer to local residual vector of AD datatypes with the sensitivity derivatives from residualSensFwdAdOnly()
+	 * @param [in] tmp1 Temporary storage in the size of local state vector @p y
+	 * @param [in] tmp2 Temporary storage in the size of local state vector of @p y
+	 * @param [in] tmp3 Temporary storage in the size of local state vector of @p y
 	 * @return @c 0 on success, @c -1 on non-recoverable error, and @c +1 on recoverable error
 	 */
-	virtual int residualSensFwdCombine(const active& timeFactor, const std::vector<const double*>& yS, const std::vector<const double*>& ySdot,
-		const std::vector<double*>& resS, active const* adRes, double* const tmp1, double* const tmp2, double* const tmp3) = 0;
+	virtual int residualSensFwdCombine(const active& t, unsigned int secIdx, const active& timeFactor, double const* const y, double const* const yDot, 
+		const std::vector<const double*>& yS, const std::vector<const double*>& ySdot, const std::vector<double*>& resS, active const* adRes, 
+		double* const tmp1, double* const tmp2, double* const tmp3) = 0;
 
 	/**
 	 * @brief Evaluates the residuals with AD to compute the parameter sensitivities and at the same time updates the Jacobian

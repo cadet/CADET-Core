@@ -1496,7 +1496,7 @@ int ModelSystem::residualSensFwdWithJacobianAlgorithm(unsigned int nSens, const 
 			_resSTemp[i][j] = resS[j] + offset;
 		}
 
-		const int intermediateRes = m->residualSensFwdCombine(timeFactor, _yStemp[i], _yStempDot[i], _resSTemp[i], adRes + offset, tmp1 + offset, tmp2 + offset, tmp3 + offset);
+		const int intermediateRes = m->residualSensFwdCombine(t, secIdx, timeFactor, y + offset, yDot + offset, _yStemp[i], _yStempDot[i], _resSTemp[i], adRes + offset, tmp1 + offset, tmp2 + offset, tmp3 + offset);
 		_errorIndicator[i] = updateErrorIndicator(_errorIndicator[i], intermediateRes);
 	} CADET_PARFOR_END;
 

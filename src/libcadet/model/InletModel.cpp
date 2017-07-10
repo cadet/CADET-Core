@@ -324,8 +324,9 @@ int InletModel::residualSensFwdAdOnly(const active& t, unsigned int secIdx, cons
 	return residualImpl<active, active>(t, secIdx, timeFactor, y, yDot, adRes);
 }
 
-int InletModel::residualSensFwdCombine(const active& timeFactor, const std::vector<const double*>& yS, const std::vector<const double*>& ySdot,
-	const std::vector<double*>& resS, active const* adRes, double* const tmp1, double* const tmp2, double* const tmp3)
+int InletModel::residualSensFwdCombine(const active& t, unsigned int secIdx, const active& timeFactor, double const* const y, double const* const yDot, 
+	const std::vector<const double*>& yS, const std::vector<const double*>& ySdot, const std::vector<double*>& resS, active const* adRes, 
+	double* const tmp1, double* const tmp2, double* const tmp3)
 {
 	for (unsigned int param = 0; param < yS.size(); param++)
 	{

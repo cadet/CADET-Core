@@ -171,8 +171,9 @@ int OutletModel::residualSensFwdAdOnly(const active& t, unsigned int secIdx, con
 	return 0;
 }
 
-int OutletModel::residualSensFwdCombine(const active& timeFactor, const std::vector<const double*>& yS, const std::vector<const double*>& ySdot,
-	const std::vector<double*>& resS, active const* adRes, double* const tmp1, double* const tmp2, double* const tmp3)
+int OutletModel::residualSensFwdCombine(const active& t, unsigned int secIdx, const active& timeFactor, double const* const y, double const* const yDot, 
+	const std::vector<const double*>& yS, const std::vector<const double*>& ySdot, const std::vector<double*>& resS, active const* adRes, 
+	double* const tmp1, double* const tmp2, double* const tmp3)
 {
 	// Directional derivative (dF / dy) * s does nothing since dF / dy = I (identity)
 	for (unsigned int param = 0; param < resS.size(); ++param)

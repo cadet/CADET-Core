@@ -1502,8 +1502,9 @@ int GeneralRateModel::residualSensFwdAdOnly(const active& t, unsigned int secIdx
 	return residualImpl<double, active, active, false>(t, secIdx, timeFactor, y, yDot, adRes); 
 }
 
-int GeneralRateModel::residualSensFwdCombine(const active& timeFactor, const std::vector<const double*>& yS, const std::vector<const double*>& ySdot,
-	const std::vector<double*>& resS, active const* adRes, double* const tmp1, double* const tmp2, double* const tmp3)
+int GeneralRateModel::residualSensFwdCombine(const active& t, unsigned int secIdx, const active& timeFactor, double const* const y, double const* const yDot, 
+	const std::vector<const double*>& yS, const std::vector<const double*>& ySdot, const std::vector<double*>& resS, active const* adRes, 
+	double* const tmp1, double* const tmp2, double* const tmp3)
 {
 /*
 	LOG(Debug) << "s = " << cadet::log::VectorPtr<double>(yS[0], numDofs()) << "\n"
