@@ -418,3 +418,24 @@ The final behavior is controlled by the interplay of cross section area and inte
 	\item If $u$ is given and $A$ is not, the volumetric flow rate is ignored and the provided interstitial velocity is used.
 	\item If both cross section area $A$ and interstitial velocity $u$ are given, the magnitude of the actual interstitial velocity $u$ is inferred from the volumetric flow rate and the flow direction is given by the sign of the provided $u$.
 \end{enumerate}
+
+\subsection{Continuously stirred tank reactor model (CSTR)}\label{sec:MUOPCSTR}
+
+The continuously stirred tank reactor model \index{Model!Continuously stirred tank reactor}\index{Model!CSTR}\index{Unit operation!Continuously stirred tank reactor model}\index{Unit operation!CSTR} is a basic building block in unit operation networks and often used to model holdup volume.
+When combined with a binding model, it can be used to model batch uptake experiments.
+
+Assuming that the fluid inside the tank is well-mixed and that the volume can vary, the governing equations are given by
+\begin{align*}
+	\frac{\mathrm{d}}{\mathrm{d}t} \left(\left[ c_i + \frac{1-\varepsilon}{\varepsilon} \sum_{j=0}^{N_{\text{bnd},i} - 1} q_{i,j} \right] V\right) &= F_{\text{in}} c_{\text{in},i} - F_{\text{out}} c_i \\
+	a\frac{\mathrm{d} q}{\mathrm{d} t} &= f_{\text{ads}}\left(t, c, q \right) \\
+	\frac{\mathrm{d}V}{\mathrm{d}t} &= F_{\text{in}} - F_{\text{out}} - F_{\text{filter}},
+\end{align*}
+where the first equation balances incoming and outgoing mass, the second describes adsorption, and the last one describes the change in volume $V$.
+The porosity $\varepsilon$ denotes the ratio of liquid phase volume to total tank volume.
+Thus, setting $\varepsilon = 0$, removing all bound states by setting $N_{\text{bnd},i} = 0$ for all components $i$, and applying no binding model results in a simple tank.
+The additional parameter $F_{\text{filter}}$, which denotes the flow rate of pure liquid (without any components), can be used to model a filtering unit.
+
+Note that it is the user's duty to make sure that the volume of the CSTR does not fall below \SI{0}{\cubic\metre}.
+If it does, the simulation may fail to run or produces unreasonable (e.g., unphysical) results.
+
+See Table~\ref{tab:FFModelUnitOpCSTR}.

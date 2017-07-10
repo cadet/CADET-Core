@@ -20,6 +20,7 @@
 #include "model/ModelSystemImpl.hpp"
 
 #include "model/GeneralRateModel.hpp"
+#include "model/StirredTankModel.hpp"
 #include "model/InletModel.hpp"
 #include "model/OutletModel.hpp"
 
@@ -46,6 +47,7 @@ namespace cadet
 	{
 		// Register all available models
 		registerModel<model::GeneralRateModel>();
+		registerModel<model::CSTRModel>();
 		registerModel<model::InletModel>();
 		registerModel<model::OutletModel>();
 
