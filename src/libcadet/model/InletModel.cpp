@@ -379,7 +379,7 @@ void InletModel::leanConsistentInitialSensitivity(const active& t, unsigned int 
 	consistentInitialSensitivity(t, secIdx, timeFactor, vecStateY, vecStateYdot, vecSensY, vecSensYdot, adRes);
 }
 
-void InletModel::multiplyWithJacobian(double const* yS, double alpha, double beta, double* ret)
+void InletModel::multiplyWithJacobian(double t, unsigned int secIdx, double timeFactor, double const* const y, double const* const yDot, double const* yS, double alpha, double beta, double* ret)
 {
 	for (unsigned int i = 0; i < numDofs(); ++i)
 	{
@@ -387,7 +387,7 @@ void InletModel::multiplyWithJacobian(double const* yS, double alpha, double bet
 	}
 }
 
-void InletModel::multiplyWithDerivativeJacobian(double const* sDot, double* ret, double timeFactor)
+void InletModel::multiplyWithDerivativeJacobian(double t, unsigned int secIdx, double timeFactor, double const* const y, double const* const yDot, double const* sDot, double* ret)
 {
 	std::fill_n(ret, numDofs(), 0.0);
 }

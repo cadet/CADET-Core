@@ -1518,10 +1518,10 @@ int GeneralRateModel::residualSensFwdCombine(const active& timeFactor, const std
 	for (unsigned int param = 0; param < yS.size(); param++)
 	{
 		// Directional derivative (dF / dy) * s
-		multiplyWithJacobian(yS[param], tmp1);
+		multiplyWithJacobian(0.0, 0u, 1.0, nullptr, nullptr, yS[param], 1.0, 0.0, tmp1);
 
 		// Directional derivative (dF / dyDot) * sDot
-		multiplyWithDerivativeJacobian(ySdot[param], tmp2, static_cast<double>(timeFactor));
+		multiplyWithDerivativeJacobian(0.0, 0u, static_cast<double>(timeFactor), nullptr, nullptr, ySdot[param], tmp2);
 
 		double* const ptrResS = resS[param];
 
@@ -1552,14 +1552,22 @@ int GeneralRateModel::residualSensFwdCombine(const active& timeFactor, const std
 }
 
 /**
- * @brief Multiplies the given vector with the system Jacobian (i.e., @f$ \frac{\partial F}{\partial y} @f$)
+ * @brief Multiplies the given vector with the system Jacobian (i.e., @f$ \frac{\partial F}{\partial y}\left(t, y, \dot{y}\right) @f$)
  * @details Actually, the operation @f$ z = \alpha \frac{\partial F}{\partial y} x + \beta z @f$ is performed.
+ * 
+ *          Note that residual() or one of its cousins has to be called with the requested point @f$ (t, y, \dot{y}) @f$ once
+ *          before calling multiplyWithJacobian() as this implementation ignores the given @f$ (t, y, \dot{y}) @f$.
+ * @param [in] t Current time point
+ * @param [in] secIdx Index of the current section
+ * @param [in] timeFactor Used for time transformation (pre factor of time derivatives) and to compute parameter derivatives with respect to section length
+ * @param [in] y Pointer to local state vector
+ * @param [in] yDot Pointer to local time derivative state vector
  * @param [in] yS Vector @f$ x @f$ that is transformed by the Jacobian @f$ \frac{\partial F}{\partial y} @f$
  * @param [in] alpha Factor @f$ \alpha @f$ in front of @f$ \frac{\partial F}{\partial y} @f$
  * @param [in] beta Factor @f$ \beta @f$ in front of @f$ z @f$
  * @param [in,out] ret Vector @f$ z @f$ which stores the result of the operation
  */
-void GeneralRateModel::multiplyWithJacobian(double const* yS, double alpha, double beta, double* ret)
+void GeneralRateModel::multiplyWithJacobian(double t, unsigned int secIdx, double timeFactor, double const* const y, double const* const yDot, double const* yS, double alpha, double beta, double* ret)
 {
 	Indexer idxr(_disc);
 
@@ -1613,14 +1621,18 @@ void GeneralRateModel::multiplyWithJacobian(double const* yS, double alpha, doub
 }
 
 /**
- * @brief Multiplies the time derivative Jacobian @f$ \frac{\partial F}{\partial \dot{y}} @f$ with a given vector
+ * @brief Multiplies the time derivative Jacobian @f$ \frac{\partial F}{\partial \dot{y}}\left(t, y, \dot{y}\right) @f$ with a given vector
  * @details The operation @f$ z = \frac{\partial F}{\partial \dot{y}} x @f$ is performed.
  *          The matrix-vector multiplication is transformed matrix-free (i.e., no matrix is explicitly formed).
+ * @param [in] t Current time point
+ * @param [in] secIdx Index of the current section
+ * @param [in] timeFactor Factor which is premultiplied to the time derivatives originating from time transformation
+ * @param [in] y Pointer to local state vector
+ * @param [in] yDot Pointer to local time derivative state vector
  * @param [in] sDot Vector @f$ x @f$ that is transformed by the Jacobian @f$ \frac{\partial F}{\partial \dot{y}} @f$
  * @param [out] ret Vector @f$ z @f$ which stores the result of the operation
- * @param [in] timeFactor Factor which is premultiplied to the time derivatives originating from time transformation
  */
-void GeneralRateModel::multiplyWithDerivativeJacobian(double const* sDot, double* ret, double timeFactor)
+void GeneralRateModel::multiplyWithDerivativeJacobian(double t, unsigned int secIdx, double timeFactor, double const* const y, double const* const yDot, double const* sDot, double* ret)
 {
 	Indexer idxr(_disc);
 	const double invBetaP = (1.0 / static_cast<double>(_parPorosity) - 1.0) * timeFactor;

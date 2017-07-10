@@ -540,24 +540,33 @@ public:
 	virtual bool canAccumulate() const CADET_NOEXCEPT = 0;
 
 	/**
-	 * @brief Multiplies the given vector with the system Jacobian (i.e., @f$ \frac{\partial F}{\partial y} @f$)
+	 * @brief Multiplies the given vector with the system Jacobian (i.e., @f$ \frac{\partial F}{\partial y}\left(t, y, \dot{y}\right) @f$)
 	 * @details Actually, the operation @f$ z = \alpha \frac{\partial F}{\partial y} x + \beta z @f$ is performed.
+	 * @param [in] t Current time point
+	 * @param [in] secIdx Index of the current section
+	 * @param [in] timeFactor Used for time transformation (pre factor of time derivatives) and to compute parameter derivatives with respect to section length
+	 * @param [in] y Pointer to local state vector
+	 * @param [in] yDot Pointer to local time derivative state vector
 	 * @param [in] yS Vector @f$ x @f$ that is transformed by the Jacobian @f$ \frac{\partial F}{\partial y} @f$
 	 * @param [in] alpha Factor @f$ \alpha @f$ in front of @f$ \frac{\partial F}{\partial y} @f$
 	 * @param [in] beta Factor @f$ \beta @f$ in front of @f$ z @f$
 	 * @param [in,out] ret Vector @f$ z @f$ which stores the result of the operation
 	 */
-	virtual void multiplyWithJacobian(double const* yS, double alpha, double beta, double* ret) = 0;
+	virtual void multiplyWithJacobian(double t, unsigned int secIdx, double timeFactor, double const* const y, double const* const yDot, double const* yS, double alpha, double beta, double* ret) = 0;
 
 	/**
-	 * @brief Multiplies the time derivative Jacobian @f$ \frac{\partial F}{\partial \dot{y}} @f$ with a given vector
+	 * @brief Multiplies the time derivative Jacobian @f$ \frac{\partial F}{\partial \dot{y}}\left(t, y, \dot{y}\right) @f$ with a given vector
 	 * @details The operation @f$ z = \frac{\partial F}{\partial \dot{y}} x @f$ is performed.
 	 *          The matrix-vector multiplication is transformed matrix-free (i.e., no matrix is explicitly formed).
+	 * @param [in] t Current time point
+	 * @param [in] secIdx Index of the current section
+	 * @param [in] timeFactor Factor which is premultiplied to the time derivatives originating from time transformation
+	 * @param [in] y Pointer to local state vector
+	 * @param [in] yDot Pointer to local time derivative state vector
 	 * @param [in] sDot Vector @f$ x @f$ that is transformed by the Jacobian @f$ \frac{\partial F}{\partial \dot{y}} @f$
 	 * @param [out] ret Vector @f$ z @f$ which stores the result of the operation
-	 * @param [in] timeFactor Factor which is premultiplied to the time derivatives originating from time transformation
 	 */
-	virtual void multiplyWithDerivativeJacobian(double const* sDot, double* ret, double timeFactor) = 0;
+	virtual void multiplyWithDerivativeJacobian(double t, unsigned int secIdx, double timeFactor, double const* const y, double const* const yDot, double const* sDot, double* ret) = 0;
 };
 
 } // namespace cadet

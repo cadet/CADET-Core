@@ -157,11 +157,12 @@ public:
 
 	virtual void expandErrorTol(double const* errorSpec, unsigned int errorSpecSize, double* expandOut);
 
-	virtual void multiplyWithJacobian(double const* yS, double alpha, double beta, double* ret);
-	virtual void multiplyWithDerivativeJacobian(double const* sDot, double* ret, double timeFactor);
-	inline void multiplyWithJacobian(double const* yS, double* ret)
+	virtual void multiplyWithJacobian(double t, unsigned int secIdx, double timeFactor, double const* const y, double const* const yDot, double const* yS, double alpha, double beta, double* ret);
+	virtual void multiplyWithDerivativeJacobian(double t, unsigned int secIdx, double timeFactor, double const* const y, double const* const yDot, double const* sDot, double* ret);
+
+	inline void multiplyWithJacobian(double t, unsigned int secIdx, double timeFactor, double const* const y, double const* const yDot, double const* yS, double* ret)
 	{
-		multiplyWithJacobian(yS, 1.0, 0.0, ret);
+		multiplyWithJacobian(t, secIdx, timeFactor, y, yDot, yS, 1.0, 0.0, ret);
 	}
 
 #ifdef CADET_BENCHMARK_MODE

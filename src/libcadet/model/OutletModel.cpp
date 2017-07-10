@@ -205,7 +205,7 @@ void OutletModel::leanConsistentInitialSensitivity(const active& t, unsigned int
 	// Nothing to do here as inlet DOFs are initialized by ModelSystem
 }
 
-void OutletModel::multiplyWithJacobian(double const* yS, double alpha, double beta, double* ret)
+void OutletModel::multiplyWithJacobian(double t, unsigned int secIdx, double timeFactor, double const* const y, double const* const yDot, double const* yS, double alpha, double beta, double* ret)
 {
 	// dF / dy = I (identity matrix)
 	for (unsigned int i = 0; i < _nComp; ++i)
@@ -214,7 +214,7 @@ void OutletModel::multiplyWithJacobian(double const* yS, double alpha, double be
 	}
 }
 
-void OutletModel::multiplyWithDerivativeJacobian(double const* sDot, double* ret, double timeFactor)
+void OutletModel::multiplyWithDerivativeJacobian(double t, unsigned int secIdx, double timeFactor, double const* const y, double const* const yDot, double const* sDot, double* ret)
 {
 	std::fill_n(ret, numDofs(), 0.0);
 }

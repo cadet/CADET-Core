@@ -154,8 +154,8 @@ void compareJacobian(cadet::model::GeneralRateModel* grmA, cadet::model::General
 	{
 		dir[i] = 1.0;
 
-		grmA->multiplyWithJacobian(dir, colA);
-		grmB->multiplyWithJacobian(dir, colB);
+		grmA->multiplyWithJacobian(0.0, 0u, 1.0, nullptr, nullptr, dir, colA);
+		grmB->multiplyWithJacobian(0.0, 0u, 1.0, nullptr, nullptr, dir, colB);
 
 		for (unsigned int j = 0; j < n; ++j)
 			CHECK(colA[j] == Approx(colB[j]));
@@ -193,7 +193,7 @@ void compareJacobianFD(cadet::model::GeneralRateModel* grmA, cadet::model::Gener
 
 		std::fill(dir, dir + n, 0.0);
 		dir[i] = 1.0;
-		grmB->multiplyWithJacobian(dir, colB);
+		grmB->multiplyWithJacobian(0.0, 0u, 1.0, nullptr, nullptr, dir, colB);
 
 		for (unsigned int j = 0; j < n; ++j)
 			CHECK(colA[j] == Approx(colB[j]));
@@ -229,7 +229,7 @@ void checkJacobianPatternFD(cadet::model::GeneralRateModel* grmA, cadet::model::
 
 		std::fill(dir, dir + n, 0.0);
 		dir[i] = 1.0;
-		grmB->multiplyWithJacobian(dir, colB);
+		grmB->multiplyWithJacobian(0.0, 0u, 1.0, nullptr, nullptr, dir, colB);
 
 		// Check for pattern including sign
 		for (unsigned int j = 0; j < n; ++j)

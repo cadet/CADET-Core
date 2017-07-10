@@ -1469,7 +1469,7 @@ int ModelSystem::residualSensFwdWithJacobianAlgorithm(unsigned int nSens, const 
 
 		active* const localAdRes = adRes + offset;
 		active* const localAdY = (adY) ? (adY + offset) : nullptr;
-		double const* const localYdot = (yDot) ? (yDot + offset) : nullptr;
+		double const* const localYdot = yDot + offset;
 
 		_errorIndicator[i] = ResidualSensCaller<evalJacobian>::call(m, t, secIdx, timeFactor, y + offset, localYdot, localAdRes, localAdY, adDirOffset);
 	} CADET_PARFOR_END;
@@ -1934,7 +1934,7 @@ void ModelSystem::genJacobian(double t, unsigned int secIdx, double timeFactor, 
 		{
 			IUnitOperation* const m = _models[idxModel];
 			const unsigned int offset = _dofOffset[idxModel];
-			m->multiplyWithJacobian(&unit[offset], 1.0, 1.0, &res[offset]);
+			m->multiplyWithJacobian(t, secIdx, timeFactor, y, yDot, &unit[offset], 1.0, 1.0, &res[offset]);
 		}
 		multiplyWithJacobian(&unit[0], 1.0, 1.0, &res[0]);
 
@@ -1959,7 +1959,7 @@ void ModelSystem::genJacobian(double t, unsigned int secIdx, double timeFactor, 
 		{
 			IUnitOperation* const m = _models[idxModel];
 			const unsigned int offset = _dofOffset[idxModel];
-			m->multiplyWithDerivativeJacobian(&unit[offset], &res[offset], timeFactor);
+			m->multiplyWithDerivativeJacobian(t, secIdx, timeFactor, y, yDot, &unit[offset], &res[offset]);
 		}
 
 		for (unsigned int j = 0; j < size; ++j)

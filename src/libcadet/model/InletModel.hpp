@@ -119,12 +119,8 @@ public:
 
 	virtual void setExternalFunctions(IExternalFunction** extFuns, unsigned int size) { }
 
-	virtual void multiplyWithJacobian(double const* yS, double alpha, double beta, double* ret);
-	virtual void multiplyWithDerivativeJacobian(double const* sDot, double* ret, double timeFactor);
-	virtual inline void multiplyWithJacobian(double const* yS, double* ret)
-	{
-		multiplyWithJacobian(yS, 1.0, 0.0, ret);
-	}
+	virtual void multiplyWithJacobian(double t, unsigned int secIdx, double timeFactor, double const* const y, double const* const yDot, double const* yS, double alpha, double beta, double* ret);
+	virtual void multiplyWithDerivativeJacobian(double t, unsigned int secIdx, double timeFactor, double const* const y, double const* const yDot, double const* sDot, double* ret);
 
 	virtual bool hasInlet() const CADET_NOEXCEPT { return false; }
 	virtual bool hasOutlet() const CADET_NOEXCEPT { return true; }
