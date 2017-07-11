@@ -655,9 +655,11 @@ classdef GeneralRateModel < Model
 			else
 				if (param.SENS_COMP ~= - 1)
 					offset = offset + param.SENS_COMP;
-				end
-				if (param.SENS_SECTION ~= -1)
-					offset = offset + param.SENS_SECTION * obj.nComponents;
+					if (param.SENS_SECTION ~= -1)
+						offset = offset + param.SENS_SECTION * obj.nComponents;
+					end
+				elseif (param.SENS_SECTION ~= -1)
+					offset = offset + param.SENS_SECTION;
 				end
 			end
 			oldVal = obj.data.(param.SENS_NAME)(offset + 1);
