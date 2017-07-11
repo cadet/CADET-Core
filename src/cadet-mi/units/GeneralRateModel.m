@@ -568,6 +568,10 @@ classdef GeneralRateModel < Model
 			if isfield(obj.data, 'INIT_CP')
 				res.INIT_CP = obj.data.INIT_CP;
 			end
+
+			if isfield(obj.data, 'INIT_STATE')
+				res.INIT_STATE = obj.data.INIT_STATE;
+			end
 		end
 
 		function val = getParameterValue(obj, param)
