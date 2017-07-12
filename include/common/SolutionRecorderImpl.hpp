@@ -302,6 +302,12 @@ public:
 			}
 		}
 		
+		// Validate config
+		validateConfig(exporter, _cfgSolution);
+		validateConfig(exporter, _cfgSolutionDot);
+		validateConfig(exporter, _cfgSensitivity);
+		validateConfig(exporter, _cfgSensitivityDot);
+
 		// Everything is ok, we have nothing to do
 		if (!_needsReAlloc)
 		{
@@ -579,6 +585,14 @@ protected:
 		_curVolume = _sensVolumeDot[sensIdx];
 	}
 
+	inline void validateConfig(const ISolutionExporter& exporter, StorageConfig& cfg)
+	{
+		// Only store fields that really exist
+		cfg.storeParticle = exporter.hasParticleMobilePhase() && cfg.storeParticle;
+		cfg.storeFlux = exporter.hasParticleFlux() && cfg.storeFlux;
+		cfg.storeVolume = exporter.hasVolume() && cfg.storeVolume;
+	}
+
 	inline void allocateMemory(const ISolutionExporter& exporter)
 	{
 		if (_curCfg->storeOutlet)
@@ -586,17 +600,17 @@ protected:
 
 		if (_curCfg->storeInlet)
 			_curInlet->reserve(std::max(_numTimesteps, 100u) * _nComp);
-		
+
 		if (_curCfg->storeColumn)
 			_curBulk->reserve(std::max(_numTimesteps, 100u) * exporter.numColumnDofs());
 		
-		if (exporter.hasParticleMobilePhase() && _curCfg->storeParticle)
+		if (_curCfg->storeParticle)
 			_curParticle->reserve(std::max(_numTimesteps, 100u) * exporter.numParticleDofs());
 		
-		if (exporter.hasParticleFlux() && _curCfg->storeFlux)
+		if (_curCfg->storeFlux)
 			_curFlux->reserve(std::max(_numTimesteps, 100u) * exporter.numFluxDofs());
 		
-		if (exporter.hasVolume() && _curCfg->storeVolume)
+		if (_curCfg->storeVolume)
 			_curVolume->reserve(std::max(_numTimesteps, 100u) * exporter.numVolumeDofs());
 	}
 
