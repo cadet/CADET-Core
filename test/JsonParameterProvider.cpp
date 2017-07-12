@@ -747,3 +747,16 @@ cadet::JsonParameterProvider createLinearBenchmark(bool dynamicBinding)
 	}
 	return cadet::JsonParameterProvider(config);
 }
+
+json createCSTRJson(unsigned int nComp)
+{
+	json config;
+	config["UNIT_TYPE"] = std::string("CSTR");
+	config["NCOMP"] = static_cast<int>(nComp);
+	return config;
+}
+
+cadet::JsonParameterProvider createCSTR(unsigned int nComp)
+{
+	return cadet::JsonParameterProvider(createCSTRJson(nComp));
+}
