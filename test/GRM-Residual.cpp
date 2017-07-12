@@ -18,6 +18,7 @@
 #include "ModelBuilderImpl.hpp"
 
 #include "JsonParameterProvider.hpp"
+#include "JacobianHelper.hpp"
 
 #include <cmath>
 #include <functional>
@@ -49,7 +50,7 @@ namespace
  * @param [in] f Function for computing the content of the state vector
  * @param [in] numDofs Size of the state vector
  */
-void fillState(double* y, std::function<double(unsigned int)> f, unsigned int numDofs)
+inline void fillState(double* y, std::function<double(unsigned int)> f, unsigned int numDofs)
 {
 	for (unsigned int i = 0; i < numDofs; ++i)
 		y[i] = f(i);
@@ -64,7 +65,7 @@ void fillState(double* y, std::function<double(unsigned int)> f, unsigned int nu
  * @param [in] nComp Number of components
  * @param [in] nCol Number of bulk cells per component
  */
-void fillStateBulkFwd(double* y, std::function<double(unsigned int, unsigned int, unsigned int)> f, unsigned int nComp, unsigned int nCol)
+inline void fillStateBulkFwd(double* y, std::function<double(unsigned int, unsigned int, unsigned int)> f, unsigned int nComp, unsigned int nCol)
 {
 	for (unsigned int comp = 0; comp < nComp; ++comp)
 	{
@@ -85,7 +86,7 @@ void fillStateBulkFwd(double* y, std::function<double(unsigned int, unsigned int
  * @param [in] nComp Number of components
  * @param [in] nCol Number of bulk cells per component
  */
-void fillStateBulkBwd(double* y, std::function<double(unsigned int, unsigned int, unsigned int)> f, unsigned int nComp, unsigned int nCol)
+inline void fillStateBulkBwd(double* y, std::function<double(unsigned int, unsigned int, unsigned int)> f, unsigned int nComp, unsigned int nCol)
 {
 	for (unsigned int comp = 0; comp < nComp; ++comp)
 	{
@@ -104,7 +105,7 @@ void fillStateBulkBwd(double* y, std::function<double(unsigned int, unsigned int
  * @param [in] nComp Number of components
  * @param [in] nCol Number of bulk cells per component
  */
-void compareResidualBulkFwdBwd(double const* r1, double const* r2, unsigned int nComp, unsigned int nCol)
+inline void compareResidualBulkFwdBwd(double const* r1, double const* r2, unsigned int nComp, unsigned int nCol)
 {
 	for (unsigned int comp = 0; comp < nComp; ++comp)
 	{
@@ -124,7 +125,7 @@ void compareResidualBulkFwdBwd(double const* r1, double const* r2, unsigned int 
  * @param [in] nComp Number of components
  * @param [in] nCol Number of bulk cells per component
  */
-void compareResidualBulkFwdFwd(double const* r1, double const* r2, unsigned int nComp, unsigned int nCol)
+inline void compareResidualBulkFwdFwd(double const* r1, double const* r2, unsigned int nComp, unsigned int nCol)
 {
 	for (unsigned int comp = 0; comp < nComp; ++comp)
 	{
@@ -135,115 +136,6 @@ void compareResidualBulkFwdFwd(double const* r1, double const* r2, unsigned int 
 			CHECK(a[i] == Approx(b[i]));
 		}
 	}	
-}
-
-/**
- * @brief Compares two given Jacobians column by column
- * @details A column is extracted by calling multiplyWithJacobian() on the model.
- * @param [in] grmA Model A
- * @param [in] grmB Model B
- * @param [in] dir Memory for extracting a column
- * @param [in] colA Memory for Jacobian column of @p grmA
- * @param [in] colB Memory for Jacobian column of @p grmB
- */
-void compareJacobian(cadet::model::GeneralRateModel* grmA, cadet::model::GeneralRateModel* grmB, double* dir, double* colA, double* colB)
-{
-	const unsigned int n = grmA->numDofs();
-	std::fill(dir, dir + n, 0.0);
-	for (unsigned int i = 0; i < n; ++i)
-	{
-		dir[i] = 1.0;
-
-		grmA->multiplyWithJacobian(0.0, 0u, 1.0, nullptr, nullptr, dir, colA);
-		grmB->multiplyWithJacobian(0.0, 0u, 1.0, nullptr, nullptr, dir, colB);
-
-		for (unsigned int j = 0; j < n; ++j)
-			CHECK(colA[j] == Approx(colB[j]));
-
-		dir[i] = 0.0;
-	}	
-}
-
-/**
- * @brief Checks a Jacobian against finite differences
- * @details Uses finite differences on @p grmA to determine the Jacobian. The two
- *          Jacboians are compared column by column. A column is extracted by calling
- *          multiplyWithJacobian() on the model.
- * @param [in] grmA Model A
- * @param [in] grmB Model B
- * @param [in] y Position at which Jacobian is evaluated
- * @param [in] dir Memory for computing finite differences
- * @param [in] colA Memory for Jacobian column of @p grmA
- * @param [in] colB Memory for Jacobian column of @p grmB
- */
-void compareJacobianFD(cadet::model::GeneralRateModel* grmA, cadet::model::GeneralRateModel* grmB, double const* y, double* dir, double* colA, double* colB)
-{
-	const double h = 1e-6;
-	const unsigned int n = grmA->numDofs();
-	for (unsigned int i = 0; i < n; ++i)
-	{
-		std::copy(y, y + n, dir);
-		dir[i] = y[i] * (1.0 + h);
-		grmA->residual(0.0, 0u, 1.0, dir, nullptr, colA);
-		dir[i] = y[i] * (1.0 - h);
-		grmA->residual(0.0, 0u, 1.0, dir, nullptr, colB);
-
-		for (unsigned int j = 0; j < n; ++j)
-			colA[j] = (colA[j] - colB[j]) / (y[i] * 2.0 * h);
-
-		std::fill(dir, dir + n, 0.0);
-		dir[i] = 1.0;
-		grmB->multiplyWithJacobian(0.0, 0u, 1.0, nullptr, nullptr, dir, colB);
-
-		for (unsigned int j = 0; j < n; ++j)
-			CHECK(colA[j] == Approx(colB[j]));
-	}
-}
-
-/**
- * @brief Checks the pattern of the two given Jacobians including sign of the entries
- * @details Uses finite differences on @p grmA to determine the Jacobian structure. The
- *          Jacboians are compared column by column. A column is extracted by calling
- *          multiplyWithJacobian() on the model.
- * @param [in] grmA Model A
- * @param [in] grmB Model B
- * @param [in] y Position at which Jacobian is evaluated
- * @param [in] dir Memory for computing finite differences
- * @param [in] colA Memory for Jacobian column of @p grmA
- * @param [in] colB Memory for Jacobian column of @p grmB
- */
-void checkJacobianPatternFD(cadet::model::GeneralRateModel* grmA, cadet::model::GeneralRateModel* grmB, double const* y, double* dir, double* colA, double* colB)
-{
-	const double h = 1e-6;
-	const unsigned int n = grmA->numDofs();
-	for (unsigned int i = 0; i < n; ++i)
-	{
-		std::copy(y, y + n, dir);
-		dir[i] = y[i] * (1.0 + h);
-		grmA->residual(0.0, 0u, 1.0, dir, nullptr, colA);
-		dir[i] = y[i] * (1.0 - h);
-		grmA->residual(0.0, 0u, 1.0, dir, nullptr, colB);
-
-		for (unsigned int j = 0; j < n; ++j)
-			colA[j] = (colA[j] - colB[j]) / (y[i] * 2.0 * h);
-
-		std::fill(dir, dir + n, 0.0);
-		dir[i] = 1.0;
-		grmB->multiplyWithJacobian(0.0, 0u, 1.0, nullptr, nullptr, dir, colB);
-
-		// Check for pattern including sign
-		for (unsigned int j = 0; j < n; ++j)
-		{
-			if (colA[j] == 0.0)
-				CHECK(colB[j] == 0.0);
-			else if (colA[j] > 0.0)
-				CHECK(colB[j] > 0.0);
-			else if (colA[j] < 0.0)
-				CHECK(colB[j] < 0.0);
-			else if (std::isnan(colA[j]))
-				CHECK(std::isnan(colB[j]));
-		}
-	}
 }
 
 /**
@@ -326,10 +218,10 @@ void testJacobianWenoForwardBackward(int wenoOrder)
 			std::fill(jacDir.begin(), jacDir.end(), 0.0);
 
 			// Compare Jacobians
-			checkJacobianPatternFD(grmAna, grmAD, y.data(), jacDir.data(), jacCol1.data(), jacCol2.data());
-			checkJacobianPatternFD(grmAna, grmAna, y.data(), jacDir.data(), jacCol1.data(), jacCol2.data());
-			compareJacobian(grmAna, grmAD, jacDir.data(), jacCol1.data(), jacCol2.data());
-//			compareJacobianFD(grmAna, grmAD, y.data(), jacDir.data(), jacCol1.data(), jacCol2.data());
+			cadet::test::checkJacobianPatternFD(grmAna, grmAD, y.data(), nullptr, jacDir.data(), jacCol1.data(), jacCol2.data());
+			cadet::test::checkJacobianPatternFD(grmAna, grmAna, y.data(), nullptr, jacDir.data(), jacCol1.data(), jacCol2.data());
+			cadet::test::compareJacobian(grmAna, grmAD, nullptr, nullptr, jacDir.data(), jacCol1.data(), jacCol2.data());
+//			cadet::test::compareJacobianFD(grmAna, grmAD, y.data(), nullptr, jacDir.data(), jacCol1.data(), jacCol2.data());
 
 			// Reverse flow
 			const bool paramSet = grmAna->setParameter(cadet::makeParamId(cadet::hashString("VELOCITY"), 0, cadet::CompIndep, cadet::BoundPhaseIndep, cadet::ReactionIndep, cadet::SectionIndep), -jpp.getDouble("VELOCITY"));
@@ -348,11 +240,11 @@ void testJacobianWenoForwardBackward(int wenoOrder)
 			std::fill(jacDir.begin(), jacDir.end(), 0.0);
 
 			// Compare Jacobians
-			checkJacobianPatternFD(grmAna, grmAD, y.data(), jacDir.data(), jacCol1.data(), jacCol2.data());
-			checkJacobianPatternFD(grmAna, grmAna, y.data(), jacDir.data(), jacCol1.data(), jacCol2.data());
-//			compareJacobianFD(grmAD, grmAna, y.data(), jacDir.data(), jacCol1.data(), jacCol2.data());
-//			compareJacobianFD(grmAna, grmAD, y.data(), jacDir.data(), jacCol1.data(), jacCol2.data());
-			compareJacobian(grmAna, grmAD, jacDir.data(), jacCol1.data(), jacCol2.data());
+			cadet::test::checkJacobianPatternFD(grmAna, grmAD, y.data(), nullptr, jacDir.data(), jacCol1.data(), jacCol2.data());
+			cadet::test::checkJacobianPatternFD(grmAna, grmAna, y.data(), nullptr, jacDir.data(), jacCol1.data(), jacCol2.data());
+//			cadet::test::compareJacobianFD(grmAD, grmAna, y.data(), jacDir.data(), nullptr, jacCol1.data(), jacCol2.data());
+//			cadet::test::compareJacobianFD(grmAna, grmAD, y.data(), jacDir.data(), nullptr, jacCol1.data(), jacCol2.data());
+			cadet::test::compareJacobian(grmAna, grmAD, nullptr, nullptr, jacDir.data(), jacCol1.data(), jacCol2.data());
 		}
 		mb->destroyUnitOperation(grmAna);
 		mb->destroyUnitOperation(grmAD);
