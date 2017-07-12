@@ -30,7 +30,7 @@ endif ()
 # ---------------------------------------------------
   
 # Add include directories for access to exported LIBCADET header files.
-target_include_directories (cadet-cli PRIVATE ${CMAKE_SOURCE_DIR}/include ${CMAKE_SOURCE_DIR}/ThirdParty/pugixml ${CMAKE_SOURCE_DIR}/ThirdParty/tclap/include ${CMAKE_BINARY_DIR})
+target_include_directories(cadet-cli PRIVATE ${CMAKE_SOURCE_DIR}/include ${CMAKE_SOURCE_DIR}/ThirdParty/pugixml ${CMAKE_SOURCE_DIR}/ThirdParty/tclap/include ${CMAKE_BINARY_DIR})
 
 cadet_target_compile_features(cadet-cli)
 
@@ -40,9 +40,17 @@ cadet_target_compile_features(cadet-cli)
 # ---------------------------------------------------
 
 # Link to HDF5
-target_include_directories (cadet-cli PRIVATE ${HDF5_INCLUDE_DIRS})
-target_compile_definitions (cadet-cli PRIVATE ${HDF5_DEFINITIONS})
+target_include_directories(cadet-cli PRIVATE ${HDF5_INCLUDE_DIRS})
+target_compile_definitions(cadet-cli PRIVATE ${HDF5_DEFINITIONS})
 target_link_libraries(cadet-cli PRIVATE ${HDF5_LIBRARIES})
+
+# Link to TBB for timer
+if (BENCHMARK_MODE)
+	target_include_directories(cadet-cli PRIVATE ${TBB_INCLUDE_DIRS})
+	target_link_libraries(cadet-cli PRIVATE debug ${TBB_LIBRARIES_DEBUG})
+	target_link_libraries(cadet-cli PRIVATE optimized ${TBB_LIBRARIES})
+endif()
+
 # ---------------------------------------------------
 
 # ---------------------------------------------------
