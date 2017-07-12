@@ -63,6 +63,8 @@ classdef ResultsHelper
 			out.solution.particleDot = cell(maxReturnUnit, 1);
 			out.solution.flux = cell(maxReturnUnit, 1);
 			out.solution.fluxDot = cell(maxReturnUnit, 1);
+			out.solution.volume = cell(maxReturnUnit, 1);
+			out.solution.volumeDot = cell(maxReturnUnit, 1);
 			out.solution.lastState = [];
 			out.solution.lastStateDot = [];
 
@@ -113,6 +115,14 @@ classdef ResultsHelper
 						out.solution.flux{i} = switchStorageOrdering(curRes.SOLUTION_FLUX);
 					end
 
+					if isfield(curRes, 'SOLUTION_FLUX')
+						out.solution.flux{i} = switchStorageOrdering(curRes.SOLUTION_FLUX);
+					end
+
+					if isfield(curRes, 'SOLUTION_VOLUME')
+						out.solution.volume{i} = switchStorageOrdering(curRes.SOLUTION_VOLUME);
+					end
+
 					if isfield(curRes, 'SOLDOT_COLUMN')
 						out.solution.columnDot{i} = switchStorageOrdering(curRes.SOLDOT_COLUMN);
 					end
@@ -123,6 +133,14 @@ classdef ResultsHelper
 
 					if isfield(curRes, 'SOLDOT_FLUX')
 						out.solution.fluxDot{i} = switchStorageOrdering(curRes.SOLDOT_FLUX);
+					end
+
+					if isfield(curRes, 'SOLUTION_FLUX')
+						out.solution.flux{i} = switchStorageOrdering(curRes.SOLUTION_FLUX);
+					end
+
+					if isfield(curRes, 'SOLDOT_VOLUME')
+						out.solution.volumeDot{i} = switchStorageOrdering(curRes.SOLDOT_VOLUME);
 					end
 
 					solNames = fieldnames(curRes);
@@ -159,6 +177,8 @@ classdef ResultsHelper
 			out.sensitivity.particleDot = cell(maxReturnUnitSens, 1);
 			out.sensitivity.flux = cell(maxReturnUnitSens, 1);
 			out.sensitivity.fluxDot = cell(maxReturnUnitSens, 1);
+			out.sensitivity.volume = cell(maxReturnUnitSens, 1);
+			out.sensitivity.volumeDot = cell(maxReturnUnitSens, 1);
 			out.sensitivity.lastState = [];
 			out.sensitivity.lastStateDot = [];
 
@@ -287,6 +307,21 @@ classdef ResultsHelper
 					out.sensitivity.flux{i} = data;
 				end
 
+				if isfield(curUnit, 'SENS_VOLUME')
+					data = zeros([size(curUnit.SENS_VOLUME), maxParams]);
+					stride = numel(curUnit.SENS_VOLUME);
+					for p = 1:maxParams
+						if ~isfield(res.sensitivity, sprintf('param_%03d', p-1))
+							continue;
+						end
+
+						curRes = res.sensitivity.(sprintf('param_%03d', p-1)).(sprintf('unit_%03d', i-1));
+						temp = switchStorageOrdering(curRes.SENS_VOLUME);
+						data((p-1)*stride+1:p*stride) = temp(:);
+					end
+					out.sensitivity.volume{i} = data;
+				end
+
 				if isfield(curUnit, 'SENSDOT_COLUMN')
 					data = zeros([size(curUnit.SENSDOT_COLUMN), maxParams]);
 					stride = numel(curUnit.SENSDOT_COLUMN);
@@ -330,6 +365,21 @@ classdef ResultsHelper
 						data((p-1)*stride+1:p*stride) = temp(:);
 					end
 					out.sensitivity.fluxDot{i} = data;
+				end
+
+				if isfield(curUnit, 'SENSDOT_VOLUME')
+					data = zeros([size(curUnit.SENSDOT_VOLUME), maxParams]);
+					stride = numel(curUnit.SENSDOT_VOLUME);
+					for p = 1:maxParams
+						if ~isfield(res.sensitivity, sprintf('param_%03d', p-1))
+							continue;
+						end
+
+						curRes = res.sensitivity.(sprintf('param_%03d', p-1)).(sprintf('unit_%03d', i-1));
+						temp = switchStorageOrdering(curRes.SENSDOT_VOLUME);
+						data((p-1)*stride+1:p*stride) = temp(:);
+					end
+					out.sensitivity.volumeDot{i} = data;
 				end
 
 				solNames = fieldnames(res.sensitivity.(sprintf('param_%03d', maxParams-1)).(sprintf('unit_%03d', i-1)));

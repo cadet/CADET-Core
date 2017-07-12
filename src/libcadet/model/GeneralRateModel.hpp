@@ -444,6 +444,7 @@ protected:
 		virtual bool hasNonBindingComponents() const CADET_NOEXCEPT { return cadet::model::hasNonBindingComponents(_disc.nBound, _disc.nComp); }
 		virtual bool hasParticleFlux() const CADET_NOEXCEPT { return true; }
 		virtual bool hasParticleMobilePhase() const CADET_NOEXCEPT { return true; }
+		virtual bool hasVolume() const CADET_NOEXCEPT { return false; }
 
 		virtual unsigned int numComponents() const CADET_NOEXCEPT { return _disc.nComp; }
 		virtual unsigned int numAxialCells() const CADET_NOEXCEPT { return _disc.nCol; }
@@ -454,6 +455,7 @@ protected:
 		virtual unsigned int numColumnDofs() const CADET_NOEXCEPT { return _disc.nComp * _disc.nCol; }
 		virtual unsigned int numParticleDofs() const CADET_NOEXCEPT { return (_disc.nComp + _disc.strideBound) * _disc.nPar * _disc.nCol; }
 		virtual unsigned int numFluxDofs() const CADET_NOEXCEPT { return _disc.nComp * _disc.nCol; }
+		virtual unsigned int numVolumeDofs() const CADET_NOEXCEPT { return 0; }
 		
 		virtual double concentration(unsigned int component, unsigned int axialCell) const { return _idx.c(_data, axialCell, component); }
 		virtual double flux(unsigned int component, unsigned int axialCell) const { return _idx.jf(_data, axialCell, component); }
@@ -462,11 +464,13 @@ protected:
 		{
 			return _idx.q(_data, axialCell, radialCell, boundState, component);
 		}
+		virtual double volume(unsigned int dof) const { return 0.0; }
 		
 		virtual double const* concentration() const { return _idx.c(_data); }
 		virtual double const* flux() const { return _idx.jf(_data); }
 		virtual double const* mobilePhase() const { return _idx.cp(_data); }
 		virtual double const* solidPhase() const { return _idx.q(_data); }
+		virtual double const* volume() const { return nullptr; }
 		virtual double const* inlet(unsigned int& stride) const
 		{
 			stride = _idx.strideColComp();

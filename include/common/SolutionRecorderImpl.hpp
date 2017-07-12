@@ -42,14 +42,15 @@ public:
 		bool storeFlux;
 		bool storeOutlet;
 		bool storeInlet;
+		bool storeVolume;
 	};
 
 	InternalStorageUnitOpRecorder() : InternalStorageUnitOpRecorder(UnitOpIndep) { }
 
-	InternalStorageUnitOpRecorder(UnitOpIdx idx) : _cfgSolution({false, false, false, true, false}),
-		_cfgSolutionDot({false, false, false, false, false}), _cfgSensitivity({false, false, false, true, false}),
-		_cfgSensitivityDot({false, false, false, true, false}), _storeTime(false), _splitComponents(true), _curCfg(nullptr),
-		_nComp(0), _numTimesteps(0), _numSens(0), _unitOp(idx), _needsReAlloc(false)
+	InternalStorageUnitOpRecorder(UnitOpIdx idx) : _cfgSolution({false, false, false, true, false, false}),
+		_cfgSolutionDot({false, false, false, false, false, false}), _cfgSensitivity({false, false, false, true, false, false}),
+		_cfgSensitivityDot({false, false, false, true, false, false}), _storeTime(false), _splitComponents(true), _curCfg(nullptr),
+		_nComp(0), _nVolumeDof(0), _numTimesteps(0), _numSens(0), _unitOp(idx), _needsReAlloc(false)
 	{
 	}
 
@@ -62,12 +63,14 @@ public:
 			delete _sensColumn[i];
 			delete _sensParticle[i];
 			delete _sensFlux[i];
+			delete _sensVolume[i];
 
 			delete _sensOutletDot[i];
 			delete _sensInletDot[i];
 			delete _sensColumnDot[i];
 			delete _sensParticleDot[i];
 			delete _sensFluxDot[i];
+			delete _sensVolumeDot[i];
 		}
 	}
 
@@ -80,12 +83,14 @@ public:
 		_column.clear();
 		_particle.clear();
 		_flux.clear();
+		_volume.clear();
 
 		_outletDot.clear();
 		_inletDot.clear();
 		_columnDot.clear();
 		_particleDot.clear();
 		_fluxDot.clear();
+		_volumeDot.clear();
 
 		// Clear all sensitivity storage
 		for (unsigned int i = 0; i < _sensOutlet.size(); ++i)
@@ -95,12 +100,14 @@ public:
 			_sensColumn[i]->clear();
 			_sensParticle[i]->clear();
 			_sensFlux[i]->clear();
+			_sensVolume[i]->clear();
 
 			_sensOutletDot[i]->clear();
 			_sensInletDot[i]->clear();
 			_sensColumnDot[i]->clear();
 			_sensParticleDot[i]->clear();
 			_sensFluxDot[i]->clear();
+			_sensVolumeDot[i]->clear();
 		}
 	}
 
@@ -115,12 +122,14 @@ public:
 		_sensColumn.resize(numSens, nullptr);
 		_sensParticle.resize(numSens, nullptr);
 		_sensFlux.resize(numSens, nullptr);
+		_sensVolume.resize(numSens, nullptr);
 
 		_sensOutletDot.resize(numSens, nullptr);
 		_sensInletDot.resize(numSens, nullptr);
 		_sensColumnDot.resize(numSens, nullptr);
 		_sensParticleDot.resize(numSens, nullptr);
 		_sensFluxDot.resize(numSens, nullptr);
+		_sensVolumeDot.resize(numSens, nullptr);
 
 		for (unsigned int i = 0; i < numSens; ++i)
 		{
@@ -129,12 +138,14 @@ public:
 			_sensColumn[i] = new std::vector<double>();
 			_sensParticle[i] = new std::vector<double>();
 			_sensFlux[i] = new std::vector<double>();
+			_sensVolume[i] = new std::vector<double>();
 
 			_sensOutletDot[i] = new std::vector<double>();
 			_sensInletDot[i] = new std::vector<double>();
 			_sensColumnDot[i] = new std::vector<double>();
 			_sensParticleDot[i] = new std::vector<double>();
 			_sensFluxDot[i] = new std::vector<double>();
+			_sensVolumeDot[i] = new std::vector<double>();
 		}
 
 		_needsReAlloc = false;
@@ -159,12 +170,14 @@ public:
 				delete _sensColumn[i];
 				delete _sensParticle[i];
 				delete _sensFlux[i];
+				delete _sensVolume[i];
 
 				delete _sensOutletDot[i];
 				delete _sensInletDot[i];
 				delete _sensColumnDot[i];
 				delete _sensParticleDot[i];
 				delete _sensFluxDot[i];
+				delete _sensVolumeDot[i];
 			}
 
 			// Allocate sensitivity storage
@@ -178,6 +191,8 @@ public:
 			_sensParticle.resize(numSens, nullptr);
 			_sensFlux.clear();
 			_sensFlux.resize(numSens, nullptr);
+			_sensVolume.clear();
+			_sensVolume.resize(numSens, nullptr);
 
 			_sensOutletDot.clear();
 			_sensOutletDot.resize(numSens, nullptr);
@@ -189,6 +204,8 @@ public:
 			_sensParticleDot.resize(numSens, nullptr);
 			_sensFluxDot.clear();
 			_sensFluxDot.resize(numSens, nullptr);
+			_sensVolumeDot.clear();
+			_sensVolumeDot.resize(numSens, nullptr);
 
 			// Populate with empty vectors
 			for (unsigned int i = 0; i < numSens; ++i)
@@ -198,12 +215,14 @@ public:
 				_sensColumn[i] = new std::vector<double>();
 				_sensParticle[i] = new std::vector<double>();
 				_sensFlux[i] = new std::vector<double>();
+				_sensVolume[i] = new std::vector<double>();
 
 				_sensOutletDot[i] = new std::vector<double>();
 				_sensInletDot[i] = new std::vector<double>();
 				_sensColumnDot[i] = new std::vector<double>();
 				_sensParticleDot[i] = new std::vector<double>();
 				_sensFluxDot[i] = new std::vector<double>();
+				_sensVolumeDot[i] = new std::vector<double>();
 			}
 
 			_numSens = numSens;
@@ -217,6 +236,7 @@ public:
 			return;
 
 		_nComp = exporter.numComponents();
+		_nVolumeDof = exporter.numVolumeDofs();
 
 		// Query structure
 		unsigned int len = 0;
@@ -361,6 +381,12 @@ public:
 			double const* const data = exporter.flux();
 			_curFlux->insert(_curFlux->end(), data, data + exporter.numFluxDofs());
 		}
+
+		if (_curCfg->storeVolume)
+		{
+			double const* const data = exporter.volume();
+			_curVolume->insert(_curVolume->end(), data, data + exporter.numVolumeDofs());
+		}
 	}
 
 	virtual void endUnitOperation() { }
@@ -375,6 +401,7 @@ public:
 		_curBulk = &_column;
 		_curParticle = &_particle;
 		_curFlux = &_flux;
+		_curVolume = &_volume;
 	}
 
 	virtual void endSolution()
@@ -385,6 +412,7 @@ public:
 		_curBulk = nullptr;
 		_curParticle = nullptr;
 		_curFlux = nullptr;
+		_curVolume = nullptr;
 	}
 
 	virtual void beginSolutionDerivative()
@@ -395,6 +423,7 @@ public:
 		_curBulk = &_columnDot;
 		_curParticle = &_particleDot;
 		_curFlux = &_fluxDot;
+		_curVolume = &_volumeDot;
 	}
 
 	virtual void endSolutionDerivative() { endSolution(); }
@@ -507,21 +536,25 @@ public:
 	inline double const* column() const CADET_NOEXCEPT { return _column.data(); }
 	inline double const* particle() const CADET_NOEXCEPT { return _particle.data(); }
 	inline double const* flux() const CADET_NOEXCEPT { return _flux.data(); }
+	inline double const* volume() const CADET_NOEXCEPT { return _volume.data(); }
 	inline double const* inletDot() const CADET_NOEXCEPT { return _inletDot.data(); }
 	inline double const* outletDot() const CADET_NOEXCEPT { return _outletDot.data(); }
 	inline double const* columnDot() const CADET_NOEXCEPT { return _columnDot.data(); }
 	inline double const* particleDot() const CADET_NOEXCEPT { return _particleDot.data(); }
 	inline double const* fluxDot() const CADET_NOEXCEPT { return _fluxDot.data(); }
+	inline double const* volumeDot() const CADET_NOEXCEPT { return _volumeDot.data(); }
 	inline double const* sensInlet(unsigned int idx) const CADET_NOEXCEPT { return _sensInlet[idx]->data(); }
 	inline double const* sensOutlet(unsigned int idx) const CADET_NOEXCEPT { return _sensOutlet[idx]->data(); }
 	inline double const* sensColumn(unsigned int idx) const CADET_NOEXCEPT { return _sensColumn[idx]->data(); }
 	inline double const* sensParticle(unsigned int idx) const CADET_NOEXCEPT { return _sensParticle[idx]->data(); }
 	inline double const* sensFlux(unsigned int idx) const CADET_NOEXCEPT { return _sensFlux[idx]->data(); }
+	inline double const* sensVolume(unsigned int idx) const CADET_NOEXCEPT { return _sensVolume[idx]->data(); }
 	inline double const* sensInletDot(unsigned int idx) const CADET_NOEXCEPT { return _sensInletDot[idx]->data(); }
 	inline double const* sensOutletDot(unsigned int idx) const CADET_NOEXCEPT { return _sensOutletDot[idx]->data(); }
 	inline double const* sensColumnDot(unsigned int idx) const CADET_NOEXCEPT { return _sensColumnDot[idx]->data(); }
 	inline double const* sensParticleDot(unsigned int idx) const CADET_NOEXCEPT { return _sensParticleDot[idx]->data(); }
 	inline double const* sensFluxDot(unsigned int idx) const CADET_NOEXCEPT { return _sensFluxDot[idx]->data(); }
+	inline double const* sensVolumeDot(unsigned int idx) const CADET_NOEXCEPT { return _sensVolumeDot[idx]->data(); }
 protected:
 
 	inline void beginSensitivity(unsigned int sensIdx)
@@ -532,6 +565,7 @@ protected:
 		_curBulk = _sensColumn[sensIdx];
 		_curParticle = _sensParticle[sensIdx];
 		_curFlux = _sensFlux[sensIdx];
+		_curVolume = _sensVolume[sensIdx];
 	}
 
 	inline void beginSensitivityDot(unsigned int sensIdx)
@@ -542,6 +576,7 @@ protected:
 		_curBulk = _sensColumnDot[sensIdx];
 		_curParticle = _sensParticleDot[sensIdx];
 		_curFlux = _sensFluxDot[sensIdx];
+		_curVolume = _sensVolumeDot[sensIdx];
 	}
 
 	inline void allocateMemory(const ISolutionExporter& exporter)
@@ -560,6 +595,9 @@ protected:
 		
 		if (exporter.hasParticleFlux() && _curCfg->storeFlux)
 			_curFlux->reserve(std::max(_numTimesteps, 100u) * exporter.numFluxDofs());
+		
+		if (exporter.hasVolume() && _curCfg->storeVolume)
+			_curVolume->reserve(std::max(_numTimesteps, 100u) * exporter.numVolumeDofs());
 	}
 
 	template <typename Writer_t>
@@ -626,6 +664,14 @@ protected:
 			_fluxLayout[0] = _numTimesteps;
 			writer.template tensor<double>(oss.str(), _fluxLayout.size(), _fluxLayout.data(), _curFlux->data());
 		}
+
+		if (_curCfg->storeVolume)
+		{
+			oss.str("");
+			oss << prefix << "_VOLUME";
+			_fluxLayout[0] = _numTimesteps;
+			writer.template matrix<double>(oss.str(), _numTimesteps, _nVolumeDof, _curVolume->data(), 1);
+		}
 	}
 
 	StorageConfig _cfgSolution;
@@ -641,6 +687,7 @@ protected:
 	std::vector<double>* _curBulk;
 	std::vector<double>* _curParticle;
 	std::vector<double>* _curFlux;
+	std::vector<double>* _curVolume;
 
 	std::vector<double> _time;
 	std::vector<double> _outlet;
@@ -648,30 +695,35 @@ protected:
 	std::vector<double> _column;
 	std::vector<double> _particle;
 	std::vector<double> _flux;
+	std::vector<double> _volume;
 
 	std::vector<double> _outletDot;
 	std::vector<double> _inletDot;
 	std::vector<double> _columnDot;
 	std::vector<double> _particleDot;
 	std::vector<double> _fluxDot;
+	std::vector<double> _volumeDot;
 
 	std::vector<std::vector<double>*> _sensOutlet;
 	std::vector<std::vector<double>*> _sensInlet;
 	std::vector<std::vector<double>*> _sensColumn;
 	std::vector<std::vector<double>*> _sensParticle;
 	std::vector<std::vector<double>*> _sensFlux;
+	std::vector<std::vector<double>*> _sensVolume;
 
 	std::vector<std::vector<double>*> _sensOutletDot;
 	std::vector<std::vector<double>*> _sensInletDot;
 	std::vector<std::vector<double>*> _sensColumnDot;
 	std::vector<std::vector<double>*> _sensParticleDot;
 	std::vector<std::vector<double>*> _sensFluxDot;
+	std::vector<std::vector<double>*> _sensVolumeDot;
 	
 	std::vector<std::size_t> _columnLayout;
 	std::vector<std::size_t> _particleLayout;
 	std::vector<std::size_t> _fluxLayout;
 
 	unsigned int _nComp;
+	unsigned int _nVolumeDof;
 	unsigned int _numTimesteps;
 	unsigned int _numSens;
 	UnitOpIdx _unitOp;

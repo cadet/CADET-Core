@@ -720,19 +720,23 @@ However, if only one index is passed in \texttt{EXTFUN}, this external source is
 \texttt{WRITE\_SOLUTION\_FLUX} & Write solutions of the bead fluxes $j_{f,i}$ & int & 0/1 \\
 \texttt{WRITE\_SOLDOT\_COLUMN\_INLET} & Write solution time derivatives at column inlet $\partial c_i(t,0) / \partial t$ & int & 0/1 \\
 \texttt{WRITE\_SOLDOT\_COLUMN\_OUTLET} & Write solution time derivatives at column outlet (chromatograms) $\partial c_i(t,L) / \partial t$ & int & 0/1 \\
+\texttt{WRITE\_SOLUTION\_VOLUME} & Write solutions of the volume $V$ & int & 0/1 \\
 \texttt{WRITE\_SOLDOT\_COLUMN} & Write solution time derivatives of the column bulk volume $\partial c_i / \partial t$ & int & 0/1 \\
 \texttt{WRITE\_SOLDOT\_PARTICLE} & Write solution time derivatives of the particle phases $\partial c_{p,i} / \partial t$, $\partial q_{i,j} / \partial t$ & int & 0/1 \\
 \texttt{WRITE\_SOLDOT\_FLUX} & Write solution time derivatives of the bead fluxes $\partial j_{f,i} / \partial t$ & int & 0/1 \\
 \texttt{WRITE\_SENS\_COLUMN\_INLET} & Write sensitivities at column inlet $\partial c_i(t,0) / \partial p$ & int & 0/1 \\
 \texttt{WRITE\_SENS\_COLUMN\_OUTLET} & Write sensitivities at column outlet (chromatograms) $\partial c_i(t,L) / \partial p$ & int & 0/1 \\
+\texttt{WRITE\_SOLDOT\_VOLUME} & Write solution time derivatives of the volume $\partial V / \partial t$ & int & 0/1 \\
 \texttt{WRITE\_SENS\_COLUMN} & Write sensitivities of the column bulk volume $\partial c_i / \partial p$ & int & 0/1 \\
 \texttt{WRITE\_SENS\_PARTICLE} & Write sensitivities of the particle phases $\partial c_{p,i} / \partial p$, $\partial q_{i,j} / \partial p$ & int & 0/1 \\
 \texttt{WRITE\_SENS\_FLUX} & Write sensitivities of the bead fluxes $\partial j_{f,i} / \partial p$ & int & 0/1 \\
 \texttt{WRITE\_SENSDOT\_COLUMN\_INLET} & Write sensitivity time derivatives at column inlet $\partial^2 c_i(t,0) / (\partial p, \partial t)$ & int & 0/1 \\
 \texttt{WRITE\_SENSDOT\_COLUMN\_OUTLET} & Write sensitivity time derivatives at column outlet (chromatograms) $\partial^2 c_i(t,L) / (\partial p, \partial t)$ & int & 0/1 \\
+\texttt{WRITE\_SENS\_VOLUME} & Write sensitivities of the volume $\partial V / \partial p$ & int & 0/1 \\
 \texttt{WRITE\_SENSDOT\_COLUMN} & Write sensitivity time derivatives of the column bulk volume $\partial^2 c_i / (\partial p, \partial t)$ & int & 0/1 \\
 \texttt{WRITE\_SENSDOT\_PARTICLE} & Write sensitivity time derivatives of the particle phases $\partial^2 c_{p,i} / (\partial p, \partial t)$, $\partial^2 q_{i,j} / (\partial p, \partial t)$ & int & 0/1 \\
 \texttt{WRITE\_SENSDOT\_FLUX} & Write sensitivity time derivatives of the bead fluxes $\partial^2 j_{f,i} / (\partial p, \partial t)$ & int & 0/1 \everyrow{}\\
+\texttt{WRITE\_SENSDOT\_VOLUME} & Write sensitivity time derivatives of the volume $\partial^2 V / (\partial p, \partial t)$ & int & 0/1 \everyrow{}\\
 \bottomrule
 \end{tabu}
 \caption{\label{tab:FFReturnUnit}Datasets in the \texttt{/input/model/return/unit\_XXX} group}
@@ -880,6 +884,7 @@ However, if only one index is passed in \texttt{EXTFUN}, this external source is
 \texttt{SOLUTION\_COLUMN} & Interstitial solution as $n_{\text{Time}} \times \texttt{UNITOPORDERING}$ tensor in row-major storage & \si{\mol\per\cubic\metre\of{IV}} & double \\
 \texttt{SOLUTION\_PARTICLE} & Solution inside the beads as $n_{\text{Time}} \times \texttt{UNITOPORDERING}$ tensor in row-major storage & \si{\mol\per\cubic\metre\of{MP \& SP}} & double \\
 \texttt{SOLUTION\_FLUX} & Flux solution as $n_{\text{Time}} \times \texttt{UNITOPORDERING}$ tensor in row-major storage & \si{\mol\per\square\metre\per\second} & double \\
+\texttt{SOLUTION\_VOLUME} & Volume solution & \si{\cubic\metre} & double \\
 \texttt{SOLUTION\_COLUMN\_OUTLET} & Matrix of solutions at the unit operation outlet with components as columns (only present if \texttt{SPLIT\_COMPONENTS\_DATA} is disabled) & \si{\mol\per\cubic\metre\of{IV}} & double \\
 \texttt{SOLUTION\_COLUMN\_INLET} & Matrix of solutions at the unit operation inlet with components as columns (only present if \texttt{SPLIT\_COMPONENTS\_DATA} is disabled) & \si{\mol\per\cubic\metre\of{IV}} & double \\
 \texttt{SOLUTION\_COLUMN\_OUTLET\_COMP\_XXX} & Component \texttt{XXX} of the solution at the unit operation outlet (only present if \texttt{SPLIT\_COMPONENTS\_DATA} is enabled) & \si{\mol\per\cubic\metre\of{IV}} & double \\
@@ -887,6 +892,7 @@ However, if only one index is passed in \texttt{EXTFUN}, this external source is
 \texttt{SOLDOT\_COLUMN} & Interstitial solution time derivative as $n_{\text{Time}} \times \texttt{UNITOPORDERING}$ tensor in row-major storage & \si{\mol\per\cubic\metre\of{IV}} & double \\
 \texttt{SOLDOT\_PARTICLE} & Solution time derivative inside the beads as $n_{\text{Time}} \times \texttt{UNITOPORDERING}$ tensor in row-major storage & \si{\mol\per\cubic\metre\of{MP \& SP}} & double \\
 \texttt{SOLDOT\_FLUX} & Flux solution time derivative as $n_{\text{Time}} \times \texttt{UNITOPORDERING}$ tensor in row-major storage & \si{\mol\per\square\metre\per\second} & double \\
+\texttt{SOLDOT\_VOLUME} & Volume time derivatives & \si{\cubic\metre\per\second} & double \\
 \texttt{SOLDOT\_COLUMN\_OUTLET} & Matrix of solution time derivatives at the unit operation outlet with components as columns (only present if \texttt{SPLIT\_COMPONENTS\_DATA} is disabled) & \si{\mol\per\cubic\metre\of{IV}} & double \\
 \texttt{SOLDOT\_COLUMN\_INLET} & Matrix of solution time derivatives at the unit operation inlet with components as columns (only present if \texttt{SPLIT\_COMPONENTS\_DATA} is disabled) & \si{\mol\per\cubic\metre\of{IV}} & double \\
 \texttt{SOLDOT\_COLUMN\_OUTLET\_COMP\_XXX} & Component \texttt{XXX} of the solution time derivative at the unit operation outlet (only present if \texttt{SPLIT\_COMPONENTS\_DATA} is enabled) & \si{\mol\per\cubic\metre\of{IV}} & double \\
@@ -904,6 +910,7 @@ However, if only one index is passed in \texttt{EXTFUN}, this external source is
 \texttt{SENS\_COLUMN} & Interstitial sensitivity as $n_{\text{Time}} \times \texttt{UNITOPORDERING}$ tensor in row-major storage & \si{\mol\per\cubic\metre\of{IV}} & double \\
 \texttt{SENS\_PARTICLE} & Sensitivity inside the beads as $n_{\text{Time}} \times \texttt{UNITOPORDERING}$ tensor in row-major storage & \si{\mol\per\cubic\metre\of{MP \& SP}} & double \\
 \texttt{SENS\_FLUX} & Flux sensitivity as $n_{\text{Time}} \times \texttt{UNITOPORDERING}$ tensor in row-major storage & \si{\mol\per\square\metre\per\second} & double \\
+\texttt{SENS\_VOLUME} & Volume sensitivity & \si{\cubic\metre\per\ParamUnit} & double \\
 \texttt{SENS\_COLUMN\_OUTLET} & Matrix of sensitivities at the unit operation outlet with components as columns (only present if \texttt{SPLIT\_COMPONENTS\_DATA} is disabled) & \si{\mol\per\cubic\metre\of{IV}} & double \\
 \texttt{SENS\_COLUMN\_INLET} & Matrix of sensitivities at the unit operation inlet with components as columns (only present if \texttt{SPLIT\_COMPONENTS\_DATA} is disabled) & \si{\mol\per\cubic\metre\of{IV}} & double \\
 \texttt{SENS\_COLUMN\_OUTLET\_COMP\_XXX} & Component \texttt{XXX} of the sensitivity at the unit operation outlet (only present if \texttt{SPLIT\_COMPONENTS\_DATA} is enabled) & \si{\mol\per\cubic\metre\of{IV}} & double \\
@@ -911,6 +918,7 @@ However, if only one index is passed in \texttt{EXTFUN}, this external source is
 \texttt{SENSDOT\_COLUMN} & Interstitial sensitivity time derivative as $n_{\text{Time}} \texttt{UNITOPORDERING}$ tensor in row-major storage & \si{\mol\per\cubic\metre\of{IV}} & double \\
 \texttt{SENSDOT\_PARTICLE} & Sensitivity time derivative inside the beads as $n_{\text{Time}} \texttt{UNITOPORDERING}$ tensor in row-major storage & \si{\mol\per\cubic\metre\of{MP \& SP}} & double \\
 \texttt{SENSDOT\_FLUX} & Flux sensitivity time derivative as $n_{\text{Time}} \times \texttt{UNITOPORDERING}$ tensor in row-major storage & \si{\mol\per\square\metre\per\second} & double \\
+\texttt{SENSDOT\_VOLUME} & Volume sensitivity time derivatives & \si{\cubic\metre\per\second\per\ParamUnit} & double \\
 \texttt{SENSDOT\_COLUMN\_OUTLET} & Matrix of sensitivity time derivatives at the unit operation outlet with components as columns (only present if \texttt{SPLIT\_COMPONENTS\_DATA} is disabled) & \si{\mol\per\cubic\metre\of{IV}} & double \\
 \texttt{SENSDOT\_COLUMN\_INLET} & Matrix of sensitivity time derivatives at the unit operation inlet with components as columns (only present if \texttt{SPLIT\_COMPONENTS\_DATA} is disabled) & \si{\mol\per\cubic\metre\of{IV}} & double \\
 \texttt{SENSDOT\_COLUMN\_OUTLET\_COMP\_XXX} & Component \texttt{XXX} of the sensitivity time derivative at the unit operation outlet (only present if \texttt{SPLIT\_COMPONENTS\_DATA} is enabled) & \si{\mol\per\cubic\metre\of{IV}} & double \\

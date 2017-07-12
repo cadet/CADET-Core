@@ -71,6 +71,11 @@ void readDataOutputConfig(ParamProvider_t& pp, StorageConfig_t& cfg, const std::
 		cfg.storeOutlet = pp.getBool("WRITE_" + dataType + "_COLUMN_OUTLET");
 	else
 		cfg.storeOutlet = false;
+
+	if (pp.exists("WRITE_" + dataType + "_VOLUME"))
+		cfg.storeVolume = pp.getBool("WRITE_" + dataType + "_VOLUME");
+	else
+		cfg.storeVolume = false;
 }
 
 template <class ParamProvider_t>

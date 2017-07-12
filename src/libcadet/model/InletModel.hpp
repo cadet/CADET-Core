@@ -171,6 +171,7 @@ protected:
 		virtual bool hasNonBindingComponents() const CADET_NOEXCEPT { return true; }
 		virtual bool hasParticleFlux() const CADET_NOEXCEPT { return false; }
 		virtual bool hasParticleMobilePhase() const CADET_NOEXCEPT { return false; }
+		virtual bool hasVolume() const CADET_NOEXCEPT { return false; }
 
 		virtual unsigned int numComponents() const CADET_NOEXCEPT { return _nComp; }
 		virtual unsigned int numAxialCells() const CADET_NOEXCEPT { return 1; }
@@ -181,16 +182,19 @@ protected:
 		virtual unsigned int numColumnDofs() const CADET_NOEXCEPT { return _nComp; }
 		virtual unsigned int numParticleDofs() const CADET_NOEXCEPT { return 0; }
 		virtual unsigned int numFluxDofs() const CADET_NOEXCEPT { return 0; }
+		virtual unsigned int numVolumeDofs() const CADET_NOEXCEPT { return 0; }
 		
 		virtual double concentration(unsigned int component, unsigned int axialCell) const { return _data[component]; }
 		virtual double flux(unsigned int component, unsigned int axialCell) const { return 0.0; }
 		virtual double mobilePhase(unsigned int component, unsigned int axialCell, unsigned int radialCell) const { return 0.0; }
 		virtual double solidPhase(unsigned int component, unsigned int axialCell, unsigned int radialCell, unsigned int boundState) const { return 0.0; }
+		virtual double volume(unsigned int dof) const { return 0.0; }
 		
 		virtual double const* concentration() const { return _data; }
 		virtual double const* flux() const { return nullptr; }
 		virtual double const* mobilePhase() const { return nullptr; }
 		virtual double const* solidPhase() const { return nullptr; }
+		virtual double const* volume() const { return nullptr; }
 		virtual double const* inlet(unsigned int& stride) const
 		{
 			stride = 1;

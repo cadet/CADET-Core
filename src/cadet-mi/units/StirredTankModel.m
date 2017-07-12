@@ -34,6 +34,10 @@ classdef StirredTankModel < Model
 
 			obj = obj@Model();
 			obj.flowRateFilter = 0.0;
+
+			% Return volume by default
+			obj.returnSolutionVolume = true;
+			obj.returnSensVolume = true;
 		end
 		
 		% Parameters

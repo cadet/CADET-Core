@@ -71,6 +71,13 @@ public:
 	virtual bool hasNonBindingComponents() const CADET_NOEXCEPT = 0;
 
 	/**
+	 * @brief Returns whether the associated model has volume DOFs
+	 * @details Models that can accumulate (e.g., CSTR) usually have varying volume.
+	 * @return @c true if volume DOFs are present, otherwise @c false
+	 */
+	virtual bool hasVolume() const CADET_NOEXCEPT = 0;
+
+	/**
 	 * @brief Returns the number of components
 	 * @return Number of components
 	 */
@@ -125,6 +132,12 @@ public:
 	 */
 	virtual unsigned int numFluxDofs() const CADET_NOEXCEPT = 0;
 
+	/**
+	 * @brief Returns the number of volume DOFs, if volume DOFs are supported
+	 * @return Number of volume DOFs
+	 */
+	virtual unsigned int numVolumeDofs() const CADET_NOEXCEPT = 0;
+
 
 	/**
 	 * @brief Returns a concentration value
@@ -174,6 +187,16 @@ public:
 	 */
 	virtual double solidPhase(unsigned int component, unsigned int axialCell, unsigned int radialCell, unsigned int boundState) const = 0;
 
+	/**
+	 * @brief Returns a volume
+	 * @details Not every model has volume DOFs.
+	 * 
+	 * @param [in] dof DOF index
+	 * 
+	 * @return Volume
+	 */
+	virtual double volume(unsigned int dof) const = 0;
+
 
 	/**
 	 * @brief Provides direct access to the underlying main mobile phase state vector
@@ -202,6 +225,12 @@ public:
 	 * @return Pointer to the first element of the state vector or @c NULL if the model does not support it
 	 */
 	virtual double const* solidPhase() const = 0;
+
+	/**
+	 * @brief Provides direct access to the underlying volume slice of the state vector
+	 * @return Pointer to the first element of the volume slice or @c NULL if the model does not support volume DOFs
+	 */
+	virtual double const* volume() const = 0;
 
 	/**
 	 * @brief Provides direct access to the inlet state vector
