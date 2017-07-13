@@ -94,5 +94,6 @@ cadet::JsonParameterProvider createGRMwithLinear();
 cadet::JsonParameterProvider createLWE();
 cadet::JsonParameterProvider createLinearBenchmark(bool dynamicBinding);
 cadet::JsonParameterProvider createCSTR(unsigned int nComp);
+cadet::JsonParameterProvider createCSTRBenchmark(unsigned int nSec, double endTime, double interval);
 
 #endif  // CADETTEST_JSONPARAMETERPROVIDER_HPP_

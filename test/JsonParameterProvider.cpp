@@ -12,6 +12,9 @@
 
 #include <json.hpp>
 
+#include <sstream>
+#include <iomanip>
+
 #define CADETTEST_JSONPARAMETERPROVIDER_NOFORWARD
 #include "JsonParameterProvider.hpp"
 
@@ -549,7 +552,7 @@ cadet::JsonParameterProvider createLWE()
 
 cadet::JsonParameterProvider createLinearBenchmark(bool dynamicBinding)
 {
-	json config;	
+	json config;
 	// Model
 	{
 		json model;
@@ -753,10 +756,166 @@ json createCSTRJson(unsigned int nComp)
 	json config;
 	config["UNIT_TYPE"] = std::string("CSTR");
 	config["NCOMP"] = static_cast<int>(nComp);
+	config["INIT_VOLUME"] = 1.0;
+	config["INIT_C"] = std::vector<double>(nComp, 0.0);
+	config["FLOWRATE_FILTER"] = {0.0};
 	return config;
 }
 
 cadet::JsonParameterProvider createCSTR(unsigned int nComp)
 {
 	return cadet::JsonParameterProvider(createCSTRJson(nComp));
+}
+
+cadet::JsonParameterProvider createCSTRBenchmark(unsigned int nSec, double endTime, double interval)
+{
+	std::ostringstream ss;
+
+	json config;
+	// Model
+	{
+		json model;
+		model["NUNITS"] = 3;
+
+		// CSTR - unit 000
+		model["unit_000"] = createCSTRJson(1);
+
+		// Inlet - unit 001
+		{
+			json inlet;
+
+			inlet["UNIT_TYPE"] = std::string("INLET");
+			inlet["INLET_TYPE"] = std::string("PIECEWISE_CUBIC_POLY");
+			inlet["NCOMP"] = 1;
+
+			for (unsigned int i = 0; i < nSec; ++i)
+			{
+				json sec;
+
+				sec["CONST_COEFF"] = {0.0};
+				sec["LIN_COEFF"] = {0.0};
+				sec["QUAD_COEFF"] = {0.0};
+				sec["CUBE_COEFF"] = {0.0};
+
+				ss << "sec_" << std::setfill('0') << std::setw(3) << i;
+				inlet[ss.str()] = sec;
+				ss.str("");
+			}
+
+			model["unit_001"] = inlet;
+		}
+		
+		// Outlet - unit 002
+		{
+			json outlet;
+
+			outlet["UNIT_TYPE"] = std::string("OUTLET");
+			outlet["NCOMP"] = 1;
+
+			model["unit_002"] = outlet;
+		}
+		// Valve switches
+		{
+			json con;
+			con["NSWITCHES"] = nSec;
+
+			for (unsigned int i = 0; i < nSec; ++i)
+			{
+				json sw;
+
+				// This switch occurs at beginning of section 0 (initial configuration)
+				sw["SECTION"] = static_cast<int>(i);
+
+				// Connection list is 2x5 since we have 2 connection between
+				// the three unit operations (and we need to have 5 columns)
+				sw["CONNECTIONS"] = {1.0, 0.0, -1.0, -1.0, 1.0,
+				                     0.0, 2.0, -1.0, -1.0, 1.0};
+				// Connections: From unit operation 1 to unit operation 0,
+				//              connect component -1 (i.e., all components)
+				//              to component -1 (i.e., all components) with
+				//              volumetric flow rate 1.0 m^3/s
+				//              From unit operation 0 to unit operation 2,
+				//              connect component -1 (i.e., all components)
+				//              to component -1 (i.e., all components) with
+				//              volumetric flow rate 1.0 m^3/s
+
+				ss << "switch_" << std::setfill('0') << std::setw(3) << i;
+				con[ss.str()] = sw;
+				ss.str("");
+			}
+			model["connections"] = con;
+		}
+
+		// Solver settings
+		{
+			json solver;
+
+			solver["MAX_KRYLOV"] = 0;
+			solver["GS_TYPE"] = 1;
+			solver["MAX_RESTARTS"] = 10;
+			solver["SCHUR_SAFETY"] = 1e-8;
+			model["solver"] = solver;
+		}
+
+		config["model"] = model;
+	}
+
+	// Return
+	{
+		json ret;
+		ret["WRITE_SOLUTION_TIMES"] = true;
+	
+		json cstr;
+		cstr["WRITE_SOLUTION_COLUMN"] = false;
+		cstr["WRITE_SOLUTION_PARTICLE"] = false;
+		cstr["WRITE_SOLUTION_FLUX"] = false;
+		cstr["WRITE_SOLUTION_COLUMN_INLET"] = true;
+		cstr["WRITE_SOLUTION_COLUMN_OUTLET"] = true;
+		cstr["WRITE_SOLUTION_VOLUME"] = true;
+		
+		ret["unit_000"] = cstr;
+		config["return"] = ret;
+	}
+
+	// Solver
+	{
+		json solver;
+
+		{
+			std::vector<double> solTimes;
+			solTimes.reserve(static_cast<int>(endTime / interval) + 1);
+			for (double t = 0.0; t <= endTime; t += interval)
+				solTimes.push_back(t);
+
+			solver["USER_SOLUTION_TIMES"] = solTimes;
+		}
+
+		solver["NTHREADS"] = 1;
+
+		// Sections
+		{
+			json sec;
+
+			sec["NSEC"] = nSec;
+			sec["SECTION_TIMES"] = std::vector<double>(nSec + 1, 0.0);
+
+			solver["sections"] = sec;
+		}
+
+		// Time integrator
+		{
+			json ti;
+
+			ti["ABSTOL"] = 1e-8;
+			ti["RELTOL"] = 1e-6;
+			ti["ALGTOL"] = 1e-12;
+			ti["INIT_STEP_SIZE"] = 1e-6;
+			ti["MAX_STEPS"] = 10000;
+
+			solver["time_integrator"] = ti;
+		}
+
+		config["solver"] = solver;
+	}
+	return cadet::JsonParameterProvider(config);
 }
