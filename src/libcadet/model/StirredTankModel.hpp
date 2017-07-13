@@ -186,17 +186,17 @@ protected:
 		virtual unsigned int numFluxDofs() const CADET_NOEXCEPT { return 0; }
 		virtual unsigned int numVolumeDofs() const CADET_NOEXCEPT { return 1; }
 
-		virtual double concentration(unsigned int component, unsigned int axialCell) const { return _data[component]; }
+		virtual double concentration(unsigned int component, unsigned int axialCell) const { return _data[_nComp + component]; }
 		virtual double flux(unsigned int component, unsigned int axialCell) const { return 0.0; }
 		virtual double mobilePhase(unsigned int component, unsigned int axialCell, unsigned int radialCell) const { return 0.0; }
 		virtual double solidPhase(unsigned int component, unsigned int axialCell, unsigned int radialCell, unsigned int boundState) const { return 0.0; }
-		virtual double volume(unsigned int dof) const { return _data[_nComp + dof]; }
+		virtual double volume(unsigned int dof) const { return _data[2 * _nComp + dof]; }
 
 		virtual double const* concentration() const { return _data; }
 		virtual double const* flux() const { return nullptr; }
 		virtual double const* mobilePhase() const { return nullptr; }
 		virtual double const* solidPhase() const { return nullptr; }
-		virtual double const* volume() const { return _data + _nComp; }
+		virtual double const* volume() const { return _data + 2 * _nComp; }
 		virtual double const* inlet(unsigned int& stride) const
 		{
 			stride = 1;
