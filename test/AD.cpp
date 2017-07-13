@@ -22,9 +22,9 @@
 #include "AdUtils.hpp"
 #include "AutoDiff.hpp"
 
-ACTIVE_INIT;
+#include "MatrixHelper.hpp"
 
-void checkMatrixAgainstLinearArray(double const* mat, const std::vector<double>& matRef);
+ACTIVE_INIT;
 
 /**
  * @brief Create a BandMatrix of given type and fill entries with their linear array index (1-based)
@@ -149,22 +149,22 @@ TEST_CASE("Extract dense submatrix from banded Jacobian via AD", "[AD],[DenseMat
 	dm.resize(3, 6);
 
 	cadet::ad::extractDenseJacobianFromBandedAd(res, 0, 0, lowerBand, lowerBand, upperBand, dm);
-	checkMatrixAgainstLinearArray(dm.data(), {1, 2, 3, 4, 0, 0, 5, 6, 7, 8, 9, 0, 10, 11, 12, 13, 14, 15});
+	cadet::test::checkMatrixAgainstLinearArray(dm.data(), {1, 2, 3, 4, 0, 0, 5, 6, 7, 8, 9, 0, 10, 11, 12, 13, 14, 15});
 
 	cadet::ad::extractDenseJacobianFromBandedAd(res, 1, 0, lowerBand, lowerBand, upperBand, dm);
-	checkMatrixAgainstLinearArray(dm.data(), {6, 7, 8, 9, 0, 0, 11, 12, 13, 14, 15, 0, 16, 17, 18, 19, 20, 21});
+	cadet::test::checkMatrixAgainstLinearArray(dm.data(), {6, 7, 8, 9, 0, 0, 11, 12, 13, 14, 15, 0, 16, 17, 18, 19, 20, 21});
 
 	cadet::ad::extractDenseJacobianFromBandedAd(res, 2, 0, lowerBand, lowerBand, upperBand, dm);
-	checkMatrixAgainstLinearArray(dm.data(), {12, 13, 14, 15, 0, 0, 17, 18, 19, 20, 21, 0, 22, 23, 24, 25, 26, 27});
+	cadet::test::checkMatrixAgainstLinearArray(dm.data(), {12, 13, 14, 15, 0, 0, 17, 18, 19, 20, 21, 0, 22, 23, 24, 25, 26, 27});
 
 	cadet::ad::extractDenseJacobianFromBandedAd(res, 5, 0, lowerBand, lowerBand, upperBand, dm);
-	checkMatrixAgainstLinearArray(dm.data(), {30, 31, 32, 33, 0, 0, 35, 36, 37, 38, 39, 0, 40, 41, 42, 43, 44, 0});
+	cadet::test::checkMatrixAgainstLinearArray(dm.data(), {30, 31, 32, 33, 0, 0, 35, 36, 37, 38, 39, 0, 40, 41, 42, 43, 44, 0});
 
 	cadet::ad::extractDenseJacobianFromBandedAd(res, 6, 0, lowerBand, lowerBand, upperBand, dm);
-	checkMatrixAgainstLinearArray(dm.data(), {36, 37, 38, 39, 0, 0, 41, 42, 43, 44, 0, 0, 45, 46, 47, 48, 0, 0});
+	cadet::test::checkMatrixAgainstLinearArray(dm.data(), {36, 37, 38, 39, 0, 0, 41, 42, 43, 44, 0, 0, 45, 46, 47, 48, 0, 0});
 
 	cadet::ad::extractDenseJacobianFromBandedAd(res, 7, 0, lowerBand, lowerBand, upperBand, dm);
-	checkMatrixAgainstLinearArray(dm.data(), {42, 43, 44, 0, 0, 0, 46, 47, 48, 0, 0, 0, 49, 50, 51, 0, 0, 0});
+	cadet::test::checkMatrixAgainstLinearArray(dm.data(), {42, 43, 44, 0, 0, 0, 46, 47, 48, 0, 0, 0, 49, 50, 51, 0, 0, 0});
 
 	delete[] x;
 	delete[] res;

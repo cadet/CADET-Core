@@ -18,6 +18,8 @@
 #include "linalg/BandMatrix.hpp"
 #include "linalg/Norms.hpp"
 
+#include "MatrixHelper.hpp"
+
 /**
  * @brief Create a BandMatrix of given type and fill entries with their linear array index (1-based)
  * @param [in] Number of rows
@@ -52,24 +54,12 @@ Matrix_t createBandMatrix(unsigned int rows, unsigned int lower, unsigned int up
  * @param [in] bm Source matrix
  * @return FactorizableBandMatrix with the same content as @p bm
  */
-cadet::linalg::FactorizableBandMatrix fromBandMatrix(const cadet::linalg::BandMatrix& bm)
+inline cadet::linalg::FactorizableBandMatrix fromBandMatrix(const cadet::linalg::BandMatrix& bm)
 {
 	cadet::linalg::FactorizableBandMatrix fbm;
 	fbm.resize(bm.rows(), bm.lowerBandwidth(), bm.upperBandwidth());
 	fbm.copyOver(bm);
 	return fbm;
-}
-
-/**
- * @brief Checks a given matrix against a linear array
- * @details The matrix is expected as dense matrix in row-major format.
- * @param [in] mat Dense matrix to be checked
- * @param [in] matRef Reference values
- */
-void checkMatrixAgainstLinearArray(double const* mat, const std::vector<double>& matRef)
-{
-	for (unsigned int i = 0; i < matRef.size(); ++i)
-		CHECK(matRef[i] == Approx(mat[i]));
 }
 
 /**
@@ -82,7 +72,7 @@ void checkMatrixAgainstLinearArray(double const* mat, const std::vector<double>&
  * @param [in] numCols Number of columns to extract
  * @param [out] out Memory in which the dense submatrix is written in row-major format
  */
-void extractDenseSubMatrix(const cadet::linalg::BandMatrix& mat, unsigned int startRow, int startDiag, unsigned int numRows, unsigned int numCols, double* const out)
+inline void extractDenseSubMatrix(const cadet::linalg::BandMatrix& mat, unsigned int startRow, int startDiag, unsigned int numRows, unsigned int numCols, double* const out)
 {
 	std::vector<double> x(numCols, 0.0);
 	std::vector<double> y(numRows, 0.0);
@@ -177,7 +167,7 @@ void testSubMatrixMultiply(const cadet::linalg::BandMatrix& bm, int startRow, in
 	{
 		std::vector<double> out(bm.rows() * bm.stride(), 0.0);
 		extractDenseSubMatrix(bm, startRow, startDiag, numRows, numCols, out.data());
-		checkMatrixAgainstLinearArray(out.data(), ref);
+		cadet::test::checkMatrixAgainstLinearArray(out.data(), ref);
 	}
 }
 

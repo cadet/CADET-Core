@@ -21,7 +21,7 @@
 #include "linalg/BandMatrix.hpp"
 #include "linalg/Norms.hpp"
 
-void checkMatrixAgainstLinearArray(double const* mat, const std::vector<double>& matRef);
+#include "MatrixHelper.hpp"
 
 /**
  * @brief Creates a matrix that contains random values from the normal distribution
@@ -29,7 +29,7 @@ void checkMatrixAgainstLinearArray(double const* mat, const std::vector<double>&
  * @param [in] numCols Number of columns
  * @return Random matrix
  */
-cadet::linalg::DenseMatrix randomMatrix(unsigned int numRows, unsigned int numCols)
+inline cadet::linalg::DenseMatrix randomMatrix(unsigned int numRows, unsigned int numCols)
 {
 	// Initialize standard normal RNG
 	unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
@@ -52,7 +52,7 @@ cadet::linalg::DenseMatrix randomMatrix(unsigned int numRows, unsigned int numCo
  * @param [in] n Size of the vector
  * @return Random vector
  */
-std::vector<double> randomVector(unsigned int n)
+inline std::vector<double> randomVector(unsigned int n)
 {
 	// Initialize standard normal RNG
 	unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
@@ -112,7 +112,7 @@ void testSubMatrixMultiply(const Matrix_t& bm, int startRow, int startDiag, int 
 		cadet::linalg::DenseMatrix dm;
 		dm.resize(numRows, numCols);
 		dm.copySubmatrixFromBanded(bm, startRow, startDiag, numRows, numCols);
-		checkMatrixAgainstLinearArray(dm.data(), ref);
+		cadet::test::checkMatrixAgainstLinearArray(dm.data(), ref);
 	}
 }
 
