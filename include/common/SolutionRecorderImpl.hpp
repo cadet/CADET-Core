@@ -961,6 +961,8 @@ public:
 		_recorders.clear();
 	}
 
+	inline double const* time() const CADET_NOEXCEPT { return _time.data(); }
+
 protected:
 
 	std::vector<InternalStorageUnitOpRecorder*> _recorders;
