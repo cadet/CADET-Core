@@ -1,5 +1,6 @@
 # The MIT License (MIT)
 #
+# Copyright (c) 2017 Samuel Leweke, Forschungszentrum Juelich GmbH
 # Copyright (c) 2015 Justus Calvin
 # 
 # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -36,7 +37,7 @@
 # where the allowed components are tbbmalloc and tbb_preview. Users may modify 
 # the behavior of this module with the following variables:
 #
-# * TBB_ROOT_DIR          - The base directory the of TBB installation.
+# * TBB_ROOT_DIR          - The base directory of the TBB installation.
 # * TBB_INCLUDE_DIR       - The directory that contains the TBB headers files.
 # * TBB_LIBRARY           - The directory that contains the TBB library files.
 # * TBB_<library>_LIBRARY - The path of the TBB the corresponding TBB library. 
@@ -115,7 +116,7 @@ if(NOT TBB_FOUND)
   ##################################
   
   # Define search paths based on user input and environment variables
-  set(TBB_SEARCH_DIR ${TBB_ROOT_DIR} $ENV{TBB_INSTALL_DIR} $ENV{TBBROOT})
+  set(TBB_SEARCH_DIR ${TBB_ROOT_DIR} $ENV{TBB_INSTALL_DIR} $ENV{TBBROOT} $ENV{TBB_ROOT})
   
   # Define the search directories based on the current platform
   if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
