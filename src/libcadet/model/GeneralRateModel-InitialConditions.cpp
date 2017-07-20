@@ -50,12 +50,15 @@ void GeneralRateModel::applyInitialCondition(IParameterProvider& paramProvider, 
 	}
 
 	const std::vector<double> initC = paramProvider.getDoubleArray("INIT_C");
-	const std::vector<double> initQ = paramProvider.getDoubleArray("INIT_Q");
+	std::vector<double> initQ;
+
+	if (paramProvider.exists("INIT_Q"))
+		initQ = paramProvider.getDoubleArray("INIT_Q");
 
 	if (initC.size() < _disc.nComp)
 		throw InvalidParameterException("INIT_C does not contain enough values for all components");
 
-	if (initQ.size() < _disc.strideBound)
+	if ((_disc.strideBound > 0) && (initQ.size() < _disc.strideBound))
 		throw InvalidParameterException("INIT_Q does not contain enough values for all bound states");
 
 	// Check if INIT_CP is present
@@ -181,7 +184,7 @@ void GeneralRateModel::consistentInitialState(double t, unsigned int secIdx, dou
 			// Midpoint of current column cell (z coordinate) - needed in externally dependent adsorption kinetic
 			const double z = 1.0 / static_cast<double>(_disc.nCol) * (0.5 + pblk);
 
-			// This loop cannot be run in parallel without creating a Jacobian matrix for each one which would increase memory usage
+			// This loop cannot be run in parallel without creating a Jacobian matrix for each thread which would increase memory usage
 			for(size_t shell = 0; shell < size_t(_disc.nPar); shell++)
 			{
 				const int localOffsetToParticle = idxr.offsetCp(pblk);

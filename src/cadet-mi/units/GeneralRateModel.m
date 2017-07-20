@@ -198,7 +198,7 @@ classdef GeneralRateModel < Model
 		end
 
 		function set.initialSolid(obj, val)
-			validateattributes(val, {'double'}, {'nonnegative', 'vector', 'nonempty', 'finite', 'real'}, '', 'initialSolid');
+			validateattributes(val, {'double'}, {'nonnegative', 'vector', 'empty', 'finite', 'real'}, '', 'initialSolid');
 			obj.data.INIT_Q = val;
 			obj.hasChanged = true;
 		end
@@ -280,7 +280,7 @@ classdef GeneralRateModel < Model
 		end
 
 		function set.diffusionParticleSurface(obj, val)
-			validateattributes(val, {'double'}, {'nonnegative', '2d', 'nonempty', 'finite', 'real'}, '', 'diffusionParticleSurface');
+			validateattributes(val, {'double'}, {'nonnegative', '2d', 'finite', 'real'}, '', 'diffusionParticleSurface');
 			val = val.';
 			obj.data.PAR_SURFDIFFUSION = val(:);
 			obj.hasChanged = true;
