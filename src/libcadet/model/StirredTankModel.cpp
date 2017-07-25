@@ -14,6 +14,7 @@
 #include "ParamReaderHelper.hpp"
 #include "cadet/Exceptions.hpp"
 #include "cadet/SolutionRecorder.hpp"
+#include "model/BindingModel.hpp"
 
 #include "ConfigurationHelper.hpp"
 #include "ParamIdUtil.hpp"
@@ -33,27 +34,37 @@ namespace cadet
 namespace model
 {
 
-CSTRModel::CSTRModel(UnitOpIdx unitOpIdx) : _unitOpIdx(unitOpIdx), _jac()
+CSTRModel::CSTRModel(UnitOpIdx unitOpIdx) : _unitOpIdx(unitOpIdx), _nComp(0), _nBound(nullptr), _boundOffset(nullptr), _strideBound(0), 
+	_binding(nullptr), _analyticJac(true), _jac(), _jacFact(), _factorizeJac(false), _consistentInitBuffer(nullptr)
 {
 }
 
 CSTRModel::~CSTRModel() CADET_NOEXCEPT
 {
+	delete[] _boundOffset;
+	delete[] _nBound;
+	delete[] _consistentInitBuffer;
 }
 
 unsigned int CSTRModel::numDofs() const CADET_NOEXCEPT
 {
-	return 2 *_nComp + 1;
+	return 2 *_nComp + _strideBound + 1;
 }
 
 unsigned int CSTRModel::numPureDofs() const CADET_NOEXCEPT
 {
-	return _nComp + 1;
+	return _nComp + _strideBound + 1;
 }
 
 bool CSTRModel::usesAD() const CADET_NOEXCEPT
 {
-	return false;
+#ifdef CADET_CHECK_ANALYTIC_JACOBIAN
+	// We always need AD if we want to check the analytical Jacobian
+	return true;
+#else
+	// We only need AD if we are not computing the Jacobian analytically
+	return !_analyticJac;
+#endif
 }
 
 void CSTRModel::setFlowRates(const active& in, const active& out) CADET_NOEXCEPT 
@@ -66,10 +77,73 @@ bool CSTRModel::configure(IParameterProvider& paramProvider, IConfigHelper& help
 {
 	_nComp = paramProvider.getInt("NCOMP");
 
-	const unsigned int nVar = _nComp + 1;
-	_jac.resize(nVar, nVar);
+	_nBound = new unsigned int[_nComp];
+	if (paramProvider.exists("NBOUND"))
+	{
+		const std::vector<int> nBound = paramProvider.getIntArray("NBOUND");
+		std::copy(nBound.begin(), nBound.end(), _nBound);
+	}
+	else
+		std::fill_n(_nBound, _nComp, 0u);
 
-	return reconfigure(paramProvider);
+	// Precompute offsets and total number of bound states (DOFs in solid phase)
+	_boundOffset = new unsigned int[_nComp];
+	_boundOffset[0] = 0;
+	for (unsigned int i = 1; i < _nComp; ++i)
+	{
+		_boundOffset[i] = _boundOffset[i-1] + _nBound[i-1];
+	}
+	_strideBound = _boundOffset[_nComp-1] + _nBound[_nComp - 1];
+
+	// Allocate Jacobian
+	const unsigned int nVar = _nComp + _strideBound + 1;
+	_jac.resize(nVar, nVar);
+	_jacFact.resize(nVar, nVar);
+
+	// Determine whether analytic Jacobian should be used
+#ifndef CADET_CHECK_ANALYTIC_JACOBIAN
+	bool analyticJac = true;
+	if (paramProvider.exists("USE_ANALYTIC_JACOBIAN"))
+		analyticJac = paramProvider.getBool("USE_ANALYTIC_JACOBIAN");
+#else
+	// Default to AD Jacobian when analytic Jacobian is to be checked
+	const bool analyticJac = false;
+#endif
+	useAnalyticJacobian(analyticJac);
+
+	reconfigure(paramProvider);
+
+	// ==== Construct and configure binding model
+	delete _binding;
+
+	if (paramProvider.exists("ADSORPTION_MODEL"))
+	{
+		_binding = helper.createBindingModel(paramProvider.getString("ADSORPTION_MODEL"));
+		if (!_binding)
+			throw InvalidParameterException("Unknown binding model " + paramProvider.getString("ADSORPTION_MODEL"));
+
+		_binding->configureModelDiscretization(_nComp, _nBound, _boundOffset);
+
+		paramProvider.pushScope("adsorption");
+		const bool bindingConfSuccess = _binding->configure(paramProvider, _unitOpIdx);
+		paramProvider.popScope();
+
+		// Allocate memory for nonlinear equation solving
+		unsigned int size = 0;
+		if (_binding->hasAlgebraicEquations())
+		{
+			// Required memory (number of doubles) for nonlinear solvers
+			size = _binding->consistentInitializationWorkspaceSize();
+		}
+		if (size > 0)
+			_consistentInitBuffer = new double[size];
+
+		return bindingConfSuccess;
+	}
+	else
+		_binding = helper.createBindingModel("NONE");
+
+	return true;
 }
 
 bool CSTRModel::reconfigure(IParameterProvider& paramProvider)
@@ -81,8 +155,24 @@ bool CSTRModel::reconfigure(IParameterProvider& paramProvider)
 		readScalarParameterOrArray(_flowRateFilter, paramProvider, "FLOWRATE_FILTER", 1);
 	}
 
+	_porosity = 1.0;
+	if (paramProvider.exists("POROSITY"))
+		_porosity = paramProvider.getDouble("POROSITY");
+
 	_parameters.clear();
 	registerScalarSectionDependentParam(hashString("FLOWRATE_FILTER"), _parameters, _flowRateFilter, _unitOpIdx);
+	_parameters[makeParamId(hashString("POROSITY"), _unitOpIdx, CompIndep, BoundPhaseIndep, ReactionIndep, SectionIndep)] = &_porosity;
+
+	// Reconfigure binding model
+	if (_binding && paramProvider.exists("adsorption"))
+	{
+		paramProvider.pushScope("adsorption");
+		const bool bindingConfSuccess = _binding->reconfigure(paramProvider, _unitOpIdx);
+		paramProvider.popScope();
+
+		return bindingConfSuccess;
+	}
+
 	return true;
 }
 
@@ -95,16 +185,31 @@ std::unordered_map<ParameterId, double> CSTRModel::getAllParameterValues() const
 	std::unordered_map<ParameterId, double> data;
 	std::transform(_parameters.begin(), _parameters.end(), std::inserter(data, data.end()),
 	               [](const std::pair<const ParameterId, active*>& p) { return std::make_pair(p.first, static_cast<double>(*p.second)); });
+	if (!_binding)
+		return data;
+
+	const std::unordered_map<ParameterId, double> localData = _binding->getAllParameterValues();
+	for (const std::pair<ParameterId, double>& val : localData)
+		data[val.first] = val.second;
+
 	return data;
 }
 
 bool CSTRModel::hasParameter(const ParameterId& pId) const
 {
-	return _parameters.find(pId) != _parameters.end();
+	const bool hasParam = _parameters.find(pId) != _parameters.end();
+	if (_binding)
+		return hasParam || _binding->hasParameter(pId);
+	return hasParam;
 }
 
 bool CSTRModel::setParameter(const ParameterId& pId, int value)
 {
+	if ((pId.unitOperation != _unitOpIdx) && (pId.unitOperation != UnitOpIndep))
+		return false;
+
+	if (_binding)
+		return _binding->setParameter(pId, value);
 	return false;
 }
 
@@ -119,12 +224,19 @@ bool CSTRModel::setParameter(const ParameterId& pId, double value)
 		paramHandle->second->setValue(value);
 		return true;
 	}
+	else if (_binding)
+		return _binding->setParameter(pId, value);
 
 	return false;
 }
 
 bool CSTRModel::setParameter(const ParameterId& pId, bool value)
 {
+	if ((pId.unitOperation != _unitOpIdx) && (pId.unitOperation != UnitOpIndep))
+		return false;
+
+	if (_binding)
+		return _binding->setParameter(pId, value);
 	return false;
 }
 
@@ -140,6 +252,17 @@ void CSTRModel::setSensitiveParameterValue(const ParameterId& pId, double value)
 		paramHandle->second->setValue(value);
 		return;
 	}
+
+	// Check binding model parameters
+	if (_binding)
+	{
+		active* const val = _binding->getParameter(pId);
+		if (val && contains(_sensParams, val))
+		{
+			val->setValue(value);
+			return;
+		}
+	}
 }
 
 bool CSTRModel::setSensitiveParameter(const ParameterId& pId, unsigned int adDirection, double adValue)
@@ -151,12 +274,27 @@ bool CSTRModel::setSensitiveParameter(const ParameterId& pId, unsigned int adDir
 	auto paramHandle = _parameters.find(pId);
 	if (paramHandle != _parameters.end())
 	{
-		LOG(Debug) << "Found parameter " << pId << " in CSTR: Dir " << adDirection << " is set to " << adValue;
+		LOG(Debug) << "Found parameter " << pId << " in GRM: Dir " << adDirection << " is set to " << adValue;
 
 		// Register parameter and set AD seed / direction
 		_sensParams.insert(paramHandle->second);
 		paramHandle->second->setADValue(adDirection, adValue);
 		return true;
+	}
+
+	// Check binding model parameters
+	if (_binding)
+	{
+		active* const paramBinding = _binding->getParameter(pId);
+		if (paramBinding)
+		{
+			LOG(Debug) << "Found parameter " << pId << " in AdsorptionModel: Dir " << adDirection << " is set to " << adValue;
+
+			// Register parameter and set AD seed / direction
+			_sensParams.insert(paramBinding);
+			paramBinding->setADValue(adDirection, adValue);
+			return true;
+		}
 	}
 
 	return false;
@@ -171,7 +309,16 @@ void CSTRModel::clearSensParams()
 	_sensParams.clear();
 }
 
-void CSTRModel::useAnalyticJacobian(const bool analyticJac) { }
+void CSTRModel::useAnalyticJacobian(const bool analyticJac)
+{
+#ifndef CADET_CHECK_ANALYTIC_JACOBIAN
+	_analyticJac = analyticJac;
+#else
+	// Use AD Jacobian if analytic Jacobian is to be checked
+	_analyticJac = false;
+#endif
+}
+
 void CSTRModel::notifyDiscontinuousSectionTransition(double t, unsigned int secIdx, active* const adRes, active* const adY, unsigned int adDirOffset)
 {
 	if (_flowRateFilter.size() > 1)
@@ -186,25 +333,29 @@ void CSTRModel::notifyDiscontinuousSectionTransition(double t, unsigned int secI
 
 void CSTRModel::reportSolution(ISolutionRecorder& recorder, double const* const solution) const
 {
-	Exporter expr(_nComp, solution);
+	Exporter expr(_nComp, _nBound, _strideBound, _boundOffset, solution);
 	recorder.beginUnitOperation(_unitOpIdx, *this, expr);
 	recorder.endUnitOperation();
 }
 
 void CSTRModel::reportSolutionStructure(ISolutionRecorder& recorder) const
 {
-	Exporter expr(_nComp, nullptr);
+	Exporter expr(_nComp, _nBound, _strideBound, _boundOffset, nullptr);
 	recorder.unitOperationStructure(_unitOpIdx, *this, expr);
 }
 
 unsigned int CSTRModel::requiredADdirs() const CADET_NOEXCEPT
 {
-	return _nComp + 1;
+	return _nComp + _strideBound + 1;
 }
 
-void CSTRModel::prepareADvectors(active* const adRes, active* const adY, unsigned int numSensAdDirs) const
+void CSTRModel::prepareADvectors(active* const adRes, active* const adY, unsigned int adDirOffset) const
 {
-	//TODO: Assemble seed vectors
+	// Early out if AD is disabled
+	if (!adY)
+		return;
+
+	ad::prepareAdVectorSeedsForDenseMatrix(adY + _nComp, adDirOffset, _jac.rows(), _jac.columns());
 }
 
 void CSTRModel::applyInitialCondition(double* const vecStateY, double* const vecStateYdot)
@@ -237,14 +388,22 @@ void CSTRModel::applyInitialCondition(IParameterProvider& paramProvider, double*
 	
 	std::copy_n(initC.begin(), _nComp, vecStateY + _nComp);
 
-	if (paramProvider.exists("INIT_VOLUME"))
-		vecStateY[2 * _nComp] = paramProvider.getDouble("INIT_VOLUME");
+	if (paramProvider.exists("INIT_Q"))
+	{
+		const std::vector<double> initQ = paramProvider.getDoubleArray("INIT_Q");
+		std::copy_n(initQ.begin(), _strideBound, vecStateY + 2 * _nComp);
+	}
 	else
-		vecStateY[2 * _nComp] = 0.0;
+		std::fill_n(vecStateY + 2 * _nComp, _strideBound, 0.0);
+
+	if (paramProvider.exists("INIT_VOLUME"))
+		vecStateY[2 * _nComp + _strideBound] = paramProvider.getDouble("INIT_VOLUME");
+	else
+		vecStateY[2 * _nComp + _strideBound] = 0.0;
 }
 
 
-void CSTRModel::consistentInitialState(double t, unsigned int secIdx, double timeFactor, double* const vecStateY, active* const adRes, active* const adY, unsigned int numSensAdDirs, double errorTol)
+void CSTRModel::consistentInitialState(double t, unsigned int secIdx, double timeFactor, double* const vecStateY, active* const adRes, active* const adY, unsigned int adDirOffset, double errorTol)
 {
 	double * const c = vecStateY + _nComp;
 	const double v = c[_nComp];
@@ -371,13 +530,11 @@ void CSTRModel::consistentInitialTimeDerivative(double t, unsigned int secIdx, d
 			cDot[i] = (-cDot[i] - vDot * c[i]) / v;
 		}
 	}
-
-
 }
 
-void CSTRModel::leanConsistentInitialState(double t, unsigned int secIdx, double timeFactor, double* const vecStateY, active* const adRes, active* const adY, unsigned int numSensAdDirs, double errorTol)
+void CSTRModel::leanConsistentInitialState(double t, unsigned int secIdx, double timeFactor, double* const vecStateY, active* const adRes, active* const adY, unsigned int adDirOffset, double errorTol)
 {
-	consistentInitialState(t, secIdx, timeFactor, vecStateY, adRes, adY, numSensAdDirs, errorTol);
+	consistentInitialState(t, secIdx, timeFactor, vecStateY, adRes, adY, adDirOffset, errorTol);
 }
 
 void CSTRModel::leanConsistentInitialSensitivity(const active& t, unsigned int secIdx, const active& timeFactor, double const* vecStateY, double const* vecStateYdot,
@@ -388,18 +545,18 @@ void CSTRModel::leanConsistentInitialSensitivity(const active& t, unsigned int s
 
 int CSTRModel::residual(double t, unsigned int secIdx, double timeFactor, double const* const y, double const* const yDot, double* const res)
 {
-	return residualImpl<double, double, double>(t, secIdx, timeFactor, y, yDot, res);
+	return residualImpl<double, double, double, false>(t, secIdx, timeFactor, y, yDot, res);
 }
 
-template <typename StateType, typename ResidualType, typename ParamType>
+template <typename StateType, typename ResidualType, typename ParamType, bool wantJac>
 int CSTRModel::residualImpl(const ParamType& t, unsigned int secIdx, const ParamType& timeFactor, StateType const* const y, double const* const yDot, ResidualType* const res)
 {
 	StateType const* const cIn = y;
 	StateType const* const c = y + _nComp;
-	const StateType& v = y[2 * _nComp];
+	const StateType& v = y[2 * _nComp + _strideBound];
 
-	double const* const cDot = yDot + _nComp;
-	const double vDot = yDot ? yDot[2 * _nComp] : 0.0;
+	double const* const cDot = yDot ? yDot + _nComp : nullptr;
+	const double vDot = yDot ? yDot[2 * _nComp + _strideBound] : 0.0;
 
 	const ParamType flowIn = static_cast<ParamType>(_flowRateIn);
 	const ParamType flowOut = static_cast<ParamType>(_flowRateOut);
@@ -411,50 +568,186 @@ int CSTRModel::residualImpl(const ParamType& t, unsigned int secIdx, const Param
 	}
 
 	// Concentrations: \dot{V} * c + V * \dot{c} = c_in * F_in - c * F_out
+	const ParamType invBeta = 1.0 / static_cast<ParamType>(_porosity) - 1.0;
+	ResidualType* const resC = res + _nComp;
 	for (unsigned int i = 0; i < _nComp; ++i)
 	{
+		resC[i] = 0.0;
+		const unsigned int nBound = _nBound[i];
+
+		// Add time derivatives
 		if (yDot)
-			res[i + _nComp] = v * cDot[i] + vDot * c[i] - flowIn * cIn[i] + flowOut * c[i];
-		else
-			res[i + _nComp] = - flowIn * cIn[i] + flowOut * c[i];
+		{
+			// Ultimately, we need (dc_{i} / dt + 1 / beta * [ sum_j  dq_{i,j} / dt ]) * V
+			// Compute the sum in the brackets first, then divide by beta and add dc / dt
+
+			// Sum dq_{i,1} / dt + dq_{i,2} / dt + ... + dq_{i,N_i} / dt
+			double const* const qDot = cDot + _nComp + _boundOffset[i];
+			for (unsigned int j = 0; i < nBound; ++i)
+				resC[i] += qDot[j];
+
+			// Divide by beta and add dc_i / dt
+			resC[i] = timeFactor * ((cDot[i] + invBeta * resC[i]) * v + vDot * c[i]);
+		}
+
+		resC[i] += -flowIn * cIn[i] + flowOut * c[i];
 	}
 
+	// Bound states
+	_binding->residual(t, 0.0, 0.0, secIdx, timeFactor, c, cDot, res + 2 * _nComp);
+
 	// Volume: \dot{V} = F_{in} - F_{out} - F_{filter}
-	res[2 * _nComp] = vDot - flowIn + flowOut + static_cast<ParamType>(_curFlowRateFilter);
+	res[2 * _nComp + _strideBound] = vDot - flowIn + flowOut + static_cast<ParamType>(_curFlowRateFilter);
+
+	if (wantJac)
+	{
+		_jac.setAll(0.0);
+
+		// Assemble Jacobian: dRes / dy
+
+		// Concentrations: \dot{V} * (c_i + invBeta * sum_j q_{i,j}) + V * (\dot{c}_i + invBeta * sum_j \dot{q}_{i,j}) - c_{in,i} * F_in + c_i * F_out == 0
+		for (unsigned int i = 0; i < _nComp; i++)
+		{
+			_jac.native(i, i) = static_cast<double>(vDot) + static_cast<double>(flowOut);
+
+			double qSum = 0.0;
+			double const* const qiDot = cDot + _nComp + _boundOffset[i];
+			const unsigned int localOffset = _nComp + _boundOffset[i];
+			const double vDotInvBeta = static_cast<double>(vDot) * static_cast<double>(invBeta);
+			for (unsigned int j = 0; j < _nBound[i]; ++j)
+			{
+				_jac.native(i, localOffset + j) = vDotInvBeta;
+				// + _nComp: Moves over liquid phase components
+				// + _boundOffset[i]: Moves over bound states of previous components
+				// + j: Moves to current bound state j of component i
+
+				qSum += qiDot[j];
+			}
+
+			_jac.native(i, _nComp + _strideBound) = cDot[i] + static_cast<double>(invBeta) * qSum;
+		}
+
+		// Bound states
+		_binding->analyticJacobian(static_cast<double>(t), 0.0, 0.0, secIdx, reinterpret_cast<double const*>(y) + 2 * _nComp, _jac.row(_nComp));
+
+		// Volume: \dot{V} - F_{in} + F_{out} + F_{filter} == 0
+	}
 
 	return 0;
 }
 
 int CSTRModel::residual(const active& t, unsigned int secIdx, const active& timeFactor, double const* const y, double const* const yDot, double* const res,
-	active* const adRes, active* const adY, unsigned int numSensAdDirs, bool paramSensitivity)
+	active* const adRes, active* const adY, unsigned int adDirOffset, bool updateJacobian, bool paramSensitivity)
 {
-	//This method has the same inteface as the GRM but there is no Jacobian to generate or update
-	if (paramSensitivity)
+	if (updateJacobian)
 	{
-		const int retCode = residualImpl<double, active, active>(t, secIdx, timeFactor, y, yDot, adRes);
+		_factorizeJac = true;
 
-		// Copy AD residuals to original residuals vector
+#ifndef CADET_CHECK_ANALYTIC_JACOBIAN
+		if (_analyticJac)
+		{
+			if (paramSensitivity)
+			{
+				const int retCode = residualImpl<double, active, active, true>(t, secIdx, timeFactor, y, yDot, adRes);
+
+				// Copy AD residuals to original residuals vector
+				if (res)
+					ad::copyFromAd(adRes, res, numDofs());
+
+				return retCode;
+			}
+			else
+				return residualImpl<double, double, double, true>(static_cast<double>(t), secIdx, static_cast<double>(timeFactor), y, yDot, res);
+		}
+		else
+		{
+			// Compute Jacobian via AD
+
+			// Copy over state vector to AD state vector (without changing directional values to keep seed vectors)
+			// and initalize residuals with zero (also resetting directional values)
+			ad::copyToAd(y, adY, numDofs());
+			// @todo Check if this is necessary
+			ad::resetAd(adRes, numDofs());
+
+			// Evaluate with AD enabled
+			int retCode = 0;
+			if (paramSensitivity)
+				retCode = residualImpl<active, active, active, false>(t, secIdx, timeFactor, adY, yDot, adRes);
+			else
+				retCode = residualImpl<active, active, double, false>(static_cast<double>(t), secIdx, static_cast<double>(timeFactor), adY, yDot, adRes);
+
+			// Copy AD residuals to original residuals vector
+			if (res)
+				ad::copyFromAd(adRes, res, numDofs());
+
+			// Extract Jacobian
+			extractJacobianFromAD(adRes, adDirOffset);
+
+			return retCode;
+		}
+#else
+		// Compute Jacobian via AD
+
+		// Copy over state vector to AD state vector (without changing directional values to keep seed vectors)
+		// and initalize residuals with zero (also resetting directional values)
+		ad::copyToAd(y, adY, numDofs());
+		// @todo Check if this is necessary
+		ad::resetAd(adRes, numDofs());
+
+		// Evaluate with AD enabled
+		int retCode = 0;
+		if (paramSensitivity)
+			retCode = residualImpl<active, active, active, false>(t, secIdx, timeFactor, adY, yDot, adRes);
+		else
+			retCode = residualImpl<active, active, double, false>(static_cast<double>(t), secIdx, static_cast<double>(timeFactor), adY, yDot, adRes);
+
+		// Only do comparison if we have a residuals vector (which is not always the case)
 		if (res)
 		{
-			ad::copyFromAd(adRes, res, numDofs());
+			// Evaluate with analytical Jacobian which is stored in the band matrices
+			retCode = residualImpl<double, double, double, true>(static_cast<double>(t), secIdx, static_cast<double>(timeFactor), y, yDot, res);
+
+			// Compare AD with anaytic Jacobian
+			checkAnalyticJacobianAgainstAd(adRes, adDirOffset);
 		}
 
+		// Extract Jacobian
+		extractJacobianFromAD(adRes, adDirOffset);
+
 		return retCode;
+#endif
 	}
 	else
-		return residualImpl<double, double, double>(static_cast<double>(t), secIdx, static_cast<double>(timeFactor), y, yDot, res);
+	{
+		if (paramSensitivity)
+		{
+			// Initalize residuals with zero
+			// @todo Check if this is necessary
+			ad::resetAd(adRes, numDofs());
+
+			const int retCode = residualImpl<double, active, active, false>(t, secIdx, timeFactor, y, yDot, adRes);
+
+			// Copy AD residuals to original residuals vector
+			if (res)
+				ad::copyFromAd(adRes, res, numDofs());
+
+			return retCode;
+		}
+		else
+			return residualImpl<double, double, double, false>(static_cast<double>(t), secIdx, static_cast<double>(timeFactor), y, yDot, res);
+	}
 }
 
-int CSTRModel::residualWithJacobian(const active& t, unsigned int secIdx, const active& timeFactor, double const* const y, double const* const yDot, double* const res, active* const adRes, active* const adY, unsigned int numSensAdDirs)
+int CSTRModel::residualWithJacobian(const active& t, unsigned int secIdx, const active& timeFactor, double const* const y, double const* const yDot, double* const res, active* const adRes, active* const adY, unsigned int adDirOffset)
 {
-	return residual(t, secIdx, timeFactor, y, yDot, res, adRes, adY, numSensAdDirs, false);
+	return residual(t, secIdx, timeFactor, y, yDot, res, adRes, adY, adDirOffset, true, false);
 }
 
 int CSTRModel::residualSensFwdAdOnly(const active& t, unsigned int secIdx, const active& timeFactor,
 	double const* const y, double const* const yDot, active* const adRes)
 {
 	// Evaluate residual for all parameters using AD in vector mode
-	return residualImpl<double, active, active>(t, secIdx, timeFactor, y, yDot, adRes);
+	return residualImpl<double, active, active, false>(t, secIdx, timeFactor, y, yDot, adRes);
 }
 
 int CSTRModel::residualSensFwdCombine(const active& t, unsigned int secIdx, const active& timeFactor, double const* const y, double const* const yDot, 
@@ -480,11 +773,11 @@ int CSTRModel::residualSensFwdCombine(const active& t, unsigned int secIdx, cons
 }
 
 int CSTRModel::residualSensFwdWithJacobian(const active& t, unsigned int secIdx, const active& timeFactor, double const* const y,
-	double const* const yDot, active* const adRes, active* const adY, unsigned int numSensAdDirs)
+	double const* const yDot, active* const adRes, active* const adY, unsigned int adDirOffset)
 {
 	// Evaluate residual for all parameters using AD in vector mode and at the same time update the 
 	// Jacobian (in one AD run, if analytic Jacobians are disabled)
-	return residual(t, secIdx, timeFactor, y, yDot, nullptr, adRes, adY, numSensAdDirs, true);
+	return residual(t, secIdx, timeFactor, y, yDot, nullptr, adRes, adY, adDirOffset, true, true);
 }
 
 void CSTRModel::consistentInitialSensitivity(const active& t, unsigned int secIdx, const active& timeFactor, double const* vecStateY, double const* vecStateYdot,
@@ -502,7 +795,8 @@ void CSTRModel::consistentInitialSensitivity(const active& t, unsigned int secId
 			sensYdot[i] -= adRes[i].getADValue(param);
 
 		// Solve for \dot{s}
-		assembleTimeDerivativeJacobian(static_cast<double>(t), secIdx, static_cast<double>(timeFactor), vecStateY, vecStateYdot, _jac);
+		_jac.setAll(0.0);
+		addTimeDerivativeJacobian(static_cast<double>(t), static_cast<double>(timeFactor), vecStateY, vecStateYdot, _jac);
 		_jac.factorize();
 		_jac.solve(sensYdot + _nComp);
 	}
@@ -519,8 +813,7 @@ void CSTRModel::multiplyWithJacobian(double t, unsigned int secIdx, double timeF
 		ret[i] = alpha * yS[i] + beta * ret[i];
 	}
 
-	// Assemble Jacobian: dRes / dy
-	assembleJacobian(t, secIdx, 0.0, y, yDot, _jac);
+	// Multiply with main body Jacobian: dRes / dy
 	_jac.multiplyVector(yS + _nComp, alpha, beta, resTank);
 
 	// Map inlet DOFs to the tank (tank cells)
@@ -532,7 +825,8 @@ void CSTRModel::multiplyWithJacobian(double t, unsigned int secIdx, double timeF
 
 void CSTRModel::multiplyWithDerivativeJacobian(double t, unsigned int secIdx, double timeFactor, double const* const y, double const* const yDot, double const* sDot, double* ret)
 {
-	assembleTimeDerivativeJacobian(t, secIdx, timeFactor, y, yDot, _jac);
+	_jac.setAll(0.0);
+	addTimeDerivativeJacobian(t, timeFactor, y, yDot, _jac);
 
 	// Handle inlet DOFs (all algebraic)
 	std::fill_n(ret, _nComp, 0.0);
@@ -544,7 +838,6 @@ int CSTRModel::linearSolve(double t, double timeFactor, double alpha, double tol
 	double const* const y, double const* const yDot, double const* const res)
 {
 	const double flowIn = static_cast<double>(_flowRateIn);
-	const double flowOut = static_cast<double>(_flowRateOut);
 
 	// Handle inlet equations by backsubstitution
 	for (unsigned int i = 0; i < _nComp; i++)
@@ -552,60 +845,86 @@ int CSTRModel::linearSolve(double t, double timeFactor, double alpha, double tol
 		rhs[i + _nComp] += flowIn * rhs[i];
 	}
 
-	// Assemble Jacobian: dRes / dy + alpha * dRes / dyDot
-	assembleJacobian(t, 0u, timeFactor * alpha, y, yDot, _jac);
-	const bool success = _jac.factorize() && _jac.solve(rhs + _nComp);
+	bool success = true;
+	if (_factorizeJac)
+	{
+		// Factorization is necessary
+		_factorizeJac = false;
+		_jacFact.copyFrom(_jac);
+
+		addTimeDerivativeJacobian(t, timeFactor, y, yDot, _jac);
+		success = _jacFact.factorize();
+	}
+	success = success && _jacFact.solve(rhs + _nComp);
 
 	// Return 0 on success and 1 on failure
 	return success ? 0 : 1;
 }
 
 template <typename MatrixType>
-void CSTRModel::assembleJacobian(double t, unsigned int secIdx, double timeFactor, double const* y, double const* yDot, MatrixType& mat)
+void CSTRModel::addTimeDerivativeJacobian(double t, double timeFactor, double const* y, double const* yDot, MatrixType& mat)
 {
-	mat.setAll(0.0);
-
-	const double flowIn = static_cast<double>(_flowRateIn);
-	const double flowOut = static_cast<double>(_flowRateOut);
-
 	double const* const c = y + _nComp;
-	double const* const cDot = yDot + _nComp;
-	const double v = y[2 * _nComp];
-	const double vDot = yDot[2 * _nComp];
-
-	// Assemble Jacobian: dRes / dy + alpha * dRes / dyDot
-
-	// Concentrations: \dot{V} * c + V * \dot{c} - c_in * F_in + c * F_out == 0
-	for (unsigned int i = 0; i < _nComp; i++)
-	{
-		mat.native(i, i) = vDot + timeFactor * v + flowOut;
-		mat.native(i, _nComp) = cDot[i] + timeFactor * c[i];
-	}
-
-	// Volume: \dot{V} - F_{in} + F_{out} + F_{filter} == 0
-	mat.native(_nComp, _nComp) = timeFactor;
-}
-
-template <typename MatrixType>
-void CSTRModel::assembleTimeDerivativeJacobian(double t, unsigned int secIdx, double timeFactor, double const* y, double const* yDot, MatrixType& mat)
-{
-	mat.setAll(0.0);
-
-	double const* const c = y + _nComp;
-	const double v = y[2 * _nComp];
+	double const* const q = y + 2 * _nComp;
+	const double v = y[2 * _nComp + _strideBound];
+	const double invBeta = 1.0 / static_cast<double>(_porosity) - 1.0;
+	const double vInvBeta = timeFactor * v * invBeta;
+	const double timeV = timeFactor * v;
 
 	// Assemble Jacobian: dRes / dyDot
 
-	// Concentrations: \dot{V} * c + V * \dot{c} - c_in * F_in + c * F_out == 0
+	// Concentrations: \dot{V} * (c_i + invBeta * sum_j q_{i,j}) + V * (\dot{c}_i + invBeta * sum_j \dot{q}_{i,j}) - c_{in,i} * F_in + c_i * F_out == 0
 	for (unsigned int i = 0; i < _nComp; i++)
 	{
-		mat.native(i, i) = timeFactor * v;
-		mat.native(i, _nComp) = timeFactor * c[i];
+		mat.native(i, i) = timeV;
+
+		double qSum = 0.0;
+		double const* const qi = q + _boundOffset[i];
+		const unsigned int localOffset = _nComp + _boundOffset[i];
+		for (unsigned int j = 0; j < _nBound[i]; ++j)
+		{
+			mat.native(i, localOffset + j) = vInvBeta;
+			// + _nComp: Moves over liquid phase components
+			// + _boundOffset[i]: Moves over bound states of previous components
+			// + j: Moves to current bound state j of component i
+
+			qSum += qi[j];
+		}
+		mat.native(i, _nComp + _strideBound) = timeFactor * (c[i] + invBeta * qSum);
 	}
 
+	// Bound states
+	_binding->jacobianAddDiscretized(timeFactor, mat.row(_nComp));
+
 	// Volume: \dot{V} - F_{in} + F_{out} + F_{filter} == 0
-	mat.native(_nComp, _nComp) = timeFactor;
+	mat.native(_nComp + _strideBound, _nComp + _strideBound) = timeFactor;
 }
+
+/**
+ * @brief Extracts the system Jacobian from AD seed vectors
+ * @param [in] adRes Residual vector of AD datatypes with band compressed seed vectors
+ * @param [in] adDirOffset Number of AD directions used for non-Jacobian purposes (e.g., parameter sensitivities)
+ */
+void CSTRModel::extractJacobianFromAD(active const* const adRes, unsigned int adDirOffset)
+{
+	ad::extractDenseJacobianFromAd(adRes + _nComp, adDirOffset, _jac);
+}
+
+#ifdef CADET_CHECK_ANALYTIC_JACOBIAN
+
+/**
+ * @brief Compares the analytical Jacobian with a Jacobian derived by AD
+ * @details The analytical Jacobian is assumed to be stored in the dense matrix.
+ * @param [in] adRes Residual vector of AD datatypes with band compressed seed vectors
+ * @param [in] adDirOffset Number of AD directions used for non-Jacobian purposes (e.g., parameter sensitivities)
+ */
+void CSTRModel::checkAnalyticJacobianAgainstAd(active const* const adRes, unsigned int adDirOffset) const
+{
+	const double diff = ad::compareDenseJacobianWithAd(adRes + _nComp, adDirOffset, _jac);
+	LOG(Debug) << "AD dir offset: " << adDirOffset << " diff: " << diff;
+}
+
+#endif
 
 }  // namespace model
 

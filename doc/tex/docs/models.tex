@@ -426,14 +426,20 @@ When combined with a binding model, it can be used to model batch uptake experim
 
 Assuming that the fluid inside the tank is well-mixed and that the volume can vary, the governing equations are given by
 \begin{align*}
-	\frac{\mathrm{d}}{\mathrm{d}t} \left(\left[ c_i + \frac{1-\varepsilon}{\varepsilon} \sum_{j=0}^{N_{\text{bnd},i} - 1} q_{i,j} \right] V\right) &= F_{\text{in}} c_{\text{in},i} - F_{\text{out}} c_i \\
-	a\frac{\mathrm{d} q}{\mathrm{d} t} &= f_{\text{ads}}\left(t, c, q \right) \\
-	\frac{\mathrm{d}V}{\mathrm{d}t} &= F_{\text{in}} - F_{\text{out}} - F_{\text{filter}},
+	\frac{\mathrm{d}}{\mathrm{d}t} \left(\left[ c_i + \frac{1-\varepsilon}{\varepsilon} \sum_{j=0}^{N_{\text{bnd},i} - 1} q_{i,j} \right] V\right) &= F_{\text{in}} c_{\text{in},i} - F_{\text{out}} c_i,
 \end{align*}
-where the first equation balances incoming and outgoing mass, the second describes adsorption, and the last one describes the change in volume $V$.
+which balances the mass, the binding equation
+\begin{alignat*}{2}
+	\text{quasi-stationary: }& & 0 &= f_{\text{ads}}( c, q), \\
+	\text{dynamic: }& & \frac{\partial q}{\partial t} &= f_{\text{ads}}( c, q),
+\end{alignat*}
+depending on whether quasi-stationary or dynamic binding is used, and the evolution of volume
+\begin{align*}
+	\frac{\mathrm{d}V}{\mathrm{d}t} &= F_{\text{in}} - F_{\text{out}} - F_{\text{filter}}.
+\end{align*}
 The porosity $\varepsilon$ denotes the ratio of liquid phase volume to total tank volume.
-Thus, setting $\varepsilon = 0$, removing all bound states by setting $N_{\text{bnd},i} = 0$ for all components $i$, and applying no binding model results in a simple tank.
-The additional parameter $F_{\text{filter}}$, which denotes the flow rate of pure liquid (without any components), can be used to model a filtering unit.
+Thus, setting $\varepsilon = 1$, removing all bound states by setting $N_{\text{bnd},i} = 0$ for all components $i$, and applying no binding model results in a simple tank.
+The additional parameter $F_{\text{filter}}$, which denotes the flow rate of pure liquid (without any components) out of the tank, can be used to model a filtering unit.
 
 Note that it is the user's duty to make sure that the volume of the CSTR does not fall below \SI{0}{\cubic\metre}.
 If it does, the simulation may fail to run or produces unreasonable (e.g., unphysical) results.
