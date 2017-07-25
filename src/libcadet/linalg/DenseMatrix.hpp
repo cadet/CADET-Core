@@ -31,164 +31,163 @@ namespace cadet
 namespace linalg
 {
 
-/**
- * @brief Iterates over rows of a dense matrix providing a banded interface
- * @details The iterator always points to the main diagonal element in a row of
- *          a rectangular matrix. The user can then use the index of a sub-
- *          or superdiagonal to query and set matrix elements. Element queries
- *          outside the actual matrix are ignored and do not lead to failure.
- * @tparam MatrixType Type of the underlying dense matrix class
- */
-template <class MatrixType>
-class DenseBandedRowIterator
-{
-public:
-
-	/**
-	 * @brief Creates a DenseBandedRowIterator for the given matrix.
-	 * @param [in] mat Matrix this DenseBandedRowIterator accesses
-	 */
-	DenseBandedRowIterator(MatrixType& mat) CADET_NOEXCEPT : _matrix(mat), _pos(_matrix._data), _rowIdx(0) { }
-
-	/**
-	 * @brief Creates a DenseBandedRowIterator for the given matrix.
-	 * @param [in] mat Matrix this DenseBandedRowIterator accesses
-	 * @param [in] row Index of the row of the iterator points so
-	 */
-	DenseBandedRowIterator(MatrixType& mat, unsigned int row) CADET_NOEXCEPT : _matrix(mat), _pos(_matrix._data + row * _matrix.stride() + row), _rowIdx(row) { }
-
-	DenseBandedRowIterator(const DenseBandedRowIterator& cpy, int rowChange) CADET_NOEXCEPT : _matrix(cpy._matrix), _pos(cpy._pos + rowChange * static_cast<int>(cpy._matrix.stride() + 1)), _rowIdx(static_cast<int>(cpy._rowIdx) + rowChange) { }
-	DenseBandedRowIterator(const DenseBandedRowIterator& cpy) CADET_NOEXCEPT : _matrix(cpy._matrix), _pos(cpy._pos), _rowIdx(cpy._rowIdx) { }
-	DenseBandedRowIterator(DenseBandedRowIterator&& cpy) CADET_NOEXCEPT : _matrix(cpy._matrix), _pos(cpy._pos), _rowIdx(cpy._rowIdx) { }
-
-	inline DenseBandedRowIterator& operator=(const DenseBandedRowIterator& cpy) CADET_NOEXCEPT
-	{
-		cadet_assert(&cpy != this);
-
-		_matrix = cpy._matrix;
-		_pos = cpy._pos;
-		_rowIdx = cpy._rowIdx;
-		return *this;
-	}
-
-	inline DenseBandedRowIterator& operator=(DenseBandedRowIterator&& cpy) CADET_NOEXCEPT
-	{
-		_matrix = cpy._matrix;
-		_pos = cpy._pos;
-		_rowIdx = cpy._rowIdx;
-		return *this;
-	}
-
-	/**
-	 * @brief Accesses an element in the current row where the main diagonal is centered (index @c 0)
-	 * @details The @p diagonal determines the element in a row. A negative index indicates a lower diagonal,
-	 *          while a positive index indicates an upper diagonal. If @p diagonal is @c 0, then the main 
-	 *          diagonal is retrieved.
-	 * 
-	 * @param [in] diagonal Index of the diagonal
-	 * @return Matrix element at the given position
-	 */
-	inline double& centered(int diagonal) { return (*this)(diagonal); }
-	inline const double centered(int diagonal) const { return (*this)(diagonal); }
-
-	inline double& operator()(int diagonal)
-	{
-		// Check if out of scope
-		if (cadet_unlikely(diagonal >= static_cast<int>(_matrix.columns()) - _rowIdx))
-			return _dummy;
-		if (cadet_unlikely(diagonal < -_rowIdx))
-			return _dummy;
-
-		return _pos[diagonal];
-	}
-
-	inline const double operator()(int diagonal) const
-	{
-		// Check if out of scope
-		if (cadet_unlikely(diagonal >= static_cast<int>(_matrix.columns()) - _rowIdx))
-			return 0.0;
-		if (cadet_unlikely(diagonal < -_rowIdx))
-			return 0.0;
-
-		return _pos[diagonal];
-	}
-
-	inline double& operator[](int diagonal) { return (*this)(diagonal); }
-	inline const double operator[](int diagonal) const { return (*this)(diagonal); }
-
-	/**
-	 * @brief Sets all row elements to the given value
-	 * @param [in] val Value all row elements are set to
-	 */
-	inline void setAll(double val)
-	{
-		std::fill(_pos - _rowIdx, _pos + static_cast<int>(_matrix.columns()) - _rowIdx, val);
-	}
-
-	inline DenseBandedRowIterator& operator++() CADET_NOEXCEPT
-	{
-		// Add one additional shift to stay on the main diagonal
-		_pos += _matrix.stride() + 1;
-		++_rowIdx;
-		return *this;
-	}
-
-	inline DenseBandedRowIterator& operator--() CADET_NOEXCEPT
-	{
-		// Subtract one additional shift to stay on the main diagonal
-		_pos -= _matrix.stride() + 1;
-		--_rowIdx;
-		return *this;
-	}
-
-	inline DenseBandedRowIterator& operator+=(int idx) CADET_NOEXCEPT
-	{
-		// Add additional shifts to stay on the main diagonal
-		_pos += idx * _matrix.stride() + idx;
-		_rowIdx += idx;
-		return *this;
-	}
-
-	inline DenseBandedRowIterator& operator-=(int idx) CADET_NOEXCEPT
-	{
-		// Subtract additional shifts to stay on the main diagonal
-		_pos -= idx * _matrix.stride() + idx;
-		_rowIdx -= idx;
-		return *this;
-	}
-
-	inline DenseBandedRowIterator operator+(int op) const CADET_NOEXCEPT
-	{
-		return DenseBandedRowIterator(*this, op);
-	}
-
-	inline friend DenseBandedRowIterator operator+(int op, const DenseBandedRowIterator& it) CADET_NOEXCEPT
-	{
-		return DenseBandedRowIterator(it, op);
-	}
-
-	inline DenseBandedRowIterator operator-(int op) const CADET_NOEXCEPT
-	{
-		return DenseBandedRowIterator(*this, -op);
-	}
-
-	inline friend DenseBandedRowIterator operator-(int op, const DenseBandedRowIterator& it) CADET_NOEXCEPT
-	{
-		return DenseBandedRowIterator(it, -op);
-	}
-
-	inline const MatrixType& matrix() const CADET_NOEXCEPT { return _matrix; }
-
-private:
-	MatrixType& _matrix;
-	double* _pos;
-	double _dummy;
-	int _rowIdx;
-};
-
-
 namespace detail
 {
+
+	/**
+	 * @brief Iterates over rows of a dense matrix providing a banded interface
+	 * @details The iterator always points to the main diagonal element in a row of
+	 *          a rectangular matrix. The user can then use the index of a sub-
+	 *          or superdiagonal to query and set matrix elements. Element queries
+	 *          outside the actual matrix are ignored and do not lead to failure.
+	 * @tparam MatrixType Type of the underlying dense matrix class
+	 */
+	template <class MatrixType>
+	class DenseBandedRowIterator
+	{
+	public:
+
+		/**
+		 * @brief Creates a DenseBandedRowIterator for the given matrix.
+		 * @param [in] mat Matrix this DenseBandedRowIterator accesses
+		 */
+		DenseBandedRowIterator(MatrixType& mat) CADET_NOEXCEPT : _matrix(mat), _pos(_matrix._data), _rowIdx(0) { }
+
+		/**
+		 * @brief Creates a DenseBandedRowIterator for the given matrix.
+		 * @param [in] mat Matrix this DenseBandedRowIterator accesses
+		 * @param [in] row Index of the row of the iterator points so
+		 */
+		DenseBandedRowIterator(MatrixType& mat, unsigned int row) CADET_NOEXCEPT : _matrix(mat), _pos(_matrix._data + row * _matrix.stride() + row), _rowIdx(row) { }
+
+		DenseBandedRowIterator(const DenseBandedRowIterator& cpy, int rowChange) CADET_NOEXCEPT : _matrix(cpy._matrix), _pos(cpy._pos + rowChange * static_cast<int>(cpy._matrix.stride() + 1)), _rowIdx(static_cast<int>(cpy._rowIdx) + rowChange) { }
+		DenseBandedRowIterator(const DenseBandedRowIterator& cpy) CADET_NOEXCEPT : _matrix(cpy._matrix), _pos(cpy._pos), _rowIdx(cpy._rowIdx) { }
+		DenseBandedRowIterator(DenseBandedRowIterator&& cpy) CADET_NOEXCEPT : _matrix(cpy._matrix), _pos(cpy._pos), _rowIdx(cpy._rowIdx) { }
+
+		inline DenseBandedRowIterator& operator=(const DenseBandedRowIterator& cpy) CADET_NOEXCEPT
+		{
+			cadet_assert(&cpy != this);
+
+			_matrix = cpy._matrix;
+			_pos = cpy._pos;
+			_rowIdx = cpy._rowIdx;
+			return *this;
+		}
+
+		inline DenseBandedRowIterator& operator=(DenseBandedRowIterator&& cpy) CADET_NOEXCEPT
+		{
+			_matrix = cpy._matrix;
+			_pos = cpy._pos;
+			_rowIdx = cpy._rowIdx;
+			return *this;
+		}
+
+		/**
+		 * @brief Accesses an element in the current row where the main diagonal is centered (index @c 0)
+		 * @details The @p diagonal determines the element in a row. A negative index indicates a lower diagonal,
+		 *          while a positive index indicates an upper diagonal. If @p diagonal is @c 0, then the main 
+		 *          diagonal is retrieved.
+		 * 
+		 * @param [in] diagonal Index of the diagonal
+		 * @return Matrix element at the given position
+		 */
+		inline double& centered(int diagonal) { return (*this)(diagonal); }
+		inline const double centered(int diagonal) const { return (*this)(diagonal); }
+
+		inline double& operator()(int diagonal)
+		{
+			// Check if out of scope
+			if (cadet_unlikely(diagonal >= static_cast<int>(_matrix.columns()) - _rowIdx))
+				return _dummy;
+			if (cadet_unlikely(diagonal < -_rowIdx))
+				return _dummy;
+
+			return _pos[diagonal];
+		}
+
+		inline const double operator()(int diagonal) const
+		{
+			// Check if out of scope
+			if (cadet_unlikely(diagonal >= static_cast<int>(_matrix.columns()) - _rowIdx))
+				return 0.0;
+			if (cadet_unlikely(diagonal < -_rowIdx))
+				return 0.0;
+
+			return _pos[diagonal];
+		}
+
+		inline double& operator[](int diagonal) { return (*this)(diagonal); }
+		inline const double operator[](int diagonal) const { return (*this)(diagonal); }
+
+		/**
+		 * @brief Sets all row elements to the given value
+		 * @param [in] val Value all row elements are set to
+		 */
+		inline void setAll(double val)
+		{
+			std::fill(_pos - _rowIdx, _pos + static_cast<int>(_matrix.columns()) - _rowIdx, val);
+		}
+
+		inline DenseBandedRowIterator& operator++() CADET_NOEXCEPT
+		{
+			// Add one additional shift to stay on the main diagonal
+			_pos += _matrix.stride() + 1;
+			++_rowIdx;
+			return *this;
+		}
+
+		inline DenseBandedRowIterator& operator--() CADET_NOEXCEPT
+		{
+			// Subtract one additional shift to stay on the main diagonal
+			_pos -= _matrix.stride() + 1;
+			--_rowIdx;
+			return *this;
+		}
+
+		inline DenseBandedRowIterator& operator+=(int idx) CADET_NOEXCEPT
+		{
+			// Add additional shifts to stay on the main diagonal
+			_pos += idx * _matrix.stride() + idx;
+			_rowIdx += idx;
+			return *this;
+		}
+
+		inline DenseBandedRowIterator& operator-=(int idx) CADET_NOEXCEPT
+		{
+			// Subtract additional shifts to stay on the main diagonal
+			_pos -= idx * _matrix.stride() + idx;
+			_rowIdx -= idx;
+			return *this;
+		}
+
+		inline DenseBandedRowIterator operator+(int op) const CADET_NOEXCEPT
+		{
+			return DenseBandedRowIterator(*this, op);
+		}
+
+		inline friend DenseBandedRowIterator operator+(int op, const DenseBandedRowIterator& it) CADET_NOEXCEPT
+		{
+			return DenseBandedRowIterator(it, op);
+		}
+
+		inline DenseBandedRowIterator operator-(int op) const CADET_NOEXCEPT
+		{
+			return DenseBandedRowIterator(*this, -op);
+		}
+
+		inline friend DenseBandedRowIterator operator-(int op, const DenseBandedRowIterator& it) CADET_NOEXCEPT
+		{
+			return DenseBandedRowIterator(it, -op);
+		}
+
+		inline const MatrixType& matrix() const CADET_NOEXCEPT { return _matrix; }
+
+	private:
+		MatrixType& _matrix;
+		double* _pos;
+		double _dummy;
+		int _rowIdx;
+	};
 
 	/**
 	 * @brief Represents a dense matrix base class providing common functionality (e.g., factorization)
@@ -296,6 +295,13 @@ namespace detail
 		 */
 		inline double* data() CADET_NOEXCEPT { return _data; }
 		inline double const* data() const CADET_NOEXCEPT { return _data; }
+
+		/**
+		 * @brief Provides direct access to the underlying memory
+		 * @return Pointer to the first element of the underlying array
+		 */
+		inline lapackInt_t* pivotData() CADET_NOEXCEPT { return _pivot; }
+		inline lapackInt_t const* pivotData() const CADET_NOEXCEPT { return _pivot; }
 
 		/**
 		 * @brief Returns the number of elements in an array row
@@ -699,6 +705,8 @@ namespace detail
 
 }
 
+typedef detail::DenseMatrixBase::RowIterator DenseBandedRowIterator;
+
 /**
  * @brief Represents a dense matrix that is factorizable if it is square
  * @details LAPACK uses column-major storage, whereas this class uses row-major.
@@ -747,16 +755,26 @@ public:
 	{
 		cadet_assert(&cpy != this);
 
+		// Determine if reallocation is necessary
+		const bool reAllocMat = (cpy.stride() * cpy._rows) > stride() * _rows;
+		const bool reAllocPivot = std::min(cpy._rows, cpy._cols) > std::min(_rows, _cols);
+
 		// Change size and copy all the stuff
 		_cols = cpy._cols;
 		_rows = cpy._rows;
 
-		delete[] _data;
-		_data = new double[cpy.stride() * cpy._rows];
+		if (reAllocMat)
+		{
+			delete[] _data;
+			_data = new double[cpy.stride() * cpy._rows];
+		}
 		copyValues(cpy._data);
 
-		delete[] _pivot;
-		_pivot = new lapackInt_t[std::min(_rows, _cols)];
+		if (reAllocPivot)
+		{
+			delete[] _pivot;
+			_pivot = new lapackInt_t[std::min(_rows, _cols)];
+		}
 		copyPivot(cpy._pivot);
 
 		return *this;
@@ -776,6 +794,28 @@ public:
 		cpy._pivot = nullptr;
 
 		return *this;
+	}
+
+	/**
+	 * @brief Copies the given dense matrix @p cpy into this one
+	 * @details It is assumed that the matrix has enough memory to hold the given copy @p cpy.
+	 *          All current data is lost in this operation.
+	 *          The matrix is resized to match the size of @p cpy.
+	 * 
+	 * @param cpy Matrix to be copied
+	 */
+	inline void copyFrom(const DenseMatrixBase& cpy)
+	{
+		cadet_assert(&cpy != this);
+
+		cadet_assert(stride() * _rows >= cpy.stride() * cpy.rows());
+		cadet_assert(std::min(_rows, _cols) >= std::min(cpy.rows(), cpy.columns()));
+
+		_rows = cpy.rows();
+		_cols = cpy.columns();
+
+		copyValues(cpy.data());
+		copyPivot(cpy.pivotData());
 	}
 
 	/**

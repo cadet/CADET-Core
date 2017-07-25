@@ -19,6 +19,7 @@
 #define LIBCADET_SIMPLIFIEDMULTISTATESTERICMASSACTIONBINDING_HPP_
 
 #include "model/binding/BindingModelBase.hpp"
+#include "model/binding/BindingModelMacros.hpp"
 #include "SlicedVector.hpp"
 
 #include <vector>
@@ -74,20 +75,8 @@ public:
 		active* const adRes, active* const adY, unsigned int adEqOffset, unsigned int adOffset, unsigned int diagDir, 
 		unsigned int lowerBandwidth, unsigned int upperBandwidth, double* const workingMemory, linalg::detail::DenseMatrixBase& workingMat) const;
 
-	virtual int residual(const active& t, double z, double r, unsigned int secIdx, const active& timeFactor, 
-		active const* y, double const* yDot, active* res) const;
+	CADET_BINDINGMODEL_RESIDUAL_BOILERPLATE
 
-	virtual int residual(double t, double z, double r, unsigned int secIdx, double timeFactor, 
-		active const* y, double const* yDot, active* res) const;
-
-	virtual int residual(const active& t, double z, double r, unsigned int secIdx, const active& timeFactor, 
-		double const* y, double const* yDot, active* res) const;
-
-	virtual int residual(double t, double z, double r, unsigned int secIdx, double timeFactor, 
-		double const* y, double const* yDot, double* res) const;
-
-	virtual void analyticJacobian(double t, double z, double r, unsigned int secIdx, double const* y, linalg::BandMatrix::RowIterator jac) const;
-	virtual void jacobianAddDiscretized(double alpha, linalg::FactorizableBandMatrix::RowIterator jac) const;
 	virtual void multiplyWithDerivativeJacobian(double const* yDotS, double* const res, double timeFactor) const;
 
 	virtual bool hasSalt() const CADET_NOEXCEPT { return true; }
@@ -136,6 +125,9 @@ protected:
 
 	template <typename RowIterator>
 	void jacobianImpl(double t, double z, double r, unsigned int secIdx, double const* y, double const* yCp, RowIterator jac) const;
+
+	template <typename RowIterator>
+	void jacobianAddDiscretizedImpl(double alpha, RowIterator jac) const;
 };
 
 

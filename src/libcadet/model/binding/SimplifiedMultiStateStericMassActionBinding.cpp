@@ -11,7 +11,6 @@
 // =============================================================================
 
 #include "model/binding/SimplifiedMultiStateStericMassActionBinding.hpp"
-#include "model/binding/BindingModelMacros.hpp"
 #include "model/binding/RefConcentrationSupport.hpp"
 #include "model/ModelUtils.hpp"
 #include "cadet/Exceptions.hpp"
@@ -302,8 +301,6 @@ void SimplifiedMultiStateStericMassActionBinding::consistentInitialState(double 
 		errorTol, vecStateY, workingMemory, workingMat, eqSize);
 }
 
-CADET_BINDINGMODEL_RESIDUAL_BOILERPLATE_IMPL(SimplifiedMultiStateStericMassActionBinding)
-
 template <typename ParamType>
 inline ParamType SimplifiedMultiStateStericMassActionBinding::sigma(int comp, double state) const
 {
@@ -414,25 +411,6 @@ int SimplifiedMultiStateStericMassActionBinding::residualImpl(const ParamType& t
 		}
 	}
 	return 0;
-}
-
-void SimplifiedMultiStateStericMassActionBinding::analyticJacobian(double t, double z, double r, unsigned int secIdx, double const* y, linalg::BandMatrix::RowIterator jac) const
-{
-	jacobianImpl(t, z, r, secIdx, y, y - _nComp, jac);
-}
-
-void SimplifiedMultiStateStericMassActionBinding::jacobianAddDiscretized(double alpha, linalg::FactorizableBandMatrix::RowIterator jac) const
-{
-	// We only add time derivatives for kinetic binding
-	if (!_kineticBinding)
-		return;
-
-	// Skip salt equation which is always algebraic
-	++jac;
-
-	const unsigned int eqSize = numBoundStates(_nBoundStates, _nComp) - 1;
-	for (unsigned int i = 0; i < eqSize; ++i, ++jac)
-		jac[0] += alpha;
 }
 
 void SimplifiedMultiStateStericMassActionBinding::multiplyWithDerivativeJacobian(double const* yDotS, double* const res, double timeFactor) const
@@ -585,6 +563,21 @@ void SimplifiedMultiStateStericMassActionBinding::jacobianImpl(double t, double 
 			++jac;
 		}
 	}	
+}
+
+template <typename RowIterator>
+void SimplifiedMultiStateStericMassActionBinding::jacobianAddDiscretizedImpl(double alpha, RowIterator jac) const
+{
+	// We only add time derivatives for kinetic binding
+	if (!_kineticBinding)
+		return;
+
+	// Skip salt equation which is always algebraic
+	++jac;
+
+	const unsigned int eqSize = numBoundStates(_nBoundStates, _nComp) - 1;
+	for (unsigned int i = 0; i < eqSize; ++i, ++jac)
+		jac[0] += alpha;
 }
 
 }  // namespace model

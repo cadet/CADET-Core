@@ -125,7 +125,7 @@ struct SMAProblem
 
 	bool jacobian(double const* const x, cadet::linalg::detail::DenseMatrixBase& mat)
 	{
-		cadet::linalg::detail::DenseMatrixBase::RowIterator jac = mat.row(0);
+		cadet::linalg::DenseBandedRowIterator jac = mat.row(0);
 		double q0_bar = x[0];
 
 		// Salt equation: q_0 - Lambda + Sum[nu_j * q_j, j] == 0

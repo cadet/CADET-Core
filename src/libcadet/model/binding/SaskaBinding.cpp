@@ -186,18 +186,6 @@ public:
 	static const char* identifier() { return ParamHandler_t::identifier(); }
 	virtual const char* name() const CADET_NOEXCEPT { return ParamHandler_t::identifier(); }
 
-	virtual int residual(const active& t, double z, double r, unsigned int secIdx, const active& timeFactor,
-		active const* y, double const* yDot, active* res) const;
-
-	virtual int residual(double t, double z, double r, unsigned int secIdx, double timeFactor,
-		active const* y, double const* yDot, active* res) const;
-
-	virtual int residual(const active& t, double z, double r, unsigned int secIdx, const active& timeFactor,
-		double const* y, double const* yDot, active* res) const;
-
-	virtual int residual(double t, double z, double r, unsigned int secIdx, double timeFactor,
-		double const* y, double const* yDot, double* res) const;
-
 	virtual void setExternalFunctions(IExternalFunction** extFuns, unsigned int size) { _p.setExternalFunctions(extFuns, size); }
 	virtual bool dependsOnTime() const CADET_NOEXCEPT { return ParamHandler_t::dependsOnTime(); }
 
@@ -239,6 +227,8 @@ public:
 		}
 	}
 
+	CADET_PUREBINDINGMODELBASE_BOILERPLATE
+
 protected:
 	ParamHandler_t _p; //!< Handles parameters and their dependence on external functions
 
@@ -252,16 +242,6 @@ protected:
 
 		return true;
 	}
-
-	virtual int residualCore(double t, double z, double r, unsigned int secIdx, double timeFactor,
-		double const* y, double const* yCp, double const* yDot, double* res) const;
-	virtual int residualCore(double t, double z, double r, unsigned int secIdx, double timeFactor,
-		active const* y, double const* yCp, double const* yDot, active* res) const;
-
-	virtual void analyticJacobianCore(double t, double z, double r, unsigned int secIdx, double const* y, 
-		double const* yCp, linalg::BandMatrix::RowIterator jac) const;
-	virtual void analyticJacobianCore(double t, double z, double r, unsigned int secIdx, double const* y, 
-		double const* yCp, linalg::detail::DenseMatrixBase::RowIterator jac) const;
 
 	template <typename StateType, typename CpStateType, typename ResidualType, typename ParamType>
 	int residualImpl(const ParamType& t, double z, double r, unsigned int secIdx, const ParamType& timeFactor,
@@ -338,7 +318,6 @@ protected:
 	}
 };
 
-CADET_PUREBINDINGMODELBASE_TEMPLATED_BOILERPLATE_IMPL(SaskaBindingBase, ParamHandler_t)
 
 typedef SaskaBindingBase<SaskaParamHandler> SaskaBinding;
 typedef SaskaBindingBase<ExtSaskaParamHandler> ExternalSaskaBinding;

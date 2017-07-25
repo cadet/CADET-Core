@@ -115,6 +115,10 @@ protected:
  *          
  *          As a benefit, this class provides consistent initialization with and without AD (and
  *          Jacobian checking) and handles the Jacobian operations with respect to @f$ \dot{y} @f$.
+ *          
+ *          Descendants of this class have to implement a templated function
+ *          
+ *              template <class RowIterator> void jacobianAddDiscretizedImpl(double alpha, RowIterator jac) const;
 */
 class PureBindingModelBase : public BindingModelBase
 {
@@ -132,10 +136,15 @@ public:
 		unsigned int lowerBandwidth, unsigned int upperBandwidth, double* const workingMemory, linalg::detail::DenseMatrixBase& workingMat) const;
 
 	virtual void analyticJacobian(double t, double z, double r, unsigned int secIdx, double const* y, linalg::BandMatrix::RowIterator jac) const;
+	virtual void analyticJacobian(double t, double z, double r, unsigned int secIdx, double const* y, linalg::DenseBandedRowIterator jac) const;
 	virtual void jacobianAddDiscretized(double alpha, linalg::FactorizableBandMatrix::RowIterator jac) const;
+	virtual void jacobianAddDiscretized(double alpha, linalg::DenseBandedRowIterator jac) const;
 	virtual void multiplyWithDerivativeJacobian(double const* yDotS, double* const res, double timeFactor) const;
 
 protected:
+
+	template <typename RowIterator>
+	void jacobianAddDiscretizedImpl(double alpha, RowIterator jac) const;
 
 	/**
 	 * @brief Computes the residual
@@ -175,7 +184,7 @@ protected:
 	virtual void analyticJacobianCore(double t, double z, double r, unsigned int secIdx, double const* y, 
 		double const* yCp, linalg::BandMatrix::RowIterator jac) const = 0;
 	virtual void analyticJacobianCore(double t, double z, double r, unsigned int secIdx, double const* y, 
-		double const* yCp, linalg::detail::DenseMatrixBase::RowIterator jac) const = 0;
+		double const* yCp, linalg::DenseBandedRowIterator jac) const = 0;
 };
 
 
@@ -183,7 +192,47 @@ protected:
  * @brief Inserts implementations for common functions required by PureBindingModelBase forwarding them to templatized functions
  * @details An implementation of PureBindingModelBase has to provide some protected virtual functions.
  *          This macro provides the implementation of those functions by forwarding them to the templatized 
- *          functions residualImpl() and jacobianImpl() which are assumed to be present in the class.
+ *          functions residualImpl(), jacobianImpl(), and jacobianAddDiscretizedImpl() which are assumed to 
+ *          be present in the class.
+ *          
+ *          The implementation is inserted inline in the class declaration.
+ */
+#define CADET_PUREBINDINGMODELBASE_BOILERPLATE                                                               \
+	CADET_BINDINGMODEL_RESIDUAL_BOILERPLATE                                                                  \
+	protected:                                                                                               \
+	virtual int residualCore(double t, double z, double r, unsigned int secIdx, double timeFactor,           \
+		double const* y, double const* yCp, double const* yDot, double* res) const                           \
+	{                                                                                                        \
+		return residualImpl<double, double, double, double>(t, z, r, secIdx, timeFactor, y, yCp, yDot, res); \
+	}                                                                                                        \
+	                                                                                                         \
+	virtual int residualCore(double t, double z, double r, unsigned int secIdx, double timeFactor,           \
+		active const* y, double const* yCp, double const* yDot, active* res) const                           \
+	{                                                                                                        \
+		return residualImpl<active, double, active, double>(t, z, r, secIdx, timeFactor, y, yCp, yDot, res); \
+	}                                                                                                        \
+	                                                                                                         \
+	virtual void analyticJacobianCore(double t, double z, double r, unsigned int secIdx, double const* y,    \
+		double const* yCp, linalg::BandMatrix::RowIterator jac) const                                        \
+	{                                                                                                        \
+		jacobianImpl(t, z, r, secIdx, y, yCp, jac);                                                          \
+	}                                                                                                        \
+	                                                                                                         \
+	virtual void analyticJacobianCore(double t, double z, double r, unsigned int secIdx, double const* y,    \
+		double const* yCp, linalg::DenseBandedRowIterator jac) const                                         \
+	{                                                                                                        \
+		jacobianImpl(t, z, r, secIdx, y, yCp, jac);                                                          \
+	}
+
+
+/**
+ * @brief Inserts implementations for common functions required by PureBindingModelBase forwarding them to templatized functions
+ * @details An implementation of PureBindingModelBase has to provide some protected virtual functions.
+ *          This macro provides the implementation of those functions by forwarding them to the templatized 
+ *          functions residualImpl(), jacobianImpl(), and jacobianAddDiscretizedImpl() which are assumed to 
+ *          be present in the class.
+ *          
+ *          The implementation is inserted as a standalone function definition outside of class declaration.
  * 
  * @param CLASSNAME Name of the PureBindingModelBase heir (including template)
  * @param TEMPLATELINE Line before each function that may contain a template<typename TEMPLATENAME> modifier
@@ -213,7 +262,7 @@ protected:
 	                                                                                                         \
 	TEMPLATELINE                                                                                             \
 	void CLASSNAME::analyticJacobianCore(double t, double z, double r, unsigned int secIdx, double const* y, \
-		double const* yCp, linalg::detail::DenseMatrixBase::RowIterator jac) const                           \
+		double const* yCp, linalg::DenseBandedRowIterator jac) const                                         \
 	{                                                                                                        \
 		jacobianImpl(t, z, r, secIdx, y, yCp, jac);                                                          \
 	}

@@ -171,6 +171,17 @@ void PureBindingModelBase::getAlgebraicBlock(unsigned int& idxStart, unsigned in
 
 void PureBindingModelBase::jacobianAddDiscretized(double alpha, linalg::FactorizableBandMatrix::RowIterator jac) const
 {
+	jacobianAddDiscretizedImpl(alpha, jac);
+}
+
+void PureBindingModelBase::jacobianAddDiscretized(double alpha, linalg::DenseBandedRowIterator jac) const
+{
+	jacobianAddDiscretizedImpl(alpha, jac);
+}
+
+template <typename RowIterator>
+void PureBindingModelBase::jacobianAddDiscretizedImpl(double alpha, RowIterator jac) const
+{
 	// We only add time derivatives for kinetic binding
 	if (!_kineticBinding)
 		return;
@@ -275,6 +286,10 @@ void PureBindingModelBase::analyticJacobian(double t, double z, double r, unsign
 	analyticJacobianCore(t, z, r, secIdx, y, y - _nComp, jac);
 }
 
+void PureBindingModelBase::analyticJacobian(double t, double z, double r, unsigned int secIdx, double const* y, linalg::DenseBandedRowIterator jac) const
+{
+	analyticJacobianCore(t, z, r, secIdx, y, y - _nComp, jac);
+}
 
 }  // namespace model
 

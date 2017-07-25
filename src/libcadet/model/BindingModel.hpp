@@ -276,6 +276,7 @@ public:
 	 * @param [in,out] jac Row iterator pointing to the first bound states row of the underlying BandMatrix in which the Jacobian is stored
 	 */
 	virtual void analyticJacobian(double t, double z, double r, unsigned int secIdx, double const* y, linalg::BandMatrix::RowIterator jac) const = 0;
+	virtual void analyticJacobian(double t, double z, double r, unsigned int secIdx, double const* y, linalg::DenseBandedRowIterator jac) const = 0;
 
 	/**
 	 * @brief Adds the time-discretized part of the Jacobian to the current Jacobian of the bound phase equations in one particle shell
@@ -289,6 +290,7 @@ public:
 	 * @param [in,out] jac Row iterator pointing to the first bound states row of the underlying BandMatrix in which the Jacobian is stored
 	 */
 	virtual void jacobianAddDiscretized(double alpha, linalg::FactorizableBandMatrix::RowIterator jac) const = 0;
+	virtual void jacobianAddDiscretized(double alpha, linalg::DenseBandedRowIterator jac) const = 0;
 
 	/**
 	 * @brief Multiplies the Jacobian of the model with respect to @f$ \dot{y} @f$ with the given vector @p yDotS

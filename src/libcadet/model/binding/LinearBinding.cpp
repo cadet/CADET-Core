@@ -370,18 +370,19 @@ public:
 		jacobianImpl(t, z, r, secIdx, y, jac);
 	}
 
+	virtual void analyticJacobian(double t, double z, double r, unsigned int secIdx, double const* y, linalg::DenseBandedRowIterator jac) const
+	{
+		jacobianImpl(t, z, r, secIdx, y, jac);
+	}
+
 	virtual void jacobianAddDiscretized(double alpha, linalg::FactorizableBandMatrix::RowIterator jac) const
 	{
-		// We only add time derivatives for kinetic binding
-		if (!_kineticBinding)
-			return;
+		jacobianAddDiscretizedImpl(alpha, jac);
+	}
 
-		// All equations are kinetic
-		const unsigned int eqSize = numBoundStates(_nBoundStates, _nComp);
-		for (unsigned int i = 0; i < eqSize; ++i, ++jac)
-		{
-			jac[0] += alpha;
-		}
+	virtual void jacobianAddDiscretized(double alpha, linalg::DenseBandedRowIterator jac) const
+	{
+		jacobianAddDiscretizedImpl(alpha, jac);
 	}
 
 	virtual void multiplyWithDerivativeJacobian(double const* yDotS, double* const res, double timeFactor) const
@@ -476,7 +477,7 @@ protected:
 	}
 
 	template <typename RowIterator>
-	void jacobianImpl(double t, double z, double r, unsigned int secIdx, double const* y, RowIterator jac) const
+	inline void jacobianImpl(double t, double z, double r, unsigned int secIdx, double const* y, RowIterator jac) const
 	{
 		_p.update(t, z, r, secIdx, _nComp, _nBoundStates);
 
@@ -496,6 +497,21 @@ protected:
 
 			++bndIdx;
 			++jac;
+		}
+	}
+
+	template <typename RowIterator>
+	inline void jacobianAddDiscretizedImpl(double alpha, RowIterator jac) const
+	{
+		// We only add time derivatives for kinetic binding
+		if (!_kineticBinding)
+			return;
+
+		// All equations are kinetic
+		const unsigned int eqSize = numBoundStates(_nBoundStates, _nComp);
+		for (unsigned int i = 0; i < eqSize; ++i, ++jac)
+		{
+			jac[0] += alpha;
 		}
 	}
 };

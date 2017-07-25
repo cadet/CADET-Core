@@ -382,39 +382,9 @@ public:
 			errorTol, vecStateY, workingMemory, workingMat, eqSize);
 	}
 
-	virtual int residual(const active& t, double z, double r, unsigned int secIdx, const active& timeFactor, 
-		active const* y, double const* yDot, active* res) const;
-
-	virtual int residual(double t, double z, double r, unsigned int secIdx, double timeFactor, 
-		active const* y, double const* yDot, active* res) const;
-
-	virtual int residual(const active& t, double z, double r, unsigned int secIdx, const active& timeFactor, 
-		double const* y, double const* yDot, active* res) const;
-
-	virtual int residual(double t, double z, double r, unsigned int secIdx, double timeFactor, 
-		double const* y, double const* yDot, double* res) const;
-
+	CADET_BINDINGMODEL_RESIDUAL_BOILERPLATE
+	
 	virtual void setExternalFunctions(IExternalFunction** extFuns, unsigned int size) { _p.setExternalFunctions(extFuns, size); }
-
-	virtual void analyticJacobian(double t, double z, double r, unsigned int secIdx, double const* y, linalg::BandMatrix::RowIterator jac) const
-	{
-		jacobianImpl(t, z, r, secIdx, y, y - _nComp, jac);
-	}
-
-	virtual void jacobianAddDiscretized(double alpha, linalg::FactorizableBandMatrix::RowIterator jac) const
-	{
-		// We only add time derivatives for kinetic binding
-		if (!_kineticBinding)
-			return;
-
-		// Skip salt equations which are always algebraic
-		const unsigned int numStates = _p.lambda.size();
-		jac += numStates;
-
-		const unsigned int eqSize = numBoundStates(_nBoundStates, _nComp) - numStates;
-		for (unsigned int i = 0; i < eqSize; ++i, ++jac)
-			jac[0] += alpha;
-	}
 
 	virtual void multiplyWithDerivativeJacobian(double const* yDotS, double* const res, double timeFactor) const
 	{
@@ -644,9 +614,23 @@ protected:
 			}
 		}
 	}
-};
 
-CADET_BINDINGMODEL_RESIDUAL_TEMPLATED_BOILERPLATE_IMPL(BiStericMassActionBindingBase, ParamHandler_t)
+	template <typename RowIterator>
+	void jacobianAddDiscretizedImpl(double alpha, RowIterator jac) const
+	{
+		// We only add time derivatives for kinetic binding
+		if (!_kineticBinding)
+			return;
+
+		// Skip salt equations which are always algebraic
+		const unsigned int numStates = _p.lambda.size();
+		jac += numStates;
+
+		const unsigned int eqSize = numBoundStates(_nBoundStates, _nComp) - numStates;
+		for (unsigned int i = 0; i < eqSize; ++i, ++jac)
+			jac[0] += alpha;
+	}
+};
 
 
 typedef BiStericMassActionBindingBase<BiSMAParamHandler> BiStericMassActionBinding;
