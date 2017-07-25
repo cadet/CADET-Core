@@ -11,6 +11,7 @@
 // =============================================================================
 
 #include "model/GeneralRateModel.hpp"
+#include "model/BindingModel.hpp"
 #include "linalg/DenseMatrix.hpp"
 #include "linalg/BandMatrix.hpp"
 #include "ParamReaderHelper.hpp"

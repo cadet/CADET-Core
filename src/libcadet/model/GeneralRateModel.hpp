@@ -19,7 +19,6 @@
 #define LIBCADET_GENERALRATEMODEL_HPP_
 
 #include "UnitOperation.hpp"
-#include "model/BindingModel.hpp"
 #include "cadet/SolutionExporter.hpp"
 #include "AutoDiff.hpp"
 #include "linalg/SparseMatrix.hpp"
@@ -43,12 +42,17 @@ namespace cadet
 // Forward declarations
 namespace linalg
 {
+	template <typename T> class BandedRowIterator;
 	class BandMatrix;
 	class FactorizableBandMatrix;
+
+	typedef BandedRowIterator<FactorizableBandMatrix> FactorizableBandMatrixRowIterator;
 }
 
 namespace model
 {
+
+class IBindingModel;
 
 /**
  * @brief General rate model of liquid column chromatography
@@ -242,7 +246,7 @@ protected:
 	void setUserdefinedRadialDisc(const std::vector<double>& cellInterfaces);
 
 	void addTimeDerivativeToJacobianColumnBlock(linalg::FactorizableBandMatrix& fbm, const Indexer& idxr, double alpha, double timeFactor);
-	void addMobilePhaseTimeDerivativeToJacobianParticleBlock(linalg::FactorizableBandMatrix::RowIterator& jac, const Indexer& idxr, double alpha, double invBetaP, double timeFactor);
+	void addMobilePhaseTimeDerivativeToJacobianParticleBlock(linalg::FactorizableBandMatrixRowIterator& jac, const Indexer& idxr, double alpha, double invBetaP, double timeFactor);
 	void solveForFluxes(double* const vecState, const Indexer& idxr);
 
 #ifdef CADET_CHECK_ANALYTIC_JACOBIAN

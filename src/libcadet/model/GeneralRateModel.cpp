@@ -17,6 +17,7 @@
 #include "cadet/ExternalFunction.hpp"
 #include "cadet/SolutionRecorder.hpp"
 #include "ConfigurationHelper.hpp"
+#include "model/BindingModel.hpp"
 #include "linalg/DenseMatrix.hpp"
 #include "linalg/BandMatrix.hpp"
 #include "linalg/Norms.hpp"
