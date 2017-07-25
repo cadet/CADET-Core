@@ -328,8 +328,14 @@ bool GeneralRateModel::reconfigure(IParameterProvider& paramProvider)
 	}
 
 	// Reconfigure binding model
-	if (_binding)
-		return _binding->reconfigure(paramProvider, _unitOpIdx);
+	if (_binding && paramProvider.exists("adsorption"))
+	{
+		paramProvider.pushScope("adsorption");
+		const bool bindingConfSuccess = _binding->reconfigure(paramProvider, _unitOpIdx);
+		paramProvider.popScope();
+
+		return bindingConfSuccess;
+	}
 
 	return true;
 }
