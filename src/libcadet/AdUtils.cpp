@@ -70,6 +70,29 @@ void extractBandedJacobianFromAd(active const* const adVec, unsigned int adDirOf
 	}
 }
 
+void prepareAdVectorSeedsForDenseMatrix(active* const adVec, unsigned int adDirOffset, unsigned int rows, unsigned int cols)
+{
+	for (unsigned int eq = 0; eq < rows; ++eq)
+	{
+		// Clear previously set directions
+		adVec[eq].fillADValue(adDirOffset, 0.0);
+		// Set direction
+		adVec[eq].setADValue(adDirOffset + eq, 1.0);
+	}
+}
+
+void extractDenseJacobianFromAd(active const* const adVec, unsigned int adDirOffset, linalg::detail::DenseMatrixBase& mat)
+{
+	for (unsigned int eq = 0; eq < mat.rows(); ++eq)
+	{
+		// Loop over columns
+		for (unsigned int col = 0; col < mat.columns(); ++col)
+		{
+			mat.native(eq, col) = adVec[eq].getADValue(adDirOffset + col);
+		}
+	}
+}
+
 void extractDenseJacobianFromBandedAd(active const* const adVec, unsigned int row, unsigned int adDirOffset, unsigned int diagDir, 
 	unsigned int lowerBandwidth, unsigned int upperBandwidth, linalg::detail::DenseMatrixBase& mat)
 {
@@ -131,6 +154,29 @@ double compareBandedJacobianWithAd(active const* const adVec, unsigned int adDir
 				dir = diagDir - lowerBandwidth;
 			else
 				++dir;
+		}
+	}
+	return maxDiff;
+}
+
+double compareDenseJacobianWithAd(active const* const adVec, unsigned int adDirOffset, const linalg::detail::DenseMatrixBase& mat)
+{
+	double maxDiff = 0.0;
+	for (unsigned int eq = 0; eq < mat.rows(); ++eq)
+	{
+		// Loop over columns
+		for (unsigned int col = 0; col < mat.columns(); ++col)
+		{
+			double baseVal = adVec[eq].getADValue(adDirOffset + col);
+			if (std::isnan(mat.native(eq, col)) || std::isnan(baseVal))
+				return std::numeric_limits<double>::quiet_NaN();
+			const double diff = std::abs(mat.native(eq, col) - baseVal);
+
+			baseVal = std::abs(baseVal);
+			if (baseVal > 0.0)
+				maxDiff = std::max(maxDiff, diff / baseVal);
+			else
+				maxDiff = std::max(maxDiff, diff);
 		}
 	}
 	return maxDiff;
