@@ -57,7 +57,67 @@ cadet::model::CSTRModel* createAndConfigureCSTR(cadet::IModelBuilder& mb, cadet:
 	return cstr;
 }
 
-inline void checkJacobian(double flowRateIn, double flowRateOut, double flowRateFilter)
+inline void checkJacobianAD(double flowRateIn, double flowRateOut, double flowRateFilter)
+{
+	cadet::IModelBuilder* const mb = cadet::createModelBuilder();
+	REQUIRE(nullptr != mb);
+
+	// CSTR with 2 components
+	const unsigned int nComp = 2;
+	cadet::JsonParameterProvider jpp = createCSTR(nComp);
+
+	cadet::model::CSTRModel* const cstrAna = createAndConfigureCSTR(*mb, jpp);
+	cadet::model::CSTRModel* const cstrAD = createAndConfigureCSTR(*mb, jpp);
+	if (flowRateFilter > 0.0)
+	{
+		cstrAna->flowRateFilter().push_back(flowRateFilter);
+		cstrAD->flowRateFilter().push_back(flowRateFilter);
+	}
+
+	cstrAna->setFlowRates(flowRateIn, flowRateOut);
+	cstrAD->setFlowRates(flowRateIn, flowRateOut);
+
+	// Enable AD
+	cadet::ad::setDirections(cadet::ad::getMaxDirections());
+	cstrAD->useAnalyticJacobian(false);
+
+	cadet::active* adRes = new cadet::active[cstrAD->numDofs()];
+	cadet::active* adY = new cadet::active[cstrAD->numDofs()];
+
+	cstrAD->prepareADvectors(adRes, adY, 0);
+
+	// Setup matrices
+	cstrAna->notifyDiscontinuousSectionTransition(0.0, 0u, nullptr, nullptr, 0u);
+	cstrAD->notifyDiscontinuousSectionTransition(0.0, 0u, adRes, adY, 0u);
+
+	// Obtain memory for state, Jacobian multiply direction, Jacobian column
+	const unsigned int nDof = cstrAna->numDofs();
+	std::vector<double> y(nDof, 0.0);
+	std::vector<double> yDot(nDof, 0.0);
+	std::vector<double> jacDir(nDof, 0.0);
+	std::vector<double> jacCol1(nDof, 0.0);
+	std::vector<double> jacCol2(nDof, 0.0);
+
+	// Fill state vectors with some values
+	fillState(y.data(), [=](unsigned int idx) { return std::abs(std::sin(idx * 0.13)) + 1e-4; }, nDof);
+	fillState(yDot.data(), [=](unsigned int idx) { return std::abs(std::sin((idx + nDof) * 0.13)) + 1e-4; }, nDof);
+
+	// Compute state Jacobian
+	cstrAna->residualWithJacobian(0.0, 0u, 1.0, y.data(), nullptr, jacDir.data(), nullptr, nullptr, 0u);
+	cstrAD->residualWithJacobian(0.0, 0u, 1.0, y.data(), nullptr, jacDir.data(), adRes, adY, 0u);
+	std::fill(jacDir.begin(), jacDir.end(), 0.0);
+
+	// Compare Jacobians
+	cadet::test::compareJacobian(cstrAna, cstrAD, y.data(), yDot.data(), jacDir.data(), jacCol1.data(), jacCol2.data());
+
+	delete[] adRes;
+	delete[] adY;
+	mb->destroyUnitOperation(cstrAna);
+	mb->destroyUnitOperation(cstrAD);
+	destroyModelBuilder(mb);	
+}
+
+inline void checkJacobianFD(double flowRateIn, double flowRateOut, double flowRateFilter)
 {
 	cadet::IModelBuilder* const mb = cadet::createModelBuilder();
 	REQUIRE(nullptr != mb);
@@ -87,6 +147,10 @@ inline void checkJacobian(double flowRateIn, double flowRateOut, double flowRate
 	fillState(y.data(), [=](unsigned int idx) { return std::abs(std::sin(idx * 0.13)) + 1e-4; }, nDof);
 	fillState(yDot.data(), [=](unsigned int idx) { return std::abs(std::sin((idx + nDof) * 0.13)) + 1e-4; }, nDof);
 
+	// Compute state Jacobian
+	cstr->residualWithJacobian(0.0, 0u, 1.0, y.data(), nullptr, jacDir.data(), nullptr, nullptr, 0u);
+	std::fill(jacDir.begin(), jacDir.end(), 0.0);
+
 	// Compare Jacobians
 //	cadet::test::checkJacobianPatternFD(cstr, cstr, y.data(), yDot.data(), jacDir.data(), jacCol1.data(), jacCol2.data());
 	cadet::test::compareJacobianFD(cstr, cstr, y.data(), yDot.data(), jacDir.data(), jacCol1.data(), jacCol2.data());
@@ -95,7 +159,7 @@ inline void checkJacobian(double flowRateIn, double flowRateOut, double flowRate
 	destroyModelBuilder(mb);	
 }
 
-inline void checkTimeDerivativeJacobian(double flowRateIn, double flowRateOut, double flowRateFilter)
+inline void checkTimeDerivativeJacobianFD(double flowRateIn, double flowRateOut, double flowRateFilter)
 {
 	cadet::IModelBuilder* const mb = cadet::createModelBuilder();
 	REQUIRE(nullptr != mb);
@@ -132,7 +196,7 @@ inline void checkTimeDerivativeJacobian(double flowRateIn, double flowRateOut, d
 	destroyModelBuilder(mb);
 }
 
-TEST_CASE("StirredTankModel Jacobian", "[CSTR],[UnitOp],[Residual],[Jacobian]")
+TEST_CASE("StirredTankModel Jacobian vs FD w/o binding model", "[CSTR],[UnitOp],[Residual],[Jacobian]")
 {
 	const double rateList[] = {0.0, 0.0, 0.0,
 	                           1.0, 0.0, 0.0,
@@ -155,12 +219,12 @@ TEST_CASE("StirredTankModel Jacobian", "[CSTR],[UnitOp],[Residual],[Jacobian]")
 	{
 		SECTION("Fin = " + std::to_string(row[0]) + " Fout = " + std::to_string(row[1]) + " Ffilter = " + std::to_string(row[2]))
 		{
-			checkJacobian(row[0], row[1], row[2]);
+			checkJacobianFD(row[0], row[1], row[2]);
 		}
 	}
 }
 
-TEST_CASE("StirredTankModel time derivative Jacobian", "[CSTR],[UnitOp],[Residual],[Jacobian]")
+TEST_CASE("StirredTankModel Jacobian vs AD w/o binding model", "[CSTR],[UnitOp],[Residual],[Jacobian],[AD]")
 {
 	const double rateList[] = {0.0, 0.0, 0.0,
 	                           1.0, 0.0, 0.0,
@@ -183,7 +247,35 @@ TEST_CASE("StirredTankModel time derivative Jacobian", "[CSTR],[UnitOp],[Residua
 	{
 		SECTION("Fin = " + std::to_string(row[0]) + " Fout = " + std::to_string(row[1]) + " Ffilter = " + std::to_string(row[2]))
 		{
-			checkTimeDerivativeJacobian(row[0], row[1], row[2]);
+			checkJacobianAD(row[0], row[1], row[2]);
+		}
+	}
+}
+
+TEST_CASE("StirredTankModel time derivative Jacobian vs FD w/o binding model", "[CSTR],[UnitOp],[Residual],[Jacobian]")
+{
+	const double rateList[] = {0.0, 0.0, 0.0,
+	                           1.0, 0.0, 0.0,
+	                           0.0, 1.0, 0.0,
+	                           0.0, 0.0, 1.0,
+	                           1.0, 1.0, 0.0,
+	                           1.0, 0.0, 1.0,
+	                           0.0, 1.0, 1.0,
+	                           1.0, 1.0, 1.0,
+	                           1.0, 2.0, 3.0,
+	                           2.0, 3.0, 1.0,
+	                           3.0, 1.0, 2.0,
+	                           3.0, 2.0, 1.0,
+	                           2.0, 1.0, 3.0,
+	                           1.0, 3.0, 2.0,
+	                           1.0, 2.0, 0.0,
+	                           2.0, 1.0, 0.0};
+	double const* row = &rateList[0];
+	for (unsigned int i = 0; i < sizeof(rateList) / sizeof(double) / 3; ++i, row += 3)
+	{
+		SECTION("Fin = " + std::to_string(row[0]) + " Fout = " + std::to_string(row[1]) + " Ffilter = " + std::to_string(row[2]))
+		{
+			checkTimeDerivativeJacobianFD(row[0], row[1], row[2]);
 		}
 	}
 }

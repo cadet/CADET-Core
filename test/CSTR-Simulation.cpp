@@ -178,7 +178,7 @@ inline void runSim(cadet::JsonParameterProvider& jpp, std::function<double(doubl
 	}
 }
 
-TEST_CASE("CSTR vs analytic solution (V = const)", "[CSTR],[Simulation]")
+TEST_CASE("CSTR vs analytic solution (V = const) w/o binding model", "[CSTR],[Simulation]")
 {
 	cadet::JsonParameterProvider jpp = createCSTRBenchmark(3, 119.0, 1.0);
 	setSectionTimes(jpp, {0.0, 10.0, 100.0, 119.0});
@@ -205,7 +205,7 @@ TEST_CASE("CSTR vs analytic solution (V = const)", "[CSTR],[Simulation]")
 	});
 }
 
-TEST_CASE("CSTR vs analytic solution (V increasing)", "[CSTR],[Simulation]")
+TEST_CASE("CSTR vs analytic solution (V increasing) w/o binding model", "[CSTR],[Simulation]")
 {
 	cadet::JsonParameterProvider jpp = createCSTRBenchmark(1, 100.0, 1.0);
 	setSectionTimes(jpp, {0.0, 100.0});
@@ -221,7 +221,7 @@ TEST_CASE("CSTR vs analytic solution (V increasing)", "[CSTR],[Simulation]")
 	});
 }
 
-TEST_CASE("CSTR vs analytic solution (V decreasing)", "[CSTR],[Simulation]")
+TEST_CASE("CSTR vs analytic solution (V decreasing) w/o binding model", "[CSTR],[Simulation]")
 {
 	cadet::JsonParameterProvider jpp = createCSTRBenchmark(1, 100.0, 1.0);
 	setSectionTimes(jpp, {0.0, 100.0});
