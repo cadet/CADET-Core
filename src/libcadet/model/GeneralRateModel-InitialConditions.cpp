@@ -356,7 +356,7 @@ void GeneralRateModel::consistentInitialTimeDerivative(double t, unsigned int se
 				std::fill(qShellDot, qShellDot + algLen, 0.0);
 				if (_binding->dependsOnTime())
 				{
-					_binding->timeDerivativeAlgebraicResidual(t, z, _parCenterRadius[j], secIdx, vecStateY + idxr.offsetCp(pblk, j), qShellDot);
+					_binding->timeDerivativeAlgebraicResidual(t, z, _parCenterRadius[j], secIdx, vecStateY + idxr.offsetCp(pblk, j) + idxr.strideParLiquid(), qShellDot);
 					for (unsigned int algRow = 0; algRow < algLen; ++algRow)
 						qShellDot[algRow] *= -1.0;
 				}
@@ -526,7 +526,6 @@ void GeneralRateModel::leanConsistentInitialTimeDerivative(double t, double time
 	for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
 #endif
 	{
-		//double* const yDotSlice = vecStateYdot + comp * idxr.strideColComp() + idxr.offsetC();
 		double* const resSlice = res + comp * idxr.strideColComp() + idxr.offsetC();
 
 		// Assemble
@@ -551,8 +550,9 @@ void GeneralRateModel::leanConsistentInitialTimeDerivative(double t, double time
 		// Note that we have solved with the *positive* residual as right hand side
 		// instead of the *negative* one. Fortunately, we are dealing with linear systems,
 		// which means that we can just negate the solution.
-		//for (unsigned int i = 0; i < idxr.strideColComp(); ++i)
-		//	yDotSlice[i] = -resSlice[i];
+		double* const yDotSlice = vecStateYdot + comp * idxr.strideColComp() + idxr.offsetC();
+		for (unsigned int i = 0; i < idxr.strideColComp(); ++i)
+			yDotSlice[i] = -resSlice[i];
 	} CADET_PARFOR_END;
 
 #ifdef CADET_PARALLELIZE
