@@ -284,7 +284,7 @@ void InletModel::consistentInitialTimeDerivative(double t, unsigned int secIdx, 
 	std::copy_n(_inletDerivatives, _nComp, vecStateYdot);
 }
 
-void InletModel::leanConsistentInitialTimeDerivative(double t, double timeFactor, double* const vecStateYdot, double* const res)
+void InletModel::leanConsistentInitialTimeDerivative(double t, double timeFactor, double const* const vecStateY, double* const vecStateYdot, double* const res)
 {
 	std::copy_n(_inletDerivatives, _nComp, vecStateYdot);
 }

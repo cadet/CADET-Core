@@ -179,7 +179,7 @@ namespace
 
 		static inline void timeDerivative(cadet::IUnitOperation* model, double t, unsigned int secIdx, double timeFactor, double const* vecStateY, double* const vecStateYdot, double* const res)
 		{
-			model->leanConsistentInitialTimeDerivative(t, timeFactor, vecStateYdot, res);
+			model->leanConsistentInitialTimeDerivative(t, timeFactor, vecStateY, vecStateYdot, res);
 		}
 
 		static inline int residualWithJacobian(cadet::model::ModelSystem& ms, const cadet::active& t, unsigned int secIdx, const cadet::active& timeFactor, double const* const y, double const* const yDot, double* const res, double* const temp,

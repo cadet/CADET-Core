@@ -500,10 +500,11 @@ void GeneralRateModel::leanConsistentInitialState(double t, unsigned int secIdx,
  *     
  * @param [in] t Current time point
  * @param [in] timeFactor Used for time transformation (pre factor of time derivatives) and to compute parameter derivatives with respect to section length
+ * @param [in] vecStateY (Lean) consistently initialized state vector
  * @param [in,out] vecStateYdot On entry, inconsistent state time derivatives. On exit, partially consistent state time derivatives.
  * @param [in] res On entry, residual without taking time derivatives into account. The data is overwritten during execution of the function.
  */
-void GeneralRateModel::leanConsistentInitialTimeDerivative(double t, double timeFactor, double* const vecStateYdot, double* const res)
+void GeneralRateModel::leanConsistentInitialTimeDerivative(double t, double timeFactor, double const* const vecStateY, double* const vecStateYdot, double* const res)
 {
 	if ((_parDiffusion.size() > _disc.nComp) || (_parSurfDiffusion.size() > _disc.strideBound))
 		LOG(Warning) << "Lean consistent initialization is not appropriate for section-dependent pore and surface diffusion";

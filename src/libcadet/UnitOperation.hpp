@@ -473,10 +473,11 @@ public:
 	 *          
 	 * @param [in] t Current time point
 	 * @param [in] timeFactor Used for time transformation (pre factor of time derivatives) and to compute parameter derivatives with respect to section length
+	 * @param [in] vecStateY (Lean) consistent initial state
 	 * @param [in,out] vecStateYdot On entry, inconsistent state time derivatives. On exit, partially consistent state time derivatives.
 	 * @param [in] res On entry, residual without taking time derivatives into account. The data is overwritten during execution of the function.
 	 */
-	virtual void leanConsistentInitialTimeDerivative(double t, double timeFactor, double* const vecStateYdot, double* const res) = 0;
+	virtual void leanConsistentInitialTimeDerivative(double t, double timeFactor, double const* const vecStateY, double* const vecStateYdot, double* const res) = 0;
 
 	/**
 	 * @brief Computes consistent initial conditions for all sensitivity subsystems
