@@ -417,12 +417,15 @@ void CSTRModel::consistentInitialState(double t, unsigned int secIdx, double tim
 		// Volume: \dot{V} = F_{in} - F_{out} - F_{filter}
 		const double vDot = flowIn - flowOut - static_cast<double>(_curFlowRateFilter);
 
+		//    V * (\dot{c} + invBeta * sum_j \dot{q}_j) + \dot{V} * (c + invBeta * sim_j q_j) = c_in * F_in - c * F_out
+
+
 		// We have the equation
-		//    V * \dot{c} + \dot{V} * c = c_in * F_in - c * F_out
+		//    \dot{V} * (c_i + 1 / beta * [sum_j q_{i,j}]) + V * (\dot{c}_i + 1 / beta * [sum_j \dot{q}_{i,j}]) = c_{in,i} * F_in + c_i * F_out
 		// which is now algebraic wrt. c due to V = 0:
-		//    \dot{V} * c = c_in * F_in - c * F_out
+		//    \dot{V} * (c_i + 1 / beta * [sum_j q_{i,j}]) = c_{in,i} * F_in + c_i * F_out
 		// Separating knowns from unknowns gives
-		//    (\dot{V} + F_out) * c = c_in * F_in
+		//    (\dot{V} + F_out) * c + \dot{V} / beta * [sum_j q_{i,j}] = c_in * F_in
 		// Hence, we obtain
 		//    c = c_in * F_in / (\dot{V} + F_out)
 
@@ -451,6 +454,19 @@ void CSTRModel::consistentInitialState(double t, unsigned int secIdx, double tim
 			}
 		}
 	}
+	else
+	{
+		// Compute quasi-stationary binding model state
+		if (_binding->hasAlgebraicEquations())
+		{
+			active* const localAdRes = adRes ? adRes + _nComp : nullptr;
+			active* const localAdY = adY ? adY + _nComp : nullptr;
+
+			// Solve algebraic variables
+			_binding->consistentInitialState(t, 0.0, 0.0, secIdx, c + _nComp, errorTol, localAdRes, localAdY,
+				_nComp, adDirOffset, _jac.lowerBandwidth(), _jac.lowerBandwidth(), _jac.upperBandwidth(), _consistentInitBuffer, _jacFact);
+		}
+	}
 }
 
 void CSTRModel::consistentInitialTimeDerivative(double t, unsigned int secIdx, double timeFactor, double const* vecStateY, double* const vecStateYdot) 
@@ -462,13 +478,13 @@ void CSTRModel::consistentInitialTimeDerivative(double t, unsigned int secIdx, d
 	const double flowIn = static_cast<double>(_flowRateIn);
 	const double flowOut = static_cast<double>(_flowRateOut);
 
-	// Volume: \dot{V} = F_{in} - F_{out} - F_{filter}
-	const double vDot = flowIn - flowOut - static_cast<double>(_curFlowRateFilter);
-	cDot[_nComp] = vDot;
-
 	// Check if volume is 0
 	if (v == 0.0)
 	{
+		// Volume: \dot{V} = F_{in} - F_{out} - F_{filter}
+		const double vDot = flowIn - flowOut - static_cast<double>(_curFlowRateFilter);
+		cDot[_nComp] = vDot;
+
 		// We have the equation
 		//    V * \dot{c} + \dot{V} * c = c_in * F_in - c * F_out
 		// which is now algebraic wrt. c due to V = 0:
@@ -515,6 +531,10 @@ void CSTRModel::consistentInitialTimeDerivative(double t, unsigned int secIdx, d
 			for (unsigned int i = 0; i < _nComp; i++)
 			{
 				// TODO: This is wrong as vecStateYdot does not contain \dot{c}_in (on entry)
+				// This scenario violates the assumption that every outlet DOF is dynamic
+				// which is key to the consistent initialization algorithm. Fixing this problem
+				// requires fundamental changes to the consistent initialization concept
+				// implemented so far.
 				vecStateYdot[i] = 0.0;
 				cDot[i] = vecStateYdot[i] * factor;
 			}
@@ -522,22 +542,229 @@ void CSTRModel::consistentInitialTimeDerivative(double t, unsigned int secIdx, d
 	}
 	else
 	{
-		// Concentrations: V * \dot{c} = c_in * F_in - c * F_out - \dot{V} * c
-		//                             = -vecStateYdot - \dot{V} * c
-		// => \dot{c} = (-vecStateYdot - \dot{V} * c) / V
-		for (unsigned int i = 0; i < _nComp; i++)
+		// Note that the residual has not been negated, yet. We will do that now.
+		for (unsigned int i = 0; i < numDofs(); ++i)
+			vecStateYdot[i] = -vecStateYdot[i];
+
+		// Assemble time derivative Jacobian
+		_jacFact.setAll(0.0);
+
+		// Mobile phase
+		addTimeDerivativeJacobian(t, timeFactor, vecStateY, vecStateYdot, _jacFact);
+
+		// Stationary phase
+		// Populate matrix with time derivative Jacobian first
+		_binding->jacobianAddDiscretized(timeFactor, _jacFact.row(_nComp));
+
+		// Overwrite rows corresponding to algebraic equations with the Jacobian and set right hand side to 0
+		if (_binding->hasAlgebraicEquations())
 		{
-			cDot[i] = (-cDot[i] - vDot * c[i]) / v;
+			// Get start and length of algebraic block
+			unsigned int algStart = 0;
+			unsigned int algLen = 0;
+			_binding->getAlgebraicBlock(algStart, algLen);
+
+			// Get row iterators to algebraic block
+			linalg::DenseBandedRowIterator jacAlg = _jacFact.row(2 * _nComp + algStart);
+			linalg::DenseBandedRowIterator origJacobian = _jac.row(2 * _nComp + algStart);;
+
+			// Copy matrix rows
+			for (unsigned int algRow = 0; algRow < algLen; ++algRow, ++jacAlg, ++origJacobian)
+				jacAlg.copyRowFrom(origJacobian);
+
+			// Pointer to right hand side of algebraic block
+			double* const qShellDot = vecStateYdot + 2 * _nComp + algStart;
+
+			// Right hand side is -\frac{\partial res(t, y, \dot{y})}{\partial t}
+			// If the residual is not explicitly depending on time, this expression is 0
+			std::fill(qShellDot, qShellDot + algLen, 0.0);
+			if (_binding->dependsOnTime())
+			{
+				_binding->timeDerivativeAlgebraicResidual(t, 0.0, 0.0, secIdx, vecStateY + 2 * _nComp, qShellDot);
+				for (unsigned int algRow = 0; algRow < algLen; ++algRow)
+					qShellDot[algRow] *= -1.0;
+			}
+		}
+
+		// Factorize
+		const bool result = _jacFact.factorize();
+		if (!result)
+		{
+			LOG(Error) << "Factorize() failed";
+		}
+
+		// Solve
+		const bool result2 = _jacFact.solve(vecStateYdot + _nComp);
+		if (!result2)
+		{
+			LOG(Error) << "Solve() failed";
 		}
 	}
 }
 
 void CSTRModel::leanConsistentInitialState(double t, unsigned int secIdx, double timeFactor, double* const vecStateY, active* const adRes, active* const adY, unsigned int adDirOffset, double errorTol)
 {
+	// It is assumed that the bound states are (approximately) correctly initialized.
+	// Thus, only the liquid phase has to be initialized
+
+	double * const c = vecStateY + _nComp;
+	const double v = c[_nComp];
+
+	// Check if volume is 0
+	if (v == 0.0)
+	{
+		const double flowIn = static_cast<double>(_flowRateIn);
+		const double flowOut = static_cast<double>(_flowRateOut);
+
+		// Volume: \dot{V} = F_{in} - F_{out} - F_{filter}
+		const double vDot = flowIn - flowOut - static_cast<double>(_curFlowRateFilter);
+
+		// We have the equation
+		//    \dot{V} * (c + 1 / beta * [sum_j q_j]) + V * (\dot{c} + 1 / beta * [sum_j \dot{q}_j]) = c_in * F_in + c * F_out
+		// which is now algebraic wrt. c due to V = 0:
+		//    \dot{V} * (c + 1 / beta * [sum_j q_j]) = c_in * F_in + c * F_out
+		// Separating knowns from unknowns gives
+		//    (\dot{V} + F_out) * c = c_in * F_in - \dot{V} / beta * [sum_j q_j]
+		// Hence, we obtain
+		//    c = (c_in * F_in - \dot{V} / beta * [sum_j q_j]) / (\dot{V} + F_out)
+
+		// Note that if the denominator were 0, we had
+		//    0 = \dot{V} + F_out = F_in - F_filter
+		// which leads to
+		//    F_in = F_filter
+		// Since F_out >= 0 and \dot{V} = -F_out, we get
+		//    \dot{V} <= 0
+		// Assuming a valid configuration, we obtain \dot{V} = 0
+		// as the tank would get a negative volume otherwise.
+		// Concluding, we arrive at \dot{V} = F_out = 0.
+		// In this situation, F_in = F_filter = 0 has to hold
+		// as otherwise the liquid (solvent) is immediately and
+		// fully taken out, leaving only the pure dry components.
+		// We, hence, assume that this doesn't happen and simply
+		// do nothing leaving the initial conditions in place.
+
+		const double denom = vDot + flowOut;
+		if (denom != 0.0)
+		{
+			const double qFactor = vDot * (1.0 / static_cast<double>(_porosity) - 1.0);
+			for (unsigned int i = 0; i < _nComp; i++)
+			{
+				double qSum = 0.0;
+				double const* const localQ = c + _nComp + _boundOffset[i];
+				for (unsigned int j = 0; j < _nBound[i]; ++j)
+					qSum += localQ[j];
+
+				c[i] = (vecStateY[i] * flowIn - qFactor * qSum) / denom;
+			}
+		}
+	}
 }
 
 void CSTRModel::leanConsistentInitialTimeDerivative(double t, double timeFactor, double const* const vecStateY, double* const vecStateYdot, double* const res)
 {
+	// It is assumed that the bound states are (approximately) correctly initialized.
+	// Thus, only the liquid phase has to be initialized
+
+	double const* const c = vecStateY + _nComp;
+	double* const cDot = vecStateYdot + _nComp;
+	double* const resC = res + _nComp;
+	const double v = c[_nComp];
+
+	const double flowIn = static_cast<double>(_flowRateIn);
+	const double flowOut = static_cast<double>(_flowRateOut);
+
+	// Volume: \dot{V} = F_{in} - F_{out} - F_{filter}
+	const double vDot = flowIn - flowOut - static_cast<double>(_curFlowRateFilter);
+	cDot[_nComp] = vDot;
+
+	// Check if volume is 0
+	if (v == 0.0)
+	{
+		// We have the equation
+		//    \dot{V} * (c + 1 / beta * [sum_j q_j]) + V * (\dot{c} + 1 / beta * [sum_j \dot{q}_j]) = c_in * F_in + c * F_out
+		// which is now algebraic wrt. c due to V = 0:
+		//    \dot{V} * (c + 1 / beta * [sum_j q_j]) = c_in * F_in + c * F_out
+		// So we take the derivative wrt. to time t on both sides
+		//    2 * \dot{V} * (\dot{c} + 1 / beta * [sum_j \dot{q}_j]) + V * (\ddot{c} + 1 / beta * [sum_j \ddot{q}_j]) + \ddot{V} * (c + 1 / beta * [sum_j q_j]) = \dot{c}_in * F_in - \dot{c} * F_out
+		// and use the fact that \ddot{V} = 0 and V = 0 to arrive at
+		//    2 * \dot{V} * (\dot{c} + 1 / beta * [sum_j \dot{q}_j]) = \dot{c}_in * F_in - \dot{c} * F_out
+		// Separating knowns from unknowns gives
+		//    (2 * \dot{V} + F_out) * \dot{c} = \dot{c}_in * F_in - 2 * \dot{V} / beta * [sum_j \dot{q}_j]
+		// which finally yields
+		//    \dot{c} = (\dot{c}_in * F_in - 2 * \dot{V} / beta * [sum_j \dot{q}_j]) / (2 * \dot{V} + F_out)
+
+		// Note that if the denominator were 0, we had
+		//    0 = 2 * \dot{V} + F_out = 2 * F_in - 2 * F_filter - F_out
+		// which leads to
+		//    F_out = 2 * F_in - 2 * F_filter                       (*)
+		// Plugging this back into the \dot{V} equation gives
+		//    \dot{V} = F_in - F_out - F_filter = -F_in + F_filter
+		// Since V = 0, a valid choice of parameters has to ensure
+		// \dot{V} >= 0. In this case, we obtain
+		//    F_in <= F_filter
+		// On the other hand, we infer from (*) that
+		//    0 <= F_out <= 0   =>   F_out = 0   =>   F_in = F_filter
+		// This, in turn, concludes \dot{V} = 0. In this situation, 
+		//    F_in = F_filter = 0
+		// has to hold as otherwise the liquid (solvent) is immediately
+		// and fully taken out, leaving only the pure dry components.
+		// We, hence, assume that this doesn't happen. Summarizing, we
+		// have
+		//    \dot{V} = 0, F_in = F_filter = F_out = 0
+		// and nothing can happen or change. Therefore, \dot{c} is set
+		// to 0.0.
+
+		const double denom = 2.0 * vDot + flowOut;
+		if (denom == 0.0)
+		{
+			// Assume F_in = F_filter = 0
+			std::fill(cDot, cDot + _nComp, 0.0);
+		}
+		else
+		{
+			const double qFactor = 2.0 * vDot * (1.0 / static_cast<double>(_porosity) - 1.0);
+			const double factor = flowIn / denom;
+			for (unsigned int i = 0; i < _nComp; i++)
+			{
+				// TODO: This is wrong as vecStateYdot does not contain \dot{c}_in (on entry)
+				// This scenario violates the assumption that every outlet DOF is dynamic
+				// which is key to the consistent initialization algorithm. Fixing this problem
+				// requires fundamental changes to the consistent initialization concept
+				// implemented so far.
+				vecStateYdot[i] = 0.0;
+
+				double qDotSum = 0.0;
+				double const* const localQdot = cDot + _nComp + _boundOffset[i];
+				for (unsigned int j = 0; j < _nBound[i]; ++j)
+					qDotSum += localQdot[j];
+
+				cDot[i] = (vecStateYdot[i] * flowIn - qFactor * qDotSum) / denom;
+			}
+		}
+	}
+	else
+	{
+		const double invBeta = 1.0 / static_cast<double>(_porosity) - 1.0;
+
+		// Concentrations: V * (\dot{c} + 1 / beta * [sum_j \dot{q}_j]) = c_in * F_in + c * F_out - \dot{V} * (c + 1 / beta * [sum_j q_j])
+		//             <=> V * \dot{c} = c_in * F_in + c * F_out - \dot{V} * (c + 1 / beta * [sum_j q_j]) - V / beta * [sum_j \dot{q}_j]
+		//                             = -res - \dot{V} * (c + 1 / beta * [sum_j q_j]) - V / beta * [sum_j \dot{q}_j]
+		// => \dot{c} = (-res - \dot{V} * (c + 1 / beta * [sum_j q_j]) - V / beta * [sum_j \dot{q}_j]) / V
+		for (unsigned int i = 0; i < _nComp; i++)
+		{
+			double qSum = 0.0;
+			double qDotSum = 0.0;
+			double const* const localQ = c + _nComp + _boundOffset[i];
+			double const* const localQdot = cDot + _nComp + _boundOffset[i];
+			for (unsigned int j = 0; j < _nBound[i]; ++j)
+			{
+				qSum += localQ[j];
+				qDotSum += localQdot[j];
+			}
+
+			cDot[i] = (-resC[i] - vDot * (c[i] + invBeta * qSum) - v * invBeta * qDotSum) / v;
+		}
+	}
 }
 
 void CSTRModel::leanConsistentInitialSensitivity(const active& t, unsigned int secIdx, const active& timeFactor, double const* vecStateY, double const* vecStateYdot,
@@ -570,7 +797,7 @@ int CSTRModel::residualImpl(const ParamType& t, unsigned int secIdx, const Param
 		res[i] = cIn[i];
 	}
 
-	// Concentrations: \dot{V} * c + V * \dot{c} = c_in * F_in - c * F_out
+	// Concentrations: \dot{V} * (c + 1 / beta * [sum_j q_j]) + V * (\dot{c} + 1 / beta * [sum_j \dot{q}_j]) = c_in * F_in - c * F_out
 	const ParamType invBeta = 1.0 / static_cast<ParamType>(_porosity) - 1.0;
 	ResidualType* const resC = res + _nComp;
 	for (unsigned int i = 0; i < _nComp; ++i)
@@ -608,7 +835,7 @@ int CSTRModel::residualImpl(const ParamType& t, unsigned int secIdx, const Param
 
 		// Assemble Jacobian: dRes / dy
 
-		// Concentrations: \dot{V} * (c_i + invBeta * sum_j q_{i,j}) + V * (\dot{c}_i + invBeta * sum_j \dot{q}_{i,j}) - c_{in,i} * F_in + c_i * F_out == 0
+		// Concentrations: \dot{V} * (c_i + 1 / beta * [sum_j q_{i,j}]) + V * (\dot{c}_i + 1 / beta * [sum_j \dot{q}_{i,j}]) - c_{in,i} * F_in + c_i * F_out == 0
 		for (unsigned int i = 0; i < _nComp; i++)
 		{
 			_jac.native(i, i) = static_cast<double>(vDot) + static_cast<double>(flowOut);
@@ -876,7 +1103,7 @@ void CSTRModel::addTimeDerivativeJacobian(double t, double timeFactor, double co
 
 	// Assemble Jacobian: dRes / dyDot
 
-	// Concentrations: \dot{V} * (c_i + invBeta * sum_j q_{i,j}) + V * (\dot{c}_i + invBeta * sum_j \dot{q}_{i,j}) - c_{in,i} * F_in + c_i * F_out == 0
+	// Concentrations: \dot{V} * (c_i + 1 / beta * [sum_j q_{i,j}]) + V * (\dot{c}_i + 1 / beta * [sum_j \dot{q}_{i,j}]) - c_{in,i} * F_in + c_i * F_out == 0
 	for (unsigned int i = 0; i < _nComp; i++)
 	{
 		mat.native(i, i) = timeV;
