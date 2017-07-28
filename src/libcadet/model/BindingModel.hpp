@@ -53,6 +53,14 @@ namespace model
  *          
  *          Algebraic equations have to appear in an isolated block (i.e., there must not
  *          appear differential equations between two algebraic equations).
+ *          
+ *          It is assumed that the liquid phase concentrations are located right before the
+ *          first bound state of the first component, i.e., the general layout is expected
+ *          to be 
+ *              comp0, comp1, ..., compN, comp0bnd0, comp0bnd1, ..., comp1bnd0, comp1bnd1, ...
+ *          where comp0, comp1, etc. denote liquid phase concentrations of the respective
+ *          components. Pointers to state vectors usually point to comp0bnd0 instead of comp0,
+ *          but this is made clear in the documentation.
  */
 class IBindingModel
 {
@@ -201,6 +209,10 @@ public:
 	 *          to be consistent. Finding consistent initial conditions is a two step process.
 	 *          This functions performs the first step, that is, it updates the initial state \f$ y_0 \f$ overwriting
 	 *          the algebraically determined state variables such that the algebraic equations hold.
+	 *          
+	 *          This function assumes that the liquid phase concentrations have been determined correctly.
+	 *          The bound phase DOFs that are determined by algebraic equations (e.g., quasi-stationary
+	 *          binding) are calculated by this functions using the liquid phase concentrations.
 	 *          
 	 *          This function is called simultaneously from multiple threads.
 	 *          
