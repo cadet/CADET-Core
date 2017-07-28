@@ -128,6 +128,18 @@ namespace detail
 			std::fill(_pos - _rowIdx, _pos + static_cast<int>(_matrix.columns()) - _rowIdx, val);
 		}
 
+		/**
+		 * @brief Copies a row of another row iterator to the current row 
+		 * @param [in] ri Other row iterator
+		 * @tparam OtherMatrix Underlying matrix type of other row iterator
+		 */
+		template <typename OtherMatrix>
+		inline void copyRowFrom(const DenseBandedRowIterator<OtherMatrix>& ri)
+		{
+			cadet_assert(_matrix.columns() >= ri._matrix.columns());
+			std::copy_n(ri._pos - ri._rowIdx, _matrix.columns(), _pos - _rowIdx);
+		}
+
 		inline DenseBandedRowIterator& operator++() CADET_NOEXCEPT
 		{
 			// Add one additional shift to stay on the main diagonal
@@ -867,6 +879,18 @@ public:
 	 * @param [in] cols Number of columns
 	 */
 	DenseMatrixView(double* const data, lapackInt_t* const pivot, unsigned int rows, unsigned int cols) CADET_NOEXCEPT : DenseMatrixBase(data, pivot, rows, cols) { }
+
+	/**
+	 * @brief Initializes the view as a submatrix of the given DenseMatrix
+	 * @param [in] mat Source matrix
+	 * @param [in] startRow Index of the first row of this submatrix
+	 * @param [in] rows Number of rows
+	 */
+	DenseMatrixView(detail::DenseMatrixBase& mat, unsigned int startRow, unsigned int rows) CADET_NOEXCEPT : DenseMatrixBase(mat.rowPtr(startRow), mat.pivotData(), rows, mat.columns())
+	{
+		cadet_assert(mat.rows() >= startRow + rows);
+	}
+
 	~DenseMatrixView() CADET_NOEXCEPT { }
 
 	DenseMatrixView(const DenseMatrixView& cpy) CADET_NOEXCEPT : DenseMatrixBase(cpy._data, cpy._pivot, cpy._rows, cpy._cols) { }
