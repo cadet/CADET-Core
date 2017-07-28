@@ -32,7 +32,8 @@ function(cadet_apply_compile_options TARGET)
 			target_compile_options(${TARGET} PRIVATE -Wall -Wvla -pedantic) # -fno-rtti
 		elseif (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
 			# GR-= Disable RTTI
-			target_compile_options(${TARGET} PRIVATE "/GL /Gw /GR- /DNOMINMAX" )
+			target_compile_options(${TARGET} PRIVATE "/Gw /GR-")
+			target_compile_definitions(${TARGET} PRIVATE -DNOMINMAX)
 		endif ()
 	else()
 		if (CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
@@ -50,7 +51,8 @@ function(cadet_apply_compile_options TARGET)
 		elseif (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
 			# GR-= Disable RTTI, LTCG = Link time code generation, /GL = Whole program optimization
 			set_target_properties (${TARGET} PROPERTIES LINK_FLAGS "/LTCG")
-			target_compile_options(${TARGET} PRIVATE "/GL /Gw /DNOMINMAX") # "/GR-"
+			target_compile_options(${TARGET} PRIVATE "/GL /Gw") # "/GR-"
+			target_compile_definitions(${TARGET} PRIVATE -DNOMINMAX)
 		endif ()
 	endif()
 endfunction()
