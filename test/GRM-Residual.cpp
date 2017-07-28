@@ -246,6 +246,9 @@ void testJacobianWenoForwardBackward(int wenoOrder)
 //			cadet::test::compareJacobianFD(grmAna, grmAD, y.data(), jacDir.data(), nullptr, jacCol1.data(), jacCol2.data());
 			cadet::test::compareJacobian(grmAna, grmAD, nullptr, nullptr, jacDir.data(), jacCol1.data(), jacCol2.data());
 		}
+
+		delete[] adRes;
+		delete[] adY;
 		mb->destroyUnitOperation(grmAna);
 		mb->destroyUnitOperation(grmAD);
 	}
@@ -371,7 +374,7 @@ TEST_CASE("GeneralRateModel bulk residual forward vs backward flow", "[GRM],[Uni
 		testResidualBulkWenoForwardBackward(i);
 }
 
-TEST_CASE("GeneralRateModel Jacobian forward vs backward flow", "[GRM],[UnitOp],[Residual],[Jacobian]")
+TEST_CASE("GeneralRateModel Jacobian forward vs backward flow", "[GRM],[UnitOp],[Residual],[Jacobian],[AD]")
 {
 	// Test all WENO orders
 	for (unsigned int i = 1; i < cadet::Weno::maxOrder(); ++i)
