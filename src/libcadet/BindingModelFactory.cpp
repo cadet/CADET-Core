@@ -21,6 +21,7 @@ namespace cadet
 	{
 		namespace binding
 		{
+			void registerDummyModel(std::unordered_map<std::string, std::function<model::IBindingModel*()>>& bindings);
 			void registerLinearModel(std::unordered_map<std::string, std::function<model::IBindingModel*()>>& bindings);
 			void registerLangmuirModel(std::unordered_map<std::string, std::function<model::IBindingModel*()>>& bindings);
 			void registerAntiLangmuirModel(std::unordered_map<std::string, std::function<model::IBindingModel*()>>& bindings);
@@ -40,6 +41,7 @@ namespace cadet
 	BindingModelFactory::BindingModelFactory()
 	{
 		// Register all BindingModels here
+		model::binding::registerDummyModel(_bindingModels);
 		model::binding::registerLinearModel(_bindingModels);
 		model::binding::registerLangmuirModel(_bindingModels);
 		model::binding::registerAntiLangmuirModel(_bindingModels);
@@ -92,4 +94,8 @@ namespace cadet
 			throw InvalidParameterException("IBindingModel implementation with the name " + name + " is already registered and cannot be overwritten");
 	}
 
+	bool BindingModelFactory::exists(const std::string& name) const
+	{
+		return _bindingModels.find(name) != _bindingModels.end();
+	}
 } // namespace cadet

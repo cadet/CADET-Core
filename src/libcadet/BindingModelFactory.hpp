@@ -57,6 +57,13 @@ namespace cadet
 		 * @param [in] factory Function that creates an object of the IBindingModel class
 		 */
 		void registerModel(const std::string& name, std::function<model::IBindingModel*()> factory);
+
+		/**
+		 * @brief Returns whether a binding model of the given name @p name exists
+		 * @param [in] name Name of the binding model
+		 * @return @c true if a binding model of this name exists, otherwise @c false
+		 */
+		bool exists(const std::string& name) const;
 	protected:
 
 		/**

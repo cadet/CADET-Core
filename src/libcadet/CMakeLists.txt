@@ -107,6 +107,7 @@ set (LIBCADET_SOURCES
 	${CMAKE_SOURCE_DIR}/src/libcadet/model/GeneralRateModel-LinearSolver.cpp
 	${CMAKE_SOURCE_DIR}/src/libcadet/model/GeneralRateModel-InitialConditions.cpp
 	${CMAKE_SOURCE_DIR}/src/libcadet/model/binding/BindingModelBase.cpp
+	${CMAKE_SOURCE_DIR}/src/libcadet/model/binding/DummyBinding.cpp
 	${CMAKE_SOURCE_DIR}/src/libcadet/model/binding/LinearBinding.cpp
 	${CMAKE_SOURCE_DIR}/src/libcadet/model/binding/StericMassActionBinding.cpp
 	${CMAKE_SOURCE_DIR}/src/libcadet/model/binding/LangmuirBinding.cpp
