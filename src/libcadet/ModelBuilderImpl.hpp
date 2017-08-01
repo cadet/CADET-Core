@@ -58,6 +58,7 @@ public:
 
 	virtual IInletProfile* createInletProfile(const std::string& type) const;
 	virtual model::IBindingModel* createBindingModel(const std::string& name) const;
+	virtual bool isValidBindingModel(const std::string& name) const;
 	virtual IExternalFunction* createExternalFunction(const std::string& type) const;
 
 protected:

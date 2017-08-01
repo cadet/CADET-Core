@@ -231,4 +231,8 @@ namespace cadet
 		return _bindingModels.create(name);
 	}
 
+	bool ModelBuilder::isValidBindingModel(const std::string& name) const
+	{
+		return _bindingModels.exists(name);
+	}
 } // namespace cadet

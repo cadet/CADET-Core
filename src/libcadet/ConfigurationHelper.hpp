@@ -50,10 +50,17 @@ public:
 	/**
 	 * @brief Creates an IBindingModel object of the given @p name
 	 * @details The caller owns the returned IBindingModel object.
-	 * @param [in] name Name of the IBindingMOdel object
+	 * @param [in] name Name of the IBindingModel object
 	 * @return Object of the given IBindingModel @p name or @c nullptr if that name does not exist
 	 */
 	virtual model::IBindingModel* createBindingModel(const std::string& name) const = 0;
+
+	/**
+	 * @brief Checks if there is an IBindingModel of the given @p name
+	 * @param [in] name Name of the IBindingModel object
+	 * @return @c true if a binding model of this name exists, otherwise @c false
+	 */
+	virtual bool isValidBindingModel(const std::string& name) const = 0;
 
 	/**
 	 * @brief Creates an IExternalFunction object of the given @p type
