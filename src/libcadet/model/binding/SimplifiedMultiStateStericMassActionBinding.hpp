@@ -72,8 +72,8 @@ public:
 
 	virtual unsigned int consistentInitializationWorkspaceSize() const;
 	virtual void consistentInitialState(double t, double z, double r, unsigned int secIdx, double* const vecStateY, double errorTol, 
-		active* const adRes, active* const adY, unsigned int adEqOffset, unsigned int adOffset, unsigned int diagDir, 
-		unsigned int lowerBandwidth, unsigned int upperBandwidth, double* const workingMemory, linalg::detail::DenseMatrixBase& workingMat) const;
+		active* const adRes, active* const adY, unsigned int adEqOffset, unsigned int adDirOffset, const ad::IJacobianExtractor& jacExtractor, 
+		double* const workingMemory, linalg::detail::DenseMatrixBase& workingMat) const;
 
 	CADET_BINDINGMODEL_RESIDUAL_BOILERPLATE
 

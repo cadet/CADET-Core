@@ -13,7 +13,7 @@
 #include "linalg/BandMatrix.hpp"
 #include "linalg/DenseMatrix.hpp"
 #include "linalg/SparseMatrix.hpp"
-#include "AutoDiff.hpp"
+#include "AdUtils.hpp"
 
 #include <limits>
 #include <algorithm>
@@ -234,6 +234,33 @@ void adMatrixVectorMultiply(const linalg::SparseMatrix<active>& mat, double cons
 	{
 		y[rows[i]] = alpha * values[i].getADValue(adDir) * x[cols[i]] + beta * y[rows[i]];
 	}
+}
+
+DenseJacobianExtractor::DenseJacobianExtractor() { }
+
+void DenseJacobianExtractor::extractJacobian(active const* adRes, unsigned int row, unsigned int adDirOffset, linalg::detail::DenseMatrixBase& mat) const
+{
+	extractDenseJacobianFromAd(adRes + row, adDirOffset, mat);
+}
+
+double DenseJacobianExtractor::compareWithJacobian(active const* adRes, unsigned int row, unsigned int adDirOffset, linalg::detail::DenseMatrixBase& mat) const
+{
+	return compareDenseJacobianWithAd(adRes + row, adDirOffset, mat);
+}
+
+
+BandedJacobianExtractor::BandedJacobianExtractor(unsigned int diagDir, unsigned int lowerBandwidth, unsigned int upperBandwidth)
+	: _diagDir(diagDir), _lowerBandwidth(lowerBandwidth), _upperBandwidth(upperBandwidth)
+	{ }
+
+void BandedJacobianExtractor::extractJacobian(active const* adRes, unsigned int row, unsigned int adDirOffset, linalg::detail::DenseMatrixBase& mat) const
+{
+	extractDenseJacobianFromBandedAd(adRes, row, adDirOffset, _diagDir, _lowerBandwidth, _upperBandwidth, mat);
+}
+
+double BandedJacobianExtractor::compareWithJacobian(active const* adRes, unsigned int row, unsigned int adDirOffset, linalg::detail::DenseMatrixBase& mat) const
+{
+	return compareDenseJacobianWithBandedAd(adRes, row, adDirOffset, _diagDir, _lowerBandwidth, _upperBandwidth, mat);
 }
 
 }  // namespace ad

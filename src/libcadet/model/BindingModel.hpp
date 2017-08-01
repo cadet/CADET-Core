@@ -32,6 +32,11 @@ namespace cadet
 class IParameterProvider;
 class IExternalFunction;
 
+namespace ad
+{
+	class IJacobianExtractor;
+}
+
 namespace model
 {
 
@@ -228,16 +233,14 @@ public:
 	 * @param [in,out] adRes Pointer to residual vector of AD datatypes that can be used to compute the Jacobian
 	 * @param [in,out] adY Pointer to state vector of AD datatypes that can be used to compute the Jacobian
 	 * @param [in] adEqOffset Offset of @p adRes and @p adY to the current cell
-	 * @param [in] adOffset Offset to the usable AD directions
-	 * @param [in] diagDir AD direction of the main diagonal
-	 * @param [in] lowerBandwidth Lower bandwidth of the banded Jacobian of the particle block
-	 * @param [in] upperBandwidth Upper bandwidth of the banded Jacobian of the particle block
+	 * @param [in] adDirOffset Offset to the usable AD directions
+	 * @param [in] jacExtractor Jacobian extractor
 	 * @param [in,out] workingMemory Working memory for nonlinear equation solvers
 	 * @param [in,out] workingMat Working matrix for nonlinear equation solvers with at least as 
 	 *                 many rows and columns as number of bound states
 	 */
 	virtual void consistentInitialState(double t, double z, double r, unsigned int secIdx, double* const vecStateY, double errorTol, active* const adRes, active* const adY,
-		unsigned int adEqOffset, unsigned int adOffset, unsigned int diagDir, unsigned int lowerBandwidth, unsigned int upperBandwidth, double* const workingMemory,
+		unsigned int adEqOffset, unsigned int adDirOffset, const ad::IJacobianExtractor& jacExtractor, double* const workingMemory,
 		linalg::detail::DenseMatrixBase& workingMat) const = 0;
 
 	/**

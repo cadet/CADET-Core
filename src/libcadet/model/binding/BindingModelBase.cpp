@@ -209,8 +209,8 @@ void PureBindingModelBase::multiplyWithDerivativeJacobian(double const* yDotS, d
 }
 
 void PureBindingModelBase::consistentInitialState(double t, double z, double r, unsigned int secIdx, double* const vecStateY, double errorTol, 
-	active* const adRes, active* const adY, unsigned int adEqOffset, unsigned int adOffset, unsigned int diagDir, 
-	unsigned int lowerBandwidth, unsigned int upperBandwidth, double* const workingMemory, linalg::detail::DenseMatrixBase& workingMat) const
+	active* const adRes, active* const adY, unsigned int adEqOffset, unsigned int adDirOffset, const ad::IJacobianExtractor& jacExtractor, 
+	double* const workingMemory, linalg::detail::DenseMatrixBase& workingMat) const
 {
 	// If we have kinetic binding, there are no algebraic equations and we are done
 	if (_kineticBinding)
@@ -253,11 +253,11 @@ void PureBindingModelBase::consistentInitialState(double t, double z, double r, 
 			analyticJacobianCore(t, z, r, secIdx, x, vecStateY - _nComp, mat.row(0));
 
 			// Compare
-			const double diff = ad::compareDenseJacobianWithBandedAd(adRes, adEqOffset, adOffset, diagDir, lowerBandwidth, upperBandwidth, mat);
+			const double diff = jacExtractor.compareWithJacobian(adRes, adEqOffset, adDirOffset, mat);
 			LOG(Debug) << "MaxDiff " << adEqOffset << ": " << diff;
 #endif
 			// Extract Jacobian
-			ad::extractDenseJacobianFromBandedAd(adRes, adEqOffset, adOffset, diagDir, lowerBandwidth, upperBandwidth, mat);
+			jacExtractor.extractJacobian(adRes, adEqOffset, adDirOffset, mat);
 			return true;
 		};
 	}

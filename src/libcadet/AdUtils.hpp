@@ -207,6 +207,64 @@ inline void resetAd(active* const adVec, unsigned int size)
 		adVec[i] = 0.0;
 }
 
+/**
+ * @brief Interface for extracting Jacobians via AD
+ */
+class IJacobianExtractor
+{
+public:
+	virtual ~IJacobianExtractor() { }
+
+	/**
+	 * @brief Extracts a Jacobian from an AD vector
+	 * @details Extracts a Jacobian matrix from an AD vector into a matrix.
+	 * @param [in] adRes AD vector used for evaluating a function
+	 * @param [in] row Index of the first row to be extracted from the AD data
+	 * @param [in] adDirOffset Offset in the AD directions (can be used to move past parameter sensitivity directions)
+	 * @param [out] mat Matrix which stores the Jacobian
+	 */
+	virtual void extractJacobian(active const* adRes, unsigned int row, unsigned int adDirOffset, linalg::detail::DenseMatrixBase& mat) const = 0;
+
+	/**
+	 * @brief Compares the AD Jacobian with a given Jacobian matrix and returns the maximum absolute difference
+	 * @param [in] adRes AD vector used for evaluating a function
+	 * @param [in] row Index of the first row to be extracted from the AD data
+	 * @param [in] adDirOffset Offset in the AD directions (can be used to move past parameter sensitivity directions)
+	 * @param [in] mat Matrix which stores another Jacobian used for comparison
+	 * @return Maximum absolute difference between AD and given Jacobian matrix
+	 */
+	virtual double compareWithJacobian(active const* adRes, unsigned int row, unsigned int adDirOffset, linalg::detail::DenseMatrixBase& mat) const = 0;
+};
+
+/**
+ * @brief Extracts Jacobians from AD setup for dense matrices
+ * @details The seed vectors in the AD vector are standard unit vectors.
+ */
+class DenseJacobianExtractor : public IJacobianExtractor
+{
+public:
+	DenseJacobianExtractor();
+	virtual void extractJacobian(active const* adRes, unsigned int row, unsigned int adDirOffset, linalg::detail::DenseMatrixBase& mat) const;
+	virtual double compareWithJacobian(active const* adRes, unsigned int row, unsigned int adDirOffset, linalg::detail::DenseMatrixBase& mat) const;
+protected:
+};
+
+/**
+ * @brief Extracts Jacobians from AD setup for band matrices
+ * @details The seed vectors in the AD vector use band compression.
+ */
+class BandedJacobianExtractor : public IJacobianExtractor
+{
+public:
+	BandedJacobianExtractor(unsigned int diagDir, unsigned int lowerBandwidth, unsigned int upperBandwidth);
+	virtual void extractJacobian(active const* adRes, unsigned int row, unsigned int adDirOffset, linalg::detail::DenseMatrixBase& mat) const;
+	virtual double compareWithJacobian(active const* adRes, unsigned int row, unsigned int adDirOffset, linalg::detail::DenseMatrixBase& mat) const;
+protected:
+	unsigned int _diagDir;
+	unsigned int _lowerBandwidth;
+	unsigned int _upperBandwidth;
+};
+
 } // namespace ad
 
 } // namespace cadet

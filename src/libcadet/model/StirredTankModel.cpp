@@ -464,7 +464,7 @@ void CSTRModel::consistentInitialState(double t, unsigned int secIdx, double tim
 
 			// Solve algebraic variables
 			_binding->consistentInitialState(t, 0.0, 0.0, secIdx, c + _nComp, errorTol, localAdRes, localAdY,
-				_nComp, adDirOffset, _jac.lowerBandwidth(), _jac.lowerBandwidth(), _jac.upperBandwidth(), _consistentInitBuffer, _jacFact);
+				_nComp, adDirOffset, ad::DenseJacobianExtractor(), _consistentInitBuffer, _jacFact);
 		}
 	}
 }

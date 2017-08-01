@@ -15,6 +15,7 @@
 #include "linalg/DenseMatrix.hpp"
 #include "linalg/BandMatrix.hpp"
 #include "ParamReaderHelper.hpp"
+#include "AdUtils.hpp"
 
 #include <algorithm>
 #include <functional>
@@ -171,6 +172,8 @@ void GeneralRateModel::consistentInitialState(double t, unsigned int secIdx, dou
 	// Step 1a: Compute quasi-stationary binding model state
 	if (_binding->hasAlgebraicEquations())
 	{
+		ad::BandedJacobianExtractor jacExtractor(_jacP[0].lowerBandwidth(), _jacP[0].lowerBandwidth(), _jacP[0].upperBandwidth());
+
 		//Problem capturing variables here
 #ifdef CADET_PARALLELIZE
 		BENCH_SCOPE(_timerConsistentInitPar);
@@ -201,7 +204,7 @@ void GeneralRateModel::consistentInitialState(double t, unsigned int secIdx, dou
 
 				// Solve algebraic variables
 				_binding->consistentInitialState(t, z, _parCenterRadius[shell], secIdx, qShell, errorTol, localAdRes, localAdY,
-					localOffsetInParticle, adDirOffset, _jacP[0].lowerBandwidth(), _jacP[0].lowerBandwidth(), _jacP[0].upperBandwidth(), _tempState + offset, jacobianMatrix);
+					localOffsetInParticle, adDirOffset, jacExtractor, _tempState + offset, jacobianMatrix);
 			}
 		} CADET_PARFOR_END;
 	}
