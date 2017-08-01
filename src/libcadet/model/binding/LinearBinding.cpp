@@ -335,9 +335,12 @@ public:
 		}
 	}
 
-	// The next four residual() function implementations are usually hidden behind
-	// CADET_BINDINGMODEL_RESIDUAL_TEMPLATED_BOILERPLATE_IMPL(LinearBinding,ParamHandler_t)
-	// which just expands to the four implementations below.
+	virtual void setExternalFunctions(IExternalFunction** extFuns, unsigned int size) { _p.setExternalFunctions(extFuns, size); }
+
+	// The next four residual() function implementations, two analyticJacobian() function implementations, and
+	// two jacobianAddDiscretized() function implementations are usually hidden behind
+	// CADET_BINDINGMODEL_RESIDUAL_BOILERPLATE
+	// which just expands to the eight implementations below.
 
 	virtual int residual(const active& t, double z, double r, unsigned int secIdx, const active& timeFactor, 
 		active const* y, double const* yDot, active* res) const
@@ -362,8 +365,6 @@ public:
 	{
 		return residualImpl<double, double, double>(t, z, r, secIdx, timeFactor, y, yDot, res);
 	}
-
-	virtual void setExternalFunctions(IExternalFunction** extFuns, unsigned int size) { _p.setExternalFunctions(extFuns, size); }
 
 	virtual void analyticJacobian(double t, double z, double r, unsigned int secIdx, double const* y, linalg::BandMatrix::RowIterator jac) const
 	{
