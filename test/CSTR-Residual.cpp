@@ -148,7 +148,7 @@ inline void checkJacobianFD(double flowRateIn, double flowRateOut, double flowRa
 	fillState(yDot.data(), [=](unsigned int idx) { return std::abs(std::sin((idx + nDof) * 0.13)) + 1e-4; }, nDof);
 
 	// Compute state Jacobian
-	cstr->residualWithJacobian(0.0, 0u, 1.0, y.data(), nullptr, jacDir.data(), nullptr, nullptr, 0u);
+	cstr->residualWithJacobian(0.0, 0u, 1.0, y.data(), yDot.data(), jacDir.data(), nullptr, nullptr, 0u);
 	std::fill(jacDir.begin(), jacDir.end(), 0.0);
 
 	// Compare Jacobians
