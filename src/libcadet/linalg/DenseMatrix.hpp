@@ -384,6 +384,37 @@ namespace detail
 		}
 
 		/**
+		 * @brief Copies a submatrix of a given dense matrix into this matrix
+		 * @details Copies a rectangular submatrix from a given source in dense storage into this matrix.
+		 *          The top left matrix element is given by @p startRow and @p startCol. The size of the
+		 *          submatrix is specified by @p numRows and @p numCols.
+		 *          
+		 *          The submatrix is copied into the top left corner of this matrix. The rest of the matrix
+		 *          is left unchanged.
+		 * @param [in] mat Source matrix in banded storage format
+		 * @param [in] startRow Index of the first row of the submatrix in the source
+		 * @param [in] startCol Index of the first column of the submatrix in the source
+		 * @param [in] numRows Number of rows to be copied
+		 * @param [in] numCols Number of columns to be copied
+		 */
+		inline void copySubmatrix(const DenseMatrixBase& mat, unsigned int startRow, unsigned int startCol, unsigned int numRows, unsigned int numCols)
+		{
+			cadet_assert(_rows >= numRows);
+			cadet_assert(_cols >= numCols);
+			cadet_assert(mat._rows > startRow);
+			cadet_assert(mat._rows >= startRow + numRows);
+			cadet_assert(mat._cols > startCol);
+			cadet_assert(mat._cols >= startCol + numCols);
+
+			double* ptrDest = _data;
+			double const* ptrSrc = mat._data + mat._cols * startRow + startCol;
+			for (unsigned int r = 0; r < numRows; ++r, ptrDest += _cols, ptrSrc += mat._cols)
+			{
+				std::copy(ptrSrc, ptrSrc + numCols, ptrDest);
+			}
+		}
+
+		/**
 		 * @brief Sets all elements of a submatrix of this matrix to the given value
 		 * @details The submatrix is given by its first row and column and its number of rows and columns.
 		 * @param [in] val Value the submatrix is set to
