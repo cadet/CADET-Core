@@ -34,10 +34,11 @@ namespace
 	 * @brief Sets the initial conditions of a CSTR
 	 * @details Overwrites the INIT_C and INIT_VOLUME fields of the given ParameterProvider.
 	 * @param [in,out] jpp ParameterProvider
-	 * @param [in] c Initial concentration
+	 * @param [in] c Initial liquid phase concentration
+	 * @param [in] q Initial bound phase concentration
 	 * @param [in] v Initial volume
 	 */
-	inline void setInitialConditions(cadet::JsonParameterProvider& jpp, const std::vector<double>& c, double v)
+	inline void setInitialConditions(cadet::JsonParameterProvider& jpp, const std::vector<double>& c, const std::vector<double>& q, double v)
 	{
 		std::ostringstream ss;
 
@@ -46,6 +47,8 @@ namespace
 
 		jpp.set("INIT_C", c);
 		jpp.set("INIT_VOLUME", v);
+		if (!q.empty())
+			jpp.set("INIT_Q", q);
 
 		jpp.popScope();
 		jpp.popScope();
@@ -148,6 +151,57 @@ namespace
 		jpp.popScope();
 		jpp.popScope();
 	}
+
+	inline void addBoundStates(cadet::JsonParameterProvider& jpp, const std::vector<int>& nBound, double porosity)
+	{
+		jpp.pushScope("model");
+		jpp.pushScope("unit_000");
+
+		jpp.set("NBOUND", nBound);
+		jpp.set("POROSITY", porosity);
+
+		jpp.popScope();
+		jpp.popScope();
+	}
+
+	inline void addLinearBindingModel(cadet::JsonParameterProvider& jpp, bool kinetic, const std::vector<double>& kA, const std::vector<double>& kD)
+	{
+		jpp.pushScope("model");
+		jpp.pushScope("unit_000");
+
+		jpp.set("ADSORPTION_MODEL", "LINEAR");
+
+		jpp.addScope("adsorption");
+		jpp.pushScope("adsorption");
+
+		jpp.set("IS_KINETIC", kinetic);
+		jpp.set("LIN_KA", kA);
+		jpp.set("LIN_KD", kD);
+
+		jpp.popScope();
+		jpp.popScope();
+		jpp.popScope();
+	}
+
+	inline void addLangmuirBindingModel(cadet::JsonParameterProvider& jpp, bool kinetic, const std::vector<double>& kA, const std::vector<double>& kD, const std::vector<double>& qMax)
+	{
+		jpp.pushScope("model");
+		jpp.pushScope("unit_000");
+
+		jpp.set("ADSORPTION_MODEL", "MULTI_COMPONENT_LANGMUIR");
+
+		jpp.addScope("binding");
+		jpp.pushScope("binding");
+
+		jpp.set("IS_KINETIC", kinetic);
+		jpp.set("MCL_KA", kA);
+		jpp.set("MCL_KD", kD);
+		jpp.set("MCL_QMAX", qMax);
+
+		jpp.popScope();
+		jpp.popScope();
+		jpp.popScope();
+	}
 }
 
 inline Approx makeApprox(double val, double relTol, double absTol)
@@ -178,11 +232,36 @@ inline void runSim(cadet::JsonParameterProvider& jpp, std::function<double(doubl
 	}
 }
 
-TEST_CASE("CSTR vs analytic solution (V = const) w/o binding model", "[CSTR],[Simulation]")
+inline void runSim(cadet::JsonParameterProvider& jpp, std::function<double(double)> solC, std::function<double(double)> solQ, std::function<double(double)> solV)
+{
+	// Run simulation
+	cadet::Driver drv;
+	drv.configure(jpp);
+	drv.run();
+
+	// Get data from simulation
+	cadet::InternalStorageUnitOpRecorder const* const simData = drv.solution()->unitOperation(0);
+	double const* outlet = simData->outlet();
+	double const* volume = simData->volume();
+	double const* solid = simData->particle() + 1;
+	double const* time = drv.solution()->time();
+
+	// Compare
+	for (unsigned int i = 0; i < simData->numDataPoints(); ++i, ++outlet, ++volume, ++solid, ++time)
+	{
+		// Compare with relative error 1e-6 and absolute error 4e-5
+		CAPTURE(*time);
+		CHECK((*outlet) == makeApprox(solC(*time), 1e-6, 4e-5));
+		CHECK((*volume) == makeApprox(solV(*time), 1e-6, 4e-5));
+		CHECK((*solid) == makeApprox(solQ(*time), 1e-6, 4e-5));
+	}
+}
+
+TEST_CASE("CSTR vs analytic solution (V constant) w/o binding model", "[CSTR],[Simulation]")
 {
 	cadet::JsonParameterProvider jpp = createCSTRBenchmark(3, 119.0, 1.0);
 	setSectionTimes(jpp, {0.0, 10.0, 100.0, 119.0});
-	setInitialConditions(jpp, {0.0}, 10.0);
+	setInitialConditions(jpp, {0.0}, {}, 10.0);
 	setInletProfile(jpp, 0, 0, 1.0, 0.0, 0.0, 0.0);
 	setInletProfile(jpp, 1, 0, 1.0, -1.0 / 90.0, 0.0, 0.0);
 	setInletProfile(jpp, 2, 0, 0.0, 0.0, 0.0, 0.0);
@@ -209,7 +288,7 @@ TEST_CASE("CSTR vs analytic solution (V increasing) w/o binding model", "[CSTR],
 {
 	cadet::JsonParameterProvider jpp = createCSTRBenchmark(1, 100.0, 1.0);
 	setSectionTimes(jpp, {0.0, 100.0});
-	setInitialConditions(jpp, {1.0}, 10.0);
+	setInitialConditions(jpp, {1.0}, {}, 10.0);
 	setInletProfile(jpp, 0, 0, 1.0, 0.0, 0.0, 0.0);
 	setFlowRates(jpp, 0, 2.0, 1.0, 0.5);
 
@@ -225,7 +304,7 @@ TEST_CASE("CSTR vs analytic solution (V decreasing) w/o binding model", "[CSTR],
 {
 	cadet::JsonParameterProvider jpp = createCSTRBenchmark(1, 100.0, 1.0);
 	setSectionTimes(jpp, {0.0, 100.0});
-	setInitialConditions(jpp, {1.0}, 10.0);
+	setInitialConditions(jpp, {1.0}, {}, 10.0);
 	setInletProfile(jpp, 0, 0, 1.0, 0.0, 0.0, 0.0);
 	setFlowRates(jpp, 0, 1.5, 1.5, 0.5);
 
@@ -234,5 +313,49 @@ TEST_CASE("CSTR vs analytic solution (V decreasing) w/o binding model", "[CSTR],
 		}, 
 		[](double t) {
 			return 10.0 - 0.5 * t;
+	});
+}
+
+TEST_CASE("CSTR vs analytic solution (V constant) with dynamic linear binding", "[CSTR],[Simulation]")
+{
+	cadet::JsonParameterProvider jpp = createCSTRBenchmark(1, 100.0, 1.0);
+	setSectionTimes(jpp, {0.0, 100.0});
+	addBoundStates(jpp, {1}, 0.5);
+	setInitialConditions(jpp, {0.0}, {0.0}, 1.0);
+	setInletProfile(jpp, 0, 0, 1.0, 0.0, 0.0, 0.0);
+	setFlowRates(jpp, 0, 0.1, 0.1, 0.0);
+	addLinearBindingModel(jpp, true, {0.1}, {10.0});
+
+	const double sqrt2501 = std::sqrt(2501.0);
+	runSim(jpp, [=](double t) {
+			return 1.0 - std::exp(-5.1 * t) * (2501.0 * std::cosh(sqrt2501 * t / 10.0) + 50.0 * sqrt2501 * std::sinh(sqrt2501 * t / 10.0)) / 2501.0;
+		}, 
+		[=](double t) {
+			return 0.01 - std::exp(-5.1 * t) * (2501.0 * std::cosh(sqrt2501 * t / 10.0) + 51.0 * sqrt2501 * std::sinh(sqrt2501 * t / 10.0)) / 250100.0;
+		}, 
+		[](double t) {
+			return 1.0;
+	});
+}
+
+TEST_CASE("CSTR vs analytic solution (V constant) with quasi-stationary linear binding", "[CSTR],[Simulation]")
+{
+	cadet::JsonParameterProvider jpp = createCSTRBenchmark(1, 100.0, 1.0);
+	setSectionTimes(jpp, {0.0, 100.0});
+	addBoundStates(jpp, {1}, 0.5);
+	setInitialConditions(jpp, {0.0}, {0.0}, 1.0);
+	setInletProfile(jpp, 0, 0, 1.0, 0.0, 0.0, 0.0);
+	setFlowRates(jpp, 0, 0.1, 0.1, 0.0);
+	addLinearBindingModel(jpp, false, {0.1}, {10.0});
+
+	const double sqrt2501 = std::sqrt(2501.0);
+	runSim(jpp, [=](double t) {
+			return -std::expm1(-10.0 / 101.0 * t);
+		}, 
+		[=](double t) {
+			return -std::expm1(-10.0 / 101.0 * t) * 0.01;
+		}, 
+		[](double t) {
+			return 1.0;
 	});
 }
