@@ -69,10 +69,13 @@ public:
 	virtual void pushScope(const std::string& scope);
 	virtual void popScope();
 
+	virtual void addScope(const std::string& scope);
+
 	void set(const std::string& paramName, double val);
 	void set(const std::string& paramName, int val);
 	void set(const std::string& paramName, uint64_t val);
 	void set(const std::string& paramName, bool val);
+	void set(const std::string& paramName, char const* val);
 	void set(const std::string& paramName, const std::string& val);
 	void set(const std::string& paramName, const std::vector<double>& val);
 	void set(const std::string& paramName, const std::vector<int>& val);

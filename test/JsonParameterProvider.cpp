@@ -158,6 +158,13 @@ void JsonParameterProvider::popScope()
 	_opened.pop();
 }
 
+void JsonParameterProvider::addScope(const std::string& scope)
+{
+	json j;
+	j["blubber"] = 0.0;
+	(*_opened.top())[scope] = j;
+}
+
 void JsonParameterProvider::set(const std::string& paramName, double val)
 {
 	(*_opened.top())[paramName] = val;
@@ -176,6 +183,11 @@ void JsonParameterProvider::set(const std::string& paramName, uint64_t val)
 void JsonParameterProvider::set(const std::string& paramName, bool val)
 {
 	(*_opened.top())[paramName] = val;
+}
+
+void JsonParameterProvider::set(const std::string& paramName, char const* val)
+{
+	(*_opened.top())[paramName] = std::string(val);
 }
 
 void JsonParameterProvider::set(const std::string& paramName, const std::string& val)
@@ -867,7 +879,7 @@ cadet::JsonParameterProvider createCSTRBenchmark(unsigned int nSec, double endTi
 	
 		json cstr;
 		cstr["WRITE_SOLUTION_COLUMN"] = false;
-		cstr["WRITE_SOLUTION_PARTICLE"] = false;
+		cstr["WRITE_SOLUTION_PARTICLE"] = true;
 		cstr["WRITE_SOLUTION_FLUX"] = false;
 		cstr["WRITE_SOLUTION_COLUMN_INLET"] = true;
 		cstr["WRITE_SOLUTION_COLUMN_OUTLET"] = true;
