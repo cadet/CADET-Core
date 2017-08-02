@@ -639,7 +639,7 @@ void GeneralRateModel::consistentInitialSensitivity(const active& t, unsigned in
 		double* const sensY = vecSensY[param];
 		double* const sensYdot = vecSensYdot[param];
 
-		// Copy parameter derivative from AD to tempState and negate it
+		// Copy parameter derivative dF / dp from AD and negate it
 		for (unsigned int i = _disc.nComp; i < numDofs(); ++i)
 			sensYdot[i] = -adRes[i].getADValue(param);
 
