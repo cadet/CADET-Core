@@ -9,16 +9,22 @@ classdef StirredTankModel < Model
 	%            See the license note at the end of the file.
 
 	properties
+		bindingModel; % Object of the used binding model class
 	end
 
 	properties (Dependent)
 		% Parameters
 		flowRateFilter; % Flow rate of filtered out liquid in [m^3 / s]
+		porosity; % Porosity
+		nBoundStates; % Number of bound states for each component
 
 		% Initial values
 		initialConcentration; % Initial concentrations for each component in [mol / m^3]
+		initialSolid; % Initial concentrations for each component in the solid phase in [mol / m^3_SP]
 		initialVolume; % Initial volume in [m^3]
 		initialState; % Initial values for each degree of freedom
+
+		useAnalyticJacobian; % Determines whether Jacobian is calculated analytically or via AD
 	end
 	
 	properties (Constant)
@@ -33,7 +39,11 @@ classdef StirredTankModel < Model
 			%STIRREDTANKMODEL Constructs a StirredTankModel object and inserts as much default values as possible
 
 			obj = obj@Model();
+
+			% Set some default values
+			obj.bindingModel = [];
 			obj.flowRateFilter = 0.0;
+			obj.useAnalyticJacobian = true;
 
 			% Return volume by default
 			obj.returnSolutionVolume = true;
@@ -52,6 +62,26 @@ classdef StirredTankModel < Model
 			obj.hasChanged = true;
 		end
 
+		function val = get.porosity(obj)
+			val = obj.data.POROSITY;
+		end
+
+		function set.porosity(obj, val)
+			validateattributes(val, {'double'}, {'scalar', 'nonempty', '>=', 0.0, '<=', 1.0, 'finite', 'real'}, '', 'porosity');
+			obj.data.POROSITY = val;
+			obj.hasChanged = true;
+		end
+
+		function val = get.nBoundStates(obj)
+			val = double(obj.data.NBOUND);
+		end
+
+		function set.nBoundStates(obj, val)
+			validateattributes(val, {'numeric'}, {'nonnegative', 'vector', 'nonempty', 'finite', 'real'}, '', 'nBoundStates');
+			obj.data.NBOUND = int32(val);
+			obj.hasChanged = true;
+		end
+
 		% Initial values
 
 		function val = get.initialConcentration(obj)
@@ -61,6 +91,16 @@ classdef StirredTankModel < Model
 		function set.initialConcentration(obj, val)
 			validateattributes(val, {'double'}, {'nonnegative', 'vector', 'nonempty', 'finite', 'real'}, '', 'initialConcentration');
 			obj.data.INIT_C = val;
+			obj.hasChanged = true;
+		end
+
+		function val = get.initialSolid(obj)
+			val = obj.data.INIT_Q;
+		end
+
+		function set.initialSolid(obj, val)
+			validateattributes(val, {'double'}, {'nonnegative', 'vector', 'empty', 'finite', 'real'}, '', 'initialSolid');
+			obj.data.INIT_Q = val;
 			obj.hasChanged = true;
 		end
 
@@ -92,9 +132,25 @@ classdef StirredTankModel < Model
 			obj.hasChanged = true;
 		end
 
+		function val = get.useAnalyticJacobian(obj)
+			val = logical(obj.data.USE_ANALYTIC_JACOBIAN);
+		end
+
+		function set.useAnalyticJacobian(obj, val)
+			validateattributes(val, {'logical'}, {'scalar', 'nonempty'}, '', 'useAnalyticJacobian');
+			obj.data.USE_ANALYTIC_JACOBIAN = int32(logical(val));
+			obj.hasChanged = true;
+		end
+
 
 		function S = saveobj(obj)
 			S = obj.saveobj@Model();
+			S.bindingModel = [];
+
+			if ~isempty(obj.bindingModel)
+				S.bindingModelClass = class(obj.bindingModel);
+				S.bindingModel = obj.bindingModel.saveobj();
+			end
 		end
 
 
@@ -108,18 +164,36 @@ classdef StirredTankModel < Model
 
 			res = obj.validate@Model(sectionTimes);
 
+			if ~isfield(obj.data, 'POROSITY')
+				error('CADET:invalidConfig', 'Property porosity must be set.');
+			end
+
+			validateattributes(obj.nBoundStates, {'numeric'}, {'nonnegative', 'vector', 'numel', obj.nComponents, 'finite', 'real'}, '', 'nBoundStates');
 			validateattributes(obj.initialConcentration, {'double'}, {'nonnegative', 'vector', 'numel', obj.nComponents, 'finite', 'real'}, '', 'initialConcentration');
+			validateattributes(obj.initialSolid, {'double'}, {'nonnegative', 'vector', 'numel', sum(obj.nBoundStates), 'finite', 'real'}, '', 'initialSolid');
 			validateattributes(obj.initialVolume, {'double'}, {'nonnegative', 'scalar', 'finite', 'real'}, '', 'initialVolume');
 			if ~isempty(obj.initialState)
-				nDof = nComponents + 1;
+				nDof = nComponents + 1 + sum(obj.nBoundStates);
 				if (numel(obj.initialState) ~= nDof) && (numel(obj.initialState) ~= 2 * nDof)
 					error('CADET:invalidConfig', 'Expected initialState to be of size %d or %d.', nDof, 2*nDof);
 				end
-				validateattributes(obj.initialState(1:nDof), {'double'}, {'nonnegative', 'finite', 'real'}, '', 'initialVolume');
+				validateattributes(obj.initialState(1:nDof), {'double'}, {'nonnegative', 'finite', 'real'}, '', 'initialState');
 			end
 
 			if (numel(obj.flowRateFilter) ~= 1) && (numel(obj.flowRateFilter) ~= nSections)
 				error('CADET:invalidConfig', 'Expected flowRateFilter to be of size %d or %d (number of time sections).', 1, nSections);
+			end
+
+			validateattributes(obj.porosity, {'double'}, {'scalar', 'nonempty', '>=', 0.0, '<=', 1.0, 'finite', 'real'}, '', 'porosity');
+			if ~isempty(obj.bindingModel) && ~isa(obj.bindingModel, 'BindingModel')
+				error('CADET:invalidConfig', 'Expected a valid binding model.');
+			end
+			if isempty(obj.bindingModel) && (sum(obj.nBoundStates) ~= 0)
+				error('CADET:invalidConfig', 'Expected no bound states when using no binding model.');
+			end
+
+			if ~isempty(obj.bindingModel)
+				res = obj.bindingModel.validate(obj.nComponents, obj.nBoundStates) && res;
 			end
 		end
 
@@ -131,6 +205,17 @@ classdef StirredTankModel < Model
 			% See also MODEL.ASSEMBLECONFIG, MEXSIMULATOR.ASSEMBLECONFIG
 
 			res = obj.assembleConfig@Model();
+
+			if ~isempty(obj.bindingModel) && ~isa(obj.bindingModel, 'BindingModel')
+				error('CADET:invalidConfig', 'Expected a valid binding model.');
+			end
+
+			if isempty(obj.bindingModel)
+				res.ADSORPTION_MODEL = 'NONE';
+			else
+				res.ADSORPTION_MODEL = obj.bindingModel.name;
+				res.adsorption = obj.bindingModel.assembleConfig();
+			end
 		end
 
 		function res = assembleInitialConditions(obj)
@@ -144,6 +229,7 @@ classdef StirredTankModel < Model
 			res = obj.assembleInitialConditions@Model();
 
 			res.INIT_C = obj.data.INIT_C;
+			res.INIT_Q = obj.data.INIT_Q;
 			res.INIT_VOLUME = obj.data.INIT_VOLUME;
 
 			if isfield(obj.data, 'INIT_STATE')
@@ -223,6 +309,13 @@ classdef StirredTankModel < Model
 
 		function loadobjInternal(obj, S)
 			obj.loadobjInternal@Model(S);
+
+			if ~isempty(S.bindingModel)
+				ctor = str2func([S.bindingModelClass '.loadobj']);
+				obj.bindingModel = ctor(S.bindingModel);
+			else
+				obj.bindingModel = [];
+			end
 		end
 
 	end
