@@ -41,18 +41,22 @@ inline void compareJacobian(cadet::IUnitOperation* modelA, cadet::IUnitOperation
 {
 	const unsigned int n = modelA->numDofs();
 	std::fill(dir, dir + n, 0.0);
-	for (unsigned int i = 0; i < n; ++i)
+	for (unsigned int col = 0; col < n; ++col)
 	{
-		dir[i] = 1.0;
+		dir[col] = 1.0;
 
 		modelA->multiplyWithJacobian(0.0, 0u, 1.0, y, yDot, dir, 1.0, 0.0, colA);
 		modelB->multiplyWithJacobian(0.0, 0u, 1.0, y, yDot, dir, 1.0, 0.0, colB);
 
-		for (unsigned int j = 0; j < n; ++j)
-			CHECK(colA[j] == Approx(colB[j]));
+		for (unsigned int row = 0; row < n; ++row)
+		{
+			CAPTURE(row);
+			CAPTURE(col);
+			CHECK(colA[row] == Approx(colB[row]));
+		}
 
-		dir[i] = 0.0;
-	}	
+		dir[col] = 0.0;
+	}
 }
 
 /**
@@ -72,23 +76,41 @@ inline void compareJacobianFD(cadet::IUnitOperation* modelA, cadet::IUnitOperati
 {
 	const double h = 1e-6;
 	const unsigned int n = modelA->numDofs();
-	for (unsigned int i = 0; i < n; ++i)
+	for (unsigned int col = 0; col < n; ++col)
 	{
 		std::copy(y, y + n, dir);
-		dir[i] = y[i] * (1.0 + h);
+		if (y[col] != 0.0)
+			dir[col] = y[col] * (1.0 + h);
+		else
+			dir[col] = h;
+
 		modelA->residual(0.0, 0u, 1.0, dir, yDot, colA);
-		dir[i] = y[i] * (1.0 - h);
+
+		if (y[col] != 0.0)
+			dir[col] = y[col] * (1.0 - h);
+		else
+			dir[col] = -h;
+
 		modelA->residual(0.0, 0u, 1.0, dir, yDot, colB);
 
 		for (unsigned int j = 0; j < n; ++j)
-			colA[j] = (colA[j] - colB[j]) / (y[i] * 2.0 * h);
+		{
+			if (y[col] != 0.0)
+				colA[j] = (colA[j] - colB[j]) / (y[col] * 2.0 * h);
+			else
+				colA[j] = (colA[j] - colB[j]) / (2.0 * h);
+		}
 
 		std::fill(dir, dir + n, 0.0);
-		dir[i] = 1.0;
+		dir[col] = 1.0;
 		modelB->multiplyWithJacobian(0.0, 0u, 1.0, y, yDot, dir, 1.0, 0.0, colB);
 
-		for (unsigned int j = 0; j < n; ++j)
-			CHECK(colA[j] == Approx(colB[j]));
+		for (unsigned int row = 0; row < n; ++row)
+		{
+			CAPTURE(row);
+			CAPTURE(col);
+			CHECK(colA[row] == Approx(colB[row]));
+		}
 	}
 }
 
@@ -107,34 +129,50 @@ inline void compareJacobianFD(cadet::IUnitOperation* modelA, cadet::IUnitOperati
  */
 inline void checkJacobianPatternFD(cadet::IUnitOperation* modelA, cadet::IUnitOperation* modelB, double const* y, double const* yDot, double* dir, double* colA, double* colB)
 {
-	const double h = 1e-6;
+	const double h = 1e-5;
 	const unsigned int n = modelA->numDofs();
-	for (unsigned int i = 0; i < n; ++i)
+	for (unsigned int col = 0; col < n; ++col)
 	{
 		std::copy(y, y + n, dir);
-		dir[i] = y[i] * (1.0 + h);
+		if (y[col] != 0.0)
+			dir[col] = y[col] * (1.0 + h);
+		else
+			dir[col] = h;
+
 		modelA->residual(0.0, 0u, 1.0, dir, yDot, colA);
-		dir[i] = y[i] * (1.0 - h);
+
+		if (y[col] != 0.0)
+			dir[col] = y[col] * (1.0 - h);
+		else
+			dir[col] = -h;
+
 		modelA->residual(0.0, 0u, 1.0, dir, yDot, colB);
 
 		for (unsigned int j = 0; j < n; ++j)
-			colA[j] = (colA[j] - colB[j]) / (y[i] * 2.0 * h);
+		{
+			if (y[col] != 0.0)
+				colA[j] = (colA[j] - colB[j]) / (y[col] * 2.0 * h);
+			else
+				colA[j] = (colA[j] - colB[j]) / (2.0 * h);
+		}
 
 		std::fill(dir, dir + n, 0.0);
-		dir[i] = 1.0;
+		dir[col] = 1.0;
 		modelB->multiplyWithJacobian(0.0, 0u, 1.0, y, yDot, dir, 1.0, 0.0, colB);
 
 		// Check for pattern including sign
-		for (unsigned int j = 0; j < n; ++j)
+		for (unsigned int row = 0; row < n; ++row)
 		{
-			if (colA[j] == 0.0)
-				CHECK(colB[j] == 0.0);
-			else if (colA[j] > 0.0)
-				CHECK(colB[j] > 0.0);
-			else if (colA[j] < 0.0)
-				CHECK(colB[j] < 0.0);
-			else if (std::isnan(colA[j]))
-				CHECK(std::isnan(colB[j]));
+			CAPTURE(row);
+			CAPTURE(col);
+			if (colA[row] == 0.0)
+				CHECK(colB[row] == 0.0);
+			else if (colA[row] > 0.0)
+				CHECK(colB[row] > 0.0);
+			else if (colA[row] < 0.0)
+				CHECK(colB[row] < 0.0);
+			else if (std::isnan(colA[row]))
+				CHECK(std::isnan(colB[row]));
 		}
 	}
 }
@@ -154,17 +192,21 @@ inline void compareTimeDerivativeJacobian(cadet::IUnitOperation* modelA, cadet::
 {
 	const unsigned int n = modelA->numDofs();
 	std::fill(dir, dir + n, 0.0);
-	for (unsigned int i = 0; i < n; ++i)
+	for (unsigned int col = 0; col < n; ++col)
 	{
-		dir[i] = 1.0;
+		dir[col] = 1.0;
 
 		modelA->multiplyWithDerivativeJacobian(0.0, 0u, 1.0, y, yDot, dir, colA);
 		modelB->multiplyWithDerivativeJacobian(0.0, 0u, 1.0, y, yDot, dir, colB);
 
-		for (unsigned int j = 0; j < n; ++j)
-			CHECK(colA[j] == Approx(colB[j]));
+		for (unsigned int row = 0; row < n; ++row)
+		{
+			CAPTURE(row);
+			CAPTURE(col);
+			CHECK(colA[row] == Approx(colB[row]));
+		}
 
-		dir[i] = 0.0;
+		dir[col] = 0.0;
 	}	
 }
 
@@ -185,23 +227,42 @@ inline void compareTimeDerivativeJacobianFD(cadet::IUnitOperation* modelA, cadet
 {
 	const double h = 1e-6;
 	const unsigned int n = modelA->numDofs();
-	for (unsigned int i = 0; i < n; ++i)
+	for (unsigned int col = 0; col < n; ++col)
 	{
 		std::copy(yDot, yDot + n, dir);
-		dir[i] = yDot[i] * (1.0 + h);
+
+		if (yDot[col] != 0.0)
+			dir[col] = yDot[col] * (1.0 + h);
+		else
+			dir[col] = h;
+
 		modelA->residual(0.0, 0u, 1.0, y, dir, colA);
-		dir[i] = yDot[i] * (1.0 - h);
+
+		if (yDot[col] != 0.0)
+			dir[col] = yDot[col] * (1.0 - h);
+		else
+			dir[col] = -h;
+
 		modelA->residual(0.0, 0u, 1.0, y, dir, colB);
 
 		for (unsigned int j = 0; j < n; ++j)
-			colA[j] = (colA[j] - colB[j]) / (yDot[i] * 2.0 * h);
+		{
+			if (y[col] != 0.0)
+				colA[j] = (colA[j] - colB[j]) / (yDot[col] * 2.0 * h);
+			else
+				colA[j] = (colA[j] - colB[j]) / (2.0 * h);
+		}
 
 		std::fill(dir, dir + n, 0.0);
-		dir[i] = 1.0;
+		dir[col] = 1.0;
 		modelB->multiplyWithDerivativeJacobian(0.0, 0u, 1.0, y, yDot, dir, colB);
 
-		for (unsigned int j = 0; j < n; ++j)
-			CHECK(colA[j] == Approx(colB[j]));
+		for (unsigned int row = 0; row < n; ++row)
+		{
+			CAPTURE(row);
+			CAPTURE(col);
+			CHECK(colA[row] == Approx(colB[row]));
+		}
 	}
 }
 
