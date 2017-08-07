@@ -376,7 +376,7 @@ public:
 			errorTol, vecStateY, workingMemory, workingMat, eqSize);
 	}
 
-	CADET_BINDINGMODEL_RESIDUAL_BOILERPLATE
+	CADET_BINDINGMODEL_RESIDUAL_JACOBIAN_BOILERPLATE
 
 	virtual void setExternalFunctions(IExternalFunction** extFuns, unsigned int size) { _p.setExternalFunctions(extFuns, size); }
 	virtual bool dependsOnTime() const CADET_NOEXCEPT { return ParamHandler_t::dependsOnTime(); }

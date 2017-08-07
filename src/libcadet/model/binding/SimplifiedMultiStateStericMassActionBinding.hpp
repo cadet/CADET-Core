@@ -75,7 +75,7 @@ public:
 		active* const adRes, active* const adY, unsigned int adEqOffset, unsigned int adDirOffset, const ad::IJacobianExtractor& jacExtractor, 
 		double* const workingMemory, linalg::detail::DenseMatrixBase& workingMat) const;
 
-	CADET_BINDINGMODEL_RESIDUAL_BOILERPLATE
+	CADET_BINDINGMODEL_RESIDUAL_JACOBIAN_BOILERPLATE
 
 	virtual void multiplyWithDerivativeJacobian(double const* yDotS, double* const res, double timeFactor) const;
 

@@ -19,11 +19,10 @@
 #define LIBCADET_BINDINGMODELMACROS_HPP_
 
 /**
- * @brief Inserts implementations of all residual(), analyticJacobian(), and jacobianAddDiscretized() method variants
- * @details An IBindingModel implementation has to provide residual(), analyticJacobian(), and jacobianAddDiscretized()
- *          methods for different variants of state and parameter type. This macro saves some time by providing those
- *          implementations. It assumes that the implementation provides a templatized residualImpl(), jacobianImpl(),
- *          and jacobianAddDiscretizedImpl() function which realize all required variants.
+ * @brief Inserts implementations of all residual() method variants
+ * @details An IBindingModel implementation has to provide residual() methods for different variants of state and
+ *          parameter type. This macro saves some time by providing those implementations. It assumes that the 
+ *          implementation provides a templatized residualImpl() function which realizes all required variants.
  *          
  *          The implementation is inserted inline in the class declaration.
  */
@@ -50,8 +49,20 @@
 		double const* y, double const* yDot, double* res) const                                                     \
 	{                                                                                                               \
 		return residualImpl<double, double, double, double>(t, z, r, secIdx, timeFactor, y, y - _nComp, yDot, res); \
-	}                                                                                                               \
-	                                                                                                                \
+	}
+
+
+/**
+ * @brief Inserts implementations of all residual(), analyticJacobian(), and jacobianAddDiscretized() method variants
+ * @details An IBindingModel implementation has to provide residual(), analyticJacobian(), and jacobianAddDiscretized()
+ *          methods for different variants of state and parameter type. This macro saves some time by providing those
+ *          implementations. It assumes that the implementation provides a templatized residualImpl(), jacobianImpl(),
+ *          and jacobianAddDiscretizedImpl() function which realize all required variants.
+ *          
+ *          The implementation is inserted inline in the class declaration.
+ */
+#define CADET_BINDINGMODEL_RESIDUAL_JACOBIAN_BOILERPLATE                                                            \
+	CADET_BINDINGMODEL_RESIDUAL_BOILERPLATE                                                                         \
 	virtual void analyticJacobian(double t, double z, double r, unsigned int secIdx, double const* y,               \
 		linalg::BandMatrix::RowIterator jac) const                                                                  \
 	{                                                                                                               \
@@ -87,7 +98,7 @@
  * @param CLASSNAME Name of the IBindingModel implementation (including template)
  * @param TEMPLATELINE Line before each function that may contain a template<typename TEMPLATENAME> modifier
  */
-#define CADET_BINDINGMODEL_RESIDUAL_BOILERPLATE_IMPL_BASE(CLASSNAME, TEMPLATELINE)                                  \
+#define CADET_BINDINGMODEL_RESIDUAL_JACOBIAN_BOILERPLATE_IMPL_BASE(CLASSNAME, TEMPLATELINE)                         \
 	TEMPLATELINE                                                                                                    \
 	int CLASSNAME::residual(const active& t, double z, double r, unsigned int secIdx, const active& timeFactor,     \
 		active const* y, double const* yDot, active* res) const                                                     \

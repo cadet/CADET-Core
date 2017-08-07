@@ -46,6 +46,10 @@ namespace model
  *          Some common parameter handling is provided using a hash map (std::unordered_map).
  *          Furthermore, a configurable nonlinear solver is managed which can be used for
  *          consistent initialization.
+ *          
+ *          Descendants of this class have to implement a templated function
+ *          
+ *              template <class RowIterator> void jacobianAddDiscretizedImpl(double alpha, RowIterator jac) const;
  */
 class BindingModelBase : public IBindingModel
 {
@@ -115,10 +119,6 @@ protected:
  *          
  *          As a benefit, this class provides consistent initialization with and without AD (and
  *          Jacobian checking) and handles the Jacobian operations with respect to @f$ \dot{y} @f$.
- *          
- *          Descendants of this class have to implement a templated function
- *          
- *              template <class RowIterator> void jacobianAddDiscretizedImpl(double alpha, RowIterator jac) const;
 */
 class PureBindingModelBase : public BindingModelBase
 {
