@@ -18,6 +18,7 @@
 
 #include "ModelBuilderImpl.hpp"
 #include "JsonParameterProvider.hpp"
+#include "CstrHelper.hpp"
 #include "common/Driver.hpp"
 
 #include <cmath>
@@ -25,184 +26,6 @@
 #include <vector>
 #include <algorithm>
 #include <iterator>
-#include <sstream>
-#include <iomanip>
-
-namespace
-{
-	/**
-	 * @brief Sets the initial conditions of a CSTR
-	 * @details Overwrites the INIT_C and INIT_VOLUME fields of the given ParameterProvider.
-	 * @param [in,out] jpp ParameterProvider
-	 * @param [in] c Initial liquid phase concentration
-	 * @param [in] q Initial bound phase concentration
-	 * @param [in] v Initial volume
-	 */
-	inline void setInitialConditions(cadet::JsonParameterProvider& jpp, const std::vector<double>& c, const std::vector<double>& q, double v)
-	{
-		std::ostringstream ss;
-
-		jpp.pushScope("model");
-		jpp.pushScope("unit_000");
-
-		jpp.set("INIT_C", c);
-		jpp.set("INIT_VOLUME", v);
-		if (!q.empty())
-			jpp.set("INIT_Q", q);
-
-		jpp.popScope();
-		jpp.popScope();
-	}
-
-	/**
-	 * @brief Sets the flow rates of a section
-	 * @details Sets inflow and outflow as well as filter flow rate.
-	 * @param [in,out] jpp ParameterProvider
-	 * @param [in] secIdx Section index
-	 * @param [in] in Inflow rate
-	 * @param [in] out Outflow rate
-	 * @param [in] filter Filter flow rate
-	 */
-	inline void setFlowRates(cadet::JsonParameterProvider& jpp, unsigned int secIdx, double in, double out, double filter)
-	{
-		std::ostringstream ss;
-
-		jpp.pushScope("model");
-		jpp.pushScope("unit_000");
-
-		std::vector<double> frf = jpp.getDoubleArray("FLOWRATE_FILTER");
-		if (frf.size() <= secIdx)
-			std::fill_n(std::back_inserter(frf), frf.size() - secIdx + 1, 0.0);
-
-		frf[secIdx] = filter;
-		jpp.set("FLOWRATE_FILTER", frf);
-
-		jpp.popScope();
-		jpp.pushScope("connections");
-
-		ss << "switch_" << std::setfill('0') << std::setw(3) << secIdx;
-		jpp.pushScope(ss.str());
-
-		std::vector<double> con = jpp.getDoubleArray("CONNECTIONS");
-		con[4] = in;
-		con[9] = out;
-		jpp.set("CONNECTIONS", con);
-
-		jpp.popScope();
-		jpp.popScope();
-		jpp.popScope();
-	}
-
-	/**
-	 * @brief Sets the inlet profile of a section and component
-	 * @details Overwrites the spline piece of the given section and component.
-	 * @param [in,out] jpp ParameterProvider
-	 * @param [in] secIdx Section index
-	 * @param [in] comp Component index
-	 * @param [in] con Constant polynomial coefficient
-	 * @param [in] lin Linear polynomial coefficient
-	 * @param [in] quad Quadratic polynomial coefficient
-	 * @param [in] cub Cubic polynomial coefficient
-	 */
-	inline void setInletProfile(cadet::JsonParameterProvider& jpp, unsigned int secIdx, unsigned int comp, double con, double lin, double quad, double cub)
-	{
-		std::ostringstream ss;
-
-		jpp.pushScope("model");
-		jpp.pushScope("unit_001");
-
-		ss << "sec_" << std::setfill('0') << std::setw(3) << secIdx;
-		jpp.pushScope(ss.str());
-
-		std::vector<double> cCon = jpp.getDoubleArray("CONST_COEFF");
-		cCon[comp] = con;
-		jpp.set("CONST_COEFF", cCon);
-
-		std::vector<double> cLin = jpp.getDoubleArray("LIN_COEFF");
-		cLin[comp] = lin;
-		jpp.set("LIN_COEFF", cLin);
-
-		std::vector<double> cQuad = jpp.getDoubleArray("QUAD_COEFF");
-		cQuad[comp] = quad;
-		jpp.set("QUAD_COEFF", cQuad);
-
-		std::vector<double> cCube = jpp.getDoubleArray("CUBE_COEFF");
-		cCube[comp] = cub;
-		jpp.set("CUBE_COEFF", cCube);
-
-		jpp.popScope();
-		jpp.popScope();
-		jpp.popScope();
-	}
-
-	/**
-	 * @brief Sets the section times
-	 * @details Overwrites the SECTION_TIMES field of the given ParameterProvider.
-	 * @param [in,out] jpp ParameterProvider
-	 * @param [in] secTimes Section times vector
-	 */
-	inline void setSectionTimes(cadet::JsonParameterProvider& jpp, const std::vector<double>& secTimes)
-	{
-		jpp.pushScope("solver");
-		jpp.pushScope("sections");
-
-		jpp.set("SECTION_TIMES", secTimes);
-
-		jpp.popScope();
-		jpp.popScope();
-	}
-
-	inline void addBoundStates(cadet::JsonParameterProvider& jpp, const std::vector<int>& nBound, double porosity)
-	{
-		jpp.pushScope("model");
-		jpp.pushScope("unit_000");
-
-		jpp.set("NBOUND", nBound);
-		jpp.set("POROSITY", porosity);
-
-		jpp.popScope();
-		jpp.popScope();
-	}
-
-	inline void addLinearBindingModel(cadet::JsonParameterProvider& jpp, bool kinetic, const std::vector<double>& kA, const std::vector<double>& kD)
-	{
-		jpp.pushScope("model");
-		jpp.pushScope("unit_000");
-
-		jpp.set("ADSORPTION_MODEL", "LINEAR");
-
-		jpp.addScope("adsorption");
-		jpp.pushScope("adsorption");
-
-		jpp.set("IS_KINETIC", kinetic);
-		jpp.set("LIN_KA", kA);
-		jpp.set("LIN_KD", kD);
-
-		jpp.popScope();
-		jpp.popScope();
-		jpp.popScope();
-	}
-
-	inline void addLangmuirBindingModel(cadet::JsonParameterProvider& jpp, bool kinetic, const std::vector<double>& kA, const std::vector<double>& kD, const std::vector<double>& qMax)
-	{
-		jpp.pushScope("model");
-		jpp.pushScope("unit_000");
-
-		jpp.set("ADSORPTION_MODEL", "MULTI_COMPONENT_LANGMUIR");
-
-		jpp.addScope("binding");
-		jpp.pushScope("binding");
-
-		jpp.set("IS_KINETIC", kinetic);
-		jpp.set("MCL_KA", kA);
-		jpp.set("MCL_KD", kD);
-		jpp.set("MCL_QMAX", qMax);
-
-		jpp.popScope();
-		jpp.popScope();
-		jpp.popScope();
-	}
-}
 
 inline Approx makeApprox(double val, double relTol, double absTol)
 {
@@ -260,14 +83,14 @@ inline void runSim(cadet::JsonParameterProvider& jpp, std::function<double(doubl
 TEST_CASE("CSTR vs analytic solution (V constant) w/o binding model", "[CSTR],[Simulation]")
 {
 	cadet::JsonParameterProvider jpp = createCSTRBenchmark(3, 119.0, 1.0);
-	setSectionTimes(jpp, {0.0, 10.0, 100.0, 119.0});
-	setInitialConditions(jpp, {0.0}, {}, 10.0);
-	setInletProfile(jpp, 0, 0, 1.0, 0.0, 0.0, 0.0);
-	setInletProfile(jpp, 1, 0, 1.0, -1.0 / 90.0, 0.0, 0.0);
-	setInletProfile(jpp, 2, 0, 0.0, 0.0, 0.0, 0.0);
-	setFlowRates(jpp, 0, 1.0, 0.5, 0.5);
-	setFlowRates(jpp, 1, 1.0, 0.5, 0.5);
-	setFlowRates(jpp, 2, 1.0, 0.5, 0.5);
+	cadet::test::setSectionTimes(jpp, {0.0, 10.0, 100.0, 119.0});
+	cadet::test::setInitialConditions(jpp, {0.0}, {}, 10.0);
+	cadet::test::setInletProfile(jpp, 0, 0, 1.0, 0.0, 0.0, 0.0);
+	cadet::test::setInletProfile(jpp, 1, 0, 1.0, -1.0 / 90.0, 0.0, 0.0);
+	cadet::test::setInletProfile(jpp, 2, 0, 0.0, 0.0, 0.0, 0.0);
+	cadet::test::setFlowRates(jpp, 0, 1.0, 0.5, 0.5);
+	cadet::test::setFlowRates(jpp, 1, 1.0, 0.5, 0.5);
+	cadet::test::setFlowRates(jpp, 2, 1.0, 0.5, 0.5);
 
 	const double temp = 10.0 * (9.0 + 2.0 * std::sqrt(std::exp(1.0)));
 	const double temp2 = 2.0 / 9.0 * (-9.0 - 2.0 * std::sqrt(std::exp(1.0)) + 2 * std::exp(5));
@@ -287,10 +110,10 @@ TEST_CASE("CSTR vs analytic solution (V constant) w/o binding model", "[CSTR],[S
 TEST_CASE("CSTR vs analytic solution (V increasing) w/o binding model", "[CSTR],[Simulation]")
 {
 	cadet::JsonParameterProvider jpp = createCSTRBenchmark(1, 100.0, 1.0);
-	setSectionTimes(jpp, {0.0, 100.0});
-	setInitialConditions(jpp, {1.0}, {}, 10.0);
-	setInletProfile(jpp, 0, 0, 1.0, 0.0, 0.0, 0.0);
-	setFlowRates(jpp, 0, 2.0, 1.0, 0.5);
+	cadet::test::setSectionTimes(jpp, {0.0, 100.0});
+	cadet::test::setInitialConditions(jpp, {1.0}, {}, 10.0);
+	cadet::test::setInletProfile(jpp, 0, 0, 1.0, 0.0, 0.0, 0.0);
+	cadet::test::setFlowRates(jpp, 0, 2.0, 1.0, 0.5);
 
 	runSim(jpp, [=](double t) {
 			return 4.0 * (6000.0 + t * (1200.0 + t * (60.0 + t))) / (3.0 * std::pow(20.0 + t, 3.0));
@@ -303,10 +126,10 @@ TEST_CASE("CSTR vs analytic solution (V increasing) w/o binding model", "[CSTR],
 TEST_CASE("CSTR vs analytic solution (V decreasing) w/o binding model", "[CSTR],[Simulation]")
 {
 	cadet::JsonParameterProvider jpp = createCSTRBenchmark(1, 100.0, 1.0);
-	setSectionTimes(jpp, {0.0, 100.0});
-	setInitialConditions(jpp, {1.0}, {}, 10.0);
-	setInletProfile(jpp, 0, 0, 1.0, 0.0, 0.0, 0.0);
-	setFlowRates(jpp, 0, 1.5, 1.5, 0.5);
+	cadet::test::setSectionTimes(jpp, {0.0, 100.0});
+	cadet::test::setInitialConditions(jpp, {1.0}, {}, 10.0);
+	cadet::test::setInletProfile(jpp, 0, 0, 1.0, 0.0, 0.0, 0.0);
+	cadet::test::setFlowRates(jpp, 0, 1.5, 1.5, 0.5);
 
 	runSim(jpp, [=](double t) {
 			return 1.0 + t * (1.0 / 20.0 - t / 800.0);
@@ -319,12 +142,12 @@ TEST_CASE("CSTR vs analytic solution (V decreasing) w/o binding model", "[CSTR],
 TEST_CASE("CSTR vs analytic solution (V constant) with dynamic linear binding", "[CSTR],[Simulation]")
 {
 	cadet::JsonParameterProvider jpp = createCSTRBenchmark(1, 100.0, 1.0);
-	setSectionTimes(jpp, {0.0, 100.0});
-	addBoundStates(jpp, {1}, 0.5);
-	setInitialConditions(jpp, {0.0}, {0.0}, 1.0);
-	setInletProfile(jpp, 0, 0, 1.0, 0.0, 0.0, 0.0);
-	setFlowRates(jpp, 0, 0.1, 0.1, 0.0);
-	addLinearBindingModel(jpp, true, {0.1}, {10.0});
+	cadet::test::setSectionTimes(jpp, {0.0, 100.0});
+	cadet::test::addBoundStates(jpp, {1}, 0.5);
+	cadet::test::setInitialConditions(jpp, {0.0}, {0.0}, 1.0);
+	cadet::test::setInletProfile(jpp, 0, 0, 1.0, 0.0, 0.0, 0.0);
+	cadet::test::setFlowRates(jpp, 0, 0.1, 0.1, 0.0);
+	cadet::test::addLinearBindingModel(jpp, true, {0.1}, {10.0});
 
 	const double sqrt2501 = std::sqrt(2501.0);
 	runSim(jpp, [=](double t) {
@@ -341,12 +164,12 @@ TEST_CASE("CSTR vs analytic solution (V constant) with dynamic linear binding", 
 TEST_CASE("CSTR vs analytic solution (V constant) with quasi-stationary linear binding", "[CSTR],[Simulation]")
 {
 	cadet::JsonParameterProvider jpp = createCSTRBenchmark(1, 100.0, 1.0);
-	setSectionTimes(jpp, {0.0, 100.0});
-	addBoundStates(jpp, {1}, 0.5);
-	setInitialConditions(jpp, {0.0}, {0.0}, 1.0);
-	setInletProfile(jpp, 0, 0, 1.0, 0.0, 0.0, 0.0);
-	setFlowRates(jpp, 0, 0.1, 0.1, 0.0);
-	addLinearBindingModel(jpp, false, {0.1}, {10.0});
+	cadet::test::setSectionTimes(jpp, {0.0, 100.0});
+	cadet::test::addBoundStates(jpp, {1}, 0.5);
+	cadet::test::setInitialConditions(jpp, {0.0}, {0.0}, 1.0);
+	cadet::test::setInletProfile(jpp, 0, 0, 1.0, 0.0, 0.0, 0.0);
+	cadet::test::setFlowRates(jpp, 0, 0.1, 0.1, 0.0);
+	cadet::test::addLinearBindingModel(jpp, false, {0.1}, {10.0});
 
 	const double sqrt2501 = std::sqrt(2501.0);
 	runSim(jpp, [=](double t) {

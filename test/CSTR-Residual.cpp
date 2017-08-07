@@ -18,6 +18,7 @@
 
 #include "JsonParameterProvider.hpp"
 #include "JacobianHelper.hpp"
+#include "CstrHelper.hpp"
 
 #include <cmath>
 #include <functional>
@@ -57,7 +58,7 @@ cadet::model::CSTRModel* createAndConfigureCSTR(cadet::IModelBuilder& mb, cadet:
 	return cstr;
 }
 
-inline void checkJacobianAD(double flowRateIn, double flowRateOut, double flowRateFilter)
+inline void checkJacobianAD(double flowRateIn, double flowRateOut, double flowRateFilter, std::function<void(cadet::JsonParameterProvider&, unsigned int)> modelRefiner)
 {
 	cadet::IModelBuilder* const mb = cadet::createModelBuilder();
 	REQUIRE(nullptr != mb);
@@ -65,6 +66,7 @@ inline void checkJacobianAD(double flowRateIn, double flowRateOut, double flowRa
 	// CSTR with 2 components
 	const unsigned int nComp = 2;
 	cadet::JsonParameterProvider jpp = createCSTR(nComp);
+	modelRefiner(jpp, nComp);
 
 	cadet::model::CSTRModel* const cstrAna = createAndConfigureCSTR(*mb, jpp);
 	cadet::model::CSTRModel* const cstrAD = createAndConfigureCSTR(*mb, jpp);
@@ -117,7 +119,7 @@ inline void checkJacobianAD(double flowRateIn, double flowRateOut, double flowRa
 	destroyModelBuilder(mb);	
 }
 
-inline void checkJacobianFD(double flowRateIn, double flowRateOut, double flowRateFilter)
+inline void checkJacobianFD(double flowRateIn, double flowRateOut, double flowRateFilter, std::function<void(cadet::JsonParameterProvider&, unsigned int)> modelRefiner)
 {
 	cadet::IModelBuilder* const mb = cadet::createModelBuilder();
 	REQUIRE(nullptr != mb);
@@ -125,6 +127,7 @@ inline void checkJacobianFD(double flowRateIn, double flowRateOut, double flowRa
 	// CSTR with 2 components
 	const unsigned int nComp = 2;
 	cadet::JsonParameterProvider jpp = createCSTR(nComp);
+	modelRefiner(jpp, nComp);
 
 	cadet::model::CSTRModel* const cstr = createAndConfigureCSTR(*mb, jpp);
 	if (flowRateFilter > 0.0)
@@ -159,7 +162,7 @@ inline void checkJacobianFD(double flowRateIn, double flowRateOut, double flowRa
 	destroyModelBuilder(mb);	
 }
 
-inline void checkTimeDerivativeJacobianFD(double flowRateIn, double flowRateOut, double flowRateFilter)
+inline void checkTimeDerivativeJacobianFD(double flowRateIn, double flowRateOut, double flowRateFilter, std::function<void(cadet::JsonParameterProvider&, unsigned int)> modelRefiner)
 {
 	cadet::IModelBuilder* const mb = cadet::createModelBuilder();
 	REQUIRE(nullptr != mb);
@@ -167,6 +170,7 @@ inline void checkTimeDerivativeJacobianFD(double flowRateIn, double flowRateOut,
 	// CSTR with 2 components
 	const unsigned int nComp = 2;
 	cadet::JsonParameterProvider jpp = createCSTR(nComp);
+	modelRefiner(jpp, nComp);
 
 	cadet::model::CSTRModel* const cstr = createAndConfigureCSTR(*mb, jpp);
 	if (flowRateFilter > 0.0)
@@ -219,7 +223,7 @@ TEST_CASE("StirredTankModel Jacobian vs FD w/o binding model", "[CSTR],[UnitOp],
 	{
 		SECTION("Fin = " + std::to_string(row[0]) + " Fout = " + std::to_string(row[1]) + " Ffilter = " + std::to_string(row[2]))
 		{
-			checkJacobianFD(row[0], row[1], row[2]);
+			checkJacobianFD(row[0], row[1], row[2], [](cadet::JsonParameterProvider& jpp, unsigned int nComp) { });
 		}
 	}
 }
@@ -247,7 +251,7 @@ TEST_CASE("StirredTankModel Jacobian vs AD w/o binding model", "[CSTR],[UnitOp],
 	{
 		SECTION("Fin = " + std::to_string(row[0]) + " Fout = " + std::to_string(row[1]) + " Ffilter = " + std::to_string(row[2]))
 		{
-			checkJacobianAD(row[0], row[1], row[2]);
+			checkJacobianAD(row[0], row[1], row[2], [](cadet::JsonParameterProvider& jpp, unsigned int nComp) { });
 		}
 	}
 }
@@ -275,7 +279,116 @@ TEST_CASE("StirredTankModel time derivative Jacobian vs FD w/o binding model", "
 	{
 		SECTION("Fin = " + std::to_string(row[0]) + " Fout = " + std::to_string(row[1]) + " Ffilter = " + std::to_string(row[2]))
 		{
-			checkTimeDerivativeJacobianFD(row[0], row[1], row[2]);
+			checkTimeDerivativeJacobianFD(row[0], row[1], row[2], [](cadet::JsonParameterProvider& jpp, unsigned int nComp) { });
+		}
+	}
+}
+
+
+TEST_CASE("StirredTankModel Jacobian vs FD with linear binding", "[CSTR],[UnitOp],[Residual],[Jacobian]")
+{
+	const double rateList[] = {0.0, 0.0, 0.0,
+	                           1.0, 0.0, 0.0,
+	                           0.0, 1.0, 0.0,
+	                           0.0, 0.0, 1.0,
+	                           1.0, 1.0, 0.0,
+	                           1.0, 0.0, 1.0,
+	                           0.0, 1.0, 1.0,
+	                           1.0, 1.0, 1.0,
+	                           1.0, 2.0, 3.0,
+	                           2.0, 3.0, 1.0,
+	                           3.0, 1.0, 2.0,
+	                           3.0, 2.0, 1.0,
+	                           2.0, 1.0, 3.0,
+	                           1.0, 3.0, 2.0,
+	                           1.0, 2.0, 0.0,
+	                           2.0, 1.0, 0.0};
+	for (int j = 0; j < 2; ++j)
+	{
+		const bool dynamic = (j == 0);
+		const std::string bndMode = dynamic ? " dynamic" : " quasi-stationary";
+		double const* row = &rateList[0];
+		for (unsigned int i = 0; i < sizeof(rateList) / sizeof(double) / 3; ++i, row += 3)
+		{
+			SECTION("Fin = " + std::to_string(row[0]) + " Fout = " + std::to_string(row[1]) + " Ffilter = " + std::to_string(row[2]) + bndMode)
+			{
+				checkJacobianFD(row[0], row[1], row[2], [=](cadet::JsonParameterProvider& jpp, unsigned int nComp) {
+					cadet::test::addBoundStates(jpp, {1, 1}, 0.5);
+					cadet::test::addLinearBindingModel(jpp, dynamic, {5.0, 4.0}, {2.0, 3.0});
+				});
+			}
+		}
+	}
+}
+
+TEST_CASE("StirredTankModel Jacobian vs AD with linear binding", "[CSTR],[UnitOp],[Residual],[Jacobian],[AD]")
+{
+	const double rateList[] = {0.0, 0.0, 0.0,
+	                           1.0, 0.0, 0.0,
+	                           0.0, 1.0, 0.0,
+	                           0.0, 0.0, 1.0,
+	                           1.0, 1.0, 0.0,
+	                           1.0, 0.0, 1.0,
+	                           0.0, 1.0, 1.0,
+	                           1.0, 1.0, 1.0,
+	                           1.0, 2.0, 3.0,
+	                           2.0, 3.0, 1.0,
+	                           3.0, 1.0, 2.0,
+	                           3.0, 2.0, 1.0,
+	                           2.0, 1.0, 3.0,
+	                           1.0, 3.0, 2.0,
+	                           1.0, 2.0, 0.0,
+	                           2.0, 1.0, 0.0};
+	for (int j = 0; j < 2; ++j)
+	{
+		const bool dynamic = (j == 0);
+		const std::string bndMode = dynamic ? " dynamic" : " quasi-stationary";
+		double const* row = &rateList[0];
+		for (unsigned int i = 0; i < sizeof(rateList) / sizeof(double) / 3; ++i, row += 3)
+		{
+			SECTION("Fin = " + std::to_string(row[0]) + " Fout = " + std::to_string(row[1]) + " Ffilter = " + std::to_string(row[2]) + bndMode)
+			{
+				checkJacobianAD(row[0], row[1], row[2], [=](cadet::JsonParameterProvider& jpp, unsigned int nComp) {
+					cadet::test::addBoundStates(jpp, {1, 1}, 0.5);
+					cadet::test::addLinearBindingModel(jpp, dynamic, {5.0, 4.0}, {2.0, 3.0});
+				});
+			}
+		}
+	}
+}
+
+TEST_CASE("StirredTankModel time derivative Jacobian vs FD with linear binding", "[CSTR],[UnitOp],[Residual],[Jacobian]")
+{
+	const double rateList[] = {0.0, 0.0, 0.0,
+	                           1.0, 0.0, 0.0,
+	                           0.0, 1.0, 0.0,
+	                           0.0, 0.0, 1.0,
+	                           1.0, 1.0, 0.0,
+	                           1.0, 0.0, 1.0,
+	                           0.0, 1.0, 1.0,
+	                           1.0, 1.0, 1.0,
+	                           1.0, 2.0, 3.0,
+	                           2.0, 3.0, 1.0,
+	                           3.0, 1.0, 2.0,
+	                           3.0, 2.0, 1.0,
+	                           2.0, 1.0, 3.0,
+	                           1.0, 3.0, 2.0,
+	                           1.0, 2.0, 0.0,
+	                           2.0, 1.0, 0.0};
+	for (int j = 0; j < 2; ++j)
+	{
+		const bool dynamic = (j == 0);
+		const std::string bndMode = dynamic ? " dynamic" : " quasi-stationary";
+		double const* row = &rateList[0];
+		for (unsigned int i = 0; i < sizeof(rateList) / sizeof(double) / 3; ++i, row += 3)
+		{
+			SECTION("Fin = " + std::to_string(row[0]) + " Fout = " + std::to_string(row[1]) + " Ffilter = " + std::to_string(row[2]) + bndMode)
+			{
+				checkTimeDerivativeJacobianFD(row[0], row[1], row[2], [=](cadet::JsonParameterProvider& jpp, unsigned int nComp) {
+					cadet::test::addBoundStates(jpp, {1, 1}, 0.5);
+					cadet::test::addLinearBindingModel(jpp, dynamic, {5.0, 4.0}, {2.0, 3.0});
+				});
+			}
 		}
 	}
 }
