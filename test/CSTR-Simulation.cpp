@@ -243,7 +243,7 @@ inline void runSim(cadet::JsonParameterProvider& jpp, std::function<double(doubl
 	cadet::InternalStorageUnitOpRecorder const* const simData = drv.solution()->unitOperation(0);
 	double const* outlet = simData->outlet();
 	double const* volume = simData->volume();
-	double const* solid = simData->particle() + 1;
+	double const* solid = simData->solid();
 	double const* time = drv.solution()->time();
 
 	// Compare

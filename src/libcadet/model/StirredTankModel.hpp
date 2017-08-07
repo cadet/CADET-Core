@@ -1,7 +1,7 @@
 // =============================================================================
 //  CADET - The Chromatography Analysis and Design Toolkit
 //  
-//  Copyright © 2008-2017: The CADET Authors
+//  Copyright Â© 2008-2017: The CADET Authors
 //            Please see the AUTHORS and CONTRIBUTORS file.
 //  
 //  All rights reserved. This program and the accompanying materials
@@ -194,6 +194,7 @@ protected:
 		virtual bool hasNonBindingComponents() const CADET_NOEXCEPT { return cadet::model::hasNonBindingComponents(_nBound, _nComp); }
 		virtual bool hasParticleFlux() const CADET_NOEXCEPT { return false; }
 		virtual bool hasParticleMobilePhase() const CADET_NOEXCEPT { return false; }
+		virtual bool hasSolidPhase() const CADET_NOEXCEPT { return _strideBound > 0; }
 		virtual bool hasVolume() const CADET_NOEXCEPT { return true; }
 
 		virtual unsigned int numComponents() const CADET_NOEXCEPT { return _nComp; }
@@ -203,7 +204,8 @@ protected:
 		virtual unsigned int const* numBoundStatesPerComponent() const CADET_NOEXCEPT { return _nBound; }
 		virtual unsigned int numBoundStates(unsigned int comp) const CADET_NOEXCEPT { return _nBound[comp]; }
 		virtual unsigned int numColumnDofs() const CADET_NOEXCEPT { return _nComp; }
-		virtual unsigned int numParticleDofs() const CADET_NOEXCEPT { return _strideBound; }
+		virtual unsigned int numParticleMobilePhaseDofs() const CADET_NOEXCEPT { return 0; }
+		virtual unsigned int numSolidPhaseDofs() const CADET_NOEXCEPT { return _strideBound; }
 		virtual unsigned int numFluxDofs() const CADET_NOEXCEPT { return 0; }
 		virtual unsigned int numVolumeDofs() const CADET_NOEXCEPT { return 1; }
 
@@ -253,6 +255,9 @@ protected:
 			return _solidOrdering.data();
 		}
 
+		virtual unsigned int mobilePhaseStride() const { return 0; }
+		virtual unsigned int solidPhaseStride() const { return 0; }
+
 	protected:
 		double const* const _data;
 		unsigned int _nComp;
@@ -261,7 +266,7 @@ protected:
 		unsigned int const* _boundOffset;
 
 		const std::array<StateOrdering, 1> _concentrationOrdering = { { StateOrdering::Component } };
-		const std::array<StateOrdering, 2> _solidOrdering = { { StateOrdering::Component, StateOrdering::Phase } };
+		const std::array<StateOrdering, 2> _solidOrdering = { { StateOrdering::Component, StateOrdering::BoundState } };
 	};
 };
 

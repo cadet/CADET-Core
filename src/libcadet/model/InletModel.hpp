@@ -171,6 +171,7 @@ protected:
 		virtual bool hasNonBindingComponents() const CADET_NOEXCEPT { return true; }
 		virtual bool hasParticleFlux() const CADET_NOEXCEPT { return false; }
 		virtual bool hasParticleMobilePhase() const CADET_NOEXCEPT { return false; }
+		virtual bool hasSolidPhase() const CADET_NOEXCEPT { return false; }
 		virtual bool hasVolume() const CADET_NOEXCEPT { return false; }
 
 		virtual unsigned int numComponents() const CADET_NOEXCEPT { return _nComp; }
@@ -180,7 +181,8 @@ protected:
 		virtual unsigned int const* numBoundStatesPerComponent() const CADET_NOEXCEPT { return nullptr; }
 		virtual unsigned int numBoundStates(unsigned int comp) const CADET_NOEXCEPT { return 0; }
 		virtual unsigned int numColumnDofs() const CADET_NOEXCEPT { return _nComp; }
-		virtual unsigned int numParticleDofs() const CADET_NOEXCEPT { return 0; }
+		virtual unsigned int numParticleMobilePhaseDofs() const CADET_NOEXCEPT { return 0; }
+		virtual unsigned int numSolidPhaseDofs() const CADET_NOEXCEPT { return 0; }
 		virtual unsigned int numFluxDofs() const CADET_NOEXCEPT { return 0; }
 		virtual unsigned int numVolumeDofs() const CADET_NOEXCEPT { return 0; }
 		
@@ -229,6 +231,9 @@ protected:
 			len = 0;
 			return nullptr;
 		}
+
+		virtual unsigned int mobilePhaseStride() const { return 0; }
+		virtual unsigned int solidPhaseStride() const { return 0; }
 
 	protected:
 		double const* const _data;

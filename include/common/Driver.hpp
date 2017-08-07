@@ -48,6 +48,11 @@ void readDataOutputConfig(ParamProvider_t& pp, StorageConfig_t& cfg, const std::
 	else
 		cfg.storeParticle = false;
 
+	if (pp.exists("WRITE_" + dataType + "_SOLID"))
+		cfg.storeSolid = pp.getBool("WRITE_" + dataType + "_SOLID");
+	else
+		cfg.storeSolid = false;
+
 	if (pp.exists("WRITE_" + dataType + "_FLUX"))
 		cfg.storeFlux = pp.getBool("WRITE_" + dataType + "_FLUX");
 	else

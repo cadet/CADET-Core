@@ -34,7 +34,7 @@ enum class StateOrdering : uint8_t
 	Component,
 	AxialCell,
 	RadialCell,
-	Phase
+	BoundState
 };
 
 /**
@@ -62,6 +62,12 @@ public:
 	 * @return @c true if particle mobile phase is present, otherwise @c false
 	 */
 	virtual bool hasParticleMobilePhase() const CADET_NOEXCEPT = 0;
+
+	/**
+	 * @brief Returns whether the associated model has a solid phase
+	 * @return @c true if solid phase is present, otherwise @c false
+	 */
+	virtual bool hasSolidPhase() const CADET_NOEXCEPT = 0;
 
 	/**
 	 * @brief Returns whether the associated model has non-binding components
@@ -115,16 +121,26 @@ public:
 	virtual unsigned int numBoundStates(unsigned int comp) const CADET_NOEXCEPT = 0;
 
 	/**
-	 * @brief Returns the number of main DOFs in the column / interstitial bulk volume
-	 * @return Number of main DOFs
+	 * @brief Returns the total number of DOFs in the column / interstitial bulk volume
+	 * @return Number of column / main DOFs
 	 */
 	virtual unsigned int numColumnDofs() const CADET_NOEXCEPT = 0;
 
 	/**
-	 * @brief Returns the number of all DOFs in the particles, if particles are supported
-	 * @return Total number of particle DOFs
+	 * @brief Returns the total number of mobile phase DOFs in the particles, if particles are supported
+	 * @details The total number of DOFs is returned, i.e., the sum of all particle cells' mobile phase DOFs.
+	 * 
+	 * @return Total number of particle mobile phase DOFs
 	 */
-	virtual unsigned int numParticleDofs() const CADET_NOEXCEPT = 0;
+	virtual unsigned int numParticleMobilePhaseDofs() const CADET_NOEXCEPT = 0;
+
+	/**
+	 * @brief Returns the total number of solid phase DOFs
+	 * @details The total number of DOFs is returned, i.e., the sum of all column and particle cells' solid phase DOFs.
+	 * 
+	 * @return Total number of solid phase DOFs
+	 */
+	virtual unsigned int numSolidPhaseDofs() const CADET_NOEXCEPT = 0;
 
 	/**
 	 * @brief Returns the number of bulk-bead flux DOFs, if particle fluxes are supported
@@ -294,6 +310,20 @@ public:
 	 * @return Pointer to first element of the ordering vector or @c NULL if solid phases are not supported
 	 */
 	virtual StateOrdering const* solidPhaseOrdering(unsigned int& len) const = 0;
+
+	/**
+	 * @brief Returns the number of elements between two mobile phase DOF blocks
+	 * @details Stride between two mobile phase DOF blocks.
+	 * @return Number of elements between two mobile phase DOF blocks
+	 */
+	virtual unsigned int mobilePhaseStride() const = 0;
+
+	/**
+	 * @brief Returns the number of elements between two solid phase DOF blocks
+	 * @details Stride between two solid phase DOF blocks.
+	 * @return Number of elements between two solid phase DOF blocks
+	 */
+	virtual unsigned int solidPhaseStride() const = 0;
 };
 
 } // namespace cadet

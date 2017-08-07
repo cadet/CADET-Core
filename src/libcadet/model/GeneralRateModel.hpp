@@ -448,6 +448,7 @@ protected:
 		virtual bool hasNonBindingComponents() const CADET_NOEXCEPT { return cadet::model::hasNonBindingComponents(_disc.nBound, _disc.nComp); }
 		virtual bool hasParticleFlux() const CADET_NOEXCEPT { return true; }
 		virtual bool hasParticleMobilePhase() const CADET_NOEXCEPT { return true; }
+		virtual bool hasSolidPhase() const CADET_NOEXCEPT { return _disc.strideBound > 0; }
 		virtual bool hasVolume() const CADET_NOEXCEPT { return false; }
 
 		virtual unsigned int numComponents() const CADET_NOEXCEPT { return _disc.nComp; }
@@ -457,7 +458,8 @@ protected:
 		virtual unsigned int const* numBoundStatesPerComponent() const CADET_NOEXCEPT { return _disc.nBound; }
 		virtual unsigned int numBoundStates(unsigned int comp) const CADET_NOEXCEPT { return _disc.nBound[comp]; }
 		virtual unsigned int numColumnDofs() const CADET_NOEXCEPT { return _disc.nComp * _disc.nCol; }
-		virtual unsigned int numParticleDofs() const CADET_NOEXCEPT { return (_disc.nComp + _disc.strideBound) * _disc.nPar * _disc.nCol; }
+		virtual unsigned int numParticleMobilePhaseDofs() const CADET_NOEXCEPT { return _disc.nComp * _disc.nPar * _disc.nCol; }
+		virtual unsigned int numSolidPhaseDofs() const CADET_NOEXCEPT { return _disc.strideBound * _disc.nPar * _disc.nCol; }
 		virtual unsigned int numFluxDofs() const CADET_NOEXCEPT { return _disc.nComp * _disc.nCol; }
 		virtual unsigned int numVolumeDofs() const CADET_NOEXCEPT { return 0; }
 		
@@ -510,14 +512,17 @@ protected:
 			return _solidOrdering.data();
 		}
 
+		virtual unsigned int mobilePhaseStride() const { return _idx.strideParShell(); }
+		virtual unsigned int solidPhaseStride() const { return _idx.strideParShell(); }
+
 	protected:
 		const Discretization& _disc;
 		const Indexer _idx;
 		double const* const _data;
 
 		const std::array<StateOrdering, 2> _concentrationOrdering = { { StateOrdering::Component, StateOrdering::AxialCell } };
-		const std::array<StateOrdering, 4> _particleOrdering = { { StateOrdering::AxialCell, StateOrdering::RadialCell, StateOrdering::Phase, StateOrdering::Component } };
-		const std::array<StateOrdering, 2> _solidOrdering = { { StateOrdering::Component, StateOrdering::Phase } };
+		const std::array<StateOrdering, 3> _particleOrdering = { { StateOrdering::AxialCell, StateOrdering::RadialCell, StateOrdering::Component } };
+		const std::array<StateOrdering, 4> _solidOrdering = { { StateOrdering::AxialCell, StateOrdering::RadialCell, StateOrdering::Component, StateOrdering::BoundState } };
 		const std::array<StateOrdering, 2> _fluxOrdering = { { StateOrdering::Component, StateOrdering::AxialCell } };
 	};
 };

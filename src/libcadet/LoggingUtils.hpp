@@ -43,7 +43,7 @@ namespace log
 	};
 
 #ifndef CADET_LOGGING_DISABLE
-
+/*
 	inline std::ostream& operator<<(std::ostream& os, const cadet::ISolutionExporter& v)
 	{
 		os << "bulk = [";
@@ -57,7 +57,7 @@ namespace log
 		}
 		os << "]\n";
 
-		const unsigned int parStride = v.numParticleDofs() / v.numAxialCells();
+		const unsigned int parStride = v.numRadialCells() * (v.numComponents() + v.numBoundStates());
 		double const* parPtr = v.mobilePhase();
 		for (unsigned int i = 0; i < v.numAxialCells(); ++i, parPtr += parStride)
 		{
@@ -75,7 +75,8 @@ namespace log
 		os << fluxPtr[nFluxDof-1] << "]";
 		return os;
 	}
-
+*/
+	
 	inline std::ostream& operator<<(std::ostream& os, const cadet::active& v)
 	{
 		os << static_cast<double>(v) << " [";

@@ -879,7 +879,7 @@ cadet::JsonParameterProvider createCSTRBenchmark(unsigned int nSec, double endTi
 	
 		json cstr;
 		cstr["WRITE_SOLUTION_COLUMN"] = false;
-		cstr["WRITE_SOLUTION_PARTICLE"] = true;
+		cstr["WRITE_SOLUTION_SOLID"] = true;
 		cstr["WRITE_SOLUTION_FLUX"] = false;
 		cstr["WRITE_SOLUTION_COLUMN_INLET"] = true;
 		cstr["WRITE_SOLUTION_COLUMN_OUTLET"] = true;
