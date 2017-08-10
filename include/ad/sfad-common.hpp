@@ -97,12 +97,12 @@ namespace sfad
 		extern std::size_t globalGradSize;
 	}
 
-	static void setGradientSize(const std::size_t n) SFAD_NOEXCEPT
+	inline void setGradientSize(const std::size_t n) SFAD_NOEXCEPT
 	{
 		detail::globalGradSize = n;
 	}
 
-	static std::size_t getGradientSize() SFAD_NOEXCEPT
+	inline std::size_t getGradientSize() SFAD_NOEXCEPT
 	{
 		return detail::globalGradSize;
 	}	

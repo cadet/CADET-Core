@@ -24,8 +24,6 @@
 
 #include "MatrixHelper.hpp"
 
-ACTIVE_INIT;
-
 /**
  * @brief Create a BandMatrix of given type and fill entries with their linear array index (1-based)
  * @param [in] Number of rows
