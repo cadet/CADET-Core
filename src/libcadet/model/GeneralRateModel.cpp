@@ -52,7 +52,7 @@ int schurComplementMultiplierGRM(void* userData, double const* x, double* z)
 
 
 GeneralRateModel::GeneralRateModel(UnitOpIdx unitOpIdx) : _unitOpIdx(unitOpIdx), _binding(nullptr),
-	_jacC(nullptr), _jacP(nullptr), _jacPF(nullptr), _jacFP(nullptr), _jacCdisc(nullptr), _jacPdisc(nullptr), _jacInlet(),
+	_jacP(nullptr), _jacPF(nullptr), _jacFP(nullptr), _jacPdisc(nullptr), _jacInlet(),
 	_analyticJac(true), _stencilMemory(sizeof(active) * Weno::maxStencilSize()), _wenoDerivatives(new double[Weno::maxStencilSize()]),
 	_weno(), _jacobianAdDirs(0), _factorizeJacobian(false), _tempState(nullptr)
 {
@@ -66,9 +66,6 @@ GeneralRateModel::~GeneralRateModel() CADET_NOEXCEPT
 
 	delete[] _jacPF;
 	delete[] _jacFP;
-
-	delete[] _jacC;
-	delete[] _jacCdisc;
 
 	delete[] _jacP;
 	delete[] _jacPdisc;
@@ -180,24 +177,19 @@ bool GeneralRateModel::configure(IParameterProvider& paramProvider, IConfigHelpe
 
 	_jacInlet.resize(_disc.nComp);
 
-	_jacC = new linalg::BandMatrix[_disc.nComp];
-	_jacCdisc = new linalg::FactorizableBandMatrix[_disc.nComp];
-	for (unsigned int i = 0; i < _disc.nComp; ++i)
-	{
-		// Note that we have to increase the lower bandwidth by 1 because the WENO stencil is applied to the
-		// right cell face (lower + 1 + upper) and to the left cell face (shift the stencil by -1 because influx of cell i
-		// is outflux of cell i-1)
-		// We also have to make sure that there's at least one sub and super diagonal for the dispersion term
-		const unsigned int lb = std::max(_weno.lowerBandwidth() + 1u, 1u);
-		const unsigned int ub = std::max(_weno.upperBandwidth(), 1u);
-		const unsigned int mb = std::max(lb, ub);
+	// Note that we have to increase the lower bandwidth by 1 because the WENO stencil is applied to the
+	// right cell face (lower + 1 + upper) and to the left cell face (shift the stencil by -1 because influx of cell i
+	// is outflux of cell i-1)
+	// We also have to make sure that there's at least one sub and super diagonal for the dispersion term
+	const unsigned int lb = std::max(_weno.lowerBandwidth() + 1u, 1u) * idxr.strideColCell();
+	const unsigned int ub = std::max(_weno.upperBandwidth(), 1u) * idxr.strideColCell();
+	const unsigned int mb = std::max(lb, ub);
 
-		// Allocate matrices such that bandwidths can be switched (backwards flow support)
-		_jacC[i].resize(_disc.nCol, lb, ub);
+	// Allocate matrices such that bandwidths can be switched (backwards flow support)
+	_jacC.resize(_disc.nCol * _disc.nComp, lb, ub);
 
-		_jacCdisc[i].resize(_disc.nCol, mb, mb);
-		_jacCdisc[i].repartition(lb, ub);
-	}
+	_jacCdisc.resize(_disc.nCol * _disc.nComp, mb, mb);
+	_jacCdisc.repartition(lb, ub);
 
 	_jacP = new linalg::BandMatrix[_disc.nCol];
 	_jacPdisc = new linalg::FactorizableBandMatrix[_disc.nCol];
@@ -478,7 +470,7 @@ void GeneralRateModel::useAnalyticJacobian(const bool analyticJac)
 		// We need as many directions as the highest bandwidth of the diagonal blocks:
 		// The bandwidth of the column block depends on the size of the WENO stencil, whereas
 		// the bandwidth of the particle blocks are given by the number of components and bound states.
-		_jacobianAdDirs = std::max(_jacC[0].stride(), _jacP[0].stride());
+		_jacobianAdDirs = std::max(_jacC.stride(), _jacP[0].stride());
 	else
 		_jacobianAdDirs = 0;
 #else
@@ -486,7 +478,7 @@ void GeneralRateModel::useAnalyticJacobian(const bool analyticJac)
 	// We need as many directions as the highest bandwidth of the diagonal blocks:
 	// The bandwidth of the column block depends on the size of the WENO stencil, whereas
 	// the bandwidth of the particle blocks are given by the number of components and bound states.
-	_jacobianAdDirs = std::max(_jacC[0].stride(), _jacP[0].stride());
+	_jacobianAdDirs = std::max(_jacC.stride(), _jacP[0].stride());
 #endif
 }
 
@@ -541,14 +533,11 @@ void GeneralRateModel::notifyDiscontinuousSectionTransition(double t, unsigned i
 			_jacInlet.addElement(comp * idxr.strideColComp(), comp, -u / h);
 
 		// Repartition column bulk Jacobians
-		for (unsigned int i = 0; i < _disc.nComp; ++i)
-		{
-			const unsigned int lb = std::max(_weno.lowerBandwidth() + 1u, 1u);
-			const unsigned int ub = std::max(_weno.upperBandwidth(), 1u);
+		const unsigned int lb = std::max(_weno.lowerBandwidth() + 1u, 1u) * idxr.strideColCell();
+		const unsigned int ub = std::max(_weno.upperBandwidth(), 1u) * idxr.strideColCell();
 
-			_jacC[i].repartition(lb, ub);
-			_jacCdisc[i].repartition(lb, ub);
-		}
+		_jacC.repartition(lb, ub);
+		_jacCdisc.repartition(lb, ub);
 	}
 	else
 	{
@@ -560,14 +549,11 @@ void GeneralRateModel::notifyDiscontinuousSectionTransition(double t, unsigned i
 			_jacInlet.addElement(offset + comp * idxr.strideColComp(), comp, u / h);
 
 		// Repartition column bulk Jacobians
-		for (unsigned int i = 0; i < _disc.nComp; ++i)
-		{
-			const unsigned int lb = std::max(_weno.lowerBandwidth() + 1u, 1u);
-			const unsigned int ub = std::max(_weno.upperBandwidth(), 1u);
+		const unsigned int lb = std::max(_weno.lowerBandwidth() + 1u, 1u) * idxr.strideColCell();
+		const unsigned int ub = std::max(_weno.upperBandwidth(), 1u) * idxr.strideColCell();
 
-			_jacC[i].repartition(ub, lb);
-			_jacCdisc[i].repartition(ub, lb);
-		}
+		_jacC.repartition(ub, lb);
+		_jacCdisc.repartition(ub, lb);
 	}
 
 	// Update AD seed vectors since Jacobian structure has changed (bulk block bandwidths)
@@ -601,7 +587,7 @@ unsigned int GeneralRateModel::requiredADdirs() const CADET_NOEXCEPT
 	return _jacobianAdDirs;
 #else
 	// If CADET_CHECK_ANALYTIC_JACOBIAN is active, we always need the AD directions for the Jacobian
-	return std::max(_jacC[0].stride(), _jacP[0].stride());
+	return std::max(_jacC.stride(), _jacP[0].stride());
 #endif
 }
 
@@ -646,14 +632,11 @@ void GeneralRateModel::prepareBulkADvectors(active* const adRes, active* const a
 	Indexer idxr(_disc);
 
 	// Get bandwidths of blocks
-	const unsigned int lowerColBandwidth = _jacC[0].lowerBandwidth();
-	const unsigned int upperColBandwidth = _jacC[0].upperBandwidth();
+	const unsigned int lowerColBandwidth = _jacC.lowerBandwidth();
+	const unsigned int upperColBandwidth = _jacC.upperBandwidth();
 
-	// Column block	
-	for (int comp = 0; comp < static_cast<int>(_disc.nComp); ++comp)
-	{
-		ad::prepareAdVectorSeedsForBandMatrix(adY + comp * idxr.strideColComp() + idxr.offsetC(), adDirOffset, _disc.nCol, lowerColBandwidth, upperColBandwidth, lowerColBandwidth);
-	}
+	// Column block
+	ad::prepareAdVectorSeedsForBandMatrix(adY + idxr.offsetC(), adDirOffset, _disc.nCol * _disc.nComp, lowerColBandwidth, upperColBandwidth, lowerColBandwidth);
 }
 
 /**
@@ -666,8 +649,7 @@ void GeneralRateModel::extractJacobianFromAD(active const* const adRes, unsigned
 	Indexer idxr(_disc);
 
 	// Column
-	for (int comp = 0; comp < static_cast<int>(_disc.nComp); ++comp)
-		ad::extractBandedJacobianFromAd(adRes + comp * idxr.strideColComp() + idxr.offsetC(), adDirOffset, _jacC[comp].lowerBandwidth(), _jacC[comp]);
+	ad::extractBandedJacobianFromAd(adRes + idxr.offsetC(), adDirOffset, _jacC.lowerBandwidth(), _jacC);
 
 	// Particles
 	for (unsigned int pblk = 0; pblk < _disc.nCol; ++pblk)
@@ -686,20 +668,14 @@ void GeneralRateModel::checkAnalyticJacobianAgainstAd(active const* const adRes,
 {
 	Indexer idxr(_disc);
 
-	double maxDiffCol = 0.0;
-	double maxDiffPar = 0.0;
-
-	LOG(Debug) << "AD dir offset: " << adDirOffset << " DiagDirCol: " << _jacC[0].lowerBandwidth() << " DiagDirPar: " << _jacP[0].lowerBandwidth();
+	LOG(Debug) << "AD dir offset: " << adDirOffset << " DiagDirCol: " << _jacC.lowerBandwidth() << " DiagDirPar: " << _jacP[0].lowerBandwidth();
 
 	// Column
-	for (int comp = 0; comp < static_cast<int>(_disc.nComp); ++comp)
-	{
-		const double localDiff = ad::compareBandedJacobianWithAd(adRes + comp * idxr.strideColComp() + idxr.offsetC(), adDirOffset, _jacC[comp].lowerBandwidth(), _jacC[comp]);
-		LOG(Debug) << "-> Col block diff " << comp << ": " << localDiff;
-		maxDiffCol = std::max(maxDiffCol, localDiff);
-	}
+	const double maxDiffCol = ad::compareBandedJacobianWithAd(adRes + idxr.offsetC(), adDirOffset, _jacC.lowerBandwidth(), _jacC);
+	LOG(Debug) << "-> Col block diff: " << maxDiffCol;
 
 	// Particles
+	double maxDiffPar = 0.0;
 	for (unsigned int pblk = 0; pblk < _disc.nCol; ++pblk)
 	{
 		const double localDiff = ad::compareBandedJacobianWithAd(adRes + idxr.offsetCp(pblk), adDirOffset, _jacP[pblk].lowerBandwidth(), _jacP[pblk]);
@@ -884,23 +860,24 @@ int GeneralRateModel::residualBulkForwardsFlow(const ParamType& t, unsigned int 
 	const ParamType h2 = h * h;
 
 	Indexer idxr(_disc);
+	const int strideCell = idxr.strideColCell();
 
 	// The stencil caches parts of the state vector for better spatial coherence
 	typedef CachingStencil<StateType, ArrayPool> StencilType;
 	StencilType stencil(std::max(_weno.stencilSize(), 3u), _stencilMemory, std::max(_weno.order() - 1, 1));
 
+	// Reset Jacobian
+	if (wantJac)
+		_jacC.setAll(0.0);
+
 	for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
 	{
-		// Reset Jacobian
-		if (wantJac)
-			_jacC[comp].setAll(0.0);
-
 		// The RowIterator is always centered on the main diagonal.
 		// This means that jac[0] is the main diagonal, jac[-1] is the first lower diagonal,
 		// and jac[1] is the first upper diagonal. We can also access the rows from left to
 		// right beginning with the last lower diagonal moving towards the main diagonal and
 		// continuing to the last upper diagonal by using the native() method.
-		linalg::BandMatrix::RowIterator jac = _jacC[comp].row(0);
+		linalg::BandMatrix::RowIterator jac = _jacC.row(comp);
 
 		// Add time derivative to each cell
 		if (yDot)
@@ -940,7 +917,7 @@ int GeneralRateModel::residualBulkForwardsFlow(const ParamType& t, unsigned int 
 				if (wantJac)
 				{
 					jac[0] += static_cast<double>(d_c) / static_cast<double>(h2);
-					jac[1] -= static_cast<double>(d_c) / static_cast<double>(h2);
+					jac[strideCell] -= static_cast<double>(d_c) / static_cast<double>(h2);
 				}
 			}
 
@@ -952,7 +929,7 @@ int GeneralRateModel::residualBulkForwardsFlow(const ParamType& t, unsigned int 
 				if (wantJac)
 				{
 					jac[0]  += static_cast<double>(d_c) / static_cast<double>(h2);
-					jac[-1] -= static_cast<double>(d_c) / static_cast<double>(h2);
+					jac[-strideCell] -= static_cast<double>(d_c) / static_cast<double>(h2);
 				}
 			}
 
@@ -971,7 +948,7 @@ int GeneralRateModel::residualBulkForwardsFlow(const ParamType& t, unsigned int 
 					for (int i = 0; i < 2 * wenoOrder - 1; ++i)
 						// Note that we have an offset of -1 here (compared to the right cell face below), since
 						// the reconstructed value depends on the previous stencil (which has now been moved by one cell)
-						jac[i - wenoOrder] -= static_cast<double>(u) / static_cast<double>(h) * _wenoDerivatives[i];
+						jac[(i - wenoOrder) * strideCell] -= static_cast<double>(u) / static_cast<double>(h) * _wenoDerivatives[i];
 				}
 			}
 			else
@@ -992,12 +969,12 @@ int GeneralRateModel::residualBulkForwardsFlow(const ParamType& t, unsigned int 
 			if (wantJac)
 			{
 				for (int i = 0; i < 2 * wenoOrder - 1; ++i)
-					jac[i - wenoOrder + 1] += static_cast<double>(u) / static_cast<double>(h) * _wenoDerivatives[i];
+					jac[(i - wenoOrder + 1) * strideCell] += static_cast<double>(u) / static_cast<double>(h) * _wenoDerivatives[i];
 			}
 
 			// Update stencil
 			stencil.advance(idxr.c<StateType>(y, col + std::max(_weno.order(), 2), comp));
-			++jac;
+			jac += strideCell;
 		}
 	}
 
@@ -1015,23 +992,24 @@ int GeneralRateModel::residualBulkBackwardsFlow(const ParamType& t, unsigned int
 	const ParamType h2 = h * h;
 
 	Indexer idxr(_disc);
+	const int strideCell = idxr.strideColCell();
 
 	// The stencil caches parts of the state vector for better spatial coherence
 	typedef CachingStencil<StateType, ArrayPool> StencilType;
 	StencilType stencil(std::max(_weno.stencilSize(), 3u), _stencilMemory, std::max(_weno.order() - 1, 1));
 
+	// Reset Jacobian
+	if (wantJac)
+		_jacC.setAll(0.0);
+
 	for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
 	{
-		// Reset Jacobian
-		if (wantJac)
-			_jacC[comp].setAll(0.0);
-
 		// The RowIterator is always centered on the main diagonal.
 		// This means that jac[0] is the main diagonal, jac[-1] is the first lower diagonal,
 		// and jac[1] is the first upper diagonal. We can also access the rows from left to
 		// right beginning with the last lower diagonal moving towards the main diagonal and
 		// continuing to the last upper diagonal by using the native() method.
-		linalg::BandMatrix::RowIterator jac = _jacC[comp].row(_disc.nCol - 1);
+		linalg::BandMatrix::RowIterator jac = _jacC.row(_disc.nComp * (_disc.nCol - 1) + comp);
 
 		// Add time derivative to each cell
 		if (yDot)
@@ -1072,7 +1050,7 @@ int GeneralRateModel::residualBulkBackwardsFlow(const ParamType& t, unsigned int
 				if (wantJac)
 				{
 					jac[0] += static_cast<double>(d_c) / static_cast<double>(h2);
-					jac[1] -= static_cast<double>(d_c) / static_cast<double>(h2);
+					jac[strideCell] -= static_cast<double>(d_c) / static_cast<double>(h2);
 				}
 			}
 
@@ -1084,7 +1062,7 @@ int GeneralRateModel::residualBulkBackwardsFlow(const ParamType& t, unsigned int
 				if (wantJac)
 				{
 					jac[0] += static_cast<double>(d_c) / static_cast<double>(h2);
-					jac[-1] -= static_cast<double>(d_c) / static_cast<double>(h2);
+					jac[-strideCell] -= static_cast<double>(d_c) / static_cast<double>(h2);
 				}
 			}
 
@@ -1103,7 +1081,7 @@ int GeneralRateModel::residualBulkBackwardsFlow(const ParamType& t, unsigned int
 					for (int i = 0; i < 2 * wenoOrder - 1; ++i)
 						// Note that we have an offset of +1 here (compared to the left cell face below), since
 						// the reconstructed value depends on the previous stencil (which has now been moved by one cell)
-						jac[wenoOrder - i] += static_cast<double>(u) / static_cast<double>(h) * _wenoDerivatives[i];					
+						jac[(wenoOrder - i) * strideCell] += static_cast<double>(u) / static_cast<double>(h) * _wenoDerivatives[i];					
 				}
 			}
 			else
@@ -1124,7 +1102,7 @@ int GeneralRateModel::residualBulkBackwardsFlow(const ParamType& t, unsigned int
 			if (wantJac)
 			{
 				for (int i = 0; i < 2 * wenoOrder - 1; ++i)
-					jac[wenoOrder - i - 1] -= static_cast<double>(u) / static_cast<double>(h) * _wenoDerivatives[i];				
+					jac[(wenoOrder - i - 1) * strideCell] -= static_cast<double>(u) / static_cast<double>(h) * _wenoDerivatives[i];				
 			}
 
 			// Update stencil (be careful because of wrap-around, might cause reading memory very far away [although never used])
@@ -1133,7 +1111,7 @@ int GeneralRateModel::residualBulkBackwardsFlow(const ParamType& t, unsigned int
 				stencil.advance(idxr.c<StateType>(y, col - shift, comp));
 			else
 				stencil.advance(0.0);
-			--jac;
+			jac -= strideCell;
 		}
 	}
 
@@ -1585,31 +1563,25 @@ void GeneralRateModel::multiplyWithJacobian(double t, unsigned int secIdx, doubl
 		ret[i] = alpha * yS[i] + beta * ret[i];
 	}
 
-	// Threads that are done with multiplying with the bulk column blocks can proceed
-	// to the particle blocks
 #ifdef CADET_PARALLELIZE
-	tbb::parallel_for(size_t(0), size_t(_disc.nComp), [&](size_t comp)
+	tbb::parallel_for(size_t(0), size_t(_disc.nCol + 1), [&](size_t idx)
 #else
-	for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
+	for (unsigned int idx = 0; idx < _disc.nCol + 1; ++idx)
 #endif
 	{
-		_jacC[comp].multiplyVector(yS + comp * idxr.strideColComp() + idxr.offsetC(), alpha, beta, 
-			ret + comp * idxr.strideColComp() + idxr.offsetC());
+		if (cadet_unlikely(idx == 0))
+		{
+			_jacC.multiplyVector(yS + idxr.offsetC(), alpha, beta, ret + idxr.offsetC());
+			_jacCF.multiplyVector(yS + idxr.offsetJf(), alpha, 1.0, ret + idxr.offsetC());
+		}
+		else
+		{
+			const unsigned int pblk = idx - 1;
+			const int localOffset = idxr.offsetCp(pblk);
+			_jacP[pblk].multiplyVector(yS + localOffset, alpha, beta, ret + localOffset);
+			_jacPF[pblk].multiplyVector(yS + idxr.offsetJf(), alpha, 1.0, ret + localOffset);
+		}
 	} CADET_PARFOR_END;
-
-#ifdef CADET_PARALLELIZE
-	tbb::parallel_for(size_t(0), size_t(_disc.nCol), [&](size_t pblk)
-#else
-	for (unsigned int pblk = 0; pblk < _disc.nCol; ++pblk)
-#endif
-	{
-		const int localOffset = idxr.offsetCp(pblk);
-		_jacP[pblk].multiplyVector(yS + localOffset, alpha, beta, ret + localOffset);
-		_jacPF[pblk].multiplyVector(yS + idxr.offsetJf(), alpha, 1.0, ret + localOffset);
-	} CADET_PARFOR_END;
-
-	// Multiply with the flux block in the column equation
-	_jacCF.multiplyVector(yS + idxr.offsetJf(), alpha, 1.0, ret + idxr.offsetC());
 
 	// Handle flux equation
 
@@ -1646,12 +1618,12 @@ void GeneralRateModel::multiplyWithDerivativeJacobian(double t, unsigned int sec
 	const double invBetaP = (1.0 / static_cast<double>(_parPorosity) - 1.0) * timeFactor;
 
 #ifdef CADET_PARALLELIZE
-	tbb::parallel_for(size_t(0), size_t(_disc.nCol) + 1, [&](size_t pblk)
+	tbb::parallel_for(size_t(0), size_t(_disc.nCol + 1), [&](size_t idx)
 #else
-	for (unsigned int pblk = 0; pblk < _disc.nCol + 1; ++pblk)
+	for (unsigned int idx = 0; idx < _disc.nCol + 1; ++idx)
 #endif
 	{
-		if (cadet_unlikely(pblk == 0))
+		if (cadet_unlikely(idx == 0))
 		{
 			// Column
 			for (int i = idxr.offsetC(); i < idxr.offsetCp(0); ++i)
@@ -1659,11 +1631,13 @@ void GeneralRateModel::multiplyWithDerivativeJacobian(double t, unsigned int sec
 		}
 		else
 		{
+			const unsigned int pblk = idx - 1;
+
 			// Particle
 			for (unsigned int shell = 0; shell < _disc.nPar; ++shell)
 			{
-				double const* const localSdot = sDot + idxr.offsetCp(pblk - 1) + shell * idxr.strideParShell();
-				double* const localRet = ret + idxr.offsetCp(pblk - 1) + shell * idxr.strideParShell();
+				double const* const localSdot = sDot + idxr.offsetCp(pblk) + shell * idxr.strideParShell();
+				double* const localRet = ret + idxr.offsetCp(pblk) + shell * idxr.strideParShell();
 
 				// Mobile phase
 				for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
@@ -1707,7 +1681,7 @@ unsigned int GeneralRateModel::localOutletComponentIndex() const CADET_NOEXCEPT
 	// Inlets are duplicated so need to be accounted for
 	if (static_cast<double>(_curVelocity) >= 0.0)
 		// Forward Flow: outlet is last cell
-		return _disc.nCol - 1 + _disc.nComp;
+		return _disc.nComp + (_disc.nCol - 1) * _disc.nComp;
 	else
 		// Backward flow: Outlet is first cell
 		return _disc.nComp;
@@ -1720,7 +1694,7 @@ unsigned int GeneralRateModel::localInletComponentIndex() const CADET_NOEXCEPT
 
 unsigned int GeneralRateModel::localOutletComponentStride() const CADET_NOEXCEPT
 {
-	return _disc.nCol;
+	return 1;
 }
 
 unsigned int GeneralRateModel::localInletComponentStride() const CADET_NOEXCEPT

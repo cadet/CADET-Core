@@ -123,43 +123,32 @@ int GeneralRateModel::linearSolve(double t, double timeFactor, double alpha, dou
 
 #ifdef CADET_PARALLELIZE
 	tbb::flow::graph g;
-#endif
-
-#ifdef CADET_PARALLELIZE
-	node_t A(g, [&](msg_t)
+#else
+	if (_factorizeJacobian)
 	{
 #endif
-		if (_factorizeJacobian)
-		{
-			// Assemble and factorize discretized system Jacobians
-			// Threads that are done with the bulk column blocks can proceed to the particle blocks
 
 #ifdef CADET_PARALLELIZE
-			tbb::parallel_for(size_t(0), size_t(_disc.nComp), [&](size_t comp)
-#else
-			for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
+		node_t A(g, [&](msg_t)
 #endif
+		{
+			// Assemble and factorize discretized system Jacobians
+
+			// Assemble
+			assembleDiscretizedJacobianColumnBlock(alpha, idxr, timeFactor);
+
+			// Factorize
+			const bool result = _jacCdisc.factorize();
+			if (cadet_unlikely(!result))
 			{
-				// Assemble
-				assembleDiscretizedJacobianColumnBlock(comp, alpha, idxr, timeFactor);
-
-				// Factorize
-				const bool result = _jacCdisc[comp].factorize();
-				if (cadet_unlikely(!result))
-				{
-					LOG(Error) << "Factorize() failed for comp " << comp;
-				}
-			} CADET_PARFOR_END;
-		}
-	CADET_PARNODE_END;
-
+				LOG(Error) << "Factorize() failed for bulk block";
+			}
+		} CADET_PARNODE_END;
 
 	// Process the particle blocks
 #ifdef CADET_PARALLELIZE
-	node_t B(g, [&](msg_t)
-	{
+		node_t B(g, [&](msg_t)
 #endif
-		if (_factorizeJacobian)
 		{
 #ifdef CADET_PARALLELIZE
 			tbb::parallel_for(size_t(0), size_t(_disc.nCol), [&](size_t pblk)
@@ -179,21 +168,23 @@ int GeneralRateModel::linearSolve(double t, double timeFactor, double alpha, dou
 					}
 				}
 			} CADET_PARFOR_END;
-		}
-	CADET_PARNODE_END;
+		} CADET_PARNODE_END;
+
+#ifndef CADET_PARALLELIZE
+		// Do not factorize again at next call without changed Jacobians
+		_factorizeJacobian = false;
+	} // if (_factorizeJacobian)
+#endif
 
 	// ====== Step 1.5: Solve J c_uo = b_uo - A * c_in = b_uo - A*b_in
 
 	// rhs is passed twice but due to the values in jacA the writes happen to a different area of the rhs than the reads.
 #ifdef CADET_PARALLELIZE
 	node_t C(g, [&](msg_t) 
-	{
 #endif
-		// Do not factorize again at next call without changed Jacobians
-		_factorizeJacobian = false;
-
+	{
 		_jacInlet.multiplySubtract(rhs, rhs + idxr.offsetC());
-	CADET_PARNODE_END;
+	} CADET_PARNODE_END;
 
 	// ==== Step 2: Solve diagonal Jacobian blocks J_i to get y_i = J_i^{-1} b_i
 	// The result is stored in rhs (in-place solution)
@@ -203,26 +194,19 @@ int GeneralRateModel::linearSolve(double t, double timeFactor, double alpha, dou
 	// to solving the particle blocks
 #ifdef CADET_PARALLELIZE
 	node_t D(g, [&](msg_t)
+#endif
 	{
-#endif
-#ifdef CADET_PARALLELIZE
-		tbb::parallel_for(size_t(0), size_t(_disc.nComp), [&](size_t comp)
-#else
-		for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
-#endif
+		const bool result = _jacCdisc.solve(rhs + idxr.offsetC());
+		if (cadet_unlikely(!result))
 		{
-			const bool result = _jacCdisc[comp].solve(rhs + comp * idxr.strideColComp() + idxr.offsetC());
-			if (cadet_unlikely(!result))
-			{
-				LOG(Error) << "Solve() failed for comp " << comp;
-			}
-		} CADET_PARFOR_END;
-	CADET_PARNODE_END;
+			LOG(Error) << "Solve() failed for bulk block";
+		}
+	} CADET_PARNODE_END;
 
 #ifdef CADET_PARALLELIZE
 	node_t E(g, [&](msg_t)
-	{
 #endif
+	{
 #ifdef CADET_PARALLELIZE
 		tbb::parallel_for(size_t(0), size_t(_disc.nCol), [&](size_t pblk)
 #else
@@ -235,7 +219,7 @@ int GeneralRateModel::linearSolve(double t, double timeFactor, double alpha, dou
 				LOG(Error) << "Solve() failed for par block " << pblk;
 			}
 		} CADET_PARFOR_END;
-	CADET_PARNODE_END;
+	} CADET_PARNODE_END;
 
 	// Solve last row of L with backwards substitution: y_f = b_f - \sum_{i=0}^{N_z} J_{f,i} y_i
 	// Note that we cannot easily parallelize this loop since the results of the sparse
@@ -243,8 +227,8 @@ int GeneralRateModel::linearSolve(double t, double timeFactor, double alpha, dou
 	// for each thread and later fuse them together (reduction statement).
 #ifdef CADET_PARALLELIZE
 	node_t F(g, [&](msg_t) 
-	{
 #endif
+	{
 		_jacFC.multiplySubtract(rhs + idxr.offsetC(), rhs + idxr.offsetJf());
 
 		for (unsigned int pblk = 0; pblk < _disc.nCol; ++pblk)
@@ -282,40 +266,33 @@ int GeneralRateModel::linearSolve(double t, double timeFactor, double alpha, dou
 
 		// Compute tempState_0 = J_{0,f} * y_f
 		_jacCF.multiplyAdd(rhs + idxr.offsetJf(), _tempState + idxr.offsetC());
-	CADET_PARNODE_END;
+	} CADET_PARNODE_END;
 
 	// Threads that are done with solving the bulk column blocks can proceed
 	// to solving the particle blocks
 #ifdef CADET_PARALLELIZE
 	node_t G(g, [&](msg_t) 
+#endif
 	{
-#endif
-#ifdef CADET_PARALLELIZE
-		tbb::parallel_for(size_t(0), size_t(_disc.nComp), [&](size_t comp)
-#else
-		for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
-#endif
+		double* const localCol = _tempState + idxr.offsetC();
+		double* const rhsCol = rhs + idxr.offsetC();
+
+		// Apply J_0^{-1} to tempState_0
+		const bool result = _jacCdisc.solve(localCol);
+		if (cadet_unlikely(!result))
 		{
-			double* const localCol = _tempState + comp * idxr.strideColComp() + idxr.offsetC();
-			double* const rhsCol = rhs + comp * idxr.strideColComp() + idxr.offsetC();
+			LOG(Error) << "Solve() failed for bulk block";
+		}
 
-			// Apply J_0^{-1} to tempState_0
-			const bool result = _jacCdisc[comp].solve(localCol);
-			if (cadet_unlikely(!result))
-			{
-				LOG(Error) << "Solve() failed for comp " << comp;
-			}
-
-			// Compute rhs_0 = y_0 - J_0^{-1} * J_{0,f} * y_f = y_0 - tempState_0
-			for (unsigned int i = 0; i < _disc.nCol; ++i)
-				rhsCol[i] -= localCol[i];
-		} CADET_PARFOR_END;
-	CADET_PARNODE_END;
+		// Compute rhs_0 = y_0 - J_0^{-1} * J_{0,f} * y_f = y_0 - tempState_0
+		for (unsigned int i = 0; i < _disc.nCol * _disc.nComp; ++i)
+			rhsCol[i] -= localCol[i];
+	} CADET_PARNODE_END;
 
 #ifdef CADET_PARALLELIZE
 	node_t H(g, [&](msg_t) 
-	{
 #endif
+	{
 #ifdef CADET_PARALLELIZE
 		tbb::parallel_for(size_t(0), size_t(_disc.nCol), [&](size_t pblk)
 #else
@@ -338,12 +315,15 @@ int GeneralRateModel::linearSolve(double t, double timeFactor, double alpha, dou
 			for (int i = 0; i < idxr.strideParBlock(); ++i)
 				rhsPar[i] -= localPar[i];
 		} CADET_PARFOR_END;
-	CADET_PARNODE_END;
+	} CADET_PARNODE_END;
 
 #ifdef CADET_PARALLELIZE
 	// Create TBB dependency graph
-	make_edge(A, C);
-	make_edge(B, C);
+	if (_factorizeJacobian)
+	{
+		make_edge(A, C);
+		make_edge(B, C);
+	}
 
 	make_edge(C, D);
 	make_edge(C, E);
@@ -353,8 +333,16 @@ int GeneralRateModel::linearSolve(double t, double timeFactor, double alpha, dou
 	make_edge(F, H);
 
 	// Start the graph running
-	A.try_put(tbb::flow::continue_msg());
-	B.try_put(tbb::flow::continue_msg());
+	if (_factorizeJacobian)
+	{
+		// Do not factorize again at next call without changed Jacobians
+		_factorizeJacobian = false;
+
+		A.try_put(tbb::flow::continue_msg());
+		B.try_put(tbb::flow::continue_msg());
+	}
+	else
+		C.try_put(tbb::flow::continue_msg());
 
 	// Wait for results
 	g.wait_for_all();
@@ -403,28 +391,20 @@ int GeneralRateModel::schurComplementMatrixVector(double const* x, double* z) co
 
 #ifdef CADET_PARALLELIZE
 	node_t A(g, [&](msg_t) 
+#endif
 	{
-#endif
-
-#ifdef CADET_PARALLELIZE
-		tbb::parallel_for(size_t(0), size_t(_disc.nComp), [&](size_t comp)
-#else
-		for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
-#endif
+		// Apply J_0^{-1}
+		const bool result = _jacCdisc.solve(_tempState + idxr.offsetC());
+		if (cadet_unlikely(!result))
 		{
-			// Apply J_0^{-1} of each component
-			const bool result = _jacCdisc[comp].solve(_tempState + comp * idxr.strideColComp() + idxr.offsetC());
-			if (cadet_unlikely(!result))
-			{
-				LOG(Error) << "Solve() failed for comp " << comp;
-			}
-		} CADET_PARFOR_END;
-	CADET_PARNODE_END;
+			LOG(Error) << "Solve() failed for bulk block";
+		}
+	} CADET_PARNODE_END;
 
 #ifdef CADET_PARALLELIZE
 	node_t B(g, [&](msg_t)
-	{
 #endif
+	{
 		// Handle particle blocks
 #ifdef CADET_PARALLELIZE
 		tbb::parallel_for(size_t(0), size_t(_disc.nCol), [&](size_t pblk)
@@ -444,12 +424,12 @@ int GeneralRateModel::schurComplementMatrixVector(double const* x, double* z) co
 				LOG(Error) << "Solve() failed for par block " << pblk;
 			}
 		} CADET_PARFOR_END;
-	CADET_PARNODE_END;
+	} CADET_PARNODE_END;
 
 #ifdef CADET_PARALLELIZE
 	node_t C(g, [&](msg_t) 
-	{
 #endif
+	{
 		// Apply J_{f,0} and subtract results from z
 		_jacFC.multiplySubtract(_tempState + idxr.offsetC(), z);
 
@@ -458,7 +438,7 @@ int GeneralRateModel::schurComplementMatrixVector(double const* x, double* z) co
 			// Apply J_{f,i} and subtract results from z
 			_jacFP[pblk].multiplySubtract(_tempState + idxr.offsetCp() + idxr.strideParBlock() * pblk, z);
 		}
-	CADET_PARNODE_END;
+	} CADET_PARNODE_END;
 
 #ifdef CADET_PARALLELIZE
 	make_edge(A, C);
@@ -493,34 +473,30 @@ int GeneralRateModel::schurComplementMatrixVector(double const* x, double* z) co
  * @param [in] idxr Indexer
  * @param [in] timeFactor Factor which is premultiplied to the time derivatives originating from time transformation
  */
-void GeneralRateModel::assembleDiscretizedJacobianColumnBlock(unsigned int comp, double alpha, const Indexer& idxr, double timeFactor)
+void GeneralRateModel::assembleDiscretizedJacobianColumnBlock(double alpha, const Indexer& idxr, double timeFactor)
 {
-	linalg::FactorizableBandMatrix& fbm = _jacCdisc[comp];
-	const linalg::BandMatrix& bm = _jacC[comp];
-
 	// Copy normal matrix over to factorizable matrix
-	fbm.copyOver(bm);
+	_jacCdisc.copyOver(_jacC);
 
 	// Add time derivatives
-	addTimeDerivativeToJacobianColumnBlock(fbm, idxr, alpha, timeFactor);
+	addTimeDerivativeToJacobianColumnBlock(idxr, alpha, timeFactor);
 }
 
 /**
  * @brief Adds the derivatives with respect to @f$ \dot{y} @f$ of @f$ F(t, y, \dot{y}) @f$ to the Jacobian blocks
- * @details Given a FactorizableBandMtrix @p fbm, this functions computes 
- *          @f[ \begin{align*} \text{fbm} = \text{fbm} + \alpha \frac{\partial F}{\partial \dot{y}}. \end{align*} @f]
+ * @details This functions computes 
+ *          @f[ \begin{align*} \text{_jacCdisc} = \text{_jacCdisc} + \alpha \frac{\partial F}{\partial \dot{y}}. \end{align*} @f]
  *          The factor @f$ \alpha @f$ is useful when constructing the linear system in the time integration process.
- * @param [in,out] fbm FactorizableBandMatrix to which the derivatives with respect to @f$ \dot{y} @f$ are added
  * @param [in] idxr Indexer
  * @param [in] alpha Factor in front of @f$ \frac{\partial F}{\partial \dot{y}} @f$
  * @param [in] timeFactor Factor which is premultiplied to the time derivatives originating from time transformation
  */
-void GeneralRateModel::addTimeDerivativeToJacobianColumnBlock(linalg::FactorizableBandMatrix& fbm, const Indexer& idxr, double alpha, double timeFactor)
+void GeneralRateModel::addTimeDerivativeToJacobianColumnBlock(const Indexer& idxr, double alpha, double timeFactor)
 {
 	alpha *= timeFactor;
 
-	linalg::FactorizableBandMatrix::RowIterator jac = fbm.row(0);
-	for (unsigned int i = 0; i < _disc.nCol; ++i, ++jac)
+	linalg::FactorizableBandMatrix::RowIterator jac = _jacCdisc.row(0);
+	for (unsigned int i = 0; i < _disc.nCol * _disc.nComp; ++i, ++jac)
 	{
 		// Add time derivative to main diagonal
 		jac[0] += alpha;

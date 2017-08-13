@@ -20,7 +20,7 @@
 
 #ifdef CADET_PARALLELIZE
 	#define CADET_PARFOR_END )
-	#define CADET_PARNODE_END })
+	#define CADET_PARNODE_END )
 #else
 	#define CADET_PARFOR_END
 	#define CADET_PARNODE_END

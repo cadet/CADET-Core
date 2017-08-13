@@ -22,6 +22,7 @@
 #include "cadet/SolutionExporter.hpp"
 #include "AutoDiff.hpp"
 #include "linalg/SparseMatrix.hpp"
+#include "linalg/BandMatrix.hpp"
 #include "linalg/Gmres.hpp"
 #include "MemoryPool.hpp"
 #include "ParamIdUtil.hpp"
@@ -38,16 +39,6 @@
 
 namespace cadet
 {
-
-// Forward declarations
-namespace linalg
-{
-	template <typename T> class BandedRowIterator;
-	class BandMatrix;
-	class FactorizableBandMatrix;
-
-	typedef BandedRowIterator<FactorizableBandMatrix> FactorizableBandMatrixRowIterator;
-}
 
 namespace model
 {
@@ -238,15 +229,15 @@ protected:
 	void prepareBulkADvectors(active* const adRes, active* const adY, unsigned int adDirOffset) const;
 
 	int schurComplementMatrixVector(double const* x, double* z) const;
-	void assembleDiscretizedJacobianColumnBlock(unsigned int comp, double alpha, const Indexer& idxr, double timeFactor);
+	void assembleDiscretizedJacobianColumnBlock(double alpha, const Indexer& idxr, double timeFactor);
 	void assembleDiscretizedJacobianParticleBlock(unsigned int pblk, double alpha, const Indexer& idxr, double timeFactor);
 	
 	void setEquidistantRadialDisc();
 	void setEquivolumeRadialDisc();
 	void setUserdefinedRadialDisc(const std::vector<double>& cellInterfaces);
 
-	void addTimeDerivativeToJacobianColumnBlock(linalg::FactorizableBandMatrix& fbm, const Indexer& idxr, double alpha, double timeFactor);
-	void addMobilePhaseTimeDerivativeToJacobianParticleBlock(linalg::FactorizableBandMatrixRowIterator& jac, const Indexer& idxr, double alpha, double invBetaP, double timeFactor);
+	void addTimeDerivativeToJacobianColumnBlock(const Indexer& idxr, double alpha, double timeFactor);
+	void addMobilePhaseTimeDerivativeToJacobianParticleBlock(linalg::FactorizableBandMatrix::RowIterator& jac, const Indexer& idxr, double alpha, double invBetaP, double timeFactor);
 	void solveForFluxes(double* const vecState, const Indexer& idxr);
 
 #ifdef CADET_CHECK_ANALYTIC_JACOBIAN
@@ -268,7 +259,7 @@ protected:
 	IBindingModel* _binding; //!<  Binding model
 //	IExternalFunction* _extFun; //!< External function (owned by library user)
 
-	linalg::BandMatrix* _jacC; //!< Interstitial jacobian diagonal block
+	linalg::BandMatrix _jacC; //!< Interstitial jacobian diagonal block
 	linalg::BandMatrix* _jacP; //!< Particle jacobian diagonal blocks (all of them)
 
 	linalg::DoubleSparseMatrix _jacCF; //!< Jacobian block connecting interstitial states and fluxes (interstitial transport equation)
@@ -276,7 +267,7 @@ protected:
 	linalg::DoubleSparseMatrix* _jacPF; //!< Jacobian blocks connecting particle states and fluxes (particle transport boundary condition)
 	linalg::DoubleSparseMatrix* _jacFP; //!< Jacobian blocks connecting fluxes and particle states (flux equation)
 
-	linalg::FactorizableBandMatrix* _jacCdisc; //!< Interstitial jacobian diagonal block with time derivatives from BDF method
+	linalg::FactorizableBandMatrix _jacCdisc; //!< Interstitial jacobian diagonal block with time derivatives from BDF method
 	linalg::FactorizableBandMatrix* _jacPdisc; //!< Particle jacobian diagonal blocks (all of them) with time derivatives from BDF method
 
 	linalg::DoubleSparseMatrix _jacInlet; //!< Jacobian inlet DOF block matrix connects inlet DOFs to first bulk cells
@@ -342,8 +333,8 @@ protected:
 		Indexer(const Discretization& disc) : _disc(disc) { }
 
 		// Strides
-		inline const int strideColCell() const CADET_NOEXCEPT { return 1; }
-		inline const int strideColComp() const CADET_NOEXCEPT { return static_cast<int>(_disc.nCol); }
+		inline const int strideColCell() const CADET_NOEXCEPT { return static_cast<int>(_disc.nComp); }
+		inline const int strideColComp() const CADET_NOEXCEPT { return 1; }
 
 		inline const int strideParComp() const CADET_NOEXCEPT { return 1; }
 		inline const int strideParLiquid() const CADET_NOEXCEPT { return static_cast<int>(_disc.nComp); }
@@ -376,8 +367,8 @@ protected:
 		template <typename real_t> inline real_t const* jf(real_t const* const data) const { return data + offsetJf(); }
 
 		// Return specific variable in state vector
-		template <typename real_t> inline real_t& c(real_t* const data, unsigned int col, unsigned int comp) const { return data[offsetC() + comp * strideColComp() + col]; }
-		template <typename real_t> inline const real_t& c(real_t const* const data, unsigned int col, unsigned int comp) const { return data[offsetC() + comp * strideColComp() + col]; }
+		template <typename real_t> inline real_t& c(real_t* const data, unsigned int col, unsigned int comp) const { return data[offsetC() + comp + col * strideColCell()]; }
+		template <typename real_t> inline const real_t& c(real_t const* const data, unsigned int col, unsigned int comp) const { return data[offsetC() + comp + col * strideColCell()]; }
 
 		
 		template <typename real_t> inline real_t& cp(real_t* const data, unsigned int col, unsigned int par, unsigned int comp) const
@@ -520,7 +511,7 @@ protected:
 		const Indexer _idx;
 		double const* const _data;
 
-		const std::array<StateOrdering, 2> _concentrationOrdering = { { StateOrdering::Component, StateOrdering::AxialCell } };
+		const std::array<StateOrdering, 2> _concentrationOrdering = { { StateOrdering::AxialCell, StateOrdering::Component } };
 		const std::array<StateOrdering, 3> _particleOrdering = { { StateOrdering::AxialCell, StateOrdering::RadialCell, StateOrdering::Component } };
 		const std::array<StateOrdering, 4> _solidOrdering = { { StateOrdering::AxialCell, StateOrdering::RadialCell, StateOrdering::Component, StateOrdering::BoundState } };
 		const std::array<StateOrdering, 2> _fluxOrdering = { { StateOrdering::Component, StateOrdering::AxialCell } };

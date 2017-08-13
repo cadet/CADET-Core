@@ -281,36 +281,29 @@ void GeneralRateModel::consistentInitialTimeDerivative(double t, unsigned int se
 	for (unsigned int i = 0; i < numDofs(); ++i)
 		vecStateYdot[i] = -vecStateYdot[i];
 
-	// Threads that are done with the bulk column blocks can proceed to the particle blocks
-#ifdef CADET_PARALLELIZE
-	BENCH_START(_timerConsistentInitPar);
-	tbb::parallel_for(size_t(0), size_t(_disc.nComp), [&](size_t comp)
-#else
-	for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
-#endif
+	// Handle bulk column block
+
+	// Assemble
+	_jacCdisc.setAll(0.0);
+	addTimeDerivativeToJacobianColumnBlock(idxr, 1.0, timeFactor);
+
+	// Factorize
+	const bool result = _jacCdisc.factorize();
+	if (!result)
 	{
-		// Assemble
-		linalg::FactorizableBandMatrix& fbm = _jacCdisc[comp];
-		fbm.setAll(0.0);
-		addTimeDerivativeToJacobianColumnBlock(fbm, idxr, 1.0, timeFactor);
+		LOG(Error) << "Factorize() failed for bulk block";
+	}
 
-		// Factorize
-		const bool result = fbm.factorize();
-		if (!result)
-		{
-			LOG(Error) << "Factorize() failed for comp " << comp;
-		}
-
-		// Solve
-		const bool result2 = fbm.solve(vecStateYdot + comp * idxr.strideColComp() + idxr.offsetC());
-		if (!result2)
-		{
-			LOG(Error) << "Solve() failed for comp " << comp;
-		}
-	} CADET_PARFOR_END;
+	// Solve
+	const bool result2 = _jacCdisc.solve(vecStateYdot + idxr.offsetC());
+	if (!result2)
+	{
+		LOG(Error) << "Solve() failed for bulk block";
+	}
 
 	// Process the particle blocks
 #ifdef CADET_PARALLELIZE
+	BENCH_START(_timerConsistentInitPar);
 	tbb::parallel_for(size_t(0), size_t(_disc.nCol), [&](size_t pblk)
 #else
 	for (unsigned int pblk = 0; pblk < _disc.nCol; ++pblk)
@@ -522,45 +515,32 @@ void GeneralRateModel::leanConsistentInitialTimeDerivative(double t, double time
 
 	// Note that the residual is not negated as required at this point. We will fix that later.
 
-#ifdef CADET_PARALLELIZE
-	BENCH_START(_timerConsistentInitPar);
-	tbb::parallel_for(size_t(0), size_t(_disc.nComp), [&](size_t comp)
-#else
-	for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
-#endif
+	double* const resSlice = res + idxr.offsetC();
+
+	// Assemble
+	_jacCdisc.setAll(0.0);
+	addTimeDerivativeToJacobianColumnBlock(idxr, 1.0, timeFactor);
+
+	// Factorize
+	const bool result = _jacCdisc.factorize();
+	if (!result)
 	{
-		double* const resSlice = res + comp * idxr.strideColComp() + idxr.offsetC();
+		LOG(Error) << "Factorize() failed for bulk block";
+	}
 
-		// Assemble
-		linalg::FactorizableBandMatrix& fbm = _jacCdisc[comp];
-		fbm.setAll(0.0);
-		addTimeDerivativeToJacobianColumnBlock(fbm, idxr, 1.0, timeFactor);
+	// Solve
+	const bool result2 = _jacCdisc.solve(resSlice);
+	if (!result2)
+	{
+		LOG(Error) << "Solve() failed for bulk block";
+	}
 
-		// Factorize
-		const bool result = fbm.factorize();
-		if (!result)
-		{
-			LOG(Error) << "Factorize() failed for comp " << comp;
-		}
-
-		// Solve
-		const bool result2 = fbm.solve(resSlice);
-		if (!result2)
-		{
-			LOG(Error) << "Solve() failed for comp " << comp;
-		}
-
-		// Note that we have solved with the *positive* residual as right hand side
-		// instead of the *negative* one. Fortunately, we are dealing with linear systems,
-		// which means that we can just negate the solution.
-		double* const yDotSlice = vecStateYdot + comp * idxr.strideColComp() + idxr.offsetC();
-		for (unsigned int i = 0; i < idxr.strideColComp(); ++i)
-			yDotSlice[i] = -resSlice[i];
-	} CADET_PARFOR_END;
-
-#ifdef CADET_PARALLELIZE
-	BENCH_STOP(_timerConsistentInitPar);
-#endif
+	// Note that we have solved with the *positive* residual as right hand side
+	// instead of the *negative* one. Fortunately, we are dealing with linear systems,
+	// which means that we can just negate the solution.
+	double* const yDotSlice = vecStateYdot + idxr.offsetC();
+	for (unsigned int i = 0; i < _disc.nCol * _disc.nComp; ++i)
+		yDotSlice[i] = -resSlice[i];
 
 	// Step 2b: Solve for fluxes j_f by backward substitution
 
@@ -721,36 +701,30 @@ void GeneralRateModel::consistentInitialSensitivity(const active& t, unsigned in
 
 		// Note that we have correctly negated the right hand side
 
-		// Threads that are done with the bulk column blocks can proceed to the particle blocks
-#ifdef CADET_PARALLELIZE
-		BENCH_START(_timerConsistentInitPar);
-		tbb::parallel_for(size_t(0), size_t(_disc.nComp), [&](size_t comp)
-#else
-		for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
-#endif
+		// Handle bulk block
 		{
 			// Assemble
-			linalg::FactorizableBandMatrix& fbm = _jacCdisc[comp];
-			fbm.setAll(0.0);
-			addTimeDerivativeToJacobianColumnBlock(fbm, idxr, 1.0, static_cast<double>(timeFactor));
+			_jacCdisc.setAll(0.0);
+			addTimeDerivativeToJacobianColumnBlock(idxr, 1.0, static_cast<double>(timeFactor));
 
 			// Factorize
-			const bool result = fbm.factorize();
+			const bool result = _jacCdisc.factorize();
 			if (!result)
 			{
-				LOG(Error) << "Factorize() failed for comp " << comp;
+				LOG(Error) << "Factorize() failed for bulk block";
 			}
 
 			// Solve
-			const bool result2 = fbm.solve(sensYdot + comp * idxr.strideColComp() + idxr.offsetC());
+			const bool result2 = _jacCdisc.solve(sensYdot + idxr.offsetC());
 			if (!result2)
 			{
-				LOG(Error) << "Solve() failed for comp " << comp;
+				LOG(Error) << "Solve() failed for bulk block";
 			}
-		} CADET_PARFOR_END;
+		}
 
 		// Process the particle blocks
 #ifdef CADET_PARALLELIZE
+		BENCH_START(_timerConsistentInitPar);
 		tbb::parallel_for(size_t(0), size_t(_disc.nCol), [&](size_t pblk)
 #else
 		for (unsigned int pblk = 0; pblk < _disc.nCol; ++pblk)
@@ -910,38 +884,26 @@ void GeneralRateModel::leanConsistentInitialSensitivity(const active& t, unsigne
 		// Compute right hand side by adding -dF / dy * s = -J * s to -dF / dp which is already stored in sensYdot
 		multiplyWithJacobian(static_cast<double>(t), secIdx, static_cast<double>(timeFactor), vecStateY, vecStateYdot, sensY, -1.0, 1.0, sensYdot);
 
-		// Note that we have correctly negated the right hand side
-
-#ifdef CADET_PARALLELIZE
-		BENCH_START(_timerConsistentInitPar);
-		tbb::parallel_for(size_t(0), size_t(_disc.nComp), [&](size_t comp)
-#else
-		for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
-#endif
+		// Handle bulk block
 		{
 			// Assemble
-			linalg::FactorizableBandMatrix& fbm = _jacCdisc[comp];
-			fbm.setAll(0.0);
-			addTimeDerivativeToJacobianColumnBlock(fbm, idxr, 1.0, static_cast<double>(timeFactor));
+			_jacCdisc.setAll(0.0);
+			addTimeDerivativeToJacobianColumnBlock(idxr, 1.0, static_cast<double>(timeFactor));
 
 			// Factorize
-			const bool result = fbm.factorize();
+			const bool result = _jacCdisc.factorize();
 			if (!result)
 			{
-				LOG(Error) << "Factorize() failed for comp " << comp;
+				LOG(Error) << "Factorize() failed for bulk block";
 			}
 
 			// Solve
-			const bool result2 = fbm.solve(sensYdot + comp * idxr.strideColComp() + idxr.offsetC());
+			const bool result2 = _jacCdisc.solve(sensYdot + idxr.offsetC());
 			if (!result2)
 			{
-				LOG(Error) << "Solve() failed for comp " << comp;
+				LOG(Error) << "Solve() failed for bulk block";
 			}
-		} CADET_PARFOR_END;
-
-#ifdef CADET_PARALLELIZE
-		BENCH_STOP(_timerConsistentInitPar);
-#endif
+		}
 
 		// Step 2b: Solve for fluxes j_f by backward substitution
 		solveForFluxes(sensYdot, idxr);

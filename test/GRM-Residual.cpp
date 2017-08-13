@@ -67,12 +67,12 @@ inline void fillState(double* y, std::function<double(unsigned int)> f, unsigned
  */
 inline void fillStateBulkFwd(double* y, std::function<double(unsigned int, unsigned int, unsigned int)> f, unsigned int nComp, unsigned int nCol)
 {
-	for (unsigned int comp = 0; comp < nComp; ++comp)
+	for (unsigned int col = 0; col < nCol; ++col)
 	{
-		double* const r = y + nComp + nCol * comp;
-		for (unsigned int i = 0; i < nCol; ++i)
+		double* const r = y + nComp + nComp * col;
+		for (unsigned int comp = 0; comp < nComp; ++comp)
 		{
-			r[i] = f(comp, i, i + comp * nCol);
+			r[comp] = f(comp, col, col * nComp + comp);
 		}
 	}
 }
@@ -88,12 +88,12 @@ inline void fillStateBulkFwd(double* y, std::function<double(unsigned int, unsig
  */
 inline void fillStateBulkBwd(double* y, std::function<double(unsigned int, unsigned int, unsigned int)> f, unsigned int nComp, unsigned int nCol)
 {
-	for (unsigned int comp = 0; comp < nComp; ++comp)
+	for (unsigned int col = nCol-1; col < nCol; --col)
 	{
-		double* const r = y + nComp + nCol * comp;
-		for (unsigned int i = 0; i < nCol; ++i)
+		double* const r = y + nComp + nComp * col;
+		for (unsigned int comp = 0; comp < nComp; ++comp)
 		{
-			r[nCol - i - 1] = f(comp, i, i + comp * nCol);
+			r[comp] = f(comp, nCol - col - 1, (nCol - col - 1) * nComp + comp);
 		}
 	}
 }
@@ -107,13 +107,13 @@ inline void fillStateBulkBwd(double* y, std::function<double(unsigned int, unsig
  */
 inline void compareResidualBulkFwdBwd(double const* r1, double const* r2, unsigned int nComp, unsigned int nCol)
 {
-	for (unsigned int comp = 0; comp < nComp; ++comp)
+	for (unsigned int col = 0; col < nCol; ++col)
 	{
-		double const* const a = r1 + nComp + nCol * comp;
-		double const* const b = r2 + nComp + nCol * comp;
-		for (unsigned int i = 0; i < nCol; ++i)
+		double const* const a = r1 + nComp + nComp * col;
+		double const* const b = r2 + nComp + nComp * (nCol - col - 1);
+		for (unsigned int comp = 0; comp < nComp; ++comp)
 		{
-			CHECK(a[i] == Approx(b[nCol - i - 1]));
+			CHECK(a[comp] == Approx(b[comp]));
 		}
 	}	
 }
@@ -127,13 +127,13 @@ inline void compareResidualBulkFwdBwd(double const* r1, double const* r2, unsign
  */
 inline void compareResidualBulkFwdFwd(double const* r1, double const* r2, unsigned int nComp, unsigned int nCol)
 {
-	for (unsigned int comp = 0; comp < nComp; ++comp)
+	for (unsigned int col = 0; col < nCol; ++col)
 	{
-		double const* const a = r1 + nComp + nCol * comp;
-		double const* const b = r2 + nComp + nCol * comp;
-		for (unsigned int i = 0; i < nCol; ++i)
+		double const* const a = r1 + nComp + nComp * col;
+		double const* const b = r2 + nComp + nComp * col;
+		for (unsigned int comp = 0; comp < nComp; ++comp)
 		{
-			CHECK(a[i] == Approx(b[i]));
+			CHECK(a[comp] == Approx(b[comp]));
 		}
 	}	
 }
@@ -370,13 +370,13 @@ void testResidualBulkWenoForwardBackward(int wenoOrder)
 TEST_CASE("GeneralRateModel bulk residual forward vs backward flow", "[GRM],[UnitOp],[Residual]")
 {
 	// Test all WENO orders
-	for (unsigned int i = 1; i < cadet::Weno::maxOrder(); ++i)
+	for (unsigned int i = 1; i <= cadet::Weno::maxOrder(); ++i)
 		testResidualBulkWenoForwardBackward(i);
 }
 
 TEST_CASE("GeneralRateModel Jacobian forward vs backward flow", "[GRM],[UnitOp],[Residual],[Jacobian],[AD]")
 {
 	// Test all WENO orders
-	for (unsigned int i = 1; i < cadet::Weno::maxOrder(); ++i)
+	for (unsigned int i = 1; i <= cadet::Weno::maxOrder(); ++i)
 		testJacobianWenoForwardBackward(i);
 }
