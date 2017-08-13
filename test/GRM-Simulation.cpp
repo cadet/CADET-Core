@@ -202,7 +202,7 @@ void testAnalyticBenchmark(bool forwardFlow, bool dynamicBinding)
 TEST_CASE("LWE forward vs backward flow", "[GRM],[Simulation]")
 {
 	// Test all WENO orders
-	for (unsigned int i = 1; i < cadet::Weno::maxOrder(); ++i)
+	for (unsigned int i = 1; i <= cadet::Weno::maxOrder(); ++i)
 		testWenoForwardBackward(i);
 }
 
