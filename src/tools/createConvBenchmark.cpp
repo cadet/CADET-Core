@@ -24,6 +24,7 @@ struct ProgramOptions
 {
 	std::string fileName;
 	bool isKinetic;
+	bool nonBinding;
 	std::vector<std::string> sensitivities;
 	std::string outSol;
 	std::string outSens;
@@ -41,6 +42,7 @@ int main(int argc, char** argv)
 
 		cmd >> (new TCLAP::ValueArg<std::string>("o", "out", "Write output to file (default: SCLinPulse.h5)", false, "SCLinPulse.h5", "File"))->storeIn(&opts.fileName);
 		cmd >> (new TCLAP::SwitchArg("k", "kinetic", "Kinetic adsorption model used (default: quasi-stationary)"))->storeIn(&opts.isKinetic);
+		cmd >> (new TCLAP::SwitchArg("n", "nonbinding", "Create nonbinding model (default: binding)"))->storeIn(&opts.nonBinding);
 		addSensitivitiyParserToCmdLine(cmd, opts.sensitivities);
 		addOutputParserToCmdLine(cmd, opts.outSol, opts.outSens);
 
@@ -96,7 +98,10 @@ int main(int argc, char** argv)
 			writer.vector<double>("INIT_Q", 1, initQ);
 
 			// Adsorption
-			writer.scalar("ADSORPTION_MODEL", std::string("LINEAR"));
+			if (opts.nonBinding)
+				writer.scalar("ADSORPTION_MODEL", std::string("NONE"));
+			else
+				writer.scalar("ADSORPTION_MODEL", std::string("LINEAR"));
 			{
 				Scope<cadet::io::HDF5Writer> s2(writer, "adsorption");
 				
@@ -105,10 +110,20 @@ int main(int argc, char** argv)
 				else
 					writer.scalar<int>("IS_KINETIC", 0);
 
-				const double kA[] = {2.5};
-				const double kD[] = {1.0};
-				writer.vector<double>("LIN_KA", 1, kA);
-				writer.vector<double>("LIN_KD", 1, kD);
+				if (opts.nonBinding)
+				{
+					const double kA[] = {0.0};
+					const double kD[] = {1.0};
+					writer.vector<double>("LIN_KA", 1, kA);
+					writer.vector<double>("LIN_KD", 1, kD);
+				}
+				else
+				{
+					const double kA[] = {2.5};
+					const double kD[] = {1.0};
+					writer.vector<double>("LIN_KA", 1, kA);
+					writer.vector<double>("LIN_KD", 1, kD);
+				}
 			}
 
 			// Discretization
@@ -117,8 +132,16 @@ int main(int argc, char** argv)
 
 				writer.scalar<int>("NCOL", 16);
 				writer.scalar<int>("NPAR", 4);
-				const int nBound[] = {1};
-				writer.vector<int>("NBOUND", 1, nBound);
+				if (opts.nonBinding)
+				{
+					const int nBound[] = {0};
+					writer.vector<int>("NBOUND", 1, nBound);
+				}
+				else
+				{
+					const int nBound[] = {1};
+					writer.vector<int>("NBOUND", 1, nBound);
+				}
 
 				writer.scalar("PAR_DISC_TYPE", std::string("EQUIDISTANT_PAR"));
 
