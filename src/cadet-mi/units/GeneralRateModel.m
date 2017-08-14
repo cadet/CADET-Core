@@ -194,11 +194,17 @@ classdef GeneralRateModel < Model
 		end
 
 		function val = get.initialSolid(obj)
-			val = obj.data.INIT_Q;
+			if ~isfield(obj.data, 'INIT_Q')
+				val = [];
+			else
+				val = obj.data.INIT_Q;
+			end
 		end
 
 		function set.initialSolid(obj, val)
-			validateattributes(val, {'double'}, {'nonnegative', 'vector', 'empty', 'finite', 'real'}, '', 'initialSolid');
+			if ~isempty(val)
+				validateattributes(val, {'double'}, {'nonnegative', 'vector', 'finite', 'real'}, '', 'initialSolid');
+			end
 			obj.data.INIT_Q = val;
 			obj.hasChanged = true;
 		end
@@ -272,16 +278,20 @@ classdef GeneralRateModel < Model
 		end
 
 		function val = get.diffusionParticleSurface(obj)
+			if ~isfield(obj.data, 'PAR_SURFDIFFUSION')
+				val = [];
+				return;
+			end
+			
 			val = obj.data.PAR_SURFDIFFUSION;
 			nTotalBnd = sum(obj.nBoundStates);
-			if (numel(val) >= nTotalBnd) && (numel(val) / nTotalBnd == floor(numel(val) / nTotalBnd))
+			if (nTotalBnd ~= 0) && (numel(val) >= nTotalBnd) && (numel(val) / nTotalBnd == floor(numel(val) / nTotalBnd))
 				val = reshape(val, nTotalBnd, numel(val) / nTotalBnd).';
 			end
 		end
 
 		function set.diffusionParticleSurface(obj, val)
 			validateattributes(val, {'double'}, {'nonnegative', '2d', 'finite', 'real'}, '', 'diffusionParticleSurface');
-			val = val.';
 			obj.data.PAR_SURFDIFFUSION = val(:);
 			obj.hasChanged = true;
 		end
@@ -498,7 +508,9 @@ classdef GeneralRateModel < Model
 			if ~isempty(obj.initialParticle)
 				validateattributes(obj.initialParticle, {'double'}, {'nonnegative', 'vector', 'numel', obj.nComponents, 'finite', 'real'}, '', 'initialParticle');
 			end
-			validateattributes(obj.initialSolid, {'double'}, {'nonnegative', 'vector', 'numel', sum(obj.nBoundStates), 'finite', 'real'}, '', 'initialSolid');
+			if ~isempty(obj.initialSolid)
+				validateattributes(obj.initialSolid, {'double'}, {'nonnegative', 'vector', 'numel', sum(obj.nBoundStates), 'finite', 'real'}, '', 'initialSolid');
+			end
 			if ~isempty(obj.initialState)
 				nDof = obj.nCellsColumn * (2 * obj.nComponents + obj.nCellsParticle * (obj.nComponents + sum(obj.nBoundStates)));
 				if (numel(obj.initialState) ~= nDof) && (numel(obj.initialState) ~= 2 * nDof)
@@ -528,11 +540,16 @@ classdef GeneralRateModel < Model
 			validateattributes(obj.columnLength, {'double'}, {'positive', 'scalar', 'nonempty', 'finite', 'real'}, '', 'columnLength');
 			validateattributes(obj.particleRadius, {'double'}, {'positive', 'scalar', 'nonempty', 'finite', 'real'}, '', 'particleRadius');
 
-			if isempty(obj.bindingModel) || ~isa(obj.bindingModel, 'BindingModel')
+			if ~isempty(obj.bindingModel) && ~isa(obj.bindingModel, 'BindingModel')
 				error('CADET:invalidConfig', 'Expected a valid binding model.');
 			end
+			if isempty(obj.bindingModel) && (sum(obj.nBoundStates) ~= 0)
+				error('CADET:invalidConfig', 'Expected no bound states when using no binding model.');
+			end
 
-			res = obj.bindingModel.validate(obj.nComponents, obj.nBoundStates) && res;
+			if ~isempty(obj.bindingModel)
+				res = obj.bindingModel.validate(obj.nComponents, obj.nBoundStates) && res;
+			end
 		end
 
 		function res = assembleConfig(obj)
@@ -544,12 +561,16 @@ classdef GeneralRateModel < Model
 
 			res = obj.assembleConfig@Model();
 
-			if isempty(obj.bindingModel) || ~isa(obj.bindingModel, 'BindingModel')
+			if ~isempty(obj.bindingModel) && ~isa(obj.bindingModel, 'BindingModel')
 				error('CADET:invalidConfig', 'Expected a valid binding model.');
 			end
 
-			res.ADSORPTION_MODEL = obj.bindingModel.name;
-			res.adsorption = obj.bindingModel.assembleConfig();
+			if isempty(obj.bindingModel)
+				res.ADSORPTION_MODEL = 'NONE';
+			else
+				res.ADSORPTION_MODEL = obj.bindingModel.name;
+				res.adsorption = obj.bindingModel.assembleConfig();
+			end
 		end
 
 		function res = assembleInitialConditions(obj)
@@ -563,7 +584,11 @@ classdef GeneralRateModel < Model
 			res = obj.assembleInitialConditions@Model();
 
 			res.INIT_C = obj.data.INIT_C;
-			res.INIT_Q = obj.data.INIT_Q;
+			if isfield(obj.data, 'INIT_Q')
+				res.INIT_Q = obj.data.INIT_Q;
+			else
+				res.INIT_Q = [];
+			end
 
 			if isfield(obj.data, 'INIT_CP')
 				res.INIT_CP = obj.data.INIT_CP;
