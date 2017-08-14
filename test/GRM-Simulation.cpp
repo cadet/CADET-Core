@@ -53,7 +53,7 @@ namespace
 	 * @details The file format is as follows:
 	 *          Number of data points (uint32)
 	 *          Time points (array of doubles)
-	 *          Chromatogram for analytic binding (array of doubles)
+	 *          Chromatogram for dynamic binding (array of doubles)
 	 *          Chromatogram for quasi-stationary binding (array of doubles)
 	 */
 	class ReferenceDataReader
@@ -168,7 +168,7 @@ void testAnalyticBenchmark(bool forwardFlow, bool dynamicBinding)
 	SECTION("Analytic" + fwdStr + " flow with " + (dynamicBinding ? "dynamic" : "quasi-stationary") + " binding")
 	{
 		// Setup simulation
-		cadet::JsonParameterProvider jpp = createLinearBenchmark(dynamicBinding);
+		cadet::JsonParameterProvider jpp = createLinearBenchmark(dynamicBinding, false);
 		if (!forwardFlow)
 			reverseFlow(jpp);
 
@@ -178,8 +178,9 @@ void testAnalyticBenchmark(bool forwardFlow, bool dynamicBinding)
 		drv.run();
 
 		// Read reference data from test file
-		const std::string refFile = std::string(getTestDirectory()) + "/data/pulseBenchmark.data";
+		const std::string refFile = std::string(getTestDirectory()) + "/data/grm-pulseBenchmark.data";
 		ReferenceDataReader rd(refFile.c_str());
+		const std::vector<double> time = rd.time();
 		const std::vector<double> ref = (dynamicBinding ? rd.analyticDynamic() : rd.analyticQuasiStationary());
 
 		// Get data from simulation
@@ -194,7 +195,43 @@ void testAnalyticBenchmark(bool forwardFlow, bool dynamicBinding)
 			// Note that the simulation only saves the chromatogram at multiples of 2 (i.e., 0s, 2s, 4s, ...)
 			// whereas the reference solution is given at every second (0s, 1s, 2s, 3s, ...)
 			// Thus, we only take the even indices of the reference array
+			CAPTURE(time[2 * i]);
 			CHECK((*outlet) == makeApprox(ref[2 * i], 1e-6, 4e-5));
+		}
+	}
+}
+
+inline void testAnalyticNonBindingBenchmark(bool forwardFlow)
+{
+	const std::string fwdStr = (forwardFlow ? "forward" : "backward");
+	SECTION("Analytic" + fwdStr + " flow")
+	{
+		// Setup simulation
+		cadet::JsonParameterProvider jpp = createLinearBenchmark(true, true);
+		if (!forwardFlow)
+			reverseFlow(jpp);
+
+		// Run simulation
+		cadet::Driver drv;
+		drv.configure(jpp);
+		drv.run();
+
+		// Read reference data from test file
+		const std::string refFile = std::string(getTestDirectory()) + "/data/grm-nonBinding.data";
+		ReferenceDataReader rd(refFile.c_str());
+		const std::vector<double> time = rd.time();
+		const std::vector<double> ref = rd.analyticDynamic();
+
+		// Get data from simulation
+		cadet::InternalStorageUnitOpRecorder const* const simData = drv.solution()->unitOperation(0);
+		double const* outlet = (forwardFlow ? simData->outlet() : simData->inlet());
+
+		// Compare
+		for (unsigned int i = 0; i < simData->numDataPoints(); ++i, ++outlet)
+		{
+			// Compare with relative error 1e-6 and absolute error 6e-5
+			CAPTURE(time[i]);
+			CHECK((*outlet) == makeApprox(ref[i], 1e-6, 6e-5));
 		}
 	}
 }
@@ -212,4 +249,10 @@ TEST_CASE("GRM linear pulse vs analytic solution", "[GRM],[Simulation],[Analytic
 	testAnalyticBenchmark(true, false);
 	testAnalyticBenchmark(false, true);
 	testAnalyticBenchmark(false, false);
+}
+
+TEST_CASE("GRM non-binding linear pulse vs analytic solution", "[GRM],[Simulation],[Analytic],[NonBinding]")
+{
+	testAnalyticNonBindingBenchmark(true);
+	testAnalyticNonBindingBenchmark(false);
 }

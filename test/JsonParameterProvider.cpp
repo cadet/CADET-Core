@@ -562,7 +562,7 @@ cadet::JsonParameterProvider createLWE()
 	return cadet::JsonParameterProvider(createLWEJson());
 }
 
-cadet::JsonParameterProvider createLinearBenchmark(bool dynamicBinding)
+cadet::JsonParameterProvider createLinearBenchmark(bool dynamicBinding, bool nonBinding)
 {
 	json config;
 	// Model
@@ -592,8 +592,14 @@ cadet::JsonParameterProvider createLinearBenchmark(bool dynamicBinding)
 			grm["INIT_Q"] = {0.0};
 
 			// Adsorption
-			grm["ADSORPTION_MODEL"] = std::string("LINEAR");
+			if (nonBinding)
 			{
+				grm["ADSORPTION_MODEL"] = std::string("NONE");
+			}
+			else
+			{
+				grm["ADSORPTION_MODEL"] = std::string("LINEAR");
+
 				json ads;
 				ads["IS_KINETIC"] = (dynamicBinding ? 1 : 0);
 				ads["LIN_KA"] = {2.5};
@@ -607,7 +613,10 @@ cadet::JsonParameterProvider createLinearBenchmark(bool dynamicBinding)
 
 				disc["NCOL"] = 512;
 				disc["NPAR"] = 4;
-				disc["NBOUND"] = {1};
+				if (nonBinding)
+					disc["NBOUND"] = {0};
+				else
+					disc["NBOUND"] = {1};
 
 				disc["PAR_DISC_TYPE"] = std::string("EQUIDISTANT_PAR");
 
@@ -725,9 +734,18 @@ cadet::JsonParameterProvider createLinearBenchmark(bool dynamicBinding)
 
 		{
 			std::vector<double> solTimes;
-			solTimes.reserve(3001);
-			for (double t = 0.0; t <= 100.0 * 60.0; t += 2.0)
-				solTimes.push_back(t);
+			if (nonBinding)
+			{
+				solTimes.reserve(2501);
+				for (double t = 0.0; t <= 2500.0; t += 1.0)
+					solTimes.push_back(t);
+			}
+			else
+			{
+				solTimes.reserve(3001);
+				for (double t = 0.0; t <= 100.0 * 60.0; t += 2.0)
+					solTimes.push_back(t);
+			}
 
 			solver["USER_SOLUTION_TIMES"] = solTimes;
 		}
@@ -739,7 +757,10 @@ cadet::JsonParameterProvider createLinearBenchmark(bool dynamicBinding)
 			json sec;
 
 			sec["NSEC"] = 2;
-			sec["SECTION_TIMES"] = {0.0, 20.0 * 60.0, 100.0 * 60.0};
+			if (nonBinding)
+				sec["SECTION_TIMES"] = {0.0, 20.0 * 60.0, 2500.0};
+			else
+				sec["SECTION_TIMES"] = {0.0, 20.0 * 60.0, 100.0 * 60.0};
 			sec["SECTION_CONTINUITY"] = {false, false};
 
 			solver["sections"] = sec;
