@@ -12,11 +12,19 @@
 % =============================================================================
 
 \chapter{CADET File Format Specifications}
+
 The CADET framework is designed to work on a file format structured into groups and datasets. This
 concept may be implemented by different file formats.
 At the moment, CADET natively supports HDF5 and XML as file formats.
 The choice is not limited to those two formats but can be extended as needed.
 In this section the general layout and structure of the file format is described.
+
+\paragraph{File format versions}
+\phantomsection\label{par:FFVersions}
+
+The file format may change and evolve over time as new features are added to the simulator.
+This manual describes the most recent file format version that is also set as default value in \texttt{/meta/FILE\_FORMAT} (see Tab.~\ref{tab:FFMeta}).
+The simulator assumes that the input file uses the most recent format version and does not update old files to the current standard.
 
 \section{Global structure}
 
@@ -946,7 +954,7 @@ However, if only one index is passed in \texttt{EXTFUN}, this external source is
 \begin{tabu}to \linewidth[m]{lX[m]cc} \toprule
 \multicolumn{4}{c}{\GroupHeadline{/meta}} \\
 \rowfont[c]\normalfont Dataset & Description & In / out & Type \everyrow{\midrule}\\      
-\texttt{FILE\_FORMAT} & Version of the file format (defaults to 3.0 if omitted) & In & string \\
+\texttt{FILE\_FORMAT} & Version of the file format (defaults to $030100 = 3.1.0$ if omitted) with two digits per part (Major.Minor.Patch) & In & int \\
 \texttt{CADET\_VERSION} & Version of the executed CADET simulator & Out & string \\
 \texttt{CADET\_COMMIT} & Git commit SHA1 from which the CADET simulator was built & Out & string \\
 \texttt{CADET\_BRANCH} & Git branch from which the CADET simulator was built & Out & string \\
