@@ -81,6 +81,17 @@ public:
 	virtual const char* name() const CADET_NOEXCEPT = 0;
 
 	/**
+	 * @brief Returns whether the binding model requires additional parameters supplied by configure()
+	 * @details After construction of an IBindingModel object, configureModelDiscretization() is called.
+	 *          The binding model may require to read additional parameters from the adsorption group
+	 *          of the parameter provider. This opportunity is given by a call to configure().
+	 *          However, a binding model may not require this. This function communicates to the outside
+	 *          whether a call to configure() is necessary.
+	 * @return @c true if configure() has to be called, otherwise @c false
+	 */
+	virtual bool requiresConfiguration() const CADET_NOEXCEPT = 0;
+
+	/**
 	 * @brief Sets the number of components and bound states in the model
 	 * @details This function is called prior to configure() by the underlying model.
 	 * 

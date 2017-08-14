@@ -59,6 +59,7 @@ public:
 
 	virtual ~BindingModelBase() CADET_NOEXCEPT;
 
+	virtual bool requiresConfiguration() const CADET_NOEXCEPT { return true; }
 	virtual bool configure(IParameterProvider& paramProvider, unsigned int unitOpIdx);
 	virtual bool reconfigure(IParameterProvider& paramProvider, unsigned int unitOpIdx);
 	virtual void configureModelDiscretization(unsigned int nComp, unsigned int const* nBound, unsigned int const* boundOffset);

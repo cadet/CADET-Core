@@ -214,6 +214,7 @@ public:
 
 	static const char* identifier() { return ParamHandler_t::identifier(); }
 	virtual const char* name() const CADET_NOEXCEPT { return ParamHandler_t::identifier(); }
+	virtual bool requiresConfiguration() const CADET_NOEXCEPT { return true; }
 
 	virtual void configureModelDiscretization(unsigned int nComp, unsigned int const* nBound, unsigned int const* boundOffset)
 	{

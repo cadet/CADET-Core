@@ -224,9 +224,13 @@ bool GeneralRateModel::configure(IParameterProvider& paramProvider, IConfigHelpe
 
 	_binding->configureModelDiscretization(_disc.nComp, _disc.nBound, _disc.boundOffset);
 
-	paramProvider.pushScope("adsorption");
-	const bool bindingConfSuccess = _binding->configure(paramProvider, _unitOpIdx);
-	paramProvider.popScope();
+	bool bindingConfSuccess = true;
+	if (_binding->requiresConfiguration())
+	{
+		paramProvider.pushScope("adsorption");
+		bindingConfSuccess = _binding->configure(paramProvider, _unitOpIdx);
+		paramProvider.popScope();
+	}
 
 	// setup the memory for tempState based on state vector or memory needed for consistent initialization of isotherms, whichever is larger
 	unsigned int size = numDofs();
@@ -296,26 +300,29 @@ bool GeneralRateModel::reconfigure(IParameterProvider& paramProvider)
 	// Register particle surface diffusion in this ordering:
 	// sec0bnd0comp0, sec0bnd1comp0, sec0bnd2comp0, sec0bnd0comp1, sec0bnd1comp1
 	// sec1bnd0comp0, sec1bnd1comp0, sec1bnd2comp0, sec1bnd0comp1, sec1bnd1comp1, ...
-	if (_parSurfDiffusion.size() > _disc.strideBound)
+	if (_disc.strideBound > 0)
 	{
-		const unsigned int numSec = _parSurfDiffusion.size() / _disc.strideBound;
-		unsigned int idx = 0;
-		for (unsigned int sec = 0; sec < numSec; ++sec)
+		if (_parSurfDiffusion.size() > _disc.strideBound)
 		{
+			const unsigned int numSec = _parSurfDiffusion.size() / _disc.strideBound;
+			unsigned int idx = 0;
+			for (unsigned int sec = 0; sec < numSec; ++sec)
+			{
+				for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
+				{
+					for (unsigned int bnd = 0; bnd < _disc.nBound[comp]; ++bnd, ++idx)
+						_parameters[makeParamId(hashString("PAR_SURFDIFFUSION"), _unitOpIdx, comp, bnd, ReactionIndep, sec)] = &_parSurfDiffusion[idx];
+				}
+			}
+		}
+		else
+		{
+			unsigned int idx = 0;
 			for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
 			{
 				for (unsigned int bnd = 0; bnd < _disc.nBound[comp]; ++bnd, ++idx)
-					_parameters[makeParamId(hashString("PAR_SURFDIFFUSION"), _unitOpIdx, comp, bnd, ReactionIndep, sec)] = &_parSurfDiffusion[idx];
+					_parameters[makeParamId(hashString("PAR_SURFDIFFUSION"), _unitOpIdx, comp, bnd, ReactionIndep, SectionIndep)] = &_parSurfDiffusion[idx];
 			}
-		}
-	}
-	else
-	{
-		unsigned int idx = 0;
-		for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
-		{
-			for (unsigned int bnd = 0; bnd < _disc.nBound[comp]; ++bnd, ++idx)
-				_parameters[makeParamId(hashString("PAR_SURFDIFFUSION"), _unitOpIdx, comp, bnd, ReactionIndep, SectionIndep)] = &_parSurfDiffusion[idx];
 		}
 	}
 

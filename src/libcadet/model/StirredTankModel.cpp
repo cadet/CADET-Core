@@ -124,9 +124,13 @@ bool CSTRModel::configure(IParameterProvider& paramProvider, IConfigHelper& help
 
 		_binding->configureModelDiscretization(_nComp, _nBound, _boundOffset);
 
-		paramProvider.pushScope("adsorption");
-		const bool bindingConfSuccess = _binding->configure(paramProvider, _unitOpIdx);
-		paramProvider.popScope();
+		bool bindingConfSuccess = true;
+		if (_binding->requiresConfiguration())
+		{
+			paramProvider.pushScope("adsorption");
+			bindingConfSuccess = _binding->configure(paramProvider, _unitOpIdx);
+			paramProvider.popScope();
+		}
 
 		// Allocate memory for nonlinear equation solving
 		unsigned int size = 0;
