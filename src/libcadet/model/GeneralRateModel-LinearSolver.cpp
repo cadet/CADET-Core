@@ -105,9 +105,9 @@ namespace model
  * @param [in] outerTol Error tolerance for the solution of the linear system from outer Newton iteration
  * @param [in,out] rhs On entry the right hand side of the linear equation system, on exit the solution
  * @param [in] weight Vector with error weights
- * @param [in] y Pointer to global state vector at which the Jacobian is evaluated
- * @param [in] yDot Pointer to global time derivative state vector at which the Jacobian is evaluated
- * @param [in] res Pointer to global residual vector at the point @p y, @p yDot
+ * @param [in] y Pointer to state vector at which the Jacobian is evaluated
+ * @param [in] yDot Pointer to time derivative state vector at which the Jacobian is evaluated
+ * @param [in] res Pointer to residual vector at the point @p y, @p yDot
  * @return @c 0 on success, @c -1 on non-recoverable error, and @c +1 on recoverable error
  */
 int GeneralRateModel::linearSolve(double t, double timeFactor, double alpha, double outerTol, double* const rhs, double const* const weight,

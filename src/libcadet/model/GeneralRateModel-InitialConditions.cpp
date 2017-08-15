@@ -151,8 +151,8 @@ void GeneralRateModel::applyInitialCondition(IParameterProvider& paramProvider, 
  * @param [in] secIdx Index of the current section
  * @param [in] timeFactor Used for time transformation (pre factor of time derivatives) and to compute parameter derivatives with respect to section length
  * @param [in,out] vecStateY State vector with initial values that are to be updated for consistency
- * @param [in,out] adRes Pointer to global residual vector of AD datatypes that can be used for computing the Jacobian (or @c nullptr if AD is disabled)
- * @param [in,out] adY Pointer to global state vector of AD datatypes that can be used for computing the Jacobian (or @c nullptr if AD is disabled)
+ * @param [in,out] adRes Pointer to residual vector of AD datatypes that can be used for computing the Jacobian (or @c nullptr if AD is disabled)
+ * @param [in,out] adY Pointer to state vector of AD datatypes that can be used for computing the Jacobian (or @c nullptr if AD is disabled)
  * @param [in] adDirOffset Number of AD directions used for non-Jacobian purposes (e.g., parameter sensitivities)
  * @param [in] errorTol Error tolerance for algebraic equations
  * @todo Decrease amount of allocated memory by partially using temporary vectors (state and Schur complement)
@@ -416,8 +416,8 @@ void GeneralRateModel::consistentInitialTimeDerivative(double t, unsigned int se
  * @param [in] secIdx Index of the current section
  * @param [in] timeFactor Used for time transformation (pre factor of time derivatives) and to compute parameter derivatives with respect to section length
  * @param [in,out] vecStateY State vector with initial values that are to be updated for consistency
- * @param [in,out] adRes Pointer to global residual vector of AD datatypes that can be used for computing the Jacobian (or @c nullptr if AD is disabled)
- * @param [in,out] adY Pointer to global state vector of AD datatypes that can be used for computing the Jacobian (or @c nullptr if AD is disabled)
+ * @param [in,out] adRes Pointer to residual vector of AD datatypes that can be used for computing the Jacobian (or @c nullptr if AD is disabled)
+ * @param [in,out] adY Pointer to state vector of AD datatypes that can be used for computing the Jacobian (or @c nullptr if AD is disabled)
  * @param [in] adDirOffset Number of AD directions used for non-Jacobian purposes (e.g., parameter sensitivities)
  * @param [in] errorTol Error tolerance for algebraic equations
  */
@@ -572,7 +572,7 @@ void GeneralRateModel::leanConsistentInitialTimeDerivative(double t, double time
  * @param [in] vecStateYdot Time derivative state vector with consistent initial values of the original system
  * @param [in,out] vecSensY Sensitivity subsystem state vectors
  * @param [in,out] vecSensYdot Time derivative state vectors of the sensitivity subsystems to be initialized
- * @param [in] adRes Pointer to global residual vector of AD datatypes with parameter sensitivities
+ * @param [in] adRes Pointer to residual vector of AD datatypes with parameter sensitivities
  * @todo Decrease amount of allocated memory by partially using temporary vectors (state and Schur complement)
  */
 void GeneralRateModel::consistentInitialSensitivity(const active& t, unsigned int secIdx, const active& timeFactor, double const* vecStateY, double const* vecStateYdot,
@@ -797,7 +797,7 @@ void GeneralRateModel::consistentInitialSensitivity(const active& t, unsigned in
  * @param [in] vecStateYdot Time derivative state vector with consistent initial values of the original system
  * @param [in,out] vecSensY Sensitivity subsystem state vectors
  * @param [in,out] vecSensYdot Time derivative state vectors of the sensitivity subsystems to be initialized
- * @param [in] adRes Pointer to global residual vector of AD datatypes with parameter sensitivities
+ * @param [in] adRes Pointer to residual vector of AD datatypes with parameter sensitivities
  * @todo Decrease amount of allocated memory by partially using temporary vectors (state and Schur complement)
  */
 void GeneralRateModel::leanConsistentInitialSensitivity(const active& t, unsigned int secIdx, const active& timeFactor, double const* vecStateY, double const* vecStateYdot,
