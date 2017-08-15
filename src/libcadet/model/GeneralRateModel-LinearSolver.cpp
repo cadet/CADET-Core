@@ -132,13 +132,8 @@ int GeneralRateModel::linearSolve(double t, double timeFactor, double alpha, dou
 		node_t A(g, [&](msg_t)
 #endif
 		{
-			// Assemble and factorize discretized system Jacobians
-
-			// Assemble
-			assembleDiscretizedJacobianColumnBlock(alpha, idxr, timeFactor);
-
-			// Factorize
-			const bool result = _jacCdisc.factorize();
+			// Assemble and factorize discretized bulk Jacobian
+			const bool result = _convDispOp.assembleAndFactorizeDiscretizedJacobian(alpha, timeFactor);
 			if (cadet_unlikely(!result))
 			{
 				LOG(Error) << "Factorize() failed for bulk block";
@@ -196,7 +191,7 @@ int GeneralRateModel::linearSolve(double t, double timeFactor, double alpha, dou
 	node_t D(g, [&](msg_t)
 #endif
 	{
-		const bool result = _jacCdisc.solve(rhs + idxr.offsetC());
+		const bool result = _convDispOp.solveDiscretizedJacobian(rhs + idxr.offsetC());
 		if (cadet_unlikely(!result))
 		{
 			LOG(Error) << "Solve() failed for bulk block";
@@ -278,7 +273,7 @@ int GeneralRateModel::linearSolve(double t, double timeFactor, double alpha, dou
 		double* const rhsCol = rhs + idxr.offsetC();
 
 		// Apply J_0^{-1} to tempState_0
-		const bool result = _jacCdisc.solve(localCol);
+		const bool result = _convDispOp.solveDiscretizedJacobian(localCol);
 		if (cadet_unlikely(!result))
 		{
 			LOG(Error) << "Solve() failed for bulk block";
@@ -394,7 +389,7 @@ int GeneralRateModel::schurComplementMatrixVector(double const* x, double* z) co
 #endif
 	{
 		// Apply J_0^{-1}
-		const bool result = _jacCdisc.solve(_tempState + idxr.offsetC());
+		const bool result = _convDispOp.solveDiscretizedJacobian(_tempState + idxr.offsetC());
 		if (cadet_unlikely(!result))
 		{
 			LOG(Error) << "Solve() failed for bulk block";
@@ -453,54 +448,6 @@ int GeneralRateModel::schurComplementMatrixVector(double const* x, double* z) co
 #endif
 
 	return 0;
-}
-
-/**
- * @brief Assembles the column void Jacobian block @f$ J_0 @f$ of the time-discretized equations
- * @details The system \f[ \left( \frac{\partial F}{\partial y} + \alpha \frac{\partial F}{\partial \dot{y}} \right) x = b \f]
- *          has to be solved. The system Jacobian of the original equations,
- *          \f[ \frac{\partial F}{\partial y}, \f]
- *          is already computed (by AD or manually in residualImpl() with @c wantJac = true). This function is responsible
- *          for adding
- *          \f[ \alpha \frac{\partial F}{\partial \dot{y}} \f]
- *          to the system Jacobian, which yields the Jacobian of the time-discretized equations
- *          \f[ F\left(t, y_0, \sum_{k=0}^N \alpha_k y_k \right) = 0 \f]
- *          when a BDF method is used. The time integrator needs to solve this equation for @f$ y_0 @f$, which requires
- *          the solution of the linear system mentioned above (@f$ \alpha_0 = \alpha @f$ given in @p alpha).
- *
- * @param [in] comp Index of the current component
- * @param [in] alpha Value of \f$ \alpha \f$ (arises from BDF time discretization)
- * @param [in] idxr Indexer
- * @param [in] timeFactor Factor which is premultiplied to the time derivatives originating from time transformation
- */
-void GeneralRateModel::assembleDiscretizedJacobianColumnBlock(double alpha, const Indexer& idxr, double timeFactor)
-{
-	// Copy normal matrix over to factorizable matrix
-	_jacCdisc.copyOver(_jacC);
-
-	// Add time derivatives
-	addTimeDerivativeToJacobianColumnBlock(idxr, alpha, timeFactor);
-}
-
-/**
- * @brief Adds the derivatives with respect to @f$ \dot{y} @f$ of @f$ F(t, y, \dot{y}) @f$ to the Jacobian blocks
- * @details This functions computes 
- *          @f[ \begin{align*} \text{_jacCdisc} = \text{_jacCdisc} + \alpha \frac{\partial F}{\partial \dot{y}}. \end{align*} @f]
- *          The factor @f$ \alpha @f$ is useful when constructing the linear system in the time integration process.
- * @param [in] idxr Indexer
- * @param [in] alpha Factor in front of @f$ \frac{\partial F}{\partial \dot{y}} @f$
- * @param [in] timeFactor Factor which is premultiplied to the time derivatives originating from time transformation
- */
-void GeneralRateModel::addTimeDerivativeToJacobianColumnBlock(const Indexer& idxr, double alpha, double timeFactor)
-{
-	alpha *= timeFactor;
-
-	linalg::FactorizableBandMatrix::RowIterator jac = _jacCdisc.row(0);
-	for (unsigned int i = 0; i < _disc.nCol * _disc.nComp; ++i, ++jac)
-	{
-		// Add time derivative to main diagonal
-		jac[0] += alpha;
-	}
 }
 
 /**

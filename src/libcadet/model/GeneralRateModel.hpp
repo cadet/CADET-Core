@@ -20,13 +20,13 @@
 
 #include "UnitOperation.hpp"
 #include "cadet/SolutionExporter.hpp"
+#include "model/operator/ConvectionDispersionOperator.hpp"
 #include "AutoDiff.hpp"
 #include "linalg/SparseMatrix.hpp"
 #include "linalg/BandMatrix.hpp"
 #include "linalg/Gmres.hpp"
 #include "MemoryPool.hpp"
 #include "ParamIdUtil.hpp"
-#include "Weno.hpp"
 #include "model/ModelUtils.hpp"
 
 #include <array>
@@ -210,15 +210,6 @@ protected:
 	int residualImpl(const ParamType& t, unsigned int secIdx, const ParamType& timeFactor, StateType const* const y, double const* const yDot, ResidualType* const res);
 
 	template <typename StateType, typename ResidualType, typename ParamType, bool wantJac>
-	int residualBulk(const ParamType& t, unsigned int secIdx, const ParamType& timeFactor, StateType const* y, double const* yDot, ResidualType* res);
-
-	template <typename StateType, typename ResidualType, typename ParamType, bool wantJac>
-	int residualBulkForwardsFlow(const ParamType& t, unsigned int secIdx, const ParamType& timeFactor, StateType const* y, double const* yDot, ResidualType* res);
-
-	template <typename StateType, typename ResidualType, typename ParamType, bool wantJac>
-	int residualBulkBackwardsFlow(const ParamType& t, unsigned int secIdx, const ParamType& timeFactor, StateType const* y, double const* yDot, ResidualType* res);
-
-	template <typename StateType, typename ResidualType, typename ParamType, bool wantJac>
 	int residualParticle(const ParamType& t, unsigned int colCell, unsigned int secIdx, const ParamType& timeFactor, StateType const* y, double const* yDot, ResidualType* res);
 
 	template <typename StateType, typename ResidualType, typename ParamType>
@@ -226,17 +217,14 @@ protected:
 
 	void assembleOffdiagJac(double t, unsigned int secIdx);
 	void extractJacobianFromAD(active const* const adRes, unsigned int adDirOffset);
-	void prepareBulkADvectors(active* const adRes, active* const adY, unsigned int adDirOffset) const;
 
 	int schurComplementMatrixVector(double const* x, double* z) const;
-	void assembleDiscretizedJacobianColumnBlock(double alpha, const Indexer& idxr, double timeFactor);
 	void assembleDiscretizedJacobianParticleBlock(unsigned int pblk, double alpha, const Indexer& idxr, double timeFactor);
 	
 	void setEquidistantRadialDisc();
 	void setEquivolumeRadialDisc();
 	void setUserdefinedRadialDisc(const std::vector<double>& cellInterfaces);
 
-	void addTimeDerivativeToJacobianColumnBlock(const Indexer& idxr, double alpha, double timeFactor);
 	void addMobilePhaseTimeDerivativeToJacobianParticleBlock(linalg::FactorizableBandMatrix::RowIterator& jac, const Indexer& idxr, double alpha, double invBetaP, double timeFactor);
 	void solveForFluxes(double* const vecState, const Indexer& idxr);
 
@@ -259,29 +247,21 @@ protected:
 	IBindingModel* _binding; //!<  Binding model
 //	IExternalFunction* _extFun; //!< External function (owned by library user)
 
-	linalg::BandMatrix _jacC; //!< Interstitial jacobian diagonal block
+	operators::ConvectionDispersionOperator _convDispOp; //!< Convection dispersion operator for interstitial volume transport
+
 	linalg::BandMatrix* _jacP; //!< Particle jacobian diagonal blocks (all of them)
+	linalg::FactorizableBandMatrix* _jacPdisc; //!< Particle jacobian diagonal blocks (all of them) with time derivatives from BDF method
 
 	linalg::DoubleSparseMatrix _jacCF; //!< Jacobian block connecting interstitial states and fluxes (interstitial transport equation)
 	linalg::DoubleSparseMatrix _jacFC; //!< Jacobian block connecting fluxes and interstitial states (flux equation)
 	linalg::DoubleSparseMatrix* _jacPF; //!< Jacobian blocks connecting particle states and fluxes (particle transport boundary condition)
 	linalg::DoubleSparseMatrix* _jacFP; //!< Jacobian blocks connecting fluxes and particle states (flux equation)
 
-	linalg::FactorizableBandMatrix _jacCdisc; //!< Interstitial jacobian diagonal block with time derivatives from BDF method
-	linalg::FactorizableBandMatrix* _jacPdisc; //!< Particle jacobian diagonal blocks (all of them) with time derivatives from BDF method
-
 	linalg::DoubleSparseMatrix _jacInlet; //!< Jacobian inlet DOF block matrix connects inlet DOFs to first bulk cells
 
-	active _colLength; //!< Column length \f$ L \f$
 	active _colPorosity; //!< Column porosity (external porosity) \f$ \varepsilon_c \f$
 	active _parRadius; //!< Particle radius \f$ r_p \f$
 	active _parPorosity; //!< Particle porosity (internal porosity) \f$ \varepsilon_p \f$
-	active _crossSection; //!< Cross section area 
-
-	// Section dependent parameters
-	std::vector<active> _colDispersion; //!< Column dispersion (may be section dependent) \f$ D_{\text{ax}} \f$
-	std::vector<active> _velocity; //!< Interstitial velocity (may be section dependent) \f$ u \f$
-	active _curVelocity; //!< Current interstitial velocity \f$ u \f$ in this time section
 
 	// Vectorial parameters
 	std::vector<active> _filmDiffusion; //!< Film diffusion coefficient \f$ k_f \f$
@@ -290,11 +270,6 @@ protected:
 
 	std::unordered_map<ParameterId, active*> _parameters; //!< Provides access to all parameters
 	bool _analyticJac; //!< Determines whether AD or analytic Jacobians are used
-
-	ArrayPool _stencilMemory; //!< Provides memory for the stencil
-	double* _wenoDerivatives; //!< Holds derivatives of the WENO scheme
-	Weno _weno; //!< The WENO scheme implementation
-	double _wenoEpsilon; //!< The @f$ \varepsilon @f$ of the WENO scheme (prevents division by zero)
 
 	std::unordered_set<active*> _sensParams; //!< Holds all parameters with activated AD directions
 	unsigned int _jacobianAdDirs; //!< Number of AD seed vectors required for Jacobian computation

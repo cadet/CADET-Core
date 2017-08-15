@@ -52,17 +52,14 @@ int schurComplementMultiplierGRM(void* userData, double const* x, double* z)
 
 
 GeneralRateModel::GeneralRateModel(UnitOpIdx unitOpIdx) : _unitOpIdx(unitOpIdx), _binding(nullptr),
-	_jacP(nullptr), _jacPF(nullptr), _jacFP(nullptr), _jacPdisc(nullptr), _jacInlet(),
-	_analyticJac(true), _stencilMemory(sizeof(active) * Weno::maxStencilSize()), _wenoDerivatives(new double[Weno::maxStencilSize()]),
-	_weno(), _jacobianAdDirs(0), _factorizeJacobian(false), _tempState(nullptr)
+	_jacP(nullptr), _jacPdisc(nullptr), _jacPF(nullptr), _jacFP(nullptr), _jacInlet(),
+	_analyticJac(true), _jacobianAdDirs(0), _factorizeJacobian(false), _tempState(nullptr)
 {
 }
 
 GeneralRateModel::~GeneralRateModel() CADET_NOEXCEPT
 {
 	delete[] _tempState;
-
-	delete[] _wenoDerivatives;
 
 	delete[] _jacPF;
 	delete[] _jacFP;
@@ -147,13 +144,6 @@ bool GeneralRateModel::configure(IParameterProvider& paramProvider, IConfigHelpe
 	else // Handle parDiscType == "EQUIDISTANT_PAR" and default
 		setEquidistantRadialDisc();
 
-	// Read WENO settings and apply them
-	paramProvider.pushScope("weno");
-	_weno.order(paramProvider.getInt("WENO_ORDER"));
-	_weno.boundaryTreatment(paramProvider.getInt("BOUNDARY_MODEL"));
-	_wenoEpsilon = paramProvider.getDouble("WENO_EPS");
-	paramProvider.popScope();
-
 	// Determine whether analytic Jacobian should be used but don't set it right now.
 	// We need to setup Jacobian matrices first.
 #ifndef CADET_CHECK_ANALYTIC_JACOBIAN
@@ -169,6 +159,8 @@ bool GeneralRateModel::configure(IParameterProvider& paramProvider, IConfigHelpe
 
 	paramProvider.popScope();
 
+	_convDispOp.configure(_unitOpIdx, paramProvider, _parameters, _disc.nComp, _disc.nCol);
+
 	// ==== Read model parameters
 	reconfigure(paramProvider);
 
@@ -176,20 +168,6 @@ bool GeneralRateModel::configure(IParameterProvider& paramProvider, IConfigHelpe
 	Indexer idxr(_disc);
 
 	_jacInlet.resize(_disc.nComp);
-
-	// Note that we have to increase the lower bandwidth by 1 because the WENO stencil is applied to the
-	// right cell face (lower + 1 + upper) and to the left cell face (shift the stencil by -1 because influx of cell i
-	// is outflux of cell i-1)
-	// We also have to make sure that there's at least one sub and super diagonal for the dispersion term
-	const unsigned int lb = std::max(_weno.lowerBandwidth() + 1u, 1u) * idxr.strideColCell();
-	const unsigned int ub = std::max(_weno.upperBandwidth(), 1u) * idxr.strideColCell();
-	const unsigned int mb = std::max(lb, ub);
-
-	// Allocate matrices such that bandwidths can be switched (backwards flow support)
-	_jacC.resize(_disc.nCol * _disc.nComp, lb, ub);
-
-	_jacCdisc.resize(_disc.nCol * _disc.nComp, mb, mb);
-	_jacCdisc.repartition(lb, ub);
 
 	_jacP = new linalg::BandMatrix[_disc.nCol];
 	_jacPdisc = new linalg::FactorizableBandMatrix[_disc.nCol];
@@ -250,33 +228,14 @@ bool GeneralRateModel::configure(IParameterProvider& paramProvider, IConfigHelpe
 
 bool GeneralRateModel::reconfigure(IParameterProvider& paramProvider)
 {
+	_parameters.clear();
+
+	_convDispOp.reconfigure(_unitOpIdx, paramProvider, _parameters);
+
 	// Read geometry parameters
-	_colLength = paramProvider.getDouble("COL_LENGTH");
 	_colPorosity = paramProvider.getDouble("COL_POROSITY");
 	_parRadius = paramProvider.getDouble("PAR_RADIUS");
 	_parPorosity = paramProvider.getDouble("PAR_POROSITY");
-
-	// Read cross section area or set to -1
-	_crossSection = -1.0;
-	if (paramProvider.exists("CROSS_SECTION_AREA"))
-	{
-		_crossSection = paramProvider.getDouble("CROSS_SECTION_AREA");
-	}
-
-	// Read section dependent parameters (transport)
-
-	// Read VELOCITY
-	_velocity.clear();
-	if (paramProvider.exists("VELOCITY"))
-	{
-		readScalarParameterOrArray(_velocity, paramProvider, "VELOCITY", 1);
-	}
-	readScalarParameterOrArray(_colDispersion, paramProvider, "COL_DISPERSION", 1);
-
-	if (_velocity.empty() && (_crossSection <= 0.0))
-	{
-		throw InvalidParameterException("At least one of CROSS_SECTION_AREA and VELOCITY has to be set");
-	}
 
 	// Read vectorial parameters (which may also be section dependent; transport)
 	readParameterMatrix(_filmDiffusion, paramProvider, "FILM_DIFFUSION", _disc.nComp, 1);
@@ -284,15 +243,9 @@ bool GeneralRateModel::reconfigure(IParameterProvider& paramProvider)
 	readParameterMatrix(_parSurfDiffusion, paramProvider, "PAR_SURFDIFFUSION", _disc.nComp * _disc.strideBound, 1);
 
 	// Add parameters to map
-	_parameters.clear();
-	_parameters[makeParamId(hashString("COL_LENGTH"), _unitOpIdx, CompIndep, BoundPhaseIndep, ReactionIndep, SectionIndep)] = &_colLength;
 	_parameters[makeParamId(hashString("COL_POROSITY"), _unitOpIdx, CompIndep, BoundPhaseIndep, ReactionIndep, SectionIndep)] = &_colPorosity;
 	_parameters[makeParamId(hashString("PAR_RADIUS"), _unitOpIdx, CompIndep, BoundPhaseIndep, ReactionIndep, SectionIndep)] = &_parRadius;
 	_parameters[makeParamId(hashString("PAR_POROSITY"), _unitOpIdx, CompIndep, BoundPhaseIndep, ReactionIndep, SectionIndep)] = &_parPorosity;
-	_parameters[makeParamId(hashString("CROSS_SECTION_AREA"), _unitOpIdx, CompIndep, BoundPhaseIndep, ReactionIndep, SectionIndep)] = &_crossSection;
-
-	registerScalarSectionDependentParam(hashString("COL_DISPERSION"), _parameters, _colDispersion, _unitOpIdx);
-	registerScalarSectionDependentParam(hashString("VELOCITY"), _parameters, _velocity, _unitOpIdx);
 
 	registerComponentSectionDependentParam(hashString("FILM_DIFFUSION"), _parameters, _filmDiffusion, _unitOpIdx, _disc.nComp);
 	registerComponentSectionDependentParam(hashString("PAR_DIFFUSION"), _parameters, _parDiffusion, _unitOpIdx, _disc.nComp);
@@ -477,7 +430,7 @@ void GeneralRateModel::useAnalyticJacobian(const bool analyticJac)
 		// We need as many directions as the highest bandwidth of the diagonal blocks:
 		// The bandwidth of the column block depends on the size of the WENO stencil, whereas
 		// the bandwidth of the particle blocks are given by the number of components and bound states.
-		_jacobianAdDirs = std::max(_jacC.stride(), _jacP[0].stride());
+		_jacobianAdDirs = std::max(_convDispOp.requiredADdirs(), _jacP[0].stride());
 	else
 		_jacobianAdDirs = 0;
 #else
@@ -485,7 +438,7 @@ void GeneralRateModel::useAnalyticJacobian(const bool analyticJac)
 	// We need as many directions as the highest bandwidth of the diagonal blocks:
 	// The bandwidth of the column block depends on the size of the WENO stencil, whereas
 	// the bandwidth of the particle blocks are given by the number of components and bound states.
-	_jacobianAdDirs = std::max(_jacC.stride(), _jacP[0].stride());
+	_jacobianAdDirs = std::max(_convDispOp.requiredADdirs(), _jacP[0].stride());
 #endif
 }
 
@@ -498,38 +451,14 @@ void GeneralRateModel::notifyDiscontinuousSectionTransition(double t, unsigned i
 
 	Indexer idxr(_disc);
 
-	// If we don't have cross section area, velocity is given by parameter
-	if (_crossSection <= 0.0)
-		_curVelocity = getSectionDependentScalar(_velocity, secIdx);
-	else if (!_velocity.empty())
-	{
-		// We have both cross section area and interstitial flow rate
-		// _curVelocity has already been set to the network flow rate in setFlowRates()
-		// the direction of the flow (i.e., sign of _curVelocity) is given by _velocity
-		const double dir = static_cast<double>(getSectionDependentScalar(_velocity, secIdx));
-		if (dir < 0.0)
-			_curVelocity *= -1.0;
-	}
-
-	// Check whether the matrix connecting inlet DOFs to first column cells has to be (re)assembled
-	const double u = static_cast<double>(_curVelocity);
-	double prevU = -u;
-
-	// Determine previous flow direction
-	if ((secIdx != 0) && !_velocity.empty())
-		prevU = static_cast<double>(getSectionDependentScalar(_velocity, secIdx - 1));
-
-	// If interstitial velocity is given by network flow rate and _velocity isn't set, assume forward flow
-	if (_velocity.empty())
-		prevU = u;
-
-	// Exit if we do not need to setup (secIdx == 0) or change (prevU and u differ in sign) matrices
-	if ((secIdx != 0) && (prevU * u >= 0.0))
+	// ConvectionDispersionOperator tells us whether flow direction has changed
+	if (!_convDispOp.notifyDiscontinuousSectionTransition(t, secIdx, adRes, adY, adDirOffset))
 		return;
 
 	// Setup the matrix connecting inlet DOFs to first column cells
 	_jacInlet.clear();
-	const double h = static_cast<double>(_colLength) / static_cast<double>(_disc.nCol);
+	const double h = static_cast<double>(_convDispOp.columnLength()) / static_cast<double>(_disc.nCol);
+	const double u = static_cast<double>(_convDispOp.currentVelocity());
 
 	if (u >= 0.0)
 	{
@@ -538,13 +467,6 @@ void GeneralRateModel::notifyDiscontinuousSectionTransition(double t, unsigned i
 		// Place entries for inlet DOF to first column cell conversion
 		for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
 			_jacInlet.addElement(comp * idxr.strideColComp(), comp, -u / h);
-
-		// Repartition column bulk Jacobians
-		const unsigned int lb = std::max(_weno.lowerBandwidth() + 1u, 1u) * idxr.strideColCell();
-		const unsigned int ub = std::max(_weno.upperBandwidth(), 1u) * idxr.strideColCell();
-
-		_jacC.repartition(lb, ub);
-		_jacCdisc.repartition(lb, ub);
 	}
 	else
 	{
@@ -554,24 +476,12 @@ void GeneralRateModel::notifyDiscontinuousSectionTransition(double t, unsigned i
 		const unsigned int offset = (_disc.nCol - 1) * idxr.strideColCell();
 		for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
 			_jacInlet.addElement(offset + comp * idxr.strideColComp(), comp, u / h);
-
-		// Repartition column bulk Jacobians
-		const unsigned int lb = std::max(_weno.lowerBandwidth() + 1u, 1u) * idxr.strideColCell();
-		const unsigned int ub = std::max(_weno.upperBandwidth(), 1u) * idxr.strideColCell();
-
-		_jacC.repartition(ub, lb);
-		_jacCdisc.repartition(ub, lb);
 	}
-
-	// Update AD seed vectors since Jacobian structure has changed (bulk block bandwidths)
-	prepareBulkADvectors(adRes, adY, adDirOffset);
 }
 
 void GeneralRateModel::setFlowRates(const active& in, const active& out) CADET_NOEXCEPT
 {
-	// If we have cross section area, interstitial velocity is given by network flow rates
-	if (_crossSection > 0.0)
-		_curVelocity = in / (_crossSection * _colPorosity);
+	_convDispOp.setFlowRates(in, out, _colPorosity);
 }
 
 void GeneralRateModel::reportSolution(ISolutionRecorder& recorder, double const* const solution) const
@@ -594,7 +504,7 @@ unsigned int GeneralRateModel::requiredADdirs() const CADET_NOEXCEPT
 	return _jacobianAdDirs;
 #else
 	// If CADET_CHECK_ANALYTIC_JACOBIAN is active, we always need the AD directions for the Jacobian
-	return std::max(_jacC.stride(), _jacP[0].stride());
+	return std::max(_convDispOp.requiredADdirs(), _jacP[0].stride());
 #endif
 }
 
@@ -611,39 +521,13 @@ void GeneralRateModel::prepareADvectors(active* const adRes, active* const adY, 
 	const unsigned int upperParBandwidth = _jacP[0].upperBandwidth();
 
 	// Column block	
-	prepareBulkADvectors(adRes, adY, adDirOffset);
+	_convDispOp.prepareADvectors(adRes, adY, adDirOffset);
 
 	// Particle blocks
 	for (unsigned int pblk = 0; pblk < _disc.nCol; ++pblk)
 	{
 		ad::prepareAdVectorSeedsForBandMatrix(adY + idxr.offsetCp(pblk), adDirOffset, idxr.strideParBlock(), lowerParBandwidth, upperParBandwidth, lowerParBandwidth);
 	}
-}
-
-/**
- * @brief Sets the AD seed vectors for the bulk Jacobian block
- * @details This has to be done whenever the Jacobian structure changes.
- *          For instance, when the flow is reversed as in this case the bandwidths
- *          of the bulk blocks change.
- *          
- * @param [in,out] adRes Pointer to global residual vector of AD datatypes to be set up (or @c nullptr if AD is disabled)
- * @param [in,out] adY Pointer to global state vector of AD datatypes to be set up (or @c nullptr if AD is disabled)
- * @param [in] adDirOffset Number of AD directions used for non-Jacobian purposes (e.g., parameter sensitivities)
- */
-void GeneralRateModel::prepareBulkADvectors(active* const adRes, active* const adY, unsigned int adDirOffset) const
-{
-	// Early out if AD is disabled
-	if (!adY)
-		return;
-
-	Indexer idxr(_disc);
-
-	// Get bandwidths of blocks
-	const unsigned int lowerColBandwidth = _jacC.lowerBandwidth();
-	const unsigned int upperColBandwidth = _jacC.upperBandwidth();
-
-	// Column block
-	ad::prepareAdVectorSeedsForBandMatrix(adY + idxr.offsetC(), adDirOffset, _disc.nCol * _disc.nComp, lowerColBandwidth, upperColBandwidth, lowerColBandwidth);
 }
 
 /**
@@ -656,7 +540,7 @@ void GeneralRateModel::extractJacobianFromAD(active const* const adRes, unsigned
 	Indexer idxr(_disc);
 
 	// Column
-	ad::extractBandedJacobianFromAd(adRes + idxr.offsetC(), adDirOffset, _jacC.lowerBandwidth(), _jacC);
+	_convDispOp.extractJacobianFromAD(adRes, adDirOffset);
 
 	// Particles
 	for (unsigned int pblk = 0; pblk < _disc.nCol; ++pblk)
@@ -675,11 +559,10 @@ void GeneralRateModel::checkAnalyticJacobianAgainstAd(active const* const adRes,
 {
 	Indexer idxr(_disc);
 
-	LOG(Debug) << "AD dir offset: " << adDirOffset << " DiagDirCol: " << _jacC.lowerBandwidth() << " DiagDirPar: " << _jacP[0].lowerBandwidth();
+	LOG(Debug) << "AD dir offset: " << adDirOffset << " DiagDirCol: " << _convDispOp.jacobian().lowerBandwidth() << " DiagDirPar: " << _jacP[0].lowerBandwidth();
 
 	// Column
-	const double maxDiffCol = ad::compareBandedJacobianWithAd(adRes + idxr.offsetC(), adDirOffset, _jacC.lowerBandwidth(), _jacC);
-	LOG(Debug) << "-> Col block diff: " << maxDiffCol;
+	const double maxDiffCol = _convDispOp.checkAnalyticJacobianAgainstAd(adRes, adDirOffset);
 
 	// Particles
 	double maxDiffPar = 0.0;
@@ -827,7 +710,7 @@ int GeneralRateModel::residualImpl(const ParamType& t, unsigned int secIdx, cons
 #endif
 	{
 		if (cadet_unlikely(pblk == 0))
-			residualBulk<StateType, ResidualType, ParamType, wantJac>(t, secIdx, timeFactor, y, yDot, res);
+			_convDispOp.residual(t, secIdx, timeFactor, y, yDot, res, wantJac);
 		else
 			residualParticle<StateType, ResidualType, ParamType, wantJac>(t, pblk-1, secIdx, timeFactor, y, yDot, res);
 	} CADET_PARFOR_END;
@@ -836,293 +719,11 @@ int GeneralRateModel::residualImpl(const ParamType& t, unsigned int secIdx, cons
 
 	residualFlux<StateType, ResidualType, ParamType>(t, secIdx, y, yDot, res);
 
-	Indexer idxr(_disc);
-
-	//residual duplicate inlets
-	//Inlet is an identity matrix. y is simplied copied to res
+	// Handle inlet DOFs, which are simply copied to res
 	for (unsigned int i = 0; i < _disc.nComp; ++i)
 	{
 		res[i] = y[i];
 	}
-
-	return 0;
-}
-
-template <typename StateType, typename ResidualType, typename ParamType, bool wantJac>
-int GeneralRateModel::residualBulk(const ParamType& t, unsigned int secIdx, const ParamType& timeFactor, StateType const* y, double const* yDot, ResidualType* res)
-{
-	const ParamType u = static_cast<ParamType>(_curVelocity);
-	if (u >= 0.0)
-		return residualBulkForwardsFlow<StateType, ResidualType, ParamType, wantJac>(t, secIdx, timeFactor, y, yDot, res);
-	else
-		return residualBulkBackwardsFlow<StateType, ResidualType, ParamType, wantJac>(t, secIdx, timeFactor, y, yDot, res);
-}
-
-template <typename StateType, typename ResidualType, typename ParamType, bool wantJac>
-int GeneralRateModel::residualBulkForwardsFlow(const ParamType& t, unsigned int secIdx, const ParamType& timeFactor, StateType const* y, double const* yDot, ResidualType* res)
-{
-	const ParamType u = static_cast<ParamType>(_curVelocity);
-	const ParamType d_c = static_cast<ParamType>(getSectionDependentScalar(_colDispersion, secIdx));
-	const ParamType h = static_cast<ParamType>(_colLength) / static_cast<double>(_disc.nCol);
-	const ParamType h2 = h * h;
-
-	Indexer idxr(_disc);
-	const int strideCell = idxr.strideColCell();
-
-	// The stencil caches parts of the state vector for better spatial coherence
-	typedef CachingStencil<StateType, ArrayPool> StencilType;
-	StencilType stencil(std::max(_weno.stencilSize(), 3u), _stencilMemory, std::max(_weno.order() - 1, 1));
-
-	// Reset Jacobian
-	if (wantJac)
-		_jacC.setAll(0.0);
-
-	for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
-	{
-		// The RowIterator is always centered on the main diagonal.
-		// This means that jac[0] is the main diagonal, jac[-1] is the first lower diagonal,
-		// and jac[1] is the first upper diagonal. We can also access the rows from left to
-		// right beginning with the last lower diagonal moving towards the main diagonal and
-		// continuing to the last upper diagonal by using the native() method.
-		linalg::BandMatrix::RowIterator jac = _jacC.row(comp);
-
-		// Add time derivative to each cell
-		if (yDot)
-		{
-			for (unsigned int col = 0; col < _disc.nCol; ++col)
-				idxr.c<ResidualType>(res, col, comp) = timeFactor * idxr.c<double>(yDot, col, comp);
-		}
-		else
-		{
-			for (unsigned int col = 0; col < _disc.nCol; ++col)
-				idxr.c<ResidualType>(res, col, comp) = 0.0;
-		}
-
-		// Fill stencil (left side with zeros, right side with states)
-		for (int i = -std::max(_weno.order(), 2) + 1; i < 0; ++i)
-			stencil[i] = 0.0;
-		for (int i = 0; i < std::max(_weno.order(), 2); ++i)
-			stencil[i] = idxr.c<StateType>(y, static_cast<unsigned int>(i), comp);
-
-		// Reset WENO output
-		StateType vm(0.0); // reconstructed value
-		if (wantJac)
-			std::fill(_wenoDerivatives, _wenoDerivatives + _weno.stencilSize(), 0.0);
-
-		int wenoOrder = 0;
-
-		// Iterate over all cells
-		for (unsigned int col = 0; col < _disc.nCol; ++col)
-		{
-			// ------------------- Dispersion -------------------
-
-			// Right side, leave out if we're in the last cell (boundary condition)
-			if (cadet_likely(col < _disc.nCol - 1))
-			{
-				idxr.c<ResidualType>(res, col, comp) -= d_c / h2 * (stencil[1] - stencil[0]);
-				// Jacobian entries
-				if (wantJac)
-				{
-					jac[0] += static_cast<double>(d_c) / static_cast<double>(h2);
-					jac[strideCell] -= static_cast<double>(d_c) / static_cast<double>(h2);
-				}
-			}
-
-			// Left side, leave out if we're in the first cell (boundary condition)
-			if (cadet_likely(col > 0))
-			{
-				idxr.c<ResidualType>(res, col, comp) -= d_c / h2 * (stencil[-1] - stencil[0]);
-				// Jacobian entries
-				if (wantJac)
-				{
-					jac[0]  += static_cast<double>(d_c) / static_cast<double>(h2);
-					jac[-strideCell] -= static_cast<double>(d_c) / static_cast<double>(h2);
-				}
-			}
-
-			// ------------------- Convection -------------------
-
-			// Add convection through this cell's left face
-			if (cadet_likely(col > 0))
-			{
-				// Remember that vm still contains the reconstructed value of the previous 
-				// cell's *right* face, which is identical to this cell's *left* face!
-				idxr.c<ResidualType>(res, col, comp) -= u / h * vm;
-
-				// Jacobian entries
-				if (wantJac)
-				{
-					for (int i = 0; i < 2 * wenoOrder - 1; ++i)
-						// Note that we have an offset of -1 here (compared to the right cell face below), since
-						// the reconstructed value depends on the previous stencil (which has now been moved by one cell)
-						jac[(i - wenoOrder) * strideCell] -= static_cast<double>(u) / static_cast<double>(h) * _wenoDerivatives[i];
-				}
-			}
-			else
-			{
-				// In the first cell we need to apply the boundary condition: inflow concentration
-				idxr.c<ResidualType>(res, col, comp) -= u / h * y[comp];
-			}
-
-			// Reconstruct concentration on this cell's right face
-			if (wantJac)
-				wenoOrder = _weno.reconstruct<StateType, StencilType>(_wenoEpsilon, col, _disc.nCol, stencil, vm, _wenoDerivatives);
-			else
-				wenoOrder = _weno.reconstruct<StateType, StencilType>(_wenoEpsilon, col, _disc.nCol, stencil, vm);
-
-			// Right side
-			idxr.c<ResidualType>(res, col, comp) += u / h * vm;
-			// Jacobian entries
-			if (wantJac)
-			{
-				for (int i = 0; i < 2 * wenoOrder - 1; ++i)
-					jac[(i - wenoOrder + 1) * strideCell] += static_cast<double>(u) / static_cast<double>(h) * _wenoDerivatives[i];
-			}
-
-			// Update stencil
-			stencil.advance(idxr.c<StateType>(y, col + std::max(_weno.order(), 2), comp));
-			jac += strideCell;
-		}
-	}
-
-	// Film diffusion with flux into beads is added in residualFlux() function
-
-	return 0;
-}
-
-template <typename StateType, typename ResidualType, typename ParamType, bool wantJac>
-int GeneralRateModel::residualBulkBackwardsFlow(const ParamType& t, unsigned int secIdx, const ParamType& timeFactor, StateType const* y, double const* yDot, ResidualType* res)
-{
-	const ParamType u = static_cast<ParamType>(_curVelocity);
-	const ParamType d_c = static_cast<ParamType>(getSectionDependentScalar(_colDispersion, secIdx));
-	const ParamType h = static_cast<ParamType>(_colLength) / static_cast<double>(_disc.nCol);
-	const ParamType h2 = h * h;
-
-	Indexer idxr(_disc);
-	const int strideCell = idxr.strideColCell();
-
-	// The stencil caches parts of the state vector for better spatial coherence
-	typedef CachingStencil<StateType, ArrayPool> StencilType;
-	StencilType stencil(std::max(_weno.stencilSize(), 3u), _stencilMemory, std::max(_weno.order() - 1, 1));
-
-	// Reset Jacobian
-	if (wantJac)
-		_jacC.setAll(0.0);
-
-	for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
-	{
-		// The RowIterator is always centered on the main diagonal.
-		// This means that jac[0] is the main diagonal, jac[-1] is the first lower diagonal,
-		// and jac[1] is the first upper diagonal. We can also access the rows from left to
-		// right beginning with the last lower diagonal moving towards the main diagonal and
-		// continuing to the last upper diagonal by using the native() method.
-		linalg::BandMatrix::RowIterator jac = _jacC.row(_disc.nComp * (_disc.nCol - 1) + comp);
-
-		// Add time derivative to each cell
-		if (yDot)
-		{
-			for (unsigned int col = 0; col < _disc.nCol; ++col)
-				idxr.c<ResidualType>(res, col, comp) = timeFactor * idxr.c<double>(yDot, col, comp);
-		}
-		else
-		{
-			for (unsigned int col = 0; col < _disc.nCol; ++col)
-				idxr.c<ResidualType>(res, col, comp) = 0.0;
-		}
-
-		// Fill stencil (left side with zeros, right side with states)
-		for (int i = -std::max(_weno.order(), 2) + 1; i < 0; ++i)
-			stencil[i] = 0.0;
-		for (int i = 0; i < std::max(_weno.order(), 2); ++i)
-			stencil[i] = idxr.c<StateType>(y, _disc.nCol - static_cast<unsigned int>(i) - 1, comp);
-
-		// Reset WENO output
-		StateType vm(0.0); // reconstructed value
-		if (wantJac)
-			std::fill(_wenoDerivatives, _wenoDerivatives + _weno.stencilSize(), 0.0);
-
-		int wenoOrder = 0;
-
-		// Iterate over all cells (backwards)
-		// Note that col wraps around to unsigned int's maximum value after 0
-		for (unsigned int col = _disc.nCol - 1; col < _disc.nCol; --col)
-		{
-			// ------------------- Dispersion -------------------
-
-			// Right side, leave out if we're in the first cell (boundary condition)
-			if (cadet_likely(col < _disc.nCol - 1))
-			{
-				idxr.c<ResidualType>(res, col, comp) -= d_c / h2 * (stencil[-1] - stencil[0]);
-				// Jacobian entries
-				if (wantJac)
-				{
-					jac[0] += static_cast<double>(d_c) / static_cast<double>(h2);
-					jac[strideCell] -= static_cast<double>(d_c) / static_cast<double>(h2);
-				}
-			}
-
-			// Left side, leave out if we're in the last cell (boundary condition)
-			if (cadet_likely(col > 0))
-			{
-				idxr.c<ResidualType>(res, col, comp) -= d_c / h2 * (stencil[1] - stencil[0]);
-				// Jacobian entries
-				if (wantJac)
-				{
-					jac[0] += static_cast<double>(d_c) / static_cast<double>(h2);
-					jac[-strideCell] -= static_cast<double>(d_c) / static_cast<double>(h2);
-				}
-			}
-
-			// ------------------- Convection -------------------
-
-			// Add convection through this cell's right face
-			if (cadet_likely(col < _disc.nCol - 1))
-			{
-				// Remember that vm still contains the reconstructed value of the previous 
-				// cell's *left* face, which is identical to this cell's *right* face!
-				idxr.c<ResidualType>(res, col, comp) += u / h * vm;
-
-				// Jacobian entries
-				if (wantJac)
-				{
-					for (int i = 0; i < 2 * wenoOrder - 1; ++i)
-						// Note that we have an offset of +1 here (compared to the left cell face below), since
-						// the reconstructed value depends on the previous stencil (which has now been moved by one cell)
-						jac[(wenoOrder - i) * strideCell] += static_cast<double>(u) / static_cast<double>(h) * _wenoDerivatives[i];					
-				}
-			}
-			else
-			{
-				// In the last cell (z = L) we need to apply the boundary condition: inflow concentration
-				idxr.c<ResidualType>(res, col, comp) += u / h * y[comp];
-			}
-
-			// Reconstruct concentration on this cell's left face
-			if (wantJac)
-				wenoOrder = _weno.reconstruct<StateType, StencilType>(_wenoEpsilon, col, _disc.nCol, stencil, vm, _wenoDerivatives);
-			else
-				wenoOrder = _weno.reconstruct<StateType, StencilType>(_wenoEpsilon, col, _disc.nCol, stencil, vm);
-
-			// Left face
-			idxr.c<ResidualType>(res, col, comp) -= u / h * vm;
-			// Jacobian entries
-			if (wantJac)
-			{
-				for (int i = 0; i < 2 * wenoOrder - 1; ++i)
-					jac[(wenoOrder - i - 1) * strideCell] -= static_cast<double>(u) / static_cast<double>(h) * _wenoDerivatives[i];				
-			}
-
-			// Update stencil (be careful because of wrap-around, might cause reading memory very far away [although never used])
-			const unsigned int shift = std::max(_weno.order(), 2);
-			if (cadet_likely(col - shift < _disc.nCol))
-				stencil.advance(idxr.c<StateType>(y, col - shift, comp));
-			else
-				stencil.advance(0.0);
-			jac -= strideCell;
-		}
-	}
-
-	// Film diffusion with flux into beads is added in residualFlux() function
 
 	return 0;
 }
@@ -1578,7 +1179,7 @@ void GeneralRateModel::multiplyWithJacobian(double t, unsigned int secIdx, doubl
 	{
 		if (cadet_unlikely(idx == 0))
 		{
-			_jacC.multiplyVector(yS + idxr.offsetC(), alpha, beta, ret + idxr.offsetC());
+			_convDispOp.jacobian().multiplyVector(yS + idxr.offsetC(), alpha, beta, ret + idxr.offsetC());
 			_jacCF.multiplyVector(yS + idxr.offsetJf(), alpha, 1.0, ret + idxr.offsetC());
 		}
 		else
@@ -1632,9 +1233,7 @@ void GeneralRateModel::multiplyWithDerivativeJacobian(double t, unsigned int sec
 	{
 		if (cadet_unlikely(idx == 0))
 		{
-			// Column
-			for (int i = idxr.offsetC(); i < idxr.offsetCp(0); ++i)
-				ret[i] = timeFactor * sDot[i];
+			_convDispOp.multiplyWithDerivativeJacobian(t, secIdx, timeFactor, sDot, ret);
 		}
 		else
 		{
@@ -1686,7 +1285,7 @@ void GeneralRateModel::setExternalFunctions(IExternalFunction** extFuns, unsigne
 unsigned int GeneralRateModel::localOutletComponentIndex() const CADET_NOEXCEPT
 {
 	// Inlets are duplicated so need to be accounted for
-	if (static_cast<double>(_curVelocity) >= 0.0)
+	if (static_cast<double>(_convDispOp.currentVelocity()) >= 0.0)
 		// Forward Flow: outlet is last cell
 		return _disc.nComp + (_disc.nCol - 1) * _disc.nComp;
 	else

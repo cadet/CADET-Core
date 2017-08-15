@@ -282,24 +282,7 @@ void GeneralRateModel::consistentInitialTimeDerivative(double t, unsigned int se
 		vecStateYdot[i] = -vecStateYdot[i];
 
 	// Handle bulk column block
-
-	// Assemble
-	_jacCdisc.setAll(0.0);
-	addTimeDerivativeToJacobianColumnBlock(idxr, 1.0, timeFactor);
-
-	// Factorize
-	const bool result = _jacCdisc.factorize();
-	if (!result)
-	{
-		LOG(Error) << "Factorize() failed for bulk block";
-	}
-
-	// Solve
-	const bool result2 = _jacCdisc.solve(vecStateYdot + idxr.offsetC());
-	if (!result2)
-	{
-		LOG(Error) << "Solve() failed for bulk block";
-	}
+	_convDispOp.solveTimeDerivativeSystem(t, secIdx, static_cast<double>(timeFactor), vecStateYdot + idxr.offsetC());
 
 	// Process the particle blocks
 #ifdef CADET_PARALLELIZE
@@ -517,23 +500,8 @@ void GeneralRateModel::leanConsistentInitialTimeDerivative(double t, double time
 
 	double* const resSlice = res + idxr.offsetC();
 
-	// Assemble
-	_jacCdisc.setAll(0.0);
-	addTimeDerivativeToJacobianColumnBlock(idxr, 1.0, timeFactor);
-
-	// Factorize
-	const bool result = _jacCdisc.factorize();
-	if (!result)
-	{
-		LOG(Error) << "Factorize() failed for bulk block";
-	}
-
-	// Solve
-	const bool result2 = _jacCdisc.solve(resSlice);
-	if (!result2)
-	{
-		LOG(Error) << "Solve() failed for bulk block";
-	}
+	// Handle bulk block
+	_convDispOp.solveTimeDerivativeSystem(t, 0u, static_cast<double>(timeFactor), resSlice);
 
 	// Note that we have solved with the *positive* residual as right hand side
 	// instead of the *negative* one. Fortunately, we are dealing with linear systems,
@@ -702,25 +670,7 @@ void GeneralRateModel::consistentInitialSensitivity(const active& t, unsigned in
 		// Note that we have correctly negated the right hand side
 
 		// Handle bulk block
-		{
-			// Assemble
-			_jacCdisc.setAll(0.0);
-			addTimeDerivativeToJacobianColumnBlock(idxr, 1.0, static_cast<double>(timeFactor));
-
-			// Factorize
-			const bool result = _jacCdisc.factorize();
-			if (!result)
-			{
-				LOG(Error) << "Factorize() failed for bulk block";
-			}
-
-			// Solve
-			const bool result2 = _jacCdisc.solve(sensYdot + idxr.offsetC());
-			if (!result2)
-			{
-				LOG(Error) << "Solve() failed for bulk block";
-			}
-		}
+		_convDispOp.solveTimeDerivativeSystem(static_cast<double>(t), secIdx, static_cast<double>(timeFactor), sensYdot + idxr.offsetC());
 
 		// Process the particle blocks
 #ifdef CADET_PARALLELIZE
@@ -885,25 +835,7 @@ void GeneralRateModel::leanConsistentInitialSensitivity(const active& t, unsigne
 		multiplyWithJacobian(static_cast<double>(t), secIdx, static_cast<double>(timeFactor), vecStateY, vecStateYdot, sensY, -1.0, 1.0, sensYdot);
 
 		// Handle bulk block
-		{
-			// Assemble
-			_jacCdisc.setAll(0.0);
-			addTimeDerivativeToJacobianColumnBlock(idxr, 1.0, static_cast<double>(timeFactor));
-
-			// Factorize
-			const bool result = _jacCdisc.factorize();
-			if (!result)
-			{
-				LOG(Error) << "Factorize() failed for bulk block";
-			}
-
-			// Solve
-			const bool result2 = _jacCdisc.solve(sensYdot + idxr.offsetC());
-			if (!result2)
-			{
-				LOG(Error) << "Solve() failed for bulk block";
-			}
-		}
+		_convDispOp.solveTimeDerivativeSystem(static_cast<double>(t), secIdx, static_cast<double>(timeFactor), sensYdot + idxr.offsetC());
 
 		// Step 2b: Solve for fluxes j_f by backward substitution
 		solveForFluxes(sensYdot, idxr);
