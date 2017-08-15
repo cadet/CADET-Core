@@ -18,7 +18,6 @@
 #ifndef LIBCADET_PARAMIDUTIL_HPP_
 #define LIBCADET_PARAMIDUTIL_HPP_
 
-#include <tuple>
 #include <ostream>
 #include <sstream>
 #include "cadet/ParameterId.hpp"
