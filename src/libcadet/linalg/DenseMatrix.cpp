@@ -188,6 +188,13 @@ bool DenseMatrixBase::solve(double* rhs) const
 	return flag == 0;
 }
 
+bool DenseMatrixBase::solve(double const* scalingFactors, double* rhs) const
+{
+	for (unsigned int i = 0; i < _rows; ++i)
+		rhs[i] /= scalingFactors[i];
+	return solve(rhs);
+}
+
 int DenseMatrixBase::optimalLeastSquaresWorkspace() const
 {
 	cadet_assert(_rows >= _cols);
@@ -253,6 +260,13 @@ bool DenseMatrixBase::robustFactorize(double* const workspace)
 	LapackFactorLQDense(&m, &n, _data, &lda, workspace, workspace + _rows, &n, &flag);
 
 	return flag == 0;
+}
+
+bool DenseMatrixBase::robustSolve(double const* scalingFactors, double* rhs, double* const workspace) const
+{
+	for (unsigned int i = 0; i < _rows; ++i)
+		rhs[i] /= scalingFactors[i];
+	return robustSolve(rhs, workspace);
 }
 
 bool DenseMatrixBase::robustSolve(double* rhs, double* const workspace) const

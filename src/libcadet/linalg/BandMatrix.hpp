@@ -828,6 +828,38 @@ public:
 	 */
 	void multiplyVector(const double* const x, double alpha, double beta, double* const y) const;
 
+	/**
+	 * @brief Scales rows by dividing them with a given factor
+	 * @details This corresponds to multiplying by a diagonal matrix from the left (i.e., @f$ D^{-1} A @f$).
+	 * @param [in] scalingFactors Vector with scaling factor for each row
+	 */
+	inline void scaleRows(double const* scalingFactors) { scaleRows(scalingFactors, rows()); }
+
+	/**
+	 * @brief Scales the first rows by dividing them with a given factor
+	 * @details This corresponds to multiplying by a diagonal matrix from the left (i.e., @f$ D^{-1} A @f$).
+	 *          Only the first @p numRows rows are scaled.
+	 * @param [in] scalingFactors Vector with scaling factor for each row
+	 * @param [in] numRows The number of rows which are to be scaled (from the top)
+	 */
+	void scaleRows(double const* scalingFactors, unsigned int numRows);
+
+	/**
+	 * @brief Computes row scaling factors such that the largest absolute value in each row is 1
+	 * @details This can be used to equilibrate the matrix by calling scaleRows().
+	 * @param [out] scalingFactors Vector in which the row scaling factors are written
+	 */
+	inline void rowScaleFactors(double* scalingFactors) const { rowScaleFactors(scalingFactors, rows()); }
+
+	/**
+	 * @brief Computes row scaling factors for some rows such that the largest absolute value in each row is 1
+	 * @details This can be used to equilibrate the matrix by calling scaleRows().
+	 *          The scaling factors are computed for the first @p numRows rows from the top.
+	 * @param [out] scalingFactors Vector in which the row scaling factors are written
+	 * @param [in] numRows The number of rows to be scaled
+	 */
+	void rowScaleFactors(double* scalingFactors, unsigned int numRows) const;
+
 protected:
 	double* _data; //!< Pointer to the array in which the matrix is stored
 	unsigned int _lowerBand; //!< Lower bandwidth excluding main diagonal
@@ -1225,6 +1257,50 @@ public:
 	 * @return @c true if the solution process was successful, otherwise @c false
 	 */
 	bool solve(double* rhs) const;
+
+	/**
+	 * @brief Uses the factorized matrix to solve the equation @f$ Ax = b @f$ with LAPACK
+	 * @details Before the equation can be solved, the matrix has to be factorized first by calling factorize().
+	 *          It is assumed that row scaling has been applied to the matrix before factorization.
+	 *          In order to solve the equation system, the right hand side has to be scaled accordingly.
+	 *          This is handled automatically by passing the required scaling factors.
+	 * @param [in] scalingFactors Vector with scaling factor for each row
+	 * @param [in,out] rhs On entry pointer to the right hand side vector @f$ b @f$ of the equation, on exit the solution @f$ x @f$
+	 * @return @c true if the solution process was successful, otherwise @c false
+	 */
+	bool solve(double const* scalingFactors, double* rhs) const;
+
+	/**
+	 * @brief Scales rows by dividing them with a given factor
+	 * @details This corresponds to multiplying by a diagonal matrix from the left (i.e., @f$ D^{-1} A @f$).
+	 * @param [in] scalingFactors Vector with scaling factor for each row
+	 */
+	inline void scaleRows(double const* scalingFactors) { scaleRows(scalingFactors, rows()); }
+
+	/**
+	 * @brief Scales the first rows by dividing them with a given factor
+	 * @details This corresponds to multiplying by a diagonal matrix from the left (i.e., @f$ D^{-1} A @f$).
+	 *          Only the first @p numRows rows are scaled.
+	 * @param [in] scalingFactors Vector with scaling factor for each row
+	 * @param [in] numRows The number of rows which are to be scaled (from the top)
+	 */
+	void scaleRows(double const* scalingFactors, unsigned int numRows);
+
+	/**
+	 * @brief Computes row scaling factors such that the largest absolute value in each row is 1
+	 * @details This can be used to equilibrate the matrix by calling scaleRows().
+	 * @param [out] scalingFactors Vector in which the row scaling factors are written
+	 */
+	inline void rowScaleFactors(double* scalingFactors) const { rowScaleFactors(scalingFactors, rows()); }
+
+	/**
+	 * @brief Computes row scaling factors for some rows such that the largest absolute value in each row is 1
+	 * @details This can be used to equilibrate the matrix by calling scaleRows().
+	 *          The scaling factors are computed for the first @p numRows rows from the top.
+	 * @param [out] scalingFactors Vector in which the row scaling factors are written
+	 * @param [in] numRows The number of rows to be scaled
+	 */
+	void rowScaleFactors(double* scalingFactors, unsigned int numRows) const;
 
 protected:
 	double* _data; //!< Pointer to the array in which the matrix is stored

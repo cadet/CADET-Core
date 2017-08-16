@@ -14,6 +14,7 @@
 
 #include <sstream>
 #include <ostream>
+#include <cmath>
 
 namespace cadet
 {
@@ -90,6 +91,25 @@ void bandMatrixToSparseString(std::ostream& out, const MatrixType& mt)
 	out << "size: " << mt.rows() << " bandwidth: " << mt.lowerBandwidth() << " + 1 + " << mt.upperBandwidth();
 }
 
+void scaleRows(double* data, unsigned int elemPerRow, unsigned int stride, double const* scalingFactors, unsigned int numRows)
+{
+	for (unsigned int i = 0; i < numRows; ++i, data += stride)
+	{
+		for (unsigned int j = 0; j < elemPerRow; ++j)
+			data[j] /= scalingFactors[i];
+	}
+}
+
+void rowScaleFactors(double const* data, unsigned int elemPerRow, unsigned int stride, double* scalingFactors, unsigned int numRows)
+{
+	for (unsigned int i = 0; i < numRows; ++i, data += stride)
+	{
+		scalingFactors[i] = 0.0;
+		for (unsigned int j = 0; j < elemPerRow; ++j)
+			scalingFactors[i] = std::max(scalingFactors[i], std::abs(data[j]));
+	}
+}
+
 } // namespace
 
 void BandMatrix::multiplyVector(const double* const x, double alpha, double beta, double* const y) const
@@ -161,6 +181,18 @@ void BandMatrix::submatrixMultiplyVector(const double* const x, unsigned int sta
 */
 }
 
+void BandMatrix::scaleRows(double const* scalingFactors, unsigned int numRows)
+{
+	cadet_assert(numRows <= _rows);
+	cadet::linalg::scaleRows(_data, stride(), stride(), scalingFactors, numRows);
+}
+
+void BandMatrix::rowScaleFactors(double* scalingFactors, unsigned int numRows) const
+{
+	cadet_assert(numRows <= _rows);
+	cadet::linalg::rowScaleFactors(_data, stride(), stride(), scalingFactors, numRows);
+}
+
 void FactorizableBandMatrix::multiplyVector(const double* const x, double* const y) const
 {
 	bandMatrixVectorMultiplication(_rows, _upperBand, _lowerBand, stride(), _data + _upperBand, 1.0, 0.0, x, y);
@@ -209,6 +241,25 @@ bool FactorizableBandMatrix::solve(double* rhs) const
 
 	// If the flag is -i (for i > 0), the ith argument is invalid
 	return flag == 0;
+}
+
+bool FactorizableBandMatrix::solve(double const* scalingFactors, double* rhs) const
+{
+	for (unsigned int i = 0; i < _rows; ++i)
+		rhs[i] /= scalingFactors[i];
+	return solve(rhs);
+}
+
+void FactorizableBandMatrix::scaleRows(double const* scalingFactors, unsigned int numRows)
+{
+	cadet_assert(numRows <= _rows);
+	cadet::linalg::scaleRows(_data + _upperBand, apparentStride(), stride(), scalingFactors, numRows);
+}
+
+void FactorizableBandMatrix::rowScaleFactors(double* scalingFactors, unsigned int numRows) const
+{
+	cadet_assert(numRows <= _rows);
+	cadet::linalg::rowScaleFactors(_data + _upperBand, apparentStride(), stride(), scalingFactors, numRows);
 }
 
 std::ostream& operator<<(std::ostream& out, const BandMatrix& bm)

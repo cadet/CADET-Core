@@ -562,6 +562,18 @@ namespace detail
 		bool solve(double* rhs) const;
 
 		/**
+		 * @brief Uses the factorized matrix to solve the equation @f$ Ax = y @f$ with LAPACK
+		 * @details Before the equation can be solved, the matrix has to be factorized first by calling factorize().
+		 *          It is assumed that row scaling has been applied to the matrix before factorization.
+		 *          In order to solve the equation system, the right hand side has to be scaled accordingly.
+		 *          This is handled automatically by passing the required scaling factors.
+		 * @param [in] scalingFactors Vector with scaling factor for each row
+		 * @param [in,out] rhs On entry pointer to the right hand side vector @f$ y @f$ of the equation, on exit the solution @f$ x @f$
+		 * @return @c true if the solution process was successful, otherwise @c false
+		 */
+		bool solve(double const* scalingFactors, double* rhs) const;
+
+		/**
 		 * @brief Returns the optimal working memory size for solving @f$ \text{min}_x \lVert Ax - y \rVert @f$ with LAPACK
 		 * @details LAPACK requires at least @f$ 2 mn @f$ doubles, where @f$ m @f$ is the number of rows and @f$ n @f$ the number of columns.
 		 * @return The optimal number of doubles in the working memory
@@ -602,6 +614,22 @@ namespace detail
 		 * @return @c true if the solution process was successful, otherwise @c false
 		 */
 		bool robustSolve(double* rhs, double* const workspace) const;
+
+		/**
+		 * @brief Uses the factorized matrix to solve the equation @f$ Ax = y @f$ with LAPACK
+		 * @details Before the equation can be solved, the matrix has to be factorized first by calling robustFactorize().
+		 *          It is assumed that row scaling has been applied to the matrix before factorization.
+		 *          In order to solve the equation system, the right hand side has to be scaled accordingly.
+		 *          This is handled automatically by passing the required scaling factors.
+		 * @param [in] scalingFactors Vector with scaling factor for each row
+		 * @param [in,out] rhs On entry pointer to the right hand side vector @f$ y @f$ of the equation, on exit the solution @f$ x @f$
+		 * @param [in,out] workspace Workspace used by robustFactorize() (i.e., it has to contain the scalar factors of the Householder reflectors).
+		 *                 For an @f$ n \times n@f$ matrix, an array of size @f$ 2n @f$ is required.
+		 *                 Note that if the equation system is singular, the least squares solution @f$ x @f$ satisfying @f$ \text{min}_x \lVert Ax - y \rVert @f$
+		 *                 is returned.
+		 * @return @c true if the solution process was successful, otherwise @c false
+		 */
+		bool robustSolve(double const* scalingFactors, double* rhs, double* const workspace) const;
 
 		/**
 		 * @brief Returns the size of the workspace required for calling robustFactorize()
