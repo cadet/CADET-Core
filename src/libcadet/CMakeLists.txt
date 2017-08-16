@@ -103,6 +103,9 @@ set (LIBCADET_SOURCES
 	${CMAKE_SOURCE_DIR}/src/libcadet/model/InletModel.cpp
 	${CMAKE_SOURCE_DIR}/src/libcadet/model/OutletModel.cpp
 	${CMAKE_SOURCE_DIR}/src/libcadet/model/StirredTankModel.cpp
+	${CMAKE_SOURCE_DIR}/src/libcadet/model/LumpedRateModelWithPores.cpp
+	${CMAKE_SOURCE_DIR}/src/libcadet/model/LumpedRateModelWithPores-LinearSolver.cpp
+	${CMAKE_SOURCE_DIR}/src/libcadet/model/LumpedRateModelWithPores-InitialConditions.cpp
 	${CMAKE_SOURCE_DIR}/src/libcadet/model/GeneralRateModel.cpp
 	${CMAKE_SOURCE_DIR}/src/libcadet/model/GeneralRateModel-LinearSolver.cpp
 	${CMAKE_SOURCE_DIR}/src/libcadet/model/GeneralRateModel-InitialConditions.cpp

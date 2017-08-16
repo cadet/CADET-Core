@@ -419,6 +419,35 @@ The final behavior is controlled by the interplay of cross section area and inte
 	\item If both cross section area $A$ and interstitial velocity $u$ are given, the magnitude of the actual interstitial velocity $u$ is inferred from the volumetric flow rate and the flow direction is given by the sign of the provided $u$.
 \end{enumerate}
 
+\subsection{Lumped rate model with pores (LRMP)}\label{sec:MUOPLRMP}
+
+The lumped rate model with pores \index{Model!Lumped rate model with pores}\index{Model!LRMP}\index{Unit operation!Lumped rate model with pores}\index{Unit operation!LRMP} \cite{Guiochon2006,Felinger2004} deviates from the general rate model (see Section~\ref{sec:MUOPGRM}) by neglecting pore diffusion.
+The particle phase $c_p$ is still there, but no mass transfer happens except for binding and film diffusion.
+Hence, the model equations are given by
+\begin{align}
+	\frac{\partial c_i}{\partial t} &= -u \frac{\partial c_i}{\partial z} + D_{\text{ax}} \frac{\partial^2 c_i}{\partial z^2} - \frac{1}{\beta_c}\frac{3}{r_p}k_{f,i}\left[ c_i - c_{p,i} \right], \\
+	\frac{\pdiff c_{p,i}}{\pdiff t} + \frac{1}{\beta_p} \frac{\pdiff}{\pdiff t} \sum_{m_i} q_{i,m_i} &= \frac{3}{\varepsilon_p r_p}k_{f,i}\left[ c_i - c_{p,i} \right]
+\end{align}
+with the same meanings of variables and parameters as in the general rate model. 
+The equations are complemented by Danckwerts boundary conditions \cite{Danckwerts1953}
+\begin{align*}
+	u c_{\text{in},i}(t) &= u c_i(t,0) - D_{\text{ax}} \frac{\partial c_i}{\partial z}(t, 0) & \forall t > 0,\\
+	\frac{\partial c_i}{\partial z}(t, L) &= 0 & \forall t > 0.
+\end{align*}
+
+As for the general rate model, both quasi-stationary and dynamic binding models are supported:
+\begin{alignat*}{2}
+	\text{quasi-stationary: }& & 0 &= f_{\text{ads}}( c_p, q), \\
+	\text{dynamic: }& & \frac{\partial q}{\partial t} &= f_{\text{ads}}( c_p, q).
+\end{alignat*}
+By default, the following initial conditions are applied for all $z \in [0,L]$:
+\begin{align}
+	c_i(0, z) &= 0, & c_{p,i}(0, z) &= 0, & q_{i,m_i}(0,z) &= 0.
+\end{align}
+
+For the specification of flow rate and direction, the same holds as for the general rate model (see Section~\ref{par:MUOPGRMflow}).
+See Table~\ref{tab:FFModelUnitOpLRMP}.
+
 \subsection{Continuously stirred tank reactor model (CSTR)}\label{sec:MUOPCSTR}
 
 The continuously stirred tank reactor model \index{Model!Continuously stirred tank reactor}\index{Model!CSTR}\index{Unit operation!Continuously stirred tank reactor model}\index{Unit operation!CSTR} is a basic building block in unit operation networks and often used to model holdup volume.
