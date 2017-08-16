@@ -251,7 +251,7 @@ int GeneralRateModel::linearSolve(double t, double timeFactor, double alpha, dou
 		const int gmresResult = _gmres.solve(tolerance, weight + idxr.offsetJf(), _tempState + idxr.offsetJf(), rhs + idxr.offsetJf());
 		BENCH_STOP(_timerGmres);
 
-			// Remove temporary results that are leftovers from schurComplementMatrixVector()
+		// Remove temporary results that are leftovers from schurComplementMatrixVector()
 		std::fill(_tempState + idxr.offsetC(), _tempState + idxr.offsetJf(), 0.0);
 
 		// At this point, rhs contains the intermediate solution [y_0, ..., y_{N_z}, x_f]
@@ -481,7 +481,7 @@ void GeneralRateModel::assembleDiscretizedJacobianParticleBlock(unsigned int pbl
 	linalg::FactorizableBandMatrix::RowIterator jac = fbm.row(0);
 	for (unsigned int j = 0; j < _disc.nPar; ++j)
 	{
-		// Mobile phase
+		// Mobile phase (advances jac accordingly)
 		addMobilePhaseTimeDerivativeToJacobianParticleBlock(jac, idxr, alpha, invBetaP, timeFactor);
 
 		// Stationary phase
@@ -511,7 +511,7 @@ void GeneralRateModel::addMobilePhaseTimeDerivativeToJacobianParticleBlock(linal
 	// Mobile phase
 	for (int comp = 0; comp < static_cast<int>(_disc.nComp); ++comp, ++jac)
 	{
-		// Add derviative with respect to dc_p / dt to Jacobian
+		// Add derivative with respect to dc_p / dt to Jacobian
 		jac[0] += alpha;
 
 		// Add derivative with respect to dq / dt to Jacobian

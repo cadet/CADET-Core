@@ -1248,7 +1248,7 @@ void GeneralRateModel::multiplyWithDerivativeJacobian(double t, unsigned int sec
 				// Mobile phase
 				for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
 				{
-					// Add derviative with respect to dc_p / dt to Jacobian
+					// Add derivative with respect to dc_p / dt to Jacobian
 					localRet[comp] = timeFactor * localSdot[comp];
 
 					// Add derivative with respect to dq / dt to Jacobian (normal equations)
