@@ -303,7 +303,7 @@ void GeneralRateModel::consistentInitialTimeDerivative(double t, unsigned int se
 		linalg::FactorizableBandMatrix::RowIterator jac = fbm.row(0);
 		for (unsigned int j = 0; j < _disc.nPar; ++j)
 		{
-			// Mobile phase
+			// Mobile phase (advances jac accordingly)
 			addMobilePhaseTimeDerivativeToJacobianParticleBlock(jac, idxr, 1.0, invBetaP, timeFactor);
 
 			// Stationary phase
@@ -345,6 +345,11 @@ void GeneralRateModel::consistentInitialTimeDerivative(double t, unsigned int se
 			jac += idxr.strideParBound();
 		}
 
+		// Precondition
+		double* const scaleFactors = _tempState + idxr.offsetCp(pblk);
+		fbm.rowScaleFactors(scaleFactors);
+		fbm.scaleRows(scaleFactors);
+
 		// Factorize
 		const bool result = fbm.factorize();
 		if (!result)
@@ -353,7 +358,7 @@ void GeneralRateModel::consistentInitialTimeDerivative(double t, unsigned int se
 		}
 
 		// Solve
-		const bool result2 = fbm.solve(vecStateYdot + idxr.offsetCp(pblk));
+		const bool result2 = fbm.solve(scaleFactors, vecStateYdot + idxr.offsetCp(pblk));
 		if (!result2)
 		{
 			LOG(Error) << "Solve() failed for par block " << pblk;
@@ -648,9 +653,14 @@ void GeneralRateModel::consistentInitialSensitivity(const active& t, unsigned in
 					// Copy main block to dense matrix
 					jacobianMatrix.copySubmatrixFromBanded(_jacP[pblk], jacRowOffset + algStart, 0, algLen, algLen);
 
+					// Precondition
+					double* const scaleFactors = _tempState + idxr.offsetCp(pblk);
+					jacobianMatrix.rowScaleFactors(scaleFactors);
+					jacobianMatrix.scaleRows(scaleFactors);
+
 					// Solve algebraic variables
 					jacobianMatrix.factorize();
-					jacobianMatrix.solve(qShell + algStart);
+					jacobianMatrix.solve(scaleFactors, qShell + algStart);
 				}
 			} CADET_PARFOR_END;
 		}
@@ -688,7 +698,7 @@ void GeneralRateModel::consistentInitialSensitivity(const active& t, unsigned in
 			linalg::FactorizableBandMatrix::RowIterator jac = fbm.row(0);
 			for (unsigned int j = 0; j < _disc.nPar; ++j)
 			{
-				// Mobile phase
+				// Mobile phase (advances jac accordingly)
 				addMobilePhaseTimeDerivativeToJacobianParticleBlock(jac, idxr, 1.0, invBetaP, static_cast<double>(timeFactor));
 
 				// Stationary phase
@@ -727,6 +737,11 @@ void GeneralRateModel::consistentInitialSensitivity(const active& t, unsigned in
 				jac += idxr.strideParBound();
 			}   
 
+			// Precondition
+			double* const scaleFactors = _tempState + idxr.offsetCp(pblk);
+			fbm.rowScaleFactors(scaleFactors);
+			fbm.scaleRows(scaleFactors);
+
 			// Factorize
 			const bool result = fbm.factorize();
 			if (!result)
@@ -735,7 +750,7 @@ void GeneralRateModel::consistentInitialSensitivity(const active& t, unsigned in
 			}
 
 			// Solve
-			const bool result2 = fbm.solve(sensYdot + idxr.offsetCp(pblk));
+			const bool result2 = fbm.solve(scaleFactors, sensYdot + idxr.offsetCp(pblk));
 			if (!result2)
 			{
 				LOG(Error) << "Solve() failed for par block " << pblk;
