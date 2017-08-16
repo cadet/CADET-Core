@@ -225,7 +225,11 @@ namespace nonlin
 		virtual const char* name() const { return AdaptiveTrustRegionNewtonSolver::identifier(); }
 		virtual bool configure(IParameterProvider& paramProvider);
 
-		virtual unsigned int workspaceSize(unsigned int problemSize) const { return 4 * problemSize; }
+		virtual unsigned int workspaceSize(unsigned int problemSize) const
+		{
+			// Method requires 4 * problemSize but we add an additional problemSize for preconditioning
+			return 5 * problemSize;
+		}
 		
 		virtual unsigned int numTuningParameters() const { return 3; }
 
@@ -448,7 +452,11 @@ namespace nonlin
 		virtual const char* name() const { return RobustAdaptiveTrustRegionNewtonSolver::identifier(); }
 		virtual bool configure(IParameterProvider& paramProvider);
 
-		virtual unsigned int workspaceSize(unsigned int problemSize) const { return 4 * problemSize; }
+		virtual unsigned int workspaceSize(unsigned int problemSize) const
+		{
+			// Method requires 4 * problemSize but we add an additional problemSize for preconditioning
+			return 5 * problemSize;
+		}
 		
 		virtual unsigned int numTuningParameters() const { return 3; }
 

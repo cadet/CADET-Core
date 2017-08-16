@@ -37,8 +37,15 @@ bool AdaptiveTrustRegionNewtonSolver::configure(IParameterProvider& paramProvide
 bool AdaptiveTrustRegionNewtonSolver::solve(std::function<bool(double const* const, double* const)> residual, std::function<bool(double const* const, linalg::detail::DenseMatrixBase& jac)> jacobian,
 		double tol, double* const point, double* const workingMemory, linalg::detail::DenseMatrixBase& jacMatrix, unsigned int size) const
 {
+	double* const scaleFactors = workingMemory + 4 * size;
 	return adaptiveTrustRegionNewtonMethod(residual, [&](double const* const x, double* const y) -> bool {
-			return jacobian(x, jacMatrix) && jacMatrix.factorize() && jacMatrix.solve(y);
+			if (!jacobian(x, jacMatrix))
+				return false;
+
+			jacMatrix.rowScaleFactors(scaleFactors);
+			jacMatrix.scaleRows(scaleFactors);
+
+			return jacMatrix.factorize() && jacMatrix.solve(scaleFactors, y);
 		},
 		_maxIter, tol, _initDamping, _minDamping, point, workingMemory, size);
 }
@@ -61,8 +68,15 @@ bool RobustAdaptiveTrustRegionNewtonSolver::configure(IParameterProvider& paramP
 bool RobustAdaptiveTrustRegionNewtonSolver::solve(std::function<bool(double const* const, double* const)> residual, std::function<bool(double const* const, linalg::detail::DenseMatrixBase& jac)> jacobian,
 		double tol, double* const point, double* const workingMemory, linalg::detail::DenseMatrixBase& jacMatrix, unsigned int size) const
 {
+	double* const scaleFactors = workingMemory + 4 * size;
 	return robustAdaptiveTrustRegionNewtonMethod(residual, [&](double const* const x, double* const y) -> bool {
-			return jacobian(x, jacMatrix) && jacMatrix.factorize() && jacMatrix.solve(y);
+			if (!jacobian(x, jacMatrix))
+				return false;
+
+			jacMatrix.rowScaleFactors(scaleFactors);
+			jacMatrix.scaleRows(scaleFactors);
+
+			return jacMatrix.factorize() && jacMatrix.solve(scaleFactors, y);
 		},
 		[&](double* const y) -> bool {
 			return jacMatrix.solve(y);

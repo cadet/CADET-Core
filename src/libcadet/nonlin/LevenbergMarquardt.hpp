@@ -163,6 +163,9 @@ namespace nonlin
 			factoredJac.submatrixAssign(jacMatrix, 0, 0, jacMatrix.rows(), jacMatrix.columns());
 			factoredJac.submatrixSetAll(0.0, size, 0, jacMatrix.rows(), jacMatrix.rows());
 
+			factoredJac.rowScaleFactors(workspace, size);
+			factoredJac.scaleRows(workspace, size);
+
 			// Add scaled identity matrix for damping and prepare right hand side
 			const double sqrtDamping = std::sqrt(damping);
 			for (unsigned int i = 0; i < size; ++i)
@@ -170,7 +173,7 @@ namespace nonlin
 				factoredJac.native(i + size, i) = sqrtDamping;
 
 				// Negate residual
-				dx[i] = -residualMem[i];
+				dx[i] = -residualMem[i] / workspace[i];
 
 				// Set lower part of right hand side to zero
 				dx[i + size] = 0.0;
