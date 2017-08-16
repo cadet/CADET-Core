@@ -146,7 +146,7 @@ inline void compareResidualBulkFwdFwd(double const* r1, double const* r2, unsign
  * @param [in] wenoOrder WENO order
  * @return Runnable GRM
  */
-cadet::model::GeneralRateModel* createAndConfigureGRM(cadet::IModelBuilder& mb, cadet::JsonParameterProvider& jpp, int wenoOrder)
+inline cadet::model::GeneralRateModel* createAndConfigureGRM(cadet::IModelBuilder& mb, cadet::JsonParameterProvider& jpp, int wenoOrder)
 {
 	// Create a GRM
 	cadet::IModel* const iGrm = mb.createUnitOperation("GENERAL_RATE_MODEL", 0);
@@ -167,7 +167,7 @@ cadet::model::GeneralRateModel* createAndConfigureGRM(cadet::IModelBuilder& mb, 
 	return grm;
 }
 
-void testJacobianWenoForwardBackward(int wenoOrder)
+inline void testJacobianWenoForwardBackward(int wenoOrder)
 {
 	cadet::IModelBuilder* const mb = cadet::createModelBuilder();
 	REQUIRE(nullptr != mb);
@@ -255,7 +255,7 @@ void testJacobianWenoForwardBackward(int wenoOrder)
 	destroyModelBuilder(mb);
 }
 
-void testResidualBulkWenoForwardBackward(int wenoOrder)
+inline void testResidualBulkWenoForwardBackward(int wenoOrder)
 {
 	cadet::IModelBuilder* const mb = cadet::createModelBuilder();
 	REQUIRE(nullptr != mb);

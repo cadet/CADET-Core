@@ -562,7 +562,7 @@ cadet::JsonParameterProvider createLWE()
 	return cadet::JsonParameterProvider(createLWEJson());
 }
 
-cadet::JsonParameterProvider createLinearBenchmark(bool dynamicBinding, bool nonBinding)
+cadet::JsonParameterProvider createLinearBenchmark(bool dynamicBinding, bool nonBinding, const std::string& uoType)
 {
 	json config;
 	// Model
@@ -573,7 +573,7 @@ cadet::JsonParameterProvider createLinearBenchmark(bool dynamicBinding, bool non
 		// GRM - unit 000
 		{
 			json grm;
-			grm["UNIT_TYPE"] = std::string("GENERAL_RATE_MODEL");
+			grm["UNIT_TYPE"] = uoType;
 			grm["NCOMP"] = 1;
 			grm["VELOCITY"] = 0.5 / (100.0 * 60.0);
 			grm["COL_DISPERSION"] = 0.002 / (100.0 * 100.0 * 60.0);

@@ -103,7 +103,7 @@ namespace
 const char* getTestDirectory();
 
 /**
- * @brief Reverses the flow of the GRM unit operation
+ * @brief Reverses the flow of the LRMP unit operation
  * @param [in,out] jpp ParameterProvider to change the flow direction in
  */
 inline void reverseFlow(cadet::JsonParameterProvider& jpp)
@@ -168,7 +168,7 @@ inline void testAnalyticBenchmark(bool forwardFlow, bool dynamicBinding)
 	SECTION("Analytic" + fwdStr + " flow with " + (dynamicBinding ? "dynamic" : "quasi-stationary") + " binding")
 	{
 		// Setup simulation
-		cadet::JsonParameterProvider jpp = createLinearBenchmark(dynamicBinding, false, "GENERAL_RATE_MODEL");
+		cadet::JsonParameterProvider jpp = createLinearBenchmark(dynamicBinding, false, "LUMPED_RATE_MODEL_WITH_PORES");
 		if (!forwardFlow)
 			reverseFlow(jpp);
 
@@ -178,7 +178,7 @@ inline void testAnalyticBenchmark(bool forwardFlow, bool dynamicBinding)
 		drv.run();
 
 		// Read reference data from test file
-		const std::string refFile = std::string(getTestDirectory()) + "/data/grm-pulseBenchmark.data";
+		const std::string refFile = std::string(getTestDirectory()) + "/data/lrmp-pulseBenchmark.data";
 		ReferenceDataReader rd(refFile.c_str());
 		const std::vector<double> time = rd.time();
 		const std::vector<double> ref = (dynamicBinding ? rd.analyticDynamic() : rd.analyticQuasiStationary());
@@ -196,7 +196,7 @@ inline void testAnalyticBenchmark(bool forwardFlow, bool dynamicBinding)
 			// whereas the reference solution is given at every second (0s, 1s, 2s, 3s, ...)
 			// Thus, we only take the even indices of the reference array
 			CAPTURE(time[2 * i]);
-			CHECK((*outlet) == makeApprox(ref[2 * i], 1e-6, 4e-5));
+			CHECK((*outlet) == makeApprox(ref[2 * i], 1e-6, 1e-5));
 		}
 	}
 }
@@ -207,7 +207,7 @@ inline void testAnalyticNonBindingBenchmark(bool forwardFlow)
 	SECTION("Analytic" + fwdStr + " flow")
 	{
 		// Setup simulation
-		cadet::JsonParameterProvider jpp = createLinearBenchmark(true, true, "GENERAL_RATE_MODEL");
+		cadet::JsonParameterProvider jpp = createLinearBenchmark(true, true, "LUMPED_RATE_MODEL_WITH_PORES");
 		if (!forwardFlow)
 			reverseFlow(jpp);
 
@@ -217,7 +217,7 @@ inline void testAnalyticNonBindingBenchmark(bool forwardFlow)
 		drv.run();
 
 		// Read reference data from test file
-		const std::string refFile = std::string(getTestDirectory()) + "/data/grm-nonBinding.data";
+		const std::string refFile = std::string(getTestDirectory()) + "/data/lrmp-nonBinding.data";
 		ReferenceDataReader rd(refFile.c_str());
 		const std::vector<double> time = rd.time();
 		const std::vector<double> ref = rd.analyticDynamic();
@@ -231,19 +231,12 @@ inline void testAnalyticNonBindingBenchmark(bool forwardFlow)
 		{
 			// Compare with relative error 1e-6 and absolute error 6e-5
 			CAPTURE(time[i]);
-			CHECK((*outlet) == makeApprox(ref[i], 1e-6, 6e-5));
+			CHECK((*outlet) == makeApprox(ref[i], 1e-6, 1e-5));
 		}
 	}
 }
 
-TEST_CASE("LWE forward vs backward flow", "[GRM],[Simulation]")
-{
-	// Test all WENO orders
-	for (unsigned int i = 1; i <= cadet::Weno::maxOrder(); ++i)
-		testWenoForwardBackward(i);
-}
-
-TEST_CASE("GRM linear pulse vs analytic solution", "[GRM],[Simulation],[Analytic]")
+TEST_CASE("LRMP linear pulse vs analytic solution", "[LRMP],[Simulation],[Analytic]")
 {
 	testAnalyticBenchmark(true, true);
 	testAnalyticBenchmark(true, false);
@@ -251,7 +244,7 @@ TEST_CASE("GRM linear pulse vs analytic solution", "[GRM],[Simulation],[Analytic
 	testAnalyticBenchmark(false, false);
 }
 
-TEST_CASE("GRM non-binding linear pulse vs analytic solution", "[GRM],[Simulation],[Analytic],[NonBinding]")
+TEST_CASE("LRMP non-binding linear pulse vs analytic solution", "[LRMP],[Simulation],[Analytic],[NonBinding]")
 {
 	testAnalyticNonBindingBenchmark(true);
 	testAnalyticNonBindingBenchmark(false);
