@@ -28,6 +28,7 @@ struct ProgramOptions
 	std::vector<std::string> sensitivities;
 	std::string outSol;
 	std::string outSens;
+	std::string unitType;
 };
 
 int main(int argc, char** argv)
@@ -43,6 +44,7 @@ int main(int argc, char** argv)
 		cmd >> (new TCLAP::ValueArg<std::string>("o", "out", "Write output to file (default: SCLinPulse.h5)", false, "SCLinPulse.h5", "File"))->storeIn(&opts.fileName);
 		cmd >> (new TCLAP::SwitchArg("k", "kinetic", "Kinetic adsorption model used (default: quasi-stationary)"))->storeIn(&opts.isKinetic);
 		cmd >> (new TCLAP::SwitchArg("n", "nonbinding", "Create nonbinding model (default: binding)"))->storeIn(&opts.nonBinding);
+		addUnitTypeToCmdLine(cmd, opts.unitType);
 		addSensitivitiyParserToCmdLine(cmd, opts.sensitivities);
 		addOutputParserToCmdLine(cmd, opts.outSol, opts.outSens);
 
@@ -58,6 +60,8 @@ int main(int argc, char** argv)
 	writer.openFile(opts.fileName, "co");
 	writer.pushGroup("input");
 
+	parseUnitType(opts.unitType);
+
 	// Model
 	{
 		Scope<cadet::io::HDF5Writer> s(writer, "model");
@@ -67,7 +71,7 @@ int main(int argc, char** argv)
 		{
 			Scope<cadet::io::HDF5Writer> su(writer, "unit_000");
 
-			writer.scalar("UNIT_TYPE", std::string("GENERAL_RATE_MODEL"));
+			writer.scalar("UNIT_TYPE", opts.unitType);
 			writer.scalar<int>("NCOMP", 1);
 
 			//Flow

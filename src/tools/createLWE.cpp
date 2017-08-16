@@ -41,6 +41,7 @@ struct ProgramOptions
 	std::vector<std::string> sensitivities;
 	std::string outSol;
 	std::string outSens;
+	std::string unitType;
 };
 
 
@@ -62,6 +63,7 @@ int main(int argc, char** argv)
 		cmd >> (new TCLAP::ValueArg<double>("s", "stddevAlg", "Perturb algebraic variables with normal variates", false, nanVal, "Value"))->storeIn(&opts.stddevAlg);
 		cmd >> (new TCLAP::SwitchArg("", "reverseFlow", "Reverse the flow for column"))->storeIn(&opts.reverseFlow);
 		addMiscToCmdLine(cmd, opts);
+		addUnitTypeToCmdLine(cmd, opts.unitType);
 		addSensitivitiyParserToCmdLine(cmd, opts.sensitivities);
 		addOutputParserToCmdLine(cmd, opts.outSol, opts.outSens);
 
@@ -77,6 +79,8 @@ int main(int argc, char** argv)
 	writer.openFile(opts.fileName, "co");
 	writer.pushGroup("input");
 
+	parseUnitType(opts.unitType);
+
 	// Model
 	{
 		Scope<cadet::io::HDF5Writer> s(writer, "model");
@@ -85,7 +89,7 @@ int main(int argc, char** argv)
 		{
 			Scope<cadet::io::HDF5Writer> su(writer, "unit_000");
 
-			writer.scalar("UNIT_TYPE", std::string("GENERAL_RATE_MODEL"));
+			writer.scalar("UNIT_TYPE", opts.unitType);
 			const int nComp = 4;
 			writer.scalar<int>("NCOMP", nComp);
 

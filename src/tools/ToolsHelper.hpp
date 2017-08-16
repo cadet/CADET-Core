@@ -57,6 +57,21 @@ inline void addMiscToCmdLine(TCLAP::CmdLine& cmd, ProgramOptions_t& opts)
 	cmd >> (new TCLAP::SwitchArg("", "ad", "Calculate Jacobian using AD (default: analytic)"))->storeIn(&opts.adJacobian);
 }
 
+inline void addUnitTypeToCmdLine(TCLAP::CmdLine& cmd, std::string& unitType)
+{
+	cmd >> (new TCLAP::ValueArg<std::string>("u", "unit", "Unit operation (default: GRM)", false, "GRM", "Unit"))->storeIn(&unitType);
+}
+
+inline void parseUnitType(std::string& unitType)
+{
+	if ((unitType == "GRM") || (unitType == "grm"))
+		unitType = "GENERAL_RATE_MODEL";
+	else if ((unitType == "LRMP") || (unitType == "lrmp"))
+		unitType = "LUMPED_RATE_MODEL_WITH_PORES";
+	else if ((unitType == "LRM") || (unitType == "lrm"))
+		unitType = "LUMPED_RATE_MODEL_WITHOUT_PORES";
+}
+
 inline void addSensitivitiyParserToCmdLine(TCLAP::CmdLine& cmd, std::vector<std::string>& sensitivities)
 {
 	cmd >> (new TCLAP::MultiArg<std::string>("S", "sens", 
