@@ -1272,6 +1272,11 @@ void CSTRModel::checkAnalyticJacobianAgainstAd(active const* const adRes, unsign
 
 #endif
 
+void registerCSTRModel(std::unordered_map<std::string, std::function<IUnitOperation*(UnitOpIdx)>>& models)
+{
+	models[CSTRModel::identifier()] = [](UnitOpIdx uoId) { return new CSTRModel(uoId); };
+}
+
 }  // namespace model
 
 }  // namespace cadet

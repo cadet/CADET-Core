@@ -220,6 +220,11 @@ void OutletModel::multiplyWithDerivativeJacobian(double t, unsigned int secIdx, 
 	std::fill_n(ret, numDofs(), 0.0);
 }
 
+void registerOutletModel(std::unordered_map<std::string, std::function<IUnitOperation*(UnitOpIdx)>>& models)
+{
+	models[OutletModel::identifier()] = [](UnitOpIdx uoId) { return new OutletModel(uoId); };
+}
+
 }  // namespace model
 
 }  // namespace cadet

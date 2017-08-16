@@ -1400,6 +1400,10 @@ void GeneralRateModel::setUserdefinedRadialDisc(const std::vector<double>& cellI
 	}
 }
 
+void registerGeneralRateModel(std::unordered_map<std::string, std::function<IUnitOperation*(UnitOpIdx)>>& models)
+{
+	models[GeneralRateModel::identifier()] = [](UnitOpIdx uoId) { return new GeneralRateModel(uoId); };
+}
 
 }  // namespace model
 

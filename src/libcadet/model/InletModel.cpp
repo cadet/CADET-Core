@@ -393,6 +393,11 @@ void InletModel::multiplyWithDerivativeJacobian(double t, unsigned int secIdx, d
 	std::fill_n(ret, numDofs(), 0.0);
 }
 
+void registerInletModel(std::unordered_map<std::string, std::function<IUnitOperation*(UnitOpIdx)>>& models)
+{
+	models[InletModel::identifier()] = [](UnitOpIdx uoId) { return new InletModel(uoId); };
+}
+
 }  // namespace model
 
 }  // namespace cadet

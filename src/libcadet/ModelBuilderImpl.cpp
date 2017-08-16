@@ -19,11 +19,6 @@
 
 #include "model/ModelSystemImpl.hpp"
 
-#include "model/GeneralRateModel.hpp"
-#include "model/StirredTankModel.hpp"
-#include "model/InletModel.hpp"
-#include "model/OutletModel.hpp"
-
 #include <sstream>
 #include <iomanip>
 
@@ -31,6 +26,12 @@ namespace cadet
 {
 	namespace model
 	{
+		void registerInletModel(std::unordered_map<std::string, std::function<IUnitOperation*(UnitOpIdx)>>& models);
+		void registerOutletModel(std::unordered_map<std::string, std::function<IUnitOperation*(UnitOpIdx)>>& models);
+
+		void registerGeneralRateModel(std::unordered_map<std::string, std::function<IUnitOperation*(UnitOpIdx)>>& models);
+		void registerCSTRModel(std::unordered_map<std::string, std::function<IUnitOperation*(UnitOpIdx)>>& models);
+
 		namespace inlet
 		{
 			void registerPiecewiseCubicPoly(std::unordered_map<std::string, std::function<IInletProfile*()>>& inlets);
@@ -46,10 +47,10 @@ namespace cadet
 	ModelBuilder::ModelBuilder()
 	{
 		// Register all available models
-		registerModel<model::GeneralRateModel>();
-		registerModel<model::CSTRModel>();
-		registerModel<model::InletModel>();
-		registerModel<model::OutletModel>();
+		model::registerInletModel(_modelCreators);
+		model::registerOutletModel(_modelCreators);
+		model::registerGeneralRateModel(_modelCreators);
+		model::registerCSTRModel(_modelCreators);
 
 		// Register all available inlet profiles
 		model::inlet::registerPiecewiseCubicPoly(_inletCreators);
