@@ -100,6 +100,7 @@ set (LIBCADET_SOURCES
 	${CMAKE_SOURCE_DIR}/src/libcadet/Weno.cpp
 	${CMAKE_SOURCE_DIR}/src/libcadet/BindingModelFactory.cpp
 	${CMAKE_SOURCE_DIR}/src/libcadet/model/ModelSystemImpl.cpp
+	${CMAKE_SOURCE_DIR}/src/libcadet/model/UnitOperationBase.cpp
 	${CMAKE_SOURCE_DIR}/src/libcadet/model/InletModel.cpp
 	${CMAKE_SOURCE_DIR}/src/libcadet/model/OutletModel.cpp
 	${CMAKE_SOURCE_DIR}/src/libcadet/model/StirredTankModel.cpp

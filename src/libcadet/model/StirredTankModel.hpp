@@ -18,16 +18,13 @@
 #ifndef LIBCADET_CSTR_HPP_
 #define LIBCADET_CSTR_HPP_
 
-#include "UnitOperation.hpp"
+#include "model/UnitOperationBase.hpp"
 #include "cadet/SolutionExporter.hpp"
 #include "AutoDiff.hpp"
 #include "linalg/DenseMatrix.hpp"
-#include "ParamIdUtil.hpp"
 #include "model/ModelUtils.hpp"
 
 #include <array>
-#include <unordered_map>
-#include <unordered_set>
 #include <vector>
 
 namespace cadet
@@ -35,8 +32,6 @@ namespace cadet
 
 namespace model
 {
-
-class IBindingModel;
 
 /**
  * @brief Continuously stirred tank (reactor) model
@@ -48,7 +43,7 @@ class IBindingModel;
 \end{align} @f]
  * The model can be used as a plain stir tank without any binding states.
  */
-class CSTRModel : public IUnitOperation
+class CSTRModel : public UnitOperationBase
 {
 public:
 
@@ -72,18 +67,6 @@ public:
 	virtual bool reconfigure(IParameterProvider& paramProvider);
 	virtual void notifyDiscontinuousSectionTransition(double t, unsigned int secIdx, active* const adRes, active* const adY, unsigned int adDirOffset);
 
-	virtual std::unordered_map<ParameterId, double> getAllParameterValues() const;
-	virtual bool hasParameter(const ParameterId& pId) const;
-
-	virtual bool setParameter(const ParameterId& pId, int value);
-	virtual bool setParameter(const ParameterId& pId, double value);
-	virtual bool setParameter(const ParameterId& pId, bool value);
-	
-	virtual bool setSensitiveParameter(const ParameterId& pId, unsigned int adDirection, double adValue);
-	virtual void setSensitiveParameterValue(const ParameterId& id, double value);
-
-	virtual void clearSensParams();
-
 	virtual void useAnalyticJacobian(const bool analyticJac);
 
 	virtual void reportSolution(ISolutionRecorder& recorder, double const* const solution) const;
@@ -95,10 +78,6 @@ public:
 
 	virtual int residualSensFwdAdOnly(const active& t, unsigned int secIdx, const active& timeFactor,
 		double const* const y, double const* const yDot, active* const adRes);
-
-	virtual int residualSensFwdCombine(const active& t, unsigned int secIdx, const active& timeFactor, double const* const y, double const* const yDot, 
-		const std::vector<const double*>& yS, const std::vector<const double*>& ySdot, const std::vector<double*>& resS, active const* adRes, 
-		double* const tmp1, double* const tmp2, double* const tmp3);
 
 	virtual int residualSensFwdWithJacobian(const active& t, unsigned int secIdx, const active& timeFactor, double const* const y, double const* const yDot, active* const adRes, active* const adY, unsigned int adDirOffset);
 
@@ -161,13 +140,10 @@ protected:
 	void checkAnalyticJacobianAgainstAd(active const* const adRes, unsigned int adDirOffset) const;
 #endif
 
-	UnitOpIdx _unitOpIdx; //!< Unit operation index
 	unsigned int _nComp; //!< Number of components
 	unsigned int* _nBound; //!< Array with number of bound states for each component
 	unsigned int* _boundOffset; //!< Array with offset to the first bound state of each component in the solid phase
 	unsigned int _strideBound; //!< Total number of bound states
-
-	IBindingModel* _binding; //!<  Binding model
 
 	active _porosity; //!< Porosity \f$ \varepsilon \f$
 	active _flowRateIn; //!< Volumetric flow rate of incoming stream
@@ -180,9 +156,6 @@ protected:
 	linalg::DenseMatrix _jacFact; //!< Factorized Jacobian
 	bool _factorizeJac; //!< Flag that tracks whether the Jacobian needs to be factorized
 	double* _consistentInitBuffer; //!< Memory for consistent initialization (solving nonlinear equations)
-
-	std::unordered_map<ParameterId, active*> _parameters; //!< Provides access to all parameters
-	std::unordered_set<active*> _sensParams; //!< Holds all parameters with activated AD directions
 
 	class Exporter : public ISolutionExporter
 	{

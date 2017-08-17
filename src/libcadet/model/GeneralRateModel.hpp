@@ -18,7 +18,7 @@
 #ifndef LIBCADET_GENERALRATEMODEL_HPP_
 #define LIBCADET_GENERALRATEMODEL_HPP_
 
-#include "UnitOperation.hpp"
+#include "model/UnitOperationBase.hpp"
 #include "cadet/SolutionExporter.hpp"
 #include "model/operator/ConvectionDispersionOperator.hpp"
 #include "AutoDiff.hpp"
@@ -26,12 +26,9 @@
 #include "linalg/BandMatrix.hpp"
 #include "linalg/Gmres.hpp"
 #include "MemoryPool.hpp"
-#include "ParamIdUtil.hpp"
 #include "model/ModelUtils.hpp"
 
 #include <array>
-#include <unordered_map>
-#include <unordered_set>
 #include <vector>
 
 #include "Benchmark.hpp"
@@ -41,8 +38,6 @@ namespace cadet
 
 namespace model
 {
-
-class IBindingModel;
 
 /**
  * @brief General rate model of liquid column chromatography
@@ -65,7 +60,7 @@ u c_{\text{in},i}(t) &= u c_i(t,0) - D_{\text{ax}} \frac{\partial c_i}{\partial 
 \end{align} @f]
  * Methods are described in @cite VonLieres2010a (WENO, linear solver), @cite Puttmann2013 @cite Puttmann2016 (forward sensitivities, AD, band compression)
  */
-class GeneralRateModel : public IUnitOperation
+class GeneralRateModel : public UnitOperationBase
 {
 public:
 
@@ -88,18 +83,6 @@ public:
 	virtual bool configure(IParameterProvider& paramProvider, IConfigHelper& helper);
 	virtual bool reconfigure(IParameterProvider& paramProvider);
 	virtual void notifyDiscontinuousSectionTransition(double t, unsigned int secIdx, active* const adRes, active* const adY, unsigned int adDirOffset);
-
-	virtual std::unordered_map<ParameterId, double> getAllParameterValues() const;
-	virtual bool hasParameter(const ParameterId& pId) const;
-
-	virtual bool setParameter(const ParameterId& pId, int value);
-	virtual bool setParameter(const ParameterId& pId, double value);
-	virtual bool setParameter(const ParameterId& pId, bool value);
-
-	virtual bool setSensitiveParameter(const ParameterId& pId, unsigned int adDirection, double adValue);
-	virtual void setSensitiveParameterValue(const ParameterId& id, double value);
-
-	virtual void clearSensParams();
 
 	virtual void useAnalyticJacobian(const bool analyticJac);
 
@@ -241,9 +224,7 @@ protected:
 		unsigned int strideBound; //!< Total number of bound states
 	};
 
-	UnitOpIdx _unitOpIdx; //!< Unit operation index
 	Discretization _disc; //!< Discretization info
-	IBindingModel* _binding; //!<  Binding model
 //	IExternalFunction* _extFun; //!< External function (owned by library user)
 
 	operators::ConvectionDispersionOperator _convDispOp; //!< Convection dispersion operator for interstitial volume transport
@@ -267,10 +248,7 @@ protected:
 	std::vector<active> _parDiffusion; //!< Particle diffusion coefficient \f$ D_p \f$
 	std::vector<active> _parSurfDiffusion; //!< Particle surface diffusion coefficient \f$ D_s \f$
 
-	std::unordered_map<ParameterId, active*> _parameters; //!< Provides access to all parameters
 	bool _analyticJac; //!< Determines whether AD or analytic Jacobians are used
-
-	std::unordered_set<active*> _sensParams; //!< Holds all parameters with activated AD directions
 	unsigned int _jacobianAdDirs; //!< Number of AD seed vectors required for Jacobian computation
 
 	std::vector<double> _parCellSize; //!< Particle cell / shell size

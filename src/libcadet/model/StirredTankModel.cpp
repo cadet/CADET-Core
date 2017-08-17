@@ -17,16 +17,14 @@
 #include "model/BindingModel.hpp"
 
 #include "ConfigurationHelper.hpp"
-#include "ParamIdUtil.hpp"
 #include "linalg/Norms.hpp"
-
-#include <algorithm>
-#include <functional>
+#include "AdUtils.hpp"
 
 #include "LoggingUtils.hpp"
 #include "Logging.hpp"
-#include "AdUtils.hpp"
-#include "SensParamUtil.hpp"
+
+#include <algorithm>
+#include <functional>
 
 namespace cadet
 {
@@ -34,8 +32,8 @@ namespace cadet
 namespace model
 {
 
-CSTRModel::CSTRModel(UnitOpIdx unitOpIdx) : _unitOpIdx(unitOpIdx), _nComp(0), _nBound(nullptr), _boundOffset(nullptr), _strideBound(0), 
-	_binding(nullptr), _analyticJac(true), _jac(), _jacFact(), _factorizeJac(false), _consistentInitBuffer(nullptr)
+CSTRModel::CSTRModel(UnitOpIdx unitOpIdx) : UnitOperationBase(unitOpIdx), _nComp(0), _nBound(nullptr), _boundOffset(nullptr), _strideBound(0), 
+	_analyticJac(true), _jac(), _jacFact(), _factorizeJac(false), _consistentInitBuffer(nullptr)
 {
 }
 
@@ -182,135 +180,6 @@ bool CSTRModel::reconfigure(IParameterProvider& paramProvider)
 
 void CSTRModel::setSectionTimes(double const* secTimes, bool const* secContinuity, unsigned int nSections)
 {
-}
-
-std::unordered_map<ParameterId, double> CSTRModel::getAllParameterValues() const
-{
-	std::unordered_map<ParameterId, double> data;
-	std::transform(_parameters.begin(), _parameters.end(), std::inserter(data, data.end()),
-	               [](const std::pair<const ParameterId, active*>& p) { return std::make_pair(p.first, static_cast<double>(*p.second)); });
-	if (!_binding)
-		return data;
-
-	const std::unordered_map<ParameterId, double> localData = _binding->getAllParameterValues();
-	for (const std::pair<ParameterId, double>& val : localData)
-		data[val.first] = val.second;
-
-	return data;
-}
-
-bool CSTRModel::hasParameter(const ParameterId& pId) const
-{
-	const bool hasParam = _parameters.find(pId) != _parameters.end();
-	if (_binding)
-		return hasParam || _binding->hasParameter(pId);
-	return hasParam;
-}
-
-bool CSTRModel::setParameter(const ParameterId& pId, int value)
-{
-	if ((pId.unitOperation != _unitOpIdx) && (pId.unitOperation != UnitOpIndep))
-		return false;
-
-	if (_binding)
-		return _binding->setParameter(pId, value);
-	return false;
-}
-
-bool CSTRModel::setParameter(const ParameterId& pId, double value)
-{
-	if ((pId.unitOperation != _unitOpIdx) && (pId.unitOperation != UnitOpIndep))
-		return false;
-
-	auto paramHandle = _parameters.find(pId);
-	if (paramHandle != _parameters.end())
-	{
-		paramHandle->second->setValue(value);
-		return true;
-	}
-	else if (_binding)
-		return _binding->setParameter(pId, value);
-
-	return false;
-}
-
-bool CSTRModel::setParameter(const ParameterId& pId, bool value)
-{
-	if ((pId.unitOperation != _unitOpIdx) && (pId.unitOperation != UnitOpIndep))
-		return false;
-
-	if (_binding)
-		return _binding->setParameter(pId, value);
-	return false;
-}
-
-void CSTRModel::setSensitiveParameterValue(const ParameterId& pId, double value)
-{
-	if ((pId.unitOperation != _unitOpIdx) && (pId.unitOperation != UnitOpIndep))
-		return;
-
-	// Check our own parameters
-	auto paramHandle = _parameters.find(pId);
-	if ((paramHandle != _parameters.end()) && contains(_sensParams, paramHandle->second))
-	{
-		paramHandle->second->setValue(value);
-		return;
-	}
-
-	// Check binding model parameters
-	if (_binding)
-	{
-		active* const val = _binding->getParameter(pId);
-		if (val && contains(_sensParams, val))
-		{
-			val->setValue(value);
-			return;
-		}
-	}
-}
-
-bool CSTRModel::setSensitiveParameter(const ParameterId& pId, unsigned int adDirection, double adValue)
-{
-	if ((pId.unitOperation != _unitOpIdx) && (pId.unitOperation != UnitOpIndep))
-		return false;
-
-	// Check own parameters
-	auto paramHandle = _parameters.find(pId);
-	if (paramHandle != _parameters.end())
-	{
-		LOG(Debug) << "Found parameter " << pId << " in GRM: Dir " << adDirection << " is set to " << adValue;
-
-		// Register parameter and set AD seed / direction
-		_sensParams.insert(paramHandle->second);
-		paramHandle->second->setADValue(adDirection, adValue);
-		return true;
-	}
-
-	// Check binding model parameters
-	if (_binding)
-	{
-		active* const paramBinding = _binding->getParameter(pId);
-		if (paramBinding)
-		{
-			LOG(Debug) << "Found parameter " << pId << " in AdsorptionModel: Dir " << adDirection << " is set to " << adValue;
-
-			// Register parameter and set AD seed / direction
-			_sensParams.insert(paramBinding);
-			paramBinding->setADValue(adDirection, adValue);
-			return true;
-		}
-	}
-
-	return false;
-}
-
-void CSTRModel::clearSensParams()
-{
-	// Remove AD directions from parameters
-	for (auto sp : _sensParams)
-		sp->setADValue(0.0);
-
-	_sensParams.clear();
 }
 
 void CSTRModel::useAnalyticJacobian(const bool analyticJac)
@@ -1001,28 +870,6 @@ int CSTRModel::residualSensFwdAdOnly(const active& t, unsigned int secIdx, const
 {
 	// Evaluate residual for all parameters using AD in vector mode
 	return residualImpl<double, active, active, false>(t, secIdx, timeFactor, y, yDot, adRes);
-}
-
-int CSTRModel::residualSensFwdCombine(const active& t, unsigned int secIdx, const active& timeFactor, double const* const y, double const* const yDot, 
-	const std::vector<const double*>& yS, const std::vector<const double*>& ySdot, const std::vector<double*>& resS, active const* adRes, 
-	double* const tmp1, double* const tmp2, double* const tmp3)
-{
-	for (unsigned int param = 0; param < yS.size(); param++)
-	{
-		// Directional derivative (dF / dy) * s
-		multiplyWithJacobian(static_cast<double>(t), secIdx, static_cast<double>(timeFactor), y, yDot, yS[param], 1.0, 0.0, tmp1);
-
-		// Directional derivative (dF / dyDot) * sDot
-		multiplyWithDerivativeJacobian(static_cast<double>(t), secIdx, static_cast<double>(timeFactor), y, yDot, ySdot[param], tmp2);
-
-		// Complete sens residual is the sum:
-		double* const ptrResS = resS[param];
-		for (unsigned int i = 0; i < numDofs(); ++i)
-		{
-			ptrResS[i] = tmp1[i] + tmp2[i] + adRes[i].getADValue(param);
-		}
-	}
-	return 0;
 }
 
 int CSTRModel::residualSensFwdWithJacobian(const active& t, unsigned int secIdx, const active& timeFactor, double const* const y,

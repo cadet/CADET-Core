@@ -25,7 +25,6 @@
 #include "Stencil.hpp"
 #include "Weno.hpp"
 #include "AdUtils.hpp"
-#include "SensParamUtil.hpp"
 
 #include "LoggingUtils.hpp"
 #include "Logging.hpp"
@@ -51,7 +50,7 @@ int schurComplementMultiplierGRM(void* userData, double const* x, double* z)
 }
 
 
-GeneralRateModel::GeneralRateModel(UnitOpIdx unitOpIdx) : _unitOpIdx(unitOpIdx), _binding(nullptr),
+GeneralRateModel::GeneralRateModel(UnitOpIdx unitOpIdx) : UnitOperationBase(unitOpIdx),
 	_jacP(nullptr), _jacPdisc(nullptr), _jacPF(nullptr), _jacFP(nullptr), _jacInlet(),
 	_analyticJac(true), _jacobianAdDirs(0), _factorizeJacobian(false), _tempState(nullptr)
 {
@@ -66,8 +65,6 @@ GeneralRateModel::~GeneralRateModel() CADET_NOEXCEPT
 
 	delete[] _jacP;
 	delete[] _jacPdisc;
-
-	delete _binding;
 
 	delete[] _disc.nBound;
 	delete[] _disc.boundOffset;
@@ -290,136 +287,6 @@ bool GeneralRateModel::reconfigure(IParameterProvider& paramProvider)
 	}
 
 	return true;
-}
-
-std::unordered_map<ParameterId, double> GeneralRateModel::getAllParameterValues() const
-{
-	std::unordered_map<ParameterId, double> data;
-	std::transform(_parameters.begin(), _parameters.end(), std::inserter(data, data.end()),
-	               [](const std::pair<const ParameterId, active*>& p) { return std::make_pair(p.first, static_cast<double>(*p.second)); });
-
-	if (!_binding)
-		return data;
-
-	const std::unordered_map<ParameterId, double> localData = _binding->getAllParameterValues();
-	for (const std::pair<ParameterId, double>& val : localData)
-		data[val.first] = val.second;
-
-	return data;
-}
-
-bool GeneralRateModel::hasParameter(const ParameterId& pId) const
-{
-	const bool hasParam = _parameters.find(pId) != _parameters.end();
-	if (_binding)
-		return hasParam || _binding->hasParameter(pId);
-	return hasParam;
-}
-
-bool GeneralRateModel::setParameter(const ParameterId& pId, int value)
-{
-	if ((pId.unitOperation != _unitOpIdx) && (pId.unitOperation != UnitOpIndep))
-		return false;
-
-	if (_binding)
-		return _binding->setParameter(pId, value);
-	return false;
-}
-
-bool GeneralRateModel::setParameter(const ParameterId& pId, double value)
-{
-	if ((pId.unitOperation != _unitOpIdx) && (pId.unitOperation != UnitOpIndep))
-		return false;
-
-	auto paramHandle = _parameters.find(pId);
-	if (paramHandle != _parameters.end())
-	{
-		paramHandle->second->setValue(value);
-		return true;
-	}
-	else if (_binding)
-		return _binding->setParameter(pId, value);
-
-	return false;
-}
-
-bool GeneralRateModel::setParameter(const ParameterId& pId, bool value)
-{
-	if ((pId.unitOperation != _unitOpIdx) && (pId.unitOperation != UnitOpIndep))
-		return false;
-
-	if (_binding)
-		return _binding->setParameter(pId, value);
-	return false;
-}
-
-void GeneralRateModel::setSensitiveParameterValue(const ParameterId& pId, double value)
-{
-	if ((pId.unitOperation != _unitOpIdx) && (pId.unitOperation != UnitOpIndep))
-		return;
-
-	// Check our own parameters
-	auto paramHandle = _parameters.find(pId);
-	if ((paramHandle != _parameters.end()) && contains(_sensParams, paramHandle->second))
-	{
-		paramHandle->second->setValue(value);
-		return;
-	}
-
-	// Check binding model parameters
-	if (_binding)
-	{
-		active* const val = _binding->getParameter(pId);
-		if (val && contains(_sensParams, val))
-		{
-			val->setValue(value);
-			return;
-		}
-	}
-}
-
-bool GeneralRateModel::setSensitiveParameter(const ParameterId& pId, unsigned int adDirection, double adValue)
-{
-	if ((pId.unitOperation != _unitOpIdx) && (pId.unitOperation != UnitOpIndep))
-		return false;
-
-	// Check own parameters
-	auto paramHandle = _parameters.find(pId);
-	if (paramHandle != _parameters.end())
-	{
-		LOG(Debug) << "Found parameter " << pId << " in GRM: Dir " << adDirection << " is set to " << adValue;
-
-		// Register parameter and set AD seed / direction
-		_sensParams.insert(paramHandle->second);
-		paramHandle->second->setADValue(adDirection, adValue);
-		return true;
-	}
-
-	// Check binding model parameters
-	if (_binding)
-	{
-		active* const paramBinding = _binding->getParameter(pId);
-		if (paramBinding)
-		{
-			LOG(Debug) << "Found parameter " << pId << " in AdsorptionModel: Dir " << adDirection << " is set to " << adValue;
-
-			// Register parameter and set AD seed / direction
-			_sensParams.insert(paramBinding);
-			paramBinding->setADValue(adDirection, adValue);
-			return true;
-		}
-	}
-
-	return false;
-}
-
-void GeneralRateModel::clearSensParams()
-{
-	// Remove AD directions from parameters
-	for (auto sp : _sensParams)
-		sp->setADValue(0.0);
-
-	_sensParams.clear();
 }
 
 void GeneralRateModel::useAnalyticJacobian(const bool analyticJac)
