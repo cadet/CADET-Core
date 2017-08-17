@@ -30,26 +30,16 @@ namespace operators
 {
 
 /**
- * @brief Creates a ConvectionDispersionOperator
+ * @brief Creates a ConvectionDispersionOperatorBase
  */
-ConvectionDispersionOperator::ConvectionDispersionOperator() : _stencilMemory(sizeof(active) * Weno::maxStencilSize()), 
+ConvectionDispersionOperatorBase::ConvectionDispersionOperatorBase() : _stencilMemory(sizeof(active) * Weno::maxStencilSize()), 
 	_wenoDerivatives(new double[Weno::maxStencilSize()]), _weno()
 {
 }
 
-ConvectionDispersionOperator::~ConvectionDispersionOperator() CADET_NOEXCEPT
+ConvectionDispersionOperatorBase::~ConvectionDispersionOperatorBase() CADET_NOEXCEPT
 {
 	delete[] _wenoDerivatives;
-}
-
-/**
- * @brief Returns the number of AD directions required for computing the Jacobian
- * @details Band compression is used to minimize the amount of AD directions.
- * @return Number of required AD directions
- */
-unsigned int ConvectionDispersionOperator::requiredADdirs() const CADET_NOEXCEPT
-{
-	return _jacC.stride();
 }
 
 /**
@@ -62,10 +52,11 @@ unsigned int ConvectionDispersionOperator::requiredADdirs() const CADET_NOEXCEPT
  * @param [in] nCol Number of axial cells
  * @return @c true if configuration went fine, @c false otherwise
  */
-bool ConvectionDispersionOperator::configure(UnitOpIdx unitOpIdx, IParameterProvider& paramProvider, std::unordered_map<ParameterId, active*>& parameters, unsigned int nComp, unsigned int nCol)
+bool ConvectionDispersionOperatorBase::configure(UnitOpIdx unitOpIdx, IParameterProvider& paramProvider, std::unordered_map<ParameterId, active*>& parameters, unsigned int nComp, unsigned int nCol, unsigned int strideCell)
 {
 	_nComp = nComp;
 	_nCol = nCol;
+	_strideCell = strideCell;
 
 	paramProvider.pushScope("discretization");
 
@@ -81,21 +72,6 @@ bool ConvectionDispersionOperator::configure(UnitOpIdx unitOpIdx, IParameterProv
 	// ==== Read model parameters
 	reconfigure(unitOpIdx, paramProvider, parameters);
 
-	// Allocate memory
-
-	// Note that we have to increase the lower bandwidth by 1 because the WENO stencil is applied to the
-	// right cell face (lower + 1 + upper) and to the left cell face (shift the stencil by -1 because influx of cell i
-	// is outflux of cell i-1)
-	// We also have to make sure that there's at least one sub and super diagonal for the dispersion term
-	const unsigned int lb = std::max(_weno.lowerBandwidth() + 1u, 1u) * strideColCell();
-	const unsigned int ub = std::max(_weno.upperBandwidth(), 1u) * strideColCell();
-	const unsigned int mb = std::max(lb, ub);
-
-	// Allocate matrices such that bandwidths can be switched (backwards flow support)
-	_jacC.resize(_nCol * _nComp, lb, ub);
-
-	_jacCdisc.resize(_nCol * _nComp, mb, mb);
-	_jacCdisc.repartition(lb, ub);
 	return true;
 }
 
@@ -107,7 +83,7 @@ bool ConvectionDispersionOperator::configure(UnitOpIdx unitOpIdx, IParameterProv
  * @param [out] parameters Map in which local parameters are inserted
  * @return @c true if configuration went fine, @c false otherwise
  */
-bool ConvectionDispersionOperator::reconfigure(UnitOpIdx unitOpIdx, IParameterProvider& paramProvider, std::unordered_map<ParameterId, active*>& parameters)
+bool ConvectionDispersionOperatorBase::reconfigure(UnitOpIdx unitOpIdx, IParameterProvider& paramProvider, std::unordered_map<ParameterId, active*>& parameters)
 {
 	// Read geometry parameters
 	_colLength = paramProvider.getDouble("COL_LENGTH");
@@ -149,12 +125,9 @@ bool ConvectionDispersionOperator::reconfigure(UnitOpIdx unitOpIdx, IParameterPr
  *          the flow direction has changed.
  * @param [in] t Current time point
  * @param [in] secIdx Index of the new section that is about to be integrated
- * @param [in,out] adRes Pointer to unit operation's residual vector of AD datatypes to be set up (or @c nullptr if AD is disabled)
- * @param [in,out] adY Pointer to unit operation's state vector of AD datatypes to be set up (or @c nullptr if AD is disabled)
- * @param [in] adDirOffset Number of AD directions used for non-Jacobian purposes (e.g., parameter sensitivities)
  * @return @c true if flow direction has changed, otherwise @c false
  */
-bool ConvectionDispersionOperator::notifyDiscontinuousSectionTransition(double t, unsigned int secIdx, active* const adRes, active* const adY, unsigned int adDirOffset)
+bool ConvectionDispersionOperatorBase::notifyDiscontinuousSectionTransition(double t, unsigned int secIdx)
 {
 	// If we don't have cross section area, velocity is given by parameter
 	if (_crossSection <= 0.0)
@@ -169,7 +142,11 @@ bool ConvectionDispersionOperator::notifyDiscontinuousSectionTransition(double t
 			_curVelocity *= -1.0;
 	}
 
-	// Check whether the matrix connecting inlet DOFs to first column cells has to be (re)assembled
+	return true;
+}
+
+double ConvectionDispersionOperatorBase::previousVelocity(unsigned int secIdx) const CADET_NOEXCEPT
+{
 	const double u = static_cast<double>(_curVelocity);
 	double prevU = -u;
 
@@ -181,57 +158,7 @@ bool ConvectionDispersionOperator::notifyDiscontinuousSectionTransition(double t
 	if (_velocity.empty())
 		prevU = u;
 
-	// Exit if we do not need to setup (secIdx == 0) or change (prevU and u differ in sign) matrices
-	if ((secIdx != 0) && (prevU * u >= 0.0))
-		return false;
-
-	if (u >= 0.0)
-	{
-		// Forwards flow
-
-		// Repartition column bulk Jacobians
-		const unsigned int lb = std::max(_weno.lowerBandwidth() + 1u, 1u) * strideColCell();
-		const unsigned int ub = std::max(_weno.upperBandwidth(), 1u) * strideColCell();
-
-		_jacC.repartition(lb, ub);
-		_jacCdisc.repartition(lb, ub);
-	}
-	else
-	{
-		// Backwards flow
-
-		// Repartition column bulk Jacobians
-		const unsigned int lb = std::max(_weno.lowerBandwidth() + 1u, 1u) * strideColCell();
-		const unsigned int ub = std::max(_weno.upperBandwidth(), 1u) * strideColCell();
-
-		_jacC.repartition(ub, lb);
-		_jacCdisc.repartition(ub, lb);
-	}
-
-	// Update AD seed vectors since Jacobian structure has changed (bulk block bandwidths)
-	prepareADvectors(adRes, adY, adDirOffset);
-
-	return true;
-}
-
-/**
- * @brief Sets the AD seed vectors for the bulk transport variables
- * @param [in,out] adRes Pointer to unit operation's residual vector of AD datatypes to be set up (or @c nullptr if AD is disabled)
- * @param [in,out] adY Pointer to unit operation's state vector of AD datatypes to be set up (or @c nullptr if AD is disabled)
- * @param [in] adDirOffset Number of AD directions used for non-Jacobian purposes (e.g., parameter sensitivities)
- */
-void ConvectionDispersionOperator::prepareADvectors(active* const adRes, active* const adY, unsigned int adDirOffset) const
-{
-	// Early out if AD is disabled
-	if (!adY)
-		return;
-
-	// Get bandwidths of blocks
-	const unsigned int lowerColBandwidth = _jacC.lowerBandwidth();
-	const unsigned int upperColBandwidth = _jacC.upperBandwidth();
-
-	// Column block
-	ad::prepareAdVectorSeedsForBandMatrix(adY + offsetC(), adDirOffset, _nCol * _nComp, lowerColBandwidth, upperColBandwidth, lowerColBandwidth);
+	return prevU;
 }
 
 /**
@@ -241,7 +168,7 @@ void ConvectionDispersionOperator::prepareADvectors(active* const adRes, active*
  * @param [in] out Total volumetric outlet flow rate
  * @param [in] colPorosity Porosity used for computing interstitial velocity from volumetric flow rate
  */
-void ConvectionDispersionOperator::setFlowRates(const active& in, const active& out, const active& colPorosity) CADET_NOEXCEPT
+void ConvectionDispersionOperatorBase::setFlowRates(const active& in, const active& out, const active& colPorosity) CADET_NOEXCEPT
 {
 	// If we have cross section area, interstitial velocity is given by network flow rates
 	if (_crossSection > 0.0)
@@ -259,50 +186,44 @@ void ConvectionDispersionOperator::setFlowRates(const active& in, const active& 
  * @param [in] wantJac Determines whether analytic Jacobian is computed
  * @return @c 0 on success, @c -1 on non-recoverable error, and @c +1 on recoverable error
  */
-int ConvectionDispersionOperator::residual(double t, unsigned int secIdx, double timeFactor, double const* y, double const* yDot, double* res, bool wantJac)
+int ConvectionDispersionOperatorBase::residual(double t, unsigned int secIdx, double timeFactor, double const* y, double const* yDot, double* res, linalg::BandMatrix* jac)
 {
-	if (wantJac)
-		return residualImpl<double, double, double, true>(t, secIdx, timeFactor, y, yDot, res);
+	if (jac)
+		return residualImpl<double, double, double, true>(t, secIdx, timeFactor, y, yDot, res, jac);
 	else
-		return residualImpl<double, double, double, false>(t, secIdx, timeFactor, y, yDot, res);
+		return residualImpl<double, double, double, false>(t, secIdx, timeFactor, y, yDot, res, jac);
 }
 
-int ConvectionDispersionOperator::residual(double t, unsigned int secIdx, double timeFactor, active const* y, double const* yDot, active* res, bool wantJac)
+int ConvectionDispersionOperatorBase::residual(double t, unsigned int secIdx, double timeFactor, active const* y, double const* yDot, active* res)
 {
-	if (wantJac)
-		return residualImpl<active, active, double, true>(t, secIdx, timeFactor, y, yDot, res);
-	else
-		return residualImpl<active, active, double, false>(t, secIdx, timeFactor, y, yDot, res);
+	return residualImpl<active, active, double, false>(t, secIdx, timeFactor, y, yDot, res, nullptr);
 }
 
-int ConvectionDispersionOperator::residual(const active& t, unsigned int secIdx, const active& timeFactor, double const* y, double const* yDot, active* res, bool wantJac)
+int ConvectionDispersionOperatorBase::residual(const active& t, unsigned int secIdx, const active& timeFactor, double const* y, double const* yDot, active* res, linalg::BandMatrix* jac)
 {
-	if (wantJac)
-		return residualImpl<double, active, active, true>(t, secIdx, timeFactor, y, yDot, res);
+	if (jac)
+		return residualImpl<double, active, active, true>(t, secIdx, timeFactor, y, yDot, res, jac);
 	else
-		return residualImpl<double, active, active, false>(t, secIdx, timeFactor, y, yDot, res);
+		return residualImpl<double, active, active, false>(t, secIdx, timeFactor, y, yDot, res, jac);
 }
 
-int ConvectionDispersionOperator::residual(const active& t, unsigned int secIdx, const active& timeFactor, active const* y, double const* yDot, active* res, bool wantJac)
+int ConvectionDispersionOperatorBase::residual(const active& t, unsigned int secIdx, const active& timeFactor, active const* y, double const* yDot, active* res)
 {
-	if (wantJac)
-		return residualImpl<active, active, active, true>(t, secIdx, timeFactor, y, yDot, res);
-	else
-		return residualImpl<active, active, active, false>(t, secIdx, timeFactor, y, yDot, res);
+	return residualImpl<active, active, active, false>(t, secIdx, timeFactor, y, yDot, res, nullptr);
 }
 
 template <typename StateType, typename ResidualType, typename ParamType, bool wantJac>
-int ConvectionDispersionOperator::residualImpl(const ParamType& t, unsigned int secIdx, const ParamType& timeFactor, StateType const* y, double const* yDot, ResidualType* res)
+int ConvectionDispersionOperatorBase::residualImpl(const ParamType& t, unsigned int secIdx, const ParamType& timeFactor, StateType const* y, double const* yDot, ResidualType* res, linalg::BandMatrix* jac)
 {
 	const ParamType u = static_cast<ParamType>(_curVelocity);
 	if (u >= 0.0)
-		return residualForwardsFlow<StateType, ResidualType, ParamType, wantJac>(t, secIdx, timeFactor, y, yDot, res);
+		return residualForwardsFlow<StateType, ResidualType, ParamType, wantJac>(t, secIdx, timeFactor, y, yDot, res, jac);
 	else
-		return residualBackwardsFlow<StateType, ResidualType, ParamType, wantJac>(t, secIdx, timeFactor, y, yDot, res);
+		return residualBackwardsFlow<StateType, ResidualType, ParamType, wantJac>(t, secIdx, timeFactor, y, yDot, res, jac);
 }
 
 template <typename StateType, typename ResidualType, typename ParamType, bool wantJac>
-int ConvectionDispersionOperator::residualForwardsFlow(const ParamType& t, unsigned int secIdx, const ParamType& timeFactor, StateType const* y, double const* yDot, ResidualType* res)
+int ConvectionDispersionOperatorBase::residualForwardsFlow(const ParamType& t, unsigned int secIdx, const ParamType& timeFactor, StateType const* y, double const* yDot, ResidualType* res, linalg::BandMatrix* jacMat)
 {
 	const ParamType u = static_cast<ParamType>(_curVelocity);
 	const ParamType d_c = static_cast<ParamType>(getSectionDependentScalar(_colDispersion, secIdx));
@@ -317,16 +238,19 @@ int ConvectionDispersionOperator::residualForwardsFlow(const ParamType& t, unsig
 
 	// Reset Jacobian
 	if (wantJac)
-		_jacC.setAll(0.0);
+		jacMat->setAll(0.0);
+
+	// The RowIterator is always centered on the main diagonal.
+	// This means that jac[0] is the main diagonal, jac[-1] is the first lower diagonal,
+	// and jac[1] is the first upper diagonal. We can also access the rows from left to
+	// right beginning with the last lower diagonal moving towards the main diagonal and
+	// continuing to the last upper diagonal by using the native() method.
+	linalg::BandMatrix::RowIterator jac;
 
 	for (unsigned int comp = 0; comp < _nComp; ++comp)
 	{
-		// The RowIterator is always centered on the main diagonal.
-		// This means that jac[0] is the main diagonal, jac[-1] is the first lower diagonal,
-		// and jac[1] is the first upper diagonal. We can also access the rows from left to
-		// right beginning with the last lower diagonal moving towards the main diagonal and
-		// continuing to the last upper diagonal by using the native() method.
-		linalg::BandMatrix::RowIterator jac = _jacC.row(comp);
+		if (wantJac)
+			jac = jacMat->row(comp);
 
 		// Add time derivative to each cell
 		if (yDot)
@@ -423,7 +347,9 @@ int ConvectionDispersionOperator::residualForwardsFlow(const ParamType& t, unsig
 
 			// Update stencil
 			stencil.advance(c<StateType>(y, col + std::max(_weno.order(), 2), comp));
-			jac += strideCell;
+
+			if (wantJac)
+				jac += strideCell;
 		}
 	}
 
@@ -433,7 +359,7 @@ int ConvectionDispersionOperator::residualForwardsFlow(const ParamType& t, unsig
 }
 
 template <typename StateType, typename ResidualType, typename ParamType, bool wantJac>
-int ConvectionDispersionOperator::residualBackwardsFlow(const ParamType& t, unsigned int secIdx, const ParamType& timeFactor, StateType const* y, double const* yDot, ResidualType* res)
+int ConvectionDispersionOperatorBase::residualBackwardsFlow(const ParamType& t, unsigned int secIdx, const ParamType& timeFactor, StateType const* y, double const* yDot, ResidualType* res, linalg::BandMatrix* jacMat)
 {
 	const ParamType u = static_cast<ParamType>(_curVelocity);
 	const ParamType d_c = static_cast<ParamType>(getSectionDependentScalar(_colDispersion, secIdx));
@@ -448,16 +374,19 @@ int ConvectionDispersionOperator::residualBackwardsFlow(const ParamType& t, unsi
 
 	// Reset Jacobian
 	if (wantJac)
-		_jacC.setAll(0.0);
+		jacMat->setAll(0.0);
+
+	// The RowIterator is always centered on the main diagonal.
+	// This means that jac[0] is the main diagonal, jac[-1] is the first lower diagonal,
+	// and jac[1] is the first upper diagonal. We can also access the rows from left to
+	// right beginning with the last lower diagonal moving towards the main diagonal and
+	// continuing to the last upper diagonal by using the native() method.
+	linalg::BandMatrix::RowIterator jac;
 
 	for (unsigned int comp = 0; comp < _nComp; ++comp)
 	{
-		// The RowIterator is always centered on the main diagonal.
-		// This means that jac[0] is the main diagonal, jac[-1] is the first lower diagonal,
-		// and jac[1] is the first upper diagonal. We can also access the rows from left to
-		// right beginning with the last lower diagonal moving towards the main diagonal and
-		// continuing to the last upper diagonal by using the native() method.
-		linalg::BandMatrix::RowIterator jac = _jacC.row(_nComp * (_nCol - 1) + comp);
+		if (wantJac)
+			jac = jacMat->row(strideCell * (_nCol - 1) + comp);
 
 		// Add time derivative to each cell
 		if (yDot)
@@ -559,7 +488,9 @@ int ConvectionDispersionOperator::residualBackwardsFlow(const ParamType& t, unsi
 				stencil.advance(c<StateType>(y, col - shift, comp));
 			else
 				stencil.advance(0.0);
-			jac -= strideCell;
+
+			if (wantJac)
+				jac -= strideCell;
 		}
 	}
 
@@ -581,10 +512,262 @@ int ConvectionDispersionOperator::residualBackwardsFlow(const ParamType& t, unsi
  * @param [in] sDot Vector @f$ x @f$ that is transformed by the Jacobian @f$ \frac{\partial F}{\partial \dot{y}} @f$
  * @param [out] ret Vector @f$ z @f$ which stores the result of the operation
  */
+void ConvectionDispersionOperatorBase::multiplyWithDerivativeJacobian(double t, unsigned int secIdx, double timeFactor, double const* sDot, double* ret) const
+{
+	double* localRet = ret + offsetC();
+	double const* localSdot = sDot + offsetC();
+	const int gapCell = strideColCell() - static_cast<int>(_nComp) * strideColComp();
+
+	for (unsigned int i = 0; i < _nCol; ++i, localRet += gapCell, localSdot += gapCell)
+	{
+		for (unsigned int j = 0; j < _nComp; ++j, ++localRet, ++localSdot)
+		{
+			*localRet = timeFactor * (*localSdot);
+		}
+	}
+}
+
+/**
+ * @brief Adds the derivatives with respect to @f$ \dot{y} @f$ of @f$ F(t, y, \dot{y}) @f$ to the Jacobian
+ * @details This functions computes 
+ *          @f[ \begin{align*} \text{_jacCdisc} = \text{_jacCdisc} + \alpha \frac{\partial F}{\partial \dot{y}}. \end{align*} @f]
+ *          The factor @f$ \alpha @f$ is useful when constructing the linear system in the time integration process.
+ * @param [in] alpha Factor in front of @f$ \frac{\partial F}{\partial \dot{y}} @f$
+ * @param [in] timeFactor Factor which is premultiplied to the time derivatives originating from time transformation
+ */
+void ConvectionDispersionOperatorBase::addTimeDerivativeToJacobian(double alpha, double timeFactor, linalg::FactorizableBandMatrix& jacDisc)
+{
+	alpha *= timeFactor;
+
+	const int gapCell = strideColCell() - static_cast<int>(_nComp) * strideColComp();
+	linalg::FactorizableBandMatrix::RowIterator jac = jacDisc.row(0);
+	for (unsigned int i = 0; i < _nCol; ++i, jac += gapCell)
+	{
+		for (unsigned int j = 0; j < _nComp; ++j, ++jac)
+		{
+			// Add time derivative to main diagonal
+			jac[0] += alpha;
+		}
+	}
+}
+
+unsigned int ConvectionDispersionOperatorBase::jacobianLowerBandwidth() const CADET_NOEXCEPT
+{
+	// Note that we have to increase the lower bandwidth by 1 because the WENO stencil is applied to the
+	// right cell face (lower + 1 + upper) and to the left cell face (shift the stencil by -1 because influx of cell i
+	// is outflux of cell i-1)
+	// We also have to make sure that there's at least one sub and super diagonal for the dispersion term
+	return std::max(_weno.lowerBandwidth() + 1u, 1u) * strideColCell();
+}
+
+unsigned int ConvectionDispersionOperatorBase::jacobianUpperBandwidth() const CADET_NOEXCEPT
+{
+	// We have to make sure that there's at least one sub and super diagonal for the dispersion term
+	return std::max(_weno.upperBandwidth(), 1u) * strideColCell();
+}
+
+unsigned int ConvectionDispersionOperatorBase::jacobianDiscretizedBandwidth() const CADET_NOEXCEPT
+{
+	// When flow direction is changed, the bandwidths of the Jacobian swap.
+	// Hence, we have to reserve memory such that the swapped Jacobian can fit into the matrix.
+	return std::max(jacobianLowerBandwidth(), jacobianUpperBandwidth());
+}
+
+
+/**
+ * @brief Creates a ConvectionDispersionOperator
+ */
+ConvectionDispersionOperator::ConvectionDispersionOperator()
+{
+}
+
+ConvectionDispersionOperator::~ConvectionDispersionOperator() CADET_NOEXCEPT
+{
+}
+
+/**
+ * @brief Returns the number of AD directions required for computing the Jacobian
+ * @details Band compression is used to minimize the amount of AD directions.
+ * @return Number of required AD directions
+ */
+unsigned int ConvectionDispersionOperator::requiredADdirs() const CADET_NOEXCEPT
+{
+	return _jacC.stride();
+}
+
+/**
+ * @brief Reads parameters and allocates memory
+ * @details Has to be called once before the operator is used.
+ * @param [in] unitOpIdx Unit operation id of the owning unit operation model
+ * @param [in] paramProvider Parameter provider for reading parameters
+ * @param [out] parameters Map in which local parameters are inserted
+ * @param [in] nComp Number of components
+ * @param [in] nCol Number of axial cells
+ * @return @c true if configuration went fine, @c false otherwise
+ */
+bool ConvectionDispersionOperator::configure(UnitOpIdx unitOpIdx, IParameterProvider& paramProvider, std::unordered_map<ParameterId, active*>& parameters, unsigned int nComp, unsigned int nCol)
+{
+	const bool retVal = _baseOp.configure(unitOpIdx, paramProvider, parameters, nComp, nCol, nComp);
+
+	// Allocate memory
+	const unsigned int lb = _baseOp.jacobianLowerBandwidth();
+	const unsigned int ub = _baseOp.jacobianUpperBandwidth();
+	const unsigned int mb = _baseOp.jacobianDiscretizedBandwidth();
+
+	// Allocate matrices such that bandwidths can be switched (backwards flow support)
+	_jacC.resize(nCol * nComp, lb, ub);
+
+	_jacCdisc.resize(nCol * nComp, mb, mb);
+	_jacCdisc.repartition(lb, ub);
+	return retVal;
+}
+
+/**
+ * @brief Reads model parameters
+ * @details Only reads parameters that do not affect model structure (e.g., discretization).
+ * @param [in] unitOpIdx Unit operation id of the owning unit operation model
+ * @param [in] paramProvider Parameter provider for reading parameters
+ * @param [out] parameters Map in which local parameters are inserted
+ * @return @c true if configuration went fine, @c false otherwise
+ */
+bool ConvectionDispersionOperator::reconfigure(UnitOpIdx unitOpIdx, IParameterProvider& paramProvider, std::unordered_map<ParameterId, active*>& parameters)
+{
+	return _baseOp.reconfigure(unitOpIdx, paramProvider, parameters);
+}
+
+/**
+ * @brief Notifies the operator that a discontinuous section transition is in progress
+ * @details In addition to changing flow direction internally, if necessary, the function returns whether
+ *          the flow direction has changed.
+ * @param [in] t Current time point
+ * @param [in] secIdx Index of the new section that is about to be integrated
+ * @param [in,out] adRes Pointer to unit operation's residual vector of AD datatypes to be set up (or @c nullptr if AD is disabled)
+ * @param [in,out] adY Pointer to unit operation's state vector of AD datatypes to be set up (or @c nullptr if AD is disabled)
+ * @param [in] adDirOffset Number of AD directions used for non-Jacobian purposes (e.g., parameter sensitivities)
+ * @return @c true if flow direction has changed, otherwise @c false
+ */
+bool ConvectionDispersionOperator::notifyDiscontinuousSectionTransition(double t, unsigned int secIdx, active* const adRes, active* const adY, unsigned int adDirOffset)
+{
+	_baseOp.notifyDiscontinuousSectionTransition(t, secIdx);
+
+	// Check whether flow direction has changed and we need to update AD vectors
+	const double u = static_cast<double>(_baseOp.currentVelocity());
+	double prevU = _baseOp.previousVelocity(secIdx);
+
+	// Exit if we do not need to setup (secIdx == 0) or change (prevU and u differ in sign) matrices
+	if ((secIdx != 0) && (prevU * u >= 0.0))
+		return false;
+
+	const unsigned int lb = _baseOp.jacobianLowerBandwidth();
+	const unsigned int ub = _baseOp.jacobianUpperBandwidth();
+	if (u >= 0.0)
+	{
+		// Forwards flow
+
+		// Repartition column bulk Jacobians
+		_jacC.repartition(lb, ub);
+		_jacCdisc.repartition(lb, ub);
+	}
+	else
+	{
+		// Backwards flow
+
+		// Repartition column bulk Jacobians
+		_jacC.repartition(ub, lb);
+		_jacCdisc.repartition(ub, lb);
+	}
+
+	// Update AD seed vectors since Jacobian structure has changed (bulk block bandwidths)
+	prepareADvectors(adRes, adY, adDirOffset);
+
+	return true;
+}
+
+/**
+ * @brief Sets the AD seed vectors for the bulk transport variables
+ * @param [in,out] adRes Pointer to unit operation's residual vector of AD datatypes to be set up (or @c nullptr if AD is disabled)
+ * @param [in,out] adY Pointer to unit operation's state vector of AD datatypes to be set up (or @c nullptr if AD is disabled)
+ * @param [in] adDirOffset Number of AD directions used for non-Jacobian purposes (e.g., parameter sensitivities)
+ */
+void ConvectionDispersionOperator::prepareADvectors(active* const adRes, active* const adY, unsigned int adDirOffset) const
+{
+	// Early out if AD is disabled
+	if (!adY)
+		return;
+
+	// Get bandwidths of blocks
+	const unsigned int lowerColBandwidth = _jacC.lowerBandwidth();
+	const unsigned int upperColBandwidth = _jacC.upperBandwidth();
+
+	// Column block
+	ad::prepareAdVectorSeedsForBandMatrix(adY + offsetC(), adDirOffset, _baseOp.nComp() * _baseOp.nCol(), lowerColBandwidth, upperColBandwidth, lowerColBandwidth);
+}
+
+/**
+ * @brief Sets the flow rates for the current time section
+ * @details The flow rates may change due to valve switches.
+ * @param [in] in Total volumetric inlet flow rate
+ * @param [in] out Total volumetric outlet flow rate
+ * @param [in] colPorosity Porosity used for computing interstitial velocity from volumetric flow rate
+ */
+void ConvectionDispersionOperator::setFlowRates(const active& in, const active& out, const active& colPorosity) CADET_NOEXCEPT
+{
+	_baseOp.setFlowRates(in, out, colPorosity);
+}
+
+/**
+ * @brief Computes the residual of the transport equations
+ * @param [in] t Current time point
+ * @param [in] secIdx Index of the current section
+ * @param [in] timeFactor Used to compute parameter derivatives with respect to section length (nominal value should always be 1.0)
+ * @param [in] y Pointer to unit operation's state vector
+ * @param [in] yDot Pointer to unit operation's time derivative state vector
+ * @param [out] res Pointer to unit operation's residual vector
+ * @param [in] wantJac Determines whether analytic Jacobian is computed
+ * @return @c 0 on success, @c -1 on non-recoverable error, and @c +1 on recoverable error
+ */
+int ConvectionDispersionOperator::residual(double t, unsigned int secIdx, double timeFactor, double const* y, double const* yDot, double* res, bool wantJac)
+{
+	if (wantJac)
+		return _baseOp.residual(t, secIdx, timeFactor, y, yDot, res, &_jacC);
+	else
+		return _baseOp.residual(t, secIdx, timeFactor, y, yDot, res, nullptr);
+}
+
+int ConvectionDispersionOperator::residual(double t, unsigned int secIdx, double timeFactor, active const* y, double const* yDot, active* res, bool wantJac)
+{
+	return _baseOp.residual(t, secIdx, timeFactor, y, yDot, res);
+}
+
+int ConvectionDispersionOperator::residual(const active& t, unsigned int secIdx, const active& timeFactor, double const* y, double const* yDot, active* res, bool wantJac)
+{
+	if (wantJac)
+		return _baseOp.residual(t, secIdx, timeFactor, y, yDot, res, &_jacC);
+	else
+		return _baseOp.residual(t, secIdx, timeFactor, y, yDot, res, nullptr);
+}
+
+int ConvectionDispersionOperator::residual(const active& t, unsigned int secIdx, const active& timeFactor, active const* y, double const* yDot, active* res, bool wantJac)
+{
+	return _baseOp.residual(t, secIdx, timeFactor, y, yDot, res);
+}
+
+/**
+ * @brief Multiplies the time derivative Jacobian @f$ \frac{\partial F}{\partial \dot{y}}\left(t, y, \dot{y}\right) @f$ with a given vector
+ * @details The operation @f$ z = \frac{\partial F}{\partial \dot{y}} x @f$ is performed.
+ *          The matrix-vector multiplication is transformed matrix-free (i.e., no matrix is explicitly formed).
+ *          
+ *          Note that this function only performs multiplication with the Jacobian of the (axial) transport equations.
+ *          The input vectors are assumed to point to the beginning (including inlet DOFs) of the respective unit operation's arrays.
+ * @param [in] t Current time point
+ * @param [in] secIdx Index of the current section
+ * @param [in] timeFactor Factor which is premultiplied to the time derivatives originating from time transformation
+ * @param [in] sDot Vector @f$ x @f$ that is transformed by the Jacobian @f$ \frac{\partial F}{\partial \dot{y}} @f$
+ * @param [out] ret Vector @f$ z @f$ which stores the result of the operation
+ */
 void ConvectionDispersionOperator::multiplyWithDerivativeJacobian(double t, unsigned int secIdx, double timeFactor, double const* sDot, double* ret) const
 {
-	for (int i = offsetC(); i < offsetCp(); ++i)
-		ret[i] = timeFactor * sDot[i];
+	_baseOp.multiplyWithDerivativeJacobian(t, secIdx, timeFactor, sDot, ret);
 }
 
 /**
@@ -655,18 +838,7 @@ void ConvectionDispersionOperator::assembleDiscretizedJacobian(double alpha, dou
  */
 void ConvectionDispersionOperator::addTimeDerivativeToJacobian(double alpha, double timeFactor)
 {
-	alpha *= timeFactor;
-
-	const int gapCell = strideColCell() - static_cast<int>(_nComp) * strideColComp();
-	linalg::FactorizableBandMatrix::RowIterator jac = _jacCdisc.row(0);
-	for (unsigned int i = 0; i < _nCol; ++i, jac += gapCell)
-	{
-		for (unsigned int j = 0; j < _nComp; ++j, ++jac)
-		{
-			// Add time derivative to main diagonal
-			jac[0] += alpha;
-		}
-	}
+	_baseOp.addTimeDerivativeToJacobian(alpha, timeFactor, _jacCdisc);
 }
 
 /**
