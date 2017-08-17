@@ -48,19 +48,25 @@ namespace detail
 	public:
 
 		/**
-		 * @brief Creates a DenseBandedRowIterator for the given matrix.
+		 * @brief Creates an empty DenseBandedRowIterator pointing to nothing
 		 * @param [in] mat Matrix this DenseBandedRowIterator accesses
 		 */
-		DenseBandedRowIterator(MatrixType& mat) CADET_NOEXCEPT : _matrix(mat), _pos(_matrix._data), _rowIdx(0) { }
+		DenseBandedRowIterator() CADET_NOEXCEPT : _matrix(nullptr), _pos(nullptr), _rowIdx(0) { }
 
 		/**
-		 * @brief Creates a DenseBandedRowIterator for the given matrix.
+		 * @brief Creates a DenseBandedRowIterator for the given matrix
+		 * @param [in] mat Matrix this DenseBandedRowIterator accesses
+		 */
+		DenseBandedRowIterator(MatrixType& mat) CADET_NOEXCEPT : _matrix(&mat), _pos(_matrix->_data), _rowIdx(0) { }
+
+		/**
+		 * @brief Creates a DenseBandedRowIterator for the given matrix
 		 * @param [in] mat Matrix this DenseBandedRowIterator accesses
 		 * @param [in] row Index of the row of the iterator points so
 		 */
-		DenseBandedRowIterator(MatrixType& mat, unsigned int row) CADET_NOEXCEPT : _matrix(mat), _pos(_matrix._data + row * _matrix.stride() + row), _rowIdx(row) { }
+		DenseBandedRowIterator(MatrixType& mat, unsigned int row) CADET_NOEXCEPT : _matrix(&mat), _pos(_matrix->_data + row * _matrix->stride() + row), _rowIdx(row) { }
 
-		DenseBandedRowIterator(const DenseBandedRowIterator& cpy, int rowChange) CADET_NOEXCEPT : _matrix(cpy._matrix), _pos(cpy._pos + rowChange * static_cast<int>(cpy._matrix.stride() + 1)), _rowIdx(static_cast<int>(cpy._rowIdx) + rowChange) { }
+		DenseBandedRowIterator(const DenseBandedRowIterator& cpy, int rowChange) CADET_NOEXCEPT : _matrix(cpy._matrix), _pos(cpy._pos + rowChange * static_cast<int>(cpy._matrix->stride() + 1)), _rowIdx(static_cast<int>(cpy._rowIdx) + rowChange) { }
 		DenseBandedRowIterator(const DenseBandedRowIterator& cpy) CADET_NOEXCEPT : _matrix(cpy._matrix), _pos(cpy._pos), _rowIdx(cpy._rowIdx) { }
 		DenseBandedRowIterator(DenseBandedRowIterator&& cpy) CADET_NOEXCEPT : _matrix(cpy._matrix), _pos(cpy._pos), _rowIdx(cpy._rowIdx) { }
 
@@ -97,7 +103,7 @@ namespace detail
 		inline double& operator()(int diagonal)
 		{
 			// Check if out of scope
-			if (cadet_unlikely(diagonal >= static_cast<int>(_matrix.columns()) - _rowIdx))
+			if (cadet_unlikely(diagonal >= static_cast<int>(_matrix->columns()) - _rowIdx))
 				return _dummy;
 			if (cadet_unlikely(diagonal < -_rowIdx))
 				return _dummy;
@@ -108,7 +114,7 @@ namespace detail
 		inline const double operator()(int diagonal) const
 		{
 			// Check if out of scope
-			if (cadet_unlikely(diagonal >= static_cast<int>(_matrix.columns()) - _rowIdx))
+			if (cadet_unlikely(diagonal >= static_cast<int>(_matrix->columns()) - _rowIdx))
 				return 0.0;
 			if (cadet_unlikely(diagonal < -_rowIdx))
 				return 0.0;
@@ -125,7 +131,7 @@ namespace detail
 		 */
 		inline void setAll(double val)
 		{
-			std::fill(_pos - _rowIdx, _pos + static_cast<int>(_matrix.columns()) - _rowIdx, val);
+			std::fill(_pos - _rowIdx, _pos + static_cast<int>(_matrix->columns()) - _rowIdx, val);
 		}
 
 		/**
@@ -136,14 +142,14 @@ namespace detail
 		template <typename OtherMatrix>
 		inline void copyRowFrom(const DenseBandedRowIterator<OtherMatrix>& ri)
 		{
-			cadet_assert(_matrix.columns() >= ri._matrix.columns());
-			std::copy_n(ri._pos - ri._rowIdx, _matrix.columns(), _pos - _rowIdx);
+			cadet_assert(_matrix->columns() >= ri._matrix->columns());
+			std::copy_n(ri._pos - ri._rowIdx, _matrix->columns(), _pos - _rowIdx);
 		}
 
 		inline DenseBandedRowIterator& operator++() CADET_NOEXCEPT
 		{
 			// Add one additional shift to stay on the main diagonal
-			_pos += _matrix.stride() + 1;
+			_pos += _matrix->stride() + 1;
 			++_rowIdx;
 			return *this;
 		}
@@ -151,7 +157,7 @@ namespace detail
 		inline DenseBandedRowIterator& operator--() CADET_NOEXCEPT
 		{
 			// Subtract one additional shift to stay on the main diagonal
-			_pos -= _matrix.stride() + 1;
+			_pos -= _matrix->stride() + 1;
 			--_rowIdx;
 			return *this;
 		}
@@ -159,7 +165,7 @@ namespace detail
 		inline DenseBandedRowIterator& operator+=(int idx) CADET_NOEXCEPT
 		{
 			// Add additional shifts to stay on the main diagonal
-			_pos += idx * _matrix.stride() + idx;
+			_pos += idx * _matrix->stride() + idx;
 			_rowIdx += idx;
 			return *this;
 		}
@@ -167,7 +173,7 @@ namespace detail
 		inline DenseBandedRowIterator& operator-=(int idx) CADET_NOEXCEPT
 		{
 			// Subtract additional shifts to stay on the main diagonal
-			_pos -= idx * _matrix.stride() + idx;
+			_pos -= idx * _matrix->stride() + idx;
 			_rowIdx -= idx;
 			return *this;
 		}
@@ -195,7 +201,7 @@ namespace detail
 		inline const MatrixType& matrix() const CADET_NOEXCEPT { return _matrix; }
 
 	private:
-		MatrixType& _matrix;
+		MatrixType* _matrix;
 		double* _pos;
 		double _dummy;
 		int _rowIdx;

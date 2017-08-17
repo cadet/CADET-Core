@@ -41,10 +41,20 @@ class BandedRowIterator
 public:
 
 	/**
-	 * @brief Creates a BandedRowIterator for the given MatrixType.
+	 * @brief Creates an empty BandedRowIterator pointing to nothing
+	 */
+	BandedRowIterator() CADET_NOEXCEPT : _matrix(nullptr), _pos(nullptr)
+	{
+#ifdef DEBUG
+		_row = -1;
+#endif		
+	}
+
+	/**
+	 * @brief Creates a BandedRowIterator for the given MatrixType
 	 * @param [in] mat MatrixType of the BandedRowIterator
 	 */
-	BandedRowIterator(MatrixType& mat) CADET_NOEXCEPT : _matrix(mat), _pos(_matrix._data)
+	BandedRowIterator(MatrixType& mat) CADET_NOEXCEPT : _matrix(&mat), _pos(_matrix->_data)
 	{
 #ifdef DEBUG
 		_row = 0;
@@ -52,11 +62,11 @@ public:
 	}
 
 	/**
-	 * @brief Creates a BandedRowIterator for the given MatrixType.
+	 * @brief Creates a BandedRowIterator for the given MatrixType
 	 * @param [in] mat MatrixType of the BandedRowIterator
 	 * @param [in] ptr Pointer to the first row of the matrix
 	 */
-	BandedRowIterator(MatrixType& mat, double* const ptr) CADET_NOEXCEPT : _matrix(mat), _pos(ptr)
+	BandedRowIterator(MatrixType& mat, double* const ptr) CADET_NOEXCEPT : _matrix(&mat), _pos(ptr)
 	{
 #ifdef DEBUG
 		_row = 0;
@@ -64,11 +74,11 @@ public:
 	}
 
 	/**
-	 * @brief Creates a BandedRowIterator for the given MatrixType.
+	 * @brief Creates a BandedRowIterator for the given MatrixType
 	 * @param [in] mat MatrixType of the BandedRowIterator
 	 * @param [in] row Index of the row of the iterator points so
 	 */
-	BandedRowIterator(MatrixType& mat, unsigned int row) CADET_NOEXCEPT : _matrix(mat), _pos(_matrix._data + row * _matrix.stride())
+	BandedRowIterator(MatrixType& mat, unsigned int row) CADET_NOEXCEPT : _matrix(&mat), _pos(_matrix->_data + row * _matrix->stride())
 	{
 #ifdef DEBUG
 		_row = row;
@@ -76,12 +86,12 @@ public:
 	}
 
 	/**
-	 * @brief Creates a BandedRowIterator for the given MatrixType.
+	 * @brief Creates a BandedRowIterator for the given MatrixType
 	 * @param [in] mat MatrixType of the BandedRowIterator
 	 * @param [in] row Index of the row of the iterator points so
 	 * @param [in] offset Additional  offset
 	 */
-	BandedRowIterator(MatrixType& mat, unsigned int row, unsigned int offset) CADET_NOEXCEPT : _matrix(mat), _pos(_matrix._data + row * _matrix.stride() + offset)
+	BandedRowIterator(MatrixType& mat, unsigned int row, unsigned int offset) CADET_NOEXCEPT : _matrix(&mat), _pos(_matrix->_data + row * _matrix->stride() + offset)
 	{
 #ifdef DEBUG
 		_row = row;
@@ -94,7 +104,7 @@ public:
 		_row = cpy._row;
 #endif		
 	}
-	BandedRowIterator(const BandedRowIterator& cpy, int rowChange) CADET_NOEXCEPT : _matrix(cpy._matrix), _pos(cpy._pos + rowChange * static_cast<int>(cpy._matrix.stride()))
+	BandedRowIterator(const BandedRowIterator& cpy, int rowChange) CADET_NOEXCEPT : _matrix(cpy._matrix), _pos(cpy._pos + rowChange * static_cast<int>(cpy._matrix->stride()))
 	{
 #ifdef DEBUG
 		_row = cpy._row;
@@ -135,7 +145,7 @@ public:
 	 */
 	inline void setAll(double val)
 	{
-		for (unsigned int i = 0; i < _matrix.apparentStride(); ++i)
+		for (unsigned int i = 0; i < _matrix->apparentStride(); ++i)
 			_pos[i] = val;
 	}
 
@@ -147,7 +157,7 @@ public:
 	inline void copyRowFrom(const OtherIterator_t& it)
 	{
 		cadet_assert(it.nonZeroColumnsPerRow() >= nonZeroColumnsPerRow());
-		for (unsigned int i = 0; i < _matrix.apparentStride(); ++i)
+		for (unsigned int i = 0; i < _matrix->apparentStride(); ++i)
 			_pos[i] = it.native(i);
 	}
 
@@ -176,32 +186,32 @@ public:
 	 */
 	inline double& native(unsigned int col)
 	{
-		cadet_assert(col < _matrix.stride());
-		cadet_assert(_row < _matrix.rows());
+		cadet_assert(col < _matrix->stride());
+		cadet_assert(_row < _matrix->rows());
 		return _pos[col];
 	}
 
 	inline const double native(unsigned int col) const
 	{
-		cadet_assert(col < _matrix.stride());
-		cadet_assert(_row < _matrix.rows());
+		cadet_assert(col < _matrix->stride());
+		cadet_assert(_row < _matrix->rows());
 		return _pos[col];
 	}
 
 	inline double& operator()(int diagonal)
 	{
-		cadet_assert(diagonal <= static_cast<int>(_matrix._upperBand));
-		cadet_assert(-diagonal <= static_cast<int>(_matrix._lowerBand));
-		cadet_assert(_row < _matrix.rows());
-		return _pos[diagonal + _matrix._lowerBand];
+		cadet_assert(diagonal <= static_cast<int>(_matrix->_upperBand));
+		cadet_assert(-diagonal <= static_cast<int>(_matrix->_lowerBand));
+		cadet_assert(_row < _matrix->rows());
+		return _pos[diagonal + _matrix->_lowerBand];
 	}
 
 	inline const double operator()(int diagonal) const
 	{
-		cadet_assert(diagonal <= static_cast<int>(_matrix._upperBand));
-		cadet_assert(-diagonal <= static_cast<int>(_matrix._lowerBand));
-		cadet_assert(_row < _matrix.rows());
-		return _pos[diagonal + _matrix._lowerBand];
+		cadet_assert(diagonal <= static_cast<int>(_matrix->_upperBand));
+		cadet_assert(-diagonal <= static_cast<int>(_matrix->_lowerBand));
+		cadet_assert(_row < _matrix->rows());
+		return _pos[diagonal + _matrix->_lowerBand];
 	}
 
 	inline double& operator[](int diagonal) { return (*this)(diagonal); }
@@ -209,7 +219,7 @@ public:
 
 	inline BandedRowIterator& operator++() CADET_NOEXCEPT
 	{
-		_pos += _matrix.stride();
+		_pos += _matrix->stride();
 #ifdef DEBUG
 		++_row;
 #endif		
@@ -218,7 +228,7 @@ public:
 
 	inline BandedRowIterator& operator--() CADET_NOEXCEPT
 	{
-		_pos -= _matrix.stride();
+		_pos -= _matrix->stride();
 #ifdef DEBUG
 		--_row;
 #endif		
@@ -227,7 +237,7 @@ public:
 
 	inline BandedRowIterator& operator+=(int idx) CADET_NOEXCEPT
 	{
-		_pos += idx * _matrix.stride();
+		_pos += idx * _matrix->stride();
 #ifdef DEBUG
 		_row += idx;
 #endif		
@@ -236,7 +246,7 @@ public:
 
 	inline BandedRowIterator& operator-=(int idx) CADET_NOEXCEPT
 	{
-		_pos -= idx * _matrix.stride();
+		_pos -= idx * _matrix->stride();
 #ifdef DEBUG
 		_row -= idx;
 #endif		
@@ -267,13 +277,13 @@ public:
 	 * @brief Returns the underlying matrix this iterator is pointing into
 	 * @return Matrix this iterator is pointing into
 	 */
-	inline const MatrixType& matrix() const CADET_NOEXCEPT { return _matrix; }
+	inline const MatrixType& matrix() const CADET_NOEXCEPT { return *_matrix; }
 
 	/**
 	 * @brief Returns the number of (potentially) non-zero elements per row (the total bandwidth)
 	 * @return The number of (potentially) non-zero elements per row
 	 */
-	inline unsigned int nonZeroColumnsPerRow() const CADET_NOEXCEPT { return _matrix.apparentStride(); }
+	inline unsigned int nonZeroColumnsPerRow() const CADET_NOEXCEPT { return _matrix->apparentStride(); }
 
 #ifdef DEBUG
 	/**
@@ -284,7 +294,7 @@ public:
 #endif
 
 private:
-	MatrixType& _matrix; //!< Underlying matrix
+	MatrixType* _matrix; //!< Underlying matrix
 	double* _pos; //!< Current position, points to the lowest subdiagonal of a row
 #ifdef DEBUG
 	unsigned int _row; //!< Index of the current row
@@ -301,10 +311,21 @@ class ConstBandedRowIterator
 public:
 
 	/**
+	 * @brief Creates an empty ConstBandedRowIterator pointing to nothing
+	 * @param [in] mat MatrixType of the ConstBandedRowIterator
+	 */
+	ConstBandedRowIterator() CADET_NOEXCEPT : _matrix(nullptr), _pos(nullptr)
+	{
+#ifdef DEBUG
+		_row = -1;
+#endif		
+	}
+
+	/**
 	 * @brief Creates a ConstBandedRowIterator for the given MatrixType.
 	 * @param [in] mat MatrixType of the ConstBandedRowIterator
 	 */
-	ConstBandedRowIterator(const MatrixType& mat) CADET_NOEXCEPT : _matrix(mat), _pos(_matrix._data)
+	ConstBandedRowIterator(const MatrixType& mat) CADET_NOEXCEPT : _matrix(&mat), _pos(_matrix->_data)
 	{
 #ifdef DEBUG
 		_row = 0;
@@ -316,7 +337,7 @@ public:
 	 * @param [in] mat MatrixType of the ConstBandedRowIterator
 	 * @param [in] ptr Pointer to the first row of the matrix
 	 */
-	ConstBandedRowIterator(const MatrixType& mat, double const* const ptr) CADET_NOEXCEPT : _matrix(mat), _pos(ptr)
+	ConstBandedRowIterator(const MatrixType& mat, double const* const ptr) CADET_NOEXCEPT : _matrix(&mat), _pos(ptr)
 	{
 #ifdef DEBUG
 		_row = 0;
@@ -328,7 +349,7 @@ public:
 	 * @param [in] mat MatrixType of the ConstBandedRowIterator
 	 * @param [in] row Index of the row of the iterator points so
 	 */
-	ConstBandedRowIterator(const MatrixType& mat, unsigned int row) CADET_NOEXCEPT : _matrix(mat), _pos(_matrix._data + row * _matrix.stride())
+	ConstBandedRowIterator(const MatrixType& mat, unsigned int row) CADET_NOEXCEPT : _matrix(&mat), _pos(_matrix->_data + row * _matrix->stride())
 	{
 #ifdef DEBUG
 		_row = row;
@@ -341,7 +362,7 @@ public:
 	 * @param [in] row Index of the row of the iterator points so
 	 * @param [in] offset Additional  offset
 	 */
-	ConstBandedRowIterator(const MatrixType& mat, unsigned int row, unsigned int offset) CADET_NOEXCEPT : _matrix(mat), _pos(_matrix._data + row * _matrix.stride() + offset)
+	ConstBandedRowIterator(const MatrixType& mat, unsigned int row, unsigned int offset) CADET_NOEXCEPT : _matrix(&mat), _pos(_matrix->_data + row * _matrix->stride() + offset)
 	{
 #ifdef DEBUG
 		_row = row;
@@ -354,7 +375,7 @@ public:
 		_row = cpy._row;
 #endif		
 	}
-	ConstBandedRowIterator(const ConstBandedRowIterator& cpy, int rowChange) CADET_NOEXCEPT : _matrix(cpy._matrix), _pos(cpy._pos + rowChange * static_cast<int>(cpy._matrix.stride()))
+	ConstBandedRowIterator(const ConstBandedRowIterator& cpy, int rowChange) CADET_NOEXCEPT : _matrix(cpy._matrix), _pos(cpy._pos + rowChange * static_cast<int>(cpy._matrix->stride()))
 	{
 #ifdef DEBUG
 		_row = cpy._row;
@@ -413,24 +434,24 @@ public:
 	 */
 	inline const double native(unsigned int col) const
 	{
-		cadet_assert(col < _matrix.stride());
-		cadet_assert(_row < _matrix.rows());
+		cadet_assert(col < _matrix->stride());
+		cadet_assert(_row < _matrix->rows());
 		return _pos[col];
 	}
 
 	inline const double operator()(int diagonal) const
 	{
-		cadet_assert(diagonal <= static_cast<int>(_matrix._upperBand));
-		cadet_assert(-diagonal <= static_cast<int>(_matrix._lowerBand));
-		cadet_assert(_row < _matrix.rows());
-		return _pos[diagonal + _matrix._lowerBand];
+		cadet_assert(diagonal <= static_cast<int>(_matrix->_upperBand));
+		cadet_assert(-diagonal <= static_cast<int>(_matrix->_lowerBand));
+		cadet_assert(_row < _matrix->rows());
+		return _pos[diagonal + _matrix->_lowerBand];
 	}
 
 	inline const double operator[](int diagonal) const { return (*this)(diagonal); }
 
 	inline ConstBandedRowIterator& operator++() CADET_NOEXCEPT
 	{
-		_pos += _matrix.stride();
+		_pos += _matrix->stride();
 #ifdef DEBUG
 		++_row;
 #endif		
@@ -439,7 +460,7 @@ public:
 
 	inline ConstBandedRowIterator& operator--() CADET_NOEXCEPT
 	{
-		_pos -= _matrix.stride();
+		_pos -= _matrix->stride();
 #ifdef DEBUG
 		--_row;
 #endif		
@@ -448,7 +469,7 @@ public:
 
 	inline ConstBandedRowIterator& operator+=(int idx) CADET_NOEXCEPT
 	{
-		_pos += idx * _matrix.stride();
+		_pos += idx * _matrix->stride();
 #ifdef DEBUG
 		_row += idx;
 #endif		
@@ -457,7 +478,7 @@ public:
 
 	inline ConstBandedRowIterator& operator-=(int idx) CADET_NOEXCEPT
 	{
-		_pos -= idx * _matrix.stride();
+		_pos -= idx * _matrix->stride();
 #ifdef DEBUG
 		_row -= idx;
 #endif		
@@ -488,13 +509,13 @@ public:
 	 * @brief Returns the underlying matrix this iterator is pointing into
 	 * @return Matrix this iterator is pointing into
 	 */
-	inline const MatrixType& matrix() const CADET_NOEXCEPT { return _matrix; }
+	inline const MatrixType& matrix() const CADET_NOEXCEPT { return *_matrix; }
 
 	/**
 	 * @brief Returns the number of (potentially) non-zero elements per row (the total bandwidth)
 	 * @return The number of (potentially) non-zero elements per row
 	 */
-	inline unsigned int nonZeroColumnsPerRow() const CADET_NOEXCEPT { return _matrix.apparentStride(); }
+	inline unsigned int nonZeroColumnsPerRow() const CADET_NOEXCEPT { return _matrix->apparentStride(); }
 
 #ifdef DEBUG
 	/**
@@ -505,7 +526,7 @@ public:
 #endif
 
 private:
-	const MatrixType& _matrix; //!< Underlying matrix
+	MatrixType const* _matrix; //!< Underlying matrix
 	double const* _pos; //!< Current position, points to the lowest subdiagonal of a row
 #ifdef DEBUG
 	unsigned int _row; //!< Index of the current row
