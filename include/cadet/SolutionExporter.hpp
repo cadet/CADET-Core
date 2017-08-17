@@ -312,11 +312,18 @@ public:
 	virtual StateOrdering const* solidPhaseOrdering(unsigned int& len) const = 0;
 
 	/**
-	 * @brief Returns the number of elements between two mobile phase DOF blocks
-	 * @details Stride between two mobile phase DOF blocks.
-	 * @return Number of elements between two mobile phase DOF blocks
+	 * @brief Returns the number of elements between two bulk mobile phase DOF blocks
+	 * @details Stride between two bulk mobile phase DOF blocks.
+	 * @return Number of elements between two bulk mobile phase DOF blocks
 	 */
-	virtual unsigned int mobilePhaseStride() const = 0;
+	virtual unsigned int bulkMobilePhaseStride() const = 0;
+
+	/**
+	 * @brief Returns the number of elements between two particle mobile phase DOF blocks
+	 * @details Stride between two particle mobile phase DOF blocks.
+	 * @return Number of elements between two particle mobile phase DOF blocks
+	 */
+	virtual unsigned int particleMobilePhaseStride() const = 0;
 
 	/**
 	 * @brief Returns the number of elements between two solid phase DOF blocks

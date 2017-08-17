@@ -263,6 +263,7 @@ public:
 		_columnLayout.clear();
 		_columnLayout.reserve(len + 1); // First slot is time
 		_columnLayout.push_back(0);
+		_bulkCount = 1;
 		for (unsigned int i = 0; i < len; ++i)
 		{
 			switch (order[i])
@@ -272,6 +273,7 @@ public:
 					break;
 				case StateOrdering::AxialCell:
 					_columnLayout.push_back(exporter.numAxialCells());
+					_bulkCount *= exporter.numAxialCells();
 					break;
 				case StateOrdering::RadialCell:
 				case StateOrdering::BoundState:
@@ -419,14 +421,19 @@ public:
 
 		if (_curCfg->storeColumn)
 		{
-			double const* const data = exporter.concentration();
-			_curBulk->insert(_curBulk->end(), data, data + exporter.numColumnDofs());
+			double const* data = exporter.concentration();
+			stride = exporter.bulkMobilePhaseStride();
+			const unsigned int blockSize = exporter.numColumnDofs() / _bulkCount;
+			for (unsigned int i = 0; i < _bulkCount; ++i, data += stride)
+			{
+				_curBulk->insert(_curBulk->end(), data, data + blockSize);
+			}
 		}
 
 		if (_curCfg->storeParticle)
 		{
 			double const* data = exporter.mobilePhase();
-			stride = exporter.mobilePhaseStride();
+			stride = exporter.particleMobilePhaseStride();
 			const unsigned int blockSize = exporter.numParticleMobilePhaseDofs() / _particleCount;
 			for (unsigned int i = 0; i < _particleCount; ++i, data += stride)
 			{
@@ -834,6 +841,7 @@ protected:
 
 	bool _needsReAlloc;
 
+	unsigned int _bulkCount; //!< Number of bulk mobile phase DOF blocks
 	unsigned int _particleCount; //!< Number of particle mobile phase DOF blocks
 	unsigned int _solidCount; //!< Number of solid phase DOF blocks
 };

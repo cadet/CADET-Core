@@ -228,8 +228,9 @@ protected:
 			return _solidOrdering.data();
 		}
 
-		virtual unsigned int mobilePhaseStride() const { return 0; }
-		virtual unsigned int solidPhaseStride() const { return 0; }
+		virtual unsigned int bulkMobilePhaseStride() const { return _nComp; }
+		virtual unsigned int particleMobilePhaseStride() const { return 0; }
+		virtual unsigned int solidPhaseStride() const { return _strideBound; }
 
 	protected:
 		double const* const _data;
