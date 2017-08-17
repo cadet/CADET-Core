@@ -15,6 +15,7 @@
 
 #include "model/operator/ConvectionDispersionOperator.hpp"
 #include "Weno.hpp"
+#include "AdUtils.hpp"
 
 #include "JsonParameterProvider.hpp"
 #include "ColumnTests.hpp"
@@ -25,6 +26,18 @@
 
 namespace
 {
+	/**
+	 * @brief Fills the state vector with a given function
+	 * @details The function @p f uses the current index to assign a value.
+	 * @param [out] y Filled state vector
+	 * @param [in] f Function for computing the content of the state vector
+	 * @param [in] numDofs Size of the state vector
+	 */
+	inline void fillState(double* y, std::function<double(unsigned int)> f, unsigned int numDofs)
+	{
+		for (unsigned int i = 0; i < numDofs; ++i)
+			y[i] = f(i);
+	}
 
 	/**
 	 * @brief Fills the bulk part of the state vector with a given function
@@ -108,22 +121,16 @@ namespace
 		}	
 	}
 
-} // namespace
-
-void testResidualBulkWenoForwardBackward(int wenoOrder)
-{
-	SECTION("Forward vs backward flow residual bulk (WENO=" + std::to_string(wenoOrder) + ")")
+	inline cadet::active* createAndConfigureOperator(cadet::model::operators::ConvectionDispersionOperator& convDispOp, int& nComp, int& nCol, int wenoOrder)
 	{
 		// Obtain parameters from some test case
 		cadet::JsonParameterProvider jpp = createColumnWithSMA("GENERAL_RATE_MODEL");
 		cadet::test::column::setWenoOrder(jpp, wenoOrder);
 
-		const int nComp = jpp.getInt("NCOMP");
+		nComp = jpp.getInt("NCOMP");
 		jpp.pushScope("discretization");
-		const int nCol = jpp.getInt("NCOL");
+		nCol = jpp.getInt("NCOL");
 		jpp.popScope();
-
-		cadet::model::operators::ConvectionDispersionOperator convDispOp;
 
 		// Configure the operator
 		typedef std::unordered_map<cadet::ParameterId, cadet::active*> ParameterMap;
@@ -134,6 +141,21 @@ void testResidualBulkWenoForwardBackward(int wenoOrder)
 		const cadet::ParameterId paramVelocity = cadet::makeParamId(cadet::hashString("VELOCITY"), 0, cadet::CompIndep, cadet::BoundPhaseIndep, cadet::ReactionIndep, cadet::SectionIndep);
 		const typename ParameterMap::iterator itVelocity = parameters.find(paramVelocity);
 		REQUIRE(itVelocity != parameters.end());
+
+		return itVelocity->second;
+	}
+
+} // namespace
+
+void testResidualBulkWenoForwardBackward(int wenoOrder)
+{
+	SECTION("Forward vs backward flow residual bulk (WENO=" + std::to_string(wenoOrder) + ")")
+	{
+		int nComp = 0;
+		int nCol = 0;
+		cadet::model::operators::ConvectionDispersionOperator convDispOp;
+		cadet::active* const velocity = createAndConfigureOperator(convDispOp, nComp, nCol, wenoOrder);
+		const double origVelocity = velocity->getValue();
 
 		// Setup matrices
 		convDispOp.notifyDiscontinuousSectionTransition(0.0, 0u, nullptr, nullptr, 0u);
@@ -154,7 +176,7 @@ void testResidualBulkWenoForwardBackward(int wenoOrder)
 			convDispOp.residual(0.0, 0u, 1.0, y.data(), nullptr, res.data(), false);
 
 			// Reverse flow
-			itVelocity->second->setValue(-jpp.getDouble("VELOCITY"));
+			velocity->setValue(-origVelocity);
 			convDispOp.notifyDiscontinuousSectionTransition(0.0, 0u, nullptr, nullptr, 0u);
 			std::vector<double> resRev(nDof, 0.0);
 
@@ -165,7 +187,7 @@ void testResidualBulkWenoForwardBackward(int wenoOrder)
 			compareResidualBulkFwdBwd(res.data(), resRev.data(), nComp, nCol);
 
 			// Reverse flow again to go back to forward
-			itVelocity->second->setValue(jpp.getDouble("VELOCITY"));
+			velocity->setValue(origVelocity);
 			convDispOp.notifyDiscontinuousSectionTransition(0.0, 0u, nullptr, nullptr, 0u);
 			std::vector<double> resFwd2(nDof, 0.0);
 
@@ -188,7 +210,7 @@ void testResidualBulkWenoForwardBackward(int wenoOrder)
 			fillStateBulkBwd(y.data(), [](unsigned int comp, unsigned int col, unsigned int idx) { return std::abs(std::sin(idx * 0.13)); }, nComp, nCol);
 
 			// Reverse flow
-			itVelocity->second->setValue(-jpp.getDouble("VELOCITY"));
+			velocity->setValue(-origVelocity);
 			convDispOp.notifyDiscontinuousSectionTransition(0.0, 0u, nullptr, nullptr, 0u);
 			std::vector<double> resRev(nDof, 0.0);
 
@@ -199,7 +221,7 @@ void testResidualBulkWenoForwardBackward(int wenoOrder)
 			compareResidualBulkFwdBwd(res.data(), resRev.data(), nComp, nCol);
 
 			// Reverse flow again to go back to forward
-			itVelocity->second->setValue(jpp.getDouble("VELOCITY"));
+			velocity->setValue(origVelocity);
 			convDispOp.notifyDiscontinuousSectionTransition(0.0, 0u, nullptr, nullptr, 0u);
 			std::vector<double> resFwd2(nDof, 0.0);
 
@@ -215,9 +237,151 @@ void testResidualBulkWenoForwardBackward(int wenoOrder)
 	}
 }
 
+void testTimeDerivativeBulkJacobianFD(double h, double absTol, double relTol)
+{
+	int nComp = 0;
+	int nCol = 0;
+	cadet::model::operators::ConvectionDispersionOperator convDispOp;
+	createAndConfigureOperator(convDispOp, nComp, nCol, cadet::Weno::maxOrder());
+
+	// Setup matrices
+	convDispOp.notifyDiscontinuousSectionTransition(0.0, 0u, nullptr, nullptr, 0u);
+
+	// Obtain memory for state, Jacobian multiply direction, Jacobian column
+	const int nDof = (nCol + 1) * nComp;
+	std::vector<double> y(nDof, 0.0);
+	std::vector<double> yDot(nDof, 0.0);
+	std::vector<double> jacDir(nDof, 0.0);
+	std::vector<double> jacCol1(nDof, 0.0);
+	std::vector<double> jacCol2(nDof, 0.0);
+
+	// Fill state vectors with some values
+	fillState(y.data(), [=](unsigned int idx) { return std::abs(std::sin(idx * 0.13)) + 1e-4; }, nDof);
+	fillState(yDot.data(), [=](unsigned int idx) { return std::abs(std::sin((idx + nDof) * 0.13)) + 1e-4; }, nDof);
+
+	// Compare Jacobians
+	cadet::test::compareTimeDerivativeJacobianFD(
+		[&](double const* dir, double* res) -> void { convDispOp.residual(0.0, 0u, 1.0, y.data(), dir, res, false); }, 
+		[&](double const* dir, double* res) -> void { convDispOp.multiplyWithDerivativeJacobian(0.0, 0u, 1.0, dir, res); }, 
+		y.data(), yDot.data(), jacDir.data(), jacCol1.data(), jacCol2.data(), nDof, h, absTol, relTol);
+}
+
+void testBulkJacobianWenoForwardBackward(int wenoOrder)
+{
+	SECTION("Forward vs backward flow Jacobian (WENO=" + std::to_string(wenoOrder) + ")")
+	{
+		int nComp = 0;
+		int nCol = 0;
+		cadet::model::operators::ConvectionDispersionOperator opAna;
+		cadet::model::operators::ConvectionDispersionOperator opAD;
+		cadet::active* const anaVelocity = createAndConfigureOperator(opAna, nComp, nCol, wenoOrder);
+		cadet::active* const adVelocity = createAndConfigureOperator(opAD, nComp, nCol, wenoOrder);
+
+		// Enable AD
+		const unsigned int nDof = nComp + nCol * nComp;
+		cadet::ad::setDirections(cadet::ad::getMaxDirections());
+		cadet::active* adRes = new cadet::active[nDof];
+		cadet::active* adY = new cadet::active[nDof];
+
+		opAD.prepareADvectors(adRes, adY, 0);
+
+		// Setup matrices
+		opAna.notifyDiscontinuousSectionTransition(0.0, 0u, nullptr, nullptr, 0u);
+		opAD.notifyDiscontinuousSectionTransition(0.0, 0u, adRes, adY, 0u);
+
+		// Obtain memory for state, Jacobian multiply direction, Jacobian column
+		std::vector<double> y(nDof, 0.0);
+		std::vector<double> jacDir(nDof, 0.0);
+		std::vector<double> jacCol1(nDof, 0.0);
+		std::vector<double> jacCol2(nDof, 0.0);
+
+		// Fill state vector with some values
+		fillState(y.data() + nComp, [](unsigned int idx) { return std::abs(std::sin(idx * 0.13)) + 1e-4; }, nDof - nComp);
+
+		SECTION("Forward then backward flow (nonzero state)")
+		{
+			// Compute state Jacobian
+			opAna.residual(0.0, 0u, 1.0, y.data(), nullptr, jacDir.data(), true);
+			std::fill(jacDir.begin(), jacDir.end(), 0.0);
+
+			cadet::ad::copyToAd(y.data(), adY, nDof);
+			cadet::ad::resetAd(adRes, nDof);
+			opAD.residual(0.0, 0u, 1.0, adY, nullptr, adRes, false);
+			opAD.extractJacobianFromAD(adRes, 0);
+
+			const std::function<void(double const*, double*)> anaResidual = [&](double const* lDir, double* res) -> void
+				{
+					opAna.residual(0.0, 0u, 1.0, lDir - nComp, nullptr, res - nComp, false);
+				};
+
+			const std::function<void(double const*, double*)> anaMultJac = [&](double const* lDir, double* res) -> void
+				{
+					opAna.jacobian().multiplyVector(lDir, 1.0, 0.0, res);
+				};
+
+			const std::function<void(double const*, double*)> adMultJac = [&](double const* lDir, double* res) -> void
+				{
+					opAD.jacobian().multiplyVector(lDir, 1.0, 0.0, res);
+				};
+
+			// Compare Jacobians
+			// Check AD Jacobian pattern
+			cadet::test::checkJacobianPatternFD(anaResidual, adMultJac, y.data() + nComp, jacDir.data() + nComp, jacCol1.data() + nComp, jacCol2.data() + nComp, nDof - nComp);
+
+			// Check analytic Jacobian pattern
+			cadet::test::checkJacobianPatternFD(anaResidual, anaMultJac, y.data() + nComp, jacDir.data() + nComp, jacCol1.data() + nComp, jacCol2.data() + nComp, nDof - nComp);
+
+			// Check analytic vs AD Jacobian
+			cadet::test::compareJacobian(anaMultJac, adMultJac, jacDir.data(), jacCol1.data(), jacCol2.data(), nDof - nComp);
+
+			// Reverse flow
+			anaVelocity->setValue(-anaVelocity->getValue());
+			adVelocity->setValue(-adVelocity->getValue());
+
+			// Setup
+			opAna.notifyDiscontinuousSectionTransition(0.0, 0u, nullptr, nullptr, 0u);
+			opAD.notifyDiscontinuousSectionTransition(0.0, 0u, adRes, adY, 0u);
+
+			// Compute state Jacobian
+			opAna.residual(0.0, 0u, 1.0, y.data(), nullptr, jacDir.data(), true);
+			std::fill(jacDir.begin(), jacDir.end(), 0.0);
+
+			cadet::ad::copyToAd(y.data(), adY, nDof);
+			cadet::ad::resetAd(adRes, nDof);
+			opAD.residual(0.0, 0u, 1.0, adY, nullptr, adRes, false);
+			opAD.extractJacobianFromAD(adRes, 0);
+
+			// Compare Jacobians
+			// Check AD Jacobian pattern
+			cadet::test::checkJacobianPatternFD(anaResidual, adMultJac, y.data() + nComp, jacDir.data() + nComp, jacCol1.data() + nComp, jacCol2.data() + nComp, nDof - nComp);
+
+			// Check analytic Jacobian pattern
+			cadet::test::checkJacobianPatternFD(anaResidual, anaMultJac, y.data() + nComp, jacDir.data() + nComp, jacCol1.data() + nComp, jacCol2.data() + nComp, nDof - nComp);
+
+			// Check analytic vs AD Jacobian
+			cadet::test::compareJacobian(anaMultJac, adMultJac, jacDir.data(), jacCol1.data(), jacCol2.data(), nDof - nComp);
+		}
+
+		delete[] adRes;
+		delete[] adY;
+	}
+}
+
 TEST_CASE("ConvectionDispersionOperator residual forward vs backward flow", "[Operator],[Residual]")
 {
 	// Test all WENO orders
 	for (unsigned int i = 1; i <= cadet::Weno::maxOrder(); ++i)
 		testResidualBulkWenoForwardBackward(i);
+}
+
+TEST_CASE("ConvectionDispersionOperator time derivative Jacobian vs FD", "[Operator],[Residual],[Jacobian]")
+{
+	testTimeDerivativeBulkJacobianFD(1e-6, 0.0, 1e-5);
+}
+
+TEST_CASE("ConvectionDispersionOperator Jacobian forward vs backward flow", "[Operator],[Residual],[Jacobian],[AD]")
+{
+	// Test all WENO orders
+	for (unsigned int i = 1; i <= cadet::Weno::maxOrder(); ++i)
+		testBulkJacobianWenoForwardBackward(i);
 }
