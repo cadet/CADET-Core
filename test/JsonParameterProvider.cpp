@@ -223,10 +223,10 @@ std::ostream& operator<<(std::ostream& out, const JsonParameterProvider& jpp)
 
 } // namespace cadet
 
-json createGRMwithSMAJson()
+json createColumnWithSMAJson(const std::string& uoType)
 {
 	json config;
-	config["UNIT_TYPE"] = std::string("GENERAL_RATE_MODEL");
+	config["UNIT_TYPE"] = uoType;
 	config["NCOMP"] = 4;
 	config["VELOCITY"] = 5.75e-4;
 	config["COL_DISPERSION"] = 5.75e-8;
@@ -334,9 +334,9 @@ json createGRMwithSMAJson()
 */
 }
 
-cadet::JsonParameterProvider createGRMwithSMA()
+cadet::JsonParameterProvider createColumnWithSMA(const std::string& uoType)
 {
-	return cadet::JsonParameterProvider(createGRMwithSMAJson());
+	return cadet::JsonParameterProvider(createColumnWithSMAJson(uoType));
 }
 
 json createGRMwithLinearJson()
@@ -406,14 +406,14 @@ cadet::JsonParameterProvider createGRMwithLinear()
 	return cadet::JsonParameterProvider(createGRMwithLinearJson());
 }
 
-json createLWEJson()
+json createLWEJson(const std::string& uoType)
 {
 	json config;	
 	// Model
 	{
 		json model;
 		model["NUNITS"] = 2;
-		model["unit_000"] = createGRMwithSMAJson();
+		model["unit_000"] = createColumnWithSMAJson(uoType);
 
 		// Inlet - unit 001
 		{
@@ -557,9 +557,9 @@ json createLWEJson()
 	return config;
 }
 
-cadet::JsonParameterProvider createLWE()
+cadet::JsonParameterProvider createLWE(const std::string& uoType)
 {
-	return cadet::JsonParameterProvider(createLWEJson());
+	return cadet::JsonParameterProvider(createLWEJson(uoType));
 }
 
 cadet::JsonParameterProvider createLinearBenchmark(bool dynamicBinding, bool nonBinding, const std::string& uoType)

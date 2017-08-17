@@ -92,9 +92,9 @@ private:
 std::ostream& operator<<(std::ostream& out, const JsonParameterProvider& jpp);
 } // namespace cadet
 
-cadet::JsonParameterProvider createGRMwithSMA();
+cadet::JsonParameterProvider createColumnWithSMA(const std::string& uoType);
 cadet::JsonParameterProvider createGRMwithLinear();
-cadet::JsonParameterProvider createLWE();
+cadet::JsonParameterProvider createLWE(const std::string& uoType);
 cadet::JsonParameterProvider createLinearBenchmark(bool dynamicBinding, bool nonBinding, const std::string& uoType);
 cadet::JsonParameterProvider createCSTR(unsigned int nComp);
 cadet::JsonParameterProvider createCSTRBenchmark(unsigned int nSec, double endTime, double interval);

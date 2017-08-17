@@ -23,18 +23,22 @@
 #include <cmath>
 #include <functional>
 
-/**
- * @brief Fills the state vector with a given function
- * @details The function @p f uses the current index to assign a value.
- * @param [out] y Filled state vector
- * @param [in] f Function for computing the content of the state vector
- * @param [in] numDofs Size of the state vector
- */
-inline void fillState(double* y, std::function<double(unsigned int)> f, unsigned int numDofs)
+namespace
 {
-	for (unsigned int i = 0; i < numDofs; ++i)
-		y[i] = f(i);
+	/**
+	 * @brief Fills the state vector with a given function
+	 * @details The function @p f uses the current index to assign a value.
+	 * @param [out] y Filled state vector
+	 * @param [in] f Function for computing the content of the state vector
+	 * @param [in] numDofs Size of the state vector
+	 */
+	inline void fillState(double* y, std::function<double(unsigned int)> f, unsigned int numDofs)
+	{
+		for (unsigned int i = 0; i < numDofs; ++i)
+			y[i] = f(i);
+	}
 }
+
 
 /**
  * @brief Creates a runnable CSTR model with given WENO order
