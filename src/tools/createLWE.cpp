@@ -116,6 +116,7 @@ int main(int argc, char** argv)
 			writer.scalar<double>("PAR_RADIUS", 4.5e-5);
 			writer.scalar<double>("COL_POROSITY", 0.37);
 			writer.scalar<double>("PAR_POROSITY", 0.75);
+			writer.scalar<double>("TOTAL_POROSITY", 0.37 + (1.0 - 0.37) * 0.75);
 
 			// Initial conditions
 			const double initC[] = {50.0, 0.0, 0.0, 0.0};
