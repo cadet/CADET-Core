@@ -122,11 +122,11 @@ See Table~\ref{tab:FFModelUnitOpOutlet}.
 
 \subsection{General rate model (GRM)}\label{sec:MUOPGRM}
 
-The general rate model \index{Model!General rate model}\index{Unit operation!General rate model} is the most comprehensive model of mass transfer in column liquid chromatography, when only the axial coordinate in the column and the radial coordinate in the beads are considered \cite{Kucera1965,Gu1995,Guiochon2006,Felinger2004}.
+The general rate model \index{Model!General rate model}\index{Model!GRM}\index{Unit operation!General rate model}\index{Unit operation!GRM} is the most comprehensive model of mass transfer in column liquid chromatography, when only the axial coordinate in the column and the radial coordinate in the beads are considered \cite{Kucera1965,Gu1995,Guiochon2006,Felinger2004}.
 
 The main assumptions are:
 \begin{enumerate}
-	\item The cross sections of the column are homogenous in terms of interstitial volume, fluid flow, and distribution of components. Thus, only one spatial coordinate in axial direction is needed.
+	\item The cross sections of the column are homogenous in terms of interstitial volume, fluid flow, and distribution of components. Thus, only one spatial coordinate in axial direction is needed and radial transport is neglected in the column bulk volume.
 	\item The bead radii $r_{p}$ are much smaller than the column radius $r_c$ and the column length $L$. Therefore, the beads can be seen as continuously distributed inside the column (i.e., at each point there is interstitial and bead volume).
 \end{enumerate}
 
@@ -221,6 +221,13 @@ The mass balance in the interstitial column volume is described by
 	\frac{\partial c_i}{\partial t} &= -u \frac{\partial c_i}{\partial z} + D_{\text{ax}} \frac{\partial^2 c_i}{\partial z^2} - \frac{1}{\beta_c}\frac{3}{r_p}k_{f,i}\left[ c_i - c_{p,i}(\cdot, \cdot, r_p) \right]. \label{eq:ModelColumn}
 \end{align}
 Here, $c_i\colon \left[0, T_{\text{end}}\right] \times [0, L] \rightarrow \mathds{R}^{\geq 0}$ denotes the concentration in the interstitial column volume, $c_{p,i}\colon \left[0, T_{\text{end}}\right] \times [0, L] \times [0, r_p] \rightarrow \mathds{R}^{\geq 0}$ the liquid phase concentration in the beads, $k_{f,i}$ the film diffusion coefficient, $D_{\text{ax}}$ the dispersion coefficient, $u$ the interstitial velocity, and $\beta_c = \varepsilon_c / (1 - \varepsilon_c)$ the column phase ratio, where $\varepsilon_c$ is the column porosity (ratio of interstitial volume to total column volume).
+
+Danckwerts boundary conditions \cite{Danckwerts1953} are applied to inlet and outlet of the column:
+\begin{align}
+	u c_{\text{in},i}(t) &= u c_i(t,0) - D_{\text{ax}} \frac{\partial c_i}{\partial z}(t, 0) \label{eq:BCInlet} & \forall t > 0,\\
+	\frac{\partial c_i}{\partial z}(t, L) &= 0 & \forall t > 0. \label{eq:BCOutlet}
+\end{align}
+Note that the outlet boundary condition Eq.~\eqref{eq:BCOutlet} is also known as ``do nothing'' or natural outflow condition.
 
 In the liquid phase of the porous beads (see Fig.~\ref{fig:ModelGRMBead}) the mass balance is given by
 \begin{align}
