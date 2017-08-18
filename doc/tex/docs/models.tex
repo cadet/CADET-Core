@@ -448,6 +448,39 @@ By default, the following initial conditions are applied for all $z \in [0,L]$:
 For the specification of flow rate and direction, the same holds as for the general rate model (see Section~\ref{par:MUOPGRMflow}).
 See Table~\ref{tab:FFModelUnitOpLRMP}.
 
+\subsection{Lumped rate model without pores (LRM)}\label{sec:MUOPLRM}
+
+The lumped rate model without pores \index{Model!Lumped rate model without pores}\index{Model!LRM}\index{Unit operation!Lumped rate model without pores}\index{Unit operation!LRM} \cite{Guiochon2006,Felinger2004} deviates from the lumped rate model with pores (see Section~\ref{sec:MUOPLRMP}) by neglecting pores completely.
+The particle phase $c_p$ is removed and the porosity $\varepsilon_t$ is taken as total porosity
+\begin{align}
+	\varepsilon_t = \varepsilon_c + \left( 1 - \varepsilon_c \right) \varepsilon_p. \label{eq:TotalPorosity}
+\end{align}
+The model equations are given by
+\begin{align}
+	\frac{\partial c_i}{\partial t} + \frac{1}{\beta_t} \frac{\pdiff}{\pdiff t} \sum_{m_i} q_{i,m_i} &= -u \frac{\partial c_i}{\partial z} + D_{\text{ax}} \frac{\partial^2 c_i}{\partial z^2},
+\end{align}
+where $\beta_t = \varepsilon_t / (1 - \varepsilon_t)$ denotes the (total) phase ratio.
+The equations are complemented by Danckwerts boundary conditions \cite{Danckwerts1953}
+\begin{align*}
+	u c_{\text{in},i}(t) &= u c_i(t,0) - D_{\text{ax}} \frac{\partial c_i}{\partial z}(t, 0) & \forall t > 0,\\
+	\frac{\partial c_i}{\partial z}(t, L) &= 0 & \forall t > 0.
+\end{align*}
+
+Both quasi-stationary and dynamic binding models are supported:
+\begin{alignat*}{2}
+	\text{quasi-stationary: }& & 0 &= f_{\text{ads}}( c_p, q), \\
+	\text{dynamic: }& & \frac{\partial q}{\partial t} &= f_{\text{ads}}( c_p, q).
+\end{alignat*}
+By default, the following initial conditions are applied for all $z \in [0,L]$:
+\begin{align}
+	c_i(0, z) &= 0, & q_{i,m_i}(0,z) &= 0.
+\end{align}
+
+Note that by setting $\varepsilon_t = 1$, removing all bound states by setting $N_{\text{bnd},i} = 0$ for all components $i$, and applying no binding model, a dispersive plug flow reactor (DPFR)\index{Model!Dispersive plug flow reactor}\index{Model!DPFR}\index{Unit operation!Dispersive plug flow reactor}\index{Unit operation!DPFR} is obtained.
+
+For the specification of flow rate and direction, the same holds as for the general rate model (see Section~\ref{par:MUOPGRMflow}).
+See Table~\ref{tab:FFModelUnitOpLRM}.
+
 \subsection{Continuously stirred tank reactor model (CSTR)}\label{sec:MUOPCSTR}
 
 The continuously stirred tank reactor model \index{Model!Continuously stirred tank reactor}\index{Model!CSTR}\index{Unit operation!Continuously stirred tank reactor model}\index{Unit operation!CSTR} is a basic building block in unit operation networks and often used to model holdup volume.

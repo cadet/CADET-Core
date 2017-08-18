@@ -239,6 +239,7 @@ json createColumnWithSMAJson(const std::string& uoType)
 	config["PAR_RADIUS"] = 4.5e-5;
 	config["COL_POROSITY"] = 0.37;
 	config["PAR_POROSITY"] = 0.75;
+	config["TOTAL_POROSITY"] = 0.37 + (1.0 - 0.37) * 0.75;
 
 	// Initial conditions
 	config["INIT_C"] = {50.0, 0.0, 0.0, 0.0};
@@ -300,6 +301,7 @@ json createColumnWithSMAJson(const std::string& uoType)
 	"PAR_RADIUS": 4.5e-5,
 	"COL_POROSITY": 0.37,
 	"PAR_POROSITY": 0.75,
+	"TOTAL_POROSITY": 0.8425,
 	"INIT_C": [50.0, 0.0, 0.0, 0.0],
 	"INIT_Q": [1.2e3, 0.0, 0.0, 0.0],
 	"ADSORPTION_MODEL": "STERIC_MASS_ACTION",
@@ -355,6 +357,7 @@ json createGRMwithLinearJson()
 	config["PAR_RADIUS"] = 4.5e-5;
 	config["COL_POROSITY"] = 0.37;
 	config["PAR_POROSITY"] = 0.75;
+	config["TOTAL_POROSITY"] = 0.37 + (1.0 - 0.37) * 0.75;
 
 	// Initial conditions
 	config["INIT_C"] = {1.0, 2.0, 3.0};
@@ -586,6 +589,7 @@ cadet::JsonParameterProvider createLinearBenchmark(bool dynamicBinding, bool non
 			grm["PAR_RADIUS"] = 4e-5;
 			grm["COL_POROSITY"] = 0.4;
 			grm["PAR_POROSITY"] = 0.333;
+			grm["TOTAL_POROSITY"] = 0.4 + (1.0 - 0.4) * 0.333;
 
 			// Initial conditions
 			grm["INIT_C"] = {0.0};

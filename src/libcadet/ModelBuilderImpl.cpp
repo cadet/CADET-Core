@@ -31,6 +31,7 @@ namespace cadet
 
 		void registerGeneralRateModel(std::unordered_map<std::string, std::function<IUnitOperation*(UnitOpIdx)>>& models);
 		void registerLumpedRateModelWithPores(std::unordered_map<std::string, std::function<IUnitOperation*(UnitOpIdx)>>& models);
+		void registerLumpedRateModelWithoutPores(std::unordered_map<std::string, std::function<IUnitOperation*(UnitOpIdx)>>& models);
 		void registerCSTRModel(std::unordered_map<std::string, std::function<IUnitOperation*(UnitOpIdx)>>& models);
 
 		namespace inlet
@@ -52,6 +53,7 @@ namespace cadet
 		model::registerOutletModel(_modelCreators);
 		model::registerGeneralRateModel(_modelCreators);
 		model::registerLumpedRateModelWithPores(_modelCreators);
+		model::registerLumpedRateModelWithoutPores(_modelCreators);
 		model::registerCSTRModel(_modelCreators);
 
 		// Register all available inlet profiles
