@@ -141,6 +141,31 @@ namespace column
 		uint32_t _numElements;
 	};
 
+	void setNumAxialCells(cadet::JsonParameterProvider& jpp, unsigned int nCol)
+	{
+		int level = 0;
+
+		if (jpp.exists("model"))
+		{
+			jpp.pushScope("model");
+			++level;
+		}
+		if (jpp.exists("unit_000"))
+		{
+			jpp.pushScope("unit_000");
+			++level;
+		}
+
+		jpp.pushScope("discretization");
+
+		jpp.set("NCOL", static_cast<int>(nCol));
+
+		jpp.popScope();
+	
+		for (int l = 0; l < level; ++l)
+			jpp.popScope();
+	}
+
 	void setWenoOrder(cadet::JsonParameterProvider& jpp, int order)
 	{
 		int level = 0;
@@ -231,13 +256,14 @@ namespace column
 		}
 	}
 
-	void testAnalyticBenchmark(const char* uoType, const char* refFileRelPath, bool forwardFlow, bool dynamicBinding, double absTol, double relTol)
+	void testAnalyticBenchmark(const char* uoType, const char* refFileRelPath, bool forwardFlow, bool dynamicBinding, unsigned int nCol, double absTol, double relTol)
 	{
 		const std::string fwdStr = (forwardFlow ? "forward" : "backward");
 		SECTION("Analytic" + fwdStr + " flow with " + (dynamicBinding ? "dynamic" : "quasi-stationary") + " binding")
 		{
 			// Setup simulation
 			cadet::JsonParameterProvider jpp = createLinearBenchmark(dynamicBinding, false, uoType);
+			setNumAxialCells(jpp, nCol);
 			if (!forwardFlow)
 				reverseFlow(jpp);
 
@@ -268,13 +294,14 @@ namespace column
 		}
 	}
 
-	void testAnalyticNonBindingBenchmark(const char* uoType, const char* refFileRelPath, bool forwardFlow, double absTol, double relTol)
+	void testAnalyticNonBindingBenchmark(const char* uoType, const char* refFileRelPath, bool forwardFlow, unsigned int nCol, double absTol, double relTol)
 	{
 		const std::string fwdStr = (forwardFlow ? "forward" : "backward");
 		SECTION("Analytic" + fwdStr + " flow")
 		{
 			// Setup simulation
 			cadet::JsonParameterProvider jpp = createLinearBenchmark(true, true, uoType);
+			setNumAxialCells(jpp, nCol);
 			if (!forwardFlow)
 				reverseFlow(jpp);
 

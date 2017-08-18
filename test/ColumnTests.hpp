@@ -32,6 +32,14 @@ namespace column
 {
 
 	/**
+	 * @brief Sets the number of axial cells in a configuration of a column-like unit operation
+	 * @details Overwrites the NCOL field in the discretization group of the given ParameterProvider.
+	 * @param [in,out] jpp ParameterProvider to change the WENO order in
+	 * @param [in] nCol Number of axial cells
+	 */
+	void setNumAxialCells(cadet::JsonParameterProvider& jpp, unsigned int nCol);
+
+	/**
 	 * @brief Sets the WENO order in a configuration of a column-like unit operation
 	 * @details Overwrites the WENO_ORDER field in the weno group of the given ParameterProvider.
 	 * @param [in,out] jpp ParameterProvider to change the WENO order in
@@ -52,10 +60,11 @@ namespace column
 	 * @param [in] refFileRelPath Path to the reference data file from the directory of this file
 	 * @param [in] forwardFlow Determines whether the unit operates in forward flow (@c true) or backwards flow (@c false)
 	 * @param [in] dynamicBinding Determines whether dynamic binding (@c true) or rapid equilibrium (@c false) is used
+	 * @param [in] nCol Number of axial cells
 	 * @param [in] absTol Absolute error tolerance
 	 * @param [in] relTol Relative error tolerance
 	 */
-	void testAnalyticBenchmark(const char* uoType, const char* refFileRelPath, bool forwardFlow, bool dynamicBinding, double absTol, double relTol);
+	void testAnalyticBenchmark(const char* uoType, const char* refFileRelPath, bool forwardFlow, bool dynamicBinding, unsigned int nCol, double absTol, double relTol);
 
 	/**
 	 * @brief Runs a simulation test comparing against (semi-)analytic single component pulse injection reference data
@@ -63,10 +72,11 @@ namespace column
 	 * @param [in] uoType Unit operation type
 	 * @param [in] refFileRelPath Path to the reference data file from the directory of this file
 	 * @param [in] forwardFlow Determines whether the unit operates in forward flow (@c true) or backwards flow (@c false)
+	 * @param [in] nCol Number of axial cells
 	 * @param [in] absTol Absolute error tolerance
 	 * @param [in] relTol Relative error tolerance
 	 */
-	void testAnalyticNonBindingBenchmark(const char* uoType, const char* refFileRelPath, bool forwardFlow, double absTol, double relTol);
+	void testAnalyticNonBindingBenchmark(const char* uoType, const char* refFileRelPath, bool forwardFlow, unsigned int nCol, double absTol, double relTol);
 
 	/**
 	 * @brief Runs a simulation test comparing forward and backwards flow in the load-wash-elution example
