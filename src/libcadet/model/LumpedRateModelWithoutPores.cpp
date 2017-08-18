@@ -1492,11 +1492,11 @@ void LumpedRateModelWithoutPores::leanConsistentInitialSensitivity(const active&
 	}
 }
 
-
-
 void registerLumpedRateModelWithoutPores(std::unordered_map<std::string, std::function<IUnitOperation*(UnitOpIdx)>>& models)
 {
 	models[LumpedRateModelWithoutPores::identifier()] = [](UnitOpIdx uoId) { return new LumpedRateModelWithoutPores(uoId); };
+	models["LRM"] = [](UnitOpIdx uoId) { return new LumpedRateModelWithoutPores(uoId); };
+	models["DPFR"] = [](UnitOpIdx uoId) { return new LumpedRateModelWithoutPores(uoId); };
 }
 
 }  // namespace model

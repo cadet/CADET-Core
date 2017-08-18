@@ -963,6 +963,7 @@ void LumpedRateModelWithPores::expandErrorTol(double const* errorSpec, unsigned 
 void registerLumpedRateModelWithPores(std::unordered_map<std::string, std::function<IUnitOperation*(UnitOpIdx)>>& models)
 {
 	models[LumpedRateModelWithPores::identifier()] = [](UnitOpIdx uoId) { return new LumpedRateModelWithPores(uoId); };
+	models["LRMP"] = [](UnitOpIdx uoId) { return new LumpedRateModelWithPores(uoId); };
 }
 
 }  // namespace model
