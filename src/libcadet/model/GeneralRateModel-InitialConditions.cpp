@@ -831,14 +831,17 @@ void GeneralRateModel::leanConsistentInitialSensitivity(const active& t, unsigne
 		double* const sensYdot = vecSensYdot[param];
 
 		// Copy parameter derivative from AD to tempState and negate it
-		for (unsigned int i = 0; i < idxr.offsetCp(0); ++i)
-			sensYdot[i] = -adRes[i].getADValue(param);
+		// We need to use _tempState in order to keep sensYdot unchanged at this point
+		for (unsigned int i = 0; i < idxr.offsetCp(); ++i)
+			_tempState[i] = -adRes[i].getADValue(param);
+
+		std::fill(_tempState + idxr.offsetCp(), _tempState + idxr.offsetJf(), 0.0);
 
 		for (unsigned int i = idxr.offsetJf(); i < numDofs(); ++i)
-			sensYdot[i] = -adRes[i].getADValue(param);
+			_tempState[i] = -adRes[i].getADValue(param);
 
 		// Step 1: Compute fluxes j_f, right hand side is -dF / dp
-		std::copy(sensYdot + idxr.offsetJf(), sensYdot + numDofs(), sensY + idxr.offsetJf());
+		std::copy(_tempState + idxr.offsetJf(), _tempState + numDofs(), sensY + idxr.offsetJf());
 
 		solveForFluxes(sensY, idxr);
 
@@ -846,8 +849,12 @@ void GeneralRateModel::leanConsistentInitialSensitivity(const active& t, unsigne
 
 		// Step 2a: Assemble, factorize, and solve diagonal blocks of linear system
 
-		// Compute right hand side by adding -dF / dy * s = -J * s to -dF / dp which is already stored in sensYdot
-		multiplyWithJacobian(static_cast<double>(t), secIdx, static_cast<double>(timeFactor), vecStateY, vecStateYdot, sensY, -1.0, 1.0, sensYdot);
+		// Compute right hand side by adding -dF / dy * s = -J * s to -dF / dp which is already stored in _tempState
+		multiplyWithJacobian(static_cast<double>(t), secIdx, static_cast<double>(timeFactor), vecStateY, vecStateYdot, sensY, -1.0, 1.0, _tempState);
+
+		// Copy relevant parts to sensYdot for use as right hand sides
+		std::copy(_tempState + idxr.offsetC(), _tempState + idxr.offsetCp(), sensYdot + idxr.offsetC());
+		std::copy(_tempState + idxr.offsetJf(), _tempState + numDofs(), sensYdot);
 
 		// Handle bulk block
 		_convDispOp.solveTimeDerivativeSystem(static_cast<double>(t), secIdx, static_cast<double>(timeFactor), sensYdot + idxr.offsetC());
