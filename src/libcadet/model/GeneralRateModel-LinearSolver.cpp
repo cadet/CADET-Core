@@ -477,12 +477,11 @@ void GeneralRateModel::assembleDiscretizedJacobianParticleBlock(unsigned int pbl
 	fbm.copyOver(bm);
 
 	// Add time derivatives to particle shells
-	const double invBetaP = 1.0 / static_cast<double>(_parPorosity) - 1.0;
 	linalg::FactorizableBandMatrix::RowIterator jac = fbm.row(0);
 	for (unsigned int j = 0; j < _disc.nPar; ++j)
 	{
 		// Mobile phase (advances jac accordingly)
-		addMobilePhaseTimeDerivativeToJacobianParticleBlock(jac, idxr, alpha, invBetaP, timeFactor);
+		addMobilePhaseTimeDerivativeToJacobianParticleBlock(jac, idxr, alpha, timeFactor);
 
 		// Stationary phase
 		_binding->jacobianAddDiscretized(alpha * timeFactor, jac);
@@ -500,10 +499,9 @@ void GeneralRateModel::assembleDiscretizedJacobianParticleBlock(unsigned int pbl
  *                     on exit, the iterator points to the end of the mobile phase
  * @param [in] idxr Indexer
  * @param [in] alpha Value of \f$ \alpha \f$ (arises from BDF time discretization)
- * @param [in] invBetaP Inverse porosity term @f$\frac{1}{\beta_p}@f$
  * @param [in] timeFactor Factor which is premultiplied to the time derivatives originating from time transformation
  */
-void GeneralRateModel::addMobilePhaseTimeDerivativeToJacobianParticleBlock(linalg::FactorizableBandMatrix::RowIterator& jac, const Indexer& idxr, double alpha, double invBetaP, double timeFactor)
+void GeneralRateModel::addMobilePhaseTimeDerivativeToJacobianParticleBlock(linalg::FactorizableBandMatrix::RowIterator& jac, const Indexer& idxr, double alpha, double timeFactor)
 {
 	// Compute total factor
 	alpha *= timeFactor;
@@ -513,6 +511,8 @@ void GeneralRateModel::addMobilePhaseTimeDerivativeToJacobianParticleBlock(linal
 	{
 		// Add derivative with respect to dc_p / dt to Jacobian
 		jac[0] += alpha;
+
+		const double invBetaP = (1.0 - static_cast<double>(_parPorosity)) / (static_cast<double>(_poreAccessFactor[comp]) * static_cast<double>(_parPorosity));
 
 		// Add derivative with respect to dq / dt to Jacobian
 		for (int i = 0; i < static_cast<int>(_disc.nBound[comp]); ++i)

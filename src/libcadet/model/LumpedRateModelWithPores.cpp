@@ -198,12 +198,18 @@ bool LumpedRateModelWithPores::reconfigure(IParameterProvider& paramProvider)
 	// Read vectorial parameters (which may also be section dependent; transport)
 	readParameterMatrix(_filmDiffusion, paramProvider, "FILM_DIFFUSION", _disc.nComp, 1);
 
+	if (paramProvider.exists("PORE_ACCESSIBILITY"))
+		readParameterMatrix(_poreAccessFactor, paramProvider, "PORE_ACCESSIBILITY", _disc.nComp, 1);
+	else
+		_poreAccessFactor = std::vector<cadet::active>(_disc.nComp, 1.0);
+
 	// Add parameters to map
 	_parameters[makeParamId(hashString("COL_POROSITY"), _unitOpIdx, CompIndep, BoundPhaseIndep, ReactionIndep, SectionIndep)] = &_colPorosity;
 	_parameters[makeParamId(hashString("PAR_RADIUS"), _unitOpIdx, CompIndep, BoundPhaseIndep, ReactionIndep, SectionIndep)] = &_parRadius;
 	_parameters[makeParamId(hashString("PAR_POROSITY"), _unitOpIdx, CompIndep, BoundPhaseIndep, ReactionIndep, SectionIndep)] = &_parPorosity;
 
 	registerComponentSectionDependentParam(hashString("FILM_DIFFUSION"), _parameters, _filmDiffusion, _unitOpIdx, _disc.nComp);
+	registerComponentSectionDependentParam(hashString("PORE_ACCESSIBILITY"), _parameters, _poreAccessFactor, _unitOpIdx, _disc.nComp);
 
 	// Reconfigure binding model
 	if (_binding && paramProvider.exists("adsorption"))
@@ -531,7 +537,6 @@ int LumpedRateModelWithPores::residualParticle(const ParamType& t, unsigned int 
 
 	// Prepare parameters
 	const ParamType radius = static_cast<ParamType>(_parRadius);
-	const ParamType invBetaP = 1.0 / static_cast<ParamType>(_parPorosity) - 1.0;
 
 	// Midpoint of current column cell (z coordinate) - needed in externally dependent adsorption kinetic
 	const double z = 1.0 / static_cast<double>(_disc.nCol) * (0.5 + colCell);
@@ -543,6 +548,7 @@ int LumpedRateModelWithPores::residualParticle(const ParamType& t, unsigned int 
 		{
 			*res = 0.0;
 			const unsigned int nBound = _disc.nBound[comp];
+			const ParamType invBetaP = (1.0 - static_cast<ParamType>(_parPorosity)) / (static_cast<ParamType>(_poreAccessFactor[comp]) * static_cast<ParamType>(_parPorosity));
 
 			// Ultimately, we need dc_{p,comp} / dt + 1 / beta_p * [ sum_i  dq_comp^i / dt ]
 			// Compute the sum in the brackets first, then divide by beta_p and add dc_p / dt
@@ -645,7 +651,7 @@ int LumpedRateModelWithPores::residualFlux(const ParamType& t, unsigned int secI
 		for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
 		{
 			const unsigned int eq = pblk * idxr.strideColCell() + comp * idxr.strideColComp();
-			resPar[pblk * idxr.strideParBlock() + comp] += jacPF_val * static_cast<ParamType>(filmDiff[comp]) * yFlux[eq];
+			resPar[pblk * idxr.strideParBlock() + comp] += jacPF_val / static_cast<ParamType>(_poreAccessFactor[comp]) * static_cast<ParamType>(filmDiff[comp]) * yFlux[eq];
 		}
 	}
 
@@ -711,7 +717,7 @@ void LumpedRateModelWithPores::assembleOffdiagJac(double t, unsigned int secIdx)
 		{
 			const unsigned int eq = pblk * idxr.strideColCell() + comp * idxr.strideColComp();
 			const unsigned int col = pblk * idxr.strideParBlock() + comp;
-			_jacPF.addElement(col, eq, jacPF_val * static_cast<double>(filmDiff[comp]));
+			_jacPF.addElement(col, eq, jacPF_val / static_cast<double>(_poreAccessFactor[comp]) * static_cast<double>(filmDiff[comp]));
 		}
 	}
 
@@ -873,7 +879,6 @@ void LumpedRateModelWithPores::multiplyWithJacobian(double t, unsigned int secId
 void LumpedRateModelWithPores::multiplyWithDerivativeJacobian(double t, unsigned int secIdx, double timeFactor, double const* const y, double const* const yDot, double const* sDot, double* ret)
 {
 	Indexer idxr(_disc);
-	const double invBetaP = (1.0 / static_cast<double>(_parPorosity) - 1.0) * timeFactor;
 
 #ifdef CADET_PARALLELIZE
 	tbb::parallel_for(size_t(0), size_t(_disc.nCol + 1), [&](size_t idx)
@@ -898,6 +903,8 @@ void LumpedRateModelWithPores::multiplyWithDerivativeJacobian(double t, unsigned
 			{
 				// Add derivative with respect to dc_p / dt to Jacobian
 				localRet[comp] = timeFactor * localSdot[comp];
+
+				const double invBetaP = (1.0 - static_cast<double>(_parPorosity)) / (static_cast<double>(_poreAccessFactor[comp]) * static_cast<double>(_parPorosity)) * timeFactor;
 
 				// Add derivative with respect to dq / dt to Jacobian (normal equations)
 				for (unsigned int i = 0; i < _disc.nBound[comp]; ++i)

@@ -239,6 +239,11 @@ bool GeneralRateModel::reconfigure(IParameterProvider& paramProvider)
 	readParameterMatrix(_parDiffusion, paramProvider, "PAR_DIFFUSION", _disc.nComp, 1);
 	readParameterMatrix(_parSurfDiffusion, paramProvider, "PAR_SURFDIFFUSION", _disc.nComp * _disc.strideBound, 1);
 
+	if (paramProvider.exists("PORE_ACCESSIBILITY"))
+		readParameterMatrix(_poreAccessFactor, paramProvider, "PORE_ACCESSIBILITY", _disc.nComp, 1);
+	else
+		_poreAccessFactor = std::vector<cadet::active>(_disc.nComp, 1.0);
+
 	// Add parameters to map
 	_parameters[makeParamId(hashString("COL_POROSITY"), _unitOpIdx, CompIndep, BoundPhaseIndep, ReactionIndep, SectionIndep)] = &_colPorosity;
 	_parameters[makeParamId(hashString("PAR_RADIUS"), _unitOpIdx, CompIndep, BoundPhaseIndep, ReactionIndep, SectionIndep)] = &_parRadius;
@@ -246,6 +251,7 @@ bool GeneralRateModel::reconfigure(IParameterProvider& paramProvider)
 
 	registerComponentSectionDependentParam(hashString("FILM_DIFFUSION"), _parameters, _filmDiffusion, _unitOpIdx, _disc.nComp);
 	registerComponentSectionDependentParam(hashString("PAR_DIFFUSION"), _parameters, _parDiffusion, _unitOpIdx, _disc.nComp);
+	registerComponentSectionDependentParam(hashString("PORE_ACCESSIBILITY"), _parameters, _poreAccessFactor, _unitOpIdx, _disc.nComp);
 
 	// Register particle surface diffusion in this ordering:
 	// sec0bnd0comp0, sec0bnd1comp0, sec0bnd2comp0, sec0bnd0comp1, sec0bnd1comp1
@@ -607,7 +613,6 @@ int GeneralRateModel::residualParticle(const ParamType& t, unsigned int colCell,
 
 	// Prepare parameters
 	const ParamType radius = static_cast<ParamType>(_parRadius);
-	const ParamType invBetaP = 1.0 / static_cast<ParamType>(_parPorosity) - 1.0;
 
 	active const* const parDiff = getSectionDependentSlice(_parDiffusion, _disc.nComp, secIdx);
 
@@ -641,6 +646,7 @@ int GeneralRateModel::residualParticle(const ParamType& t, unsigned int colCell,
 		{
 			*res = 0.0;
 			const unsigned int nBound = _disc.nBound[comp];
+			const ParamType invBetaP = (1.0 - static_cast<ParamType>(_parPorosity)) / (static_cast<ParamType>(_poreAccessFactor[comp]) * static_cast<ParamType>(_parPorosity));
 
 			// Add time derivatives
 			if (yDotBase)
@@ -793,7 +799,7 @@ int GeneralRateModel::residualFlux(const ParamType& t, unsigned int secIdx, Stat
 	const double relOuterShellHalfRadius = 0.5 * _parCellSize[0];
 	for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
 	{
-		kf_FV[comp] = 1.0 / (radius * relOuterShellHalfRadius / epsP / static_cast<ParamType>(parDiff[comp]) + 1.0 / static_cast<ParamType>(filmDiff[comp]));
+		kf_FV[comp] = 1.0 / (radius * relOuterShellHalfRadius / epsP /  static_cast<ParamType>(_poreAccessFactor[comp]) / static_cast<ParamType>(parDiff[comp]) + 1.0 / static_cast<ParamType>(filmDiff[comp]));
 	}
 
 	// Get offsets
@@ -829,7 +835,7 @@ int GeneralRateModel::residualFlux(const ParamType& t, unsigned int secIdx, Stat
 		for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
 		{
 			const unsigned int eq = pblk * idxr.strideColCell() + comp * idxr.strideColComp();
-			resPar[pblk * idxr.strideParBlock() + comp] += jacPF_val * yFlux[eq];
+			resPar[pblk * idxr.strideParBlock() + comp] += jacPF_val / static_cast<ParamType>(_poreAccessFactor[comp]) * yFlux[eq];
 		}
 	}
 
@@ -886,7 +892,7 @@ void GeneralRateModel::assembleOffdiagJac(double t, unsigned int secIdx)
 	// Discretized film diffusion kf for finite volumes
 	double* const kf_FV = _discParFlux.create<double>(_disc.nComp);
 	for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
-		kf_FV[comp] = 1.0 / (radius * relOuterShellHalfRadius / epsP / static_cast<double>(parDiff[comp]) + 1.0 / static_cast<double>(filmDiff[comp]));
+		kf_FV[comp] = 1.0 / (radius * relOuterShellHalfRadius / epsP / static_cast<double>(_poreAccessFactor[comp]) / static_cast<double>(parDiff[comp]) + 1.0 / static_cast<double>(filmDiff[comp]));
 
 	// Note that the J_f block, which is the identity matrix, is treated in the linear solver
 
@@ -914,7 +920,7 @@ void GeneralRateModel::assembleOffdiagJac(double t, unsigned int secIdx)
 		for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
 		{
 			const unsigned int eq = pblk * idxr.strideColCell() + comp * idxr.strideColComp();
-			_jacPF[pblk].addElement(comp, eq, jacPF_val);
+			_jacPF[pblk].addElement(comp, eq, jacPF_val / static_cast<double>(_poreAccessFactor[comp]));
 		}
 	}
 

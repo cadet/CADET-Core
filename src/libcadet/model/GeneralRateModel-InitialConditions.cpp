@@ -299,12 +299,11 @@ void GeneralRateModel::consistentInitialTimeDerivative(double t, unsigned int se
 		linalg::FactorizableBandMatrix& fbm = _jacPdisc[pblk];
 		fbm.setAll(0.0);
 
-		const double invBetaP = 1.0 / static_cast<double>(_parPorosity) - 1.0;
 		linalg::FactorizableBandMatrix::RowIterator jac = fbm.row(0);
 		for (unsigned int j = 0; j < _disc.nPar; ++j)
 		{
 			// Mobile phase (advances jac accordingly)
-			addMobilePhaseTimeDerivativeToJacobianParticleBlock(jac, idxr, 1.0, invBetaP, timeFactor);
+			addMobilePhaseTimeDerivativeToJacobianParticleBlock(jac, idxr, 1.0, timeFactor);
 
 			// Stationary phase
 			// Populate matrix with time derivative Jacobian first
@@ -694,12 +693,11 @@ void GeneralRateModel::consistentInitialSensitivity(const active& t, unsigned in
 			linalg::FactorizableBandMatrix& fbm = _jacPdisc[pblk];
 			fbm.setAll(0.0);
 
-			const double invBetaP = 1.0 / static_cast<double>(_parPorosity) - 1.0;
 			linalg::FactorizableBandMatrix::RowIterator jac = fbm.row(0);
 			for (unsigned int j = 0; j < _disc.nPar; ++j)
 			{
 				// Mobile phase (advances jac accordingly)
-				addMobilePhaseTimeDerivativeToJacobianParticleBlock(jac, idxr, 1.0, invBetaP, static_cast<double>(timeFactor));
+				addMobilePhaseTimeDerivativeToJacobianParticleBlock(jac, idxr, 1.0, static_cast<double>(timeFactor));
 
 				// Stationary phase
 				// Populate matrix with time derivative Jacobian first

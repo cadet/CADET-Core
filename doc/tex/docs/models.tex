@@ -231,9 +231,9 @@ Note that the outlet boundary condition Eq.~\eqref{eq:BCOutlet} is also known as
 
 In the liquid phase of the porous beads (see Fig.~\ref{fig:ModelGRMBead}) the mass balance is given by
 \begin{align}
-	\frac{\pdiff c_{p,i}}{\pdiff t} + \frac{1}{\beta_p} \frac{\pdiff}{\pdiff t} \sum_{m_i} q_{i,m_i} = \underbrace{D_{p,i} \left[\frac{\pdiff^2}{\pdiff r^2} + \frac{2}{r} \frac{\pdiff}{\pdiff r} \right]c_{p,i}}_{\text{Pore diffusion}} + \underbrace{\frac{1}{\beta_p} D_{s,i} \left[\frac{\pdiff^2}{\pdiff r^2} + \frac{2}{r} \frac{\pdiff }{\pdiff r} \right] \sum_{m_i} q_{i,m_i} }_{\text{Surface diffusion}}, \label{eq:ModelBead}
+	\frac{\pdiff c_{p,i}}{\pdiff t} + \frac{1 - \varepsilon_p}{F_{\text{acc},i} \varepsilon_p} \frac{\pdiff}{\pdiff t} \sum_{m_i} q_{i,m_i} = \underbrace{D_{p,i} \left[\frac{\pdiff^2}{\pdiff r^2} + \frac{2}{r} \frac{\pdiff}{\pdiff r} \right]c_{p,i}}_{\text{Pore diffusion}} + \underbrace{\frac{1 - \varepsilon_p}{F_{\text{acc},i} \varepsilon_p} D_{s,i} \left[\frac{\pdiff^2}{\pdiff r^2} + \frac{2}{r} \frac{\pdiff }{\pdiff r} \right] \sum_{m_i} q_{i,m_i} }_{\text{Surface diffusion}}, \label{eq:ModelBead}
 \end{align}
-where $q_{i,m_i}\colon \left[0, T_{\text{end}}\right] \times [0,L] \times [0, r_p] \rightarrow \mathds{R}^{\geq 0}$ denotes the solid phase concentration of the $i$th component's $m_i$th bound state in the beads, $D_{p,i}$ the effective diffusion coefficient in the beads, $D_{s,i}$ the surface diffusion coefficient, and $\beta_p = \varepsilon_p / (1 - \varepsilon_p)$ the particle phase ratio, where $\varepsilon_p$ is the particle porosity (ratio of pore volume to total bead volume).
+where $q_{i,m_i}\colon \left[0, T_{\text{end}}\right] \times [0,L] \times [0, r_p] \rightarrow \mathds{R}^{\geq 0}$ denotes the solid phase concentration of the $i$th component's $m_i$th bound state in the beads, $D_{p,i}$ the effective diffusion coefficient in the beads, $D_{s,i}$ the surface diffusion coefficient, $F_{\text{acc},i} \in [0,1]$ the pore accessibility factor, and $\varepsilon_p$ the particle porosity (ratio of pore volume to total bead volume).
 The GRM is used with both quasi-stationary (Eq.~\eqref{eq:REqBinding}) and dynamic (Eq.~\eqref{eq:DynBinding}) binding models. \index{Binding!Models}\index{Binding!Dynamic}\index{Binding!Quasi-stationary}
 \begin{alignat}{2}
 	\text{quasi-stationary: }& & 0 &= f_{\text{ads}}( c_p, q), \label{eq:REqBinding} \\
@@ -242,7 +242,7 @@ The GRM is used with both quasi-stationary (Eq.~\eqref{eq:REqBinding}) and dynam
 Note that $c_p$ and $q$ denote the vector of all $c_{p,i}$ and $q_{i,m_i}$, respectively.
 The boundary conditions of the bead model the film diffusion and are given for all ${t \in (0,\infty)}$ and $z \in [0,L]$ by
 \begin{align}
-	k_{f,i}\left[ c_i - c_{p,i}(\cdot, \cdot, r_p) \right] &= \varepsilon_p D_{p,i} \frac{\partial c_{p,i}}{\partial r}(\cdot, \cdot, r_p) + \left( 1 - \varepsilon_p\right) D_{s,i} \sum_{m_i} \frac{\partial q_{i,m_i}}{\partial r}(\cdot, \cdot, r_p), \label{eq:BCBeadIn} \\
+	k_{f,i}\left[ c_i - c_{p,i}(\cdot, \cdot, r_p) \right] &= F_{\text{acc},i} \varepsilon_p D_{p,i} \frac{\partial c_{p,i}}{\partial r}(\cdot, \cdot, r_p) + \left( 1 - \varepsilon_p\right) D_{s,i} \sum_{m_i} \frac{\partial q_{i,m_i}}{\partial r}(\cdot, \cdot, r_p), \label{eq:BCBeadIn} \\
 	\frac{\partial c_{p,i}}{\partial r}(\cdot, \cdot, 0) &= 0. \label{eq:BCBeadCenter}
 \end{align}
 By default, the following initial conditions are applied for all $z \in [0,L]$ and $r \in \left[0, r_p\right]$:
@@ -405,6 +405,24 @@ By default, the following initial conditions are applied for all $z \in [0,L]$ a
 
 See Table~\ref{tab:FFModelUnitOpGRM}.
 
+\paragraph{Size exclusion chromatography}
+\phantomsection\label{par:MUOPGRMSizeExclusion}
+
+The general rate model can be used to simulate size exclusion chromatography (SEC) \cite{Gu1995}. \index{Model!Size exclusion chromatography}
+The particle porosity $\varepsilon_p$ on the mobile phase side of the transport equations is replaced by the accessible porosity
+\begin{align}
+	\varepsilon_{p,i} = F_{\text{acc},i} \varepsilon_p
+\end{align}
+where the pore accessibility factor $F_{\text{acc},i}$ ranges in $(0, 1]$.
+
+Small molecules which can enter any pore have $F_{\text{acc},i} = 1$ whereas larger molecules that can enter some but not small pores have values $0 < F_{\text{acc},i} < 1$.
+The other extreme is given by molecules so large that they cannot enter any pore and, consequently, $F_{\text{acc},i} = 0$.
+Note that $F_{\text{acc},i} = 0$ is not allowed in a simulation and a more suitable model should be used instead (e.g., the lumped rate model without pores described in Section~\ref{sec:MUOPLRM}).
+
+By default, $F_{\text{acc},i} = 1$ for all components $i$, which disables size exclusion chromatography.
+In order to simulate pure SEC, binding is disabled by setting $N_{\text{bnd},i} = 0$ for all components $i$ and applying no binding model.
+If adsorption is present, it is important to note that any saturation capacity (e.g., $q_{\text{max}}$) is subject to the full pore volume fraction $\varepsilon_p$.
+
 \paragraph{Specification of flow rate / velocity and direction}
 \phantomsection\label{par:MUOPGRMflow}
 
@@ -433,7 +451,7 @@ The particle phase $c_p$ is still there, but no mass transfer happens except for
 Hence, the model equations are given by
 \begin{align}
 	\frac{\partial c_i}{\partial t} &= -u \frac{\partial c_i}{\partial z} + D_{\text{ax}} \frac{\partial^2 c_i}{\partial z^2} - \frac{1}{\beta_c}\frac{3}{r_p}k_{f,i}\left[ c_i - c_{p,i} \right], \\
-	\frac{\pdiff c_{p,i}}{\pdiff t} + \frac{1}{\beta_p} \frac{\pdiff}{\pdiff t} \sum_{m_i} q_{i,m_i} &= \frac{3}{\varepsilon_p r_p}k_{f,i}\left[ c_i - c_{p,i} \right]
+	\frac{\pdiff c_{p,i}}{\pdiff t} + \frac{1 - \varepsilon_p}{F_{\text{acc},i} \varepsilon_p} \frac{\pdiff}{\pdiff t} \sum_{m_i} q_{i,m_i} &= \frac{3}{F_{\text{acc},i} \varepsilon_p r_p}k_{f,i}\left[ c_i - c_{p,i} \right]
 \end{align}
 with the same meanings of variables and parameters as in the general rate model. 
 The equations are complemented by Danckwerts boundary conditions \cite{Danckwerts1953}
@@ -452,6 +470,7 @@ By default, the following initial conditions are applied for all $z \in [0,L]$:
 	c_i(0, z) &= 0, & c_{p,i}(0, z) &= 0, & q_{i,m_i}(0,z) &= 0.
 \end{align}
 
+This model can also be used to simulate size exclusion chromatography (see Section~\ref{par:MUOPGRMSizeExclusion}).\index{Model!Size exclusion chromatography}
 For the specification of flow rate and direction, the same holds as for the general rate model (see Section~\ref{par:MUOPGRMflow}).
 See Table~\ref{tab:FFModelUnitOpLRMP}.
 
@@ -462,6 +481,7 @@ The particle phase $c_p$ is removed and the porosity $\varepsilon_t$ is taken as
 \begin{align}
 	\varepsilon_t = \varepsilon_c + \left( 1 - \varepsilon_c \right) \varepsilon_p. \label{eq:TotalPorosity}
 \end{align}
+The phase ratio is denoted by $\beta_t = \varepsilon_t / (1 - \varepsilon_t)$ accordingly.
 The model equations are given by
 \begin{align}
 	\frac{\partial c_i}{\partial t} + \frac{1}{\beta_t} \frac{\pdiff}{\pdiff t} \sum_{m_i} q_{i,m_i} &= -u \frac{\partial c_i}{\partial z} + D_{\text{ax}} \frac{\partial^2 c_i}{\partial z^2},

@@ -198,7 +198,11 @@ classdef LumpedRateModelWithoutPores < Model
 		end
 
 		function val = get.crossSectionArea(obj)
-			val = obj.data.CROSS_SECTION_AREA;
+			if isfield(obj.data, 'CROSS_SECTION_AREA')
+				val = obj.data.CROSS_SECTION_AREA;
+			else
+				val = [];
+			end
 		end
 
 		function set.crossSectionArea(obj, val)

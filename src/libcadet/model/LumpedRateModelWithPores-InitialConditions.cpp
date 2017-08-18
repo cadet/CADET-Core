@@ -282,11 +282,10 @@ void LumpedRateModelWithPores::consistentInitialTimeDerivative(double t, unsigne
 		const double z = 1.0 / static_cast<double>(_disc.nCol) * (0.5 + pblk);
 
 		// Assemble
-		const double invBetaP = 1.0 / static_cast<double>(_parPorosity) - 1.0;
 		linalg::FactorizableBandMatrix::RowIterator jac = _jacPdisc.row(idxr.strideParBlock() * pblk);
 
 		// Mobile phase (advances jac accordingly)
-		addMobilePhaseTimeDerivativeToJacobianParticleBlock(jac, idxr, 1.0, invBetaP, timeFactor);
+		addMobilePhaseTimeDerivativeToJacobianParticleBlock(jac, idxr, 1.0, timeFactor);
 
 		// Stationary phase
 		// Populate matrix with time derivative Jacobian first
@@ -651,11 +650,10 @@ void LumpedRateModelWithPores::consistentInitialSensitivity(const active& t, uns
 		for (unsigned int pblk = 0; pblk < _disc.nCol; ++pblk)
 		{
 			// Assemble
-			const double invBetaP = 1.0 / static_cast<double>(_parPorosity) - 1.0;
 			linalg::FactorizableBandMatrix::RowIterator jac = _jacPdisc.row(idxr.strideParBlock() * pblk);
 
 			// Mobile phase
-			addMobilePhaseTimeDerivativeToJacobianParticleBlock(jac, idxr, 1.0, invBetaP, static_cast<double>(timeFactor));
+			addMobilePhaseTimeDerivativeToJacobianParticleBlock(jac, idxr, 1.0, static_cast<double>(timeFactor));
 
 			// Stationary phase
 			// Populate matrix with time derivative Jacobian first

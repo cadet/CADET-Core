@@ -46,6 +46,7 @@ classdef GeneralRateModel < Model
 		
 		porosityColumn; % Porosity of the column
 		porosityParticle; % Porosity of the particle
+		poreAccessibility; % Pore accessibility
 
 		columnLength; % Length of the column in [m]
 		particleRadius; % Radius of the particles in [m]
@@ -317,6 +318,25 @@ classdef GeneralRateModel < Model
 			obj.data.PAR_POROSITY = val;
 			obj.hasChanged = true;
 		end
+		
+		function val = get.poreAccessibility(obj)
+			if isfield(obj.data, 'PORE_ACCESSIBILITY')
+				val = obj.data.PORE_ACCESSIBILITY;
+			else
+				val = [];
+			end
+			val = obj.data.PORE_ACCESSIBILITY;
+		end
+
+		function set.poreAccessibility(obj, val)
+			if isempty(val)
+				obj.data = rmfield(obj.data, 'PORE_ACCESSIBILITY');
+			else
+				validateattributes(val, {'double'}, {'vector', 'nonempty', '>=', 0.0, '<=', 1.0, 'finite', 'real'}, '', 'poreAccessibility');
+				obj.data.PORE_ACCESSIBILITY = val;
+			end
+			obj.hasChanged = true;
+		end
 
 		function val = get.columnLength(obj)
 			val = obj.data.COL_LENGTH;
@@ -339,7 +359,11 @@ classdef GeneralRateModel < Model
 		end
 
 		function val = get.crossSectionArea(obj)
-			val = obj.data.CROSS_SECTION_AREA;
+			if isfield(obj.data, 'CROSS_SECTION_AREA')
+				val = obj.data.CROSS_SECTION_AREA;
+			else
+				val = [];
+			end
 		end
 
 		function set.crossSectionArea(obj, val)
@@ -539,6 +563,9 @@ classdef GeneralRateModel < Model
 			validateattributes(obj.porosityParticle, {'double'}, {'scalar', 'nonempty', '>=', 0.0, '<=', 1.0, 'finite', 'real'}, '', 'porosityParticle');
 			validateattributes(obj.columnLength, {'double'}, {'positive', 'scalar', 'nonempty', 'finite', 'real'}, '', 'columnLength');
 			validateattributes(obj.particleRadius, {'double'}, {'positive', 'scalar', 'nonempty', 'finite', 'real'}, '', 'particleRadius');
+			if ~isempty(obj.poreAccessibility)
+				validateattributes(obj.poreAccessibility, {'double'}, {'vector', 'numel', obj.nComponents, '>=', 0.0, '<=', 1.0, 'finite', 'real'}, '', 'poreAccessibility');
+			end
 
 			if ~isempty(obj.bindingModel) && ~isa(obj.bindingModel, 'BindingModel')
 				error('CADET:invalidConfig', 'Expected a valid binding model.');

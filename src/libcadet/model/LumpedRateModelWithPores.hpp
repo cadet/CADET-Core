@@ -201,7 +201,7 @@ protected:
 	int schurComplementMatrixVector(double const* x, double* z) const;
 	void assembleDiscretizedJacobianParticleBlock(double alpha, const Indexer& idxr, double timeFactor);
 
-	void addMobilePhaseTimeDerivativeToJacobianParticleBlock(linalg::FactorizableBandMatrix::RowIterator& jac, const Indexer& idxr, double alpha, double invBetaP, double timeFactor);
+	void addMobilePhaseTimeDerivativeToJacobianParticleBlock(linalg::FactorizableBandMatrix::RowIterator& jac, const Indexer& idxr, double alpha, double timeFactor);
 	void solveForFluxes(double* const vecState, const Indexer& idxr);
 
 #ifdef CADET_CHECK_ANALYTIC_JACOBIAN
@@ -238,6 +238,7 @@ protected:
 
 	// Vectorial parameters
 	std::vector<active> _filmDiffusion; //!< Film diffusion coefficient \f$ k_f \f$
+	std::vector<active> _poreAccessFactor; //!< Pore accessibility factor \f$ F_{\text{acc}} \f$
 
 	bool _analyticJac; //!< Determines whether AD or analytic Jacobians are used
 	unsigned int _jacobianAdDirs; //!< Number of AD seed vectors required for Jacobian computation
