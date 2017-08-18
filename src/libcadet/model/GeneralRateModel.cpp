@@ -156,10 +156,10 @@ bool GeneralRateModel::configure(IParameterProvider& paramProvider, IConfigHelpe
 
 	paramProvider.popScope();
 
-	_convDispOp.configure(_unitOpIdx, paramProvider, _parameters, _disc.nComp, _disc.nCol);
+	const bool transportSuccess = _convDispOp.configure(_unitOpIdx, paramProvider, _parameters, _disc.nComp, _disc.nCol);
 
 	// ==== Read model parameters
-	reconfigure(paramProvider);
+	const bool reconfSuccess = reconfigure(paramProvider);
 
 	// Allocate memory
 	Indexer idxr(_disc);
@@ -220,14 +220,14 @@ bool GeneralRateModel::configure(IParameterProvider& paramProvider, IConfigHelpe
 	}
 	_tempState = new double[size];
 
-	return bindingConfSuccess;
+	return transportSuccess && reconfSuccess && bindingConfSuccess;
 }
 
 bool GeneralRateModel::reconfigure(IParameterProvider& paramProvider)
 {
 	_parameters.clear();
 
-	_convDispOp.reconfigure(_unitOpIdx, paramProvider, _parameters);
+	const bool transportSuccess = _convDispOp.reconfigure(_unitOpIdx, paramProvider, _parameters);
 
 	// Read geometry parameters
 	_colPorosity = paramProvider.getDouble("COL_POROSITY");
@@ -283,10 +283,10 @@ bool GeneralRateModel::reconfigure(IParameterProvider& paramProvider)
 		const bool bindingConfSuccess = _binding->reconfigure(paramProvider, _unitOpIdx);
 		paramProvider.popScope();
 
-		return bindingConfSuccess;
+		return transportSuccess && bindingConfSuccess;
 	}
 
-	return true;
+	return transportSuccess;
 }
 
 void GeneralRateModel::useAnalyticJacobian(const bool analyticJac)
