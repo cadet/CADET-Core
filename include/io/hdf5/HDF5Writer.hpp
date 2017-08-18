@@ -307,6 +307,9 @@ void HDF5Writer::writeWork(const std::string& dataSetName, hid_t memType, hid_t 
 	const hid_t dataSet = H5Dcreate2(_groupsOpened.top(), dataSetName.c_str(), fileType, dataSpace, H5P_DEFAULT, propList, H5P_DEFAULT);
 	closeGroup();
 
+	if (dataSet < 0)
+		throw IOException("Cannot create field \"" + dataSetName + "\" in group " + getFullGroupName());		
+
 	// Write data
 	if (stride <= 1)
 		H5Dwrite(dataSet, memType, H5S_ALL, H5S_ALL, H5P_DEFAULT, buffer);

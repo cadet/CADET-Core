@@ -15,6 +15,7 @@
 
 #include <vector>
 #include <string>
+#include <sstream>
 #include <stack>
 
 #include "cadet/cadetCompilerInfo.hpp"
@@ -61,13 +62,14 @@ public:
 	inline bool isVector(const char* elementName) { return isVector(std::string(elementName)); }
 
 protected:
-	hid_t           _file;
+	hid_t _file;
 
-	std::stack<hid_t>        _groupsOpened;
+	std::stack<hid_t> _groupsOpened;
 	std::vector<std::string> _groupNames;
 
 	void openGroup(bool forceCreation = false);
 	void closeGroup();
+	std::string getFullGroupName();
 };
 
 
@@ -229,6 +231,16 @@ void HDF5Base::closeGroup()
 	}
 }
 
+
+std::string HDF5Base::getFullGroupName()
+{
+	std::ostringstream oss;
+	for (std::vector<std::string>::const_iterator it = _groupNames.begin(); it < _groupNames.end(); ++it)
+	{
+		oss << *it;
+	}
+	return oss.str();
+}
 
 }  // namespace io
 

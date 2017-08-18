@@ -86,6 +86,9 @@ std::vector<std::string> HDF5Reader::vector<std::string>(const std::string& data
 	const hid_t dataSet = H5Dopen2(_groupsOpened.top(), dataSetName.c_str(), H5P_DEFAULT);
 	closeGroup();
 
+	if (dataSet < 0)
+		throw IOException("Field \"" + dataSetName + "\" does not exist in group " + getFullGroupName());		
+
 	// Determine the datatype and allocate buffer
 	const hid_t dataType = H5Dget_type(dataSet);
 	const hid_t dataSpace = H5Dget_space(dataSet);
@@ -168,6 +171,9 @@ std::vector<T> HDF5Reader::read(const std::string& dataSetName, hid_t memType)
 	openGroup();
 	const hid_t dataSet = H5Dopen2(_groupsOpened.top(), dataSetName.c_str(), H5P_DEFAULT);
 	closeGroup();
+
+	if (dataSet < 0)
+		throw IOException("Field \"" + dataSetName + "\" does not exist in group " + getFullGroupName());		
 
 	// Determine the datatype and allocate buffer
 	const hid_t dataType = H5Dget_type(dataSet);
