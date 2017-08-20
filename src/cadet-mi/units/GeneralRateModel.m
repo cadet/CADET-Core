@@ -241,12 +241,20 @@ classdef GeneralRateModel < Model
 		end
 
 		function val = get.interstitialVelocity(obj)
-			val = obj.data.VELOCITY;
+			if isfield(obj.data, 'VELOCITY')
+				val = obj.data.VELOCITY;
+			else
+				val = [];
+			end
 		end
 
 		function set.interstitialVelocity(obj, val)
-			validateattributes(val, {'double'}, {'positive', 'vector', 'nonempty', 'finite', 'real'}, '', 'interstitialVelocity');
-			obj.data.VELOCITY = val(:);
+			if isempty(val)
+				obj.data = rmfield(obj.data, 'VELOCITY');
+			else
+				validateattributes(val, {'double'}, {'positive', 'vector', 'nonempty', 'finite', 'real'}, '', 'interstitialVelocity');
+				obj.data.VELOCITY = val(:);
+			end
 			obj.hasChanged = true;
 		end
 
@@ -325,7 +333,6 @@ classdef GeneralRateModel < Model
 			else
 				val = [];
 			end
-			val = obj.data.PORE_ACCESSIBILITY;
 		end
 
 		function set.poreAccessibility(obj, val)
@@ -370,7 +377,7 @@ classdef GeneralRateModel < Model
 			if isempty(val)
 				obj.data = rmfield(obj.data, 'CROSS_SECTION_AREA');
 			else
-				validateattributes(val, {'double'}, {'scalar', 'finite', 'real'}, '', 'crossSectionArea');
+				validateattributes(val, {'double'}, {'positive', 'scalar', 'nonempty', 'finite', 'real'}, '', 'crossSectionArea');
 				obj.data.CROSS_SECTION_AREA = val;
 			end
 			obj.hasChanged = true;
@@ -546,8 +553,10 @@ classdef GeneralRateModel < Model
 			if (numel(obj.dispersionColumn) ~= 1) && (numel(obj.dispersionColumn) ~= nSections)
 				error('CADET:invalidConfig', 'Expected dispersionColumn to be of size %d or %d (number of time sections).', 1, nSections);
 			end
-			if (numel(obj.interstitialVelocity) ~= 1) && (numel(obj.interstitialVelocity) ~= nSections)
-				error('CADET:invalidConfig', 'Expected interstitialVelocity to be of size %d or %d (number of time sections).', 1, nSections);
+			if ~isempty(obj.interstitialVelocity)
+				if (numel(obj.interstitialVelocity) ~= 1) && (numel(obj.interstitialVelocity) ~= nSections)
+					error('CADET:invalidConfig', 'Expected interstitialVelocity to be of size %d or %d (number of time sections).', 1, nSections);
+				end
 			end
 			if (numel(obj.filmDiffusion) ~= obj.nComponents) && (numel(obj.filmDiffusion) ~= nSections * obj.nComponents)
 				error('CADET:invalidConfig', 'Expected filmDiffusion to be of size %d (number of components) or %d (number of time sections * number of components).', obj.nComponents, nSections * obj.nComponents);

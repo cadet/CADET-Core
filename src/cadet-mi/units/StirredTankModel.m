@@ -73,12 +73,20 @@ classdef StirredTankModel < Model
 		end
 
 		function val = get.nBoundStates(obj)
-			val = double(obj.data.NBOUND);
+			if isfield(obj.data, 'NBOUND')
+				val = double(obj.data.NBOUND);
+			else
+				val = [];
+			end
 		end
 
 		function set.nBoundStates(obj, val)
-			validateattributes(val, {'numeric'}, {'nonnegative', 'vector', 'nonempty', 'finite', 'real'}, '', 'nBoundStates');
-			obj.data.NBOUND = int32(val);
+			if isempty(val)
+				obj.data = rmfield(obj.data, 'NBOUND');
+			else
+				validateattributes(val, {'numeric'}, {'nonnegative', 'vector', 'nonempty', 'finite', 'real'}, '', 'nBoundStates');
+				obj.data.NBOUND = int32(val);
+			end
 			obj.hasChanged = true;
 		end
 
@@ -95,11 +103,17 @@ classdef StirredTankModel < Model
 		end
 
 		function val = get.initialSolid(obj)
-			val = obj.data.INIT_Q;
+			if ~isfield(obj.data, 'INIT_Q')
+				val = [];
+			else
+				val = obj.data.INIT_Q;
+			end
 		end
 
 		function set.initialSolid(obj, val)
-			validateattributes(val, {'double'}, {'nonnegative', 'vector', 'empty', 'finite', 'real'}, '', 'initialSolid');
+			if ~isempty(val)
+				validateattributes(val, {'double'}, {'nonnegative', 'vector', 'finite', 'real'}, '', 'initialSolid');
+			end
 			obj.data.INIT_Q = val;
 			obj.hasChanged = true;
 		end
@@ -168,12 +182,20 @@ classdef StirredTankModel < Model
 				error('CADET:invalidConfig', 'Property porosity must be set.');
 			end
 
-			validateattributes(obj.nBoundStates, {'numeric'}, {'nonnegative', 'vector', 'numel', obj.nComponents, 'finite', 'real'}, '', 'nBoundStates');
+			if isfield(obj.data, 'NBOUND')
+				validateattributes(obj.nBoundStates, {'numeric'}, {'nonnegative', 'vector', 'numel', obj.nComponents, 'finite', 'real'}, '', 'nBoundStates');
+				nTotalBnd = sum(obj.nBoundStates);
+			else
+				nTotalBnd = 0;
+			end
+			
 			validateattributes(obj.initialConcentration, {'double'}, {'nonnegative', 'vector', 'numel', obj.nComponents, 'finite', 'real'}, '', 'initialConcentration');
-			validateattributes(obj.initialSolid, {'double'}, {'nonnegative', 'vector', 'numel', sum(obj.nBoundStates), 'finite', 'real'}, '', 'initialSolid');
 			validateattributes(obj.initialVolume, {'double'}, {'nonnegative', 'scalar', 'finite', 'real'}, '', 'initialVolume');
+			if ~isempty(obj.initialSolid)
+				validateattributes(obj.initialSolid, {'double'}, {'nonnegative', 'vector', 'numel', nTotalBnd, 'finite', 'real'}, '', 'initialSolid');
+			end
 			if ~isempty(obj.initialState)
-				nDof = nComponents + 1 + sum(obj.nBoundStates);
+				nDof = nComponents + 1 + nTotalBnd;
 				if (numel(obj.initialState) ~= nDof) && (numel(obj.initialState) ~= 2 * nDof)
 					error('CADET:invalidConfig', 'Expected initialState to be of size %d or %d.', nDof, 2*nDof);
 				end
@@ -188,11 +210,12 @@ classdef StirredTankModel < Model
 			if ~isempty(obj.bindingModel) && ~isa(obj.bindingModel, 'BindingModel')
 				error('CADET:invalidConfig', 'Expected a valid binding model.');
 			end
-			if isempty(obj.bindingModel) && (sum(obj.nBoundStates) ~= 0)
+			if isempty(obj.bindingModel) && (nTotalBnd ~= 0)
 				error('CADET:invalidConfig', 'Expected no bound states when using no binding model.');
 			end
 
 			if ~isempty(obj.bindingModel)
+				validateattributes(obj.nBoundStates, {'numeric'}, {'nonnegative', 'vector', 'numel', obj.nComponents, 'finite', 'real'}, '', 'nBoundStates');
 				res = obj.bindingModel.validate(obj.nComponents, obj.nBoundStates) && res;
 			end
 		end
@@ -229,7 +252,11 @@ classdef StirredTankModel < Model
 			res = obj.assembleInitialConditions@Model();
 
 			res.INIT_C = obj.data.INIT_C;
-			res.INIT_Q = obj.data.INIT_Q;
+			if isfield(obj.data, 'INIT_Q')
+				res.INIT_Q = obj.data.INIT_Q;
+			else
+				res.INIT_Q = [];
+			end
 			res.INIT_VOLUME = obj.data.INIT_VOLUME;
 
 			if isfield(obj.data, 'INIT_STATE')

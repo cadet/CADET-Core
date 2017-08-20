@@ -56,8 +56,8 @@ classdef LumpedRateModelWithoutPores < Model
 
 	methods
 		
-		function obj = LumpedRateModelWithPores()
-			%LUMPEDRATEMODELWITHPORES Constructs a LumpedRateModelWithPores object and inserts as much default values as possible
+		function obj = LumpedRateModelWithoutPores()
+			%LUMPEDRATEMODELWITHOUTPORES Constructs a LumpedRateModelWithoutPores object and inserts as much default values as possible
 
 			obj = obj@Model();
 			obj.data.discretization = [];
@@ -88,12 +88,20 @@ classdef LumpedRateModelWithoutPores < Model
 		end
 
 		function val = get.nBoundStates(obj)
-			val = double(obj.data.discretization.NBOUND);
+			if isfield(obj.data.discretization, 'NBOUND')
+				val = double(obj.data.discretization.NBOUND);
+			else
+				val = [];
+			end
 		end
 
 		function set.nBoundStates(obj, val)
-			validateattributes(val, {'numeric'}, {'nonnegative', 'vector', 'nonempty', 'finite', 'real'}, '', 'nBoundStates');
-			obj.data.discretization.NBOUND = int32(val);
+			if isempty(val)
+				obj.data = rmfield(obj.data.discretization, 'NBOUND');
+			else
+				validateattributes(val, {'numeric'}, {'nonnegative', 'vector', 'nonempty', 'finite', 'real'}, '', 'nBoundStates');
+				obj.data.discretization.NBOUND = int32(val);
+			end
 			obj.hasChanged = true;
 		end
 
@@ -166,12 +174,20 @@ classdef LumpedRateModelWithoutPores < Model
 		end
 
 		function val = get.interstitialVelocity(obj)
-			val = obj.data.VELOCITY;
+			if isfield(obj.data, 'VELOCITY')
+				val = obj.data.VELOCITY;
+			else
+				val = [];
+			end
 		end
 
 		function set.interstitialVelocity(obj, val)
-			validateattributes(val, {'double'}, {'positive', 'vector', 'nonempty', 'finite', 'real'}, '', 'interstitialVelocity');
-			obj.data.VELOCITY = val(:);
+			if isempty(val)
+				obj.data = rmfield(obj.data, 'VELOCITY');
+			else
+				validateattributes(val, {'double'}, {'positive', 'vector', 'nonempty', 'finite', 'real'}, '', 'interstitialVelocity');
+				obj.data.VELOCITY = val(:);
+			end
 			obj.hasChanged = true;
 		end
 
@@ -209,7 +225,7 @@ classdef LumpedRateModelWithoutPores < Model
 			if isempty(val)
 				obj.data = rmfield(obj.data, 'CROSS_SECTION_AREA');
 			else
-				validateattributes(val, {'double'}, {'scalar', 'finite', 'real'}, '', 'crossSectionArea');
+				validateattributes(val, {'double'}, {'positive', 'scalar', 'nonempty', 'finite', 'real'}, '', 'crossSectionArea');
 				obj.data.CROSS_SECTION_AREA = val;
 			end
 			obj.hasChanged = true;
@@ -300,25 +316,31 @@ classdef LumpedRateModelWithoutPores < Model
 			end
 
 			validateattributes(obj.nCellsColumn, {'numeric'}, {'scalar', 'nonempty', '>=', 1, 'finite', 'real'}, '', 'nCellsColumn');
-			validateattributes(obj.nBoundStates, {'numeric'}, {'nonnegative', 'vector', 'numel', obj.nComponents, 'finite', 'real'}, '', 'nBoundStates');
+			if isfield(obj.data.discretization, 'NBOUND')
+				validateattributes(obj.nBoundStates, {'numeric'}, {'nonnegative', 'vector', 'numel', obj.nComponents, 'finite', 'real'}, '', 'nBoundStates');
+				nTotalBnd = sum(obj.nBoundStates);
+			else
+				nTotalBnd = 0;
+			end
 			
 			validateattributes(obj.initialBulk, {'double'}, {'nonnegative', 'vector', 'numel', obj.nComponents, 'finite', 'real'}, '', 'initialBulk');
 			if ~isempty(obj.initialSolid)
-				validateattributes(obj.initialSolid, {'double'}, {'nonnegative', 'vector', 'numel', sum(obj.nBoundStates), 'finite', 'real'}, '', 'initialSolid');
+				validateattributes(obj.initialSolid, {'double'}, {'nonnegative', 'vector', 'numel', nTotalBnd, 'finite', 'real'}, '', 'initialSolid');
 			end
 			if ~isempty(obj.initialState)
-				nDof = obj.nCellsColumn * (obj.nComponents + sum(obj.nBoundStates));
+				nDof = obj.nCellsColumn * (obj.nComponents + nTotalBnd);
 				if (numel(obj.initialState) ~= nDof) && (numel(obj.initialState) ~= 2 * nDof)
 					error('CADET:invalidConfig', 'Expected initialState to be of size %d or %d.', nDof, 2*nDof);
 				end
 			end
 
-			nTotalBnd = sum(obj.nBoundStates);
 			if (numel(obj.dispersionColumn) ~= 1) && (numel(obj.dispersionColumn) ~= nSections)
 				error('CADET:invalidConfig', 'Expected dispersionColumn to be of size %d or %d (number of time sections).', 1, nSections);
 			end
-			if (numel(obj.interstitialVelocity) ~= 1) && (numel(obj.interstitialVelocity) ~= nSections)
-				error('CADET:invalidConfig', 'Expected interstitialVelocity to be of size %d or %d (number of time sections).', 1, nSections);
+			if ~isempty(obj.interstitialVelocity)
+				if (numel(obj.interstitialVelocity) ~= 1) && (numel(obj.interstitialVelocity) ~= nSections)
+					error('CADET:invalidConfig', 'Expected interstitialVelocity to be of size %d or %d (number of time sections).', 1, nSections);
+				end
 			end
 
 			validateattributes(obj.porosity, {'double'}, {'scalar', 'nonempty', '>=', 0.0, '<=', 1.0, 'finite', 'real'}, '', 'porosity');
@@ -327,11 +349,12 @@ classdef LumpedRateModelWithoutPores < Model
 			if ~isempty(obj.bindingModel) && ~isa(obj.bindingModel, 'BindingModel')
 				error('CADET:invalidConfig', 'Expected a valid binding model.');
 			end
-			if isempty(obj.bindingModel) && (sum(obj.nBoundStates) ~= 0)
+			if isempty(obj.bindingModel) && (nTotalBnd ~= 0)
 				error('CADET:invalidConfig', 'Expected no bound states when using no binding model.');
 			end
 
 			if ~isempty(obj.bindingModel)
+				validateattributes(obj.nBoundStates, {'numeric'}, {'nonnegative', 'vector', 'numel', obj.nComponents, 'finite', 'real'}, '', 'nBoundStates');
 				res = obj.bindingModel.validate(obj.nComponents, obj.nBoundStates) && res;
 			end
 		end
@@ -347,6 +370,10 @@ classdef LumpedRateModelWithoutPores < Model
 
 			if ~isempty(obj.bindingModel) && ~isa(obj.bindingModel, 'BindingModel')
 				error('CADET:invalidConfig', 'Expected a valid binding model.');
+			end
+
+			if ~isfield(obj.data.discretization, 'NBOUND') || isempty(obj.data.discretization.NBOUND)
+				res.discretization.NBOUND = int32(zeros(obj.nComponents, 1));
 			end
 
 			if isempty(obj.bindingModel)
@@ -388,7 +415,7 @@ classdef LumpedRateModelWithoutPores < Model
 			%   the current CADET configuration) or NaN if the parameter could not be found.
 			%
 			% See also MODEL.GETPARAMETERVALUE, MEXSIMULATOR.GETPARAMETERVALUE,
-			%   LUMPEDRATEMODELWITHPORES.SETPARAMETERVALUE, MAKESENSITIVITY
+			%   LUMPEDRATEMODELWITHOUTPORES.SETPARAMETERVALUE, MAKESENSITIVITY
 
 			if param.SENS_UNIT ~= obj.unitOpIdx
 				% Wrong unit operation
@@ -424,7 +451,7 @@ classdef LumpedRateModelWithoutPores < Model
 			%   set to NEWVAL. The changes are not propagated to the underlying CADET simulator.
 			%
 			% See also MODEL.SETPARAMETERVALUE, MEXSIMULATOR.SETPARAMETERVALUE,
-			%   LUMPEDRATEMODELWITHPORES.GETPARAMETERVALUE, MAKESENSITIVITY
+			%   LUMPEDRATEMODELWITHOUTPORES.GETPARAMETERVALUE, MAKESENSITIVITY
 
 			if param.SENS_UNIT ~= obj.unitOpIdx
 				% Wrong unit operation

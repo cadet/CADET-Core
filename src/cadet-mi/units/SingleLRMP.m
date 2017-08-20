@@ -1,5 +1,5 @@
 
-classdef SingleLRMR < LumpedRateModelWithPores & SingleUnitOpSystem
+classdef SingleLRMP < LumpedRateModelWithPores & SingleUnitOpSystem
 	%SingleLRMP Represents a system with one lumped rate model with pores
 	%   This class behaves like one single column (lumped rate model with pores)
 	%   fed by a piecewise cubic polynomial inlet profile.
