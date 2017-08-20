@@ -26,8 +26,8 @@ function jointSensitivities()
 	% Create simulator
 	sim = createSimulator();
 
-	% Add two parameters (given as cell array)
-	params = cell(2, 1);
+	% Add four parameters (given as cell array)
+	params = cell(4, 1);
 
 	% Each parameter is identified by 
 	%   - its unit operation id (0-based index or -1 if independent),
@@ -40,9 +40,6 @@ function jointSensitivities()
 	% Additionally, MAKESENSITIVITY accepts the parameters
 	%   - SENS_ABSTOL which determines the absolute error tolerance of the sensitivity system
 	%   - FACTORS which contains the linear factors of the single parameters that make up a joined parameter
-
-	% Add some sensitivities
-	params = cell(4,1);
 
 	% Param 1: SMA_KA of components 2 and 3 (Lysozyme and Cytochrome, components 1 and 2 if read as 0-based)
 	%          in GRM unit operation (id 0). No absolute error tolerance is specified. The parameters are
