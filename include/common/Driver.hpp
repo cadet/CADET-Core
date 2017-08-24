@@ -527,8 +527,8 @@ public:
 				writer.unlinkDataset("CADET_COMMIT");
 			if (writer.exists("CADET_BRANCH"))
 				writer.unlinkDataset("CADET_BRANCH");
-			if (writer.exists("SIMTIME"))
-				writer.unlinkDataset("SIMTIME");
+			if (writer.exists("TIME_SIM"))
+				writer.unlinkDataset("TIME_SIM");
 		}
 		else
 			writer.pushGroup("meta");
