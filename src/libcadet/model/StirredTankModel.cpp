@@ -150,17 +150,17 @@ bool CSTRModel::reconfigure(IParameterProvider& paramProvider)
 {
 	_curFlowRateFilter = 0.0;
 	_flowRateFilter.clear();
-	if (paramProvider.exists("FLOWRATE_FILTER"))
-	{
+	const bool hasFlowrateFilter = paramProvider.exists("FLOWRATE_FILTER");
+	if (hasFlowrateFilter)
 		readScalarParameterOrArray(_flowRateFilter, paramProvider, "FLOWRATE_FILTER", 1);
-	}
 
 	_porosity = 1.0;
 	if (paramProvider.exists("POROSITY"))
 		_porosity = paramProvider.getDouble("POROSITY");
 
 	_parameters.clear();
-	registerScalarSectionDependentParam(hashString("FLOWRATE_FILTER"), _parameters, _flowRateFilter, _unitOpIdx);
+	if (hasFlowrateFilter)
+		registerScalarSectionDependentParam(hashString("FLOWRATE_FILTER"), _parameters, _flowRateFilter, _unitOpIdx);
 	_parameters[makeParamId(hashString("POROSITY"), _unitOpIdx, CompIndep, BoundPhaseIndep, ReactionIndep, SectionIndep)] = &_porosity;
 
 	// Reconfigure binding model
