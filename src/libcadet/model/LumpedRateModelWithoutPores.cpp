@@ -533,7 +533,7 @@ int LumpedRateModelWithoutPores::residualImpl(const ParamType& t, unsigned int s
 		const double z = 1.0 / static_cast<double>(_disc.nCol) * (0.5 + col);
 
 		double const* const localQdot = yDot ? yDot + idxr.offsetC() + idxr.strideColCell() * col + idxr.strideColLiquid() : nullptr;
-		_binding->residual(static_cast<ParamType>(t), z, 0.0, secIdx, static_cast<ParamType>(timeFactor), localY + idxr.strideColLiquid(), localQdot, localRes + idxr.strideColLiquid());
+		_binding->residual(t, z, 0.0, secIdx, timeFactor, localY + idxr.strideColLiquid(), localQdot, localRes + idxr.strideColLiquid());
 		if (wantJac)
 		{
 			if (cadet_likely(_disc.strideBound > 0))
