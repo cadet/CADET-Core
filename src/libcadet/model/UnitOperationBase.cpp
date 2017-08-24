@@ -18,6 +18,8 @@
 #include "LoggingUtils.hpp"
 #include "Logging.hpp"
 
+#include <iterator>
+
 namespace cadet
 {
 
