@@ -18,7 +18,7 @@
 
 #include "ModelBuilderImpl.hpp"
 #include "JsonParameterProvider.hpp"
-#include "CstrHelper.hpp"
+#include "SimHelper.hpp"
 #include "common/Driver.hpp"
 
 #include <cmath>
@@ -32,7 +32,18 @@ inline Approx makeApprox(double val, double relTol, double absTol)
 	return Approx(val).epsilon(relTol).margin(absTol);
 }
 
-inline void runSim(cadet::JsonParameterProvider& jpp, std::function<double(double)> solC, std::function<double(double)> solV)
+inline void setFlowRateFilter(cadet::JsonParameterProvider& jpp, double filter)
+{
+	jpp.pushScope("model");
+	jpp.pushScope("unit_000");
+
+	jpp.set("FLOWRATE_FILTER", filter);
+
+	jpp.popScope();
+	jpp.popScope();
+}
+
+	inline void runSim(cadet::JsonParameterProvider& jpp, std::function<double(double)> solC, std::function<double(double)> solV)
 {
 	// Run simulation
 	cadet::Driver drv;
@@ -55,7 +66,7 @@ inline void runSim(cadet::JsonParameterProvider& jpp, std::function<double(doubl
 	}
 }
 
-inline void runSim(cadet::JsonParameterProvider& jpp, std::function<double(double)> solC, std::function<double(double)> solQ, std::function<double(double)> solV)
+inline void runSim(cadet::JsonParameterProvider& jpp, std::function<double(double)> solC, std::function<double(double)> solQ, std::function<double(double)> solV, double absTol = 4e-5, double relTol = 1e-6)
 {
 	// Run simulation
 	cadet::Driver drv;
@@ -72,11 +83,10 @@ inline void runSim(cadet::JsonParameterProvider& jpp, std::function<double(doubl
 	// Compare
 	for (unsigned int i = 0; i < simData->numDataPoints(); ++i, ++outlet, ++volume, ++solid, ++time)
 	{
-		// Compare with relative error 1e-6 and absolute error 4e-5
 		CAPTURE(*time);
-		CHECK((*outlet) == makeApprox(solC(*time), 1e-6, 4e-5));
-		CHECK((*volume) == makeApprox(solV(*time), 1e-6, 4e-5));
-		CHECK((*solid) == makeApprox(solQ(*time), 1e-6, 4e-5));
+		CHECK((*outlet) == makeApprox(solC(*time), relTol, absTol));
+		CHECK((*volume) == makeApprox(solV(*time), relTol, absTol));
+		CHECK((*solid) == makeApprox(solQ(*time), relTol, absTol));
 	}
 }
 

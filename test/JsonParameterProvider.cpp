@@ -160,9 +160,12 @@ void JsonParameterProvider::popScope()
 
 void JsonParameterProvider::addScope(const std::string& scope)
 {
-	json j;
-	j["blubber"] = 0.0;
-	(*_opened.top())[scope] = j;
+	if (!exists(scope))
+	{
+		json j;
+		j["blubber"] = 0.0;
+		(*_opened.top())[scope] = j;
+	}
 }
 
 void JsonParameterProvider::set(const std::string& paramName, double val)
