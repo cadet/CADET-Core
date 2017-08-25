@@ -90,6 +90,28 @@ inline void runSim(cadet::JsonParameterProvider& jpp, std::function<double(doubl
 	}
 }
 
+inline void runSensSim(cadet::JsonParameterProvider& jpp, std::function<double(double)> solC, std::function<double(double)> solV, double absTol = 1e-5, double relTol = 1e-8)
+{
+	// Run simulation
+	cadet::Driver drv;
+	drv.configure(jpp);
+	drv.run();
+
+	// Get data from simulation
+	cadet::InternalStorageUnitOpRecorder const* const simData = drv.solution()->unitOperation(0);
+	double const* outlet = simData->sensOutlet(0);
+	double const* volume = simData->sensVolume(0);
+	double const* time = drv.solution()->time();
+
+	// Compare
+	for (unsigned int i = 0; i < simData->numDataPoints(); ++i, ++outlet, ++volume, ++time)
+	{
+		CAPTURE(*time);
+		CHECK((*outlet) == makeApprox(solC(*time), relTol, absTol));
+		CHECK((*volume) == makeApprox(solV(*time), relTol, absTol));
+	}
+}
+
 TEST_CASE("CSTR vs analytic solution (V constant) w/o binding model", "[CSTR],[Simulation]")
 {
 	cadet::JsonParameterProvider jpp = createCSTRBenchmark(3, 119.0, 1.0);
@@ -191,4 +213,46 @@ TEST_CASE("CSTR vs analytic solution (V constant) with quasi-stationary linear b
 		[](double t) {
 			return 1.0;
 	});
+}
+
+TEST_CASE("CSTR filter flowrate sensitivity vs analytic solution (V constant) w/o binding model", "[CSTR],[Simulation],[AD],[Sensitivity]")
+{
+	cadet::JsonParameterProvider jpp = createCSTRBenchmark(3, 119.0, 1.0);
+	cadet::test::setSectionTimes(jpp, {0.0, 10.0, 100.0, 119.0});
+	cadet::test::setInitialConditions(jpp, {0.0}, {}, 10.0);
+	cadet::test::setInletProfile(jpp, 0, 0, 1.0, 0.0, 0.0, 0.0);
+	cadet::test::setInletProfile(jpp, 1, 0, 1.0, -1.0 / 90.0, 0.0, 0.0);
+	cadet::test::setInletProfile(jpp, 2, 0, 0.0, 0.0, 0.0, 0.0);
+	cadet::test::setFlowRates(jpp, 0, 1.0, 0.5, 0.5);
+	cadet::test::setFlowRates(jpp, 1, 1.0, 0.5, 0.5);
+	cadet::test::setFlowRates(jpp, 2, 1.0, 0.5, 0.5);
+	setFlowRateFilter(jpp, 0.5);
+	cadet::test::addSensitivity(jpp, "FLOWRATE_FILTER", cadet::makeParamId("FLOWRATE_FILTER", 0, cadet::CompIndep, cadet::BoundPhaseIndep, cadet::ReactionIndep, cadet::SectionIndep), 1e-6);
+	cadet::test::returnSensitivities(jpp);
+
+	const double sqrtE = std::sqrt(std::exp(1.0));
+	runSensSim(jpp, [=](double t) {
+			if (t <= 10.0)
+				return 4.0 + 1.0/200.0 * std::exp(-t / 20.0) * (-800.0 + (-40.0 + t) * t);
+			else if (t <= 100.0)
+				return -160.0 * (-80.0 + t) / 1800.0 + std::exp(-t / 20.0) * (-4.0 + (9.0 * (-40.0 + t) * t + 2 * sqrtE * (-1700.0 + (-40.0 + t) * t)) / 1800.0);
+			else
+				return std::exp(-t / 20.0) * (-4.0 + (9.0 * (-40.0 + t) * t + std::exp(5.0) * (8800.0 - 2.0 * (-40.0 + t) * t) + 2.0 * sqrtE * (-1700.0 + (-40.0 + t) * t)) / 1800.0);
+		}, 
+		[](double t) {
+			return -t;
+	});
+}
+
+TEST_CASE("CSTR LIN_COEFF sensitivity vs analytic solution (V constant) w/o binding model", "[CSTR],[Simulation],[AD],[Sensitivity]")
+{
+	cadet::JsonParameterProvider jpp = createCSTRBenchmark(1, 100.0, 1.0);
+	cadet::test::setSectionTimes(jpp, {0.0, 100.0});
+	cadet::test::setInitialConditions(jpp, {0.0}, {}, 10.0);
+	cadet::test::setInletProfile(jpp, 0, 0, 1.0, 1.0, 0.0, 0.0);
+	cadet::test::setFlowRates(jpp, 0, 1.0, 0.5, 0.5);
+	cadet::test::addSensitivity(jpp, "LIN_COEFF", cadet::makeParamId("LIN_COEFF", 1, 0, cadet::BoundPhaseIndep, cadet::ReactionIndep, 0), 1e-6);
+	cadet::test::returnSensitivities(jpp);
+
+	runSensSim(jpp, [=](double t) { return 2.0 * (20.0 * std::expm1(-t / 20.0) + t); }, [](double t) { return 0.0; }, 1e-5, 7e-8);
 }
