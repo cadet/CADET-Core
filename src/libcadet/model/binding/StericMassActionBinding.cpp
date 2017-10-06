@@ -231,82 +231,84 @@ public:
 	{
 		_p.update(t, z, r, secIdx, _nComp, _nBoundStates);
 
-		// If we have kinetic binding, there is only the algebraic salt equation
-		if (_kineticBinding)
+		if (!_kineticBinding)
 		{
-			// Compute salt component from given bound states q_j
-			// Salt equation: q_0 - Lambda + Sum[nu_j * q_j, j] == 0 
-			//           <=>  q_0 == Lambda - Sum[nu_j * q_j, j] 
-			vecStateY[0] = static_cast<double>(_p.lambda);
+			// All equations are algebraic and (except for salt equation) nonlinear
+			// Compute the q_i from their corresponding c_{p,i}
 
-			unsigned int bndIdx = 1;
-			for (int j = 1; j < _nComp; ++j)
+			// Determine problem size
+			const unsigned int eqSize = numBoundStates(_nBoundStates, _nComp);
+			std::fill(workingMemory, workingMemory + _nonlinearSolver->workspaceSize(eqSize), 0.0);
+
+			// Select between analytic and AD Jacobian
+			std::function<bool(double const* const, linalg::detail::DenseMatrixBase& jac)> jacobianFunc;
+			if (adRes && adY)
 			{
-				// Skip components without bound states (bound state index bndIdx is not advanced)
-				if (_nBoundStates[j] == 0)
-					continue;
+				// AD Jacobian
+				jacobianFunc = [&](double const* const x, linalg::detail::DenseMatrixBase& mat) -> bool {
+					// Copy over state vector to AD state vector (without changing directional values to keep seed vectors)
+					// and initalize residuals with zero (also resetting directional values)
+					ad::copyToAd(x, adY + adEqOffset, eqSize);
+					// @todo Check if this is necessary
+					ad::resetAd(adRes + adEqOffset, eqSize);
 
-				vecStateY[0] -= static_cast<double>(_p.nu[j]) * vecStateY[bndIdx];
+					// Call residual with AD enabled
+					residualImpl<active, double, active, double>(t, z, r, secIdx, 1.0,
+					                                             adY + adEqOffset,
+					                                             vecStateY - _nComp, nullptr, adRes + adEqOffset);
 
-				// Next bound component
-				++bndIdx;
+#ifdef CADET_CHECK_ANALYTIC_JACOBIAN
+					// Compute analytic Jacobian
+					mat.setAll(0.0);
+					jacobianImpl(t, z, r, secIdx, x, vecStateY - _nComp, mat.row(0));
+
+					// Compare
+					const double diff = jacExtractor.compareWithJacobian(adRes, adEqOffset, adDirOffset, mat);
+					LOG(Debug) << "MaxDiff " << adEqOffset << ": " << diff;
+#endif
+					// Extract Jacobian
+					jacExtractor.extractJacobian(adRes, adEqOffset, adDirOffset, mat);
+					return true;
+				};
+			}
+			else
+			{
+				// Analytic Jacobian
+				jacobianFunc = [&](double const* const x, linalg::detail::DenseMatrixBase& mat) -> bool {
+					mat.setAll(0.0);
+					jacobianImpl(t, z, r, secIdx, x, vecStateY - _nComp, mat.row(0));
+					return true;
+				};
 			}
 
-			return;
+			const bool conv = _nonlinearSolver->solve([&](double const* const x, double* const res) -> bool {
+				                                          residualImpl<double, double, double, double>(t, z, r, secIdx, 1.0, x, vecStateY - _nComp, nullptr, res);
+				                                          return true;
+			                                          },
+			                                          jacobianFunc,
+			                                          errorTol, vecStateY, workingMemory, workingMat, eqSize);
 		}
 
-		// All equations are algebraic and (except for salt equation) nonlinear
-		// Compute the q_i from their corresponding c_{p,i}
+		// Compute salt component from given bound states q_j
+		// This also corrects invalid salt values from nonlinear solver
+		// in case of rapid equilibrium
 
-		// Determine problem size
-		const unsigned int eqSize = numBoundStates(_nBoundStates, _nComp);
-		std::fill(workingMemory, workingMemory + _nonlinearSolver->workspaceSize(eqSize), 0.0);
+		// Salt equation: q_0 - Lambda + Sum[nu_j * q_j, j] == 0
+		//           <=>  q_0 == Lambda - Sum[nu_j * q_j, j]
+		vecStateY[0] = static_cast<double>(_p.lambda);
 
-		// Select between analytic and AD Jacobian
-		std::function<bool(double const* const, linalg::detail::DenseMatrixBase& jac)> jacobianFunc;
-		if (adRes && adY)
+		unsigned int bndIdx = 1;
+		for (int j = 1; j < _nComp; ++j)
 		{
-			// AD Jacobian
-			jacobianFunc = [&](double const* const x, linalg::detail::DenseMatrixBase& mat) -> bool { 
-				// Copy over state vector to AD state vector (without changing directional values to keep seed vectors)
-				// and initalize residuals with zero (also resetting directional values)
-				ad::copyToAd(x, adY + adEqOffset, eqSize);
-				// @todo Check if this is necessary
-				ad::resetAd(adRes + adEqOffset, eqSize);
+			// Skip components without bound states (bound state index bndIdx is not advanced)
+			if (_nBoundStates[j] == 0)
+				continue;
 
-				// Call residual with AD enabled
-				residualImpl<active, double, active, double>(t, z, r, secIdx, 1.0, adY + adEqOffset, vecStateY - _nComp, nullptr, adRes + adEqOffset);
-				
-#ifdef CADET_CHECK_ANALYTIC_JACOBIAN			
-				// Compute analytic Jacobian
-				mat.setAll(0.0);
-				jacobianImpl(t, z, r, secIdx, x, vecStateY - _nComp, mat.row(0)); 
+			vecStateY[0] -= static_cast<double>(_p.nu[j]) * vecStateY[bndIdx];
 
-				// Compare
-				const double diff = jacExtractor.compareWithJacobian(adRes, adEqOffset, adDirOffset, mat);
-				LOG(Debug) << "MaxDiff " << adEqOffset << ": " << diff;
-#endif
-				// Extract Jacobian
-				jacExtractor.extractJacobian(adRes, adEqOffset, adDirOffset, mat);
-				return true;
-			};
+			// Next bound component
+			++bndIdx;
 		}
-		else
-		{
-			// Analytic Jacobian
-			jacobianFunc = [&](double const* const x, linalg::detail::DenseMatrixBase& mat) -> bool { 
-				mat.setAll(0.0);
-				jacobianImpl(t, z, r, secIdx, x, vecStateY - _nComp, mat.row(0)); 
-				return true;
-			};
-		}
-
-		const bool conv = _nonlinearSolver->solve([&](double const* const x, double* const res) -> bool {
-				residualImpl<double, double, double, double>(t, z, r, secIdx, 1.0, x, vecStateY - _nComp, nullptr, res); 
-				return true; 
-			}, 
-			jacobianFunc,
-			errorTol, vecStateY, workingMemory, workingMat, eqSize);
 	}
 
 	CADET_BINDINGMODEL_RESIDUAL_JACOBIAN_BOILERPLATE

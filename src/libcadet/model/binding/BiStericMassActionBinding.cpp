@@ -295,91 +295,91 @@ public:
 	{
 		_p.update(t, z, r, secIdx, _nComp, _nBoundStates);
 
-		// If we have kinetic binding, there is only the algebraic salt equation
-		if (_kineticBinding)
+		if (!_kineticBinding)
 		{
-			const unsigned int numStates = _p.lambda.size();
+			// All equations are algebraic and (except for salt equation) nonlinear
+			// Compute the q_i from their corresponding c_{p,i}
 
-			// Loop over all binding site types
-			for (unsigned int bndSite = 0; bndSite < numStates; ++bndSite)
+			// Determine problem size
+			const unsigned int eqSize = numBoundStates(_nBoundStates, _nComp);
+			std::fill(workingMemory, workingMemory + _nonlinearSolver->workspaceSize(eqSize), 0.0);
+
+			// Select between analytic and AD Jacobian
+			std::function<bool(double const* const, linalg::detail::DenseMatrixBase& jac)> jacobianFunc;
+			if (adRes && adY)
 			{
-				// Compute salt component from given bound states q_j
-				// Salt equation: q_0 - Lambda + Sum[nu_j * q_j, j] == 0 
-				//           <=>  q_0 == Lambda - Sum[nu_j * q_j, j] 
-				vecStateY[bndSite] = static_cast<double>(_p.lambda[bndSite]);
+				// AD Jacobian
+				jacobianFunc = [&](double const* const x, linalg::detail::DenseMatrixBase& mat) -> bool { 
+					// Copy over state vector to AD state vector (without changing directional values to keep seed vectors)
+					// and initalize residuals with zero (also resetting directional values)
+					ad::copyToAd(x, adY + adEqOffset, eqSize);
+					// @todo Check if this is necessary
+					ad::resetAd(adRes + adEqOffset, eqSize);
 
-				// Get nu slice for bound state bndSite
-				active const* const curNu = _p.nu[bndSite];
+					// Call residual with AD enabled
+					residualImpl<active, double, active, double>(t, z, r, secIdx, 1.0, adY + adEqOffset, vecStateY - _nComp, nullptr, adRes + adEqOffset);
+					
+#ifdef CADET_CHECK_ANALYTIC_JACOBIAN			
+					// Compute analytic Jacobian
+					mat.setAll(0.0);
+					jacobianImpl(t, z, r, secIdx, x, vecStateY - _nComp, mat.row(0)); 
 
-				unsigned int bndIdx = 1;
-				for (int j = 1; j < _nComp; ++j)
-				{
-					// Skip components without bound states (bound state index bndIdx is not advanced)
-					if (_nBoundStates[j] == 0)
-						continue;
-
-					vecStateY[bndSite] -= static_cast<double>(curNu[j]) * vecStateY[bndIdx * numStates];
-
-					// Next bound component
-					++bndIdx;
-				}
+					// Compare
+					const double diff = jacExtractor.compareWithJacobian(adRes, adEqOffset, adDirOffset, mat);
+					LOG(Debug) << "MaxDiff " << adEqOffset << ": " << diff;
+#endif
+					// Extract Jacobian
+					jacExtractor.extractJacobian(adRes, adEqOffset, adDirOffset, mat);
+					return true;
+				};
+			}
+			else
+			{
+				// Analytic Jacobian
+				jacobianFunc = [&](double const* const x, linalg::detail::DenseMatrixBase& mat) -> bool { 
+					mat.setAll(0.0);
+					jacobianImpl(t, z, r, secIdx, x, vecStateY - _nComp, mat.row(0)); 
+					return true;
+				};
 			}
 
-			return;
+			const bool conv = _nonlinearSolver->solve([&](double const* const x, double* const res) -> bool {
+					residualImpl<double, double, double, double>(t, z, r, secIdx, 1.0, x, vecStateY - _nComp, nullptr, res); 
+					return true; 
+				}, 
+				jacobianFunc,
+				errorTol, vecStateY, workingMemory, workingMat, eqSize);
 		}
 
-		// All equations are algebraic and (except for salt equation) nonlinear
-		// Compute the q_i from their corresponding c_{p,i}
+		// Compute salt component from given bound states q_j
+		// This also corrects invalid salt values from nonlinear solver
+		// in case of rapid equilibrium
 
-		// Determine problem size
-		const unsigned int eqSize = numBoundStates(_nBoundStates, _nComp);
-		std::fill(workingMemory, workingMemory + _nonlinearSolver->workspaceSize(eqSize), 0.0);
+		const unsigned int numStates = _p.lambda.size();
 
-		// Select between analytic and AD Jacobian
-		std::function<bool(double const* const, linalg::detail::DenseMatrixBase& jac)> jacobianFunc;
-		if (adRes && adY)
+		// Loop over all binding site types
+		for (unsigned int bndSite = 0; bndSite < numStates; ++bndSite)
 		{
-			// AD Jacobian
-			jacobianFunc = [&](double const* const x, linalg::detail::DenseMatrixBase& mat) -> bool { 
-				// Copy over state vector to AD state vector (without changing directional values to keep seed vectors)
-				// and initalize residuals with zero (also resetting directional values)
-				ad::copyToAd(x, adY + adEqOffset, eqSize);
-				// @todo Check if this is necessary
-				ad::resetAd(adRes + adEqOffset, eqSize);
+			// Salt equation: q_0 - Lambda + Sum[nu_j * q_j, j] == 0 
+			//           <=>  q_0 == Lambda - Sum[nu_j * q_j, j] 
+			vecStateY[bndSite] = static_cast<double>(_p.lambda[bndSite]);
 
-				// Call residual with AD enabled
-				residualImpl<active, double, active, double>(t, z, r, secIdx, 1.0, adY + adEqOffset, vecStateY - _nComp, nullptr, adRes + adEqOffset);
-				
-#ifdef CADET_CHECK_ANALYTIC_JACOBIAN			
-				// Compute analytic Jacobian
-				mat.setAll(0.0);
-				jacobianImpl(t, z, r, secIdx, x, vecStateY - _nComp, mat.row(0)); 
+			// Get nu slice for bound state bndSite
+			active const* const curNu = _p.nu[bndSite];
 
-				// Compare
-				const double diff = jacExtractor.compareWithJacobian(adRes, adEqOffset, adDirOffset, mat);
-				LOG(Debug) << "MaxDiff " << adEqOffset << ": " << diff;
-#endif
-				// Extract Jacobian
-				jacExtractor.extractJacobian(adRes, adEqOffset, adDirOffset, mat);
-				return true;
-			};
-		}
-		else
-		{
-			// Analytic Jacobian
-			jacobianFunc = [&](double const* const x, linalg::detail::DenseMatrixBase& mat) -> bool { 
-				mat.setAll(0.0);
-				jacobianImpl(t, z, r, secIdx, x, vecStateY - _nComp, mat.row(0)); 
-				return true;
-			};
-		}
+			unsigned int bndIdx = 1;
+			for (int j = 1; j < _nComp; ++j)
+			{
+				// Skip components without bound states (bound state index bndIdx is not advanced)
+				if (_nBoundStates[j] == 0)
+					continue;
 
-		const bool conv = _nonlinearSolver->solve([&](double const* const x, double* const res) -> bool {
-				residualImpl<double, double, double, double>(t, z, r, secIdx, 1.0, x, vecStateY - _nComp, nullptr, res); 
-				return true; 
-			}, 
-			jacobianFunc,
-			errorTol, vecStateY, workingMemory, workingMat, eqSize);
+				vecStateY[bndSite] -= static_cast<double>(curNu[j]) * vecStateY[bndIdx * numStates];
+
+				// Next bound component
+				++bndIdx;
+			}
+		}	
 	}
 
 	CADET_BINDINGMODEL_RESIDUAL_JACOBIAN_BOILERPLATE
