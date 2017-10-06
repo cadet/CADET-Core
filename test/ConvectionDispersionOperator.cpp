@@ -260,10 +260,10 @@ void testTimeDerivativeBulkJacobianFD(double h, double absTol, double relTol)
 	fillState(yDot.data(), [=](unsigned int idx) { return std::abs(std::sin((idx + nDof) * 0.13)) + 1e-4; }, nDof);
 
 	// Compare Jacobians
-	cadet::test::compareTimeDerivativeJacobianFD(
+	cadet::test::compareJacobianFD(
 		[&](double const* dir, double* res) -> void { convDispOp.residual(0.0, 0u, 1.0, y.data(), dir, res, false); }, 
 		[&](double const* dir, double* res) -> void { convDispOp.multiplyWithDerivativeJacobian(0.0, 0u, 1.0, dir, res); }, 
-		y.data(), yDot.data(), jacDir.data(), jacCol1.data(), jacCol2.data(), nDof, h, absTol, relTol);
+		yDot.data(), jacDir.data(), jacCol1.data(), jacCol2.data(), nDof, h, absTol, relTol);
 }
 
 void testBulkJacobianWenoForwardBackward(int wenoOrder)
