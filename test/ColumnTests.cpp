@@ -214,6 +214,29 @@ namespace column
 			jpp.popScope();
 	}
 
+	void setBindingMode(cadet::JsonParameterProvider& jpp, bool isKinetic)
+	{
+		int level = 0;
+
+		if (jpp.exists("model"))
+		{
+			jpp.pushScope("model");
+			++level;
+		}
+		if (jpp.exists("unit_000"))
+		{
+			jpp.pushScope("unit_000");
+			++level;
+		}
+
+		jpp.pushScope("adsorption");
+		jpp.set("IS_KINETIC", isKinetic);
+		jpp.popScope();
+
+		for (int l = 0; l < level; ++l)
+			jpp.popScope();
+	}
+
 
 	void testWenoForwardBackward(const char* uoType, int wenoOrder, double absTol, double relTol)
 	{
@@ -447,6 +470,93 @@ namespace column
 		cadet::test::compareTimeDerivativeJacobianFD(unit, unit, y.data(), yDot.data(), jacDir.data(), jacCol1.data(), jacCol2.data(), h, absTol, relTol);
 
 		mb->destroyUnitOperation(unit);
+		destroyModelBuilder(mb);
+	}
+
+	void testFwdSensJacobians(const std::string& uoType, double h, double absTol, double relTol)
+	{
+		cadet::IModelBuilder* const mb = cadet::createModelBuilder();
+		REQUIRE(nullptr != mb);
+
+		// Use some test case parameters
+		cadet::JsonParameterProvider jpp = createGRMwithLinear();
+		const unsigned int nComp = jpp.getInt("NCOMP");
+
+		for (int bindMode = 0; bindMode < 2; ++bindMode)
+		{
+			const bool isKinetic = bindMode;
+			SECTION(isKinetic ? "Kinetic binding" : "Quasi-stationary binding")
+			{
+				cadet::test::column::setBindingMode(jpp, isKinetic);
+				cadet::IUnitOperation* const unit = createAndConfigureUnit(uoType, *mb, jpp, cadet::Weno::maxOrder());
+
+				// Enable AD
+				cadet::ad::setDirections(cadet::ad::getMaxDirections());
+				cadet::active* adRes = new cadet::active[unit->numDofs()];
+				unit->prepareADvectors(adRes, nullptr, 0);
+
+				// Add dispersion parameter sensitivity
+				REQUIRE(unit->setSensitiveParameter(makeParamId(hashString("COL_DISPERSION"), 0, CompIndep, BoundPhaseIndep, ReactionIndep, SectionIndep), 0, 1.0));
+
+				// Setup matrices
+				unit->notifyDiscontinuousSectionTransition(0.0, 0u, adRes, nullptr, 0u);
+
+				// Obtain memory for state, Jacobian multiply direction, Jacobian column
+				const unsigned int nDof = unit->numDofs();
+				const std::vector<double> zeros(nDof, 0.0);
+				const std::vector<double> ones(nDof, 1.0);
+				std::vector<double> y(nDof, 0.0);
+				std::vector<double> yDot(nDof, 0.0);
+				std::vector<double> jacDir(nDof, 0.0);
+				std::vector<double> jacCol1(nDof, 0.0);
+				std::vector<double> jacCol2(nDof, 0.0);
+				std::vector<double> temp1(nDof, 0.0);
+				std::vector<double> temp2(nDof, 0.0);
+				std::vector<double> temp3(nDof, 0.0);
+
+				std::vector<const double*> yS(1, zeros.data());
+				std::vector<const double*> ySdot(1, zeros.data());
+				std::vector<double*> resS(1, nullptr);
+
+				// Fill state vector with some values
+				fillState(y.data(), [](unsigned int idx) { return std::abs(std::sin(idx * 0.13)) + 1e-4; }, nDof);
+				fillState(yDot.data(), [=](unsigned int idx) { return std::abs(std::sin((idx + nDof) * 0.13)) + 1e-4; }, nDof);
+
+				// Calculate Jacobian
+				unit->residualWithJacobian(0.0, 0u, 1.0, y.data(), yDot.data(), jacDir.data(), adRes, nullptr, 0u);
+
+				// Calculate parameter derivative
+				unit->residualSensFwdAdOnly(0.0, 0u, 1.0, y.data(), yDot.data(), adRes);
+
+				// Check state Jacobian
+				cadet::test::compareJacobianFD(
+					[&](double const* lDir, double* res) -> void {
+						yS[0] = lDir;
+						resS[0] = res;
+						unit->residualSensFwdCombine(0.0, 0u, 1.0, y.data(), yDot.data(), yS, ySdot, resS, adRes, temp1.data(), temp2.data(), temp3.data());
+					}, 
+					[&](double const* lDir, double* res) -> void { unit->multiplyWithJacobian(0.0, 0u, 1.0, y.data(), yDot.data(), lDir, 1.0, 0.0, res); }, 
+					zeros.data(), jacDir.data(), jacCol1.data(), jacCol2.data(), nDof, h, absTol, relTol);
+
+				// Reset evaluation point
+				yS[0] = zeros.data();
+				ySdot[0] = zeros.data();
+
+				// Check time derivative Jacobian
+				cadet::test::compareJacobianFD(
+					[&](double const* lDir, double* res) -> void {
+						ySdot[0] = lDir;
+						resS[0] = res;
+						unit->residualSensFwdCombine(0.0, 0u, 1.0, y.data(), yDot.data(), yS, ySdot, resS, adRes, temp1.data(), temp2.data(), temp3.data());
+					}, 
+					[&](double const* lDir, double* res) -> void { unit->multiplyWithDerivativeJacobian(0.0, 0u, 1.0, y.data(), yDot.data(), lDir, res); }, 
+					zeros.data(), jacDir.data(), jacCol1.data(), jacCol2.data(), nDof, h, absTol, relTol);
+
+				delete[] adRes;
+				mb->destroyUnitOperation(unit);
+			}
+		}
+
 		destroyModelBuilder(mb);
 	}
 

@@ -34,7 +34,7 @@ namespace column
 	/**
 	 * @brief Sets the number of axial cells in a configuration of a column-like unit operation
 	 * @details Overwrites the NCOL field in the discretization group of the given ParameterProvider.
-	 * @param [in,out] jpp ParameterProvider to change the WENO order in
+	 * @param [in,out] jpp ParameterProvider to change the number of axial cells in
 	 * @param [in] nCol Number of axial cells
 	 */
 	void setNumAxialCells(cadet::JsonParameterProvider& jpp, unsigned int nCol);
@@ -52,6 +52,14 @@ namespace column
 	 * @param [in,out] jpp ParameterProvider to change the flow direction in
 	 */
 	void reverseFlow(cadet::JsonParameterProvider& jpp);
+
+	/**
+	 * @brief Sets the binding mode
+	 * @details Overwrites the IS_KINETIC field in the adsorption group of the given ParameterProvider.
+	 * @param [in,out] jpp ParameterProvider to change the binding mode in
+	 * @param [in] isKinetic Determines whether kinetic or quasi-stationary binding is used
+	 */
+	void setBindingMode(cadet::JsonParameterProvider& jpp, bool isKinetic);
 
 	/**
 	 * @brief Runs a simulation test comparing against (semi-)analytic single component pulse injection reference data
@@ -106,6 +114,16 @@ namespace column
 	 * @param [in] relTol Relative error tolerance
 	 */
 	void testTimeDerivativeJacobianFD(const std::string& uoType, double h = 1e-6, double absTol = 0.0, double relTol = std::numeric_limits<float>::epsilon() * 100.0);
+
+	/**
+	 * @brief Checks the forward sensitivity residual using analytic Jacobians
+	 * @details Uses centered finite differences.
+	 * @param [in] uoType Unit operation type
+	 * @param [in] h Step size of centered finite differences
+	 * @param [in] absTol Absolute error tolerance
+	 * @param [in] relTol Relative error tolerance
+	 */
+	void testFwdSensJacobians(const std::string& uoType, double h = 1e-6, double absTol = 0.0, double relTol = std::numeric_limits<float>::epsilon() * 100.0);
 
 } // namespace column
 } // namespace test
