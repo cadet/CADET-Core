@@ -1370,7 +1370,7 @@ int ModelSystem::residualSensFwd(unsigned int nSens, const active& t, unsigned i
 	return residualSensFwdWithJacobianAlgorithm<false>(nSens, t, secIdx, timeFactor, y, yDot, res, yS, ySdot, resS, adRes, nullptr, 0, tmp1, tmp2, tmp3);
 }
 
-void ModelSystem::multiplyWithJacobian(double const* yS, double alpha, double beta, double* ret)
+void ModelSystem::multiplyWithMacroJacobian(double const* yS, double alpha, double beta, double* ret)
 {
 	const unsigned int finalOffset = _dofOffset.back();
 	
@@ -1517,14 +1517,14 @@ int ModelSystem::residualSensFwdWithJacobianAlgorithm(unsigned int nSens, const 
 
 		// Directional derivative: res_{con} = (dF / dy) * s
 		// Also adds contribution of the right macro column blocks
-		multiplyWithJacobian(yS[param], ptrResS);
+		multiplyWithMacroJacobian(yS[param], ptrResS);
 
 		// Directional derivative (dF / dyDot) * sDot  (always zero so ignore it)
 
 		//The other adRes values have already been taken care of in the unit operations
 		for (unsigned int i = finalOffset; i < numDofs(); i++)
 		{
-			ptrResS[i] = tmp1[i] + adRes[i].getADValue(param);
+			ptrResS[i] += adRes[i].getADValue(param);
 		}
 	} CADET_PARFOR_END;
 
@@ -1705,6 +1705,8 @@ void ModelSystem::consistentInitialConditionAlgorithm(double t, unsigned int sec
 	ConsistentInit<tag_t>::residualWithJacobian(*this, active(t), secIdx, active(timeFactor), vecStateY, nullptr, vecStateYdot, _tempState, adRes, adY, adDirOffset);
 
 
+	LOG(Debug) << "Residual post state: " << log::VectorPtr<double>(vecStateYdot, numDofs());
+
 	// Phase3 3: Calculate dynamic state variables yDot
 
 	// Calculate all local yDot state variables
@@ -1833,6 +1835,52 @@ void ModelSystem::leanConsistentInitialSensitivity(const active& t, unsigned int
 }
 
 /**
+ * @brief Multiplies a vector with the full Jacobian of the entire system (i.e., @f$ \frac{\partial F}{\partial y}\left(t, y, \dot{y}\right) @f$)
+ * @details Actually, the operation @f$ z = \alpha \frac{\partial F}{\partial y} x + \beta z @f$ is performed. 
+ * @param [in] t Current time point
+ * @param [in] secIdx Index of the current section
+ * @param [in] timeFactor Used for time transformation (pre factor of time derivatives) and to compute parameter derivatives with respect to section length
+ * @param [in] y Pointer to state vector
+ * @param [in] yDot Pointer to time derivative state vector
+ * @param [in] yS Vector @f$ x @f$ that is transformed by the Jacobian @f$ \frac{\partial F}{\partial y} @f$
+ * @param [in] alpha Factor @f$ \alpha @f$ in front of @f$ \frac{\partial F}{\partial y} @f$
+ * @param [in] beta Factor @f$ \beta @f$ in front of @f$ z @f$
+ * @param [in,out] ret Vector @f$ z @f$ which stores the result of the operation
+ */
+void ModelSystem::multiplyWithJacobian(double t, unsigned int secIdx, double timeFactor, double const* y, double const* yDot, double const* yS, double alpha, double beta, double* ret)
+{
+	for (unsigned int idxModel = 0; idxModel < _models.size(); ++idxModel)
+	{
+		IUnitOperation* const m = _models[idxModel];
+		const unsigned int offset = _dofOffset[idxModel];
+		m->multiplyWithJacobian(t, secIdx, timeFactor, y, yDot, yS + offset, alpha, beta, ret + offset);
+	}
+	multiplyWithMacroJacobian(yS, alpha, beta, ret);
+}
+
+/**
+ * @brief Multiplies a vector with the full time derivative Jacobian of the entire system (i.e., @f$ \frac{\partial F}{\partial \dot{y}}\left(t, y, \dot{y}\right) @f$)
+ * @details The operation @f$ z = \frac{\partial F}{\partial \dot{y}} x @f$ is performed. 
+ * @param [in] t Current time point
+ * @param [in] secIdx Index of the current section
+ * @param [in] timeFactor Used for time transformation (pre factor of time derivatives) and to compute parameter derivatives with respect to section length
+ * @param [in] y Pointer to state vector
+ * @param [in] yDot Pointer to time derivative state vector
+ * @param [in] yS Vector @f$ x @f$ that is transformed by the Jacobian @f$ \frac{\partial F}{\partial \dot{y}} @f$
+ * @param [in,out] ret Vector @f$ z @f$ which stores the result of the operation
+ */
+void ModelSystem::multiplyWithDerivativeJacobian(double t, unsigned int secIdx, double timeFactor, double const* y, double const* yDot, double const* yS, double* ret)
+{
+	for (unsigned int idxModel = 0; idxModel < _models.size(); ++idxModel)
+	{
+		IUnitOperation* const m = _models[idxModel];
+		const unsigned int offset = _dofOffset[idxModel];
+		m->multiplyWithDerivativeJacobian(t, secIdx, timeFactor, y, yDot, yS + offset, ret + offset);
+	}
+	std::fill(ret + _dofOffset.back(), ret + numDofs(), 0.0);
+}
+
+/**
 * @brief Generate full system Jacobian FD and multiplyWithJacobian
 * @details During debugging this allows you to generate the full jacobian and verify the jacobian structure
 *          is what it should be. The system uses FD and multiplyWithJacobian to create the full jacobian.
@@ -1929,21 +1977,8 @@ void ModelSystem::genJacobian(double t, unsigned int secIdx, double timeFactor, 
 		// Clear res and resh
 		unit[i] = 1.0;
 
-		// call jacobians
-		for (unsigned int idxModel = 0; idxModel < _models.size(); ++idxModel)
-		{
-			IUnitOperation* const m = _models[idxModel];
-			const unsigned int offset = _dofOffset[idxModel];
-			m->multiplyWithJacobian(t, secIdx, timeFactor, y, yDot, &unit[offset], 1.0, 1.0, &res[offset]);
-		}
-		multiplyWithJacobian(&unit[0], 1.0, 1.0, &res[0]);
-
-		for (unsigned int j = 0; j < size; ++j)
-		{
-			// Residual is negative so it has to be negated to get the correct jacobian
-			jacobian[i*size + j] = res[j];
-		}
-
+		multiplyWithJacobian(t, secIdx, timeFactor, y, yDot, unit.data(), 1.0, 0.0, res.data());
+		std::copy(res.begin(), res.end(), jacobian.begin() + i * size);
 
 		unit[i] = 0.0;
 	}
@@ -1954,19 +1989,8 @@ void ModelSystem::genJacobian(double t, unsigned int secIdx, double timeFactor, 
 		// Clear res and resh
 		unit[i] = 1.0;
 
-		// call jacobians
-		for (unsigned int idxModel = 0; idxModel < _models.size(); ++idxModel)
-		{
-			IUnitOperation* const m = _models[idxModel];
-			const unsigned int offset = _dofOffset[idxModel];
-			m->multiplyWithDerivativeJacobian(t, secIdx, timeFactor, y, yDot, &unit[offset], &res[offset]);
-		}
-
-		for (unsigned int j = 0; j < size; ++j)
-		{
-			// Residual is negative so it has to be negated to get the correct jacobian
-			jacobianDot[i*size + j] = res[j];
-		}
+		multiplyWithDerivativeJacobian(t, secIdx, timeFactor, y, yDot, unit.data(), res.data());
+		std::copy(res.begin(), res.end(), jacobianDot.begin() + i * size);
 
 		unit[i] = 0.0;
 	}

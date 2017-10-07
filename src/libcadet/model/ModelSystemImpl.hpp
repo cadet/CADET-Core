@@ -134,13 +134,6 @@ public:
 
 	virtual void leanConsistentInitialSensitivity(const active& t, unsigned int secIdx, const active& timeFactor, double const* vecStateY, double const* vecStateYdot,
 		std::vector<double*>& vecSensY, std::vector<double*>& vecSensYdot, active* const adRes, active* const adY);
-
-	virtual void genJacobian(double t, unsigned int secIdx, double timeFactor, double const * const y, double const * const yDot);
-
-	virtual void genJacobian(unsigned int nSens, const active& t, unsigned int secIdx,
-		const active& timeFactor, double const* const y, double const* const yDot, double const* const res,
-		const std::vector<const double*>& yS, const std::vector<const double*>& ySdot, const std::vector<double*>& resS,
-		active* const adRes, double* const tmp1, double* const tmp2, double* const tmp3);
 	
 	virtual void setSectionTimes(double const* secTimes, bool const* secContinuity, unsigned int nSections);
 
@@ -177,6 +170,15 @@ public:
 	}
 #endif
 
+	virtual void genJacobian(double t, unsigned int secIdx, double timeFactor, double const * const y, double const * const yDot);
+
+	virtual void genJacobian(unsigned int nSens, const active& t, unsigned int secIdx,
+		const active& timeFactor, double const* const y, double const* const yDot, double const* const res,
+		const std::vector<const double*>& yS, const std::vector<const double*>& ySdot, const std::vector<double*>& resS,
+		active* const adRes, double* const tmp1, double* const tmp2, double* const tmp3);
+
+	virtual void multiplyWithJacobian(double t, unsigned int secIdx, double timeFactor, double const* y, double const* yDot, double const* yS, double alpha, double beta, double* ret);
+	virtual void multiplyWithDerivativeJacobian(double t, unsigned int secIdx, double timeFactor, double const* y, double const* yDot, double const* yS, double* ret);
 protected:
 
 	void configureSwitches(IParameterProvider& paramProvider);
@@ -185,10 +187,10 @@ protected:
 	void residualConnectUnitOps(unsigned int secIdx, StateType const* const y, double const* const yDot, ResidualType* const res) CADET_NOEXCEPT;
 	void solveCouplingDOF(double * const vec);
 
-	void multiplyWithJacobian(double const* yS, double alpha, double beta, double* ret);
-	inline void multiplyWithJacobian(double const* yS, double* ret)
+	void multiplyWithMacroJacobian(double const* yS, double alpha, double beta, double* ret);
+	inline void multiplyWithMacroJacobian(double const* yS, double* ret)
 	{
-		multiplyWithJacobian(yS, 1.0, 0.0, ret);
+		multiplyWithMacroJacobian(yS, 1.0, 0.0, ret);
 	}
 
 	int dResDpFwdWithJacobian(const active& t, unsigned int secIdx, const active& timeFactor, double const* const y, double const* const yDot, active* const adRes, active* const adY, unsigned int adDirOffset);
