@@ -934,7 +934,7 @@ However, if only one index is passed in \texttt{EXTFUN}, this external source is
 \texttt{ABSTOL} & Absolute tolerance in the solution of the original system & double & $>0.0$ & 1\\
 \texttt{ALGTOL} & Tolerance in the solution of the nonlinear consistency equations & double & $>0.0$ & 1\\
 \texttt{RELTOL} & Relative tolerance in the solution of the original system & double & $\geq 0.0$ & 1\\
-\texttt{RELTOL\_SENS} & Relative tolerance in the solution of the sensitivity systems & double & $\geq 0.0$ & 1 / \texttt{NSENS}\\
+\texttt{RELTOL\_SENS} & Relative tolerance in the solution of the sensitivity systems & double & $\geq 0.0$ & 1\\
 \texttt{INIT\_STEP\_SIZE} & Initial time integrator step size for each section or one value for all sections (0.0: IDAS default value), see IDAS guide 4.5, 36f. & double & $\geq 0.0$ & 1 / \texttt{NSEC}\\
 \texttt{MAX\_STEPS} & Maximum number of timesteps taken by IDAS (0: IDAS default = 500), see IDAS guide Sec.~4.5 & int & $\geq 0$ & 1 \\
 \texttt{MAX\_STEP\_SIZE} & Maximum size of timesteps taken by IDAS (0.0: unlimited), see IDAS guide Sec.~4.5 & double & $\geq 0$ & 1 \everyrow{}\\
