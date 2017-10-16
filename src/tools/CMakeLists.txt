@@ -34,6 +34,10 @@ if (HDF5_FOUND)
 
 	add_executable (createConvBenchmark createConvBenchmark.cpp)
 	list(APPEND TOOLS_TARGETS createConvBenchmark)
+
+	add_executable (convertFile convertFile.cpp FileIO.cpp FormatConverter.cpp ${CMAKE_SOURCE_DIR}/ThirdParty/pugixml/pugixml.cpp)
+	target_include_directories(convertFile PRIVATE ${CMAKE_SOURCE_DIR}/ThirdParty/pugixml ${CMAKE_SOURCE_DIR}/ThirdParty/json)
+	list(APPEND TOOLS_TARGETS convertFile)
 endif()
 
 foreach(_TARGET IN LISTS TOOLS_TARGETS)
