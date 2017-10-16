@@ -15,8 +15,8 @@
  * Provides helper functions for tools apps
  */
 
-#ifndef CADETTEST_TOOLSHELPER_HPP_
-#define CADETTEST_TOOLSHELPER_HPP_
+#ifndef CADETTOOLS_TOOLSHELPER_HPP_
+#define CADETTOOLS_TOOLSHELPER_HPP_
 
 #include <string>
 #include <vector>
@@ -29,6 +29,7 @@ template <class Writer_t>
 class Scope
 {
 public:
+	Scope(Writer_t& writer) : _writer(writer) { }
 	Scope(Writer_t& writer, const std::string& scope) : _writer(writer) { _writer.pushGroup(scope); }
 	~Scope() { _writer.popGroup(); }
 protected:
@@ -235,4 +236,4 @@ inline void parseAndWriteOutputFormatsFromCmdLine(Writer_t& writer, const std::s
 	writer.template scalar<int>("WRITE_SOLUTION_TIMES", true);
 }
 
-#endif  // CADETTEST_TOOLSHELPER_HPP_
+#endif  // CADETTOOLS_TOOLSHELPER_HPP_

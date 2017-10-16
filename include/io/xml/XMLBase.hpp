@@ -63,6 +63,34 @@ public:
 	inline bool isVector(const std::string& elementName) { return isVector(elementName.c_str()); }
 	inline bool isVector(const char* elementName);
 
+	/// \brief Checks if the given dataset is a string
+	inline bool isString(const std::string& elementName) { return isDataType<std::string>(elementName, _typeChar); }
+	inline bool isString(const char* elementName) { return isString(std::string(elementName)); }
+
+	/// \brief Checks if the given dataset is a signed int
+	inline bool isInt(const std::string& elementName) { return isDataType<int>(elementName, _typeInt); }
+	inline bool isInt(const char* elementName) { return isInt(std::string(elementName)); }
+
+	/// \brief Checks if the given dataset is a double
+	inline bool isDouble(const std::string& elementName) { return isDataType<double>(elementName, _typeDouble); }
+	inline bool isDouble(const char* elementName) { return isDouble(std::string(elementName)); }
+
+	/// \brief Checks whether the given element is a group
+	inline bool isGroup(const std::string& elementName);
+	inline bool isGroup(const char* elementName) { return isGroup(std::string(elementName)); }
+
+	/// \brief Returns the dimensions of the tensor identified by name
+	inline std::vector<size_t> tensorDimensions(const std::string& elementName);
+	inline std::vector<size_t> tensorDimensions(const char* elementName) { return tensorDimensions(std::string(elementName)); }
+
+	/// \brief Returns the number of items in the group
+	inline int numItems();
+
+	/// \brief Returns the name of the n-th item in the group
+	inline std::string itemName(int n);
+
+	/// \brief Returns the names of all items in the group
+	inline std::vector<std::string> itemNames();
 protected:
 
 	xml_document _doc;                          //!< XML document
@@ -97,6 +125,9 @@ protected:
 	void closeGroup();
 
 	void findOrCreateRootNode();
+
+	template <typename T>
+	bool isDataType(const std::string& elementName, const std::string& typeName);
 
 	// Some helper methods
 	std::vector<std::string>& split(const std::string& s, const char* delim, std::vector<std::string>& elems);
@@ -206,14 +237,134 @@ bool XMLBase::isVector(const char* elementName)
 	int items = 1;
 	for (size_t i = 0; i < rank; ++i)
 	{
-		int j;
-		std::stringstream ss(dims_vec[i]);
-		ss >> j;
-		items *= j;
+		items *= std::stoi(dims_vec[i]);
 	}
 
 	closeGroup();
 	return items > 1;
+}
+
+
+template <typename T>
+bool XMLBase::isDataType(const std::string& elementName, const std::string& typeName)
+{
+	openGroup();
+
+	// Open dataset and throw if it does not exist
+	xml_node dataset = _groupOpened.node().find_child_by_attribute(_nodeDset.c_str(), _attrName.c_str(), elementName.c_str());
+	if (!dataset)
+	{
+		std::ostringstream oss;
+		oss << "Dataset '" << elementName << "' does not exist!";
+		throw IOException(oss.str());
+	}
+
+	// Read text and attributes
+	const xml_attribute typeAttrib = dataset.attribute(_attrType.c_str());
+	bool result = false;
+	if (typeAttrib.empty() || (typeAttrib.value() == std::string("")))
+	{
+		// Infer type from data
+		std::stringstream convert(dataset.text().get());
+		T temp;
+		convert >> temp;
+		result = convert.fail();
+	}
+	else
+	{
+		// Use attribute
+		result = typeAttrib.value() == typeName;
+	}
+
+	closeGroup();
+	return result;
+}
+
+
+bool XMLBase::isGroup(const std::string& elementName)
+{
+	openGroup();
+	xml_node dataset = _groupOpened.node().find_child_by_attribute(_nodeGrp.c_str(), _attrName.c_str(), elementName.c_str());
+	closeGroup();
+
+	return !!dataset;
+}
+
+
+std::vector<size_t> XMLBase::tensorDimensions(const std::string& elementName)
+{
+	// Open dataset and throw if it does not exist
+	xml_node dataset = _groupOpened.node().find_child_by_attribute(_nodeDset.c_str(), _attrName.c_str(), elementName.c_str());
+	if (!dataset)
+	{
+		std::ostringstream oss;
+		oss << "Dataset '" << elementName << "' does not exist!";
+		throw IOException(oss.str());
+	}
+
+	const std::string dims_str = dataset.attribute(_attrDims.c_str()).value();
+
+	// Get dims and compute buffer size
+	std::vector<std::string> dims_vec = split(dims_str, _dimsSeparator.c_str());
+	std::vector<size_t> dims(dims_vec.size());
+	for (size_t i = 0; i < dims_vec.size(); ++i)
+	{
+		dims[i] = std::stoi(dims_vec[i]);
+	}
+
+	closeGroup();
+	return dims;
+}
+
+
+int XMLBase::numItems()
+{
+	openGroup();
+
+	int n = 0;
+	for (xml_node::iterator it = _groupOpened.node().begin(); it != _groupOpened.node().end(); ++it)
+		++n;
+
+	closeGroup();
+	return n;
+}
+
+
+std::string XMLBase::itemName(int n)
+{
+	openGroup();
+	
+	std::string name = "";
+	int i = 0;
+	for (xml_node::iterator it = _groupOpened.node().begin(); it != _groupOpened.node().end(); ++it)
+	{
+		if (i == n)
+		{
+			const xml_attribute nameAttrib = it->attribute(_attrName.c_str());
+			name = nameAttrib.value();
+			break;
+		}
+		++i;
+	}
+
+	closeGroup();
+	return name;
+}
+
+
+std::vector<std::string> XMLBase::itemNames()
+{
+	openGroup();
+	
+	std::vector<std::string> names;
+	for (xml_node::iterator it = _groupOpened.node().begin(); it != _groupOpened.node().end(); ++it)
+	{
+		const xml_attribute nameAttrib = it->attribute(_attrName.c_str());
+		names.push_back(nameAttrib.value());
+	}
+
+	closeGroup();
+	return names;
 }
 
 
