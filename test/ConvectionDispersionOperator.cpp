@@ -17,7 +17,7 @@
 #include "Weno.hpp"
 #include "AdUtils.hpp"
 
-#include "JsonParameterProvider.hpp"
+#include "JsonTestModels.hpp"
 #include "ColumnTests.hpp"
 #include "JacobianHelper.hpp"
 

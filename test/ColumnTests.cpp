@@ -21,7 +21,7 @@
 #include "common/Driver.hpp"
 #include "Weno.hpp"
 
-#include "JsonParameterProvider.hpp"
+#include "JsonTestModels.hpp"
 #include "JacobianHelper.hpp"
 
 #include <cmath>

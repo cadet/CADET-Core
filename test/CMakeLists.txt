@@ -31,13 +31,13 @@ add_executable (testLogging testLogging.cpp)
 
 # CATCH unit tests
 configure_file("${CMAKE_CURRENT_SOURCE_DIR}/Paths.cpp.in" "${CMAKE_CURRENT_BINARY_DIR}/Paths.cpp" @ONLY)
-add_executable (testRunner testRunner.cpp JsonParameterProvider.cpp ColumnTests.cpp SimHelper.cpp
+add_executable (testRunner testRunner.cpp JsonTestModels.cpp ColumnTests.cpp SimHelper.cpp
 	GeneralRateModel.cpp LumpedRateModelWithPores.cpp LumpedRateModelWithoutPores.cpp
 	CSTR-Residual.cpp CSTR-Simulation.cpp 
 	ConvectionDispersionOperator.cpp
 	ModelSystem.cpp
 	BandMatrix.cpp DenseMatrix.cpp StringHashing.cpp LogUtils.cpp AD.cpp 
-	"${CMAKE_CURRENT_BINARY_DIR}/Paths.cpp")
+	"${CMAKE_CURRENT_BINARY_DIR}/Paths.cpp" "${CMAKE_SOURCE_DIR}/src/io/JsonParameterProvider.cpp")
 
 list(APPEND TEST_LIBCADET_TARGETS testRunner)
 list(APPEND TEST_NONLINALG_TARGETS testRunner)

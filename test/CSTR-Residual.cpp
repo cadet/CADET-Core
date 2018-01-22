@@ -16,7 +16,7 @@
 #include "model/StirredTankModel.hpp"
 #include "ModelBuilderImpl.hpp"
 
-#include "JsonParameterProvider.hpp"
+#include "JsonTestModels.hpp"
 #include "JacobianHelper.hpp"
 #include "SimHelper.hpp"
 

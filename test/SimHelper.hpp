@@ -18,7 +18,7 @@
 #ifndef CADETTEST_SIMHELPER_HPP_
 #define CADETTEST_SIMHELPER_HPP_
 
-#include "JsonParameterProvider.hpp"
+#include "JsonTestModels.hpp"
 #include "cadet/ParameterId.hpp"
 
 #include <vector>

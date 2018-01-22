@@ -17,7 +17,7 @@
 #include "Logging.hpp"
 
 #include "ModelBuilderImpl.hpp"
-#include "JsonParameterProvider.hpp"
+#include "JsonTestModels.hpp"
 #include "SimHelper.hpp"
 #include "common/Driver.hpp"
 

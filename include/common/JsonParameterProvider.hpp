@@ -15,8 +15,8 @@
  * Defines a ParameterProvider that uses JSON.
  */
 
-#ifndef CADETTEST_JSONPARAMETERPROVIDER_HPP_
-#define CADETTEST_JSONPARAMETERPROVIDER_HPP_
+#ifndef CADET_JSONPARAMETERPROVIDER_HPP_
+#define CADET_JSONPARAMETERPROVIDER_HPP_
 
 #include "cadet/ParameterProvider.hpp"
 
@@ -24,7 +24,7 @@
 #include <stack>
 #include <ostream>
 
-#ifndef CADETTEST_JSONPARAMETERPROVIDER_NOFORWARD
+#ifndef CADET_JSONPARAMETERPROVIDER_NOFORWARD
 	namespace nlohmann
 	{
 		class json;
@@ -84,7 +84,12 @@ public:
 
 	inline nlohmann::json* data() { return _root; }
 	inline nlohmann::json const* data() const { return _root; }
+
+	static JsonParameterProvider fromFile(const std::string& fileName);
 private:
+	JsonParameterProvider();
+	JsonParameterProvider(nlohmann::json* data);
+
 	nlohmann::json* _root;
 	std::stack<nlohmann::json*> _opened;
 };
@@ -92,11 +97,4 @@ private:
 std::ostream& operator<<(std::ostream& out, const JsonParameterProvider& jpp);
 } // namespace cadet
 
-cadet::JsonParameterProvider createColumnWithSMA(const std::string& uoType);
-cadet::JsonParameterProvider createGRMwithLinear();
-cadet::JsonParameterProvider createLWE(const std::string& uoType);
-cadet::JsonParameterProvider createLinearBenchmark(bool dynamicBinding, bool nonBinding, const std::string& uoType);
-cadet::JsonParameterProvider createCSTR(unsigned int nComp);
-cadet::JsonParameterProvider createCSTRBenchmark(unsigned int nSec, double endTime, double interval);
-
-#endif  // CADETTEST_JSONPARAMETERPROVIDER_HPP_
+#endif  // CADET_JSONPARAMETERPROVIDER_HPP_

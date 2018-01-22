@@ -18,7 +18,7 @@
 
 #include "ModelBuilderImpl.hpp"
 #include "model/ModelSystemImpl.hpp"
-#include "JsonParameterProvider.hpp"
+#include "JsonTestModels.hpp"
 #include "JacobianHelper.hpp"
 #include "ColumnTests.hpp"
 
