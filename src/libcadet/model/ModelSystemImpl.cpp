@@ -1903,15 +1903,16 @@ void ModelSystem::multiplyWithDerivativeJacobian(double t, unsigned int secIdx, 
 void ModelSystem::genJacobian(double t, unsigned int secIdx, double timeFactor, double const* const y, double const* const yDot)
 {
 	// This method is only for debugging. No point in optimizing it
-	unsigned int size = numDofs();
+	const unsigned int size = numDofs();
 
+	// Jacobians are saved in column-major ordering (i.e., each column is added to the array sequentially / columns are stacked together)
 	std::vector<double> jacobian(size*size, 0.0);
 	std::vector<double> jacobianDot(size*size, 0.0);
 
 	std::vector<double> jacobianFD(size*size, 0.0);
 	std::vector<double> jacobianFDDot(size*size, 0.0);
 
-	double h = 1e-8;
+	const double h = 1e-5;
 
 	std::vector<double> f(size, 0.0);
 	std::vector<double> fdot(size, 0.0);
@@ -1936,16 +1937,19 @@ void ModelSystem::genJacobian(double t, unsigned int secIdx, double timeFactor, 
 		std::copy_n(yDot, size, &fhdot[0]);
 
 		// Change ith entry
-		f[i] -= h / 2;
-		fh[i] += h / 2;
+		double stepSize = h;
+		if (f[i] != 0.0)
+			stepSize = f[i] * h;
+
+		f[i] -= stepSize / 2;
+		fh[i] += stepSize / 2;
 
 		residual(t, secIdx, timeFactor, &f[0], &fdot[0], &res[0]);
 		residual(t, secIdx, timeFactor, &fh[0], &fhdot[0], &resh[0]);
 
 		for (unsigned int j = 0; j < size; ++j)
 		{
-			// Residual is negative so it has to be negated to get the correct jacobian
-			jacobianFD[i*size + j] = -((res[j] - resh[j]) / h);
+			jacobianFD[i*size + j] = (resh[j] - res[j]) / stepSize;
 		}
 	}
 	
@@ -1964,16 +1968,19 @@ void ModelSystem::genJacobian(double t, unsigned int secIdx, double timeFactor, 
 		std::copy_n(yDot, size, &fhdot[0]);
 
 		// Change ith entry
-		fdot[i] -= h / 2;
-		fhdot[i] += h / 2;
+		double stepSize = h;
+		if (fdot[i] != 0.0)
+			stepSize = fdot[i] * h;
+
+		fdot[i] -= stepSize / 2;
+		fhdot[i] += stepSize / 2;
 
 		residual(t, secIdx, timeFactor, &f[0], &fdot[0], &res[0]);
 		residual(t, secIdx, timeFactor, &fh[0], &fhdot[0], &resh[0]);
 
 		for (unsigned int j = 0; j < size; ++j)
 		{
-			// Residual is negative so it has to be negated to get the correct jacobian
-			jacobianFDDot[i*size + j] = -((res[j] - resh[j]) / h);
+			jacobianFDDot[i*size + j] = (resh[j] - res[j]) / stepSize;
 		}
 	}
 
@@ -2002,6 +2009,11 @@ void ModelSystem::genJacobian(double t, unsigned int secIdx, double timeFactor, 
 
 		unit[i] = 0.0;
 	}
+
+	LOG(Debug) << "jacFD = " << log::MatrixPtr<double>(jacobianFD.data(), size, size, true);
+	LOG(Debug) << "jacFDDot = " << log::MatrixPtr<double>(jacobianFDDot.data(), size, size, true);
+	LOG(Debug) << "jac = " << log::MatrixPtr<double>(jacobian.data(), size, size, true);
+	LOG(Debug) << "jacDot = " << log::MatrixPtr<double>(jacobianDot.data(), size, size, true);
 }
 
 /**
@@ -2030,12 +2042,13 @@ void ModelSystem::genJacobian(unsigned int nSens, const active& t, unsigned int 
 	active* const adRes, double* const tmp1, double* const tmp2, double* const tmp3)
 {
 	// This method is only for debugging. Don't bother optimizing it
-	unsigned int size = numDofs();
+	const unsigned int size = numDofs();
 
+	// Jacobians are saved in column-major ordering (i.e., each column is added to the array sequentially / columns are stacked together)
 	std::vector<std::vector<double>> jacobianFD(nSens, std::vector<double>(size*size));
 	std::vector<std::vector<double>> jacobianFDDot(nSens, std::vector<double>(size*size));
 
-	double h = 1e-8;
+	const double h = 1e-5;
 
 	// -h/2
 	std::vector<double> tmp1mh(size, 0.0);
@@ -2119,11 +2132,24 @@ void ModelSystem::genJacobian(unsigned int nSens, const active& t, unsigned int 
 			std::copy_n(resS[j], size, resSph[j]);
 		}
 
+		std::vector<double> stepSize(nSens, false);
+
 		// Change ith entry
 		for (unsigned int j = 0; j < nSens; ++j)
 		{
-			ySmh[j][i] -= h / 2;
-			ySph[j][i] += h / 2;
+			const double val = ySmh[j][i];
+			if (val == 0.0)
+			{
+				ySmh[j][i] -= h / 2;
+				ySph[j][i] += h / 2;
+				stepSize[j] = h;
+			}
+			else
+			{
+				ySmh[j][i] -= val * h / 2;
+				ySph[j][i] += val * h / 2;
+				stepSize[j] = val * h;
+			}
 		}
 
 		// clear jacobian
@@ -2139,7 +2165,7 @@ void ModelSystem::genJacobian(unsigned int nSens, const active& t, unsigned int 
 			for (unsigned int j = 0; j < size; ++j)
 			{
 				// Residual is negative so it has to be negated to get the correct jacobian
-				jacobianFD[sens][i*size + j] = -((resSmh[sens][j] - resSph[sens][j]) / h);
+				jacobianFD[sens][i*size + j] = (resSph[sens][j] - resSmh[sens][j]) / stepSize[sens];
 			}
 		}
 	}
@@ -2178,11 +2204,24 @@ void ModelSystem::genJacobian(unsigned int nSens, const active& t, unsigned int 
 			std::copy_n(resS[j], size, resSph[j]);
 		}
 
+		std::vector<double> stepSize(nSens, false);
+
 		// Change ith entry
 		for (unsigned int j = 0; j < nSens; ++j)
 		{
-			ySdotmh[j][i] -= h / 2;
-			ySdotph[j][i] += h / 2;
+			const double val = ySdotmh[j][i];
+			if (val == 0.0)
+			{
+				ySdotmh[j][i] -= h / 2;
+				ySdotph[j][i] += h / 2;
+				stepSize[j] = h;
+			}
+			else
+			{
+				ySdotmh[j][i] -= val * h / 2;
+				ySdotph[j][i] += val * h / 2;
+				stepSize[j] = val * h;
+			}
 		}
 
 		// clear jacobian
@@ -2198,7 +2237,7 @@ void ModelSystem::genJacobian(unsigned int nSens, const active& t, unsigned int 
 			for (unsigned int j = 0; j < size; ++j)
 			{
 				//Residual is negative so it has to be negated to get the correct jacobian
-				jacobianFDDot[sens][i*size + j] = -((resSmh[sens][j] - resSph[sens][j]) / h);
+				jacobianFDDot[sens][i*size + j] = (resSph[sens][j] - resSmh[sens][j]) / stepSize[sens];
 			}
 		}
 	}
@@ -2214,6 +2253,12 @@ void ModelSystem::genJacobian(unsigned int nSens, const active& t, unsigned int 
 		delete ySph[j];
 		delete ySdotph[j];
 		delete resSph[j];
+	}
+
+	for (unsigned int i = 0; i < nSens; ++i)
+	{
+		LOG(Debug) << "jacSens" << i << " = " << log::MatrixPtr<double>(jacobianFD[i].data(), size, size, true);
+		LOG(Debug) << "jacSensDot" << i << " = " << log::MatrixPtr<double>(jacobianFDDot[i].data(), size, size, true);
 	}
 }
 
