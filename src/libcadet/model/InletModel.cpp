@@ -207,7 +207,7 @@ template<> active const* InletModel::moveInletValues(double const* const rawValu
 
 	// Get time derivative
 	_inlet->timeDerivative(static_cast<double>(t), secIdx, _inletDerivatives + _nComp);
-	LOG(Debug) << "dInlet / dt = " << cadet::log::VectorPtr<double>(_inletDerivatives + _nComp, _nComp); 
+//	LOG(Debug) << "dInlet / dt = " << cadet::log::VectorPtr<double>(_inletDerivatives + _nComp, _nComp); 
 
 	// Retrieve parameter derivatives
 	for (auto sp : _sensParamsInlet)
@@ -217,13 +217,13 @@ template<> active const* InletModel::moveInletValues(double const* const rawValu
 		const double tAdVal = t.getADValue(adDir);
 
 		_inlet->parameterDerivative(static_cast<double>(t), secIdx, sp.first, _inletDerivatives);
-		LOG(Debug) << "dInlet / dp = " << cadet::log::VectorPtr<double>(_inletDerivatives, _nComp); 
+//		LOG(Debug) << "dInlet / dp = " << cadet::log::VectorPtr<double>(_inletDerivatives, _nComp); 
 
 		// Copy derivatives into AD datatypes
 		for (unsigned int i = 0; i < _nComp; ++i)
 			_inletConcentrations[i].setADValue(adDir, _inletConcentrations[i].getADValue(adDir) + _inletDerivatives[i] * adValue + _inletDerivatives[_nComp + i] * tAdVal);
 
-		LOG(Debug) << "totalInlet " << adDir << " " << cadet::log::VectorPtr<cadet::active>(_inletConcentrations, _nComp);
+//		LOG(Debug) << "totalInlet " << adDir << " " << cadet::log::VectorPtr<cadet::active>(_inletConcentrations, _nComp);
 	}
 
 	return _inletConcentrations;

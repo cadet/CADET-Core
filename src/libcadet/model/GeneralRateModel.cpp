@@ -451,7 +451,6 @@ void GeneralRateModel::checkAnalyticJacobianAgainstAd(active const* const adRes,
 
 int GeneralRateModel::residual(double t, unsigned int secIdx, double timeFactor, double const* const y, double const* const yDot, double* const res)
 {
-	LOG(Trace) << "======= RESIDUAL ========== t = " << static_cast<double>(t) << " sec = " << secIdx << " dt = " << static_cast<double>(timeFactor);
 	BENCH_SCOPE(_timerResidual);
 
 	// Evaluate residual do not compute Jacobian or parameter sensitivities
@@ -460,7 +459,6 @@ int GeneralRateModel::residual(double t, unsigned int secIdx, double timeFactor,
 
 int GeneralRateModel::residualWithJacobian(const active& t, unsigned int secIdx, const active& timeFactor, double const* const y, double const* const yDot, double* const res, active* const adRes, active* const adY, unsigned int adDirOffset)
 {
-	LOG(Trace) << "======= RESIDUAL ========== t = " << static_cast<double>(t) << " sec = " << secIdx << " dt = " << static_cast<double>(timeFactor);
 	BENCH_SCOPE(_timerResidual);
 
 	// Evaluate residual, use AD for Jacobian if required but do not evaluate parameter derivatives
@@ -572,8 +570,6 @@ int GeneralRateModel::residual(const active& t, unsigned int secIdx, const activ
 template <typename StateType, typename ResidualType, typename ParamType, bool wantJac>
 int GeneralRateModel::residualImpl(const ParamType& t, unsigned int secIdx, const ParamType& timeFactor, StateType const* const y, double const* const yDot, ResidualType* const res)
 {
-	LOG(Debug) << "t = " << t << " timeFactor = " << timeFactor;
-
 	BENCH_START(_timerResidualPar);
 
 #ifdef CADET_PARALLELIZE
@@ -940,12 +936,6 @@ void GeneralRateModel::assembleOffdiagJac(double t, unsigned int secIdx)
 int GeneralRateModel::residualSensFwdWithJacobian(const active& t, unsigned int secIdx, const active& timeFactor, double const* const y, double const* const yDot,
 	active* const adRes, active* const adY, unsigned int adDirOffset)
 {
-/*
-	LOG(Debug) << "======= RESIDUAL SENS ========== t = " << static_cast<double>(t) << std::endl; // << " sec = " << secIdx;
-	LOG(Debug) << "y = " << cadet::log::VectorPtr<double>(y, numDofs()) << "\n"
-	           << "yDot = " << cadet::log::VectorPtr<double>(yDot, numDofs());
-*/
-
 	BENCH_SCOPE(_timerResidualSens);
 
 	// Evaluate residual for all parameters using AD in vector mode and at the same time update the 
@@ -956,12 +946,6 @@ int GeneralRateModel::residualSensFwdWithJacobian(const active& t, unsigned int 
 int GeneralRateModel::residualSensFwdAdOnly(const active& t, unsigned int secIdx, const active& timeFactor,
 	double const* const y, double const* const yDot, active* const adRes)
 {
-/*
-	LOG(Debug) << "======= RESIDUAL SENS ========== t = " << static_cast<double>(t) << std::endl; // << " sec = " << secIdx;
-	LOG(Debug) << "y = " << cadet::log::VectorPtr<double>(y, numDofs()) << "\n"
-	           << "yDot = " << cadet::log::VectorPtr<double>(yDot, numDofs());
-*/
-
 	BENCH_SCOPE(_timerResidualSens);
 
 	// Evaluate residual for all parameters using AD in vector mode
@@ -972,11 +956,6 @@ int GeneralRateModel::residualSensFwdCombine(const active& t, unsigned int secId
 	const std::vector<const double*>& yS, const std::vector<const double*>& ySdot, const std::vector<double*>& resS, active const* adRes, 
 	double* const tmp1, double* const tmp2, double* const tmp3)
 {
-/*
-	LOG(Debug) << "s = " << cadet::log::VectorPtr<double>(yS[0], numDofs()) << "\n"
-	           << "sDot = " << cadet::log::VectorPtr<double>(ySdot[0], numDofs());
-*/
-
 	BENCH_SCOPE(_timerResidualSens);
 
 	// tmp1 stores result of (dF / dy) * s
@@ -1006,13 +985,6 @@ int GeneralRateModel::residualSensFwdCombine(const active& t, unsigned int secId
 		} CADET_PARFOR_END;
 
 		BENCH_STOP(_timerResidualSensPar);
-
-/*
-		LOG(Debug) << "tmp1 = " << cadet::log::VectorPtr<double>(tmp1, numDofs()) << "\n"
-		           << "tmp2 = " << cadet::log::VectorPtr<double>(tmp2, numDofs()) << "\n"
-		           << "adRes = " << cadet::log::VectorPtr<active>(adRes, numDofs()) << "\n"
-		           << "sensRes = " << cadet::log::VectorPtr<double>(ptrResS, numDofs());
-*/
 	}
 
 	return 0;

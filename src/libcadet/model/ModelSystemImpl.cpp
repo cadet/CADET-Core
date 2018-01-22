@@ -617,6 +617,14 @@ bool ModelSystem::configure(IParameterProvider& paramProvider, IConfigHelper& he
 //	_tempSchur = new double[*std::max_element(_dofs.begin(), _dofs.end())];
 	_totalInletFlow.resize(numModels(), 0.0);
 
+#ifdef CADET_DEBUG
+
+	LOG(Debug) << "Num units " << _models.size() << " max ID " << maxUnitOperationId() << " total DOF " << numDofs();
+	LOG(Debug) << "Unit op state vector size: uoDOFs = " << log::VectorPtr<unsigned int>(_dofs.data(), _dofs.size());
+	LOG(Debug) << "Unit op state vector offsets: uoOffset = " << log::VectorPtr<unsigned int>(_dofOffset.data(), _dofOffset.size());
+
+#endif
+
 	return success;
 }
 

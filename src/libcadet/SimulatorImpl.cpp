@@ -197,6 +197,9 @@ namespace cadet
 		cadet::Simulator* const sim = static_cast<cadet::Simulator*>(userData);
 		const unsigned int secIdx = sim->getCurrentSection(t);
 		const active timeFactor = sim->timeFactor();
+
+		LOG(Trace) << "==> Residual at t = " << static_cast<double>(sim->toRealTime(t)) << " sec = " << secIdx;
+
 		return sim->_model->residualWithJacobian(sim->toRealTime(t), secIdx, timeFactor, NVEC_DATA(y), NVEC_DATA(yDot), NVEC_DATA(res), 
 			sim->_vecADres, sim->_vecADy, sim->numSensitivityAdDirections());
 	}
@@ -292,6 +295,8 @@ namespace cadet
 		const double tol = IDA_mem->ida_epsNewt;
 		const active timeFactor = sim->timeFactor();
 
+		LOG(Trace) << "==> Solve at t = " << t << " alpha = " << alpha << " tol = " << tol;
+
 		return sim->_model->linearSolve(t, static_cast<double>(timeFactor), alpha, tol, NVEC_DATA(rhs), NVEC_DATA(weight), NVEC_DATA(y), NVEC_DATA(yDot), NVEC_DATA(res));
 	}
 
@@ -309,8 +314,13 @@ namespace cadet
 		const unsigned int secIdx = sim->getCurrentSection(t);
 		const active timeFactor = sim->timeFactor();
 		
-		//sim->_model->genJacobian(ns, sim->toRealTime(t), secIdx, timeFactor, NVEC_DATA(y), NVEC_DATA(yDot), NVEC_DATA(res),
-		//	sensY, sensYdot, sensRes, sim->_vecADres, NVEC_DATA(tmp1), NVEC_DATA(tmp2), NVEC_DATA(tmp3));
+		LOG(Trace) << "==> Residual SENS at t = " << static_cast<double>(sim->toRealTime(t)) << " sec = " << secIdx;
+
+/*
+		reinterpret_cast<cadet::model::ModelSystem*>(sim->_model)->genJacobian(static_cast<double>(sim->toRealTime(t)), secIdx, static_cast<double>(timeFactor), NVEC_DATA(y), NVEC_DATA(yDot));
+		reinterpret_cast<cadet::model::ModelSystem*>(sim->_model)->genJacobian(ns, sim->toRealTime(t), secIdx, timeFactor, NVEC_DATA(y), NVEC_DATA(yDot), NVEC_DATA(res),
+			sensY, sensYdot, sensRes, sim->_vecADres, NVEC_DATA(tmp1), NVEC_DATA(tmp2), NVEC_DATA(tmp3));
+*/
 
 		return sim->_model->residualSensFwd(ns, sim->toRealTime(t), secIdx, timeFactor, NVEC_DATA(y), NVEC_DATA(yDot), NVEC_DATA(res), 
 			sensY, sensYdot, sensRes, sim->_vecADres, NVEC_DATA(tmp1), NVEC_DATA(tmp2), NVEC_DATA(tmp3));
