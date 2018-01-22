@@ -365,10 +365,10 @@ public:
 				_cub.reserve(nComp * _sectionTimes.size());
 			}
 
-			_const.insert(_const.end(), cons.begin(), cons.end());
-			_lin.insert(_lin.end(), lin.begin(), lin.end());
-			_quad.insert(_quad.end(), quad.begin(), quad.end());
-			_cub.insert(_cub.end(), cub.begin(), cub.end());
+			_const.insert(_const.end(), cons.begin(), cons.begin() + nComp);
+			_lin.insert(_lin.end(), lin.begin(), lin.begin() + nComp);
+			_quad.insert(_quad.end(), quad.begin(), quad.begin() + nComp);
+			_cub.insert(_cub.end(), cub.begin(), cub.begin() + nComp);
 
 			paramProvider->popScope();
 
