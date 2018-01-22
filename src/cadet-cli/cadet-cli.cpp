@@ -15,6 +15,7 @@
 #include "io/hdf5/HDF5Writer.hpp"
 #include "io/xml/XMLReader.hpp"
 #include "io/xml/XMLWriter.hpp"
+#include "common/JsonParameterProvider.hpp"
 
 #include <tclap/CmdLine.h>
 #include "common/TclapUtils.hpp"
@@ -109,11 +110,13 @@ namespace TCLAP
 	}
 }
 
-template <class Reader_t, class Writer_t>
-void run(const std::string& inFileName, const std::string& outFileName)
+template <class Reader_t>
+class FileReaderDriverConfigurator
 {
-	cadet::Driver drv;
-	
+public:
+	FileReaderDriverConfigurator() { }
+
+	void configure(cadet::Driver& drv, const std::string& inFileName)
 	{
 		Reader_t rd;
 		rd.openFile(inFileName, "r");
@@ -122,6 +125,34 @@ void run(const std::string& inFileName, const std::string& outFileName)
 		drv.configure(pp);
 
 		rd.closeFile();
+	}
+};
+
+class JsonDriverConfigurator
+{
+public:
+	JsonDriverConfigurator() { }
+
+	void configure(cadet::Driver& drv, const std::string& inFileName)
+	{
+		cadet::JsonParameterProvider pp = cadet::JsonParameterProvider::fromFile(inFileName);
+
+		// Skip input scope if it exists
+		if (pp.exists("input"))
+			pp.pushScope("input");
+
+		drv.configure(pp);
+	}
+};
+
+template <class DriverConfigurator_t, class Writer_t>
+void run(const std::string& inFileName, const std::string& outFileName)
+{
+	cadet::Driver drv;
+	
+	{
+		DriverConfigurator_t dc;
+		dc.configure(drv, inFileName);
 	}
 
 	drv.run();
@@ -236,11 +267,11 @@ int main(int argc, char** argv)
 		{
 			if (cadet::util::caseInsensitiveEquals(fileExtOut, "h5"))
 			{
-				run<cadet::io::HDF5Reader, cadet::io::HDF5Writer>(inFileName, outFileName);
+				run<FileReaderDriverConfigurator<cadet::io::HDF5Reader>, cadet::io::HDF5Writer>(inFileName, outFileName);
 			}
 			else if (cadet::util::caseInsensitiveEquals(fileExtOut, "xml"))
 			{
-				run<cadet::io::HDF5Reader, cadet::io::XMLWriter>(inFileName, outFileName);
+				run<FileReaderDriverConfigurator<cadet::io::HDF5Reader>, cadet::io::XMLWriter>(inFileName, outFileName);
 			}
 			else
 			{
@@ -252,11 +283,27 @@ int main(int argc, char** argv)
 		{
 			if (cadet::util::caseInsensitiveEquals(fileExtOut, "xml"))
 			{
-				run<cadet::io::XMLReader, cadet::io::XMLWriter>(inFileName, outFileName);
+				run<FileReaderDriverConfigurator<cadet::io::XMLReader>, cadet::io::XMLWriter>(inFileName, outFileName);
 			}
 			else if (cadet::util::caseInsensitiveEquals(fileExtOut, "h5"))
 			{
-				run<cadet::io::XMLReader, cadet::io::HDF5Writer>(inFileName, outFileName);
+				run<FileReaderDriverConfigurator<cadet::io::XMLReader>, cadet::io::HDF5Writer>(inFileName, outFileName);
+			}
+			else
+			{
+				std::cerr << "Output file format ('." << fileExtOut << "') not supported" << std::endl;
+				return 2;
+			}
+		}
+		else if (cadet::util::caseInsensitiveEquals(fileExtIn, "json"))
+		{
+			if (cadet::util::caseInsensitiveEquals(fileExtOut, "xml"))
+			{
+				run<JsonDriverConfigurator, cadet::io::XMLWriter>(inFileName, outFileName);
+			}
+			else if (cadet::util::caseInsensitiveEquals(fileExtOut, "h5"))
+			{
+				run<JsonDriverConfigurator, cadet::io::HDF5Writer>(inFileName, outFileName);
 			}
 			else
 			{

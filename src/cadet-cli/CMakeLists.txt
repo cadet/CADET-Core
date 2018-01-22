@@ -15,7 +15,8 @@ project (CadetCLI CXX C)
 
 # Add the executable CADET-CLI
 add_executable (cadet-cli ${CMAKE_SOURCE_DIR}/ThirdParty/pugixml/pugixml.cpp
-    ${CMAKE_SOURCE_DIR}/src/cadet-cli/cadet-cli.cpp)
+    ${CMAKE_SOURCE_DIR}/src/cadet-cli/cadet-cli.cpp
+    ${CMAKE_SOURCE_DIR}/src/io/JsonParameterProvider.cpp)
 
 # ---------------------------------------------------
 #   Linking to LIBCADET and add dependencies
@@ -30,7 +31,7 @@ endif ()
 # ---------------------------------------------------
   
 # Add include directories for access to exported LIBCADET header files.
-target_include_directories(cadet-cli PRIVATE ${CMAKE_SOURCE_DIR}/include ${CMAKE_SOURCE_DIR}/ThirdParty/pugixml ${CMAKE_SOURCE_DIR}/ThirdParty/tclap/include ${CMAKE_BINARY_DIR})
+target_include_directories(cadet-cli PRIVATE ${CMAKE_SOURCE_DIR}/include ${CMAKE_SOURCE_DIR}/ThirdParty/pugixml ${CMAKE_SOURCE_DIR}/ThirdParty/json ${CMAKE_SOURCE_DIR}/ThirdParty/tclap/include ${CMAKE_BINARY_DIR})
 
 cadet_target_compile_features(cadet-cli)
 
