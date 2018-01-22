@@ -36,7 +36,8 @@ add_executable (testRunner testRunner.cpp JsonParameterProvider.cpp ColumnTests.
 	CSTR-Residual.cpp CSTR-Simulation.cpp 
 	ConvectionDispersionOperator.cpp
 	ModelSystem.cpp
-	BandMatrix.cpp DenseMatrix.cpp StringHashing.cpp AD.cpp "${CMAKE_CURRENT_BINARY_DIR}/Paths.cpp")
+	BandMatrix.cpp DenseMatrix.cpp StringHashing.cpp LogUtils.cpp AD.cpp 
+	"${CMAKE_CURRENT_BINARY_DIR}/Paths.cpp")
 
 list(APPEND TEST_LIBCADET_TARGETS testRunner)
 list(APPEND TEST_NONLINALG_TARGETS testRunner)

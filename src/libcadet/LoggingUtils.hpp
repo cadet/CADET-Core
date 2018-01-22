@@ -19,7 +19,7 @@
 #define LIBCADET_LOGGING_UTILS_HPP_
 
 #ifndef CADET_LOGGING_DISABLE
-	#include "cadet/SolutionExporter.hpp"
+//	#include "cadet/SolutionExporter.hpp"
 	#include "AutoDiff.hpp"
 
 	#include <ostream>
@@ -40,6 +40,22 @@ namespace log
 		unsigned int nElem;
 
 		VectorPtr(T const* d, unsigned int n) : data(d), nElem(n) { }
+	};
+
+	/**
+	 * @brief Container for logging matrices given by pointer to linear array, matrix size, and storage order
+	 * @tparam T Type of the underlying array items
+	 */
+	template <class T>
+	struct MatrixPtr
+	{
+		const T* data;
+		unsigned int nRows;
+		unsigned int nCols;
+		bool colMajor;
+
+		MatrixPtr(T const* d, unsigned int nr, unsigned int nc) : data(d), nRows(nr), nCols(nc), colMajor(false) { }
+		MatrixPtr(T const* d, unsigned int nr, unsigned int nc, bool cm) : data(d), nRows(nr), nCols(nc), colMajor(cm) { }
 	};
 
 #ifndef CADET_LOGGING_DISABLE
@@ -99,6 +115,59 @@ namespace log
 			for (unsigned int i = 0; i < v.nElem-1; ++i)
 				os << v.data[i] << ",";
 			os << v.data[v.nElem - 1];
+		}
+		os << "]";
+		return os;
+	}
+
+	template <class T>
+	inline std::ostream& operator<<(std::ostream& os, const cadet::log::MatrixPtr<T>& v)
+	{
+		os << "[";
+		if (v.nRows * v.nCols > 0)
+		{
+			if (v.colMajor)
+			{
+				// All rows but last
+				for (unsigned int i = 0; i < v.nRows-1; ++i)
+				{
+					// All columns but last
+					for (unsigned int j = 0; j < v.nCols - 1; ++j)
+					{
+						os << v.data[j * v.nRows + i] << ",";
+					}
+					// Last column
+					os << v.data[(v.nCols - 1) * v.nRows + i] << ";";
+				}
+
+				// Last row
+				for (unsigned int j = 0; j < v.nCols - 1; ++j)
+				{
+					os << v.data[j * v.nRows + v.nRows - 1] << ",";
+				}
+				os << v.data[v.nCols * v.nRows - 1];
+			}
+			else
+			{
+				// All rows but last
+				for (unsigned int i = 0; i < v.nRows-1; ++i)
+				{
+					// All columns but last
+					for (unsigned int j = 0; j < v.nCols - 1; ++j)
+					{
+						os << v.data[i * v.nCols + j] << ",";
+					}
+					// Last column
+					os << v.data[(i + 1) * v.nCols - 1] << ";";
+				}
+
+				// Last row
+				for (unsigned int j = 0; j < v.nCols - 1; ++j)
+				{
+					os << v.data[(v.nRows - 1) * v.nCols + j] << ",";
+				}
+				os << v.data[v.nCols * v.nRows - 1];
+			}
 		}
 		os << "]";
 		return os;
