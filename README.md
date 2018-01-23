@@ -57,7 +57,7 @@ Try CADET in the browser using the [online simulator web service](http://www.cad
 
 ## Commercial software using CADET
 
-For commercial software built on top of CADET and designed for experimentalists [KBI](http://www.kbibiopharma.com/) has built [![Reveal Chromatography](https://www.cadet-web.de/static/simulation/RevealChromLogo.png)](http://reveal.kbibiopharma.com/chromatography).
+For commercial software built on top of CADET and designed for experimentalists, [KBI](http://www.kbibiopharma.com/) has built [![Reveal Chromatography](https://www.cadet-web.de/static/simulation/RevealChromLogo.png)](http://bit.ly/reveal_prod).
 
 ## Ongoing Development
 
