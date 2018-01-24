@@ -188,7 +188,7 @@ where $t_\tau$ denotes some time step. \index{Simulation!Time stepping}
 The IDAS time integrator adaptively changes the step size ${\Delta t_\tau = t_\tau-t_{\tau-1}}$ and order $1 \le q_{\tau} \le 5$ in each time step and automatically determines the corresponding coefficients $\alpha_{\tau,i}$.
 This \textit{ansatz} is inserted into the DAE and the resulting nonlinear algebraic equation system is solved for $y_{\tau} = y\left( t_\tau \right)$ using a Newton method.
 \begin{align}
-	H(y_\tau) = F\left(t_\tau,y_\tau,\frac{1}{\Delta t_\tau} \,\sum_{i=0}^{q_\tau}{\alpha_{\tau,i} \, y_{\tau-i}}, p\right) = 0
+	H(y_\tau) = F\left(t_\tau,y_\tau,\frac{1}{\Delta t_\tau} \,\sum_{i=0}^{q_\tau}{\alpha_{\tau,i} \, y_{\tau-i}}, p\right) = 0 \label{eq:BDFNonlinSystem}
 \end{align}
 This requires (possibly many) solutions of linear equation systems involving the Jacobian of $H$ given by
 \begin{align*}
@@ -204,11 +204,15 @@ The much simpler Jacobian $\partial F / \partial \dot{y}$ has to be implemented 
 \paragraph{Adaptivity}
 \phantomsection\label{par:SimTimeIntegrationAdaptivity}
 
-The BDF order and size of the time step are chosen such that the error bounds are satisfied with minimal work.
-If a time step fails (i.e., error bounds are not met), IDAS tries again with a smaller step size multiple times.
-However, when a certain minimal step size is reached and the nonlinear equations could not be solved with acceptable error, IDAS quits and the simulation fails with an error message.
+The BDF order $q_{\tau}$ and size of the time step $t_\tau$ are chosen such that the error bounds are satisfied with minimal work.
+Equation~\eqref{eq:BDFNonlinSystem} is solved with a Newton iteration using very few iterations (\texttt{MAX\_NEWTON\_ITER} from Table~\ref{tab:FFSolverTime}) since the starting point is assumed to be close to the solution as the time steps are small.
+If the solution of the Newton iteration does not pass the \textit{convergence test}, the step size $t_\tau$ is reduced and the Newton iteration is tried again.
+This may happen at most \texttt{MAX\_CONVTEST\_FAIL} times, otherwise time integration is aborted with failure.
+Having a solution of the Newton iteration at hand, a \textit{local truncation error test} is performed which controls the error of the BDF method.
+If this test fails, step size $t_\tau$ and order $q_{\tau}$ are adapted and the process restarts with solving the nonlinear system Eq.~\eqref{eq:BDFNonlinSystem}.
+The error test may be failed at most \texttt{MAX\_ERRTEST\_FAIL} times before time integration is aborted with failure.
 
-Error bounds are specified by an absolute tolerance (\texttt{ABSTOL}) and a relative tolerance (\texttt{RELTOL}).
+Error bounds for the local truncation error test are specified by an absolute tolerance (\texttt{ABSTOL}) and a relative tolerance (\texttt{RELTOL}).
 Note that the relative tolerance only works for non-zero values, whereas zero values are accounted for by the absolute tolerance.
 For example, a relative tolerance of $10^{-4}$ and absolute tolerance of $10^{-8}$ requests $3$ significant digits (correct digits after the comma in scientific notation) and considers all numbers with magnitude smaller than $10^{-8}$ as $0$.
 
@@ -218,6 +222,7 @@ It can also help to increase the error tolerances, at the cost of imprecise resu
 
 It can happen that due to severe stiffness or ill-posed models a simulation may exceed its computational budget given by the maximum number of time steps (per time slice) \texttt{MAX\_STEPS}.
 In this case, the formulation of the model should be checked and, if necessary, the error tolerances increased.
+Note that the number of time steps is independent of possible \texttt{USER\_SOLUTION\_TIMES} and refers to internal steps of the time integrator.
 
 On the other extreme, the time integrator might jump over an important change in the solution or not capture some feature of the solution because of too large time steps.
 This can be avoided by specifying the maximum time step size \texttt{MAX\_STEP\_SIZE}.
@@ -237,6 +242,13 @@ The CADET simulator implements the forward sensitivity approach which creates a 
 \end{align*}
 These linear DAEs depend on the solution $y$, $\dot{y}$ of the original DAE system.
 Consequently, the sensitivity systems are solved together with the original DAE system in a staggered approach \cite{Feehery1997}.
+
+After the nonlinear Eq.~\eqref{eq:BDFNonlinSystem} has been successfully solved using Newton iteration (i.e., it has passed the convergence test), each sensitivity is solved using the same Newton iteration.
+If direct linear solvers were used, this iteration would convergence with a single iteration as there is no nonlinearity.
+The Newton method for the sensitivities performs at most \texttt{MAX\_NEWTON\_ITER\_SENS} (see Table~\ref{tab:FFSolverTime}) iterations.
+Assuming the convergence test has passed for each sensitivity, the local truncation error test is performed for the full set of variables (i.e., original system and sensitivities).
+The sensitivities can be excluded from the local truncation error test by setting \texttt{ERRORTEST\_SENS} appropriately.
+Note that time integration step size is always affected by sensitivities due to possible convergence test failures.
 
 While the Jacobians $\partial F / \partial y$ and $\partial F / \partial \dot{y}$ can be computed either analytically or via AD, the last term $\partial F / \partial p$ is always computed by AD.
 In fact, the terms $\partial F / \partial y$ and $\partial F / \partial p$ can be computed by one AD-enabled evaluation of $F$ using the vector mode with appropriate seed vectors \cite{Puttmann2016}.

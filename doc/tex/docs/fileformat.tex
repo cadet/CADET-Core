@@ -936,8 +936,13 @@ However, if only one index is passed in \texttt{EXTFUN}, this external source is
 \texttt{RELTOL} & Relative tolerance in the solution of the original system & double & $\geq 0.0$ & 1\\
 \texttt{RELTOL\_SENS} & Relative tolerance in the solution of the sensitivity systems & double & $\geq 0.0$ & 1\\
 \texttt{INIT\_STEP\_SIZE} & Initial time integrator step size for each section or one value for all sections (0.0: IDAS default value), see IDAS guide 4.5, 36f. & double & $\geq 0.0$ & 1 / \texttt{NSEC}\\
-\texttt{MAX\_STEPS} & Maximum number of timesteps taken by IDAS (0: IDAS default = 500), see IDAS guide Sec.~4.5 & int & $\geq 0$ & 1 \\
-\texttt{MAX\_STEP\_SIZE} & Maximum size of timesteps taken by IDAS (0.0: unlimited), see IDAS guide Sec.~4.5 & double & $\geq 0$ & 1 \everyrow{}\\
+\texttt{MAX\_STEPS} & Maximum number of timesteps taken by IDAS (0: IDAS default = 500), see IDAS guide Sec.~4.5 & int & $\geq 0.0$ & 1 \\
+\texttt{MAX\_STEP\_SIZE} & Maximum size of timesteps taken by IDAS (optional, defaults to unlimited $0.0$), see IDAS guide Sec.~4.5 & double & $\geq 0$ & 1 \\
+\texttt{ERRORTEST\_SENS} & Determines whether (forward) sensitivities take part in local error test (optional, defaults to $1$) & int & 0/1 & 1 \\
+\texttt{MAX\_NEWTON\_ITER} & Maximum number of Newton iterations in time step (optional, defaults to $3$) & int & $\geq 0$ & 1 \\
+\texttt{MAX\_ERRTEST\_FAIL} & Maximum number of local error test failures in time step (optional, defaults to $7$) & int & $\geq 0$ & 1 \\
+\texttt{MAX\_CONVTEST\_FAIL} & Maximum number of Newton convergence test failures (optional, defaults to $10$) & int & $\geq 0$ & 1 \\
+\texttt{MAX\_NEWTON\_ITER\_SENS} & Maximum number of Newton iterations in forward sensitivity time step (optional, defaults to $3$) & int & $\geq 0$ & 1 \everyrow{}\\
 \bottomrule
 \end{tabu}
 \caption{\label{tab:FFSolverTime}Datasets in the \texttt{/input/solver/time\_integrator} group}

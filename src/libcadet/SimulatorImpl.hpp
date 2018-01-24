@@ -113,6 +113,11 @@ public:
 	virtual void setMaximumSteps(unsigned int maxSteps);
 	virtual void setMaximumStepSize(double maxStepSize);
 	virtual void setRelativeErrorToleranceSens(double relTol);
+	virtual void setSensitivityErrorControl(bool enabled);
+	virtual void setMaxNewtonIteration(unsigned int nIter);
+	virtual void setMaxErrorTestFails(unsigned int nFails);
+	virtual void setMaxConvergenceFails(unsigned int nFails);
+	virtual void setMaxSensNewtonIteration(unsigned int nIter);
 
 	virtual bool reconfigureModel(IParameterProvider& paramProvider);
 	virtual bool reconfigureModel(IParameterProvider& paramProvider, unsigned int unitOpIdx);
@@ -275,6 +280,12 @@ protected:
 	unsigned int _maxSteps; //!< Maximum number of time integration steps
 	double _maxStepSize; //!< Maximum time step size
 	unsigned int _nThreads; //!< Maximum number of threads CADET is allowed to use 0, disables maximum setting
+
+	bool _sensErrorTestEnabled; //!< Determines whether forward sensitivity systems participate in the local time integration error test
+	unsigned int _maxNewtonIter; //!< Maximum number of Newton iterations for original DAE system
+	unsigned int _maxErrorTestFail; //!< Maximum number of local time integration error test failures
+	unsigned int _maxConvTestFail; //!< Maximum number of Newton iteration failures
+	unsigned int _maxNewtonIterSens; //!< Maximum number of Newton iterations for forward sensitivity systems
 
 	SectionIdx _curSec; //!< Index of the current section
 

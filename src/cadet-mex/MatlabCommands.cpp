@@ -865,6 +865,58 @@ void setTimeIntegratorOptions(cadet::Driver& drv, int nlhs, mxArray** plhs, int 
 }
 
 /**
+ * @brief Sets time integrator solver options and settings (e.g., number of Newton iterations)
+ * @param [in] drv Driver
+ * @param [in] nlhs Number of left hand side (output) arguments
+ * @param [out] plhs List with output arguments
+ * @param [in] nrhs Number of right hand side (input) arguments
+ * @param [in] prhs List with input arguments
+ */
+void setTimeIntegratorSolverOptions(cadet::Driver& drv, int nlhs, mxArray** plhs, int nrhs, const mxArray** prhs)
+{
+	checkInputArgs(nrhs, 7, "settimeintsolveropts");
+	checkOutputArgs(nlhs, 0, "settimeintsolveropts");
+
+	if (!drv.simulator())
+		return;
+
+	// Forward sensitivity error test participation
+	if (!io::isEmpty(prhs[2]))
+	{
+		const int32_t val = cadet::mex::io::scalar<int32_t>(prhs[2]);
+		drv.simulator()->setSensitivityErrorControl(val);
+	}
+
+	// Maximum number of Newton iterations
+	if (!io::isEmpty(prhs[3]))
+	{
+		const unsigned int val = cadet::mex::io::scalar<int32_t>(prhs[3]);
+		drv.simulator()->setMaxNewtonIteration(val);
+	}
+	
+	// Maximum number of error test failures
+	if (!io::isEmpty(prhs[4]))
+	{
+		const unsigned int val = cadet::mex::io::scalar<int32_t>(prhs[4]);
+		drv.simulator()->setMaxErrorTestFails(val);
+	}
+
+	// Maximum number of convergence test failures
+	if (!io::isEmpty(prhs[5]))
+	{
+		const unsigned int val = cadet::mex::io::scalar<int32_t>(prhs[5]);
+		drv.simulator()->setMaxConvergenceFails(val);
+	}
+
+	// Maximum number of sensitivity Newton iterations
+	if (!io::isEmpty(prhs[6]))
+	{
+		const unsigned int val = cadet::mex::io::scalar<int32_t>(prhs[6]);
+		drv.simulator()->setMaxSensNewtonIteration(val);
+	}
+}
+
+/**
  * @brief Sets the section times of the time integrator
  * @param [in] drv Driver
  * @param [in] nlhs Number of left hand side (output) arguments
@@ -1039,6 +1091,7 @@ CommandMap registeredCommands()
 	map["reconf"] = &command::reconfigureModelOrSimulator;
 	map["setreturnconf"] = &command::setReturnConfiguration;
 	map["settimeintopts"] = &command::setTimeIntegratorOptions;
+	map["settimeintsolveropts"] = &command::setTimeIntegratorSolverOptions;
 	map["clearsens"] = &command::clearSensitivities;
 	map["setsenspar"] = &command::makeParameterSensitive;
 	map["setsenserror"] = &command::setSensitivityErrorTolerance;

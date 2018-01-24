@@ -328,9 +328,11 @@ namespace cadet
 
 	Simulator::Simulator() : _model(nullptr), _solRecorder(nullptr), _idaMemBlock(nullptr), _vecStateY(nullptr), 
 		_vecStateYdot(nullptr), _vecFwdYs(nullptr), _vecFwdYsDot(nullptr),
-		_relTolS(1.0e-9), _absTol(1, 1.0e-12), _relTol(1.0e-9), _initStepSize(1, 1.0e-6), _maxSteps(10000), _curSec(0),
-		_skipConsistencyStateY(false), _skipConsistencySensitivity(false), _consistentInitMode(ConsistentInitialization::Full), 
-		_consistentInitModeSens(ConsistentInitialization::Full), _vecADres(nullptr), _vecADy(nullptr), _lastIntTime(0.0)
+		_relTolS(1.0e-9), _absTol(1, 1.0e-12), _relTol(1.0e-9), _initStepSize(1, 1.0e-6), _maxSteps(10000), _maxStepSize(0.0),
+		_nThreads(1), _sensErrorTestEnabled(true), _maxNewtonIter(3), _maxErrorTestFail(7), _maxConvTestFail(10),
+		_maxNewtonIterSens(3), _curSec(0), _skipConsistencyStateY(false), _skipConsistencySensitivity(false),
+		_consistentInitMode(ConsistentInitialization::Full), _consistentInitModeSens(ConsistentInitialization::Full),
+		_vecADres(nullptr), _vecADy(nullptr), _lastIntTime(0.0)
 	{
 #if defined(ACTIVE_ADOLC) || defined(ACTIVE_SFAD) || defined(ACTIVE_SETFAD)
 		LOG(Debug) << "Resetting AD directions from " << ad::getDirections() << " to default " << ad::getMaxDirections();
@@ -421,11 +423,13 @@ namespace cadet
 		// Attach user data structure
 		IDASetUserData(_idaMemBlock, this);
 
-		// Set maximum number of steps
+		// Set time integrator parameters
 		IDASetMaxNumSteps(_idaMemBlock, _maxSteps);
-
-		// Set maximum time step size
 		IDASetMaxStep(_idaMemBlock, _maxStepSize);
+		IDASetMaxNonlinIters(_idaMemBlock, _maxNewtonIter);
+		IDASetMaxErrTestFails(_idaMemBlock, _maxErrorTestFail);
+		IDASetMaxConvFails(_idaMemBlock, _maxConvTestFail);
+		IDASetSensMaxNonlinIters(_idaMemBlock, _maxNewtonIterSens);
 
 		// Specify the linear solver.
 		IDAMem IDA_mem = static_cast<IDAMem>(_idaMemBlock);
@@ -517,13 +521,14 @@ namespace cadet
 	void Simulator::postFwdSensInit(unsigned int nSens)
 	{
 		// Initialize IDA sensitivity computation
+		// TODO: Use IDASensReInit if this is not the first time sensitivities are activated
 		IDASensInit(_idaMemBlock, nSens, IDA_STAGGERED, &cadet::residualSensWrapper, _vecFwdYs, _vecFwdYsDot);
 
 		// Set sensitivity integration tolerances
 		IDASensSStolerances(_idaMemBlock, _relTolS, _absTolS.data());
 
 		// Activate sensitivity error control
-		IDASetSensErrCon(_idaMemBlock, true);
+		IDASetSensErrCon(_idaMemBlock, _sensErrorTestEnabled);
 	}
 
 	void Simulator::initializeFwdSensitivities()
@@ -1390,7 +1395,6 @@ namespace cadet
 		_algTol = paramProvider.getDouble("ALGTOL");
 		_maxSteps = paramProvider.getInt("MAX_STEPS");
 
-		_maxStepSize = 0.0;
 		if (paramProvider.exists("MAX_STEP_SIZE"))
 			_maxStepSize = paramProvider.getDouble("MAX_STEP_SIZE");
 
@@ -1404,6 +1408,21 @@ namespace cadet
 			_relTolS = paramProvider.getDouble("RELTOL_SENS");
 		else
 			_relTolS = _relTol;
+
+		if (paramProvider.exists("ERRORTEST_SENS"))
+			_sensErrorTestEnabled = paramProvider.getBool("ERRORTEST_SENS");
+
+		if (paramProvider.exists("MAX_NEWTON_ITER"))
+			_maxNewtonIter = paramProvider.getInt("MAX_NEWTON_ITER");
+
+		if (paramProvider.exists("MAX_ERRTEST_FAIL"))
+			_maxErrorTestFail = paramProvider.getInt("MAX_ERRTEST_FAIL");
+
+		if (paramProvider.exists("MAX_CONVTEST_FAIL"))
+			_maxConvTestFail = paramProvider.getInt("MAX_CONVTEST_FAIL");
+
+		if (paramProvider.exists("MAX_NEWTON_ITER_SENS"))
+			_maxNewtonIterSens = paramProvider.getInt("MAX_NEWTON_ITER_SENS");
 
 		paramProvider.popScope();
 
@@ -1502,6 +1521,42 @@ namespace cadet
 		if (_idaMemBlock)
 			IDASetMaxStep(_idaMemBlock, _maxStepSize);
 	}
+
+	void Simulator::setSensitivityErrorControl(bool enabled)
+	{
+		_sensErrorTestEnabled = enabled;
+		if (_idaMemBlock && (_sensitiveParams.slices() > 0) && _vecFwdYs)
+			IDASetSensErrCon(_idaMemBlock, enabled);
+	}
+
+	void Simulator::setMaxNewtonIteration(unsigned int nIter)
+	{
+		_maxNewtonIter = nIter;
+		if (_idaMemBlock)
+			IDASetMaxNonlinIters(_idaMemBlock, nIter);
+	}
+
+	void Simulator::setMaxErrorTestFails(unsigned int nFails)
+	{
+		_maxErrorTestFail = nFails;
+		if (_idaMemBlock)
+			IDASetMaxErrTestFails(_idaMemBlock, nFails);
+	}
+
+	void Simulator::setMaxConvergenceFails(unsigned int nFails)
+	{
+		_maxConvTestFail = nFails;
+		if (_idaMemBlock)
+			IDASetMaxConvFails(_idaMemBlock, nFails);
+	}
+
+	void Simulator::setMaxSensNewtonIteration(unsigned int nIter)
+	{
+		_maxNewtonIterSens = nIter;
+		if (_idaMemBlock && (_sensitiveParams.slices() > 0) && _vecFwdYs)
+			IDASetSensMaxNonlinIters(_idaMemBlock, nIter);
+	}
+
 
 
 	bool Simulator::reconfigureModel(IParameterProvider& paramProvider)

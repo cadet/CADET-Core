@@ -87,6 +87,16 @@ classdef MexSimulator < handle
 		maxSteps;
 		% Maximum step size of the time integrator
 		maxStepSize;
+		% Determines whether forward sensitivities participate in local time integration error test
+		sensitivityErrorTestEnabled;
+		% Maximum number of Newton iterations in a time step
+		maxNewtonIter;
+		% Maximum number of local time integration error test failures in a time step
+		maxErrorTestFail;
+		% Maximum number of Newton iteration convergence test failures in a time step
+		maxConvTestFail;
+		% Maximum number of Newton iterations for each forward sensitivity
+		maxNewtonIterSens;
 		% Determines how the system is initialized consistently
 		consistentInitMode;
 		% Determines how the sensitivity systems are initialized consistently
@@ -141,6 +151,11 @@ classdef MexSimulator < handle
 			obj.initStepSize = 1e-6;
 			obj.maxSteps = 10000;
 			obj.maxStepSize = 0.0;
+			obj.sensitivityErrorTestEnabled = true;
+			obj.maxNewtonIter = 3;
+			obj.maxErrorTestFail = 7;
+			obj.maxConvTestFail = 10;
+			obj.maxNewtonIterSens = 3;
 			obj.nThreads = 1;
 			obj.consistentInitMode = 1;
 			obj.consistentInitModeSens = 1;
@@ -277,6 +292,66 @@ classdef MexSimulator < handle
 			obj.data.solver.time_integrator.MAX_STEP_SIZE = val;
 			if obj.isConfigured
 				CadetMex('settimeintopts', obj.mexHandle, [], [], [], [], [], val, []);
+			end
+		end
+
+		function val = get.sensitivityErrorTestEnabled(obj)
+			val = logical(obj.data.solver.time_integrator.ERRORTEST_SENS);
+		end
+
+		function set.sensitivityErrorTestEnabled(obj, val)
+			validateattributes(val, {'logical'}, {'scalar', 'nonempty'}, '', 'sensitivityErrorTestEnabled');
+			obj.data.solver.time_integrator.ERRORTEST_SENS = int32(logical(val));
+			if obj.isConfigured
+				CadetMex('settimeintsolveropts', obj.mexHandle, int32(logical(val)), [], [], [], []);
+			end
+		end
+
+		function val = get.maxNewtonIter(obj)
+			val = double(obj.data.solver.time_integrator.MAX_NEWTON_ITER);
+		end
+
+		function set.maxNewtonIter(obj, val)
+			validateattributes(val, {'numeric'}, {'scalar', 'nonempty', 'finite', 'real', '>=', 0.0}, '', 'maxNewtonIter');
+			obj.data.solver.time_integrator.MAX_NEWTON_ITER = int32(val);
+			if obj.isConfigured
+				CadetMex('settimeintsolveropts', obj.mexHandle, [], int32(val), [], [], []);
+			end
+		end
+
+		function val = get.maxErrorTestFail(obj)
+			val = double(obj.data.solver.time_integrator.MAX_ERRTEST_FAIL);
+		end
+
+		function set.maxErrorTestFail(obj, val)
+			validateattributes(val, {'numeric'}, {'scalar', 'nonempty', 'finite', 'real', '>=', 0.0}, '', 'maxErrorTestFail');
+			obj.data.solver.time_integrator.MAX_ERRTEST_FAIL = int32(val);
+			if obj.isConfigured
+				CadetMex('settimeintsolveropts', obj.mexHandle, [], [], int32(val), [], []);
+			end
+		end
+
+		function val = get.maxConvTestFail(obj)
+			val = double(obj.data.solver.time_integrator.MAX_CONVTEST_FAIL);
+		end
+
+		function set.maxConvTestFail(obj, val)
+			validateattributes(val, {'numeric'}, {'scalar', 'nonempty', 'finite', 'real', '>=', 0.0}, '', 'maxConvTestFail');
+			obj.data.solver.time_integrator.MAX_CONVTEST_FAIL = int32(val);
+			if obj.isConfigured
+				CadetMex('settimeintsolveropts', obj.mexHandle, [], [], [], int32(val), []);
+			end
+		end
+
+		function val = get.maxNewtonIterSens(obj)
+			val = double(obj.data.solver.time_integrator.MAX_NEWTON_ITER_SENS);
+		end
+
+		function set.maxNewtonIterSens(obj, val)
+			validateattributes(val, {'numeric'}, {'scalar', 'nonempty', 'finite', 'real', '>=', 0.0}, '', 'maxNewtonIterSens');
+			obj.data.solver.time_integrator.MAX_NEWTON_ITER_SENS = int32(val);
+			if obj.isConfigured
+				CadetMex('settimeintsolveropts', obj.mexHandle, [], [], [], [], int32(val));
 			end
 		end
 

@@ -629,6 +629,66 @@ public:
 	virtual void setRelativeErrorToleranceSens(double relTol) = 0;
 
 	/**
+	 * @brief Controls whether forward sensitivity systems are taken into account for the local error test in time integration
+	 * @details The error in time integration can be estimated and is used for step size
+	 *          and order selection. This function controls whether forward sensitivity
+	 *          systems are taken into account in the local error test, which they are
+	 *          by default (@c true).
+	 * 
+	 * @param [in] enabled Determines whether sensitivities are taken into account in local error test
+	 */
+	virtual void setSensitivityErrorControl(bool enabled) = 0;
+
+	/**
+	 * @brief Sets the maximum number of Newton iterations for a time integration step
+	 * @details Each time step requires the solution of a nonlinear equation system which
+	 *          is performed by Newton iteration. Due to a good starting point (the last
+	 *          time step's solution is supposed to be very close to the current step's
+	 *          solution) a maximum of 3 iterations is used by default (see SUNDIALS 2.7.0).
+	 *          The iteration is stopped when the specified number of iterations is
+	 *          exceeded. A final convergence test is performed.
+	 * 
+	 * @param [in] nIter Maximum number of Newton iterations for a time step
+	 */
+	virtual void setMaxNewtonIteration(unsigned int nIter) = 0;
+
+	/**
+	 * @brief Sets the maximum number of (local truncation) error test failures for a time integration step
+	 * @details The error in time integration can be estimated and is used for step size
+	 *          and order selection. The maximum number of failed local time step error
+	 *          tests defaults to 7 (see SUNDIALS 2.7.0). Time integration fails when
+	 *          the number of failures exceeds the specified value.
+	 * 
+	 * @param [in] nFails Maximum number of local error test failures for a time step
+	 */
+	virtual void setMaxErrorTestFails(unsigned int nFails) = 0;
+
+	/**
+	 * @brief Sets the maximum number of convergence test failures in the Newton iteration of a time step
+	 * @details Each time step requires the solution of a nonlinear equation system which
+	 *          is performed by Newton iteration. If the convergence check of the iteration
+	 *          fails, the step size is reduced and a new iteration is started. The default
+	 *          for the number of failed convergence tests (i.e., Newton iterations) is set
+	 *          to 10 (see SUNDIALS 2.7.0). When the specified number of failures is exceeded,
+	 *          time integration fails.
+	 * 
+	 * @param [in] nFails Maximum number of convergence test failures
+	 */
+	virtual void setMaxConvergenceFails(unsigned int nFails) = 0;
+
+	/**
+	 * @brief Sets the maximum number of Newton iterations for each forward sensitivity system in a time integration step
+	 * @details Each time step requires the solution of a nonlinear equation system which
+	 *          is performed by Newton iteration. After the original system has been solved,
+	 *          each forward sensitivity system is solved using a separate Newton iteration.
+	 *          The maximum number of iterations is controlled by this function and defaults
+	 *          to 3 (see SUNDIALS 2.7.0). After the iteration a convergence test is performed.
+	 * 
+	 * @param [in] nIter Maximum number of Newton iterations for a time step
+	 */
+	virtual void setMaxSensNewtonIteration(unsigned int nIter) = 0;
+
+	/**
 	 * @brief Returns the elapsed time of the last simulation run in seconds
 	 * @return Elapsed time the last call of integrate() took in seconds
 	 */
