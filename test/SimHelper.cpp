@@ -212,7 +212,7 @@ namespace test
 		jpp.popScope();
 	}
 
-	void returnSensitivities(cadet::JsonParameterProvider& jpp, UnitOpIdx unit)
+	void returnSensitivities(cadet::JsonParameterProvider& jpp, UnitOpIdx unit, bool inlet)
 	{
 		jpp.pushScope("return");
 
@@ -220,8 +220,18 @@ namespace test
 		ss << "unit_" << std::setfill('0') << std::setw(3) << unit;
 		jpp.pushScope(ss.str());
 
+		jpp.set("WRITE_SENS_INLET", inlet);
 		jpp.set("WRITE_SENS_OUTLET", true);
 		jpp.set("WRITE_SENS_VOLUME", true);
+		jpp.popScope();
+		jpp.popScope();
+	}
+
+	void disableSensitivityErrorTest(cadet::JsonParameterProvider& jpp, bool isDisabled)
+	{
+		jpp.pushScope("solver");
+		jpp.pushScope("time_integrator");
+		jpp.set("ERRORTEST_SENS", !isDisabled);
 		jpp.popScope();
 		jpp.popScope();
 	}

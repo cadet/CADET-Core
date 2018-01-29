@@ -17,6 +17,7 @@
 #include "Logging.hpp"
 
 #include "ColumnTests.hpp"
+#include "SimHelper.hpp"
 #include "ModelBuilderImpl.hpp"
 #include "common/Driver.hpp"
 #include "Weno.hpp"
@@ -232,6 +233,45 @@ namespace column
 		jpp.pushScope("adsorption");
 		jpp.set("IS_KINETIC", isKinetic);
 		jpp.popScope();
+
+		for (int l = 0; l < level; ++l)
+			jpp.popScope();
+	}
+
+	void setCrossSectionArea(cadet::JsonParameterProvider& jpp, bool useTotalPorosity, int dir)
+	{
+		int level = 0;
+
+		if (jpp.exists("model"))
+		{
+			jpp.pushScope("model");
+			++level;
+		}
+		if (jpp.exists("unit_000"))
+		{
+			jpp.pushScope("unit_000");
+			++level;
+		}
+
+		const double vel = jpp.getDouble("VELOCITY");
+		double por = 0.0;
+		if (useTotalPorosity && (jpp.exists("TOTAL_POROSITY")))
+			por = jpp.getDouble("TOTAL_POROSITY");
+		else
+			por = jpp.getDouble("COL_POROSITY");
+
+		// Assume a volumetric flow rate of 1.0 m^3/s
+		jpp.set("CROSS_SECTION_AREA", 1.0 / (vel * por));
+
+		if (dir == 0)
+			jpp.remove("VELOCITY");
+		else
+		{
+			if (dir > 0)
+				jpp.set("VELOCITY", 1.0);
+			else
+				jpp.set("VELOCITY", -1.0);
+		}
 
 		for (int l = 0; l < level; ++l)
 			jpp.popScope();
@@ -558,6 +598,178 @@ namespace column
 		}
 
 		destroyModelBuilder(mb);
+	}
+
+	void testFwdSensSolutionFD(const std::string& uoType, double h, double const* absTols, double const* relTols, double const* passRates)
+	{
+		const std::vector<cadet::ParameterId> params = {
+			cadet::makeParamId("COL_DISPERSION", 0, cadet::CompIndep, cadet::BoundPhaseIndep, cadet::ReactionIndep, cadet::SectionIndep),
+			cadet::makeParamId("CONST_COEFF", 1, 0, cadet::BoundPhaseIndep, cadet::ReactionIndep, 0),
+			cadet::makeParamId("SMA_KA", 0, 1, 0, cadet::ReactionIndep, cadet::SectionIndep),
+			cadet::makeParamId("CONNECTION", cadet::UnitOpIndep, cadet::CompIndep, 1, 0, 0),
+		};
+		const std::vector<const char*> paramNames = {"COL_DISPERSION", "CONST_COEFF", "SMA_KA", "CONNECTION"};
+		const double absTolSens[] = {1e-12, 1e-6, 1e-6, 1e-6};
+
+		for (int bindMode = 0; bindMode < 2; ++bindMode)
+		{
+			const bool isKinetic = bindMode;
+			for (std::size_t n = 0; n < params.size(); ++n)
+			{
+				SECTION("Parameter " + std::string(paramNames[n]) + (isKinetic ? " Kinetic binding" : " Quasi-stationary binding"))
+				{
+					const double absTol = absTols[n];
+					const double relTol = relTols[n];
+					const double passRate = passRates[n];
+					const cadet::ParameterId& curParam = params[n];
+
+					// Setup simulation including forward sensitivities
+					cadet::JsonParameterProvider jppAna = createLWE(uoType);
+					cadet::test::column::setBindingMode(jppAna, isKinetic);
+					cadet::test::column::setCrossSectionArea(jppAna, uoType == "LUMPED_RATE_MODEL_WITHOUT_PORES", 0);
+					cadet::test::addSensitivity(jppAna, paramNames[n], curParam, absTolSens[n]);
+					cadet::test::returnSensitivities(jppAna, 0);
+
+					// Run simulation
+					cadet::Driver drv;
+					drv.configure(jppAna);
+					drv.run();
+
+					// Setup FD simulation
+					cadet::JsonParameterProvider jppFD = createLWE(uoType);
+					cadet::test::column::setBindingMode(jppFD, isKinetic);
+					cadet::test::column::setCrossSectionArea(jppFD, uoType == "LUMPED_RATE_MODEL_WITHOUT_PORES", 0);
+
+					// Configure FD simulation
+					cadet::Driver drvLeft;
+					drvLeft.configure(jppFD);
+					
+					// Extract parameter values
+					const double baseVal = drvLeft.simulator()->model()->getParameterDouble(curParam);
+					REQUIRE(!std::isnan(baseVal));
+
+					// Run left FD point
+					drvLeft.simulator()->setParameterValue(curParam, baseVal * (1.0 - h));
+					drvLeft.run();
+
+					// Configure and run right FD simulation
+					cadet::Driver drvRight;
+					drvRight.configure(jppFD);
+					drvRight.simulator()->setParameterValue(curParam, baseVal * (1.0 + h));
+					drvRight.run();
+
+					// Get data from simulation
+					cadet::InternalStorageUnitOpRecorder const* const simData = drv.solution()->unitOperation(0);
+					const unsigned int nComp = simData->numComponents();
+					double const* time = drv.solution()->time();
+					double const* outlet = simData->sensOutlet(0);
+					double const* outletL = drvLeft.solution()->unitOperation(0)->outlet();
+					double const* outletR = drvRight.solution()->unitOperation(0)->outlet();
+
+					// Compare
+					const double actStepSize = 2.0 * h * baseVal;
+					unsigned int numPassed = 0;
+					for (unsigned int i = 0; i < simData->numDataPoints(); ++i, ++outlet, ++outletL, ++outletR)
+					{
+						const double cmpVal = *outlet;
+						const double fdVal = ((*outletR) - (*outletL)) / actStepSize;
+						const unsigned int comp = i % nComp;
+						const unsigned int timeIdx = i / nComp;
+
+						INFO("Time " << (*time) << " Component " << comp << " time point idx " << timeIdx);
+						CHECK(*outlet == makeApprox(fdVal, relTol, absTol));
+
+						const bool relativeOK = std::abs(*outlet - fdVal) < relTol * (1.0 + (std::max)(std::abs(*outlet), std::abs(fdVal)));
+						if (relativeOK)
+							++numPassed;
+
+						if (i % nComp == 0)
+							++time;
+					}
+
+					const double ratio = static_cast<double>(numPassed) / static_cast<double>(simData->numDataPoints());
+					CAPTURE(ratio);
+					CHECK(ratio >= passRate);
+				}
+			}
+		}
+	}
+
+	void testFwdSensSolutionForwardBackward(const std::string& uoType, double const* absTols, double const* relTols, double const* passRates)
+	{
+		const std::vector<cadet::ParameterId> params = {
+			cadet::makeParamId("COL_DISPERSION", 0, cadet::CompIndep, cadet::BoundPhaseIndep, cadet::ReactionIndep, cadet::SectionIndep),
+			cadet::makeParamId("CONST_COEFF", 1, 0, cadet::BoundPhaseIndep, cadet::ReactionIndep, 0),
+			cadet::makeParamId("SMA_KA", 0, 1, 0, cadet::ReactionIndep, cadet::SectionIndep),
+			cadet::makeParamId("CONNECTION", cadet::UnitOpIndep, cadet::CompIndep, 1, 0, 0),
+		};
+		const std::vector<const char*> paramNames = {"COL_DISPERSION", "CONST_COEFF", "SMA_KA", "CONNECTION"};
+		const double absTolSens[] = {1e-12, 1e-6, 1e-6, 1e-6};
+
+		for (int bindMode = 0; bindMode < 2; ++bindMode)
+		{
+			const bool isKinetic = bindMode;
+			for (std::size_t n = 0; n < params.size(); ++n)
+			{
+				SECTION("Parameter " + std::string(paramNames[n]) + (isKinetic ? " Kinetic binding" : " Quasi-stationary binding"))
+				{
+					const double absTol = absTols[n];
+					const double relTol = relTols[n];
+					const double passRate = passRates[n];
+					const cadet::ParameterId& curParam = params[n];
+
+					// Setup simulation including forward sensitivities
+					cadet::JsonParameterProvider jpp = createLWE(uoType);
+					cadet::test::column::setBindingMode(jpp, isKinetic);
+					cadet::test::column::setCrossSectionArea(jpp, uoType == "LUMPED_RATE_MODEL_WITHOUT_PORES", 1);
+					cadet::test::addSensitivity(jpp, paramNames[n], curParam, absTolSens[n]);
+					cadet::test::returnSensitivities(jpp, 0, true);
+					cadet::test::disableSensitivityErrorTest(jpp);
+
+					// Run simulation
+					cadet::Driver drvFwd;
+					drvFwd.configure(jpp);
+					drvFwd.run();
+
+					// Run simulation with reversed flow
+					reverseFlow(jpp);
+					cadet::Driver drvBwd;
+					drvBwd.configure(jpp);
+					drvBwd.run();
+
+					// Get data from simulation
+					cadet::InternalStorageUnitOpRecorder const* const fwdData = drvFwd.solution()->unitOperation(0);
+					cadet::InternalStorageUnitOpRecorder const* const bwdData = drvBwd.solution()->unitOperation(0);
+
+					const unsigned int nComp = fwdData->numComponents();
+					double const* time = drvFwd.solution()->time();
+					double const* fwdOutlet = fwdData->sensOutlet(0);
+					double const* bwdInlet = bwdData->sensInlet(0);
+
+					// Compare
+					unsigned int numPassed = 0;
+					for (unsigned int i = 0; i < fwdData->numDataPoints(); ++i, ++fwdOutlet, ++bwdInlet)
+					{
+						const unsigned int comp = i % nComp;
+						const unsigned int timeIdx = i / nComp;
+
+						INFO("Time " << (*time) << " Component " << comp << " time point idx " << timeIdx);
+						CHECK(*bwdInlet == makeApprox(*fwdOutlet, relTol, absTol));
+
+						const bool relativeOK = std::abs(*bwdInlet - *fwdOutlet) < relTol * (1.0 + (std::max)(std::abs(*bwdInlet), std::abs(*fwdOutlet)));
+						if (relativeOK)
+							++numPassed;
+
+						if (i % nComp == 0)
+							++time;
+					}
+
+					const double ratio = static_cast<double>(numPassed) / static_cast<double>(fwdData->numDataPoints());
+					CAPTURE(ratio);
+					CHECK(ratio >= passRate);
+				}
+			}
+		}
 	}
 
 } // namespace column

@@ -52,3 +52,22 @@ TEST_CASE("LRMP sensitivity Jacobians", "[LRMP],[UnitOp],[Sensitivity]")
 {
 	cadet::test::column::testFwdSensJacobians("LUMPED_RATE_MODEL_WITH_PORES", 1e-5);
 }
+
+TEST_CASE("LRMP forward sensitivity vs FD", "[LRMP],[Sensitivity],[Simulation]")
+{
+	// Relative error (5e-3, 1e-4) is checkd first, we use high absolute error (3e5, 5e-3)
+	// for letting some very few points pass the error test, too. This is required due to
+	// errors in finite differences.
+	const double absTols[] = {3e5, 5e-3, 1.0, 1.0};
+	const double relTols[] = {5e-3, 1e-4, 5e-5, 1e-3};
+	const double passRatio[] = {0.94, 0.97, 0.98, 0.96};
+	cadet::test::column::testFwdSensSolutionFD("LUMPED_RATE_MODEL_WITH_PORES", 5e-5, absTols, relTols, passRatio);
+}
+
+TEST_CASE("LRMP forward sensitivity forward vs backward flow", "[LRMP],[Sensitivity],[Simulation]")
+{
+	const double absTols[] = {50.0, 5e-3, 1.0, 5e-7};
+	const double relTols[] = {2e-4, 1e-9, 1e-10, 1e-7};
+	const double passRatio[] = {1.0, 1.0, 1.0, 1.0};
+	cadet::test::column::testFwdSensSolutionForwardBackward("LUMPED_RATE_MODEL_WITH_PORES", absTols, relTols, passRatio);
+}

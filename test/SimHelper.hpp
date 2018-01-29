@@ -83,7 +83,7 @@ namespace test
 
 	/**
 	 * @brief Adds bound states to a CSTR model
-	 * @param [in] jpp ParameterProvider
+	 * @param [in,out] jpp ParameterProvider
 	 * @param [in] nBound Array with number of bound states for each component
 	 * @param [in] porosity Porosity
 	 */
@@ -91,7 +91,7 @@ namespace test
 
 	/**
 	 * @brief Adds linear binding model to a CSTR model
-	 * @param [in] jpp ParameterProvider
+	 * @param [in,out] jpp ParameterProvider
 	 * @param [in] kinetic Determines whether kinetic or quasi-stationary binding is used
 	 * @param [in] kA Vector with kA rates
 	 * @param [in] kD Vector with kD rates
@@ -100,7 +100,7 @@ namespace test
 
 	/**
 	 * @brief Adds Langmuir binding model to a CSTR model
-	 * @param [in] jpp ParameterProvider
+	 * @param [in,out] jpp ParameterProvider
 	 * @param [in] kinetic Determines whether kinetic or quasi-stationary binding is used
 	 * @param [in] kA Vector with kA rates
 	 * @param [in] kD Vector with kD rates
@@ -110,7 +110,7 @@ namespace test
 
 	/**
 	 * @brief Adds a parameter sensitivity
-	 * @param [in] jpp ParameterProvider
+	 * @param [in,out] jpp ParameterProvider
 	 * @param [in] name Parameter name
 	 * @param [in] id Parameter ID
 	 * @param [in] absTol Absolute tolerance
@@ -119,9 +119,19 @@ namespace test
 
 	/**
 	 * @brief Adds return info for parameter sensitivities to parameter provider
-	 * @param [in] jpp ParameterProvider
+	 * @param [in,out] jpp ParameterProvider
+	 * @param [in] unit Index of unit operation
+	 * @param [in] inlet Determines whether sensitivity at inlet is returned (@c true) or not (@c false)
 	 */
-	void returnSensitivities(cadet::JsonParameterProvider& jpp, UnitOpIdx unit);
+	void returnSensitivities(cadet::JsonParameterProvider& jpp, UnitOpIdx unit, bool inlet = false);
+
+	/**
+	 * @brief Disables error test of sensitivities
+	 * @details Sensitivities are included in the local error test by default.
+	 * @param [in,out] jpp ParameterProvider
+	 * @param [in] isDisabled Determines whether the error test for sensitivities is disabled (@c true) or not (@c false)
+	 */
+	void disableSensitivityErrorTest(cadet::JsonParameterProvider& jpp, bool isDisabled = true);
 
 } // namespace test
 } // namespace cadet

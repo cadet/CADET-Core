@@ -62,6 +62,19 @@ namespace column
 	void setBindingMode(cadet::JsonParameterProvider& jpp, bool isKinetic);
 
 	/**
+	 * @brief Infers cross section area of column model from interstitial velocity
+	 * @details Uses interstitial velocity and porosity to calculate cross section area.
+	 *          To this end, a volumetric flow rate of 1.0 m^3/s is assumed. Depending on
+	 *          @p dir, the velocity field is removed or set to @c +1.0 or @c -1.0 indicating
+	 *          direction of the flow inside the unit operation.
+	 * 
+	 * @param [in,out] jpp ParameterProvider to add cross section area to
+	 * @param [in] useTotalPorosity Determines whether TOTAL_POROSITY is used (@c true) or COL_POROSITY (@c false)
+	 * @param [in] dir Flow direction in unit operation (@c 0 removes field, @c 1 standard direction, @c -1 flow reversal) 
+	 */
+	void setCrossSectionArea(cadet::JsonParameterProvider& jpp, bool useTotalPorosity, int dir);
+
+	/**
 	 * @brief Runs a simulation test comparing against (semi-)analytic single component pulse injection reference data
 	 * @details Linear binding model is used in the column-like unit operation.
 	 * @param [in] uoType Unit operation type
@@ -124,6 +137,34 @@ namespace column
 	 * @param [in] relTol Relative error tolerance
 	 */
 	void testFwdSensJacobians(const std::string& uoType, double h = 1e-6, double absTol = 0.0, double relTol = std::numeric_limits<float>::epsilon() * 100.0);
+
+	/**
+	 * @brief Checks the forward sensitivity solution against finite differences
+	 * @details Assumes column-like unit models and uses centered finite differences. Checks 4 parameters in
+	 *          the standard load-wash-elution test case:
+	 *          COL_DISPERSION, CONST_COEFF (salt, loading), SMA_KA (first protein), CONNECTION (volumetric flow rate).
+	 *          Each sensitivity is checked for quasi-stationary and dynamic binding, which means that
+	 *          in total 8 checks are performed.
+	 * @param [in] uoType Unit operation type
+	 * @param [in] h Step size of centered finite differences
+	 * @param [in] absTols Array with absolute error tolerances
+	 * @param [in] relTols Array with relative error tolerances
+	 * @param [in] passRates Array with rates of relative error test passes
+	 */
+	void testFwdSensSolutionFD(const std::string& uoType, double h, double const* absTols, double const* relTols, double const* passRates);
+
+	/**
+	 * @brief Checks the forward sensitivity solution with forward flow against the one using backward flow
+	 * @details Assumes column-like unit models and checks 4 parameters in the standard load-wash-elution test case:
+	 *          COL_DISPERSION, CONST_COEFF (salt, loading), SMA_KA (first protein), CONNECTION (volumetric flow rate).
+	 *          Each sensitivity is checked for quasi-stationary and dynamic binding, which means that
+	 *          in total 8 checks are performed.
+	 * @param [in] uoType Unit operation type
+	 * @param [in] absTols Array with absolute error tolerances
+	 * @param [in] relTols Array with relative error tolerances
+	 * @param [in] passRates Array with rates of relative error test passes
+	 */
+	void testFwdSensSolutionForwardBackward(const std::string& uoType, double const* absTols, double const* relTols, double const* passRates);
 
 } // namespace column
 } // namespace test
