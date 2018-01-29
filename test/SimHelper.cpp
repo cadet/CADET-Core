@@ -212,10 +212,14 @@ namespace test
 		jpp.popScope();
 	}
 
-	void returnSensitivities(cadet::JsonParameterProvider& jpp)
+	void returnSensitivities(cadet::JsonParameterProvider& jpp, UnitOpIdx unit)
 	{
 		jpp.pushScope("return");
-		jpp.pushScope("unit_000");
+
+		std::ostringstream ss;
+		ss << "unit_" << std::setfill('0') << std::setw(3) << unit;
+		jpp.pushScope(ss.str());
+
 		jpp.set("WRITE_SENS_OUTLET", true);
 		jpp.set("WRITE_SENS_VOLUME", true);
 		jpp.popScope();

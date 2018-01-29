@@ -121,7 +121,7 @@ namespace test
 	 * @brief Adds return info for parameter sensitivities to parameter provider
 	 * @param [in] jpp ParameterProvider
 	 */
-	void returnSensitivities(cadet::JsonParameterProvider& jpp);
+	void returnSensitivities(cadet::JsonParameterProvider& jpp, UnitOpIdx unit);
 
 } // namespace test
 } // namespace cadet

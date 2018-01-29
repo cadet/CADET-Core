@@ -228,7 +228,7 @@ TEST_CASE("CSTR filter flowrate sensitivity vs analytic solution (V constant) w/
 	cadet::test::setFlowRates(jpp, 2, 1.0, 0.5, 0.5);
 	setFlowRateFilter(jpp, 0.5);
 	cadet::test::addSensitivity(jpp, "FLOWRATE_FILTER", cadet::makeParamId("FLOWRATE_FILTER", 0, cadet::CompIndep, cadet::BoundPhaseIndep, cadet::ReactionIndep, cadet::SectionIndep), 1e-6);
-	cadet::test::returnSensitivities(jpp);
+	cadet::test::returnSensitivities(jpp, 0);
 
 	const double sqrtE = std::sqrt(std::exp(1.0));
 	runSensSim(jpp, [=](double t) {
@@ -252,7 +252,7 @@ TEST_CASE("CSTR LIN_COEFF sensitivity vs analytic solution (V constant) w/o bind
 	cadet::test::setInletProfile(jpp, 0, 0, 1.0, 1.0, 0.0, 0.0);
 	cadet::test::setFlowRates(jpp, 0, 1.0, 0.5, 0.5);
 	cadet::test::addSensitivity(jpp, "LIN_COEFF", cadet::makeParamId("LIN_COEFF", 1, 0, cadet::BoundPhaseIndep, cadet::ReactionIndep, 0), 1e-6);
-	cadet::test::returnSensitivities(jpp);
+	cadet::test::returnSensitivities(jpp, 0);
 
 	runSensSim(jpp, [=](double t) { return 2.0 * (20.0 * std::expm1(-t / 20.0) + t); }, [](double t) { return 0.0; }, 1e-5, 7e-8);
 }
