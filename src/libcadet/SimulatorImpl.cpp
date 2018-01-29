@@ -1076,6 +1076,12 @@ namespace cadet
 		const bool writeAtUserTimes = _solutionTimes.size() > 0;
 		const bool wantSensitivities = _sensitiveParams.slices() > 0;
 
+		LOG(Debug) << "#MaxNewton: " << _maxNewtonIter << ", #MaxErrTestFail: " << _maxErrorTestFail << ", #MaxConvTestFail: " << _maxConvTestFail;
+		if (wantSensitivities)
+		{
+			LOG(Debug) << "Sensitvities in error test: " << _sensErrorTestEnabled << ", #MaxNewtonSens: " << _maxNewtonIterSens;
+		}
+
 		if (_solRecorder)
 		{
 			_solRecorder->notifyIntegrationStart(NVEC_LENGTH(_vecStateY), _sensitiveParams.slices(), _solutionTimes.size());
@@ -1175,7 +1181,7 @@ namespace cadet
 			}
 			_skipConsistencyStateY = false;
 
-			if ((_sensitiveParams.slices() > 0) && !_skipConsistencySensitivity && (_consistentInitModeSens != ConsistentInitialization::None))
+			if (wantSensitivities && !_skipConsistencySensitivity && (_consistentInitModeSens != ConsistentInitialization::None))
 			{
 #ifdef CADET_DEBUG
 				const std::vector<const double*> sensYdbg = convertNVectorToStdVectorPtrs<const double*>(_vecFwdYs, _sensitiveParams.slices());
@@ -1236,7 +1242,7 @@ namespace cadet
 
 			// IDAS Step 5.2: Re-initialization of the solver
 			IDAReInit(_idaMemBlock, startTime, _vecStateY, _vecStateYdot);
-			if (numSensParams() > 0)
+			if (wantSensitivities)
 				IDASensReInit(_idaMemBlock, IDA_STAGGERED, _vecFwdYs, _vecFwdYsDot);
 
 			// Inititalize the IDA solver flag
@@ -1283,6 +1289,52 @@ namespace cadet
 					<< (solverFlag == IDA_SUCCESS ? "IDA_SUCCESS" : "") << (solverFlag == IDA_TSTOP_RETURN ? "IDA_TSTOP_RETURN" : "");
 				realT = toRealTime(transformedT, _curSec);
 
+#ifdef CADET_DEBUG
+				{
+					long nTimeSteps = 0;
+					IDAGetNumSteps(_idaMemBlock, &nTimeSteps);
+
+					double curStepSize = 0.0;
+					IDAGetCurrentStep(_idaMemBlock, &curStepSize);
+
+					double lastStepSize = 0.0;
+					IDAGetLastStep(_idaMemBlock, &lastStepSize);
+
+					long nResEvals = 0;
+					IDAGetNumResEvals(_idaMemBlock, &nResEvals);
+
+					long nErrTestFail = 0;
+					IDAGetNumErrTestFails(_idaMemBlock, &nErrTestFail);
+
+					long nNonLin = 0;
+					IDAGetNumNonlinSolvIters(_idaMemBlock, &nNonLin);
+
+					long nConvFail = 0;
+					IDAGetNumNonlinSolvConvFails(_idaMemBlock, &nConvFail);
+
+					LOG(Debug) << "=== #Steps: " << nTimeSteps << "\n=== #Residual evals: " << nResEvals << "\n=== #Error test fails: " << nErrTestFail
+						<< "\n=== #Newton iters: " << nNonLin << "\n=== #Conv test fails: " << nConvFail << "\n=== Last step size: " << lastStepSize
+						<< "\n=== Next step size: " << curStepSize;
+
+					if (wantSensitivities)
+					{
+						long nSensResEvals = 0;
+						IDAGetSensNumResEvals(_idaMemBlock, &nSensResEvals);
+
+						long nSensErrTestFails = 0;
+						IDAGetSensNumErrTestFails(_idaMemBlock, &nSensErrTestFails);
+
+						long nSensNonLin = 0;
+						IDAGetSensNumNonlinSolvIters(_idaMemBlock, &nSensNonLin);
+
+						long nSensConvFail = 0;
+						IDAGetSensNumNonlinSolvConvFails(_idaMemBlock, &nSensConvFail);
+
+						LOG(Debug) << "=== #Sens residual evals: " << nSensResEvals << "\n=== #Sens error test fails: " << nSensErrTestFails
+							<< "\n=== #Sens Newton iters: " << nSensNonLin << "\n=== #Sens conv test fails: " << nSensConvFail;
+					}
+				}
+	#endif
 				switch (solverFlag)
 				{
 				case IDA_SUCCESS:
