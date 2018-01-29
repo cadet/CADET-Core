@@ -270,11 +270,11 @@ namespace column
 			{
 				// Forward flow inlet = backward flow outlet
 				CAPTURE(i);
-				CHECK((*fwdInlet) == makeApprox(*bwdOutlet, absTol, relTol));
+				CHECK((*fwdInlet) == makeApprox(*bwdOutlet, relTol, absTol));
 
 				// Forward flow outlet = backward flow inlet
 				CAPTURE(i);
-				CHECK((*fwdOutlet) == makeApprox(*bwdInlet, absTol, relTol));
+				CHECK((*fwdOutlet) == makeApprox(*bwdInlet, relTol, absTol));
 			}
 		}
 	}
@@ -296,7 +296,7 @@ namespace column
 			drv.run();
 
 			// Read reference data from test file
-			const std::string refFile = std::string(getTestDirectory()) + std::string(refFileRelPath); //"/data/lrmp-pulseBenchmark.data"
+			const std::string refFile = std::string(getTestDirectory()) + std::string(refFileRelPath);
 			ReferenceDataReader rd(refFile.c_str());
 			const std::vector<double> time = rd.time();
 			const std::vector<double> ref = (dynamicBinding ? rd.analyticDynamic() : rd.analyticQuasiStationary());
@@ -312,7 +312,7 @@ namespace column
 				// whereas the reference solution is given at every second (0s, 1s, 2s, 3s, ...)
 				// Thus, we only take the even indices of the reference array
 				CAPTURE(time[2 * i]);
-				CHECK((*outlet) == makeApprox(ref[2 * i], absTol, relTol));
+				CHECK((*outlet) == makeApprox(ref[2 * i], relTol, absTol));
 			}
 		}
 	}
@@ -334,7 +334,7 @@ namespace column
 			drv.run();
 
 			// Read reference data from test file
-			const std::string refFile = std::string(getTestDirectory()) + std::string(refFileRelPath); //"/data/lrmp-nonBinding.data"
+			const std::string refFile = std::string(getTestDirectory()) + std::string(refFileRelPath);
 			ReferenceDataReader rd(refFile.c_str());
 			const std::vector<double> time = rd.time();
 			const std::vector<double> ref = rd.analyticDynamic();
@@ -347,7 +347,7 @@ namespace column
 			for (unsigned int i = 0; i < simData->numDataPoints(); ++i, ++outlet)
 			{
 				CAPTURE(time[i]);
-				CHECK((*outlet) == makeApprox(ref[i], absTol, relTol));
+				CHECK((*outlet) == makeApprox(ref[i], relTol, absTol));
 			}
 		}
 	}
