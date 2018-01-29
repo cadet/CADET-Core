@@ -15,6 +15,13 @@
 #include "ColumnTests.hpp"
 #include "Weno.hpp"
 
+TEST_CASE("LRM LWE forward vs backward flow", "[LRM],[Simulation]")
+{
+	// Test all WENO orders
+	for (unsigned int i = 1; i <= cadet::Weno::maxOrder(); ++i)
+		cadet::test::column::testWenoForwardBackward("LUMPED_RATE_MODEL_WITHOUT_PORES", i, 1e-9, 5e-4);
+}
+
 TEST_CASE("LRM linear pulse vs analytic solution", "[LRM],[Simulation],[Analytic]")
 {
 	cadet::test::column::testAnalyticBenchmark("LUMPED_RATE_MODEL_WITHOUT_PORES", "/data/lrm-pulseBenchmark.data", true, true, 1024, 2e-5, 1e-7);
