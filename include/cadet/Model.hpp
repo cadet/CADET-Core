@@ -60,8 +60,8 @@ public:
 	 * @brief Sets a parameter value
 	 * @details The parameter identified by its unique parameter is set to the given value.
 	 * 
-	 * @param [in] pId   pId   ParameterId that identifies the parameter uniquely
-	 * @param [in] value value Value of the parameter
+	 * @param [in] pId ParameterId that identifies the parameter uniquely
+	 * @param [in] value Value of the parameter
 	 * 
 	 * @return @c true if the parameter has been successfully set to the given value,
 	 *         otherwise @c false (e.g., if the parameter is not available in this model)
@@ -72,7 +72,7 @@ public:
 
 	/**
 	 * @brief Checks whether a given parameter exists
-	 * @param [in] pId   pId   ParameterId that identifies the parameter uniquely
+	 * @param [in] pId ParameterId that identifies the parameter uniquely
 	 * @return @c true if the parameter exists, otherwise @c false
 	 */
 	virtual bool hasParameter(const ParameterId& pId) const = 0;
