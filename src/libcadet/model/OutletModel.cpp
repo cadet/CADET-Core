@@ -20,6 +20,7 @@
 
 #include <algorithm>
 #include <functional>
+#include <limits>
 
 #include "LoggingUtils.hpp"
 #include "Logging.hpp"
@@ -83,6 +84,11 @@ std::unordered_map<ParameterId, double> OutletModel::getAllParameterValues() con
 bool OutletModel::hasParameter(const ParameterId& pId) const
 {
 	return false;
+}
+
+double OutletModel::getParameterDouble(const ParameterId& pId) const
+{
+	return std::numeric_limits<double>::quiet_NaN();
 }
 
 bool OutletModel::setParameter(const ParameterId& pId, int value)

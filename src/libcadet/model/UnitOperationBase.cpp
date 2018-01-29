@@ -19,6 +19,7 @@
 #include "Logging.hpp"
 
 #include <iterator>
+#include <limits>
 
 namespace cadet
 {
@@ -51,6 +52,25 @@ std::unordered_map<ParameterId, double> UnitOperationBase::getAllParameterValues
 	return data;
 }
 
+double UnitOperationBase::getParameterDouble(const ParameterId& pId) const
+{
+	// Check our own parameters
+	const paramMap_t::const_iterator paramHandle = _parameters.find(pId);
+	if (paramHandle != _parameters.end())
+		return static_cast<double>(*paramHandle->second);
+
+	// Check binding model parameters
+	if (_binding)
+	{
+		active const* const val = _binding->getParameter(pId);
+		if (val)
+			return static_cast<double>(*val);
+	}
+
+	// Not found
+	return std::numeric_limits<double>::quiet_NaN();
+}
+
 bool UnitOperationBase::hasParameter(const ParameterId& pId) const
 {
 	const bool hasParam = _parameters.find(pId) != _parameters.end();
@@ -74,7 +94,7 @@ bool UnitOperationBase::setParameter(const ParameterId& pId, double value)
 	if ((pId.unitOperation != _unitOpIdx) && (pId.unitOperation != UnitOpIndep))
 		return false;
 
-	auto paramHandle = _parameters.find(pId);
+	paramMap_t::iterator paramHandle = _parameters.find(pId);
 	if (paramHandle != _parameters.end())
 	{
 		paramHandle->second->setValue(value);
@@ -102,7 +122,7 @@ void UnitOperationBase::setSensitiveParameterValue(const ParameterId& pId, doubl
 		return;
 
 	// Check our own parameters
-	auto paramHandle = _parameters.find(pId);
+	paramMap_t::iterator paramHandle = _parameters.find(pId);
 	if ((paramHandle != _parameters.end()) && contains(_sensParams, paramHandle->second))
 	{
 		paramHandle->second->setValue(value);
@@ -127,7 +147,7 @@ bool UnitOperationBase::setSensitiveParameter(const ParameterId& pId, unsigned i
 		return false;
 
 	// Check own parameters
-	auto paramHandle = _parameters.find(pId);
+	paramMap_t::iterator paramHandle = _parameters.find(pId);
 	if (paramHandle != _parameters.end())
 	{
 		LOG(Debug) << "Found parameter " << pId << " in GRM: Dir " << adDirection << " is set to " << adValue;

@@ -125,6 +125,23 @@ bool InletModel::hasParameter(const ParameterId& pId) const
 	return false;
 }
 
+double InletModel::getParameterDouble(const ParameterId& pId) const
+{
+	// Check inlet profile
+	if (!_inlet || ((pId.unitOperation != _unitOpIdx) && (pId.unitOperation != UnitOpIndep)))
+		return std::numeric_limits<double>::quiet_NaN();
+
+	const std::vector<ParameterId> inletParams = _inlet->availableParameters(_unitOpIdx);
+
+	// Search for parameter
+	for (const ParameterId& ipid : inletParams)
+	{
+		if (ipid == pId)
+			return _inlet->getParameterValue(pId);
+	}
+	return std::numeric_limits<double>::quiet_NaN();
+}
+
 bool InletModel::setParameter(const ParameterId& pId, int value)
 {
 	return false;

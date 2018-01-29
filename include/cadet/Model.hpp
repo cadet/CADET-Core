@@ -84,6 +84,14 @@ public:
 	virtual std::unordered_map<ParameterId, double> getAllParameterValues() const = 0;
 
 	/**
+	 * @brief Returns the value of a parameter that can be made sensitive
+	 * @details Returns @c NaN if the parameter is not present in the model.
+	 * @param [in] pId ParameterId that identifies the parameter uniquely
+	 * @return Value of the parameter or @c NaN if the parameter was not found
+	 */
+	virtual double getParameterDouble(const ParameterId& pId) const = 0;
+
+	/**
 	 * @brief Determines whether analytical Jacobians are used instead of AD Jacobians
 	 * 
 	 * @param [in] analyticJac @c true if analytic Jacobians should be used (recommended), @c false for AD Jacobians

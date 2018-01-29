@@ -27,6 +27,7 @@
 #include <sstream>
 #include <functional>
 #include <iterator>
+#include <limits>
 
 #include "LoggingUtils.hpp"
 #include "Logging.hpp"
@@ -922,6 +923,27 @@ bool ModelSystem::hasParameter(const ParameterId& pId) const
 		}
 	}
 	return _parameters.find(pId) != _parameters.end();
+}
+
+double ModelSystem::getParameterDouble(const ParameterId& pId) const
+{
+	for (IUnitOperation* m : _models)
+	{
+		if ((m->unitOperationId() == pId.unitOperation) || (pId.unitOperation == UnitOpIndep))
+		{
+			if (m->hasParameter(pId))
+			{
+				const double val = m->getParameterDouble(pId);
+				if (!std::isnan(val))
+					return val;
+			}
+		}
+	}
+	const std::unordered_map<ParameterId, active*>::const_iterator it = _parameters.find(pId);
+	if (it == _parameters.end())
+		return std::numeric_limits<double>::quiet_NaN();
+
+	return static_cast<double>(*it->second);
 }
 
 template <typename ParamType>

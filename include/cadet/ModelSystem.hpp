@@ -73,6 +73,14 @@ public:
 	virtual bool hasParameter(const ParameterId& pId) const = 0;
 
 	/**
+	 * @brief Returns the value of a parameter that can be made sensitive
+	 * @details Returns @c NaN if the parameter is not present in the model.
+	 * @param [in] pId ParameterId that identifies the parameter uniquely
+	 * @return Value of the parameter or @c NaN if the parameter was not found
+	 */
+	virtual double getParameterDouble(const ParameterId& pId) const = 0;
+
+	/**
 	 * @brief Returns all parameters with their current values that can be made sensitive
 	 * @return Map with all parameters that can be made sensitive along with their current value
 	 */

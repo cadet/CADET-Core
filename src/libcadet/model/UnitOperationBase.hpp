@@ -48,6 +48,7 @@ public:
 	virtual UnitOpIdx unitOperationId() const CADET_NOEXCEPT { return _unitOpIdx; }
 
 	virtual std::unordered_map<ParameterId, double> getAllParameterValues() const;
+	virtual double getParameterDouble(const ParameterId& pId) const;
 	virtual bool hasParameter(const ParameterId& pId) const;
 
 	virtual bool setParameter(const ParameterId& pId, int value);
@@ -68,7 +69,8 @@ protected:
 	UnitOpIdx _unitOpIdx; //!< Unit operation index
 	IBindingModel* _binding; //!<  Binding model
 
-	std::unordered_map<ParameterId, active*> _parameters; //!< Provides access to all parameters
+	typedef std::unordered_map<ParameterId, active*> paramMap_t;
+	paramMap_t _parameters; //!< Provides access to all parameters
 	std::unordered_set<active*> _sensParams; //!< Holds all parameters with activated AD directions
 };
 

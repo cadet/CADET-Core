@@ -67,6 +67,7 @@ public:
 	
 	virtual std::unordered_map<ParameterId, double> getAllParameterValues() const;
 	virtual bool hasParameter(const ParameterId& pId) const;
+	virtual double getParameterDouble(const ParameterId& pId) const;
 
 	virtual bool setParameter(const ParameterId& pId, int value);
 	virtual bool setParameter(const ParameterId& pId, double value);
