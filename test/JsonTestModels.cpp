@@ -205,7 +205,7 @@ cadet::JsonParameterProvider createGRMwithLinear()
 
 json createLWEJson(const std::string& uoType)
 {
-	json config;	
+	json config;
 	// Model
 	{
 		json model;
@@ -316,9 +316,21 @@ json createLWEJson(const std::string& uoType)
 
 		{
 			std::vector<double> solTimes;
-			solTimes.reserve(1501);
-			for (double t = 0.0; t <= 1500.0; t += 1.0)
-				solTimes.push_back(t);
+
+			if (uoType == "LUMPED_RATE_MODEL_WITHOUT_PORES")
+			{
+				// Lumped rate model without pores has less rate limiting
+				// Thus, a shorter simulation time suffices
+				solTimes.reserve(1101);
+				for (double t = 0.0; t <= 1100.0; t += 1.0)
+					solTimes.push_back(t);
+			}
+			else
+			{
+				solTimes.reserve(1501);
+				for (double t = 0.0; t <= 1500.0; t += 1.0)
+					solTimes.push_back(t);
+			}
 
 			solver["USER_SOLUTION_TIMES"] = solTimes;
 		}
@@ -330,7 +342,10 @@ json createLWEJson(const std::string& uoType)
 			json sec;
 
 			sec["NSEC"] = 3;
-			sec["SECTION_TIMES"] = {0.0, 10.0, 90.0, 1500.0};
+			if (uoType == "LUMPED_RATE_MODEL_WITHOUT_PORES")
+				sec["SECTION_TIMES"] = {0.0, 10.0, 90.0, 1100.0};
+			else
+				sec["SECTION_TIMES"] = {0.0, 10.0, 90.0, 1500.0};
 			sec["SECTION_CONTINUITY"] = {false, false};
 
 			solver["sections"] = sec;
