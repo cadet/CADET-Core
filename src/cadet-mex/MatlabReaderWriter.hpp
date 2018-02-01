@@ -335,14 +335,14 @@ std::vector<double> MatlabReaderWriter::vector<double>(const std::string& dataSe
 	{
 		// Error
 		std::ostringstream str;
-		str << "CadetMex: Trying to read vector from non-existent field '" << _groupName << "." << dataSetName << "'.\n";
+		str << "CadetMex: Trying to read vector from non-existent field '" << _groupName << "/" << dataSetName << "'.\n";
 		throw MatlabException(str.str());
 	}
 	if (!mxIsDouble(_dataSet))
 	{
 		// Error
 		std::ostringstream str;
-		str << "CadetMex: Trying to read vector of doubles from field '" << _groupName << "." << dataSetName << "', but got non-double values.\n";
+		str << "CadetMex: Trying to read vector of doubles from field '" << _groupName << "/" << dataSetName << "', but got non-double values.\n";
 		throw MatlabException(str.str());
 	}
 
@@ -361,14 +361,14 @@ std::vector<int> MatlabReaderWriter::vector<int>(const std::string& dataSetName)
 	{
 		// Error
 		std::ostringstream str;
-		str << "CadetMex: Trying to read vector from non-existent field '" << _groupName << "." << dataSetName << "'.\n";
+		str << "CadetMex: Trying to read vector from non-existent field '" << _groupName << "/" << dataSetName << "'.\n";
 		throw MatlabException(str.str());
 	}
 	if (!mxIsInt32(_dataSet))
 	{
 		// Error
 		std::ostringstream str;
-		str << "CadetMex: Trying to read vector of int32 from field '" << _groupName << "." << dataSetName << "', but got non-int32 values.\n";
+		str << "CadetMex: Trying to read vector of int32 from field '" << _groupName << "/" << dataSetName << "', but got non-int32 values.\n";
 		throw MatlabException(str.str());
 	}
 
@@ -387,14 +387,14 @@ std::vector<std::string> MatlabReaderWriter::vector<std::string>(const std::stri
 	{
 		// Error
 		std::ostringstream str;
-		str << "CadetMex: Trying to read cell array from non-existent field '" << _groupName << "." << dataSetName << "'.\n";
+		str << "CadetMex: Trying to read cell array from non-existent field '" << _groupName << "/" << dataSetName << "'.\n";
 		throw MatlabException(str.str());
 	}
 	if (!mxIsCell(_dataSet) && !mxIsChar(_dataSet))
 	{
 		// Error
 		std::ostringstream str;
-		str << "CadetMex: Trying to read cell array of strings from field '" << _groupName << "." << dataSetName << "', but got non-cell array.\n";
+		str << "CadetMex: Trying to read cell array of strings from field '" << _groupName << "/" << dataSetName << "', but got non-cell array.\n";
 		throw MatlabException(str.str());
 	}
 
@@ -421,7 +421,7 @@ std::vector<std::string> MatlabReaderWriter::vector<std::string>(const std::stri
 		{
 			// Error
 			std::ostringstream str;
-			str << "CadetMex: Expected string in element " << (i+1) << " of cell array " << _groupName << "." << dataSetName << "', but got non-string data.\n";
+			str << "CadetMex: Expected string in element " << (i+1) << " of cell array " << _groupName << "/" << dataSetName << "', but got non-string data.\n";
 			throw MatlabException(str.str());
 		}
 
@@ -438,7 +438,7 @@ template <typename T>
 std::vector<T> MatlabReaderWriter::vector(const std::string& dataSetName)
 {
 	std::ostringstream str;
-	str << "CadetMex: Trying to read vector of unsupported type from field '" << _groupName << "." << dataSetName << "'.\n";
+	str << "CadetMex: Trying to read vector of unsupported type from field '" << _groupName << "/" << dataSetName << "'.\n";
 	throw MatlabException(str.str());
 }
 // ============================================================================================================
@@ -555,7 +555,7 @@ template <typename T>
 void MatlabReaderWriter::write(const std::string& dataSetName, const size_t rank, const size_t* dims, const T* buffer, const size_t stride)
 {
 	std::ostringstream str;
-	str << "CadetMex: Trying to write vector of unsupported type to struct '" << _groupName << "." << dataSetName << "'.\n";
+	str << "CadetMex: Trying to write vector of unsupported type to struct '" << _groupName << "/" << dataSetName << "'.\n";
 	throw MatlabException(str.str());
 }
 // ============================================================================================================
