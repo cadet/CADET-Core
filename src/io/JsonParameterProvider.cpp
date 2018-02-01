@@ -19,6 +19,76 @@
 #define CADET_JSONPARAMETERPROVIDER_NOFORWARD
 #include "common/JsonParameterProvider.hpp"
 
+// Uncomment next line to enable logging in JsonParameterProvider
+//#define CADET_JSON_LOGGING_ENABLE
+
+
+#ifdef CADET_JSON_LOGGING_ENABLE
+
+#include "cadet/Logging.hpp"
+#include "common/LoggerBase.hpp"
+
+namespace cadet
+{
+namespace log
+{
+
+	/**
+	 * @brief Dispatches a log message to a receiver
+	 * @param [in] file Filename in which the log message was raised
+	 * @param [in] func Name of the function (implementation defined @c __func__ variable)
+	 * @param [in] line Number of the line in which the log message was raised
+	 * @param [in] lvl LogLevel representing the severity of the message
+	 * @param [in] message Message string
+	 */
+	void emitLog(const char* file, const char* func, const unsigned int line, LogLevel lvl, const char* message);
+
+	/**
+	 * @brief Implements a standard formatting policy
+	 */
+	class LibCadetFormattingPolicy : public FormattingPolicyBase<LibCadetFormattingPolicy>
+	{
+	public:
+		template <class writePolicy_t, class receiver_t, class paramList_t>
+		static inline void format(receiver_t& recv, const char* fileName, const char* funcName, unsigned int line, LogLevel lvl, const paramList_t& p)
+		{
+			writeParams<writePolicy_t>(recv, lvl, p);
+		}
+	};
+
+	/**
+	 * @brief Sends all messages to std::cout
+	 */
+	class EmitterWritePolicy : public NonBufferedWritePolicyBase<EmitterWritePolicy>
+	{
+	public:
+		static inline void writeLine(const char* fileName, const char* funcName, unsigned int line, LogLevel lvl, const std::string& msg)
+		{
+			emitLog(fileName, funcName, line, lvl, msg.c_str());
+		}
+	};
+
+	typedef NonFilteringLogger<LibCadetFormattingPolicy, EmitterWritePolicy> GlobalLogger;
+
+#ifndef CADET_LOGGING_DISABLE
+	typedef Logger<RuntimeFilteringLogger<GlobalLogger>, LogLevel::CADET_LOGLEVEL_MIN> DoubleFilterLogger;
+#else
+	typedef Logger<GlobalLogger, LogLevel::None> DiscardingLogger;
+#endif
+
+} // namespace log
+} // namespace cadet
+
+	/**
+	 * @brief Base for logging macros
+	 * @details Note that because of the usage pattern
+	 *          <pre>LOG(Info) << "My log line " << arg1;</pre>
+	 *          no semicolon is appended.
+	 */
+	#define LOG(lvl) cadet::log::DoubleFilterLogger::statement(__FILE__, __func__, __LINE__) = cadet::log::DoubleFilterLogger::template createMessage<cadet::LogLevel::lvl>()
+
+#endif
+
 using json = nlohmann::json;
 
 namespace cadet
@@ -92,12 +162,21 @@ JsonParameterProvider& JsonParameterProvider::operator=(const JsonParameterProvi
 
 double JsonParameterProvider::getDouble(const std::string& paramName)
 {
+#ifdef CADET_JSON_LOGGING_ENABLE
+	LOG(Debug) << "GET scalar [double] " << paramName << " = " << _opened.top()->at(paramName).get<double>();
+#endif
 	return _opened.top()->at(paramName).get<double>();
 }
 
 int JsonParameterProvider::getInt(const std::string& paramName)
 {
 	const json p = _opened.top()->at(paramName);
+#ifdef CADET_JSON_LOGGING_ENABLE
+	if (p.is_boolean())
+		LOG(Debug) << "GET scalar [int] " << paramName << " = " << static_cast<int>(p.get<bool>());
+	else
+		LOG(Debug) << "GET scalar [int] " << paramName << " = " << p.get<int>();
+#endif
 	if (p.is_boolean())
 		return p.get<bool>();
 	else
@@ -106,12 +185,21 @@ int JsonParameterProvider::getInt(const std::string& paramName)
 
 uint64_t JsonParameterProvider::getUint64(const std::string& paramName)
 {
+#ifdef CADET_JSON_LOGGING_ENABLE
+	LOG(Debug) << "GET scalar [uint64_t] " << paramName << " = " << _opened.top()->at(paramName).get<uint64_t>();
+#endif
 	return _opened.top()->at(paramName).get<uint64_t>();
 }
 
 bool JsonParameterProvider::getBool(const std::string& paramName)
 {
 	const json p = _opened.top()->at(paramName);
+#ifdef CADET_JSON_LOGGING_ENABLE
+	if (p.is_number_integer())
+		LOG(Debug) << "GET scalar [bool] " << paramName << " = " << static_cast<bool>(p.get<int>());
+	else
+		LOG(Debug) << "GET scalar [bool] " << paramName << " = " << p.get<bool>();
+#endif
 	if (p.is_number_integer())
 		return p.get<int>();
 	else
@@ -120,51 +208,81 @@ bool JsonParameterProvider::getBool(const std::string& paramName)
 
 std::string JsonParameterProvider::getString(const std::string& paramName)
 {
+#ifdef CADET_JSON_LOGGING_ENABLE
+	LOG(Debug) << "GET scalar [string] " << paramName << " = " << _opened.top()->at(paramName).get<std::string>();
+#endif
 	return _opened.top()->at(paramName).get<std::string>();
 }
 
 std::vector<double> JsonParameterProvider::getDoubleArray(const std::string& paramName)
 {
+#ifdef CADET_JSON_LOGGING_ENABLE
+	LOG(Debug) << "GET vector [double] " << paramName << " = " << _opened.top()->at(paramName).get<std::vector<double>>();
+#endif
 	return _opened.top()->at(paramName).get<std::vector<double>>();
 }
 
 std::vector<int> JsonParameterProvider::getIntArray(const std::string& paramName)
 {
+#ifdef CADET_JSON_LOGGING_ENABLE
+	LOG(Debug) << "GET vector [int] " << paramName << " = " << _opened.top()->at(paramName).get<std::vector<int>>();
+#endif
 	return _opened.top()->at(paramName).get<std::vector<int>>();
 }
 
 std::vector<uint64_t> JsonParameterProvider::getUint64Array(const std::string& paramName)
 {
+#ifdef CADET_JSON_LOGGING_ENABLE
+	LOG(Debug) << "GET vector [uint64_t] " << paramName << " = " << _opened.top()->at(paramName).get<std::vector<uint64_t>>();
+#endif
 	return _opened.top()->at(paramName).get<std::vector<uint64_t>>();
 }
 
 std::vector<bool> JsonParameterProvider::getBoolArray(const std::string& paramName)
 {
+#ifdef CADET_JSON_LOGGING_ENABLE
+	LOG(Debug) << "GET vector [bool] " << paramName << " = " << _opened.top()->at(paramName);
+#endif
 	return _opened.top()->at(paramName);
 }
 
 std::vector<std::string> JsonParameterProvider::getStringArray(const std::string& paramName)
 {
+#ifdef CADET_JSON_LOGGING_ENABLE
+	LOG(Debug) << "GET vector [string] " << paramName << " = " << _opened.top()->at(paramName).get<std::vector<std::string>>();
+#endif
 	return _opened.top()->at(paramName).get<std::vector<std::string>>();
 }
 
 bool JsonParameterProvider::exists(const std::string& paramName)
 {
+#ifdef CADET_JSON_LOGGING_ENABLE
+	LOG(Debug) << "EXISTS " << paramName << " = " << ((_opened.top()->find(paramName) != _opened.top()->end()) ? "yes" : "no");
+#endif
 	return _opened.top()->find(paramName) != _opened.top()->end();
 }
 
 bool JsonParameterProvider::isArray(const std::string& paramName)
 {
+#ifdef CADET_JSON_LOGGING_ENABLE
+	LOG(Debug) << "ISARRAY " << paramName << " = " << (_opened.top()->at(paramName).is_array() ? "yes" : "no");
+#endif
 	return _opened.top()->at(paramName).is_array();
 }
 
 void JsonParameterProvider::pushScope(const std::string& scope)
 {
+#ifdef CADET_JSON_LOGGING_ENABLE
+	LOG(Debug) << "SCOPE " << scope;
+#endif
 	_opened.push(&_opened.top()->at(scope));
 }
 
 void JsonParameterProvider::popScope()
 {
+#ifdef CADET_JSON_LOGGING_ENABLE
+	LOG(Debug) << "SCOPE POP";
+#endif
 	_opened.pop();
 }
 
@@ -239,7 +357,7 @@ JsonParameterProvider JsonParameterProvider::fromFile(const std::string& fileNam
 
 std::ostream& operator<<(std::ostream& out, const JsonParameterProvider& jpp)
 {
-	out << (*jpp.data());
+	out << jpp.data()->dump(4);
 	return out;
 }
 
