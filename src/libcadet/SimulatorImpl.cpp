@@ -1376,7 +1376,7 @@ namespace cadet
 
 					// An error occured
 					LOG(Error) << "IDASolve returned " << IDAGetReturnFlagName(solverFlag) << " at t = " << static_cast<double>(realT);
-					throw IntegrationException("Error in IDASolve!"); //todo might not be necessary
+					throw IntegrationException(std::string("Error in IDASolve: ") + IDAGetReturnFlagName(solverFlag) + std::string(" at t = " + std::to_string(static_cast<double>(realT)))); //todo might not be necessary
 					break;
 				} // switch
 
