@@ -77,7 +77,7 @@ namespace log
 	/**
 	 * @brief Base for logging macros
 	 * @details Note that because of the usage pattern
-	 *          <pre>LOG_BASE(myLogger, Info) << "My log line " << arg1;</pre>
+	 *          <pre>LOG(Info) << "My log line " << arg1;</pre>
 	 *          no semicolon is appended.
 	 */
 	#define LOG(lvl) cadet::log::DoubleFilterLogger::statement(__FILE__, __func__, __LINE__) = cadet::log::DoubleFilterLogger::template createMessage<cadet::LogLevel::lvl>()
@@ -87,7 +87,7 @@ namespace log
 	/**
 	 * @brief Base for logging macros
 	 * @details Note that because of the usage pattern
-	 *          <pre>LOG_BASE(myLogger, Info) << "My log line " << arg1;</pre>
+	 *          <pre>LOG(Info) << "My log line " << arg1;</pre>
 	 *          no semicolon is appended.
 	 */
 	#define LOG(lvl) cadet::log::DiscardingLogger::statement(__FILE__, __func__, __LINE__) = cadet::log::DiscardingLogger::template createMessage<cadet::LogLevel::lvl>()
