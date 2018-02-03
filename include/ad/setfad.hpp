@@ -199,6 +199,8 @@ namespace sfad
 		inline FwdET<real_t, storage_t>& operator*=(const real_t v)
 		{
 			_val *= v;
+			for (idx_t i = 0; i < detail::globalGradSize; ++i)
+				storage_t<real_t>::_grad[i] *= v;
 			return *this;
 		}
 
@@ -215,6 +217,8 @@ namespace sfad
 		inline FwdET<real_t, storage_t>& operator/=(const real_t v)
 		{
 			_val /= v;
+			for (idx_t i = 0; i < detail::globalGradSize; ++i)
+				storage_t<real_t>::_grad[i] /= v;
 			return *this;
 		}
 
