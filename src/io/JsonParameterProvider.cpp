@@ -346,6 +346,11 @@ void JsonParameterProvider::set(const std::string& paramName, const std::vector<
 	(*_opened.top())[paramName] = val;
 }
 
+void JsonParameterProvider::remove(const std::string& name)
+{
+	(*_opened.top()).erase(name);
+}
+
 JsonParameterProvider JsonParameterProvider::fromFile(const std::string& fileName)
 {
 	std::ifstream ifs(fileName);

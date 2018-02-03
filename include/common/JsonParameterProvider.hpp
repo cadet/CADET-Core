@@ -82,6 +82,8 @@ public:
 	void set(const std::string& paramName, const std::vector<uint64_t>& val);
 	void set(const std::string& paramName, const std::vector<std::string>& val);
 
+	void remove(const std::string& name);
+
 	inline nlohmann::json* data() { return _root; }
 	inline nlohmann::json const* data() const { return _root; }
 
