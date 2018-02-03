@@ -20,6 +20,8 @@
 #include "LoggingUtils.hpp"
 #include "Logging.hpp"
 
+#include <algorithm>
+
 namespace cadet
 {
 

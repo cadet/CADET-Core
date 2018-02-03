@@ -24,6 +24,7 @@
 
 #include <vector>
 #include <sstream>
+#include <algorithm>
 
 #include "AutoDiff.hpp"
 #include "LoggingUtils.hpp"

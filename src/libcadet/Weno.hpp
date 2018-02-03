@@ -24,6 +24,8 @@
 #include "common/CompilerSpecific.hpp"
 #include "cadet/Exceptions.hpp"
 
+#include <algorithm>
+
 namespace cadet
 {
 

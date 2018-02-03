@@ -14,6 +14,7 @@
 
 #include <vector>
 #include <limits>
+#include <algorithm>
 
 #include "linalg/BandMatrix.hpp"
 #include "linalg/Norms.hpp"

@@ -15,6 +15,7 @@
 
 #include <cmath>
 #include <limits>
+#include <algorithm>
 #include "MathUtil.hpp"
 
 namespace cadet 

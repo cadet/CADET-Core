@@ -15,6 +15,7 @@
 #include <sstream>
 #include <ostream>
 #include <cmath>
+#include <algorithm>
 
 namespace cadet
 {

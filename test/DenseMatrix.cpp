@@ -16,6 +16,7 @@
 #include <limits>
 #include <random>
 #include <chrono>
+#include <algorithm>
 
 #include "linalg/DenseMatrix.hpp"
 #include "linalg/BandMatrix.hpp"

@@ -20,6 +20,7 @@
 
 #include <vector>
 #include <sstream>
+#include <algorithm>
 
 #include "cadet/SolutionRecorder.hpp"
 

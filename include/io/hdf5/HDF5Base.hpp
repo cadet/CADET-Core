@@ -17,6 +17,7 @@
 #include <string>
 #include <sstream>
 #include <stack>
+#include <algorithm>
 
 #include "cadet/cadetCompilerInfo.hpp"
 

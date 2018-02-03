@@ -15,6 +15,7 @@
 #include <vector>
 #include <cmath>
 #include <limits>
+#include <algorithm>
 
 #include "linalg/DenseMatrix.hpp"
 #include "nonlin/AdaptiveTrustRegionNewton.hpp"

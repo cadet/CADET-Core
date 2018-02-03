@@ -12,6 +12,7 @@
 
 #include "linalg/DenseMatrix.hpp"
 #include <cmath>
+#include <algorithm>
 
 namespace cadet
 {
