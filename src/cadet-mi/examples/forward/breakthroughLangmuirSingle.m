@@ -13,7 +13,7 @@ function [result, solution] = breakthroughLangmuirSingle()
 %
 %   See also PULSELINEARSINGLE.
 
-% Copyright: (C) 2008-2017 The CADET Authors
+% Copyright: (C) 2008-2018 The CADET Authors
 %            See the license note at the end of the file.
 
 

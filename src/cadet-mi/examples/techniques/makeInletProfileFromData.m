@@ -7,7 +7,7 @@ function makeInletProfileFromData()
 %
 %   See also BREAKTHROUGHLANGMUIRSINGLE.
 
-% Copyright: (C) 2008-2017 The CADET Authors
+% Copyright: (C) 2008-2018 The CADET Authors
 %            See the license note at the end of the file.
 
 	% Set up a general rate model
@@ -105,7 +105,7 @@ end
 % =============================================================================
 %  CADET - The Chromatography Analysis and Design Toolkit
 %  
-%  Copyright (C) 2008-2017: The CADET Authors
+%  Copyright (C) 2008-2018: The CADET Authors
 %            Please see the AUTHORS and CONTRIBUTORS file.
 %  
 %  All rights reserved. This program and the accompanying materials
