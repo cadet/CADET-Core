@@ -38,10 +38,15 @@ template <class ParamProvider_t, class StorageConfig_t>
 void readDataOutputConfig(ParamProvider_t& pp, StorageConfig_t& cfg, const std::string& dataType)
 {
 	// Configure data output
-	if (pp.exists("WRITE_" + dataType + "_COLUMN"))
-		cfg.storeColumn = pp.getBool("WRITE_" + dataType + "_COLUMN");
+	if (pp.exists("WRITE_" + dataType + "_BULK"))
+		cfg.storeBulk = pp.getBool("WRITE_" + dataType + "_BULK");
 	else
-		cfg.storeColumn = false;
+	{
+		if (pp.exists("WRITE_" + dataType + "_COLUMN"))
+			cfg.storeBulk = pp.getBool("WRITE_" + dataType + "_COLUMN");
+		else
+			cfg.storeBulk = false;
+	}
 
 	if (pp.exists("WRITE_" + dataType + "_PARTICLE"))
 		cfg.storeParticle = pp.getBool("WRITE_" + dataType + "_PARTICLE");

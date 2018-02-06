@@ -214,7 +214,7 @@ inline void parseAndWriteOutputFormatInternal(Writer_t& writer, const std::strin
 				break;
 		}
 	}
-	writer.template scalar<int>("WRITE_" + prefix + "_COLUMN", bulk);
+	writer.template scalar<int>("WRITE_" + prefix + "_BULK", bulk);
 	writer.template scalar<int>("WRITE_" + prefix + "_PARTICLE", particle);
 	writer.template scalar<int>("WRITE_" + prefix + "_FLUX", flux);
 	writer.template scalar<int>("WRITE_" + prefix + "_INLET", inlet);

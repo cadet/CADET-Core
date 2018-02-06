@@ -161,7 +161,7 @@ protected:
 		virtual unsigned int numBoundStates() const CADET_NOEXCEPT { return 0; }
 		virtual unsigned int const* numBoundStatesPerComponent() const CADET_NOEXCEPT { return nullptr; }
 		virtual unsigned int numBoundStates(unsigned int comp) const CADET_NOEXCEPT { return 0; }
-		virtual unsigned int numColumnDofs() const CADET_NOEXCEPT { return _nComp; }
+		virtual unsigned int numBulkDofs() const CADET_NOEXCEPT { return _nComp; }
 		virtual unsigned int numParticleMobilePhaseDofs() const CADET_NOEXCEPT { return 0; }
 		virtual unsigned int numSolidPhaseDofs() const CADET_NOEXCEPT { return 0; }
 		virtual unsigned int numFluxDofs() const CADET_NOEXCEPT { return 0; }

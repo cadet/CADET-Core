@@ -121,10 +121,10 @@ public:
 	virtual unsigned int numBoundStates(unsigned int comp) const CADET_NOEXCEPT = 0;
 
 	/**
-	 * @brief Returns the total number of DOFs in the column / interstitial bulk volume
-	 * @return Number of column / main DOFs
+	 * @brief Returns the total number of DOFs in the interstitial bulk volume
+	 * @return Number of main / bulk DOFs
 	 */
-	virtual unsigned int numColumnDofs() const CADET_NOEXCEPT = 0;
+	virtual unsigned int numBulkDofs() const CADET_NOEXCEPT = 0;
 
 	/**
 	 * @brief Returns the total number of mobile phase DOFs in the particles, if particles are supported

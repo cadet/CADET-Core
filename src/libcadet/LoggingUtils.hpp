@@ -47,7 +47,7 @@ namespace log
 	inline std::ostream& operator<<(std::ostream& os, const cadet::ISolutionExporter& v)
 	{
 		os << "bulk = [";
-		const unsigned int nColDof = v.numColumnDofs();
+		const unsigned int nColDof = v.numBulkDofs();
 		if (nColDof > 0)
 		{
 			double const* colPtr = v.concentration();

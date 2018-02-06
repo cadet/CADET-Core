@@ -506,7 +506,7 @@ json createLWEJson(const std::string& uoType)
 		ret["WRITE_SOLUTION_TIMES"] = true;
 	
 		json grm;
-		grm["WRITE_SOLUTION_COLUMN"] = false;
+		grm["WRITE_SOLUTION_BULK"] = false;
 		grm["WRITE_SOLUTION_PARTICLE"] = false;
 		grm["WRITE_SOLUTION_FLUX"] = false;
 		grm["WRITE_SOLUTION_INLET"] = true;
@@ -722,7 +722,7 @@ cadet::JsonParameterProvider createLinearBenchmark(bool dynamicBinding, bool non
 		ret["WRITE_SOLUTION_TIMES"] = true;
 	
 		json grm;
-		grm["WRITE_SOLUTION_COLUMN"] = false;
+		grm["WRITE_SOLUTION_BULK"] = false;
 		grm["WRITE_SOLUTION_PARTICLE"] = false;
 		grm["WRITE_SOLUTION_FLUX"] = false;
 		grm["WRITE_SOLUTION_INLET"] = true;
@@ -903,7 +903,7 @@ cadet::JsonParameterProvider createCSTRBenchmark(unsigned int nSec, double endTi
 		ret["WRITE_SOLUTION_TIMES"] = true;
 	
 		json cstr;
-		cstr["WRITE_SOLUTION_COLUMN"] = false;
+		cstr["WRITE_SOLUTION_BULK"] = false;
 		cstr["WRITE_SOLUTION_SOLID"] = true;
 		cstr["WRITE_SOLUTION_FLUX"] = false;
 		cstr["WRITE_SOLUTION_INLET"] = true;

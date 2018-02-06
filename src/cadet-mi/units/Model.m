@@ -29,28 +29,28 @@ classdef Model < handle & matlab.mixin.Heterogeneous
 		unitOpIdx; % Index of this unit operation in a system (0-based)
 		returnSolutionInlet; % Determines whether the solution at the inlet is returned
 		returnSolutionOutlet; % Determines whether the solution at the outlet is returned
-		returnSolutionColumn; % Determines whether the solution in the bulk volume is returned
+		returnSolutionBulk; % Determines whether the solution in the bulk volume is returned
 		returnSolutionParticle; % Determines whether the solution in the particle mobile phase is returned
 		returnSolutionSolid; % Determines whether the solution in the solid phase is returned
 		returnSolutionFlux; % Determines whether the solution of the bulk-particle flux is returned
 		returnSolutionVolume; % Determines whether the solution of the volume DOFs is returned
 		returnSolDotInlet; % Determines whether the time derivative of the solution at the inlet is returned
 		returnSolDotOutlet; % Determines whether the time derivative of the solution at the outlet is returned
-		returnSolDotColumn; % Determines whether the time derivative of the solution in the bulk volume is returned
+		returnSolDotBulk; % Determines whether the time derivative of the solution in the bulk volume is returned
 		returnSolDotParticle; % Determines whether the time derivative of the solution in the particle mobile phase is returned
 		returnSolDotSolid; % Determines whether the time derivative of the solution in the solid phase is returned
 		returnSolDotFlux; % Determines whether the time derivative of the solution of the bulk-particle flux is returned
 		returnSolDotVolume; % Determines whether the time derivative of the solution of the volume DOFs is returned
 		returnSensInlet; % Determines whether the sensitivities at the inlet are returned
 		returnSensOutlet; % Determines whether the sensitivities at the outlet are returned
-		returnSensColumn; % Determines whether the sensitivities in the bulk volume are returned
+		returnSensBulk; % Determines whether the sensitivities in the bulk volume are returned
 		returnSensParticle; % Determines whether the sensitivities in the particle mobile phase are returned
 		returnSensSolid; % Determines whether the sensitivities in the solid phase are returned
 		returnSensFlux; % Determines whether the sensitivities of the bulk-particle fluxes are returned
 		returnSensVolume; % Determines whether the sensitivities of the volume DOFs are returned
 		returnSensDotInlet; % Determines whether the time derivatives of the sensitivities at the inlet are returned
 		returnSensDotOutlet; % Determines whether the time derivatives of the sensitivities at the outlet are returned
-		returnSensDotColumn; % Determines whether the time derivatives of the sensitivities in the bulk volume are returned
+		returnSensDotBulk; % Determines whether the time derivatives of the sensitivities in the bulk volume are returned
 		returnSensDotParticle; % Determines whether the time derivatives of the sensitivities in the particle mobile phase are returned
 		returnSensDotSolid; % Determines whether the time derivatives of the sensitivities in the solid phase are returned
 		returnSensDotFlux; % Determines whether the time derivatives of the sensitivities of the bulk-particle fluxes are returned
@@ -71,7 +71,7 @@ classdef Model < handle & matlab.mixin.Heterogeneous
 
 			obj.returnSolutionInlet = false;
 			obj.returnSolutionOutlet = true;
-			obj.returnSolutionColumn = false;
+			obj.returnSolutionBulk = false;
 			obj.returnSolutionParticle = false;
 			obj.returnSolutionSolid = false;
 			obj.returnSolutionFlux = false;
@@ -79,7 +79,7 @@ classdef Model < handle & matlab.mixin.Heterogeneous
 
 			obj.returnSolDotInlet = false;
 			obj.returnSolDotOutlet = false;
-			obj.returnSolDotColumn = false;
+			obj.returnSolDotBulk = false;
 			obj.returnSolDotParticle = false;
 			obj.returnSolDotSolid = false;
 			obj.returnSolDotFlux = false;
@@ -87,7 +87,7 @@ classdef Model < handle & matlab.mixin.Heterogeneous
 
 			obj.returnSensInlet = false;
 			obj.returnSensOutlet = true;
-			obj.returnSensColumn = false;
+			obj.returnSensBulk = false;
 			obj.returnSensParticle = false;
 			obj.returnSensSolid = false;
 			obj.returnSensFlux = false;
@@ -95,7 +95,7 @@ classdef Model < handle & matlab.mixin.Heterogeneous
 
 			obj.returnSensDotInlet = false;
 			obj.returnSensDotOutlet = false;
-			obj.returnSensDotColumn = false;
+			obj.returnSensDotBulk = false;
 			obj.returnSensDotParticle = false;
 			obj.returnSensDotSolid = false;
 			obj.returnSensDotFlux = false;
@@ -120,7 +120,7 @@ classdef Model < handle & matlab.mixin.Heterogeneous
 
 			validateattributes(obj.returnSolutionInlet, {'logical'}, {'scalar', 'nonempty'}, '', 'returnSolutionInlet');
 			validateattributes(obj.returnSolutionOutlet, {'logical'}, {'scalar', 'nonempty'}, '', 'returnSolutionOutlet');
-			validateattributes(obj.returnSolutionColumn, {'logical'}, {'scalar', 'nonempty'}, '', 'returnSolutionColumn');
+			validateattributes(obj.returnSolutionBulk, {'logical'}, {'scalar', 'nonempty'}, '', 'returnSolutionBulk');
 			validateattributes(obj.returnSolutionParticle, {'logical'}, {'scalar', 'nonempty'}, '', 'returnSolutionParticle');
 			validateattributes(obj.returnSolutionSolid, {'logical'}, {'scalar', 'nonempty'}, '', 'returnSolutionSolid');
 			validateattributes(obj.returnSolutionFlux, {'logical'}, {'scalar', 'nonempty'}, '', 'returnSolutionFlux');
@@ -128,7 +128,7 @@ classdef Model < handle & matlab.mixin.Heterogeneous
 
 			validateattributes(obj.returnSolDotInlet, {'logical'}, {'scalar', 'nonempty'}, '', 'returnSolDotInlet');
 			validateattributes(obj.returnSolDotOutlet, {'logical'}, {'scalar', 'nonempty'}, '', 'returnSolDotOutlet');
-			validateattributes(obj.returnSolDotColumn, {'logical'}, {'scalar', 'nonempty'}, '', 'returnSolDotColumn');
+			validateattributes(obj.returnSolDotBulk, {'logical'}, {'scalar', 'nonempty'}, '', 'returnSolDotBulk');
 			validateattributes(obj.returnSolDotParticle, {'logical'}, {'scalar', 'nonempty'}, '', 'returnSolDotParticle');
 			validateattributes(obj.returnSolDotSolid, {'logical'}, {'scalar', 'nonempty'}, '', 'returnSolDotSolid');
 			validateattributes(obj.returnSolDotFlux, {'logical'}, {'scalar', 'nonempty'}, '', 'returnSolDotFlux');
@@ -136,7 +136,7 @@ classdef Model < handle & matlab.mixin.Heterogeneous
 
 			validateattributes(obj.returnSensInlet, {'logical'}, {'scalar', 'nonempty'}, '', 'returnSensInlet');
 			validateattributes(obj.returnSensOutlet, {'logical'}, {'scalar', 'nonempty'}, '', 'returnSensOutlet');
-			validateattributes(obj.returnSensColumn, {'logical'}, {'scalar', 'nonempty'}, '', 'returnSensColumn');
+			validateattributes(obj.returnSensBulk, {'logical'}, {'scalar', 'nonempty'}, '', 'returnSensBulk');
 			validateattributes(obj.returnSensParticle, {'logical'}, {'scalar', 'nonempty'}, '', 'returnSensParticle');
 			validateattributes(obj.returnSensSolid, {'logical'}, {'scalar', 'nonempty'}, '', 'returnSensSolid');
 			validateattributes(obj.returnSensFlux, {'logical'}, {'scalar', 'nonempty'}, '', 'returnSensFlux');
@@ -144,7 +144,7 @@ classdef Model < handle & matlab.mixin.Heterogeneous
 
 			validateattributes(obj.returnSensDotInlet, {'logical'}, {'scalar', 'nonempty'}, '', 'returnSensDotInlet');
 			validateattributes(obj.returnSensDotOutlet, {'logical'}, {'scalar', 'nonempty'}, '', 'returnSensDotOutlet');
-			validateattributes(obj.returnSensDotColumn, {'logical'}, {'scalar', 'nonempty'}, '', 'returnSensDotColumn');
+			validateattributes(obj.returnSensDotBulk, {'logical'}, {'scalar', 'nonempty'}, '', 'returnSensDotBulk');
 			validateattributes(obj.returnSensDotParticle, {'logical'}, {'scalar', 'nonempty'}, '', 'returnSensDotParticle');
 			validateattributes(obj.returnSensDotSolid, {'logical'}, {'scalar', 'nonempty'}, '', 'returnSensDotSolid');
 			validateattributes(obj.returnSensDotFlux, {'logical'}, {'scalar', 'nonempty'}, '', 'returnSensDotFlux');
@@ -178,7 +178,7 @@ classdef Model < handle & matlab.mixin.Heterogeneous
 
 			res.WRITE_SOLUTION_INLET = int32(logical(obj.returnSolutionInlet));
 			res.WRITE_SOLUTION_OUTLET = int32(logical(obj.returnSolutionOutlet));
-			res.WRITE_SOLUTION_COLUMN = int32(logical(obj.returnSolutionColumn));
+			res.WRITE_SOLUTION_BULK = int32(logical(obj.returnSolutionBulk));
 			res.WRITE_SOLUTION_PARTICLE = int32(logical(obj.returnSolutionParticle));
 			res.WRITE_SOLUTION_SOLID = int32(logical(obj.returnSolutionSolid));
 			res.WRITE_SOLUTION_FLUX = int32(logical(obj.returnSolutionFlux));
@@ -186,7 +186,7 @@ classdef Model < handle & matlab.mixin.Heterogeneous
 
 			res.WRITE_SOLDOT_INLET = int32(logical(obj.returnSolDotInlet));
 			res.WRITE_SOLDOT_OUTLET = int32(logical(obj.returnSolDotOutlet));
-			res.WRITE_SOLDOT_COLUMN = int32(logical(obj.returnSolDotColumn));
+			res.WRITE_SOLDOT_BULK = int32(logical(obj.returnSolDotBulk));
 			res.WRITE_SOLDOT_PARTICLE = int32(logical(obj.returnSolDotParticle));
 			res.WRITE_SOLDOT_SOLID = int32(logical(obj.returnSolDotSolid));
 			res.WRITE_SOLDOT_FLUX = int32(logical(obj.returnSolDotFlux));
@@ -194,7 +194,7 @@ classdef Model < handle & matlab.mixin.Heterogeneous
 
 			res.WRITE_SENS_INLET = int32(logical(obj.returnSensInlet));
 			res.WRITE_SENS_OUTLET = int32(logical(obj.returnSensOutlet));
-			res.WRITE_SENS_COLUMN = int32(logical(obj.returnSensColumn));
+			res.WRITE_SENS_BULK = int32(logical(obj.returnSensBulk));
 			res.WRITE_SENS_PARTICLE = int32(logical(obj.returnSensParticle));
 			res.WRITE_SENS_SOLID = int32(logical(obj.returnSensSolid));
 			res.WRITE_SENS_FLUX = int32(logical(obj.returnSensFlux));
@@ -202,7 +202,7 @@ classdef Model < handle & matlab.mixin.Heterogeneous
 
 			res.WRITE_SENSDOT_INLET = int32(logical(obj.returnSensDotInlet));
 			res.WRITE_SENSDOT_OUTLET = int32(logical(obj.returnSensDotOutlet));
-			res.WRITE_SENSDOT_COLUMN = int32(logical(obj.returnSensDotColumn));
+			res.WRITE_SENSDOT_BULK = int32(logical(obj.returnSensDotBulk));
 			res.WRITE_SENSDOT_PARTICLE = int32(logical(obj.returnSensDotParticle));
 			res.WRITE_SENSDOT_SOLID = int32(logical(obj.returnSensDotSolid));
 			res.WRITE_SENSDOT_FLUX = int32(logical(obj.returnSensDotFlux));
@@ -235,7 +235,7 @@ classdef Model < handle & matlab.mixin.Heterogeneous
 
 			S.returnSolutionInlet = obj.returnSolutionInlet;
 			S.returnSolutionOutlet = obj.returnSolutionOutlet;
-			S.returnSolutionColumn = obj.returnSolutionColumn;
+			S.returnSolutionBulk = obj.returnSolutionBulk;
 			S.returnSolutionParticle = obj.returnSolutionParticle;
 			S.returnSolutionSolid = obj.returnSolutionSolid;
 			S.returnSolutionFlux = obj.returnSolutionFlux;
@@ -243,7 +243,7 @@ classdef Model < handle & matlab.mixin.Heterogeneous
 
 			S.returnSolDotInlet = obj.returnSolDotInlet;
 			S.returnSolDotOutlet = obj.returnSolDotOutlet;
-			S.returnSolDotColumn = obj.returnSolDotColumn;
+			S.returnSolDotBulk = obj.returnSolDotBulk;
 			S.returnSolDotParticle = obj.returnSolDotParticle;
 			S.returnSolDotSolid = obj.returnSolDotSolid;
 			S.returnSolDotFlux = obj.returnSolDotFlux;
@@ -251,7 +251,7 @@ classdef Model < handle & matlab.mixin.Heterogeneous
 
 			S.returnSensInlet = obj.returnSensInlet;
 			S.returnSensOutlet = obj.returnSensOutlet;
-			S.returnSensColumn = obj.returnSensColumn;
+			S.returnSensBulk = obj.returnSensBulk;
 			S.returnSensParticle = obj.returnSensParticle;
 			S.returnSensSolid = obj.returnSensSolid;
 			S.returnSensFlux = obj.returnSensFlux;
@@ -259,7 +259,7 @@ classdef Model < handle & matlab.mixin.Heterogeneous
 
 			S.returnSensDotInlet = obj.returnSensDotInlet;
 			S.returnSensDotOutlet = obj.returnSensDotOutlet;
-			S.returnSensDotColumn = obj.returnSensDotColumn;
+			S.returnSensDotBulk = obj.returnSensDotBulk;
 			S.returnSensDotParticle = obj.returnSensDotParticle;
 			S.returnSensDotSolid = obj.returnSensDotSolid;
 			S.returnSensDotFlux = obj.returnSensDotFlux;
@@ -322,7 +322,7 @@ classdef Model < handle & matlab.mixin.Heterogeneous
 
 			obj.returnSolutionInlet = S.returnSolutionInlet;
 			obj.returnSolutionOutlet = S.returnSolutionOutlet;
-			obj.returnSolutionColumn = S.returnSolutionColumn;
+			obj.returnSolutionBulk = S.returnSolutionBulk;
 			obj.returnSolutionParticle = S.returnSolutionParticle;
 			obj.returnSolutionSolid = S.returnSolutionSolid;
 			obj.returnSolutionFlux = S.returnSolutionFlux;
@@ -330,7 +330,7 @@ classdef Model < handle & matlab.mixin.Heterogeneous
 
 			obj.returnSolDotInlet = S.returnSolDotInlet;
 			obj.returnSolDotOutlet = S.returnSolDotOutlet;
-			obj.returnSolDotColumn = S.returnSolDotColumn;
+			obj.returnSolDotBulk = S.returnSolDotBulk;
 			obj.returnSolDotParticle = S.returnSolDotParticle;
 			obj.returnSolDotSolid = S.returnSolDotSolid;
 			obj.returnSolDotFlux = S.returnSolDotFlux;
@@ -338,7 +338,7 @@ classdef Model < handle & matlab.mixin.Heterogeneous
 
 			obj.returnSensInlet = S.returnSensInlet;
 			obj.returnSensOutlet = S.returnSensOutlet;
-			obj.returnSensColumn = S.returnSensColumn;
+			obj.returnSensBulk = S.returnSensBulk;
 			obj.returnSensParticle = S.returnSensParticle;
 			obj.returnSensSolid = S.returnSensSolid;
 			obj.returnSensFlux = S.returnSensFlux;
@@ -346,7 +346,7 @@ classdef Model < handle & matlab.mixin.Heterogeneous
 
 			obj.returnSensDotInlet = S.returnSensDotInlet;
 			obj.returnSensDotOutlet = S.returnSensDotOutlet;
-			obj.returnSensDotColumn = S.returnSensDotColumn;
+			obj.returnSensDotBulk = S.returnSensDotBulk;
 			obj.returnSensDotParticle = S.returnSensDotParticle;
 			obj.returnSensDotSolid = S.returnSensDotSolid;
 			obj.returnSensDotFlux = S.returnSensDotFlux;

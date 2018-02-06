@@ -57,8 +57,8 @@ classdef ResultsHelper
 			out.solution.inlet = cell(maxReturnUnit, 1);
 			out.solution.inletDot = cell(maxReturnUnit, 1);
 			
-			out.solution.column = cell(maxReturnUnit, 1);
-			out.solution.columnDot = cell(maxReturnUnit, 1);
+			out.solution.bulk = cell(maxReturnUnit, 1);
+			out.solution.bulkDot = cell(maxReturnUnit, 1);
 			out.solution.particle = cell(maxReturnUnit, 1);
 			out.solution.particleDot = cell(maxReturnUnit, 1);
 			out.solution.solid = cell(maxReturnUnit, 1);
@@ -105,8 +105,8 @@ classdef ResultsHelper
 						out.solution.inletDot{i} = switchStorageOrdering(curRes.SOLDOT_INLET);
 					end
 
-					if isfield(curRes, 'SOLUTION_COLUMN')
-						out.solution.column{i} = switchStorageOrdering(curRes.SOLUTION_COLUMN);
+					if isfield(curRes, 'SOLUTION_BULK')
+						out.solution.bulk{i} = switchStorageOrdering(curRes.SOLUTION_BULK);
 					end
 
 					if isfield(curRes, 'SOLUTION_PARTICLE')
@@ -125,8 +125,8 @@ classdef ResultsHelper
 						out.solution.volume{i} = switchStorageOrdering(curRes.SOLUTION_VOLUME);
 					end
 
-					if isfield(curRes, 'SOLDOT_COLUMN')
-						out.solution.columnDot{i} = switchStorageOrdering(curRes.SOLDOT_COLUMN);
+					if isfield(curRes, 'SOLDOT_BULK')
+						out.solution.bulkDot{i} = switchStorageOrdering(curRes.SOLDOT_BULK);
 					end
 
 					if isfield(curRes, 'SOLDOT_PARTICLE')
@@ -173,8 +173,8 @@ classdef ResultsHelper
 			out.sensitivity.inlet = cell(maxReturnUnitSens, 1);
 			out.sensitivity.inletDot = cell(maxReturnUnitSens, 1);
 
-			out.sensitivity.column = cell(maxReturnUnitSens, 1);
-			out.sensitivity.columnDot = cell(maxReturnUnitSens, 1);
+			out.sensitivity.bulk = cell(maxReturnUnitSens, 1);
+			out.sensitivity.bulkDot = cell(maxReturnUnitSens, 1);
 			out.sensitivity.particle = cell(maxReturnUnitSens, 1);
 			out.sensitivity.particleDot = cell(maxReturnUnitSens, 1);
 			out.sensitivity.solid = cell(maxReturnUnitSens, 1);
@@ -266,19 +266,19 @@ classdef ResultsHelper
 					out.sensitivity.inletDot{i} = data;
 				end
 
-				if isfield(curUnit, 'SENS_COLUMN')
-					data = zeros([size(curUnit.SENS_COLUMN), maxParams]);
-					stride = numel(curUnit.SENS_COLUMN);
+				if isfield(curUnit, 'SENS_BULK')
+					data = zeros([size(curUnit.SENS_BULK), maxParams]);
+					stride = numel(curUnit.SENS_BULK);
 					for p = 1:maxParams
 						if ~isfield(res.sensitivity, sprintf('param_%03d', p-1))
 							continue;
 						end
 
 						curRes = res.sensitivity.(sprintf('param_%03d', p-1)).(sprintf('unit_%03d', i-1));
-						temp = switchStorageOrdering(curRes.SENS_COLUMN);
+						temp = switchStorageOrdering(curRes.SENS_BULK);
 						data((p-1)*stride+1:p*stride) = temp(:);
 					end
-					out.sensitivity.column{i} = data;
+					out.sensitivity.bulk{i} = data;
 				end
 
 				if isfield(curUnit, 'SENS_PARTICLE')
@@ -341,19 +341,19 @@ classdef ResultsHelper
 					out.sensitivity.volume{i} = data;
 				end
 
-				if isfield(curUnit, 'SENSDOT_COLUMN')
-					data = zeros([size(curUnit.SENSDOT_COLUMN), maxParams]);
-					stride = numel(curUnit.SENSDOT_COLUMN);
+				if isfield(curUnit, 'SENSDOT_BULK')
+					data = zeros([size(curUnit.SENSDOT_BULK), maxParams]);
+					stride = numel(curUnit.SENSDOT_BULK);
 					for p = 1:maxParams
 						if ~isfield(res.sensitivity, sprintf('param_%03d', p-1))
 							continue;
 						end
 
 						curRes = res.sensitivity.(sprintf('param_%03d', p-1)).(sprintf('unit_%03d', i-1));
-						temp = switchStorageOrdering(curRes.SENSDOT_COLUMN);
+						temp = switchStorageOrdering(curRes.SENSDOT_BULK);
 						data((p-1)*stride+1:p*stride) = temp(:);
 					end
-					out.sensitivity.columnDot{i} = data;
+					out.sensitivity.bulkDot{i} = data;
 				end
 
 				if isfield(curUnit, 'SENSDOT_PARTICLE')

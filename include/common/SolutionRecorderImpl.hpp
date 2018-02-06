@@ -37,7 +37,7 @@ public:
 
 	struct StorageConfig
 	{
-		bool storeColumn;
+		bool storeBulk;
 		bool storeParticle;
 		bool storeSolid;
 		bool storeFlux;
@@ -61,7 +61,7 @@ public:
 		{
 			delete _sensOutlet[i];
 			delete _sensInlet[i];
-			delete _sensColumn[i];
+			delete _sensBulk[i];
 			delete _sensParticle[i];
 			delete _sensSolid[i];
 			delete _sensFlux[i];
@@ -69,7 +69,7 @@ public:
 
 			delete _sensOutletDot[i];
 			delete _sensInletDot[i];
-			delete _sensColumnDot[i];
+			delete _sensBulkDot[i];
 			delete _sensParticleDot[i];
 			delete _sensSolidDot[i];
 			delete _sensFluxDot[i];
@@ -83,7 +83,7 @@ public:
 		_time.clear();
 		_outlet.clear();
 		_inlet.clear();
-		_column.clear();
+		_bulk.clear();
 		_particle.clear();
 		_solid.clear();
 		_flux.clear();
@@ -91,7 +91,7 @@ public:
 
 		_outletDot.clear();
 		_inletDot.clear();
-		_columnDot.clear();
+		_bulkDot.clear();
 		_particleDot.clear();
 		_solidDot.clear();
 		_fluxDot.clear();
@@ -102,7 +102,7 @@ public:
 		{
 			_sensOutlet[i]->clear();
 			_sensInlet[i]->clear();
-			_sensColumn[i]->clear();
+			_sensBulk[i]->clear();
 			_sensParticle[i]->clear();
 			_sensSolid[i]->clear();
 			_sensFlux[i]->clear();
@@ -110,7 +110,7 @@ public:
 
 			_sensOutletDot[i]->clear();
 			_sensInletDot[i]->clear();
-			_sensColumnDot[i]->clear();
+			_sensBulkDot[i]->clear();
 			_sensParticleDot[i]->clear();
 			_sensSolidDot[i]->clear();
 			_sensFluxDot[i]->clear();
@@ -126,7 +126,7 @@ public:
 		// Allocate sensitivity storage
 		_sensOutlet.resize(numSens, nullptr);
 		_sensInlet.resize(numSens, nullptr);
-		_sensColumn.resize(numSens, nullptr);
+		_sensBulk.resize(numSens, nullptr);
 		_sensParticle.resize(numSens, nullptr);
 		_sensSolid.resize(numSens, nullptr);
 		_sensFlux.resize(numSens, nullptr);
@@ -134,7 +134,7 @@ public:
 
 		_sensOutletDot.resize(numSens, nullptr);
 		_sensInletDot.resize(numSens, nullptr);
-		_sensColumnDot.resize(numSens, nullptr);
+		_sensBulkDot.resize(numSens, nullptr);
 		_sensParticleDot.resize(numSens, nullptr);
 		_sensSolidDot.resize(numSens, nullptr);
 		_sensFluxDot.resize(numSens, nullptr);
@@ -144,7 +144,7 @@ public:
 		{
 			_sensOutlet[i] = new std::vector<double>();
 			_sensInlet[i] = new std::vector<double>();
-			_sensColumn[i] = new std::vector<double>();
+			_sensBulk[i] = new std::vector<double>();
 			_sensParticle[i] = new std::vector<double>();
 			_sensSolid[i] = new std::vector<double>();
 			_sensFlux[i] = new std::vector<double>();
@@ -152,7 +152,7 @@ public:
 
 			_sensOutletDot[i] = new std::vector<double>();
 			_sensInletDot[i] = new std::vector<double>();
-			_sensColumnDot[i] = new std::vector<double>();
+			_sensBulkDot[i] = new std::vector<double>();
 			_sensParticleDot[i] = new std::vector<double>();
 			_sensSolidDot[i] = new std::vector<double>();
 			_sensFluxDot[i] = new std::vector<double>();
@@ -178,7 +178,7 @@ public:
 			{
 				delete _sensOutlet[i];
 				delete _sensInlet[i];
-				delete _sensColumn[i];
+				delete _sensBulk[i];
 				delete _sensParticle[i];
 				delete _sensSolid[i];
 				delete _sensFlux[i];
@@ -186,7 +186,7 @@ public:
 
 				delete _sensOutletDot[i];
 				delete _sensInletDot[i];
-				delete _sensColumnDot[i];
+				delete _sensBulkDot[i];
 				delete _sensParticleDot[i];
 				delete _sensSolidDot[i];
 				delete _sensFluxDot[i];
@@ -198,8 +198,8 @@ public:
 			_sensOutlet.resize(numSens, nullptr);
 			_sensInlet.clear();
 			_sensInlet.resize(numSens, nullptr);
-			_sensColumn.clear();
-			_sensColumn.resize(numSens, nullptr);
+			_sensBulk.clear();
+			_sensBulk.resize(numSens, nullptr);
 			_sensParticle.clear();
 			_sensParticle.resize(numSens, nullptr);
 			_sensSolid.clear();
@@ -213,8 +213,8 @@ public:
 			_sensOutletDot.resize(numSens, nullptr);
 			_sensInletDot.clear();
 			_sensInletDot.resize(numSens, nullptr);
-			_sensColumnDot.clear();
-			_sensColumnDot.resize(numSens, nullptr);
+			_sensBulkDot.clear();
+			_sensBulkDot.resize(numSens, nullptr);
 			_sensParticleDot.clear();
 			_sensParticleDot.resize(numSens, nullptr);
 			_sensSolidDot.clear();
@@ -229,7 +229,7 @@ public:
 			{
 				_sensOutlet[i] = new std::vector<double>();
 				_sensInlet[i] = new std::vector<double>();
-				_sensColumn[i] = new std::vector<double>();
+				_sensBulk[i] = new std::vector<double>();
 				_sensParticle[i] = new std::vector<double>();
 				_sensSolid[i] = new std::vector<double>();
 				_sensFlux[i] = new std::vector<double>();
@@ -237,7 +237,7 @@ public:
 
 				_sensOutletDot[i] = new std::vector<double>();
 				_sensInletDot[i] = new std::vector<double>();
-				_sensColumnDot[i] = new std::vector<double>();
+				_sensBulkDot[i] = new std::vector<double>();
 				_sensParticleDot[i] = new std::vector<double>();
 				_sensSolidDot[i] = new std::vector<double>();
 				_sensFluxDot[i] = new std::vector<double>();
@@ -260,19 +260,19 @@ public:
 		// Query structure
 		unsigned int len = 0;
 		StateOrdering const* order = exporter.concentrationOrdering(len);
-		_columnLayout.clear();
-		_columnLayout.reserve(len + 1); // First slot is time
-		_columnLayout.push_back(0);
+		_bulkLayout.clear();
+		_bulkLayout.reserve(len + 1); // First slot is time
+		_bulkLayout.push_back(0);
 		_bulkCount = 1;
 		for (unsigned int i = 0; i < len; ++i)
 		{
 			switch (order[i])
 			{
 				case StateOrdering::Component:
-					_columnLayout.push_back(exporter.numComponents());
+					_bulkLayout.push_back(exporter.numComponents());
 					break;
 				case StateOrdering::AxialCell:
-					_columnLayout.push_back(exporter.numAxialCells());
+					_bulkLayout.push_back(exporter.numAxialCells());
 					_bulkCount *= exporter.numAxialCells();
 					break;
 				case StateOrdering::RadialCell:
@@ -419,11 +419,11 @@ public:
 				_curInlet->push_back(inlet[i * stride]);
 		}
 
-		if (_curCfg->storeColumn)
+		if (_curCfg->storeBulk)
 		{
 			double const* data = exporter.concentration();
 			stride = exporter.bulkMobilePhaseStride();
-			const unsigned int blockSize = exporter.numColumnDofs() / _bulkCount;
+			const unsigned int blockSize = exporter.numBulkDofs() / _bulkCount;
 			for (unsigned int i = 0; i < _bulkCount; ++i, data += stride)
 			{
 				_curBulk->insert(_curBulk->end(), data, data + blockSize);
@@ -474,7 +474,7 @@ public:
 		_curCfg = &_cfgSolution;
 		_curOutlet = &_outlet;
 		_curInlet = &_inlet;
-		_curBulk = &_column;
+		_curBulk = &_bulk;
 		_curParticle = &_particle;
 		_curSolid = &_solid;
 		_curFlux = &_flux;
@@ -498,7 +498,7 @@ public:
 		_curCfg = &_cfgSolutionDot;
 		_curOutlet = &_outletDot;
 		_curInlet = &_inletDot;
-		_curBulk = &_columnDot;
+		_curBulk = &_bulkDot;
 		_curParticle = &_particleDot;
 		_curSolid = &_solidDot;
 		_curFlux = &_fluxDot;
@@ -612,28 +612,28 @@ public:
 	inline double const* time() const CADET_NOEXCEPT { return _time.data(); }
 	inline double const* inlet() const CADET_NOEXCEPT { return _inlet.data(); }
 	inline double const* outlet() const CADET_NOEXCEPT { return _outlet.data(); }
-	inline double const* column() const CADET_NOEXCEPT { return _column.data(); }
+	inline double const* bulk() const CADET_NOEXCEPT { return _bulk.data(); }
 	inline double const* particle() const CADET_NOEXCEPT { return _particle.data(); }
 	inline double const* solid() const CADET_NOEXCEPT { return _solid.data(); }
 	inline double const* flux() const CADET_NOEXCEPT { return _flux.data(); }
 	inline double const* volume() const CADET_NOEXCEPT { return _volume.data(); }
 	inline double const* inletDot() const CADET_NOEXCEPT { return _inletDot.data(); }
 	inline double const* outletDot() const CADET_NOEXCEPT { return _outletDot.data(); }
-	inline double const* columnDot() const CADET_NOEXCEPT { return _columnDot.data(); }
+	inline double const* bulkDot() const CADET_NOEXCEPT { return _bulkDot.data(); }
 	inline double const* particleDot() const CADET_NOEXCEPT { return _particleDot.data(); }
 	inline double const* solidDot() const CADET_NOEXCEPT { return _solidDot.data(); }
 	inline double const* fluxDot() const CADET_NOEXCEPT { return _fluxDot.data(); }
 	inline double const* volumeDot() const CADET_NOEXCEPT { return _volumeDot.data(); }
 	inline double const* sensInlet(unsigned int idx) const CADET_NOEXCEPT { return _sensInlet[idx]->data(); }
 	inline double const* sensOutlet(unsigned int idx) const CADET_NOEXCEPT { return _sensOutlet[idx]->data(); }
-	inline double const* sensColumn(unsigned int idx) const CADET_NOEXCEPT { return _sensColumn[idx]->data(); }
+	inline double const* sensBulk(unsigned int idx) const CADET_NOEXCEPT { return _sensBulk[idx]->data(); }
 	inline double const* sensParticle(unsigned int idx) const CADET_NOEXCEPT { return _sensParticle[idx]->data(); }
 	inline double const* sensSolid(unsigned int idx) const CADET_NOEXCEPT { return _sensSolid[idx]->data(); }
 	inline double const* sensFlux(unsigned int idx) const CADET_NOEXCEPT { return _sensFlux[idx]->data(); }
 	inline double const* sensVolume(unsigned int idx) const CADET_NOEXCEPT { return _sensVolume[idx]->data(); }
 	inline double const* sensInletDot(unsigned int idx) const CADET_NOEXCEPT { return _sensInletDot[idx]->data(); }
 	inline double const* sensOutletDot(unsigned int idx) const CADET_NOEXCEPT { return _sensOutletDot[idx]->data(); }
-	inline double const* sensColumnDot(unsigned int idx) const CADET_NOEXCEPT { return _sensColumnDot[idx]->data(); }
+	inline double const* sensBulkDot(unsigned int idx) const CADET_NOEXCEPT { return _sensBulkDot[idx]->data(); }
 	inline double const* sensParticleDot(unsigned int idx) const CADET_NOEXCEPT { return _sensParticleDot[idx]->data(); }
 	inline double const* sensSolidDot(unsigned int idx) const CADET_NOEXCEPT { return _sensSolidDot[idx]->data(); }
 	inline double const* sensFluxDot(unsigned int idx) const CADET_NOEXCEPT { return _sensFluxDot[idx]->data(); }
@@ -645,7 +645,7 @@ protected:
 		_curCfg = &_cfgSensitivity;
 		_curOutlet = _sensOutlet[sensIdx];
 		_curInlet = _sensInlet[sensIdx];
-		_curBulk = _sensColumn[sensIdx];
+		_curBulk = _sensBulk[sensIdx];
 		_curParticle = _sensParticle[sensIdx];
 		_curSolid = _sensSolid[sensIdx];
 		_curFlux = _sensFlux[sensIdx];
@@ -657,7 +657,7 @@ protected:
 		_curCfg = &_cfgSensitivityDot;
 		_curOutlet = _sensOutletDot[sensIdx];
 		_curInlet = _sensInletDot[sensIdx];
-		_curBulk = _sensColumnDot[sensIdx];
+		_curBulk = _sensBulkDot[sensIdx];
 		_curParticle = _sensParticleDot[sensIdx];
 		_curSolid = _sensSolidDot[sensIdx];
 		_curFlux = _sensFluxDot[sensIdx];
@@ -681,8 +681,8 @@ protected:
 		if (_curCfg->storeInlet)
 			_curInlet->reserve(std::max(_numTimesteps, 100u) * _nComp);
 
-		if (_curCfg->storeColumn)
-			_curBulk->reserve(std::max(_numTimesteps, 100u) * exporter.numColumnDofs());
+		if (_curCfg->storeBulk)
+			_curBulk->reserve(std::max(_numTimesteps, 100u) * exporter.numBulkDofs());
 		
 		if (_curCfg->storeParticle)
 			_curParticle->reserve(std::max(_numTimesteps, 100u) * exporter.numParticleMobilePhaseDofs());
@@ -738,12 +738,12 @@ protected:
 			}
 		}
 
-		if (_curCfg->storeColumn)
+		if (_curCfg->storeBulk)
 		{
 			oss.str("");
-			oss << prefix << "_COLUMN";
-			_columnLayout[0] = _numTimesteps;
-			writer.template tensor<double>(oss.str(), _columnLayout.size(), _columnLayout.data(), _curBulk->data());
+			oss << prefix << "_BULK";
+			_bulkLayout[0] = _numTimesteps;
+			writer.template tensor<double>(oss.str(), _bulkLayout.size(), _bulkLayout.data(), _curBulk->data());
 		}
 
 		if (_curCfg->storeParticle)
@@ -798,7 +798,7 @@ protected:
 	std::vector<double> _time;
 	std::vector<double> _outlet;
 	std::vector<double> _inlet;
-	std::vector<double> _column;
+	std::vector<double> _bulk;
 	std::vector<double> _particle;
 	std::vector<double> _solid;
 	std::vector<double> _flux;
@@ -806,7 +806,7 @@ protected:
 
 	std::vector<double> _outletDot;
 	std::vector<double> _inletDot;
-	std::vector<double> _columnDot;
+	std::vector<double> _bulkDot;
 	std::vector<double> _particleDot;
 	std::vector<double> _solidDot;
 	std::vector<double> _fluxDot;
@@ -814,7 +814,7 @@ protected:
 
 	std::vector<std::vector<double>*> _sensOutlet;
 	std::vector<std::vector<double>*> _sensInlet;
-	std::vector<std::vector<double>*> _sensColumn;
+	std::vector<std::vector<double>*> _sensBulk;
 	std::vector<std::vector<double>*> _sensParticle;
 	std::vector<std::vector<double>*> _sensSolid;
 	std::vector<std::vector<double>*> _sensFlux;
@@ -822,13 +822,13 @@ protected:
 
 	std::vector<std::vector<double>*> _sensOutletDot;
 	std::vector<std::vector<double>*> _sensInletDot;
-	std::vector<std::vector<double>*> _sensColumnDot;
+	std::vector<std::vector<double>*> _sensBulkDot;
 	std::vector<std::vector<double>*> _sensParticleDot;
 	std::vector<std::vector<double>*> _sensSolidDot;
 	std::vector<std::vector<double>*> _sensFluxDot;
 	std::vector<std::vector<double>*> _sensVolumeDot;
 	
-	std::vector<std::size_t> _columnLayout;
+	std::vector<std::size_t> _bulkLayout;
 	std::vector<std::size_t> _particleLayout;
 	std::vector<std::size_t> _solidLayout;
 	std::vector<std::size_t> _fluxLayout;
