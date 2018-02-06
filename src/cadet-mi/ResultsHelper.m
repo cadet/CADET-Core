@@ -61,6 +61,8 @@ classdef ResultsHelper
 			out.solution.columnDot = cell(maxReturnUnit, 1);
 			out.solution.particle = cell(maxReturnUnit, 1);
 			out.solution.particleDot = cell(maxReturnUnit, 1);
+			out.solution.solid = cell(maxReturnUnit, 1);
+			out.solution.solidDot = cell(maxReturnUnit, 1);
 			out.solution.flux = cell(maxReturnUnit, 1);
 			out.solution.fluxDot = cell(maxReturnUnit, 1);
 			out.solution.volume = cell(maxReturnUnit, 1);
@@ -87,20 +89,20 @@ classdef ResultsHelper
 					end
 					curRes = res.solution.(sprintf('unit_%03d', i-1));
 
-					if isfield(curRes, 'SOLUTION_COLUMN_OUTLET')
-						out.solution.outlet{i} = switchStorageOrdering(curRes.SOLUTION_COLUMN_OUTLET);
+					if isfield(curRes, 'SOLUTION_OUTLET')
+						out.solution.outlet{i} = switchStorageOrdering(curRes.SOLUTION_OUTLET);
 					end
 
-					if isfield(curRes, 'SOLUTION_COLUMN_INLET')
-						out.solution.inlet{i} = switchStorageOrdering(curRes.SOLUTION_COLUMN_INLET);
+					if isfield(curRes, 'SOLUTION_INLET')
+						out.solution.inlet{i} = switchStorageOrdering(curRes.SOLUTION_INLET);
 					end
 
-					if isfield(curRes, 'SOLDOT_COLUMN_OUTLET')
-						out.solution.outletDot{i} = switchStorageOrdering(curRes.SOLDOT_COLUMN_OUTLET);
+					if isfield(curRes, 'SOLDOT_OUTLET')
+						out.solution.outletDot{i} = switchStorageOrdering(curRes.SOLDOT_OUTLET);
 					end
 
-					if isfield(curRes, 'SOLDOT_COLUMN_INLET')
-						out.solution.inletDot{i} = switchStorageOrdering(curRes.SOLDOT_COLUMN_INLET);
+					if isfield(curRes, 'SOLDOT_INLET')
+						out.solution.inletDot{i} = switchStorageOrdering(curRes.SOLDOT_INLET);
 					end
 
 					if isfield(curRes, 'SOLUTION_COLUMN')
@@ -111,8 +113,8 @@ classdef ResultsHelper
 						out.solution.particle{i} = switchStorageOrdering(curRes.SOLUTION_PARTICLE);
 					end
 
-					if isfield(curRes, 'SOLUTION_FLUX')
-						out.solution.flux{i} = switchStorageOrdering(curRes.SOLUTION_FLUX);
+					if isfield(curRes, 'SOLUTION_SOLID')
+						out.solution.solid{i} = switchStorageOrdering(curRes.SOLUTION_SOLID);
 					end
 
 					if isfield(curRes, 'SOLUTION_FLUX')
@@ -131,12 +133,12 @@ classdef ResultsHelper
 						out.solution.particleDot{i} = switchStorageOrdering(curRes.SOLDOT_PARTICLE);
 					end
 
-					if isfield(curRes, 'SOLDOT_FLUX')
-						out.solution.fluxDot{i} = switchStorageOrdering(curRes.SOLDOT_FLUX);
+					if isfield(curRes, 'SOLDOT_SOLID')
+						out.solution.solidDot{i} = switchStorageOrdering(curRes.SOLDOT_SOLID);
 					end
 
-					if isfield(curRes, 'SOLUTION_FLUX')
-						out.solution.flux{i} = switchStorageOrdering(curRes.SOLUTION_FLUX);
+					if isfield(curRes, 'SOLDOT_FLUX')
+						out.solution.fluxDot{i} = switchStorageOrdering(curRes.SOLDOT_FLUX);
 					end
 
 					if isfield(curRes, 'SOLDOT_VOLUME')
@@ -147,17 +149,17 @@ classdef ResultsHelper
 
 					% Extract multi field data
 					if isempty(out.solution.outlet{i})
-						out.solution.outlet{i} = MultiFields.extract(curRes, solNames, 'SOLUTION_COLUMN_OUTLET_COMP');
+						out.solution.outlet{i} = MultiFields.extract(curRes, solNames, 'SOLUTION_OUTLET_COMP');
 					end
 					if isempty(out.solution.outletDot{i})
-						out.solution.outletDot{i} = MultiFields.extract(curRes, solNames, 'SOLDOT_COLUMN_OUTLET_COMP');
+						out.solution.outletDot{i} = MultiFields.extract(curRes, solNames, 'SOLDOT_OUTLET_COMP');
 					end
 
 					if isempty(out.solution.inlet{i})
-						out.solution.inlet{i} = MultiFields.extract(curRes, solNames, 'SOLUTION_COLUMN_INLET_COMP');
+						out.solution.inlet{i} = MultiFields.extract(curRes, solNames, 'SOLUTION_INLET_COMP');
 					end
 					if isempty(out.solution.inletDot{i})
-						out.solution.inletDot{i} = MultiFields.extract(curRes, solNames, 'SOLDOT_COLUMN_INLET_COMP');
+						out.solution.inletDot{i} = MultiFields.extract(curRes, solNames, 'SOLDOT_INLET_COMP');
 					end
 				end
 
@@ -175,6 +177,8 @@ classdef ResultsHelper
 			out.sensitivity.columnDot = cell(maxReturnUnitSens, 1);
 			out.sensitivity.particle = cell(maxReturnUnitSens, 1);
 			out.sensitivity.particleDot = cell(maxReturnUnitSens, 1);
+			out.sensitivity.solid = cell(maxReturnUnitSens, 1);
+			out.sensitivity.solidDot = cell(maxReturnUnitSens, 1);
 			out.sensitivity.flux = cell(maxReturnUnitSens, 1);
 			out.sensitivity.fluxDot = cell(maxReturnUnitSens, 1);
 			out.sensitivity.volume = cell(maxReturnUnitSens, 1);
@@ -202,61 +206,61 @@ classdef ResultsHelper
 				end
 				curUnit = res.sensitivity.(sprintf('param_%03d', maxParams-1)).(sprintf('unit_%03d', i-1));
 
-				if isfield(curUnit, 'SENS_COLUMN_OUTLET')
-					data = zeros([size(curUnit.SENS_COLUMN_OUTLET), maxParams]);
-					stride = numel(curUnit.SENS_COLUMN_OUTLET);
+				if isfield(curUnit, 'SENS_OUTLET')
+					data = zeros([size(curUnit.SENS_OUTLET), maxParams]);
+					stride = numel(curUnit.SENS_OUTLET);
 					for p = 1:maxParams
 						if ~isfield(res.sensitivity, sprintf('param_%03d', p-1))
 							continue;
 						end
 
 						curRes = res.sensitivity.(sprintf('param_%03d', p-1)).(sprintf('unit_%03d', i-1));
-						temp = switchStorageOrdering(curRes.SENS_COLUMN_OUTLET);
+						temp = switchStorageOrdering(curRes.SENS_OUTLET);
 						data((p-1)*stride+1:p*stride) = temp(:);
 					end
 					out.sensitivity.jacobian{i} = data;
 				end
 
-				if isfield(curUnit, 'SENS_COLUMN_INLET')
-					data = zeros([size(curUnit.SENS_COLUMN_INLET), maxParams]);
-					stride = numel(curUnit.SENS_COLUMN_INLET);
+				if isfield(curUnit, 'SENS_INLET')
+					data = zeros([size(curUnit.SENS_INLET), maxParams]);
+					stride = numel(curUnit.SENS_INLET);
 					for p = 1:maxParams
 						if ~isfield(res.sensitivity, sprintf('param_%03d', p-1))
 							continue;
 						end
 
 						curRes = res.sensitivity.(sprintf('param_%03d', p-1)).(sprintf('unit_%03d', i-1));
-						temp = switchStorageOrdering(curRes.SENS_COLUMN_INLET);
+						temp = switchStorageOrdering(curRes.SENS_INLET);
 						data((p-1)*stride+1:p*stride) = temp(:);
 					end
 					out.sensitivity.inlet{i} = data;
 				end
 
-				if isfield(curUnit, 'SENSDOT_COLUMN_OUTLET')
-					data = zeros([size(curUnit.SENSDOT_COLUMN_OUTLET), maxParams]);
-					stride = numel(curUnit.SENSDOT_COLUMN_OUTLET);
+				if isfield(curUnit, 'SENSDOT_OUTLET')
+					data = zeros([size(curUnit.SENSDOT_OUTLET), maxParams]);
+					stride = numel(curUnit.SENSDOT_OUTLET);
 					for p = 1:maxParams
 						if ~isfield(res.sensitivity, sprintf('param_%03d', p-1))
 							continue;
 						end
 
 						curRes = res.sensitivity.(sprintf('param_%03d', p-1)).(sprintf('unit_%03d', i-1));
-						temp = switchStorageOrdering(curRes.SENSDOT_COLUMN_OUTLET);
+						temp = switchStorageOrdering(curRes.SENSDOT_OUTLET);
 						data((p-1)*stride+1:p*stride) = temp(:);
 					end
 					out.sensitivity.jacobianDot{i} = data;
 				end
 
-				if isfield(curUnit, 'SENSDOT_COLUMN_INLET')
-					data = zeros([size(curUnit.SENSDOT_COLUMN_INLET), maxParams]);
-					stride = numel(curUnit.SENSDOT_COLUMN_INLET);
+				if isfield(curUnit, 'SENSDOT_INLET')
+					data = zeros([size(curUnit.SENSDOT_INLET), maxParams]);
+					stride = numel(curUnit.SENSDOT_INLET);
 					for p = 1:maxParams
 						if ~isfield(res.sensitivity, sprintf('param_%03d', p-1))
 							continue;
 						end
 
 						curRes = res.sensitivity.(sprintf('param_%03d', p-1)).(sprintf('unit_%03d', i-1));
-						temp = switchStorageOrdering(curRes.SENSDOT_COLUMN_INLET);
+						temp = switchStorageOrdering(curRes.SENSDOT_INLET);
 						data((p-1)*stride+1:p*stride) = temp(:);
 					end
 					out.sensitivity.inletDot{i} = data;
@@ -290,6 +294,21 @@ classdef ResultsHelper
 						data((p-1)*stride+1:p*stride) = temp(:);
 					end
 					out.sensitivity.particle{i} = data;
+				end
+
+				if isfield(curUnit, 'SENS_SOLID')
+					data = zeros([size(curUnit.SENS_SOLID), maxParams]);
+					stride = numel(curUnit.SENS_SOLID);
+					for p = 1:maxParams
+						if ~isfield(res.sensitivity, sprintf('param_%03d', p-1))
+							continue;
+						end
+
+						curRes = res.sensitivity.(sprintf('param_%03d', p-1)).(sprintf('unit_%03d', i-1));
+						temp = switchStorageOrdering(curRes.SENS_SOLID);
+						data((p-1)*stride+1:p*stride) = temp(:);
+					end
+					out.sensitivity.solid{i} = data;
 				end
 
 				if isfield(curUnit, 'SENS_FLUX')
@@ -352,6 +371,21 @@ classdef ResultsHelper
 					out.sensitivity.particleDot{i} = data;
 				end
 
+				if isfield(curUnit, 'SENSDOT_SOLID')
+					data = zeros([size(curUnit.SENSDOT_SOLID), maxParams]);
+					stride = numel(curUnit.SENSDOT_SOLID);
+					for p = 1:maxParams
+						if ~isfield(res.sensitivity, sprintf('param_%03d', p-1))
+							continue;
+						end
+
+						curRes = res.sensitivity.(sprintf('param_%03d', p-1)).(sprintf('unit_%03d', i-1));
+						temp = switchStorageOrdering(curRes.SENSDOT_SOLID);
+						data((p-1)*stride+1:p*stride) = temp(:);
+					end
+					out.sensitivity.solidDot{i} = data;
+				end
+
 				if isfield(curUnit, 'SENSDOT_FLUX')
 					data = zeros([size(curUnit.SENSDOT_FLUX), maxParams]);
 					stride = numel(curUnit.SENSDOT_FLUX);
@@ -386,7 +420,7 @@ classdef ResultsHelper
 
 				% Extract multi field data
 				if isempty(out.sensitivity.jacobian{i})
-					temp = MultiFields.extract(curUnit, solNames, 'SENS_COLUMN_OUTLET_COMP');
+					temp = MultiFields.extract(curUnit, solNames, 'SENS_OUTLET_COMP');
 					
 					data = zeros([size(temp), maxParams]);
 					stride = numel(temp);
@@ -398,13 +432,13 @@ classdef ResultsHelper
 						end
 
 						curRes = res.sensitivity.(sprintf('param_%03d', p-1)).(sprintf('unit_%03d', i-1));
-						temp = MultiFields.extract(curRes, solNames, 'SENS_COLUMN_OUTLET_COMP');
+						temp = MultiFields.extract(curRes, solNames, 'SENS_OUTLET_COMP');
 						data((p-1)*stride+1:p*stride) = temp(:);
 					end
 					out.sensitivity.jacobian{i} = data;
 				end
 				if isempty(out.sensitivity.jacobianDot{i})
-					temp = MultiFields.extract(curUnit, solNames, 'SENSDOT_COLUMN_OUTLET_COMP');
+					temp = MultiFields.extract(curUnit, solNames, 'SENSDOT_OUTLET_COMP');
 
 					data = zeros([size(temp), maxParams]);
 					stride = numel(temp);
@@ -416,14 +450,14 @@ classdef ResultsHelper
 						end
 
 						curRes = res.sensitivity.(sprintf('param_%03d', p-1)).(sprintf('unit_%03d', i-1));
-						temp = MultiFields.extract(curRes, solNames, 'SENSDOT_COLUMN_OUTLET_COMP');
+						temp = MultiFields.extract(curRes, solNames, 'SENSDOT_OUTLET_COMP');
 						data((p-1)*stride+1:p*stride) = temp(:);					
 					end
 					out.sensitivity.jacobianDot{i} = data;
 				end
 
 				if isempty(out.sensitivity.inlet{i})
-					temp = MultiFields.extract(curUnit, solNames, 'SENS_COLUMN_INLET_COMP');
+					temp = MultiFields.extract(curUnit, solNames, 'SENS_INLET_COMP');
 
 					data = zeros([size(temp), maxParams]);
 					stride = numel(temp);
@@ -435,13 +469,13 @@ classdef ResultsHelper
 						end
 
 						curRes = res.sensitivity.(sprintf('param_%03d', p-1)).(sprintf('unit_%03d', i-1));
-						temp = MultiFields.extract(curRes, solNames, 'SENS_COLUMN_INLET_COMP');
+						temp = MultiFields.extract(curRes, solNames, 'SENS_INLET_COMP');
 						data((p-1)*stride+1:p*stride) = temp(:);					
 					end
 					out.sensitivity.inlet{i} = data;
 				end
 				if isempty(out.sensitivity.inletDot{i})
-					temp = MultiFields.extract(curUnit, solNames, 'SENSDOT_COLUMN_INLET_COMP');
+					temp = MultiFields.extract(curUnit, solNames, 'SENSDOT_INLET_COMP');
 
 					data = zeros([size(temp), maxParams]);
 					stride = numel(temp);
@@ -453,7 +487,7 @@ classdef ResultsHelper
 						end
 
 						curRes = res.sensitivity.(sprintf('param_%03d', p-1)).(sprintf('unit_%03d', i-1));
-						temp = MultiFields.extract(curRes, solNames, 'SENSDOT_COLUMN_INLET_COMP');
+						temp = MultiFields.extract(curRes, solNames, 'SENSDOT_INLET_COMP');
 						data((p-1)*stride+1:p*stride) = temp(:);					
 					end
 					out.sensitivity.inletDot{i} = data;

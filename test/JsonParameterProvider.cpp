@@ -506,8 +506,8 @@ json createLWEJson()
 		grm["WRITE_SOLUTION_COLUMN"] = false;
 		grm["WRITE_SOLUTION_PARTICLE"] = false;
 		grm["WRITE_SOLUTION_FLUX"] = false;
-		grm["WRITE_SOLUTION_COLUMN_INLET"] = true;
-		grm["WRITE_SOLUTION_COLUMN_OUTLET"] = true;
+		grm["WRITE_SOLUTION_INLET"] = true;
+		grm["WRITE_SOLUTION_OUTLET"] = true;
 		
 		ret["unit_000"] = grm;
 		config["return"] = ret;
@@ -712,8 +712,8 @@ cadet::JsonParameterProvider createLinearBenchmark(bool dynamicBinding)
 		grm["WRITE_SOLUTION_COLUMN"] = false;
 		grm["WRITE_SOLUTION_PARTICLE"] = false;
 		grm["WRITE_SOLUTION_FLUX"] = false;
-		grm["WRITE_SOLUTION_COLUMN_INLET"] = true;
-		grm["WRITE_SOLUTION_COLUMN_OUTLET"] = true;
+		grm["WRITE_SOLUTION_INLET"] = true;
+		grm["WRITE_SOLUTION_OUTLET"] = true;
 		
 		ret["unit_000"] = grm;
 		config["return"] = ret;
@@ -881,8 +881,8 @@ cadet::JsonParameterProvider createCSTRBenchmark(unsigned int nSec, double endTi
 		cstr["WRITE_SOLUTION_COLUMN"] = false;
 		cstr["WRITE_SOLUTION_SOLID"] = true;
 		cstr["WRITE_SOLUTION_FLUX"] = false;
-		cstr["WRITE_SOLUTION_COLUMN_INLET"] = true;
-		cstr["WRITE_SOLUTION_COLUMN_OUTLET"] = true;
+		cstr["WRITE_SOLUTION_INLET"] = true;
+		cstr["WRITE_SOLUTION_OUTLET"] = true;
 		cstr["WRITE_SOLUTION_VOLUME"] = true;
 		
 		ret["unit_000"] = cstr;

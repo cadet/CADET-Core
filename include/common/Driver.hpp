@@ -67,15 +67,25 @@ void readDataOutputConfig(ParamProvider_t& pp, StorageConfig_t& cfg, const std::
 	}
 */
 
-	if (pp.exists("WRITE_" + dataType + "_COLUMN_INLET"))
-		cfg.storeInlet = pp.getBool("WRITE_" + dataType + "_COLUMN_INLET");
+	if (pp.exists("WRITE_" + dataType + "_INLET"))
+		cfg.storeInlet = pp.getBool("WRITE_" + dataType + "_INLET");
 	else
-		cfg.storeInlet = false;
+	{
+		if (pp.exists("WRITE_" + dataType + "_COLUMN_INLET"))
+			cfg.storeInlet = pp.getBool("WRITE_" + dataType + "_COLUMN_INLET");
+		else
+			cfg.storeInlet = false;
+	}
 
-	if (pp.exists("WRITE_" + dataType + "_COLUMN_OUTLET"))
-		cfg.storeOutlet = pp.getBool("WRITE_" + dataType + "_COLUMN_OUTLET");
+	if (pp.exists("WRITE_" + dataType + "_OUTLET"))
+		cfg.storeOutlet = pp.getBool("WRITE_" + dataType + "_OUTLET");
 	else
-		cfg.storeOutlet = false;
+	{
+		if (pp.exists("WRITE_" + dataType + "_COLUMN_OUTLET"))
+			cfg.storeOutlet = pp.getBool("WRITE_" + dataType + "_COLUMN_OUTLET");
+		else
+			cfg.storeOutlet = false;		
+	}
 
 	if (pp.exists("WRITE_" + dataType + "_VOLUME"))
 		cfg.storeVolume = pp.getBool("WRITE_" + dataType + "_VOLUME");

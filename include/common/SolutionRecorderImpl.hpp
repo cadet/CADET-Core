@@ -700,14 +700,14 @@ protected:
 				for (unsigned int comp = 0; comp < _nComp; ++comp)
 				{
 					oss.str("");
-					oss << prefix << "_COLUMN_OUTLET_COMP_" << std::setfill('0') << std::setw(3) << std::setprecision(0) << comp;
+					oss << prefix << "_OUTLET_COMP_" << std::setfill('0') << std::setw(3) << std::setprecision(0) << comp;
 					writer.template vector<double>(oss.str(), _numTimesteps, _curOutlet->data() + comp, _nComp);
 				}
 			}
 			else
 			{
 				oss.str("");
-				oss << prefix << "_COLUMN_OUTLET";
+				oss << prefix << "_OUTLET";
 				writer.template matrix<double>(oss.str(), _numTimesteps, _nComp, _curOutlet->data(), 1);
 			}
 		}
@@ -719,14 +719,14 @@ protected:
 				for (unsigned int comp = 0; comp < _nComp; ++comp)
 				{
 					oss.str("");
-					oss << prefix << "_COLUMN_INLET_COMP_" << std::setfill('0') << std::setw(3) << std::setprecision(0) << comp;
+					oss << prefix << "_INLET_COMP_" << std::setfill('0') << std::setw(3) << std::setprecision(0) << comp;
 					writer.template vector<double>(oss.str(), _numTimesteps, _curInlet->data() + comp, _nComp);
 				}
 			}
 			else
 			{
 				oss.str("");
-				oss << prefix << "_COLUMN_INLET";
+				oss << prefix << "_INLET";
 				writer.template matrix<double>(oss.str(), _numTimesteps, _nComp, _curInlet->data(), 1);
 			}
 		}
