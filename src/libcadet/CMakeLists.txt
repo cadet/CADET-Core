@@ -222,10 +222,11 @@ foreach(_TARGET IN LISTS LIBCADET_TARGETS)
 endforeach()
 
 # Link against TBB
-foreach(_TARGET IN LISTS LIBCADET_TARGETS)
-	target_link_libraries(${_TARGET} PRIVATE debug ${TBB_LIBRARIES_DEBUG})
-	target_link_libraries(${_TARGET} PRIVATE optimized ${TBB_LIBRARIES})
-endforeach()
+if (CADET_PARALLEL_FLAG)
+	foreach(_TARGET IN LISTS LIBCADET_TARGETS)
+		target_link_libraries(${_TARGET} PRIVATE ${TBB_LIBRARIES})
+	endforeach()
+endif()
 
 # ---------------------------------------------------
 #   Build the Matlab library
