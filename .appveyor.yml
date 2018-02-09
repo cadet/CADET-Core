@@ -1,0 +1,116 @@
+
+# Exclude GitHub pages and Travis branches
+branches:
+  except:
+    - gh-pages
+    - /feature\/.*travis.*/
+
+# Exclude commits that only change *.md files or doc/ files
+skip_commits:
+  files:
+    - doc/*
+    - '**/*.md'
+
+# Use MSVC 2017 on Windows Server 2016 and MSVC 2015 on Windows Server 2012
+environment:
+  matrix:
+    - APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2015
+      VS: vc14
+      GENERATOR: Visual Studio 14 2015
+    - APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2017
+      VS: vc15
+      GENERATOR: Visual Studio 15 2017
+
+# Only checkout last commit
+clone_depth: 1
+
+# Code is cloned here
+clone_folder: C:\cadet\code
+
+platform:
+  - x64
+
+configuration:
+#  - Debug
+  - Release
+
+# Called before cloning the repo
+init:
+  - cmd: date /T & time /T
+  - ps: "Get-ChildItem Env:"
+  - cmd: cmake --version
+  # Set version to "short-commit-hash" or when tagged to "tag name" (Travis style)
+  - ps: >-
+      if ($env:APPVEYOR_REPO_TAG -eq "true")
+      {
+          Update-AppveyorBuild -Version "$($env:APPVEYOR_REPO_TAG_NAME.TrimStart("v"))"
+      }
+      else
+      {
+          Update-AppveyorBuild -Version "dev-$($env:APPVEYOR_REPO_COMMIT.Substring(0, 7))"
+      }
+
+install:
+  # Prepare environment
+  - cmd: IF "%APPVEYOR_BUILD_WORKER_IMAGE%" == "Visual Studio 2017" (CALL "C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\Common7\Tools\VsDevCmd.bat" -arch=%PLATFORM%) ELSE (CALL "C:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\vcvarsall.bat" %PLATFORM%)
+  - cmd: IF NOT EXIST C:\dl (mkdir C:\dl)
+  # CLAPACK
+  - cmd: IF NOT EXIST C:\deps\clapack (
+      curl -SsfL -o "C:\dl\clapack.tar.gz" "http://www.netlib.org/clapack/clapack-3.2.1-CMAKE.tgz" &&
+      7z x "C:\dl\clapack.tar.gz" -so -y | 7z x -aoa -si -ttar -o"C:\deps\clapack\code" -y &&
+      del C:\deps\clapack\code\clapack-3.2.1-CMAKE\TESTING\CMakeLists.txt &&
+      del C:\deps\clapack\code\clapack-3.2.1-CMAKE\BLAS\TESTING\CMakeLists.txt &&
+      cd C:\deps\clapack && mkdir build && mkdir build\%VS% && cd build\%VS% && cmake -DCMAKE_INSTALL_PREFIX="C:\deps\clapack\install\%VS%" -DCMAKE_BUILD_TYPE=Release -G "%GENERATOR% Win64" -DCMAKE_C_FLAGS="/GL" -DCMAKE_STATIC_LINKER_FLAGS="/LTCG" ..\..\code\clapack-3.2.1-CMAKE\ &&
+      cd C:\deps\clapack\build\%VS% && msbuild.exe CLAPACK.sln /p:Configuration=Release;Platform=x64 /maxcpucount:2 &&
+      cd C:\deps\clapack\ && mkdir install && mkdir install\%VS% && mkdir install\%VS%\lib &&
+      cp C:\deps\clapack\build\%VS%\SRC\Release\lapack.lib C:\deps\clapack\install\%VS%\ &&
+      cp C:\deps\clapack\build\%VS%\SRC\Release\lapack.lib C:\deps\clapack\install\%VS%\lib\ &&
+      cp C:\deps\clapack\build\%VS%\BLAS\SRC\Release\blas.lib C:\deps\clapack\install\%VS%\ &&
+      cp C:\deps\clapack\build\%VS%\BLAS\SRC\Release\blas.lib C:\deps\clapack\install\%VS%\lib\ &&
+      cp C:\deps\clapack\build\%VS%\F2CLIBS\libf2c\Release\libf2c.lib C:\deps\clapack\install\%VS%\f2c.lib &&
+      cp C:\deps\clapack\build\%VS%\F2CLIBS\libf2c\Release\libf2c.lib C:\deps\clapack\install\%VS%\lib\f2c.lib)
+  # OpenBLAS
+  - cmd: IF NOT EXIST C:\deps\lapack (
+      curl -SsfLk -o C:\dl\openblas.zip https://downloads.sourceforge.net/project/openblas/v0.2.19/OpenBLAS-v0.2.19-Win64-int32.zip &&
+      7z x C:\dl\openblas.zip -oC:\deps\lapack\ -y > nul &&
+      cd C:\deps\lapack\ && dir &&
+      cd C:\deps\lapack\ && rename OpenBLAS-v0.2.19-Win64-int32 install)
+  # Binary TBB
+  - cmd: IF NOT EXIST C:\deps\tbb (
+      curl -LfsS -o C:\dl\tbb.zip https://github.com/01org/tbb/releases/download/2018_U2/tbb2018_20171205oss_win.zip &&
+      7z x C:\dl\tbb.zip -oC:\deps\tbb\ -y > nul &&
+      cd C:\deps\tbb\ && rename tbb2018_20171205oss install &&
+      cd C:\deps\tbb\install && dir &&
+      cd C:\deps\tbb\install\lib && dir)
+  # Install SUNDIALS from source
+  - cmd: IF NOT EXIST C:\deps\sundials (
+      curl -SsfLk -o C:\dl\sundials.tar.gz https://computation.llnl.gov/projects/sundials/download/sundials-2.7.0.tar.gz &&
+      7z x "C:\dl\sundials.tar.gz" -so -y | 7z x -aoa -si -ttar -o"C:\deps\sundials\code" -y &&
+      cd C:\deps\sundials\ && mkdir build && cd build && cmake -DCMAKE_INSTALL_PREFIX="C:\deps\sundials\install\%VS%" -DCMAKE_BUILD_TYPE=Release -DEXAMPLES_ENABLE=OFF -DOPENMP_ENABLE=ON -DBUILD_SHARED_LIBS=OFF -DBUILD_KINSOL=OFF -DBUILD_ARKODE=OFF -DBUILD_CVODE=OFF -DBUILD_CVODES=OFF -DEXAMPLES_ENABLE=OFF -G "%GENERATOR% Win64" -DCMAKE_C_FLAGS="/GL" -DCMAKE_STATIC_LINKER_FLAGS="/LTCG" ..\code\sundials-2.7.0\ &&
+      cd C:\deps\sundials\build && msbuild.exe INSTALL.vcxproj /p:Configuration=Release;Platform=x64 /maxcpucount:2)
+  # Install HDF5 from source
+  - cmd: IF NOT EXIST C:\deps\hdf5 (
+      curl -SsfLk -o C:\dl\hdf5.zip https://support.hdfgroup.org/ftp/HDF5/releases/hdf5-1.10/hdf5-1.10.1/src/CMake-hdf5-1.10.1.zip &&
+      7z x C:\dl\hdf5.zip -oC:\deps\hdf5\code -y > nul &&
+      cd C:\deps\hdf5\code\CMake-hdf5-1.10.1 && cmake -DCMAKE_BUILD_TYPE:STRING=Release -DBUILD_SHARED_LIBS:BOOL=ON -DHDF5_BUILD_FORTRAN:BOOL=OFF -DHDF5_ENABLE_F2003:BOOL=OFF -DHDF5_BUILD_JAVA:BOOL=OFF -DCMAKE_INSTALL_PREFIX:PATH=C:\deps\hdf5\install\%VS% -DCTEST_CONFIGURATION_TYPE:STRING=Release -DBUILD_TESTING=OFF -DHDF5_BUILD_TOOLS=ON -DHDF5_BUILD_EXAMPLES=OFF -DHDF5_BUILD_HL_LIB=ON -DHDF5_BUILD_CPP_LIB=OFF -DHDF5_ALLOW_EXTERNAL_SUPPORT:STRING=TGZ -DTGZPATH:PATH=C:\deps\hdf5\code\CMake-hdf5-1.10.1 -DHDF5_PACKAGE_EXTLIBS:BOOL=ON -DSITE:STRING=WIN7VS201764.XXXX -DBUILDNAME:STRING=Windows-WIN7-vs2017-STATIC -G "%GENERATOR% Win64" hdf5-1.10.1\ &&
+      cd C:\deps\hdf5\code\CMake-hdf5-1.10.1 && msbuild.exe INSTALL.vcxproj /p:Configuration=Release;Platform=x64 /maxcpucount:2 &&
+      cd C:\deps\hdf5\install\%VS% && dir &&
+      cd C:\deps\hdf5\install\%VS%\lib && dir)
+
+build_script:
+  - cmd: |-
+      set HDF5_ROOT=C:\deps\hdf5\install\%VS%
+      cd C:\cadet && mkdir build && mkdir build\%VS% && cd build\%VS% && cmake ..\..\code -DSUNDIALS_ROOT=C:\deps\sundials\install\%VS% -DHDF5_ROOT=C:\deps\hdf5\install\%VS% -DTBB_ROOT=C:\deps\tbb\install\cmake -DCMAKE_PREFIX_PATH=C:\deps\tbb\install\cmake -DTBB_LIB_PATH_SUFFIX="lib/intel64/vc14" -DBLA_VENDOR=CLAPACK -DCMAKE_LIBRARY_PATH="C:\deps\clapack\install\%VS%\lib" -G "%GENERATOR% Win64" -DCMAKE_INSTALL_PREFIX="C:\cadet\%VS%\cadet" -DCMAKE_BUILD_TYPE=%configuration%
+      type C:\cadet\build\%VS%\CMakeFiles\CMakeError.log
+      type C:\cadet\build\%VS%\CMakeFiles\CMakeOutput.log
+      cd C:\cadet\build\%VS% && msbuild.exe INSTALL.vcxproj /p:Configuration=Release;Platform=x64 /logger:"C:\Program Files\AppVeyor\BuildAgent\Appveyor.MSBuildLogger.dll" /maxcpucount:2
+
+test_script:
+  - cmd: cd C:\cadet\build\%VS%\test\Release && testRunner.exe -d yes --use-colour no
+
+cache:
+  - C:\deps\hdf5\install
+  - C:\deps\sundials\install
+  - C:\deps\tbb\install
+  - C:\deps\lapack\install
+  - C:\deps\clapack\install
