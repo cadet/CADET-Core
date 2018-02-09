@@ -214,7 +214,7 @@ if (SUNDIALS_FOUND)
 endif()
 
 # HDF5_ROOT environment variable can be used to find HDF5 package
-find_package(HDF5)
+find_package(HDF5 COMPONENTS C)
 if (HDF5_FOUND)
 
 	# Make sure HDF5_LIBRARY_DIRS is defined
