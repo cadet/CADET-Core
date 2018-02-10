@@ -37,7 +37,13 @@ add_executable (testRunner testRunner.cpp JsonTestModels.cpp ColumnTests.cpp Sim
 	ConvectionDispersionOperator.cpp
 	ModelSystem.cpp
 	BandMatrix.cpp DenseMatrix.cpp StringHashing.cpp LogUtils.cpp AD.cpp 
-	"${CMAKE_CURRENT_BINARY_DIR}/Paths.cpp" "${CMAKE_SOURCE_DIR}/src/io/JsonParameterProvider.cpp")
+	"${CMAKE_CURRENT_BINARY_DIR}/Paths.cpp" "${CMAKE_SOURCE_DIR}/src/io/JsonParameterProvider.cpp"
+	$<TARGET_OBJECTS:libcadet_object>)
+
+target_link_libraries(testRunner PRIVATE ${SUNDIALS_LIBRARIES})
+if (CADET_PARALLEL_FLAG)
+	target_link_libraries(testRunner PRIVATE ${TBB_LIBRARIES})
+endif()
 
 list(APPEND TEST_LIBCADET_TARGETS testRunner)
 list(APPEND TEST_NONLINALG_TARGETS testRunner)
@@ -73,14 +79,6 @@ foreach(_TARGET IN LISTS TEST_NONLINALG_TARGETS)
 	target_link_libraries(${_TARGET} PRIVATE libcadet_nonlinalg_static)
 endforeach()
 
-# Link to libcadet
-foreach(_TARGET IN LISTS TEST_LIBCADET_TARGETS)
-	if (BUILD_SHARED_LIBS)
-		target_link_libraries(${_TARGET} PRIVATE libcadet_shared)
-	else ()
-		target_link_libraries(${_TARGET} PRIVATE libcadet_static)
-	endif ()
-endforeach()
 # ---------------------------------------------------
 
 set (TEST_TARGETS ${TEST_TARGETS} PARENT_SCOPE)

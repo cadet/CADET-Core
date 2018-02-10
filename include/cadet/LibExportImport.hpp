@@ -24,7 +24,7 @@
 	#ifdef _MSC_VER
 		#ifndef CADET_MATLABMEX
 			// If we are not building static libs for Matlab, we need to import / export symbols
-			#if defined(libcadet_shared_EXPORTS) || defined(libcadet_static_EXPORTS)
+			#if defined(libcadet_shared_EXPORTS) || defined(libcadet_static_EXPORTS) || defined(libcadet_EXPORTS)
 				#define CADET_API _declspec(dllexport)
 			#else
 				#define CADET_API _declspec(dllimport)

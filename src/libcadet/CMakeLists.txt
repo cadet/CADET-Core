@@ -159,15 +159,19 @@ if (LAPACK_FOUND)
 
 	list (APPEND LIBNONLINALG_TARGETS libcadet_nonlinalg_static)
 
+	# Add the build target for CADET object library
+	add_library(libcadet_object OBJECT ${LIBCADET_SOURCES})
+	target_compile_definitions(libcadet_object PRIVATE -Dlibcadet_EXPORTS ${LIB_LAPACK_DEFINE} ${TBB_DEFINITIONS} ${CADET_PARALLEL_FLAG})
+	list (APPEND LIBCADET_TARGETS libcadet_object)
+
 	# ---------------------------------------------------
 	#   Build the static library
 	# ---------------------------------------------------
-	if (BUILD_STATIC_LIBS AND LAPACK_FOUND)
+	if (BUILD_STATIC_LIBS)
 
 		# Add the build target for the static CADET library
-		add_library(libcadet_static STATIC ${LIBCADET_SOURCES})
+		add_library(libcadet_static STATIC $<TARGET_OBJECTS:libcadet_object>)
 		set_target_properties(libcadet_static PROPERTIES OUTPUT_NAME cadet_static)
-		target_compile_definitions(libcadet_static PRIVATE -Dlibcadet_static_EXPORTS ${LIB_LAPACK_DEFINE} ${TBB_DEFINITIONS} ${CADET_PARALLEL_FLAG})
 		target_link_libraries(libcadet_static PRIVATE libcadet_nonlinalg_static)
 		
 		list (APPEND LIBCADET_TARGETS libcadet_static)
@@ -178,14 +182,12 @@ if (LAPACK_FOUND)
 	# ---------------------------------------------------
 	#   Build the shared library
 	# ---------------------------------------------------
-	if (BUILD_SHARED_LIBS AND LAPACK_FOUND)
+	if (BUILD_SHARED_LIBS)
 
 		# Add the build target for the shared CADET library
-		add_library(libcadet_shared SHARED ${LIBCADET_SOURCES})
+		add_library(libcadet_shared SHARED $<TARGET_OBJECTS:libcadet_object>)
 		set_target_properties(libcadet_shared PROPERTIES OUTPUT_NAME cadet)
-		target_compile_definitions(libcadet_shared PRIVATE ${LIB_LAPACK_DEFINE} ${TBB_DEFINITIONS} ${CADET_PARALLEL_FLAG})
 		target_link_libraries(libcadet_shared PRIVATE libcadet_nonlinalg_static)
-		
 		target_link_libraries (libcadet_shared PRIVATE ${LAPACK_LIBRARIES})
 
 		list (APPEND LIBCADET_TARGETS libcadet_shared)
@@ -203,7 +205,9 @@ foreach(_TARGET IN LISTS ALL_LOCAL_TARGETS)
 
 	cadet_target_compile_features(${_TARGET})
 
-	target_link_libraries(${_TARGET} PRIVATE ${SUNDIALS_LIBRARIES})
+	if (NOT ("libcadet_object" STREQUAL ${_TARGET}))
+		target_link_libraries(${_TARGET} PRIVATE ${SUNDIALS_LIBRARIES})
+	endif()
 endforeach()
 
 # Link to BLAS and LAPACK
@@ -224,7 +228,9 @@ endforeach()
 # Link against TBB
 if (CADET_PARALLEL_FLAG)
 	foreach(_TARGET IN LISTS LIBCADET_TARGETS)
-		target_link_libraries(${_TARGET} PRIVATE ${TBB_LIBRARIES})
+		if (NOT ("libcadet_object" STREQUAL ${_TARGET}))
+			target_link_libraries(${_TARGET} PRIVATE ${TBB_LIBRARIES})
+		endif()
 	endforeach()
 endif()
 
@@ -324,6 +330,7 @@ endforeach()
 #   Set installation related stuff
 # ---------------------------------------------------
 
+list(REMOVE_ITEM ALL_LOCAL_TARGETS libcadet_object)
 install (CODE "MESSAGE(\"\nInstall LIBCADET\n\")")
 install(TARGETS ${ALL_LOCAL_TARGETS} EXPORT libcadet-targets
         RUNTIME DESTINATION bin
