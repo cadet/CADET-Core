@@ -1,3 +1,4 @@
+<a id="top"></a>
 # Event Listeners
 
 A `Listener` is a class you can register with Catch that will then be passed events,
@@ -12,12 +13,13 @@ so you are not forced to implement events you're not interested in.
 
 
 ## Implementing a Listener
+Simply derive a class from `Catch::TestEventListenerBase` and implement the methods you are interested in, either in
+the main source file (i.e. the one that defines `CATCH_CONFIG_MAIN` or `CATCH_CONFIG_RUNNER`), or in a
+file that defines `CATCH_CONFIG_EXTERNAL_INTERFACES`.
 
-In your main source file (i.e. the one that has the `#define` for `CATCH_CONFIG_MAIN` or `CATCH_CONFIG_RUNNER`),
-simply derive a class from `Catch::TestEventListenerBase` and implement the methods you are interested in.
-Then register it using `INTERNAL_CATCH_REGISTER_LISTENER`.
+Then register it using `CATCH_REGISTER_LISTENER`.
 
-For example:
+For example ([complete source code](../examples/210-Evt-EventListeners.cpp)):
 
 ```c++
 #define CATCH_CONFIG_MAIN
@@ -31,7 +33,7 @@ struct MyListener : Catch::TestEventListenerBase {
         // Perform some setup before a test case is run
     }
     
-    virtual void testCaseEnded( TestCaseStats const& testCaseStats ) override {
+    virtual void testCaseEnded( Catch::TestCaseStats const& testCaseStats ) override {
         // Tear-down after a test case is run
     }    
 };
@@ -70,4 +72,4 @@ just look in the source code to see what fields are available.
 
 ---
 
-[Home](Readme.md)
+[Home](Readme.md#top)

@@ -1,6 +1,33 @@
+<a id="top"></a>
 # Logging macros
 
-Additional messages can be logged during a test case.
+Additional messages can be logged during a test case. Note that the messages are scoped and thus will not be reported if failure occurs in scope preceding the message declaration. An example:
+
+```cpp
+TEST_CASE("Foo") {
+    INFO("Test case start");
+    for (int i = 0; i < 2; ++i) {
+        INFO("The number is " << i);
+        CHECK(i == 0);
+    }
+}
+
+TEST_CASE("Bar") {
+    INFO("Test case start");
+    for (int i = 0; i < 2; ++i) {
+        INFO("The number is " << i);
+        CHECK(i == i);
+    }
+    CHECK(false);
+}
+```
+When the `CHECK` fails in the "Foo" test case, then two messages will be printed.
+```
+Test case start
+The number is 1
+```
+When the last `CHECK` fails in the "Bar" test case, then only one message will be printed: `Test case start`.
+
 
 ## Streaming macros
 
@@ -53,4 +80,4 @@ These macros are now deprecated and are just aliases for INFO and CAPTURE (which
 
 ---
 
-[Home](Readme.md)
+[Home](Readme.md#top)

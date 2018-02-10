@@ -1,23 +1,24 @@
-# Integration with build systems
+<a id="top"></a>
+# CI and build system integration
 
 Build Systems may refer to low-level tools, like CMake, or larger systems that run on servers, like Jenkins or TeamCity. This page will talk about both.
 
-# Continuous Integration systems
+## Continuous Integration systems
 
 Probably the most important aspect to using Catch with a build server is the use of different reporters. Catch comes bundled with three reporters that should cover the majority of build servers out there - although adding more for better integration with some is always a possibility (currently we also offer TeamCity, TAP and Automake reporters).
 
 Two of these reporters are built in (XML and JUnit) and the third (TeamCity) is included as a separate header. It's possible that the other two may be split out in the future too - as that would make the core of Catch smaller for those that don't need them.
 
-## XML Reporter
+### XML Reporter
 ```-r xml``` 
 
 The XML Reporter writes in an XML format that is specific to Catch. 
 
 The advantage of this format is that it corresponds well to the way Catch works (especially the more unusual features, such as nested sections) and is a fully streaming format - that is it writes output as it goes, without having to store up all its results before it can start writing.
 
-The disadvantage is that, being specific to Catch, no existing build servers understand the format natively. It can be used as input to an XSLT transformation that could covert it to, say, HTML - although this loses the streaming advantage, of course.
+The disadvantage is that, being specific to Catch, no existing build servers understand the format natively. It can be used as input to an XSLT transformation that could convert it to, say, HTML - although this loses the streaming advantage, of course.
 
-## JUnit Reporter
+### JUnit Reporter
 ```-r junit```
 
 The JUnit Reporter writes in an XML format that mimics the JUnit ANT schema.
@@ -27,9 +28,14 @@ The advantage of this format is that the JUnit Ant schema is widely understood b
 The disadvantage is that this schema was designed to correspond to how JUnit works - and there is a significant mismatch with how Catch works. Additionally the format is not streamable (because opening elements hold counts of failed and passing tests as attributes) - so the whole test run must complete before it can be written.
 
 ## Other reporters
-Other reporters are not part of the single-header distribution and need to be downloaded and included separately. All reporters are stored in `include/reporters` directory in the git repository, and are named `catch_reporter_*.hpp`. For example, to use the TeamCity reporter you need to download `include/reporters/catch_reporter_teamcity.hpp` and include it after Catch itself.
+Other reporters are not part of the single-header distribution and need
+to be downloaded and included separately. All reporters are stored in
+`single_include` directory in the git repository, and are named
+`catch_reporter_*.hpp`. For example, to use the TeamCity reporter you
+need to download `single_include/catch_reporter_teamcity.hpp` and include
+it after Catch itself.
 
-```
+```cpp
 #define CATCH_CONFIG_MAIN
 #include "catch.hpp"
 #include "catch_reporter_teamcity.hpp"
@@ -52,9 +58,20 @@ The Automake Reporter writes out the [meta tags](https://www.gnu.org/software/au
 
 Because of the incremental nature of Catch's test suites and ability to run specific tests, our implementation of TAP reporter writes out the number of tests in a suite last.
 
-# Low-level tools
+## Low-level tools
 
-## CMake
+### Precompiled headers (PCHs)
+
+Catch offers prototypal support for being included in precompiled headers, but because of its single-header nature it does need some actions by the user:
+* The precompiled header needs to define `CATCH_CONFIG_ALL_PARTS`
+* The implementation file needs to
+  * undefine `TWOBLUECUBES_SINGLE_INCLUDE_CATCH_HPP_INCLUDED`
+  * define `CATCH_CONFIG_IMPL_ONLY`
+  * define `CATCH_CONFIG_MAIN` or `CATCH_CONFIG_RUNNER`
+  * include "catch.hpp" again
+
+
+### CMake
 
 In general we recommend "vendoring" Catch's single-include releases inside your own repository. If you do this, the following example shows a minimal CMake project:
 ```CMake
@@ -112,7 +129,15 @@ The advantage of this approach is that you can always automatically update Catch
 
 
 ### Automatic test registration
-If you are also using ctest, `contrib/ParseAndAddCatchTests.cmake` is a CMake script that attempts to parse your test files and automatically register all test cases, using tags as labels. This means that these
+We provide 2 CMake scripts that can automatically register Catch-based
+tests with CTest,
+  * `contrib/ParseAndAddCatchTests.cmake`
+  * `contrib/CatchAddTests.cmake`
+
+The first is based on parsing the test implementation files, and attempts
+to register all `TEST_CASE`s using their tags as labels. This means that
+these:
+
 ```cpp
 TEST_CASE("Test1", "[unit]") {
     int a = 1;
@@ -132,8 +157,19 @@ TEST_CASE("Test3", "[a][b][c]") {
     REQUIRE(a == b);
 }
 ```
-would be registered as 3 tests, `Test1`, `Test2` and `Test3`, and ctest 4 labels would be created, `a`, `b`, `c` and `unit`.
+would be registered as 3 tests, `Test1`, `Test2` and `Test3`,
+and 4 CTest labels would be created, `a`, `b`, `c` and `unit`.
+
+
+The second is based on parsing the output of a Catch binary given
+`--list-test-names-only`. This means that it deals with inactive
+(e.g. commented-out) tests better, but requires CMake 3.10 for full
+functionality.
+
+### CodeCoverage module (GCOV, LCOV...)
+
+If you are using GCOV tool to get testing coverage of your code, and are not sure how to integrate it with CMake and Catch, there should be an external example over at https://github.com/fkromer/catch_cmake_coverage
 
 ---
 
-[Home](Readme.md)
+[Home](Readme.md#top)
