@@ -360,7 +360,7 @@ namespace column
 	void testAnalyticNonBindingBenchmark(const char* uoType, const char* refFileRelPath, bool forwardFlow, unsigned int nCol, double absTol, double relTol)
 	{
 		const std::string fwdStr = (forwardFlow ? "forward" : "backward");
-		SECTION("Analytic" + fwdStr + " flow")
+		SECTION("Analytic " + fwdStr + " flow")
 		{
 			// Setup simulation
 			cadet::JsonParameterProvider jpp = createLinearBenchmark(true, true, uoType);
