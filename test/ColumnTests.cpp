@@ -322,7 +322,7 @@ namespace column
 	void testAnalyticBenchmark(const char* uoType, const char* refFileRelPath, bool forwardFlow, bool dynamicBinding, unsigned int nCol, double absTol, double relTol)
 	{
 		const std::string fwdStr = (forwardFlow ? "forward" : "backward");
-		SECTION("Analytic" + fwdStr + " flow with " + (dynamicBinding ? "dynamic" : "quasi-stationary") + " binding")
+		SECTION("Analytic " + fwdStr + " flow with " + (dynamicBinding ? "dynamic" : "quasi-stationary") + " binding")
 		{
 			// Setup simulation
 			cadet::JsonParameterProvider jpp = createLinearBenchmark(dynamicBinding, false, uoType);
