@@ -19,7 +19,7 @@ TEST_CASE("GRM LWE forward vs backward flow", "[GRM],[Simulation]")
 {
 	// Test all WENO orders
 	for (unsigned int i = 1; i <= cadet::Weno::maxOrder(); ++i)
-		cadet::test::column::testWenoForwardBackward("GENERAL_RATE_MODEL", i, 1e-9, 1e-6);
+		cadet::test::column::testWenoForwardBackward("GENERAL_RATE_MODEL", i, 1e-9, 2e-4);
 }
 
 TEST_CASE("GRM linear pulse vs analytic solution", "[GRM],[Simulation],[Analytic]")

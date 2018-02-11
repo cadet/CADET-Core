@@ -11,6 +11,7 @@
 // =============================================================================
 
 #include <catch.hpp>
+#include "Approx.hpp"
 #include "cadet/cadet.hpp"
 
 #include "model/operator/ConvectionDispersionOperator.hpp"
@@ -96,7 +97,7 @@ namespace
 			double const* const b = r2 + nComp + nComp * (nCol - col - 1);
 			for (int comp = 0; comp < nComp; ++comp)
 			{
-				CHECK(a[comp] == Approx(b[comp]));
+				CHECK(a[comp] == RelApprox(b[comp]));
 			}
 		}	
 	}
@@ -116,7 +117,7 @@ namespace
 			double const* const b = r2 + nComp + nComp * col;
 			for (int comp = 0; comp < nComp; ++comp)
 			{
-				CHECK(a[comp] == Approx(b[comp]));
+				CHECK(a[comp] == RelApprox(b[comp]));
 			}
 		}	
 	}

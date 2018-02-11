@@ -209,9 +209,9 @@ TEST_CASE("ModelSystem time derivative Jacobian FD vs analytic", "[ModelSystem],
 
 TEST_CASE("ModelSystem sensitivity Jacobians", "[ModelSystem],[Sensitivity]")
 {
-	const double h = 1e-6;
-	const double absTol = 0.0;
-	const double relTol = std::numeric_limits<float>::epsilon() * 100.0;
+	const double h = 5e-5;
+	const double absTol = 5e-8;
+	const double relTol = 5e-6; // std::numeric_limits<float>::epsilon() * 100.0;
 
 	cadet::IModelBuilder* const mb = cadet::createModelBuilder();
 	REQUIRE(nullptr != mb);

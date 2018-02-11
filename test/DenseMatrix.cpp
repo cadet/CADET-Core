@@ -11,6 +11,7 @@
 // =============================================================================
 
 #include <catch.hpp>
+#include "Approx.hpp"
 
 #include <vector>
 #include <limits>
@@ -221,7 +222,7 @@ TEST_CASE("DenseMatrix LU vs QR factorization", "[DenseMatrix],[LinAlg]")
 
 		for (unsigned int j = 0; j < dm.rows(); ++j)
 		{
-			CHECK(vecLU[j] == Approx(vecQR[j]));
+			CHECK(vecLU[j] == RelApprox(vecQR[j]));
 			vecLU[j] = 0.0;
 			vecQR[j] = 0.0;
 		}

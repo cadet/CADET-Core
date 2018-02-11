@@ -11,6 +11,7 @@
 // =============================================================================
 
 #include <catch.hpp>
+#include "Approx.hpp"
 #include "cadet/cadet.hpp"
 
 #define CADET_LOGGING_DISABLE
@@ -27,9 +28,9 @@
 #include <algorithm>
 #include <iterator>
 
-inline Approx makeApprox(double val, double relTol, double absTol)
+inline RelApprox makeApprox(double val, double relTol, double absTol)
 {
-	return Approx(val).epsilon(relTol).margin(absTol);
+	return RelApprox(val).epsilon(relTol).margin(absTol);
 }
 
 inline void setFlowRateFilter(cadet::JsonParameterProvider& jpp, double filter)

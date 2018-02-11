@@ -19,6 +19,7 @@
 #define CADETTEST_MATRIXHELPER_HPP_
 
 #include <vector>
+#include "Approx.hpp"
 
 namespace cadet
 {
@@ -35,7 +36,7 @@ namespace test
 inline void checkMatrixAgainstLinearArray(double const* mat, const std::vector<double>& matRef)
 {
 	for (unsigned int i = 0; i < matRef.size(); ++i)
-		CHECK(matRef[i] == Approx(mat[i]));
+		CHECK(matRef[i] == RelApprox(mat[i]));
 }
 
 } // namespace test

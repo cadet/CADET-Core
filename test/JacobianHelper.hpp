@@ -24,6 +24,8 @@
 #include <limits>
 #include <functional>
 
+#include "Approx.hpp"
+
 namespace cadet
 {
 
@@ -56,7 +58,7 @@ inline void compareJacobian(const std::function<void(double const*, double*)> mu
 		{
 			CAPTURE(row);
 			CAPTURE(col);
-			CHECK(colA[row] == Approx(colB[row]));
+			CHECK(colA[row] == RelApprox(colB[row]));
 		}
 
 		dir[col] = 0.0;
@@ -135,7 +137,7 @@ inline void compareJacobianFD(const std::function<void(double const*, double*)>&
 		{
 			CAPTURE(row);
 			CAPTURE(col);
-			CHECK(colA[row] == Approx(colB[row]).epsilon(relTol).margin(absTol));
+			CHECK(colA[row] == RelApprox(colB[row]).epsilon(relTol).margin(absTol));
 		}
 	}
 }
@@ -274,7 +276,7 @@ inline void compareTimeDerivativeJacobian(cadet::IUnitOperation* modelA, cadet::
 		{
 			CAPTURE(row);
 			CAPTURE(col);
-			CHECK(colA[row] == Approx(colB[row]));
+			CHECK(colA[row] == RelApprox(colB[row]));
 		}
 
 		dir[col] = 0.0;
