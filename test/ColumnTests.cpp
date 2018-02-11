@@ -601,7 +601,7 @@ namespace column
 		destroyModelBuilder(mb);
 	}
 
-	void testFwdSensSolutionFD(const std::string& uoType, double h, double const* absTols, double const* relTols, double const* passRates)
+	void testFwdSensSolutionFD(const std::string& uoType, double const* fdStepSize, double const* absTols, double const* relTols, double const* passRates)
 	{
 		const std::vector<cadet::ParameterId> params = {
 			cadet::makeParamId("COL_DISPERSION", 0, cadet::CompIndep, cadet::BoundPhaseIndep, cadet::ReactionIndep, cadet::SectionIndep),
@@ -623,6 +623,7 @@ namespace column
 					const double relTol = relTols[n];
 					const double passRate = passRates[n];
 					const cadet::ParameterId& curParam = params[n];
+					const double h = fdStepSize[n];
 
 					// Setup simulation including forward sensitivities
 					cadet::JsonParameterProvider jppAna = createLWE(uoType);
@@ -678,9 +679,9 @@ namespace column
 						const unsigned int timeIdx = i / nComp;
 
 						INFO("Time " << (*time) << " Component " << comp << " time point idx " << timeIdx);
-						CHECK(*outlet == makeApprox(fdVal, relTol, absTol));
+						CHECK(fdVal == makeApprox(*outlet, relTol, absTol));
 
-						const bool relativeOK = std::abs(*outlet - fdVal) < relTol * (1.0 + (std::max)(std::abs(*outlet), std::abs(fdVal)));
+						const bool relativeOK = std::abs(*outlet - fdVal) <= relTol * std::abs(*outlet);
 						if (relativeOK)
 							++numPassed;
 
@@ -757,7 +758,7 @@ namespace column
 						INFO("Time " << (*time) << " Component " << comp << " time point idx " << timeIdx);
 						CHECK(*bwdInlet == makeApprox(*fwdOutlet, relTol, absTol));
 
-						const bool relativeOK = std::abs(*bwdInlet - *fwdOutlet) < relTol * (1.0 + (std::max)(std::abs(*bwdInlet), std::abs(*fwdOutlet)));
+						const bool relativeOK = std::abs(*bwdInlet - *fwdOutlet) <= relTol * std::abs(*fwdOutlet);
 						if (relativeOK)
 							++numPassed;
 
