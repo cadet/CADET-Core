@@ -102,8 +102,11 @@ bool LumpedRateModelWithPores::configure(IParameterProvider& paramProvider, ICon
 	_disc.nCol = paramProvider.getInt("NCOL");
 
 	const std::vector<int> nBound = paramProvider.getIntArray("NBOUND");
+	if (nBound.size() < _disc.nComp)
+		throw InvalidParameterException("Field NBOUND contains too few elements (NCOMP = " + std::to_string(_disc.nComp) + " required)");
+
 	_disc.nBound = new unsigned int[_disc.nComp];
-	std::copy(nBound.begin(), nBound.end(), _disc.nBound);
+	std::copy_n(nBound.begin(), _disc.nComp, _disc.nBound);
 
 	// Precompute offsets and total number of bound states (DOFs in solid phase)
 	_disc.boundOffset = new unsigned int[_disc.nComp];
