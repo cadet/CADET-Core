@@ -19,7 +19,7 @@ TEST_CASE("LRM LWE forward vs backward flow", "[LRM],[Simulation]")
 {
 	// Test all WENO orders
 	for (unsigned int i = 1; i <= cadet::Weno::maxOrder(); ++i)
-		cadet::test::column::testWenoForwardBackward("LUMPED_RATE_MODEL_WITHOUT_PORES", i, 3e-9, 5e-4);
+		cadet::test::column::testWenoForwardBackward("LUMPED_RATE_MODEL_WITHOUT_PORES", i, 6e-9, 6e-4);
 }
 
 TEST_CASE("LRM linear pulse vs analytic solution", "[LRM],[Simulation],[Analytic]")
@@ -61,8 +61,8 @@ TEST_CASE("LRM forward sensitivity vs FD", "[LRM],[Sensitivity],[Simulation]")
 	const double fdStepSize[] = {5e-3, 5e-3, 5e-3, 1e-3};
 	const double absTols[] = {2e8, 8e-3, 2e-2, 3e-1};
 	const double relTols[] = {1e-1, 5e-1, 5e-2, 1e-2};
-	const double passRatio[] = {0.88, 0.84, 0.76, 0.88};
-	cadet::test::column::testFwdSensSolutionFD("LUMPED_RATE_MODEL_WITHOUT_PORES", fdStepSize, absTols, relTols, passRatio);
+	const double passRatio[] = {0.88, 0.84, 0.74, 0.88};
+	cadet::test::column::testFwdSensSolutionFD("LUMPED_RATE_MODEL_WITHOUT_PORES", 0.0, fdStepSize, absTols, relTols, passRatio);
 }
 
 TEST_CASE("LRM forward sensitivity forward vs backward flow", "[LRM],[Sensitivity],[Simulation]")

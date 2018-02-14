@@ -606,7 +606,7 @@ namespace column
 		destroyModelBuilder(mb);
 	}
 
-	void testFwdSensSolutionFD(const std::string& uoType, double const* fdStepSize, double const* absTols, double const* relTols, double const* passRates)
+	void testFwdSensSolutionFD(const std::string& uoType, double maxStepSize, double const* fdStepSize, double const* absTols, double const* relTols, double const* passRates)
 	{
 		const std::vector<cadet::ParameterId> params = {
 			cadet::makeParamId("COL_DISPERSION", 0, cadet::CompIndep, cadet::BoundPhaseIndep, cadet::ReactionIndep, cadet::SectionIndep),
@@ -636,6 +636,7 @@ namespace column
 					cadet::test::column::setCrossSectionArea(jppAna, uoType == "LUMPED_RATE_MODEL_WITHOUT_PORES", 0);
 					cadet::test::addSensitivity(jppAna, paramNames[n], curParam, absTolSens[n]);
 					cadet::test::returnSensitivities(jppAna, 0);
+					cadet::test::setMaxStepSize(jppAna, maxStepSize);
 
 					// Run simulation
 					cadet::Driver drv;
@@ -646,6 +647,7 @@ namespace column
 					cadet::JsonParameterProvider jppFD = createLWE(uoType);
 					cadet::test::column::setBindingMode(jppFD, isKinetic);
 					cadet::test::column::setCrossSectionArea(jppFD, uoType == "LUMPED_RATE_MODEL_WITHOUT_PORES", 0);
+					cadet::test::setMaxStepSize(jppAna, maxStepSize);
 
 					// Configure FD simulation
 					cadet::Driver drvLeft;

@@ -59,16 +59,16 @@ TEST_CASE("LRMP forward sensitivity vs FD", "[LRMP],[Sensitivity],[Simulation]")
 	// some points that are far off pass the error test, too. This is required
 	// due to errors in finite differences.
 	const double fdStepSize[] = {1e-5, 1e-6, 1e-3, 1e-5};
-	const double absTols[] = {3e5, 2e-2, 2e-2, 1.0};
+	const double absTols[] = {6e5, 2e-2, 2e-2, 1.0};
 	const double relTols[] = {5e-3, 1e-1, 5e-1, 6e-3};
-	const double passRatio[] = {0.9, 0.85, 0.88, 0.95};
-	cadet::test::column::testFwdSensSolutionFD("LUMPED_RATE_MODEL_WITH_PORES", fdStepSize, absTols, relTols, passRatio);
+	const double passRatio[] = {0.88, 0.84, 0.88, 0.95};
+	cadet::test::column::testFwdSensSolutionFD("LUMPED_RATE_MODEL_WITH_PORES", 1.0, fdStepSize, absTols, relTols, passRatio);
 }
 
 TEST_CASE("LRMP forward sensitivity forward vs backward flow", "[LRMP],[Sensitivity],[Simulation]")
 {
 	const double absTols[] = {50.0, 2e-10, 1.0, 5e-7};
 	const double relTols[] = {2e-4, 9e-6, 5e-7, 1e-7};
-	const double passRatio[] = {1.0, 0.99, 0.99, 0.99};
+	const double passRatio[] = {1.0, 0.99, 0.98, 0.99};
 	cadet::test::column::testFwdSensSolutionForwardBackward("LUMPED_RATE_MODEL_WITH_PORES", absTols, relTols, passRatio);
 }

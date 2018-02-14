@@ -146,12 +146,13 @@ namespace column
 	 *          Each sensitivity is checked for quasi-stationary and dynamic binding, which means that
 	 *          in total 8 checks are performed.
 	 * @param [in] uoType Unit operation type
+	 * @param [in] maxStepSize Maximum time step size in the simulation (default is @c 0.0 which means unlimited step size)
 	 * @param [in] fdStepSize Array with step sizes of centered finite differences
 	 * @param [in] absTols Array with absolute error tolerances
 	 * @param [in] relTols Array with relative error tolerances
 	 * @param [in] passRates Array with rates of relative error test passes
 	 */
-	void testFwdSensSolutionFD(const std::string& uoType, double const* fdStepSize, double const* absTols, double const* relTols, double const* passRates);
+	void testFwdSensSolutionFD(const std::string& uoType, double maxStepSize, double const* fdStepSize, double const* absTols, double const* relTols, double const* passRates);
 
 	/**
 	 * @brief Checks the forward sensitivity solution with forward flow against the one using backward flow
