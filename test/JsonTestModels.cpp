@@ -173,7 +173,7 @@ json createGRMwithLinearJson()
 
 		disc["NCOL"] = 15;
 		disc["NPAR"] = 5;
-		disc["NBOUND"] = {1, 1, 1};
+		disc["NBOUND"] = {1, 1};
 
 		disc["PAR_DISC_TYPE"] = std::string("EQUIDISTANT_PAR");
 
