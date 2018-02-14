@@ -360,6 +360,16 @@ json createLWEJson(const std::string& uoType)
 			ti["ALGTOL"] = 1e-12;
 			ti["INIT_STEP_SIZE"] = 1e-6;
 			ti["MAX_STEPS"] = 10000;
+			ti["MAX_STEP_SIZE"] = 0.0;
+			ti["RELTOL_SENS"] = 1e-6;
+			ti["ERRORTEST_SENS"] = true;
+			ti["MAX_NEWTON_ITER"] = 3;
+			ti["MAX_ERRTEST_FAIL"] = 7;
+			ti["MAX_CONVTEST_FAIL"] = 10;
+			ti["MAX_NEWTON_ITER_SENS"] = 3;
+			ti["NTHREADS"] = 1;
+			ti["CONSISTENT_INIT_MODE"] = 1;
+			ti["CONSISTENT_INIT_MODE_SENS"] = 1;
 
 			solver["time_integrator"] = ti;
 		}
@@ -588,6 +598,16 @@ cadet::JsonParameterProvider createLinearBenchmark(bool dynamicBinding, bool non
 			ti["ALGTOL"] = 1e-12;
 			ti["INIT_STEP_SIZE"] = 1e-6;
 			ti["MAX_STEPS"] = 10000;
+			ti["MAX_STEP_SIZE"] = 0.0;
+			ti["RELTOL_SENS"] = 1e-6;
+			ti["ERRORTEST_SENS"] = true;
+			ti["MAX_NEWTON_ITER"] = 3;
+			ti["MAX_ERRTEST_FAIL"] = 7;
+			ti["MAX_CONVTEST_FAIL"] = 10;
+			ti["MAX_NEWTON_ITER_SENS"] = 3;
+			ti["NTHREADS"] = 1;
+			ti["CONSISTENT_INIT_MODE"] = 1;
+			ti["CONSISTENT_INIT_MODE_SENS"] = 1;
 
 			solver["time_integrator"] = ti;
 		}
@@ -757,6 +777,16 @@ cadet::JsonParameterProvider createCSTRBenchmark(unsigned int nSec, double endTi
 			ti["ALGTOL"] = 1e-12;
 			ti["INIT_STEP_SIZE"] = 1e-6;
 			ti["MAX_STEPS"] = 10000;
+			ti["MAX_STEP_SIZE"] = 0.0;
+			ti["RELTOL_SENS"] = 1e-6;
+			ti["ERRORTEST_SENS"] = true;
+			ti["MAX_NEWTON_ITER"] = 3;
+			ti["MAX_ERRTEST_FAIL"] = 7;
+			ti["MAX_CONVTEST_FAIL"] = 10;
+			ti["MAX_NEWTON_ITER_SENS"] = 3;
+			ti["NTHREADS"] = 1;
+			ti["CONSISTENT_INIT_MODE"] = 1;
+			ti["CONSISTENT_INIT_MODE_SENS"] = 1;
 
 			solver["time_integrator"] = ti;
 		}
