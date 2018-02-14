@@ -292,7 +292,7 @@ namespace cadet
 				map[makeParamId(nameHash, unitOpIdx, CompIndep, BoundPhaseIndep, ReactionIndep, i)] = &params[i];
 			}
 		}
-		else
+		else if (params.size() > 0)
 		{
 			map[makeParamId(nameHash, unitOpIdx, CompIndep, BoundPhaseIndep, ReactionIndep, SectionIndep)] = &params[0];
 		}
