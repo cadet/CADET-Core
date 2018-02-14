@@ -14,6 +14,7 @@
 
 #include <sstream>
 #include <iomanip>
+#include <iterator>
 
 namespace
 {
