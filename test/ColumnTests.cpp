@@ -114,6 +114,11 @@ namespace column
 			std::fread(&_numElements, 4, 1, _f);
 		}
 
+		~ReferenceDataReader()
+		{
+			std::fclose(_f);
+		}
+
 		std::vector<double> time()
 		{
 			std::vector<double> v(_numElements, 0.0);
