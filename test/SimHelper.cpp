@@ -15,6 +15,7 @@
 #include <sstream>
 #include <iomanip>
 #include <iterator>
+#include <algorithm>
 
 namespace
 {
@@ -233,6 +234,15 @@ namespace test
 		jpp.pushScope("solver");
 		jpp.pushScope("time_integrator");
 		jpp.set("ERRORTEST_SENS", !isDisabled);
+		jpp.popScope();
+		jpp.popScope();
+	}
+
+	void setMaxStepSize(cadet::JsonParameterProvider& jpp, double maxStepSize)
+	{
+		jpp.pushScope("solver");
+		jpp.pushScope("time_integrator");
+		jpp.set("MAX_STEP_SIZE", std::max(maxStepSize, 0.0));
 		jpp.popScope();
 		jpp.popScope();
 	}

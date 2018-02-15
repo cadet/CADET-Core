@@ -133,6 +133,14 @@ namespace test
 	 */
 	void disableSensitivityErrorTest(cadet::JsonParameterProvider& jpp, bool isDisabled = true);
 
+	/**
+	 * @brief Sets maximum step size in time integration
+	 * @details Default is @c 0 which means unlimited step size.
+	 * @param [in,out] jpp ParameterProvider
+	 * @param [in] maxStepSize Maximum time step size
+	 */
+	void setMaxStepSize(cadet::JsonParameterProvider& jpp, double maxStepSize);
+
 } // namespace test
 } // namespace cadet
 
