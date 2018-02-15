@@ -19,7 +19,7 @@ TEST_CASE("LRMP LWE forward vs backward flow", "[LRMP],[Simulation]")
 {
 	// Test all WENO orders
 	for (unsigned int i = 1; i <= cadet::Weno::maxOrder(); ++i)
-		cadet::test::column::testWenoForwardBackward("LUMPED_RATE_MODEL_WITH_PORES", i, 6e-8, 3e-6);
+		cadet::test::column::testWenoForwardBackward("LUMPED_RATE_MODEL_WITH_PORES", i, 6e-8, 4e-6);
 }
 
 TEST_CASE("LRMP linear pulse vs analytic solution", "[LRMP],[Simulation],[Analytic]")
