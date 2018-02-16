@@ -46,7 +46,7 @@ target_compile_definitions(cadet-cli PRIVATE ${HDF5_DEFINITIONS})
 target_link_libraries(cadet-cli PRIVATE ${HDF5_LIBRARIES})
 
 # Link to TBB for timer
-if (BENCHMARK_MODE AND CADET_PARALLELIZE)
+if (BENCHMARK_MODE OR CADET_PARALLEL_FLAG)
 	target_include_directories(cadet-cli PRIVATE ${TBB_INCLUDE_DIRS})
 	target_link_libraries(cadet-cli PRIVATE ${TBB_LIBRARIES})
 endif()
