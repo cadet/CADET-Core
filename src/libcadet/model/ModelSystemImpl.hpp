@@ -119,7 +119,7 @@ public:
 		active* const adRes, double* const tmp);
 
 	virtual int linearSolve(double t, double timeFactor, double alpha, double tol, double* const rhs, double const* const weight,
-		double const* const y, double const* const yDot, double const* const res);
+		double const* const y, double const* const yDot);
 
 	virtual void prepareADvectors(active* const adRes, active* const adY, unsigned int adDirOffset) const;
 
@@ -139,7 +139,7 @@ public:
 	virtual void setSectionTimes(double const* secTimes, bool const* secContinuity, unsigned int nSections);
 
 	int schurComplementMatrixVector(double const* x, double* z, double t, double timeFactor, double alpha, double outerTol, double const* const weight,
-		double const* const y, double const* const yDot, double const* const res) const;
+		double const* const y, double const* const yDot) const;
 
 	virtual void expandErrorTol(double const* errorSpec, unsigned int errorSpecSize, double* expandOut);
 	virtual std::vector<double> calculateErrorTolsForAdditionalDofs(double const* errorTol, unsigned int errorTolLength);

@@ -1028,7 +1028,7 @@ void CSTRModel::multiplyWithDerivativeJacobian(double t, unsigned int secIdx, do
 }
 
 int CSTRModel::linearSolve(double t, double timeFactor, double alpha, double tol, double* const rhs, double const* const weight,
-	double const* const y, double const* const yDot, double const* const res)
+	double const* const y, double const* const yDot)
 {
 	const double flowIn = static_cast<double>(_flowRateIn);
 

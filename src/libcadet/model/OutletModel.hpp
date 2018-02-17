@@ -97,7 +97,7 @@ public:
 
 	// linearSolve and assembleAndPrepareDAEJacobian are null operations since there are only inlet DOFs, which are treated by ModelSystem
 	virtual int linearSolve(double t, double timeFactor, double alpha, double tol, double* const rhs, double const* const weight,
-		double const* const y, double const* const yDot, double const* const res) {	return 0; }
+		double const* const y, double const* const yDot) { return 0; }
 
 	virtual void prepareADvectors(active* const adRes, active* const adY, unsigned int adDirOffset) const;
 

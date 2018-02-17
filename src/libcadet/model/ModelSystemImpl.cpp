@@ -2285,7 +2285,7 @@ void ModelSystem::genJacobian(unsigned int nSens, const active& t, unsigned int 
 }
 
 int ModelSystem::linearSolve(double t, double timeFactor, double alpha, double outerTol, double* const rhs, double const* const weight,
-	double const* const y, double const* const yDot, double const* const res)
+	double const* const y, double const* const yDot)
 {
 	// TODO: Add early out error checks
 
@@ -2301,7 +2301,7 @@ int ModelSystem::linearSolve(double t, double timeFactor, double alpha, double o
 	{
 		IUnitOperation* const m = _models[i];
 		const unsigned int offset = _dofOffset[i];
-		_errorIndicator[i] = m->linearSolve(t, timeFactor, alpha, outerTol, rhs + offset, weight + offset, y + offset, yDot + offset, res + offset);
+		_errorIndicator[i] = m->linearSolve(t, timeFactor, alpha, outerTol, rhs + offset, weight + offset, y + offset, yDot + offset);
 	} CADET_PARFOR_END;
 
 	// Solve last row of L with backwards substitution: y_f = b_f - \sum_{i=0}^{N_z} J_{f,i} y_i
@@ -2336,7 +2336,7 @@ int ModelSystem::linearSolve(double t, double timeFactor, double alpha, double o
 	// Instead of changing the interface a lambda function is used and closed over the additional variables
 	auto schurComplementMatrixVectorPartial = [&, this](void* userData, double const* x, double* z) -> int 
 	{
-		return ModelSystem::schurComplementMatrixVector(x, z, t, timeFactor, alpha, outerTol, weight, y, yDot, res);
+		return ModelSystem::schurComplementMatrixVector(x, z, t, timeFactor, alpha, outerTol, weight, y, yDot);
 	};
 
 	_gmres.matrixVectorMultiplier(schurComplementMatrixVectorPartial);
@@ -2370,7 +2370,7 @@ int ModelSystem::linearSolve(double t, double timeFactor, double alpha, double o
 		_jacNF[idxModel].multiplyVector(rhs + finalOffset, _tempState + offset);
 
 		// Apply N_i^{-1} to tempState_i
-		const int linSolve = m->linearSolve(t, timeFactor, alpha, outerTol, _tempState + offset, weight + offset, y + offset, yDot + offset, res + offset);
+		const int linSolve = m->linearSolve(t, timeFactor, alpha, outerTol, _tempState + offset, weight + offset, y + offset, yDot + offset);
 		_errorIndicator[idxModel] = updateErrorIndicator(_errorIndicator[idxModel], linSolve);
 
 		// Compute rhs_i = y_i - N_i^{-1} * N_{i,f} * y_f = y_i - tempState_i
@@ -2403,7 +2403,7 @@ S &= J_f - J_{f,0} \, J_0^{-1} \, J_{0,f} - \sum_{p=1}^{N_z}{J_{f,p} \, J_p^{-1}
 * @return @c 0 if successful, any other value in case of failure
 */
 int ModelSystem::schurComplementMatrixVector(double const* x, double* z, double t, double timeFactor, double alpha, double outerTol, double const* const weight,
-	double const* const y, double const* const yDot, double const* const res) const
+	double const* const y, double const* const yDot) const
 {
 	BENCH_SCOPE(_timerMatVec);
 
@@ -2425,7 +2425,7 @@ int ModelSystem::schurComplementMatrixVector(double const* x, double* z, double 
 		_jacNF[idxModel].multiplyVector(x, _tempState + offset);
 
 		// Apply N_i^{-1} to tempState_i
-		const int linSolve = m->linearSolve(t, timeFactor, alpha, outerTol, _tempState + offset, weight + offset, y + offset, yDot + offset, res + offset);
+		const int linSolve = m->linearSolve(t, timeFactor, alpha, outerTol, _tempState + offset, weight + offset, y + offset, yDot + offset);
 		_errorIndicator[idxModel] = updateErrorIndicator(_errorIndicator[idxModel], linSolve);
 
 		// Apply J_{f,i} and subtract results from z

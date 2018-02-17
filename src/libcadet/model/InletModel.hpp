@@ -100,7 +100,7 @@ public:
 
 	// linearSolve is a null operation (the result is I^-1 *rhs -> rhs) since the Jacobian is an identity matrix
 	virtual int linearSolve(double t, double timeFactor, double alpha, double tol, double* const rhs, double const* const weight,
-		double const* const y, double const* const yDot, double const* const res) { return 0; }
+		double const* const y, double const* const yDot) { return 0; }
 
 	virtual void prepareADvectors(active* const adRes, active* const adY, unsigned int adDirOffset) const;
 

@@ -749,11 +749,10 @@ void LumpedRateModelWithoutPores::expandErrorTol(double const* errorSpec, unsign
  * @param [in] weight Vector with error weights
  * @param [in] y Pointer to state vector at which the Jacobian is evaluated
  * @param [in] yDot Pointer to time derivative state vector at which the Jacobian is evaluated
- * @param [in] res Pointer to residual vector at the point @p y, @p yDot
  * @return @c 0 on success, @c -1 on non-recoverable error, and @c +1 on recoverable error
  */
 int LumpedRateModelWithoutPores::linearSolve(double t, double timeFactor, double alpha, double outerTol, double* const rhs, double const* const weight,
-	double const* const y, double const* const yDot, double const* const res)
+	double const* const y, double const* const yDot)
 {
 	BENCH_SCOPE(_timerLinearSolve);
 

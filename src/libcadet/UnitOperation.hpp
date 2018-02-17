@@ -230,11 +230,10 @@ public:
 	 * @param [in] weight Vector with error weights
 	 * @param [in] y Pointer to local state vector at which the Jacobian is evaluated
 	 * @param [in] yDot Pointer to local time derivative state vector at which the Jacobian is evaluated
-	 * @param [in] res Pointer to local residual vector at the point @p y, @p yDot
 	 * @return @c 0 on success, @c -1 on non-recoverable error, and @c +1 on recoverable error
 	 */
 	virtual int linearSolve(double t, double timeFactor, double alpha, double tol, double* const rhs, double const* const weight,
-		double const* const y, double const* const yDot, double const* const res) = 0;
+		double const* const y, double const* const yDot) = 0;
 
 	/**
 	 * @brief Prepares the AD system vectors by constructing seed vectors
