@@ -62,7 +62,7 @@ TEST_CASE("GRM forward sensitivity vs FD", "[GRM],[Sensitivity],[Simulation]")
 	const double absTols[] = {3e5, 2e-3, 2e-4, 5.0};
 	const double relTols[] = {5e-3, 7e-2, 8e-2, 1e-4};
 	const double passRatio[] = {0.95, 0.9, 0.91, 0.83};
-	cadet::test::column::testFwdSensSolutionFD("GENERAL_RATE_MODEL", 0.0, fdStepSize, absTols, relTols, passRatio);
+	cadet::test::column::testFwdSensSolutionFD("GENERAL_RATE_MODEL", false, fdStepSize, absTols, relTols, passRatio);
 }
 
 TEST_CASE("GRM forward sensitivity forward vs backward flow", "[GRM],[Sensitivity],[Simulation]")

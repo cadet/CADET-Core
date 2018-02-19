@@ -62,7 +62,7 @@ TEST_CASE("LRMP forward sensitivity vs FD", "[LRMP],[Sensitivity],[Simulation]")
 	const double absTols[] = {6e5, 2e-2, 2e-2, 1.0};
 	const double relTols[] = {5e-3, 1e-1, 5e-1, 6e-3};
 	const double passRatio[] = {0.88, 0.84, 0.88, 0.95};
-	cadet::test::column::testFwdSensSolutionFD("LUMPED_RATE_MODEL_WITH_PORES", 1.0, fdStepSize, absTols, relTols, passRatio);
+	cadet::test::column::testFwdSensSolutionFD("LUMPED_RATE_MODEL_WITH_PORES", true, fdStepSize, absTols, relTols, passRatio);
 }
 
 TEST_CASE("LRMP forward sensitivity forward vs backward flow", "[LRMP],[Sensitivity],[Simulation]")
