@@ -13,6 +13,13 @@
 #define CATCH_CONFIG_RUNNER
 #include <catch.hpp>
 
+#ifdef CADET_PARALLELIZE
+	#include <tbb/tbb.h>
+
+	#define TBB_PREVIEW_GLOBAL_CONTROL 1
+	#include <tbb/global_control.h>
+#endif
+
 
 // Uncomment the next line to enable logging output of CADET in unit tests
 //#define CADETTEST_ENABLE_LOG
@@ -44,6 +51,30 @@ int main(int argc, char* argv[])
 	cadetSetLogLevel(static_cast<typename std::underlying_type<cadet::LogLevel>::type>(logLevel));
 #endif
 
-	const int result = Catch::Session().run(argc, argv);
+#ifdef CADET_PARALLELIZE
+	int nThreads = tbb::task_scheduler_init::automatic;
+#else
+	int nThreads = 0;
+#endif
+
+	Catch::Session session;
+
+	// Add command line option for threads to CATCH's argument parser
+	session.cli(session.cli() | Catch::clara::Opt( nThreads, "number" )["--tbbthreads"]("number of TBB threads"));;
+
+	// Parse the command line and check for error
+	const int returnCode = session.applyCommandLine(argc, argv);
+	if (returnCode != 0)
+		return returnCode;
+
+#ifdef CADET_PARALLELIZE
+	if (nThreads <= 0)
+		nThreads = tbb::task_scheduler_init::automatic;
+
+	tbb::task_scheduler_init taskSchedulerInit(nThreads);
+#endif
+
+	// Run tests
+	const int result = session.run();
 	return result;
 }

@@ -42,6 +42,8 @@ add_executable (testRunner testRunner.cpp JsonTestModels.cpp ColumnTests.cpp Sim
 
 target_link_libraries(testRunner PRIVATE ${SUNDIALS_LIBRARIES})
 if (CADET_PARALLEL_FLAG)
+	target_compile_definitions(testRunner PRIVATE ${CADET_PARALLEL_FLAG})
+	target_include_directories(testRunner PRIVATE ${TBB_INCLUDE_DIRS})
 	target_link_libraries(testRunner PRIVATE ${TBB_LIBRARIES})
 endif()
 
