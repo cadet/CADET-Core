@@ -12,9 +12,9 @@
 
 # Find SUNDIALS, the SUite of Nonlinear and DIfferential/ALgebraic equation Solvers.
 #
-# The module will optionally accept the COMPONENTS argument.  If no COMPONENTS
+# The module will optionally accept the COMPONENTS argument. If no COMPONENTS
 # are specified, then the find module will default to find all the SUNDIALS
-# libraries.  If one or more COMPONENTS are specified, the module will attempt to
+# libraries. If one or more COMPONENTS are specified, the module will attempt to
 # find the specified components.
 #
 # On UNIX systems, this module will read the variable SUNDIALS_USE_STATIC_LIBRARIES
@@ -96,10 +96,21 @@ set( SUNDIALS_INCLUDE_DIRS
 # extract version
 if(SUNDIALS_INCLUDE_DIR)
     file(READ "${SUNDIALS_INCLUDE_DIR}/sundials_config.h" _SUNDIALS_VERSION_FILE)
-    string(REGEX REPLACE ".*#define SUNDIALS_PACKAGE_VERSION \"([0-9]+)\\.([0-9]+)\\.([0-9]+)\".*" "\\1" SUNDIALS_VERSION_MAJOR "${_SUNDIALS_VERSION_FILE}")
-    string(REGEX REPLACE ".*#define SUNDIALS_PACKAGE_VERSION \"([0-9]+)\\.([0-9]+)\\.([0-9]+)\".*" "\\2" SUNDIALS_VERSION_MINOR "${_SUNDIALS_VERSION_FILE}")
-    string(REGEX REPLACE ".*#define SUNDIALS_PACKAGE_VERSION \"([0-9]+)\\.([0-9]+)\\.([0-9]+)\".*" "\\3" SUNDIALS_VERSION_PATCH "${_SUNDIALS_VERSION_FILE}")
-    set(SUNDIALS_VERSION "${SUNDIALS_VERSION_MAJOR}.${SUNDIALS_VERSION_MINOR}.${SUNDIALS_VERSION_PATCH}")
+
+    string(FIND "${_SUNDIALS_VERSION_FILE}" "SUNDIALS_PACKAGE_VERSION" index)
+    if("${index}" LESS 0)
+        # Handle versions from 3.0.0 onwards (including)
+        string(REGEX REPLACE ".*#define SUNDIALS_VERSION \"([0-9]+)\\.([0-9]+)\\.([0-9]+)\".*" "\\1" SUNDIALS_VERSION_MAJOR "${_SUNDIALS_VERSION_FILE}")
+        string(REGEX REPLACE ".*#define SUNDIALS_VERSION \"([0-9]+)\\.([0-9]+)\\.([0-9]+)\".*" "\\2" SUNDIALS_VERSION_MINOR "${_SUNDIALS_VERSION_FILE}")
+        string(REGEX REPLACE ".*#define SUNDIALS_VERSION \"([0-9]+)\\.([0-9]+)\\.([0-9]+)\".*" "\\3" SUNDIALS_VERSION_PATCH "${_SUNDIALS_VERSION_FILE}")
+        set(SUNDIALS_VERSION "${SUNDIALS_VERSION_MAJOR}.${SUNDIALS_VERSION_MINOR}.${SUNDIALS_VERSION_PATCH}")
+    else()
+        # Handle versions up to 2.7.0 (including)
+        string(REGEX REPLACE ".*#define SUNDIALS_PACKAGE_VERSION \"([0-9]+)\\.([0-9]+)\\.([0-9]+)\".*" "\\1" SUNDIALS_VERSION_MAJOR "${_SUNDIALS_VERSION_FILE}")
+        string(REGEX REPLACE ".*#define SUNDIALS_PACKAGE_VERSION \"([0-9]+)\\.([0-9]+)\\.([0-9]+)\".*" "\\2" SUNDIALS_VERSION_MINOR "${_SUNDIALS_VERSION_FILE}")
+        string(REGEX REPLACE ".*#define SUNDIALS_PACKAGE_VERSION \"([0-9]+)\\.([0-9]+)\\.([0-9]+)\".*" "\\3" SUNDIALS_VERSION_PATCH "${_SUNDIALS_VERSION_FILE}")
+        set(SUNDIALS_VERSION "${SUNDIALS_VERSION_MAJOR}.${SUNDIALS_VERSION_MINOR}.${SUNDIALS_VERSION_PATCH}")
+    endif()
 endif()
 
 

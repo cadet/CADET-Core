@@ -213,6 +213,15 @@ if (SUNDIALS_FOUND)
 	endif()
 endif()
 
+# Determine SUNDIALS interface version
+if (SUNDIALS_FOUND)
+	if ("${SUNDIALS_VERSION}" VERSION_LESS "3.0.0")
+		add_definitions(-DCADET_SUNDIALS_IFACE_2)
+	elseif ("${SUNDIALS_VERSION}" VERSION_LESS "4.0.0")
+		add_definitions(-DCADET_SUNDIALS_IFACE_3)
+	endif()
+endif()
+
 # HDF5_ROOT environment variable can be used to find HDF5 package
 find_package(HDF5 COMPONENTS C)
 if (HDF5_FOUND)

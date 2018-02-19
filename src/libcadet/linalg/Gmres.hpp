@@ -24,7 +24,11 @@
 #include <functional>
 
 // Forward declare SUNDIALS types
-typedef struct _SpgmrMemRec SpgmrMemRec;
+#if defined(CADET_SUNDIALS_IFACE_2)
+	typedef struct _SpgmrMemRec SpgmrMemRec;
+#elif defined(CADET_SUNDIALS_IFACE_3)
+	typedef struct _generic_SUNLinearSolver *SUNLinearSolver;
+#endif
 
 namespace cadet
 {
@@ -175,7 +179,12 @@ public:
 	const char* getReturnFlagName(int flag) const CADET_NOEXCEPT;
 
 protected:
+
+#if defined(CADET_SUNDIALS_IFACE_2)
 	SpgmrMemRec* _mem; //!< SUNDIALS memory
+#elif defined(CADET_SUNDIALS_IFACE_3)
+	SUNLinearSolver _linearSolver; //!< SUNDIALS linear solver object
+#endif
 	Orthogonalization _ortho; //!< Orthogonalization method
 	unsigned int _maxRestarts; //!< Maximum number of restarts
 	unsigned int _matrixSize; //!< Size of the square matrix

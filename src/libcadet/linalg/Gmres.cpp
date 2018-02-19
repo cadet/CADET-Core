@@ -13,7 +13,12 @@
 #include "cadet/cadetCompilerInfo.hpp"
 #include "linalg/Gmres.hpp"
 
-#include <sundials/sundials_spgmr.h>
+#if defined(CADET_SUNDIALS_IFACE_2)
+	#include <sundials/sundials_spgmr.h>
+#elif defined(CADET_SUNDIALS_IFACE_3)
+	#include <sunlinsol/sunlinsol_spgmr.h>
+#endif
+
 #include "SundialsVector.hpp"
 
 #include <type_traits>
@@ -32,14 +37,25 @@ int gmresCallback(void* userData, N_Vector v, N_Vector z)
 	return callback(g->userData(), NVEC_DATA(v), NVEC_DATA(z));
 }
 
-Gmres::Gmres() CADET_NOEXCEPT : _mem(nullptr), _ortho(Orthogonalization::ModifiedGramSchmidt), _maxRestarts(0), _matrixSize(0), _matVecMul(nullptr), _userData(nullptr)
+Gmres::Gmres() CADET_NOEXCEPT :
+#if defined(CADET_SUNDIALS_IFACE_2)
+	_mem(nullptr),
+#elif defined(CADET_SUNDIALS_IFACE_3)
+	_linearSolver(nullptr),
+#endif
+	_ortho(Orthogonalization::ModifiedGramSchmidt), _maxRestarts(0), _matrixSize(0), _matVecMul(nullptr), _userData(nullptr)
 {
 }
 
 Gmres::~Gmres() CADET_NOEXCEPT
 {
+#if defined(CADET_SUNDIALS_IFACE_2)
 	if (_mem)
 		SpgmrFree(_mem);
+#elif defined(CADET_SUNDIALS_IFACE_3)
+	if (_linearSolver)
+		SUNLinSolFree(_linearSolver);
+#endif
 }
 
 void Gmres::initialize(unsigned int matrixSize, unsigned int maxKrylov)
@@ -61,7 +77,13 @@ void Gmres::initialize(unsigned int matrixSize, unsigned int maxKrylov, Orthogon
 	NVec_Const(0.0, NV_tmpl);
 
 	// Size of allocated memory is either _maxKrylov or _cc.neq_bnd()
+#if defined(CADET_SUNDIALS_IFACE_2)
 	_mem = SpgmrMalloc(maxKrylov, NV_tmpl);
+#elif defined(CADET_SUNDIALS_IFACE_3)
+	_linearSolver = SUNSPGMR(NV_tmpl, PREC_NONE, maxKrylov);
+	SUNLinSolSetATimes(_linearSolver, this, &gmresCallback);
+	SUNLinSolInitialize_SPGMR(_linearSolver);
+#endif
 
 	NVec_Destroy(NV_tmpl);
 }
@@ -80,17 +102,28 @@ int Gmres::solve(double tolerance, double const* weight, double const* rhs, doub
 	N_Vector NV_rhs = NVec_NewEmpty(_matrixSize);
 	NVEC_DATA(NV_rhs) = const_cast<double*>(rhs);
 
-//	double tolerance = _cc.sqrt_neq() * IDA_mem->ida_epsNewt * _schurSafety;
-
 	const int gsType = static_cast<typename std::underlying_type<Orthogonalization>::type>(_ortho);
+
+#if defined(CADET_SUNDIALS_IFACE_2)
 	int nIter = 0;
 	int nPrecondSolve = 0;
 	double resNorm = -1.0;
-
 	const int flag = SpgmrSolve(_mem, this, NV_sol, NV_rhs,
 			PREC_NONE, gsType, tolerance, _maxRestarts, NULL,
 			NV_weight, NV_weight, &gmresCallback, NULL, 
 			&resNorm, &nIter, &nPrecondSolve);
+#elif defined(CADET_SUNDIALS_IFACE_3)
+	SUNSPGMRSetGSType(_linearSolver, gsType);
+	SUNSPGMRSetMaxRestarts(_linearSolver, _maxRestarts);
+	SUNLinSolSetScalingVectors(_linearSolver, NV_weight, NV_weight);
+	SUNLinSolSetup(_linearSolver, nullptr);
+	const int flag = SUNLinSolSolve(_linearSolver, nullptr, NV_sol, NV_rhs, tolerance);
+
+#ifdef CADET_DEBUG
+	const int nIter = SUNLinSolNumIters(_linearSolver);
+	const double resNorm = SUNLinSolResNorm(_linearSolver);
+#endif
+#endif
 
 	// Free NVector memory space
 	NVec_Destroy(NV_rhs);
@@ -100,29 +133,60 @@ int Gmres::solve(double tolerance, double const* weight, double const* rhs, doub
 	return flag;
 }
 
-const char* Gmres::getReturnFlagName(int flag) const CADET_NOEXCEPT
-{
-	switch (flag)
+#if defined(CADET_SUNDIALS_IFACE_2)
+	const char* Gmres::getReturnFlagName(int flag) const CADET_NOEXCEPT
 	{
-	case  0: return "SPGMR_SUCCESS";            // Converged
-	case  1: return "SPGMR_RES_REDUCED";        // Did not converge, but reduced
-												// norm of residual
+		switch (flag)
+		{
+		case  0: return "SPGMR_SUCCESS";            // Converged
+		case  1: return "SPGMR_RES_REDUCED";        // Did not converge, but reduced
+													// norm of residual
 
-	case  2: return "SPGMR_CONV_FAIL";          // Failed to converge
-	case  3: return "SPGMR_QRFACT_FAIL";        // QRfact found singular matrix
-	case  4: return "SPGMR_PSOLVE_FAIL_REC";    // psolve failed recoverably
-	case  5: return "SPGMR_ATIMES_FAIL_REC";    // atimes failed recoverably
-	case  6: return "SPGMR_PSET_FAIL_REC";      // pset faild recoverably
+		case  2: return "SPGMR_CONV_FAIL";          // Failed to converge
+		case  3: return "SPGMR_QRFACT_FAIL";        // QRfact found singular matrix
+		case  4: return "SPGMR_PSOLVE_FAIL_REC";    // psolve failed recoverably
+		case  5: return "SPGMR_ATIMES_FAIL_REC";    // atimes failed recoverably
+		case  6: return "SPGMR_PSET_FAIL_REC";      // pset faild recoverably
 
-	case -1: return "SPGMR_MEM_NULL";           // mem argument is NULL
-	case -2: return "SPGMR_ATIMES_FAIL_UNREC";  // atimes returned failure flag
-	case -3: return "SPGMR_PSOLVE_FAIL_UNREC";  // psolve failed unrecoverably
-	case -4: return "SPGMR_GS_FAIL";            // Gram-Schmidt routine faiuled
-	case -5: return "SPGMR_QRSOL_FAIL";         // QRsol found singular R
-	case -6: return "SPGMR_PSET_FAIL_UNREC";    // pset failed unrecoverably
-	default: return "NO_VALID_FLAG";
+		case -1: return "SPGMR_MEM_NULL";           // mem argument is NULL
+		case -2: return "SPGMR_ATIMES_FAIL_UNREC";  // atimes returned failure flag
+		case -3: return "SPGMR_PSOLVE_FAIL_UNREC";  // psolve failed unrecoverably
+		case -4: return "SPGMR_GS_FAIL";            // Gram-Schmidt routine faiuled
+		case -5: return "SPGMR_QRSOL_FAIL";         // QRsol found singular R
+		case -6: return "SPGMR_PSET_FAIL_UNREC";    // pset failed unrecoverably
+		default: return "NO_VALID_FLAG";
+		}
 	}
-}
+#elif defined(CADET_SUNDIALS_IFACE_3)
+	const char* Gmres::getReturnFlagName(int flag) const CADET_NOEXCEPT
+	{
+		switch (flag)
+		{
+		case 0: return "SUNLS_SUCCESS";             // successful/converged
+
+		case -1: return "SUNLS_MEM_NULL";           // mem argument is NULL
+		case -2: return "SUNLS_ILL_INPUT";          // illegal function input
+		case -3: return "SUNLS_MEM_FAIL";           // failed memory access
+		case -4: return "SUNLS_ATIMES_FAIL_UNREC";  // atimes unrecoverable failure
+		case -5: return "SUNLS_PSET_FAIL_UNREC";    // pset unrecoverable failure
+		case -6: return "SUNLS_PSOLVE_FAIL_UNREC";  // psolve unrecoverable failure
+		case -7: return "SUNLS_PACKAGE_FAIL_UNREC"; // external package unrec. fail
+		case -8: return "SUNLS_GS_FAIL";            // Gram-Schmidt failure
+		case -9: return "SUNLS_QRSOL_FAIL";         // QRsol found singular R
+
+		case 1: return "SUNLS_RES_REDUCED";         // nonconv. solve, resid reduced
+		case 2: return "SUNLS_CONV_FAIL";           // nonconvergent solve
+		case 3: return "SUNLS_ATIMES_FAIL_REC";     // atimes failed recoverably
+		case 4: return "SUNLS_PSET_FAIL_REC";       // pset failed recoverably
+		case 5: return "SUNLS_PSOLVE_FAIL_REC";     // psolve failed recoverably
+		case 6: return "SUNLS_PACKAGE_FAIL_REC";    // external package recov. fail
+		case 7: return "SUNLS_QRFACT_FAIL";         // QRfact found singular matrix
+		case 8: return "SUNLS_LUFACT_FAIL";         // LUfact found singular matrix
+
+		default: return "NO_VALID_FLAG";
+		}
+	}
+#endif
 
 }  // namespace linalg
 

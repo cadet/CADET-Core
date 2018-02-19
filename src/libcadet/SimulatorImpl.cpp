@@ -435,17 +435,19 @@ namespace cadet
 		// Specify the linear solver.
 		IDAMem IDA_mem = static_cast<IDAMem>(_idaMemBlock);
 
+		IDA_mem->ida_lsolve         = &linearSolveWrapper;
+		IDA_mem->ida_lmem           = this;
 		IDA_mem->ida_linit          = nullptr;
 		IDA_mem->ida_lsetup         = nullptr;
-		IDA_mem->ida_lsolve         = &linearSolveWrapper;
 		IDA_mem->ida_lperf          = nullptr;
 		IDA_mem->ida_lfree          = nullptr;
-		IDA_mem->ida_setupNonNull   = false;
-		IDA_mem->ida_lmem           = this;
 //		IDA_mem->ida_efun           = &weightWrapper;
 //		IDA_mem->ida_user_efun      = 1;
+#if defined(CADET_SUNDIALS_IFACE_2)
+		IDA_mem->ida_setupNonNull   = false;
+#endif
 
-		IDASetUserData(IDA_mem, this);
+		IDASetUserData(_idaMemBlock, this);
 
 		// Allocate memory for AD if required
 		if (_model->usesAD())
