@@ -2,6 +2,7 @@
 
 [![GitHub Release](https://img.shields.io/github/release/modsim/cadet.svg)](https://github.com/modsim/CADET/releases)
 [![Github Release Downloads](https://img.shields.io/github/downloads/modsim/cadet/latest/total.svg)](https://github.com/modsim/CADET/releases)
+[![Build Status Travis](https://img.shields.io/travis/modsim/CADET/master.svg?logo=travis&maxAge=3600)](https://travis-ci.org/modsim/CADET)
 [![Build Status AppVeyor](https://img.shields.io/appveyor/ci/sleweke/cadet/master.svg?logo=appveyor&maxAge=3600)](https://ci.appveyor.com/project/sleweke/cadet)
 
 # Chromatography Analysis and Design Toolkit
@@ -40,7 +41,7 @@ CADET has been successfully built and run on the following platforms:
 What you need to build CADET:
 
 * A C++11 capable compiler (e.g., GCC >= 4.7, Clang >= 3.3, MS Visual Studio >= 2015)
-* [CMake](http://cmake.org/) >= 3.1.0
+* [CMake](http://cmake.org/) >= 3.6.0
 * IDAS of the [SUNDIALS](http://computation.llnl.gov/casc/sundials/main.html) package
 * A LAPACK implementation (e.g., [LAPACK](http://www.netlib.org/lapack/index.html), [CLAPACK](https://icl.cs.utk.edu/lapack-for-windows/clapack/index.html#build), [Intel MKL](https://software.intel.com/sites/campaigns/nest/), or a native one provided by your operating system)
 * [HDF5](http://www.hdfgroup.org/HDF5/)
