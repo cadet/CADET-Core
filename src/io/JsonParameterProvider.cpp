@@ -162,15 +162,22 @@ JsonParameterProvider& JsonParameterProvider::operator=(const JsonParameterProvi
 
 double JsonParameterProvider::getDouble(const std::string& paramName)
 {
+	json& p = _opened.top()->at(paramName);
+	if (p.is_array() && (p.size() == 1))
+		p = p[0];
+
 #ifdef CADET_JSON_LOGGING_ENABLE
-	LOG(Debug) << "GET scalar [double] " << paramName << " = " << _opened.top()->at(paramName).get<double>();
+	LOG(Debug) << "GET scalar [double] " << paramName << " = " << p.get<double>();
 #endif
-	return _opened.top()->at(paramName).get<double>();
+	return p.get<double>();
 }
 
 int JsonParameterProvider::getInt(const std::string& paramName)
 {
-	const json p = _opened.top()->at(paramName);
+	json& p = _opened.top()->at(paramName);
+	if (p.is_array() && (p.size() == 1))
+		p = p[0];
+
 #ifdef CADET_JSON_LOGGING_ENABLE
 	if (p.is_boolean())
 		LOG(Debug) << "GET scalar [int] " << paramName << " = " << static_cast<int>(p.get<bool>());
@@ -185,15 +192,22 @@ int JsonParameterProvider::getInt(const std::string& paramName)
 
 uint64_t JsonParameterProvider::getUint64(const std::string& paramName)
 {
+	json& p = _opened.top()->at(paramName);
+	if (p.is_array() && (p.size() == 1))
+		p = p[0];
+
 #ifdef CADET_JSON_LOGGING_ENABLE
-	LOG(Debug) << "GET scalar [uint64_t] " << paramName << " = " << _opened.top()->at(paramName).get<uint64_t>();
+	LOG(Debug) << "GET scalar [uint64_t] " << paramName << " = " << p.get<uint64_t>();
 #endif
-	return _opened.top()->at(paramName).get<uint64_t>();
+	return p.get<uint64_t>();
 }
 
 bool JsonParameterProvider::getBool(const std::string& paramName)
 {
-	const json p = _opened.top()->at(paramName);
+	json& p = _opened.top()->at(paramName);
+	if (p.is_array() && (p.size() == 1))
+		p = p[0];
+
 #ifdef CADET_JSON_LOGGING_ENABLE
 	if (p.is_number_integer())
 		LOG(Debug) << "GET scalar [bool] " << paramName << " = " << static_cast<bool>(p.get<int>());
@@ -208,50 +222,144 @@ bool JsonParameterProvider::getBool(const std::string& paramName)
 
 std::string JsonParameterProvider::getString(const std::string& paramName)
 {
+	json& p = _opened.top()->at(paramName);
+	if (p.is_array() && (p.size() == 1))
+		p = p[0];
+
 #ifdef CADET_JSON_LOGGING_ENABLE
-	LOG(Debug) << "GET scalar [string] " << paramName << " = " << _opened.top()->at(paramName).get<std::string>();
+	LOG(Debug) << "GET scalar [string] " << paramName << " = " << p.get<std::string>();
 #endif
-	return _opened.top()->at(paramName).get<std::string>();
+	return p.get<std::string>();
 }
 
 std::vector<double> JsonParameterProvider::getDoubleArray(const std::string& paramName)
 {
+	const json& p = _opened.top()->at(paramName);
+	if (!p.is_array())
+	{
 #ifdef CADET_JSON_LOGGING_ENABLE
-	LOG(Debug) << "GET vector [double] " << paramName << " = " << _opened.top()->at(paramName).get<std::vector<double>>();
+		LOG(Debug) << "GET vector [double] " << paramName << " = " << p.get<double>();
 #endif
-	return _opened.top()->at(paramName).get<std::vector<double>>();
+		return std::vector<double>(1, p.get<double>());
+	}
+
+#ifdef CADET_JSON_LOGGING_ENABLE
+	LOG(Debug) << "GET vector [double] " << paramName << " = " << p.get<std::vector<double>>();
+#endif
+	return p.get<std::vector<double>>();
 }
 
 std::vector<int> JsonParameterProvider::getIntArray(const std::string& paramName)
 {
+	const json& p = _opened.top()->at(paramName);
+	if (p.is_array())
+	{
+		if (p[0].is_boolean())
+		{
+			const std::vector<bool> d = p.template get<std::vector<bool>>();
+			std::vector<int> bd(d.size());
+			for (std::size_t i = 0; i < d.size(); ++i)
+				bd[i] = d[i];
+
 #ifdef CADET_JSON_LOGGING_ENABLE
-	LOG(Debug) << "GET vector [int] " << paramName << " = " << _opened.top()->at(paramName).get<std::vector<int>>();
+			LOG(Debug) << "GET vector [int] " << paramName << " = " << bd;
 #endif
-	return _opened.top()->at(paramName).get<std::vector<int>>();
+			return bd;
+		}
+
+#ifdef CADET_JSON_LOGGING_ENABLE
+		LOG(Debug) << "GET vector [int] " << paramName << " = " << p.template get<std::vector<int>>();
+#endif
+		return p.template get<std::vector<int>>();
+	}
+	else
+	{
+		if (p.is_boolean())
+		{
+#ifdef CADET_JSON_LOGGING_ENABLE
+			LOG(Debug) << "GET vector [int] " << paramName << " = " << static_cast<int>(p.template get<bool>());
+#endif
+			return std::vector<int>(1, p.template get<bool>());
+		}
+
+#ifdef CADET_JSON_LOGGING_ENABLE
+		LOG(Debug) << "GET vector [int] " << paramName << " = " << p.template get<int>();
+#endif
+
+		return std::vector<int>(1, p.template get<int>());
+	}
 }
 
 std::vector<uint64_t> JsonParameterProvider::getUint64Array(const std::string& paramName)
 {
+	const json& p = _opened.top()->at(paramName);
+	if (!p.is_array())
+	{
 #ifdef CADET_JSON_LOGGING_ENABLE
-	LOG(Debug) << "GET vector [uint64_t] " << paramName << " = " << _opened.top()->at(paramName).get<std::vector<uint64_t>>();
+		LOG(Debug) << "GET vector [uint64_t] " << paramName << " = " << p.get<uint64_t>();
 #endif
-	return _opened.top()->at(paramName).get<std::vector<uint64_t>>();
+		return std::vector<uint64_t>(1, p.get<uint64_t>());
+	}
+#ifdef CADET_JSON_LOGGING_ENABLE
+	LOG(Debug) << "GET vector [uint64_t] " << paramName << " = " << p.get<std::vector<uint64_t>>();
+#endif
+	return p.get<std::vector<uint64_t>>();
 }
 
 std::vector<bool> JsonParameterProvider::getBoolArray(const std::string& paramName)
 {
+	const json& p = _opened.top()->at(paramName);
+	if (p.is_array())
+	{
+		if (p[0].is_number_integer())
+		{
+			const std::vector<int> d = p.template get<std::vector<int>>();
+			std::vector<bool> bd(d.size());
+			for (std::size_t i = 0; i < d.size(); ++i)
+				bd[i] = d[i];
+
 #ifdef CADET_JSON_LOGGING_ENABLE
-	LOG(Debug) << "GET vector [bool] " << paramName << " = " << _opened.top()->at(paramName);
+			LOG(Debug) << "GET vector [bool] " << paramName << " = " << bd;
 #endif
-	return _opened.top()->at(paramName);
+			return bd;
+		}
+
+#ifdef CADET_JSON_LOGGING_ENABLE
+		LOG(Debug) << "GET vector [bool] " << paramName << " = " << p.template get<std::vector<bool>>();
+#endif
+		return p.template get<std::vector<bool>>();
+	}
+	else
+	{
+		if (p.is_number_integer())
+		{
+#ifdef CADET_JSON_LOGGING_ENABLE
+			LOG(Debug) << "GET vector [bool] " << paramName << " = " << static_cast<bool>(p.template get<int>());
+#endif
+			return std::vector<bool>(1, p.template get<int>());
+		}
+
+#ifdef CADET_JSON_LOGGING_ENABLE
+		LOG(Debug) << "GET vector [bool] " << paramName << " = " << p.template get<bool>();
+#endif
+		return std::vector<bool>(1, p.template get<bool>());
+	}
 }
 
 std::vector<std::string> JsonParameterProvider::getStringArray(const std::string& paramName)
 {
+	const json& p = _opened.top()->at(paramName);
+	if (!p.is_array())
+	{
 #ifdef CADET_JSON_LOGGING_ENABLE
-	LOG(Debug) << "GET vector [string] " << paramName << " = " << _opened.top()->at(paramName).get<std::vector<std::string>>();
+		LOG(Debug) << "GET vector [string] " << paramName << " = " << p.get<std::string>();
 #endif
-	return _opened.top()->at(paramName).get<std::vector<std::string>>();
+		return std::vector<std::string>(1, p.get<std::string>());
+	}
+#ifdef CADET_JSON_LOGGING_ENABLE
+	LOG(Debug) << "GET vector [string] " << paramName << " = " << p.get<std::vector<std::string>>();
+#endif
+	return p.get<std::vector<std::string>>();
 }
 
 bool JsonParameterProvider::exists(const std::string& paramName)
