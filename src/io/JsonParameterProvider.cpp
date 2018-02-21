@@ -292,6 +292,7 @@ void JsonParameterProvider::addScope(const std::string& scope)
 	{
 		json j;
 		j["blubber"] = 0.0;
+		j.erase("blubber");
 		(*_opened.top())[scope] = j;
 	}
 }
