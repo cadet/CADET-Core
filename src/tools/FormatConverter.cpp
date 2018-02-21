@@ -1,7 +1,7 @@
 // =============================================================================
 //  CADET - The Chromatography Analysis and Design Toolkit
 //  
-//  Copyright © 2008-2017: The CADET Authors
+//  Copyright © 2008-2018: The CADET Authors
 //            Please see the AUTHORS and CONTRIBUTORS file.
 //  
 //  All rights reserved. This program and the accompanying materials
@@ -56,20 +56,110 @@ void copyGroup(reader_t& rd, writer_t& wr, const std::string& path, const std::f
 		{
 			// Copy dataset
 			const std::vector<std::size_t> dims = rd.tensorDimensions(*it);
-			if (rd.isInt(*it))
+			if (dims.size() == 0)
 			{
-				const std::vector<int> data = rd.getIntArray(*it);
-				wr.writeTensorInt(*it, dims.size(), dims.data(), data.data(), 1);
+				// Handle scalars
+				if (rd.isInt(*it))
+				{
+					const int d = rd.getInt(*it);
+					wr.writeInt(*it, d);
+				}
+				else if (rd.isDouble(*it))
+				{
+					const double d = rd.getDouble(*it);
+					wr.writeDouble(*it, d);
+				}
+				else if (rd.isString(*it))
+				{
+					const std::string d = rd.getString(*it);
+					wr.writeString(*it, d);
+				}
+				else
+				{
+					const bool d = rd.getBool(*it);
+					wr.writeBool(*it, d);
+				}
 			}
-			else if (rd.isDouble(*it))
+			else if (dims.size() == 1)
 			{
-				const std::vector<double> data = rd.getDoubleArray(*it);
-				wr.writeTensorDouble(*it, dims.size(), dims.data(), data.data(), 1);
+				// Handle vectors
+				if (rd.isInt(*it))
+				{
+					const std::vector<int> data = rd.getIntArray(*it);
+					wr.writeVectorInt(*it, data.size(), data.data(), 1);
+				}
+				else if (rd.isDouble(*it))
+				{
+					const std::vector<double> data = rd.getDoubleArray(*it);
+					wr.writeVectorDouble(*it, data.size(), data.data(), 1);
+				}
+				else if (rd.isString(*it))
+				{
+					const std::vector<std::string> data = rd.getStringArray(*it);
+					wr.writeVectorString(*it, data.size(), data.data(), 1);
+				}
+				else
+				{
+					const std::vector<bool> data = rd.getBoolArray(*it);
+					bool* dp = new bool[data.size()];
+					std::copy(data.begin(), data.end(), dp);
+					wr.writeVectorBool(*it, data.size(), dp, 1);
+					delete[] dp;
+				}
 			}
-			else if (rd.isString(*it))
+			else if (dims.size() == 2)
 			{
-				const std::vector<std::string> data = rd.getStringArray(*it);
-				wr.writeTensorString(*it, dims.size(), dims.data(), data.data(), 1);
+				// Handle matrices
+				if (rd.isInt(*it))
+				{
+					const std::vector<int> data = rd.getIntArray(*it);
+					wr.writeMatrixInt(*it, dims[0], dims[1], data.data(), 1);
+				}
+				else if (rd.isDouble(*it))
+				{
+					const std::vector<double> data = rd.getDoubleArray(*it);
+					wr.writeMatrixDouble(*it, dims[0], dims[1], data.data(), 1);
+				}
+				else if (rd.isString(*it))
+				{
+					const std::vector<std::string> data = rd.getStringArray(*it);
+					wr.writeMatrixString(*it, dims[0], dims[1], data.data(), 1);
+				}
+				else
+				{
+					const std::vector<bool> data = rd.getBoolArray(*it);
+					bool* dp = new bool[data.size()];
+					std::copy(data.begin(), data.end(), dp);
+					wr.writeMatrixBool(*it, dims[0], dims[1], dp, 1);
+					delete[] dp;
+				}
+			}
+			else if (dims.size() > 2)
+			{
+				// Handle tensors
+				if (rd.isInt(*it))
+				{
+					const std::vector<int> data = rd.getIntArray(*it);
+					wr.writeTensorInt(*it, dims.size(), dims.data(), data.data(), 1);
+				}
+				else if (rd.isDouble(*it))
+				{
+					const std::vector<double> data = rd.getDoubleArray(*it);
+					wr.writeTensorDouble(*it, dims.size(), dims.data(), data.data(), 1);
+				}
+				else if (rd.isString(*it))
+				{
+					const std::vector<std::string> data = rd.getStringArray(*it);
+					wr.writeTensorString(*it, dims.size(), dims.data(), data.data(), 1);
+				}
+				else
+				{
+					const std::vector<bool> data = rd.getBoolArray(*it);
+					bool* dp = new bool[data.size()];
+					std::copy(data.begin(), data.end(), dp);
+					wr.writeTensorBool(*it, dims.size(), dims.data(), dp, 1);
+					delete[] dp;
+				}
 			}
 		}
 	}
@@ -82,70 +172,7 @@ void copyGroup(reader_t& rd, writer_t& wr, const std::string& path)
 	copyGroup<reader_t, writer_t>(rd, wr, path, [](const std::string& scope, const std::string& item) -> bool { return true; });
 }
 
-
-class Converter2To3 : public IFormatConverter
+void copyGroup(cadet::io::IFileReader& rd, cadet::io::IFileWriter& wr, const std::string& path)
 {
-public:
-	Converter2To3() { }
-	virtual ~Converter2To3() { }
-
-	virtual void upgrade(cadet::io::IReader& rd, cadet::io::IMemoryIO& mem)
-	{
-		upgradeImpl(rd, mem);
-	}
-
-	virtual void upgrade(cadet::io::IMemoryIO& rd, cadet::io::IMemoryIO& mem)
-	{
-		upgradeImpl(rd, mem);
-	}
-
-	virtual void downgrade(cadet::io::IFileReader& rd, cadet::io::IFileWriter& wr)
-	{
-		if (rd.exists("input"))
-		{
-			DualScope<cadet::io::IFileReader, cadet::io::IFileWriter> s1(rd, wr, "input");
-			wr.writeString("CHROMATOGRAPHY_TYPE", rd.getString("CHROMATOGRAPHY_TYPE"));
-		}
-
-		if (rd.exists("meta"))
-		{
-			DualScope<cadet::io::IFileReader, cadet::io::IFileWriter> s1(rd, wr, "meta");
-			wr.writeString("FILE_FORMAT", rd.getString("FILE_FORMAT"));
-			wr.writeString("CADET_VERSION", rd.getString("CADET_VERSION"));
-			wr.writeString("CADET_COMMIT", rd.getString("CADET_COMMIT"));
-			wr.writeString("CADET_BRANCH", rd.getString("CADET_BRANCH"));
-		}
-
-		if (rd.exists("output"))
-		{
-			DualScope<cadet::io::IFileReader, cadet::io::IFileWriter> s1(rd, wr, "output");
-		}
-	}
-
-	virtual void write(cadet::io::IMemoryIO& rd, cadet::io::IFileWriter& wr)
-	{
-
-	}
-
-	virtual int sourceVersion() const { return 20000; }
-	virtual int targetVersion() const { return 30000; }
-
-protected:
-
-	template <typename reader_t>
-	void upgradeImpl(reader_t& rd, cadet::io::IMemoryIO& mem)
-	{
-
-	}
-};
-
-
-IFormatConverter* createConverter(int sourceVersion)
-{
-	switch (sourceVersion)
-	{
-		case 20000:
-			return new Converter2To3();
-	}
-	return nullptr;
+	copyGroup<cadet::io::IFileReader, cadet::io::IFileWriter>(rd, wr, path, [](const std::string& scope, const std::string& item) -> bool { return true; });
 }

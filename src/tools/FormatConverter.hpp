@@ -1,7 +1,7 @@
 // =============================================================================
 //  CADET - The Chromatography Analysis and Design Toolkit
 //  
-//  Copyright © 2008-2017: The CADET Authors
+//  Copyright © 2008-2018: The CADET Authors
 //            Please see the AUTHORS and CONTRIBUTORS file.
 //  
 //  All rights reserved. This program and the accompanying materials
@@ -13,35 +13,26 @@
 #ifndef CADETTOOLS_FORMATCONVERTER_HPP_
 #define CADETTOOLS_FORMATCONVERTER_HPP_
 
+#include <string>
+
 namespace cadet
 {
 namespace io
 {
-	class IReader;
-	class IWriter;
+
 	class IFileReader;
 	class IFileWriter;
-	class IMemoryIO;
 
 } // namespace io
 } // namespace cadet
 
-class IFormatConverter
-{
-public:
-	IFormatConverter() { }
-	virtual ~IFormatConverter() { }
-
-	virtual void downgrade(cadet::io::IFileReader& rd, cadet::io::IFileWriter& wr) = 0;
-	virtual void upgrade(cadet::io::IReader& rd, cadet::io::IMemoryIO& mem) = 0;
-	virtual void upgrade(cadet::io::IMemoryIO& rd, cadet::io::IMemoryIO& mem) = 0;
-	virtual void write(cadet::io::IMemoryIO& rd, cadet::io::IFileWriter& wr) = 0;
-
-	virtual int sourceVersion() const = 0;
-	virtual int targetVersion() const = 0;
-};
-
-
-IFormatConverter* createConverter(int sourceVersion);
+/**
+ * @brief Copies a group and all of its content (including subgroups) from reader to writer
+ * @details Performs a recursive copy operation transferring the content from a reader to a writer object.
+ * @param [in] rd Reader
+ * @param [in] wr Writer
+ * @param [in] path Path to group that is copied
+ */
+void copyGroup(cadet::io::IFileReader& rd, cadet::io::IFileWriter& wr, const std::string& path);
 
 #endif /* CADETTOOLS_FORMATCONVERTER_HPP_ */
