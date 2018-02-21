@@ -222,7 +222,8 @@ bool HDF5Base::isString(const std::string& elementName)
 
 	// Determine the datatype
 	const hid_t dataType = H5Dget_type(dataSet);
-	const bool result = H5Tis_variable_str(dataType);
+	const H5T_class_t typeClass = H5Tget_class(dataType);
+	const bool result = (H5Tis_variable_str(dataType) > 0) || (typeClass == H5T_STRING);
 	
 	H5Tclose(dataType);
 	H5Dclose(dataSet);	
@@ -307,6 +308,9 @@ std::vector<size_t> HDF5Base::tensorDimensions(const std::string& elementName)
 	const int rank = H5Sget_simple_extent_ndims(dataSpace);
 
 	std::vector<size_t> dims(rank);
+	if (rank == 0)
+		return dims;
+
 	std::vector<hsize_t> buffer(rank);
 	H5Sget_simple_extent_dims(dataSpace, buffer.data(), nullptr); 
 
