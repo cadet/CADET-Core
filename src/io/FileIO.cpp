@@ -14,6 +14,7 @@
 #include <iomanip>
 #include <stack>
 #include <iterator>
+#include <fstream>
 
 #include "io/FileIO.hpp"
 #include "io/hdf5/HDF5Reader.hpp"
@@ -30,6 +31,11 @@ using json = nlohmann::json;
 namespace
 {
 
+/**
+ * @brief Implements reading capabilities from a generic file reader class
+ * @details Wraps a generic file reading class providing the IFileReader interface.
+ * @tparam reader_t Generic file reader class
+ */
 template <typename reader_t>
 class FileReader : public cadet::io::IFileReader
 {
@@ -112,6 +118,11 @@ protected:
 };
 
 
+/**
+ * @brief Implements writing capabilities from a generic file writer class
+ * @details Wraps a generic file writing class providing the IFileWriter interface.
+ * @tparam writer_t Generic file writer class
+ */
 template <typename writer_t>
 class FileWriter : public cadet::io::IFileWriter
 {
@@ -239,6 +250,10 @@ protected:
 };
 
 
+/**
+ * @brief Implements file IO and navigation functions on top of FileReader or FileWriter
+ * @tparam base_t FileReader or FileWriter class
+ */
 template <typename base_t>
 class BaseIOWrapper : public base_t
 {
@@ -297,36 +312,33 @@ public:
 };
 
 
-class JSONMemoryReaderWriter : public cadet::io::IMemoryIO
+/**
+ * @brief Implements JSON IO functions on top of some other class
+ * @tparam base_t Base class that is augmented with JSON IO functions
+ */
+template <typename base_t>
+class JSONBaseIOWrapper : public base_t
 {
 public:
-
-	JSONMemoryReaderWriter() : _root(new json())
-	{
-		_opened.push(_root);
-	}
-
-	virtual ~JSONMemoryReaderWriter() CADET_NOEXCEPT
-	{
-		delete _root;
-	}
+	JSONBaseIOWrapper() { }
 
 	virtual void pushGroup(const std::string& scope)
 	{
 		if (exists(scope))
-			_opened.push(&_opened.top()->at(scope));
+			base_t::_opened.push(&base_t::_opened.top()->at(scope));
 		else
 		{
 			json j;
 			j["blubber"] = 0.0;
-			(*_opened.top())[scope] = j;
-			_opened.push(&_opened.top()->at(scope));
+			j.erase("blubber");
+			(*base_t::_opened.top())[scope] = j;
+			base_t::_opened.push(&base_t::_opened.top()->at(scope));
 		}
 	}
 
 	virtual void popGroup()
 	{
-		_opened.pop();
+		base_t::_opened.pop();
 	}
 
 	virtual void setGroup(const std::string& scope)
@@ -338,8 +350,8 @@ public:
 		// Quick return when called with empty group name
 		if (scope.empty() || (scope == "/"))
 		{
-			_opened = std::stack<nlohmann::json*>();
-			_opened.push(_root);
+			base_t::_opened = std::stack<nlohmann::json*>();
+			base_t::_opened.push(base_t::_root);
 			return;
 		}
 
@@ -361,101 +373,163 @@ public:
 
 	virtual bool exists(const std::string& paramName)
 	{
-		return _opened.top()->find(paramName) != _opened.top()->end();
+		return base_t::_opened.top()->find(paramName) != base_t::_opened.top()->end();
 	}
 
 	virtual double getDouble(const std::string& paramName)
 	{
-		return _opened.top()->at(paramName).get<double>();
+		json& p = base_t::_opened.top()->at(paramName);
+		if (p.is_array() && (p.size() == 1))
+			p = p[0];
+
+		return p.template get<double>();
 	}
 
 	virtual int getInt(const std::string& paramName)
 	{
-		const json p = _opened.top()->at(paramName);
+		json& p = base_t::_opened.top()->at(paramName);
+		if (p.is_array() && (p.size() == 1))
+			p = p[0];
+
 		if (p.is_boolean())
-			return p.get<bool>();
+			return p.template get<bool>();
 		else
-			return p.get<int>();
+			return p.template get<int>();
 	}
 
 	virtual bool getBool(const std::string& paramName)
 	{
-		const json p = _opened.top()->at(paramName);
+		json& p = base_t::_opened.top()->at(paramName);
+		if (p.is_array() && (p.size() == 1))
+			p = p[0];
+
 		if (p.is_number_integer())
-			return p.get<int>();
+			return p.template get<int>();
 		else
-			return p.get<bool>();
+			return p.template get<bool>();
 	}
 
 	virtual std::string getString(const std::string& paramName)
 	{
-		return _opened.top()->at(paramName).get<std::string>();
+		json& p = base_t::_opened.top()->at(paramName);
+		if (p.is_array() && (p.size() == 1))
+			p = p[0];
+
+		return p.template get<std::string>();
 	}
 
 	virtual std::vector<double> getDoubleArray(const std::string& paramName)
 	{
-		return _opened.top()->at(paramName).get<std::vector<double>>();
+		const json& p = base_t::_opened.top()->at(paramName);
+		if (!p.is_array())
+			return std::vector<double>(1, p.template get<double>());
+		else
+			return p.template get<std::vector<double>>();
 	}
 
 	virtual std::vector<int> getIntArray(const std::string& paramName)
 	{
-		return _opened.top()->at(paramName).get<std::vector<int>>();
+		const json& p = base_t::_opened.top()->at(paramName);
+		if (p.is_array())
+		{
+			if (p[0].is_boolean())
+			{
+				const std::vector<bool> d = p.template get<std::vector<bool>>();
+				std::vector<int> bd(d.size());
+				for (std::size_t i = 0; i < d.size(); ++i)
+					bd[i] = d[i];
+
+				return bd;
+			}
+
+			return p.template get<std::vector<int>>();
+		}
+		else
+		{
+			if (p.is_boolean())
+				return std::vector<int>(1, p.template get<bool>());
+
+			return std::vector<int>(1, p.template get<int>());
+		}
 	}
 
 	virtual std::vector<bool> getBoolArray(const std::string& paramName)
 	{
-		const json p = _opened.top()->at(paramName);
-		if (p.is_number_integer())
+		const json& p = base_t::_opened.top()->at(paramName);
+		if (p.is_array())
 		{
-			const std::vector<int> d = p.get<std::vector<int>>();
-			std::vector<bool> bd(d.size());
-			for (std::size_t i = 0; i < d.size(); ++i)
-				bd[i] = d[i];
+			if (p[0].is_number_integer())
+			{
+				const std::vector<int> d = p.template get<std::vector<int>>();
+				std::vector<bool> bd(d.size());
+				for (std::size_t i = 0; i < d.size(); ++i)
+					bd[i] = d[i];
 
-			return bd;
+				return bd;
+			}
+
+			return p.template get<std::vector<bool>>();
 		}
 		else
-			return p.get<std::vector<bool>>();
+		{
+			if (p.is_number_integer())
+				return std::vector<bool>(1, p.template get<int>());
+
+			return std::vector<bool>(1, p.template get<bool>());
+		}
 	}
 
 	virtual std::vector<std::string> getStringArray(const std::string& paramName)
 	{
-		return _opened.top()->at(paramName).get<std::vector<std::string>>();
+		const json& p = base_t::_opened.top()->at(paramName);
+		if (!p.is_array())
+			return std::vector<std::string>(1, p.template get<std::string>());
+		else
+			return p.template get<std::vector<std::string>>();
 	}
 
 	virtual bool isArray(const std::string& elementName)
 	{
-		return _opened.top()->at(elementName).is_array();
+		return base_t::_opened.top()->at(elementName).is_array();
 	}
 
 	virtual bool isString(const std::string& elementName)
 	{
-		return _opened.top()->at(elementName).is_string();
+		const json& p = base_t::_opened.top()->at(elementName);
+		if (p.is_array())
+			return p[0].is_string();
+		return p.is_string();
 	}
 
 	virtual bool isInt(const std::string& elementName)
 	{
-		return _opened.top()->at(elementName).is_number_integer();
+		const json& p = base_t::_opened.top()->at(elementName);
+		if (p.is_array())
+			return p[0].is_number_integer();
+		return p.is_number_integer();
 	}
 
 	virtual bool isDouble(const std::string& elementName)
 	{
-		return _opened.top()->at(elementName).is_number_float();
+		const json& p = base_t::_opened.top()->at(elementName);
+		if (p.is_array())
+			return p[0].is_number_float();
+		return p.is_number_float();
 	}
 
 	virtual bool isGroup(const std::string& elementName)
 	{
-		return _opened.top()->at(elementName).is_object();
+		return base_t::_opened.top()->at(elementName).is_object();
 	}
 
 	virtual int numItems()
 	{
-		return _opened.top()->size();
+		return base_t::_opened.top()->size();
 	}
 
 	virtual std::string itemName(int n)
 	{
-		json::iterator it = _opened.top()->begin();
+		json::iterator it = base_t::_opened.top()->begin();
 		std::advance(it, n);
 		return it.key();
 	}
@@ -463,44 +537,44 @@ public:
 	virtual std::vector<std::string> itemNames()
 	{
 		std::vector<std::string> names;
-		names.reserve(_opened.top()->size());
-		for (json::iterator it = _opened.top()->begin(); it != _opened.top()->end(); ++it)
+		names.reserve(base_t::_opened.top()->size());
+		for (json::iterator it = base_t::_opened.top()->begin(); it != base_t::_opened.top()->end(); ++it)
 		names.push_back(it.key());
 		return names;
 	}
 
 	virtual std::vector<std::size_t> tensorDimensions(const std::string& elementName)
 	{
-		if (_opened.top()->find(elementName) == _opened.top()->end())
+		if (base_t::_opened.top()->find(elementName) == base_t::_opened.top()->end())
 			return std::vector<std::size_t>();
 
 		if (exists(elementName + "_rank") && exists(elementName + "_dims"))
 		{
-			return _opened.top()->at(elementName + "_dims").get<std::vector<std::size_t>>();
+			return base_t::_opened.top()->at(elementName + "_dims").template get<std::vector<std::size_t>>();
 		}
 		else if (exists(elementName + "_cols") && exists(elementName + "_rows"))
 		{
-			const std::size_t cols = _opened.top()->at(elementName + "_cols").get<std::size_t>();
-			const std::size_t rows = _opened.top()->at(elementName + "_rows").get<std::size_t>();
+			const std::size_t cols = base_t::_opened.top()->at(elementName + "_cols").template get<std::size_t>();
+			const std::size_t rows = base_t::_opened.top()->at(elementName + "_rows").template get<std::size_t>();
 			return std::vector<std::size_t>({cols, rows});
 		}
 
-		const json p = _opened.top()->at(elementName);
+		const json p = base_t::_opened.top()->at(elementName);
 		if (p.is_array())
 		{
 			if (p.is_number_float())
-				return std::vector<std::size_t>({ p.get<std::vector<double>>().size() });
+				return std::vector<std::size_t>({ p.template get<std::vector<double>>().size() });
 			else if (p.is_number_integer())
-				return std::vector<std::size_t>({ p.get<std::vector<int>>().size() });
+				return std::vector<std::size_t>({ p.template get<std::vector<int>>().size() });
 			else if (p.is_string())
-				return std::vector<std::size_t>({ p.get<std::string>().size() });
+				return std::vector<std::size_t>({ p.template get<std::string>().size() });
 			else if (p.is_boolean())
-				return std::vector<std::size_t>({ p.get<std::vector<bool>>().size() });
+				return std::vector<std::size_t>({ p.template get<std::vector<bool>>().size() });
 
 			return std::vector<std::size_t>({ 0 });
 		}
 		else
-			return std::vector<std::size_t>({ 1 });
+			return std::vector<std::size_t>();
 	}
 
 	virtual void writeTensorDouble(const std::string& dataSetName, const std::size_t rank, const std::size_t* dims, const double* buffer, const std::size_t stride)
@@ -565,36 +639,36 @@ public:
 
 	virtual void writeDouble(const std::string& dataSetName, const double buffer)
 	{
-		(*_opened.top())[dataSetName] = buffer;
+		(*base_t::_opened.top())[dataSetName] = buffer;
 	}
 
 	virtual void writeInt(const std::string& dataSetName, const int buffer)
 	{
-		(*_opened.top())[dataSetName] = buffer;
+		(*base_t::_opened.top())[dataSetName] = buffer;
 	}
 
 	virtual void writeBool(const std::string& dataSetName, const bool buffer)
 	{
-		(*_opened.top())[dataSetName] = buffer;
+		(*base_t::_opened.top())[dataSetName] = buffer;
 	}
 
 	virtual void writeString(const std::string& dataSetName, const std::string& buffer)
 	{
-		(*_opened.top())[dataSetName] = buffer;
+		(*base_t::_opened.top())[dataSetName] = buffer;
 	}
 
 	virtual void deleteGroup(const std::string& groupName)
 	{
-		_opened.top()->erase(groupName);
+		base_t::_opened.top()->erase(groupName);
 	}
 
 	virtual void deleteDataset(const std::string& dsName)
 	{
-		_opened.top()->erase(dsName);
+		base_t::_opened.top()->erase(dsName);
 	}
 
-	inline nlohmann::json* data() { return _root; }
-	inline nlohmann::json const* data() const { return _root; }
+	inline nlohmann::json* data() { return base_t::_root; }
+	inline nlohmann::json const* data() const { return base_t::_root; }
 
 protected:
 
@@ -605,7 +679,7 @@ protected:
 		for (std::size_t i = 0; i < length; ++i)
 			d[i] = static_cast<target_t>(buffer[i * stride]);
 
-		(*_opened.top())[dataSetName] = d;
+		(*base_t::_opened.top())[dataSetName] = d;
 	}
 
 	template <typename source_t, typename target_t>
@@ -615,14 +689,32 @@ protected:
 		for (std::size_t i = 0; i < rows * cols; ++i)
 			d[i] = static_cast<target_t>(buffer[i * stride]);
 
-		(*_opened.top())[dataSetName] = d;
-		(*_opened.top())[dataSetName + "_rows"] = rows;
-		(*_opened.top())[dataSetName + "_cols"] = cols;
+		(*base_t::_opened.top())[dataSetName] = d;
+		(*base_t::_opened.top())[dataSetName + "_rows"] = rows;
+		(*base_t::_opened.top())[dataSetName + "_cols"] = cols;
 	}
 
 	template <typename source_t, typename target_t>
 	void writeTensor(const std::string& dataSetName, const std::size_t rank, const std::size_t* dims, const source_t* buffer, const std::size_t stride)
 	{
+		// Handle scalars
+		if (rank == 0)
+		{
+			(*base_t::_opened.top())[dataSetName] = static_cast<target_t>(buffer[0]);
+			return;
+		}
+
+		// Handle vectors
+		if (rank == 1)
+		{
+			std::vector<target_t> d(dims[0]);
+			for (std::size_t i = 0; i < dims[0]; ++i)
+				d[i] = static_cast<target_t>(buffer[i * stride]);
+			(*base_t::_opened.top())[dataSetName] = d;
+			return;
+		}
+
+		// Handle tensors starting from rank 2 (matrices)
 		std::vector<std::size_t> dimsV(rank);
 		std::size_t bufSize = 1;
 		for (std::size_t i = 0; i < rank; ++i)
@@ -635,13 +727,95 @@ protected:
 		for (std::size_t i = 0; i < bufSize; ++i)
 			d[i] = static_cast<target_t>(buffer[i * stride]);
 
-		(*_opened.top())[dataSetName] = d;
-		(*_opened.top())[dataSetName + "_rank"] = rank;
-		(*_opened.top())[dataSetName + "_dims"] = dimsV;
+		(*base_t::_opened.top())[dataSetName] = d;
+		(*base_t::_opened.top())[dataSetName + "_rank"] = rank;
+		(*base_t::_opened.top())[dataSetName + "_dims"] = dimsV;
+	}
+};
+
+
+/**
+ * @brief Root class for implementing IMemoryIO using JSON
+ * @details Serves as root class for JSONBaseIOWrapper.
+ */
+class JSONMemoryReaderWriterImpl : public cadet::io::IMemoryIO
+{
+public:
+
+	JSONMemoryReaderWriterImpl() : _root(new json())
+	{
+		_opened.push(_root);
 	}
 
+	virtual ~JSONMemoryReaderWriterImpl() CADET_NOEXCEPT
+	{
+		delete _root;
+	}
 
-private:
+protected:
+	nlohmann::json* _root;
+	std::stack<nlohmann::json*> _opened;
+};
+
+
+/**
+ * @brief Root class for JSON FileReader and FileWriter implementations
+ * @details Serves as root class for JSONBaseIOWrapper.
+ * @tparam iface_t Interface to implement, either IFileReader or IFileWriter
+ */
+template <class iface_t>
+class JSONFileIOProxy : public iface_t
+{
+public:
+
+	JSONFileIOProxy() : _writeBack(false), _root(new json())
+	{
+		_opened.push(_root);
+	}
+
+	virtual ~JSONFileIOProxy() CADET_NOEXCEPT
+	{
+		delete _root;
+	}
+
+	virtual void openFile(const std::string& fileName, const char* mode)
+	{
+		const std::string sm(mode);
+		if (sm == "r")
+		{
+			_writeBack = false;
+
+			_fs.open(fileName.c_str(), std::ios_base::in);
+			_fs >> (*_root);
+		}
+		else if (sm == "rw")
+		{
+			_writeBack = true;
+
+			_fs.open(fileName.c_str(), std::ios_base::in);
+			_fs >> (*_root);
+			_fs.close();
+
+			_fs.open(fileName.c_str(), std::ios_base::out | std::ios_base::trunc);
+		}
+		else if ((sm == "c") || (sm == "co"))
+		{
+			_writeBack = true;
+			_fs.open(fileName.c_str(), std::ios_base::trunc | std::ios_base::out);
+		}
+	}
+
+	virtual void closeFile()
+	{
+		if (_writeBack)
+			_fs << std::setw(4) << (*_root);
+
+		_fs.close();
+	}
+
+protected:
+	bool _writeBack;
+	std::fstream _fs;
 	nlohmann::json* _root;
 	std::stack<nlohmann::json*> _opened;
 };
@@ -656,6 +830,10 @@ namespace io
 
 template <typename io_t> using FileReaderImpl = BaseIOWrapper<FileReader<io_t>>;
 template <typename io_t> using FileWriterImpl = BaseIOWrapper<FileWriter<io_t>>;
+
+typedef JSONBaseIOWrapper<JSONMemoryReaderWriterImpl> JSONMemoryReaderWriter;
+typedef JSONBaseIOWrapper<JSONFileIOProxy<cadet::io::IFileReader>> JSONFileReader;
+typedef JSONBaseIOWrapper<JSONFileIOProxy<cadet::io::IFileWriter>> JSONFileWriter;
 
 IMemoryIO* createMemoryReaderWriter()
 {
@@ -672,6 +850,10 @@ IFileReader* createReader(const std::string& fileExt)
 	{
 		return new FileReaderImpl<cadet::io::XMLReader>();
 	}
+	else if (cadet::util::caseInsensitiveEquals(fileExt, "json"))
+	{
+		return new JSONFileReader();
+	}
 	return nullptr;
 }
 
@@ -684,6 +866,10 @@ IFileWriter* createWriter(const std::string& fileExt)
 	else if (cadet::util::caseInsensitiveEquals(fileExt, "xml"))
 	{
 		return new FileWriterImpl<cadet::io::XMLWriter>();
+	}
+	else if (cadet::util::caseInsensitiveEquals(fileExt, "json"))
+	{
+		return new JSONFileWriter();
 	}
 	return nullptr;
 }
