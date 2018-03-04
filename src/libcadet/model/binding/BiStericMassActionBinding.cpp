@@ -11,14 +11,15 @@
 // =============================================================================
 
 #include "model/binding/BindingModelBase.hpp"
-#include "model/binding/ExternalFunctionSupport.hpp"
+#include "model/ExternalFunctionSupport.hpp"
 #include "model/binding/BindingModelMacros.hpp"
 #include "model/binding/RefConcentrationSupport.hpp"
 #include "model/ModelUtils.hpp"
 #include "cadet/Exceptions.hpp"
 #include "nonlin/Solver.hpp"
-#include "ParamReaderHelper.hpp"
+#include "model/Parameters.hpp"
 #include "SlicedVector.hpp"
+#include "LocalVector.hpp"
 
 #include "AdUtils.hpp"
 
@@ -35,177 +36,42 @@ namespace cadet
 namespace model
 {
 
-/**
- * @brief Handles Bi-SMA binding model parameters that do not depend on external functions
- */
-struct BiSMAParamHandler : public BindingParamHandlerBase
+CADET_BINDINGPARAMS(BiSMAParamHandler, ExtBiSMAParamHandler, 
+	(ScalarBoundStateDependentParameter, lambda, "BISMA_LAMBDA") //!< Ionic capacity
+	(ComponentBoundStateMajorDependentParameter, kA, "BISMA_KA") //!< Adsorption rate
+	(ComponentBoundStateMajorDependentParameter, kD, "BISMA_KD") //!< Desorption rate
+	(ComponentBoundStateMajorDependentParameter, nu, "BISMA_NU") //!< Characteristic charge
+	(ComponentBoundStateMajorDependentParameter, sigma, "BISMA_SIGMA"), //!< Steric factor
+	(ReferenceConcentrationBoundStateDependentParameter, (refC0, refQ), _refConcentration, "BISMA_") //!< Reference concentrations
+);
+
+inline const char* BiSMAParamHandler::identifier() CADET_NOEXCEPT { return "BI_STERIC_MASS_ACTION"; }
+
+inline bool BiSMAParamHandler::validateConfig(unsigned int nComp, unsigned int const* nBoundStates)
 {
-	static const char* identifier() { return "BI_STERIC_MASS_ACTION"; }
+	const unsigned int numStates = firstNonEmptyBoundStates(nBoundStates, nComp);
 
-	/**
-	 * @brief Reads parameters and verifies them
-	 * @details See IBindingModel::configure() for details.
-	 * @param [in] paramProvider IParameterProvider used for reading parameters
-	 * @param [in] nComp Number of components
-	 * @param [in] numStates Number of binding site types
-	 * @return @c true if the parameters were read and validated successfully, otherwise @c false
-	 */
-	inline bool configure(IParameterProvider& paramProvider, unsigned int nComp, unsigned int numStates)
-	{
-		readScalarParameterOrArray(lambda, paramProvider, "BISMA_LAMBDA", 1);
-		readBoundStateDependentParameter<util::SlicedVector<active>, active>(kA, paramProvider, "BISMA_KA", nComp, numStates);
-		readBoundStateDependentParameter<util::SlicedVector<active>, active>(kD, paramProvider, "BISMA_KD", nComp, numStates);
-		readBoundStateDependentParameter<util::SlicedVector<active>, active>(nu, paramProvider, "BISMA_NU", nComp, numStates);
-		readBoundStateDependentParameter<util::SlicedVector<active>, active>(sigma, paramProvider, "BISMA_SIGMA", nComp, numStates);
-		readReferenceConcentrations(paramProvider, numStates, "BISMA_", refC0, refQ);
+	if ((_kA.size() != _kD.size()) || (_kA.size() != _nu.size()) || (_kA.size() != _sigma.size()) || (_kA.size() < nComp * numStates))
+		throw InvalidParameterException("BISMA_KA, BISMA_KD, BISMA_NU, and BISMA_SIGMA have to have the same size");
+	if (_lambda.size() != numStates)
+		throw InvalidParameterException("BISMA_LAMBDA has to have as many elements as there are binding sites");
 
-		// Check parameters
-		if ((kA.size() != kD.size()) || (kA.size() != nu.size()) || (kA.size() != sigma.size()) || (kA.size() < nComp * numStates))
-			throw InvalidParameterException("BISMA_KA, BISMA_KD, BISMA_NU, and BISMA_SIGMA have to have the same size");
-		if (lambda.size() != numStates)
-			throw InvalidParameterException("BISMA_LAMBDA has to have as many elements as there are binding sites");
+	return true;
+}
 
-		return true;
-	}
+inline const char* ExtBiSMAParamHandler::identifier() CADET_NOEXCEPT { return "EXT_BI_STERIC_MASS_ACTION"; }
 
-	/**
-	 * @brief Registers all local parameters in a map for further use
-	 * @param [in,out] parameters Map in which the parameters are stored
-	 * @param [in] unitOpIdx Index of the unit operation used for registering the parameters
-	 * @param [in] nComp Number of components
-	 * @param [in] nBoundStates Array with number of bound states for each component
-	 */
-	inline void registerParameters(std::unordered_map<ParameterId, active*>& parameters, unsigned int unitOpIdx, unsigned int nComp, unsigned int const* nBoundStates)
-	{
-		registerScalarBoundStateDependentParam(hashString("BISMA_LAMBDA"), parameters, lambda, unitOpIdx);
-		registerComponentBoundStateDependentParam(hashString("BISMA_KA"), parameters, kA, unitOpIdx);
-		registerComponentBoundStateDependentParam(hashString("BISMA_KD"), parameters, kD, unitOpIdx);
-		registerComponentBoundStateDependentParam(hashString("BISMA_NU"), parameters, nu, unitOpIdx);
-		registerComponentBoundStateDependentParam(hashString("BISMA_SIGMA"), parameters, sigma, unitOpIdx);
-		registerScalarBoundStateDependentParam(hashString("BISMA_REFC0"), parameters, refC0, unitOpIdx);
-		registerScalarBoundStateDependentParam(hashString("BISMA_REFQ"), parameters, refQ, unitOpIdx);
-	}
-
-	/**
-	 * @brief Reserves space in the storage of the parameters
-	 * @param [in] numElem Number of elements (total)
-	 * @param [in] numSlices Number of slices / binding site types
-	 */
-	inline void reserve(unsigned int numElem, unsigned int numSlices)
-	{
-		lambda.reserve(numSlices);
-		kA.reserve(numElem, numSlices);
-		kD.reserve(numElem, numSlices);
-		nu.reserve(numElem, numSlices);
-		sigma.reserve(numElem, numSlices);
-		refC0.reserve(numSlices);
-		refQ.reserve(numSlices);
-	}
-
-	std::vector<active> lambda; //! Ionic capacity in state-major ordering
-	util::SlicedVector<active> kA; //!< Adsorption rate in state-major ordering
-	util::SlicedVector<active> kD; //!< Desorption rate in state-major ordering
-	util::SlicedVector<active> nu; //!< Characteristic charge in state-major ordering
-	util::SlicedVector<active> sigma; //!< Steric factor in state-major ordering
-	std::vector<active> refC0; //! Liquid phase reference concentration state-major ordering
-	std::vector<active> refQ; //! Solid phase reference concentration state-major ordering
-};
-
-/**
- * @brief Handles Bi-SMA binding model parameters that depend on an external function
- */
-struct ExtBiSMAParamHandler : public ExternalBindingParamHandlerBase
+inline bool ExtBiSMAParamHandler::validateConfig(unsigned int nComp, unsigned int const* nBoundStates)
 {
-	static const char* identifier() { return "EXT_BI_STERIC_MASS_ACTION"; }
+	const unsigned int numStates = firstNonEmptyBoundStates(nBoundStates, nComp);
 
-	/**
-	 * @brief Reads parameters and verifies them
-	 * @details See IBindingModel::configure() for details.
-	 * @param [in] paramProvider IParameterProvider used for reading parameters
-	 * @param [in] nComp Number of components
-	 * @param [in] numSlices Number of binding site types
-	 * @return @c true if the parameters were read and validated successfully, otherwise @c false
-	 */
-	inline bool configure(IParameterProvider& paramProvider, unsigned int nComp, unsigned int numSlices)
-	{
-		CADET_READPAR_SCALARBND(lambda, paramProvider, "BISMA_LAMBDA", 1);
-		CADET_READPAR_BOUNDSTATEDEP(util::SlicedVector<active>, active, kA, paramProvider, "BISMA_KA", nComp, numSlices);
-		CADET_READPAR_BOUNDSTATEDEP(util::SlicedVector<active>, active, kD, paramProvider, "BISMA_KD", nComp, numSlices);
-		CADET_READPAR_BOUNDSTATEDEP(util::SlicedVector<active>, active, nu, paramProvider, "BISMA_NU", nComp, numSlices);
-		CADET_READPAR_BOUNDSTATEDEP(util::SlicedVector<active>, active, sigma, paramProvider, "BISMA_SIGMA", nComp, numSlices);
+	if ((_kA.size() != _kD.size()) || (_kA.size() != _nu.size()) || (_kA.size() != _sigma.size()) || (_kA.size() < nComp * numStates))
+		throw InvalidParameterException("BISMA_KA, BISMA_KD, BISMA_NU, and BISMA_SIGMA have to have the same size");
+	if (_lambda.size() != numStates)
+		throw InvalidParameterException("BISMA_LAMBDA has to have as many elements as there are binding sites");
 
-		readReferenceConcentrations(paramProvider, numSlices, "EXT_BISMA_", refC0, refQ);
-
-		return ExternalBindingParamHandlerBase::configure(paramProvider, 5);
-	}
-
-	/**
-	 * @brief Registers all local parameters in a map for further use
-	 * @param [in,out] parameters Map in which the parameters are stored
-	 * @param [in] unitOpIdx Index of the unit operation used for registering the parameters
-	 * @param [in] nComp Number of components
-	 * @param [in] nBoundStates Array with number of bound states for each component
-	 */
-	inline void registerParameters(std::unordered_map<ParameterId, active*>& parameters, unsigned int unitOpIdx, unsigned int nComp, unsigned int const* nBoundStates)
-	{
-		CADET_REGPAR_SCALARBND("BISMA_LAMBDA", parameters, lambda, unitOpIdx);
-		CADET_REGPAR_COMPBND("BISMA_KA", parameters, kA, unitOpIdx);
-		CADET_REGPAR_COMPBND("BISMA_KD", parameters, kD, unitOpIdx);
-		CADET_REGPAR_COMPBND("BISMA_NU", parameters, nu, unitOpIdx);
-		CADET_REGPAR_COMPBND("BISMA_SIGMA", parameters, sigma, unitOpIdx);
-		registerScalarBoundStateDependentParam(hashString("EXT_BISMA_REFC0"), parameters, refC0, unitOpIdx);
-		registerScalarBoundStateDependentParam(hashString("EXT_BISMA_REFQ"), parameters, refQ, unitOpIdx);
-	}
-
-	/**
-	 * @brief Reserves space in the storage of the parameters
-	 * @param [in] numElem Number of elements (total)
-	 * @param [in] numSlices Number of slices / binding site types
-	 */
-	inline void reserve(unsigned int numElem, unsigned int numSlices)
-	{
-		CADET_RESERVE_SPACE2(kA, numElem, numSlices);
-		CADET_RESERVE_SPACE2(kD, numElem, numSlices);
-		CADET_RESERVE_SPACE2(nu, numElem, numSlices);
-		CADET_RESERVE_SPACE2(sigma, numElem, numSlices);
-		refC0.reserve(numSlices);
-		refQ.reserve(numSlices);
-	}
-
-	/**
-	 * @brief Updates local parameter cache in order to take the external profile into account
-	 * @details This function is declared const since the actual parameters are left unchanged by the method.
-	 *         The cache is marked as mutable in order to make it writable.
-	 * @param [in] t Current time
-	 * @param [in] z Axial coordinate in the column
-	 * @param [in] r Radial coordinate in the bead
-	 * @param [in] secIdx Index of the current section
-	 * @param [in] nComp Number of components
-	 * @param [in] nBoundStates Array with number of bound states for each component
-	 */
-	inline void update(double t, double z, double r, unsigned int secIdx, unsigned int nComp, unsigned int const* nBoundStates) const
-	{
-		evaluateExternalFunctions(t, z, r, secIdx);
-		for (unsigned int i = 0; i < kAT0.size(); ++i)
-		{
-			CADET_UPDATE_EXTDEP_VARIABLE_NATIVE(kA, i, _extFunBuffer[0]);
-			CADET_UPDATE_EXTDEP_VARIABLE_NATIVE(kD, i, _extFunBuffer[1]);
-			CADET_UPDATE_EXTDEP_VARIABLE_NATIVE(nu, i, _extFunBuffer[2]);
-			CADET_UPDATE_EXTDEP_VARIABLE_NATIVE(sigma, i, _extFunBuffer[3]);
-		}
-
-		for (unsigned int i = 0; i < lambdaT0.size(); ++i)
-			CADET_UPDATE_EXTDEP_VARIABLE_BRACES(lambda, i, _extFunBuffer[4]);
-	}
-
-	CADET_DEFINE_EXTDEP_VARIABLE(util::SlicedVector<active>, kA)
-	CADET_DEFINE_EXTDEP_VARIABLE(util::SlicedVector<active>, kD)
-	CADET_DEFINE_EXTDEP_VARIABLE(util::SlicedVector<active>, nu)
-	CADET_DEFINE_EXTDEP_VARIABLE(util::SlicedVector<active>, sigma)
-	CADET_DEFINE_EXTDEP_VARIABLE(std::vector<active>, lambda)
-	std::vector<active> refC0; //! Liquid phase reference concentration state-major ordering
-	std::vector<active> refQ; //! Solid phase reference concentration state-major ordering
-};
+	return true;
+}
 
 
 /**
@@ -261,7 +127,7 @@ public:
 		_numBindingComp = numBindingComponents(_nBoundStates, _nComp);
 
 		// Allocate space for parameters
-		_p.reserve(nComp * numSlices, numSlices);
+		_paramHandler.reserve(nComp * numSlices, numSlices, nComp, nBound);
 
 		// Guarantee that salt has exactly one bound state per binding site
 		if (nBound[0] != numSlices)
@@ -270,7 +136,7 @@ public:
 
 	virtual void getAlgebraicBlock(unsigned int& idxStart, unsigned int& len) const
 	{
-		const unsigned int numStates = _p.lambda.size();
+		const unsigned int numStates = firstNonEmptyBoundStates(_nBoundStates, _nComp);
 
 		// First equations are Salt, which are always algebraic
 		idxStart = 0;
@@ -285,8 +151,6 @@ public:
 		active* const adRes, active* const adY, unsigned int adEqOffset, unsigned int adDirOffset, const ad::IJacobianExtractor& jacExtractor, 
 		double* const workingMemory, linalg::detail::DenseMatrixBase& workingMat) const
 	{
-		_p.update(t, z, r, secIdx, _nComp, _nBoundStates);
-
 		if (!_kineticBinding)
 		{
 			// All equations are algebraic and (except for salt equation) nonlinear
@@ -348,17 +212,18 @@ public:
 		// This also corrects invalid salt values from nonlinear solver
 		// in case of rapid equilibrium
 
-		const unsigned int numStates = _p.lambda.size();
+		const typename ParamHandler_t::params_t& p = _paramHandler.update(t, z, r, secIdx, _nComp, _nBoundStates, workingMemory);
+		const unsigned int numStates = p.lambda.size();
 
 		// Loop over all binding site types
 		for (unsigned int bndSite = 0; bndSite < numStates; ++bndSite)
 		{
 			// Salt equation: q_0 - Lambda + Sum[nu_j * q_j, j] == 0 
 			//           <=>  q_0 == Lambda - Sum[nu_j * q_j, j] 
-			vecStateY[bndSite] = static_cast<double>(_p.lambda[bndSite]);
+			vecStateY[bndSite] = static_cast<double>(p.lambda[bndSite]);
 
 			// Get nu slice for bound state bndSite
-			active const* const curNu = _p.nu[bndSite];
+			active const* const curNu = p.nu[bndSite];
 
 			unsigned int bndIdx = 1;
 			for (int j = 1; j < _nComp; ++j)
@@ -377,7 +242,7 @@ public:
 
 	CADET_BINDINGMODEL_RESIDUAL_JACOBIAN_BOILERPLATE
 	
-	virtual void setExternalFunctions(IExternalFunction** extFuns, unsigned int size) { _p.setExternalFunctions(extFuns, size); }
+	virtual void setExternalFunctions(IExternalFunction** extFuns, unsigned int size) { _paramHandler.setExternalFunctions(extFuns, size); }
 
 	virtual void multiplyWithDerivativeJacobian(double const* yDotS, double* const res, double timeFactor) const
 	{
@@ -385,7 +250,7 @@ public:
 		const double multiplier = _kineticBinding ? timeFactor : 0.0;
 
 		// First states are salt (always algebraic)
-		const unsigned int numStates = _p.lambda.size();
+		const unsigned int numStates = firstNonEmptyBoundStates(_nBoundStates, _nComp);
 		std::fill(res, res + numStates, 0.0);
 
 		const unsigned int eqSize = numBoundStates(_nBoundStates, _nComp);
@@ -400,18 +265,18 @@ public:
 	virtual bool dependsOnTime() const CADET_NOEXCEPT { return ParamHandler_t::dependsOnTime(); }
 
 protected:
-	ParamHandler_t _p; //!< Handles parameters and their dependence on external functions
+	ParamHandler_t _paramHandler; //!< Handles parameters and their dependence on external functions
 	unsigned int _numBindingComp; //!< Number of binding components
+
+	virtual unsigned int paramCacheSize() const CADET_NOEXCEPT { return _paramHandler.cacheSize(); }
 
 	virtual bool configureImpl(bool reconfigure, IParameterProvider& paramProvider, unsigned int unitOpIdx)
 	{
-		const unsigned int numStates = firstNonEmptyBoundStates(_nBoundStates, _nComp);
-
 		// Read parameters
-		_p.configure(paramProvider, _nComp, numStates);
+		_paramHandler.configure(paramProvider, _nComp, _nBoundStates);
 
 		// Register parameters
-		_p.registerParameters(_parameters, unitOpIdx, _nComp, _nBoundStates);
+		_paramHandler.registerParameters(_parameters, unitOpIdx, _nComp, _nBoundStates);
 
 		return true;
 	}
@@ -420,10 +285,10 @@ protected:
 	int residualImpl(const ParamType& t, double z, double r, unsigned int secIdx, const ParamType& timeFactor,
 		StateType const* y, CpStateType const* yCp, double const* yDot, ResidualType* res, void* workSpace) const
 	{
-		_p.update(static_cast<double>(t), z, r, secIdx, _nComp, _nBoundStates);
+		const typename ParamHandler_t::params_t& p = _paramHandler.update(static_cast<double>(t), z, r, secIdx, _nComp, _nBoundStates, workSpace);
 
 		const bool hasYdot = yDot;
-		const unsigned int numStates = _p.lambda.size();
+		const unsigned int numStates = p.lambda.size();
 
 		// Ordering of the states is (q_{comp,state})
 		// q_{0,0}, q{0,1}, q_{0,2}, q_{1,0}, q_{1,1}, q_{1,2}, ...
@@ -438,18 +303,18 @@ protected:
 		{
 			// y, yDot, and res point to q_{0,site}
 
-			active const* const curNu = _p.nu[bndSite];
-			active const* const curSigma = _p.sigma[bndSite];
-			active const* const curKa = _p.kA[bndSite];
-			active const* const curKd = _p.kD[bndSite];
+			active const* const curNu = p.nu[bndSite];
+			active const* const curSigma = p.sigma[bndSite];
+			active const* const curKa = p.kA[bndSite];
+			active const* const curKd = p.kD[bndSite];
 
-			const ParamType refC0 = static_cast<ParamType>(_p.refC0[bndSite]);
-			const ParamType refQ = static_cast<ParamType>(_p.refQ[bndSite]);
+			const ParamType refC0 = static_cast<ParamType>(p.refC0[bndSite]);
+			const ParamType refQ = static_cast<ParamType>(p.refQ[bndSite]);
 
 			// Salt equation: q_0 - Lambda + Sum[nu_j * q_j, j] == 0 
 			//           <=>  q_0 == Lambda - Sum[nu_j * q_j, j] 
 			// Also compute \bar{q}_0 = q_0 - Sum[sigma_j * q_j, j]
-			res[0] = y[0] - static_cast<ParamType>(_p.lambda[bndSite]);
+			res[0] = y[0] - static_cast<ParamType>(p.lambda[bndSite]);
 			ResidualType q0_bar = y[0];
 
 			// bndIdx is used as a counter inside one binding site type
@@ -502,9 +367,9 @@ protected:
 	template <typename RowIterator>
 	void jacobianImpl(double t, double z, double r, unsigned int secIdx, double const* y, double const* yCp, RowIterator jac, void* workSpace) const
 	{
-		_p.update(t, z, r, secIdx, _nComp, _nBoundStates);
+		const typename ParamHandler_t::params_t& p = _paramHandler.update(t, z, r, secIdx, _nComp, _nBoundStates, workSpace);
 
-		const unsigned int numStates = _p.lambda.size();
+		const unsigned int numStates = p.lambda.size();
 
 		// Ordering of the states is (q_{comp,state}, example uses 2 components, 3 binding sites)
 		// q_{0,0}, q{0,1}, q_{0,2}, q_{1,0}, q_{1,1}, q_{1,2}, ...
@@ -517,12 +382,12 @@ protected:
 			// Jump from first row to current Salt row
 			RowIterator curJac = jac + bndSite;
 
-			active const* const curNu = _p.nu[bndSite];
-			active const* const curSigma = _p.sigma[bndSite];
-			active const* const curKa = _p.kA[bndSite];
-			active const* const curKd = _p.kD[bndSite];
-			const double refC0 = static_cast<double>(_p.refC0[bndSite]);
-			const double refQ = static_cast<double>(_p.refQ[bndSite]);
+			active const* const curNu = p.nu[bndSite];
+			active const* const curSigma = p.sigma[bndSite];
+			active const* const curKa = p.kA[bndSite];
+			active const* const curKd = p.kD[bndSite];
+			const double refC0 = static_cast<double>(p.refC0[bndSite]);
+			const double refQ = static_cast<double>(p.refQ[bndSite]);
 			double q0_bar = y[0];
 
 			// Salt equation: q_0 - Lambda + Sum[nu_j * q_j, j] == 0
@@ -616,7 +481,7 @@ protected:
 			return;
 
 		// Skip salt equations which are always algebraic
-		const unsigned int numStates = _p.lambda.size();
+		const unsigned int numStates = firstNonEmptyBoundStates(_nBoundStates, _nComp);
 		jac += numStates;
 
 		const unsigned int eqSize = numBoundStates(_nBoundStates, _nComp) - numStates;

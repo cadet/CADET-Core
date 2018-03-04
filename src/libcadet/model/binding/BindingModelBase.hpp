@@ -91,6 +91,12 @@ protected:
 	nonlin::Solver* _nonlinearSolver; //!< Nonlinear equation solver for consistent initialization
 
 	/**
+	 * @brief Returns the number of bytes required for caching parameters
+	 * @return Parameter cache size in bytes
+	 */
+	virtual unsigned int paramCacheSize() const CADET_NOEXCEPT { return 0; }
+
+	/**
 	 * @brief Configures the binding model
 	 * @details This function implements the (re-)configuration of a binding model. It is called when
 	 *          the binding model is configured or reconfigured. On call the _parameters map will always

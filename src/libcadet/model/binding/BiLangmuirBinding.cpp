@@ -11,11 +11,12 @@
 // =============================================================================
 
 #include "model/binding/BindingModelBase.hpp"
-#include "model/binding/ExternalFunctionSupport.hpp"
+#include "model/ExternalFunctionSupport.hpp"
 #include "model/ModelUtils.hpp"
 #include "cadet/Exceptions.hpp"
-#include "ParamReaderHelper.hpp"
+#include "model/Parameters.hpp"
 #include "SlicedVector.hpp"
+#include "LocalVector.hpp"
 
 #include <vector>
 #include <unordered_map>
@@ -27,163 +28,31 @@ namespace cadet
 namespace model
 {
 
-/**
- * @brief Handles Bi-Langmuir binding model parameters that do not depend on external functions
- */
-struct BiLangmuirParamHandler : public BindingParamHandlerBase
+CADET_BINDINGPARAMS(BiLangmuirParamHandler, ExtBiLangmuirParamHandler, 
+	(ComponentBoundStateMajorDependentParameter, kA, "MCBL_KA") //!< Adsorption rate
+	(ComponentBoundStateMajorDependentParameter, kD, "MCBL_KD") //!< Desorption rate
+	(ComponentBoundStateMajorDependentParameter, qMax, "MCBL_QMAX"), //!< Capacity
+);
+
+inline const char* BiLangmuirParamHandler::identifier() CADET_NOEXCEPT { return "MULTI_COMPONENT_BILANGMUIR"; }
+
+inline bool BiLangmuirParamHandler::validateConfig(unsigned int nComp, unsigned int const* nBoundStates)
 {
-	static const char* identifier() { return "MULTI_COMPONENT_BILANGMUIR"; }
+	if ((_kA.size() != _kD.size()) || (_kA.size() != _qMax.size()) || (_kA.size() < nComp))
+		throw InvalidParameterException("MCBL_KA, MCBL_KD, and MCBL_QMAX have to have the same size");
 
-	/**
-	 * @brief Reads parameters and verifies them
-	 * @details See IBindingModel::configure() for details.
-	 * @param [in] paramProvider IParameterProvider used for reading parameters
-	 * @param [in] nComp Number of components
-	 * @param [in] numSlices Number of binding site types
-	 * @return @c true if the parameters were read and validated successfully, otherwise @c false
-	 */
-	inline bool configure(IParameterProvider& paramProvider, unsigned int nComp, unsigned int numSlices)
-	{
-		readBoundStateDependentParameter<util::SlicedVector<active>, active>(kA, paramProvider, "MCBL_KA", nComp, numSlices);
-		readBoundStateDependentParameter<util::SlicedVector<active>, active>(kD, paramProvider, "MCBL_KD", nComp, numSlices);
-		readBoundStateDependentParameter<util::SlicedVector<active>, active>(qMax, paramProvider, "MCBL_QMAX", nComp, numSlices);
+	return true;
+}
 
-		// Check parameters
-		if ((kA.size() != kD.size()) || (kA.size() != qMax.size()) || (kA.size() < nComp * numSlices))
-			throw InvalidParameterException("MCBL_KA, MCBL_KD, and MCBL_QMAX have to have the same size");
+inline const char* ExtBiLangmuirParamHandler::identifier() CADET_NOEXCEPT { return "EXT_MULTI_COMPONENT_BILANGMUIR"; }
 
-		return true;
-	}
-
-	/**
-	 * @brief Registers all local parameters in a map for further use
-	 * @param [in,out] parameters Map in which the parameters are stored
-	 * @param [in] unitOpIdx Index of the unit operation used for registering the parameters
-	 * @param [in] nComp Number of components
-	 * @param [in] nBoundStates Array with number of bound states for each component
-	 */
-	inline void registerParameters(std::unordered_map<ParameterId, active*>& parameters, unsigned int unitOpIdx, unsigned int nComp, unsigned int const* nBoundStates)
-	{
-		registerComponentBoundStateDependentParam(hashString("MCBL_KA"), parameters, kA, unitOpIdx);
-		registerComponentBoundStateDependentParam(hashString("MCBL_KD"), parameters, kD, unitOpIdx);
-		registerComponentBoundStateDependentParam(hashString("MCBL_QMAX"), parameters, qMax, unitOpIdx);
-	}
-
-	/**
-	 * @brief Reserves space in the storage of the parameters
-	 * @param [in] numElem Number of elements (total)
-	 * @param [in] numSlices Number of slices / binding site types
-	 */
-	inline void reserve(unsigned int numElem, unsigned int numSlices)
-	{
-		kA.reserve(numElem, numSlices);
-		kD.reserve(numElem, numSlices);
-		qMax.reserve(numElem, numSlices);
-	}
-
-	util::SlicedVector<active> kA; //!< Adsorption rate in state-major ordering
-	util::SlicedVector<active> kD; //!< Desorption rate in state-major ordering
-	util::SlicedVector<active> qMax; //!< Capacity in state-major ordering
-};
-
-/**
- * @brief Handles Bi-Langmuir binding model parameters that depend on an external function
- */
-struct ExtBiLangmuirParamHandler : public ExternalBindingParamHandlerBase
+inline bool ExtBiLangmuirParamHandler::validateConfig(unsigned int nComp, unsigned int const* nBoundStates)
 {
-	static const char* identifier() { return "EXT_MULTI_COMPONENT_BILANGMUIR"; }
+	if ((_kA.size() != _kD.size()) || (_kA.size() != _qMax.size()) || (_kA.size() < nComp))
+		throw InvalidParameterException("EXT_MCBL_KA, EXT_MCBL_KD, and EXT_MCBL_QMAX have to have the same size");
 
-	/**
-	 * @brief Reads parameters and verifies them
-	 * @details See IBindingModel::configure() for details.
-	 * @param [in] paramProvider IParameterProvider used for reading parameters
-	 * @param [in] nComp Number of components
-	 * @param [in] numSlices Number of binding site types
-	 * @return @c true if the parameters were read and validated successfully, otherwise @c false
-	 */
-	inline bool configure(IParameterProvider& paramProvider, unsigned int nComp, unsigned int numSlices)
-	{
-		CADET_READPAR_BOUNDSTATEDEP(util::SlicedVector<active>, active, kA, paramProvider, "MCBL_KA", nComp, numSlices);
-		CADET_READPAR_BOUNDSTATEDEP(util::SlicedVector<active>, active, kD, paramProvider, "MCBL_KD", nComp, numSlices);
-		CADET_READPAR_BOUNDSTATEDEP(util::SlicedVector<active>, active, qMax, paramProvider, "MCBL_QMAX", nComp, numSlices);
-
-		return ExternalBindingParamHandlerBase::configure(paramProvider, 3);
-	}
-
-	/**
-	 * @brief Registers all local parameters in a map for further use
-	 * @param [in,out] parameters Map in which the parameters are stored
-	 * @param [in] unitOpIdx Index of the unit operation used for registering the parameters
-	 * @param [in] nComp Number of components
-	 * @param [in] nBoundStates Array with number of bound states for each component
-	 */
-	inline void registerParameters(std::unordered_map<ParameterId, active*>& parameters, unsigned int unitOpIdx, unsigned int nComp, unsigned int const* nBoundStates)
-	{
-		CADET_REGPAR_COMPBND("MCBL_KA", parameters, kA, unitOpIdx);
-		CADET_REGPAR_COMPBND("MCBL_KD", parameters, kD, unitOpIdx);
-		CADET_REGPAR_COMPBND("MCBL_QMAX", parameters, qMax, unitOpIdx);
-	}
-
-	/**
-	 * @brief Reserves space in the storage of the parameters
-	 * @param [in] numElem Number of elements (total)
-	 * @param [in] numSlices Number of slices / binding site types
-	 */
-	inline void reserve(unsigned int numElem, unsigned int numSlices)
-	{
-		CADET_RESERVE_SPACE2(kA, numElem, numSlices);
-		CADET_RESERVE_SPACE2(kD, numElem, numSlices);
-		CADET_RESERVE_SPACE2(qMax, numElem, numSlices);
-	}
-
-	/**
-	 * @brief Updates local parameter cache in order to take the external profile into account
-	 * @details This function is declared const since the actual parameters are left unchanged by the method.
-	 *         The cache is marked as mutable in order to make it writable.
-	 * @param [in] t Current time
-	 * @param [in] z Axial coordinate in the column
-	 * @param [in] r Radial coordinate in the bead
-	 * @param [in] secIdx Index of the current section
-	 * @param [in] nComp Number of components
-	 * @param [in] nBoundStates Array with number of bound states for each component
-	 */
-	inline void update(double t, double z, double r, unsigned int secIdx, unsigned int nComp, unsigned int const* nBoundStates) const
-	{
-		evaluateExternalFunctions(t, z, r, secIdx);
-		for (unsigned int i = 0; i < kAT0.size(); ++i)
-		{
-			CADET_UPDATE_EXTDEP_VARIABLE_NATIVE(kA, i, _extFunBuffer[0]);
-			CADET_UPDATE_EXTDEP_VARIABLE_NATIVE(kD, i, _extFunBuffer[1]);
-			CADET_UPDATE_EXTDEP_VARIABLE_NATIVE(qMax, i, _extFunBuffer[2]);
-		}
-	}
-
-	/**
-	 * @brief Updates local parameter cache and calculates time derivative in case of external dependence
-	 * @details This function is declared const since the actual parameters are left unchanged by the method.
-	 *         The cache is marked as mutable in order to make it writable.
-	 * @param [in] t Current time
-	 * @param [in] z Axial coordinate in the column
-	 * @param [in] r Radial coordinate in the bead
-	 * @param [in] secIdx Index of the current section
-	 * @param [in] nComp Number of components
-	 * @param [in] nBoundStates Array with number of bound states for each component
-	 */
-	inline void updateTimeDerivative(double t, double z, double r, unsigned int secIdx, unsigned int nComp, unsigned int const* nBoundStates) const
-	{
-		const std::vector<double> extTimeDeriv = evaluateTimeDerivativeExternalFunctions(t, z, r, secIdx);
-		for (unsigned int i = 0; i < nComp; ++i)
-		{
-			CADET_UPDATE_EXTDEP_VARIABLE_TDIFF_NATIVE(kA, i, _extFunBuffer[0], extTimeDeriv[0]);
-			CADET_UPDATE_EXTDEP_VARIABLE_TDIFF_NATIVE(kD, i, _extFunBuffer[1], extTimeDeriv[1]);
-			CADET_UPDATE_EXTDEP_VARIABLE_TDIFF_NATIVE(qMax, i, _extFunBuffer[2], extTimeDeriv[2]);
-		}
-	}
-
-	CADET_DEFINE_EXTDEP_VARIABLE(util::SlicedVector<active>, kA)
-	CADET_DEFINE_EXTDEP_VARIABLE(util::SlicedVector<active>, kD)
-	CADET_DEFINE_EXTDEP_VARIABLE(util::SlicedVector<active>, qMax)
-};
+	return true;
+}
 
 
 /**
@@ -235,10 +104,10 @@ public:
 		_numBindingComp = numBindingComponents(_nBoundStates, _nComp);
 
 		// Allocate space for parameters
-		_p.reserve(nComp * numSlices, numSlices);
+		_paramHandler.reserve(nComp * numSlices, numSlices, nComp, nBound);
 	}
 
-	virtual void setExternalFunctions(IExternalFunction** extFuns, unsigned int size) { _p.setExternalFunctions(extFuns, size); }
+	virtual void setExternalFunctions(IExternalFunction** extFuns, unsigned int size) { _paramHandler.setExternalFunctions(extFuns, size); }
 
 	virtual bool hasSalt() const CADET_NOEXCEPT { return false; }
 	virtual bool supportsMultistate() const CADET_NOEXCEPT { return true; }
@@ -254,15 +123,14 @@ public:
 			return;
 
 		// Update external function and compute time derivative of parameters
-		_p.update(t, z, r, secIdx, _nComp, _nBoundStates);
-		ParamHandler_t dpDt = _p;
-		dpDt.updateTimeDerivative(t, z, r, secIdx, _nComp, _nBoundStates);
+		const typename ParamHandler_t::params_t& p = _paramHandler.update(t, z, r, secIdx, _nComp, _nBoundStates, workSpace);
+		const typename ParamHandler_t::params_t dpDt = _paramHandler.updateTimeDerivative(t, z, r, secIdx, _nComp, _nBoundStates, workSpace);
 
 		// Protein equations: dq_i^j / dt - ( k_{a,i}^j * c_{p,i} * (1 - \sum q_i^j / q_{max,i}^j) - k_{d,i}^j * q_i^j) == 0
 		//               <=>  dq_i^j / dt == k_{a,i}^j * c_{p,i} * (1 - \sum q_i^j / q_{max,i}^j) - k_{d,i}^j * q_i^j
 
 		double const* const yCp = y - _nComp;
-		const unsigned int nSites = _p.kA.slices();
+		const unsigned int nSites = p.kA.slices();
 
 		// Ordering of the states is (q_{comp,state})
 		// q_{0,0}, q{0,1}, q_{0,2}, q_{1,0}, q_{1,1}, q_{1,2}, ...
@@ -278,9 +146,9 @@ public:
 			// y, and dResDt point to q_{0,site}
 
 			// Get parameter slice for current binding site type
-			active const* const localKa = _p.kA[site];
-			active const* const localKd = _p.kD[site];
-			active const* const localQmax = _p.qMax[site];
+			active const* const localKa = p.kA[site];
+			active const* const localKd = p.kD[site];
+			active const* const localQmax = p.qMax[site];
 			active const* const localKaT = dpDt.kA[site];
 			active const* const localKdT = dpDt.kD[site];
 			active const* const localQmaxT = dpDt.qMax[site];
@@ -328,18 +196,18 @@ public:
 	CADET_PUREBINDINGMODELBASE_BOILERPLATE
 
 protected:
-	ParamHandler_t _p; //!< Handles parameters and their dependence on external functions
+	ParamHandler_t _paramHandler; //!< Handles parameters and their dependence on external functions
 	unsigned int _numBindingComp; //!< Number of binding components
+
+	virtual unsigned int paramCacheSize() const CADET_NOEXCEPT { return _paramHandler.cacheSize(); }
 
 	virtual bool configureImpl(bool reconfigure, IParameterProvider& paramProvider, unsigned int unitOpIdx)
 	{
-		const unsigned int numSlices = firstNonEmptyBoundStates(_nBoundStates, _nComp);
-
 		// Read parameters
-		_p.configure(paramProvider, _nComp, numSlices);
+		_paramHandler.configure(paramProvider, _nComp, _nBoundStates);
 
 		// Register parameters
-		_p.registerParameters(_parameters, unitOpIdx, _nComp, _nBoundStates);
+		_paramHandler.registerParameters(_parameters, unitOpIdx, _nComp, _nBoundStates);
 
 		return true;
 	}
@@ -348,14 +216,14 @@ protected:
 	int residualImpl(const ParamType& t, double z, double r, unsigned int secIdx, const ParamType& timeFactor,
 		StateType const* y, CpStateType const* yCp, double const* yDot, ResidualType* res, void* workSpace) const
 	{
-		_p.update(static_cast<double>(t), z, r, secIdx, _nComp, _nBoundStates);
+		const typename ParamHandler_t::params_t& p = _paramHandler.update(static_cast<double>(t), z, r, secIdx, _nComp, _nBoundStates, workSpace);
 
 		const bool hasYdot = yDot;
 
 		// Protein equations: dq_i^j / dt - ( k_{a,i}^j * c_{p,i} * (1 - \sum q_i^j / q_{max,i}^j) - k_{d,i}^j * q_i^j) == 0
 		//               <=>  dq_i^j / dt == k_{a,i}^j * c_{p,i} * (1 - \sum q_i^j / q_{max,i}^j) - k_{d,i}^j * q_i^j
 
-		const unsigned int nSites = _p.kA.slices();
+		const unsigned int nSites = p.kA.slices();
 
 		// Ordering of the states is (q_{comp,state})
 		// q_{0,0}, q{0,1}, q_{0,2}, q_{1,0}, q_{1,1}, q_{1,2}, ...
@@ -371,9 +239,9 @@ protected:
 			// y, yDot, and res point to q_{0,site}
 
 			// Get parameter slice for current binding site type
-			active const* const localKa = _p.kA[site];
-			active const* const localKd = _p.kD[site];
-			active const* const localQmax = _p.qMax[site];
+			active const* const localKa = p.kA[site];
+			active const* const localKd = p.kD[site];
+			active const* const localQmax = p.qMax[site];
 
 			ResidualType qSum = 1.0;
 			unsigned int bndIdx = 0;
@@ -420,7 +288,7 @@ protected:
 	template <typename RowIterator>
 	void jacobianImpl(double t, double z, double r, unsigned int secIdx, double const* y, double const* yCp, RowIterator jac, void* workSpace) const
 	{
-		_p.update(t, z, r, secIdx, _nComp, _nBoundStates);
+		const typename ParamHandler_t::params_t& p = _paramHandler.update(t, z, r, secIdx, _nComp, _nBoundStates, workSpace);
 
 		// Protein equations: dq_i^j / dt - ( k_{a,i}^j * c_{p,i} * (1 - \sum q_i^j / q_{max,i}^j) - k_{d,i}^j * q_i^j) == 0
 
@@ -429,15 +297,15 @@ protected:
 		// Ordering of the equations is the same, that is, we need nSites steps to jump from one equation of a Langmuir
 		// binding model system to the next.
 
-		const int nSites = static_cast<int>(_p.kA.slices());
+		const int nSites = static_cast<int>(p.kA.slices());
 
 		// Loop over all binding site types
 		for (unsigned int site = 0; site < nSites; ++site, ++y)
 		{
 			// Get parameter slice for current binding site type
-			active const* const localKa = _p.kA[site];
-			active const* const localKd = _p.kD[site];
-			active const* const localQmax = _p.qMax[site];
+			active const* const localKa = p.kA[site];
+			active const* const localKd = p.kD[site];
+			active const* const localQmax = p.qMax[site];
 
 			double qSum = 1.0;
 			int bndIdx = 0;

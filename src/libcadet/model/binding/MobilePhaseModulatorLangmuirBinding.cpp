@@ -11,10 +11,11 @@
 // =============================================================================
 
 #include "model/binding/BindingModelBase.hpp"
-#include "model/binding/ExternalFunctionSupport.hpp"
+#include "model/ExternalFunctionSupport.hpp"
 #include "model/ModelUtils.hpp"
 #include "cadet/Exceptions.hpp"
-#include "ParamReaderHelper.hpp"
+#include "model/Parameters.hpp"
+#include "LocalVector.hpp"
 
 #include <functional>
 #include <unordered_map>
@@ -27,132 +28,35 @@ namespace cadet
 namespace model
 {
 
-/**
- * @brief Handles mobile phase modulator Langmuir binding model parameters that do not depend on external functions
- */
-struct MPMLangmuirParamHandler : public BindingParamHandlerBase
+CADET_BINDINGPARAMS(MPMLangmuirParamHandler, ExtMPMLangmuirParamHandler, 
+	(ScalarComponentDependentParameter, kA, "MPM_KA") //!< Adsorption rate
+	(ScalarComponentDependentParameter, kD, "MPM_KD") //!< Desorption rate
+	(ScalarComponentDependentParameter, qMax, "MPM_QMAX") //!< Capacity
+	(ScalarComponentDependentParameter, gamma, "MPM_GAMMA") //!< Hydrophobicity
+	(ScalarComponentDependentParameter, beta, "MPM_BETA"), //!< Ion exchange characteristics
+);
+
+inline const char* MPMLangmuirParamHandler::identifier() CADET_NOEXCEPT { return "MOBILE_PHASE_MODULATOR"; }
+
+inline bool MPMLangmuirParamHandler::validateConfig(unsigned int nComp, unsigned int const* nBoundStates)
 {
-	static const char* identifier() { return "MOBILE_PHASE_MODULATOR"; }
+	if ((_kA.size() != _kD.size()) || (_kA.size() != _qMax.size()) || (_kA.size() != _gamma.size())
+		|| (_kA.size() != _beta.size()) || (_kA.size() < nComp))
+		throw InvalidParameterException("MPM_KA, MPM_KD, MPM_QMAX, MPM_GAMMA, and MPM_BETA have to have the same size");
 
-	/**
-	 * @brief Reads parameters and verifies them
-	 * @details See IBindingModel::configure() for details.
-	 * @param [in] paramProvider IParameterProvider used for reading parameters
-	 * @param [in] nComp Number of components
-	 * @param [in] nBoundStates Array with number of bound states for each component
-	 * @return @c true if the parameters were read and validated successfully, otherwise @c false
-	 */
-	inline bool configure(IParameterProvider& paramProvider, unsigned int nComp, unsigned int const* nBoundStates)
-	{
-		readParameterMatrix(kA, paramProvider, "MPM_KA", nComp, 1);
-		readParameterMatrix(kD, paramProvider, "MPM_KD", nComp, 1);
-		readParameterMatrix(qMax, paramProvider, "MPM_QMAX", nComp, 1);
-		readParameterMatrix(gamma, paramProvider, "MPM_GAMMA", nComp, 1);
-		readParameterMatrix(beta, paramProvider, "MPM_BETA", nComp, 1);
+	return true;
+}
 
-		// Check parameters
-		if ((kA.size() != kD.size()) || (kA.size() != qMax.size()) || (kA.size() != gamma.size())
-			|| (kA.size() != beta.size()) || (kA.size() < nComp))
-			throw InvalidParameterException("MPM_KA, MPM_KD, MPM_QMAX, MPM_GAMMA, and MPM_BETA have to have the same size");
+inline const char* ExtMPMLangmuirParamHandler::identifier() CADET_NOEXCEPT { return "EXT_MOBILE_PHASE_MODULATOR"; }
 
-		return true;
-	}
-
-	/**
-	 * @brief Registers all local parameters in a map for further use
-	 * @param [in,out] parameters Map in which the parameters are stored
-	 * @param [in] unitOpIdx Index of the unit operation used for registering the parameters
-	 * @param [in] nComp Number of components
-	 * @param [in] nBoundStates Array with number of bound states for each component
-	 */
-	inline void registerParameters(std::unordered_map<ParameterId, active*>& parameters, unsigned int unitOpIdx, unsigned int nComp, unsigned int const* nBoundStates)
-	{
-		registerComponentBoundStateDependentParam(hashString("MPM_KA"), parameters, kA, unitOpIdx);
-		registerComponentBoundStateDependentParam(hashString("MPM_KD"), parameters, kD, unitOpIdx);
-		registerComponentBoundStateDependentParam(hashString("MPM_QMAX"), parameters, qMax, unitOpIdx);
-		registerComponentBoundStateDependentParam(hashString("MPM_GAMMA"), parameters, gamma, unitOpIdx);
-		registerComponentBoundStateDependentParam(hashString("MPM_BETA"), parameters, beta, unitOpIdx);
-	}
-
-	std::vector<active> kA; //!< Adsorption rate
-	std::vector<active> kD; //!< Desorption rate
-	std::vector<active> qMax; //!< Capacity
-	std::vector<active> gamma; //!< Hydrophobicity
-	std::vector<active> beta; //!< Ion exchange characteristics
-};
-
-/**
- * @brief Handles mobile phase modulator Langmuir binding model parameters that depend on an external function
- */
-struct ExtMPMLangmuirParamHandler : public ExternalBindingParamHandlerBase
+inline bool ExtMPMLangmuirParamHandler::validateConfig(unsigned int nComp, unsigned int const* nBoundStates)
 {
-	static const char* identifier() { return "EXT_MOBILE_PHASE_MODULATOR"; }
+	if ((_kA.size() != _kD.size()) || (_kA.size() != _qMax.size()) || (_kA.size() != _gamma.size())
+		|| (_kA.size() != _beta.size()) || (_kA.size() < nComp))
+		throw InvalidParameterException("MPM_KA, MPM_KD, MPM_QMAX, MPM_GAMMA, and MPM_BETA have to have the same size");
 
-	/**
-	 * @brief Reads parameters and verifies them
-	 * @details See IBindingModel::configure() for details.
-	 * @param [in] paramProvider IParameterProvider used for reading parameters
-	 * @param [in] nComp Number of components
-	 * @param [in] nBoundStates Array with number of bound states for each component
-	 * @return @c true if the parameters were read and validated successfully, otherwise @c false
-	 */
-	inline bool configure(IParameterProvider& paramProvider, unsigned int nComp, unsigned int const* nBoundStates)
-	{
-		CADET_READPAR_MATRIX(kA, paramProvider, "MPM_KA", nComp, 1);
-		CADET_READPAR_MATRIX(kD, paramProvider, "MPM_KD", nComp, 1);
-		CADET_READPAR_MATRIX(qMax, paramProvider, "MPM_QMAX", nComp, 1);
-		CADET_READPAR_MATRIX(gamma, paramProvider, "MPM_GAMMA", nComp, 1);
-		CADET_READPAR_MATRIX(beta, paramProvider, "MPM_BETA", nComp, 1);
-
-		return ExternalBindingParamHandlerBase::configure(paramProvider, 5);
-	}
-
-	/**
-	 * @brief Registers all local parameters in a map for further use
-	 * @param [in,out] parameters Map in which the parameters are stored
-	 * @param [in] unitOpIdx Index of the unit operation used for registering the parameters
-	 * @param [in] nComp Number of components
-	 * @param [in] nBoundStates Array with number of bound states for each component
-	 */
-	inline void registerParameters(std::unordered_map<ParameterId, active*>& parameters, unsigned int unitOpIdx, unsigned int nComp, unsigned int const* nBoundStates)
-	{
-		CADET_REGPAR_COMPBND_VEC("MPM_KA", parameters, kA, unitOpIdx);
-		CADET_REGPAR_COMPBND_VEC("MPM_KD", parameters, kD, unitOpIdx);
-		CADET_REGPAR_COMPBND_VEC("MPM_QMAX", parameters, qMax, unitOpIdx);
-		CADET_REGPAR_COMPBND_VEC("MPM_GAMMA", parameters, gamma, unitOpIdx);
-		CADET_REGPAR_COMPBND_VEC("MPM_BETA", parameters, beta, unitOpIdx);
-	}
-
-	/**
-	 * @brief Updates local parameter cache in order to take the external profile into account
-	 * @details This function is declared const since the actual parameters are left unchanged by the method.
-	 *         The cache is marked as mutable in order to make it writable.
-	 * @param [in] t Current time
-	 * @param [in] z Axial coordinate in the column
-	 * @param [in] r Radial coordinate in the bead
-	 * @param [in] secIdx Index of the current section
-	 * @param [in] nComp Number of components
-	 * @param [in] nBoundStates Array with number of bound states for each component
-	 */
-	inline void update(double t, double z, double r, unsigned int secIdx, unsigned int nComp, unsigned int const* nBoundStates) const
-	{
-		evaluateExternalFunctions(t, z, r, secIdx);
-		for (unsigned int i = 0; i < nComp; ++i)
-		{
-			CADET_UPDATE_EXTDEP_VARIABLE_BRACES(kA, i, _extFunBuffer[0]);
-			CADET_UPDATE_EXTDEP_VARIABLE_BRACES(kD, i, _extFunBuffer[1]);
-			CADET_UPDATE_EXTDEP_VARIABLE_BRACES(qMax, i, _extFunBuffer[2]);
-			CADET_UPDATE_EXTDEP_VARIABLE_BRACES(gamma, i, _extFunBuffer[3]);
-			CADET_UPDATE_EXTDEP_VARIABLE_BRACES(beta, i, _extFunBuffer[4]);
-		}
-	}
-
-	CADET_DEFINE_EXTDEP_VARIABLE(std::vector<active>, kA)
-	CADET_DEFINE_EXTDEP_VARIABLE(std::vector<active>, kD)
-	CADET_DEFINE_EXTDEP_VARIABLE(std::vector<active>, qMax)
-	CADET_DEFINE_EXTDEP_VARIABLE(std::vector<active>, gamma)
-	CADET_DEFINE_EXTDEP_VARIABLE(std::vector<active>, beta)
-};
+	return true;
+}
 
 
 /**
@@ -182,7 +86,7 @@ public:
 	static const char* identifier() { return ParamHandler_t::identifier(); }
 	virtual const char* name() const CADET_NOEXCEPT { return ParamHandler_t::identifier(); }
 
-	virtual void setExternalFunctions(IExternalFunction** extFuns, unsigned int size) { _p.setExternalFunctions(extFuns, size); }
+	virtual void setExternalFunctions(IExternalFunction** extFuns, unsigned int size) { _paramHandler.setExternalFunctions(extFuns, size); }
 
 	virtual bool hasSalt() const CADET_NOEXCEPT { return true; }
 	virtual bool dependsOnTime() const CADET_NOEXCEPT { return ParamHandler_t::dependsOnTime(); }
@@ -190,15 +94,17 @@ public:
 	CADET_PUREBINDINGMODELBASE_BOILERPLATE
 
 protected:
-	ParamHandler_t _p; //!< Handles parameters and their dependence on external functions
+	ParamHandler_t _paramHandler; //!< Handles parameters and their dependence on external functions
+
+	virtual unsigned int paramCacheSize() const CADET_NOEXCEPT { return _paramHandler.cacheSize(); }
 
 	virtual bool configureImpl(bool reconfigure, IParameterProvider& paramProvider, unsigned int unitOpIdx)
 	{
 		// Read parameters
-		_p.configure(paramProvider, _nComp, _nBoundStates);
+		_paramHandler.configure(paramProvider, _nComp, _nBoundStates);
 
 		// Register parameters
-		_p.registerParameters(_parameters, unitOpIdx, _nComp, _nBoundStates);
+		_paramHandler.registerParameters(_parameters, unitOpIdx, _nComp, _nBoundStates);
 
 		return true;
 	}
@@ -207,7 +113,7 @@ protected:
 	int residualImpl(const ParamType& t, double z, double r, unsigned int secIdx, const ParamType& timeFactor,
 		StateType const* y, CpStateType const* yCp, double const* yDot, ResidualType* res, void* workSpace) const
 	{
-		_p.update(static_cast<double>(t), z, r, secIdx, _nComp, _nBoundStates);
+		const typename ParamHandler_t::params_t& p = _paramHandler.update(static_cast<double>(t), z, r, secIdx, _nComp, _nBoundStates, workSpace);
 
 		// Salt equation: dq_0 / dt == 0
 		// Protein equations: dq_i / dt - ( k_{a,i} * exp(\gamma_i * c_{p,0}) * c_{p,i} * q_{max,i} * (1 - \sum q_i / q_{max,i}) - k_{d,i} * c_{p,0}^\beta_i * q_i) == 0
@@ -223,7 +129,7 @@ protected:
 			if (_nBoundStates[i] == 0)
 				continue;
 
-			qSum -= y[bndIdx] / static_cast<ParamType>(_p.qMax[i]);
+			qSum -= y[bndIdx] / static_cast<ParamType>(p.qMax[i]);
 
 			// Next bound component
 			++bndIdx;
@@ -253,7 +159,7 @@ protected:
 				continue;
 
 			// Residual
-			res[bndIdx] = static_cast<ParamType>(_p.kD[i]) * pow(yCp[0], static_cast<ParamType>(_p.beta[i])) * y[bndIdx] - static_cast<ParamType>(_p.kA[i]) * exp(yCp[0] * static_cast<ParamType>(_p.gamma[i])) * yCp[i] * static_cast<ParamType>(_p.qMax[i]) * qSum;
+			res[bndIdx] = static_cast<ParamType>(p.kD[i]) * pow(yCp[0], static_cast<ParamType>(p.beta[i])) * y[bndIdx] - static_cast<ParamType>(p.kA[i]) * exp(yCp[0] * static_cast<ParamType>(p.gamma[i])) * yCp[i] * static_cast<ParamType>(p.qMax[i]) * qSum;
 
 			// Add time derivative if necessary
 			if (_kineticBinding && yDot)
@@ -271,7 +177,7 @@ protected:
 	template <typename RowIterator>
 	void jacobianImpl(double t, double z, double r, unsigned int secIdx, double const* y, double const* yCp, RowIterator jac, void* workSpace) const
 	{
-		_p.update(t, z, r, secIdx, _nComp, _nBoundStates);
+		const typename ParamHandler_t::params_t& p = _paramHandler.update(t, z, r, secIdx, _nComp, _nBoundStates, workSpace);
 		
 		// Salt equation
 		int bndIdx = 0;
@@ -290,7 +196,7 @@ protected:
 			if (_nBoundStates[i] == 0)
 				continue;
 
-			qSum -= y[bndIdx] / static_cast<double>(_p.qMax[i]);
+			qSum -= y[bndIdx] / static_cast<double>(p.qMax[i]);
 
 			// Next bound component
 			++bndIdx;
@@ -307,11 +213,11 @@ protected:
 			if (_nBoundStates[i] == 0)
 				continue;
 
-			const double gamma = static_cast<double>(_p.gamma[i]);
-			const double beta = static_cast<double>(_p.beta[i]);
-			const double qMax = static_cast<double>(_p.qMax[i]);
-			const double ka = static_cast<double>(_p.kA[i]) * exp(gamma * yCp[0]);
-			const double kdRaw = static_cast<double>(_p.kD[i]);
+			const double gamma = static_cast<double>(p.gamma[i]);
+			const double beta = static_cast<double>(p.beta[i]);
+			const double qMax = static_cast<double>(p.qMax[i]);
+			const double ka = static_cast<double>(p.kA[i]) * exp(gamma * yCp[0]);
+			const double kdRaw = static_cast<double>(p.kD[i]);
 
 			// dres_i / dc_{p,0}
 			jac[-bndIdx - _nComp] = -ka * yCp[i] * qMax * qSum * gamma + kdRaw * beta * y[bndIdx] * pow(yCp[0], beta - 1.0);
@@ -335,7 +241,7 @@ protected:
 					continue;
 
 				// dres_i / dq_j
-				jac[bndIdx2 - bndIdx] = ka * yCp[i] * qMax / static_cast<double>(_p.qMax[j]);
+				jac[bndIdx2 - bndIdx] = ka * yCp[i] * qMax / static_cast<double>(p.qMax[j]);
 				// Getting to q_j: -bndIdx takes us to q_0, another +bndIdx2 to q_j. This means jac[bndIdx2 - bndIdx] corresponds to q_j.
 
 				++bndIdx2;

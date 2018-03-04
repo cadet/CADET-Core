@@ -138,7 +138,7 @@ unsigned int BindingModelBase::workspaceSize() const
 	// Determine problem size
 	const unsigned int eqSize = numBoundStates(_nBoundStates, _nComp);
 	// Ask nonlinear solver how much memory it needs for this kind of problem
-	return _nonlinearSolver->workspaceSize(eqSize) * sizeof(double);
+	return _nonlinearSolver->workspaceSize(eqSize) * sizeof(double) + paramCacheSize();
 }
 
 /*

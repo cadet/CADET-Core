@@ -11,13 +11,14 @@
 // =============================================================================
 
 #include "model/binding/BindingModelBase.hpp"
-#include "model/binding/ExternalFunctionSupport.hpp"
+#include "model/ExternalFunctionSupport.hpp"
 #include "model/binding/BindingModelMacros.hpp"
 #include "model/binding/RefConcentrationSupport.hpp"
 #include "model/ModelUtils.hpp"
 #include "cadet/Exceptions.hpp"
 #include "nonlin/Solver.hpp"
-#include "ParamReaderHelper.hpp"
+#include "model/Parameters.hpp"
+#include "LocalVector.hpp"
 
 #include <functional>
 #include <unordered_map>
@@ -30,158 +31,43 @@
 #include "LoggingUtils.hpp"
 #include "Logging.hpp"
 
-#include <iostream>
-
 namespace cadet
 {
 
 namespace model
 {
 
-/**
- * @brief Handles self association binding model parameters that do not depend on external functions
- */
-struct SelfAssociationParamHandler : public BindingParamHandlerBase
+CADET_BINDINGPARAMS(SelfAssociationParamHandler, ExtSelfAssociationParamHandler, 
+	(ScalarParameter, lambda, "SAI_LAMBDA") //!< Ionic capacity
+	(ScalarComponentDependentParameter, kA, "SAI_KA") //!< Adsorption rate
+	(ScalarComponentDependentParameter, kA2, "SAI_KA2") //!< Adsorption rate of dimerization
+	(ScalarComponentDependentParameter, kD, "SAI_KD") //!< Desorption rate
+	(ScalarComponentDependentParameter, nu, "SAI_NU") //!< Characteristic charge
+	(ScalarComponentDependentParameter, sigma, "SAI_SIGMA"), //!< Steric factor
+	(ReferenceConcentrationParameter, (refC0, refQ), _refConcentration, "SAI_") //!< Reference concentrations
+);
+
+inline const char* SelfAssociationParamHandler::identifier() CADET_NOEXCEPT { return "SELF_ASSOCIATION"; }
+
+inline bool SelfAssociationParamHandler::validateConfig(unsigned int nComp, unsigned int const* nBoundStates)
 {
-	static const char* identifier() { return "SELF_ASSOCIATION"; }
+	if ((_kA.size() != _kA2.size()) || (_kA.size() != _kD.size()) || (_kA.size() != _nu.size()) 
+		|| (_kA.size() != _sigma.size()) || (_kA.size() < nComp))
+		throw InvalidParameterException("SAI_KA1, SAI_KA2, SAI_KD, SAI_NU, and SAI_SIGMA have to have the same size");
 
-	/**
-	 * @brief Reads parameters and verifies them
-	 * @details See IBindingModel::configure() for details.
-	 * @param [in] paramProvider IParameterProvider used for reading parameters
-	 * @param [in] nComp Number of components
-	 * @param [in] nBoundStates Array with number of bound states for each component
-	 * @return @c true if the parameters were read and validated successfully, otherwise @c false
-	 */
-	inline bool configure(IParameterProvider& paramProvider, unsigned int nComp, unsigned int const* nBoundStates)
-	{
-		lambda = paramProvider.getDouble("SAI_LAMBDA");
-		readParameterMatrix(kA, paramProvider, "SAI_KA1", nComp, 1);
-		readParameterMatrix(kA2, paramProvider, "SAI_KA2", nComp, 1);
-		readParameterMatrix(kD, paramProvider, "SAI_KD", nComp, 1);
-		readParameterMatrix(nu, paramProvider, "SAI_NU", nComp, 1);
-		readParameterMatrix(sigma, paramProvider, "SAI_SIGMA", nComp, 1);
-		readReferenceConcentrations(paramProvider, "SAI_", refC0, refQ);
+	return true;
+}
 
-		// Check parameters
-		if ((kA.size() != kA2.size()) || (kA.size() != kD.size()) || (kA.size() != nu.size()) 
-			|| (kA.size() != sigma.size()) || (kA.size() < nComp))
-			throw InvalidParameterException("SAI_KA1, SAI_KA2, SAI_KD, SAI_NU, and SAI_SIGMA have to have the same size");
+inline const char* ExtSelfAssociationParamHandler::identifier() CADET_NOEXCEPT { return "EXT_SELF_ASSOCIATION"; }
 
-		return true;
-	}
-
-	/**
-	 * @brief Registers all local parameters in a map for further use
-	 * @param [in,out] parameters Map in which the parameters are stored
-	 * @param [in] unitOpIdx Index of the unit operation used for registering the parameters
-	 * @param [in] nComp Number of components
-	 * @param [in] nBoundStates Array with number of bound states for each component
-	 */
-	inline void registerParameters(std::unordered_map<ParameterId, active*>& parameters, unsigned int unitOpIdx, unsigned int nComp, unsigned int const* nBoundStates)
-	{
-		parameters[makeParamId(hashString("SAI_LAMBDA"), unitOpIdx, CompIndep, BoundPhaseIndep, ReactionIndep, SectionIndep)] = &lambda;
-		registerComponentBoundStateDependentParam(hashString("SAI_KA1"), parameters, kA, unitOpIdx);
-		registerComponentBoundStateDependentParam(hashString("SAI_KA2"), parameters, kA2, unitOpIdx);
-		registerComponentBoundStateDependentParam(hashString("SAI_KD"), parameters, kD, unitOpIdx);
-		registerComponentBoundStateDependentParam(hashString("SAI_NU"), parameters, nu, unitOpIdx);
-		registerComponentBoundStateDependentParam(hashString("SAI_SIGMA"), parameters, sigma, unitOpIdx);
-		parameters[makeParamId(hashString("SAI_REFC0"), unitOpIdx, CompIndep, BoundPhaseIndep, ReactionIndep, SectionIndep)] = &refC0;
-		parameters[makeParamId(hashString("SAI_REFQ"), unitOpIdx, CompIndep, BoundPhaseIndep, ReactionIndep, SectionIndep)] = &refQ;
-	}
-
-	active lambda; //! Ionic capacity
-	std::vector<active> kA; //!< Adsorption rate
-	std::vector<active> kA2; //!< Adsorption rate of dimerization
-	std::vector<active> kD; //!< Desorption rate
-	std::vector<active> nu; //!< Characteristic charge
-	std::vector<active> sigma; //!< Steric factor
-	active refC0; //! Liquid phase reference concentration
-	active refQ; //! Solid phase reference concentration
-};
-
-/**
- * @brief Handles self association binding model parameters that depend on an external function
- */
-struct ExtSelfAssociationParamHandler : public ExternalBindingParamHandlerBase
+inline bool ExtSelfAssociationParamHandler::validateConfig(unsigned int nComp, unsigned int const* nBoundStates)
 {
-	static const char* identifier() { return "EXT_SELF_ASSOCIATION"; }
+	if ((_kA.size() != _kA2.size()) || (_kA.size() != _kD.size()) || (_kA.size() != _nu.size()) 
+		|| (_kA.size() != _sigma.size()) || (_kA.size() < nComp))
+		throw InvalidParameterException("EXT_SAI_KA1, EXT_SAI_KA2, EXT_SAI_KD, EXT_SAI_NU, and EXT_SAI_SIGMA have to have the same size");
 
-	/**
-	 * @brief Reads parameters and verifies them
-	 * @details See IBindingModel::configure() for details.
-	 * @param [in] paramProvider IParameterProvider used for reading parameters
-	 * @param [in] nComp Number of components
-	 * @param [in] nBoundStates Array with number of bound states for each component
-	 * @return @c true if the parameters were read and validated successfully, otherwise @c false
-	 */
-	inline bool configure(IParameterProvider& paramProvider, unsigned int nComp, unsigned int const* nBoundStates)
-	{
-		CADET_READPAR_SCALAR(lambda, paramProvider, "SAI_LAMBDA");
-		CADET_READPAR_MATRIX(kA, paramProvider, "SAI_KA1", nComp, 1);
-		CADET_READPAR_MATRIX(kA2, paramProvider, "SAI_KA2", nComp, 1);
-		CADET_READPAR_MATRIX(kD, paramProvider, "SAI_KD", nComp, 1);
-		CADET_READPAR_MATRIX(nu, paramProvider, "SAI_NU", nComp, 1);
-		CADET_READPAR_MATRIX(sigma, paramProvider, "SAI_SIGMA", nComp, 1);
-		readReferenceConcentrations(paramProvider, "EXT_SAI_", refC0, refQ);
-
-		return ExternalBindingParamHandlerBase::configure(paramProvider, 6);
-	}
-
-	/**
-	 * @brief Registers all local parameters in a map for further use
-	 * @param [in,out] parameters Map in which the parameters are stored
-	 * @param [in] unitOpIdx Index of the unit operation used for registering the parameters
-	 * @param [in] nComp Number of components
-	 * @param [in] nBoundStates Array with number of bound states for each component
-	 */
-	inline void registerParameters(std::unordered_map<ParameterId, active*>& parameters, unsigned int unitOpIdx, unsigned int nComp, unsigned int const* nBoundStates)
-	{
-		CADET_REGPAR_SCALAR("SAI_LAMBDA", parameters, lambda, unitOpIdx);
-		CADET_REGPAR_COMPBND_VEC("SAI_KA1", parameters, kA, unitOpIdx);
-		CADET_REGPAR_COMPBND_VEC("SAI_KA2", parameters, kA2, unitOpIdx);
-		CADET_REGPAR_COMPBND_VEC("SAI_KD", parameters, kD, unitOpIdx);
-		CADET_REGPAR_COMPBND_VEC("SAI_NU", parameters, nu, unitOpIdx);
-		CADET_REGPAR_COMPBND_VEC("SAI_SIGMA", parameters, sigma, unitOpIdx);
-		parameters[makeParamId(hashString("EXT_SAI_REFC0"), unitOpIdx, CompIndep, BoundPhaseIndep, ReactionIndep, SectionIndep)] = &refC0;
-		parameters[makeParamId(hashString("EXT_SAI_REFQ"), unitOpIdx, CompIndep, BoundPhaseIndep, ReactionIndep, SectionIndep)] = &refQ;
-	}
-
-	/**
-	 * @brief Updates local parameter cache in order to take the external profile into account
-	 * @details This function is declared const since the actual parameters are left unchanged by the method.
-	 *         The cache is marked as mutable in order to make it writable.
-	 * @param [in] t Current time
-	 * @param [in] z Axial coordinate in the column
-	 * @param [in] r Radial coordinate in the bead
-	 * @param [in] secIdx Index of the current section
-	 * @param [in] nComp Number of components
-	 * @param [in] nBoundStates Array with number of bound states for each component
-	 */
-	inline void update(double t, double z, double r, unsigned int secIdx, unsigned int nComp, unsigned int const* nBoundStates) const
-	{
-		evaluateExternalFunctions(t, z, r, secIdx);
-		for (unsigned int i = 0; i < nComp; ++i)
-		{
-			CADET_UPDATE_EXTDEP_VARIABLE_BRACES(kA, i, _extFunBuffer[0]);
-			CADET_UPDATE_EXTDEP_VARIABLE_BRACES(kA2, i, _extFunBuffer[1]);
-			CADET_UPDATE_EXTDEP_VARIABLE_BRACES(kD, i, _extFunBuffer[2]);
-			CADET_UPDATE_EXTDEP_VARIABLE_BRACES(nu, i, _extFunBuffer[3]);
-			CADET_UPDATE_EXTDEP_VARIABLE_BRACES(sigma, i, _extFunBuffer[4]);
-		}
-
-		CADET_UPDATE_EXTDEP_VARIABLE(lambda, _extFunBuffer[5]);
-	}
-
-	CADET_DEFINE_EXTDEP_VARIABLE(std::vector<active>, kA)
-	CADET_DEFINE_EXTDEP_VARIABLE(std::vector<active>, kA2)
-	CADET_DEFINE_EXTDEP_VARIABLE(std::vector<active>, kD)
-	CADET_DEFINE_EXTDEP_VARIABLE(std::vector<active>, nu)
-	CADET_DEFINE_EXTDEP_VARIABLE(std::vector<active>, sigma)
-	CADET_DEFINE_EXTDEP_VARIABLE(active, lambda)
-	active refC0; //! Liquid phase reference concentration
-	active refQ; //! Solid phase reference concentration
-};
+	return true;
+}
 
 
 /**
@@ -231,8 +117,6 @@ public:
 		active* const adRes, active* const adY, unsigned int adEqOffset, unsigned int adDirOffset, const ad::IJacobianExtractor& jacExtractor, 
 		double* const workingMemory, linalg::detail::DenseMatrixBase& workingMat) const
 	{
-		_p.update(t, z, r, secIdx, _nComp, _nBoundStates);
-
 		if (!_kineticBinding)
 		{
 			// All equations are algebraic and (except for salt equation) nonlinear
@@ -290,6 +174,8 @@ public:
 				errorTol, vecStateY, workingMemory, workingMat, eqSize);
 		}
 
+		const typename ParamHandler_t::params_t& p = _paramHandler.update(t, z, r, secIdx, _nComp, _nBoundStates, workingMemory);
+
 		// Compute salt component from given bound states q_j
 		// This also corrects invalid salt values from nonlinear solver
 		// in case of rapid equilibrium
@@ -306,25 +192,25 @@ public:
 			if (_nBoundStates[j] == 0)
 				continue;
 
-			const double diff = -static_cast<double>(_p.nu[j]) * vecStateY[bndIdx] - kahanCompensation;
+			const double diff = -static_cast<double>(p.nu[j]) * vecStateY[bndIdx] - kahanCompensation;
 			const double tempSum = vecStateY[0] + diff;
 			kahanCompensation = (tempSum - vecStateY[0]) - diff;
 			vecStateY[0] = tempSum;
 
-//				vecStateY[0] -= static_cast<double>(_p.nu[j]) * vecStateY[bndIdx];
+//				vecStateY[0] -= static_cast<double>(p.nu[j]) * vecStateY[bndIdx];
 
 			// Next bound component
 			++bndIdx;
 		}
 
-		const double diff = static_cast<double>(_p.lambda) - kahanCompensation;
+		const double diff = static_cast<double>(p.lambda) - kahanCompensation;
 		const double tempSum = vecStateY[0] + diff;
 		vecStateY[0] = tempSum;
 	}
 
 	CADET_BINDINGMODEL_RESIDUAL_JACOBIAN_BOILERPLATE
 
-	virtual void setExternalFunctions(IExternalFunction** extFuns, unsigned int size) { _p.setExternalFunctions(extFuns, size); }
+	virtual void setExternalFunctions(IExternalFunction** extFuns, unsigned int size) { _paramHandler.setExternalFunctions(extFuns, size); }
 
 	virtual void multiplyWithDerivativeJacobian(double const* yDotS, double* const res, double timeFactor) const
 	{
@@ -348,15 +234,17 @@ public:
 	virtual bool dependsOnTime() const CADET_NOEXCEPT { return ParamHandler_t::dependsOnTime(); }
 
 protected:
-	ParamHandler_t _p; //!< Handles parameters and their dependence on external functions
+	ParamHandler_t _paramHandler; //!< Handles parameters and their dependence on external functions
+
+	virtual unsigned int paramCacheSize() const CADET_NOEXCEPT { return _paramHandler.cacheSize(); }
 
 	virtual bool configureImpl(bool reconfigure, IParameterProvider& paramProvider, unsigned int unitOpIdx)
 	{
 		// Read parameters
-		_p.configure(paramProvider, _nComp, _nBoundStates);
+		_paramHandler.configure(paramProvider, _nComp, _nBoundStates);
 
 		// Register parameters
-		_p.registerParameters(_parameters, unitOpIdx, _nComp, _nBoundStates);
+		_paramHandler.registerParameters(_parameters, unitOpIdx, _nComp, _nBoundStates);
 
 		return true;
 	}
@@ -365,12 +253,12 @@ protected:
 	int residualImpl(const ParamType& t, double z, double r, unsigned int secIdx, const ParamType& timeFactor,
 		StateType const* y, CpStateType const* yCp, double const* yDot, ResidualType* res, void* workSpace) const
 	{
-		_p.update(static_cast<double>(t), z, r, secIdx, _nComp, _nBoundStates);
+		const typename ParamHandler_t::params_t& p = _paramHandler.update(static_cast<double>(t), z, r, secIdx, _nComp, _nBoundStates, workSpace);
 
 		// Salt equation: q_0 - Lambda + Sum[nu_j * q_j, j] == 0 
 		//           <=>  q_0 == Lambda - Sum[nu_j * q_j, j] 
 		// Also compute \bar{q}_0 = q_0 - Sum[sigma_j * q_j, j]
-		res[0] = y[0] - static_cast<ParamType>(_p.lambda);
+		res[0] = y[0] - static_cast<ParamType>(p.lambda);
 		ResidualType q0_bar = y[0];
 
 		unsigned int bndIdx = 1;
@@ -380,15 +268,15 @@ protected:
 			if (_nBoundStates[j] == 0)
 				continue;
 
-			res[0] += static_cast<ParamType>(_p.nu[j]) * y[bndIdx];
-			q0_bar -= static_cast<ParamType>(_p.sigma[j]) * y[bndIdx];
+			res[0] += static_cast<ParamType>(p.nu[j]) * y[bndIdx];
+			q0_bar -= static_cast<ParamType>(p.sigma[j]) * y[bndIdx];
 
 			// Next bound component
 			++bndIdx;
 		}
 
-		const ResidualType q0_bar_divRef = q0_bar / static_cast<ParamType>(_p.refQ);
-		const ResidualType yCp0_divRef = yCp[0] / static_cast<ParamType>(_p.refC0);
+		const ResidualType q0_bar_divRef = q0_bar / static_cast<ParamType>(p.refQ);
+		const ResidualType yCp0_divRef = yCp[0] / static_cast<ParamType>(p.refC0);
 
 		// Protein equations: dq_i / dt - ( (k_{a,i} + k_{a2,i} * c_{p,i}) * c_{p,i} * \bar{q}_0^{nu_i} - k_{d,i} * q_i * c_{p,0}^{nu_i} ) == 0
 		//               <=>  dq_i / dt == (k_{a,i} + k_{a2,i} * c_{p,i}) * c_{p,i} * \bar{q}_0^{nu_i} - k_{d,i} * q_i * c_{p,0}^{nu_i}
@@ -399,11 +287,11 @@ protected:
 			if (_nBoundStates[i] == 0)
 				continue;
 
-			const ResidualType c0_pow_nu = pow(yCp0_divRef, static_cast<ParamType>(_p.nu[i]));
-			const ResidualType q0_bar_pow_nu = pow(q0_bar_divRef, static_cast<ParamType>(_p.nu[i]));
+			const ResidualType c0_pow_nu = pow(yCp0_divRef, static_cast<ParamType>(p.nu[i]));
+			const ResidualType q0_bar_pow_nu = pow(q0_bar_divRef, static_cast<ParamType>(p.nu[i]));
 
 			// Residual
-			res[bndIdx] = static_cast<ParamType>(_p.kD[i]) * y[bndIdx] * c0_pow_nu - yCp[i] * (static_cast<ParamType>(_p.kA[i]) + yCp[i] * static_cast<ParamType>(_p.kA2[i])) * q0_bar_pow_nu;
+			res[bndIdx] = static_cast<ParamType>(p.kD[i]) * y[bndIdx] * c0_pow_nu - yCp[i] * (static_cast<ParamType>(p.kA[i]) + yCp[i] * static_cast<ParamType>(p.kA2[i])) * q0_bar_pow_nu;
 
 			// Add time derivative if necessary
 			if (_kineticBinding && yDot)
@@ -421,7 +309,7 @@ protected:
 	template <typename RowIterator>
 	void jacobianImpl(double t, double z, double r, unsigned int secIdx, double const* y, double const* yCp, RowIterator jac, void* workSpace) const
 	{
-		_p.update(t, z, r, secIdx, _nComp, _nBoundStates);
+		const typename ParamHandler_t::params_t& p = _paramHandler.update(t, z, r, secIdx, _nComp, _nBoundStates, workSpace);
 
 		double q0_bar = y[0];
 
@@ -434,10 +322,10 @@ protected:
 			if (_nBoundStates[j] == 0)
 				continue;
 
-			jac[bndIdx] = static_cast<double>(_p.nu[j]);
+			jac[bndIdx] = static_cast<double>(p.nu[j]);
 
 			// Calculate \bar{q}_0 = q_0 - Sum[sigma_j * q_j, j]
-			q0_bar -= static_cast<double>(_p.sigma[j]) * y[bndIdx];
+			q0_bar -= static_cast<double>(p.sigma[j]) * y[bndIdx];
 
 			// Next bound component
 			++bndIdx;
@@ -446,8 +334,8 @@ protected:
 		// Advance to protein equations
 		++jac;
 
-		const double refC0 = static_cast<double>(_p.refC0);
-		const double refQ = static_cast<double>(_p.refQ);
+		const double refC0 = static_cast<double>(p.refC0);
+		const double refQ = static_cast<double>(p.refQ);
 		const double yCp0_divRef = yCp[0] / refC0;
 		const double q0_bar_divRef = q0_bar / refQ;
 
@@ -464,10 +352,10 @@ protected:
 			// Getting to c_{p,i}: -bndIdx takes us to q_0, another -nComp to c_{p,0} and a +i to c_{p,i}.
 			//                     This means jac[i - bndIdx - nComp] corresponds to c_{p,i}.
 
-			const double ka = static_cast<double>(_p.kA[i]);
-			const double ka2 = static_cast<double>(_p.kA2[i]);
-			const double kd = static_cast<double>(_p.kD[i]);
-			const double nu = static_cast<double>(_p.nu[i]);
+			const double ka = static_cast<double>(p.kA[i]);
+			const double ka2 = static_cast<double>(p.kA2[i]);
+			const double kd = static_cast<double>(p.kD[i]);
+			const double nu = static_cast<double>(p.nu[i]);
 
 			const double effKa = yCp[i] * (ka + ka2 * yCp[i]);
 			const double c0_pow_nu     = pow(yCp0_divRef, nu);
@@ -491,7 +379,7 @@ protected:
 					continue;
 
 				// dres_i / dq_j
-				jac[bndIdx2 - bndIdx] = -effKa * yCp[i] * nu * q0_bar_pow_nu_m1_divRef * (-static_cast<double>(_p.sigma[j]));
+				jac[bndIdx2 - bndIdx] = -effKa * yCp[i] * nu * q0_bar_pow_nu_m1_divRef * (-static_cast<double>(p.sigma[j]));
 				// Getting to q_j: -bndIdx takes us to q_0, another +bndIdx2 to q_j. This means jac[bndIdx2 - bndIdx] corresponds to q_j.
 
 				++bndIdx2;

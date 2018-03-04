@@ -42,11 +42,12 @@
  */
 
 #include "model/BindingModel.hpp"
-#include "model/binding/ExternalFunctionSupport.hpp"
+#include "model/ExternalFunctionSupport.hpp"
 #include "ParamIdUtil.hpp"
 #include "model/ModelUtils.hpp"
 #include "cadet/Exceptions.hpp"
-#include "ParamReaderHelper.hpp"
+#include "model/Parameters.hpp"
+#include "LocalVector.hpp"
 
 #include <vector>
 #include <unordered_map>
@@ -63,9 +64,28 @@ namespace model
 /**
  * @brief Handles linear binding model parameters that do not depend on external functions
  */
-struct LinearParamHandler : public BindingParamHandlerBase
+class LinearParamHandler : public ConstParamHandlerBase
 {
+public:
+
+	/**
+	 * @brief Holds actual parameter data
+	 */
+	struct ConstParams
+	{
+		std::vector<active> kA; //!< Adsorption rate
+		std::vector<active> kD; //!< Desorption rate
+	};
+
+	typedef ConstParams params_t;
+
+	/**
+	 * @brief Returns name of the binding model
+	 * @return Name of the binding model
+	 */
 	static const char* identifier() { return "LINEAR"; }
+
+	LinearParamHandler() CADET_NOEXCEPT : _kA(&_localParams.kA), _kD(&_localParams.kD) { }
 
 	/**
 	 * @brief Reads parameters and verifies them
@@ -77,15 +97,9 @@ struct LinearParamHandler : public BindingParamHandlerBase
 	 */
 	inline bool configure(IParameterProvider& paramProvider, unsigned int nComp, unsigned int const* nBoundStates)
 	{
-		// Read k_a and k_d
-		readParameterMatrix(kA, paramProvider, "LIN_KA", nComp, 1);
-		readParameterMatrix(kD, paramProvider, "LIN_KD", nComp, 1);
-
-		// Check parameters
-		if ((kA.size() != kD.size()) || (kA.size() < nComp))
-			throw InvalidParameterException("LIN_KA and LIN_KD have to have the same size");
-
-		return true;
+		_kA.configure("LIN_KA", paramProvider, nComp, nBoundStates);
+		_kD.configure("LIN_KD", paramProvider, nComp, nBoundStates);
+		return validateConfig(nComp, nBoundStates);
 	}
 
 	/**
@@ -97,19 +111,108 @@ struct LinearParamHandler : public BindingParamHandlerBase
 	 */
 	inline void registerParameters(std::unordered_map<ParameterId, active*>& parameters, unsigned int unitOpIdx, unsigned int nComp, unsigned int const* nBoundStates)
 	{
-		registerComponentBoundStateDependentParam(hashString("LIN_KA"), parameters, kA, unitOpIdx);
-		registerComponentBoundStateDependentParam(hashString("LIN_KD"), parameters, kD, unitOpIdx);
+		_kA.registerParam("LIN_KA", parameters, unitOpIdx, nComp, nBoundStates);
+		_kD.registerParam("LIN_KD", parameters, unitOpIdx, nComp, nBoundStates);
 	}
 
-	std::vector<active> kA; //!< Adsorption rate
-	std::vector<active> kD; //!< Desorption rate
+	/**
+	 * @brief Reserves space in the storage of the parameters
+	 * @param [in] numElem Number of elements (total)
+	 * @param [in] numSlices Number of slices / binding site types
+	 * @param [in] nComp Number of components
+	 * @param [in] nBoundStates Array with number of bound states for each component
+	 */
+	inline void reserve(unsigned int numElem, unsigned int numSlices, unsigned int nComp, unsigned int const* nBoundStates) \
+	{
+		_kA.reserve(numElem, numSlices, nComp, nBoundStates);
+		_kD.reserve(numElem, numSlices, nComp, nBoundStates);
+	}
+
+	/**
+	 * @brief Updates the parameter cache in order to take the external profile into account
+	 * @param [in] t Current time
+	 * @param [in] z Axial coordinate in the column
+	 * @param [in] r Radial coordinate in the bead
+	 * @param [in] secIdx Index of the current section
+	 * @param [in] nComp Number of components
+	 * @param [in] nBoundStates Array with number of bound states for each component
+	 * @param [in,out] workSpace Memory buffer for updated data
+	 * @return Externally dependent parameter values
+	 */
+	inline const params_t& update(double t, double z, double r, unsigned int secIdx, unsigned int nComp, unsigned int const* nBoundStates, void* workSpace) const
+	{
+		return _localParams;
+	}
+
+	/**
+	 * @brief Calculates time derivative in case of external dependence
+	 * @param [in] t Current time
+	 * @param [in] z Axial coordinate in the column
+	 * @param [in] r Radial coordinate in the bead
+	 * @param [in] secIdx Index of the current section
+	 * @param [in] nComp Number of components
+	 * @param [in] nBoundStates Array with number of bound states for each component
+	 * @param [in,out] workSpace Memory buffer for updated data
+	 * @return Time derivatives of externally dependent parameters
+	 */
+	inline const params_t updateTimeDerivative(double t, double z, double r, unsigned int secIdx, unsigned int nComp, unsigned int const* nBoundStates, void* workSpace) const
+	{
+		return _localParams;
+	}
+
+protected:
+
+	/**
+	 * @brief Validates recently read parameters
+	 * @param [in] nComp Number of components
+	 * @param [in] nBoundStates Array with number of bound states for each component
+	 * @return @c true if the parameters were validated successfully, otherwise @c false
+	 */
+	inline bool validateConfig(unsigned int nComp, unsigned int const* nBoundStates)
+	{
+		if ((_kA.size() != _kD.size()) || (_kA.size() < nComp))
+			throw InvalidParameterException("LIN_KA and LIN_KD have to have the same size");
+
+		return true;
+	}
+
+	ConstParams _localParams; //!< Actual parameter data
+
+	// Handlers provide configure(), reserve(), and registerParam() for parameters
+	ScalarComponentDependentParameter _kA; //!< Handler for adsorption rate
+	ScalarComponentDependentParameter _kD; //!< Handler for desorption rate
 };
 
 /**
  * @brief Handles linear binding model parameters that depend on an external function
  */
-struct ExtLinearParamHandler : public ExternalBindingParamHandlerBase
+class ExtLinearParamHandler : public ExternalParamHandlerBase
 {
+public:
+
+	/**
+	 * @brief Holds actual parameter data
+	 * @details The parameter data will be stored in a memory buffer. This requires
+	 *          control over the location of the data, which is not provided by
+	 *          std::vector and util::SlicedVector. There are "local" equivalents,
+	 *          util::LocalVector and util::LocalSlicedVector, for these types that
+	 *          allow to control the placement of the payload data. A single value (i.e.,
+	 *          a single active or double) can simply be put in the struct.
+	 */
+	struct VariableParams
+	{
+		util::LocalVector<active> kA; //!< Adsorption rate
+		util::LocalVector<active> kD; //!< Desorption rate
+	};
+
+	typedef VariableParams params_t;
+
+	ExtLinearParamHandler() CADET_NOEXCEPT { }
+
+	/**
+	 * @brief Returns name of the binding model
+	 * @return Name of the binding model
+	 */
 	static const char* identifier() { return "EXT_LINEAR"; }
 
 	/**
@@ -122,10 +225,12 @@ struct ExtLinearParamHandler : public ExternalBindingParamHandlerBase
 	 */
 	inline bool configure(IParameterProvider& paramProvider, unsigned int nComp, unsigned int const* nBoundStates)
 	{
-		CADET_READPAR_MATRIX(kA, paramProvider, "LIN_KA", nComp, 1);
-		CADET_READPAR_MATRIX(kD, paramProvider, "LIN_KD", nComp, 1);
-
-		return ExternalBindingParamHandlerBase::configure(paramProvider, 2);
+		_kA.configure("LIN_KA", paramProvider, nComp, nBoundStates);
+		_kD.configure("LIN_KD", paramProvider, nComp, nBoundStates);
+		
+		// Number of externally dependent parameters (2) needs to be given to ExternalParamHandlerBase::configure()
+		ExternalParamHandlerBase::configure(paramProvider, 2);
+		return validateConfig(nComp, nBoundStates);
 	}
 
 	/**
@@ -137,61 +242,135 @@ struct ExtLinearParamHandler : public ExternalBindingParamHandlerBase
 	 */
 	inline void registerParameters(std::unordered_map<ParameterId, active*>& parameters, unsigned int unitOpIdx, unsigned int nComp, unsigned int const* nBoundStates)
 	{
-		CADET_REGPAR_COMPBND_VEC("LIN_KA", parameters, kA, unitOpIdx);
-		CADET_REGPAR_COMPBND_VEC("LIN_KD", parameters, kD, unitOpIdx);
+		_kA.registerParam("LIN_KA", parameters, unitOpIdx, nComp, nBoundStates);
+		_kD.registerParam("LIN_KD", parameters, unitOpIdx, nComp, nBoundStates);
 	}
 
 	/**
-	 * @brief Updates local parameter cache in order to take the external profile into account
-	 * @details This function is declared const since the actual parameters are left unchanged by the method.
-	 *         The cache is marked as mutable in order to make it writable.
+	 * @brief Reserves space in the storage of the parameters
+	 * @param [in] numElem Number of elements (total)
+	 * @param [in] numSlices Number of slices / binding site types
+	 * @param [in] nComp Number of components
+	 * @param [in] nBoundStates Array with number of bound states for each component
+	 */
+	inline void reserve(unsigned int numElem, unsigned int numSlices, unsigned int nComp, unsigned int const* nBoundStates) \
+	{
+		_kA.reserve(numElem, numSlices, nComp, nBoundStates);
+		_kD.reserve(numElem, numSlices, nComp, nBoundStates);
+	}
+
+	/**
+	 * @brief Updates the parameter cache in order to take the external profile into account
+	 * @details The data and the returned value are constructed in the given @p workSpace memory buffer.
 	 * @param [in] t Current time
 	 * @param [in] z Axial coordinate in the column
 	 * @param [in] r Radial coordinate in the bead
 	 * @param [in] secIdx Index of the current section
 	 * @param [in] nComp Number of components
 	 * @param [in] nBoundStates Array with number of bound states for each component
+	 * @param [in,out] workSpace Memory buffer for updated data
+	 * @return Externally dependent parameter values
 	 */
-	inline void update(double t, double z, double r, unsigned int secIdx, unsigned int nComp, unsigned int const* nBoundStates) const
+	inline const params_t& update(double t, double z, double r, unsigned int secIdx, unsigned int nComp, unsigned int const* nBoundStates, void* workSpace) const
 	{
-		evaluateExternalFunctions(t, z, r, secIdx);
-		for (unsigned int i = 0; i < nComp; ++i)
-		{
-			CADET_UPDATE_EXTDEP_VARIABLE_BRACES(kA, i, _extFunBuffer[0]);
-			CADET_UPDATE_EXTDEP_VARIABLE_BRACES(kD, i, _extFunBuffer[1]);
-		}
+		// Construct params_t in workSpace
+		params_t* const localParams = reinterpret_cast<params_t*>(workSpace);
+		new (localParams) params_t;
+
+		// Pointer to buffer for function evaluation
+		double* const extFunBuffer = cadet::util::advancePointer<double>(workSpace, sizeof(params_t));
+
+		// Pointer to buffer for actual parameter data (skip buffer for external time derivatives, see cacheSize() below)
+		void* buffer = cadet::util::advancePointer<void>(workSpace, sizeof(params_t) + 2 * 2 * sizeof(double));
+
+		// Evaluate external functions in buffer
+		evaluateExternalFunctions(t, z, r, secIdx, 2, extFunBuffer);
+
+		// Prepare the buffer for the data, update the data, and advance buffer pointer to next item
+		_kA.prepareCache(localParams->kA, buffer);
+		_kA.update(util::dataOfLocalVersion(localParams->kA), extFunBuffer[0], nComp, nBoundStates);
+		buffer = util::advancePointer(buffer, util::memoryForDataOf(localParams->kA));
+
+		_kD.prepareCache(localParams->kD, buffer);
+		_kD.update(util::dataOfLocalVersion(localParams->kD), extFunBuffer[1], nComp, nBoundStates);
+
+		return *localParams;
 	}
 
 	/**
-	 * @brief Updates local parameter cache and calculates time derivative in case of external dependence
-	 * @details This function is declared const since the actual parameters are left unchanged by the method.
-	 *         The cache is marked as mutable in order to make it writable.
+	 * @brief Calculates time derivative in case of external dependence
+	 * @details It is assumed that update() has just been called with the same @p workSpace before this function is called.
+	 *          The time derivatives are constructed in the given @p workSpace memory buffer.
 	 * @param [in] t Current time
 	 * @param [in] z Axial coordinate in the column
 	 * @param [in] r Radial coordinate in the bead
 	 * @param [in] secIdx Index of the current section
 	 * @param [in] nComp Number of components
 	 * @param [in] nBoundStates Array with number of bound states for each component
+	 * @param [in,out] workSpace Memory buffer for updated data
+	 * @return Time derivatives of externally dependent parameters
 	 */
-	inline void updateTimeDerivative(double t, double z, double r, unsigned int secIdx, unsigned int nComp, unsigned int const* nBoundStates) const
+	inline params_t updateTimeDerivative(double t, double z, double r, unsigned int secIdx, unsigned int nComp, unsigned int const* nBoundStates, void* workSpace) const
 	{
-		const std::vector<double> extTimeDeriv = evaluateTimeDerivativeExternalFunctions(t, z, r, secIdx);
-		for (unsigned int i = 0; i < nComp; ++i)
-		{
-			CADET_UPDATE_EXTDEP_VARIABLE_TDIFF_BRACES(kA, i, _extFunBuffer[0], extTimeDeriv[0]);
-			CADET_UPDATE_EXTDEP_VARIABLE_TDIFF_BRACES(kD, i, _extFunBuffer[1], extTimeDeriv[1]);
-		}
+		VariableParams p;
+
+		// Pointers to buffers and already calculated external function values
+		params_t* const localParams = reinterpret_cast<params_t*>(workSpace);
+		double* const extFunBuffer = cadet::util::advancePointer<double>(workSpace, sizeof(params_t));
+		double* const extDerivBuffer = extFunBuffer + 2;
+
+		// Pointer to buffer for time derivatives
+		void* buffer = util::ptrToEndOfData(localParams->kD);
+
+		// Evaluate time derivatives of external functions
+		evaluateTimeDerivativeExternalFunctions(t, z, r, secIdx, 2, extDerivBuffer);
+
+		// Prepare the buffer for the data, update the data, and advance buffer pointer to next item
+		_kA.prepareCache(p.kA, buffer);
+		_kA.updateTimeDerivative(util::dataOfLocalVersion(p.kA), extFunBuffer[0], extDerivBuffer[0], nComp, nBoundStates);
+		buffer = util::advancePointer(buffer, util::memoryForDataOf(p.kA));
+
+		_kD.prepareCache(p.kD, buffer);
+		_kD.updateTimeDerivative(util::dataOfLocalVersion(p.kD), extFunBuffer[1], extDerivBuffer[1], nComp, nBoundStates);
+
+		return p;
 	}
 
-	// Create all variables: The CADET_DEFINE_EXTDEP_VARIABLE(TYPE, BASENAME) macro creates the variables
-	// <BASENAME> (mutable), <BASENAME>T0, <BASENAME>T1, <BASENAME>T2, and <BASENAME>T3
-	// which are all of the same type TYPE. The first variable (<BASENAME>) is used as cache for the actual
-	// value of the parameter which is computed from the coefficients <BASENAME>T0 - <BASENAME>T3 and the
-	// current value of the external source (depending on time and axial position). It is marked as mutable
-	// since it acts as a cache and has to be changed in update().
+	/**
+	 * @brief Returns how much memory is required for caching in bytes
+	 * @details Memory size in bytes.
+	 * @return Memory size in bytes
+	 */
+	inline std::size_t cacheSize() const CADET_NOEXCEPT
+	{
+		// Required buffer memory:
+		//  + params_t object
+		//  + buffer for external function evaluations (2 parameters)
+		//  + buffer for external function time derivative evaluations (2 parameters)
+		//  + buffer for actual parameter data (memory for _kA data + memory for _kD data)
+		//  + buffer for parameter time derivatives (memory for _kA data + memory for _kD data)
+		return sizeof(params_t) + 2 * 2 * sizeof(double) + 2 * (util::memoryForDataOf(_kA.base()) + util::memoryForDataOf(_kD.base()));
+	}
 
-	CADET_DEFINE_EXTDEP_VARIABLE(std::vector<active>, kA)
-	CADET_DEFINE_EXTDEP_VARIABLE(std::vector<active>, kD)
+protected:
+
+	/**
+	 * @brief Validates recently read parameters
+	 * @param [in] nComp Number of components
+	 * @param [in] nBoundStates Array with number of bound states for each component
+	 * @return @c true if the parameters were validated successfully, otherwise @c false
+	 */
+	inline bool validateConfig(unsigned int nComp, unsigned int const* nBoundStates)
+	{
+		if ((_kA.size() != _kD.size()) || (_kA.size() < nComp))
+			throw InvalidParameterException("LIN_KA and LIN_KD have to have the same size");
+
+		return true;
+	}
+
+	// Handlers provide configure(), reserve(), and registerParam() for parameters
+	ExternalScalarComponentDependentParameter _kA; //!< Handler for adsorption rate
+	ExternalScalarComponentDependentParameter _kD; //!< Handler for desorption rate
 };
 
 
@@ -230,10 +409,10 @@ public:
 		_kineticBinding = paramProvider.getInt("IS_KINETIC");
 
 		// Read parameters (k_a and k_d)
-		_p.configure(paramProvider, _nComp, _nBoundStates);
+		_paramHandler.configure(paramProvider, _nComp, _nBoundStates);
 
 		// Register parameters
-		_p.registerParameters(_parameters, unitOpIdx, _nComp, _nBoundStates);
+		_paramHandler.registerParameters(_parameters, unitOpIdx, _nComp, _nBoundStates);
 
 		return true;
 	}
@@ -304,7 +483,7 @@ public:
 		return nullptr;
 	}
 
-	virtual unsigned int workspaceSize() const { return 0; }
+	virtual unsigned int workspaceSize() const { return _paramHandler.cacheSize(); }
 
 	virtual void consistentInitialState(double t, double z, double r, unsigned int secIdx, double* const vecStateY, double errorTol, 
 		active* const adRes, active* const adY, unsigned int adEqOffset, unsigned int adDirOffset, const ad::IJacobianExtractor& jacExtractor, 
@@ -314,7 +493,7 @@ public:
 		if (_kineticBinding)
 			return;
 
-		_p.update(t, z, r, secIdx, _nComp, _nBoundStates);
+		const typename ParamHandler_t::params_t& p = _paramHandler.update(t, z, r, secIdx, _nComp, _nBoundStates, workingMemory);
 
 		// Compute the q_i from their corresponding c_{p,i}
 
@@ -329,14 +508,14 @@ public:
 				continue;
 
 			// Solve  k_a * c_p - k_d * q == 0  for q to obtain  q = k_a / k_d * c_p
-			vecStateY[bndIdx] = static_cast<double>(_p.kA[i]) / static_cast<double>(_p.kD[i]) * yCp[i];
+			vecStateY[bndIdx] = static_cast<double>(p.kA[i]) / static_cast<double>(p.kD[i]) * yCp[i];
 
 			// Next bound component
 			++bndIdx;
 		}
 	}
 
-	virtual void setExternalFunctions(IExternalFunction** extFuns, unsigned int size) { _p.setExternalFunctions(extFuns, size); }
+	virtual void setExternalFunctions(IExternalFunction** extFuns, unsigned int size) { _paramHandler.setExternalFunctions(extFuns, size); }
 
 	// The next four residual() function implementations, two analyticJacobian() function implementations, and
 	// two jacobianAddDiscretized() function implementations are usually hidden behind
@@ -408,9 +587,8 @@ public:
 			return;
 
 		// Update external function and compute time derivative of parameters
-		_p.update(t, z, r, secIdx, _nComp, _nBoundStates);
-		ParamHandler_t dpDt = _p;
-		dpDt.updateTimeDerivative(t, z, r, secIdx, _nComp, _nBoundStates);
+		const typename ParamHandler_t::params_t& p = _paramHandler.update(t, z, r, secIdx, _nComp, _nBoundStates, workSpace);
+		const typename ParamHandler_t::params_t dpDt = _paramHandler.updateTimeDerivative(t, z, r, secIdx, _nComp, _nBoundStates, workSpace);
 
 		// Pointer to first component in liquid phase
 		double const* yCp = y - _nComp;
@@ -440,7 +618,7 @@ protected:
 	unsigned int const* _nBoundStates; //!< Array with number of bound states for each component
 	bool _kineticBinding; //!< Determines whether binding is kinetic (@c true) or quasi-stationary (@c false)
 
-	ParamHandler_t _p; //!< Parameters
+	ParamHandler_t _paramHandler; //!< Parameters
 
 	std::unordered_map<ParameterId, active*> _parameters; //!< Map used to translate ParameterIds to actual variables
 
@@ -448,7 +626,7 @@ protected:
 	int residualImpl(const ParamType& t, double z, double r, unsigned int secIdx, const ParamType& timeFactor,
 		StateType const* y, double const* yDot, ResidualType* res, void* workSpace) const
 	{
-		_p.update(static_cast<double>(t), z, r, secIdx, _nComp, _nBoundStates);
+		const typename ParamHandler_t::params_t& p = _paramHandler.update(static_cast<double>(t), z, r, secIdx, _nComp, _nBoundStates, workSpace);
 
 		// Implement k_a * c_{p,i} - k_d * q_i
 		// Note that we actually need dq / dt - [k_a * c_{p,i} - k_d * q_i] = 0
@@ -463,7 +641,7 @@ protected:
 			if (_nBoundStates[i] == 0)
 				continue;
 
-			res[bndIdx] = -(static_cast<ParamType>(_p.kA[i]) * yCp[i] - static_cast<ParamType>(_p.kD[i]) * y[bndIdx]);
+			res[bndIdx] = -(static_cast<ParamType>(p.kA[i]) * yCp[i] - static_cast<ParamType>(p.kD[i]) * y[bndIdx]);
 
 			// Add time derivative if necessary
 			if (_kineticBinding && yDot)
@@ -481,7 +659,7 @@ protected:
 	template <typename RowIterator>
 	inline void jacobianImpl(double t, double z, double r, unsigned int secIdx, double const* y, RowIterator jac, void* workSpace) const
 	{
-		_p.update(t, z, r, secIdx, _nComp, _nBoundStates);
+		const typename ParamHandler_t::params_t& p = _paramHandler.update(t, z, r, secIdx, _nComp, _nBoundStates, workSpace);
 
 		int bndIdx = 0;
 		for (int i = 0; i < _nComp; ++i)
@@ -490,8 +668,8 @@ protected:
 			if (_nBoundStates[i] == 0)
 				continue;
 
-			jac[0] = static_cast<double>(_p.kD[i]); // dres / dq_i
-			jac[i - bndIdx - _nComp] = -static_cast<double>(_p.kA[i]); // dres / dc_{p,i}
+			jac[0] = static_cast<double>(p.kD[i]); // dres / dq_i
+			jac[i - bndIdx - _nComp] = -static_cast<double>(p.kA[i]); // dres / dc_{p,i}
 			// The distance from liquid phase to solid phase is reduced for each non-binding component
 			// since a bound state is neglected. The number of neglected bound states so far is i - bndIdx.
 			// Thus, by going back nComp - (i - bndIdx) = -[ i - bndIdx - nComp ] we get to the corresponding

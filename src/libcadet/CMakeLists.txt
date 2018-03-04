@@ -222,7 +222,7 @@ foreach(_TARGET IN LISTS LIBNONLINALG_TARGETS)
 endforeach()
 foreach(_TARGET IN LISTS LIBCADET_TARGETS)
 	target_include_directories (${_TARGET} PUBLIC $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/include> $<INSTALL_INTERFACE:include> 
-	    PRIVATE ${CMAKE_SOURCE_DIR}/src/libcadet ${CMAKE_BINARY_DIR} ${SUNDIALS_INCLUDE_DIRS} ${TBB_INCLUDE_DIRS})
+	    PRIVATE ${CMAKE_SOURCE_DIR}/src/libcadet ${CMAKE_BINARY_DIR} ${CMAKE_SOURCE_DIR}/ThirdParty/order-pp/inc ${SUNDIALS_INCLUDE_DIRS} ${TBB_INCLUDE_DIRS})
 endforeach()
 
 # Link against TBB
@@ -276,7 +276,7 @@ if (BUILD_CADET_MEX)
 	target_link_libraries(libcadet_mex PRIVATE libcadet_nonlinalg_mex ${SUNDIALS_STATIC_LIBRARIES} ${Matlab_TBB_LIBRARY})
 	
 	target_include_directories (libcadet_mex PUBLIC $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/include> $<INSTALL_INTERFACE:include> 
-	    PRIVATE ${CMAKE_SOURCE_DIR}/src/libcadet ${CMAKE_BINARY_DIR} ${SUNDIALS_INCLUDE_DIRS} ${TBB_INCLUDE_DIRS})
+	    PRIVATE ${CMAKE_SOURCE_DIR}/src/libcadet ${CMAKE_BINARY_DIR} ${CMAKE_SOURCE_DIR}/ThirdParty/order-pp/inc ${SUNDIALS_INCLUDE_DIRS} ${TBB_INCLUDE_DIRS})
 
 	set_target_properties(libcadet_mex PROPERTIES DEBUG_POSTFIX _d VERSION ${CADET_VERSION} SOVERSION "0")
 	set_target_properties(libcadet_mex PROPERTIES POSITION_INDEPENDENT_CODE ON)

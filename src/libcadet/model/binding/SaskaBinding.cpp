@@ -11,11 +11,12 @@
 // =============================================================================
 
 #include "model/binding/BindingModelBase.hpp"
-#include "model/binding/ExternalFunctionSupport.hpp"
+#include "model/ExternalFunctionSupport.hpp"
 #include "model/ModelUtils.hpp"
 #include "cadet/Exceptions.hpp"
-#include "ParamReaderHelper.hpp"
+#include "model/Parameters.hpp"
 #include "SlicedVector.hpp"
+#include "LocalVector.hpp"
 
 #include <functional>
 #include <unordered_map>
@@ -28,139 +29,30 @@ namespace cadet
 namespace model
 {
 
-/**
- * @brief Handles Saska binding model parameters that do not depend on external functions
- */
-struct SaskaParamHandler : public BindingParamHandlerBase
+CADET_BINDINGPARAMS(SaskaParamHandler, ExtSaskaParamHandler, 
+	(ScalarComponentDependentParameter, h, "SASKA_H") //!< Henry coefficient
+	(ComponentDependentComponentVectorParameter, k, "SASKA_K"), //!< Quadratic factor
+);
+
+inline const char* SaskaParamHandler::identifier() CADET_NOEXCEPT { return "SASKA"; }
+
+inline bool SaskaParamHandler::validateConfig(unsigned int nComp, unsigned int const* nBoundStates)
 {
-	static const char* identifier() { return "SASKA"; }
+	if ((_h.size() != _k.slices()) || (_k.size() != nComp * nComp) || (_h.size() < nComp))
+		throw InvalidParameterException("SASKA_K has to have NCOMP^2 and SASKA_H NCOMP many elements");
 
-	/**
-	 * @brief Reads parameters and verifies them
-	 * @details See IBindingModel::configure() for details.
-	 * @param [in] paramProvider IParameterProvider used for reading parameters
-	 * @param [in] nComp Number of components
-	 * @param [in] nBoundStates Array with number of bound states for each component
-	 * @return @c true if the parameters were read and validated successfully, otherwise @c false
-	 */
-	inline bool configure(IParameterProvider& paramProvider, unsigned int nComp, unsigned int const* nBoundStates)
-	{
-		// Allocate space for parameters
-		h.reserve(nComp);
-		k.reserve(nComp * nComp, nComp);
+	return true;
+}
 
-		// Read parameters
-		readParameterMatrix(h, paramProvider, "SASKA_H", nComp, 1);
-		readBoundStateDependentParameter<util::SlicedVector<active>, active>(k, paramProvider, "SASKA_K", nComp, nComp);
+inline const char* ExtSaskaParamHandler::identifier() CADET_NOEXCEPT { return "EXT_SASKA"; }
 
-		// Check parameters
-		if ((h.size() != k.slices()) || (k.size() != nComp * nComp) || (h.size() < nComp))
-			throw InvalidParameterException("SASKA_K has to have NCOMP^2 and SASKA_H NCOMP many elements");
-
-		return true;
-	}
-
-	/**
-	 * @brief Registers all local parameters in a map for further use
-	 * @param [in,out] parameters Map in which the parameters are stored
-	 * @param [in] unitOpIdx Index of the unit operation used for registering the parameters
-	 * @param [in] nComp Number of components
-	 * @param [in] nBoundStates Array with number of bound states for each component
-	 */
-	inline void registerParameters(std::unordered_map<ParameterId, active*>& parameters, unsigned int unitOpIdx, unsigned int nComp, unsigned int const* nBoundStates)
-	{
-		registerComponentBoundStateDependentParam(hashString("SASKA_H"), parameters, h, unitOpIdx);
-		registerComponentBoundStateDependentParam(hashString("SASKA_K"), parameters, k, unitOpIdx);
-	}
-
-	std::vector<active> h; //!< Henry coefficient
-	util::SlicedVector<active> k; //!< Quadratic factor
-};
-
-/**
- * @brief Handles Saska binding model parameters that depend on an external function
- */
-struct ExtSaskaParamHandler : public ExternalBindingParamHandlerBase
+inline bool ExtSaskaParamHandler::validateConfig(unsigned int nComp, unsigned int const* nBoundStates)
 {
-	static const char* identifier() { return "EXT_SASKA"; }
+	if ((_h.size() != _k.slices()) || (_k.size() != nComp * nComp) || (_h.size() < nComp))
+		throw InvalidParameterException("EXT_SASKA_K has to have NCOMP^2 and EXT_SASKA_H NCOMP many elements");
 
-	/**
-	 * @brief Reads parameters and verifies them
-	 * @details See IBindingModel::configure() for details.
-	 * @param [in] paramProvider IParameterProvider used for reading parameters
-	 * @param [in] nComp Number of components
-	 * @param [in] nBoundStates Array with number of bound states for each component
-	 * @return @c true if the parameters were read and validated successfully, otherwise @c false
-	 */
-	inline bool configure(IParameterProvider& paramProvider, unsigned int nComp, unsigned int const* nBoundStates)
-	{
-		CADET_RESERVE_SPACE(h, nComp);
-		CADET_RESERVE_SPACE2(k, nComp * nComp, nComp);
-
-		CADET_READPAR_MATRIX(h, paramProvider, "SASKA_H", nComp, 1);
-		CADET_READPAR_BOUNDSTATEDEP(util::SlicedVector<active>, active, k, paramProvider, "SASKA_K", nComp, nComp);
-
-		return ExternalBindingParamHandlerBase::configure(paramProvider, 2);
-	}
-
-	/**
-	 * @brief Registers all local parameters in a map for further use
-	 * @param [in,out] parameters Map in which the parameters are stored
-	 * @param [in] unitOpIdx Index of the unit operation used for registering the parameters
-	 * @param [in] nComp Number of components
-	 * @param [in] nBoundStates Array with number of bound states for each component
-	 */
-	inline void registerParameters(std::unordered_map<ParameterId, active*>& parameters, unsigned int unitOpIdx, unsigned int nComp, unsigned int const* nBoundStates)
-	{
-		CADET_REGPAR_COMPBND_VEC("SASKA_H", parameters, h, unitOpIdx);
-		CADET_REGPAR_COMPBND("SASKA_K", parameters, k, unitOpIdx);
-	}
-
-	/**
-	 * @brief Updates local parameter cache in order to take the external profile into account
-	 * @details This function is declared const since the actual parameters are left unchanged by the method.
-	 *         The cache is marked as mutable in order to make it writable.
-	 * @param [in] t Current time
-	 * @param [in] z Axial coordinate in the column
-	 * @param [in] r Radial coordinate in the bead
-	 * @param [in] secIdx Index of the current section
-	 * @param [in] nComp Number of components
-	 * @param [in] nBoundStates Array with number of bound states for each component
-	 */
-	inline void update(double t, double z, double r, unsigned int secIdx, unsigned int nComp, unsigned int const* nBoundStates) const
-	{
-		evaluateExternalFunctions(t, z, r, secIdx);
-		for (unsigned int i = 0; i < nComp; ++i)
-			CADET_UPDATE_EXTDEP_VARIABLE_BRACES(h, i, _extFunBuffer[0]);
-
-		for (unsigned int i = 0; i < nComp * nComp; ++i)
-			CADET_UPDATE_EXTDEP_VARIABLE_NATIVE(k, i, _extFunBuffer[1]);
-	}
-
-	/**
-	 * @brief Updates local parameter cache and calculates time derivative in case of external dependence
-	 * @details This function is declared const since the actual parameters are left unchanged by the method.
-	 *         The cache is marked as mutable in order to make it writable.
-	 * @param [in] t Current time
-	 * @param [in] z Axial coordinate in the column
-	 * @param [in] r Radial coordinate in the bead
-	 * @param [in] secIdx Index of the current section
-	 * @param [in] nComp Number of components
-	 * @param [in] nBoundStates Array with number of bound states for each component
-	 */
-	inline void updateTimeDerivative(double t, double z, double r, unsigned int secIdx, unsigned int nComp, unsigned int const* nBoundStates) const
-	{
-		const std::vector<double> extTimeDeriv = evaluateTimeDerivativeExternalFunctions(t, z, r, secIdx);
-		for (unsigned int i = 0; i < nComp; ++i)
-			CADET_UPDATE_EXTDEP_VARIABLE_TDIFF_BRACES(h, i, _extFunBuffer[0], extTimeDeriv[0]);
-
-		for (unsigned int i = 0; i < nComp * nComp; ++i)
-			CADET_UPDATE_EXTDEP_VARIABLE_TDIFF_NATIVE(k, i, _extFunBuffer[1], extTimeDeriv[1]);
-	}
-
-	CADET_DEFINE_EXTDEP_VARIABLE(std::vector<active>, h)
-	CADET_DEFINE_EXTDEP_VARIABLE(util::SlicedVector<active>, k)
-};
+	return true;
+}
 
 
 /**
@@ -186,7 +78,7 @@ public:
 	static const char* identifier() { return ParamHandler_t::identifier(); }
 	virtual const char* name() const CADET_NOEXCEPT { return ParamHandler_t::identifier(); }
 
-	virtual void setExternalFunctions(IExternalFunction** extFuns, unsigned int size) { _p.setExternalFunctions(extFuns, size); }
+	virtual void setExternalFunctions(IExternalFunction** extFuns, unsigned int size) { _paramHandler.setExternalFunctions(extFuns, size); }
 	virtual bool dependsOnTime() const CADET_NOEXCEPT { return ParamHandler_t::dependsOnTime(); }
 
 	virtual void timeDerivativeAlgebraicResidual(double t, double z, double r, unsigned int secIdx, double const* y, double* dResDt, void* workSpace) const
@@ -198,9 +90,8 @@ public:
 			return;
 
 		// Update external function and compute time derivative of parameters
-		_p.update(t, z, r, secIdx, _nComp, _nBoundStates);
-		ParamHandler_t dpDt = _p;
-		dpDt.updateTimeDerivative(t, z, r, secIdx, _nComp, _nBoundStates);
+		const typename ParamHandler_t::params_t& p = _paramHandler.update(t, z, r, secIdx, _nComp, _nBoundStates, workSpace);
+		const typename ParamHandler_t::params_t dpDt = _paramHandler.updateTimeDerivative(t, z, r, secIdx, _nComp, _nBoundStates, workSpace);
 
 		// Pointer to first component in liquid phase
 		double const* yCp = y - _nComp;
@@ -230,15 +121,17 @@ public:
 	CADET_PUREBINDINGMODELBASE_BOILERPLATE
 
 protected:
-	ParamHandler_t _p; //!< Handles parameters and their dependence on external functions
+	ParamHandler_t _paramHandler; //!< Handles parameters and their dependence on external functions
+
+	virtual unsigned int paramCacheSize() const CADET_NOEXCEPT { return _paramHandler.cacheSize(); }
 
 	virtual bool configureImpl(bool reconfigure, IParameterProvider& paramProvider, unsigned int unitOpIdx)
 	{
 		// Read parameters
-		_p.configure(paramProvider, _nComp, _nBoundStates);
+		_paramHandler.configure(paramProvider, _nComp, _nBoundStates);
 
 		// Register parameters
-		_p.registerParameters(_parameters, unitOpIdx, _nComp, _nBoundStates);
+		_paramHandler.registerParameters(_parameters, unitOpIdx, _nComp, _nBoundStates);
 
 		return true;
 	}
@@ -247,7 +140,7 @@ protected:
 	int residualImpl(const ParamType& t, double z, double r, unsigned int secIdx, const ParamType& timeFactor,
 		StateType const* y, CpStateType const* yCp, double const* yDot, ResidualType* res, void* workSpace) const
 	{
-		_p.update(static_cast<double>(t), z, r, secIdx, _nComp, _nBoundStates);
+		const typename ParamHandler_t::params_t& p = _paramHandler.update(static_cast<double>(t), z, r, secIdx, _nComp, _nBoundStates, workSpace);
 
 		// Protein equations: dq_i / dt - ( H_i c_{p,i} + \sum_j k_{ij} c_{p,i} c_{p,j} - q_i ) == 0
 		//               <=>  dq_i / dt == H_i c_{p,i} + \sum_j k_{ij} c_{p,i} c_{p,j} - q_i
@@ -258,8 +151,8 @@ protected:
 			if (_nBoundStates[i] == 0)
 				continue;
 
-			const active h = _p.h[i];
-			active const* const kSlice = _p.k[i];
+			const active h = p.h[i];
+			active const* const kSlice = p.k[i];
 
 			// Residual
 			res[bndIdx] = -static_cast<ParamType>(h) * yCp[i] + y[bndIdx];
@@ -282,7 +175,7 @@ protected:
 	template <typename RowIterator>
 	void jacobianImpl(double t, double z, double r, unsigned int secIdx, double const* y, double const* yCp, RowIterator jac, void* workSpace) const
 	{
-		_p.update(t, z, r, secIdx, _nComp, _nBoundStates);
+		const typename ParamHandler_t::params_t& p = _paramHandler.update(t, z, r, secIdx, _nComp, _nBoundStates, workSpace);
 
 		// Protein equations: dq_i / dt - ( H_i c_{p,i} + \sum_j k_{ij} c_{p,i} c_{p,j} - q_i ) == 0
 		//               <=>  dq_i / dt - ( H_i c_{p,i} + c_{p,i} * \sum_j k_{ij} c_{p,j} - q_i ) == 0
@@ -293,8 +186,8 @@ protected:
 			if (_nBoundStates[i] == 0)
 				continue;
 
-			const double h = static_cast<double>(_p.h[i]);
-			active const* const kSlice = _p.k[i];
+			const double h = static_cast<double>(p.h[i]);
+			active const* const kSlice = p.k[i];
 
 			// dres_i / dc_{p,j}
 			for (int j = 0; j < _nComp; ++j)
