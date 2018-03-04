@@ -215,7 +215,7 @@ bool GeneralRateModel::configure(IParameterProvider& paramProvider, IConfigHelpe
 	if (_binding->hasAlgebraicEquations())
 	{
 		// Required memory (number of doubles) for nonlinear solvers
-		const unsigned int requiredMem = _binding->consistentInitializationWorkspaceSize() * _disc.nPar * _disc.nCol;
+		const unsigned int requiredMem = (_binding->workspaceSize() + sizeof(double) - 1) / sizeof(double) * _disc.nPar * _disc.nCol;
 		if (requiredMem > size)
 		{
 			size = requiredMem;
@@ -610,6 +610,9 @@ int GeneralRateModel::residualParticle(const ParamType& t, unsigned int colCell,
 	double const* yDot = yDotBase + idxr.offsetCp(colCell);
 	ResidualType* res = resBase + idxr.offsetCp(colCell);
 
+	const unsigned int requiredMem = (_binding->workspaceSize() + sizeof(double) - 1) / sizeof(double);
+	double* const buffer = _tempState + requiredMem * colCell;
+
 	// Prepare parameters
 	const ParamType radius = static_cast<ParamType>(_parRadius);
 
@@ -756,11 +759,11 @@ int GeneralRateModel::residualParticle(const ParamType& t, unsigned int colCell,
 		if (!yDotBase)
 			yDot = nullptr;
 
-		_binding->residual(t, z, _parCenterRadius[par], secIdx, timeFactor, y, yDot, res);
+		_binding->residual(t, z, _parCenterRadius[par], secIdx, timeFactor, y, yDot, res, buffer);
 		if (wantJac)
 		{
 			// static_cast should be sufficient here, but this statement is also analyzed when wantJac = false
-			_binding->analyticJacobian(static_cast<double>(t), z, _parCenterRadius[par], secIdx, reinterpret_cast<double const*>(y), jac);
+			_binding->analyticJacobian(static_cast<double>(t), z, _parCenterRadius[par], secIdx, reinterpret_cast<double const*>(y), jac, buffer);
 		}
 
 		// Advance pointers over all bound states

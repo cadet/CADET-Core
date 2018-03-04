@@ -133,12 +133,12 @@ active* BindingModelBase::getParameter(const ParameterId& pId)
 	return nullptr;
 }
 
-unsigned int BindingModelBase::consistentInitializationWorkspaceSize() const
+unsigned int BindingModelBase::workspaceSize() const
 {
 	// Determine problem size
 	const unsigned int eqSize = numBoundStates(_nBoundStates, _nComp);
 	// Ask nonlinear solver how much memory it needs for this kind of problem
-	return _nonlinearSolver->workspaceSize(eqSize);
+	return _nonlinearSolver->workspaceSize(eqSize) * sizeof(double);
 }
 
 /*
@@ -226,7 +226,8 @@ void PureBindingModelBase::consistentInitialState(double t, double z, double r, 
 	cadet_assert(workingMat.rows() >= eqSize);
 	cadet_assert(workingMat.columns() >= eqSize);
 
-	std::fill(workingMemory, workingMemory + _nonlinearSolver->workspaceSize(eqSize), 0.0);
+	double* const resBuffer = workingMemory + _nonlinearSolver->workspaceSize(eqSize);
+	std::fill(workingMemory, resBuffer, 0.0);
 
 	// Check if workingMat satisfies size requirements
 	cadet_assert(workingMat.rows() >= eqSize);
@@ -245,12 +246,12 @@ void PureBindingModelBase::consistentInitialState(double t, double z, double r, 
 			ad::resetAd(adRes + adEqOffset, eqSize);
 
 			// Call residual with AD enabled
-			residualCore(t, z, r, secIdx, 1.0, adY + adEqOffset, vecStateY - _nComp, nullptr, adRes + adEqOffset);
+			residualCore(t, z, r, secIdx, 1.0, adY + adEqOffset, vecStateY - _nComp, nullptr, adRes + adEqOffset, resBuffer);
 			
 #ifdef CADET_CHECK_ANALYTIC_JACOBIAN			
 			// Compute analytic Jacobian
 			mat.setAll(0.0);
-			analyticJacobianCore(t, z, r, secIdx, x, vecStateY - _nComp, mat.row(0));
+			analyticJacobianCore(t, z, r, secIdx, x, vecStateY - _nComp, mat.row(0), resBuffer);
 
 			// Compare
 			const double diff = jacExtractor.compareWithJacobian(adRes, adEqOffset, adDirOffset, mat);
@@ -267,28 +268,28 @@ void PureBindingModelBase::consistentInitialState(double t, double z, double r, 
 		jacobianFunc = [&](double const* const x, linalg::detail::DenseMatrixBase& mat) -> bool
 		{ 
 			mat.setAll(0.0);
-			analyticJacobianCore(t, z, r, secIdx, x, vecStateY - _nComp, mat.row(0));
+			analyticJacobianCore(t, z, r, secIdx, x, vecStateY - _nComp, mat.row(0), resBuffer);
 			return true;
 		};
 	}
 
 	const bool conv = _nonlinearSolver->solve([&](double const* const x, double* const res) -> bool
 		{
-			residualCore(t, z, r, secIdx, 1.0, x, vecStateY - _nComp, nullptr, res); 
+			residualCore(t, z, r, secIdx, 1.0, x, vecStateY - _nComp, nullptr, res, resBuffer); 
 			return true; 
 		}, 
 		jacobianFunc,
 		errorTol, vecStateY, workingMemory, workingMat, eqSize);
 }
 
-void PureBindingModelBase::analyticJacobian(double t, double z, double r, unsigned int secIdx, double const* y, linalg::BandMatrix::RowIterator jac) const
+void PureBindingModelBase::analyticJacobian(double t, double z, double r, unsigned int secIdx, double const* y, linalg::BandMatrix::RowIterator jac, void* workSpace) const
 {
-	analyticJacobianCore(t, z, r, secIdx, y, y - _nComp, jac);
+	analyticJacobianCore(t, z, r, secIdx, y, y - _nComp, jac, workSpace);
 }
 
-void PureBindingModelBase::analyticJacobian(double t, double z, double r, unsigned int secIdx, double const* y, linalg::DenseBandedRowIterator jac) const
+void PureBindingModelBase::analyticJacobian(double t, double z, double r, unsigned int secIdx, double const* y, linalg::DenseBandedRowIterator jac, void* workSpace) const
 {
-	analyticJacobianCore(t, z, r, secIdx, y, y - _nComp, jac);
+	analyticJacobianCore(t, z, r, secIdx, y, y - _nComp, jac, workSpace);
 }
 
 }  // namespace model

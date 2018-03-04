@@ -206,7 +206,7 @@ bool LumpedRateModelWithoutPores::configure(IParameterProvider& paramProvider, I
 	if (_binding->hasAlgebraicEquations())
 	{
 		// Required memory (number of doubles) for nonlinear solvers
-		const unsigned int requiredMem = _binding->consistentInitializationWorkspaceSize() * _disc.nCol;
+		const unsigned int requiredMem = (_binding->workspaceSize() + sizeof(double) - 1) / sizeof(double) * _disc.nCol;
 		if (requiredMem > size)
 		{
 			size = requiredMem;
@@ -497,6 +497,7 @@ int LumpedRateModelWithoutPores::residualImpl(const ParamType& t, unsigned int s
 	ConvOpResidual<StateType, ResidualType, ParamType, wantJac>::call(_convDispOp, t, secIdx, timeFactor, y, yDot, res, _jac);
 
 	Indexer idxr(_disc);
+	const unsigned int requiredMem = (_binding->workspaceSize() + sizeof(double) - 1) / sizeof(double);
 
 #ifdef CADET_PARALLELIZE
 	tbb::parallel_for(size_t(0), size_t(_disc.nCol), [&](size_t col)
@@ -506,6 +507,7 @@ int LumpedRateModelWithoutPores::residualImpl(const ParamType& t, unsigned int s
 	{
 		StateType const* const localY = y + idxr.offsetC() + idxr.strideColCell() * col;
 		ResidualType* const localRes = res + idxr.offsetC() + idxr.strideColCell() * col;
+		double* const buffer = _tempState + requiredMem * col;
 
 		if (yDot)
 		{
@@ -532,7 +534,7 @@ int LumpedRateModelWithoutPores::residualImpl(const ParamType& t, unsigned int s
 		const double z = 1.0 / static_cast<double>(_disc.nCol) * (0.5 + col);
 
 		double const* const localQdot = yDot ? yDot + idxr.offsetC() + idxr.strideColCell() * col + idxr.strideColLiquid() : nullptr;
-		_binding->residual(t, z, 0.0, secIdx, timeFactor, localY + idxr.strideColLiquid(), localQdot, localRes + idxr.strideColLiquid());
+		_binding->residual(t, z, 0.0, secIdx, timeFactor, localY + idxr.strideColLiquid(), localQdot, localRes + idxr.strideColLiquid(), buffer);
 		if (wantJac)
 		{
 			if (cadet_likely(_disc.strideBound > 0))
@@ -545,7 +547,7 @@ int LumpedRateModelWithoutPores::residualImpl(const ParamType& t, unsigned int s
 				linalg::BandMatrix::RowIterator jac = _jac.row(col * idxr.strideColCell() + idxr.strideColLiquid());
 
 				// static_cast should be sufficient here, but this statement is also analyzed when wantJac = false
-				_binding->analyticJacobian(static_cast<double>(t), z, 0.0, secIdx, reinterpret_cast<double const*>(localY) + idxr.strideColLiquid(), jac);
+				_binding->analyticJacobian(static_cast<double>(t), z, 0.0, secIdx, reinterpret_cast<double const*>(localY) + idxr.strideColLiquid(), jac, buffer);
 			}
 		}
 
@@ -950,7 +952,8 @@ void LumpedRateModelWithoutPores::consistentInitialState(double t, unsigned int 
 	BENCH_SCOPE(_timerConsistentInit);
 
 	// TODO: Check memory consumption and offsets
-	const unsigned int requiredMem = _binding->consistentInitializationWorkspaceSize();
+	// Round up
+	const unsigned int requiredMem = (_binding->workspaceSize() + sizeof(double) - 1) / sizeof(double);
 
 	Indexer idxr(_disc);
 
@@ -1082,7 +1085,7 @@ void LumpedRateModelWithoutPores::consistentInitialTimeDerivative(double t, unsi
 			std::fill(qShellDot, qShellDot + algLen, 0.0);
 			if (_binding->dependsOnTime())
 			{
-				_binding->timeDerivativeAlgebraicResidual(t, z, 0.0, secIdx, vecStateY + localOffset, qShellDot);
+				_binding->timeDerivativeAlgebraicResidual(t, z, 0.0, secIdx, vecStateY + localOffset, qShellDot, _tempState);
 				for (unsigned int algRow = 0; algRow < algLen; ++algRow)
 					qShellDot[algRow] *= -1.0;
 			}

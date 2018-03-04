@@ -176,7 +176,7 @@ bool LumpedRateModelWithPores::configure(IParameterProvider& paramProvider, ICon
 	if (_binding->hasAlgebraicEquations())
 	{
 		// Required memory (number of doubles) for nonlinear solvers
-		const unsigned int requiredMem = _binding->consistentInitializationWorkspaceSize() * _disc.nCol;
+		const unsigned int requiredMem = (_binding->workspaceSize() + sizeof(double) - 1) / sizeof(double) * _disc.nCol;
 		if (requiredMem > size)
 		{
 			size = requiredMem;
@@ -534,6 +534,9 @@ int LumpedRateModelWithPores::residualParticle(const ParamType& t, unsigned int 
 	double const* yDot = yDotBase + idxr.offsetCp(colCell);
 	ResidualType* res = resBase + idxr.offsetCp(colCell);
 
+	const unsigned int requiredMem = (_binding->workspaceSize() + sizeof(double) - 1) / sizeof(double);
+	double* const buffer = _tempState + requiredMem * colCell;
+
 	// Prepare parameters
 	const ParamType radius = static_cast<ParamType>(_parRadius);
 
@@ -580,7 +583,7 @@ int LumpedRateModelWithPores::residualParticle(const ParamType& t, unsigned int 
 	if (!yDotBase)
 		yDot = nullptr;
 
-	_binding->residual(static_cast<ParamType>(t), z, static_cast<double>(radius) * 0.5, secIdx, static_cast<ParamType>(timeFactor), y, yDot, res);
+	_binding->residual(static_cast<ParamType>(t), z, static_cast<double>(radius) * 0.5, secIdx, static_cast<ParamType>(timeFactor), y, yDot, res, buffer);
 	if (wantJac)
 	{
 		if (cadet_likely(_disc.strideBound > 0))
@@ -593,7 +596,7 @@ int LumpedRateModelWithPores::residualParticle(const ParamType& t, unsigned int 
 			linalg::BandMatrix::RowIterator jac = _jacP.row(colCell * idxr.strideParBlock() + idxr.strideParLiquid());
 
 			// static_cast should be sufficient here, but this statement is also analyzed when wantJac = false
-			_binding->analyticJacobian(static_cast<double>(t), z, static_cast<double>(radius) * 0.5, secIdx, reinterpret_cast<double const*>(y), jac);
+			_binding->analyticJacobian(static_cast<double>(t), z, static_cast<double>(radius) * 0.5, secIdx, reinterpret_cast<double const*>(y), jac, buffer);
 		}
 	}
 

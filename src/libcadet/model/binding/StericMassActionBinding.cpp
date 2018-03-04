@@ -217,14 +217,6 @@ public:
 	}
 
 
-	virtual unsigned int consistentInitializationWorkspaceSize() const
-	{
-		// Determine problem size
-		const unsigned int eqSize = numBoundStates(_nBoundStates, _nComp);
-		// Ask nonlinear solver how much memory it needs for this kind of problem
-		return _nonlinearSolver->workspaceSize(eqSize);
-	}
-
 	virtual void consistentInitialState(double t, double z, double r, unsigned int secIdx, double* const vecStateY, double errorTol, 
 		active* const adRes, active* const adY, unsigned int adEqOffset, unsigned int adDirOffset, const ad::IJacobianExtractor& jacExtractor, 
 		double* const workingMemory, linalg::detail::DenseMatrixBase& workingMat) const
@@ -238,7 +230,8 @@ public:
 
 			// Determine problem size
 			const unsigned int eqSize = numBoundStates(_nBoundStates, _nComp);
-			std::fill(workingMemory, workingMemory + _nonlinearSolver->workspaceSize(eqSize), 0.0);
+			double* const workSpace = workingMemory + _nonlinearSolver->workspaceSize(eqSize);
+			std::fill(workingMemory, workSpace, 0.0);
 
 			// Select between analytic and AD Jacobian
 			std::function<bool(double const* const, linalg::detail::DenseMatrixBase& jac)> jacobianFunc;
@@ -255,12 +248,12 @@ public:
 					// Call residual with AD enabled
 					residualImpl<active, double, active, double>(t, z, r, secIdx, 1.0,
 					                                             adY + adEqOffset,
-					                                             vecStateY - _nComp, nullptr, adRes + adEqOffset);
+					                                             vecStateY - _nComp, nullptr, adRes + adEqOffset, workSpace);
 
 #ifdef CADET_CHECK_ANALYTIC_JACOBIAN
 					// Compute analytic Jacobian
 					mat.setAll(0.0);
-					jacobianImpl(t, z, r, secIdx, x, vecStateY - _nComp, mat.row(0));
+					jacobianImpl(t, z, r, secIdx, x, vecStateY - _nComp, mat.row(0), workSpace);
 
 					// Compare
 					const double diff = jacExtractor.compareWithJacobian(adRes, adEqOffset, adDirOffset, mat);
@@ -276,13 +269,13 @@ public:
 				// Analytic Jacobian
 				jacobianFunc = [&](double const* const x, linalg::detail::DenseMatrixBase& mat) -> bool {
 					mat.setAll(0.0);
-					jacobianImpl(t, z, r, secIdx, x, vecStateY - _nComp, mat.row(0));
+					jacobianImpl(t, z, r, secIdx, x, vecStateY - _nComp, mat.row(0), workSpace);
 					return true;
 				};
 			}
 
 			const bool conv = _nonlinearSolver->solve([&](double const* const x, double* const res) -> bool {
-				                                          residualImpl<double, double, double, double>(t, z, r, secIdx, 1.0, x, vecStateY - _nComp, nullptr, res);
+				                                          residualImpl<double, double, double, double>(t, z, r, secIdx, 1.0, x, vecStateY - _nComp, nullptr, res, workSpace);
 				                                          return true;
 			                                          },
 			                                          jacobianFunc,
@@ -352,7 +345,7 @@ protected:
 
 	template <typename StateType, typename CpStateType, typename ResidualType, typename ParamType>
 	int residualImpl(const ParamType& t, double z, double r, unsigned int secIdx, const ParamType& timeFactor,
-		StateType const* y, CpStateType const* yCp, double const* yDot, ResidualType* res) const
+		StateType const* y, CpStateType const* yCp, double const* yDot, ResidualType* res, void* workSpace) const
 	{
 		_p.update(static_cast<double>(t), z, r, secIdx, _nComp, _nBoundStates);
 
@@ -410,7 +403,7 @@ protected:
 	}
 
 	template <typename RowIterator>
-	void jacobianImpl(double t, double z, double r, unsigned int secIdx, double const* y, double const* yCp, RowIterator jac) const
+	void jacobianImpl(double t, double z, double r, unsigned int secIdx, double const* y, double const* yCp, RowIterator jac, void* workSpace) const
 	{
 		_p.update(t, z, r, secIdx, _nComp, _nBoundStates);
 

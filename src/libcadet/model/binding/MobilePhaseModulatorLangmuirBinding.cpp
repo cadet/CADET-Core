@@ -205,7 +205,7 @@ protected:
 
 	template <typename StateType, typename CpStateType, typename ResidualType, typename ParamType>
 	int residualImpl(const ParamType& t, double z, double r, unsigned int secIdx, const ParamType& timeFactor,
-		StateType const* y, CpStateType const* yCp, double const* yDot, ResidualType* res) const
+		StateType const* y, CpStateType const* yCp, double const* yDot, ResidualType* res, void* workSpace) const
 	{
 		_p.update(static_cast<double>(t), z, r, secIdx, _nComp, _nBoundStates);
 
@@ -269,7 +269,7 @@ protected:
 	}
 
 	template <typename RowIterator>
-	void jacobianImpl(double t, double z, double r, unsigned int secIdx, double const* y, double const* yCp, RowIterator jac) const
+	void jacobianImpl(double t, double z, double r, unsigned int secIdx, double const* y, double const* yCp, RowIterator jac, void* workSpace) const
 	{
 		_p.update(t, z, r, secIdx, _nComp, _nBoundStates);
 		

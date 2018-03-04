@@ -213,11 +213,12 @@ public:
 	virtual bool dependsOnTime() const CADET_NOEXCEPT = 0;
 
 	/**
-	 * @brief Returns the size of the required workspace (number of doubles) for consistent initialization
-	 * @details The additional memory is required by the nonlinear solver.
-	 * @return Size of the workspace for consistent initialization
+	 * @brief Returns the size of the required workspace in bytes
+	 * @details The memory is required for externally dependent binding models and the 
+	 *          nonlinear solver in consistent initialization.
+	 * @return Size of the workspace in bytes
 	 */
-	virtual unsigned int consistentInitializationWorkspaceSize() const = 0;
+	virtual unsigned int workspaceSize() const = 0;
 
 	/**
 	 * @brief Computes consistent initial state values
@@ -272,19 +273,20 @@ public:
 	 * @param [in] yDot Pointer to first bound state time derivative of the first component in the current particle shell 
 	 *             or @c nullptr if time derivatives shall be left out
 	 * @param [out] res Pointer to residual equation of first bound state of the first component in the current particle shell
+	 * @param [in,out] workSpace Memory work space
 	 * @return @c 0 on success, @c -1 on non-recoverable error, and @c +1 on recoverable error
 	 */
 	virtual int residual(const active& t, double z, double r, unsigned int secIdx, const active& timeFactor, active const* y,
-		double const* yDot, active* res) const = 0;
+		double const* yDot, active* res, void* workSpace) const = 0;
 
 	virtual int residual(double t, double z, double r, unsigned int secIdx, double timeFactor, active const* y,
-		double const* yDot, active* res) const = 0;
+		double const* yDot, active* res, void* workSpace) const = 0;
 
 	virtual int residual(const active& t, double z, double r, unsigned int secIdx, const active& timeFactor, double const* y,
-		double const* yDot, active* res) const = 0;
+		double const* yDot, active* res, void* workSpace) const = 0;
 
 	virtual int residual(double t, double z, double r, unsigned int secIdx, double timeFactor, double const* y,
-		double const* yDot, double* res) const = 0;
+		double const* yDot, double* res, void* workSpace) const = 0;
 
 	/**
 	 * @brief Evaluates the Jacobian of the bound states for one particle shell analytically
@@ -300,9 +302,10 @@ public:
 	 * @param [in] secIdx Index of the current section
 	 * @param [in] y Pointer to first bound state of the first component in the current particle shell
 	 * @param [in,out] jac Row iterator pointing to the first bound states row of the underlying BandMatrix in which the Jacobian is stored
+	 * @param [in,out] workSpace Memory work space
 	 */
-	virtual void analyticJacobian(double t, double z, double r, unsigned int secIdx, double const* y, linalg::BandMatrix::RowIterator jac) const = 0;
-	virtual void analyticJacobian(double t, double z, double r, unsigned int secIdx, double const* y, linalg::DenseBandedRowIterator jac) const = 0;
+	virtual void analyticJacobian(double t, double z, double r, unsigned int secIdx, double const* y, linalg::BandMatrix::RowIterator jac, void* workSpace) const = 0;
+	virtual void analyticJacobian(double t, double z, double r, unsigned int secIdx, double const* y, linalg::DenseBandedRowIterator jac, void* workSpace) const = 0;
 
 	/**
 	 * @brief Adds the time-discretized part of the Jacobian to the current Jacobian of the bound phase equations in one particle shell
@@ -333,14 +336,20 @@ public:
 	 * @brief Calculates the time derivative of the algebraic residual equations
 	 * @details Calculates @f$ \frac{\partial \text{res}_{\text{alg}}}{\partial t} @f$ for the algebraic equations
 	 *          in the residual.
+	 *          
+	 *          This function is called simultaneously from multiple threads.
+	 *          It can be left out (empty implementation) which leads to slightly incorrect initial conditions
+	 *          when using externally dependent binding models.
+	 *          
 	 * @param [in] t Current time point
 	 * @param [in] z Axial position in normalized coordinates (column inlet = 0, column outlet = 1)
 	 * @param [in] r Radial position in normalized coordinates (outer shell = 1, inner center = 0)
 	 * @param [in] secIdx Index of the current section
 	 * @param [in] y Pointer to first bound state of the first component in the current particle shell
 	 * @param [out] dResDt Pointer to array that stores the time derivative
+	 * @param [in,out] workSpace Memory work space
 	 */
-	virtual void timeDerivativeAlgebraicResidual(double t, double z, double r, unsigned int secIdx, double const* y, double* dResDt) const = 0;
+	virtual void timeDerivativeAlgebraicResidual(double t, double z, double r, unsigned int secIdx, double const* y, double* dResDt, void* workSpace) const = 0;
 protected:
 };
 

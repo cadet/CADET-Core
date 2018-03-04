@@ -163,7 +163,8 @@ void GeneralRateModel::consistentInitialState(double t, unsigned int secIdx, dou
 	BENCH_SCOPE(_timerConsistentInit);
 
 	// TODO: Check memory consumption and offsets
-	const unsigned int requiredMem = _binding->consistentInitializationWorkspaceSize();
+	// Round up
+	const unsigned int requiredMem = (_binding->workspaceSize() + sizeof(double) - 1) / sizeof(double);
 
 	Indexer idxr(_disc);
 
@@ -272,6 +273,7 @@ void GeneralRateModel::consistentInitialTimeDerivative(double t, unsigned int se
 	BENCH_SCOPE(_timerConsistentInit);
 
 	Indexer idxr(_disc);
+	const unsigned int requiredMem = (_binding->workspaceSize() + sizeof(double) - 1) / sizeof(double);
 
 	// Step 2: Compute the correct time derivative of the state vector
 
@@ -334,7 +336,7 @@ void GeneralRateModel::consistentInitialTimeDerivative(double t, unsigned int se
 				std::fill(qShellDot, qShellDot + algLen, 0.0);
 				if (_binding->dependsOnTime())
 				{
-					_binding->timeDerivativeAlgebraicResidual(t, z, _parCenterRadius[j], secIdx, vecStateY + idxr.offsetCp(pblk, j) + idxr.strideParLiquid(), qShellDot);
+					_binding->timeDerivativeAlgebraicResidual(t, z, _parCenterRadius[j], secIdx, vecStateY + idxr.offsetCp(pblk, j) + idxr.strideParLiquid(), qShellDot, _tempState + requiredMem * pblk);
 					for (unsigned int algRow = 0; algRow < algLen; ++algRow)
 						qShellDot[algRow] *= -1.0;
 				}

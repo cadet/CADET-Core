@@ -70,7 +70,7 @@ public:
 
 	virtual void getAlgebraicBlock(unsigned int& idxStart, unsigned int& len) const;
 
-	virtual unsigned int consistentInitializationWorkspaceSize() const;
+	virtual unsigned int workspaceSize() const;
 	virtual void consistentInitialState(double t, double z, double r, unsigned int secIdx, double* const vecStateY, double errorTol, 
 		active* const adRes, active* const adY, unsigned int adEqOffset, unsigned int adDirOffset, const ad::IJacobianExtractor& jacExtractor, 
 		double* const workingMemory, linalg::detail::DenseMatrixBase& workingMat) const;
@@ -121,10 +121,10 @@ protected:
 
 	template <typename StateType, typename CpStateType, typename ResidualType, typename ParamType>
 	int residualImpl(const ParamType& t, double z, double r, unsigned int secIdx, const ParamType& timeFactor,
-		StateType const* y, CpStateType const* yCp, double const* yDot, ResidualType* res) const;
+		StateType const* y, CpStateType const* yCp, double const* yDot, ResidualType* res, void* workSpace) const;
 
 	template <typename RowIterator>
-	void jacobianImpl(double t, double z, double r, unsigned int secIdx, double const* y, double const* yCp, RowIterator jac) const;
+	void jacobianImpl(double t, double z, double r, unsigned int secIdx, double const* y, double const* yCp, RowIterator jac, void* workSpace) const;
 
 	template <typename RowIterator>
 	void jacobianAddDiscretizedImpl(double alpha, RowIterator jac) const;

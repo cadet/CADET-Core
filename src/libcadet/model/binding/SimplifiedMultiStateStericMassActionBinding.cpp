@@ -210,12 +210,12 @@ void SimplifiedMultiStateStericMassActionBinding::getAlgebraicBlock(unsigned int
 		len = numBoundStates(_nBoundStates, _nComp);
 }
 
-unsigned int SimplifiedMultiStateStericMassActionBinding::consistentInitializationWorkspaceSize() const
+unsigned int SimplifiedMultiStateStericMassActionBinding::workspaceSize() const
 {
 	// Determine problem size
 	const unsigned int eqSize = numBoundStates(_nBoundStates, _nComp);
 	// Ask nonlinear solver how much memory it needs for this kind of problem
-	return _nonlinearSolver->workspaceSize(eqSize);
+	return _nonlinearSolver->workspaceSize(eqSize) * sizeof(double);
 }
 
 void SimplifiedMultiStateStericMassActionBinding::consistentInitialState(double t, double z, double r, unsigned int secIdx, double* const vecStateY, double errorTol, 
@@ -229,7 +229,8 @@ void SimplifiedMultiStateStericMassActionBinding::consistentInitialState(double 
 
 		// Determine problem size
 		const unsigned int eqSize = numBoundStates(_nBoundStates, _nComp);
-		std::fill(workingMemory, workingMemory + _nonlinearSolver->workspaceSize(eqSize), 0.0);
+		double* const workSpace = workingMemory + _nonlinearSolver->workspaceSize(eqSize);
+		std::fill(workingMemory, workSpace, 0.0);
 
 		// Select between analytic and AD Jacobian
 		std::function<bool(double const* const, linalg::detail::DenseMatrixBase& jac)> jacobianFunc;
@@ -244,12 +245,12 @@ void SimplifiedMultiStateStericMassActionBinding::consistentInitialState(double 
 				ad::resetAd(adRes + adEqOffset, eqSize);
 
 				// Call residual with AD enabled
-				residualImpl<active, double, active, double>(t, z, r, secIdx, 1.0, adY + adEqOffset, vecStateY - _nComp, nullptr, adRes + adEqOffset);
+				residualImpl<active, double, active, double>(t, z, r, secIdx, 1.0, adY + adEqOffset, vecStateY - _nComp, nullptr, adRes + adEqOffset, workSpace);
 				
 #ifdef CADET_CHECK_ANALYTIC_JACOBIAN			
 				// Compute analytic Jacobian
 				mat.setAll(0.0);
-				jacobianImpl(t, z, r, secIdx, x, vecStateY - _nComp, mat.row(0)); 
+				jacobianImpl(t, z, r, secIdx, x, vecStateY - _nComp, mat.row(0), workSpace); 
 
 				// Compare
 				const double diff = jacExtractor.compareWithJacobian(adRes, adEqOffset, adDirOffset, mat);
@@ -265,13 +266,13 @@ void SimplifiedMultiStateStericMassActionBinding::consistentInitialState(double 
 			// Analytic Jacobian
 			jacobianFunc = [&](double const* const x, linalg::detail::DenseMatrixBase& mat) -> bool { 
 				mat.setAll(0.0);
-				jacobianImpl(t, z, r, secIdx, x, vecStateY - _nComp, mat.row(0)); 
+				jacobianImpl(t, z, r, secIdx, x, vecStateY - _nComp, mat.row(0), workSpace); 
 				return true;
 			};
 		}
 
 		const bool conv = _nonlinearSolver->solve([&](double const* const x, double* const res) -> bool {
-				residualImpl<double, double, double, double>(t, z, r, secIdx, 1.0, x, vecStateY - _nComp, nullptr, res); 
+				residualImpl<double, double, double, double>(t, z, r, secIdx, 1.0, x, vecStateY - _nComp, nullptr, res, workSpace); 
 				return true; 
 			}, 
 			jacobianFunc,
@@ -327,7 +328,7 @@ inline ParamType SimplifiedMultiStateStericMassActionBinding::k_ws(int comp, dou
 
 template <typename StateType, typename CpStateType, typename ResidualType, typename ParamType>
 int SimplifiedMultiStateStericMassActionBinding::residualImpl(const ParamType& t, double z, double r, unsigned int secIdx, const ParamType& timeFactor,
-	StateType const* y, CpStateType const* yCp, double const* yDot, ResidualType* res) const
+	StateType const* y, CpStateType const* yCp, double const* yDot, ResidualType* res, void* workSpace) const
 {
 	// Salt equation: q_0 - Lambda + Sum[Sum[nu_i^j * q_i^j, j], i] == 0 
 	//           <=>  q_0 == Lambda - Sum[Sum[nu_i^j * q_i^j, j], i] 
@@ -427,7 +428,7 @@ void SimplifiedMultiStateStericMassActionBinding::multiplyWithDerivativeJacobian
 }
 
 template <typename RowIterator>
-void SimplifiedMultiStateStericMassActionBinding::jacobianImpl(double t, double z, double r, unsigned int secIdx, double const* y, double const* yCp, RowIterator jac) const
+void SimplifiedMultiStateStericMassActionBinding::jacobianImpl(double t, double z, double r, unsigned int secIdx, double const* y, double const* yCp, RowIterator jac, void* workSpace) const
 {
 	double q0_bar = y[0];
 

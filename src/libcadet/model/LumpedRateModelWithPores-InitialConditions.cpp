@@ -157,7 +157,7 @@ void LumpedRateModelWithPores::consistentInitialState(double t, unsigned int sec
 	BENCH_SCOPE(_timerConsistentInit);
 
 	// TODO: Check memory consumption and offsets
-	const unsigned int requiredMem = _binding->consistentInitializationWorkspaceSize();
+	const unsigned int requiredMem = (_binding->workspaceSize() + sizeof(double) - 1) / sizeof(double);
 
 	Indexer idxr(_disc);
 
@@ -262,6 +262,7 @@ void LumpedRateModelWithPores::consistentInitialTimeDerivative(double t, unsigne
 	BENCH_SCOPE(_timerConsistentInit);
 
 	Indexer idxr(_disc);
+	const unsigned int requiredMem = (_binding->workspaceSize() + sizeof(double) - 1) / sizeof(double);
 
 	// Step 2: Compute the correct time derivative of the state vector
 
@@ -316,7 +317,7 @@ void LumpedRateModelWithPores::consistentInitialTimeDerivative(double t, unsigne
 			std::fill(qShellDot, qShellDot + algLen, 0.0);
 			if (_binding->dependsOnTime())
 			{
-				_binding->timeDerivativeAlgebraicResidual(t, z, static_cast<double>(_parRadius) * 0.5, secIdx, vecStateY + idxr.offsetCp(pblk) + idxr.strideParLiquid(), qShellDot);
+				_binding->timeDerivativeAlgebraicResidual(t, z, static_cast<double>(_parRadius) * 0.5, secIdx, vecStateY + idxr.offsetCp(pblk) + idxr.strideParLiquid(), qShellDot, _tempState + requiredMem * pblk);
 				for (unsigned int algRow = 0; algRow < algLen; ++algRow)
 					qShellDot[algRow] *= -1.0;
 			}

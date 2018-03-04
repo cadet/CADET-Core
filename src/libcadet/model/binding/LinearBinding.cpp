@@ -304,7 +304,7 @@ public:
 		return nullptr;
 	}
 
-	virtual unsigned int consistentInitializationWorkspaceSize() const { return 0; }
+	virtual unsigned int workspaceSize() const { return 0; }
 
 	virtual void consistentInitialState(double t, double z, double r, unsigned int secIdx, double* const vecStateY, double errorTol, 
 		active* const adRes, active* const adY, unsigned int adEqOffset, unsigned int adDirOffset, const ad::IJacobianExtractor& jacExtractor, 
@@ -344,37 +344,37 @@ public:
 	// which just expands to the eight implementations below.
 
 	virtual int residual(const active& t, double z, double r, unsigned int secIdx, const active& timeFactor, 
-		active const* y, double const* yDot, active* res) const
+		active const* y, double const* yDot, active* res, void* workSpace) const
 	{
-		return residualImpl<active, active, active>(t, z, r, secIdx, timeFactor, y, yDot, res);
+		return residualImpl<active, active, active>(t, z, r, secIdx, timeFactor, y, yDot, res, workSpace);
 	}
 
 	virtual int residual(double t, double z, double r, unsigned int secIdx, double timeFactor, 
-		active const* y, double const* yDot, active* res) const
+		active const* y, double const* yDot, active* res, void* workSpace) const
 	{
-		return residualImpl<active, active, double>(t, z, r, secIdx, timeFactor, y, yDot, res);
+		return residualImpl<active, active, double>(t, z, r, secIdx, timeFactor, y, yDot, res, workSpace);
 	}
 
 	virtual int residual(const active& t, double z, double r, unsigned int secIdx, const active& timeFactor, 
-		double const* y, double const* yDot, active* res) const
+		double const* y, double const* yDot, active* res, void* workSpace) const
 	{
-		return residualImpl<double, active, active>(t, z, r, secIdx, timeFactor, y, yDot, res);
+		return residualImpl<double, active, active>(t, z, r, secIdx, timeFactor, y, yDot, res, workSpace);
 	}
 
 	virtual int residual(double t, double z, double r, unsigned int secIdx, double timeFactor, 
-		double const* y, double const* yDot, double* res) const
+		double const* y, double const* yDot, double* res, void* workSpace) const
 	{
-		return residualImpl<double, double, double>(t, z, r, secIdx, timeFactor, y, yDot, res);
+		return residualImpl<double, double, double>(t, z, r, secIdx, timeFactor, y, yDot, res, workSpace);
 	}
 
-	virtual void analyticJacobian(double t, double z, double r, unsigned int secIdx, double const* y, linalg::BandMatrix::RowIterator jac) const
+	virtual void analyticJacobian(double t, double z, double r, unsigned int secIdx, double const* y, linalg::BandMatrix::RowIterator jac, void* workSpace) const
 	{
-		jacobianImpl(t, z, r, secIdx, y, jac);
+		jacobianImpl(t, z, r, secIdx, y, jac, workSpace);
 	}
 
-	virtual void analyticJacobian(double t, double z, double r, unsigned int secIdx, double const* y, linalg::DenseBandedRowIterator jac) const
+	virtual void analyticJacobian(double t, double z, double r, unsigned int secIdx, double const* y, linalg::DenseBandedRowIterator jac, void* workSpace) const
 	{
-		jacobianImpl(t, z, r, secIdx, y, jac);
+		jacobianImpl(t, z, r, secIdx, y, jac, workSpace);
 	}
 
 	virtual void jacobianAddDiscretized(double alpha, linalg::FactorizableBandMatrix::RowIterator jac) const
@@ -399,7 +399,7 @@ public:
 		}
 	}
 
-	virtual void timeDerivativeAlgebraicResidual(double t, double z, double r, unsigned int secIdx, double const* y, double* dResDt) const
+	virtual void timeDerivativeAlgebraicResidual(double t, double z, double r, unsigned int secIdx, double const* y, double* dResDt, void* workSpace) const
 	{
 		if (!hasAlgebraicEquations())
 			return;
@@ -446,7 +446,7 @@ protected:
 
 	template <typename StateType, typename ResidualType, typename ParamType>
 	int residualImpl(const ParamType& t, double z, double r, unsigned int secIdx, const ParamType& timeFactor,
-		StateType const* y, double const* yDot, ResidualType* res) const
+		StateType const* y, double const* yDot, ResidualType* res, void* workSpace) const
 	{
 		_p.update(static_cast<double>(t), z, r, secIdx, _nComp, _nBoundStates);
 
@@ -479,7 +479,7 @@ protected:
 	}
 
 	template <typename RowIterator>
-	inline void jacobianImpl(double t, double z, double r, unsigned int secIdx, double const* y, RowIterator jac) const
+	inline void jacobianImpl(double t, double z, double r, unsigned int secIdx, double const* y, RowIterator jac, void* workSpace) const
 	{
 		_p.update(t, z, r, secIdx, _nComp, _nBoundStates);
 

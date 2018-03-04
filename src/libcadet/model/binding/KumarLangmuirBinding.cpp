@@ -207,24 +207,26 @@ public:
 	CADET_PUREBINDINGMODELBASE_BOILERPLATE
 
 protected:
-	ParamHandler_t _p; //!< Handles parameters and their dependence on external functions
+	ParamHandler_t _paramHandler; //!< Handles parameters and their dependence on external functions
+
+	virtual unsigned int paramCacheSize() const CADET_NOEXCEPT { return _paramHandler.cacheSize(); }
 
 	virtual bool configureImpl(bool reconfigure, IParameterProvider& paramProvider, unsigned int unitOpIdx)
 	{
 		// Read parameters
-		_p.configure(paramProvider, _nComp, _nBoundStates);
+		_paramHandler.configure(paramProvider, _nComp, _nBoundStates);
 
 		// Register parameters
-		_p.registerParameters(_parameters, unitOpIdx, _nComp, _nBoundStates);
+		_paramHandler.registerParameters(_parameters, unitOpIdx, _nComp, _nBoundStates);
 
 		return true;
 	}
 
 	template <typename StateType, typename CpStateType, typename ResidualType, typename ParamType>
 	int residualImpl(const ParamType& t, double z, double r, unsigned int secIdx, const ParamType& timeFactor,
-		StateType const* y, CpStateType const* yCp, double const* yDot, ResidualType* res) const
+		StateType const* y, CpStateType const* yCp, double const* yDot, ResidualType* res, void* workSpace) const
 	{
-		_p.update(static_cast<double>(t), z, r, secIdx, _nComp, _nBoundStates);
+		const typename ParamHandler_t::params_t& p = _paramHandler.update(static_cast<double>(t), z, r, secIdx, _nComp, _nBoundStates, workSpace);
 
 		// Protein equations: dq_i / dt - ( k_{a,i} * exp( k_{act,i} / T ) * c_{p,i} * q_{max,i} * (1 - \sum_j q_j / q_{max,j}) - (c_{p,0})^{\nu_i} * k_{d,i} * q_i) == 0
 		//               <=>  dq_i / dt == k_{a,i} * exp( k_{act,i} / T ) * c_{p,i} * q_{max,i} * (1 - \sum_j q_j / q_{max,j}) - (c_{p,0})^{\nu_i} * k_{d,i} * q_i
@@ -268,9 +270,9 @@ protected:
 	}
 
 	template <typename RowIterator>
-	void jacobianImpl(double t, double z, double r, unsigned int secIdx, double const* y, double const* yCp, RowIterator jac) const
+	void jacobianImpl(double t, double z, double r, unsigned int secIdx, double const* y, double const* yCp, RowIterator jac, void* workSpace) const
 	{
-		_p.update(t, z, r, secIdx, _nComp, _nBoundStates);
+		const typename ParamHandler_t::params_t& p = _paramHandler.update(t, z, r, secIdx, _nComp, _nBoundStates, workSpace);
 
 		// Protein equations: dq_i / dt - ( k_{a,i} * exp( k_{act,i} / T ) * c_{p,i} * q_{max,i} * (1 - \sum_j q_j / q_{max,j}) - (c_{p,0})^{\nu_i} * k_{d,i} * q_i) == 0
 		double qSum = 1.0;

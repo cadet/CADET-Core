@@ -87,7 +87,7 @@ public:
 		return nullptr;
 	}
 
-	virtual unsigned int consistentInitializationWorkspaceSize() const { return 0; }
+	virtual unsigned int workspaceSize() const { return 0; }
 
 	virtual void consistentInitialState(double t, double z, double r, unsigned int secIdx, double* const vecStateY, double errorTol, 
 		active* const adRes, active* const adY, unsigned int adEqOffset, unsigned int adDirOffset, const ad::IJacobianExtractor& jacExtractor, 
@@ -96,36 +96,36 @@ public:
 	}
 
 	virtual int residual(const active& t, double z, double r, unsigned int secIdx, const active& timeFactor, 
-		active const* y, double const* yDot, active* res) const
+		active const* y, double const* yDot, active* res, void* workSpace) const
 	{
 		return 0;
 	}
 
 	virtual int residual(double t, double z, double r, unsigned int secIdx, double timeFactor, 
-		active const* y, double const* yDot, active* res) const
+		active const* y, double const* yDot, active* res, void* workSpace) const
 	{
 		return 0;
 	}
 
 	virtual int residual(const active& t, double z, double r, unsigned int secIdx, const active& timeFactor, 
-		double const* y, double const* yDot, active* res) const
+		double const* y, double const* yDot, active* res, void* workSpace) const
 	{
 		return 0;
 	}
 
 	virtual int residual(double t, double z, double r, unsigned int secIdx, double timeFactor, 
-		double const* y, double const* yDot, double* res) const
+		double const* y, double const* yDot, double* res, void* workSpace) const
 	{
 		return 0;
 	}
 
 	virtual void setExternalFunctions(IExternalFunction** extFuns, unsigned int size) { }
 
-	virtual void analyticJacobian(double t, double z, double r, unsigned int secIdx, double const* y, linalg::BandMatrix::RowIterator jac) const
+	virtual void analyticJacobian(double t, double z, double r, unsigned int secIdx, double const* y, linalg::BandMatrix::RowIterator jac, void* workSpace) const
 	{
 	}
 
-	virtual void analyticJacobian(double t, double z, double r, unsigned int secIdx, double const* y, linalg::DenseBandedRowIterator jac) const
+	virtual void analyticJacobian(double t, double z, double r, unsigned int secIdx, double const* y, linalg::DenseBandedRowIterator jac, void* workSpace) const
 	{
 	}
 
@@ -141,7 +141,7 @@ public:
 	{
 	}
 
-	virtual void timeDerivativeAlgebraicResidual(double t, double z, double r, unsigned int secIdx, double const* y, double* dResDt) const
+	virtual void timeDerivativeAlgebraicResidual(double t, double z, double r, unsigned int secIdx, double const* y, double* dResDt, void* workSpace) const
 	{
 	}
 

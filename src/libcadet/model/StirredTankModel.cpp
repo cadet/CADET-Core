@@ -135,7 +135,7 @@ bool CSTRModel::configure(IParameterProvider& paramProvider, IConfigHelper& help
 		if (_binding->hasAlgebraicEquations())
 		{
 			// Required memory (number of doubles) for nonlinear solvers
-			size = _binding->consistentInitializationWorkspaceSize();
+			size = (_binding->workspaceSize() + sizeof(double) - 1) / sizeof(double);
 		}
 		if (size > 0)
 			_consistentInitBuffer = new double[size];
@@ -460,7 +460,7 @@ void CSTRModel::consistentInitialTimeDerivative(double t, unsigned int secIdx, d
 			std::fill(qShellDot, qShellDot + algLen, 0.0);
 			if (_binding->dependsOnTime())
 			{
-				_binding->timeDerivativeAlgebraicResidual(t, 0.0, 0.0, secIdx, vecStateY + 2 * _nComp, qShellDot);
+				_binding->timeDerivativeAlgebraicResidual(t, 0.0, 0.0, secIdx, vecStateY + 2 * _nComp, qShellDot, _consistentInitBuffer);
 				for (unsigned int algRow = 0; algRow < algLen; ++algRow)
 					qShellDot[algRow] *= -1.0;
 			}
@@ -713,7 +713,7 @@ int CSTRModel::residualImpl(const ParamType& t, unsigned int secIdx, const Param
 
 	// Bound states
 	double const* const qDot = yDot ? yDot + 2 * _nComp : nullptr;
-	_binding->residual(t, 0.0, 0.0, secIdx, timeFactor, c + _nComp, qDot, res + 2 * _nComp);
+	_binding->residual(t, 0.0, 0.0, secIdx, timeFactor, c + _nComp, qDot, res + 2 * _nComp, _consistentInitBuffer);
 
 	// Volume: \dot{V} = F_{in} - F_{out} - F_{filter}
 	res[2 * _nComp + _strideBound] = vDot - flowIn + flowOut + static_cast<ParamType>(_curFlowRateFilter);
@@ -750,7 +750,7 @@ int CSTRModel::residualImpl(const ParamType& t, unsigned int secIdx, const Param
 		}
 
 		// Bound states
-		_binding->analyticJacobian(static_cast<double>(t), 0.0, 0.0, secIdx, reinterpret_cast<double const*>(y) + 2 * _nComp, _jac.row(_nComp));
+		_binding->analyticJacobian(static_cast<double>(t), 0.0, 0.0, secIdx, reinterpret_cast<double const*>(y) + 2 * _nComp, _jac.row(_nComp), _consistentInitBuffer);
 
 		// Volume: \dot{V} - F_{in} + F_{out} + F_{filter} == 0
 	}
