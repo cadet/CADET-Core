@@ -157,7 +157,7 @@ inline ConsistentInitialization toConsistentInitialization(int ci) CADET_NOEXCEP
 inline bool isValidConsistentInitialization(int ci) CADET_NOEXCEPT
 {
 	return (ci >= static_cast<typename std::underlying_type<ConsistentInitialization>::type>(ConsistentInitialization::None))
-		&& (ci <= static_cast<typename std::underlying_type<ConsistentInitialization>::type>(ConsistentInitialization::Lean));
+		&& (ci <= static_cast<typename std::underlying_type<ConsistentInitialization>::type>(ConsistentInitialization::NoneOnceThenLean));
 }
 
 /**
