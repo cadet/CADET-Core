@@ -253,10 +253,6 @@ public:
 		return &_values[_index[_index.size() - 2]];
 	}
 	
-	/**
-	 * @brief Returns a pointer to the first element of the last slice
-	 * @return Pointer to the first element of the last slice
-	 */
 	inline T* back()
 	{
 		cadet_assert(!empty());
@@ -398,6 +394,34 @@ public:
 	inline void fill(const T& val = T())
 	{
 		std::fill(_values.begin(), _values.end(), val);
+	}
+
+	/**
+	 * @brief Returns a pointer to the first element of the underlying linear array
+	 * @return Pointer to first element of underlying linear array
+	 */
+	inline T* data() CADET_NOEXCEPT
+	{
+		return _values.data();
+	}
+
+	inline T const* data() const CADET_NOEXCEPT
+	{
+		return _values.data();
+	}
+
+	/**
+	 * @brief Returns a pointer to the first element of the slice index array
+	 * @return Pointer to first element of slice index array
+	 */
+	inline size_type* indices() CADET_NOEXCEPT
+	{
+		return _index.data();
+	}
+
+	inline size_type const* indices() const CADET_NOEXCEPT
+	{
+		return _index.data();
 	}
 
 protected:
