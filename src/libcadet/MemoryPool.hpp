@@ -93,12 +93,12 @@ namespace cadet
 			cadet_assert(sizeof(T) * n <= _capacity);
 
 			// Call constructor on every element
-			T* _cur = reinterpret_cast<T*>(_mem);
+			T* cur = reinterpret_cast<T*>(_mem);
 			for (unsigned int i = 0; i < n; ++i)
 			{
 				// Default constructor
-				new(_cur) T;
-				++_cur;
+				new(cur) T;
+				++cur;
 			}
 
 			_numElements = n;
@@ -115,11 +115,11 @@ namespace cadet
 		inline typename std::enable_if<!std::is_arithmetic<T>::value, void>::type destroy()
 		{
 			// Call destructor on every element
-			T* _cur = reinterpret_cast<T*>(_mem);
+			T* cur = reinterpret_cast<T*>(_mem);
 			for (unsigned int i = 0; i < _numElements; ++i)
 			{
-				_cur->~T();
-				++_cur;
+				cur->~T();
+				++cur;
 			}
 			_numElements = 0;
 		}
@@ -139,11 +139,11 @@ namespace cadet
 			cadet_assert(sizeof(T) * n <= _capacity);
 
 			// Arithmetic types do not need constructor, but initialization to zero
-			T* _cur = reinterpret_cast<T*>(_mem);
+			T* cur = reinterpret_cast<T*>(_mem);
 			for (unsigned int i = 0; i < n; ++i)
 			{
-				*_cur = T(0);
-				++_cur;
+				*cur = T(0);
+				++cur;
 			}
 
 			_numElements = n;
