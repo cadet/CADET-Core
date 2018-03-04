@@ -1,0 +1,342 @@
+#!/bin/bash
+
+# (C) Copyright Vesa Karvonen 2004.
+#
+# Distributed under the Boost Software License, Version 1.0.
+# (See accompanying file LICENSE.)
+
+set -e
+
+TIMEFORMAT='Time: %R seconds'
+
+dbFile=test.db
+tmpFile=.test.tmp
+
+debugFlag=1
+
+function check-and-add-preprocessor {
+    if $1 >& /dev/null ; then
+        availablePreprocessors="[$2] $availablePreprocessors"
+    fi
+}
+
+if ! test -f .preprocessor ; then
+    availablePreprocessors=''
+
+    check-and-add-preprocessor "cpp --help" cpp
+    check-and-add-preprocessor "wave -v" wave
+
+    read -e -p "Choose preprocessor: $availablePreprocessors? "
+    if test "$(echo "$availablePreprocessors" | grep "\\[$REPLY\\]")" != "$availablePreprocessors" ; then
+        echo "
+Sorry, \"$REPLY\" isn't one of the preprocessors:
+
+  $availablePreprocessors
+
+If you wish to use another preprocessor, you need to customize this
+script for the preprocessor, because there is no standard on the
+command line options accepted by a preprocessor."
+        exit 1
+    fi
+    echo "$REPLY" > .preprocessor
+    echo "Wrote $REPLY to the .preprocessor file."
+fi
+
+preprocessor=$(cat .preprocessor)
+
+function eval-in-cpp {
+    cpp -P \
+        -std=c99 \
+        -Wall \
+        -pedantic-errors \
+        $(if test $debugFlag = 1 ; then echo '-DORDER_PP_DEBUG' ; fi) \
+        -I "../inc/" \
+        -I "../../chaos-pp/" \
+        -include "../inc/order/interpreter.h" \
+        -include "test-defs.h"
+}
+
+function eval-in-wave {
+    wave --variadics \
+        $(if test $debugFlag = 1 ; then echo '--define ORDER_PP_DEBUG' ; fi) \
+        --include "../inc/" \
+        --include "../../chaos-pp/" \
+        --forceinclude "order/interpreter.h" \
+        --forceinclude "test-defs.h"
+}
+
+function eval-in {
+    eval-in-$preprocessor
+}
+
+function spacify {
+    sed -e 's|,| , |g' \
+        -e 's|(| ( |g' \
+        -e 's|)| ) |g' \
+        -e 's| \+| |g'
+}
+
+function sed-from {
+    local tmp="$1"
+    shift 1
+    echo "$tmp" | sed "$@"
+}
+
+function test-cnt {
+    cat $dbFile | wc -l | sed 's# ##g'
+}
+
+function get-line {
+    head -n $(($1+1)) | tail -n1
+}
+
+function get-line-from {
+    echo "$2" | get-line $1
+}
+
+function get-test {
+    cat $dbFile | get-line $1
+}
+
+function add-test {
+    echo "$1#$2#$3" >> $dbFile
+    clean-test-db
+}
+
+function clean-test-db {
+    local tmp="$(cat $dbFile)"
+    echo "$tmp" | sort | uniq > $dbFile
+}
+
+function remove-test {
+    local lines=$(test-cnt)
+    local before=$(head -n $1 $dbFile)
+    local after=$(tail -n $(($lines-1-$1)) $dbFile)
+    echo -n > $dbFile
+    if test "$before" != "" ; then echo "$before" >> $dbFile ; fi
+    if test "$after" != "" ; then echo "$after" >> $dbFile ; fi
+}
+
+function replace-test {
+    local lines=$(test-cnt)
+    local before=$(head -n $1 $dbFile)
+    local after=$(tail -n $(($lines-1-$1)) $dbFile)
+    echo -n > $dbFile
+    if test "$before" != "" ; then echo "$before" >> $dbFile ; fi
+    add-test "$2" "$3" "$4"
+    if test "$after" != "" ; then echo "$after" >> $dbFile ; fi
+}
+
+function preprocess-positive-tests {
+    sed -e 's|^.*#.*#O.*$||g' \
+        -e 's|#.*||g' \
+        -e 's|^\(.\+\)$|ORDER_PP(\1)|g' \
+        $dbFile | \
+        spacify | \
+        eval-in | \
+        tail -n $(test-cnt)
+}
+
+function differing-lines {
+    echo "$1" | \
+        nl -s '#' -v 0 | \
+        grep -v -e "^\\($(echo -n "$2" | sed 's#\([^a-zA-Z0-9()?+|{, ]\)#\\\1#g' | nl -s '#' -v 0 | tr "\n" '$' | sed 's#\$#\\\|#g')\\)\$" | \
+        sed -e 's|#.*||g' -e 's|[ \t]||g' | tr "\n" ' '
+}
+
+function run-tests {
+    echo "Total of $(test-cnt) tests."
+    echo "Running positive tests..."
+
+    local allTerm=$(sed -e 's|#.*||g' $dbFile)
+    local allExpected=$(sed -e 's|^[^#]*#||g' -e 's|#.*$||g' $dbFile)
+    local allErrors=$(sed -e 's|.*#||g' $dbFile)
+
+    local posActual=$(preprocess-positive-tests)
+    local posExpected=$(sed -e 's|^.*#.*#O.*$||g' -e 's|^[^#]*#||g' -e 's|#.*$||g' $dbFile)
+
+    echo "Comparing results..."
+
+    for i in $(differing-lines "$posActual" "$posExpected") ; do
+        term=$(get-line-from $i "$allTerm")
+        local result=$(get-line-from $i "$posActual")
+        local expected=$(get-line-from $i "$posExpected")
+
+        echo "Term:     $term"
+        echo "Expected: $expected"
+        echo "Result:   $result"
+        read -e -n 1 -p "[(U)se result | (R)emove test | Skip]? "
+        case "$REPLY" in
+            ("u"|"U")
+            echo "Using result"
+            replace-test $i "$term" "$result" "" ;;
+            ("r"|"R")
+            echo "Removing test"
+            remove-test $i ;;
+            (*)
+            echo "Skipping" ;;
+        esac
+    done
+
+    echo "Running and comparing negative tests..."
+
+    local oldDebugFlag=$debugFlag
+    debugFlag=1
+
+    for i in $(differing-lines "$(sed -e 's|.*#.*#O.*|\$|g' -e 's|[^$]\+|#|g' $dbFile)" "$(sed -e 's|.\+|#|g' $dbFile)") ; do
+        term=$(get-line-from $i "$allTerm")
+        local expectedResult=$(get-line-from $i "$allExpected")
+        local expectedErrors=$(get-line-from $i "$allErrors")
+
+        do-eval
+
+        if test "$result#$errors" != "$expectedResult#$expectedErrors" ; then
+            echo "Term:            $term"
+            echo "Expected result: $expectedResult"
+            echo "Actual result:   $result"
+            echo "Expected error:  $expectedErrors"
+            echo "Actual error:    $errors"
+            read -e -n 1 -p "[(U)se result | (R)emove test | Skip]? "
+            case "$REPLY" in
+                ("u"|"U")
+                echo "Using result"
+                replace-test $i "$term" "$result" "$errors" ;;
+                ("r"|"R")
+                echo "Removing test"
+                remove-test $i ;;
+                (*)
+                echo "Skipping" ;;
+            esac
+        fi
+    done
+
+    debugFlag=$oldDebugFlag
+}
+
+function do-eval {
+    result=$(echo "ORDER_PP($term)" | spacify | eval-in 2>"$tmpFile" | tail -n1)
+    resultChars=$(echo "$result" | wc -m | sed 's# ##g')
+    resultLines=$(echo "$result" | wc -l | sed 's# ##g')
+    messages="$(cat "$tmpFile")"
+    if test -n "$messages" ; then
+        errors=$(echo "$messages" | grep -o 'ORDER_PP_[a-zA-Z0-9_]\+' | sort | uniq | tr $'\n' ' ' | sed 's# $##g')
+    else
+        errors=""
+    fi
+}
+
+function interactive-eval {
+    read -e -p "Term: "
+    if test "$REPLY" != "" ; then
+        term="$REPLY"
+    else
+        echo "Term: $term"
+    fi
+
+    time do-eval
+
+    if test -n "$messages" ; then
+        echo "Errors: $errors"
+        echo
+        echo "$messages"
+        echo
+    fi
+    if test $(($COLUMNS-9)) -lt $resultChars ; then
+        echo "The output contains $resultChars characters on $resultLines lines!"
+        read -e -n 1 -p "[(S)kip | (L)ess | Display]? "
+        case "$REPLY" in
+            ("l"|"L")
+            echo "Result: $result" | less ;;
+            ("s"|"S")
+            echo "Skipping" ;;
+            (*)
+            echo "Result: $result" ;;
+        esac
+    else
+        echo "Result: $result"
+    fi
+}
+
+function interactive-trace {
+    read -e -p "Term: "
+    if test "$REPLY" != "" ; then
+        term="$REPLY"
+    else
+        echo "Term: $term"
+    fi
+
+    local steps=0
+
+    result=$(echo "(,,ORDER_PP_DEF($(echo "$term" | spacify)),8EXIT,)" | eval-in)
+    echo ": $result"
+
+    while read -e -n 1 -p "[(#$steps) | Enter to step]? " ; do
+        if test "$REPLY" != "" ; then
+            break
+        fi
+
+        steps=$(($steps+1))
+
+        result=$(echo "ORDER_PP_CM_DN_0 $result" | eval-in)
+        echo ": $result"
+
+        if ! echo "$result" | grep -q '^(' ; then
+            echo "[ Program stopped. ]"
+            break
+        fi
+    done
+}
+
+function interactive-add-test {
+    interactive-eval
+    read -e -n 1 -p "Add [(N)o | Yes]? "
+    case "$REPLY" in
+        ("n"|"N")
+        echo "Not added.";;
+        (*)
+        add-test "$term" "$result" "$errors"
+        echo "Added." ;;
+    esac
+}
+
+echo "Database: $dbFile"
+if ! cp -r $dbFile $dbFile.bak ; then
+    echo "Backup failed. Terminating."
+    exit
+else
+    echo "Backed up database to: $dbFile.bak"
+fi
+
+# IFS=''
+REPLY=''
+
+while true ; do
+    if test -z "$REPLY" ; then
+        if test "$#" -gt 0 ; then
+            REPLY="$(echo "$1" | sed 's#^-*##g')"
+            shift
+        else
+            read -e -n 1 -p "[(A)dd | (C)lean | (D)ebug | (M)ode: $debugFlag | (Q)uit | (S)how | (T)est | Eval]? "
+        fi
+    fi
+    case "$REPLY" in
+        (a*|A)
+        interactive-add-test ;;
+        (t*|T)
+        time run-tests ;;
+        (s*|S)
+        less $dbFile ;;
+        (c*|C)
+        clean-test-db ;;
+        (q*|Q)
+        exit ;;
+        (d*|D)
+        interactive-trace ;;
+        (m*|M)
+        debugFlag=$((1-debugFlag)) ;;
+        (*)
+        interactive-eval
+        REPLY="" ;;
+    esac
+    REPLY="$(echo "$REPLY" | sed 's#^.##g')"
+done
