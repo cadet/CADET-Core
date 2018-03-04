@@ -35,7 +35,6 @@ public:
 	static const char* identifier() { return "NONE"; }
 	virtual const char* name() const CADET_NOEXCEPT { return "NONE"; }
 	virtual bool requiresConfiguration() const CADET_NOEXCEPT { return false; }
-	virtual size_t memoryPerThread() const CADET_NOEXCEPT { return 0; }
 
 	virtual void configureModelDiscretization(unsigned int nComp, unsigned int const* nBound, unsigned int const* boundOffset)
 	{
