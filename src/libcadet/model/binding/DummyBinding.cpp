@@ -149,6 +149,7 @@ public:
 	virtual bool supportsNonBinding() const CADET_NOEXCEPT { return true; }
 	virtual bool hasAlgebraicEquations() const CADET_NOEXCEPT { return false; }
 	virtual bool dependsOnTime() const CADET_NOEXCEPT { return false; }
+	virtual bool requiresWorkspace() const CADET_NOEXCEPT { return false; }
 
 protected:
 };

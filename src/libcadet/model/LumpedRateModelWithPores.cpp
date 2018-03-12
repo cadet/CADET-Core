@@ -173,7 +173,7 @@ bool LumpedRateModelWithPores::configure(IParameterProvider& paramProvider, ICon
 
 	// setup the memory for tempState based on state vector or memory needed for consistent initialization of isotherms, whichever is larger
 	unsigned int size = numDofs();
-	if (_binding->hasAlgebraicEquations())
+	if (_binding->requiresWorkspace())
 	{
 		// Required memory (number of doubles) for nonlinear solvers
 		const unsigned int requiredMem = (_binding->workspaceSize() + sizeof(double) - 1) / sizeof(double) * _disc.nCol;

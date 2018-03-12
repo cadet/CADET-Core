@@ -232,6 +232,7 @@ public:
 	virtual bool supportsNonBinding() const CADET_NOEXCEPT { return true; }
 	virtual bool hasAlgebraicEquations() const CADET_NOEXCEPT { return true; }
 	virtual bool dependsOnTime() const CADET_NOEXCEPT { return ParamHandler_t::dependsOnTime(); }
+	virtual bool requiresWorkspace() const CADET_NOEXCEPT { return true; }
 
 protected:
 	ParamHandler_t _paramHandler; //!< Handles parameters and their dependence on external functions

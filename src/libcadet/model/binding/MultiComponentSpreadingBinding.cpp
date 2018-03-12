@@ -113,6 +113,7 @@ public:
 	virtual bool hasSalt() const CADET_NOEXCEPT { return false; }
 	virtual bool supportsMultistate() const CADET_NOEXCEPT { return true; }
 	virtual bool supportsNonBinding() const CADET_NOEXCEPT { return true; }
+	virtual bool requiresWorkspace() const CADET_NOEXCEPT { return hasAlgebraicEquations() || ParamHandler_t::requiresWorkspace(); }
 
 	CADET_PUREBINDINGMODELBASE_BOILERPLATE
 

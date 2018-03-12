@@ -612,6 +612,7 @@ public:
 	virtual bool supportsNonBinding() const CADET_NOEXCEPT { return true; }
 	virtual bool hasAlgebraicEquations() const CADET_NOEXCEPT { return !_kineticBinding; }
 	virtual bool dependsOnTime() const CADET_NOEXCEPT { return ParamHandler_t::dependsOnTime(); }
+	virtual bool requiresWorkspace() const CADET_NOEXCEPT { return ParamHandler_t::requiresWorkspace(); }
 
 protected:
 	int _nComp; //!< Number of components

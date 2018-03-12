@@ -132,7 +132,7 @@ bool CSTRModel::configure(IParameterProvider& paramProvider, IConfigHelper& help
 
 		// Allocate memory for nonlinear equation solving
 		unsigned int size = 0;
-		if (_binding->hasAlgebraicEquations())
+		if (_binding->requiresWorkspace())
 		{
 			// Required memory (number of doubles) for nonlinear solvers
 			size = (_binding->workspaceSize() + sizeof(double) - 1) / sizeof(double);

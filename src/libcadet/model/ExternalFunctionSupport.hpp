@@ -559,6 +559,13 @@ namespace model
 		static bool dependsOnTime() CADET_NOEXCEPT { return false; }
 
 		/**
+		 * @brief Returns whether workspace is required for the parameters
+		 * @details Model parameters that do not use external functions do not require a workspace for parameters.
+		 * @return @c true if the model parameters require a workspace, otherwise @c false
+		 */
+		static bool requiresWorkspace() CADET_NOEXCEPT { return false; }
+
+		/**
 		 * @brief Returns how much memory is required for caching in bytes
 		 * @details Memory size in bytes.
 		 * @return Memory size in bytes
@@ -601,6 +608,13 @@ namespace model
 		 * @return @c true if the model parameters depends on time, otherwise @c false
 		 */
 		static bool dependsOnTime() CADET_NOEXCEPT { return true; }
+
+		/**
+		 * @brief Returns whether workspace is required for the parameters
+		 * @details Model parameters that do not use external functions do not require a workspace for parameters.
+		 * @return @c true if the model parameters require a workspace, otherwise @c false
+		 */
+		static bool requiresWorkspace() CADET_NOEXCEPT { return true; }
 
 	protected:
 

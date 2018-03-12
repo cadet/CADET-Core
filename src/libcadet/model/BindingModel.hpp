@@ -213,6 +213,15 @@ public:
 	virtual bool dependsOnTime() const CADET_NOEXCEPT = 0;
 
 	/**
+	 * @brief Returns whether this binding model requires workspace
+	 * @details The workspace may be required for consistent initialization and / or evaluation
+	 *          of residual and Jacobian. A workspace is a memory buffer whose size is given by
+	 *          workspaceSize().
+	 * @return @c true if the model requires a workspace, otherwise @c false
+	 */
+	virtual bool requiresWorkspace() const CADET_NOEXCEPT = 0;
+
+	/**
 	 * @brief Returns the size of the required workspace in bytes
 	 * @details The memory is required for externally dependent binding models and the 
 	 *          nonlinear solver in consistent initialization.

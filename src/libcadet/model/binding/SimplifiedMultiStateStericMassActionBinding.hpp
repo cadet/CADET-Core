@@ -85,6 +85,7 @@ public:
 	virtual bool hasAlgebraicEquations() const CADET_NOEXCEPT { return true; }
 
 	virtual bool dependsOnTime() const CADET_NOEXCEPT { return false; }
+	virtual bool requiresWorkspace() const CADET_NOEXCEPT { return true; }
 
 protected:
 	active _lambda; //! Ionic capacity
