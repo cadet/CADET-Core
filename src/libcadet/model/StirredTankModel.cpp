@@ -228,7 +228,7 @@ void CSTRModel::prepareADvectors(active* const adRes, active* const adY, unsigne
 	if (!adY)
 		return;
 
-	ad::prepareAdVectorSeedsForDenseMatrix(adY + _nComp, adDirOffset, _jac.rows(), _jac.columns());
+	ad::prepareAdVectorSeedsForDenseMatrix(adY + _nComp, adDirOffset, _jac.columns());
 }
 
 void CSTRModel::applyInitialCondition(double* const vecStateY, double* const vecStateYdot)

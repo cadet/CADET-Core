@@ -68,10 +68,9 @@ void extractBandedJacobianFromAd(active const* const adVec, unsigned int adDirOf
  * @brief Sets seed vectors on an AD vector for computing a dense Jacobian
  * @param [in,out] adVec Vector of AD datatypes whose seed vectors are to be set
  * @param [in] adDirOffset Offset in the AD directions (can be used to move past parameter sensitivity directions)
- * @param [in] rows Number of Jacobian rows (length of the AD vector)
- * @param [in] cols Nnumber of Jacobian columns (number of seed vectors)
+ * @param [in] cols Nnumber of Jacobian columns (length of the AD vector and number of seed vectors)
  */
-void prepareAdVectorSeedsForDenseMatrix(active* const adVec, unsigned int adDirOffset, unsigned int rows, unsigned int cols); 
+void prepareAdVectorSeedsForDenseMatrix(active* const adVec, unsigned int adDirOffset, unsigned int cols); 
 
 /**
  * @brief Extracts a dense matrix from AD seed vectors

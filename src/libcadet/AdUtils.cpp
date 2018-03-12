@@ -70,14 +70,14 @@ void extractBandedJacobianFromAd(active const* const adVec, unsigned int adDirOf
 	}
 }
 
-void prepareAdVectorSeedsForDenseMatrix(active* const adVec, unsigned int adDirOffset, unsigned int rows, unsigned int cols)
+void prepareAdVectorSeedsForDenseMatrix(active* const adVec, unsigned int adDirOffset, unsigned int cols)
 {
-	for (unsigned int eq = 0; eq < rows; ++eq)
+	for (unsigned int col = 0; col < cols; ++col)
 	{
 		// Clear previously set directions
-		adVec[eq].fillADValue(adDirOffset, 0.0);
+		adVec[col].fillADValue(adDirOffset, 0.0);
 		// Set direction
-		adVec[eq].setADValue(adDirOffset + eq, 1.0);
+		adVec[col].setADValue(adDirOffset + col, 1.0);
 	}
 }
 
