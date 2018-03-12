@@ -35,6 +35,7 @@ add_executable (testRunner testRunner.cpp JsonTestModels.cpp ColumnTests.cpp Sim
 	GeneralRateModel.cpp LumpedRateModelWithPores.cpp LumpedRateModelWithoutPores.cpp
 	CSTR-Residual.cpp CSTR-Simulation.cpp 
 	ConvectionDispersionOperator.cpp
+	BindingModelTests.cpp BindingModels.cpp
 	ModelSystem.cpp
 	BandMatrix.cpp DenseMatrix.cpp StringHashing.cpp LogUtils.cpp AD.cpp 
 	"${CMAKE_CURRENT_BINARY_DIR}/Paths.cpp" "${CMAKE_SOURCE_DIR}/src/io/JsonParameterProvider.cpp"

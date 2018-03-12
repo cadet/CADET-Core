@@ -63,6 +63,9 @@ namespace detail
 			return RelApprox(0.0);
 		}
 
+		static inline  double defaultEpsilon() { return std::numeric_limits<float>::epsilon() * 100.0; }
+		static inline  double defaultMargin() { return 0.0; }
+
 		template <typename T, typename = typename std::enable_if<std::is_constructible<double, T>::value>::type>
 		RelApprox operator()(T const& value)
 		{
