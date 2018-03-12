@@ -171,4 +171,4 @@ namespace column
 } // namespace test
 } // namespace cadet
 
-#endif
+#endif  // CADETTEST_COLUMNSIMTEST_HPP_
