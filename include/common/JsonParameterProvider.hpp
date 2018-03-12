@@ -47,12 +47,7 @@ public:
 	virtual ~JsonParameterProvider() CADET_NOEXCEPT;
 
 	JsonParameterProvider& operator=(const JsonParameterProvider& cpy);
-
-#ifdef COMPILER_SUPPORT_NOEXCEPT_DEFAULTED_MOVE
 	JsonParameterProvider& operator=(JsonParameterProvider&& cpy) CADET_NOEXCEPT;
-#else
-	JsonParameterProvider& operator=(JsonParameterProvider&& cpy);
-#endif
 
 	virtual double getDouble(const std::string& paramName);
 	virtual int getInt(const std::string& paramName);

@@ -144,11 +144,7 @@ JsonParameterProvider& JsonParameterProvider::operator=(const JsonParameterProvi
 	return *this;
 }
 
-#ifdef COMPILER_SUPPORT_NOEXCEPT_DEFAULTED_MOVE
-	JsonParameterProvider& JsonParameterProvider::operator=(JsonParameterProvider&& cpy) CADET_NOEXCEPT
-#else
-	JsonParameterProvider& JsonParameterProvider::operator=(JsonParameterProvider&& cpy)
-#endif
+JsonParameterProvider& JsonParameterProvider::operator=(JsonParameterProvider&& cpy) CADET_NOEXCEPT
 {
 	delete _root;
 	_opened = std::stack<nlohmann::json*>();
