@@ -40,11 +40,14 @@ namespace test
  * @param [in] y State vector
  * @param [in] yDot Time derivative of state vector
  * @param [in] dir Memory for extracting a column
- * @param [in] colA Memory for Jacobian column of @p modelA
- * @param [in] colB Memory for Jacobian column of @p modelB
+ * @param [in] colA Memory for Jacobian column
+ * @param [in] colB Memory for Jacobian column
  * @param [in] n Number of DOFs in the model
+ * @param [in] m Number of equations in the model
+ * @param [in] absTol Absolute error tolerance
+ * @param [in] relTol Relative error tolerance
  */
-inline void compareJacobian(const std::function<void(double const*, double*)> multJacA, const std::function<void(double const*, double*)> multJacB, double* dir, double* colA, double* colB, unsigned int n)
+inline void compareJacobian(const std::function<void(double const*, double*)> multJacA, const std::function<void(double const*, double*)> multJacB, double* dir, double* colA, double* colB, unsigned int n, unsigned int m, double absTol, double relTol)
 {
 	std::fill(dir, dir + n, 0.0);
 	for (unsigned int col = 0; col < n; ++col)
@@ -54,15 +57,50 @@ inline void compareJacobian(const std::function<void(double const*, double*)> mu
 		multJacA(dir, colA);
 		multJacB(dir, colB);
 
-		for (unsigned int row = 0; row < n; ++row)
+		for (unsigned int row = 0; row < m; ++row)
 		{
 			CAPTURE(row);
 			CAPTURE(col);
-			CHECK(colA[row] == RelApprox(colB[row]));
+			CHECK(colA[row] == RelApprox(colB[row]).epsilon(relTol).margin(absTol));
 		}
 
 		dir[col] = 0.0;
 	}
+}
+
+/**
+ * @brief Compares two given Jacobians column by column
+ * @details A column is extracted by calling multiplyWithJacobian() on the model.
+ * @param [in] multJacA Multiplies model A's Jacobian with a given vector
+ * @param [in] multJacB Multiplies model B's Jacobian with a given vector
+ * @param [in] y State vector
+ * @param [in] yDot Time derivative of state vector
+ * @param [in] dir Memory for extracting a column
+ * @param [in] colA Memory for Jacobian column
+ * @param [in] colB Memory for Jacobian column
+ * @param [in] n Number of DOFs in the model
+ * @param [in] m Number of equations in the model
+ */
+inline void compareJacobian(const std::function<void(double const*, double*)> multJacA, const std::function<void(double const*, double*)> multJacB, double* dir, double* colA, double* colB, unsigned int n, unsigned int m)
+{
+	compareJacobian(multJacA, multJacB, dir, colA, colB, n, m, RelApprox::defaultEpsilon(), RelApprox::defaultMargin());
+}
+
+/**
+ * @brief Compares two given Jacobians column by column
+ * @details A column is extracted by calling multiplyWithJacobian() on the model.
+ * @param [in] multJacA Multiplies model A's Jacobian with a given vector
+ * @param [in] multJacB Multiplies model B's Jacobian with a given vector
+ * @param [in] y State vector
+ * @param [in] yDot Time derivative of state vector
+ * @param [in] dir Memory for extracting a column
+ * @param [in] colA Memory for Jacobian column
+ * @param [in] colB Memory for Jacobian column
+ * @param [in] n Number of DOFs in the model
+ */
+inline void compareJacobian(const std::function<void(double const*, double*)> multJacA, const std::function<void(double const*, double*)> multJacB, double* dir, double* colA, double* colB, unsigned int n)
+{
+	compareJacobian(multJacA, multJacB, dir, colA, colB, n, n);
 }
 
 /**
@@ -81,27 +119,27 @@ inline void compareJacobian(cadet::IUnitOperation* modelA, cadet::IUnitOperation
 	compareJacobian(
 		[=](double const* lDir, double* res) -> void { modelA->multiplyWithJacobian(0.0, 0u, 1.0, y, yDot, lDir, 1.0, 0.0, res); },
 		[=](double const* lDir, double* res) -> void { modelB->multiplyWithJacobian(0.0, 0u, 1.0, y, yDot, lDir, 1.0, 0.0, res); },
-		dir, colA, colB, modelA->numDofs()
+		dir, colA, colB, modelA->numDofs(), modelA->numDofs()
 		);
 }
 
 /**
  * @brief Checks a (time derivative) Jacobian against finite differences
- * @details Uses finite differences on @p modelA to determine the Jacobian.
- *          The two Jacobians are compared column by column. A column is
- *          extracted by calling multiplyJacobian().
+ * @details Uses finite differences to determine the Jacobian. The two Jacobians
+ *          are compared column by column. A column is extracted by calling multiplyJacobian().
  * @param [in] residual Function that returns a residual vector
  * @param [in] multiplyJacobian Function that multiplies the (time derivative) Jacobian with a vector 
  * @param [in] y State vector
  * @param [in] dir Memory for computing finite differences
- * @param [in] colA Memory for Jacobian column of @p modelA
- * @param [in] colB Memory for Jacobian column of @p modelB
+ * @param [in] colA Memory for Jacobian column
+ * @param [in] colB Memory for Jacobian column
  * @param [in] n Number of DOFs in the model
+ * @param [in] m Number of equations in the model
  * @param [in] h Step size for centered finite differences
  * @param [in] absTol Absolute error tolerance
  * @param [in] relTol Relative error tolerance
  */
-inline void compareJacobianFD(const std::function<void(double const*, double*)>& residual, const std::function<void(double const*, double*)>& multiplyJacobian, double const* y, double* dir, double* colA, double* colB, unsigned int n, double h = 1e-6, double absTol = 0.0, double relTol = std::numeric_limits<float>::epsilon() * 100.0)
+inline void compareJacobianFD(const std::function<void(double const*, double*)>& residual, const std::function<void(double const*, double*)>& multiplyJacobian, double const* y, double* dir, double* colA, double* colB, unsigned int n, unsigned int m, double h = 1e-6, double absTol = 0.0, double relTol = std::numeric_limits<float>::epsilon() * 100.0)
 {
 	for (unsigned int col = 0; col < n; ++col)
 	{
@@ -121,7 +159,7 @@ inline void compareJacobianFD(const std::function<void(double const*, double*)>&
 
 		residual(dir, colB);
 
-		for (unsigned int j = 0; j < n; ++j)
+		for (unsigned int j = 0; j < m; ++j)
 		{
 			if (y[col] != 0.0)
 				colA[j] = (colA[j] - colB[j]) / (y[col] * 2.0 * h);
@@ -133,13 +171,33 @@ inline void compareJacobianFD(const std::function<void(double const*, double*)>&
 		dir[col] = 1.0;
 		multiplyJacobian(dir, colB);
 
-		for (unsigned int row = 0; row < n; ++row)
+		for (unsigned int row = 0; row < m; ++row)
 		{
 			CAPTURE(row);
 			CAPTURE(col);
 			CHECK(colA[row] == RelApprox(colB[row]).epsilon(relTol).margin(absTol));
 		}
 	}
+}
+
+/**
+ * @brief Checks a (time derivative) Jacobian against finite differences
+ * @details Uses finite differences to determine the Jacobian. The two Jacobians
+ *          are compared column by column. A column is extracted by calling multiplyJacobian().
+ * @param [in] residual Function that returns a residual vector
+ * @param [in] multiplyJacobian Function that multiplies the (time derivative) Jacobian with a vector 
+ * @param [in] y State vector
+ * @param [in] dir Memory for computing finite differences
+ * @param [in] colA Memory for Jacobian column
+ * @param [in] colB Memory for Jacobian column
+ * @param [in] n Number of DOFs in the model
+ * @param [in] h Step size for centered finite differences
+ * @param [in] absTol Absolute error tolerance
+ * @param [in] relTol Relative error tolerance
+ */
+inline void compareJacobianFD(const std::function<void(double const*, double*)>& residual, const std::function<void(double const*, double*)>& multiplyJacobian, double const* y, double* dir, double* colA, double* colB, unsigned int n, double h = 1e-6, double absTol = 0.0, double relTol = std::numeric_limits<float>::epsilon() * 100.0)
+{
+	compareJacobianFD(residual, multiplyJacobian, y, dir, colA, colB, n, n, h, absTol, relTol);
 }
 
 /**
@@ -164,23 +222,23 @@ inline void compareJacobianFD(cadet::IUnitOperation* modelA, cadet::IUnitOperati
 	compareJacobianFD(
 		[=](double const* lDir, double* res) -> void { modelA->residual(0.0, 0u, 1.0, lDir, yDot, res); }, 
 		[=](double const* lDir, double* res) -> void { modelB->multiplyWithJacobian(0.0, 0u, 1.0, y, yDot, lDir, 1.0, 0.0, res); }, 
-		y, dir, colA, colB, modelA->numDofs(), h, absTol, relTol);
+		y, dir, colA, colB, modelA->numDofs(), modelA->numDofs(), h, absTol, relTol);
 }
 
 /**
  * @brief Checks the pattern of the two given Jacobians including sign of the entries
- * @details Uses finite differences on @p modelA to determine the Jacobian structure. The
- *          Jacobians are compared column by column. A column is extracted by calling
- *          multiplyWithJacobian() on the model.
+ * @details Uses finite differences to determine the Jacobian structure. The Jacobians
+ *          are compared column by column. A column is extracted by calling multiplyWithJacobian().
  * @param [in] residual Function that returns a residual vector
- * @param [in] multiplyJacobian Function that multiplies the time derivative Jacobian with a vector 
+ * @param [in] multiplyJacobian Function that multiplies the Jacobian with a vector 
  * @param [in] y State vector
  * @param [in] dir Memory for computing finite differences
- * @param [in] colA Memory for Jacobian column of @p modelA
- * @param [in] colB Memory for Jacobian column of @p modelB
+ * @param [in] colA Memory for Jacobian column
+ * @param [in] colB Memory for Jacobian column
  * @param [in] n Number of DOFs in the model
+ * @param [in] m Number of equations in the model
  */
-inline void checkJacobianPatternFD(const std::function<void(double const*, double*)>& residual, const std::function<void(double const*, double*)>& multiplyJacobian, double const* y, double* dir, double* colA, double* colB, const unsigned int n)
+inline void checkJacobianPatternFD(const std::function<void(double const*, double*)>& residual, const std::function<void(double const*, double*)>& multiplyJacobian, double const* y, double* dir, double* colA, double* colB, unsigned int n, unsigned int m)
 {
 	const double h = 1e-5;
 	for (unsigned int col = 0; col < n; ++col)
@@ -200,7 +258,7 @@ inline void checkJacobianPatternFD(const std::function<void(double const*, doubl
 
 		residual(dir, colB);
 
-		for (unsigned int j = 0; j < n; ++j)
+		for (unsigned int j = 0; j < m; ++j)
 		{
 			if (y[col] != 0.0)
 				colA[j] = (colA[j] - colB[j]) / (y[col] * 2.0 * h);
@@ -213,7 +271,7 @@ inline void checkJacobianPatternFD(const std::function<void(double const*, doubl
 		multiplyJacobian(dir, colB);
 
 		// Check for pattern including sign
-		for (unsigned int row = 0; row < n; ++row)
+		for (unsigned int row = 0; row < m; ++row)
 		{
 			CAPTURE(row);
 			CAPTURE(col);
@@ -227,6 +285,23 @@ inline void checkJacobianPatternFD(const std::function<void(double const*, doubl
 				CHECK(std::isnan(colB[row]));
 		}
 	}
+}
+
+/**
+ * @brief Checks the pattern of the two given Jacobians including sign of the entries
+ * @details Uses finite differences to determine the Jacobian structure. The Jacobians
+ *          are compared column by column. A column is extracted by calling multiplyWithJacobian().
+ * @param [in] residual Function that returns a residual vector
+ * @param [in] multiplyJacobian Function that multiplies the time derivative Jacobian with a vector 
+ * @param [in] y State vector
+ * @param [in] dir Memory for computing finite differences
+ * @param [in] colA Memory for Jacobian column
+ * @param [in] colB Memory for Jacobian column
+ * @param [in] n Number of DOFs in the model
+ */
+inline void checkJacobianPatternFD(const std::function<void(double const*, double*)>& residual, const std::function<void(double const*, double*)>& multiplyJacobian, double const* y, double* dir, double* colA, double* colB, unsigned int n)
+{
+	checkJacobianPatternFD(residual, multiplyJacobian, y, dir, colA, colB, n, n);
 }
 
 /**
@@ -247,7 +322,7 @@ inline void checkJacobianPatternFD(cadet::IUnitOperation* modelA, cadet::IUnitOp
 	checkJacobianPatternFD(
 		[=](double const* lDir, double* res) -> void { modelA->residual(0.0, 0u, 1.0, lDir, yDot, res); },
 		[=](double const* lDir, double* res) -> void { modelB->multiplyWithJacobian(0.0, 0u, 1.0, y, yDot, lDir, 1.0, 0.0, res); },
-		y, dir, colA, colB, modelA->numDofs());
+		y, dir, colA, colB, modelA->numDofs(), modelA->numDofs());
 }
 
 /**
@@ -304,7 +379,7 @@ inline void compareTimeDerivativeJacobianFD(cadet::IUnitOperation* modelA, cadet
 	compareJacobianFD(
 		[=](double const* lDir, double* res) -> void { modelA->residual(0.0, 0u, 1.0, y, lDir, res); }, 
 		[=](double const* lDir, double* res) -> void { modelB->multiplyWithDerivativeJacobian(0.0, 0u, 1.0, y, yDot, lDir, res); }, 
-		yDot, dir, colA, colB, modelA->numDofs(), h, absTol, relTol);
+		yDot, dir, colA, colB, modelA->numDofs(), modelA->numDofs(), h, absTol, relTol);
 }
 
 } // namespace test
