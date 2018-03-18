@@ -348,9 +348,11 @@ void CSTRModel::consistentInitialState(double t, unsigned int secIdx, double tim
 			active* const localAdRes = adRes ? adRes + _nComp : nullptr;
 			active* const localAdY = adY ? adY + _nComp : nullptr;
 
+			linalg::DenseMatrixView jacobianMatrix(_jacFact.data(), _jacFact.pivotData(), _strideBound, _strideBound);
+
 			// Solve algebraic variables
 			_binding->consistentInitialState(t, 0.0, 0.0, secIdx, c + _nComp, errorTol, localAdRes, localAdY,
-				_nComp, adDirOffset, ad::DenseJacobianExtractor(), _consistentInitBuffer, _jacFact);
+				_nComp, adDirOffset, ad::DenseJacobianExtractor(), _consistentInitBuffer, jacobianMatrix);
 		}
 	}
 }
