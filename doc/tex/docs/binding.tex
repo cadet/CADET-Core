@@ -194,7 +194,7 @@ The concept of reference concentrations ($c_{\text{ref}}$ and $q_{\text{ref}}$) 
 This model is a modified Langmuir model (see Section~\ref{sec:MBLangmuir}) which can be used to describe hydrophobic interaction chromatography \cite{Melander1989,Karlsson2004}. \index{Binding!Mobile phase modulator}
 A modulator component (termed ``salt'', $c_{p,0}$ and $q_0$) influences ad- and desorption processes:
 \begin{align*}
-  \frac{\mathrm{d} q_i}{\mathrm{d} t} = k_{a,i} e^{\gamma c_{p,0}} c_{p,i}\: q_{\text{max},i} \left( 1 - \sum_{j=1}^{N_{\text{comp}} - 1} \frac{q_j}{q_{\text{max},j}} \right) - k_{d,i} \: c_{p,0}^\beta \: q_i && i = 1, \dots, N_{\text{comp}} - 1.
+  \frac{\mathrm{d} q_i}{\mathrm{d} t} = k_{a,i} e^{\gamma_i c_{p,0}} c_{p,i}\: q_{\text{max},i} \left( 1 - \sum_{j=1}^{N_{\text{comp}} - 1} \frac{q_j}{q_{\text{max},j}} \right) - k_{d,i} \: c_{p,0}^{\beta_i} \: q_i && i = 1, \dots, N_{\text{comp}} - 1.
 \end{align*}
 where $c_{p,0}$ and $q_0$ denote the salt concentrations in the liquid and solid phase of the beads respectively. 
 Salt is considered to be inert, therefore either
@@ -202,7 +202,7 @@ Salt is considered to be inert, therefore either
   \frac{\mathrm{d} q_0}{\mathrm{d} t} = 0
 \end{align*}
 is used if salt has one bound state, or salt can be used without a bound state.
-Parameter $\gamma$ describes the hydrophobicity and $\beta$ the ion-exchange characteristics.
+The parameter $\gamma$ describes the hydrophobicity and $\beta$ the ion-exchange characteristics.
 See Table~\ref{tab:FFAdsorptionMobilePhaseModulator}.
 
 \subsection{Kumar-Langmuir}
@@ -210,7 +210,7 @@ See Table~\ref{tab:FFAdsorptionMobilePhaseModulator}.
 This extension of the Langmuir isotherm (see Section~\ref{sec:MBLangmuir}) developed in \cite{Kumar2015} was used to model charge variants of monoclonal antibodies in ion-exchange chromatography. \index{Binding!Kumar-Langmuir}
 A non-binding salt component $c_{p,0}$ is added to modulate the ad- and desorption process.
 \begin{align*}
-  \frac{\mathrm{d} q_i}{\mathrm{d} t} &= k_{a,i} \exp\left( \frac{k_{\text{act},i}}{T} \right) c_{p,i} q_{\text{max},i} \left( 1 - \sum_{j=0}^{N_{\text{comp}} - 1} \frac{q_j}{q_{\text{max},j}} \right) - k_{d,i} \left( c_{p,0} \right)^{\nu_i} q_i && i = 1, \dots, N_{\text{comp}} - 1
+  \frac{\mathrm{d} q_i}{\mathrm{d} t} &= k_{a,i} \exp\left( \frac{k_{\text{act},i}}{T} \right) c_{p,i} q_{\text{max},i} \left( 1 - \sum_{j=1}^{N_{\text{comp}} - 1} \frac{q_j}{q_{\text{max},j}} \right) - k_{d,i} \left( c_{p,0} \right)^{\nu_i} q_i && i = 1, \dots, N_{\text{comp}} - 1
 \end{align*}
 In this model, the true adsorption rate $k_{a,i,\text{true}}$ is governed by the Arrhenius law in order to take temperature into account
 \begin{align*}
