@@ -369,7 +369,7 @@ protected:
 			// dres_i / dc_{p,i}
 			jac[i - bndIdx - _nComp] = -(ka + 2.0 * ka2 * yCp[i]) * q0_bar_pow_nu;
 			// dres_i / dq_0
-			jac[-bndIdx] = -effKa * yCp[i] * nu * q0_bar_pow_nu_m1_divRef;
+			jac[-bndIdx] = -effKa * nu * q0_bar_pow_nu_m1_divRef;
 
 			// Fill dres_i / dq_j
 			int bndIdx2 = 1;
@@ -380,7 +380,7 @@ protected:
 					continue;
 
 				// dres_i / dq_j
-				jac[bndIdx2 - bndIdx] = -effKa * yCp[i] * nu * q0_bar_pow_nu_m1_divRef * (-static_cast<double>(p.sigma[j]));
+				jac[bndIdx2 - bndIdx] = -effKa * nu * q0_bar_pow_nu_m1_divRef * (-static_cast<double>(p.sigma[j]));
 				// Getting to q_j: -bndIdx takes us to q_0, another +bndIdx2 to q_j. This means jac[bndIdx2 - bndIdx] corresponds to q_j.
 
 				++bndIdx2;

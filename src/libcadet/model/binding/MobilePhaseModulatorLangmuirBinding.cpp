@@ -140,14 +140,16 @@ protected:
 		bndIdx = 0;
 		if (_nBoundStates[0] == 1)
 		{
-			if (_kineticBinding)
+			if (!_kineticBinding)
 				res[0] = y[0];
 			else
-				res[0] = 0.0;
-
-			// Add time derivative if necessary
-			if (_kineticBinding && yDot)
-				res[0] += timeFactor * yDot[bndIdx];
+			{
+				// Add time derivative if necessary
+				if (yDot)
+					res[0] = timeFactor * yDot[bndIdx];
+				else
+					res[0] = 0.0;
+			}
 
 			bndIdx = 1;
 		}

@@ -203,7 +203,7 @@ protected:
 			//                     This means jac[i - bndIdx - nComp] corresponds to c_{p,i}.
 
 			// dres_i / dc_{p,0}
-			jac[i - bndIdx - _nComp - 1] = static_cast<double>(p.nu[i]) * pow(yCp[0], static_cast<double>(p.nu[i]) - 1.0) * y[bndIdx];
+			jac[-bndIdx - _nComp] = static_cast<double>(p.kD[i]) * static_cast<double>(p.nu[i]) * pow(yCp[0], static_cast<double>(p.nu[i]) - 1.0) * y[bndIdx];
 
 			// Fill dres_i / dq_j
 			int bndIdx2 = 0;

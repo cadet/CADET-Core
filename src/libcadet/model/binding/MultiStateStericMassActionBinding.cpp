@@ -55,6 +55,17 @@ inline bool MSSMAParamHandler::validateConfig(unsigned int nComp, unsigned int c
 	if ((_kA.size() != _kD.size()) || (_kA.size() != _nu.size()) || (_kA.size() != _sigma.size()) || (_kA.size() != totalBoundStates))
 		throw InvalidParameterException("MSSMA_KA, MSSMA_KD, MSSMA_NU, and MSSMA_SIGMA have to have the same size");
 
+	const util::SlicedVector<active>& n = _nu.get();
+	for (unsigned int i = 0; i < nComp; ++i)
+	{
+		active const* curNu = n[i];
+		for (unsigned int j = 1; j < nBoundStates[i]; ++j)
+		{
+			if (curNu[j-1] > curNu[j])
+				throw InvalidParameterException("MSSMA_NU is not monotonically increasing for component " + std::to_string(i) + " at bound state " + std::to_string(j));
+		}
+	}
+
 	return true;
 }
 

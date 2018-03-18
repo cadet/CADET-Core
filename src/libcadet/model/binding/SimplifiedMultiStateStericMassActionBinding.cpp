@@ -105,6 +105,9 @@ bool SimplifiedMultiStateStericMassActionBinding::configureImpl(bool reconfigure
 	// Check for negative values
 	for (int i = 0; i < _nComp; ++i)
 	{
+		if (_nBoundStates[i] == 0)
+			continue;
+		
 		// ---- Check sigma
 		// Endpoints have to be non-negative
 		if ((_sigmaMin[i] < 0.0) || (_sigmaMax[i] < 0.0))
@@ -264,9 +267,9 @@ void SimplifiedMultiStateStericMassActionBinding::consistentInitialState(double 
 		else
 		{
 			// Analytic Jacobian
-			jacobianFunc = [&](double const* const x, linalg::detail::DenseMatrixBase& mat) -> bool { 
+			jacobianFunc = [&](double const* const x, linalg::detail::DenseMatrixBase& mat) -> bool {
 				mat.setAll(0.0);
-				jacobianImpl(t, z, r, secIdx, x, vecStateY - _nComp, mat.row(0), workSpace); 
+				jacobianImpl(t, z, r, secIdx, x, vecStateY - _nComp, mat.row(0), workSpace);
 				return true;
 			};
 		}
@@ -305,25 +308,31 @@ void SimplifiedMultiStateStericMassActionBinding::consistentInitialState(double 
 template <typename ParamType>
 inline ParamType SimplifiedMultiStateStericMassActionBinding::sigma(int comp, double state) const
 {
-	return static_cast<ParamType>(_sigmaMin[comp]) + state * (static_cast<ParamType>(_sigmaMax[comp]) - static_cast<ParamType>(_sigmaMin[comp])) / (_nBoundStates[comp] - 1) - static_cast<ParamType>(_sigmaQuad[comp]) * state * (1 - _nBoundStates[comp] + state);
+	if (_nBoundStates[comp] > 1)
+		return static_cast<ParamType>(_sigmaMin[comp]) + state * (static_cast<ParamType>(_sigmaMax[comp]) - static_cast<ParamType>(_sigmaMin[comp])) / (_nBoundStates[comp] - 1) - static_cast<ParamType>(_sigmaQuad[comp]) * state * (1 - static_cast<int>(_nBoundStates[comp]) + state);
+	else
+		return static_cast<ParamType>(_sigmaMin[comp]);
 }
 
 template <typename ParamType>
 inline ParamType SimplifiedMultiStateStericMassActionBinding::nu(int comp, double state) const
 {
-	return static_cast<ParamType>(_nuMin[comp]) + state * (static_cast<ParamType>(_nuMax[comp]) - static_cast<ParamType>(_nuMin[comp])) / (_nBoundStates[comp] - 1) - static_cast<ParamType>(_nuQuad[comp]) * state * (1 - _nBoundStates[comp] + state);
+	if (_nBoundStates[comp] > 1)
+		return static_cast<ParamType>(_nuMin[comp]) + state * (static_cast<ParamType>(_nuMax[comp]) - static_cast<ParamType>(_nuMin[comp])) / (_nBoundStates[comp] - 1) - static_cast<ParamType>(_nuQuad[comp]) * state * (1 - static_cast<int>(_nBoundStates[comp]) + state);
+	else
+		return static_cast<ParamType>(_nuMin[comp]);
 }
 
 template <typename ParamType>
 inline ParamType SimplifiedMultiStateStericMassActionBinding::k_sw(int comp, double state) const
 {
-	return static_cast<ParamType>(_kSW[comp]) + state * static_cast<ParamType>(_kSW_lin[comp]) - static_cast<ParamType>(_kSW_quad[comp]) * state * (2 - _nBoundStates[comp] + state);
+	return static_cast<ParamType>(_kSW[comp]) + state * static_cast<ParamType>(_kSW_lin[comp]) - static_cast<ParamType>(_kSW_quad[comp]) * state * (2 - static_cast<int>(_nBoundStates[comp]) + state);
 }
 
 template <typename ParamType>
 inline ParamType SimplifiedMultiStateStericMassActionBinding::k_ws(int comp, double state) const
 {
-	return static_cast<ParamType>(_kWS[comp]) + state * static_cast<ParamType>(_kWS_lin[comp]) - static_cast<ParamType>(_kWS_quad[comp]) * state * (2 - _nBoundStates[comp] + state);
+	return static_cast<ParamType>(_kWS[comp]) + state * static_cast<ParamType>(_kWS_lin[comp]) - static_cast<ParamType>(_kWS_quad[comp]) * state * (2 - static_cast<int>(_nBoundStates[comp]) + state);
 }
 
 template <typename StateType, typename CpStateType, typename ResidualType, typename ParamType>
@@ -373,7 +382,7 @@ int SimplifiedMultiStateStericMassActionBinding::residualImpl(const ParamType& t
 
 			// Calculate residual
 			// Adsorption and desorption
-			res[bndIdx] = static_cast<ParamType>(curKd[i]) * y[bndIdx] * c0_pow_nu - static_cast<ParamType>(curKa[i]) * yCp[i] * q0_bar_pow_nu;
+			res[bndIdx] = static_cast<ParamType>(curKd[j]) * y[bndIdx] * c0_pow_nu - static_cast<ParamType>(curKa[j]) * yCp[i] * q0_bar_pow_nu;
 
 			// Conversion to and from weaker state j - 1
 			if (j > 0)
@@ -385,7 +394,7 @@ int SimplifiedMultiStateStericMassActionBinding::residualImpl(const ParamType& t
 				// Conversion to weaker state
 				res[bndIdx] += curSW * y[bndIdx] * pow(yCp0_divRef, nuDiff);
 				// Conversion from weaker state
-				res[bndIdx] -= curWS * y[bndIdx - 1] * pow(q0_bar_pow_nu, nuDiff);
+				res[bndIdx] -= curWS * y[bndIdx - 1] * pow(q0_bar_divRef, nuDiff);
 			}
 
 			// Conversion to and from stronger state j + 1
@@ -396,7 +405,7 @@ int SimplifiedMultiStateStericMassActionBinding::residualImpl(const ParamType& t
 
 				const ParamType nuDiff = nu<ParamType>(i, j + 1) - curNu;
 				// Conversion to stronger state
-				res[bndIdx] += curWS * y[bndIdx] * pow(q0_bar_pow_nu, nuDiff);
+				res[bndIdx] += curWS * y[bndIdx] * pow(q0_bar_divRef, nuDiff);
 				// Conversion from stronger state
 				res[bndIdx] -= curSW * y[bndIdx + 1] * pow(yCp0_divRef, nuDiff);
 			}
@@ -506,7 +515,7 @@ void SimplifiedMultiStateStericMassActionBinding::jacobianImpl(double t, double 
 			jac[0] += kd * c0_pow_nu;
 
 			// Handle flux terms
-			
+
 			// Conversion to and from weaker states
 			if (j > 0)
 			{
@@ -521,7 +530,7 @@ void SimplifiedMultiStateStericMassActionBinding::jacobianImpl(double t, double 
 				// dres_i / dq_0
 				jac[-bndIdx] -= q0_bar_pow_nudiff_deriv;
 				// dres_i / dq_i^j (current outer loop element)
-				jac[0] += curSW * pow(yCp0_divRef, nuDiff);;
+				jac[0] += curSW * pow(yCp0_divRef, nuDiff);
 				// dres_i / dq_i^l (without dq0_bar / dq_i^l)
 				jac[-1] -= curWS * pow(q0_bar_divRef, nuDiff);
 				// dres_i / dq_{i2}^{j2} (accounts for all dq0_bar / dq_{i2}^{j2} including missing dq0_bar / dq_i^l from above)

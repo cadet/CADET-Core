@@ -331,9 +331,6 @@ protected:
 				++bndIdx2;
 			}
 
-			// Add to dres_i / dq_i^B
-			jac[0] += kd + static_cast<double>(p.k21[i]);
-
 			// Fill dres_i / dq_j^B
 			for (int j = 0; j < _nComp; ++j)
 			{
@@ -347,6 +344,9 @@ protected:
 
 				++bndIdx2;
 			}
+
+			// Add to dres_i / dq_i^B
+			jac[0] += kd + static_cast<double>(p.k21[i]);
 
 			// Add to dres_i / dq_i^A
 			jac[-static_cast<int>(_numBindingComp)] -= static_cast<double>(p.k12[i]) * static_cast<double>(qMax1[i]) * qSum;  // last summand by product rule
