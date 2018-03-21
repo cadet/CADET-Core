@@ -36,14 +36,34 @@ namespace cadet
 namespace model
 {
 
-CADET_BINDINGPARAMS(BiSMAParamHandler, ExtBiSMAParamHandler, 
-	(ScalarBoundStateDependentParameter, lambda, "BISMA_LAMBDA") //!< Ionic capacity
-	(ComponentBoundStateMajorDependentParameter, kA, "BISMA_KA") //!< Adsorption rate
-	(ComponentBoundStateMajorDependentParameter, kD, "BISMA_KD") //!< Desorption rate
-	(ComponentBoundStateMajorDependentParameter, nu, "BISMA_NU") //!< Characteristic charge
-	(ComponentBoundStateMajorDependentParameter, sigma, "BISMA_SIGMA"), //!< Steric factor
-	(ReferenceConcentrationBoundStateDependentParameter, (refC0, refQ), _refConcentration, "BISMA_") //!< Reference concentrations
-);
+/*<codegen>
+{
+	"name": "BiSMAParamHandler",
+	"externalName": "ExtBiSMAParamHandler",
+	"parameters":
+		[
+			{ "type": "ScalarBoundStateDependentParameter", "varName": "lambda", "confName": "BISMA_LAMBDA"},
+			{ "type": "ComponentBoundStateMajorDependentParameter", "varName": "kA", "confName": "BISMA_KA"},
+			{ "type": "ComponentBoundStateMajorDependentParameter", "varName": "kD", "confName": "BISMA_KD"},
+			{ "type": "ComponentBoundStateMajorDependentParameter", "varName": "nu", "confName": "BISMA_NU"},
+			{ "type": "ComponentBoundStateMajorDependentParameter", "varName": "sigma", "confName": "BISMA_SIGMA"}
+		],
+	"constantParameters":
+		[
+			{ "type": "ReferenceConcentrationBoundStateDependentParameter", "varName": ["refC0", "refQ"], "objName": "_refConcentration", "confPrefix": "BISMA_"}
+		]
+}
+</codegen>*/
+
+/* Parameter description
+ ------------------------
+ lambda = Ionic capacity in binding site-major ordering
+ kA = Adsorption rate in binding site-major ordering
+ kD = Desorption rate in binding site-major ordering
+ nu = Characteristic charge in binding site-major ordering
+ sigma = Steric factor in binding site-major ordering
+ refC0, refQ = Reference concentrations
+*/
 
 inline const char* BiSMAParamHandler::identifier() CADET_NOEXCEPT { return "BI_STERIC_MASS_ACTION"; }
 

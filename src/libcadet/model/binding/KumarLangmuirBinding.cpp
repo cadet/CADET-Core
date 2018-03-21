@@ -29,14 +29,31 @@ namespace cadet
 namespace model
 {
 
-CADET_BINDINGPARAMS(KumarLangmuirParamHandler, ExtKumarLangmuirParamHandler, 
-	(ScalarParameter, temperature, "KMCL_TEMP") //!< Salt exponents / characteristic charges @f$ \nu @f$
-	(ScalarComponentDependentParameter, nu, "KMCL_NU") //!< Salt exponents / characteristic charges @f$ \nu @f$
-	(ScalarComponentDependentParameter, kA, "KMCL_KA") //!< Adsorption rate pre-exponential factor / frequency
-	(ScalarComponentDependentParameter, kD, "KMCL_KD") //!< Desorption rate
-	(ScalarComponentDependentParameter, kAct, "KMCL_KACT") //!< Activation temperature @f$ k_{\text{act}} = \frac{E_a}{R} @f$
-	(ScalarComponentDependentParameter, qMax, "KMCL_QMAX"), //!< Capacity
-);
+/*<codegen>
+{
+	"name": "KumarLangmuirParamHandler",
+	"externalName": "ExtKumarLangmuirParamHandler",
+	"parameters":
+		[
+			{ "type": "ScalarParameter", "varName": "temperature", "confName": "KMCL_TEMP"},
+			{ "type": "ScalarComponentDependentParameter", "varName": "kA", "confName": "KMCL_KA"},
+			{ "type": "ScalarComponentDependentParameter", "varName": "kD", "confName": "KMCL_KD"},
+			{ "type": "ScalarComponentDependentParameter", "varName": "qMax", "confName": "KMCL_QMAX"},
+			{ "type": "ScalarComponentDependentParameter", "varName": "kAct", "confName": "KMCL_KACT"},
+			{ "type": "ScalarComponentDependentParameter", "varName": "nu", "confName": "KMCL_NU"}
+		]
+}
+</codegen>*/
+
+/* Parameter description
+ ------------------------
+ temp = Temperature
+ kA = Adsorption rate pre-exponential factor / frequency
+ kD = Desorption rate
+ qMax = Capacity
+ kAct = Activation temperature @f$ k_{\text{act}} = \frac{E_a}{R} @f$
+ nu = Salt exponents / characteristic charges @f$ \nu @f$
+*/
 
 inline const char* KumarLangmuirParamHandler::identifier() CADET_NOEXCEPT { return "KUMAR_MULTI_COMPONENT_LANGMUIR"; }
 

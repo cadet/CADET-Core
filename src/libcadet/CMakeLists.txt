@@ -88,7 +88,25 @@ CHECK_CXX_SOURCE_COMPILES("#include \"cadetCompilerInfo.hpp\" \n class Test { pu
 
 cmake_pop_check_state()
 
-# Add variable LIBCADET_SOURCES with the sources for LIBCADET
+# LIBCADET_BINDINGMODEL_SOURCES holds all source files of binding models
+set (LIBCADET_BINDINGMODEL_SOURCES
+	${CMAKE_SOURCE_DIR}/src/libcadet/model/binding/DummyBinding.cpp
+	${CMAKE_SOURCE_DIR}/src/libcadet/model/binding/LinearBinding.cpp
+	${CMAKE_SOURCE_DIR}/src/libcadet/model/binding/StericMassActionBinding.cpp
+	${CMAKE_SOURCE_DIR}/src/libcadet/model/binding/LangmuirBinding.cpp
+	${CMAKE_SOURCE_DIR}/src/libcadet/model/binding/AntiLangmuirBinding.cpp
+	${CMAKE_SOURCE_DIR}/src/libcadet/model/binding/BiLangmuirBinding.cpp
+	${CMAKE_SOURCE_DIR}/src/libcadet/model/binding/KumarLangmuirBinding.cpp
+	${CMAKE_SOURCE_DIR}/src/libcadet/model/binding/MobilePhaseModulatorLangmuirBinding.cpp
+	${CMAKE_SOURCE_DIR}/src/libcadet/model/binding/SelfAssociationBinding.cpp
+	${CMAKE_SOURCE_DIR}/src/libcadet/model/binding/BiStericMassActionBinding.cpp
+	${CMAKE_SOURCE_DIR}/src/libcadet/model/binding/SaskaBinding.cpp
+	${CMAKE_SOURCE_DIR}/src/libcadet/model/binding/MultiStateStericMassActionBinding.cpp
+	${CMAKE_SOURCE_DIR}/src/libcadet/model/binding/SimplifiedMultiStateStericMassActionBinding.cpp
+	${CMAKE_SOURCE_DIR}/src/libcadet/model/binding/MultiComponentSpreadingBinding.cpp
+)
+
+# LIBCADET_SOURCES holds all source files for LIBCADET target
 set (LIBCADET_SOURCES
 	${CMAKE_CURRENT_BINARY_DIR}/VersionInfo.cpp
 	${CMAKE_SOURCE_DIR}/src/libcadet/Logging.cpp
@@ -113,26 +131,12 @@ set (LIBCADET_SOURCES
 	${CMAKE_SOURCE_DIR}/src/libcadet/model/GeneralRateModel-InitialConditions.cpp
 	${CMAKE_SOURCE_DIR}/src/libcadet/model/operator/ConvectionDispersionOperator.cpp
 	${CMAKE_SOURCE_DIR}/src/libcadet/model/binding/BindingModelBase.cpp
-	${CMAKE_SOURCE_DIR}/src/libcadet/model/binding/DummyBinding.cpp
-	${CMAKE_SOURCE_DIR}/src/libcadet/model/binding/LinearBinding.cpp
-	${CMAKE_SOURCE_DIR}/src/libcadet/model/binding/StericMassActionBinding.cpp
-	${CMAKE_SOURCE_DIR}/src/libcadet/model/binding/LangmuirBinding.cpp
-	${CMAKE_SOURCE_DIR}/src/libcadet/model/binding/AntiLangmuirBinding.cpp
-	${CMAKE_SOURCE_DIR}/src/libcadet/model/binding/BiLangmuirBinding.cpp
-	${CMAKE_SOURCE_DIR}/src/libcadet/model/binding/KumarLangmuirBinding.cpp
-	${CMAKE_SOURCE_DIR}/src/libcadet/model/binding/MobilePhaseModulatorLangmuirBinding.cpp
-	${CMAKE_SOURCE_DIR}/src/libcadet/model/binding/SelfAssociationBinding.cpp
-	${CMAKE_SOURCE_DIR}/src/libcadet/model/binding/BiStericMassActionBinding.cpp
-	${CMAKE_SOURCE_DIR}/src/libcadet/model/binding/SaskaBinding.cpp
-	${CMAKE_SOURCE_DIR}/src/libcadet/model/binding/MultiStateStericMassActionBinding.cpp
-	${CMAKE_SOURCE_DIR}/src/libcadet/model/binding/SimplifiedMultiStateStericMassActionBinding.cpp
-	${CMAKE_SOURCE_DIR}/src/libcadet/model/binding/MultiComponentSpreadingBinding.cpp
 	${CMAKE_SOURCE_DIR}/src/libcadet/model/inlet/PiecewiseCubicPoly.cpp
 	${CMAKE_SOURCE_DIR}/src/libcadet/model/extfun/LinearInterpolationExternalFunction.cpp
 	${CMAKE_SOURCE_DIR}/src/libcadet/model/extfun/PiecewiseCubicPolyExternalFunction.cpp
 )
 
-# Add variable LIBCADET_NONLINALG_SOURCES with the sources for LIBCADET_NONLINALG
+# LIBCADET_NONLINALG_SOURCES holds all source files for LIBCADET_NONLINALG target
 set (LIBCADET_NONLINALG_SOURCES
 	${CMAKE_SOURCE_DIR}/src/libcadet/linalg/BandMatrix.cpp
 	${CMAKE_SOURCE_DIR}/src/libcadet/linalg/DenseMatrix.cpp
@@ -143,6 +147,20 @@ set (LIBCADET_NONLINALG_SOURCES
 	${CMAKE_SOURCE_DIR}/src/libcadet/nonlin/CompositeSolver.cpp
 	${CMAKE_SOURCE_DIR}/src/libcadet/nonlin/Solver.cpp
 )
+
+
+# Preprocess binding models
+foreach(BM IN LISTS LIBCADET_BINDINGMODEL_SOURCES)
+	get_filename_component(BMFILEWE ${BM} NAME_WE)
+	get_filename_component(BMFILE ${BM} NAME)
+	add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${BMFILE} 
+		COMMAND templateCodeGen ${CMAKE_SOURCE_DIR}/src/libcadet/model/binding/ExternalFunctionTemplate.cpp ${BM} ${CMAKE_CURRENT_BINARY_DIR}/${BMFILE} 
+		MAIN_DEPENDENCY ${BM} 
+		DEPENDS ${CMAKE_SOURCE_DIR}/src/libcadet/model/binding/ExternalFunctionTemplate.cpp 
+		COMMENT "Generating code for ${BMFILEWE}"
+	)
+	list (APPEND LIBCADET_SOURCES "${CMAKE_CURRENT_BINARY_DIR}/${BMFILE}")
+endforeach()
 
 
 set (LIBCADET_TARGETS )
@@ -222,7 +240,7 @@ foreach(_TARGET IN LISTS LIBNONLINALG_TARGETS)
 endforeach()
 foreach(_TARGET IN LISTS LIBCADET_TARGETS)
 	target_include_directories (${_TARGET} PUBLIC $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/include> $<INSTALL_INTERFACE:include> 
-	    PRIVATE ${CMAKE_SOURCE_DIR}/src/libcadet ${CMAKE_BINARY_DIR} ${CMAKE_SOURCE_DIR}/ThirdParty/order-pp/inc ${SUNDIALS_INCLUDE_DIRS} ${TBB_INCLUDE_DIRS})
+	    PRIVATE ${CMAKE_SOURCE_DIR}/src/libcadet ${CMAKE_BINARY_DIR} ${SUNDIALS_INCLUDE_DIRS} ${TBB_INCLUDE_DIRS})
 endforeach()
 
 # Link against TBB
@@ -276,7 +294,7 @@ if (BUILD_CADET_MEX)
 	target_link_libraries(libcadet_mex PRIVATE libcadet_nonlinalg_mex ${SUNDIALS_STATIC_LIBRARIES} ${Matlab_TBB_LIBRARY})
 	
 	target_include_directories (libcadet_mex PUBLIC $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/include> $<INSTALL_INTERFACE:include> 
-	    PRIVATE ${CMAKE_SOURCE_DIR}/src/libcadet ${CMAKE_BINARY_DIR} ${CMAKE_SOURCE_DIR}/ThirdParty/order-pp/inc ${SUNDIALS_INCLUDE_DIRS} ${TBB_INCLUDE_DIRS})
+	    PRIVATE ${CMAKE_SOURCE_DIR}/src/libcadet ${CMAKE_BINARY_DIR} ${SUNDIALS_INCLUDE_DIRS} ${TBB_INCLUDE_DIRS})
 
 	set_target_properties(libcadet_mex PROPERTIES DEBUG_POSTFIX _d VERSION ${CADET_VERSION} SOVERSION "0")
 	set_target_properties(libcadet_mex PROPERTIES POSITION_INDEPENDENT_CODE ON)

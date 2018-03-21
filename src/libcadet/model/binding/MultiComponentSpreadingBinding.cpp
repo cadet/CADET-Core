@@ -28,13 +28,29 @@ namespace cadet
 namespace model
 {
 
-CADET_BINDINGPARAMS(SpreadingParamHandler, ExtSpreadingParamHandler, 
-	(ComponentBoundStateMajorDependentParameter, kA, "MCSPR_KA") //!< Adsorption rate in state-major ordering
-	(ComponentBoundStateMajorDependentParameter, kD, "MCSPR_KD") //!< Desorption rate in state-major ordering
-	(ComponentBoundStateMajorDependentParameter, qMax, "MCSPR_QMAX") //!< Capacity in state-major ordering
-	(ScalarComponentDependentParameter, k12, "MCSPR_K12") //!< Transition rate from state @f$ q_i^A @f$ to state @f$ q_i^B @f$
-	(ScalarComponentDependentParameter, k21, "MCSPR_K21"), //!< Transition rate from state @f$ q_i^B @f$ to state @f$ q_i^A @f$
-);
+/*<codegen>
+{
+	"name": "SpreadingParamHandler",
+	"externalName": "ExtSpreadingParamHandler",
+	"parameters":
+		[
+			{ "type": "ComponentBoundStateMajorDependentParameter", "varName": "kA", "confName": "MCSPR_KA"},
+			{ "type": "ComponentBoundStateMajorDependentParameter", "varName": "kD", "confName": "MCSPR_KD"},
+			{ "type": "ComponentBoundStateMajorDependentParameter", "varName": "qMax", "confName": "MCSPR_QMAX"},
+			{ "type": "ScalarComponentDependentParameter", "varName": "k12", "confName": "MCSPR_K12"},
+			{ "type": "ScalarComponentDependentParameter", "varName": "k21", "confName": "MCSPR_K21"}
+		]
+}
+</codegen>*/
+
+/* Parameter description
+ ------------------------
+ kA = Adsorption rate in state-major ordering
+ kD = Desorption rate in state-major ordering
+ qMax = Capacity in state-major ordering
+ k12 = Transition rate from state @f$ q_i^A @f$ to state @f$ q_i^B @f$
+ k21 = Transition rate from state @f$ q_i^B @f$ to state @f$ q_i^A @f$
+*/
 
 inline const char* SpreadingParamHandler::identifier() CADET_NOEXCEPT { return "MULTI_COMPONENT_SPREADING"; }
 

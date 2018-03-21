@@ -28,13 +28,29 @@ namespace cadet
 namespace model
 {
 
-CADET_BINDINGPARAMS(MPMLangmuirParamHandler, ExtMPMLangmuirParamHandler, 
-	(ScalarComponentDependentParameter, kA, "MPM_KA") //!< Adsorption rate
-	(ScalarComponentDependentParameter, kD, "MPM_KD") //!< Desorption rate
-	(ScalarComponentDependentParameter, qMax, "MPM_QMAX") //!< Capacity
-	(ScalarComponentDependentParameter, gamma, "MPM_GAMMA") //!< Hydrophobicity
-	(ScalarComponentDependentParameter, beta, "MPM_BETA"), //!< Ion exchange characteristics
-);
+/*<codegen>
+{
+	"name": "MPMLangmuirParamHandler",
+	"externalName": "ExtMPMLangmuirParamHandler",
+	"parameters":
+		[
+			{ "type": "ScalarComponentDependentParameter", "varName": "kA", "confName": "MPM_KA"},
+			{ "type": "ScalarComponentDependentParameter", "varName": "kD", "confName": "MPM_KD"},
+			{ "type": "ScalarComponentDependentParameter", "varName": "qMax", "confName": "MPM_QMAX"},
+			{ "type": "ScalarComponentDependentParameter", "varName": "gamma", "confName": "MPM_GAMMA"},
+			{ "type": "ScalarComponentDependentParameter", "varName": "beta", "confName": "MPM_BETA"}
+		]
+}
+</codegen>*/
+
+/* Parameter description
+ ------------------------
+ kA = Adsorption rate
+ kD = Desorption rate
+ qMax = Capacity
+ gamma = Hydrophobicity
+ beta = Ion exchange characteristics
+*/
 
 inline const char* MPMLangmuirParamHandler::identifier() CADET_NOEXCEPT { return "MOBILE_PHASE_MODULATOR"; }
 

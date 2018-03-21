@@ -37,15 +37,36 @@ namespace cadet
 namespace model
 {
 
-CADET_BINDINGPARAMS(SelfAssociationParamHandler, ExtSelfAssociationParamHandler, 
-	(ScalarParameter, lambda, "SAI_LAMBDA") //!< Ionic capacity
-	(ScalarComponentDependentParameter, kA, "SAI_KA") //!< Adsorption rate
-	(ScalarComponentDependentParameter, kA2, "SAI_KA2") //!< Adsorption rate of dimerization
-	(ScalarComponentDependentParameter, kD, "SAI_KD") //!< Desorption rate
-	(ScalarComponentDependentParameter, nu, "SAI_NU") //!< Characteristic charge
-	(ScalarComponentDependentParameter, sigma, "SAI_SIGMA"), //!< Steric factor
-	(ReferenceConcentrationParameter, (refC0, refQ), _refConcentration, "SAI_") //!< Reference concentrations
-);
+/*<codegen>
+{
+	"name": "SelfAssociationParamHandler",
+	"externalName": "ExtSelfAssociationParamHandler",
+	"parameters":
+		[
+			{ "type": "ScalarParameter", "varName": "lambda", "confName": "SAI_LAMBDA"},
+			{ "type": "ScalarComponentDependentParameter", "varName": "kA", "confName": "SAI_KA"},
+			{ "type": "ScalarComponentDependentParameter", "varName": "kA2", "confName": "SAI_KA2"},
+			{ "type": "ScalarComponentDependentParameter", "varName": "kD", "confName": "SAI_KD"},
+			{ "type": "ScalarComponentDependentParameter", "varName": "nu", "confName": "SAI_NU"},
+			{ "type": "ScalarComponentDependentParameter", "varName": "sigma", "confName": "SAI_SIGMA"}
+		],
+	"constantParameters":
+		[
+			{ "type": "ReferenceConcentrationParameter", "varName": ["refC0", "refQ"], "objName": "_refConcentration", "confPrefix": "SAI_"}
+		]
+}
+</codegen>*/
+
+/* Parameter description
+ ------------------------
+ lambda = Ionic capacity
+ kA = Adsorption rate
+ kA2 = Adsorption rate of dimerization
+ kD = Desorption rate
+ nu = Characteristic charge
+ sigma = Steric factor
+ refC0, refQ = Reference concentrations
+*/
 
 inline const char* SelfAssociationParamHandler::identifier() CADET_NOEXCEPT { return "SELF_ASSOCIATION"; }
 

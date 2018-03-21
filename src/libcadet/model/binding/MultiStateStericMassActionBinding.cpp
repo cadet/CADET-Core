@@ -36,15 +36,36 @@ namespace cadet
 namespace model
 {
 
-CADET_BINDINGPARAMS(MSSMAParamHandler, ExtMSSMAParamHandler, 
-	(ScalarParameter, lambda, "MSSMA_LAMBDA") //!< Ionic capacity
-	(ComponentMajorBoundStateDependentParameter, kA, "MSSMA_KA") //!< Adsorption rate in component-major ordering
-	(ComponentMajorBoundStateDependentParameter, kD, "MSSMA_KD") //!< Desorption rate in component-major ordering
-	(ComponentMajorBoundStateDependentParameter, nu, "MSSMA_NU") //!< Characteristic charge in component-major ordering
-	(ComponentMajorBoundStateDependentParameter, sigma, "MSSMA_SIGMA") //!< Steric factor in component-major ordering
-	(ComponentDependentBoundStateMatrixParameter, kRate, "MSSMA_RATES"), //!< State transition rates @f$ k_{\ell j}^{(i)} @f$ in component-row-major ordering
-	(ReferenceConcentrationParameter, (refC0, refQ), _refConcentration, "MSSMA_") //!< Reference concentrations
-);
+/*<codegen>
+{
+	"name": "MSSMAParamHandler",
+	"externalName": "ExtMSSMAParamHandler",
+	"parameters":
+		[
+			{ "type": "ScalarParameter", "varName": "lambda", "confName": "MSSMA_LAMBDA"},
+			{ "type": "ComponentMajorBoundStateDependentParameter", "varName": "kA", "confName": "MSSMA_KA"},
+			{ "type": "ComponentMajorBoundStateDependentParameter", "varName": "kD", "confName": "MSSMA_KD"},
+			{ "type": "ComponentMajorBoundStateDependentParameter", "varName": "nu", "confName": "MSSMA_NU"},
+			{ "type": "ComponentMajorBoundStateDependentParameter", "varName": "sigma", "confName": "MSSMA_SIGMA"},
+			{ "type": "ComponentDependentBoundStateMatrixParameter", "varName": "kRate", "confName": "MSSMA_RATES"}
+		],
+	"constantParameters":
+		[
+			{ "type": "ReferenceConcentrationParameter", "varName": ["refC0", "refQ"], "objName": "_refConcentration", "confPrefix": "MSSMA_"}
+		]
+}
+</codegen>*/
+
+/* Parameter description
+ ------------------------
+ lambda = Ionic capacity
+ kA = Adsorption rate in component-major ordering
+ kD = Desorption rate in component-major ordering
+ nu = Characteristic charge in component-major ordering
+ sigma = Steric factor in component-major ordering
+ kRate = State transition rates @f$ k_{\ell j}^{(i)} @f$ in component-row-major ordering
+ refC0, refQ = Reference concentrations
+*/
 
 inline const char* MSSMAParamHandler::identifier() CADET_NOEXCEPT { return "MULTISTATE_STERIC_MASS_ACTION"; }
 

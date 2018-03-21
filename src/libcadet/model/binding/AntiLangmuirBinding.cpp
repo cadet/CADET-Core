@@ -27,12 +27,27 @@ namespace cadet
 namespace model
 {
 
-CADET_BINDINGPARAMS(AntiLangmuirParamHandler, ExtAntiLangmuirParamHandler, 
-	(ScalarComponentDependentParameter, kA, "MCAL_KA") //!< Adsorption rate
-	(ScalarComponentDependentParameter, kD, "MCAL_KD") //!< Desorption rate
-	(ScalarComponentDependentParameter, qMax, "MCAL_QMAX") //!< Capacity
-	(ScalarComponentDependentParameter, antiLangmuir, "MCAL_ANTILANGMUIR"), //!< Anti-Langmuir factor
-);
+/*<codegen>
+{
+	"name": "AntiLangmuirParamHandler",
+	"externalName": "ExtAntiLangmuirParamHandler",
+	"parameters":
+		[
+			{ "type": "ScalarComponentDependentParameter", "varName": "kA", "confName": "MCAL_KA"},
+			{ "type": "ScalarComponentDependentParameter", "varName": "kD", "confName": "MCAL_KD"},
+			{ "type": "ScalarComponentDependentParameter", "varName": "qMax", "confName": "MCAL_QMAX"},
+			{ "type": "ScalarComponentDependentParameter", "varName": "antiLangmuir", "confName": "MCAL_ANTILANGMUIR"}
+		]
+}
+</codegen>*/
+
+/* Parameter description
+ ------------------------
+ kA = Adsorption rate
+ kD = Desorption rate
+ qMax = Capacity
+ antiLangmuir = Anti-Langmuir factor
+*/
 
 inline const char* AntiLangmuirParamHandler::identifier() CADET_NOEXCEPT { return "MULTI_COMPONENT_ANTILANGMUIR"; }
 

@@ -37,14 +37,34 @@ namespace cadet
 namespace model
 {
 
-CADET_BINDINGPARAMS(SMAParamHandler, ExtSMAParamHandler, 
-	(ScalarParameter, lambda, "SMA_LAMBDA") //!< Ionic capacity
-	(ScalarComponentDependentParameter, kA, "SMA_KA") //!< Adsorption rate
-	(ScalarComponentDependentParameter, kD, "SMA_KD") //!< Desorption rate
-	(ScalarComponentDependentParameter, nu, "SMA_NU") //!< Characteristic charge
-	(ScalarComponentDependentParameter, sigma, "SMA_SIGMA"), //!< Steric factor
-	(ReferenceConcentrationParameter, (refC0, refQ), _refConcentration, "SMA_") //!< Reference concentrations
-);
+/*<codegen>
+{
+	"name": "SMAParamHandler",
+	"externalName": "ExtSMAParamHandler",
+	"parameters":
+		[
+			{ "type": "ScalarParameter", "varName": "lambda", "confName": "SMA_LAMBDA"},
+			{ "type": "ScalarComponentDependentParameter", "varName": "kA", "confName": "SMA_KA"},
+			{ "type": "ScalarComponentDependentParameter", "varName": "kD", "confName": "SMA_KD"},
+			{ "type": "ScalarComponentDependentParameter", "varName": "nu", "confName": "SMA_NU"},
+			{ "type": "ScalarComponentDependentParameter", "varName": "sigma", "confName": "SMA_SIGMA"}
+		],
+	"constantParameters":
+		[
+			{ "type": "ReferenceConcentrationParameter", "varName": ["refC0", "refQ"], "objName": "_refConcentration", "confPrefix": "SMA_"}
+		]
+}
+</codegen>*/
+
+/* Parameter description
+ ------------------------
+ lambda = Ionic capacity
+ kA = Adsorption rate
+ kD = Desorption rate
+ nu = Characteristic charge
+ sigma = Steric factor
+ refC0, refQ = Reference concentrations
+*/
 
 inline const char* SMAParamHandler::identifier() CADET_NOEXCEPT { return "STERIC_MASS_ACTION"; }
 

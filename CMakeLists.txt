@@ -344,6 +344,8 @@ endif ()
 
 include("${CMAKE_SOURCE_DIR}/cmake/TargetFunctions.cmake")
 
+# Build tools
+add_subdirectory (src/build-tools)
 # Shared components
 add_subdirectory (src/libcadet)
 # Add LIBCADET targets to the list of all targets

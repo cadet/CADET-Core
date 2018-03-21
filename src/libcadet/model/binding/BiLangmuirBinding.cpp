@@ -28,11 +28,25 @@ namespace cadet
 namespace model
 {
 
-CADET_BINDINGPARAMS(BiLangmuirParamHandler, ExtBiLangmuirParamHandler, 
-	(ComponentBoundStateMajorDependentParameter, kA, "MCBL_KA") //!< Adsorption rate
-	(ComponentBoundStateMajorDependentParameter, kD, "MCBL_KD") //!< Desorption rate
-	(ComponentBoundStateMajorDependentParameter, qMax, "MCBL_QMAX"), //!< Capacity
-);
+/*<codegen>
+{
+	"name": "BiLangmuirParamHandler",
+	"externalName": "ExtBiLangmuirParamHandler",
+	"parameters":
+		[
+			{ "type": "ComponentBoundStateMajorDependentParameter", "varName": "kA", "confName": "MCBL_KA"},
+			{ "type": "ComponentBoundStateMajorDependentParameter", "varName": "kD", "confName": "MCBL_KD"},
+			{ "type": "ComponentBoundStateMajorDependentParameter", "varName": "qMax", "confName": "MCBL_QMAX"}
+		]
+}
+</codegen>*/
+
+/* Parameter description
+ ------------------------
+ kA = Adsorption rate in binding site-major ordering
+ kD = Desorption rate in binding site-major ordering
+ qMax = Capacity in binding site-major ordering
+*/
 
 inline const char* BiLangmuirParamHandler::identifier() CADET_NOEXCEPT { return "MULTI_COMPONENT_BILANGMUIR"; }
 

@@ -29,10 +29,23 @@ namespace cadet
 namespace model
 {
 
-CADET_BINDINGPARAMS(SaskaParamHandler, ExtSaskaParamHandler, 
-	(ScalarComponentDependentParameter, h, "SASKA_H") //!< Henry coefficient
-	(ComponentDependentComponentVectorParameter, k, "SASKA_K"), //!< Quadratic factor
-);
+/*<codegen>
+{
+	"name": "SaskaParamHandler",
+	"externalName": "ExtSaskaParamHandler",
+	"parameters":
+		[
+			{ "type": "ScalarComponentDependentParameter", "varName": "h", "confName": "SASKA_H"},
+			{ "type": "ComponentDependentComponentVectorParameter", "varName": "k", "confName": "SASKA_K"}
+		]
+}
+</codegen>*/
+
+/* Parameter description
+ ------------------------
+ h = Henry coefficient
+ k = Quadratic factor
+*/
 
 inline const char* SaskaParamHandler::identifier() CADET_NOEXCEPT { return "SASKA"; }
 
