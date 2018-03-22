@@ -60,6 +60,13 @@ namespace log
 
 #ifndef CADET_LOGGING_DISABLE
 	typedef Logger<RuntimeFilteringLogger<GlobalLogger>, LogLevel::CADET_LOGLEVEL_MIN> DoubleFilterLogger;
+
+	#ifdef __clang__
+		// Silence -Wundefined-var-template warning by indicating an 
+		// explicit instantiation of this template in another translation unit
+		template<> LogLevel RuntimeFilteringLogger<GlobalLogger>::_minLvl;
+		extern template class RuntimeFilteringLogger<GlobalLogger>;
+	#endif
 #else
 	typedef Logger<GlobalLogger, LogLevel::None> DiscardingLogger;
 #endif

@@ -38,6 +38,11 @@
 #ifndef CADET_LOGGING_DISABLE
 	template <>
 	cadet::LogLevel cadet::log::RuntimeFilteringLogger<cadet::log::GlobalLogger>::_minLvl = cadet::LogLevel::Trace;
+
+	#ifdef __clang__
+		// Silence -Wundefined-var-template warning
+		template class cadet::log::RuntimeFilteringLogger<cadet::log::GlobalLogger>;
+	#endif
 #endif
 
 namespace
