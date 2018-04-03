@@ -11,9 +11,10 @@ The Chromatography Analysis and Design Toolkit (CADET) is developed at the Insti
 
 The CADET framework also comprises a MATLAB interface and standard routines for parameter estimation, process optimization and experimental design. CADET is freely distributed (under the terms of the GPLv3) as a contribution to the scientific community. If you find it useful for your own work, we would appreciate acknowledgements of the CADET software and citations of our papers (see the [BibTeX citations](https://github.com/modsim/cadet/wiki/Referencing-CADET)):
 
-* von Lieres, E.; Andersson, J.: [A fast and accurate solver for the general rate model of column liquid chromatography](http://dx.doi.org/10.1016/j.compchemeng.2010.03.008), Computers and Chemical Engineering 34,8 (2010), 1180–1191.
-* Püttmann, A.; Schnittert, S.; Naumann, U.; von Lieres, E.: [Fast and accurate parameter sensitivities for the general rate model of column liquid chromatography](http://dx.doi.org/10.1016/j.compchemeng.2013.04.021), Computers and Chemical Engineering 56,13 (2013), 46-57.
-* Püttmann, A.; Schnittert, S.; Leweke, S.; von Lieres, E.: [Utilizing algorithmic differentiation to efficiently compute chromatograms and parameter sensitivities](http://dx.doi.org/10.1016/j.ces.2015.08.050), Chemical Engineering Science, 139 (2016), 152–162.
+* Leweke, S.; von Lieres, E.: [Chromatography Analysis and Design Toolkit (CADET)](http://doi.org/10.1016/j.compchemeng.2018.02.025), Computers and Chemical Engineering 113 (2018), 274–294.
+* Püttmann, A.; Schnittert, S.; Leweke, S.; von Lieres, E.: [Utilizing algorithmic differentiation to efficiently compute chromatograms and parameter sensitivities](http://doi.org/10.1016/j.ces.2015.08.050), Chemical Engineering Science, 139 (2016), 152–162.
+* Püttmann, A.; Schnittert, S.; Naumann, U.; von Lieres, E.: [Fast and accurate parameter sensitivities for the general rate model of column liquid chromatography](http://doi.org/10.1016/j.compchemeng.2013.04.021), Computers and Chemical Engineering 56,13 (2013), 46-57.
+* von Lieres, E.; Andersson, J.: [A fast and accurate solver for the general rate model of column liquid chromatography](http://doi.org/10.1016/j.compchemeng.2010.03.008), Computers and Chemical Engineering 34,8 (2010), 1180–1191.
 
 ## Features
 
