@@ -692,14 +692,26 @@ void reRun(cadet::Driver& drv, int nlhs, mxArray** plhs, int nrhs, const mxArray
 
 	if (nrhs == 3)
 	{
-		// Set initial conditions
-		cadet::mex::MatlabReaderWriter reader(const_cast<mxArray**>(&prhs[2]));
-		cadet::ParameterProviderImpl<cadet::mex::MatlabReaderWriter> pp(reader, false);
-		drv.setInitialCondition(pp);
+		if (mxIsLogical(prhs[2]))
+		{
+			// Third parameter is a logical that controls whether consistent initialization is skipped
+			mxLogical const* const skipConsistInit = mxGetLogicals(prhs[2]);
+			if (*skipConsistInit)
+			{
+				drv.simulator()->skipConsistentInitialization();
+			}
+		}
+		else
+		{
+			// Set initial conditions
+			cadet::mex::MatlabReaderWriter reader(const_cast<mxArray**>(&prhs[2]));
+			cadet::ParameterProviderImpl<cadet::mex::MatlabReaderWriter> pp(reader, false);
+			drv.setInitialCondition(pp);
+		}
 	}
 	else
 	{
-		// Resume simulation from last state
+		// Resume simulation from last state, skip consistent initialization
 		drv.simulator()->skipConsistentInitialization();
 	}
 

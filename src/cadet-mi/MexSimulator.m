@@ -569,35 +569,49 @@ classdef MexSimulator < handle
 			res = ResultsHelper.extract(res, obj.model.numUnitOperations);
 		end
 
-		function [res] = resume(obj, skipValidation)
+		function [res] = resume(obj, skipValidation, skipConsistentInit)
 			%RESUME Resumes a simulation from the current state
 			%   RES = RESUME() does not reset solver state (e.g., state vectors) and continues
 			%   the simulation from the last point on. Returns the results in a nested Matlab
-			%   struct that contains cell arrays (one cell per unit operation) as leaves. The
-			%   configuration is validated by default.
+			%   struct that contains cell arrays (one cell per unit operation) as leaves. By
+			%   default, the configuration is validated and consistent initialization is
+			%   performed.
 			%
 			%   RES = RESUME(..., SKIPVALIDATION) toggles whether validation of the simulator
 			%   configuration is skipped or not by setting SKIPVALIDATION appropriately.
+			%
+			%   RES = RESUME(..., SKIPVALIDATION, SKIPCONSISTENTINIT) toggles whether consistent
+			%   initialization is skipped or not by setting SKIPCONSISTENTINIT appropriately.
 			%
 			% See also MEXSIMULATOR.RESUMEWITHPARAMETERS, MEXSIMULATOR.RUN, MEXSIMULATOR.RUNWITHPARAMETERS
 
 			if (nargin <= 2) || isempty(skipValidation)
 				skipValidation = true;
 			end
-			res = obj.resumeWithParameters([], skipValidation);
+
+			if (nargin <= 3) || isempty(skipConsistentInit)
+				skipConsistentInit = false;
+			else
+				skipConsistentInit = logical(skipConsistentInit);
+			end
+
+			res = obj.resumeWithParameters([], skipValidation, skipConsistentInit);
 		end
 
-		function [res] = resumeWithParameters(obj, paramVals, skipValidation)
+		function [res] = resumeWithParameters(obj, paramVals, skipValidation, skipConsistentInit)
 			%RESUMEWITHPARAMETERS Resumes a simulation from the current state with given parameters
 			%   RES = RESUMEWITHPARAMETERS(PARAMVALS) does not reset solver state (e.g.,
 			%   state vectors) and continues the simulation from the last point on with the
 			%   parameters PARAMVALS. Returns the results in a nested Matlab struct that
-			%   contains cell arrays (one cell per unit operation) as leaves.
-			%   CADET is configured if it has not been yet, and the configuration is
-			%   validated by default.
+			%   contains cell arrays (one cell per unit operation) as leaves. By default,
+			%   the configuration is validated and consistent initialization is performed.
 			%
 			%   RES = RESUMEWITHPARAMETERS(..., SKIPVALIDATION) toggles whether validation
 			%   of the simulator configuration is skipped or not by setting SKIPVALIDATION
+			%   appropriately.
+			%
+			%   RES = RESUMEWITHPARAMETERS(..., SKIPVALIDATION, SKIPCONSISTENTINIT) toggles
+			%   whether consistent initialization is skipped or not by setting SKIPCONSISTENTINIT
 			%   appropriately.
 			%
 			% See also MEXSIMULATOR.RESUME, MEXSIMULATOR.RUN, MEXSIMULATOR.RUNWITHPARAMETERS
@@ -606,12 +620,18 @@ classdef MexSimulator < handle
 				skipValidation = true;
 			end
 
+			if (nargin <= 3) || isempty(skipConsistentInit)
+				skipConsistentInit = false;
+			else
+				skipConsistentInit = logical(skipConsistentInit);
+			end
+
 			obj.updateCadetConfig(skipValidation);
 
 			if ~isempty(paramVals)
 				obj.setVariableParameterValues(paramVals);
 			end
-			res = CadetMex('rerun', obj.mexHandle);
+			res = CadetMex('rerun', obj.mexHandle, skipConsistentInit);
 			res = ResultsHelper.extract(res, obj.model.numUnitOperations);
 		end
 
