@@ -71,7 +71,7 @@ function jointSensitivities()
 	sim.setParameters(params, [true, false, false, true]);
 
 	% Run first simulation with current parameters set in the model
-	res1 = sim.runWithParameters([], false);
+	res1 = sim.runWithParameters([]);
 	sol1 = [res1.solution.time, res1.solution.outlet{1}];
 
 	% Extract sensitivities into a 3D array. The first dimension is time (rows), the second is
@@ -81,8 +81,8 @@ function jointSensitivities()
 	% Note that res1.sensitivity.jacobian{1} has 2 sheets since only two parameter sensitivities are
 	% computed.
 	
-	% Run second simulation with the parameters given in the vector
-	res2 = sim.runWithParameters([30, 0.016, 1.1, 120]);
+	% Run second simulation with the parameters given in the vector (skip validation of input data on second run)
+	res2 = sim.runWithParameters([30, 0.016, 1.1, 120], true);
 	sol2 = [res2.solution.time, res1.solution.outlet{1}];
 	sens2 = [repmat(res2.solution.time, 1, 1, size(res2.sensitivity.jacobian{1}, 3)), res2.sensitivity.jacobian{1}];
 

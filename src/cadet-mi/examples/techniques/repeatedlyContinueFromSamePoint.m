@@ -55,7 +55,8 @@ function repeatedlyContinueFromSamePoint()
 	shapes = cell(length(slopes), 1);
 
 	for i = 1:length(slopes)
-		res2 = sim.runWithParameters(slopes(i));
+		% Skip validation of input data on subsequent runs
+		res2 = sim.runWithParameters(slopes(i), true);
 
 		% Extract solution and glue the pieces together
 		shapes{i} = [sol1; ...

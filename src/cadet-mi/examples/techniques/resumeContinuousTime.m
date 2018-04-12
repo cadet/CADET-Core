@@ -36,7 +36,7 @@ function resumeContinuousTime()
 	setInlet(sim, 0, 750);
 
 	% Run the first half and extract solution and sensitivity
-	res1 = sim.runWithParameters([], false);
+	res1 = sim.runWithParameters([]);
 	sol1 = [res1.solution.time, res1.solution.outlet{1}];
 	sens1 = [res1.solution.time, res1.sensitivity.jacobian{1}];
 

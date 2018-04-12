@@ -537,7 +537,7 @@ classdef MexSimulator < handle
 			%   MEXSIMULATOR.RESUMEWITHPARAMETERS
 
 			if (nargin <= 2) || isempty(skipValidation)
-				skipValidation = true;
+				skipValidation = false;
 			end
 			res = obj.runWithParameters([], skipValidation);
 		end
@@ -557,7 +557,7 @@ classdef MexSimulator < handle
 			% See also MEXSIMULATOR.RUN, MEXSIMULATOR.RESUME, MEXSIMULATOR.RESUMEWITHPARAMETERS
 			
 			if (nargin <= 2) || isempty(skipValidation)
-				skipValidation = true;
+				skipValidation = false;
 			end
 
 			obj.updateCadetConfig(skipValidation);
@@ -574,7 +574,7 @@ classdef MexSimulator < handle
 			%   RES = RESUME() does not reset solver state (e.g., state vectors) and continues
 			%   the simulation from the last point on. Returns the results in a nested Matlab
 			%   struct that contains cell arrays (one cell per unit operation) as leaves. By
-			%   default, the configuration is validated and consistent initialization is
+			%   default, the configuration is not validated and consistent initialization is
 			%   performed.
 			%
 			%   RES = RESUME(..., SKIPVALIDATION) toggles whether validation of the simulator
@@ -604,7 +604,7 @@ classdef MexSimulator < handle
 			%   state vectors) and continues the simulation from the last point on with the
 			%   parameters PARAMVALS. Returns the results in a nested Matlab struct that
 			%   contains cell arrays (one cell per unit operation) as leaves. By default,
-			%   the configuration is validated and consistent initialization is performed.
+			%   the configuration is not validated and consistent initialization is performed.
 			%
 			%   RES = RESUMEWITHPARAMETERS(..., SKIPVALIDATION) toggles whether validation
 			%   of the simulator configuration is skipped or not by setting SKIPVALIDATION

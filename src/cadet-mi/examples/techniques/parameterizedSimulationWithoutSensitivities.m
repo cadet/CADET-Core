@@ -42,12 +42,12 @@ function parameterizedSimulationWithoutSensitivities()
 	sim.setParameters(params, false(3, 1));
 
 	% Run first simulation with current parameters set in the model
-	res1 = sim.runWithParameters([], false);
+	res1 = sim.runWithParameters([]);
 	sol1 = [res1.solution.time, res1.solution.outlet{1}];
 
 	% Run second simulation with the parameters given in the vector (i.e., lower adsoprtion rate, 
-	% longer column, and higher loading)
-	res2 = sim.runWithParameters([30, 0.016, 1.1]);
+	% longer column, and higher loading), skip validation of input data on second run
+	res2 = sim.runWithParameters([30, 0.016, 1.1], true);
 	sol2 = [res2.solution.time, res2.solution.outlet{1}];
 
 	% Note that the model parameters have changed to the given values:

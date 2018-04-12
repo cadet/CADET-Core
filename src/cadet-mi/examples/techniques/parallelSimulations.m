@@ -42,7 +42,7 @@ function parallelSimulations()
 		samples(i, :) = [5.75e-4 + (-1 + 2*rand())*1e-4, 7.14e-3 + (-1 + 2*rand())*1e-3];
 
 		% Run simulation and extract results
-		localRes = sim.runWithParameters(samples(i, :), false);
+		localRes = sim.runWithParameters(samples(i, :));
 		result{i} = [localRes.solution.time, localRes.solution.outlet{1}];
 	end
 	
