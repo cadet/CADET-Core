@@ -88,7 +88,7 @@ public:
 
 		// Find the the interval [_sectionTimes[idx], _sectionTimes[idx+1]] in which transT is located
 		const std::vector<double>::iterator it = std::lower_bound(_sectionTimes.begin(), _sectionTimes.end(), transT);
-		const std::size_t idx = it - _sectionTimes.begin();
+		const std::size_t idx = (it - _sectionTimes.begin()) - (*it > transT ? 1 : 0);
 
 		// This function evaluates a piecewise cubic polynomial given on some intervals
 		// called sections. On each section a polynomial of degree 3 is evaluated:
@@ -116,7 +116,7 @@ public:
 
 		// Find the the interval [_sectionTimes[idx], _sectionTimes[idx+1]] in which transT is located
 		const std::vector<double>::iterator it = std::lower_bound(_sectionTimes.begin(), _sectionTimes.end(), transT);
-		const std::size_t idx = it - _sectionTimes.begin();
+		const std::size_t idx = (it - _sectionTimes.begin()) - (*it > transT ? 1 : 0);
 
 		// This function evaluates a piecewise cubic polynomial given on some intervals
 		// called sections. On each section a polynomial of degree 3 is evaluated:

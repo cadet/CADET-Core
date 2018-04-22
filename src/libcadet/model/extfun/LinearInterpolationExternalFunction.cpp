@@ -111,7 +111,7 @@ public:
 
 		// Find the the interval [_time[idx], _time[idx+1]] in which transT is located
 		const std::vector<double>::iterator it = std::lower_bound(_time.begin(), _time.end(), transT);
-		const std::size_t idx = it - _time.begin();
+		const std::size_t idx = (it - _time.begin()) - (*it > transT ? 1 : 0);
 
 		// Now idx is the index of the left and idx + 1 is the index of the right data point
 		// Perform linear interpolation
@@ -133,7 +133,7 @@ public:
 
 		// Find the the interval [_time[idx], _time[idx+1]] in which transT is located
 		const std::vector<double>::iterator it = std::lower_bound(_time.begin(), _time.end(), transT);
-		const std::size_t idx = it - _time.begin();
+		const std::size_t idx = (it - _time.begin()) - (*it > transT ? 1 : 0);
 
 		// Now idx is the index of the left and idx + 1 is the index of the right data point
 		// Return slope of linear interpolation
