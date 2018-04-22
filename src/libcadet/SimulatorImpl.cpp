@@ -581,8 +581,8 @@ namespace cadet
 			std::copy(srcDot, srcDot + NVEC_LENGTH(_vecFwdYsDot[dir]), ySdot);
 		}
 
-		// Assume consistent values were given
-		_skipConsistencySensitivity = true;
+		// Don't assume that consistent values were given
+		_skipConsistencySensitivity = false;
 
 		postFwdSensInit(nSens);
 	}
@@ -601,9 +601,6 @@ namespace cadet
 				NVec_Const(0.0, _vecFwdYs[dir]);
 				NVec_Const(0.0, _vecFwdYsDot[dir]);
 			}
-
-			// Compute consistent initial conditions for sensitivity systems later
-			_skipConsistencySensitivity = false;
 		}
 		else
 		{
@@ -618,10 +615,10 @@ namespace cadet
 				std::copy(src, src + NVEC_LENGTH(_vecFwdYs[dir]), yS);
 				std::copy(srcDot, srcDot + NVEC_LENGTH(_vecFwdYsDot[dir]), ySdot);
 			}
-
-			// Assume consistent values were given
-			_skipConsistencySensitivity = true;
 		}
+
+		// Don't assume that consistent values were given
+		_skipConsistencySensitivity = false;
 	}
 
 	void Simulator::setInitialCondition(IParameterProvider& paramProvider)
