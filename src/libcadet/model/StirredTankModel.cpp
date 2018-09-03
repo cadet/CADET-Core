@@ -219,6 +219,13 @@ void CSTRModel::reportSolutionStructure(ISolutionRecorder& recorder) const
 
 unsigned int CSTRModel::requiredADdirs() const CADET_NOEXCEPT
 {
+#ifndef CADET_CHECK_ANALYTIC_JACOBIAN
+	// We don't need AD if analytic Jaocbian is enabled
+	if (_analyticJac)
+		return 0;
+#endif
+
+	// We always need AD if CADET_CHECK_ANALYTIC_JACOBIAN and if analytic Jacobian is disabled
 	return _nComp + _strideBound + 1;
 }
 
