@@ -195,6 +195,32 @@ inline void copyToAd(double const* const src, active* const adVec, unsigned int 
 }
 
 /**
+ * @brief Copies the values of a double vector into an AD vector resetting its derivatives to @c 0.0
+ * @param [in] src Source vector
+ * @param [out] adVec Destination vector of AD datatypes
+ * @param [in] size Size of the vectors
+ * @todo Check if loop unrolling is beneficial
+ */
+inline void copyToAdResetSens(double const* const src, active* const adVec, unsigned int size)
+{
+	for (unsigned int i = 0; i < size; ++i)
+		adVec[i] = src[i];
+}
+
+/**
+ * @brief Sets the values of an AD vector without modifying its derivatives
+ * @param [out] adVec Destination vector of AD datatypes
+ * @param [in] size Size of the vectors
+ * @param [in] val Value
+ * @todo Check if loop unrolling is beneficial
+ */
+inline void fillAd(active* const adVec, unsigned int size, double val)
+{
+	for (unsigned int i = 0; i < size; ++i)
+		adVec[i].setValue(val);
+}
+
+/**
  * @brief Resets a vector of AD datatypes erasing both its value and its derivatives
  * @param [in,out] adVec Vector of AD datatypes to be reset
  * @param [in] size Length of the vector

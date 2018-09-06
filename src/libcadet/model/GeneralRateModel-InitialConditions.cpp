@@ -34,20 +34,72 @@ namespace cadet
 namespace model
 {
 
-void GeneralRateModel::applyInitialCondition(IParameterProvider& paramProvider, double* const vecStateY, double* const vecStateYdot)
+void GeneralRateModel::applyInitialCondition(double* const vecStateY, double* const vecStateYdot) const
 {
+	Indexer idxr(_disc);
+
+	// Check whether full state vector is available as initial condition
+	if (!_initState.empty())
+	{
+		std::fill(vecStateY, vecStateY + idxr.offsetC(), 0.0);
+		std::copy(_initState.data(), _initState.data() + numPureDofs(), vecStateY + idxr.offsetC());
+
+		if (!_initStateDot.empty())
+		{
+			std::fill(vecStateYdot, vecStateYdot + idxr.offsetC(), 0.0);
+			std::copy(_initStateDot.data(), _initStateDot.data() + numPureDofs(), vecStateYdot + idxr.offsetC());
+		}
+		else
+			std::fill(vecStateYdot, vecStateYdot + numDofs(), 0.0);
+
+		return;
+	}
+
+	double* const stateYbulk = vecStateY + idxr.offsetC();
+
+	// Loop over column cells
+	for (unsigned int col = 0; col < _disc.nCol; ++col)
+	{
+		// Loop over components in cell
+		for (unsigned comp = 0; comp < _disc.nComp; ++comp)
+			stateYbulk[col * idxr.strideColCell() + comp * idxr.strideColComp()] = static_cast<double>(_initC[comp]);
+	}
+
+	// Loop over particles
+	for (unsigned int col = 0; col < _disc.nCol; ++col)
+	{
+		const unsigned int offset = idxr.offsetCp(col);
+
+		// Loop over particle cells
+		for (unsigned int shell = 0; shell < _disc.nPar; ++shell)
+		{
+			const unsigned int shellOffset = offset + shell * idxr.strideParShell();
+			
+			// Initialize c_p
+			for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
+				vecStateY[shellOffset + comp] = static_cast<double>(_initCp[comp]);
+
+			// Initialize q
+			for (unsigned int bnd = 0; bnd < _disc.strideBound; ++bnd)
+				vecStateY[shellOffset + idxr.strideParLiquid() + bnd] = static_cast<double>(_initQ[bnd]);
+		}
+	}
+}
+
+void GeneralRateModel::readInitialCondition(IParameterProvider& paramProvider)
+{
+	_initState.clear();
+	_initStateDot.clear();
+
 	// Check if INIT_STATE is present
 	if (paramProvider.exists("INIT_STATE"))
 	{
 		const std::vector<double> initState = paramProvider.getDoubleArray("INIT_STATE");
-		std::copy(initState.data(), initState.data() + numDofs(), vecStateY);
+		_initState = std::vector<double>(initState.begin(), initState.begin() + numPureDofs());
 
 		// Check if INIT_STATE contains the full state and its time derivative
-		if (initState.size() >= 2 * numDofs())
-		{
-			double const* const srcYdot = initState.data() + numDofs();
-			std::copy(srcYdot, srcYdot + numDofs(), vecStateYdot);
-		}
+		if (initState.size() >= 2 * numPureDofs())
+			_initStateDot = std::vector<double>(initState.begin() + numPureDofs(), initState.begin() + 2 * numPureDofs());
 		return;
 	}
 
@@ -69,39 +121,17 @@ void GeneralRateModel::applyInitialCondition(IParameterProvider& paramProvider, 
 	if (paramProvider.exists("INIT_CP"))
 	{
 		initCpData = paramProvider.getDoubleArray("INIT_CP");
+
+		if (initCpData.size() < _disc.nComp)
+			throw InvalidParameterException("INIT_CP does not contain enough values for all components");
+
 		initCp = initCpData.data();
 	}
 
-	Indexer idxr(_disc);
-
-	double* const stateYbulk = vecStateY + idxr.offsetC();
-	// Loop over column cells
-	for (unsigned int col = 0; col < _disc.nCol; ++col)
-	{
-		// Loop over components in cell
-		for (unsigned comp = 0; comp < _disc.nComp; ++comp)
-			stateYbulk[col * idxr.strideColCell() + comp * idxr.strideColComp()] = initC[comp];
-	}
-
-	// Loop over particles
-	for (unsigned int col = 0; col < _disc.nCol; ++col)
-	{
-		const unsigned int offset = idxr.offsetCp(col);
-
-		// Loop over particle cells
-		for (unsigned int shell = 0; shell < _disc.nPar; ++shell)
-		{
-			const unsigned int shellOffset = offset + shell * idxr.strideParShell();
-			
-			// Initialize c_p
-			for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
-				vecStateY[shellOffset + comp] = initCp[comp];
-
-			// Initialize q
-			for (unsigned int bnd = 0; bnd < _disc.strideBound; ++bnd)
-				vecStateY[shellOffset + idxr.strideParLiquid() + bnd] = initQ[bnd];
-		}
-	}
+	ad::copyToAd(initC.data(), _initC.data(), _disc.nComp);
+	ad::copyToAd(initCp, _initCp.data(), _disc.nComp);
+	if (!initQ.empty())
+		ad::copyToAd(initQ.data(), _initQ.data(), _disc.strideBound);
 }
 
 /**

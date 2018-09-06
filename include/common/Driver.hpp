@@ -263,13 +263,16 @@ public:
 			if (initY.size() >= _sim->numDofs())
 			{
 				if (initYdot.size() >= _sim->numDofs())
-					_sim->setInitialCondition(initY.data(), initYdot.data());
+					_sim->applyInitialCondition(initY.data(), initYdot.data());
 				else
-					_sim->setInitialCondition(initY.data());
+					_sim->applyInitialCondition(initY.data());
 			}
 		}
 		else
+		{
 			_sim->setInitialCondition(pp);
+			_sim->applyInitialCondition();
+		}
 
 		// Read initial values of sensitivities
 		std::vector<double const*> initSensY;
@@ -364,13 +367,16 @@ public:
 			if (initY.size() >= _sim->numDofs())
 			{
 				if (initYdot.size() >= _sim->numDofs())
-					_sim->setInitialCondition(initY.data(), initYdot.data());
+					_sim->applyInitialCondition(initY.data(), initYdot.data());
 				else
-					_sim->setInitialCondition(initY.data());
+					_sim->applyInitialCondition(initY.data());
 			}
 		}
 		else
+		{
 			_sim->setInitialCondition(pp);
+			_sim->applyInitialCondition();
+		}
 
 		if (_sim->numSensParams() > 0)
 		{

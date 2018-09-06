@@ -104,8 +104,8 @@ public:
 
 	virtual void prepareADvectors(active* const adRes, active* const adY, unsigned int adDirOffset) const;
 
-	virtual void applyInitialCondition(double* const vecStateY, double* const vecStateYdot);
-	virtual void applyInitialCondition(IParameterProvider& paramProvider, double* const vecStateY, double* const vecStateYdot);
+	virtual void applyInitialCondition(double* const vecStateY, double* const vecStateYdot) const;
+	virtual void readInitialCondition(IParameterProvider& paramProvider);
 
 	virtual void consistentInitialState(double t, unsigned int secIdx, double timeFactor, double* const vecStateY, active* const adRes, active* const adY, unsigned int adDirOffset, double errorTol);
 	virtual void consistentInitialTimeDerivative(double t, unsigned int secIdx, double timeFactor, double const* vecStateY, double* const vecStateYdot);

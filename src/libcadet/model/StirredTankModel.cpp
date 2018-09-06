@@ -33,7 +33,7 @@ namespace model
 {
 
 CSTRModel::CSTRModel(UnitOpIdx unitOpIdx) : UnitOperationBase(unitOpIdx), _nComp(0), _nBound(nullptr), _boundOffset(nullptr), _strideBound(0), 
-	_analyticJac(true), _jac(), _jacFact(), _factorizeJac(false), _consistentInitBuffer(nullptr)
+	_analyticJac(true), _jac(), _jacFact(), _factorizeJac(false), _consistentInitBuffer(nullptr), _initConditions(0), _initConditionsDot(0)
 {
 }
 
@@ -97,6 +97,10 @@ bool CSTRModel::configureModelDiscretization(IParameterProvider& paramProvider, 
 	const unsigned int nVar = _nComp + _strideBound + 1;
 	_jac.resize(nVar, nVar);
 	_jacFact.resize(nVar, nVar);
+
+	// Allocate space for initial conditions
+	_initConditions.resize(nVar);
+	_initConditionsDot.resize(nVar, 0.0);
 
 	// Determine whether analytic Jacobian should be used
 #ifndef CADET_CHECK_ANALYTIC_JACOBIAN
@@ -229,26 +233,34 @@ void CSTRModel::prepareADvectors(active* const adRes, active* const adY, unsigne
 	ad::prepareAdVectorSeedsForDenseMatrix(adY + _nComp, adDirOffset, _jac.columns());
 }
 
-void CSTRModel::applyInitialCondition(double* const vecStateY, double* const vecStateYdot)
+void CSTRModel::applyInitialCondition(double* const vecStateY, double* const vecStateYdot) const
 {
-	std::fill(vecStateY, vecStateY + numDofs(), 0.0);
-	std::fill(vecStateYdot, vecStateYdot + numDofs(), 0.0);
+	// Inlet DOFs
+	std::fill(vecStateY, vecStateY + _nComp, 0.0);
+	std::fill(vecStateYdot, vecStateYdot + _nComp, 0.0);
+
+	const unsigned int nDof = numPureDofs();
+	ad::copyFromAd(_initConditions.data(), vecStateY + _nComp, nDof);
+	std::copy(_initConditionsDot.data(), _initConditionsDot.data() + nDof, vecStateYdot + _nComp);
 }
 
-void CSTRModel::applyInitialCondition(IParameterProvider& paramProvider, double* const vecStateY, double* const vecStateYdot)
+void CSTRModel::readInitialCondition(IParameterProvider& paramProvider)
 {
+	// Clear time derivative
+	std::fill(_initConditionsDot.begin(), _initConditionsDot.end(), 0.0);
+
 	// Check if INIT_STATE is present
 	if (paramProvider.exists("INIT_STATE"))
 	{
+		const unsigned int nDof = numPureDofs();
 		const std::vector<double> initState = paramProvider.getDoubleArray("INIT_STATE");
-		std::copy(initState.data(), initState.data() + numDofs(), vecStateY);
+
+		ad::copyToAd(initState.data(), _initConditions.data(), nDof);
 
 		// Check if INIT_STATE contains the full state and its time derivative
-		if (initState.size() >= 2 * numDofs())
-		{
-			double const* const srcYdot = initState.data() + numDofs();
-			std::copy(srcYdot, srcYdot + numDofs(), vecStateYdot);
-		}
+		if (initState.size() >= 2 * nDof)
+			std::copy(initState.data() + nDof, initState.data() + 2 * nDof, _initConditionsDot.data());
+
 		return;
 	}
 
@@ -257,22 +269,21 @@ void CSTRModel::applyInitialCondition(IParameterProvider& paramProvider, double*
 	if (initC.size() < _nComp)
 		throw InvalidParameterException("INIT_C does not contain enough values for all components");
 	
-	std::copy_n(initC.begin(), _nComp, vecStateY + _nComp);
+	ad::copyToAd(initC.data(), _initConditions.data(), _nComp);
 
 	if (paramProvider.exists("INIT_Q"))
 	{
 		const std::vector<double> initQ = paramProvider.getDoubleArray("INIT_Q");
-		std::copy_n(initQ.begin(), _strideBound, vecStateY + 2 * _nComp);
+		ad::copyToAd(initQ.data(), _initConditions.data() + _nComp, _strideBound);
 	}
 	else
-		std::fill_n(vecStateY + 2 * _nComp, _strideBound, 0.0);
+		ad::fillAd(_initConditions.data() + _nComp, _strideBound, 0.0);
 
 	if (paramProvider.exists("INIT_VOLUME"))
-		vecStateY[2 * _nComp + _strideBound] = paramProvider.getDouble("INIT_VOLUME");
+		_initConditions[_nComp + _strideBound].setValue(paramProvider.getDouble("INIT_VOLUME"));
 	else
-		vecStateY[2 * _nComp + _strideBound] = 0.0;
+		_initConditions[_nComp + _strideBound].setValue(0.0);
 }
-
 
 void CSTRModel::consistentInitialState(double t, unsigned int secIdx, double timeFactor, double* const vecStateY, active* const adRes, active* const adY, unsigned int adDirOffset, double errorTol)
 {

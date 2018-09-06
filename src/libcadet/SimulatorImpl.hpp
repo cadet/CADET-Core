@@ -77,10 +77,11 @@ public:
 
 	virtual void initializeModel(IModelSystem& model);
 
+	virtual void applyInitialCondition();
 	virtual void setInitialCondition(IParameterProvider& paramProvider);
-	virtual void setInitialCondition(double const* const initState);
-	virtual void setInitialCondition(double const* const initState, double const* const initStateDot);
-	virtual void setInitialConditionFwdSensitivities(double const * const* const initSens, double const * const* const initSensDot);
+	virtual void applyInitialCondition(double const* const initState);
+	virtual void applyInitialCondition(double const* const initState, double const* const initStateDot);
+	virtual void applyInitialConditionFwdSensitivities(double const * const* const initSens, double const * const* const initSensDot);
 	virtual void skipConsistentInitialization();
 	virtual void setConsistentInitialization(ConsistentInitialization ci);
 	virtual void setConsistentInitializationSens(ConsistentInitialization ci);

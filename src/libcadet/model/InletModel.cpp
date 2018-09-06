@@ -277,9 +277,9 @@ unsigned int InletModel::requiredADdirs() const CADET_NOEXCEPT
 
 void InletModel::prepareADvectors(active* const adRes, active* const adY, unsigned int adDirOffset) const { }
 
-void InletModel::applyInitialCondition(double* const vecStateY, double* const vecStateYdot) { }
+void InletModel::applyInitialCondition(double* const vecStateY, double* const vecStateYdot) const { }
 
-void InletModel::applyInitialCondition(IParameterProvider& paramProvider, double* const vecStateY, double* const vecStateYdot) { }
+void InletModel::readInitialCondition(IParameterProvider& paramProvider) { }
 
 void InletModel::consistentInitialState(double t, unsigned int secIdx, double timeFactor, double* const vecStateY, active* const adRes, active* const adY, unsigned int adDirOffset, double errorTol)
 { 

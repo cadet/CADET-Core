@@ -86,8 +86,8 @@ public:
 
 	virtual void prepareADvectors(active* const adRes, active* const adY, unsigned int adDirOffset) const;
 
-	virtual void applyInitialCondition(double* const vecStateY, double* const vecStateYdot);
-	virtual void applyInitialCondition(IParameterProvider& paramProvider, double* const vecStateY, double* const vecStateYdot);
+	virtual void applyInitialCondition(double* const vecStateY, double* const vecStateYdot) const;
+	virtual void readInitialCondition(IParameterProvider& paramProvider);
 
 	virtual void consistentInitialState(double t, unsigned int secIdx, double timeFactor, double* const vecStateY, active* const adRes, active* const adY, unsigned int adDirOffset, double errorTol);
 	virtual void consistentInitialTimeDerivative(double t, unsigned int secIdx, double timeFactor, double const* vecStateY, double* const vecStateYdot);
@@ -156,6 +156,9 @@ protected:
 	linalg::DenseMatrix _jacFact; //!< Factorized Jacobian
 	bool _factorizeJac; //!< Flag that tracks whether the Jacobian needs to be factorized
 	double* _consistentInitBuffer; //!< Memory for consistent initialization (solving nonlinear equations)
+
+	std::vector<active> _initConditions; //!< Initial conditions, ordering: Liquid phase concentration, solid phase concentration, volume
+	std::vector<double> _initConditionsDot; //!< Initial conditions for time derivative
 
 	class Exporter : public ISolutionExporter
 	{

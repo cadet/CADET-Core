@@ -52,7 +52,8 @@ int schurComplementMultiplierGRM(void* userData, double const* x, double* z)
 
 GeneralRateModel::GeneralRateModel(UnitOpIdx unitOpIdx) : UnitOperationBase(unitOpIdx),
 	_jacP(nullptr), _jacPdisc(nullptr), _jacPF(nullptr), _jacFP(nullptr), _jacInlet(),
-	_analyticJac(true), _jacobianAdDirs(0), _factorizeJacobian(false), _tempState(nullptr)
+	_analyticJac(true), _jacobianAdDirs(0), _factorizeJacobian(false), _tempState(nullptr),
+	_initC(0), _initCp(0), _initQ(0), _initState(0), _initStateDot(0)
 {
 }
 
@@ -157,8 +158,12 @@ bool GeneralRateModel::configureModelDiscretization(IParameterProvider& paramPro
 	_gmres.matrixVectorMultiplier(&schurComplementMultiplierGRM, this);
 	_schurSafety = paramProvider.getDouble("SCHUR_SAFETY");
 
-	paramProvider.popScope();
+	// Allocate space for initial conditions
+	_initC.resize(_disc.nComp);
+	_initCp.resize(_disc.nComp);
+	_initQ.resize(_disc.strideBound);
 
+	paramProvider.popScope();
 
 	const bool transportSuccess = _convDispOp.configureModelDiscretization(paramProvider, _disc.nComp, _disc.nCol);
 

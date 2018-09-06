@@ -587,22 +587,13 @@ namespace cadet
 		postFwdSensInit(nSens);
 	}
 
-	void Simulator::setInitialConditionFwdSensitivities(double const * const* const initSens, double const * const* const initSensDot)
+	void Simulator::applyInitialConditionFwdSensitivities(double const * const* const initSens, double const * const* const initSensDot)
 	{
 		const unsigned int nSens = _sensitiveParams.slices();
 		if (nSens == 0)
 			return;
 
-		if (!initSens && !initSensDot)
-		{
-			for (unsigned int dir = 0; dir < nSens; ++dir)
-			{
-				// Initialize sensitivity vectors with 0.0
-				NVec_Const(0.0, _vecFwdYs[dir]);
-				NVec_Const(0.0, _vecFwdYsDot[dir]);
-			}
-		}
-		else
+		if (initSens && initSensDot)
 		{
 			for (unsigned int dir = 0; dir < nSens; ++dir)
 			{
@@ -616,21 +607,36 @@ namespace cadet
 				std::copy(srcDot, srcDot + NVEC_LENGTH(_vecFwdYsDot[dir]), ySdot);
 			}
 		}
+		else
+		{
+			for (unsigned int dir = 0; dir < nSens; ++dir)
+			{
+				// Initialize sensitivity vectors with 0.0
+				NVec_Const(0.0, _vecFwdYs[dir]);
+				NVec_Const(0.0, _vecFwdYsDot[dir]);
+			}
+
+		}
 
 		// Don't assume that consistent values were given
 		_skipConsistencySensitivity = false;
 	}
 
-	void Simulator::setInitialCondition(IParameterProvider& paramProvider)
+	void Simulator::applyInitialCondition()
 	{
-		_model->applyInitialCondition(paramProvider, NVEC_DATA(_vecStateY), NVEC_DATA(_vecStateYdot));
+		_model->applyInitialCondition(NVEC_DATA(_vecStateY), NVEC_DATA(_vecStateYdot));
 		IDAReInit(_idaMemBlock, _transformedTimes[0], _vecStateY, _vecStateYdot);
 
 		// Better check for consistency
 		_skipConsistencyStateY = false;
 	}
 
-	void Simulator::setInitialCondition(double const* const initState)
+	void Simulator::setInitialCondition(IParameterProvider& paramProvider)
+	{
+		_model->readInitialCondition(paramProvider);
+	}
+
+	void Simulator::applyInitialCondition(double const* const initState)
 	{
 		// Copy initial state
 		double* const y = NVEC_DATA(_vecStateY);
@@ -642,7 +648,7 @@ namespace cadet
 		_skipConsistencyStateY = false;
 	}
 
-	void Simulator::setInitialCondition(double const* const initState, double const* const initStateDot)
+	void Simulator::applyInitialCondition(double const* const initState, double const* const initStateDot)
 	{
 		// Copy initial state
 		double* const y = NVEC_DATA(_vecStateY);

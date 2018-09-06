@@ -51,7 +51,8 @@ int schurComplementMultiplierLRMPores(void* userData, double const* x, double* z
 
 
 LumpedRateModelWithPores::LumpedRateModelWithPores(UnitOpIdx unitOpIdx) : UnitOperationBase(unitOpIdx),
-	_jacInlet(), _analyticJac(true), _jacobianAdDirs(0), _factorizeJacobian(false), _tempState(nullptr)
+	_jacInlet(), _analyticJac(true), _jacobianAdDirs(0), _factorizeJacobian(false), _tempState(nullptr),
+	_initC(0), _initCp(0), _initQ(0), _initState(0), _initStateDot(0)
 {
 }
 
@@ -130,8 +131,12 @@ bool LumpedRateModelWithPores::configureModelDiscretization(IParameterProvider& 
 	_gmres.matrixVectorMultiplier(&schurComplementMultiplierLRMPores, this);
 	_schurSafety = paramProvider.getDouble("SCHUR_SAFETY");
 
-	paramProvider.popScope();
+	// Allocate space for initial conditions
+	_initC.resize(_disc.nComp);
+	_initCp.resize(_disc.nComp);
+	_initQ.resize(_disc.strideBound);
 
+	paramProvider.popScope();
 
 	const bool transportSuccess = _convDispOp.configureModelDiscretization(paramProvider, _disc.nComp, _disc.nCol);
 

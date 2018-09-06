@@ -227,7 +227,7 @@ namespace cadet
 namespace model
 {
 
-ModelSystem::ModelSystem() : _jacNF(nullptr), _jacFN(nullptr), _jacActiveFN(nullptr), _curSwitchIndex(0), _tempState(nullptr)
+ModelSystem::ModelSystem() : _jacNF(nullptr), _jacFN(nullptr), _jacActiveFN(nullptr), _curSwitchIndex(0), _tempState(nullptr), _initState(0, 0.0), _initStateDot(0, 0.0)
 {
 }
 
@@ -1593,43 +1593,36 @@ int ModelSystem::dResDpFwdWithJacobian(const active& t, unsigned int secIdx, con
 	return totalErrorIndicatorFromLocal(_errorIndicator);
 }
 
-void ModelSystem::applyInitialCondition(double* const vecStateY, double* const vecStateYdot)
+void ModelSystem::applyInitialCondition(double* const vecStateY, double* const vecStateYdot) const
 {
+	// If we have the full state vector available, use that and skip unit operations
+	if (_initState.size() >= numDofs())
+	{
+		std::copy(_initState.data(), _initState.data() + numDofs(), vecStateY);
+
+		if (_initStateDot.size() >= numDofs())
+			std::copy(_initStateDot.data(), _initStateDot.data() + numDofs(), vecStateYdot);
+
+		return;
+	}
+
 	for (unsigned int i = 0; i < _models.size(); ++i)
 	{
-		IUnitOperation* const m = _models[i];
+		IUnitOperation const* const m = _models[i];
 		const unsigned int offset = _dofOffset[i];
 		m->applyInitialCondition(vecStateY + offset, vecStateYdot + offset);
 	}
 }
 
-void ModelSystem::applyInitialCondition(IParameterProvider& paramProvider, double* const vecStateY, double* const vecStateYdot)
+void ModelSystem::readInitialCondition(IParameterProvider& paramProvider)
 {
-	bool skipModels = false;
-
 	// Check if INIT_STATE_Y is present
 	if (paramProvider.exists("INIT_STATE_Y"))
-	{
-		const std::vector<double> initState = paramProvider.getDoubleArray("INIT_STATE_Y");
-		if (initState.size() >= numDofs())
-		{
-			std::copy(initState.data(), initState.data() + numDofs(), vecStateY);
-			skipModels = true;
-		}
-	}
+		_initState = paramProvider.getDoubleArray("INIT_STATE_Y");
 
 	// Check if INIT_STATE_YDOT is present
 	if (paramProvider.exists("INIT_STATE_YDOT"))
-	{
-		const std::vector<double> initState = paramProvider.getDoubleArray("INIT_STATE_YDOT");
-		if (initState.size() >= numDofs())
-		{
-			std::copy(initState.data(), initState.data() + numDofs(), vecStateYdot);
-		}
-	}
-
-	if (skipModels)
-		return;
+		_initStateDot = paramProvider.getDoubleArray("INIT_STATE_YDOT");
 
 	std::ostringstream oss;
 	for (unsigned int i = 0; i < _models.size(); ++i)
@@ -1640,9 +1633,22 @@ void ModelSystem::applyInitialCondition(IParameterProvider& paramProvider, doubl
 		oss.str("");
 		oss << "unit_" << std::setfill('0') << std::setw(3) << std::setprecision(0) << static_cast<int>(m->unitOperationId());
 
-		paramProvider.pushScope(oss.str());
-		m->applyInitialCondition(paramProvider, vecStateY + offset, vecStateYdot + offset);
-		paramProvider.popScope();
+		const std::string subScope = oss.str();
+		if (paramProvider.exists(subScope))
+		{
+			paramProvider.pushScope(subScope);
+			m->readInitialCondition(paramProvider);
+			paramProvider.popScope();
+		}
+	}
+}
+
+	for (unsigned int i = 0; i < _models.size(); ++i)
+	{
+		IUnitOperation* const m = _models[i];
+		const unsigned int offset = _dofOffset[i];
+
+
 	}
 }
 

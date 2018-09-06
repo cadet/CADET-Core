@@ -188,25 +188,16 @@ public:
 	 * @param [in,out] vecStateY State vector with initial values that are to be updated for consistency
 	 * @param [in,out] vecStateYdot State vector with initial time derivatives that are to be overwritten for consistency
 	 */
-	virtual void applyInitialCondition(double* const vecStateY, double* const vecStateYdot) = 0;
+	virtual void applyInitialCondition(double* const vecStateY, double* const vecStateYdot) const = 0;
 
 	/**
-	 * @brief Applies initial conditions to the state vector and its time derivative read from the given parameter provider
-	 * @details The initial conditions do not need to be consistent at this point. On a (discontinuous)
-	 *          transition from one section to the next, consistentInitialConditions() is called by
-	 *          the time integrator in order to compute consistent initial conditions. Therefore,
-	 *          consistentInitialConditions() is also called at the beginning of the simulation, that is,
-	 *          the initial conditions set by this function will be corrected for consistency.
-	 *          Note that the state vector and its time derivative are pre-initialized with zero by the
-	 *          time integrator.
-	 *          
-	 *          The scope of the cadet::IParameterProvider is left unchanged on return.
+	 * @brief Reads initial conditions for the state vector and its time derivative from the given parameter provider
+	 * @details The scope of the cadet::IParameterProvider is left unchanged on return.
 	 * 
-	 * @param [in,out] vecStateY State vector with initial values that are to be updated for consistency
-	 * @param [in,out] vecStateYdot State vector with initial time derivatives that are to be overwritten for consistency
 	 * @param [in] paramProvider Parameter provider
 	 */
-	virtual void applyInitialCondition(IParameterProvider& paramProvider, double* const vecStateY, double* const vecStateYdot) = 0;
+	virtual void readInitialCondition(IParameterProvider& paramProvider) = 0;
+
 
 	/**
 	 * @brief Computes consistent initial values and time derivatives

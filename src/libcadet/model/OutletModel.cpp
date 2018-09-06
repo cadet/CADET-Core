@@ -142,17 +142,13 @@ unsigned int OutletModel::requiredADdirs() const CADET_NOEXCEPT
 
 void OutletModel::prepareADvectors(active* const adRes, active* const adY, unsigned int adDirOffset) const { }
 
-void OutletModel::applyInitialCondition(double* const vecStateY, double* const vecStateYdot)
+void OutletModel::applyInitialCondition(double* const vecStateY, double* const vecStateYdot) const
 {
 	std::fill(vecStateY, vecStateY + _nComp, 0.0);
 	std::fill(vecStateYdot, vecStateYdot + _nComp, 0.0);
 }
 
-void OutletModel::applyInitialCondition(IParameterProvider& paramProvider, double* const vecStateY, double* const vecStateYdot)
-{
-	std::fill(vecStateY, vecStateY + _nComp, 0.0);
-	std::fill(vecStateYdot, vecStateYdot + _nComp, 0.0);
-}
+void OutletModel::readInitialCondition(IParameterProvider& paramProvider) { }
 
 int OutletModel::residual(double t, unsigned int secIdx, double timeFactor, double const* const y, double const* const yDot, double* const res)
 {

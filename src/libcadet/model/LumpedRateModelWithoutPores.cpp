@@ -88,7 +88,8 @@ namespace model
 {
 
 LumpedRateModelWithoutPores::LumpedRateModelWithoutPores(UnitOpIdx unitOpIdx) : UnitOperationBase(unitOpIdx),
-	_jacInlet(), _analyticJac(true), _jacobianAdDirs(0), _factorizeJacobian(false), _tempState(nullptr)
+	_jacInlet(), _analyticJac(true), _jacobianAdDirs(0), _factorizeJacobian(false), _tempState(nullptr), _initC(0),
+	_initQ(0), _initState(0), _initStateDot(0)
 {
 }
 
@@ -157,6 +158,10 @@ bool LumpedRateModelWithoutPores::configureModelDiscretization(IParameterProvide
 #else
 	const bool analyticJac = false;
 #endif
+
+	// Allocate space for initial conditions
+	_initC.resize(_disc.nComp);
+	_initQ.resize(_disc.strideBound);
 
 	paramProvider.popScope();
 
@@ -854,20 +859,58 @@ void LumpedRateModelWithoutPores::addMobilePhaseTimeDerivativeToJacobianCell(lin
 	}
 }
 
-void LumpedRateModelWithoutPores::applyInitialCondition(IParameterProvider& paramProvider, double* const vecStateY, double* const vecStateYdot)
+void LumpedRateModelWithoutPores::applyInitialCondition(double* const vecStateY, double* const vecStateYdot) const
 {
+	Indexer idxr(_disc);
+
+	// Check whether full state vector is available as initial condition
+	if (!_initState.empty())
+	{
+		std::fill(vecStateY, vecStateY + idxr.offsetC(), 0.0);
+		std::copy(_initState.data(), _initState.data() + numPureDofs(), vecStateY + idxr.offsetC());
+
+		if (!_initStateDot.empty())
+		{
+			std::fill(vecStateYdot, vecStateYdot + idxr.offsetC(), 0.0);
+			std::copy(_initStateDot.data(), _initStateDot.data() + numPureDofs(), vecStateYdot + idxr.offsetC());
+		}
+		else
+			std::fill(vecStateYdot, vecStateYdot + numDofs(), 0.0);
+
+		return;
+	}
+
+	double* const stateYbulk = vecStateY + idxr.offsetC();
+
+	// Loop over column cells
+	for (unsigned int col = 0; col < _disc.nCol; ++col)
+	{
+		const unsigned int localOffset = col * idxr.strideColCell();
+
+		// Loop over components in cell
+		for (unsigned comp = 0; comp < _disc.nComp; ++comp)
+			stateYbulk[localOffset + comp * idxr.strideColComp()] = static_cast<double>(_initC[comp]);
+
+		// Initialize q
+		for (unsigned int bnd = 0; bnd < _disc.strideBound; ++bnd)
+			stateYbulk[localOffset + idxr.strideColLiquid() + bnd] = static_cast<double>(_initQ[bnd]);
+	}
+}
+
+void LumpedRateModelWithoutPores::readInitialCondition(IParameterProvider& paramProvider)
+{
+	_initState.clear();
+	_initStateDot.clear();
+
 	// Check if INIT_STATE is present
 	if (paramProvider.exists("INIT_STATE"))
 	{
 		const std::vector<double> initState = paramProvider.getDoubleArray("INIT_STATE");
-		std::copy(initState.data(), initState.data() + numDofs(), vecStateY);
+		_initState = std::vector<double>(initState.begin(), initState.begin() + numPureDofs());
 
 		// Check if INIT_STATE contains the full state and its time derivative
-		if (initState.size() >= 2 * numDofs())
-		{
-			double const* const srcYdot = initState.data() + numDofs();
-			std::copy(srcYdot, srcYdot + numDofs(), vecStateYdot);
-		}
+		if (initState.size() >= 2 * numPureDofs())
+			_initStateDot = std::vector<double>(initState.begin() + numPureDofs(), initState.begin() + 2 * numPureDofs());
 		return;
 	}
 
@@ -883,22 +926,9 @@ void LumpedRateModelWithoutPores::applyInitialCondition(IParameterProvider& para
 	if ((_disc.strideBound > 0) && (initQ.size() < _disc.strideBound))
 		throw InvalidParameterException("INIT_Q does not contain enough values for all bound states");
 
-	Indexer idxr(_disc);
-
-	double* const stateYbulk = vecStateY + idxr.offsetC();
-	// Loop over column cells
-	for (unsigned int col = 0; col < _disc.nCol; ++col)
-	{
-		const unsigned int localOffset = col * idxr.strideColCell();
-
-		// Loop over components in cell
-		for (unsigned comp = 0; comp < _disc.nComp; ++comp)
-			stateYbulk[localOffset + comp * idxr.strideColComp()] = initC[comp];
-
-		// Initialize q
-		for (unsigned int bnd = 0; bnd < _disc.strideBound; ++bnd)
-			stateYbulk[localOffset + idxr.strideColLiquid() + bnd] = initQ[bnd];
-	}
+	ad::copyToAd(initC.data(), _initC.data(), _disc.nComp);
+	if (!initQ.empty())
+		ad::copyToAd(initQ.data(), _initQ.data(), _disc.strideBound);
 }
 
 /**

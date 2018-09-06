@@ -318,58 +318,72 @@ public:
 	virtual void initializeModel(IModelSystem& model) = 0;
 
 	/**
+	 * @brief Applies the initial conditions that are currently set
+	 * @details Initial conditions are set by calling setInitialCondition(IParameterProvider& paramProvider).
+	 *          This function has to be called once for applyInitialCondition() to work, which will do nothing
+	 *          otherwise.
+	 *          
+	 *          This function applies the initial conditions to the state vectors. Consistent initialization
+	 *          will be performed later according to the mode set by setConsistentInitialization().
+	 */
+	virtual void applyInitialCondition() = 0;
+
+	/**
 	 * @brief Reads initial condition of the model from the given parameter provider
 	 * @details The scope of the cadet::IParameterProvider is unchanged on return.
+	 *          Note that the initial conditions are not applied, which is performed by applyInitialCondition().
 	 * 
 	 * @param [in] paramProvider Parameter provider
 	 */
 	virtual void setInitialCondition(IParameterProvider& paramProvider) = 0;
 
 	/**
-	 * @brief Sets the initial state of the model
+	 * @brief Applies the given initial state to the model
 	 * @details The initial state consists of the state @f$ y_0 @f$ and its time derivative @f$\dot{y}_0@f$. 
 	 *          It has to be consistent, which means that
 	 *          @f[ f\left( t_0, y_0, \dot{y}_0 ) = 0 @f]
 	 *          has to hold. In other words, the initial condition has to fulfill the DAE at the initial
 	 *          time point @f$ t_0@f$.
 	 *          
-	 *          If only @f$ y_0 @f$ is given, the simulator will try to find a matching @f$ \dot{y}_0@f$.
+	 *          If only @f$ y_0 @f$ is given, the simulator will try to find a matching @f$ \dot{y}_0@f$ later.
+	 *          This is done according to the consistent initialization mode set by setConsistentInitialization().
 	 *          Because of nonlinearities, it is usually faster to also provide @f$ \dot{y}_0@f$.
 	 * 
 	 * @param [in] initState Initial state @f$ y_0 @f$ of the model
 	 */
-	virtual void setInitialCondition(double const* const initState) = 0;
+	virtual void applyInitialCondition(double const* const initState) = 0;
 
 	/**
-	 * @brief Sets the initial state of the model
+	 * @brief Applies the given initial state to the model
 	 * @details The initial state consists of the state @f$ y_0 @f$ and its time derivative @f$\dot{y}_0@f$. 
 	 *          It has to be consistent, which means that
 	 *          @f[ f\left( t_0, y_0, \dot{y}_0 ) = 0 @f]
 	 *          has to hold. In other words, the initial condition has to fulfill the DAE at the initial
 	 *          time point @f$ t_0@f$.
 	 *          
-	 *          If only @f$ y_0 @f$ is given, the simulator will try to find a matching @f$ \dot{y}_0@f$.
+	 *          If only @f$ y_0 @f$ is given, the simulator will try to find a matching @f$ \dot{y}_0@f$ later.
+	 *          This is done according to the consistent initialization mode set by setConsistentInitialization().
 	 *          Because of nonlinearities, it is usually faster to also provide @f$ \dot{y}_0@f$.
 	 * 
 	 * @param [in] initState Initial state @f$ y_0 @f$ of the model
 	 * @param [in] initStateDot Initial time derivative state @f$ \dot{y}_0 @f$ of the model
 	 */
-	virtual void setInitialCondition(double const* const initState, double const* const initStateDot) = 0;
+	virtual void applyInitialCondition(double const* const initState, double const* const initStateDot) = 0;
 
 	/**
-	 * @brief Sets the initial state of the forward sensitivity systems
+	 * @brief Applies the given initial state to the forward sensitivity systems
 	 * @details The initial sensitivities are given by the argument @p initSens and their time derivatives
-	 *          by @p initSensDot. The user is responsible for checking whether the initial values are
-	 *          correct and consistent with the sensitive parameters. The model is not invoked to make
-	 *          changes to the initial values.
+	 *          by @p initSensDot. The model is not invoked to make changes to the initial values.
 	 *          
 	 *          If one of the parameters (@p initSens or @p initSensDot) is @c nullptr, the state vector
 	 *          and its time derivative will be set to zero and consistent values will be computed later.
+	 *          
+	 *          Consistent initialization is performed later according to the mode set by setConsistentInitializationSens().
 	 * 
 	 * @param [in] initSens Pointer to array with pointers to initial sensitivities or @c nullptr
 	 * @param [in] initSensDot Pointer to array with pointers to initial sensitivity time derivatives or @c nullptr
 	 */
-	virtual void setInitialConditionFwdSensitivities(double const * const* const initSens, double const * const* const initSensDot) = 0;
+	virtual void applyInitialConditionFwdSensitivities(double const * const* const initSens, double const * const* const initSensDot) = 0;
 
 	/**
 	 * @brief Initializes the forward sensitivity subsystems with zero initial values

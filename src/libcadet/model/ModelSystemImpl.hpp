@@ -123,8 +123,8 @@ public:
 
 	virtual void prepareADvectors(active* const adRes, active* const adY, unsigned int adDirOffset) const;
 
-	virtual void applyInitialCondition(double* const vecStateY, double* const vecStateYdot);
-	virtual void applyInitialCondition(IParameterProvider& paramProvider, double* const vecStateY, double* const vecStateYdot);
+	virtual void applyInitialCondition(double* const vecStateY, double* const vecStateYdot) const;
+	virtual void readInitialCondition(IParameterProvider& paramProvider);
 
 	virtual void consistentInitialConditions(double t, unsigned int secIdx, double timeFactor, double* const vecStateY, double* const vecStateYdot, active* const adRes, active* const adY, unsigned int adDirOffset, double errorTol);
 
@@ -255,6 +255,9 @@ protected:
 	double _schurSafety; //!< Safety factor for Schur-complement solution
 
 	std::vector<unsigned int> _inOutModels; //!< Indices of unit operation models in _models that have inlet and outlet
+
+	std::vector<double> _initState; //!< Initial state vector
+	std::vector<double> _initStateDot; //!< Initial time derivative state vector
 
 #ifdef CADET_PARALLELIZE
 	typedef tbb::spin_mutex SchurComplementMutex;
