@@ -754,6 +754,10 @@ classdef MexSimulator < handle
 				for i = 1:length(obj.sensParamToVariableParam)
 					curPar = obj.variableParameters{obj.sensParamToVariableParam(i)};
 					val = obj.getParameterValue(curPar);
+					if isnan(val)
+						error('CADET:invalidParameter', 'Parameter %s (unit %d, comp %d, boundphase %d) does not exist or has invalid value.', ...
+							curPar.SENS_NAME, curPar.SENS_UNIT, curPar.SENS_COMP, curPar.SENS_BOUNDPHASE);
+					end
 
 					curAbsTol = obj.absTol;
 
