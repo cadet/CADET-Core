@@ -196,6 +196,8 @@ int OutletModel::residualSensFwdWithJacobian(const active& t, unsigned int secId
 	return 0;
 }
 
+void OutletModel::initializeSensitivityStates(const std::vector<double*>& vecSensY) const { }
+
 void OutletModel::consistentInitialSensitivity(const active& t, unsigned int secIdx, const active& timeFactor, double const* vecStateY, double const* vecStateYdot,
 	std::vector<double*>& vecSensY, std::vector<double*>& vecSensYdot, active const* const adRes)
 {

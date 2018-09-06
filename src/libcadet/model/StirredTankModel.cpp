@@ -907,6 +907,16 @@ int CSTRModel::residualSensFwdWithJacobian(const active& t, unsigned int secIdx,
 	return residual(t, secIdx, timeFactor, y, yDot, nullptr, adRes, adY, adDirOffset, true, true);
 }
 
+void CSTRModel::initializeSensitivityStates(const std::vector<double*>& vecSensY) const
+{
+	const unsigned int nDof = numPureDofs();
+	for (unsigned int param = 0; param < vecSensY.size(); ++param)
+	{
+		double* const sensY = vecSensY[param];
+		ad::copyFromAdDirection(_initConditions.data(), sensY + _nComp, nDof, param);
+	}
+}
+
 void CSTRModel::consistentInitialSensitivity(const active& t, unsigned int secIdx, const active& timeFactor, double const* vecStateY, double const* vecStateYdot,
 	std::vector<double*>& vecSensY, std::vector<double*>& vecSensYdot, active const* const adRes)
 {

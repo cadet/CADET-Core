@@ -181,6 +181,21 @@ inline void copyFromAd(active const* const adVec, double* const dest, unsigned i
 		dest[i] = static_cast<double>(adVec[i]);
 }
 
+
+/**
+ * @brief Copies an AD direction of an AD vector to a double vector
+ * @param [in] adVec Source vector of AD datatypes
+ * @param [out] dest Destination vector
+ * @param [in] size Size of the vectors
+ * @param [in] adDir AD direction
+ * @todo Check if loop unrolling is beneficial
+ */
+inline void copyFromAdDirection(active const* const adVec, double* const dest, unsigned int size, unsigned int adDir)
+{
+	for (unsigned int i = 0; i < size; ++i)
+		dest[i] = adVec[i].getADValue(adDir);
+}
+
 /**
  * @brief Copies the values of a double vector into an AD vector without modifying its derivatives
  * @param [in] src Source vector

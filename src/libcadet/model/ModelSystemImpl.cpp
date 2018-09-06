@@ -1643,12 +1643,19 @@ void ModelSystem::readInitialCondition(IParameterProvider& paramProvider)
 	}
 }
 
+void ModelSystem::initializeSensitivityStates(const std::vector<double*>& vecSensY) const
+{
+	std::vector<double*> vecSensYlocal(vecSensY.size(), nullptr);
 	for (unsigned int i = 0; i < _models.size(); ++i)
 	{
 		IUnitOperation* const m = _models[i];
 		const unsigned int offset = _dofOffset[i];
 
+		// Use correct offset in sensitivity state vectors
+		for (unsigned int j = 0; j < vecSensY.size(); ++j)
+			vecSensYlocal[j] = vecSensY[j] + offset;
 
+		m->initializeSensitivityStates(vecSensYlocal);
 	}
 }
 

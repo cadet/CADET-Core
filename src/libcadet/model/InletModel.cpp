@@ -362,6 +362,11 @@ int InletModel::residualSensFwdWithJacobian(const active& t, unsigned int secIdx
 	return residualImpl<active, active>(t, secIdx, timeFactor, y, yDot, adRes);
 }
 
+void InletModel::initializeSensitivityStates(const std::vector<double*>& vecSensY) const
+{
+	// The work is actually done in consistentInitialSensitivity()
+}
+
 void InletModel::consistentInitialSensitivity(const active& t, unsigned int secIdx, const active& timeFactor, double const* vecStateY, double const* vecStateYdot,
 	std::vector<double*>& vecSensY, std::vector<double*>& vecSensYdot, active const* const adRes)
 {

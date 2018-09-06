@@ -549,6 +549,9 @@ namespace cadet
 			NVec_Const(0.0, _vecFwdYsDot[dir]);
 		}
 
+		// Apply initial values due to sensitivites with respect to initial conditions
+		_model->initializeSensitivityStates(convertNVectorToStdVectorPtrs<double*>(_vecFwdYs, nSens));
+
 		// Compute consistent initial conditions for sensitivity systems later
 		_skipConsistencySensitivity = false;
 
@@ -616,6 +619,8 @@ namespace cadet
 				NVec_Const(0.0, _vecFwdYsDot[dir]);
 			}
 
+			// Apply initial values due to sensitivites with respect to initial conditions
+			_model->initializeSensitivityStates(convertNVectorToStdVectorPtrs<double*>(_vecFwdYs, nSens));
 		}
 
 		// Don't assume that consistent values were given

@@ -254,6 +254,21 @@ public:
 	virtual void prepareADvectors(active* const adRes, active* const adY, unsigned int adDirOffset) const = 0;
 
 	/**
+	 * @brief Sets initial sensitivity system state
+	 * @details Given the DAE \f[ F(t, y, \dot{y}, p) = 0, \f] the corresponding (linear) forward sensitivity
+	 *          system reads \f[ \frac{\partial F}{\partial y}(t, y, \dot{y}) s + \frac{\partial F}{\partial \dot{y}}(t, y, \dot{y}) \dot{s} + \frac{\partial F}{\partial p}(t, y, \dot{y}) = 0. \f]
+	 *          The initial value of \f$ s_0 = \frac{\mathrm{d} y_0}{\mathrm{d}p} \f$ is set by this function.
+	 *          Note that consistent initialization is performed later, which in particular calculates a matching
+	 *          \f$ \dot{s}_0 = \frac{\mathrm{d} \dot{y}_0}{\mathrm{d}p}. \f$
+	 *          
+	 *          The sensitivity state vectors passed to this function are initialized to @c 0. They only have
+	 *          to change in case of sensitivities with respect to initial conditions.
+	 * 
+	 * @param [out] vecSensY Sensitivity subsystem state vectors
+	 */
+	virtual void initializeSensitivityStates(const std::vector<double*>& vecSensY) const = 0;
+
+	/**
 	 * @brief Sets the section time vector
 	 * @details The integration time is partitioned into sections. All parameters and
 	 *          equations are assumed continuous inside one section. Thus, sections

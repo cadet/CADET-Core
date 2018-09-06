@@ -107,6 +107,7 @@ public:
 	virtual void consistentInitialState(double t, unsigned int secIdx, double timeFactor, double* const vecStateY, active* const adRes, active* const adY, unsigned int adDirOffset, double errorTol);
 	virtual void consistentInitialTimeDerivative(double t, unsigned int secIdx, double timeFactor, double const* vecStateY, double* const vecStateYdot);
 
+	virtual void initializeSensitivityStates(const std::vector<double*>& vecSensY) const;
 	virtual void consistentInitialSensitivity(const active& t, unsigned int secIdx, const active& timeFactor, double const* vecStateY, double const* vecStateYdot,
 		std::vector<double*>& vecSensY, std::vector<double*>& vecSensYdot, active const* const adRes);
 

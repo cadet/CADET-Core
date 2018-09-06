@@ -1233,6 +1233,29 @@ void LumpedRateModelWithoutPores::leanConsistentInitialTimeDerivative(double t, 
 	}
 }
 
+void LumpedRateModelWithoutPores::initializeSensitivityStates(const std::vector<double*>& vecSensY) const
+{
+	Indexer idxr(_disc);
+	for (unsigned int param = 0; param < vecSensY.size(); ++param)
+	{
+		double* const stateYbulk = vecSensY[param] + idxr.offsetC();
+
+		// Loop over column cells
+		for (unsigned int col = 0; col < _disc.nCol; ++col)
+		{
+			const unsigned int localOffset = col * idxr.strideColCell();
+
+			// Loop over components in cell
+			for (unsigned comp = 0; comp < _disc.nComp; ++comp)
+				stateYbulk[localOffset + comp * idxr.strideColComp()] = _initC[comp].getADValue(param);
+
+			// Initialize q
+			for (unsigned int bnd = 0; bnd < _disc.strideBound; ++bnd)
+				stateYbulk[localOffset + idxr.strideColLiquid() + bnd] = _initQ[bnd].getADValue(param);
+		}
+	}
+}
+
 /**
  * @brief Computes consistent initial values and time derivatives of sensitivity subsystems
  * @details Given the DAE \f[ F(t, y, \dot{y}) = 0, \f] and initial values \f$ y_0 \f$ and \f$ \dot{y}_0 \f$,
