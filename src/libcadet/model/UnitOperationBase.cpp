@@ -100,7 +100,8 @@ bool UnitOperationBase::setParameter(const ParameterId& pId, double value)
 		paramHandle->second->setValue(value);
 		return true;
 	}
-	else if (_binding)
+
+	if (_binding)
 		return _binding->setParameter(pId, value);
 
 	return false;
@@ -121,7 +122,7 @@ void UnitOperationBase::setSensitiveParameterValue(const ParameterId& pId, doubl
 	if ((pId.unitOperation != _unitOpIdx) && (pId.unitOperation != UnitOpIndep))
 		return;
 
-	// Check our own parameters
+	// Check our own model parameters
 	paramMap_t::iterator paramHandle = _parameters.find(pId);
 	if ((paramHandle != _parameters.end()) && contains(_sensParams, paramHandle->second))
 	{
@@ -146,11 +147,11 @@ bool UnitOperationBase::setSensitiveParameter(const ParameterId& pId, unsigned i
 	if ((pId.unitOperation != _unitOpIdx) && (pId.unitOperation != UnitOpIndep))
 		return false;
 
-	// Check own parameters
+	// Check own model parameters
 	paramMap_t::iterator paramHandle = _parameters.find(pId);
 	if (paramHandle != _parameters.end())
 	{
-		LOG(Debug) << "Found parameter " << pId << " in GRM: Dir " << adDirection << " is set to " << adValue;
+		LOG(Debug) << "Found parameter " << pId << ": Dir " << adDirection << " is set to " << adValue;
 
 		// Register parameter and set AD seed / direction
 		_sensParams.insert(paramHandle->second);
