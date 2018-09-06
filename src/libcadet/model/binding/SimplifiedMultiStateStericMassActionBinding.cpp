@@ -40,9 +40,9 @@ namespace model
 SimplifiedMultiStateStericMassActionBinding::SimplifiedMultiStateStericMassActionBinding() { }
 SimplifiedMultiStateStericMassActionBinding::~SimplifiedMultiStateStericMassActionBinding() CADET_NOEXCEPT { }
 
-void SimplifiedMultiStateStericMassActionBinding::configureModelDiscretization(unsigned int nComp, unsigned int const* nBound, unsigned int const* boundOffset)
+bool SimplifiedMultiStateStericMassActionBinding::configureModelDiscretization(IParameterProvider& paramProvider, unsigned int nComp, unsigned int const* nBound, unsigned int const* boundOffset)
 {
-	BindingModelBase::configureModelDiscretization(nComp, nBound, boundOffset);
+	const bool res = BindingModelBase::configureModelDiscretization(paramProvider, nComp, nBound, boundOffset);
 
 	if (nBound[0] != 1)
 		throw InvalidParameterException("Simplified Multi-State SMA binding model requires exactly one bound state for salt");
@@ -66,9 +66,11 @@ void SimplifiedMultiStateStericMassActionBinding::configureModelDiscretization(u
 	_kWS.reserve(nComp);
 	_kWS_lin.reserve(nComp);
 	_kWS_quad.reserve(nComp);
+
+	return res;
 }
 
-bool SimplifiedMultiStateStericMassActionBinding::configureImpl(bool reconfigure, IParameterProvider& paramProvider, unsigned int unitOpIdx)
+bool SimplifiedMultiStateStericMassActionBinding::configureImpl(IParameterProvider& paramProvider, unsigned int unitOpIdx)
 {
 	const unsigned int totalBoundStates = numBoundStates(_nBoundStates, _nComp);
 

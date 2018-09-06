@@ -1617,7 +1617,7 @@ namespace cadet
 			return false;
 
 		// Reconfigure the model
-		const bool success = _model->reconfigure(paramProvider);
+		const bool success = _model->configure(paramProvider);
 
 		// Set all AD directions for parameter sensitivities again
 		resetSensParams();
@@ -1631,7 +1631,7 @@ namespace cadet
 			return false;
 
 		// Reconfigure the model
-		const bool success = _model->reconfigureModel(paramProvider, unitOpIdx);
+		const bool success = _model->configureModel(paramProvider, unitOpIdx);
 
 		// Set all AD directions for parameter sensitivities again
 		resetSensParams();

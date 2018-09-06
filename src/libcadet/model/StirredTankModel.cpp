@@ -71,7 +71,7 @@ void CSTRModel::setFlowRates(const active& in, const active& out) CADET_NOEXCEPT
 	_flowRateOut = out;
 }
 
-bool CSTRModel::configure(IParameterProvider& paramProvider, IConfigHelper& helper)
+bool CSTRModel::configureModelDiscretization(IParameterProvider& paramProvider, IConfigHelper& helper)
 {
 	_nComp = paramProvider.getInt("NCOMP");
 
@@ -109,8 +109,6 @@ bool CSTRModel::configure(IParameterProvider& paramProvider, IConfigHelper& help
 #endif
 	useAnalyticJacobian(analyticJac);
 
-	reconfigure(paramProvider);
-
 	// ==== Construct and configure binding model
 	delete _binding;
 
@@ -120,15 +118,7 @@ bool CSTRModel::configure(IParameterProvider& paramProvider, IConfigHelper& help
 		if (!_binding)
 			throw InvalidParameterException("Unknown binding model " + paramProvider.getString("ADSORPTION_MODEL"));
 
-		_binding->configureModelDiscretization(_nComp, _nBound, _boundOffset);
-
-		bool bindingConfSuccess = true;
-		if (_binding->requiresConfiguration())
-		{
-			paramProvider.pushScope("adsorption");
-			bindingConfSuccess = _binding->configure(paramProvider, _unitOpIdx);
-			paramProvider.popScope();
-		}
+		const bool bindingConfSuccess = _binding->configureModelDiscretization(paramProvider, _nComp, _nBound, _boundOffset);
 
 		// Allocate memory for nonlinear equation solving
 		unsigned int size = 0;
@@ -143,12 +133,13 @@ bool CSTRModel::configure(IParameterProvider& paramProvider, IConfigHelper& help
 		return bindingConfSuccess;
 	}
 	else
+	{
 		_binding = helper.createBindingModel("NONE");
-
-	return true;
+		return _binding->configureModelDiscretization(paramProvider, _nComp, _nBound, _boundOffset);
+	}
 }
 
-bool CSTRModel::reconfigure(IParameterProvider& paramProvider)
+bool CSTRModel::configure(IParameterProvider& paramProvider)
 {
 	_curFlowRateFilter = 0.0;
 	_flowRateFilter.clear();
@@ -166,10 +157,10 @@ bool CSTRModel::reconfigure(IParameterProvider& paramProvider)
 	_parameters[makeParamId(hashString("POROSITY"), _unitOpIdx, CompIndep, BoundPhaseIndep, ReactionIndep, SectionIndep)] = &_porosity;
 
 	// Reconfigure binding model
-	if (_binding && paramProvider.exists("adsorption"))
+	if (_binding && paramProvider.exists("adsorption") && _binding->requiresConfiguration())
 	{
 		paramProvider.pushScope("adsorption");
-		const bool bindingConfSuccess = _binding->reconfigure(paramProvider, _unitOpIdx);
+		const bool bindingConfSuccess = _binding->configure(paramProvider, _unitOpIdx);
 		paramProvider.popScope();
 
 		return bindingConfSuccess;

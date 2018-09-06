@@ -48,7 +48,7 @@ namespace model
  *          by component 0.
  *          
  *          The ordering inside the solid phase can be chosen by the binding model to some
- *          extent. In general, the ordering is bound-phase-major, that means, all bound
+ *          extent. In general, the ordering is component-major, that means, all bound
  *          phases for each component are listed one after the other. For a model having
  *          4 components with 1, 0, 3, 2 bound states, respectively, the ordering is
  *          comp0bnd0, comp2bnd0, comp2bnd1, comp2bnd2, comp3bnd0, comp3bnd1.
@@ -94,36 +94,33 @@ public:
 	/**
 	 * @brief Sets the number of components and bound states in the model
 	 * @details This function is called prior to configure() by the underlying model.
+	 *          It can only be called once. Model parameters are configured by
+	 *          configure().
 	 * 
+	 * @param [in] paramProvider Parameter provider
 	 * @param [in] nComp Number of components
 	 * @param [in] nBound Array of size @p nComp which contains the number of bound states for each component
 	 * @param [in] boundOffset Array of size @p nComp with offsets to the first bound state of each component beginning from the solid phase
 	 */
-	virtual void configureModelDiscretization(unsigned int nComp, unsigned int const* nBound, unsigned int const* boundOffset) = 0;
+	virtual bool configureModelDiscretization(IParameterProvider& paramProvider, unsigned int nComp, unsigned int const* nBound, unsigned int const* boundOffset) = 0;
 
 	/**
-	 * @brief Configures the model by extracting all parameters from the given @p paramProvider
+	 * @brief Configures the model by extracting all non-structural parameters (e.g., model parameters) from the given @p paramProvider
 	 * @details The scope of the cadet::IParameterProvider is left unchanged on return.
+	 * 
+	 *          The structure of the model is left unchanged, that is, the number of degrees of
+	 *          freedom stays the same (e.g., number of bound states is left unchanged). Only
+	 *          true (non-structural) model parameters are read and changed.
+	 *          
+	 *          This function may only be called if configureModelDiscretization() has been called
+	 *          in the past. Contrary to configureModelDiscretization(), it can be called multiple
+	 *          times.
 	 * 
 	 * @param [in] paramProvider Parameter provider
 	 * @param [in] unitOpIdx Index of the unit operation this binding model belongs to
 	 * @return @c true if the configuration was successful, otherwise @c false
 	 */
 	virtual bool configure(IParameterProvider& paramProvider, unsigned int unitOpIdx) = 0;
-
-	/**
-	 * @brief Reconfigures the model by extracting all non-structural parameters (e.g., model parameters) from the given @p paramProvider
-	 * @details The scope of the cadet::IParameterProvider is left unchanged on return.
-	 *          The structure of the model is left unchanged, that is, the number of degrees of
-	 *          freedom stays the same (e.g., number of bound states is left unchanged). Only
-	 *          true (non-structural) model parameters are read and changed.
-	 *          This function may only be called if configure() has been called in the past.
-	 * 
-	 * @param [in] paramProvider Parameter provider
-	 * @param [in] unitOpIdx Index of the unit operation this binding model belongs to
-	 * @return @c true if the configuration was successful, otherwise @c false
-	 */
-	virtual bool reconfigure(IParameterProvider& paramProvider, unsigned int unitOpIdx) = 0;
 
 	/**
 	 * @brief Sets external functions for this binding model
@@ -136,7 +133,7 @@ public:
 
 	/**
 	 * @brief Checks whether a given parameter exists
-	 * @param [in] pId   pId   ParameterId that identifies the parameter uniquely
+	 * @param [in] pId ParameterId that identifies the parameter uniquely
 	 * @return @c true if the parameter exists, otherwise @c false
 	 */
 	virtual bool hasParameter(const ParameterId& pId) const = 0;
@@ -151,8 +148,8 @@ public:
 	 * @brief Sets a parameter value
 	 * @details The parameter identified by its unique parameter is set to the given value.
 	 * 
-	 * @param [in] pId   pId   ParameterId that identifies the parameter uniquely
-	 * @param [in] value value Value of the parameter
+	 * @param [in] pId ParameterId that identifies the parameter uniquely
+	 * @param [in] value Value of the parameter
 	 * 
 	 * @return @c true if the parameter has been successfully set to the given value,
 	 *         otherwise @c false (e.g., if the parameter is not available in this model)

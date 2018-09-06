@@ -395,16 +395,20 @@ public:
 	virtual const char* name() const CADET_NOEXCEPT { return ParamHandler_t::identifier(); }
 	virtual bool requiresConfiguration() const CADET_NOEXCEPT { return true; }
 
-	virtual void configureModelDiscretization(unsigned int nComp, unsigned int const* nBound, unsigned int const* boundOffset)
+	virtual bool configureModelDiscretization(IParameterProvider& paramProvider, unsigned int nComp, unsigned int const* nBound, unsigned int const* boundOffset)
 	{
 		_nComp = nComp;
 		_nBoundStates = nBound;
 		if (hasMultipleBoundStates(nBound, nComp))
 			throw InvalidParameterException("Linear binding model does not support multiple bound states");
+
+		return true;
 	}
 
 	virtual bool configure(IParameterProvider& paramProvider, unsigned int unitOpIdx)
 	{
+		_parameters.clear();
+
 		// Read binding dynamics (quasi-stationary, kinetic)
 		_kineticBinding = paramProvider.getInt("IS_KINETIC");
 
@@ -417,11 +421,7 @@ public:
 		return true;
 	}
 
-	virtual bool reconfigure(IParameterProvider& paramProvider, unsigned int unitOpIdx)
 	{
-		// Configure again
-		_parameters.clear();
-		return configure(paramProvider, unitOpIdx);
 	}
 
 	virtual std::unordered_map<ParameterId, double> getAllParameterValues() const

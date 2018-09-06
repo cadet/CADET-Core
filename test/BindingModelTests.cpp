@@ -136,10 +136,10 @@ namespace
 			}
 
 			// Configure
-			bm->configureModelDiscretization(nComp, nBound, boundOffset);
+			cadet::JsonParameterProvider jpp(config);
+			bm->configureModelDiscretization(jpp, nComp, nBound, boundOffset);
 			if (bm->requiresConfiguration())
 			{
-				cadet::JsonParameterProvider jpp(config);
 				jpp.set("IS_KINETIC", isKinetic);
 				jpp.set("EXTFUN", std::vector<int>(1, 0));
 				REQUIRE(bm->configure(jpp, 0));

@@ -66,7 +66,7 @@ public:
 	static const char* identifier() { return "SIMPLIFIED_MULTISTATE_STERIC_MASS_ACTION"; }
 	virtual const char* name() const CADET_NOEXCEPT { return SimplifiedMultiStateStericMassActionBinding::identifier(); }
 
-	virtual void configureModelDiscretization(unsigned int nComp, unsigned int const* nBound, unsigned int const* boundOffset);
+	virtual bool configureModelDiscretization(IParameterProvider& paramProvider, unsigned int nComp, unsigned int const* nBound, unsigned int const* boundOffset);
 
 	virtual void getAlgebraicBlock(unsigned int& idxStart, unsigned int& len) const;
 
@@ -106,7 +106,7 @@ protected:
 	active _refC0; //! Liquid phase reference concentration
 	active _refQ; //! Solid phase reference concentration
 
-	virtual bool configureImpl(bool reconfigure, IParameterProvider& paramProvider, unsigned int unitOpIdx);
+	virtual bool configureImpl(IParameterProvider& paramProvider, unsigned int unitOpIdx);
 	
 	template <typename ParamType>
 	inline ParamType sigma(int comp, double state) const;

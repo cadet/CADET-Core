@@ -61,8 +61,8 @@ public:
 	static const char* identifier() { return "OUTLET"; }
 	virtual const char* unitOperationName() const CADET_NOEXCEPT { return "OUTLET"; }
 
-	virtual bool configure(IParameterProvider& paramProvider, IConfigHelper& helper);
-	virtual bool reconfigure(IParameterProvider& paramProvider);
+	virtual bool configureModelDiscretization(IParameterProvider& paramProvider, IConfigHelper& helper);
+	virtual bool configure(IParameterProvider& paramProvider);
 	virtual void notifyDiscontinuousSectionTransition(double t, unsigned int secIdx, active* const adRes, active* const adY, unsigned int adDirOffset);
 	
 	virtual std::unordered_map<ParameterId, double> getAllParameterValues() const;

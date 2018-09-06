@@ -36,8 +36,11 @@ public:
 	virtual const char* name() const CADET_NOEXCEPT { return "NONE"; }
 	virtual bool requiresConfiguration() const CADET_NOEXCEPT { return false; }
 
-	virtual void configureModelDiscretization(unsigned int nComp, unsigned int const* nBound, unsigned int const* boundOffset)
+	virtual bool configureModelDiscretization(IParameterProvider& paramProvider, unsigned int nComp, unsigned int const* nBound, unsigned int const* boundOffset)
 	{
+		_nComp = nComp;
+		_nBoundStates = nBound;
+		return true;
 	}
 
 	virtual bool configure(IParameterProvider& paramProvider, unsigned int unitOpIdx)
@@ -45,9 +48,7 @@ public:
 		return true;
 	}
 
-	virtual bool reconfigure(IParameterProvider& paramProvider, unsigned int unitOpIdx)
 	{
-		return configure(paramProvider, unitOpIdx);
 	}
 
 	virtual std::unordered_map<ParameterId, double> getAllParameterValues() const
@@ -152,6 +153,8 @@ public:
 	virtual bool requiresWorkspace() const CADET_NOEXCEPT { return false; }
 
 protected:
+	int _nComp; //!< Number of components
+	unsigned int const* _nBoundStates; //!< Array with number of bound states for each component
 };
 
 namespace binding

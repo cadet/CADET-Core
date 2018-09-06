@@ -92,7 +92,7 @@ bool LumpedRateModelWithPores::usesAD() const CADET_NOEXCEPT
 #endif
 }
 
-bool LumpedRateModelWithPores::configure(IParameterProvider& paramProvider, IConfigHelper& helper)
+bool LumpedRateModelWithPores::configureModelDiscretization(IParameterProvider& paramProvider, IConfigHelper& helper)
 {
 	// ==== Read discretization
 	_disc.nComp = paramProvider.getInt("NCOMP");
@@ -132,10 +132,8 @@ bool LumpedRateModelWithPores::configure(IParameterProvider& paramProvider, ICon
 
 	paramProvider.popScope();
 
-	const bool transportSuccess = _convDispOp.configure(_unitOpIdx, paramProvider, _parameters, _disc.nComp, _disc.nCol);
 
-	// ==== Read model parameters
-	const bool reconfSuccess = reconfigure(paramProvider);
+	const bool transportSuccess = _convDispOp.configureModelDiscretization(paramProvider, _disc.nComp, _disc.nCol);
 
 	// Allocate memory
 	Indexer idxr(_disc);
@@ -161,15 +159,7 @@ bool LumpedRateModelWithPores::configure(IParameterProvider& paramProvider, ICon
 	if (!_binding)
 		throw InvalidParameterException("Unknown binding model " + paramProvider.getString("ADSORPTION_MODEL"));
 
-	_binding->configureModelDiscretization(_disc.nComp, _disc.nBound, _disc.boundOffset);
-
-	bool bindingConfSuccess = true;
-	if (_binding->requiresConfiguration())
-	{
-		paramProvider.pushScope("adsorption");
-		bindingConfSuccess = _binding->configure(paramProvider, _unitOpIdx);
-		paramProvider.popScope();
-	}
+	const bool bindingConfSuccess = _binding->configureModelDiscretization(paramProvider, _disc.nComp, _disc.nBound, _disc.boundOffset);
 
 	// setup the memory for tempState based on state vector or memory needed for consistent initialization of isotherms, whichever is larger
 	unsigned int size = numDofs();
@@ -184,14 +174,14 @@ bool LumpedRateModelWithPores::configure(IParameterProvider& paramProvider, ICon
 	}
 	_tempState = new double[size];
 
-	return transportSuccess && reconfSuccess && bindingConfSuccess;
+	return transportSuccess && bindingConfSuccess;
 }
 
-bool LumpedRateModelWithPores::reconfigure(IParameterProvider& paramProvider)
+bool LumpedRateModelWithPores::configure(IParameterProvider& paramProvider)
 {
 	_parameters.clear();
 
-	const bool transportSuccess = _convDispOp.reconfigure(_unitOpIdx, paramProvider, _parameters);
+	const bool transportSuccess = _convDispOp.configure(_unitOpIdx, paramProvider, _parameters);
 
 	// Read geometry parameters
 	_colPorosity = paramProvider.getDouble("COL_POROSITY");
@@ -215,10 +205,10 @@ bool LumpedRateModelWithPores::reconfigure(IParameterProvider& paramProvider)
 	registerComponentSectionDependentParam(hashString("PORE_ACCESSIBILITY"), _parameters, _poreAccessFactor, _unitOpIdx, _disc.nComp);
 
 	// Reconfigure binding model
-	if (_binding && paramProvider.exists("adsorption"))
+	if (_binding && paramProvider.exists("adsorption") && _binding->requiresConfiguration())
 	{
 		paramProvider.pushScope("adsorption");
-		const bool bindingConfSuccess = _binding->reconfigure(paramProvider, _unitOpIdx);
+		const bool bindingConfSuccess = _binding->configure(paramProvider, _unitOpIdx);
 		paramProvider.popScope();
 
 		return transportSuccess && bindingConfSuccess;

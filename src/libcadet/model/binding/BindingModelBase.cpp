@@ -37,12 +37,14 @@ BindingModelBase::~BindingModelBase() CADET_NOEXCEPT
 	delete _nonlinearSolver;
 }
 
-void BindingModelBase::configureModelDiscretization(unsigned int nComp, unsigned int const* nBound, unsigned int const* boundOffset)
+bool BindingModelBase::configureModelDiscretization(IParameterProvider& paramProvider, unsigned int nComp, unsigned int const* nBound, unsigned int const* boundOffset)
 {
 	_nComp = nComp;
 	_nBoundStates = nBound;
 	if (hasMultipleBoundStates(nBound, nComp) && !supportsMultistate())
 		throw InvalidParameterException("Binding model does not support multiple bound states");
+
+	return configureNonlinearSolver(paramProvider);
 }
 
 bool BindingModelBase::configure(IParameterProvider& paramProvider, unsigned int unitOpIdx)
@@ -50,20 +52,12 @@ bool BindingModelBase::configure(IParameterProvider& paramProvider, unsigned int
 	// Read binding dynamics (quasi-stationary, kinetic)
 	_kineticBinding = paramProvider.getInt("IS_KINETIC");
 
-	if (!configureNonlinearSolver(paramProvider))
-		return false;
-
-	return configureImpl(false, paramProvider, unitOpIdx);
-}
-
-bool BindingModelBase::reconfigure(IParameterProvider& paramProvider, unsigned int unitOpIdx)
-{
-	// Read binding dynamics (quasi-stationary, kinetic)
-	_kineticBinding = paramProvider.getInt("IS_KINETIC");
-
 	// Clear all parameters and reconfigure
 	_parameters.clear();
-	return configureImpl(true, paramProvider, unitOpIdx);
+	return configureImpl(paramProvider, unitOpIdx);
+}
+
+{
 }
 
 bool BindingModelBase::configureNonlinearSolver(IParameterProvider& paramProvider)

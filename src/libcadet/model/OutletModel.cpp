@@ -63,13 +63,13 @@ bool OutletModel::usesAD() const CADET_NOEXCEPT
 	return false;
 }
 
-bool OutletModel::configure(IParameterProvider& paramProvider, IConfigHelper& helper)
+bool OutletModel::configureModelDiscretization(IParameterProvider& paramProvider, IConfigHelper& helper)
 {
 	_nComp = paramProvider.getInt("NCOMP");
 	return true;
 }
 
-bool OutletModel::reconfigure(IParameterProvider& paramProvider)
+bool OutletModel::configure(IParameterProvider& paramProvider)
 {
 	return true;
 }

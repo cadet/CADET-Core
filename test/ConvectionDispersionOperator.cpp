@@ -136,7 +136,8 @@ namespace
 		// Configure the operator
 		typedef std::unordered_map<cadet::ParameterId, cadet::active*> ParameterMap;
 		ParameterMap parameters;
-		REQUIRE(convDispOp.configure(0, jpp, parameters, nComp, nCol));
+		REQUIRE(convDispOp.configureModelDiscretization(jpp, nComp, nCol));
+		REQUIRE(convDispOp.configure(0, jpp, parameters));
 
 		// Make sure that VELOCITY parameter is present
 		const cadet::ParameterId paramVelocity = cadet::makeParamId(cadet::hashString("VELOCITY"), 0, cadet::CompIndep, cadet::BoundPhaseIndep, cadet::ReactionIndep, cadet::SectionIndep);

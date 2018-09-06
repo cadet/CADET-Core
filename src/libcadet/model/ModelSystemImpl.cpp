@@ -527,9 +527,9 @@ void ModelSystem::allocateSuperStructMatrices()
 	}
 }
 
-bool ModelSystem::configure(IParameterProvider& paramProvider, IConfigHelper& helper)
+bool ModelSystem::configureModelDiscretization(IParameterProvider& paramProvider, IConfigHelper& helper)
 {
-	// Unit operation models are already configured
+	// Discretizations of unit operation models are already configured
 	rebuildInternalDataStructures();
 
 	_parameters.clear();
@@ -629,7 +629,7 @@ bool ModelSystem::configure(IParameterProvider& paramProvider, IConfigHelper& he
 	return success;
 }
 
-bool ModelSystem::reconfigure(IParameterProvider& paramProvider)
+bool ModelSystem::configure(IParameterProvider& paramProvider)
 {
 	_parameters.clear();
 
@@ -769,13 +769,13 @@ void ModelSystem::configureSwitches(IParameterProvider& paramProvider)
 		throw InvalidParameterException("First element of SECTION in connections group has to be 0");
 }
 
-bool ModelSystem::reconfigureModel(IParameterProvider& paramProvider, unsigned int unitOpIdx)
+bool ModelSystem::configureModel(IParameterProvider& paramProvider, unsigned int unitOpIdx)
 {
 	IUnitOperation* const model = getUnitOperationModel(unitOpIdx);
 	if (!model)
 		return false;
 
-	return model->reconfigure(paramProvider);
+	return model->configure(paramProvider);
 }
 
 /**

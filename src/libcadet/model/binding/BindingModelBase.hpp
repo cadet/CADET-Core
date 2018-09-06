@@ -61,8 +61,7 @@ public:
 
 	virtual bool requiresConfiguration() const CADET_NOEXCEPT { return true; }
 	virtual bool configure(IParameterProvider& paramProvider, unsigned int unitOpIdx);
-	virtual bool reconfigure(IParameterProvider& paramProvider, unsigned int unitOpIdx);
-	virtual void configureModelDiscretization(unsigned int nComp, unsigned int const* nBound, unsigned int const* boundOffset);
+	virtual bool configureModelDiscretization(IParameterProvider& paramProvider, unsigned int nComp, unsigned int const* nBound, unsigned int const* boundOffset);
 
 	virtual std::unordered_map<ParameterId, double> getAllParameterValues() const;
 	virtual bool hasParameter(const ParameterId& pId) const;
@@ -108,7 +107,7 @@ protected:
 	 * @param [in] unitOpIdx Unit operation index
 	 * @return @c true if the configuration was successful, otherwise @c false
 	 */
-	virtual bool configureImpl(bool reconfigure, IParameterProvider& paramProvider, unsigned int unitOpIdx) = 0;
+	virtual bool configureImpl(IParameterProvider& paramProvider, unsigned int unitOpIdx) = 0;
 
 	/**
 	 * @brief Configures the nonlinear solver which is used for consistent initialization

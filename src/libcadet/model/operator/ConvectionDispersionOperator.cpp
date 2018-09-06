@@ -47,14 +47,12 @@ ConvectionDispersionOperatorBase::~ConvectionDispersionOperatorBase() CADET_NOEX
 /**
  * @brief Reads parameters and allocates memory
  * @details Has to be called once before the operator is used.
- * @param [in] unitOpIdx Unit operation id of the owning unit operation model
  * @param [in] paramProvider Parameter provider for reading parameters
- * @param [out] parameters Map in which local parameters are inserted
  * @param [in] nComp Number of components
  * @param [in] nCol Number of axial cells
  * @return @c true if configuration went fine, @c false otherwise
  */
-bool ConvectionDispersionOperatorBase::configure(UnitOpIdx unitOpIdx, IParameterProvider& paramProvider, std::unordered_map<ParameterId, active*>& parameters, unsigned int nComp, unsigned int nCol, unsigned int strideCell)
+bool ConvectionDispersionOperatorBase::configureModelDiscretization(IParameterProvider& paramProvider, unsigned int nComp, unsigned int nCol, unsigned int strideCell)
 {
 	_nComp = nComp;
 	_nCol = nCol;
@@ -71,9 +69,6 @@ bool ConvectionDispersionOperatorBase::configure(UnitOpIdx unitOpIdx, IParameter
 
 	paramProvider.popScope();
 
-	// ==== Read model parameters
-	reconfigure(unitOpIdx, paramProvider, parameters);
-
 	return true;
 }
 
@@ -85,7 +80,7 @@ bool ConvectionDispersionOperatorBase::configure(UnitOpIdx unitOpIdx, IParameter
  * @param [out] parameters Map in which local parameters are inserted
  * @return @c true if configuration went fine, @c false otherwise
  */
-bool ConvectionDispersionOperatorBase::reconfigure(UnitOpIdx unitOpIdx, IParameterProvider& paramProvider, std::unordered_map<ParameterId, active*>& parameters)
+bool ConvectionDispersionOperatorBase::configure(UnitOpIdx unitOpIdx, IParameterProvider& paramProvider, std::unordered_map<ParameterId, active*>& parameters)
 {
 	// Read geometry parameters
 	_colLength = paramProvider.getDouble("COL_LENGTH");
@@ -607,9 +602,9 @@ unsigned int ConvectionDispersionOperator::requiredADdirs() const CADET_NOEXCEPT
  * @param [in] nCol Number of axial cells
  * @return @c true if configuration went fine, @c false otherwise
  */
-bool ConvectionDispersionOperator::configure(UnitOpIdx unitOpIdx, IParameterProvider& paramProvider, std::unordered_map<ParameterId, active*>& parameters, unsigned int nComp, unsigned int nCol)
+bool ConvectionDispersionOperator::configureModelDiscretization(IParameterProvider& paramProvider, unsigned int nComp, unsigned int nCol)
 {
-	const bool retVal = _baseOp.configure(unitOpIdx, paramProvider, parameters, nComp, nCol, nComp);
+	const bool retVal = _baseOp.configureModelDiscretization(paramProvider, nComp, nCol, nComp);
 
 	// Allocate memory
 	const unsigned int lb = _baseOp.jacobianLowerBandwidth();
@@ -632,9 +627,9 @@ bool ConvectionDispersionOperator::configure(UnitOpIdx unitOpIdx, IParameterProv
  * @param [out] parameters Map in which local parameters are inserted
  * @return @c true if configuration went fine, @c false otherwise
  */
-bool ConvectionDispersionOperator::reconfigure(UnitOpIdx unitOpIdx, IParameterProvider& paramProvider, std::unordered_map<ParameterId, active*>& parameters)
+bool ConvectionDispersionOperator::configure(UnitOpIdx unitOpIdx, IParameterProvider& paramProvider, std::unordered_map<ParameterId, active*>& parameters)
 {
-	return _baseOp.reconfigure(unitOpIdx, paramProvider, parameters);
+	return _baseOp.configure(unitOpIdx, paramProvider, parameters);
 }
 
 /**

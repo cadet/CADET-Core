@@ -138,9 +138,9 @@ public:
 	static const char* identifier() { return ParamHandler_t::identifier(); }
 	virtual const char* name() const CADET_NOEXCEPT { return ParamHandler_t::identifier(); }
 
-	virtual void configureModelDiscretization(unsigned int nComp, unsigned int const* nBound, unsigned int const* boundOffset)
+	virtual bool configureModelDiscretization(IParameterProvider& paramProvider, unsigned int nComp, unsigned int const* nBound, unsigned int const* boundOffset)
 	{
-		BindingModelBase::configureModelDiscretization(nComp, nBound, boundOffset);
+		const bool res = BindingModelBase::configureModelDiscretization(paramProvider, nComp, nBound, boundOffset);
 
 		if (nBound[0] != 1)
 			throw InvalidParameterException("Multi-State SMA binding model requires exactly one bound state for salt");
@@ -149,6 +149,8 @@ public:
 
 		// Allocate space for parameters
 		_paramHandler.reserve(totalBoundStates, nComp, nComp, nBound);
+
+		return res;
 	}
 
 	virtual void getAlgebraicBlock(unsigned int& idxStart, unsigned int& len) const
@@ -280,7 +282,7 @@ protected:
 
 	virtual unsigned int paramCacheSize() const CADET_NOEXCEPT { return _paramHandler.cacheSize(); }
 
-	virtual bool configureImpl(bool reconfigure, IParameterProvider& paramProvider, unsigned int unitOpIdx)
+	virtual bool configureImpl(IParameterProvider& paramProvider, unsigned int unitOpIdx)
 	{
 		// Read parameters
 		_paramHandler.configure(paramProvider, _nComp, _nBoundStates);

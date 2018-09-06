@@ -104,13 +104,15 @@ public:
 	static const char* identifier() { return ParamHandler_t::identifier(); }
 	virtual const char* name() const CADET_NOEXCEPT { return ParamHandler_t::identifier(); }
 
-	virtual void configureModelDiscretization(unsigned int nComp, unsigned int const* nBound, unsigned int const* boundOffset)
+	virtual bool configureModelDiscretization(IParameterProvider& paramProvider, unsigned int nComp, unsigned int const* nBound, unsigned int const* boundOffset)
 	{
-		BindingModelBase::configureModelDiscretization(nComp, nBound, boundOffset);
+		const bool res = BindingModelBase::configureModelDiscretization(paramProvider, nComp, nBound, boundOffset);
 
 		// Guarantee that salt has no bound state
 		if (nBound[0] != 0)
 			throw InvalidParameterException("Kumar-Langmuir binding model requires non-binding salt component");
+
+		return res;
 	}
 
 	virtual void setExternalFunctions(IExternalFunction** extFuns, unsigned int size) { _paramHandler.setExternalFunctions(extFuns, size); }
@@ -126,7 +128,7 @@ protected:
 
 	virtual unsigned int paramCacheSize() const CADET_NOEXCEPT { return _paramHandler.cacheSize(); }
 
-	virtual bool configureImpl(bool reconfigure, IParameterProvider& paramProvider, unsigned int unitOpIdx)
+	virtual bool configureImpl(IParameterProvider& paramProvider, unsigned int unitOpIdx)
 	{
 		// Read parameters
 		_paramHandler.configure(paramProvider, _nComp, _nBoundStates);

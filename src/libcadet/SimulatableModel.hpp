@@ -72,31 +72,49 @@ public:
 	virtual unsigned int requiredADdirs() const CADET_NOEXCEPT = 0;
 
 	/**
-	 * @brief Configures the model by extracting all parameters from the given @p paramProvider
+	 * @brief Configures the model discretization by extracting all structural parameters from the given @p paramProvider
 	 * @details The scope of the cadet::IParameterProvider is left unchanged on return.
+	 *          
+	 *          Only the structure / discretization (e.g., number of components, adsorption
+	 *          model, bound states) is configured. The actual model parameters are configured
+	 *          in configure(). 
+	 *          
+	 *          This function can only be called once. Once the discretization is set, it cannot
+	 *          be changed.
 	 * 
 	 * @param [in] paramProvider Parameter provider
 	 * @param [in] helper Used to inject or create required objects
 	 * @return @c true if the configuration was successful, otherwise @c false
 	 */
-	virtual bool configure(IParameterProvider& paramProvider, IConfigHelper& helper) = 0;
+	virtual bool configureModelDiscretization(IParameterProvider& paramProvider, IConfigHelper& helper) = 0;
 
 	/**
-	 * @brief Reconfigures the model by extracting all non-structural parameters (e.g., model parameters) from the given @p paramProvider
+	 * @brief (Re-)configures the model by extracting all non-structural parameters (e.g., model parameters) from the given @p paramProvider
 	 * @details The scope of the cadet::IParameterProvider is left unchanged on return.
+	 * 
 	 *          The structure of the model is left unchanged, that is, the number of degrees of
 	 *          freedom stays the same. Only true (non-structural) model parameters are read and
 	 *          changed. Parameters that concern discretization (e.g., number of cells), model
 	 *          structure (e.g., number of components, binding model), and numerical solution
 	 *          (e.g., tolerances in GMRES iterations) are left untouched.
-	 *          This function may only be called if configure() has been called in the past.
+	 *          
+	 *          This function may only be called if configureModelDiscretization() has been called
+	 *          in the past. Contrary to configureModelDiscretization(), it can be called multiple
+	 *          times.
 	 * 
 	 * @param [in] paramProvider Parameter provider
 	 * @return @c true if the configuration was successful, otherwise @c false
 	 */
-	virtual bool reconfigure(IParameterProvider& paramProvider) = 0;
+	virtual bool configure(IParameterProvider& paramProvider) = 0;
 
-	virtual bool reconfigureModel(IParameterProvider& paramProvider, unsigned int unitOpIdx) = 0;
+	/**
+	 * @brief (Re-)configures a unit operation model by extracting its non-structural parameters (e.g., model parameters) from the given @p paramProvider
+	 * @details The scope of the cadet::IParameterProvider is left unchanged on return.
+	 * @param [in] paramProvider Parameter provider
+	 * @param [in] unitOpIdx ID of the unit operation model (creation order)
+	 * @return @c true if the configuration was successful, otherwise @c false
+	 */
+	virtual bool configureModel(IParameterProvider& paramProvider, unsigned int unitOpIdx) = 0;
 
 	/**
 	 * @brief Reports the given solution to the cadet::ISolutionRecorder

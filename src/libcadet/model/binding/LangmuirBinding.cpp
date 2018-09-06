@@ -154,7 +154,7 @@ protected:
 
 	virtual unsigned int paramCacheSize() const CADET_NOEXCEPT { return _paramHandler.cacheSize(); }
 
-	virtual bool configureImpl(bool reconfigure, IParameterProvider& paramProvider, unsigned int unitOpIdx)
+	virtual bool configureImpl(IParameterProvider& paramProvider, unsigned int unitOpIdx)
 	{
 		// Read parameters
 		_paramHandler.configure(paramProvider, _nComp, _nBoundStates);

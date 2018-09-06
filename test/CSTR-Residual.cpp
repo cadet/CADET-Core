@@ -57,7 +57,8 @@ cadet::model::CSTRModel* createAndConfigureCSTR(cadet::IModelBuilder& mb, cadet:
 
 	// Configure
 	cadet::ModelBuilder& temp = *reinterpret_cast<cadet::ModelBuilder*>(&mb);
-	REQUIRE(cstr->configure(jpp, temp));
+	REQUIRE(cstr->configureModelDiscretization(jpp, temp));
+	REQUIRE(cstr->configure(jpp));
 
 	return cstr;
 }

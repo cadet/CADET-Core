@@ -63,8 +63,8 @@ public:
 	static const char* identifier() { return "CSTR"; }
 	virtual const char* unitOperationName() const CADET_NOEXCEPT { return "CSTR"; }
 
-	virtual bool configure(IParameterProvider& paramProvider, IConfigHelper& helper);
-	virtual bool reconfigure(IParameterProvider& paramProvider);
+	virtual bool configureModelDiscretization(IParameterProvider& paramProvider, IConfigHelper& helper);
+	virtual bool configure(IParameterProvider& paramProvider);
 	virtual void notifyDiscontinuousSectionTransition(double t, unsigned int secIdx, active* const adRes, active* const adY, unsigned int adDirOffset);
 
 	virtual void useAnalyticJacobian(const bool analyticJac);

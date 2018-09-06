@@ -63,8 +63,8 @@ public:
 
 	void setFlowRates(const active& in, const active& out, const active& colPorosity) CADET_NOEXCEPT;
 
-	bool configure(UnitOpIdx unitOpIdx, IParameterProvider& paramProvider, std::unordered_map<ParameterId, active*>& parameters, unsigned int nComp, unsigned int nCol, unsigned int strideCell);
-	bool reconfigure(UnitOpIdx unitOpIdx, IParameterProvider& paramProvider, std::unordered_map<ParameterId, active*>& parameters);
+	bool configureModelDiscretization(IParameterProvider& paramProvider, unsigned int nComp, unsigned int nCol, unsigned int strideCell);
+	bool configure(UnitOpIdx unitOpIdx, IParameterProvider& paramProvider, std::unordered_map<ParameterId, active*>& parameters);
 	bool notifyDiscontinuousSectionTransition(double t, unsigned int secIdx);
 
 	int residual(double t, unsigned int secIdx, double timeFactor, double const* y, double const* yDot, double* res, linalg::BandMatrix* jac);
@@ -164,8 +164,8 @@ public:
 
 	void setFlowRates(const active& in, const active& out, const active& colPorosity) CADET_NOEXCEPT;
 
-	bool configure(UnitOpIdx unitOpIdx, IParameterProvider& paramProvider, std::unordered_map<ParameterId, active*>& parameters, unsigned int nComp, unsigned int nCol);
-	bool reconfigure(UnitOpIdx unitOpIdx, IParameterProvider& paramProvider, std::unordered_map<ParameterId, active*>& parameters);
+	bool configureModelDiscretization(IParameterProvider& paramProvider, unsigned int nComp, unsigned int nCol);
+	bool configure(UnitOpIdx unitOpIdx, IParameterProvider& paramProvider, std::unordered_map<ParameterId, active*>& parameters);
 	bool notifyDiscontinuousSectionTransition(double t, unsigned int secIdx, active* const adRes, active* const adY, unsigned int adDirOffset);
 
 	int residual(double t, unsigned int secIdx, double timeFactor, double const* y, double const* yDot, double* res, bool wantJac);

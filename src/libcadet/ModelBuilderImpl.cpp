@@ -118,7 +118,7 @@ namespace cadet
 		}
 
 		// Configure the whole system
-		success = success && sys->configure(paramProvider, *this);
+		success = success && sys->configureModelDiscretization(paramProvider, *this) && sys->configure(paramProvider);
 
 		if (success)
 		{
@@ -170,7 +170,7 @@ namespace cadet
 		// all factory functions in one container)
 		IUnitOperation* const model = it->second(uoId);
 
-		if (!model->configure(paramProvider, *this))
+		if (!model->configureModelDiscretization(paramProvider, *this) || !model->configure(paramProvider))
 		{
 			delete model;
 			return nullptr;

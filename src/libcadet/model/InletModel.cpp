@@ -61,7 +61,7 @@ bool InletModel::usesAD() const CADET_NOEXCEPT
 	return false;
 }
 
-bool InletModel::configure(IParameterProvider& paramProvider, IConfigHelper& helper)
+bool InletModel::configureModelDiscretization(IParameterProvider& paramProvider, IConfigHelper& helper)
 {
 	_nComp = paramProvider.getInt("NCOMP");
 	const std::string inType = paramProvider.getString("INLET_TYPE");
@@ -69,8 +69,6 @@ bool InletModel::configure(IParameterProvider& paramProvider, IConfigHelper& hel
 	_inlet = helper.createInletProfile(inType);
 	if (!_inlet)
 		throw InvalidParameterException("INLET_TYPE " + inType + " is unknown");
-
-	_inlet->configure(&paramProvider, _nComp);
 
 	// Allocate memory
 	_inletConcentrationsRaw = new double[3 * _nComp]; // Thrice the size because _inletDerivatives uses two thirds
@@ -80,7 +78,7 @@ bool InletModel::configure(IParameterProvider& paramProvider, IConfigHelper& hel
 	return true;
 }
 
-bool InletModel::reconfigure(IParameterProvider& paramProvider)
+bool InletModel::configure(IParameterProvider& paramProvider)
 {
 	return _inlet->configure(&paramProvider, _nComp);
 }

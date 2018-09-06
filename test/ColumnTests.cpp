@@ -78,7 +78,8 @@ namespace
 		cadet::test::column::setWenoOrder(jpp, wenoOrder);
 		// Configure
 		cadet::ModelBuilder& temp = *reinterpret_cast<cadet::ModelBuilder*>(&mb);
-		REQUIRE(unit->configure(jpp, temp));
+		REQUIRE(unit->configureModelDiscretization(jpp, temp));
+		REQUIRE(unit->configure(jpp));
 
 		// Do some checks
 		const unsigned int nComp = jpp.getInt("NCOMP");

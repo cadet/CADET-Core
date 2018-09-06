@@ -77,10 +77,10 @@ public:
 	virtual bool usesAD() const CADET_NOEXCEPT;
 	virtual unsigned int requiredADdirs() const CADET_NOEXCEPT;
 
-	virtual bool configure(IParameterProvider& paramProvider, IConfigHelper& helper);
-	virtual bool reconfigure(IParameterProvider& paramProvider);
+	virtual bool configureModelDiscretization(IParameterProvider& paramProvider, IConfigHelper& helper);
+	virtual bool configure(IParameterProvider& paramProvider);
 	virtual void notifyDiscontinuousSectionTransition(double t, unsigned int secIdx, active* const adRes, active* const adY, unsigned int adDirOffset);
-	virtual bool reconfigureModel(IParameterProvider& paramProvider, unsigned int unitOpIdx);
+	virtual bool configureModel(IParameterProvider& paramProvider, unsigned int unitOpIdx);
 
 	virtual bool hasParameter(const ParameterId& pId) const;
 	virtual std::unordered_map<ParameterId, double> getAllParameterValues() const;
