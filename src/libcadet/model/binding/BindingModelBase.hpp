@@ -62,6 +62,7 @@ public:
 	virtual bool requiresConfiguration() const CADET_NOEXCEPT { return true; }
 	virtual bool configure(IParameterProvider& paramProvider, unsigned int unitOpIdx);
 	virtual bool configureModelDiscretization(IParameterProvider& paramProvider, unsigned int nComp, unsigned int const* nBound, unsigned int const* boundOffset);
+	virtual void fillBoundPhaseInitialParameters(ParameterId* params, unsigned int unitOpIdx) const CADET_NOEXCEPT;
 
 	virtual std::unordered_map<ParameterId, double> getAllParameterValues() const;
 	virtual bool hasParameter(const ParameterId& pId) const;

@@ -57,7 +57,14 @@ bool BindingModelBase::configure(IParameterProvider& paramProvider, unsigned int
 	return configureImpl(paramProvider, unitOpIdx);
 }
 
+void BindingModelBase::fillBoundPhaseInitialParameters(ParameterId* params, unsigned int unitOpIdx) const CADET_NOEXCEPT
 {
+	unsigned int ctr = 0;
+	for (unsigned int c = 0; c < _nComp; ++c)
+	{
+		for (unsigned int bp = 0; bp < _nBoundStates[c]; ++bp, ++ctr)
+			params[ctr] = makeParamId(hashString("INIT_Q"), unitOpIdx, c, bp, ReactionIndep, SectionIndep);
+	}
 }
 
 bool BindingModelBase::configureNonlinearSolver(IParameterProvider& paramProvider)

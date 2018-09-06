@@ -209,6 +209,22 @@ bool LumpedRateModelWithPores::configure(IParameterProvider& paramProvider)
 	registerComponentSectionDependentParam(hashString("FILM_DIFFUSION"), _parameters, _filmDiffusion, _unitOpIdx, _disc.nComp);
 	registerComponentSectionDependentParam(hashString("PORE_ACCESSIBILITY"), _parameters, _poreAccessFactor, _unitOpIdx, _disc.nComp);
 
+	// Register initial conditions parameters
+	for (unsigned int i = 0; i < _disc.nComp; ++i)
+	{
+		_parameters[makeParamId(hashString("INIT_C"), _unitOpIdx, i, BoundPhaseIndep, ReactionIndep, SectionIndep)] = _initC.data() + i;
+		_parameters[makeParamId(hashString("INIT_CP"), _unitOpIdx, i, BoundPhaseIndep, ReactionIndep, SectionIndep)] = _initCp.data() + i;
+	}
+
+	if (_binding)
+	{
+		std::vector<ParameterId> initParams(_disc.strideBound);
+		_binding->fillBoundPhaseInitialParameters(initParams.data(), _unitOpIdx);
+
+		for (unsigned int i = 0; i < _disc.strideBound; ++i)
+			_parameters[initParams[i]] = _initQ.data() + i;
+	}
+
 	// Reconfigure binding model
 	if (_binding && paramProvider.exists("adsorption") && _binding->requiresConfiguration())
 	{

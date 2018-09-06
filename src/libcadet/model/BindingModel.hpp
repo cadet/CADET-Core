@@ -123,6 +123,13 @@ public:
 	virtual bool configure(IParameterProvider& paramProvider, unsigned int unitOpIdx) = 0;
 
 	/**
+	 * @brief Returns the ParameterId of all bound phase initial conditions (equations)
+	 * @details The array has to be filled in the order of the equations.
+	 * @param [out] params Array with ParameterId objects to fill
+	 */
+	virtual void fillBoundPhaseInitialParameters(ParameterId* params, unsigned int unitOpIdx) const CADET_NOEXCEPT = 0;
+
+	/**
 	 * @brief Sets external functions for this binding model
 	 * @details The external functions are not owned by this IBindingModel.
 	 * 

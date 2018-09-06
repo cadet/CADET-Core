@@ -223,6 +223,19 @@ bool LumpedRateModelWithoutPores::configure(IParameterProvider& paramProvider)
 	// Add parameters to map
 	_parameters[makeParamId(hashString("TOTAL_POROSITY"), _unitOpIdx, CompIndep, BoundPhaseIndep, ReactionIndep, SectionIndep)] = &_totalPorosity;
 
+	// Register initial conditions parameters
+	for (unsigned int i = 0; i < _disc.nComp; ++i)
+		_parameters[makeParamId(hashString("INIT_C"), _unitOpIdx, i, BoundPhaseIndep, ReactionIndep, SectionIndep)] = _initC.data() + i;
+
+	if (_binding)
+	{
+		std::vector<ParameterId> initParams(_disc.strideBound);
+		_binding->fillBoundPhaseInitialParameters(initParams.data(), _unitOpIdx);
+
+		for (unsigned int i = 0; i < _disc.strideBound; ++i)
+			_parameters[initParams[i]] = _initQ.data() + i;
+	}
+
 	// Reconfigure binding model
 	if (_binding && paramProvider.exists("adsorption") && _binding->requiresConfiguration())
 	{

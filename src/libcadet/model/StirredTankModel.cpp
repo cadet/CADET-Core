@@ -160,6 +160,22 @@ bool CSTRModel::configure(IParameterProvider& paramProvider)
 		registerScalarSectionDependentParam(hashString("FLOWRATE_FILTER"), _parameters, _flowRateFilter, _unitOpIdx);
 	_parameters[makeParamId(hashString("POROSITY"), _unitOpIdx, CompIndep, BoundPhaseIndep, ReactionIndep, SectionIndep)] = &_porosity;
 
+	// Register initial conditions parameters
+	for (unsigned int i = 0; i < _nComp; ++i)
+		_parameters[makeParamId(hashString("INIT_C"), _unitOpIdx, i, BoundPhaseIndep, ReactionIndep, SectionIndep)] = _initConditions.data() + i;
+
+	if (_binding)
+	{
+		std::vector<ParameterId> initParams(_strideBound);
+		_binding->fillBoundPhaseInitialParameters(initParams.data(), _unitOpIdx);
+
+		active* const ic = _initConditions.data() + _nComp;
+		for (unsigned int i = 0; i < _strideBound; ++i)
+			_parameters[initParams[i]] = ic + i;
+	}
+
+	_parameters[makeParamId(hashString("INIT_VOLUME"), _unitOpIdx, CompIndep, BoundPhaseIndep, ReactionIndep, SectionIndep)] = _initConditions.data() + _nComp + _strideBound;
+
 	// Reconfigure binding model
 	if (_binding && paramProvider.exists("adsorption") && _binding->requiresConfiguration())
 	{
