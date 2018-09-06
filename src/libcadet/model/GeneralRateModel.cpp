@@ -133,17 +133,13 @@ bool GeneralRateModel::configureModelDiscretization(IParameterProvider& paramPro
 	_parCenterRadius.resize(_disc.nPar);
 	_parOuterSurfAreaPerVolume.resize(_disc.nPar);
 	_parInnerSurfAreaPerVolume.resize(_disc.nPar);
+        
+        // get Discritization type
+        _parDiscType = paramProvider.getString("PAR_DISC_TYPE");
+        if (paramProvider.exists("PAR_DISC_VECTOR"))
+            _parDiscVector = paramProvider.getDoubleArray("PAR_DISC_VECTOR");
 
-	const std::string parDiscType = paramProvider.getString("PAR_DISC_TYPE");
-	if (parDiscType == "EQUIVOLUME_PAR")
-		setEquivolumeRadialDisc();
-	else if (parDiscType == "USER_DEFINED_PAR")
-	{
-		const std::vector<double> parInterfaces = paramProvider.getDoubleArray("PAR_DISC_VECTOR");
-		setUserdefinedRadialDisc(parInterfaces);
-	}
-	else // Handle parDiscType == "EQUIDISTANT_PAR" and default
-		setEquidistantRadialDisc();
+//	updateRadialDisc();
 
 	// Determine whether analytic Jacobian should be used but don't set it right now.
 	// We need to setup Jacobian matrices first.
@@ -230,8 +226,13 @@ bool GeneralRateModel::configure(IParameterProvider& paramProvider)
 	// Read geometry parameters
 	_colPorosity = paramProvider.getDouble("COL_POROSITY");
 	_parRadius = paramProvider.getDouble("PAR_RADIUS");
+        // to support backward-compatibility!
+        if (paramProvider.exists("PAR_CORERADIUS"))
+            _parCoreRadius = paramProvider.getDouble("PAR_CORERADIUS");
+        else
+            _parCoreRadius=0.; // default: particle fully porous
 	_parPorosity = paramProvider.getDouble("PAR_POROSITY");
-
+        
 	// Read vectorial parameters (which may also be section dependent; transport)
 	readParameterMatrix(_filmDiffusion, paramProvider, "FILM_DIFFUSION", _disc.nComp, 1);
 	readParameterMatrix(_parDiffusion, paramProvider, "PAR_DIFFUSION", _disc.nComp, 1);
@@ -245,7 +246,12 @@ bool GeneralRateModel::configure(IParameterProvider& paramProvider)
 	// Add parameters to map
 	_parameters[makeParamId(hashString("COL_POROSITY"), _unitOpIdx, CompIndep, BoundPhaseIndep, ReactionIndep, SectionIndep)] = &_colPorosity;
 	_parameters[makeParamId(hashString("PAR_RADIUS"), _unitOpIdx, CompIndep, BoundPhaseIndep, ReactionIndep, SectionIndep)] = &_parRadius;
+	_parameters[makeParamId(hashString("PAR_CORERADIUS"), _unitOpIdx, CompIndep, BoundPhaseIndep, ReactionIndep, SectionIndep)] = &_parCoreRadius;
 	_parameters[makeParamId(hashString("PAR_POROSITY"), _unitOpIdx, CompIndep, BoundPhaseIndep, ReactionIndep, SectionIndep)] = &_parPorosity;
+
+	// recalculate the particle radial discritization auxilary variables (_parCellSize, _parCenterRadius, etc.)
+	// using the current "PAR_RADIUS" and "PAR_CORERADIUS"
+	updateRadialDisc();
 
 	registerComponentSectionDependentParam(hashString("FILM_DIFFUSION"), _parameters, _filmDiffusion, _unitOpIdx, _disc.nComp);
 	registerComponentSectionDependentParam(hashString("PAR_DIFFUSION"), _parameters, _parDiffusion, _unitOpIdx, _disc.nComp);
@@ -625,8 +631,6 @@ int GeneralRateModel::residualParticle(const ParamType& t, unsigned int colCell,
 	double* const buffer = _tempState + requiredMem * colCell;
 
 	// Prepare parameters
-	const ParamType radius = static_cast<ParamType>(_parRadius);
-
 	active const* const parDiff = getSectionDependentSlice(_parDiffusion, _disc.nComp, secIdx);
 
 	// Ordering of particle surface diffusion:
@@ -651,8 +655,8 @@ int GeneralRateModel::residualParticle(const ParamType& t, unsigned int colCell,
 	for (unsigned int par = 0; par < _disc.nPar; ++par)
 	{
 		// Geometry
-		const ParamType outerAreaPerVolume = _parOuterSurfAreaPerVolume[par] / radius;
-		const ParamType innerAreaPerVolume = _parInnerSurfAreaPerVolume[par] / radius;
+		const ParamType outerAreaPerVolume = static_cast<ParamType>(_parOuterSurfAreaPerVolume[par]);
+		const ParamType innerAreaPerVolume = static_cast<ParamType>(_parInnerSurfAreaPerVolume[par]);
 
 		// Mobile phase
 		for (unsigned int comp = 0; comp < _disc.nComp; ++comp, ++res, ++y, ++yDot, ++jac)
@@ -688,7 +692,7 @@ int GeneralRateModel::residualParticle(const ParamType& t, unsigned int colCell,
 			if (cadet_likely(par != 0))
 			{
 				// Difference between two cell-centers
-				const ParamType dr = (_parCenterRadius[par - 1] - _parCenterRadius[par]) * radius;
+				const ParamType dr = (_parCenterRadius[par - 1] - _parCenterRadius[par]);
 
 				// Molecular diffusion contribution
 				const ResidualType gradCp = (y[-idxr.strideParShell()] - y[0]) / dr;
@@ -729,7 +733,7 @@ int GeneralRateModel::residualParticle(const ParamType& t, unsigned int colCell,
 			if (cadet_likely(par != _disc.nPar - 1))
 			{
 				// Difference between two cell-centers
-				const ParamType dr = (_parCenterRadius[par] - _parCenterRadius[par + 1]) * radius;
+				const ParamType dr = (_parCenterRadius[par] - _parCenterRadius[par + 1]);
 
 				// Molecular diffusion contribution
 				const ResidualType gradCp = (y[0] - y[idxr.strideParShell()]) / dr;
@@ -770,11 +774,11 @@ int GeneralRateModel::residualParticle(const ParamType& t, unsigned int colCell,
 		if (!yDotBase)
 			yDot = nullptr;
 
-		_binding->residual(t, z, _parCenterRadius[par], secIdx, timeFactor, y, yDot, res, buffer);
+		_binding->residual(t, z, static_cast<double>(_parCenterRadius[par]), secIdx, timeFactor, y, yDot, res, buffer);
 		if (wantJac)
 		{
 			// static_cast should be sufficient here, but this statement is also analyzed when wantJac = false
-			_binding->analyticJacobian(static_cast<double>(t), z, _parCenterRadius[par], secIdx, reinterpret_cast<double const*>(y), jac, buffer);
+			_binding->analyticJacobian(static_cast<double>(t), z, static_cast<double>(_parCenterRadius[par]), secIdx, reinterpret_cast<double const*>(y), jac, buffer);
 		}
 
 		// Advance pointers over all bound states
@@ -793,6 +797,7 @@ int GeneralRateModel::residualFlux(const ParamType& t, unsigned int secIdx, Stat
 
 	const ParamType invBetaC = 1.0 / static_cast<ParamType>(_colPorosity) - 1.0;
 	const ParamType epsP = static_cast<ParamType>(_parPorosity);
+        //NOTSURE: radius
 	const ParamType radius = static_cast<ParamType>(_parRadius);
 
 	active const* const filmDiff = getSectionDependentSlice(_filmDiffusion, _disc.nComp, secIdx);
@@ -801,7 +806,7 @@ int GeneralRateModel::residualFlux(const ParamType& t, unsigned int secIdx, Stat
 	active const* const parDiff = getSectionDependentSlice(_parDiffusion, _disc.nComp, secIdx);
 
 	const ParamType surfaceToVolumeRatio = 3.0 / radius;
-	const ParamType outerAreaPerVolume = _parOuterSurfAreaPerVolume[0] / radius;
+	const ParamType outerAreaPerVolume = static_cast<ParamType>(_parOuterSurfAreaPerVolume[0]); 
 
 	const ParamType jacCF_val = invBetaC * surfaceToVolumeRatio;
 	const ParamType jacPF_val = -outerAreaPerVolume / epsP;
@@ -809,10 +814,11 @@ int GeneralRateModel::residualFlux(const ParamType& t, unsigned int secIdx, Stat
 	// Discretized film diffusion kf for finite volumes
 	ParamType* const kf_FV = _discParFlux.create<ParamType>(_disc.nComp);
 
-	const double relOuterShellHalfRadius = 0.5 * _parCellSize[0];
+	const ParamType absOuterShellHalfRadius = 0.5 * static_cast<ParamType>(_parCellSize[0]);
 	for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
 	{
-		kf_FV[comp] = 1.0 / (radius * relOuterShellHalfRadius / epsP /  static_cast<ParamType>(_poreAccessFactor[comp]) / static_cast<ParamType>(parDiff[comp]) + 1.0 / static_cast<ParamType>(filmDiff[comp]));
+
+		kf_FV[comp] = 1.0 / (absOuterShellHalfRadius / epsP /  static_cast<ParamType>(_poreAccessFactor[comp]) / static_cast<ParamType>(parDiff[comp]) + 1.0 / static_cast<ParamType>(filmDiff[comp]));
 	}
 
 	// Get offsets
@@ -896,16 +902,16 @@ void GeneralRateModel::assembleOffdiagJac(double t, unsigned int secIdx)
 	active const* const parDiff = getSectionDependentSlice(_parDiffusion, _disc.nComp, secIdx);
 
 	const double surfaceToVolumeRatio = 3.0 / radius;
-	const double outerAreaPerVolume   = _parOuterSurfAreaPerVolume[0] / radius;
+	const double outerAreaPerVolume   = static_cast<double>(_parOuterSurfAreaPerVolume[0]);
 
 	const double jacCF_val = invBetaC * surfaceToVolumeRatio;
 	const double jacPF_val = -outerAreaPerVolume / epsP;
-	const double relOuterShellHalfRadius = 0.5 * _parCellSize[0];
+	const double absOuterShellHalfRadius = 0.5 * static_cast<double>(_parCellSize[0]);
 
 	// Discretized film diffusion kf for finite volumes
 	double* const kf_FV = _discParFlux.create<double>(_disc.nComp);
 	for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
-		kf_FV[comp] = 1.0 / (radius * relOuterShellHalfRadius / epsP / static_cast<double>(_poreAccessFactor[comp]) / static_cast<double>(parDiff[comp]) + 1.0 / static_cast<double>(filmDiff[comp]));
+		kf_FV[comp] = 1.0 / (absOuterShellHalfRadius / epsP / static_cast<double>(_poreAccessFactor[comp]) / static_cast<double>(parDiff[comp]) + 1.0 / static_cast<double>(filmDiff[comp]));
 
 	// Note that the J_f block, which is the identity matrix, is treated in the linear solver
 
@@ -1185,18 +1191,19 @@ void GeneralRateModel::expandErrorTol(double const* errorSpec, unsigned int erro
  */
 void GeneralRateModel::setEquidistantRadialDisc()
 {
-	const double dr = 1.0 / static_cast<double>(_disc.nPar);
+	const active radius = _parRadius - _parCoreRadius;
+	const active dr = radius / static_cast<active>(_disc.nPar);
 	_parCellSize.assign(_disc.nPar, dr);
 
 	for (unsigned int cell = 0; cell < _disc.nPar; cell++)
 	{
-		_parCenterRadius[cell] = 1.0 - (0.5 + static_cast<double>(cell)) * dr;
+		_parCenterRadius[cell] = radius - ( 0.5 + static_cast<active>(cell)) * dr;
 
 		// Compute denominator -> corresponding to cell volume
-		const double vol = std::pow(1.0 - static_cast<double>(cell) * dr, 3.0) - std::pow(1.0 - static_cast<double>(cell + 1) * dr, 3.0);
+		const active vol = pow(radius - static_cast<active>(cell) * dr, 3.0) - pow(radius - static_cast<active>(cell + 1) * dr, 3.0);
 
-		_parOuterSurfAreaPerVolume[cell] = 3.0 * sqr(1.0 - static_cast<double>(cell) * dr) / vol;
-		_parInnerSurfAreaPerVolume[cell] = 3.0 * sqr(1.0 - static_cast<double>(cell + 1) * dr) / vol;
+		_parOuterSurfAreaPerVolume[cell] = 3.0 * sqr(radius - static_cast<active>(cell) * dr) / vol;
+		_parInnerSurfAreaPerVolume[cell] = 3.0 * sqr(radius - static_cast<active>(cell + 1) * dr) / vol;
 	}
 }
 
@@ -1211,18 +1218,19 @@ void GeneralRateModel::setEquidistantRadialDisc()
  */
 void GeneralRateModel::setEquivolumeRadialDisc()
 {
-	double r_out = 1.0;
-	double r_in = 0.0;
+	active r_out = _parRadius;
+	active r_in = _parCoreRadius;
+	const active radius = r_out -r_in;
 
 	for (unsigned int cell = 0; cell < _disc.nPar; ++cell)
 	{
 		if (cell != (_disc.nPar - 1))
-			r_in = std::pow(std::pow(r_out, 3.0) - 1.0 / static_cast<double>(_disc.nPar), (1.0 / 3.0));
+			r_in = pow(pow(r_out, 3.0) - pow(_parRadius,3.0) / static_cast<active>(_disc.nPar), (1.0 / 3.0));
 
 		_parCellSize[cell] = r_out - r_in;
 		_parCenterRadius[cell] = r_out - 0.5 * _parCellSize[cell];
 
-		const double invVol = static_cast<double>(_disc.nPar);
+		const active invVol = pow(_parRadius,3.0) / static_cast<active>(_disc.nPar);
 		_parOuterSurfAreaPerVolume[cell] = 3.0 * sqr(r_out) * invVol;
 		_parInnerSurfAreaPerVolume[cell] = 3.0 * sqr(r_in) * invVol;
 
@@ -1250,16 +1258,86 @@ void GeneralRateModel::setUserdefinedRadialDisc(const std::vector<double>& cellI
 	std::sort(orderedInterfaces.begin(), orderedInterfaces.end(), std::greater<double>());
 
 	for (unsigned int cell = 0; cell < _disc.nPar; ++cell)
+		orderedInterfaces[cell] = orderedInterfaces[cell] * static_cast<double>(_parRadius - _parCoreRadius) +  static_cast<double>(_parCoreRadius);
+
+	for (unsigned int cell = 0; cell < _disc.nPar; ++cell)
 	{
 		_parCellSize[cell] = orderedInterfaces[cell] - orderedInterfaces[cell + 1];
 		_parCenterRadius[cell] = orderedInterfaces[cell] - 0.5 * _parCellSize[cell];
 
 		// Compute denominator -> corresponding to cell volume
-		const double vol = std::pow(orderedInterfaces[cell], 3.0) - std::pow(orderedInterfaces[cell + 1], 3.0);
+		const active vol = std::pow(orderedInterfaces[cell], 3.0) - std::pow(orderedInterfaces[cell + 1], 3.0);
 
 		_parOuterSurfAreaPerVolume[cell] = 3.0 * sqr(orderedInterfaces[cell]) / vol;
 		_parInnerSurfAreaPerVolume[cell] = 3.0 * sqr(orderedInterfaces[cell + 1]) / vol;
 	}
+}
+
+void GeneralRateModel::updateRadialDisc()
+{
+	if (_parDiscType == "EQUIVOLUME_PAR")
+		setEquivolumeRadialDisc();
+	else if (_parDiscType == "USER_DEFINED_PAR")
+	{
+		const std::vector<double> parInterfaces = _parDiscVector;
+		setUserdefinedRadialDisc(parInterfaces);
+	}
+	else // Handle parDiscType == "EQUIDISTANT_PAR" and default
+		setEquidistantRadialDisc();
+}
+
+bool GeneralRateModel::setParameter(const ParameterId& pId, int value)
+{
+	bool result = UnitOperationBase::setParameter(pId, value);
+        
+        // check changed paramater name ("_parRadius" or "_parCoreRadius") and update radial discritization
+        if(pId.name == hashString("PAR_RADIUS") or pId.name == hashString("PAR_CORERADIUS"))
+            updateRadialDisc();
+        
+	return result;
+}
+
+bool GeneralRateModel::setParameter(const ParameterId& pId, double value)
+{
+	bool result = UnitOperationBase::setParameter(pId, value);
+
+	// check changed paramater name ("_parRadius" or "_parCoreRadius") and update radial discritization
+        if(pId.name == hashString("PAR_RADIUS") or pId.name == hashString("PAR_CORERADIUS"))
+            updateRadialDisc();
+        
+	return result;
+}
+
+
+bool GeneralRateModel::setParameter(const ParameterId& pId, bool value)
+{
+	bool result = UnitOperationBase::setParameter(pId, value);
+
+	// check changed paramater name ("_parRadius" or "_parCoreRadius") and update radial discritization
+        if(pId.name == hashString("PAR_RADIUS") or pId.name == hashString("PAR_CORERADIUS"))
+            updateRadialDisc();
+        
+	return result;
+}
+
+void GeneralRateModel::setSensitiveParameterValue(const ParameterId& pId, double value)
+{
+	UnitOperationBase::setSensitiveParameterValue(pId, value);
+
+	// check changed paramater name ("_parRadius" or "_parCoreRadius") and update radial discritization
+        if(pId.name == hashString("PAR_RADIUS") or pId.name == hashString("PAR_CORERADIUS"))
+            updateRadialDisc();
+}
+
+bool GeneralRateModel::setSensitiveParameter(const ParameterId& pId, unsigned int adDirection, double adValue)
+{
+	bool result = UnitOperationBase::setSensitiveParameter(pId, adDirection, adValue);
+
+	// check changed paramater name ("_parRadius" or "_parCoreRadius") and update radial discritization
+        if(pId.name == hashString("PAR_RADIUS") or pId.name == hashString("PAR_CORERADIUS"))
+            updateRadialDisc();
+        
+	return result;
 }
 
 void registerGeneralRateModel(std::unordered_map<std::string, std::function<IUnitOperation*(UnitOpIdx)>>& models)

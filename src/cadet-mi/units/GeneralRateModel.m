@@ -50,6 +50,7 @@ classdef GeneralRateModel < Model
 
 		columnLength; % Length of the column in [m]
 		particleRadius; % Radius of the particles in [m]
+		particleCoreRadius; % Core radius of the particle in [m]
 		crossSectionArea; % Cross section area of the column in [m]
 
 		% Numerical method for advection
@@ -84,6 +85,7 @@ classdef GeneralRateModel < Model
 
 			% Set some default values
 			obj.bindingModel = [];
+			obj.particleCoreRadius = 0;
 
 			obj.useAnalyticJacobian = true;
 			obj.particleCellPosition = [];
@@ -365,6 +367,16 @@ classdef GeneralRateModel < Model
 			obj.hasChanged = true;
 		end
 
+		function val = get.particleCoreRadius(obj)
+			val = obj.data.PAR_CORERADIUS;
+		end
+
+		function set.particleCoreRadius(obj, val)
+			validateattributes(val, {'double'}, {'nonnegative', 'scalar', 'nonempty', '>=','0.0','<=', obj.data.PAR_RADIUS, 'finite', 'real'}, '', 'particleCoreRadius');		
+			obj.data.PAR_CORERADIUS = val;
+			obj.hasChanged = true;
+		end
+
 		function val = get.crossSectionArea(obj)
 			if isfield(obj.data, 'CROSS_SECTION_AREA')
 				val = obj.data.CROSS_SECTION_AREA;
@@ -523,6 +535,7 @@ classdef GeneralRateModel < Model
 			if ~isfield(obj.data, 'PAR_RADIUS')
 				error('CADET:invalidConfig', 'Property particleRadius must be set.');
 			end
+			
 
 			validateattributes(obj.nCellsColumn, {'numeric'}, {'scalar', 'nonempty', '>=', 1, 'finite', 'real'}, '', 'nCellsColumn');
 			validateattributes(obj.nCellsParticle, {'numeric'}, {'scalar', 'nonempty', '>=', 1, 'finite', 'real'}, '', 'nCellsParticle');
@@ -572,6 +585,7 @@ classdef GeneralRateModel < Model
 			validateattributes(obj.porosityParticle, {'double'}, {'scalar', 'nonempty', '>=', 0.0, '<=', 1.0, 'finite', 'real'}, '', 'porosityParticle');
 			validateattributes(obj.columnLength, {'double'}, {'positive', 'scalar', 'nonempty', 'finite', 'real'}, '', 'columnLength');
 			validateattributes(obj.particleRadius, {'double'}, {'positive', 'scalar', 'nonempty', 'finite', 'real'}, '', 'particleRadius');
+			validateattributes(obj.particleCoreRadius, {'double'}, {'positive', 'scalar', 'nonempty', 'finite', 'real'}, '', 'particleCoreRadius');
 			if ~isempty(obj.poreAccessibility)
 				validateattributes(obj.poreAccessibility, {'double'}, {'vector', 'numel', obj.nComponents, '>=', 0.0, '<=', 1.0, 'finite', 'real'}, '', 'poreAccessibility');
 			end

@@ -207,9 +207,20 @@ protected:
 	void setEquidistantRadialDisc();
 	void setEquivolumeRadialDisc();
 	void setUserdefinedRadialDisc(const std::vector<double>& cellInterfaces);
+	void updateRadialDisc();
 
 	void addMobilePhaseTimeDerivativeToJacobianParticleBlock(linalg::FactorizableBandMatrix::RowIterator& jac, const Indexer& idxr, double alpha, double timeFactor);
 	void solveForFluxes(double* const vecState, const Indexer& idxr);
+
+
+	// Overriden methods for setting sensitivity
+	bool setParameter(const ParameterId& pId, int value);
+	bool setParameter(const ParameterId& pId, double value);
+	bool setParameter(const ParameterId& pId, bool value);
+
+	bool setSensitiveParameter(const ParameterId& pId, unsigned int adDirection, double adValue);
+	void setSensitiveParameterValue(const ParameterId& id, double value);
+	
 
 #ifdef CADET_CHECK_ANALYTIC_JACOBIAN
 	void checkAnalyticJacobianAgainstAd(active const* const adRes, unsigned int adDirOffset) const;
@@ -242,7 +253,11 @@ protected:
 
 	active _colPorosity; //!< Column porosity (external porosity) \f$ \varepsilon_c \f$
 	active _parRadius; //!< Particle radius \f$ r_p \f$
+	active _parCoreRadius; //!< Particle core radius \f$ r_c \f$
 	active _parPorosity; //!< Particle porosity (internal porosity) \f$ \varepsilon_p \f$
+        // auxilary variables
+        std::string _parDiscType;
+        std::vector<double> _parDiscVector;
 
 	// Vectorial parameters
 	std::vector<active> _filmDiffusion; //!< Film diffusion coefficient \f$ k_f \f$
@@ -253,10 +268,10 @@ protected:
 	bool _analyticJac; //!< Determines whether AD or analytic Jacobians are used
 	unsigned int _jacobianAdDirs; //!< Number of AD seed vectors required for Jacobian computation
 
-	std::vector<double> _parCellSize; //!< Particle cell / shell size
-	std::vector<double> _parCenterRadius; //!< Particle cell-centered position for each particle cell
-	std::vector<double> _parOuterSurfAreaPerVolume;
-	std::vector<double> _parInnerSurfAreaPerVolume;
+	std::vector<active> _parCellSize; //!< Particle cell / shell size
+	std::vector<active> _parCenterRadius; //!< Particle cell-centered position for each particle cell
+	std::vector<active> _parOuterSurfAreaPerVolume;
+	std::vector<active> _parInnerSurfAreaPerVolume;
 
 	ArrayPool _discParFlux; //!< Storage for discretized @f$ k_f @f$ value
 

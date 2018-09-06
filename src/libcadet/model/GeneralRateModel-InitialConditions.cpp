@@ -234,7 +234,7 @@ void GeneralRateModel::consistentInitialState(double t, unsigned int secIdx, dou
 				const unsigned int offset = requiredMem * (_disc.nPar * pblk + shell);
 
 				// Solve algebraic variables
-				_binding->consistentInitialState(t, z, _parCenterRadius[shell], secIdx, qShell, errorTol, localAdRes, localAdY,
+				_binding->consistentInitialState(t, z, static_cast<double>(_parCenterRadius[shell]), secIdx, qShell, errorTol, localAdRes, localAdY,
 					localOffsetInParticle, adDirOffset, jacExtractor, _tempState + offset, jacobianMatrix);
 			}
 		} CADET_PARFOR_END;
@@ -366,7 +366,7 @@ void GeneralRateModel::consistentInitialTimeDerivative(double t, unsigned int se
 				std::fill(qShellDot, qShellDot + algLen, 0.0);
 				if (_binding->dependsOnTime())
 				{
-					_binding->timeDerivativeAlgebraicResidual(t, z, _parCenterRadius[j], secIdx, vecStateY + idxr.offsetCp(pblk, j) + idxr.strideParLiquid(), qShellDot, _tempState + requiredMem * pblk);
+					_binding->timeDerivativeAlgebraicResidual(t, z, static_cast<double>(_parCenterRadius[j]), secIdx, vecStateY + idxr.offsetCp(pblk, j) + idxr.strideParLiquid(), qShellDot, _tempState + requiredMem * pblk);
 					for (unsigned int algRow = 0; algRow < algLen; ++algRow)
 						qShellDot[algRow] *= -1.0;
 				}

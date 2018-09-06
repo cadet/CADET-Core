@@ -358,6 +358,7 @@ Note that all components of component dependent datasets have to be section depe
 \texttt{FILM\_DIFFUSION} & Film diffusion coefficients & \si{\metre\per\second} & double & $\geq 0.0$ & \texttt{NCOMP} / {$\texttt{NCOMP} \times \texttt{NSEC}$}\\
 \texttt{PAR\_POROSITY} & Particle porosity & -- & double & $[0,1]$ & 1\\
 \texttt{PAR\_RADIUS} & Particle radius & \si{\metre} & double & $> 0.0$ & 1\\
+\texttt{PAR\_CORERADIUS} & Particle core radius & \si{\metre} & double & $>= 0.0$ & 1\\
 \texttt{PORE\_ACCESSIBILITY} & Pore accessibility factor (optional, defaults to all $1$) & -- & double & $(0,1]$ & \texttt{NCOMP}\\
 \texttt{PAR\_DIFFUSION} & Effective particle diffusion coefficients & \si{\square\metre\of{MP}\per\second} & double & $\geq 0.0$ & \texttt{NCOMP} / {$\texttt{NCOMP} \times \texttt{NSEC}$}\\
 \texttt{PAR\_SURFDIFFUSION} & Particle surface diffusion coefficients & \si{\square\metre\of{SP}\per\second} & double & $\geq 0.0$ & \texttt{NTOTALBND} / {$\texttt{NTOTALBND} \times \texttt{NSEC}$}\\
