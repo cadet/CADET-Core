@@ -101,7 +101,7 @@ classdef BindingModel < handle & matlab.mixin.Heterogeneous
 			%
 			% See also BINDINGMODEL.SETPARAMETERVALUE, MAKESENSITIVITY, BINDINGMODEL.OFFSETTOPARAMETER
 
-			if ~isfield(obj.data, param.SENS_NAME) || (param.SENS_BOUNDPHASE < 0)
+			if ~isfield(obj.data, param.SENS_NAME)
 				% We don't have this parameter
 				val = nan;
 				return;
@@ -131,7 +131,7 @@ classdef BindingModel < handle & matlab.mixin.Heterogeneous
 			%
 			% See also BINDINGMODEL.GETPARAMETERVALUE, MAKESENSITIVITY, BINDINGMODEL.OFFSETTOPARAMETER
 
-			if ~isfield(obj.data, param.SENS_NAME) || (param.SENS_BOUNDPHASE < 0)
+			if ~isfield(obj.data, param.SENS_NAME)
 				% We don't have this parameter
 				oldVal = nan;
 				return;
