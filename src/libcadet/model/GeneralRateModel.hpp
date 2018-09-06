@@ -144,6 +144,10 @@ public:
 		multiplyWithJacobian(t, secIdx, timeFactor, y, yDot, yS, 1.0, 0.0, ret);
 	}
 
+	virtual bool setParameter(const ParameterId& pId, double value);
+	virtual bool setSensitiveParameter(const ParameterId& pId, unsigned int adDirection, double adValue);
+	virtual void setSensitiveParameterValue(const ParameterId& id, double value);
+
 #ifdef CADET_BENCHMARK_MODE
 	virtual std::vector<double> benchmarkTimings() const
 	{
@@ -206,20 +210,11 @@ protected:
 	
 	void setEquidistantRadialDisc();
 	void setEquivolumeRadialDisc();
-	void setUserdefinedRadialDisc(const std::vector<double>& cellInterfaces);
+	void setUserdefinedRadialDisc();
 	void updateRadialDisc();
 
 	void addMobilePhaseTimeDerivativeToJacobianParticleBlock(linalg::FactorizableBandMatrix::RowIterator& jac, const Indexer& idxr, double alpha, double timeFactor);
 	void solveForFluxes(double* const vecState, const Indexer& idxr);
-
-
-	// Overriden methods for setting sensitivity
-	bool setParameter(const ParameterId& pId, int value);
-	bool setParameter(const ParameterId& pId, double value);
-	bool setParameter(const ParameterId& pId, bool value);
-
-	bool setSensitiveParameter(const ParameterId& pId, unsigned int adDirection, double adValue);
-	void setSensitiveParameterValue(const ParameterId& id, double value);
 	
 
 #ifdef CADET_CHECK_ANALYTIC_JACOBIAN
@@ -234,6 +229,24 @@ protected:
 		unsigned int* nBound; //!< Array with number of bound states for each component
 		unsigned int* boundOffset; //!< Array with offset to the first bound state of each component in the solid phase
 		unsigned int strideBound; //!< Total number of bound states
+	};
+
+	enum class ParticleDiscretizationMode : int
+	{
+		/**
+		 * Equidistant distribution of shell edges
+		 */
+		Equidistant,
+
+		/**
+		 * Volumes of shells are uniform
+		 */
+		Equivolume,
+
+		/**
+		 * Shell edges specified by user
+		 */
+		UserDefined
 	};
 
 	Discretization _disc; //!< Discretization info
@@ -255,9 +268,8 @@ protected:
 	active _parRadius; //!< Particle radius \f$ r_p \f$
 	active _parCoreRadius; //!< Particle core radius \f$ r_c \f$
 	active _parPorosity; //!< Particle porosity (internal porosity) \f$ \varepsilon_p \f$
-        // auxilary variables
-        std::string _parDiscType;
-        std::vector<double> _parDiscVector;
+	ParticleDiscretizationMode _parDiscType; //!< Particle discretization mode
+	std::vector<double> _parDiscVector; //!< Particle discretization shell edges
 
 	// Vectorial parameters
 	std::vector<active> _filmDiffusion; //!< Film diffusion coefficient \f$ k_f \f$
@@ -270,8 +282,8 @@ protected:
 
 	std::vector<active> _parCellSize; //!< Particle cell / shell size
 	std::vector<active> _parCenterRadius; //!< Particle cell-centered position for each particle cell
-	std::vector<active> _parOuterSurfAreaPerVolume;
-	std::vector<active> _parInnerSurfAreaPerVolume;
+	std::vector<active> _parOuterSurfAreaPerVolume; //!< Particle shell outer sphere surface to volume ratio
+	std::vector<active> _parInnerSurfAreaPerVolume; //!< Particle shell inner sphere surface to volume ratio
 
 	ArrayPool _discParFlux; //!< Storage for discretized @f$ k_f @f$ value
 

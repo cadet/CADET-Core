@@ -86,10 +86,10 @@ int main(int argc, char** argv)
 			// Geometry
 			writer.scalar<double>("COL_LENGTH", 0.014);
 			writer.scalar<double>("PAR_RADIUS", 4.5e-5);
-                        writer.scalar<double>("PAR_CORERADIUS", 0.0);
+			writer.scalar<double>("PAR_CORERADIUS", 0.0);
 			writer.scalar<double>("COL_POROSITY", 0.37);
 			writer.scalar<double>("PAR_POROSITY", 0.75);
-                        
+
 			// Initial conditions
 			const double initC[] = {0.0, 0.0};
 			const double initQ[] = {0.0, 0.0};

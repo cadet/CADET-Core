@@ -217,7 +217,7 @@ void GeneralRateModel::consistentInitialState(double t, unsigned int secIdx, dou
 			linalg::DenseMatrixView jacobianMatrix(_jacPdisc[pblk].data(), _jacPdisc[pblk].pivot(), _disc.strideBound, _disc.strideBound);
 
 			// Midpoint of current column cell (z coordinate) - needed in externally dependent adsorption kinetic
-			const double z = 1.0 / static_cast<double>(_disc.nCol) * (0.5 + pblk);
+			const double z = (0.5 + static_cast<double>(pblk)) / static_cast<double>(_disc.nCol);
 
 			// This loop cannot be run in parallel without creating a Jacobian matrix for each thread which would increase memory usage
 			for(size_t shell = 0; shell < size_t(_disc.nPar); shell++)
@@ -234,7 +234,7 @@ void GeneralRateModel::consistentInitialState(double t, unsigned int secIdx, dou
 				const unsigned int offset = requiredMem * (_disc.nPar * pblk + shell);
 
 				// Solve algebraic variables
-				_binding->consistentInitialState(t, z, static_cast<double>(_parCenterRadius[shell]), secIdx, qShell, errorTol, localAdRes, localAdY,
+				_binding->consistentInitialState(t, z, static_cast<double>(_parCenterRadius[shell]) / static_cast<double>(_parRadius), secIdx, qShell, errorTol, localAdRes, localAdY,
 					localOffsetInParticle, adDirOffset, jacExtractor, _tempState + offset, jacobianMatrix);
 			}
 		} CADET_PARFOR_END;
@@ -325,7 +325,7 @@ void GeneralRateModel::consistentInitialTimeDerivative(double t, unsigned int se
 #endif
 	{
 		// Midpoint of current column cell (z coordinate) - needed in externally dependent adsorption kinetic
-		const double z = 1.0 / static_cast<double>(_disc.nCol) * (0.5 + pblk);
+		const double z = (0.5 + static_cast<double>(pblk)) / static_cast<double>(_disc.nCol);
 
 		// Assemble
 		linalg::FactorizableBandMatrix& fbm = _jacPdisc[pblk];
@@ -366,7 +366,7 @@ void GeneralRateModel::consistentInitialTimeDerivative(double t, unsigned int se
 				std::fill(qShellDot, qShellDot + algLen, 0.0);
 				if (_binding->dependsOnTime())
 				{
-					_binding->timeDerivativeAlgebraicResidual(t, z, static_cast<double>(_parCenterRadius[j]), secIdx, vecStateY + idxr.offsetCp(pblk, j) + idxr.strideParLiquid(), qShellDot, _tempState + requiredMem * pblk);
+					_binding->timeDerivativeAlgebraicResidual(t, z, static_cast<double>(_parCenterRadius[j]) / static_cast<double>(_parRadius), secIdx, vecStateY + idxr.offsetCp(pblk, j) + idxr.strideParLiquid(), qShellDot, _tempState + requiredMem * pblk);
 					for (unsigned int algRow = 0; algRow < algLen; ++algRow)
 						qShellDot[algRow] *= -1.0;
 				}
