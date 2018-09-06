@@ -42,6 +42,7 @@ classdef StirredTankModel < Model
 
 			% Set some default values
 			obj.bindingModel = [];
+			obj.porosity = 1.0;
 			obj.flowRateFilter = 0.0;
 			obj.useAnalyticJacobian = true;
 
