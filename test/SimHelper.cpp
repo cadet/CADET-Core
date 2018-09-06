@@ -57,6 +57,12 @@ namespace cadet
 namespace test
 {
 
+	void setNumberOfComponents(cadet::JsonParameterProvider& jpp, UnitOpIdx unit, int nComp)
+	{
+		GroupScope gs(jpp, unit);
+		jpp.set("NCOMP", nComp);
+	}
+
 	void setInitialConditions(cadet::JsonParameterProvider& jpp, const std::vector<double>& c, const std::vector<double>& q, double v)
 	{
 		GroupScope gs(jpp);

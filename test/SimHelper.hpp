@@ -30,6 +30,15 @@ namespace test
 {
 
 	/**
+	 * @brief Sets the number of components for a unit operation
+	 * @details Overwrites the NCOMP field of the given ParameterProvider.
+	 * @param [in,out] jpp ParameterProvider
+	 * @param [in] unit Index of unit operation
+	 * @param [in] nComp Number of components
+	 */
+	void setNumberOfComponents(cadet::JsonParameterProvider& jpp, UnitOpIdx unit, int nComp);
+
+	/**
 	 * @brief Sets the initial conditions of a CSTR
 	 * @details Overwrites the INIT_C, INIT_Q, and INIT_VOLUME fields of the given ParameterProvider.
 	 * @param [in,out] jpp ParameterProvider

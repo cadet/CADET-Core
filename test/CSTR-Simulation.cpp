@@ -21,6 +21,7 @@
 #include "JsonTestModels.hpp"
 #include "SimHelper.hpp"
 #include "common/Driver.hpp"
+#include "UnitOperation.hpp"
 
 #include <cmath>
 #include <functional>
@@ -44,7 +45,7 @@ inline void setFlowRateFilter(cadet::JsonParameterProvider& jpp, double filter)
 	jpp.popScope();
 }
 
-	inline void runSim(cadet::JsonParameterProvider& jpp, std::function<double(double)> solC, std::function<double(double)> solV)
+inline void runSim(cadet::JsonParameterProvider& jpp, std::function<double(double)> solC, std::function<double(double)> solV)
 {
 	// Run simulation
 	cadet::Driver drv;
@@ -256,4 +257,180 @@ TEST_CASE("CSTR LIN_COEFF sensitivity vs analytic solution (V constant) w/o bind
 	cadet::test::returnSensitivities(jpp, 0);
 
 	runSensSim(jpp, [=](double t) { return 2.0 * (20.0 * std::expm1(-t / 20.0) + t); }, [](double t) { return 0.0; }, 1e-5, 7e-8);
+}
+
+TEST_CASE("CSTR initial volume sensitivity vs analytic solution (V constant) w/o binding model", "[CSTR],[Simulation],[Sensitivity]")
+{
+	const double V = 5.0;
+
+	cadet::JsonParameterProvider jpp = createCSTRBenchmark(2, 100.0, 1.0);
+	cadet::test::setSectionTimes(jpp, {0.0, 50.0, 100.0});
+	cadet::test::setInitialConditions(jpp, {0.0}, {}, V);
+	cadet::test::setInletProfile(jpp, 0, 0, 1.0, 0.0, 0.0, 0.0);
+	cadet::test::setInletProfile(jpp, 1, 0, 0.0, 0.0, 0.0, 0.0);
+	cadet::test::setFlowRates(jpp, 0, 1.0, 1.0, 0.0);
+	cadet::test::addSensitivity(jpp, "INIT_VOLUME", cadet::makeParamId("INIT_VOLUME", 0, cadet::CompIndep, cadet::BoundPhaseIndep, cadet::ReactionIndep, cadet::SectionIndep), 1e-6);
+	cadet::test::returnSensitivities(jpp, 0);
+
+	const double invV2 = 1.0 / (V * V);
+	const double e50overV = std::exp(50.0 / V);
+	runSensSim(jpp, [=](double t) {
+			if (t <= 50.0)
+				return -std::exp(-t / V) * t * invV2;
+			else
+				return std::exp(-t / V) * invV2 * (e50overV * (t - 50.0) - t);
+		}, 
+		[](double t) {
+			return 1.0;
+	});
+}
+
+TEST_CASE("CSTR initial condition read and apply correctly", "[CSTR],[InitialConditions]")
+{
+	cadet::JsonParameterProvider jpp = createCSTRBenchmark(1, 100.0, 1.0);
+	cadet::test::setSectionTimes(jpp, {0.0, 100.0});
+	cadet::test::addBoundStates(jpp, {1}, 0.5);
+	cadet::test::setInitialConditions(jpp, {1.0}, {2.0}, 3.0);
+	cadet::test::setInletProfile(jpp, 0, 0, 1.0, 0.0, 0.0, 0.0);
+	cadet::test::setFlowRates(jpp, 0, 0.1, 0.1, 0.0);
+	cadet::test::addLinearBindingModel(jpp, true, {0.1}, {10.0});
+
+	// Create and configure model
+	cadet::Driver drv;
+	drv.configure(jpp);
+
+	// Fetch CSTR unit operation model
+	cadet::IUnitOperation* const uo = reinterpret_cast<cadet::IUnitOperation*>(drv.model()->getUnitOperationModel(0));
+	std::vector<double> vecStateY(uo->numDofs(), 0.0);
+	std::vector<double> vecStateYdot(uo->numDofs(), 0.0);
+
+	// Apply initial conditions to state vector
+	uo->applyInitialCondition(vecStateY.data(), vecStateYdot.data());
+	CHECK(vecStateY[0] == 0.0);
+	CHECK(vecStateY[1] == 1.0);
+	CHECK(vecStateY[2] == 2.0);
+	CHECK(vecStateY[3] == 3.0);
+	CHECK(vecStateYdot[0] == 0.0);
+	CHECK(vecStateYdot[1] == 0.0);
+	CHECK(vecStateYdot[2] == 0.0);
+	CHECK(vecStateYdot[3] == 0.0);
+
+	// Check precedence of INIT_STATE if present
+	cadet::JsonParameterProvider jppState("{}");
+	jppState.set("INIT_STATE", std::vector<double>{-1.0, -2.0, -3.0});
+	jppState.set("INIT_C", 4.0);
+	jppState.set("INIT_Q", 5.0);
+	jppState.set("INIT_VOLUME", 6.0);
+	std::fill(vecStateY.begin(), vecStateY.end(), 0.0);
+	std::fill(vecStateYdot.begin(), vecStateYdot.end(), 0.0);
+
+	uo->readInitialCondition(jppState);
+	uo->applyInitialCondition(vecStateY.data(), vecStateYdot.data());
+
+	CHECK(vecStateY[0] == 0.0);
+	CHECK(vecStateY[1] == -1.0);
+	CHECK(vecStateY[2] == -2.0);
+	CHECK(vecStateY[3] == -3.0);
+	CHECK(vecStateYdot[0] == 0.0);
+	CHECK(vecStateYdot[1] == 0.0);
+	CHECK(vecStateYdot[2] == 0.0);
+	CHECK(vecStateYdot[3] == 0.0);
+
+	// Check whether we revert to single values if INIT_STATE is misssing
+	jppState.remove("INIT_STATE");
+	std::fill(vecStateY.begin(), vecStateY.end(), 0.0);
+	std::fill(vecStateYdot.begin(), vecStateYdot.end(), 0.0);
+
+	uo->readInitialCondition(jppState);
+	uo->applyInitialCondition(vecStateY.data(), vecStateYdot.data());
+
+	CHECK(vecStateY[0] == 0.0);
+	CHECK(vecStateY[1] == 4.0);
+	CHECK(vecStateY[2] == 5.0);
+	CHECK(vecStateY[3] == 6.0);
+	CHECK(vecStateYdot[0] == 0.0);
+	CHECK(vecStateYdot[1] == 0.0);
+	CHECK(vecStateYdot[2] == 0.0);
+	CHECK(vecStateYdot[3] == 0.0);
+
+	// Check whether state and time derivative are set if INIT_STATE has correct size
+	jppState.set("INIT_STATE", std::vector<double>{-5.0, -6.0, -7.0, -8.0, -9.0, -10.0, -11.0});
+	std::fill(vecStateY.begin(), vecStateY.end(), 0.0);
+	std::fill(vecStateYdot.begin(), vecStateYdot.end(), 0.0);
+
+	uo->readInitialCondition(jppState);
+	uo->applyInitialCondition(vecStateY.data(), vecStateYdot.data());
+
+	CHECK(vecStateY[0] == 0.0);
+	CHECK(vecStateY[1] == -5.0);
+	CHECK(vecStateY[2] == -6.0);
+	CHECK(vecStateY[3] == -7.0);
+	CHECK(vecStateYdot[0] == 0.0);
+	CHECK(vecStateYdot[1] == -8.0);
+	CHECK(vecStateYdot[2] == -9.0);
+	CHECK(vecStateYdot[3] == -10.0);
+}
+
+TEST_CASE("CSTR initial condition behave like standard parameters", "[CSTR],[InitialConditions]")
+{
+	cadet::JsonParameterProvider jpp = createCSTRBenchmark(1, 100.0, 1.0);
+	cadet::test::setNumberOfComponents(jpp, 0, 2);
+	cadet::test::setNumberOfComponents(jpp, 1, 2);
+	cadet::test::setNumberOfComponents(jpp, 2, 2);
+	cadet::test::setSectionTimes(jpp, {0.0, 100.0});
+	cadet::test::addBoundStates(jpp, {1, 2}, 0.5);
+	cadet::test::setInitialConditions(jpp, {1.0, 2.0}, {3.0, 4.0, 5.0}, 6.0);
+	cadet::test::setInletProfile(jpp, 0, 0, 1.0, 0.0, 0.0, 0.0);
+	cadet::test::setInletProfile(jpp, 0, 1, 1.0, 0.0, 0.0, 0.0);
+	cadet::test::setFlowRates(jpp, 0, 0.1, 0.1, 0.0);
+
+	// Create and configure model
+	cadet::Driver drv;
+	drv.configure(jpp);
+
+	// Fetch CSTR unit operation model
+	cadet::IUnitOperation* const uo = reinterpret_cast<cadet::IUnitOperation*>(drv.model()->getUnitOperationModel(0));
+	std::vector<double> vecStateY(uo->numDofs(), 0.0);
+	std::vector<double> vecStateYdot(uo->numDofs(), 0.0);
+
+	// Apply initial conditions to state vector
+	uo->applyInitialCondition(vecStateY.data(), vecStateYdot.data());
+	CHECK(vecStateY[0] == 0.0);
+	CHECK(vecStateY[1] == 0.0);
+	CHECK(vecStateY[2] == 1.0);
+	CHECK(vecStateY[3] == 2.0);
+	CHECK(vecStateY[4] == 3.0);
+	CHECK(vecStateY[5] == 4.0);
+	CHECK(vecStateY[6] == 5.0);
+	CHECK(vecStateY[7] == 6.0);
+
+	// Get parameter values
+	CHECK(uo->getParameterDouble(cadet::makeParamId("INIT_C", 0, 0, cadet::BoundPhaseIndep, cadet::ReactionIndep, cadet::SectionIndep)) == 1.0);
+	CHECK(uo->getParameterDouble(cadet::makeParamId("INIT_C", 0, 1, cadet::BoundPhaseIndep, cadet::ReactionIndep, cadet::SectionIndep)) == 2.0);
+	CHECK(uo->getParameterDouble(cadet::makeParamId("INIT_Q", 0, 0, 0, cadet::ReactionIndep, cadet::SectionIndep)) == 3.0);
+	CHECK(uo->getParameterDouble(cadet::makeParamId("INIT_Q", 0, 1, 0, cadet::ReactionIndep, cadet::SectionIndep)) == 4.0);
+	CHECK(uo->getParameterDouble(cadet::makeParamId("INIT_Q", 0, 1, 1, cadet::ReactionIndep, cadet::SectionIndep)) == 5.0);
+	CHECK(uo->getParameterDouble(cadet::makeParamId("INIT_VOLUME", 0, cadet::CompIndep, cadet::BoundPhaseIndep, cadet::ReactionIndep, cadet::SectionIndep)) == 6.0);
+
+	// Set parameter values
+	uo->setParameter(cadet::makeParamId("INIT_C", 0, 0, cadet::BoundPhaseIndep, cadet::ReactionIndep, cadet::SectionIndep), -1.0);
+	uo->setParameter(cadet::makeParamId("INIT_C", 0, 1, cadet::BoundPhaseIndep, cadet::ReactionIndep, cadet::SectionIndep), -2.0);
+	uo->setParameter(cadet::makeParamId("INIT_Q", 0, 0, 0, cadet::ReactionIndep, cadet::SectionIndep), -3.0);
+	uo->setParameter(cadet::makeParamId("INIT_Q", 0, 1, 0, cadet::ReactionIndep, cadet::SectionIndep), -4.0);
+	uo->setParameter(cadet::makeParamId("INIT_Q", 0, 1, 1, cadet::ReactionIndep, cadet::SectionIndep), -5.0);
+	uo->setParameter(cadet::makeParamId("INIT_VOLUME", 0, cadet::CompIndep, cadet::BoundPhaseIndep, cadet::ReactionIndep, cadet::SectionIndep), -6.0);
+
+	// Apply initial conditions to state vector
+	std::fill(vecStateY.begin(), vecStateY.end(), 0.0);
+	std::fill(vecStateYdot.begin(), vecStateYdot.end(), 0.0);
+	uo->applyInitialCondition(vecStateY.data(), vecStateYdot.data());
+
+	CHECK(vecStateY[0] == 0.0);
+	CHECK(vecStateY[1] == 0.0);
+	CHECK(vecStateY[2] == -1.0);
+	CHECK(vecStateY[3] == -2.0);
+	CHECK(vecStateY[4] == -3.0);
+	CHECK(vecStateY[5] == -4.0);
+	CHECK(vecStateY[6] == -5.0);
+	CHECK(vecStateY[7] == -6.0);
 }
