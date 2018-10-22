@@ -1057,18 +1057,18 @@ namespace cadet
 #endif
 
 		// Set number of threads in SUNDIALS OpenMP-enabled implementation
-		#ifdef CADET_SUNDIALS_OPENMP
-			if (_vecStateY)
-				NVec_SetThreads(_vecStateY, nThreads);
-			if (_vecStateYdot)
-				NVec_SetThreads(_vecStateYdot, nThreads);
+#ifdef CADET_SUNDIALS_OPENMP
+		if (_vecStateY)
+			NVec_SetThreads(_vecStateY, _nThreads);
+		if (_vecStateYdot)
+			NVec_SetThreads(_vecStateYdot, _nThreads);
 
-			for (unsigned int i = 0; i < _sensitiveParams.slices(); ++i)
-			{
-				NVec_SetThreads(_vecFwdYs[i], nThreads);
-				NVec_SetThreads(_vecFwdYsDot[i], nThreads);
-			}
-		#endif
+		for (unsigned int i = 0; i < _sensitiveParams.slices(); ++i)
+		{
+			NVec_SetThreads(_vecFwdYs[i], _nThreads);
+			NVec_SetThreads(_vecFwdYsDot[i], _nThreads);
+		}
+#endif
 
 		_timerIntegration.start();
 
