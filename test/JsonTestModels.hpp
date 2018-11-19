@@ -21,7 +21,7 @@
 #include "common/JsonParameterProvider.hpp"
 
 cadet::JsonParameterProvider createColumnWithSMA(const std::string& uoType);
-cadet::JsonParameterProvider createGRMwithLinear();
+cadet::JsonParameterProvider createColumnWithTwoCompLinearBinding(const std::string& uoType);
 cadet::JsonParameterProvider createLWE(const std::string& uoType);
 cadet::JsonParameterProvider createLinearBenchmark(bool dynamicBinding, bool nonBinding, const std::string& uoType);
 cadet::JsonParameterProvider createCSTR(unsigned int nComp);

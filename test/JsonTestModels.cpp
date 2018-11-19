@@ -135,10 +135,10 @@ cadet::JsonParameterProvider createColumnWithSMA(const std::string& uoType)
 	return cadet::JsonParameterProvider(createColumnWithSMAJson(uoType));
 }
 
-json createGRMwithLinearJson()
+json createColumnWithTwoCompLinearJson(const std::string& uoType)
 {
 	json config;
-	config["UNIT_TYPE"] = std::string("GENERAL_RATE_MODEL");
+	config["UNIT_TYPE"] = uoType;
 	config["NCOMP"] = 2;
 	config["VELOCITY"] = 5.75e-4;
 	config["COL_DISPERSION"] = 5.75e-8;
@@ -198,9 +198,9 @@ json createGRMwithLinearJson()
 	return config;
 }
 
-cadet::JsonParameterProvider createGRMwithLinear()
+cadet::JsonParameterProvider createColumnWithTwoCompLinearBinding(const std::string& uoType)
 {
-	return cadet::JsonParameterProvider(createGRMwithLinearJson());
+	return cadet::JsonParameterProvider(createColumnWithTwoCompLinearJson(uoType));
 }
 
 json createLWEJson(const std::string& uoType)
