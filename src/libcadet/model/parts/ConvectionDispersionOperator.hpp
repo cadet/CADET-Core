@@ -35,7 +35,7 @@ class IParameterProvider;
 namespace model
 {
 
-namespace operators
+namespace parts
 {
 
 /**
@@ -223,7 +223,7 @@ protected:
 	template <typename real_t> inline const real_t& c(real_t const* const data, unsigned int col, unsigned int comp) const { return data[offsetC() + comp + col * strideColCell()]; }
 };
 
-} // namespace operators
+} // namespace parts
 } // namespace model
 } // namespace cadet
 

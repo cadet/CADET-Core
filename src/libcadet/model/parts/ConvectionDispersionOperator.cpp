@@ -10,7 +10,7 @@
 //  is available at http://www.gnu.org/licenses/gpl.html
 // =============================================================================
 
-#include "model/operator/ConvectionDispersionOperator.hpp"
+#include "model/parts/ConvectionDispersionOperator.hpp"
 #include "cadet/Exceptions.hpp"
 
 #include "Stencil.hpp"
@@ -28,7 +28,7 @@ namespace cadet
 namespace model
 {
 
-namespace operators
+namespace parts
 {
 
 /**
@@ -900,7 +900,7 @@ bool ConvectionDispersionOperator::solveTimeDerivativeSystem(double t, unsigned 
 	return true;
 }
 
-}  // namespace operators
+}  // namespace parts
 
 }  // namespace model
 

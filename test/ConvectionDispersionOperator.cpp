@@ -14,7 +14,7 @@
 #include "Approx.hpp"
 #include "cadet/cadet.hpp"
 
-#include "model/operator/ConvectionDispersionOperator.hpp"
+#include "model/parts/ConvectionDispersionOperator.hpp"
 #include "Weno.hpp"
 #include "AdUtils.hpp"
 
@@ -122,7 +122,7 @@ namespace
 		}	
 	}
 
-	inline cadet::active* createAndConfigureOperator(cadet::model::operators::ConvectionDispersionOperator& convDispOp, int& nComp, int& nCol, int wenoOrder)
+	inline cadet::active* createAndConfigureOperator(cadet::model::parts::ConvectionDispersionOperator& convDispOp, int& nComp, int& nCol, int wenoOrder)
 	{
 		// Obtain parameters from some test case
 		cadet::JsonParameterProvider jpp = createColumnWithSMA("GENERAL_RATE_MODEL");
@@ -155,7 +155,7 @@ void testResidualBulkWenoForwardBackward(int wenoOrder)
 	{
 		int nComp = 0;
 		int nCol = 0;
-		cadet::model::operators::ConvectionDispersionOperator convDispOp;
+		cadet::model::parts::ConvectionDispersionOperator convDispOp;
 		cadet::active* const velocity = createAndConfigureOperator(convDispOp, nComp, nCol, wenoOrder);
 		const double origVelocity = velocity->getValue();
 
@@ -243,7 +243,7 @@ void testTimeDerivativeBulkJacobianFD(double h, double absTol, double relTol)
 {
 	int nComp = 0;
 	int nCol = 0;
-	cadet::model::operators::ConvectionDispersionOperator convDispOp;
+	cadet::model::parts::ConvectionDispersionOperator convDispOp;
 	createAndConfigureOperator(convDispOp, nComp, nCol, cadet::Weno::maxOrder());
 
 	// Setup matrices
@@ -274,8 +274,8 @@ void testBulkJacobianWenoForwardBackward(int wenoOrder)
 	{
 		int nComp = 0;
 		int nCol = 0;
-		cadet::model::operators::ConvectionDispersionOperator opAna;
-		cadet::model::operators::ConvectionDispersionOperator opAD;
+		cadet::model::parts::ConvectionDispersionOperator opAna;
+		cadet::model::parts::ConvectionDispersionOperator opAD;
 		cadet::active* const anaVelocity = createAndConfigureOperator(opAna, nComp, nCol, wenoOrder);
 		cadet::active* const adVelocity = createAndConfigureOperator(opAD, nComp, nCol, wenoOrder);
 

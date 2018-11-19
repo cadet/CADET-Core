@@ -43,7 +43,7 @@ namespace
 	class ConvOpResidual
 	{
 	public:
-		static inline void call(cadet::model::operators::ConvectionDispersionOperatorBase& op, const ParamType& t, unsigned int secIdx, const ParamType& timeFactor, StateType const* const y, double const* const yDot, ResidualType* const res, cadet::linalg::BandMatrix& jac)
+		static inline void call(cadet::model::parts::ConvectionDispersionOperatorBase& op, const ParamType& t, unsigned int secIdx, const ParamType& timeFactor, StateType const* const y, double const* const yDot, ResidualType* const res, cadet::linalg::BandMatrix& jac)
 		{
 			// This should not be reached
 			cadet_assert(false);
@@ -54,7 +54,7 @@ namespace
 	class ConvOpResidual<double, ResidualType, ParamType, true> 
 	{
 	public:
-		static inline void call(cadet::model::operators::ConvectionDispersionOperatorBase& op, const ParamType& t, unsigned int secIdx, const ParamType& timeFactor, double const* const y, double const* const yDot, ResidualType* const res, cadet::linalg::BandMatrix& jac)
+		static inline void call(cadet::model::parts::ConvectionDispersionOperatorBase& op, const ParamType& t, unsigned int secIdx, const ParamType& timeFactor, double const* const y, double const* const yDot, ResidualType* const res, cadet::linalg::BandMatrix& jac)
 		{
 			op.residual(t, secIdx, timeFactor, y, yDot, res, &jac);
 		}
@@ -64,7 +64,7 @@ namespace
 	class ConvOpResidual<double, ResidualType, ParamType, false> 
 	{
 	public:
-		static inline void call(cadet::model::operators::ConvectionDispersionOperatorBase& op, const ParamType& t, unsigned int secIdx, const ParamType& timeFactor, double const* const y, double const* const yDot, ResidualType* const res, cadet::linalg::BandMatrix& jac)
+		static inline void call(cadet::model::parts::ConvectionDispersionOperatorBase& op, const ParamType& t, unsigned int secIdx, const ParamType& timeFactor, double const* const y, double const* const yDot, ResidualType* const res, cadet::linalg::BandMatrix& jac)
 		{
 			op.residual(t, secIdx, timeFactor, y, yDot, res, nullptr);
 		}
@@ -74,7 +74,7 @@ namespace
 	class ConvOpResidual<cadet::active, ResidualType, ParamType, false> 
 	{
 	public:
-		static inline void call(cadet::model::operators::ConvectionDispersionOperatorBase& op, const ParamType& t, unsigned int secIdx, const ParamType& timeFactor, cadet::active const* const y, double const* const yDot, ResidualType* const res, cadet::linalg::BandMatrix& jac)
+		static inline void call(cadet::model::parts::ConvectionDispersionOperatorBase& op, const ParamType& t, unsigned int secIdx, const ParamType& timeFactor, cadet::active const* const y, double const* const yDot, ResidualType* const res, cadet::linalg::BandMatrix& jac)
 		{
 			op.residual(t, secIdx, timeFactor, y, yDot, res);
 		}

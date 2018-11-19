@@ -20,7 +20,7 @@
 
 #include "UnitOperationBase.hpp"
 #include "cadet/SolutionExporter.hpp"
-#include "model/operator/ConvectionDispersionOperator.hpp"
+#include "model/parts/ConvectionDispersionOperator.hpp"
 #include "AutoDiff.hpp"
 #include "linalg/SparseMatrix.hpp"
 #include "linalg/BandMatrix.hpp"
@@ -221,7 +221,7 @@ protected:
 	Discretization _disc; //!< Discretization info
 //	IExternalFunction* _extFun; //!< External function (owned by library user)
 
-	operators::ConvectionDispersionOperator _convDispOp; //!< Convection dispersion operator for interstitial volume transport
+	parts::ConvectionDispersionOperator _convDispOp; //!< Convection dispersion operator for interstitial volume transport
 
 	linalg::BandMatrix _jacP; //!< Particle jacobian diagonal blocks (all of them)
 	linalg::FactorizableBandMatrix _jacPdisc; //!< Particle jacobian diagonal blocks (all of them) with time derivatives from BDF method
