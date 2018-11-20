@@ -21,25 +21,10 @@
 #include "JsonTestModels.hpp"
 #include "JacobianHelper.hpp"
 #include "ColumnTests.hpp"
+#include "Utils.hpp"
 
 #include <limits>
 #include <vector>
-
-namespace
-{
-	/**
-	 * @brief Fills the state vector with a given function
-	 * @details The function @p f uses the current index to assign a value.
-	 * @param [out] y Filled state vector
-	 * @param [in] f Function for computing the content of the state vector
-	 * @param [in] numDofs Size of the state vector
-	 */
-	inline void fillState(double* y, std::function<double(unsigned int)> f, unsigned int numDofs)
-	{
-		for (unsigned int i = 0; i < numDofs; ++i)
-			y[i] = f(i);
-	}
-}
 
 TEST_CASE("ModelSystem Jacobian AD vs analytic", "[ModelSystem],[Jacobian],[AD]")
 {
@@ -106,8 +91,8 @@ TEST_CASE("ModelSystem Jacobian AD vs analytic", "[ModelSystem],[Jacobian],[AD]"
 			std::vector<double> jacCol2(nDof, 0.0);
 
 			// Fill state vector with some values
-			fillState(y.data(), [](unsigned int idx) { return std::abs(std::sin(idx * 0.13)) + 1e-4; }, nDof);
-			fillState(yDot.data(), [=](unsigned int idx) { return std::abs(std::sin((idx + nDof) * 0.13)) + 1e-4; }, nDof);
+			cadet::test::util::populate(y.data(), [](unsigned int idx) { return std::abs(std::sin(idx * 0.13)) + 1e-4; }, nDof);
+			cadet::test::util::populate(yDot.data(), [=](unsigned int idx) { return std::abs(std::sin((idx + nDof) * 0.13)) + 1e-4; }, nDof);
 
 			// Compute state Jacobian
 			sysAna->residualWithJacobian(0.0, 0u, 1.0, y.data(), yDot.data(), jacDir.data(), nullptr, nullptr, 0u);
@@ -190,8 +175,8 @@ TEST_CASE("ModelSystem time derivative Jacobian FD vs analytic", "[ModelSystem],
 			std::vector<double> jacCol2(nDof, 0.0);
 
 			// Fill state vector with some values
-			fillState(y.data(), [](unsigned int idx) { return std::abs(std::sin(idx * 0.13)) + 1e-4; }, nDof);
-			fillState(yDot.data(), [=](unsigned int idx) { return std::abs(std::sin((idx + nDof) * 0.13)) + 1e-4; }, nDof);
+			cadet::test::util::populate(y.data(), [](unsigned int idx) { return std::abs(std::sin(idx * 0.13)) + 1e-4; }, nDof);
+			cadet::test::util::populate(yDot.data(), [=](unsigned int idx) { return std::abs(std::sin((idx + nDof) * 0.13)) + 1e-4; }, nDof);
 
 			// Compute state Jacobian
 			sys->residualWithJacobian(0.0, 0u, 1.0, y.data(), yDot.data(), jacDir.data(), nullptr, nullptr, 0u);
@@ -277,8 +262,8 @@ TEST_CASE("ModelSystem sensitivity Jacobians", "[ModelSystem],[Sensitivity]")
 			std::vector<double*> resS(1, nullptr);
 
 			// Fill state vector with some values
-			fillState(y.data(), [](unsigned int idx) { return std::abs(std::sin(idx * 0.13)) + 1e-4; }, nDof);
-			fillState(yDot.data(), [=](unsigned int idx) { return std::abs(std::sin((idx + nDof) * 0.13)) + 1e-4; }, nDof);
+			cadet::test::util::populate(y.data(), [](unsigned int idx) { return std::abs(std::sin(idx * 0.13)) + 1e-4; }, nDof);
+			cadet::test::util::populate(yDot.data(), [=](unsigned int idx) { return std::abs(std::sin((idx + nDof) * 0.13)) + 1e-4; }, nDof);
 
 			// Calculate Jacobian
 			sys->residualWithJacobian(0.0, 0u, 1.0, y.data(), yDot.data(), jacDir.data(), adRes, nullptr, 0u);

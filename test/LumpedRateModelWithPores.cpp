@@ -14,6 +14,7 @@
 
 #include "ColumnTests.hpp"
 #include "Weno.hpp"
+#include "Utils.hpp"
 
 TEST_CASE("LRMP LWE forward vs backward flow", "[LRMP],[Simulation]")
 {
@@ -71,4 +72,24 @@ TEST_CASE("LRMP forward sensitivity forward vs backward flow", "[LRMP],[Sensitiv
 	const double relTols[] = {2e-4, 9e-6, 5e-7, 1e-7};
 	const double passRatio[] = {1.0, 0.99, 0.98, 0.99};
 	cadet::test::column::testFwdSensSolutionForwardBackward("LUMPED_RATE_MODEL_WITH_PORES", absTols, relTols, passRatio);
+}
+
+TEST_CASE("LRMP consistent initialization with linear binding", "[LRMP],[ConsistentInit]")
+{
+	cadet::test::column::testConsistentInitializationLinearBinding("LUMPED_RATE_MODEL_WITH_PORES", 1e-12, 1e-14);
+}
+
+TEST_CASE("LRMP consistent initialization with SMA binding", "[LRMP],[ConsistentInit]")
+{
+	std::vector<double> y(4 + 4 * 16 + 16 * (4 + 4) + 4 * 16, 0.0);
+// Optimal values:
+//	const double bindingCell[] = {1.2, 2.0, 1.0, 1.5, 858.034, 66.7896, 3.53273, 2.53153, 
+//		1.0, 1.8, 1.5, 1.6, 856.173, 64.457, 5.73227, 2.85286};
+	const double bindingCell[] = {1.2, 2.0, 1.0, 1.5, 840.0, 63.0, 3.0, 3.0, 
+		1.0, 1.8, 1.5, 1.6, 840.0, 63.0, 6.0, 3.0};
+	cadet::test::util::populate(y.data(), [](unsigned int idx) { return std::abs(std::sin(idx * 0.13)) + 1e-4; }, 4 + 4 * 16);
+	cadet::test::util::repeat(y.data() + 4 + 4 * 16, bindingCell, 16, 8);
+	cadet::test::util::populate(y.data() + 4 + 4 * 16 + 16 * (4 + 4), [](unsigned int idx) { return std::abs(std::sin(idx * 0.13)) + 1e-4; }, 4 * 16);
+
+	cadet::test::column::testConsistentInitializationSMABinding("LUMPED_RATE_MODEL_WITH_PORES", y.data(), 1e-14, 1e-5);
 }

@@ -21,25 +21,13 @@
 #include "JsonTestModels.hpp"
 #include "ColumnTests.hpp"
 #include "JacobianHelper.hpp"
+#include "Utils.hpp"
 
 #include <cmath>
 #include <functional>
 
 namespace
 {
-	/**
-	 * @brief Fills the state vector with a given function
-	 * @details The function @p f uses the current index to assign a value.
-	 * @param [out] y Filled state vector
-	 * @param [in] f Function for computing the content of the state vector
-	 * @param [in] numDofs Size of the state vector
-	 */
-	inline void fillState(double* y, std::function<double(unsigned int)> f, unsigned int numDofs)
-	{
-		for (unsigned int i = 0; i < numDofs; ++i)
-			y[i] = f(i);
-	}
-
 	/**
 	 * @brief Fills the bulk part of the state vector with a given function
 	 * @details The function @p f uses the component index, the column cell index, and the 
@@ -258,8 +246,8 @@ void testTimeDerivativeBulkJacobianFD(double h, double absTol, double relTol)
 	std::vector<double> jacCol2(nDof, 0.0);
 
 	// Fill state vectors with some values
-	fillState(y.data(), [=](unsigned int idx) { return std::abs(std::sin(idx * 0.13)) + 1e-4; }, nDof);
-	fillState(yDot.data(), [=](unsigned int idx) { return std::abs(std::sin((idx + nDof) * 0.13)) + 1e-4; }, nDof);
+	cadet::test::util::populate(y.data(), [=](unsigned int idx) { return std::abs(std::sin(idx * 0.13)) + 1e-4; }, nDof);
+	cadet::test::util::populate(yDot.data(), [=](unsigned int idx) { return std::abs(std::sin((idx + nDof) * 0.13)) + 1e-4; }, nDof);
 
 	// Compare Jacobians
 	cadet::test::compareJacobianFD(
@@ -298,7 +286,7 @@ void testBulkJacobianWenoForwardBackward(int wenoOrder)
 		std::vector<double> jacCol2(nDof, 0.0);
 
 		// Fill state vector with some values
-		fillState(y.data() + nComp, [](unsigned int idx) { return std::abs(std::sin(idx * 0.13)) + 1e-4; }, nDof - nComp);
+		cadet::test::util::populate(y.data() + nComp, [](unsigned int idx) { return std::abs(std::sin(idx * 0.13)) + 1e-4; }, nDof - nComp);
 
 		SECTION("Forward then backward flow (nonzero state)")
 		{

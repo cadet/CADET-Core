@@ -167,6 +167,28 @@ namespace column
 	 */
 	void testFwdSensSolutionForwardBackward(const std::string& uoType, double const* absTols, double const* relTols, double const* passRates);
 
+	/**
+	 * @brief Checks the consistent initialization algorithm using a model with linear binding
+	 * @details Assumes column-like unit models and checks the residual of the model equations after
+	 *          consistent initialization. A linear binding model is applied. Both binding modes and 
+	 *          both AD and analytic Jacobians are checked. 
+	 * @param [in] uoType Unit operation type
+	 * @param [in] consTol Error tolerance for consistent initialization solver
+	 * @param [in] absTol Error tolerance for checking whether algebraic residual is 0
+	 */
+	void testConsistentInitializationLinearBinding(const std::string& uoType, double consTol, double absTol);
+
+	/**
+	 * @brief Checks the consistent initialization algorithm using a model with SMA binding
+	 * @details Assumes column-like unit models and checks the residual of the model equations after
+	 *          consistent initialization. Both binding modes and both AD and analytic Jacobians are checked.
+	 * @param [in] uoType Unit operation type
+	 * @param [in] initState Initial state vector to start process from
+	 * @param [in] consTol Error tolerance for consistent initialization solver
+	 * @param [in] absTol Error tolerance for checking whether algebraic residual is 0
+	 */
+	void testConsistentInitializationSMABinding(const std::string& uoType, double const* const initState, double consTol, double absTol);
+
 } // namespace column
 } // namespace test
 } // namespace cadet

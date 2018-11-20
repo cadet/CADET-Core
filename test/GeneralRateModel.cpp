@@ -14,6 +14,7 @@
 
 #include "ColumnTests.hpp"
 #include "Weno.hpp"
+#include "Utils.hpp"
 
 TEST_CASE("GRM LWE forward vs backward flow", "[GRM],[Simulation]")
 {
@@ -71,4 +72,24 @@ TEST_CASE("GRM forward sensitivity forward vs backward flow", "[GRM],[Sensitivit
 	const double relTols[] = {6e-9, 5e-8, 5e-6, 5e-10};
 	const double passRatio[] = {0.99, 0.97, 0.98, 0.99};
 	cadet::test::column::testFwdSensSolutionForwardBackward("GENERAL_RATE_MODEL", absTols, relTols, passRatio);
+}
+
+TEST_CASE("GRM consistent initialization with linear binding", "[GRM],[ConsistentInit]")
+{
+	cadet::test::column::testConsistentInitializationLinearBinding("GENERAL_RATE_MODEL", 1e-12, 1e-14);
+}
+
+TEST_CASE("GRM consistent initialization with SMA binding", "[GRM],[ConsistentInit]")
+{
+	std::vector<double> y(4 + 4 * 16 + 16 * 4 * (4 + 4) + 4 * 16, 0.0);
+// Optimal values:
+//	const double bindingCell[] = {1.2, 2.0, 1.0, 1.5, 858.034, 66.7896, 3.53273, 2.53153, 
+//		1.0, 1.8, 1.5, 1.6, 856.173, 64.457, 5.73227, 2.85286};
+	const double bindingCell[] = {1.2, 2.0, 1.0, 1.5, 840.0, 63.0, 3.0, 3.0, 
+		1.0, 1.8, 1.5, 1.6, 840.0, 63.0, 6.0, 3.0};
+	cadet::test::util::populate(y.data(), [](unsigned int idx) { return std::abs(std::sin(idx * 0.13)) + 1e-4; }, 4 + 4 * 16);
+	cadet::test::util::repeat(y.data() + 4 + 4 * 16, bindingCell, 16, 4 * 16 / 2);
+	cadet::test::util::populate(y.data() + 4 + 4 * 16 + 16 * 4 * (4 + 4), [](unsigned int idx) { return std::abs(std::sin(idx * 0.13)) + 1e-4; }, 4 * 16);
+
+	cadet::test::column::testConsistentInitializationSMABinding("GENERAL_RATE_MODEL", y.data(), 1e-14, 1e-5);
 }

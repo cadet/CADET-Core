@@ -39,19 +39,6 @@ namespace
 		return RelApprox(val).epsilon(relTol).margin(absTol);
 	}
 
-	/**
-	 * @brief Fills the state vector with a given function
-	 * @details The function @p f uses the current index to assign a value.
-	 * @param [out] y Filled state vector
-	 * @param [in] f Function for computing the content of the state vector
-	 * @param [in] numDofs Size of the state vector
-	 */
-	inline void fillState(double* y, std::function<double(unsigned int)> f, unsigned int numDofs)
-	{
-		for (unsigned int i = 0; i < numDofs; ++i)
-			y[i] = f(i);
-	}
-
 	inline cadet::model::IBindingModel* createBindingModel(const char* name)
 	{
 		cadet::BindingModelFactory bmf;

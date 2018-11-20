@@ -19,26 +19,10 @@
 #include "JsonTestModels.hpp"
 #include "JacobianHelper.hpp"
 #include "SimHelper.hpp"
+#include "Utils.hpp"
 
 #include <cmath>
 #include <functional>
-
-namespace
-{
-	/**
-	 * @brief Fills the state vector with a given function
-	 * @details The function @p f uses the current index to assign a value.
-	 * @param [out] y Filled state vector
-	 * @param [in] f Function for computing the content of the state vector
-	 * @param [in] numDofs Size of the state vector
-	 */
-	inline void fillState(double* y, std::function<double(unsigned int)> f, unsigned int numDofs)
-	{
-		for (unsigned int i = 0; i < numDofs; ++i)
-			y[i] = f(i);
-	}
-}
-
 
 /**
  * @brief Creates a runnable CSTR model with given WENO order
@@ -106,8 +90,8 @@ inline void checkJacobianAD(double flowRateIn, double flowRateOut, double flowRa
 	std::vector<double> jacCol2(nDof, 0.0);
 
 	// Fill state vectors with some values
-	fillState(y.data(), [=](unsigned int idx) { return std::abs(std::sin(idx * 0.13)) + 1e-4; }, nDof);
-	fillState(yDot.data(), [=](unsigned int idx) { return std::abs(std::sin((idx + nDof) * 0.13)) + 1e-4; }, nDof);
+	cadet::test::util::populate(y.data(), [=](unsigned int idx) { return std::abs(std::sin(idx * 0.13)) + 1e-4; }, nDof);
+	cadet::test::util::populate(yDot.data(), [=](unsigned int idx) { return std::abs(std::sin((idx + nDof) * 0.13)) + 1e-4; }, nDof);
 
 	// Compute state Jacobian
 	cstrAna->residualWithJacobian(0.0, 0u, 1.0, y.data(), nullptr, jacDir.data(), nullptr, nullptr, 0u);
@@ -152,8 +136,8 @@ inline void checkJacobianFD(double flowRateIn, double flowRateOut, double flowRa
 	std::vector<double> jacCol2(nDof, 0.0);
 
 	// Fill state vectors with some values
-	fillState(y.data(), [=](unsigned int idx) { return std::abs(std::sin(idx * 0.13)) + 1e-4; }, nDof);
-	fillState(yDot.data(), [=](unsigned int idx) { return std::abs(std::sin((idx + nDof) * 0.13)) + 1e-4; }, nDof);
+	cadet::test::util::populate(y.data(), [=](unsigned int idx) { return std::abs(std::sin(idx * 0.13)) + 1e-4; }, nDof);
+	cadet::test::util::populate(yDot.data(), [=](unsigned int idx) { return std::abs(std::sin((idx + nDof) * 0.13)) + 1e-4; }, nDof);
 
 	// Compute state Jacobian
 	cstr->residualWithJacobian(0.0, 0u, 1.0, y.data(), yDot.data(), jacDir.data(), nullptr, nullptr, 0u);
@@ -195,8 +179,8 @@ inline void checkTimeDerivativeJacobianFD(double flowRateIn, double flowRateOut,
 	std::vector<double> jacCol2(nDof, 0.0);
 
 	// Fill state vectors with some values
-	fillState(y.data(), [=](unsigned int idx) { return std::abs(std::sin(idx * 0.13)) + 1e-4; }, nDof);
-	fillState(yDot.data(), [=](unsigned int idx) { return std::abs(std::sin((idx + nDof) * 0.13)) + 1e-4; }, nDof);
+	cadet::test::util::populate(y.data(), [=](unsigned int idx) { return std::abs(std::sin(idx * 0.13)) + 1e-4; }, nDof);
+	cadet::test::util::populate(yDot.data(), [=](unsigned int idx) { return std::abs(std::sin((idx + nDof) * 0.13)) + 1e-4; }, nDof);
 
 	// Compare Jacobians
 	cadet::test::compareTimeDerivativeJacobianFD(cstr, cstr, y.data(), yDot.data(), jacDir.data(), jacCol1.data(), jacCol2.data());

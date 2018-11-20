@@ -18,17 +18,18 @@
 #include "Logging.hpp"
 
 #include "ColumnTests.hpp"
+#include "Utils.hpp"
 #include "SimHelper.hpp"
 #include "ModelBuilderImpl.hpp"
 #include "common/Driver.hpp"
 #include "Weno.hpp"
+#include "linalg/Norms.hpp"
 
 #include "JsonTestModels.hpp"
 #include "JacobianHelper.hpp"
 
 #include <cmath>
 #include <functional>
-#include <cstdio>
 
 /**
  * @brief Returns the absolute path to the test/ folder of the project
@@ -42,19 +43,6 @@ namespace
 	inline RelApprox makeApprox(double val, double relTol, double absTol)
 	{
 		return RelApprox(val).epsilon(relTol).margin(absTol);
-	}
-
-	/**
-	 * @brief Fills the state vector with a given function
-	 * @details The function @p f uses the current index to assign a value.
-	 * @param [out] y Filled state vector
-	 * @param [in] f Function for computing the content of the state vector
-	 * @param [in] numDofs Size of the state vector
-	 */
-	inline void fillState(double* y, std::function<double(unsigned int)> f, unsigned int numDofs)
-	{
-		for (unsigned int i = 0; i < numDofs; ++i)
-			y[i] = f(i);
 	}
 
 	/**
@@ -290,7 +278,7 @@ namespace column
 		SECTION("Forward vs backward flow (WENO=" + std::to_string(wenoOrder) + ")")
 		{
 			// Use Load-Wash-Elution test case
-			cadet::JsonParameterProvider jpp = createLWE(uoType);
+			cadet::JsonParameterProvider jpp = createColumnWithSMA(uoType);
 			setWenoOrder(jpp, wenoOrder);
 
 			// Forward flow
@@ -433,8 +421,8 @@ namespace column
 			std::vector<double> jacCol2(unitAD->numDofs(), 0.0);
 
 			// Fill state vector with some values
-			fillState(y.data(), [](unsigned int idx) { return std::abs(std::sin(idx * 0.13)) + 1e-4; }, unitAna->numDofs());
-//			fillState(y.data(), [](unsigned int idx) { return 1.0; }, unitAna->numDofs());
+			util::populate(y.data(), [](unsigned int idx) { return std::abs(std::sin(idx * 0.13)) + 1e-4; }, unitAna->numDofs());
+//			util::populate(y.data(), [](unsigned int idx) { return 1.0; }, unitAna->numDofs());
 
 			// Obtain number of column cells
 			jpp.pushScope("discretization");
@@ -510,8 +498,8 @@ namespace column
 		std::vector<double> jacCol2(nDof, 0.0);
 
 		// Fill state vectors with some values
-		fillState(y.data(), [=](unsigned int idx) { return std::abs(std::sin(idx * 0.13)) + 1e-4; }, nDof);
-		fillState(yDot.data(), [=](unsigned int idx) { return std::abs(std::sin((idx + nDof) * 0.13)) + 1e-4; }, nDof);
+		util::populate(y.data(), [=](unsigned int idx) { return std::abs(std::sin(idx * 0.13)) + 1e-4; }, nDof);
+		util::populate(yDot.data(), [=](unsigned int idx) { return std::abs(std::sin((idx + nDof) * 0.13)) + 1e-4; }, nDof);
 
 		// Compare Jacobians
 		cadet::test::compareTimeDerivativeJacobianFD(unit, unit, y.data(), yDot.data(), jacDir.data(), jacCol1.data(), jacCol2.data(), h, absTol, relTol);
@@ -566,8 +554,8 @@ namespace column
 				std::vector<double*> resS(1, nullptr);
 
 				// Fill state vector with some values
-				fillState(y.data(), [](unsigned int idx) { return std::abs(std::sin(idx * 0.13)) + 1e-4; }, nDof);
-				fillState(yDot.data(), [=](unsigned int idx) { return std::abs(std::sin((idx + nDof) * 0.13)) + 1e-4; }, nDof);
+				util::populate(y.data(), [](unsigned int idx) { return std::abs(std::sin(idx * 0.13)) + 1e-4; }, nDof);
+				util::populate(yDot.data(), [=](unsigned int idx) { return std::abs(std::sin((idx + nDof) * 0.13)) + 1e-4; }, nDof);
 
 				// Calculate Jacobian
 				unit->residualWithJacobian(0.0, 0u, 1.0, y.data(), yDot.data(), jacDir.data(), adRes, nullptr, 0u);
@@ -780,6 +768,112 @@ namespace column
 				}
 			}
 		}
+	}
+
+	void consistentInitializationAlgorithm(cadet::IUnitOperation* const unit, bool adEnabled, double* const y, double consTol, double absTol)
+	{
+		cadet::active* adRes = nullptr;
+		cadet::active* adY = nullptr;
+
+		// Enable AD
+		if (adEnabled)
+		{
+			cadet::ad::setDirections(cadet::ad::getMaxDirections());
+			unit->useAnalyticJacobian(false);
+
+			adRes = new cadet::active[unit->numDofs()];
+			adY = new cadet::active[unit->numDofs()];
+			unit->prepareADvectors(adRes, adY, 0);
+		}
+		else
+		{
+			unit->useAnalyticJacobian(true);
+		}
+
+		// Setup matrices
+		unit->notifyDiscontinuousSectionTransition(0.0, 0u, adRes, adY, 0u);
+
+		// Obtain memory for state, Jacobian multiply direction, Jacobian column
+		std::vector<double> yDot(unit->numDofs(), 0.0);
+		std::vector<double> res(unit->numDofs(), 0.0);
+
+		// Initialize algebraic variables in state vector
+		unit->consistentInitialState(0.0, 0u, 1.0, y, adRes, adY, 0u, consTol);
+
+		// Evaluate residual without yDot and update Jacobians
+		unit->residualWithJacobian(0.0, 0u, 1.0, y, nullptr, yDot.data(), adRes, adY, 0u);
+
+		// Initialize time derivative of state
+		unit->consistentInitialTimeDerivative(0.0, 0u, 1.0, y, yDot.data());
+
+		// Check norm of residual (but skip over connection DOFs at the beginning of the local state vector slice)
+		unit->residual(0.0, 0u, 1.0, y, yDot.data(), res.data());
+		INFO("Residual " << linalg::linfNorm(res.data() + unit->numComponents(), unit->numDofs() - unit->numComponents()));
+		CHECK(linalg::linfNorm(res.data() + unit->numComponents(), unit->numDofs() - unit->numComponents()) <= absTol);
+
+		// Clean up
+		delete[] adRes;
+		delete[] adY;
+	}
+
+	void testConsistentInitializationLinearBinding(const std::string& uoType, double consTol, double absTol)
+	{
+		cadet::IModelBuilder* const mb = cadet::createModelBuilder();
+		REQUIRE(nullptr != mb);
+
+		for (int bindingMode = 0; bindingMode < 2; ++bindingMode)
+		{
+			const bool isKinetic = (bindingMode == 0);
+			for (int adMode = 0; adMode < 2; ++adMode)
+			{
+				const bool adEnabled = (adMode > 0);
+				SECTION(std::string(isKinetic ? " Kinetic binding" : " Quasi-stationary binding") + " with AD " + (adEnabled ? "enabled" : "disabled"))
+				{
+					// Use some test case parameters
+					cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding(uoType);
+					cadet::IUnitOperation* const unit = createAndConfigureUnit(uoType, *mb, jpp, cadet::Weno::maxOrder());
+
+					// Fill state vector with given initial values
+					std::vector<double> y(unit->numDofs(), 0.0);
+					util::populate(y.data(), [](unsigned int idx) { return std::abs(std::sin(idx * 0.13)) + 1e-4; }, unit->numDofs());
+
+					consistentInitializationAlgorithm(unit, adEnabled, y.data(), consTol, absTol);
+
+					mb->destroyUnitOperation(unit);
+				}
+			}
+		}
+		destroyModelBuilder(mb);
+	}
+
+	void testConsistentInitializationSMABinding(const std::string& uoType, double const* const initState, double consTol, double absTol)
+	{
+		cadet::IModelBuilder* const mb = cadet::createModelBuilder();
+		REQUIRE(nullptr != mb);
+
+		for (int bindingMode = 0; bindingMode < 2; ++bindingMode)
+		{
+			const bool isKinetic = (bindingMode == 0);
+			for (int adMode = 0; adMode < 2; ++adMode)
+			{
+				const bool adEnabled = (adMode > 0);
+				SECTION(std::string(isKinetic ? " Kinetic binding" : " Quasi-stationary binding") + " with AD " + (adEnabled ? "enabled" : "disabled"))
+				{
+					// Use some test case parameters
+					cadet::JsonParameterProvider jpp = createColumnWithSMA(uoType);
+					cadet::IUnitOperation* const unit = createAndConfigureUnit(uoType, *mb, jpp, cadet::Weno::maxOrder());
+
+					// Fill state vector with given initial values
+					std::vector<double> y(unit->numDofs(), 0.0);
+					std::copy(initState, initState + y.size(), y.data());
+
+					consistentInitializationAlgorithm(unit, adEnabled, y.data(), consTol, absTol);
+
+					mb->destroyUnitOperation(unit);
+				}
+			}
+		}
+		destroyModelBuilder(mb);
 	}
 
 } // namespace column
