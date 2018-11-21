@@ -27,6 +27,7 @@
 
 #include "JsonTestModels.hpp"
 #include "JacobianHelper.hpp"
+#include "UnitOperationTests.hpp"
 
 #include <cmath>
 #include <functional>
@@ -770,52 +771,6 @@ namespace column
 		}
 	}
 
-	void consistentInitializationAlgorithm(cadet::IUnitOperation* const unit, bool adEnabled, double* const y, double consTol, double absTol)
-	{
-		cadet::active* adRes = nullptr;
-		cadet::active* adY = nullptr;
-
-		// Enable AD
-		if (adEnabled)
-		{
-			cadet::ad::setDirections(cadet::ad::getMaxDirections());
-			unit->useAnalyticJacobian(false);
-
-			adRes = new cadet::active[unit->numDofs()];
-			adY = new cadet::active[unit->numDofs()];
-			unit->prepareADvectors(adRes, adY, 0);
-		}
-		else
-		{
-			unit->useAnalyticJacobian(true);
-		}
-
-		// Setup matrices
-		unit->notifyDiscontinuousSectionTransition(0.0, 0u, adRes, adY, 0u);
-
-		// Obtain memory for state, Jacobian multiply direction, Jacobian column
-		std::vector<double> yDot(unit->numDofs(), 0.0);
-		std::vector<double> res(unit->numDofs(), 0.0);
-
-		// Initialize algebraic variables in state vector
-		unit->consistentInitialState(0.0, 0u, 1.0, y, adRes, adY, 0u, consTol);
-
-		// Evaluate residual without yDot and update Jacobians
-		unit->residualWithJacobian(0.0, 0u, 1.0, y, nullptr, yDot.data(), adRes, adY, 0u);
-
-		// Initialize time derivative of state
-		unit->consistentInitialTimeDerivative(0.0, 0u, 1.0, y, yDot.data());
-
-		// Check norm of residual (but skip over connection DOFs at the beginning of the local state vector slice)
-		unit->residual(0.0, 0u, 1.0, y, yDot.data(), res.data());
-		INFO("Residual " << linalg::linfNorm(res.data() + unit->numComponents(), unit->numDofs() - unit->numComponents()));
-		CHECK(linalg::linfNorm(res.data() + unit->numComponents(), unit->numDofs() - unit->numComponents()) <= absTol);
-
-		// Clean up
-		delete[] adRes;
-		delete[] adY;
-	}
-
 	void testConsistentInitializationLinearBinding(const std::string& uoType, double consTol, double absTol)
 	{
 		cadet::IModelBuilder* const mb = cadet::createModelBuilder();
@@ -838,7 +793,7 @@ namespace column
 					std::vector<double> y(unit->numDofs(), 0.0);
 					util::populate(y.data(), [](unsigned int idx) { return std::abs(std::sin(idx * 0.13)) + 1e-4; }, unit->numDofs());
 
-					consistentInitializationAlgorithm(unit, adEnabled, y.data(), consTol, absTol);
+					unitoperation::testConsistentInitialization(unit, adEnabled, y.data(), consTol, absTol);
 
 					mb->destroyUnitOperation(unit);
 				}
@@ -866,10 +821,9 @@ namespace column
 					cadet::IUnitOperation* const unit = createAndConfigureUnit(uoType, *mb, jpp, cadet::Weno::maxOrder());
 
 					// Fill state vector with given initial values
-					std::vector<double> y(unit->numDofs(), 0.0);
-					std::copy(initState, initState + y.size(), y.data());
+					std::vector<double> y(initState, initState + unit->numDofs());
 
-					consistentInitializationAlgorithm(unit, adEnabled, y.data(), consTol, absTol);
+					unitoperation::testConsistentInitialization(unit, adEnabled, y.data(), consTol, absTol);
 
 					mb->destroyUnitOperation(unit);
 				}
