@@ -125,14 +125,13 @@ bool CSTRModel::configureModelDiscretization(IParameterProvider& paramProvider, 
 		const bool bindingConfSuccess = _binding->configureModelDiscretization(paramProvider, _nComp, _nBound, _boundOffset);
 
 		// Allocate memory for nonlinear equation solving
-		unsigned int size = 0;
+		unsigned int size = 2 * nVar;
 		if (_binding->requiresWorkspace())
 		{
 			// Required memory (number of doubles) for nonlinear solvers
-			size = (_binding->workspaceSize() + sizeof(double) - 1) / sizeof(double);
+			size = std::max(size, static_cast<unsigned int>((_binding->workspaceSize() + sizeof(double) - 1) / sizeof(double)));
 		}
-		if (size > 0)
-			_consistentInitBuffer = new double[size];
+		_consistentInitBuffer = new double[size];
 
 		return bindingConfSuccess;
 	}
@@ -494,14 +493,14 @@ void CSTRModel::consistentInitialTimeDerivative(double t, unsigned int secIdx, d
 		}
 
 		// Factorize
-		const bool result = _jacFact.factorize();
+		const bool result = _jacFact.robustFactorize(_consistentInitBuffer);
 		if (!result)
 		{
 			LOG(Error) << "Factorize() failed";
 		}
 
 		// Solve
-		const bool result2 = _jacFact.solve(vecStateYdot + _nComp);
+		const bool result2 = _jacFact.robustSolve(vecStateYdot + _nComp, _consistentInitBuffer);
 		if (!result2)
 		{
 			LOG(Error) << "Solve() failed";
@@ -1017,14 +1016,14 @@ void CSTRModel::consistentInitialSensitivity(const active& t, unsigned int secId
 		}
 
 		// Factorize
-		const bool result = _jacFact.factorize();
+		const bool result = _jacFact.robustFactorize(_consistentInitBuffer);
 		if (!result)
 		{
 			LOG(Error) << "Factorize() failed";
 		}
 
 		// Solve
-		const bool result2 = _jacFact.solve(sensYdot + _nComp);
+		const bool result2 = _jacFact.robustSolve(sensYdot + _nComp, _consistentInitBuffer);
 		if (!result2)
 		{
 			LOG(Error) << "Solve() failed";
