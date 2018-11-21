@@ -831,6 +831,7 @@ namespace column
 				{
 					// Use some test case parameters
 					cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding(uoType);
+					cadet::test::column::setBindingMode(jpp, isKinetic);
 					cadet::IUnitOperation* const unit = createAndConfigureUnit(uoType, *mb, jpp, cadet::Weno::maxOrder());
 
 					// Fill state vector with given initial values
@@ -861,6 +862,7 @@ namespace column
 				{
 					// Use some test case parameters
 					cadet::JsonParameterProvider jpp = createColumnWithSMA(uoType);
+					cadet::test::column::setBindingMode(jpp, isKinetic);
 					cadet::IUnitOperation* const unit = createAndConfigureUnit(uoType, *mb, jpp, cadet::Weno::maxOrder());
 
 					// Fill state vector with given initial values
