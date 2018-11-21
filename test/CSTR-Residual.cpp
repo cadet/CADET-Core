@@ -19,6 +19,7 @@
 #include "JsonTestModels.hpp"
 #include "JacobianHelper.hpp"
 #include "SimHelper.hpp"
+#include "UnitOperationTests.hpp"
 #include "Utils.hpp"
 
 #include <cmath>
@@ -186,6 +187,29 @@ inline void checkTimeDerivativeJacobianFD(double flowRateIn, double flowRateOut,
 	cadet::test::compareTimeDerivativeJacobianFD(cstr, cstr, y.data(), yDot.data(), jacDir.data(), jacCol1.data(), jacCol2.data());
 
 	mb->destroyUnitOperation(cstr);
+	destroyModelBuilder(mb);
+}
+
+inline void checkConsistentInitialization(const std::function<cadet::model::CSTRModel*(cadet::IModelBuilder&, bool)>& modelCreator, double const* initState, double consTol, double absTol)
+{
+	cadet::IModelBuilder* const mb = cadet::createModelBuilder();
+	REQUIRE(nullptr != mb);
+
+	for (int bindingMode = 0; bindingMode < 2; ++bindingMode)
+	{
+		const bool isKinetic = (bindingMode == 0);
+		for (int adMode = 0; adMode < 2; ++adMode)
+		{
+			const bool adEnabled = (adMode > 0);
+			SECTION(std::string(isKinetic ? " Kinetic binding" : " Quasi-stationary binding") + " with AD " + (adEnabled ? "enabled" : "disabled"))
+			{
+				cadet::model::CSTRModel* const cstr = modelCreator(*mb, isKinetic);
+				std::vector<double> y(initState, initState + cstr->numDofs());
+				cadet::test::unitoperation::testConsistentInitialization(cstr, adEnabled, y.data(), consTol, absTol);
+				mb->destroyUnitOperation(cstr);
+			}
+		}
+	}
 	destroyModelBuilder(mb);
 }
 
@@ -380,4 +404,45 @@ TEST_CASE("StirredTankModel time derivative Jacobian vs FD with linear binding",
 			}
 		}
 	}
+}
+
+
+TEST_CASE("StirredTankModel consistent initialization with linear binding", "[CSTR],[ConsistentInit]")
+{
+	// Fill state vector with initial values
+	std::vector<double> y(2 + 2 * 2 + 1, 0.0);
+	cadet::test::util::populate(y.data(), [](unsigned int idx) { return std::abs(std::sin(idx * 0.13)) + 1e-4; }, y.size());
+
+	checkConsistentInitialization([](cadet::IModelBuilder& mb, bool dynamic) -> cadet::model::CSTRModel* {
+		cadet::JsonParameterProvider jpp = createCSTR(2);
+		cadet::test::addBoundStates(jpp, {1, 1}, 0.5);
+		cadet::test::addLinearBindingModel(jpp, dynamic, {5.0, 4.0}, {2.0, 3.0});
+
+		cadet::model::CSTRModel* const cstr = createAndConfigureCSTR(mb, jpp);
+		cstr->setFlowRates(1.0, 1.0);
+		return cstr;
+	}, y.data(), 1e-14, 1e-14);
+}
+
+TEST_CASE("StirredTankModel consistent initialization with SMA binding", "[CSTR],[ConsistentInit]")
+{
+// Optimal values:
+//	const double bindingCell[] = {1.2, 2.0, 1.0, 1.5, 858.034, 66.7896, 3.53273, 2.53153};
+	const double bindingCell[] = {1.2, 2.0, 1.0, 1.5, 858.0, 66.0, 3.5, 2.5};
+
+	// Fill state vector with initial values
+	std::vector<double> y(4 + 2 * 4 + 1, 0.0);
+	cadet::test::util::populate(y.data(), [](unsigned int idx) { return std::abs(std::sin(idx * 0.13)) + 1e-4; }, 4);
+	cadet::test::util::repeat(y.data() + 4, bindingCell, 8, 1);
+	y[4 + 8] = 1.0;
+
+	checkConsistentInitialization([](cadet::IModelBuilder& mb, bool dynamic) -> cadet::model::CSTRModel* {
+		cadet::JsonParameterProvider jpp = createCSTR(4);
+		cadet::test::addBoundStates(jpp, {1, 1, 1, 1}, 0.5);
+		cadet::test::addSMABindingModel(jpp, dynamic, 1.2e3, {0.0, 35.5, 1.59, 7.7}, {0.0, 1000.0, 1000.0, 1000.0}, {0.0, 4.7, 5.29, 3.7}, {0.0, 11.83, 10.6, 10.0});
+
+		cadet::model::CSTRModel* const cstr = createAndConfigureCSTR(mb, jpp);
+		cstr->setFlowRates(1.0, 1.0);
+		return cstr;
+	}, y.data(), 1e-14, 1e-5);
 }

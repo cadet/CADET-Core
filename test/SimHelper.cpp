@@ -172,14 +172,33 @@ namespace test
 		jpp.popScope();
 	}
 
+	void addSMABindingModel(cadet::JsonParameterProvider& jpp, bool kinetic, double lambda, const std::vector<double>& kA, const std::vector<double>& kD, const std::vector<double>& nu, const std::vector<double>& sigma)
+	{
+		GroupScope gs(jpp);
+
+		jpp.set("ADSORPTION_MODEL", "STERIC_MASS_ACTION");
+
+		jpp.addScope("adsorption");
+		jpp.pushScope("adsorption");
+
+		jpp.set("IS_KINETIC", kinetic);
+		jpp.set("SMA_LAMBDA", lambda);
+		jpp.set("SMA_KA", kA);
+		jpp.set("SMA_KD", kD);
+		jpp.set("SMA_NU", nu);
+		jpp.set("SMA_SIGMA", sigma);
+
+		jpp.popScope();
+	}
+
 	void addLangmuirBindingModel(cadet::JsonParameterProvider& jpp, bool kinetic, const std::vector<double>& kA, const std::vector<double>& kD, const std::vector<double>& qMax)
 	{
 		GroupScope gs(jpp);
 
 		jpp.set("ADSORPTION_MODEL", "MULTI_COMPONENT_LANGMUIR");
 
-		jpp.addScope("binding");
-		jpp.pushScope("binding");
+		jpp.addScope("adsorption");
+		jpp.pushScope("adsorption");
 
 		jpp.set("IS_KINETIC", kinetic);
 		jpp.set("MCL_KA", kA);

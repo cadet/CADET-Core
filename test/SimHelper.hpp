@@ -108,6 +108,18 @@ namespace test
 	void addLinearBindingModel(cadet::JsonParameterProvider& jpp, bool kinetic, const std::vector<double>& kA, const std::vector<double>& kD);
 
 	/**
+	 * @brief Adds SMA binding model to a CSTR model
+	 * @param [in,out] jpp ParameterProvider
+	 * @param [in] kinetic Determines whether kinetic or quasi-stationary binding is used
+	 * @param [in] lambda Ionic capacity Lambda
+	 * @param [in] kA Vector with kA rates
+	 * @param [in] kD Vector with kD rates
+	 * @param [in] nu Vector with characteristic charges nu
+	 * @param [in] sigma Vector with steric factors sigma
+	 */
+	void addSMABindingModel(cadet::JsonParameterProvider& jpp, bool kinetic, double lambda, const std::vector<double>& kA, const std::vector<double>& kD, const std::vector<double>& nu, const std::vector<double>& sigma);
+
+	/**
 	 * @brief Adds Langmuir binding model to a CSTR model
 	 * @param [in,out] jpp ParameterProvider
 	 * @param [in] kinetic Determines whether kinetic or quasi-stationary binding is used
