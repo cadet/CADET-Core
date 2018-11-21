@@ -78,7 +78,6 @@ void prepareAdVectorSeedsForDenseMatrix(active* const adVec, unsigned int adDirO
 			assemble the Jacobian which is a dense matrix.
  * @param [in] adVec Vector of AD datatypes with seed vectors
  * @param [in] adDirOffset Offset in the AD directions (can be used to move past parameter sensitivity directions)
- * @param [in] diagDir Diagonal direction index
  * @param [out] mat DenseMatrix to be populated with the Jacobian, where the matrix is of the correct size and allocated
  */
 void extractDenseJacobianFromAd(active const* const adVec, unsigned int adDirOffset, linalg::detail::DenseMatrixBase& mat);

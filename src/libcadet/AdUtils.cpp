@@ -240,12 +240,12 @@ DenseJacobianExtractor::DenseJacobianExtractor() { }
 
 void DenseJacobianExtractor::extractJacobian(active const* adRes, unsigned int row, unsigned int adDirOffset, linalg::detail::DenseMatrixBase& mat) const
 {
-	extractDenseJacobianFromAd(adRes + row, adDirOffset, mat);
+	extractDenseJacobianFromAd(adRes + row, adDirOffset + row, mat);
 }
 
 double DenseJacobianExtractor::compareWithJacobian(active const* adRes, unsigned int row, unsigned int adDirOffset, linalg::detail::DenseMatrixBase& mat) const
 {
-	return compareDenseJacobianWithAd(adRes + row, adDirOffset, mat);
+	return compareDenseJacobianWithAd(adRes + row, adDirOffset + row, mat);
 }
 
 
