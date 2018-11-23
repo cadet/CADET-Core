@@ -165,7 +165,7 @@ bool InletModel::setParameter(const ParameterId& pId, bool value)
 void InletModel::setSensitiveParameterValue(const ParameterId& pId, double value)
 {
 	// Check inlet and filter parameters
-	if (_inlet && ((pId.unitOperation == _unitOpIdx) || (pId.unitOperation == UnitOpIndep)))
+	if (_inlet && ((pId.unitOperation == _unitOpIdx) || (pId.unitOperation == UnitOpIndep)) && (_sensParamsInlet.find(pId) != _sensParamsInlet.end()))
 		_inlet->setParameterValue(pId, value);
 }
 
