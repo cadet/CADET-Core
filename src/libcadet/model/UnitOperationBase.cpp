@@ -186,6 +186,11 @@ void UnitOperationBase::clearSensParams()
 	_sensParams.clear();
 }
 
+unsigned int UnitOperationBase::numSensParams() const
+{
+	return _sensParams.size();
+}
+
 int UnitOperationBase::residualSensFwdCombine(const active& t, unsigned int secIdx, const active& timeFactor, double const* const y, double const* const yDot, 
 	const std::vector<const double*>& yS, const std::vector<const double*>& ySdot, const std::vector<double*>& resS, active const* adRes, 
 	double* const tmp1, double* const tmp2, double* const tmp3)

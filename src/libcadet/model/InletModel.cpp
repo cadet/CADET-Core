@@ -208,6 +208,11 @@ void InletModel::clearSensParams()
 	_sensParamsInlet.clear();
 }
 
+unsigned int InletModel::numSensParams() const
+{
+	return _sensParamsInlet.size();
+}
+
 template<> double const* InletModel::moveInletValues(double const* const rawValues, const active& t, unsigned int secIdx) const
 {
 	// No parameter derivatives required, return raw values

@@ -145,6 +145,12 @@ public:
 	virtual void clearSensParams() = 0;
 
 	/**
+	 * @brief Returns the number of sensitive parameters in this unit operation
+	 * @return Number of sensitive parameters
+	 */
+	virtual unsigned int numSensParams() const = 0;
+
+	/**
 	 * @brief Notifies the model that a discontinuous section transition is in progress
 	 * @details This function is called after time integration of a section has finished and a new
 	 *          section is about to be integrated. This allows the model to update internal state before

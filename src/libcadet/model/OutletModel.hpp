@@ -77,6 +77,7 @@ public:
 	virtual void setSensitiveParameterValue(const ParameterId& id, double value);
 
 	virtual void clearSensParams();
+	virtual unsigned int numSensParams() const;
 
 	virtual void useAnalyticJacobian(const bool analyticJac);
 

@@ -119,6 +119,11 @@ void OutletModel::clearSensParams()
 {
 }
 
+unsigned int OutletModel::numSensParams() const
+{
+	return 0;
+}
+
 void OutletModel::useAnalyticJacobian(const bool analyticJac) { }
 void OutletModel::notifyDiscontinuousSectionTransition(double t, unsigned int secIdx, active* const adRes, active* const adY, unsigned int adDirOffset) { }
 

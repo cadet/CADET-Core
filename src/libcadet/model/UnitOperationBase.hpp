@@ -59,6 +59,7 @@ public:
 	virtual void setSensitiveParameterValue(const ParameterId& id, double value);
 
 	virtual void clearSensParams();
+	virtual unsigned int numSensParams() const;
 
 	virtual int residualSensFwdCombine(const active& t, unsigned int secIdx, const active& timeFactor, double const* const y, double const* const yDot, 
 		const std::vector<const double*>& yS, const std::vector<const double*>& ySdot, const std::vector<double*>& resS, active const* adRes, 
