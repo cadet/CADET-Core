@@ -189,6 +189,18 @@ namespace column
 	 */
 	void testConsistentInitializationSMABinding(const std::string& uoType, double const* const initState, double consTol, double absTol);
 
+	/**
+	 * @brief Checks consistent initialization of sensitivities in a column-like model
+	 * @details Assumes column-like unit models and checks the residual of the sensitivity equations after
+	 *          consistent initialization. Both binding modes and both AD and analytic Jacobians are checked.
+	 * @param [in] uoType Unit operation type
+	 * @param [in] y State vector of original system
+	 * @param [in] yDot Time derivative of state vector of original system
+	 * @param [in] linearBinding Determines whether linear binding or SMA binding model is used
+	 * @param [in] absTol Error tolerance for checking whether sensitivity residual is 0
+	 */
+	void testConsistentInitializationSensitivity(const std::string& uoType, double const* const y, double const* const yDot, bool linearBinding, double absTol);
+
 } // namespace column
 } // namespace test
 } // namespace cadet

@@ -20,6 +20,8 @@
 #include "UnitOperation.hpp"
 #include "UnitOperationTests.hpp"
 
+#include "Utils.hpp"
+
 #include <vector>
 
 namespace cadet
@@ -74,6 +76,80 @@ namespace unitoperation
 		INFO("Residual " << linalg::linfNorm(res.data() + unit->numComponents(), unit->numDofs() - unit->numComponents()));
 		CAPTURE(res);
 		CHECK(linalg::linfNorm(res.data() + unit->numComponents(), unit->numDofs() - unit->numComponents()) <= absTol);
+
+		// Clean up
+		delete[] adRes;
+		delete[] adY;
+	}
+
+	void testConsistentInitializationSensitivity(cadet::IUnitOperation* const unit, bool adEnabled, double const* const y, double const* const yDot, double absTol)
+	{
+		const unsigned int nSens = unit->numSensParams();
+		REQUIRE(nSens > 0);
+
+		cadet::active* adRes = new cadet::active[unit->numDofs()];
+		cadet::active* adY = nullptr;
+
+		// Enable AD
+		if (adEnabled)
+		{
+			cadet::ad::setDirections(cadet::ad::getMaxDirections());
+			unit->useAnalyticJacobian(false);
+
+			adY = new cadet::active[unit->numDofs()];
+			unit->prepareADvectors(adRes, adY, nSens);
+		}
+		else
+		{
+			unit->useAnalyticJacobian(true);
+		}
+
+		// Setup matrices
+		unit->notifyDiscontinuousSectionTransition(0.0, 0u, adRes, adY, nSens);
+
+		// Calculate dres / dp and Jacobians
+		unit->residualSensFwdWithJacobian(0.0, 0u, 1.0, y, yDot, adRes, adY, nSens);
+
+		// Obtain memory for state, Jacobian multiply direction, Jacobian column
+		std::vector<double> sensY(unit->numDofs() * nSens, 0.0);
+		std::vector<double> sensYdot(unit->numDofs() * nSens, 0.0);
+		std::vector<double> res(unit->numDofs() * nSens, 0.0);
+
+		std::vector<double*> vecSensY(nSens, nullptr);
+		std::vector<double*> vecSensYdot(nSens, nullptr);
+		std::vector<double const*> cVecSensY(nSens, nullptr);
+		std::vector<double const*> cVecSensYdot(nSens, nullptr);
+		std::vector<double*> vecRes(nSens, nullptr);
+
+		for (unsigned int i = 0; i < nSens; ++i)
+		{
+			vecSensY[i] = sensY.data() + i * unit->numDofs();
+			vecSensYdot[i] = sensYdot.data() + i * unit->numDofs();
+			cVecSensY[i] = sensY.data() + i * unit->numDofs();
+			cVecSensYdot[i] = sensYdot.data() + i * unit->numDofs();
+			vecRes[i] = res.data() + i * unit->numDofs();
+		}
+
+		std::vector<double> tmp1(unit->numDofs(), 0.0);
+		std::vector<double> tmp2(unit->numDofs(), 0.0);
+		std::vector<double> tmp3(unit->numDofs(), 0.0);
+
+		// Fill sensY and sensYdot with some values
+		util::populate(sensY.data(), [](unsigned int idx) { return std::abs(std::sin(idx * 0.13)) + 1e-4; }, sensY.size());
+		util::populate(sensYdot.data(), [](unsigned int idx) { return std::abs(std::sin(idx * 0.9)) + 1e-4; }, sensYdot.size());
+
+		// Initialize sensitivity state vectors
+		unit->consistentInitialSensitivity(0.0, 0u, 1.0, y, yDot, vecSensY, vecSensYdot, adRes);
+
+		// Check norm of residual (but skip over connection DOFs at the beginning of the local state vector slice)
+		unit->residualSensFwdAdOnly(0.0, 0u, 1.0, y, yDot, adRes);
+		unit->residualSensFwdCombine(0.0, 0u, 1.0, y, yDot, cVecSensY, cVecSensYdot, vecRes, adRes, tmp1.data(), tmp2.data(), tmp3.data());
+
+		for (unsigned int i = 0; i < nSens; ++i)
+		{
+			INFO("Residual " << i << ": " << linalg::linfNorm(vecRes[i] + unit->numComponents(), unit->numDofs() - unit->numComponents()));
+			CHECK(linalg::linfNorm(vecRes[i] + unit->numComponents(), unit->numDofs() - unit->numComponents()) <= absTol);
+		}
 
 		// Clean up
 		delete[] adRes;

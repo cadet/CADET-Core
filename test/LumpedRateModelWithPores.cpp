@@ -93,3 +93,32 @@ TEST_CASE("LRMP consistent initialization with SMA binding", "[LRMP],[Consistent
 
 	cadet::test::column::testConsistentInitializationSMABinding("LUMPED_RATE_MODEL_WITH_PORES", y.data(), 1e-14, 1e-5);
 }
+
+TEST_CASE("LRMP consistent sensitivity initialization with linear binding", "[LRMP],[ConsistentInit],[Sensitivity]")
+{
+	// Fill state vector with given initial values
+	const unsigned int numDofs = 4 + 4 * 16 + 16 * (4 + 4) + 4 * 16;
+	std::vector<double> y(numDofs, 0.0);
+	std::vector<double> yDot(numDofs, 0.0);
+	cadet::test::util::populate(y.data(), [](unsigned int idx) { return std::abs(std::sin(idx * 0.13)) + 1e-4; }, numDofs);
+	cadet::test::util::populate(yDot.data(), [](unsigned int idx) { return std::abs(std::sin(idx * 0.9)) + 1e-4; }, numDofs);
+
+	cadet::test::column::testConsistentInitializationSensitivity("LUMPED_RATE_MODEL_WITH_PORES", y.data(), yDot.data(), true, 1e-14);
+}
+
+TEST_CASE("LRMP consistent sensitivity initialization with SMA binding", "[LRMP],[ConsistentInit],[Sensitivity]")
+{
+	// Fill state vector with given initial values
+	const unsigned int numDofs = 4 + 4 * 16 + 16 * (4 + 4) + 4 * 16;
+	std::vector<double> y(numDofs, 0.0);
+	std::vector<double> yDot(numDofs, 0.0);
+
+	const double bindingCell[] = {1.0, 1.8, 1.5, 1.6, 840.0, 63.0, 6.0, 3.0};
+	cadet::test::util::populate(y.data(), [](unsigned int idx) { return std::abs(std::sin(idx * 0.13)) + 1e-4; }, 4 + 4 * 16);
+	cadet::test::util::repeat(y.data() + 4 + 4 * 16, bindingCell, 8, 16);
+	cadet::test::util::populate(y.data() + 4 + 4 * 16 + 16 * (4 + 4), [](unsigned int idx) { return std::abs(std::sin(idx * 0.13)) + 1e-4; }, 4 * 16);
+
+	cadet::test::util::populate(yDot.data(), [](unsigned int idx) { return std::abs(std::sin(idx * 0.9)) + 1e-4; }, numDofs);
+
+	cadet::test::column::testConsistentInitializationSensitivity("LUMPED_RATE_MODEL_WITH_PORES", y.data(), yDot.data(), false, 1e-10);
+}

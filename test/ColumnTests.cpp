@@ -832,6 +832,41 @@ namespace column
 		destroyModelBuilder(mb);
 	}
 
+	void testConsistentInitializationSensitivity(const std::string& uoType, double const* const y, double const* const yDot, bool linearBinding, double absTol)
+	{
+		cadet::IModelBuilder* const mb = cadet::createModelBuilder();
+		REQUIRE(nullptr != mb);
+
+		for (int bindingMode = 0; bindingMode < 2; ++bindingMode)
+		{
+			const bool isKinetic = (bindingMode == 0);
+			for (int adMode = 0; adMode < 2; ++adMode)
+			{
+				const bool adEnabled = (adMode > 0);
+				SECTION(std::string(isKinetic ? " Kinetic binding" : " Quasi-stationary binding") + " with AD " + (adEnabled ? "enabled" : "disabled"))
+				{
+					// Use some test case parameters
+					cadet::JsonParameterProvider jpp = linearBinding ? createColumnWithTwoCompLinearBinding(uoType) : createColumnWithSMA(uoType);
+					cadet::test::column::setBindingMode(jpp, isKinetic);
+					cadet::IUnitOperation* const unit = createAndConfigureUnit(uoType, *mb, jpp, cadet::Weno::maxOrder());
+
+					unit->setSensitiveParameter(cadet::makeParamId("INIT_C", 0, 0, cadet::BoundPhaseIndep, cadet::ReactionIndep, cadet::SectionIndep), 0, 1.0);
+					if (linearBinding)
+						unit->setSensitiveParameter(cadet::makeParamId("LIN_KA", 0, 0, 0, cadet::ReactionIndep, cadet::SectionIndep), 1, 1.0);
+					else
+						unit->setSensitiveParameter(cadet::makeParamId("SMA_NU", 0, 1, 0, cadet::ReactionIndep, cadet::SectionIndep), 1, 1.0);
+
+					unit->setSensitiveParameter(cadet::makeParamId("COL_LENGTH", 0, cadet::CompIndep, cadet::BoundPhaseIndep, cadet::ReactionIndep, cadet::SectionIndep), 2, 1.0);
+
+					unitoperation::testConsistentInitializationSensitivity(unit, adEnabled, y, yDot, absTol);
+
+					mb->destroyUnitOperation(unit);
+				}
+			}
+		}
+		destroyModelBuilder(mb);
+	}
+
 } // namespace column
 } // namespace test
 } // namespace cadet

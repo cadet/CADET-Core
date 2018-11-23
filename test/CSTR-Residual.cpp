@@ -24,6 +24,7 @@
 
 #include <cmath>
 #include <functional>
+#include <algorithm>
 
 /**
  * @brief Creates a runnable CSTR model with given WENO order
@@ -206,6 +207,28 @@ inline void checkConsistentInitialization(const std::function<cadet::model::CSTR
 				cadet::model::CSTRModel* const cstr = modelCreator(*mb, isKinetic);
 				std::vector<double> y(initState, initState + cstr->numDofs());
 				cadet::test::unitoperation::testConsistentInitialization(cstr, adEnabled, y.data(), consTol, absTol);
+				mb->destroyUnitOperation(cstr);
+			}
+		}
+	}
+	destroyModelBuilder(mb);
+}
+
+inline void checkSensitivityConsistentInitialization(const std::function<cadet::model::CSTRModel*(cadet::IModelBuilder&, bool)>& modelCreator, double const* y, double const* yDot, double absTol)
+{
+	cadet::IModelBuilder* const mb = cadet::createModelBuilder();
+	REQUIRE(nullptr != mb);
+
+	for (int bindingMode = 0; bindingMode < 2; ++bindingMode)
+	{
+		const bool isKinetic = (bindingMode == 0);
+		for (int adMode = 0; adMode < 2; ++adMode)
+		{
+			const bool adEnabled = (adMode > 0);
+			SECTION(std::string(isKinetic ? " Kinetic binding" : " Quasi-stationary binding") + " with AD " + (adEnabled ? "enabled" : "disabled"))
+			{
+				cadet::model::CSTRModel* const cstr = modelCreator(*mb, isKinetic);
+				cadet::test::unitoperation::testConsistentInitializationSensitivity(cstr, adEnabled, y, yDot, absTol);
 				mb->destroyUnitOperation(cstr);
 			}
 		}
@@ -406,7 +429,6 @@ TEST_CASE("StirredTankModel time derivative Jacobian vs FD with linear binding",
 	}
 }
 
-
 TEST_CASE("StirredTankModel consistent initialization with linear binding", "[CSTR],[ConsistentInit]")
 {
 	// Fill state vector with initial values
@@ -428,12 +450,12 @@ TEST_CASE("StirredTankModel consistent initialization with SMA binding", "[CSTR]
 {
 // Optimal values:
 //	const double bindingCell[] = {1.2, 2.0, 1.0, 1.5, 858.034, 66.7896, 3.53273, 2.53153};
-	const double bindingCell[] = {1.2, 2.0, 1.0, 1.5, 858.0, 66.0, 3.5, 2.5};
+	const double bindingCell[] = {1.2, 2.0, 1.0, 1.5, 860.0, 66.0, 3.5, 2.5};
 
 	// Fill state vector with initial values
 	std::vector<double> y(4 + 2 * 4 + 1, 0.0);
 	cadet::test::util::populate(y.data(), [](unsigned int idx) { return std::abs(std::sin(idx * 0.13)) + 1e-4; }, 4);
-	cadet::test::util::repeat(y.data() + 4, bindingCell, 8, 1);
+	std::copy(bindingCell, bindingCell + 8, y.data() + 4);
 	y[4 + 8] = 1.0;
 
 	checkConsistentInitialization([](cadet::IModelBuilder& mb, bool dynamic) -> cadet::model::CSTRModel* {
@@ -445,4 +467,63 @@ TEST_CASE("StirredTankModel consistent initialization with SMA binding", "[CSTR]
 		cstr->setFlowRates(1.0, 1.0);
 		return cstr;
 	}, y.data(), 1e-14, 1e-5);
+}
+
+TEST_CASE("StirredTankModel consistent sensitivity initialization with linear binding", "[CSTR],[ConsistentInit],[Sensitivity]")
+{
+	// Fill state vector with initial values
+	std::vector<double> y(2 + 2 * 2 + 1, 0.0);
+	std::vector<double> yDot(2 + 2 * 2 + 1, 0.0);
+	cadet::test::util::populate(y.data(), [](unsigned int idx) { return std::abs(std::sin(idx * 0.13)) + 1e-4; }, y.size());
+	cadet::test::util::populate(yDot.data(), [](unsigned int idx) { return std::abs(std::sin(idx * 0.9)) + 1e-4; }, yDot.size());
+
+	// Note that checkSensitivityConsistentInitialization() applies non-zero initial values for the whole
+	// sensitivity state vector. Hence, this is more strict than usual as most initial sensitivity state
+	// vectors are all zero (only sensitivities wrt. initial conditions produce non-zero initial values).
+
+	checkSensitivityConsistentInitialization([](cadet::IModelBuilder& mb, bool dynamic) -> cadet::model::CSTRModel* {
+		cadet::JsonParameterProvider jpp = createCSTR(2);
+		cadet::test::addBoundStates(jpp, {1, 1}, 0.5);
+		cadet::test::addLinearBindingModel(jpp, dynamic, {5.0, 4.0}, {2.0, 3.0});
+
+		cadet::model::CSTRModel* const cstr = createAndConfigureCSTR(mb, jpp);
+		cstr->setFlowRates(1.0, 1.0);
+		cstr->setSensitiveParameter(cadet::makeParamId("INIT_VOLUME", 0, cadet::CompIndep, cadet::BoundPhaseIndep, cadet::ReactionIndep, cadet::SectionIndep), 0, 1.0);
+		cstr->setSensitiveParameter(cadet::makeParamId("LIN_KA", 0, 0, 0, cadet::ReactionIndep, cadet::SectionIndep), 1, 1.0);
+		cstr->setSensitiveParameter(cadet::makeParamId("POROSITY", 0, cadet::CompIndep, cadet::BoundPhaseIndep, cadet::ReactionIndep, cadet::SectionIndep), 2, 1.0);
+
+		return cstr;
+	}, y.data(), yDot.data(), 1e-15);
+}
+
+TEST_CASE("StirredTankModel consistent sensitivity initialization with SMA binding", "[CSTR],[ConsistentInit],[Sensitivity]")
+{
+	// Fill state vector with initial values
+	std::vector<double> y(4 + 2 * 4 + 1, 0.0);
+	std::vector<double> yDot(4 + 2 * 4 + 1, 0.0);
+
+	const double bindingCell[] = {1.0, 1.8, 1.5, 1.6, 840.0, 63.0, 6.0, 3.0};
+	cadet::test::util::populate(y.data(), [](unsigned int idx) { return std::abs(std::sin(idx * 0.13)) + 1e-4; }, 4);
+	std::copy(bindingCell, bindingCell + 8, y.data() + 4);
+	y[4 + 8] = 1.0;
+
+	cadet::test::util::populate(yDot.data(), [](unsigned int idx) { return std::abs(std::sin(idx * 0.9)) + 1e-4; }, yDot.size());
+
+	// Note that checkSensitivityConsistentInitialization() applies non-zero initial values for the whole
+	// sensitivity state vector. Hence, this is more strict than usual as most initial sensitivity state
+	// vectors are all zero (only sensitivities wrt. initial conditions produce non-zero initial values).
+
+	checkSensitivityConsistentInitialization([](cadet::IModelBuilder& mb, bool dynamic) -> cadet::model::CSTRModel* {
+		cadet::JsonParameterProvider jpp = createCSTR(4);
+		cadet::test::addBoundStates(jpp, {1, 1, 1, 1}, 0.5);
+		cadet::test::addSMABindingModel(jpp, dynamic, 1.2e3, {0.0, 35.5, 1.59, 7.7}, {0.0, 1000.0, 1000.0, 1000.0}, {0.0, 4.7, 5.29, 3.7}, {0.0, 11.83, 10.6, 10.0});
+
+		cadet::model::CSTRModel* const cstr = createAndConfigureCSTR(mb, jpp);
+		cstr->setFlowRates(1.0, 1.0);
+		cstr->setSensitiveParameter(cadet::makeParamId("INIT_VOLUME", 0, cadet::CompIndep, cadet::BoundPhaseIndep, cadet::ReactionIndep, cadet::SectionIndep), 0, 1.0);
+		cstr->setSensitiveParameter(cadet::makeParamId("SMA_NU", 0, 1, 0, cadet::ReactionIndep, cadet::SectionIndep), 1, 1.0);
+		cstr->setSensitiveParameter(cadet::makeParamId("POROSITY", 0, cadet::CompIndep, cadet::BoundPhaseIndep, cadet::ReactionIndep, cadet::SectionIndep), 2, 1.0);
+
+		return cstr;
+	}, y.data(), yDot.data(), 1e-15);
 }

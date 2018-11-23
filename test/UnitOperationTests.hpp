@@ -39,6 +39,16 @@ namespace unitoperation
 	 */
 	void testConsistentInitialization(IUnitOperation* const unit, bool adEnabled, double* const y, double consTol, double absTol);
 
+	/**
+	 * @brief Checks the consistent initialization of the sensitivies of a generic unit operation
+	 * @param [in] unit Configured unit operation
+	 * @param [in] adEnabled Determines whether AD is used for calculating the Jacobian
+	 * @param [in] y State of original system
+	 * @param [in] yDot Time derivative of state of original system
+	 * @param [in] absTol Allowed maximum residual error after consistent initialization
+	 */
+	void testConsistentInitializationSensitivity(cadet::IUnitOperation* const unit, bool adEnabled, double const* const y, double const* const yDot, double absTol);
+
 } // namespace unitoperation
 } // namespace test
 } // namespace cadet
