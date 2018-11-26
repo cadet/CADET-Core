@@ -279,7 +279,7 @@ namespace column
 		SECTION("Forward vs backward flow (WENO=" + std::to_string(wenoOrder) + ")")
 		{
 			// Use Load-Wash-Elution test case
-			cadet::JsonParameterProvider jpp = createColumnWithSMA(uoType);
+			cadet::JsonParameterProvider jpp = createLWE(uoType);
 			setWenoOrder(jpp, wenoOrder);
 
 			// Forward flow
