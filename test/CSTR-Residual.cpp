@@ -493,7 +493,7 @@ TEST_CASE("StirredTankModel consistent sensitivity initialization with linear bi
 		cstr->setSensitiveParameter(cadet::makeParamId("POROSITY", 0, cadet::CompIndep, cadet::BoundPhaseIndep, cadet::ReactionIndep, cadet::SectionIndep), 2, 1.0);
 
 		return cstr;
-	}, y.data(), yDot.data(), 1e-15);
+	}, y.data(), yDot.data(), 1e-14);
 }
 
 TEST_CASE("StirredTankModel consistent sensitivity initialization with SMA binding", "[CSTR],[ConsistentInit],[Sensitivity]")
@@ -525,5 +525,5 @@ TEST_CASE("StirredTankModel consistent sensitivity initialization with SMA bindi
 		cstr->setSensitiveParameter(cadet::makeParamId("POROSITY", 0, cadet::CompIndep, cadet::BoundPhaseIndep, cadet::ReactionIndep, cadet::SectionIndep), 2, 1.0);
 
 		return cstr;
-	}, y.data(), yDot.data(), 1e-15);
+	}, y.data(), yDot.data(), 1e-8);
 }
