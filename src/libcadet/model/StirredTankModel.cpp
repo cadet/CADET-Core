@@ -15,6 +15,7 @@
 #include "cadet/Exceptions.hpp"
 #include "cadet/SolutionRecorder.hpp"
 #include "model/BindingModel.hpp"
+#include "model/parts/BindingConsistentInit.hpp"
 
 #include "ConfigurationHelper.hpp"
 #include "linalg/Norms.hpp"
@@ -466,31 +467,8 @@ void CSTRModel::consistentInitialTimeDerivative(double t, unsigned int secIdx, d
 		// Overwrite rows corresponding to algebraic equations with the Jacobian and set right hand side to 0
 		if (_binding->hasAlgebraicEquations())
 		{
-			// Get start and length of algebraic block
-			unsigned int algStart = 0;
-			unsigned int algLen = 0;
-			_binding->getAlgebraicBlock(algStart, algLen);
-
-			// Get row iterators to algebraic block (matrices ignore dedicated inlet DOFs)
-			linalg::DenseBandedRowIterator jacAlg = _jacFact.row(_nComp + algStart);
-			linalg::DenseBandedRowIterator origJacobian = _jac.row(_nComp + algStart);
-
-			// Copy matrix rows
-			for (unsigned int algRow = 0; algRow < algLen; ++algRow, ++jacAlg, ++origJacobian)
-				jacAlg.copyRowFrom(origJacobian);
-
-			// Pointer to right hand side of algebraic block
-			double* const qShellDot = vecStateYdot + 2 * _nComp + algStart;
-
-			// Right hand side is -\frac{\partial res(t, y, \dot{y})}{\partial t}
-			// If the residual is not explicitly depending on time, this expression is 0
-			std::fill(qShellDot, qShellDot + algLen, 0.0);
-			if (_binding->dependsOnTime())
-			{
-				_binding->timeDerivativeAlgebraicResidual(t, 0.0, 0.0, secIdx, vecStateY + 2 * _nComp, qShellDot, _consistentInitBuffer);
-				for (unsigned int algRow = 0; algRow < algLen; ++algRow)
-					qShellDot[algRow] *= -1.0;
-			}
+			parts::BindingConsistentInitializer::consistentInitialTimeDerivative(_binding, timeFactor, _jacFact.row(_nComp),
+				_jac.row(_nComp), vecStateYdot + 2 * _nComp, t, 0.5, 0.5, secIdx, _consistentInitBuffer);
 		}
 
 		// Factorize
@@ -944,36 +922,9 @@ void CSTRModel::consistentInitialSensitivity(const active& t, unsigned int secId
 			// Reuse memory for dense matrix
 			linalg::DenseMatrixView jacobianMatrix(_jacFact.data(), _jacFact.pivotData(), algLen, algLen);
 
-			// Get pointer to q variables in a shell of particle pblk
-			double* const q = sensY + 2 * _nComp;
-			// Pointer to -dF / dp
-			double* const dFdP = sensYdot + 2 * _nComp;
-			// Pointer to c_p variables in this shell
-			double* const c = sensY + _nComp;
-	
-			// In general, the linear system looks like this
-			// [c | q_diff | q_alg | q_diff ] * state + dF /dp = 0
-			// We want to solve the q_alg block, which means we have to solve
-			// [q_alg] * state = -[c | q_diff | 0 | q_diff ] * state - dF / dp
-
-			// Overwrite state with right hand side
-
-			// Copy -dF / dp to state
-			std::copy(dFdP + algStart, dFdP + algStart + algLen, q + algStart);
-
-			// Subtract [c | q_diff] * state
-			_jac.submatrixMultiplyVector(c, _nComp + algStart, 0, algLen, _nComp + algStart, -1.0, 1.0, q + algStart);
-
-			// Subtract [q_diff] * state (potential differential block behind q_alg block)
-			if (algStart + algLen < _strideBound)
-				_jac.submatrixMultiplyVector(q + algStart + algLen, _nComp + algStart, _nComp + algStart + algLen, algLen, _strideBound - algStart - algLen, -1.0, 1.0, q + algStart);
-
-			// Copy main block to dense matrix
-			jacobianMatrix.copySubmatrix(_jac, _nComp + algStart, _nComp + algStart, algLen, algLen);
-
-			// Solve algebraic variables
-			jacobianMatrix.robustFactorize(_consistentInitBuffer);
-			jacobianMatrix.robustSolve(q + algStart, _consistentInitBuffer);
+			// We used to apply robustFactorize() and robustSolve() here, but the model part will only use factorize() and solve()
+			parts::BindingConsistentInitializer::consistentInitialSensitivityState(algStart, algLen, jacobianMatrix,
+				_jac, _nComp, _nComp, _nComp, _strideBound, sensY, sensYdot, _consistentInitBuffer);
 		}
 
 		// Step 2: Compute the correct time derivative of the state vector
@@ -992,28 +943,8 @@ void CSTRModel::consistentInitialSensitivity(const active& t, unsigned int secId
 		// Overwrite rows corresponding to algebraic equations with the Jacobian and set right hand side to 0
 		if (_binding->hasAlgebraicEquations())
 		{
-			// Get start and length of algebraic block
-			unsigned int algStart = 0;
-			unsigned int algLen = 0;
-			_binding->getAlgebraicBlock(algStart, algLen);
-
-			// Get row iterators to algebraic block (matrices ignore dedicated inlet DOFs)
-			linalg::DenseBandedRowIterator jacAlg = _jacFact.row(_nComp + algStart);
-			linalg::DenseBandedRowIterator origJacobian = _jac.row(_nComp + algStart);;
-
-			// Pointer to right hand side of algebraic block
-			double* const qShellDot = sensYdot + 2 * _nComp + algStart;
-
-			// Copy rows and reset right hand side
-			for (unsigned int algRow = 0; algRow < algLen; ++algRow, ++jacAlg, ++origJacobian)
-			{
-				jacAlg.copyRowFrom(origJacobian);
-
-				// Right hand side is -\frac{\partial^2 res(t, y, \dot{y})}{\partial p \partial t}
-				// If the residual is not explicitly depending on time, this expression is 0
-				// @todo This is wrong if external functions are used. Take that into account!
-				qShellDot[algRow] = 0.0;
-			}
+			parts::BindingConsistentInitializer::consistentInitialSensitivityTimeDerivative(_binding, _jacFact.row(_nComp),
+				_jac.row(_nComp), sensYdot + 2 * _nComp);
 		}
 
 		// Factorize

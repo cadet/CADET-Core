@@ -21,6 +21,7 @@
 #include "linalg/DenseMatrix.hpp"
 #include "linalg/BandMatrix.hpp"
 #include "linalg/Norms.hpp"
+#include "model/parts/BindingConsistentInit.hpp"
 
 #include "Stencil.hpp"
 #include "Weno.hpp"
@@ -1092,35 +1093,10 @@ void LumpedRateModelWithoutPores::consistentInitialTimeDerivative(double t, unsi
 		// Overwrite rows corresponding to algebraic equations with the Jacobian and set right hand side to 0
 		if (_binding->hasAlgebraicEquations())
 		{
-			// Get start and length of algebraic block
-			unsigned int algStart = 0;
-			unsigned int algLen = 0;
-			_binding->getAlgebraicBlock(algStart, algLen);
-
-			// Offset to current cell's q variables
-			const unsigned int localOffset = idxr.offsetC() + col * idxr.strideColCell() + idxr.strideColLiquid();
-
-			// Get row iterators to algebraic block
-			linalg::FactorizableBandMatrix::RowIterator jacAlg = jac;
-			jacAlg += algStart;
-			linalg::BandMatrix::RowIterator origJacobian = _jac.row(col * idxr.strideColCell() + idxr.strideColLiquid() + algStart);
-
-			// Pointer to right hand side of algebraic block
-			double* const qShellDot = vecStateYdot + localOffset + algStart;
-
-			// Copy matrix rows
-			for (unsigned int algRow = 0; algRow < algLen; ++algRow, ++jacAlg, ++origJacobian)
-				jacAlg.copyRowFrom(origJacobian);
-
-			// Right hand side is -\frac{\partial res(t, y, \dot{y})}{\partial t}
-			// If the residual is not explicitly depending on time, this expression is 0
-			std::fill(qShellDot, qShellDot + algLen, 0.0);
-			if (_binding->dependsOnTime())
-			{
-				_binding->timeDerivativeAlgebraicResidual(t, z, 0.0, secIdx, vecStateY + localOffset, qShellDot, _tempState);
-				for (unsigned int algRow = 0; algRow < algLen; ++algRow)
-					qShellDot[algRow] *= -1.0;
-			}
+			parts::BindingConsistentInitializer::consistentInitialTimeDerivative(_binding, timeFactor, jac,
+				_jac.row(col * idxr.strideColCell() + idxr.strideColLiquid()),
+				vecStateYdot + idxr.offsetC() + col * idxr.strideColCell() + idxr.strideColLiquid(),
+				t, z, 0.5, secIdx, _tempState);
 		}
 	}
 
@@ -1330,45 +1306,10 @@ void LumpedRateModelWithoutPores::consistentInitialSensitivity(const active& t, 
 
 				const unsigned int jacRowOffset = idxr.strideColCell() * col + static_cast<unsigned int>(idxr.strideColLiquid());
 				const int localC = idxr.offsetC() + col * idxr.strideColCell();
-				const int localOffset = localC + idxr.strideColLiquid();
 
-				// Get pointer to q variables in a shell of particle col
-				double* const qShell = sensY + localOffset;
-				// Pointer to -dF / dp
-				double* const dFdP = sensYdot + localOffset;
-				// Pointer to c_p variables in this shell
-				double* const cpShell = sensY + localC;
-		
-				// In general, the linear system looks like this
-				// [c | q_diff | q_alg | q_diff ] * state + dF /dp = 0
-				// We want to solve the q_alg block, which means we have to solve
-				// [q_alg] * state = -[c_p | q_diff | 0 | q_diff ] * state - dF / dp
-
-				// Overwrite state with right hand side
-
-				// Copy -dF / dp to state
-				std::copy(dFdP + algStart, dFdP + algStart + algLen, qShell + algStart);
-
-				// Subtract [c_p | q_diff] * state
-				_jac.submatrixMultiplyVector(cpShell, jacRowOffset + algStart, -idxr.strideColLiquid() - static_cast<int>(algStart), 
-					algLen, static_cast<unsigned int>(idxr.strideColLiquid()) + algStart, -1.0, 1.0, qShell + algStart);
-
-				// Subtract [q_diff] * state (potential differential block behind q_alg block)
-				if (algStart + algLen < _disc.strideBound)
-					_jac.submatrixMultiplyVector(qShell + algStart + algLen, jacRowOffset + algStart, algLen, 
-						algLen, _disc.strideBound - algStart - algLen, -1.0, 1.0, qShell + algStart);
-
-				// Copy main block to dense matrix
-				jacobianMatrix.copySubmatrixFromBanded(_jac, jacRowOffset + algStart, 0, algLen, algLen);
-
-				// Precondition
-				double* const scaleFactors = _tempState + localC;
-				jacobianMatrix.rowScaleFactors(scaleFactors);
-				jacobianMatrix.scaleRows(scaleFactors);
-
-				// Solve algebraic variables
-				jacobianMatrix.factorize();
-				jacobianMatrix.solve(scaleFactors, qShell + algStart);
+				parts::BindingConsistentInitializer::consistentInitialSensitivityState(algStart, algLen, jacobianMatrix,
+					_jac, localC, jacRowOffset, idxr.strideColLiquid(), _disc.strideBound,
+					sensY, sensYdot, _tempState + localC);
 			} CADET_PARFOR_END;
 		}
 
@@ -1400,30 +1341,9 @@ void LumpedRateModelWithoutPores::consistentInitialSensitivity(const active& t, 
 			// Overwrite rows corresponding to algebraic equations with the Jacobian and set right hand side to 0
 			if (_binding->hasAlgebraicEquations())
 			{
-				// Get start and length of algebraic block
-				unsigned int algStart = 0;
-				unsigned int algLen = 0;
-				_binding->getAlgebraicBlock(algStart, algLen);
-
-				// Offset to current cell's q variables
-				const unsigned int localOffset = idxr.offsetC() + col * idxr.strideColCell() + idxr.strideColLiquid();
-
-				// Get row iterators to algebraic block
-				linalg::FactorizableBandMatrix::RowIterator jacAlg = jac;
-				jacAlg += algStart;
-				linalg::BandMatrix::RowIterator origJacobian = _jac.row(col * idxr.strideColCell() + idxr.strideColLiquid() + algStart);
-
-				// Copy matrix rows
-				for (unsigned int algRow = 0; algRow < algLen; ++algRow, ++jacAlg, ++origJacobian)
-					jacAlg.copyRowFrom(origJacobian);
-
-				// Pointer to right hand side of algebraic block
-				double* const qShellDot = sensYdot + localOffset + algStart;
-
-				// Right hand side is -\frac{\partial^2 res(t, y, \dot{y})}{\partial p \partial t}
-				// If the residual is not explicitly depending on time, this expression is 0
-				// @todo This is wrong if external functions are used. Take that into account!
-				std::fill(qShellDot, qShellDot + algLen, 0.0);
+				parts::BindingConsistentInitializer::consistentInitialSensitivityTimeDerivative(_binding, jac,
+					_jac.row(col * idxr.strideColCell() + idxr.strideColLiquid()),
+					sensYdot + idxr.offsetC() + col * idxr.strideColCell() + idxr.strideColLiquid());
 			}
 		}
 

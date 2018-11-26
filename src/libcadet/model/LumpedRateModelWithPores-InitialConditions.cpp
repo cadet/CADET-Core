@@ -16,6 +16,7 @@
 #include "linalg/BandMatrix.hpp"
 #include "ParamReaderHelper.hpp"
 #include "AdUtils.hpp"
+#include "model/parts/BindingConsistentInit.hpp"
 
 #include <algorithm>
 #include <functional>
@@ -325,32 +326,10 @@ void LumpedRateModelWithPores::consistentInitialTimeDerivative(double t, unsigne
 		// Overwrite rows corresponding to algebraic equations with the Jacobian and set right hand side to 0
 		if (_binding->hasAlgebraicEquations())
 		{
-			// Get start and length of algebraic block
-			unsigned int algStart = 0;
-			unsigned int algLen = 0;
-			_binding->getAlgebraicBlock(algStart, algLen);
-
-			// Get row iterators to algebraic block
-			linalg::FactorizableBandMatrix::RowIterator jacAlg = jac;
-			jacAlg += algStart;
-			linalg::BandMatrix::RowIterator origJacobian = _jacP.row(idxr.strideParBlock() * pblk + static_cast<unsigned int>(idxr.strideParLiquid()) + algStart);
-
-			// Pointer to right hand side of algebraic block
-			double* const qShellDot = vecStateYdot + idxr.offsetCp(pblk) + idxr.strideParLiquid() + static_cast<int>(algStart);
-
-			// Copy matrix rows
-			for (unsigned int algRow = 0; algRow < algLen; ++algRow, ++jacAlg, ++origJacobian)
-				jacAlg.copyRowFrom(origJacobian);
-
-			// Right hand side is -\frac{\partial res(t, y, \dot{y})}{\partial t}
-			// If the residual is not explicitly depending on time, this expression is 0
-			std::fill(qShellDot, qShellDot + algLen, 0.0);
-			if (_binding->dependsOnTime())
-			{
-				_binding->timeDerivativeAlgebraicResidual(t, z, static_cast<double>(_parRadius) * 0.5, secIdx, vecStateY + idxr.offsetCp(pblk) + idxr.strideParLiquid(), qShellDot, _tempState + requiredMem * pblk);
-				for (unsigned int algRow = 0; algRow < algLen; ++algRow)
-					qShellDot[algRow] *= -1.0;
-			}
+			parts::BindingConsistentInitializer::consistentInitialTimeDerivative(_binding, timeFactor, jac,
+				_jacP.row(idxr.strideParBlock() * pblk + static_cast<unsigned int>(idxr.strideParLiquid())),
+				vecStateYdot + idxr.offsetCp(pblk) + idxr.strideParLiquid(),
+				t, z, 0.5, secIdx, _tempState + requiredMem * pblk);
 		}
 	}
 
@@ -648,47 +627,10 @@ void LumpedRateModelWithPores::consistentInitialSensitivity(const active& t, uns
 
 				const unsigned int jacRowOffset = idxr.strideParBlock() * pblk + static_cast<unsigned int>(idxr.strideParLiquid());
 				const int localCpOffset = idxr.offsetCp(pblk);
-				const int localOffset = localCpOffset + idxr.strideParLiquid();
 
-				// Get pointer to q variables in a shell of particle pblk
-				double* const qShell = sensY + localOffset;
-				// Pointer to -dF / dp
-				double* const dFdP = sensYdot + localOffset;
-				// Pointer to c_p variables in this shell
-				double* const cpShell = sensY + localCpOffset;
-		
-				// In general, the linear system looks like this
-				// [c_p | q_diff | q_alg | q_diff ] * state + dF /dp = 0
-				// We want to solve the q_alg block, which means we have to solve
-				// [q_alg] * state = -[c_p | q_diff | 0 | q_diff ] * state - dF / dp
-				// Note that we do not have to worry about fluxes since we are dealing
-				// with bound states here.
-
-				// Overwrite state with right hand side
-
-				// Copy -dF / dp to state
-				std::copy(dFdP + algStart, dFdP + algStart + algLen, qShell + algStart);
-
-				// Subtract [c_p | q_diff] * state
-				_jacP.submatrixMultiplyVector(cpShell, jacRowOffset + algStart, -idxr.strideParLiquid() - static_cast<int>(algStart), 
-					algLen, static_cast<unsigned int>(idxr.strideParLiquid()) + algStart, -1.0, 1.0, qShell + algStart);
-
-				// Subtract [q_diff] * state (potential differential block behind q_alg block)
-				if (algStart + algLen < _disc.strideBound)
-					_jacP.submatrixMultiplyVector(qShell + algStart + algLen, jacRowOffset + algStart, algLen, 
-						algLen, _disc.strideBound - algStart - algLen, -1.0, 1.0, qShell + algStart);
-
-				// Copy main block to dense matrix
-				jacobianMatrix.copySubmatrixFromBanded(_jacP, jacRowOffset + algStart, 0, algLen, algLen);
-
-				// Precondition
-				double* const scaleFactors = _tempState + idxr.offsetCp(pblk);
-				jacobianMatrix.rowScaleFactors(scaleFactors);
-				jacobianMatrix.scaleRows(scaleFactors);
-
-				// Solve algebraic variables
-				jacobianMatrix.factorize();
-				jacobianMatrix.solve(scaleFactors, qShell + algStart);
+				parts::BindingConsistentInitializer::consistentInitialSensitivityState(algStart, algLen, jacobianMatrix,
+					_jacP, localCpOffset, jacRowOffset, idxr.strideParLiquid(), _disc.strideBound,
+					sensY, sensYdot, _tempState + idxr.offsetCp(pblk));
 			} CADET_PARFOR_END;
 		}
 
@@ -726,29 +668,9 @@ void LumpedRateModelWithPores::consistentInitialSensitivity(const active& t, uns
 			// Overwrite rows corresponding to algebraic equations with the Jacobian and set right hand side to 0
 			if (_binding->hasAlgebraicEquations())
 			{
-				// Get start and length of algebraic block
-				unsigned int algStart = 0;
-				unsigned int algLen = 0;
-				_binding->getAlgebraicBlock(algStart, algLen);
-
-				// Get row iterators to algebraic block
-				linalg::FactorizableBandMatrix::RowIterator jacAlg = jac;
-				jacAlg += algStart;
-				linalg::BandMatrix::RowIterator origJacobian = _jacP.row(pblk * idxr.strideParBlock() + static_cast<unsigned int>(idxr.strideParLiquid()) + algStart);
-
-				// Pointer to right hand side of algebraic block
-				double* const qShellDot = sensYdot + idxr.offsetCp(pblk) + idxr.strideParLiquid() + static_cast<int>(algStart);
-
-				// Copy rows and reset right hand side
-				for (unsigned int algRow = 0; algRow < algLen; ++algRow, ++jacAlg, ++origJacobian)
-				{
-					jacAlg.copyRowFrom(origJacobian);
-
-					// Right hand side is -\frac{\partial^2 res(t, y, \dot{y})}{\partial p \partial t}
-					// If the residual is not explicitly depending on time, this expression is 0
-					// @todo This is wrong if external functions are used. Take that into account!
-					qShellDot[algRow] = 0.0;
-				}
+				parts::BindingConsistentInitializer::consistentInitialSensitivityTimeDerivative(_binding, jac,
+					_jacP.row(pblk * idxr.strideParBlock() + static_cast<unsigned int>(idxr.strideParLiquid())),
+					sensYdot + idxr.offsetCp(pblk) + idxr.strideParLiquid());
 			}
 
 			// Advance pointers over all bound states
