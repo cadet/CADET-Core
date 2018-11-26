@@ -256,7 +256,7 @@ TEST_CASE("CSTR LIN_COEFF sensitivity vs analytic solution (V constant) w/o bind
 	cadet::test::addSensitivity(jpp, "LIN_COEFF", cadet::makeParamId("LIN_COEFF", 1, 0, cadet::BoundPhaseIndep, cadet::ReactionIndep, 0), 1e-6);
 	cadet::test::returnSensitivities(jpp, 0);
 
-	runSensSim(jpp, [=](double t) { return 2.0 * (20.0 * std::expm1(-t / 20.0) + t); }, [](double t) { return 0.0; }, 1e-5, 7e-8);
+	runSensSim(jpp, [=](double t) { return 2.0 * (20.0 * std::expm1(-t / 20.0) + t); }, [](double t) { return 0.0; }, 2e-5, 6e-7);
 }
 
 TEST_CASE("CSTR initial volume sensitivity vs analytic solution (V constant) w/o binding model", "[CSTR],[Simulation],[Sensitivity]")
