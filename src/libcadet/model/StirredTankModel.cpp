@@ -1055,13 +1055,44 @@ void CSTRModel::multiplyWithJacobian(double t, unsigned int secIdx, double timeF
 
 void CSTRModel::multiplyWithDerivativeJacobian(double t, unsigned int secIdx, double timeFactor, double const* const y, double const* const yDot, double const* sDot, double* ret)
 {
-	_jac.setAll(0.0);
-	addTimeDerivativeJacobian(t, timeFactor, y, yDot, _jac);
-
 	// Handle inlet DOFs (all algebraic)
 	std::fill_n(ret, _nComp, 0.0);
-	// Multiply main body
-	_jac.multiplyVector(sDot + _nComp, ret + _nComp);
+
+	// Handle actual ODE DOFs
+	double const* const c = y + _nComp;
+	double const* const q = y + 2 * _nComp;
+	const double v = y[2 * _nComp + _strideBound];
+	const double invBeta = 1.0 / static_cast<double>(_porosity) - 1.0;
+	const double vInvBeta = timeFactor * v * invBeta;
+	const double timeV = timeFactor * v;
+	double* const r = ret + _nComp;
+	double const* const s = sDot + _nComp;
+
+	// Concentrations: \dot{V} * (c_i + 1 / beta * [sum_j q_{i,j}]) + V * (\dot{c}_i + 1 / beta * [sum_j \dot{q}_{i,j}]) - c_{in,i} * F_in + c_i * F_out == 0
+	for (unsigned int i = 0; i < _nComp; i++)
+	{
+		r[i] = timeV * s[i];
+
+		double qSum = 0.0;
+		double const* const qi = q + _boundOffset[i];
+		const unsigned int localOffset = _nComp + _boundOffset[i];
+		for (unsigned int j = 0; j < _nBound[i]; ++j)
+		{
+			r[i] += vInvBeta * s[localOffset + j];
+			// + _nComp: Moves over liquid phase components
+			// + _boundOffset[i]: Moves over bound states of previous components
+			// + j: Moves to current bound state j of component i
+
+			qSum += qi[j];
+		}
+		r[i] += timeFactor * (c[i] + invBeta * qSum) * s[_nComp + _strideBound];
+	}
+
+	// Bound states
+	_binding->multiplyWithDerivativeJacobian(s + _nComp, r + _nComp, timeFactor);
+
+	// Volume: \dot{V} - F_{in} + F_{out} + F_{filter} == 0
+	r[_nComp + _strideBound] = timeFactor * s[_nComp + _strideBound];
 }
 
 int CSTRModel::linearSolve(double t, double timeFactor, double alpha, double tol, double* const rhs, double const* const weight,
