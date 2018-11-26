@@ -138,6 +138,7 @@ bool CSTRModel::configureModelDiscretization(IParameterProvider& paramProvider, 
 	else
 	{
 		_binding = helper.createBindingModel("NONE");
+		_consistentInitBuffer = new double[2 * nVar];
 		return _binding->configureModelDiscretization(paramProvider, _nComp, _nBound, _boundOffset);
 	}
 }
@@ -971,8 +972,8 @@ void CSTRModel::consistentInitialSensitivity(const active& t, unsigned int secId
 			jacobianMatrix.copySubmatrix(_jac, _nComp + algStart, _nComp + algStart, algLen, algLen);
 
 			// Solve algebraic variables
-			jacobianMatrix.factorize();
-			jacobianMatrix.solve(q + algStart);
+			jacobianMatrix.robustFactorize(_consistentInitBuffer);
+			jacobianMatrix.robustSolve(q + algStart, _consistentInitBuffer);
 		}
 
 		// Step 2: Compute the correct time derivative of the state vector
