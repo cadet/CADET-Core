@@ -357,36 +357,6 @@ protected:
 		template <typename real_t> inline real_t& c(real_t* const data, unsigned int col, unsigned int comp) const { return data[offsetC() + comp + col * strideColCell()]; }
 		template <typename real_t> inline const real_t& c(real_t const* const data, unsigned int col, unsigned int comp) const { return data[offsetC() + comp + col * strideColCell()]; }
 
-		// Iterator-like access
-		template <typename real_t> inline real_t& cNextComp(real_t* data) const { return *(data + strideColComp()); }
-		template <typename real_t> inline const real_t& cNextComp(const real_t* data) const { return *(data + strideColComp()); }
-		template <typename real_t> inline real_t& cNextCol(real_t* data) const { return *(data + strideColCell()); }
-		template <typename real_t> inline const real_t& cNextCol(const real_t* data) const { return *(data + strideColCell()); }
-		template <typename real_t> inline real_t& cPrevComp(real_t* data) const { return *(data - strideColComp()); }
-		template <typename real_t> inline const real_t& cPrevComp(const real_t* data) const { return *(data - strideColComp()); }
-		template <typename real_t> inline real_t& cPrevCol(real_t* data) const { return *(data - strideColCell()); }
-		template <typename real_t> inline const real_t& cPrevCol(const real_t* data) const { return *(data - strideColCell()); }
-
-
-		template <typename real_t> inline real_t& cpNextComp(real_t* data) const { return *(data + strideParComp()); }
-		template <typename real_t> inline const real_t& cpNextComp(const real_t* data) const { return *(data + strideParComp()); }
-		template <typename real_t> inline real_t& cpPrevComp(real_t* data) const { return *(data - strideParComp()); }
-		template <typename real_t> inline const real_t& cpPrevComp(const real_t* data) const { return *(data - strideParComp()); }
-		template <typename real_t> inline real_t& cpNextShell(real_t* data) const { return *(data + strideParShell()); }
-		template <typename real_t> inline const real_t& cpNextShell(const real_t* data) const { return *(data + strideParShell()); }
-		template <typename real_t> inline real_t& cpPrevShell(real_t* data) const { return *(data - strideParShell()); }
-		template <typename real_t> inline const real_t& cpPrevShell(const real_t* data) const { return *(data - strideParShell()); }
-
-
-		template <typename real_t> inline real_t& jfNextComp(real_t* data) const { return *(data + strideFluxComp()); }
-		template <typename real_t> inline const real_t& jfNextComp(const real_t* data) const { return *(data + strideFluxComp()); }
-		template <typename real_t> inline real_t& jfNextCol(real_t* data) const { return *(data + strideFluxCell()); }
-		template <typename real_t> inline const real_t& jfNextCol(const real_t* data) const { return *(data + strideFluxCell()); }
-		template <typename real_t> inline real_t& jfPrevComp(real_t* data) const { return *(data - strideFluxComp()); }
-		template <typename real_t> inline const real_t& jfPrevComp(const real_t* data) const { return *(data - strideFluxComp()); }
-		template <typename real_t> inline real_t& jfPrevCol(real_t* data) const { return *(data - strideFluxCell()); }
-		template <typename real_t> inline const real_t& jfPrevCol(const real_t* data) const { return *(data - strideFluxCell()); }
-
 	protected:
 		const Discretization& _disc;
 	};
