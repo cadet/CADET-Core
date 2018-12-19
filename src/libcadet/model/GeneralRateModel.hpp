@@ -357,30 +357,6 @@ protected:
 		template <typename real_t> inline real_t& c(real_t* const data, unsigned int col, unsigned int comp) const { return data[offsetC() + comp + col * strideColCell()]; }
 		template <typename real_t> inline const real_t& c(real_t const* const data, unsigned int col, unsigned int comp) const { return data[offsetC() + comp + col * strideColCell()]; }
 
-		
-		template <typename real_t> inline real_t& cp(real_t* const data, unsigned int col, unsigned int par, unsigned int comp) const
-		{
-			return data[offsetCp() + col * strideParBlock() + par * strideParShell() + comp];
-		}
-		template <typename real_t> inline const real_t& cp(real_t const* const data, unsigned int col, unsigned int par, unsigned int comp) const
-		{
-			return data[offsetCp() + col * strideParBlock() + par * strideParShell() + comp];
-		}
-
-		
-		template <typename real_t> inline real_t& q(real_t* const data, unsigned int col, unsigned int par, unsigned int phase, unsigned int comp) const
-		{
-			return data[offsetCp() + col * strideParBlock() + par * strideParShell() + strideParLiquid() + offsetBoundComp(comp) + phase];
-		}
-		template <typename real_t> inline const real_t& q(real_t const* const data, unsigned int col, unsigned int par, unsigned int phase, unsigned int comp) const
-		{
-			return data[offsetCp() + col * strideParBlock() + par * strideParShell() + strideParLiquid() + offsetBoundComp(comp) + phase];
-		}
-
-
-		template <typename real_t> real_t& jf(real_t* const data, unsigned int col, unsigned int comp) const { return data[offsetJf() + col * strideFluxComp() + comp]; }
-		template <typename real_t> const real_t& jf(real_t const* const data, unsigned int col, unsigned int comp) const { return data[offsetJf() + col * strideFluxComp() + comp]; }
-
 		// Iterator-like access
 		template <typename real_t> inline real_t& cNextComp(real_t* data) const { return *(data + strideColComp()); }
 		template <typename real_t> inline const real_t& cNextComp(const real_t* data) const { return *(data + strideColComp()); }
@@ -422,8 +398,6 @@ protected:
 		Exporter(const Discretization& disc, double const* data) : _disc(disc), _idx(disc), _data(data) { }
 		Exporter(const Discretization&& disc, double const* data) = delete;
 
-		virtual bool hasMultipleBoundStates() const CADET_NOEXCEPT { return cadet::model::hasMultipleBoundStates(_disc.nBound, _disc.nComp); }
-		virtual bool hasNonBindingComponents() const CADET_NOEXCEPT { return cadet::model::hasNonBindingComponents(_disc.nBound, _disc.nComp); }
 		virtual bool hasParticleFlux() const CADET_NOEXCEPT { return true; }
 		virtual bool hasParticleMobilePhase() const CADET_NOEXCEPT { return true; }
 		virtual bool hasSolidPhase() const CADET_NOEXCEPT { return _disc.strideBound > 0; }
@@ -440,16 +414,7 @@ protected:
 		virtual unsigned int numSolidPhaseDofs() const CADET_NOEXCEPT { return _disc.strideBound * _disc.nPar * _disc.nCol; }
 		virtual unsigned int numFluxDofs() const CADET_NOEXCEPT { return _disc.nComp * _disc.nCol; }
 		virtual unsigned int numVolumeDofs() const CADET_NOEXCEPT { return 0; }
-		
-		virtual double concentration(unsigned int component, unsigned int axialCell) const { return _idx.c(_data, axialCell, component); }
-		virtual double flux(unsigned int component, unsigned int axialCell) const { return _idx.jf(_data, axialCell, component); }
-		virtual double mobilePhase(unsigned int component, unsigned int axialCell, unsigned int radialCell) const { return _idx.cp(_data, axialCell, radialCell, component); }
-		virtual double solidPhase(unsigned int component, unsigned int axialCell, unsigned int radialCell, unsigned int boundState) const
-		{
-			return _idx.q(_data, axialCell, radialCell, boundState, component);
-		}
-		virtual double volume(unsigned int dof) const { return 0.0; }
-		
+
 		virtual double const* concentration() const { return _idx.c(_data); }
 		virtual double const* flux() const { return _idx.jf(_data); }
 		virtual double const* mobilePhase() const { return _idx.cp(_data); }

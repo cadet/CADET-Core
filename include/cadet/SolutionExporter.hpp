@@ -45,13 +45,6 @@ class CADET_API ISolutionExporter
 public:
 
 	/**
-	 * @brief Returns whether the associated model has multiple bound states
-	 * @details Components with multiple bound states have several entries in the solid phase.
-	 * @return @c true if multiple bound states are present, otherwise @c false
-	 */
-	virtual bool hasMultipleBoundStates() const CADET_NOEXCEPT = 0;
-
-	/**
 	 * @brief Returns whether the associated model has a flux into the particles
 	 * @return @c true if flux into the particles is present, otherwise @c false
 	 */
@@ -68,13 +61,6 @@ public:
 	 * @return @c true if solid phase is present, otherwise @c false
 	 */
 	virtual bool hasSolidPhase() const CADET_NOEXCEPT = 0;
-
-	/**
-	 * @brief Returns whether the associated model has non-binding components
-	 * @details Non-binding components do not have a solid phase representation.
-	 * @return @c true if non-binding components are present, otherwise @c false
-	 */
-	virtual bool hasNonBindingComponents() const CADET_NOEXCEPT = 0;
 
 	/**
 	 * @brief Returns whether the associated model has volume DOFs
@@ -153,65 +139,6 @@ public:
 	 * @return Number of volume DOFs
 	 */
 	virtual unsigned int numVolumeDofs() const CADET_NOEXCEPT = 0;
-
-
-	/**
-	 * @brief Returns a concentration value
-	 * @details This refers to the main mobile phase (e.g., interstitial concentration).
-	 *          Every unit operation model possesses a main mobile phase.
-	 * 
-	 * @param [in] component Component index
-	 * @param [in] axialCell Index of the axial cell
-	 * 
-	 * @return Concentration at the given point
-	 */
-	virtual double concentration(unsigned int component, unsigned int axialCell) const = 0;
-
-	/**
-	 * @brief Returns a flux from the main mobile phase to the particle
-	 * @details Not every model has fluxes.
-	 * 
-	 * @param [in] component Component index
-	 * @param [in] axialCell Index of the axial cell
-	 * 
-	 * @return Flux at the given point
-	 */
-	virtual double flux(unsigned int component, unsigned int axialCell) const = 0;
-
-	/**
-	 * @brief Returns a concentration in the particle mobile phase
-	 * @details Not every model has particle mobile phases.
-	 * 
-	 * @param [in] component Component index
-	 * @param [in] axialCell Index of the axial cell
-	 * @param [in] radialCell Index of the radial cell
-	 * 
-	 * @return Concentration at the given point
-	 */
-	virtual double mobilePhase(unsigned int component, unsigned int axialCell, unsigned int radialCell) const = 0;
-
-	/**
-	 * @brief Returns a concentration in the solid phase
-	 * @details Not every model has solid phases.
-	 * 
-	 * @param [in] component Component index
-	 * @param [in] axialCell Index of the axial cell
-	 * @param [in] radialCell Index of the radial cell
-	 * @param [in] boundState Index of the bound state
-	 * 
-	 * @return Concentration at the given point
-	 */
-	virtual double solidPhase(unsigned int component, unsigned int axialCell, unsigned int radialCell, unsigned int boundState) const = 0;
-
-	/**
-	 * @brief Returns a volume
-	 * @details Not every model has volume DOFs.
-	 * 
-	 * @param [in] dof DOF index
-	 * 
-	 * @return Volume
-	 */
-	virtual double volume(unsigned int dof) const = 0;
 
 
 	/**

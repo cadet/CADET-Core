@@ -167,8 +167,6 @@ protected:
 
 		Exporter(unsigned int nComp, unsigned int const* nBound, unsigned int strideBound, unsigned int const* boundOffset, double const* data) : _data(data), _nComp(nComp), _nBound(nBound), _strideBound(strideBound), _boundOffset(boundOffset) { }
 
-		virtual bool hasMultipleBoundStates() const CADET_NOEXCEPT { return cadet::model::hasMultipleBoundStates(_nBound, _nComp); }
-		virtual bool hasNonBindingComponents() const CADET_NOEXCEPT { return cadet::model::hasNonBindingComponents(_nBound, _nComp); }
 		virtual bool hasParticleFlux() const CADET_NOEXCEPT { return false; }
 		virtual bool hasParticleMobilePhase() const CADET_NOEXCEPT { return false; }
 		virtual bool hasSolidPhase() const CADET_NOEXCEPT { return _strideBound > 0; }
@@ -185,12 +183,6 @@ protected:
 		virtual unsigned int numSolidPhaseDofs() const CADET_NOEXCEPT { return _strideBound; }
 		virtual unsigned int numFluxDofs() const CADET_NOEXCEPT { return 0; }
 		virtual unsigned int numVolumeDofs() const CADET_NOEXCEPT { return 1; }
-
-		virtual double concentration(unsigned int component, unsigned int axialCell) const { return _data[_nComp + component]; }
-		virtual double flux(unsigned int component, unsigned int axialCell) const { return 0.0; }
-		virtual double mobilePhase(unsigned int component, unsigned int axialCell, unsigned int radialCell) const { return 0.0; }
-		virtual double solidPhase(unsigned int component, unsigned int axialCell, unsigned int radialCell, unsigned int boundState) const { return _data[2 * _nComp + _boundOffset[component] + boundState]; }
-		virtual double volume(unsigned int dof) const { return _data[2 * _nComp + dof]; }
 
 		virtual double const* concentration() const { return _data + _nComp; }
 		virtual double const* flux() const { return nullptr; }
