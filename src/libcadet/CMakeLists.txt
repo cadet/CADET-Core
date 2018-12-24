@@ -55,6 +55,11 @@ write_compiler_detection_header(
 //  is available at http://www.gnu.org/licenses/gpl.html\n\
 // =============================================================================\n"
 	EPILOG "\
+#if CADET_COMPILER_CXX_CONSTEXPR\n\
+	#define CADET_CONST_OR_CONSTEXPR constexpr\n\
+#else\n\
+	#define CADET_CONST_OR_CONSTEXPR const\n\
+#endif\n\
 #if CADET_COMPILER_CXX_USER_LITERALS && CADET_COMPILER_CXX_CONSTEXPR\n\
 	#define CADET_COMPILETIME_HASH 1\n\
 #else\n\

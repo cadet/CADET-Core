@@ -29,6 +29,7 @@
 #include "cadet/cadetCompilerInfo.hpp"
 #include "cadet/LibExportImport.hpp"
 #include "cadet/LibVersionInfo.hpp"
+#include "cadet/StrongTypes.hpp"
 #include "cadet/Exceptions.hpp"
 #include "cadet/StringUtil.hpp"
 #include "cadet/HashUtil.hpp"
