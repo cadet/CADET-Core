@@ -188,14 +188,14 @@ void LumpedRateModelWithPores::consistentInitialState(double t, unsigned int sec
 	BENCH_SCOPE(_timerConsistentInit);
 
 	// TODO: Check memory consumption and offsets
-	const unsigned int requiredMem = (_binding->workspaceSize() + sizeof(double) - 1) / sizeof(double);
+	const unsigned int requiredMem = (_binding[0]->workspaceSize() + sizeof(double) - 1) / sizeof(double);
 
 	Indexer idxr(_disc);
 
 	// Step 1: Solve algebraic equations
 
 	// Step 1a: Compute quasi-stationary binding model state
-	if (_binding->hasAlgebraicEquations())
+	if (_binding[0]->hasAlgebraicEquations())
 	{
 		ad::BandedJacobianExtractor jacExtractor(_jacP.lowerBandwidth(), _jacP.lowerBandwidth(), _jacP.upperBandwidth());
 
@@ -225,7 +225,7 @@ void LumpedRateModelWithPores::consistentInitialState(double t, unsigned int sec
 			const unsigned int offset = requiredMem * pblk;
 
 			// Solve algebraic variables
-			_binding->consistentInitialState(t, z, static_cast<double>(_parRadius) * 0.5, secIdx, qShell, errorTol, localAdRes, localAdY,
+			_binding[0]->consistentInitialState(t, z, static_cast<double>(_parRadius) * 0.5, secIdx, qShell, errorTol, localAdRes, localAdY,
 				localOffsetInParticle, adDirOffset, jacExtractor, _tempState + offset, jacobianMatrix);
 		} CADET_PARFOR_END;
 	}
@@ -293,7 +293,7 @@ void LumpedRateModelWithPores::consistentInitialTimeDerivative(double t, unsigne
 	BENCH_SCOPE(_timerConsistentInit);
 
 	Indexer idxr(_disc);
-	const unsigned int requiredMem = (_binding->workspaceSize() + sizeof(double) - 1) / sizeof(double);
+	const unsigned int requiredMem = (_binding[0]->workspaceSize() + sizeof(double) - 1) / sizeof(double);
 
 	// Step 2: Compute the correct time derivative of the state vector
 
@@ -321,12 +321,12 @@ void LumpedRateModelWithPores::consistentInitialTimeDerivative(double t, unsigne
 
 		// Stationary phase
 		// Populate matrix with time derivative Jacobian first
-		_binding->jacobianAddDiscretized(timeFactor, jac);
+		_binding[0]->jacobianAddDiscretized(timeFactor, jac);
 
 		// Overwrite rows corresponding to algebraic equations with the Jacobian and set right hand side to 0
-		if (_binding->hasAlgebraicEquations())
+		if (_binding[0]->hasAlgebraicEquations())
 		{
-			parts::BindingConsistentInitializer::consistentInitialTimeDerivative(_binding, timeFactor, jac,
+			parts::BindingConsistentInitializer::consistentInitialTimeDerivative(_binding[0], timeFactor, jac,
 				_jacP.row(idxr.strideParBlock() * pblk + static_cast<unsigned int>(idxr.strideParLiquid())),
 				vecStateYdot + idxr.offsetCp(pblk) + idxr.strideParLiquid(),
 				t, z, 0.5, secIdx, _tempState + requiredMem * pblk);
@@ -608,7 +608,7 @@ void LumpedRateModelWithPores::consistentInitialSensitivity(const active& t, uns
 		// Step 1: Solve algebraic equations
 
 		// Step 1a: Compute quasi-stationary binding model state
-		if (_binding->hasAlgebraicEquations())
+		if (_binding[0]->hasAlgebraicEquations())
 		{
 #ifdef CADET_PARALLELIZE
 			BENCH_SCOPE(_timerConsistentInitPar);
@@ -620,7 +620,7 @@ void LumpedRateModelWithPores::consistentInitialSensitivity(const active& t, uns
 				// Get algebraic block
 				unsigned int algStart = 0;
 				unsigned int algLen = 0;
-				_binding->getAlgebraicBlock(algStart, algLen);
+				_binding[0]->getAlgebraicBlock(algStart, algLen);
 
 				// Reuse memory of band matrix for dense matrix
 				linalg::DenseMatrixView jacobianMatrix(_jacPdisc.data() + pblk * _disc.strideBound * _disc.strideBound, _jacPdisc.pivot() + pblk * _disc.strideBound, algLen, algLen);
@@ -663,12 +663,12 @@ void LumpedRateModelWithPores::consistentInitialSensitivity(const active& t, uns
 
 			// Stationary phase
 			// Populate matrix with time derivative Jacobian first
-			_binding->jacobianAddDiscretized(static_cast<double>(timeFactor), jac);
+			_binding[0]->jacobianAddDiscretized(static_cast<double>(timeFactor), jac);
 
 			// Overwrite rows corresponding to algebraic equations with the Jacobian and set right hand side to 0
-			if (_binding->hasAlgebraicEquations())
+			if (_binding[0]->hasAlgebraicEquations())
 			{
-				parts::BindingConsistentInitializer::consistentInitialSensitivityTimeDerivative(_binding, jac,
+				parts::BindingConsistentInitializer::consistentInitialSensitivityTimeDerivative(_binding[0], jac,
 					_jacP.row(pblk * idxr.strideParBlock() + static_cast<unsigned int>(idxr.strideParLiquid())),
 					sensYdot + idxr.offsetCp(pblk) + idxr.strideParLiquid());
 			}

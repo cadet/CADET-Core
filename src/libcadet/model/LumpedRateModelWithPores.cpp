@@ -158,20 +158,21 @@ bool LumpedRateModelWithPores::configureModelDiscretization(IParameterProvider& 
 	useAnalyticJacobian(analyticJac);
 
 	// ==== Construct and configure binding model
-	delete _binding;
+	clearBindingModels();
+	_binding.push_back(nullptr);
 
-	_binding = helper.createBindingModel(paramProvider.getString("ADSORPTION_MODEL"));
-	if (!_binding)
+	_binding[0] = helper.createBindingModel(paramProvider.getString("ADSORPTION_MODEL"));
+	if (!_binding[0])
 		throw InvalidParameterException("Unknown binding model " + paramProvider.getString("ADSORPTION_MODEL"));
 
-	const bool bindingConfSuccess = _binding->configureModelDiscretization(paramProvider, _disc.nComp, _disc.nBound, _disc.boundOffset);
+	const bool bindingConfSuccess = _binding[0]->configureModelDiscretization(paramProvider, _disc.nComp, _disc.nBound, _disc.boundOffset);
 
 	// setup the memory for tempState based on state vector or memory needed for consistent initialization of isotherms, whichever is larger
 	unsigned int size = numDofs();
-	if (_binding->requiresWorkspace())
+	if (_binding[0]->requiresWorkspace())
 	{
 		// Required memory (number of doubles) for nonlinear solvers
-		const unsigned int requiredMem = (_binding->workspaceSize() + sizeof(double) - 1) / sizeof(double) * _disc.nCol;
+		const unsigned int requiredMem = (_binding[0]->workspaceSize() + sizeof(double) - 1) / sizeof(double) * _disc.nCol;
 		if (requiredMem > size)
 		{
 			size = requiredMem;
@@ -216,20 +217,20 @@ bool LumpedRateModelWithPores::configure(IParameterProvider& paramProvider)
 		_parameters[makeParamId(hashString("INIT_CP"), _unitOpIdx, i, BoundPhaseIndep, ReactionIndep, SectionIndep)] = _initCp.data() + i;
 	}
 
-	if (_binding)
+	if (_binding[0])
 	{
 		std::vector<ParameterId> initParams(_disc.strideBound);
-		_binding->fillBoundPhaseInitialParameters(initParams.data(), _unitOpIdx);
+		_binding[0]->fillBoundPhaseInitialParameters(initParams.data(), _unitOpIdx);
 
 		for (unsigned int i = 0; i < _disc.strideBound; ++i)
 			_parameters[initParams[i]] = _initQ.data() + i;
 	}
 
 	// Reconfigure binding model
-	if (_binding && paramProvider.exists("adsorption") && _binding->requiresConfiguration())
+	if (_binding[0] && paramProvider.exists("adsorption") && _binding[0]->requiresConfiguration())
 	{
 		paramProvider.pushScope("adsorption");
-		const bool bindingConfSuccess = _binding->configure(paramProvider, _unitOpIdx);
+		const bool bindingConfSuccess = _binding[0]->configure(paramProvider, _unitOpIdx);
 		paramProvider.popScope();
 
 		return transportSuccess && bindingConfSuccess;
@@ -545,7 +546,7 @@ int LumpedRateModelWithPores::residualParticle(const ParamType& t, unsigned int 
 	double const* yDot = yDotBase + idxr.offsetCp(colCell);
 	ResidualType* res = resBase + idxr.offsetCp(colCell);
 
-	const unsigned int requiredMem = (_binding->workspaceSize() + sizeof(double) - 1) / sizeof(double);
+	const unsigned int requiredMem = (_binding[0]->workspaceSize() + sizeof(double) - 1) / sizeof(double);
 	double* const buffer = _tempState + requiredMem * colCell;
 
 	// Prepare parameters
@@ -594,7 +595,7 @@ int LumpedRateModelWithPores::residualParticle(const ParamType& t, unsigned int 
 	if (!yDotBase)
 		yDot = nullptr;
 
-	_binding->residual(static_cast<ParamType>(t), z, static_cast<double>(radius) * 0.5, secIdx, static_cast<ParamType>(timeFactor), y, yDot, res, buffer);
+	_binding[0]->residual(static_cast<ParamType>(t), z, static_cast<double>(radius) * 0.5, secIdx, static_cast<ParamType>(timeFactor), y, yDot, res, buffer);
 	if (wantJac)
 	{
 		if (cadet_likely(_disc.strideBound > 0))
@@ -607,7 +608,7 @@ int LumpedRateModelWithPores::residualParticle(const ParamType& t, unsigned int 
 			linalg::BandMatrix::RowIterator jac = _jacP.row(colCell * idxr.strideParBlock() + idxr.strideParLiquid());
 
 			// static_cast should be sufficient here, but this statement is also analyzed when wantJac = false
-			_binding->analyticJacobian(static_cast<double>(t), z, static_cast<double>(radius) * 0.5, secIdx, reinterpret_cast<double const*>(y), jac, buffer);
+			_binding[0]->analyticJacobian(static_cast<double>(t), z, static_cast<double>(radius) * 0.5, secIdx, reinterpret_cast<double const*>(y), jac, buffer);
 		}
 	}
 
@@ -907,7 +908,7 @@ void LumpedRateModelWithPores::multiplyWithDerivativeJacobian(double t, unsigned
 			}
 
 			// Solid phase
-			_binding->multiplyWithDerivativeJacobian(localSdot + _disc.nComp, localRet + _disc.nComp, timeFactor);
+			_binding[0]->multiplyWithDerivativeJacobian(localSdot + _disc.nComp, localRet + _disc.nComp, timeFactor);
 		}
 	} CADET_PARFOR_END;
 
@@ -921,8 +922,8 @@ void LumpedRateModelWithPores::multiplyWithDerivativeJacobian(double t, unsigned
 
 void LumpedRateModelWithPores::setExternalFunctions(IExternalFunction** extFuns, unsigned int size)
 {
-	if (_binding)
-		_binding->setExternalFunctions(extFuns, size);
+	if (_binding[0])
+		_binding[0]->setExternalFunctions(extFuns, size);
 }
 
 unsigned int LumpedRateModelWithPores::localOutletComponentIndex() const CADET_NOEXCEPT

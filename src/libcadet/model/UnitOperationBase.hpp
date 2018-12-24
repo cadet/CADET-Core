@@ -67,8 +67,10 @@ public:
 
 protected:
 
+	void clearBindingModels() CADET_NOEXCEPT;
+
 	UnitOpIdx _unitOpIdx; //!< Unit operation index
-	IBindingModel* _binding; //!<  Binding model
+	std::vector<IBindingModel*> _binding; //!<  Binding model
 
 	typedef std::unordered_map<ParameterId, active*> paramMap_t;
 	paramMap_t _parameters; //!< Provides access to all parameters

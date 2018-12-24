@@ -446,7 +446,7 @@ void LumpedRateModelWithPores::assembleDiscretizedJacobianParticleBlock(double a
 		addMobilePhaseTimeDerivativeToJacobianParticleBlock(jac, idxr, alpha, timeFactor);
 
 		// Stationary phase
-		_binding->jacobianAddDiscretized(alpha * timeFactor, jac);
+		_binding[0]->jacobianAddDiscretized(alpha * timeFactor, jac);
 
 		// Advance pointers over all bound states
 		jac += idxr.strideParBound();

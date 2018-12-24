@@ -188,20 +188,21 @@ bool LumpedRateModelWithoutPores::configureModelDiscretization(IParameterProvide
 	useAnalyticJacobian(analyticJac);
 
 	// ==== Construct and configure binding model
-	delete _binding;
+	clearBindingModels();
+	_binding.push_back(nullptr);
 
-	_binding = helper.createBindingModel(paramProvider.getString("ADSORPTION_MODEL"));
-	if (!_binding)
+	_binding[0] = helper.createBindingModel(paramProvider.getString("ADSORPTION_MODEL"));
+	if (!_binding[0])
 		throw InvalidParameterException("Unknown binding model " + paramProvider.getString("ADSORPTION_MODEL"));
 
-	const bool bindingConfSuccess = _binding->configureModelDiscretization(paramProvider, _disc.nComp, _disc.nBound, _disc.boundOffset);
+	const bool bindingConfSuccess = _binding[0]->configureModelDiscretization(paramProvider, _disc.nComp, _disc.nBound, _disc.boundOffset);
 
 	// setup the memory for tempState based on state vector or memory needed for consistent initialization of isotherms, whichever is larger
 	unsigned int size = numDofs();
-	if (_binding->requiresWorkspace())
+	if (_binding[0]->requiresWorkspace())
 	{
 		// Required memory (number of doubles) for nonlinear solvers
-		const unsigned int requiredMem = (_binding->workspaceSize() + sizeof(double) - 1) / sizeof(double) * _disc.nCol;
+		const unsigned int requiredMem = (_binding[0]->workspaceSize() + sizeof(double) - 1) / sizeof(double) * _disc.nCol;
 		if (requiredMem > size)
 		{
 			size = requiredMem;
@@ -228,20 +229,20 @@ bool LumpedRateModelWithoutPores::configure(IParameterProvider& paramProvider)
 	for (unsigned int i = 0; i < _disc.nComp; ++i)
 		_parameters[makeParamId(hashString("INIT_C"), _unitOpIdx, i, BoundPhaseIndep, ReactionIndep, SectionIndep)] = _initC.data() + i;
 
-	if (_binding)
+	if (_binding[0])
 	{
 		std::vector<ParameterId> initParams(_disc.strideBound);
-		_binding->fillBoundPhaseInitialParameters(initParams.data(), _unitOpIdx);
+		_binding[0]->fillBoundPhaseInitialParameters(initParams.data(), _unitOpIdx);
 
 		for (unsigned int i = 0; i < _disc.strideBound; ++i)
 			_parameters[initParams[i]] = _initQ.data() + i;
 	}
 
 	// Reconfigure binding model
-	if (_binding && paramProvider.exists("adsorption") && _binding->requiresConfiguration())
+	if (_binding[0] && paramProvider.exists("adsorption") && _binding[0]->requiresConfiguration())
 	{
 		paramProvider.pushScope("adsorption");
-		const bool bindingConfSuccess = _binding->configure(paramProvider, _unitOpIdx);
+		const bool bindingConfSuccess = _binding[0]->configure(paramProvider, _unitOpIdx);
 		paramProvider.popScope();
 
 		return transportSuccess && bindingConfSuccess;
@@ -505,7 +506,7 @@ int LumpedRateModelWithoutPores::residualImpl(const ParamType& t, unsigned int s
 	ConvOpResidual<StateType, ResidualType, ParamType, wantJac>::call(_convDispOp, t, secIdx, timeFactor, y, yDot, res, _jac);
 
 	Indexer idxr(_disc);
-	const unsigned int requiredMem = (_binding->workspaceSize() + sizeof(double) - 1) / sizeof(double);
+	const unsigned int requiredMem = (_binding[0]->workspaceSize() + sizeof(double) - 1) / sizeof(double);
 
 #ifdef CADET_PARALLELIZE
 	tbb::parallel_for(size_t(0), size_t(_disc.nCol), [&](size_t col)
@@ -542,7 +543,7 @@ int LumpedRateModelWithoutPores::residualImpl(const ParamType& t, unsigned int s
 		const double z = 1.0 / static_cast<double>(_disc.nCol) * (0.5 + col);
 
 		double const* const localQdot = yDot ? yDot + idxr.offsetC() + idxr.strideColCell() * col + idxr.strideColLiquid() : nullptr;
-		_binding->residual(t, z, 0.0, secIdx, timeFactor, localY + idxr.strideColLiquid(), localQdot, localRes + idxr.strideColLiquid(), buffer);
+		_binding[0]->residual(t, z, 0.0, secIdx, timeFactor, localY + idxr.strideColLiquid(), localQdot, localRes + idxr.strideColLiquid(), buffer);
 		if (wantJac)
 		{
 			if (cadet_likely(_disc.strideBound > 0))
@@ -555,7 +556,7 @@ int LumpedRateModelWithoutPores::residualImpl(const ParamType& t, unsigned int s
 				linalg::BandMatrix::RowIterator jac = _jac.row(col * idxr.strideColCell() + idxr.strideColLiquid());
 
 				// static_cast should be sufficient here, but this statement is also analyzed when wantJac = false
-				_binding->analyticJacobian(static_cast<double>(t), z, 0.0, secIdx, reinterpret_cast<double const*>(localY) + idxr.strideColLiquid(), jac, buffer);
+				_binding[0]->analyticJacobian(static_cast<double>(t), z, 0.0, secIdx, reinterpret_cast<double const*>(localY) + idxr.strideColLiquid(), jac, buffer);
 			}
 		}
 
@@ -700,7 +701,7 @@ void LumpedRateModelWithoutPores::multiplyWithDerivativeJacobian(double t, unsig
 		}
 
 		// Solid phase
-		_binding->multiplyWithDerivativeJacobian(localSdot + _disc.nComp, localRet + _disc.nComp, timeFactor);
+		_binding[0]->multiplyWithDerivativeJacobian(localSdot + _disc.nComp, localRet + _disc.nComp, timeFactor);
 	}
 
 	// Handle inlet DOFs (all algebraic)
@@ -709,8 +710,8 @@ void LumpedRateModelWithoutPores::multiplyWithDerivativeJacobian(double t, unsig
 
 void LumpedRateModelWithoutPores::setExternalFunctions(IExternalFunction** extFuns, unsigned int size)
 {
-	if (_binding)
-		_binding->setExternalFunctions(extFuns, size);
+	if (_binding[0])
+		_binding[0]->setExternalFunctions(extFuns, size);
 }
 
 unsigned int LumpedRateModelWithoutPores::localOutletComponentIndex() const CADET_NOEXCEPT
@@ -834,7 +835,7 @@ void LumpedRateModelWithoutPores::assembleDiscretizedJacobian(double alpha, cons
 		addMobilePhaseTimeDerivativeToJacobianCell(jac, idxr, alpha, invBeta, timeFactor);
 
 		// Stationary phase
-		_binding->jacobianAddDiscretized(alpha * timeFactor, jac);
+		_binding[0]->jacobianAddDiscretized(alpha * timeFactor, jac);
 
 		// Advance pointers over all bound states
 		jac += _disc.strideBound;
@@ -986,12 +987,12 @@ void LumpedRateModelWithoutPores::consistentInitialState(double t, unsigned int 
 
 	// TODO: Check memory consumption and offsets
 	// Round up
-	const unsigned int requiredMem = (_binding->workspaceSize() + sizeof(double) - 1) / sizeof(double);
+	const unsigned int requiredMem = (_binding[0]->workspaceSize() + sizeof(double) - 1) / sizeof(double);
 
 	Indexer idxr(_disc);
 
 	// Step 1: Solve algebraic equations
-	if (_binding->hasAlgebraicEquations())
+	if (_binding[0]->hasAlgebraicEquations())
 	{
 		ad::BandedJacobianExtractor jacExtractor(_jac.lowerBandwidth(), _jac.lowerBandwidth(), _jac.upperBandwidth());
 
@@ -1021,7 +1022,7 @@ void LumpedRateModelWithoutPores::consistentInitialState(double t, unsigned int 
 			const unsigned int offset = requiredMem * col;
 
 			// Solve algebraic variables
-			_binding->consistentInitialState(t, z, 0.0, secIdx, qShell, errorTol, localAdRes, localAdY,
+			_binding[0]->consistentInitialState(t, z, 0.0, secIdx, qShell, errorTol, localAdRes, localAdY,
 				localOffsetInCell, adDirOffset, jacExtractor, _tempState + offset, jacobianMatrix);
 		} CADET_PARFOR_END;
 	}
@@ -1088,12 +1089,12 @@ void LumpedRateModelWithoutPores::consistentInitialTimeDerivative(double t, unsi
 
 		// Stationary phase
 		// Populate matrix with time derivative Jacobian first
-		_binding->jacobianAddDiscretized(timeFactor, jac);
+		_binding[0]->jacobianAddDiscretized(timeFactor, jac);
 
 		// Overwrite rows corresponding to algebraic equations with the Jacobian and set right hand side to 0
-		if (_binding->hasAlgebraicEquations())
+		if (_binding[0]->hasAlgebraicEquations())
 		{
-			parts::BindingConsistentInitializer::consistentInitialTimeDerivative(_binding, timeFactor, jac,
+			parts::BindingConsistentInitializer::consistentInitialTimeDerivative(_binding[0], timeFactor, jac,
 				_jac.row(col * idxr.strideColCell() + idxr.strideColLiquid()),
 				vecStateYdot + idxr.offsetC() + col * idxr.strideColCell() + idxr.strideColLiquid(),
 				t, z, 0.5, secIdx, _tempState);
@@ -1287,7 +1288,7 @@ void LumpedRateModelWithoutPores::consistentInitialSensitivity(const active& t, 
 
 		// Step 1: Solve algebraic equations
 
-		if (_binding->hasAlgebraicEquations())
+		if (_binding[0]->hasAlgebraicEquations())
 		{
 #ifdef CADET_PARALLELIZE
 			BENCH_SCOPE(_timerConsistentInitPar);
@@ -1299,7 +1300,7 @@ void LumpedRateModelWithoutPores::consistentInitialSensitivity(const active& t, 
 				// Get algebraic block
 				unsigned int algStart = 0;
 				unsigned int algLen = 0;
-				_binding->getAlgebraicBlock(algStart, algLen);
+				_binding[0]->getAlgebraicBlock(algStart, algLen);
 
 				// Reuse memory of band matrix for dense matrix
 				linalg::DenseMatrixView jacobianMatrix(_jacDisc.data() + col * _disc.strideBound * _disc.strideBound, _jacDisc.pivot() + col * _disc.strideBound, algLen, algLen);
@@ -1336,12 +1337,12 @@ void LumpedRateModelWithoutPores::consistentInitialSensitivity(const active& t, 
 
 			// Stationary phase
 			// Populate matrix with time derivative Jacobian first
-			_binding->jacobianAddDiscretized(static_cast<double>(timeFactor), jac);
+			_binding[0]->jacobianAddDiscretized(static_cast<double>(timeFactor), jac);
 
 			// Overwrite rows corresponding to algebraic equations with the Jacobian and set right hand side to 0
-			if (_binding->hasAlgebraicEquations())
+			if (_binding[0]->hasAlgebraicEquations())
 			{
-				parts::BindingConsistentInitializer::consistentInitialSensitivityTimeDerivative(_binding, jac,
+				parts::BindingConsistentInitializer::consistentInitialSensitivityTimeDerivative(_binding[0], jac,
 					_jac.row(col * idxr.strideColCell() + idxr.strideColLiquid()),
 					sensYdot + idxr.offsetC() + col * idxr.strideColCell() + idxr.strideColLiquid());
 			}

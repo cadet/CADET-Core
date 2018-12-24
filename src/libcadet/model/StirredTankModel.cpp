@@ -115,22 +115,23 @@ bool CSTRModel::configureModelDiscretization(IParameterProvider& paramProvider, 
 	useAnalyticJacobian(analyticJac);
 
 	// ==== Construct and configure binding model
-	delete _binding;
+	clearBindingModels();
+	_binding.push_back(nullptr);
 
 	if (paramProvider.exists("ADSORPTION_MODEL"))
 	{
-		_binding = helper.createBindingModel(paramProvider.getString("ADSORPTION_MODEL"));
-		if (!_binding)
+		_binding[0] = helper.createBindingModel(paramProvider.getString("ADSORPTION_MODEL"));
+		if (!_binding[0])
 			throw InvalidParameterException("Unknown binding model " + paramProvider.getString("ADSORPTION_MODEL"));
 
-		const bool bindingConfSuccess = _binding->configureModelDiscretization(paramProvider, _nComp, _nBound, _boundOffset);
+		const bool bindingConfSuccess = _binding[0]->configureModelDiscretization(paramProvider, _nComp, _nBound, _boundOffset);
 
 		// Allocate memory for nonlinear equation solving
 		unsigned int size = 2 * nVar;
-		if (_binding->requiresWorkspace())
+		if (_binding[0]->requiresWorkspace())
 		{
 			// Required memory (number of doubles) for nonlinear solvers
-			size = std::max(size, static_cast<unsigned int>((_binding->workspaceSize() + sizeof(double) - 1) / sizeof(double)));
+			size = std::max(size, static_cast<unsigned int>((_binding[0]->workspaceSize() + sizeof(double) - 1) / sizeof(double)));
 		}
 		_consistentInitBuffer = new double[size];
 
@@ -138,9 +139,9 @@ bool CSTRModel::configureModelDiscretization(IParameterProvider& paramProvider, 
 	}
 	else
 	{
-		_binding = helper.createBindingModel("NONE");
+		_binding[0] = helper.createBindingModel("NONE");
 		_consistentInitBuffer = new double[2 * nVar];
-		return _binding->configureModelDiscretization(paramProvider, _nComp, _nBound, _boundOffset);
+		return _binding[0]->configureModelDiscretization(paramProvider, _nComp, _nBound, _boundOffset);
 	}
 }
 
@@ -165,10 +166,10 @@ bool CSTRModel::configure(IParameterProvider& paramProvider)
 	for (unsigned int i = 0; i < _nComp; ++i)
 		_parameters[makeParamId(hashString("INIT_C"), _unitOpIdx, i, BoundPhaseIndep, ReactionIndep, SectionIndep)] = _initConditions.data() + i;
 
-	if (_binding)
+	if (_binding[0])
 	{
 		std::vector<ParameterId> initParams(_strideBound);
-		_binding->fillBoundPhaseInitialParameters(initParams.data(), _unitOpIdx);
+		_binding[0]->fillBoundPhaseInitialParameters(initParams.data(), _unitOpIdx);
 
 		active* const ic = _initConditions.data() + _nComp;
 		for (unsigned int i = 0; i < _strideBound; ++i)
@@ -178,10 +179,10 @@ bool CSTRModel::configure(IParameterProvider& paramProvider)
 	_parameters[makeParamId(hashString("INIT_VOLUME"), _unitOpIdx, CompIndep, BoundPhaseIndep, ReactionIndep, SectionIndep)] = _initConditions.data() + _nComp + _strideBound;
 
 	// Reconfigure binding model
-	if (_binding && paramProvider.exists("adsorption") && _binding->requiresConfiguration())
+	if (_binding[0] && paramProvider.exists("adsorption") && _binding[0]->requiresConfiguration())
 	{
 		paramProvider.pushScope("adsorption");
-		const bool bindingConfSuccess = _binding->configure(paramProvider, _unitOpIdx);
+		const bool bindingConfSuccess = _binding[0]->configure(paramProvider, _unitOpIdx);
 		paramProvider.popScope();
 
 		return bindingConfSuccess;
@@ -323,7 +324,7 @@ void CSTRModel::consistentInitialState(double t, unsigned int secIdx, double tim
 		// Separating knowns from unknowns gives
 		//    (\dot{V} + F_out) * c + \dot{V} / beta * [sum_j q_{i,j}] = c_in * F_in
 
-		if (!_binding->hasAlgebraicEquations())
+		if (!_binding[0]->hasAlgebraicEquations())
 		{
 			// If the binding model does not have algebraic equations, the
 			// bound states q_{i,j} are dynamic and, thus, already determined
@@ -369,7 +370,7 @@ void CSTRModel::consistentInitialState(double t, unsigned int secIdx, double tim
 	else
 	{
 		// Compute quasi-stationary binding model state
-		if (_binding->hasAlgebraicEquations())
+		if (_binding[0]->hasAlgebraicEquations())
 		{
 			active* const localAdRes = adRes ? adRes + _nComp : nullptr;
 			active* const localAdY = adY ? adY + _nComp : nullptr;
@@ -377,7 +378,7 @@ void CSTRModel::consistentInitialState(double t, unsigned int secIdx, double tim
 			linalg::DenseMatrixView jacobianMatrix(_jacFact.data(), _jacFact.pivotData(), _strideBound, _strideBound);
 
 			// Solve algebraic variables
-			_binding->consistentInitialState(t, 0.0, 0.0, secIdx, c + _nComp, errorTol, localAdRes, localAdY,
+			_binding[0]->consistentInitialState(t, 0.0, 0.0, secIdx, c + _nComp, errorTol, localAdRes, localAdY,
 				_nComp, adDirOffset, ad::DenseJacobianExtractor(), _consistentInitBuffer, jacobianMatrix);
 		}
 	}
@@ -465,9 +466,9 @@ void CSTRModel::consistentInitialTimeDerivative(double t, unsigned int secIdx, d
 		addTimeDerivativeJacobian(t, timeFactor, vecStateY, nullptr, _jacFact);
 
 		// Overwrite rows corresponding to algebraic equations with the Jacobian and set right hand side to 0
-		if (_binding->hasAlgebraicEquations())
+		if (_binding[0]->hasAlgebraicEquations())
 		{
-			parts::BindingConsistentInitializer::consistentInitialTimeDerivative(_binding, timeFactor, _jacFact.row(_nComp),
+			parts::BindingConsistentInitializer::consistentInitialTimeDerivative(_binding[0], timeFactor, _jacFact.row(_nComp),
 				_jac.row(_nComp), vecStateYdot + 2 * _nComp, t, 0.5, 0.5, secIdx, _consistentInitBuffer);
 		}
 
@@ -718,7 +719,7 @@ int CSTRModel::residualImpl(const ParamType& t, unsigned int secIdx, const Param
 
 	// Bound states
 	double const* const qDot = yDot ? yDot + 2 * _nComp : nullptr;
-	_binding->residual(t, 0.0, 0.0, secIdx, timeFactor, c + _nComp, qDot, res + 2 * _nComp, _consistentInitBuffer);
+	_binding[0]->residual(t, 0.0, 0.0, secIdx, timeFactor, c + _nComp, qDot, res + 2 * _nComp, _consistentInitBuffer);
 
 	// Volume: \dot{V} = F_{in} - F_{out} - F_{filter}
 	res[2 * _nComp + _strideBound] = vDot - flowIn + flowOut + static_cast<ParamType>(_curFlowRateFilter);
@@ -755,7 +756,7 @@ int CSTRModel::residualImpl(const ParamType& t, unsigned int secIdx, const Param
 		}
 
 		// Bound states
-		_binding->analyticJacobian(static_cast<double>(t), 0.0, 0.0, secIdx, reinterpret_cast<double const*>(y) + 2 * _nComp, _jac.row(_nComp), _consistentInitBuffer);
+		_binding[0]->analyticJacobian(static_cast<double>(t), 0.0, 0.0, secIdx, reinterpret_cast<double const*>(y) + 2 * _nComp, _jac.row(_nComp), _consistentInitBuffer);
 
 		// Volume: \dot{V} - F_{in} + F_{out} + F_{filter} == 0
 	}
@@ -912,12 +913,12 @@ void CSTRModel::consistentInitialSensitivity(const active& t, unsigned int secId
 		// Step 1: Solve algebraic equations
 
 		// Step 1a: Compute quasi-stationary binding model state
-		if (_binding->hasAlgebraicEquations())
+		if (_binding[0]->hasAlgebraicEquations())
 		{
 			// Get algebraic block
 			unsigned int algStart = 0;
 			unsigned int algLen = 0;
-			_binding->getAlgebraicBlock(algStart, algLen);
+			_binding[0]->getAlgebraicBlock(algStart, algLen);
 
 			// Reuse memory for dense matrix
 			linalg::DenseMatrixView jacobianMatrix(_jacFact.data(), _jacFact.pivotData(), algLen, algLen);
@@ -941,9 +942,9 @@ void CSTRModel::consistentInitialSensitivity(const active& t, unsigned int secId
 		addTimeDerivativeJacobian(static_cast<double>(t), static_cast<double>(timeFactor), vecStateY, vecStateYdot, _jacFact);
 
 		// Overwrite rows corresponding to algebraic equations with the Jacobian and set right hand side to 0
-		if (_binding->hasAlgebraicEquations())
+		if (_binding[0]->hasAlgebraicEquations())
 		{
-			parts::BindingConsistentInitializer::consistentInitialSensitivityTimeDerivative(_binding, _jacFact.row(_nComp),
+			parts::BindingConsistentInitializer::consistentInitialSensitivityTimeDerivative(_binding[0], _jacFact.row(_nComp),
 				_jac.row(_nComp), sensYdot + 2 * _nComp);
 		}
 
@@ -1020,7 +1021,7 @@ void CSTRModel::multiplyWithDerivativeJacobian(double t, unsigned int secIdx, do
 	}
 
 	// Bound states
-	_binding->multiplyWithDerivativeJacobian(s + _nComp, r + _nComp, timeFactor);
+	_binding[0]->multiplyWithDerivativeJacobian(s + _nComp, r + _nComp, timeFactor);
 
 	// Volume: \dot{V} - F_{in} + F_{out} + F_{filter} == 0
 	r[_nComp + _strideBound] = timeFactor * s[_nComp + _strideBound];
@@ -1086,7 +1087,7 @@ void CSTRModel::addTimeDerivativeJacobian(double t, double timeFactor, double co
 	}
 
 	// Bound states
-	_binding->jacobianAddDiscretized(timeFactor, mat.row(_nComp));
+	_binding[0]->jacobianAddDiscretized(timeFactor, mat.row(_nComp));
 
 	// Volume: \dot{V} - F_{in} + F_{out} + F_{filter} == 0
 	mat.native(_nComp + _strideBound, _nComp + _strideBound) += timeFactor;
