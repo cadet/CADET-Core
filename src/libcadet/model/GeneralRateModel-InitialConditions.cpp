@@ -67,22 +67,25 @@ void GeneralRateModel::applyInitialCondition(double* const vecStateY, double* co
 	}
 
 	// Loop over particles
-	for (unsigned int col = 0; col < _disc.nCol; ++col)
+	for (unsigned int type = 0; type < _disc.nParType; ++type)
 	{
-		const unsigned int offset = idxr.offsetCp(col);
-
-		// Loop over particle cells
-		for (unsigned int shell = 0; shell < _disc.nPar; ++shell)
+		for (unsigned int col = 0; col < _disc.nCol; ++col)
 		{
-			const unsigned int shellOffset = offset + shell * idxr.strideParShell();
-			
-			// Initialize c_p
-			for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
-				vecStateY[shellOffset + comp] = static_cast<double>(_initCp[comp]);
+			const unsigned int offset = idxr.offsetCp(ParticleTypeIndex{type}, ParticleIndex{col});
 
-			// Initialize q
-			for (unsigned int bnd = 0; bnd < _disc.strideBound; ++bnd)
-				vecStateY[shellOffset + idxr.strideParLiquid() + bnd] = static_cast<double>(_initQ[bnd]);
+			// Loop over particle cells
+			for (unsigned int shell = 0; shell < _disc.nParCell[type]; ++shell)
+			{
+				const unsigned int shellOffset = offset + shell * idxr.strideParShell(type);
+				
+				// Initialize c_p
+				for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
+					vecStateY[shellOffset + comp] = static_cast<double>(_initCp[comp + _disc.nComp * type]);
+
+				// Initialize q
+				for (unsigned int bnd = 0; bnd < _disc.strideBound[type]; ++bnd)
+					vecStateY[shellOffset + idxr.strideParLiquid() + bnd] = static_cast<double>(_initQ[bnd + _disc.nBoundBeforeType[type]]);
+			}
 		}
 	}
 }
@@ -113,26 +116,28 @@ void GeneralRateModel::readInitialCondition(IParameterProvider& paramProvider)
 	if (initC.size() < _disc.nComp)
 		throw InvalidParameterException("INIT_C does not contain enough values for all components");
 
-	if ((_disc.strideBound > 0) && (initQ.size() < _disc.strideBound))
+	if ((_disc.strideBound[_disc.nParType] > 0) && (initQ.size() < _disc.strideBound[_disc.nParType]))
 		throw InvalidParameterException("INIT_Q does not contain enough values for all bound states");
 
 	// Check if INIT_CP is present
-	double const* initCp = initC.data();
-	std::vector<double> initCpData;
 	if (paramProvider.exists("INIT_CP"))
 	{
-		initCpData = paramProvider.getDoubleArray("INIT_CP");
+		const std::vector<double> initCp = paramProvider.getDoubleArray("INIT_CP");
 
-		if (initCpData.size() < _disc.nComp)
+		if (initCp.size() < _disc.nComp * _disc.nParType)
 			throw InvalidParameterException("INIT_CP does not contain enough values for all components");
 
-		initCp = initCpData.data();
+		ad::copyToAd(initCp.data(), _initCp.data(), _disc.nComp * _disc.nParType);
+	}
+	else
+	{
+		for (unsigned int type = 0; type < _disc.nParType; ++type)
+			ad::copyToAd(initC.data(), _initCp.data() + _disc.nComp * type, _disc.nComp);
 	}
 
 	ad::copyToAd(initC.data(), _initC.data(), _disc.nComp);
-	ad::copyToAd(initCp, _initCp.data(), _disc.nComp);
 	if (!initQ.empty())
-		ad::copyToAd(initQ.data(), _initQ.data(), _disc.strideBound);
+		ad::copyToAd(initQ.data(), _initQ.data(), _disc.strideBound[_disc.nParType]);
 }
 
 /**
@@ -193,59 +198,62 @@ void GeneralRateModel::consistentInitialState(double t, unsigned int secIdx, dou
 {
 	BENCH_SCOPE(_timerConsistentInit);
 
-	// TODO: Check memory consumption and offsets
-	// Round up
-	const unsigned int requiredMem = (_binding->workspaceSize() + sizeof(double) - 1) / sizeof(double);
-
 	Indexer idxr(_disc);
 
 	// Step 1: Solve algebraic equations
 
 	// Step 1a: Compute quasi-stationary binding model state
-	if (_binding->hasAlgebraicEquations())
+	for (unsigned int type = 0; type < _disc.nParType; ++type)
 	{
-		ad::BandedJacobianExtractor jacExtractor(_jacP[0].lowerBandwidth(), _jacP[0].lowerBandwidth(), _jacP[0].upperBandwidth());
-
-		//Problem capturing variables here
-#ifdef CADET_PARALLELIZE
-		BENCH_SCOPE(_timerConsistentInitPar);
-		tbb::parallel_for(size_t(0), size_t(_disc.nCol), [&](size_t pblk)
-#else
-		for (unsigned int pblk = 0; pblk < _disc.nCol; ++pblk)
-#endif
+		if (_binding[type]->hasAlgebraicEquations())
 		{
-			// Reuse memory of band matrix for dense matrix
-			linalg::DenseMatrixView jacobianMatrix(_jacPdisc[pblk].data(), _jacPdisc[pblk].pivot(), _disc.strideBound, _disc.strideBound);
+			// TODO: Check memory consumption and offsets
+			// Round up
+			const unsigned int requiredMem = (_binding[type]->workspaceSize() + sizeof(double) - 1) / sizeof(double);
 
-			// Midpoint of current column cell (z coordinate) - needed in externally dependent adsorption kinetic
-			const double z = (0.5 + static_cast<double>(pblk)) / static_cast<double>(_disc.nCol);
+			ad::BandedJacobianExtractor jacExtractor(_jacP[type * _disc.nCol].lowerBandwidth(), _jacP[type * _disc.nCol].lowerBandwidth(), _jacP[type * _disc.nCol].upperBandwidth());
 
-			// This loop cannot be run in parallel without creating a Jacobian matrix for each thread which would increase memory usage
-			for(size_t shell = 0; shell < size_t(_disc.nPar); shell++)
+			//Problem capturing variables here
+#ifdef CADET_PARALLELIZE
+			BENCH_SCOPE(_timerConsistentInitPar);
+			tbb::parallel_for(size_t(0), size_t(_disc.nCol), [&](size_t pblk)
+#else
+			for (unsigned int pblk = 0; pblk < _disc.nCol; ++pblk)
+#endif
 			{
-				const int localOffsetToParticle = idxr.offsetCp(pblk);
-				const int localOffsetInParticle = static_cast<int>(shell) * idxr.strideParShell() + idxr.strideParLiquid();
+				// Reuse memory of band matrix for dense matrix
+				linalg::DenseMatrixView jacobianMatrix(_jacPdisc[type * _disc.nCol + pblk].data(), _jacPdisc[type * _disc.nCol + pblk].pivot(), _disc.strideBound[type], _disc.strideBound[type]);
 
-				// Get pointer to q variables in a shell of particle pblk
-				double* const qShell = vecStateY + localOffsetToParticle + localOffsetInParticle;
-				active* const localAdRes = adRes ? adRes + localOffsetToParticle : nullptr;
-				active* const localAdY = adY ? adY + localOffsetToParticle : nullptr;
+				// Midpoint of current column cell (z coordinate) - needed in externally dependent adsorption kinetic
+				const double z = (0.5 + static_cast<double>(pblk)) / static_cast<double>(_disc.nCol);
 
-				// We are essentially creating a 2d vector of blocks out of a linear strip of memory
-				const unsigned int offset = requiredMem * (_disc.nPar * pblk + shell);
+				// This loop cannot be run in parallel without creating a Jacobian matrix for each thread which would increase memory usage
+				const int localOffsetToParticle = idxr.offsetCp(ParticleTypeIndex{type}, ParticleIndex{pblk});
+				for(size_t shell = 0; shell < size_t(_disc.nParCell[type]); shell++)
+				{
+					const int localOffsetInParticle = static_cast<int>(shell) * idxr.strideParShell(type) + idxr.strideParLiquid();
 
-				// Solve algebraic variables
-				_binding->consistentInitialState(t, z, static_cast<double>(_parCenterRadius[shell]) / static_cast<double>(_parRadius), secIdx, qShell, errorTol, localAdRes, localAdY,
-					localOffsetInParticle, adDirOffset, jacExtractor, _tempState + offset, jacobianMatrix);
-			}
-		} CADET_PARFOR_END;
+					// Get pointer to q variables in a shell of particle pblk
+					double* const qShell = vecStateY + localOffsetToParticle + localOffsetInParticle;
+					active* const localAdRes = adRes ? adRes + localOffsetToParticle : nullptr;
+					active* const localAdY = adY ? adY + localOffsetToParticle : nullptr;
+
+					// We are essentially creating a 2d vector of blocks out of a linear strip of memory
+					const unsigned int offset = _bindingWorkspaceOffset[type] + requiredMem * (_disc.nParCell[type] * pblk + shell);
+
+					// Solve algebraic variables
+					_binding[type]->consistentInitialState(t, z, static_cast<double>(_parCenterRadius[_disc.nParCellsBeforeType[type] + shell]) / static_cast<double>(_parRadius[type]), secIdx, qShell, errorTol,
+						localAdRes, localAdY, localOffsetInParticle, adDirOffset, jacExtractor, _tempState + offset, jacobianMatrix);
+				}
+			} CADET_PARFOR_END;
+		}
 	}
 
 	// Step 1b: Compute fluxes j_f
 
 	// Reset j_f to 0.0
 	double* const jf = vecStateY + idxr.offsetJf();
-	std::fill(jf, jf + _disc.nComp * _disc.nCol, 0.0);
+	std::fill(jf, jf + _disc.nComp * _disc.nCol * _disc.nParType, 0.0);
 
 	solveForFluxes(vecStateY, idxr);
 }
@@ -304,7 +312,6 @@ void GeneralRateModel::consistentInitialTimeDerivative(double t, unsigned int se
 	BENCH_SCOPE(_timerConsistentInit);
 
 	Indexer idxr(_disc);
-	const unsigned int requiredMem = (_binding->workspaceSize() + sizeof(double) - 1) / sizeof(double);
 
 	// Step 2: Compute the correct time derivative of the state vector
 
@@ -320,43 +327,49 @@ void GeneralRateModel::consistentInitialTimeDerivative(double t, unsigned int se
 	// Process the particle blocks
 #ifdef CADET_PARALLELIZE
 	BENCH_START(_timerConsistentInitPar);
-	tbb::parallel_for(size_t(0), size_t(_disc.nCol), [&](size_t pblk)
+	tbb::parallel_for(size_t(0), size_t(_disc.nCol * _disc.nParType), [&](size_t pblk)
 #else
-	for (unsigned int pblk = 0; pblk < _disc.nCol; ++pblk)
+	for (unsigned int pblk = 0; pblk < _disc.nCol * _disc.nParType; ++pblk)
 #endif
 	{
+		const unsigned int type = pblk / _disc.nCol;
+		const unsigned int par = pblk % _disc.nCol;
+
 		// Midpoint of current column cell (z coordinate) - needed in externally dependent adsorption kinetic
-		const double z = (0.5 + static_cast<double>(pblk)) / static_cast<double>(_disc.nCol);
+		const double z = (0.5 + static_cast<double>(par)) / static_cast<double>(_disc.nCol);
 
 		// Assemble
 		linalg::FactorizableBandMatrix& fbm = _jacPdisc[pblk];
 		fbm.setAll(0.0);
 
 		linalg::FactorizableBandMatrix::RowIterator jac = fbm.row(0);
-		for (unsigned int j = 0; j < _disc.nPar; ++j)
+		for (unsigned int j = 0; j < _disc.nParCell[type]; ++j)
 		{
 			// Mobile phase (advances jac accordingly)
-			addMobilePhaseTimeDerivativeToJacobianParticleBlock(jac, idxr, 1.0, timeFactor);
+			addMobilePhaseTimeDerivativeToJacobianParticleBlock(jac, idxr, 1.0, timeFactor, type);
 
 			// Stationary phase
 			// Populate matrix with time derivative Jacobian first
-			_binding->jacobianAddDiscretized(timeFactor, jac);
+			_binding[type]->jacobianAddDiscretized(timeFactor, jac);
 
 			// Overwrite rows corresponding to algebraic equations with the Jacobian and set right hand side to 0
-			if (_binding->hasAlgebraicEquations())
+			if (_binding[type]->hasAlgebraicEquations())
 			{
-				parts::BindingConsistentInitializer::consistentInitialTimeDerivative(_binding, timeFactor, jac,
-					_jacP[pblk].row(j * static_cast<unsigned int>(idxr.strideParShell()) + static_cast<unsigned int>(idxr.strideParLiquid())),
-					vecStateYdot + idxr.offsetCp(pblk) + static_cast<int>(j) * idxr.strideParShell() + idxr.strideParLiquid(),
-					t, z, static_cast<double>(_parCenterRadius[j]) / static_cast<double>(_parRadius), secIdx, _tempState + requiredMem * pblk);
+				const unsigned int requiredMem = (_binding[type]->workspaceSize() + sizeof(double) - 1) / sizeof(double);
+
+				parts::BindingConsistentInitializer::consistentInitialTimeDerivative(_binding[type], timeFactor, jac,
+					_jacP[pblk].row(j * static_cast<unsigned int>(idxr.strideParShell(type)) + static_cast<unsigned int>(idxr.strideParLiquid())),
+					vecStateYdot + idxr.offsetCp(ParticleTypeIndex{type}, ParticleIndex{par}) + static_cast<int>(j) * idxr.strideParShell(type) + idxr.strideParLiquid(),
+					t, z, static_cast<double>(_parCenterRadius[_disc.nParCellsBeforeType[type] + j]) / static_cast<double>(_parRadius[type]), secIdx,
+					_tempState + _bindingWorkspaceOffset[type] + requiredMem * (_disc.nParCell[type] * par + j));
 			}
 
 			// Advance pointers over all bound states
-			jac += idxr.strideParBound();
+			jac += idxr.strideParBound(type);
 		}
 
 		// Precondition
-		double* const scaleFactors = _tempState + idxr.offsetCp(pblk);
+		double* const scaleFactors = _tempState + idxr.offsetCp(ParticleTypeIndex{type}, ParticleIndex{par});
 		fbm.rowScaleFactors(scaleFactors);
 		fbm.scaleRows(scaleFactors);
 
@@ -364,14 +377,14 @@ void GeneralRateModel::consistentInitialTimeDerivative(double t, unsigned int se
 		const bool result = fbm.factorize();
 		if (!result)
 		{
-			LOG(Error) << "Factorize() failed for par block " << pblk << "\n" << fbm;
+			LOG(Error) << "Factorize() failed for par block " << pblk << " (type " << type << " col " << par << ")\n" << fbm;
 		}
 
 		// Solve
-		const bool result2 = fbm.solve(scaleFactors, vecStateYdot + idxr.offsetCp(pblk));
+		const bool result2 = fbm.solve(scaleFactors, vecStateYdot + idxr.offsetCp(ParticleTypeIndex{type}, ParticleIndex{par}));
 		if (!result2)
 		{
-			LOG(Error) << "Solve() failed for par block " << pblk;
+			LOG(Error) << "Solve() failed for par block " << pblk << " (type " << type << " col " << par << ")";
 		}
 	} CADET_PARFOR_END;
 
@@ -383,7 +396,7 @@ void GeneralRateModel::consistentInitialTimeDerivative(double t, unsigned int se
 
 	// Reset \dot{j}_f to 0.0
 	double* const jfDot = vecStateYdot + idxr.offsetJf();
-	std::fill(jfDot, jfDot + _disc.nComp * _disc.nCol, 0.0);
+	std::fill(jfDot, jfDot + _disc.nComp * _disc.nCol * _disc.nParType, 0.0);
 
 	solveForFluxes(vecStateYdot, idxr);
 }
@@ -439,7 +452,7 @@ void GeneralRateModel::consistentInitialTimeDerivative(double t, unsigned int se
 void GeneralRateModel::leanConsistentInitialState(double t, unsigned int secIdx, double timeFactor, double* const vecStateY, 
 	active* const adRes, active* const adY, unsigned int adDirOffset, double errorTol)
 {
-	if ((_parDiffusion.size() > _disc.nComp) || (_parSurfDiffusion.size() > _disc.strideBound))
+	if ((_parDiffusion.size() > _disc.nComp * _disc.nParType) || (_parSurfDiffusion.size() > _disc.strideBound[_disc.nParType]))
 		LOG(Warning) << "Lean consistent initialization is not appropriate for section-dependent pore and surface diffusion";
 
 	BENCH_SCOPE(_timerConsistentInit);
@@ -450,7 +463,7 @@ void GeneralRateModel::leanConsistentInitialState(double t, unsigned int secIdx,
 
 	// Reset j_f to 0.0
 	double* const jf = vecStateY + idxr.offsetJf();
-	std::fill(jf, jf + _disc.nComp * _disc.nCol, 0.0);
+	std::fill(jf, jf + _disc.nComp * _disc.nCol * _disc.nParType, 0.0);
 
 	solveForFluxes(vecStateY, idxr);
 }
@@ -500,7 +513,7 @@ void GeneralRateModel::leanConsistentInitialState(double t, unsigned int secIdx,
  */
 void GeneralRateModel::leanConsistentInitialTimeDerivative(double t, double timeFactor, double const* const vecStateY, double* const vecStateYdot, double* const res)
 {
-	if ((_parDiffusion.size() > _disc.nComp) || (_parSurfDiffusion.size() > _disc.strideBound))
+	if ((_parDiffusion.size() > _disc.nComp * _disc.nParType) || (_parSurfDiffusion.size() > _disc.strideBound[_disc.nParType]))
 		LOG(Warning) << "Lean consistent initialization is not appropriate for section-dependent pore and surface diffusion";
 
 	BENCH_SCOPE(_timerConsistentInit);
@@ -529,7 +542,7 @@ void GeneralRateModel::leanConsistentInitialTimeDerivative(double t, double time
 
 	// Reset \dot{j}_f to 0.0
 	double* const jfDot = vecStateYdot + idxr.offsetJf();
-	std::fill(jfDot, jfDot + _disc.nComp * _disc.nCol, 0.0);
+	std::fill(jfDot, jfDot + _disc.nComp * _disc.nCol * _disc.nParType, 0.0);
 
 	solveForFluxes(vecStateYdot, idxr);
 }
@@ -550,24 +563,27 @@ void GeneralRateModel::initializeSensitivityStates(const std::vector<double*>& v
 		}
 
 		// Loop over particles
-		for (unsigned int col = 0; col < _disc.nCol; ++col)
+		for (unsigned int type = 0; type < _disc.nParType; ++type)
 		{
-			const unsigned int offset = idxr.offsetCp(col);
-
-			// Loop over particle cells
-			for (unsigned int shell = 0; shell < _disc.nPar; ++shell)
+			for (unsigned int col = 0; col < _disc.nCol; ++col)
 			{
-				const unsigned int shellOffset = offset + shell * idxr.strideParShell();
-				double* const stateYparticle = vecSensY[param] + shellOffset;
-				double* const stateYparticleSolid = stateYparticle + idxr.strideParLiquid();
-				
-				// Initialize c_p
-				for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
-					stateYparticle[comp] = _initCp[comp].getADValue(param);
+				const unsigned int offset = idxr.offsetCp(ParticleTypeIndex{type}, ParticleIndex{col});
 
-				// Initialize q
-				for (unsigned int bnd = 0; bnd < _disc.strideBound; ++bnd)
-					stateYparticleSolid[bnd] = _initQ[bnd].getADValue(param);
+				// Loop over particle cells
+				for (unsigned int shell = 0; shell < _disc.nParCell[type]; ++shell)
+				{
+					const unsigned int shellOffset = offset + shell * idxr.strideParShell(type);
+					double* const stateYparticle = vecSensY[param] + shellOffset;
+					double* const stateYparticleSolid = stateYparticle + idxr.strideParLiquid();
+					
+					// Initialize c_p
+					for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
+						stateYparticle[comp] = _initCp[comp + type * _disc.nComp].getADValue(param);
+
+					// Initialize q
+					for (unsigned int bnd = 0; bnd < _disc.strideBound[type]; ++bnd)
+						stateYparticleSolid[bnd] = _initQ[bnd + _disc.nBoundBeforeType[type]].getADValue(param);
+				}
 			}
 		}
 	}
@@ -648,33 +664,36 @@ void GeneralRateModel::consistentInitialSensitivity(const active& t, unsigned in
 		// Step 1: Solve algebraic equations
 
 		// Step 1a: Compute quasi-stationary binding model state
-		if (_binding->hasAlgebraicEquations())
+		for (unsigned int type = 0; type < _disc.nParType; ++type)
 		{
-#ifdef CADET_PARALLELIZE
-			BENCH_SCOPE(_timerConsistentInitPar);
-			tbb::parallel_for(size_t(0), size_t(_disc.nCol), [&](size_t pblk)
-#else
-			for (unsigned int pblk = 0; pblk < _disc.nCol; ++pblk)
-#endif
+			if (_binding[type]->hasAlgebraicEquations())
 			{
-				// Get algebraic block
-				unsigned int algStart = 0;
-				unsigned int algLen = 0;
-				_binding->getAlgebraicBlock(algStart, algLen);
-
-				// Reuse memory of band matrix for dense matrix
-				linalg::DenseMatrixView jacobianMatrix(_jacPdisc[pblk].data(), _jacPdisc[pblk].pivot(), algLen, algLen);
-
-				for (unsigned int shell = 0; shell < _disc.nPar; ++shell)
+#ifdef CADET_PARALLELIZE
+				BENCH_SCOPE(_timerConsistentInitPar);
+				tbb::parallel_for(size_t(0), size_t(_disc.nCol), [&](size_t pblk)
+#else
+				for (unsigned int pblk = 0; pblk < _disc.nCol; ++pblk)
+#endif
 				{
-					const unsigned int jacRowOffset = shell * static_cast<unsigned int>(idxr.strideParShell()) + static_cast<unsigned int>(idxr.strideParLiquid());
-					const int localCpOffset = idxr.offsetCp(pblk) + static_cast<int>(shell) * idxr.strideParShell();
+					// Get algebraic block
+					unsigned int algStart = 0;
+					unsigned int algLen = 0;
+					_binding[type]->getAlgebraicBlock(algStart, algLen);
 
-					parts::BindingConsistentInitializer::consistentInitialSensitivityState(algStart, algLen, jacobianMatrix,
-						_jacP[pblk], localCpOffset, jacRowOffset, idxr.strideParLiquid(), _disc.strideBound,
-						sensY, sensYdot, _tempState + idxr.offsetCp(pblk));
-				}
-			} CADET_PARFOR_END;
+					// Reuse memory of band matrix for dense matrix
+					linalg::DenseMatrixView jacobianMatrix(_jacPdisc[type * _disc.nCol + pblk].data(), _jacPdisc[type * _disc.nCol + pblk].pivot(), algLen, algLen);
+
+					for (unsigned int shell = 0; shell < _disc.nParCell[type]; ++shell)
+					{
+						const unsigned int jacRowOffset = shell * static_cast<unsigned int>(idxr.strideParShell(type)) + static_cast<unsigned int>(idxr.strideParLiquid());
+						const int localCpOffset = idxr.offsetCp(ParticleTypeIndex{type}, ParticleIndex{pblk}) + static_cast<int>(shell) * idxr.strideParShell(type);
+
+						parts::BindingConsistentInitializer::consistentInitialSensitivityState(algStart, algLen, jacobianMatrix,
+							_jacP[type * _disc.nCol + pblk], localCpOffset, jacRowOffset, idxr.strideParLiquid(), _disc.strideBound[type],
+							sensY, sensYdot, _tempState + idxr.offsetCp(ParticleTypeIndex{type}, ParticleIndex{pblk}));
+					}
+				} CADET_PARFOR_END;
+			}
 		}
 
 		// Step 1b: Compute fluxes j_f, right hand side is -dF / dp
@@ -697,39 +716,42 @@ void GeneralRateModel::consistentInitialSensitivity(const active& t, unsigned in
 		// Process the particle blocks
 #ifdef CADET_PARALLELIZE
 		BENCH_START(_timerConsistentInitPar);
-		tbb::parallel_for(size_t(0), size_t(_disc.nCol), [&](size_t pblk)
+		tbb::parallel_for(size_t(0), size_t(_disc.nCol * _disc.nParType), [&](size_t pblk)
 #else
-		for (unsigned int pblk = 0; pblk < _disc.nCol; ++pblk)
+		for (unsigned int pblk = 0; pblk < _disc.nCol * _disc.nParType; ++pblk)
 #endif
 		{
+			const unsigned int type = pblk / _disc.nCol;
+			const unsigned int par = pblk % _disc.nCol;
+
 			// Assemble
 			linalg::FactorizableBandMatrix& fbm = _jacPdisc[pblk];
 			fbm.setAll(0.0);
 
 			linalg::FactorizableBandMatrix::RowIterator jac = fbm.row(0);
-			for (unsigned int j = 0; j < _disc.nPar; ++j)
+			for (unsigned int j = 0; j < _disc.nParCell[type]; ++j)
 			{
 				// Mobile phase (advances jac accordingly)
-				addMobilePhaseTimeDerivativeToJacobianParticleBlock(jac, idxr, 1.0, static_cast<double>(timeFactor));
+				addMobilePhaseTimeDerivativeToJacobianParticleBlock(jac, idxr, 1.0, static_cast<double>(timeFactor), type);
 
 				// Stationary phase
 				// Populate matrix with time derivative Jacobian first
-				_binding->jacobianAddDiscretized(static_cast<double>(timeFactor), jac);
+				_binding[type]->jacobianAddDiscretized(static_cast<double>(timeFactor), jac);
 
 				// Overwrite rows corresponding to algebraic equations with the Jacobian and set right hand side to 0
-				if (_binding->hasAlgebraicEquations())
+				if (_binding[type]->hasAlgebraicEquations())
 				{
-					parts::BindingConsistentInitializer::consistentInitialSensitivityTimeDerivative(_binding, jac,
-						_jacP[pblk].row(j * static_cast<unsigned int>(idxr.strideParShell()) + static_cast<unsigned int>(idxr.strideParLiquid())),
-						sensYdot + idxr.offsetCp(pblk) + static_cast<int>(j) * idxr.strideParShell() + idxr.strideParLiquid());
+					parts::BindingConsistentInitializer::consistentInitialSensitivityTimeDerivative(_binding[type], jac,
+						_jacP[pblk].row(j * static_cast<unsigned int>(idxr.strideParShell(type)) + static_cast<unsigned int>(idxr.strideParLiquid())),
+						sensYdot + idxr.offsetCp(ParticleTypeIndex{type}, ParticleIndex{par}) + static_cast<int>(j) * idxr.strideParShell(type) + idxr.strideParLiquid());
 				}
 
 				// Advance pointers over all bound states
-				jac += idxr.strideParBound();
+				jac += idxr.strideParBound(type);
 			}   
 
 			// Precondition
-			double* const scaleFactors = _tempState + idxr.offsetCp(pblk);
+			double* const scaleFactors = _tempState + idxr.offsetCp(ParticleTypeIndex{type}, ParticleIndex{par});
 			fbm.rowScaleFactors(scaleFactors);
 			fbm.scaleRows(scaleFactors);
 
@@ -737,14 +759,14 @@ void GeneralRateModel::consistentInitialSensitivity(const active& t, unsigned in
 			const bool result = fbm.factorize();
 			if (!result)
 			{
-				LOG(Error) << "Factorize() failed for par block " << pblk;
+				LOG(Error) << "Factorize() failed for par block " << pblk << " (type " << type << " col " << par << ")";
 			}
 
 			// Solve
-			const bool result2 = fbm.solve(scaleFactors, sensYdot + idxr.offsetCp(pblk));
+			const bool result2 = fbm.solve(scaleFactors, sensYdot + idxr.offsetCp(ParticleTypeIndex{type}, ParticleIndex{par}));
 			if (!result2)
 			{
-				LOG(Error) << "Solve() failed for par block " << pblk;
+				LOG(Error) << "Solve() failed for par block " << pblk << " (type " << type << " col " << par << ")";
 			}
 		} CADET_PARFOR_END;
 
@@ -809,7 +831,7 @@ void GeneralRateModel::consistentInitialSensitivity(const active& t, unsigned in
 void GeneralRateModel::leanConsistentInitialSensitivity(const active& t, unsigned int secIdx, const active& timeFactor, double const* vecStateY, double const* vecStateYdot,
 	std::vector<double*>& vecSensY, std::vector<double*>& vecSensYdot, active const* const adRes)
 {
-	if ((_parDiffusion.size() > _disc.nComp) || (_parSurfDiffusion.size() > _disc.strideBound))
+	if ((_parDiffusion.size() > _disc.nComp * _disc.nParType) || (_parSurfDiffusion.size() > _disc.strideBound[_disc.nParType]))
 		LOG(Warning) << "Lean consistent initialization is not appropriate for section-dependent pore and surface diffusion";
 
 	BENCH_SCOPE(_timerConsistentInit);
@@ -863,7 +885,7 @@ void GeneralRateModel::leanConsistentInitialSensitivity(const active& t, unsigne
  *                 on exit the solution @f$ j_f. @f$
  * @param [in] idxr Indexer
  */
-void GeneralRateModel::solveForFluxes(double* const vecState, const Indexer& idxr)
+void GeneralRateModel::solveForFluxes(double* const vecState, const Indexer& idxr) const
 {
 	// We have j_f - k_f * (c - c_p) == 0 
 	// Thus, jacFC contains -k_f and jacFP +k_f.
@@ -873,8 +895,12 @@ void GeneralRateModel::solveForFluxes(double* const vecState, const Indexer& idx
 
 	// Note that we cannot parallelize this loop since we are updating the fluxes in-place
 	_jacFC.multiplySubtract(vecState + idxr.offsetC(), jf);
-	for (unsigned int pblk = 0; pblk < _disc.nCol; ++pblk)
-		_jacFP[pblk].multiplySubtract(vecState + idxr.offsetCp(pblk), jf);
+	for (unsigned int type = 0; type < _disc.nParType; ++type)
+	{
+		linalg::DoubleSparseMatrix const* const jacFPtype = _jacFP + type * _disc.nCol;
+		for (unsigned int pblk = 0; pblk < _disc.nCol; ++pblk)
+			jacFPtype[pblk].multiplySubtract(vecState + idxr.offsetCp(ParticleTypeIndex{type}, ParticleIndex{pblk}), jf);
+	}
 }
 
 }  // namespace model
