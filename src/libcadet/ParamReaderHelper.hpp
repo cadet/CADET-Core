@@ -27,6 +27,7 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
+#include <numeric>
 
 namespace cadet
 {
@@ -99,7 +100,7 @@ namespace cadet
 			for (unsigned int j = 0; j < nExpand; ++j)
 			{
 				for (unsigned int i = 0; i < vals.size(); ++i)
-					dest[i + j * nExpand] = vals[i];
+					dest[i + j * vals.size()] = vals[i];
 			}
 		}
 	}
@@ -276,6 +277,171 @@ namespace cadet
 
 
 	/**
+	 * @brief Registers a 1D parameter array
+	 * @param [in,out] map Map to which the parameters are added
+	 * @param [in] params Vector with parameters to be registered
+	 * @param [in] pic Callable that returns a ParameterId based on whether there is more than one item in the array and the array index
+	 */
+	template <class ParamIdCreator>
+	inline void registerParam1DArray(std::unordered_map<ParameterId, active*>& map, std::vector<active>& params, ParamIdCreator pic)
+	{
+		const bool multi = params.size() > 1;
+		for (unsigned int i = 0; i < params.size(); ++i)
+		{
+			map[pic(multi, i)] = &params[i];
+		}
+	}
+
+
+	/**
+	 * @brief Registers a sliced 1D parameter array
+	 * @param [in,out] map Map to which the parameters are added
+	 * @param [in] params Sliced vector with parameters to be registered
+	 * @param [in] pic Callable that returns a ParameterId based on slice index and item index within slice
+	 */
+	template <typename SliceContainer_t, class ParamIdCreator>
+	inline void registerParam1DNonUniform(std::unordered_map<ParameterId, active*>& map, SliceContainer_t& params, ParamIdCreator pic)
+	{
+		const unsigned int numSlices = params.slices();
+		for (unsigned int s = 0; s < numSlices; ++s)
+		{
+			active* const slice = params[s];
+			for (unsigned int i = 0; i < params.sliceSize(s); ++i)
+			{
+				map[pic(numSlices > 1, s, i)] = slice + i;
+			}
+		}
+	}
+
+
+	/**
+	 * @brief Registers a 2D parameter array
+	 * @details The linearized array is processed sequentially. For each linear index, the corresponding outer and inner index
+	 *          is computed. For a row-major storage, this corresponds to row and column index, respectively. In this case,
+	 *          the @p innerSize is the number of columns. The callable @p pic is used to construct a ParameterId based on
+	 *          whether there are multiple outer indices (e.g., more than one row), the outer index, and the inner index.
+	 * 
+	 * @param [in,out] map Map to which the parameters are added
+	 * @param [in] params Linearized vector with parameters to be registered
+	 * @param [in] pic Callable that returns a ParameterId based on whether more than one outer index is present, the outer index, and the inner index
+	 * @param [in] innerSize Size of the inner dimension
+	 */
+	template <class ParamIdCreator>
+	inline void registerParam2DArray(std::unordered_map<ParameterId, active*>& map, std::vector<active>& params, ParamIdCreator pic, unsigned int innerSize)
+	{
+		const bool multiOuter = params.size() > innerSize;
+		for (unsigned int i = 0; i < params.size(); ++i)
+		{
+			const unsigned int idxOuter = i / innerSize;
+			const unsigned int idxInner = i % innerSize;
+			map[pic(multiOuter, idxOuter, idxInner)] = &params[i];
+		}
+	}
+
+
+	/**
+	 * @brief Registers a sliced 2D parameter array
+	 * @details The linearized array is processed sequentially. For each linear index, the corresponding outer, slice index,
+	 *          and item index in slice is computed. For a row-major storage, this corresponds to row, column slice, and 
+	 *          slice item index, respectively. In this case, the sizes of the column slices are given by @p innerSizes.
+	 *          The callable @p pic is used to construct a ParameterId based on whether there are multiple outer indices
+	 *          (e.g., more than one row), the outer index, the inner slice index, and the item index in the slice.
+	 * 
+	 * @param [in,out] map Map to which the parameters are added
+	 * @param [in] params Linearized vector with parameters to be registered
+	 * @param [in] pic Callable that returns a ParameterId based on whether more than one outer index is present, outer index, inner slice index, item index within slice
+	 * @param [in] innerSices Array with sizes of the inner slices
+	 * @param [in] numSizes Number of slices, number of elements in @p innerSlices
+	 */
+	template <class ParamIdCreator>
+	inline void registerParam2DNonUniformArray(std::unordered_map<ParameterId, active*>& map, std::vector<active>& params, ParamIdCreator pic, unsigned int const* innerSizes, unsigned int numSizes)
+	{
+		const bool multiOuter = params.size() > std::accumulate(innerSizes, innerSizes + numSizes, 0u);
+		unsigned int idx = 0;
+		unsigned int idxOuter = 0;
+		while (idx < params.size())
+		{
+			for (unsigned int i = 0; i < numSizes; ++i)
+			{
+				for (unsigned j = 0; j < innerSizes[i]; ++j, ++idx)
+				{
+					map[pic(multiOuter, idxOuter, i, j)] = &params[idx];
+				}
+			}
+			++idxOuter;
+		}
+	}
+
+
+	/**
+	 * @brief Registers a 3D parameter array
+	 * @details The linearized array is processed sequentially. For each linear index, the corresponding outer, mid, and inner index
+	 *          is computed. For a page-row-major storage, this corresponds to page, row, and column index, respectively. In this case,
+	 *          the @p innerSize is the number of columns and @p midSize is the number of rows. The callable @p pic is used to
+	 *          construct a ParameterId based on whether there are multiple outer indices (e.g., more than one page), the outer index,
+	 *          the mid index, and the inner index.
+	 * 
+	 * @param [in,out] map Map to which the parameters are added
+	 * @param [in] params Linearized vector with parameters to be registered
+	 * @param [in] pic Callable that returns a ParameterId based on whether more than one outer index is present, outer index, mid index, and inner index
+	 * @param [in] innerSize Size of the inner dimension
+	 * @param [in] midSize Size of the mid dimension
+	 */
+	template <class ParamIdCreator>
+	inline void registerParam3DArray(std::unordered_map<ParameterId, active*>& map, std::vector<active>& params, ParamIdCreator pic, unsigned int innerSize, unsigned int midSize)
+	{
+		const bool multiOuter = params.size() > innerSize * midSize;
+		for (unsigned int i = 0; i < params.size(); ++i)
+		{
+			const unsigned int idxOuter = i / (innerSize * midSize);
+			const unsigned int idxRem = i % (innerSize * midSize);
+			const unsigned int idxMid = idxRem / innerSize;
+			const unsigned int idxInner = idxRem % innerSize;
+			map[pic(multiOuter, idxOuter, idxMid, idxInner)] = &params[i];
+		}
+	}
+
+
+	/**
+	 * @brief Registers a sliced 3D parameter array
+	 * @details The linearized array is processed sequentially. For each linear index, the corresponding outer, mid, slice index,
+	 *          and item index in slice is computed. For a page-row-major storage, this corresponds to page, row, column slice, and 
+	 *          slice item index, respectively. In this case, the sizes of the column slices are given by @p innerSizes and
+	 *          @p midSize is the number of rows. The callable @p pic is used to construct a ParameterId based on whether there are
+	 *          multiple outer indices (e.g., more than one page), the outer index, the mid index, the inner slice index, and the
+	 *          item index in the slice.
+	 * 
+	 * @param [in,out] map Map to which the parameters are added
+	 * @param [in] params Linearized vector with parameters to be registered
+	 * @param [in] pic Callable that returns a ParameterId based on whether more than one outer index is present, outer index, mid index, inner slice index, item index within slice
+	 * @param [in] innerSices Array with sizes of the inner slices
+	 * @param [in] numSizes Number of slices, number of elements in @p innerSlices
+	 * @param [in] midSize Size of the mid dimension
+	 */
+	template <class ParamIdCreator>
+	inline void registerParam3DNonUniformArray(std::unordered_map<ParameterId, active*>& map, std::vector<active>& params, ParamIdCreator pic, unsigned int const* innerSizes, unsigned int numSizes, unsigned int midSize)
+	{
+		const bool multiOuter = params.size() > std::accumulate(innerSizes, innerSizes + numSizes, 0u) * midSize;
+		unsigned int idx = 0;
+		unsigned int idxOuter = 0;
+		while (idx < params.size())
+		{
+			for (unsigned int k = 0; k < midSize; ++k)
+			{
+				for (unsigned int i = 0; i < numSizes; ++i)
+				{
+					for (unsigned j = 0; j < innerSizes[i]; ++j, ++idx)
+					{
+						map[pic(multiOuter, idxOuter, k, i, j)] = &params[idx];
+					}
+				}
+			}
+			++idxOuter;
+		}
+	}
+
+
+	/**
 	 * @brief Registers scalar parameters that may be section dependent
 	 * 
 	 * @param [in] nameHash Hashed name of the parameter
@@ -285,17 +451,7 @@ namespace cadet
 	 */
 	inline void registerScalarSectionDependentParam(const StringHash nameHash, std::unordered_map<ParameterId, active*>& map, std::vector<active>& params, UnitOpIdx unitOpIdx)
 	{
-		if (params.size() > 1)
-		{
-			for (unsigned int i = 0; i < params.size(); ++i)
-			{
-				map[makeParamId(nameHash, unitOpIdx, CompIndep, BoundPhaseIndep, ReactionIndep, i)] = &params[i];
-			}
-		}
-		else if (params.size() > 0)
-		{
-			map[makeParamId(nameHash, unitOpIdx, CompIndep, BoundPhaseIndep, ReactionIndep, SectionIndep)] = &params[0];
-		}
+		registerParam1DArray(map, params, [=](bool multi, unsigned int sec) { return makeParamId(nameHash, unitOpIdx, CompIndep, BoundPhaseIndep, ReactionIndep, multi ? sec : SectionIndep); });
 	}
 
 
@@ -309,10 +465,7 @@ namespace cadet
 	 */
 	inline void registerScalarBoundStateDependentParam(const StringHash nameHash, std::unordered_map<ParameterId, active*>& map, std::vector<active>& params, UnitOpIdx unitOpIdx)
 	{
-		for (unsigned int i = 0; i < params.size(); ++i)
-		{
-			map[makeParamId(nameHash, unitOpIdx, CompIndep, i, ReactionIndep, SectionIndep)] = &params[i];
-		}
+		registerParam1DArray(map, params, [=](bool multi, unsigned int bnd) { return makeParamId(nameHash, unitOpIdx, CompIndep, bnd, ReactionIndep, SectionIndep); });
 	}
 
 
@@ -325,10 +478,7 @@ namespace cadet
 	 */
 	inline void registerComponentDependentParam(const StringHash nameHash, std::unordered_map<ParameterId, active*>& map, std::vector<active>& params, UnitOpIdx unitOpIdx)
 	{
-		for (unsigned int j = 0; j < params.size(); ++j)
-		{
-			map[makeParamId(nameHash, unitOpIdx, j, BoundPhaseIndep, ReactionIndep, SectionIndep)] = &params[j];
-		}
+		registerParam1DArray(map, params, [=](bool multi, unsigned int comp) { return makeParamId(nameHash, unitOpIdx, comp, BoundPhaseIndep, ReactionIndep, SectionIndep); });
 	}
 
 
@@ -345,23 +495,7 @@ namespace cadet
 	 */
 	inline void registerComponentSectionDependentParam(const StringHash nameHash, std::unordered_map<ParameterId, active*>& map, std::vector<active>& params, UnitOpIdx unitOpIdx, unsigned int compStride)
 	{
-		if (params.size() > compStride)
-		{
-			for (unsigned int i = 0; i < params.size() / compStride; ++i)
-			{
-				for (unsigned int j = 0; j < compStride; ++j)
-				{
-					map[makeParamId(nameHash, unitOpIdx, j, BoundPhaseIndep, ReactionIndep, i)] = &params[i * compStride + j];
-				}
-			}
-		}
-		else
-		{
-			for (unsigned int j = 0; j < compStride; ++j)
-			{
-				map[makeParamId(nameHash, unitOpIdx, j, BoundPhaseIndep, ReactionIndep, SectionIndep)] = &params[j];
-			}
-		}
+		registerParam2DArray(map, params, [=](bool multi, unsigned int sec, unsigned int comp) { return makeParamId(nameHash, unitOpIdx, comp, BoundPhaseIndep, ReactionIndep, multi ? sec : SectionIndep); }, compStride);
 	}
 
 
@@ -378,13 +512,7 @@ namespace cadet
 	 */
 	inline void registerComponentBoundStateDependentParam(const StringHash nameHash, std::unordered_map<ParameterId, active*>& map, std::vector<active>& params, UnitOpIdx unitOpIdx, unsigned int compStride)
 	{
-		for (unsigned int i = 0; i < params.size() / compStride; ++i)
-		{
-			for (unsigned int j = 0; j < compStride; ++j)
-			{
-				map[makeParamId(nameHash, unitOpIdx, j, i, ReactionIndep, SectionIndep)] = &params[i * compStride + j];
-			}
-		}
+		registerParam2DArray(map, params, [=](bool multi, unsigned int bnd, unsigned int comp) { return makeParamId(nameHash, unitOpIdx, comp, bnd, ReactionIndep, SectionIndep); }, compStride);
 	}
 
 
@@ -417,16 +545,7 @@ namespace cadet
 	template <typename SliceContainer_t>
 	inline void registerComponentBoundStateDependentParam(const StringHash nameHash, std::unordered_map<ParameterId, active*>& map, SliceContainer_t& params, UnitOpIdx unitOpIdx)
 	{
-		const unsigned int numComp = params.sliceSize(0);
-		const unsigned int numStates = params.slices();
-		for (unsigned int state = 0; state < numStates; ++state)
-		{
-			active* const slice = params[state];
-			for (unsigned int comp = 0; comp < numComp; ++comp)
-			{
-				map[makeParamId(nameHash, unitOpIdx, comp, state, ReactionIndep, SectionIndep)] = slice + comp;
-			}
-		}
+		registerParam1DNonUniform(map, params, [=](bool multi, unsigned int state, unsigned int comp) { return makeParamId(nameHash, unitOpIdx, comp, state, ReactionIndep, SectionIndep); });
 	}
 
 
@@ -443,16 +562,7 @@ namespace cadet
 	template <typename SliceContainer_t>
 	inline void registerComponentBoundStateDependentParamCompMajor(const StringHash nameHash, std::unordered_map<ParameterId, active*>& map, SliceContainer_t& params, UnitOpIdx unitOpIdx)
 	{
-		const unsigned int numComp = params.slices();
-		for (unsigned int comp = 0; comp < numComp; ++comp)
-		{
-			const unsigned int numStates = params.sliceSize(comp);
-			active* const slice = params[comp];
-			for (unsigned int state = 0; state < numStates; ++state)
-			{
-				map[makeParamId(nameHash, unitOpIdx, comp, state, ReactionIndep, SectionIndep)] = slice + state;
-			}
-		}
+		registerParam1DNonUniform(map, params, [=](bool multi, unsigned int comp, unsigned int state) { return makeParamId(nameHash, unitOpIdx, comp, state, ReactionIndep, SectionIndep); });
 	}
 
 } // namespace cadet
