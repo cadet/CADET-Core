@@ -34,6 +34,8 @@ enum class StateOrdering : uint8_t
 	Component,
 	AxialCell,
 	RadialCell,
+	ParticleType,
+	ParticleShell,
 	BoundState
 };
 
@@ -76,35 +78,36 @@ public:
 	virtual unsigned int numComponents() const CADET_NOEXCEPT = 0;
 
 	/**
-	 * @brief Returns the number of axial cells
-	 * @return Number of axial cells
+	 * @brief Returns the number of axial column cells
+	 * @return Number of axial column cells
 	 */
 	virtual unsigned int numAxialCells() const CADET_NOEXCEPT = 0;
 
 	/**
-	 * @brief Returns the number of radial cells
-	 * @return Number of radial cells
+	 * @brief Returns the number of radial column cells
+	 * @return Number of radial column cells
 	 */
 	virtual unsigned int numRadialCells() const CADET_NOEXCEPT = 0;
 
 	/**
-	 * @brief Returns the number of total bound states for all components
-	 * @return Total number of bound states for all components
+	 * @brief Returns the number of particle types
+	 * @return Number of particle types
 	 */
-	virtual unsigned int numBoundStates() const CADET_NOEXCEPT = 0;
+	virtual unsigned int numParticleTypes() const CADET_NOEXCEPT = 0;
 
 	/**
-	 * @brief Returns an array with the number of bound states for each component
-	 * @return Pointer to array holding the number of bound states for each component
+	 * @brief Returns the number of particle shells
+	 * @param [in] parType Particle type index
+	 * @return Number of particle shells
 	 */
-	virtual unsigned int const* numBoundStatesPerComponent() const CADET_NOEXCEPT = 0;
+	virtual unsigned int numParticleShells(unsigned int parType) const CADET_NOEXCEPT = 0;
 
 	/**
-	 * @brief Returns the number of bound states of the given component
-	 * @param [in] comp Index of the component
-	 * @return Number of bound states of component @p comp
+	 * @brief Returns the total number of bound states for all components of a given particle type
+	 * @param [in] parType Particle type index
+	 * @return Total number of bound states for all components of a particle type
 	 */
-	virtual unsigned int numBoundStates(unsigned int comp) const CADET_NOEXCEPT = 0;
+	virtual unsigned int numBoundStates(unsigned int parType) const CADET_NOEXCEPT = 0;
 
 	/**
 	 * @brief Returns the total number of DOFs in the interstitial bulk volume
@@ -115,18 +118,22 @@ public:
 	/**
 	 * @brief Returns the total number of mobile phase DOFs in the particles, if particles are supported
 	 * @details The total number of DOFs is returned, i.e., the sum of all particle cells' mobile phase DOFs.
+	 *          This includes all particle types.
 	 * 
+	 * @param [in] parType Particle type index
 	 * @return Total number of particle mobile phase DOFs
 	 */
-	virtual unsigned int numParticleMobilePhaseDofs() const CADET_NOEXCEPT = 0;
+	virtual unsigned int numParticleMobilePhaseDofs(unsigned int parType) const CADET_NOEXCEPT = 0;
 
 	/**
 	 * @brief Returns the total number of solid phase DOFs
 	 * @details The total number of DOFs is returned, i.e., the sum of all column and particle cells' solid phase DOFs.
+	 *          This includes all particle types.
 	 * 
+	 * @param [in] parType Particle type index
 	 * @return Total number of solid phase DOFs
 	 */
-	virtual unsigned int numSolidPhaseDofs() const CADET_NOEXCEPT = 0;
+	virtual unsigned int numSolidPhaseDofs(unsigned int parType) const CADET_NOEXCEPT = 0;
 
 	/**
 	 * @brief Returns the number of bulk-bead flux DOFs, if particle fluxes are supported
@@ -156,18 +163,20 @@ public:
 	virtual double const* flux() const = 0;
 
 	/**
-	 * @brief Provides direct access to the underlying particle mobile phase state vector
-	 * @details The ordering of the data inside the state vector is provided by mobilePhaseOrdering()
+	 * @brief Provides direct access to the underlying particle mobile phase state vector part of the given particle type
+	 * @details The ordering of the (full) data inside the state vector is provided by mobilePhaseOrdering()
+	 * @param [in] parType Particle type index
 	 * @return Pointer to the first element of the state vector or @c NULL if the model does not support it
 	 */
-	virtual double const* mobilePhase() const = 0;
+	virtual double const* particleMobilePhase(unsigned int parType) const = 0;
 
 	/**
-	 * @brief Provides direct access to the underlying solid phase state vector
-	 * @details The ordering of the data inside the state vector is provided by solidPhaseOrdering()
+	 * @brief Provides direct access to the underlying solid phase state vector part of the given particle type
+	 * @details The ordering of the (full) data inside the state vector is provided by solidPhaseOrdering()
+	 * @param [in] parType Particle type index
 	 * @return Pointer to the first element of the state vector or @c NULL if the model does not support it
 	 */
-	virtual double const* solidPhase() const = 0;
+	virtual double const* solidPhase(unsigned int parType) const = 0;
 
 	/**
 	 * @brief Provides direct access to the underlying volume slice of the state vector
@@ -247,17 +256,19 @@ public:
 
 	/**
 	 * @brief Returns the number of elements between two particle mobile phase DOF blocks
-	 * @details Stride between two particle mobile phase DOF blocks.
+	 * @details Stride between two particle mobile phase DOF blocks of the given particle type.
+	 * @param [in] parType Particle type index
 	 * @return Number of elements between two particle mobile phase DOF blocks
 	 */
-	virtual unsigned int particleMobilePhaseStride() const = 0;
+	virtual unsigned int particleMobilePhaseStride(unsigned int parType) const = 0;
 
 	/**
 	 * @brief Returns the number of elements between two solid phase DOF blocks
-	 * @details Stride between two solid phase DOF blocks.
+	 * @details Stride between two solid phase DOF blocks of the given particle type.
+	 * @param [in] parType Particle type index
 	 * @return Number of elements between two solid phase DOF blocks
 	 */
-	virtual unsigned int solidPhaseStride() const = 0;
+	virtual unsigned int solidPhaseStride(unsigned int parType) const = 0;
 };
 
 } // namespace cadet

@@ -159,19 +159,19 @@ protected:
 		virtual unsigned int numComponents() const CADET_NOEXCEPT { return _nComp; }
 		virtual unsigned int numAxialCells() const CADET_NOEXCEPT { return 1; }
 		virtual unsigned int numRadialCells() const CADET_NOEXCEPT { return 0; }
-		virtual unsigned int numBoundStates() const CADET_NOEXCEPT { return 0; }
-		virtual unsigned int const* numBoundStatesPerComponent() const CADET_NOEXCEPT { return nullptr; }
-		virtual unsigned int numBoundStates(unsigned int comp) const CADET_NOEXCEPT { return 0; }
+		virtual unsigned int numParticleTypes() const CADET_NOEXCEPT { return 0; }
+		virtual unsigned int numParticleShells(unsigned int parType) const CADET_NOEXCEPT { return 0; }
+		virtual unsigned int numBoundStates(unsigned int parType) const CADET_NOEXCEPT { return 0; }
 		virtual unsigned int numBulkDofs() const CADET_NOEXCEPT { return _nComp; }
-		virtual unsigned int numParticleMobilePhaseDofs() const CADET_NOEXCEPT { return 0; }
-		virtual unsigned int numSolidPhaseDofs() const CADET_NOEXCEPT { return 0; }
+		virtual unsigned int numParticleMobilePhaseDofs(unsigned int parType) const CADET_NOEXCEPT { return 0; }
+		virtual unsigned int numSolidPhaseDofs(unsigned int parType) const CADET_NOEXCEPT { return 0; }
 		virtual unsigned int numFluxDofs() const CADET_NOEXCEPT { return 0; }
 		virtual unsigned int numVolumeDofs() const CADET_NOEXCEPT { return 0; }
 
 		virtual double const* concentration() const { return _data; }
 		virtual double const* flux() const { return nullptr; }
-		virtual double const* mobilePhase() const { return nullptr; }
-		virtual double const* solidPhase() const { return nullptr; }
+		virtual double const* particleMobilePhase(unsigned int parType) const { return nullptr; }
+		virtual double const* solidPhase(unsigned int parType) const { return nullptr; }
 		virtual double const* volume() const { return nullptr; }
 		virtual double const* inlet(unsigned int& stride) const
 		{
@@ -209,8 +209,8 @@ protected:
 		}
 
 		virtual unsigned int bulkMobilePhaseStride() const { return _nComp; }
-		virtual unsigned int particleMobilePhaseStride() const { return 0; }
-		virtual unsigned int solidPhaseStride() const { return 0; }
+		virtual unsigned int particleMobilePhaseStride(unsigned int parType) const { return 0; }
+		virtual unsigned int solidPhaseStride(unsigned int parType) const { return 0; }
 
 	protected:
 		double const* const _data;

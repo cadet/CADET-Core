@@ -385,20 +385,20 @@ protected:
 
 		virtual unsigned int numComponents() const CADET_NOEXCEPT { return _disc.nComp; }
 		virtual unsigned int numAxialCells() const CADET_NOEXCEPT { return _disc.nCol; }
-		virtual unsigned int numRadialCells() const CADET_NOEXCEPT { return _disc.nParCellsBeforeType[_disc.nParType]; }
-		virtual unsigned int numBoundStates() const CADET_NOEXCEPT { return 0; }
-		virtual unsigned int const* numBoundStatesPerComponent() const CADET_NOEXCEPT { return _disc.nBound; }
-		virtual unsigned int numBoundStates(unsigned int comp) const CADET_NOEXCEPT { return _disc.nBound[comp]; }
+		virtual unsigned int numRadialCells() const CADET_NOEXCEPT { return 1u; }
+		virtual unsigned int numParticleTypes() const CADET_NOEXCEPT { return _disc.nParType; }
+		virtual unsigned int numParticleShells(unsigned int parType) const CADET_NOEXCEPT { return _disc.nParCell[parType]; }
+		virtual unsigned int numBoundStates(unsigned int parType) const CADET_NOEXCEPT { return _disc.strideBound[parType]; }
 		virtual unsigned int numBulkDofs() const CADET_NOEXCEPT { return _disc.nComp * _disc.nCol; }
-		virtual unsigned int numParticleMobilePhaseDofs() const CADET_NOEXCEPT { return 0; }
-		virtual unsigned int numSolidPhaseDofs() const CADET_NOEXCEPT { return 0; }
+		virtual unsigned int numParticleMobilePhaseDofs(unsigned int parType) const CADET_NOEXCEPT { return _disc.nCol * _disc.nParCell[parType] * _disc.nComp; }
+		virtual unsigned int numSolidPhaseDofs(unsigned int parType) const CADET_NOEXCEPT { return _disc.nCol * _disc.nParCell[parType] * _disc.strideBound[parType]; }
 		virtual unsigned int numFluxDofs() const CADET_NOEXCEPT { return _disc.nComp * _disc.nCol * _disc.nParType; }
 		virtual unsigned int numVolumeDofs() const CADET_NOEXCEPT { return 0; }
 
 		virtual double const* concentration() const { return _idx.c(_data); }
 		virtual double const* flux() const { return _idx.jf(_data); }
-		virtual double const* mobilePhase() const { return _idx.cp(_data); }
-		virtual double const* solidPhase() const { return _idx.q(_data); }
+		virtual double const* particleMobilePhase(unsigned int parType) const { return _data + _idx.offsetCp(ParticleTypeIndex{parType}); }
+		virtual double const* solidPhase(unsigned int parType) const { return _data + _idx.offsetCp(ParticleTypeIndex{parType}) + _idx.strideParLiquid(); }
 		virtual double const* volume() const { return nullptr; }
 		virtual double const* inlet(unsigned int& stride) const
 		{
@@ -436,8 +436,8 @@ protected:
 		}
 
 		virtual unsigned int bulkMobilePhaseStride() const { return _idx.strideColCell(); }
-		virtual unsigned int particleMobilePhaseStride() const { return _idx.strideParShell(0); }
-		virtual unsigned int solidPhaseStride() const { return _idx.strideParShell(0); }
+		virtual unsigned int particleMobilePhaseStride(unsigned int parType) const { return _idx.strideParShell(parType); }
+		virtual unsigned int solidPhaseStride(unsigned int parType) const { return _idx.strideParShell(parType); }
 
 	protected:
 		const Discretization& _disc;
@@ -445,9 +445,9 @@ protected:
 		double const* const _data;
 
 		const std::array<StateOrdering, 2> _concentrationOrdering = { { StateOrdering::AxialCell, StateOrdering::Component } };
-		const std::array<StateOrdering, 3> _particleOrdering = { { StateOrdering::AxialCell, StateOrdering::RadialCell, StateOrdering::Component } };
-		const std::array<StateOrdering, 4> _solidOrdering = { { StateOrdering::AxialCell, StateOrdering::RadialCell, StateOrdering::Component, StateOrdering::BoundState } };
-		const std::array<StateOrdering, 2> _fluxOrdering = { { StateOrdering::Component, StateOrdering::AxialCell } };
+		const std::array<StateOrdering, 4> _particleOrdering = { { StateOrdering::ParticleType, StateOrdering::AxialCell, StateOrdering::ParticleShell, StateOrdering::Component } };
+		const std::array<StateOrdering, 5> _solidOrdering = { { StateOrdering::ParticleType, StateOrdering::AxialCell, StateOrdering::ParticleShell, StateOrdering::Component, StateOrdering::BoundState } };
+		const std::array<StateOrdering, 3> _fluxOrdering = { { StateOrdering::ParticleType, StateOrdering::AxialCell, StateOrdering::Component } };
 	};
 };
 
