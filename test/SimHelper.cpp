@@ -119,18 +119,26 @@ namespace test
 		jpp.pushScope(ss.str());
 
 		std::vector<double> cCon = jpp.getDoubleArray("CONST_COEFF");
+		if (cCon.size() <= comp)
+			cCon.resize(comp + 1);
 		cCon[comp] = con;
 		jpp.set("CONST_COEFF", cCon);
 
 		std::vector<double> cLin = jpp.getDoubleArray("LIN_COEFF");
+		if (cLin.size() <= comp)
+			cLin.resize(comp + 1);
 		cLin[comp] = lin;
 		jpp.set("LIN_COEFF", cLin);
 
 		std::vector<double> cQuad = jpp.getDoubleArray("QUAD_COEFF");
+		if (cQuad.size() <= comp)
+			cQuad.resize(comp + 1);
 		cQuad[comp] = quad;
 		jpp.set("QUAD_COEFF", cQuad);
 
 		std::vector<double> cCube = jpp.getDoubleArray("CUBE_COEFF");
+		if (cCube.size() <= comp)
+			cCube.resize(comp + 1);
 		cCube[comp] = cub;
 		jpp.set("CUBE_COEFF", cCube);
 
