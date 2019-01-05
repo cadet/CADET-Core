@@ -134,7 +134,7 @@ namespace
 	{
 		std::stringstream out;
 		out << "{" << cadet::hashParameter(pId) << " = " << pId.name << ", Unit " << static_cast<unsigned int>(pId.unitOperation) << " Comp " << static_cast<unsigned int>(pId.component)
-		     << " BoundPhase " << static_cast<unsigned int>(pId.boundPhase) << " Reaction " << static_cast<unsigned int>(pId.reaction) << " Section " << static_cast<unsigned int>(pId.section) << "}";
+		     << " BoundState " << static_cast<unsigned int>(pId.boundState) << " Reaction " << static_cast<unsigned int>(pId.reaction) << " Section " << static_cast<unsigned int>(pId.section) << "}";
 		mexPrintf("%s\n", out.str().c_str());
 	}
 
@@ -142,14 +142,14 @@ namespace
 	{
 		std::stringstream out;
 		out << "{" << cadet::hashParameter(pId) << " = " << pId.name << ", Unit " << static_cast<unsigned int>(pId.unitOperation) << " Comp " << static_cast<unsigned int>(pId.component)
-		     << " BoundPhase " << static_cast<unsigned int>(pId.boundPhase) << " Reaction " << static_cast<unsigned int>(pId.reaction) << " Section " << static_cast<unsigned int>(pId.section) << "}";
+		     << " BoundState " << static_cast<unsigned int>(pId.boundState) << " Reaction " << static_cast<unsigned int>(pId.reaction) << " Section " << static_cast<unsigned int>(pId.section) << "}";
 		mexPrintf("%s = %g\n", out.str().c_str(), value);
 	}
 
 	inline mxArray* createParamStructArray(unsigned int nElements)
 	{
-		const char* fieldNames[] = {"NAMEHASH", "UNIT", "COMP", "REACTION", "BOUNDPHASE", "SECTION"};
-		return mxCreateStructMatrix(nElements, 1, 6, fieldNames);
+		const char* fieldNames[] = {"NAMEHASH", "UNIT", "COMP", "REACTION", "BOUNDPHASE", "PARTYPE", "SECTION"};
+		return mxCreateStructMatrix(nElements, 1, 7, fieldNames);
 	}
 
 	inline void writeParameterToMatlab(mxArray* structArray, unsigned int idx, const cadet::ParameterId& pId)
@@ -158,7 +158,8 @@ namespace
 		mxSetFieldByNumber(structArray, idx, 1, cadet::mex::io::scalar<cadet::UnitOpIdx, int32_t>(pId.unitOperation, cadet::UnitOpIndep));
 		mxSetFieldByNumber(structArray, idx, 2, cadet::mex::io::scalar<cadet::ComponentIdx, int32_t>(pId.component, cadet::CompIndep));
 		mxSetFieldByNumber(structArray, idx, 3, cadet::mex::io::scalar<cadet::ReactionIdx, int32_t>(pId.reaction, cadet::ReactionIndep));
-		mxSetFieldByNumber(structArray, idx, 4, cadet::mex::io::scalar<cadet::BoundPhaseIdx, int32_t>(pId.boundPhase, cadet::BoundPhaseIndep));
+		mxSetFieldByNumber(structArray, idx, 4, cadet::mex::io::scalar<cadet::BoundStateIdx, int32_t>(pId.boundState, cadet::BoundStateIndep));
+		mxSetFieldByNumber(structArray, idx, 4, cadet::mex::io::scalar<cadet::ParticleTypeIdx, int32_t>(pId.particleType, cadet::ParTypeIndep));
 		mxSetFieldByNumber(structArray, idx, 5, cadet::mex::io::scalar<cadet::SectionIdx, int32_t>(pId.section, cadet::SectionIndep));
 	}
 
@@ -489,7 +490,7 @@ void setParameters(cadet::Driver& drv, int nlhs, mxArray** plhs, int nrhs, const
 	const MatlabAutoConverter<UnitOpIdx, int32_t> unitOps(prhs[3], "CadetMex: Command 'setparval' requires unit operation ids of type 'int32'.\n");
 	const MatlabAutoConverter<ComponentIdx, int32_t> comps(prhs[4], "CadetMex: Command 'setparval' requires component ids of type 'int32'.\n");
 	const MatlabAutoConverter<ParticleTypeIdx, int32_t> parType(prhs[5], "CadetMex: Command 'setparval' requires particle type ids of type 'int32'.\n");
-	const MatlabAutoConverter<BoundStateIdx, int32_t> boundPhases(prhs[6], "CadetMex: Command 'setparval' requires bound phase ids of type 'int32'.\n");
+	const MatlabAutoConverter<BoundStateIdx, int32_t> boundStates(prhs[6], "CadetMex: Command 'setparval' requires bound state ids of type 'int32'.\n");
 	const MatlabAutoConverter<ReactionIdx, int32_t> reactIdx(prhs[7], "CadetMex: Command 'setparval' requires reaction ids of type 'int32'.\n");
 	const MatlabAutoConverter<SectionIdx, int32_t> secIdx(prhs[8], "CadetMex: Command 'setparval' requires section ids of type 'int32'.\n");
 
@@ -524,7 +525,7 @@ void setParameters(cadet::Driver& drv, int nlhs, mxArray** plhs, int nrhs, const
 			paramName = nameHash[i];
 
 		// Construct parameter ID
-		const ParameterId pId = makeParamId(paramName, unitOps[i], comps[i], parType[i], boundPhases[i], reactIdx[i], secIdx[i]);
+		const ParameterId pId = makeParamId(paramName, unitOps[i], comps[i], parType[i], boundStates[i], reactIdx[i], secIdx[i]);
 
 		// Set the parameter
 		drv.simulator()->setParameterValue(pId, parVals[i]);
@@ -558,7 +559,7 @@ void checkParameters(cadet::Driver& drv, int nlhs, mxArray** plhs, int nrhs, con
 	const MatlabAutoConverter<UnitOpIdx, int32_t> unitOps(prhs[3], "CadetMex: Command 'checkpar' requires unit operation ids of type 'int32'.\n");
 	const MatlabAutoConverter<ComponentIdx, int32_t> comps(prhs[4], "CadetMex: Command 'checkpar' requires component ids of type 'int32'.\n");
 	const MatlabAutoConverter<ParticleTypeIdx, int32_t> parType(prhs[5], "CadetMex: Command 'checkpar' requires particle type ids of type 'int32'.\n");
-	const MatlabAutoConverter<BoundStateIdx, int32_t> boundPhases(prhs[6], "CadetMex: Command 'checkpar' requires bound phase ids of type 'int32'.\n");
+	const MatlabAutoConverter<BoundStateIdx, int32_t> boundStates(prhs[6], "CadetMex: Command 'checkpar' requires bound state ids of type 'int32'.\n");
 	const MatlabAutoConverter<ReactionIdx, int32_t> reactIdx(prhs[7], "CadetMex: Command 'checkpar' requires reaction ids of type 'int32'.\n");
 	const MatlabAutoConverter<SectionIdx, int32_t> secIdx(prhs[8], "CadetMex: Command 'checkpar' requires section ids of type 'int32'.\n");
 
@@ -591,7 +592,7 @@ void checkParameters(cadet::Driver& drv, int nlhs, mxArray** plhs, int nrhs, con
 			paramName = nameHash[i];
 
 		// Construct parameter ID
-		const ParameterId pId = makeParamId(paramName, unitOps[i], comps[i], parType[i], boundPhases[i], reactIdx[i], secIdx[i]);
+		const ParameterId pId = makeParamId(paramName, unitOps[i], comps[i], parType[i], boundStates[i], reactIdx[i], secIdx[i]);
 //		printParam(pId);
 
 		// Check the parameter
@@ -626,7 +627,7 @@ void makeParameterSensitive(cadet::Driver& drv, int nlhs, mxArray** plhs, int nr
 	const MatlabAutoConverter<UnitOpIdx, int32_t> unitOps(prhs[3], "CadetMex: Command 'setsenspar' requires unit operation ids of type 'int32'.\n");
 	const MatlabAutoConverter<ComponentIdx, int32_t> comps(prhs[4], "CadetMex: Command 'setsenspar' requires component ids of type 'int32'.\n");
 	const MatlabAutoConverter<ParticleTypeIdx, int32_t> parType(prhs[5], "CadetMex: Command 'setsenspar' requires particle type ids of type 'int32'.\n");
-	const MatlabAutoConverter<BoundStateIdx, int32_t> boundPhases(prhs[6], "CadetMex: Command 'setsenspar' requires bound phase ids of type 'int32'.\n");
+	const MatlabAutoConverter<BoundStateIdx, int32_t> boundStates(prhs[6], "CadetMex: Command 'setsenspar' requires bound state ids of type 'int32'.\n");
 	const MatlabAutoConverter<ReactionIdx, int32_t> reactIdx(prhs[7], "CadetMex: Command 'setsenspar' requires reaction ids of type 'int32'.\n");
 	const MatlabAutoConverter<SectionIdx, int32_t> secIdx(prhs[8], "CadetMex: Command 'setsenspar' requires section ids of type 'int32'.\n");
 
@@ -667,7 +668,7 @@ void makeParameterSensitive(cadet::Driver& drv, int nlhs, mxArray** plhs, int nr
 			paramName = nameHash[i];
 
 		// Construct parameter ID
-		sensParams.push_back(makeParamId(paramName, unitOps[i], comps[i], parType[i], boundPhases[i], reactIdx[i], secIdx[i]));
+		sensParams.push_back(makeParamId(paramName, unitOps[i], comps[i], parType[i], boundStates[i], reactIdx[i], secIdx[i]));
 	}
 
 	drv.simulator()->setSensitiveParameter(sensParams.data(), cadet::mex::io::data<double>(prhs[9]), nPar, sensTol);

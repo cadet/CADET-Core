@@ -488,9 +488,9 @@ TEST_CASE("StirredTankModel consistent sensitivity initialization with linear bi
 
 		cadet::model::CSTRModel* const cstr = createAndConfigureCSTR(mb, jpp);
 		cstr->setFlowRates(1.0, 1.0);
-		cstr->setSensitiveParameter(cadet::makeParamId("INIT_VOLUME", 0, cadet::CompIndep, cadet::ParTypeIndep, cadet::BoundPhaseIndep, cadet::ReactionIndep, cadet::SectionIndep), 0, 1.0);
+		cstr->setSensitiveParameter(cadet::makeParamId("INIT_VOLUME", 0, cadet::CompIndep, cadet::ParTypeIndep, cadet::BoundStateIndep, cadet::ReactionIndep, cadet::SectionIndep), 0, 1.0);
 		cstr->setSensitiveParameter(cadet::makeParamId("LIN_KA", 0, 0, 0, 0, cadet::ReactionIndep, cadet::SectionIndep), 1, 1.0);
-		cstr->setSensitiveParameter(cadet::makeParamId("POROSITY", 0, cadet::CompIndep, cadet::ParTypeIndep, cadet::BoundPhaseIndep, cadet::ReactionIndep, cadet::SectionIndep), 2, 1.0);
+		cstr->setSensitiveParameter(cadet::makeParamId("POROSITY", 0, cadet::CompIndep, cadet::ParTypeIndep, cadet::BoundStateIndep, cadet::ReactionIndep, cadet::SectionIndep), 2, 1.0);
 
 		return cstr;
 	}, y.data(), yDot.data(), 1e-14);
@@ -520,9 +520,9 @@ TEST_CASE("StirredTankModel consistent sensitivity initialization with SMA bindi
 
 		cadet::model::CSTRModel* const cstr = createAndConfigureCSTR(mb, jpp);
 		cstr->setFlowRates(1.0, 1.0);
-		cstr->setSensitiveParameter(cadet::makeParamId("INIT_VOLUME", 0, cadet::CompIndep, cadet::ParTypeIndep, cadet::BoundPhaseIndep, cadet::ReactionIndep, cadet::SectionIndep), 0, 1.0);
+		cstr->setSensitiveParameter(cadet::makeParamId("INIT_VOLUME", 0, cadet::CompIndep, cadet::ParTypeIndep, cadet::BoundStateIndep, cadet::ReactionIndep, cadet::SectionIndep), 0, 1.0);
 		cstr->setSensitiveParameter(cadet::makeParamId("SMA_NU", 0, 1, 0, 0, cadet::ReactionIndep, cadet::SectionIndep), 1, 1.0);
-		cstr->setSensitiveParameter(cadet::makeParamId("POROSITY", 0, cadet::CompIndep, cadet::ParTypeIndep, cadet::BoundPhaseIndep, cadet::ReactionIndep, cadet::SectionIndep), 2, 1.0);
+		cstr->setSensitiveParameter(cadet::makeParamId("POROSITY", 0, cadet::CompIndep, cadet::ParTypeIndep, cadet::BoundStateIndep, cadet::ReactionIndep, cadet::SectionIndep), 2, 1.0);
 
 		return cstr;
 	}, y.data(), yDot.data(), 1e-8);

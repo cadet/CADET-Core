@@ -104,7 +104,7 @@ inline void parseAndWriteSensitivitiesFromCmdLine(Writer_t& writer, const std::v
 		std::vector<int> paramReaction;
 		std::vector<int> paramSection;
 		std::vector<int> paramParType;
-		std::vector<int> paramBoundPhase;
+		std::vector<int> paramBoundState;
 		std::vector<double> paramFactor;
 
 		paramNames.reserve(fusedParams.size());
@@ -113,7 +113,7 @@ inline void parseAndWriteSensitivitiesFromCmdLine(Writer_t& writer, const std::v
 		paramReaction.reserve(fusedParams.size());
 		paramSection.reserve(fusedParams.size());
 		paramParType.reserve(fusedParams.size());
-		paramBoundPhase.reserve(fusedParams.size());
+		paramBoundState.reserve(fusedParams.size());
 		paramFactor.reserve(fusedParams.size());
 
 		for (unsigned int j = 0; j < fusedParams.size(); ++j)
@@ -132,7 +132,7 @@ inline void parseAndWriteSensitivitiesFromCmdLine(Writer_t& writer, const std::v
 			paramReaction.push_back(std::stoi(tokens[2]));
 			paramSection.push_back(std::stoi(tokens[3]));
 			paramParType.push_back(std::stoi(tokens[4]));
-			paramBoundPhase.push_back(std::stoi(tokens[5]));
+			paramBoundState.push_back(std::stoi(tokens[5]));
 
 			if (tokens.size() >= 6)
 				paramFactor.push_back(std::stod(tokens[6]));
@@ -158,7 +158,7 @@ inline void parseAndWriteSensitivitiesFromCmdLine(Writer_t& writer, const std::v
 			writer.template vector<int>("SENS_REACTION", paramReaction.size(), paramReaction.data());
 			writer.template vector<int>("SENS_SECTION", paramSection.size(), paramSection.data());
 			writer.template vector<int>("SENS_PARTYPE", paramParType.size(), paramParType.data());
-			writer.template vector<int>("SENS_BOUNDPHASE", paramBoundPhase.size(), paramBoundPhase.data());
+			writer.template vector<int>("SENS_BOUNDPHASE", paramBoundState.size(), paramBoundState.data());
 			writer.template vector<double>("SENS_FACTOR", paramFactor.size(), paramFactor.data());
 
 			// Other fields: SENS_ABSTOL, SENS_FD_DELTA

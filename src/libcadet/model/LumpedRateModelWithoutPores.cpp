@@ -223,11 +223,11 @@ bool LumpedRateModelWithoutPores::configure(IParameterProvider& paramProvider)
 	_totalPorosity = paramProvider.getDouble("TOTAL_POROSITY");
 
 	// Add parameters to map
-	_parameters[makeParamId(hashString("TOTAL_POROSITY"), _unitOpIdx, CompIndep, ParTypeIndep, BoundPhaseIndep, ReactionIndep, SectionIndep)] = &_totalPorosity;
+	_parameters[makeParamId(hashString("TOTAL_POROSITY"), _unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_totalPorosity;
 
 	// Register initial conditions parameters
 	for (unsigned int i = 0; i < _disc.nComp; ++i)
-		_parameters[makeParamId(hashString("INIT_C"), _unitOpIdx, i, ParTypeIndep, BoundPhaseIndep, ReactionIndep, SectionIndep)] = _initC.data() + i;
+		_parameters[makeParamId(hashString("INIT_C"), _unitOpIdx, i, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = _initC.data() + i;
 
 	if (_binding[0])
 	{

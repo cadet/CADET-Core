@@ -313,14 +313,14 @@ public:
 				const std::vector<int> sensComp = pp.getIntArray("SENS_COMP");
 				const std::vector<int> sensReaction = pp.getIntArray("SENS_REACTION");
 				const std::vector<int> sensSection = pp.getIntArray("SENS_SECTION");
-				const std::vector<int> sensBoundPhase = pp.getIntArray("SENS_BOUNDPHASE");
+				const std::vector<int> sensBoundState = pp.getIntArray("SENS_BOUNDPHASE");
 				const std::vector<int> sensParType = pp.getIntArray("SENS_PARTYPE");
 
 				// Convert to ParameterIds
 				std::vector<cadet::ParameterId> sensParams;
 				sensParams.reserve(sensName.size());
 				for (unsigned int i = 0; i < sensName.size(); ++i)
-					sensParams.push_back(cadet::makeParamId(sensName[i], sensUnit[i], sensComp[i], sensParType[i], sensBoundPhase[i], sensReaction[i], sensSection[i]));
+					sensParams.push_back(cadet::makeParamId(sensName[i], sensUnit[i], sensComp[i], sensParType[i], sensBoundState[i], sensReaction[i], sensSection[i]));
 
 				double sensTol = 1e-05;
 				if (pp.exists("SENS_ABSTOL"))

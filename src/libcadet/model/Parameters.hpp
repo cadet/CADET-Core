@@ -84,7 +84,7 @@ public:
 	 */
 	inline void registerParam(const std::string& varName, std::unordered_map<ParameterId, active*>& parameters, unsigned int unitOpIdx, unsigned int parTypeIdx, unsigned int nComp, unsigned int const* nBoundStates)
 	{
-		parameters[makeParamId(hashStringRuntime(varName), unitOpIdx, CompIndep, parTypeIdx, BoundPhaseIndep, ReactionIndep, SectionIndep)] = _p;
+		parameters[makeParamId(hashStringRuntime(varName), unitOpIdx, CompIndep, parTypeIdx, BoundStateIndep, ReactionIndep, SectionIndep)] = _p;
 	}
 
 	/**
@@ -372,8 +372,8 @@ public:
 	 */
 	inline void registerParam(const std::string& varName, std::unordered_map<ParameterId, active*>& parameters, unsigned int unitOpIdx, unsigned int parTypeIdx, unsigned int nComp, unsigned int const* nBoundStates)
 	{
-		parameters[makeParamId(hashStringRuntime(varName + "REFC0"), unitOpIdx, CompIndep, parTypeIdx, BoundPhaseIndep, ReactionIndep, SectionIndep)] = _refC;
-		parameters[makeParamId(hashStringRuntime(varName + "REFQ"), unitOpIdx, CompIndep, parTypeIdx, BoundPhaseIndep, ReactionIndep, SectionIndep)] = _refQ;
+		parameters[makeParamId(hashStringRuntime(varName + "REFC0"), unitOpIdx, CompIndep, parTypeIdx, BoundStateIndep, ReactionIndep, SectionIndep)] = _refC;
+		parameters[makeParamId(hashStringRuntime(varName + "REFQ"), unitOpIdx, CompIndep, parTypeIdx, BoundStateIndep, ReactionIndep, SectionIndep)] = _refQ;
 	}
 
 	/**
@@ -495,10 +495,10 @@ public:
 	 */
 	inline void registerParam(const std::string& varName, std::unordered_map<ParameterId, active*>& parameters, unsigned int unitOpIdx, unsigned int parTypeIdx, unsigned int nComp, unsigned int const* nBoundStates)
 	{
-		parameters[makeParamId(hashStringRuntime("EXT_" + varName), unitOpIdx, CompIndep, parTypeIdx, BoundPhaseIndep, ReactionIndep, SectionIndep)] = &_base;
-		parameters[makeParamId(hashStringRuntime("EXT_" + varName + "_T"), unitOpIdx, CompIndep, parTypeIdx, BoundPhaseIndep, ReactionIndep, SectionIndep)] = &_linear;
-		parameters[makeParamId(hashStringRuntime("EXT_" + varName + "_TT"), unitOpIdx, CompIndep, parTypeIdx, BoundPhaseIndep, ReactionIndep, SectionIndep)] = &_quad;
-		parameters[makeParamId(hashStringRuntime("EXT_" + varName + "_TTT"), unitOpIdx, CompIndep, parTypeIdx, BoundPhaseIndep, ReactionIndep, SectionIndep)] = &_cube;
+		parameters[makeParamId(hashStringRuntime("EXT_" + varName), unitOpIdx, CompIndep, parTypeIdx, BoundStateIndep, ReactionIndep, SectionIndep)] = &_base;
+		parameters[makeParamId(hashStringRuntime("EXT_" + varName + "_T"), unitOpIdx, CompIndep, parTypeIdx, BoundStateIndep, ReactionIndep, SectionIndep)] = &_linear;
+		parameters[makeParamId(hashStringRuntime("EXT_" + varName + "_TT"), unitOpIdx, CompIndep, parTypeIdx, BoundStateIndep, ReactionIndep, SectionIndep)] = &_quad;
+		parameters[makeParamId(hashStringRuntime("EXT_" + varName + "_TTT"), unitOpIdx, CompIndep, parTypeIdx, BoundStateIndep, ReactionIndep, SectionIndep)] = &_cube;
 	}
 
 	/**

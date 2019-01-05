@@ -94,6 +94,8 @@ inline void runSensSim(cadet::JsonParameterProvider& jpp, std::function<double(d
 	drv.configure(jpp);
 	drv.run();
 
+	REQUIRE(drv.simulator()->numSensParams() == 1);
+
 	// Get data from simulation
 	cadet::InternalStorageUnitOpRecorder const* const simData = drv.solution()->unitOperation(0);
 	double const* outlet = simData->sensOutlet(0);
@@ -224,7 +226,7 @@ TEST_CASE("CSTR filter flowrate sensitivity vs analytic solution (V constant) w/
 	cadet::test::setFlowRates(jpp, 1, 1.0, 0.5, 0.5);
 	cadet::test::setFlowRates(jpp, 2, 1.0, 0.5, 0.5);
 	setFlowRateFilter(jpp, 0.5);
-	cadet::test::addSensitivity(jpp, "FLOWRATE_FILTER", cadet::makeParamId("FLOWRATE_FILTER", 0, cadet::CompIndep, cadet::ParTypeIndep, cadet::BoundPhaseIndep, cadet::ReactionIndep, cadet::SectionIndep), 1e-6);
+	cadet::test::addSensitivity(jpp, "FLOWRATE_FILTER", cadet::makeParamId("FLOWRATE_FILTER", 0, cadet::CompIndep, cadet::ParTypeIndep, cadet::BoundStateIndep, cadet::ReactionIndep, cadet::SectionIndep), 1e-6);
 	cadet::test::returnSensitivities(jpp, 0);
 
 	const double sqrtE = std::sqrt(std::exp(1.0));
@@ -248,7 +250,7 @@ TEST_CASE("CSTR LIN_COEFF sensitivity vs analytic solution (V constant) w/o bind
 	cadet::test::setInitialConditions(jpp, {0.0}, {}, 10.0);
 	cadet::test::setInletProfile(jpp, 0, 0, 1.0, 1.0, 0.0, 0.0);
 	cadet::test::setFlowRates(jpp, 0, 1.0, 0.5, 0.5);
-	cadet::test::addSensitivity(jpp, "LIN_COEFF", cadet::makeParamId("LIN_COEFF", 1, 0, 0, cadet::BoundPhaseIndep, cadet::ReactionIndep, 0), 1e-6);
+	cadet::test::addSensitivity(jpp, "LIN_COEFF", cadet::makeParamId("LIN_COEFF", 1, 0, cadet::ParTypeIndep, cadet::BoundStateIndep, cadet::ReactionIndep, 0), 1e-6);
 	cadet::test::returnSensitivities(jpp, 0);
 
 	runSensSim(jpp, [=](double t) { return 2.0 * (20.0 * std::expm1(-t / 20.0) + t); }, [](double t) { return 0.0; }, 2e-5, 6e-7);
@@ -264,7 +266,7 @@ TEST_CASE("CSTR initial volume sensitivity vs analytic solution (V constant) w/o
 	cadet::test::setInletProfile(jpp, 0, 0, 1.0, 0.0, 0.0, 0.0);
 	cadet::test::setInletProfile(jpp, 1, 0, 0.0, 0.0, 0.0, 0.0);
 	cadet::test::setFlowRates(jpp, 0, 1.0, 1.0, 0.0);
-	cadet::test::addSensitivity(jpp, "INIT_VOLUME", cadet::makeParamId("INIT_VOLUME", 0, cadet::CompIndep, cadet::ParTypeIndep, cadet::BoundPhaseIndep, cadet::ReactionIndep, cadet::SectionIndep), 1e-6);
+	cadet::test::addSensitivity(jpp, "INIT_VOLUME", cadet::makeParamId("INIT_VOLUME", 0, cadet::CompIndep, cadet::ParTypeIndep, cadet::BoundStateIndep, cadet::ReactionIndep, cadet::SectionIndep), 1e-6);
 	cadet::test::returnSensitivities(jpp, 0);
 
 	const double invV2 = 1.0 / (V * V);
@@ -400,20 +402,20 @@ TEST_CASE("CSTR initial condition behave like standard parameters", "[CSTR],[Ini
 	CHECK(vecStateY[7] == 6.0);
 
 	// Get parameter values
-	CHECK(uo->getParameterDouble(cadet::makeParamId("INIT_C", 0, 0, cadet::ParTypeIndep, cadet::BoundPhaseIndep, cadet::ReactionIndep, cadet::SectionIndep)) == 1.0);
-	CHECK(uo->getParameterDouble(cadet::makeParamId("INIT_C", 0, 1, cadet::ParTypeIndep, cadet::BoundPhaseIndep, cadet::ReactionIndep, cadet::SectionIndep)) == 2.0);
+	CHECK(uo->getParameterDouble(cadet::makeParamId("INIT_C", 0, 0, cadet::ParTypeIndep, cadet::BoundStateIndep, cadet::ReactionIndep, cadet::SectionIndep)) == 1.0);
+	CHECK(uo->getParameterDouble(cadet::makeParamId("INIT_C", 0, 1, cadet::ParTypeIndep, cadet::BoundStateIndep, cadet::ReactionIndep, cadet::SectionIndep)) == 2.0);
 	CHECK(uo->getParameterDouble(cadet::makeParamId("INIT_Q", 0, 0, 0, 0, cadet::ReactionIndep, cadet::SectionIndep)) == 3.0);
 	CHECK(uo->getParameterDouble(cadet::makeParamId("INIT_Q", 0, 1, 0, 0, cadet::ReactionIndep, cadet::SectionIndep)) == 4.0);
 	CHECK(uo->getParameterDouble(cadet::makeParamId("INIT_Q", 0, 1, 0, 1, cadet::ReactionIndep, cadet::SectionIndep)) == 5.0);
-	CHECK(uo->getParameterDouble(cadet::makeParamId("INIT_VOLUME", 0, cadet::CompIndep, cadet::ParTypeIndep, cadet::BoundPhaseIndep, cadet::ReactionIndep, cadet::SectionIndep)) == 6.0);
+	CHECK(uo->getParameterDouble(cadet::makeParamId("INIT_VOLUME", 0, cadet::CompIndep, cadet::ParTypeIndep, cadet::BoundStateIndep, cadet::ReactionIndep, cadet::SectionIndep)) == 6.0);
 
 	// Set parameter values
-	uo->setParameter(cadet::makeParamId("INIT_C", 0, 0, cadet::ParTypeIndep, cadet::BoundPhaseIndep, cadet::ReactionIndep, cadet::SectionIndep), -1.0);
-	uo->setParameter(cadet::makeParamId("INIT_C", 0, 1, cadet::ParTypeIndep, cadet::BoundPhaseIndep, cadet::ReactionIndep, cadet::SectionIndep), -2.0);
+	uo->setParameter(cadet::makeParamId("INIT_C", 0, 0, cadet::ParTypeIndep, cadet::BoundStateIndep, cadet::ReactionIndep, cadet::SectionIndep), -1.0);
+	uo->setParameter(cadet::makeParamId("INIT_C", 0, 1, cadet::ParTypeIndep, cadet::BoundStateIndep, cadet::ReactionIndep, cadet::SectionIndep), -2.0);
 	uo->setParameter(cadet::makeParamId("INIT_Q", 0, 0, 0, 0, cadet::ReactionIndep, cadet::SectionIndep), -3.0);
 	uo->setParameter(cadet::makeParamId("INIT_Q", 0, 1, 0, 0, cadet::ReactionIndep, cadet::SectionIndep), -4.0);
 	uo->setParameter(cadet::makeParamId("INIT_Q", 0, 1, 0, 1, cadet::ReactionIndep, cadet::SectionIndep), -5.0);
-	uo->setParameter(cadet::makeParamId("INIT_VOLUME", 0, cadet::CompIndep, cadet::ParTypeIndep, cadet::BoundPhaseIndep, cadet::ReactionIndep, cadet::SectionIndep), -6.0);
+	uo->setParameter(cadet::makeParamId("INIT_VOLUME", 0, cadet::CompIndep, cadet::ParTypeIndep, cadet::BoundStateIndep, cadet::ReactionIndep, cadet::SectionIndep), -6.0);
 
 	// Apply initial conditions to state vector
 	std::fill(vecStateY.begin(), vecStateY.end(), 0.0);

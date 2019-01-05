@@ -239,7 +239,7 @@ TEST_CASE("ModelSystem sensitivity Jacobians", "[ModelSystem],[Sensitivity]")
 			sys->prepareADvectors(adRes, nullptr, 0);
 
 			// Add dispersion parameter sensitivity
-			REQUIRE(sys->setSensitiveParameter(cadet::makeParamId(cadet::hashString("COL_DISPERSION"), 0, cadet::CompIndep, cadet::ParTypeIndep, cadet::BoundPhaseIndep, cadet::ReactionIndep, cadet::SectionIndep), 0, 1.0));
+			REQUIRE(sys->setSensitiveParameter(cadet::makeParamId(cadet::hashString("COL_DISPERSION"), 0, cadet::CompIndep, cadet::ParTypeIndep, cadet::BoundStateIndep, cadet::ReactionIndep, cadet::SectionIndep), 0, 1.0));
 
 			// Setup matrices
 			sys->notifyDiscontinuousSectionTransition(0.0, 0u, adRes, nullptr, 0u);

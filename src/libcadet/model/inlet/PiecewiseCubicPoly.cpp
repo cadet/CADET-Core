@@ -68,12 +68,12 @@ public:
 		{
 			for (unsigned int comp = 0; comp < _nComp; ++comp)
 			{
-				params.push_back(cadet::makeParamId(_hashCons, unitOpIdx, comp, cadet::ParTypeIndep, cadet::BoundPhaseIndep, cadet::ReactionIndep, sec));
-				params.push_back(cadet::makeParamId(_hashLin, unitOpIdx, comp, cadet::ParTypeIndep, cadet::BoundPhaseIndep, cadet::ReactionIndep, sec));
-				params.push_back(cadet::makeParamId(_hashQuad, unitOpIdx, comp, cadet::ParTypeIndep, cadet::BoundPhaseIndep, cadet::ReactionIndep, sec));
-				params.push_back(cadet::makeParamId(_hashCub, unitOpIdx, comp, cadet::ParTypeIndep, cadet::BoundPhaseIndep, cadet::ReactionIndep, sec));
+				params.push_back(cadet::makeParamId(_hashCons, unitOpIdx, comp, cadet::ParTypeIndep, cadet::BoundStateIndep, cadet::ReactionIndep, sec));
+				params.push_back(cadet::makeParamId(_hashLin, unitOpIdx, comp, cadet::ParTypeIndep, cadet::BoundStateIndep, cadet::ReactionIndep, sec));
+				params.push_back(cadet::makeParamId(_hashQuad, unitOpIdx, comp, cadet::ParTypeIndep, cadet::BoundStateIndep, cadet::ReactionIndep, sec));
+				params.push_back(cadet::makeParamId(_hashCub, unitOpIdx, comp, cadet::ParTypeIndep, cadet::BoundStateIndep, cadet::ReactionIndep, sec));
 			}
-			params.push_back(cadet::makeParamId(_hashSectionTimes, cadet::UnitOpIndep, cadet::CompIndep, cadet::ParTypeIndep, cadet::BoundPhaseIndep, cadet::ReactionIndep, sec));
+			params.push_back(cadet::makeParamId(_hashSectionTimes, cadet::UnitOpIndep, cadet::CompIndep, cadet::ParTypeIndep, cadet::BoundStateIndep, cadet::ReactionIndep, sec));
 		}
 
 		return params;
@@ -117,7 +117,7 @@ public:
 
 		// SECTION_TIMES is global and, thus, has no associated unitOp
 		if ((pId.name == _hashSectionTimes) && (pId.unitOperation == cadet::UnitOpIndep) && (pId.reaction == cadet::ReactionIndep) &&
-			(pId.component == cadet::CompIndep) && (pId.boundPhase == cadet::BoundPhaseIndep))
+			(pId.component == cadet::CompIndep) && (pId.boundState == cadet::BoundStateIndep) && (pId.particleType == cadet::ParTypeIndep))
 		{
 			const unsigned int wrapSec = sec % (_const.size()/_nComp);
 
@@ -194,7 +194,7 @@ public:
 
 		// SECTION_TIMES is global and, thus, has no associated unitOp
 		if ((pId.name == _hashSectionTimes) && (pId.unitOperation == cadet::UnitOpIndep) && (pId.reaction == cadet::ReactionIndep) &&
-			(pId.component == cadet::CompIndep) && (pId.boundPhase == cadet::BoundPhaseIndep))
+			(pId.component == cadet::CompIndep) && (pId.boundState == cadet::BoundStateIndep) && (pId.particleType == cadet::ParTypeIndep))
 		{
 			const unsigned int wrapSec = sec % (_const.size()/_nComp);
 

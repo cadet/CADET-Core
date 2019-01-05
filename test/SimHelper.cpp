@@ -202,7 +202,7 @@ namespace test
 		jpp.set("SENS_UNIT", std::vector<int>(1, id.unitOperation));
 		jpp.set("SENS_NAME", std::vector<std::string>(1, name));
 		jpp.set("SENS_COMP", std::vector<int>(1, id.component));
-		jpp.set("SENS_BOUNDPHASE", std::vector<int>(1, id.boundPhase));
+		jpp.set("SENS_BOUNDPHASE", std::vector<int>(1, id.boundState));
 		jpp.set("SENS_REACTION", std::vector<int>(1, id.reaction));
 		jpp.set("SENS_SECTION", std::vector<int>(1, id.section));
 		jpp.set("SENS_PARTYPE", std::vector<int>(1, id.particleType));

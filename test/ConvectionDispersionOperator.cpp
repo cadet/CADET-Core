@@ -128,7 +128,7 @@ namespace
 		REQUIRE(convDispOp.configure(0, jpp, parameters));
 
 		// Make sure that VELOCITY parameter is present
-		const cadet::ParameterId paramVelocity = cadet::makeParamId(cadet::hashString("VELOCITY"), 0, cadet::CompIndep, cadet::ParTypeIndep, cadet::BoundPhaseIndep, cadet::ReactionIndep, cadet::SectionIndep);
+		const cadet::ParameterId paramVelocity = cadet::makeParamId(cadet::hashString("VELOCITY"), 0, cadet::CompIndep, cadet::ParTypeIndep, cadet::BoundStateIndep, cadet::ReactionIndep, cadet::SectionIndep);
 		const typename ParameterMap::iterator itVelocity = parameters.find(paramVelocity);
 		REQUIRE(itVelocity != parameters.end());
 

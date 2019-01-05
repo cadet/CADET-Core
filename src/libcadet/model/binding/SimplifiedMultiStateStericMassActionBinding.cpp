@@ -184,7 +184,7 @@ bool SimplifiedMultiStateStericMassActionBinding::configureImpl(IParameterProvid
 	}
 
 	// Register parameters
-	_parameters[makeParamId(hashString("SMSSMA_LAMBDA"), unitOpIdx, CompIndep, parTypeIdx, BoundPhaseIndep, ReactionIndep, SectionIndep)] = &_lambda;
+	_parameters[makeParamId(hashString("SMSSMA_LAMBDA"), unitOpIdx, CompIndep, parTypeIdx, BoundStateIndep, ReactionIndep, SectionIndep)] = &_lambda;
 	registerComponentBoundStateDependentParamCompMajor(hashString("SMSSMA_KA"), _parameters, _kA, unitOpIdx, parTypeIdx);
 	registerComponentBoundStateDependentParamCompMajor(hashString("SMSSMA_KD"), _parameters, _kD, unitOpIdx, parTypeIdx);
 	registerComponentDependentParam(hashString("SMSSMA_NU_MIN"), _parameters, _nuMin, unitOpIdx, parTypeIdx);
@@ -199,8 +199,8 @@ bool SimplifiedMultiStateStericMassActionBinding::configureImpl(IParameterProvid
 	registerComponentDependentParam(hashString("SMSSMA_KWS"), _parameters, _kWS, unitOpIdx, parTypeIdx);
 	registerComponentDependentParam(hashString("SMSSMA_KWS_LIN"), _parameters, _kWS_lin, unitOpIdx, parTypeIdx);
 	registerComponentDependentParam(hashString("SMSSMA_KWS_QUAD"), _parameters, _kWS_quad, unitOpIdx, parTypeIdx);
-	_parameters[makeParamId(hashString("SMSSMA_REFC0"), unitOpIdx, CompIndep, parTypeIdx, BoundPhaseIndep, ReactionIndep, SectionIndep)] = &_refC0;
-	_parameters[makeParamId(hashString("SMSSMA_REFQ"), unitOpIdx, CompIndep, parTypeIdx, BoundPhaseIndep, ReactionIndep, SectionIndep)] = &_refQ;
+	_parameters[makeParamId(hashString("SMSSMA_REFC0"), unitOpIdx, CompIndep, parTypeIdx, BoundStateIndep, ReactionIndep, SectionIndep)] = &_refC0;
+	_parameters[makeParamId(hashString("SMSSMA_REFQ"), unitOpIdx, CompIndep, parTypeIdx, BoundStateIndep, ReactionIndep, SectionIndep)] = &_refQ;
 
 	return true;
 }

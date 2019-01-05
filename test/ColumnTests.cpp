@@ -440,10 +440,10 @@ namespace column
 //				cadet::test::compareJacobianFD(unitAna, unitAD, y.data(), nullptr, jacDir.data(), jacCol1.data(), jacCol2.data());
 
 				// Reverse flow
-				const bool paramSet = unitAna->setParameter(cadet::makeParamId(cadet::hashString("VELOCITY"), 0, cadet::CompIndep, cadet::ParTypeIndep, cadet::BoundPhaseIndep, cadet::ReactionIndep, cadet::SectionIndep), -jpp.getDouble("VELOCITY"));
+				const bool paramSet = unitAna->setParameter(cadet::makeParamId(cadet::hashString("VELOCITY"), 0, cadet::CompIndep, cadet::ParTypeIndep, cadet::BoundStateIndep, cadet::ReactionIndep, cadet::SectionIndep), -jpp.getDouble("VELOCITY"));
 				REQUIRE(paramSet);
 				// Reverse flow
-				const bool paramSet2 = unitAD->setParameter(cadet::makeParamId(cadet::hashString("VELOCITY"), 0, cadet::CompIndep, cadet::ParTypeIndep, cadet::BoundPhaseIndep, cadet::ReactionIndep, cadet::SectionIndep), -jpp.getDouble("VELOCITY"));
+				const bool paramSet2 = unitAD->setParameter(cadet::makeParamId(cadet::hashString("VELOCITY"), 0, cadet::CompIndep, cadet::ParTypeIndep, cadet::BoundStateIndep, cadet::ReactionIndep, cadet::SectionIndep), -jpp.getDouble("VELOCITY"));
 				REQUIRE(paramSet2);
 
 				// Setup
@@ -527,7 +527,7 @@ namespace column
 				unit->prepareADvectors(adRes, nullptr, 0);
 
 				// Add dispersion parameter sensitivity
-				REQUIRE(unit->setSensitiveParameter(makeParamId(hashString("COL_DISPERSION"), 0, CompIndep, ParTypeIndep, BoundPhaseIndep, ReactionIndep, SectionIndep), 0, 1.0));
+				REQUIRE(unit->setSensitiveParameter(makeParamId(hashString("COL_DISPERSION"), 0, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep), 0, 1.0));
 
 				// Setup matrices
 				unit->notifyDiscontinuousSectionTransition(0.0, 0u, adRes, nullptr, 0u);
@@ -594,8 +594,8 @@ namespace column
 	void testFwdSensSolutionFD(const std::string& uoType, bool disableSensErrorTest, double const* fdStepSize, double const* absTols, double const* relTols, double const* passRates)
 	{
 		const std::vector<cadet::ParameterId> params = {
-			cadet::makeParamId("COL_DISPERSION", 0, cadet::CompIndep, cadet::ParTypeIndep, cadet::BoundPhaseIndep, cadet::ReactionIndep, cadet::SectionIndep),
-			cadet::makeParamId("CONST_COEFF", 1, 0, cadet::ParTypeIndep, cadet::BoundPhaseIndep, cadet::ReactionIndep, 0),
+			cadet::makeParamId("COL_DISPERSION", 0, cadet::CompIndep, cadet::ParTypeIndep, cadet::BoundStateIndep, cadet::ReactionIndep, cadet::SectionIndep),
+			cadet::makeParamId("CONST_COEFF", 1, 0, cadet::ParTypeIndep, cadet::BoundStateIndep, cadet::ReactionIndep, 0),
 			cadet::makeParamId("SMA_KA", 0, 1, 0, 0, cadet::ReactionIndep, cadet::SectionIndep),
 			cadet::makeParamId("CONNECTION", cadet::UnitOpIndep, cadet::CompIndep, cadet::ParTypeIndep, 1, 0, 0),
 		};
@@ -692,8 +692,8 @@ namespace column
 	void testFwdSensSolutionForwardBackward(const std::string& uoType, double const* absTols, double const* relTols, double const* passRates)
 	{
 		const std::vector<cadet::ParameterId> params = {
-			cadet::makeParamId("COL_DISPERSION", 0, cadet::CompIndep, cadet::ParTypeIndep, cadet::BoundPhaseIndep, cadet::ReactionIndep, cadet::SectionIndep),
-			cadet::makeParamId("CONST_COEFF", 1, 0, cadet::ParTypeIndep, cadet::BoundPhaseIndep, cadet::ReactionIndep, 0),
+			cadet::makeParamId("COL_DISPERSION", 0, cadet::CompIndep, cadet::ParTypeIndep, cadet::BoundStateIndep, cadet::ReactionIndep, cadet::SectionIndep),
+			cadet::makeParamId("CONST_COEFF", 1, 0, cadet::ParTypeIndep, cadet::BoundStateIndep, cadet::ReactionIndep, 0),
 			cadet::makeParamId("SMA_KA", 0, 1, 0, 0, cadet::ReactionIndep, cadet::SectionIndep),
 			cadet::makeParamId("CONNECTION", cadet::UnitOpIndep, cadet::CompIndep, cadet::ParTypeIndep, 1, 0, 0),
 		};
@@ -845,13 +845,13 @@ namespace column
 					cadet::test::column::setBindingMode(jpp, isKinetic);
 					cadet::IUnitOperation* const unit = createAndConfigureUnit(uoType, *mb, jpp, cadet::Weno::maxOrder());
 
-					unit->setSensitiveParameter(cadet::makeParamId("INIT_C", 0, 0, cadet::ParTypeIndep, cadet::BoundPhaseIndep, cadet::ReactionIndep, cadet::SectionIndep), 0, 1.0);
+					unit->setSensitiveParameter(cadet::makeParamId("INIT_C", 0, 0, cadet::ParTypeIndep, cadet::BoundStateIndep, cadet::ReactionIndep, cadet::SectionIndep), 0, 1.0);
 					if (linearBinding)
 						unit->setSensitiveParameter(cadet::makeParamId("LIN_KA", 0, 0, 0, 0, cadet::ReactionIndep, cadet::SectionIndep), 1, 1.0);
 					else
 						unit->setSensitiveParameter(cadet::makeParamId("SMA_NU", 0, 1, 0, 0, cadet::ReactionIndep, cadet::SectionIndep), 1, 1.0);
 
-					unit->setSensitiveParameter(cadet::makeParamId("COL_LENGTH", 0, cadet::CompIndep, cadet::ParTypeIndep, cadet::BoundPhaseIndep, cadet::ReactionIndep, cadet::SectionIndep), 2, 1.0);
+					unit->setSensitiveParameter(cadet::makeParamId("COL_LENGTH", 0, cadet::CompIndep, cadet::ParTypeIndep, cadet::BoundStateIndep, cadet::ReactionIndep, cadet::SectionIndep), 2, 1.0);
 
 					unitoperation::testConsistentInitializationSensitivity(unit, adEnabled, y, yDot, absTol);
 

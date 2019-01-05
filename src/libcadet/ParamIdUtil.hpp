@@ -40,20 +40,22 @@ namespace cadet
 	inline const bool operator==(const ParameterId& a, const ParameterId& b) CADET_NOEXCEPT
 	{
 		return (a.name == b.name) && (a.unitOperation == b.unitOperation) && (a.component == b.component)
-			&& (a.boundPhase == b.boundPhase) && (a.reaction == b.reaction) && (a.section == b.section);
+			&& (a.particleType == b.particleType) && (a.boundState == b.boundState) && (a.reaction == b.reaction)
+			&& (a.section == b.section);
 	}
 
 	inline const bool operator!=(const ParameterId& a, const ParameterId& b) CADET_NOEXCEPT { return !(a == b); }
 
 	inline const bool operator<(const ParameterId& a, const ParameterId& b) CADET_NOEXCEPT
 	{
-		return std::tie(a.name, a.unitOperation, a.component, a.boundPhase, a.reaction, a.section) < std::tie(b.name, b.unitOperation, b.component, b.boundPhase, b.reaction, b.section);
+		return std::tie(a.name, a.unitOperation, a.component, a.boundState, a.reaction, a.section) < std::tie(b.name, b.unitOperation, b.component, b.particleType, b.boundState, b.reaction, b.section);
 	}
 
 	inline std::ostream& operator<<(std::ostream& out, const ParameterId& pId)
 	{
 		out << "{" << hashParameter(pId) << " = " << pId.name << ", Unit " << static_cast<unsigned int>(pId.unitOperation) << " Comp " << static_cast<unsigned int>(pId.component)
-		     << " BoundPhase " << static_cast<unsigned int>(pId.boundPhase) << " Reaction " << static_cast<unsigned int>(pId.reaction) << " Section " << static_cast<unsigned int>(pId.section) << "}";
+		    << " ParticleType " << static_cast<unsigned int>(pId.particleType) << " BoundState " << static_cast<unsigned int>(pId.boundState) << " Reaction " << static_cast<unsigned int>(pId.reaction)
+		    << " Section " << static_cast<unsigned int>(pId.section) << "}";
 		return out;
 	}
 
@@ -61,7 +63,8 @@ namespace cadet
 	{
 		std::stringstream out;
 		out << "{" << hashParameter(pId) << " = " << pId.name << ", Unit " << static_cast<unsigned int>(pId.unitOperation) << " Comp " << static_cast<unsigned int>(pId.component)
-		     << " BoundPhase " << static_cast<unsigned int>(pId.boundPhase) << " Reaction " << static_cast<unsigned int>(pId.reaction) << " Section " << static_cast<unsigned int>(pId.section) << "}";
+		    << " ParticleType " << static_cast<unsigned int>(pId.particleType) << " BoundState " << static_cast<unsigned int>(pId.boundState) << " Reaction " << static_cast<unsigned int>(pId.reaction)
+		    << " Section " << static_cast<unsigned int>(pId.section) << "}";
 		return out.str();
 	}
 

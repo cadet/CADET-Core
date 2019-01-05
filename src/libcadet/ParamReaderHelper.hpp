@@ -451,7 +451,7 @@ namespace cadet
 	 */
 	inline void registerScalarSectionDependentParam(const StringHash nameHash, std::unordered_map<ParameterId, active*>& map, std::vector<active>& params, UnitOpIdx unitOpIdx, ParticleTypeIdx parType)
 	{
-		registerParam1DArray(map, params, [=](bool multi, unsigned int sec) { return makeParamId(nameHash, unitOpIdx, CompIndep, parType, BoundPhaseIndep, ReactionIndep, multi ? sec : SectionIndep); });
+		registerParam1DArray(map, params, [=](bool multi, unsigned int sec) { return makeParamId(nameHash, unitOpIdx, CompIndep, parType, BoundStateIndep, ReactionIndep, multi ? sec : SectionIndep); });
 	}
 
 
@@ -478,7 +478,7 @@ namespace cadet
 	 */
 	inline void registerComponentDependentParam(const StringHash nameHash, std::unordered_map<ParameterId, active*>& map, std::vector<active>& params, UnitOpIdx unitOpIdx, ParticleTypeIdx parType)
 	{
-		registerParam1DArray(map, params, [=](bool multi, unsigned int comp) { return makeParamId(nameHash, unitOpIdx, comp, parType, BoundPhaseIndep, ReactionIndep, SectionIndep); });
+		registerParam1DArray(map, params, [=](bool multi, unsigned int comp) { return makeParamId(nameHash, unitOpIdx, comp, parType, BoundStateIndep, ReactionIndep, SectionIndep); });
 	}
 
 
@@ -495,7 +495,7 @@ namespace cadet
 	 */
 	inline void registerComponentSectionDependentParam(const StringHash nameHash, std::unordered_map<ParameterId, active*>& map, std::vector<active>& params, UnitOpIdx unitOpIdx, ParticleTypeIdx parType, unsigned int compStride)
 	{
-		registerParam2DArray(map, params, [=](bool multi, unsigned int sec, unsigned int comp) { return makeParamId(nameHash, unitOpIdx, comp, parType, BoundPhaseIndep, ReactionIndep, multi ? sec : SectionIndep); }, compStride);
+		registerParam2DArray(map, params, [=](bool multi, unsigned int sec, unsigned int comp) { return makeParamId(nameHash, unitOpIdx, comp, parType, BoundStateIndep, ReactionIndep, multi ? sec : SectionIndep); }, compStride);
 	}
 
 

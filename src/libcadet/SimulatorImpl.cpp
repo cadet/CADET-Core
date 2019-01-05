@@ -80,7 +80,8 @@ namespace
 	inline bool isSectionTimeParameter(const cadet::ParameterId& id, unsigned int nSectionTimes)
 	{
 		return ((id.name == cadet::hashString("SECTION_TIMES")) && (id.section < nSectionTimes) && (id.component == cadet::CompIndep) &&
-			(id.boundPhase == cadet::BoundPhaseIndep) && (id.reaction == cadet::ReactionIndep) && (id.unitOperation == cadet::UnitOpIndep));
+			(id.particleType == cadet::ParTypeIndep) && (id.boundState == cadet::BoundStateIndep) && (id.reaction == cadet::ReactionIndep) &&
+			(id.unitOperation == cadet::UnitOpIndep));
 	}
 
 	/**
@@ -694,7 +695,7 @@ namespace cadet
 		// Add section times
 		const StringHash secTimesName = hashString("SECTION_TIMES");
 		for (unsigned int i = 0; i < _sectionTimes.size(); ++i)
-			data[makeParamId(secTimesName, UnitOpIndep, CompIndep, ParTypeIndep, BoundPhaseIndep, ReactionIndep, i)] = static_cast<double>(_sectionTimes[i]);
+			data[makeParamId(secTimesName, UnitOpIndep, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, i)] = static_cast<double>(_sectionTimes[i]);
 
 		return data;
 	}
