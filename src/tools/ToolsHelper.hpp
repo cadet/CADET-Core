@@ -77,7 +77,7 @@ inline void addSensitivitiyParserToCmdLine(TCLAP::CmdLine& cmd, std::vector<std:
 {
 	cmd >> (new TCLAP::MultiArg<std::string>("S", "sens", 
 			"Add parameter sensitivity (use -1 for component, reaction, section, bound phase, or unit operation independent parameters)", 
-			false, "ParamName/Comp/Reaction/Section/BoundPhase[/Factor/UnitOp][+ParamName/...]")
+			false, "ParamName/Comp/Reaction/Section/ParType/BoundPhase[/Factor/UnitOp][+ParamName/...]")
 		)->storeIn(&sensitivities);	
 }
 
@@ -103,6 +103,7 @@ inline void parseAndWriteSensitivitiesFromCmdLine(Writer_t& writer, const std::v
 		std::vector<int> paramComp;
 		std::vector<int> paramReaction;
 		std::vector<int> paramSection;
+		std::vector<int> paramParType;
 		std::vector<int> paramBoundPhase;
 		std::vector<double> paramFactor;
 
@@ -111,6 +112,7 @@ inline void parseAndWriteSensitivitiesFromCmdLine(Writer_t& writer, const std::v
 		paramComp.reserve(fusedParams.size());
 		paramReaction.reserve(fusedParams.size());
 		paramSection.reserve(fusedParams.size());
+		paramParType.reserve(fusedParams.size());
 		paramBoundPhase.reserve(fusedParams.size());
 		paramFactor.reserve(fusedParams.size());
 
@@ -119,7 +121,7 @@ inline void parseAndWriteSensitivitiesFromCmdLine(Writer_t& writer, const std::v
 			std::vector<std::string> tokens;
 			split(fusedParams[j], '/', tokens);
 
-			if (tokens.size() < 5)
+			if (tokens.size() < 6)
 			{
 				std::cout << "Warning: Invalid parameter no " << (i+1) << "." << (j+1) << " (" << fusedParams[j] << ") was ignored" << std::endl; 
 				continue;
@@ -129,15 +131,16 @@ inline void parseAndWriteSensitivitiesFromCmdLine(Writer_t& writer, const std::v
 			paramComp.push_back(std::stoi(tokens[1]));
 			paramReaction.push_back(std::stoi(tokens[2]));
 			paramSection.push_back(std::stoi(tokens[3]));
-			paramBoundPhase.push_back(std::stoi(tokens[4]));
+			paramParType.push_back(std::stoi(tokens[4]));
+			paramBoundPhase.push_back(std::stoi(tokens[5]));
 
 			if (tokens.size() >= 6)
-				paramFactor.push_back(std::stod(tokens[5]));
+				paramFactor.push_back(std::stod(tokens[6]));
 			else
 				paramFactor.push_back(1.0);
 
 			if (tokens.size() >= 7)
-				paramUnit.push_back(std::stoi(tokens[6]));
+				paramUnit.push_back(std::stoi(tokens[7]));
 			else
 				paramUnit.push_back(0);
 		}
@@ -154,6 +157,7 @@ inline void parseAndWriteSensitivitiesFromCmdLine(Writer_t& writer, const std::v
 			writer.template vector<int>("SENS_COMP", paramComp.size(), paramComp.data());
 			writer.template vector<int>("SENS_REACTION", paramReaction.size(), paramReaction.data());
 			writer.template vector<int>("SENS_SECTION", paramSection.size(), paramSection.data());
+			writer.template vector<int>("SENS_PARTYPE", paramParType.size(), paramParType.data());
 			writer.template vector<int>("SENS_BOUNDPHASE", paramBoundPhase.size(), paramBoundPhase.data());
 			writer.template vector<double>("SENS_FACTOR", paramFactor.size(), paramFactor.data());
 

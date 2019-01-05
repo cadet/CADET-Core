@@ -203,18 +203,18 @@ bool LumpedRateModelWithPores::configure(IParameterProvider& paramProvider)
 		_poreAccessFactor = std::vector<cadet::active>(_disc.nComp, 1.0);
 
 	// Add parameters to map
-	_parameters[makeParamId(hashString("COL_POROSITY"), _unitOpIdx, CompIndep, BoundPhaseIndep, ReactionIndep, SectionIndep)] = &_colPorosity;
-	_parameters[makeParamId(hashString("PAR_RADIUS"), _unitOpIdx, CompIndep, BoundPhaseIndep, ReactionIndep, SectionIndep)] = &_parRadius;
-	_parameters[makeParamId(hashString("PAR_POROSITY"), _unitOpIdx, CompIndep, BoundPhaseIndep, ReactionIndep, SectionIndep)] = &_parPorosity;
+	_parameters[makeParamId(hashString("COL_POROSITY"), _unitOpIdx, CompIndep, ParTypeIndep, BoundPhaseIndep, ReactionIndep, SectionIndep)] = &_colPorosity;
+	_parameters[makeParamId(hashString("PAR_RADIUS"), _unitOpIdx, CompIndep, ParTypeIndep, BoundPhaseIndep, ReactionIndep, SectionIndep)] = &_parRadius;
+	_parameters[makeParamId(hashString("PAR_POROSITY"), _unitOpIdx, CompIndep, ParTypeIndep, BoundPhaseIndep, ReactionIndep, SectionIndep)] = &_parPorosity;
 
-	registerComponentSectionDependentParam(hashString("FILM_DIFFUSION"), _parameters, _filmDiffusion, _unitOpIdx, _disc.nComp);
-	registerComponentSectionDependentParam(hashString("PORE_ACCESSIBILITY"), _parameters, _poreAccessFactor, _unitOpIdx, _disc.nComp);
+	registerComponentSectionDependentParam(hashString("FILM_DIFFUSION"), _parameters, _filmDiffusion, _unitOpIdx, ParTypeIndep, _disc.nComp);
+	registerComponentSectionDependentParam(hashString("PORE_ACCESSIBILITY"), _parameters, _poreAccessFactor, _unitOpIdx, ParTypeIndep, _disc.nComp);
 
 	// Register initial conditions parameters
 	for (unsigned int i = 0; i < _disc.nComp; ++i)
 	{
-		_parameters[makeParamId(hashString("INIT_C"), _unitOpIdx, i, BoundPhaseIndep, ReactionIndep, SectionIndep)] = _initC.data() + i;
-		_parameters[makeParamId(hashString("INIT_CP"), _unitOpIdx, i, BoundPhaseIndep, ReactionIndep, SectionIndep)] = _initCp.data() + i;
+		_parameters[makeParamId(hashString("INIT_C"), _unitOpIdx, i, ParTypeIndep, BoundPhaseIndep, ReactionIndep, SectionIndep)] = _initC.data() + i;
+		_parameters[makeParamId(hashString("INIT_CP"), _unitOpIdx, i, ParTypeIndep, BoundPhaseIndep, ReactionIndep, SectionIndep)] = _initCp.data() + i;
 	}
 
 	if (_binding[0])

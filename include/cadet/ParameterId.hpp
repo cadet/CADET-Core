@@ -31,13 +31,15 @@ namespace cadet
 
 typedef uint16_t UnitOpIdx;
 typedef uint8_t ComponentIdx;
-typedef uint8_t BoundPhaseIdx;
+typedef uint8_t ParticleTypeIdx;
+typedef uint8_t BoundStateIdx;
 typedef uint8_t ReactionIdx;
 typedef uint16_t SectionIdx;
 
 const UnitOpIdx UnitOpIndep = static_cast<UnitOpIdx>(-1);
 const ComponentIdx CompIndep = static_cast<ComponentIdx>(-1);
-const BoundPhaseIdx BoundPhaseIndep = static_cast<BoundPhaseIdx>(-1);
+const ParticleTypeIdx ParTypeIndep = static_cast<ParticleTypeIdx>(-1);
+const BoundStateIdx BoundPhaseIndep = static_cast<BoundStateIdx>(-1);
 const ReactionIdx ReactionIndep = static_cast<ReactionIdx>(-1);
 const SectionIdx SectionIndep = static_cast<SectionIdx>(-1);
 
@@ -52,8 +54,10 @@ struct ParameterId
 	UnitOpIdx unitOperation;
 	/** @brief Component index or -1 if independent of component (e.g., reaction rate) **/
 	ComponentIdx component;
+	/** @brief Particle type index or -1 if independent of particle type (e.g., column porosity)  **/
+	ParticleTypeIdx particleType;
 	/** @brief Bound phase index or -1 if independent of bound phase (e.g., reaction rate) **/
-	BoundPhaseIdx boundPhase;
+	BoundStateIdx boundPhase;
 	/** @brief Reaction index or -1 if independent of reaction (e.g., transport and binding parameters) **/
 	ReactionIdx reaction;
 	/** @brief Section index or -1 if independent of section (e.g., porosity) **/
@@ -142,13 +146,13 @@ inline StringHash hashStringRuntime(char const* const str)
  * @return Unique parameter id hash
  */
 inline ParamIdHash hashParameter(const StringHash nameHash, const UnitOpIdx unitOperation, const ComponentIdx component, 
-	const BoundPhaseIdx boundPhase, const ReactionIdx reaction, const SectionIdx section)
+	const ParticleTypeIdx parType, const BoundStateIdx boundPhase, const ReactionIdx reaction, const SectionIdx section)
 {
 	ParamIdHash hash = nameHash;
 	
 	// Combine indices in one big integer by shifting them
 	// Note that ParamIdHash has to be big enough to hold all indices
-	const ParamIdHash combinedIdx = pack_ints(unitOperation, component, boundPhase, reaction, section);
+	const ParamIdHash combinedIdx = pack_ints(unitOperation, component, parType, boundPhase, reaction, section);
 	hash_combine(hash, combinedIdx);
 
 	return hash;
@@ -167,9 +171,9 @@ inline ParamIdHash hashParameter(const StringHash nameHash, const UnitOpIdx unit
  * @return Unique parameter id hash
  */
 inline ParamIdHash hashParameter(const std::string& name, const UnitOpIdx unitOperation, const ComponentIdx component, 
-	const BoundPhaseIdx boundPhase, const ReactionIdx reaction, const SectionIdx section)
+	const ParticleTypeIdx parType, const BoundStateIdx boundPhase, const ReactionIdx reaction, const SectionIdx section)
 {
-	return hashParameter(hashStringRuntime(name), unitOperation, component, boundPhase, reaction, section);
+	return hashParameter(hashStringRuntime(name), unitOperation, component, parType, boundPhase, reaction, section);
 }
 
 /**
@@ -181,7 +185,7 @@ inline ParamIdHash hashParameter(const std::string& name, const UnitOpIdx unitOp
  */
 inline ParamIdHash hashParameter(const ParameterId& param)
 {
-	return hashParameter(param.name, param.unitOperation, param.component, param.boundPhase, param.reaction, param.section);
+	return hashParameter(param.name, param.unitOperation, param.component, param.particleType, param.boundPhase, param.reaction, param.section);
 }
 
 /**
@@ -196,9 +200,9 @@ inline ParamIdHash hashParameter(const ParameterId& param)
  * @return Unique parameter id
  */
 inline ParameterId makeParamId(const std::string& name, const UnitOpIdx unitOperation, const ComponentIdx component, 
-	const BoundPhaseIdx boundPhase, const ReactionIdx reaction, const SectionIdx section)
+	const ParticleTypeIdx parType, const BoundStateIdx boundPhase, const ReactionIdx reaction, const SectionIdx section)
 {
-	return ParameterId{ hashStringRuntime(name), unitOperation, component, boundPhase, reaction, section };
+	return ParameterId{ hashStringRuntime(name), unitOperation, component, parType, boundPhase, reaction, section };
 }
 
 /**
@@ -213,9 +217,9 @@ inline ParameterId makeParamId(const std::string& name, const UnitOpIdx unitOper
  * @return Unique parameter id
  */
 inline ParameterId makeParamId(const StringHash name, const UnitOpIdx unitOperation, const ComponentIdx component, 
-	const BoundPhaseIdx boundPhase, const ReactionIdx reaction, const SectionIdx section)
+	const ParticleTypeIdx parType, const BoundStateIdx boundPhase, const ReactionIdx reaction, const SectionIdx section)
 {
-	return ParameterId{ name, unitOperation, component, boundPhase, reaction, section };
+	return ParameterId{ name, unitOperation, component, parType, boundPhase, reaction, section };
 }
 
 } // namespace cadet

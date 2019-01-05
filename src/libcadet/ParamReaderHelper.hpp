@@ -449,9 +449,9 @@ namespace cadet
 	 * @param [in] params Vector with parameters to be registered (only 1 if not section dependent)
 	 * @param [in] unitOpIdx Index of the unit operation
 	 */
-	inline void registerScalarSectionDependentParam(const StringHash nameHash, std::unordered_map<ParameterId, active*>& map, std::vector<active>& params, UnitOpIdx unitOpIdx)
+	inline void registerScalarSectionDependentParam(const StringHash nameHash, std::unordered_map<ParameterId, active*>& map, std::vector<active>& params, UnitOpIdx unitOpIdx, ParticleTypeIdx parType)
 	{
-		registerParam1DArray(map, params, [=](bool multi, unsigned int sec) { return makeParamId(nameHash, unitOpIdx, CompIndep, BoundPhaseIndep, ReactionIndep, multi ? sec : SectionIndep); });
+		registerParam1DArray(map, params, [=](bool multi, unsigned int sec) { return makeParamId(nameHash, unitOpIdx, CompIndep, parType, BoundPhaseIndep, ReactionIndep, multi ? sec : SectionIndep); });
 	}
 
 
@@ -463,9 +463,9 @@ namespace cadet
 	 * @param [in] params Vector with parameters to be registered (only 1 if not bound state dependent)
 	 * @param [in] unitOpIdx Index of the unit operation
 	 */
-	inline void registerScalarBoundStateDependentParam(const StringHash nameHash, std::unordered_map<ParameterId, active*>& map, std::vector<active>& params, UnitOpIdx unitOpIdx)
+	inline void registerScalarBoundStateDependentParam(const StringHash nameHash, std::unordered_map<ParameterId, active*>& map, std::vector<active>& params, UnitOpIdx unitOpIdx, ParticleTypeIdx parType)
 	{
-		registerParam1DArray(map, params, [=](bool multi, unsigned int bnd) { return makeParamId(nameHash, unitOpIdx, CompIndep, bnd, ReactionIndep, SectionIndep); });
+		registerParam1DArray(map, params, [=](bool multi, unsigned int bnd) { return makeParamId(nameHash, unitOpIdx, CompIndep, parType, bnd, ReactionIndep, SectionIndep); });
 	}
 
 
@@ -476,9 +476,9 @@ namespace cadet
 	 * @param [in] params Vector with parameters to be registered
 	 * @param [in] unitOpIdx Index of the unit operation
 	 */
-	inline void registerComponentDependentParam(const StringHash nameHash, std::unordered_map<ParameterId, active*>& map, std::vector<active>& params, UnitOpIdx unitOpIdx)
+	inline void registerComponentDependentParam(const StringHash nameHash, std::unordered_map<ParameterId, active*>& map, std::vector<active>& params, UnitOpIdx unitOpIdx, ParticleTypeIdx parType)
 	{
-		registerParam1DArray(map, params, [=](bool multi, unsigned int comp) { return makeParamId(nameHash, unitOpIdx, comp, BoundPhaseIndep, ReactionIndep, SectionIndep); });
+		registerParam1DArray(map, params, [=](bool multi, unsigned int comp) { return makeParamId(nameHash, unitOpIdx, comp, parType, BoundPhaseIndep, ReactionIndep, SectionIndep); });
 	}
 
 
@@ -493,9 +493,9 @@ namespace cadet
 	 * @param [in] unitOpIdx Index of the unit operation
 	 * @param [in] compStride Distance between two parameters with consecutive sections
 	 */
-	inline void registerComponentSectionDependentParam(const StringHash nameHash, std::unordered_map<ParameterId, active*>& map, std::vector<active>& params, UnitOpIdx unitOpIdx, unsigned int compStride)
+	inline void registerComponentSectionDependentParam(const StringHash nameHash, std::unordered_map<ParameterId, active*>& map, std::vector<active>& params, UnitOpIdx unitOpIdx, ParticleTypeIdx parType, unsigned int compStride)
 	{
-		registerParam2DArray(map, params, [=](bool multi, unsigned int sec, unsigned int comp) { return makeParamId(nameHash, unitOpIdx, comp, BoundPhaseIndep, ReactionIndep, multi ? sec : SectionIndep); }, compStride);
+		registerParam2DArray(map, params, [=](bool multi, unsigned int sec, unsigned int comp) { return makeParamId(nameHash, unitOpIdx, comp, parType, BoundPhaseIndep, ReactionIndep, multi ? sec : SectionIndep); }, compStride);
 	}
 
 
@@ -510,9 +510,9 @@ namespace cadet
 	 * @param [in] unitOpIdx Index of the unit operation
 	 * @param [in] compStride Distance between two parameters with consecutive bound phases
 	 */
-	inline void registerComponentBoundStateDependentParam(const StringHash nameHash, std::unordered_map<ParameterId, active*>& map, std::vector<active>& params, UnitOpIdx unitOpIdx, unsigned int compStride)
+	inline void registerComponentBoundStateDependentParam(const StringHash nameHash, std::unordered_map<ParameterId, active*>& map, std::vector<active>& params, UnitOpIdx unitOpIdx, ParticleTypeIdx parType, unsigned int compStride)
 	{
-		registerParam2DArray(map, params, [=](bool multi, unsigned int bnd, unsigned int comp) { return makeParamId(nameHash, unitOpIdx, comp, bnd, ReactionIndep, SectionIndep); }, compStride);
+		registerParam2DArray(map, params, [=](bool multi, unsigned int bnd, unsigned int comp) { return makeParamId(nameHash, unitOpIdx, comp, parType, bnd, ReactionIndep, SectionIndep); }, compStride);
 	}
 
 
@@ -526,9 +526,9 @@ namespace cadet
 	 * @param [in] params Vector with parameters to be registered
 	 * @param [in] unitOpIdx Index of the unit operation
 	 */
-	inline void registerComponentBoundStateDependentParam(const StringHash nameHash, std::unordered_map<ParameterId, active*>& map, std::vector<active>& params, UnitOpIdx unitOpIdx)
+	inline void registerComponentBoundStateDependentParam(const StringHash nameHash, std::unordered_map<ParameterId, active*>& map, std::vector<active>& params, UnitOpIdx unitOpIdx, ParticleTypeIdx parType)
 	{
-		registerComponentBoundStateDependentParam(nameHash, map, params, unitOpIdx, params.size());
+		registerComponentBoundStateDependentParam(nameHash, map, params, unitOpIdx, parType, params.size());
 	}
 
 
@@ -543,9 +543,9 @@ namespace cadet
 	 * @tparam SliceContainer_t Type of the slice container, such as @c cadet::util::SlicedVector
 	 */
 	template <typename SliceContainer_t>
-	inline void registerComponentBoundStateDependentParam(const StringHash nameHash, std::unordered_map<ParameterId, active*>& map, SliceContainer_t& params, UnitOpIdx unitOpIdx)
+	inline void registerComponentBoundStateDependentParam(const StringHash nameHash, std::unordered_map<ParameterId, active*>& map, SliceContainer_t& params, UnitOpIdx unitOpIdx, ParticleTypeIdx parType)
 	{
-		registerParam1DNonUniform(map, params, [=](bool multi, unsigned int state, unsigned int comp) { return makeParamId(nameHash, unitOpIdx, comp, state, ReactionIndep, SectionIndep); });
+		registerParam1DNonUniform(map, params, [=](bool multi, unsigned int state, unsigned int comp) { return makeParamId(nameHash, unitOpIdx, comp, parType, state, ReactionIndep, SectionIndep); });
 	}
 
 
@@ -560,9 +560,9 @@ namespace cadet
 	 * @tparam SliceContainer_t Type of the slice container, such as @c cadet::util::SlicedVector
 	 */
 	template <typename SliceContainer_t>
-	inline void registerComponentBoundStateDependentParamCompMajor(const StringHash nameHash, std::unordered_map<ParameterId, active*>& map, SliceContainer_t& params, UnitOpIdx unitOpIdx)
+	inline void registerComponentBoundStateDependentParamCompMajor(const StringHash nameHash, std::unordered_map<ParameterId, active*>& map, SliceContainer_t& params, UnitOpIdx unitOpIdx, ParticleTypeIdx parType)
 	{
-		registerParam1DNonUniform(map, params, [=](bool multi, unsigned int comp, unsigned int state) { return makeParamId(nameHash, unitOpIdx, comp, state, ReactionIndep, SectionIndep); });
+		registerParam1DNonUniform(map, params, [=](bool multi, unsigned int comp, unsigned int state) { return makeParamId(nameHash, unitOpIdx, comp, parType, state, ReactionIndep, SectionIndep); });
 	}
 
 } // namespace cadet

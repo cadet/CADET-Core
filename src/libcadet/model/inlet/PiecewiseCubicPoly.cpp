@@ -68,12 +68,12 @@ public:
 		{
 			for (unsigned int comp = 0; comp < _nComp; ++comp)
 			{
-				params.push_back(cadet::makeParamId(_hashCons, unitOpIdx, comp, cadet::BoundPhaseIndep, cadet::ReactionIndep, sec));
-				params.push_back(cadet::makeParamId(_hashLin, unitOpIdx, comp, cadet::BoundPhaseIndep, cadet::ReactionIndep, sec));
-				params.push_back(cadet::makeParamId(_hashQuad, unitOpIdx, comp, cadet::BoundPhaseIndep, cadet::ReactionIndep, sec));
-				params.push_back(cadet::makeParamId(_hashCub, unitOpIdx, comp, cadet::BoundPhaseIndep, cadet::ReactionIndep, sec));
+				params.push_back(cadet::makeParamId(_hashCons, unitOpIdx, comp, cadet::ParTypeIndep, cadet::BoundPhaseIndep, cadet::ReactionIndep, sec));
+				params.push_back(cadet::makeParamId(_hashLin, unitOpIdx, comp, cadet::ParTypeIndep, cadet::BoundPhaseIndep, cadet::ReactionIndep, sec));
+				params.push_back(cadet::makeParamId(_hashQuad, unitOpIdx, comp, cadet::ParTypeIndep, cadet::BoundPhaseIndep, cadet::ReactionIndep, sec));
+				params.push_back(cadet::makeParamId(_hashCub, unitOpIdx, comp, cadet::ParTypeIndep, cadet::BoundPhaseIndep, cadet::ReactionIndep, sec));
 			}
-			params.push_back(cadet::makeParamId(_hashSectionTimes, cadet::UnitOpIndep, cadet::CompIndep, cadet::BoundPhaseIndep, cadet::ReactionIndep, sec));
+			params.push_back(cadet::makeParamId(_hashSectionTimes, cadet::UnitOpIndep, cadet::CompIndep, cadet::ParTypeIndep, cadet::BoundPhaseIndep, cadet::ReactionIndep, sec));
 		}
 
 		return params;

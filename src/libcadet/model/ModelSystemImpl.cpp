@@ -735,7 +735,7 @@ void ModelSystem::configureSwitches(IParameterProvider& paramProvider)
 		if (fr.size() > 0)
 		{
 			_flowRates.pushBack(fr[0]);
-			_parameters[makeParamId(flowHash, UnitOpIndep, CompIndep, conn[0], conn[1], _switchSectionIndex.back())] = _flowRates.back();
+			_parameters[makeParamId(flowHash, UnitOpIndep, CompIndep, ParTypeIndep, conn[0], conn[1], _switchSectionIndex.back())] = _flowRates.back();
 			for (unsigned int j = 1; j < fr.size(); ++j)
 			{
 				_flowRates.pushBackInLastSlice(fr[j]);
@@ -753,7 +753,7 @@ void ModelSystem::configureSwitches(IParameterProvider& paramProvider)
 
 				// Only register the first occurrence of a flow parameter
 				if (!found)
-					_parameters[makeParamId(flowHash, UnitOpIndep, CompIndep, conn[4*j], conn[4*j + 1], _switchSectionIndex.back())] = (_flowRates.back() + j);
+					_parameters[makeParamId(flowHash, UnitOpIndep, CompIndep, ParTypeIndep, conn[4*j], conn[4*j + 1], _switchSectionIndex.back())] = (_flowRates.back() + j);
 			}
 		}
 		else

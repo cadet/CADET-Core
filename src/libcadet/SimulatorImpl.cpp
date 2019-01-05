@@ -694,7 +694,7 @@ namespace cadet
 		// Add section times
 		const StringHash secTimesName = hashString("SECTION_TIMES");
 		for (unsigned int i = 0; i < _sectionTimes.size(); ++i)
-			data[makeParamId(secTimesName, UnitOpIndep, CompIndep, BoundPhaseIndep, ReactionIndep, i)] = static_cast<double>(_sectionTimes[i]);
+			data[makeParamId(secTimesName, UnitOpIndep, CompIndep, ParTypeIndep, BoundPhaseIndep, ReactionIndep, i)] = static_cast<double>(_sectionTimes[i]);
 
 		return data;
 	}

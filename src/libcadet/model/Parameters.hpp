@@ -84,7 +84,7 @@ public:
 	 */
 	inline void registerParam(const std::string& varName, std::unordered_map<ParameterId, active*>& parameters, unsigned int unitOpIdx, unsigned int parTypeIdx, unsigned int nComp, unsigned int const* nBoundStates)
 	{
-		parameters[makeParamId(hashStringRuntime(varName), unitOpIdx, CompIndep, BoundPhaseIndep, ReactionIndep, SectionIndep)] = _p;
+		parameters[makeParamId(hashStringRuntime(varName), unitOpIdx, CompIndep, parTypeIdx, BoundPhaseIndep, ReactionIndep, SectionIndep)] = _p;
 	}
 
 	/**
@@ -124,7 +124,7 @@ public:
 
 	inline void registerParam(const std::string& varName, std::unordered_map<ParameterId, active*>& parameters, unsigned int unitOpIdx, unsigned int parTypeIdx, unsigned int nComp, unsigned int const* nBoundStates)
 	{
-		registerComponentBoundStateDependentParam(hashStringRuntime(varName), parameters, *_p, unitOpIdx);
+		registerComponentBoundStateDependentParam(hashStringRuntime(varName), parameters, *_p, unitOpIdx, parTypeIdx);
 	}
 
 	inline void reserve(unsigned int numElem, unsigned int numSlices, unsigned int nComp, unsigned int const* nBoundStates)
@@ -162,7 +162,7 @@ public:
 
 	inline void registerParam(const std::string& varName, std::unordered_map<ParameterId, active*>& parameters, unsigned int unitOpIdx, unsigned int parTypeIdx, unsigned int nComp, unsigned int const* nBoundStates)
 	{
-		registerScalarBoundStateDependentParam(hashStringRuntime(varName), parameters, *_p, unitOpIdx);
+		registerScalarBoundStateDependentParam(hashStringRuntime(varName), parameters, *_p, unitOpIdx, parTypeIdx);
 	}
 
 	inline void reserve(unsigned int numElem, unsigned int numSlices, unsigned int nComp, unsigned int const* nBoundStates)
@@ -212,11 +212,11 @@ public:
 	{
 		if (compMajor)
 		{
-			registerComponentBoundStateDependentParamCompMajor(hashStringRuntime(varName), parameters, *_p, unitOpIdx);
+			registerComponentBoundStateDependentParamCompMajor(hashStringRuntime(varName), parameters, *_p, unitOpIdx, parTypeIdx);
 		}
 		else
 		{
-			registerComponentBoundStateDependentParam(hashStringRuntime(varName), parameters, *_p, unitOpIdx);
+			registerComponentBoundStateDependentParam(hashStringRuntime(varName), parameters, *_p, unitOpIdx, parTypeIdx);
 		}
 	}
 
@@ -269,7 +269,7 @@ public:
 
 	inline void registerParam(const std::string& varName, std::unordered_map<ParameterId, active*>& parameters, unsigned int unitOpIdx, unsigned int parTypeIdx, unsigned int nComp, unsigned int const* nBoundStates)
 	{
-		registerComponentBoundStateDependentParamCompMajor(hashStringRuntime(varName), parameters, *_p, unitOpIdx);
+		registerComponentBoundStateDependentParamCompMajor(hashStringRuntime(varName), parameters, *_p, unitOpIdx, parTypeIdx);
 	}
 
 	inline void reserve(unsigned int numElem, unsigned int numSlices, unsigned int nComp, unsigned int const* nBoundStates)
@@ -312,7 +312,7 @@ public:
 
 	inline void registerParam(const std::string& varName, std::unordered_map<ParameterId, active*>& parameters, unsigned int unitOpIdx, unsigned int parTypeIdx, unsigned int nComp, unsigned int const* nBoundStates)
 	{
-		registerComponentBoundStateDependentParam(hashStringRuntime(varName), parameters, *_p, unitOpIdx);
+		registerComponentBoundStateDependentParam(hashStringRuntime(varName), parameters, *_p, unitOpIdx, parTypeIdx);
 	}
 
 	inline void reserve(unsigned int numElem, unsigned int numSlices, unsigned int nComp, unsigned int const* nBoundStates)
@@ -372,8 +372,8 @@ public:
 	 */
 	inline void registerParam(const std::string& varName, std::unordered_map<ParameterId, active*>& parameters, unsigned int unitOpIdx, unsigned int parTypeIdx, unsigned int nComp, unsigned int const* nBoundStates)
 	{
-		parameters[makeParamId(hashStringRuntime(varName + "REFC0"), unitOpIdx, CompIndep, BoundPhaseIndep, ReactionIndep, SectionIndep)] = _refC;
-		parameters[makeParamId(hashStringRuntime(varName + "REFQ"), unitOpIdx, CompIndep, BoundPhaseIndep, ReactionIndep, SectionIndep)] = _refQ;
+		parameters[makeParamId(hashStringRuntime(varName + "REFC0"), unitOpIdx, CompIndep, parTypeIdx, BoundPhaseIndep, ReactionIndep, SectionIndep)] = _refC;
+		parameters[makeParamId(hashStringRuntime(varName + "REFQ"), unitOpIdx, CompIndep, parTypeIdx, BoundPhaseIndep, ReactionIndep, SectionIndep)] = _refQ;
 	}
 
 	/**
@@ -432,8 +432,8 @@ public:
 	 */
 	inline void registerParam(const std::string& varName, std::unordered_map<ParameterId, active*>& parameters, unsigned int unitOpIdx, unsigned int parTypeIdx, unsigned int nComp, unsigned int const* nBoundStates)
 	{
-		registerScalarBoundStateDependentParam(hashStringRuntime(varName + "REFC0"), parameters, *_refC, unitOpIdx);
-		registerScalarBoundStateDependentParam(hashStringRuntime(varName + "REFQ"), parameters, *_refQ, unitOpIdx);
+		registerScalarBoundStateDependentParam(hashStringRuntime(varName + "REFC0"), parameters, *_refC, unitOpIdx, parTypeIdx);
+		registerScalarBoundStateDependentParam(hashStringRuntime(varName + "REFQ"), parameters, *_refQ, unitOpIdx, parTypeIdx);
 	}
 
 	/**
@@ -495,10 +495,10 @@ public:
 	 */
 	inline void registerParam(const std::string& varName, std::unordered_map<ParameterId, active*>& parameters, unsigned int unitOpIdx, unsigned int parTypeIdx, unsigned int nComp, unsigned int const* nBoundStates)
 	{
-		parameters[makeParamId(hashStringRuntime("EXT_" + varName), unitOpIdx, CompIndep, BoundPhaseIndep, ReactionIndep, SectionIndep)] = &_base;
-		parameters[makeParamId(hashStringRuntime("EXT_" + varName + "_T"), unitOpIdx, CompIndep, BoundPhaseIndep, ReactionIndep, SectionIndep)] = &_linear;
-		parameters[makeParamId(hashStringRuntime("EXT_" + varName + "_TT"), unitOpIdx, CompIndep, BoundPhaseIndep, ReactionIndep, SectionIndep)] = &_quad;
-		parameters[makeParamId(hashStringRuntime("EXT_" + varName + "_TTT"), unitOpIdx, CompIndep, BoundPhaseIndep, ReactionIndep, SectionIndep)] = &_cube;
+		parameters[makeParamId(hashStringRuntime("EXT_" + varName), unitOpIdx, CompIndep, parTypeIdx, BoundPhaseIndep, ReactionIndep, SectionIndep)] = &_base;
+		parameters[makeParamId(hashStringRuntime("EXT_" + varName + "_T"), unitOpIdx, CompIndep, parTypeIdx, BoundPhaseIndep, ReactionIndep, SectionIndep)] = &_linear;
+		parameters[makeParamId(hashStringRuntime("EXT_" + varName + "_TT"), unitOpIdx, CompIndep, parTypeIdx, BoundPhaseIndep, ReactionIndep, SectionIndep)] = &_quad;
+		parameters[makeParamId(hashStringRuntime("EXT_" + varName + "_TTT"), unitOpIdx, CompIndep, parTypeIdx, BoundPhaseIndep, ReactionIndep, SectionIndep)] = &_cube;
 	}
 
 	/**
@@ -603,10 +603,10 @@ public:
 
 	inline void registerParam(const std::string& varName, std::unordered_map<ParameterId, active*>& parameters, unsigned int unitOpIdx, unsigned int parTypeIdx, unsigned int nComp, unsigned int const* nBoundStates)
 	{
-		registerComponentBoundStateDependentParam(hashStringRuntime("EXT_" + varName), parameters, _base, unitOpIdx);
-		registerComponentBoundStateDependentParam(hashStringRuntime("EXT_" + varName + "_T"), parameters, _linear, unitOpIdx);
-		registerComponentBoundStateDependentParam(hashStringRuntime("EXT_" + varName + "_TT"), parameters, _quad, unitOpIdx);
-		registerComponentBoundStateDependentParam(hashStringRuntime("EXT_" + varName + "_TTT"), parameters, _cube, unitOpIdx);
+		registerComponentBoundStateDependentParam(hashStringRuntime("EXT_" + varName), parameters, _base, unitOpIdx, parTypeIdx);
+		registerComponentBoundStateDependentParam(hashStringRuntime("EXT_" + varName + "_T"), parameters, _linear, unitOpIdx, parTypeIdx);
+		registerComponentBoundStateDependentParam(hashStringRuntime("EXT_" + varName + "_TT"), parameters, _quad, unitOpIdx, parTypeIdx);
+		registerComponentBoundStateDependentParam(hashStringRuntime("EXT_" + varName + "_TTT"), parameters, _cube, unitOpIdx, parTypeIdx);
 	}
 
 	inline void reserve(unsigned int numElem, unsigned int numSlices, unsigned int nComp, unsigned int const* nBoundStates)
@@ -677,10 +677,10 @@ public:
 
 	inline void registerParam(const std::string& varName, std::unordered_map<ParameterId, active*>& parameters, unsigned int unitOpIdx, unsigned int parTypeIdx, unsigned int nComp, unsigned int const* nBoundStates)
 	{
-		registerScalarBoundStateDependentParam(hashStringRuntime("EXT_" + varName), parameters, _base, unitOpIdx);
-		registerScalarBoundStateDependentParam(hashStringRuntime("EXT_" + varName + "_T"), parameters, _linear, unitOpIdx);
-		registerScalarBoundStateDependentParam(hashStringRuntime("EXT_" + varName + "_TT"), parameters, _quad, unitOpIdx);
-		registerScalarBoundStateDependentParam(hashStringRuntime("EXT_" + varName + "_TTT"), parameters, _cube, unitOpIdx);
+		registerScalarBoundStateDependentParam(hashStringRuntime("EXT_" + varName), parameters, _base, unitOpIdx, parTypeIdx);
+		registerScalarBoundStateDependentParam(hashStringRuntime("EXT_" + varName + "_T"), parameters, _linear, unitOpIdx, parTypeIdx);
+		registerScalarBoundStateDependentParam(hashStringRuntime("EXT_" + varName + "_TT"), parameters, _quad, unitOpIdx, parTypeIdx);
+		registerScalarBoundStateDependentParam(hashStringRuntime("EXT_" + varName + "_TTT"), parameters, _cube, unitOpIdx, parTypeIdx);
 	}
 
 	inline void reserve(unsigned int numElem, unsigned int numSlices, unsigned int nComp, unsigned int const* nBoundStates)
@@ -766,17 +766,17 @@ public:
 	{
 		if (compMajor)
 		{
-			registerComponentBoundStateDependentParamCompMajor(hashStringRuntime("EXT_" + varName), parameters, _base, unitOpIdx);
-			registerComponentBoundStateDependentParamCompMajor(hashStringRuntime("EXT_" + varName + "_T"), parameters, _linear, unitOpIdx);
-			registerComponentBoundStateDependentParamCompMajor(hashStringRuntime("EXT_" + varName + "_TT"), parameters, _quad, unitOpIdx);
-			registerComponentBoundStateDependentParamCompMajor(hashStringRuntime("EXT_" + varName + "_TTT"), parameters, _cube, unitOpIdx);
+			registerComponentBoundStateDependentParamCompMajor(hashStringRuntime("EXT_" + varName), parameters, _base, unitOpIdx, parTypeIdx);
+			registerComponentBoundStateDependentParamCompMajor(hashStringRuntime("EXT_" + varName + "_T"), parameters, _linear, unitOpIdx, parTypeIdx);
+			registerComponentBoundStateDependentParamCompMajor(hashStringRuntime("EXT_" + varName + "_TT"), parameters, _quad, unitOpIdx, parTypeIdx);
+			registerComponentBoundStateDependentParamCompMajor(hashStringRuntime("EXT_" + varName + "_TTT"), parameters, _cube, unitOpIdx, parTypeIdx);
 		}
 		else
 		{
-			registerComponentBoundStateDependentParam(hashStringRuntime("EXT_" + varName), parameters, _base, unitOpIdx);
-			registerComponentBoundStateDependentParam(hashStringRuntime("EXT_" + varName + "_T"), parameters, _linear, unitOpIdx);
-			registerComponentBoundStateDependentParam(hashStringRuntime("EXT_" + varName + "_TT"), parameters, _quad, unitOpIdx);
-			registerComponentBoundStateDependentParam(hashStringRuntime("EXT_" + varName + "_TTT"), parameters, _cube, unitOpIdx);
+			registerComponentBoundStateDependentParam(hashStringRuntime("EXT_" + varName), parameters, _base, unitOpIdx, parTypeIdx);
+			registerComponentBoundStateDependentParam(hashStringRuntime("EXT_" + varName + "_T"), parameters, _linear, unitOpIdx, parTypeIdx);
+			registerComponentBoundStateDependentParam(hashStringRuntime("EXT_" + varName + "_TT"), parameters, _quad, unitOpIdx, parTypeIdx);
+			registerComponentBoundStateDependentParam(hashStringRuntime("EXT_" + varName + "_TTT"), parameters, _cube, unitOpIdx, parTypeIdx);
 		}
 	}
 
@@ -862,10 +862,10 @@ public:
 
 	inline void registerParam(const std::string& varName, std::unordered_map<ParameterId, active*>& parameters, unsigned int unitOpIdx, unsigned int parTypeIdx, unsigned int nComp, unsigned int const* nBoundStates)
 	{
-		registerComponentBoundStateDependentParamCompMajor(hashStringRuntime("EXT_" + varName), parameters, _base, unitOpIdx);
-		registerComponentBoundStateDependentParamCompMajor(hashStringRuntime("EXT_" + varName + "_T"), parameters, _linear, unitOpIdx);
-		registerComponentBoundStateDependentParamCompMajor(hashStringRuntime("EXT_" + varName + "_TT"), parameters, _quad, unitOpIdx);
-		registerComponentBoundStateDependentParamCompMajor(hashStringRuntime("EXT_" + varName + "_TTT"), parameters, _cube, unitOpIdx);
+		registerComponentBoundStateDependentParamCompMajor(hashStringRuntime("EXT_" + varName), parameters, _base, unitOpIdx, parTypeIdx);
+		registerComponentBoundStateDependentParamCompMajor(hashStringRuntime("EXT_" + varName + "_T"), parameters, _linear, unitOpIdx, parTypeIdx);
+		registerComponentBoundStateDependentParamCompMajor(hashStringRuntime("EXT_" + varName + "_TT"), parameters, _quad, unitOpIdx, parTypeIdx);
+		registerComponentBoundStateDependentParamCompMajor(hashStringRuntime("EXT_" + varName + "_TTT"), parameters, _cube, unitOpIdx, parTypeIdx);
 	}
 
 	inline void reserve(unsigned int numElem, unsigned int numSlices, unsigned int nComp, unsigned int const* nBoundStates)
@@ -941,10 +941,10 @@ public:
 
 	inline void registerParam(const std::string& varName, std::unordered_map<ParameterId, active*>& parameters, unsigned int unitOpIdx, unsigned int parTypeIdx, unsigned int nComp, unsigned int const* nBoundStates)
 	{
-		registerComponentBoundStateDependentParam(hashStringRuntime("EXT_" + varName), parameters, _base, unitOpIdx);
-		registerComponentBoundStateDependentParam(hashStringRuntime("EXT_" + varName + "_T"), parameters, _linear, unitOpIdx);
-		registerComponentBoundStateDependentParam(hashStringRuntime("EXT_" + varName + "_TT"), parameters, _quad, unitOpIdx);
-		registerComponentBoundStateDependentParam(hashStringRuntime("EXT_" + varName + "_TTT"), parameters, _cube, unitOpIdx);
+		registerComponentBoundStateDependentParam(hashStringRuntime("EXT_" + varName), parameters, _base, unitOpIdx, parTypeIdx);
+		registerComponentBoundStateDependentParam(hashStringRuntime("EXT_" + varName + "_T"), parameters, _linear, unitOpIdx, parTypeIdx);
+		registerComponentBoundStateDependentParam(hashStringRuntime("EXT_" + varName + "_TT"), parameters, _quad, unitOpIdx, parTypeIdx);
+		registerComponentBoundStateDependentParam(hashStringRuntime("EXT_" + varName + "_TTT"), parameters, _cube, unitOpIdx, parTypeIdx);
 	}
 
 	inline void reserve(unsigned int numElem, unsigned int numSlices, unsigned int nComp, unsigned int const* nBoundStates)

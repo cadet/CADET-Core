@@ -70,10 +70,10 @@
 
 
 #define CADET_REGPAR_SCALAR(NAME, PARAMETERS, VAR, UNITOPIDX)                                                                                 \
-	PARAMETERS[makeParamId(hashString("EXT_" NAME), UNITOPIDX, CompIndep, BoundPhaseIndep, ReactionIndep, SectionIndep)] = &VAR##T0;          \
-	PARAMETERS[makeParamId(hashString("EXT_" NAME "_T"), UNITOPIDX, CompIndep, BoundPhaseIndep, ReactionIndep, SectionIndep)] = &VAR##T1;     \
-	PARAMETERS[makeParamId(hashString("EXT_" NAME "_TT"), UNITOPIDX, CompIndep, BoundPhaseIndep, ReactionIndep, SectionIndep)] = &VAR##T2;    \
-	PARAMETERS[makeParamId(hashString("EXT_" NAME "_TTT"), UNITOPIDX, CompIndep, BoundPhaseIndep, ReactionIndep, SectionIndep)] = &VAR##T3;
+	PARAMETERS[makeParamId(hashString("EXT_" NAME), UNITOPIDX, CompIndep, ParTypeIndep, BoundPhaseIndep, ReactionIndep, SectionIndep)] = &VAR##T0;          \
+	PARAMETERS[makeParamId(hashString("EXT_" NAME "_T"), UNITOPIDX, CompIndep, ParTypeIndep, BoundPhaseIndep, ReactionIndep, SectionIndep)] = &VAR##T1;     \
+	PARAMETERS[makeParamId(hashString("EXT_" NAME "_TT"), UNITOPIDX, CompIndep, ParTypeIndep, BoundPhaseIndep, ReactionIndep, SectionIndep)] = &VAR##T2;    \
+	PARAMETERS[makeParamId(hashString("EXT_" NAME "_TTT"), UNITOPIDX, CompIndep, ParTypeIndep, BoundPhaseIndep, ReactionIndep, SectionIndep)] = &VAR##T3;
 
 #define CADET_REGPAR_COMPSEC(NAME, PARAMETERS, VAR, UNITOPIDX, NCOMP)                                              \
 	VAR = VAR##T0;                                                                                                 \

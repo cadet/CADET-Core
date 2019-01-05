@@ -184,23 +184,23 @@ bool SimplifiedMultiStateStericMassActionBinding::configureImpl(IParameterProvid
 	}
 
 	// Register parameters
-	_parameters[makeParamId(hashString("SMSSMA_LAMBDA"), unitOpIdx, CompIndep, BoundPhaseIndep, ReactionIndep, SectionIndep)] = &_lambda;
-	registerComponentBoundStateDependentParamCompMajor(hashString("SMSSMA_KA"), _parameters, _kA, unitOpIdx);
-	registerComponentBoundStateDependentParamCompMajor(hashString("SMSSMA_KD"), _parameters, _kD, unitOpIdx);
-	registerComponentDependentParam(hashString("SMSSMA_NU_MIN"), _parameters, _nuMin, unitOpIdx);
-	registerComponentDependentParam(hashString("SMSSMA_NU_MAX"), _parameters, _nuMax, unitOpIdx);
-	registerComponentDependentParam(hashString("SMSSMA_NU_QUAD"), _parameters, _nuQuad, unitOpIdx);
-	registerComponentDependentParam(hashString("SMSSMA_SIGMA_MIN"), _parameters, _sigmaMin, unitOpIdx);
-	registerComponentDependentParam(hashString("SMSSMA_SIGMA_MAX"), _parameters, _sigmaMax, unitOpIdx);
-	registerComponentDependentParam(hashString("SMSSMA_SIGMA_QUAD"), _parameters, _sigmaQuad, unitOpIdx);
-	registerComponentDependentParam(hashString("SMSSMA_KSW"), _parameters, _kSW, unitOpIdx);
-	registerComponentDependentParam(hashString("SMSSMA_KSW_LIN"), _parameters, _kSW_lin, unitOpIdx);
-	registerComponentDependentParam(hashString("SMSSMA_KSW_QUAD"), _parameters, _kSW_quad, unitOpIdx);
-	registerComponentDependentParam(hashString("SMSSMA_KWS"), _parameters, _kWS, unitOpIdx);
-	registerComponentDependentParam(hashString("SMSSMA_KWS_LIN"), _parameters, _kWS_lin, unitOpIdx);
-	registerComponentDependentParam(hashString("SMSSMA_KWS_QUAD"), _parameters, _kWS_quad, unitOpIdx);
-	_parameters[makeParamId(hashString("SMSSMA_REFC0"), unitOpIdx, CompIndep, BoundPhaseIndep, ReactionIndep, SectionIndep)] = &_refC0;
-	_parameters[makeParamId(hashString("SMSSMA_REFQ"), unitOpIdx, CompIndep, BoundPhaseIndep, ReactionIndep, SectionIndep)] = &_refQ;
+	_parameters[makeParamId(hashString("SMSSMA_LAMBDA"), unitOpIdx, CompIndep, parTypeIdx, BoundPhaseIndep, ReactionIndep, SectionIndep)] = &_lambda;
+	registerComponentBoundStateDependentParamCompMajor(hashString("SMSSMA_KA"), _parameters, _kA, unitOpIdx, parTypeIdx);
+	registerComponentBoundStateDependentParamCompMajor(hashString("SMSSMA_KD"), _parameters, _kD, unitOpIdx, parTypeIdx);
+	registerComponentDependentParam(hashString("SMSSMA_NU_MIN"), _parameters, _nuMin, unitOpIdx, parTypeIdx);
+	registerComponentDependentParam(hashString("SMSSMA_NU_MAX"), _parameters, _nuMax, unitOpIdx, parTypeIdx);
+	registerComponentDependentParam(hashString("SMSSMA_NU_QUAD"), _parameters, _nuQuad, unitOpIdx, parTypeIdx);
+	registerComponentDependentParam(hashString("SMSSMA_SIGMA_MIN"), _parameters, _sigmaMin, unitOpIdx, parTypeIdx);
+	registerComponentDependentParam(hashString("SMSSMA_SIGMA_MAX"), _parameters, _sigmaMax, unitOpIdx, parTypeIdx);
+	registerComponentDependentParam(hashString("SMSSMA_SIGMA_QUAD"), _parameters, _sigmaQuad, unitOpIdx, parTypeIdx);
+	registerComponentDependentParam(hashString("SMSSMA_KSW"), _parameters, _kSW, unitOpIdx, parTypeIdx);
+	registerComponentDependentParam(hashString("SMSSMA_KSW_LIN"), _parameters, _kSW_lin, unitOpIdx, parTypeIdx);
+	registerComponentDependentParam(hashString("SMSSMA_KSW_QUAD"), _parameters, _kSW_quad, unitOpIdx, parTypeIdx);
+	registerComponentDependentParam(hashString("SMSSMA_KWS"), _parameters, _kWS, unitOpIdx, parTypeIdx);
+	registerComponentDependentParam(hashString("SMSSMA_KWS_LIN"), _parameters, _kWS_lin, unitOpIdx, parTypeIdx);
+	registerComponentDependentParam(hashString("SMSSMA_KWS_QUAD"), _parameters, _kWS_quad, unitOpIdx, parTypeIdx);
+	_parameters[makeParamId(hashString("SMSSMA_REFC0"), unitOpIdx, CompIndep, parTypeIdx, BoundPhaseIndep, ReactionIndep, SectionIndep)] = &_refC0;
+	_parameters[makeParamId(hashString("SMSSMA_REFQ"), unitOpIdx, CompIndep, parTypeIdx, BoundPhaseIndep, ReactionIndep, SectionIndep)] = &_refQ;
 
 	return true;
 }
