@@ -129,7 +129,7 @@ namespace
 			{
 				jpp.set("IS_KINETIC", isKinetic);
 				jpp.set("EXTFUN", std::vector<int>(1, 0));
-				REQUIRE(bm->configure(jpp, 0));
+				REQUIRE(bm->configure(jpp, 0, 0));
 			}
 
 			// Assign external functions

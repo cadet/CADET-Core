@@ -417,7 +417,7 @@ bool GeneralRateModel::configure(IParameterProvider& paramProvider)
 		for (unsigned int type = 0; type < _disc.nParType; ++type)
 		{
 			std::vector<ParameterId> initParams(maxBoundStates);
-			_binding[type]->fillBoundPhaseInitialParameters(initParams.data(), _unitOpIdx);
+			_binding[type]->fillBoundPhaseInitialParameters(initParams.data(), _unitOpIdx, type);
 
 			for (unsigned int i = 0; i < _disc.strideBound[type]; ++i)
 				_parameters[initParams[i]] = _initQ.data() + i;
@@ -444,7 +444,7 @@ bool GeneralRateModel::configure(IParameterProvider& paramProvider)
 				continue;
 
 			paramProvider.pushScope(oss.str());
-			bindingConfSuccess = _binding[type]->configure(paramProvider, _unitOpIdx) && bindingConfSuccess;
+			bindingConfSuccess = _binding[type]->configure(paramProvider, _unitOpIdx, type) && bindingConfSuccess;
 			paramProvider.popScope();
 		}
 

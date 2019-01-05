@@ -89,17 +89,17 @@ public:
 		return validateConfig(nComp, nBoundStates);
 	}
 
-	inline void registerParameters(std::unordered_map<ParameterId, active*>& parameters, unsigned int unitOpIdx, unsigned int nComp, unsigned int const* nBoundStates)
+	inline void registerParameters(std::unordered_map<ParameterId, active*>& parameters, unsigned int unitOpIdx, unsigned int parTypeIdx, unsigned int nComp, unsigned int const* nBoundStates)
 	{
 {% for p in parameters %}
-		_{{ p/varName }}.registerParam("{{ p/confName }}", parameters, unitOpIdx, nComp, nBoundStates);
+		_{{ p/varName }}.registerParam("{{ p/confName }}", parameters, unitOpIdx, parTypeIdx, nComp, nBoundStates);
 {% endfor %}
 {% if exists("constantParameters") %}
 	{% for p in constantParameters %}
 		{% if length(p/varName) > 1 %}
-			{{ p/objName }}.registerParam("{{ p/confPrefix }}", parameters, unitOpIdx, nComp, nBoundStates);
+			{{ p/objName }}.registerParam("{{ p/confPrefix }}", parameters, unitOpIdx, parTypeIdx, nComp, nBoundStates);
 		{% else %}
-			_{{ p/varName }}.registerParam("{{ p/confName }}", parameters, unitOpIdx, nComp, nBoundStates);
+			_{{ p/varName }}.registerParam("{{ p/confName }}", parameters, unitOpIdx, parTypeIdx, nComp, nBoundStates);
 		{% endif %}
 	{% endfor %}
 {% endif %}
@@ -237,17 +237,17 @@ public:
 		return validateConfig(nComp, nBoundStates);
 	}
 
-	inline void registerParameters(std::unordered_map<ParameterId, active*>& parameters, unsigned int unitOpIdx, unsigned int nComp, unsigned int const* nBoundStates)
+	inline void registerParameters(std::unordered_map<ParameterId, active*>& parameters, unsigned int unitOpIdx, unsigned int parTypeIdx, unsigned int nComp, unsigned int const* nBoundStates)
 	{
 {% for p in parameters %}
-		_{{ p/varName }}.registerParam("{{ p/confName }}", parameters, unitOpIdx, nComp, nBoundStates);
+		_{{ p/varName }}.registerParam("{{ p/confName }}", parameters, unitOpIdx, parTypeIdx, nComp, nBoundStates);
 {% endfor %}
 {% if exists("constantParameters") %}
 	{% for p in constantParameters %}
 		{% if length(p/varName) > 1 %}
-			{{ p/objName }}.registerParam("{{ p/confPrefix }}", parameters, unitOpIdx, nComp, nBoundStates);
+			{{ p/objName }}.registerParam("{{ p/confPrefix }}", parameters, unitOpIdx, parTypeIdx, nComp, nBoundStates);
 		{% else %}
-			_{{ p/varName }}.registerParam("{{ p/confName }}", parameters, unitOpIdx, nComp, nBoundStates);
+			_{{ p/varName }}.registerParam("{{ p/confName }}", parameters, unitOpIdx, parTypeIdx, nComp, nBoundStates);
 		{% endif %}
 	{% endfor %}
 {% endif %}

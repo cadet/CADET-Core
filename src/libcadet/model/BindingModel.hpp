@@ -118,16 +118,19 @@ public:
 	 * 
 	 * @param [in] paramProvider Parameter provider
 	 * @param [in] unitOpIdx Index of the unit operation this binding model belongs to
+	 * @param [in] parTypeIdx Index of the particle type this binding model belongs to
 	 * @return @c true if the configuration was successful, otherwise @c false
 	 */
-	virtual bool configure(IParameterProvider& paramProvider, unsigned int unitOpIdx) = 0;
+	virtual bool configure(IParameterProvider& paramProvider, unsigned int unitOpIdx, unsigned int parTypeIdx) = 0;
 
 	/**
 	 * @brief Returns the ParameterId of all bound phase initial conditions (equations)
 	 * @details The array has to be filled in the order of the equations.
 	 * @param [out] params Array with ParameterId objects to fill
+	 * @param [in] unitOpIdx Index of the unit operation this binding model belongs to
+	 * @param [in] parTypeIdx Index of the particle type this binding model belongs to
 	 */
-	virtual void fillBoundPhaseInitialParameters(ParameterId* params, unsigned int unitOpIdx) const CADET_NOEXCEPT = 0;
+	virtual void fillBoundPhaseInitialParameters(ParameterId* params, unsigned int unitOpIdx, unsigned int parTypeIdx) const CADET_NOEXCEPT = 0;
 
 	/**
 	 * @brief Sets external functions for this binding model

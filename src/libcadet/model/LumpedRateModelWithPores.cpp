@@ -220,7 +220,7 @@ bool LumpedRateModelWithPores::configure(IParameterProvider& paramProvider)
 	if (_binding[0])
 	{
 		std::vector<ParameterId> initParams(_disc.strideBound);
-		_binding[0]->fillBoundPhaseInitialParameters(initParams.data(), _unitOpIdx);
+		_binding[0]->fillBoundPhaseInitialParameters(initParams.data(), _unitOpIdx, 0);
 
 		for (unsigned int i = 0; i < _disc.strideBound; ++i)
 			_parameters[initParams[i]] = _initQ.data() + i;
@@ -230,7 +230,7 @@ bool LumpedRateModelWithPores::configure(IParameterProvider& paramProvider)
 	if (_binding[0] && paramProvider.exists("adsorption") && _binding[0]->requiresConfiguration())
 	{
 		paramProvider.pushScope("adsorption");
-		const bool bindingConfSuccess = _binding[0]->configure(paramProvider, _unitOpIdx);
+		const bool bindingConfSuccess = _binding[0]->configure(paramProvider, _unitOpIdx, 0);
 		paramProvider.popScope();
 
 		return transportSuccess && bindingConfSuccess;

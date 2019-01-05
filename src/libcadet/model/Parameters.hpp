@@ -82,7 +82,7 @@ public:
 	 * @param [in] nComp Number of components
 	 * @param [in] nBoundStates Array with number of bound states for each component
 	 */
-	inline void registerParam(const std::string& varName, std::unordered_map<ParameterId, active*>& parameters, unsigned int unitOpIdx, unsigned int nComp, unsigned int const* nBoundStates)
+	inline void registerParam(const std::string& varName, std::unordered_map<ParameterId, active*>& parameters, unsigned int unitOpIdx, unsigned int parTypeIdx, unsigned int nComp, unsigned int const* nBoundStates)
 	{
 		parameters[makeParamId(hashStringRuntime(varName), unitOpIdx, CompIndep, BoundPhaseIndep, ReactionIndep, SectionIndep)] = _p;
 	}
@@ -122,7 +122,7 @@ public:
 		readParameterMatrix(*_p, paramProvider, varName, nComp, 1);
 	}
 
-	inline void registerParam(const std::string& varName, std::unordered_map<ParameterId, active*>& parameters, unsigned int unitOpIdx, unsigned int nComp, unsigned int const* nBoundStates)
+	inline void registerParam(const std::string& varName, std::unordered_map<ParameterId, active*>& parameters, unsigned int unitOpIdx, unsigned int parTypeIdx, unsigned int nComp, unsigned int const* nBoundStates)
 	{
 		registerComponentBoundStateDependentParam(hashStringRuntime(varName), parameters, *_p, unitOpIdx);
 	}
@@ -160,7 +160,7 @@ public:
 		readScalarParameterOrArray(*_p, paramProvider, varName, 1);
 	}
 
-	inline void registerParam(const std::string& varName, std::unordered_map<ParameterId, active*>& parameters, unsigned int unitOpIdx, unsigned int nComp, unsigned int const* nBoundStates)
+	inline void registerParam(const std::string& varName, std::unordered_map<ParameterId, active*>& parameters, unsigned int unitOpIdx, unsigned int parTypeIdx, unsigned int nComp, unsigned int const* nBoundStates)
 	{
 		registerScalarBoundStateDependentParam(hashStringRuntime(varName), parameters, *_p, unitOpIdx);
 	}
@@ -208,7 +208,7 @@ public:
 		}
 	}
 
-	inline void registerParam(const std::string& varName, std::unordered_map<ParameterId, active*>& parameters, unsigned int unitOpIdx, unsigned int nComp, unsigned int const* nBoundStates)
+	inline void registerParam(const std::string& varName, std::unordered_map<ParameterId, active*>& parameters, unsigned int unitOpIdx, unsigned int parTypeIdx, unsigned int nComp, unsigned int const* nBoundStates)
 	{
 		if (compMajor)
 		{
@@ -267,7 +267,7 @@ public:
 		readMatrixValuedBoundStateDependentParameter<util::SlicedVector<active>, active>(*_p, paramProvider, varName, nComp, nBoundStates);
 	}
 
-	inline void registerParam(const std::string& varName, std::unordered_map<ParameterId, active*>& parameters, unsigned int unitOpIdx, unsigned int nComp, unsigned int const* nBoundStates)
+	inline void registerParam(const std::string& varName, std::unordered_map<ParameterId, active*>& parameters, unsigned int unitOpIdx, unsigned int parTypeIdx, unsigned int nComp, unsigned int const* nBoundStates)
 	{
 		registerComponentBoundStateDependentParamCompMajor(hashStringRuntime(varName), parameters, *_p, unitOpIdx);
 	}
@@ -310,7 +310,7 @@ public:
 		readBoundStateDependentParameter<util::SlicedVector<active>, active>(*_p, paramProvider, varName, nComp, nComp);
 	}
 
-	inline void registerParam(const std::string& varName, std::unordered_map<ParameterId, active*>& parameters, unsigned int unitOpIdx, unsigned int nComp, unsigned int const* nBoundStates)
+	inline void registerParam(const std::string& varName, std::unordered_map<ParameterId, active*>& parameters, unsigned int unitOpIdx, unsigned int parTypeIdx, unsigned int nComp, unsigned int const* nBoundStates)
 	{
 		registerComponentBoundStateDependentParam(hashStringRuntime(varName), parameters, *_p, unitOpIdx);
 	}
@@ -370,7 +370,7 @@ public:
 	 * @param [in] nComp Number of components
 	 * @param [in] nBoundStates Array with number of bound states for each component
 	 */
-	inline void registerParam(const std::string& varName, std::unordered_map<ParameterId, active*>& parameters, unsigned int unitOpIdx, unsigned int nComp, unsigned int const* nBoundStates)
+	inline void registerParam(const std::string& varName, std::unordered_map<ParameterId, active*>& parameters, unsigned int unitOpIdx, unsigned int parTypeIdx, unsigned int nComp, unsigned int const* nBoundStates)
 	{
 		parameters[makeParamId(hashStringRuntime(varName + "REFC0"), unitOpIdx, CompIndep, BoundPhaseIndep, ReactionIndep, SectionIndep)] = _refC;
 		parameters[makeParamId(hashStringRuntime(varName + "REFQ"), unitOpIdx, CompIndep, BoundPhaseIndep, ReactionIndep, SectionIndep)] = _refQ;
@@ -430,7 +430,7 @@ public:
 	 * @param [in] nComp Number of components
 	 * @param [in] nBoundStates Array with number of bound states for each component
 	 */
-	inline void registerParam(const std::string& varName, std::unordered_map<ParameterId, active*>& parameters, unsigned int unitOpIdx, unsigned int nComp, unsigned int const* nBoundStates)
+	inline void registerParam(const std::string& varName, std::unordered_map<ParameterId, active*>& parameters, unsigned int unitOpIdx, unsigned int parTypeIdx, unsigned int nComp, unsigned int const* nBoundStates)
 	{
 		registerScalarBoundStateDependentParam(hashStringRuntime(varName + "REFC0"), parameters, *_refC, unitOpIdx);
 		registerScalarBoundStateDependentParam(hashStringRuntime(varName + "REFQ"), parameters, *_refQ, unitOpIdx);
@@ -493,7 +493,7 @@ public:
 	 * @param [in] nComp Number of components
 	 * @param [in] nBoundStates Array with number of bound states for each component
 	 */
-	inline void registerParam(const std::string& varName, std::unordered_map<ParameterId, active*>& parameters, unsigned int unitOpIdx, unsigned int nComp, unsigned int const* nBoundStates)
+	inline void registerParam(const std::string& varName, std::unordered_map<ParameterId, active*>& parameters, unsigned int unitOpIdx, unsigned int parTypeIdx, unsigned int nComp, unsigned int const* nBoundStates)
 	{
 		parameters[makeParamId(hashStringRuntime("EXT_" + varName), unitOpIdx, CompIndep, BoundPhaseIndep, ReactionIndep, SectionIndep)] = &_base;
 		parameters[makeParamId(hashStringRuntime("EXT_" + varName + "_T"), unitOpIdx, CompIndep, BoundPhaseIndep, ReactionIndep, SectionIndep)] = &_linear;
@@ -601,7 +601,7 @@ public:
 		readParameterMatrix(_cube, paramProvider, "EXT_" + varName + "_TTT", nComp, 1);
 	}
 
-	inline void registerParam(const std::string& varName, std::unordered_map<ParameterId, active*>& parameters, unsigned int unitOpIdx, unsigned int nComp, unsigned int const* nBoundStates)
+	inline void registerParam(const std::string& varName, std::unordered_map<ParameterId, active*>& parameters, unsigned int unitOpIdx, unsigned int parTypeIdx, unsigned int nComp, unsigned int const* nBoundStates)
 	{
 		registerComponentBoundStateDependentParam(hashStringRuntime("EXT_" + varName), parameters, _base, unitOpIdx);
 		registerComponentBoundStateDependentParam(hashStringRuntime("EXT_" + varName + "_T"), parameters, _linear, unitOpIdx);
@@ -675,7 +675,7 @@ public:
 		readScalarParameterOrArray(_cube, paramProvider, "EXT_" + varName + "_TTT", 1);
 	}
 
-	inline void registerParam(const std::string& varName, std::unordered_map<ParameterId, active*>& parameters, unsigned int unitOpIdx, unsigned int nComp, unsigned int const* nBoundStates)
+	inline void registerParam(const std::string& varName, std::unordered_map<ParameterId, active*>& parameters, unsigned int unitOpIdx, unsigned int parTypeIdx, unsigned int nComp, unsigned int const* nBoundStates)
 	{
 		registerScalarBoundStateDependentParam(hashStringRuntime("EXT_" + varName), parameters, _base, unitOpIdx);
 		registerScalarBoundStateDependentParam(hashStringRuntime("EXT_" + varName + "_T"), parameters, _linear, unitOpIdx);
@@ -762,7 +762,7 @@ public:
 		}
 	}
 
-	inline void registerParam(const std::string& varName, std::unordered_map<ParameterId, active*>& parameters, unsigned int unitOpIdx, unsigned int nComp, unsigned int const* nBoundStates)
+	inline void registerParam(const std::string& varName, std::unordered_map<ParameterId, active*>& parameters, unsigned int unitOpIdx, unsigned int parTypeIdx, unsigned int nComp, unsigned int const* nBoundStates)
 	{
 		if (compMajor)
 		{
@@ -860,7 +860,7 @@ public:
 		readMatrixValuedBoundStateDependentParameter<util::SlicedVector<active>, active>(_cube, paramProvider, "EXT_" + varName + "_TTT", nComp, nBoundStates);
 	}
 
-	inline void registerParam(const std::string& varName, std::unordered_map<ParameterId, active*>& parameters, unsigned int unitOpIdx, unsigned int nComp, unsigned int const* nBoundStates)
+	inline void registerParam(const std::string& varName, std::unordered_map<ParameterId, active*>& parameters, unsigned int unitOpIdx, unsigned int parTypeIdx, unsigned int nComp, unsigned int const* nBoundStates)
 	{
 		registerComponentBoundStateDependentParamCompMajor(hashStringRuntime("EXT_" + varName), parameters, _base, unitOpIdx);
 		registerComponentBoundStateDependentParamCompMajor(hashStringRuntime("EXT_" + varName + "_T"), parameters, _linear, unitOpIdx);
@@ -939,7 +939,7 @@ public:
 		readBoundStateDependentParameter<util::SlicedVector<active>, active>(_cube, paramProvider, "EXT_" + varName + "_TTT", nComp, nComp);
 	}
 
-	inline void registerParam(const std::string& varName, std::unordered_map<ParameterId, active*>& parameters, unsigned int unitOpIdx, unsigned int nComp, unsigned int const* nBoundStates)
+	inline void registerParam(const std::string& varName, std::unordered_map<ParameterId, active*>& parameters, unsigned int unitOpIdx, unsigned int parTypeIdx, unsigned int nComp, unsigned int const* nBoundStates)
 	{
 		registerComponentBoundStateDependentParam(hashStringRuntime("EXT_" + varName), parameters, _base, unitOpIdx);
 		registerComponentBoundStateDependentParam(hashStringRuntime("EXT_" + varName + "_T"), parameters, _linear, unitOpIdx);

@@ -109,10 +109,10 @@ public:
 	 * @param [in] nComp Number of components
 	 * @param [in] nBoundStates Array with number of bound states for each component
 	 */
-	inline void registerParameters(std::unordered_map<ParameterId, active*>& parameters, unsigned int unitOpIdx, unsigned int nComp, unsigned int const* nBoundStates)
+	inline void registerParameters(std::unordered_map<ParameterId, active*>& parameters, unsigned int unitOpIdx, unsigned int parTypeIdx, unsigned int nComp, unsigned int const* nBoundStates)
 	{
-		_kA.registerParam("LIN_KA", parameters, unitOpIdx, nComp, nBoundStates);
-		_kD.registerParam("LIN_KD", parameters, unitOpIdx, nComp, nBoundStates);
+		_kA.registerParam("LIN_KA", parameters, unitOpIdx, parTypeIdx, nComp, nBoundStates);
+		_kD.registerParam("LIN_KD", parameters, unitOpIdx, parTypeIdx, nComp, nBoundStates);
 	}
 
 	/**
@@ -240,10 +240,10 @@ public:
 	 * @param [in] nComp Number of components
 	 * @param [in] nBoundStates Array with number of bound states for each component
 	 */
-	inline void registerParameters(std::unordered_map<ParameterId, active*>& parameters, unsigned int unitOpIdx, unsigned int nComp, unsigned int const* nBoundStates)
+	inline void registerParameters(std::unordered_map<ParameterId, active*>& parameters, unsigned int unitOpIdx, unsigned int parTypeIdx, unsigned int nComp, unsigned int const* nBoundStates)
 	{
-		_kA.registerParam("LIN_KA", parameters, unitOpIdx, nComp, nBoundStates);
-		_kD.registerParam("LIN_KD", parameters, unitOpIdx, nComp, nBoundStates);
+		_kA.registerParam("LIN_KA", parameters, unitOpIdx, parTypeIdx, nComp, nBoundStates);
+		_kD.registerParam("LIN_KD", parameters, unitOpIdx, parTypeIdx, nComp, nBoundStates);
 	}
 
 	/**
@@ -405,7 +405,7 @@ public:
 		return true;
 	}
 
-	virtual bool configure(IParameterProvider& paramProvider, unsigned int unitOpIdx)
+	virtual bool configure(IParameterProvider& paramProvider, unsigned int unitOpIdx, unsigned int parTypeIdx)
 	{
 		_parameters.clear();
 
@@ -416,12 +416,12 @@ public:
 		_paramHandler.configure(paramProvider, _nComp, _nBoundStates);
 
 		// Register parameters
-		_paramHandler.registerParameters(_parameters, unitOpIdx, _nComp, _nBoundStates);
+		_paramHandler.registerParameters(_parameters, unitOpIdx, parTypeIdx, _nComp, _nBoundStates);
 
 		return true;
 	}
 
-	virtual void fillBoundPhaseInitialParameters(ParameterId* params, unsigned int unitOpIdx) const CADET_NOEXCEPT
+	virtual void fillBoundPhaseInitialParameters(ParameterId* params, unsigned int unitOpIdx, unsigned int parTypeIdx) const CADET_NOEXCEPT
 	{
 		unsigned int ctr = 0;
 		for (unsigned int c = 0; c < _nComp; ++c)

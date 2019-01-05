@@ -60,9 +60,9 @@ public:
 	virtual ~BindingModelBase() CADET_NOEXCEPT;
 
 	virtual bool requiresConfiguration() const CADET_NOEXCEPT { return true; }
-	virtual bool configure(IParameterProvider& paramProvider, unsigned int unitOpIdx);
+	virtual bool configure(IParameterProvider& paramProvider, unsigned int unitOpIdx, unsigned int parTypeIdx);
 	virtual bool configureModelDiscretization(IParameterProvider& paramProvider, unsigned int nComp, unsigned int const* nBound, unsigned int const* boundOffset);
-	virtual void fillBoundPhaseInitialParameters(ParameterId* params, unsigned int unitOpIdx) const CADET_NOEXCEPT;
+	virtual void fillBoundPhaseInitialParameters(ParameterId* params, unsigned int unitOpIdx, unsigned int parTypeIdx) const CADET_NOEXCEPT;
 
 	virtual std::unordered_map<ParameterId, double> getAllParameterValues() const;
 	virtual bool hasParameter(const ParameterId& pId) const;
@@ -106,9 +106,10 @@ protected:
 	 * @param [in] reconfigure @c true if reconfigure() was called, @c false if configure() was called
 	 * @param [in] paramProvider Parameter provider
 	 * @param [in] unitOpIdx Unit operation index
+	 * @param [in] parTypeIdx Particle type index
 	 * @return @c true if the configuration was successful, otherwise @c false
 	 */
-	virtual bool configureImpl(IParameterProvider& paramProvider, unsigned int unitOpIdx) = 0;
+	virtual bool configureImpl(IParameterProvider& paramProvider, unsigned int unitOpIdx, unsigned int parTypeIdx) = 0;
 
 	/**
 	 * @brief Configures the nonlinear solver which is used for consistent initialization
