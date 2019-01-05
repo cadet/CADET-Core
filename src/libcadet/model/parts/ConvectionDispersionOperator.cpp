@@ -343,7 +343,11 @@ int ConvectionDispersionOperatorBase::residualForwardsFlow(const ParamType& t, u
 			}
 
 			// Update stencil
-			stencil.advance(c<StateType>(y, col + std::max(_weno.order(), 2), comp));
+			const unsigned int shift = std::max(_weno.order(), 2);
+			if (cadet_likely(col + shift < _nCol))
+				stencil.advance(c<StateType>(y, col + shift, comp));
+			else
+				stencil.advance(0.0);
 
 			if (wantJac)
 				jac += strideCell;
