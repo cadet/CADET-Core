@@ -20,6 +20,8 @@
 
 #include <functional>
 #include <algorithm>
+#include <sstream>
+#include <iomanip>
 
 namespace cadet
 {
@@ -58,6 +60,117 @@ namespace util
 		{
 			std::copy(src, src + size, dest);
 		}
+	}
+
+	/**
+	 * @brief ParameterProvider scope guard for unit_XYZ group
+	 * @details Opens and closes the unit_XYZ ParameterProvider scope.
+	 */
+	template <typename ParamProvider>
+	class ModelGroupScope
+	{
+	public:
+
+		/**
+		 * @brief Enters a given unit_XYZ scope
+		 * @param [in,out] jpp ParameterProvider
+		 * @param [in] idxUnit Index of unit operation
+		 */
+		ModelGroupScope(ParamProvider& jpp, unsigned int idxUnit) : _jpp(jpp)
+		{
+			_active = jpp.exists("model");
+			if (_active)
+			{
+				std::ostringstream ss;
+				_jpp.pushScope("model");
+				ss << "unit_" << std::setfill('0') << std::setw(3) << idxUnit;
+				_jpp.pushScope(ss.str());
+			}
+		}
+
+		/**
+		 * @brief Enters unit_000 scope
+		 * @param [in,out] jpp ParameterProvider
+		 */
+		ModelGroupScope(ParamProvider& jpp) : ModelGroupScope(jpp, 0) { }
+
+		~ModelGroupScope()
+		{
+			if (_active)
+			{
+				_jpp.popScope();
+				_jpp.popScope();
+			}
+		}
+
+	private:
+		bool _active;
+		ParamProvider& _jpp;
+	};
+
+	/**
+	 * @brief Enters a given unit_XYZ and leaves it when leaving the current scope
+	 * @param [in,out] jpp ParameterProvider
+	 * @param [in] idxUnit Index of unit operation
+	 */
+	template <typename ParamProvider>
+	inline ModelGroupScope<ParamProvider> makeModelGroupScope(ParamProvider& jpp, unsigned int idxUnit)
+	{
+		return ModelGroupScope<ParamProvider>(jpp, idxUnit);
+	}
+
+	/**
+	 * @brief Enters a given unit_000 and leaves it when leaving the current scope
+	 * @param [in,out] jpp ParameterProvider
+	 */
+	template <typename ParamProvider>
+	inline ModelGroupScope<ParamProvider> makeModelGroupScope(ParamProvider& jpp)
+	{
+		return ModelGroupScope<ParamProvider>(jpp);
+	}
+
+	/**
+	 * @brief ParameterProvider scope guard for possibly existent group
+	 * @details Opens and closes the given ParameterProvider scope if it exists.
+	 */
+	template <typename ParamProvider>
+	class OptionalGroupScope
+	{
+	public:
+
+		/**
+		 * @brief Enters a given scope if it exists
+		 * @param [in,out] jpp ParameterProvider
+		 * @param [in] grp Name of group
+		 */
+		OptionalGroupScope(ParamProvider& jpp, const std::string& grp) : _jpp(jpp)
+		{
+			_active = jpp.exists(grp);
+			if (_active)
+				_jpp.pushScope(grp);
+		}
+
+		~OptionalGroupScope()
+		{
+			if (_active)
+				_jpp.popScope();
+		}
+
+	private:
+		bool _active;
+		ParamProvider& _jpp;
+	};
+
+	/**
+	 * @brief Enters a given group and leaves it when leaving the current scope
+	 * @details Does nothing if the group does not exist.
+	 * @param [in,out] jpp ParameterProvider
+	 * @param [in] grp Name of the group
+	 */
+	template <typename ParamProvider>
+	inline OptionalGroupScope<ParamProvider> makeOptionalGroupScope(ParamProvider& jpp, const std::string& grp)
+	{
+		return OptionalGroupScope<ParamProvider>(jpp, grp);
 	}
 
 } // namespace util

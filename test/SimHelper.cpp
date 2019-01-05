@@ -11,45 +11,10 @@
 // =============================================================================
 
 #include "SimHelper.hpp"
+#include "Utils.hpp"
 
-#include <sstream>
-#include <iomanip>
 #include <iterator>
 #include <algorithm>
-
-namespace
-{
-	class GroupScope
-	{
-	public:
-		GroupScope(cadet::JsonParameterProvider& jpp, unsigned int idxUnit) : _jpp(jpp)
-		{
-			_active = jpp.exists("model");
-			if (_active)
-			{
-				std::ostringstream ss;
-				_jpp.pushScope("model");
-				ss << "unit_" << std::setfill('0') << std::setw(3) << idxUnit;
-				_jpp.pushScope(ss.str());
-			}
-		}
-
-		GroupScope(cadet::JsonParameterProvider& jpp) : GroupScope(jpp, 0) { }
-
-		~GroupScope()
-		{
-			if (_active)
-			{
-				_jpp.popScope();
-				_jpp.popScope();
-			}
-		}
-
-	private:
-		bool _active;
-		cadet::JsonParameterProvider& _jpp;
-	};
-}
 
 namespace cadet
 {
@@ -59,13 +24,13 @@ namespace test
 
 	void setNumberOfComponents(cadet::JsonParameterProvider& jpp, UnitOpIdx unit, int nComp)
 	{
-		GroupScope gs(jpp, unit);
+		auto gs = util::makeModelGroupScope(jpp, unit);
 		jpp.set("NCOMP", nComp);
 	}
 
 	void setInitialConditions(cadet::JsonParameterProvider& jpp, const std::vector<double>& c, const std::vector<double>& q, double v)
 	{
-		GroupScope gs(jpp);
+		auto gs = util::makeModelGroupScope(jpp);
 
 		jpp.set("INIT_C", c);
 		jpp.set("INIT_VOLUME", v);
@@ -75,7 +40,7 @@ namespace test
 
 	void setInitialConditions(cadet::JsonParameterProvider& jpp, const std::vector<double>& c, const std::vector<double>& cp, const std::vector<double>& q)
 	{
-		GroupScope gs(jpp);
+		auto gs = util::makeModelGroupScope(jpp);
 
 		jpp.set("INIT_C", c);
 		if (!cp.empty())
@@ -86,7 +51,7 @@ namespace test
 
 	void setFlowRates(cadet::JsonParameterProvider& jpp, unsigned int secIdx, double in, double out, double filter)
 	{
-		GroupScope gs(jpp);
+		auto gs = util::makeModelGroupScope(jpp);
 
 		std::vector<double> frf = jpp.getDoubleArray("FLOWRATE_FILTER");
 		if (frf.size() <= secIdx)
@@ -112,7 +77,7 @@ namespace test
 
 	void setInletProfile(cadet::JsonParameterProvider& jpp, unsigned int secIdx, unsigned int comp, double con, double lin, double quad, double cub)
 	{
-		GroupScope gs(jpp, 1);
+		auto gs = util::makeModelGroupScope(jpp, 1);
 
 		std::ostringstream ss;
 		ss << "sec_" << std::setfill('0') << std::setw(3) << secIdx;
@@ -158,7 +123,7 @@ namespace test
 
 	void addBoundStates(cadet::JsonParameterProvider& jpp, const std::vector<int>& nBound, double porosity)
 	{
-		GroupScope gs(jpp);
+		auto gs = util::makeModelGroupScope(jpp);
 
 		jpp.set("NBOUND", nBound);
 		jpp.set("POROSITY", porosity);
@@ -166,7 +131,7 @@ namespace test
 
 	void addLinearBindingModel(cadet::JsonParameterProvider& jpp, bool kinetic, const std::vector<double>& kA, const std::vector<double>& kD)
 	{
-		GroupScope gs(jpp);
+		auto gs = util::makeModelGroupScope(jpp);
 
 		jpp.set("ADSORPTION_MODEL", "LINEAR");
 
@@ -182,7 +147,7 @@ namespace test
 
 	void addSMABindingModel(cadet::JsonParameterProvider& jpp, bool kinetic, double lambda, const std::vector<double>& kA, const std::vector<double>& kD, const std::vector<double>& nu, const std::vector<double>& sigma)
 	{
-		GroupScope gs(jpp);
+		auto gs = util::makeModelGroupScope(jpp);
 
 		jpp.set("ADSORPTION_MODEL", "STERIC_MASS_ACTION");
 
@@ -201,7 +166,7 @@ namespace test
 
 	void addLangmuirBindingModel(cadet::JsonParameterProvider& jpp, bool kinetic, const std::vector<double>& kA, const std::vector<double>& kD, const std::vector<double>& qMax)
 	{
-		GroupScope gs(jpp);
+		auto gs = util::makeModelGroupScope(jpp);
 
 		jpp.set("ADSORPTION_MODEL", "MULTI_COMPONENT_LANGMUIR");
 
