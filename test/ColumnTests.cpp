@@ -41,11 +41,6 @@ const char* getTestDirectory();
 
 namespace
 {
-	inline RelApprox makeApprox(double val, double relTol, double absTol)
-	{
-		return RelApprox(val).epsilon(relTol).margin(absTol);
-	}
-
 	/**
 	 * @brief Creates a runnable column model with given WENO order
 	 * @details Creates a column model and configures it using the given IParameterProvider @p jpp.

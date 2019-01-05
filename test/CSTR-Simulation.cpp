@@ -29,11 +29,6 @@
 #include <algorithm>
 #include <iterator>
 
-inline RelApprox makeApprox(double val, double relTol, double absTol)
-{
-	return RelApprox(val).epsilon(relTol).margin(absTol);
-}
-
 inline void setFlowRateFilter(cadet::JsonParameterProvider& jpp, double filter)
 {
 	jpp.pushScope("model");
@@ -63,8 +58,8 @@ inline void runSim(cadet::JsonParameterProvider& jpp, std::function<double(doubl
 	{
 		// Compare with relative error 1e-6 and absolute error 4e-5
 		CAPTURE(*time);
-		CHECK((*outlet) == makeApprox(solC(*time), 1e-6, 4e-5));
-		CHECK((*volume) == makeApprox(solV(*time), 1e-6, 4e-5));
+		CHECK((*outlet) == cadet::test::makeApprox(solC(*time), 1e-6, 4e-5));
+		CHECK((*volume) == cadet::test::makeApprox(solV(*time), 1e-6, 4e-5));
 	}
 }
 
@@ -86,9 +81,9 @@ inline void runSim(cadet::JsonParameterProvider& jpp, std::function<double(doubl
 	for (unsigned int i = 0; i < simData->numDataPoints(); ++i, ++outlet, ++volume, ++solid, ++time)
 	{
 		CAPTURE(*time);
-		CHECK((*outlet) == makeApprox(solC(*time), relTol, absTol));
-		CHECK((*volume) == makeApprox(solV(*time), relTol, absTol));
-		CHECK((*solid) == makeApprox(solQ(*time), relTol, absTol));
+		CHECK((*outlet) == cadet::test::makeApprox(solC(*time), relTol, absTol));
+		CHECK((*volume) == cadet::test::makeApprox(solV(*time), relTol, absTol));
+		CHECK((*solid) == cadet::test::makeApprox(solQ(*time), relTol, absTol));
 	}
 }
 
@@ -109,8 +104,8 @@ inline void runSensSim(cadet::JsonParameterProvider& jpp, std::function<double(d
 	for (unsigned int i = 0; i < simData->numDataPoints(); ++i, ++outlet, ++volume, ++time)
 	{
 		CAPTURE(*time);
-		CHECK((*outlet) == makeApprox(solC(*time), relTol, absTol));
-		CHECK((*volume) == makeApprox(solV(*time), relTol, absTol));
+		CHECK((*outlet) == cadet::test::makeApprox(solC(*time), relTol, absTol));
+		CHECK((*volume) == cadet::test::makeApprox(solV(*time), relTol, absTol));
 	}
 }
 

@@ -171,8 +171,21 @@ namespace detail
 		double _scale;
 		double _value;
 	};
-}
-}
+
+	/**
+	 * @brief Creates a RelApprox object with given values
+	 * @param [in] val Reference value
+	 * @param [in] relTol Relative tolerance
+	 * @param [in] absTol Absolute tolerance
+	 * @return RelApprox object with the given values
+	 */
+	inline RelApprox makeApprox(double val, double relTol, double absTol)
+	{
+		return RelApprox(val).epsilon(relTol).margin(absTol);
+	}
+
+} // namespace test
+} // namespace cadet
 
 namespace Catch
 {

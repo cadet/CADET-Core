@@ -34,11 +34,6 @@
 
 namespace
 {
-	inline RelApprox makeApprox(double val, double relTol, double absTol)
-	{
-		return RelApprox(val).epsilon(relTol).margin(absTol);
-	}
-
 	inline cadet::model::IBindingModel* createBindingModel(const char* name)
 	{
 		cadet::BindingModelFactory bmf;
