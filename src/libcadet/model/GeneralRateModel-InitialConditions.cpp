@@ -77,7 +77,7 @@ void GeneralRateModel::applyInitialCondition(double* const vecStateY, double* co
 			for (unsigned int shell = 0; shell < _disc.nParCell[type]; ++shell)
 			{
 				const unsigned int shellOffset = offset + shell * idxr.strideParShell(type);
-				
+
 				// Initialize c_p
 				for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
 					vecStateY[shellOffset + comp] = static_cast<double>(_initCp[comp + _disc.nComp * type]);
@@ -228,7 +228,7 @@ void GeneralRateModel::consistentInitialState(double t, unsigned int secIdx, dou
 				const double z = (0.5 + static_cast<double>(pblk)) / static_cast<double>(_disc.nCol);
 
 				// This loop cannot be run in parallel without creating a Jacobian matrix for each thread which would increase memory usage
-				const int localOffsetToParticle = idxr.offsetCp(ParticleTypeIndex{type}, ParticleIndex{pblk});
+				const int localOffsetToParticle = idxr.offsetCp(ParticleTypeIndex{type}, ParticleIndex{static_cast<unsigned int>(pblk)});
 				for(size_t shell = 0; shell < size_t(_disc.nParCell[type]); shell++)
 				{
 					const int localOffsetInParticle = static_cast<int>(shell) * idxr.strideParShell(type) + idxr.strideParLiquid();
@@ -686,11 +686,11 @@ void GeneralRateModel::consistentInitialSensitivity(const active& t, unsigned in
 					for (unsigned int shell = 0; shell < _disc.nParCell[type]; ++shell)
 					{
 						const unsigned int jacRowOffset = shell * static_cast<unsigned int>(idxr.strideParShell(type)) + static_cast<unsigned int>(idxr.strideParLiquid());
-						const int localCpOffset = idxr.offsetCp(ParticleTypeIndex{type}, ParticleIndex{pblk}) + static_cast<int>(shell) * idxr.strideParShell(type);
+						const int localCpOffset = idxr.offsetCp(ParticleTypeIndex{type}, ParticleIndex{static_cast<unsigned int>(pblk)}) + static_cast<int>(shell) * idxr.strideParShell(type);
 
 						parts::BindingConsistentInitializer::consistentInitialSensitivityState(algStart, algLen, jacobianMatrix,
 							_jacP[type * _disc.nCol + pblk], localCpOffset, jacRowOffset, idxr.strideParLiquid(), _disc.strideBound[type],
-							sensY, sensYdot, _tempState + idxr.offsetCp(ParticleTypeIndex{type}, ParticleIndex{pblk}));
+							sensY, sensYdot, _tempState + idxr.offsetCp(ParticleTypeIndex{type}, ParticleIndex{static_cast<unsigned int>(pblk)}));
 					}
 				} CADET_PARFOR_END;
 			}

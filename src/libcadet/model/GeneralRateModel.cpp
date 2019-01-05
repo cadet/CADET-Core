@@ -165,7 +165,7 @@ bool GeneralRateModel::configureModelDiscretization(IParameterProvider& paramPro
 	unsigned int nTotalParCells = 0;
 	for (unsigned int j = 1; j < _disc.nParType + 1; ++j)
 	{
-		_disc.parTypeOffset[j] = _disc.parTypeOffset[j-1] + (_disc.nComp + _disc.strideBound[j-1]) * _disc.nParCell[j-1];
+		_disc.parTypeOffset[j] = _disc.parTypeOffset[j-1] + (_disc.nComp + _disc.strideBound[j-1]) * _disc.nParCell[j-1] * _disc.nCol;
 		_disc.nParCellsBeforeType[j] = _disc.nParCellsBeforeType[j-1] + _disc.nParCell[j-1];
 		nTotalParCells += _disc.nParCell[j-1];
 	}
@@ -305,7 +305,7 @@ bool GeneralRateModel::configure(IParameterProvider& paramProvider)
 	readScalarParameterOrArray(_parRadius, paramProvider, "PAR_RADIUS", _disc.nParType);
 	readScalarParameterOrArray(_parPorosity, paramProvider, "PAR_POROSITY", _disc.nParType);
 
-	// Let _parCoreRadius default to 0.0 for backwards compatibility
+	// Let PAR_CORERADIUS default to 0.0 for backwards compatibility
 	if (paramProvider.exists("PAR_CORERADIUS"))
 		readScalarParameterOrArray(_parCoreRadius, paramProvider, "PAR_CORERADIUS", _disc.nParType);
 	else
@@ -315,7 +315,7 @@ bool GeneralRateModel::configure(IParameterProvider& paramProvider)
 	if ((_disc.nParType > 1) && !paramProvider.exists("PAR_TYPE_VOLFRAC"))
 		throw InvalidParameterException("The required parameter \"PAR_TYPE_VOLFRAC\" was not found");
 
-	// Let _parCoreRadius default to 0.0 for backwards compatibility
+	// Let PAR_TYPE_VOLFRAC default to 1.0 for backwards compatibility
 	if (paramProvider.exists("PAR_TYPE_VOLFRAC"))
 		readScalarParameterOrArray(_parTypeVolFrac, paramProvider, "PAR_TYPE_VOLFRAC", 1);
 	else
@@ -414,13 +414,14 @@ bool GeneralRateModel::configure(IParameterProvider& paramProvider)
 	if (!_binding.empty())
 	{
 		const unsigned int maxBoundStates = *std::max_element(_disc.strideBound, _disc.strideBound + _disc.nParType);
+		std::vector<ParameterId> initParams(maxBoundStates);
 		for (unsigned int type = 0; type < _disc.nParType; ++type)
 		{
-			std::vector<ParameterId> initParams(maxBoundStates);
 			_binding[type]->fillBoundPhaseInitialParameters(initParams.data(), _unitOpIdx, type);
 
+			active* const iq = _initQ.data() + _disc.nBoundBeforeType[type];
 			for (unsigned int i = 0; i < _disc.strideBound[type]; ++i)
-				_parameters[initParams[i]] = _initQ.data() + i;
+				_parameters[initParams[i]] = iq + i;
 		}
 	}
 
@@ -996,8 +997,8 @@ int GeneralRateModel::residualFlux(const ParamType& t, unsigned int secIdx, Stat
 		// Ordering of diffusion:
 		// sec0type0comp0, sec0type0comp1, sec0type0comp2, sec0type1comp0, sec0type1comp1, sec0type1comp2,
 		// sec1type0comp0, sec1type0comp1, sec1type0comp2, sec1type1comp0, sec1type1comp1, sec1type1comp2, ...
-		active const* const filmDiff = getSectionDependentSlice(_filmDiffusion, _disc.nComp, secIdx) + type * _disc.nComp;
-		active const* const parDiff = getSectionDependentSlice(_parDiffusion, _disc.nComp, secIdx) + type * _disc.nComp;
+		active const* const filmDiff = getSectionDependentSlice(_filmDiffusion, _disc.nComp * _disc.nParType, secIdx) + type * _disc.nComp;
+		active const* const parDiff = getSectionDependentSlice(_parDiffusion, _disc.nComp * _disc.nParType, secIdx) + type * _disc.nComp;
 
 		const ParamType surfaceToVolumeRatio = 3.0 / static_cast<ParamType>(_parRadius[type]);
 		const ParamType outerAreaPerVolume = static_cast<ParamType>(_parOuterSurfAreaPerVolume[_disc.nParCellsBeforeType[type]]);
@@ -1086,8 +1087,8 @@ void GeneralRateModel::assembleOffdiagJac(double t, unsigned int secIdx)
 		// Ordering of diffusion:
 		// sec0type0comp0, sec0type0comp1, sec0type0comp2, sec0type1comp0, sec0type1comp1, sec0type1comp2,
 		// sec1type0comp0, sec1type0comp1, sec1type0comp2, sec1type1comp0, sec1type1comp1, sec1type1comp2, ...
-		active const* const filmDiff = getSectionDependentSlice(_filmDiffusion, _disc.nComp, secIdx) + type * _disc.nComp;
-		active const* const parDiff = getSectionDependentSlice(_parDiffusion, _disc.nComp, secIdx) + type * _disc.nComp;
+		active const* const filmDiff = getSectionDependentSlice(_filmDiffusion, _disc.nComp * _disc.nParType, secIdx) + type * _disc.nComp;
+		active const* const parDiff = getSectionDependentSlice(_parDiffusion, _disc.nComp * _disc.nParType, secIdx) + type * _disc.nComp;
 
 		const double surfaceToVolumeRatio = 3.0 / static_cast<double>(_parRadius[type]);
 		const double outerAreaPerVolume = static_cast<double>(_parOuterSurfAreaPerVolume[_disc.nParCellsBeforeType[type]]);
@@ -1341,7 +1342,7 @@ void GeneralRateModel::multiplyWithDerivativeJacobian(double t, unsigned int sec
 
 	// Handle fluxes (all algebraic)
 	double* const dFdyDot = ret + idxr.offsetJf();
-	std::fill(dFdyDot, dFdyDot + _disc.nCol * _disc.nComp, 0.0);
+	std::fill(dFdyDot, dFdyDot + _disc.nCol * _disc.nComp * _disc.nParType, 0.0);
 
 	// Handle inlet DOFs (all algebraic)
 	std::fill_n(ret, _disc.nComp, 0.0);
@@ -1369,6 +1370,7 @@ unsigned int GeneralRateModel::localOutletComponentIndex() const CADET_NOEXCEPT
 
 unsigned int GeneralRateModel::localInletComponentIndex() const CADET_NOEXCEPT
 {
+	// Always 0 due to dedicated inlet DOFs
 	return 0;
 }
 
