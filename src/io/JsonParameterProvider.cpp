@@ -456,6 +456,12 @@ void JsonParameterProvider::remove(const std::string& name)
 	(*_opened.top()).erase(name);
 }
 
+void JsonParameterProvider::copy(const std::string& src, const std::string& dest)
+{
+	const json j = (*_opened.top())[src];
+	(*_opened.top())[dest] = j;
+}
+
 JsonParameterProvider JsonParameterProvider::fromFile(const std::string& fileName)
 {
 	std::ifstream ifs(fileName);

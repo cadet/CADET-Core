@@ -13,6 +13,7 @@
 #include <catch.hpp>
 
 #include "ColumnTests.hpp"
+#include "ParticleHelper.hpp"
 #include "Weno.hpp"
 #include "Utils.hpp"
 
@@ -121,4 +122,29 @@ TEST_CASE("GRM consistent sensitivity initialization with SMA binding", "[GRM],[
 	cadet::test::util::populate(yDot.data(), [](unsigned int idx) { return std::abs(std::sin(idx * 0.9)) + 1e-4; }, numDofs);
 
 	cadet::test::column::testConsistentInitializationSensitivity("GENERAL_RATE_MODEL", y.data(), yDot.data(), false, 1e-9);
+}
+
+TEST_CASE("GRM LWE one vs two identical particle types match", "[GRM],[Simulation],[ParticleType]")
+{
+	cadet::test::particle::testOneVsTwoIdenticalParticleTypes("GENERAL_RATE_MODEL", 2e-8, 5e-5);
+}
+
+TEST_CASE("GRM LWE separate identical particle types match", "[GRM],[Simulation],[ParticleType]")
+{
+	cadet::test::particle::testSeparateIdenticalParticleTypes("GENERAL_RATE_MODEL", 1e-15, 1e-15);
+}
+
+TEST_CASE("GRM linear binding single particle matches particle distribution", "[GRM],[Simulation],[ParticleType]")
+{
+	cadet::test::particle::testLinearMixedParticleTypes("GENERAL_RATE_MODEL", 5e-8, 5e-5);
+}
+
+TEST_CASE("GRM multiple particle types Jacobian analytic vs AD", "[GRM],[Jacobian],[AD],[ParticleType]")
+{
+	cadet::test::particle::testJacobianMixedParticleTypes("GENERAL_RATE_MODEL");
+}
+
+TEST_CASE("GRM multiple particle types time derivative Jacobian vs FD", "[GRM],[UnitOp],[Residual],[Jacobian],[ParticleType]")
+{
+	cadet::test::particle::testTimeDerivativeJacobianMixedParticleTypesFD("GENERAL_RATE_MODEL", 1e-6, 0.0, 9e-4);
 }

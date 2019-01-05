@@ -31,7 +31,7 @@ add_executable (testLogging testLogging.cpp)
 
 # CATCH unit tests
 configure_file("${CMAKE_CURRENT_SOURCE_DIR}/Paths.cpp.in" "${CMAKE_CURRENT_BINARY_DIR}/Paths.cpp" @ONLY)
-add_executable (testRunner testRunner.cpp JsonTestModels.cpp ColumnTests.cpp UnitOperationTests.cpp SimHelper.cpp
+add_executable (testRunner testRunner.cpp JsonTestModels.cpp ColumnTests.cpp UnitOperationTests.cpp SimHelper.cpp ParticleHelper.cpp
 	GeneralRateModel.cpp LumpedRateModelWithPores.cpp LumpedRateModelWithoutPores.cpp
 	CSTR-Residual.cpp CSTR-Simulation.cpp 
 	ConvectionDispersionOperator.cpp

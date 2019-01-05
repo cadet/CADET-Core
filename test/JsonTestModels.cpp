@@ -367,7 +367,6 @@ json createLWEJson(const std::string& uoType)
 			ti["MAX_ERRTEST_FAIL"] = 7;
 			ti["MAX_CONVTEST_FAIL"] = 10;
 			ti["MAX_NEWTON_ITER_SENS"] = 3;
-			ti["NTHREADS"] = 1;
 			ti["CONSISTENT_INIT_MODE"] = 1;
 			ti["CONSISTENT_INIT_MODE_SENS"] = 1;
 
@@ -382,6 +381,219 @@ json createLWEJson(const std::string& uoType)
 cadet::JsonParameterProvider createLWE(const std::string& uoType)
 {
 	return cadet::JsonParameterProvider(createLWEJson(uoType));
+}
+
+cadet::JsonParameterProvider createPulseInjectionColumn(const std::string& uoType, bool dynamicBinding)
+{
+	json config;
+	// Model
+	{
+		json model;
+		model["NUNITS"] = 2;
+
+		// GRM - unit 000
+		{
+			json grm;
+			grm["UNIT_TYPE"] = uoType;
+			grm["NCOMP"] = 1;
+			grm["VELOCITY"] = 5.75e-4;
+			grm["COL_DISPERSION"] = 5.75e-8;
+			grm["FILM_DIFFUSION"] = {6.9e-6};
+			grm["PAR_DIFFUSION"] = {7e-10};
+			grm["PAR_SURFDIFFUSION"] = {0.0};
+
+			// Geometry
+			grm["COL_LENGTH"] = 0.014;
+			grm["PAR_RADIUS"] = 4.5e-5;
+			grm["PAR_CORERADIUS"] = 0.0;
+			grm["COL_POROSITY"] = 0.37;
+			grm["PAR_POROSITY"] = 0.75;
+			grm["TOTAL_POROSITY"] = 0.37 + (1.0 - 0.37) * 0.75;
+
+			// Initial conditions
+			grm["INIT_C"] = {0.0};
+			grm["INIT_Q"] = {0.0};
+
+			// Adsorption
+			{
+				grm["ADSORPTION_MODEL"] = std::string("LINEAR");
+
+				json ads;
+				ads["IS_KINETIC"] = (dynamicBinding ? 1 : 0);
+				ads["LIN_KA"] = {35.5};
+				ads["LIN_KD"] = {1000.0};
+				grm["adsorption"] = ads;
+			}
+
+			// Discretization
+			{
+				json disc;
+
+				disc["NCOL"] = 10;
+				disc["NPAR"] = 4;
+				disc["NBOUND"] = {1};
+
+				disc["PAR_DISC_TYPE"] = std::string("EQUIDISTANT_PAR");
+
+				disc["USE_ANALYTIC_JACOBIAN"] = true;
+				disc["MAX_KRYLOV"] = 0;
+				disc["GS_TYPE"] = 1;
+				disc["MAX_RESTARTS"] = 10;
+				disc["SCHUR_SAFETY"] = 1e-8;
+
+				// WENO
+				{
+					json weno;
+
+					weno["WENO_ORDER"] = 3;
+					weno["BOUNDARY_MODEL"] = 0;
+					weno["WENO_EPS"] = 1e-10;
+					disc["weno"] = weno;
+				}
+				grm["discretization"] = disc;
+			}
+
+			model["unit_000"] = grm;
+		}
+
+		// Inlet - unit 001
+		{
+			json inlet;
+
+			inlet["UNIT_TYPE"] = std::string("INLET");
+			inlet["INLET_TYPE"] = std::string("PIECEWISE_CUBIC_POLY");
+			inlet["NCOMP"] = 1;
+
+			{
+				json sec;
+
+				sec["CONST_COEFF"] = {1.0};
+				sec["LIN_COEFF"] = {0.0};
+				sec["QUAD_COEFF"] = {0.0};
+				sec["CUBE_COEFF"] = {0.0};
+
+				inlet["sec_000"] = sec;
+			}
+
+			{
+				json sec;
+
+				sec["CONST_COEFF"] = {0.0};
+				sec["LIN_COEFF"] = {0.0};
+				sec["QUAD_COEFF"] = {0.0};
+				sec["CUBE_COEFF"] = {0.0};
+
+				inlet["sec_001"] = sec;
+			}
+
+			model["unit_001"] = inlet;
+		}
+
+		// Valve switches
+		{
+			json con;
+			con["NSWITCHES"] = 1;
+
+			{
+				json sw;
+
+				// This switch occurs at beginning of section 0 (initial configuration)
+				sw["SECTION"] = 0;
+
+				// Connection list is 1x5 since we have 1 connection between
+				// the two unit operations (and we need to have 5 columns)
+				sw["CONNECTIONS"] = {1.0, 0.0, -1.0, -1.0, 1.0};
+				// Connections: From unit operation 1 to unit operation 0,
+				//              connect component -1 (i.e., all components)
+				//              to component -1 (i.e., all components) with
+				//              volumetric flow rate 1.0 m^3/s
+
+				con["switch_000"] = sw;
+			}
+			model["connections"] = con;
+		}
+
+		// Solver settings
+		{
+			json solver;
+
+			solver["MAX_KRYLOV"] = 0;
+			solver["GS_TYPE"] = 1;
+			solver["MAX_RESTARTS"] = 10;
+			solver["SCHUR_SAFETY"] = 1e-8;
+			model["solver"] = solver;
+		}
+
+		config["model"] = model;
+	}
+
+	// Return
+	{
+		json ret;
+		ret["WRITE_SOLUTION_TIMES"] = true;
+	
+		json grm;
+		grm["WRITE_SOLUTION_BULK"] = false;
+		grm["WRITE_SOLUTION_PARTICLE"] = false;
+		grm["WRITE_SOLUTION_FLUX"] = false;
+		grm["WRITE_SOLUTION_INLET"] = true;
+		grm["WRITE_SOLUTION_OUTLET"] = true;
+		
+		ret["unit_000"] = grm;
+		config["return"] = ret;
+	}
+
+	// Solver
+	{
+		json solver;
+
+		{
+			std::vector<double> solTimes;
+			solTimes.reserve(151);
+			for (double t = 0.0; t <= 150.0; t += 1.0)
+				solTimes.push_back(t);
+
+			solver["USER_SOLUTION_TIMES"] = solTimes;
+		}
+
+		solver["NTHREADS"] = 1;
+
+		// Sections
+		{
+			json sec;
+
+			sec["NSEC"] = 2;
+			sec["SECTION_TIMES"] = {0.0, 10.0, 150.0};
+			sec["SECTION_CONTINUITY"] = {false, false};
+
+			solver["sections"] = sec;
+		}
+
+		// Time integrator
+		{
+			json ti;
+
+			ti["ABSTOL"] = 1e-8;
+			ti["RELTOL"] = 1e-6;
+			ti["ALGTOL"] = 1e-12;
+			ti["INIT_STEP_SIZE"] = 1e-6;
+			ti["MAX_STEPS"] = 10000;
+			ti["MAX_STEP_SIZE"] = 0.0;
+			ti["RELTOL_SENS"] = 1e-6;
+			ti["ERRORTEST_SENS"] = true;
+			ti["MAX_NEWTON_ITER"] = 3;
+			ti["MAX_ERRTEST_FAIL"] = 7;
+			ti["MAX_CONVTEST_FAIL"] = 10;
+			ti["MAX_NEWTON_ITER_SENS"] = 3;
+			ti["CONSISTENT_INIT_MODE"] = 1;
+			ti["CONSISTENT_INIT_MODE_SENS"] = 1;
+
+			solver["time_integrator"] = ti;
+		}
+
+		config["solver"] = solver;
+	}
+	return cadet::JsonParameterProvider(config);
 }
 
 cadet::JsonParameterProvider createLinearBenchmark(bool dynamicBinding, bool nonBinding, const std::string& uoType)
@@ -605,7 +817,6 @@ cadet::JsonParameterProvider createLinearBenchmark(bool dynamicBinding, bool non
 			ti["MAX_ERRTEST_FAIL"] = 7;
 			ti["MAX_CONVTEST_FAIL"] = 10;
 			ti["MAX_NEWTON_ITER_SENS"] = 3;
-			ti["NTHREADS"] = 1;
 			ti["CONSISTENT_INIT_MODE"] = 1;
 			ti["CONSISTENT_INIT_MODE_SENS"] = 1;
 
@@ -784,7 +995,6 @@ cadet::JsonParameterProvider createCSTRBenchmark(unsigned int nSec, double endTi
 			ti["MAX_ERRTEST_FAIL"] = 7;
 			ti["MAX_CONVTEST_FAIL"] = 10;
 			ti["MAX_NEWTON_ITER_SENS"] = 3;
-			ti["NTHREADS"] = 1;
 			ti["CONSISTENT_INIT_MODE"] = 1;
 			ti["CONSISTENT_INIT_MODE_SENS"] = 1;
 

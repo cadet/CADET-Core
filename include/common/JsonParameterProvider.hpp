@@ -79,6 +79,8 @@ public:
 
 	void remove(const std::string& name);
 
+	void copy(const std::string& src, const std::string& dest);
+
 	inline nlohmann::json* data() { return _root; }
 	inline nlohmann::json const* data() const { return _root; }
 
