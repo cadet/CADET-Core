@@ -573,16 +573,26 @@ inline std::size_t memoryForLocalVersionOf(const SlicedVector<T>& v) CADET_NOEXC
 
 /**
  * @brief Returns the size of the given data in bytes
+ * @details Externally dependent parameters are stored in a struct, usually called
+ *          VariableParams. This is sufficient for "static" parameter types that do
+ *          not require additional memory (that is usually allocated dynamically).
+ *          For containers using additional memory, which may be dynamically allocated,
+ *          we need some more memory. The amount of additional memory is computed by
+ *          this family of functions.
  * @param [in] v Data
  * @return Size of the data in bytes
  */
 inline std::size_t memoryForDataOf(double v) CADET_NOEXCEPT
 {
+	// Data is directly stored in field of VariableParams struct
+	// Hence, no additional memory is required
 	return 0;
 }
 
 inline std::size_t memoryForDataOf(const active& v) CADET_NOEXCEPT
 {
+	// Data is directly stored in field of VariableParams struct
+	// Hence, no additional memory is required
 	return 0;
 }
 
@@ -595,6 +605,7 @@ inline std::size_t memoryForDataOf(const std::vector<T>& v) CADET_NOEXCEPT
 template <class T>
 inline std::size_t memoryForDataOf(const SlicedVector<T>& v) CADET_NOEXCEPT
 {
+	// Required memory: Slice index array + items array
 	return (v.slices() + 1) * sizeof(typename SlicedVector<T>::size_type) + v.size() * sizeof(T);
 }
 
@@ -607,8 +618,10 @@ inline std::size_t memoryForDataOf(const LocalVector<T>& v) CADET_NOEXCEPT
 template <class T>
 inline std::size_t memoryForDataOf(const LocalSlicedVector<T>& v) CADET_NOEXCEPT
 {
+	// Required memory: Slice index array + items array
 	return (v.slices() + 1) * sizeof(typename LocalSlicedVector<T>::size_type) + v.size() * sizeof(T);
 }
+
 
 /**
  * @brief Provides the type of the local version of a given data type

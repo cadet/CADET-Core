@@ -172,7 +172,7 @@ bool LumpedRateModelWithPores::configureModelDiscretization(IParameterProvider& 
 	if (_binding[0]->requiresWorkspace())
 	{
 		// Required memory (number of doubles) for nonlinear solvers
-		const unsigned int requiredMem = (_binding[0]->workspaceSize() + sizeof(double) - 1) / sizeof(double) * _disc.nCol;
+		const unsigned int requiredMem = (_binding[0]->workspaceSize(_disc.nComp, _disc.strideBound, _disc.nBound) + sizeof(double) - 1) / sizeof(double) * _disc.nCol;
 		if (requiredMem > size)
 		{
 			size = requiredMem;
@@ -546,7 +546,7 @@ int LumpedRateModelWithPores::residualParticle(const ParamType& t, unsigned int 
 	double const* yDot = yDotBase + idxr.offsetCp(colCell);
 	ResidualType* res = resBase + idxr.offsetCp(colCell);
 
-	const unsigned int requiredMem = (_binding[0]->workspaceSize() + sizeof(double) - 1) / sizeof(double);
+	const unsigned int requiredMem = (_binding[0]->workspaceSize(_disc.nComp, _disc.strideBound, _disc.nBound) + sizeof(double) - 1) / sizeof(double);
 	double* const buffer = _tempState + requiredMem * colCell;
 
 	// Prepare parameters

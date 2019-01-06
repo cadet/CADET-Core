@@ -132,7 +132,7 @@ public:
 		_p->reserve(nComp);
 	}
 
-	inline std::size_t size() const { return _p->size(); }
+	inline std::size_t size() const CADET_NOEXCEPT { return _p->size(); }
 
 	inline const std::vector<active>& get() const CADET_NOEXCEPT { return *_p; }
 	inline std::vector<active>& get() CADET_NOEXCEPT { return *_p; }
@@ -170,7 +170,7 @@ public:
 		_p->reserve(numSlices);
 	}
 
-	inline std::size_t size() const { return _p->size(); }
+	inline std::size_t size() const CADET_NOEXCEPT { return _p->size(); }
 
 	inline const std::vector<active>& get() const CADET_NOEXCEPT { return *_p; }
 	inline std::vector<active>& get() CADET_NOEXCEPT { return *_p; }
@@ -567,6 +567,23 @@ public:
 	inline const storage_t& base() const CADET_NOEXCEPT { return _base; }
 
 	/**
+	 * @brief Returns the amount of additional memory (usually dynamically allocated by containers) for storing the final parameters
+	 * @details In a model, externally dependent parameters are stored in a struct, usually called
+	 *          VariableParams. This is sufficient for "static" parameter types that do
+	 *          not require additional memory (which is usually allocated dynamically).
+	 *          For containers using additional dynamic memory, only the container itself
+	 *          is stored in the struct. Memory for the content of the container (i.e., the
+	 *          elements) is still required. This function computes this amount of additional
+	 *          memory.
+	 * 
+	 * @param [in] nComp Number of components
+	 * @param [in] totalNumBoundStates Total number of bound states
+	 * @param [in] nBoundStates Array with number of bound states for each component
+	 * @return Amount of additional memory in bytes
+	 */
+	inline const std::size_t additionalDynamicMemory(unsigned int nComp, unsigned int totalNumBoundStates, unsigned int const* nBoundStates) const CADET_NOEXCEPT { return 0; }
+
+	/**
 	 * @brief Prepares the cache for the updated values
 	 * @details The cache is a local version of storage_t (e.g., LocalVector).
 	 * @param [in,out] cache Cache object to be prepared
@@ -639,7 +656,9 @@ public:
 			result[i] = extTimeDiff * (static_cast<double>(_linear[i]) + extVal * (2.0 * static_cast<double>(_quad[i]) + 3.0 * extVal * static_cast<double>(_cube[i])));
 	}
 
-	inline std::size_t size() const { return _base.size(); }
+	inline std::size_t size() const CADET_NOEXCEPT { return _base.size(); }
+
+	inline const std::size_t additionalDynamicMemory(unsigned int nComp, unsigned int totalNumBoundStates, unsigned int const* nBoundStates) const CADET_NOEXCEPT { return nComp * sizeof(active); }
 
 	inline const storage_t& base() const CADET_NOEXCEPT { return _base; }
 
@@ -713,7 +732,17 @@ public:
 			result[i] = extTimeDiff * (static_cast<double>(_linear[i]) + extVal * (2.0 * static_cast<double>(_quad[i]) + 3.0 * extVal * static_cast<double>(_cube[i])));
 	}
 
-	inline std::size_t size() const { return _base.size(); }
+	inline std::size_t size() const CADET_NOEXCEPT { return _base.size(); }
+
+	inline const std::size_t additionalDynamicMemory(unsigned int nComp, unsigned int totalNumBoundStates, unsigned int const* nBoundStates) const CADET_NOEXCEPT
+	{
+		for (unsigned int i = 0; i < nComp; ++i)
+		{
+			if (nBoundStates[i] != 0)
+				return nBoundStates[i] * sizeof(active);
+		}
+		return 0;
+	}
 
 	inline const storage_t& base() const CADET_NOEXCEPT { return _base; }
 
@@ -754,7 +783,7 @@ public:
 		}
 		else
 		{
-			const unsigned int numStates = firstNonEmptyBoundStates(nBoundStates, nComp);			
+			const unsigned int numStates = firstNonEmptyBoundStates(nBoundStates, nComp);
 			readBoundStateDependentParameter<util::SlicedVector<active>, active>(_base, paramProvider, "EXT_" + varName, nComp, numStates);
 			readBoundStateDependentParameter<util::SlicedVector<active>, active>(_linear, paramProvider, "EXT_" + varName + "_T", nComp, numStates);
 			readBoundStateDependentParameter<util::SlicedVector<active>, active>(_quad, paramProvider, "EXT_" + varName + "_TT", nComp, numStates);
@@ -812,6 +841,17 @@ public:
 
 	inline typename util::SlicedVector<active>::size_type slices() const CADET_NOEXCEPT { return _base.slices(); }
 	inline typename util::SlicedVector<active>::size_type size() const CADET_NOEXCEPT { return _base.size(); }
+
+	inline const std::size_t additionalDynamicMemory(unsigned int nComp, unsigned int totalNumBoundStates, unsigned int const* nBoundStates) const CADET_NOEXCEPT
+	{
+		if (compMajor)
+			return totalNumBoundStates * sizeof(active) + (nComp + 1) * sizeof(typename util::SlicedVector<active>::size_type);
+		else
+		{
+			const unsigned int numStates = firstNonEmptyBoundStates(nBoundStates, nComp);
+			return numStates * nComp * sizeof(active) + (numStates + 1) * sizeof(typename util::SlicedVector<active>::size_type);
+		}
+	}
 
 	inline const storage_t& base() const CADET_NOEXCEPT { return _base; }
 
@@ -905,6 +945,15 @@ public:
 	inline typename util::SlicedVector<active>::size_type slices() const CADET_NOEXCEPT { return _base.slices(); }
 	inline typename util::SlicedVector<active>::size_type size() const CADET_NOEXCEPT { return _base.size(); }
 
+	inline const std::size_t additionalDynamicMemory(unsigned int nComp, unsigned int totalNumBoundStates, unsigned int const* nBoundStates) const CADET_NOEXCEPT
+	{
+		unsigned int sumSquared = 0;
+		for (unsigned int i = 0; i < nComp; ++i)
+			sumSquared += nBoundStates[i] * nBoundStates[i];
+
+		return sumSquared * sizeof(active) + (nComp + 1) * sizeof(typename util::SlicedVector<active>::size_type);
+	}
+
 	inline const storage_t& base() const CADET_NOEXCEPT { return _base; }
 
 	template <typename T>
@@ -981,6 +1030,11 @@ public:
 
 	inline typename util::SlicedVector<active>::size_type slices() const CADET_NOEXCEPT { return _base.slices(); }
 	inline typename util::SlicedVector<active>::size_type size() const CADET_NOEXCEPT { return _base.size(); }
+
+	inline const std::size_t additionalDynamicMemory(unsigned int nComp, unsigned int totalNumBoundStates, unsigned int const* nBoundStates) const CADET_NOEXCEPT
+	{
+		return nComp * nComp * sizeof(active) + (nComp + 1) * sizeof(typename util::SlicedVector<active>::size_type);
+	}
 
 	inline const storage_t& base() const CADET_NOEXCEPT { return _base; }
 

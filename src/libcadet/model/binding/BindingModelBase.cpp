@@ -134,12 +134,12 @@ active* BindingModelBase::getParameter(const ParameterId& pId)
 	return nullptr;
 }
 
-unsigned int BindingModelBase::workspaceSize() const
+unsigned int BindingModelBase::workspaceSize(unsigned int nComp, unsigned int totalNumBoundStates, unsigned int const* nBoundStates) const CADET_NOEXCEPT
 {
 	// Determine problem size
 	const unsigned int eqSize = numBoundStates(_nBoundStates, _nComp);
 	// Ask nonlinear solver how much memory it needs for this kind of problem
-	return _nonlinearSolver->workspaceSize(eqSize) * sizeof(double) + paramCacheSize();
+	return _nonlinearSolver->workspaceSize(eqSize) * sizeof(double) + paramCacheSize(nComp, totalNumBoundStates, nBoundStates);
 }
 
 /*

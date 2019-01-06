@@ -116,6 +116,7 @@ namespace
 			{
 				boundOffset[i] = boundOffset[i-1] + nBound[i-1];
 			}
+			const unsigned int totalBoundStates = boundOffset[nComp - 1] + nBound[nComp - 1];
 
 			// Configure
 			cadet::JsonParameterProvider jpp(config);
@@ -134,7 +135,7 @@ namespace
 			// Allocate memory buffer
 			unsigned int requiredMem = 0;
 			if (bm->requiresWorkspace())
-				requiredMem = bm->workspaceSize();
+				requiredMem = bm->workspaceSize(nComp, totalBoundStates, boundOffset);
 
 			char* buffer = nullptr;
 			if (requiredMem > 0)

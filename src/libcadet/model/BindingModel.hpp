@@ -232,9 +232,12 @@ public:
 	 * @brief Returns the size of the required workspace in bytes
 	 * @details The memory is required for externally dependent binding models and the 
 	 *          nonlinear solver in consistent initialization.
+	 * @param [in] nComp Number of components
+	 * @param [in] totalNumBoundStates Total number of bound states
+	 * @param [in] nBoundStates Array with bound states for each component
 	 * @return Size of the workspace in bytes
 	 */
-	virtual unsigned int workspaceSize() const = 0;
+	virtual unsigned int workspaceSize(unsigned int nComp, unsigned int totalNumBoundStates, unsigned int const* nBoundStates) const CADET_NOEXCEPT = 0;
 
 	/**
 	 * @brief Computes consistent initial state values

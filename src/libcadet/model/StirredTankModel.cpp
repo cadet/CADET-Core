@@ -131,7 +131,7 @@ bool CSTRModel::configureModelDiscretization(IParameterProvider& paramProvider, 
 		if (_binding[0]->requiresWorkspace())
 		{
 			// Required memory (number of doubles) for nonlinear solvers
-			size = std::max(size, static_cast<unsigned int>((_binding[0]->workspaceSize() + sizeof(double) - 1) / sizeof(double)));
+			size = std::max(size, static_cast<unsigned int>((_binding[0]->workspaceSize(_nComp, _strideBound, _nBound) + sizeof(double) - 1) / sizeof(double)));
 		}
 		_consistentInitBuffer = new double[size];
 

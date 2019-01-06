@@ -268,14 +268,14 @@ bool GeneralRateModel::configureModelDiscretization(IParameterProvider& paramPro
 		_binding[i] = helper.createBindingModel(bindModelNames[i]);
 		if (!_binding[i])
 			throw InvalidParameterException("Unknown binding model " + bindModelNames[i]);
-	
+
 		bindingConfSuccess = _binding[i]->configureModelDiscretization(paramProvider, _disc.nComp, _disc.nBound + i * _disc.nComp, _disc.boundOffset + i * _disc.nComp) && bindingConfSuccess;
 
 		if (_binding[i]->requiresWorkspace())
 		{
 			// Required memory (number of doubles) for nonlinear solvers
-			const unsigned int requiredMem = (_binding[i]->workspaceSize() + sizeof(double) - 1) / sizeof(double) * _disc.nParCell[i] * _disc.nCol;
-			bindingRequiredMem = std::max(bindingRequiredMem, requiredMem);
+			const unsigned int requiredMem = (_binding[i]->workspaceSize(_disc.nComp, _disc.strideBound[i], _disc.nBound + i * _disc.nComp) + sizeof(double) - 1) / sizeof(double) * _disc.nCol;
+			bindingRequiredMem += requiredMem;
 
 			if (i != _disc.nParType - 1)
 				_bindingWorkspaceOffset[i+1] = _bindingWorkspaceOffset[i] + requiredMem;
@@ -286,7 +286,7 @@ bool GeneralRateModel::configureModelDiscretization(IParameterProvider& paramPro
 				_bindingWorkspaceOffset[i+1] = _bindingWorkspaceOffset[i];
 		}
 	}
-	
+
 	// setup the memory for tempState based on state vector or memory needed for consistent initialization of isotherms, whichever is larger
 	const unsigned int size = std::max(numDofs(), bindingRequiredMem);
 	_tempState = new double[size];
@@ -795,7 +795,7 @@ int GeneralRateModel::residualParticle(const ParamType& t, unsigned int parType,
 	double const* yDot = yDotBase + idxr.offsetCp(ParticleTypeIndex{parType}, ParticleIndex{colCell});
 	ResidualType* res = resBase + idxr.offsetCp(ParticleTypeIndex{parType}, ParticleIndex{colCell});
 
-	const unsigned int requiredMem = (_binding[parType]->workspaceSize() + sizeof(double) - 1) / sizeof(double);
+	const unsigned int requiredMem = (_binding[parType]->workspaceSize(_disc.nComp, _disc.strideBound[parType], _disc.nBound + parType * _disc.nComp) + sizeof(double) - 1) / sizeof(double);
 	double* const buffer = _tempState + _bindingWorkspaceOffset[parType] + requiredMem * colCell;
 
 	// Prepare parameters
@@ -971,11 +971,9 @@ int GeneralRateModel::residualFlux(const ParamType& t, unsigned int secIdx, Stat
 
 	// Get offsets
 	ResidualType* const resCol = resBase + idxr.offsetC();
-	ResidualType* const resPar = resBase + idxr.offsetCp();
 	ResidualType* const resFlux = resBase + idxr.offsetJf();
 
 	StateType const* const yCol = yBase + idxr.offsetC();
-	StateType const* const yPar = yBase + idxr.offsetCp();
 	StateType const* const yFlux = yBase + idxr.offsetJf();
 
 	// J_f block (identity matrix), adds flux state to flux equation

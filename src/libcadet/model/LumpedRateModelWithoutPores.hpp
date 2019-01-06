@@ -206,7 +206,7 @@ protected:
 	unsigned int _jacobianAdDirs; //!< Number of AD seed vectors required for Jacobian computation
 
 	bool _factorizeJacobian; //!< Determines whether the Jacobian needs to be factorized
-	double* _tempState; //!< Temporary storage with the size of the state vector or nCol * nPar * _binding->workspaceSize() / sizeof(double) whichever is larger
+	double* _tempState; //!< Temporary storage with the size of the state vector or larger if binding models require it
 	linalg::Gmres _gmres; //!< GMRES algorithm for the Schur-complement in linearSolve()
 	double _schurSafety; //!< Safety factor for Schur-complement solution
 

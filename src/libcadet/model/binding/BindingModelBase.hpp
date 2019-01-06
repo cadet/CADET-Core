@@ -77,7 +77,7 @@ public:
 	virtual bool supportsMultistate() const CADET_NOEXCEPT { return false; }
 	virtual bool supportsNonBinding() const CADET_NOEXCEPT { return true; }
 
-	virtual unsigned int workspaceSize() const;
+	virtual unsigned int workspaceSize(unsigned int nComp, unsigned int totalNumBoundStates, unsigned int const* nBoundStates) const CADET_NOEXCEPT;
 
 	virtual void setExternalFunctions(IExternalFunction** extFuns, unsigned int size) { }
 
@@ -94,7 +94,7 @@ protected:
 	 * @brief Returns the number of bytes required for caching parameters
 	 * @return Parameter cache size in bytes
 	 */
-	virtual unsigned int paramCacheSize() const CADET_NOEXCEPT { return 0; }
+	virtual unsigned int paramCacheSize(unsigned int nComp, unsigned int totalNumBoundStates, unsigned int const* nBoundStates) const CADET_NOEXCEPT { return 0; }
 
 	/**
 	 * @brief Configures the binding model

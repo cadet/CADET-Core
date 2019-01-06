@@ -188,7 +188,7 @@ void LumpedRateModelWithPores::consistentInitialState(double t, unsigned int sec
 	BENCH_SCOPE(_timerConsistentInit);
 
 	// TODO: Check memory consumption and offsets
-	const unsigned int requiredMem = (_binding[0]->workspaceSize() + sizeof(double) - 1) / sizeof(double);
+	const unsigned int requiredMem = (_binding[0]->workspaceSize(_disc.nComp, _disc.strideBound, _disc.nBound) + sizeof(double) - 1) / sizeof(double);
 
 	Indexer idxr(_disc);
 
@@ -293,7 +293,7 @@ void LumpedRateModelWithPores::consistentInitialTimeDerivative(double t, unsigne
 	BENCH_SCOPE(_timerConsistentInit);
 
 	Indexer idxr(_disc);
-	const unsigned int requiredMem = (_binding[0]->workspaceSize() + sizeof(double) - 1) / sizeof(double);
+	const unsigned int requiredMem = (_binding[0]->workspaceSize(_disc.nComp, _disc.strideBound, _disc.nBound) + sizeof(double) - 1) / sizeof(double);
 
 	// Step 2: Compute the correct time derivative of the state vector
 

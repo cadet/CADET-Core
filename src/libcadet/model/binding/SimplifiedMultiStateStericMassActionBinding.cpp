@@ -215,7 +215,7 @@ void SimplifiedMultiStateStericMassActionBinding::getAlgebraicBlock(unsigned int
 		len = numBoundStates(_nBoundStates, _nComp);
 }
 
-unsigned int SimplifiedMultiStateStericMassActionBinding::workspaceSize() const
+unsigned int SimplifiedMultiStateStericMassActionBinding::workspaceSize(unsigned int nComp, unsigned int totalNumBoundStates, unsigned int const* nBoundStates) const CADET_NOEXCEPT
 {
 	// Determine problem size
 	const unsigned int eqSize = numBoundStates(_nBoundStates, _nComp);

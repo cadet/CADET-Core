@@ -180,9 +180,12 @@ namespace model
 		/**
 		 * @brief Returns how much memory is required for caching in bytes
 		 * @details Memory size in bytes.
+		 * @param [in] nComp Number of components
+		 * @param [in] totalNumBoundStates Total number of bound states
+		 * @param [in] nBoundStates Array with bound states for each component
 		 * @return Memory size in bytes
 		 */
-		inline std::size_t cacheSize() const CADET_NOEXCEPT { return 0; }
+		inline std::size_t cacheSize(unsigned int nComp, unsigned int totalNumBoundStates, unsigned int const* nBoundStates) const CADET_NOEXCEPT { return 0; }
 	};
 
 	/**

@@ -139,7 +139,10 @@ protected:
 	ParamHandler_t _paramHandler; //!< Handles parameters and their dependence on external functions
 	unsigned int _numBindingComp; //!< Number of binding components
 
-	virtual unsigned int paramCacheSize() const CADET_NOEXCEPT { return _paramHandler.cacheSize(); }
+	virtual unsigned int paramCacheSize(unsigned int nComp, unsigned int totalNumBoundStates, unsigned int const* nBoundStates) const CADET_NOEXCEPT
+	{
+		return _paramHandler.cacheSize(nComp, totalNumBoundStates, nBoundStates);
+	}
 
 	virtual bool configureImpl(IParameterProvider& paramProvider, unsigned int unitOpIdx, unsigned int parTypeIdx)
 	{

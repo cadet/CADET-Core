@@ -323,11 +323,11 @@ public:
 		return p;
 	}
 
-	inline std::size_t cacheSize() const CADET_NOEXCEPT
+	inline std::size_t cacheSize(unsigned int nComp, unsigned int totalNumBoundStates, unsigned int const* nBoundStates) const CADET_NOEXCEPT
 	{
 		return sizeof(params_t) + 2 * {{ length(parameters) }} * sizeof(double) + 2 * (
 {% for p in parameters %}
-		cadet::util::memoryForDataOf(_{{ p/varName }}.base()) {% if not is_last %} + {% endif %}
+		_{{ p/varName }}.additionalDynamicMemory(nComp, totalNumBoundStates, nBoundStates) {% if not is_last %} + {% endif %}
 {% endfor %}
 		);
 	}

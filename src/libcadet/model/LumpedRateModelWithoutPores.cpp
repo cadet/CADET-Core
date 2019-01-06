@@ -202,7 +202,7 @@ bool LumpedRateModelWithoutPores::configureModelDiscretization(IParameterProvide
 	if (_binding[0]->requiresWorkspace())
 	{
 		// Required memory (number of doubles) for nonlinear solvers
-		const unsigned int requiredMem = (_binding[0]->workspaceSize() + sizeof(double) - 1) / sizeof(double) * _disc.nCol;
+		const unsigned int requiredMem = (_binding[0]->workspaceSize(_disc.nComp, _disc.strideBound, _disc.nBound) + sizeof(double) - 1) / sizeof(double) * _disc.nCol;
 		if (requiredMem > size)
 		{
 			size = requiredMem;
@@ -506,7 +506,7 @@ int LumpedRateModelWithoutPores::residualImpl(const ParamType& t, unsigned int s
 	ConvOpResidual<StateType, ResidualType, ParamType, wantJac>::call(_convDispOp, t, secIdx, timeFactor, y, yDot, res, _jac);
 
 	Indexer idxr(_disc);
-	const unsigned int requiredMem = (_binding[0]->workspaceSize() + sizeof(double) - 1) / sizeof(double);
+	const unsigned int requiredMem = (_binding[0]->workspaceSize(_disc.nComp, _disc.strideBound, _disc.nBound) + sizeof(double) - 1) / sizeof(double);
 
 #ifdef CADET_PARALLELIZE
 	tbb::parallel_for(size_t(0), size_t(_disc.nCol), [&](size_t col)
@@ -987,7 +987,7 @@ void LumpedRateModelWithoutPores::consistentInitialState(double t, unsigned int 
 
 	// TODO: Check memory consumption and offsets
 	// Round up
-	const unsigned int requiredMem = (_binding[0]->workspaceSize() + sizeof(double) - 1) / sizeof(double);
+	const unsigned int requiredMem = (_binding[0]->workspaceSize(_disc.nComp, _disc.strideBound, _disc.nBound) + sizeof(double) - 1) / sizeof(double);
 
 	Indexer idxr(_disc);
 

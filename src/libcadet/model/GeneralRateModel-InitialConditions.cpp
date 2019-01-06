@@ -209,7 +209,7 @@ void GeneralRateModel::consistentInitialState(double t, unsigned int secIdx, dou
 		{
 			// TODO: Check memory consumption and offsets
 			// Round up
-			const unsigned int requiredMem = (_binding[type]->workspaceSize() + sizeof(double) - 1) / sizeof(double);
+			const unsigned int requiredMem = (_binding[type]->workspaceSize(_disc.nComp, _disc.strideBound[type], _disc.nBound + type * _disc.nComp) + sizeof(double) - 1) / sizeof(double);
 
 			ad::BandedJacobianExtractor jacExtractor(_jacP[type * _disc.nCol].lowerBandwidth(), _jacP[type * _disc.nCol].lowerBandwidth(), _jacP[type * _disc.nCol].upperBandwidth());
 
@@ -239,7 +239,7 @@ void GeneralRateModel::consistentInitialState(double t, unsigned int secIdx, dou
 					active* const localAdY = adY ? adY + localOffsetToParticle : nullptr;
 
 					// We are essentially creating a 2d vector of blocks out of a linear strip of memory
-					const unsigned int offset = _bindingWorkspaceOffset[type] + requiredMem * (_disc.nParCell[type] * pblk + shell);
+					const unsigned int offset = _bindingWorkspaceOffset[type] + requiredMem * pblk;
 
 					// Solve algebraic variables
 					_binding[type]->consistentInitialState(t, z, static_cast<double>(_parCenterRadius[_disc.nParCellsBeforeType[type] + shell]) / static_cast<double>(_parRadius[type]), secIdx, qShell, errorTol,
@@ -355,13 +355,13 @@ void GeneralRateModel::consistentInitialTimeDerivative(double t, unsigned int se
 			// Overwrite rows corresponding to algebraic equations with the Jacobian and set right hand side to 0
 			if (_binding[type]->hasAlgebraicEquations())
 			{
-				const unsigned int requiredMem = (_binding[type]->workspaceSize() + sizeof(double) - 1) / sizeof(double);
+				const unsigned int requiredMem = (_binding[type]->workspaceSize(_disc.nComp, _disc.strideBound[type], _disc.nBound + type * _disc.nComp) + sizeof(double) - 1) / sizeof(double);
 
 				parts::BindingConsistentInitializer::consistentInitialTimeDerivative(_binding[type], timeFactor, jac,
 					_jacP[pblk].row(j * static_cast<unsigned int>(idxr.strideParShell(type)) + static_cast<unsigned int>(idxr.strideParLiquid())),
 					vecStateYdot + idxr.offsetCp(ParticleTypeIndex{type}, ParticleIndex{par}) + static_cast<int>(j) * idxr.strideParShell(type) + idxr.strideParLiquid(),
 					t, z, static_cast<double>(_parCenterRadius[_disc.nParCellsBeforeType[type] + j]) / static_cast<double>(_parRadius[type]), secIdx,
-					_tempState + _bindingWorkspaceOffset[type] + requiredMem * (_disc.nParCell[type] * par + j));
+					_tempState + _bindingWorkspaceOffset[type] + requiredMem * par);
 			}
 
 			// Advance pointers over all bound states

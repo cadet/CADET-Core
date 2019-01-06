@@ -339,9 +339,12 @@ public:
 	/**
 	 * @brief Returns how much memory is required for caching in bytes
 	 * @details Memory size in bytes.
+	 * @param [in] nComp Number of components
+	 * @param [in] totalNumBoundStates Total number of bound states
+	 * @param [in] nBoundStates Array with bound states for each component
 	 * @return Memory size in bytes
 	 */
-	inline std::size_t cacheSize() const CADET_NOEXCEPT
+	inline std::size_t cacheSize(unsigned int nComp, unsigned int totalNumBoundStates, unsigned int const* nBoundStates) const CADET_NOEXCEPT
 	{
 		// Required buffer memory:
 		//  + params_t object
@@ -349,7 +352,7 @@ public:
 		//  + buffer for external function time derivative evaluations (2 parameters)
 		//  + buffer for actual parameter data (memory for _kA data + memory for _kD data)
 		//  + buffer for parameter time derivatives (memory for _kA data + memory for _kD data)
-		return sizeof(params_t) + 2 * 2 * sizeof(double) + 2 * (util::memoryForDataOf(_kA.base()) + util::memoryForDataOf(_kD.base()));
+		return sizeof(params_t) + 2 * 2 * sizeof(double) + 2 * (_kA.additionalDynamicMemory(nComp, totalNumBoundStates, nBoundStates) + _kD.additionalDynamicMemory(nComp, totalNumBoundStates, nBoundStates));
 	}
 
 protected:
@@ -490,7 +493,10 @@ public:
 		return nullptr;
 	}
 
-	virtual unsigned int workspaceSize() const { return _paramHandler.cacheSize(); }
+	virtual unsigned int workspaceSize(unsigned int nComp, unsigned int totalNumBoundStates, unsigned int const* nBoundStates) const CADET_NOEXCEPT
+	{
+		return _paramHandler.cacheSize(nComp, totalNumBoundStates, nBoundStates);
+	}
 
 	virtual void consistentInitialState(double t, double z, double r, unsigned int secIdx, double* const vecStateY, double errorTol, 
 		active* const adRes, active* const adY, unsigned int adEqOffset, unsigned int adDirOffset, const ad::IJacobianExtractor& jacExtractor, 
