@@ -474,13 +474,13 @@ void availableParameters(cadet::Driver& drv, int nlhs, mxArray** plhs, int nrhs,
  */
 void setParameters(cadet::Driver& drv, int nlhs, mxArray** plhs, int nrhs, const mxArray** prhs)
 {
-	checkInputArgs(nrhs, 9, "setparval");
+	checkInputArgs(nrhs, 10, "setparval");
 	checkOutputArgs(nlhs, 0, "setparval");
 	requireConfiguredSimulatorAndModel(drv.simulator(), "setparval");
 
 	// Check lengths of vectors and cell arrays
 	const unsigned int nPar = io::numElements(prhs[2]);
-	for (unsigned int i = 3; i < 9; ++i)
+	for (unsigned int i = 3; i < 10; ++i)
 	{
 		if (io::numElements(prhs[i]) != nPar)
 			mexErrMsgIdAndTxt("CADET:mexError", "CadetMex: Command 'setparval' requires all additional arguments to be of the same size (failed for argument %d).\n", i + 1);
@@ -504,7 +504,7 @@ void setParameters(cadet::Driver& drv, int nlhs, mxArray** plhs, int nrhs, const
 	if (cadet::mex::io::isType<uint64_t>(mNames))
 		nameHash = cadet::mex::io::data<uint64_t>(mNames);
 
-	double const* const parVals = cadet::mex::io::data<double>(prhs[8]);
+	double const* const parVals = cadet::mex::io::data<double>(prhs[9]);
 
 	// Execute parameter changes
 	for (unsigned int i = 0; i < nPar; ++i)
@@ -543,13 +543,13 @@ void setParameters(cadet::Driver& drv, int nlhs, mxArray** plhs, int nrhs, const
  */
 void checkParameters(cadet::Driver& drv, int nlhs, mxArray** plhs, int nrhs, const mxArray** prhs)
 {
-	checkInputArgs(nrhs, 8, "checkpar");
+	checkInputArgs(nrhs, 9, "checkpar");
 	checkOutputArgs(nlhs, 1, "checkpar");
 	requireConfiguredSimulatorAndModel(drv.simulator(), "checkpar");
 
 	// Check lengths of vectors and cell arrays
 	const unsigned int nPar = io::numElements(prhs[2]);
-	for (unsigned int i = 3; i < 8; ++i)
+	for (unsigned int i = 3; i < 9; ++i)
 	{
 		if (io::numElements(prhs[i]) != nPar)
 			mexErrMsgIdAndTxt("CADET:mexError", "CadetMex: Command 'checkpar' requires all additional arguments to be of the same size (failed for argument %d).\n", i + 1);
@@ -611,13 +611,13 @@ void checkParameters(cadet::Driver& drv, int nlhs, mxArray** plhs, int nrhs, con
  */
 void makeParameterSensitive(cadet::Driver& drv, int nlhs, mxArray** plhs, int nrhs, const mxArray** prhs)
 {
-	checkInputArgs(nrhs, 10, "setsenspar");
+	checkInputArgs(nrhs, 11, "setsenspar");
 	checkOutputArgs(nlhs, 0, "setsenspar");
 	requireConfiguredSimulatorAndModel(drv.simulator(), "setsenspar");
 
 	// Check lengths of vectors and cell arrays
 	const unsigned int nPar = io::numElements(prhs[2]);
-	for (unsigned int i = 3; i < 9; ++i)
+	for (unsigned int i = 3; i < 10; ++i)
 	{
 		if (io::numElements(prhs[i]) != nPar)
 			mexErrMsgIdAndTxt("CADET:mexError", "CadetMex: Command 'setsenspar' requires all additional arguments to be of the same size (failed for argument %d).\n", i + 1);
@@ -647,7 +647,7 @@ void makeParameterSensitive(cadet::Driver& drv, int nlhs, mxArray** plhs, int nr
 	std::vector<cadet::ParameterId> sensParams;
 	sensParams.reserve(nPar);
 
-	const double sensTol = cadet::mex::io::scalar<double>(prhs[9]);
+	const double sensTol = cadet::mex::io::scalar<double>(prhs[10]);
 
 	// Execute parameter changes
 	for (unsigned int i = 0; i < nPar; ++i)

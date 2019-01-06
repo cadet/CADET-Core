@@ -49,10 +49,10 @@ function jointSensitivities()
 	%          would yield a formally different joint parameter P, since now P = 35.5 * KA_Lysozyme whereas
 	%          P = KA_Lysozyme in the previous formulation. Thus, the relationship of the two model parameters
 	%          KA_Lysozyme and KA_Cytochrome is the same, but the meaning of the joint parameter P is different.
-	params{1} = makeSensitivity([0,0], {'SMA_KA', 'SMA_KA'}, [1, 2], [-1, -1], [0, 0], [-1, -1], [], [1, 1.59 / 35.5]);
+	params{1} = makeSensitivity([0,0], {'SMA_KA', 'SMA_KA'}, [1, 2], [0, 0], [-1, -1], [0, 0], [-1, -1], [], [1, 1.59 / 35.5]);
 
 	% Param 2: COL_LENGTH (independent of component) in GRM (unit operation 0)
-	params{2} = makeSensitivity([0], {'COL_LENGTH'}, [-1], [-1], [-1], [-1]);
+	params{2} = makeSensitivity([0], {'COL_LENGTH'}, [-1], [-1], [-1], [-1], [-1]);
 
 	% Param 3: CONST_COEFF of components 2 and 3 (Lysozyme and Cytochrome, components 1 and 2 if read as
 	%          0-based) in inlet unit operation (id 1) and time section 0. This is the loading
@@ -60,12 +60,12 @@ function jointSensitivities()
 	%          P = LOAD_Lysozyme = 0.75 * LOAD_Cytochrome. Thus, there is always three quarters (0.75) as
 	%          much Cytochrome loaded as Lysozyme and the joint parameter essentially denotes the load
 	%          concentration of Lysozyme.
-	params{3} = makeSensitivity([1,1], {'CONST_COEFF', 'CONST_COEFF'}, [1, 2], [-1, -1], [-1, -1], [0,0], [], [1, 0.75]);
+	params{3} = makeSensitivity([1,1], {'CONST_COEFF', 'CONST_COEFF'}, [1, 2], [-1, -1], [-1, -1], [-1, -1], [0,0], [], [1, 0.75]);
 	
 	% Param 4: CONST_COEFF of component 1 (salt, component 0 if read as 0-based) in inlet unit operation
 	%          (id 1) and time section 2 (elution phase). This is the start concentration of the linear
 	%          salt gradient in the gradient elution.
-	params{4} = makeSensitivity([1], {'CONST_COEFF'}, [0], [-1], [-1], [2]);
+	params{4} = makeSensitivity([1], {'CONST_COEFF'}, [0], [-1], [-1], [-1], [2]);
 	
 	% Set parameters and compute sensitivities for the first and last parameter
 	sim.setParameters(params, [true, false, false, true]);

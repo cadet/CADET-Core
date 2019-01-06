@@ -25,8 +25,8 @@ function parallelSimulations()
 
 	% Add parameters without computing sensitivities
 	params = cell(2, 1);
-	params{1} = makeSensitivity([0], {'VELOCITY'}, [-1], [-1], [-1], [-1]);
-	params{2} = makeSensitivity([1], {'CONST_COEFF'}, [0], [-1], [-1], [0]);
+	params{1} = makeSensitivity([0], {'VELOCITY'}, [-1], [-1], [-1], [-1], [-1]);
+	params{2} = makeSensitivity([1], {'CONST_COEFF'}, [0], [-1], [-1], [-1], [0]);
 	sim.setParameters(params, [false, false]);
 
 	% Allocate space for results and samples (100 samples)

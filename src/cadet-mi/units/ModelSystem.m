@@ -515,10 +515,10 @@ classdef ModelSystem < handle
 		function val = getParameterValue(obj, param)
 			%GETPARAMETERVALUE Retrieves a parameter value from the ModelSystem or one of its registered Model objects
 			%   VAL = GETPARAMETERVALUE(PARAM) searches for the (single) parameter identified by
-			%   the struct PARAM with the fields SENS_NAME, SENS_UNIT, SENS_COMP, SENS_BOUNDPHASE,
-			%   SENS_REACTION, and SENS_SECTION (as returned by MAKESENSITIVITY()). The returned
-			%   value VAL contains the current value of the parameter (on the Matlab side, not in
-			%   the current CADET configuration) or NaN if the parameter could not be found.
+			%   the struct PARAM with the fields SENS_NAME, SENS_UNIT, SENS_COMP, SENS_PARTYPE,
+			%   SENS_BOUNDPHASE, SENS_REACTION, and SENS_SECTION (as returned by MAKESENSITIVITY()).
+			%   The returned value VAL contains the current value of the parameter (on the Matlab side,
+			%   not in the current CADET configuration) or NaN if the parameter could not be found.
 			%
 			% See also MEXSIMULATOR.GETPARAMETERVALUE, MODELSYSTEM.SETPARAMETERVALUE, MAKESENSITIVITY
 
@@ -548,8 +548,8 @@ classdef ModelSystem < handle
 			%SETPARAMETERVALUE Sets a parameter value in the ModelSystem or one of its registered Model objects
 			%   OLDVAL = SETPARAMETERVALUE(PARAM, NEWVAL) searches for the parameter
 			%   identified by the struct PARAM with the fields SENS_NAME, SENS_UNIT,
-			%   SENS_COMP, SENS_BOUNDPHASE, SENS_REACTION, and SENS_SECTION (as returned
-			%   by MAKESENSITIVITY()). The returned value OLDVAL contains the old value
+			%   SENS_COMP, SENS_PARTYPE, SENS_BOUNDPHASE, SENS_REACTION, and SENS_SECTION (as
+			%   returned by MAKESENSITIVITY()). The returned value OLDVAL contains the old value
 			%   of the parameter (on the Matlab side, not in the current CADET configuration)
 			%   or NaN if the parameter could not be found. The value of the parameter is
 			%   set to NEWVAL. The changes are not propagated to the underlying CADET simulator.

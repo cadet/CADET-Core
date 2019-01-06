@@ -47,7 +47,7 @@ function repeatedlyContinueFromSamePoint()
 
 	% Add gradient slope as parameter (without sensitivity)
 	params = cell(1, 1);
-	params{1} = makeSensitivity([1], {'LIN_COEFF'}, [0], [-1], [-1], [0]);
+	params{1} = makeSensitivity([1], {'LIN_COEFF'}, [0], [-1], [-1], [-1], [0]);
 	sim.setParameters(params, [false]);
 
 	% Simulate elution for all slopes

@@ -39,12 +39,12 @@ function parameterizedSimulationWithSensitivities()
 	%   - time integrator section index (0-based index or -1 if independent).
 
 	% Parameter 1: SMA_KA of component 2 (Lysozyme, component 1 if read as 0-based) in GRM (unit operation 0)
-	params{1} = makeSensitivity([0], {'SMA_KA'}, [1], [-1], [0], [-1]);
+	params{1} = makeSensitivity([0], {'SMA_KA'}, [1], [0], [-1], [0], [-1]);
 
 	% Parameter 2: CONST_COEFF of component 2 (Lysozyme, component 1 if read as 0-based)
 	%              in inlet unit operation (id 1) and time section 0. This is the loading
 	%              concentration of Lysozyme.
-	params{2} = makeSensitivity([1], {'CONST_COEFF'}, [1], [-1], [-1], [0]);
+	params{2} = makeSensitivity([1], {'CONST_COEFF'}, [1], [-1], [-1], [-1], [0]);
 
 	% Set parameters in the Simulator and compute sensitivities for all two parameters
 	sim.setParameters(params, true(2, 1));

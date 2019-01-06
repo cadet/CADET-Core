@@ -639,8 +639,8 @@ classdef MexSimulator < handle
 			%PARAMETEREXISTS Checks whether the given parameters exist in the model / simulator
 			%   RES = PARAMETEREXISTS(SENS) checks whether each parameters given in SENS exists
 			%   and returns a logical vector indicating the result. SENS is a struct with the 
-			%   fields SENS_NAME, SENS_UNIT, SENS_COMP, SENS_BOUNDPHASE, SENS_REACTION, and
-			%   SENS_SECTION. The fields are (cell) arrays such that taking one element of every
+			%   fields SENS_NAME, SENS_UNIT, SENS_COMP, SENS_PARTYPE, SENS_BOUNDPHASE, SENS_REACTION,
+			%   and SENS_SECTION. The fields are (cell) arrays such that taking one element of every
 			%   field identifies a parameter. Such a struct is easily created by MAKESENSITIVITY().
 			%   If CADET is configured, the request is relayed to the MEXsimulator. Otherwise, the
 			%   existence is checked purely in Matlab using the assigned model.
@@ -650,12 +650,12 @@ classdef MexSimulator < handle
 			
 			if obj.isConfigured
 				res = CadetMex('checkpar', obj.mexHandle, sens.SENS_NAME, sens.SENS_UNIT, sens.SENS_COMP, ...
-					sens.SENS_BOUNDPHASE, sens.SENS_REACTION, sens.SENS_SECTION);
+					sens.SENS_PARTYPE, sens.SENS_BOUNDPHASE, sens.SENS_REACTION, sens.SENS_SECTION);
 			else
 				res = false(size(sens.SENS_NAME));
 				for i = 1:length(sens.SENS_NAME)
 					res(i) = ~isnan(obj.getParameterValue(makeSensitivity(sens.SENS_UNIT(i), sens.SENS_NAME{i}, sens.SENS_COMP(i), ...
-						sens.SENS_REACTION(i), sens.SENS_BOUNDPHASE(i), sens.SENS_SECTION(i))));
+						sens.SENS_PARTYPE(i), sens.SENS_REACTION(i), sens.SENS_BOUNDPHASE(i), sens.SENS_SECTION(i))));
 				end
 			end
 		end
@@ -663,7 +663,7 @@ classdef MexSimulator < handle
 		function [params, vals] = getAllParameters(obj)
 			%GETALLPARAMETERS Returns all existing parameters and their current values
 			%   PARAMS = GETALLPARAMETERS() returns a struct array with the fields NAMEHASH,
-			%   UNIT, COMP, REACTION, BOUNDPHASE, SECTION that consists of all model
+			%   UNIT, COMP, REACTION, PARTYPE, BOUNDPHASE, SECTION that consists of all model
 			%   parameters in the current CADET instance. The simulator needs to be
 			%   configured prior to calling this function.
 			%
@@ -686,7 +686,7 @@ classdef MexSimulator < handle
 			%   identified by the struct of arrays SENS as variable. SENS is supposed to be
 			%   a cell array of structs created by MAKESENSITIVITY(). The structs consist of
 			%   the fields SENS_NAME, SENS_COMP, SENS_UNIT, SENS_REACTION, SENS_BOUNDPHASE,
-			%   SENS_SECTION, and SENS_FACTOR. Those fields contain (cell) arrays that
+			%   SENS_SECTION, SENS_PARTYPE, and SENS_FACTOR. Those fields contain (cell) arrays that
 			%   together describe a (joined) parameter. The parameters are assumed to be 
 			%   sensitive, that is, derivatives of the simulation results with respect to
 			%   those parameters are computed. If the field SENS_ABSTOL is present, it is
@@ -755,8 +755,8 @@ classdef MexSimulator < handle
 					curPar = obj.variableParameters{obj.sensParamToVariableParam(i)};
 					val = obj.getParameterValue(curPar);
 					if isnan(val)
-						error('CADET:invalidParameter', 'Parameter %s (unit %d, comp %d, boundphase %d) does not exist or has invalid value.', ...
-							curPar.SENS_NAME, curPar.SENS_UNIT, curPar.SENS_COMP, curPar.SENS_BOUNDPHASE);
+						error('CADET:invalidParameter', 'Parameter %s (unit %d, comp %d, partype %d, boundphase %d) does not exist or has invalid value.', ...
+							curPar.SENS_NAME, curPar.SENS_UNIT, curPar.SENS_COMP, curPar.SENS_PARTYPE, curPar.SENS_BOUNDPHASE);
 					end
 
 					curAbsTol = obj.absTol;
@@ -770,8 +770,8 @@ classdef MexSimulator < handle
 						curAbsTol = curAbsTol / abs(val);
 					end
 
-					CadetMex('setsenspar', obj.mexHandle, curPar.SENS_NAME, curPar.SENS_UNIT, curPar.SENS_COMP, curPar.SENS_BOUNDPHASE, ...
-						curPar.SENS_REACTION, curPar.SENS_SECTION, curPar.SENS_FACTOR, curAbsTol);
+					CadetMex('setsenspar', obj.mexHandle, curPar.SENS_NAME, curPar.SENS_UNIT, curPar.SENS_COMP, curPar.SENS_PARTYPE, ...
+						curPar.SENS_BOUNDPHASE, curPar.SENS_REACTION, curPar.SENS_SECTION, curPar.SENS_FACTOR, curAbsTol);
 				end
 			end
 		end
@@ -826,10 +826,10 @@ classdef MexSimulator < handle
 			%GETPARAMETERVALUE Retrieves parameter values from the simulator or model
 			%   VAL = GETPARAMETERVALUE(PARAM) searches for the parameters identified by
 			%   the structs in the cell array PARAM with the fields SENS_NAME, SENS_UNIT,
-			%   SENS_COMP, SENS_BOUNDPHASE, SENS_REACTION, and SENS_SECTION (as returned
-			%   by MAKESENSITIVITY()). The returned value VAL is an array that contains
-			%   the current value of the parameter (on the Matlab side, not in the current
-			%   CADET configuration) or NaN if a parameter could not be found.
+			%   SENS_COMP, SENS_PARTYPE, SENS_BOUNDPHASE, SENS_REACTION, and SENS_SECTION
+			%   (as returned by MAKESENSITIVITY()). The returned value VAL is an array that
+			%   contains the current value of the parameter (on the Matlab side, not in the
+			%   current CADET configuration) or NaN if a parameter could not be found.
 			%
 			% See also MEXSIMULATOR.SETPARAMETERVALUE, MAKESENSITIVITY
 
@@ -851,7 +851,7 @@ classdef MexSimulator < handle
 
 				if curPar.SENS_UNIT == -1
 					if (strcmp('SECTION_TIMES', curPar.SENS_NAME) && (curPar.SENS_SECTION >= 0) && (curPar.SENS_SECTION < length(obj.sectionTimes)) ...
-						&& (curPar.SENS_REACTION == -1) && (curPar.SENS_BOUNDPHASE == -1) && (curPar.SENS_COMP == -1))
+						&& (curPar.SENS_REACTION == -1) && (curPar.SENS_BOUNDPHASE == -1) && (curPar.SENS_COMP == -1) && (curPar.SENS_PARTYPE == -1))
 						val(i) = obj.sectionTimes(curPar.SENS_SECTION + 1) / factor;
 					end
 				elseif ~isempty(obj.model)
@@ -864,8 +864,8 @@ classdef MexSimulator < handle
 			%SETPARAMETERVALUE Sets parameter values in the simulator or model
 			%   OLDVAL = SETPARAMETERVALUE(PARAM, NEWVAL) searches for the parameters
 			%   identified by the structs in the cell array PARAM with the fields SENS_NAME,
-			%   SENS_UNIT, SENS_COMP, SENS_BOUNDPHASE, SENS_REACTION, and SENS_SECTION (as
-			%   returned by MAKESENSITIVITY()). The returned value OLDVAL is an array that
+			%   SENS_UNIT, SENS_COMP, SENS_PARTYPE, SENS_BOUNDPHASE, SENS_REACTION, and SENS_SECTION
+			%   (as returned by MAKESENSITIVITY()). The returned value OLDVAL is an array that
 			%   contains the old value of the parameter (on the Matlab side, not in the
 			%   current CADET configuration) or NaN if a parameter could not be found.
 			%   The values of the parameters are set to the respective elements in the
@@ -911,7 +911,7 @@ classdef MexSimulator < handle
 
 					if curPar.SENS_UNIT == -1
 						if (strcmp('SECTION_TIMES', curPar.SENS_NAME) && (curPar.SENS_SECTION >= 0) && (curPar.SENS_SECTION < length(obj.sectionTimes)) ...
-								&& (curPar.SENS_REACTION == -1) && (curPar.SENS_BOUNDPHASE == -1) && (curPar.SENS_COMP == -1))
+								&& (curPar.SENS_REACTION == -1) && (curPar.SENS_BOUNDPHASE == -1) && (curPar.SENS_COMP == -1) && (curPar.SENS_PARTYPE == -1))
 							oldVal(i) = obj.sectionTimes(curPar.SENS_SECTION + 1) / factor;
 							obj.sectionTimes(curPar.SENS_SECTION + 1) = newVal(i) * factor;
 						end
@@ -921,8 +921,8 @@ classdef MexSimulator < handle
 
 					% Set values in CADET
 					if propagateToCadet(i)
-						CadetMex('setparval', obj.mexHandle, {curPar.SENS_NAME}, curPar.SENS_UNIT, curPar.SENS_COMP, curPar.SENS_BOUNDPHASE, ...
-							curPar.SENS_REACTION, curPar.SENS_SECTION, newVal);
+						CadetMex('setparval', obj.mexHandle, {curPar.SENS_NAME}, curPar.SENS_UNIT, curPar.SENS_COMP, curPar.SENS_PARTYPE, ...
+							curPar.SENS_BOUNDPHASE, curPar.SENS_REACTION, curPar.SENS_SECTION, newVal);
 					end
 				end
 			end
@@ -966,6 +966,7 @@ classdef MexSimulator < handle
 			names = cell(length(obj.variableParameters), 1);
 			unitOpIds = int32(zeros(length(obj.variableParameters), 1));
 			comps = int32(zeros(length(obj.variableParameters), 1));
+			parTypes = int32(zeros(length(obj.variableParameters), 1));
 			boundPhases = int32(zeros(length(obj.variableParameters), 1));
 			reactions = int32(zeros(length(obj.variableParameters), 1));
 			sections = int32(zeros(length(obj.variableParameters), 1));
@@ -987,6 +988,7 @@ classdef MexSimulator < handle
 					names(idx:idx+nJoined-1) = curPar.SENS_NAME;
 					unitOpIds(idx:idx+nJoined-1) = curPar.SENS_UNIT;
 					comps(idx:idx+nJoined-1) = curPar.SENS_COMP;
+					parTypes(idx:idx+nJoined-1) = curPar.SENS_PARTYPE;
 					boundPhases(idx:idx+nJoined-1) = curPar.SENS_BOUNDPHASE;
 					reactions(idx:idx+nJoined-1) = curPar.SENS_REACTION;
 					sections(idx:idx+nJoined-1) = curPar.SENS_SECTION;
@@ -1012,8 +1014,8 @@ classdef MexSimulator < handle
 
 			% Apply changed values in CADET (higher efficiency due to batched changes -> only 1 MEX call)
 			if any(~isSensitive)
-				CadetMex('setparval', obj.mexHandle, names(1:idx-1), unitOpIds(1:idx-1), comps(1:idx-1), boundPhases(1:idx-1), ...
-					reactions(1:idx-1), sections(1:idx-1), changedVals(1:idx-1));
+				CadetMex('setparval', obj.mexHandle, names(1:idx-1), unitOpIds(1:idx-1), comps(1:idx-1), parTypes(1:idx-1), ...
+					boundPhases(1:idx-1), reactions(1:idx-1), sections(1:idx-1), changedVals(1:idx-1));
 			end
 
 			% Apply changed sensitive parameters

@@ -26,6 +26,7 @@ function [p, factor] = extractParam(param, idx)
 	p.SENS_UNIT = param.SENS_UNIT(idx);
 	p.SENS_NAME = param.SENS_NAME(idx);
 	p.SENS_COMP = param.SENS_COMP(idx);
+	p.SENS_PARTYPE = param.SENS_PARTYPE(idx);
 	p.SENS_REACTION = param.SENS_REACTION(idx);
 	p.SENS_BOUNDPHASE = param.SENS_BOUNDPHASE(idx);
 	p.SENS_SECTION = param.SENS_SECTION(idx);

@@ -110,11 +110,35 @@ classdef ResultsHelper
 					end
 
 					if isfield(curRes, 'SOLUTION_PARTICLE')
-						out.solution.particle{i} = switchStorageOrdering(curRes.SOLUTION_PARTICLE);
+						out.solution.particle{i} = {switchStorageOrdering(curRes.SOLUTION_PARTICLE)};
+					elseif isfield(curRes, 'SOLUTION_PARTICLE_PARTYPE_000')
+						idxParType = 0;
+						fieldParType = sprintf('SOLUTION_PARTICLE_PARTYPE_%03d', idxParType);
+						out.solution.particle{i} = cell(0, 0);
+						while isfield(curRes, fieldParType)
+							temp = out.solution.particle{i};
+							temp{idxParType + 1} = switchStorageOrdering(curRes.(fieldParType));
+							out.solution.particle{i} = temp;
+
+							idxParType = idxParType + 1;
+							fieldParType = sprintf('SOLUTION_PARTICLE_PARTYPE_%03d', idxParType);
+						end
 					end
 
 					if isfield(curRes, 'SOLUTION_SOLID')
-						out.solution.solid{i} = switchStorageOrdering(curRes.SOLUTION_SOLID);
+						out.solution.solid{i} = {switchStorageOrdering(curRes.SOLUTION_SOLID)};
+					elseif isfield(curRes, 'SOLUTION_SOLID_PARTYPE_000')
+						idxParType = 0;
+						fieldParType = sprintf('SOLUTION_SOLID_PARTYPE_%03d', idxParType);
+						out.solution.solid{i} = cell(0, 0);
+						while isfield(curRes, fieldParType)
+							temp = out.solution.solid{i};
+							temp{idxParType + 1} = switchStorageOrdering(curRes.(fieldParType));
+							out.solution.solid{i} = temp;
+
+							idxParType = idxParType + 1;
+							fieldParType = sprintf('SOLUTION_SOLID_PARTYPE_%03d', idxParType);
+						end
 					end
 
 					if isfield(curRes, 'SOLUTION_FLUX')
@@ -130,11 +154,35 @@ classdef ResultsHelper
 					end
 
 					if isfield(curRes, 'SOLDOT_PARTICLE')
-						out.solution.particleDot{i} = switchStorageOrdering(curRes.SOLDOT_PARTICLE);
+						out.solution.particleDot{i} = {switchStorageOrdering(curRes.SOLDOT_PARTICLE)};
+					elseif isfield(curRes, 'SOLDOT_PARTICLE_PARTYPE_000')
+						idxParType = 0;
+						fieldParType = sprintf('SOLDOT_PARTICLE_PARTYPE_%03d', idxParType);
+						out.solution.particleDot{i} = cell(0, 0);
+						while isfield(curRes, fieldParType)
+							temp = out.solution.particleDot{i};
+							temp{idxParType + 1} = switchStorageOrdering(curRes.(fieldParType));
+							out.solution.particleDot{i} = temp;
+
+							idxParType = idxParType + 1;
+							fieldParType = sprintf('SOLDOT_PARTICLE_PARTYPE_%03d', idxParType);
+						end
 					end
 
 					if isfield(curRes, 'SOLDOT_SOLID')
-						out.solution.solidDot{i} = switchStorageOrdering(curRes.SOLDOT_SOLID);
+						out.solution.solidDot{i} = {switchStorageOrdering(curRes.SOLDOT_SOLID)};
+					elseif isfield(curRes, 'SOLDOT_SOLID_PARTYPE_000')
+						idxParType = 0;
+						fieldParType = sprintf('SOLDOT_SOLID_PARTYPE_%03d', idxParType);
+						out.solution.solidDot{i} = cell(0, 0);
+						while isfield(curRes, fieldParType)
+							temp = out.solution.solidDot{i};
+							temp{idxParType + 1} = switchStorageOrdering(curRes.(fieldParType));
+							out.solution.solidDot{i} = temp;
+
+							idxParType = idxParType + 1;
+							fieldParType = sprintf('SOLDOT_SOLID_PARTYPE_%03d', idxParType);
+						end
 					end
 
 					if isfield(curRes, 'SOLDOT_FLUX')
@@ -293,7 +341,30 @@ classdef ResultsHelper
 						temp = switchStorageOrdering(curRes.SENS_PARTICLE);
 						data((p-1)*stride+1:p*stride) = temp(:);
 					end
-					out.sensitivity.particle{i} = data;
+					out.sensitivity.particle{i} = {data};
+				elseif isfield(curUnit, 'SENS_PARTICLE_PARTYPE_000')
+					idxParType = 0;
+					fieldParType = sprintf('SENS_PARTICLE_PARTYPE_%03d', idxParType);
+					out.sensitivity.particle{i} = cell(0, 0);
+					while isfield(curUnit, fieldParType)
+						data = zeros([size(curUnit.(fieldParType)), maxParams]);
+						stride = numel(curUnit.(fieldParType));
+						for p = 1:maxParams
+							if ~isfield(res.sensitivity, sprintf('param_%03d', p-1))
+								continue;
+							end
+
+							curRes = res.sensitivity.(sprintf('param_%03d', p-1)).(sprintf('unit_%03d', i-1));
+							temp = switchStorageOrdering(curRes.(fieldParType));
+							data((p-1)*stride+1:p*stride) = temp(:);
+						end
+						temp = out.sensitivity.particle{i};
+						temp{idxParType + 1} = data;
+						out.sensitivity.particle{i} = temp;
+
+						idxParType = idxParType + 1;
+						fieldParType = sprintf('SENS_PARTICLE_PARTYPE_%03d', idxParType);
+					end
 				end
 
 				if isfield(curUnit, 'SENS_SOLID')
@@ -309,6 +380,29 @@ classdef ResultsHelper
 						data((p-1)*stride+1:p*stride) = temp(:);
 					end
 					out.sensitivity.solid{i} = data;
+				elseif isfield(curUnit, 'SENS_SOLID_PARTYPE_000')
+					idxParType = 0;
+					fieldParType = sprintf('SENS_SOLID_PARTYPE_%03d', idxParType);
+					out.sensitivity.solid{i} = cell(0, 0);
+					while isfield(curUnit, fieldParType)
+						data = zeros([size(curUnit.(fieldParType)), maxParams]);
+						stride = numel(curUnit.(fieldParType));
+						for p = 1:maxParams
+							if ~isfield(res.sensitivity, sprintf('param_%03d', p-1))
+								continue;
+							end
+
+							curRes = res.sensitivity.(sprintf('param_%03d', p-1)).(sprintf('unit_%03d', i-1));
+							temp = switchStorageOrdering(curRes.(fieldParType));
+							data((p-1)*stride+1:p*stride) = temp(:);
+						end
+						temp = out.sensitivity.solid{i};
+						temp{idxParType + 1} = data;
+						out.sensitivity.solid{i} = temp;
+
+						idxParType = idxParType + 1;
+						fieldParType = sprintf('SENS_SOLID_PARTYPE_%03d', idxParType);
+					end
 				end
 
 				if isfield(curUnit, 'SENS_FLUX')
@@ -369,6 +463,29 @@ classdef ResultsHelper
 						data((p-1)*stride+1:p*stride) = temp(:);
 					end
 					out.sensitivity.particleDot{i} = data;
+				elseif isfield(curUnit, 'SENSDOT_PARTICLE_PARTYPE_000')
+					idxParType = 0;
+					fieldParType = sprintf('SENSDOT_PARTICLE_PARTYPE_%03d', idxParType);
+					out.sensitivity.particleDot{i} = cell(0, 0);
+					while isfield(curUnit, fieldParType)
+						data = zeros([size(curUnit.(fieldParType)), maxParams]);
+						stride = numel(curUnit.(fieldParType));
+						for p = 1:maxParams
+							if ~isfield(res.sensitivity, sprintf('param_%03d', p-1))
+								continue;
+							end
+
+							curRes = res.sensitivity.(sprintf('param_%03d', p-1)).(sprintf('unit_%03d', i-1));
+							temp = switchStorageOrdering(curRes.(fieldParType));
+							data((p-1)*stride+1:p*stride) = temp(:);
+						end
+						temp = out.sensitivity.particleDot{i};
+						temp{idxParType + 1} = data;
+						out.sensitivity.particleDot{i} = temp;
+
+						idxParType = idxParType + 1;
+						fieldParType = sprintf('SENSDOT_PARTICLE_PARTYPE_%03d', idxParType);
+					end
 				end
 
 				if isfield(curUnit, 'SENSDOT_SOLID')
@@ -384,6 +501,29 @@ classdef ResultsHelper
 						data((p-1)*stride+1:p*stride) = temp(:);
 					end
 					out.sensitivity.solidDot{i} = data;
+				elseif isfield(curUnit, 'SENSDOT_SOLID_PARTYPE_000')
+					idxParType = 0;
+					fieldParType = sprintf('SENSDOT_SOLID_PARTYPE_%03d', idxParType);
+					out.sensitivity.solidDot{i} = cell(0, 0);
+					while isfield(curUnit, fieldParType)
+						data = zeros([size(curUnit.(fieldParType)), maxParams]);
+						stride = numel(curUnit.(fieldParType));
+						for p = 1:maxParams
+							if ~isfield(res.sensitivity, sprintf('param_%03d', p-1))
+								continue;
+							end
+
+							curRes = res.sensitivity.(sprintf('param_%03d', p-1)).(sprintf('unit_%03d', i-1));
+							temp = switchStorageOrdering(curRes.(fieldParType));
+							data((p-1)*stride+1:p*stride) = temp(:);
+						end
+						temp = out.sensitivity.solidDot{i};
+						temp{idxParType + 1} = data;
+						out.sensitivity.solidDot{i} = temp;
+
+						idxParType = idxParType + 1;
+						fieldParType = sprintf('SENSDOT_SOLID_PARTYPE_%03d', idxParType);
+					end
 				end
 
 				if isfield(curUnit, 'SENSDOT_FLUX')

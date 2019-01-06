@@ -86,14 +86,14 @@ classdef BindingModel < handle & matlab.mixin.Heterogeneous
 		function val = getParameterValue(obj, param, nBoundStates)
 			%GETPARAMETERVALUE Retrieves a parameter value from the model
 			%   VAL = GETPARAMETERVALUE(PARAM, NBOUNDSTATES) searches for the (single) parameter
-			%   identified by the struct PARAM with the fields SENS_NAME, SENS_COMP, SENS_BOUNDPHASE,
-			%   SENS_REACTION, and SENS_SECTION (as returned by MAKESENSITIVITY()) using the number
-			%   of bound states for each component given in the vector NBOUNDSTATES. The returned
-			%   value VAL contains the current value of the parameter (on the Matlab side, not in
-			%   the current CADET configuration) or NaN if the parameter could not be found.
+			%   identified by the struct PARAM with the fields SENS_NAME, SENS_COMP, SENS_PARTYPE,
+			%   SENS_BOUNDPHASE, SENS_REACTION, and SENS_SECTION (as returned by MAKESENSITIVITY())
+			%   using the number of bound states for each component given in the vector NBOUNDSTATES.
+			%   The returned value VAL contains the current value of the parameter (on the Matlab side,
+			%   not in the current CADET configuration) or NaN if the parameter could not be found.
 			%
-			%   Note that the field SENS_UNIT is ignored. Thus, it is assumed that this object
-			%   is assigned to the unit operation of the queried parameter.
+			%   Note that the fields SENS_UNIT and SENS_PARTYPE are ignored. Thus, it is assumed that
+			%   this object is assigned to the unit operation of the queried parameter.
 			%
 			%   If the parameter is an element of a vector- or matrix-valued parameter, its offset
 			%   in the linearized array is determined by BINDINGMODEL.OFFSETTOPARAMETER, which can
@@ -115,15 +115,15 @@ classdef BindingModel < handle & matlab.mixin.Heterogeneous
 			%SETPARAMETERVALUE Sets a parameter value in the model
 			%   OLDVAL = SETPARAMETERVALUE(PARAM, NBOUNDSTATES, NEWVAL) searches for the
 			%   parameter identified by the struct PARAM with the fields SENS_NAME, SENS_COMP,
-			%   SENS_BOUNDPHASE, SENS_REACTION, and SENS_SECTION (as returned by
+			%   SENS_PARTYPE, SENS_BOUNDPHASE, SENS_REACTION, and SENS_SECTION (as returned by
 			%   MAKESENSITIVITY()) using the number of bound states for each component given
 			%   in the vector NBOUNDSTATES. The returned value OLDVAL contains the old value
 			%   of the parameter (on the Matlab side, not in the current CADET configuration)
 			%   or NaN if the parameter could not be found. The value of the parameter is
 			%   set to NEWVAL. The changes are not propagated to the underlying CADET simulator.
 			%
-			%   Note that the field SENS_UNIT is ignored. Thus, it is assumed that this object
-			%   is assigned to the unit operation of the queried parameter.
+			%   Note that the fields SENS_UNIT and SENS_PARTYPE are ignored. Thus, it is assumed
+			%   that this object is assigned to the unit operation of the queried parameter.
 			%
 			%   If the parameter is an element of a vector- or matrix-valued parameter, its offset
 			%   in the linearized array is determined by BINDINGMODEL.OFFSETTOPARAMETER, which can
