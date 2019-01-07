@@ -601,6 +601,19 @@ classdef ModelSystem < handle
 			end
 		end
 
+		function retChanged = hasReturnConfigurationChanged(obj)
+			%HASRETURNCONFIGURATIONCHANGED Determines whether the return configuration has changed since
+			%   the last synchronization.
+
+			for i = 1:length(obj.models)
+				if obj.models(i).hasChangedReturnConfig
+					retChanged = true;
+					return;
+				end
+			end
+			retChanged = false;
+		end
+
 	end
 
 	methods (Access = 'protected')

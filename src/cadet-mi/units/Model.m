@@ -26,6 +26,7 @@ classdef Model < handle & matlab.mixin.Heterogeneous
 	end
 
 	properties
+		hasChangedReturnConfig; % Stores whether the return configuration has changed
 		unitOpIdx; % Index of this unit operation in a system (0-based)
 		returnSolutionInlet; % Determines whether the solution at the inlet is returned
 		returnSolutionOutlet; % Determines whether the solution at the outlet is returned
@@ -64,6 +65,7 @@ classdef Model < handle & matlab.mixin.Heterogeneous
 			%   By default only returns the solution and sensitivity at the outlet.
 
 			obj.hasChangedInternal = true;
+			obj.hasChangedReturnConfig = true;
 
 			obj.unitOpIdx = -1;
 			obj.data = [];
@@ -227,6 +229,7 @@ classdef Model < handle & matlab.mixin.Heterogeneous
 			%   NOTIFYSYNC() resets the HASCHANGED property.
 
 			obj.hasChangedInternal = false;
+			obj.hasChangedReturnConfig = false;
 		end
 
 		function S = saveobj(obj)
@@ -283,6 +286,181 @@ classdef Model < handle & matlab.mixin.Heterogeneous
 		function set.hasChanged(obj, val)
 			obj.hasChangedInternal = val;
 		end
+
+		function set.returnSolutionInlet(obj, val)
+			validateattributes(val, {'logical'}, {'scalar', 'nonempty'}, '', 'returnSolutionInlet');
+			obj.returnSolutionInlet = val;
+			obj.hasChangedReturnConfig = true;
+		end
+
+		function set.returnSolutionOutlet(obj, val)
+			validateattributes(val, {'logical'}, {'scalar', 'nonempty'}, '', 'returnSolutionOutlet');
+			obj.returnSolutionOutlet = val;
+			obj.hasChangedReturnConfig = true;
+		end
+
+		function set.returnSolutionBulk(obj, val)
+			validateattributes(val, {'logical'}, {'scalar', 'nonempty'}, '', 'returnSolutionBulk');
+			obj.returnSolutionBulk = val;
+			obj.hasChangedReturnConfig = true;
+		end
+
+		function set.returnSolutionParticle(obj, val)
+			validateattributes(val, {'logical'}, {'scalar', 'nonempty'}, '', 'returnSolutionParticle');
+			obj.returnSolutionParticle = val;
+			obj.hasChangedReturnConfig = true;
+		end
+
+		function set.returnSolutionSolid(obj, val)
+			validateattributes(val, {'logical'}, {'scalar', 'nonempty'}, '', 'returnSolutionSolid');
+			obj.returnSolutionSolid = val;
+			obj.hasChangedReturnConfig = true;
+		end
+
+		function set.returnSolutionFlux(obj, val)
+			validateattributes(val, {'logical'}, {'scalar', 'nonempty'}, '', 'returnSolutionFlux');
+			obj.returnSolutionFlux = val;
+			obj.hasChangedReturnConfig = true;
+		end
+
+		function set.returnSolutionVolume(obj, val)
+			validateattributes(val, {'logical'}, {'scalar', 'nonempty'}, '', 'returnSolutionVolume');
+			obj.returnSolutionVolume = val;
+			obj.hasChangedReturnConfig = true;
+		end
+
+		function set.returnSolDotInlet(obj, val)
+			validateattributes(val, {'logical'}, {'scalar', 'nonempty'}, '', 'returnSolDotInlet');
+			obj.returnSolDotInlet = val;
+			obj.hasChangedReturnConfig = true;
+		end
+
+		function set.returnSolDotOutlet(obj, val)
+			validateattributes(val, {'logical'}, {'scalar', 'nonempty'}, '', 'returnSolDotOutlet');
+			obj.returnSolDotOutlet = val;
+			obj.hasChangedReturnConfig = true;
+		end
+
+		function set.returnSolDotBulk(obj, val)
+			validateattributes(val, {'logical'}, {'scalar', 'nonempty'}, '', 'returnSolDotBulk');
+			obj.returnSolDotBulk = val;
+			obj.hasChangedReturnConfig = true;
+		end
+
+		function set.returnSolDotParticle(obj, val)
+			validateattributes(val, {'logical'}, {'scalar', 'nonempty'}, '', 'returnSolDotParticle');
+			obj.returnSolDotParticle = val;
+			obj.hasChangedReturnConfig = true;
+		end
+
+		function set.returnSolDotSolid(obj, val)
+			validateattributes(val, {'logical'}, {'scalar', 'nonempty'}, '', 'returnSolDotSolid');
+			obj.returnSolDotSolid = val;
+			obj.hasChangedReturnConfig = true;
+		end
+
+		function set.returnSolDotFlux(obj, val)
+			validateattributes(val, {'logical'}, {'scalar', 'nonempty'}, '', 'returnSolDotFlux');
+			obj.returnSolDotFlux = val;
+			obj.hasChangedReturnConfig = true;
+		end
+
+		function set.returnSolDotVolume(obj, val)
+			validateattributes(val, {'logical'}, {'scalar', 'nonempty'}, '', 'returnSolDotVolume');
+			obj.returnSolDotVolume = val;
+			obj.hasChangedReturnConfig = true;
+		end
+
+		function set.returnSensInlet(obj, val)
+			validateattributes(val, {'logical'}, {'scalar', 'nonempty'}, '', 'returnSensInlet');
+			obj.returnSensInlet = val;
+			obj.hasChangedReturnConfig = true;
+		end
+
+		function set.returnSensOutlet(obj, val)
+			validateattributes(val, {'logical'}, {'scalar', 'nonempty'}, '', 'returnSensOutlet');
+			obj.returnSensOutlet = val;
+			obj.hasChangedReturnConfig = true;
+		end
+
+		function set.returnSensBulk(obj, val)
+			validateattributes(val, {'logical'}, {'scalar', 'nonempty'}, '', 'returnSensBulk');
+			obj.returnSensBulk = val;
+			obj.hasChangedReturnConfig = true;
+		end
+
+		function set.returnSensParticle(obj, val)
+			validateattributes(val, {'logical'}, {'scalar', 'nonempty'}, '', 'returnSensParticle');
+			obj.returnSensParticle = val;
+			obj.hasChangedReturnConfig = true;
+		end
+
+		function set.returnSensSolid(obj, val)
+			validateattributes(val, {'logical'}, {'scalar', 'nonempty'}, '', 'returnSensSolid');
+			obj.returnSensSolid = val;
+			obj.hasChangedReturnConfig = true;
+		end
+
+		function set.returnSensFlux(obj, val)
+			validateattributes(val, {'logical'}, {'scalar', 'nonempty'}, '', 'returnSensFlux');
+			obj.returnSensFlux = val;
+			obj.hasChangedReturnConfig = true;
+		end
+
+		function set.returnSensVolume(obj, val)
+			validateattributes(val, {'logical'}, {'scalar', 'nonempty'}, '', 'returnSensVolume');
+			obj.returnSensVolume = val;
+			obj.hasChangedReturnConfig = true;
+		end
+
+		function set.returnSensDotInlet(obj, val)
+			validateattributes(val, {'logical'}, {'scalar', 'nonempty'}, '', 'returnSensDotInlet');
+			obj.returnSensDotInlet = val;
+			obj.hasChangedReturnConfig = true;
+		end
+
+		function set.returnSensDotOutlet(obj, val)
+			validateattributes(val, {'logical'}, {'scalar', 'nonempty'}, '', 'returnSensDotOutlet');
+			obj.returnSensDotOutlet = val;
+			obj.hasChangedReturnConfig = true;
+		end
+
+		function set.returnSensDotBulk(obj, val)
+			validateattributes(val, {'logical'}, {'scalar', 'nonempty'}, '', 'returnSensDotBulk');
+			obj.returnSensDotBulk = val;
+			obj.hasChangedReturnConfig = true;
+		end
+
+		function set.returnSensDotParticle(obj, val)
+			validateattributes(val, {'logical'}, {'scalar', 'nonempty'}, '', 'returnSensDotParticle');
+			obj.returnSensDotParticle = val;
+			obj.hasChangedReturnConfig = true;
+		end
+
+		function set.returnSensDotSolid(obj, val)
+			validateattributes(val, {'logical'}, {'scalar', 'nonempty'}, '', 'returnSensDotSolid');
+			obj.returnSensDotSolid = val;
+			obj.hasChangedReturnConfig = true;
+		end
+
+		function set.returnSensDotFlux(obj, val)
+			validateattributes(val, {'logical'}, {'scalar', 'nonempty'}, '', 'returnSensDotFlux');
+			obj.returnSensDotFlux = val;
+			obj.hasChangedReturnConfig = true;
+		end
+
+		function set.returnSensDotVolume(obj, val)
+			validateattributes(val, {'logical'}, {'scalar', 'nonempty'}, '', 'returnSensDotVolume');
+			obj.returnSensDotVolume = val;
+			obj.hasChangedReturnConfig = true;
+		end
+
+		function retChanged = hasReturnConfigurationChanged(obj)
+			%HASRETURNCONFIGURATIONCHANGED Determines whether the return configuration has changed since
+			%   the last synchronization.
+			retChanged = obj.hasChangedReturnConfig;
+		end
+
 	end
 
 	methods (Abstract)

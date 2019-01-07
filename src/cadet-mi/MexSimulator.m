@@ -1211,6 +1211,7 @@ classdef MexSimulator < handle
 			end
 
 			changedUnitOps = obj.model.getChangedUnits();
+			uploadReturnConfig = obj.model.hasReturnConfigurationChanged();
 			for i = 1:length(changedUnitOps)
 				unitOpIdx = changedUnitOps(i);
 
@@ -1231,6 +1232,7 @@ classdef MexSimulator < handle
 						if ~skipValidation && ~obj.model.validate(obj.sectionTimes)
 							error('CADET:invalidConfig', 'Expected valid model configuration of unit operation model with id %d.', unitOpIdx);
 						end
+
 						obj.reconfigure(unitOpIdx, obj.model.assembleConfig(unitOpIdx));
 						obj.model.notifySync();
 					else
@@ -1238,10 +1240,19 @@ classdef MexSimulator < handle
 						if ~skipValidation && ~m.validate(obj.sectionTimes)
 							error('CADET:invalidConfig', 'Expected valid model configuration of unit operation model with id %d.', unitOpIdx);
 						end
+
 						obj.reconfigure(unitOpIdx, m.assembleConfig());
 						m.notifySync();
 					end
 				end
+			end
+
+			if uploadReturnConfig
+				retConfig = [];
+				retConfig.input = [];
+				retConfig.input.return = obj.assembleReturnConfig();
+				CadetMex('setreturnconf', obj.mexHandle, retConfig);
+				obj.model.notifySync();
 			end
 		end
 
