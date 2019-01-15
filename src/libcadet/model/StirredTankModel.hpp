@@ -142,15 +142,19 @@ protected:
 #endif
 
 	unsigned int _nComp; //!< Number of components
-	unsigned int* _nBound; //!< Array with number of bound states for each component
-	unsigned int* _boundOffset; //!< Array with offset to the first bound state of each component in the solid phase
-	unsigned int _strideBound; //!< Total number of bound states
+	unsigned int _nParType; //!< Number of particle types
+	unsigned int* _nBound; //!< Array with number of bound states for each component in each particle type
+	unsigned int* _boundOffset; //!< Array with offset to the first bound state of each component in the solid phase for each particle type
+	unsigned int* _strideBound; //!< Total number of bound states per particle type
+	unsigned int* _offsetParType; //!< Offset to bound states of a particle type in solid phase
+	unsigned int _totalBound; //!< Total number of all bound states in all particle types
 
 	active _porosity; //!< Porosity \f$ \varepsilon \f$
 	active _flowRateIn; //!< Volumetric flow rate of incoming stream
 	active _flowRateOut; //!< Volumetric flow rate of drawn outgoing stream
 	active _curFlowRateFilter; //!< Current volumetric flow rate of liquid outtake stream for this section
 	std::vector<active> _flowRateFilter; //!< Volumetric flow rate of liquid outtake stream
+	std::vector<active> _parTypeVolFrac; //!< Volume fraction of each particle type
 
 	bool _analyticJac; //!< Flag that determines whether analytic or AD Jacobian is used
 	linalg::DenseMatrix _jac; //!< Jacobian
@@ -165,22 +169,23 @@ protected:
 	{
 	public:
 
-		Exporter(unsigned int nComp, unsigned int const* nBound, unsigned int strideBound, unsigned int const* boundOffset, double const* data) : _data(data), _nComp(nComp), _nBound(nBound), _strideBound(strideBound), _boundOffset(boundOffset) { }
+		Exporter(unsigned int nComp, unsigned int nParType, unsigned int const* nBound, unsigned int const* strideBound, unsigned int const* boundOffset, unsigned int totalBound, double const* data)
+			: _data(data), _nComp(nComp), _nParType(nParType), _nBound(nBound), _strideBound(strideBound), _boundOffset(boundOffset), _totalBound(totalBound) { }
 
 		virtual bool hasParticleFlux() const CADET_NOEXCEPT { return false; }
 		virtual bool hasParticleMobilePhase() const CADET_NOEXCEPT { return false; }
-		virtual bool hasSolidPhase() const CADET_NOEXCEPT { return _strideBound > 0; }
+		virtual bool hasSolidPhase() const CADET_NOEXCEPT { return _totalBound > 0; }
 		virtual bool hasVolume() const CADET_NOEXCEPT { return true; }
 
 		virtual unsigned int numComponents() const CADET_NOEXCEPT { return _nComp; }
 		virtual unsigned int numAxialCells() const CADET_NOEXCEPT { return 1; }
 		virtual unsigned int numRadialCells() const CADET_NOEXCEPT { return 1; }
-		virtual unsigned int numParticleTypes() const CADET_NOEXCEPT { return 1u; }
+		virtual unsigned int numParticleTypes() const CADET_NOEXCEPT { return _nParType; }
 		virtual unsigned int numParticleShells(unsigned int parType) const CADET_NOEXCEPT { return 1u; }
-		virtual unsigned int numBoundStates(unsigned int parType) const CADET_NOEXCEPT { return _strideBound; }
+		virtual unsigned int numBoundStates(unsigned int parType) const CADET_NOEXCEPT { return _strideBound[parType]; }
 		virtual unsigned int numBulkDofs() const CADET_NOEXCEPT { return _nComp; }
 		virtual unsigned int numParticleMobilePhaseDofs(unsigned int parType) const CADET_NOEXCEPT { return 0; }
-		virtual unsigned int numSolidPhaseDofs(unsigned int parType) const CADET_NOEXCEPT { return _strideBound; }
+		virtual unsigned int numSolidPhaseDofs(unsigned int parType) const CADET_NOEXCEPT { return _strideBound[parType]; }
 		virtual unsigned int numFluxDofs() const CADET_NOEXCEPT { return 0; }
 		virtual unsigned int numVolumeDofs() const CADET_NOEXCEPT { return 1; }
 
@@ -188,7 +193,7 @@ protected:
 		virtual double const* flux() const { return nullptr; }
 		virtual double const* particleMobilePhase(unsigned int parType) const { return nullptr; }
 		virtual double const* solidPhase(unsigned int parType) const { return _data + 2 * _nComp; }
-		virtual double const* volume() const { return _data + 2 * _nComp + _strideBound; }
+		virtual double const* volume() const { return _data + 2 * _nComp + _totalBound; }
 		virtual double const* inlet(unsigned int& stride) const
 		{
 			stride = 1;
@@ -226,17 +231,19 @@ protected:
 
 		virtual unsigned int bulkMobilePhaseStride() const { return _nComp; }
 		virtual unsigned int particleMobilePhaseStride(unsigned int parType) const { return 0; }
-		virtual unsigned int solidPhaseStride(unsigned int parType) const { return _strideBound; }
+		virtual unsigned int solidPhaseStride(unsigned int parType) const { return _strideBound[parType]; }
 
 	protected:
 		double const* const _data;
 		unsigned int _nComp;
+		unsigned int _nParType;
 		unsigned int const* _nBound;
-		unsigned int _strideBound;
+		unsigned int const* _strideBound;
 		unsigned int const* _boundOffset;
+		unsigned int _totalBound;
 
 		const std::array<StateOrdering, 1> _concentrationOrdering = { { StateOrdering::Component } };
-		const std::array<StateOrdering, 2> _solidOrdering = { { StateOrdering::Component, StateOrdering::BoundState } };
+		const std::array<StateOrdering, 3> _solidOrdering = { { StateOrdering::ParticleType, StateOrdering::Component, StateOrdering::BoundState } };
 	};
 };
 
