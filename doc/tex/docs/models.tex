@@ -137,15 +137,16 @@ The main assumptions are:
 Variable & Domain & Description \\
 \midrule
 $i$ & $\left\{ 0, \dots, N_{\text{comp}} - 1 \right\}$ & Component index\\
-$m_i$ & $\left\{ 0, \dots, N_{\text{bnd},i} - 1 \right\}$ & Bound state index of $i$th component\\
-$m$ & $\left\{ 0, \dots, \sum_{i=0}^{N_{\text{comp}}-1} N_{\text{bnd},i} - 1 \right\}$ & Total bound state index\\
+$j$ & $\left\{ 0, \dots, N_{\text{partype}} - 1 \right\}$ & Particle type index\\
+$m_{j,i}$ & $\left\{ 0, \dots, N_{\text{bnd},j,i} - 1 \right\}$ & Bound state index of $i$th component in $j$th particle type\\
+$m_j$ & $\left\{ 0, \dots, \sum_{i=0}^{N_{\text{comp}}-1} N_{\text{bnd},j,i} - 1 \right\}$ & Total bound state index in particle type $j$\\
 $t$ & $\left[0, T_{\text{end}}\right]$ & Time coordinate\\
 $z$ & $[0, L]$ & Axial coordinate\\
-$r$ & $\left[0, r_p\right]$ & Radial coordinate\\
-$c_{i}(t,z)$ & $\left[0, T_{\text{end}}\right] \times [0, L]$ & Interstitial concentration of the $i$th component\\
-$c_{p,i}(t, z, r)$ & $\left[0, T_{\text{end}}\right] \times [0, L] \times \left[0, r_p\right]$ & Mobile phase concentration of the $i$th component\\
-$q_{i,m_i}(t, z, r)$ & $\left[0, T_{\text{end}}\right] \times [0,L] \times \left[0, r_p\right]$ & Solid phase concentration of the $i$th component's $m_i$th bound state\\
-$j_{f,i}(t, z)$ & $\left[0, T_{\text{end}}\right] \times [0, L]$ & Flux of the $i$th component through stagnant film into the bead\\
+$r$ & $\left[r_{c,j}, r_{p,j}\right]$ & Generic bead radial coordinate\\
+$c^l_{i}(t,z)$ & $\left[0, T_{\text{end}}\right] \times [0, L]$ & Interstitial concentration of the $i$th component\\
+$c^p_{j,i}(t, z, r)$ & $\left[0, T_{\text{end}}\right] \times [0, L] \times \left[r_{c,j}, r_{p,j}\right]$ & Mobile phase concentration of the $i$th component in the $j$th particle type\\
+$c^s_{j,i,m_{j,i}}(t, z, r)$ & $\left[0, T_{\text{end}}\right] \times [0,L] \times \left[r_{c,j}, r_{p,j}\right]$ & Solid phase concentration of the $i$th component's $m_{j,i}$th bound state in particles of type $j$\\
+$j_{f,j,i}(t, z)$ & $\left[0, T_{\text{end}}\right] \times [0, L]$ & Flux of the $i$th component through stagnant film into the bead of type $j$\\
 \bottomrule
 \end{tabular}
 \caption{Variables and unkowns}
@@ -165,12 +166,11 @@ $j_{f,i}(t, z)$ & $\left[0, T_{\text{end}}\right] \times [0, L]$ & Flux of the $
 			\draw (4,-1) node {$z=L$};
 			\node at (4.75, -0.5) {$z$};
 
-			\draw[->] (-1.5,0.5) -- (-0.25,0.5) node[above,midway,sloped] {\footnotesize Influx};
-			\draw[->] (4.25,0.5) -- (5.5,0.5) node[above,midway,sloped] {\footnotesize Efflux};
+			\draw[->] (-1.5,0.5) -- (-0.25,0.5) node[above,midway,sloped,font=\footnotesize] {Influx};
+			\draw[->] (4.25,0.5) -- (5.5,0.5) node[above,midway,sloped,font=\footnotesize] {Efflux};
 
-			\draw[dashed,color=gray] (2,0.5) ellipse (0.166 and 0.5);% mid ellipse
-			\fill (2,0.5) ellipse (0.0332 and 0.075);
-			\draw[semithick] (2,0.5) -- (2,1) node[above] {$r_c$};
+			\fill[gray] (2,0.5) ellipse (0.166 and 0.5);
+			\node[above,font=\footnotesize] at (2,1) {Cross section area $A$};
 		\end{tikzpicture}
 	}
 	\subcaptionbox{A section of the column\label{fig:ModelGRMColumnSection}}[0.48 \linewidth]{%
@@ -206,7 +206,7 @@ $j_{f,i}(t, z)$ & $\left[0, T_{\text{end}}\right] \times [0, L]$ & Flux of the $
 			\draw[thin,color=black] (0.25,0.25) rectangle (3.75,1.75);
 
 			\draw[<-] (1.4, 1.61) -- (1.4, 2);
-			\node at (1.4, 2.17) {\footnotesize Ref. volume of $c_i$};
+			\node at (1.4, 2.17) {\footnotesize Ref.\ volume of $c^l_i$};
 			\node[anchor=west,align=center] at (4,1) {\footnotesize Porosity\\ \footnotesize$\varepsilon_c = \frac{\text{Vol.~interstitial}}{\text{Vol.~interstitial} + \text{Vol.~beads}}$};
 		\end{tikzpicture}
 	}
@@ -215,39 +215,42 @@ $j_{f,i}(t, z)$ & $\left[0, T_{\text{end}}\right] \times [0, L]$ & Flux of the $
 
 The GRM describes transport of solute molecules through the interstitial column volume by convective flow, band broadening caused by axial dispersion, mass transfer resistance through a stagnant film around the beads, pore (and surface) diffusion in the porous beads \cite{Ma1996, Schneider1968a, Miyabe2007}, and adsorption to the inner bead surfaces.
 
-Consider a column of length $L>0$ filled with spherical beads of radius $r_p \ll L$ (see Fig.~\ref{fig:ModelGRMColumn}). 
+Consider a column of length $L>0$ filled with spherical beads of (possibly) multiple types with radius $r_{p,j} \ll L$ (see Fig.~\ref{fig:ModelGRMColumn}), where $j$ is the particle type index. 
 The mass balance in the interstitial column volume is described by
 \begin{align}
-	\frac{\partial c_i}{\partial t} &= -u \frac{\partial c_i}{\partial z} + D_{\text{ax}} \frac{\partial^2 c_i}{\partial z^2} - \frac{1}{\beta_c}\frac{3}{r_p}k_{f,i}\left[ c_i - c_{p,i}(\cdot, \cdot, r_p) \right]. \label{eq:ModelColumn}
+	\frac{\partial c^l_i}{\partial t} &= -u \frac{\partial c^l_i}{\partial z} + D_{\text{ax}} \frac{\partial^2 c^l_i}{\partial z^2} - \frac{1}{\beta_c} \sum_j d_j \frac{3}{r_{p,j}} k_{f,j,i} \left[ c^l_i - c^p_{j,i}(\cdot, \cdot, r_{p,j}) \right]. \label{eq:ModelColumn}
 \end{align}
-Here, $c_i\colon \left[0, T_{\text{end}}\right] \times [0, L] \rightarrow \mathds{R}^{\geq 0}$ denotes the concentration in the interstitial column volume, $c_{p,i}\colon \left[0, T_{\text{end}}\right] \times [0, L] \times [0, r_p] \rightarrow \mathds{R}^{\geq 0}$ the liquid phase concentration in the beads, $k_{f,i}$ the film diffusion coefficient, $D_{\text{ax}}$ the dispersion coefficient, $u$ the interstitial velocity, and $\beta_c = \varepsilon_c / (1 - \varepsilon_c)$ the column phase ratio, where $\varepsilon_c$ is the column porosity (ratio of interstitial volume to total column volume).
+Here, $c^l_i\colon \left[0, T_{\text{end}}\right] \times [0, L] \rightarrow \mathds{R}^{\geq 0}$ denotes the concentration in the interstitial column volume, $c^p_{j,i}\colon \left[0, T_{\text{end}}\right] \times [0, L] \times [r_{c,j}, r_{p,j}] \rightarrow \mathds{R}^{\geq 0}$ the liquid phase concentration in the beads, $k_{f,j,i}$ the film diffusion coefficient, $D_{\text{ax}}$ the dispersion coefficient, $u$ the interstitial velocity, $d_j$ the volume fraction of particle type $j$, and $\beta_c = \varepsilon_c / (1 - \varepsilon_c)$ the column phase ratio, where $\varepsilon_c$ is the column porosity (ratio of interstitial volume to total column volume).
 
 Danckwerts boundary conditions \cite{Danckwerts1953} are applied to inlet and outlet of the column:
 \begin{align}
-	u c_{\text{in},i}(t) &= u c_i(t,0) - D_{\text{ax}} \frac{\partial c_i}{\partial z}(t, 0) \label{eq:BCInlet} & \forall t > 0,\\
-	\frac{\partial c_i}{\partial z}(t, L) &= 0 & \forall t > 0. \label{eq:BCOutlet}
+	u c_{\text{in},i}(t) &= u c^l_i(t,0) - D_{\text{ax}} \frac{\partial c^l_i}{\partial z}(t, 0) \label{eq:BCInlet} & \forall t > 0,\\
+	\frac{\partial c^l_i}{\partial z}(t, L) &= 0 & \forall t > 0. \label{eq:BCOutlet}
 \end{align}
 Note that the outlet boundary condition Eq.~\eqref{eq:BCOutlet} is also known as ``do nothing'' or natural outflow condition.
 
 In the liquid phase of the porous beads (see Fig.~\ref{fig:ModelGRMBead}) the mass balance is given by
 \begin{align}
-	\frac{\pdiff c_{p,i}}{\pdiff t} + \frac{1 - \varepsilon_p}{F_{\text{acc},i} \varepsilon_p} \frac{\pdiff}{\pdiff t} \sum_{m_i} q_{i,m_i} = \underbrace{D_{p,i} \left[\frac{\pdiff^2}{\pdiff r^2} + \frac{2}{r} \frac{\pdiff}{\pdiff r} \right]c_{p,i}}_{\text{Pore diffusion}} + \underbrace{\frac{1 - \varepsilon_p}{F_{\text{acc},i} \varepsilon_p} D_{s,i} \left[\frac{\pdiff^2}{\pdiff r^2} + \frac{2}{r} \frac{\pdiff }{\pdiff r} \right] \sum_{m_i} q_{i,m_i} }_{\text{Surface diffusion}}, \label{eq:ModelBead}
+	\frac{\pdiff c^p_{j,i}}{\pdiff t} + \frac{1 - \varepsilon_{p,j}}{F_{\text{acc},j,i} \varepsilon_{p,j}} \frac{\pdiff}{\pdiff t} \sum_{m_{j,i}} c^s_{j,i,m_{j,i}} = \underbrace{D_{p,j,i} \left[\frac{\pdiff^2}{\pdiff r^2} + \frac{2}{r} \frac{\pdiff}{\pdiff r} \right]c^p_{j,i}}_{\text{Pore diffusion}} + \underbrace{\frac{1 - \varepsilon_{p,j}}{F_{\text{acc},j,i} \varepsilon_{p,j}} D_{s,j,i} \left[\frac{\pdiff^2}{\pdiff r^2} + \frac{2}{r} \frac{\pdiff }{\pdiff r} \right] \sum_{m_{j,i}} c^s_{j,i,m_{j,i}} }_{\text{Surface diffusion}}, \label{eq:ModelBead}
 \end{align}
-where $q_{i,m_i}\colon \left[0, T_{\text{end}}\right] \times [0,L] \times [0, r_p] \rightarrow \mathds{R}^{\geq 0}$ denotes the solid phase concentration of the $i$th component's $m_i$th bound state in the beads, $D_{p,i}$ the effective diffusion coefficient in the beads, $D_{s,i}$ the surface diffusion coefficient, $F_{\text{acc},i} \in [0,1]$ the pore accessibility factor, and $\varepsilon_p$ the particle porosity (ratio of pore volume to total bead volume).
+where $c^s_{j,i,m_{j,i}}\colon \left[0, T_{\text{end}}\right] \times [0,L] \times [r_{c,j}, r_{p,j}] \rightarrow \mathds{R}^{\geq 0}$ denotes the solid phase concentration of the $i$th component's $m_{j,i}$th bound state in the beads of $j$th type, $D_{p,j,i}$ the effective diffusion coefficient in the beads, $D_{s,j,i}$ the surface diffusion coefficient, $F_{\text{acc},j,i} \in [0,1]$ the pore accessibility factor, and $\varepsilon_{p,j}$ the particle porosity (ratio of pore volume to total bead volume).
+The inner bead radius $r_{c,j} \in [0, r_{p,j})$ is assumed to be $0$ by default, but can be positive in order to account for core shell particles that have an impermeable core.
+
 The GRM is used with both quasi-stationary (Eq.~\eqref{eq:REqBinding}) and dynamic (Eq.~\eqref{eq:DynBinding}) binding models. \index{Binding!Models}\index{Binding!Dynamic}\index{Binding!Quasi-stationary}
 \begin{alignat}{2}
-	\text{quasi-stationary: }& & 0 &= f_{\text{ads}}( c_p, q), \label{eq:REqBinding} \\
-	\text{dynamic: }& & \frac{\partial q}{\partial t} &= f_{\text{ads}}( c_p, q). \label{eq:DynBinding}
+	\text{quasi-stationary: }& & 0 &= f_{\text{ads},j}\left( c^p_j, c^s_j\right), \label{eq:REqBinding} \\
+	\text{dynamic: }& & \frac{\partial c^s_j}{\partial t} &= f_{\text{ads},j}\left( c^p_j, c^s_j\right). \label{eq:DynBinding}
 \end{alignat}
-Note that $c_p$ and $q$ denote the vector of all $c_{p,i}$ and $q_{i,m_i}$, respectively.
+Note that $c^p_j$ and $c^s_j$ denote the vector of all $c^p_{j,i}$ and $c^s_{j,i,m_{j,i}}$, respectively.
+
 The boundary conditions of the bead model the film diffusion and are given for all ${t \in (0,\infty)}$ and $z \in [0,L]$ by
 \begin{align}
-	k_{f,i}\left[ c_i - c_{p,i}(\cdot, \cdot, r_p) \right] &= F_{\text{acc},i} \varepsilon_p D_{p,i} \frac{\partial c_{p,i}}{\partial r}(\cdot, \cdot, r_p) + \left( 1 - \varepsilon_p\right) D_{s,i} \sum_{m_i} \frac{\partial q_{i,m_i}}{\partial r}(\cdot, \cdot, r_p), \label{eq:BCBeadIn} \\
-	\frac{\partial c_{p,i}}{\partial r}(\cdot, \cdot, 0) &= 0. \label{eq:BCBeadCenter}
+	k_{f,j,i}\left[ c^l_i - c^p_{j,i}(\cdot, \cdot, r_{p,j}) \right] &= F_{\text{acc},j,i} \varepsilon_p D_{p,j,i} \frac{\partial c^p_{j,i}}{\partial r}(\cdot, \cdot, r_{p,j}) + \left( 1 - \varepsilon_{p,j}\right) D_{s,j,i} \sum_{m_{j,i}} \frac{\partial c^s_{j,i,m_{j,i}}}{\partial r}(\cdot, \cdot, r_{p,j}), \label{eq:BCBeadIn} \\
+	\frac{\partial c^p_{j,i}}{\partial r}(\cdot, \cdot, r_{c,j}) &= 0. \label{eq:BCBeadCenter}
 \end{align}
-By default, the following initial conditions are applied for all $z \in [0,L]$ and $r \in \left[0, r_p\right]$:
+By default, the following initial conditions are applied for all $z \in [0,L]$ and $r \in \left[r_{c,j}, r_{p,j}\right]$:
 \begin{align}
-	c_i(0, z) &= 0, & c_{p,i}(0, z, r) &= 0, & q_{i,m_i}(0,z,r) &= 0. \label{eq:InitialConditions}
+	c^l_i(0, z) &= 0, & c^p_{j,i}(0, z, r) &= 0, & c^s_{j,i,m_{j,i}}(0,z,r) &= 0. \label{eq:InitialConditions}
 \end{align}
 
 \begin{figure}[!hptb]
@@ -264,8 +267,8 @@ By default, the following initial conditions are applied for all $z \in [0,L]$ a
 
 			\node[anchor=east] at (1.65,0.75) {\footnotesize Bead};
 
-			\node[anchor=east] at (0.5, -0) {\footnotesize $c_{p,i}$};
-			\node[anchor=west] at (2.5, -0) {\footnotesize $c_{i}$};
+			\node[anchor=east] at (0.5, -0) {\footnotesize $c^p_{i}$};
+			\node[anchor=west] at (2.5, -0) {\footnotesize $c^l_{i}$};
 
 			% Channel
 			\filldraw[blue] (1,0) circle (0.08cm);
@@ -356,12 +359,12 @@ By default, the following initial conditions are applied for all $z \in [0,L]$ a
 			\draw[very thin] (PD.center) -- (PDdesc);
 
 			\draw[<-] (-0.6,0.62) -- (-1.2,0.62);
-			\node[anchor=east] at (-1.2,0.62) {\footnotesize Ref. volume of $q_{i,m_i}$};
+			\node[anchor=east] at (-1.2,0.62) {\footnotesize Ref. volume of $c^s_{j,i,m_{j,i}}$};
 
 			\draw[<-] (-0.8,0) -- (-1.2,0);
-			\node[anchor=east] at (-1.2,0) {\footnotesize Ref. volume of $c_{p,i}$};
+			\node[anchor=east] at (-1.2,0) {\footnotesize Ref. volume of $c^p_{j,i}$};
 
-			\node[anchor=west,align=center] at (1.5,0.2) {\footnotesize Porosity\\ \footnotesize$\varepsilon_p = \frac{\text{Vol.~channels}}{\text{Vol.~channels} + \text{Vol.~solid}}$};
+			\node[anchor=west,align=center] at (1.5,0.2) {\footnotesize Porosity\\ \footnotesize$\varepsilon_{p,j} = \frac{\text{Vol.~channels}}{\text{Vol.~channels} + \text{Vol.~solid}}$};
 
 %			\draw[step=0.1cm,gray,thin] (-1,-1) grid (1,1);
 		\end{tikzpicture}
@@ -381,17 +384,17 @@ By default, the following initial conditions are applied for all $z \in [0,L]$ a
 %			\draw (0.2,0.2) -- (0,0.2) -- (-0.2,0) -- (-0.2,-0.2) -- (0.2,-0.2) -- (0.2,0.2);
 %			\draw (0.4,0.2) -- (-0.2,0.2)  arc[radius=0.2cm,start angle=90,end angle=180] -- (-0.4,-0.2) -- (0.4,-0.2) -- (0.4,0.2);
 			\draw (0.4,0.4) -- (-0.2,0.4)  arc[radius=0.2cm,start angle=90,end angle=180] -- (-0.4,-0.4) -- (0.4,-0.4) -- (0.4,0.4);
-			\node at (0,0) {\footnotesize $c_{p,i}$};
+			\node at (0,0) {\footnotesize $c^p_{j,i}$};
 		\end{scope}
 
 		\begin{scope}[xshift=0.5cm,yshift=0.9cm]
 			\draw (0.4,0.4) -- (-0.2,0.4)  arc[radius=0.2cm,start angle=90,end angle=180] -- (-0.4,-0.4) -- (0.4,-0.4) -- (0.4,0.4);
-			\node at (0,0) {\footnotesize $q_{i,1}$};
+			\node at (0,0) {\footnotesize $c^s_{j,i,1}$};
 		\end{scope}
 
 		\begin{scope}[xshift=2.5cm,yshift=0.9cm,rotate=-90]
 			\draw (0.4,0.4) -- (-0.2,0.4)  arc[radius=0.2cm,start angle=90,end angle=180] -- (-0.4,-0.4) -- (0.4,-0.4) -- (0.4,0.4);
-			\node at (0,0) {\footnotesize $q_{i,2}$};
+			\node at (0,0) {\footnotesize $c^s_{j,i,2}$};
 		\end{scope}
 
 		\node at (1.5, 0.25) {\footnotesize Surface};
@@ -405,23 +408,37 @@ By default, the following initial conditions are applied for all $z \in [0,L]$ a
 
 See Table~\ref{tab:FFModelUnitOpGRM}.
 
+\paragraph{Multiple particle types}
+\phantomsection\label{par:MUOPGRMMultiParticleTypes}
+
+A particle type \index{Model!Multiple particle types}\index{Model!Particle types} has its own set of mass transfer parameters $\varepsilon_{p,j}$, $D_{p,j}$, $D_{s,j}$, etc (see Eq.~\eqref{eq:ModelBead}) and its own binding model $f_{\mathrm{ads}}$ (including a possibly differing number of bound states).
+This allows, for example, modeling of particle size distributions or potential applications with differently functionalized beads (e.g., immobilized enzymes).
+
+The distribution of the particle types is governed by their volume fractions $d_j$ in Eq.~\eqref{eq:ModelColumn}.
+The volume fractions have to sum to $1$:
+\begin{align*}
+	\sum_{j=0}^{N_{\text{partype}} - 1} d_j = 1.
+\end{align*}
+
 \paragraph{Size exclusion chromatography}
 \phantomsection\label{par:MUOPGRMSizeExclusion}
 
 The general rate model can be used to simulate size exclusion chromatography (SEC) \cite{Gu1995}. \index{Model!Size exclusion chromatography}
-The particle porosity $\varepsilon_p$ on the mobile phase side of the transport equations is replaced by the accessible porosity
+The particle porosity $\varepsilon_{p,j}$ on the mobile phase side of the transport equations is replaced by a component-dependent accessible porosity
 \begin{align}
-	\varepsilon_{p,i} = F_{\text{acc},i} \varepsilon_p
+	\varepsilon_{p,j,i} = F_{\text{acc},j,i} \varepsilon_{p,j},
 \end{align}
-where the pore accessibility factor $F_{\text{acc},i}$ ranges in $(0, 1]$.
+where the pore accessibility factor $F_{\text{acc},j,i}$ ranges in $(0, 1]$.
 
-Small molecules which can enter any pore have $F_{\text{acc},i} = 1$ whereas larger molecules that can enter some but not small pores have values $0 < F_{\text{acc},i} < 1$.
-The other extreme is given by molecules so large that they cannot enter any pore and, consequently, $F_{\text{acc},i} = 0$.
-Note that $F_{\text{acc},i} = 0$ is not allowed in a simulation and a more suitable model should be used instead (e.g., the lumped rate model without pores described in Section~\ref{sec:MUOPLRM}).
+Small molecules that can enter any pore have $F_{\text{acc},j,i} = 1$, whereas larger molecules that can enter some, but not small pores, have values $0 < F_{\text{acc},j,i} < 1$.
+The other extreme is given by molecules so large that they cannot enter any pore and, consequently, $F_{\text{acc},j,i} = 0$.
+Note that $F_{\text{acc},j,i} = 0$ is not allowed in a simulation, which can be circumvented by setting $k_{f,j,i} = 0$.
 
-By default, $F_{\text{acc},i} = 1$ for all components $i$, which disables size exclusion chromatography.
+By default, $F_{\text{acc},j,i} = 1$ for all components $i$ and all particle types $j$, which disables size exclusion chromatography.
 In order to simulate pure SEC, binding is disabled by setting $N_{\text{bnd},i} = 0$ for all components $i$ and applying no binding model.
-If adsorption is present, it is important to note that any saturation capacity (e.g., $q_{\text{max}}$) is subject to the full pore volume fraction $\varepsilon_p$.
+If adsorption is present, it is important to note that any saturation capacity (e.g., $q_{\text{max}}$ of Langmuir-type binding models) is subject to the full pore volume fraction $\varepsilon_{p,j}$.
+
+Note that multiple particle types can also be used to aid in modeling size exclusion effects, see~Section~\ref{par:MUOPGRMMultiParticleTypes}.
 
 \paragraph{Specification of flow rate / velocity and direction}
 \phantomsection\label{par:MUOPGRMflow}
@@ -435,7 +452,7 @@ Note that without the bulk porosity $\varepsilon_c$, the superficial velocity wo
 
 The direction of flow inside the unit operation is governed by the sign of the interstitial velocity $u$.
 A positive sign results in (standard) forward flow, whereas a negative sign reverses the flow direction.
-Note that in case of reversed flow the chromatogram is returned at the unit operation's \emph{inlet}, which may not be returned from simulation by default.
+Note that in case of reversed flow, the chromatogram is returned at the unit operation's \emph{inlet}, which may not be returned from simulation by default.
 
 The final behavior is controlled by the interplay of cross section area and interstitial velocity:
 \begin{enumerate}
@@ -447,29 +464,30 @@ The final behavior is controlled by the interplay of cross section area and inte
 \subsection{Lumped rate model with pores (LRMP)}\label{sec:MUOPLRMP}
 
 The lumped rate model with pores \index{Model!Lumped rate model with pores}\index{Model!LRMP}\index{Unit operation!Lumped rate model with pores}\index{Unit operation!LRMP} \cite{Guiochon2006,Felinger2004} deviates from the general rate model (see Section~\ref{sec:MUOPGRM}) by neglecting pore diffusion.
-The particle phase $c_p$ is still there, but no mass transfer happens except for binding and film diffusion.
+The particle phase $c^p_j$ is still there, but no mass transfer happens except for binding and film diffusion.
 Hence, the model equations are given by
 \begin{align}
-	\frac{\partial c_i}{\partial t} &= -u \frac{\partial c_i}{\partial z} + D_{\text{ax}} \frac{\partial^2 c_i}{\partial z^2} - \frac{1}{\beta_c}\frac{3}{r_p}k_{f,i}\left[ c_i - c_{p,i} \right], \\
-	\frac{\pdiff c_{p,i}}{\pdiff t} + \frac{1 - \varepsilon_p}{F_{\text{acc},i} \varepsilon_p} \frac{\pdiff}{\pdiff t} \sum_{m_i} q_{i,m_i} &= \frac{3}{F_{\text{acc},i} \varepsilon_p r_p}k_{f,i}\left[ c_i - c_{p,i} \right]
+	\frac{\partial c^l_i}{\partial t} &= -u \frac{\partial c^l_i}{\partial z} + D_{\text{ax}} \frac{\partial^2 c^l_i}{\partial z^2} - \frac{1}{\beta_c} \sum_{j} d_j \frac{3}{r_{p,j}} k_{f,j,i}\left[ c^l_i - c^p_{j,i} \right], \\
+	\frac{\pdiff c^p_{j,i}}{\pdiff t} + \frac{1 - \varepsilon_{p,j}}{F_{\text{acc},j,i} \varepsilon_{p,j}} \frac{\pdiff}{\pdiff t} \sum_{m_{j,i}} c^s_{j,i,m_{j,i}} &= \frac{3}{F_{\text{acc},j,i} \varepsilon_{p,j} r_{p,j}}k_{f,j,i}\left[ c^l_i - c^p_{j,i} \right]
 \end{align}
 with the same meanings of variables and parameters as in the general rate model. 
 The equations are complemented by Danckwerts boundary conditions \cite{Danckwerts1953}
 \begin{align*}
-	u c_{\text{in},i}(t) &= u c_i(t,0) - D_{\text{ax}} \frac{\partial c_i}{\partial z}(t, 0) & \forall t > 0,\\
-	\frac{\partial c_i}{\partial z}(t, L) &= 0 & \forall t > 0.
+	u c_{\text{in},i}(t) &= u c^l_i(t,0) - D_{\text{ax}} \frac{\partial c^l_i}{\partial z}(t, 0) & \forall t > 0,\\
+	\frac{\partial c^l_i}{\partial z}(t, L) &= 0 & \forall t > 0.
 \end{align*}
 
 As for the general rate model, both quasi-stationary and dynamic binding models are supported:
 \begin{alignat*}{2}
-	\text{quasi-stationary: }& & 0 &= f_{\text{ads}}( c_p, q), \\
-	\text{dynamic: }& & \frac{\partial q}{\partial t} &= f_{\text{ads}}( c_p, q).
+	\text{quasi-stationary: }& & 0 &= f_{\text{ads},j}\left( c^p_j, c^s_j\right), \\
+	\text{dynamic: }& & \frac{\partial c^s_j}{\partial t} &= f_{\text{ads},j}\left( c^p_j, c^s_j\right).
 \end{alignat*}
 By default, the following initial conditions are applied for all $z \in [0,L]$:
 \begin{align}
-	c_i(0, z) &= 0, & c_{p,i}(0, z) &= 0, & q_{i,m_i}(0,z) &= 0.
+	c^l_i(0, z) &= 0, & c^p_{j,i}(0, z) &= 0, & c^s_{j,i,m_{j,i}}(0,z) &= 0.
 \end{align}
 
+Multiple particle types are supported (see Section~\ref{par:MUOPGRMMultiParticleTypes}).
 This model can also be used to simulate size exclusion chromatography (see Section~\ref{par:MUOPGRMSizeExclusion}).\index{Model!Size exclusion chromatography}
 For the specification of flow rate and direction, the same holds as for the general rate model (see Section~\ref{par:MUOPGRMflow}).
 See Table~\ref{tab:FFModelUnitOpLRMP}.
@@ -477,30 +495,30 @@ See Table~\ref{tab:FFModelUnitOpLRMP}.
 \subsection{Lumped rate model without pores (LRM)}\label{sec:MUOPLRM}
 
 The lumped rate model without pores \index{Model!Lumped rate model without pores}\index{Model!LRM}\index{Unit operation!Lumped rate model without pores}\index{Unit operation!LRM} \cite{Guiochon2006,Felinger2004} deviates from the lumped rate model with pores (see Section~\ref{sec:MUOPLRMP}) by neglecting pores completely.
-The particle phase $c_p$ is removed and the porosity $\varepsilon_t$ is taken as total porosity
+The particle phase $c^p$ is removed and the porosity $\varepsilon_t$ is taken as total porosity
 \begin{align}
 	\varepsilon_t = \varepsilon_c + \left( 1 - \varepsilon_c \right) \varepsilon_p. \label{eq:TotalPorosity}
 \end{align}
 The phase ratio is denoted by $\beta_t = \varepsilon_t / (1 - \varepsilon_t)$ accordingly.
 The model equations are given by
 \begin{align}
-	\frac{\partial c_i}{\partial t} + \frac{1}{\beta_t} \frac{\pdiff}{\pdiff t} \sum_{m_i} q_{i,m_i} &= -u \frac{\partial c_i}{\partial z} + D_{\text{ax}} \frac{\partial^2 c_i}{\partial z^2},
+	\frac{\partial c^l_i}{\partial t} + \frac{1}{\beta_t} \frac{\pdiff}{\pdiff t} \sum_{m_i} c^s_{i,m_i} &= -u \frac{\partial c^l_i}{\partial z} + D_{\text{ax}} \frac{\partial^2 c^l_i}{\partial z^2},
 \end{align}
 where $\beta_t = \varepsilon_t / (1 - \varepsilon_t)$ denotes the (total) phase ratio.
 The equations are complemented by Danckwerts boundary conditions \cite{Danckwerts1953}
 \begin{align*}
-	u c_{\text{in},i}(t) &= u c_i(t,0) - D_{\text{ax}} \frac{\partial c_i}{\partial z}(t, 0) & \forall t > 0,\\
-	\frac{\partial c_i}{\partial z}(t, L) &= 0 & \forall t > 0.
+	u c_{\text{in},i}(t) &= u c^l_i(t,0) - D_{\text{ax}} \frac{\partial c^l_i}{\partial z}(t, 0) & \forall t > 0,\\
+	\frac{\partial c^l_i}{\partial z}(t, L) &= 0 & \forall t > 0.
 \end{align*}
 
 Both quasi-stationary and dynamic binding models are supported:
 \begin{alignat*}{2}
-	\text{quasi-stationary: }& & 0 &= f_{\text{ads}}( c_p, q), \\
-	\text{dynamic: }& & \frac{\partial q}{\partial t} &= f_{\text{ads}}( c_p, q).
+	\text{quasi-stationary: }& & 0 &= f_{\text{ads}}\left( c^l, c^s\right), \\
+	\text{dynamic: }& & \frac{\partial q}{\partial t} &= f_{\text{ads}}\left( c^l, c^s\right).
 \end{alignat*}
 By default, the following initial conditions are applied for all $z \in [0,L]$:
 \begin{align}
-	c_i(0, z) &= 0, & q_{i,m_i}(0,z) &= 0.
+	c^l_i(0, z) &= 0, & c^s_{i,m_i}(0,z) &= 0.
 \end{align}
 
 Note that by setting $\varepsilon_t = 1$, removing all bound states by setting $N_{\text{bnd},i} = 0$ for all components $i$, and applying no binding model, a dispersive plug flow reactor (DPFR)\index{Model!Dispersive plug flow reactor}\index{Model!DPFR}\index{Unit operation!Dispersive plug flow reactor}\index{Unit operation!DPFR} is obtained.
@@ -508,29 +526,29 @@ Note that by setting $\varepsilon_t = 1$, removing all bound states by setting $
 For the specification of flow rate and direction, the same holds as for the general rate model (see Section~\ref{par:MUOPGRMflow}).
 See Table~\ref{tab:FFModelUnitOpLRM}.
 
-\subsection{Continuously stirred tank reactor model (CSTR)}\label{sec:MUOPCSTR}
+\subsection{Continuous stirred tank reactor model (CSTR)}\label{sec:MUOPCSTR}
 
-The continuously stirred tank reactor model \index{Model!Continuously stirred tank reactor}\index{Model!CSTR}\index{Unit operation!Continuously stirred tank reactor model}\index{Unit operation!CSTR} is a basic building block in unit operation networks and often used to model holdup volume.
+The continuous stirred tank reactor model \index{Model!Continuous stirred tank reactor}\index{Model!CSTR}\index{Unit operation!Continuous stirred tank reactor model}\index{Unit operation!CSTR} is a basic building block in unit operation networks and often used to model holdup volume.
 When combined with a binding model, it can be used to model batch uptake experiments.
 
 Assuming that the fluid inside the tank is well-mixed and that the volume can vary, the governing equations are given by
 \begin{align*}
-	\frac{\mathrm{d}}{\mathrm{d}t} \left(\left[ c_i + \frac{1-\varepsilon}{\varepsilon} \sum_{j=0}^{N_{\text{bnd},i} - 1} q_{i,j} \right] V\right) &= F_{\text{in}} c_{\text{in},i} - F_{\text{out}} c_i,
+	\frac{\mathrm{d}}{\mathrm{d}t} \left(\left[ c_i + \frac{1-\varepsilon}{\varepsilon} \sum_j d_j \sum_{m_{j,i}} c^s_{j,i,m_{j,i}} \right] V\right) &= F_{\text{in}} c_{\text{in},i} - F_{\text{out}} c_i,
 \end{align*}
 which balances the mass, the binding equation
 \begin{alignat*}{2}
-	\text{quasi-stationary: }& & 0 &= f_{\text{ads}}( c, q), \\
-	\text{dynamic: }& & \frac{\partial q}{\partial t} &= f_{\text{ads}}( c, q),
+	\text{quasi-stationary: }& & 0 &= f_{\text{ads},j}\left( c, c^s_j\right), \\
+	\text{dynamic: }& & \frac{\partial c^s_j}{\partial t} &= f_{\text{ads},j}\left( c, c^s_j\right),
 \end{alignat*}
 depending on whether quasi-stationary or dynamic binding is used, and the evolution of volume
 \begin{align*}
 	\frac{\mathrm{d}V}{\mathrm{d}t} &= F_{\text{in}} - F_{\text{out}} - F_{\text{filter}}.
 \end{align*}
 The porosity $\varepsilon$ denotes the ratio of liquid phase volume to total tank volume.
-Thus, setting $\varepsilon = 1$, removing all bound states by setting $N_{\text{bnd},i} = 0$ for all components $i$, and applying no binding model results in a simple tank.
+Thus, setting $\varepsilon = 1$, removing all bound states by setting $N_{\text{bnd},j,i} = 0$ for all components $i$ and particle types $j$, and applying no binding model results in a simple tank.
 The additional parameter $F_{\text{filter}}$, which denotes the flow rate of pure liquid (without any components) out of the tank, can be used to model a filtering unit.
 
 Note that it is the user's duty to make sure that the volume of the CSTR does not fall below \SI{0}{\cubic\metre}.
-If it does, the simulation may fail to run or produces unreasonable (e.g., unphysical) results.
+If it does, the simulation may fail to run or may produce unreasonable (e.g., unphysical) results.
 
 See Table~\ref{tab:FFModelUnitOpCSTR}.

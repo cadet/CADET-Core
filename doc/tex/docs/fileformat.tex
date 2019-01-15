@@ -46,8 +46,8 @@ For the latter, please refer to the corresponding sections in the previous chapt
   level 2/.style={sibling distance=16mm},
   ]
   \node {/ (Root)} [edge from parent fork down]
-    child[sibling distance=30mm] { node {\hyperref[fig:FFInput]{input} } }   
-    child[sibling distance=30mm] { node {\hyperref[fig:FFOutput]{output} } }   
+    child[sibling distance=30mm] { node {\hyperref[fig:FFInput]{input} } }
+    child[sibling distance=30mm] { node {\hyperref[fig:FFOutput]{output} } }
     child[sibling distance=30mm] { node {\hyperref[tab:FFMeta]{meta} } };
 \end{tikzpicture}
 \caption{\label{fig:FFRoot}Structure of the groups in the root group of the file format}
@@ -69,7 +69,7 @@ For the latter, please refer to the corresponding sections in the previous chapt
               }
               child { node { \hyperref[tab:FFModelSolver]{solver} } }
               child { node { \hyperref[sec:FFModelUnitOp]{unit\_000} } }
-          }   
+          }
     child[sibling distance=40mm] { node { \hyperref[tab:FFSolver]{solver} } [edge from parent fork down]
               child[sibling distance=15mm] { node { \hyperref[tab:FFSolverSections]{sections} } }
               child[sibling distance=25mm] { node { \hyperref[tab:FFSolverTime]{time\_integrator} } }
@@ -137,15 +137,16 @@ Common notation and identifiers that are used in the subsequent description are 
 \centering
 \footnotesize
 \begin{tabu}to \linewidth[m]{ll} \toprule
-\rowfont[c]\normalfont Identifier & Meaning \everyrow{\midrule}\\
-\texttt{NCOMP} & Number of components of a unit operation\\
-\texttt{NTOTALCOMP} & Total number of components in the system (sum of all unit operation components)\\
-\texttt{NBND}\textsubscript{i} & Number of bound states of component $i$ of a unit operation\\
-\texttt{NTOTALBND} & Total number of bound states of a unit operation (sum of all bound states of all components)\\
-\texttt{NSTATES} & Maximum of the number of bound states for each component of a unit operation\\
-\texttt{NDOF} & Total number of degrees of freedom of the current unit operation model or system of unit operations\\
-\texttt{NSEC} & Number of time integration sections\\
-\texttt{PARAM\_VALUE} & Value of a generic unspecified parameter \everyrow{}\\
+\normalfont Identifier & Meaning \\ \midrule
+\texttt{NCOMP} & Number of components of a unit operation \\[0.5ex]
+\texttt{NTOTALCOMP} & Total number of components in the system (sum of all unit operation components) \\[0.5ex]
+\texttt{NPARTYPE} & Number of particle types of a unit operation \\[0.5ex]
+\texttt{NBND}\textsubscript{i} & Number of bound states of component $i$ of a unit operation \\[0.5ex]
+\texttt{NTOTALBND} & Total number of bound states of a unit operation (sum of all bound states of all components) \\[0.5ex]
+\texttt{NSTATES} & Maximum of the number of bound states for each component of a unit operation \\[0.5ex]
+\texttt{NDOF} & Total number of degrees of freedom of the current unit operation model or system of unit operations \\[0.5ex]
+\texttt{NSEC} & Number of time integration sections \\[0.5ex]
+\texttt{PARAM\_VALUE} & Value of a generic unspecified parameter \\
 \bottomrule
 \end{tabu}
 \caption{\label{tab:FFNotationIdentifiers}Common notation and identifiers used in the file format description}
@@ -180,12 +181,12 @@ Note that all components of component dependent datasets have to be section depe
 \centering
 \footnotesize
 \begin{tabu}to \linewidth[m]{lcc} \toprule
-\rowfont[c]\normalfont Dataset & Component dependent & Section dependent \everyrow{\midrule}\\      
-\texttt{COL\_DISPERSION} & & \checkmark \\
-\texttt{FILM\_DIFFUSION} & \checkmark  & \checkmark \\
-\texttt{PAR\_DIFFUSION} & \checkmark  & \checkmark \\
-\texttt{PAR\_SURFDIFFUSION} & \checkmark  & \checkmark \\
-\texttt{VELOCITY} & & \checkmark \everyrow{}\\
+\rowfont[c]\normalfont Dataset & Component dependent & Section dependent \\ \midrule
+\texttt{COL\_DISPERSION} & & \checkmark \\[0.5ex]
+\texttt{FILM\_DIFFUSION} & \checkmark  & \checkmark \\[0.5ex]
+\texttt{PAR\_DIFFUSION} & \checkmark  & \checkmark \\[0.5ex]
+\texttt{PAR\_SURFDIFFUSION} & \checkmark  & \checkmark \\[0.5ex]
+\texttt{VELOCITY} & & \checkmark \\
 \bottomrule
 \end{tabu}
 \caption[Section dependent datasets in the unit operation models]{\label{tab:FFSectionDependentParams}Section dependent datasets in the unit operation models (\texttt{/input/model/unit\_XXX} group)}
@@ -195,361 +196,475 @@ Note that all components of component dependent datasets have to be section depe
 \section{Input group}\label{sec:FFInput}
 \subsection{System of unit operations}\label{sec:FFModelSystem}
 
-\newcommand{\GroupHeadline}[1]{\small Group \texttt{#1}}
-\newcommand{\GroupHeadlineX}[2]{\small\texttt{#1} -- Group \texttt{#2}}
-\newcommand{\GroupHeadlineY}[2]{\small#1 -- Group \texttt{#2}}
+\newenvironment{groupscope}[2]{%
+  \paragraph{\fbox{Group \texttt{#1}}}\phantomsection\label{#2}
+  \begin{description}
+}{%
+  \end{description}
+}
+\newenvironment{condsubgroup}[3]{%
+  \paragraph{\fbox{Group \texttt{#1} -- \texttt{#2}}}\phantomsection\label{#3}
+  \begin{description}
+}{%
+  \end{description}
+}
 
-\begin{table}[!ht]
-\footnotesize
-\begin{tabu}to \linewidth[m]{lX[m]cccc} \toprule
-\multicolumn{6}{c}{\GroupHeadline{/input/model}} \\
-\rowfont[c]\normalfont Dataset & Description & Unit & Type & Range & Length \everyrow{\midrule}\\
-\texttt{NUNITS}& Number of unit operations in the system & -- & int & $\geq 1$ & 1 \\
-\texttt{INIT\_STATE\_Y}& Initial full state vector (optional, unit operation specific initial data is ignored) & -- & double & $\geq 0$ & \texttt{NDOF} \\
-\texttt{INIT\_STATE\_YDOT}& Initial full time derivative state vector (optional, unit operation specific initial data is ignored) & -- & double & $\geq 0$ & \texttt{NDOF} \\
-\texttt{INIT\_STATE\_SENSY\_XXX}& Initial full state vector of the \texttt{XXX}th sensitivity system (optional, unit operation specific initial data is ignored) & -- & double & $\geq 0$ & \texttt{NDOF} \\
-\texttt{INIT\_STATE\_SENSYDOT\_XXX}& Initial full time derivative state vector of the \texttt{XXX}th sensitivity system (optional, unit operation specific initial data is ignored) & -- & double & $\geq 0$ & \texttt{NDOF} \everyrow{}\\
-\bottomrule
-\end{tabu}
-\caption{\label{tab:FFModelSystem}Datasets in the \texttt{/input/model/} group}
-\end{table}
+\newenvironment{subgroup}[3]{%
+  \paragraph{\fbox{Group \texttt{#1} -- #2}}\phantomsection\label{#3}
+  \begin{description}
+}{%
+  \end{description}
+}
 
-\begin{table}[!ht]
-\footnotesize
-\begin{tabu}to \linewidth[m]{lX[m]cccc} \toprule
-\multicolumn{6}{c}{\GroupHeadline{/input/model/connections}} \\
-\rowfont[c]\normalfont Dataset & Description & Unit & Type & Range & Length \everyrow{\midrule}\\
-\texttt{NSWITCHES}& Number of valve switches & -- & int & $\geq 1$ & 1 \everyrow{}\\
-\bottomrule
-\end{tabu}
-\caption{\label{tab:FFModelSystemConnections}Datasets in the \texttt{/input/model/connections} group}
-\end{table}
+\pgfkeys{
+  /dataset/.is family, /dataset,
+  unit/.store in=\datasetUnit,
+  type/.store in=\datasetType,
+  range/.store in=\datasetRange,
+  length/.store in=\datasetLength,
+  inout/.store in=\datasetInout,
+}
+\newenvironment{dataset}[2][]{%
+  \pgfkeys{/dataset,#1}\item[\texttt{#2}]
+}{%
+  \ifthenelse{\NOT\( \isundefined{\datasetUnit} \AND \isundefined{\datasetType} \AND \isundefined{\datasetRange} \AND \isundefined{\datasetLength} \AND \isundefined{\datasetInout}\)}{%
+    % At least one option is set
+    % Unit & Type & Range & Length
+    % Type & Range & Length
+    % Unit & Type
+    % In/out & Type
+    \hfill\vspace{0.25\baselineskip}\linebreak\noindent%\newline
+    \ifthenelse{\isundefined{\datasetUnit}}{}{\makebox[0.2\linewidth][l]{\textbf{Unit:} \datasetUnit}}
+    \ifthenelse{\isundefined{\datasetInout}}{}{\makebox[0.15\linewidth][l]{\textbf{In/out:} \datasetInout}}
+    \ifthenelse{\isundefined{\datasetType}}{}{\makebox[0.15\linewidth][l]{\textbf{Type:} \datasetType}}
+    \ifthenelse{\isundefined{\datasetRange}}{}{\makebox[0.35\linewidth][l]{\textbf{Range:} \datasetRange}}
+    \ifthenelse{\isundefined{\datasetLength}}{}{\makebox[0.3\linewidth][l]{\textbf{Length:} \datasetLength}}
+  }{%
+    % No option is set
+  }
+}
 
-\begin{table}[!ht]
-\footnotesize
-\begin{tabu}to \linewidth[m]{lX[m]cccc} \toprule
-\multicolumn{6}{c}{\GroupHeadline{/input/model/connections/switch\_XXX}} \\
-\rowfont[c]\normalfont Dataset & Description & Unit & Type & Range & Length \everyrow{\midrule}\\
-\texttt{SECTION}& Index of the section which activates this connection set & -- & int & $\geq 0$ & 1 \\
-\texttt{CONNECTIONS}& Matrix with list of connections in row-major storage. Columns are \emph{UnitOpID from}, \emph{UnitOpID to}, \emph{Component from}, \emph{Component to}, \emph{volumetric flow rate}. If both component indices are $-1$, all components are connected. & -- & double & $\geq -1$ & $\texttt{NCONNECTIONS} \times 5$ \everyrow{}\\
-\bottomrule
-\end{tabu}
-\caption{\label{tab:FFModelConnectionSwitch}Datasets in the \texttt{/input/model/connections/switch\_XXX} group}
-\end{table}
+\begin{groupscope}{/input/model}{tab:FFModelSystem}
+  \begin{dataset}[type=int,range={$\geq 1$},length=1]{NUNITS}
+    Number of unit operations in the system
+  \end{dataset}
+  \begin{dataset}[type=int,range={$\geq 1$},length=1]{INIT\_STATE\_Y}
+    Initial full state vector (optional, unit operation specific initial data is ignored)
+  \end{dataset}
+  \begin{dataset}[type=double,length={\texttt{NDOF}}]{INIT\_STATE\_YDOT}
+    Initial full time derivative state vector (optional, unit operation specific initial data is ignored)
+  \end{dataset}
+  \begin{dataset}[type=double,length={\texttt{NDOF}}]{INIT\_STATE\_SENSY\_XXX}
+    Number of unit operations in the system
+  \end{dataset}
+  \begin{dataset}[type=double,length={\texttt{NDOF}}]{INIT\_STATE\_SENSYDOT\_XXX}
+    Initial full state vector of the \texttt{XXX}th sensitivity system (optional, unit operation specific initial data is ignored)
+  \end{dataset}
+  \begin{dataset}[type=double,length={\texttt{NDOF}}]{NUNITS}
+    Initial full time derivative state vector of the \texttt{XXX}th sensitivity system (optional, unit operation specific initial data is ignored)
+  \end{dataset}
+\end{groupscope}
 
-\begin{table}[!ht]
-\footnotesize
-\begin{tabu}to \linewidth[m]{lX[m]cccc} \toprule
-\multicolumn{6}{c}{\GroupHeadlineX{EXTFUN\_TYPE = LINEAR\_INTERP\_DATA}{/input/model/external/source\_XXX}} \\
-\rowfont[c]\normalfont Dataset & Description & Unit & Type & Range & Length \everyrow{\midrule}\\
-\texttt{VELOCITY} & Velocity of the external profile in positive column axial direction & \si{\per\second} & double & $\geq 0$ & 1\\
-\texttt{DATA} & Function values $T$ at the data points & \si{\ExternalUnit} & double & $\mathds{R}$ & Arbitrary\\
-\texttt{TIME} & Time of the data points & \si{\second} & double & $\geq 0.0$ & Same as \texttt{DATA}
-\everyrow{}\\
-\bottomrule
-\end{tabu}
-\caption{\label{tab:FFModelExternalSourceLinInterp}Datasets in the \texttt{/input/model/external/source\_XXX} group}
-\end{table}
+\begin{groupscope}{/input/model/connections}{tab:FFModelSystemConnections}
+  \begin{dataset}[type=int,range={$\geq 1$},length=1]{NSWITCHES}
+    Number of valve switches
+  \end{dataset}
+\end{groupscope}
 
-\begin{table}[!ht]
-\footnotesize
-\begin{tabu}to \linewidth[m]{lX[m]cccc} \toprule
-\multicolumn{6}{c}{\GroupHeadlineX{EXTFUN\_TYPE = PIECEWISE\_CUBIC\_POLY}{/input/model/external/source\_XXX}} \\
-\rowfont[c]\normalfont Dataset & Description & Unit & Type & Range & Length \everyrow{\midrule}\\
-\texttt{VELOCITY} & Velocity of the external profile in positive column axial direction & \si{\per\second} & double & $\geq 0$ & 1\\
-\texttt{CONST\_COEFF} & Constant coefficients of piecewise cubic polynomial & \si{\ExternalUnit} & double & $\mathds{R}$ & Arbitrary \\
-\texttt{LIN\_COEFF} & Linear coefficients of piecewise cubic polynomial & \si{\ExternalUnit\per\second} & double & $\mathds{R}$ & Same as \texttt{CONST\_COEFF} \\
-\texttt{QUAD\_COEFF} & Quadratic coefficients of piecewise cubic polynomial & \si{\ExternalUnit\per\square\second} & double & $\mathds{R}$ & Same as \texttt{CONST\_COEFF} \\
-\texttt{CUBE\_COEFF} & Cubic coefficients of piecewise cubic polynomial & \si{\ExternalUnit\per\cubic\second} & double & $\mathds{R}$ & Same as \texttt{CONST\_COEFF} \\
-\texttt{SECTION\_TIMES} & Simulation times at which a new piece begins (breaks of the piecewise polynomial) & \si{\second} & double & $\geq 0.0$ & \texttt{CONST\_COEFF}+1
-\everyrow{}\\
-\bottomrule
-\end{tabu}
-\caption{\label{tab:FFModelExternalSourcePieceCubicPoly}Datasets in the \texttt{/input/model/external/source\_XXX} group}
-\end{table}
+\begin{groupscope}{/input/model/connections/switch\_XXX}{tab:FFModelConnectionSwitch}
+  \begin{dataset}[type=int,range={$\geq 0$},length=1]{SECTION}
+    Index of the section that activates this connection set
+  \end{dataset}
+  \begin{dataset}[type=double,range={$\geq -1$},length={$5 \cdot \texttt{NCONNECTIONS}$}]{CONNECTIONS}
+    Matrix with list of connections in row-major storage. Columns are \emph{UnitOpID from}, \emph{UnitOpID to}, \emph{Component from}, \emph{Component to}, \emph{volumetric flow rate}. If both component indices are $-1$, all components are connected.
+  \end{dataset}
+\end{groupscope}
 
-\begin{table}[!ht]
-\footnotesize
-\begin{tabu}to \linewidth[m]{lX[m]ccc} \toprule
-\multicolumn{5}{c}{\GroupHeadline{/input/model/solver}} \\
-\rowfont[c]\normalfont Dataset & Description & Type & Range & Length \everyrow{\midrule}\\
-\texttt{GS\_TYPE} & Type of Gram-Schmidt orthogonalization, see IDAS guide
-4.5.7.3, 41f. & int &
-\begin{tabular}{c}
-  0 (\texttt{CLASSICAL\_GS}) \\
-  1 (\texttt{MODIFIED\_GS})
-\end{tabular} & 1 \\
-\texttt{MAX\_KRYLOV} & Defines the size of the Krylov subspace in the iterative linear GMRES solver (0: \texttt{MAX\_KRYLOV} = \texttt{NCOL}) & int & $0-\texttt{NCOL}$ & 1\\
-\texttt{MAX\_RESTARTS} & Maximum number of restarts in the GMRES algorithm. If lack of memory isn't an issue, better use a larger Krylov space than restarts & int & $\geq 0$ & 1 \\
-\texttt{SCHUR\_SAFETY} & Schur safety factor; Influences the tradeof between linear iterations and nonlinear error control; see IDAS guide 2.1, 5 & double & $\geq 0.0$ & 1\everyrow{}\\
-\bottomrule
-\end{tabu}
-\caption{\label{tab:FFModelSolver}Datasets in the \texttt{/input/model/solver} group}
-\end{table}
+\begin{condsubgroup}{/input/model/external/source\_XXX}{EXTFUN\_TYPE = LINEAR\_INTERP\_DATA}{tab:FFModelExternalSourceLinInterp}
+  \begin{dataset}[type=double,unit=\si{\per\second},range={$\geq 0$},length=1]{VELOCITY}
+    Velocity of the external profile in positive column axial direction
+  \end{dataset}
+  \begin{dataset}[type=double,unit=\si{\ExternalUnit},range={$\mathds{R}$},length=Arbitrary]{DATA}
+    Function values $T$ at the data points
+  \end{dataset}
+  \begin{dataset}[type=double,unit=\si{\second},range={$\geq 0.0$},length={Same as \texttt{DATA}}]{TIME}
+    Time of the data points
+  \end{dataset}
+\end{condsubgroup}
 
-\FloatBarrier
+\begin{condsubgroup}{/input/model/external/source\_XXX}{EXTFUN\_TYPE = PIECEWISE\_CUBIC\_POLY}{tab:FFModelExternalSourcePieceCubicPoly}
+  \begin{dataset}[type=double,unit=\si{\per\second},range={$\geq 0$},length=1]{VELOCITY}
+    Velocity of the external profile in positive column axial direction
+  \end{dataset}
+  \begin{dataset}[type=double,unit=\si{\ExternalUnit},range={$\mathds{R}$},length=Arbitrary]{CONST\_COEFF}
+    Constant coefficients of piecewise cubic polynomial
+  \end{dataset}
+  \begin{dataset}[type=double,unit=\si{\ExternalUnit\per\second},range={$\mathds{R}$},length={Same as \texttt{CONST\_COEFF}}]{LIN\_COEFF}
+    Linear coefficients of piecewise cubic polynomial
+  \end{dataset}
+  \begin{dataset}[type=double,unit=\si{\ExternalUnit\per\square\second},range={$\mathds{R}$},length={Same as \texttt{CONST\_COEFF}}]{CONST\_COEFF}
+    Quadratic coefficients of piecewise cubic polynomial
+  \end{dataset}
+  \begin{dataset}[type=double,unit=\si{\ExternalUnit\per\cubic\second},range={$\mathds{R}$},length={Same as \texttt{CONST\_COEFF}}]{QUAD\_COEFF}
+    Cubic coefficients of piecewise cubic polynomial
+  \end{dataset}
+  \begin{dataset}[type=double,unit=\si{\second},range={$\geq 0.0$},length={\texttt{CONST\_COEFF}+1}]{SECTION\_TIMES}
+    Simulation times at which a new piece begins (breaks of the piecewise polynomial)
+  \end{dataset}
+\end{condsubgroup}
+
+\begin{groupscope}{/input/model/solver}{tab:FFModelSolver}
+  \begin{dataset}[type=int,range={$\{0, 1\}$},length=1]{GS\_TYPE}
+    Type of Gram-Schmidt orthogonalization, see IDAS guide Section~4.5.7.3, p.~41f.
+    A value of $0$ enables classical Gram-Schmidt, a value of 1 uses modified Gram-Schmidt.
+  \end{dataset}
+  \begin{dataset}[type=int,range={$\{0, \dots, \texttt{NDOF}\}$},length=1]{MAX\_KRYLOV}
+    Defines the size of the Krylov subspace in the iterative linear GMRES solver (0: \texttt{MAX\_KRYLOV} = \texttt{NDOF})
+  \end{dataset}
+  \begin{dataset}[type=int,range={$\geq 0$},length=1]{MAX\_RESTARTS}
+    Maximum number of restarts in the GMRES algorithm. If lack of memory is not an issue, better use a larger Krylov space than restarts.
+  \end{dataset}
+  \begin{dataset}[type=double,range={$\geq 0$},length=1]{SCHUR\_SAFETY}
+    Schur safety factor; Influences the tradeoff between linear iterations and nonlinear error control; see IDAS guide Section~2.1 and 5.
+  \end{dataset}
+\end{groupscope}
+
 \subsection{Unit operation models}\label{sec:FFModelUnitOp}
 
 \subsubsection{Inlet}
 
-\begin{table}[!ht]
-\footnotesize
-\begin{tabu}to \linewidth[m]{lX[m]cccc} \toprule
-\multicolumn{6}{c}{\GroupHeadlineX{UNIT\_TYPE = INLET}{/input/model/unit\_XXX}} \\
-\rowfont[c]\normalfont Dataset & Description & Unit & Type & Range & Length \everyrow{\midrule}\\
-\texttt{UNIT\_TYPE} & Specifies the type of unit operation model & -- & string & \texttt{INLET} & 1 \\
-\texttt{NCOMP}& Number of chemical components in the chromatographic media & -- & int  & $\geq 1$ & 1 \\
-\texttt{INLET\_TYPE} & Specifies the type of inlet profile & -- & string & \texttt{PIECEWISE\_CUBIC\_POLY} & 1
-\everyrow{}\\
-\bottomrule
-\end{tabu}
-\caption[Datasets for the inlet unit operation]{\label{tab:FFModelUnitOpInlet}Datasets for the inlet unit operation (\texttt{/input/model/unit\_XXX} group)}
-\end{table}
+\begin{condsubgroup}{/input/model/unit\_XXX}{UNIT\_TYPE = INLET}{tab:FFModelUnitOpInlet}
+  \begin{dataset}[type=string,range={\texttt{INLET}},length=1]{UNIT\_TYPE}
+    Specifies the type of unit operation model
+  \end{dataset}
+  \begin{dataset}[type=int,range={$\geq 1$},length=1]{NCOMP}
+    Number of chemical components in the chromatographic media
+  \end{dataset}
+  \begin{dataset}[type=string,range={\texttt{PIECEWISE\_CUBIC\_POLY}},length=1]{INLET\_TYPE}
+    Specifies the type of inlet profile
+  \end{dataset}
+\end{condsubgroup}
 
-\begin{table}[!ht]
-\footnotesize
-\begin{tabu}to \linewidth[m]{lX[m]cccc} \toprule
-\multicolumn{6}{c}{\GroupHeadline{/input/model/unit\_XXX/sec\_XXX}} \\
-\rowfont[c]\normalfont Dataset & Description & Unit & Type & Range & Length \everyrow{\midrule}\\
-\texttt{CONST\_COEFF} & Constant coefficients for inlet concentrations & \si{\mol\per\cubic\metre\of{IV}} & double & $\mathds{R}$ & \texttt{NCOMP} \\
-\texttt{LIN\_COEFF} & Linear coefficients for inlet concentrations & \si{\mol\per\cubic\metre\of{IV}\per\second} & double & $\mathds{R}$ & \texttt{NCOMP} \\
-\texttt{QUAD\_COEFF} & Quadratic coefficients for inlet concentrations & \si{\mol\per\cubic\metre\of{IV}\per\square\second} & double & $\mathds{R}$ & \texttt{NCOMP} \\
-\texttt{CUBE\_COEFF} & Cubic coefficients for inlet concentrations & \si{\mol\per\cubic\metre\of{IV}\per\cubic\second} & double & $\mathds{R}$ & \texttt{NCOMP} 
-\everyrow{}\\
-\bottomrule
-\end{tabu}
-\caption{\label{tab:FFModelInletPiecewiseCubicPoly}Datasets in the \texttt{/input/model/unit\_XXX/sec\_XXX} groups}
-\end{table}
+\begin{groupscope}{/input/model/unit\_XXX/sec\_XXX}{tab:FFModelInletPiecewiseCubicPoly}
+  \begin{dataset}[type=double,unit=\si{\mol\per\cubic\metre\of{IV}},range={$\mathds{R}$},length={\texttt{NCOMP}}]{CONST\_COEFF}
+    Constant coefficients for inlet concentrations
+  \end{dataset}
+  \begin{dataset}[type=double,unit=\si{\mol\per\cubic\metre\of{IV}\per\second},range={$\mathds{R}$},length={\texttt{NCOMP}}]{LIN\_COEFF}
+    Linear coefficients for inlet concentrations
+  \end{dataset}
+  \begin{dataset}[type=double,unit=\si{\mol\per\cubic\metre\of{IV}\per\square\second},range={$\mathds{R}$},length={\texttt{NCOMP}}]{QUAD\_COEFF}
+    Quadratic coefficients for inlet concentrations
+  \end{dataset}
+  \begin{dataset}[type=double,unit=\si{\mol\per\cubic\metre\of{IV}\per\cubic\second},range={$\mathds{R}$},length={\texttt{NCOMP}}]{CUBE\_COEFF}
+    Cubic coefficients for inlet concentrations
+  \end{dataset}
+\end{groupscope}
 
-\FloatBarrier
 \subsubsection{Outlet}
 
-\begin{table}[!ht]
-\footnotesize
-\begin{tabu}to \linewidth[m]{lX[m]cccc} \toprule
-\multicolumn{6}{c}{\GroupHeadlineX{UNIT\_TYPE = OUTLET}{/input/model/unit\_XXX}} \\
-\rowfont[c]\normalfont Dataset & Description & Unit & Type & Range & Length \everyrow{\midrule}\\
-\texttt{UNIT\_TYPE} & Specifies the type of unit operation model & -- & string & \texttt{OUTLET} & 1 \\
-\texttt{NCOMP}& Number of chemical components in the chromatographic media & -- & int  & $\geq 1$ & 1
-\everyrow{}\\
-\bottomrule
-\end{tabu}
-\caption[Datasets for the outlet unit operation]{\label{tab:FFModelUnitOpOutlet}Datasets for the outlet unit operation (\texttt{/input/model/unit\_XXX} group)}
-\end{table}
+\begin{condsubgroup}{/input/model/unit\_XXX}{UNIT\_TYPE = OUTLET}{tab:FFModelUnitOpOutlet}
+  \begin{dataset}[type=string,range={\texttt{OUTLET}},length=1]{UNIT\_TYPE}
+    Specifies the type of unit operation model
+  \end{dataset}
+  \begin{dataset}[type=int,range={$\geq 1$},length=1]{NCOMP}
+    Number of chemical components in the chromatographic media
+  \end{dataset}
+\end{condsubgroup}
 
-\FloatBarrier
 \subsubsection{General rate model}
 
-\begin{table}[!ht]
-\footnotesize
-\begin{tabu}to \linewidth[m]{lX[m]cccc} \toprule
-\multicolumn{6}{c}{\GroupHeadlineX{UNIT\_TYPE = GENERAL\_RATE\_MODEL}{/input/model/unit\_XXX}} \\
-\rowfont[c]\normalfont Dataset & Description & Unit & Type & Range & Length \everyrow{\midrule}\\
-\texttt{UNIT\_TYPE} & Specifies the type of unit operation model & -- & string & \texttt{GENERAL\_RATE\_MODEL} & 1 \\
-\texttt{NCOMP}& Number of chemical components in the chromatographic media & -- & int  & $\geq 1$ & 1 \\
-\texttt{ADSORPTION\_MODEL} & Specifies the type of adsorption model & -- & string & See Section~\ref{sec:FFAdsorption} & 1 \\
-\texttt{INIT\_C} & Initial concentrations for each comp.\ in the bulk mobile phase & \si{\mol\per\cubic\metre\of{IV}} & double & $\geq 0.0$ & \texttt{NCOMP}\\
-\texttt{INIT\_CP} & Initial concentrations for each comp.\ in the bead liquid phase (optional, \texttt{INIT\_C} is used if left out) & \si{\mol\per\cubic\metre\of{MP}} & double & $\geq 0.0$ & \texttt{NCOMP}\\
-\texttt{INIT\_Q} & Same as \texttt{INIT\_C} but for the bound phase & \si{\mol\per\cubic\metre\of{SP}} & double & $\geq 0.0$ & \texttt{NTOTALBND}\\
-\texttt{INIT\_STATE} & Full state vector for initialization (optional, \texttt{INIT\_C}, \texttt{INIT\_CP}, and \texttt{INIT\_Q} will be ignored; if length is $2 * \texttt{NDOF}$, then the second half is used for time derivatives) & various & double & -- & \texttt{NDOF} \\
-\texttt{COL\_DISPERSION} & Axial dispersion coefficient & \si{\square\metre\of{IV}\per\second} & double & $\geq 0.0$ & 1 / \texttt{NSEC}\\
-\texttt{COL\_LENGTH} & Column length & \si{\metre} & double & $> 0.0$ & 1\\
-\texttt{COL\_POROSITY} & Column porosity & -- & double & $[0,1]$ & 1\\
-\texttt{FILM\_DIFFUSION} & Film diffusion coefficients & \si{\metre\per\second} & double & $\geq 0.0$ & \texttt{NCOMP} / {$\texttt{NCOMP} \times \texttt{NSEC}$}\\
-\texttt{PAR\_POROSITY} & Particle porosity & -- & double & $[0,1]$ & 1\\
-\texttt{PAR\_RADIUS} & Particle radius & \si{\metre} & double & $> 0.0$ & 1\\
-\texttt{PAR\_CORERADIUS} & Particle core radius (optional, defaults to $0$)& \si{\metre} & double & $\geq 0.0$ & 1\\
-\texttt{PORE\_ACCESSIBILITY} & Pore accessibility factor (optional, defaults to all $1$) & -- & double & $(0,1]$ & \texttt{NCOMP}\\
-\texttt{PAR\_DIFFUSION} & Effective particle diffusion coefficients & \si{\square\metre\of{MP}\per\second} & double & $\geq 0.0$ & \texttt{NCOMP} / {$\texttt{NCOMP} \times \texttt{NSEC}$}\\
-\texttt{PAR\_SURFDIFFUSION} & Particle surface diffusion coefficients & \si{\square\metre\of{SP}\per\second} & double & $\geq 0.0$ & \texttt{NTOTALBND} / {$\texttt{NTOTALBND} \times \texttt{NSEC}$}\\
-\texttt{VELOCITY} & Interstitial velocity of the mobile phase (optional if \texttt{CROSS\_SECTION\_AREA} is present, see Section~\ref{par:MUOPGRMflow}) & \si{\metre\per\second} & double & & 1 / \texttt{NSEC} \\
-\texttt{CROSS\_SECTION\_AREA} & Cross section area of the column (optional if \texttt{VELOCITY} is present, see Section~\ref{par:MUOPGRMflow}) & \si{\square\metre} & double & $> 0.0$ & 1
-\everyrow{}\\
-\bottomrule
-\end{tabu}
-\caption[Datasets for the general rate model unit operation]{\label{tab:FFModelUnitOpGRM}Datasets for the general rate model unit operation (\texttt{/input/model/unit\_XXX} group)}
-\end{table}
+\begin{condsubgroup}{/input/model/unit\_XXX}{UNIT\_TYPE = GENERAL\_RATE\_MODEL}{tab:FFModelUnitOpGRM}
+  \begin{dataset}[type=string,range={\texttt{GENERAL\_RATE\_MODEL}},length=1]{UNIT\_TYPE}
+    Specifies the type of unit operation model
+  \end{dataset}
+  \begin{dataset}[type=int,range={$\geq 1$},length=1]{NCOMP}
+    Number of chemical components in the chromatographic media
+  \end{dataset}
+  \begin{dataset}[type=string,range={See Section~\ref{sec:FFAdsorption}},length={\texttt{NPARTYPE}}]{ADSORPTION\_MODEL}
+    Specifies the type of adsorption models of each particle type
+  \end{dataset}
+  \begin{dataset}[unit=\si{\mol\per\cubic\metre\of{IV}},type=double,range={$\geq 0$},length={\texttt{NCOMP}}]{INIT\_C}
+    Initial concentrations for each component in the bulk mobile phase
+  \end{dataset}
+  \begin{dataset}[unit=\si{\mol\per\cubic\metre\of{MP}},type=double,range={$\geq 0$},length={$\texttt{NPARTYPE} \cdot \texttt{NCOMP}$}]{INIT\_CP}
+    Initial concentrations for each component in the bead liquid phase of each particle type in type-major ordering (optional, \texttt{INIT\_C} is used if left out)
+  \end{dataset}
+  \begin{dataset}[unit=\si{\mol\per\cubic\metre\of{SP}},type=double,range={$\geq 0$},length={\texttt{NTOTALBND}}]{INIT\_Q}
+    Initial concentrations for each bound state of each component in the bead solid phase of each particle type in type-component-major ordering
+  \end{dataset}
+  \begin{dataset}[unit=various,type=double,range={$\mathds{R}$},length={\texttt{NDOF} / $2\texttt{NDOF}$}]{INIT\_STATE}
+    Full state vector for initialization (optional, \texttt{INIT\_C}, \texttt{INIT\_CP}, and \texttt{INIT\_Q} will be ignored; if length is $2\texttt{NDOF}$, then the second half is used for time derivatives)
+  \end{dataset}
+  \begin{dataset}[unit=\si{\square\metre\of{IV}\per\second},type=double,range={$\geq 0$},length={1 / \texttt{NSEC}}]{COL\_DISPERSION}
+    Axial dispersion coefficient
+  \end{dataset}
+  \begin{dataset}[unit=\si{\metre},type=double,range={$> 0$},length={1}]{COL\_LENGTH}
+    Column length
+  \end{dataset}
+  \begin{dataset}[unit=--,type=double,range={$[0,1]$},length={1}]{COL\_POROSITY}
+    Column porosity
+  \end{dataset}
+  \begin{dataset}[unit=\si{\metre\per\second},type=double,range={$\geq 0$},length={$\texttt{NPARTYPE} \cdot \texttt{NCOMP}$ / $\texttt{NPARTYPE} \cdot \texttt{NCOMP} \cdot \texttt{NSEC}$}]{FILM\_DIFFUSION}
+    Film diffusion coefficients for each component of each particle type in section-type-major ordering
+  \end{dataset}
+  \begin{dataset}[unit=--,type=double,range={$[0,1]$},length={\texttt{NPARTYPE}}]{PAR\_POROSITY}
+    Particle porosity of each particle type
+  \end{dataset}
+  \begin{dataset}[unit=\si{\metre},type=double,range={$>0$},length={\texttt{NPARTYPE}}]{PAR\_RADIUS}
+    Particle radius of each particle type
+  \end{dataset}
+  \begin{dataset}[unit=\si{\metre},type=double,range={$[0, \texttt{PAR\_RADIUS})$},length={\texttt{NPARTYPE}}]{PAR\_CORERADIUS}
+    Particle core radius of each particle type (optional, defaults to \SI{0}{\metre})
+  \end{dataset}
+  \begin{dataset}[unit=--,type=double,range={$(0, 1]$},length={$\texttt{NPARTYPE} \cdot \texttt{NCOMP}$}]{PORE\_ACCESSIBILITY}
+    Pore accessibility factor of each component in each particle type in type-major ordering (optional, defaults to $1$)
+  \end{dataset}
+  \begin{dataset}[unit=\si{\square\metre\of{MP}\per\second},type=double,range={$\geq 0$},length={$\texttt{NPARTYPE} \cdot \texttt{NCOMP}$ / $\texttt{NSEC} \cdot \texttt{NPARTYPE} \cdot \texttt{NCOMP}$}]{PAR\_DIFFUSION}
+    Effective particle diffusion coefficients of each component in each particle type in section-type-major ordering
+  \end{dataset}
+  \begin{dataset}[unit=\si{\square\metre\of{SP}\per\second},type=double,range={$\geq 0$},length={$\texttt{NTOTALBND}$ / $\texttt{NSEC} \cdot \texttt{NTOTALBND}$}]{PAR\_SURFDIFFUSION}
+    Particle surface diffusion coefficients of each bound state of each component in each particle type in section-type-component-major ordering
+  \end{dataset}
+  \begin{dataset}[unit=\si{\metre\per\second},type=double,range={$\mathds{R}$},length={1 / \texttt{NSEC}}]{VELOCITY}
+    Interstitial velocity of the mobile phase (optional if \texttt{CROSS\_SECTION\_AREA} is present, see Section~\ref{par:MUOPGRMflow})
+  \end{dataset}
+  \begin{dataset}[unit=\si{\square\metre},type=double,range={$>0$},length={1}]{CROSS\_SECTION\_AREA}
+    Cross section area of the column (optional if \texttt{VELOCITY} is present, see Section~\ref{par:MUOPGRMflow})
+  \end{dataset}
+\end{condsubgroup}
 
-\begin{table}[!ht]
-\footnotesize
-\begin{tabu}to \linewidth[m]{lX[m]cccc} \toprule
-\multicolumn{6}{c}{\GroupHeadlineX{UNIT\_TYPE = GENERAL\_RATE\_MODEL}{/input/model/unit\_XXX/discretization}} \\
-\rowfont[c]\normalfont Dataset & Description & Unit & Type & Range & Length \everyrow{\midrule}\\
-\texttt{NCOL} & Number of column (axial) discretization cells & -- & int & $\geq 1$ & 1\\
-\texttt{NPAR} & Number of particle (radial) discretization cells & -- & int & $\geq 1$ & 1\\
-\texttt{NBOUND} & Number of bound states for each component & -- & int & $\geq 0$ & \texttt{NCOMP}\\
-\texttt{PAR\_DISC\_TYPE} & Specifies the discretization scheme inside the particles & -- & string
-& \begin{tabular}{c}
-  \texttt{EQUIDISTANT\_PAR} \\
-  \texttt{EQUIVOLUME\_PAR} \\
-  \texttt{USER\_DEFINED\_PAR} \\
-  \end{tabular} & 1\\
-\texttt{PAR\_DISC\_VECTOR} & Node coordinates for the cell boundaries (ignored if $\texttt{PAR\_DISC\_TYPE} \neq \texttt{USER\_DEFINED\_PAR}$) & \si{\metre} & double
-  & $[0, 1]$ & \texttt{NPAR}+1 \\
-\texttt{USE\_ANALYTIC\_JACOBIAN} & Use analytically computed Jacobian matrix (faster) instead of Jacobian generated by algorithmic differentiation (slower) & -- & int & 0/1 & 1\\
-\texttt{RECONSTRUCTION} & Type of reconstruction method for fluxes & -- & string
-& \begin{tabular}{c}
-  \texttt{WENO}
-  \end{tabular} & 1 \\
-\texttt{GS\_TYPE} & Type of Gram-Schmidt orthogonalization, see IDAS guide
-4.5.7.3, 41f. & -- & int &
-\begin{tabular}{c}
-  0 (\texttt{CLASSICAL\_GS}) \\
-  1 (\texttt{MODIFIED\_GS})
-\end{tabular} & 1 \\
-\texttt{MAX\_KRYLOV} & Defines the size of the Krylov subspace in the iterative linear GMRES solver (0: \texttt{MAX\_KRYLOV} = \texttt{NCOL}) & -- & int & $0-\texttt{NCOL}$ & 1\\
-\texttt{MAX\_RESTARTS} & Maximum number of restarts in the GMRES algorithm. If lack of memory isn't an issue, better use a larger Krylov space than restarts & -- & int & $\geq 0$ & 1 \\
-\texttt{SCHUR\_SAFETY} & Schur safety factor; Influences the tradeof between linear iterations and nonlinear error control; see IDAS guide 2.1, 5 & -- & double & $\geq 0.0$ & 1\everyrow{}\\
-\bottomrule
-\end{tabu}
-\caption[Datasets for the discretization of the general rate model unit operation]{\label{tab:FFModelUnitOpDiscretizationGRM}Datasets for the discretization of the general rate model unit operation (\texttt{/input/model/unit\_XXX/discretization} group)}
-\end{table}
+\begin{condsubgroup}{/input/model/unit\_XXX/discretization}{UNIT\_TYPE = GENERAL\_RATE\_MODEL}{tab:FFModelUnitOpDiscretizationGRM}
+  \begin{dataset}[type=int,range={$\geq 1$},length=1]{NCOL}
+    Number of axial column discretization cells
+  \end{dataset}
+  \begin{dataset}[type=int,range={$\geq 1$},length={\texttt{NPARTYPE}}]{NPAR}
+    Number of particle (radial) discretization cells for each particle type
+  \end{dataset}
+  \begin{dataset}[type=int,range={$\geq 0$},length={$\texttt{NPARTYPE} \cdot \texttt{NCOMP}$}]{NBOUND}
+    Number of bound states for each component in each particle type in type-major ordering
+  \end{dataset}
+  \begin{dataset}[type=string,length={\texttt{NPARTYPE}}]{PAR\_DISC\_TYPE}
+    Specifies the discretization scheme inside the particles for each particle type.
+    Valid values are \texttt{EQUIDISTANT\_PAR}, \texttt{EQUIVOLUME\_PAR}, and \texttt{USER\_DEFINED\_PAR}.
+  \end{dataset}
+  \begin{dataset}[unit=--,type=double,range={$[0,1]$},length={$\sum_i (\texttt{NPAR}_i + 1)$}]{PAR\_DISC\_VECTOR}
+    Node coordinates for the cell boundaries (ignored if $\texttt{PAR\_DISC\_TYPE} \neq \texttt{USER\_DEFINED\_PAR}$).
+    The coordinates are relative and have to include the endpoints $0$ and $1$.
+    They are later linearly mapped to the true radial range $[r_{c,j}, r_{p,j}]$.
+    The coordinates for each particle type are appended to one long vector in type-major ordering.
+  \end{dataset}
+  \begin{dataset}[type=int,range={$\{0, 1\}$},length=1]{USE\_ANALYTIC\_JACOBIAN}
+    Determines whether analytically computed Jacobian matrix (faster) is used (value is $1$) instead of Jacobians generated by algorithmic differentiation (slower, value is $0$)
+  \end{dataset}
+  \begin{dataset}[type=string,range={\texttt{WENO}},length={1}]{RECONSTRUCTION}
+    Type of reconstruction method for fluxes
+  \end{dataset}
+  \begin{dataset}[type=int,range={$\{0, 1\}$},length=1]{GS\_TYPE}
+    Type of Gram-Schmidt orthogonalization, see IDAS guide Section~4.5.7.3, p.~41f.
+    A value of $0$ enables classical Gram-Schmidt, a value of 1 uses modified Gram-Schmidt.
+  \end{dataset}
+  \begin{dataset}[type=int,range={$\{0, \dots, \texttt{NCOL} \cdot \texttt{NCOMP} \cdot \texttt{NPARTYPE} \}$},length=1]{MAX\_KRYLOV}
+    Defines the size of the Krylov subspace in the iterative linear GMRES solver (0: $\texttt{MAX\_KRYLOV} = \texttt{NCOL} \cdot \texttt{NCOMP} \cdot \texttt{NPARTYPE}$)
+  \end{dataset}
+  \begin{dataset}[type=int,range={$\geq 0$},length=1]{MAX\_RESTARTS}
+    Maximum number of restarts in the GMRES algorithm. If lack of memory is not an issue, better use a larger Krylov space than restarts.
+  \end{dataset}
+  \begin{dataset}[type=double,range={$\geq 0$},length=1]{SCHUR\_SAFETY}
+    Schur safety factor; Influences the tradeoff between linear iterations and nonlinear error control; see IDAS guide Section~2.1 and 5.
+  \end{dataset}
+\end{condsubgroup}
 
-\FloatBarrier
 \subsubsection{Lumped rate model with pores}
 
-\begin{table}[!ht]
-\footnotesize
-\begin{tabu}to \linewidth[m]{lX[m]cccc} \toprule
-\multicolumn{6}{c}{\GroupHeadlineX{UNIT\_TYPE = LUMPED\_RATE\_MODEL\_WITH\_PORES}{/input/model/unit\_XXX}} \\
-\rowfont[c]\normalfont Dataset & Description & Unit & Type & Range & Length \everyrow{\midrule}\\
-\texttt{UNIT\_TYPE} & Specifies the type of unit operation model & -- & string & \texttt{LUMPED\_RATE\_MODEL\_WITH\_PORES} & 1 \\
-\texttt{NCOMP}& Number of chemical components in the chromatographic media & -- & int  & $\geq 1$ & 1 \\
-\texttt{ADSORPTION\_MODEL} & Specifies the type of adsorption model & -- & string & See Section~\ref{sec:FFAdsorption} & 1 \\
-\texttt{INIT\_C} & Initial concentrations for each comp.\ in the bulk mobile phase & \si{\mol\per\cubic\metre\of{IV}} & double & $\geq 0.0$ & \texttt{NCOMP}\\
-\texttt{INIT\_CP} & Initial concentrations for each comp.\ in the bead liquid phase (optional, \texttt{INIT\_C} is used if left out) & \si{\mol\per\cubic\metre\of{MP}} & double & $\geq 0.0$ & \texttt{NCOMP}\\
-\texttt{INIT\_Q} & Same as \texttt{INIT\_C} but for the bound phase & \si{\mol\per\cubic\metre\of{SP}} & double & $\geq 0.0$ & \texttt{NTOTALBND}\\
-\texttt{INIT\_STATE} & Full state vector for initialization (optional, \texttt{INIT\_C}, \texttt{INIT\_CP}, and \texttt{INIT\_Q} will be ignored; if length is $2 * \texttt{NDOF}$, then the second half is used for time derivatives) & various & double & -- & \texttt{NDOF} \\
-\texttt{COL\_DISPERSION} & Axial dispersion coefficient & \si{\square\metre\of{IV}\per\second} & double & $\geq 0.0$ & 1 / \texttt{NSEC}\\
-\texttt{COL\_LENGTH} & Column length & \si{\metre} & double & $> 0.0$ & 1\\
-\texttt{COL\_POROSITY} & Column porosity & -- & double & $[0,1]$ & 1\\
-\texttt{FILM\_DIFFUSION} & Film diffusion coefficients & \si{\metre\per\second} & double & $\geq 0.0$ & \texttt{NCOMP} / {$\texttt{NCOMP} \times \texttt{NSEC}$}\\
-\texttt{PAR\_POROSITY} & Particle porosity & -- & double & $[0,1]$ & 1\\
-\texttt{PAR\_RADIUS} & Particle radius & \si{\metre} & double & $> 0.0$ & 1\\
-\texttt{PORE\_ACCESSIBILITY} & Pore accessibility factor (optional, defaults to all $1$) & -- & double & $(0,1]$ & \texttt{NCOMP}\\
-\texttt{VELOCITY} & Interstitial velocity of the mobile phase (optional if \texttt{CROSS\_SECTION\_AREA} is present, see Section~\ref{par:MUOPGRMflow}) & \si{\metre\per\second} & double & & 1 / \texttt{NSEC} \\
-\texttt{CROSS\_SECTION\_AREA} & Cross section area of the column (optional if \texttt{VELOCITY} is present, see Section~\ref{par:MUOPGRMflow}) & \si{\square\metre} & double & $> 0.0$ & 1
-\everyrow{}\\
-\bottomrule
-\end{tabu}
-\caption[Datasets for the lumped rate model with pores unit operation]{\label{tab:FFModelUnitOpLRMP}Datasets for the lumped rate model with pores unit operation (\texttt{/input/model/unit\_XXX} group)}
-\end{table}
+\begin{condsubgroup}{/input/model/unit\_XXX}{UNIT\_TYPE = LUMPED\_RATE\_MODEL\_WITH\_PORES}{tab:FFModelUnitOpLRMP}
+  \begin{dataset}[type=string,range={\texttt{LUMPED\_RATE\_MODEL\_WITH\_PORES}},length=1]{UNIT\_TYPE}
+    Specifies the type of unit operation model
+  \end{dataset}
+  \begin{dataset}[type=int,range={$\geq 1$},length=1]{NCOMP}
+    Number of chemical components in the chromatographic media
+  \end{dataset}
+  \begin{dataset}[type=string,range={See Section~\ref{sec:FFAdsorption}},length={\texttt{NPARTYPE}}]{ADSORPTION\_MODEL}
+    Specifies the type of adsorption models of each particle type
+  \end{dataset}
+  \begin{dataset}[unit=\si{\mol\per\cubic\metre\of{IV}},type=double,range={$\geq 0$},length={\texttt{NCOMP}}]{INIT\_C}
+    Initial concentrations for each component in the bulk mobile phase
+  \end{dataset}
+  \begin{dataset}[unit=\si{\mol\per\cubic\metre\of{MP}},type=double,range={$\geq 0$},length={$\texttt{NPARTYPE} \cdot \texttt{NCOMP}$}]{INIT\_CP}
+    Initial concentrations for each component in the bead liquid phase of each particle type in type-major ordering (optional, \texttt{INIT\_C} is used if left out)
+  \end{dataset}
+  \begin{dataset}[unit=\si{\mol\per\cubic\metre\of{SP}},type=double,range={$\geq 0$},length={\texttt{NTOTALBND}}]{INIT\_Q}
+    Initial concentrations for each bound state of each component in the bead solid phase of each particle type in type-component-major ordering
+  \end{dataset}
+  \begin{dataset}[unit=various,type=double,range={$\mathds{R}$},length={\texttt{NDOF} / $2\texttt{NDOF}$}]{INIT\_STATE}
+    Full state vector for initialization (optional, \texttt{INIT\_C}, \texttt{INIT\_CP}, and \texttt{INIT\_Q} will be ignored; if length is $2\texttt{NDOF}$, then the second half is used for time derivatives)
+  \end{dataset}
+  \begin{dataset}[unit=\si{\square\metre\of{IV}\per\second},type=double,range={$\geq 0$},length={1 / \texttt{NSEC}}]{COL\_DISPERSION}
+    Axial dispersion coefficient
+  \end{dataset}
+  \begin{dataset}[unit=\si{\metre},type=double,range={$> 0$},length={1}]{COL\_LENGTH}
+    Column length
+  \end{dataset}
+  \begin{dataset}[unit=--,type=double,range={$[0,1]$},length={1}]{COL\_POROSITY}
+    Column porosity
+  \end{dataset}
+  \begin{dataset}[unit=\si{\metre\per\second},type=double,range={$\geq 0$},length={$\texttt{NPARTYPE} \cdot \texttt{NCOMP}$ / $\texttt{NPARTYPE} \cdot \texttt{NCOMP} \cdot \texttt{NSEC}$}]{FILM\_DIFFUSION}
+    Film diffusion coefficients for each component of each particle type in section-type-major ordering
+  \end{dataset}
+  \begin{dataset}[unit=--,type=double,range={$[0,1]$},length={\texttt{NPARTYPE}}]{PAR\_POROSITY}
+    Particle porosity of each particle type
+  \end{dataset}
+  \begin{dataset}[unit=\si{\metre},type=double,range={$>0$},length={\texttt{NPARTYPE}}]{PAR\_RADIUS}
+    Particle radius of each particle type
+  \end{dataset}
+  \begin{dataset}[unit=--,type=double,range={$(0, 1]$},length={$\texttt{NPARTYPE} \cdot \texttt{NCOMP}$}]{PORE\_ACCESSIBILITY}
+    Pore accessibility factor of each component in each particle type in type-major ordering (optional, defaults to $1$)
+  \end{dataset}
+  \begin{dataset}[unit=\si{\metre\per\second},type=double,range={$\mathds{R}$},length={1 / \texttt{NSEC}}]{VELOCITY}
+    Interstitial velocity of the mobile phase (optional if \texttt{CROSS\_SECTION\_AREA} is present, see Section~\ref{par:MUOPGRMflow})
+  \end{dataset}
+  \begin{dataset}[unit=\si{\square\metre},type=double,range={$>0$},length={1}]{CROSS\_SECTION\_AREA}
+    Cross section area of the column (optional if \texttt{VELOCITY} is present, see Section~\ref{par:MUOPGRMflow})
+  \end{dataset}
+\end{condsubgroup}
 
-\begin{table}[!ht]
-\footnotesize
-\begin{tabu}to \linewidth[m]{lX[m]cccc} \toprule
-\multicolumn{6}{c}{\GroupHeadlineX{UNIT\_TYPE = LUMPED\_RATE\_MODEL\_WITH\_PORES}{/input/model/unit\_XXX/discretization}} \\
-\rowfont[c]\normalfont Dataset & Description & Unit & Type & Range & Length \everyrow{\midrule}\\
-\texttt{NCOL} & Number of column (axial) discretization cells & -- & int & $\geq 1$ & 1\\
-\texttt{NBOUND} & Number of bound states for each component & -- & int & $\geq 0$ & \texttt{NCOMP}\\
-\texttt{USE\_ANALYTIC\_JACOBIAN} & Use analytically computed Jacobian matrix (faster) instead of Jacobian generated by algorithmic differentiation (slower) & -- & int & 0/1 & 1\\
-\texttt{RECONSTRUCTION} & Type of reconstruction method for fluxes & -- & string
-& \begin{tabular}{c}
-  \texttt{WENO}
-  \end{tabular} & 1 \\
-\texttt{GS\_TYPE} & Type of Gram-Schmidt orthogonalization, see IDAS guide
-4.5.7.3, 41f. & -- & int &
-\begin{tabular}{c}
-  0 (\texttt{CLASSICAL\_GS}) \\
-  1 (\texttt{MODIFIED\_GS})
-\end{tabular} & 1 \\
-\texttt{MAX\_KRYLOV} & Defines the size of the Krylov subspace in the iterative linear GMRES solver (0: \texttt{MAX\_KRYLOV} = \texttt{NCOL}) & -- & int & $0-\texttt{NCOL}$ & 1\\
-\texttt{MAX\_RESTARTS} & Maximum number of restarts in the GMRES algorithm. If lack of memory isn't an issue, better use a larger Krylov space than restarts & -- & int & $\geq 0$ & 1 \\
-\texttt{SCHUR\_SAFETY} & Schur safety factor; Influences the tradeof between linear iterations and nonlinear error control; see IDAS guide 2.1, 5 & -- & double & $\geq 0.0$ & 1\everyrow{}\\
-\bottomrule
-\end{tabu}
-\caption[Datasets for the discretization of the lumped rate model with pores unit operation]{\label{tab:FFModelUnitOpDiscretizationLRMP}Datasets for the discretization of the lumped rate model with pores unit operation (\texttt{/input/model/unit\_XXX/discretization} group)}
-\end{table}
+\begin{condsubgroup}{/input/model/unit\_XXX/discretization}{UNIT\_TYPE = LUMPED\_RATE\_MODEL\_WITH\_PORES}{tab:FFModelUnitOpDiscretizationLRMP}
+  \begin{dataset}[type=int,range={$\geq 1$},length=1]{NCOL}
+    Number of axial column discretization cells
+  \end{dataset}
+  \begin{dataset}[type=int,range={$\geq 0$},length={$\texttt{NPARTYPE} \cdot \texttt{NCOMP}$}]{NBOUND}
+    Number of bound states for each component in each particle type in type-major ordering
+  \end{dataset}
+  \begin{dataset}[type=int,range={$\{0, 1\}$},length=1]{USE\_ANALYTIC\_JACOBIAN}
+    Determines whether analytically computed Jacobian matrix (faster) is used (value is $1$) instead of Jacobians generated by algorithmic differentiation (slower, value is $0$)
+  \end{dataset}
+  \begin{dataset}[type=string,range={\texttt{WENO}},length={1}]{RECONSTRUCTION}
+    Type of reconstruction method for fluxes
+  \end{dataset}
+  \begin{dataset}[type=int,range={$\{0, 1\}$},length=1]{GS\_TYPE}
+    Type of Gram-Schmidt orthogonalization, see IDAS guide Section~4.5.7.3, p.~41f.
+    A value of $0$ enables classical Gram-Schmidt, a value of 1 uses modified Gram-Schmidt.
+  \end{dataset}
+  \begin{dataset}[type=int,range={$\{0, \dots, \texttt{NCOL} \cdot \texttt{NCOMP} \cdot \texttt{NPARTYPE} \}$},length=1]{MAX\_KRYLOV}
+    Defines the size of the Krylov subspace in the iterative linear GMRES solver (0: $\texttt{MAX\_KRYLOV} = \texttt{NCOL} \cdot \texttt{NCOMP} \cdot \texttt{NPARTYPE}$)
+  \end{dataset}
+  \begin{dataset}[type=int,range={$\geq 0$},length=1]{MAX\_RESTARTS}
+    Maximum number of restarts in the GMRES algorithm. If lack of memory is not an issue, better use a larger Krylov space than restarts.
+  \end{dataset}
+  \begin{dataset}[type=double,range={$\geq 0$},length=1]{SCHUR\_SAFETY}
+    Schur safety factor; Influences the tradeoff between linear iterations and nonlinear error control; see IDAS guide Section~2.1 and 5.
+  \end{dataset}
+\end{condsubgroup}
 
-\FloatBarrier
 \subsubsection{Lumped rate model without pores}
 
-\begin{table}[!ht]
-\footnotesize
-\begin{tabu}to \linewidth[m]{lX[m]cccc} \toprule
-\multicolumn{6}{c}{\GroupHeadlineX{UNIT\_TYPE = LUMPED\_RATE\_MODEL\_WITHOUT\_PORES}{/input/model/unit\_XXX}} \\
-\rowfont[c]\normalfont Dataset & Description & Unit & Type & Range & Length \everyrow{\midrule}\\
-\texttt{UNIT\_TYPE} & Specifies the type of unit operation model & -- & string & \texttt{LUMPED\_RATE\_MODEL\_WITHOUT\_PORES} & 1 \\
-\texttt{NCOMP}& Number of chemical components in the chromatographic media & -- & int  & $\geq 1$ & 1 \\
-\texttt{ADSORPTION\_MODEL} & Specifies the type of adsorption model & -- & string & See Section~\ref{sec:FFAdsorption} & 1 \\
-\texttt{INIT\_C} & Initial concentrations for each comp.\ in the bulk mobile phase & \si{\mol\per\cubic\metre\of{IV}} & double & $\geq 0.0$ & \texttt{NCOMP}\\
-\texttt{INIT\_Q} & Same as \texttt{INIT\_C} but for the bound phase & \si{\mol\per\cubic\metre\of{SP}} & double & $\geq 0.0$ & \texttt{NTOTALBND}\\
-\texttt{INIT\_STATE} & Full state vector for initialization (optional, \texttt{INIT\_C} and \texttt{INIT\_Q} will be ignored; if length is $2 * \texttt{NDOF}$, then the second half is used for time derivatives) & various & double & -- & \texttt{NDOF} \\
-\texttt{COL\_DISPERSION} & Axial dispersion coefficient & \si{\square\metre\of{IV}\per\second} & double & $\geq 0.0$ & 1 / \texttt{NSEC}\\
-\texttt{COL\_LENGTH} & Column length & \si{\metre} & double & $> 0.0$ & 1\\
-\texttt{TOTAL\_POROSITY} & Total porosity & -- & double & $[0,1]$ & 1\\
-\texttt{VELOCITY} & Interstitial velocity of the mobile phase (optional if \texttt{CROSS\_SECTION\_AREA} is present, see Section~\ref{par:MUOPGRMflow}) & \si{\metre\per\second} & double & & 1 / \texttt{NSEC} \\
-\texttt{CROSS\_SECTION\_AREA} & Cross section area of the column (optional if \texttt{VELOCITY} is present, see Section~\ref{par:MUOPGRMflow}) & \si{\square\metre} & double & $> 0.0$ & 1
-\everyrow{}\\
-\bottomrule
-\end{tabu}
-\caption[Datasets for the lumped rate model without pores unit operation]{\label{tab:FFModelUnitOpLRM}Datasets for the lumped rate model without pores unit operation (\texttt{/input/model/unit\_XXX} group)}
-\end{table}
+\begin{condsubgroup}{/input/model/unit\_XXX}{UNIT\_TYPE = LUMPED\_RATE\_MODEL\_WITHOUT\_PORES}{tab:FFModelUnitOpLRM}
+  \begin{dataset}[type=string,range={\texttt{LUMPED\_RATE\_MODEL\_WITHOUT\_PORES}},length=1]{UNIT\_TYPE}
+    Specifies the type of unit operation model
+  \end{dataset}
+  \begin{dataset}[type=int,range={$\geq 1$},length=1]{NCOMP}
+    Number of chemical components in the chromatographic media
+  \end{dataset}
+  \begin{dataset}[type=string,range={See Section~\ref{sec:FFAdsorption}},length=1]{ADSORPTION\_MODEL}
+    Specifies the type of adsorption model
+  \end{dataset}
+  \begin{dataset}[unit=\si{\mol\per\cubic\metre\of{IV}},type=double,range={$\geq 0$},length={\texttt{NCOMP}}]{INIT\_C}
+    Initial concentrations for each component in the bulk mobile phase
+  \end{dataset}
+  \begin{dataset}[unit=\si{\mol\per\cubic\metre\of{SP}},type=double,range={$\geq 0$},length={\texttt{NTOTALBND}}]{INIT\_Q}
+    Initial concentrations for each bound state of each component in the bead solid phase in component-major ordering
+  \end{dataset}
+  \begin{dataset}[unit=various,type=double,range={$\mathds{R}$},length={\texttt{NDOF} / $2\texttt{NDOF}$}]{INIT\_STATE}
+    Full state vector for initialization (optional, \texttt{INIT\_C} and \texttt{INIT\_Q} will be ignored; if length is $2\texttt{NDOF}$, then the second half is used for time derivatives)
+  \end{dataset}
+  \begin{dataset}[unit=\si{\square\metre\of{IV}\per\second},type=double,range={$\geq 0$},length={1 / \texttt{NSEC}}]{COL\_DISPERSION}
+    Axial dispersion coefficient
+  \end{dataset}
+  \begin{dataset}[unit=\si{\metre},type=double,range={$> 0$},length={1}]{COL\_LENGTH}
+    Column length
+  \end{dataset}
+  \begin{dataset}[unit=--,type=double,range={$[0,1]$},length={1}]{TOTAL\_POROSITY}
+    Total porosity
+  \end{dataset}
+  \begin{dataset}[unit=\si{\metre\per\second},type=double,range={$\mathds{R}$},length={1 / \texttt{NSEC}}]{VELOCITY}
+    Interstitial velocity of the mobile phase (optional if \texttt{CROSS\_SECTION\_AREA} is present, see Section~\ref{par:MUOPGRMflow})
+  \end{dataset}
+  \begin{dataset}[unit=\si{\square\metre},type=double,range={$>0$},length={1}]{CROSS\_SECTION\_AREA}
+    Cross section area of the column (optional if \texttt{VELOCITY} is present, see Section~\ref{par:MUOPGRMflow})
+  \end{dataset}
+\end{condsubgroup}
 
-\begin{table}[!ht]
-\footnotesize
-\begin{tabu}to \linewidth[m]{lX[m]cccc} \toprule
-\multicolumn{6}{c}{\GroupHeadlineX{UNIT\_TYPE = LUMPED\_RATE\_MODEL\_WITHOUT\_PORES}{/input/model/unit\_XXX/discretization}} \\
-\rowfont[c]\normalfont Dataset & Description & Unit & Type & Range & Length \everyrow{\midrule}\\
-\texttt{NCOL} & Number of column (axial) discretization cells & -- & int & $\geq 1$ & 1\\
-\texttt{NBOUND} & Number of bound states for each component & -- & int & $\geq 0$ & \texttt{NCOMP}\\
-\texttt{USE\_ANALYTIC\_JACOBIAN} & Use analytically computed Jacobian matrix (faster) instead of Jacobian generated by algorithmic differentiation (slower) & -- & int & 0/1 & 1\\
-\texttt{RECONSTRUCTION} & Type of reconstruction method for fluxes & -- & string
-& \begin{tabular}{c}
-  \texttt{WENO}
-  \end{tabular} & 1 \everyrow{}\\
-\bottomrule
-\end{tabu}
-\caption[Datasets for the discretization of the lumped rate model without pores unit operation]{\label{tab:FFModelUnitOpDiscretizationLRM}Datasets for the discretization of the lumped rate model without pores unit operation (\texttt{/input/model/unit\_XXX/discretization} group)}
-\end{table}
+\begin{condsubgroup}{/input/model/unit\_XXX/discretization}{UNIT\_TYPE = LUMPED\_RATE\_MODEL\_WITHOUT\_PORES}{tab:FFModelUnitOpDiscretizationLRM}
+  \begin{dataset}[type=int,range={$\geq 1$},length=1]{NCOL}
+    Number of axial column discretization cells
+  \end{dataset}
+  \begin{dataset}[type=int,range={$\geq 0$},length={\texttt{NCOMP}}]{NBOUND}
+    Number of bound states for each component
+  \end{dataset}
+  \begin{dataset}[type=int,range={$\{0, 1\}$},length=1]{USE\_ANALYTIC\_JACOBIAN}
+    Determines whether analytically computed Jacobian matrix (faster) is used (value is $1$) instead of Jacobians generated by algorithmic differentiation (slower, value is $0$)
+  \end{dataset}
+  \begin{dataset}[type=string,range={\texttt{WENO}},length={1}]{RECONSTRUCTION}
+    Type of reconstruction method for fluxes
+  \end{dataset}
+\end{condsubgroup}
 
-\FloatBarrier
-\subsubsection{Continuously stirred tank reactor model}
+\subsubsection{Continuous stirred tank reactor model}
 
-\begin{table}[!ht]
-\footnotesize
-\begin{tabu}to \linewidth[m]{lX[m]cccc} \toprule
-\multicolumn{6}{c}{\GroupHeadlineX{UNIT\_TYPE = CSTR}{/input/model/unit\_XXX}} \\
-\rowfont[c]\normalfont Dataset & Description & Unit & Type & Range & Length \everyrow{\midrule}\\
-\texttt{UNIT\_TYPE} & Specifies the type of unit operation model & -- & string & \texttt{CSTR} & 1 \\
-\texttt{NCOMP}& Number of chemical components in the chromatographic media & -- & int  & $\geq 1$ & 1 \\
-\texttt{NBOUND} & Number of bound states for each component (optional, defaults to all $0$) & -- & int & $\geq 0$ & \texttt{NCOMP}\\
-\texttt{USE\_ANALYTIC\_JACOBIAN} & Use analytically computed Jacobian matrix (faster) instead of Jacobian generated by algorithmic differentiation (optional, defaults to $1$) & -- & int & 0/1 & 1\\
-\texttt{ADSORPTION\_MODEL} & Specifies the type of adsorption model (optional, defaults to \texttt{NONE}) & -- & string & See Section~\ref{sec:FFAdsorption} & 1 \\
-\texttt{INIT\_C} & Initial concentrations for each comp.\ in the mobile phase & \si{\mol\per\cubic\metre\of{IV}} & double & $\geq 0.0$ & \texttt{NCOMP}\\
-\texttt{INIT\_VOLUME} & Initial tank volume & \si{\cubic\metre} & double & $\geq 0.0$ & 1\\
-\texttt{INIT\_Q} & Same as \texttt{INIT\_C} but for the bound phase (optional, defaults to all $0$) & \si{\mol\per\cubic\metre\of{SP}} & double & $\geq 0.0$ & \texttt{NTOTALBND}\\
-\texttt{INIT\_STATE} & Full state vector for initialization (optional, \texttt{INIT\_C}, \texttt{INIT\_Q}, and \texttt{INIT\_VOLUME} will be ignored; if length is $2 * \texttt{NDOF}$, then the second half is used for time derivatives) & various & double & -- & \texttt{NDOF} \\
-\texttt{POROSITY} & Porosity $\varepsilon$ (defaults to $1$) & -- & double & $[0,1]$ & 1\\
-\texttt{FLOWRATE\_FILTER} & Flow rate of pure liquid without components (optional, defaults to \SI{0}{\cubic\metre\per\second}) & \si{\cubic\metre\per\second} & double & $\geq 0.0$ & 1 / \texttt{NSEC}
-\everyrow{}\\
-\bottomrule
-\end{tabu}
-\caption[Datasets for the continuously stirred tank reactor unit operation]{\label{tab:FFModelUnitOpCSTR}Datasets for the continuously stirred tank reactor unit operation (\texttt{/input/model/unit\_XXX} group)}
-\end{table}
+\begin{condsubgroup}{/input/model/unit\_XXX}{UNIT\_TYPE = CSTR}{tab:FFModelUnitOpCSTR}
+  \begin{dataset}[type=string,range={\texttt{CSTR}},length=1]{UNIT\_TYPE}
+    Specifies the type of unit operation model
+  \end{dataset}
+  \begin{dataset}[type=int,range={$\geq 1$},length=1]{NCOMP}
+    Number of chemical components in the chromatographic media
+  \end{dataset}
+  \begin{dataset}[type=int,range={$\geq 0$},length={\texttt{NCOMP}}]{NBOUND}
+    Number of bound states for each component (optional, defaults to all $0$)
+  \end{dataset}
+  \begin{dataset}[type=int,range={$\{0, 1\}$},length=1]{USE\_ANALYTIC\_JACOBIAN}
+    Determines whether analytically computed Jacobian matrix (faster) is used (value is $1$) instead of Jacobians generated by algorithmic differentiation (slower, value is $0$)
+  \end{dataset}
+  \begin{dataset}[type=string,range={See Section~\ref{sec:FFAdsorption}},length=1]{ADSORPTION\_MODEL}
+    Specifies the type of adsorption model (optional, defaults to \texttt{NONE})
+  \end{dataset}
+  \begin{dataset}[unit=\si{\mol\per\cubic\metre\of{IV}},type=double,range={$\geq 0$},length={\texttt{NCOMP}}]{INIT\_C}
+    Initial concentrations for each component in the mobile phase
+  \end{dataset}
+  \begin{dataset}[unit=\si{\cubic\metre},type=double,range={$\geq 0$},length=1]{INIT\_VOLUME}
+    Initial tank volume
+  \end{dataset}
+  \begin{dataset}[unit=\si{\mol\per\cubic\metre\of{SP}},type=double,range={$\geq 0$},length={\texttt{NTOTALBND}}]{INIT\_Q}
+    Initial concentrations for each bound state of each component in the bead solid phase in component-major ordering (optional, defaults to all $0$)
+  \end{dataset}
+  \begin{dataset}[unit=various,type=double,range={$\mathds{R}$},length={\texttt{NDOF} / $2\texttt{NDOF}$}]{INIT\_STATE}
+    Full state vector for initialization (optional, \texttt{INIT\_C}, \texttt{INIT\_Q}, and \texttt{INIT\_VOLUME} will be ignored; if length is $2\texttt{NDOF}$, then the second half is used for time derivatives)
+  \end{dataset}
+  \begin{dataset}[unit=--,type=double,range={$[0,1]$},length={1}]{POROSITY}
+    Porosity $\varepsilon$ (defaults to $1$)
+  \end{dataset}
+  \begin{dataset}[unit=\si{\cubic\metre\per\second},type=double,range={$\geq 0$},length={1 / \texttt{NSEC}}]{FLOWRATE\_FILTER}
+    Flow rate of pure liquid without components (optional, defaults to \SI{0}{\cubic\metre\per\second})
+  \end{dataset}
+\end{condsubgroup}
 
-\FloatBarrier
 \subsection{Flux reconstruction methods}
 
-\begin{table}[!ht]
-\footnotesize
-\begin{tabu}to \linewidth[m]{lX[m]cc} \toprule
-\multicolumn{4}{c}{\GroupHeadlineY{WENO parameters}{/input/model/unit\_XXX/discretization/weno}} \\
-\rowfont[c]\normalfont Dataset & Description & Type & Range \everyrow{\midrule}\\
-\texttt{BOUNDARY\_MODEL} & Boundary model type: 0 = Lower WENO order (stable), 1 = Zero weights (unstable for small $D_{ax}$), 2 = Zero weights for p $\neq$ 0 (stable?), 3 = Large ghost points & int & $0-3$\\
-\texttt{WENO\_EPS} & WENO $\varepsilon$ & double & $\geq 0.0$\\
-\texttt{WENO\_ORDER} & WENO Order: 1 = standard upwind scheme, 2, 3; also called WENO K & int & $1-3$ \everyrow{}\\
-\bottomrule
-\end{tabu}
-\caption[Datasets for the WENO reconstruction]{\label{tab:FFModelUnitOpDiscretizationWeno}Datasets for the WENO reconstruction (\texttt{/input/model/unit\_XXX/discretization/weno} group)}
-\end{table}
+\begin{subgroup}{/input/model/unit\_XXX}{WENO parameters}{tab:FFModelUnitOpDiscretizationWeno}
+  \begin{dataset}[type=int,range={$\{ 0,1,2,3 \}$},length=1]{BOUNDARY\_MODEL}
+    Boundary model type: 0 = lower WENO order (stable), 1 = zero weights (unstable for small $D_{\mathrm{ax}}$), 2 = zero weights for p $\neq$ 0 (stable?), 3 = large ghost points
+  \end{dataset}
+  \begin{dataset}[type=double,range={$\geq 0$},length=1]{WENO\_EPS}
+    WENO $\varepsilon$
+  \end{dataset}
+  \begin{dataset}[type=int,range={$\{ 1,2,3 \}$},length=1]{WENO\_ORDER}
+    WENO Order: 1 = standard upwind scheme (order 1), 2 (order 3), 3 (order 5); also called WENO $k$
+  \end{dataset}
+\end{subgroup}
 
-\FloatBarrier
 \subsection{Adsorption models}\label{sec:FFAdsorption}
 
 \paragraph{Externally dependent binding models}
 
-Some binding models have a variant that can use external sources as specified in Section~\ref{sec:FFModelSystem} (also see Section~\ref{par:MBFeatureMatrix} and Table~\ref{tab:MBFeatureMatrix} on which binding models support this feature).
+Some binding models have a variant that can use external sources\index{Binding!External function} as specified in Section~\ref{sec:FFModelSystem} (also see Section~\ref{par:MBFeatureMatrix} and Table~\ref{tab:MBFeatureMatrix} on which binding models support this feature).
 For the sake of brevity, only the standard variant of those binding models is specified below.
 In order to obtain the format for the externally dependent variant, first replace the binding model name \texttt{XXX} by \texttt{EXT\_XXX}.
 Each parameter $p$ (except for reference concentrations \texttt{XXX\_REFC0} and \texttt{XXX\_REFQ}) depends on a (possibly distinct) external source in a polynomial way:
@@ -561,513 +676,770 @@ Since each parameter can depend on a different external source, the dataset \tex
 The ordering of the parameters in \texttt{EXTFUN} is given by the ordering in the standard variant.
 However, if only one index is passed in \texttt{EXTFUN}, this external source is used for all parameters.
 
-\begin{table}[!ht]
-\footnotesize
-\begin{tabu}to \linewidth[m]{lX[m]cccc} \toprule
-\multicolumn{5}{c}{\GroupHeadlineY{Nonlinear consistency solver parameters}{/input/model/unit\_XXX/adsorption/consistency\_solver}} \\
-\rowfont[c]\normalfont Dataset & Description & Type & Range & Length \everyrow{\midrule}\\
-\texttt{SOLVER\_NAME} & Name of the solver & string & \begin{tabular}{@{}c@{}}
-  \texttt{LEVMAR} \\
-  \texttt{ATRN\_RES} \\
-  \texttt{ATRN\_ERR} \\
-  \texttt{COMPOSITE} \\
-  \end{tabular} & 1\\
-\texttt{INIT\_DAMPING} & Initial damping factor (default is $0.01$) & double & $\geq 0.0$ & 1\\
-\texttt{MIN\_DAMPING} & Minimal damping factor (default is $0.0001$; ignored by \texttt{LEVMAR}) & double & $\geq 0.0$ & 1\\
-\texttt{MAX\_ITERATIONS} & Maximum number of iterations (default is $50$) & int & $> 0$ & 1 \\
-\texttt{SUBSOLVERS} & Vector with names of solvers for the composite solver (only required for composite solver) & string & see \texttt{SOLVER\_NAME} & $> 1$ \everyrow{}\\
-\bottomrule
-\end{tabu}
-\caption[Datasets for the nonlinear consistency solver]{\label{tab:FFModelUnitOpAdsorptionConsSolver}Datasets for the nonlinear consistency solver (\texttt{/input/model/unit\_XXX/adsorption/consistency\_solver} group)}
-\end{table}
+\paragraph{Non-binding components}
 
-\begin{table}[!ht]
-\footnotesize
-\begin{tabu}to \linewidth[m]{lX[m]cccc} \toprule
-\multicolumn{6}{c}{\GroupHeadlineX{ADSORPTION\_MODEL = LINEAR}{/input/model/unit\_XXX/adsorption}} \\
-\rowfont[c]\normalfont Dataset & Description & Unit & Type & Range & Length \everyrow{\midrule}\\
-\texttt{IS\_KINETIC} & Selects kinetic or quasi-stationary adsorption mode: 1 = kinetic, 0 = quasi-stationary & -- & int & 0/1 & 1\\
-\texttt{LIN\_KA} & Adsorption rate constants & \si{\cubic\metre\of{MP}\per\cubic\metre\of{SP}\per\second} & double & $\geq 0.0$ & \texttt{NCOMP}\\
-\texttt{LIN\_KD} & Desorption rate constants & \si{\per\second} & double & $\geq 0.0$ & \texttt{NCOMP} \everyrow{}\\
-\bottomrule
-\end{tabu}
-\caption[Datasets for the linear adsorption model]{\label{tab:FFAdsorptionLinear}Datasets for the linear adsorption model (\texttt{/input/model/unit\_XXX/adsorption} group)}
-\end{table}
+For binding models that do not support multiple bound states, many parameters can vary per component and their length is taken as \texttt{NCOMP}.
+However, these models still support non-binding components.\index{Binding!Non-binding components}
+In this case, the entries in their parameters that correspond to non-binding components are simply ignored.
 
-\begin{table}[!ht]
-\footnotesize
-\begin{tabu}to \linewidth[m]{lX[m]cccc} \toprule
-\multicolumn{6}{c}{\GroupHeadlineX{ADSORPTION\_MODEL = MULTI\_COMPONENT\_LANGMUIR}{/input/model/unit\_XXX/adsorption}} \\
-\rowfont[c]\normalfont Dataset & Description & Unit & Type & Range & Length \everyrow{\midrule}\\
-\texttt{IS\_KINETIC} & Selects kinetic or quasi-stationary adsorption mode: 1 = kinetic, 0 = quasi-stationary & -- & int & 0/1 & 1\\
-\texttt{MCL\_KA} & Adsorption rate constants & \si{\cubic\metre\of{MP}\per\mol\per\second} & double & $\geq 0.0$ & \texttt{NCOMP}\\
-\texttt{MCL\_KD} & Desorption rate constants & \si{\per\second} & double & $\geq 0.0$ & \texttt{NCOMP}\\
-\texttt{MCL\_QMAX} & Maximum adsorption capacities & \si{\mol\per\cubic\metre\of{SP}} & double & $> 0.0$ & \texttt{NCOMP}\everyrow{}\\
-\bottomrule
-\end{tabu}
-\caption[Datasets for the multi component Langmuir adsorption model]{\label{tab:FFAdsorptionMultiCompLangmuir}Datasets for the multi component Langmuir adsorption model (\texttt{/input/model/unit\_XXX/adsorption} group)}
-\end{table}
+\paragraph{Multiple particle types}\index{Model!Multiple particle types}\index{Model!Particle types}
 
-\begin{table}[!ht]
-\footnotesize
-\begin{tabu}to \linewidth[m]{lX[m]cccc} \toprule
-\multicolumn{6}{c}{\GroupHeadlineX{ADSORPTION\_MODEL = MULTI\_COMPONENT\_ANTILANGMUIR}{/input/model/unit\_XXX/adsorption}} \\
-\rowfont[c]\normalfont Dataset & Description & Unit & Type & Range & Length \everyrow{\midrule}\\
-\texttt{IS\_KINETIC} & Selects kinetic or quasi-stationary adsorption mode: 1 = kinetic, 0 = quasi-stationary & -- & int & 0/1 & 1\\
-\texttt{MCAL\_KA} & Adsorption rate constants & \si{\cubic\metre\of{MP}\per\mol\per\second} & double & $\geq 0.0$ & \texttt{NCOMP}\\
-\texttt{MCAL\_KD} & Desorption rate constants & \si{\per\second} & double & $\geq 0.0$ & \texttt{NCOMP}\\
-\texttt{MCAL\_QMAX} & Maximum adsorption capacities & \si{\mol\per\cubic\metre\of{SP}} & double & $> 0.0$ & \texttt{NCOMP}\\
-\texttt{MCAL\_ANTILANGMUIR} & Anti-Langmuir coefficients (optional) & -- & double & $\{ -1, 1\}$ & \texttt{NCOMP}\everyrow{}\\
-\bottomrule
-\end{tabu}
-\caption[Datasets for the multi component Anti-Langmuir adsorption model]{\label{tab:FFAdsorptionMultiCompAntiLangmuir}Datasets for the multi component Anti-Langmuir adsorption model (\texttt{/input/model/unit\_XXX/adsorption} group)}
-\end{table}
+The group that contains the parameters of a binding model in unit operation with index \texttt{XXX} reads \texttt{/input/model/unit\_XXX/adsorption}.
+This is valid for models with a single particle type.
+If a model has multiple particle types, it may have a different binding model in each type.
+The parameters are then placed in the group \texttt{/input/model/unit\_XXX/adsorption\_YYY} instead, where \texttt{YYY} denotes the index of the particle type.
 
-\begin{table}[!ht]
-\footnotesize
-\begin{tabu}to \linewidth[m]{lX[m]cccc} \toprule
-\multicolumn{6}{c}{\GroupHeadlineX{ADSORPTION\_MODEL = MOBILE\_PHASE\_MODULATOR}{/input/model/unit\_XXX/adsorption}} \\
-\rowfont[c]\normalfont Dataset & Description & Unit & Type & Range & Length \everyrow{\midrule}\\
-\texttt{IS\_KINETIC} & Selects kinetic or quasi-stationary adsorption mode: 1 = kinetic, 0 = quasi-stationary & -- & int & 0/1 & 1\\
-\texttt{MPM\_KA} & Adsorption rate constants & \si{\cubic\metre\of{MP}\per\mol\per\second} & double & $\geq 0.0$ & \texttt{NCOMP}\\
-\texttt{MPM\_KD} & Desorption rate constants & \si{\raiseto{3\beta}\metre\of{MP}\per\raiseto{\beta}\mol\per\second} & double & $\geq 0.0$ & \texttt{NCOMP}\\
-\texttt{MPM\_QMAX} & Maximum adsorption capacities & \si{\mol\per\cubic\metre\of{SP}} & double & $\geq 0.0$ & \texttt{NCOMP}\\
-\texttt{MPM\_BETA} & Parameters describing the ion-exchange characteristics (IEX) & -- & double & $\geq 0.0$ & \texttt{NCOMP}\\
-\texttt{MPM\_GAMMA} & Parameters describing the hydrophobicity (HIC) & \si{\cubic\metre\of{MP}\per\mol} & double & $\geq 0.0$ & \texttt{NCOMP}\everyrow{}\\
-\bottomrule
-\end{tabu}
-\caption[Datasets for the mobile phase modulator adsorption model]{\label{tab:FFAdsorptionMobilePhaseModulator}Datasets for the mobile phase modulator adsorption model (\texttt{/input/model/unit\_XXX/adsorption} group)}
-\end{table}
+Note that, in any case, \texttt{/input/model/unit\_XXX/adsorption\_000} contains the parameters of the first (and possibly sole) particle type.
+This group also takes precedence over a possibly existing \texttt{/input/model/unit\_XXX/adsorption} group.
 
-\begin{table}[!ht]
-\footnotesize
-\begin{tabu}to \linewidth[m]{lX[m]cccc} \toprule
-\multicolumn{6}{c}{\GroupHeadlineX{ADSORPTION\_MODEL = STERIC\_MASS\_ACTION}{/input/model/unit\_XXX/adsorption}} \\
-\rowfont[c]\normalfont Dataset & Description & Unit & Type & Range & Length \everyrow{\midrule}\\
-\texttt{IS\_KINETIC} & Selects kinetic or quasi-stationary adsorption mode: 1 = kinetic, 0 = quasi-stationary & -- & int & 0/1 & 1\\
-\texttt{SMA\_KA} & Adsorption rate constants & \si{\raiseto{3}\metre\of{MP}\per\raiseto{3}\metre\of{SP}\per\second} & double & $\geq 0.0$ & \texttt{NCOMP}\\
-\texttt{SMA\_KD} & Desorption rate constants & \si{\per\second} & double & $\geq 0.0$ & \texttt{NCOMP}\\
-\texttt{SMA\_NU} & Characteristic charges of the protein; The number of sites $\nu$ that the protein interacts with on the resin surface & -- & double & $\geq 0.0$ & \texttt{NCOMP}\\
-\texttt{SMA\_SIGMA} & Steric factors of the protein; The number of sites $\sigma$ on the surface that are shielded by the protein and prevented from exchange with the salt counterions in solution & -- & double & $\geq 0.0$ & \texttt{NCOMP}\\
-\texttt{SMA\_LAMBDA} & Stationary phase capacity (monovalent salt counterions); The total number of binding sites available on the resin surface & \si{\mol\per\cubic\metre\of{SP}} & double & $\geq 0.0$ & 1\\
-\texttt{SMA\_REFC0} & Reference liquid phase concentration (optional, defaults to $1.0$) & \si{\mol\per\raiseto{3}\metre\of{MP}} & double & $> 0.0$ & 1\\
-\texttt{SMA\_REFQ} & Reference solid phase concentration (optional, defaults to $1.0$) & \si{\mol\per\raiseto{3}\metre\of{SP}} & double & $> 0.0$ & 1\everyrow{}\\
-\bottomrule
-\end{tabu}
-\caption[Datasets for the steric mass action adsorption model]{\label{tab:FFAdsorptionStericMassAction}Datasets for the steric mass action adsorption model (\texttt{/input/model/unit\_XXX/adsorption} group)}
-\end{table}
+\begin{subgroup}{/input/model/unit\_XXX/adsorption/consistency\_solver}{Nonlinear consistency solver parameters}{tab:FFModelUnitOpAdsorptionConsSolver}
+  \begin{dataset}[type=string,length=1]{SOLVER\_NAME}
+    Name of the solver.
+    Available solvers are \texttt{LEVMAR}, \texttt{ATRN\_RES}, \texttt{ATRN\_ERR}, and \texttt{COMPOSITE}.
+  \end{dataset}
+  \begin{dataset}[type=double,range={$\geq 0$},length=1]{INIT\_DAMPING}
+    Initial damping factor (default is $0.01$)
+  \end{dataset}
+  \begin{dataset}[type=double,range={$\geq 0$},length=1]{MIN\_DAMPING}
+    Minimal damping factor (default is $0.0001$; ignored by \texttt{LEVMAR})
+  \end{dataset}
+  \begin{dataset}[type=string,length={$> 1$}]{SUBSOLVERS}
+    Vector with names of solvers for the composite solver (only required for composite solver).
+    See \texttt{SOLVER\_NAME} for available solvers.
+  \end{dataset}
+\end{subgroup}
 
-\begin{table}[!ht]
-\footnotesize
-\begin{tabu}to \linewidth[m]{lX[m]cccc} \toprule
-\multicolumn{6}{c}{\GroupHeadlineX{ADSORPTION\_MODEL = SELF\_ASSOCIATION}{/input/model/unit\_XXX/adsorption}} \\
-\rowfont[c]\normalfont Dataset & Description & Unit & Type & Range & Length \everyrow{\midrule}\\
-\texttt{IS\_KINETIC} & Selects kinetic or quasi-stationary adsorption mode: 1 = kinetic, 0 = quasi-stationary & -- & int & 0/1 & 1\\
-\texttt{SAI\_KA1} & Adsorption rate constants & \si{\raiseto{3}\metre\of{MP}\per\raiseto{3}\metre\of{SP}\per\second} & double & $\geq 0.0$ & \texttt{NCOMP}\\
-\texttt{SAI\_KA2} & Adsorption rate constants of dimerization & \si{\raiseto{6}\metre\of{MP}\per\raiseto{6}\metre\of{SP}\per\second} & double & $\geq 0.0$ & \texttt{NCOMP}\\
-\texttt{SAI\_KD} & desorption rate constants & \si{\per\second} & double & $\geq 0.0$ & \texttt{NCOMP}\\
-\texttt{SAI\_NU} & Characteristic charges $\nu$ of the protein & -- & double & $\geq 0.0$ & \texttt{NCOMP}\\
-\texttt{SAI\_SIGMA} & Steric factors $\sigma$ of the protein & -- & double & $\geq 0.0$ & \texttt{NCOMP}\\
-\texttt{SAI\_LAMBDA} & Stationary phase capacity (monovalent salt counterions); The total number of binding sites available on the resin surface & \si{\mol\per\cubic\metre\of{SP}} & double & $\geq 0.0$ & 1\\
-\texttt{SAI\_REFC0} & Reference liquid phase concentration (optional, defaults to $1.0$) & \si{\mol\per\raiseto{3}\metre\of{MP}} & double & $> 0.0$ & 1\\
-\texttt{SAI\_REFQ} & Reference solid phase concentration (optional, defaults to $1.0$) & \si{\mol\per\raiseto{3}\metre\of{SP}} & double & $> 0.0$ & 1\everyrow{}\\
-\bottomrule
-\end{tabu}
-\caption[Datasets for the self association adsorption model]{\label{tab:FFAdsorptionSelfAssociation}Datasets for the self association adsorption model (\texttt{/input/model/unit\_XXX/adsorption} group)}
-\end{table}
+\begin{condsubgroup}{/input/model/unit\_XXX/adsorption}{ADSORPTION\_MODEL = LINEAR}{tab:FFAdsorptionLinear}
+  \begin{dataset}[type=int,range={$\{ 0,1 \}$},length=1]{IS\_KINETIC}
+    Selects kinetic or quasi-stationary adsorption mode: 1 = kinetic, 0 = quasi-stationary
+  \end{dataset}
+  \begin{dataset}[unit=\si{\cubic\metre\of{MP}\per\cubic\metre\of{SP}\per\second},type=double,range={$\geq 0$},length={\texttt{NCOMP}}]{LIN\_KA}
+    Adsorption rate constants for each component
+  \end{dataset}
+  \begin{dataset}[unit=\si{\per\second},type=double,range={$\geq 0$},length={\texttt{NCOMP}}]{LIN\_KD}
+    Desorption rate constants for each component
+  \end{dataset}
+\end{condsubgroup}
 
-\begin{table}[!ht]
-\footnotesize
-\begin{tabu}to \linewidth[m]{lX[m]cccc} \toprule
-\multicolumn{6}{c}{\GroupHeadlineX{ADSORPTION\_MODEL = SASKA}{/input/model/unit\_XXX/adsorption}} \\
-\rowfont[c]\normalfont Dataset & Description & Unit & Type & Range & Length \everyrow{\midrule}\\
-\texttt{IS\_KINETIC} & Selects kinetic or quasi-stationary adsorption mode: 1 = kinetic, 0 = quasi-stationary & -- & int & 0/1 & 1\\
-\texttt{SASKA\_H} & Henry coefficient & \si{\cubic\metre\of{MP}\per\cubic\metre\of{SP}\per\second} & double & $\mathds{R}$ & \texttt{NCOMP}\\
-\texttt{SASKA\_K} & Quadratic factors & \si{\raiseto{6}\metre\of{MP}\per\cubic\metre\of{SP}\per\mol\per\second} & double & $\mathds{R}$ & $\texttt{NCOMP}^2$ \everyrow{}\\
-\bottomrule
-\end{tabu}
-\caption[Datasets for the Saska adsorption model]{\label{tab:FFAdsorptionSaska}Datasets for the Saska adsorption model (\texttt{/input/model/unit\_XXX/adsorption} group)}
-\end{table}
+\begin{condsubgroup}{/input/model/unit\_XXX/adsorption}{ADSORPTION\_MODEL = MULTI\_COMPONENT\_LANGMUIR}{tab:FFAdsorptionMultiCompLangmuir}
+  \begin{dataset}[type=int,range={$\{ 0,1 \}$},length=1]{IS\_KINETIC}
+    Selects kinetic or quasi-stationary adsorption mode: 1 = kinetic, 0 = quasi-stationary
+  \end{dataset}
+  \begin{dataset}[type=double,range={$\geq 0$},length={\texttt{NCOMP}}]{MCL\_KA}
+    Adsorption rate constants
+  \end{dataset}
+  \begin{dataset}[unit=\si{\per\second}, type=double,range={$\geq 0$},length={\texttt{NCOMP}}]{MCL\_KD}
+    Desorption rate constants
+  \end{dataset}
+  \begin{dataset}[unit=\si{\mol\per\cubic\metre\of{SP}}, type=double,range={$> 0$},length={\texttt{NCOMP}}]{MCL\_QMAX}
+    Maximum adsorption capacities
+  \end{dataset}
+\end{condsubgroup}
 
-\begin{table}[!ht]
-\footnotesize
-\begin{tabu}to \linewidth[m]{lX[m]cccc} \toprule
-\multicolumn{6}{c}{\GroupHeadlineX{ADSORPTION\_MODEL = MULTI\_COMPONENT\_BILANGMUIR}{/input/model/unit\_XXX/adsorption}} \\
-\rowfont[c]\normalfont Dataset & Description & Unit & Type & Range & Length \everyrow{\midrule}\\
-\texttt{IS\_KINETIC} & Selects kinetic or quasi-stationary adsorption mode: 1 = kinetic, 0 = quasi-stationary & -- & int & 0/1 & 1\\
-\texttt{MCBL\_KA} & Adsorption rate constants in state-major ordering & \si{\cubic\metre\of{MP}\per\mol\per\second} & double & $\geq 0.0$ & $\texttt{NSTATES} \cdot \texttt{NCOMP}$ \\
-\texttt{MCBL\_KD} & Desorption rate constants in state-major ordering & \si{\per\second} & double & $\geq 0.0$ & $\texttt{NSTATES} \cdot \texttt{NCOMP}$\\
-\texttt{MCBL\_QMAX} & Maximum adsorption capacities in state-major ordering & \si{\mol\per\cubic\metre\of{SP}} & double & $> 0.0$ & $\texttt{NSTATES} \cdot \texttt{NCOMP}$ \everyrow{}\\
-\bottomrule
-\end{tabu}
-\caption[Datasets for the Bi-Langmuir adsorption model]{\label{tab:FFAdsorptionBiLangmuir}Datasets for the Bi-Langmuir adsorption model (\texttt{/input/model/unit\_XXX/adsorption} group)}
-\end{table}
+\begin{condsubgroup}{/input/model/unit\_XXX/adsorption}{ADSORPTION\_MODEL = MULTI\_COMPONENT\_ANTILANGMUIR}{tab:FFAdsorptionMultiCompAntiLangmuir}
+  \begin{dataset}[type=int,range={$\{ 0,1 \}$},length=1]{IS\_KINETIC}
+    Selects kinetic or quasi-stationary adsorption mode: 1 = kinetic, 0 = quasi-stationary
+  \end{dataset}
+  \begin{dataset}[unit=\si{\cubic\metre\of{MP}\per\mol\per\second}, type=double,range={$\geq 0$},length={\texttt{NCOMP}}]{MCAL\_KA}
+    Adsorption rate constants
+  \end{dataset}
+  \begin{dataset}[unit=\si{\per\second}, type=double,range={$\geq 0$},length={\texttt{NCOMP}}]{MCAL\_KD}
+    Desorption rate constants
+  \end{dataset}
+  \begin{dataset}[unit=\si{\mol\per\cubic\metre\of{SP}}, type=double,range={$> 0$},length={\texttt{NCOMP}}]{MCAL\_QMAX}
+    Maximum adsorption capacities
+  \end{dataset}
+  \begin{dataset}[unit=\si{\mol\per\cubic\metre\of{SP}}, type=double,range={$\{ -1, 1\}$},length={\texttt{NCOMP}}]{MCAL\_ANTILANGMUIR}
+    Anti-Langmuir coefficients (optional)
+  \end{dataset}
+\end{condsubgroup}
 
-\begin{table}[!ht]
-\footnotesize
-\begin{tabu}to \linewidth[m]{lX[m]cccc} \toprule
-\multicolumn{6}{c}{\GroupHeadlineX{ADSORPTION\_MODEL = KUMAR\_MULTI\_COMPONENT\_LANGMUIR}{/input/model/unit\_XXX/adsorption}} \\
-\rowfont[c]\normalfont Dataset & Description & Unit & Type & Range & Length \everyrow{\midrule}\\
-\texttt{IS\_KINETIC} & Selects kinetic or quasi-stationary adsorption mode: 1 = kinetic, 0 = quasi-stationary & -- & int & 0/1 & 1\\
-\texttt{KMCL\_KA} & Adsorption pre-exponential factors & \si{\raiseto{3}\metre\of{MP}\per\mol\per\second} & double & $\geq 0.0$ & \texttt{NCOMP}\\
-\texttt{KMCL\_KD} & Desorption rate & \si{\raiseto{3\nu_i}\metre\of{MP}\per\raiseto{\nu_i}\mol\per\second} & double & $\geq 0.0$ & \texttt{NCOMP}\\
-\texttt{KMCL\_KACT} & Activation temperatures & \si{\kelvin} & double & $\geq 0.0$ & \texttt{NCOMP}\\
-\texttt{KMCL\_QMAX} & Maximum adsorption capacities & \si{\mol\per\cubic\metre\of{SP}} & double & $> 0.0$ & \texttt{NCOMP}\\
-\texttt{KMCL\_NU} & Salt exponents / characteristic charges & -- & double & $> 0.0$ & \texttt{NCOMP}\\
-\texttt{KMCL\_TEMP} & Temperature & \si{\kelvin} & double & $\geq 0$ & 1 \everyrow{}\\
-\bottomrule
-\end{tabu}
-\caption[Datasets for the Kumar-Langmuir adsorption model]{\label{tab:FFAdsorptionKumarLangmuir}Datasets for the Kumar-Langmuir adsorption model (\texttt{/input/model/unit\_XXX/adsorption} group)}
-\end{table}
+\begin{condsubgroup}{/input/model/unit\_XXX/adsorption}{ADSORPTION\_MODEL = MOBILE\_PHASE\_MODULATOR}{tab:FFAdsorptionMobilePhaseModulator}
+\begin{dataset}[type=int,range={$\{ 0,1 \}$},length=1]{IS\_KINETIC}
+    Selects kinetic or quasi-stationary adsorption mode: 1 = kinetic, 0 = quasi-stationary
+  \end{dataset}
+  \begin{dataset}[unit=\si{\cubic\metre\of{MP}\per\mol\per\second}, type=double,range={$\geq 0$},length={\texttt{NCOMP}}]{MPM\_KA}
+    Adsorption rate constants
+  \end{dataset}
+  \begin{dataset}[unit=\si{\raiseto{3\beta}\metre\of{MP}\per\raiseto{\beta}\mol\per\second}, type=double,range={$\geq 0$},length={\texttt{NCOMP}}]{MPM\_KD}
+    Desorption rate constants
+  \end{dataset}
+  \begin{dataset}[unit=\si{\mol\per\cubic\metre\of{SP}}, type=double,range={$\geq 0$},length={\texttt{NCOMP}}]{MPM\_QMAX}
+    Maximum adsorption capacities
+  \end{dataset}
+  \begin{dataset}[unit=\si{\mol\per\cubic\metre\of{SP}}, type=double,range={$\geq 0$},length={\texttt{NCOMP}}]{MPM\_BETA}
+    Parameters describing the ion-exchange characteristics (IEX)
+  \end{dataset}
+  \begin{dataset}[unit=\si{\cubic\metre\of{MP}\per\mol}, type=double,range={$\geq 0$},length={\texttt{NCOMP}}]{MPM\_GAMMA}
+    Parameters describing the hydrophobicity (HIC)
+  \end{dataset}
+\end{condsubgroup}
+  
+\begin{condsubgroup}{/input/model/unit\_XXX/adsorption}{ADSORPTION\_MODEL = STERIC\_MASS\_ACTION}{tab:FFAdsorptionStericMassAction}
+  \begin{dataset}[type=int,range={$\{ 0,1 \}$},length=1]{IS\_KINETIC}
+    Selects kinetic or quasi-stationary adsorption mode: 1 = kinetic, 0 = quasi-stationary
+  \end{dataset}
+  \begin{dataset}[unit=\si{\raiseto{3}\metre\of{MP}\per\raiseto{3}\metre\of{SP}\per\second}, type=double,range={$\geq 0$},length={\texttt{NCOMP}}]{SMA\_KA}
+    Adsorption rate constants
+  \end{dataset}
+  \begin{dataset}[unit=\si{\per\second}, type=double,range={$\geq 0$},length={\texttt{NCOMP}}]{SMA\_KD}
+    Desorption rate constants
+  \end{dataset}
+  \begin{dataset}[type=double,range={$\geq 0$},length={\texttt{NCOMP}}]{SMA\_NU}
+    Characteristic charges of the protein; The number of sites $\nu$ that the protein interacts with on the resin surface
+  \end{dataset}
+  \begin{dataset}[type=double,range={$\geq 0$},length={\texttt{NCOMP}}]{SMA\_SIGMA}
+    Steric factors of the protein; The number of sites $\sigma$ on the surface that are shielded by the protein and prevented from exchange with the salt counterions in solution
+  \end{dataset}
+  \begin{dataset}[unit=\si{\mol\per\cubic\metre\of{SP}}, type=double,range={$\geq 0$},length={1}]{SMA\_LAMBDA}
+    Stationary phase capacity (monovalent salt counterions); The total number of binding sites available on the resin surface 
+  \end{dataset}
+  \begin{dataset}[unit=\si{\mol\per\raiseto{3}\metre\of{MP}}, type=double,range={$> 0$},length={1}]{SMA\_REFC0}
+    Reference liquid phase concentration (optional, defaults to $1.0$)
+  \end{dataset}
+  \begin{dataset}[unit=\si{\mol\per\raiseto{3}\metre\of{SP}}, type=double,range={$> 0$},length={1}]{SMA\_REFQ}
+    Reference solid phase concentration (optional, defaults to $1.0$) 
+  \end{dataset}
+\end{condsubgroup}
 
-\begin{table}[!ht]
-\footnotesize
-\begin{tabu}to \linewidth[m]{lX[m]cccc} \toprule
-\multicolumn{6}{c}{\GroupHeadlineX{ADSORPTION\_MODEL = MULTI\_COMPONENT\_SPREADING}{/input/model/unit\_XXX/adsorption}} \\
-\rowfont[c]\normalfont Dataset & Description & Unit & Type & Range & Length \everyrow{\midrule}\\
-\texttt{IS\_KINETIC} & Selects kinetic or quasi-stationary adsorption mode: 1 = kinetic, 0 = quasi-stationary & -- & int & 0/1 & 1\\
-\texttt{MCSPR\_KA} & Adsorption rate constants in state-major ordering & \si{\cubic\metre\of{MP}\per\mol\per\second} & double & $\geq 0.0$ & \texttt{NTOTALBND} \\
-\texttt{MCSPR\_KD} & Desorption rate constants in state-major ordering & \si{\per\second} & double & $\geq 0.0$ & \texttt{NTOTALBND} \\
-\texttt{MCSPR\_QMAX} & Maximum adsorption capacities in state-major ordering & \si{\mol\per\cubic\metre\of{SP}} & double & $> 0.0$ & \texttt{NTOTALBND} \\
-\texttt{MCSPR\_K12} & Exchange rates from the first to the second bound state & \si{\per\second} & double & $\geq 0.0$ & \texttt{NCOMP} \\
-\texttt{MCSPR\_K21} & Exchange rates from the second to the first bound state & \si{\per\second} & double & $\geq 0.0$ & \texttt{NCOMP} \everyrow{}\\
-\bottomrule
-\end{tabu}
-\caption[Datasets for the multi component spreading adsorption model]{\label{tab:FFAdsorptionMultiCompSpreading}Datasets for the multi component spreading adsorption model (\texttt{/input/model/unit\_XXX/adsorption} group)}
-\end{table}
+\begin{condsubgroup}{/input/model/unit\_XXX/adsorption}{ADSORPTION\_MODEL = SELF\_ASSOCIATION}{tab:FFAdsorptionSelfAssociation}
+\begin{dataset}[type=int,range={$\{ 0,1 \}$},length=1]{IS\_KINETIC}
+    Selects kinetic or quasi-stationary adsorption mode: 1 = kinetic, 0 = quasi-stationary
+  \end{dataset}
+  \begin{dataset}[unit=\si{\raiseto{3}\metre\of{MP}\per\raiseto{3}\metre\of{SP}\per\second}, type=double,range={$\geq 0$},length={\texttt{NCOMP}}]{SAI\_KA1}
+    Adsorption rate constants
+  \end{dataset}
+  \begin{dataset}[unit=\si{\raiseto{6}\metre\of{MP}\per\raiseto{6}\metre\of{SP}\per\second}, type=double,range={$\geq 0$},length={\texttt{NCOMP}}]{SAI\_KA2}
+    Adsorption rate constants
+  \end{dataset}
+  \begin{dataset}[unit=\si{\per\second}, type=double,range={$\geq 0$},length={\texttt{NCOMP}}]{SAI\_KD}
+    Desorption rate constants
+  \end{dataset}
+  \begin{dataset}[type=double,range={$\geq 0$},length={\texttt{NCOMP}}]{SAI\_NU}
+    Characteristic charges $\nu$ of the protein
+  \end{dataset}
+  \begin{dataset}[type=double,range={$\geq 0$},length={\texttt{NCOMP}}]{SAI\_SIGMA}
+    Steric factors $\sigma$ of the protein
+  \end{dataset}
+  \begin{dataset}[unit=\si{\mol\per\cubic\metre\of{SP}}, type=double,range={$\geq 0$},length={1}]{SAI\_LAMBDA}
+    Stationary phase capacity (monovalent salt counterions); The total number of binding sites available on the resin surface
+  \end{dataset}
+  \begin{dataset}[unit=\si{\mol\per\raiseto{3}\metre\of{MP}}, type=double,range={$> 0$},length={1}]{SAI\_REFC0}
+    Reference liquid phase concentration (optional, defaults to $1.0$)
+  \end{dataset}
+  \begin{dataset}[unit=\si{\mol\per\raiseto{3}\metre\of{SP}}, type=double,range={$> 0$},length={1}]{SAI\_REFQ}
+    Reference solid phase concentration (optional, defaults to $1.0$) 
+  \end{dataset}
+\end{condsubgroup}
 
-\begin{table}[!ht]
-\footnotesize
-\begin{tabu}to \linewidth[m]{lX[m]cccc} \toprule
-\multicolumn{6}{c}{\GroupHeadlineX{ADSORPTION\_MODEL = MULTISTATE\_STERIC\_MASS\_ACTION}{/input/model/unit\_XXX/adsorption}} \\
-\rowfont[c]\normalfont Dataset & Description & Unit & Type & Range & Length \everyrow{\midrule}\\
-\texttt{IS\_KINETIC} & Selects kinetic or quasi-stationary adsorption mode: 1 = kinetic, 0 = quasi-stationary & -- & int & 0/1 & 1\\
-\texttt{MSSMA\_KA} & Adsorption rate constants of the components to the different bound states in component-major ordering & \si{\raiseto{3}\metre\of{MP}\per\raiseto{3}\metre\of{SP}\per\second} & double & $\geq 0.0$ & \texttt{NTOTALBND}\\
-\texttt{MSSMA\_KD} & Desorption rate constants of the components in the different bound states in component-major ordering & \si{\per\second} & double & $\geq 0.0$ & \texttt{NTOTALBND}\\
-\texttt{MSSMA\_NU} & Characteristic charges of the components in the different bound states in component-major ordering & -- & double & $\geq 0.0$ & \texttt{NTOTALBND}\\
-\texttt{MSSMA\_SIGMA} & Steric factors of the components in the different bound states in component-major ordering & -- & double & $\geq 0.0$ & \texttt{NTOTALBND}\\
-\texttt{MSSMA\_RATES} & Conversion rates between different bound states in component-row-major ordering & \si{\per\second} & double & $\geq 0.0$ & $\sum_{i=0}^{\texttt{NCOMP} - 1} \texttt{NBND}_i^2$\\
-\texttt{MSSMA\_LAMBDA} & Stationary phase capacity (monovalent salt counterions); The total number of binding sites available on the resin surface & \si{\mol\per\cubic\metre\of{SP}} & double & $\geq 0.0$ & 1\\
-\texttt{MSSMA\_REFC0} & Reference liquid phase concentration (optional, defaults to $1.0$) & \si{\mol\per\raiseto{3}\metre\of{MP}} & double & $> 0.0$ & 1\\
-\texttt{MSSMA\_REFQ} & Reference solid phase concentration (optional, defaults to $1.0$) & \si{\mol\per\raiseto{3}\metre\of{SP}} & double & $> 0.0$ & 1\everyrow{}\\
-\bottomrule
-\end{tabu}
-\caption[Datasets for the multi state steric mass action adsorption model]{\label{tab:FFAdsorptionMultiStateStericMassAction}Datasets for the multi state steric mass action adsorption model (\texttt{/input/model/unit\_XXX/adsorption} group)}
-\end{table}
+\begin{condsubgroup}{/input/model/unit\_XXX/adsorption}{ADSORPTION\_MODEL = SASKA}{tab:FFAdsorptionSaska}
+\begin{dataset}[type=int,range={$\{ 0,1 \}$},length=1]{IS\_KINETIC}
+    Selects kinetic or quasi-stationary adsorption mode: 1 = kinetic, 0 = quasi-stationary
+  \end{dataset}
+  \begin{dataset}[unit=\si{\cubic\metre\of{MP}\per\cubic\metre\of{SP}\per\second}, type=double,range={$\mathds{R}$},length={\texttt{NCOMP}}]{SASKA\_H}
+    Henry coefficient
+  \end{dataset}
+  \begin{dataset}[unit=\si{\raiseto{6}\metre\of{MP}\per\cubic\metre\of{SP}\per\mol\per\second}, type=double,range={$\mathds{R}$},length={$\texttt{NCOMP}^2$}]{SASKA\_K}
+    Quadratic factors
+  \end{dataset}
+\end{condsubgroup}
 
-\begin{table}[!ht]
-\footnotesize
-\begin{tabu}to \linewidth[m]{lX[m]cccc} \toprule
-\multicolumn{6}{c}{\GroupHeadlineX{ADSORPTION\_MODEL = SIMPLE\_MULTISTATE\_STERIC\_MASS\_ACTION}{/input/model/unit\_XXX/adsorption}} \\
-\rowfont[c]\normalfont Dataset & Description & Unit & Type & Range & Length \everyrow{\midrule}\\
-\texttt{IS\_KINETIC} & Selects kinetic or quasi-stationary adsorption mode: 1 = kinetic, 0 = quasi-stationary & -- & int & 0/1 & 1\\
-\texttt{SMSSMA\_LAMBDA} & Stationary phase capacity (monovalent salt counterions); The total number of binding sites available on the resin surface & \si{\mol\per\cubic\metre\of{SP}} & double & $\geq 0.0$ & 1\\
-\texttt{SMSSMA\_KA} & Adsorption rate constants of the components to the different bound states in component-major ordering & \si{\raiseto{3}\metre\of{MP}\per\raiseto{3}\metre\of{SP}\per\second} & double & $\geq 0.0$ & \texttt{NTOTALBND}\\
-\texttt{SMSSMA\_KD} & Desorption rate constants of the components to the different bound states in component-major ordering & \si{\per\second} & double & $\geq 0.0$ & \texttt{NTOTALBND}\\
-\texttt{SMSSMA\_NU\_MIN} & Characteristic charges of the components in the first (weakest) bound state & -- & double & $\geq 0.0$ & \texttt{NCOMP}\\
-\texttt{SMSSMA\_NU\_MAX} & Characteristic charges of the components in the last (strongest) bound state & -- & double & $\geq 0.0$ & \texttt{NCOMP}\\
-\texttt{SMSSMA\_NU\_QUAD} & Quadratic modifiers of the characteristic charges of the different components depending on the index of the bound state & -- & double & $\mathds{R}$ & \texttt{NCOMP}\\
-\texttt{SMSSMA\_SIGMA\_MIN} & Steric factors of the components in the first (weakest) bound state & -- & double & $\geq 0.0$ & \texttt{NCOMP} \\
-\texttt{SMSSMA\_SIGMA\_MAX} & Steric factors of the components in the last (strongest) bound state & -- & double & $\geq 0.0$ & \texttt{NCOMP} \\
-\texttt{SMSSMA\_SIGMA\_QUAD} & Quadratic modifiers of steric factors of the different components depending on the index of the bound state & -- & double & $\mathds{R}$ & \texttt{NCOMP} \\
-\texttt{SMSSMA\_KWS} & Exchange rates from a weakly bound state to the next stronger bound state & \si{\per\second} & double & $\geq 0.0$ & \texttt{NCOMP} \\
-\texttt{SMSSMA\_KWS\_LIN} & Linear exchange rate coefficients from a weakly bound state to the next stronger bound state & \si{\per\second} & double & $\mathds{R}$ & \texttt{NCOMP} \\
-\texttt{SMSSMA\_KWS\_QUAD} & Quadratic exchange rate coefficients from a weakly bound state to the next stronger bound state & \si{\per\second} & double & $\mathds{R}$ & \texttt{NCOMP} \\
-\texttt{SMSSMA\_KSW} & Exchange rates from a strongly bound state to the next weaker bound state & \si{\per\second} & double & $\geq 0.0$ & \texttt{NCOMP} \\
-\texttt{SMSSMA\_KSW\_LIN} & Linear exchange rate coefficients from a strongly bound state to the next weaker bound state & \si{\per\second} & double & $\mathds{R}$ & \texttt{NCOMP} \\
-\texttt{SMSSMA\_KSW\_QUAD} & Quadratic exchange rate coefficients from a strongly bound state to the next weaker bound state & \si{\per\second} & double & $\mathds{R}$ & \texttt{NCOMP} \\
-\texttt{SMSSMA\_REFC0} & Reference liquid phase concentration (optional, defaults to $1.0$) & \si{\mol\per\raiseto{3}\metre\of{MP}} & double & $> 0.0$ & 1\\
-\texttt{SMSSMA\_REFQ} & Reference solid phase concentration (optional, defaults to $1.0$) & \si{\mol\per\raiseto{3}\metre\of{SP}} & double & $> 0.0$ & 1\everyrow{}\\
-\bottomrule
-\end{tabu}
-\caption[Datasets for the simplified multi state steric mass action adsorption model]{\label{tab:FFAdsorptionSimpleMultiStateStericMassAction}Datasets for the simplified multi state steric mass action adsorption model (\texttt{/input/model/unit\_XXX/adsorption} group)}
-\end{table}
+\begin{condsubgroup}{/input/model/unit\_XXX/adsorption}{ADSORPTION\_MODEL = MULTI\_COMPONENT\_BILANGMUIR}{tab:FFAdsorptionBiLangmuir}
+\begin{dataset}[type=int,range={$\{ 0,1 \}$},length=1]{IS\_KINETIC}
+    Selects kinetic or quasi-stationary adsorption mode: 1 = kinetic, 0 = quasi-stationary
+  \end{dataset}
+  \begin{dataset}[unit=\si{\cubic\metre\of{MP}\per\mol\per\second}, type=double,range={$\geq 0$},length={$\texttt{NSTATES} \cdot \texttt{NCOMP}$}]{MCBL\_KA}
+    Adsorption rate constants in state-major ordering
+  \end{dataset}
+  \begin{dataset}[unit=\si{\per\second}, type=double,range={$\geq 0$},length={$\texttt{NSTATES} \cdot \texttt{NCOMP}$}]{MCBL\_KD}
+    Desorption rate constants in state-major ordering
+  \end{dataset}
+  \begin{dataset}[unit=\si{\mol\per\cubic\metre\of{SP}}, type=double,range={$> 0.0$},length={$\texttt{NSTATES} \cdot \texttt{NCOMP}$}]{MCBL\_QMAX}
+    Maximum adsorption capacities in state-major ordering
+  \end{dataset}
+\end{condsubgroup}
 
-\begin{table}[!ht]
-\footnotesize
-\begin{tabu}to \linewidth[m]{lX[m]cccc} \toprule
-\multicolumn{6}{c}{\GroupHeadlineX{ADSORPTION\_MODEL = BI\_STERIC\_MASS\_ACTION}{/input/model/unit\_XXX/adsorption}} \\
-\rowfont[c]\normalfont Dataset & Description & Unit & Type & Range & Length \everyrow{\midrule}\\
-\texttt{IS\_KINETIC} & Selects kinetic or quasi-stationary adsorption mode: 1 = kinetic, 0 = quasi-stationary & -- & int & 0/1 & 1\\
-\texttt{BISMA\_KA} & Adsorption rate constants in state-major ordering & \si{\raiseto{3}\metre\of{MP}\per\raiseto{3}\metre\of{SP}\per\second} & double & $\geq 0.0$ & $\texttt{NSTATES} \cdot \texttt{NCOMP}$ \\
-\texttt{BISMA\_KD} & Desorption rate constants in state-major ordering & \si{\per\second} & double & $\geq 0.0$ & $\texttt{NSTATES} \cdot \texttt{NCOMP}$\\
-\texttt{BISMA\_NU} & Characteristic charges $\nu_{i,j}$ of the $i$th protein with respect to the $j$th binding site type in state-major ordering & -- & double & $\geq 0.0$ & $\texttt{NSTATES} \cdot \texttt{NCOMP}$\\
-\texttt{BISMA\_SIGMA} & Steric factors $\sigma_{i,j}$ of the $i$th protein with respect to the $j$th binding site type in state-major ordering & -- & double & $\geq 0.0$ & $\texttt{NSTATES} \cdot \texttt{NCOMP}$ \\
-\texttt{BISMA\_LAMBDA} & Stationary phase capacity (monovalent salt counterions) of the different binding site types $\lambda_j$ & \si{\mol\per\cubic\metre\of{SP}} & double & $\geq 0.0$ & \texttt{NSTATES}\\
-\texttt{BISMA\_REFC0} & Reference liquid phase concentration for each binding site type or one value for all types (optional, defaults to $1.0$) & \si{\mol\per\raiseto{3}\metre\of{MP}} & double & $> 0.0$ & 1/\texttt{NSTATES} \\
-\texttt{BISMA\_REFQ} & Reference solid phase concentration for each binding site type or one value for all types (optional, defaults to $1.0$) & \si{\mol\per\raiseto{3}\metre\of{SP}} & double & $> 0.0$ & 1/\texttt{NSTATES} \everyrow{}\\
-\bottomrule
-\end{tabu}
-\caption[Datasets for the bi steric mass action adsorption model]{\label{tab:FFAdsorptionBiStericMassAction}Datasets for the bi steric mass action adsorption model (\texttt{/input/model/unit\_XXX/adsorption} group)}
-\end{table}
+\begin{condsubgroup}{/input/model/unit\_XXX/adsorption}{ADSORPTION\_MODEL = KUMAR\_MULTI\_COMPONENT\_LANGMUIR}{tab:FFAdsorptionKumarLangmuir}
+\begin{dataset}[type=int,range={$\{ 0,1 \}$},length=1]{IS\_KINETIC}
+    Selects kinetic or quasi-stationary adsorption mode: 1 = kinetic, 0 = quasi-stationary
+  \end{dataset}
+  \begin{dataset}[unit=\si{\raiseto{3}\metre\of{MP}\per\mol\per\second}, type=double,range={$\geq 0$},length={\texttt{NCOMP}}]{KMCL\_KA}
+    Adsorption pre-exponential factors
+  \end{dataset}
+  \begin{dataset}[unit=\si{\raiseto{3\nu_i}\metre\of{MP}\per\raiseto{\nu_i}\mol\per\second}, type=double,range={$\geq 0$},length={\texttt{NCOMP}}]{KMCL\_KD}
+    Desorption rate
+  \end{dataset}
+\begin{dataset}[unit=\si{\kelvin}, type = double, range={$\geq 0$}, length={\texttt{NCOMP}}]{KMCL\_KACT} 
+  Activation temperatures
+  \end{dataset}
+\begin{dataset}[unit=\si{\mol\per\cubic\metre\of{SP}} , type = double, range={$> 0$}, length={\texttt{NCOMP}}]{KMCL\_QMAX} 
+  Maximum adsorption capacities
+  \end{dataset}
+\begin{dataset}[type = double, range={$> 0$}, length={\texttt{NCOMP}}]{KMCL\_NU} 
+  Salt exponents / characteristic charges 
+  \end{dataset}
+\begin{dataset}[unit=\si{\kelvin}, type = double, range={$\geq 0$}, length={1}]{KMCL\_TEMP} 
+  Temperature 
+  \end{dataset}
+\end{condsubgroup}
 
-\FloatBarrier
+\begin{condsubgroup}{/input/model/unit\_XXX/adsorption}{ADSORPTION\_MODEL = MULTI\_COMPONENT\_SPREADING}{tab:FFAdsorptionMultiCompSpreading}
+\begin{dataset}[type=int,range={$\{ 0,1 \}$},length=1]{IS\_KINETIC}
+    Selects kinetic or quasi-stationary adsorption mode: 1 = kinetic, 0 = quasi-stationary
+  \end{dataset}
+  \begin{dataset}[unit=\si{\cubic\metre\of{MP}\per\mol\per\second}, type = double, range={$\geq 0$}, length={\texttt{NTOTALBND}}]{MCSPR\_KA} 
+    Adsorption rate constants in state-major ordering   
+  \end{dataset}  
+  \begin{dataset}[unit=\si{\per\second}, type = double, range={$\geq 0$}, length={\texttt{NTOTALBND}}]{MCSPR\_KD} 
+    Desorption rate constants in state-major ordering  
+  \end{dataset}  
+  \begin{dataset}[unit=\si{\mol\per\cubic\metre\of{SP}}, type = double, range={$> 0$}, length={\texttt{NTOTALBND}}]{MCSPR\_QMAX} 
+    Maximum adsorption capacities in state-major ordering  
+  \end{dataset}  
+  \begin{dataset}[unit=\si{\per\second}, type = double, range={$\geq 0$}, length={\texttt{NCOMP}}]{MCSPR\_K12} 
+    Exchange rates from the first to the second bound state 
+  \end{dataset}  
+  \begin{dataset}[unit=\si{\per\second}, type = double, range={$\geq 0$}, length={\texttt{NCOMP}}]{MCSPR\_K21} 
+    Exchange rates from the second to the first bound state 
+  \end{dataset}  
+\end{condsubgroup}
+
+\begin{condsubgroup}{/input/model/unit\_XXX/adsorption}{ADSORPTION\_MODEL = MULTISTATE\_STERIC\_MASS\_ACTION}{tab:FFAdsorptionMultiStateStericMassAction}
+\begin{dataset}[type=int,range={$\{ 0,1 \}$},length=1]{IS\_KINETIC}
+    Selects kinetic or quasi-stationary adsorption mode: 1 = kinetic, 0 = quasi-stationary
+  \end{dataset}
+  \begin{dataset}[unit=\si{\raiseto{3}\metre\of{MP}\per\raiseto{3}\metre\of{SP}\per\second}, type = double, range={$\geq 0$}, length={\texttt{NTOTALBND}}]{MSSMA\_KA} 
+    Adsorption rate constants of the components to the different bound states in component-major ordering
+  \end{dataset} 
+  \begin{dataset}[unit=\si{\per\second} , type = double, range={$\geq 0$}, length={\texttt{NTOTALBND}}]{MSSMA\_KD} 
+    Desorption rate constants of the components in the different bound states in component-major ordering
+  \end{dataset} 
+  \begin{dataset}[type = double, range={$\geq 0$}, length={\texttt{NTOTALBND}}]{MSSMA\_NU} 
+    Characteristic charges of the components in the different bound states in component-major ordering
+  \end{dataset} 
+  \begin{dataset}[type = double, range={$\geq 0$}, length={\texttt{NTOTALBND}}]{MSSMA\_SIGMA} 
+    Steric factors of the components in the different bound states in component-major ordering
+  \end{dataset} 
+  \begin{dataset}[unit=\si{\per\second}, type = double, range={$\geq 0$}, length={$\sum_{i=0}^{\texttt{NCOMP} - 1} \texttt{NBND}_i^2$}]{MSSMA\_RATES} 
+    Conversion rates between different bound states in component-row-major ordering 
+  \end{dataset}
+  \begin{dataset}[unit=\si{\mol\per\cubic\metre\of{SP}}, type = double, range={$\geq 0$}, length={1}]{MSSMA\_LAMBDA} 
+    Stationary phase capacity (monovalent salt counterions); The total number of binding sites available on the resin surface 
+  \end{dataset}
+  \begin{dataset}[unit=\si{\mol\per\raiseto{3}\metre\of{MP}}, type = double, range={$> 0$}, length={1}]{MSSMA\_REFC0} 
+    Reference liquid phase concentration (optional, defaults to $1.0$) 
+  \end{dataset} 
+  \begin{dataset}[unit=\si{\mol\per\raiseto{3}\metre\of{SP}}, type = double, range={$> 0$}, length={1}]{MSSMA\_REFQ} 
+    Reference solid phase concentration (optional, defaults to $1.0$)
+  \end{dataset} 
+\end{condsubgroup}
+
+\begin{condsubgroup}{/input/model/unit\_XXX/adsorption}{ADSORPTION\_MODEL = SIMPLE\_MULTISTATE\_STERIC\_MASS\_ACTION}{tab:FFAdsorptionSimpleMultiStateStericMassAction}
+\begin{dataset}[type=int,range={$\{ 0,1 \}$},length=1]{IS\_KINETIC}
+    Selects kinetic or quasi-stationary adsorption mode: 1 = kinetic, 0 = quasi-stationary
+  \end{dataset}
+  \begin{dataset}[unit=\si{\mol\per\cubic\metre\of{SP}}, type = double, range={$\geq 0$}, length={1}]{SMSSMA\_LAMBDA} 
+    Stationary phase capacity (monovalent salt counterions); The total number of binding sites available on the resin surface
+  \end{dataset}
+  \begin{dataset}[unit=\si{\raiseto{3}\metre\of{MP}\per\raiseto{3}\metre\of{SP}\per\second} , type = double, range={$\geq 0$}, length={\texttt{NTOTALBND}}]{SMSSMA\_KA} 
+    Adsorption rate constants of the components to the different bound states in component-major ordering
+  \end{dataset} 
+  \begin{dataset}[unit=\si{\per\second}, type = double, range={$\geq 0$}, length={\texttt{NTOTALBND}}]{SMSSMA\_KD} 
+    Desorption rate constants of the components to the different bound states in component-major ordering
+  \end{dataset} 
+  \begin{dataset}[unit=\si{\per\second}, type = double, range={$\geq 0$}, length={\texttt{NCOMP}}]{SMSSMA\_NU\_MIN} 
+    Characteristic charges of the components in the first (weakest) bound state
+  \end{dataset} 
+  \begin{dataset}[type = double, range={$\geq 0$}, length={\texttt{NCOMP}}]{SMSSMA\_NU\_MAX} 
+    Characteristic charges of the components in the last (strongest) bound state
+  \end{dataset} 
+  \begin{dataset}[type = double, range={$\mathds{R}$}, length={\texttt{NCOMP}}]{SMSSMA\_NU\_QUAD} 
+    Quadratic modifiers of the characteristic charges of the different components depending on the index of the bound state
+  \end{dataset} 
+  \begin{dataset}[type = double, range={$\geq 0$}, length={\texttt{NCOMP}}]{SMSSMA\_SIGMA\_MIN} 
+    Steric factors of the components in the first (weakest) bound state
+  \end{dataset} 
+  \begin{dataset}[type = double, range={$\geq 0$}, length={\texttt{NCOMP}}]{SMSSMA\_SIGMA\_MAX} 
+    Steric factors of the components in the last (strongest) bound state
+  \end{dataset} 
+  \begin{dataset}[type = double, range={$\mathds{R}$}, length={\texttt{NCOMP}}]{SMSSMA\_SIGMA\_QUAD} 
+    Quadratic modifiers of steric factors of the different components depending on the index of the bound state
+  \end{dataset} 
+  \begin{dataset}[unit=\si{\per\second}, type = double, range={$\geq 0$}, length={\texttt{NCOMP}}]{SMSSMA\_KWS} 
+    Exchange rates from a weakly bound state to the next stronger bound state
+  \end{dataset} 
+  \begin{dataset}[unit=\si{\per\second}, type = double, range={$\mathds{R}$}, length={\texttt{NCOMP}}]{SMSSMA\_KWS\_LIN} 
+    Linear exchange rate coefficients from a weakly bound state to the next stronger bound state
+  \end{dataset} 
+  \begin{dataset}[unit=\si{\per\second}, type = double, range={$\mathds{R}$}, length={\texttt{NCOMP}}]{SMSSMA\_KWS\_QUAD} 
+    Quadratic exchange rate coefficients from a weakly bound state to the next stronger bound state
+  \end{dataset} 
+  \begin{dataset}[unit=\si{\per\second}, type = double, range={$\geq 0$}, length={\texttt{NCOMP}}]{SMSSMA\_KSW} 
+    Exchange rates from a strongly bound state to the next weaker bound state
+  \end{dataset} 
+  \begin{dataset}[unit=\si{\per\second}, type = double, range={$\mathds{R}$}, length={\texttt{NCOMP}}]{SMSSMA\_KSW\_LIN} 
+    Linear exchange rate coefficients from a strongly bound state to the next weaker bound state
+  \end{dataset} 
+  \begin{dataset}[unit=\si{\per\second}, type = double, range={$\mathds{R}$}, length={\texttt{NCOMP}}]{SMSSMA\_KSW\_QUAD} 
+    Quadratic exchange rate coefficients from a strongly bound state to the next weaker bound state
+  \end{dataset} 
+  \begin{dataset}[unit=\si{\mol\per\raiseto{3}\metre\of{MP}}, type = double, range={$> 0$}, length={1}]{SMSSMA\_REFC0} 
+    Reference liquid phase concentration (optional, defaults to $1.0$) 
+  \end{dataset} 
+  \begin{dataset}[unit=\si{\mol\per\raiseto{3}\metre\of{SP}}, type = double, range={$> 0$}, length={1}]{SMSSMA\_REFQ} 
+    Reference solid phase concentration (optional, defaults to $1.0$)
+  \end{dataset} 
+\end{condsubgroup}
+
+\begin{condsubgroup}{/input/model/unit\_XXX/adsorption}{ADSORPTION\_MODEL = BI\_STERIC\_MASS\_ACTION}{tab:FFAdsorptionBiStericMassAction}
+\begin{dataset}[type=int,range={$\{ 0,1 \}$},length=1]{IS\_KINETIC}
+    Selects kinetic or quasi-stationary adsorption mode: 1 = kinetic, 0 = quasi-stationary
+  \end{dataset}
+  \begin{dataset}[unit=\si{\raiseto{3}\metre\of{MP}\per\raiseto{3}\metre\of{SP}\per\second}, type = double, range={$\geq 0.0$}, length={$\texttt{NSTATES} \cdot \texttt{NCOMP}$}]{BISMA\_KA} 
+    Adsorption rate constants in state-major ordering
+  \end{dataset} 
+  \begin{dataset}[unit=\si{\per\second}, type = double, range={$\geq 0.0$}, length={$\texttt{NSTATES} \cdot \texttt{NCOMP}$}]{BISMA\_KD} 
+    Desorption rate constants in state-major ordering
+  \end{dataset} 
+  \begin{dataset}[unit=\si{\per\second}, type = double, range={$\geq 0.0$}, length={$\texttt{NSTATES} \cdot \texttt{NCOMP}$}]{BISMA\_NU} 
+    Characteristic charges $\nu_{i,j}$ of the $i$th protein with respect to the $j$th binding site type in state-major ordering
+  \end{dataset} 
+  \begin{dataset}[unit=\si{\per\second}, type = double, range={$\geq 0.0$}, length={$\texttt{NSTATES} \cdot \texttt{NCOMP}$}]{BISMA\_SIGMA} 
+    Steric factors $\sigma_{i,j}$ of the $i$th protein with respect to the $j$th binding site type in state-major ordering
+  \end{dataset} 
+  \begin{dataset}[unit=\si{\mol\per\cubic\metre\of{SP}}, type = double, range={$\geq 0.0$}, length={\texttt{NSTATES}}]{BISMA\_LAMBDA} 
+    Stationary phase capacity (monovalent salt counterions) of the different binding site types $\lambda_j$
+  \end{dataset}
+  \begin{dataset}[unit=\si{\mol\per\raiseto{3}\metre\of{MP}}, type = double, range={$> 0$}, length={$\{1,\texttt{NSTATES}\}$}]{BISMA\_REFC0} 
+    Reference liquid phase concentration for each binding site type or one value for all types (optional, defaults to $1.0$)
+  \end{dataset} 
+  \begin{dataset}[unit=\si{\mol\per\raiseto{3}\metre\of{SP}}, type = double, range={$> 0$}, length={$\{1,\texttt{NSTATES}\}$}]{BISMA\_REFQ} 
+    Reference solid phase concentration for each binding site type or one value for all types (optional, defaults to $1.0$)
+  \end{dataset} 
+\end{condsubgroup}
+
 \subsection{Return data}
 
-\begin{table}[!ht]
-\footnotesize
-\begin{tabu}to \linewidth[m]{lX[m]cc} \toprule
-\multicolumn{4}{c}{\GroupHeadline{/input/return}} \\
-\rowfont[c]\normalfont Dataset & Description & Type & Range \everyrow{\midrule}\\
-\texttt{WRITE\_SOLUTION\_TIMES} & Write times at which a solution was produced (optional, defaults to 1) & int & 0/1 \\
-\texttt{WRITE\_SOLUTION\_LAST} & Write full solution state vector at last time point (optional, defaults to 0) & int & 0/1 \\
-\texttt{WRITE\_SENS\_LAST} & Write full sensitivity state vectors at last time point (optional, defaults to 0) & int & 0/1 \\
-\texttt{SPLIT\_COMPONENTS\_DATA} & Determines whether a joint dataset (matrix) for all components is created or if each component is put in a separate dataset (\texttt{XXX\_COMP\_000}, \texttt{XXX\_COMP\_001}, etc.) (optional, defaults to 1) & int & 0/1 \everyrow{}\\
-\bottomrule
-\end{tabu}
-\caption{\label{tab:FFReturn}Datasets in the \texttt{/input/model/return} group}
-\end{table}
+\begin{groupscope}{/input/return}{tab:FFReturn}
+  \begin{dataset}[type = int, range={$\{0,1\}$}]{WRITE\_SOLUTION\_TIMES}
+    Write times at which a solution was produced (optional, defaults to 1)
+  \end{dataset}
+  \begin{dataset}[type = int, range={$\{0,1\}$}]{WRITE\_SOLUTION\_LAST}
+    Write full solution state vector at last time point (optional, defaults to 0)
+  \end{dataset}
+  \begin{dataset}[type = int, range={$\{0,1\}$}]{WRITE\_SENS\_LAST}
+    Write full sensitivity state vectors at last time point (optional, defaults to 0)
+  \end{dataset}
+  \begin{dataset}[type = int, range={$\{0,1\}$}]{SPLIT\_COMPONENTS\_DATA}
+    Determines whether a joint dataset (matrix) for all components is created or if each component is put in a separate dataset (\texttt{XXX\_COMP\_000}, \texttt{XXX\_COMP\_001}, etc.) (optional, defaults to 1)
+  \end{dataset}
+\end{groupscope}
 
-\begin{table}[!ht]
-\footnotesize
-\begin{tabu}to \linewidth[m]{lX[m]cc} \toprule
-\multicolumn{4}{c}{\GroupHeadline{/input/return/unit\_XXX}} \\
-\rowfont[c]\normalfont Dataset & Description & Type & Range \everyrow{\midrule}\\
-\texttt{WRITE\_SOLUTION\_INLET} & Write solutions at unit operation inlet $c_i(t,0)$ & int & 0/1 \\
-\texttt{WRITE\_SOLUTION\_OUTLET} & Write solutions at unit operation outlet (chromatograms) $c_i(t,L)$ & int & 0/1 \\
-\texttt{WRITE\_SOLUTION\_BULK} & Write solutions of the bulk volume $c_i$ & int & 0/1 \\
-\texttt{WRITE\_SOLUTION\_PARTICLE} & Write solutions of the particle mobile phase $c_{p,i}$ & int & 0/1 \\
-\texttt{WRITE\_SOLUTION\_SOLID} & Write solutions of the solid phase $q_{i,j}$ & int & 0/1 \\
-\texttt{WRITE\_SOLUTION\_FLUX} & Write solutions of the bead fluxes $j_{f,i}$ & int & 0/1 \\
-\texttt{WRITE\_SOLUTION\_VOLUME} & Write solutions of the volume $V$ & int & 0/1 \\
-\texttt{WRITE\_SOLDOT\_INLET} & Write solution time derivatives at unit operation inlet $\partial c_i(t,0) / \partial t$ & int & 0/1 \\
-\texttt{WRITE\_SOLDOT\_OUTLET} & Write solution time derivatives at unit operation outlet (chromatograms) $\partial c_i(t,L) / \partial t$ & int & 0/1 \\
-\texttt{WRITE\_SOLDOT\_BULK} & Write solution time derivatives of the bulk volume $\partial c_i / \partial t$ & int & 0/1 \\
-\texttt{WRITE\_SOLDOT\_PARTICLE} & Write solution time derivatives of the particle mobile phase $\partial c_{p,i} / \partial t$ & int & 0/1 \\
-\texttt{WRITE\_SOLDOT\_SOLID} & Write solution time derivatives of the solid phase $\partial q_{i,j} / \partial t$ & int & 0/1 \\
-\texttt{WRITE\_SOLDOT\_FLUX} & Write solution time derivatives of the bead fluxes $\partial j_{f,i} / \partial t$ & int & 0/1 \\
-\texttt{WRITE\_SOLDOT\_VOLUME} & Write solution time derivatives of the volume $\partial V / \partial t$ & int & 0/1 \\
-\texttt{WRITE\_SENS\_INLET} & Write sensitivities at unit operation inlet $\partial c_i(t,0) / \partial p$ & int & 0/1 \\
-\texttt{WRITE\_SENS\_OUTLET} & Write sensitivities at unit operation outlet (chromatograms) $\partial c_i(t,L) / \partial p$ & int & 0/1 \\
-\texttt{WRITE\_SENS\_BULK} & Write sensitivities of the bulk volume $\partial c_i / \partial p$ & int & 0/1 \\
-\texttt{WRITE\_SENS\_PARTICLE} & Write sensitivities of the particle mobile phase $\partial c_{p,i} / \partial p$ & int & 0/1 \\
-\texttt{WRITE\_SENS\_SOLID} & Write sensitivities of the solid phase $\partial q_{i,j} / \partial p$ & int & 0/1 \\
-\texttt{WRITE\_SENS\_FLUX} & Write sensitivities of the bead fluxes $\partial j_{f,i} / \partial p$ & int & 0/1 \\
-\texttt{WRITE\_SENS\_VOLUME} & Write sensitivities of the volume $\partial V / \partial p$ & int & 0/1 \\
-\texttt{WRITE\_SENSDOT\_INLET} & Write sensitivity time derivatives at unit operation inlet $\partial^2 c_i(t,0) / (\partial p, \partial t)$ & int & 0/1 \\
-\texttt{WRITE\_SENSDOT\_OUTLET} & Write sensitivity time derivatives at unit operation outlet (chromatograms) $\partial^2 c_i(t,L) / (\partial p, \partial t)$ & int & 0/1 \\
-\texttt{WRITE\_SENSDOT\_BULK} & Write sensitivity time derivatives of the bulk volume $\partial^2 c_i / (\partial p, \partial t)$ & int & 0/1 \\
-\texttt{WRITE\_SENSDOT\_PARTICLE} & Write sensitivity time derivatives of the particle mobile phase $\partial^2 c_{p,i} / (\partial p, \partial t)$ & int & 0/1 \\
-\texttt{WRITE\_SENSDOT\_SOLID} & Write sensitivity time derivatives of the solid phase $\partial^2 q_{i,j} / (\partial p, \partial t)$ & int & 0/1 \\
-\texttt{WRITE\_SENSDOT\_FLUX} & Write sensitivity time derivatives of the bead fluxes $\partial^2 j_{f,i} / (\partial p, \partial t)$ & int & 0/1 \\
-\texttt{WRITE\_SENSDOT\_VOLUME} & Write sensitivity time derivatives of the volume $\partial^2 V / (\partial p, \partial t)$ & int & 0/1 \everyrow{}\\
-\bottomrule
-\end{tabu}
-\caption{\label{tab:FFReturnUnit}Datasets in the \texttt{/input/model/return/unit\_XXX} group}
-\end{table}
+\begin{groupscope}{/input/return/unit\_XXX}{tab:FFReturnUnit}
+  \begin{dataset}[type=int, range={$\{0,1\}$}]{WRITE\_SOLUTION\_INLET}
+    Write solutions at unit operation inlet $c^l_i(t,0)$
+  \end{dataset}
+  \begin{dataset}[type=int, range={$\{0,1\}$}]{WRITE\_SOLUTION\_OUTLET}
+    Write solutions at unit operation outlet (chromatograms) $c^l_i(t,L)$
+  \end{dataset}
+  \begin{dataset}[type=int, range={$\{0,1\}$}]{WRITE\_SOLUTION\_BULK}
+    Write solutions of the bulk volume $c^l_i$
+  \end{dataset}
+  \begin{dataset}[type=int, range={$\{0,1\}$}]{WRITE\_SOLUTION\_PARTICLE}
+    Write solutions of the particle mobile phase $c^p_{j,i}$
+  \end{dataset}
+  \begin{dataset}[type=int, range={$\{0,1\}$}]{WRITE\_SOLUTION\_SOLID}
+    Write solutions of the solid phase $c^s_{j,i,m_{j,i}}$
+  \end{dataset}
+  \begin{dataset}[type=int, range={$\{0,1\}$}]{WRITE\_SOLUTION\_FLUX}
+    Write solutions of the bead fluxes $j_{f,i}$
+  \end{dataset}
+  \begin{dataset}[type=int, range={$\{0,1\}$}]{WRITE\_SOLUTION\_VOLUME}
+    Write solutions of the volume $V$
+  \end{dataset}
+  \begin{dataset}[type=int, range={$\{0,1\}$}]{WRITE\_SOLDOT\_INLET}
+    Write solution time derivatives at unit operation inlet $\partial c^l_i(t,0) / \partial t$
+  \end{dataset}
+  \begin{dataset}[type=int, range={$\{0,1\}$}]{WRITE\_SOLDOT\_OUTLET}
+    Write solution time derivatives at unit operation outlet (chromatograms) $\partial c^l_i(t,L) / \partial t$
+  \end{dataset}
+  \begin{dataset}[type=int, range={$\{0,1\}$}]{WRITE\_SOLDOT\_BULK}
+    Write solution time derivatives of the bulk volume $\partial c^l_i / \partial t$
+  \end{dataset}
+  \begin{dataset}[type=int, range={$\{0,1\}$}]{WRITE\_SOLDOT\_PARTICLE}
+    Write solution time derivatives of the particle mobile phase $\partial c^p_{j,i} / \partial t$
+  \end{dataset}
+  \begin{dataset}[type=int, range={$\{0,1\}$}]{WRITE\_SOLDOT\_SOLID}
+    Write solution time derivatives of the solid phase $\partial c^s_{j,i,m_{j,i}} / \partial t$
+  \end{dataset}
+  \begin{dataset}[type=int, range={$\{0,1\}$}]{WRITE\_SOLDOT\_FLUX}
+    Write solution time derivatives of the bead fluxes $\partial j_{f,i} / \partial t$
+  \end{dataset}
+  \begin{dataset}[type=int, range={$\{0,1\}$}]{WRITE\_SOLDOT\_VOLUME}
+    Write solution time derivatives of the volume $\partial V / \partial t$
+  \end{dataset}
+  \begin{dataset}[type=int, range={$\{0,1\}$}]{WRITE\_SENS\_INLET}
+    Write sensitivities at unit operation inlet $\partial c^l_i(t,0) / \partial p$
+  \end{dataset}
+  \begin{dataset}[type=int, range={$\{0,1\}$}]{WRITE\_SENS\_OUTLET}
+    Write sensitivities at unit operation outlet (chromatograms) $\partial c^l_i(t,L) / \partial p$
+  \end{dataset}
+  \begin{dataset}[type=int, range={$\{0,1\}$}]{WRITE\_SENS\_BULK}
+    Write sensitivities of the bulk volume $\partial c^l_i / \partial p$
+  \end{dataset}
+  \begin{dataset}[type=int, range={$\{0,1\}$}]{WRITE\_SENS\_PARTICLE}
+    Write sensitivities of the particle mobile phase $\partial c^p_{j,i} / \partial p$
+  \end{dataset}
+  \begin{dataset}[type=int, range={$\{0,1\}$}]{WRITE\_SENS\_SOLID}
+    Write sensitivities of the solid phase $\partial c^s_{j,i,m_{j,i}} / \partial p$
+  \end{dataset}
+  \begin{dataset}[type=int, range={$\{0,1\}$}]{WRITE\_SENS\_FLUX}
+    Write sensitivities of the bead fluxes $\partial j_{f,i} / \partial p$
+  \end{dataset}
+  \begin{dataset}[type=int, range={$\{0,1\}$}]{WRITE\_SENS\_VOLUME}
+    Write sensitivities of the volume $\partial V / \partial p$
+  \end{dataset}
+  \begin{dataset}[type=int, range={$\{0,1\}$}]{WRITE\_SENSDOT\_INLET}
+    Write sensitivity time derivatives at unit operation inlet $\partial^2 c^l_i(t,0) / (\partial p, \partial t)$
+  \end{dataset}
+  \begin{dataset}[type=int, range={$\{0,1\}$}]{WRITE\_SENSDOT\_OUTLET}
+    Write sensitivity time derivatives at unit operation outlet (chromatograms) $\partial^2 c^l_i(t,L) / (\partial p, \partial t)$
+  \end{dataset}
+  \begin{dataset}[type=int, range={$\{0,1\}$}]{WRITE\_SENSDOT\_BULK}
+    Write sensitivity time derivatives of the bulk volume $\partial^2 c^l_i / (\partial p, \partial t)$
+  \end{dataset}
+  \begin{dataset}[type=int, range={$\{0,1\}$}]{WRITE\_SENSDOT\_PARTICLE}
+    Write sensitivity time derivatives of the particle mobile phase $\partial^2 c^p_{j,i} / (\partial p, \partial t)$
+  \end{dataset}
+  \begin{dataset}[type=int, range={$\{0,1\}$}]{WRITE\_SENSDOT\_SOLID}
+    Write sensitivity time derivatives of the solid phase $\partial^2 c^s_{j,i,m_{j,i}} / (\partial p, \partial t)$
+  \end{dataset}
+  \begin{dataset}[type=int, range={$\{0,1\}$}]{WRITE\_SENSDOT\_FLUX}
+    Write sensitivity time derivatives of the bead fluxes $\partial^2 j_{f,i} / (\partial p, \partial t)$
+  \end{dataset}
+  \begin{dataset}[type=int, range={$\{0,1\}$}]{WRITE\_SENSDOT\_VOLUME}
+    Write sensitivity time derivatives of the volume $\partial^2 V / (\partial p, \partial t)$
+  \end{dataset}
+\end{groupscope}
 
-\FloatBarrier
 \subsection{Parameter sensitivities}
 
-\begin{table}[!ht]
-\footnotesize
-\begin{tabu}to \linewidth[m]{lX[m]cc} \toprule
-\multicolumn{4}{c}{\GroupHeadline{/input/sensitivity}} \\
-\rowfont[c]\normalfont Dataset & Description & Type & Range \everyrow{\midrule}\\      
-\texttt{NSENS} & Number of sensitivities to be computed & int & $\geq 0$\\
-\texttt{SENS\_METHOD} & Method used for computation of sensitivities (algorithmic differentiation) & string
-& \begin{tabular}{@{}c@{}}
-  \texttt{ad1}
-  \end{tabular} \everyrow{}\\
-\bottomrule
-\end{tabu}
-\caption{\label{tab:FFSensitivity}Datasets in the \texttt{/input/sensitivity} group}
-\end{table}
+\begin{groupscope}{/input/sensitivity}{tab:FFSensitivity} 
+  \begin{dataset}[type=int, range={$\geq 0$}, length=1]{NSENS}
+    Number of sensitivities to be computed
+  \end{dataset}     
+  \begin{dataset}[type=string, range={\texttt{ad1}}, length=1]{SENS\_METHOD}
+    Method used for computation of sensitivities (algorithmic differentiation)
+  \end{dataset}    
+\end{groupscope}
 
-\begin{table}[!ht]
-\footnotesize
-\begin{tabu}to \linewidth[m]{lX[m]ccc} \toprule
-\multicolumn{5}{c}{\GroupHeadline{/input/sensitivity/param\_XXX}} \\
-\rowfont[c]\normalfont Dataset & Description & Type & Range & Length \everyrow{\midrule}\\      
-\texttt{SENS\_UNIT} & Unit operation index & int & $\geq 0$ & $\geq 1$\\
-\texttt{SENS\_NAME} & Name of the parameter & string & *\footnote{See} & $\geq 1$ \\
-\texttt{SENS\_COMP} & Component index ($-1$ if parameter is independent of components) & int & $\geq -1$ & $\geq 1$\\
-\texttt{SENS\_REACTION} & Reaction index ($-1$ if parameter is independent of reactions) & int & $\geq -1$ & $\geq 1$\\
-\texttt{SENS\_BOUNDPHASE} & Bound phase index ($-1$ if parameter is independent of bound phases) & int & $\geq -1$ & $\geq 1$\\
-\texttt{SENS\_SECTION} & Section index ($-1$ if parameter is independent of sections) & int & $\geq -1$ & $\geq 1$\\
-\texttt{SENS\_ABSTOL} & Absolute tolerance used in the computation of the sensitivities (optional). Rule of thumb: \texttt{ABSTOL} / \texttt{PARAM\_VALUE} & double & $\geq 0.0$ & $\geq 1$\\
-\texttt{SENS\_FACTOR} & Linear factor of the combined sensitivity (optional, taken as $1.0$ if left out) & double & $\mathds{R}$ & $\geq 1$\everyrow{}\\
-\bottomrule
-\end{tabu}
-\caption{\label{tab:FFSensitivityParam}Datasets in the \texttt{/input/sensitivity/param\_XXX} groups}
-\end{table}
+\begin{groupscope}{/input/sensitivity/param\_XXX}{tab:FFSensitivityParam}
+  \begin{dataset}[type = int, range={$\geq 0$}, length={$\geq 1$}]{SENS\_UNIT} 
+    Unit operation index  
+  \end{dataset}
+  \begin{dataset}[type = string, range={See} ,length={$\geq 1$}]{SENS\_NAME} 
+    Name of the parameter
+  \end{dataset}
+  \begin{dataset}[type = int, range={$\geq -1$}, length={$\geq 1$}]{SENS\_COMP} 
+    Component index ($-1$ if parameter is independent of components)  
+  \end{dataset}
+  \begin{dataset}[type = int, range={$\geq -1$}, length={$\geq 1$}]{SENS\_REACTION} 
+    Reaction index ($-1$ if parameter is independent of reactions)  
+  \end{dataset}
+  \begin{dataset}[type = int, range={$\geq -1$}, length={$\geq 1$}]{SENS\_BOUNDPHASE} 
+    Bound phase index ($-1$ if parameter is independent of bound phases)  
+  \end{dataset}
+  \begin{dataset}[type = int, range={$\geq -1$}, length={$\geq 1$}]{SENS\_SECTION} 
+    Section index ($-1$ if parameter is independent of sections)  
+  \end{dataset}
+  \begin{dataset}[type = double, range={$\geq 0.0$}, length={$\geq 1$}]{SENS\_ABSTOL} 
+    Absolute tolerance used in the computation of the sensitivities (optional).
+    Rule of thumb: \texttt{ABSTOL} / \texttt{PARAM\_VALUE} 
+  \end{dataset}
+  \begin{dataset}[type = double, range={$\mathds{R}$} ,length={$\geq 1$}]{SENS\_FACTOR} 
+    Linear factor of the combined sensitivity (optional, taken as $1.0$ if left out) 
+  \end{dataset}
+\end{groupscope}
 
-\FloatBarrier
 \subsection{Solver configuration}
 
-\begin{table}[!ht]
-\footnotesize
-\begin{tabu}to \linewidth[m]{lX[m]cccc} \toprule
-\multicolumn{6}{c}{\GroupHeadline{/input/solver}} \\
-\rowfont[c]\normalfont Dataset & Description & Unit & Type & Range & Length \everyrow{\midrule}\\      
-\texttt{NTHREADS} & Number of used threads & -- & int & $\geq 1$ & 1\\
-\texttt{USER\_SOLUTION\_TIMES} & Vector with timepoints at which a solution is desired & \si{\second} & double & $\geq 0.0$ & Arbitrary \\
-\texttt{CONSISTENT\_INIT\_MODE} & Consistent initialization mode (optional, defaults to $1$) & -- & int & \begin{tabular}{c}
-    0 (none) \\
-    1 (full) \\
-    2 (once, full) \\
-    3 (lean) \\
-    4 (once, lean) \\
-    5 (full once, then lean) \\
-    6 (none once, then full) \\
-    7 (none once, then lean)
-  \end{tabular} & 1 \\
-\texttt{CONSISTENT\_INIT\_MODE\_SENS} & Consistent initialization mode (optional, defaults to $1$) & -- & int & \begin{tabular}{c}
-    0 (none) \\
-    1 (full) \\
-    2 (once, full) \\
-    3 (lean) \\
-    4 (once, lean) \\
-    5 (full once, then lean) \\
-    6 (none once, then full) \\
-    7 (none once, then lean)
-  \end{tabular} & 1 \everyrow{}\\
-\bottomrule
-\end{tabu}
-\caption{\label{tab:FFSolver}Datasets in the \texttt{/input/solver} group}
-\end{table}
+\begin{groupscope}{/input/solver}{tab:FFSolver}
+  \begin{dataset}[type=int,range={$\geq 1$},length=1]{NTHREADS}
+    Number of used threads
+  \end{dataset}
+  \begin{dataset}[type=double,unit={\si{\second}},range={$\geq 0$},length={Arbitrary}]{USER\_SOLUTION\_TIMES}
+    Vector with timepoints at which the solution is evaluated
+  \end{dataset}
+  \begin{dataset}[type=int,range={$\{ 0, \dots, 7\}$},length=1]{CONSISTENT\_INIT\_MODE}
+    Consistent initialization mode (optional, defaults to $1$).
+    Valid values are 0 (none), 1 (full), 2 (once, full), 3 (lean), 4 (once, lean), 5 (full once, then lean), 6 (none once, then full), and 7 (none once, then lean).
+  \end{dataset}
+  \begin{dataset}[type=int,range={$\{ 0, \dots, 7\}$},length=1]{CONSISTENT\_INIT\_MODE\_SENS}
+    Consistent initialization mode for parameter sensitivities (optional, defaults to $1$).
+    Valid values are 0 (none), 1 (full), 2 (once, full), 3 (lean), 4 (once, lean), 5 (full once, then lean), 6 (none once, then full), and 7 (none once, then lean).
+  \end{dataset}
+\end{groupscope}
 
-\begin{table}[!ht]
-\footnotesize
-\begin{tabu}to \linewidth[m]{lX[m]ccc} \toprule
-\multicolumn{5}{c}{\GroupHeadline{/input/solver/time\_integrator}} \\
-\rowfont[c]\normalfont Dataset & Description & Type & Range & Length \everyrow{\midrule}\\      
-\texttt{ABSTOL} & Absolute tolerance in the solution of the original system & double & $>0.0$ & 1\\
-\texttt{ALGTOL} & Tolerance in the solution of the nonlinear consistency equations & double & $>0.0$ & 1\\
-\texttt{RELTOL} & Relative tolerance in the solution of the original system & double & $\geq 0.0$ & 1\\
-\texttt{RELTOL\_SENS} & Relative tolerance in the solution of the sensitivity systems & double & $\geq 0.0$ & 1\\
-\texttt{INIT\_STEP\_SIZE} & Initial time integrator step size for each section or one value for all sections (0.0: IDAS default value), see IDAS guide 4.5, 36f. & double & $\geq 0.0$ & 1 / \texttt{NSEC}\\
-\texttt{MAX\_STEPS} & Maximum number of timesteps taken by IDAS (0: IDAS default = 500), see IDAS guide Sec.~4.5 & int & $\geq 0.0$ & 1 \\
-\texttt{MAX\_STEP\_SIZE} & Maximum size of timesteps taken by IDAS (optional, defaults to unlimited $0.0$), see IDAS guide Sec.~4.5 & double & $\geq 0$ & 1 \\
-\texttt{ERRORTEST\_SENS} & Determines whether (forward) sensitivities take part in local error test (optional, defaults to $1$) & int & 0/1 & 1 \\
-\texttt{MAX\_NEWTON\_ITER} & Maximum number of Newton iterations in time step (optional, defaults to $3$) & int & $\geq 0$ & 1 \\
-\texttt{MAX\_ERRTEST\_FAIL} & Maximum number of local error test failures in time step (optional, defaults to $7$) & int & $\geq 0$ & 1 \\
-\texttt{MAX\_CONVTEST\_FAIL} & Maximum number of Newton convergence test failures (optional, defaults to $10$) & int & $\geq 0$ & 1 \\
-\texttt{MAX\_NEWTON\_ITER\_SENS} & Maximum number of Newton iterations in forward sensitivity time step (optional, defaults to $3$) & int & $\geq 0$ & 1 \everyrow{}\\
-\bottomrule
-\end{tabu}
-\caption{\label{tab:FFSolverTime}Datasets in the \texttt{/input/solver/time\_integrator} group}
-\end{table}
+\begin{groupscope}{/input/solver/time\_integrator}{tab:FFSolverTime}
+  \begin{dataset}[type=double,range={$> 0$},length=1]{ABSTOL}
+    Absolute tolerance in the solution of the original system
+  \end{dataset}
+  \begin{dataset}[type=double,range={$\geq 0$},length=1]{RELTOL}
+    Relative tolerance in the solution of the original system
+  \end{dataset}
+  \begin{dataset}[type=double,range={$> 0$},length=1]{ALGTOL}
+    Tolerance in the solution of the nonlinear consistency equations
+  \end{dataset}
+  \begin{dataset}[type=double,range={$\geq 0$},length=1]{RELTOL\_SENS}
+    Relative tolerance in the solution of the sensitivity systems
+  \end{dataset}
+  \begin{dataset}[type=double,unit={\si{\second}},range={$\geq 0$},length={1 / \texttt{NSEC}}]{INIT\_STEP\_SIZE}
+    Initial time integrator step size for each section or one value for all sections ($0.0$: IDAS default value), see IDAS guide 4.5, p.\ 36f.
+  \end{dataset}
+  \begin{dataset}[type=int,range={$\geq 0$},length=1]{MAX\_STEPS}
+    Maximum number of timesteps taken by IDAS (0: IDAS default = 500), see IDAS guide Sec.~4.5
+  \end{dataset}
+  \begin{dataset}[type=double,unit={\si{\second}},range={$\geq 0$},length=1]{MAX\_STEP\_SIZE}
+    Maximum size of timesteps taken by IDAS (optional, defaults to unlimited $0.0$), see IDAS guide Sec.~4.5
+  \end{dataset}
+  \begin{dataset}[type=int,range={$\{0,1\}$},length=1]{ERRORTEST\_SENS}
+    Determines whether (forward) sensitivities take part in local error test (optional, defaults to $1$)
+  \end{dataset}
+  \begin{dataset}[type=int,range={$\geq 0$},length=1]{MAX\_NEWTON\_ITER}
+    Maximum number of Newton iterations in time step (optional, defaults to $3$)
+  \end{dataset}
+  \begin{dataset}[type=int,range={$\geq 0$},length=1]{MAX\_ERRTEST\_FAIL}
+    Maximum number of local error test failures in time step (optional, defaults to $7$)
+  \end{dataset}
+  \begin{dataset}[type=int,range={$\geq 0$},length=1]{MAX\_CONVTEST\_FAIL}
+    Maximum number of Newton convergence test failures (optional, defaults to $10$)
+  \end{dataset}
+  \begin{dataset}[type=int,range={$\geq 0$},length=1]{MAX\_NEWTON\_ITER\_SENS}
+    Maximum number of Newton iterations in forward sensitivity time step (optional, defaults to $3$)
+  \end{dataset}
+\end{groupscope}
 
-\begin{table}[!ht]
-\footnotesize
-\begin{tabu}to \linewidth[m]{lX[m]cccc} \toprule
-\multicolumn{6}{c}{\GroupHeadline{/input/solver/sections}} \\
-\rowfont[c]\normalfont Dataset & Description & Unit & Type & Range & Length \everyrow{\midrule}\\
-\texttt{NSEC} & Number of sections & -- & int & $\geq 1$ & 1\\
-\texttt{SECTION\_TIMES} & Simulation times at which the model changes or behaves discontinously; including start and end times & \si{\second} & double & $\geq 0.0$ & \texttt{NSEC}+1\\
-\texttt{SECTION\_CONTINUITY} & Continuity indicator for each section transition & -- & int &  
-  \begin{tabular}{c}
-    0 (discontinuous) \\
-    1 (continuous)
-  \end{tabular} & \texttt{NSEC}-1
-\everyrow{}\\
-\bottomrule
-\end{tabu}
-\caption{\label{tab:FFSolverSections}Datasets in the \texttt{/input/solver/sections} group}
-\end{table}
+\begin{groupscope}{/input/solver/sections}{tab:FFSolverSections}
+  \begin{dataset}[type=int,range={$\geq 1$},length=1]{NSEC}
+    Number of sections
+  \end{dataset}
+  \begin{dataset}[type=double,unit={\si{\second}},range={$\geq 0$},length={$\texttt{NSEC}+1$}]{SECTION\_TIMES}
+    Simulation times at which the model changes or behaves discontinously; including start and end times
+  \end{dataset}
+  \begin{dataset}[type=int,range={$\{0,1\}$},length={$\texttt{NSEC}-1$}]{SECTION\_CONTINUITY}
+    Continuity indicator for each section transition: 0 (discontinuous) or 1 (continuous).
+  \end{dataset}
+\end{groupscope}
 
-\FloatBarrier
 \section{Output group}\label{sec:FFOutput}
 
-\begin{table}[!ht]
-\footnotesize
-\begin{tabu}to \linewidth[m]{lX[m]cc} \toprule
-\multicolumn{4}{c}{\GroupHeadline{/output/solution}} \\
-\rowfont[c]\normalfont Dataset & Description & Unit & Type \everyrow{\midrule}\\      
-\texttt{LAST\_STATE\_Y}& Full state vector at the last time point of the time integrator & -- & double \\
-\texttt{LAST\_STATE\_YDOT}& Full time derivative state vector at the last time point of the time integrator & -- & double \\
-\texttt{LAST\_STATE\_SENSY\_XXX}& Full state vector of the \texttt{XXX}th sensitivity system at the last time point of the time integrator & -- & double \\
-\texttt{LAST\_STATE\_SENSYDOT\_XXX}& Full time derivative state vector of the \texttt{XXX}th sensitivity system at the last time point of the time integrator & -- & double \everyrow{}\\
-\bottomrule
-\end{tabu}
-\caption{\label{tab:FFOutput}Datasets in the \texttt{/output} group}
-\end{table}
+\begin{groupscope}{/output/solution}{tab:FFOutput}
+  \begin{dataset}[type=double]{LAST\_STATE}
+    Full state vector at the last time point of the time integrator if \texttt{WRITE\_SOLUTION\_LAST} in \texttt{/input/return} is enabled
+  \end{dataset}
+  \begin{dataset}[type=double]{LAST\_STATE\_YDOT}
+    Full time derivative state vector at the last time point of the time integrator if \texttt{WRITE\_SOLUTION\_LAST} in \texttt{/input/return} is enabled
+  \end{dataset}
+  \begin{dataset}[type=double]{LAST\_STATE\_SENSY\_XXX}
+    Full state vector of the \texttt{XXX}th sensitivity system at the last time point of the time integrator if \texttt{WRITE\_SENS\_LAST} in \texttt{/input/return} is enabled
+  \end{dataset}
+  \begin{dataset}[type=double]{LAST\_STATE\_SENSYDOT\_XXX}
+    Full time derivative state vector of the \texttt{XXX}th sensitivity system at the last time point of the time integrator if \texttt{WRITE\_SENS\_LAST} in \texttt{/input/return} is enabled
+  \end{dataset}
+\end{groupscope}
 
-\begin{table}[!ht]
-\footnotesize
-\begin{tabu}to \linewidth[m]{lX[m]cc} \toprule
-\multicolumn{4}{c}{\GroupHeadline{/output/solution}} \\
-\rowfont[c]\normalfont Dataset & Description & Unit & Type \everyrow{\midrule}\\      
-\texttt{SOLUTION\_TIMES} & Time points at which the solution is written & \si{\second} & double \everyrow{}\\
-\bottomrule
-\end{tabu}
-\caption{\label{tab:FFOutputSolution}Datasets in the \texttt{/output/solution} group}
-\end{table}
+\begin{groupscope}{/output/solution}{tab:FFOutputSolution}
+  \begin{dataset}[type=double,unit={\si{\second}}]{SOLUTION\_TIMES}
+    Time points at which the solution is written if \texttt{WRITE\_SOLUTION\_TIMES} in \texttt{/input/return} is enabled
+  \end{dataset}
+\end{groupscope}
 
-\begin{table}[!ht]
-\footnotesize
-\begin{tabu}to \linewidth[m]{lX[m]cc} \toprule
-\multicolumn{4}{c}{\GroupHeadline{/output/solution/unit\_XXX}} \\
-\rowfont[c]\normalfont Dataset & Description & Unit & Type \everyrow{\midrule}\\      
-\texttt{SOLUTION\_BULK} & Interstitial solution as $n_{\text{Time}} \times \texttt{UNITOPORDERING}$ tensor in row-major storage & \si{\mol\per\cubic\metre\of{IV}} & double \\
-\texttt{SOLUTION\_PARTICLE} & Mobile phase solution inside the beads as $n_{\text{Time}} \times \texttt{UNITOPORDERING}$ tensor in row-major storage & \si{\mol\per\cubic\metre\of{MP}} & double \\
-\texttt{SOLUTION\_SOLID} & Solid phase solution as $n_{\text{Time}} \times \texttt{UNITOPORDERING}$ tensor in row-major storage & \si{\mol\per\cubic\metre\of{SP}} & double \\
-\texttt{SOLUTION\_FLUX} & Flux solution as $n_{\text{Time}} \times \texttt{UNITOPORDERING}$ tensor in row-major storage & \si{\mol\per\square\metre\per\second} & double \\
-\texttt{SOLUTION\_VOLUME} & Volume solution & \si{\cubic\metre} & double \\
-\texttt{SOLUTION\_OUTLET} & Matrix of solutions at the unit operation outlet with components as columns (only present if \texttt{SPLIT\_COMPONENTS\_DATA} is disabled) & \si{\mol\per\cubic\metre\of{IV}} & double \\
-\texttt{SOLUTION\_INLET} & Matrix of solutions at the unit operation inlet with components as columns (only present if \texttt{SPLIT\_COMPONENTS\_DATA} is disabled) & \si{\mol\per\cubic\metre\of{IV}} & double \\
-\texttt{SOLUTION\_OUTLET\_COMP\_XXX} & Component \texttt{XXX} of the solution at the unit operation outlet (only present if \texttt{SPLIT\_COMPONENTS\_DATA} is enabled) & \si{\mol\per\cubic\metre\of{IV}} & double \\
-\texttt{SOLUTION\_INLET\_COMP\_XXX} & Component \texttt{XXX} of the solution at the unit operation inlet (only present if \texttt{SPLIT\_COMPONENTS\_DATA} is enabled) & \si{\mol\per\cubic\metre\of{IV}} & double \\
-\texttt{SOLDOT\_BULK} & Interstitial solution time derivative as $n_{\text{Time}} \times \texttt{UNITOPORDERING}$ tensor in row-major storage & \si{\mol\per\cubic\metre\of{IV}\per\second} & double \\
-\texttt{SOLDOT\_PARTICLE} & Mobile phase solution time derivative inside the beads as $n_{\text{Time}} \times \texttt{UNITOPORDERING}$ tensor in row-major storage & \si{\mol\per\cubic\metre\of{MP}\per\second} & double \\
-\texttt{SOLDOT\_SOLID} & Solid phase solution time derivative as $n_{\text{Time}} \times \texttt{UNITOPORDERING}$ tensor in row-major storage & \si{\mol\per\cubic\metre\of{SP}\per\second} & double \\
-\texttt{SOLDOT\_FLUX} & Flux solution time derivative as $n_{\text{Time}} \times \texttt{UNITOPORDERING}$ tensor in row-major storage & \si{\mol\per\square\metre\per\square\second} & double \\
-\texttt{SOLDOT\_VOLUME} & Volume time derivatives & \si{\cubic\metre\per\second} & double \\
-\texttt{SOLDOT\_OUTLET} & Matrix of solution time derivatives at the unit operation outlet with components as columns (only present if \texttt{SPLIT\_COMPONENTS\_DATA} is disabled) & \si{\mol\per\cubic\metre\of{IV}\per\second} & double \\
-\texttt{SOLDOT\_INLET} & Matrix of solution time derivatives at the unit operation inlet with components as columns (only present if \texttt{SPLIT\_COMPONENTS\_DATA} is disabled) & \si{\mol\per\cubic\metre\of{IV}\per\second} & double \\
-\texttt{SOLDOT\_OUTLET\_COMP\_XXX} & Component \texttt{XXX} of the solution time derivative at the unit operation outlet (only present if \texttt{SPLIT\_COMPONENTS\_DATA} is enabled) & \si{\mol\per\cubic\metre\of{IV}\per\second} & double \\
-\texttt{SOLDOT\_INLET\_COMP\_XXX} & Component \texttt{XXX} of the solution time derivative at the unit operation inlet (only present if \texttt{SPLIT\_COMPONENTS\_DATA} is enabled) & \si{\mol\per\cubic\metre\of{IV}\per\second} & double \everyrow{}\\
-\bottomrule
-\end{tabu}
-\caption{\label{tab:FFOutputSensitivityUnit}Datasets in the \texttt{/output/solution/unit\_XXX} group}
-\end{table}
+\begin{groupscope}{/output/solution/unit\_XXX}{tab:FFOutputSensitivityUnit}
+  \begin{dataset}[type=double,unit={\si{\mol\per\cubic\metre\of{IV}}}]{SOLUTION\_BULK}
+    Interstitial solution as $n_{\text{Time}} \times \texttt{UNITOPORDERING}$ tensor in row-major storage
+  \end{dataset}
+  \begin{dataset}[type=double,unit={\si{\mol\per\cubic\metre\of{MP}}}]{SOLUTION\_PARTICLE}
+    Mobile phase solution inside the particles as $n_{\text{Time}} \times \texttt{UNITOPORDERING}$ tensor in row-major storage.
+    Only present if just one particle type is defined.
+  \end{dataset}
+  \begin{dataset}[type=double,unit={\si{\mol\per\cubic\metre\of{MP}}}]{SOLUTION\_PARTICLE\_PARTYPE\_XXX}
+    Mobile phase solution inside the particles of type \texttt{XXX} as $n_{\text{Time}} \times \texttt{UNITOPORDERING}$ tensor in row-major storage.
+    Only present if more than one particle type is defined.
+  \end{dataset}
+  \begin{dataset}[type=double,unit={\si{\mol\per\cubic\metre\of{MP}}}]{SOLUTION\_SOLID}
+    Solid phase solution inside the particles as $n_{\text{Time}} \times \texttt{UNITOPORDERING}$ tensor in row-major storage.
+    Only present if just one particle type is defined.
+  \end{dataset}
+  \begin{dataset}[type=double,unit={\si{\mol\per\cubic\metre\of{SP}}}]{SOLUTION\_SOLID\_PARTYPE\_XXX}
+    Solid phase solution inside the particles of type \texttt{XXX} as $n_{\text{Time}} \times \texttt{UNITOPORDERING}$ tensor in row-major storage.
+    Only present if more than one particle type is defined.
+  \end{dataset}
+  \begin{dataset}[type=double,unit={\si{\mol\per\square\metre\per\second}}]{SOLUTION\_FLUX}
+    Flux solution as $n_{\text{Time}} \times \texttt{UNITOPORDERING}$ tensor in row-major storage
+  \end{dataset}
+  \begin{dataset}[type=double,unit={\si{\cubic\metre}}]{SOLUTION\_VOLUME}
+    Volume solution
+  \end{dataset}
+  \begin{dataset}[type=double,unit={\si{\mol\per\cubic\metre\of{IV}}}]{SOLUTION\_OUTLET}
+    Matrix of solutions at the unit operation outlet with components as columns in row-major storage.
+    Only present if \texttt{SPLIT\_COMPONENTS\_DATA} is disabled.
+  \end{dataset}
+  \begin{dataset}[type=double,unit={\si{\mol\per\cubic\metre\of{IV}}}]{SOLUTION\_INLET}
+    Matrix of solutions at the unit operation inlet with components as columns in row-major storage.
+    Only present if \texttt{SPLIT\_COMPONENTS\_DATA} is disabled.
+  \end{dataset}
+  \begin{dataset}[type=double,unit={\si{\mol\per\cubic\metre\of{IV}}}]{SOLUTION\_OUTLET\_COMP\_XXX}
+    Component \texttt{XXX} of the solution at the unit operation outlet with.
+    Only present if \texttt{SPLIT\_COMPONENTS\_DATA} is enabled.
+  \end{dataset}
+  \begin{dataset}[type=double,unit={\si{\mol\per\cubic\metre\of{IV}}}]{SOLUTION\_INLET\_COMP\_XXX}
+    Component \texttt{XXX} of the solution at the unit operation inlet with.
+    Only present if \texttt{SPLIT\_COMPONENTS\_DATA} is enabled.
+  \end{dataset}
+  \begin{dataset}[type=double,unit={\si{\mol\per\cubic\metre\of{IV}\per\second}}]{SOLDOT\_BULK}
+    Interstitial solution time derivative as $n_{\text{Time}} \times \texttt{UNITOPORDERING}$ tensor in row-major storage
+  \end{dataset}
+  \begin{dataset}[type=double,unit={\si{\mol\per\cubic\metre\of{MP}\per\second}}]{SOLDOT\_PARTICLE}
+    Mobile phase solution time derivative inside the particles as $n_{\text{Time}} \times \texttt{UNITOPORDERING}$ tensor in row-major storage.
+    Only present if just one particle type is defined.
+  \end{dataset}
+  \begin{dataset}[type=double,unit={\si{\mol\per\cubic\metre\of{MP}\per\second}}]{SOLDOT\_PARTICLE\_PARTYPE\_XXX}
+    Mobile phase solution time derivative inside the particles of type \texttt{XXX} as $n_{\text{Time}} \times \texttt{UNITOPORDERING}$ tensor in row-major storage.
+    Only present if more than one particle type is defined.
+  \end{dataset}
+  \begin{dataset}[type=double,unit={\si{\mol\per\cubic\metre\of{MP}\per\second}}]{SOLDOT\_SOLID}
+    Solid phase solution time derivative inside the particles as $n_{\text{Time}} \times \texttt{UNITOPORDERING}$ tensor in row-major storage.
+    Only present if just one particle type is defined.
+  \end{dataset}
+  \begin{dataset}[type=double,unit={\si{\mol\per\cubic\metre\of{SP}\per\second}}]{SOLDOT\_SOLID\_PARTYPE\_XXX}
+    Solid phase solution time derivative inside the particles of type \texttt{XXX} as $n_{\text{Time}} \times \texttt{UNITOPORDERING}$ tensor in row-major storage.
+    Only present if more than one particle type is defined.
+  \end{dataset}
+  \begin{dataset}[type=double,unit={\si{\mol\per\square\metre\per\square\second}}]{SOLDOT\_FLUX}
+    Flux solution time derivative as $n_{\text{Time}} \times \texttt{UNITOPORDERING}$ tensor in row-major storage
+  \end{dataset}
+  \begin{dataset}[type=double,unit={\si{\cubic\metre\per\second}}]{SOLDOT\_VOLUME}
+    Volume solution time derivative 
+  \end{dataset}
+  \begin{dataset}[type=double,unit={\si{\mol\per\cubic\metre\of{IV}\per\second}}]{SOLDOT\_OUTLET}
+    Matrix of solution time derivatives at the unit operation outlet with components as columns in row-major storage.
+    Only present if \texttt{SPLIT\_COMPONENTS\_DATA} is disabled.
+  \end{dataset}
+  \begin{dataset}[type=double,unit={\si{\mol\per\cubic\metre\of{IV}\per\second}}]{SOLDOT\_INLET}
+    Matrix of solution time derivatives at the unit operation inlet with components as columns in row-major storage.
+    Only present if \texttt{SPLIT\_COMPONENTS\_DATA} is disabled.
+  \end{dataset}
+  \begin{dataset}[type=double,unit={\si{\mol\per\cubic\metre\of{IV}\per\second}}]{SOLDOT\_OUTLET\_COMP\_XXX}
+    Component \texttt{XXX} of the solution time derivative at the unit operation outlet with.
+    Only present if \texttt{SPLIT\_COMPONENTS\_DATA} is enabled.
+  \end{dataset}
+  \begin{dataset}[type=double,unit={\si{\mol\per\cubic\metre\of{IV}\per\second}}]{SOLDOT\_INLET\_COMP\_XXX}
+    Component \texttt{XXX} of the solution time derivative at the unit operation inlet with.
+    Only present if \texttt{SPLIT\_COMPONENTS\_DATA} is enabled.
+  \end{dataset}
+\end{groupscope}
 
-\begin{table}[!ht]
-\footnotesize
-\begin{tabu}to \linewidth[m]{lX[m]cc} \toprule
-\multicolumn{4}{c}{\GroupHeadline{/output/sensitivity/param\_XXX/unit\_YYY}} \\
-\rowfont[c]\normalfont Dataset & Description & Unit & Type \everyrow{\midrule}\\      
-\texttt{SENS\_BULK} & Interstitial sensitivity as $n_{\text{Time}} \times \texttt{UNITOPORDERING}$ tensor in row-major storage & \si{\mol\per\cubic\metre\of{IV}\per\ParamUnit} & double \\
-\texttt{SENS\_PARTICLE} & Mobile phase sensitivity inside the beads as $n_{\text{Time}} \times \texttt{UNITOPORDERING}$ tensor in row-major storage & \si{\mol\per\cubic\metre\of{MP}\per\ParamUnit} & double \\
-\texttt{SENS\_SOLID} & Solid phase sensitivity as $n_{\text{Time}} \times \texttt{UNITOPORDERING}$ tensor in row-major storage & \si{\mol\per\cubic\metre\of{SP}\per\ParamUnit} & double \\
-\texttt{SENS\_FLUX} & Flux sensitivity as $n_{\text{Time}} \times \texttt{UNITOPORDERING}$ tensor in row-major storage & \si{\mol\per\square\metre\per\second\per\ParamUnit} & double \\
-\texttt{SENS\_VOLUME} & Volume sensitivity & \si{\cubic\metre\per\ParamUnit} & double \\
-\texttt{SENS\_OUTLET} & Matrix of sensitivities at the unit operation outlet with components as columns (only present if \texttt{SPLIT\_COMPONENTS\_DATA} is disabled) & \si{\mol\per\cubic\metre\of{IV}\per\ParamUnit} & double \\
-\texttt{SENS\_INLET} & Matrix of sensitivities at the unit operation inlet with components as columns (only present if \texttt{SPLIT\_COMPONENTS\_DATA} is disabled) & \si{\mol\per\cubic\metre\of{IV}\per\ParamUnit} & double \\
-\texttt{SENS\_OUTLET\_COMP\_XXX} & Component \texttt{XXX} of the sensitivity at the unit operation outlet (only present if \texttt{SPLIT\_COMPONENTS\_DATA} is enabled) & \si{\mol\per\cubic\metre\of{IV}\per\ParamUnit} & double \\
-\texttt{SENS\_INLET\_COMP\_XXX} & Component \texttt{XXX} of the sensitivity at the unit operation inlet (only present if \texttt{SPLIT\_COMPONENTS\_DATA} is enabled) & \si{\mol\per\cubic\metre\of{IV}\per\ParamUnit} & double \\
-\texttt{SENSDOT\_BULK} & Interstitial sensitivity time derivative as $n_{\text{Time}} \texttt{UNITOPORDERING}$ tensor in row-major storage & \si{\mol\per\cubic\metre\of{IV}\per\second\per\ParamUnit} & double \\
-\texttt{SENSDOT\_PARTICLE} & Mobile phase sensitivity time derivative inside the beads as $n_{\text{Time}} \texttt{UNITOPORDERING}$ tensor in row-major storage & \si{\mol\per\cubic\metre\of{MP}\per\second\per\ParamUnit} & double \\
-\texttt{SENSDOT\_SOLID} & Solid phase sensitivity time derivative as $n_{\text{Time}} \texttt{UNITOPORDERING}$ tensor in row-major storage & \si{\mol\per\cubic\metre\of{SP}\per\second\per\ParamUnit} & double \\
-\texttt{SENSDOT\_FLUX} & Flux sensitivity time derivative as $n_{\text{Time}} \times \texttt{UNITOPORDERING}$ tensor in row-major storage & \si{\mol\per\square\metre\per\square\second\per\ParamUnit} & double \\
-\texttt{SENSDOT\_VOLUME} & Volume sensitivity time derivatives & \si{\cubic\metre\per\second\per\ParamUnit} & double \\
-\texttt{SENSDOT\_OUTLET} & Matrix of sensitivity time derivatives at the unit operation outlet with components as columns (only present if \texttt{SPLIT\_COMPONENTS\_DATA} is disabled) & \si{\mol\per\cubic\metre\of{IV}\per\second\per\ParamUnit} & double \\
-\texttt{SENSDOT\_INLET} & Matrix of sensitivity time derivatives at the unit operation inlet with components as columns (only present if \texttt{SPLIT\_COMPONENTS\_DATA} is disabled) & \si{\mol\per\cubic\metre\of{IV}\per\second\per\ParamUnit} & double \\
-\texttt{SENSDOT\_OUTLET\_COMP\_XXX} & Component \texttt{XXX} of the sensitivity time derivative at the unit operation outlet (only present if \texttt{SPLIT\_COMPONENTS\_DATA} is enabled) & \si{\mol\per\cubic\metre\of{IV}\per\second\per\ParamUnit} & double \\
-\texttt{SENSDOT\_INLET\_COMP\_XXX} & Component \texttt{XXX} of the sensitivity time derivative at the unit operation inlet (only present if \texttt{SPLIT\_COMPONENTS\_DATA} is enabled) & \si{\mol\per\cubic\metre\of{IV}\per\second\per\ParamUnit} & double \everyrow{}\\
-\bottomrule
-\end{tabu}
-\caption{\label{tab:FFOutputSensitivityParamUnit}Datasets in the \texttt{/output/sensitivity/param\_XXX/unit\_YYY} groups}
-\end{table}
+\begin{groupscope}{/output/sensitivity/param\_XXX/unit\_YYY}{tab:FFOutputSensitivityParamUnit}
+  \begin{dataset}[type=double,unit={\si{\mol\per\cubic\metre\of{IV}\per\ParamUnit}}]{SENS\_BULK}
+    Interstitial sensitivity as $n_{\text{Time}} \times \texttt{UNITOPORDERING}$ tensor in row-major storage
+  \end{dataset}
+  \begin{dataset}[type=double,unit={\si{\mol\per\cubic\metre\of{MP}\per\ParamUnit}}]{SENS\_PARTICLE}
+    Mobile phase sensitivity inside the particles as $n_{\text{Time}} \times \texttt{UNITOPORDERING}$ tensor in row-major storage.
+    Only present if just one particle type is defined.
+  \end{dataset}
+  \begin{dataset}[type=double,unit={\si{\mol\per\cubic\metre\of{MP}\per\ParamUnit}}]{SENS\_PARTICLE\_PARTYPE\_XXX}
+    Mobile phase sensitivity inside the particles of type \texttt{XXX} as $n_{\text{Time}} \times \texttt{UNITOPORDERING}$ tensor in row-major storage.
+    Only present if more than one particle type is defined.
+  \end{dataset}
+  \begin{dataset}[type=double,unit={\si{\mol\per\cubic\metre\of{MP}\per\ParamUnit}}]{SENS\_SOLID}
+    Solid phase sensitivity inside the particles as $n_{\text{Time}} \times \texttt{UNITOPORDERING}$ tensor in row-major storage.
+    Only present if just one particle type is defined.
+  \end{dataset}
+  \begin{dataset}[type=double,unit={\si{\mol\per\cubic\metre\of{SP}\per\ParamUnit}}]{SENS\_SOLID\_PARTYPE\_XXX}
+    Solid phase sensitivity inside the particles of type \texttt{XXX} as $n_{\text{Time}} \times \texttt{UNITOPORDERING}$ tensor in row-major storage.
+    Only present if more than one particle type is defined.
+  \end{dataset}
+  \begin{dataset}[type=double,unit={\si{\mol\per\square\metre\per\second\per\ParamUnit}}]{SENS\_FLUX}
+    Flux sensitivity as $n_{\text{Time}} \times \texttt{UNITOPORDERING}$ tensor in row-major storage
+  \end{dataset}
+  \begin{dataset}[type=double,unit={\si{\cubic\metre\per\ParamUnit}}]{SENS\_VOLUME}
+    Volume sensitivity
+  \end{dataset}
+  \begin{dataset}[type=double,unit={\si{\mol\per\cubic\metre\of{IV}\per\ParamUnit}}]{SENS\_OUTLET}
+    Matrix of sensitivities at the unit operation outlet with components as columns in row-major storage.
+    Only present if \texttt{SPLIT\_COMPONENTS\_DATA} is disabled.
+  \end{dataset}
+  \begin{dataset}[type=double,unit={\si{\mol\per\cubic\metre\of{IV}\per\ParamUnit}}]{SENS\_INLET}
+    Matrix of sensitivities at the unit operation inlet with components as columns in row-major storage.
+    Only present if \texttt{SPLIT\_COMPONENTS\_DATA} is disabled.
+  \end{dataset}
+  \begin{dataset}[type=double,unit={\si{\mol\per\cubic\metre\of{IV}\per\ParamUnit}}]{SENS\_OUTLET\_COMP\_XXX}
+    Component \texttt{XXX} of the sensitivity at the unit operation outlet with.
+    Only present if \texttt{SPLIT\_COMPONENTS\_DATA} is enabled.
+  \end{dataset}
+  \begin{dataset}[type=double,unit={\si{\mol\per\cubic\metre\of{IV}\per\ParamUnit}}]{SENS\_INLET\_COMP\_XXX}
+    Component \texttt{XXX} of the sensitivity at the unit operation inlet with.
+    Only present if \texttt{SPLIT\_COMPONENTS\_DATA} is enabled.
+  \end{dataset}
+  \begin{dataset}[type=double,unit={\si{\mol\per\cubic\metre\of{IV}\per\second\per\ParamUnit}}]{SENSDOT\_BULK}
+    Interstitial sensitivity time derivative as $n_{\text{Time}} \times \texttt{UNITOPORDERING}$ tensor in row-major storage
+  \end{dataset}
+  \begin{dataset}[type=double,unit={\si{\mol\per\cubic\metre\of{MP}\per\second\per\ParamUnit}}]{SENSDOT\_PARTICLE}
+    Mobile phase sensitivity time derivative inside the particles as $n_{\text{Time}} \times \texttt{UNITOPORDERING}$ tensor in row-major storage.
+    Only present if just one particle type is defined.
+  \end{dataset}
+  \begin{dataset}[type=double,unit={\si{\mol\per\cubic\metre\of{MP}\per\second\per\ParamUnit}}]{SENSDOT\_PARTICLE\_PARTYPE\_XXX}
+    Mobile phase sensitivity time derivative inside the particles of type \texttt{XXX} as $n_{\text{Time}} \times \texttt{UNITOPORDERING}$ tensor in row-major storage.
+    Only present if more than one particle type is defined.
+  \end{dataset}
+  \begin{dataset}[type=double,unit={\si{\mol\per\cubic\metre\of{MP}\per\second\per\ParamUnit}}]{SENSDOT\_SOLID}
+    Solid phase sensitivity time derivative inside the particles as $n_{\text{Time}} \times \texttt{UNITOPORDERING}$ tensor in row-major storage.
+    Only present if just one particle type is defined.
+  \end{dataset}
+  \begin{dataset}[type=double,unit={\si{\mol\per\cubic\metre\of{SP}\per\second\per\ParamUnit}}]{SENSDOT\_SOLID\_PARTYPE\_XXX}
+    Solid phase sensitivity time derivative inside the particles of type \texttt{XXX} as $n_{\text{Time}} \times \texttt{UNITOPORDERING}$ tensor in row-major storage.
+    Only present if more than one particle type is defined.
+  \end{dataset}
+  \begin{dataset}[type=double,unit={\si{\mol\per\square\metre\per\square\second\per\ParamUnit}}]{SENSDOT\_FLUX}
+    Flux sensitivity time derivative as $n_{\text{Time}} \times \texttt{UNITOPORDERING}$ tensor in row-major storage
+  \end{dataset}
+  \begin{dataset}[type=double,unit={\si{\cubic\per\second\metre\per\ParamUnit}}]{SENSDOT\_VOLUME}
+    Volume sensitivity time derivative 
+  \end{dataset}
+  \begin{dataset}[type=double,unit={\si{\mol\per\cubic\metre\of{IV}\per\second\per\ParamUnit}}]{SENSDOT\_OUTLET}
+    Matrix of sensitivity time derivatives at the unit operation outlet with components as columns in row-major storage.
+    Only present if \texttt{SPLIT\_COMPONENTS\_DATA} is disabled.
+  \end{dataset}
+  \begin{dataset}[type=double,unit={\si{\mol\per\cubic\metre\of{IV}\per\second\per\ParamUnit}}]{SENSDOT\_INLET}
+    Matrix of sensitivity time derivatives at the unit operation inlet with components as columns in row-major storage.
+    Only present if \texttt{SPLIT\_COMPONENTS\_DATA} is disabled.
+  \end{dataset}
+  \begin{dataset}[type=double,unit={\si{\mol\per\cubic\metre\of{IV}\per\second\per\ParamUnit}}]{SENSDOT\_OUTLET\_COMP\_XXX}
+    Component \texttt{XXX} of the sensitivity time derivative at the unit operation outlet with.
+    Only present if \texttt{SPLIT\_COMPONENTS\_DATA} is enabled.
+  \end{dataset}
+  \begin{dataset}[type=double,unit={\si{\mol\per\cubic\metre\of{IV}\per\second\per\ParamUnit}}]{SENSDOT\_INLET\_COMP\_XXX}
+    Component \texttt{XXX} of the sensitivity time derivative at the unit operation inlet with.
+    Only present if \texttt{SPLIT\_COMPONENTS\_DATA} is enabled.
+  \end{dataset}
+\end{groupscope}
 
-\FloatBarrier
 \section{Meta group}
 
-\begin{table}[!ht]
-\footnotesize
-\begin{tabu}to \linewidth[m]{lX[m]cc} \toprule
-\multicolumn{4}{c}{\GroupHeadline{/meta}} \\
-\rowfont[c]\normalfont Dataset & Description & In / out & Type \everyrow{\midrule}\\      
-\texttt{FILE\_FORMAT} & Version of the file format (defaults to $030102 = 3.1.2$ if omitted) with two digits per part (Major.Minor.Patch) & In & int \\
-\texttt{CADET\_VERSION} & Version of the executed CADET simulator & Out & string \\
-\texttt{CADET\_COMMIT} & Git commit SHA1 from which the CADET simulator was built & Out & string \\
-\texttt{CADET\_BRANCH} & Git branch from which the CADET simulator was built & Out & string \\
-\texttt{TIME\_SIM} & Time that the time integration took in seconds (excluding any preparations and postprocessing) & Out & double 
-\everyrow{}\\
-\bottomrule
-\end{tabu}
-\caption{\label{tab:FFMeta}Datasets in the \texttt{/meta} group}
-\end{table}
-
-\FloatBarrier
+\begin{groupscope}{/meta}{tab:FFMeta}
+  \begin{dataset}[type=int,inout={In}]{FILE\_FORMAT}
+    Version of the file format (defaults to $030102 = 3.1.2$ if omitted) with two digits per part (Major.Minor.Patch)
+  \end{dataset}
+  \begin{dataset}[type=string,inout={Out}]{CADET\_VERSION}
+    Version of the executed CADET simulator
+  \end{dataset}
+  \begin{dataset}[type=string,inout={Out}]{CADET\_COMMIT}
+    Git commit SHA1 from which the CADET simulator was built
+  \end{dataset}
+  \begin{dataset}[type=string,inout={Out}]{CADET\_BRANCH}
+    Git branch from which the CADET simulator was built
+  \end{dataset}
+  \begin{dataset}[type=double,unit={\si{\second}},inout={Out}]{TIME\_SIM}
+    Time that the time integration took (excluding any preparations and postprocessing)
+  \end{dataset}
+\end{groupscope}
