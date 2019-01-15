@@ -359,16 +359,17 @@ bool GeneralRateModel::configure(IParameterProvider& paramProvider)
 
 	// Add parameters to map
 	_parameters[makeParamId(hashString("COL_POROSITY"), _unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_colPorosity;
-	registerParam1DArray(_parameters, _parRadius, [=](bool multi, unsigned int type) { return makeParamId(hashString("PAR_RADIUS"), _unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep); });
-	registerParam1DArray(_parameters, _parCoreRadius, [=](bool multi, unsigned int type) { return makeParamId(hashString("PAR_CORERADIUS"), _unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep); });
-	registerParam1DArray(_parameters, _parPorosity, [=](bool multi, unsigned int type) { return makeParamId(hashString("PAR_POROSITY"), _unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep); });
+	registerParam1DArray(_parameters, _parRadius, [=](bool multi, unsigned int type) { return makeParamId(hashString("PAR_RADIUS"), _unitOpIdx, CompIndep, type, BoundStateIndep, ReactionIndep, SectionIndep); });
+	registerParam1DArray(_parameters, _parCoreRadius, [=](bool multi, unsigned int type) { return makeParamId(hashString("PAR_CORERADIUS"), _unitOpIdx, CompIndep, type, BoundStateIndep, ReactionIndep, SectionIndep); });
+	registerParam1DArray(_parameters, _parPorosity, [=](bool multi, unsigned int type) { return makeParamId(hashString("PAR_POROSITY"), _unitOpIdx, CompIndep, type, BoundStateIndep, ReactionIndep, SectionIndep); });
+	registerParam1DArray(_parameters, _parTypeVolFrac, [=](bool multi, unsigned int type) { return makeParamId(hashString("PAR_TYPE_VOLFRAC"), _unitOpIdx, CompIndep, type, BoundStateIndep, ReactionIndep, SectionIndep); });
 
 	// Calculate the particle radial discretization variables (_parCellSize, _parCenterRadius, etc.)
 	updateRadialDisc();
 
-	registerParam3DArray(_parameters, _filmDiffusion, [=](bool multi, unsigned int sec, unsigned int type, unsigned int comp) { return makeParamId(hashString("FILM_DIFFUSION"), _unitOpIdx, comp, ParTypeIndep, BoundStateIndep, ReactionIndep, multi ? sec : SectionIndep); }, _disc.nComp, _disc.nParType);
-	registerParam3DArray(_parameters, _parDiffusion, [=](bool multi, unsigned int sec, unsigned int type, unsigned int comp) { return makeParamId(hashString("PAR_DIFFUSION"), _unitOpIdx, comp, ParTypeIndep, BoundStateIndep, ReactionIndep, multi ? sec : SectionIndep); }, _disc.nComp, _disc.nParType);
-	registerParam3DArray(_parameters, _poreAccessFactor, [=](bool multi, unsigned int sec, unsigned int type, unsigned int comp) { return makeParamId(hashString("PORE_ACCESSIBILITY"), _unitOpIdx, comp, ParTypeIndep, BoundStateIndep, ReactionIndep, multi ? sec : SectionIndep); }, _disc.nComp, _disc.nParType);
+	registerParam3DArray(_parameters, _filmDiffusion, [=](bool multi, unsigned int sec, unsigned int type, unsigned int comp) { return makeParamId(hashString("FILM_DIFFUSION"), _unitOpIdx, comp, type, BoundStateIndep, ReactionIndep, multi ? sec : SectionIndep); }, _disc.nComp, _disc.nParType);
+	registerParam3DArray(_parameters, _parDiffusion, [=](bool multi, unsigned int sec, unsigned int type, unsigned int comp) { return makeParamId(hashString("PAR_DIFFUSION"), _unitOpIdx, comp, type, BoundStateIndep, ReactionIndep, multi ? sec : SectionIndep); }, _disc.nComp, _disc.nParType);
+	registerParam3DArray(_parameters, _poreAccessFactor, [=](bool multi, unsigned int sec, unsigned int type, unsigned int comp) { return makeParamId(hashString("PORE_ACCESSIBILITY"), _unitOpIdx, comp, type, BoundStateIndep, ReactionIndep, multi ? sec : SectionIndep); }, _disc.nComp, _disc.nParType);
 
 	// Register particle surface diffusion in this ordering:
 	// sec0type0bnd0comp0, sec0type0bnd1comp0, sec0type0bnd2comp0, sec0type0bnd0comp1, sec0type0bnd1comp1,
@@ -388,7 +389,7 @@ bool GeneralRateModel::configure(IParameterProvider& paramProvider)
 					for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
 					{
 						for (unsigned int bnd = 0; bnd < _disc.nBound[comp]; ++bnd, ++idx)
-							_parameters[makeParamId(hashString("PAR_SURFDIFFUSION"), _unitOpIdx, comp, ParTypeIndep, bnd, ReactionIndep, sec)] = &_parSurfDiffusion[idx];
+							_parameters[makeParamId(hashString("PAR_SURFDIFFUSION"), _unitOpIdx, comp, type, bnd, ReactionIndep, sec)] = &_parSurfDiffusion[idx];
 					}
 				}
 			}
@@ -401,7 +402,7 @@ bool GeneralRateModel::configure(IParameterProvider& paramProvider)
 				for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
 				{
 					for (unsigned int bnd = 0; bnd < _disc.nBound[comp]; ++bnd, ++idx)
-						_parameters[makeParamId(hashString("PAR_SURFDIFFUSION"), _unitOpIdx, comp, ParTypeIndep, bnd, ReactionIndep, SectionIndep)] = &_parSurfDiffusion[idx];
+						_parameters[makeParamId(hashString("PAR_SURFDIFFUSION"), _unitOpIdx, comp, type, bnd, ReactionIndep, SectionIndep)] = &_parSurfDiffusion[idx];
 				}
 			}
 		}
@@ -409,7 +410,7 @@ bool GeneralRateModel::configure(IParameterProvider& paramProvider)
 
 	// Register initial conditions parameters
 	registerParam1DArray(_parameters, _initC, [=](bool multi, unsigned int comp) { return makeParamId(hashString("INIT_C"), _unitOpIdx, comp, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep); });
-	registerParam2DArray(_parameters, _initCp, [=](bool multi, unsigned int type, unsigned int comp) { return makeParamId(hashString("INIT_CP"), _unitOpIdx, comp, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep); }, _disc.nComp);
+	registerParam2DArray(_parameters, _initCp, [=](bool multi, unsigned int type, unsigned int comp) { return makeParamId(hashString("INIT_CP"), _unitOpIdx, comp, type, BoundStateIndep, ReactionIndep, SectionIndep); }, _disc.nComp);
 
 	if (!_binding.empty())
 	{
