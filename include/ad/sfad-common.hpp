@@ -1,7 +1,7 @@
 // =============================================================================
 //  SFAD - Simple Forward Automatic Differentiation
 //  
-//  Copyright © 2015-2018: Samuel Leweke¹
+//  Copyright © 2015-2019: Samuel Leweke¹
 //                                      
 //    ¹ Forschungszentrum Juelich GmbH, IBG-1, Juelich, Germany.
 //  

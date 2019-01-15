@@ -1,7 +1,7 @@
 # =============================================================================
 #  CADET - The Chromatography Analysis and Design Toolkit
 #  
-#  Copyright © 2008-2018: The CADET Authors
+#  Copyright © 2008-2019: The CADET Authors
 #            Please see the AUTHORS and CONTRIBUTORS file.
 #  
 #  All rights reserved. This program and the accompanying materials
@@ -46,7 +46,7 @@ write_compiler_detection_header(
 // =============================================================================\n\
 //  CADET - The Chromatography Analysis and Design Toolkit\n\
 //  \n\
-//  Copyright © 2008-2018: The CADET Authors\n\
+//  Copyright © 2008-2019: The CADET Authors\n\
 //            Please see the AUTHORS and CONTRIBUTORS file.\n\
 //  \n\
 //  All rights reserved. This program and the accompanying materials\n\

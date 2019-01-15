@@ -16,7 +16,7 @@ function [solution] = breakthroughParticleCoreRadius()
 %
 %   See also BREAKTHROUGHLANGMUIRSINGLE.
 
-% Copyright: (C) 2008-2018 The CADET Authors
+% Copyright: (C) 2008-2019 The CADET Authors
 %            See the license note at the end of the file.
 
 

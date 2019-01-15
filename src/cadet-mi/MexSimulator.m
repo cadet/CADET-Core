@@ -50,7 +50,7 @@ classdef MexSimulator < handle
 	%   forced (for specific parts of the layer, that is, the simulator, or 
 	%   certain models) by calling MEXSIMULATOR.RECONFIGURE.
 	
-	% Copyright: (C) 2008-2018 The CADET Authors
+	% Copyright: (C) 2008-2019 The CADET Authors
 	%            See the license note at the end of the file.
 	
 	properties (Hidden, Transient, Access = 'protected')
@@ -1328,7 +1328,7 @@ end
 % =============================================================================
 %  CADET - The Chromatography Analysis and Design Toolkit
 %  
-%  Copyright (C) 2008-2018: The CADET Authors
+%  Copyright (C) 2008-2019: The CADET Authors
 %            Please see the AUTHORS and CONTRIBUTORS file.
 %  
 %  All rights reserved. obj program and the accompanying materials

@@ -4,7 +4,7 @@ function success = installCADET()
 %   Return true in SUCCESS if a working CADET interface is available,
 %   returns false otherwise.
 
-% Copyright: (C) 2008-2018 The CADET Authors
+% Copyright: (C) 2008-2019 The CADET Authors
 %            See the license note at the end of the file.
 
 	% Get the path of this file
@@ -50,7 +50,7 @@ end
 % =============================================================================
 %  CADET - The Chromatography Analysis and Design Toolkit
 %  
-%  Copyright (C) 2008-2018: The CADET Authors
+%  Copyright (C) 2008-2019: The CADET Authors
 %            Please see the AUTHORS and CONTRIBUTORS file.
 %  
 %  All rights reserved. obj program and the accompanying materials
