@@ -543,7 +543,7 @@ int LumpedRateModelWithoutPores::residualImpl(const ParamType& t, unsigned int s
 		const double z = 1.0 / static_cast<double>(_disc.nCol) * (0.5 + col);
 
 		double const* const localQdot = yDot ? yDot + idxr.offsetC() + idxr.strideColCell() * col + idxr.strideColLiquid() : nullptr;
-		_binding[0]->residual(t, z, 0.0, secIdx, timeFactor, localY + idxr.strideColLiquid(), localQdot, localRes + idxr.strideColLiquid(), buffer);
+		_binding[0]->residual(t, z, 0.0, secIdx, timeFactor, localY + idxr.strideColLiquid(), localY, localQdot, localRes + idxr.strideColLiquid(), buffer);
 		if (wantJac)
 		{
 			if (cadet_likely(_disc.strideBound > 0))
@@ -556,7 +556,7 @@ int LumpedRateModelWithoutPores::residualImpl(const ParamType& t, unsigned int s
 				linalg::BandMatrix::RowIterator jac = _jac.row(col * idxr.strideColCell() + idxr.strideColLiquid());
 
 				// static_cast should be sufficient here, but this statement is also analyzed when wantJac = false
-				_binding[0]->analyticJacobian(static_cast<double>(t), z, 0.0, secIdx, reinterpret_cast<double const*>(localY) + idxr.strideColLiquid(), jac, buffer);
+				_binding[0]->analyticJacobian(static_cast<double>(t), z, 0.0, secIdx, reinterpret_cast<double const*>(localY) + idxr.strideColLiquid(), idxr.strideColLiquid(), jac, buffer);
 			}
 		}
 
@@ -1022,7 +1022,7 @@ void LumpedRateModelWithoutPores::consistentInitialState(double t, unsigned int 
 			const unsigned int offset = requiredMem * col;
 
 			// Solve algebraic variables
-			_binding[0]->consistentInitialState(t, z, 0.0, secIdx, qShell, errorTol, localAdRes, localAdY,
+			_binding[0]->consistentInitialState(t, z, 0.0, secIdx, qShell, qShell - localOffsetInCell, errorTol, localAdRes, localAdY,
 				localOffsetInCell, adDirOffset, jacExtractor, _tempState + offset, jacobianMatrix);
 		} CADET_PARFOR_END;
 	}

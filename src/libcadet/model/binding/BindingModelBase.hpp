@@ -82,6 +82,7 @@ public:
 	virtual void setExternalFunctions(IExternalFunction** extFuns, unsigned int size) { }
 
 	virtual void timeDerivativeAlgebraicResidual(double t, double z, double r, unsigned int secIdx, double const* y, double* dResDt, void* workSpace) const { }
+
 protected:
 	int _nComp; //!< Number of components
 	unsigned int const* _nBoundStates; //!< Array with number of bound states for each component
@@ -139,12 +140,12 @@ public:
 	virtual bool hasAlgebraicEquations() const CADET_NOEXCEPT { return !_kineticBinding; }
 	virtual void getAlgebraicBlock(unsigned int& idxStart, unsigned int& len) const;
 
-	virtual void consistentInitialState(double t, double z, double r, unsigned int secIdx, double* const vecStateY, double errorTol, 
+	virtual void consistentInitialState(double t, double z, double r, unsigned int secIdx, double* const vecStateY, double const* const yCp, double errorTol, 
 		active* const adRes, active* const adY, unsigned int adEqOffset, unsigned int adDirOffset, const ad::IJacobianExtractor& jacExtractor, 
 		double* const workingMemory, linalg::detail::DenseMatrixBase& workingMat) const;
 
-	virtual void analyticJacobian(double t, double z, double r, unsigned int secIdx, double const* y, linalg::BandMatrix::RowIterator jac, void* workSpace) const;
-	virtual void analyticJacobian(double t, double z, double r, unsigned int secIdx, double const* y, linalg::DenseBandedRowIterator jac, void* workSpace) const;
+	virtual void analyticJacobian(double t, double z, double r, unsigned int secIdx, double const* y, int offsetCp, linalg::BandMatrix::RowIterator jac, void* workSpace) const;
+	virtual void analyticJacobian(double t, double z, double r, unsigned int secIdx, double const* y, int offsetCp, linalg::DenseBandedRowIterator jac, void* workSpace) const;
 	virtual void jacobianAddDiscretized(double alpha, linalg::FactorizableBandMatrix::RowIterator jac) const;
 	virtual void jacobianAddDiscretized(double alpha, linalg::DenseBandedRowIterator jac) const;
 	virtual void multiplyWithDerivativeJacobian(double const* yDotS, double* const res, double timeFactor) const;
@@ -187,12 +188,13 @@ protected:
 	 * @param [in] secIdx Index of the current section
 	 * @param [in] y Pointer to first bound state of the first component in the current particle shell
 	 * @param [in] yCp Pointer to first component in bead liquid phase of the current particle shell
+	 * @param [in] offsetCp Offset from @p y to @p yCp
 	 * @param [in,out] jac Row iterator pointing to the first bound states row of the underlying BandMatrix in which the Jacobian is stored
 	 */
 	virtual void analyticJacobianCore(double t, double z, double r, unsigned int secIdx, double const* y, 
-		double const* yCp, linalg::BandMatrix::RowIterator jac, void* workSpace) const = 0;
+		double const* yCp, int offsetCp, linalg::BandMatrix::RowIterator jac, void* workSpace) const = 0;
 	virtual void analyticJacobianCore(double t, double z, double r, unsigned int secIdx, double const* y, 
-		double const* yCp, linalg::DenseBandedRowIterator jac, void* workSpace) const = 0;
+		double const* yCp, int offsetCp, linalg::DenseBandedRowIterator jac, void* workSpace) const = 0;
 };
 
 
@@ -221,15 +223,15 @@ protected:
 	}                                                                                                                   \
 	                                                                                                                    \
 	virtual void analyticJacobianCore(double t, double z, double r, unsigned int secIdx, double const* y,               \
-		double const* yCp, linalg::BandMatrix::RowIterator jac, void* workSpace) const                                  \
+		double const* yCp, int offsetCp, linalg::BandMatrix::RowIterator jac, void* workSpace) const                    \
 	{                                                                                                                   \
-		jacobianImpl(t, z, r, secIdx, y, yCp, jac, workSpace);                                                          \
+		jacobianImpl(t, z, r, secIdx, y, yCp, offsetCp, jac, workSpace);                                                \
 	}                                                                                                                   \
 	                                                                                                                    \
 	virtual void analyticJacobianCore(double t, double z, double r, unsigned int secIdx, double const* y,               \
-		double const* yCp, linalg::DenseBandedRowIterator jac, void* workSpace) const                                   \
+		double const* yCp, int offsetCp, linalg::DenseBandedRowIterator jac, void* workSpace) const                     \
 	{                                                                                                                   \
-		jacobianImpl(t, z, r, secIdx, y, yCp, jac, workSpace);                                                          \
+		jacobianImpl(t, z, r, secIdx, y, yCp, offsetCp, jac, workSpace);                                                \
 	}
 
 
@@ -263,16 +265,16 @@ protected:
 	                                                                                                                    \
 	TEMPLATELINE                                                                                                        \
 	void CLASSNAME::analyticJacobianCore(double t, double z, double r, unsigned int secIdx, double const* y,            \
-		double const* yCp, linalg::BandMatrix::RowIterator jac, void* workSpace) const                                  \
+		double const* yCp, int offsetCp, linalg::BandMatrix::RowIterator jac, void* workSpace) const                    \
 	{                                                                                                                   \
-		jacobianImpl(t, z, r, secIdx, y, yCp, jac, workSpace);                                                          \
+		jacobianImpl(t, z, r, secIdx, y, yCp, offsetCp, jac, workSpace);                                                \
 	}                                                                                                                   \
 	                                                                                                                    \
 	TEMPLATELINE                                                                                                        \
 	void CLASSNAME::analyticJacobianCore(double t, double z, double r, unsigned int secIdx, double const* y,            \
-		double const* yCp, linalg::DenseBandedRowIterator jac, void* workSpace) const                                   \
+		double const* yCp, int offsetCp, linalg::DenseBandedRowIterator jac, void* workSpace) const                     \
 	{                                                                                                                   \
-		jacobianImpl(t, z, r, secIdx, y, yCp, jac, workSpace);                                                          \
+		jacobianImpl(t, z, r, secIdx, y, yCp, offsetCp, jac, workSpace);                                                \
 	}
 
 

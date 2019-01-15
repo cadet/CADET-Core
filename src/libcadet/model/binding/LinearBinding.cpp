@@ -502,6 +502,13 @@ public:
 		active* const adRes, active* const adY, unsigned int adEqOffset, unsigned int adDirOffset, const ad::IJacobianExtractor& jacExtractor, 
 		double* const workingMemory, linalg::detail::DenseMatrixBase& workingMat) const
 	{
+		consistentInitialState(t, z, r, secIdx, vecStateY, vecStateY - _nComp, errorTol, adRes, adY, adEqOffset, adDirOffset, jacExtractor, workingMemory, workingMat);
+	}
+
+	virtual void consistentInitialState(double t, double z, double r, unsigned int secIdx, double* const vecStateY, double const* const yCp, double errorTol, active* const adRes, active* const adY,
+		unsigned int adEqOffset, unsigned int adDirOffset, const ad::IJacobianExtractor& jacExtractor, double* const workingMemory,
+		linalg::detail::DenseMatrixBase& workingMat) const
+	{
 		// If we have kinetic binding, there are no algebraic equations and we are done
 		if (_kineticBinding)
 			return;
@@ -509,9 +516,6 @@ public:
 		const typename ParamHandler_t::params_t& p = _paramHandler.update(t, z, r, secIdx, _nComp, _nBoundStates, workingMemory);
 
 		// Compute the q_i from their corresponding c_{p,i}
-
-		// Pointer to first component in liquid phase
-		double const* yCp = vecStateY - _nComp;
 
 		unsigned int bndIdx = 0;
 		for (int i = 0; i < _nComp; ++i)
@@ -538,35 +542,69 @@ public:
 	virtual int residual(const active& t, double z, double r, unsigned int secIdx, const active& timeFactor, 
 		active const* y, double const* yDot, active* res, void* workSpace) const
 	{
-		return residualImpl<active, active, active>(t, z, r, secIdx, timeFactor, y, yDot, res, workSpace);
+		return residualImpl<active, active, active>(t, z, r, secIdx, timeFactor, y, y - _nComp, yDot, res, workSpace);
 	}
 
 	virtual int residual(double t, double z, double r, unsigned int secIdx, double timeFactor, 
 		active const* y, double const* yDot, active* res, void* workSpace) const
 	{
-		return residualImpl<active, active, double>(t, z, r, secIdx, timeFactor, y, yDot, res, workSpace);
+		return residualImpl<active, active, double>(t, z, r, secIdx, timeFactor, y, y - _nComp, yDot, res, workSpace);
 	}
 
 	virtual int residual(const active& t, double z, double r, unsigned int secIdx, const active& timeFactor, 
 		double const* y, double const* yDot, active* res, void* workSpace) const
 	{
-		return residualImpl<double, active, active>(t, z, r, secIdx, timeFactor, y, yDot, res, workSpace);
+		return residualImpl<double, active, active>(t, z, r, secIdx, timeFactor, y, y - _nComp, yDot, res, workSpace);
 	}
 
 	virtual int residual(double t, double z, double r, unsigned int secIdx, double timeFactor, 
 		double const* y, double const* yDot, double* res, void* workSpace) const
 	{
-		return residualImpl<double, double, double>(t, z, r, secIdx, timeFactor, y, yDot, res, workSpace);
+		return residualImpl<double, double, double>(t, z, r, secIdx, timeFactor, y, y - _nComp, yDot, res, workSpace);
+	}
+
+	virtual int residual(const active& t, double z, double r, unsigned int secIdx, const active& timeFactor, 
+		active const* y, active const* yCp, double const* yDot, active* res, void* workSpace) const
+	{
+		return residualImpl<active, active, active>(t, z, r, secIdx, timeFactor, y, yCp, yDot, res, workSpace);
+	}
+
+	virtual int residual(double t, double z, double r, unsigned int secIdx, double timeFactor, 
+		active const* y, active const* yCp, double const* yDot, active* res, void* workSpace) const
+	{
+		return residualImpl<active, active, double>(t, z, r, secIdx, timeFactor, y, yCp, yDot, res, workSpace);
+	}
+
+	virtual int residual(const active& t, double z, double r, unsigned int secIdx, const active& timeFactor, 
+		double const* y, double const* yCp, double const* yDot, active* res, void* workSpace) const
+	{
+		return residualImpl<double, active, active>(t, z, r, secIdx, timeFactor, y, yCp, yDot, res, workSpace);
+	}
+
+	virtual int residual(double t, double z, double r, unsigned int secIdx, double timeFactor, 
+		double const* y, double const* yCp, double const* yDot, double* res, void* workSpace) const
+	{
+		return residualImpl<double, double, double>(t, z, r, secIdx, timeFactor, y, yCp, yDot, res, workSpace);
 	}
 
 	virtual void analyticJacobian(double t, double z, double r, unsigned int secIdx, double const* y, linalg::BandMatrix::RowIterator jac, void* workSpace) const
 	{
-		jacobianImpl(t, z, r, secIdx, y, jac, workSpace);
+		jacobianImpl(t, z, r, secIdx, y, _nComp, jac, workSpace);
 	}
 
 	virtual void analyticJacobian(double t, double z, double r, unsigned int secIdx, double const* y, linalg::DenseBandedRowIterator jac, void* workSpace) const
 	{
-		jacobianImpl(t, z, r, secIdx, y, jac, workSpace);
+		jacobianImpl(t, z, r, secIdx, y, _nComp, jac, workSpace);
+	}
+
+	virtual void analyticJacobian(double t, double z, double r, unsigned int secIdx, double const* y, int offsetCp, linalg::BandMatrix::RowIterator jac, void* workSpace) const
+	{
+		jacobianImpl(t, z, r, secIdx, y, offsetCp, jac, workSpace);
+	}
+
+	virtual void analyticJacobian(double t, double z, double r, unsigned int secIdx, double const* y, int offsetCp, linalg::DenseBandedRowIterator jac, void* workSpace) const
+	{
+		jacobianImpl(t, z, r, secIdx, y, offsetCp, jac, workSpace);
 	}
 
 	virtual void jacobianAddDiscretized(double alpha, linalg::FactorizableBandMatrix::RowIterator jac) const
@@ -638,15 +676,12 @@ protected:
 
 	template <typename StateType, typename ResidualType, typename ParamType>
 	int residualImpl(const ParamType& t, double z, double r, unsigned int secIdx, const ParamType& timeFactor,
-		StateType const* y, double const* yDot, ResidualType* res, void* workSpace) const
+		StateType const* y, StateType const* yCp, double const* yDot, ResidualType* res, void* workSpace) const
 	{
 		const typename ParamHandler_t::params_t& p = _paramHandler.update(static_cast<double>(t), z, r, secIdx, _nComp, _nBoundStates, workSpace);
 
 		// Implement k_a * c_{p,i} - k_d * q_i
 		// Note that we actually need dq / dt - [k_a * c_{p,i} - k_d * q_i] = 0
-
-		// Pointer to first component in liquid phase
-		StateType const* yCp = y - _nComp;
 
 		unsigned int bndIdx = 0;
 		for (int i = 0; i < _nComp; ++i)
@@ -671,7 +706,7 @@ protected:
 	}
 
 	template <typename RowIterator>
-	inline void jacobianImpl(double t, double z, double r, unsigned int secIdx, double const* y, RowIterator jac, void* workSpace) const
+	inline void jacobianImpl(double t, double z, double r, unsigned int secIdx, double const* y, int offsetCp, RowIterator jac, void* workSpace) const
 	{
 		const typename ParamHandler_t::params_t& p = _paramHandler.update(t, z, r, secIdx, _nComp, _nBoundStates, workSpace);
 
@@ -683,10 +718,10 @@ protected:
 				continue;
 
 			jac[0] = static_cast<double>(p.kD[i]); // dres / dq_i
-			jac[i - bndIdx - _nComp] = -static_cast<double>(p.kA[i]); // dres / dc_{p,i}
+			jac[i - bndIdx - offsetCp] = -static_cast<double>(p.kA[i]); // dres / dc_{p,i}
 			// The distance from liquid phase to solid phase is reduced for each non-binding component
 			// since a bound state is neglected. The number of neglected bound states so far is i - bndIdx.
-			// Thus, by going back nComp - (i - bndIdx) = -[ i - bndIdx - nComp ] we get to the corresponding
+			// Thus, by going back offsetCp - (i - bndIdx) = -[ i - bndIdx - offsetCp ] we get to the corresponding
 			// liquid phase component.
 
 			++bndIdx;

@@ -164,7 +164,7 @@ public:
 	}
 
 
-	virtual void consistentInitialState(double t, double z, double r, unsigned int secIdx, double* const vecStateY, double errorTol, 
+	virtual void consistentInitialState(double t, double z, double r, unsigned int secIdx, double* const vecStateY, double const* const yCp, double errorTol, 
 		active* const adRes, active* const adY, unsigned int adEqOffset, unsigned int adDirOffset, const ad::IJacobianExtractor& jacExtractor, 
 		double* const workingMemory, linalg::detail::DenseMatrixBase& workingMat) const
 	{
@@ -191,12 +191,12 @@ public:
 					ad::resetAd(adRes + adEqOffset, eqSize);
 
 					// Call residual with AD enabled
-					residualImpl<active, double, active, double>(t, z, r, secIdx, 1.0, adY + adEqOffset, vecStateY - _nComp, nullptr, adRes + adEqOffset, workSpace);
+					residualImpl<active, double, active, double>(t, z, r, secIdx, 1.0, adY + adEqOffset, yCp, nullptr, adRes + adEqOffset, workSpace);
 					
 #ifdef CADET_CHECK_ANALYTIC_JACOBIAN			
 					// Compute analytic Jacobian
 					mat.setAll(0.0);
-					jacobianImpl(t, z, r, secIdx, x, vecStateY - _nComp, mat.row(0), workSpace); 
+					jacobianImpl(t, z, r, secIdx, x, yCp, _nComp, mat.row(0), workSpace); 
 
 					// Compare
 					const double diff = jacExtractor.compareWithJacobian(adRes, adEqOffset, adDirOffset, mat);
@@ -212,13 +212,13 @@ public:
 				// Analytic Jacobian
 				jacobianFunc = [&](double const* const x, linalg::detail::DenseMatrixBase& mat) -> bool { 
 					mat.setAll(0.0);
-					jacobianImpl(t, z, r, secIdx, x, vecStateY - _nComp, mat.row(0), workSpace); 
+					jacobianImpl(t, z, r, secIdx, x, yCp, _nComp, mat.row(0), workSpace); 
 					return true;
 				};
 			}
 
 			const bool conv = _nonlinearSolver->solve([&](double const* const x, double* const res) -> bool {
-					residualImpl<double, double, double, double>(t, z, r, secIdx, 1.0, x, vecStateY - _nComp, nullptr, res, workSpace); 
+					residualImpl<double, double, double, double>(t, z, r, secIdx, 1.0, x, yCp, nullptr, res, workSpace); 
 					return true; 
 				}, 
 				jacobianFunc,
@@ -391,7 +391,7 @@ protected:
 	}
 
 	template <typename RowIterator>
-	void jacobianImpl(double t, double z, double r, unsigned int secIdx, double const* y, double const* yCp, RowIterator jac, void* workSpace) const
+	void jacobianImpl(double t, double z, double r, unsigned int secIdx, double const* y, double const* yCp, int offsetCp, RowIterator jac, void* workSpace) const
 	{
 		const typename ParamHandler_t::params_t& p = _paramHandler.update(t, z, r, secIdx, _nComp, _nBoundStates, workSpace);
 
@@ -440,9 +440,9 @@ protected:
 
 			for (int j = 0; j < static_cast<int>(nBoundStatesI); ++j)
 			{
-				// Getting to c_{p,0}: -bndIdx takes us to q_0, another -nComp to c_{p,0}. This means jac[-bndIdx - nComp] corresponds to c_{p,0}.
-				// Getting to c_{p,i}: -bndIdx takes us to q_0, another -nComp to c_{p,0} and a +i to c_{p,i}.
-				//                     This means jac[i - bndIdx - nComp] corresponds to c_{p,i}.
+				// Getting to c_{p,0}: -bndIdx takes us to q_0, another -offsetCp to c_{p,0}. This means jac[-bndIdx - offsetCp] corresponds to c_{p,0}.
+				// Getting to c_{p,i}: -bndIdx takes us to q_0, another -offsetCp to c_{p,0} and a +i to c_{p,i}.
+				//                     This means jac[i - bndIdx - offsetCp] corresponds to c_{p,i}.
 
 				const double ka = static_cast<double>(curKa[j]);
 				const double kd = static_cast<double>(curKd[j]);
@@ -454,9 +454,9 @@ protected:
 				const double q0_bar_pow_nu_m1_divRef = nu * pow(q0_bar_divRef, nu - 1.0) / refQ;
 
 				// dres_i / dc_{p,0}
-				jac[-bndIdx - _nComp] = kd * y[bndIdx] * nu * c0_pow_nu_m1_divRef;
+				jac[-bndIdx - offsetCp] = kd * y[bndIdx] * nu * c0_pow_nu_m1_divRef;
 				// dres_i / dc_{p,i}
-				jac[i - bndIdx - _nComp] = -ka * q0_bar_pow_nu;
+				jac[i - bndIdx - offsetCp] = -ka * q0_bar_pow_nu;
 				// dres_i / dq_0
 				jac[-bndIdx] = -ka * yCp[i] * q0_bar_pow_nu_m1_divRef;
 
@@ -488,7 +488,7 @@ protected:
 					const double q0_bar_pow_nudiff_deriv = static_cast<double>(curRates[nBoundStatesI * l + j]) * y[bndIdx - j + l] * nuDiff * pow(q0_bar_divRef, nuDiff - 1.0) / refQ;
 
 					// dres_i / dc_{p,0}
-					jac[-bndIdx - _nComp] += static_cast<double>(curRates[nBoundStatesI * j + l]) * y[bndIdx] * nuDiff * pow(yCp0_divRef, nuDiff - 1.0) / refC0;
+					jac[-bndIdx - offsetCp] += static_cast<double>(curRates[nBoundStatesI * j + l]) * y[bndIdx] * nuDiff * pow(yCp0_divRef, nuDiff - 1.0) / refC0;
 					// dres_i / dq_0
 					jac[-bndIdx] -= q0_bar_pow_nudiff_deriv;
 					// dres_i / dq_i^j (current outer loop element)
@@ -512,7 +512,7 @@ protected:
 					const double q0_bar_pow_nudiff_deriv = static_cast<double>(curRates[nBoundStatesI * j + l]) * y[bndIdx] * nuDiff * pow(q0_bar_divRef, nuDiff - 1.0) / refQ;
 
 					// dres_i / dc_{p,0}
-					jac[-bndIdx - _nComp] -= static_cast<double>(curRates[nBoundStatesI * l + j]) * y[bndIdx - j + l] * nuDiff * pow(yCp0_divRef, nuDiff - 1.0) / refC0;
+					jac[-bndIdx - offsetCp] -= static_cast<double>(curRates[nBoundStatesI * l + j]) * y[bndIdx - j + l] * nuDiff * pow(yCp0_divRef, nuDiff - 1.0) / refC0;
 					// dres_i / dq_0
 					jac[-bndIdx] += q0_bar_pow_nudiff_deriv;
 					// dres_i / dq_i^j (current outer loop element)

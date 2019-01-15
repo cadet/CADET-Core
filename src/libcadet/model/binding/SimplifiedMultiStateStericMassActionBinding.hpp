@@ -71,9 +71,10 @@ public:
 	virtual void getAlgebraicBlock(unsigned int& idxStart, unsigned int& len) const;
 
 	virtual unsigned int workspaceSize(unsigned int nComp, unsigned int totalNumBoundStates, unsigned int const* nBoundStates) const CADET_NOEXCEPT;
-	virtual void consistentInitialState(double t, double z, double r, unsigned int secIdx, double* const vecStateY, double errorTol, 
-		active* const adRes, active* const adY, unsigned int adEqOffset, unsigned int adDirOffset, const ad::IJacobianExtractor& jacExtractor, 
-		double* const workingMemory, linalg::detail::DenseMatrixBase& workingMat) const;
+
+	virtual void consistentInitialState(double t, double z, double r, unsigned int secIdx, double* const vecStateY, double const* const yCp, double errorTol, active* const adRes, active* const adY,
+		unsigned int adEqOffset, unsigned int adDirOffset, const ad::IJacobianExtractor& jacExtractor, double* const workingMemory,
+		linalg::detail::DenseMatrixBase& workingMat) const;
 
 	CADET_BINDINGMODEL_RESIDUAL_JACOBIAN_BOILERPLATE
 
@@ -125,7 +126,7 @@ protected:
 		StateType const* y, CpStateType const* yCp, double const* yDot, ResidualType* res, void* workSpace) const;
 
 	template <typename RowIterator>
-	void jacobianImpl(double t, double z, double r, unsigned int secIdx, double const* y, double const* yCp, RowIterator jac, void* workSpace) const;
+	void jacobianImpl(double t, double z, double r, unsigned int secIdx, double const* y, double const* yCp, int offsetCp, RowIterator jac, void* workSpace) const;
 
 	template <typename RowIterator>
 	void jacobianAddDiscretizedImpl(double alpha, RowIterator jac) const;

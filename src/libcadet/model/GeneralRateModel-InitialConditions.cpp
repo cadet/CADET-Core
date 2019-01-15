@@ -242,7 +242,7 @@ void GeneralRateModel::consistentInitialState(double t, unsigned int secIdx, dou
 					const unsigned int offset = _bindingWorkspaceOffset[type] + requiredMem * pblk;
 
 					// Solve algebraic variables
-					_binding[type]->consistentInitialState(t, z, static_cast<double>(_parCenterRadius[_disc.nParCellsBeforeType[type] + shell]) / static_cast<double>(_parRadius[type]), secIdx, qShell, errorTol,
+					_binding[type]->consistentInitialState(t, z, static_cast<double>(_parCenterRadius[_disc.nParCellsBeforeType[type] + shell]) / static_cast<double>(_parRadius[type]), secIdx, qShell, qShell - idxr.strideParLiquid(), errorTol,
 						localAdRes, localAdY, localOffsetInParticle, adDirOffset, jacExtractor, _tempState + offset, jacobianMatrix);
 				}
 			} CADET_PARFOR_END;

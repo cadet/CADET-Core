@@ -190,7 +190,7 @@ protected:
 	}
 
 	template <typename RowIterator>
-	void jacobianImpl(double t, double z, double r, unsigned int secIdx, double const* y, double const* yCp, RowIterator jac, void* workSpace) const
+	void jacobianImpl(double t, double z, double r, unsigned int secIdx, double const* y, double const* yCp, int offsetCp, RowIterator jac, void* workSpace) const
 	{
 		const typename ParamHandler_t::params_t& p = _paramHandler.update(t, z, r, secIdx, _nComp, _nBoundStates, workSpace);
 
@@ -208,15 +208,15 @@ protected:
 
 			// dres_i / dc_{p,j}
 			for (int j = 0; j < _nComp; ++j)
-				jac[j - bndIdx - _nComp] = -static_cast<double>(kSlice[j]) * yCp[i];
-				// Getting to c_{p,i}: -bndIdx takes us to q_0, another -nComp to c_{p,0} and a +j to c_{p,j}.
-				//                     This means jac[j - bndIdx - nComp] corresponds to c_{p,j}.
+				jac[j - bndIdx - offsetCp] = -static_cast<double>(kSlice[j]) * yCp[i];
+				// Getting to c_{p,i}: -bndIdx takes us to q_0, another -offsetCp to c_{p,0} and a +j to c_{p,j}.
+				//                     This means jac[j - bndIdx - offsetCp] corresponds to c_{p,j}.
 
 			// dres_i / dc_{p,i}
 			for (int j = 0; j < _nComp; ++j)
-				jac[i - bndIdx - _nComp] -= static_cast<double>(kSlice[j]) * yCp[j];
+				jac[i - bndIdx - offsetCp] -= static_cast<double>(kSlice[j]) * yCp[j];
 			
-			jac[i - bndIdx - _nComp] -= h;
+			jac[i - bndIdx - offsetCp] -= h;
 
 			// dres_i / dq_i
 			jac[0] = 1.0;

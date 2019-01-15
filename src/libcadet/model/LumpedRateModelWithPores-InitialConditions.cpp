@@ -225,7 +225,7 @@ void LumpedRateModelWithPores::consistentInitialState(double t, unsigned int sec
 			const unsigned int offset = requiredMem * pblk;
 
 			// Solve algebraic variables
-			_binding[0]->consistentInitialState(t, z, static_cast<double>(_parRadius) * 0.5, secIdx, qShell, errorTol, localAdRes, localAdY,
+			_binding[0]->consistentInitialState(t, z, static_cast<double>(_parRadius) * 0.5, secIdx, qShell, qShell - localOffsetInParticle , errorTol, localAdRes, localAdY,
 				localOffsetInParticle, adDirOffset, jacExtractor, _tempState + offset, jacobianMatrix);
 		} CADET_PARFOR_END;
 	}

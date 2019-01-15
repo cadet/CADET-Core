@@ -306,7 +306,7 @@ protected:
 	}
 
 	template <typename RowIterator>
-	void jacobianImpl(double t, double z, double r, unsigned int secIdx, double const* y, double const* yCp, RowIterator jac, void* workSpace) const
+	void jacobianImpl(double t, double z, double r, unsigned int secIdx, double const* y, double const* yCp, int offsetCp, RowIterator jac, void* workSpace) const
 	{
 		const typename ParamHandler_t::params_t& p = _paramHandler.update(t, z, r, secIdx, _nComp, _nBoundStates, workSpace);
 
@@ -352,10 +352,10 @@ protected:
 				const double kd = static_cast<double>(localKd[i]);
 
 				// dres_i / dc_{p,i}
-				jac[i - site - _nComp - nSites * bndIdx] = -ka * static_cast<double>(localQmax[i]) * qSum;
+				jac[i - site - offsetCp - nSites * bndIdx] = -ka * static_cast<double>(localQmax[i]) * qSum;
 				// Getting to c_{p,i}: -nSites * bndIdx takes us to q_{0,site}, another -site to q_{0,0}. From there, we
-				//                     take a -_nComp to reach c_{p,0} and a +i to arrive at c_{p,i}.
-				//                     This means jac[i - site - _nComp - nSites * bndIdx] corresponds to c_{p,i}.
+				//                     take a -offsetCp to reach c_{p,0} and a +i to arrive at c_{p,i}.
+				//                     This means jac[i - site - offsetCp - nSites * bndIdx] corresponds to c_{p,i}.
 
 				// Fill dres_i / dq_j
 				int bndIdx2 = 0;

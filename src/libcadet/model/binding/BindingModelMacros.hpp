@@ -28,27 +28,27 @@
  */
 #define CADET_BINDINGMODEL_RESIDUAL_BOILERPLATE                                                                                \
 	virtual int residual(const active& t, double z, double r, unsigned int secIdx, const active& timeFactor,                   \
-		active const* y, double const* yDot, active* res, void* workSpace) const                                               \
+		active const* y, active const* yCp, double const* yDot, active* res, void* workSpace) const                            \
 	{                                                                                                                          \
-		return residualImpl<active, active, active, active>(t, z, r, secIdx, timeFactor, y, y - _nComp, yDot, res, workSpace); \
+		return residualImpl<active, active, active, active>(t, z, r, secIdx, timeFactor, y, yCp, yDot, res, workSpace);        \
 	}                                                                                                                          \
 	                                                                                                                           \
 	virtual int residual(double t, double z, double r, unsigned int secIdx, double timeFactor,                                 \
-		active const* y, double const* yDot, active* res, void* workSpace) const                                               \
+		active const* y, active const* yCp, double const* yDot, active* res, void* workSpace) const                            \
 	{                                                                                                                          \
-		return residualImpl<active, active, active, double>(t, z, r, secIdx, timeFactor, y, y - _nComp, yDot, res, workSpace); \
+		return residualImpl<active, active, active, double>(t, z, r, secIdx, timeFactor, y, yCp, yDot, res, workSpace);        \
 	}                                                                                                                          \
 	                                                                                                                           \
 	virtual int residual(const active& t, double z, double r, unsigned int secIdx, const active& timeFactor,                   \
-		double const* y, double const* yDot, active* res, void* workSpace) const                                               \
+		double const* y, double const* yCp, double const* yDot, active* res, void* workSpace) const                            \
 	{                                                                                                                          \
-		return residualImpl<double, double, active, active>(t, z, r, secIdx, timeFactor, y, y - _nComp, yDot, res, workSpace); \
+		return residualImpl<double, double, active, active>(t, z, r, secIdx, timeFactor, y, yCp, yDot, res, workSpace);        \
 	}                                                                                                                          \
 	                                                                                                                           \
 	virtual int residual(double t, double z, double r, unsigned int secIdx, double timeFactor,                                 \
-		double const* y, double const* yDot, double* res, void* workSpace) const                                               \
+		double const* y, double const* yCp, double const* yDot, double* res, void* workSpace) const                            \
 	{                                                                                                                          \
-		return residualImpl<double, double, double, double>(t, z, r, secIdx, timeFactor, y, y - _nComp, yDot, res, workSpace); \
+		return residualImpl<double, double, double, double>(t, z, r, secIdx, timeFactor, y, yCp, yDot, res, workSpace);        \
 	}
 
 
@@ -64,15 +64,15 @@
 #define CADET_BINDINGMODEL_RESIDUAL_JACOBIAN_BOILERPLATE                                                            \
 	CADET_BINDINGMODEL_RESIDUAL_BOILERPLATE                                                                         \
 	virtual void analyticJacobian(double t, double z, double r, unsigned int secIdx, double const* y,               \
-		linalg::BandMatrix::RowIterator jac, void* workSpace) const                                                 \
+		int offsetCp, linalg::BandMatrix::RowIterator jac, void* workSpace) const                                   \
 	{                                                                                                               \
-		jacobianImpl(t, z, r, secIdx, y, y - _nComp, jac, workSpace);                                               \
+		jacobianImpl(t, z, r, secIdx, y, y - offsetCp, offsetCp, jac, workSpace);                                   \
 	}                                                                                                               \
 	                                                                                                                \
 	virtual void analyticJacobian(double t, double z, double r, unsigned int secIdx, double const* y,               \
-		linalg::DenseBandedRowIterator jac, void* workSpace) const                                                  \
+		int offsetCp, linalg::DenseBandedRowIterator jac, void* workSpace) const                                    \
 	{                                                                                                               \
-		jacobianImpl(t, z, r, secIdx, y, y - _nComp, jac, workSpace);                                               \
+		jacobianImpl(t, z, r, secIdx, y, y - offsetCp, offsetCp, jac, workSpace);                                   \
 	}                                                                                                               \
 	                                                                                                                \
 	virtual void jacobianAddDiscretized(double alpha, linalg::FactorizableBandMatrix::RowIterator jac) const        \
@@ -101,44 +101,44 @@
 #define CADET_BINDINGMODEL_RESIDUAL_JACOBIAN_BOILERPLATE_IMPL_BASE(CLASSNAME, TEMPLATELINE)                                    \
 	TEMPLATELINE                                                                                                               \
 	int CLASSNAME::residual(const active& t, double z, double r, unsigned int secIdx, const active& timeFactor,                \
-		active const* y, double const* yDot, active* res, void* workSpace) const                                               \
+		active const* y, active const* yCp, double const* yDot, active* res, void* workSpace) const                            \
 	{                                                                                                                          \
-		return residualImpl<active, active, active, active>(t, z, r, secIdx, timeFactor, y, y - _nComp, yDot, res, workSpace); \
+		return residualImpl<active, active, active, active>(t, z, r, secIdx, timeFactor, y, yCp, yDot, res, workSpace); \
 	}                                                                                                                          \
 	                                                                                                                           \
 	TEMPLATELINE                                                                                                               \
 	int CLASSNAME::residual(double t, double z, double r, unsigned int secIdx, double timeFactor,                              \
-		active const* y, double const* yDot, active* res, void* workSpace) const                                               \
+		active const* y, active const* yCp, double const* yDot, active* res, void* workSpace) const                            \
 	{                                                                                                                          \
-		return residualImpl<active, active, active, double>(t, z, r, secIdx, timeFactor, y, y - _nComp, yDot, res, workSpace); \
+		return residualImpl<active, active, active, double>(t, z, r, secIdx, timeFactor, y, yCp, yDot, res, workSpace); \
 	}                                                                                                                          \
 	                                                                                                                           \
 	TEMPLATELINE                                                                                                               \
 	int CLASSNAME::residual(const active& t, double z, double r, unsigned int secIdx, const active& timeFactor,                \
-		double const* y, double const* yDot, active* res, void* workSpace) const                                               \
+		double const* y, double const* yCp, double const* yDot, active* res, void* workSpace) const                            \
 	{                                                                                                                          \
-		return residualImpl<double, double, active, active>(t, z, r, secIdx, timeFactor, y, y - _nComp, yDot, res, workSpace); \
+		return residualImpl<double, double, active, active>(t, z, r, secIdx, timeFactor, y, yCp, yDot, res, workSpace); \
 	}                                                                                                                          \
 	                                                                                                                           \
 	TEMPLATELINE                                                                                                               \
 	int CLASSNAME::residual(double t, double z, double r, unsigned int secIdx, double timeFactor,                              \
-		double const* y, double const* yDot, double* res, void* workSpace) const                                               \
+		double const* y, double const* yCp, double const* yDot, double* res, void* workSpace) const                            \
 	{                                                                                                                          \
-		return residualImpl<double, double, double, double>(t, z, r, secIdx, timeFactor, y, y - _nComp, yDot, res, workSpace); \
+		return residualImpl<double, double, double, double>(t, z, r, secIdx, timeFactor, y, yCp, yDot, res, workSpace); \
 	}                                                                                                                          \
 	                                                                                                                           \
 	TEMPLATELINE                                                                                                               \
 	void CLASSNAME::analyticJacobian(double t, double z, double r, unsigned int secIdx, double const* y,                       \
-		linalg::BandMatrix::RowIterator jac, void* workSpace) const                                                            \
+		int offsetCp, linalg::BandMatrix::RowIterator jac, void* workSpace) const                                              \
 	{                                                                                                                          \
-		jacobianImpl(t, z, r, secIdx, y, y - _nComp, jac, workSpace);                                                          \
+		jacobianImpl(t, z, r, secIdx, y, y - offsetCp, offsetCp, jac, workSpace);                                              \
 	}                                                                                                                          \
 	                                                                                                                           \
 	TEMPLATELINE                                                                                                               \
 	void CLASSNAME::analyticJacobian(double t, double z, double r, unsigned int secIdx, double const* y,                       \
-		linalg::DenseBandedRowIterator jac, void* workSpace) const                                                             \
+		int offsetCp, linalg::DenseBandedRowIterator jac, void* workSpace) const                                               \
 	{                                                                                                                          \
-		jacobianImpl(t, z, r, secIdx, y, y - _nComp, jac, workSpace);                                                          \
+		jacobianImpl(t, z, r, secIdx, y, y - offsetCp, offsetCp, jac, workSpace);                                              \
 	}                                                                                                                          \
 	                                                                                                                           \
 	TEMPLATELINE                                                                                                               \
