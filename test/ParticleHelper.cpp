@@ -17,9 +17,9 @@
 #include "Logging.hpp"
 
 #include "ParticleHelper.hpp"
+#include "SimHelper.hpp"
 
 #include "Utils.hpp"
-#include "common/JsonParameterProvider.hpp"
 #include "common/Driver.hpp"
 
 #include "JsonTestModels.hpp"
@@ -196,7 +196,11 @@ namespace particle
 	{
 		// Use Load-Wash-Elution test case
 		cadet::JsonParameterProvider jpp = createLWE(uoType);
+		testOneVsTwoIdenticalParticleTypes(jpp, absTol, relTol);
+	}
 
+	void testOneVsTwoIdenticalParticleTypes(cadet::JsonParameterProvider& jpp, double absTol, double relTol)
+	{
 		// Simulate without additional particle types
 		cadet::Driver drv;
 		drv.configure(jpp);
@@ -229,7 +233,11 @@ namespace particle
 	{
 		// Use Load-Wash-Elution test case
 		cadet::JsonParameterProvider jpp = createLWE(uoType);
+		testSeparateIdenticalParticleTypes(jpp, absTol, relTol);
+	}
 
+	void testSeparateIdenticalParticleTypes(cadet::JsonParameterProvider& jpp, double absTol, double relTol)
+	{
 		// Extend to two particle types
 		const double volFrac[] = {1.0, 0.0};
 		extendModelToManyParticleTypes(jpp, 0, 2, volFrac);
@@ -251,23 +259,41 @@ namespace particle
 		double const* p1Outlet = p1Data->outlet();
 		double const* p2Outlet = p2Data->outlet();
 
+		// Check outlet
 		const unsigned int nComp = p1Data->numComponents();
 		for (unsigned int i = 0; i < p1Data->numDataPoints() * nComp; ++i, ++p1Outlet, ++p2Outlet)
 		{
 			CAPTURE(i);
 			CHECK((*p1Outlet) == makeApprox(*p2Outlet, relTol, absTol));
 		}
+
+		// Check volume if available
+		if (p1Data->solutionConfig().storeVolume)
+		{
+			double const* p1Vol = p1Data->volume();
+			double const* p2Vol = p2Data->volume();
+			for (unsigned int i = 0; i < p1Data->numDataPoints(); ++i, ++p1Vol, ++p2Vol)
+			{
+				CAPTURE(i);
+				CHECK((*p1Vol) == makeApprox(*p2Vol, relTol, absTol));
+			}
+		}
 	}
 
 	void testLinearMixedParticleTypes(const char* uoType, double absTol, double relTol)
+	{
+		cadet::JsonParameterProvider jpp = createPulseInjectionColumn(uoType, true);
+		testLinearMixedParticleTypes(jpp, absTol, relTol);
+	}
+
+	void testLinearMixedParticleTypes(cadet::JsonParameterProvider& jpp, double absTol, double relTol)
 	{
 		for (int i = 0; i < 2; ++i)
 		{
 			const bool dynamicBinding = (i == 0);
 			SECTION(std::string(dynamicBinding ? " Kinetic binding" : " Quasi-stationary binding"))
 			{
-				// Use linear benchmark test case
-				cadet::JsonParameterProvider jpp = createPulseInjectionColumn(uoType, dynamicBinding);
+				setBindingMode(jpp, dynamicBinding);
 
 				// Simulate without additional particle types
 				cadet::Driver drv;
@@ -289,11 +315,24 @@ namespace particle
 				double const* outlet = data->outlet();
 				double const* mpOutlet = mpData->outlet();
 
+				// Check outlet
 				const unsigned int nComp = mpData->numComponents();
 				for (unsigned int i = 0; i < mpData->numDataPoints() * nComp; ++i, ++outlet, ++mpOutlet)
 				{
 					CAPTURE(i);
 					CHECK((*outlet) == makeApprox(*mpOutlet, relTol, absTol));
+				}
+
+				// Check volume if available
+				if (data->solutionConfig().storeVolume)
+				{
+					double const* vol = data->volume();
+					double const* mpVol = mpData->volume();
+					for (unsigned int i = 0; i < data->numDataPoints(); ++i, ++vol, ++mpVol)
+					{
+						CAPTURE(i);
+						CHECK((*vol) == makeApprox(*mpVol, relTol, absTol));
+					}
 				}
 			}
 		}
@@ -301,16 +340,21 @@ namespace particle
 
 	void testJacobianMixedParticleTypes(const std::string& uoType)
 	{
+		cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding(uoType);
+		testJacobianMixedParticleTypes(jpp);
+	}
+
+	void testJacobianMixedParticleTypes(cadet::JsonParameterProvider& jpp)
+	{
 		cadet::IModelBuilder* const mb = cadet::createModelBuilder();
 		REQUIRE(nullptr != mb);
 
-		// Use some test case parameters
-		cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding(uoType);
+		// Add more particle types
 		const double volFrac[] = {0.3, 0.6, 0.1};
 		extendModelToManyParticleTypes(jpp, {0.9, 0.8}, volFrac);
 
-		cadet::IUnitOperation* const unitAna = createAndConfigureUnit(uoType, *mb, jpp);
-		cadet::IUnitOperation* const unitAD = createAndConfigureUnit(uoType, *mb, jpp);
+		cadet::IUnitOperation* const unitAna = createAndConfigureUnit(jpp.getString("UNIT_TYPE"), *mb, jpp);
+		cadet::IUnitOperation* const unitAD = createAndConfigureUnit(jpp.getString("UNIT_TYPE"), *mb, jpp);
 
 		// Enable AD
 		cadet::ad::setDirections(cadet::ad::getMaxDirections());
@@ -355,15 +399,20 @@ namespace particle
 
 	void testTimeDerivativeJacobianMixedParticleTypesFD(const std::string& uoType, double h, double absTol, double relTol)
 	{
+		cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding(uoType);
+		testTimeDerivativeJacobianMixedParticleTypesFD(jpp, h, absTol, relTol);
+	}
+
+	void testTimeDerivativeJacobianMixedParticleTypesFD(cadet::JsonParameterProvider& jpp, double h, double absTol, double relTol)
+	{
 		cadet::IModelBuilder* const mb = cadet::createModelBuilder();
 		REQUIRE(nullptr != mb);
 
-		// Use some test case parameters
-		cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding(uoType);
+		// Add more particle types
 		const double volFrac[] = {0.3, 0.6, 0.1};
 		extendModelToManyParticleTypes(jpp, {0.9, 0.8}, volFrac);
 
-		cadet::IUnitOperation* const unit = createAndConfigureUnit(uoType, *mb, jpp);
+		cadet::IUnitOperation* const unit = createAndConfigureUnit(jpp.getString("UNIT_TYPE"), *mb, jpp);
 
 		// Setup matrices
 		unit->notifyDiscontinuousSectionTransition(0.0, 0u, nullptr, nullptr, 0u);

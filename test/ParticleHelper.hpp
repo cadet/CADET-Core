@@ -19,6 +19,7 @@
 #define CADETTEST_PARTICLEHELPER_HPP_
 
 #include "cadet/ParameterId.hpp"
+#include "common/JsonParameterProvider.hpp"
 
 #include <vector>
 
@@ -67,6 +68,18 @@ namespace particle
 
 	/**
 	 * @brief Checks whether results of simulation with one particle type matches the one with two (identical) particle types
+	 * @details The given simulation is performed. The existing particle type is replicated such that there are
+	 *          two identical particle types. Another simulation is run with the two particle types.
+	 *          The results of these simulations must match.
+	 * 
+	 * @param [in] jpp Unit operation configuration
+	 * @param [in] absTols Array with absolute error tolerances
+	 * @param [in] relTols Array with relative error tolerances
+	 */
+	void testOneVsTwoIdenticalParticleTypes(cadet::JsonParameterProvider& jpp, double absTol, double relTol);
+
+	/**
+	 * @brief Checks whether results of simulation with one particle type matches the one with two (identical) particle types
 	 * @details The LWE example is taken and simulated. The existing particle type is replicated such that there are
 	 *          two identical particle types. Another simulation is run with the two particle types.
 	 *          The results of these simulations must match.
@@ -76,6 +89,18 @@ namespace particle
 	 * @param [in] relTols Array with relative error tolerances
 	 */
 	void testOneVsTwoIdenticalParticleTypes(const char* uoType, double absTol, double relTol);
+
+	/**
+	 * @brief Checks whether, when using two separate identical particle types, results of one type match the other
+	 * @details The given model is modified by replicating the existing particle type such that there are
+	 *          two identical particle types. Two simulations are run each one using only one particle type.
+	 *          The results of these simulations must match.
+	 * 
+	 * @param [in] jpp Unit operation configuration
+	 * @param [in] absTols Array with absolute error tolerances
+	 * @param [in] relTols Array with relative error tolerances
+	 */
+	void testSeparateIdenticalParticleTypes(cadet::JsonParameterProvider& jpp, double absTol, double relTol);
 
 	/**
 	 * @brief Checks whether, when using two separate identical particle types, results of one type match the other
@@ -91,6 +116,18 @@ namespace particle
 
 	/**
 	 * @brief Checks whether a linear binding model with multiple identical particle types produces the same as result as a single type model
+	 * @details The given model is run. Then, two additional identical particle types are added.
+	 *          The results of the multi type simulation must match the ones of the single type simulation.
+	 *          This check is conducted with both dynamic and quasi-stationary binding.
+	 * 
+	 * @param [in] jpp Unit operation configuration
+	 * @param [in] absTols Array with absolute error tolerances
+	 * @param [in] relTols Array with relative error tolerances
+	 */
+	void testLinearMixedParticleTypes(cadet::JsonParameterProvider& jpp, double absTol, double relTol);
+
+	/**
+	 * @brief Checks whether a linear binding model with multiple identical particle types produces the same as result as a single type model
 	 * @details The linear benchmark problem is run. Then, two additional identical particle types are added.
 	 *          The results of the multi type simulation must match the ones of the single type simulation.
 	 *          This check is conducted with both dynamic and quasi-stationary binding.
@@ -103,9 +140,25 @@ namespace particle
 
 	/**
 	 * @brief Checks the full analytic Jacobian against AD for a model with multiple particle types
+	 * @param [in] jpp Unit operation configuration
+	 */
+	void testJacobianMixedParticleTypes(cadet::JsonParameterProvider& jpp);
+
+	/**
+	 * @brief Checks the full analytic Jacobian against AD for a model with multiple particle types
 	 * @param [in] uoType Unit operation type
 	 */
 	void testJacobianMixedParticleTypes(const std::string& uoType);
+
+	/**
+	 * @brief Checks the (analytic) time derivative Jacobian against FD for a model with multiple particle types
+	 * @details Uses centered finite differences.
+	 * @param [in] jpp Unit operation configuration
+	 * @param [in] h Step size of centered finite differences
+	 * @param [in] absTol Absolute error tolerance
+	 * @param [in] relTol Relative error tolerance
+	 */
+	void testTimeDerivativeJacobianMixedParticleTypesFD(cadet::JsonParameterProvider& jpp, double h, double absTol, double relTol);
 
 	/**
 	 * @brief Checks the (analytic) time derivative Jacobian against FD for a model with multiple particle types
