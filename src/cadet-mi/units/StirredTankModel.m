@@ -17,6 +17,7 @@ classdef StirredTankModel < Model
 		flowRateFilter; % Flow rate of filtered out liquid in [m^3 / s]
 		porosity; % Porosity
 		nBoundStates; % Number of bound states for each component
+		particleTypeVolumeFractions; % Volume fractions of particle types
 
 		% Initial values
 		initialConcentration; % Initial concentrations for each component in [mol / m^3]
@@ -45,6 +46,7 @@ classdef StirredTankModel < Model
 			obj.porosity = 1.0;
 			obj.flowRateFilter = 0.0;
 			obj.useAnalyticJacobian = true;
+			obj.particleTypeVolumeFractions = 1;
 
 			% Return volume by default
 			obj.returnSolutionVolume = true;
@@ -88,6 +90,16 @@ classdef StirredTankModel < Model
 				validateattributes(val, {'numeric'}, {'nonnegative', 'vector', 'nonempty', 'finite', 'real'}, '', 'nBoundStates');
 				obj.data.NBOUND = int32(val);
 			end
+			obj.hasChanged = true;
+		end
+
+		function val = get.particleTypeVolumeFractions(obj)
+			val = obj.data.PAR_TYPE_VOLFRAC;
+		end
+
+		function set.particleTypeVolumeFractions(obj, val)
+			validateattributes(val, {'double'}, {'vector', 'nonempty', '>=', 0.0, '<=', 1.0, 'finite', 'real'}, '', 'particleTypeVolumeFractions');
+			obj.data.PAR_TYPE_VOLFRAC = val;
 			obj.hasChanged = true;
 		end
 
@@ -161,10 +173,15 @@ classdef StirredTankModel < Model
 		function S = saveobj(obj)
 			S = obj.saveobj@Model();
 			S.bindingModel = [];
+			S.bindingModelClass = [];
 
 			if ~isempty(obj.bindingModel)
-				S.bindingModelClass = class(obj.bindingModel);
-				S.bindingModel = obj.bindingModel.saveobj();
+				S.bindingModelClass = cell(numel(obj.bindingModel), 1);
+				S.bindingModel = cell(numel(obj.bindingModel), 1);
+				for i = 1:numel(obj.bindingModel)
+					S.bindingModelClass{i} = class(obj.bindingModel(i));
+					S.bindingModel{i} = obj.bindingModel(i).saveobj();
+				end
 			end
 		end
 
@@ -208,16 +225,22 @@ classdef StirredTankModel < Model
 			end
 
 			validateattributes(obj.porosity, {'double'}, {'scalar', 'nonempty', '>=', 0.0, '<=', 1.0, 'finite', 'real'}, '', 'porosity');
-			if ~isempty(obj.bindingModel) && ~isa(obj.bindingModel, 'BindingModel')
-				error('CADET:invalidConfig', 'Expected a valid binding model.');
-			end
-			if isempty(obj.bindingModel) && (nTotalBnd ~= 0)
-				error('CADET:invalidConfig', 'Expected no bound states when using no binding model.');
+			validateattributes(obj.particleTypeVolumeFractions, {'double'}, {'vector', 'numel', length(obj.nBoundStates) / obj.nComponents, 'nonempty', '>=', 0.0, '<=', 1.0, 'finite', 'real'}, '', 'particleTypeVolumeFractions');
+			if abs(sum(obj.particleTypeVolumeFractions) - 1.0) >= 1e-10
+				error('CADET:invalidConfig', 'Expected particleTypeVolumeFractions to sum to 1.0.');
 			end
 
-			if ~isempty(obj.bindingModel)
-				validateattributes(obj.nBoundStates, {'numeric'}, {'nonnegative', 'vector', 'numel', obj.nComponents, 'finite', 'real'}, '', 'nBoundStates');
-				res = obj.bindingModel.validate(obj.nComponents, obj.nBoundStates) && res;
+			for i = 1:numel(obj.bindingModel)
+				if ~isempty(obj.bindingModel(i)) && ~isa(obj.bindingModel(i), 'BindingModel')
+					error('CADET:invalidConfig', 'Expected a valid binding model.');
+				end
+				if isempty(obj.bindingModel(i)) && (sum(obj.nBoundStates(((i-1) * obj.nComponents + 1):(i * obj.nComponents))) ~= 0)
+					error('CADET:invalidConfig', 'Expected no bound states when using no binding model.');
+				end
+
+				if ~isempty(obj.bindingModel(i))
+					res = obj.bindingModel(i).validate(obj.nComponents, obj.nBoundStates(((i-1) * obj.nComponents + 1):(i * obj.nComponents))) && res;
+				end
 			end
 		end
 
@@ -230,15 +253,18 @@ classdef StirredTankModel < Model
 
 			res = obj.assembleConfig@Model();
 
-			if ~isempty(obj.bindingModel) && ~isa(obj.bindingModel, 'BindingModel')
-				error('CADET:invalidConfig', 'Expected a valid binding model.');
+			if isempty(obj.bindingModel)
+				error('CADET:invalidConfig', 'Expected valid binding model.');
 			end
 
-			if isempty(obj.bindingModel)
-				res.ADSORPTION_MODEL = 'NONE';
-			else
-				res.ADSORPTION_MODEL = obj.bindingModel.name;
-				res.adsorption = obj.bindingModel.assembleConfig();
+			res.ADSORPTION_MODEL = cell(numel(obj.bindingModel), 1);
+			for i = 1:length(obj.bindingModel)
+				if isempty(obj.bindingModel(i))
+					res.ADSORPTION_MODEL{i} = 'NONE';
+				else
+					res.ADSORPTION_MODEL{i} = obj.bindingModel(i).name;
+					res.(sprintf('adsorption_%03d', i-1)) = obj.bindingModel(i).assembleConfig();
+				end
 			end
 		end
 
@@ -282,6 +308,12 @@ classdef StirredTankModel < Model
 				return;
 			end
 			
+			if ~isfield(obj.data, param.SENS_NAME) && ~isempty(obj.bindingModel)
+				% We don't have this parameter, so try binding model
+				val = obj.bindingModel(param.SENS_PARTYPE+1).getParameterValue(param, obj.nBoundStates((param.SENS_PARTYPE * obj.nComponents + 1):((param.SENS_PARTYPE + 1) * obj.nComponents)));
+				return;
+			end
+
 			% The only parameter is section but not component dependent
 			val = obj.data.(param.SENS_NAME);
 			offset = 1;
@@ -310,6 +342,12 @@ classdef StirredTankModel < Model
 				return;
 			end
 
+			if ~isfield(obj.data, param.SENS_NAME) && ~isempty(obj.bindingModel)
+				% We don't have this parameter, so try binding model
+				oldVal = obj.bindingModel.setParameterValue(param, obj.nBoundStates, newVal);
+				return;
+			end
+
 			offset = 0;
 			if (param.SENS_COMP ~= - 1)
 				offset = offset + param.SENS_COMP;
@@ -326,6 +364,11 @@ classdef StirredTankModel < Model
 			%   NOTIFYSYNC() resets the HASCHANGED property.
 
 			obj.notifySync@Model();
+			if ~isempty(obj.bindingModel)
+				for i = 1:length(obj.bindingModel)
+					obj.bindingModel(i).notifySync();
+				end
+			end
 		end
 	end
 
@@ -333,16 +376,27 @@ classdef StirredTankModel < Model
 
 		function val = getHasChanged(obj)
 			val = obj.getHasChanged@Model();
+
+			% Check binding models
+			if isempty(obj.bindingModel)
+				return;
+			end
+			for i = 1:length(obj.bindingModel)
+				if obj.bindingModel(i).hasChanged
+					val = true;
+					return
+				end
+			end
 		end
 
 		function loadobjInternal(obj, S)
 			obj.loadobjInternal@Model(S);
 
 			if ~isempty(S.bindingModel)
-				ctor = str2func([S.bindingModelClass '.loadobj']);
-				obj.bindingModel = ctor(S.bindingModel);
-			else
-				obj.bindingModel = [];
+				for i = 1:length(S.bindingModel)
+					ctor = str2func([S.bindingModelClass{i} '.loadobj']);
+					obj.bindingModel(i) = ctor(S.bindingModel{i});
+				end
 			end
 		end
 
