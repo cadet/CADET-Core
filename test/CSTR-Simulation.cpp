@@ -376,6 +376,7 @@ TEST_CASE("CSTR initial condition behave like standard parameters", "[CSTR],[Ini
 	cadet::test::setNumberOfComponents(jpp, 2, 2);
 	cadet::test::setSectionTimes(jpp, {0.0, 100.0});
 	cadet::test::addBoundStates(jpp, {1, 2}, 0.5);
+	cadet::test::addDummyBindingModel(jpp);
 	cadet::test::setInitialConditions(jpp, {1.0, 2.0}, {3.0, 4.0, 5.0}, 6.0);
 	cadet::test::setInletProfile(jpp, 0, 0, 1.0, 0.0, 0.0, 0.0);
 	cadet::test::setInletProfile(jpp, 0, 1, 1.0, 0.0, 0.0, 0.0);

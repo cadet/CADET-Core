@@ -99,6 +99,12 @@ namespace test
 	void addBoundStates(cadet::JsonParameterProvider& jpp, const std::vector<int>& nBound, double porosity);
 
 	/**
+	 * @brief Adds dummy binding model to a CSTR model
+	 * @param [in,out] jpp ParameterProvider
+	 */
+	void addDummyBindingModel(cadet::JsonParameterProvider& jpp);
+
+	/**
 	 * @brief Adds linear binding model to a CSTR model
 	 * @param [in,out] jpp ParameterProvider
 	 * @param [in] kinetic Determines whether kinetic or quasi-stationary binding is used

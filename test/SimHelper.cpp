@@ -129,6 +129,12 @@ namespace test
 		jpp.set("POROSITY", porosity);
 	}
 
+	void addDummyBindingModel(cadet::JsonParameterProvider& jpp)
+	{
+		auto gs = util::makeModelGroupScope(jpp);
+		jpp.set("ADSORPTION_MODEL", "NONE");
+	}
+
 	void addLinearBindingModel(cadet::JsonParameterProvider& jpp, bool kinetic, const std::vector<double>& kA, const std::vector<double>& kD)
 	{
 		auto gs = util::makeModelGroupScope(jpp);
