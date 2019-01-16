@@ -20,6 +20,7 @@
 #include "ModelBuilderImpl.hpp"
 #include "JsonTestModels.hpp"
 #include "SimHelper.hpp"
+#include "ParticleHelper.hpp"
 #include "common/Driver.hpp"
 #include "UnitOperation.hpp"
 
@@ -431,4 +432,83 @@ TEST_CASE("CSTR initial condition behave like standard parameters", "[CSTR],[Ini
 	CHECK(vecStateY[5] == -4.0);
 	CHECK(vecStateY[6] == -5.0);
 	CHECK(vecStateY[7] == -6.0);
+}
+
+TEST_CASE("CSTR one vs two identical particle types match", "[CSTR],[Simulation],[ParticleType]")
+{
+	cadet::JsonParameterProvider jpp = createCSTRBenchmark(2, 100.0, 1.0);
+	cadet::test::setNumberOfComponents(jpp, 0, 2);
+	cadet::test::setNumberOfComponents(jpp, 1, 2);
+	cadet::test::setNumberOfComponents(jpp, 2, 2);
+	cadet::test::setSectionTimes(jpp, {0.0, 100.0});
+	cadet::test::addBoundStates(jpp, {1, 1}, 0.5);
+	cadet::test::addLinearBindingModel(jpp, true, {0.1, 0.2}, {1.0, 0.9});
+	cadet::test::setInitialConditions(jpp, {1.0, 2.0}, {3.0, 4.0}, 6.0);
+	cadet::test::setInletProfile(jpp, 0, 0, 1.0, 0.0, 0.0, 0.0);
+	cadet::test::setInletProfile(jpp, 1, 0, 0.0, 0.0, 0.0, 0.0);
+	cadet::test::setInletProfile(jpp, 0, 1, 1.0, 0.0, 0.0, 0.0);
+	cadet::test::setInletProfile(jpp, 1, 1, 0.0, 0.0, 0.0, 0.0);
+	cadet::test::setFlowRates(jpp, 0, 0.1, 0.1, 0.0);
+
+	cadet::test::particle::testOneVsTwoIdenticalParticleTypes(jpp, 2e-8, 5e-5);
+}
+
+TEST_CASE("CSTR separate identical particle types match", "[CSTR],[Simulation],[ParticleType]")
+{
+	cadet::JsonParameterProvider jpp = createCSTRBenchmark(2, 100.0, 1.0);
+	cadet::test::setNumberOfComponents(jpp, 0, 2);
+	cadet::test::setNumberOfComponents(jpp, 1, 2);
+	cadet::test::setNumberOfComponents(jpp, 2, 2);
+	cadet::test::setSectionTimes(jpp, {0.0, 100.0});
+	cadet::test::addBoundStates(jpp, {1, 1}, 0.5);
+	cadet::test::addLinearBindingModel(jpp, true, {0.1, 0.2}, {1.0, 0.9});
+	cadet::test::setInitialConditions(jpp, {1.0, 2.0}, {3.0, 4.0}, 6.0);
+	cadet::test::setInletProfile(jpp, 0, 0, 1.0, 0.0, 0.0, 0.0);
+	cadet::test::setInletProfile(jpp, 1, 0, 0.0, 0.0, 0.0, 0.0);
+	cadet::test::setInletProfile(jpp, 0, 1, 1.0, 0.0, 0.0, 0.0);
+	cadet::test::setInletProfile(jpp, 1, 1, 0.0, 0.0, 0.0, 0.0);
+	cadet::test::setFlowRates(jpp, 0, 0.1, 0.1, 0.0);
+
+	cadet::test::particle::testSeparateIdenticalParticleTypes(jpp, 1e-15, 1e-15);
+}
+
+TEST_CASE("CSTR linear binding single particle matches particle distribution", "[CSTR],[Simulation],[ParticleType]")
+{
+	cadet::JsonParameterProvider jpp = createCSTRBenchmark(2, 100.0, 1.0);
+	cadet::test::setNumberOfComponents(jpp, 0, 2);
+	cadet::test::setNumberOfComponents(jpp, 1, 2);
+	cadet::test::setNumberOfComponents(jpp, 2, 2);
+	cadet::test::setSectionTimes(jpp, {0.0, 100.0});
+	cadet::test::addBoundStates(jpp, {1, 1}, 0.5);
+	cadet::test::addLinearBindingModel(jpp, true, {0.1, 0.2}, {1.0, 0.9});
+	cadet::test::setInitialConditions(jpp, {1.0, 2.0}, {3.0, 4.0}, 6.0);
+	cadet::test::setInletProfile(jpp, 0, 0, 1.0, 0.0, 0.0, 0.0);
+	cadet::test::setInletProfile(jpp, 1, 0, 0.0, 0.0, 0.0, 0.0);
+	cadet::test::setInletProfile(jpp, 0, 1, 1.0, 0.0, 0.0, 0.0);
+	cadet::test::setInletProfile(jpp, 1, 1, 0.0, 0.0, 0.0, 0.0);
+	cadet::test::setFlowRates(jpp, 0, 0.1, 0.1, 0.0);
+
+	cadet::test::particle::testLinearMixedParticleTypes(jpp, 5e-8, 5e-5);
+}
+
+TEST_CASE("CSTR multiple particle types Jacobian analytic vs AD", "[CSTR],[Jacobian],[AD],[ParticleType]")
+{
+	cadet::JsonParameterProvider jpp = createCSTR(2);
+	cadet::test::addBoundStates(jpp, {1, 1}, 0.5);
+	cadet::test::addLinearBindingModel(jpp, true, {0.1, 0.2}, {1.0, 0.9});
+	cadet::test::setInitialConditions(jpp, {1.0, 2.0}, {3.0, 4.0}, 6.0);
+	cadet::test::setFlowRates(jpp, 0, 1.0);
+
+	cadet::test::particle::testJacobianMixedParticleTypes(jpp);
+}
+
+TEST_CASE("CSTR multiple particle types time derivative Jacobian vs FD", "[CSTR],[UnitOp],[Residual],[Jacobian],[ParticleType]")
+{
+	cadet::JsonParameterProvider jpp = createCSTR(2);
+	cadet::test::addBoundStates(jpp, {1, 1}, 0.5);
+	cadet::test::addLinearBindingModel(jpp, true, {0.1, 0.2}, {1.0, 0.9});
+	cadet::test::setInitialConditions(jpp, {1.0, 2.0}, {3.0, 4.0}, 6.0);
+	cadet::test::setFlowRates(jpp, 0, 1.0);
+
+	cadet::test::particle::testTimeDerivativeJacobianMixedParticleTypesFD(jpp, 1e-6, 0.0, 9e-4);
 }
