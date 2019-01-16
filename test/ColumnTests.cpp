@@ -206,29 +206,6 @@ namespace column
 			jpp.popScope();
 	}
 
-	void setBindingMode(cadet::JsonParameterProvider& jpp, bool isKinetic)
-	{
-		int level = 0;
-
-		if (jpp.exists("model"))
-		{
-			jpp.pushScope("model");
-			++level;
-		}
-		if (jpp.exists("unit_000"))
-		{
-			jpp.pushScope("unit_000");
-			++level;
-		}
-
-		jpp.pushScope("adsorption");
-		jpp.set("IS_KINETIC", isKinetic);
-		jpp.popScope();
-
-		for (int l = 0; l < level; ++l)
-			jpp.popScope();
-	}
-
 	void setCrossSectionArea(cadet::JsonParameterProvider& jpp, bool useTotalPorosity, int dir)
 	{
 		int level = 0;
@@ -518,7 +495,7 @@ namespace column
 			const bool isKinetic = bindMode;
 			SECTION(isKinetic ? "Kinetic binding" : "Quasi-stationary binding")
 			{
-				cadet::test::column::setBindingMode(jpp, isKinetic);
+				cadet::test::setBindingMode(jpp, isKinetic);
 				cadet::IUnitOperation* const unit = createAndConfigureUnit(uoType, *mb, jpp, cadet::Weno::maxOrder());
 
 				// Enable AD
@@ -617,7 +594,7 @@ namespace column
 
 					// Setup simulation including forward sensitivities
 					cadet::JsonParameterProvider jppAna = createLWE(uoType);
-					cadet::test::column::setBindingMode(jppAna, isKinetic);
+					cadet::test::setBindingMode(jppAna, isKinetic);
 					cadet::test::column::setCrossSectionArea(jppAna, uoType == "LUMPED_RATE_MODEL_WITHOUT_PORES", 0);
 					cadet::test::addSensitivity(jppAna, paramNames[n], curParam, absTolSens[n]);
 					cadet::test::returnSensitivities(jppAna, 0);
@@ -631,7 +608,7 @@ namespace column
 
 					// Setup FD simulation
 					cadet::JsonParameterProvider jppFD = createLWE(uoType);
-					cadet::test::column::setBindingMode(jppFD, isKinetic);
+					cadet::test::setBindingMode(jppFD, isKinetic);
 					cadet::test::column::setCrossSectionArea(jppFD, uoType == "LUMPED_RATE_MODEL_WITHOUT_PORES", 0);
 
 					// Configure FD simulation
@@ -714,7 +691,7 @@ namespace column
 
 					// Setup simulation including forward sensitivities
 					cadet::JsonParameterProvider jpp = createLWE(uoType);
-					cadet::test::column::setBindingMode(jpp, isKinetic);
+					cadet::test::setBindingMode(jpp, isKinetic);
 					cadet::test::column::setCrossSectionArea(jpp, uoType == "LUMPED_RATE_MODEL_WITHOUT_PORES", 1);
 					cadet::test::addSensitivity(jpp, paramNames[n], curParam, absTolSens[n]);
 					cadet::test::returnSensitivities(jpp, 0, true);
@@ -781,7 +758,7 @@ namespace column
 				{
 					// Use some test case parameters
 					cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding(uoType);
-					cadet::test::column::setBindingMode(jpp, isKinetic);
+					cadet::test::setBindingMode(jpp, isKinetic);
 					cadet::IUnitOperation* const unit = createAndConfigureUnit(uoType, *mb, jpp, cadet::Weno::maxOrder());
 
 					// Fill state vector with given initial values
@@ -812,7 +789,7 @@ namespace column
 				{
 					// Use some test case parameters
 					cadet::JsonParameterProvider jpp = createColumnWithSMA(uoType);
-					cadet::test::column::setBindingMode(jpp, isKinetic);
+					cadet::test::setBindingMode(jpp, isKinetic);
 					cadet::IUnitOperation* const unit = createAndConfigureUnit(uoType, *mb, jpp, cadet::Weno::maxOrder());
 
 					// Fill state vector with given initial values
@@ -842,7 +819,7 @@ namespace column
 				{
 					// Use some test case parameters
 					cadet::JsonParameterProvider jpp = linearBinding ? createColumnWithTwoCompLinearBinding(uoType) : createColumnWithSMA(uoType);
-					cadet::test::column::setBindingMode(jpp, isKinetic);
+					cadet::test::setBindingMode(jpp, isKinetic);
 					cadet::IUnitOperation* const unit = createAndConfigureUnit(uoType, *mb, jpp, cadet::Weno::maxOrder());
 
 					unit->setSensitiveParameter(cadet::makeParamId("INIT_C", 0, 0, cadet::ParTypeIndep, cadet::BoundStateIndep, cadet::ReactionIndep, cadet::SectionIndep), 0, 1.0);

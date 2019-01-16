@@ -136,6 +136,14 @@ namespace test
 	void addLangmuirBindingModel(cadet::JsonParameterProvider& jpp, bool kinetic, const std::vector<double>& kA, const std::vector<double>& kD, const std::vector<double>& qMax);
 
 	/**
+	 * @brief Sets the binding mode of a binding model
+	 * @details Changes IS_KINETIC field in the adsorption group
+	 * @param [in,out] jpp ParameterProvider
+	 * @param [in] isKinetic Determines whether kinetic or quasi-stationary binding is used
+	 */
+	void setBindingMode(cadet::JsonParameterProvider& jpp, bool isKinetic);
+
+	/**
 	 * @brief Adds a parameter sensitivity
 	 * @param [in,out] jpp ParameterProvider
 	 * @param [in] name Parameter name

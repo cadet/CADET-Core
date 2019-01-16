@@ -54,14 +54,6 @@ namespace column
 	void reverseFlow(cadet::JsonParameterProvider& jpp);
 
 	/**
-	 * @brief Sets the binding mode
-	 * @details Overwrites the IS_KINETIC field in the adsorption group of the given ParameterProvider.
-	 * @param [in,out] jpp ParameterProvider to change the binding mode in
-	 * @param [in] isKinetic Determines whether kinetic or quasi-stationary binding is used
-	 */
-	void setBindingMode(cadet::JsonParameterProvider& jpp, bool isKinetic);
-
-	/**
 	 * @brief Infers cross section area of column model from interstitial velocity
 	 * @details Uses interstitial velocity and porosity to calculate cross section area.
 	 *          To this end, a volumetric flow rate of 1.0 m^3/s is assumed. Depending on

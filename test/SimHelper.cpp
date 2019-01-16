@@ -187,6 +187,16 @@ namespace test
 		jpp.popScope();
 	}
 
+	void setBindingMode(cadet::JsonParameterProvider& jpp, bool isKinetic)
+	{
+		auto ms = util::makeOptionalGroupScope(jpp, "model");
+		auto us = util::makeOptionalGroupScope(jpp, "unit_000");
+
+		jpp.pushScope("adsorption");
+		jpp.set("IS_KINETIC", isKinetic);
+		jpp.popScope();
+	}
+
 	void addSensitivity(cadet::JsonParameterProvider& jpp, const std::string& name, const ParameterId& id, double absTol)
 	{
 		jpp.addScope("sensitivity");
