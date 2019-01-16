@@ -59,7 +59,7 @@ namespace test
 	void setInitialConditions(cadet::JsonParameterProvider& jpp, const std::vector<double>& c, const std::vector<double>& cp, const std::vector<double>& q);
 
 	/**
-	 * @brief Sets the flow rates of a section
+	 * @brief Sets all flow rates of a section
 	 * @details Sets inflow and outflow as well as filter flow rate.
 	 * @param [in,out] jpp ParameterProvider
 	 * @param [in] secIdx Section index
@@ -68,6 +68,15 @@ namespace test
 	 * @param [in] filter Filter flow rate
 	 */
 	void setFlowRates(cadet::JsonParameterProvider& jpp, unsigned int secIdx, double in, double out, double filter);
+
+	/**
+	 * @brief Sets the filter flow rate of a section
+	 * @details Sets filter flow rate.
+	 * @param [in,out] jpp ParameterProvider
+	 * @param [in] secIdx Section index
+	 * @param [in] filter Filter flow rate
+	 */
+	void setFlowRates(cadet::JsonParameterProvider& jpp, unsigned int secIdx, double filter);
 
 	/**
 	 * @brief Sets the inlet profile of a section and component

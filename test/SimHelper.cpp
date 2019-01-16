@@ -51,16 +51,11 @@ namespace test
 
 	void setFlowRates(cadet::JsonParameterProvider& jpp, unsigned int secIdx, double in, double out, double filter)
 	{
-		auto gs = util::makeModelGroupScope(jpp);
+		setFlowRates(jpp, secIdx, filter);
 
-		std::vector<double> frf = jpp.getDoubleArray("FLOWRATE_FILTER");
-		if (frf.size() <= secIdx)
-			std::fill_n(std::back_inserter(frf), frf.size() - secIdx + 1, 0.0);
+		// Change to /model
+		auto gs = util::makeOptionalGroupScope(jpp, "model");
 
-		frf[secIdx] = filter;
-		jpp.set("FLOWRATE_FILTER", frf);
-
-		jpp.popScope();
 		jpp.pushScope("connections");
 
 		std::ostringstream ss;
@@ -73,6 +68,20 @@ namespace test
 		jpp.set("CONNECTIONS", con);
 
 		jpp.popScope();
+		jpp.popScope();
+	}
+
+	void setFlowRates(cadet::JsonParameterProvider& jpp, unsigned int secIdx, double filter)
+	{
+		// Change to /model/unit_000
+		auto gs = util::makeModelGroupScope(jpp);
+
+		std::vector<double> frf = jpp.getDoubleArray("FLOWRATE_FILTER");
+		if (frf.size() <= secIdx)
+			std::fill_n(std::back_inserter(frf), frf.size() - secIdx + 1, 0.0);
+
+		frf[secIdx] = filter;
+		jpp.set("FLOWRATE_FILTER", frf);
 	}
 
 	void setInletProfile(cadet::JsonParameterProvider& jpp, unsigned int secIdx, unsigned int comp, double con, double lin, double quad, double cub)
