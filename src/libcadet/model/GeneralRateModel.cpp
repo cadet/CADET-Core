@@ -491,7 +491,7 @@ void GeneralRateModel::notifyDiscontinuousSectionTransition(double t, unsigned i
 {
 	// Setup flux Jacobian blocks at the beginning of the simulation or in case of
 	// section dependent film or particle diffusion coefficients
-	if ((secIdx == 0) || (_filmDiffusion.size() > _disc.nComp) || (_parDiffusion.size() > _disc.nComp))
+	if ((secIdx == 0) || (_filmDiffusion.size() > _disc.nComp * _disc.nParType) || (_parDiffusion.size() > _disc.nComp * _disc.nParType))
 		assembleOffdiagJac(t, secIdx);
 
 	Indexer idxr(_disc);
