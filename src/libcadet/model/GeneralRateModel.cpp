@@ -354,7 +354,7 @@ bool GeneralRateModel::configure(IParameterProvider& paramProvider)
 	else
 		_poreAccessFactor = std::vector<cadet::active>(_disc.nComp * _disc.nParType, 1.0);
 
-	if ((_disc.nComp * _disc.nParType < _poreAccessFactor.size()) || (_poreAccessFactor.size() % (_disc.nComp * _disc.nParType) != 0))
+	if (_disc.nComp * _disc.nParType != _poreAccessFactor.size())
 		throw InvalidParameterException("Number of elements in field PORE_ACCESSIBILITY differs from NCOMP * NPARTYPE (" + std::to_string(_disc.nComp * _disc.nParType) + ")");
 
 	// Add parameters to map
@@ -369,7 +369,7 @@ bool GeneralRateModel::configure(IParameterProvider& paramProvider)
 
 	registerParam3DArray(_parameters, _filmDiffusion, [=](bool multi, unsigned int sec, unsigned int type, unsigned int comp) { return makeParamId(hashString("FILM_DIFFUSION"), _unitOpIdx, comp, type, BoundStateIndep, ReactionIndep, multi ? sec : SectionIndep); }, _disc.nComp, _disc.nParType);
 	registerParam3DArray(_parameters, _parDiffusion, [=](bool multi, unsigned int sec, unsigned int type, unsigned int comp) { return makeParamId(hashString("PAR_DIFFUSION"), _unitOpIdx, comp, type, BoundStateIndep, ReactionIndep, multi ? sec : SectionIndep); }, _disc.nComp, _disc.nParType);
-	registerParam3DArray(_parameters, _poreAccessFactor, [=](bool multi, unsigned int sec, unsigned int type, unsigned int comp) { return makeParamId(hashString("PORE_ACCESSIBILITY"), _unitOpIdx, comp, type, BoundStateIndep, ReactionIndep, multi ? sec : SectionIndep); }, _disc.nComp, _disc.nParType);
+	registerParam2DArray(_parameters, _poreAccessFactor, [=](bool multi, unsigned int type, unsigned int comp) { return makeParamId(hashString("PORE_ACCESSIBILITY"), _unitOpIdx, comp, type, BoundStateIndep, ReactionIndep, SectionIndep); }, _disc.nComp);
 
 	// Register particle surface diffusion in this ordering:
 	// sec0type0bnd0comp0, sec0type0bnd1comp0, sec0type0bnd2comp0, sec0type0bnd0comp1, sec0type0bnd1comp1,
