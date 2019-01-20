@@ -67,17 +67,20 @@ void LumpedRateModelWithPores::applyInitialCondition(double* const vecStateY, do
 	}
 
 	// Loop over particles
-	for (unsigned int col = 0; col < _disc.nCol; ++col)
+	for (unsigned int type = 0; type < _disc.nParType; ++type)
 	{
-		const unsigned int offset = idxr.offsetCp(col);
-		
-		// Initialize c_p
-		for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
-			vecStateY[offset + comp] = static_cast<double>(_initCp[comp]);
+		for (unsigned int col = 0; col < _disc.nCol; ++col)
+		{
+			const unsigned int offset = idxr.offsetCp(ParticleTypeIndex{type}, ParticleIndex{col});
+			
+			// Initialize c_p
+			for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
+				vecStateY[offset + comp] = static_cast<double>(_initCp[comp + _disc.nComp * type]);
 
-		// Initialize q
-		for (unsigned int bnd = 0; bnd < _disc.strideBound; ++bnd)
-			vecStateY[offset + idxr.strideParLiquid() + bnd] = static_cast<double>(_initQ[bnd]);
+			// Initialize q
+			for (unsigned int bnd = 0; bnd < _disc.strideBound[type]; ++bnd)
+				vecStateY[offset + idxr.strideParLiquid() + bnd] = static_cast<double>(_initQ[bnd + _disc.nBoundBeforeType[type]]);
+		}
 	}
 }
 
@@ -107,26 +110,29 @@ void LumpedRateModelWithPores::readInitialCondition(IParameterProvider& paramPro
 	if (initC.size() < _disc.nComp)
 		throw InvalidParameterException("INIT_C does not contain enough values for all components");
 
-	if ((_disc.strideBound > 0) && (initQ.size() < _disc.strideBound))
+	if ((_disc.strideBound[_disc.nParType] > 0) && (initQ.size() < _disc.strideBound[_disc.nParType]))
 		throw InvalidParameterException("INIT_Q does not contain enough values for all bound states");
 
+
 	// Check if INIT_CP is present
-	double const* initCp = initC.data();
-	std::vector<double> initCpData;
 	if (paramProvider.exists("INIT_CP"))
 	{
-		initCpData = paramProvider.getDoubleArray("INIT_CP");
+		const std::vector<double> initCp = paramProvider.getDoubleArray("INIT_CP");
 
-		if (initCpData.size() < _disc.nComp)
+		if (initCp.size() < _disc.nComp * _disc.nParType)
 			throw InvalidParameterException("INIT_CP does not contain enough values for all components");
 
-		initCp = initCpData.data();
+		ad::copyToAd(initCp.data(), _initCp.data(), _disc.nComp * _disc.nParType);
+	}
+	else
+	{
+		for (unsigned int type = 0; type < _disc.nParType; ++type)
+			ad::copyToAd(initC.data(), _initCp.data() + _disc.nComp * type, _disc.nComp);
 	}
 
 	ad::copyToAd(initC.data(), _initC.data(), _disc.nComp);
-	ad::copyToAd(initCp, _initCp.data(), _disc.nComp);
 	if (!initQ.empty())
-		ad::copyToAd(initQ.data(), _initQ.data(), _disc.strideBound);
+		ad::copyToAd(initQ.data(), _initQ.data(), _disc.strideBound[_disc.nParType]);
 }
 
 /**
@@ -187,54 +193,58 @@ void LumpedRateModelWithPores::consistentInitialState(double t, unsigned int sec
 {
 	BENCH_SCOPE(_timerConsistentInit);
 
-	// TODO: Check memory consumption and offsets
-	const unsigned int requiredMem = (_binding[0]->workspaceSize(_disc.nComp, _disc.strideBound, _disc.nBound) + sizeof(double) - 1) / sizeof(double);
-
 	Indexer idxr(_disc);
 
 	// Step 1: Solve algebraic equations
 
 	// Step 1a: Compute quasi-stationary binding model state
-	if (_binding[0]->hasAlgebraicEquations())
+	for (unsigned int type = 0; type < _disc.nParType; ++type)
 	{
-		ad::BandedJacobianExtractor jacExtractor(_jacP.lowerBandwidth(), _jacP.lowerBandwidth(), _jacP.upperBandwidth());
-
-		//Problem capturing variables here
-#ifdef CADET_PARALLELIZE
-		BENCH_SCOPE(_timerConsistentInitPar);
-		tbb::parallel_for(size_t(0), size_t(_disc.nCol), [&](size_t pblk)
-#else
-		for (unsigned int pblk = 0; pblk < _disc.nCol; ++pblk)
-#endif
+		if (_binding[type]->hasAlgebraicEquations())
 		{
-			// Reuse memory of band matrix for dense matrix
-			linalg::DenseMatrixView jacobianMatrix(_jacPdisc.data() + pblk * _disc.strideBound * _disc.strideBound, _jacPdisc.pivot() + pblk * _disc.strideBound, _disc.strideBound, _disc.strideBound);
+			// TODO: Check memory consumption and offsets
+			// Round up
+			const unsigned int requiredMem = (_binding[type]->workspaceSize(_disc.nComp, _disc.strideBound[type], _disc.nBound + type * _disc.nComp) + sizeof(double) - 1) / sizeof(double);
 
-			// Midpoint of current column cell (z coordinate) - needed in externally dependent adsorption kinetic
-			const double z = 1.0 / static_cast<double>(_disc.nCol) * (0.5 + pblk);
+			ad::BandedJacobianExtractor jacExtractor(_jacP[type].lowerBandwidth(), _jacP[type].lowerBandwidth(), _jacP[type].upperBandwidth());
 
-			const int localOffsetToParticle = idxr.offsetCp(pblk);
-			const int localOffsetInParticle = idxr.strideParLiquid();
+			//Problem capturing variables here
+#ifdef CADET_PARALLELIZE
+			BENCH_SCOPE(_timerConsistentInitPar);
+			tbb::parallel_for(size_t(0), size_t(_disc.nCol), [&](size_t pblk)
+#else
+			for (unsigned int pblk = 0; pblk < _disc.nCol; ++pblk)
+#endif
+			{
+				// Reuse memory of band matrix for dense matrix
+				linalg::DenseMatrixView jacobianMatrix(_jacPdisc[type].data() + pblk * _disc.strideBound[type] * _disc.strideBound[type], _jacPdisc[type].pivot() + pblk * _disc.strideBound[type], _disc.strideBound[type], _disc.strideBound[type]);
 
-			// Get pointer to q variables in a shell of particle pblk
-			double* const qShell = vecStateY + localOffsetToParticle + localOffsetInParticle;
-			active* const localAdRes = adRes ? adRes + localOffsetToParticle : nullptr;
-			active* const localAdY = adY ? adY + localOffsetToParticle : nullptr;
+				// Midpoint of current column cell (z coordinate) - needed in externally dependent adsorption kinetic
+				const double z = 1.0 / static_cast<double>(_disc.nCol) * (0.5 + pblk);
 
-			// We are essentially creating a 2d vector of blocks out of a linear strip of memory
-			const unsigned int offset = requiredMem * pblk;
+				const int localOffsetToParticle = idxr.offsetCp(ParticleTypeIndex{type}, ParticleIndex{static_cast<unsigned int>(pblk)});
+				const int localOffsetInParticle = idxr.strideParLiquid();
 
-			// Solve algebraic variables
-			_binding[0]->consistentInitialState(t, z, static_cast<double>(_parRadius) * 0.5, secIdx, qShell, qShell - localOffsetInParticle , errorTol, localAdRes, localAdY,
-				localOffsetInParticle, adDirOffset, jacExtractor, _tempState + offset, jacobianMatrix);
-		} CADET_PARFOR_END;
+				// Get pointer to q variables in a shell of particle pblk
+				double* const qShell = vecStateY + localOffsetToParticle + localOffsetInParticle;
+				active* const localAdRes = adRes ? adRes + localOffsetToParticle : nullptr;
+				active* const localAdY = adY ? adY + localOffsetToParticle : nullptr;
+
+				// We are essentially creating a 2d vector of blocks out of a linear strip of memory
+				const unsigned int offset = _bindingWorkspaceOffset[type] + requiredMem * pblk;
+
+				// Solve algebraic variables
+				_binding[type]->consistentInitialState(t, z, static_cast<double>(_parRadius[type]) * 0.5, secIdx, qShell, qShell - localOffsetInParticle , errorTol, localAdRes, localAdY,
+					localOffsetInParticle, adDirOffset, jacExtractor, _tempState + offset, jacobianMatrix);
+			} CADET_PARFOR_END;
+		}
 	}
 
 	// Step 1b: Compute fluxes j_f
 
 	// Reset j_f to 0.0
 	double* const jf = vecStateY + idxr.offsetJf();
-	std::fill(jf, jf + _disc.nComp * _disc.nCol, 0.0);
+	std::fill(jf, jf + _disc.nComp * _disc.nCol * _disc.nParType, 0.0);
 
 	solveForFluxes(vecStateY, idxr);
 }
@@ -293,7 +303,6 @@ void LumpedRateModelWithPores::consistentInitialTimeDerivative(double t, unsigne
 	BENCH_SCOPE(_timerConsistentInit);
 
 	Indexer idxr(_disc);
-	const unsigned int requiredMem = (_binding[0]->workspaceSize(_disc.nComp, _disc.strideBound, _disc.nBound) + sizeof(double) - 1) / sizeof(double);
 
 	// Step 2: Compute the correct time derivative of the state vector
 
@@ -307,55 +316,69 @@ void LumpedRateModelWithPores::consistentInitialTimeDerivative(double t, unsigne
 	_convDispOp.solveTimeDerivativeSystem(t, secIdx, static_cast<double>(timeFactor), vecStateYdot + idxr.offsetC());
 
 	// Process the particle blocks
-	_jacPdisc.setAll(0.0);
-	for (unsigned int pblk = 0; pblk < _disc.nCol; ++pblk)
+#ifdef CADET_PARALLELIZE
+	BENCH_START(_timerConsistentInitPar);
+	tbb::parallel_for(size_t(0), size_t(_disc.nParType), [&](size_t type)
+#else
+	for (unsigned int type = 0; type < _disc.nParType; ++type)
+#endif
 	{
-		// Midpoint of current column cell (z coordinate) - needed in externally dependent adsorption kinetic
-		const double z = 1.0 / static_cast<double>(_disc.nCol) * (0.5 + pblk);
-
-		// Assemble
-		linalg::FactorizableBandMatrix::RowIterator jac = _jacPdisc.row(idxr.strideParBlock() * pblk);
-
-		// Mobile phase (advances jac accordingly)
-		addMobilePhaseTimeDerivativeToJacobianParticleBlock(jac, idxr, 1.0, timeFactor);
-
-		// Stationary phase
-		// Populate matrix with time derivative Jacobian first
-		_binding[0]->jacobianAddDiscretized(timeFactor, jac);
-
-		// Overwrite rows corresponding to algebraic equations with the Jacobian and set right hand side to 0
-		if (_binding[0]->hasAlgebraicEquations())
+		_jacPdisc[type].setAll(0.0);
+		for (unsigned int pblk = 0; pblk < _disc.nCol; ++pblk)
 		{
-			parts::BindingConsistentInitializer::consistentInitialTimeDerivative(_binding[0], timeFactor, jac,
-				_jacP.row(idxr.strideParBlock() * pblk + static_cast<unsigned int>(idxr.strideParLiquid())),
-				vecStateYdot + idxr.offsetCp(pblk) + idxr.strideParLiquid(),
-				t, z, 0.5, secIdx, _tempState + requiredMem * pblk);
+			// Midpoint of current column cell (z coordinate) - needed in externally dependent adsorption kinetic
+			const double z = 1.0 / static_cast<double>(_disc.nCol) * (0.5 + pblk);
+
+			// Assemble
+			linalg::FactorizableBandMatrix::RowIterator jac = _jacPdisc[type].row(idxr.strideParBlock(type) * pblk);
+
+			// Mobile phase (advances jac accordingly)
+			addMobilePhaseTimeDerivativeToJacobianParticleBlock(jac, idxr, 1.0, timeFactor, type);
+
+			// Stationary phase
+			// Populate matrix with time derivative Jacobian first
+			_binding[type]->jacobianAddDiscretized(timeFactor, jac);
+
+			// Overwrite rows corresponding to algebraic equations with the Jacobian and set right hand side to 0
+			if (_binding[type]->hasAlgebraicEquations())
+			{
+				const unsigned int requiredMem = (_binding[type]->workspaceSize(_disc.nComp, _disc.strideBound[type], _disc.nBound + type * _disc.nComp) + sizeof(double) - 1) / sizeof(double);
+
+				parts::BindingConsistentInitializer::consistentInitialTimeDerivative(_binding[type], timeFactor, jac,
+					_jacP[type].row(static_cast<unsigned int>(idxr.strideParBlock(type)) * pblk + static_cast<unsigned int>(idxr.strideParLiquid())),
+					vecStateYdot + idxr.offsetCp(ParticleTypeIndex{static_cast<unsigned int>(type)}, ParticleIndex{pblk}) + idxr.strideParLiquid(),
+					t, z, 0.5, secIdx, _tempState + _bindingWorkspaceOffset[type] + requiredMem * pblk);
+			}
 		}
-	}
 
-	// Precondition
-	double* const scaleFactors = _tempState + idxr.offsetCp();
-	_jacPdisc.rowScaleFactors(scaleFactors);
-	_jacPdisc.scaleRows(scaleFactors);
+		// Precondition
+		double* const scaleFactors = _tempState + idxr.offsetCp(ParticleTypeIndex{static_cast<unsigned int>(type)});
+		_jacPdisc[type].rowScaleFactors(scaleFactors);
+		_jacPdisc[type].scaleRows(scaleFactors);
 
-	// Factorize
-	const bool result = _jacPdisc.factorize();
-	if (!result)
-	{
-		LOG(Error) << "Factorize() failed for par block";
-	}
+		// Factorize
+		const bool result = _jacPdisc[type].factorize();
+		if (!result)
+		{
+			LOG(Error) << "Factorize() failed for par type block " << type;
+		}
 
-	const bool result2 = _jacPdisc.solve(scaleFactors, vecStateYdot + idxr.offsetCp());
-	if (!result2)
-	{
-		LOG(Error) << "Solve() failed for par block";
-	}
+		const bool result2 = _jacPdisc[type].solve(scaleFactors, vecStateYdot + idxr.offsetCp(ParticleTypeIndex{static_cast<unsigned int>(type)}));
+		if (!result2)
+		{
+			LOG(Error) << "Solve() failed for par type block " << type;
+		}
+	} CADET_PARFOR_END;
+
+#ifdef CADET_PARALLELIZE
+	BENCH_STOP(_timerConsistentInitPar);
+#endif
 
 	// Step 2b: Solve for fluxes j_f by backward substitution
 
 	// Reset \dot{j}_f to 0.0
 	double* const jfDot = vecStateYdot + idxr.offsetJf();
-	std::fill(jfDot, jfDot + _disc.nComp * _disc.nCol, 0.0);
+	std::fill(jfDot, jfDot + _disc.nComp * _disc.nCol * _disc.nParType, 0.0);
 
 	solveForFluxes(vecStateYdot, idxr);
 }
@@ -419,7 +442,7 @@ void LumpedRateModelWithPores::leanConsistentInitialState(double t, unsigned int
 
 	// Reset j_f to 0.0
 	double* const jf = vecStateY + idxr.offsetJf();
-	std::fill(jf, jf + _disc.nComp * _disc.nCol, 0.0);
+	std::fill(jf, jf + _disc.nComp * _disc.nCol * _disc.nParType, 0.0);
 
 	solveForFluxes(vecStateY, idxr);
 }
@@ -495,7 +518,7 @@ void LumpedRateModelWithPores::leanConsistentInitialTimeDerivative(double t, dou
 
 	// Reset \dot{j}_f to 0.0
 	double* const jfDot = vecStateYdot + idxr.offsetJf();
-	std::fill(jfDot, jfDot + _disc.nComp * _disc.nCol, 0.0);
+	std::fill(jfDot, jfDot + _disc.nComp * _disc.nCol * _disc.nParType, 0.0);
 
 	solveForFluxes(vecStateYdot, idxr);
 }
@@ -516,19 +539,22 @@ void LumpedRateModelWithPores::initializeSensitivityStates(const std::vector<dou
 		}
 
 		// Loop over particles
-		for (unsigned int col = 0; col < _disc.nCol; ++col)
+		for (unsigned int type = 0; type < _disc.nParType; ++type)
 		{
-			const unsigned int offset = idxr.offsetCp(col);
-			double* const stateYparticle = vecSensY[param] + offset;
-			double* const stateYparticleSolid = stateYparticle + idxr.strideParLiquid();
-			
-			// Initialize c_p
-			for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
-				stateYparticle[comp] = _initCp[comp].getADValue(param);
+			for (unsigned int col = 0; col < _disc.nCol; ++col)
+			{
+				const unsigned int offset = idxr.offsetCp(ParticleTypeIndex{type}, ParticleIndex{col});
+				double* const stateYparticle = vecSensY[param] + offset;
+				double* const stateYparticleSolid = stateYparticle + idxr.strideParLiquid();
+				
+				// Initialize c_p
+				for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
+					stateYparticle[comp] = _initCp[comp + _disc.nComp * type].getADValue(param);
 
-			// Initialize q
-			for (unsigned int bnd = 0; bnd < _disc.strideBound; ++bnd)
-				stateYparticleSolid[bnd] = _initQ[bnd].getADValue(param);
+				// Initialize q
+				for (unsigned int bnd = 0; bnd < _disc.strideBound[type]; ++bnd)
+					stateYparticleSolid[bnd] = _initQ[bnd + _disc.nBoundBeforeType[type]].getADValue(param);
+			}
 		}
 	}
 }
@@ -608,30 +634,33 @@ void LumpedRateModelWithPores::consistentInitialSensitivity(const active& t, uns
 		// Step 1: Solve algebraic equations
 
 		// Step 1a: Compute quasi-stationary binding model state
-		if (_binding[0]->hasAlgebraicEquations())
+		for (unsigned int type = 0; type < _disc.nParType; ++type)
 		{
-#ifdef CADET_PARALLELIZE
-			BENCH_SCOPE(_timerConsistentInitPar);
-			tbb::parallel_for(size_t(0), size_t(_disc.nCol), [&](size_t pblk)
-#else
-			for (unsigned int pblk = 0; pblk < _disc.nCol; ++pblk)
-#endif
+			if (_binding[type]->hasAlgebraicEquations())
 			{
-				// Get algebraic block
-				unsigned int algStart = 0;
-				unsigned int algLen = 0;
-				_binding[0]->getAlgebraicBlock(algStart, algLen);
+#ifdef CADET_PARALLELIZE
+				BENCH_SCOPE(_timerConsistentInitPar);
+				tbb::parallel_for(size_t(0), size_t(_disc.nCol), [&](size_t pblk)
+#else
+				for (unsigned int pblk = 0; pblk < _disc.nCol; ++pblk)
+#endif
+				{
+					// Get algebraic block
+					unsigned int algStart = 0;
+					unsigned int algLen = 0;
+					_binding[type]->getAlgebraicBlock(algStart, algLen);
 
-				// Reuse memory of band matrix for dense matrix
-				linalg::DenseMatrixView jacobianMatrix(_jacPdisc.data() + pblk * _disc.strideBound * _disc.strideBound, _jacPdisc.pivot() + pblk * _disc.strideBound, algLen, algLen);
+					// Reuse memory of band matrix for dense matrix
+					linalg::DenseMatrixView jacobianMatrix(_jacPdisc[type].data() + pblk * _disc.strideBound[type] * _disc.strideBound[type], _jacPdisc[type].pivot() + pblk * _disc.strideBound[type], algLen, algLen);
 
-				const unsigned int jacRowOffset = idxr.strideParBlock() * pblk + static_cast<unsigned int>(idxr.strideParLiquid());
-				const int localCpOffset = idxr.offsetCp(pblk);
+					const unsigned int jacRowOffset = idxr.strideParBlock(type) * pblk + static_cast<unsigned int>(idxr.strideParLiquid());
+					const int localCpOffset = idxr.offsetCp(ParticleTypeIndex{type}, ParticleIndex{static_cast<unsigned int>(pblk)});
 
-				parts::BindingConsistentInitializer::consistentInitialSensitivityState(algStart, algLen, jacobianMatrix,
-					_jacP, localCpOffset, jacRowOffset, idxr.strideParLiquid(), _disc.strideBound,
-					sensY, sensYdot, _tempState + idxr.offsetCp(pblk));
-			} CADET_PARFOR_END;
+					parts::BindingConsistentInitializer::consistentInitialSensitivityState(algStart, algLen, jacobianMatrix,
+						_jacP[type], localCpOffset, jacRowOffset, idxr.strideParLiquid(), _disc.strideBound[type],
+						sensY, sensYdot, _tempState + localCpOffset);
+				} CADET_PARFOR_END;
+			}
 		}
 
 		// Step 1b: Compute fluxes j_f, right hand side is -dF / dp
@@ -652,49 +681,61 @@ void LumpedRateModelWithPores::consistentInitialSensitivity(const active& t, uns
 		_convDispOp.solveTimeDerivativeSystem(static_cast<double>(t), secIdx, static_cast<double>(timeFactor), sensYdot + idxr.offsetC());
 
 		// Process the particle blocks
-		_jacPdisc.setAll(0.0);
-		for (unsigned int pblk = 0; pblk < _disc.nCol; ++pblk)
+#ifdef CADET_PARALLELIZE
+		BENCH_START(_timerConsistentInitPar);
+		tbb::parallel_for(size_t(0), size_t(_disc.nParType), [&](size_t type)
+#else
+		for (unsigned int type = 0; type < _disc.nParType; ++type)
+#endif
 		{
-			// Assemble
-			linalg::FactorizableBandMatrix::RowIterator jac = _jacPdisc.row(idxr.strideParBlock() * pblk);
-
-			// Mobile phase
-			addMobilePhaseTimeDerivativeToJacobianParticleBlock(jac, idxr, 1.0, static_cast<double>(timeFactor));
-
-			// Stationary phase
-			// Populate matrix with time derivative Jacobian first
-			_binding[0]->jacobianAddDiscretized(static_cast<double>(timeFactor), jac);
-
-			// Overwrite rows corresponding to algebraic equations with the Jacobian and set right hand side to 0
-			if (_binding[0]->hasAlgebraicEquations())
+			_jacPdisc[type].setAll(0.0);
+			for (unsigned int pblk = 0; pblk < _disc.nCol; ++pblk)
 			{
-				parts::BindingConsistentInitializer::consistentInitialSensitivityTimeDerivative(_binding[0], jac,
-					_jacP.row(pblk * idxr.strideParBlock() + static_cast<unsigned int>(idxr.strideParLiquid())),
-					sensYdot + idxr.offsetCp(pblk) + idxr.strideParLiquid());
+				// Assemble
+				linalg::FactorizableBandMatrix::RowIterator jac = _jacPdisc[type].row(idxr.strideParBlock(type) * pblk);
+
+				// Mobile phase
+				addMobilePhaseTimeDerivativeToJacobianParticleBlock(jac, idxr, 1.0, static_cast<double>(timeFactor), type);
+
+				// Stationary phase
+				// Populate matrix with time derivative Jacobian first
+				_binding[type]->jacobianAddDiscretized(static_cast<double>(timeFactor), jac);
+
+				// Overwrite rows corresponding to algebraic equations with the Jacobian and set right hand side to 0
+				if (_binding[type]->hasAlgebraicEquations())
+				{
+					parts::BindingConsistentInitializer::consistentInitialSensitivityTimeDerivative(_binding[type], jac,
+						_jacP[type].row(pblk * idxr.strideParBlock(type) + static_cast<unsigned int>(idxr.strideParLiquid())),
+						sensYdot + idxr.offsetCp(ParticleTypeIndex{static_cast<unsigned int>(type)}, ParticleIndex{pblk}) + idxr.strideParLiquid());
+				}
+
+				// Advance pointers over all bound states
+				jac += idxr.strideParBound(type);
 			}
 
-			// Advance pointers over all bound states
-			jac += idxr.strideParBound();
-		}
+			// Precondition
+			double* const scaleFactors = _tempState + idxr.offsetCp(ParticleTypeIndex{static_cast<unsigned int>(type)});
+			_jacPdisc[type].rowScaleFactors(scaleFactors);
+			_jacPdisc[type].scaleRows(scaleFactors);
 
-		// Precondition
-		double* const scaleFactors = _tempState + idxr.offsetCp();
-		_jacPdisc.rowScaleFactors(scaleFactors);
-		_jacPdisc.scaleRows(scaleFactors);
+			// Factorize
+			const bool result = _jacPdisc[type].factorize();
+			if (!result)
+			{
+				LOG(Error) << "Factorize() failed for par type block " << type;
+			}
 
-		// Factorize
-		const bool result = _jacPdisc.factorize();
-		if (!result)
-		{
-			LOG(Error) << "Factorize() failed for par block";
-		}
+			// Solve
+			const bool result2 = _jacPdisc[type].solve(scaleFactors, sensYdot + idxr.offsetCp(ParticleTypeIndex{static_cast<unsigned int>(type)}));
+			if (!result2)
+			{
+				LOG(Error) << "Solve() failed for par type block " << type;
+			}
+		} CADET_PARFOR_END;
 
-		// Solve
-		const bool result2 = _jacPdisc.solve(scaleFactors, sensYdot + idxr.offsetCp());
-		if (!result2)
-		{
-			LOG(Error) << "Solve() failed for par block";
-		}
+#ifdef CADET_PARALLELIZE
+		BENCH_STOP(_timerConsistentInitPar);
+#endif
 
 		// Step 2b: Solve for fluxes j_f by backward substitution
 		solveForFluxes(sensYdot, idxr);
@@ -814,7 +855,8 @@ void LumpedRateModelWithPores::solveForFluxes(double* const vecState, const Inde
 
 	// Note that we cannot parallelize this loop since we are updating the fluxes in-place
 	_jacFC.multiplySubtract(vecState + idxr.offsetC(), jf);
-	_jacFP.multiplySubtract(vecState + idxr.offsetCp(), jf);
+	for (unsigned int type = 0; type < _disc.nParType; ++type)
+		_jacFP[type].multiplySubtract(vecState + idxr.offsetCp(ParticleTypeIndex{type}), jf);
 }
 
 }  // namespace model

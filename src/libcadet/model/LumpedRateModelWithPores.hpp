@@ -19,6 +19,7 @@
 #define LIBCADET_LUMPEDRATEMODELWITHPORES_HPP_
 
 #include "UnitOperationBase.hpp"
+#include "cadet/StrongTypes.hpp"
 #include "cadet/SolutionExporter.hpp"
 #include "model/parts/ConvectionDispersionOperator.hpp"
 #include "AutoDiff.hpp"
@@ -191,7 +192,7 @@ protected:
 	int residualImpl(const ParamType& t, unsigned int secIdx, const ParamType& timeFactor, StateType const* const y, double const* const yDot, ResidualType* const res);
 
 	template <typename StateType, typename ResidualType, typename ParamType, bool wantJac>
-	int residualParticle(const ParamType& t, unsigned int colCell, unsigned int secIdx, const ParamType& timeFactor, StateType const* y, double const* yDot, ResidualType* res);
+	int residualParticle(const ParamType& t, unsigned int parType, unsigned int colCell, unsigned int secIdx, const ParamType& timeFactor, StateType const* y, double const* yDot, ResidualType* res);
 
 	template <typename StateType, typename ResidualType, typename ParamType>
 	int residualFlux(const ParamType& t, unsigned int secIdx, StateType const* y, double const* yDot, ResidualType* res);
@@ -200,10 +201,12 @@ protected:
 	void extractJacobianFromAD(active const* const adRes, unsigned int adDirOffset);
 
 	int schurComplementMatrixVector(double const* x, double* z) const;
-	void assembleDiscretizedJacobianParticleBlock(double alpha, const Indexer& idxr, double timeFactor);
+	void assembleDiscretizedJacobianParticleBlock(unsigned int type, double alpha, const Indexer& idxr, double timeFactor);
 
-	void addMobilePhaseTimeDerivativeToJacobianParticleBlock(linalg::FactorizableBandMatrix::RowIterator& jac, const Indexer& idxr, double alpha, double timeFactor);
+	void addMobilePhaseTimeDerivativeToJacobianParticleBlock(linalg::FactorizableBandMatrix::RowIterator& jac, const Indexer& idxr, double alpha, double timeFactor, unsigned int parType);
 	void solveForFluxes(double* const vecState, const Indexer& idxr);
+
+	unsigned int numAdDirsForJacobian() const CADET_NOEXCEPT;
 
 #ifdef CADET_CHECK_ANALYTIC_JACOBIAN
 	void checkAnalyticJacobianAgainstAd(active const* const adRes, unsigned int adDirOffset) const;
@@ -213,29 +216,34 @@ protected:
 	{
 		unsigned int nComp; //!< Number of components
 		unsigned int nCol; //!< Number of column cells
-		unsigned int* nBound; //!< Array with number of bound states for each component
-		unsigned int* boundOffset; //!< Array with offset to the first bound state of each component in the solid phase
-		unsigned int strideBound; //!< Total number of bound states
+		unsigned int nParType; //!< Number of particle types
+		unsigned int* parTypeOffset; //!< Array with offsets (in particle block) to particle type, additional last element contains total number of particle DOFs
+		unsigned int* nBound; //!< Array with number of bound states for each component and particle type (particle type major ordering)
+		unsigned int* boundOffset; //!< Array with offset to the first bound state of each component in the solid phase (particle type major ordering)
+		unsigned int* strideBound; //!< Total number of bound states for each particle type, additional last element contains total number of bound states for all types
+		unsigned int* nBoundBeforeType; //!< Array with number of bound states before a particle type (cumulative sum of strideBound)
 	};
 
 	Discretization _disc; //!< Discretization info
+	std::vector<unsigned int> _bindingWorkspaceOffset; //!< Array with offsets (per particle type) into temporary memory for use as workspace in binding models
 //	IExternalFunction* _extFun; //!< External function (owned by library user)
 
 	parts::ConvectionDispersionOperator _convDispOp; //!< Convection dispersion operator for interstitial volume transport
 
-	linalg::BandMatrix _jacP; //!< Particle jacobian diagonal blocks (all of them)
-	linalg::FactorizableBandMatrix _jacPdisc; //!< Particle jacobian diagonal blocks (all of them) with time derivatives from BDF method
+	std::vector<linalg::BandMatrix> _jacP; //!< Particle jacobian diagonal blocks (all of them for each particle type)
+	std::vector<linalg::FactorizableBandMatrix> _jacPdisc; //!< Particle jacobian diagonal blocks (all of them for each particle type) with time derivatives from BDF method
 
 	linalg::DoubleSparseMatrix _jacCF; //!< Jacobian block connecting interstitial states and fluxes (interstitial transport equation)
 	linalg::DoubleSparseMatrix _jacFC; //!< Jacobian block connecting fluxes and interstitial states (flux equation)
-	linalg::DoubleSparseMatrix _jacPF; //!< Jacobian blocks connecting particle states and fluxes (particle transport boundary condition)
-	linalg::DoubleSparseMatrix _jacFP; //!< Jacobian blocks connecting fluxes and particle states (flux equation)
+	std::vector<linalg::DoubleSparseMatrix> _jacPF; //!< Jacobian blocks connecting particle states and fluxes (particle transport boundary condition)
+	std::vector<linalg::DoubleSparseMatrix> _jacFP; //!< Jacobian blocks connecting fluxes and particle states (flux equation)
 
 	linalg::DoubleSparseMatrix _jacInlet; //!< Jacobian inlet DOF block matrix connects inlet DOFs to first bulk cells
 
 	active _colPorosity; //!< Column porosity (external porosity) \f$ \varepsilon_c \f$
-	active _parRadius; //!< Particle radius \f$ r_p \f$
-	active _parPorosity; //!< Particle porosity (internal porosity) \f$ \varepsilon_p \f$
+	std::vector<active> _parRadius; //!< Particle radius \f$ r_p \f$
+	std::vector<active> _parPorosity; //!< Particle porosity (internal porosity) \f$ \varepsilon_p \f$
+	std::vector<active> _parTypeVolFrac; //!< Volume fraction of each particle type
 
 	// Vectorial parameters
 	std::vector<active> _filmDiffusion; //!< Film diffusion coefficient \f$ k_f \f$
@@ -282,18 +290,21 @@ protected:
 
 		inline const int strideParComp() const CADET_NOEXCEPT { return 1; }
 		inline const int strideParLiquid() const CADET_NOEXCEPT { return static_cast<int>(_disc.nComp); }
-		inline const int strideParBound() const CADET_NOEXCEPT { return static_cast<int>(_disc.strideBound); }
-		inline const int strideParBlock() const CADET_NOEXCEPT { return strideParLiquid() + strideParBound(); }
+		inline const int strideParBound(int parType) const CADET_NOEXCEPT { return static_cast<int>(_disc.strideBound[parType]); }
+		inline const int strideParBlock(int parType) const CADET_NOEXCEPT { return strideParLiquid() + strideParBound(parType); }
 
-		inline const int strideFluxCell() const CADET_NOEXCEPT { return 1; }
-		inline const int strideFluxComp() const CADET_NOEXCEPT { return static_cast<int>(_disc.nCol); }
+		inline const int strideFluxCell() const CADET_NOEXCEPT { return static_cast<int>(_disc.nComp) * static_cast<int>(_disc.nParType); }
+		inline const int strideFluxParType() const CADET_NOEXCEPT { return static_cast<int>(_disc.nComp); }
+		inline const int strideFluxComp() const CADET_NOEXCEPT { return 1; }
 
 		// Offsets
 		inline const int offsetC() const CADET_NOEXCEPT { return _disc.nComp; }
 		inline const int offsetCp() const CADET_NOEXCEPT { return _disc.nComp * _disc.nCol + offsetC(); }
-		inline const int offsetCp(unsigned int colCell) const CADET_NOEXCEPT { return offsetCp() + strideParBlock() * colCell; }
-		inline const int offsetJf() const CADET_NOEXCEPT { return (_disc.nComp + strideParBlock()) * _disc.nCol + offsetC(); }
-		inline const int offsetBoundComp(unsigned int comp) const CADET_NOEXCEPT { return _disc.boundOffset[comp]; }
+		inline const int offsetCp(ParticleTypeIndex pti) const CADET_NOEXCEPT { return offsetCp() + _disc.parTypeOffset[pti.value]; }
+		inline const int offsetCp(ParticleTypeIndex pti, ParticleIndex pi) const CADET_NOEXCEPT { return offsetCp() + _disc.parTypeOffset[pti.value] + strideParBlock(pti.value) * pi.value; }
+		inline const int offsetJf() const CADET_NOEXCEPT { return offsetCp() + _disc.parTypeOffset[_disc.nParType]; }
+		inline const int offsetJf(ParticleTypeIndex pti) const CADET_NOEXCEPT { return offsetJf() + pti.value * _disc.nCol * _disc.nComp; }
+		inline const int offsetBoundComp(ParticleTypeIndex pti, ComponentIndex comp) const CADET_NOEXCEPT { return _disc.boundOffset[pti.value * _disc.nComp + comp.value]; }
 
 		// Return pointer to first element of state variable in state vector
 		template <typename real_t> inline real_t* c(real_t* const data) const { return data + offsetC(); }
@@ -325,25 +336,25 @@ protected:
 
 		virtual bool hasParticleFlux() const CADET_NOEXCEPT { return true; }
 		virtual bool hasParticleMobilePhase() const CADET_NOEXCEPT { return true; }
-		virtual bool hasSolidPhase() const CADET_NOEXCEPT { return _disc.strideBound > 0; }
+		virtual bool hasSolidPhase() const CADET_NOEXCEPT { return _disc.strideBound[_disc.nParType] > 0; }
 		virtual bool hasVolume() const CADET_NOEXCEPT { return false; }
 
 		virtual unsigned int numComponents() const CADET_NOEXCEPT { return _disc.nComp; }
 		virtual unsigned int numAxialCells() const CADET_NOEXCEPT { return _disc.nCol; }
 		virtual unsigned int numRadialCells() const CADET_NOEXCEPT { return 1u; }
-		virtual unsigned int numParticleTypes() const CADET_NOEXCEPT { return 1u; }
+		virtual unsigned int numParticleTypes() const CADET_NOEXCEPT { return _disc.nParType; }
 		virtual unsigned int numParticleShells(unsigned int parType) const CADET_NOEXCEPT { return 1u; }
-		virtual unsigned int numBoundStates(unsigned int parType) const CADET_NOEXCEPT { return _disc.strideBound; }
+		virtual unsigned int numBoundStates(unsigned int parType) const CADET_NOEXCEPT { return _disc.strideBound[parType]; }
 		virtual unsigned int numBulkDofs() const CADET_NOEXCEPT { return _disc.nComp * _disc.nCol; }
 		virtual unsigned int numParticleMobilePhaseDofs(unsigned int parType) const CADET_NOEXCEPT { return _disc.nComp * _disc.nCol; }
-		virtual unsigned int numSolidPhaseDofs(unsigned int parType) const CADET_NOEXCEPT { return _disc.strideBound * _disc.nCol; }
-		virtual unsigned int numFluxDofs() const CADET_NOEXCEPT { return _disc.nComp * _disc.nCol; }
+		virtual unsigned int numSolidPhaseDofs(unsigned int parType) const CADET_NOEXCEPT { return _disc.strideBound[parType] * _disc.nCol; }
+		virtual unsigned int numFluxDofs() const CADET_NOEXCEPT { return _disc.nComp * _disc.nCol * _disc.nParType; }
 		virtual unsigned int numVolumeDofs() const CADET_NOEXCEPT { return 0; }
 
 		virtual double const* concentration() const { return _idx.c(_data); }
 		virtual double const* flux() const { return _idx.jf(_data); }
-		virtual double const* particleMobilePhase(unsigned int parType) const { return _idx.cp(_data); }
-		virtual double const* solidPhase(unsigned int parType) const { return _idx.q(_data); }
+		virtual double const* particleMobilePhase(unsigned int parType) const { return _data + _idx.offsetCp(ParticleTypeIndex{parType}); }
+		virtual double const* solidPhase(unsigned int parType) const { return _data + _idx.offsetCp(ParticleTypeIndex{parType}) + _idx.strideParLiquid(); }
 		virtual double const* volume() const { return nullptr; }
 		virtual double const* inlet(unsigned int& stride) const
 		{
@@ -381,8 +392,8 @@ protected:
 		}
 
 		virtual unsigned int bulkMobilePhaseStride() const { return _idx.strideColCell(); }
-		virtual unsigned int particleMobilePhaseStride(unsigned int parType) const { return _idx.strideParBlock(); }
-		virtual unsigned int solidPhaseStride(unsigned int parType) const { return _idx.strideParBlock(); }
+		virtual unsigned int particleMobilePhaseStride(unsigned int parType) const { return _idx.strideParBlock(parType); }
+		virtual unsigned int solidPhaseStride(unsigned int parType) const { return _idx.strideParBlock(parType); }
 
 	protected:
 		const Discretization& _disc;
@@ -390,9 +401,9 @@ protected:
 		double const* const _data;
 
 		const std::array<StateOrdering, 2> _concentrationOrdering = { { StateOrdering::AxialCell, StateOrdering::Component } };
-		const std::array<StateOrdering, 2> _particleOrdering = { { StateOrdering::AxialCell, StateOrdering::Component } };
-		const std::array<StateOrdering, 3> _solidOrdering = { { StateOrdering::AxialCell, StateOrdering::Component, StateOrdering::BoundState } };
-		const std::array<StateOrdering, 2> _fluxOrdering = { { StateOrdering::Component, StateOrdering::AxialCell } };
+		const std::array<StateOrdering, 3> _particleOrdering = { { StateOrdering::ParticleType, StateOrdering::AxialCell, StateOrdering::Component } };
+		const std::array<StateOrdering, 4> _solidOrdering = { { StateOrdering::ParticleType, StateOrdering::AxialCell, StateOrdering::Component, StateOrdering::BoundState } };
+		const std::array<StateOrdering, 3> _fluxOrdering = { { StateOrdering::ParticleType, StateOrdering::AxialCell, StateOrdering::Component } };
 	};
 };
 

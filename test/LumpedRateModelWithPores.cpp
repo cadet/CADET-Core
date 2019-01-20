@@ -13,6 +13,7 @@
 #include <catch.hpp>
 
 #include "ColumnTests.hpp"
+#include "ParticleHelper.hpp"
 #include "Weno.hpp"
 #include "Utils.hpp"
 
@@ -121,4 +122,29 @@ TEST_CASE("LRMP consistent sensitivity initialization with SMA binding", "[LRMP]
 	cadet::test::util::populate(yDot.data(), [](unsigned int idx) { return std::abs(std::sin(idx * 0.9)) + 1e-4; }, numDofs);
 
 	cadet::test::column::testConsistentInitializationSensitivity("LUMPED_RATE_MODEL_WITH_PORES", y.data(), yDot.data(), false, 1e-10);
+}
+
+TEST_CASE("LRMP LWE one vs two identical particle types match", "[LRMP],[Simulation],[ParticleType]")
+{
+	cadet::test::particle::testOneVsTwoIdenticalParticleTypes("LUMPED_RATE_MODEL_WITH_PORES", 2.2e-8, 6e-5);
+}
+
+TEST_CASE("LRMP LWE separate identical particle types match", "[LRMP],[Simulation],[ParticleType]")
+{
+	cadet::test::particle::testSeparateIdenticalParticleTypes("LUMPED_RATE_MODEL_WITH_PORES", 1e-15, 1e-15);
+}
+
+TEST_CASE("LRMP linear binding single particle matches particle distribution", "[LRMP],[Simulation],[ParticleType]")
+{
+	cadet::test::particle::testLinearMixedParticleTypes("LUMPED_RATE_MODEL_WITH_PORES", 5e-8, 5e-5);
+}
+
+TEST_CASE("LRMP multiple particle types Jacobian analytic vs AD", "[LRMP],[Jacobian],[AD],[ParticleType]")
+{
+	cadet::test::particle::testJacobianMixedParticleTypes("LUMPED_RATE_MODEL_WITH_PORES");
+}
+
+TEST_CASE("LRMP multiple particle types time derivative Jacobian vs FD", "[LRMP],[UnitOp],[Residual],[Jacobian],[ParticleType]")
+{
+	cadet::test::particle::testTimeDerivativeJacobianMixedParticleTypesFD("LUMPED_RATE_MODEL_WITH_PORES", 1e-6, 0.0, 9e-4);
 }

@@ -144,17 +144,22 @@ int LumpedRateModelWithPores::linearSolve(double t, double timeFactor, double al
 		node_t B(g, [&](msg_t)
 #endif
 		{
-			// Assemble
-			assembleDiscretizedJacobianParticleBlock(alpha, idxr, timeFactor);
-
-			// Factorize
-			const bool result = _jacPdisc.factorize();
-			if (cadet_unlikely(!result))
+#ifdef CADET_PARALLELIZE
+			tbb::parallel_for(size_t(0), size_t(_disc.nParType), [&](size_t type)
+#else
+			for (unsigned int type = 0; type < _disc.nParType; ++type)
+#endif
 			{
+				// Assemble
+				assembleDiscretizedJacobianParticleBlock(type, alpha, idxr, timeFactor);
+
+				// Factorize
+				const bool result = _jacPdisc[type].factorize();
+				if (cadet_unlikely(!result))
 				{
-					LOG(Error) << "Factorize() failed for par block";
+					LOG(Error) << "Factorize() failed for par type block " << type;
 				}
-			}
+			} CADET_PARFOR_END;
 		} CADET_PARNODE_END;
 
 #ifndef CADET_PARALLELIZE
@@ -194,11 +199,18 @@ int LumpedRateModelWithPores::linearSolve(double t, double timeFactor, double al
 	node_t E(g, [&](msg_t)
 #endif
 	{
-		const bool result = _jacPdisc.solve(rhs + idxr.offsetCp());
-		if (cadet_unlikely(!result))
+#ifdef CADET_PARALLELIZE
+		tbb::parallel_for(size_t(0), size_t(_disc.nParType), [&](size_t type)
+#else
+		for (unsigned int type = 0; type < _disc.nParType; ++type)
+#endif
 		{
-			LOG(Error) << "Solve() failed for par block";
-		}
+			const bool result = _jacPdisc[type].solve(rhs + idxr.offsetCp(ParticleTypeIndex{static_cast<unsigned int>(type)}));
+			if (cadet_unlikely(!result))
+			{
+				LOG(Error) << "Solve() failed for par type block " << type;
+			}
+		} CADET_PARFOR_END;
 	} CADET_PARNODE_END;
 
 	// Solve last row of L with backwards substitution: y_f = b_f - \sum_{i=0}^{N_z} J_{f,i} y_i
@@ -210,7 +222,8 @@ int LumpedRateModelWithPores::linearSolve(double t, double timeFactor, double al
 #endif
 	{
 		_jacFC.multiplySubtract(rhs + idxr.offsetC(), rhs + idxr.offsetJf());
-		_jacFP.multiplySubtract(rhs + idxr.offsetCp(), rhs + idxr.offsetJf());
+		for (unsigned int type = 0; type < _disc.nParType; ++type)
+			_jacFP[type].multiplySubtract(rhs + idxr.offsetCp(ParticleTypeIndex{type}), rhs + idxr.offsetJf());
 
 		// Now, rhs contains the full intermediate solution y = L^{-1} b
 
@@ -232,7 +245,7 @@ int LumpedRateModelWithPores::linearSolve(double t, double timeFactor, double al
 		const int gmresResult = _gmres.solve(tolerance, weight + idxr.offsetJf(), _tempState + idxr.offsetJf(), rhs + idxr.offsetJf());
 		BENCH_STOP(_timerGmres);
 
-			// Remove temporary results that are leftovers from schurComplementMatrixVector()
+		// Remove temporary results that are leftovers from schurComplementMatrixVector()
 		std::fill(_tempState + idxr.offsetC(), _tempState + idxr.offsetJf(), 0.0);
 
 		// At this point, rhs contains the intermediate solution [y_0, ..., y_{N_z}, x_f]
@@ -269,21 +282,28 @@ int LumpedRateModelWithPores::linearSolve(double t, double timeFactor, double al
 	node_t H(g, [&](msg_t) 
 #endif
 	{
-		double* const localPar = _tempState + idxr.offsetCp();
-		double* const rhsPar = rhs + idxr.offsetCp();
-
-		// Compute tempState_i = J_{i,f} * y_f
-		_jacPF.multiplyAdd(rhs + idxr.offsetJf(), localPar);
-		// Apply J_i^{-1} to tempState_i
-		const bool result = _jacPdisc.solve(localPar);
-		if (cadet_unlikely(!result))
+#ifdef CADET_PARALLELIZE
+		tbb::parallel_for(size_t(0), size_t(_disc.nParType), [&](size_t type)
+#else
+		for (unsigned int type = 0; type < _disc.nParType; ++type)
+#endif
 		{
-			LOG(Error) << "Solve() failed for par block";
-		}
+			double* const localPar = _tempState + idxr.offsetCp(ParticleTypeIndex{static_cast<unsigned int>(type)});
+			double* const rhsPar = rhs + idxr.offsetCp(ParticleTypeIndex{static_cast<unsigned int>(type)});
 
-		// Compute rhs_i = y_i - J_i^{-1} * J_{i,f} * y_f = y_i - tempState_i
-		for (int i = 0; i < _disc.nCol * idxr.strideParBlock(); ++i)
-			rhsPar[i] -= localPar[i];
+			// Compute tempState_i = J_{i,f} * y_f
+			_jacPF[type].multiplyAdd(rhs + idxr.offsetJf(), localPar);
+			// Apply J_i^{-1} to tempState_i
+			const bool result = _jacPdisc[type].solve(localPar);
+			if (cadet_unlikely(!result))
+			{
+				LOG(Error) << "Solve() failed for par type block " << type;
+			}
+
+			// Compute rhs_i = y_i - J_i^{-1} * J_{i,f} * y_f = y_i - tempState_i
+			for (int i = 0; i < idxr.strideParBlock(type) * _disc.nCol; ++i)
+				rhsPar[i] -= localPar[i];
+		} CADET_PARFOR_END;
 	} CADET_PARNODE_END;
 
 #ifdef CADET_PARALLELIZE
@@ -344,7 +364,7 @@ int LumpedRateModelWithPores::schurComplementMatrixVector(double const* x, doubl
 	BENCH_SCOPE(_timerMatVec);
 
 	// Copy x over to result z, which corresponds to the application of the identity matrix
-	std::copy(x, x + _disc.nCol * _disc.nComp, z);
+	std::copy(x, x + _disc.nCol * _disc.nComp * _disc.nParType, z);
 
 	Indexer idxr(_disc);
 	std::fill(_tempState + idxr.offsetC(), _tempState + idxr.offsetJf(), 0.0);
@@ -375,18 +395,24 @@ int LumpedRateModelWithPores::schurComplementMatrixVector(double const* x, doubl
 #endif
 	{
 		// Handle particle blocks
-
-		// Get this thread's temporary memory block
-		double* const tmp = _tempState + idxr.offsetCp();
-
-		// Apply J_{i,f}
-		_jacPF.multiplyAdd(x, tmp);
-		// Apply J_{i}^{-1}
-		const bool result = _jacPdisc.solve(tmp);
-		if (cadet_unlikely(!result))
+#ifdef CADET_PARALLELIZE
+		tbb::parallel_for(size_t(0), size_t(_disc.nParType), [&](size_t type)
+#else
+		for (unsigned int type = 0; type < _disc.nParType; ++type)
+#endif
 		{
-			LOG(Error) << "Solve() failed for par block";
-		}
+			// Get this thread's temporary memory block
+			double* const tmp = _tempState + idxr.offsetCp(ParticleTypeIndex{static_cast<unsigned int>(type)});
+
+			// Apply J_{i,f}
+			_jacPF[type].multiplyAdd(x, tmp);
+			// Apply J_{i}^{-1}
+			const bool result = _jacPdisc[type].solve(tmp);
+			if (cadet_unlikely(!result))
+			{
+				LOG(Error) << "Solve() failed for par type block " << type;
+			}
+		} CADET_PARFOR_END;
 	} CADET_PARNODE_END;
 
 #ifdef CADET_PARALLELIZE
@@ -396,8 +422,11 @@ int LumpedRateModelWithPores::schurComplementMatrixVector(double const* x, doubl
 		// Apply J_{f,0} and subtract results from z
 		_jacFC.multiplySubtract(_tempState + idxr.offsetC(), z);
 
-		// Apply J_{f,i} and subtract results from z
-		_jacFP.multiplySubtract(_tempState + idxr.offsetCp(), z);
+		for (unsigned int type = 0; type < _disc.nParType; ++type)
+		{
+			// Apply J_{f,i} and subtract results from z
+			_jacFP[type].multiplySubtract(_tempState + idxr.offsetCp(ParticleTypeIndex{type}), z);
+		}
 	} CADET_PARNODE_END;
 
 #ifdef CADET_PARALLELIZE
@@ -428,28 +457,31 @@ int LumpedRateModelWithPores::schurComplementMatrixVector(double const* x, doubl
  *          when a BDF method is used. The time integrator needs to solve this equation for @f$ y_0 @f$, which requires
  *          the solution of the linear system mentioned above (@f$ \alpha_0 = \alpha @f$ given in @p alpha).
  *
- * @param [in] pblk Index of the particle block
+ * @param [in] parType Index of the particle type block
  * @param [in] alpha Value of \f$ \alpha \f$ (arises from BDF time discretization)
  * @param [in] idxr Indexer
  * @param [in] timeFactor Factor which is premultiplied to the time derivatives originating from time transformation
  */
-void LumpedRateModelWithPores::assembleDiscretizedJacobianParticleBlock(double alpha, const Indexer& idxr, double timeFactor)
+void LumpedRateModelWithPores::assembleDiscretizedJacobianParticleBlock(unsigned int parType, double alpha, const Indexer& idxr, double timeFactor)
 {
+	linalg::FactorizableBandMatrix& fbm = _jacPdisc[parType];
+	const linalg::BandMatrix& bm = _jacP[parType];
+
 	// Copy normal matrix over to factorizable matrix
-	_jacPdisc.copyOver(_jacP);
+	fbm.copyOver(bm);
 
 	// Add time derivatives to particle shells
-	linalg::FactorizableBandMatrix::RowIterator jac = _jacPdisc.row(0);
+	linalg::FactorizableBandMatrix::RowIterator jac = fbm.row(0);
 	for (unsigned int j = 0; j < _disc.nCol; ++j)
 	{
 		// Mobile phase (advances jac accordingly)
-		addMobilePhaseTimeDerivativeToJacobianParticleBlock(jac, idxr, alpha, timeFactor);
+		addMobilePhaseTimeDerivativeToJacobianParticleBlock(jac, idxr, alpha, timeFactor, parType);
 
 		// Stationary phase
-		_binding[0]->jacobianAddDiscretized(alpha * timeFactor, jac);
+		_binding[parType]->jacobianAddDiscretized(alpha * timeFactor, jac);
 
 		// Advance pointers over all bound states
-		jac += idxr.strideParBound();
+		jac += idxr.strideParBound(parType);
 	}
 }
 
@@ -463,7 +495,7 @@ void LumpedRateModelWithPores::assembleDiscretizedJacobianParticleBlock(double a
  * @param [in] alpha Value of \f$ \alpha \f$ (arises from BDF time discretization)
  * @param [in] timeFactor Factor which is premultiplied to the time derivatives originating from time transformation
  */
-void LumpedRateModelWithPores::addMobilePhaseTimeDerivativeToJacobianParticleBlock(linalg::FactorizableBandMatrix::RowIterator& jac, const Indexer& idxr, double alpha, double timeFactor)
+void LumpedRateModelWithPores::addMobilePhaseTimeDerivativeToJacobianParticleBlock(linalg::FactorizableBandMatrix::RowIterator& jac, const Indexer& idxr, double alpha, double timeFactor, unsigned int parType)
 {
 	// Compute total factor
 	alpha *= timeFactor;
@@ -474,17 +506,18 @@ void LumpedRateModelWithPores::addMobilePhaseTimeDerivativeToJacobianParticleBlo
 		// Add derivative with respect to dc_p / dt to Jacobian
 		jac[0] += alpha;
 
-		const double invBetaP = (1.0 - static_cast<double>(_parPorosity)) / (static_cast<double>(_poreAccessFactor[comp]) * static_cast<double>(_parPorosity));
+		const double invBetaP = (1.0 - static_cast<double>(_parPorosity[parType])) / (static_cast<double>(_poreAccessFactor[parType * _disc.nComp + comp]) * static_cast<double>(_parPorosity[parType]));
 
 		// Add derivative with respect to dq / dt to Jacobian
-		for (int i = 0; i < static_cast<int>(_disc.nBound[comp]); ++i)
+		const int nBound = static_cast<int>(_disc.nBound[parType * _disc.nComp + comp]);
+		for (int i = 0; i < nBound; ++i)
 		{
 			// Index explanation:
 			//   -comp -> go back to beginning of liquid phase
 			//   + strideParLiquid() skip to solid phase
 			//   + offsetBoundComp() jump to component (skips all bound states of previous components)
 			//   + i go to current bound state
-			jac[idxr.strideParLiquid() - comp + idxr.offsetBoundComp(comp) + i] += alpha * invBetaP;
+			jac[idxr.strideParLiquid() - comp + idxr.offsetBoundComp(ParticleTypeIndex{parType}, ComponentIndex{static_cast<unsigned int>(comp)}) + i] += alpha * invBetaP;
 		}
 	}
 }
