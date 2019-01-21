@@ -631,7 +631,11 @@ classdef GeneralRateModel < Model
 				validateattributes(obj.poreAccessibility, {'double'}, {'vector', 'numel', obj.nComponents * nParType, '>=', 0.0, '<=', 1.0, 'finite', 'real'}, '', 'poreAccessibility');
 			end
 			validateattributes(obj.particleTypeVolumeFractions, {'double'}, {'vector', 'nonempty', '>=', 0.0, '<=', 1.0, 'finite', 'real'}, '', 'particleTypeVolumeFractions');
-			if abs(sum(obj.particleTypeVolumeFractions) - 1.0) >= 1e-10
+			if (numel(obj.particleTypeVolumeFractions) ~= nParType) && (numel(obj.particleTypeVolumeFractions) ~= obj.nCellsColumn * nParType)
+				error('CADET:invalidConfig', 'Expected particleTypeVolumeFractions to be of size %d (number of particle types) or %d (number of axial cells * number of particle types).', nParType, obj.nCellsColumn * nParType);
+			end
+			sumFracs = arrayfun(@(idx) sum(obj.particleTypeVolumeFractions(((idx-1) * nParType + 1):(idx * nParType))), 1:(numel(obj.particleTypeVolumeFractions) / nParType));
+			if any(abs(sumFracs - 1.0) >= 1e-10)
 				error('CADET:invalidConfig', 'Expected particleTypeVolumeFractions to sum to 1.0.');
 			end
 
@@ -738,6 +742,13 @@ classdef GeneralRateModel < Model
 				if (param.SENS_SECTION ~= -1)
 					offset = offset + param.SENS_SECTION * sum(obj.nBoundStates);
 				end
+			elseif (strcmp(param.SENS_NAME, 'PAR_TYPE_VOLFRAC'))
+				if (param.SENS_PARTYPE ~= -1)
+					offset = offset + param.SENS_PARTYPE;
+				end
+				if (param.SENS_SECTION > 0)
+					offset = offset + param.SENS_SECTION * numel(obj.nCellsParticle);
+				end
 			else
 				if (param.SENS_SECTION ~= -1)
 					% Depends on section
@@ -821,6 +832,13 @@ classdef GeneralRateModel < Model
 				end
 				if (param.SENS_SECTION ~= -1)
 					offset = offset + param.SENS_SECTION * sum(obj.nBoundStates);
+				end
+			elseif (strcmp(param.SENS_NAME, 'PAR_TYPE_VOLFRAC'))
+				if (param.SENS_PARTYPE ~= -1)
+					offset = offset + param.SENS_PARTYPE;
+				end
+				if (param.SENS_SECTION > 0)
+					offset = offset + param.SENS_SECTION * numel(obj.nCellsParticle);
 				end
 			else
 				if (param.SENS_SECTION ~= -1)

@@ -25,6 +25,7 @@
 #include "Stencil.hpp"
 #include "Weno.hpp"
 #include "AdUtils.hpp"
+#include "SensParamUtil.hpp"
 
 #include "LoggingUtils.hpp"
 #include "Logging.hpp"
@@ -317,25 +318,44 @@ bool GeneralRateModel::configure(IParameterProvider& paramProvider)
 
 	// Let PAR_TYPE_VOLFRAC default to 1.0 for backwards compatibility
 	if (paramProvider.exists("PAR_TYPE_VOLFRAC"))
+	{
 		readScalarParameterOrArray(_parTypeVolFrac, paramProvider, "PAR_TYPE_VOLFRAC", 1);
-	else
-		_parTypeVolFrac.resize(1, 1.0);
+		if (_parTypeVolFrac.size() == _disc.nParType)
+		{
+			_axiallyConstantParTypeVolFrac = true;
 
-	// Check that particle volume fractions sum to 1.0
-	const double volFracSum = std::accumulate(_parTypeVolFrac.begin(), _parTypeVolFrac.end(), 0.0, 
-		[](double a, const active& b) -> double { return a + static_cast<double>(b); });
-	if (std::abs(1.0 - volFracSum) > 1e-10)
-		throw InvalidParameterException("Sum of field PAR_TYPE_VOLFRAC differs from 1.0 (is " + std::to_string(volFracSum) + ")");
+			// Expand to all axial cells
+			_parTypeVolFrac.resize(_disc.nCol * _disc.nParType, 1.0);
+			for (unsigned int i = 1; i < _disc.nCol; ++i)
+				std::copy(_parTypeVolFrac.begin(), _parTypeVolFrac.begin() + _disc.nParType, _parTypeVolFrac.begin() + _disc.nParType * i);
+		}
+		else
+			_axiallyConstantParTypeVolFrac = false;
+	}
+	else
+	{
+		_parTypeVolFrac.resize(_disc.nCol, 1.0);
+		_axiallyConstantParTypeVolFrac = false;
+	}
 
 	// Check whether all sizes are matched
 	if (_disc.nParType != _parRadius.size())
 		throw InvalidParameterException("Number of elements in field PAR_RADIUS does not match number of particle types");
-	if (_disc.nParType != _parTypeVolFrac.size())
-		throw InvalidParameterException("Number of elements in field PAR_TYPE_VOLFRAC does not match number of particle types");
+	if (_disc.nParType * _disc.nCol != _parTypeVolFrac.size())
+		throw InvalidParameterException("Number of elements in field PAR_TYPE_VOLFRAC does not match number of particle types times number of axial cells");
 	if (_disc.nParType != _parPorosity.size())
 		throw InvalidParameterException("Number of elements in field PAR_POROSITY does not match number of particle types");
 	if (_disc.nParType != _parCoreRadius.size())
 		throw InvalidParameterException("Number of elements in field PAR_CORERADIUS does not match number of particle types");
+
+	// Check that particle volume fractions sum to 1.0
+	for (unsigned int i = 0; i < _disc.nCol; ++i)
+	{
+		const double volFracSum = std::accumulate(_parTypeVolFrac.begin() + i * _disc.nParType, _parTypeVolFrac.begin() + (i+1) * _disc.nParType, 0.0, 
+			[](double a, const active& b) -> double { return a + static_cast<double>(b); });
+		if (std::abs(1.0 - volFracSum) > 1e-10)
+			throw InvalidParameterException("Sum of field PAR_TYPE_VOLFRAC differs from 1.0 (is " + std::to_string(volFracSum) + ") in axial cell " + std::to_string(i));
+	}
 
 	// Read vectorial parameters (which may also be section dependent; transport)
 	readParameterMatrix(_filmDiffusion, paramProvider, "FILM_DIFFUSION", _disc.nComp * _disc.nParType, 1);
@@ -362,7 +382,15 @@ bool GeneralRateModel::configure(IParameterProvider& paramProvider)
 	registerParam1DArray(_parameters, _parRadius, [=](bool multi, unsigned int type) { return makeParamId(hashString("PAR_RADIUS"), _unitOpIdx, CompIndep, type, BoundStateIndep, ReactionIndep, SectionIndep); });
 	registerParam1DArray(_parameters, _parCoreRadius, [=](bool multi, unsigned int type) { return makeParamId(hashString("PAR_CORERADIUS"), _unitOpIdx, CompIndep, type, BoundStateIndep, ReactionIndep, SectionIndep); });
 	registerParam1DArray(_parameters, _parPorosity, [=](bool multi, unsigned int type) { return makeParamId(hashString("PAR_POROSITY"), _unitOpIdx, CompIndep, type, BoundStateIndep, ReactionIndep, SectionIndep); });
-	registerParam1DArray(_parameters, _parTypeVolFrac, [=](bool multi, unsigned int type) { return makeParamId(hashString("PAR_TYPE_VOLFRAC"), _unitOpIdx, CompIndep, type, BoundStateIndep, ReactionIndep, SectionIndep); });
+
+	if (_axiallyConstantParTypeVolFrac)
+	{
+		// Register only the first nParType items
+		for (unsigned int i = 0; i < _disc.nParType; ++i)
+			_parameters[makeParamId(hashString("PAR_TYPE_VOLFRAC"), _unitOpIdx, CompIndep, i, BoundStateIndep, ReactionIndep, SectionIndep)] = &_parTypeVolFrac[i];			
+	}
+	else
+		registerParam2DArray(_parameters, _parTypeVolFrac, [=](bool multi, unsigned cell, unsigned int type) { return makeParamId(hashString("PAR_TYPE_VOLFRAC"), _unitOpIdx, CompIndep, type, BoundStateIndep, ReactionIndep, cell); }, _disc.nParType);
 
 	// Calculate the particle radial discretization variables (_parCellSize, _parCenterRadius, etc.)
 	updateRadialDisc();
@@ -1002,7 +1030,7 @@ int GeneralRateModel::residualFlux(const ParamType& t, unsigned int secIdx, Stat
 		const ParamType surfaceToVolumeRatio = 3.0 / static_cast<ParamType>(_parRadius[type]);
 		const ParamType outerAreaPerVolume = static_cast<ParamType>(_parOuterSurfAreaPerVolume[_disc.nParCellsBeforeType[type]]);
 
-		const ParamType jacCF_val = invBetaC * surfaceToVolumeRatio * static_cast<ParamType>(_parTypeVolFrac[type]);
+		const ParamType jacCF_val = invBetaC * surfaceToVolumeRatio;
 		const ParamType jacPF_val = -outerAreaPerVolume / epsP;
 
 		// Discretized film diffusion kf for finite volumes
@@ -1014,7 +1042,10 @@ int GeneralRateModel::residualFlux(const ParamType& t, unsigned int secIdx, Stat
 
 		// J_{0,f} block, adds flux to column void / bulk volume equations
 		for (unsigned int i = 0; i < _disc.nCol * _disc.nComp; ++i)
-			resCol[i] += jacCF_val * yFluxType[i];
+		{
+			const unsigned int colCell = i / _disc.nComp;
+			resCol[i] += jacCF_val * static_cast<ParamType>(_parTypeVolFrac[type + colCell * _disc.nParType]) * yFluxType[i];
+		}
 
 		// J_{f,0} block, adds bulk volume state c_i to flux equation
 		for (unsigned int bnd = 0; bnd < _disc.nCol; ++bnd)
@@ -1092,7 +1123,7 @@ void GeneralRateModel::assembleOffdiagJac(double t, unsigned int secIdx)
 		const double surfaceToVolumeRatio = 3.0 / static_cast<double>(_parRadius[type]);
 		const double outerAreaPerVolume = static_cast<double>(_parOuterSurfAreaPerVolume[_disc.nParCellsBeforeType[type]]);
 
-		const double jacCF_val = invBetaC * surfaceToVolumeRatio * static_cast<double>(_parTypeVolFrac[type]);
+		const double jacCF_val = invBetaC * surfaceToVolumeRatio;
 		const double jacPF_val = -outerAreaPerVolume / epsP;
 		const double absOuterShellHalfRadius = 0.5 * static_cast<double>(_parCellSize[_disc.nParCellsBeforeType[type]]);
 
@@ -1105,8 +1136,10 @@ void GeneralRateModel::assembleOffdiagJac(double t, unsigned int secIdx)
 		// J_{0,f} block, adds flux to column void / bulk volume equations
 		for (unsigned int eq = 0; eq < _disc.nCol * _disc.nComp; ++eq)
 		{
+			const unsigned int colCell = eq / _disc.nComp;
+
 			// Main diagonal corresponds to j_{f,i} (flux) state variable
-			_jacCF.addElement(eq, eq + typeOffset, jacCF_val);
+			_jacCF.addElement(eq, eq + typeOffset, jacCF_val * static_cast<double>(_parTypeVolFrac[type + colCell * _disc.nParType]));
 		}
 
 		// J_{f,0} block, adds bulk volume state c_i to flux equation
@@ -1502,6 +1535,20 @@ void GeneralRateModel::updateRadialDisc()
 
 bool GeneralRateModel::setParameter(const ParameterId& pId, double value)
 {
+	// Intercept changes to PAR_TYPE_VOLFRAC when not specified per axial cell (but once globally)
+	if (_axiallyConstantParTypeVolFrac && (pId.name == hashString("PAR_TYPE_VOLFRAC")))
+	{
+		if ((pId.unitOperation != _unitOpIdx) || (pId.section != SectionIndep) || (pId.component != CompIndep) || (pId.boundState != BoundStateIndep) || (pId.reaction != ReactionIndep))
+			return false;
+		if (pId.particleType >= _disc.nParType)
+			return false;
+
+		for (unsigned int i = 0; i < _disc.nCol; ++i)
+			_parTypeVolFrac[i * _disc.nParType + pId.particleType].setValue(value);
+
+		return true;
+	}
+
 	const bool result = UnitOperationBase::setParameter(pId, value);
 
 	// Check whether particle radius or core radius has changed and update radial discretization if necessary
@@ -1513,6 +1560,23 @@ bool GeneralRateModel::setParameter(const ParameterId& pId, double value)
 
 void GeneralRateModel::setSensitiveParameterValue(const ParameterId& pId, double value)
 {
+	// Intercept changes to PAR_TYPE_VOLFRAC when not specified per axial cell (but once globally)
+	if (_axiallyConstantParTypeVolFrac && (pId.name == hashString("PAR_TYPE_VOLFRAC")))
+	{
+		if ((pId.unitOperation != _unitOpIdx) || (pId.section != SectionIndep) || (pId.component != CompIndep) || (pId.boundState != BoundStateIndep) || (pId.reaction != ReactionIndep))
+			return;
+		if (pId.particleType >= _disc.nParType)
+			return;
+
+		if (!contains(_sensParams, &_parTypeVolFrac[pId.particleType]))
+			return;
+
+		for (unsigned int i = 0; i < _disc.nCol; ++i)
+			_parTypeVolFrac[i * _disc.nParType + pId.particleType].setValue(value);
+
+		return;
+	}
+
 	UnitOperationBase::setSensitiveParameterValue(pId, value);
 
 	// Check whether particle radius or core radius has changed and update radial discretization if necessary
@@ -1522,6 +1586,24 @@ void GeneralRateModel::setSensitiveParameterValue(const ParameterId& pId, double
 
 bool GeneralRateModel::setSensitiveParameter(const ParameterId& pId, unsigned int adDirection, double adValue)
 {
+	// Intercept changes to PAR_TYPE_VOLFRAC when not specified per axial cell (but once globally)
+	if (_axiallyConstantParTypeVolFrac && (pId.name == hashString("PAR_TYPE_VOLFRAC")))
+	{
+		if ((pId.unitOperation != _unitOpIdx) || (pId.section != SectionIndep) || (pId.component != CompIndep) || (pId.boundState != BoundStateIndep) || (pId.reaction != ReactionIndep))
+			return false;
+		if (pId.particleType >= _disc.nParType)
+			return false;
+
+		LOG(Debug) << "Found parameter " << pId << ": Dir " << adDirection << " is set to " << adValue;
+
+		// Register parameter and set AD seed / direction
+		_sensParams.insert(&_parTypeVolFrac[pId.particleType]);
+		for (unsigned int i = 0; i < _disc.nCol; ++i)
+			_parTypeVolFrac[i * _disc.nParType + pId.particleType].setADValue(adDirection, adValue);
+
+		return true;
+	}
+
 	const bool result = UnitOperationBase::setSensitiveParameter(pId, adDirection, adValue);
 
 	// Check whether particle radius or core radius has been set active and update radial discretization if necessary
