@@ -528,6 +528,9 @@ Note that all components of component dependent datasets have to be section depe
   \begin{dataset}[unit=\si{\square\metre},type=double,range={$>0$},length={1}]{CROSS\_SECTION\_AREA}
     Cross section area of the column (optional if \texttt{VELOCITY} is present, see Section~\ref{par:MUOPGRMflow})
   \end{dataset}
+  \begin{dataset}[unit=--,type=double,range={$[0,1]$},length={\texttt{NPARTYPE}}]{PAR\_TYPE\_VOLFRAC}
+    Volume fractions of the particle types
+  \end{dataset}
 \end{condsubgroup}
 
 \begin{condsubgroup}{/input/model/unit\_XXX/discretization}{UNIT\_TYPE = LUMPED\_RATE\_MODEL\_WITH\_PORES}{tab:FFModelUnitOpDiscretizationLRMP}
