@@ -276,8 +276,8 @@ classdef GeneralRateModel < Model
 
 		function val = get.filmDiffusion(obj)
 			val = obj.data.FILM_DIFFUSION;
-			if (numel(val) >= obj.nComponents) && (numel(val) / obj.nComponents == floor(numel(val) / obj.nComponents))
-				val = reshape(val, obj.nComponents, numel(val) / obj.nComponents).';
+			if (numel(val) >= obj.nComponents * numel(obj.nCellsParticle)) && (mod(numel(val), obj.nComponents * numel(obj.nCellsParticle)) == 0)
+				val = reshape(val, obj.nComponents, numel(obj.nCellsParticle), numel(val) / (obj.nComponents * numel(obj.nCellsParticle))).';
 			end
 		end
 
@@ -290,8 +290,8 @@ classdef GeneralRateModel < Model
 
 		function val = get.diffusionParticle(obj)
 			val = obj.data.PAR_DIFFUSION;
-			if (numel(val) >= obj.nComponents) && (numel(val) / obj.nComponents == floor(numel(val) / obj.nComponents))
-				val = reshape(val, obj.nComponents, numel(val) / obj.nComponents).';
+			if (numel(val) >= obj.nComponents * numel(obj.nCellsParticle)) && (mod(numel(val), obj.nComponents * numel(obj.nCellsParticle)) == 0)
+				val = reshape(val, obj.nComponents, numel(obj.nCellsParticle), numel(val) / (obj.nComponents * numel(obj.nCellsParticle))).';
 			end
 		end
 
@@ -346,6 +346,9 @@ classdef GeneralRateModel < Model
 		function val = get.poreAccessibility(obj)
 			if isfield(obj.data, 'PORE_ACCESSIBILITY')
 				val = obj.data.PORE_ACCESSIBILITY;
+				if (numel(val) >= obj.nComponents) && (mod(numel(val), obj.nComponents) == 0)
+					val = reshape(val, obj.nComponents, numel(val) / obj.nComponents).';
+				end
 			else
 				val = [];
 			end
@@ -356,7 +359,7 @@ classdef GeneralRateModel < Model
 				obj.data = rmfield(obj.data, 'PORE_ACCESSIBILITY');
 			else
 				validateattributes(val, {'double'}, {'vector', 'nonempty', '>=', 0.0, '<=', 1.0, 'finite', 'real'}, '', 'poreAccessibility');
-				obj.data.PORE_ACCESSIBILITY = val;
+				obj.data.PORE_ACCESSIBILITY = val(:);
 			end
 			obj.hasChanged = true;
 		end
@@ -800,7 +803,7 @@ classdef GeneralRateModel < Model
 
 			if ~isfield(obj.data, param.SENS_NAME) && ~isempty(obj.bindingModel)
 				% We don't have this parameter, so try binding model
-				oldVal = obj.bindingModel.setParameterValue(param, obj.nBoundStates, newVal);
+				oldVal = obj.bindingModel(param.SENS_PARTYPE+1).setParameterValue(param, obj.nBoundStates((param.SENS_PARTYPE * obj.nComponents + 1):((param.SENS_PARTYPE + 1) * obj.nComponents)), newVal);
 				return;
 			end
 
