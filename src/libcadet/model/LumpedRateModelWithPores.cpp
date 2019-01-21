@@ -25,6 +25,7 @@
 #include "Stencil.hpp"
 #include "Weno.hpp"
 #include "AdUtils.hpp"
+#include "SensParamUtil.hpp"
 
 #include "LoggingUtils.hpp"
 #include "Logging.hpp"
@@ -270,20 +271,30 @@ bool LumpedRateModelWithPores::configure(IParameterProvider& paramProvider)
 
 	// Let PAR_TYPE_VOLFRAC default to 1.0 for backwards compatibility
 	if (paramProvider.exists("PAR_TYPE_VOLFRAC"))
+	{
 		readScalarParameterOrArray(_parTypeVolFrac, paramProvider, "PAR_TYPE_VOLFRAC", 1);
-	else
-		_parTypeVolFrac.resize(1, 1.0);
+		if (_parTypeVolFrac.size() == _disc.nParType)
+		{
+			_axiallyConstantParTypeVolFrac = true;
 
-	// Check that particle volume fractions sum to 1.0
-	const double volFracSum = std::accumulate(_parTypeVolFrac.begin(), _parTypeVolFrac.end(), 0.0, 
-		[](double a, const active& b) -> double { return a + static_cast<double>(b); });
-	if (std::abs(1.0 - volFracSum) > 1e-10)
-		throw InvalidParameterException("Sum of field PAR_TYPE_VOLFRAC differs from 1.0 (is " + std::to_string(volFracSum) + ")");
+			// Expand to all axial cells
+			_parTypeVolFrac.resize(_disc.nCol * _disc.nParType, 1.0);
+			for (unsigned int i = 1; i < _disc.nCol; ++i)
+				std::copy(_parTypeVolFrac.begin(), _parTypeVolFrac.begin() + _disc.nParType, _parTypeVolFrac.begin() + _disc.nParType * i);
+		}
+		else
+			_axiallyConstantParTypeVolFrac = false;
+	}
+	else
+	{
+		_parTypeVolFrac.resize(_disc.nCol, 1.0);
+		_axiallyConstantParTypeVolFrac = false;
+	}
 
 	// Check whether all sizes are matched
 	if (_disc.nParType != _parRadius.size())
 		throw InvalidParameterException("Number of elements in field PAR_RADIUS does not match number of particle types");
-	if (_disc.nParType != _parTypeVolFrac.size())
+	if (_disc.nParType * _disc.nCol != _parTypeVolFrac.size())
 		throw InvalidParameterException("Number of elements in field PAR_TYPE_VOLFRAC does not match number of particle types");
 	if (_disc.nParType != _parPorosity.size())
 		throw InvalidParameterException("Number of elements in field PAR_POROSITY does not match number of particle types");
@@ -293,11 +304,28 @@ bool LumpedRateModelWithPores::configure(IParameterProvider& paramProvider)
 	if (_disc.nComp * _disc.nParType != _poreAccessFactor.size())
 		throw InvalidParameterException("Number of elements in field PORE_ACCESSIBILITY differs from NCOMP * NPARTYPE (" + std::to_string(_disc.nComp * _disc.nParType) + ")");
 
+	// Check that particle volume fractions sum to 1.0
+	for (unsigned int i = 0; i < _disc.nCol; ++i)
+	{
+		const double volFracSum = std::accumulate(_parTypeVolFrac.begin() + i * _disc.nParType, _parTypeVolFrac.begin() + (i+1) * _disc.nParType, 0.0, 
+			[](double a, const active& b) -> double { return a + static_cast<double>(b); });
+		if (std::abs(1.0 - volFracSum) > 1e-10)
+			throw InvalidParameterException("Sum of field PAR_TYPE_VOLFRAC differs from 1.0 (is " + std::to_string(volFracSum) + ") in axial cell " + std::to_string(i));
+	}
+
 	// Add parameters to map
 	_parameters[makeParamId(hashString("COL_POROSITY"), _unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_colPorosity;
 	registerParam1DArray(_parameters, _parRadius, [=](bool multi, unsigned int type) { return makeParamId(hashString("PAR_RADIUS"), _unitOpIdx, CompIndep, type, BoundStateIndep, ReactionIndep, SectionIndep); });
 	registerParam1DArray(_parameters, _parPorosity, [=](bool multi, unsigned int type) { return makeParamId(hashString("PAR_POROSITY"), _unitOpIdx, CompIndep, type, BoundStateIndep, ReactionIndep, SectionIndep); });
-	registerParam1DArray(_parameters, _parTypeVolFrac, [=](bool multi, unsigned int type) { return makeParamId(hashString("PAR_TYPE_VOLFRAC"), _unitOpIdx, CompIndep, type, BoundStateIndep, ReactionIndep, SectionIndep); });
+
+	if (_axiallyConstantParTypeVolFrac)
+	{
+		// Register only the first nParType items
+		for (unsigned int i = 0; i < _disc.nParType; ++i)
+			_parameters[makeParamId(hashString("PAR_TYPE_VOLFRAC"), _unitOpIdx, CompIndep, i, BoundStateIndep, ReactionIndep, SectionIndep)] = &_parTypeVolFrac[i];			
+	}
+	else
+		registerParam2DArray(_parameters, _parTypeVolFrac, [=](bool multi, unsigned cell, unsigned int type) { return makeParamId(hashString("PAR_TYPE_VOLFRAC"), _unitOpIdx, CompIndep, type, BoundStateIndep, ReactionIndep, cell); }, _disc.nParType);
 
 	registerParam3DArray(_parameters, _filmDiffusion, [=](bool multi, unsigned int sec, unsigned int type, unsigned int comp) { return makeParamId(hashString("FILM_DIFFUSION"), _unitOpIdx, comp, type, BoundStateIndep, ReactionIndep, multi ? sec : SectionIndep); }, _disc.nComp, _disc.nParType);
 	registerParam2DArray(_parameters, _poreAccessFactor, [=](bool multi, unsigned int type, unsigned int comp) { return makeParamId(hashString("PORE_ACCESSIBILITY"), _unitOpIdx, comp, type, BoundStateIndep, ReactionIndep, SectionIndep); }, _disc.nComp);
@@ -789,14 +817,15 @@ int LumpedRateModelWithPores::residualFlux(const ParamType& t, unsigned int secI
 		active const* const filmDiff = getSectionDependentSlice(_filmDiffusion, _disc.nComp * _disc.nParType, secIdx) + type * _disc.nComp;
 		active const* const poreAccFactor = _poreAccessFactor.data() + type * _disc.nComp;
 
-		const ParamType jacCF_val = invBetaC * 3.0 / radius * static_cast<ParamType>(_parTypeVolFrac[type]);
+		const ParamType jacCF_val = invBetaC * 3.0 / radius;
 		const ParamType jacPF_val = -3.0 / (epsP * radius);
 
 		// J_{0,f} block, adds flux to column void / bulk volume equations
 		for (unsigned int i = 0; i < _disc.nCol * _disc.nComp; ++i)
 		{
+			const unsigned int colCell = i / _disc.nComp;
 			const unsigned int comp = i % _disc.nComp;
-			resCol[i] += jacCF_val * static_cast<ParamType>(filmDiff[comp]) * yFluxType[i];
+			resCol[i] += jacCF_val * static_cast<ParamType>(filmDiff[comp]) * static_cast<ParamType>(_parTypeVolFrac[type + _disc.nParType * colCell]) * yFluxType[i];
 		}
 
 		// J_{f,0} block, adds bulk volume state c_i to flux equation
@@ -861,7 +890,7 @@ void LumpedRateModelWithPores::assembleOffdiagJac(double t, unsigned int secIdx)
 
 		const double epsP = static_cast<double>(_parPorosity[type]);
 		const double radius = static_cast<double>(_parRadius[type]);
-		const double jacCF_val = invBetaC * 3.0 / radius * static_cast<double>(_parTypeVolFrac[type]);
+		const double jacCF_val = invBetaC * 3.0 / radius;
 		const double jacPF_val = -3.0 / (radius * epsP);
 
 		active const* const filmDiff = getSectionDependentSlice(_filmDiffusion, _disc.nComp * _disc.nParType, secIdx) + type * _disc.nComp;
@@ -872,10 +901,11 @@ void LumpedRateModelWithPores::assembleOffdiagJac(double t, unsigned int secIdx)
 		// J_{0,f} block, adds flux to column void / bulk volume equations
 		for (unsigned int eq = 0; eq < _disc.nCol * _disc.nComp; ++eq)
 		{
+			const unsigned int colCell = eq / _disc.nComp;
 			const unsigned int comp = eq % _disc.nComp;
 
 			// Main diagonal corresponds to j_{f,i} (flux) state variable
-			_jacCF.addElement(eq, eq + typeOffset, jacCF_val * static_cast<double>(filmDiff[comp]));
+			_jacCF.addElement(eq, eq + typeOffset, jacCF_val * static_cast<double>(filmDiff[comp]) * static_cast<double>(_parTypeVolFrac[type + _disc.nParType * colCell]));
 		}
 
 		// J_{f,0} block, adds bulk volume state c_i to flux equation
@@ -1140,6 +1170,70 @@ unsigned int LumpedRateModelWithPores::localInletComponentStride() const CADET_N
 void LumpedRateModelWithPores::expandErrorTol(double const* errorSpec, unsigned int errorSpecSize, double* expandOut)
 {
 	// @todo Write this function
+}
+
+bool LumpedRateModelWithPores::setParameter(const ParameterId& pId, double value)
+{
+	// Intercept changes to PAR_TYPE_VOLFRAC when not specified per axial cell (but once globally)
+	if (_axiallyConstantParTypeVolFrac && (pId.name == hashString("PAR_TYPE_VOLFRAC")))
+	{
+		if ((pId.unitOperation != _unitOpIdx) || (pId.section != SectionIndep) || (pId.component != CompIndep) || (pId.boundState != BoundStateIndep) || (pId.reaction != ReactionIndep))
+			return false;
+		if (pId.particleType >= _disc.nParType)
+			return false;
+
+		for (unsigned int i = 0; i < _disc.nCol; ++i)
+			_parTypeVolFrac[i * _disc.nParType + pId.particleType].setValue(value);
+
+		return true;
+	}
+
+	return UnitOperationBase::setParameter(pId, value);
+}
+
+void LumpedRateModelWithPores::setSensitiveParameterValue(const ParameterId& pId, double value)
+{
+	// Intercept changes to PAR_TYPE_VOLFRAC when not specified per axial cell (but once globally)
+	if (_axiallyConstantParTypeVolFrac && (pId.name == hashString("PAR_TYPE_VOLFRAC")))
+	{
+		if ((pId.unitOperation != _unitOpIdx) || (pId.section != SectionIndep) || (pId.component != CompIndep) || (pId.boundState != BoundStateIndep) || (pId.reaction != ReactionIndep))
+			return;
+		if (pId.particleType >= _disc.nParType)
+			return;
+
+		if (!contains(_sensParams, &_parTypeVolFrac[pId.particleType]))
+			return;
+
+		for (unsigned int i = 0; i < _disc.nCol; ++i)
+			_parTypeVolFrac[i * _disc.nParType + pId.particleType].setValue(value);
+
+		return;
+	}
+
+	UnitOperationBase::setSensitiveParameterValue(pId, value);
+}
+
+bool LumpedRateModelWithPores::setSensitiveParameter(const ParameterId& pId, unsigned int adDirection, double adValue)
+{
+	// Intercept changes to PAR_TYPE_VOLFRAC when not specified per axial cell (but once globally)
+	if (_axiallyConstantParTypeVolFrac && (pId.name == hashString("PAR_TYPE_VOLFRAC")))
+	{
+		if ((pId.unitOperation != _unitOpIdx) || (pId.section != SectionIndep) || (pId.component != CompIndep) || (pId.boundState != BoundStateIndep) || (pId.reaction != ReactionIndep))
+			return false;
+		if (pId.particleType >= _disc.nParType)
+			return false;
+
+		LOG(Debug) << "Found parameter " << pId << ": Dir " << adDirection << " is set to " << adValue;
+
+		// Register parameter and set AD seed / direction
+		_sensParams.insert(&_parTypeVolFrac[pId.particleType]);
+		for (unsigned int i = 0; i < _disc.nCol; ++i)
+			_parTypeVolFrac[i * _disc.nParType + pId.particleType].setADValue(adDirection, adValue);
+
+		return true;
+	}
+
+	return UnitOperationBase::setSensitiveParameter(pId, adDirection, adValue);
 }
 
 void registerLumpedRateModelWithPores(std::unordered_map<std::string, std::function<IUnitOperation*(UnitOpIdx)>>& models)

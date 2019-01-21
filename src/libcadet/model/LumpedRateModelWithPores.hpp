@@ -143,6 +143,10 @@ public:
 		multiplyWithJacobian(t, secIdx, timeFactor, y, yDot, yS, 1.0, 0.0, ret);
 	}
 
+	virtual bool setParameter(const ParameterId& pId, double value);
+	virtual bool setSensitiveParameter(const ParameterId& pId, unsigned int adDirection, double adValue);
+	virtual void setSensitiveParameterValue(const ParameterId& id, double value);
+
 #ifdef CADET_BENCHMARK_MODE
 	virtual std::vector<double> benchmarkTimings() const
 	{
@@ -249,6 +253,7 @@ protected:
 	std::vector<active> _filmDiffusion; //!< Film diffusion coefficient \f$ k_f \f$
 	std::vector<active> _poreAccessFactor; //!< Pore accessibility factor \f$ F_{\text{acc}} \f$
 
+	bool _axiallyConstantParTypeVolFrac; //!< Determines whether particle type volume fraction is homogeneous across axial coordinate
 	bool _analyticJac; //!< Determines whether AD or analytic Jacobians are used
 	unsigned int _jacobianAdDirs; //!< Number of AD seed vectors required for Jacobian computation
 

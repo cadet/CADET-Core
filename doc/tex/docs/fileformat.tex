@@ -530,8 +530,10 @@ Note that all components of component dependent datasets have to be section depe
   \begin{dataset}[unit=\si{\square\metre},type=double,range={$>0$},length={1}]{CROSS\_SECTION\_AREA}
     Cross section area of the column (optional if \texttt{VELOCITY} is present, see Section~\ref{par:MUOPGRMflow})
   \end{dataset}
-  \begin{dataset}[unit=--,type=double,range={$[0,1]$},length={\texttt{NPARTYPE}}]{PAR\_TYPE\_VOLFRAC}
-    Volume fractions of the particle types
+  \begin{dataset}[unit=--,type=double,range={$[0,1]$},length={\texttt{NPARTYPE} / $\texttt{NCOL} \cdot \texttt{NPARTYPE}$}]{PAR\_TYPE\_VOLFRAC}
+    Volume fractions of the particle types.
+    The volume fractions can be set for all axial cells together or for each individual axial cell.
+    In case of a spatially inhomogeneous setting, the data is expected in cell-major ordering and the \texttt{SENS\_SECTION} field is used for indexing the axial cell when specifying parameter sensitivities.
   \end{dataset}
 \end{condsubgroup}
 
