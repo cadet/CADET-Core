@@ -49,6 +49,7 @@ target_link_libraries(cadet-cli PRIVATE ${HDF5_LIBRARIES})
 if (BENCHMARK_MODE OR CADET_PARALLEL_FLAG)
 	target_include_directories(cadet-cli PRIVATE ${TBB_INCLUDE_DIRS})
 	target_link_libraries(cadet-cli PRIVATE ${TBB_LIBRARIES})
+	target_compile_definitions(cadet-cli PRIVATE ${TBB_DEFINITIONS})
 endif()
 
 # ---------------------------------------------------
