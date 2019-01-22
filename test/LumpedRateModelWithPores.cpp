@@ -50,6 +50,11 @@ TEST_CASE("LRMP time derivative Jacobian vs FD", "[LRMP],[UnitOp],[Residual],[Ja
 	cadet::test::column::testTimeDerivativeJacobianFD("LUMPED_RATE_MODEL_WITH_PORES");
 }
 
+TEST_CASE("LRMP flux Jacobian vs FD", "[LRMP],[UnitOp],[Residual],[Jacobian]")
+{
+	cadet::test::column::testArrowHeadJacobianFD("LUMPED_RATE_MODEL_WITH_PORES");
+}
+
 TEST_CASE("LRMP sensitivity Jacobians", "[LRMP],[UnitOp],[Sensitivity]")
 {
 	cadet::test::column::testFwdSensJacobians("LUMPED_RATE_MODEL_WITH_PORES", 1e-4, 6e-7);

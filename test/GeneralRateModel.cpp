@@ -50,6 +50,11 @@ TEST_CASE("GRM time derivative Jacobian vs FD", "[GRM],[UnitOp],[Residual],[Jaco
 	cadet::test::column::testTimeDerivativeJacobianFD("GENERAL_RATE_MODEL", 1e-6, 0.0, 9e-4);
 }
 
+TEST_CASE("GRM flux Jacobian vs FD", "[GRM],[UnitOp],[Residual],[Jacobian]")
+{
+	cadet::test::column::testArrowHeadJacobianFD("GENERAL_RATE_MODEL", 1e-6, 2e-9);
+}
+
 TEST_CASE("GRM sensitivity Jacobians", "[GRM],[UnitOp],[Sensitivity]")
 {
 	cadet::test::column::testFwdSensJacobians("GENERAL_RATE_MODEL", 1e-4, 6e-7);

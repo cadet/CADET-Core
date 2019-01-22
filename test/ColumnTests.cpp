@@ -525,6 +525,49 @@ namespace column
 		destroyModelBuilder(mb);
 	}
 
+	void testArrowHeadJacobianFD(const std::string& uoType, double h, double absTol, double relTol)
+	{
+		cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding(uoType);
+
+		cadet::IModelBuilder* const mb = cadet::createModelBuilder();
+		REQUIRE(nullptr != mb);
+
+		cadet::IUnitOperation* const unitAna = createAndConfigureUnit(uoType, *mb, jpp, cadet::Weno::maxOrder());
+		cadet::IUnitOperation* const unitFD = createAndConfigureUnit(uoType, *mb, jpp, cadet::Weno::maxOrder());
+
+		// Obtain offset to fluxes
+		const unsigned int fluxOffset = fluxOffsetOfColumnUnitOp(unitFD);
+
+		// Setup matrices
+		unitAna->notifyDiscontinuousSectionTransition(0.0, 0u, nullptr, nullptr, 0u);
+		unitFD->notifyDiscontinuousSectionTransition(0.0, 0u, nullptr, nullptr, 0u);
+
+		// Obtain memory for state, Jacobian multiply direction, Jacobian column
+		std::vector<double> y(unitFD->numDofs(), 0.0);
+		std::vector<double> jacDir(unitFD->numDofs(), 0.0);
+		std::vector<double> jacCol1(unitFD->numDofs(), 0.0);
+		std::vector<double> jacCol2(unitFD->numDofs(), 0.0);
+
+		// Fill state vector with some values
+		util::populate(y.data(), [](unsigned int idx) { return std::abs(std::sin(idx * 0.13)) + 1e-4; }, unitAna->numDofs());
+//		util::populate(y.data(), [](unsigned int idx) { return 1.0; }, unitAna->numDofs());
+
+		// Compute state Jacobian
+		unitAna->residualWithJacobian(0.0, 0u, 1.0, y.data(), nullptr, jacDir.data(), nullptr, nullptr, 0u);
+		unitFD->residualWithJacobian(0.0, 0u, 1.0, y.data(), nullptr, jacDir.data(), nullptr, nullptr, 0u);
+		std::fill(jacDir.begin(), jacDir.end(), 0.0);
+
+		// Compare Jacobians
+		cadet::test::compareJacobianArrowHeadFD(
+			[=](double const* lDir, double* res) -> void { unitFD->residual(0.0, 0u, 1.0, lDir, nullptr, res); }, 
+			[&](double const* lDir, double* res) -> void { unitAna->multiplyWithJacobian(0.0, 0u, 1.0, y.data(), nullptr, lDir, 1.0, 0.0, res); }, 
+			y.data(), jacDir.data(), jacCol1.data(), jacCol2.data(), unitFD->numDofs(), fluxOffset, h, absTol, relTol);
+
+		mb->destroyUnitOperation(unitAna);
+		mb->destroyUnitOperation(unitFD);
+		destroyModelBuilder(mb);
+	}
+
 	void testFwdSensJacobians(const std::string& uoType, double h, double absTol, double relTol)
 	{
 		cadet::IModelBuilder* const mb = cadet::createModelBuilder();
