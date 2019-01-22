@@ -148,3 +148,18 @@ TEST_CASE("LRMP multiple particle types time derivative Jacobian vs FD", "[LRMP]
 {
 	cadet::test::particle::testTimeDerivativeJacobianMixedParticleTypesFD("LUMPED_RATE_MODEL_WITH_PORES", 1e-6, 0.0, 9e-4);
 }
+
+TEST_CASE("LRMP multiple spatially dependent particle types Jacobian analytic vs AD", "[LRMP],[Jacobian],[AD],[ParticleType]")
+{
+	cadet::test::particle::testJacobianSpatiallyMixedParticleTypes("LUMPED_RATE_MODEL_WITH_PORES");
+}
+
+TEST_CASE("LRMP linear binding single particle matches spatially dependent particle distribution", "[LRMP],[Simulation],[ParticleType]")
+{
+	cadet::test::particle::testLinearSpatiallyMixedParticleTypes("LUMPED_RATE_MODEL_WITH_PORES", 5e-8, 5e-5);
+}
+
+TEST_CASE("LRMP multiple spatially dependent particle types flux Jacobian vs FD", "[LRMP],[UnitOp],[Residual],[Jacobian],[ParticleType]")
+{
+	cadet::test::particle::testArrowHeadJacobianSpatiallyMixedParticleTypes("LUMPED_RATE_MODEL_WITH_PORES", 1e-6, 1e-8, 1e-5);
+}

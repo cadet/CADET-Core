@@ -148,3 +148,18 @@ TEST_CASE("GRM multiple particle types time derivative Jacobian vs FD", "[GRM],[
 {
 	cadet::test::particle::testTimeDerivativeJacobianMixedParticleTypesFD("GENERAL_RATE_MODEL", 1e-6, 0.0, 9e-4);
 }
+
+TEST_CASE("GRM multiple spatially dependent particle types Jacobian analytic vs AD", "[GRM],[Jacobian],[AD],[ParticleType]")
+{
+	cadet::test::particle::testJacobianSpatiallyMixedParticleTypes("GENERAL_RATE_MODEL");
+}
+
+TEST_CASE("GRM linear binding single particle matches spatially dependent particle distribution", "[GRM],[Simulation],[ParticleType]")
+{
+	cadet::test::particle::testLinearSpatiallyMixedParticleTypes("GENERAL_RATE_MODEL", 5e-8, 5e-5);
+}
+
+TEST_CASE("GRM multiple spatially dependent particle types flux Jacobian vs FD", "[GRM],[UnitOp],[Residual],[Jacobian],[ParticleType]")
+{
+	cadet::test::particle::testArrowHeadJacobianSpatiallyMixedParticleTypes("GENERAL_RATE_MODEL", 1e-6, 1e-8, 1e-5);
+}

@@ -145,10 +145,30 @@ namespace particle
 	void testJacobianMixedParticleTypes(cadet::JsonParameterProvider& jpp);
 
 	/**
+	 * @brief Checks whether a linear binding model with multiple identical particle types produces the same as result as a single type model
+	 * @details The linear benchmark problem is run. Then, two additional identical particle types are added.
+	 *          The results of the multi type simulation must match the ones of the single type simulation.
+	 *          This check is conducted with both dynamic and quasi-stationary binding.
+	 *          
+	 *          The particle volume fractions are spatially inhomogeneous.
+	 * 
+	 * @param [in] uoType Unit operation type
+	 * @param [in] absTols Array with absolute error tolerances
+	 * @param [in] relTols Array with relative error tolerances
+	 */
+	void testLinearSpatiallyMixedParticleTypes(const char* uoType, double absTol, double relTol);
+
+	/**
 	 * @brief Checks the full analytic Jacobian against AD for a model with multiple particle types
 	 * @param [in] uoType Unit operation type
 	 */
 	void testJacobianMixedParticleTypes(const std::string& uoType);
+
+	/**
+	 * @brief Checks the full analytic Jacobian against AD for a model with multiple particle types and spatial dependence of volume fractions
+	 * @param [in] uoType Unit operation type
+	 */
+	void testJacobianSpatiallyMixedParticleTypes(const std::string& uoType);
 
 	/**
 	 * @brief Checks the (analytic) time derivative Jacobian against FD for a model with multiple particle types
@@ -169,6 +189,16 @@ namespace particle
 	 * @param [in] relTol Relative error tolerance
 	 */
 	void testTimeDerivativeJacobianMixedParticleTypesFD(const std::string& uoType, double h, double absTol, double relTol);
+
+	/**
+	 * @brief Checks the bottom macro row and right macro column of the Jacobian against FD for a model with multiple particle types
+	 * @details Uses centered finite differences to check the flux part of the Jacobian.
+	 * @param [in] uoType Unit operation type
+	 * @param [in] h Step size of centered finite differences
+	 * @param [in] absTol Absolute error tolerance
+	 * @param [in] relTol Relative error tolerance
+	 */
+	void testArrowHeadJacobianSpatiallyMixedParticleTypes(const std::string& uoType, double h, double absTol, double relTol);
 
 } // namespace particle
 } // namespace test

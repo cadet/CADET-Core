@@ -24,6 +24,7 @@ namespace cadet
 {
 
 class JsonParameterProvider;
+class IUnitOperation;
 
 namespace test
 {
@@ -65,6 +66,13 @@ namespace column
 	 * @param [in] dir Flow direction in unit operation (@c 0 removes field, @c 1 standard direction, @c -1 flow reversal) 
 	 */
 	void setCrossSectionArea(cadet::JsonParameterProvider& jpp, bool useTotalPorosity, int dir);
+
+	/**
+	 * @brief Returns the offset to the flux part in the local state vector
+	 * @param [in] unit Unit operation
+	 * @return Offset to the flux part
+	 */
+	unsigned int fluxOffsetOfColumnUnitOp(cadet::IUnitOperation* unit);
 
 	/**
 	 * @brief Runs a simulation test comparing against (semi-)analytic single component pulse injection reference data

@@ -18,6 +18,7 @@
 
 #include "ParticleHelper.hpp"
 #include "SimHelper.hpp"
+#include "ColumnTests.hpp"
 
 #include "Utils.hpp"
 #include "common/Driver.hpp"
@@ -153,7 +154,29 @@ namespace
 			jpp.copy("adsorption_000", ss.str());
 		}
 
-		jpp.set("PAR_TYPE_VOLFRAC", std::vector<double>(volFrac, volFrac + nTypes));
+		if (volFrac)
+			jpp.set("PAR_TYPE_VOLFRAC", std::vector<double>(volFrac, volFrac + nTypes));
+	}
+
+	void scrambleParticleTypeFractionsSpatially(cadet::JsonParameterProvider& jpp, unsigned int nParType)
+	{
+		auto ms = cadet::test::util::makeModelGroupScope(jpp);
+
+		unsigned int nCol = 0;
+		{
+			auto ds = cadet::test::util::makeOptionalGroupScope(jpp, "discretization");
+			nCol = jpp.getInt("NCOL");
+		}
+		
+		const double baseFrac[] = {0.2, 0.45, 0.35};
+		std::vector<double> volFrac(nCol * nParType, 0.0);
+		for (unsigned int i = 0; i < nCol; ++i)
+		{
+			volFrac[i * nParType + 0] = baseFrac[(i+0) % nParType];
+			volFrac[i * nParType + 1] = baseFrac[(i+1) % nParType];
+			volFrac[i * nParType + 2] = baseFrac[(i+2) % nParType];
+		}
+		cadet::test::particle::setParticleTypeVolumeFractions(jpp, volFrac);		
 	}
 }
 
@@ -280,13 +303,8 @@ namespace particle
 		}
 	}
 
-	void testLinearMixedParticleTypes(const char* uoType, double absTol, double relTol)
-	{
-		cadet::JsonParameterProvider jpp = createPulseInjectionColumn(uoType, true);
-		testLinearMixedParticleTypes(jpp, absTol, relTol);
-	}
-
-	void testLinearMixedParticleTypes(cadet::JsonParameterProvider& jpp, double absTol, double relTol)
+	template <typename modifier_t>
+	void testLinearMixedParticleTypesImpl(cadet::JsonParameterProvider& jpp, double absTol, double relTol, modifier_t modify)
 	{
 		for (int i = 0; i < 2; ++i)
 		{
@@ -300,9 +318,11 @@ namespace particle
 				drv.configure(jpp);
 				drv.run();
 
-				// Extend to multiple particle types
+				// Extend to multiple particle types (such that we have a total of 3 types)
 				const double volFrac[] = {0.3, 0.6, 0.1};
 				extendModelToManyParticleTypes(jpp, 0, 3, volFrac);
+
+				modify(jpp);
 
 				// Simulate with mixed particle types
 				cadet::Driver drvMP;
@@ -338,20 +358,27 @@ namespace particle
 		}
 	}
 
-	void testJacobianMixedParticleTypes(const std::string& uoType)
+	void testLinearMixedParticleTypes(const char* uoType, double absTol, double relTol)
 	{
-		cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding(uoType);
-		testJacobianMixedParticleTypes(jpp);
+		cadet::JsonParameterProvider jpp = createPulseInjectionColumn(uoType, true);
+		testLinearMixedParticleTypesImpl(jpp, absTol, relTol, [](cadet::JsonParameterProvider& jpp) { });
 	}
 
-	void testJacobianMixedParticleTypes(cadet::JsonParameterProvider& jpp)
+	void testLinearMixedParticleTypes(cadet::JsonParameterProvider& jpp, double absTol, double relTol)
+	{
+		testLinearMixedParticleTypesImpl(jpp, absTol, relTol, [](cadet::JsonParameterProvider& jpp) { });
+	}
+
+	void testLinearSpatiallyMixedParticleTypes(const char* uoType, double absTol, double relTol)
+	{
+		cadet::JsonParameterProvider jpp = createPulseInjectionColumn(uoType, true);
+		testLinearMixedParticleTypesImpl(jpp, absTol, relTol, [](cadet::JsonParameterProvider& jpp) { scrambleParticleTypeFractionsSpatially(jpp, 3); });
+	}
+
+	void testJacobianMixedParticleTypesImpl(cadet::JsonParameterProvider& jpp)
 	{
 		cadet::IModelBuilder* const mb = cadet::createModelBuilder();
 		REQUIRE(nullptr != mb);
-
-		// Add more particle types
-		const double volFrac[] = {0.3, 0.6, 0.1};
-		extendModelToManyParticleTypes(jpp, {0.9, 0.8}, volFrac);
 
 		cadet::IUnitOperation* const unitAna = createAndConfigureUnit(jpp.getString("UNIT_TYPE"), *mb, jpp);
 		cadet::IUnitOperation* const unitAD = createAndConfigureUnit(jpp.getString("UNIT_TYPE"), *mb, jpp);
@@ -397,6 +424,34 @@ namespace particle
 		destroyModelBuilder(mb);
 	}
 
+	void testJacobianMixedParticleTypes(const std::string& uoType)
+	{
+		cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding(uoType);
+		testJacobianMixedParticleTypes(jpp);
+	}
+
+	void testJacobianMixedParticleTypes(cadet::JsonParameterProvider& jpp)
+	{
+		// Add more particle types (such that we have a total of 3 types)
+		const double volFrac[] = {0.3, 0.6, 0.1};
+		extendModelToManyParticleTypes(jpp, {0.9, 0.8}, volFrac);
+
+		testJacobianMixedParticleTypesImpl(jpp);
+	}
+
+	void testJacobianSpatiallyMixedParticleTypes(const std::string& uoType)
+	{
+		cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding(uoType);
+
+		// Add more particle types (such that we have a total of 3 types)
+		extendModelToManyParticleTypes(jpp, {0.9, 0.8}, nullptr);
+
+		// Spatially inhomogeneous
+		scrambleParticleTypeFractionsSpatially(jpp, 3);
+
+		testJacobianMixedParticleTypesImpl(jpp);
+	}
+
 	void testTimeDerivativeJacobianMixedParticleTypesFD(const std::string& uoType, double h, double absTol, double relTol)
 	{
 		cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding(uoType);
@@ -408,7 +463,7 @@ namespace particle
 		cadet::IModelBuilder* const mb = cadet::createModelBuilder();
 		REQUIRE(nullptr != mb);
 
-		// Add more particle types
+		// Add more particle types (such that we have a total of 3 types)
 		const double volFrac[] = {0.3, 0.6, 0.1};
 		extendModelToManyParticleTypes(jpp, {0.9, 0.8}, volFrac);
 
@@ -433,6 +488,55 @@ namespace particle
 		cadet::test::compareTimeDerivativeJacobianFD(unit, unit, y.data(), yDot.data(), jacDir.data(), jacCol1.data(), jacCol2.data(), h, absTol, relTol);
 
 		mb->destroyUnitOperation(unit);
+		destroyModelBuilder(mb);
+	}
+
+	void testArrowHeadJacobianSpatiallyMixedParticleTypes(const std::string& uoType, double h, double absTol, double relTol)
+	{
+		cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding(uoType);
+
+		// Add more particle types (such that we have a total of 3 types)
+		extendModelToManyParticleTypes(jpp, {0.9, 0.8}, nullptr);
+
+		// Spatially inhomogeneous
+		scrambleParticleTypeFractionsSpatially(jpp, 3);
+
+		cadet::IModelBuilder* const mb = cadet::createModelBuilder();
+		REQUIRE(nullptr != mb);
+
+		cadet::IUnitOperation* const unitAna = createAndConfigureUnit(uoType, *mb, jpp);
+		cadet::IUnitOperation* const unitFD = createAndConfigureUnit(uoType, *mb, jpp);
+
+		// Obtain offset to fluxes
+		const unsigned int fluxOffset = column::fluxOffsetOfColumnUnitOp(unitFD);
+
+		// Setup matrices
+		unitAna->notifyDiscontinuousSectionTransition(0.0, 0u, nullptr, nullptr, 0u);
+		unitFD->notifyDiscontinuousSectionTransition(0.0, 0u, nullptr, nullptr, 0u);
+
+		// Obtain memory for state, Jacobian multiply direction, Jacobian column
+		std::vector<double> y(unitFD->numDofs(), 0.0);
+		std::vector<double> jacDir(unitFD->numDofs(), 0.0);
+		std::vector<double> jacCol1(unitFD->numDofs(), 0.0);
+		std::vector<double> jacCol2(unitFD->numDofs(), 0.0);
+
+		// Fill state vector with some values
+		util::populate(y.data(), [](unsigned int idx) { return std::abs(std::sin(idx * 0.13)) + 1e-4; }, unitAna->numDofs());
+//		util::populate(y.data(), [](unsigned int idx) { return 1.0; }, unitAna->numDofs());
+
+		// Compute state Jacobian
+		unitAna->residualWithJacobian(0.0, 0u, 1.0, y.data(), nullptr, jacDir.data(), nullptr, nullptr, 0u);
+		unitFD->residualWithJacobian(0.0, 0u, 1.0, y.data(), nullptr, jacDir.data(), nullptr, nullptr, 0u);
+		std::fill(jacDir.begin(), jacDir.end(), 0.0);
+
+		// Compare Jacobians
+		cadet::test::compareJacobianArrowHeadFD(
+			[=](double const* lDir, double* res) -> void { unitFD->residual(0.0, 0u, 1.0, lDir, nullptr, res); }, 
+			[&](double const* lDir, double* res) -> void { unitAna->multiplyWithJacobian(0.0, 0u, 1.0, y.data(), nullptr, lDir, 1.0, 0.0, res); }, 
+			y.data(), jacDir.data(), jacCol1.data(), jacCol2.data(), unitFD->numDofs(), fluxOffset, h, absTol, relTol);
+
+		mb->destroyUnitOperation(unitAna);
+		mb->destroyUnitOperation(unitFD);
 		destroyModelBuilder(mb);
 	}
 

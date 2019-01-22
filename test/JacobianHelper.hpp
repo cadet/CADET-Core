@@ -124,6 +124,104 @@ inline void compareJacobian(cadet::IUnitOperation* modelA, cadet::IUnitOperation
 }
 
 /**
+ * @brief Checks the bottom macro row and right macro column of the Jacobian against finite differences
+ * @details Uses finite differences to determine the Jacobian. The two Jacobians
+ *          are compared column by column. A column is extracted by calling multiplyJacobian().
+ *          Only the bottom macro row and the right macro column of the arrow head are compared.
+ * @param [in] residual Function that returns a residual vector
+ * @param [in] multiplyJacobian Function that multiplies the (time derivative) Jacobian with a vector 
+ * @param [in] y State vector
+ * @param [in] dir Memory for computing finite differences
+ * @param [in] colA Memory for Jacobian column
+ * @param [in] colB Memory for Jacobian column
+ * @param [in] n Number of DOFs in the model
+ * @param [in] offset Offset to first DOF of right macro column
+ * @param [in] h Step size for centered finite differences
+ * @param [in] absTol Absolute error tolerance
+ * @param [in] relTol Relative error tolerance
+ */
+inline void compareJacobianArrowHeadFD(const std::function<void(double const*, double*)>& residual, const std::function<void(double const*, double*)>& multiplyJacobian, double const* y, double* dir, double* colA, double* colB, unsigned int n, unsigned int offset, double h = 1e-6, double absTol = 0.0, double relTol = std::numeric_limits<float>::epsilon() * 100.0)
+{
+	// Compare bottom macro row until we hit right macro column
+	for (unsigned int col = 0; col < offset; ++col)
+	{
+		std::copy(y, y + n, dir);
+
+		if (y[col] != 0.0)
+			dir[col] = y[col] * (1.0 + h);
+		else
+			dir[col] = h;
+
+		residual(dir, colA);
+
+		if (y[col] != 0.0)
+			dir[col] = y[col] * (1.0 - h);
+		else
+			dir[col] = -h;
+
+		residual(dir, colB);
+
+		for (unsigned int j = offset; j < n; ++j)
+		{
+			if (y[col] != 0.0)
+				colA[j] = (colA[j] - colB[j]) / (y[col] * 2.0 * h);
+			else
+				colA[j] = (colA[j] - colB[j]) / (2.0 * h);
+		}
+
+		std::fill(dir, dir + n, 0.0);
+		dir[col] = 1.0;
+		multiplyJacobian(dir, colB);
+
+		for (unsigned int row = offset; row < n; ++row)
+		{
+			CAPTURE(row);
+			CAPTURE(col);
+			CHECK(colA[row] == RelApprox(colB[row]).epsilon(relTol).margin(absTol));
+		}
+	}
+
+	// Fully compare right macro column
+	for (unsigned int col = offset; col < n; ++col)
+	{
+		std::copy(y, y + n, dir);
+
+		if (y[col] != 0.0)
+			dir[col] = y[col] * (1.0 + h);
+		else
+			dir[col] = h;
+
+		residual(dir, colA);
+
+		if (y[col] != 0.0)
+			dir[col] = y[col] * (1.0 - h);
+		else
+			dir[col] = -h;
+
+		residual(dir, colB);
+
+		for (unsigned int j = 0; j < n; ++j)
+		{
+			if (y[col] != 0.0)
+				colA[j] = (colA[j] - colB[j]) / (y[col] * 2.0 * h);
+			else
+				colA[j] = (colA[j] - colB[j]) / (2.0 * h);
+		}
+
+		std::fill(dir, dir + n, 0.0);
+		dir[col] = 1.0;
+		multiplyJacobian(dir, colB);
+
+		for (unsigned int row = 0; row < n; ++row)
+		{
+			CAPTURE(row);
+			CAPTURE(col);
+			CHECK(colA[row] == RelApprox(colB[row]).epsilon(relTol).margin(absTol));
+		}
+	}
+}
+
+/**
  * @brief Checks a (time derivative) Jacobian against finite differences
  * @details Uses finite differences to determine the Jacobian. The two Jacobians
  *          are compared column by column. A column is extracted by calling multiplyJacobian().

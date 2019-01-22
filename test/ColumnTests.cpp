@@ -71,6 +71,43 @@ namespace
 
 		return unit;
 	}
+
+	class FluxOffsetExtractionRecorder : public cadet::ISolutionRecorder
+	{
+	public:
+		FluxOffsetExtractionRecorder() : _fluxOffset(0) { }
+		virtual void clear() { }
+		virtual void prepare(unsigned int numDofs, unsigned int numSens, unsigned int numTimesteps) { }
+		virtual void notifyIntegrationStart(unsigned int numDofs, unsigned int numSens, unsigned int numTimesteps) { }
+		virtual void beginTimestep(double t) { }
+		virtual void beginUnitOperation(cadet::UnitOpIdx idx, const cadet::IModel& model, const cadet::ISolutionExporter& exporter) { }
+		virtual void endUnitOperation() { }
+		virtual void endTimestep() { }
+		virtual void beginSolution() { }
+		virtual void endSolution() { }
+		virtual void beginSolutionDerivative() { }
+		virtual void endSolutionDerivative() { }
+		virtual void beginSensitivity(const cadet::ParameterId& pId, unsigned int sensIdx) { }
+		virtual void endSensitivity(const cadet::ParameterId& pId, unsigned int sensIdx) { }
+		virtual void beginSensitivityDerivative(const cadet::ParameterId& pId, unsigned int sensIdx) { }
+		virtual void endSensitivityDerivative(const cadet::ParameterId& pId, unsigned int sensIdx) { }
+
+		virtual void unitOperationStructure(cadet::UnitOpIdx idx, const cadet::IModel& model, const cadet::ISolutionExporter& exporter)
+		{
+			_fluxOffset = exporter.numComponents() + exporter.numBulkDofs();
+
+			const unsigned int nParType = exporter.numParticleTypes();
+			for (unsigned int i = 0; i < nParType; ++i)
+				_fluxOffset += exporter.numParticleMobilePhaseDofs(i) + exporter.numSolidPhaseDofs(i);
+
+			// Make sure this is correct
+			REQUIRE(reinterpret_cast<cadet::IUnitOperation const*>(&model)->numDofs() - exporter.numComponents() * exporter.numAxialCells() * nParType == _fluxOffset);
+		}
+
+		inline unsigned int fluxOffset() const CADET_NOEXCEPT { return _fluxOffset; }
+	protected:
+		unsigned int _fluxOffset;
+	};
 }
 
 namespace cadet
@@ -245,6 +282,13 @@ namespace column
 			jpp.popScope();
 	}
 
+	unsigned int fluxOffsetOfColumnUnitOp(cadet::IUnitOperation* unit)
+	{
+		// Obtain offset to fluxes
+		FluxOffsetExtractionRecorder foer;
+		unit->reportSolutionStructure(foer);
+		return foer.fluxOffset();
+	}
 
 	void testWenoForwardBackward(const char* uoType, int wenoOrder, double absTol, double relTol)
 	{
