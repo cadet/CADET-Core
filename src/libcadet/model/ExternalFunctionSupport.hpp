@@ -24,6 +24,8 @@
 #include "LoggingUtils.hpp"
 #include "Logging.hpp"
 
+#include "SimulationTypes.hpp"
+
 #include <vector>
 #include <algorithm>
 #include <string>
@@ -276,13 +278,13 @@ namespace model
 		 * @param [in] nParams Number of externally dependent parameters (also size of buffer)
 		 * @param [out] buffer Buffer that holds function evaluations
 		 */
-		inline void evaluateExternalFunctions(double t, double z, double r, unsigned int secIdx, unsigned int nParams, double* buffer) const
+		inline void evaluateExternalFunctions(double t, unsigned int secIdx, const ColumnPosition& colPos, unsigned int nParams, double* buffer) const
 		{
 			for (unsigned int i = 0; i < nParams; ++i)
 			{
 				IExternalFunction* const fun = _extFun[i];
 				if (fun)
-					buffer[i] = fun->externalProfile(t, z, r, secIdx);
+					buffer[i] = fun->externalProfile(t, colPos.axial, colPos.particle, secIdx);
 				else
 					buffer[i] = 0.0;
 			}
@@ -297,13 +299,13 @@ namespace model
 		 * @param [in] nParams Number of externally dependent parameters (also size of buffer)
 		 * @param [out] buffer Buffer that holds time derivatives of each external function
 		 */
-		inline void evaluateTimeDerivativeExternalFunctions(double t, double z, double r, unsigned int secIdx, unsigned int nParams, double* buffer) const
+		inline void evaluateTimeDerivativeExternalFunctions(double t, unsigned int secIdx, const ColumnPosition& colPos, unsigned int nParams, double* buffer) const
 		{
 			for (unsigned int i = 0; i < nParams; ++i)
 			{
 				IExternalFunction* const fun = _extFun[i];
 				if (fun)
-					buffer[i] = fun->timeDerivative(t, z, r, secIdx);
+					buffer[i] = fun->timeDerivative(t, colPos.axial, colPos.particle, secIdx);
 				else
 					buffer[i] = 0.0;
 			}

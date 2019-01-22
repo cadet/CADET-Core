@@ -544,7 +544,7 @@ int LumpedRateModelWithoutPores::residualImpl(const ParamType& t, unsigned int s
 		const double z = 1.0 / static_cast<double>(_disc.nCol) * (0.5 + col);
 
 		double const* const localQdot = yDot ? yDot + idxr.offsetC() + idxr.strideColCell() * col + idxr.strideColLiquid() : nullptr;
-		_binding[0]->residual(t, z, 0.0, secIdx, timeFactor, localY + idxr.strideColLiquid(), localY, localQdot, localRes + idxr.strideColLiquid(), buffer);
+		_binding[0]->residual(t, secIdx, timeFactor, ColumnPosition{z, 0.0, 0.0}, localY + idxr.strideColLiquid(), localY, localQdot, localRes + idxr.strideColLiquid(), buffer);
 		if (wantJac)
 		{
 			if (cadet_likely(_disc.strideBound > 0))
@@ -557,7 +557,7 @@ int LumpedRateModelWithoutPores::residualImpl(const ParamType& t, unsigned int s
 				linalg::BandMatrix::RowIterator jac = _jac.row(col * idxr.strideColCell() + idxr.strideColLiquid());
 
 				// static_cast should be sufficient here, but this statement is also analyzed when wantJac = false
-				_binding[0]->analyticJacobian(static_cast<double>(t), z, 0.0, secIdx, reinterpret_cast<double const*>(localY) + idxr.strideColLiquid(), idxr.strideColLiquid(), jac, buffer);
+				_binding[0]->analyticJacobian(static_cast<double>(t), secIdx, ColumnPosition{z, 0.0, 0.0}, reinterpret_cast<double const*>(localY) + idxr.strideColLiquid(), idxr.strideColLiquid(), jac, buffer);
 			}
 		}
 
@@ -1009,7 +1009,7 @@ void LumpedRateModelWithoutPores::consistentInitialState(const SimulationTime& s
 			const unsigned int offset = requiredMem * col;
 
 			// Solve algebraic variables
-			_binding[0]->consistentInitialState(simTime.t, z, 0.0, simTime.secIdx, qShell, qShell - localOffsetInCell, errorTol, localAdRes, localAdY,
+			_binding[0]->consistentInitialState(simTime.t, simTime.secIdx, ColumnPosition{z, 0.0, 0.0}, qShell, qShell - localOffsetInCell, errorTol, localAdRes, localAdY,
 				localOffsetInCell, adJac.adDirOffset, jacExtractor, _tempState + offset, jacobianMatrix);
 		} CADET_PARFOR_END;
 	}
@@ -1079,10 +1079,10 @@ void LumpedRateModelWithoutPores::consistentInitialTimeDerivative(const Simulati
 		// Overwrite rows corresponding to algebraic equations with the Jacobian and set right hand side to 0
 		if (_binding[0]->hasAlgebraicEquations())
 		{
-			parts::BindingConsistentInitializer::consistentInitialTimeDerivative(_binding[0], simTime.timeFactor, jac,
+			parts::BindingConsistentInitializer::consistentInitialTimeDerivative(_binding[0], simTime, jac,
 				_jac.row(col * idxr.strideColCell() + idxr.strideColLiquid()),
 				vecStateYdot + idxr.offsetC() + col * idxr.strideColCell() + idxr.strideColLiquid(),
-				simTime.t, z, 0.5, simTime.secIdx, _tempState);
+				ColumnPosition{z, 0.0, 0.0}, _tempState);
 		}
 	}
 

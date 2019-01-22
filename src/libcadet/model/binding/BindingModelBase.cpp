@@ -143,7 +143,7 @@ unsigned int BindingModelBase::workspaceSize(unsigned int nComp, unsigned int to
 }
 
 /*
-void BindingModelBase::timeDerivativeAlgebraicResidual(double t, double z, double r, unsigned int secIdx, double* const y, double* dResDt) const
+void BindingModelBase::timeDerivativeAlgebraicResidual(double t, unsigned int secIdx, const ColumnPosition& colPos, double* const y, double* dResDt) const
 {
 	if (!hasAlgebraicEquations())
 		return;
@@ -209,7 +209,7 @@ void PureBindingModelBase::multiplyWithDerivativeJacobian(double const* yDotS, d
 	}
 }
 
-void PureBindingModelBase::consistentInitialState(double t, double z, double r, unsigned int secIdx, double* const vecStateY, double const* const yCp, double errorTol, 
+void PureBindingModelBase::consistentInitialState(double t, unsigned int secIdx, const ColumnPosition& colPos, double* const vecStateY, double const* const yCp, double errorTol, 
 	active* const adRes, active* const adY, unsigned int adEqOffset, unsigned int adDirOffset, const ad::IJacobianExtractor& jacExtractor, 
 	double* const workingMemory, linalg::detail::DenseMatrixBase& workingMat) const
 {
@@ -247,12 +247,12 @@ void PureBindingModelBase::consistentInitialState(double t, double z, double r, 
 			ad::resetAd(adRes + adEqOffset, eqSize);
 
 			// Call residual with AD enabled
-			residualCore(t, z, r, secIdx, 1.0, adY + adEqOffset, yCp, nullptr, adRes + adEqOffset, resBuffer);
+			residualCore(t, secIdx, 1.0, colPos, adY + adEqOffset, yCp, nullptr, adRes + adEqOffset, resBuffer);
 			
 #ifdef CADET_CHECK_ANALYTIC_JACOBIAN			
 			// Compute analytic Jacobian
 			mat.setAll(0.0);
-			analyticJacobianCore(t, z, r, secIdx, x, yCp, _nComp, mat.row(0), resBuffer);
+			analyticJacobianCore(t, secIdx, colPos, x, yCp, _nComp, mat.row(0), resBuffer);
 
 			// Compare
 			const double diff = jacExtractor.compareWithJacobian(adRes, adEqOffset, adDirOffset, mat);
@@ -270,28 +270,28 @@ void PureBindingModelBase::consistentInitialState(double t, double z, double r, 
 		{ 
 			mat.setAll(0.0);
 			// TODO: Check if _nComp is enough offsetCp - also check implementations of other binding models
-			analyticJacobianCore(t, z, r, secIdx, x, yCp, _nComp, mat.row(0), resBuffer);
+			analyticJacobianCore(t, secIdx, colPos, x, yCp, _nComp, mat.row(0), resBuffer);
 			return true;
 		};
 	}
 
 	const bool conv = _nonlinearSolver->solve([&](double const* const x, double* const res) -> bool
 		{
-			residualCore(t, z, r, secIdx, 1.0, x, yCp, nullptr, res, resBuffer); 
+			residualCore(t, secIdx, 1.0, colPos, x, yCp, nullptr, res, resBuffer); 
 			return true; 
 		}, 
 		jacobianFunc,
 		errorTol, vecStateY, workingMemory, workingMat, eqSize);
 }
 
-void PureBindingModelBase::analyticJacobian(double t, double z, double r, unsigned int secIdx, double const* y, int offsetCp, linalg::BandMatrix::RowIterator jac, void* workSpace) const
+void PureBindingModelBase::analyticJacobian(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, int offsetCp, linalg::BandMatrix::RowIterator jac, void* workSpace) const
 {
-	analyticJacobianCore(t, z, r, secIdx, y, y - offsetCp, offsetCp, jac, workSpace);
+	analyticJacobianCore(t, secIdx, colPos, y, y - offsetCp, offsetCp, jac, workSpace);
 }
 
-void PureBindingModelBase::analyticJacobian(double t, double z, double r, unsigned int secIdx, double const* y, int offsetCp, linalg::DenseBandedRowIterator jac, void* workSpace) const
+void PureBindingModelBase::analyticJacobian(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, int offsetCp, linalg::DenseBandedRowIterator jac, void* workSpace) const
 {
-	analyticJacobianCore(t, z, r, secIdx, y, y - offsetCp, offsetCp, jac, workSpace);
+	analyticJacobianCore(t, secIdx, colPos, y, y - offsetCp, offsetCp, jac, workSpace);
 }
 
 }  // namespace model

@@ -765,7 +765,7 @@ int LumpedRateModelWithPores::residualParticle(const ParamType& t, unsigned int 
 	if (!yDotBase)
 		yDot = nullptr;
 
-	_binding[parType]->residual(t, z, static_cast<double>(radius) * 0.5, secIdx, timeFactor, y, y - _disc.nComp, yDot, res, buffer);
+	_binding[parType]->residual(t, secIdx, timeFactor, ColumnPosition{z, 0.0, static_cast<double>(radius) * 0.5}, y, y - _disc.nComp, yDot, res, buffer);
 	if (wantJac)
 	{
 		if (cadet_likely(_disc.strideBound[parType] > 0))
@@ -780,7 +780,7 @@ int LumpedRateModelWithPores::residualParticle(const ParamType& t, unsigned int 
 			linalg::BandMatrix::RowIterator jac = _jacP[parType].row(colCell * idxr.strideParBlock(parType) + idxr.strideParLiquid());
 
 			// static_cast should be sufficient here, but this statement is also analyzed when wantJac = false
-			_binding[parType]->analyticJacobian(static_cast<double>(t), z, static_cast<double>(radius) * 0.5, secIdx, reinterpret_cast<double const*>(y), _disc.nComp, jac, buffer);
+			_binding[parType]->analyticJacobian(static_cast<double>(t), secIdx, ColumnPosition{z, 0.0, static_cast<double>(radius) * 0.5}, reinterpret_cast<double const*>(y), _disc.nComp, jac, buffer);
 		}
 	}
 

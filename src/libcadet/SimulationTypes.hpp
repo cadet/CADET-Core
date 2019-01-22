@@ -24,6 +24,16 @@ namespace cadet
 {
 
 /**
+ * @brief Position inside a column unit operation
+ */
+struct ColumnPosition
+{
+	double axial; //!< Axial bulk coordinate z
+	double radial; //!< Radial bulk coordinate rho
+	double particle; //!< Radial particle coordinate r
+};
+
+/**
  * @brief Common parameters for Jacobians via AD
  */
 struct AdJacobianParams

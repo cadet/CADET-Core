@@ -99,61 +99,37 @@ public:
 		return 0;
 	}
 
-	virtual void consistentInitialState(double t, double z, double r, unsigned int secIdx, double* const vecStateY, double errorTol, 
+	virtual void consistentInitialState(double t, unsigned int secIdx, const ColumnPosition& colPos, double* const vecStateY, double errorTol, 
 		active* const adRes, active* const adY, unsigned int adEqOffset, unsigned int adDirOffset, const ad::IJacobianExtractor& jacExtractor, 
 		double* const workingMemory, linalg::detail::DenseMatrixBase& workingMat) const
 	{
 	}
 
-	virtual void consistentInitialState(double t, double z, double r, unsigned int secIdx, double* const vecStateY, double const* const mobilePhase, double errorTol, active* const adRes, active* const adY,
+	virtual void consistentInitialState(double t, unsigned int secIdx, const ColumnPosition& colPos, double* const vecStateY, double const* const mobilePhase, double errorTol, active* const adRes, active* const adY,
 		unsigned int adEqOffset, unsigned int adDirOffset, const ad::IJacobianExtractor& jacExtractor, double* const workingMemory,
 		linalg::detail::DenseMatrixBase& workingMat) const
 	{
 	}
 
-	virtual int residual(const active& t, double z, double r, unsigned int secIdx, const active& timeFactor, 
-		active const* y, double const* yDot, active* res, void* workSpace) const
-	{
-		return 0;
-	}
-
-	virtual int residual(double t, double z, double r, unsigned int secIdx, double timeFactor, 
-		active const* y, double const* yDot, active* res, void* workSpace) const
-	{
-		return 0;
-	}
-
-	virtual int residual(const active& t, double z, double r, unsigned int secIdx, const active& timeFactor, 
-		double const* y, double const* yDot, active* res, void* workSpace) const
-	{
-		return 0;
-	}
-
-	virtual int residual(double t, double z, double r, unsigned int secIdx, double timeFactor, 
-		double const* y, double const* yDot, double* res, void* workSpace) const
-	{
-		return 0;
-	}
-
-	virtual int residual(const active& t, double z, double r, unsigned int secIdx, const active& timeFactor, 
+	virtual int residual(const active& t, unsigned int secIdx, const active& timeFactor, const ColumnPosition& colPos,
 		active const* y, active const* yCp, double const* yDot, active* res, void* workSpace) const
 	{
 		return 0;
 	}
 
-	virtual int residual(double t, double z, double r, unsigned int secIdx, double timeFactor, 
+	virtual int residual(double t, unsigned int secIdx, double timeFactor, const ColumnPosition& colPos,
 		active const* y, active const* yCp, double const* yDot, active* res, void* workSpace) const
 	{
 		return 0;
 	}
 
-	virtual int residual(const active& t, double z, double r, unsigned int secIdx, const active& timeFactor, 
+	virtual int residual(const active& t, unsigned int secIdx, const active& timeFactor, const ColumnPosition& colPos,
 		double const* y, double const* yCp, double const* yDot, active* res, void* workSpace) const
 	{
 		return 0;
 	}
 
-	virtual int residual(double t, double z, double r, unsigned int secIdx, double timeFactor, 
+	virtual int residual(double t, unsigned int secIdx, double timeFactor, const ColumnPosition& colPos,
 		double const* y, double const* yCp, double const* yDot, double* res, void* workSpace) const
 	{
 		return 0;
@@ -161,19 +137,19 @@ public:
 
 	virtual void setExternalFunctions(IExternalFunction** extFuns, unsigned int size) { }
 
-	virtual void analyticJacobian(double t, double z, double r, unsigned int secIdx, double const* y, linalg::BandMatrix::RowIterator jac, void* workSpace) const
+	virtual void analyticJacobian(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, linalg::BandMatrix::RowIterator jac, void* workSpace) const
 	{
 	}
 
-	virtual void analyticJacobian(double t, double z, double r, unsigned int secIdx, double const* y, linalg::DenseBandedRowIterator jac, void* workSpace) const
+	virtual void analyticJacobian(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, linalg::DenseBandedRowIterator jac, void* workSpace) const
 	{
 	}
 
-	virtual void analyticJacobian(double t, double z, double r, unsigned int secIdx, double const* y, int offsetCp, linalg::BandMatrix::RowIterator jac, void* workSpace) const
+	virtual void analyticJacobian(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, int offsetCp, linalg::BandMatrix::RowIterator jac, void* workSpace) const
 	{
 	}
 
-	virtual void analyticJacobian(double t, double z, double r, unsigned int secIdx, double const* y, int offsetCp, linalg::DenseBandedRowIterator jac, void* workSpace) const
+	virtual void analyticJacobian(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, int offsetCp, linalg::DenseBandedRowIterator jac, void* workSpace) const
 	{
 	}
 
@@ -189,7 +165,7 @@ public:
 	{
 	}
 
-	virtual void timeDerivativeAlgebraicResidual(double t, double z, double r, unsigned int secIdx, double const* y, double* dResDt, void* workSpace) const
+	virtual void timeDerivativeAlgebraicResidual(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, double* dResDt, void* workSpace) const
 	{
 	}
 

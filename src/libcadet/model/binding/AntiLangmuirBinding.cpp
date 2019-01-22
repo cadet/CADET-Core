@@ -16,6 +16,7 @@
 #include "cadet/Exceptions.hpp"
 #include "model/Parameters.hpp"
 #include "LocalVector.hpp"
+#include "SimulationTypes.hpp"
 
 #include <vector>
 #include <unordered_map>
@@ -117,10 +118,10 @@ protected:
 	}
 
 	template <typename StateType, typename CpStateType, typename ResidualType, typename ParamType>
-	int residualImpl(const ParamType& t, double z, double r, unsigned int secIdx, const ParamType& timeFactor,
+	int residualImpl(const ParamType& t, unsigned int secIdx, const ParamType& timeFactor, const ColumnPosition& colPos,
 		StateType const* y, CpStateType const* yCp, double const* yDot, ResidualType* res, void* workSpace) const
 	{
-		const typename ParamHandler_t::params_t& p = _paramHandler.update(static_cast<double>(t), z, r, secIdx, _nComp, _nBoundStates, workSpace);
+		const typename ParamHandler_t::params_t& p = _paramHandler.update(static_cast<double>(t), secIdx, colPos, _nComp, _nBoundStates, workSpace);
 
 		// Protein equations: dq_i / dt - ( k_{a,i} * c_{p,i} * (1 - \sum q_i / q_{max,i}) - k_{d,i} * q_i) == 0
 		//               <=>  dq_i / dt == k_{a,i} * c_{p,i} * (1 - \sum q_i / q_{max,i}) - k_{d,i} * q_i
@@ -162,9 +163,9 @@ protected:
 	}
 
 	template <typename RowIterator>
-	void jacobianImpl(double t, double z, double r, unsigned int secIdx, double const* y, double const* yCp, int offsetCp, RowIterator jac, void* workSpace) const
+	void jacobianImpl(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, double const* yCp, int offsetCp, RowIterator jac, void* workSpace) const
 	{
-		const typename ParamHandler_t::params_t& p = _paramHandler.update(t, z, r, secIdx, _nComp, _nBoundStates, workSpace);
+		const typename ParamHandler_t::params_t& p = _paramHandler.update(t, secIdx, colPos, _nComp, _nBoundStates, workSpace);
 
 		// Protein equations: dq_i / dt - ( k_{a,i} * c_{p,i} * (1 - \sum q_i / q_{max,i}) - k_{d,i} * q_i) == 0
 		double qSum = 1.0;

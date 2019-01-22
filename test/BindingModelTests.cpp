@@ -202,7 +202,7 @@ void testJacobianAD(const char* modelName, unsigned int nComp, unsigned int cons
 	// Calculate analytic Jacobian
 	cadet::linalg::DenseMatrix jacAna;
 	jacAna.resize(numDofs, numDofs);
-	cbm.model().analyticJacobian(1.0, 0.0, 0.0, 0u, yBound, cbm.nComp(), jacAna.row(cbm.nComp()), cbm.buffer());
+	cbm.model().analyticJacobian(1.0, 0u, ColumnPosition{0.0, 0.0, 0.0}, yBound, cbm.nComp(), jacAna.row(cbm.nComp()), cbm.buffer());
 
 	// Enable AD
 	cadet::ad::setDirections(cadet::ad::getMaxDirections());
@@ -212,7 +212,7 @@ void testJacobianAD(const char* modelName, unsigned int nComp, unsigned int cons
 	// Evaluate with AD
 	ad::prepareAdVectorSeedsForDenseMatrix(adY, 0, numDofs);
 	ad::copyToAd(yState.data(), adY, numDofs);
-	cbm.model().residual(1.0, 0.0, 0.0, 0u, 1.0, adY + cbm.nComp(), adY, yBoundDot, adRes, cbm.buffer());
+	cbm.model().residual(1.0, 0u, 1.0, ColumnPosition{0.0, 0.0, 0.0}, adY + cbm.nComp(), adY, yBoundDot, adRes, cbm.buffer());
 
 	// Extract Jacobian
 	cadet::linalg::DenseMatrix jacAD;
@@ -223,12 +223,12 @@ void testJacobianAD(const char* modelName, unsigned int nComp, unsigned int cons
 	delete[] adRes;
 
 	cadet::test::checkJacobianPatternFD(
-		[&](double const* lDir, double* res) -> void { cbm.model().residual(1.0, 0.0, 0.0, 0u, 1.0, lDir + cbm.nComp(), lDir, yBoundDot, res, cbm.buffer()); },
+		[&](double const* lDir, double* res) -> void { cbm.model().residual(1.0, 0u, 1.0, ColumnPosition{0.0, 0.0, 0.0}, lDir + cbm.nComp(), lDir, yBoundDot, res, cbm.buffer()); },
 		[&](double const* lDir, double* res) -> void { jacAna.submatrixMultiplyVector(lDir, cbm.nComp(), 0, numEq, numDofs, res); }, 
 		yState.data(), dir.data(), colA.data(), colB.data(), numDofs, numEq);
 
 	cadet::test::checkJacobianPatternFD(
-		[&](double const* lDir, double* res) -> void { cbm.model().residual(1.0, 0.0, 0.0, 0u, 1.0, lDir + cbm.nComp(), lDir, yBoundDot, res, cbm.buffer()); }, 
+		[&](double const* lDir, double* res) -> void { cbm.model().residual(1.0, 0u, 1.0, ColumnPosition{0.0, 0.0, 0.0}, lDir + cbm.nComp(), lDir, yBoundDot, res, cbm.buffer()); }, 
 		[&](double const* lDir, double* res) -> void { jacAD.multiplyVector(lDir, res); }, 
 		yState.data(), dir.data(), colA.data(), colB.data(), numDofs, numEq);
 
@@ -264,7 +264,7 @@ void testTimeDerivativeJacobianFD(const char* modelName, unsigned int nComp, uns
 	cbm.model().jacobianAddDiscretized(1.0, jacMat.row(cbm.nComp()));
 
 	cadet::test::compareJacobianFD(
-		[&](double const* lDir, double* res) -> void { cbm.model().residual(1.0, 0.0, 0.0, 0u, 1.0, yBound, yState.data(), lDir + cbm.nComp(), res, cbm.buffer()); }, 
+		[&](double const* lDir, double* res) -> void { cbm.model().residual(1.0, 0u, 1.0, ColumnPosition{0.0, 0.0, 0.0}, yBound, yState.data(), lDir + cbm.nComp(), res, cbm.buffer()); }, 
 		[&](double const* lDir, double* res) -> void { jacMat.submatrixMultiplyVector(lDir, cbm.nComp(), 0, numEq, numDofs, res); }, 
 		yState.data(), dir.data(), colA.data(), colB.data(), numDofs, numEq, h, absTol, relTol);
 }
@@ -318,19 +318,19 @@ void testConsistentInitialization(const char* modelName, unsigned int nComp, uns
 		cadet::active* adY = new cadet::active[numDofs];
 		ad::prepareAdVectorSeedsForDenseMatrix(adY, 0, numDofs);
 
-		cbm.model().consistentInitialState(1.0, 0.0, 0.0, 0u, yBound, yState.data(), consTol, adRes, adY + cbm.nComp(), 0, nComp, ad::DenseJacobianExtractor(), reinterpret_cast<double*>(cbm.buffer()), jacMat);
+		cbm.model().consistentInitialState(1.0, 0u, ColumnPosition{0.0, 0.0, 0.0}, yBound, yState.data(), consTol, adRes, adY + cbm.nComp(), 0, nComp, ad::DenseJacobianExtractor(), reinterpret_cast<double*>(cbm.buffer()), jacMat);
 
 		delete[] adY;
 		delete[] adRes;
 	}
 	else
 	{
-		cbm.model().consistentInitialState(1.0, 0.0, 0.0, 0u, yBound, yState.data(), consTol, nullptr, nullptr, 0, 0, ad::DenseJacobianExtractor(), reinterpret_cast<double*>(cbm.buffer()), jacMat);
+		cbm.model().consistentInitialState(1.0, 0u, ColumnPosition{0.0, 0.0, 0.0}, yBound, yState.data(), consTol, nullptr, nullptr, 0, 0, ad::DenseJacobianExtractor(), reinterpret_cast<double*>(cbm.buffer()), jacMat);
 	}
 
 	// Check
 	std::vector<double> res(numEq, 0.0);
-	cbm.model().residual(1.0, 0.0, 0.0, 0u, 1.0, yBound, yState.data(), nullptr, res.data(), cbm.buffer());
+	cbm.model().residual(1.0, 0u, 1.0, ColumnPosition{0.0, 0.0, 0.0}, yBound, yState.data(), nullptr, res.data(), cbm.buffer());
 
 	unsigned int algStart = 0;
 	unsigned int algLen = 0;
@@ -449,8 +449,8 @@ void testNormalExternalConsistency(const char* modelName, const char* modelNameE
 	std::copy_n(point, numDofs, yState.data());
 
 	// Evaluate residuals
-	cbm.model().residual(1.0, 0.0, 0.0, 0u, 1.0, yBound, yState.data(), nullptr, res.data(), cbm.buffer());
-	cbmExt.model().residual(1.0, 0.0, 0.0, 0u, 1.0, yBound, yState.data(), nullptr, resExt.data(), cbmExt.buffer());
+	cbm.model().residual(1.0, 0u, 1.0, ColumnPosition{0.0, 0.0, 0.0}, yBound, yState.data(), nullptr, res.data(), cbm.buffer());
+	cbmExt.model().residual(1.0, 0u, 1.0, ColumnPosition{0.0, 0.0, 0.0}, yBound, yState.data(), nullptr, resExt.data(), cbmExt.buffer());
 
 	// Check residuals against each other
 	for (unsigned int i = 0; i < numEq; ++i)
@@ -462,11 +462,11 @@ void testNormalExternalConsistency(const char* modelName, const char* modelNameE
 	// Calculate analytic Jacobians
 	cadet::linalg::DenseMatrix jac;
 	jac.resize(numDofs, numDofs);
-	cbm.model().analyticJacobian(1.0, 0.0, 0.0, 0u, yBound, cbm.nComp(), jac.row(cbm.nComp()), cbm.buffer());
+	cbm.model().analyticJacobian(1.0, 0u, ColumnPosition{0.0, 0.0, 0.0}, yBound, cbm.nComp(), jac.row(cbm.nComp()), cbm.buffer());
 
 	cadet::linalg::DenseMatrix jacExt;
 	jacExt.resize(numDofs, numDofs);
-	cbmExt.model().analyticJacobian(1.0, 0.0, 0.0, 0u, yBound, cbm.nComp(), jacExt.row(cbmExt.nComp()), cbmExt.buffer());
+	cbmExt.model().analyticJacobian(1.0, 0u, ColumnPosition{0.0, 0.0, 0.0}, yBound, cbm.nComp(), jacExt.row(cbmExt.nComp()), cbmExt.buffer());
 
 	// Check Jacobians against each other
 	for (unsigned int r = cbm.nComp(); r < numDofs; ++r)
@@ -509,7 +509,7 @@ void testNonBindingConsistency(const char* modelName, unsigned int nComp, unsign
 		// Evaluate with AD
 		ad::prepareAdVectorSeedsForDenseMatrix(adY, 0, numDofs);
 		ad::copyToAd(yState.data(), adY, numDofs);
-		cbm.model().residual(1.0, 0.0, 0.0, 0u, 1.0, adY + cbm.nComp(), adY, yBoundDot, adRes, cbm.buffer());
+		cbm.model().residual(1.0, 0u, 1.0, ColumnPosition{0.0, 0.0, 0.0}, adY + cbm.nComp(), adY, yBoundDot, adRes, cbm.buffer());
 
 		// Extract Jacobian
 		ad::extractDenseJacobianFromAd(adRes, 0, jac);
@@ -520,7 +520,7 @@ void testNonBindingConsistency(const char* modelName, unsigned int nComp, unsign
 	else
 	{
 		jac.resize(numDofs, numDofs);
-		cbm.model().analyticJacobian(1.0, 0.0, 0.0, 0u, yBound, cbm.nComp(), jac.row(cbm.nComp()), cbm.buffer());
+		cbm.model().analyticJacobian(1.0, 0u, ColumnPosition{0.0, 0.0, 0.0}, yBound, cbm.nComp(), jac.row(cbm.nComp()), cbm.buffer());
 	}
 
 	// Check that columns of non-binding liquid phase components are all zero
@@ -581,8 +581,8 @@ void testNonbindingBindingConsistency(const char* modelName, unsigned int nCompB
 	std::vector<double> res1(numEqBnd, 0.0);
 	std::vector<double> res2(numEqBnd, 0.0);
 
-	cbmBnd.model().residual(1.0, 0.0, 0.0, 0u, 1.0, yBoundBnd, yStateBnd.data(), yBoundBndDot, res1.data(), cbmBnd.buffer());
-	cbmNonBnd.model().residual(1.0, 0.0, 0.0, 0u, 1.0, yBoundNonBnd, yStateNonBnd.data(), yBoundNonBndDot, res2.data(), cbmNonBnd.buffer());
+	cbmBnd.model().residual(1.0, 0u, 1.0, ColumnPosition{0.0, 0.0, 0.0}, yBoundBnd, yStateBnd.data(), yBoundBndDot, res1.data(), cbmBnd.buffer());
+	cbmNonBnd.model().residual(1.0, 0u, 1.0, ColumnPosition{0.0, 0.0, 0.0}, yBoundNonBnd, yStateNonBnd.data(), yBoundNonBndDot, res2.data(), cbmNonBnd.buffer());
 
 	for (unsigned int i = 0; i < numEqBnd; ++i)
 	{
@@ -606,7 +606,7 @@ void testNonbindingBindingConsistency(const char* modelName, unsigned int nCompB
 		// Evaluate with AD, all binding
 		ad::prepareAdVectorSeedsForDenseMatrix(adY, 0, numDofsBnd);
 		ad::copyToAd(yStateBnd.data(), adY, numDofsBnd);
-		cbmBnd.model().residual(1.0, 0.0, 0.0, 0u, 1.0, adY + cbmBnd.nComp(), adY, yBoundBndDot, adRes, cbmBnd.buffer());
+		cbmBnd.model().residual(1.0, 0u, 1.0, ColumnPosition{0.0, 0.0, 0.0}, adY + cbmBnd.nComp(), adY, yBoundBndDot, adRes, cbmBnd.buffer());
 
 		// Extract Jacobian, all binding
 		ad::extractDenseJacobianFromAd(adRes, 0, jacBnd);
@@ -616,7 +616,7 @@ void testNonbindingBindingConsistency(const char* modelName, unsigned int nCompB
 		ad::resetAd(adY, numDofsNonBnd);
 		ad::prepareAdVectorSeedsForDenseMatrix(adY, 0, numDofsNonBnd);
 		ad::copyToAd(yStateNonBnd.data(), adY, numDofsNonBnd);
-		cbmNonBnd.model().residual(1.0, 0.0, 0.0, 0u, 1.0, adY + cbmNonBnd.nComp(), adY, yBoundNonBndDot, adRes, cbmNonBnd.buffer());
+		cbmNonBnd.model().residual(1.0, 0u, 1.0, ColumnPosition{0.0, 0.0, 0.0}, adY + cbmNonBnd.nComp(), adY, yBoundNonBndDot, adRes, cbmNonBnd.buffer());
 
 		// Extract Jacobian, with nonbinding
 		ad::extractDenseJacobianFromAd(adRes, 0, jacNonBnd);
@@ -628,8 +628,8 @@ void testNonbindingBindingConsistency(const char* modelName, unsigned int nCompB
 	{
 		jacBnd.resize(numDofsBnd, numDofsBnd);
 		jacNonBnd.resize(numDofsNonBnd, numDofsNonBnd);
-		cbmBnd.model().analyticJacobian(1.0, 0.0, 0.0, 0u, yBoundBnd, cbmBnd.nComp(), jacBnd.row(cbmBnd.nComp()), cbmBnd.buffer());
-		cbmNonBnd.model().analyticJacobian(1.0, 0.0, 0.0, 0u, yBoundNonBnd, cbmNonBnd.nComp(), jacNonBnd.row(cbmNonBnd.nComp()), cbmNonBnd.buffer());
+		cbmBnd.model().analyticJacobian(1.0, 0u, ColumnPosition{0.0, 0.0, 0.0}, yBoundBnd, cbmBnd.nComp(), jacBnd.row(cbmBnd.nComp()), cbmBnd.buffer());
+		cbmNonBnd.model().analyticJacobian(1.0, 0u, ColumnPosition{0.0, 0.0, 0.0}, yBoundNonBnd, cbmNonBnd.nComp(), jacNonBnd.row(cbmNonBnd.nComp()), cbmNonBnd.buffer());
 	}
 
 	// Compare Jacobians

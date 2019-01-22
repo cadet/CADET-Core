@@ -121,12 +121,12 @@ public:
 {% endif %}
 	}
 
-	inline const params_t& update(double t, double z, double r, unsigned int secIdx, unsigned int nComp, unsigned int const* nBoundStates, void* workSpace) const
+	inline const params_t& update(double t, unsigned int secIdx, const ColumnPosition& colPos, unsigned int nComp, unsigned int const* nBoundStates, void* workSpace) const
 	{
 		return _localParams;
 	}
 
-	inline const params_t updateTimeDerivative(double t, double z, double r, unsigned int secIdx, unsigned int nComp, unsigned int const* nBoundStates, void* workSpace) const
+	inline const params_t updateTimeDerivative(double t, unsigned int secIdx, const ColumnPosition& colPos, unsigned int nComp, unsigned int const* nBoundStates, void* workSpace) const
 	{
 		return _localParams;
 	}
@@ -269,13 +269,13 @@ public:
 {% endif %}
 	}
 
-	inline const params_t& update(double t, double z, double r, unsigned int secIdx, unsigned int nComp, unsigned int const* nBoundStates, void* workSpace) const
+	inline const params_t& update(double t, unsigned int secIdx, const ColumnPosition& colPos, unsigned int nComp, unsigned int const* nBoundStates, void* workSpace) const
 	{
 		params_t* const localParams = reinterpret_cast<params_t*>(workSpace);
 		new (localParams) params_t;
 		double* const extFunBuffer = cadet::util::advancePointer<double>(workSpace, sizeof(params_t));
 		void* buffer = cadet::util::advancePointer<void>(workSpace, sizeof(params_t) + 2 * {{ length(parameters) }} * sizeof(double));
-		evaluateExternalFunctions(t, z, r, secIdx, {{ length(parameters) }}, extFunBuffer);
+		evaluateExternalFunctions(t, secIdx, colPos, {{ length(parameters) }}, extFunBuffer);
 {% if exists("constantParameters") %}
 	{% for p in constantParameters %}
 		{% if length(p/varName) > 1 %}
@@ -295,14 +295,14 @@ public:
 		return *localParams;
 	}
 
-	inline params_t updateTimeDerivative(double t, double z, double r, unsigned int secIdx, unsigned int nComp, unsigned int const* nBoundStates, void* workSpace) const
+	inline params_t updateTimeDerivative(double t, unsigned int secIdx, const ColumnPosition& colPos, unsigned int nComp, unsigned int const* nBoundStates, void* workSpace) const
 	{
 		VariableParams p;
 		params_t* const localParams = reinterpret_cast<params_t*>(workSpace);
 		double* const extFunBuffer = cadet::util::advancePointer<double>(workSpace, sizeof(params_t));
 		double* const extDerivBuffer = extFunBuffer + {{ length(parameters) }};
 		void* buffer = util::ptrToEndOfData(localParams->{% for p in parameters %} {% if index1 == length(parameters) %} {{ p/varName }} {% endif %} {% endfor %});
-		evaluateTimeDerivativeExternalFunctions(t, z, r, secIdx, {{ length(parameters) }}, extDerivBuffer);
+		evaluateTimeDerivativeExternalFunctions(t, secIdx, colPos, {{ length(parameters) }}, extDerivBuffer);
 
 {% if exists("constantParameters") %}
 	{% for p in constantParameters %}

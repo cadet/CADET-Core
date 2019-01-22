@@ -48,6 +48,7 @@
 #include "cadet/Exceptions.hpp"
 #include "model/Parameters.hpp"
 #include "LocalVector.hpp"
+#include "SimulationTypes.hpp"
 
 #include <vector>
 #include <unordered_map>
@@ -139,7 +140,7 @@ public:
 	 * @param [in,out] workSpace Memory buffer for updated data
 	 * @return Externally dependent parameter values
 	 */
-	inline const params_t& update(double t, double z, double r, unsigned int secIdx, unsigned int nComp, unsigned int const* nBoundStates, void* workSpace) const
+	inline const params_t& update(double t, unsigned int secIdx, const ColumnPosition& colPos, unsigned int nComp, unsigned int const* nBoundStates, void* workSpace) const
 	{
 		return _localParams;
 	}
@@ -155,7 +156,7 @@ public:
 	 * @param [in,out] workSpace Memory buffer for updated data
 	 * @return Time derivatives of externally dependent parameters
 	 */
-	inline const params_t updateTimeDerivative(double t, double z, double r, unsigned int secIdx, unsigned int nComp, unsigned int const* nBoundStates, void* workSpace) const
+	inline const params_t updateTimeDerivative(double t, unsigned int secIdx, const ColumnPosition& colPos, unsigned int nComp, unsigned int const* nBoundStates, void* workSpace) const
 	{
 		return _localParams;
 	}
@@ -271,7 +272,7 @@ public:
 	 * @param [in,out] workSpace Memory buffer for updated data
 	 * @return Externally dependent parameter values
 	 */
-	inline const params_t& update(double t, double z, double r, unsigned int secIdx, unsigned int nComp, unsigned int const* nBoundStates, void* workSpace) const
+	inline const params_t& update(double t, unsigned int secIdx, const ColumnPosition& colPos, unsigned int nComp, unsigned int const* nBoundStates, void* workSpace) const
 	{
 		// Construct params_t in workSpace
 		params_t* const localParams = reinterpret_cast<params_t*>(workSpace);
@@ -284,7 +285,7 @@ public:
 		void* buffer = cadet::util::advancePointer<void>(workSpace, sizeof(params_t) + 2 * 2 * sizeof(double));
 
 		// Evaluate external functions in buffer
-		evaluateExternalFunctions(t, z, r, secIdx, 2, extFunBuffer);
+		evaluateExternalFunctions(t, secIdx, colPos, 2, extFunBuffer);
 
 		// Prepare the buffer for the data, update the data, and advance buffer pointer to next item
 		_kA.prepareCache(localParams->kA, buffer);
@@ -310,7 +311,7 @@ public:
 	 * @param [in,out] workSpace Memory buffer for updated data
 	 * @return Time derivatives of externally dependent parameters
 	 */
-	inline params_t updateTimeDerivative(double t, double z, double r, unsigned int secIdx, unsigned int nComp, unsigned int const* nBoundStates, void* workSpace) const
+	inline params_t updateTimeDerivative(double t, unsigned int secIdx, const ColumnPosition& colPos, unsigned int nComp, unsigned int const* nBoundStates, void* workSpace) const
 	{
 		VariableParams p;
 
@@ -323,7 +324,7 @@ public:
 		void* buffer = util::ptrToEndOfData(localParams->kD);
 
 		// Evaluate time derivatives of external functions
-		evaluateTimeDerivativeExternalFunctions(t, z, r, secIdx, 2, extDerivBuffer);
+		evaluateTimeDerivativeExternalFunctions(t, secIdx, colPos, 2, extDerivBuffer);
 
 		// Prepare the buffer for the data, update the data, and advance buffer pointer to next item
 		_kA.prepareCache(p.kA, buffer);
@@ -498,14 +499,14 @@ public:
 		return _paramHandler.cacheSize(nComp, totalNumBoundStates, nBoundStates);
 	}
 
-	virtual void consistentInitialState(double t, double z, double r, unsigned int secIdx, double* const vecStateY, double errorTol, 
+	virtual void consistentInitialState(double t, unsigned int secIdx, const ColumnPosition& colPos, double* const vecStateY, double errorTol, 
 		active* const adRes, active* const adY, unsigned int adEqOffset, unsigned int adDirOffset, const ad::IJacobianExtractor& jacExtractor, 
 		double* const workingMemory, linalg::detail::DenseMatrixBase& workingMat) const
 	{
-		consistentInitialState(t, z, r, secIdx, vecStateY, vecStateY - _nComp, errorTol, adRes, adY, adEqOffset, adDirOffset, jacExtractor, workingMemory, workingMat);
+		consistentInitialState(t, secIdx, colPos, vecStateY, vecStateY - _nComp, errorTol, adRes, adY, adEqOffset, adDirOffset, jacExtractor, workingMemory, workingMat);
 	}
 
-	virtual void consistentInitialState(double t, double z, double r, unsigned int secIdx, double* const vecStateY, double const* const yCp, double errorTol, active* const adRes, active* const adY,
+	virtual void consistentInitialState(double t, unsigned int secIdx, const ColumnPosition& colPos, double* const vecStateY, double const* const yCp, double errorTol, active* const adRes, active* const adY,
 		unsigned int adEqOffset, unsigned int adDirOffset, const ad::IJacobianExtractor& jacExtractor, double* const workingMemory,
 		linalg::detail::DenseMatrixBase& workingMat) const
 	{
@@ -513,7 +514,7 @@ public:
 		if (_kineticBinding)
 			return;
 
-		const typename ParamHandler_t::params_t& p = _paramHandler.update(t, z, r, secIdx, _nComp, _nBoundStates, workingMemory);
+		const typename ParamHandler_t::params_t& p = _paramHandler.update(t, secIdx, colPos, _nComp, _nBoundStates, workingMemory);
 
 		// Compute the q_i from their corresponding c_{p,i}
 
@@ -539,72 +540,48 @@ public:
 	// CADET_BINDINGMODEL_RESIDUAL_BOILERPLATE
 	// which just expands to the eight implementations below.
 
-	virtual int residual(const active& t, double z, double r, unsigned int secIdx, const active& timeFactor, 
-		active const* y, double const* yDot, active* res, void* workSpace) const
-	{
-		return residualImpl<active, active, active>(t, z, r, secIdx, timeFactor, y, y - _nComp, yDot, res, workSpace);
-	}
-
-	virtual int residual(double t, double z, double r, unsigned int secIdx, double timeFactor, 
-		active const* y, double const* yDot, active* res, void* workSpace) const
-	{
-		return residualImpl<active, active, double>(t, z, r, secIdx, timeFactor, y, y - _nComp, yDot, res, workSpace);
-	}
-
-	virtual int residual(const active& t, double z, double r, unsigned int secIdx, const active& timeFactor, 
-		double const* y, double const* yDot, active* res, void* workSpace) const
-	{
-		return residualImpl<double, active, active>(t, z, r, secIdx, timeFactor, y, y - _nComp, yDot, res, workSpace);
-	}
-
-	virtual int residual(double t, double z, double r, unsigned int secIdx, double timeFactor, 
-		double const* y, double const* yDot, double* res, void* workSpace) const
-	{
-		return residualImpl<double, double, double>(t, z, r, secIdx, timeFactor, y, y - _nComp, yDot, res, workSpace);
-	}
-
-	virtual int residual(const active& t, double z, double r, unsigned int secIdx, const active& timeFactor, 
+	virtual int residual(const active& t, unsigned int secIdx, const active& timeFactor, const ColumnPosition& colPos,
 		active const* y, active const* yCp, double const* yDot, active* res, void* workSpace) const
 	{
-		return residualImpl<active, active, active>(t, z, r, secIdx, timeFactor, y, yCp, yDot, res, workSpace);
+		return residualImpl<active, active, active>(t, secIdx, timeFactor, colPos, y, yCp, yDot, res, workSpace);
 	}
 
-	virtual int residual(double t, double z, double r, unsigned int secIdx, double timeFactor, 
+	virtual int residual(double t, unsigned int secIdx, double timeFactor, const ColumnPosition& colPos,
 		active const* y, active const* yCp, double const* yDot, active* res, void* workSpace) const
 	{
-		return residualImpl<active, active, double>(t, z, r, secIdx, timeFactor, y, yCp, yDot, res, workSpace);
+		return residualImpl<active, active, double>(t, secIdx, timeFactor, colPos, y, yCp, yDot, res, workSpace);
 	}
 
-	virtual int residual(const active& t, double z, double r, unsigned int secIdx, const active& timeFactor, 
+	virtual int residual(const active& t, unsigned int secIdx, const active& timeFactor, const ColumnPosition& colPos,
 		double const* y, double const* yCp, double const* yDot, active* res, void* workSpace) const
 	{
-		return residualImpl<double, active, active>(t, z, r, secIdx, timeFactor, y, yCp, yDot, res, workSpace);
+		return residualImpl<double, active, active>(t, secIdx, timeFactor, colPos, y, yCp, yDot, res, workSpace);
 	}
 
-	virtual int residual(double t, double z, double r, unsigned int secIdx, double timeFactor, 
+	virtual int residual(double t, unsigned int secIdx, double timeFactor, const ColumnPosition& colPos,
 		double const* y, double const* yCp, double const* yDot, double* res, void* workSpace) const
 	{
-		return residualImpl<double, double, double>(t, z, r, secIdx, timeFactor, y, yCp, yDot, res, workSpace);
+		return residualImpl<double, double, double>(t, secIdx, timeFactor, colPos, y, yCp, yDot, res, workSpace);
 	}
 
-	virtual void analyticJacobian(double t, double z, double r, unsigned int secIdx, double const* y, linalg::BandMatrix::RowIterator jac, void* workSpace) const
+	virtual void analyticJacobian(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, linalg::BandMatrix::RowIterator jac, void* workSpace) const
 	{
-		jacobianImpl(t, z, r, secIdx, y, _nComp, jac, workSpace);
+		jacobianImpl(t, secIdx, colPos, y, _nComp, jac, workSpace);
 	}
 
-	virtual void analyticJacobian(double t, double z, double r, unsigned int secIdx, double const* y, linalg::DenseBandedRowIterator jac, void* workSpace) const
+	virtual void analyticJacobian(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, linalg::DenseBandedRowIterator jac, void* workSpace) const
 	{
-		jacobianImpl(t, z, r, secIdx, y, _nComp, jac, workSpace);
+		jacobianImpl(t, secIdx, colPos, y, _nComp, jac, workSpace);
 	}
 
-	virtual void analyticJacobian(double t, double z, double r, unsigned int secIdx, double const* y, int offsetCp, linalg::BandMatrix::RowIterator jac, void* workSpace) const
+	virtual void analyticJacobian(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, int offsetCp, linalg::BandMatrix::RowIterator jac, void* workSpace) const
 	{
-		jacobianImpl(t, z, r, secIdx, y, offsetCp, jac, workSpace);
+		jacobianImpl(t, secIdx, colPos, y, offsetCp, jac, workSpace);
 	}
 
-	virtual void analyticJacobian(double t, double z, double r, unsigned int secIdx, double const* y, int offsetCp, linalg::DenseBandedRowIterator jac, void* workSpace) const
+	virtual void analyticJacobian(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, int offsetCp, linalg::DenseBandedRowIterator jac, void* workSpace) const
 	{
-		jacobianImpl(t, z, r, secIdx, y, offsetCp, jac, workSpace);
+		jacobianImpl(t, secIdx, colPos, y, offsetCp, jac, workSpace);
 	}
 
 	virtual void jacobianAddDiscretized(double alpha, linalg::FactorizableBandMatrix::RowIterator jac) const
@@ -629,7 +606,7 @@ public:
 		}
 	}
 
-	virtual void timeDerivativeAlgebraicResidual(double t, double z, double r, unsigned int secIdx, double const* y, double* dResDt, void* workSpace) const
+	virtual void timeDerivativeAlgebraicResidual(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, double* dResDt, void* workSpace) const
 	{
 		if (!hasAlgebraicEquations())
 			return;
@@ -638,8 +615,8 @@ public:
 			return;
 
 		// Update external function and compute time derivative of parameters
-		const typename ParamHandler_t::params_t& p = _paramHandler.update(t, z, r, secIdx, _nComp, _nBoundStates, workSpace);
-		const typename ParamHandler_t::params_t dpDt = _paramHandler.updateTimeDerivative(t, z, r, secIdx, _nComp, _nBoundStates, workSpace);
+		const typename ParamHandler_t::params_t& p = _paramHandler.update(t, secIdx, colPos, _nComp, _nBoundStates, workSpace);
+		const typename ParamHandler_t::params_t dpDt = _paramHandler.updateTimeDerivative(t, secIdx, colPos, _nComp, _nBoundStates, workSpace);
 
 		// Pointer to first component in liquid phase
 		double const* yCp = y - _nComp;
@@ -675,10 +652,10 @@ protected:
 	std::unordered_map<ParameterId, active*> _parameters; //!< Map used to translate ParameterIds to actual variables
 
 	template <typename StateType, typename ResidualType, typename ParamType>
-	int residualImpl(const ParamType& t, double z, double r, unsigned int secIdx, const ParamType& timeFactor,
+	int residualImpl(const ParamType& t, unsigned int secIdx, const ParamType& timeFactor, const ColumnPosition& colPos,
 		StateType const* y, StateType const* yCp, double const* yDot, ResidualType* res, void* workSpace) const
 	{
-		const typename ParamHandler_t::params_t& p = _paramHandler.update(static_cast<double>(t), z, r, secIdx, _nComp, _nBoundStates, workSpace);
+		const typename ParamHandler_t::params_t& p = _paramHandler.update(static_cast<double>(t), secIdx, colPos, _nComp, _nBoundStates, workSpace);
 
 		// Implement k_a * c_{p,i} - k_d * q_i
 		// Note that we actually need dq / dt - [k_a * c_{p,i} - k_d * q_i] = 0
@@ -706,9 +683,9 @@ protected:
 	}
 
 	template <typename RowIterator>
-	inline void jacobianImpl(double t, double z, double r, unsigned int secIdx, double const* y, int offsetCp, RowIterator jac, void* workSpace) const
+	inline void jacobianImpl(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, int offsetCp, RowIterator jac, void* workSpace) const
 	{
-		const typename ParamHandler_t::params_t& p = _paramHandler.update(t, z, r, secIdx, _nComp, _nBoundStates, workSpace);
+		const typename ParamHandler_t::params_t& p = _paramHandler.update(t, secIdx, colPos, _nComp, _nBoundStates, workSpace);
 
 		int bndIdx = 0;
 		for (int i = 0; i < _nComp; ++i)

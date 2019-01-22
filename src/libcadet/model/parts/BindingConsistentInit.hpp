@@ -21,6 +21,7 @@
 //#include "common/CompilerSpecific.hpp"
 #include "linalg/BandMatrix.hpp"
 #include "linalg/DenseMatrix.hpp"
+#include "SimulationTypes.hpp"
 
 #include <algorithm>
 
@@ -41,18 +42,18 @@ class BindingConsistentInitializer
 public:
 
 	template <typename StateType, typename ResidualType, typename ParamType, typename BindingType>
-	static inline void residual(const ParamType& t, double z, double r, unsigned int secIdx, const ParamType& timeFactor, 
+	static inline void residual(const ParamType& t, unsigned int secIdx, const ParamType& timeFactor, const ColumnPosition& colPos, 
 		StateType const* y, double const* yDot, ResidualType* res, BindingType* const binding, double* const buffer)
 	{
-		binding->residual(t, z, r, secIdx, timeFactor, y, yDot, res, buffer);
+		binding->residual(t, secIdx, colPos, timeFactor, y, yDot, res, buffer);
 	}
 
 	template <typename StateType, typename ResidualType, typename ParamType, typename BindingType, typename MatrixRowIterator>
-	static inline void residualWithJacobian(const ParamType& t, double z, double r, unsigned int secIdx, const ParamType& timeFactor, 
+	static inline void residualWithJacobian(const ParamType& t, unsigned int secIdx, const ParamType& timeFactor, const ColumnPosition& colPos, 
 		StateType const* y, double const* yDot, ResidualType* res, BindingType* const binding, double* const buffer, MatrixRowIterator jac)
 	{
-		binding->residual(t, z, r, secIdx, timeFactor, y, yDot, res, buffer);
-		binding->analyticJacobian(static_cast<double>(t), z, r, secIdx, reinterpret_cast<double const*>(y), jac, buffer);
+		binding->residual(t, secIdx, colPos, timeFactor, y, yDot, res, buffer);
+		binding->analyticJacobian(static_cast<double>(t), secIdx, colPos, reinterpret_cast<double const*>(y), jac, buffer);
 	}
 
 	/**
@@ -68,15 +69,11 @@ public:
 	 *          Note that the Jacobian row iterators are not advanced by this function.
 	 * 
 	 * @param [in] binding Binding model
-	 * @param [in] timeFactor Used to compute parameter derivatives with respect to section length,
-	 *             originates from time transformation and is premultiplied to time derivatives
+	 * @param [in] simTime Simulation time information (time point, section index, pre-factor of time derivatives)
 	 * @param [in] jac Row iterator to first row of bound phase in the factorizable Jacobian matrix
 	 * @param [in] origJacobian Row iterator to first row of bound phase in original Jacobian matrix
 	 * @param [in,out] qShellDot Pointer to bound phase in state vector time derivatives
-	 * @param [in] t Current time point
-	 * @param [in] z Axial position in normalized coordinates (column inlet = 0, column outlet = 1)
-	 * @param [in] r Radial position in normalized coordinates (outer shell = 1, inner center = 0)
-	 * @param [in] secIdx Index of the current section
+	 * @param [in] colPos Position in normalized coordinates (column inlet = 0, column outlet = 1; outer shell = 1, inner center = 0)
 	 * @param [in,out] workSpace Memory work space
 	 * @tparam BindingType Type of binding model
 	 * @tparam MatrixIteratorType Type of original matrix row iterator 
@@ -84,8 +81,8 @@ public:
 	 */
 	// CADET_ALWAYS_INLINE
 	template <typename BindingType, typename MatrixIteratorType, typename FactorizableMatrixIteratorType>
-	static inline void consistentInitialTimeDerivative(BindingType* const binding, double timeFactor, FactorizableMatrixIteratorType jac, MatrixIteratorType origJacobian, double* qShellDot,
-		double t, double z, double r, unsigned int secIdx, void* workSpace)
+	static inline void consistentInitialTimeDerivative(BindingType* const binding, const SimulationTime& simTime, FactorizableMatrixIteratorType jac, MatrixIteratorType origJacobian, double* qShellDot,
+		const ColumnPosition& colPos, void* workSpace)
 	{
 		// Overwrite rows corresponding to algebraic equations with the Jacobian and set right hand side to 0
 
@@ -111,7 +108,7 @@ public:
 		if (binding->dependsOnTime())
 		{
 			// TODO: Memory does alias since qShellDotAlg array is subarray of qShellDot array
-			binding->timeDerivativeAlgebraicResidual(t, z, r, secIdx, qShellDot, qShellDotAlg, workSpace);
+			binding->timeDerivativeAlgebraicResidual(simTime.t, simTime.secIdx, colPos, qShellDot, qShellDotAlg, workSpace);
 			for (unsigned int algRow = 0; algRow < algLen; ++algRow)
 				qShellDotAlg[algRow] *= -1.0;
 		}
@@ -131,9 +128,6 @@ public:
 	 * 
 	 * @param [in] algStart Start index of the algebraic block in the bound phase
 	 * @param [in] algLen Length of the algebraic block
-	 * @param [in] binding Binding model
-	 * @param [in] timeFactor Used to compute parameter derivatives with respect to section length,
-	 *             originates from time transformation and is premultiplied to time derivatives
 	 * @param [in] jacobianMatrix Factorizable matrix of size @p algLen x @p algLen
 	 * @param [in] origJacobian Original Jacobian matrix with respect to state vector
 	 * @param [in] localCpOffset Offset to the current particle shell's liquid phase from the beginning of the state vector

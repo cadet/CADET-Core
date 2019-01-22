@@ -81,7 +81,7 @@ public:
 
 	virtual void setExternalFunctions(IExternalFunction** extFuns, unsigned int size) { }
 
-	virtual void timeDerivativeAlgebraicResidual(double t, double z, double r, unsigned int secIdx, double const* y, double* dResDt, void* workSpace) const { }
+	virtual void timeDerivativeAlgebraicResidual(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, double* dResDt, void* workSpace) const { }
 
 protected:
 	int _nComp; //!< Number of components
@@ -140,12 +140,12 @@ public:
 	virtual bool hasAlgebraicEquations() const CADET_NOEXCEPT { return !_kineticBinding; }
 	virtual void getAlgebraicBlock(unsigned int& idxStart, unsigned int& len) const;
 
-	virtual void consistentInitialState(double t, double z, double r, unsigned int secIdx, double* const vecStateY, double const* const yCp, double errorTol, 
+	virtual void consistentInitialState(double t, unsigned int secIdx, const ColumnPosition& colPos, double* const vecStateY, double const* const yCp, double errorTol, 
 		active* const adRes, active* const adY, unsigned int adEqOffset, unsigned int adDirOffset, const ad::IJacobianExtractor& jacExtractor, 
 		double* const workingMemory, linalg::detail::DenseMatrixBase& workingMat) const;
 
-	virtual void analyticJacobian(double t, double z, double r, unsigned int secIdx, double const* y, int offsetCp, linalg::BandMatrix::RowIterator jac, void* workSpace) const;
-	virtual void analyticJacobian(double t, double z, double r, unsigned int secIdx, double const* y, int offsetCp, linalg::DenseBandedRowIterator jac, void* workSpace) const;
+	virtual void analyticJacobian(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, int offsetCp, linalg::BandMatrix::RowIterator jac, void* workSpace) const;
+	virtual void analyticJacobian(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, int offsetCp, linalg::DenseBandedRowIterator jac, void* workSpace) const;
 	virtual void jacobianAddDiscretized(double alpha, linalg::FactorizableBandMatrix::RowIterator jac) const;
 	virtual void jacobianAddDiscretized(double alpha, linalg::DenseBandedRowIterator jac) const;
 	virtual void multiplyWithDerivativeJacobian(double const* yDotS, double* const res, double timeFactor) const;
@@ -172,9 +172,9 @@ protected:
 	 * @param [out] res Pointer to residual equation of first bound state of the first component in the current particle shell
 	 * @return @c 0 on success, @c -1 on non-recoverable error, and @c +1 on recoverable error
 	 */
-	virtual int residualCore(double t, double z, double r, unsigned int secIdx, double timeFactor,
+	virtual int residualCore(double t, unsigned int secIdx, double timeFactor, const ColumnPosition& colPos,
 		double const* y, double const* yCp, double const* yDot, double* res, void* workSpace) const = 0;
-	virtual int residualCore(double t, double z, double r, unsigned int secIdx, double timeFactor,
+	virtual int residualCore(double t, unsigned int secIdx, double timeFactor, const ColumnPosition& colPos,
 		active const* y, double const* yCp, double const* yDot, active* res, void* workSpace) const = 0;
 
 	/**
@@ -191,9 +191,9 @@ protected:
 	 * @param [in] offsetCp Offset from @p y to @p yCp
 	 * @param [in,out] jac Row iterator pointing to the first bound states row of the underlying BandMatrix in which the Jacobian is stored
 	 */
-	virtual void analyticJacobianCore(double t, double z, double r, unsigned int secIdx, double const* y, 
+	virtual void analyticJacobianCore(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, 
 		double const* yCp, int offsetCp, linalg::BandMatrix::RowIterator jac, void* workSpace) const = 0;
-	virtual void analyticJacobianCore(double t, double z, double r, unsigned int secIdx, double const* y, 
+	virtual void analyticJacobianCore(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, 
 		double const* yCp, int offsetCp, linalg::DenseBandedRowIterator jac, void* workSpace) const = 0;
 };
 
@@ -207,31 +207,31 @@ protected:
  *          
  *          The implementation is inserted inline in the class declaration.
  */
-#define CADET_PUREBINDINGMODELBASE_BOILERPLATE                                                                          \
-	CADET_BINDINGMODEL_RESIDUAL_BOILERPLATE                                                                             \
-	protected:                                                                                                          \
-	virtual int residualCore(double t, double z, double r, unsigned int secIdx, double timeFactor,                      \
-		double const* y, double const* yCp, double const* yDot, double* res, void* workSpace) const                     \
-	{                                                                                                                   \
-		return residualImpl<double, double, double, double>(t, z, r, secIdx, timeFactor, y, yCp, yDot, res, workSpace); \
-	}                                                                                                                   \
-	                                                                                                                    \
-	virtual int residualCore(double t, double z, double r, unsigned int secIdx, double timeFactor,                      \
-		active const* y, double const* yCp, double const* yDot, active* res, void* workSpace) const                     \
-	{                                                                                                                   \
-		return residualImpl<active, double, active, double>(t, z, r, secIdx, timeFactor, y, yCp, yDot, res, workSpace); \
-	}                                                                                                                   \
-	                                                                                                                    \
-	virtual void analyticJacobianCore(double t, double z, double r, unsigned int secIdx, double const* y,               \
-		double const* yCp, int offsetCp, linalg::BandMatrix::RowIterator jac, void* workSpace) const                    \
-	{                                                                                                                   \
-		jacobianImpl(t, z, r, secIdx, y, yCp, offsetCp, jac, workSpace);                                                \
-	}                                                                                                                   \
-	                                                                                                                    \
-	virtual void analyticJacobianCore(double t, double z, double r, unsigned int secIdx, double const* y,               \
-		double const* yCp, int offsetCp, linalg::DenseBandedRowIterator jac, void* workSpace) const                     \
-	{                                                                                                                   \
-		jacobianImpl(t, z, r, secIdx, y, yCp, offsetCp, jac, workSpace);                                                \
+#define CADET_PUREBINDINGMODELBASE_BOILERPLATE                                                                            \
+	CADET_BINDINGMODEL_RESIDUAL_BOILERPLATE                                                                               \
+	protected:                                                                                                            \
+	virtual int residualCore(double t, unsigned int secIdx, double timeFactor, const ColumnPosition& colPos,              \
+		double const* y, double const* yCp, double const* yDot, double* res, void* workSpace) const                       \
+	{                                                                                                                     \
+		return residualImpl<double, double, double, double>(t, secIdx, timeFactor, colPos, y, yCp, yDot, res, workSpace); \
+	}                                                                                                                     \
+	                                                                                                                      \
+	virtual int residualCore(double t, unsigned int secIdx, double timeFactor, const ColumnPosition& colPos,              \
+		active const* y, double const* yCp, double const* yDot, active* res, void* workSpace) const                       \
+	{                                                                                                                     \
+		return residualImpl<active, double, active, double>(t, secIdx, timeFactor, colPos, y, yCp, yDot, res, workSpace); \
+	}                                                                                                                     \
+	                                                                                                                      \
+	virtual void analyticJacobianCore(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y,       \
+		double const* yCp, int offsetCp, linalg::BandMatrix::RowIterator jac, void* workSpace) const                      \
+	{                                                                                                                     \
+		jacobianImpl(t, secIdx, colPos, y, yCp, offsetCp, jac, workSpace);                                                \
+	}                                                                                                                     \
+	                                                                                                                      \
+	virtual void analyticJacobianCore(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y,       \
+		double const* yCp, int offsetCp, linalg::DenseBandedRowIterator jac, void* workSpace) const                       \
+	{                                                                                                                     \
+		jacobianImpl(t, secIdx, colPos, y, yCp, offsetCp, jac, workSpace);                                                \
 	}
 
 
@@ -247,34 +247,34 @@ protected:
  * @param CLASSNAME Name of the PureBindingModelBase heir (including template)
  * @param TEMPLATELINE Line before each function that may contain a template<typename TEMPLATENAME> modifier
  */
-#define CADET_PUREBINDINGMODELBASE_BOILERPLATE_IMPL_BASE(CLASSNAME, TEMPLATELINE)                                       \
-	CADET_BINDINGMODEL_RESIDUAL_BOILERPLATE_IMPL_BASE(CLASSNAME, TEMPLATELINE)                                          \
-	TEMPLATELINE                                                                                                        \
-	int CLASSNAME::residualCore(double t, double z, double r, unsigned int secIdx, double timeFactor,                   \
-		double const* y, double const* yCp, double const* yDot, double* res, void* workSpace) const                     \
-	{                                                                                                                   \
-		return residualImpl<double, double, double, double>(t, z, r, secIdx, timeFactor, y, yCp, yDot, res, workSpace); \
-	}                                                                                                                   \
-	                                                                                                                    \
-	TEMPLATELINE                                                                                                        \
-	int CLASSNAME::residualCore(double t, double z, double r, unsigned int secIdx, double timeFactor,                   \
-		active const* y, double const* yCp, double const* yDot, active* res, void* workSpace) const                     \
-	{                                                                                                                   \
-		return residualImpl<active, double, active, double>(t, z, r, secIdx, timeFactor, y, yCp, yDot, res, workSpace); \
-	}                                                                                                                   \
-	                                                                                                                    \
-	TEMPLATELINE                                                                                                        \
-	void CLASSNAME::analyticJacobianCore(double t, double z, double r, unsigned int secIdx, double const* y,            \
-		double const* yCp, int offsetCp, linalg::BandMatrix::RowIterator jac, void* workSpace) const                    \
-	{                                                                                                                   \
-		jacobianImpl(t, z, r, secIdx, y, yCp, offsetCp, jac, workSpace);                                                \
-	}                                                                                                                   \
-	                                                                                                                    \
-	TEMPLATELINE                                                                                                        \
-	void CLASSNAME::analyticJacobianCore(double t, double z, double r, unsigned int secIdx, double const* y,            \
-		double const* yCp, int offsetCp, linalg::DenseBandedRowIterator jac, void* workSpace) const                     \
-	{                                                                                                                   \
-		jacobianImpl(t, z, r, secIdx, y, yCp, offsetCp, jac, workSpace);                                                \
+#define CADET_PUREBINDINGMODELBASE_BOILERPLATE_IMPL_BASE(CLASSNAME, TEMPLATELINE)                                         \
+	CADET_BINDINGMODEL_RESIDUAL_BOILERPLATE_IMPL_BASE(CLASSNAME, TEMPLATELINE)                                            \
+	TEMPLATELINE                                                                                                          \
+	int CLASSNAME::residualCore(double t, unsigned int secIdx, double timeFactor, const ColumnPosition& colPos,           \
+		double const* y, double const* yCp, double const* yDot, double* res, void* workSpace) const                       \
+	{                                                                                                                     \
+		return residualImpl<double, double, double, double>(t, secIdx, timeFactor, colPos, y, yCp, yDot, res, workSpace); \
+	}                                                                                                                     \
+	                                                                                                                      \
+	TEMPLATELINE                                                                                                          \
+	int CLASSNAME::residualCore(double t, unsigned int secIdx, double timeFactor, const ColumnPosition& colPos,           \
+		active const* y, double const* yCp, double const* yDot, active* res, void* workSpace) const                       \
+	{                                                                                                                     \
+		return residualImpl<active, double, active, double>(t, secIdx, timeFactor, colPos, y, yCp, yDot, res, workSpace); \
+	}                                                                                                                     \
+	                                                                                                                      \
+	TEMPLATELINE                                                                                                          \
+	void CLASSNAME::analyticJacobianCore(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y,    \
+		double const* yCp, int offsetCp, linalg::BandMatrix::RowIterator jac, void* workSpace) const                      \
+	{                                                                                                                     \
+		jacobianImpl(t, secIdx, colPos, y, yCp, offsetCp, jac, workSpace);                                                \
+	}                                                                                                                     \
+	                                                                                                                      \
+	TEMPLATELINE                                                                                                          \
+	void CLASSNAME::analyticJacobianCore(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y,    \
+		double const* yCp, int offsetCp, linalg::DenseBandedRowIterator jac, void* workSpace) const                       \
+	{                                                                                                                     \
+		jacobianImpl(t, secIdx, colPos, y, yCp, offsetCp, jac, workSpace);                                                \
 	}
 
 

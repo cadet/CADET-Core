@@ -471,7 +471,7 @@ void CSTRModel::consistentInitialState(const SimulationTime& simTime, double* co
 				linalg::DenseMatrixView jacobianMatrix(_jacFact.data(), _jacFact.pivotData(), _strideBound[type], _strideBound[type]);
 
 				// Solve algebraic variables
-				_binding[type]->consistentInitialState(simTime.t, 0.0, 0.0, simTime.secIdx, c + offset, c, errorTol, localAdRes, localAdY,
+				_binding[type]->consistentInitialState(simTime.t, simTime.secIdx, ColumnPosition{0.0, 0.0, 0.0}, c + offset, c, errorTol, localAdRes, localAdY,
 					offset, adJac.adDirOffset, ad::DenseJacobianExtractor(), _consistentInitBuffer, jacobianMatrix);
 			}
 		}
@@ -591,8 +591,8 @@ void CSTRModel::consistentInitialTimeDerivative(const SimulationTime& simTime, d
 	{
 		if (_binding[type]->hasAlgebraicEquations())
 		{
-			parts::BindingConsistentInitializer::consistentInitialTimeDerivative(_binding[type], simTime.timeFactor, _jacFact.row(_nComp + _offsetParType[type]),
-				_jac.row(_nComp + _offsetParType[type]), vecStateYdot + 2 * _nComp + _offsetParType[type], simTime.t, 0.5, 0.5, simTime.secIdx, _consistentInitBuffer);
+			parts::BindingConsistentInitializer::consistentInitialTimeDerivative(_binding[type], simTime, _jacFact.row(_nComp + _offsetParType[type]),
+				_jac.row(_nComp + _offsetParType[type]), vecStateYdot + 2 * _nComp + _offsetParType[type], ColumnPosition{0.0, 0.0, 0.0}, _consistentInitBuffer);
 		}
 	}
 
@@ -879,7 +879,7 @@ int CSTRModel::residualImpl(const ParamType& t, unsigned int secIdx, const Param
 	for (unsigned int type = 0; type < _nParType; ++type)
 	{
 		double const* const qDot = yDot ? yDot + 2 * _nComp + _offsetParType[type] : nullptr;
-		_binding[type]->residual(t, 0.0, 0.0, secIdx, timeFactor, c + _nComp + _offsetParType[type], c, qDot, res + 2 * _nComp + _offsetParType[type], _consistentInitBuffer);
+		_binding[type]->residual(t, secIdx, timeFactor, ColumnPosition{0.0, 0.0, 0.0}, c + _nComp + _offsetParType[type], c, qDot, res + 2 * _nComp + _offsetParType[type], _consistentInitBuffer);
 	}
 
 	// Volume: \dot{V} = F_{in} - F_{out} - F_{filter}
@@ -928,7 +928,7 @@ int CSTRModel::residualImpl(const ParamType& t, unsigned int secIdx, const Param
 
 		// Bound states
 		for (unsigned int type = 0; type < _nParType; ++type)
-			_binding[0]->analyticJacobian(static_cast<double>(t), 0.0, 0.0, secIdx, reinterpret_cast<double const*>(y) + 2 * _nComp + _offsetParType[type], _nComp + _offsetParType[type], _jac.row(_nComp + _offsetParType[type]), _consistentInitBuffer);
+			_binding[0]->analyticJacobian(static_cast<double>(t), secIdx, ColumnPosition{0.0, 0.0, 0.0}, reinterpret_cast<double const*>(y) + 2 * _nComp + _offsetParType[type], _nComp + _offsetParType[type], _jac.row(_nComp + _offsetParType[type]), _consistentInitBuffer);
 
 		// Volume: \dot{V} - F_{in} + F_{out} + F_{filter} == 0
 	}

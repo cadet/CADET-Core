@@ -230,7 +230,7 @@ void LumpedRateModelWithPores::consistentInitialState(const SimulationTime& simT
 				const unsigned int offset = _bindingWorkspaceOffset[type] + requiredMem * pblk;
 
 				// Solve algebraic variables
-				_binding[type]->consistentInitialState(simTime.t, z, static_cast<double>(_parRadius[type]) * 0.5, simTime.secIdx, qShell, qShell - localOffsetInParticle , errorTol, localAdRes, localAdY,
+				_binding[type]->consistentInitialState(simTime.t, simTime.secIdx, ColumnPosition{z, 0.0, static_cast<double>(_parRadius[type]) * 0.5}, qShell, qShell - localOffsetInParticle , errorTol, localAdRes, localAdY,
 					localOffsetInParticle, adJac.adDirOffset, jacExtractor, _tempState + offset, jacobianMatrix);
 			} CADET_PARFOR_END;
 		}
@@ -338,10 +338,10 @@ void LumpedRateModelWithPores::consistentInitialTimeDerivative(const SimulationT
 			{
 				const unsigned int requiredMem = (_binding[type]->workspaceSize(_disc.nComp, _disc.strideBound[type], _disc.nBound + type * _disc.nComp) + sizeof(double) - 1) / sizeof(double);
 
-				parts::BindingConsistentInitializer::consistentInitialTimeDerivative(_binding[type], simTime.timeFactor, jac,
+				parts::BindingConsistentInitializer::consistentInitialTimeDerivative(_binding[type], simTime, jac,
 					_jacP[type].row(static_cast<unsigned int>(idxr.strideParBlock(type)) * pblk + static_cast<unsigned int>(idxr.strideParLiquid())),
 					vecStateYdot + idxr.offsetCp(ParticleTypeIndex{static_cast<unsigned int>(type)}, ParticleIndex{pblk}) + idxr.strideParLiquid(),
-					simTime.t, z, 0.5, simTime.secIdx, _tempState + _bindingWorkspaceOffset[type] + requiredMem * pblk);
+					ColumnPosition{z, 0.0, static_cast<double>(_parRadius[type]) * 0.5}, _tempState + _bindingWorkspaceOffset[type] + requiredMem * pblk);
 			}
 		}
 

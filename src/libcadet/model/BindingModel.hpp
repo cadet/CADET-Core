@@ -32,6 +32,8 @@ namespace cadet
 class IParameterProvider;
 class IExternalFunction;
 
+struct ColumnPosition;
+
 namespace ad
 {
 	class IJacobianExtractor;
@@ -255,9 +257,8 @@ public:
 	 *          If both @p adRes and @p adY are valid pointers, the Jacobian is to be computed by AD.
 	 * 
 	 * @param [in] t Current time point
-	 * @param [in] z Axial position in normalized coordinates (column inlet = 0, column outlet = 1)
-	 * @param [in] r Radial position in normalized coordinates (outer shell = 1, inner center = 0)
 	 * @param [in] secIdx Index of the current section
+	 * @param [in] colPos Position in normalized coordinates (column inlet = 0, column outlet = 1; outer shell = 1, inner center = 0)
 	 * @param [in,out] vecStateY Pointer to first bound state in state vector with initial values 
 	 *                 that are to be updated for consistency
 	 * @param [in] yCp Pointer to first component of mobile phase
@@ -271,7 +272,7 @@ public:
 	 * @param [in,out] workingMat Working matrix for nonlinear equation solvers with at least as 
 	 *                 many rows and columns as number of bound states
 	 */
-	virtual void consistentInitialState(double t, double z, double r, unsigned int secIdx, double* const vecStateY, double const* const yCp, double errorTol, active* const adRes, active* const adY,
+	virtual void consistentInitialState(double t, unsigned int secIdx, const ColumnPosition& colPos, double* const vecStateY, double const* const yCp, double errorTol, active* const adRes, active* const adY,
 		unsigned int adEqOffset, unsigned int adDirOffset, const ad::IJacobianExtractor& jacExtractor, double* const workingMemory,
 		linalg::detail::DenseMatrixBase& workingMat) const = 0;
 
@@ -284,11 +285,10 @@ public:
 	 *          This function is called simultaneously from multiple threads.
 	 * 
 	 * @param [in] t Current time point
-	 * @param [in] z Axial position in normalized coordinates (column inlet = 0, column outlet = 1)
-	 * @param [in] r Radial position in normalized coordinates (outer shell = 1, inner center = 0)
 	 * @param [in] secIdx Index of the current section
 	 * @param [in] timeFactor Used to compute parameter derivatives with respect to section length,
 	 *             originates from time transformation and is premultiplied to time derivatives
+	 * @param [in] colPos Position in normalized coordinates (column inlet = 0, column outlet = 1; outer shell = 1, inner center = 0)
 	 * @param [in] y Pointer to first bound state of the first component in the current particle shell
 	 * @param [in] yCp Pointer to first component of the mobile phase in the current particle shell
 	 * @param [in] yDot Pointer to first bound state time derivative of the first component in the current particle shell 
@@ -297,16 +297,16 @@ public:
 	 * @param [in,out] workSpace Memory work space
 	 * @return @c 0 on success, @c -1 on non-recoverable error, and @c +1 on recoverable error
 	 */
-	virtual int residual(const active& t, double z, double r, unsigned int secIdx, const active& timeFactor, active const* y, active const* yCp,
+	virtual int residual(const active& t, unsigned int secIdx, const active& timeFactor, const ColumnPosition& colPos, active const* y, active const* yCp,
 		double const* yDot, active* res, void* workSpace) const = 0;
 
-	virtual int residual(double t, double z, double r, unsigned int secIdx, double timeFactor, active const* y, active const* yCp,
+	virtual int residual(double t, unsigned int secIdx, double timeFactor, const ColumnPosition& colPos, active const* y, active const* yCp,
 		double const* yDot, active* res, void* workSpace) const = 0;
 
-	virtual int residual(const active& t, double z, double r, unsigned int secIdx, const active& timeFactor, double const* y, double const* yCp,
+	virtual int residual(const active& t, unsigned int secIdx, const active& timeFactor, const ColumnPosition& colPos, double const* y, double const* yCp,
 		double const* yDot, active* res, void* workSpace) const = 0;
 
-	virtual int residual(double t, double z, double r, unsigned int secIdx, double timeFactor, double const* y, double const* yCp,
+	virtual int residual(double t, unsigned int secIdx, double timeFactor, const ColumnPosition& colPos, double const* y, double const* yCp,
 		double const* yDot, double* res, void* workSpace) const = 0;
 
 	/**
@@ -318,16 +318,15 @@ public:
 	 *          It can be left out (empty implementation) if AD is used to evaluate the Jacobian.
 	 *
 	 * @param [in] t Current time point
-	 * @param [in] z Axial position in normalized coordinates (column inlet = 0, column outlet = 1)
-	 * @param [in] r Radial position in normalized coordinates (outer shell = 1, inner center = 0)
 	 * @param [in] secIdx Index of the current section
+	 * @param [in] colPos Position in normalized coordinates (column inlet = 0, column outlet = 1; outer shell = 1, inner center = 0)
 	 * @param [in] y Pointer to first bound state of the first component in the current particle shell
 	 * @param [in] offsetCp Offset from @p y to the first component of the mobile phase in the current particle shell
 	 * @param [in,out] jac Row iterator pointing to the first bound states row of the underlying BandMatrix in which the Jacobian is stored
 	 * @param [in,out] workSpace Memory work space
 	 */
-	virtual void analyticJacobian(double t, double z, double r, unsigned int secIdx, double const* y, int offsetCp, linalg::BandMatrix::RowIterator jac, void* workSpace) const = 0;
-	virtual void analyticJacobian(double t, double z, double r, unsigned int secIdx, double const* y, int offsetCp, linalg::DenseBandedRowIterator jac, void* workSpace) const = 0;
+	virtual void analyticJacobian(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, int offsetCp, linalg::BandMatrix::RowIterator jac, void* workSpace) const = 0;
+	virtual void analyticJacobian(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, int offsetCp, linalg::DenseBandedRowIterator jac, void* workSpace) const = 0;
 
 	/**
 	 * @brief Adds the time-discretized part of the Jacobian to the current Jacobian of the bound phase equations in one particle shell
@@ -364,14 +363,13 @@ public:
 	 *          when using externally dependent binding models.
 	 *          
 	 * @param [in] t Current time point
-	 * @param [in] z Axial position in normalized coordinates (column inlet = 0, column outlet = 1)
-	 * @param [in] r Radial position in normalized coordinates (outer shell = 1, inner center = 0)
 	 * @param [in] secIdx Index of the current section
+	 * @param [in] colPos Position in normalized coordinates (column inlet = 0, column outlet = 1; outer shell = 1, inner center = 0)
 	 * @param [in] y Pointer to first bound state of the first component in the current particle shell
 	 * @param [out] dResDt Pointer to array that stores the time derivative
 	 * @param [in,out] workSpace Memory work space
 	 */
-	virtual void timeDerivativeAlgebraicResidual(double t, double z, double r, unsigned int secIdx, double const* y, double* dResDt, void* workSpace) const = 0;
+	virtual void timeDerivativeAlgebraicResidual(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, double* dResDt, void* workSpace) const = 0;
 protected:
 };
 

@@ -238,7 +238,7 @@ void GeneralRateModel::consistentInitialState(const SimulationTime& simTime, dou
 					const unsigned int offset = _bindingWorkspaceOffset[type] + requiredMem * pblk;
 
 					// Solve algebraic variables
-					_binding[type]->consistentInitialState(simTime.t, z, static_cast<double>(_parCenterRadius[_disc.nParCellsBeforeType[type] + shell]) / static_cast<double>(_parRadius[type]), simTime.secIdx, qShell, qShell - idxr.strideParLiquid(), errorTol,
+					_binding[type]->consistentInitialState(simTime.t, simTime.secIdx, ColumnPosition{z, 0.0, static_cast<double>(_parCenterRadius[_disc.nParCellsBeforeType[type] + shell]) / static_cast<double>(_parRadius[type])}, qShell, qShell - idxr.strideParLiquid(), errorTol,
 						localAdRes, localAdY, localOffsetInParticle, adJac.adDirOffset, jacExtractor, _tempState + offset, jacobianMatrix);
 				}
 			} CADET_PARFOR_END;
@@ -351,10 +351,10 @@ void GeneralRateModel::consistentInitialTimeDerivative(const SimulationTime& sim
 			{
 				const unsigned int requiredMem = (_binding[type]->workspaceSize(_disc.nComp, _disc.strideBound[type], _disc.nBound + type * _disc.nComp) + sizeof(double) - 1) / sizeof(double);
 
-				parts::BindingConsistentInitializer::consistentInitialTimeDerivative(_binding[type], simTime.timeFactor, jac,
+				parts::BindingConsistentInitializer::consistentInitialTimeDerivative(_binding[type], simTime, jac,
 					_jacP[pblk].row(j * static_cast<unsigned int>(idxr.strideParShell(type)) + static_cast<unsigned int>(idxr.strideParLiquid())),
 					vecStateYdot + idxr.offsetCp(ParticleTypeIndex{type}, ParticleIndex{par}) + static_cast<int>(j) * idxr.strideParShell(type) + idxr.strideParLiquid(),
-					simTime.t, z, static_cast<double>(_parCenterRadius[_disc.nParCellsBeforeType[type] + j]) / static_cast<double>(_parRadius[type]), simTime.secIdx,
+					ColumnPosition{z, 0.0, static_cast<double>(_parCenterRadius[_disc.nParCellsBeforeType[type] + j]) / static_cast<double>(_parRadius[type])},
 					_tempState + _bindingWorkspaceOffset[type] + requiredMem * par);
 			}
 
