@@ -23,6 +23,7 @@
 #include "ParticleHelper.hpp"
 #include "common/Driver.hpp"
 #include "UnitOperation.hpp"
+#include "SimulationTypes.hpp"
 
 #include <cmath>
 #include <functional>
@@ -303,7 +304,7 @@ TEST_CASE("CSTR initial condition read and apply correctly", "[CSTR],[InitialCon
 	std::vector<double> vecStateYdot(uo->numDofs(), 0.0);
 
 	// Apply initial conditions to state vector
-	uo->applyInitialCondition(vecStateY.data(), vecStateYdot.data());
+	uo->applyInitialCondition(cadet::SimulationState{vecStateY.data(), vecStateYdot.data()});
 	CHECK(vecStateY[0] == 0.0);
 	CHECK(vecStateY[1] == 1.0);
 	CHECK(vecStateY[2] == 2.0);
@@ -323,7 +324,7 @@ TEST_CASE("CSTR initial condition read and apply correctly", "[CSTR],[InitialCon
 	std::fill(vecStateYdot.begin(), vecStateYdot.end(), 0.0);
 
 	uo->readInitialCondition(jppState);
-	uo->applyInitialCondition(vecStateY.data(), vecStateYdot.data());
+	uo->applyInitialCondition(cadet::SimulationState{vecStateY.data(), vecStateYdot.data()});
 
 	CHECK(vecStateY[0] == 0.0);
 	CHECK(vecStateY[1] == -1.0);
@@ -340,7 +341,7 @@ TEST_CASE("CSTR initial condition read and apply correctly", "[CSTR],[InitialCon
 	std::fill(vecStateYdot.begin(), vecStateYdot.end(), 0.0);
 
 	uo->readInitialCondition(jppState);
-	uo->applyInitialCondition(vecStateY.data(), vecStateYdot.data());
+	uo->applyInitialCondition(cadet::SimulationState{vecStateY.data(), vecStateYdot.data()});
 
 	CHECK(vecStateY[0] == 0.0);
 	CHECK(vecStateY[1] == 4.0);
@@ -357,7 +358,7 @@ TEST_CASE("CSTR initial condition read and apply correctly", "[CSTR],[InitialCon
 	std::fill(vecStateYdot.begin(), vecStateYdot.end(), 0.0);
 
 	uo->readInitialCondition(jppState);
-	uo->applyInitialCondition(vecStateY.data(), vecStateYdot.data());
+	uo->applyInitialCondition(cadet::SimulationState{vecStateY.data(), vecStateYdot.data()});
 
 	CHECK(vecStateY[0] == 0.0);
 	CHECK(vecStateY[1] == -5.0);
@@ -393,7 +394,7 @@ TEST_CASE("CSTR initial condition behave like standard parameters", "[CSTR],[Ini
 	std::vector<double> vecStateYdot(uo->numDofs(), 0.0);
 
 	// Apply initial conditions to state vector
-	uo->applyInitialCondition(vecStateY.data(), vecStateYdot.data());
+	uo->applyInitialCondition(cadet::SimulationState{vecStateY.data(), vecStateYdot.data()});
 	CHECK(vecStateY[0] == 0.0);
 	CHECK(vecStateY[1] == 0.0);
 	CHECK(vecStateY[2] == 1.0);
@@ -422,7 +423,7 @@ TEST_CASE("CSTR initial condition behave like standard parameters", "[CSTR],[Ini
 	// Apply initial conditions to state vector
 	std::fill(vecStateY.begin(), vecStateY.end(), 0.0);
 	std::fill(vecStateYdot.begin(), vecStateYdot.end(), 0.0);
-	uo->applyInitialCondition(vecStateY.data(), vecStateYdot.data());
+	uo->applyInitialCondition(cadet::SimulationState{vecStateY.data(), vecStateYdot.data()});
 
 	CHECK(vecStateY[0] == 0.0);
 	CHECK(vecStateY[1] == 0.0);

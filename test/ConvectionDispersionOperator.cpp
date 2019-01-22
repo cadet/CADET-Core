@@ -17,6 +17,7 @@
 #include "model/parts/ConvectionDispersionOperator.hpp"
 #include "Weno.hpp"
 #include "AdUtils.hpp"
+#include "SimulationTypes.hpp"
 
 #include "JsonTestModels.hpp"
 #include "ColumnTests.hpp"
@@ -148,7 +149,7 @@ void testResidualBulkWenoForwardBackward(int wenoOrder)
 		const double origVelocity = velocity->getValue();
 
 		// Setup matrices
-		convDispOp.notifyDiscontinuousSectionTransition(0.0, 0u, nullptr, nullptr, 0u);
+		convDispOp.notifyDiscontinuousSectionTransition(0.0, 0u, cadet::AdJacobianParams{nullptr, nullptr, 0u});
 
 		// Obtain memory for state and residual
 		const int nDof = (nCol + 1) * nComp;
@@ -167,7 +168,7 @@ void testResidualBulkWenoForwardBackward(int wenoOrder)
 
 			// Reverse flow
 			velocity->setValue(-origVelocity);
-			convDispOp.notifyDiscontinuousSectionTransition(0.0, 0u, nullptr, nullptr, 0u);
+			convDispOp.notifyDiscontinuousSectionTransition(0.0, 0u, cadet::AdJacobianParams{nullptr, nullptr, 0u});
 			std::vector<double> resRev(nDof, 0.0);
 
 			// Backward flow residual
@@ -178,7 +179,7 @@ void testResidualBulkWenoForwardBackward(int wenoOrder)
 
 			// Reverse flow again to go back to forward
 			velocity->setValue(origVelocity);
-			convDispOp.notifyDiscontinuousSectionTransition(0.0, 0u, nullptr, nullptr, 0u);
+			convDispOp.notifyDiscontinuousSectionTransition(0.0, 0u, cadet::AdJacobianParams{nullptr, nullptr, 0u});
 			std::vector<double> resFwd2(nDof, 0.0);
 
 			// Forward flow residual
@@ -201,7 +202,7 @@ void testResidualBulkWenoForwardBackward(int wenoOrder)
 
 			// Reverse flow
 			velocity->setValue(-origVelocity);
-			convDispOp.notifyDiscontinuousSectionTransition(0.0, 0u, nullptr, nullptr, 0u);
+			convDispOp.notifyDiscontinuousSectionTransition(0.0, 0u, cadet::AdJacobianParams{nullptr, nullptr, 0u});
 			std::vector<double> resRev(nDof, 0.0);
 
 			// Backward flow residual
@@ -212,7 +213,7 @@ void testResidualBulkWenoForwardBackward(int wenoOrder)
 
 			// Reverse flow again to go back to forward
 			velocity->setValue(origVelocity);
-			convDispOp.notifyDiscontinuousSectionTransition(0.0, 0u, nullptr, nullptr, 0u);
+			convDispOp.notifyDiscontinuousSectionTransition(0.0, 0u, cadet::AdJacobianParams{nullptr, nullptr, 0u});
 			std::vector<double> resFwd2(nDof, 0.0);
 
 			// Fill state vector with forward values again
@@ -235,7 +236,7 @@ void testTimeDerivativeBulkJacobianFD(double h, double absTol, double relTol)
 	createAndConfigureOperator(convDispOp, nComp, nCol, cadet::Weno::maxOrder());
 
 	// Setup matrices
-	convDispOp.notifyDiscontinuousSectionTransition(0.0, 0u, nullptr, nullptr, 0u);
+	convDispOp.notifyDiscontinuousSectionTransition(0.0, 0u, cadet::AdJacobianParams{nullptr, nullptr, 0u});
 
 	// Obtain memory for state, Jacobian multiply direction, Jacobian column
 	const int nDof = (nCol + 1) * nComp;
@@ -252,7 +253,7 @@ void testTimeDerivativeBulkJacobianFD(double h, double absTol, double relTol)
 	// Compare Jacobians
 	cadet::test::compareJacobianFD(
 		[&](double const* dir, double* res) -> void { convDispOp.residual(0.0, 0u, 1.0, y.data(), dir, res, false); }, 
-		[&](double const* dir, double* res) -> void { convDispOp.multiplyWithDerivativeJacobian(0.0, 0u, 1.0, dir, res); }, 
+		[&](double const* dir, double* res) -> void { convDispOp.multiplyWithDerivativeJacobian(cadet::SimulationTime{0.0, 0u, 1.0}, dir, res); }, 
 		yDot.data(), jacDir.data(), jacCol1.data(), jacCol2.data(), nDof, h, absTol, relTol);
 }
 
@@ -273,11 +274,11 @@ void testBulkJacobianWenoForwardBackward(int wenoOrder)
 		cadet::active* adRes = new cadet::active[nDof];
 		cadet::active* adY = new cadet::active[nDof];
 
-		opAD.prepareADvectors(adRes, adY, 0);
+		opAD.prepareADvectors(cadet::AdJacobianParams{adRes, adY, 0u});
 
 		// Setup matrices
-		opAna.notifyDiscontinuousSectionTransition(0.0, 0u, nullptr, nullptr, 0u);
-		opAD.notifyDiscontinuousSectionTransition(0.0, 0u, adRes, adY, 0u);
+		opAna.notifyDiscontinuousSectionTransition(0.0, 0u, cadet::AdJacobianParams{nullptr, nullptr, 0u});
+		opAD.notifyDiscontinuousSectionTransition(0.0, 0u, cadet::AdJacobianParams{adRes, adY, 0u});
 
 		// Obtain memory for state, Jacobian multiply direction, Jacobian column
 		std::vector<double> y(nDof, 0.0);
@@ -329,8 +330,8 @@ void testBulkJacobianWenoForwardBackward(int wenoOrder)
 			adVelocity->setValue(-adVelocity->getValue());
 
 			// Setup
-			opAna.notifyDiscontinuousSectionTransition(0.0, 0u, nullptr, nullptr, 0u);
-			opAD.notifyDiscontinuousSectionTransition(0.0, 0u, adRes, adY, 0u);
+			opAna.notifyDiscontinuousSectionTransition(0.0, 0u, cadet::AdJacobianParams{nullptr, nullptr, 0u});
+			opAD.notifyDiscontinuousSectionTransition(0.0, 0u, cadet::AdJacobianParams{adRes, adY, 0u});
 
 			// Compute state Jacobian
 			opAna.residual(0.0, 0u, 1.0, y.data(), nullptr, jacDir.data(), true);

@@ -16,6 +16,7 @@
 #include "Stencil.hpp"
 #include "ParamReaderHelper.hpp"
 #include "AdUtils.hpp"
+#include "SimulationTypes.hpp"
 
 #include "LoggingUtils.hpp"
 #include "Logging.hpp"
@@ -507,13 +508,11 @@ int ConvectionDispersionOperatorBase::residualBackwardsFlow(const ParamType& t, 
  *          
  *          Note that this function only performs multiplication with the Jacobian of the (axial) transport equations.
  *          The input vectors are assumed to point to the beginning (including inlet DOFs) of the respective unit operation's arrays.
- * @param [in] t Current time point
- * @param [in] secIdx Index of the current section
- * @param [in] timeFactor Factor which is premultiplied to the time derivatives originating from time transformation
+ * @param [in] simTime Simulation time information (time point, section index, pre-factor of time derivatives)
  * @param [in] sDot Vector @f$ x @f$ that is transformed by the Jacobian @f$ \frac{\partial F}{\partial \dot{y}} @f$
  * @param [out] ret Vector @f$ z @f$ which stores the result of the operation
  */
-void ConvectionDispersionOperatorBase::multiplyWithDerivativeJacobian(double t, unsigned int secIdx, double timeFactor, double const* sDot, double* ret) const
+void ConvectionDispersionOperatorBase::multiplyWithDerivativeJacobian(const SimulationTime& simTime, double const* sDot, double* ret) const
 {
 	double* localRet = ret + offsetC();
 	double const* localSdot = sDot + offsetC();
@@ -523,7 +522,7 @@ void ConvectionDispersionOperatorBase::multiplyWithDerivativeJacobian(double t, 
 	{
 		for (unsigned int j = 0; j < _nComp; ++j, ++localRet, ++localSdot)
 		{
-			*localRet = timeFactor * (*localSdot);
+			*localRet = simTime.timeFactor * (*localSdot);
 		}
 	}
 }
@@ -642,12 +641,10 @@ bool ConvectionDispersionOperator::configure(UnitOpIdx unitOpIdx, IParameterProv
  *          the flow direction has changed.
  * @param [in] t Current time point
  * @param [in] secIdx Index of the new section that is about to be integrated
- * @param [in,out] adRes Pointer to unit operation's residual vector of AD datatypes to be set up (or @c nullptr if AD is disabled)
- * @param [in,out] adY Pointer to unit operation's state vector of AD datatypes to be set up (or @c nullptr if AD is disabled)
- * @param [in] adDirOffset Number of AD directions used for non-Jacobian purposes (e.g., parameter sensitivities)
+ * @param [in,out] adJac Jacobian information for AD (AD vectors for residual and state, direction offset)
  * @return @c true if flow direction has changed, otherwise @c false
  */
-bool ConvectionDispersionOperator::notifyDiscontinuousSectionTransition(double t, unsigned int secIdx, active* const adRes, active* const adY, unsigned int adDirOffset)
+bool ConvectionDispersionOperator::notifyDiscontinuousSectionTransition(double t, unsigned int secIdx, const AdJacobianParams& adJac)
 {
 	_baseOp.notifyDiscontinuousSectionTransition(t, secIdx);
 
@@ -679,21 +676,19 @@ bool ConvectionDispersionOperator::notifyDiscontinuousSectionTransition(double t
 	}
 
 	// Update AD seed vectors since Jacobian structure has changed (bulk block bandwidths)
-	prepareADvectors(adRes, adY, adDirOffset);
+	prepareADvectors(adJac);
 
 	return true;
 }
 
 /**
  * @brief Sets the AD seed vectors for the bulk transport variables
- * @param [in,out] adRes Pointer to unit operation's residual vector of AD datatypes to be set up (or @c nullptr if AD is disabled)
- * @param [in,out] adY Pointer to unit operation's state vector of AD datatypes to be set up (or @c nullptr if AD is disabled)
- * @param [in] adDirOffset Number of AD directions used for non-Jacobian purposes (e.g., parameter sensitivities)
+ * @param [in,out] adJac Jacobian information for AD (AD vectors for residual and state, direction offset)
  */
-void ConvectionDispersionOperator::prepareADvectors(active* const adRes, active* const adY, unsigned int adDirOffset) const
+void ConvectionDispersionOperator::prepareADvectors(const AdJacobianParams& adJac) const
 {
 	// Early out if AD is disabled
-	if (!adY)
+	if (!adJac.adY)
 		return;
 
 	// Get bandwidths of blocks
@@ -701,7 +696,7 @@ void ConvectionDispersionOperator::prepareADvectors(active* const adRes, active*
 	const unsigned int upperColBandwidth = _jacC.upperBandwidth();
 
 	// Column block
-	ad::prepareAdVectorSeedsForBandMatrix(adY + offsetC(), adDirOffset, _baseOp.nComp() * _baseOp.nCol(), lowerColBandwidth, upperColBandwidth, lowerColBandwidth);
+	ad::prepareAdVectorSeedsForBandMatrix(adJac.adY + offsetC(), adJac.adDirOffset, _baseOp.nComp() * _baseOp.nCol(), lowerColBandwidth, upperColBandwidth, lowerColBandwidth);
 }
 
 /**
@@ -760,15 +755,13 @@ int ConvectionDispersionOperator::residual(const active& t, unsigned int secIdx,
  *          
  *          Note that this function only performs multiplication with the Jacobian of the (axial) transport equations.
  *          The input vectors are assumed to point to the beginning (including inlet DOFs) of the respective unit operation's arrays.
- * @param [in] t Current time point
- * @param [in] secIdx Index of the current section
- * @param [in] timeFactor Factor which is premultiplied to the time derivatives originating from time transformation
+ * @param [in] simTime Simulation time information (time point, section index, pre-factor of time derivatives)
  * @param [in] sDot Vector @f$ x @f$ that is transformed by the Jacobian @f$ \frac{\partial F}{\partial \dot{y}} @f$
  * @param [out] ret Vector @f$ z @f$ which stores the result of the operation
  */
-void ConvectionDispersionOperator::multiplyWithDerivativeJacobian(double t, unsigned int secIdx, double timeFactor, double const* sDot, double* ret) const
+void ConvectionDispersionOperator::multiplyWithDerivativeJacobian(const SimulationTime& simTime, double const* sDot, double* ret) const
 {
-	_baseOp.multiplyWithDerivativeJacobian(t, secIdx, timeFactor, sDot, ret);
+	_baseOp.multiplyWithDerivativeJacobian(simTime, sDot, ret);
 }
 
 /**
@@ -873,17 +866,15 @@ bool ConvectionDispersionOperator::solveDiscretizedJacobian(double* rhs) const
  * @brief Solves a system with the time derivative Jacobian and given right hand side
  * @details Note that the given right hand side vector @p rhs is not shifted by the inlet DOFs. That
  *          is, it is assumed to point directly to the first axial DOF.
- * @param [in] t Current time point
- * @param [in] secIdx Index of the current section
- * @param [in] timeFactor Factor which is premultiplied to the time derivatives originating from time transformation
+ * @param [in] simTime Simulation time information (time point, section index, pre-factor of time derivatives)
  * @param [in,out] rhs On entry, right hand side. On exit, solution of the system.
  * @return @c true if the system was solved correctly, @c false otherwise
  */
-bool ConvectionDispersionOperator::solveTimeDerivativeSystem(double t, unsigned int secIdx, double timeFactor, double* const rhs)
+bool ConvectionDispersionOperator::solveTimeDerivativeSystem(const SimulationTime& simTime, double* const rhs)
 {
 	// Assemble
 	_jacCdisc.setAll(0.0);
-	addTimeDerivativeToJacobian(1.0, timeFactor);
+	addTimeDerivativeToJacobian(1.0, simTime.timeFactor);
 
 	// Factorize
 	const bool result = _jacCdisc.factorize();

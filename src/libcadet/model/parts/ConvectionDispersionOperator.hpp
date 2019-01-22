@@ -31,6 +31,8 @@ namespace cadet
 {
 
 class IParameterProvider;
+struct AdJacobianParams;
+struct SimulationTime;
 
 namespace model
 {
@@ -72,7 +74,7 @@ public:
 	int residual(const active& t, unsigned int secIdx, const active& timeFactor, double const* y, double const* yDot, active* res, linalg::BandMatrix* jac);
 	int residual(const active& t, unsigned int secIdx, const active& timeFactor, active const* y, double const* yDot, active* res);
 
-	void multiplyWithDerivativeJacobian(double t, unsigned int secIdx, double timeFactor, double const* sDot, double* ret) const;
+	void multiplyWithDerivativeJacobian(const SimulationTime& simTime, double const* sDot, double* ret) const;
 	void addTimeDerivativeToJacobian(double alpha, double timeFactor, linalg::FactorizableBandMatrix& jacDisc);
 
 	inline const active& columnLength() const CADET_NOEXCEPT { return _colLength; }
@@ -166,18 +168,18 @@ public:
 
 	bool configureModelDiscretization(IParameterProvider& paramProvider, unsigned int nComp, unsigned int nCol);
 	bool configure(UnitOpIdx unitOpIdx, IParameterProvider& paramProvider, std::unordered_map<ParameterId, active*>& parameters);
-	bool notifyDiscontinuousSectionTransition(double t, unsigned int secIdx, active* const adRes, active* const adY, unsigned int adDirOffset);
+	bool notifyDiscontinuousSectionTransition(double t, unsigned int secIdx, const AdJacobianParams& adJac);
 
 	int residual(double t, unsigned int secIdx, double timeFactor, double const* y, double const* yDot, double* res, bool wantJac);
 	int residual(double t, unsigned int secIdx, double timeFactor, active const* y, double const* yDot, active* res, bool wantJac);
 	int residual(const active& t, unsigned int secIdx, const active& timeFactor, double const* y, double const* yDot, active* res, bool wantJac);
 	int residual(const active& t, unsigned int secIdx, const active& timeFactor, active const* y, double const* yDot, active* res, bool wantJac);
 
-	void prepareADvectors(active* const adRes, active* const adY, unsigned int adDirOffset) const;
+	void prepareADvectors(const AdJacobianParams& adJac) const;
 	void extractJacobianFromAD(active const* const adRes, unsigned int adDirOffset);
 
-	bool solveTimeDerivativeSystem(double t, unsigned int secIdx, double timeFactor, double* const rhs);
-	void multiplyWithDerivativeJacobian(double t, unsigned int secIdx, double timeFactor, double const* sDot, double* ret) const;
+	bool solveTimeDerivativeSystem(const SimulationTime& simTime, double* const rhs);
+	void multiplyWithDerivativeJacobian(const SimulationTime& simTime, double const* sDot, double* ret) const;
 
 	void addTimeDerivativeToJacobian(double alpha, double timeFactor);
 	void assembleDiscretizedJacobian(double alpha, double timeFactor);

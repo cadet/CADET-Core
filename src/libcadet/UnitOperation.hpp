@@ -31,6 +31,12 @@ class IParameterProvider;
 class IConfigHelper;
 class IExternalFunction;
 
+struct AdJacobianParams;
+struct SimulationTime;
+struct ActiveSimulationTime;
+struct SimulationState;
+struct ConstSimulationState;
+
 /**
  * @brief Defines an unit operation model interface
  * @details 
@@ -164,11 +170,9 @@ public:
 	 *          
 	 * @param [in] t Current time point
 	 * @param [in] secIdx Index of the new section that is about to be integrated
-	 * @param [in,out] adRes Pointer to local residual vector of AD datatypes to be set up (or @c nullptr if AD is disabled)
-	 * @param [in,out] adY Pointer to local state vector of AD datatypes to be set up (or @c nullptr if AD is disabled)
-	 * @param [in] adDirOffset Number of AD directions used for non-Jacobian purposes (e.g., parameter sensitivities)
+	 * @param [in,out] adJac Jacobian information for AD (AD vectors for residual and state, direction offset)
 	 */
-	virtual void notifyDiscontinuousSectionTransition(double t, unsigned int secIdx, active* const adRes, active* const adY, unsigned int adDirOffset) = 0;
+	virtual void notifyDiscontinuousSectionTransition(double t, unsigned int secIdx, const AdJacobianParams& adJac) = 0;
 
 	/**
 	 * @brief Applies initial conditions to the state vector and its time derivative
@@ -180,10 +184,9 @@ public:
 	 *          Note that the state vector and its time derivative are pre-initialized with zero by the
 	 *          time integrator.
 	 * 
-	 * @param [in,out] vecStateY State vector with initial values that are to be updated for consistency
-	 * @param [in,out] vecStateYdot State vector with initial time derivatives that are to be overwritten for consistency
+	 * @param [in,out] simState State of the simulation (state vector and its time derivatives) to be updated with initial values
 	 */
-	virtual void applyInitialCondition(double* const vecStateY, double* const vecStateYdot) const = 0;
+	virtual void applyInitialCondition(const SimulationState& simState) const = 0;
 
 	/**
 	 * @brief Reads initial conditions for the state vector and its time derivative from the given parameter provider
@@ -196,31 +199,23 @@ public:
 	/**
 	 * @brief Computes the residual
 	 * 
-	 * @param [in] t Current time point
-	 * @param [in] secIdx Index of the current section
-	 * @param [in] timeFactor Used to compute parameter derivatives with respect to section length (nominal value should always be 1.0)
-	 * @param [in] y Pointer to local state vector
-	 * @param [in] yDot Pointer to local time derivative state vector
+	 * @param [in] simTime Simulation time information (time point, section index, pre-factor of time derivatives)
+	 * @param [in] simState State of the simulation (state vector and its time derivative)
 	 * @param [out] res Pointer to local residual vector
 	 * @return @c 0 on success, @c -1 on non-recoverable error, and @c +1 on recoverable error
 	 */
-	virtual int residual(double t, unsigned int secIdx, double timeFactor, double const* const y, double const* const yDot, double* const res) = 0;
+	virtual int residual(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res) = 0;
 
 	/**
 	 * @brief Computes the residual and updates the Jacobian
 	 * 
-	 * @param [in] t Current time point
-	 * @param [in] secIdx Index of the current section
-	 * @param [in] timeFactor Used to compute parameter derivatives with respect to section length (nominal value should always be 1.0)
-	 * @param [in] y Pointer to local state vector
-	 * @param [in] yDot Pointer to local time derivative state vector
+	 * @param [in] simTime Simulation time information (time point, section index, pre-factor of time derivatives)
+	 * @param [in] simState State of the simulation (state vector and its time derivative)
 	 * @param [out] res Pointer to local residual vector
-	 * @param [in,out] adRes Pointer to local residual vector of AD datatypes that can be used for computing the Jacobian (or @c nullptr if AD is disabled)
-	 * @param [in,out] adY Pointer to local state vector of AD datatypes that can be used for computing the Jacobian (or @c nullptr if AD is disabled)
-	 * @param [in] adDirOffset Number of AD directions used for non-Jacobian purposes (e.g., parameter sensitivities)
+	 * @param [in,out] adJac Jacobian information for AD (AD vectors for residual and state, direction offset)
 	 * @return @c 0 on success, @c -1 on non-recoverable error, and @c +1 on recoverable error
 	 */
-	virtual int residualWithJacobian(const active& t, unsigned int secIdx, const active& timeFactor, double const* const y, double const* const yDot, double* const res, active* const adRes, active* const adY, unsigned int adDirOffset) = 0;
+	virtual int residualWithJacobian(const ActiveSimulationTime& simTime, const ConstSimulationState& simState, double* const res, const AdJacobianParams& adJac) = 0;
 
 	/**
 	 * @brief Computes the solution of the linear system involving the system Jacobian
@@ -235,12 +230,11 @@ public:
 	 * @param [in] tol Error tolerance for the solution of the linear system from outer Newton iteration
 	 * @param [in,out] rhs On entry the right hand side of the linear equation system, on exit the solution
 	 * @param [in] weight Vector with error weights
-	 * @param [in] y Pointer to local state vector at which the Jacobian is evaluated
-	 * @param [in] yDot Pointer to local time derivative state vector at which the Jacobian is evaluated
+	 * @param [in] simState State of the simulation (state vector and its time derivative)
 	 * @return @c 0 on success, @c -1 on non-recoverable error, and @c +1 on recoverable error
 	 */
 	virtual int linearSolve(double t, double timeFactor, double alpha, double tol, double* const rhs, double const* const weight,
-		double const* const y, double const* const yDot) = 0;
+		const ConstSimulationState& simState) = 0;
 
 	/**
 	 * @brief Prepares the AD system vectors by constructing seed vectors
@@ -253,11 +247,9 @@ public:
 	 *          be performed in this function. The notifyDiscontinuousSectionTransition() function is
 	 *          only used to update seed vectors during time integration.
 	 * 
-	 * @param [in,out] adRes Pointer to local residual vector of AD datatypes to be set up (or @c nullptr if AD is disabled)
-	 * @param [in,out] adY Pointer to local state vector of AD datatypes to be set up (or @c nullptr if AD is disabled)
-	 * @param [in] adDirOffset Number of AD directions used for non-Jacobian purposes (e.g., parameter sensitivities)
+	 * @param [in,out] adJac Jacobian information for AD (AD vectors for residual and state, direction offset)
 	 */
-	virtual void prepareADvectors(active* const adRes, active* const adY, unsigned int adDirOffset) const = 0;
+	virtual void prepareADvectors(const AdJacobianParams& adJac) const = 0;
 
 	/**
 	 * @brief Sets initial sensitivity system state
@@ -370,26 +362,19 @@ public:
 	 * @brief Evaluates the residuals with AD to compute the sensitivity derivatives
 	 * @details Evaluates @f$ \frac{\partial F}{\partial p} @f$, where @f$ p @f$ are the sensitive parameters
 	 *          and @f$ F @f$ is the residual function of this model.
-	 * @param [in] t Current time point
-	 * @param [in] secIdx Index of the current section
-	 * @param [in] timeFactor Used for time transformation (pre factor of time derivatives) and to compute parameter derivatives with respect to section length
-	 * @param [in] y Pointer to local state vector
-	 * @param [in] yDot Pointer to local time derivative state vector
+	 * @param [in] simTime Simulation time information (time point, section index, pre-factor of time derivatives)
+	 * @param [in] simState State of the simulation (state vector and its time derivative)
 	 * @param [in,out] adRes Pointer to local residual vector of AD datatypes for computing the sensitivity derivatives
 	 * @return @c 0 on success, @c -1 on non-recoverable error, and @c +1 on recoverable error
 	 */
-	virtual int residualSensFwdAdOnly(const active& t, unsigned int secIdx, const active& timeFactor,
-		double const* const y, double const* const yDot, active* const adRes) = 0;
+	virtual int residualSensFwdAdOnly(const ActiveSimulationTime& simTime, const ConstSimulationState& simState, active* const adRes) = 0;
 
 	/**
 	 * @brief Computes the residual of the forward sensitivity systems using the result of residualSensFwdAdOnly()
 	 * @details Assembles and evaluates the residuals of the sensitivity systems
 	 *          @f[ \frac{F}{\partial y} s + \frac{F}{\partial \dot{y}} \dot{s} + \frac{\partial F}{\partial p_i} = 0. @f]
-	 * @param [in] t Current time point
-	 * @param [in] secIdx Index of the current section
-	 * @param [in] timeFactor Used for time transformation (pre factor of time derivatives) and to compute parameter derivatives with respect to section length
-	 * @param [in] y Pointer to local state vector
-	 * @param [in] yDot Pointer to local time derivative state vector
+	 * @param [in] simTime Simulation time information (time point, section index, pre-factor of time derivatives)
+	 * @param [in] simState State of the simulation (state vector and its time derivative)
 	 * @param [in] yS Pointers to local sensitivity state vectors
 	 * @param [in] ySdot Pointers to local sensitivity time derivative state vectors
 	 * @param [out] resS Pointers to local sensitivity residuals
@@ -399,7 +384,7 @@ public:
 	 * @param [in] tmp3 Temporary storage in the size of local state vector of @p y
 	 * @return @c 0 on success, @c -1 on non-recoverable error, and @c +1 on recoverable error
 	 */
-	virtual int residualSensFwdCombine(const active& t, unsigned int secIdx, const active& timeFactor, double const* const y, double const* const yDot, 
+	virtual int residualSensFwdCombine(const ActiveSimulationTime& simTime, const ConstSimulationState& simState, 
 		const std::vector<const double*>& yS, const std::vector<const double*>& ySdot, const std::vector<double*>& resS, active const* adRes, 
 		double* const tmp1, double* const tmp2, double* const tmp3) = 0;
 
@@ -407,18 +392,12 @@ public:
 	 * @brief Evaluates the residuals with AD to compute the parameter sensitivities and at the same time updates the Jacobian
 	 * @details Evaluates @f$ \frac{\partial F}{\partial p} @f$, where @f$ p @f$ are the sensitive parameters
 	 *          and @f$ F @f$ is the residual function of this model. At the same time updates the Jacobian of the system.
-	 * @param [in] t Current time point
-	 * @param [in] secIdx Index of the current section
-	 * @param [in] timeFactor Used for time transformation (pre factor of time derivatives) and to compute parameter derivatives with respect to section length
-	 * @param [in] y Pointer to local state vector
-	 * @param [in] yDot Pointer to local time derivative state vector
-	 * @param [in,out] adRes Pointer to local residual vector of AD datatypes for computing the sensitivity derivatives
-	 * @param [in,out] adY Pointer to local state vector of AD datatypes that can be used for computing the Jacobian (or @c nullptr if AD is disabled)
-	 * @param [in] adDirOffset Number of AD directions used for non-Jacobian purposes (e.g., parameter sensitivities)
+	 * @param [in] simTime Simulation time information (time point, section index, pre-factor of time derivatives)
+	 * @param [in] simState State of the simulation (state vector and its time derivative)
+	 * @param [in,out] adJac Jacobian information for AD (AD vectors for residual and state, direction offset)
 	 * @return @c 0 on success, @c -1 on non-recoverable error, and @c +1 on recoverable error
 	 */
-	virtual int residualSensFwdWithJacobian(const active& t, unsigned int secIdx, const active& timeFactor, double const* const y, double const* const yDot, active* const adRes, 
-		active* const adY, unsigned int adDirOffset) = 0;
+	virtual int residualSensFwdWithJacobian(const ActiveSimulationTime& simTime, const ConstSimulationState& simState, const AdJacobianParams& adJac) = 0;
 
 	/**
 	 * @brief Computes consistent initial values (state variables without their time derivatives)
@@ -429,16 +408,12 @@ public:
 	 *          This function is to be used with consistentInitialTimeDerivative(). Do not mix normal and lean
 	 *          consistent initialization!
 	 * 
-	 * @param [in] t Current time point
-	 * @param [in] secIdx Index of the current section
-	 * @param [in] timeFactor Used for time transformation (pre factor of time derivatives) and to compute parameter derivatives with respect to section length
+	 * @param [in] simTime Simulation time information (time point, section index, pre-factor of time derivatives)
 	 * @param [in,out] vecStateY State vector with initial values that are to be updated for consistency
-	 * @param [in,out] adRes Pointer to local residual vector of AD datatypes that can be used for computing the Jacobian (or @c nullptr if AD is disabled)
-	 * @param [in,out] adY Pointer to local state vector of AD datatypes that can be used for computing the Jacobian (or @c nullptr if AD is disabled)
-	 * @param [in] adDirOffset Number of AD directions used for non-Jacobian purposes (e.g., parameter sensitivities)
+	 * @param [in,out] adJac Jacobian information for AD (AD vectors for residual and state, direction offset)
 	 * @param [in] errorTol Error tolerance for algebraic equations
 	 */
-	virtual void consistentInitialState(double t, unsigned int secIdx, double timeFactor, double* const vecStateY, active* const adRes, active* const adY, unsigned int adDirOffset, double errorTol) = 0;
+	virtual void consistentInitialState(const SimulationTime& simTime, double* const vecStateY, const AdJacobianParams& adJac, double errorTol) = 0;
 
 	/**
 	 * @brief Computes consistent initial time derivatives
@@ -449,13 +424,11 @@ public:
 	 *          This function is to be used with consistentInitialState(). Do not mix normal and lean
 	 *          consistent initialization!
 	 *          
-	 * @param [in] t Current time point
-	 * @param [in] secIdx Index of the current section
-	 * @param [in] timeFactor Used for time transformation (pre factor of time derivatives) and to compute parameter derivatives with respect to section length
+	 * @param [in] simTime Simulation time information (time point, section index, pre-factor of time derivatives)
 	 * @param [in] vecStateY Consistently initialized state vector
 	 * @param [in,out] vecStateYdot On entry, residual without taking time derivatives into account. On exit, consistent state time derivatives.
 	 */
-	virtual void consistentInitialTimeDerivative(double t, unsigned int secIdx, double timeFactor, double const* vecStateY, double* const vecStateYdot) = 0;
+	virtual void consistentInitialTimeDerivative(const SimulationTime& simTime, double const* vecStateY, double* const vecStateYdot) = 0;
 
 	/**
 	 * @brief Computes approximately / partially consistent initial values (state variables without their time derivatives)
@@ -469,16 +442,12 @@ public:
 	 *          This function is to be used with leanConsistentInitialTimeDerivative(). Do not mix normal and lean
 	 *          consistent initialization!
 	 *
-	 * @param [in] t Current time point
-	 * @param [in] secIdx Index of the current section
-	 * @param [in] timeFactor Used for time transformation (pre factor of time derivatives) and to compute parameter derivatives with respect to section length
+	 * @param [in] simTime Simulation time information (time point, section index, pre-factor of time derivatives)
 	 * @param [in,out] vecStateY State vector with initial values that are to be updated for consistency
-	 * @param [in,out] adRes Pointer to local residual vector of AD datatypes that can be used for computing the Jacobian (or @c nullptr if AD is disabled)
-	 * @param [in,out] adY Pointer to local state vector of AD datatypes that can be used for computing the Jacobian (or @c nullptr if AD is disabled)
-	 * @param [in] adDirOffset Number of AD directions used for non-Jacobian purposes (e.g., parameter sensitivities)
+	 * @param [in,out] adJac Jacobian information for AD (AD vectors for residual and state, direction offset)
 	 * @param [in] errorTol Error tolerance for algebraic equations
 	 */
-	virtual void leanConsistentInitialState(double t, unsigned int secIdx, double timeFactor, double* const vecStateY, active* const adRes, active* const adY, unsigned int adDirOffset, double errorTol) = 0;
+	virtual void leanConsistentInitialState(const SimulationTime& simTime, double* const vecStateY, const AdJacobianParams& adJac, double errorTol) = 0;
 
 	/**
 	 * @brief Computes approximately / partially consistent initial time derivatives
@@ -508,16 +477,13 @@ public:
 	 *          have to be consistent, that means, they have to satisfy the sensitivity equation. This function computes the correct \f$ s_0 \f$ and \f$ \dot{s}_0 \f$
 	 *          given \f$ y_0 \f$ and \f$ s_0 \f$.
 	 * 
-	 * @param [in] t Current time point
-	 * @param [in] secIdx Index of the current section
-	 * @param [in] timeFactor Used for time transformation (pre factor of time derivatives) and to compute parameter derivatives with respect to section length
-	 * @param [in] vecStateY State vector with consistent initial values of the original system
-	 * @param [in] vecStateYdot Time derivative state vector with consistent initial values of the original system
+	 * @param [in] simTime Simulation time information (time point, section index, pre-factor of time derivatives)
+	 * @param [in] simState State of the simulation (state vector and its time derivative)
 	 * @param [in,out] vecSensY Sensitivity subsystem state vectors
 	 * @param [in,out] vecSensYdot Time derivative state vectors of the sensitivity subsystems to be initialized
 	 * @param [in] adRes Pointer to local residual vector of AD datatypes with parameter sensitivities
 	 */
-	virtual void consistentInitialSensitivity(const active& t, unsigned int secIdx, const active& timeFactor, double const* vecStateY, double const* vecStateYdot,
+	virtual void consistentInitialSensitivity(const ActiveSimulationTime& simTime, const ConstSimulationState& simState,
 		std::vector<double*>& vecSensY, std::vector<double*>& vecSensYdot, active const* const adRes) = 0;
 
 	/**
@@ -531,16 +497,13 @@ public:
 	 *          This function is possibly faster than consistentInitialSensitivity(), but updates only a part of the
 	 *          vectors. Hence, the result is not guaranteed to be consistent. 
 	 * 
-	 * @param [in] t Current time point
-	 * @param [in] secIdx Index of the current section
-	 * @param [in] timeFactor Used for time transformation (pre factor of time derivatives) and to compute parameter derivatives with respect to section length
-	 * @param [in] vecStateY State vector with consistent initial values of the original system
-	 * @param [in] vecStateYdot Time derivative state vector with consistent initial values of the original system
+	 * @param [in] simTime Simulation time information (time point, section index, pre-factor of time derivatives)
+	 * @param [in] simState State of the simulation (state vector and its time derivative)
 	 * @param [in,out] vecSensY Sensitivity subsystem state vectors
 	 * @param [in,out] vecSensYdot Time derivative state vectors of the sensitivity subsystems to be initialized
 	 * @param [in] adRes Pointer to local residual vector of AD datatypes with parameter sensitivities
 	 */
-	virtual void leanConsistentInitialSensitivity(const active& t, unsigned int secIdx, const active& timeFactor, double const* vecStateY, double const* vecStateYdot,
+	virtual void leanConsistentInitialSensitivity(const ActiveSimulationTime& simTime, const ConstSimulationState& simState,
 		std::vector<double*>& vecSensY, std::vector<double*>& vecSensYdot, active const* const adRes) = 0;
 
 	/**
@@ -569,31 +532,25 @@ public:
 	/**
 	 * @brief Multiplies the given vector with the system Jacobian (i.e., @f$ \frac{\partial F}{\partial y}\left(t, y, \dot{y}\right) @f$)
 	 * @details Actually, the operation @f$ z = \alpha \frac{\partial F}{\partial y} x + \beta z @f$ is performed.
-	 * @param [in] t Current time point
-	 * @param [in] secIdx Index of the current section
-	 * @param [in] timeFactor Used for time transformation (pre factor of time derivatives) and to compute parameter derivatives with respect to section length
-	 * @param [in] y Pointer to local state vector
-	 * @param [in] yDot Pointer to local time derivative state vector
+	 * @param [in] simTime Simulation time information (time point, section index, pre-factor of time derivatives)
+	 * @param [in] simState State of the simulation (state vector and its time derivative)
 	 * @param [in] yS Vector @f$ x @f$ that is transformed by the Jacobian @f$ \frac{\partial F}{\partial y} @f$
 	 * @param [in] alpha Factor @f$ \alpha @f$ in front of @f$ \frac{\partial F}{\partial y} @f$
 	 * @param [in] beta Factor @f$ \beta @f$ in front of @f$ z @f$
 	 * @param [in,out] ret Vector @f$ z @f$ which stores the result of the operation
 	 */
-	virtual void multiplyWithJacobian(double t, unsigned int secIdx, double timeFactor, double const* const y, double const* const yDot, double const* yS, double alpha, double beta, double* ret) = 0;
+	virtual void multiplyWithJacobian(const SimulationTime& simTime, const ConstSimulationState& simState, double const* yS, double alpha, double beta, double* ret) = 0;
 
 	/**
 	 * @brief Multiplies the time derivative Jacobian @f$ \frac{\partial F}{\partial \dot{y}}\left(t, y, \dot{y}\right) @f$ with a given vector
 	 * @details The operation @f$ z = \frac{\partial F}{\partial \dot{y}} x @f$ is performed.
 	 *          The matrix-vector multiplication is transformed matrix-free (i.e., no matrix is explicitly formed).
-	 * @param [in] t Current time point
-	 * @param [in] secIdx Index of the current section
-	 * @param [in] timeFactor Factor which is premultiplied to the time derivatives originating from time transformation
-	 * @param [in] y Pointer to local state vector
-	 * @param [in] yDot Pointer to local time derivative state vector
+	 * @param [in] simTime Simulation time information (time point, section index, pre-factor of time derivatives)
+	 * @param [in] simState State of the simulation (state vector and its time derivative)
 	 * @param [in] sDot Vector @f$ x @f$ that is transformed by the Jacobian @f$ \frac{\partial F}{\partial \dot{y}} @f$
 	 * @param [out] ret Vector @f$ z @f$ which stores the result of the operation
 	 */
-	virtual void multiplyWithDerivativeJacobian(double t, unsigned int secIdx, double timeFactor, double const* const y, double const* const yDot, double const* sDot, double* ret) = 0;
+	virtual void multiplyWithDerivativeJacobian(const SimulationTime& simTime, const ConstSimulationState& simState, double const* sDot, double* ret) = 0;
 };
 
 } // namespace cadet

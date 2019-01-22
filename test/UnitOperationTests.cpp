@@ -19,6 +19,7 @@
 #include "linalg/Norms.hpp"
 #include "UnitOperation.hpp"
 #include "UnitOperationTests.hpp"
+#include "SimulationTypes.hpp"
 
 #include "Utils.hpp"
 
@@ -46,33 +47,35 @@ namespace unitoperation
 
 			adRes = new cadet::active[unit->numDofs()];
 			adY = new cadet::active[unit->numDofs()];
-			unit->prepareADvectors(adRes, adY, 0);
+			unit->prepareADvectors(AdJacobianParams{adRes, adY, 0});
 		}
 		else
 		{
 			unit->useAnalyticJacobian(true);
 		}
 
+		const AdJacobianParams adParams{adRes, adY, 0};
+
 		// Setup matrices
-		unit->notifyDiscontinuousSectionTransition(0.0, 0u, adRes, adY, 0u);
+		unit->notifyDiscontinuousSectionTransition(0.0, 0u, adParams);
 
 		// Obtain memory for state, Jacobian multiply direction, Jacobian column
 		std::vector<double> yDot(unit->numDofs(), 0.0);
 		std::vector<double> res(unit->numDofs(), 0.0);
 
 		// Initialize algebraic variables in state vector
-		unit->consistentInitialState(0.0, 0u, 1.0, y, adRes, adY, 0u, consTol);
+		unit->consistentInitialState(SimulationTime{0.0, 0u, 1.0}, y, adParams, consTol);
 
 		// Evaluate residual without yDot and update Jacobians
 		// Store residual in yDot
-		unit->residualWithJacobian(0.0, 0u, 1.0, y, nullptr, yDot.data(), adRes, adY, 0u);
+		unit->residualWithJacobian(ActiveSimulationTime{0.0, 0u, 1.0}, ConstSimulationState{y, nullptr}, yDot.data(), adParams);
 		CAPTURE(yDot);
 
 		// Initialize time derivative of state
-		unit->consistentInitialTimeDerivative(0.0, 0u, 1.0, y, yDot.data());
+		unit->consistentInitialTimeDerivative(SimulationTime{0.0, 0u, 1.0}, y, yDot.data());
 
 		// Check norm of residual (but skip over connection DOFs at the beginning of the local state vector slice)
-		unit->residual(0.0, 0u, 1.0, y, yDot.data(), res.data());
+		unit->residual(SimulationTime{0.0, 0u, 1.0}, ConstSimulationState{y, yDot.data()}, res.data());
 		INFO("Residual " << linalg::linfNorm(res.data() + unit->numComponents(), unit->numDofs() - unit->numComponents()));
 		CAPTURE(res);
 		CHECK(linalg::linfNorm(res.data() + unit->numComponents(), unit->numDofs() - unit->numComponents()) <= absTol);
@@ -97,18 +100,21 @@ namespace unitoperation
 			unit->useAnalyticJacobian(false);
 
 			adY = new cadet::active[unit->numDofs()];
-			unit->prepareADvectors(adRes, adY, nSens);
+			unit->prepareADvectors(AdJacobianParams{adRes, adY, nSens});
 		}
 		else
 		{
 			unit->useAnalyticJacobian(true);
 		}
 
+		const AdJacobianParams adParams{adRes, adY, nSens};
+
 		// Setup matrices
-		unit->notifyDiscontinuousSectionTransition(0.0, 0u, adRes, adY, nSens);
+		unit->notifyDiscontinuousSectionTransition(0.0, 0u, adParams);
 
 		// Calculate dres / dp and Jacobians
-		unit->residualSensFwdWithJacobian(0.0, 0u, 1.0, y, yDot, adRes, adY, nSens);
+		const ActiveSimulationTime simTime{0.0, 0u, 1.0};
+		unit->residualSensFwdWithJacobian(simTime, ConstSimulationState{y, yDot}, adParams);
 
 		// Obtain memory for state, Jacobian multiply direction, Jacobian column
 		std::vector<double> sensY(unit->numDofs() * nSens, 0.0);
@@ -139,11 +145,11 @@ namespace unitoperation
 		util::populate(sensYdot.data(), [](unsigned int idx) { return std::abs(std::sin(idx * 0.9)) + 1e-4; }, sensYdot.size());
 
 		// Initialize sensitivity state vectors
-		unit->consistentInitialSensitivity(0.0, 0u, 1.0, y, yDot, vecSensY, vecSensYdot, adRes);
+		unit->consistentInitialSensitivity(simTime, ConstSimulationState{y, yDot}, vecSensY, vecSensYdot, adRes);
 
 		// Check norm of residual (but skip over connection DOFs at the beginning of the local state vector slice)
-		unit->residualSensFwdAdOnly(0.0, 0u, 1.0, y, yDot, adRes);
-		unit->residualSensFwdCombine(0.0, 0u, 1.0, y, yDot, cVecSensY, cVecSensYdot, vecRes, adRes, tmp1.data(), tmp2.data(), tmp3.data());
+		unit->residualSensFwdAdOnly(simTime, ConstSimulationState{y, yDot}, adRes);
+		unit->residualSensFwdCombine(simTime, ConstSimulationState{y, yDot}, cVecSensY, cVecSensYdot, vecRes, adRes, tmp1.data(), tmp2.data(), tmp3.data());
 
 		for (unsigned int i = 0; i < nSens; ++i)
 		{

@@ -12,6 +12,7 @@
 
 #include "model/UnitOperationBase.hpp"
 #include "model/BindingModel.hpp"
+#include "SimulationTypes.hpp"
 
 #include "SensParamUtil.hpp"
 
@@ -239,8 +240,8 @@ unsigned int UnitOperationBase::numSensParams() const
 	return _sensParams.size();
 }
 
-int UnitOperationBase::residualSensFwdCombine(const active& t, unsigned int secIdx, const active& timeFactor, double const* const y, double const* const yDot, 
-	const std::vector<const double*>& yS, const std::vector<const double*>& ySdot, const std::vector<double*>& resS, active const* adRes, 
+int UnitOperationBase::residualSensFwdCombine(const ActiveSimulationTime& simTime, const ConstSimulationState& simState,
+	const std::vector<const double*>& yS, const std::vector<const double*>& ySdot, const std::vector<double*>& resS, active const* adRes,
 	double* const tmp1, double* const tmp2, double* const tmp3)
 {
 	for (unsigned int param = 0; param < yS.size(); param++)
@@ -249,10 +250,10 @@ int UnitOperationBase::residualSensFwdCombine(const active& t, unsigned int secI
 		// tmp2 stores result of (dF / dyDot) * sDot
 
 		// Directional derivative (dF / dy) * s
-		multiplyWithJacobian(static_cast<double>(t), secIdx, static_cast<double>(timeFactor), y, yDot, yS[param], 1.0, 0.0, tmp1);
+		multiplyWithJacobian(toSimple(simTime), simState, yS[param], 1.0, 0.0, tmp1);
 
 		// Directional derivative (dF / dyDot) * sDot
-		multiplyWithDerivativeJacobian(static_cast<double>(t), secIdx, static_cast<double>(timeFactor), y, yDot, ySdot[param], tmp2);
+		multiplyWithDerivativeJacobian(toSimple(simTime), simState, ySdot[param], tmp2);
 
 		// Complete sens residual is the sum:
 		double* const ptrResS = resS[param];

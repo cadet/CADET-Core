@@ -17,6 +17,7 @@
 #include "ParamReaderHelper.hpp"
 #include "AdUtils.hpp"
 #include "model/parts/BindingConsistentInit.hpp"
+#include "SimulationTypes.hpp"
 
 #include <algorithm>
 #include <functional>
@@ -35,28 +36,28 @@ namespace cadet
 namespace model
 {
 
-void GeneralRateModel::applyInitialCondition(double* const vecStateY, double* const vecStateYdot) const
+void GeneralRateModel::applyInitialCondition(const SimulationState& simState) const
 {
 	Indexer idxr(_disc);
 
 	// Check whether full state vector is available as initial condition
 	if (!_initState.empty())
 	{
-		std::fill(vecStateY, vecStateY + idxr.offsetC(), 0.0);
-		std::copy(_initState.data(), _initState.data() + numPureDofs(), vecStateY + idxr.offsetC());
+		std::fill(simState.vecStateY, simState.vecStateY + idxr.offsetC(), 0.0);
+		std::copy(_initState.data(), _initState.data() + numPureDofs(), simState.vecStateY + idxr.offsetC());
 
 		if (!_initStateDot.empty())
 		{
-			std::fill(vecStateYdot, vecStateYdot + idxr.offsetC(), 0.0);
-			std::copy(_initStateDot.data(), _initStateDot.data() + numPureDofs(), vecStateYdot + idxr.offsetC());
+			std::fill(simState.vecStateYdot, simState.vecStateYdot + idxr.offsetC(), 0.0);
+			std::copy(_initStateDot.data(), _initStateDot.data() + numPureDofs(), simState.vecStateYdot + idxr.offsetC());
 		}
 		else
-			std::fill(vecStateYdot, vecStateYdot + numDofs(), 0.0);
+			std::fill(simState.vecStateYdot, simState.vecStateYdot + numDofs(), 0.0);
 
 		return;
 	}
 
-	double* const stateYbulk = vecStateY + idxr.offsetC();
+	double* const stateYbulk = simState.vecStateY + idxr.offsetC();
 
 	// Loop over column cells
 	for (unsigned int col = 0; col < _disc.nCol; ++col)
@@ -80,11 +81,11 @@ void GeneralRateModel::applyInitialCondition(double* const vecStateY, double* co
 
 				// Initialize c_p
 				for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
-					vecStateY[shellOffset + comp] = static_cast<double>(_initCp[comp + _disc.nComp * type]);
+					simState.vecStateY[shellOffset + comp] = static_cast<double>(_initCp[comp + _disc.nComp * type]);
 
 				// Initialize q
 				for (unsigned int bnd = 0; bnd < _disc.strideBound[type]; ++bnd)
-					vecStateY[shellOffset + idxr.strideParLiquid() + bnd] = static_cast<double>(_initQ[bnd + _disc.nBoundBeforeType[type]]);
+					simState.vecStateY[shellOffset + idxr.strideParLiquid() + bnd] = static_cast<double>(_initQ[bnd + _disc.nBoundBeforeType[type]]);
 			}
 		}
 	}
@@ -183,18 +184,13 @@ void GeneralRateModel::readInitialCondition(IParameterProvider& paramProvider)
  * 	   This function is to be used with consistentInitialTimeDerivative(). Do not mix normal and lean
  *     consistent initialization!
  *     
- * @param [in] t Current time point
- * @param [in] secIdx Index of the current section
- * @param [in] timeFactor Used for time transformation (pre factor of time derivatives) and to compute parameter derivatives with respect to section length
+ * @param [in] simTime Simulation time information (time point, section index, pre-factor of time derivatives)
  * @param [in,out] vecStateY State vector with initial values that are to be updated for consistency
- * @param [in,out] adRes Pointer to residual vector of AD datatypes that can be used for computing the Jacobian (or @c nullptr if AD is disabled)
- * @param [in,out] adY Pointer to state vector of AD datatypes that can be used for computing the Jacobian (or @c nullptr if AD is disabled)
- * @param [in] adDirOffset Number of AD directions used for non-Jacobian purposes (e.g., parameter sensitivities)
+ * @param [in,out] adJac Jacobian information for AD (AD vectors for residual and state, direction offset)
  * @param [in] errorTol Error tolerance for algebraic equations
  * @todo Decrease amount of allocated memory by partially using temporary vectors (state and Schur complement)
  */
-void GeneralRateModel::consistentInitialState(double t, unsigned int secIdx, double timeFactor, double* const vecStateY, 
-	active* const adRes, active* const adY, unsigned int adDirOffset, double errorTol)
+void GeneralRateModel::consistentInitialState(const SimulationTime& simTime, double* const vecStateY, const AdJacobianParams& adJac, double errorTol)
 {
 	BENCH_SCOPE(_timerConsistentInit);
 
@@ -235,15 +231,15 @@ void GeneralRateModel::consistentInitialState(double t, unsigned int secIdx, dou
 
 					// Get pointer to q variables in a shell of particle pblk
 					double* const qShell = vecStateY + localOffsetToParticle + localOffsetInParticle;
-					active* const localAdRes = adRes ? adRes + localOffsetToParticle : nullptr;
-					active* const localAdY = adY ? adY + localOffsetToParticle : nullptr;
+					active* const localAdRes = adJac.adRes ? adJac.adRes + localOffsetToParticle : nullptr;
+					active* const localAdY = adJac.adY ? adJac.adY + localOffsetToParticle : nullptr;
 
 					// We are essentially creating a 2d vector of blocks out of a linear strip of memory
 					const unsigned int offset = _bindingWorkspaceOffset[type] + requiredMem * pblk;
 
 					// Solve algebraic variables
-					_binding[type]->consistentInitialState(t, z, static_cast<double>(_parCenterRadius[_disc.nParCellsBeforeType[type] + shell]) / static_cast<double>(_parRadius[type]), secIdx, qShell, qShell - idxr.strideParLiquid(), errorTol,
-						localAdRes, localAdY, localOffsetInParticle, adDirOffset, jacExtractor, _tempState + offset, jacobianMatrix);
+					_binding[type]->consistentInitialState(simTime.t, z, static_cast<double>(_parCenterRadius[_disc.nParCellsBeforeType[type] + shell]) / static_cast<double>(_parRadius[type]), simTime.secIdx, qShell, qShell - idxr.strideParLiquid(), errorTol,
+						localAdRes, localAdY, localOffsetInParticle, adJac.adDirOffset, jacExtractor, _tempState + offset, jacobianMatrix);
 				}
 			} CADET_PARFOR_END;
 		}
@@ -301,13 +297,11 @@ void GeneralRateModel::consistentInitialState(double t, unsigned int secIdx, dou
  * 	   This function is to be used with consistentInitialState(). Do not mix normal and lean
  *     consistent initialization!
  *     
- * @param [in] t Current time point
- * @param [in] secIdx Index of the current section
- * @param [in] timeFactor Used for time transformation (pre factor of time derivatives) and to compute parameter derivatives with respect to section length
+ * @param [in] simTime Simulation time information (time point, section index, pre-factor of time derivatives)
  * @param [in] vecStateY Consistently initialized state vector
  * @param [in,out] vecStateYdot On entry, residual without taking time derivatives into account. On exit, consistent state time derivatives.
  */
-void GeneralRateModel::consistentInitialTimeDerivative(double t, unsigned int secIdx, double timeFactor, double const* vecStateY, double* const vecStateYdot)
+void GeneralRateModel::consistentInitialTimeDerivative(const SimulationTime& simTime, double const* vecStateY, double* const vecStateYdot)
 {
 	BENCH_SCOPE(_timerConsistentInit);
 
@@ -322,7 +316,7 @@ void GeneralRateModel::consistentInitialTimeDerivative(double t, unsigned int se
 		vecStateYdot[i] = -vecStateYdot[i];
 
 	// Handle bulk column block
-	_convDispOp.solveTimeDerivativeSystem(t, secIdx, static_cast<double>(timeFactor), vecStateYdot + idxr.offsetC());
+	_convDispOp.solveTimeDerivativeSystem(simTime, vecStateYdot + idxr.offsetC());
 
 	// Process the particle blocks
 #ifdef CADET_PARALLELIZE
@@ -346,21 +340,21 @@ void GeneralRateModel::consistentInitialTimeDerivative(double t, unsigned int se
 		for (unsigned int j = 0; j < _disc.nParCell[type]; ++j)
 		{
 			// Mobile phase (advances jac accordingly)
-			addMobilePhaseTimeDerivativeToJacobianParticleBlock(jac, idxr, 1.0, timeFactor, type);
+			addMobilePhaseTimeDerivativeToJacobianParticleBlock(jac, idxr, 1.0, simTime.timeFactor, type);
 
 			// Stationary phase
 			// Populate matrix with time derivative Jacobian first
-			_binding[type]->jacobianAddDiscretized(timeFactor, jac);
+			_binding[type]->jacobianAddDiscretized(simTime.timeFactor, jac);
 
 			// Overwrite rows corresponding to algebraic equations with the Jacobian and set right hand side to 0
 			if (_binding[type]->hasAlgebraicEquations())
 			{
 				const unsigned int requiredMem = (_binding[type]->workspaceSize(_disc.nComp, _disc.strideBound[type], _disc.nBound + type * _disc.nComp) + sizeof(double) - 1) / sizeof(double);
 
-				parts::BindingConsistentInitializer::consistentInitialTimeDerivative(_binding[type], timeFactor, jac,
+				parts::BindingConsistentInitializer::consistentInitialTimeDerivative(_binding[type], simTime.timeFactor, jac,
 					_jacP[pblk].row(j * static_cast<unsigned int>(idxr.strideParShell(type)) + static_cast<unsigned int>(idxr.strideParLiquid())),
 					vecStateYdot + idxr.offsetCp(ParticleTypeIndex{type}, ParticleIndex{par}) + static_cast<int>(j) * idxr.strideParShell(type) + idxr.strideParLiquid(),
-					t, z, static_cast<double>(_parCenterRadius[_disc.nParCellsBeforeType[type] + j]) / static_cast<double>(_parRadius[type]), secIdx,
+					simTime.t, z, static_cast<double>(_parCenterRadius[_disc.nParCellsBeforeType[type] + j]) / static_cast<double>(_parRadius[type]), simTime.secIdx,
 					_tempState + _bindingWorkspaceOffset[type] + requiredMem * par);
 			}
 
@@ -440,17 +434,12 @@ void GeneralRateModel::consistentInitialTimeDerivative(double t, unsigned int se
  * 	   This function is to be used with leanConsistentInitialTimeDerivative(). Do not mix normal and lean
  *     consistent initialization!
  *     
- * @param [in] t Current time point
- * @param [in] secIdx Index of the current section
- * @param [in] timeFactor Used for time transformation (pre factor of time derivatives) and to compute parameter derivatives with respect to section length
+ * @param [in] simTime Simulation time information (time point, section index, pre-factor of time derivatives)
  * @param [in,out] vecStateY State vector with initial values that are to be updated for consistency
- * @param [in,out] adRes Pointer to residual vector of AD datatypes that can be used for computing the Jacobian (or @c nullptr if AD is disabled)
- * @param [in,out] adY Pointer to state vector of AD datatypes that can be used for computing the Jacobian (or @c nullptr if AD is disabled)
- * @param [in] adDirOffset Number of AD directions used for non-Jacobian purposes (e.g., parameter sensitivities)
+ * @param [in,out] adJac Jacobian information for AD (AD vectors for residual and state, direction offset)
  * @param [in] errorTol Error tolerance for algebraic equations
  */
-void GeneralRateModel::leanConsistentInitialState(double t, unsigned int secIdx, double timeFactor, double* const vecStateY, 
-	active* const adRes, active* const adY, unsigned int adDirOffset, double errorTol)
+void GeneralRateModel::leanConsistentInitialState(const SimulationTime& simTime, double* const vecStateY, const AdJacobianParams& adJac, double errorTol)
 {
 	if ((_parDiffusion.size() > _disc.nComp * _disc.nParType) || (_parSurfDiffusion.size() > _disc.strideBound[_disc.nParType]))
 		LOG(Warning) << "Lean consistent initialization is not appropriate for section-dependent pore and surface diffusion";
@@ -529,7 +518,7 @@ void GeneralRateModel::leanConsistentInitialTimeDerivative(double t, double time
 	double* const resSlice = res + idxr.offsetC();
 
 	// Handle bulk block
-	_convDispOp.solveTimeDerivativeSystem(t, 0u, static_cast<double>(timeFactor), resSlice);
+	_convDispOp.solveTimeDerivativeSystem(SimulationTime{t, 0u, timeFactor}, resSlice);
 
 	// Note that we have solved with the *positive* residual as right hand side
 	// instead of the *negative* one. Fortunately, we are dealing with linear systems,
@@ -635,17 +624,14 @@ void GeneralRateModel::initializeSensitivityStates(const std::vector<double*>& v
  *     diagonal blocks.</li>
  *          </ol>
  *     This function requires the parameter sensitivities to be computed beforehand and up-to-date Jacobians.
- * @param [in] t Current time point
- * @param [in] secIdx Index of the current section
- * @param [in] timeFactor Used for time transformation (pre factor of time derivatives) and to compute parameter derivatives with respect to section length
- * @param [in] vecStateY State vector with consistent initial values of the original system
- * @param [in] vecStateYdot Time derivative state vector with consistent initial values of the original system
+ * @param [in] simTime Simulation time information (time point, section index, pre-factor of time derivatives)
+ * @param [in] simState Consistent state of the simulation (state vector and its time derivative)
  * @param [in,out] vecSensY Sensitivity subsystem state vectors
  * @param [in,out] vecSensYdot Time derivative state vectors of the sensitivity subsystems to be initialized
  * @param [in] adRes Pointer to residual vector of AD datatypes with parameter sensitivities
  * @todo Decrease amount of allocated memory by partially using temporary vectors (state and Schur complement)
  */
-void GeneralRateModel::consistentInitialSensitivity(const active& t, unsigned int secIdx, const active& timeFactor, double const* vecStateY, double const* vecStateYdot,
+void GeneralRateModel::consistentInitialSensitivity(const ActiveSimulationTime& simTime, const ConstSimulationState& simState,
 	std::vector<double*>& vecSensY, std::vector<double*>& vecSensYdot, active const* const adRes)
 {
 	BENCH_SCOPE(_timerConsistentInit);
@@ -706,12 +692,12 @@ void GeneralRateModel::consistentInitialSensitivity(const active& t, unsigned in
 		// Step 2a: Assemble, factorize, and solve diagonal blocks of linear system
 
 		// Compute right hand side by adding -dF / dy * s = -J * s to -dF / dp which is already stored in sensYdot
-		multiplyWithJacobian(static_cast<double>(t), secIdx, static_cast<double>(timeFactor), vecStateY, vecStateYdot, sensY, -1.0, 1.0, sensYdot);
+		multiplyWithJacobian(toSimple(simTime), simState, sensY, -1.0, 1.0, sensYdot);
 
 		// Note that we have correctly negated the right hand side
 
 		// Handle bulk block
-		_convDispOp.solveTimeDerivativeSystem(static_cast<double>(t), secIdx, static_cast<double>(timeFactor), sensYdot + idxr.offsetC());
+		_convDispOp.solveTimeDerivativeSystem(toSimple(simTime), sensYdot + idxr.offsetC());
 
 		// Process the particle blocks
 #ifdef CADET_PARALLELIZE
@@ -732,11 +718,11 @@ void GeneralRateModel::consistentInitialSensitivity(const active& t, unsigned in
 			for (unsigned int j = 0; j < _disc.nParCell[type]; ++j)
 			{
 				// Mobile phase (advances jac accordingly)
-				addMobilePhaseTimeDerivativeToJacobianParticleBlock(jac, idxr, 1.0, static_cast<double>(timeFactor), type);
+				addMobilePhaseTimeDerivativeToJacobianParticleBlock(jac, idxr, 1.0, static_cast<double>(simTime.timeFactor), type);
 
 				// Stationary phase
 				// Populate matrix with time derivative Jacobian first
-				_binding[type]->jacobianAddDiscretized(static_cast<double>(timeFactor), jac);
+				_binding[type]->jacobianAddDiscretized(static_cast<double>(simTime.timeFactor), jac);
 
 				// Overwrite rows corresponding to algebraic equations with the Jacobian and set right hand side to 0
 				if (_binding[type]->hasAlgebraicEquations())
@@ -818,17 +804,14 @@ void GeneralRateModel::consistentInitialSensitivity(const active& t, unsigned in
  *     bulk block and the unchanged particle block time derivative vectors.</li>
  *          </ol>
  *     This function requires the parameter sensitivities to be computed beforehand and up-to-date Jacobians.
- * @param [in] t Current time point
- * @param [in] secIdx Index of the current section
- * @param [in] timeFactor Used for time transformation (pre factor of time derivatives) and to compute parameter derivatives with respect to section length
- * @param [in] vecStateY State vector with consistent initial values of the original system
- * @param [in] vecStateYdot Time derivative state vector with consistent initial values of the original system
+ * @param [in] simTime Simulation time information (time point, section index, pre-factor of time derivatives)
+ * @param [in] simState Consistent state of the simulation (state vector and its time derivative)
  * @param [in,out] vecSensY Sensitivity subsystem state vectors
  * @param [in,out] vecSensYdot Time derivative state vectors of the sensitivity subsystems to be initialized
  * @param [in] adRes Pointer to residual vector of AD datatypes with parameter sensitivities
  * @todo Decrease amount of allocated memory by partially using temporary vectors (state and Schur complement)
  */
-void GeneralRateModel::leanConsistentInitialSensitivity(const active& t, unsigned int secIdx, const active& timeFactor, double const* vecStateY, double const* vecStateYdot,
+void GeneralRateModel::leanConsistentInitialSensitivity(const ActiveSimulationTime& simTime, const ConstSimulationState& simState,
 	std::vector<double*>& vecSensY, std::vector<double*>& vecSensYdot, active const* const adRes)
 {
 	if ((_parDiffusion.size() > _disc.nComp * _disc.nParType) || (_parSurfDiffusion.size() > _disc.strideBound[_disc.nParType]))
@@ -863,14 +846,14 @@ void GeneralRateModel::leanConsistentInitialSensitivity(const active& t, unsigne
 		// Step 2a: Assemble, factorize, and solve diagonal blocks of linear system
 
 		// Compute right hand side by adding -dF / dy * s = -J * s to -dF / dp which is already stored in _tempState
-		multiplyWithJacobian(static_cast<double>(t), secIdx, static_cast<double>(timeFactor), vecStateY, vecStateYdot, sensY, -1.0, 1.0, _tempState);
+		multiplyWithJacobian(toSimple(simTime), simState, sensY, -1.0, 1.0, _tempState);
 
 		// Copy relevant parts to sensYdot for use as right hand sides
 		std::copy(_tempState + idxr.offsetC(), _tempState + idxr.offsetCp(), sensYdot + idxr.offsetC());
 		std::copy(_tempState + idxr.offsetJf(), _tempState + numDofs(), sensYdot);
 
 		// Handle bulk block
-		_convDispOp.solveTimeDerivativeSystem(static_cast<double>(t), secIdx, static_cast<double>(timeFactor), sensYdot + idxr.offsetC());
+		_convDispOp.solveTimeDerivativeSystem(toSimple(simTime), sensYdot + idxr.offsetC());
 
 		// Step 2b: Solve for fluxes j_f by backward substitution
 		solveForFluxes(sensYdot, idxr);

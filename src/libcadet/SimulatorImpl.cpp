@@ -17,6 +17,7 @@
 #include "SimulatableModel.hpp"
 #include "UnitOperation.hpp"
 #include "ParamIdUtil.hpp"
+#include "SimulationTypes.hpp"
 
 #include <idas/idas.h>
 #include <idas/idas_impl.h>
@@ -202,8 +203,8 @@ namespace cadet
 
 		LOG(Trace) << "==> Residual at t = " << static_cast<double>(sim->toRealTime(t)) << " sec = " << secIdx;
 
-		return sim->_model->residualWithJacobian(sim->toRealTime(t), secIdx, timeFactor, NVEC_DATA(y), NVEC_DATA(yDot), NVEC_DATA(res), 
-			sim->_vecADres, sim->_vecADy, sim->numSensitivityAdDirections());
+		return sim->_model->residualWithJacobian(cadet::ActiveSimulationTime{sim->toRealTime(t), secIdx, timeFactor}, cadet::ConstSimulationState{NVEC_DATA(y), NVEC_DATA(yDot)}, NVEC_DATA(res), 
+			cadet::AdJacobianParams{sim->_vecADres, sim->_vecADy, sim->numSensitivityAdDirections()});
 	}
 
 	/**
@@ -299,7 +300,7 @@ namespace cadet
 
 		LOG(Trace) << "==> Solve at t = " << t << " alpha = " << alpha << " tol = " << tol;
 
-		return sim->_model->linearSolve(t, static_cast<double>(timeFactor), alpha, tol, NVEC_DATA(rhs), NVEC_DATA(weight), NVEC_DATA(y), NVEC_DATA(yDot));
+		return sim->_model->linearSolve(t, static_cast<double>(timeFactor), alpha, tol, NVEC_DATA(rhs), NVEC_DATA(weight), cadet::ConstSimulationState{NVEC_DATA(y), NVEC_DATA(yDot)});
 	}
 
 	/**
@@ -324,7 +325,7 @@ namespace cadet
 			sensY, sensYdot, sensRes, sim->_vecADres, NVEC_DATA(tmp1), NVEC_DATA(tmp2), NVEC_DATA(tmp3));
 */
 
-		return sim->_model->residualSensFwd(ns, sim->toRealTime(t), secIdx, timeFactor, NVEC_DATA(y), NVEC_DATA(yDot), NVEC_DATA(res), 
+		return sim->_model->residualSensFwd(ns, cadet::ActiveSimulationTime{sim->toRealTime(t), secIdx, timeFactor}, cadet::ConstSimulationState{NVEC_DATA(y), NVEC_DATA(yDot)}, NVEC_DATA(res), 
 			sensY, sensYdot, sensRes, sim->_vecADres, NVEC_DATA(tmp1), NVEC_DATA(tmp2), NVEC_DATA(tmp3));
 	}
 
@@ -409,7 +410,7 @@ namespace cadet
 		IDASetErrHandlerFn(_idaMemBlock, &idasErrorHandler, this);
 
 		// IDAS Step 5: Initialize the solver
-		_model->applyInitialCondition(NVEC_DATA(_vecStateY), NVEC_DATA(_vecStateYdot));
+		_model->applyInitialCondition(SimulationState{NVEC_DATA(_vecStateY), NVEC_DATA(_vecStateYdot)});
 
 		// Use 0.0 as beginning of simulation time if we haven't set section times yet
 		if (_transformedTimes.size() > 0)
@@ -630,7 +631,7 @@ namespace cadet
 
 	void Simulator::applyInitialCondition()
 	{
-		_model->applyInitialCondition(NVEC_DATA(_vecStateY), NVEC_DATA(_vecStateYdot));
+		_model->applyInitialCondition(SimulationState{NVEC_DATA(_vecStateY), NVEC_DATA(_vecStateYdot)});
 		IDAReInit(_idaMemBlock, _transformedTimes[0], _vecStateY, _vecStateYdot);
 
 		// Better check for consistency
@@ -1088,7 +1089,7 @@ namespace cadet
 		ad::setDirections(numSensitivityAdDirections() + _model->requiredADdirs());
 #endif
 		// Setup AD vectors by model
-		_model->prepareADvectors(_vecADres, _vecADy, numSensitivityAdDirections());
+		_model->prepareADvectors(AdJacobianParams{_vecADres, _vecADy, numSensitivityAdDirections()});
 
 		std::vector<double>::const_iterator it;
 		double tOut = 0.0;
@@ -1161,14 +1162,14 @@ namespace cadet
 
 			// Update Jacobian
 			active realT = toRealTime(transformedT, _curSec);
-			_model->notifyDiscontinuousSectionTransition(static_cast<double>(realT), _curSec, _vecADres, _vecADy, numSensitivityAdDirections());
+			_model->notifyDiscontinuousSectionTransition(static_cast<double>(realT), _curSec, AdJacobianParams{_vecADres, _vecADy, numSensitivityAdDirections()});
 
 			// Get time factor
 			const active curTimeFactor = timeFactor(_curSec);
 
 			// Compute consistent initial values
 			LOG(Debug) << "---====--- CONSISTENCY ---====--- ";
-			const double consPrev = _model->residualNorm(static_cast<double>(realT), _curSec, static_cast<double>(curTimeFactor), NVEC_DATA(_vecStateY), NVEC_DATA(_vecStateYdot));
+			const double consPrev = _model->residualNorm(SimulationTime{static_cast<double>(realT), _curSec, static_cast<double>(curTimeFactor)}, ConstSimulationState{NVEC_DATA(_vecStateY), NVEC_DATA(_vecStateYdot)});
 			LOG(Debug) << " ==========> Consistency error prev: " << consPrev;
 
 			if (!_skipConsistencyStateY && (_consistentInitMode != ConsistentInitialization::None))
@@ -1176,18 +1177,18 @@ namespace cadet
 				const ConsistentInitialization mode = currentConsistentInitMode(_consistentInitMode, _curSec);
 				if (mode == ConsistentInitialization::Full)
 				{
-					_model->consistentInitialConditions(static_cast<double>(realT), _curSec, static_cast<double>(curTimeFactor), NVEC_DATA(_vecStateY), NVEC_DATA(_vecStateYdot), 
-						_vecADres, _vecADy, numSensitivityAdDirections(), _algTol);
+					_model->consistentInitialConditions(SimulationTime{static_cast<double>(realT), _curSec, static_cast<double>(curTimeFactor)}, SimulationState{NVEC_DATA(_vecStateY), NVEC_DATA(_vecStateYdot)}, 
+						AdJacobianParams{_vecADres, _vecADy, numSensitivityAdDirections()}, _algTol);
 
-					const double consPost = _model->residualNorm(static_cast<double>(realT), _curSec, static_cast<double>(curTimeFactor), NVEC_DATA(_vecStateY), NVEC_DATA(_vecStateYdot));
+					const double consPost = _model->residualNorm(SimulationTime{static_cast<double>(realT), _curSec, static_cast<double>(curTimeFactor)}, ConstSimulationState{NVEC_DATA(_vecStateY), NVEC_DATA(_vecStateYdot)});
 					LOG(Debug) << " ==========> Consistency error post Full: " << consPost;
 				}
 				else if (mode == ConsistentInitialization::Lean)
 				{
-					_model->leanConsistentInitialConditions(static_cast<double>(realT), _curSec, static_cast<double>(curTimeFactor), NVEC_DATA(_vecStateY), NVEC_DATA(_vecStateYdot), 
-						_vecADres, _vecADy, numSensitivityAdDirections(), _algTol);
+					_model->leanConsistentInitialConditions(SimulationTime{static_cast<double>(realT), _curSec, static_cast<double>(curTimeFactor)}, SimulationState{NVEC_DATA(_vecStateY), NVEC_DATA(_vecStateYdot)},
+						AdJacobianParams{_vecADres, _vecADy, numSensitivityAdDirections()}, _algTol);
 
-					const double consPost = _model->residualNorm(static_cast<double>(realT), _curSec, static_cast<double>(curTimeFactor), NVEC_DATA(_vecStateY), NVEC_DATA(_vecStateYdot));
+					const double consPost = _model->residualNorm(SimulationTime{static_cast<double>(realT), _curSec, static_cast<double>(curTimeFactor)}, ConstSimulationState{NVEC_DATA(_vecStateY), NVEC_DATA(_vecStateYdot)});
 					LOG(Debug) << " ==========> Consistency error post Lean: " << consPost;
 				}
 				else
@@ -1209,7 +1210,7 @@ namespace cadet
 
 				std::vector<double> norms(_sensitiveParams.slices(), 0.0);
 				std::vector<double> temp(_model->numDofs(), 0.0);
-				_model->residualSensFwdNorm(_sensitiveParams.slices(), realT, _curSec, curTimeFactor, NVEC_DATA(_vecStateY), NVEC_DATA(_vecStateYdot),
+				_model->residualSensFwdNorm(_sensitiveParams.slices(), ActiveSimulationTime{realT, _curSec, curTimeFactor}, ConstSimulationState{NVEC_DATA(_vecStateY), NVEC_DATA(_vecStateYdot)},
 					sensYdbg, sensYdotDbg, norms.data(), _vecADres, temp.data());
 
 				LOG(Debug) << " ==========> Sens consistency error prev: " << norms;
@@ -1221,10 +1222,10 @@ namespace cadet
 					// Compute consistent initial conditions for sensitivity subsystems
 					std::vector<double*> sensY = convertNVectorToStdVectorPtrs<double*>(_vecFwdYs, _sensitiveParams.slices());
 					std::vector<double*> sensYdot = convertNVectorToStdVectorPtrs<double*>(_vecFwdYsDot, _sensitiveParams.slices());
-					_model->consistentInitialSensitivity(realT, _curSec, curTimeFactor, NVEC_DATA(_vecStateY), NVEC_DATA(_vecStateYdot), sensY, sensYdot, _vecADres, _vecADy);
+					_model->consistentInitialSensitivity(ActiveSimulationTime{realT, _curSec, curTimeFactor}, ConstSimulationState{NVEC_DATA(_vecStateY), NVEC_DATA(_vecStateYdot)}, sensY, sensYdot, _vecADres, _vecADy);
 
 #ifdef CADET_DEBUG
-					_model->residualSensFwdNorm(_sensitiveParams.slices(), realT, _curSec, curTimeFactor, NVEC_DATA(_vecStateY), NVEC_DATA(_vecStateYdot),
+					_model->residualSensFwdNorm(_sensitiveParams.slices(), ActiveSimulationTime{realT, _curSec, curTimeFactor}, ConstSimulationState{NVEC_DATA(_vecStateY), NVEC_DATA(_vecStateYdot)},
 						sensYdbg, sensYdotDbg, norms.data(), _vecADres, temp.data());
 
 					LOG(Debug) << " ==========> Sens consistency error post Full: " << norms;
@@ -1235,10 +1236,10 @@ namespace cadet
 					// Compute consistent initial conditions for sensitivity subsystems
 					std::vector<double*> sensY = convertNVectorToStdVectorPtrs<double*>(_vecFwdYs, _sensitiveParams.slices());
 					std::vector<double*> sensYdot = convertNVectorToStdVectorPtrs<double*>(_vecFwdYsDot, _sensitiveParams.slices());
-					_model->leanConsistentInitialSensitivity(realT, _curSec, curTimeFactor, NVEC_DATA(_vecStateY), NVEC_DATA(_vecStateYdot), sensY, sensYdot, _vecADres, _vecADy);
+					_model->leanConsistentInitialSensitivity(ActiveSimulationTime{realT, _curSec, curTimeFactor}, ConstSimulationState{NVEC_DATA(_vecStateY), NVEC_DATA(_vecStateYdot)}, sensY, sensYdot, _vecADres, _vecADy);
 
 #ifdef CADET_DEBUG
-					_model->residualSensFwdNorm(_sensitiveParams.slices(), realT, _curSec, curTimeFactor, NVEC_DATA(_vecStateY), NVEC_DATA(_vecStateYdot),
+					_model->residualSensFwdNorm(_sensitiveParams.slices(), ActiveSimulationTime{realT, _curSec, curTimeFactor}, ConstSimulationState{NVEC_DATA(_vecStateY), NVEC_DATA(_vecStateYdot)},
 						sensYdbg, sensYdotDbg, norms.data(), _vecADres, temp.data());
 
 					LOG(Debug) << " ==========> Sens consistency error post Lean: " << norms;

@@ -22,6 +22,7 @@
 
 #include "Utils.hpp"
 #include "common/Driver.hpp"
+#include "SimulationTypes.hpp"
 
 #include "JsonTestModels.hpp"
 #include "ModelBuilderImpl.hpp"
@@ -390,11 +391,14 @@ namespace particle
 		cadet::active* adRes = new cadet::active[unitAD->numDofs()];
 		cadet::active* adY = new cadet::active[unitAD->numDofs()];
 
-		unitAD->prepareADvectors(adRes, adY, 0);
+		const AdJacobianParams noParams{nullptr, nullptr, 0u};
+		const AdJacobianParams adParams{adRes, adY, 0u};
+
+		unitAD->prepareADvectors(adParams);
 
 		// Setup matrices
-		unitAna->notifyDiscontinuousSectionTransition(0.0, 0u, nullptr, nullptr, 0u);
-		unitAD->notifyDiscontinuousSectionTransition(0.0, 0u, adRes, adY, 0u);
+		unitAna->notifyDiscontinuousSectionTransition(0.0, 0u, noParams);
+		unitAD->notifyDiscontinuousSectionTransition(0.0, 0u, adParams);
 
 		// Obtain memory for state, Jacobian multiply direction, Jacobian column
 		std::vector<double> y(unitAD->numDofs(), 0.0);
@@ -407,8 +411,8 @@ namespace particle
 //		util::populate(y.data(), [](unsigned int idx) { return 1.0; }, unitAna->numDofs());
 
 		// Compute state Jacobian
-		unitAna->residualWithJacobian(0.0, 0u, 1.0, y.data(), nullptr, jacDir.data(), nullptr, nullptr, 0u);
-		unitAD->residualWithJacobian(0.0, 0u, 1.0, y.data(), nullptr, jacDir.data(), adRes, adY, 0u);
+		unitAna->residualWithJacobian(ActiveSimulationTime{0.0, 0u, 1.0}, ConstSimulationState{y.data(), nullptr}, jacDir.data(), noParams);
+		unitAD->residualWithJacobian(ActiveSimulationTime{0.0, 0u, 1.0}, ConstSimulationState{y.data(), nullptr}, jacDir.data(), adParams);
 		std::fill(jacDir.begin(), jacDir.end(), 0.0);
 
 		// Compare Jacobians
@@ -470,7 +474,7 @@ namespace particle
 		cadet::IUnitOperation* const unit = createAndConfigureUnit(jpp.getString("UNIT_TYPE"), *mb, jpp);
 
 		// Setup matrices
-		unit->notifyDiscontinuousSectionTransition(0.0, 0u, nullptr, nullptr, 0u);
+		unit->notifyDiscontinuousSectionTransition(0.0, 0u, AdJacobianParams{nullptr, nullptr, 0u});
 
 		// Obtain memory for state, Jacobian multiply direction, Jacobian column
 		const unsigned int nDof = unit->numDofs();
@@ -511,8 +515,9 @@ namespace particle
 		const unsigned int fluxOffset = column::fluxOffsetOfColumnUnitOp(unitFD);
 
 		// Setup matrices
-		unitAna->notifyDiscontinuousSectionTransition(0.0, 0u, nullptr, nullptr, 0u);
-		unitFD->notifyDiscontinuousSectionTransition(0.0, 0u, nullptr, nullptr, 0u);
+		const AdJacobianParams noParams{nullptr, nullptr, 0u};
+		unitAna->notifyDiscontinuousSectionTransition(0.0, 0u, noParams);
+		unitFD->notifyDiscontinuousSectionTransition(0.0, 0u, noParams);
 
 		// Obtain memory for state, Jacobian multiply direction, Jacobian column
 		std::vector<double> y(unitFD->numDofs(), 0.0);
@@ -525,14 +530,14 @@ namespace particle
 //		util::populate(y.data(), [](unsigned int idx) { return 1.0; }, unitAna->numDofs());
 
 		// Compute state Jacobian
-		unitAna->residualWithJacobian(0.0, 0u, 1.0, y.data(), nullptr, jacDir.data(), nullptr, nullptr, 0u);
-		unitFD->residualWithJacobian(0.0, 0u, 1.0, y.data(), nullptr, jacDir.data(), nullptr, nullptr, 0u);
+		unitAna->residualWithJacobian(ActiveSimulationTime{0.0, 0u, 1.0}, ConstSimulationState{y.data(), nullptr}, jacDir.data(), noParams);
+		unitFD->residualWithJacobian(ActiveSimulationTime{0.0, 0u, 1.0}, ConstSimulationState{y.data(), nullptr}, jacDir.data(), noParams);
 		std::fill(jacDir.begin(), jacDir.end(), 0.0);
 
 		// Compare Jacobians
 		cadet::test::compareJacobianArrowHeadFD(
-			[=](double const* lDir, double* res) -> void { unitFD->residual(0.0, 0u, 1.0, lDir, nullptr, res); }, 
-			[&](double const* lDir, double* res) -> void { unitAna->multiplyWithJacobian(0.0, 0u, 1.0, y.data(), nullptr, lDir, 1.0, 0.0, res); }, 
+			[=](double const* lDir, double* res) -> void { unitFD->residual(SimulationTime{0.0, 0u, 1.0}, ConstSimulationState{lDir, nullptr}, res); }, 
+			[&](double const* lDir, double* res) -> void { unitAna->multiplyWithJacobian(SimulationTime{0.0, 0u, 1.0}, ConstSimulationState{y.data(), nullptr}, lDir, 1.0, 0.0, res); }, 
 			y.data(), jacDir.data(), jacCol1.data(), jacCol2.data(), unitFD->numDofs(), fluxOffset, h, absTol, relTol);
 
 		mb->destroyUnitOperation(unitAna);

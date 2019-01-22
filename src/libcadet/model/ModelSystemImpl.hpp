@@ -12,7 +12,7 @@
 
 /**
  * @file 
- * Defines the general rate model (GRM).
+ * Defines the model system, which connects multiple unit operations.
  */
 
 #ifndef LIBCADET_MODELSYSTEM_IMPL_HPP_
@@ -79,7 +79,7 @@ public:
 
 	virtual bool configureModelDiscretization(IParameterProvider& paramProvider, IConfigHelper& helper);
 	virtual bool configure(IParameterProvider& paramProvider);
-	virtual void notifyDiscontinuousSectionTransition(double t, unsigned int secIdx, active* const adRes, active* const adY, unsigned int adDirOffset);
+	virtual void notifyDiscontinuousSectionTransition(double t, unsigned int secIdx, const AdJacobianParams& adJac);
 	virtual bool configureModel(IParameterProvider& paramProvider, unsigned int unitOpIdx);
 
 	virtual bool hasParameter(const ParameterId& pId) const;
@@ -98,50 +98,48 @@ public:
 	virtual void reportSolution(ISolutionRecorder& recorder, double const* const solution) const;
 	virtual void reportSolutionStructure(ISolutionRecorder& recorder) const;
 
-	virtual int residual(double t, unsigned int secIdx, double timeFactor, double const* const y, double const* const yDot, double* const res);
+	virtual int residual(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res);
 
-	virtual int residualWithJacobian(const active& t, unsigned int secIdx, const active& timeFactor, double const* const y, double const* const yDot, double* const res, active* const adRes, active* const adY, unsigned int adDirOffset);
-	virtual double residualNorm(double t, unsigned int secIdx, double timeFactor, double const* const y, double const* const yDot);
+	virtual int residualWithJacobian(const ActiveSimulationTime& simTime, const ConstSimulationState& simState, double* const res, const AdJacobianParams& adJac);
+	virtual double residualNorm(const SimulationTime& simTime, const ConstSimulationState& simState);
 
-	virtual int residualSensFwd(unsigned int nSens, const active& t, unsigned int secIdx, const active& timeFactor,
-		double const* const y, double const* const yDot, double const* const res,
+	virtual int residualSensFwd(unsigned int nSens, const ActiveSimulationTime& simTime,
+		const ConstSimulationState& simState, double const* const res,
 		const std::vector<const double*>& yS, const std::vector<const double*>& ySdot, const std::vector<double*>& resS,
 		active* const adRes, double* const tmp1, double* const tmp2, double* const tmp3);
 
-	virtual int residualSensFwdWithJacobian(unsigned int nSens, const active& t, unsigned int secIdx, const active& timeFactor,
-		double const* const y, double const* const yDot, double const* const res,
+	virtual int residualSensFwdWithJacobian(unsigned int nSens, const ActiveSimulationTime& simTime,
+		const ConstSimulationState& simState, double const* const res,
 		const std::vector<const double*>& yS, const std::vector<const double*>& ySdot, const std::vector<double*>& resS,
-		active* const adRes, active* const adY, unsigned int adDirOffset, double* const tmp1, double* const tmp2, double* const tmp3);
+		const AdJacobianParams& adJac, double* const tmp1, double* const tmp2, double* const tmp3);
 
-	virtual void residualSensFwdNorm(unsigned int nSens, const active& t, unsigned int secIdx, const active& timeFactor, 
-		double const* const y, double const* const yDot,
+	virtual void residualSensFwdNorm(unsigned int nSens, const ActiveSimulationTime& simTime, 
+		const ConstSimulationState& simState,
 		const std::vector<const double*>& yS, const std::vector<const double*>& ySdot, double* const norms,
 		active* const adRes, double* const tmp);
 
 	virtual int linearSolve(double t, double timeFactor, double alpha, double tol, double* const rhs, double const* const weight,
-		double const* const y, double const* const yDot);
+		const ConstSimulationState& simState);
 
-	virtual void prepareADvectors(active* const adRes, active* const adY, unsigned int adDirOffset) const;
+	virtual void prepareADvectors(const AdJacobianParams& adJac) const;
 
-	virtual void applyInitialCondition(double* const vecStateY, double* const vecStateYdot) const;
+	virtual void applyInitialCondition(const SimulationState& simState) const;
 	virtual void readInitialCondition(IParameterProvider& paramProvider);
 
 	virtual void initializeSensitivityStates(const std::vector<double*>& vecSensY) const;
 
-	virtual void consistentInitialConditions(double t, unsigned int secIdx, double timeFactor, double* const vecStateY, double* const vecStateYdot, active* const adRes, active* const adY, unsigned int adDirOffset, double errorTol);
+	virtual void consistentInitialConditions(const SimulationTime& simTime, const SimulationState& simState, const AdJacobianParams& adJac, double errorTol);
 
-	virtual void consistentInitialSensitivity(const active& t, unsigned int secIdx, const active& timeFactor, double const* vecStateY, double const* vecStateYdot,
+	virtual void consistentInitialSensitivity(const ActiveSimulationTime& simTime, const ConstSimulationState& simState,
 		std::vector<double*>& vecSensY, std::vector<double*>& vecSensYdot, active* const adRes, active* const adY);
+	virtual void leanConsistentInitialConditions(const SimulationTime& simTime, const SimulationState& simState, const AdJacobianParams& adJac, double errorTol);
 
-	virtual void leanConsistentInitialConditions(double t, unsigned int secIdx, double timeFactor, double* const vecStateY, double* const vecStateYdot, active* const adRes, active* const adY, unsigned int adDirOffset, double errorTol);
-
-	virtual void leanConsistentInitialSensitivity(const active& t, unsigned int secIdx, const active& timeFactor, double const* vecStateY, double const* vecStateYdot,
+	virtual void leanConsistentInitialSensitivity(const ActiveSimulationTime& simTime, const ConstSimulationState& simState,
 		std::vector<double*>& vecSensY, std::vector<double*>& vecSensYdot, active* const adRes, active* const adY);
-	
 	virtual void setSectionTimes(double const* secTimes, bool const* secContinuity, unsigned int nSections);
 
 	int schurComplementMatrixVector(double const* x, double* z, double t, double timeFactor, double alpha, double outerTol, double const* const weight,
-		double const* const y, double const* const yDot) const;
+		const ConstSimulationState& simState) const;
 
 	virtual void expandErrorTol(double const* errorSpec, unsigned int errorSpecSize, double* expandOut);
 	virtual std::vector<double> calculateErrorTolsForAdditionalDofs(double const* errorTol, unsigned int errorTolLength);
@@ -173,15 +171,15 @@ public:
 	}
 #endif
 
-	virtual void genJacobian(double t, unsigned int secIdx, double timeFactor, double const * const y, double const * const yDot);
+	virtual void genJacobian(const SimulationTime& simTime, const ConstSimulationState& simState);
 
-	virtual void genJacobian(unsigned int nSens, const active& t, unsigned int secIdx,
-		const active& timeFactor, double const* const y, double const* const yDot, double const* const res,
+	virtual void genJacobian(unsigned int nSens, const ActiveSimulationTime& simTime,
+		const ConstSimulationState& simState, double const* const res,
 		const std::vector<const double*>& yS, const std::vector<const double*>& ySdot, const std::vector<double*>& resS,
 		active* const adRes, double* const tmp1, double* const tmp2, double* const tmp3);
 
-	virtual void multiplyWithJacobian(double t, unsigned int secIdx, double timeFactor, double const* y, double const* yDot, double const* yS, double alpha, double beta, double* ret);
-	virtual void multiplyWithDerivativeJacobian(double t, unsigned int secIdx, double timeFactor, double const* y, double const* yDot, double const* yS, double* ret);
+	virtual void multiplyWithJacobian(const SimulationTime& simTime, const ConstSimulationState& simState, double const* yS, double alpha, double beta, double* ret);
+	virtual void multiplyWithDerivativeJacobian(const SimulationTime& simTime, const ConstSimulationState& simState, double const* yS, double* ret);
 protected:
 
 	void configureSwitches(IParameterProvider& paramProvider);
@@ -196,7 +194,7 @@ protected:
 		multiplyWithMacroJacobian(yS, 1.0, 0.0, ret);
 	}
 
-	int dResDpFwdWithJacobian(const active& t, unsigned int secIdx, const active& timeFactor, double const* const y, double const* const yDot, active* const adRes, active* const adY, unsigned int adDirOffset);
+	int dResDpFwdWithJacobian(const ActiveSimulationTime& simTime, const ConstSimulationState& simState, const AdJacobianParams& adJac);
 
 	void rebuildInternalDataStructures();
 	void allocateSuperStructMatrices();
@@ -208,17 +206,16 @@ protected:
 	void checkConnectionList(const std::vector<double>& conn, std::vector<int>& connOnly, std::vector<double>& totalOutflow, unsigned int idxSwitch) const;
 
 	template <typename tag_t>
-	void consistentInitialConditionAlgorithm(double t, unsigned int secIdx, double timeFactor, double* const vecStateY, double* const vecStateYdot, active* const adRes, active* const adY, unsigned int adDirOffset, double errorTol);
+	void consistentInitialConditionAlgorithm(const SimulationTime& simTime, const SimulationState& simState, const AdJacobianParams& adJac, double errorTol);
 
 	template <typename tag_t>
-	void consistentInitialSensitivityAlgorithm(const active& t, unsigned int secIdx, const active& timeFactor, double const* vecStateY, double const* vecStateYdot,
+	void consistentInitialSensitivityAlgorithm(const ActiveSimulationTime& simTime, const ConstSimulationState& simState,
 		std::vector<double*>& vecSensY, std::vector<double*>& vecSensYdot, active* const adRes, active* const adY);
-
 	template <bool evalJacobian>
-	int residualSensFwdWithJacobianAlgorithm(unsigned int nSens, const active& t, unsigned int secIdx, const active& timeFactor,
-		double const* const y, double const* const yDot, double const* const res,
+	int residualSensFwdWithJacobianAlgorithm(unsigned int nSens, const ActiveSimulationTime& simTime,
+		const ConstSimulationState& simState, double const* const res,
 		const std::vector<const double*>& yS, const std::vector<const double*>& ySdot, const std::vector<double*>& resS,
-		active* const adRes, active* const adY, unsigned int adDirOffset, double* const tmp1, double* const tmp2, double* const tmp3);
+		const AdJacobianParams& adJac, double* const tmp1, double* const tmp2, double* const tmp3);
 
 	/**
 	 * @brief Returns the number of coupling DOFs

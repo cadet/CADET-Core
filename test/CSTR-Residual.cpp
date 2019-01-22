@@ -15,6 +15,7 @@
 
 #include "model/StirredTankModel.hpp"
 #include "ModelBuilderImpl.hpp"
+#include "SimulationTypes.hpp"
 
 #include "JsonTestModels.hpp"
 #include "JacobianHelper.hpp"
@@ -77,11 +78,13 @@ inline void checkJacobianAD(double flowRateIn, double flowRateOut, double flowRa
 	cadet::active* adRes = new cadet::active[cstrAD->numDofs()];
 	cadet::active* adY = new cadet::active[cstrAD->numDofs()];
 
-	cstrAD->prepareADvectors(adRes, adY, 0);
+	const cadet::AdJacobianParams noParams{nullptr, nullptr, 0u};
+	const cadet::AdJacobianParams adParams{adRes, adY, 0u};
+	cstrAD->prepareADvectors(adParams);
 
 	// Setup matrices
-	cstrAna->notifyDiscontinuousSectionTransition(0.0, 0u, nullptr, nullptr, 0u);
-	cstrAD->notifyDiscontinuousSectionTransition(0.0, 0u, adRes, adY, 0u);
+	cstrAna->notifyDiscontinuousSectionTransition(0.0, 0u, noParams);
+	cstrAD->notifyDiscontinuousSectionTransition(0.0, 0u, adParams);
 
 	// Obtain memory for state, Jacobian multiply direction, Jacobian column
 	const unsigned int nDof = cstrAna->numDofs();
@@ -96,8 +99,8 @@ inline void checkJacobianAD(double flowRateIn, double flowRateOut, double flowRa
 	cadet::test::util::populate(yDot.data(), [=](unsigned int idx) { return std::abs(std::sin((idx + nDof) * 0.13)) + 1e-4; }, nDof);
 
 	// Compute state Jacobian
-	cstrAna->residualWithJacobian(0.0, 0u, 1.0, y.data(), nullptr, jacDir.data(), nullptr, nullptr, 0u);
-	cstrAD->residualWithJacobian(0.0, 0u, 1.0, y.data(), nullptr, jacDir.data(), adRes, adY, 0u);
+	cstrAna->residualWithJacobian(cadet::ActiveSimulationTime{0.0, 0u, 1.0}, cadet::ConstSimulationState{y.data(), nullptr}, jacDir.data(), noParams);
+	cstrAD->residualWithJacobian(cadet::ActiveSimulationTime{0.0, 0u, 1.0}, cadet::ConstSimulationState{y.data(), nullptr}, jacDir.data(), adParams);
 	std::fill(jacDir.begin(), jacDir.end(), 0.0);
 
 	// Compare Jacobians
@@ -127,7 +130,7 @@ inline void checkJacobianFD(double flowRateIn, double flowRateOut, double flowRa
 	cstr->setFlowRates(flowRateIn, flowRateOut);
 
 	// Setup matrices
-	cstr->notifyDiscontinuousSectionTransition(0.0, 0u, nullptr, nullptr, 0u);
+	cstr->notifyDiscontinuousSectionTransition(0.0, 0u, cadet::AdJacobianParams{nullptr, nullptr, 0u});
 
 	// Obtain memory for state, Jacobian multiply direction, Jacobian column
 	const unsigned int nDof = cstr->numDofs();
@@ -142,7 +145,7 @@ inline void checkJacobianFD(double flowRateIn, double flowRateOut, double flowRa
 	cadet::test::util::populate(yDot.data(), [=](unsigned int idx) { return std::abs(std::sin((idx + nDof) * 0.13)) + 1e-4; }, nDof);
 
 	// Compute state Jacobian
-	cstr->residualWithJacobian(0.0, 0u, 1.0, y.data(), yDot.data(), jacDir.data(), nullptr, nullptr, 0u);
+	cstr->residualWithJacobian(cadet::ActiveSimulationTime{0.0, 0u, 1.0}, cadet::ConstSimulationState{y.data(), yDot.data()}, jacDir.data(), cadet::AdJacobianParams{nullptr, nullptr, 0u});
 	std::fill(jacDir.begin(), jacDir.end(), 0.0);
 
 	// Compare Jacobians
@@ -170,7 +173,7 @@ inline void checkTimeDerivativeJacobianFD(double flowRateIn, double flowRateOut,
 	cstr->setFlowRates(flowRateIn, flowRateOut);
 
 	// Setup matrices
-	cstr->notifyDiscontinuousSectionTransition(0.0, 0u, nullptr, nullptr, 0u);
+	cstr->notifyDiscontinuousSectionTransition(0.0, 0u, cadet::AdJacobianParams{nullptr, nullptr, 0u});
 
 	// Obtain memory for state, Jacobian multiply direction, Jacobian column
 	const unsigned int nDof = cstr->numDofs();

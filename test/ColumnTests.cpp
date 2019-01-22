@@ -24,6 +24,7 @@
 #include "common/Driver.hpp"
 #include "Weno.hpp"
 #include "linalg/Norms.hpp"
+#include "SimulationTypes.hpp"
 
 #include "JsonTestModels.hpp"
 #include "JacobianHelper.hpp"
@@ -425,11 +426,13 @@ namespace column
 			cadet::active* adRes = new cadet::active[unitAD->numDofs()];
 			cadet::active* adY = new cadet::active[unitAD->numDofs()];
 
-			unitAD->prepareADvectors(adRes, adY, 0);
-
 			// Setup matrices
-			unitAna->notifyDiscontinuousSectionTransition(0.0, 0u, nullptr, nullptr, 0u);
-			unitAD->notifyDiscontinuousSectionTransition(0.0, 0u, adRes, adY, 0u);
+			const AdJacobianParams noAdParams{nullptr, nullptr, 0u};
+			const AdJacobianParams adParams{adRes, adY, 0u};
+			unitAD->prepareADvectors(adParams);
+
+			unitAna->notifyDiscontinuousSectionTransition(0.0, 0u, noAdParams);
+			unitAD->notifyDiscontinuousSectionTransition(0.0, 0u, adParams);
 
 			// Obtain memory for state, Jacobian multiply direction, Jacobian column
 			std::vector<double> y(unitAD->numDofs(), 0.0);
@@ -450,8 +453,10 @@ namespace column
 			SECTION("Forward then backward flow (nonzero state)")
 			{
 				// Compute state Jacobian
-				unitAna->residualWithJacobian(0.0, 0u, 1.0, y.data(), nullptr, jacDir.data(), nullptr, nullptr, 0u);
-				unitAD->residualWithJacobian(0.0, 0u, 1.0, y.data(), nullptr, jacDir.data(), adRes, adY, 0u);
+				const ActiveSimulationTime simTime{0.0, 0u, 1.0};
+				const ConstSimulationState simState{y.data(), nullptr};
+				unitAna->residualWithJacobian(simTime, simState, jacDir.data(), noAdParams);
+				unitAD->residualWithJacobian(simTime, simState, jacDir.data(), adParams);
 				std::fill(jacDir.begin(), jacDir.end(), 0.0);
 
 				// Compare Jacobians
@@ -468,12 +473,12 @@ namespace column
 				REQUIRE(paramSet2);
 
 				// Setup
-				unitAna->notifyDiscontinuousSectionTransition(0.0, 0u, nullptr, nullptr, 0u);
-				unitAD->notifyDiscontinuousSectionTransition(0.0, 0u, adRes, adY, 0u);
+				unitAna->notifyDiscontinuousSectionTransition(0.0, 0u, noAdParams);
+				unitAD->notifyDiscontinuousSectionTransition(0.0, 0u, adParams);
 
 				// Compute state Jacobian
-				unitAna->residualWithJacobian(0.0, 0u, 1.0, y.data(), nullptr, jacDir.data(), nullptr, nullptr, 0u);
-				unitAD->residualWithJacobian(0.0, 0u, 1.0, y.data(), nullptr, jacDir.data(), adRes, adY, 0u);
+				unitAna->residualWithJacobian(simTime, simState, jacDir.data(), noAdParams);
+				unitAD->residualWithJacobian(simTime, simState, jacDir.data(), adParams);
 				std::fill(jacDir.begin(), jacDir.end(), 0.0);
 
 				// Compare Jacobians
@@ -504,7 +509,7 @@ namespace column
 		cadet::IUnitOperation* const unit = createAndConfigureUnit(uoType, *mb, jpp, cadet::Weno::maxOrder());
 
 		// Setup matrices
-		unit->notifyDiscontinuousSectionTransition(0.0, 0u, nullptr, nullptr, 0u);
+		unit->notifyDiscontinuousSectionTransition(0.0, 0u, AdJacobianParams{nullptr, nullptr, 0u});
 
 		// Obtain memory for state, Jacobian multiply direction, Jacobian column
 		const unsigned int nDof = unit->numDofs();
@@ -539,8 +544,8 @@ namespace column
 		const unsigned int fluxOffset = fluxOffsetOfColumnUnitOp(unitFD);
 
 		// Setup matrices
-		unitAna->notifyDiscontinuousSectionTransition(0.0, 0u, nullptr, nullptr, 0u);
-		unitFD->notifyDiscontinuousSectionTransition(0.0, 0u, nullptr, nullptr, 0u);
+		unitAna->notifyDiscontinuousSectionTransition(0.0, 0u, AdJacobianParams{nullptr, nullptr, 0u});
+		unitFD->notifyDiscontinuousSectionTransition(0.0, 0u, AdJacobianParams{nullptr, nullptr, 0u});
 
 		// Obtain memory for state, Jacobian multiply direction, Jacobian column
 		std::vector<double> y(unitFD->numDofs(), 0.0);
@@ -553,14 +558,14 @@ namespace column
 //		util::populate(y.data(), [](unsigned int idx) { return 1.0; }, unitAna->numDofs());
 
 		// Compute state Jacobian
-		unitAna->residualWithJacobian(0.0, 0u, 1.0, y.data(), nullptr, jacDir.data(), nullptr, nullptr, 0u);
-		unitFD->residualWithJacobian(0.0, 0u, 1.0, y.data(), nullptr, jacDir.data(), nullptr, nullptr, 0u);
+		unitAna->residualWithJacobian(ActiveSimulationTime{0.0, 0u, 1.0}, ConstSimulationState{y.data(), nullptr}, jacDir.data(), AdJacobianParams{nullptr, nullptr, 0u});
+		unitFD->residualWithJacobian(ActiveSimulationTime{0.0, 0u, 1.0}, ConstSimulationState{y.data(), nullptr}, jacDir.data(), AdJacobianParams{nullptr, nullptr, 0u});
 		std::fill(jacDir.begin(), jacDir.end(), 0.0);
 
 		// Compare Jacobians
 		cadet::test::compareJacobianArrowHeadFD(
-			[=](double const* lDir, double* res) -> void { unitFD->residual(0.0, 0u, 1.0, lDir, nullptr, res); }, 
-			[&](double const* lDir, double* res) -> void { unitAna->multiplyWithJacobian(0.0, 0u, 1.0, y.data(), nullptr, lDir, 1.0, 0.0, res); }, 
+			[=](double const* lDir, double* res) -> void { unitFD->residual(SimulationTime{0.0, 0u, 1.0}, ConstSimulationState{lDir, nullptr}, res); }, 
+			[&](double const* lDir, double* res) -> void { unitAna->multiplyWithJacobian(SimulationTime{0.0, 0u, 1.0}, ConstSimulationState{y.data(), nullptr}, lDir, 1.0, 0.0, res); }, 
 			y.data(), jacDir.data(), jacCol1.data(), jacCol2.data(), unitFD->numDofs(), fluxOffset, h, absTol, relTol);
 
 		mb->destroyUnitOperation(unitAna);
@@ -588,13 +593,14 @@ namespace column
 				// Enable AD
 				cadet::ad::setDirections(cadet::ad::getMaxDirections());
 				cadet::active* adRes = new cadet::active[unit->numDofs()];
-				unit->prepareADvectors(adRes, nullptr, 0);
+				const AdJacobianParams adParams{adRes, nullptr, 0};
+				unit->prepareADvectors(adParams);
 
 				// Add dispersion parameter sensitivity
 				REQUIRE(unit->setSensitiveParameter(makeParamId(hashString("COL_DISPERSION"), 0, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep), 0, 1.0));
 
 				// Setup matrices
-				unit->notifyDiscontinuousSectionTransition(0.0, 0u, adRes, nullptr, 0u);
+				unit->notifyDiscontinuousSectionTransition(0.0, 0u, adParams);
 
 				// Obtain memory for state, Jacobian multiply direction, Jacobian column
 				const unsigned int nDof = unit->numDofs();
@@ -618,19 +624,19 @@ namespace column
 				util::populate(yDot.data(), [=](unsigned int idx) { return std::abs(std::sin((idx + nDof) * 0.13)) + 1e-4; }, nDof);
 
 				// Calculate Jacobian
-				unit->residualWithJacobian(0.0, 0u, 1.0, y.data(), yDot.data(), jacDir.data(), adRes, nullptr, 0u);
+				unit->residualWithJacobian(ActiveSimulationTime{0.0, 0u, 1.0}, ConstSimulationState{y.data(), yDot.data()}, jacDir.data(), adParams);
 
 				// Calculate parameter derivative
-				unit->residualSensFwdAdOnly(0.0, 0u, 1.0, y.data(), yDot.data(), adRes);
+				unit->residualSensFwdAdOnly(ActiveSimulationTime{0.0, 0u, 1.0}, ConstSimulationState{y.data(), yDot.data()}, adRes);
 
 				// Check state Jacobian
 				cadet::test::compareJacobianFD(
 					[&](double const* lDir, double* res) -> void {
 						yS[0] = lDir;
 						resS[0] = res;
-						unit->residualSensFwdCombine(0.0, 0u, 1.0, y.data(), yDot.data(), yS, ySdot, resS, adRes, temp1.data(), temp2.data(), temp3.data());
+						unit->residualSensFwdCombine(ActiveSimulationTime{0.0, 0u, 1.0}, ConstSimulationState{y.data(), yDot.data()}, yS, ySdot, resS, adRes, temp1.data(), temp2.data(), temp3.data());
 					}, 
-					[&](double const* lDir, double* res) -> void { unit->multiplyWithJacobian(0.0, 0u, 1.0, y.data(), yDot.data(), lDir, 1.0, 0.0, res); }, 
+					[&](double const* lDir, double* res) -> void { unit->multiplyWithJacobian(SimulationTime{0.0, 0u, 1.0}, ConstSimulationState{y.data(), yDot.data()}, lDir, 1.0, 0.0, res); }, 
 					zeros.data(), jacDir.data(), jacCol1.data(), jacCol2.data(), nDof, h, absTol, relTol);
 
 				// Reset evaluation point
@@ -642,9 +648,9 @@ namespace column
 					[&](double const* lDir, double* res) -> void {
 						ySdot[0] = lDir;
 						resS[0] = res;
-						unit->residualSensFwdCombine(0.0, 0u, 1.0, y.data(), yDot.data(), yS, ySdot, resS, adRes, temp1.data(), temp2.data(), temp3.data());
+						unit->residualSensFwdCombine(ActiveSimulationTime{0.0, 0u, 1.0}, ConstSimulationState{y.data(), yDot.data()}, yS, ySdot, resS, adRes, temp1.data(), temp2.data(), temp3.data());
 					}, 
-					[&](double const* lDir, double* res) -> void { unit->multiplyWithDerivativeJacobian(0.0, 0u, 1.0, y.data(), yDot.data(), lDir, res); }, 
+					[&](double const* lDir, double* res) -> void { unit->multiplyWithDerivativeJacobian(SimulationTime{0.0, 0u, 1.0}, ConstSimulationState{y.data(), yDot.data()}, lDir, res); }, 
 					zeros.data(), jacDir.data(), jacCol1.data(), jacCol2.data(), nDof, h, absTol, relTol);
 
 				delete[] adRes;

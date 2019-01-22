@@ -63,7 +63,7 @@ public:
 
 	virtual bool configureModelDiscretization(IParameterProvider& paramProvider, IConfigHelper& helper);
 	virtual bool configure(IParameterProvider& paramProvider);
-	virtual void notifyDiscontinuousSectionTransition(double t, unsigned int secIdx, active* const adRes, active* const adY, unsigned int adDirOffset);
+	virtual void notifyDiscontinuousSectionTransition(double t, unsigned int secIdx, const AdJacobianParams& adJac);
 	
 	virtual std::unordered_map<ParameterId, double> getAllParameterValues() const;
 	virtual bool hasParameter(const ParameterId& pId) const;
@@ -84,44 +84,42 @@ public:
 	virtual void reportSolution(ISolutionRecorder& recorder, double const* const solution) const;
 	virtual void reportSolutionStructure(ISolutionRecorder& recorder) const;
 
-	virtual int residual(double t, unsigned int secIdx, double timeFactor, double const* const y, double const* const yDot, double* const res);
-	virtual int residualWithJacobian(const active& t, unsigned int secIdx, const active& timeFactor, double const* const y, double const* const yDot, double* const res, active* const adRes, active* const adY, unsigned int adDirOffset);
+	virtual int residual(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res);
+	virtual int residualWithJacobian(const ActiveSimulationTime& simTime, const ConstSimulationState& simState, double* const res, const AdJacobianParams& adJac);
+	virtual int residualSensFwdAdOnly(const ActiveSimulationTime& simTime, const ConstSimulationState& simState, active* const adRes);
+	virtual int residualSensFwdWithJacobian(const ActiveSimulationTime& simTime, const ConstSimulationState& simState, const AdJacobianParams& adJac);
 
-	virtual int residualSensFwdAdOnly(const active& t, unsigned int secIdx, const active& timeFactor,
-		double const* const y, double const* const yDot, active* const adRes);
-
-	virtual int residualSensFwdCombine(const active& t, unsigned int secIdx, const active& timeFactor, double const* const y, double const* const yDot, 
+	virtual int residualSensFwdCombine(const ActiveSimulationTime& simTime, const ConstSimulationState& simState, 
 		const std::vector<const double*>& yS, const std::vector<const double*>& ySdot, const std::vector<double*>& resS, active const* adRes, 
 		double* const tmp1, double* const tmp2, double* const tmp3);
 
-	virtual int residualSensFwdWithJacobian(const active& t, unsigned int secIdx, const active& timeFactor, double const* const y, double const* const yDot, active* const adRes, active* const adY, unsigned int adDirOffset);
 
 	// linearSolve and assembleAndPrepareDAEJacobian are null operations since there are only inlet DOFs, which are treated by ModelSystem
 	virtual int linearSolve(double t, double timeFactor, double alpha, double tol, double* const rhs, double const* const weight,
-		double const* const y, double const* const yDot) { return 0; }
+		const ConstSimulationState& simState) { return 0; }
 
-	virtual void prepareADvectors(active* const adRes, active* const adY, unsigned int adDirOffset) const;
+	virtual void prepareADvectors(const AdJacobianParams& adJac) const;
 
-	virtual void applyInitialCondition(double* const vecStateY, double* const vecStateYdot) const;
+	virtual void applyInitialCondition(const SimulationState& simState) const;
 	virtual void readInitialCondition(IParameterProvider& paramProvider);
 
-	virtual void consistentInitialState(double t, unsigned int secIdx, double timeFactor, double* const vecStateY, active* const adRes, active* const adY, unsigned int adDirOffset, double errorTol) { }
-	virtual void consistentInitialTimeDerivative(double t, unsigned int secIdx, double timeFactor, double const* vecStateY, double* const vecStateYdot) { }
+	virtual void consistentInitialState(const SimulationTime& simTime, double* const vecStateY, const AdJacobianParams& adJac, double errorTol) { }
+	virtual void consistentInitialTimeDerivative(const SimulationTime& simTime, double const* vecStateY, double* const vecStateYdot) { }
 
-	virtual void consistentInitialSensitivity(const active& t, unsigned int secIdx, const active& timeFactor, double const* vecStateY, double const* vecStateYdot,
+	virtual void consistentInitialSensitivity(const ActiveSimulationTime& simTime, const ConstSimulationState& simState,
 		std::vector<double*>& vecSensY, std::vector<double*>& vecSensYdot, active const* const adRes);
 	virtual void initializeSensitivityStates(const std::vector<double*>& vecSensY) const;
 
-	virtual void leanConsistentInitialState(double t, unsigned int secIdx, double timeFactor, double* const vecStateY, active* const adRes, active* const adY, unsigned int adDirOffset, double errorTol) { }
+	virtual void leanConsistentInitialState(const SimulationTime& simTime, double* const vecStateY, const AdJacobianParams& adJac, double errorTol) { }
 	virtual void leanConsistentInitialTimeDerivative(double t, double timeFactor, double const* const vecStateY, double* const vecStateYdot, double* const res) { }
 
-	virtual void leanConsistentInitialSensitivity(const active& t, unsigned int secIdx, const active& timeFactor, double const* vecStateY, double const* vecStateYdot,
+	virtual void leanConsistentInitialSensitivity(const ActiveSimulationTime& simTime, const ConstSimulationState& simState,
 		std::vector<double*>& vecSensY, std::vector<double*>& vecSensYdot, active const* const adRes);
 
 	virtual void setExternalFunctions(IExternalFunction** extFuns, unsigned int size) { }
 
-	virtual void multiplyWithJacobian(double t, unsigned int secIdx, double timeFactor, double const* const y, double const* const yDot, double const* yS, double alpha, double beta, double* ret);
-	virtual void multiplyWithDerivativeJacobian(double t, unsigned int secIdx, double timeFactor, double const* const y, double const* const yDot, double const* sDot, double* ret);
+	virtual void multiplyWithJacobian(const SimulationTime& simTime, const ConstSimulationState& simState, double const* yS, double alpha, double beta, double* ret);
+	virtual void multiplyWithDerivativeJacobian(const SimulationTime& simTime, const ConstSimulationState& simState, double const* sDot, double* ret);
 
 	virtual bool hasInlet() const CADET_NOEXCEPT { return true; }
 	virtual bool hasOutlet() const CADET_NOEXCEPT { return false; }
