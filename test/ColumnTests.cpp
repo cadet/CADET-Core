@@ -368,7 +368,7 @@ namespace column
 		SECTION("Forward vs backward flow Jacobian (WENO=" + std::to_string(wenoOrder) + ")")
 		{
 			// Use some test case parameters
-			cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding("GENERAL_RATE_MODEL");
+			cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding(uoType);
 			const unsigned int nComp = jpp.getInt("NCOMP");
 
 			cadet::IUnitOperation* const unitAna = createAndConfigureUnit(uoType, *mb, jpp, wenoOrder);
@@ -454,7 +454,7 @@ namespace column
 		REQUIRE(nullptr != mb);
 
 		// Use some test case parameters
-		cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding("GENERAL_RATE_MODEL");
+		cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding(uoType);
 		const unsigned int nComp = jpp.getInt("NCOMP");
 
 		cadet::IUnitOperation* const unit = createAndConfigureUnit(uoType, *mb, jpp, cadet::Weno::maxOrder());
@@ -487,7 +487,7 @@ namespace column
 		REQUIRE(nullptr != mb);
 
 		// Use some test case parameters
-		cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding("GENERAL_RATE_MODEL");
+		cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding(uoType);
 		const unsigned int nComp = jpp.getInt("NCOMP");
 
 		for (int bindMode = 0; bindMode < 2; ++bindMode)
