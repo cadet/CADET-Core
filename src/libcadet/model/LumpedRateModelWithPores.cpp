@@ -528,7 +528,7 @@ void LumpedRateModelWithPores::checkAnalyticJacobianAgainstAd(active const* cons
 {
 	Indexer idxr(_disc);
 
-	LOG(Debug) << "AD dir offset: " << adDirOffset << " DiagDirCol: " << _convDispOp.jacobian().lowerBandwidth() << " DiagDirPar: " << _jacP.lowerBandwidth();
+	LOG(Debug) << "AD dir offset: " << adDirOffset << " DiagDirCol: " << _convDispOp.jacobian().lowerBandwidth();
 
 	// Column
 	const double maxDiffCol = _convDispOp.checkAnalyticJacobianAgainstAd(adRes, adDirOffset);
@@ -537,7 +537,7 @@ void LumpedRateModelWithPores::checkAnalyticJacobianAgainstAd(active const* cons
 	double maxDiffPar = 0.0;
 	for (unsigned int type = 0; type < _disc.nParType; ++type)
 	{
-		linalg::BandMatrix& jacMat = _jacP[type];
+		const linalg::BandMatrix& jacMat = _jacP[type];
 		const double localDiff = ad::compareBandedJacobianWithAd(adRes + idxr.offsetCp(ParticleTypeIndex{type}), adDirOffset, jacMat.lowerBandwidth(), jacMat);
 		LOG(Debug) << "-> Par type " << type << " diff: " << localDiff;
 		maxDiffPar = std::max(maxDiffPar, localDiff);
