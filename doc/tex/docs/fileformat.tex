@@ -689,6 +689,9 @@ Since each parameter can depend on a different external source, the dataset \tex
 The ordering of the parameters in \texttt{EXTFUN} is given by the ordering in the standard variant.
 However, if only one index is passed in \texttt{EXTFUN}, this external source is used for all parameters.
 
+Note that parameter sensitivities with respect to column radius, column length, particle core radius, and particle radius may be wrong when using externally dependent binding models.
+This is caused by not taking into account the derivative of the external profile with respect to column position.
+
 \paragraph{Non-binding components}
 
 For binding models that do not support multiple bound states, many parameters can vary per component and their length is taken as \texttt{NCOMP}.
