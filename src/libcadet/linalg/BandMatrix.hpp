@@ -45,7 +45,7 @@ public:
 	 */
 	BandedRowIterator() CADET_NOEXCEPT : _matrix(nullptr), _pos(nullptr)
 	{
-#ifdef DEBUG
+#ifdef CADET_DEBUG
 		_row = -1;
 #endif		
 	}
@@ -56,7 +56,7 @@ public:
 	 */
 	BandedRowIterator(MatrixType& mat) CADET_NOEXCEPT : _matrix(&mat), _pos(_matrix->_data)
 	{
-#ifdef DEBUG
+#ifdef CADET_DEBUG
 		_row = 0;
 #endif		
 	}
@@ -68,7 +68,7 @@ public:
 	 */
 	BandedRowIterator(MatrixType& mat, double* const ptr) CADET_NOEXCEPT : _matrix(&mat), _pos(ptr)
 	{
-#ifdef DEBUG
+#ifdef CADET_DEBUG
 		_row = 0;
 #endif		
 	}
@@ -80,7 +80,7 @@ public:
 	 */
 	BandedRowIterator(MatrixType& mat, unsigned int row) CADET_NOEXCEPT : _matrix(&mat), _pos(_matrix->_data + row * _matrix->stride())
 	{
-#ifdef DEBUG
+#ifdef CADET_DEBUG
 		_row = row;
 #endif		
 	}
@@ -93,26 +93,26 @@ public:
 	 */
 	BandedRowIterator(MatrixType& mat, unsigned int row, unsigned int offset) CADET_NOEXCEPT : _matrix(&mat), _pos(_matrix->_data + row * _matrix->stride() + offset)
 	{
-#ifdef DEBUG
+#ifdef CADET_DEBUG
 		_row = row;
 #endif		
 	}
 
 	BandedRowIterator(const BandedRowIterator& cpy) CADET_NOEXCEPT : _matrix(cpy._matrix), _pos(cpy._pos)
 	{
-#ifdef DEBUG
+#ifdef CADET_DEBUG
 		_row = cpy._row;
 #endif		
 	}
 	BandedRowIterator(const BandedRowIterator& cpy, int rowChange) CADET_NOEXCEPT : _matrix(cpy._matrix), _pos(cpy._pos + rowChange * static_cast<int>(cpy._matrix->stride()))
 	{
-#ifdef DEBUG
+#ifdef CADET_DEBUG
 		_row = cpy._row;
 #endif		
 	}
 	BandedRowIterator(BandedRowIterator&& cpy) CADET_NOEXCEPT : _matrix(cpy._matrix), _pos(cpy._pos)
 	{
-#ifdef DEBUG
+#ifdef CADET_DEBUG
 		_row = cpy._row;
 #endif		
 	}
@@ -123,7 +123,7 @@ public:
 
 		_matrix = cpy._matrix;
 		_pos = cpy._pos;
-#ifdef DEBUG
+#ifdef CADET_DEBUG
 		_row = cpy._row;
 #endif		
 		return *this;
@@ -133,7 +133,7 @@ public:
 	{
 		_matrix = cpy._matrix;
 		_pos = cpy._pos;
-#ifdef DEBUG
+#ifdef CADET_DEBUG
 		_row = cpy._row;
 #endif		
 		return *this;
@@ -220,7 +220,7 @@ public:
 	inline BandedRowIterator& operator++() CADET_NOEXCEPT
 	{
 		_pos += _matrix->stride();
-#ifdef DEBUG
+#ifdef CADET_DEBUG
 		++_row;
 #endif		
 		return *this;
@@ -229,7 +229,7 @@ public:
 	inline BandedRowIterator& operator--() CADET_NOEXCEPT
 	{
 		_pos -= _matrix->stride();
-#ifdef DEBUG
+#ifdef CADET_DEBUG
 		--_row;
 #endif		
 		return *this;
@@ -238,7 +238,7 @@ public:
 	inline BandedRowIterator& operator+=(int idx) CADET_NOEXCEPT
 	{
 		_pos += idx * _matrix->stride();
-#ifdef DEBUG
+#ifdef CADET_DEBUG
 		_row += idx;
 #endif		
 		return *this;
@@ -247,7 +247,7 @@ public:
 	inline BandedRowIterator& operator-=(int idx) CADET_NOEXCEPT
 	{
 		_pos -= idx * _matrix->stride();
-#ifdef DEBUG
+#ifdef CADET_DEBUG
 		_row -= idx;
 #endif		
 		return *this;
@@ -285,7 +285,7 @@ public:
 	 */
 	inline unsigned int nonZeroColumnsPerRow() const CADET_NOEXCEPT { return _matrix->apparentStride(); }
 
-#ifdef DEBUG
+#ifdef CADET_DEBUG
 	/**
 	 * @brief Returns the index of the current row
 	 * @return Index of the current row
@@ -296,7 +296,7 @@ public:
 private:
 	MatrixType* _matrix; //!< Underlying matrix
 	double* _pos; //!< Current position, points to the lowest subdiagonal of a row
-#ifdef DEBUG
+#ifdef CADET_DEBUG
 	unsigned int _row; //!< Index of the current row
 #endif
 };
@@ -316,7 +316,7 @@ public:
 	 */
 	ConstBandedRowIterator() CADET_NOEXCEPT : _matrix(nullptr), _pos(nullptr)
 	{
-#ifdef DEBUG
+#ifdef CADET_DEBUG
 		_row = -1;
 #endif		
 	}
@@ -327,7 +327,7 @@ public:
 	 */
 	ConstBandedRowIterator(const MatrixType& mat) CADET_NOEXCEPT : _matrix(&mat), _pos(_matrix->_data)
 	{
-#ifdef DEBUG
+#ifdef CADET_DEBUG
 		_row = 0;
 #endif		
 	}
@@ -339,7 +339,7 @@ public:
 	 */
 	ConstBandedRowIterator(const MatrixType& mat, double const* const ptr) CADET_NOEXCEPT : _matrix(&mat), _pos(ptr)
 	{
-#ifdef DEBUG
+#ifdef CADET_DEBUG
 		_row = 0;
 #endif		
 	}
@@ -351,7 +351,7 @@ public:
 	 */
 	ConstBandedRowIterator(const MatrixType& mat, unsigned int row) CADET_NOEXCEPT : _matrix(&mat), _pos(_matrix->_data + row * _matrix->stride())
 	{
-#ifdef DEBUG
+#ifdef CADET_DEBUG
 		_row = row;
 #endif		
 	}
@@ -364,26 +364,26 @@ public:
 	 */
 	ConstBandedRowIterator(const MatrixType& mat, unsigned int row, unsigned int offset) CADET_NOEXCEPT : _matrix(&mat), _pos(_matrix->_data + row * _matrix->stride() + offset)
 	{
-#ifdef DEBUG
+#ifdef CADET_DEBUG
 		_row = row;
 #endif		
 	}
 
 	ConstBandedRowIterator(const ConstBandedRowIterator& cpy) CADET_NOEXCEPT : _matrix(cpy._matrix), _pos(cpy._pos)
 	{
-#ifdef DEBUG
+#ifdef CADET_DEBUG
 		_row = cpy._row;
 #endif		
 	}
 	ConstBandedRowIterator(const ConstBandedRowIterator& cpy, int rowChange) CADET_NOEXCEPT : _matrix(cpy._matrix), _pos(cpy._pos + rowChange * static_cast<int>(cpy._matrix->stride()))
 	{
-#ifdef DEBUG
+#ifdef CADET_DEBUG
 		_row = cpy._row;
 #endif		
 	}
 	ConstBandedRowIterator(const ConstBandedRowIterator&& cpy) CADET_NOEXCEPT : _matrix(cpy._matrix), _pos(cpy._pos)
 	{
-#ifdef DEBUG
+#ifdef CADET_DEBUG
 		_row = cpy._row;
 #endif		
 	}
@@ -394,7 +394,7 @@ public:
 
 		_matrix = cpy._matrix;
 		_pos = cpy._pos;
-#ifdef DEBUG
+#ifdef CADET_DEBUG
 		_row = cpy._row;
 #endif		
 		return *this;
@@ -404,7 +404,7 @@ public:
 	{
 		_matrix = cpy._matrix;
 		_pos = cpy._pos;
-#ifdef DEBUG
+#ifdef CADET_DEBUG
 		_row = cpy._row;
 #endif		
 		return *this;
@@ -452,7 +452,7 @@ public:
 	inline ConstBandedRowIterator& operator++() CADET_NOEXCEPT
 	{
 		_pos += _matrix->stride();
-#ifdef DEBUG
+#ifdef CADET_DEBUG
 		++_row;
 #endif		
 		return *this;
@@ -461,7 +461,7 @@ public:
 	inline ConstBandedRowIterator& operator--() CADET_NOEXCEPT
 	{
 		_pos -= _matrix->stride();
-#ifdef DEBUG
+#ifdef CADET_DEBUG
 		--_row;
 #endif		
 		return *this;
@@ -470,7 +470,7 @@ public:
 	inline ConstBandedRowIterator& operator+=(int idx) CADET_NOEXCEPT
 	{
 		_pos += idx * _matrix->stride();
-#ifdef DEBUG
+#ifdef CADET_DEBUG
 		_row += idx;
 #endif		
 		return *this;
@@ -479,7 +479,7 @@ public:
 	inline ConstBandedRowIterator& operator-=(int idx) CADET_NOEXCEPT
 	{
 		_pos -= idx * _matrix->stride();
-#ifdef DEBUG
+#ifdef CADET_DEBUG
 		_row -= idx;
 #endif		
 		return *this;
@@ -517,7 +517,7 @@ public:
 	 */
 	inline unsigned int nonZeroColumnsPerRow() const CADET_NOEXCEPT { return _matrix->apparentStride(); }
 
-#ifdef DEBUG
+#ifdef CADET_DEBUG
 	/**
 	 * @brief Returns the index of the current row
 	 * @return Index of the current row
@@ -528,7 +528,7 @@ public:
 private:
 	MatrixType const* _matrix; //!< Underlying matrix
 	double const* _pos; //!< Current position, points to the lowest subdiagonal of a row
-#ifdef DEBUG
+#ifdef CADET_DEBUG
 	unsigned int _row; //!< Index of the current row
 #endif
 };

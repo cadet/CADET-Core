@@ -170,7 +170,7 @@ extern "C" DLL_EXPORT_SYM void mexFunction(int nlhs, mxArray *plhs[], int nrhs, 
 
 		cadet::mex::CommandMap commands = cadet::mex::registeredCommands();
 
-#ifdef DEBUG
+#ifdef CADET_DEBUG
 		{
 			const auto itCreate = commands.find("create");
 			cadet_assert(itCreate == commands.end());

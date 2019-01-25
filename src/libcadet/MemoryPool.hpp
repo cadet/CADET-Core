@@ -40,7 +40,7 @@ namespace cadet
 		 */
 		ArrayPool() : _mem(nullptr), _numElements(0)
 		{
-#ifdef DEBUG
+#ifdef CADET_DEBUG
 			_capacity = 0;
 #endif
 		}
@@ -53,7 +53,7 @@ namespace cadet
 		 */
 		ArrayPool(unsigned int maxBytes) : _mem(new char[maxBytes]), _numElements(0)
 		{
-#ifdef DEBUG
+#ifdef CADET_DEBUG
 			_capacity = maxBytes;
 #endif
 		}
@@ -73,7 +73,7 @@ namespace cadet
 			_mem = new char[maxBytes];
 			_numElements = 0;
 
-#ifdef DEBUG
+#ifdef CADET_DEBUG
 			_capacity = maxBytes;
 #endif
 		}
@@ -166,7 +166,7 @@ namespace cadet
 	protected:
 		char* _mem; //<! Memory block
 		unsigned int _numElements; //<! Current number of created elements
-#ifdef DEBUG
+#ifdef CADET_DEBUG
 		unsigned int _capacity; //<! Capacity of the pool, only available in debug builds
 #endif
 	};

@@ -605,7 +605,7 @@ void MatlabReaderWriter::matrix(const std::string& dataSetName, const size_t row
 template <typename T>
 void MatlabReaderWriter::matrix(const std::string& dataSetName, const size_t rows, const size_t cols, const std::vector<T>& buffer, const size_t stride)
 {
-#ifdef DEBUG
+#ifdef CADET_DEBUG
 	if (rows*cols >= buffer.size())
 	{
 		std::ostringstream str;

@@ -182,7 +182,7 @@ void HDF5Writer::write(const std::string& dataSetName, const size_t rank, const 
 template <typename T>
 void HDF5Writer::tensor(const std::string& dataSetName, const size_t rank, const size_t* dims, const std::vector<T>& buffer, const size_t stride)
 {
-#ifdef DEBUG
+#ifdef CADET_DEBUG
 	size_t bufSize = 1;
 	for (size_t i = 0; i < rank; ++i)
 		bufSize *= dims[i];

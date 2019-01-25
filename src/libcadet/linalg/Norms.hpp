@@ -17,6 +17,7 @@
 #include <limits>
 #include <algorithm>
 #include "MathUtil.hpp"
+#include "common/CompilerSpecific.hpp"
 
 namespace cadet 
 {
@@ -77,7 +78,7 @@ namespace linalg
 		double res = 0.0;
 		for (unsigned int i = 0; i < size; ++i)
 		{
-#ifdef DEBUG			
+#ifdef CADET_DEBUG			
 			if (cadet_unlikely(std::isnan(x[i])))
 				return std::numeric_limits<double>::quiet_NaN();
 #endif
@@ -163,7 +164,7 @@ namespace linalg
 		for (unsigned int i = 0; i < size; ++i)
 		{
 			const double diff = x[i] - y[i];
-#ifdef DEBUG
+#ifdef CADET_DEBUG
 			if (cadet_unlikely(std::isnan(diff)))
 				return std::numeric_limits<double>::quiet_NaN();
 #endif
