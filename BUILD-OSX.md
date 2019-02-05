@@ -12,6 +12,7 @@ Assumed directory structure:
    |-libs
    |   |- sundials
    |   |- hdf5
+   |   |- superlu
    |-code
    |-cadet
    |-build
@@ -51,13 +52,30 @@ Build SUNDIALS yourself:
 * Unzip
 * Open a terminal and change to the parent directory of the unzipped directory
 * Create a new folder `sundialsbuild` and change to it
-* Execute `cmake -DCMAKE_INSTALL_PREFIX="<ROOT>/Libs/sundials" -DEXAMPLES_ENABLE=OFF -DOPENMP_ENABLE=ON -DBUILD_SHARED_LIBS=OFF -DCMAKE_C_FLAGS=-fPIC ../sundials-2.7.0/`
+* Execute `cmake -DCMAKE_INSTALL_PREFIX="<ROOT>/Libs/sundials" -DEXAMPLES_ENABLE=OFF -DOPENMP_ENABLE=ON -DBUILD_SHARED_LIBS=OFF -DCMAKE_C_FLAGS=-fPIC -DCMAKE_BUILD_TYPE=Release ../sundials-2.7.0/`
 * Execute `make install`
 * Delete the folder `sundialsbuild` (e.g., execute `rm -rf sundialsbuild` in the parent directory of `sundialsbuild`)
 
 ## LAPACK
 
 You can either use the native LAPACK implementation provided by Mac OS X (vecLib, Accelerate) or install the freely available [Intel MKL](https://software.intel.com/sites/campaigns/nest/) which is very fast and probably faster than Accelerate.
+
+## SuperLU
+
+* Download SuperLU source from https://github.com/xiaoyeli/superlu
+* Unzip
+* Open a terminal and change to the parent directory of the unzipped directory
+* Create a new folder `superlubuild` and change to it
+* Execute `cmake -DCMAKE_INSTALL_PREFIX="<ROOT>/Libs/superlu" -Denable_complex=OFF -Denable_complex16=OFF -Denable_blaslib=OFF -DCMAKE_C_FLAGS=-fPIC -DCMAKE_BUILD_TYPE=Release ../SuperLU_5.2.1/`
+* Execute `make install`
+* Delete the folder `superlubuild` (e.g., execute `rm -rf superlubuild` in the parent directory of `superlubuild`)
+
+## UMFPACK
+
+* Download SuiteSparse source from http://faculty.cse.tamu.edu/davis/suitesparse.html
+* Unzip
+* Open a terminal and change to the unzipped directory
+* Execute `make install INSTALL="<ROOT>/Libs/suitesparse" CHOLMOD_CONFIG=-DNPARTITION` or `make install INSTALL="<ROOT>/Libs/suitesparse" CHOLMOD_CONFIG=-DNPARTITION AUTOCC=no CC=<COMPILER> CXX=<C++COMPILER>` if you want to manually select the compiler
 
 # Build CADET
 

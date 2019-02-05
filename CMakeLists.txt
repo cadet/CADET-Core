@@ -103,6 +103,8 @@ endif()
 # Enable multi-threading in debug builds
 option (DEBUG_THREADING "Enable multi-threading in debug builds" OFF)
 
+option (ENABLE_GRM_2D "Enables or disables the 2D General Rate Model" ON)
+
 # Option that allows users to build release or debug version
 if (NOT CMAKE_BUILD_TYPE)
 	set (CMAKE_BUILD_TYPE "Release" CACHE STRING "Choose the type of build, options are: None Debug Release RelWithDebInfo MinSizeRel" FORCE)
@@ -271,6 +273,11 @@ if (HDF5_FOUND)
 	endif()
 endif()
 
+if (ENABLE_GRM_2D)
+	find_package(SuperLU)
+	find_package(UMFPACK)
+endif()
+
 # Add old and new Matlab versions
 set(MATLAB_ADDITIONAL_VERSIONS)
 
@@ -417,6 +424,7 @@ message("Benchmark mode: ${BENCHMARK_MODE}")
 message("Platform-dependent timer: ${PLATFORM_TIMER}")
 message("Standalone mode: ${STANDALONE}")
 message("AD library: ${ADLIB}")
+message("2D General Rate Model: ${ENABLE_GRM_2D}")
 if (CMAKE_BUILD_TYPE STREQUAL "Debug")
 	message("Check analytic Jacobian: ${CHECK_ANALYTIC_JACOBIAN}")
 endif()
@@ -448,6 +456,22 @@ if (SUNDIALS_FOUND)
 	message("  Includes ${SUNDIALS_INCLUDE_DIRS}")
 	message("  Libs ${SUNDIALS_LIBRARIES}")
 	message("  Static libs ${SUNDIALS_STATIC_LIBRARIES}")
+endif()
+
+if (ENABLE_GRM_2D)
+	message("Found SuperLU: ${SUPERLU_FOUND}")
+	if (SUPERLU_FOUND)
+		message("  Version ${SUPERLU_VERSION}")
+		message("  Includes ${SUPERLU_INCLUDE_DIRS}")
+		message("  Libs ${SUPERLU_LIBRARIES}")
+		message("  Integer type ${SUPERLU_INT_TYPE}")
+	endif()
+	message("Found UMFPACK: ${UMFPACK_FOUND}")
+	if (UMFPACK_FOUND)
+		message("  Version ${UMFPACK_VERSION}")
+		message("  Includes ${UMFPACK_INCLUDE_DIRS}")
+		message("  Libs ${UMFPACK_LIBRARIES}")
+	endif()
 endif()
 
 message("Found HDF5: ${HDF5_FOUND}")

@@ -13,6 +13,7 @@ Assumed directory structure:
    |   |- sundials
    |   |- hdf5
    |   |- lapack
+   |   |- superlu
    |-code
    |-cadet
    |-build
@@ -38,7 +39,7 @@ Note that the version numbers of the files and packages below are subject to cha
 * Unzip
 * Open VS2015x64 Command Prompt and change to the parent directory of the unzipped directory
 * Create a new folder `sundialsbuild` and change to it
-* Execute `cmake -DCMAKE_INSTALL_PREFIX="<ROOT>\Libs\sundials" -DEXAMPLES_ENABLE=OFF -DOPENMP_ENABLE=ON -DBUILD_SHARED_LIBS=OFF -G "Visual Studio 14 Win64" -DCMAKE_C_FLAGS="/GL" -DCMAKE_STATIC_LINKER_FLAGS="/LTCG" ..\sundials-2.7.0\`
+* Execute `cmake -DCMAKE_INSTALL_PREFIX="<ROOT>\Libs\sundials" -DEXAMPLES_ENABLE=OFF -DOPENMP_ENABLE=ON -DBUILD_SHARED_LIBS=OFF -G "Visual Studio 14 Win64" -DCMAKE_C_FLAGS="/GL" -DCMAKE_STATIC_LINKER_FLAGS="/LTCG" -DCMAKE_BUILD_TYPE=Release ..\sundials-2.7.0\`
 * Execute `msbuild.exe INSTALL.vcxproj /p:Configuration=Release;Platform=x64`
 
 ## LAPACK
@@ -52,6 +53,17 @@ In the following, CLAPACK is built and used. You can also install the freely ava
 * Execute `msbuild.exe CLAPACK.sln /p:Configuration=Release;Platform=x64`
 * Execute `msbuild.exe INSTALL.vcxproj /p:Configuration=Release;Platform=x64`
 * Rename `<ROOT>\Libs\clapack\lib\libf2c.lib` to `<ROOT>\Libs\clapack\lib\f2c.lib`
+
+## SuperLU
+
+* Download SuperLU source from https://github.com/xiaoyeli/superlu
+* Unzip
+* Open VS2015x64 Command Prompt and change to the parent directory of the unzipped directory
+* Create a new folder `superlubuild` and change to it
+* Execute `cmake -DCMAKE_INSTALL_PREFIX="<ROOT>\Libs\superlu" -Denable_complex=OFF -Denable_complex16=OFF -Denable_blaslib=OFF -DCMAKE_LIBRARY_PATH="<ROOT>\Libs\clapack\lib" -G "Visual Studio 14 Win64" -DCMAKE_C_FLAGS="/GL" -DCMAKE_STATIC_LINKER_FLAGS="/LTCG" -DCMAKE_BUILD_TYPE=Release ..\SuperLU_5.2.1\`
+ 
+    Using MKL (sequential): Execute `cmake -DCMAKE_INSTALL_PREFIX="<ROOT>\Libs\superlu" -Denable_complex=OFF -Denable_complex16=OFF -Denable_blaslib=OFF -DBLA_VENDOR=Intel10_64lp_seq -G "Visual Studio 14 Win64" -DCMAKE_C_FLAGS="/GL" -DCMAKE_STATIC_LINKER_FLAGS="/LTCG" -DCMAKE_BUILD_TYPE=Release ..\SuperLU_5.2.1\`
+* Execute `msbuild.exe INSTALL.vcxproj /p:Configuration=Release;Platform=x64`
 
 # Build CADET
 

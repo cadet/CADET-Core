@@ -12,6 +12,7 @@ Assumed directory structure:
    |-libs
    |   |- sundials
    |   |- hdf5
+   |   |- superlu
    |-code
    |-cadet
    |-build
@@ -52,6 +53,23 @@ You can either use a LAPACK implementation provided by your distribution or inst
 
 Obtain LAPACK from your distribution:
 * Install the packages (LAPACK and BLAS) of your distribution (e.g., `liblapack3`, `liblapack-dev`, `libblas3`, `libblas-dev` for Ubuntu and Debian). Note that some packages only provide reference (i.e., slow) implementations and others (e.g., ATLAS, GOTO) perform much faster.
+
+## SuperLU
+
+* Download SuperLU source from https://github.com/xiaoyeli/superlu
+* Unzip
+* Open a terminal and change to the parent directory of the unzipped directory
+* Create a new folder `superlubuild` and change to it
+* Execute `cmake -DCMAKE_INSTALL_PREFIX="<ROOT>/Libs/superlu" -Denable_complex=OFF -Denable_complex16=OFF -Denable_blaslib=OFF -DCMAKE_C_FLAGS=-fPIC -DCMAKE_BUILD_TYPE=Release ../SuperLU_5.2.1/`
+* Execute `make install`
+* Delete the folder `superlubuild` (e.g., execute `rm -rf superlubuild` in the parent directory of `superlubuild`)
+
+## UMFPACK
+
+* Download SuiteSparse source from http://faculty.cse.tamu.edu/davis/suitesparse.html
+* Unzip
+* Open a terminal and change to the unzipped directory
+* Execute `make install INSTALL="<ROOT>/Libs/suitesparse" CHOLMOD_CONFIG=-DNPARTITION` or `make install INSTALL="<ROOT>/Libs/suitesparse" CHOLMOD_CONFIG=-DNPARTITION AUTOCC=no CC=<COMPILER> CXX=<C++COMPILER>` if you want to manually select the compiler
 
 # Build CADET
 

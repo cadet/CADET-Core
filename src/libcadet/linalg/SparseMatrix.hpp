@@ -381,57 +381,6 @@ typedef SparseMatrix<double> DoubleSparseMatrix;
 
 std::ostream& operator<<(std::ostream& out, const DoubleSparseMatrix& sm);
 
-class CompressedSparseMatrix
-{
-public:
-	CompressedSparseMatrix() CADET_NOEXCEPT : _values(nullptr) { }
-
-
-
-	/**
-	 * @brief Multiplies this sparse matrix with a vector and adds the result to another vector
-	 * @details Computes the matrix vector operation \f$ b + Ax \f$, where the matrix vector
-	 *          product is added to @p out, which is \f$ b \f$.
-	 *
-	 * @param [in] x Vector to multiply with
-	 * @param [in,out] out Vector to add the matrix-vector product to
-	 */
-	inline void multiplyAdd(double const* const x, double* const out)
-	{
-
-	}
-
-	/**
-	 * @brief Multiplies this sparse matrix with a vector and adds the scaled result to another vector
-	 * @details Computes the matrix vector operation \f$ b + \alpha Ax \f$, where the matrix vector
-	 *          product is added to @p out, which is \f$ b \f$.
-	 *
-	 * @param [in] alpha Scaling factor
-	 * @param [in] x Vector to multiply with
-	 * @param [in,out] out Vector to add the matrix-vector product to
-	 */
-	inline void multiplyAdd(double alpha, double const* const x, double* const out)
-	{
-
-	}
-
-	/**
-	 * @brief Multiplies this sparse matrix with a vector and adds the result to another vector
-	 * @details Computes the matrix vector operation \f$ b - Ax \f$, where the matrix vector
-	 *          product is subtracted from @p out, which is \f$ b \f$.
-	 *
-	 * @param [in] x Vector to multiply with
-	 * @param [in,out] out Vector to subtract the matrix-vector product from
-	 */
-	inline void multiplySubtract(double const* const x, double* const out)
-	{
-
-	}
-
-protected:
-	double* _values;
-};
-
 } // namespace linalg
 
 } // namespace cadet
