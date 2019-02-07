@@ -107,7 +107,7 @@ public:
 	BandedRowIterator(const BandedRowIterator& cpy, int rowChange) CADET_NOEXCEPT : _matrix(cpy._matrix), _pos(cpy._pos + rowChange * static_cast<int>(cpy._matrix->stride()))
 	{
 #ifdef CADET_DEBUG
-		_row = cpy._row;
+		_row = cpy._row + rowChange;
 #endif		
 	}
 	BandedRowIterator(BandedRowIterator&& cpy) CADET_NOEXCEPT : _matrix(cpy._matrix), _pos(cpy._pos)
@@ -378,7 +378,7 @@ public:
 	ConstBandedRowIterator(const ConstBandedRowIterator& cpy, int rowChange) CADET_NOEXCEPT : _matrix(cpy._matrix), _pos(cpy._pos + rowChange * static_cast<int>(cpy._matrix->stride()))
 	{
 #ifdef CADET_DEBUG
-		_row = cpy._row;
+		_row = cpy._row + rowChange;
 #endif		
 	}
 	ConstBandedRowIterator(const ConstBandedRowIterator&& cpy) CADET_NOEXCEPT : _matrix(cpy._matrix), _pos(cpy._pos)
