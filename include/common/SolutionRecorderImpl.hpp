@@ -94,7 +94,7 @@ public:
 
 	virtual void notifyIntegrationStart(unsigned int numDofs, unsigned int numSens, unsigned int numTimesteps)
 	{
-		_needsReAlloc = (numSens != _numSens) || (numTimesteps > _numTimesteps);
+		_needsReAlloc = (numSens != _numSens) || (numTimesteps > _numTimesteps) || (numTimesteps == 0);
 
 		// Clear all data from memory
 		clear();
@@ -765,8 +765,13 @@ protected:
 		s.outlet.clear();
 		s.inlet.clear();
 		s.bulk.clear();
-		s.particle.clear();
-		s.solid.clear();
+
+		for (auto& v : s.particle)
+			v.clear();
+
+		for (auto& v : s.solid)
+			v.clear();
+
 		s.flux.clear();
 		s.volume.clear();
 	}
