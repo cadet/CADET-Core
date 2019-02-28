@@ -92,16 +92,6 @@ inline ConstSimulationState toConst(const SimulationState& simState)
 }
 
 /**
- * @brief Converts a simple simulation time point to an AD-enabled (i.e., active) one
- * @param [in] simTime Simple simulation time
- * @return AD-enabled simulation time
- */
-inline ActiveSimulationTime toActive(const SimulationTime& simTime)
-{
-	return ActiveSimulationTime{active(simTime.t), simTime.secIdx, active(simTime.timeFactor)};
-}
-
-/**
  * @brief Converts an AD-enabled (i.e., active) simulation time point to a simple one
  * @param [in] simTime AD-enabled simulation time
  * @return Simple simulation time

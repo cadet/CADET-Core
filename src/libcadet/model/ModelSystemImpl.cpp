@@ -1744,7 +1744,11 @@ void ModelSystem::consistentInitialConditionAlgorithm(const SimulationTime& simT
 
 	// Evaluate residual for right hand side without time derivatives \dot{y} and store it in vecStateYdot (or _tempState in case of lean initialization)
 	// Also evaluate the Jacobian at the current position
-	ConsistentInit<tag_t>::residualWithJacobian(*this, toActive(simTime), ConstSimulationState{simState.vecStateY, nullptr}, simState.vecStateYdot, _tempState, adJac);
+	{
+		active at = simTime.t;
+		active atf = simTime.timeFactor;
+		ConsistentInit<tag_t>::residualWithJacobian(*this, ActiveSimulationTime{at, simTime.secIdx, atf}, ConstSimulationState{simState.vecStateY, nullptr}, simState.vecStateYdot, _tempState, adJac);
+	}
 
 
 	LOG(Debug) << "Residual post state: " << log::VectorPtr<double>(simState.vecStateYdot, numDofs());
