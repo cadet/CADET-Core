@@ -58,7 +58,7 @@ namespace
 	public:
 		static inline void call(cadet::model::parts::ConvectionDispersionOperatorBase& op, const ParamType& t, unsigned int secIdx, const ParamType& timeFactor, double const* const y, double const* const yDot, ResidualType* const res, cadet::linalg::BandMatrix& jac)
 		{
-			op.residual(t, secIdx, timeFactor, y, yDot, res, &jac);
+			op.residual(t, secIdx, timeFactor, y, yDot, res, jac);
 		}
 	};
 
@@ -68,7 +68,7 @@ namespace
 	public:
 		static inline void call(cadet::model::parts::ConvectionDispersionOperatorBase& op, const ParamType& t, unsigned int secIdx, const ParamType& timeFactor, double const* const y, double const* const yDot, ResidualType* const res, cadet::linalg::BandMatrix& jac)
 		{
-			op.residual(t, secIdx, timeFactor, y, yDot, res, nullptr);
+			op.residual(t, secIdx, timeFactor, y, yDot, res);
 		}
 	};
 
@@ -271,7 +271,7 @@ void LumpedRateModelWithoutPores::notifyDiscontinuousSectionTransition(double t,
 	Indexer idxr(_disc);
 
 	// ConvectionDispersionOperator tells us whether flow direction has changed
-	if (!_convDispOp.notifyDiscontinuousSectionTransition(t, secIdx))
+	if (!_convDispOp.notifyDiscontinuousSectionTransition(t, secIdx) && (secIdx != 0))
 		return;
 
 	// Setup the matrix connecting inlet DOFs to first column cells

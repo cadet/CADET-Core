@@ -55,6 +55,8 @@ u c_{\text{in},i}(t) &= u c_i(t,0) - D_{\text{ax}} \frac{\partial c_i}{\partial 
  * Methods are described in @cite VonLieres2010a (WENO, linear solver), and @cite Puttmann2013, @cite Puttmann2016 (forward sensitivities, AD, band compression)
  * 
  * This class does not store the Jacobian. It only fills existing matrices given to its residual() functions.
+ * It assumes that there is no offset to the inlet in the local state vector and that the firsts cell is placed
+ * directly after the inlet DOFs.
  */
 class ConvectionDispersionOperatorBase
 {
@@ -69,9 +71,11 @@ public:
 	bool configure(UnitOpIdx unitOpIdx, IParameterProvider& paramProvider, std::unordered_map<ParameterId, active*>& parameters);
 	bool notifyDiscontinuousSectionTransition(double t, unsigned int secIdx);
 
-	int residual(double t, unsigned int secIdx, double timeFactor, double const* y, double const* yDot, double* res, linalg::BandMatrix* jac);
+	int residual(double t, unsigned int secIdx, double timeFactor, double const* y, double const* yDot, double* res, linalg::BandMatrix& jac);
+	int residual(double t, unsigned int secIdx, double timeFactor, double const* y, double const* yDot, double* res);
 	int residual(double t, unsigned int secIdx, double timeFactor, active const* y, double const* yDot, active* res);
-	int residual(const active& t, unsigned int secIdx, const active& timeFactor, double const* y, double const* yDot, active* res, linalg::BandMatrix* jac);
+	int residual(const active& t, unsigned int secIdx, const active& timeFactor, double const* y, double const* yDot, active* res, linalg::BandMatrix& jac);
+	int residual(const active& t, unsigned int secIdx, const active& timeFactor, double const* y, double const* yDot, active* res);
 	int residual(const active& t, unsigned int secIdx, const active& timeFactor, active const* y, double const* yDot, active* res);
 
 	void multiplyWithDerivativeJacobian(const SimulationTime& simTime, double const* sDot, double* ret) const;
@@ -80,7 +84,6 @@ public:
 	inline const active& columnLength() const CADET_NOEXCEPT { return _colLength; }
 	inline const active& crossSectionArea() const CADET_NOEXCEPT { return _crossSection; }
 	inline const active& currentVelocity() const CADET_NOEXCEPT { return _curVelocity; }
-	double previousVelocity(unsigned int secIdx) const CADET_NOEXCEPT;
 
 	inline unsigned int nComp() const CADET_NOEXCEPT { return _nComp; }
 	inline unsigned int nCol() const CADET_NOEXCEPT { return _nCol; }
@@ -92,14 +95,14 @@ public:
 
 protected:
 
-	template <typename StateType, typename ResidualType, typename ParamType, bool wantJac>
-	int residualImpl(const ParamType& t, unsigned int secIdx, const ParamType& timeFactor, StateType const* y, double const* yDot, ResidualType* res, linalg::BandMatrix* jac);
+	template <typename StateType, typename ResidualType, typename ParamType, typename RowIteratorType, bool wantJac>
+	int residualImpl(const ParamType& t, unsigned int secIdx, const ParamType& timeFactor, StateType const* y, double const* yDot, ResidualType* res, RowIteratorType jacBegin);
 
-	template <typename StateType, typename ResidualType, typename ParamType, bool wantJac>
-	int residualForwardsFlow(const ParamType& t, unsigned int secIdx, const ParamType& timeFactor, StateType const* y, double const* yDot, ResidualType* res, linalg::BandMatrix* jacMat);
+	template <typename StateType, typename ResidualType, typename ParamType, typename RowIteratorType, bool wantJac>
+	int residualForwardsFlow(const ParamType& t, unsigned int secIdx, const ParamType& timeFactor, StateType const* y, double const* yDot, ResidualType* res, RowIteratorType jacBegin);
 
-	template <typename StateType, typename ResidualType, typename ParamType, bool wantJac>
-	int residualBackwardsFlow(const ParamType& t, unsigned int secIdx, const ParamType& timeFactor, StateType const* y, double const* yDot, ResidualType* res, linalg::BandMatrix* jacMat);
+	template <typename StateType, typename ResidualType, typename ParamType, typename RowIteratorType, bool wantJac>
+	int residualBackwardsFlow(const ParamType& t, unsigned int secIdx, const ParamType& timeFactor, StateType const* y, double const* yDot, ResidualType* res, RowIteratorType jacBegin);
 
 	unsigned int _nComp; //!< Number of components
 	unsigned int _nCol; //!< Number of axial cells
@@ -126,15 +129,6 @@ protected:
 
 	// Offsets
 	inline const int offsetC() const CADET_NOEXCEPT { return _nComp; }
-	inline const int offsetCp() const CADET_NOEXCEPT { return strideColCell() * _nCol + offsetC(); }
-
-	// Return pointer to first element of state variable in state vector
-	template <typename real_t> inline real_t* c(real_t* const data) const { return data + offsetC(); }
-	template <typename real_t> inline real_t const* c(real_t const* const data) const { return data + offsetC(); }
-
-	// Return specific variable in state vector
-	template <typename real_t> inline real_t& c(real_t* const data, unsigned int col, unsigned int comp) const { return data[offsetC() + comp + col * strideColCell()]; }
-	template <typename real_t> inline const real_t& c(real_t const* const data, unsigned int col, unsigned int comp) const { return data[offsetC() + comp + col * strideColCell()]; }
 };
 
 
@@ -154,6 +148,8 @@ u c_{\text{in},i}(t) &= u c_i(t,0) - D_{\text{ax}} \frac{\partial c_i}{\partial 
  * 
  * This class wraps ConvectionDispersionOperatorBase and provides all the functionality it does. In addition,
  * the Jacobian is stored and corresponding functions are provided (assembly, factorization, solution, retrieval).
+ * 
+ * This class assumes that the first cell is offset by the number of components (inlet DOFs) in the global state vector.
  */
 class ConvectionDispersionOperator
 {
@@ -181,8 +177,6 @@ public:
 	bool solveTimeDerivativeSystem(const SimulationTime& simTime, double* const rhs);
 	void multiplyWithDerivativeJacobian(const SimulationTime& simTime, double const* sDot, double* ret) const;
 
-	void addTimeDerivativeToJacobian(double alpha, double timeFactor);
-	void assembleDiscretizedJacobian(double alpha, double timeFactor);
 	bool assembleAndFactorizeDiscretizedJacobian(double alpha, double timeFactor);
 	bool solveDiscretizedJacobian(double* rhs) const;
 
@@ -201,6 +195,9 @@ public:
 	inline const linalg::FactorizableBandMatrix& jacobianDisc() const CADET_NOEXCEPT { return _jacCdisc; }
 protected:
 
+	void addTimeDerivativeToJacobian(double alpha, double timeFactor);
+	void assembleDiscretizedJacobian(double alpha, double timeFactor);
+
 	ConvectionDispersionOperatorBase _baseOp;
 
 	linalg::BandMatrix _jacC; //!< Jacobian
@@ -208,21 +205,8 @@ protected:
 
 	// Indexer functionality
 
-	// Strides
-	inline const int strideColCell() const CADET_NOEXCEPT { return static_cast<int>(_baseOp.nComp()); }
-	inline const int strideColComp() const CADET_NOEXCEPT { return 1; }
-
 	// Offsets
 	inline const int offsetC() const CADET_NOEXCEPT { return _baseOp.nComp(); }
-	inline const int offsetCp() const CADET_NOEXCEPT { return _baseOp.nComp() * _baseOp.nCol() + offsetC(); }
-
-	// Return pointer to first element of state variable in state vector
-	template <typename real_t> inline real_t* c(real_t* const data) const { return data + offsetC(); }
-	template <typename real_t> inline real_t const* c(real_t const* const data) const { return data + offsetC(); }
-
-	// Return specific variable in state vector
-	template <typename real_t> inline real_t& c(real_t* const data, unsigned int col, unsigned int comp) const { return data[offsetC() + comp + col * strideColCell()]; }
-	template <typename real_t> inline const real_t& c(real_t const* const data, unsigned int col, unsigned int comp) const { return data[offsetC() + comp + col * strideColCell()]; }
 };
 
 } // namespace parts

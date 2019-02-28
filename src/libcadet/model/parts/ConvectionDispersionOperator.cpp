@@ -17,6 +17,7 @@
 #include "ParamReaderHelper.hpp"
 #include "AdUtils.hpp"
 #include "SimulationTypes.hpp"
+#include "model/parts/ConvectionDispersionKernel.hpp"
 
 #include "LoggingUtils.hpp"
 #include "Logging.hpp"
@@ -109,10 +110,10 @@ bool ConvectionDispersionOperatorBase::configure(UnitOpIdx unitOpIdx, IParameter
 	}
 
 	// Add parameters to map
-	parameters[makeParamId(hashString("COL_LENGTH"), unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_colLength;
-	parameters[makeParamId(hashString("CROSS_SECTION_AREA"), unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_crossSection;
 	registerScalarSectionDependentParam(hashString("COL_DISPERSION"), parameters, _colDispersion, unitOpIdx, ParTypeIndep);
 	registerScalarSectionDependentParam(hashString("VELOCITY"), parameters, _velocity, unitOpIdx, ParTypeIndep);
+	parameters[makeParamId(hashString("COL_LENGTH"), unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_colLength;
+	parameters[makeParamId(hashString("CROSS_SECTION_AREA"), unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_crossSection;
 
 	return true;
 }
@@ -127,6 +128,8 @@ bool ConvectionDispersionOperatorBase::configure(UnitOpIdx unitOpIdx, IParameter
  */
 bool ConvectionDispersionOperatorBase::notifyDiscontinuousSectionTransition(double t, unsigned int secIdx)
 {
+	const double prevVelocity = static_cast<double>(_curVelocity);
+
 	// If we don't have cross section area, velocity is given by parameter
 	if (_crossSection <= 0.0)
 		_curVelocity = getSectionDependentScalar(_velocity, secIdx);
@@ -140,23 +143,7 @@ bool ConvectionDispersionOperatorBase::notifyDiscontinuousSectionTransition(doub
 			_curVelocity *= -1.0;
 	}
 
-	return true;
-}
-
-double ConvectionDispersionOperatorBase::previousVelocity(unsigned int secIdx) const CADET_NOEXCEPT
-{
-	const double u = static_cast<double>(_curVelocity);
-	double prevU = -u;
-
-	// Determine previous flow direction
-	if ((secIdx != 0) && !_velocity.empty())
-		prevU = static_cast<double>(getSectionDependentScalar(_velocity, secIdx - 1));
-
-	// If interstitial velocity is given by network flow rate and _velocity isn't set, assume forward flow
-	if (_velocity.empty())
-		prevU = u;
-
-	return prevU;
+	return (prevVelocity * static_cast<double>(_curVelocity) < 0.0);
 }
 
 /**
@@ -181,324 +168,69 @@ void ConvectionDispersionOperatorBase::setFlowRates(const active& in, const acti
  * @param [in] y Pointer to unit operation's state vector
  * @param [in] yDot Pointer to unit operation's time derivative state vector
  * @param [out] res Pointer to unit operation's residual vector
- * @param [in] wantJac Determines whether analytic Jacobian is computed
+ * @param [in] jac Matrix that holds the Jacobian
  * @return @c 0 on success, @c -1 on non-recoverable error, and @c +1 on recoverable error
  */
-int ConvectionDispersionOperatorBase::residual(double t, unsigned int secIdx, double timeFactor, double const* y, double const* yDot, double* res, linalg::BandMatrix* jac)
+int ConvectionDispersionOperatorBase::residual(double t, unsigned int secIdx, double timeFactor, double const* y, double const* yDot, double* res, linalg::BandMatrix& jac)
 {
-	if (jac)
-		return residualImpl<double, double, double, true>(t, secIdx, timeFactor, y, yDot, res, jac);
-	else
-		return residualImpl<double, double, double, false>(t, secIdx, timeFactor, y, yDot, res, jac);
+	// Reset Jacobian
+	jac.setAll(0.0);
+
+	return residualImpl<double, double, double, linalg::BandMatrix::RowIterator, true>(t, secIdx, timeFactor, y, yDot, res, jac.row(0));
+}
+
+int ConvectionDispersionOperatorBase::residual(double t, unsigned int secIdx, double timeFactor, double const* y, double const* yDot, double* res)
+{
+	return residualImpl<double, double, double, linalg::BandMatrix::RowIterator, false>(t, secIdx, timeFactor, y, yDot, res, linalg::BandMatrix::RowIterator());
 }
 
 int ConvectionDispersionOperatorBase::residual(double t, unsigned int secIdx, double timeFactor, active const* y, double const* yDot, active* res)
 {
-	return residualImpl<active, active, double, false>(t, secIdx, timeFactor, y, yDot, res, nullptr);
+	return residualImpl<active, active, double, linalg::BandMatrix::RowIterator, false>(t, secIdx, timeFactor, y, yDot, res, linalg::BandMatrix::RowIterator());
 }
 
-int ConvectionDispersionOperatorBase::residual(const active& t, unsigned int secIdx, const active& timeFactor, double const* y, double const* yDot, active* res, linalg::BandMatrix* jac)
+int ConvectionDispersionOperatorBase::residual(const active& t, unsigned int secIdx, const active& timeFactor, double const* y, double const* yDot, active* res, linalg::BandMatrix& jac)
 {
-	if (jac)
-		return residualImpl<double, active, active, true>(t, secIdx, timeFactor, y, yDot, res, jac);
-	else
-		return residualImpl<double, active, active, false>(t, secIdx, timeFactor, y, yDot, res, jac);
+	// Reset Jacobian
+	jac.setAll(0.0);
+
+	return residualImpl<double, active, active, linalg::BandMatrix::RowIterator, true>(t, secIdx, timeFactor, y, yDot, res, jac.row(0));
+}
+
+int ConvectionDispersionOperatorBase::residual(const active& t, unsigned int secIdx, const active& timeFactor, double const* y, double const* yDot, active* res)
+{
+	return residualImpl<double, active, active, linalg::BandMatrix::RowIterator, false>(t, secIdx, timeFactor, y, yDot, res, linalg::BandMatrix::RowIterator());
 }
 
 int ConvectionDispersionOperatorBase::residual(const active& t, unsigned int secIdx, const active& timeFactor, active const* y, double const* yDot, active* res)
 {
-	return residualImpl<active, active, active, false>(t, secIdx, timeFactor, y, yDot, res, nullptr);
+	return residualImpl<active, active, active, linalg::BandMatrix::RowIterator, false>(t, secIdx, timeFactor, y, yDot, res, linalg::BandMatrix::RowIterator());
 }
 
-template <typename StateType, typename ResidualType, typename ParamType, bool wantJac>
-int ConvectionDispersionOperatorBase::residualImpl(const ParamType& t, unsigned int secIdx, const ParamType& timeFactor, StateType const* y, double const* yDot, ResidualType* res, linalg::BandMatrix* jac)
-{
-	const ParamType u = static_cast<ParamType>(_curVelocity);
-	if (u >= 0.0)
-		return residualForwardsFlow<StateType, ResidualType, ParamType, wantJac>(t, secIdx, timeFactor, y, yDot, res, jac);
-	else
-		return residualBackwardsFlow<StateType, ResidualType, ParamType, wantJac>(t, secIdx, timeFactor, y, yDot, res, jac);
-}
-
-template <typename StateType, typename ResidualType, typename ParamType, bool wantJac>
-int ConvectionDispersionOperatorBase::residualForwardsFlow(const ParamType& t, unsigned int secIdx, const ParamType& timeFactor, StateType const* y, double const* yDot, ResidualType* res, linalg::BandMatrix* jacMat)
+template <typename StateType, typename ResidualType, typename ParamType, typename RowIteratorType, bool wantJac>
+int ConvectionDispersionOperatorBase::residualImpl(const ParamType& t, unsigned int secIdx, const ParamType& timeFactor, StateType const* y, double const* yDot, ResidualType* res, RowIteratorType jacBegin)
 {
 	const ParamType u = static_cast<ParamType>(_curVelocity);
 	const ParamType d_c = static_cast<ParamType>(getSectionDependentScalar(_colDispersion, secIdx));
 	const ParamType h = static_cast<ParamType>(_colLength) / static_cast<double>(_nCol);
-	const ParamType h2 = h * h;
-
 	const int strideCell = strideColCell();
 
-	// The stencil caches parts of the state vector for better spatial coherence
-	typedef CachingStencil<StateType, ArrayPool> StencilType;
-	StencilType stencil(std::max(_weno.stencilSize(), 3u), _stencilMemory, std::max(_weno.order() - 1, 1));
+	convdisp::FlowParameters<ParamType> fp{
+		u,
+		d_c,
+		h,
+		_wenoDerivatives,
+		&_weno,
+		&_stencilMemory,
+		_wenoEpsilon,
+		strideColCell(),
+		_nComp,
+		_nCol,
+		0u,
+		_nComp
+	};
 
-	// Reset Jacobian
-	if (wantJac)
-		jacMat->setAll(0.0);
-
-	// The RowIterator is always centered on the main diagonal.
-	// This means that jac[0] is the main diagonal, jac[-1] is the first lower diagonal,
-	// and jac[1] is the first upper diagonal. We can also access the rows from left to
-	// right beginning with the last lower diagonal moving towards the main diagonal and
-	// continuing to the last upper diagonal by using the native() method.
-	linalg::BandMatrix::RowIterator jac;
-
-	for (unsigned int comp = 0; comp < _nComp; ++comp)
-	{
-		if (wantJac)
-			jac = jacMat->row(comp);
-
-		// Add time derivative to each cell
-		if (yDot)
-		{
-			for (unsigned int col = 0; col < _nCol; ++col)
-				c<ResidualType>(res, col, comp) = timeFactor * c<double>(yDot, col, comp);
-		}
-		else
-		{
-			for (unsigned int col = 0; col < _nCol; ++col)
-				c<ResidualType>(res, col, comp) = 0.0;
-		}
-
-		// Fill stencil (left side with zeros, right side with states)
-		for (int i = -std::max(_weno.order(), 2) + 1; i < 0; ++i)
-			stencil[i] = 0.0;
-		for (int i = 0; i < std::max(_weno.order(), 2); ++i)
-			stencil[i] = c<StateType>(y, static_cast<unsigned int>(i), comp);
-
-		// Reset WENO output
-		StateType vm(0.0); // reconstructed value
-		if (wantJac)
-			std::fill(_wenoDerivatives, _wenoDerivatives + _weno.stencilSize(), 0.0);
-
-		int wenoOrder = 0;
-
-		// Iterate over all cells
-		for (unsigned int col = 0; col < _nCol; ++col)
-		{
-			// ------------------- Dispersion -------------------
-
-			// Right side, leave out if we're in the last cell (boundary condition)
-			if (cadet_likely(col < _nCol - 1))
-			{
-				c<ResidualType>(res, col, comp) -= d_c / h2 * (stencil[1] - stencil[0]);
-				// Jacobian entries
-				if (wantJac)
-				{
-					jac[0] += static_cast<double>(d_c) / static_cast<double>(h2);
-					jac[strideCell] -= static_cast<double>(d_c) / static_cast<double>(h2);
-				}
-			}
-
-			// Left side, leave out if we're in the first cell (boundary condition)
-			if (cadet_likely(col > 0))
-			{
-				c<ResidualType>(res, col, comp) -= d_c / h2 * (stencil[-1] - stencil[0]);
-				// Jacobian entries
-				if (wantJac)
-				{
-					jac[0]  += static_cast<double>(d_c) / static_cast<double>(h2);
-					jac[-strideCell] -= static_cast<double>(d_c) / static_cast<double>(h2);
-				}
-			}
-
-			// ------------------- Convection -------------------
-
-			// Add convection through this cell's left face
-			if (cadet_likely(col > 0))
-			{
-				// Remember that vm still contains the reconstructed value of the previous 
-				// cell's *right* face, which is identical to this cell's *left* face!
-				c<ResidualType>(res, col, comp) -= u / h * vm;
-
-				// Jacobian entries
-				if (wantJac)
-				{
-					for (int i = 0; i < 2 * wenoOrder - 1; ++i)
-						// Note that we have an offset of -1 here (compared to the right cell face below), since
-						// the reconstructed value depends on the previous stencil (which has now been moved by one cell)
-						jac[(i - wenoOrder) * strideCell] -= static_cast<double>(u) / static_cast<double>(h) * _wenoDerivatives[i];
-				}
-			}
-			else
-			{
-				// In the first cell we need to apply the boundary condition: inflow concentration
-				c<ResidualType>(res, col, comp) -= u / h * y[comp];
-			}
-
-			// Reconstruct concentration on this cell's right face
-			if (wantJac)
-				wenoOrder = _weno.reconstruct<StateType, StencilType>(_wenoEpsilon, col, _nCol, stencil, vm, _wenoDerivatives);
-			else
-				wenoOrder = _weno.reconstruct<StateType, StencilType>(_wenoEpsilon, col, _nCol, stencil, vm);
-
-			// Right side
-			c<ResidualType>(res, col, comp) += u / h * vm;
-			// Jacobian entries
-			if (wantJac)
-			{
-				for (int i = 0; i < 2 * wenoOrder - 1; ++i)
-					jac[(i - wenoOrder + 1) * strideCell] += static_cast<double>(u) / static_cast<double>(h) * _wenoDerivatives[i];
-			}
-
-			// Update stencil
-			const unsigned int shift = std::max(_weno.order(), 2);
-			if (cadet_likely(col + shift < _nCol))
-				stencil.advance(c<StateType>(y, col + shift, comp));
-			else
-				stencil.advance(0.0);
-
-			if (wantJac)
-				jac += strideCell;
-		}
-	}
-
-	// Film diffusion with flux into beads is added in residualFlux() function
-
-	return 0;
-}
-
-template <typename StateType, typename ResidualType, typename ParamType, bool wantJac>
-int ConvectionDispersionOperatorBase::residualBackwardsFlow(const ParamType& t, unsigned int secIdx, const ParamType& timeFactor, StateType const* y, double const* yDot, ResidualType* res, linalg::BandMatrix* jacMat)
-{
-	const ParamType u = static_cast<ParamType>(_curVelocity);
-	const ParamType d_c = static_cast<ParamType>(getSectionDependentScalar(_colDispersion, secIdx));
-	const ParamType h = static_cast<ParamType>(_colLength) / static_cast<double>(_nCol);
-	const ParamType h2 = h * h;
-
-	const int strideCell = strideColCell();
-
-	// The stencil caches parts of the state vector for better spatial coherence
-	typedef CachingStencil<StateType, ArrayPool> StencilType;
-	StencilType stencil(std::max(_weno.stencilSize(), 3u), _stencilMemory, std::max(_weno.order() - 1, 1));
-
-	// Reset Jacobian
-	if (wantJac)
-		jacMat->setAll(0.0);
-
-	// The RowIterator is always centered on the main diagonal.
-	// This means that jac[0] is the main diagonal, jac[-1] is the first lower diagonal,
-	// and jac[1] is the first upper diagonal. We can also access the rows from left to
-	// right beginning with the last lower diagonal moving towards the main diagonal and
-	// continuing to the last upper diagonal by using the native() method.
-	linalg::BandMatrix::RowIterator jac;
-
-	for (unsigned int comp = 0; comp < _nComp; ++comp)
-	{
-		if (wantJac)
-			jac = jacMat->row(strideCell * (_nCol - 1) + comp);
-
-		// Add time derivative to each cell
-		if (yDot)
-		{
-			for (unsigned int col = 0; col < _nCol; ++col)
-				c<ResidualType>(res, col, comp) = timeFactor * c<double>(yDot, col, comp);
-		}
-		else
-		{
-			for (unsigned int col = 0; col < _nCol; ++col)
-				c<ResidualType>(res, col, comp) = 0.0;
-		}
-
-		// Fill stencil (left side with zeros, right side with states)
-		for (int i = -std::max(_weno.order(), 2) + 1; i < 0; ++i)
-			stencil[i] = 0.0;
-		for (int i = 0; i < std::max(_weno.order(), 2); ++i)
-			stencil[i] = c<StateType>(y, _nCol - static_cast<unsigned int>(i) - 1, comp);
-
-		// Reset WENO output
-		StateType vm(0.0); // reconstructed value
-		if (wantJac)
-			std::fill(_wenoDerivatives, _wenoDerivatives + _weno.stencilSize(), 0.0);
-
-		int wenoOrder = 0;
-
-		// Iterate over all cells (backwards)
-		// Note that col wraps around to unsigned int's maximum value after 0
-		for (unsigned int col = _nCol - 1; col < _nCol; --col)
-		{
-			// ------------------- Dispersion -------------------
-
-			// Right side, leave out if we're in the first cell (boundary condition)
-			if (cadet_likely(col < _nCol - 1))
-			{
-				c<ResidualType>(res, col, comp) -= d_c / h2 * (stencil[-1] - stencil[0]);
-				// Jacobian entries
-				if (wantJac)
-				{
-					jac[0] += static_cast<double>(d_c) / static_cast<double>(h2);
-					jac[strideCell] -= static_cast<double>(d_c) / static_cast<double>(h2);
-				}
-			}
-
-			// Left side, leave out if we're in the last cell (boundary condition)
-			if (cadet_likely(col > 0))
-			{
-				c<ResidualType>(res, col, comp) -= d_c / h2 * (stencil[1] - stencil[0]);
-				// Jacobian entries
-				if (wantJac)
-				{
-					jac[0] += static_cast<double>(d_c) / static_cast<double>(h2);
-					jac[-strideCell] -= static_cast<double>(d_c) / static_cast<double>(h2);
-				}
-			}
-
-			// ------------------- Convection -------------------
-
-			// Add convection through this cell's right face
-			if (cadet_likely(col < _nCol - 1))
-			{
-				// Remember that vm still contains the reconstructed value of the previous 
-				// cell's *left* face, which is identical to this cell's *right* face!
-				c<ResidualType>(res, col, comp) += u / h * vm;
-
-				// Jacobian entries
-				if (wantJac)
-				{
-					for (int i = 0; i < 2 * wenoOrder - 1; ++i)
-						// Note that we have an offset of +1 here (compared to the left cell face below), since
-						// the reconstructed value depends on the previous stencil (which has now been moved by one cell)
-						jac[(wenoOrder - i) * strideCell] += static_cast<double>(u) / static_cast<double>(h) * _wenoDerivatives[i];					
-				}
-			}
-			else
-			{
-				// In the last cell (z = L) we need to apply the boundary condition: inflow concentration
-				c<ResidualType>(res, col, comp) += u / h * y[comp];
-			}
-
-			// Reconstruct concentration on this cell's left face
-			if (wantJac)
-				wenoOrder = _weno.reconstruct<StateType, StencilType>(_wenoEpsilon, col, _nCol, stencil, vm, _wenoDerivatives);
-			else
-				wenoOrder = _weno.reconstruct<StateType, StencilType>(_wenoEpsilon, col, _nCol, stencil, vm);
-
-			// Left face
-			c<ResidualType>(res, col, comp) -= u / h * vm;
-			// Jacobian entries
-			if (wantJac)
-			{
-				for (int i = 0; i < 2 * wenoOrder - 1; ++i)
-					jac[(wenoOrder - i - 1) * strideCell] -= static_cast<double>(u) / static_cast<double>(h) * _wenoDerivatives[i];				
-			}
-
-			// Update stencil (be careful because of wrap-around, might cause reading memory very far away [although never used])
-			const unsigned int shift = std::max(_weno.order(), 2);
-			if (cadet_likely(col - shift < _nCol))
-				stencil.advance(c<StateType>(y, col - shift, comp));
-			else
-				stencil.advance(0.0);
-
-			if (wantJac)
-				jac -= strideCell;
-		}
-	}
-
-	// Film diffusion with flux into beads is added in residualFlux() function
-
-	return 0;
+	return convdisp::residualKernel<StateType, ResidualType, ParamType, RowIteratorType, wantJac>(convdisp::SimulationTime<ParamType>{t, secIdx, timeFactor}, y, yDot, res, jacBegin, fp);
 }
 
 /**
@@ -646,18 +378,16 @@ bool ConvectionDispersionOperator::configure(UnitOpIdx unitOpIdx, IParameterProv
  */
 bool ConvectionDispersionOperator::notifyDiscontinuousSectionTransition(double t, unsigned int secIdx, const AdJacobianParams& adJac)
 {
-	_baseOp.notifyDiscontinuousSectionTransition(t, secIdx);
+	const bool hasChanged = _baseOp.notifyDiscontinuousSectionTransition(t, secIdx);
 
 	// Check whether flow direction has changed and we need to update AD vectors
-	const double u = static_cast<double>(_baseOp.currentVelocity());
-	double prevU = _baseOp.previousVelocity(secIdx);
-
 	// Exit if we do not need to setup (secIdx == 0) or change (prevU and u differ in sign) matrices
-	if ((secIdx != 0) && (prevU * u >= 0.0))
+	if ((secIdx != 0) && !hasChanged)
 		return false;
 
 	const unsigned int lb = _baseOp.jacobianLowerBandwidth();
 	const unsigned int ub = _baseOp.jacobianUpperBandwidth();
+	const double u = static_cast<double>(_baseOp.currentVelocity());
 	if (u >= 0.0)
 	{
 		// Forwards flow
@@ -725,9 +455,9 @@ void ConvectionDispersionOperator::setFlowRates(const active& in, const active& 
 int ConvectionDispersionOperator::residual(double t, unsigned int secIdx, double timeFactor, double const* y, double const* yDot, double* res, bool wantJac)
 {
 	if (wantJac)
-		return _baseOp.residual(t, secIdx, timeFactor, y, yDot, res, &_jacC);
+		return _baseOp.residual(t, secIdx, timeFactor, y, yDot, res, _jacC);
 	else
-		return _baseOp.residual(t, secIdx, timeFactor, y, yDot, res, nullptr);
+		return _baseOp.residual(t, secIdx, timeFactor, y, yDot, res);
 }
 
 int ConvectionDispersionOperator::residual(double t, unsigned int secIdx, double timeFactor, active const* y, double const* yDot, active* res, bool wantJac)
@@ -738,9 +468,9 @@ int ConvectionDispersionOperator::residual(double t, unsigned int secIdx, double
 int ConvectionDispersionOperator::residual(const active& t, unsigned int secIdx, const active& timeFactor, double const* y, double const* yDot, active* res, bool wantJac)
 {
 	if (wantJac)
-		return _baseOp.residual(t, secIdx, timeFactor, y, yDot, res, &_jacC);
+		return _baseOp.residual(t, secIdx, timeFactor, y, yDot, res, _jacC);
 	else
-		return _baseOp.residual(t, secIdx, timeFactor, y, yDot, res, nullptr);
+		return _baseOp.residual(t, secIdx, timeFactor, y, yDot, res);
 }
 
 int ConvectionDispersionOperator::residual(const active& t, unsigned int secIdx, const active& timeFactor, active const* y, double const* yDot, active* res, bool wantJac)
