@@ -34,7 +34,7 @@ configure_file("${CMAKE_CURRENT_SOURCE_DIR}/Paths.cpp.in" "${CMAKE_CURRENT_BINAR
 
 set(TEST_ADDITIONAL_SOURCES "")
 if (ENABLE_GRM_2D)
-	list(APPEND TEST_ADDITIONAL_SOURCES SparseFactorizableMatrix.cpp)
+	list(APPEND TEST_ADDITIONAL_SOURCES SparseFactorizableMatrix.cpp TwoDimConvectionDispersionOperator.cpp)
 endif()
 
 add_executable (testRunner testRunner.cpp JsonTestModels.cpp ColumnTests.cpp UnitOperationTests.cpp SimHelper.cpp ParticleHelper.cpp
