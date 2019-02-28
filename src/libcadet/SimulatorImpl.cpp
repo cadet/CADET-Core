@@ -366,7 +366,7 @@ namespace cadet
 			NVec_Destroy(_vecStateY);
 
 		if (_idaMemBlock)
-			IDAFree(&_idaMemBlock);		
+			IDAFree(&_idaMemBlock);
 	}
 
 	void Simulator::initializeModel(IModelSystem& model)
@@ -423,9 +423,6 @@ namespace cadet
 
 		// IDAS Step 7.1: Set optional inputs
 
-		// Attach user data structure
-		IDASetUserData(_idaMemBlock, this);
-
 		// Set time integrator parameters
 		IDASetMaxNumSteps(_idaMemBlock, _maxSteps);
 		IDASetMaxStep(_idaMemBlock, _maxStepSize);
@@ -449,6 +446,7 @@ namespace cadet
 		IDA_mem->ida_setupNonNull   = false;
 #endif
 
+		// Attach user data structure
 		IDASetUserData(_idaMemBlock, this);
 
 		// Allocate memory for AD if required
@@ -492,7 +490,7 @@ namespace cadet
 			NVec_Destroy(absTolTemp);
 		}
 		else
-			IDASStolerances(_idaMemBlock, _relTol, _absTol[0]);		
+			IDASStolerances(_idaMemBlock, _relTol, _absTol[0]);
 	}
 
 	void Simulator::preFwdSensInit(unsigned int nSens)
@@ -1106,7 +1104,7 @@ namespace cadet
 		if (_solRecorder)
 		{
 			_solRecorder->notifyIntegrationStart(NVEC_LENGTH(_vecStateY), _sensitiveParams.slices(), _solutionTimes.size());
-			_model->reportSolutionStructure(*_solRecorder);			
+			_model->reportSolutionStructure(*_solRecorder);
 		}
 
 		// Decide whether to use user specified solution output times (IDA_NORMAL)
