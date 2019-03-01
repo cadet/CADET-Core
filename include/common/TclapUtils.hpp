@@ -22,7 +22,7 @@ namespace TCLAP
 {
 
 	/**
-	 * @brief Modifies the standard behaviour of TCLAP to output a better version notice
+	 * @brief Modifies the standard behavior of TCLAP to output a better version notice
 	 * @details The version notice includes the version of CADET (tag, branch, and commit hash)
 	 *          as well hints to CADET-Web and the GitHub project.
 	 */
@@ -47,7 +47,7 @@ namespace TCLAP
 
 
 	/**
-	 * @brief Modifies the standard behaviour of TCLAP to output a better version notice (without library version)
+	 * @brief Modifies the standard behavior of TCLAP to output a better version notice (without library version)
 	 * @details The version notice includes hints to CADET-Web and the GitHub project.
 	 */
 	class CustomOutputWithoutVersion : public StdOutput

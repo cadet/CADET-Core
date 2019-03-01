@@ -76,7 +76,7 @@ inline bool ExtAntiLangmuirParamHandler::validateConfig(unsigned int nComp, unsi
  * @details Implements the Anti-Langmuir adsorption model: \f[ \begin{align} 
  *              \frac{\mathrm{d}q_i}{\mathrm{d}t} &= k_{a,i} c_{p,i} q_{\text{max},i} \left( 1 - \sum_j p_j \frac{q_j}{q_{\text{max},j}} \right) - k_{d,i} q_i,
  *          \end{align} \f]
- *          where the factor @f$ p_j \in \{ -1, 1\} @f$ determines the behaviour (@c -1 results in Anti-Langmuir, @c +1 in standard Langmuir).
+ *          where the factor @f$ p_j \in \{ -1, 1\} @f$ determines the behavior (@c -1 results in Anti-Langmuir, @c +1 in standard Langmuir).
  *          Multiple bound states are not supported. 
  *          Components without bound state (i.e., non-binding components) are supported.
  * @tparam ParamHandler_t Type that can add support for external function dependence

@@ -132,7 +132,7 @@ public:
 	 * @brief Sets the section time vector
 	 * @details The integration time is partitioned into sections. All parameters and
 	 *          equations are assumed continuous inside one section. Thus, sections
-	 *          provide means to implement discontinuous behaviour (e.g., pulse injection profiles,
+	 *          provide means to implement discontinuous behavior (e.g., pulse injection profiles,
 	 *          switching of valves). After initialization, the simulator notifies all entities
 	 *          such as models or data sources of its section times.
 	 *          
