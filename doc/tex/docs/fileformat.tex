@@ -182,14 +182,14 @@ Note that all components of component dependent datasets have to be section depe
 \footnotesize
 \begin{tabu}to \linewidth[m]{lcc} \toprule
 \rowfont[c]\normalfont Dataset & Component dependent & Section dependent \\ \midrule
-\texttt{COL\_DISPERSION} & & \checkmark \\[0.5ex]
+\texttt{COL\_DISPERSION} & \checkmark & \checkmark \\[0.5ex]
 \texttt{FILM\_DIFFUSION} & \checkmark  & \checkmark \\[0.5ex]
 \texttt{PAR\_DIFFUSION} & \checkmark  & \checkmark \\[0.5ex]
 \texttt{PAR\_SURFDIFFUSION} & \checkmark  & \checkmark \\[0.5ex]
 \texttt{VELOCITY} & & \checkmark \\
 \bottomrule
 \end{tabu}
-\caption[Section dependent datasets in the unit operation models]{\label{tab:FFSectionDependentParams}Section dependent datasets in the unit operation models (\texttt{/input/model/unit\_XXX} group)}
+\caption[Section dependent datasets in the 1D unit operation models]{\label{tab:FFSectionDependentParams}Section dependent datasets in the 1D unit operation models (\texttt{/input/model/unit\_XXX} group)}
 \end{table}
 
 \FloatBarrier
@@ -395,8 +395,23 @@ Note that all components of component dependent datasets have to be section depe
   \begin{dataset}[unit=various,type=double,range={$\mathds{R}$},length={\texttt{NDOF} / $2\texttt{NDOF}$}]{INIT\_STATE}
     Full state vector for initialization (optional, \texttt{INIT\_C}, \texttt{INIT\_CP}, and \texttt{INIT\_Q} will be ignored; if length is $2\texttt{NDOF}$, then the second half is used for time derivatives)
   \end{dataset}
-  \begin{dataset}[unit=\si{\square\metre\of{IV}\per\second},type=double,range={$\geq 0$},length={1 / \texttt{NSEC}}]{COL\_DISPERSION}
+  \begin{dataset}[unit=\si{\square\metre\of{IV}\per\second},type=double,range={$\geq 0$},length={see \texttt{{COL\_DISPERSION\_MULTIPLEX}}}]{COL\_DISPERSION}
     Axial dispersion coefficient
+  \end{dataset}
+  \begin{dataset}[unit=--,type=int,range={$\{0, \dots, 3 \}$},length={1}]{COL\_DISPERSION\_MULTIPLEX}
+    Multiplexing mode of \texttt{COL\_DISPERSION}.
+    Determines whether \texttt{COL\_DISPERSION} is treated as component- and/or section-independent.
+
+    This field is optional.
+    When left out, multiplexing behavior is inferred from the length of \texttt{COL\_DISPERSION}.
+
+    Valid modes are:
+    \begin{description}
+      \item[0] Component-independent, section-independent; length of \texttt{COL\_DISPERSION} is $1$
+      \item[1] Component-dependent, section-independent; length of \texttt{COL\_DISPERSION} is $\texttt{NCOMP}$
+      \item[2] Component-independent, section-dependent; length of \texttt{COL\_DISPERSION} is $\texttt{NSEC}$
+      \item[3] Component-dependent, section-dependent; length of \texttt{COL\_DISPERSION} is $\texttt{NCOMP} \cdot \texttt{NSEC}$; ordering is section-major
+    \end{description}\vspace{-\baselineskip}
   \end{dataset}
   \begin{dataset}[unit=\si{\metre},type=double,range={$> 0$},length={1}]{COL\_LENGTH}
     Column length
@@ -503,8 +518,23 @@ Note that all components of component dependent datasets have to be section depe
   \begin{dataset}[unit=various,type=double,range={$\mathds{R}$},length={\texttt{NDOF} / $2\texttt{NDOF}$}]{INIT\_STATE}
     Full state vector for initialization (optional, \texttt{INIT\_C}, \texttt{INIT\_CP}, and \texttt{INIT\_Q} will be ignored; if length is $2\texttt{NDOF}$, then the second half is used for time derivatives)
   \end{dataset}
-  \begin{dataset}[unit=\si{\square\metre\of{IV}\per\second},type=double,range={$\geq 0$},length={1 / \texttt{NSEC}}]{COL\_DISPERSION}
+  \begin{dataset}[unit=\si{\square\metre\of{IV}\per\second},type=double,range={$\geq 0$},length={see \texttt{{COL\_DISPERSION\_MULTIPLEX}}}]{COL\_DISPERSION}
     Axial dispersion coefficient
+  \end{dataset}
+  \begin{dataset}[unit=--,type=int,range={$\{0, \dots, 3 \}$},length={1}]{COL\_DISPERSION\_MULTIPLEX}
+    Multiplexing mode of \texttt{COL\_DISPERSION}.
+    Determines whether \texttt{COL\_DISPERSION} is treated as component- and/or section-independent.
+
+    This field is optional.
+    When left out, multiplexing behavior is inferred from the length of \texttt{COL\_DISPERSION}.
+
+    Valid modes are:
+    \begin{description}
+      \item[0] Component-independent, section-independent; length of \texttt{COL\_DISPERSION} is $1$
+      \item[1] Component-dependent, section-independent; length of \texttt{COL\_DISPERSION} is $\texttt{NCOMP}$
+      \item[2] Component-independent, section-dependent; length of \texttt{COL\_DISPERSION} is $\texttt{NSEC}$
+      \item[3] Component-dependent, section-dependent; length of \texttt{COL\_DISPERSION} is $\texttt{NCOMP} \cdot \texttt{NSEC}$; ordering is section-major
+    \end{description}\vspace{-\baselineskip}
   \end{dataset}
   \begin{dataset}[unit=\si{\metre},type=double,range={$> 0$},length={1}]{COL\_LENGTH}
     Column length
@@ -586,8 +616,23 @@ Note that all components of component dependent datasets have to be section depe
   \begin{dataset}[unit=various,type=double,range={$\mathds{R}$},length={\texttt{NDOF} / $2\texttt{NDOF}$}]{INIT\_STATE}
     Full state vector for initialization (optional, \texttt{INIT\_C} and \texttt{INIT\_Q} will be ignored; if length is $2\texttt{NDOF}$, then the second half is used for time derivatives)
   \end{dataset}
-  \begin{dataset}[unit=\si{\square\metre\of{IV}\per\second},type=double,range={$\geq 0$},length={1 / \texttt{NSEC}}]{COL\_DISPERSION}
+  \begin{dataset}[unit=\si{\square\metre\of{IV}\per\second},type=double,range={$\geq 0$},length={see \texttt{{COL\_DISPERSION\_MULTIPLEX}}}]{COL\_DISPERSION}
     Axial dispersion coefficient
+  \end{dataset}
+  \begin{dataset}[unit=--,type=int,range={$\{0, \dots, 3 \}$},length={1}]{COL\_DISPERSION\_MULTIPLEX}
+    Multiplexing mode of \texttt{COL\_DISPERSION}.
+    Determines whether \texttt{COL\_DISPERSION} is treated as component- and/or section-independent.
+
+    This field is optional.
+    When left out, multiplexing behavior is inferred from the length of \texttt{COL\_DISPERSION}.
+
+    Valid modes are:
+    \begin{description}
+      \item[0] Component-independent, section-independent; length of \texttt{COL\_DISPERSION} is $1$
+      \item[1] Component-dependent, section-independent; length of \texttt{COL\_DISPERSION} is $\texttt{NCOMP}$
+      \item[2] Component-independent, section-dependent; length of \texttt{COL\_DISPERSION} is $\texttt{NSEC}$
+      \item[3] Component-dependent, section-dependent; length of \texttt{COL\_DISPERSION} is $\texttt{NCOMP} \cdot \texttt{NSEC}$; ordering is section-major
+    \end{description}\vspace{-\baselineskip}
   \end{dataset}
   \begin{dataset}[unit=\si{\metre},type=double,range={$> 0$},length={1}]{COL\_LENGTH}
     Column length
@@ -663,13 +708,24 @@ Note that all components of component dependent datasets have to be section depe
 
 \begin{subgroup}{/input/model/unit\_XXX}{WENO parameters}{tab:FFModelUnitOpDiscretizationWeno}
   \begin{dataset}[type=int,range={$\{ 0,1,2,3 \}$},length=1]{BOUNDARY\_MODEL}
-    Boundary model type: 0 = lower WENO order (stable), 1 = zero weights (unstable for small $D_{\mathrm{ax}}$), 2 = zero weights for p $\neq$ 0 (stable?), 3 = large ghost points
+    Boundary model type:
+    \begin{description}
+      \item[0] Lower WENO order (stable)
+      \item[1] Zero weights (unstable for small $D_{\mathrm{ax}}$)
+      \item[2] Zero weights for $p \neq 0$ (stable?)
+      \item[3] Large ghost points
+    \end{description}\vspace{-\baselineskip}
   \end{dataset}
   \begin{dataset}[type=double,range={$\geq 0$},length=1]{WENO\_EPS}
     WENO $\varepsilon$
   \end{dataset}
   \begin{dataset}[type=int,range={$\{ 1,2,3 \}$},length=1]{WENO\_ORDER}
-    WENO Order: 1 = standard upwind scheme (order 1), 2 (order 3), 3 (order 5); also called WENO $k$
+    WENO order, also called WENO $k$:
+    \begin{description}
+      \item[1] Standard upwind scheme (order 1)
+      \item[1] WENO 2 (order 3)
+      \item[2] WENO 3 (order 5)
+    \end{description}\vspace{-\baselineskip}
   \end{dataset}
 \end{subgroup}
 
@@ -1188,11 +1244,31 @@ This group also takes precedence over a possibly existing \texttt{/input/model/u
   \end{dataset}
   \begin{dataset}[type=int,range={$\{ 0, \dots, 7\}$},length=1]{CONSISTENT\_INIT\_MODE}
     Consistent initialization mode (optional, defaults to $1$).
-    Valid values are 0 (none), 1 (full), 2 (once, full), 3 (lean), 4 (once, lean), 5 (full once, then lean), 6 (none once, then full), and 7 (none once, then lean).
+    Valid values are:
+    \begin{description}
+      \item[0] None
+      \item[1] Full
+      \item[2] Once, full
+      \item[3] Lean
+      \item[4] Once, lean
+      \item[5] Full once, then lean
+      \item[6] None once, then full
+      \item[7] None once, then flean
+    \end{description}\vspace{-\baselineskip}
   \end{dataset}
   \begin{dataset}[type=int,range={$\{ 0, \dots, 7\}$},length=1]{CONSISTENT\_INIT\_MODE\_SENS}
     Consistent initialization mode for parameter sensitivities (optional, defaults to $1$).
-    Valid values are 0 (none), 1 (full), 2 (once, full), 3 (lean), 4 (once, lean), 5 (full once, then lean), 6 (none once, then full), and 7 (none once, then lean).
+    Valid values are:
+    \begin{description}
+      \item[0] None
+      \item[1] Full
+      \item[2] Once, full
+      \item[3] Lean
+      \item[4] Once, lean
+      \item[5] Full once, then lean
+      \item[6] None once, then full
+      \item[7] None once, then flean
+    \end{description}\vspace{-\baselineskip}
   \end{dataset}
 \end{groupscope}
 

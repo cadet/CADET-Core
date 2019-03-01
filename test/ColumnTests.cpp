@@ -697,6 +697,7 @@ namespace column
 					// Run simulation
 					cadet::Driver drv;
 					drv.configure(jppAna);
+					REQUIRE(drv.simulator()->numSensParams() == 1);
 					drv.run();
 
 					// Setup FD simulation

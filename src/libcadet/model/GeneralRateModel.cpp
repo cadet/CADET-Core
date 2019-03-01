@@ -1542,6 +1542,9 @@ bool GeneralRateModel::setParameter(const ParameterId& pId, double value)
 		return true;
 	}
 
+	if (_convDispOp.setParameter(pId, value))
+		return true;
+
 	const bool result = UnitOperationBase::setParameter(pId, value);
 
 	// Check whether particle radius or core radius has changed and update radial discretization if necessary
@@ -1570,6 +1573,9 @@ void GeneralRateModel::setSensitiveParameterValue(const ParameterId& pId, double
 		return;
 	}
 
+	if (_convDispOp.setSensitiveParameterValue(_sensParams, pId, value))
+		return;
+
 	UnitOperationBase::setSensitiveParameterValue(pId, value);
 
 	// Check whether particle radius or core radius has changed and update radial discretization if necessary
@@ -1594,6 +1600,12 @@ bool GeneralRateModel::setSensitiveParameter(const ParameterId& pId, unsigned in
 		for (unsigned int i = 0; i < _disc.nCol; ++i)
 			_parTypeVolFrac[i * _disc.nParType + pId.particleType].setADValue(adDirection, adValue);
 
+		return true;
+	}
+
+	if (_convDispOp.setSensitiveParameter(_sensParams, pId, adDirection, adValue))
+	{
+		LOG(Debug) << "Found parameter " << pId << ": Dir " << adDirection << " is set to " << adValue;
 		return true;
 	}
 

@@ -398,6 +398,7 @@ cadet::JsonParameterProvider createPulseInjectionColumn(const std::string& uoTyp
 			grm["NCOMP"] = 1;
 			grm["VELOCITY"] = 5.75e-4;
 			grm["COL_DISPERSION"] = 5.75e-8;
+			grm["COL_DISPERSION_MULTIPLEX"] = 0;
 			grm["FILM_DIFFUSION"] = {6.9e-6};
 			grm["PAR_DIFFUSION"] = {7e-10};
 			grm["PAR_SURFDIFFUSION"] = {0.0};
@@ -611,6 +612,7 @@ cadet::JsonParameterProvider createLinearBenchmark(bool dynamicBinding, bool non
 			grm["NCOMP"] = 1;
 			grm["VELOCITY"] = 0.5 / (100.0 * 60.0);
 			grm["COL_DISPERSION"] = 0.002 / (100.0 * 100.0 * 60.0);
+			grm["COL_DISPERSION_MULTIPLEX"] = 0;
 			grm["FILM_DIFFUSION"] = {0.01 / (100.0 * 60.0)};
 			grm["PAR_DIFFUSION"] = {3.003e-6};
 			grm["PAR_SURFDIFFUSION"] = {0.0};

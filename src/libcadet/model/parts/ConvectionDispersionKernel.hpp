@@ -48,7 +48,7 @@ template <typename T>
 struct FlowParameters
 {
 	T u;
-	T d_ax;
+	active const* d_ax;
 	T h;
 	double* wenoDerivatives; //!< Holds derivatives of the WENO scheme
 	Weno* weno; //!< The WENO scheme implementation
@@ -116,6 +116,7 @@ namespace impl
 				std::fill(p.wenoDerivatives, p.wenoDerivatives + p.weno->stencilSize(), 0.0);
 
 			int wenoOrder = 0;
+			const ParamType d_ax = static_cast<ParamType>(p.d_ax[comp]);
 
 			// Iterate over all cells
 			for (unsigned int col = 0; col < p.nCol; ++col)
@@ -125,24 +126,24 @@ namespace impl
 				// Right side, leave out if we're in the last cell (boundary condition)
 				if (cadet_likely(col < p.nCol - 1))
 				{
-					resBulkComp[col * p.strideCell] -= p.d_ax / h2 * (stencil[1] - stencil[0]);
+					resBulkComp[col * p.strideCell] -= d_ax / h2 * (stencil[1] - stencil[0]);
 					// Jacobian entries
 					if (wantJac)
 					{
-						jac[0] += static_cast<double>(p.d_ax) / static_cast<double>(h2);
-						jac[p.strideCell] -= static_cast<double>(p.d_ax) / static_cast<double>(h2);
+						jac[0] += static_cast<double>(d_ax) / static_cast<double>(h2);
+						jac[p.strideCell] -= static_cast<double>(d_ax) / static_cast<double>(h2);
 					}
 				}
 
 				// Left side, leave out if we're in the first cell (boundary condition)
 				if (cadet_likely(col > 0))
 				{
-					resBulkComp[col * p.strideCell] -= p.d_ax / h2 * (stencil[-1] - stencil[0]);
+					resBulkComp[col * p.strideCell] -= d_ax / h2 * (stencil[-1] - stencil[0]);
 					// Jacobian entries
 					if (wantJac)
 					{
-						jac[0] += static_cast<double>(p.d_ax) / static_cast<double>(h2);
-						jac[-p.strideCell] -= static_cast<double>(p.d_ax) / static_cast<double>(h2);
+						jac[0] += static_cast<double>(d_ax) / static_cast<double>(h2);
+						jac[-p.strideCell] -= static_cast<double>(d_ax) / static_cast<double>(h2);
 					}
 				}
 
@@ -257,6 +258,7 @@ namespace impl
 				std::fill(p.wenoDerivatives, p.wenoDerivatives + p.weno->stencilSize(), 0.0);
 
 			int wenoOrder = 0;
+			const ParamType d_ax = static_cast<ParamType>(p.d_ax[comp]);
 
 			// Iterate over all cells (backwards)
 			// Note that col wraps around to unsigned int's maximum value after 0
@@ -267,24 +269,24 @@ namespace impl
 				// Right side, leave out if we're in the first cell (boundary condition)
 				if (cadet_likely(col < p.nCol - 1))
 				{
-					resBulkComp[col * p.strideCell] -= p.d_ax / h2 * (stencil[-1] - stencil[0]);
+					resBulkComp[col * p.strideCell] -= d_ax / h2 * (stencil[-1] - stencil[0]);
 					// Jacobian entries
 					if (wantJac)
 					{
-						jac[0] += static_cast<double>(p.d_ax) / static_cast<double>(h2);
-						jac[p.strideCell] -= static_cast<double>(p.d_ax) / static_cast<double>(h2);
+						jac[0] += static_cast<double>(d_ax) / static_cast<double>(h2);
+						jac[p.strideCell] -= static_cast<double>(d_ax) / static_cast<double>(h2);
 					}
 				}
 
 				// Left side, leave out if we're in the last cell (boundary condition)
 				if (cadet_likely(col > 0))
 				{
-					resBulkComp[col * p.strideCell] -= p.d_ax / h2 * (stencil[1] - stencil[0]);
+					resBulkComp[col * p.strideCell] -= d_ax / h2 * (stencil[1] - stencil[0]);
 					// Jacobian entries
 					if (wantJac)
 					{
-						jac[0] += static_cast<double>(p.d_ax) / static_cast<double>(h2);
-						jac[-p.strideCell] -= static_cast<double>(p.d_ax) / static_cast<double>(h2);
+						jac[0] += static_cast<double>(d_ax) / static_cast<double>(h2);
+						jac[-p.strideCell] -= static_cast<double>(d_ax) / static_cast<double>(h2);
 					}
 				}
 

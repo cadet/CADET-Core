@@ -25,6 +25,7 @@
 #include "Weno.hpp"
 
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 namespace cadet
@@ -45,11 +46,11 @@ namespace parts
  * @details Implements the equation
  * 
  * @f[\begin{align}
-	\frac{\partial c_i}{\partial t} &= - u \frac{\partial c_i}{\partial z} + D_{\text{ax}} \frac{\partial^2 c_i}{\partial z^2} \\
+	\frac{\partial c_i}{\partial t} &= - u \frac{\partial c_i}{\partial z} + D_{\text{ax},i} \frac{\partial^2 c_i}{\partial z^2} \\
 \end{align} @f]
  * with Danckwerts boundary conditions (see @cite Danckwerts1953)
 @f[ \begin{align}
-u c_{\text{in},i}(t) &= u c_i(t,0) - D_{\text{ax}} \frac{\partial c_i}{\partial z}(t,0) \\
+u c_{\text{in},i}(t) &= u c_i(t,0) - D_{\text{ax},i} \frac{\partial c_i}{\partial z}(t,0) \\
 \frac{\partial c_i}{\partial z}(t,L) &= 0
 \end{align} @f]
  * Methods are described in @cite VonLieres2010a (WENO, linear solver), and @cite Puttmann2013, @cite Puttmann2016 (forward sensitivities, AD, band compression)
@@ -93,6 +94,10 @@ public:
 	unsigned int jacobianUpperBandwidth() const CADET_NOEXCEPT;
 	unsigned int jacobianDiscretizedBandwidth() const CADET_NOEXCEPT;
 
+	bool setParameter(const ParameterId& pId, double value);
+	bool setSensitiveParameter(std::unordered_set<active*>& sensParams, const ParameterId& pId, unsigned int adDirection, double adValue);
+	bool setSensitiveParameterValue(const std::unordered_set<active*>& sensParams, const ParameterId& id, double value);
+
 protected:
 
 	template <typename StateType, typename ResidualType, typename ParamType, typename RowIteratorType, bool wantJac>
@@ -121,6 +126,8 @@ protected:
 	Weno _weno; //!< The WENO scheme implementation
 	double _wenoEpsilon; //!< The @f$ \varepsilon @f$ of the WENO scheme (prevents division by zero)
 
+	bool _dispersionCompIndep; //!< Determines whether dispersion is component independent
+
 	// Indexer functionality
 
 	// Strides
@@ -137,11 +144,11 @@ protected:
  * @details Implements the equation
  * 
  * @f[\begin{align}
-	\frac{\partial c_i}{\partial t} &= - u \frac{\partial c_i}{\partial z} + D_{\text{ax}} \frac{\partial^2 c_i}{\partial z^2} \\
+	\frac{\partial c_i}{\partial t} &= - u \frac{\partial c_i}{\partial z} + D_{\text{ax},i} \frac{\partial^2 c_i}{\partial z^2} \\
 \end{align} @f]
  * with Danckwerts boundary conditions (see @cite Danckwerts1953)
 @f[ \begin{align}
-u c_{\text{in},i}(t) &= u c_i(t,0) - D_{\text{ax}} \frac{\partial c_i}{\partial z}(t,0) \\
+u c_{\text{in},i}(t) &= u c_i(t,0) - D_{\text{ax},i} \frac{\partial c_i}{\partial z}(t,0) \\
 \frac{\partial c_i}{\partial z}(t,L) &= 0
 \end{align} @f]
  * Methods are described in @cite VonLieres2010a (WENO, linear solver), and @cite Puttmann2013, @cite Puttmann2016 (forward sensitivities, AD, band compression)
@@ -193,6 +200,20 @@ public:
 
 	inline linalg::FactorizableBandMatrix& jacobianDisc() CADET_NOEXCEPT { return _jacCdisc; }
 	inline const linalg::FactorizableBandMatrix& jacobianDisc() const CADET_NOEXCEPT { return _jacCdisc; }
+
+	inline bool setParameter(const ParameterId& pId, double value)
+	{
+		return _baseOp.setParameter(pId, value);
+	}
+	inline bool setSensitiveParameter(std::unordered_set<active*>& sensParams, const ParameterId& pId, unsigned int adDirection, double adValue)
+	{
+		return _baseOp.setSensitiveParameter(sensParams, pId, adDirection, adValue);
+	}
+	inline bool setSensitiveParameterValue(const std::unordered_set<active*>& sensParams, const ParameterId& id, double value)
+	{
+		return _baseOp.setSensitiveParameterValue(sensParams, id, value);
+	}
+
 protected:
 
 	void addTimeDerivativeToJacobian(double alpha, double timeFactor);

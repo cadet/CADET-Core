@@ -1419,6 +1419,33 @@ void LumpedRateModelWithoutPores::leanConsistentInitialSensitivity(const ActiveS
 	}
 }
 
+bool LumpedRateModelWithoutPores::setParameter(const ParameterId& pId, double value)
+{
+	if (_convDispOp.setParameter(pId, value))
+		return true;
+
+	return UnitOperationBase::setParameter(pId, value);
+}
+
+void LumpedRateModelWithoutPores::setSensitiveParameterValue(const ParameterId& pId, double value)
+{
+	if (_convDispOp.setSensitiveParameterValue(_sensParams, pId, value))
+		return;
+
+	UnitOperationBase::setSensitiveParameterValue(pId, value);
+}
+
+bool LumpedRateModelWithoutPores::setSensitiveParameter(const ParameterId& pId, unsigned int adDirection, double adValue)
+{
+	if (_convDispOp.setSensitiveParameter(_sensParams, pId, adDirection, adValue))
+	{
+		LOG(Debug) << "Found parameter " << pId << ": Dir " << adDirection << " is set to " << adValue;
+		return true;
+	}
+
+	return UnitOperationBase::setSensitiveParameter(pId, adDirection, adValue);
+}
+
 void registerLumpedRateModelWithoutPores(std::unordered_map<std::string, std::function<IUnitOperation*(UnitOpIdx)>>& models)
 {
 	models[LumpedRateModelWithoutPores::identifier()] = [](UnitOpIdx uoId) { return new LumpedRateModelWithoutPores(uoId); };

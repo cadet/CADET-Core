@@ -44,12 +44,12 @@ namespace model
  * @details See @cite Guiochon2006, @cite Gu1995, @cite Felinger2004
  * 
  * @f[\begin{align}
-	\frac{\partial c_i}{\partial t} + \frac{1 - \varepsilon_t}{\varepsilon_t} \frac{\partial q_{i}}{\partial t} &= - u \frac{\partial c_i}{\partial z} + D_{\text{ax}} \frac{\partial^2 c_i}{\partial z^2} \\
+	\frac{\partial c_i}{\partial t} + \frac{1 - \varepsilon_t}{\varepsilon_t} \frac{\partial q_{i}}{\partial t} &= - u \frac{\partial c_i}{\partial z} + D_{\text{ax},i} \frac{\partial^2 c_i}{\partial z^2} \\
 	a \frac{\partial q_i}{\partial t} &= f_{\text{iso}}(c, q)
 \end{align} @f]
  * Danckwerts boundary conditions (see @cite Danckwerts1953)
 @f[ \begin{align}
-u c_{\text{in},i}(t) &= u c_i(t,0) - D_{\text{ax}} \frac{\partial c_i}{\partial z}(t,0) \\
+u c_{\text{in},i}(t) &= u c_i(t,0) - D_{\text{ax},i} \frac{\partial c_i}{\partial z}(t,0) \\
 \frac{\partial c_i}{\partial z}(t,L) &= 0
 \end{align} @f]
  * Methods are described in @cite VonLieres2010a (WENO, linear solver), @cite Puttmann2013 @cite Puttmann2016 (forward sensitivities, AD, band compression)
@@ -134,6 +134,10 @@ public:
 	{
 		multiplyWithJacobian(simTime, simState, yS, 1.0, 0.0, ret);
 	}
+
+	virtual bool setParameter(const ParameterId& pId, double value);
+	virtual bool setSensitiveParameter(const ParameterId& pId, unsigned int adDirection, double adValue);
+	virtual void setSensitiveParameterValue(const ParameterId& id, double value);
 
 #ifdef CADET_BENCHMARK_MODE
 	virtual std::vector<double> benchmarkTimings() const

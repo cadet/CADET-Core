@@ -18,6 +18,7 @@
 #include "AdUtils.hpp"
 #include "SimulationTypes.hpp"
 #include "model/parts/ConvectionDispersionKernel.hpp"
+#include "SensParamUtil.hpp"
 
 #include "LoggingUtils.hpp"
 #include "Logging.hpp"
@@ -102,7 +103,47 @@ bool ConvectionDispersionOperatorBase::configure(UnitOpIdx unitOpIdx, IParameter
 	{
 		readScalarParameterOrArray(_velocity, paramProvider, "VELOCITY", 1);
 	}
+
 	readScalarParameterOrArray(_colDispersion, paramProvider, "COL_DISPERSION", 1);
+	if (paramProvider.exists("COL_DISPERSION_MULTIPLEX"))
+	{
+		const int mode = paramProvider.getInt("COL_DISPERSION_MULTIPLEX");
+		if (mode == 0)
+			// Comp-indep, sec-indep
+			_dispersionCompIndep = true;
+		else if (mode == 1)
+			// Comp-dep, sec-indep
+			_dispersionCompIndep = false;
+		else if (mode == 2)
+			// Comp-indep, sec-dep
+			_dispersionCompIndep = true;
+		else if (mode == 3)
+			// Comp-dep, sec-dep
+			_dispersionCompIndep = false;
+
+		if (!_dispersionCompIndep && (_colDispersion.size() % _nComp != 0))
+			throw InvalidParameterException("Number of elements in field COL_DISPERSION is not a positive multiple of NCOMP (" + std::to_string(_nComp) + ")");
+		if ((mode == 0) && (_colDispersion.size() != 1))
+			throw InvalidParameterException("Number of elements in field COL_DISPERSION inconsistent with COL_DISPERSION_MULTIPLEX (should be 1)");
+		if ((mode == 1) && (_colDispersion.size() != _nComp))
+			throw InvalidParameterException("Number of elements in field COL_DISPERSION inconsistent with COL_DISPERSION_MULTIPLEX (should be " + std::to_string(_nComp) + ")");
+	}
+	else
+	{
+		// Infer component dependence of COL_DISPERSION:
+		//   size not divisible by NCOMP -> component independent
+		_dispersionCompIndep = ((_colDispersion.size() % _nComp) != 0);
+	}
+
+	// Expand _colDispersion to make it component dependent
+	if (_dispersionCompIndep)
+	{
+		std::vector<active> expanded(_colDispersion.size() * _nComp);
+		for (unsigned int i = 0; i < _colDispersion.size(); ++i)
+			std::fill(expanded.begin() + i * _nComp, expanded.begin() + (i + 1) * _nComp, _colDispersion[i]);
+
+		_colDispersion = std::move(expanded);
+	}
 
 	if (_velocity.empty() && (_crossSection <= 0.0))
 	{
@@ -110,7 +151,23 @@ bool ConvectionDispersionOperatorBase::configure(UnitOpIdx unitOpIdx, IParameter
 	}
 
 	// Add parameters to map
-	registerScalarSectionDependentParam(hashString("COL_DISPERSION"), parameters, _colDispersion, unitOpIdx, ParTypeIndep);
+	if (_dispersionCompIndep)
+	{
+		if (_colDispersion.size() > _nComp)
+		{
+			// Register only the first item in each section
+			for (unsigned int i = 0; i < _colDispersion.size() / _nComp; ++i)
+				parameters[makeParamId(hashString("COL_DISPERSION"), unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, i)] = &_colDispersion[i * _nComp];
+		}
+		else
+		{
+			// We have only one parameter
+			parameters[makeParamId(hashString("COL_DISPERSION"), unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_colDispersion[0];
+		}
+	}
+	else
+		registerParam2DArray(parameters, _colDispersion, [=](bool multi, unsigned int sec, unsigned int comp) { return makeParamId(hashString("COL_DISPERSION"), unitOpIdx, comp, ParTypeIndep, BoundStateIndep, ReactionIndep, multi ? sec : SectionIndep); }, _nComp);
+
 	registerScalarSectionDependentParam(hashString("VELOCITY"), parameters, _velocity, unitOpIdx, ParTypeIndep);
 	parameters[makeParamId(hashString("COL_LENGTH"), unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_colLength;
 	parameters[makeParamId(hashString("CROSS_SECTION_AREA"), unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_crossSection;
@@ -211,7 +268,7 @@ template <typename StateType, typename ResidualType, typename ParamType, typenam
 int ConvectionDispersionOperatorBase::residualImpl(const ParamType& t, unsigned int secIdx, const ParamType& timeFactor, StateType const* y, double const* yDot, ResidualType* res, RowIteratorType jacBegin)
 {
 	const ParamType u = static_cast<ParamType>(_curVelocity);
-	const ParamType d_c = static_cast<ParamType>(getSectionDependentScalar(_colDispersion, secIdx));
+	active const* const d_c = getSectionDependentSlice(_colDispersion, _nComp, secIdx);
 	const ParamType h = static_cast<ParamType>(_colLength) / static_cast<double>(_nCol);
 	const int strideCell = strideColCell();
 
@@ -304,6 +361,108 @@ unsigned int ConvectionDispersionOperatorBase::jacobianDiscretizedBandwidth() co
 	// Hence, we have to reserve memory such that the swapped Jacobian can fit into the matrix.
 	return std::max(jacobianLowerBandwidth(), jacobianUpperBandwidth());
 }
+
+bool ConvectionDispersionOperatorBase::setParameter(const ParameterId& pId, double value)
+{
+	// We only need to do something if COL_DISPERSION is component independent
+	if (!_dispersionCompIndep)
+		return false;
+
+	if ((pId.name != hashString("COL_DISPERSION")) || (pId.component != CompIndep) || (pId.boundState != BoundStateIndep) || (pId.reaction != ReactionIndep) || (pId.particleType != ParTypeIndep))
+		return false;
+
+	if (_colDispersion.size() > _nComp)
+	{
+		// Section dependent
+		if (pId.section == SectionIndep)
+			return false;
+
+		for (unsigned int i = 0; i < _nComp; ++i)
+			_colDispersion[pId.section * _nComp + i].setValue(value);
+	}
+	else
+	{
+		// Section independent
+		if (pId.section != SectionIndep)
+			return false;
+
+		for (unsigned int i = 0; i < _nComp; ++i)
+			_colDispersion[i].setValue(value);
+	}
+
+	return true;
+}
+
+bool ConvectionDispersionOperatorBase::setSensitiveParameterValue(const std::unordered_set<active*>& sensParams, const ParameterId& pId, double value)
+{
+	// We only need to do something if COL_DISPERSION is component independent
+	if (!_dispersionCompIndep)
+		return false;
+
+	if ((pId.name != hashString("COL_DISPERSION")) || (pId.component != CompIndep) || (pId.boundState != BoundStateIndep) || (pId.reaction != ReactionIndep) || (pId.particleType != ParTypeIndep))
+		return false;
+
+	if (_colDispersion.size() > _nComp)
+	{
+		// Section dependent
+		if (pId.section == SectionIndep)
+			return false;
+
+		if (!contains(sensParams, &_colDispersion[pId.section * _nComp]))
+			return false;
+
+		for (unsigned int i = 0; i < _nComp; ++i)
+			_colDispersion[pId.section * _nComp + i].setValue(value);
+	}
+	else
+	{
+		// Section independent
+		if (pId.section != SectionIndep)
+			return false;
+
+		if (!contains(sensParams, &_colDispersion[0]))
+			return false;
+
+		for (unsigned int i = 0; i < _nComp; ++i)
+			_colDispersion[i].setValue(value);
+	}
+
+	return true;
+}
+
+bool ConvectionDispersionOperatorBase::setSensitiveParameter(std::unordered_set<active*>& sensParams, const ParameterId& pId, unsigned int adDirection, double adValue)
+{
+	// We only need to do something if COL_DISPERSION is component independent
+	if (!_dispersionCompIndep)
+		return false;
+
+	if ((pId.name != hashString("COL_DISPERSION")) || (pId.component != CompIndep) || (pId.boundState != BoundStateIndep) || (pId.reaction != ReactionIndep) || (pId.particleType != ParTypeIndep))
+		return false;
+
+	if (_colDispersion.size() > _nComp)
+	{
+		// Section dependent
+		if (pId.section == SectionIndep)
+			return false;
+
+		sensParams.insert(&_colDispersion[pId.section * _nComp]);
+		for (unsigned int i = 0; i < _nComp; ++i)
+			_colDispersion[pId.section * _nComp + i].setADValue(adDirection, adValue);
+	}
+	else
+	{
+		// Section independent
+		if (pId.section != SectionIndep)
+			return false;
+
+		sensParams.insert(&_colDispersion[0]);
+		for (unsigned int i = 0; i < _nComp; ++i)
+			_colDispersion[i].setADValue(adDirection, adValue);
+	}
+
+	return true;
+}
+
 
 
 /**

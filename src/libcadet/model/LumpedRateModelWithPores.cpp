@@ -1182,6 +1182,9 @@ bool LumpedRateModelWithPores::setParameter(const ParameterId& pId, double value
 		return true;
 	}
 
+	if (_convDispOp.setParameter(pId, value))
+		return true;
+
 	return UnitOperationBase::setParameter(pId, value);
 }
 
@@ -1204,6 +1207,9 @@ void LumpedRateModelWithPores::setSensitiveParameterValue(const ParameterId& pId
 		return;
 	}
 
+	if (_convDispOp.setSensitiveParameterValue(_sensParams, pId, value))
+		return;
+
 	UnitOperationBase::setSensitiveParameterValue(pId, value);
 }
 
@@ -1224,6 +1230,12 @@ bool LumpedRateModelWithPores::setSensitiveParameter(const ParameterId& pId, uns
 		for (unsigned int i = 0; i < _disc.nCol; ++i)
 			_parTypeVolFrac[i * _disc.nParType + pId.particleType].setADValue(adDirection, adValue);
 
+		return true;
+	}
+
+	if (_convDispOp.setSensitiveParameter(_sensParams, pId, adDirection, adValue))
+	{
+		LOG(Debug) << "Found parameter " << pId << ": Dir " << adDirection << " is set to " << adValue;
 		return true;
 	}
 

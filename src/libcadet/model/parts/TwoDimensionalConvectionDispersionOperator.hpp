@@ -44,11 +44,11 @@ namespace parts
  * @details Implements the equation
  * 
  * @f[\begin{align}
-	\frac{\partial c_i}{\partial t} &= - u \frac{\partial c_i}{\partial z} + D_{\text{ax}} \frac{\partial^2 c_i}{\partial z^2} + \frac{1}{\rho} \frac{\partial}{\partial \rho} \left( \rho D_{\rho} \frac{\partial c_i}{\partial \rho} \right) \\
+	\frac{\partial c_i}{\partial t} &= - u \frac{\partial c_i}{\partial z} + D_{\text{ax},i}(\rho) \frac{\partial^2 c_i}{\partial z^2} + \frac{1}{\rho} \frac{\partial}{\partial \rho} \left( \rho D_{\rho} \frac{\partial c_i}{\partial \rho} \right) \\
 \end{align} @f]
  * with Danckwerts boundary conditions on the axial boundary (see @cite Danckwerts1953)
 @f[ \begin{align}
-u c_{\text{in},i}(t) &= u c_i(t,0,\rho) - D_{\text{ax}} \frac{\partial c_i}{\partial z}(t,0,\rho) \\
+u c_{\text{in},i}(t) &= u c_i(t,0,\rho) - D_{\text{ax},i}(\rho) \frac{\partial c_i}{\partial z}(t,0,\rho) \\
 \frac{\partial c_i}{\partial z}(t,L,\rho) &= 0
 \end{align} @f]
  * and Neumann boundary conditions on the radial boundary

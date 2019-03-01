@@ -218,13 +218,13 @@ The GRM describes transport of solute molecules through the interstitial column 
 Consider a column of length $L>0$ filled with spherical beads of (possibly) multiple types with radius $r_{p,j} \ll L$ (see Fig.~\ref{fig:ModelGRMColumn}), where $j$ is the particle type index. 
 The mass balance in the interstitial column volume is described by
 \begin{align}
-	\frac{\partial c^l_i}{\partial t} &= -u \frac{\partial c^l_i}{\partial z} + D_{\text{ax}} \frac{\partial^2 c^l_i}{\partial z^2} - \frac{1}{\beta_c} \sum_j d_j \frac{3}{r_{p,j}} k_{f,j,i} \left[ c^l_i - c^p_{j,i}(\cdot, \cdot, r_{p,j}) \right]. \label{eq:ModelColumn}
+	\frac{\partial c^l_i}{\partial t} &= -u \frac{\partial c^l_i}{\partial z} + D_{\text{ax},i} \frac{\partial^2 c^l_i}{\partial z^2} - \frac{1}{\beta_c} \sum_j d_j \frac{3}{r_{p,j}} k_{f,j,i} \left[ c^l_i - c^p_{j,i}(\cdot, \cdot, r_{p,j}) \right]. \label{eq:ModelColumn}
 \end{align}
-Here, $c^l_i\colon \left[0, T_{\text{end}}\right] \times [0, L] \rightarrow \mathds{R}^{\geq 0}$ denotes the concentration in the interstitial column volume, $c^p_{j,i}\colon \left[0, T_{\text{end}}\right] \times [0, L] \times [r_{c,j}, r_{p,j}] \rightarrow \mathds{R}^{\geq 0}$ the liquid phase concentration in the beads, $k_{f,j,i}$ the film diffusion coefficient, $D_{\text{ax}}$ the dispersion coefficient, $u$ the interstitial velocity, $d_j$ the volume fraction of particle type $j$, and $\beta_c = \varepsilon_c / (1 - \varepsilon_c)$ the column phase ratio, where $\varepsilon_c$ is the column porosity (ratio of interstitial volume to total column volume).
+Here, $c^l_i\colon \left[0, T_{\text{end}}\right] \times [0, L] \rightarrow \mathds{R}^{\geq 0}$ denotes the concentration in the interstitial column volume, $c^p_{j,i}\colon \left[0, T_{\text{end}}\right] \times [0, L] \times [r_{c,j}, r_{p,j}] \rightarrow \mathds{R}^{\geq 0}$ the liquid phase concentration in the beads, $k_{f,j,i}$ the film diffusion coefficient, $D_{\text{ax},i}$ the dispersion coefficient, $u$ the interstitial velocity, $d_j$ the volume fraction of particle type $j$, and $\beta_c = \varepsilon_c / (1 - \varepsilon_c)$ the column phase ratio, where $\varepsilon_c$ is the column porosity (ratio of interstitial volume to total column volume).
 
 Danckwerts boundary conditions \cite{Danckwerts1953} are applied to inlet and outlet of the column:
 \begin{align}
-	u c_{\text{in},i}(t) &= u c^l_i(t,0) - D_{\text{ax}} \frac{\partial c^l_i}{\partial z}(t, 0) \label{eq:BCInlet} & \forall t > 0,\\
+	u c_{\text{in},i}(t) &= u c^l_i(t,0) - D_{\text{ax},i} \frac{\partial c^l_i}{\partial z}(t, 0) \label{eq:BCInlet} & \forall t > 0,\\
 	\frac{\partial c^l_i}{\partial z}(t, L) &= 0 & \forall t > 0. \label{eq:BCOutlet}
 \end{align}
 Note that the outlet boundary condition Eq.~\eqref{eq:BCOutlet} is also known as ``do nothing'' or natural outflow condition.
@@ -471,13 +471,13 @@ The lumped rate model with pores \index{Model!Lumped rate model with pores}\inde
 The particle phase $c^p_j$ is still there, but no mass transfer happens except for binding and film diffusion.
 Hence, the model equations are given by
 \begin{align}
-	\frac{\partial c^l_i}{\partial t} &= -u \frac{\partial c^l_i}{\partial z} + D_{\text{ax}} \frac{\partial^2 c^l_i}{\partial z^2} - \frac{1}{\beta_c} \sum_{j} d_j \frac{3}{r_{p,j}} k_{f,j,i}\left[ c^l_i - c^p_{j,i} \right], \\
+	\frac{\partial c^l_i}{\partial t} &= -u \frac{\partial c^l_i}{\partial z} + D_{\text{ax},i} \frac{\partial^2 c^l_i}{\partial z^2} - \frac{1}{\beta_c} \sum_{j} d_j \frac{3}{r_{p,j}} k_{f,j,i}\left[ c^l_i - c^p_{j,i} \right], \\
 	\frac{\pdiff c^p_{j,i}}{\pdiff t} + \frac{1 - \varepsilon_{p,j}}{F_{\text{acc},j,i} \varepsilon_{p,j}} \frac{\pdiff}{\pdiff t} \sum_{m_{j,i}} c^s_{j,i,m_{j,i}} &= \frac{3}{F_{\text{acc},j,i} \varepsilon_{p,j} r_{p,j}}k_{f,j,i}\left[ c^l_i - c^p_{j,i} \right]
 \end{align}
 with the same meanings of variables and parameters as in the general rate model. 
 The equations are complemented by Danckwerts boundary conditions \cite{Danckwerts1953}
 \begin{align*}
-	u c_{\text{in},i}(t) &= u c^l_i(t,0) - D_{\text{ax}} \frac{\partial c^l_i}{\partial z}(t, 0) & \forall t > 0,\\
+	u c_{\text{in},i}(t) &= u c^l_i(t,0) - D_{\text{ax},i} \frac{\partial c^l_i}{\partial z}(t, 0) & \forall t > 0,\\
 	\frac{\partial c^l_i}{\partial z}(t, L) &= 0 & \forall t > 0.
 \end{align*}
 
@@ -506,12 +506,12 @@ The particle phase $c^p$ is removed and the porosity $\varepsilon_t$ is taken as
 The phase ratio is denoted by $\beta_t = \varepsilon_t / (1 - \varepsilon_t)$ accordingly.
 The model equations are given by
 \begin{align}
-	\frac{\partial c^l_i}{\partial t} + \frac{1}{\beta_t} \frac{\pdiff}{\pdiff t} \sum_{m_i} c^s_{i,m_i} &= -u \frac{\partial c^l_i}{\partial z} + D_{\text{ax}} \frac{\partial^2 c^l_i}{\partial z^2},
+	\frac{\partial c^l_i}{\partial t} + \frac{1}{\beta_t} \frac{\pdiff}{\pdiff t} \sum_{m_i} c^s_{i,m_i} &= -u \frac{\partial c^l_i}{\partial z} + D_{\text{ax},i} \frac{\partial^2 c^l_i}{\partial z^2},
 \end{align}
 where $\beta_t = \varepsilon_t / (1 - \varepsilon_t)$ denotes the (total) phase ratio.
 The equations are complemented by Danckwerts boundary conditions \cite{Danckwerts1953}
 \begin{align*}
-	u c_{\text{in},i}(t) &= u c^l_i(t,0) - D_{\text{ax}} \frac{\partial c^l_i}{\partial z}(t, 0) & \forall t > 0,\\
+	u c_{\text{in},i}(t) &= u c^l_i(t,0) - D_{\text{ax},i} \frac{\partial c^l_i}{\partial z}(t, 0) & \forall t > 0,\\
 	\frac{\partial c^l_i}{\partial z}(t, L) &= 0 & \forall t > 0.
 \end{align*}
 

@@ -367,7 +367,7 @@ void testBulkJacobianSparsityWeno(int wenoOrder, bool forwardFlow)
 		int nCol = 20;
 
 		const double u = (forwardFlow ? 1e-3 : -1e-3);
-		const double d_c = 1e-6;
+		const std::vector<cadet::active> d_c(nComp, 1e-6);
 		const double h = 1e-3 / nCol;
 		const int strideCell = nComp;
 
@@ -380,7 +380,7 @@ void testBulkJacobianSparsityWeno(int wenoOrder, bool forwardFlow)
 
 		cadet::model::parts::convdisp::FlowParameters<double> fp{
 			u,
-			d_c,
+			d_c.data(),
 			h,
 			wenoDerivatives.data(),
 			&weno,
@@ -441,7 +441,7 @@ void testBulkJacobianSparseBandedWeno(int wenoOrder, bool forwardFlow)
 		int nCol = 20;
 
 		const double u = (forwardFlow ? 1e-3 : -1e-3);
-		const double d_c = 1e-6;
+		const std::vector<cadet::active> d_c(nComp, 1e-6);
 		const double h = 1e-3 / nCol;
 		const int strideCell = nComp;
 
@@ -454,7 +454,7 @@ void testBulkJacobianSparseBandedWeno(int wenoOrder, bool forwardFlow)
 
 		cadet::model::parts::convdisp::FlowParameters<double> fp{
 			u,
-			d_c,
+			d_c.data(),
 			h,
 			wenoDerivatives.data(),
 			&weno,

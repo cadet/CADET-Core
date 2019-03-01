@@ -519,11 +519,11 @@ int TwoDimensionalConvectionDispersionOperator::residualImpl(const ParamType& t,
 	const ParamType h = static_cast<ParamType>(_colLength) / static_cast<double>(_nCol);
 	for (unsigned int i = 0; i < _nRad; ++i)
 	{
-		active const* const d_c = getSectionDependentSlice(_axialDispersion, _nRad * _nComp, secIdx);
+		active const* const d_c = getSectionDependentSlice(_axialDispersion, _nRad * _nComp, secIdx) + i * _nComp;
 
 		convdisp::FlowParameters<ParamType> fp{
 			static_cast<ParamType>(_curVelocity[i]),
-			static_cast<ParamType>(d_c[i * _nComp]),
+			d_c,
 			h,
 			_wenoDerivatives,
 			&_weno,

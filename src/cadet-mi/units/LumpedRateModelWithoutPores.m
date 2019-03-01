@@ -334,8 +334,8 @@ classdef LumpedRateModelWithoutPores < Model
 				end
 			end
 
-			if (numel(obj.dispersionColumn) ~= 1) && (numel(obj.dispersionColumn) ~= nSections)
-				error('CADET:invalidConfig', 'Expected dispersionColumn to be of size %d or %d (number of time sections).', 1, nSections);
+			if (numel(obj.dispersionColumn) ~= 1) && (numel(obj.dispersionColumn) ~= nSections) && (numel(obj.dispersionColumn) ~= nComponents) && (numel(obj.dispersionColumn) ~= nComponents * nSections)
+				error('CADET:invalidConfig', 'Expected dispersionColumn to be of size %d, %d, %d, or %d.', 1, nComponents, nSections, nComponents * nSections);
 			end
 			if ~isempty(obj.interstitialVelocity)
 				if (numel(obj.interstitialVelocity) ~= 1) && (numel(obj.interstitialVelocity) ~= nSections)
