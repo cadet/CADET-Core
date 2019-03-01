@@ -250,6 +250,9 @@ std::vector<int> JsonParameterProvider::getIntArray(const std::string& paramName
 	const json& p = _opened.top()->at(paramName);
 	if (p.is_array())
 	{
+		if (p.size() == 0)
+			return std::vector<int>(0);
+
 		if (p[0].is_boolean())
 		{
 			const std::vector<bool> d = p.template get<std::vector<bool>>();
@@ -307,6 +310,9 @@ std::vector<bool> JsonParameterProvider::getBoolArray(const std::string& paramNa
 	const json& p = _opened.top()->at(paramName);
 	if (p.is_array())
 	{
+		if (p.size() == 0)
+			return std::vector<bool>(0);
+
 		if (p[0].is_number_integer())
 		{
 			const std::vector<int> d = p.template get<std::vector<int>>();
