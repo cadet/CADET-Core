@@ -18,6 +18,8 @@ classdef Model < handle & matlab.mixin.Heterogeneous
 		name; % Name of the model according to CADET file format specs
 		hasInlet; % Determines whether the unit operation has an inlet
 		hasOutlet; % Determines whether the unit operation has an outlet
+		nInletPorts; % Number of inlet ports
+		nOutletPorts; % Number of outlet ports
 	end
 
 	properties (Dependent, Transient)

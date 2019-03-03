@@ -73,6 +73,8 @@ classdef GeneralRateModel < Model
 		name = 'GENERAL_RATE_MODEL'; % Type of the model according to CADET file format specs
 		hasInlet = true; % Determines whether the unit operation has an inlet
 		hasOutlet = true; % Determines whether the unit operation has an outlet
+		nInletPorts = 1; % Number of inlet ports
+		nOutletPorts = 1; % Number of outlet ports
 	end
 
 	methods

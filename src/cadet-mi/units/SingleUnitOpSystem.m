@@ -353,7 +353,7 @@ classdef SingleUnitOpSystem < handle
 			end
 
 			% Assemble switches
-			conMat = [1, 0, -1, -1, obj.flowRate].';
+			conMat = [1, 0, -1, -1, -1, -1, obj.flowRate].';
 			res.connections.NSWITCHES = int32(1);
 			res.connections.switch_000 = [];
 			res.connections.switch_000.SECTION = int32(0);

@@ -59,7 +59,7 @@ namespace unitoperation
 		// Setup matrices
 		unit->notifyDiscontinuousSectionTransition(0.0, 0u, adParams);
 
-		// Obtain memory for state, Jacobian multiply direction, Jacobian column
+		// Obtain memory
 		std::vector<double> yDot(unit->numDofs(), 0.0);
 		std::vector<double> res(unit->numDofs(), 0.0);
 
@@ -116,7 +116,7 @@ namespace unitoperation
 		const ActiveSimulationTime simTime{0.0, 0u, 1.0};
 		unit->residualSensFwdWithJacobian(simTime, ConstSimulationState{y, yDot}, adParams);
 
-		// Obtain memory for state, Jacobian multiply direction, Jacobian column
+		// Obtain memory
 		std::vector<double> sensY(unit->numDofs() * nSens, 0.0);
 		std::vector<double> sensYdot(unit->numDofs() * nSens, 0.0);
 		std::vector<double> res(unit->numDofs() * nSens, 0.0);
@@ -155,6 +155,77 @@ namespace unitoperation
 		{
 			INFO("Residual " << i << ": " << linalg::linfNorm(vecRes[i] + unit->numComponents(), unit->numDofs() - unit->numComponents()));
 			CHECK(linalg::linfNorm(vecRes[i] + unit->numComponents(), unit->numDofs() - unit->numComponents()) <= absTol);
+		}
+
+		// Clean up
+		delete[] adRes;
+		delete[] adY;
+	}
+
+	void testInletDofJacobian(cadet::IUnitOperation* const unit, bool adEnabled)
+	{
+		cadet::active* adRes = nullptr;
+		cadet::active* adY = nullptr;
+
+		// Enable AD
+		if (adEnabled)
+		{
+			cadet::ad::setDirections(cadet::ad::getMaxDirections());
+			unit->useAnalyticJacobian(false);
+
+			adRes = new cadet::active[unit->numDofs()];
+			adY = new cadet::active[unit->numDofs()];
+			unit->prepareADvectors(AdJacobianParams{adRes, adY, 0});
+		}
+		else
+		{
+			unit->useAnalyticJacobian(true);
+		}
+
+		const AdJacobianParams adParams{adRes, adY, 0};
+
+		// Setup matrices
+		unit->notifyDiscontinuousSectionTransition(0.0, 0u, adParams);
+
+		// Obtain memory
+		std::vector<double> y(unit->numDofs(), 0.0);
+		std::vector<double> jac(unit->numDofs(), 0.0);
+
+		// Assemble Jacobian
+		const ActiveSimulationTime simTime{0.0, 0u, 1.0};
+		const ConstSimulationState simState{y.data(), nullptr};
+		unit->residualWithJacobian(simTime, simState, jac.data(), adParams);
+
+		// Check ports and components
+		const unsigned int inletBlockSize = unit->numInletPorts() * unit->numComponents();
+		CHECK(inletBlockSize == unit->numDofs() - unit->numPureDofs());
+
+		for (unsigned int port = 0; port < unit->numInletPorts(); ++port)
+		{
+			const unsigned int inletOffset = unit->localInletComponentIndex(port);
+			const unsigned int inletStride = unit->localInletComponentStride(port);
+
+			for (unsigned int comp = 0; comp < unit->numComponents(); ++comp)
+			{
+				// Get Jacobian column
+				const unsigned int curItem = inletOffset + comp * inletStride;
+
+				y[curItem] = 1.0;
+				unit->multiplyWithJacobian(SimulationTime{0.0, 0u, 1.0}, simState, y.data(), 1.0, 0.0, jac.data());
+				y[curItem] = 0.0;
+
+				// Check inlet block of Jacobian column
+				for (unsigned int i = 0; i < inletBlockSize; ++i)
+				{
+					CAPTURE(port);
+					CAPTURE(comp);
+					CAPTURE(curItem);
+					if (i == curItem)
+						CHECK(jac[i] == 1.0);
+					else
+						CHECK(jac[i] == 0.0);
+				}
+			}
 		}
 
 		// Clean up

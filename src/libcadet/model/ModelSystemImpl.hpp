@@ -25,6 +25,7 @@
 #include "ParamIdUtil.hpp"
 
 #include <vector>
+#include <tuple>
 #include <map>
 #include <unordered_map>
 #include <unordered_set>
@@ -138,9 +139,6 @@ public:
 		std::vector<double*>& vecSensY, std::vector<double*>& vecSensYdot, active* const adRes, active* const adY);
 	virtual void setSectionTimes(double const* secTimes, bool const* secContinuity, unsigned int nSections);
 
-	int schurComplementMatrixVector(double const* x, double* z, double t, double timeFactor, double alpha, double outerTol, double const* const weight,
-		const ConstSimulationState& simState) const;
-
 	virtual void expandErrorTol(double const* errorSpec, unsigned int errorSpecSize, double* expandOut);
 	virtual std::vector<double> calculateErrorTolsForAdditionalDofs(double const* errorTol, unsigned int errorTolLength);
 
@@ -171,9 +169,9 @@ public:
 	}
 #endif
 
-	virtual void genJacobian(const SimulationTime& simTime, const ConstSimulationState& simState);
+	void genJacobian(const SimulationTime& simTime, const ConstSimulationState& simState);
 
-	virtual void genJacobian(unsigned int nSens, const ActiveSimulationTime& simTime,
+	void genJacobian(unsigned int nSens, const ActiveSimulationTime& simTime,
 		const ConstSimulationState& simState, double const* const res,
 		const std::vector<const double*>& yS, const std::vector<const double*>& ySdot, const std::vector<double*>& resS,
 		active* const adRes, double* const tmp1, double* const tmp2, double* const tmp3);
@@ -181,6 +179,9 @@ public:
 	virtual void multiplyWithJacobian(const SimulationTime& simTime, const ConstSimulationState& simState, double const* yS, double alpha, double beta, double* ret);
 	virtual void multiplyWithDerivativeJacobian(const SimulationTime& simTime, const ConstSimulationState& simState, double const* yS, double* ret);
 protected:
+
+	int schurComplementMatrixVector(double const* x, double* z, double t, double timeFactor, double alpha, double outerTol, double const* const weight,
+		const ConstSimulationState& simState) const;
 
 	void configureSwitches(IParameterProvider& paramProvider);
 
@@ -199,6 +200,10 @@ protected:
 	void rebuildInternalDataStructures();
 	void allocateSuperStructMatrices();
 	void assembleSuperStructMatrices(unsigned int secIdx);
+	unsigned int totalNumInletPorts() const CADET_NOEXCEPT;
+	unsigned int totalNumOutletPorts() const CADET_NOEXCEPT;
+	unsigned int maxUnitInletPorts() const CADET_NOEXCEPT;
+	unsigned int maxUnitOutletPorts() const CADET_NOEXCEPT;
 
 	template <typename ParamType>
 	bool setParameterImpl(const ParameterId& pId, const ParamType value);
@@ -239,13 +244,15 @@ protected:
 	mutable std::vector<int> _errorIndicator; //!< Storage for return value of unit operation function calls
 
 	double* _tempState; //!< Temporary storage for the state vector
-	std::vector<active> _totalInletFlow; //!< Total flow rate into each inlet at the current section
+	util::SlicedVector<active> _totalInletFlow; //!< Total flow rate into each inlet at the current section
+	std::vector<active> _flowRateIn; //!< Cache for inlet port flow rates
+	std::vector<active> _flowRateOut; //!< Cache for outlet port flow rates
 
 	std::vector<std::vector<const double*>> _yStemp; //!< Needed to store offsets for unit operations
 	std::vector<std::vector<const double*>> _yStempDot;  //!< Needed to store offsets for unit operations
 	std::vector<std::vector<double*>> _resSTemp;  //!< Needed to store offsets for unit operations
 
-	std::map<std::pair<unsigned int, unsigned int>, unsigned int> _couplingIdxMap; //!< Maps (UnitOpIdx, CompIdx) to local coupling DOF index
+	std::map<std::tuple<unsigned int, unsigned int, unsigned int>, unsigned int> _couplingIdxMap; //!< Maps (UnitOpIdx, PortIdx, CompIdx) to local coupling DOF index
 
 	std::unordered_map<ParameterId, active*> _parameters; //!< Provides access to all parameters
 	std::unordered_set<active*> _sensParams; //!< Holds all parameters with activated AD directions

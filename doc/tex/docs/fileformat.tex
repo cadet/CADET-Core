@@ -275,8 +275,11 @@ Note that all components of component dependent datasets have to be section depe
   \begin{dataset}[type=int,range={$\geq 0$},length=1]{SECTION}
     Index of the section that activates this connection set
   \end{dataset}
-  \begin{dataset}[type=double,range={$\geq -1$},length={$5 \cdot \texttt{NCONNECTIONS}$}]{CONNECTIONS}
-    Matrix with list of connections in row-major storage. Columns are \emph{UnitOpID from}, \emph{UnitOpID to}, \emph{Component from}, \emph{Component to}, \emph{volumetric flow rate}. If both component indices are $-1$, all components are connected.
+  \begin{dataset}[type=double,range={$\geq -1$},length={$7 \cdot \texttt{NCONNECTIONS}$}]{CONNECTIONS}
+    Matrix with list of connections in row-major storage.
+    Columns are \emph{UnitOpID from}, \emph{UnitOpID to}, \emph{Port from}, \emph{Port to}, \emph{Component from}, \emph{Component to}, \emph{volumetric flow rate}.
+    If both port indices are $-1$, all ports are connected.
+    If both component indices are $-1$, all components are connected.
   \end{dataset}
 \end{groupscope}
 

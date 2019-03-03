@@ -325,38 +325,54 @@ public:
 	virtual bool hasOutlet() const CADET_NOEXCEPT = 0;
 
 	/**
-	 * @brief Returns the local index of the first outlet component in the managed state vector slice
+	 * @brief Returns the number of inlet ports
+	 * @return Number of inlet ports
+	 */
+	virtual unsigned int numInletPorts() const CADET_NOEXCEPT = 0;
+
+	/**
+	 * @brief Returns the number of outlet ports
+	 * @return Number of outlet ports
+	 */
+	virtual unsigned int numOutletPorts() const CADET_NOEXCEPT = 0;
+
+	/**
+	 * @brief Returns the local index of the first outlet component of the given port in the managed state vector slice
 	 * @details As each unit operation manages a slice of the global state vector on its own, the
 	 *          position of inlet and outlet components as DOF in the slice may differ. This function
-	 *          returns the local index in the slice of the first outlet component.
+	 *          returns the local index in the slice of the first outlet component of the given port.
+	 * @param [in] port Index of the port
 	 * @return Local index of the first outlet component in the state vector slice
 	 */
-	virtual unsigned int localOutletComponentIndex() const CADET_NOEXCEPT = 0;
+	virtual unsigned int localOutletComponentIndex(unsigned int port) const CADET_NOEXCEPT = 0;
 
 	/**
 	 * @brief Returns the local index stride in the managed state vector slice
-	 * @details This function returns the number of elements between two components in the slice of
+	 * @details This function returns the number of elements between two components of a given port in the slice of
 	 *          the global state vector.
+	 * @param [in] port Index of the port
 	 * @return Local stride in the state vector slice
 	 */
-	virtual unsigned int localOutletComponentStride() const CADET_NOEXCEPT = 0;
+	virtual unsigned int localOutletComponentStride(unsigned int port) const CADET_NOEXCEPT = 0;
 
 	/**
-	 * @brief Returns the local index of the first inlet component in the managed state vector slice
+	 * @brief Returns the local index of the first inlet component of the given port in the managed state vector slice
 	 * @details As each unit operation manages a slice of the global state vector on its own, the
 	 *          position of inlet and outlet components as DOF in the slice may differ. This function
-	 *          returns the local index in the slice of the first inlet component.
+	 *          returns the local index in the slice of the first inlet component of the given port.
+	 * @param [in] port Index of the port
 	 * @return Local index of the first inlet component in the state vector slice
 	 */
-	virtual unsigned int localInletComponentIndex() const CADET_NOEXCEPT = 0;
+	virtual unsigned int localInletComponentIndex(unsigned int port) const CADET_NOEXCEPT = 0;
 
 	/**
 	 * @brief Returns the local index stride in the managed state vector slice
-	 * @details This function returns the number of elements between two components in the slice of
+	 * @details This function returns the number of elements between two components of a given port in the slice of
 	 *          the global state vector.
+	 * @param [in] port Index of the port
 	 * @return Local stride in the state vector slice
 	 */
-	virtual unsigned int localInletComponentStride() const CADET_NOEXCEPT = 0;
+	virtual unsigned int localInletComponentStride(unsigned int port) const CADET_NOEXCEPT = 0;
 
 	/**
 	 * @brief Evaluates the residuals with AD to compute the sensitivity derivatives
@@ -517,10 +533,10 @@ public:
 	/**
 	 * @brief Sets the flow rates for the current time section
 	 * @details The flow rates may change due to valve switches.
-	 * @param [in] in Total volumetric inlet flow rate
-	 * @param [in] out Total volumetric outlet flow rate
+	 * @param [in] in Array with total volumetric inlet flow rate for each port
+	 * @param [in] out Array with total volumetric outlet flow rate for each port
 	 */
-	virtual void setFlowRates(const active& in, const active& out) CADET_NOEXCEPT = 0;
+	virtual void setFlowRates(active const* in, active const* out) CADET_NOEXCEPT = 0;
 
 	/**
 	* @brief Returns whether this unit operation supports non-matching volumetric inlet and outlet flow rates

@@ -52,6 +52,8 @@ classdef LumpedRateModelWithoutPores < Model
 		name = 'LUMPED_RATE_MODEL_WITHOUT_PORES'; % Type of the model according to CADET file format specs
 		hasInlet = true; % Determines whether the unit operation has an inlet
 		hasOutlet = true; % Determines whether the unit operation has an outlet
+		nInletPorts = 1; % Number of inlet ports
+		nOutletPorts = 1; % Number of outlet ports
 	end
 
 	methods

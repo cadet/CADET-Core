@@ -187,7 +187,7 @@ function sim = createSimulation(setup)
 	mSys = ModelSystem();
 	mSys.models = [mGrm, mIn];
 	mSys.connectionStartSection = [0];
-	mSys.connections = {[1, 0, -1, -1, 1.0]};
+	mSys.connections = {[1, 0, -1, -1, -1, -1, 1.0]};
 
 	% Configure simulator
 	sim = Simulator.create();

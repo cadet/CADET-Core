@@ -267,10 +267,11 @@ json createLWEJson(const std::string& uoType)
 				// This switch occurs at beginning of section 0 (initial configuration)
 				sw["SECTION"] = 0;
 
-				// Connection list is 1x5 since we have 1 connection between
-				// the two unit operations (and we need to have 5 columns)
-				sw["CONNECTIONS"] = {1.0, 0.0, -1.0, -1.0, 1.0};
-				// Connections: From unit operation 1 to unit operation 0,
+				// Connection list is 1x7 since we have 1 connection between
+				// the two unit operations (and we need to have 7 columns)
+				sw["CONNECTIONS"] = {1.0, 0.0, -1.0, -1.0, -1.0, -1.0, 1.0};
+				// Connections: From unit operation 1 port -1 (i.e., all ports) 
+				//              to unit operation 0 port -1 (i.e., all ports),
 				//              connect component -1 (i.e., all components)
 				//              to component -1 (i.e., all components) with
 				//              volumetric flow rate 1.0 m^3/s
@@ -501,10 +502,11 @@ cadet::JsonParameterProvider createPulseInjectionColumn(const std::string& uoTyp
 				// This switch occurs at beginning of section 0 (initial configuration)
 				sw["SECTION"] = 0;
 
-				// Connection list is 1x5 since we have 1 connection between
-				// the two unit operations (and we need to have 5 columns)
-				sw["CONNECTIONS"] = {1.0, 0.0, -1.0, -1.0, 1.0};
-				// Connections: From unit operation 1 to unit operation 0,
+				// Connection list is 1x7 since we have 1 connection between
+				// the two unit operations (and we need to have 7 columns)
+				sw["CONNECTIONS"] = {1.0, 0.0, -1.0, -1.0, -1.0, -1.0, 1.0};
+				// Connections: From unit operation 1 port -1 (i.e., all ports) 
+				//              to unit operation 0 port -1 (i.e., all ports),
 				//              connect component -1 (i.e., all components)
 				//              to component -1 (i.e., all components) with
 				//              volumetric flow rate 1.0 m^3/s
@@ -722,10 +724,11 @@ cadet::JsonParameterProvider createLinearBenchmark(bool dynamicBinding, bool non
 				// This switch occurs at beginning of section 0 (initial configuration)
 				sw["SECTION"] = 0;
 
-				// Connection list is 1x5 since we have 1 connection between
-				// the two unit operations (and we need to have 5 columns)
-				sw["CONNECTIONS"] = {1.0, 0.0, -1.0, -1.0, 1.0};
-				// Connections: From unit operation 1 to unit operation 0,
+				// Connection list is 1x7 since we have 1 connection between
+				// the two unit operations (and we need to have 7 columns)
+				sw["CONNECTIONS"] = {1.0, 0.0, -1.0, -1.0, -1.0, -1.0, 1.0};
+				// Connections: From unit operation 1 port -1 (i.e., all ports) 
+				//              to unit operation 0 port -1 (i.e., all ports),
 				//              connect component -1 (i.e., all components)
 				//              to component -1 (i.e., all components) with
 				//              volumetric flow rate 1.0 m^3/s
@@ -905,15 +908,17 @@ cadet::JsonParameterProvider createCSTRBenchmark(unsigned int nSec, double endTi
 				// This switch occurs at beginning of section 0 (initial configuration)
 				sw["SECTION"] = static_cast<int>(i);
 
-				// Connection list is 2x5 since we have 2 connection between
-				// the three unit operations (and we need to have 5 columns)
-				sw["CONNECTIONS"] = {1.0, 0.0, -1.0, -1.0, 1.0,
-				                     0.0, 2.0, -1.0, -1.0, 1.0};
-				// Connections: From unit operation 1 to unit operation 0,
+				// Connection list is 2x7 since we have 2 connection between
+				// the three unit operations (and we need to have 7 columns)
+				sw["CONNECTIONS"] = {1.0, 0.0, -1.0, -1.0, -1.0, -1.0, 1.0,
+				                     0.0, 2.0, -1.0, -1.0, -1.0, -1.0, 1.0};
+				// Connections: From unit operation 1 port -1 (i.e., all ports) 
+				//              to unit operation 0 port -1 (i.e., all ports),
 				//              connect component -1 (i.e., all components)
 				//              to component -1 (i.e., all components) with
 				//              volumetric flow rate 1.0 m^3/s
-				//              From unit operation 0 to unit operation 2,
+				//              From unit operation 0 port -1 (i.e., all ports)
+				//              to unit operation 2 port -1 (i.e., all ports),
 				//              connect component -1 (i.e., all components)
 				//              to component -1 (i.e., all components) with
 				//              volumetric flow rate 1.0 m^3/s

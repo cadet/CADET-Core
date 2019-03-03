@@ -57,7 +57,9 @@ public:
 
 	virtual UnitOpIdx unitOperationId() const CADET_NOEXCEPT { return _unitOpIdx; }
 	virtual unsigned int numComponents() const CADET_NOEXCEPT { return _nComp; }
-	virtual void setFlowRates(const active& in, const active& out) CADET_NOEXCEPT;
+	virtual void setFlowRates(active const* in, active const* out) CADET_NOEXCEPT;
+	virtual unsigned int numInletPorts() const CADET_NOEXCEPT { return 1; }
+	virtual unsigned int numOutletPorts() const CADET_NOEXCEPT { return 1; }
 	virtual bool canAccumulate() const CADET_NOEXCEPT { return true; }
 
 	static const char* identifier() { return "CSTR"; }
@@ -108,10 +110,10 @@ public:
 	virtual bool hasInlet() const CADET_NOEXCEPT { return true; }
 	virtual bool hasOutlet() const CADET_NOEXCEPT { return true; }
 
-	virtual unsigned int localOutletComponentIndex() const CADET_NOEXCEPT { return _nComp; }
-	virtual unsigned int localOutletComponentStride() const CADET_NOEXCEPT { return 1; }
-	virtual unsigned int localInletComponentIndex() const CADET_NOEXCEPT { return 0; }
-	virtual unsigned int localInletComponentStride() const CADET_NOEXCEPT { return 1; }
+	virtual unsigned int localOutletComponentIndex(unsigned int port) const CADET_NOEXCEPT { return _nComp; }
+	virtual unsigned int localOutletComponentStride(unsigned int port) const CADET_NOEXCEPT { return 1; }
+	virtual unsigned int localInletComponentIndex(unsigned int port) const CADET_NOEXCEPT { return 0; }
+	virtual unsigned int localInletComponentStride(unsigned int port) const CADET_NOEXCEPT { return 1; }
 
 	virtual void setSectionTimes(double const* secTimes, bool const* secContinuity, unsigned int nSections);
 
@@ -125,6 +127,7 @@ public:
 	inline const std::vector<active>& flowRateFilter() const { return _flowRateFilter; }
 	inline std::vector<active>& flowRateFilter() { return _flowRateFilter; }
 	inline void flowRateFilter(const std::vector<active>& frf) { _flowRateFilter = frf; }
+	inline void setFlowRates(double in, double out) CADET_NOEXCEPT { _flowRateIn = in; _flowRateOut = out; }
 
 protected:
 

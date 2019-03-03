@@ -211,6 +211,13 @@ namespace column
 	 */
 	void testConsistentInitializationSensitivity(const std::string& uoType, double const* const y, double const* const yDot, bool linearBinding, double absTol);
 
+	/**
+	 * @brief Checks whether the inlet DOFs produce the identity matrix in the Jacobian of the unit operation
+	 * @details Assumes column-like unit models. Both AD and analytic Jacobians are checked.
+	 * @param [in] uoType Unit operation type
+	 */
+	void testInletDofJacobian(const std::string& uoType);
+
 } // namespace column
 } // namespace test
 } // namespace cadet

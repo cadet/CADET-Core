@@ -14,10 +14,14 @@ classdef ModelSystem < handle
 	%   itself is represented by a matrix in which each row encodes a
 	%   connection of two unit operations. The first two columns denote the
 	%   source and destination unit operation id (0-based), respectively.
-	%   The third and fourth column give the component index (0-based) of
-	%   the source unit that is wired to the component index (0-based) of
-	%   the destination unit. If both component indices are set to -1, all
-	%   components of the two unit operations are connected to their
+	%   The third and fourth column denote the port index (0-based) of the
+	%   source and destination port, respectively. The fifth and sixth column
+	%   give the component index (0-based) of the source unit that is wired
+	%   to the component index (0-based) of the destination unit. 
+	%   If both port indices are set to -1, all ports of the two unit
+	%   operations are connected to their respective counterpart (requires
+	%   the same number of ports). If both component indices are set to -1,
+	%   all components of the two unit operations are connected to their
 	%   respective counterpart (requires the same number of components).
 	%   The connection setups are packed into a cell array to allow for
 	%   different matrix sizes in each setup.
@@ -37,7 +41,7 @@ classdef ModelSystem < handle
 		models; % Array with unit operation models
 		externalFunctions; % Array with external functions
 		connectionStartSection; % Vector with section indices (0-based) that trigger a connection setup
-		connections; % Cell array of connection matrices (5 columns: UOID from, UOID to, comp from, comp to, flow  rate)
+		connections; % Cell array of connection matrices (7 columns: UOID from, UOID to, port from, port to, comp from, comp to, flow rate)
 	end
 
 	properties (Transient, Access = 'protected')
@@ -120,23 +124,21 @@ classdef ModelSystem < handle
 
 			validateattributes(obj.connectionStartSection, {'numeric'}, {'vector', 'nonempty', 'increasing', '>=', 0, 'finite', 'real'}, '', 'connectionStartSection');
 			validateattributes(obj.connections, {'cell'}, {'vector', 'numel', numel(obj.connectionStartSection)}, '', 'connections');
-			arrayfun(@(x) validateattributes(obj.connections{x}, {'numeric'}, {'2d', 'finite', 'real', 'size', [NaN, 5], '>=', -1}, '', sprintf('connections{%d}', x)), 1:length(obj.connections));
+			arrayfun(@(x) validateattributes(obj.connections{x}, {'numeric'}, {'2d', 'finite', 'real', 'size', [NaN, 7], '>=', -1}, '', sprintf('connections{%d}', x)), 1:length(obj.connections));
 
 			for i = 1:length(obj.connections)
 				curCon = obj.connections{i};
 				for j = 1:size(curCon, 1)
 					% Detect invalid flow rate
-					if (curCon(j, 5) < 0.0)
+					if (curCon(j, 7) < 0.0)
 						error('CADET:invalidConfig', 'Expected non-negative flow rate in connection %d in valve configuration connections{%d} in the last column.', j, i);
 					end
 
-					% Detect 'connect all' operation
-					if (curCon(j, 3) == -1) && (curCon(j, 4) == -1)
-						continue;
-					end
-
 					% Detect invalid mixed 'connect all' operations
-					if (curCon(j, 3) < 0) || (curCon(j, 4) < 0)
+					if ((curCon(j, 3) < 0) && (curCon(j, 4) >= 0)) || ((curCon(j, 4) < 0) && (curCon(j, 3) >= 0))
+						error('CADET:invalidConfig', 'Expected connection %d in valve configuration connections{%d} to either connect all ports or just one.', j, i);
+					end
+					if ((curCon(j, 5) < 0) && (curCon(j, 6) >= 0)) || ((curCon(j, 6) < 0) && (curCon(j, 5) >= 0))
 						error('CADET:invalidConfig', 'Expected connection %d in valve configuration connections{%d} to either connect all components or just one.', j, i);
 					end
 
@@ -156,12 +158,20 @@ classdef ModelSystem < handle
 						error('CADET:invalidConfig', 'Expected destination unit operation %d (id) of connection %d of valve configuration connections{%d} to possess an inlet.', curCon(j, 2), j, i);
 					end
 
-					% Find invalid component ids
-					if (curCon(j, 3) >= obj.models(uoFrom).nComponents)
-						error('CADET:invalidConfig', 'Expected valid 0-based component index in third column of connection %d of valve configuration connections{%d}.', j, i);
+					% Find invalid port ids
+					if (curCon(j, 3) >= obj.models(uoFrom).nOutletPorts)
+						error('CADET:invalidConfig', 'Expected valid 0-based port index in third column of connection %d of valve configuration connections{%d}.', j, i);
 					end
-					if (curCon(j, 4) >= obj.models(uoTo).nComponents)
-						error('CADET:invalidConfig', 'Expected valid 0-based component index in fourth column of connection %d of valve configuration connections{%d}.', j, i);
+					if (curCon(j, 4) >= obj.models(uoTo).nInletPorts)
+						error('CADET:invalidConfig', 'Expected valid 0-based port index in fourth column of connection %d of valve configuration connections{%d}.', j, i);
+					end
+
+					% Find invalid component ids
+					if (curCon(j, 5) >= obj.models(uoFrom).nComponents)
+						error('CADET:invalidConfig', 'Expected valid 0-based component index in fifth column of connection %d of valve configuration connections{%d}.', j, i);
+					end
+					if (curCon(j, 6) >= obj.models(uoTo).nComponents)
+						error('CADET:invalidConfig', 'Expected valid 0-based component index in sixth column of connection %d of valve configuration connections{%d}.', j, i);
 					end
 				end
 			end
@@ -523,14 +533,25 @@ classdef ModelSystem < handle
 			% See also MEXSIMULATOR.GETPARAMETERVALUE, MODELSYSTEM.SETPARAMETERVALUE, MAKESENSITIVITY
 
 			val = nan;
-			if (strcmp(param.SENS_NAME, 'CONNECTION'))
-				if ((param.SENS_SECTION >= 0) && (param.SENS_SECTION < length(obj.connections)))
+			if (strcmp(param.SENS_NAME, 'CONNECTION') && (param.SENS_UNIT == -1))
+				if ((param.SENS_SECTION >= 0) && (param.SENS_SECTION <= max(obj.connectionStartSection)))
 					idxSource = param.SENS_BOUNDPHASE;
 					idxDest = param.SENS_REACTION;
-					conn = obj.connections{param.SENS_SECTION + 1};
-					idx = find((conn(:, 1) == idxSource) & (conn(:,2) == idxDest), 1, 'first');
+					portSource = param.SENS_COMP;
+					portDest = param.SENS_PARTYPE;
+					idxCon = find(param.SENS_SECTION == obj.connectionStartSection, 1, 'first');
+					if isempty(idxCon)
+						return;
+					end
+
+					conn = obj.connections{idxCon};
+					if (portSource >= 0)
+						idx = find((conn(:, 1) == idxSource) & (conn(:, 2) == idxDest) & (conn(:, 3) == portSource) & (conn(:, 4) == portDest), 1, 'first');
+					else
+						idx = find((conn(:, 1) == idxSource) & (conn(:, 2) == idxDest), 1, 'first');
+					end
 					if ~isempty(idx)
-						val = conn(idx, 5);
+						val = conn(idx, 7);
 					end
 				end
 				return;
@@ -557,18 +578,28 @@ classdef ModelSystem < handle
 			% See also MEXSIMULATOR.SETPARAMETERVALUE, MODELSYSTEM.GETPARAMETERVALUE, MAKESENSITIVITY
 
 			oldVal = nan;
-			if (strcmp(param.SENS_NAME, 'CONNECTION'))
-				if ((param.SENS_SECTION >= 0) && (param.SENS_SECTION < length(obj.connections)))
+			if (strcmp(param.SENS_NAME, 'CONNECTION') && (param.SENS_UNIT == -1))
+				if ((param.SENS_SECTION >= 0) && (param.SENS_SECTION <= max(obj.connectionStartSection)))
 					idxSource = param.SENS_BOUNDPHASE;
 					idxDest = param.SENS_REACTION;
-					conn = obj.connections{param.SENS_SECTION + 1};
-					idx = (conn(:, 1) == idxSource) & (conn(:,2) == idxDest);
-					idxFirst = find(idx, 1, 'first');
+					portSource = param.SENS_COMP;
+					portDest = param.SENS_PARTYPE;
+					idxCon = find(param.SENS_SECTION == obj.connectionStartSection, 1, 'first');
+					if isempty(idxCon)
+						return;
+					end
 
+					conn = obj.connections{idxCon};
+					if (portSource >= 0)
+						idx = (conn(:, 1) == idxSource) & (conn(:, 2) == idxDest) & (conn(:, 3) == portSource) & (conn(:, 4) == portDest);
+					else
+						idx = (conn(:, 1) == idxSource) & (conn(:, 2) == idxDest);
+					end
+					idxFirst = find(idx, 1, 'first');
 					if ~isempty(idxFirst)
-						oldVal = conn(idxFirst, 5);
-						conn(idx, 5) = newVal;
-						obj.connections{param.SENS_SECTION + 1} = conn;
+						oldVal = conn(idx, 7);
+						conn(idx, 7) = newVal;
+						obj.connections{idxCon} = conn;
 					end
 				end
 				return;

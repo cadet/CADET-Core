@@ -129,6 +129,11 @@ TEST_CASE("LRMP consistent sensitivity initialization with SMA binding", "[LRMP]
 	cadet::test::column::testConsistentInitializationSensitivity("LUMPED_RATE_MODEL_WITH_PORES", y.data(), yDot.data(), false, 1e-10);
 }
 
+TEST_CASE("LRMP inlet DOF Jacobian", "[LRMP],[UnitOp],[Jacobian],[Inlet]")
+{
+	cadet::test::column::testInletDofJacobian("LUMPED_RATE_MODEL_WITH_PORES");
+}
+
 TEST_CASE("LRMP LWE one vs two identical particle types match", "[LRMP],[Simulation],[ParticleType]")
 {
 	cadet::test::particle::testOneVsTwoIdenticalParticleTypes("LUMPED_RATE_MODEL_WITH_PORES", 2.2e-8, 6e-5);

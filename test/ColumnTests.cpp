@@ -933,6 +933,28 @@ namespace column
 		destroyModelBuilder(mb);
 	}
 
+	void testInletDofJacobian(const std::string& uoType)
+	{
+		cadet::IModelBuilder* const mb = cadet::createModelBuilder();
+		REQUIRE(nullptr != mb);
+
+		for (int adMode = 0; adMode < 2; ++adMode)
+		{
+			const bool adEnabled = (adMode > 0);
+			SECTION(std::string("AD ") + (adEnabled ? "enabled" : "disabled"))
+			{
+				// Use some test case parameters
+				cadet::JsonParameterProvider jpp = createColumnWithSMA(uoType);
+				cadet::IUnitOperation* const unit = createAndConfigureUnit(uoType, *mb, jpp, cadet::Weno::maxOrder());
+
+				unitoperation::testInletDofJacobian(unit, adEnabled);
+
+				mb->destroyUnitOperation(unit);
+			}
+		}
+		destroyModelBuilder(mb);
+	}
+
 } // namespace column
 } // namespace test
 } // namespace cadet

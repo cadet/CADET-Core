@@ -68,7 +68,7 @@ namespace
 	{
 		for (unsigned int i = 0; i < size; ++i)
 		{
-			if (conn[4*i] == unitOpIdx)
+			if (conn[6*i] == unitOpIdx)
 				return false;
 		}
 		return true;
@@ -354,6 +354,42 @@ UnitOpIdx ModelSystem::maxUnitOperationId() const CADET_NOEXCEPT
 	return id;
 }
 
+unsigned int ModelSystem::totalNumInletPorts() const CADET_NOEXCEPT
+{
+	unsigned int nPorts = 0;
+	for (IUnitOperation const* m : _models)
+		nPorts += m->numInletPorts();
+
+	return nPorts;
+}
+
+unsigned int ModelSystem::totalNumOutletPorts() const CADET_NOEXCEPT
+{
+	unsigned int nPorts = 0;
+	for (IUnitOperation const* m : _models)
+		nPorts += m->numOutletPorts();
+
+	return nPorts;
+}
+
+unsigned int ModelSystem::maxUnitInletPorts() const CADET_NOEXCEPT
+{
+	unsigned int nPorts = 0;
+	for (IUnitOperation const* m : _models)
+		nPorts = std::max(nPorts, m->numInletPorts());
+
+	return nPorts;
+}
+
+unsigned int ModelSystem::maxUnitOutletPorts() const CADET_NOEXCEPT
+{
+	unsigned int nPorts = 0;
+	for (IUnitOperation const* m : _models)
+		nPorts = std::max(nPorts, m->numOutletPorts());
+
+	return nPorts;
+}
+
 unsigned int ModelSystem::addExternalFunction(IExternalFunction& extFun)
 {
 	_extFunctions.push_back(&extFun);
@@ -454,12 +490,12 @@ void ModelSystem::rebuildInternalDataStructures()
 	_dofOffset.push_back(totalDof);
 
 	/*
-		A mapping is needing to turn a local model and component number into the location of the inlet DOF in
+		A mapping is required that turns a local model, port index, and component index into the location of the inlet DOF in
 		the global state vector. Some unit operations do not have inlet DOFs (e.g., inlet unit operation). Hence,
 		a map is constructed which converts local indices into global ones.
 	*/
 
-	// Build a mapping (unitOpIdx, CompIdx) -> local coupling DOF index
+	// Build a mapping (unitOpIdx, PortIdx, CompIdx) -> local coupling DOF index
 	_couplingIdxMap.clear();
 	unsigned int counter = 0;
 	for (unsigned int i = 0; i < numModels(); ++i)
@@ -469,10 +505,13 @@ void ModelSystem::rebuildInternalDataStructures()
 		//Only unit operations with an inlet have dedicated inlet DOFs
 		if (model->hasInlet())
 		{
-			for (unsigned int comp = 0; comp < model->numComponents(); ++comp)
+			for (unsigned int port = 0; port < model->numInletPorts(); ++port)
 			{
-				_couplingIdxMap.insert({ std::make_pair(i, comp), counter });
-				++counter;
+				for (unsigned int comp = 0; comp < model->numComponents(); ++comp)
+				{
+					_couplingIdxMap.insert({ std::make_tuple(i, port, comp), counter });
+					++counter;
+				}
 			}
 		}
 	}
@@ -504,17 +543,28 @@ void ModelSystem::allocateSuperStructMatrices()
 	{
 		int const* ptrConn = _connections[idx];
 
-		for (unsigned int i = 0; i < _connections.sliceSize(idx) / 4; ++i, ptrConn += 4)
+		for (unsigned int i = 0; i < _connections.sliceSize(idx) / 6; ++i, ptrConn += 6)
 		{
 			// Extract current connection
 			const int uoSource = ptrConn[0];
-			const int compSource = ptrConn[2];
+			const int portSource = ptrConn[2];
+			const int compSource = ptrConn[4];
 
 			IUnitOperation const* const model = _models[uoSource];
-			if (compSource == -1)
-				sourcesPerUnitOpPerConfig[nModels * idx + uoSource] += model->numComponents();
+			if (portSource == -1)
+			{
+				if (compSource == -1)
+					sourcesPerUnitOpPerConfig[nModels * idx + uoSource] += model->numOutletPorts() * model->numComponents();
+				else
+					sourcesPerUnitOpPerConfig[nModels * idx + uoSource] += model->numOutletPorts();
+			}
 			else
-				sourcesPerUnitOpPerConfig[nModels * idx + uoSource] += 1;
+			{
+				if (compSource == -1)
+					sourcesPerUnitOpPerConfig[nModels * idx + uoSource] += model->numComponents();
+				else
+					sourcesPerUnitOpPerConfig[nModels * idx + uoSource] += 1;
+			}
 		}
 	}
 
@@ -540,10 +590,10 @@ void ModelSystem::allocateSuperStructMatrices()
 		_jacActiveFN[i].resize(numOutgoing[i]);
 
 		// Right macro-column
-		// Each unit operation has inlets equal to the number of components so long as the unit operation has an inlet
+		// Each unit operation has inlets equal to numComponents * numInletPorts so long as the unit operation has an inlet
 		IUnitOperation const* const model = _models[i];
 		if (model->hasInlet())
-			_jacNF[i].resize(model->numComponents());
+			_jacNF[i].resize(model->numComponents() * model->numInletPorts());
 	}
 }
 
@@ -636,7 +686,12 @@ bool ModelSystem::configureModelDiscretization(IParameterProvider& paramProvider
 	_tempState = new double[numDofs()];
 
 //	_tempSchur = new double[*std::max_element(_dofs.begin(), _dofs.end())];
-	_totalInletFlow.resize(numModels(), 0.0);
+	_flowRateIn.resize(maxUnitInletPorts(), 0.0);
+	_flowRateOut.resize(maxUnitOutletPorts(), 0.0);
+
+	_totalInletFlow.reserve(totalNumInletPorts(), _models.size());
+	for (IUnitOperation const* m : _models)
+		_totalInletFlow.pushBackSlice(m->numInletPorts());
 
 #ifdef CADET_DEBUG
 
@@ -716,7 +771,7 @@ void ModelSystem::configureSwitches(IParameterProvider& paramProvider)
 	_switchSectionIndex.clear();
 	_switchSectionIndex.reserve(numSwitches);
 	_connections.clear();
-	_connections.reserve(numSwitches * 4 * _models.size() * _models.size(), numSwitches);
+	_connections.reserve(numSwitches * 6 * _models.size() * _models.size(), numSwitches);
 	_flowRates.clear();
 	_flowRates.reserve(numSwitches * _models.size() * _models.size(), numSwitches);
 
@@ -740,11 +795,11 @@ void ModelSystem::configureSwitches(IParameterProvider& paramProvider)
 			throw InvalidParameterException("SECTION index has to be monotonically increasing (switch " + std::to_string(i) + ")");
 
 		std::vector<double> connFlow = paramProvider.getDoubleArray("CONNECTIONS");
-		if ((connFlow.size() % 5) != 0)
-			throw InvalidParameterException("CONNECTIONS matrix has to have 5 columns");
+		if ((connFlow.size() % 7) != 0)
+			throw InvalidParameterException("CONNECTIONS matrix has to have 7 columns");
 
-		std::vector<int> conn(connFlow.size() / 5 * 4, 0);
-		std::vector<double> fr(connFlow.size() / 5, 0.0);
+		std::vector<int> conn(connFlow.size() / 7 * 6, 0);
+		std::vector<double> fr(connFlow.size() / 7, 0.0);
 		
 		checkConnectionList(connFlow, conn, fr, i);
 
@@ -755,7 +810,7 @@ void ModelSystem::configureSwitches(IParameterProvider& paramProvider)
 		if (fr.size() > 0)
 		{
 			_flowRates.pushBack(fr[0]);
-			_parameters[makeParamId(flowHash, UnitOpIndep, CompIndep, ParTypeIndep, conn[0], conn[1], _switchSectionIndex.back())] = _flowRates.back();
+			_parameters[makeParamId(flowHash, UnitOpIndep, conn[2], conn[3], conn[0], conn[1], _switchSectionIndex.back())] = _flowRates.back();
 			for (unsigned int j = 1; j < fr.size(); ++j)
 			{
 				_flowRates.pushBackInLastSlice(fr[j]);
@@ -764,7 +819,7 @@ void ModelSystem::configureSwitches(IParameterProvider& paramProvider)
 				bool found = false;
 				for (unsigned int k = 0; k < j; ++k)
 				{
-					if ((conn[4*k] == conn[4*j]) && (conn[4*k+1] == conn[4*j+1]))
+					if ((conn[6*k] == conn[6*j]) && (conn[6*k+1] == conn[6*j+1]) && (conn[6*k+2] == conn[6*j+2]) && (conn[6*k+3] == conn[6*j+3]))
 					{
 						found = true;
 						break;
@@ -773,7 +828,7 @@ void ModelSystem::configureSwitches(IParameterProvider& paramProvider)
 
 				// Only register the first occurrence of a flow parameter
 				if (!found)
-					_parameters[makeParamId(flowHash, UnitOpIndep, CompIndep, ParTypeIndep, conn[4*j], conn[4*j + 1], _switchSectionIndex.back())] = (_flowRates.back() + j);
+					_parameters[makeParamId(flowHash, UnitOpIndep, conn[6*j+2], conn[6*j+3], conn[6*j], conn[6*j+1], _switchSectionIndex.back())] = (_flowRates.back() + j);
 			}
 		}
 		else
@@ -802,9 +857,9 @@ bool ModelSystem::configureModel(IParameterProvider& paramProvider, unsigned int
  * @brief Checks the given unit operation connection list and reformats it
  * @details Throws an exception if something is incorrect. Reformats the connection list by
  *          substituting unit operation IDs with local indices.
- * @param [in] conn Matrix with 5 columns holding all connections. The matrix is expected
+ * @param [in] conn Matrix with 7 columns holding all connections. The matrix is expected
  *             to be in row-major storage format.
- * @param [out] connOnly Matrix with 4 columns holding all connections. While @p conn contains
+ * @param [out] connOnly Matrix with 6 columns holding all connections. While @p conn contains
  *              connection indices and flow rate, this matrix only holds connection indices.
  *              It is assumed to be pre-allocated (same number of rows as @p conn). The unit
  *              operation IDs are substituted by the corresponding indices of the unit operations
@@ -817,14 +872,16 @@ void ModelSystem::checkConnectionList(const std::vector<double>& conn, std::vect
 {
 	std::vector<double> totalInflow(_models.size(), 0.0);
 	std::vector<double> totalOutflow(_models.size(), 0.0);
-	for (unsigned int i = 0; i < conn.size() / 5; ++i)
+	for (unsigned int i = 0; i < conn.size() / 7; ++i)
 	{
 		// Extract current connection
-		int uoSource = static_cast<int>(conn[5*i]);
-		int uoDest = static_cast<int>(conn[5*i+1]);
-		const int compSource = static_cast<int>(conn[5*i+2]);
-		const int compDest = static_cast<int>(conn[5*i+3]);
-		double fr = conn[5*i + 4];
+		int uoSource = static_cast<int>(conn[7*i]);
+		int uoDest = static_cast<int>(conn[7*i+1]);
+		const int portSource = static_cast<int>(conn[7*i+2]);
+		const int portDest = static_cast<int>(conn[7*i+3]);
+		const int compSource = static_cast<int>(conn[7*i+4]);
+		const int compDest = static_cast<int>(conn[7*i+5]);
+		double fr = conn[7*i + 6];
 
 		if (uoSource < 0)
 			throw InvalidParameterException("In CONNECTIONS matrix (switch " + std::to_string(idxSwitch) + " row " + std::to_string(i) + "): Source unit operation id has to be at least 0 in connection");
@@ -836,9 +893,9 @@ void ModelSystem::checkConnectionList(const std::vector<double>& conn, std::vect
 		uoDest = indexOfUnitOp(_models, uoDest);
 
 		if (static_cast<unsigned int>(uoSource) >= _models.size())
-			throw InvalidParameterException("In CONNECTIONS matrix (switch " + std::to_string(idxSwitch) + " row " + std::to_string(i) + "): Source unit operation id not found in connection");
+			throw InvalidParameterException("In CONNECTIONS matrix (switch " + std::to_string(idxSwitch) + " row " + std::to_string(i) + "): Source unit operation id " + std::to_string(uoSource) + " not found in connection");
 		if (static_cast<unsigned int>(uoDest) >= _models.size())
-			throw InvalidParameterException("In CONNECTIONS matrix (switch " + std::to_string(idxSwitch) + " row " + std::to_string(i) + "): Destination unit operation id not found in connection");
+			throw InvalidParameterException("In CONNECTIONS matrix (switch " + std::to_string(idxSwitch) + " row " + std::to_string(i) + "): Destination unit operation id " + std::to_string(uoDest) + " not found in connection");
 
 		// Check if unit operations have inlets and outlets
 		if (!_models[uoSource]->hasOutlet())
@@ -846,11 +903,25 @@ void ModelSystem::checkConnectionList(const std::vector<double>& conn, std::vect
 		if (!_models[uoDest]->hasInlet())
 			throw InvalidParameterException("In CONNECTIONS matrix (switch " + std::to_string(idxSwitch) + " row " + std::to_string(i) + "): Source unit operation " + std::to_string(_models[uoDest]->unitOperationId()) + " does not have an inlet");
 
+		// Check port indices
+		if ((portSource >= 0) && (static_cast<unsigned int>(portSource) >= _models[uoSource]->numOutletPorts()))
+			throw InvalidParameterException("In CONNECTIONS matrix (switch " + std::to_string(idxSwitch) + " row " + std::to_string(i) + "): Source port index (" + std::to_string(portSource) + ") exceeds number of outlet ports (" + std::to_string(_models[uoSource]->numOutletPorts()) + ")");
+		if ((portDest >= 0) && (static_cast<unsigned int>(portDest) >= _models[uoDest]->numInletPorts()))
+			throw InvalidParameterException("In CONNECTIONS matrix (switch " + std::to_string(idxSwitch) + " row " + std::to_string(i) + "): Destination port index (" + std::to_string(portDest) + ") exceeds number of inlet ports (" + std::to_string(_models[uoDest]->numInletPorts()) + ")");
+
+		if (((portSource < 0) && (portDest >= 0)) || ((portSource >= 0) && (portDest < 0)))
+			throw InvalidParameterException("In CONNECTIONS matrix (switch " + std::to_string(idxSwitch) + " row " + std::to_string(i) + "): Only source or destination (not both) are set to connect all ports in connection from unit " 
+				+ std::to_string(_models[uoSource]->unitOperationId()) + " to " + std::to_string(_models[uoDest]->unitOperationId()));
+
+		if ((portSource < 0) && (portDest < 0) && (_models[uoSource]->numOutletPorts() != _models[uoDest]->numInletPorts()))
+			throw InvalidParameterException("In CONNECTIONS matrix (switch " + std::to_string(idxSwitch) + " row " + std::to_string(i) + "): Number of ports not equal when connecting all ports from unit " 
+				+ std::to_string(_models[uoSource]->unitOperationId()) + " (" + std::to_string(_models[uoSource]->numOutletPorts()) + " ports) to " + std::to_string(_models[uoDest]->unitOperationId()) + " (" + std::to_string(_models[uoDest]->numInletPorts()) + " ports)");
+
 		// Check component indices
 		if ((compSource >= 0) && (static_cast<unsigned int>(compSource) >= _models[uoSource]->numComponents()))
-			throw InvalidParameterException("In CONNECTIONS matrix (switch " + std::to_string(idxSwitch) + " row " + std::to_string(i) + "): Source component index exceeds number of components " + std::to_string(_models[uoSource]->numComponents()));
+			throw InvalidParameterException("In CONNECTIONS matrix (switch " + std::to_string(idxSwitch) + " row " + std::to_string(i) + "): Source component index (" + std::to_string(compSource) + ") exceeds number of components (" + std::to_string(_models[uoSource]->numComponents()) + ")");
 		if ((compDest >= 0) && (static_cast<unsigned int>(compDest) >= _models[uoDest]->numComponents()))
-			throw InvalidParameterException("In CONNECTIONS matrix (switch " + std::to_string(idxSwitch) + " row " + std::to_string(i) + "): Destination component index exceeds number of components " + std::to_string(_models[uoDest]->numComponents()));
+			throw InvalidParameterException("In CONNECTIONS matrix (switch " + std::to_string(idxSwitch) + " row " + std::to_string(i) + "): Destination component index (" + std::to_string(compDest) + ") exceeds number of components (" + std::to_string(_models[uoDest]->numComponents()) + ")");
 
 		if (((compSource < 0) && (compDest >= 0)) || ((compSource >= 0) && (compDest < 0)))
 			throw InvalidParameterException("In CONNECTIONS matrix (switch " + std::to_string(idxSwitch) + " row " + std::to_string(i) + "): Only source or destination (not both) are set to connect all components in connection from unit " 
@@ -861,10 +932,12 @@ void ModelSystem::checkConnectionList(const std::vector<double>& conn, std::vect
 				+ std::to_string(_models[uoSource]->unitOperationId()) + " to " + std::to_string(_models[uoDest]->unitOperationId()));
 	
 		// Add connection to index matrix
-		connOnly[4*i] = uoSource;
-		connOnly[4*i+1] = uoDest;
-		connOnly[4*i+2] = compSource;
-		connOnly[4*i+3] = compDest;
+		connOnly[6*i] = uoSource;
+		connOnly[6*i+1] = uoDest;
+		connOnly[6*i+2] = portSource;
+		connOnly[6*i+3] = portDest;
+		connOnly[6*i+4] = compSource;
+		connOnly[6*i+5] = compDest;
 
 		// Add flow rate of connection to balance
 
@@ -872,10 +945,10 @@ void ModelSystem::checkConnectionList(const std::vector<double>& conn, std::vect
 		bool found = false;
 		for (unsigned int j = 0; j < i; ++j)
 		{
-			if ((conn[5*j] == uoSource) && (uoDest == conn[5*j+1]))
+			if ((conn[7*j] == uoSource) && (uoDest == conn[7*j+1]) && (conn[7*j+2] == portSource) && (portDest == conn[7*j+3]))
 			{
 				// Take flow rate that appears first
-				fr = conn[5*j+4];
+				fr = conn[7*j+6];
 				found = true;
 				break;
 			}
@@ -903,7 +976,7 @@ void ModelSystem::checkConnectionList(const std::vector<double>& conn, std::vect
 			continue;
 
 		// Terminal unit operations do not need to balance their flows
-		if ((totalOutflow[i] >= 0.0) && isTerminal(connOnly.data(), connOnly.size() / 4, i))
+		if ((totalOutflow[i] >= 0.0) && isTerminal(connOnly.data(), connOnly.size() / 6, i))
 			continue;
 
 		// Check balance and account for whether accumulation is allowed
@@ -1074,7 +1147,7 @@ void ModelSystem::notifyDiscontinuousSectionTransition(double t, unsigned int se
 	const unsigned int wrapSec = secIdx % _switchSectionIndex.size();
 	const unsigned int prevSwitch = _curSwitchIndex;
 
-	// If there are still some switches left and the next switch occurrs in this section, advance index
+	// If there are still some switches left and the next switch occurs in this section, advance index
 	if ((_curSwitchIndex < _switchSectionIndex.size() - 1) && (_switchSectionIndex[_curSwitchIndex + 1] <= wrapSec))
 	{
 		++_curSwitchIndex;
@@ -1092,20 +1165,22 @@ void ModelSystem::notifyDiscontinuousSectionTransition(double t, unsigned int se
 	for (unsigned int i = 0; i < _models.size(); ++i)
 	{
 		const unsigned int offset = _dofOffset[i];
-		active totalIn = 0.0;
-		active totalOut = 0.0;
+		std::fill(_flowRateIn.begin(), _flowRateIn.end(), 0.0);
+		std::fill(_flowRateOut.begin(), _flowRateOut.end(), 0.0);
 
 		// Compute total inlet and outlet flow rate for this unit operation by traversing connection list
-		for (unsigned int j = 0; j < _connections.sliceSize(_curSwitchIndex) / 4; ++j)
+		for (unsigned int j = 0; j < _connections.sliceSize(_curSwitchIndex) / 6; ++j)
 		{
-			const int uoSource = ptrConn[4*j];
-			const int uoDest = ptrConn[4*j+1];
+			const int uoSource = ptrConn[6*j];
+			const int uoDest = ptrConn[6*j+1];
+			const int portSource = ptrConn[6*j+2];
+			const int portDest = ptrConn[6*j+3];
 
 			// Make sure this is the first connection (there may be several with different components)
 			bool skip = false;
 			for (unsigned int k = 0; k < j; ++k)
 			{
-				if ((ptrConn[4*k] == uoSource) && (ptrConn[4*k+1] == uoDest))
+				if ((ptrConn[6*k] == uoSource) && (ptrConn[6*k+1] == uoDest) && (ptrConn[6*k+2] == portSource) && (ptrConn[6*k+3] == portDest))
 				{
 					skip = true;
 					break;
@@ -1117,29 +1192,47 @@ void ModelSystem::notifyDiscontinuousSectionTransition(double t, unsigned int se
 				continue;
 
 			if (uoSource == i)
-				totalOut += conRates[j];
+			{
+				if (portSource >= 0)
+					_flowRateOut[portSource] += conRates[j];
+				else
+				{
+					for (unsigned int k = 0; k < _models[i]->numOutletPorts(); ++k)
+						_flowRateOut[k] += conRates[j];
+				}
+			}
 			if (uoDest == i)
-				totalIn += conRates[j];
+			{
+				if (portDest >= 0)
+					_flowRateIn[portDest] += conRates[j];
+				else
+				{
+					for (unsigned int k = 0; k < _models[i]->numInletPorts(); ++k)
+						_flowRateIn[k] += conRates[j];
+				}
+			}
 		}
 
-		_models[i]->setFlowRates(totalIn, totalOut);
+		_models[i]->setFlowRates(_flowRateIn.data(), _flowRateOut.data());
 		_models[i]->notifyDiscontinuousSectionTransition(t, secIdx, applyOffset(adJac, offset));
 	}
 
 #ifdef CADET_DEBUG
 	LOG(Debug) << "Switching from valve configuration " << prevSwitch << " to " << _curSwitchIndex << " (sec = " << secIdx << " wrapSec = " << wrapSec << ")";
-	for (unsigned int i = 0; i < _connections.sliceSize(_curSwitchIndex) / 4; ++i, ptrConn += 4)
+	for (unsigned int i = 0; i < _connections.sliceSize(_curSwitchIndex) / 6; ++i, ptrConn += 6)
 	{
 		// Extract current connection
 		const int uoSource = ptrConn[0];
 		const int uoDest = ptrConn[1];
-		const int compSource = ptrConn[2];
-		const int compDest = ptrConn[3];
+		const int portSource = ptrConn[2];
+		const int portDest = ptrConn[3];
+		const int compSource = ptrConn[4];
+		const int compDest = ptrConn[5];
 
 		//Number of components was already verified so assume they are all correct
 
-		LOG(Debug) << "Unit op " << uoSource << " (" << _models[uoSource]->unitOperationName() << ") comp " << compSource << " => "
-		           << uoDest << " (" << _models[uoDest]->unitOperationName() << ") comp " << compDest;
+		LOG(Debug) << "Unit op " << uoSource << " (" << _models[uoSource]->unitOperationName() << ") port " << portSource << " comp " << compSource << " => "
+		           << uoDest << " (" << _models[uoDest]->unitOperationName() << ") port " << portDest << " comp " << compDest;
 	}
 #endif
 
@@ -1173,13 +1266,16 @@ void ModelSystem::assembleSuperStructMatrices(unsigned int secIdx)
 		// Only items with an inlet have non-zero entries in the NF matrices
 		if (model->hasInlet())
 		{
-			// Each component generates a -1 for its inlet in the NF[i] matrix and increases the couplingIdx by 1
-			const unsigned int localInletComponentIndex = model->localInletComponentIndex();
-			const unsigned int localInletComponentStride = model->localInletComponentStride();
-			for (unsigned int comp = 0; comp < model->numComponents(); ++comp)
+			for (unsigned int port = 0; port < model->numInletPorts(); ++port)
 			{
-				_jacNF[i].addElement(localInletComponentIndex + comp * localInletComponentStride, couplingIdx, -1.0);
-				++couplingIdx;
+				// Each component generates a -1 for its inlet in the NF[i] matrix and increases the couplingIdx by 1
+				const unsigned int localInletComponentIndex = model->localInletComponentIndex(port);
+				const unsigned int localInletComponentStride = model->localInletComponentStride(port);
+				for (unsigned int comp = 0; comp < model->numComponents(); ++comp)
+				{
+					_jacNF[i].addElement(localInletComponentIndex + comp * localInletComponentStride, couplingIdx, -1.0);
+					++couplingIdx;
+				}
 			}
 		}
 	}
@@ -1189,20 +1285,22 @@ void ModelSystem::assembleSuperStructMatrices(unsigned int secIdx)
 	active const* const ptrRate = _flowRates[_curSwitchIndex];
 
 	// Reset _totalInletFlow back to zero
-	std::fill(_totalInletFlow.begin(), _totalInletFlow.end(), 0.0);
+	_totalInletFlow.fill(0.0);
 
-	// Compute total volumetric inflow for each unit operation
-	for (unsigned int i = 0; i < _connections.sliceSize(_curSwitchIndex) / 4; ++i)
+	// Compute total volumetric inflow for each unit operation port
+	for (unsigned int i = 0; i < _connections.sliceSize(_curSwitchIndex) / 6; ++i)
 	{
 		// Extract current connection
-		const int uoSource = ptrConn[4*i];
-		const int uoDest = ptrConn[4*i + 1];
+		const int uoSource = ptrConn[6*i];
+		const int uoDest = ptrConn[6*i + 1];
+		const int portSource = ptrConn[6*i + 2];
+		const int portDest = ptrConn[6*i + 3];
 
 		// Check if the same connection has appeared before (with different components)
 		bool skip = false;
 		for (unsigned int j = 0; j < i; ++j)
 		{
-			if ((ptrConn[4*j] == uoSource) && (ptrConn[4*j + 1] == uoDest))
+			if ((ptrConn[6*j] == uoSource) && (ptrConn[6*j + 1] == uoDest) && (ptrConn[6*j + 2] == portSource) && (ptrConn[6*j + 3] == portDest))
 			{
 				skip = true;
 				break;
@@ -1214,24 +1312,32 @@ void ModelSystem::assembleSuperStructMatrices(unsigned int secIdx)
 			continue;
 
 		// Use the first flow rate from uoSource to uoDest
-		_totalInletFlow[uoDest] += ptrRate[i];
+		if (portDest < 0)
+		{
+			for (unsigned int j = 0; j < _models[uoDest]->numInletPorts(); ++j)
+				_totalInletFlow(uoDest, j) += ptrRate[i];
+		}
+		else
+			_totalInletFlow(uoDest, portDest) += ptrRate[i];
 	}
 
 	// Bottom macro-row
 	// FN
-	for (unsigned int i = 0; i < _connections.sliceSize(_curSwitchIndex) / 4; ++i)
+	for (unsigned int i = 0; i < _connections.sliceSize(_curSwitchIndex) / 6; ++i)
 	{
 		// Extract current connection
-		const int uoSource = ptrConn[4*i];
-		const int uoDest = ptrConn[4*i + 1];
-		const int compSource = ptrConn[4*i + 2];
-		const int compDest = ptrConn[4*i + 3];
+		const int uoSource = ptrConn[6*i];
+		const int uoDest = ptrConn[6*i + 1];
+		const int portSource = ptrConn[6*i + 2];
+		const int portDest = ptrConn[6*i + 3];
+		const int compSource = ptrConn[6*i + 4];
+		const int compDest = ptrConn[6*i + 5];
 
 		// Obtain index of first connection from uoSource to uoDest
 		unsigned int idx = i;
 		for (unsigned int j = 0; j < i; ++j)
 		{
-			if ((ptrConn[4*j] == uoSource) && (ptrConn[4*j + 1] == uoDest))
+			if ((ptrConn[6*j] == uoSource) && (ptrConn[6*j + 1] == uoDest) && (ptrConn[6*j + 2] == portSource) && (ptrConn[6*j + 3] == portDest))
 			{
 				idx = j;
 				break;
@@ -1242,26 +1348,55 @@ void ModelSystem::assembleSuperStructMatrices(unsigned int secIdx)
 		// Hence, ptrRate[idx] is the flow rate to use for this connection
 
 		IUnitOperation const* const modelSource = _models[uoSource];
-		const unsigned int outletIndex = modelSource->localOutletComponentIndex();
-		const unsigned int outletStride = modelSource->localOutletComponentStride();
 
 		// The outlet column is the outlet index + component number * outlet stride
 
-		if (compSource == -1)
+		if (portSource == -1)
 		{
-			// Connect all components with the same flow rate
-			for (unsigned int comp = 0; comp < modelSource->numComponents(); ++comp)
+			for (unsigned int j = 0; j < modelSource->numOutletPorts(); ++j)
 			{
-				const unsigned int row = _couplingIdxMap[std::make_pair(uoDest, comp)];  // destination coupling DOF
-				const unsigned int col = outletIndex + outletStride * comp;
-				_jacActiveFN[uoSource].addElement(row, col, -ptrRate[idx] / _totalInletFlow[uoDest]);
+				const unsigned int outletIndex = modelSource->localOutletComponentIndex(j);
+				const unsigned int outletStride = modelSource->localOutletComponentStride(j);
+
+				if (compSource == -1)
+				{
+					// Connect all components with the same flow rate
+					for (unsigned int comp = 0; comp < modelSource->numComponents(); ++comp)
+					{
+						const unsigned int row = _couplingIdxMap[std::make_tuple(uoDest, j, comp)];  // destination coupling DOF
+						const unsigned int col = outletIndex + outletStride * comp;
+						_jacActiveFN[uoSource].addElement(row, col, -ptrRate[idx] / _totalInletFlow(uoDest, j));
+					}
+				}
+				else
+				{
+					const unsigned int row = _couplingIdxMap[std::make_tuple(uoDest, j, compDest)];  // destination coupling DOF
+					const unsigned int col = outletIndex + outletStride * compSource;
+					_jacActiveFN[uoSource].addElement(row, col, -ptrRate[idx] / _totalInletFlow(uoDest,j));
+				}
 			}
 		}
 		else
 		{
-			const unsigned int row = _couplingIdxMap[std::make_pair(uoDest, compDest)];  // destination coupling DOF
-			const unsigned int col = outletIndex + outletStride * compSource;
-			_jacActiveFN[uoSource].addElement(row, col, -ptrRate[idx] / _totalInletFlow[uoDest]);
+			const unsigned int outletIndex = modelSource->localOutletComponentIndex(portSource);
+			const unsigned int outletStride = modelSource->localOutletComponentStride(portSource);
+
+			if (compSource == -1)
+			{
+				// Connect all components with the same flow rate
+				for (unsigned int comp = 0; comp < modelSource->numComponents(); ++comp)
+				{
+					const unsigned int row = _couplingIdxMap[std::make_tuple(uoDest, portDest, comp)];  // destination coupling DOF
+					const unsigned int col = outletIndex + outletStride * comp;
+					_jacActiveFN[uoSource].addElement(row, col, -ptrRate[idx] / _totalInletFlow(uoDest, portDest));
+				}
+			}
+			else
+			{
+				const unsigned int row = _couplingIdxMap[std::make_tuple(uoDest, portDest, compDest)];  // destination coupling DOF
+				const unsigned int col = outletIndex + outletStride * compSource;
+				_jacActiveFN[uoSource].addElement(row, col, -ptrRate[idx] / _totalInletFlow(uoDest, portDest));
+			}
 		}
 	}
 
@@ -1313,6 +1448,7 @@ void ModelSystem::prepareADvectors(const AdJacobianParams& adJac) const
 double ModelSystem::residualNorm(const SimulationTime& simTime, const ConstSimulationState& simState)
 {
 	residual(simTime, simState, _tempState);
+	LOG(Debug) << "Residual: " << log::VectorPtr<double>(_tempState, numDofs());
 	return linalg::linfNorm(_tempState, numDofs());
 }
 
@@ -1685,12 +1821,15 @@ void ModelSystem::solveCouplingDOF(double* const vec)
 	{
 		IUnitOperation* const m = _models[i];
 		const unsigned int offset = _dofOffset[i];
-		if (m->hasInlet())
+		if (!m->hasInlet())
+			continue;
+		
+		for (unsigned int port = 0; port < m->numInletPorts(); ++port)
 		{
+			const unsigned int localIndex = m->localInletComponentIndex(port);
+			const unsigned int localStride = m->localInletComponentStride(port);
 			for (unsigned int comp = 0; comp < m->numComponents(); ++comp)
 			{
-				const unsigned int localIndex = m->localInletComponentIndex();
-				const unsigned int localStride = m->localInletComponentStride();
 				vec[offset + localIndex + comp*localStride] = vec[idxCoupling];
 				++idxCoupling;
 			}

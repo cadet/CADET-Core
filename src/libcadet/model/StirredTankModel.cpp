@@ -71,10 +71,10 @@ bool CSTRModel::usesAD() const CADET_NOEXCEPT
 #endif
 }
 
-void CSTRModel::setFlowRates(const active& in, const active& out) CADET_NOEXCEPT 
+void CSTRModel::setFlowRates(active const* in, active const* out) CADET_NOEXCEPT 
 { 
-	_flowRateIn = in;
-	_flowRateOut = out;
+	_flowRateIn = in[0];
+	_flowRateOut = out[0];
 }
 
 bool CSTRModel::configureModelDiscretization(IParameterProvider& paramProvider, IConfigHelper& helper)

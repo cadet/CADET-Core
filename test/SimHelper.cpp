@@ -63,8 +63,8 @@ namespace test
 		jpp.pushScope(ss.str());
 
 		std::vector<double> con = jpp.getDoubleArray("CONNECTIONS");
-		con[4] = in;
-		con[9] = out;
+		con[6] = in;
+		con[13] = out;
 		jpp.set("CONNECTIONS", con);
 
 		jpp.popScope();

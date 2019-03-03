@@ -447,9 +447,9 @@ void LumpedRateModelWithPores::notifyDiscontinuousSectionTransition(double t, un
 	}
 }
 
-void LumpedRateModelWithPores::setFlowRates(const active& in, const active& out) CADET_NOEXCEPT
+void LumpedRateModelWithPores::setFlowRates(active const* in, active const* out) CADET_NOEXCEPT
 {
-	_convDispOp.setFlowRates(in, out, _colPorosity);
+	_convDispOp.setFlowRates(in[0], out[0], _colPorosity);
 }
 
 void LumpedRateModelWithPores::reportSolution(ISolutionRecorder& recorder, double const* const solution) const
@@ -1135,7 +1135,7 @@ void LumpedRateModelWithPores::setExternalFunctions(IExternalFunction** extFuns,
 	}
 }
 
-unsigned int LumpedRateModelWithPores::localOutletComponentIndex() const CADET_NOEXCEPT
+unsigned int LumpedRateModelWithPores::localOutletComponentIndex(unsigned int port) const CADET_NOEXCEPT
 {
 	// Inlets are duplicated so need to be accounted for
 	if (static_cast<double>(_convDispOp.currentVelocity()) >= 0.0)
@@ -1146,17 +1146,17 @@ unsigned int LumpedRateModelWithPores::localOutletComponentIndex() const CADET_N
 		return _disc.nComp;
 }
 
-unsigned int LumpedRateModelWithPores::localInletComponentIndex() const CADET_NOEXCEPT
+unsigned int LumpedRateModelWithPores::localInletComponentIndex(unsigned int port) const CADET_NOEXCEPT
 {
 	return 0;
 }
 
-unsigned int LumpedRateModelWithPores::localOutletComponentStride() const CADET_NOEXCEPT
+unsigned int LumpedRateModelWithPores::localOutletComponentStride(unsigned int port) const CADET_NOEXCEPT
 {
 	return 1;
 }
 
-unsigned int LumpedRateModelWithPores::localInletComponentStride() const CADET_NOEXCEPT
+unsigned int LumpedRateModelWithPores::localInletComponentStride(unsigned int port) const CADET_NOEXCEPT
 {
 	return 1;
 }

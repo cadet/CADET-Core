@@ -49,6 +49,13 @@ namespace unitoperation
 	 */
 	void testConsistentInitializationSensitivity(cadet::IUnitOperation* const unit, bool adEnabled, double const* const y, double const* const yDot, double absTol);
 
+	/**
+	 * @brief Checks whether the inlet DOFs produce the identity matrix in the Jacobian of the unit operation
+	 * @param [in] unit Configured unit operation
+	 * @param [in] adEnabled Determines whether AD is used for calculating the Jacobian
+	 */
+	void testInletDofJacobian(cadet::IUnitOperation* const unit, bool adEnabled);
+
 } // namespace unitoperation
 } // namespace test
 } // namespace cadet

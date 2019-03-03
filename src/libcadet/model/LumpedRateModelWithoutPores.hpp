@@ -68,7 +68,9 @@ public:
 
 	virtual UnitOpIdx unitOperationId() const CADET_NOEXCEPT { return _unitOpIdx; }
 	virtual unsigned int numComponents() const CADET_NOEXCEPT { return _disc.nComp; }
-	virtual void setFlowRates(const active& in, const active& out) CADET_NOEXCEPT;
+	virtual void setFlowRates(active const* in, active const* out) CADET_NOEXCEPT;
+	virtual unsigned int numInletPorts() const CADET_NOEXCEPT { return 1; }
+	virtual unsigned int numOutletPorts() const CADET_NOEXCEPT { return 1; }
 	virtual bool canAccumulate() const CADET_NOEXCEPT { return false; }
 
 	static const char* identifier() { return "LUMPED_RATE_MODEL_WITHOUT_PORES"; }
@@ -117,10 +119,10 @@ public:
 	virtual bool hasInlet() const CADET_NOEXCEPT { return true; }
 	virtual bool hasOutlet() const CADET_NOEXCEPT { return true; }
 
-	virtual unsigned int localOutletComponentIndex() const CADET_NOEXCEPT;
-	virtual unsigned int localOutletComponentStride() const CADET_NOEXCEPT;
-	virtual unsigned int localInletComponentIndex() const CADET_NOEXCEPT;
-	virtual unsigned int localInletComponentStride() const CADET_NOEXCEPT;
+	virtual unsigned int localOutletComponentIndex(unsigned int port) const CADET_NOEXCEPT;
+	virtual unsigned int localOutletComponentStride(unsigned int port) const CADET_NOEXCEPT;
+	virtual unsigned int localInletComponentIndex(unsigned int port) const CADET_NOEXCEPT;
+	virtual unsigned int localInletComponentStride(unsigned int port) const CADET_NOEXCEPT;
 
 	virtual void setExternalFunctions(IExternalFunction** extFuns, unsigned int size);
 	virtual void setSectionTimes(double const* secTimes, bool const* secContinuity, unsigned int nSections) { }

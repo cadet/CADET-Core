@@ -111,10 +111,10 @@ function [result, solution] = loadWashElutionSMAsystem()
 	% Define valve configurations / unit operation connections
 	% Valve configuration active on entering section 0
 	mSys.connectionStartSection = [0];
-	% Connect unit 0 with unit 1 (-1 = all components), flow rate 1.0
-	% Connect unit 1 with unit 2 (-1 = all components), flow rate 1.0
-	mSys.connections = {[0, 1, -1, -1, 1.0; ...
-	                     1, 2, -1, -1, 1.0]};
+	% Connect unit 0 with unit 1 (-1 = all ports, all components), flow rate 1.0
+	% Connect unit 1 with unit 2 (-1 = all ports, all components), flow rate 1.0
+	mSys.connections = {[0, 1, -1, -1, -1, -1, 1.0; ...
+	                     1, 2, -1, -1, -1, -1, 1.0]};
 
 
 	% Step 5: Create simulator and configure it

@@ -129,6 +129,11 @@ TEST_CASE("GRM consistent sensitivity initialization with SMA binding", "[GRM],[
 	cadet::test::column::testConsistentInitializationSensitivity("GENERAL_RATE_MODEL", y.data(), yDot.data(), false, 1e-9);
 }
 
+TEST_CASE("GRM inlet DOF Jacobian", "[GRM],[UnitOp],[Jacobian],[Inlet]")
+{
+	cadet::test::column::testInletDofJacobian("GENERAL_RATE_MODEL");
+}
+
 TEST_CASE("GRM LWE one vs two identical particle types match", "[GRM],[Simulation],[ParticleType]")
 {
 	cadet::test::particle::testOneVsTwoIdenticalParticleTypes("GENERAL_RATE_MODEL", 2e-8, 5e-5);

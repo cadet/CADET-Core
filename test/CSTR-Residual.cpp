@@ -530,3 +530,22 @@ TEST_CASE("StirredTankModel consistent sensitivity initialization with SMA bindi
 		return cstr;
 	}, y.data(), yDot.data(), 1e-8);
 }
+
+TEST_CASE("StirredTankModel inlet DOF Jacobian", "[CSTR],[UnitOp],[Jacobian],[Inlet]")
+{
+	cadet::IModelBuilder* const mb = cadet::createModelBuilder();
+	REQUIRE(nullptr != mb);
+
+	for (int adMode = 0; adMode < 2; ++adMode)
+	{
+		const bool adEnabled = (adMode > 0);
+		SECTION(std::string("AD ") + (adEnabled ? "enabled" : "disabled"))
+		{
+			cadet::JsonParameterProvider jpp = createCSTR(4);
+			cadet::model::CSTRModel* const cstr = createAndConfigureCSTR(*mb, jpp);
+			cadet::test::unitoperation::testInletDofJacobian(cstr, adEnabled);
+			mb->destroyUnitOperation(cstr);
+		}
+	}
+	destroyModelBuilder(mb);
+}

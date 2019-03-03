@@ -120,3 +120,8 @@ TEST_CASE("LRM consistent sensitivity initialization with SMA binding", "[LRM],[
 
 	cadet::test::column::testConsistentInitializationSensitivity("LUMPED_RATE_MODEL_WITHOUT_PORES", y.data(), yDot.data(), false, 1e-10);
 }
+
+TEST_CASE("LRM inlet DOF Jacobian", "[LRM],[UnitOp],[Jacobian],[Inlet]")
+{
+	cadet::test::column::testInletDofJacobian("LUMPED_RATE_MODEL_WITHOUT_PORES");
+}

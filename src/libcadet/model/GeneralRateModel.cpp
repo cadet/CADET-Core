@@ -553,9 +553,9 @@ void GeneralRateModel::notifyDiscontinuousSectionTransition(double t, unsigned i
 	}
 }
 
-void GeneralRateModel::setFlowRates(const active& in, const active& out) CADET_NOEXCEPT
+void GeneralRateModel::setFlowRates(active const* in, active const* out) CADET_NOEXCEPT
 {
-	_convDispOp.setFlowRates(in, out, _colPorosity);
+	_convDispOp.setFlowRates(in[0], out[0], _colPorosity);
 }
 
 void GeneralRateModel::reportSolution(ISolutionRecorder& recorder, double const* const solution) const
@@ -1382,7 +1382,7 @@ void GeneralRateModel::setExternalFunctions(IExternalFunction** extFuns, unsigne
 	}
 }
 
-unsigned int GeneralRateModel::localOutletComponentIndex() const CADET_NOEXCEPT
+unsigned int GeneralRateModel::localOutletComponentIndex(unsigned int port) const CADET_NOEXCEPT
 {
 	// Inlets are duplicated so need to be accounted for
 	if (static_cast<double>(_convDispOp.currentVelocity()) >= 0.0)
@@ -1393,18 +1393,18 @@ unsigned int GeneralRateModel::localOutletComponentIndex() const CADET_NOEXCEPT
 		return _disc.nComp;
 }
 
-unsigned int GeneralRateModel::localInletComponentIndex() const CADET_NOEXCEPT
+unsigned int GeneralRateModel::localInletComponentIndex(unsigned int port) const CADET_NOEXCEPT
 {
 	// Always 0 due to dedicated inlet DOFs
 	return 0;
 }
 
-unsigned int GeneralRateModel::localOutletComponentStride() const CADET_NOEXCEPT
+unsigned int GeneralRateModel::localOutletComponentStride(unsigned int port) const CADET_NOEXCEPT
 {
 	return 1;
 }
 
-unsigned int GeneralRateModel::localInletComponentStride() const CADET_NOEXCEPT
+unsigned int GeneralRateModel::localInletComponentStride(unsigned int port) const CADET_NOEXCEPT
 {
 	return 1;
 }
