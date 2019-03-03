@@ -1064,6 +1064,33 @@ bool ModelSystem::setParameter(const ParameterId& pId, double value)
 	{
 		paramHandle->second->setValue(value);
 		found = true;
+
+		// Multiplex flow rate parameters
+#if CADET_COMPILER_CXX_CONSTEXPR
+		constexpr StringHash flowHash = hashString("CONNECTION");
+#else
+		const StringHash flowHash = hashString("CONNECTION");
+#endif
+		if (flowHash == pId.name)
+		{
+			// Find the index of the valve switch
+			const auto it = std::find(_switchSectionIndex.begin(), _switchSectionIndex.end(), pId.section);
+			if (it != _switchSectionIndex.end())
+			{
+				const unsigned int idxSwitch = std::distance(_switchSectionIndex.begin(), it);
+				int const* ptrConn = _connections[idxSwitch];
+				active* conRates = _flowRates[idxSwitch];
+
+				// Set value for all flow rates of the same connection (except for components)
+				for (unsigned int i = 0; i < _connections.sliceSize(idxSwitch) / 6; ++i, ptrConn += 6, ++conRates)
+				{
+					if ((ptrConn[2] != pId.component) || (ptrConn[3] != pId.particleType) || (ptrConn[0] != pId.boundState) || (ptrConn[1] != pId.reaction))
+						continue;
+
+					conRates->setValue(value);
+				}
+			}
+		}
 	}
 
 	return setParameterImpl(pId, value) || found;
@@ -1081,7 +1108,36 @@ void ModelSystem::setSensitiveParameterValue(const ParameterId& pId, double valu
 		// Handle flow rates
 		auto paramHandle = _parameters.find(pId);
 		if ((paramHandle != _parameters.end()) && contains(_sensParams, paramHandle->second))
+		{
 			paramHandle->second->setValue(value);
+
+			// Multiplex flow rate parameters
+#if CADET_COMPILER_CXX_CONSTEXPR
+			constexpr StringHash flowHash = hashString("CONNECTION");
+#else
+			const StringHash flowHash = hashString("CONNECTION");
+#endif
+			if (flowHash == pId.name)
+			{
+				// Find the index of the valve switch
+				const auto it = std::find(_switchSectionIndex.begin(), _switchSectionIndex.end(), pId.section);
+				if (it != _switchSectionIndex.end())
+				{
+					const unsigned int idxSwitch = std::distance(_switchSectionIndex.begin(), it);
+					int const* ptrConn = _connections[idxSwitch];
+					active* conRates = _flowRates[idxSwitch];
+
+					// Set value for all flow rates of the same connection (except for components)
+					for (unsigned int i = 0; i < _connections.sliceSize(idxSwitch) / 6; ++i, ptrConn += 6, ++conRates)
+					{
+						if ((ptrConn[2] != pId.component) || (ptrConn[3] != pId.particleType) || (ptrConn[0] != pId.boundState) || (ptrConn[1] != pId.reaction))
+							continue;
+
+						conRates->setValue(value);
+					}
+				}
+			}
+		}
 	}
 
 	// Filter by unit operation ID
@@ -1109,6 +1165,33 @@ bool ModelSystem::setSensitiveParameter(const ParameterId& pId, unsigned int adD
 			// Register parameter and set AD seed / direction
 			_sensParams.insert(paramHandle->second);
 			paramHandle->second->setADValue(adDirection, adValue);
+
+			// Multiplex flow rate parameters
+#if CADET_COMPILER_CXX_CONSTEXPR
+			constexpr StringHash flowHash = hashString("CONNECTION");
+#else
+			const StringHash flowHash = hashString("CONNECTION");
+#endif
+			if (flowHash == pId.name)
+			{
+				// Find the index of the valve switch
+				const auto it = std::find(_switchSectionIndex.begin(), _switchSectionIndex.end(), pId.section);
+				if (it != _switchSectionIndex.end())
+				{
+					const unsigned int idxSwitch = std::distance(_switchSectionIndex.begin(), it);
+					int const* ptrConn = _connections[idxSwitch];
+					active* conRates = _flowRates[idxSwitch];
+
+					// Set AD direction for all flow rates of the same connection (except for components)
+					for (unsigned int i = 0; i < _connections.sliceSize(idxSwitch) / 6; ++i, ptrConn += 6, ++conRates)
+					{
+						if ((ptrConn[2] != pId.component) || (ptrConn[3] != pId.particleType) || (ptrConn[0] != pId.boundState) || (ptrConn[1] != pId.reaction))
+							continue;
+
+						conRates->setADValue(adDirection, adValue);
+					}
+				}
+			}
 
 			found = true;
 		}
