@@ -23,8 +23,10 @@
 #include "linalg/CompressedSparseMatrix.hpp"
 #include "MemoryPool.hpp"
 #include "Weno.hpp"
+#include "model/ParameterMultiplexing.hpp"
 
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 namespace cadet
@@ -65,9 +67,8 @@ public:
 	TwoDimensionalConvectionDispersionOperator();
 	~TwoDimensionalConvectionDispersionOperator() CADET_NOEXCEPT;
 
-//	unsigned int requiredADdirs() const CADET_NOEXCEPT;
-
 	void setFlowRates(int compartment, const active& in, const active& out) CADET_NOEXCEPT;
+	void setFlowRates(active const* in, active const* out) CADET_NOEXCEPT;
 
 	bool configureModelDiscretization(IParameterProvider& paramProvider, unsigned int nComp, unsigned int nCol, unsigned int nRad);
 	bool configure(UnitOpIdx unitOpIdx, IParameterProvider& paramProvider, std::unordered_map<ParameterId, active*>& parameters);
@@ -78,20 +79,15 @@ public:
 	int residual(const active& t, unsigned int secIdx, const active& timeFactor, double const* y, double const* yDot, active* res, bool wantJac);
 	int residual(const active& t, unsigned int secIdx, const active& timeFactor, active const* y, double const* yDot, active* res, bool wantJac);
 
-/*
-	void prepareADvectors(const AdJacobianParams& adJac) const;
-	void extractJacobianFromAD(active const* const adRes, unsigned int adDirOffset);
-*/
-
 	bool solveTimeDerivativeSystem(const SimulationTime& simTime, double* const rhs);
 	void multiplyWithDerivativeJacobian(const SimulationTime& simTime, double const* sDot, double* ret) const;
 
 	bool assembleAndFactorizeDiscretizedJacobian(double alpha, double timeFactor);
 	bool solveDiscretizedJacobian(double* rhs, double const* weight, double const* init, double outerTol) const;
 
-#ifdef CADET_CHECK_ANALYTIC_JACOBIAN
-//	double checkAnalyticJacobianAgainstAd(active const* const adRes, unsigned int adDirOffset) const;
-#endif
+	bool setParameter(const ParameterId& pId, double value);
+	bool setSensitiveParameter(std::unordered_set<active*>& sensParams, const ParameterId& pId, unsigned int adDirection, double adValue);
+	bool setSensitiveParameterValue(const std::unordered_set<active*>& sensParams, const ParameterId& id, double value);
 
 	inline const active& columnLength() const CADET_NOEXCEPT { return _colLength; }
 	inline const active& columnRadius() const CADET_NOEXCEPT { return _colRadius; }
@@ -109,11 +105,6 @@ public:
 
 	inline linalg::CompressedSparseMatrix& jacobian() CADET_NOEXCEPT { return _jacC; }
 	inline const linalg::CompressedSparseMatrix& jacobian() const CADET_NOEXCEPT { return _jacC; }
-
-#ifdef CADET_SPARSE_DIRECT
-	inline linalg::FactorizableCompressedSparseMatrix& jacobianDisc() CADET_NOEXCEPT { return _jacCdisc; }
-	inline const linalg::FactorizableCompressedSparseMatrix& jacobianDisc() const CADET_NOEXCEPT { return _jacCdisc; }
-#endif
 
 protected:
 
@@ -163,14 +154,19 @@ protected:
 	std::vector<active> _radialEdges; //!< Boundaries of the radial compartments
 	std::vector<active> _radialCenters; //!< Center of each radial compartment
 //	std::vector<active> _radialCentroids; //!< Center of mass of each radial compartment
-	std::vector<active> _crossSections; //!< Cross section area of each compartment 
-	std::vector<active> _colPorosities; //!< Bulk porosity for each compartment
 	RadialDiscretizationMode _radialDiscretizationMode;
+	std::vector<active> _crossSections; //!< Cross section area of each compartment 
+
+	std::vector<active> _colPorosities; //!< Bulk porosity for each compartment
+	bool _singlePorosity; //!< Determines whether only one porosity for all compartments is given
 
 	std::vector<active> _axialDispersion; //!< Axial dispersion coefficient \f$ D_{\text{ax}} \f$
+	MultiplexMode _axialDispersionMode; //!< Multiplex mode of the axial dispersion
 	std::vector<active> _radialDispersion; //!< Radial dispersion coefficient \f$ D_{\rho} \f$
+	MultiplexMode _radialDispersionMode; //!< Multiplex mode of the radial dispersion
 	std::vector<active> _velocity; //!< Interstitial velocity parameter
 	std::vector<active> _curVelocity; //!< Current interstitial velocity \f$ u \f$
+	bool _singleVelocity; //!< Determines whether only one velocity for all compartments is given
 
 	ArrayPool _stencilMemory; //!< Provides memory for the stencil
 	double* _wenoDerivatives; //!< Holds derivatives of the WENO scheme
