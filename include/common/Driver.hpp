@@ -106,12 +106,18 @@ void configureSystemRecorder(cadet::InternalStorageSystemRecorder& recorder, Par
 
 	// Do not split components into multiple datasets when using MEX interface
 	const bool splitComponents = false;
+	// Do not split ports into multiple datasets when using MEX interface
+	const bool splitPorts = false;
 
 #else
 
 	bool splitComponents = true;
 	if (pp.exists("SPLIT_COMPONENTS_DATA"))
 		splitComponents = pp.getBool("SPLIT_COMPONENTS_DATA");
+
+	bool splitPorts = true;
+	if (pp.exists("SPLIT_PORTS_DATA"))
+		splitPorts = pp.getBool("SPLIT_PORTS_DATA");
 
 #endif
 
@@ -144,6 +150,7 @@ void configureSystemRecorder(cadet::InternalStorageSystemRecorder& recorder, Par
 		subRec->sensitivityDotConfig(cfg);
 
 		subRec->splitComponents(splitComponents);
+		subRec->splitPorts(splitPorts);
 		pp.popScope();
 
 		recorder.addRecorder(subRec);

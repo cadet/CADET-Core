@@ -177,6 +177,8 @@ protected:
 		virtual unsigned int numComponents() const CADET_NOEXCEPT { return _nComp; }
 		virtual unsigned int numAxialCells() const CADET_NOEXCEPT { return 1; }
 		virtual unsigned int numRadialCells() const CADET_NOEXCEPT { return 0; }
+		virtual unsigned int numInletPorts() const CADET_NOEXCEPT { return 0; }
+		virtual unsigned int numOutletPorts() const CADET_NOEXCEPT { return 1; }
 		virtual unsigned int numParticleTypes() const CADET_NOEXCEPT { return 0; }
 		virtual unsigned int numParticleShells(unsigned int parType) const CADET_NOEXCEPT { return 0; }
 		virtual unsigned int numBoundStates(unsigned int parType) const CADET_NOEXCEPT { return 0; }
@@ -191,12 +193,12 @@ protected:
 		virtual double const* particleMobilePhase(unsigned int parType) const { return nullptr; }
 		virtual double const* solidPhase(unsigned int parType) const { return nullptr; }
 		virtual double const* volume() const { return nullptr; }
-		virtual double const* inlet(unsigned int& stride) const
+		virtual double const* inlet(unsigned int port, unsigned int& stride) const
 		{
 			stride = 1;
 			return _data;
 		}
-		virtual double const* outlet(unsigned int& stride) const
+		virtual double const* outlet(unsigned int port, unsigned int& stride) const
 		{
 			stride = 1;
 			return _data;

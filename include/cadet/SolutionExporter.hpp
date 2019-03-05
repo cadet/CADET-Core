@@ -90,6 +90,18 @@ public:
 	virtual unsigned int numRadialCells() const CADET_NOEXCEPT = 0;
 
 	/**
+	 * @brief Returns the number of inlet ports
+	 * @return Number of inlet ports
+	 */
+	virtual unsigned int numInletPorts() const CADET_NOEXCEPT = 0;
+
+	/**
+	 * @brief Returns the number of outlet ports
+	 * @return Number of outlet ports
+	 */
+	virtual unsigned int numOutletPorts() const CADET_NOEXCEPT = 0;
+
+	/**
 	 * @brief Returns the number of particle types
 	 * @return Number of particle types
 	 */
@@ -188,19 +200,21 @@ public:
 	 * @brief Provides direct access to the inlet state vector
 	 * @details The inlet state vector only contains one value for each main mobile phase component (see numComponents()).
 	 *          The stride required for the access is returned in @p stride.
+	 * @param [in] port Index of the port
 	 * @param [out] stride Stride of the vector access
 	 * @return Pointer to the first element of the inlet state vector
 	 */
-	virtual double const* inlet(unsigned int& stride) const = 0;
+	virtual double const* inlet(unsigned int port, unsigned int& stride) const = 0;
 
 	/**
 	 * @brief Provides direct access to the outlet state vector
 	 * @details The outlet state vector only contains one value for each main mobile phase component (see numComponents()).
 	 *          The stride required for the access is returned in @p stride.
+	 * @param [in] port Index of the port
 	 * @param [out] stride Stride of the vector access
 	 * @return Pointer to the first element of the outlet state vector
 	 */
-	virtual double const* outlet(unsigned int& stride) const = 0;
+	virtual double const* outlet(unsigned int port, unsigned int& stride) const = 0;
 
 
 	/**

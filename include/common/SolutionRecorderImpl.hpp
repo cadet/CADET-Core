@@ -56,8 +56,8 @@ public:
 
 	InternalStorageUnitOpRecorder(UnitOpIdx idx) : _cfgSolution({false, false, false, true, false, false}),
 		_cfgSolutionDot({false, false, false, false, false, false}), _cfgSensitivity({false, false, false, true, false, false}),
-		_cfgSensitivityDot({false, false, false, true, false, false}), _storeTime(false), _splitComponents(true), _curCfg(nullptr),
-		_nComp(0), _nVolumeDof(0), _numTimesteps(0), _numSens(0), _unitOp(idx), _needsReAlloc(false)
+		_cfgSensitivityDot({false, false, false, true, false, false}), _storeTime(false), _splitComponents(true), _splitPorts(true),
+		_curCfg(nullptr), _nComp(0), _nVolumeDof(0), _numTimesteps(0), _numSens(0), _unitOp(idx), _needsReAlloc(false)
 	{
 	}
 
@@ -119,6 +119,8 @@ public:
 
 		_nComp = exporter.numComponents();
 		_nVolumeDof = exporter.numVolumeDofs();
+		_nInletPorts = exporter.numInletPorts();
+		_nOutletPorts = exporter.numOutletPorts();
 
 		// Query particle type specific structure
 		const unsigned int numParTypes = exporter.numParticleTypes();
@@ -296,6 +298,8 @@ public:
 					_fluxLayout.push_back(numParTypes);
 					break;
 				case StateOrdering::RadialCell:
+					_fluxLayout.push_back(exporter.numRadialCells());
+					break;
 				case StateOrdering::ParticleShell:
 				case StateOrdering::BoundState:
 					break;
@@ -337,6 +341,14 @@ public:
 			endSolution();
 		}
 
+		if (_storeTime)
+		{
+			if (_numTimesteps == 0)
+				_time.reserve(detail::numDefaultRecorderTimesteps);
+			else
+				_time.reserve(_numTimesteps);
+		}
+
 		// Reset for counting the number of received time steps
 		_numTimesteps = 0;
 	}
@@ -359,17 +371,23 @@ public:
 		if (_curCfg->storeOutlet)
 		{
 			std::vector<double>& v = _curStorage->outlet;
-			double const* outlet = exporter.outlet(stride);
-			for (unsigned int i = 0; i < _nComp; ++i)
-				v.push_back(outlet[i * stride]);
+			for (unsigned int j = 0; j < _nOutletPorts; ++j)
+			{
+				double const* outlet = exporter.outlet(j, stride);
+				for (unsigned int i = 0; i < _nComp; ++i)
+					v.push_back(outlet[i * stride]);
+			}
 		}
 
 		if (_curCfg->storeInlet)
 		{
 			std::vector<double>& v = _curStorage->inlet;
-			double const* inlet = exporter.inlet(stride);
-			for (unsigned int i = 0; i < _nComp; ++i)
-				v.push_back(inlet[i * stride]);
+			for (unsigned int j = 0; j < _nInletPorts; ++j)
+			{
+				double const* inlet = exporter.inlet(j, stride);
+				for (unsigned int i = 0; i < _nComp; ++i)
+					v.push_back(inlet[i * stride]);
+			}
 		}
 
 		if (_curCfg->storeBulk)
@@ -547,11 +565,16 @@ public:
 	inline bool splitComponents() const CADET_NOEXCEPT { return _splitComponents; }
 	inline void splitComponents(bool st) CADET_NOEXCEPT { _splitComponents = st; }
 
+	inline bool splitPorts() const CADET_NOEXCEPT { return _splitPorts; }
+	inline void splitPorts(bool st) CADET_NOEXCEPT { _splitPorts = st; }
+
 	inline UnitOpIdx unitOperation() const CADET_NOEXCEPT { return _unitOp; }
 	inline void unitOperation(UnitOpIdx idx) CADET_NOEXCEPT { _unitOp = idx; }
 
 	inline unsigned int numDataPoints() const CADET_NOEXCEPT { return _numTimesteps; }
 	inline unsigned int numComponents() const CADET_NOEXCEPT { return _nComp; }
+	inline unsigned int numInletPorts() const CADET_NOEXCEPT { return _nInletPorts; }
+	inline unsigned int numOutletPorts() const CADET_NOEXCEPT { return _nOutletPorts; }
 
 	inline double const* time() const CADET_NOEXCEPT { return _time.data(); }
 	inline double const* inlet() const CADET_NOEXCEPT { return _data.inlet.data(); }
@@ -621,10 +644,10 @@ protected:
 		const unsigned int nAllocTimesteps = std::max(_numTimesteps, detail::numDefaultRecorderTimesteps);
 
 		if (_curCfg->storeOutlet)
-			_curStorage->outlet.reserve(nAllocTimesteps * _nComp);
+			_curStorage->outlet.reserve(nAllocTimesteps * _nComp * _nOutletPorts);
 
 		if (_curCfg->storeInlet)
-			_curStorage->inlet.reserve(nAllocTimesteps * _nComp);
+			_curStorage->inlet.reserve(nAllocTimesteps * _nComp * _nInletPorts);
 
 		if (_curCfg->storeBulk)
 			_curStorage->bulk.reserve(nAllocTimesteps * exporter.numBulkDofs());
@@ -655,39 +678,113 @@ protected:
 	{
 		if (_curCfg->storeOutlet)
 		{
-			if (_splitComponents)
+			if (_splitPorts)
 			{
-				for (unsigned int comp = 0; comp < _nComp; ++comp)
+				if (_splitComponents)
 				{
-					oss.str("");
-					oss << prefix << "_OUTLET_COMP_" << std::setfill('0') << std::setw(3) << std::setprecision(0) << comp;
-					writer.template vector<double>(oss.str(), _numTimesteps, _curStorage->outlet.data() + comp, _nComp);
+					for (unsigned int port = 0; port < _nOutletPorts; ++port)
+					{
+						for (unsigned int comp = 0; comp < _nComp; ++comp)
+						{
+							oss.str("");
+							oss << prefix << "_OUTLET_PORT_" << std::setfill('0') << std::setw(3) << std::setprecision(0) << port 
+								<<  "_COMP_" << std::setfill('0') << std::setw(3) << std::setprecision(0) << comp;
+							writer.template vector<double>(oss.str(), _numTimesteps, _curStorage->outlet.data() + comp + port * _nComp, _nComp * _nOutletPorts);
+						}
+					}
+				}
+				else
+				{
+					for (unsigned int port = 0; port < _nOutletPorts; ++port)
+					{
+						oss.str("");
+						oss << prefix << "_OUTLET_PORT_" << std::setfill('0') << std::setw(3) << std::setprecision(0) << port;
+						writer.template matrix<double>(oss.str(), _numTimesteps, _nComp, _curStorage->outlet.data() + port * _nComp, _nOutletPorts * _nComp, _nComp);
+					}
 				}
 			}
 			else
 			{
-				oss.str("");
-				oss << prefix << "_OUTLET";
-				writer.template matrix<double>(oss.str(), _numTimesteps, _nComp, _curStorage->outlet.data(), 1);
+				if (_splitComponents)
+				{
+					for (unsigned int comp = 0; comp < _nComp; ++comp)
+					{
+						oss.str("");
+						oss << prefix << "_OUTLET_COMP_" << std::setfill('0') << std::setw(3) << std::setprecision(0) << comp;
+						writer.template matrix<double>(oss.str(), _numTimesteps, _nOutletPorts, _curStorage->outlet.data() + comp, _nComp);
+					}
+				}
+				else
+				{
+					oss.str("");
+					oss << prefix << "_OUTLET";
+					if (_nOutletPorts == 1)
+					{
+						const std::vector<std::size_t> layout = {_numTimesteps, _nComp};
+						writer.template tensor<double>(oss.str(), layout.size(), layout.data(), _curStorage->outlet.data());
+					}
+					else
+					{
+						const std::vector<std::size_t> layout = {_numTimesteps, _nOutletPorts, _nComp};
+						writer.template tensor<double>(oss.str(), layout.size(), layout.data(), _curStorage->outlet.data());
+					}
+				}
 			}
 		}
 
 		if (_curCfg->storeInlet)
 		{
-			if (_splitComponents)
+			if (_splitPorts)
 			{
-				for (unsigned int comp = 0; comp < _nComp; ++comp)
+				if (_splitComponents)
 				{
-					oss.str("");
-					oss << prefix << "_INLET_COMP_" << std::setfill('0') << std::setw(3) << std::setprecision(0) << comp;
-					writer.template vector<double>(oss.str(), _numTimesteps, _curStorage->inlet.data() + comp, _nComp);
+					for (unsigned int port = 0; port < _nInletPorts; ++port)
+					{
+						for (unsigned int comp = 0; comp < _nComp; ++comp)
+						{
+							oss.str("");
+							oss << prefix << "_INLET_PORT_" << std::setfill('0') << std::setw(3) << std::setprecision(0) << port 
+								<<  "_COMP_" << std::setfill('0') << std::setw(3) << std::setprecision(0) << comp;
+							writer.template vector<double>(oss.str(), _numTimesteps, _curStorage->inlet.data() + comp + port * _nComp, _nComp * _nInletPorts);
+						}
+					}
+				}
+				else
+				{
+					for (unsigned int port = 0; port < _nInletPorts; ++port)
+					{
+						oss.str("");
+						oss << prefix << "_INLET_PORT_" << std::setfill('0') << std::setw(3) << std::setprecision(0) << port;
+						writer.template matrix<double>(oss.str(), _numTimesteps, _nComp, _curStorage->inlet.data() + port * _nComp, _nInletPorts * _nComp, _nComp);
+					}
 				}
 			}
 			else
 			{
-				oss.str("");
-				oss << prefix << "_INLET";
-				writer.template matrix<double>(oss.str(), _numTimesteps, _nComp, _curStorage->inlet.data(), 1);
+				if (_splitComponents)
+				{
+					for (unsigned int comp = 0; comp < _nComp; ++comp)
+					{
+						oss.str("");
+						oss << prefix << "_INLET_COMP_" << std::setfill('0') << std::setw(3) << std::setprecision(0) << comp;
+						writer.template matrix<double>(oss.str(), _numTimesteps, _nInletPorts, _curStorage->inlet.data() + comp, _nComp);
+					}
+				}
+				else
+				{
+					oss.str("");
+					oss << prefix << "_INLET";
+					if (_nInletPorts == 1)
+					{
+						const std::vector<std::size_t> layout = {_numTimesteps, _nComp};
+						writer.template tensor<double>(oss.str(), layout.size(), layout.data(), _curStorage->inlet.data());
+					}
+					else
+					{
+						const std::vector<std::size_t> layout = {_numTimesteps, _nInletPorts, _nComp};
+						writer.template tensor<double>(oss.str(), layout.size(), layout.data(), _curStorage->inlet.data());
+					}
+				}
 			}
 		}
 
@@ -782,6 +879,7 @@ protected:
 	StorageConfig _cfgSensitivityDot;
 	bool _storeTime;
 	bool _splitComponents;
+	bool _splitPorts;
 
 	StorageConfig const* _curCfg;
 	Storage* _curStorage;
@@ -799,6 +897,8 @@ protected:
 
 	unsigned int _nComp;
 	unsigned int _nVolumeDof;
+	unsigned int _nInletPorts;
+	unsigned int _nOutletPorts;
 	std::vector<unsigned int> _nParShells;
 	std::vector<unsigned int> _nBoundStates;
 	unsigned int _numTimesteps;
@@ -843,7 +943,10 @@ public:
 	virtual void prepare(unsigned int numDofs, unsigned int numSens, unsigned int numTimesteps)
 	{
 		_numSens = numSens;
-		_time.reserve(numTimesteps);
+		if (numTimesteps > 0)
+			_time.reserve(numTimesteps);
+		else
+			_time.reserve(detail::numDefaultRecorderTimesteps);
 
 		for (InternalStorageUnitOpRecorder* rec : _recorders)
 			rec->prepare(numDofs, numSens, numTimesteps);
@@ -853,7 +956,11 @@ public:
 	{
 		_numSens = numSens;
 		_time.clear();
-		_time.reserve(numTimesteps);
+
+		if (numTimesteps > 0)
+			_time.reserve(numTimesteps);
+		else
+			_time.reserve(detail::numDefaultRecorderTimesteps);
 
 		for (InternalStorageUnitOpRecorder* rec : _recorders)
 			rec->notifyIntegrationStart(numDofs, numSens, numTimesteps);

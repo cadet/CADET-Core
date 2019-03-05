@@ -1108,6 +1108,9 @@ This group also takes precedence over a possibly existing \texttt{/input/model/u
   \begin{dataset}[type = int, range={$\{0,1\}$}]{SPLIT\_COMPONENTS\_DATA}
     Determines whether a joint dataset (matrix) for all components is created or if each component is put in a separate dataset (\texttt{XXX\_COMP\_000}, \texttt{XXX\_COMP\_001}, etc.) (optional, defaults to 1)
   \end{dataset}
+  \begin{dataset}[type = int, range={$\{0,1\}$}]{SPLIT\_PORTS\_DATA}
+    Determines whether a joint dataset (matrix) for all inlet/outlet ports is created or if each port is put in a separate dataset (\texttt{XXX\_PORT\_000}, \texttt{XXX\_PORT\_001}, etc.) (optional, defaults to 1)
+  \end{dataset}
 \end{groupscope}
 
 \begin{groupscope}{/input/return/unit\_XXX}{tab:FFReturnUnit}
@@ -1376,20 +1379,36 @@ This group also takes precedence over a possibly existing \texttt{/input/model/u
     Volume solution
   \end{dataset}
   \begin{dataset}[type=double,unit={\si{\mol\per\cubic\metre\of{IV}}}]{SOLUTION\_OUTLET}
-    Matrix of solutions at the unit operation outlet with components as columns in row-major storage.
-    Only present if \texttt{SPLIT\_COMPONENTS\_DATA} is disabled.
+    Tensor of solutions at the unit operation outlet with components as columns in time-port-major storage.
+    Only present if \texttt{SPLIT\_COMPONENTS\_DATA} and \texttt{SPLIT\_PORTS\_DATA} are both disabled.
   \end{dataset}
   \begin{dataset}[type=double,unit={\si{\mol\per\cubic\metre\of{IV}}}]{SOLUTION\_INLET}
-    Matrix of solutions at the unit operation inlet with components as columns in row-major storage.
-    Only present if \texttt{SPLIT\_COMPONENTS\_DATA} is disabled.
+    Tensor of solutions at the unit operation inlet with components as columns in time-port-major storage.
+    Only present if \texttt{SPLIT\_COMPONENTS\_DATA} and \texttt{SPLIT\_PORTS\_DATA} are both disabled.
   \end{dataset}
   \begin{dataset}[type=double,unit={\si{\mol\per\cubic\metre\of{IV}}}]{SOLUTION\_OUTLET\_COMP\_XXX}
-    Component \texttt{XXX} of the solution at the unit operation outlet with.
-    Only present if \texttt{SPLIT\_COMPONENTS\_DATA} is enabled.
+    Component \texttt{XXX} of the solution at all outlet ports of the unit operation as matrix in time-major storage.
+    Only present if \texttt{SPLIT\_COMPONENTS\_DATA} is enabled and \texttt{SPLIT\_PORTS\_DATA} is disabled.
   \end{dataset}
   \begin{dataset}[type=double,unit={\si{\mol\per\cubic\metre\of{IV}}}]{SOLUTION\_INLET\_COMP\_XXX}
-    Component \texttt{XXX} of the solution at the unit operation inlet with.
-    Only present if \texttt{SPLIT\_COMPONENTS\_DATA} is enabled.
+    Component \texttt{XXX} of the solution at all inlet ports of the unit operation inlet as matrix in time-major storage.
+    Only present if \texttt{SPLIT\_COMPONENTS\_DATA} is enabled and \texttt{SPLIT\_PORTS\_DATA} is disabled.
+  \end{dataset}
+  \begin{dataset}[type=double,unit={\si{\mol\per\cubic\metre\of{IV}}}]{SOLUTION\_OUTLET\_PORT\_XXX}
+    All components at outlet port \texttt{XXX} of the solution of the unit operation as matrix in time-major storage.
+    Only present if \texttt{SPLIT\_COMPONENTS\_DATA} is disabled and \texttt{SPLIT\_PORTS\_DATA} is enabled.
+  \end{dataset}
+  \begin{dataset}[type=double,unit={\si{\mol\per\cubic\metre\of{IV}}}]{SOLUTION\_INLET\_PORT\_XXX}
+    All components at inlet port \texttt{XXX} of the solution of the unit operation inlet as matrix in time-major storage.
+    Only present if \texttt{SPLIT\_COMPONENTS\_DATA} is disabled and \texttt{SPLIT\_PORTS\_DATA} is enabled.
+  \end{dataset}
+  \begin{dataset}[type=double,unit={\si{\mol\per\cubic\metre\of{IV}}}]{SOLUTION\_OUTLET\_PORT\_XXX\_COMP\_YYY}
+    Component \texttt{YYY} at outlet port \texttt{XXX} of the solution of the unit operation.
+    Only present if \texttt{SPLIT\_COMPONENTS\_DATA} is enabled and \texttt{SPLIT\_PORTS\_DATA} is enabled.
+  \end{dataset}
+  \begin{dataset}[type=double,unit={\si{\mol\per\cubic\metre\of{IV}}}]{SOLUTION\_INLET\_PORT\_XXX\_COMP\_YYY}
+    Component \texttt{YYY} at inlet port \texttt{XXX} of the solution of the unit operation.
+    Only present if \texttt{SPLIT\_COMPONENTS\_DATA} is enabled and \texttt{SPLIT\_PORTS\_DATA} is enabled.
   \end{dataset}
   \begin{dataset}[type=double,unit={\si{\mol\per\cubic\metre\of{IV}\per\second}}]{SOLDOT\_BULK}
     Interstitial solution time derivative as $n_{\text{Time}} \times \texttt{UNITOPORDERING}$ tensor in row-major storage
@@ -1417,20 +1436,36 @@ This group also takes precedence over a possibly existing \texttt{/input/model/u
     Volume solution time derivative 
   \end{dataset}
   \begin{dataset}[type=double,unit={\si{\mol\per\cubic\metre\of{IV}\per\second}}]{SOLDOT\_OUTLET}
-    Matrix of solution time derivatives at the unit operation outlet with components as columns in row-major storage.
-    Only present if \texttt{SPLIT\_COMPONENTS\_DATA} is disabled.
+    Tensor of solution time derivatives at the unit operation outlet with components as columns in time-port-major storage.
+    Only present if \texttt{SPLIT\_COMPONENTS\_DATA} and \texttt{SPLIT\_PORTS\_DATA} are both disabled.
   \end{dataset}
   \begin{dataset}[type=double,unit={\si{\mol\per\cubic\metre\of{IV}\per\second}}]{SOLDOT\_INLET}
-    Matrix of solution time derivatives at the unit operation inlet with components as columns in row-major storage.
-    Only present if \texttt{SPLIT\_COMPONENTS\_DATA} is disabled.
+    Tensor of solution time derivatives at the unit operation inlet with components as columns in time-port-major storage.
+    Only present if \texttt{SPLIT\_COMPONENTS\_DATA} and \texttt{SPLIT\_PORTS\_DATA} are both disabled.
   \end{dataset}
   \begin{dataset}[type=double,unit={\si{\mol\per\cubic\metre\of{IV}\per\second}}]{SOLDOT\_OUTLET\_COMP\_XXX}
-    Component \texttt{XXX} of the solution time derivative at the unit operation outlet with.
-    Only present if \texttt{SPLIT\_COMPONENTS\_DATA} is enabled.
+    Component \texttt{XXX} of the solution time derivative at all outlet ports of the unit operation as matrix in time-major storage.
+    Only present if \texttt{SPLIT\_COMPONENTS\_DATA} is enabled and \texttt{SPLIT\_PORTS\_DATA} is disabled.
   \end{dataset}
   \begin{dataset}[type=double,unit={\si{\mol\per\cubic\metre\of{IV}\per\second}}]{SOLDOT\_INLET\_COMP\_XXX}
-    Component \texttt{XXX} of the solution time derivative at the unit operation inlet with.
-    Only present if \texttt{SPLIT\_COMPONENTS\_DATA} is enabled.
+    Component \texttt{XXX} of the solution time derivative at all inlet ports of the unit operation inlet as matrix in time-major storage.
+    Only present if \texttt{SPLIT\_COMPONENTS\_DATA} is enabled and \texttt{SPLIT\_PORTS\_DATA} is disabled.
+  \end{dataset}
+  \begin{dataset}[type=double,unit={\si{\mol\per\cubic\metre\of{IV}\per\second}}]{SOLDOT\_OUTLET\_PORT\_XXX}
+    All components at outlet port \texttt{XXX} of the solution time derivative of the unit operation as matrix in time-major storage.
+    Only present if \texttt{SPLIT\_COMPONENTS\_DATA} is disabled and \texttt{SPLIT\_PORTS\_DATA} is enabled.
+  \end{dataset}
+  \begin{dataset}[type=double,unit={\si{\mol\per\cubic\metre\of{IV}\per\second}}]{SOLDOT\_INLET\_PORT\_XXX}
+    All components at inlet port \texttt{XXX} of the solution time derivative of the unit operation inlet as matrix in time-major storage.
+    Only present if \texttt{SPLIT\_COMPONENTS\_DATA} is disabled and \texttt{SPLIT\_PORTS\_DATA} is enabled.
+  \end{dataset}
+  \begin{dataset}[type=double,unit={\si{\mol\per\cubic\metre\of{IV}\per\second}}]{SOLDOT\_OUTLET\_PORT\_XXX\_COMP\_YYY}
+    Component \texttt{YYY} at outlet port \texttt{XXX} of the solution time derivative of the unit operation.
+    Only present if \texttt{SPLIT\_COMPONENTS\_DATA} is enabled and \texttt{SPLIT\_PORTS\_DATA} is enabled.
+  \end{dataset}
+  \begin{dataset}[type=double,unit={\si{\mol\per\cubic\metre\of{IV}\per\second}}]{SOLDOT\_INLET\_PORT\_XXX\_COMP\_YYY}
+    Component \texttt{YYY} at inlet port \texttt{XXX} of the solution time derivative of the unit operation.
+    Only present if \texttt{SPLIT\_COMPONENTS\_DATA} is enabled and \texttt{SPLIT\_PORTS\_DATA} is enabled.
   \end{dataset}
 \end{groupscope}
 
@@ -1461,20 +1496,36 @@ This group also takes precedence over a possibly existing \texttt{/input/model/u
     Volume sensitivity
   \end{dataset}
   \begin{dataset}[type=double,unit={\si{\mol\per\cubic\metre\of{IV}\per\ParamUnit}}]{SENS\_OUTLET}
-    Matrix of sensitivities at the unit operation outlet with components as columns in row-major storage.
-    Only present if \texttt{SPLIT\_COMPONENTS\_DATA} is disabled.
+    Tensor of sensitivities at the unit operation outlet with components as columns in time-port-major storage.
+    Only present if \texttt{SPLIT\_COMPONENTS\_DATA} and \texttt{SPLIT\_PORTS\_DATA} are both disabled.
   \end{dataset}
   \begin{dataset}[type=double,unit={\si{\mol\per\cubic\metre\of{IV}\per\ParamUnit}}]{SENS\_INLET}
-    Matrix of sensitivities at the unit operation inlet with components as columns in row-major storage.
-    Only present if \texttt{SPLIT\_COMPONENTS\_DATA} is disabled.
+    Tensor of sensitivities at the unit operation inlet with components as columns in time-port-major storage.
+    Only present if \texttt{SPLIT\_COMPONENTS\_DATA} and \texttt{SPLIT\_PORTS\_DATA} are both disabled.
   \end{dataset}
   \begin{dataset}[type=double,unit={\si{\mol\per\cubic\metre\of{IV}\per\ParamUnit}}]{SENS\_OUTLET\_COMP\_XXX}
-    Component \texttt{XXX} of the sensitivity at the unit operation outlet with.
-    Only present if \texttt{SPLIT\_COMPONENTS\_DATA} is enabled.
+    Component \texttt{XXX} of the sensitivity at all outlet ports of the unit operation as matrix in time-major storage.
+    Only present if \texttt{SPLIT\_COMPONENTS\_DATA} is enabled and \texttt{SPLIT\_PORTS\_DATA} is disabled.
   \end{dataset}
   \begin{dataset}[type=double,unit={\si{\mol\per\cubic\metre\of{IV}\per\ParamUnit}}]{SENS\_INLET\_COMP\_XXX}
-    Component \texttt{XXX} of the sensitivity at the unit operation inlet with.
-    Only present if \texttt{SPLIT\_COMPONENTS\_DATA} is enabled.
+    Component \texttt{XXX} of the sensitivity at all inlet ports of the unit operation inlet as matrix in time-major storage.
+    Only present if \texttt{SPLIT\_COMPONENTS\_DATA} is enabled and \texttt{SPLIT\_PORTS\_DATA} is disabled.
+  \end{dataset}
+  \begin{dataset}[type=double,unit={\si{\mol\per\cubic\metre\of{IV}\per\ParamUnit}}]{SENS\_OUTLET\_PORT\_XXX}
+    All components at outlet port \texttt{XXX} of the sensitivity of the unit operation as matrix in time-major storage.
+    Only present if \texttt{SPLIT\_COMPONENTS\_DATA} is disabled and \texttt{SPLIT\_PORTS\_DATA} is enabled.
+  \end{dataset}
+  \begin{dataset}[type=double,unit={\si{\mol\per\cubic\metre\of{IV}\per\ParamUnit}}]{SENS\_INLET\_PORT\_XXX}
+    All components at inlet port \texttt{XXX} of the sensitivity of the unit operation inlet as matrix in time-major storage.
+    Only present if \texttt{SPLIT\_COMPONENTS\_DATA} is disabled and \texttt{SPLIT\_PORTS\_DATA} is enabled.
+  \end{dataset}
+  \begin{dataset}[type=double,unit={\si{\mol\per\cubic\metre\of{IV}\per\ParamUnit}}]{SENS\_OUTLET\_PORT\_XXX\_COMP\_YYY}
+    Component \texttt{YYY} at outlet port \texttt{XXX} of the sensitivity of the unit operation.
+    Only present if \texttt{SPLIT\_COMPONENTS\_DATA} is enabled and \texttt{SPLIT\_PORTS\_DATA} is enabled.
+  \end{dataset}
+  \begin{dataset}[type=double,unit={\si{\mol\per\cubic\metre\of{IV}\per\ParamUnit}}]{SENS\_INLET\_PORT\_XXX\_COMP\_YYY}
+    Component \texttt{YYY} at inlet port \texttt{XXX} of the sensitivity of the unit operation.
+    Only present if \texttt{SPLIT\_COMPONENTS\_DATA} is enabled and \texttt{SPLIT\_PORTS\_DATA} is enabled.
   \end{dataset}
   \begin{dataset}[type=double,unit={\si{\mol\per\cubic\metre\of{IV}\per\second\per\ParamUnit}}]{SENSDOT\_BULK}
     Interstitial sensitivity time derivative as $n_{\text{Time}} \times \texttt{UNITOPORDERING}$ tensor in row-major storage
@@ -1502,20 +1553,36 @@ This group also takes precedence over a possibly existing \texttt{/input/model/u
     Volume sensitivity time derivative 
   \end{dataset}
   \begin{dataset}[type=double,unit={\si{\mol\per\cubic\metre\of{IV}\per\second\per\ParamUnit}}]{SENSDOT\_OUTLET}
-    Matrix of sensitivity time derivatives at the unit operation outlet with components as columns in row-major storage.
-    Only present if \texttt{SPLIT\_COMPONENTS\_DATA} is disabled.
+    Tensor of sensitivity time derivatives at the unit operation outlet with components as columns in time-port-major storage.
+    Only present if \texttt{SPLIT\_COMPONENTS\_DATA} and \texttt{SPLIT\_PORTS\_DATA} are both disabled.
   \end{dataset}
   \begin{dataset}[type=double,unit={\si{\mol\per\cubic\metre\of{IV}\per\second\per\ParamUnit}}]{SENSDOT\_INLET}
-    Matrix of sensitivity time derivatives at the unit operation inlet with components as columns in row-major storage.
-    Only present if \texttt{SPLIT\_COMPONENTS\_DATA} is disabled.
+    Tensor of sensitivity time derivatives at the unit operation inlet with components as columns in time-port-major storage.
+    Only present if \texttt{SPLIT\_COMPONENTS\_DATA} and \texttt{SPLIT\_PORTS\_DATA} are both disabled.
   \end{dataset}
   \begin{dataset}[type=double,unit={\si{\mol\per\cubic\metre\of{IV}\per\second\per\ParamUnit}}]{SENSDOT\_OUTLET\_COMP\_XXX}
-    Component \texttt{XXX} of the sensitivity time derivative at the unit operation outlet with.
-    Only present if \texttt{SPLIT\_COMPONENTS\_DATA} is enabled.
+    Component \texttt{XXX} of the sensitivity time derivative at all outlet ports of the unit operation as matrix in time-major storage.
+    Only present if \texttt{SPLIT\_COMPONENTS\_DATA} is enabled and \texttt{SPLIT\_PORTS\_DATA} is disabled.
   \end{dataset}
   \begin{dataset}[type=double,unit={\si{\mol\per\cubic\metre\of{IV}\per\second\per\ParamUnit}}]{SENSDOT\_INLET\_COMP\_XXX}
-    Component \texttt{XXX} of the sensitivity time derivative at the unit operation inlet with.
-    Only present if \texttt{SPLIT\_COMPONENTS\_DATA} is enabled.
+    Component \texttt{XXX} of the sensitivity time derivative at all inlet ports of the unit operation inlet as matrix in time-major storage.
+    Only present if \texttt{SPLIT\_COMPONENTS\_DATA} is enabled and \texttt{SPLIT\_PORTS\_DATA} is disabled.
+  \end{dataset}
+  \begin{dataset}[type=double,unit={\si{\mol\per\cubic\metre\of{IV}\per\second\per\ParamUnit}}]{SENSDOT\_OUTLET\_PORT\_XXX}
+    All components at outlet port \texttt{XXX} of the sensitivity time derivative of the unit operation as matrix in time-major storage.
+    Only present if \texttt{SPLIT\_COMPONENTS\_DATA} is disabled and \texttt{SPLIT\_PORTS\_DATA} is enabled.
+  \end{dataset}
+  \begin{dataset}[type=double,unit={\si{\mol\per\cubic\metre\of{IV}\per\second\per\ParamUnit}}]{SENSDOT\_INLET\_PORT\_XXX}
+    All components at inlet port \texttt{XXX} of the sensitivity time derivative of the unit operation inlet as matrix in time-major storage.
+    Only present if \texttt{SPLIT\_COMPONENTS\_DATA} is disabled and \texttt{SPLIT\_PORTS\_DATA} is enabled.
+  \end{dataset}
+  \begin{dataset}[type=double,unit={\si{\mol\per\cubic\metre\of{IV}\per\second\per\ParamUnit}}]{SENSDOT\_OUTLET\_PORT\_XXX\_COMP\_YYY}
+    Component \texttt{YYY} at outlet port \texttt{XXX} of the sensitivity time derivative of the unit operation.
+    Only present if \texttt{SPLIT\_COMPONENTS\_DATA} is enabled and \texttt{SPLIT\_PORTS\_DATA} is enabled.
+  \end{dataset}
+  \begin{dataset}[type=double,unit={\si{\mol\per\cubic\metre\of{IV}\per\second\per\ParamUnit}}]{SENSDOT\_INLET\_PORT\_XXX\_COMP\_YYY}
+    Component \texttt{YYY} at inlet port \texttt{XXX} of the sensitivity time derivative of the unit operation.
+    Only present if \texttt{SPLIT\_COMPONENTS\_DATA} is enabled and \texttt{SPLIT\_PORTS\_DATA} is enabled.
   \end{dataset}
 \end{groupscope}
 
