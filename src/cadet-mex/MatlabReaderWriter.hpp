@@ -89,31 +89,31 @@ public:
 
 	/// \brief Write data from C-array to a dataset
 	template <typename T>
-	void write(const std::string& dataSetName, const size_t rank, const size_t* dims, const T* buffer, const size_t stride = 1);
+	void write(const std::string& dataSetName, const size_t rank, const size_t* dims, const T* buffer, const size_t stride = 1, const size_t blockSize = 1);
 
 	/// \brief Convenience wrapper for writing tensors from C-array
 	template <typename T>
-	void tensor(const std::string& dataSetName, const size_t rank, const size_t* dims, const T* buffer, const size_t stride = 1);
+	void tensor(const std::string& dataSetName, const size_t rank, const size_t* dims, const T* buffer, const size_t stride = 1, const size_t blockSize = 1);
 
 	/// \brief Convenience wrapper for writing tensors from std::vector
 	template <typename T>
-	void tensor(const std::string& dataSetName, const size_t rank, const size_t* dims, const std::vector<T>& buffer, const size_t stride = 1);
+	void tensor(const std::string& dataSetName, const size_t rank, const size_t* dims, const std::vector<T>& buffer, const size_t stride = 1, const size_t blockSize = 1);
 
 	/// \brief Convenience wrapper for writing matrices from C-array
 	template <typename T>
-	void matrix(const std::string& dataSetName, const size_t rows, const size_t cols, const T* buffer, const size_t stride = 1);
+	void matrix(const std::string& dataSetName, const size_t rows, const size_t cols, const T* buffer, const size_t stride = 1, const size_t blockSize = 1);
 
 	/// \brief Convenience wrapper for writing matrices from std::vector
 	template <typename T>
-	void matrix(const std::string& dataSetName, const size_t rows, const size_t cols, const std::vector<T>& buffer, const size_t stride = 1);
+	void matrix(const std::string& dataSetName, const size_t rows, const size_t cols, const std::vector<T>& buffer, const size_t stride = 1, const size_t blockSize = 1);
 
 	/// \brief Convenience wrapper for writing vectors from C-array
 	template <typename T>
-	void vector(const std::string& dataSetName, const size_t length, const T* buffer, const size_t stride = 1);
+	void vector(const std::string& dataSetName, const size_t length, const T* buffer, const size_t stride = 1, const size_t blockSize = 1);
 
 	/// \brief Convenience wrapper for writing vectors from std::vector
 	template <typename T>
-	void vector(const std::string& dataSetName, const std::vector<T>& buffer, const size_t stride = 1);
+	void vector(const std::string& dataSetName, const std::vector<T>& buffer, const size_t stride = 1, const size_t blockSize = 1);
 
 	/// \brief Convenience wrapper for writing scalars
 	template <typename T>
@@ -505,33 +505,39 @@ mxArray* MatlabReaderWriter::createStructField(const std::string& dataSetName, c
 }
 
 template <>
-void MatlabReaderWriter::write<double>(const std::string& dataSetName, const size_t rank, const size_t* dims, const double* buffer, const size_t stride)
+void MatlabReaderWriter::write<double>(const std::string& dataSetName, const size_t rank, const size_t* dims, const double* buffer, const size_t stride, const size_t blockSize)
 {
 	mxArray* matData = createStructField(dataSetName, rank, dims, buffer, stride, mxDOUBLE_CLASS);
 
 	size_t numEl = mxGetNumberOfElements(matData);
-	double* const data = mxGetPr(matData);
+	double* data = mxGetPr(matData);
 
 	// Write data to matlab
-	for (size_t i = 0; i < numEl; ++i)
-		data[i] = buffer[i * stride];
+	for (size_t i = 0; i < numEl / blockSize; ++i)
+	{
+		for (size_t j = 0; j < blockSize; ++j, ++data)
+			*data = buffer[i * stride + j];
+	}
 }
 
 template <>
-void MatlabReaderWriter::write<int>(const std::string& dataSetName, const size_t rank, const size_t* dims, const int* buffer, const size_t stride)
+void MatlabReaderWriter::write<int>(const std::string& dataSetName, const size_t rank, const size_t* dims, const int* buffer, const size_t stride, const size_t blockSize)
 {
 	mxArray* matData = createStructField(dataSetName, rank, dims, buffer, stride, mxINT32_CLASS);
 
 	size_t numEl = mxGetNumberOfElements(matData);
-	int* const data = static_cast<int*>(mxGetData(matData));
+	int* data = static_cast<int*>(mxGetData(matData));
 
 	// Write data to matlab
-	for (size_t i = 0; i < numEl; ++i)
-		data[i] = buffer[i * stride];
+	for (size_t i = 0; i < numEl / blockSize; ++i)
+	{
+		for (size_t j = 0; j < blockSize; ++j, ++data)
+			*data = buffer[i * stride + j];
+	}
 }
 
 template <>
-void MatlabReaderWriter::write<std::string>(const std::string& dataSetName, const size_t rank, const size_t* dims, const std::string* buffer, const size_t stride)
+void MatlabReaderWriter::write<std::string>(const std::string& dataSetName, const size_t rank, const size_t* dims, const std::string* buffer, const size_t stride, const size_t blockSize)
 {
 	openAndCreateGroup();
 
@@ -544,15 +550,18 @@ void MatlabReaderWriter::write<std::string>(const std::string& dataSetName, cons
 	mxFree(dimsMatlab);
 
 	size_t numEl = mxGetNumberOfElements(cell_array_ptr);
-	for (mwIndex i = 0; i < numEl; ++i)
-		mxSetCell(cell_array_ptr, i, mxCreateString(buffer[i * stride].c_str()));
+	for (mwIndex i = 0; i < numEl / blockSize; ++i)
+	{
+		for (mwIndex j = 0; j < blockSize; ++j)
+			mxSetCell(cell_array_ptr, i * blockSize + j, mxCreateString(buffer[i * stride + j].c_str()));
+	}
 
 	mxSetFieldByNumber(_group, 0, mxAddField(_group, dataSetName.c_str()), cell_array_ptr);
 }
 
 // Template that matches on every unsupported type
 template <typename T>
-void MatlabReaderWriter::write(const std::string& dataSetName, const size_t rank, const size_t* dims, const T* buffer, const size_t stride)
+void MatlabReaderWriter::write(const std::string& dataSetName, const size_t rank, const size_t* dims, const T* buffer, const size_t stride, const size_t blockSize)
 {
 	std::ostringstream str;
 	str << "CadetMex: Trying to write vector of unsupported type to struct '" << _groupName << "/" << dataSetName << "'.\n";
@@ -569,7 +578,7 @@ void MatlabReaderWriter::write(const std::string& dataSetName, const size_t rank
 // Matlab: Column Major 
 
 template <typename T>
-void MatlabReaderWriter::tensor(const std::string& dataSetName, const size_t rank, const size_t* dims, const std::vector<T>& buffer, const size_t stride)
+void MatlabReaderWriter::tensor(const std::string& dataSetName, const size_t rank, const size_t* dims, const std::vector<T>& buffer, const size_t stride, const size_t blockSize)
 {
 	// Check size
 	size_t bufSize = 1;
@@ -586,24 +595,24 @@ void MatlabReaderWriter::tensor(const std::string& dataSetName, const size_t ran
 
 		throw MatlabException(str.str());
 	}
-	write<T>(dataSetName, rank, dims, buffer.data(), stride);
+	write<T>(dataSetName, rank, dims, buffer.data(), stride, blockSize);
 }
 
 template <typename T>
-void MatlabReaderWriter::tensor(const std::string& dataSetName, const size_t rank, const size_t* dims, const T* buffer, const size_t stride)
+void MatlabReaderWriter::tensor(const std::string& dataSetName, const size_t rank, const size_t* dims, const T* buffer, const size_t stride, const size_t blockSize)
 {
-	write<T>(dataSetName, rank, dims, buffer, stride);
+	write<T>(dataSetName, rank, dims, buffer, stride, blockSize);
 }
 
 template <typename T>
-void MatlabReaderWriter::matrix(const std::string& dataSetName, const size_t rows, const size_t cols, const T* buffer, const size_t stride)
+void MatlabReaderWriter::matrix(const std::string& dataSetName, const size_t rows, const size_t cols, const T* buffer, const size_t stride, const size_t blockSize)
 {
 	size_t dims[2] = {rows, cols};
-	write<T>(dataSetName, 2, dims, buffer, stride);
+	write<T>(dataSetName, 2, dims, buffer, stride, blockSize);
 }
 
 template <typename T>
-void MatlabReaderWriter::matrix(const std::string& dataSetName, const size_t rows, const size_t cols, const std::vector<T>& buffer, const size_t stride)
+void MatlabReaderWriter::matrix(const std::string& dataSetName, const size_t rows, const size_t cols, const std::vector<T>& buffer, const size_t stride, const size_t blockSize)
 {
 #ifdef CADET_DEBUG
 	if (rows*cols >= buffer.size())
@@ -614,20 +623,20 @@ void MatlabReaderWriter::matrix(const std::string& dataSetName, const size_t row
 	}
 #endif
 	size_t dims[2] = {rows, cols};
-	write<T>(dataSetName, 2, dims, buffer.data(), stride);
+	write<T>(dataSetName, 2, dims, buffer.data(), stride, blockSize);
 }
 
 template <typename T>
-void MatlabReaderWriter::vector(const std::string& dataSetName, const size_t length, const T* buffer, const size_t stride)
+void MatlabReaderWriter::vector(const std::string& dataSetName, const size_t length, const T* buffer, const size_t stride, const size_t blockSize)
 {
-	write<T>(dataSetName, 1, &length, buffer, stride);
+	write<T>(dataSetName, 1, &length, buffer, stride, blockSize);
 }
 
 template <typename T>
-void MatlabReaderWriter::vector(const std::string& dataSetName, const std::vector<T>& buffer, const size_t stride)
+void MatlabReaderWriter::vector(const std::string& dataSetName, const std::vector<T>& buffer, const size_t stride, const size_t blockSize)
 {
 	size_t length = buffer.size() / stride;
-	write<T>(dataSetName, 1, &length, buffer.data(), stride);
+	write<T>(dataSetName, 1, &length, buffer.data(), stride, blockSize);
 }
 
 template <>

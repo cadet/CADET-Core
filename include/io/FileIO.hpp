@@ -55,20 +55,20 @@ public:
 	IWriterCapabilities() { }
 	virtual ~IWriterCapabilities() CADET_NOEXCEPT { }
 	
-	virtual void writeTensorDouble(const std::string& dataSetName, const std::size_t rank, const std::size_t* dims, const double* buffer, const std::size_t stride) = 0;
-	virtual void writeTensorInt(const std::string& dataSetName, const std::size_t rank, const std::size_t* dims, const int* buffer, const std::size_t stride) = 0;
-	virtual void writeTensorBool(const std::string& dataSetName, const std::size_t rank, const std::size_t* dims, const bool* buffer, const std::size_t stride) = 0;
-	virtual void writeTensorString(const std::string& dataSetName, const std::size_t rank, const std::size_t* dims, const std::string* buffer, const std::size_t stride) = 0;
+	virtual void writeTensorDouble(const std::string& dataSetName, const std::size_t rank, const std::size_t* dims, const double* buffer, const std::size_t stride, const std::size_t blockSize) = 0;
+	virtual void writeTensorInt(const std::string& dataSetName, const std::size_t rank, const std::size_t* dims, const int* buffer, const std::size_t stride, const std::size_t blockSize) = 0;
+	virtual void writeTensorBool(const std::string& dataSetName, const std::size_t rank, const std::size_t* dims, const bool* buffer, const std::size_t stride, const std::size_t blockSize) = 0;
+	virtual void writeTensorString(const std::string& dataSetName, const std::size_t rank, const std::size_t* dims, const std::string* buffer, const std::size_t stride, const std::size_t blockSize) = 0;
 
-	virtual void writeMatrixDouble(const std::string& dataSetName, const std::size_t rows, const std::size_t cols, const double* buffer, const std::size_t stride) = 0;
-	virtual void writeMatrixInt(const std::string& dataSetName, const std::size_t rows, const std::size_t cols, const int* buffer, const std::size_t stride) = 0;
-	virtual void writeMatrixBool(const std::string& dataSetName, const std::size_t rows, const std::size_t cols, const bool* buffer, const std::size_t stride) = 0;
-	virtual void writeMatrixString(const std::string& dataSetName, const std::size_t rows, const std::size_t cols, const std::string* buffer, const std::size_t stride) = 0;
+	virtual void writeMatrixDouble(const std::string& dataSetName, const std::size_t rows, const std::size_t cols, const double* buffer, const std::size_t stride, const std::size_t blockSize) = 0;
+	virtual void writeMatrixInt(const std::string& dataSetName, const std::size_t rows, const std::size_t cols, const int* buffer, const std::size_t stride, const std::size_t blockSize) = 0;
+	virtual void writeMatrixBool(const std::string& dataSetName, const std::size_t rows, const std::size_t cols, const bool* buffer, const std::size_t stride, const std::size_t blockSize) = 0;
+	virtual void writeMatrixString(const std::string& dataSetName, const std::size_t rows, const std::size_t cols, const std::string* buffer, const std::size_t stride, const std::size_t blockSize) = 0;
 
-	virtual void writeVectorDouble(const std::string& dataSetName, const std::size_t length, const double* buffer, const std::size_t stride) = 0;
-	virtual void writeVectorInt(const std::string& dataSetName, const std::size_t length, const int* buffer, const std::size_t stride) = 0;
-	virtual void writeVectorBool(const std::string& dataSetName, const std::size_t length, const bool* buffer, const std::size_t stride) = 0;
-	virtual void writeVectorString(const std::string& dataSetName, const std::size_t length, const std::string* buffer, const std::size_t stride) = 0;
+	virtual void writeVectorDouble(const std::string& dataSetName, const std::size_t length, const double* buffer, const std::size_t stride, const std::size_t blockSize) = 0;
+	virtual void writeVectorInt(const std::string& dataSetName, const std::size_t length, const int* buffer, const std::size_t stride, const std::size_t blockSize) = 0;
+	virtual void writeVectorBool(const std::string& dataSetName, const std::size_t length, const bool* buffer, const std::size_t stride, const std::size_t blockSize) = 0;
+	virtual void writeVectorString(const std::string& dataSetName, const std::size_t length, const std::string* buffer, const std::size_t stride, const std::size_t blockSize) = 0;
 
 	virtual void writeDouble(const std::string& dataSetName, const double buffer) = 0;
 	virtual void writeInt(const std::string& dataSetName, const int buffer) = 0;

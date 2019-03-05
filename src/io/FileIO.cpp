@@ -130,17 +130,17 @@ public:
 	FileWriter() { }
 	virtual ~FileWriter() CADET_NOEXCEPT { }
 	
-	virtual void writeTensorDouble(const std::string& dataSetName, const std::size_t rank, const std::size_t* dims, const double* buffer, const std::size_t stride)
+	virtual void writeTensorDouble(const std::string& dataSetName, const std::size_t rank, const std::size_t* dims, const double* buffer, const std::size_t stride, const std::size_t blockSize)
 	{
-		_io.template tensor<double>(dataSetName, rank, dims, buffer, stride);
+		_io.template tensor<double>(dataSetName, rank, dims, buffer, stride, blockSize);
 	}
 
-	virtual void writeTensorInt(const std::string& dataSetName, const std::size_t rank, const std::size_t* dims, const int* buffer, const std::size_t stride)
+	virtual void writeTensorInt(const std::string& dataSetName, const std::size_t rank, const std::size_t* dims, const int* buffer, const std::size_t stride, const std::size_t blockSize)
 	{
-		_io.template tensor<int>(dataSetName, rank, dims, buffer, stride);
+		_io.template tensor<int>(dataSetName, rank, dims, buffer, stride, blockSize);
 	}
 
-	virtual void writeTensorBool(const std::string& dataSetName, const std::size_t rank, const std::size_t* dims, const bool* buffer, const std::size_t stride)
+	virtual void writeTensorBool(const std::string& dataSetName, const std::size_t rank, const std::size_t* dims, const bool* buffer, const std::size_t stride, const std::size_t blockSize)
 	{
 		// Compute buffer size
 		std::size_t bufSize = 1;
@@ -151,68 +151,74 @@ public:
 
 		// Convert buffer to int
 		std::vector<int> bd(bufSize);
-		for (std::size_t i = 0; i < bufSize; ++i)
-			bd[i] = (buffer[i] ? 1 : 0);
+		std::size_t counter = 0;
+		for (std::size_t i = 0; i < bufSize / blockSize; ++i)
+			for (std::size_t j = 0; j < blockSize; ++j, ++counter)
+				bd[counter] = (buffer[i * stride + j] ? 1 : 0);
 
-		_io.template tensor<int>(dataSetName, rank, dims, bd.data(), stride);
+		_io.template tensor<int>(dataSetName, rank, dims, bd.data(), 1, 1);
 	}
 
-	virtual void writeTensorString(const std::string& dataSetName, const std::size_t rank, const std::size_t* dims, const std::string* buffer, const std::size_t stride)
+	virtual void writeTensorString(const std::string& dataSetName, const std::size_t rank, const std::size_t* dims, const std::string* buffer, const std::size_t stride, const std::size_t blockSize)
 	{
-		_io.template tensor<std::string>(dataSetName, rank, dims, buffer, stride);
+		_io.template tensor<std::string>(dataSetName, rank, dims, buffer, stride, blockSize);
 	}
 
-	virtual void writeMatrixDouble(const std::string& dataSetName, const std::size_t rows, const std::size_t cols, const double* buffer, const std::size_t stride)
+	virtual void writeMatrixDouble(const std::string& dataSetName, const std::size_t rows, const std::size_t cols, const double* buffer, const std::size_t stride, const std::size_t blockSize)
 	{
-		_io.template matrix<double>(dataSetName, rows, cols, buffer, stride);
+		_io.template matrix<double>(dataSetName, rows, cols, buffer, stride, blockSize);
 	}
 
-	virtual void writeMatrixInt(const std::string& dataSetName, const std::size_t rows, const std::size_t cols, const int* buffer, const std::size_t stride)
+	virtual void writeMatrixInt(const std::string& dataSetName, const std::size_t rows, const std::size_t cols, const int* buffer, const std::size_t stride, const std::size_t blockSize)
 	{
-		_io.template matrix<int>(dataSetName, rows, cols, buffer, stride);
+		_io.template matrix<int>(dataSetName, rows, cols, buffer, stride, blockSize);
 	}
 
-	virtual void writeMatrixBool(const std::string& dataSetName, const std::size_t rows, const std::size_t cols, const bool* buffer, const std::size_t stride)
+	virtual void writeMatrixBool(const std::string& dataSetName, const std::size_t rows, const std::size_t cols, const bool* buffer, const std::size_t stride, const std::size_t blockSize)
 	{
 		// Compute buffer size
 		const std::size_t bufSize = rows * cols;
 
 		// Convert buffer to int
 		std::vector<int> bd(bufSize);
-		for (std::size_t i = 0; i < bufSize; ++i)
-			bd[i] = (buffer[i] ? 1 : 0);
+		std::size_t counter = 0;
+		for (std::size_t i = 0; i < bufSize / blockSize; ++i)
+			for (std::size_t j = 0; j < blockSize; ++j, ++counter)
+				bd[counter] = (buffer[i * stride + j] ? 1 : 0);
 
-		_io.template matrix<int>(dataSetName, rows, cols, bd.data(), stride);
+		_io.template matrix<int>(dataSetName, rows, cols, bd.data(), 1, 1);
 	}
 
-	virtual void writeMatrixString(const std::string& dataSetName, const std::size_t rows, const std::size_t cols, const std::string* buffer, const std::size_t stride)
+	virtual void writeMatrixString(const std::string& dataSetName, const std::size_t rows, const std::size_t cols, const std::string* buffer, const std::size_t stride, const std::size_t blockSize)
 	{
-		_io.template matrix<std::string>(dataSetName, rows, cols, buffer, stride);
+		_io.template matrix<std::string>(dataSetName, rows, cols, buffer, stride, blockSize);
 	}
 
-	virtual void writeVectorDouble(const std::string& dataSetName, const std::size_t length, const double* buffer, const std::size_t stride)
+	virtual void writeVectorDouble(const std::string& dataSetName, const std::size_t length, const double* buffer, const std::size_t stride, const std::size_t blockSize)
 	{
-		_io.template vector<double>(dataSetName, length, buffer, stride);
+		_io.template vector<double>(dataSetName, length, buffer, stride, blockSize);
 	}
 
-	virtual void writeVectorInt(const std::string& dataSetName, const std::size_t length, const int* buffer, const std::size_t stride)
+	virtual void writeVectorInt(const std::string& dataSetName, const std::size_t length, const int* buffer, const std::size_t stride, const std::size_t blockSize)
 	{
-		_io.template vector<int>(dataSetName, length, buffer, stride);
+		_io.template vector<int>(dataSetName, length, buffer, stride, blockSize);
 	}
 
-	virtual void writeVectorBool(const std::string& dataSetName, const std::size_t length, const bool* buffer, const std::size_t stride)
+	virtual void writeVectorBool(const std::string& dataSetName, const std::size_t length, const bool* buffer, const std::size_t stride, const std::size_t blockSize)
 	{
 		// Convert buffer to int
 		std::vector<int> bd(length);
-		for (std::size_t i = 0; i < length; ++i)
-			bd[i] = (buffer[i] ? 1 : 0);
+		std::size_t counter = 0;
+		for (std::size_t i = 0; i < length / blockSize; ++i)
+			for (std::size_t j = 0; j < blockSize; ++j, ++counter)
+				bd[counter] = (buffer[i * stride + j] ? 1 : 0);
 
-		_io.template vector<int>(dataSetName, length, bd.data(), stride);
+		_io.template vector<int>(dataSetName, length, bd.data(), 1, 1);
 	}
 
-	virtual void writeVectorString(const std::string& dataSetName, const std::size_t length, const std::string* buffer, const std::size_t stride)
+	virtual void writeVectorString(const std::string& dataSetName, const std::size_t length, const std::string* buffer, const std::size_t stride, const std::size_t blockSize)
 	{
-		_io.template vector<std::string>(dataSetName, length, buffer, stride);
+		_io.template vector<std::string>(dataSetName, length, buffer, stride, blockSize);
 	}
 
 	virtual void writeDouble(const std::string& dataSetName, const double buffer)
@@ -577,64 +583,64 @@ public:
 			return std::vector<std::size_t>();
 	}
 
-	virtual void writeTensorDouble(const std::string& dataSetName, const std::size_t rank, const std::size_t* dims, const double* buffer, const std::size_t stride)
+	virtual void writeTensorDouble(const std::string& dataSetName, const std::size_t rank, const std::size_t* dims, const double* buffer, const std::size_t stride, const std::size_t blockSize)
 	{
-		writeTensor<double, double>(dataSetName, rank, dims, buffer, stride);
+		writeTensor<double, double>(dataSetName, rank, dims, buffer, stride, blockSize);
 	}
 
-	virtual void writeTensorInt(const std::string& dataSetName, const std::size_t rank, const std::size_t* dims, const int* buffer, const std::size_t stride)
+	virtual void writeTensorInt(const std::string& dataSetName, const std::size_t rank, const std::size_t* dims, const int* buffer, const std::size_t stride, const std::size_t blockSize)
 	{
-		writeTensor<int, int>(dataSetName, rank, dims, buffer, stride);
+		writeTensor<int, int>(dataSetName, rank, dims, buffer, stride, blockSize);
 	}
 
-	virtual void writeTensorBool(const std::string& dataSetName, const std::size_t rank, const std::size_t* dims, const bool* buffer, const std::size_t stride)
+	virtual void writeTensorBool(const std::string& dataSetName, const std::size_t rank, const std::size_t* dims, const bool* buffer, const std::size_t stride, const std::size_t blockSize)
 	{
-		writeTensor<bool, int>(dataSetName, rank, dims, buffer, stride);
+		writeTensor<bool, int>(dataSetName, rank, dims, buffer, stride, blockSize);
 	}
 
-	virtual void writeTensorString(const std::string& dataSetName, const std::size_t rank, const std::size_t* dims, const std::string* buffer, const std::size_t stride)
+	virtual void writeTensorString(const std::string& dataSetName, const std::size_t rank, const std::size_t* dims, const std::string* buffer, const std::size_t stride, const std::size_t blockSize)
 	{
-		writeTensor<std::string, std::string>(dataSetName, rank, dims, buffer, stride);
+		writeTensor<std::string, std::string>(dataSetName, rank, dims, buffer, stride, blockSize);
 	}
 
-	virtual void writeMatrixDouble(const std::string& dataSetName, const std::size_t rows, const std::size_t cols, const double* buffer, const std::size_t stride)
+	virtual void writeMatrixDouble(const std::string& dataSetName, const std::size_t rows, const std::size_t cols, const double* buffer, const std::size_t stride, const std::size_t blockSize)
 	{
-		writeMatrix<double, double>(dataSetName, rows, cols, buffer, stride);
+		writeMatrix<double, double>(dataSetName, rows, cols, buffer, stride, blockSize);
 	}
 
-	virtual void writeMatrixInt(const std::string& dataSetName, const std::size_t rows, const std::size_t cols, const int* buffer, const std::size_t stride)
+	virtual void writeMatrixInt(const std::string& dataSetName, const std::size_t rows, const std::size_t cols, const int* buffer, const std::size_t stride, const std::size_t blockSize)
 	{
-		writeMatrix<int, int>(dataSetName, rows, cols, buffer, stride);
+		writeMatrix<int, int>(dataSetName, rows, cols, buffer, stride, blockSize);
 	}
 
-	virtual void writeMatrixBool(const std::string& dataSetName, const std::size_t rows, const std::size_t cols, const bool* buffer, const std::size_t stride)
+	virtual void writeMatrixBool(const std::string& dataSetName, const std::size_t rows, const std::size_t cols, const bool* buffer, const std::size_t stride, const std::size_t blockSize)
 	{
-		writeMatrix<bool, int>(dataSetName, rows, cols, buffer, stride);
+		writeMatrix<bool, int>(dataSetName, rows, cols, buffer, stride, blockSize);
 	}
 
-	virtual void writeMatrixString(const std::string& dataSetName, const std::size_t rows, const std::size_t cols, const std::string* buffer, const std::size_t stride)
+	virtual void writeMatrixString(const std::string& dataSetName, const std::size_t rows, const std::size_t cols, const std::string* buffer, const std::size_t stride, const std::size_t blockSize)
 	{
-		writeMatrix<std::string, std::string>(dataSetName, rows, cols, buffer, stride);
+		writeMatrix<std::string, std::string>(dataSetName, rows, cols, buffer, stride, blockSize);
 	}
 
-	virtual void writeVectorDouble(const std::string& dataSetName, const std::size_t length, const double* buffer, const std::size_t stride)
+	virtual void writeVectorDouble(const std::string& dataSetName, const std::size_t length, const double* buffer, const std::size_t stride, const std::size_t blockSize)
 	{
-		writeVector<double, double>(dataSetName, length, buffer, stride);
+		writeVector<double, double>(dataSetName, length, buffer, stride, blockSize);
 	}
 
-	virtual void writeVectorInt(const std::string& dataSetName, const std::size_t length, const int* buffer, const std::size_t stride)
+	virtual void writeVectorInt(const std::string& dataSetName, const std::size_t length, const int* buffer, const std::size_t stride, const std::size_t blockSize)
 	{
-		writeVector<int, int>(dataSetName, length, buffer, stride);
+		writeVector<int, int>(dataSetName, length, buffer, stride, blockSize);
 	}
 
-	virtual void writeVectorBool(const std::string& dataSetName, const std::size_t length, const bool* buffer, const std::size_t stride)
+	virtual void writeVectorBool(const std::string& dataSetName, const std::size_t length, const bool* buffer, const std::size_t stride, const std::size_t blockSize)
 	{
-		writeVector<bool, int>(dataSetName, length, buffer, stride);
+		writeVector<bool, int>(dataSetName, length, buffer, stride, blockSize);
 	}
 
-	virtual void writeVectorString(const std::string& dataSetName, const std::size_t length, const std::string* buffer, const std::size_t stride)
+	virtual void writeVectorString(const std::string& dataSetName, const std::size_t length, const std::string* buffer, const std::size_t stride, const std::size_t blockSize)
 	{
-		writeVector<std::string, std::string>(dataSetName, length, buffer, stride);
+		writeVector<std::string, std::string>(dataSetName, length, buffer, stride, blockSize);
 	}
 
 	virtual void writeDouble(const std::string& dataSetName, const double buffer)
@@ -673,21 +679,27 @@ public:
 protected:
 
 	template <typename source_t, typename target_t>
-	void writeVector(const std::string& dataSetName, const std::size_t length, const source_t* buffer, const std::size_t stride)
+	void writeVector(const std::string& dataSetName, const std::size_t length, const source_t* buffer, const std::size_t stride, const std::size_t blockSize)
 	{
 		std::vector<target_t> d(length);
-		for (std::size_t i = 0; i < length; ++i)
-			d[i] = static_cast<target_t>(buffer[i * stride]);
+		for (std::size_t i = 0; i < length / blockSize; ++i)
+		{
+			for (std::size_t j = 0; j < blockSize; ++j)
+				d[i * blockSize + j] = static_cast<target_t>(buffer[i * stride + j]);
+		}
 
 		(*base_t::_opened.top())[dataSetName] = d;
 	}
 
 	template <typename source_t, typename target_t>
-	void writeMatrix(const std::string& dataSetName, const std::size_t rows, const std::size_t cols, const source_t* buffer, const std::size_t stride)
+	void writeMatrix(const std::string& dataSetName, const std::size_t rows, const std::size_t cols, const source_t* buffer, const std::size_t stride, const std::size_t blockSize)
 	{
 		std::vector<target_t> d(rows * cols);
-		for (std::size_t i = 0; i < rows * cols; ++i)
-			d[i] = static_cast<target_t>(buffer[i * stride]);
+		for (std::size_t i = 0; i < d.size() / blockSize; ++i)
+		{
+			for (std::size_t j = 0; j < blockSize; ++j)
+				d[i * blockSize + j] = static_cast<target_t>(buffer[i * stride + j]);
+		}
 
 		(*base_t::_opened.top())[dataSetName] = d;
 		(*base_t::_opened.top())[dataSetName + "_rows"] = rows;
@@ -695,7 +707,7 @@ protected:
 	}
 
 	template <typename source_t, typename target_t>
-	void writeTensor(const std::string& dataSetName, const std::size_t rank, const std::size_t* dims, const source_t* buffer, const std::size_t stride)
+	void writeTensor(const std::string& dataSetName, const std::size_t rank, const std::size_t* dims, const source_t* buffer, const std::size_t stride, const std::size_t blockSize)
 	{
 		// Handle scalars
 		if (rank == 0)
@@ -708,8 +720,12 @@ protected:
 		if (rank == 1)
 		{
 			std::vector<target_t> d(dims[0]);
-			for (std::size_t i = 0; i < dims[0]; ++i)
-				d[i] = static_cast<target_t>(buffer[i * stride]);
+
+			for (std::size_t i = 0; i < d.size() / blockSize; ++i)
+			{
+				for (std::size_t j = 0; j < blockSize; ++j)
+					d[i * blockSize + j] = static_cast<target_t>(buffer[i * stride + j]);
+			}
 			(*base_t::_opened.top())[dataSetName] = d;
 			return;
 		}
@@ -724,8 +740,11 @@ protected:
 		}
 
 		std::vector<target_t> d(bufSize);
-		for (std::size_t i = 0; i < bufSize; ++i)
-			d[i] = static_cast<target_t>(buffer[i * stride]);
+		for (std::size_t i = 0; i < d.size() / blockSize; ++i)
+		{
+			for (std::size_t j = 0; j < blockSize; ++j)
+				d[i * blockSize + j] = static_cast<target_t>(buffer[i * stride + j]);
+		}
 
 		(*base_t::_opened.top())[dataSetName] = d;
 		(*base_t::_opened.top())[dataSetName + "_rank"] = rank;

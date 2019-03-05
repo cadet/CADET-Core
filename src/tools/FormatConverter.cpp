@@ -86,24 +86,24 @@ void copyGroup(reader_t& rd, writer_t& wr, const std::string& path, const std::f
 				if (rd.isInt(*it))
 				{
 					const std::vector<int> data = rd.getIntArray(*it);
-					wr.writeVectorInt(*it, data.size(), data.data(), 1);
+					wr.writeVectorInt(*it, data.size(), data.data(), 1, 1);
 				}
 				else if (rd.isDouble(*it))
 				{
 					const std::vector<double> data = rd.getDoubleArray(*it);
-					wr.writeVectorDouble(*it, data.size(), data.data(), 1);
+					wr.writeVectorDouble(*it, data.size(), data.data(), 1, 1);
 				}
 				else if (rd.isString(*it))
 				{
 					const std::vector<std::string> data = rd.getStringArray(*it);
-					wr.writeVectorString(*it, data.size(), data.data(), 1);
+					wr.writeVectorString(*it, data.size(), data.data(), 1, 1);
 				}
 				else
 				{
 					const std::vector<bool> data = rd.getBoolArray(*it);
 					bool* dp = new bool[data.size()];
 					std::copy(data.begin(), data.end(), dp);
-					wr.writeVectorBool(*it, data.size(), dp, 1);
+					wr.writeVectorBool(*it, data.size(), dp, 1, 1);
 					delete[] dp;
 				}
 			}
@@ -113,24 +113,24 @@ void copyGroup(reader_t& rd, writer_t& wr, const std::string& path, const std::f
 				if (rd.isInt(*it))
 				{
 					const std::vector<int> data = rd.getIntArray(*it);
-					wr.writeMatrixInt(*it, dims[0], dims[1], data.data(), 1);
+					wr.writeMatrixInt(*it, dims[0], dims[1], data.data(), 1, 1);
 				}
 				else if (rd.isDouble(*it))
 				{
 					const std::vector<double> data = rd.getDoubleArray(*it);
-					wr.writeMatrixDouble(*it, dims[0], dims[1], data.data(), 1);
+					wr.writeMatrixDouble(*it, dims[0], dims[1], data.data(), 1, 1);
 				}
 				else if (rd.isString(*it))
 				{
 					const std::vector<std::string> data = rd.getStringArray(*it);
-					wr.writeMatrixString(*it, dims[0], dims[1], data.data(), 1);
+					wr.writeMatrixString(*it, dims[0], dims[1], data.data(), 1, 1);
 				}
 				else
 				{
 					const std::vector<bool> data = rd.getBoolArray(*it);
 					bool* dp = new bool[data.size()];
 					std::copy(data.begin(), data.end(), dp);
-					wr.writeMatrixBool(*it, dims[0], dims[1], dp, 1);
+					wr.writeMatrixBool(*it, dims[0], dims[1], dp, 1, 1);
 					delete[] dp;
 				}
 			}
@@ -140,24 +140,24 @@ void copyGroup(reader_t& rd, writer_t& wr, const std::string& path, const std::f
 				if (rd.isInt(*it))
 				{
 					const std::vector<int> data = rd.getIntArray(*it);
-					wr.writeTensorInt(*it, dims.size(), dims.data(), data.data(), 1);
+					wr.writeTensorInt(*it, dims.size(), dims.data(), data.data(), 1, 1);
 				}
 				else if (rd.isDouble(*it))
 				{
 					const std::vector<double> data = rd.getDoubleArray(*it);
-					wr.writeTensorDouble(*it, dims.size(), dims.data(), data.data(), 1);
+					wr.writeTensorDouble(*it, dims.size(), dims.data(), data.data(), 1, 1);
 				}
 				else if (rd.isString(*it))
 				{
 					const std::vector<std::string> data = rd.getStringArray(*it);
-					wr.writeTensorString(*it, dims.size(), dims.data(), data.data(), 1);
+					wr.writeTensorString(*it, dims.size(), dims.data(), data.data(), 1, 1);
 				}
 				else
 				{
 					const std::vector<bool> data = rd.getBoolArray(*it);
 					bool* dp = new bool[data.size()];
 					std::copy(data.begin(), data.end(), dp);
-					wr.writeTensorBool(*it, dims.size(), dims.data(), dp, 1);
+					wr.writeTensorBool(*it, dims.size(), dims.data(), dp, 1, 1);
 					delete[] dp;
 				}
 			}
