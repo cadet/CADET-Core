@@ -164,14 +164,18 @@ namespace
 		auto ms = cadet::test::util::makeModelGroupScope(jpp);
 
 		unsigned int nCol = 0;
+		unsigned int nRad = 1;
 		{
 			auto ds = cadet::test::util::makeOptionalGroupScope(jpp, "discretization");
 			nCol = jpp.getInt("NCOL");
+
+			if (jpp.exists("NRAD"))
+				nRad = jpp.getInt("NRAD");
 		}
 		
 		const double baseFrac[] = {0.2, 0.45, 0.35};
-		std::vector<double> volFrac(nCol * nParType, 0.0);
-		for (unsigned int i = 0; i < nCol; ++i)
+		std::vector<double> volFrac(nCol * nRad * nParType, 0.0);
+		for (unsigned int i = 0; i < nCol * nRad; ++i)
 		{
 			volFrac[i * nParType + 0] = baseFrac[(i+0) % nParType];
 			volFrac[i * nParType + 1] = baseFrac[(i+1) % nParType];
@@ -246,7 +250,7 @@ namespace particle
 		double const* p1Outlet = p1Data->outlet();
 
 		const unsigned int nComp = p1Data->numComponents();
-		for (unsigned int i = 0; i < p1Data->numDataPoints() * nComp; ++i, ++outlet, ++p1Outlet)
+		for (unsigned int i = 0; i < p1Data->numDataPoints() * p1Data->numInletPorts() * nComp; ++i, ++outlet, ++p1Outlet)
 		{
 			CAPTURE(i);
 			CHECK((*outlet) == makeApprox(*p1Outlet, relTol, absTol));
@@ -285,7 +289,7 @@ namespace particle
 
 		// Check outlet
 		const unsigned int nComp = p1Data->numComponents();
-		for (unsigned int i = 0; i < p1Data->numDataPoints() * nComp; ++i, ++p1Outlet, ++p2Outlet)
+		for (unsigned int i = 0; i < p1Data->numDataPoints() * p1Data->numInletPorts() * nComp; ++i, ++p1Outlet, ++p2Outlet)
 		{
 			CAPTURE(i);
 			CHECK((*p1Outlet) == makeApprox(*p2Outlet, relTol, absTol));
@@ -338,7 +342,7 @@ namespace particle
 
 				// Check outlet
 				const unsigned int nComp = mpData->numComponents();
-				for (unsigned int i = 0; i < mpData->numDataPoints() * nComp; ++i, ++outlet, ++mpOutlet)
+				for (unsigned int i = 0; i < mpData->numDataPoints() * mpData->numInletPorts() * nComp; ++i, ++outlet, ++mpOutlet)
 				{
 					CAPTURE(i);
 					CHECK((*outlet) == makeApprox(*mpOutlet, relTol, absTol));

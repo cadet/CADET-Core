@@ -95,14 +95,15 @@ namespace
 
 		virtual void unitOperationStructure(cadet::UnitOpIdx idx, const cadet::IModel& model, const cadet::ISolutionExporter& exporter)
 		{
-			_fluxOffset = exporter.numComponents() + exporter.numBulkDofs();
+			_fluxOffset = exporter.numComponents() * exporter.numInletPorts() + exporter.numBulkDofs();
 
 			const unsigned int nParType = exporter.numParticleTypes();
 			for (unsigned int i = 0; i < nParType; ++i)
 				_fluxOffset += exporter.numParticleMobilePhaseDofs(i) + exporter.numSolidPhaseDofs(i);
 
 			// Make sure this is correct
-			REQUIRE(reinterpret_cast<cadet::IUnitOperation const*>(&model)->numDofs() - exporter.numComponents() * exporter.numAxialCells() * nParType == _fluxOffset);
+			const unsigned int nFluxes = exporter.numComponents() * exporter.numAxialCells() * nParType * std::max(exporter.numRadialCells(), 1u);
+			REQUIRE(reinterpret_cast<cadet::IUnitOperation const*>(&model)->numDofs() - nFluxes == _fluxOffset);
 		}
 
 		inline unsigned int fluxOffset() const CADET_NOEXCEPT { return _fluxOffset; }
@@ -319,7 +320,7 @@ namespace column
 			double const* bwdOutlet = bwdData->outlet();
 
 			const unsigned int nComp = fwdData->numComponents();
-			for (unsigned int i = 0; i < fwdData->numDataPoints() * nComp; ++i, ++fwdInlet, ++fwdOutlet, ++bwdInlet, ++bwdOutlet)
+			for (unsigned int i = 0; i < fwdData->numDataPoints() * fwdData->numInletPorts() * nComp; ++i, ++fwdInlet, ++fwdOutlet, ++bwdInlet, ++bwdOutlet)
 			{
 				// Forward flow inlet = backward flow outlet
 				CAPTURE(i);
@@ -359,7 +360,7 @@ namespace column
 			double const* outlet = (forwardFlow ? simData->outlet() : simData->inlet());
 
 			// Compare
-			for (unsigned int i = 0; i < simData->numDataPoints(); ++i, ++outlet)
+			for (unsigned int i = 0; i < simData->numDataPoints() * simData->numComponents() * simData->numInletPorts(); ++i, ++outlet)
 			{
 				// Note that the simulation only saves the chromatogram at multiples of 2 (i.e., 0s, 2s, 4s, ...)
 				// whereas the reference solution is given at every second (0s, 1s, 2s, 3s, ...)
@@ -397,7 +398,7 @@ namespace column
 			double const* outlet = (forwardFlow ? simData->outlet() : simData->inlet());
 
 			// Compare
-			for (unsigned int i = 0; i < simData->numDataPoints(); ++i, ++outlet)
+			for (unsigned int i = 0; i < simData->numDataPoints() * simData->numComponents() * simData->numInletPorts(); ++i, ++outlet)
 			{
 				CAPTURE(time[i]);
 				CHECK((*outlet) == makeApprox(ref[i], relTol, absTol));
@@ -443,12 +444,6 @@ namespace column
 			// Fill state vector with some values
 			util::populate(y.data(), [](unsigned int idx) { return std::abs(std::sin(idx * 0.13)) + 1e-4; }, unitAna->numDofs());
 //			util::populate(y.data(), [](unsigned int idx) { return 1.0; }, unitAna->numDofs());
-
-			// Obtain number of column cells
-			jpp.pushScope("discretization");
-			const unsigned int nCol = jpp.getInt("NCOL");
-			REQUIRE(nCol == 15u);
-			jpp.popScope();
 
 			SECTION("Forward then backward flow (nonzero state)")
 			{
@@ -726,7 +721,9 @@ namespace column
 					// Get data from simulation
 					cadet::InternalStorageUnitOpRecorder const* const simData = drv.solution()->unitOperation(0);
 					const unsigned int nComp = simData->numComponents();
-					double const* time = drv.solution()->time();
+					const unsigned int nPorts = simData->numInletPorts();
+					const unsigned int nDataPoints = simData->numDataPoints() * nComp * nPorts;
+					double const* const time = drv.solution()->time();
 					double const* outlet = simData->sensOutlet(0);
 					double const* outletL = drvLeft.solution()->unitOperation(0)->outlet();
 					double const* outletR = drvRight.solution()->unitOperation(0)->outlet();
@@ -734,25 +731,23 @@ namespace column
 					// Compare
 					const double actStepSize = 2.0 * h * baseVal;
 					unsigned int numPassed = 0;
-					for (unsigned int i = 0; i < simData->numDataPoints(); ++i, ++outlet, ++outletL, ++outletR)
+					for (unsigned int i = 0; i < nDataPoints; ++i, ++outlet, ++outletL, ++outletR)
 					{
 						const double cmpVal = *outlet;
 						const double fdVal = ((*outletR) - (*outletL)) / actStepSize;
-						const unsigned int comp = i % nComp;
-						const unsigned int timeIdx = i / nComp;
+						const unsigned int comp = (i % (nComp * nPorts)) % nComp;
+						const unsigned int port = (i % (nComp * nPorts)) / nComp;
+						const unsigned int timeIdx = i / (nComp * nPorts);
 
-						INFO("Time " << (*time) << " Component " << comp << " time point idx " << timeIdx);
+						INFO("Time " << time[timeIdx] << " Port " << port << " Component " << comp << " time point idx " << timeIdx);
 						CHECK(fdVal == makeApprox(*outlet, relTol, absTol));
 
 						const bool relativeOK = std::abs(*outlet - fdVal) <= relTol * std::abs(*outlet);
 						if (relativeOK)
 							++numPassed;
-
-						if (i % nComp == 0)
-							++time;
 					}
 
-					const double ratio = static_cast<double>(numPassed) / static_cast<double>(simData->numDataPoints());
+					const double ratio = static_cast<double>(numPassed) / static_cast<double>(nDataPoints);
 					CAPTURE(ratio);
 					CHECK(ratio >= passRate);
 				}
@@ -807,29 +802,29 @@ namespace column
 					cadet::InternalStorageUnitOpRecorder const* const bwdData = drvBwd.solution()->unitOperation(0);
 
 					const unsigned int nComp = fwdData->numComponents();
-					double const* time = drvFwd.solution()->time();
+					const unsigned int nPorts = fwdData->numInletPorts();
+					const unsigned int nDataPoints = fwdData->numDataPoints() * nComp * nPorts;
+					double const* const time = drvFwd.solution()->time();
 					double const* fwdOutlet = fwdData->sensOutlet(0);
 					double const* bwdInlet = bwdData->sensInlet(0);
 
 					// Compare
 					unsigned int numPassed = 0;
-					for (unsigned int i = 0; i < fwdData->numDataPoints(); ++i, ++fwdOutlet, ++bwdInlet)
+					for (unsigned int i = 0; i < nDataPoints; ++i, ++fwdOutlet, ++bwdInlet)
 					{
-						const unsigned int comp = i % nComp;
-						const unsigned int timeIdx = i / nComp;
+						const unsigned int comp = (i % (nComp * nPorts)) % nComp;
+						const unsigned int port = (i % (nComp * nPorts)) / nComp;
+						const unsigned int timeIdx = i / (nComp * nPorts);
 
-						INFO("Time " << (*time) << " Component " << comp << " time point idx " << timeIdx);
+						INFO("Time " << time[timeIdx] << " Port " << port << " Component " << comp << " time point idx " << timeIdx);
 						CHECK(*bwdInlet == makeApprox(*fwdOutlet, relTol, absTol));
 
 						const bool relativeOK = std::abs(*bwdInlet - *fwdOutlet) <= relTol * std::abs(*fwdOutlet);
 						if (relativeOK)
 							++numPassed;
-
-						if (i % nComp == 0)
-							++time;
 					}
 
-					const double ratio = static_cast<double>(numPassed) / static_cast<double>(fwdData->numDataPoints());
+					const double ratio = static_cast<double>(numPassed) / static_cast<double>(nDataPoints);
 					CAPTURE(ratio);
 					CHECK(ratio >= passRate);
 				}
@@ -924,6 +919,7 @@ namespace column
 
 					unit->setSensitiveParameter(cadet::makeParamId("COL_LENGTH", 0, cadet::CompIndep, cadet::ParTypeIndep, cadet::BoundStateIndep, cadet::ReactionIndep, cadet::SectionIndep), 2, 1.0);
 
+					REQUIRE(unit->numSensParams() == 3);
 					unitoperation::testConsistentInitializationSensitivity(unit, adEnabled, y, yDot, absTol);
 
 					mb->destroyUnitOperation(unit);

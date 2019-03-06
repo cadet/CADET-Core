@@ -76,9 +76,9 @@ namespace unitoperation
 
 		// Check norm of residual (but skip over connection DOFs at the beginning of the local state vector slice)
 		unit->residual(SimulationTime{0.0, 0u, 1.0}, ConstSimulationState{y, yDot.data()}, res.data());
-		INFO("Residual " << linalg::linfNorm(res.data() + unit->numComponents(), unit->numDofs() - unit->numComponents()));
+		INFO("Residual " << linalg::linfNorm(res.data() + unit->numComponents() * unit->numInletPorts(), unit->numDofs() - unit->numComponents() * unit->numInletPorts()));
 		CAPTURE(res);
-		CHECK(linalg::linfNorm(res.data() + unit->numComponents(), unit->numDofs() - unit->numComponents()) <= absTol);
+		CHECK(linalg::linfNorm(res.data() + unit->numComponents() * unit->numInletPorts(), unit->numDofs() - unit->numComponents() * unit->numInletPorts()) <= absTol);
 
 		// Clean up
 		delete[] adRes;
@@ -153,8 +153,8 @@ namespace unitoperation
 
 		for (unsigned int i = 0; i < nSens; ++i)
 		{
-			INFO("Residual " << i << ": " << linalg::linfNorm(vecRes[i] + unit->numComponents(), unit->numDofs() - unit->numComponents()));
-			CHECK(linalg::linfNorm(vecRes[i] + unit->numComponents(), unit->numDofs() - unit->numComponents()) <= absTol);
+			INFO("Residual " << i << ": " << linalg::linfNorm(vecRes[i] + unit->numComponents() * unit->numInletPorts(), unit->numDofs() - unit->numComponents() * unit->numInletPorts()));
+			CHECK(linalg::linfNorm(vecRes[i] + unit->numComponents() * unit->numInletPorts(), unit->numDofs() - unit->numComponents() * unit->numInletPorts()) <= absTol);
 		}
 
 		// Clean up
