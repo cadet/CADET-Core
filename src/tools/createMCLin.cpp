@@ -68,9 +68,6 @@ int main(int argc, char** argv)
 			writer.scalar("UNIT_TYPE", std::string("GENERAL_RATE_MODEL"));
 			writer.scalar<int>("NCOMP", 2);
 
-			//Flow
-			writer.scalar<double>("FLOW", 1.0);
-
 			// Transport
 			writer.scalar<double>("VELOCITY", 5.75e-4);
 			writer.scalar<double>("COL_DISPERSION", 5.75e-8);
@@ -146,9 +143,6 @@ int main(int argc, char** argv)
 			writer.scalar("UNIT_TYPE", std::string("INLET"));
 			writer.scalar("INLET_TYPE", std::string("PIECEWISE_CUBIC_POLY"));
 			writer.scalar<int>("NCOMP", 2);
-
-			//Flow
-			writer.scalar<double>("FLOW", 1.0);
 
 			{
 				Scope<cadet::io::HDF5Writer> s3(writer, "sec_000");

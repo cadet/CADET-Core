@@ -37,6 +37,7 @@ struct ProgramOptions
 	bool adJacobian;
 	int nPar;
 	int nCol;
+	int nRad;
 	int nThreads;
 	std::vector<std::string> sensitivities;
 	std::string outSol;
@@ -62,6 +63,7 @@ int main(int argc, char** argv)
 		cmd >> (new TCLAP::ValueArg<double>("c", "constAlg", "Set all algebraic variables to constant value", false, nanVal, "Value"))->storeIn(&opts.constAlg);
 		cmd >> (new TCLAP::ValueArg<double>("s", "stddevAlg", "Perturb algebraic variables with normal variates", false, nanVal, "Value"))->storeIn(&opts.stddevAlg);
 		cmd >> (new TCLAP::SwitchArg("", "reverseFlow", "Reverse the flow for column"))->storeIn(&opts.reverseFlow);
+		cmd >> (new TCLAP::ValueArg<int>("", "rad", "Number of radial cells (default: 3)", false, 3, "Value"))->storeIn(&opts.nRad);
 		addMiscToCmdLine(cmd, opts);
 		addUnitTypeToCmdLine(cmd, opts.unitType);
 		addSensitivitiyParserToCmdLine(cmd, opts.sensitivities);
@@ -80,6 +82,7 @@ int main(int argc, char** argv)
 	writer.pushGroup("input");
 
 	parseUnitType(opts.unitType);
+	const bool isGRM2D = (opts.unitType == "GENERAL_RATE_MODEL_2D");
 
 	// Model
 	{
@@ -93,15 +96,13 @@ int main(int argc, char** argv)
 			const int nComp = 4;
 			writer.scalar<int>("NCOMP", nComp);
 
-			//Flow
-			writer.scalar<double>("FLOW", 1.0);
-
 			// Transport
 			if (!opts.reverseFlow)
 				writer.scalar<double>("VELOCITY", 5.75e-4);
 			else
 				writer.scalar<double>("VELOCITY", -5.75e-4);
 			writer.scalar<double>("COL_DISPERSION", 5.75e-8);
+			writer.scalar<double>("COL_DISPERSION_RADIAL", 1e-6);
 
 			const double filmDiff[] = {6.9e-6, 6.9e-6, 6.9e-6, 6.9e-6};
 			const double parDiff[] = {7e-10, 6.07e-11, 6.07e-11, 6.07e-11};
@@ -113,6 +114,7 @@ int main(int argc, char** argv)
 
 			// Geometry
 			writer.scalar<double>("COL_LENGTH", 0.014);
+			writer.scalar<double>("COL_RADIUS", 0.01);
 			writer.scalar<double>("PAR_RADIUS", 4.5e-5);
 			writer.scalar<double>("PAR_CORERADIUS", 0.0);
 			writer.scalar<double>("COL_POROSITY", 0.37);
@@ -202,9 +204,11 @@ int main(int argc, char** argv)
 
 				writer.scalar<int>("NCOL", opts.nCol); // 64
 				writer.scalar<int>("NPAR", opts.nPar); // 16
+				writer.scalar<int>("NRAD", opts.nRad);
 				const int nBound[] = {1, 1, 1, 1};
 				writer.vector<int>("NBOUND", 4, nBound);
 
+				writer.scalar("RADIAL_DISC_TYPE", std::string("EQUIDISTANT"));
 				writer.scalar("PAR_DISC_TYPE", std::string("EQUIDISTANT_PAR"));
 
 				writer.scalar<int>("USE_ANALYTIC_JACOBIAN", !opts.adJacobian);
@@ -231,9 +235,6 @@ int main(int argc, char** argv)
 			writer.scalar("UNIT_TYPE", std::string("INLET"));
 			writer.scalar("INLET_TYPE", std::string("PIECEWISE_CUBIC_POLY"));
 			writer.scalar<int>("NCOMP", 4);
-
-			//Flow
-			writer.scalar<double>("FLOW", 1.0);
 
 			if (opts.startTime < 10.0)
 			{
@@ -326,18 +327,37 @@ int main(int argc, char** argv)
 			{
 				Scope<cadet::io::HDF5Writer> s1(writer, "switch_000");
 
-				// Connection list is 1x7 since we have 1 connection between
-				// the two unit operations (and we need to have 7 columns)
-				const double connMatrix[] = {1, 0, -1, -1, -1, -1, 1.0};
-				// Connections: From unit operation 1 port -1 (i.e., all ports)
-				//              to unit operation 0 port -1 (i.e., all ports),
-				//              connect component -1 (i.e., all components)
-				//              to component -1 (i.e., all components) with
-				//              a flow rate of 1.0
+				if (!isGRM2D)
+				{
+					// Connection list is 1x7 since we have 1 connection between
+					// the two unit operations (and we need to have 7 columns)
+					const double connMatrix[] = {1, 0, -1, -1, -1, -1, 1.0};
+					// Connections: From unit operation 1 port -1 (i.e., all ports)
+					//              to unit operation 0 port -1 (i.e., all ports),
+					//              connect component -1 (i.e., all components)
+					//              to component -1 (i.e., all components) with
+					//              a flow rate of 1.0
+
+					writer.vector<double>("CONNECTIONS", 7, connMatrix);
+				}
+				else
+				{
+					// Connection list is 3x7 since we have 1 connection between
+					// the two unit operations with 3 ports (and we need to have 7 columns)
+					const double connMatrix[] = {1.0, 0.0, 0.0, 0.0, -1.0, -1.0, 7.42637597e-09,
+					                             1.0, 0.0, 0.0, 1.0, -1.0, -1.0, 2.22791279e-08,
+					                             1.0, 0.0, 0.0, 2.0, -1.0, -1.0, 3.71318798e-08};
+					// Connections: From unit operation 1 port 0
+					//              to unit operation 0 port 0,
+					//              connect component -1 (i.e., all components)
+					//              to component -1 (i.e., all components) with
+					//              volumetric flow rate 7.42637597e-09 m^3/s
+
+					writer.vector<double>("CONNECTIONS", 21, connMatrix);
+				}
 
 				// This switch occurs at beginning of section 0 (initial configuration)
 				writer.scalar<int>("SECTION", 0);
-				writer.vector<double>("CONNECTIONS", 7, connMatrix);
 			}
 		}
 

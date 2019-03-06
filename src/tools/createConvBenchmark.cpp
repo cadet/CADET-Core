@@ -61,6 +61,7 @@ int main(int argc, char** argv)
 	writer.pushGroup("input");
 
 	parseUnitType(opts.unitType);
+	const bool isGRM2D = (opts.unitType == "GENERAL_RATE_MODEL_2D");
 
 	// Model
 	{
@@ -74,12 +75,10 @@ int main(int argc, char** argv)
 			writer.scalar("UNIT_TYPE", opts.unitType);
 			writer.scalar<int>("NCOMP", 1);
 
-			//Flow
-			writer.scalar<double>("FLOW", 1.0);
-
 			// Transport
 			writer.scalar<double>("VELOCITY", 0.5 / 100.0 / 60.0);
 			writer.scalar<double>("COL_DISPERSION", 0.002 / ( 100.0 * 100.0 * 60.0));
+			writer.scalar<double>("COL_DISPERSION_RADIAL", 1e-6);
 
 			const double filmDiff[] = {0.01 / 100.0 / 60.0};
 			const double parDiff[] = {3.003e-6}; // (1.0e-6 / 0.333) / ( 100.0 * 100.0 * 60.0)
@@ -91,6 +90,7 @@ int main(int argc, char** argv)
 
 			// Geometry
 			writer.scalar<double>("COL_LENGTH", 0.017);
+			writer.scalar<double>("COL_RADIUS", 0.01);
 			writer.scalar<double>("PAR_RADIUS", 4.0e-5);
 			writer.scalar<double>("COL_POROSITY", 0.4);
 			writer.scalar<double>("PAR_POROSITY", 0.333);
@@ -135,8 +135,19 @@ int main(int argc, char** argv)
 			{
 				Scope<cadet::io::HDF5Writer> s2(writer, "discretization");
 
-				writer.scalar<int>("NCOL", 16);
-				writer.scalar<int>("NPAR", 4);
+				if (!isGRM2D)
+				{
+					writer.scalar<int>("NCOL", 16);
+					writer.scalar<int>("NPAR", 4);
+				}
+				else
+				{
+					writer.scalar<int>("NCOL", 8);
+					writer.scalar<int>("NPAR", 4);
+					writer.scalar<int>("NRAD", 3);
+					writer.scalar<std::string>("RADIAL_DISC_TYPE", "EQUIDISTANT");
+				}
+
 				if (opts.nonBinding)
 				{
 					const int nBound[] = {0};
@@ -175,9 +186,6 @@ int main(int argc, char** argv)
 			writer.scalar("INLET_TYPE", std::string("PIECEWISE_CUBIC_POLY"));
 			writer.scalar<int>("NCOMP", 1);
 
-			//Flow
-			writer.scalar<double>("FLOW", 1.0);
-
 			{
 				Scope<cadet::io::HDF5Writer> s3(writer, "sec_000");
 
@@ -210,18 +218,37 @@ int main(int argc, char** argv)
 			{
 				Scope<cadet::io::HDF5Writer> s1(writer, "switch_000");
 
-				// Connection list is 1x7 since we have 1 connection between
-				// the two unit operations (and we need to have 7 columns)
-				const double connMatrix[] = {1, 0, -1, -1, -1, -1, 1.0};
-				// Connections: From unit operation 1 port -1 (i.e., all ports)
-				//              to unit operation 0 port -1 (i.e., all ports),
-				//              connect component -1 (i.e., all components)
-				//              to component -1 (i.e., all components) with
-				//              a flow rate of 1.0
+				if (!isGRM2D)
+				{
+					// Connection list is 1x7 since we have 1 connection between
+					// the two unit operations (and we need to have 7 columns)
+					const double connMatrix[] = {1, 0, -1, -1, -1, -1, 1.0};
+					// Connections: From unit operation 1 port -1 (i.e., all ports)
+					//              to unit operation 0 port -1 (i.e., all ports),
+					//              connect component -1 (i.e., all components)
+					//              to component -1 (i.e., all components) with
+					//              a flow rate of 1.0
+
+					writer.vector<double>("CONNECTIONS", 7, connMatrix);
+				}
+				else
+				{
+					// Connection list is 3x7 since we have 1 connection between
+					// the two unit operations with 3 ports (and we need to have 7 columns)
+					const double connMatrix[] = {1, 0, 0, 0, -1, -1, 1.16355283e-09,
+					                             1, 0, 0, 1, -1, -1, 3.49065850e-09,
+					                             1, 0, 0, 2, -1, -1, 5.81776417e-09};
+					// Connections: From unit operation 1 port 0
+					//              to unit operation 0 port 0,
+					//              connect component -1 (i.e., all components)
+					//              to component -1 (i.e., all components) with
+					//              a flow rate of 1.16355283e-09
+
+					writer.vector<double>("CONNECTIONS", 21, connMatrix);
+				}
 
 				// This switch occurs at beginning of section 0 (initial configuration)
 				writer.scalar<int>("SECTION", 0);
-				writer.vector<double>("CONNECTIONS", 7, connMatrix);
 			}
 		}		
 

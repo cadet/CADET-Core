@@ -50,7 +50,7 @@ template <class ProgramOptions_t>
 inline void addMiscToCmdLine(TCLAP::CmdLine& cmd, ProgramOptions_t& opts)
 {
 	cmd >> (new TCLAP::ValueArg<int>("", "par", "Number of particle cells (default: 4)", false, 4, "Value"))->storeIn(&opts.nPar);
-	cmd >> (new TCLAP::ValueArg<int>("", "col", "Number of column cells (default: 10)", false, 10, "Value"))->storeIn(&opts.nCol);
+	cmd >> (new TCLAP::ValueArg<int>("", "col", "Number of axial cells (default: 10)", false, 10, "Value"))->storeIn(&opts.nCol);
 
 	cmd >> (new TCLAP::SwitchArg("", "solverTimes", "Save all solver timesteps"))->storeIn(&opts.solverTimes);
 	cmd >> (new TCLAP::SwitchArg("k", "kinetic", "Kinetic adsorption model used (default: quasi-stationary)"))->storeIn(&opts.isKinetic);
@@ -71,6 +71,8 @@ inline void parseUnitType(std::string& unitType)
 		unitType = "LUMPED_RATE_MODEL_WITH_PORES";
 	else if ((unitType == "LRM") || (unitType == "lrm"))
 		unitType = "LUMPED_RATE_MODEL_WITHOUT_PORES";
+	else if ((unitType == "GRM2D") || (unitType == "grm2d"))
+		unitType = "GENERAL_RATE_MODEL_2D";
 }
 
 inline void addSensitivitiyParserToCmdLine(TCLAP::CmdLine& cmd, std::vector<std::string>& sensitivities)
