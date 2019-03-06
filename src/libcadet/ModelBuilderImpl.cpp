@@ -18,6 +18,7 @@
 #include "cadet/ExternalFunction.hpp"
 
 #include "model/ModelSystemImpl.hpp"
+#include "CompileTimeConfig.hpp"
 
 #include <sstream>
 #include <iomanip>
@@ -33,6 +34,9 @@ namespace cadet
 		void registerLumpedRateModelWithPores(std::unordered_map<std::string, std::function<IUnitOperation*(UnitOpIdx)>>& models);
 		void registerLumpedRateModelWithoutPores(std::unordered_map<std::string, std::function<IUnitOperation*(UnitOpIdx)>>& models);
 		void registerCSTRModel(std::unordered_map<std::string, std::function<IUnitOperation*(UnitOpIdx)>>& models);
+#ifdef ENABLE_GRM_2D
+		void registerGeneralRateModel2D(std::unordered_map<std::string, std::function<IUnitOperation*(UnitOpIdx)>>& models);
+#endif
 
 		namespace inlet
 		{
@@ -55,6 +59,10 @@ namespace cadet
 		model::registerLumpedRateModelWithPores(_modelCreators);
 		model::registerLumpedRateModelWithoutPores(_modelCreators);
 		model::registerCSTRModel(_modelCreators);
+
+#ifdef ENABLE_GRM_2D
+		model::registerGeneralRateModel2D(_modelCreators);
+#endif
 
 		// Register all available inlet profiles
 		model::inlet::registerPiecewiseCubicPoly(_inletCreators);

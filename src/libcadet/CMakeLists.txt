@@ -36,6 +36,8 @@ configure_file("${CMAKE_CURRENT_SOURCE_DIR}/VersionInfo.cpp.in" "${CMAKE_CURRENT
 # LAPACK interface
 #configure_file("${CMAKE_CURRENT_SOURCE_DIR}/LapackInterface.hpp.in" "${CMAKE_CURRENT_BINARY_DIR}/LapackInterface.hpp" @ONLY)
 
+configure_file("${CMAKE_CURRENT_SOURCE_DIR}/CompileTimeConfig.hpp.in" "${CMAKE_CURRENT_BINARY_DIR}/CompileTimeConfig.hpp" @ONLY)
+
 # Compiler features
 write_compiler_detection_header(
 	FILE "${CMAKE_BINARY_DIR}/cadet/cadetCompilerInfo.hpp"
@@ -163,6 +165,11 @@ if (ENABLE_GRM_2D)
 	if (UMFPACK_FOUND)
 		list (APPEND LIBCADET_NONLINALG_SOURCES ${CMAKE_SOURCE_DIR}/src/libcadet/linalg/UMFPackSparseMatrix.cpp)
 	endif()
+	list (APPEND LIBCADET_SOURCES ${CMAKE_SOURCE_DIR}/src/libcadet/model/parts/TwoDimensionalConvectionDispersionOperator.cpp
+		${CMAKE_SOURCE_DIR}/src/libcadet/model/GeneralRateModel2D.cpp
+		${CMAKE_SOURCE_DIR}/src/libcadet/model/GeneralRateModel2D-LinearSolver.cpp
+		${CMAKE_SOURCE_DIR}/src/libcadet/model/GeneralRateModel2D-InitialConditions.cpp
+	)
 
 	if (NOT SUPERLU_FOUND)
 		set(SPARSE_INT_TYPE "int")
@@ -332,9 +339,14 @@ if (BUILD_CADET_MEX)
 	set_target_properties(libcadet_nonlinalg_mex PROPERTIES LINK_SEARCH_START_STATIC ON)
 	set_target_properties(libcadet_nonlinalg_mex PROPERTIES LINK_SEARCH_END_STATIC ON)
 	target_compile_definitions(libcadet_nonlinalg_mex PRIVATE -DCADET_MATLABMEX -DMATLAB_MEX_FILE ${MATLAB_LAPACK_DEFINE} -Dlibcadet_mex_EXPORTS)
-	target_include_directories(libcadet_nonlinalg_mex PRIVATE ${CMAKE_SOURCE_DIR}/include ${CMAKE_SOURCE_DIR}/src/libcadet ${CMAKE_BINARY_DIR} ${SUNDIALS_INCLUDE_DIRS})
+	target_include_directories(libcadet_nonlinalg_mex PRIVATE ${CMAKE_SOURCE_DIR}/include ${CMAKE_SOURCE_DIR}/src/libcadet ${CMAKE_BINARY_DIR} ${CMAKE_CURRENT_BINARY_DIR} ${SUNDIALS_INCLUDE_DIRS})
 	if (ENABLE_GRM_2D)
-		target_include_directories(libcadet_nonlinalg_mex PRIVATE ${SUPERLU_INCLUDE_DIRS} ${CMAKE_CURRENT_BINARY_DIR})
+		if (SUPERLU_FOUND)
+			target_include_directories(libcadet_nonlinalg_mex PRIVATE ${SUPERLU_INCLUDE_DIRS})
+		endif()
+		if (UMFPACK_FOUND)
+			target_include_directories(libcadet_nonlinalg_mex PRIVATE ${UMFPACK_INCLUDE_DIRS})
+		endif()
 	endif()
 
 	set_target_properties(libcadet_nonlinalg_mex PROPERTIES DEBUG_POSTFIX _d VERSION ${CADET_VERSION} SOVERSION "0")
@@ -344,7 +356,12 @@ if (BUILD_CADET_MEX)
 
 	target_link_libraries (libcadet_nonlinalg_mex PRIVATE ${SUNDIALS_STATIC_LIBRARIES})
 	if (ENABLE_GRM_2D)
-		target_link_libraries (libcadet_nonlinalg_mex PRIVATE ${SUPERLU_LIBRARIES})
+		if (SUPERLU_FOUND)
+			target_link_libraries(libcadet_nonlinalg_mex PRIVATE ${SUPERLU_LIBRARIES})
+		endif()
+		if (UMFPACK_FOUND)
+			target_link_libraries(libcadet_nonlinalg_mex PRIVATE ${UMFPACK_LIBRARIES})
+		endif()
 	endif()
 
 	list(APPEND ALL_LOCAL_TARGETS libcadet_nonlinalg_mex)
@@ -357,13 +374,23 @@ if (BUILD_CADET_MEX)
 	target_compile_definitions(libcadet_mex PRIVATE -DCADET_MATLABMEX -DMATLAB_MEX_FILE ${MATLAB_LAPACK_DEFINE} -Dlibcadet_mex_EXPORTS ${TBB_DEFINITIONS} ${MATLAB_TBB_ENABLE})
 	target_link_libraries(libcadet_mex PRIVATE libcadet_nonlinalg_mex ${SUNDIALS_STATIC_LIBRARIES} ${Matlab_TBB_LIBRARY})
 	if (ENABLE_GRM_2D)
-		target_link_libraries(libcadet_mex PRIVATE ${SUPERLU_LIBRARIES})
+		if (SUPERLU_FOUND)
+			target_link_libraries(libcadet_mex PRIVATE ${SUPERLU_LIBRARIES})
+		endif()
+		if (UMFPACK_FOUND)
+			target_link_libraries(libcadet_mex PRIVATE ${UMFPACK_LIBRARIES})
+		endif()
 	endif()
 	
 	target_include_directories (libcadet_mex PUBLIC $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/include> $<INSTALL_INTERFACE:include> 
-	    PRIVATE ${CMAKE_SOURCE_DIR}/src/libcadet ${CMAKE_BINARY_DIR} ${SUNDIALS_INCLUDE_DIRS} ${TBB_INCLUDE_DIRS})
+	    PRIVATE ${CMAKE_SOURCE_DIR}/src/libcadet ${CMAKE_BINARY_DIR} ${CMAKE_CURRENT_BINARY_DIR} ${SUNDIALS_INCLUDE_DIRS} ${TBB_INCLUDE_DIRS})
 	if (ENABLE_GRM_2D)
-		target_include_directories (libcadet_mex PRIVATE ${SUPERLU_INCLUDE_DIRS})
+		if (SUPERLU_FOUND)
+			target_include_directories(libcadet_mex PRIVATE ${SUPERLU_INCLUDE_DIRS})
+		endif()
+		if (UMFPACK_FOUND)
+			target_include_directories(libcadet_mex PRIVATE ${UMFPACK_INCLUDE_DIRS})
+		endif()
 	endif()
 
 	set_target_properties(libcadet_mex PROPERTIES DEBUG_POSTFIX _d VERSION ${CADET_VERSION} SOVERSION "0")

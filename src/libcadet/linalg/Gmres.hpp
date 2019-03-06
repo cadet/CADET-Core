@@ -140,6 +140,12 @@ public:
 	inline void maxRestarts(unsigned int mr) CADET_NOEXCEPT { _maxRestarts = mr; }
 
 	/**
+	 * @brief Returns the size of the square matrix to be solved
+	 * @return Number of rows or columns of the square matrix to be solved
+	 */
+	inline unsigned int matrixSize() const CADET_NOEXCEPT { return _matrixSize; }
+
+	/**
 	 * @brief Returns the matrix-vector multiplication function
 	 * @return Matrix-vector multiplication function
 	 */
