@@ -114,14 +114,32 @@ inline void compareJacobian(const std::function<void(double const*, double*)> mu
  * @param [in] dir Memory for extracting a column
  * @param [in] colA Memory for Jacobian column of @p modelA
  * @param [in] colB Memory for Jacobian column of @p modelB
+ * @param [in] absTol Absolute error tolerance
+ * @param [in] relTol Relative error tolerance
  */
-inline void compareJacobian(cadet::IUnitOperation* modelA, cadet::IUnitOperation* modelB, double const* y, double const* yDot, double* dir, double* colA, double* colB)
+inline void compareJacobian(cadet::IUnitOperation* modelA, cadet::IUnitOperation* modelB, double const* y, double const* yDot, double* dir, double* colA, double* colB, double absTol, double relTol)
 {
 	compareJacobian(
 		[=](double const* lDir, double* res) -> void { modelA->multiplyWithJacobian(SimulationTime{0.0, 0u, 1.0}, ConstSimulationState{y, yDot}, lDir, 1.0, 0.0, res); },
 		[=](double const* lDir, double* res) -> void { modelB->multiplyWithJacobian(SimulationTime{0.0, 0u, 1.0}, ConstSimulationState{y, yDot}, lDir, 1.0, 0.0, res); },
-		dir, colA, colB, modelA->numDofs(), modelA->numDofs()
+		dir, colA, colB, modelA->numDofs(), modelA->numDofs(), absTol, relTol
 		);
+}
+
+/**
+ * @brief Compares two given Jacobians column by column
+ * @details A column is extracted by calling multiplyWithJacobian() on the model.
+ * @param [in] modelA Model A
+ * @param [in] modelB Model B
+ * @param [in] y State vector
+ * @param [in] yDot Time derivative of state vector
+ * @param [in] dir Memory for extracting a column
+ * @param [in] colA Memory for Jacobian column of @p modelA
+ * @param [in] colB Memory for Jacobian column of @p modelB
+ */
+inline void compareJacobian(cadet::IUnitOperation* modelA, cadet::IUnitOperation* modelB, double const* y, double const* yDot, double* dir, double* colA, double* colB)
+{
+	compareJacobian(modelA, modelB, y, yDot, dir, colA, colB, RelApprox::defaultEpsilon(), RelApprox::defaultMargin());
 }
 
 /**

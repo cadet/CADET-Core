@@ -24,12 +24,14 @@ json createColumnWithSMAJson(const std::string& uoType)
 	config["NCOMP"] = 4;
 	config["VELOCITY"] = 5.75e-4;
 	config["COL_DISPERSION"] = 5.75e-8;
+	config["COL_DISPERSION_RADIAL"] = 1e-6;
 	config["FILM_DIFFUSION"] = {6.9e-6, 6.9e-6, 6.9e-6, 6.9e-6};
 	config["PAR_DIFFUSION"] = {7e-10, 6.07e-11, 6.07e-11, 6.07e-11};
 	config["PAR_SURFDIFFUSION"] = {0.0, 0.0, 0.0, 0.0};
 
 	// Geometry
 	config["COL_LENGTH"] = 0.014;
+	config["COL_RADIUS"] = 0.01;
 	config["PAR_RADIUS"] = 4.5e-5;
 	config["COL_POROSITY"] = 0.37;
 	config["PAR_POROSITY"] = 0.75;
@@ -59,6 +61,14 @@ json createColumnWithSMAJson(const std::string& uoType)
 		disc["NCOL"] = 16;
 		disc["NPAR"] = 4;
 		disc["NBOUND"] = {1, 1, 1, 1};
+
+		if (uoType == "GENERAL_RATE_MODEL_2D")
+		{
+			disc["NCOL"] = 8;
+			disc["NRAD"] = 3;
+			disc["NPAR"] = 3;
+			disc["RADIAL_DISC_TYPE"] = "EQUIDISTANT";
+		}
 
 		disc["PAR_DISC_TYPE"] = std::string("EQUIDISTANT_PAR");
 
@@ -142,12 +152,14 @@ json createColumnWithTwoCompLinearJson(const std::string& uoType)
 	config["NCOMP"] = 2;
 	config["VELOCITY"] = 5.75e-4;
 	config["COL_DISPERSION"] = 5.75e-8;
+	config["COL_DISPERSION_RADIAL"] = 1e-6;
 	config["FILM_DIFFUSION"] = {6.9e-6, 6.9e-6};
 	config["PAR_DIFFUSION"] = {7e-10, 6.07e-11};
 	config["PAR_SURFDIFFUSION"] = {1e-10, 1e-10};
 
 	// Geometry
 	config["COL_LENGTH"] = 0.014;
+	config["COL_RADIUS"] = 0.01;
 	config["PAR_RADIUS"] = 4.5e-5;
 	config["COL_POROSITY"] = 0.37;
 	config["PAR_POROSITY"] = 0.75;
@@ -174,6 +186,14 @@ json createColumnWithTwoCompLinearJson(const std::string& uoType)
 		disc["NCOL"] = 15;
 		disc["NPAR"] = 5;
 		disc["NBOUND"] = {1, 1};
+
+		if (uoType == "GENERAL_RATE_MODEL_2D")
+		{
+			disc["NCOL"] = 8;
+			disc["NRAD"] = 3;
+			disc["NPAR"] = 3;
+			disc["RADIAL_DISC_TYPE"] = "EQUIDISTANT";
+		}
 
 		disc["PAR_DISC_TYPE"] = std::string("EQUIDISTANT_PAR");
 
@@ -267,14 +287,30 @@ json createLWEJson(const std::string& uoType)
 				// This switch occurs at beginning of section 0 (initial configuration)
 				sw["SECTION"] = 0;
 
-				// Connection list is 1x7 since we have 1 connection between
-				// the two unit operations (and we need to have 7 columns)
-				sw["CONNECTIONS"] = {1.0, 0.0, -1.0, -1.0, -1.0, -1.0, 1.0};
-				// Connections: From unit operation 1 port -1 (i.e., all ports) 
-				//              to unit operation 0 port -1 (i.e., all ports),
-				//              connect component -1 (i.e., all components)
-				//              to component -1 (i.e., all components) with
-				//              volumetric flow rate 1.0 m^3/s
+				if (uoType == "GENERAL_RATE_MODEL_2D")
+				{
+					// Connection list is 3x7 since we have 1 connection between
+					// the two unit operations with 3 ports (and we need to have 7 columns)
+					sw["CONNECTIONS"] = {1.0, 0.0, 0.0, 0.0, -1.0, -1.0, 7.42637597e-09,
+					                     1.0, 0.0, 0.0, 1.0, -1.0, -1.0, 2.22791279e-08,
+					                     1.0, 0.0, 0.0, 2.0, -1.0, -1.0, 3.71318798e-08};
+					// Connections: From unit operation 1 port 0
+					//              to unit operation 0 port 0,
+					//              connect component -1 (i.e., all components)
+					//              to component -1 (i.e., all components) with
+					//              volumetric flow rate 7.42637597e-09 m^3/s
+				}
+				else
+				{
+					// Connection list is 1x7 since we have 1 connection between
+					// the two unit operations (and we need to have 7 columns)
+					sw["CONNECTIONS"] = {1.0, 0.0, -1.0, -1.0, -1.0, -1.0, 1.0};
+					// Connections: From unit operation 1 port -1 (i.e., all ports) 
+					//              to unit operation 0 port -1 (i.e., all ports),
+					//              connect component -1 (i.e., all components)
+					//              to component -1 (i.e., all components) with
+					//              volumetric flow rate 1.0 m^3/s
+				}
 
 				con["switch_000"] = sw;
 			}
@@ -400,12 +436,14 @@ cadet::JsonParameterProvider createPulseInjectionColumn(const std::string& uoTyp
 			grm["VELOCITY"] = 5.75e-4;
 			grm["COL_DISPERSION"] = 5.75e-8;
 			grm["COL_DISPERSION_MULTIPLEX"] = 0;
+			grm["COL_DISPERSION_RADIAL"] = 1e-6;
 			grm["FILM_DIFFUSION"] = {6.9e-6};
 			grm["PAR_DIFFUSION"] = {7e-10};
 			grm["PAR_SURFDIFFUSION"] = {0.0};
 
 			// Geometry
 			grm["COL_LENGTH"] = 0.014;
+			grm["COL_RADIUS"] = 0.01;
 			grm["PAR_RADIUS"] = 4.5e-5;
 			grm["PAR_CORERADIUS"] = 0.0;
 			grm["COL_POROSITY"] = 0.37;
@@ -434,6 +472,12 @@ cadet::JsonParameterProvider createPulseInjectionColumn(const std::string& uoTyp
 				disc["NCOL"] = 10;
 				disc["NPAR"] = 4;
 				disc["NBOUND"] = {1};
+
+				if (uoType == "GENERAL_RATE_MODEL_2D")
+				{
+					disc["NRAD"] = 3;
+					disc["RADIAL_DISC_TYPE"] = "EQUIDISTANT";
+				}
 
 				disc["PAR_DISC_TYPE"] = std::string("EQUIDISTANT_PAR");
 
@@ -502,14 +546,30 @@ cadet::JsonParameterProvider createPulseInjectionColumn(const std::string& uoTyp
 				// This switch occurs at beginning of section 0 (initial configuration)
 				sw["SECTION"] = 0;
 
-				// Connection list is 1x7 since we have 1 connection between
-				// the two unit operations (and we need to have 7 columns)
-				sw["CONNECTIONS"] = {1.0, 0.0, -1.0, -1.0, -1.0, -1.0, 1.0};
-				// Connections: From unit operation 1 port -1 (i.e., all ports) 
-				//              to unit operation 0 port -1 (i.e., all ports),
-				//              connect component -1 (i.e., all components)
-				//              to component -1 (i.e., all components) with
-				//              volumetric flow rate 1.0 m^3/s
+				if (uoType == "GENERAL_RATE_MODEL_2D")
+				{
+					// Connection list is 3x7 since we have 1 connection between
+					// the two unit operations with 3 ports (and we need to have 7 columns)
+					sw["CONNECTIONS"] = {1.0, 0.0, 0.0, 0.0, -1.0, -1.0, 7.42637597e-09,
+					                     1.0, 0.0, 0.0, 1.0, -1.0, -1.0, 2.22791279e-08,
+					                     1.0, 0.0, 0.0, 2.0, -1.0, -1.0, 3.71318798e-08};
+					// Connections: From unit operation 1 port 0
+					//              to unit operation 0 port 0,
+					//              connect component -1 (i.e., all components)
+					//              to component -1 (i.e., all components) with
+					//              volumetric flow rate 7.42637597e-09 m^3/s
+				}
+				else
+				{
+					// Connection list is 1x7 since we have 1 connection between
+					// the two unit operations (and we need to have 7 columns)
+					sw["CONNECTIONS"] = {1.0, 0.0, -1.0, -1.0, -1.0, -1.0, 1.0};
+					// Connections: From unit operation 1 port -1 (i.e., all ports) 
+					//              to unit operation 0 port -1 (i.e., all ports),
+					//              connect component -1 (i.e., all components)
+					//              to component -1 (i.e., all components) with
+					//              volumetric flow rate 1.0 m^3/s
+				}
 
 				con["switch_000"] = sw;
 			}
@@ -615,12 +675,14 @@ cadet::JsonParameterProvider createLinearBenchmark(bool dynamicBinding, bool non
 			grm["VELOCITY"] = 0.5 / (100.0 * 60.0);
 			grm["COL_DISPERSION"] = 0.002 / (100.0 * 100.0 * 60.0);
 			grm["COL_DISPERSION_MULTIPLEX"] = 0;
+			grm["COL_DISPERSION_RADIAL"] = 1e-6;
 			grm["FILM_DIFFUSION"] = {0.01 / (100.0 * 60.0)};
 			grm["PAR_DIFFUSION"] = {3.003e-6};
 			grm["PAR_SURFDIFFUSION"] = {0.0};
 
 			// Geometry
 			grm["COL_LENGTH"] = 0.017;
+			grm["COL_RADIUS"] = 0.01;
 			grm["PAR_RADIUS"] = 4e-5;
 			grm["COL_POROSITY"] = 0.4;
 			grm["PAR_POROSITY"] = 0.333;
@@ -656,6 +718,12 @@ cadet::JsonParameterProvider createLinearBenchmark(bool dynamicBinding, bool non
 					disc["NBOUND"] = {0};
 				else
 					disc["NBOUND"] = {1};
+
+				if (uoType == "GENERAL_RATE_MODEL_2D")
+				{
+					disc["NRAD"] = 3;
+					disc["RADIAL_DISC_TYPE"] = "EQUIDISTANT";
+				}
 
 				disc["PAR_DISC_TYPE"] = std::string("EQUIDISTANT_PAR");
 
@@ -724,14 +792,30 @@ cadet::JsonParameterProvider createLinearBenchmark(bool dynamicBinding, bool non
 				// This switch occurs at beginning of section 0 (initial configuration)
 				sw["SECTION"] = 0;
 
-				// Connection list is 1x7 since we have 1 connection between
-				// the two unit operations (and we need to have 7 columns)
-				sw["CONNECTIONS"] = {1.0, 0.0, -1.0, -1.0, -1.0, -1.0, 1.0};
-				// Connections: From unit operation 1 port -1 (i.e., all ports) 
-				//              to unit operation 0 port -1 (i.e., all ports),
-				//              connect component -1 (i.e., all components)
-				//              to component -1 (i.e., all components) with
-				//              volumetric flow rate 1.0 m^3/s
+				if (uoType == "GENERAL_RATE_MODEL_2D")
+				{
+					// Connection list is 3x7 since we have 1 connection between
+					// the two unit operations with 3 ports (and we need to have 7 columns)
+					sw["CONNECTIONS"] = {1.0, 0.0, 0.0, 0.0, -1.0, -1.0, 1.16355283e-09,
+					                     1.0, 0.0, 0.0, 1.0, -1.0, -1.0, 3.49065850e-09,
+					                     1.0, 0.0, 0.0, 2.0, -1.0, -1.0, 5.81776417e-09};
+					// Connections: From unit operation 1 port 0
+					//              to unit operation 0 port 0,
+					//              connect component -1 (i.e., all components)
+					//              to component -1 (i.e., all components) with
+					//              volumetric flow rate 1.16355283e-09 m^3/s
+				}
+				else
+				{
+					// Connection list is 1x7 since we have 1 connection between
+					// the two unit operations (and we need to have 7 columns)
+					sw["CONNECTIONS"] = {1.0, 0.0, -1.0, -1.0, -1.0, -1.0, 1.0};
+					// Connections: From unit operation 1 port -1 (i.e., all ports) 
+					//              to unit operation 0 port -1 (i.e., all ports),
+					//              connect component -1 (i.e., all components)
+					//              to component -1 (i.e., all components) with
+					//              volumetric flow rate 1.0 m^3/s
+				}
 
 				con["switch_000"] = sw;
 			}

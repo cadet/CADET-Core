@@ -492,6 +492,66 @@ namespace column
 		destroyModelBuilder(mb);
 	}
 
+	void testJacobianWenoForwardBackwardFD(const std::string& uoType, int wenoOrder, double h, double absTol, double relTol)
+	{
+		cadet::IModelBuilder* const mb = cadet::createModelBuilder();
+		REQUIRE(nullptr != mb);
+
+		SECTION("Forward vs backward flow Jacobian (WENO=" + std::to_string(wenoOrder) + ")")
+		{
+			// Use some test case parameters
+			cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding(uoType);
+			const unsigned int nComp = jpp.getInt("NCOMP");
+
+			cadet::IUnitOperation* const unit = createAndConfigureUnit(uoType, *mb, jpp, wenoOrder);
+
+			// Setup matrices
+			const AdJacobianParams noAdParams{nullptr, nullptr, 0u};
+			unit->notifyDiscontinuousSectionTransition(0.0, 0u, noAdParams);
+
+			// Obtain memory for state, Jacobian multiply direction, Jacobian column
+			std::vector<double> y(unit->numDofs(), 0.0);
+			std::vector<double> jacDir(unit->numDofs(), 0.0);
+			std::vector<double> jacCol1(unit->numDofs(), 0.0);
+			std::vector<double> jacCol2(unit->numDofs(), 0.0);
+
+			// Fill state vector with some values
+			util::populate(y.data(), [](unsigned int idx) { return std::abs(std::sin(idx * 0.13)) + 1e-4; }, unit->numDofs());
+//			util::populate(y.data(), [](unsigned int idx) { return 1.0; }, unit->numDofs());
+
+			SECTION("Forward then backward flow (nonzero state)")
+			{
+				// Compute state Jacobian
+				const ActiveSimulationTime simTime{0.0, 0u, 1.0};
+				const ConstSimulationState simState{y.data(), nullptr};
+				unit->residualWithJacobian(simTime, simState, jacDir.data(), noAdParams);
+				std::fill(jacDir.begin(), jacDir.end(), 0.0);
+
+				// Compare Jacobians
+				cadet::test::checkJacobianPatternFD(unit, unit, y.data(), nullptr, jacDir.data(), jacCol1.data(), jacCol2.data());
+				cadet::test::compareJacobianFD(unit, unit, y.data(), nullptr, jacDir.data(), jacCol1.data(), jacCol2.data(), h, absTol, relTol);
+
+				// Reverse flow
+				const bool paramSet = unit->setParameter(cadet::makeParamId(cadet::hashString("VELOCITY"), 0, cadet::CompIndep, cadet::ParTypeIndep, cadet::BoundStateIndep, cadet::ReactionIndep, cadet::SectionIndep), -jpp.getDouble("VELOCITY"));
+				REQUIRE(paramSet);
+
+				// Setup
+				unit->notifyDiscontinuousSectionTransition(0.0, 0u, noAdParams);
+
+				// Compute state Jacobian
+				unit->residualWithJacobian(simTime, simState, jacDir.data(), noAdParams);
+				std::fill(jacDir.begin(), jacDir.end(), 0.0);
+
+				// Compare Jacobians
+				cadet::test::checkJacobianPatternFD(unit, unit, y.data(), nullptr, jacDir.data(), jacCol1.data(), jacCol2.data());
+				cadet::test::compareJacobianFD(unit, unit, y.data(), nullptr, jacDir.data(), jacCol1.data(), jacCol2.data(), h, absTol, relTol);
+			}
+
+			mb->destroyUnitOperation(unit);
+		}
+		destroyModelBuilder(mb);
+	}
+
 	void testTimeDerivativeJacobianFD(const std::string& uoType, double h, double absTol, double relTol)
 	{
 		cadet::IModelBuilder* const mb = cadet::createModelBuilder();

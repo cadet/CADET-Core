@@ -119,6 +119,20 @@ namespace column
 	void testJacobianWenoForwardBackward(const std::string& uoType, int wenoOrder);
 
 	/**
+	 * @brief Checks the full Jacobian against FD switching from forward to backward flow and back
+	 * @details Checks the analytic Jacobian against the finite difference Jacobian.
+	 *          Checks both forward and backward flow mode as well as switching between them.
+	 *          Uses centered finite differences.
+	 * 
+	 * @param [in] uoType Unit operation type
+	 * @param [in] wenoOrder Order of the WENO method
+	 * @param [in] h Step size of centered finite differences
+	 * @param [in] absTol Absolute error tolerance
+	 * @param [in] relTol Relative error tolerance
+	 */
+	void testJacobianWenoForwardBackwardFD(const std::string& uoType, int wenoOrder, double h = 1e-6, double absTol = 0.0, double relTol = std::numeric_limits<float>::epsilon() * 100.0);
+
+	/**
 	 * @brief Checks the (analytic) time derivative Jacobian against FD
 	 * @details Uses centered finite differences.
 	 * @param [in] uoType Unit operation type
