@@ -1019,7 +1019,15 @@ namespace cadet
 		for (unsigned int i = 1; i < newTimes.size(); ++i)
 		{
 			if (t <= static_cast<double>(oldTimes[i]))
+			{
+				// Floating point errors can lead to slightly exceeding newTimes[i] when using the formula below,
+				// which in turn causes IDA to fail due to an incorrect stopping time
+				// By explicitly checking for and returning the exact value, this problem is prevented
+				if (t == static_cast<double>(oldTimes[i]))
+					return newTimes[i];
+
 				return newTimes[i-1] + (t - static_cast<double>(oldTimes[i-1])) / (static_cast<double>(oldTimes[i]) - static_cast<double>(oldTimes[i-1])) * (newTimes[i] - newTimes[i-1]);
+			}
 		}
 
 		return -1.0;
