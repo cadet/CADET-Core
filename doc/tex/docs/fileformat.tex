@@ -280,6 +280,16 @@ Note that all components of component dependent datasets have to be section depe
     Columns are \emph{UnitOpID from}, \emph{UnitOpID to}, \emph{Port from}, \emph{Port to}, \emph{Component from}, \emph{Component to}, \emph{volumetric flow rate}.
     If both port indices are $-1$, all ports are connected.
     If both component indices are $-1$, all components are connected.
+
+    For addressing the flow rates as a parameter senstivity, the mapping is as follows:
+    \begin{description}
+      \item[\texttt{SENS\_UNIT}] Unused, always set to $-1$
+      \item[\texttt{SENS\_BOUNDPHASE}] \emph{UnitOpID from}
+      \item[\texttt{SENS\_REACTION}] \emph{UnitOpID to}
+      \item[\texttt{SENS\_COMP}] \emph{Port from}
+      \item[\texttt{SENS\_PARTYPE}] \emph{Port to}
+      \item[\texttt{SENS\_SECTION}] \texttt{SECTION} that activates the valve switch
+    \end{description}\vspace{-\baselineskip}
   \end{dataset}
 \end{groupscope}
 
@@ -341,7 +351,7 @@ Note that all components of component dependent datasets have to be section depe
     Specifies the type of unit operation model
   \end{dataset}
   \begin{dataset}[type=int,range={$\geq 1$},length=1]{NCOMP}
-    Number of chemical components in the chromatographic media
+    Number of chemical components in the chromatographic medium
   \end{dataset}
   \begin{dataset}[type=string,range={\texttt{PIECEWISE\_CUBIC\_POLY}},length=1]{INLET\_TYPE}
     Specifies the type of inlet profile
@@ -370,7 +380,7 @@ Note that all components of component dependent datasets have to be section depe
     Specifies the type of unit operation model
   \end{dataset}
   \begin{dataset}[type=int,range={$\geq 1$},length=1]{NCOMP}
-    Number of chemical components in the chromatographic media
+    Number of chemical components in the chromatographic medium
   \end{dataset}
 \end{condsubgroup}
 
@@ -381,7 +391,7 @@ Note that all components of component dependent datasets have to be section depe
     Specifies the type of unit operation model
   \end{dataset}
   \begin{dataset}[type=int,range={$\geq 1$},length=1]{NCOMP}
-    Number of chemical components in the chromatographic media
+    Number of chemical components in the chromatographic medium
   \end{dataset}
   \begin{dataset}[type=string,range={See Section~\ref{sec:FFAdsorption}},length={\texttt{NPARTYPE}}]{ADSORPTION\_MODEL}
     Specifies the type of adsorption models of each particle type
@@ -398,7 +408,7 @@ Note that all components of component dependent datasets have to be section depe
   \begin{dataset}[unit=various,type=double,range={$\mathds{R}$},length={\texttt{NDOF} / $2\texttt{NDOF}$}]{INIT\_STATE}
     Full state vector for initialization (optional, \texttt{INIT\_C}, \texttt{INIT\_CP}, and \texttt{INIT\_Q} will be ignored; if length is $2\texttt{NDOF}$, then the second half is used for time derivatives)
   \end{dataset}
-  \begin{dataset}[unit=\si{\square\metre\of{IV}\per\second},type=double,range={$\geq 0$},length={see \texttt{{COL\_DISPERSION\_MULTIPLEX}}}]{COL\_DISPERSION}
+  \begin{dataset}[unit=\si{\square\metre\of{IV}\per\second},type=double,range={$\geq 0$},length={see \texttt{COL\_DISPERSION\_MULTIPLEX}}]{COL\_DISPERSION}
     Axial dispersion coefficient
   \end{dataset}
   \begin{dataset}[unit=--,type=int,range={$\{0, \dots, 3 \}$},length={1}]{COL\_DISPERSION\_MULTIPLEX}
@@ -419,13 +429,13 @@ Note that all components of component dependent datasets have to be section depe
   \begin{dataset}[unit=\si{\metre},type=double,range={$> 0$},length={1}]{COL\_LENGTH}
     Column length
   \end{dataset}
-  \begin{dataset}[unit=--,type=double,range={$[0,1]$},length={1}]{COL\_POROSITY}
+  \begin{dataset}[unit=--,type=double,range={$(0,1]$},length={1}]{COL\_POROSITY}
     Column porosity
   \end{dataset}
   \begin{dataset}[unit=\si{\metre\per\second},type=double,range={$\geq 0$},length={$\texttt{NPARTYPE} \cdot \texttt{NCOMP}$ / $\texttt{NPARTYPE} \cdot \texttt{NCOMP} \cdot \texttt{NSEC}$}]{FILM\_DIFFUSION}
     Film diffusion coefficients for each component of each particle type in section-type-major ordering
   \end{dataset}
-  \begin{dataset}[unit=--,type=double,range={$[0,1]$},length={\texttt{NPARTYPE}}]{PAR\_POROSITY}
+  \begin{dataset}[unit=--,type=double,range={$(0,1]$},length={\texttt{NPARTYPE}}]{PAR\_POROSITY}
     Particle porosity of each particle type
   \end{dataset}
   \begin{dataset}[unit=\si{\metre},type=double,range={$>0$},length={\texttt{NPARTYPE}}]{PAR\_RADIUS}
@@ -452,6 +462,7 @@ Note that all components of component dependent datasets have to be section depe
   \begin{dataset}[unit=--,type=double,range={$[0,1]$},length={\texttt{NPARTYPE} / $\texttt{NCOL} \cdot \texttt{NPARTYPE}$}]{PAR\_TYPE\_VOLFRAC}
     Volume fractions of the particle types.
     The volume fractions can be set for all axial cells together or for each individual axial cell.
+    For each cell, the volume fractions have to sum to $1$.
     In case of a spatially inhomogeneous setting, the data is expected in cell-major ordering and the \texttt{SENS\_SECTION} field is used for indexing the axial cell when specifying parameter sensitivities.
   \end{dataset}
 \end{condsubgroup}
@@ -504,7 +515,7 @@ Note that all components of component dependent datasets have to be section depe
     Specifies the type of unit operation model
   \end{dataset}
   \begin{dataset}[type=int,range={$\geq 1$},length=1]{NCOMP}
-    Number of chemical components in the chromatographic media
+    Number of chemical components in the chromatographic medium
   \end{dataset}
   \begin{dataset}[type=string,range={See Section~\ref{sec:FFAdsorption}},length={\texttt{NPARTYPE}}]{ADSORPTION\_MODEL}
     Specifies the type of adsorption models of each particle type
@@ -521,7 +532,7 @@ Note that all components of component dependent datasets have to be section depe
   \begin{dataset}[unit=various,type=double,range={$\mathds{R}$},length={\texttt{NDOF} / $2\texttt{NDOF}$}]{INIT\_STATE}
     Full state vector for initialization (optional, \texttt{INIT\_C}, \texttt{INIT\_CP}, and \texttt{INIT\_Q} will be ignored; if length is $2\texttt{NDOF}$, then the second half is used for time derivatives)
   \end{dataset}
-  \begin{dataset}[unit=\si{\square\metre\of{IV}\per\second},type=double,range={$\geq 0$},length={see \texttt{{COL\_DISPERSION\_MULTIPLEX}}}]{COL\_DISPERSION}
+  \begin{dataset}[unit=\si{\square\metre\of{IV}\per\second},type=double,range={$\geq 0$},length={see \texttt{COL\_DISPERSION\_MULTIPLEX}}]{COL\_DISPERSION}
     Axial dispersion coefficient
   \end{dataset}
   \begin{dataset}[unit=--,type=int,range={$\{0, \dots, 3 \}$},length={1}]{COL\_DISPERSION\_MULTIPLEX}
@@ -542,13 +553,13 @@ Note that all components of component dependent datasets have to be section depe
   \begin{dataset}[unit=\si{\metre},type=double,range={$> 0$},length={1}]{COL\_LENGTH}
     Column length
   \end{dataset}
-  \begin{dataset}[unit=--,type=double,range={$[0,1]$},length={1}]{COL\_POROSITY}
+  \begin{dataset}[unit=--,type=double,range={$(0,1]$},length={1}]{COL\_POROSITY}
     Column porosity
   \end{dataset}
   \begin{dataset}[unit=\si{\metre\per\second},type=double,range={$\geq 0$},length={$\texttt{NPARTYPE} \cdot \texttt{NCOMP}$ / $\texttt{NPARTYPE} \cdot \texttt{NCOMP} \cdot \texttt{NSEC}$}]{FILM\_DIFFUSION}
     Film diffusion coefficients for each component of each particle type in section-type-major ordering
   \end{dataset}
-  \begin{dataset}[unit=--,type=double,range={$[0,1]$},length={\texttt{NPARTYPE}}]{PAR\_POROSITY}
+  \begin{dataset}[unit=--,type=double,range={$(0,1]$},length={\texttt{NPARTYPE}}]{PAR\_POROSITY}
     Particle porosity of each particle type
   \end{dataset}
   \begin{dataset}[unit=\si{\metre},type=double,range={$>0$},length={\texttt{NPARTYPE}}]{PAR\_RADIUS}
@@ -566,6 +577,7 @@ Note that all components of component dependent datasets have to be section depe
   \begin{dataset}[unit=--,type=double,range={$[0,1]$},length={\texttt{NPARTYPE} / $\texttt{NCOL} \cdot \texttt{NPARTYPE}$}]{PAR\_TYPE\_VOLFRAC}
     Volume fractions of the particle types.
     The volume fractions can be set for all axial cells together or for each individual axial cell.
+    For each cell, the volume fractions have to sum to $1$.
     In case of a spatially inhomogeneous setting, the data is expected in cell-major ordering and the \texttt{SENS\_SECTION} field is used for indexing the axial cell when specifying parameter sensitivities.
   \end{dataset}
 \end{condsubgroup}
@@ -605,7 +617,7 @@ Note that all components of component dependent datasets have to be section depe
     Specifies the type of unit operation model
   \end{dataset}
   \begin{dataset}[type=int,range={$\geq 1$},length=1]{NCOMP}
-    Number of chemical components in the chromatographic media
+    Number of chemical components in the chromatographic medium
   \end{dataset}
   \begin{dataset}[type=string,range={See Section~\ref{sec:FFAdsorption}},length=1]{ADSORPTION\_MODEL}
     Specifies the type of adsorption model
@@ -619,7 +631,7 @@ Note that all components of component dependent datasets have to be section depe
   \begin{dataset}[unit=various,type=double,range={$\mathds{R}$},length={\texttt{NDOF} / $2\texttt{NDOF}$}]{INIT\_STATE}
     Full state vector for initialization (optional, \texttt{INIT\_C} and \texttt{INIT\_Q} will be ignored; if length is $2\texttt{NDOF}$, then the second half is used for time derivatives)
   \end{dataset}
-  \begin{dataset}[unit=\si{\square\metre\of{IV}\per\second},type=double,range={$\geq 0$},length={see \texttt{{COL\_DISPERSION\_MULTIPLEX}}}]{COL\_DISPERSION}
+  \begin{dataset}[unit=\si{\square\metre\of{IV}\per\second},type=double,range={$\geq 0$},length={see \texttt{COL\_DISPERSION\_MULTIPLEX}}]{COL\_DISPERSION}
     Axial dispersion coefficient
   \end{dataset}
   \begin{dataset}[unit=--,type=int,range={$\{0, \dots, 3 \}$},length={1}]{COL\_DISPERSION\_MULTIPLEX}
@@ -666,6 +678,219 @@ Note that all components of component dependent datasets have to be section depe
   \end{dataset}
 \end{condsubgroup}
 
+
+\subsubsection{Two dimensional general rate model}
+
+\begin{condsubgroup}{/input/model/unit\_XXX}{UNIT\_TYPE = GENERAL\_RATE\_MODEL\_2D}{tab:FFModelUnitOpGRM2D}
+  \begin{dataset}[type=string,range={\texttt{GENERAL\_RATE\_MODEL\_2D}},length=1]{UNIT\_TYPE}
+    Specifies the type of unit operation model
+  \end{dataset}
+  \begin{dataset}[type=int,range={$\geq 1$},length=1]{NCOMP}
+    Number of chemical components in the chromatographic medium
+  \end{dataset}
+  \begin{dataset}[type=string,range={See Section~\ref{sec:FFAdsorption}},length={\texttt{NPARTYPE}}]{ADSORPTION\_MODEL}
+    Specifies the type of adsorption models of each particle type
+  \end{dataset}
+  \begin{dataset}[unit=\si{\mol\per\cubic\metre\of{IV}},type=double,range={$\geq 0$},length={\texttt{NCOMP}}]{INIT\_C}
+    Initial concentrations for each component in the bulk mobile phase
+  \end{dataset}
+  \begin{dataset}[unit=\si{\mol\per\cubic\metre\of{MP}},type=double,range={$\geq 0$},length={$\texttt{NPARTYPE} \cdot \texttt{NCOMP}$}]{INIT\_CP}
+    Initial concentrations for each component in the bead liquid phase of each particle type in type-major ordering (optional, \texttt{INIT\_C} is used if left out)
+  \end{dataset}
+  \begin{dataset}[unit=\si{\mol\per\cubic\metre\of{SP}},type=double,range={$\geq 0$},length={\texttt{NTOTALBND}}]{INIT\_Q}
+    Initial concentrations for each bound state of each component in the bead solid phase of each particle type in type-component-major ordering
+  \end{dataset}
+  \begin{dataset}[unit=various,type=double,range={$\mathds{R}$},length={\texttt{NDOF} / $2\texttt{NDOF}$}]{INIT\_STATE}
+    Full state vector for initialization (optional, \texttt{INIT\_C}, \texttt{INIT\_CP}, and \texttt{INIT\_Q} will be ignored; if length is $2\texttt{NDOF}$, then the second half is used for time derivatives)
+  \end{dataset}
+  \begin{dataset}[unit=\si{\square\metre\of{IV}\per\second},type=double,range={$\geq 0$},length={see \texttt{COL\_DISPERSION\_MULTIPLEX}}]{COL\_DISPERSION}
+    Axial dispersion coefficient.
+
+    In case of a spatially inhomogeneous setting, the \texttt{SENS\_PARTYPE} field is used for indexing the radial zone when specifying parameter sensitivities.
+  \end{dataset}
+  \begin{dataset}[unit=--,type=int,range={$\{0, \dots, 7 \}$},length={1}]{COL\_DISPERSION\_MULTIPLEX}
+    Multiplexing mode of \texttt{COL\_DISPERSION}.
+    Determines whether \texttt{COL\_DISPERSION} is treated as component-, radial-, and/or section-independent.
+
+    This field is optional.
+    When left out, multiplexing behavior is inferred from the length of \texttt{COL\_DISPERSION}.
+
+    Valid modes are:
+    \begin{description}
+      \item[0] Component-independent, radial-independent, section-independent; length of \texttt{COL\_DISPERSION} is $1$
+      \item[1] Component-independent, radial-dependent, section-independent; length of \texttt{COL\_DISPERSION} is $\texttt{NRAD}$
+      \item[2] Component-dependent, radial-independent, section-independent; length of \texttt{COL\_DISPERSION} is $\texttt{NCOMP}$
+      \item[3] Component-dependent, radial-dependent, section-independent; length of \texttt{COL\_DISPERSION} is $\texttt{NCOMP} \cdot \texttt{NRAD}$; ordering is radial-major
+      \item[4] Component-independent, radial-independent, section-dependent; length of \texttt{COL\_DISPERSION} is $\texttt{NSEC}$
+      \item[5] Component-independent, radial-dependent, section-dependent; length of \texttt{COL\_DISPERSION} is $\texttt{NRAD} \cdot \texttt{NSEC}$; ordering is section-major
+      \item[6] Component-dependent, radial-independent, section-independent; length of \texttt{COL\_DISPERSION} is $\texttt{NCOMP} \cdot \texttt{NSEC}$; ordering is section-major
+      \item[7] Component-dependent, radial-dependent, section-dependent; length of \texttt{COL\_DISPERSION} is $\texttt{NCOMP} \cdot \texttt{NRAD} \cdot \texttt{NSEC}$; ordering is section-radial-major
+    \end{description}\vspace{-\baselineskip}
+  \end{dataset}
+  \begin{dataset}[unit=\si{\square\metre\of{IV}\per\second},type=double,range={$\geq 0$},length={see \texttt{COL\_DISPERSION\_RADIAL\_MULTIPLEX}}]{COL\_DISPERSION\_RADIAL}
+    Radial dispersion coefficient.
+
+    In case of a spatially inhomogeneous setting, the \texttt{SENS\_PARTYPE} field is used for indexing the radial zone when specifying parameter sensitivities.
+  \end{dataset}
+  \begin{dataset}[unit=--,type=int,range={$\{0, \dots, 7 \}$},length={1}]{COL\_DISPERSION\_RADIAL\_MULTIPLEX}
+    Multiplexing mode of \texttt{COL\_DISPERSION\_RADIAL}.
+    Determines whether \texttt{COL\_DISPERSION\_RADIAL} is treated as component-, radial-, and/or section-independent.
+
+    This field is optional.
+    When left out, multiplexing behavior is inferred from the length of \texttt{COL\_DISPERSION\_RADIAL}.
+
+    Valid modes are:
+    \begin{description}
+      \item[0] Component-independent, radial-independent, section-independent; length of \texttt{COL\_DISPERSION\_RADIAL} is $1$
+      \item[1] Component-independent, radial-dependent, section-independent; length of \texttt{COL\_DISPERSION\_RADIAL} is $\texttt{NRAD}$
+      \item[2] Component-dependent, radial-independent, section-independent; length of \texttt{COL\_DISPERSION\_RADIAL} is $\texttt{NCOMP}$
+      \item[3] Component-dependent, radial-dependent, section-independent; length of \texttt{COL\_DISPERSION\_RADIAL} is $\texttt{NCOMP} \cdot \texttt{NRAD}$; ordering is radial-major
+      \item[4] Component-independent, radial-independent, section-dependent; length of \texttt{COL\_DISPERSION\_RADIAL} is $\texttt{NSEC}$
+      \item[5] Component-independent, radial-dependent, section-dependent; length of \texttt{COL\_DISPERSION\_RADIAL} is $\texttt{NRAD} \cdot \texttt{NSEC}$; ordering is section-major
+      \item[6] Component-dependent, radial-independent, section-independent; length of \texttt{COL\_DISPERSION\_RADIAL} is $\texttt{NCOMP} \cdot \texttt{NSEC}$; ordering is section-major
+      \item[7] Component-dependent, radial-dependent, section-dependent; length of \texttt{COL\_DISPERSION\_RADIAL} is $\texttt{NCOMP} \cdot \texttt{NRAD} \cdot \texttt{NSEC}$; ordering is section-radial-major
+    \end{description}\vspace{-\baselineskip}
+  \end{dataset}
+  \begin{dataset}[unit=\si{\metre},type=double,range={$> 0$},length={1}]{COL\_LENGTH}
+    Column length
+  \end{dataset}
+  \begin{dataset}[unit=\si{\metre},type=double,range={$> 0$},length={1}]{COL\_RADIUS}
+    Column radius
+  \end{dataset}
+  \begin{dataset}[unit=--,type=double,range={$(0,1]$},length={1 / \texttt{NRAD}}]{COL\_POROSITY}
+    Column porosity, either constant (length is 1) or for each radial zone (length is \texttt{NRAD}).
+
+    In case of a spatially inhomogeneous setting, the \texttt{SENS\_PARTYPE} field is used for indexing the radial zone when specifying parameter sensitivities.
+  \end{dataset}
+  \begin{dataset}[unit=\si{\metre\per\second},type=double,range={$\geq 0$},length={$\texttt{NPARTYPE} \cdot \texttt{NCOMP}$ / $\texttt{NPARTYPE} \cdot \texttt{NCOMP} \cdot \texttt{NSEC}$}]{FILM\_DIFFUSION}
+    Film diffusion coefficients for each component of each particle type in section-type-major ordering
+  \end{dataset}
+  \begin{dataset}[unit=--,type=double,range={$(0,1]$},length={\texttt{NPARTYPE}}]{PAR\_POROSITY}
+    Particle porosity of each particle type
+  \end{dataset}
+  \begin{dataset}[unit=\si{\metre},type=double,range={$>0$},length={\texttt{NPARTYPE}}]{PAR\_RADIUS}
+    Particle radius of each particle type
+  \end{dataset}
+  \begin{dataset}[unit=\si{\metre},type=double,range={$[0, \texttt{PAR\_RADIUS})$},length={\texttt{NPARTYPE}}]{PAR\_CORERADIUS}
+    Particle core radius of each particle type (optional, defaults to \SI{0}{\metre})
+  \end{dataset}
+  \begin{dataset}[unit=--,type=double,range={$(0, 1]$},length={$\texttt{NPARTYPE} \cdot \texttt{NCOMP}$}]{PORE\_ACCESSIBILITY}
+    Pore accessibility factor of each component in each particle type in type-major ordering (optional, defaults to $1$)
+  \end{dataset}
+  \begin{dataset}[unit=\si{\square\metre\of{MP}\per\second},type=double,range={$\geq 0$},length={$\texttt{NPARTYPE} \cdot \texttt{NCOMP}$ / $\texttt{NSEC} \cdot \texttt{NPARTYPE} \cdot \texttt{NCOMP}$}]{PAR\_DIFFUSION}
+    Effective particle diffusion coefficients of each component in each particle type in section-type-major ordering
+  \end{dataset}
+  \begin{dataset}[unit=\si{\square\metre\of{SP}\per\second},type=double,range={$\geq 0$},length={$\texttt{NTOTALBND}$ / $\texttt{NSEC} \cdot \texttt{NTOTALBND}$}]{PAR\_SURFDIFFUSION}
+    Particle surface diffusion coefficients of each bound state of each component in each particle type in section-type-component-major ordering
+  \end{dataset}
+  \begin{dataset}[unit=--,type=double,range={$\mathds{R}$},length={see \texttt{VELOCITY\_MULTIPLEX}}]{VELOCITY}
+    Indicates flow direction in each radial zone (forward if value is positive, backward if value is negative), see Section~\ref{par:MUOPGRMflow2D}).
+
+    In case of a spatially inhomogeneous setting, the \texttt{SENS\_PARTYPE} field is used for indexing the radial cell when specifying parameter sensitivities.
+  \end{dataset}
+  \begin{dataset}[unit=--,type=int,range={$\{0, \dots, 3 \}$},length={1}]{VELOCITY\_MULTIPLEX}
+    Multiplexing mode of \texttt{VELOCITY}.
+    Determines whether \texttt{VELOCITY} is treated as radial- and/or section-independent.
+
+    This field is optional.
+    When left out, multiplexing behavior is inferred from the length of \texttt{VELOCITY}.
+
+    Valid modes are:
+    \begin{description}
+      \item[0] Radial-independent, section-independent; length of \texttt{VELOCITY} is $1$
+      \item[1] Radial-dependent, section-independent; length of \texttt{VELOCITY} is $\texttt{NRAD}$
+      \item[2] Section-dependent; length of \texttt{VELOCITY} is $\texttt{NSEC}$
+      \item[3] Radial-dependent, section-dependent; length of \texttt{VELOCITY} is $\texttt{NRAD} \cdot \texttt{NSEC}$; ordering is section-major
+    \end{description}\vspace{-\baselineskip}
+  \end{dataset}
+  \begin{dataset}[unit=--,type=double,range={$[0,1]$},length={see \texttt{PAR\_TYPE\_VOLFRAC\_MULTIPLEX}}]{PAR\_TYPE\_VOLFRAC}
+    Volume fractions of the particle types.
+    The volume fractions can be set homogeneous or individually along both axes.
+    For each cell, the volume fractions have to sum to $1$.
+
+    In case of a spatially inhomogeneous setting, the \texttt{SENS\_SECTION} field is used for indexing the axial cell and the \texttt{SENS\_REACTION} field is used for indexing the radial cell when specifying parameter sensitivities.
+  \end{dataset}
+  \begin{dataset}[unit=--,type=int,range={$\{0, \dots, 3 \}$},length={1}]{PAR\_TYPE\_VOLFRAC\_MULTIPLEX}
+    Multiplexing mode of \texttt{PAR\_TYPE\_VOLFRAC}.
+    Determines whether \texttt{PAR\_TYPE\_VOLFRAC} is treated as radial- and/or section-independent.
+
+    This field is optional.
+    When left out, multiplexing behavior is inferred from the length of \texttt{PAR\_TYPE\_VOLFRAC}.
+
+    Valid modes are:
+    \begin{description}
+      \item[0] Radial-independent, axial-independent; length of \texttt{PAR\_TYPE\_VOLFRAC} is $\texttt{NPARTYPE}$
+      \item[1] Radial-dependent, axial-independent; length of \texttt{PAR\_TYPE\_VOLFRAC} is $\texttt{NRAD} \cdot \texttt{NPARTYPE}$; ordering is radial-major
+      \item[2] Axial-dependent; length of \texttt{PAR\_TYPE\_VOLFRAC} is $\texttt{NCOL} \cdot \texttt{NPARTYPE}$; ordering is axial-major
+      \item[3] Radial-dependent, axial-dependent; length of \texttt{PAR\_TYPE\_VOLFRAC} is $\texttt{NCOL} \cdot \texttt{NRAD} \cdot \texttt{NPARTYPE}$; ordering is axial-radial-major
+    \end{description}\vspace{-\baselineskip}
+  \end{dataset}
+\end{condsubgroup}
+
+\begin{condsubgroup}{/input/model/unit\_XXX/discretization}{UNIT\_TYPE = GENERAL\_RATE\_MODEL\_2D}{tab:FFModelUnitOpDiscretizationGRM2D}
+  \begin{dataset}[type=int,range={$\geq 1$},length=1]{NCOL}
+    Number of axial column discretization cells
+  \end{dataset}
+  \begin{dataset}[type=int,range={$\geq 1$},length=1]{NRAD}
+    Number of radial column discretization cells
+  \end{dataset}
+  \begin{dataset}[type=int,range={$\geq 1$},length={\texttt{NPARTYPE}}]{NPAR}
+    Number of particle (radial) discretization cells for each particle type
+  \end{dataset}
+  \begin{dataset}[type=int,range={$\geq 0$},length={$\texttt{NPARTYPE} \cdot \texttt{NCOMP}$}]{NBOUND}
+    Number of bound states for each component in each particle type in type-major ordering
+  \end{dataset}
+  \begin{dataset}[type=string,length=1]{RADIAL\_DISC\_TYPE}
+    Specifies the radial discretization scheme.
+    Valid values are \texttt{EQUIDISTANT}, \texttt{EQUIVOLUME}, and \texttt{USER\_DEFINED}.
+  \end{dataset}
+  \begin{dataset}[unit=\si{\metre},type=double,range={$[0,\texttt{COLUMN\_RADIUS}]$},length={$\texttt{NRAD} + 1$}]{RADIAL\_COMPARTMENTS}
+    Coordinates for the radial compartment boundaries (ignored if $\texttt{RADIAL\_DISC\_TYPE} \neq \texttt{USER\_DEFINED}$).
+    The coordinates are absolute and have to include the endpoints $0$ and \texttt{COLUMN\_RADIUS}.
+    The values are expected in ascending order (i.e., $0$ is the first and \texttt{COLUMN\_RADIUS} the last value in the array).
+  \end{dataset}
+  \begin{dataset}[type=string,length={\texttt{NPARTYPE}}]{PAR\_DISC\_TYPE}
+    Specifies the discretization scheme inside the particles for each particle type.
+    Valid values are \texttt{EQUIDISTANT\_PAR}, \texttt{EQUIVOLUME\_PAR}, and \texttt{USER\_DEFINED\_PAR}.
+  \end{dataset}
+  \begin{dataset}[unit=--,type=double,range={$[0,1]$},length={$\sum_i (\texttt{NPAR}_i + 1)$}]{PAR\_DISC\_VECTOR}
+    Node coordinates for the cell boundaries (ignored if $\texttt{PAR\_DISC\_TYPE} \neq \texttt{USER\_DEFINED\_PAR}$).
+    The coordinates are relative and have to include the endpoints $0$ and $1$.
+    They are later linearly mapped to the true radial range $[r_{c,j}, r_{p,j}]$.
+    The coordinates for each particle type are appended to one long vector in type-major ordering.
+  \end{dataset}
+  \begin{dataset}[type=int,range={$\{0, 1\}$},length=1]{USE\_ANALYTIC\_JACOBIAN}
+    Determines whether analytically computed Jacobian matrix (faster) is used (value is $1$) instead of Jacobians generated by algorithmic differentiation (slower, value is $0$)
+  \end{dataset}
+  \begin{dataset}[type=string,range={$\{\texttt{DENSE},\texttt{UMFPACK},\texttt{SUPERLU}\}$},length={1}]{LINEAR\_SOLVER\_BULK}
+    Linear solver used for the sparse column bulk block.
+    This field is optional, the best available method is selected (i.e., sparse direct solver if possible).
+
+    Valid values are:
+    \begin{description}
+      \item[\texttt{DENSE}] Converts the sparse matrix into a banded matrix and uses regular LAPACK. Slow and memory intensive, but always available.
+      \item[\texttt{UMFPACK}] Uses the UMFPACK sparse direct solver (LU decomposition) from SuiteSparse. Fast, but has to be enabled when compiling and requires UMFPACK library.
+      \item[\texttt{SUPERLU}] Uses the SuperLU sparse direct solver (LU decomposition). Fast, but has to be enabled when compiling and requires SuperLU library.
+    \end{description}\vspace{-\baselineskip}
+  \end{dataset}
+  \begin{dataset}[type=string,range={\texttt{WENO}},length={1}]{RECONSTRUCTION}
+    Type of reconstruction method for fluxes
+  \end{dataset}
+  \begin{dataset}[type=int,range={$\{0, 1\}$},length=1]{GS\_TYPE}
+    Type of Gram-Schmidt orthogonalization, see IDAS guide Section~4.5.7.3, p.~41f.
+    A value of $0$ enables classical Gram-Schmidt, a value of 1 uses modified Gram-Schmidt.
+  \end{dataset}
+  \begin{dataset}[type=int,range={$\{0, \dots, \texttt{NCOL} \cdot \texttt{NRAD} \cdot \texttt{NCOMP} \cdot \texttt{NPARTYPE} \}$},length=1]{MAX\_KRYLOV}
+    Defines the size of the Krylov subspace in the iterative linear GMRES solver (0: $\texttt{MAX\_KRYLOV} = \texttt{NCOL} \cdot \texttt{NRAD} \cdot \texttt{NCOMP} \cdot \texttt{NPARTYPE}$)
+  \end{dataset}
+  \begin{dataset}[type=int,range={$\geq 0$},length=1]{MAX\_RESTARTS}
+    Maximum number of restarts in the GMRES algorithm. If lack of memory is not an issue, better use a larger Krylov space than restarts.
+  \end{dataset}
+  \begin{dataset}[type=double,range={$\geq 0$},length=1]{SCHUR\_SAFETY}
+    Schur safety factor; Influences the tradeoff between linear iterations and nonlinear error control; see IDAS guide Section~2.1 and 5.
+  \end{dataset}
+\end{condsubgroup}
+
 \subsubsection{Continuous stirred tank reactor model}
 
 \begin{condsubgroup}{/input/model/unit\_XXX}{UNIT\_TYPE = CSTR}{tab:FFModelUnitOpCSTR}
@@ -673,7 +898,7 @@ Note that all components of component dependent datasets have to be section depe
     Specifies the type of unit operation model
   \end{dataset}
   \begin{dataset}[type=int,range={$\geq 1$},length=1]{NCOMP}
-    Number of chemical components in the chromatographic media
+    Number of chemical components in the chromatographic medium
   \end{dataset}
   \begin{dataset}[type=int,range={$\geq 0$},length={$\texttt{NPARTYPE} \cdot \texttt{NCOMP}$}]{NBOUND}
     Number of bound states for each component in each particle type in type-major ordering (optional, defaults to all $0$)
@@ -696,14 +921,14 @@ Note that all components of component dependent datasets have to be section depe
   \begin{dataset}[unit=various,type=double,range={$\mathds{R}$},length={\texttt{NDOF} / $2\texttt{NDOF}$}]{INIT\_STATE}
     Full state vector for initialization (optional, \texttt{INIT\_C}, \texttt{INIT\_Q}, and \texttt{INIT\_VOLUME} will be ignored; if length is $2\texttt{NDOF}$, then the second half is used for time derivatives)
   \end{dataset}
-  \begin{dataset}[unit=--,type=double,range={$[0,1]$},length={1}]{POROSITY}
+  \begin{dataset}[unit=--,type=double,range={$(0,1]$},length={1}]{POROSITY}
     Porosity $\varepsilon$ (defaults to $1$)
   \end{dataset}
   \begin{dataset}[unit=\si{\cubic\metre\per\second},type=double,range={$\geq 0$},length={1 / \texttt{NSEC}}]{FLOWRATE\_FILTER}
     Flow rate of pure liquid without components (optional, defaults to \SI{0}{\cubic\metre\per\second})
   \end{dataset}
   \begin{dataset}[unit=--,type=double,range={$[0,1]$},length={\texttt{NPARTYPE}}]{PAR\_TYPE\_VOLFRAC}
-    Volume fractions of the particle types
+    Volume fractions of the particle types, have to sum to $1$
   \end{dataset}
 \end{condsubgroup}
 
@@ -1212,30 +1437,33 @@ This group also takes precedence over a possibly existing \texttt{/input/model/u
 \end{groupscope}
 
 \begin{groupscope}{/input/sensitivity/param\_XXX}{tab:FFSensitivityParam}
-  \begin{dataset}[type = int, range={$\geq 0$}, length={$\geq 1$}]{SENS\_UNIT} 
-    Unit operation index  
+  \begin{dataset}[type = int, range={$\geq 0$}, length={$\geq 1$}]{SENS\_UNIT}
+    Unit operation index
   \end{dataset}
-  \begin{dataset}[type = string, range={See} ,length={$\geq 1$}]{SENS\_NAME} 
+  \begin{dataset}[type = string, range={See} ,length={$\geq 1$}]{SENS\_NAME}
     Name of the parameter
   \end{dataset}
-  \begin{dataset}[type = int, range={$\geq -1$}, length={$\geq 1$}]{SENS\_COMP} 
-    Component index ($-1$ if parameter is independent of components)  
+  \begin{dataset}[type = int, range={$\geq -1$}, length={$\geq 1$}]{SENS\_COMP}
+    Component index ($-1$ if parameter is independent of components)
   \end{dataset}
-  \begin{dataset}[type = int, range={$\geq -1$}, length={$\geq 1$}]{SENS\_REACTION} 
-    Reaction index ($-1$ if parameter is independent of reactions)  
+  \begin{dataset}[type = int, range={$\geq -1$}, length={$\geq 1$}]{SENS\_PARTYPE}
+    Particle type index ($-1$ if parameter is independent of particle types)
   \end{dataset}
-  \begin{dataset}[type = int, range={$\geq -1$}, length={$\geq 1$}]{SENS\_BOUNDPHASE} 
-    Bound phase index ($-1$ if parameter is independent of bound phases)  
+  \begin{dataset}[type = int, range={$\geq -1$}, length={$\geq 1$}]{SENS\_REACTION}
+    Reaction index ($-1$ if parameter is independent of reactions)
   \end{dataset}
-  \begin{dataset}[type = int, range={$\geq -1$}, length={$\geq 1$}]{SENS\_SECTION} 
-    Section index ($-1$ if parameter is independent of sections)  
+  \begin{dataset}[type = int, range={$\geq -1$}, length={$\geq 1$}]{SENS\_BOUNDPHASE}
+    Bound phase index ($-1$ if parameter is independent of bound phases)
   \end{dataset}
-  \begin{dataset}[type = double, range={$\geq 0.0$}, length={$\geq 1$}]{SENS\_ABSTOL} 
+  \begin{dataset}[type = int, range={$\geq -1$}, length={$\geq 1$}]{SENS\_SECTION}
+    Section index ($-1$ if parameter is independent of sections)
+  \end{dataset}
+  \begin{dataset}[type = double, range={$\geq 0.0$}, length={$\geq 1$}]{SENS\_ABSTOL}
     Absolute tolerance used in the computation of the sensitivities (optional).
-    Rule of thumb: \texttt{ABSTOL} / \texttt{PARAM\_VALUE} 
+    Rule of thumb: $\texttt{ABSTOL} / \texttt{PARAM\_VALUE}$
   \end{dataset}
-  \begin{dataset}[type = double, range={$\mathds{R}$} ,length={$\geq 1$}]{SENS\_FACTOR} 
-    Linear factor of the combined sensitivity (optional, taken as $1.0$ if left out) 
+  \begin{dataset}[type = double, range={$\mathds{R}$} ,length={$\geq 1$}]{SENS\_FACTOR}
+    Linear factor of the combined sensitivity (optional, taken as $1.0$ if left out)
   \end{dataset}
 \end{groupscope}
 

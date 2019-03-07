@@ -28,47 +28,53 @@ Unit operation models can be composed into a network \index{Model!Network}\index
 When utilized to full extent, this allows the simulation of complicated setups and processes (e.g., SMB, MCSGP).
 A more simple use case is the addition of plug flows and stirred tanks up- and downstream of a column in order to account for dead volume and additional dispersion from the tubing.
 
-In a network, outlets of unit operations can be connected to any number of inlets of unit operations.
-Even direct cycles, where an outlet of a unit operation is connected to its own inlet, are possible.
+In a network, outlet ports of unit operations can be connected to any number of inlet ports of unit operations.
+Even direct cycles, where an outlet port of a unit operation is connected to its own inlet, are possible.
 A unit operation does not have to possess both inlet and outlet, but it has to have at least one of them.
 Pseudo unit operations such as inlet and outlet serve as sources and sinks for the network.
 However, the latter is not strictly required as any terminal node (i.e., a unit operation that possesses an outlet but does not have an outgoing connection) serves as a sink.
 
-Each connection between two unit operations (i.e., an edge in the graph) is equipped with a volumetric flow rate that determines the mass flow from source to target unit operation. 
-Those flow rates are used to determine the weight of the different incoming feeds at a unit operation's inlet port.
+Each connection between two unit operation ports (i.e., an edge in the graph) is equipped with a volumetric flow rate that determines the mass flow from source to target port.
+These flow rates are used to determine the weight of the different incoming feeds at a unit operation's inlet port.
 Some unit operations can infer their internal flow rate (e.g., interstitial velocity) from their total incoming volumetric flow rate.
 In general, the mass balance at a unit operation has to be closed, except for unit operations that act as source or sink in the network and variable volume units (e.g., stirred tanks).
 
-The network of unit operations uses ``connection''-variables $c_{\text{con}}$ to connect the different unit operations with each other.
-The inlet port variables $c_{\text{in},n}$ of unit operation $n$ are attached to $c_{\text{con},n}$ via 
+The network of unit operations uses ``connection''-variables $c_{\text{con}}$ to connect the different unit operation ports with each other.
+The inlet port variables $c_{\text{in},n,k}$ of unit operation $n$ are attached to $c_{\text{con},n}$ via 
 \begin{align}
-	c_{\text{in},n,i} &= c_{\text{con},n,i}, \qquad i = 1, \dots, N_{\text{comp},n}. \label{eq:NetworkInletConnection}
+	c_{\text{in},n,k,i} &= c_{\text{con},n,k,i}, \qquad k = 1, \dots, N_{\text{port},\text{in},n},\quad i = 1, \dots, N_{\text{comp},n}. \label{eq:NetworkInletConnection}
 \end{align}
-The connection variables $c_{\text{con},n,i}$ collect all inflows of component $i$ into unit operation $n$:
+While $N_{\text{port},\text{in},n}$ denotes the number of inlet ports of unit operation $n$, the number of outlet ports is given by $N_{\text{port},\text{out},n}$.
+The connection variables $c_{\text{con},n,k,i}$ collect all inflows of component $i$ into port $k$ of unit operation $n$:
 \begin{align}
-	c_{\text{con},n,i} &= \frac{\sum_{m=1}^{N_{\text{units}}} \sum_{j = 1}^{N_{\text{comp},m}} S_{(n,i),(m,j)} F_m c_{\text{out},m,j}}{\sum_{m=1}^{N_{\text{units}}} \hat{S}_{n,m} F_m }, \label{eq:NetworkConnection}
+	c_{\text{con},n,k,i} &= \frac{\sum_{m=1}^{N_{\text{units}}} \sum_{\ell = 1}^{N_{\text{port},\text{out},n}} \sum_{j = 1}^{N_{\text{comp},m}} S_{(n,k,i),(m,\ell,j)} F_{m,\ell} c_{\text{out},m,\ell,j}}{\sum_{m=1}^{N_{\text{units}}} \sum_{\ell=1}^{N_{\text{port},\text{out},m}} \hat{S}_{(n,k),(m,\ell)} F_{m,\ell} }, \label{eq:NetworkConnection}
 \end{align}
-where $F_m$ denotes the volumetric flow rate of unit operation $m$, $S_{(n,i),(m,j)} \in \{0, 1\}$ is a connection matrix indicating whether component $i$ of unit operation $n$ is connected to component $j$ of unit operation $m$, and $\hat{S}_{n,m} \in \{0, 1\}$ is another connection matrix indicating whether unit operation $n$ is connected to unit operation $m$, that is
+where $F_{m,\ell}$ denotes the volumetric flow rate from outlet port $\ell$ of unit operation $m$, $S_{(n,k,i),(m,\ell,j)} \in \{0, 1\}$ is a connection matrix indicating whether component $i$ at outlet port $k$ of unit operation $n$ is connected to component $j$ at inlet port $\ell$ of unit operation $m$, and $\hat{S}_{(n,k),(m,\ell)} \in \{0, 1\}$ is another connection matrix indicating whether outlet port $k$ of unit operation $n$ is connected to inlet port $\ell$ of unit operation $m$, that is
 \begin{align*}
-	\hat{S}_{n,m} = \begin{cases}
-		1 & \text{if } \sum_{i = 1}^{N_{\text{comp},n}} \sum_{j = 1}^{N_{\text{comp},m}} S_{(n,i),(m,j)} \geq 1, \\
+	\hat{S}_{(n,k),(m,\ell)} = \begin{cases}
+		1 & \text{if } \sum_{i = 1}^{N_{\text{comp},n}} \sum_{j = 1}^{N_{\text{comp},m}} S_{(n,k,i),(m,\ell,j)} \geq 1, \\
 		0 & \text{otherwise}.
 	\end{cases}
 \end{align*}
+
+Note that for each unit operation the number of inlet ports may be different from the number of outlet ports.
+Hence, the mass balance of a single unit operation is taken with respect to all its ports combined.
 
 \paragraph{Specification of network connections}
 \phantomsection\label{par:MUOPNetworkConfig}
 
 The connections \index{Network!Connectivity} between the different unit operations in the network are specified by a table.
 The first two columns specify source and destination unit operation id.
-The next two columns give source and destination component indices.
-Finally, the fith column specifies the volumetric flow rate of this connection.
+The next two columns give source and destination port indices.
+Source and destination component indices are given by the following two columns.
+Finally, the seventh column specifies the volumetric flow rate of this connection.
 
-With this setup it is possible to connect single components of unit operations with each other yielding a maximum in flexibility.
+With this setup, it is possible to connect single components of unit operations with each other yielding a maximum in flexibility.
 However, the predominant case is to connect all components of the source unit operations with their respective counterparts in the destination unit.
 This can easily be done by setting both component indices to $-1$ instead of writing a separate row for each component of the connection.
+The same setting (i.e., setting both port indices to $-1$) can be used to connect all ports of one unit operation with all corresponding ports of another one.
 
-Note that in case of multiple rows for one connection between two unit operations (e.g., in case of separate component connections) the flow rate of the first row of that connection is used and all following flow rates are ignored.
+Note that in case of multiple rows for one connection between two unit operation ports (e.g., in case of separate component connections) the flow rate of the first row of that connection is used and all following flow rates are ignored.
 Consequently, there can only be one flow rate for a connection between two unit operations regardless of which components are connected.
 
 The connection table is expected in row-major storage format (i.e., the rows are appended to one long array).
@@ -138,10 +144,12 @@ Variable & Domain & Description \\
 \midrule
 $i$ & $\left\{ 0, \dots, N_{\text{comp}} - 1 \right\}$ & Component index\\
 $j$ & $\left\{ 0, \dots, N_{\text{partype}} - 1 \right\}$ & Particle type index\\
+%$k$ & $\left\{ 0, \dots, N_{\text{rad}} - 1 \right\}$ & Radial zone index\\
 $m_{j,i}$ & $\left\{ 0, \dots, N_{\text{bnd},j,i} - 1 \right\}$ & Bound state index of $i$th component in $j$th particle type\\
 $m_j$ & $\left\{ 0, \dots, \sum_{i=0}^{N_{\text{comp}}-1} N_{\text{bnd},j,i} - 1 \right\}$ & Total bound state index in particle type $j$\\
 $t$ & $\left[0, T_{\text{end}}\right]$ & Time coordinate\\
 $z$ & $[0, L]$ & Axial coordinate\\
+%$\rho$ & $[0, R]$ & Radial coordinate\\
 $r$ & $\left[r_{c,j}, r_{p,j}\right]$ & Generic bead radial coordinate\\
 $c^l_{i}(t,z)$ & $\left[0, T_{\text{end}}\right] \times [0, L]$ & Interstitial concentration of the $i$th component\\
 $c^p_{j,i}(t, z, r)$ & $\left[0, T_{\text{end}}\right] \times [0, L] \times \left[r_{c,j}, r_{p,j}\right]$ & Mobile phase concentration of the $i$th component in the $j$th particle type\\
@@ -529,6 +537,61 @@ Note that by setting $\varepsilon_t = 1$, removing all bound states by setting $
 
 For the specification of flow rate and direction, the same holds as for the general rate model (see Section~\ref{par:MUOPGRMflow}).
 See Table~\ref{tab:FFModelUnitOpLRM}.
+
+\subsection{Two Dimensional General rate model (GRM2D)}\label{sec:MUOPGRM2D}
+
+The general rate model as introduced in Section~\ref{sec:MUOPGRM} assumes homogeneity in the cross sections of the column.
+This allows to consider transport along the axial dimension only.
+However, due to packing irregularity and inhomogeneous flow at the inlet (i.e., frits), this assumption may be a crude approximation.
+This model can be improved by introducing a radial coordinate $\rho \in [0, R]$\index{Model!General rate model 2D}\index{Model!GRM 2D}\index{Unit operation!General rate model 2D}\index{Unit operation!GRM 2D}, where $R$ is the column radius, in the interstitial volume Eq.~\eqref{eq:ModelColumn}:
+\begin{align}
+	\varepsilon_c \frac{\partial c^l_i}{\partial t} &= -\varepsilon_c u \frac{\partial c^l_i}{\partial z} + \varepsilon_c D_{\text{ax},i} \frac{\partial^2 c^l_i}{\partial z^2} + \frac{1}{\rho} \frac{\partial}{\partial \rho} \left( \rho D_{\text{rad},i} \frac{\partial}{\partial \rho} \left( \varepsilon_c c^l_i \right) \right) - \left(1 - \varepsilon_c\right) \sum_j d_j \frac{ 3 k_{f,j,i} }{r_{p,j}} \left[ c^l_i - c^p_{j,i}(\cdot, \cdot, \cdot, r_{p,j}) \right]. \label{eq:ModelColumn2D}
+\end{align}
+Here, $c^l_i\colon \left[0, T_{\text{end}}\right] \times [0, L] \times [0, R] \rightarrow \mathds{R}^{\geq 0}$, $c^p_{j,i}\colon \left[0, T_{\text{end}}\right] \times [0, L] \times [0, R] \times [r_{c,j}, r_{p,j}] \rightarrow \mathds{R}^{\geq 0}$, and $c^s_{j,i,m_{j,i}}\colon \left[0, T_{\text{end}}\right] \times [0, L] \times [0, R] \times [r_{c,j}, r_{p,j}] \rightarrow \mathds{R}^{\geq 0}$ depend on $\rho$.
+Additionally, the porosity $\varepsilon_c$, axial dispersion coefficient $D_{\text{ax},i}$, radial dispersion coefficient $D_{\text{rad},i}$, and interstitial velocity $u$ may depend on $\rho$.
+
+The dependence of the parameters on $\rho$ is not arbitrary.
+For simplicity, it is assumed that the parameters are piecewise constant, that is, the range $[0, R]$ is divided into disjoint zones in which all parameters are constant.
+These zones are used for radial discretization and can be supplied to the simulator.
+Continuous dependence of the parameters can be realized by piecewise constant approximation.
+
+The Danckwerts boundary conditions at the column in- and outlet, Eq.~\eqref{eq:BCInlet} and \eqref{eq:BCOutlet}, are modified to account for the radial coordinate:
+\begin{subequations}\label{eq:BCAxial2D}
+\begin{align}
+	u(\rho) c_{\text{in},i}(t,\rho) &= u(\rho) c^l_i(t,0,\rho) - D_{\text{ax},i}(\rho) \frac{\partial c^l_i}{\partial z}(t, 0, \rho) \label{eq:BCInlet2D} & \forall t > 0, \rho \in (0,R), \\
+	\frac{\partial c^l_i}{\partial z}(t, L, \rho) &= 0 & \forall t > 0, \rho \in (0,R). \label{eq:BCOutlet2D}
+\end{align}
+\end{subequations}
+Conditions for the radial direction are added:
+\begin{subequations}\label{eq:BCRadial2D}
+\begin{align}
+	\frac{\partial{c^l_i}}{\partial \rho}(\cdot, \cdot, 0) &= 0, \label{eq:BCRadial2DInner} \\
+	\frac{\partial{c^l_i}}{\partial \rho}(\cdot, \cdot, R) &= 0. \label{eq:BCRadial2DOuter}
+\end{align}
+\end{subequations}
+While the inner condition Eq.\eqref{eq:BCRadial2DInner} represents symmetry at the column center, the outer condition Eq.~\eqref{eq:BCRadial2DOuter} is a no-flux condition.
+
+Using the inlet boundary condition Eq.~\eqref{eq:BCInlet2D}, each radial zone is equipped with its own inlet and outlet port.
+That is, this unit operation has as many inlet and outlet ports as it has radial zones (parameter \texttt{NRAD} in the \texttt{discretization} group).
+This allows each radial zone to have its own inlet profile, which enables modeling of flow distribution in the frits by sending the feed through varying hold-up volumes before injecting it into a radial zone.
+
+See Table~\ref{tab:FFModelUnitOpGRM2D}.
+
+\paragraph{Specification of flow rate / velocity and direction}
+\phantomsection\label{par:MUOPGRMflow2D}
+
+Since the column radius $R$ and the zones $(\rho_k, \rho_{k+1})$, $k = 0, \dots, N_{\text{rad}} - 1$, are known, the interstitial velocities $u_k$ are inferred from the volumetric flow rates via
+\begin{align*}
+	u_k = u_{\text{int},k} = \frac{F_{\text{in},k}}{\pi \left( \rho_{k+1}^2 - \rho_k^2 \right) \varepsilon_{c,k}},
+\end{align*}
+where $F_{\text{in},k}$ denotes the volumetric flow rate into zone $k$.
+
+The direction of flow inside the radial zone of the unit operation is governed by the sign of the interstitial velocity $u_k$.
+A positive sign results in (standard) forward flow, whereas a negative sign reverses the flow direction.
+Note that in case of reversed flow, the chromatogram is returned at the unit operation's \emph{inlet} port, which may not be returned from simulation by default.
+
+Note that, contrary to the standard general rate model as presented in Section~\ref{sec:MUOPGRM}, the interstitial flow rate is always given by the volumetric flow rate.
+The velocity parameter only determines the flow direction.
 
 \subsection{Continuous stirred tank reactor model (CSTR)}\label{sec:MUOPCSTR}
 
