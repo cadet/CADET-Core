@@ -102,6 +102,8 @@
 # ``Matlab_BLAS_LIBRARY``
 #   Matlab's BLAS implementation (Intel MKL). Available only if the component ``LAPACK_LIBRARY``
 #   is requested.
+# ``Matlab_UMFPACK_LIBRARY``
+#   Matlab's UMFPACK library. Available only if the component ``UMFPACK_LIBRARY`` is requested.
 # ``Matlab_TBB_LIBRARY``
 #   Matlab's TBB library. Available only if the component ``TBB_LIBRARY`` is requested.
 # ``Matlab_LIBRARIES``
@@ -231,7 +233,7 @@
 #   this list.
 
 #=============================================================================
-# Copyright 2016 Samuel Leweke, Forschungszentrum Juelich GmbH
+# Copyright 2016-2019 Samuel Leweke, Forschungszentrum Juelich GmbH
 # Copyright 2014-2015 Raffi Enficiaud, Max Planck Society
 # All rights reserved.
 #
@@ -278,6 +280,8 @@ if(NOT MATLAB_ADDITIONAL_VERSIONS)
 endif()
 
 set(MATLAB_VERSIONS_MAPPING
+  "R2018b=9.5"
+  "R2018a=9.4"
   "R2017b=9.3"
   "R2017a=9.2"
   "R2016b=9.1"
@@ -1310,6 +1314,7 @@ if(DEFINED Matlab_ROOT_DIR_LAST_CACHED)
         Matlab_BLAS_LIBRARY
         Matlab_LAPACK_LIBRARY
         Matlab_TBB_LIBRARY
+        Matlab_UMFPACK_LIBRARY
         Matlab_MEX_EXTENSION
 
         # internal
@@ -1599,7 +1604,7 @@ if(_matlab_find_tbb GREATER -1)
   _Matlab_find_library(
     ${_matlab_lib_prefix_for_search}
     Matlab_TBB_LIBRARY
-    tbb
+    tbb libtbb.so.2
     PATHS ${_matlab_lib_dir_for_search}
     NO_DEFAULT_PATH
   )
@@ -1614,6 +1619,23 @@ if(_matlab_find_tbb GREATER -1)
   endif()
 endif()
 unset(_matlab_find_tbb)
+
+
+# Component UMFPACK library
+list(FIND Matlab_FIND_COMPONENTS UMFPACK_LIBRARY _matlab_find_umfpack)
+if(_matlab_find_umfpack GREATER -1)
+  _Matlab_find_library(
+    ${_matlab_lib_prefix_for_search}
+    Matlab_UMFPACK_LIBRARY
+    mwumfpack
+    PATHS ${_matlab_lib_dir_for_search}
+    NO_DEFAULT_PATH
+  )
+  if(Matlab_UMFPACK_LIBRARY)
+    set(Matlab_UMFPACK_LIBRARY_FOUND TRUE)
+  endif()
+endif()
+unset(_matlab_find_umfpack)
 
 
 unset(_matlab_lib_dir_for_search)
