@@ -612,16 +612,16 @@ public:
 		_jacCdisc.setAll(0.0);
 
 		linalg::FactorizableBandMatrix::RowIterator jac = _jacCdisc.row(0);
-		for (int i = 0; i < _jacC->rows(); ++i, ++jac)
+		for (std::size_t i = 0; i < _jacC->rows(); ++i, ++jac)
 		{
-			int const* const colIdx = _jacC->columnIndicesOfRow(i);
+			linalg::sparse_int_t const* const colIdx = _jacC->columnIndicesOfRow(i);
 			double const* const vals = _jacC->valuesOfRow(i);
 			const int nnz = _jacC->numNonZerosInRow(i);
 
 			// Copy row from sparse matrix to banded matrix
 			for (int c = 0; c < nnz; ++c)
 			{
-				const int diag = colIdx[c] - i;
+				const linalg::sparse_int_t diag = colIdx[c] - i;
 				jac[diag] = vals[c];
 			}
 
@@ -699,6 +699,8 @@ bool TwoDimensionalConvectionDispersionOperator::configureModelDiscretization(IP
 		else if (sol == "SUPERLU")
 			_linearSolver = new SparseDirectSolver<linalg::SuperLUSparseMatrix>(&_jacC);
 #endif
+		else
+			throw InvalidParameterException("Unknown linear solver " + sol + " in field LINEAR_SOLVER_BULK");
 	}
 
 	// Default to sparse solver if available (preferably UMFPACK), fall back to dense

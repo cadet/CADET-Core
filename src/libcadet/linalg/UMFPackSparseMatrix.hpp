@@ -86,7 +86,7 @@ protected:
 	mutable std::vector<double> _info; //!< UMFPACK statistics
 	std::vector<double> _options; //!< UMFPACK options
 	mutable std::vector<double> _result; //!< Result cache
-	mutable std::vector<int> _workSpaceIdx; //!< UMFPACK workspace for solving linear system
+	mutable std::vector<sparse_int_t> _workSpaceIdx; //!< UMFPACK workspace for solving linear system
 	mutable std::vector<double> _workSpace; //!< UMFPACK workspace for solving linear system
 };
 

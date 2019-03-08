@@ -111,7 +111,7 @@ public:
 	 * @param [out] colIdx Array with column indices of size numNonZeros()
 	 * @param [out] rowStart Array with row start indices of size rows()+1
 	 */
-	void compressTo(int* colIdx, int* rowStart) const CADET_NOEXCEPT;
+	void compressTo(sparse_int_t* colIdx, sparse_int_t* rowStart) const CADET_NOEXCEPT;
 
 	/**
 	 * @brief Returns a row iterator to the specified row
@@ -263,7 +263,7 @@ public:
 		if (val == 0.0)
 			return;
 
-		for (int i = 0; i < _pattern->rows(); ++i)
+		for (std::size_t i = 0; i < _pattern->rows(); ++i)
 			_pattern->add(_row, i);
 	}
 
@@ -487,14 +487,14 @@ public:
 	 * @param col Index of the column
 	 * @return @c true if the entry is structurally non-zero, @c false otherwise
 	 */
-	inline bool isNonZero(int row, int col) const CADET_NOEXCEPT
+	inline bool isNonZero(sparse_int_t row, sparse_int_t col) const CADET_NOEXCEPT
 	{
 		cadet_assert((row >= 0) && (row < rows()));
 		cadet_assert((col >= 0) && (col < rows()));
 
 		// Try to find the element
 		// TODO: Use binary search
-		for (int i = _rowStart[row]; i < _rowStart[row+1]; ++i)
+		for (sparse_int_t i = _rowStart[row]; i < _rowStart[row+1]; ++i)
 		{
 			if (_colIdx[i] == col)
 				return true;
@@ -510,14 +510,14 @@ public:
 	 * @param [in] col Column index
 	 * @return Value of the element at the given position
 	 */
-	inline double& operator()(int row, int col)
+	inline double& operator()(sparse_int_t row, sparse_int_t col)
 	{
 		cadet_assert((row >= 0) && (row < rows()));
 		cadet_assert((col >= 0) && (col < rows()));
 
 		// Try to find the element
 		// TODO: Use binary search
-		for (int i = _rowStart[row]; i < _rowStart[row+1]; ++i)
+		for (sparse_int_t i = _rowStart[row]; i < _rowStart[row+1]; ++i)
 		{
 			if (_colIdx[i] == col)
 				return _values[i];
@@ -535,14 +535,14 @@ public:
 	 * @param [in] col Column index
 	 * @return Value of the element at the given position
 	 */
-	inline const double operator()(int row, int col) const CADET_NOEXCEPT
+	inline const double operator()(sparse_int_t row, sparse_int_t col) const CADET_NOEXCEPT
 	{
 		cadet_assert((row >= 0) && (row < rows()));
 		cadet_assert((col >= 0) && (col < rows()));
 
 		// Try to find the element
 		// TODO: Use binary search
-		for (int i = _rowStart[row]; i < _rowStart[row+1]; ++i)
+		for (sparse_int_t i = _rowStart[row]; i < _rowStart[row+1]; ++i)
 		{
 			if (_colIdx[i] == col)
 				return _values[i];
@@ -557,13 +557,13 @@ public:
 	 * @details The returned vector contains an additional last element that holds the number of non-zeros.
 	 * @return Vector with row index pointers
 	 */
-	inline const std::vector<int>& rowStartIndices() const CADET_NOEXCEPT { return _rowStart; }
+	inline const std::vector<sparse_int_t>& rowStartIndices() const CADET_NOEXCEPT { return _rowStart; }
 
 	/**
 	 * @brief Returns a vector with column indices of the values
 	 * @return Vector with column indices
 	 */
-	inline const std::vector<int>& columnIndices() const CADET_NOEXCEPT { return _colIdx; }
+	inline const std::vector<sparse_int_t>& columnIndices() const CADET_NOEXCEPT { return _colIdx; }
 
 	/**
 	 * @brief Returns a vector with element values
@@ -609,7 +609,7 @@ public:
 	 * @param [in] row Index of the row
 	 * @return Number of (structurally) non-zero elements in the matrix row
 	 */
-	inline int numNonZerosInRow(int row) const CADET_NOEXCEPT { return _rowStart[row+1] - _rowStart[row]; }
+	inline sparse_int_t numNonZerosInRow(int row) const CADET_NOEXCEPT { return _rowStart[row+1] - _rowStart[row]; }
 
 	/**
 	 * @brief Returns the number of (structurally) non-zero elements in the matrix
@@ -778,7 +778,7 @@ public:
 	 * @param [in] col Index of the column
 	 * @return Matrix element at the given position
 	 */
-	inline double& native(int col)
+	inline double& native(sparse_int_t col)
 	{
 		cadet_assert((col >= 0) && (col < _matrix->rows()));
 

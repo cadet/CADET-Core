@@ -21,12 +21,12 @@ namespace cadet
 namespace linalg
 {
 
-void SparsityPattern::compressTo(int* colIdx, int* rowStart) const CADET_NOEXCEPT
+void SparsityPattern::compressTo(sparse_int_t* colIdx, sparse_int_t* rowStart) const CADET_NOEXCEPT
 {
 	cadet_assert(colIdx != nullptr);
 	cadet_assert(rowStart != nullptr);
 
-	int* curColIdx = colIdx;
+	sparse_int_t* curColIdx = colIdx;
 	int curRowStart = 0;
 	for (int r = 0; r < _rows.size(); ++r)
 	{
@@ -34,7 +34,7 @@ void SparsityPattern::compressTo(int* colIdx, int* rowStart) const CADET_NOEXCEP
 		rowStart[r] = curRowStart;
 
 		// Copy column indices
-		const std::vector<int>& colIndicesInRow = _rows[r].columnIndices();
+		const std::vector<sparse_int_t>& colIndicesInRow = _rows[r].columnIndices();
 		std::copy(colIndicesInRow.begin(), colIndicesInRow.end(), curColIdx);
 
 		// Advance pointers and counters
@@ -68,7 +68,7 @@ std::ostream& operator<<(std::ostream& out, const CompressedSparseMatrix& sm)
 
 	for (unsigned int row = 0; row < sm.rows(); ++row)
 	{
-		int const* const colIdx = sm.columnIndicesOfRow(row);
+		sparse_int_t const* const colIdx = sm.columnIndicesOfRow(row);
 		double const* const localVal = sm.valuesOfRow(row);
 		for (int col = 0; col < sm.numNonZerosInRow(row); ++col)
 		{
@@ -136,10 +136,10 @@ void CompressedSparseMatrix::copyFromSubPattern(const CompressedSparseMatrix& ma
 	// Iterate over rows
 	for (int row = 0; row < mat.rows(); ++row)
 	{
-		int curIdx = _rowStart[row];
+		sparse_int_t curIdx = _rowStart[row];
 
 		// Iterate over source elements in row
-		for (int i = mat._rowStart[row]; i < mat._rowStart[row+1]; ++i)
+		for (sparse_int_t i = mat._rowStart[row]; i < mat._rowStart[row+1]; ++i)
 		{
 			// Find destination column index mat._colIdx[i] in this row
 			// Due to the column indices being sorted, this should be reasonably fast 
@@ -157,17 +157,17 @@ void CompressedSparseMatrix::copyFromSubPattern(const CompressedSparseMatrix& ma
 
 void CompressedSparseMatrix::copyRowToRowSamePattern(const CompressedSparseMatrix& mat, int srcRow, int destRow)
 {
-	const int start = mat._rowStart[destRow];
-	const int end = mat._rowStart[destRow+1];
+	const sparse_int_t start = mat._rowStart[destRow];
+	const sparse_int_t end = mat._rowStart[destRow+1];
 	std::copy(mat._values.begin() + start, mat._values.begin() + end, _values.begin() + _rowStart[destRow]);
 }
 
 void CompressedSparseMatrix::copyRowToRowSubPattern(const CompressedSparseMatrix& mat, int srcRow, int destRow)
 {
-	int curIdx = _rowStart[destRow];
+	sparse_int_t curIdx = _rowStart[destRow];
 
 	// Iterate over source elements in row
-	for (int i = mat._rowStart[srcRow]; i < mat._rowStart[srcRow+1]; ++i)
+	for (sparse_int_t i = mat._rowStart[srcRow]; i < mat._rowStart[srcRow+1]; ++i)
 	{
 		// Find destination column index mat._colIdx[i] in this row
 		// Due to the column indices being sorted, this should be reasonably fast 
@@ -201,7 +201,7 @@ void CompressedSparseMatrix::multiplyVector(double const* const x, double* y) co
 		y[r] = 0.0;
 
 		const int nnzInRow = numNonZerosInRow(r);
-		int const* const localColIdx = _colIdx.data() + _rowStart[r];
+		sparse_int_t const* const localColIdx = _colIdx.data() + _rowStart[r];
 		double const* const localVal = _values.data() + _rowStart[r];
 
 		for (int c = 0; c < nnzInRow; ++c)
@@ -216,7 +216,7 @@ void CompressedSparseMatrix::multiplyVector(double const* const x, double alpha,
 		y[r] *= beta;
 
 		const int nnzInRow = numNonZerosInRow(r);
-		int const* const localColIdx = _colIdx.data() + _rowStart[r];
+		sparse_int_t const* const localColIdx = _colIdx.data() + _rowStart[r];
 		double const* const localVal = _values.data() + _rowStart[r];
 
 		for (int c = 0; c < nnzInRow; ++c)
