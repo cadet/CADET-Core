@@ -179,8 +179,8 @@ protected:
 		virtual bool hasVolume() const CADET_NOEXCEPT { return true; }
 
 		virtual unsigned int numComponents() const CADET_NOEXCEPT { return _nComp; }
-		virtual unsigned int numAxialCells() const CADET_NOEXCEPT { return 1; }
-		virtual unsigned int numRadialCells() const CADET_NOEXCEPT { return 1; }
+		virtual unsigned int numAxialCells() const CADET_NOEXCEPT { return 0; }
+		virtual unsigned int numRadialCells() const CADET_NOEXCEPT { return 0; }
 		virtual unsigned int numInletPorts() const CADET_NOEXCEPT { return 1; }
 		virtual unsigned int numOutletPorts() const CADET_NOEXCEPT { return 1; }
 		virtual unsigned int numParticleTypes() const CADET_NOEXCEPT { return _nParType; }
@@ -235,6 +235,10 @@ protected:
 		virtual unsigned int bulkMobilePhaseStride() const { return _nComp; }
 		virtual unsigned int particleMobilePhaseStride(unsigned int parType) const { return 0; }
 		virtual unsigned int solidPhaseStride(unsigned int parType) const { return _strideBound[parType]; }
+
+		virtual void axialCoordinates(double* coords) const { }
+		virtual void radialCoordinates(double* coords) const { }
+		virtual void particleCoordinates(unsigned int parType, double* coords) const { }
 
 	protected:
 		double const* const _data;

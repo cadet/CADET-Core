@@ -15,7 +15,7 @@ classdef ResultsHelper
 			%   standardized format, potentially converting storage ordering from row-major
 			%   to column-major (Matlab). The output format is a struct that separates solution
 			%   from sensitivity data and basically consists of cell arrays. There is one cell
-			%   for each unit operation regardless of data for this unit operation is available.
+			%   for each unit operation regardless whether data for this unit operation is available.
 			%   NUMUNITOPERATIONS is the number of unit operations in the system (which cannot
 			%   be inferred from RES since data might be missing).
 			%   Sensitivity fields have the same dimensions / sizes as the normal ones except
@@ -40,12 +40,18 @@ classdef ResultsHelper
 					maxUnitSens = max(cellfun(@(x) max([-1, sscanf(x, 'unit_%d')]), fieldnames(res.sensitivity.(sprintf('param_%03d', maxParams-1))))) + 1;
 				end
 			end
+			if isfield(res, 'coordinates')
+				maxUnitCoords = max(cellfun(@(x) max([-1, sscanf(x, 'unit_%d')]), fieldnames(res.coordinates))) + 1;
+			end
 
 			if (maxUnit == 0) && ((nargin > 1) && ~isempty(numUnitOperations))
 				maxUnit = numUnitOperations;
 			end
 			if (maxUnitSens == 0) && ((nargin > 1) && ~isempty(numUnitOperations))
 				maxUnitSens = numUnitOperations;
+			end
+			if (maxUnitCoords == 0) && ((nargin > 1) && ~isempty(numUnitOperations))
+				maxUnitCoords = numUnitOperations;
 			end
 
 			maxReturnUnit = max(numUnitOperations, maxUnit);
@@ -244,394 +250,433 @@ classdef ResultsHelper
 				out.sensitivity.lastStateDot = MultiFields.extract(res, solNames, 'LAST_STATE_SENSYDOT');
 			end
 
-			if ~isfield(res, 'sensitivity') || (maxParams == 0)
-				return;
+			if isfield(res, 'sensitivity') && (maxParams > 0)
+				for i = 1:maxUnitSens
+					if ~isfield(res.sensitivity.(sprintf('param_%03d', maxParams-1)), sprintf('unit_%03d', i-1))
+						continue;
+					end
+					curUnit = res.sensitivity.(sprintf('param_%03d', maxParams-1)).(sprintf('unit_%03d', i-1));
+
+					if isfield(curUnit, 'SENS_OUTLET')
+						data = zeros([size(curUnit.SENS_OUTLET), maxParams]);
+						stride = numel(curUnit.SENS_OUTLET);
+						for p = 1:maxParams
+							if ~isfield(res.sensitivity, sprintf('param_%03d', p-1))
+								continue;
+							end
+
+							curRes = res.sensitivity.(sprintf('param_%03d', p-1)).(sprintf('unit_%03d', i-1));
+							temp = switchStorageOrdering(curRes.SENS_OUTLET);
+							data((p-1)*stride+1:p*stride) = temp(:);
+						end
+						out.sensitivity.jacobian{i} = data;
+					end
+
+					if isfield(curUnit, 'SENS_INLET')
+						data = zeros([size(curUnit.SENS_INLET), maxParams]);
+						stride = numel(curUnit.SENS_INLET);
+						for p = 1:maxParams
+							if ~isfield(res.sensitivity, sprintf('param_%03d', p-1))
+								continue;
+							end
+
+							curRes = res.sensitivity.(sprintf('param_%03d', p-1)).(sprintf('unit_%03d', i-1));
+							temp = switchStorageOrdering(curRes.SENS_INLET);
+							data((p-1)*stride+1:p*stride) = temp(:);
+						end
+						out.sensitivity.inlet{i} = data;
+					end
+
+					if isfield(curUnit, 'SENSDOT_OUTLET')
+						data = zeros([size(curUnit.SENSDOT_OUTLET), maxParams]);
+						stride = numel(curUnit.SENSDOT_OUTLET);
+						for p = 1:maxParams
+							if ~isfield(res.sensitivity, sprintf('param_%03d', p-1))
+								continue;
+							end
+
+							curRes = res.sensitivity.(sprintf('param_%03d', p-1)).(sprintf('unit_%03d', i-1));
+							temp = switchStorageOrdering(curRes.SENSDOT_OUTLET);
+							data((p-1)*stride+1:p*stride) = temp(:);
+						end
+						out.sensitivity.jacobianDot{i} = data;
+					end
+
+					if isfield(curUnit, 'SENSDOT_INLET')
+						data = zeros([size(curUnit.SENSDOT_INLET), maxParams]);
+						stride = numel(curUnit.SENSDOT_INLET);
+						for p = 1:maxParams
+							if ~isfield(res.sensitivity, sprintf('param_%03d', p-1))
+								continue;
+							end
+
+							curRes = res.sensitivity.(sprintf('param_%03d', p-1)).(sprintf('unit_%03d', i-1));
+							temp = switchStorageOrdering(curRes.SENSDOT_INLET);
+							data((p-1)*stride+1:p*stride) = temp(:);
+						end
+						out.sensitivity.inletDot{i} = data;
+					end
+
+					if isfield(curUnit, 'SENS_BULK')
+						data = zeros([size(curUnit.SENS_BULK), maxParams]);
+						stride = numel(curUnit.SENS_BULK);
+						for p = 1:maxParams
+							if ~isfield(res.sensitivity, sprintf('param_%03d', p-1))
+								continue;
+							end
+
+							curRes = res.sensitivity.(sprintf('param_%03d', p-1)).(sprintf('unit_%03d', i-1));
+							temp = switchStorageOrdering(curRes.SENS_BULK);
+							data((p-1)*stride+1:p*stride) = temp(:);
+						end
+						out.sensitivity.bulk{i} = data;
+					end
+
+					if isfield(curUnit, 'SENS_PARTICLE')
+						data = zeros([size(curUnit.SENS_PARTICLE), maxParams]);
+						stride = numel(curUnit.SENS_PARTICLE);
+						for p = 1:maxParams
+							if ~isfield(res.sensitivity, sprintf('param_%03d', p-1))
+								continue;
+							end
+
+							curRes = res.sensitivity.(sprintf('param_%03d', p-1)).(sprintf('unit_%03d', i-1));
+							temp = switchStorageOrdering(curRes.SENS_PARTICLE);
+							data((p-1)*stride+1:p*stride) = temp(:);
+						end
+						out.sensitivity.particle{i} = {data};
+					elseif isfield(curUnit, 'SENS_PARTICLE_PARTYPE_000')
+						idxParType = 0;
+						fieldParType = sprintf('SENS_PARTICLE_PARTYPE_%03d', idxParType);
+						out.sensitivity.particle{i} = cell(0, 0);
+						while isfield(curUnit, fieldParType)
+							data = zeros([size(curUnit.(fieldParType)), maxParams]);
+							stride = numel(curUnit.(fieldParType));
+							for p = 1:maxParams
+								if ~isfield(res.sensitivity, sprintf('param_%03d', p-1))
+									continue;
+								end
+
+								curRes = res.sensitivity.(sprintf('param_%03d', p-1)).(sprintf('unit_%03d', i-1));
+								temp = switchStorageOrdering(curRes.(fieldParType));
+								data((p-1)*stride+1:p*stride) = temp(:);
+							end
+							temp = out.sensitivity.particle{i};
+							temp{idxParType + 1} = data;
+							out.sensitivity.particle{i} = temp;
+
+							idxParType = idxParType + 1;
+							fieldParType = sprintf('SENS_PARTICLE_PARTYPE_%03d', idxParType);
+						end
+					end
+
+					if isfield(curUnit, 'SENS_SOLID')
+						data = zeros([size(curUnit.SENS_SOLID), maxParams]);
+						stride = numel(curUnit.SENS_SOLID);
+						for p = 1:maxParams
+							if ~isfield(res.sensitivity, sprintf('param_%03d', p-1))
+								continue;
+							end
+
+							curRes = res.sensitivity.(sprintf('param_%03d', p-1)).(sprintf('unit_%03d', i-1));
+							temp = switchStorageOrdering(curRes.SENS_SOLID);
+							data((p-1)*stride+1:p*stride) = temp(:);
+						end
+						out.sensitivity.solid{i} = data;
+					elseif isfield(curUnit, 'SENS_SOLID_PARTYPE_000')
+						idxParType = 0;
+						fieldParType = sprintf('SENS_SOLID_PARTYPE_%03d', idxParType);
+						out.sensitivity.solid{i} = cell(0, 0);
+						while isfield(curUnit, fieldParType)
+							data = zeros([size(curUnit.(fieldParType)), maxParams]);
+							stride = numel(curUnit.(fieldParType));
+							for p = 1:maxParams
+								if ~isfield(res.sensitivity, sprintf('param_%03d', p-1))
+									continue;
+								end
+
+								curRes = res.sensitivity.(sprintf('param_%03d', p-1)).(sprintf('unit_%03d', i-1));
+								temp = switchStorageOrdering(curRes.(fieldParType));
+								data((p-1)*stride+1:p*stride) = temp(:);
+							end
+							temp = out.sensitivity.solid{i};
+							temp{idxParType + 1} = data;
+							out.sensitivity.solid{i} = temp;
+
+							idxParType = idxParType + 1;
+							fieldParType = sprintf('SENS_SOLID_PARTYPE_%03d', idxParType);
+						end
+					end
+
+					if isfield(curUnit, 'SENS_FLUX')
+						data = zeros([size(curUnit.SENS_FLUX), maxParams]);
+						stride = numel(curUnit.SENS_FLUX);
+						for p = 1:maxParams
+							if ~isfield(res.sensitivity, sprintf('param_%03d', p-1))
+								continue;
+							end
+
+							curRes = res.sensitivity.(sprintf('param_%03d', p-1)).(sprintf('unit_%03d', i-1));
+							temp = switchStorageOrdering(curRes.SENS_FLUX);
+							data((p-1)*stride+1:p*stride) = temp(:);
+						end
+						out.sensitivity.flux{i} = data;
+					end
+
+					if isfield(curUnit, 'SENS_VOLUME')
+						data = zeros([size(curUnit.SENS_VOLUME), maxParams]);
+						stride = numel(curUnit.SENS_VOLUME);
+						for p = 1:maxParams
+							if ~isfield(res.sensitivity, sprintf('param_%03d', p-1))
+								continue;
+							end
+
+							curRes = res.sensitivity.(sprintf('param_%03d', p-1)).(sprintf('unit_%03d', i-1));
+							temp = switchStorageOrdering(curRes.SENS_VOLUME);
+							data((p-1)*stride+1:p*stride) = temp(:);
+						end
+						out.sensitivity.volume{i} = data;
+					end
+
+					if isfield(curUnit, 'SENSDOT_BULK')
+						data = zeros([size(curUnit.SENSDOT_BULK), maxParams]);
+						stride = numel(curUnit.SENSDOT_BULK);
+						for p = 1:maxParams
+							if ~isfield(res.sensitivity, sprintf('param_%03d', p-1))
+								continue;
+							end
+
+							curRes = res.sensitivity.(sprintf('param_%03d', p-1)).(sprintf('unit_%03d', i-1));
+							temp = switchStorageOrdering(curRes.SENSDOT_BULK);
+							data((p-1)*stride+1:p*stride) = temp(:);
+						end
+						out.sensitivity.bulkDot{i} = data;
+					end
+
+					if isfield(curUnit, 'SENSDOT_PARTICLE')
+						data = zeros([size(curUnit.SENSDOT_PARTICLE), maxParams]);
+						stride = numel(curUnit.SENSDOT_PARTICLE);
+						for p = 1:maxParams
+							if ~isfield(res.sensitivity, sprintf('param_%03d', p-1))
+								continue;
+							end
+
+							curRes = res.sensitivity.(sprintf('param_%03d', p-1)).(sprintf('unit_%03d', i-1));
+							temp = switchStorageOrdering(curRes.SENSDOT_PARTICLE);
+							data((p-1)*stride+1:p*stride) = temp(:);
+						end
+						out.sensitivity.particleDot{i} = data;
+					elseif isfield(curUnit, 'SENSDOT_PARTICLE_PARTYPE_000')
+						idxParType = 0;
+						fieldParType = sprintf('SENSDOT_PARTICLE_PARTYPE_%03d', idxParType);
+						out.sensitivity.particleDot{i} = cell(0, 0);
+						while isfield(curUnit, fieldParType)
+							data = zeros([size(curUnit.(fieldParType)), maxParams]);
+							stride = numel(curUnit.(fieldParType));
+							for p = 1:maxParams
+								if ~isfield(res.sensitivity, sprintf('param_%03d', p-1))
+									continue;
+								end
+
+								curRes = res.sensitivity.(sprintf('param_%03d', p-1)).(sprintf('unit_%03d', i-1));
+								temp = switchStorageOrdering(curRes.(fieldParType));
+								data((p-1)*stride+1:p*stride) = temp(:);
+							end
+							temp = out.sensitivity.particleDot{i};
+							temp{idxParType + 1} = data;
+							out.sensitivity.particleDot{i} = temp;
+
+							idxParType = idxParType + 1;
+							fieldParType = sprintf('SENSDOT_PARTICLE_PARTYPE_%03d', idxParType);
+						end
+					end
+
+					if isfield(curUnit, 'SENSDOT_SOLID')
+						data = zeros([size(curUnit.SENSDOT_SOLID), maxParams]);
+						stride = numel(curUnit.SENSDOT_SOLID);
+						for p = 1:maxParams
+							if ~isfield(res.sensitivity, sprintf('param_%03d', p-1))
+								continue;
+							end
+
+							curRes = res.sensitivity.(sprintf('param_%03d', p-1)).(sprintf('unit_%03d', i-1));
+							temp = switchStorageOrdering(curRes.SENSDOT_SOLID);
+							data((p-1)*stride+1:p*stride) = temp(:);
+						end
+						out.sensitivity.solidDot{i} = data;
+					elseif isfield(curUnit, 'SENSDOT_SOLID_PARTYPE_000')
+						idxParType = 0;
+						fieldParType = sprintf('SENSDOT_SOLID_PARTYPE_%03d', idxParType);
+						out.sensitivity.solidDot{i} = cell(0, 0);
+						while isfield(curUnit, fieldParType)
+							data = zeros([size(curUnit.(fieldParType)), maxParams]);
+							stride = numel(curUnit.(fieldParType));
+							for p = 1:maxParams
+								if ~isfield(res.sensitivity, sprintf('param_%03d', p-1))
+									continue;
+								end
+
+								curRes = res.sensitivity.(sprintf('param_%03d', p-1)).(sprintf('unit_%03d', i-1));
+								temp = switchStorageOrdering(curRes.(fieldParType));
+								data((p-1)*stride+1:p*stride) = temp(:);
+							end
+							temp = out.sensitivity.solidDot{i};
+							temp{idxParType + 1} = data;
+							out.sensitivity.solidDot{i} = temp;
+
+							idxParType = idxParType + 1;
+							fieldParType = sprintf('SENSDOT_SOLID_PARTYPE_%03d', idxParType);
+						end
+					end
+
+					if isfield(curUnit, 'SENSDOT_FLUX')
+						data = zeros([size(curUnit.SENSDOT_FLUX), maxParams]);
+						stride = numel(curUnit.SENSDOT_FLUX);
+						for p = 1:maxParams
+							if ~isfield(res.sensitivity, sprintf('param_%03d', p-1))
+								continue;
+							end
+
+							curRes = res.sensitivity.(sprintf('param_%03d', p-1)).(sprintf('unit_%03d', i-1));
+							temp = switchStorageOrdering(curRes.SENSDOT_FLUX);
+							data((p-1)*stride+1:p*stride) = temp(:);
+						end
+						out.sensitivity.fluxDot{i} = data;
+					end
+
+					if isfield(curUnit, 'SENSDOT_VOLUME')
+						data = zeros([size(curUnit.SENSDOT_VOLUME), maxParams]);
+						stride = numel(curUnit.SENSDOT_VOLUME);
+						for p = 1:maxParams
+							if ~isfield(res.sensitivity, sprintf('param_%03d', p-1))
+								continue;
+							end
+
+							curRes = res.sensitivity.(sprintf('param_%03d', p-1)).(sprintf('unit_%03d', i-1));
+							temp = switchStorageOrdering(curRes.SENSDOT_VOLUME);
+							data((p-1)*stride+1:p*stride) = temp(:);
+						end
+						out.sensitivity.volumeDot{i} = data;
+					end
+
+					solNames = fieldnames(res.sensitivity.(sprintf('param_%03d', maxParams-1)).(sprintf('unit_%03d', i-1)));
+
+					% Extract multi field data
+					if isempty(out.sensitivity.jacobian{i})
+						temp = MultiFields.extract(curUnit, solNames, 'SENS_OUTLET_COMP');
+						
+						data = zeros([size(temp), maxParams]);
+						stride = numel(temp);
+						data((maxParams-1)+1:maxParams*stride) = temp(:);
+						
+						for p = 1:maxParams-1
+							if ~isfield(res.sensitivity, sprintf('param_%03d', p-1))
+								continue;
+							end
+
+							curRes = res.sensitivity.(sprintf('param_%03d', p-1)).(sprintf('unit_%03d', i-1));
+							temp = MultiFields.extract(curRes, solNames, 'SENS_OUTLET_COMP');
+							data((p-1)*stride+1:p*stride) = temp(:);
+						end
+						out.sensitivity.jacobian{i} = data;
+					end
+					if isempty(out.sensitivity.jacobianDot{i})
+						temp = MultiFields.extract(curUnit, solNames, 'SENSDOT_OUTLET_COMP');
+
+						data = zeros([size(temp), maxParams]);
+						stride = numel(temp);
+						data((maxParams-1)+1:maxParams*stride) = temp(:);
+
+						for p = 1:maxParams-1
+							if ~isfield(res.sensitivity, sprintf('param_%03d', p-1))
+								continue;
+							end
+
+							curRes = res.sensitivity.(sprintf('param_%03d', p-1)).(sprintf('unit_%03d', i-1));
+							temp = MultiFields.extract(curRes, solNames, 'SENSDOT_OUTLET_COMP');
+							data((p-1)*stride+1:p*stride) = temp(:);					
+						end
+						out.sensitivity.jacobianDot{i} = data;
+					end
+
+					if isempty(out.sensitivity.inlet{i})
+						temp = MultiFields.extract(curUnit, solNames, 'SENS_INLET_COMP');
+
+						data = zeros([size(temp), maxParams]);
+						stride = numel(temp);
+						data((maxParams-1)+1:maxParams*stride) = temp(:);
+
+						for p = 1:maxParams-1
+							if ~isfield(res.sensitivity, sprintf('param_%03d', p-1))
+								continue;
+							end
+
+							curRes = res.sensitivity.(sprintf('param_%03d', p-1)).(sprintf('unit_%03d', i-1));
+							temp = MultiFields.extract(curRes, solNames, 'SENS_INLET_COMP');
+							data((p-1)*stride+1:p*stride) = temp(:);					
+						end
+						out.sensitivity.inlet{i} = data;
+					end
+					if isempty(out.sensitivity.inletDot{i})
+						temp = MultiFields.extract(curUnit, solNames, 'SENSDOT_INLET_COMP');
+
+						data = zeros([size(temp), maxParams]);
+						stride = numel(temp);
+						data((maxParams-1)+1:maxParams*stride) = temp(:);
+
+						for p = 1:maxParams-1
+							if ~isfield(res.sensitivity, sprintf('param_%03d', p-1))
+								continue;
+							end
+
+							curRes = res.sensitivity.(sprintf('param_%03d', p-1)).(sprintf('unit_%03d', i-1));
+							temp = MultiFields.extract(curRes, solNames, 'SENSDOT_INLET_COMP');
+							data((p-1)*stride+1:p*stride) = temp(:);					
+						end
+						out.sensitivity.inletDot{i} = data;
+					end
+				end
 			end
 
-			for i = 1:maxUnitSens
-				if ~isfield(res.sensitivity.(sprintf('param_%03d', maxParams-1)), sprintf('unit_%03d', i-1))
-					continue;
-				end
-				curUnit = res.sensitivity.(sprintf('param_%03d', maxParams-1)).(sprintf('unit_%03d', i-1));
+			maxReturnUnitCoords = max(numUnitOperations, maxUnitCoords);
 
-				if isfield(curUnit, 'SENS_OUTLET')
-					data = zeros([size(curUnit.SENS_OUTLET), maxParams]);
-					stride = numel(curUnit.SENS_OUTLET);
-					for p = 1:maxParams
-						if ~isfield(res.sensitivity, sprintf('param_%03d', p-1))
-							continue;
-						end
+			out.coordinates = [];
+			out.coordinates.axial = cell(maxReturnUnitCoords, 1);
+			out.coordinates.radial = cell(maxReturnUnitCoords, 1);
+			out.coordinates.particle = cell(maxReturnUnitCoords, 1);
 
-						curRes = res.sensitivity.(sprintf('param_%03d', p-1)).(sprintf('unit_%03d', i-1));
-						temp = switchStorageOrdering(curRes.SENS_OUTLET);
-						data((p-1)*stride+1:p*stride) = temp(:);
+			if isfield(res, 'coordinates')
+
+				for i = 1:maxUnit
+					if ~isfield(res.coordinates, sprintf('unit_%03d', i-1))
+						continue;
 					end
-					out.sensitivity.jacobian{i} = data;
-				end
+					curRes = res.coordinates.(sprintf('unit_%03d', i-1));
 
-				if isfield(curUnit, 'SENS_INLET')
-					data = zeros([size(curUnit.SENS_INLET), maxParams]);
-					stride = numel(curUnit.SENS_INLET);
-					for p = 1:maxParams
-						if ~isfield(res.sensitivity, sprintf('param_%03d', p-1))
-							continue;
-						end
-
-						curRes = res.sensitivity.(sprintf('param_%03d', p-1)).(sprintf('unit_%03d', i-1));
-						temp = switchStorageOrdering(curRes.SENS_INLET);
-						data((p-1)*stride+1:p*stride) = temp(:);
+					if isfield(curRes, 'AXIAL_COORDINATES')
+						out.coordinates.axial{i} = curRes.AXIAL_COORDINATES;
 					end
-					out.sensitivity.inlet{i} = data;
-				end
 
-				if isfield(curUnit, 'SENSDOT_OUTLET')
-					data = zeros([size(curUnit.SENSDOT_OUTLET), maxParams]);
-					stride = numel(curUnit.SENSDOT_OUTLET);
-					for p = 1:maxParams
-						if ~isfield(res.sensitivity, sprintf('param_%03d', p-1))
-							continue;
-						end
-
-						curRes = res.sensitivity.(sprintf('param_%03d', p-1)).(sprintf('unit_%03d', i-1));
-						temp = switchStorageOrdering(curRes.SENSDOT_OUTLET);
-						data((p-1)*stride+1:p*stride) = temp(:);
+					if isfield(curRes, 'RADIAL_COORDINATES')
+						out.coordinates.radial{i} = curRes.RADIAL_COORDINATES;
 					end
-					out.sensitivity.jacobianDot{i} = data;
-				end
 
-				if isfield(curUnit, 'SENSDOT_INLET')
-					data = zeros([size(curUnit.SENSDOT_INLET), maxParams]);
-					stride = numel(curUnit.SENSDOT_INLET);
-					for p = 1:maxParams
-						if ~isfield(res.sensitivity, sprintf('param_%03d', p-1))
-							continue;
+					baseName = 'PARTICLE_COORDINATES_';
+					solNames = fieldnames(curRes);
+					len = length(baseName);
+
+					% Find datasets and convert to component indices
+					idx = find(cellfun(@(x) (length(x) >= len) && strcmp(x(1:len), baseName), solNames));
+					if ~isempty(idx)
+						idxParType = arrayfun(@(x) str2double(solNames{x}(len+1:end)), idx);
+						pc = cell(max(idxParType) + 1, 1);
+						for k = 1:length(idx)
+							pc{idxParType(k) + 1} = curRes.(solNames{idx(k)});
 						end
-
-						curRes = res.sensitivity.(sprintf('param_%03d', p-1)).(sprintf('unit_%03d', i-1));
-						temp = switchStorageOrdering(curRes.SENSDOT_INLET);
-						data((p-1)*stride+1:p*stride) = temp(:);
-					end
-					out.sensitivity.inletDot{i} = data;
-				end
-
-				if isfield(curUnit, 'SENS_BULK')
-					data = zeros([size(curUnit.SENS_BULK), maxParams]);
-					stride = numel(curUnit.SENS_BULK);
-					for p = 1:maxParams
-						if ~isfield(res.sensitivity, sprintf('param_%03d', p-1))
-							continue;
-						end
-
-						curRes = res.sensitivity.(sprintf('param_%03d', p-1)).(sprintf('unit_%03d', i-1));
-						temp = switchStorageOrdering(curRes.SENS_BULK);
-						data((p-1)*stride+1:p*stride) = temp(:);
-					end
-					out.sensitivity.bulk{i} = data;
-				end
-
-				if isfield(curUnit, 'SENS_PARTICLE')
-					data = zeros([size(curUnit.SENS_PARTICLE), maxParams]);
-					stride = numel(curUnit.SENS_PARTICLE);
-					for p = 1:maxParams
-						if ~isfield(res.sensitivity, sprintf('param_%03d', p-1))
-							continue;
-						end
-
-						curRes = res.sensitivity.(sprintf('param_%03d', p-1)).(sprintf('unit_%03d', i-1));
-						temp = switchStorageOrdering(curRes.SENS_PARTICLE);
-						data((p-1)*stride+1:p*stride) = temp(:);
-					end
-					out.sensitivity.particle{i} = {data};
-				elseif isfield(curUnit, 'SENS_PARTICLE_PARTYPE_000')
-					idxParType = 0;
-					fieldParType = sprintf('SENS_PARTICLE_PARTYPE_%03d', idxParType);
-					out.sensitivity.particle{i} = cell(0, 0);
-					while isfield(curUnit, fieldParType)
-						data = zeros([size(curUnit.(fieldParType)), maxParams]);
-						stride = numel(curUnit.(fieldParType));
-						for p = 1:maxParams
-							if ~isfield(res.sensitivity, sprintf('param_%03d', p-1))
-								continue;
-							end
-
-							curRes = res.sensitivity.(sprintf('param_%03d', p-1)).(sprintf('unit_%03d', i-1));
-							temp = switchStorageOrdering(curRes.(fieldParType));
-							data((p-1)*stride+1:p*stride) = temp(:);
-						end
-						temp = out.sensitivity.particle{i};
-						temp{idxParType + 1} = data;
-						out.sensitivity.particle{i} = temp;
-
-						idxParType = idxParType + 1;
-						fieldParType = sprintf('SENS_PARTICLE_PARTYPE_%03d', idxParType);
+						out.coordinates.particle{i} = pc;
 					end
 				end
 
-				if isfield(curUnit, 'SENS_SOLID')
-					data = zeros([size(curUnit.SENS_SOLID), maxParams]);
-					stride = numel(curUnit.SENS_SOLID);
-					for p = 1:maxParams
-						if ~isfield(res.sensitivity, sprintf('param_%03d', p-1))
-							continue;
-						end
-
-						curRes = res.sensitivity.(sprintf('param_%03d', p-1)).(sprintf('unit_%03d', i-1));
-						temp = switchStorageOrdering(curRes.SENS_SOLID);
-						data((p-1)*stride+1:p*stride) = temp(:);
-					end
-					out.sensitivity.solid{i} = data;
-				elseif isfield(curUnit, 'SENS_SOLID_PARTYPE_000')
-					idxParType = 0;
-					fieldParType = sprintf('SENS_SOLID_PARTYPE_%03d', idxParType);
-					out.sensitivity.solid{i} = cell(0, 0);
-					while isfield(curUnit, fieldParType)
-						data = zeros([size(curUnit.(fieldParType)), maxParams]);
-						stride = numel(curUnit.(fieldParType));
-						for p = 1:maxParams
-							if ~isfield(res.sensitivity, sprintf('param_%03d', p-1))
-								continue;
-							end
-
-							curRes = res.sensitivity.(sprintf('param_%03d', p-1)).(sprintf('unit_%03d', i-1));
-							temp = switchStorageOrdering(curRes.(fieldParType));
-							data((p-1)*stride+1:p*stride) = temp(:);
-						end
-						temp = out.sensitivity.solid{i};
-						temp{idxParType + 1} = data;
-						out.sensitivity.solid{i} = temp;
-
-						idxParType = idxParType + 1;
-						fieldParType = sprintf('SENS_SOLID_PARTYPE_%03d', idxParType);
-					end
-				end
-
-				if isfield(curUnit, 'SENS_FLUX')
-					data = zeros([size(curUnit.SENS_FLUX), maxParams]);
-					stride = numel(curUnit.SENS_FLUX);
-					for p = 1:maxParams
-						if ~isfield(res.sensitivity, sprintf('param_%03d', p-1))
-							continue;
-						end
-
-						curRes = res.sensitivity.(sprintf('param_%03d', p-1)).(sprintf('unit_%03d', i-1));
-						temp = switchStorageOrdering(curRes.SENS_FLUX);
-						data((p-1)*stride+1:p*stride) = temp(:);
-					end
-					out.sensitivity.flux{i} = data;
-				end
-
-				if isfield(curUnit, 'SENS_VOLUME')
-					data = zeros([size(curUnit.SENS_VOLUME), maxParams]);
-					stride = numel(curUnit.SENS_VOLUME);
-					for p = 1:maxParams
-						if ~isfield(res.sensitivity, sprintf('param_%03d', p-1))
-							continue;
-						end
-
-						curRes = res.sensitivity.(sprintf('param_%03d', p-1)).(sprintf('unit_%03d', i-1));
-						temp = switchStorageOrdering(curRes.SENS_VOLUME);
-						data((p-1)*stride+1:p*stride) = temp(:);
-					end
-					out.sensitivity.volume{i} = data;
-				end
-
-				if isfield(curUnit, 'SENSDOT_BULK')
-					data = zeros([size(curUnit.SENSDOT_BULK), maxParams]);
-					stride = numel(curUnit.SENSDOT_BULK);
-					for p = 1:maxParams
-						if ~isfield(res.sensitivity, sprintf('param_%03d', p-1))
-							continue;
-						end
-
-						curRes = res.sensitivity.(sprintf('param_%03d', p-1)).(sprintf('unit_%03d', i-1));
-						temp = switchStorageOrdering(curRes.SENSDOT_BULK);
-						data((p-1)*stride+1:p*stride) = temp(:);
-					end
-					out.sensitivity.bulkDot{i} = data;
-				end
-
-				if isfield(curUnit, 'SENSDOT_PARTICLE')
-					data = zeros([size(curUnit.SENSDOT_PARTICLE), maxParams]);
-					stride = numel(curUnit.SENSDOT_PARTICLE);
-					for p = 1:maxParams
-						if ~isfield(res.sensitivity, sprintf('param_%03d', p-1))
-							continue;
-						end
-
-						curRes = res.sensitivity.(sprintf('param_%03d', p-1)).(sprintf('unit_%03d', i-1));
-						temp = switchStorageOrdering(curRes.SENSDOT_PARTICLE);
-						data((p-1)*stride+1:p*stride) = temp(:);
-					end
-					out.sensitivity.particleDot{i} = data;
-				elseif isfield(curUnit, 'SENSDOT_PARTICLE_PARTYPE_000')
-					idxParType = 0;
-					fieldParType = sprintf('SENSDOT_PARTICLE_PARTYPE_%03d', idxParType);
-					out.sensitivity.particleDot{i} = cell(0, 0);
-					while isfield(curUnit, fieldParType)
-						data = zeros([size(curUnit.(fieldParType)), maxParams]);
-						stride = numel(curUnit.(fieldParType));
-						for p = 1:maxParams
-							if ~isfield(res.sensitivity, sprintf('param_%03d', p-1))
-								continue;
-							end
-
-							curRes = res.sensitivity.(sprintf('param_%03d', p-1)).(sprintf('unit_%03d', i-1));
-							temp = switchStorageOrdering(curRes.(fieldParType));
-							data((p-1)*stride+1:p*stride) = temp(:);
-						end
-						temp = out.sensitivity.particleDot{i};
-						temp{idxParType + 1} = data;
-						out.sensitivity.particleDot{i} = temp;
-
-						idxParType = idxParType + 1;
-						fieldParType = sprintf('SENSDOT_PARTICLE_PARTYPE_%03d', idxParType);
-					end
-				end
-
-				if isfield(curUnit, 'SENSDOT_SOLID')
-					data = zeros([size(curUnit.SENSDOT_SOLID), maxParams]);
-					stride = numel(curUnit.SENSDOT_SOLID);
-					for p = 1:maxParams
-						if ~isfield(res.sensitivity, sprintf('param_%03d', p-1))
-							continue;
-						end
-
-						curRes = res.sensitivity.(sprintf('param_%03d', p-1)).(sprintf('unit_%03d', i-1));
-						temp = switchStorageOrdering(curRes.SENSDOT_SOLID);
-						data((p-1)*stride+1:p*stride) = temp(:);
-					end
-					out.sensitivity.solidDot{i} = data;
-				elseif isfield(curUnit, 'SENSDOT_SOLID_PARTYPE_000')
-					idxParType = 0;
-					fieldParType = sprintf('SENSDOT_SOLID_PARTYPE_%03d', idxParType);
-					out.sensitivity.solidDot{i} = cell(0, 0);
-					while isfield(curUnit, fieldParType)
-						data = zeros([size(curUnit.(fieldParType)), maxParams]);
-						stride = numel(curUnit.(fieldParType));
-						for p = 1:maxParams
-							if ~isfield(res.sensitivity, sprintf('param_%03d', p-1))
-								continue;
-							end
-
-							curRes = res.sensitivity.(sprintf('param_%03d', p-1)).(sprintf('unit_%03d', i-1));
-							temp = switchStorageOrdering(curRes.(fieldParType));
-							data((p-1)*stride+1:p*stride) = temp(:);
-						end
-						temp = out.sensitivity.solidDot{i};
-						temp{idxParType + 1} = data;
-						out.sensitivity.solidDot{i} = temp;
-
-						idxParType = idxParType + 1;
-						fieldParType = sprintf('SENSDOT_SOLID_PARTYPE_%03d', idxParType);
-					end
-				end
-
-				if isfield(curUnit, 'SENSDOT_FLUX')
-					data = zeros([size(curUnit.SENSDOT_FLUX), maxParams]);
-					stride = numel(curUnit.SENSDOT_FLUX);
-					for p = 1:maxParams
-						if ~isfield(res.sensitivity, sprintf('param_%03d', p-1))
-							continue;
-						end
-
-						curRes = res.sensitivity.(sprintf('param_%03d', p-1)).(sprintf('unit_%03d', i-1));
-						temp = switchStorageOrdering(curRes.SENSDOT_FLUX);
-						data((p-1)*stride+1:p*stride) = temp(:);
-					end
-					out.sensitivity.fluxDot{i} = data;
-				end
-
-				if isfield(curUnit, 'SENSDOT_VOLUME')
-					data = zeros([size(curUnit.SENSDOT_VOLUME), maxParams]);
-					stride = numel(curUnit.SENSDOT_VOLUME);
-					for p = 1:maxParams
-						if ~isfield(res.sensitivity, sprintf('param_%03d', p-1))
-							continue;
-						end
-
-						curRes = res.sensitivity.(sprintf('param_%03d', p-1)).(sprintf('unit_%03d', i-1));
-						temp = switchStorageOrdering(curRes.SENSDOT_VOLUME);
-						data((p-1)*stride+1:p*stride) = temp(:);
-					end
-					out.sensitivity.volumeDot{i} = data;
-				end
-
-				solNames = fieldnames(res.sensitivity.(sprintf('param_%03d', maxParams-1)).(sprintf('unit_%03d', i-1)));
-
-				% Extract multi field data
-				if isempty(out.sensitivity.jacobian{i})
-					temp = MultiFields.extract(curUnit, solNames, 'SENS_OUTLET_COMP');
-					
-					data = zeros([size(temp), maxParams]);
-					stride = numel(temp);
-					data((maxParams-1)+1:maxParams*stride) = temp(:);
-					
-					for p = 1:maxParams-1
-						if ~isfield(res.sensitivity, sprintf('param_%03d', p-1))
-							continue;
-						end
-
-						curRes = res.sensitivity.(sprintf('param_%03d', p-1)).(sprintf('unit_%03d', i-1));
-						temp = MultiFields.extract(curRes, solNames, 'SENS_OUTLET_COMP');
-						data((p-1)*stride+1:p*stride) = temp(:);
-					end
-					out.sensitivity.jacobian{i} = data;
-				end
-				if isempty(out.sensitivity.jacobianDot{i})
-					temp = MultiFields.extract(curUnit, solNames, 'SENSDOT_OUTLET_COMP');
-
-					data = zeros([size(temp), maxParams]);
-					stride = numel(temp);
-					data((maxParams-1)+1:maxParams*stride) = temp(:);
-
-					for p = 1:maxParams-1
-						if ~isfield(res.sensitivity, sprintf('param_%03d', p-1))
-							continue;
-						end
-
-						curRes = res.sensitivity.(sprintf('param_%03d', p-1)).(sprintf('unit_%03d', i-1));
-						temp = MultiFields.extract(curRes, solNames, 'SENSDOT_OUTLET_COMP');
-						data((p-1)*stride+1:p*stride) = temp(:);					
-					end
-					out.sensitivity.jacobianDot{i} = data;
-				end
-
-				if isempty(out.sensitivity.inlet{i})
-					temp = MultiFields.extract(curUnit, solNames, 'SENS_INLET_COMP');
-
-					data = zeros([size(temp), maxParams]);
-					stride = numel(temp);
-					data((maxParams-1)+1:maxParams*stride) = temp(:);
-
-					for p = 1:maxParams-1
-						if ~isfield(res.sensitivity, sprintf('param_%03d', p-1))
-							continue;
-						end
-
-						curRes = res.sensitivity.(sprintf('param_%03d', p-1)).(sprintf('unit_%03d', i-1));
-						temp = MultiFields.extract(curRes, solNames, 'SENS_INLET_COMP');
-						data((p-1)*stride+1:p*stride) = temp(:);					
-					end
-					out.sensitivity.inlet{i} = data;
-				end
-				if isempty(out.sensitivity.inletDot{i})
-					temp = MultiFields.extract(curUnit, solNames, 'SENSDOT_INLET_COMP');
-
-					data = zeros([size(temp), maxParams]);
-					stride = numel(temp);
-					data((maxParams-1)+1:maxParams*stride) = temp(:);
-
-					for p = 1:maxParams-1
-						if ~isfield(res.sensitivity, sprintf('param_%03d', p-1))
-							continue;
-						end
-
-						curRes = res.sensitivity.(sprintf('param_%03d', p-1)).(sprintf('unit_%03d', i-1));
-						temp = MultiFields.extract(curRes, solNames, 'SENSDOT_INLET_COMP');
-						data((p-1)*stride+1:p*stride) = temp(:);					
-					end
-					out.sensitivity.inletDot{i} = data;
-				end
 			end
 		end
 

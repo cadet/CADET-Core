@@ -335,8 +335,8 @@ protected:
 	{
 	public:
 
-		Exporter(const Discretization& disc, double const* data) : _disc(disc), _idx(disc), _data(data) { }
-		Exporter(const Discretization&& disc, double const* data) = delete;
+		Exporter(const Discretization& disc, const LumpedRateModelWithPores& model, double const* data) : _disc(disc), _idx(disc), _model(model), _data(data) { }
+		Exporter(const Discretization&& disc, const LumpedRateModelWithPores& model, double const* data) = delete;
 
 		virtual bool hasParticleFlux() const CADET_NOEXCEPT { return true; }
 		virtual bool hasParticleMobilePhase() const CADET_NOEXCEPT { return true; }
@@ -401,9 +401,22 @@ protected:
 		virtual unsigned int particleMobilePhaseStride(unsigned int parType) const { return _idx.strideParBlock(parType); }
 		virtual unsigned int solidPhaseStride(unsigned int parType) const { return _idx.strideParBlock(parType); }
 
+		virtual void axialCoordinates(double* coords) const
+		{
+			const double h = static_cast<double>(_model._convDispOp.columnLength()) / static_cast<double>(_disc.nCol);
+			for (unsigned int i = 0; i < _disc.nCol; ++i)
+				coords[i] = (i + 0.5) * h;
+		}
+		virtual void radialCoordinates(double* coords) const { }
+		virtual void particleCoordinates(unsigned int parType, double* coords) const
+		{
+			coords[0] = static_cast<double>(_model._parRadius[parType]) * 0.5;
+		}
+
 	protected:
 		const Discretization& _disc;
 		const Indexer _idx;
+		const LumpedRateModelWithPores& _model;
 		double const* const _data;
 
 		const std::array<StateOrdering, 2> _concentrationOrdering = { { StateOrdering::AxialCell, StateOrdering::Component } };

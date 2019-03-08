@@ -21,6 +21,7 @@
 #include <vector>
 #include <sstream>
 #include <algorithm>
+#include <numeric>
 
 #include "cadet/SolutionRecorder.hpp"
 
@@ -56,8 +57,9 @@ public:
 
 	InternalStorageUnitOpRecorder(UnitOpIdx idx) : _cfgSolution({false, false, false, true, false, false}),
 		_cfgSolutionDot({false, false, false, false, false, false}), _cfgSensitivity({false, false, false, true, false, false}),
-		_cfgSensitivityDot({false, false, false, true, false, false}), _storeTime(false), _splitComponents(true), _splitPorts(true),
-		_curCfg(nullptr), _nComp(0), _nVolumeDof(0), _numTimesteps(0), _numSens(0), _unitOp(idx), _needsReAlloc(false)
+		_cfgSensitivityDot({false, false, false, true, false, false}), _storeTime(false), _storeCoordinates(false), _splitComponents(true), _splitPorts(true),
+		_curCfg(nullptr), _nComp(0), _nVolumeDof(0), _numTimesteps(0), _numSens(0), _unitOp(idx), _needsReAlloc(false),
+		_axialCoords(0), _radialCoords(0), _particleCoords(0)
 	{
 	}
 
@@ -306,6 +308,25 @@ public:
 			}
 		}
 
+		// Obtain coordinates
+		if (_storeCoordinates)
+		{
+			_axialCoords.resize(exporter.numAxialCells());
+			_radialCoords.resize(exporter.numRadialCells());
+			const unsigned int numShells = std::accumulate(_nParShells.begin(), _nParShells.end(), 0u);
+			_particleCoords.resize(numShells);
+
+			exporter.axialCoordinates(_axialCoords.data());
+			exporter.radialCoordinates(_radialCoords.data());
+
+			unsigned int offset = 0;
+			for (unsigned int i = 0; i < numParTypes; ++i)
+			{
+				exporter.particleCoordinates(i, _particleCoords.data() + offset);
+				offset += _nParShells[i];
+			}
+		}
+
 		// Validate config
 		validateConfig(exporter, _cfgSolution);
 		validateConfig(exporter, _cfgSolutionDot);
@@ -490,6 +511,36 @@ public:
 	}
 
 	template <typename Writer_t>
+	void writeCoordinates(Writer_t& writer)
+	{
+		if (!_storeCoordinates)
+			return;
+
+		if (!_axialCoords.empty())
+			writer.template vector<double>("AXIAL_COORDINATES", _axialCoords);
+		if (!_radialCoords.empty())
+			writer.template vector<double>("RADIAL_COORDINATES", _radialCoords);
+
+		if (!_particleCoords.empty())
+		{
+			std::ostringstream oss;
+			unsigned int offset = 0;
+			for (unsigned int pt = 0; pt < _nParShells.size(); ++pt)
+			{
+				if (_nParShells[pt] == 0)
+					continue;
+
+				oss.str("");
+				oss << "PARTICLE_COORDINATES_" << std::setfill('0') << std::setw(3) << std::setprecision(0) << pt;
+
+				writer.template vector<double>(oss.str(), _nParShells[pt], _particleCoords.data() + offset);
+
+				offset += _nParShells[pt];
+			}
+		}
+	}
+
+	template <typename Writer_t>
 	void writeSolution(Writer_t& writer)
 	{
 		std::ostringstream oss;
@@ -561,6 +612,9 @@ public:
 
 	inline bool storeTime() const CADET_NOEXCEPT { return _storeTime; }
 	inline void storeTime(bool st) CADET_NOEXCEPT { _storeTime = st; }
+
+	inline bool storeCoordinates() const CADET_NOEXCEPT { return _storeCoordinates; }
+	inline void storeCoordinates(bool sc) CADET_NOEXCEPT { _storeCoordinates = sc; }
 
 	inline bool splitComponents() const CADET_NOEXCEPT { return _splitComponents; }
 	inline void splitComponents(bool st) CADET_NOEXCEPT { _splitComponents = st; }
@@ -880,6 +934,7 @@ protected:
 	StorageConfig _cfgSensitivity;
 	StorageConfig _cfgSensitivityDot;
 	bool _storeTime;
+	bool _storeCoordinates;
 	bool _splitComponents;
 	bool _splitPorts;
 
@@ -912,6 +967,10 @@ protected:
 	unsigned int _bulkCount; //!< Number of bulk mobile phase DOF blocks
 	std::vector<unsigned int> _particleCount; //!< Number of particle mobile phase DOF blocks per particle type
 	std::vector<unsigned int> _solidCount; //!< Number of solid phase DOF blocks per particle type
+
+	std::vector<double> _axialCoords;
+	std::vector<double> _radialCoords;
+	std::vector<double> _particleCoords;
 };
 
 
@@ -1052,6 +1111,25 @@ public:
 		for (InternalStorageUnitOpRecorder* rec : _recorders)
 			rec->endSensitivityDerivative(pId, sensIdx);
 	}
+
+	template <typename Writer_t>
+	void writeCoordinates(Writer_t& writer)
+	{
+		std::ostringstream oss;
+
+		for (InternalStorageUnitOpRecorder* rec : _recorders)
+		{
+			oss.str("");
+			oss << "unit_" << std::setfill('0') << std::setw(3) << std::setprecision(0) << static_cast<int>(rec->unitOperation());
+
+			if (rec->storeCoordinates())
+			{
+				writer.pushGroup(oss.str());
+				rec->writeCoordinates(writer);
+				writer.popGroup();
+			}
+		}
+	}
 	
 	template <typename Writer_t>
 	void writeSolution(Writer_t& writer)
@@ -1099,6 +1177,17 @@ public:
 
 	inline bool storeTime() const CADET_NOEXCEPT { return _storeTime; }
 	inline void storeTime(bool st) CADET_NOEXCEPT { _storeTime = st; }
+
+	inline bool anyUnitStoresCoordinates() const CADET_NOEXCEPT
+	{
+		for (InternalStorageUnitOpRecorder const* rec : _recorders)
+		{
+			if (rec->storeCoordinates())
+				return true;
+		}
+
+		return false;
+	}
 
 	inline unsigned int numDataPoints() const CADET_NOEXCEPT { return _numTimesteps; }
 

@@ -149,6 +149,9 @@ void configureSystemRecorder(cadet::InternalStorageSystemRecorder& recorder, Par
 		readDataOutputConfig(pp, cfg, "SENSDOT");
 		subRec->sensitivityDotConfig(cfg);
 
+		if (pp.exists("WRITE_COORDINATES"))
+			subRec->storeCoordinates(pp.getBool("WRITE_COORDINATES"));
+
 		subRec->splitComponents(splitComponents);
 		subRec->splitPorts(splitPorts);
 		pp.popScope();
@@ -488,7 +491,14 @@ public:
 		writer.compressFields(true);
 
 		writer.pushGroup("output");
-		
+
+		if (_storage->anyUnitStoresCoordinates())
+		{
+			writer.pushGroup("coordinates");
+			_storage->writeCoordinates(writer);
+			writer.popGroup();
+		}
+
 		writer.pushGroup("solution");
 		_storage->writeSolution(writer);
 		writer.popGroup();

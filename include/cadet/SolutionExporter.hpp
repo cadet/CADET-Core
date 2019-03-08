@@ -283,6 +283,25 @@ public:
 	 * @return Number of elements between two solid phase DOF blocks
 	 */
 	virtual unsigned int solidPhaseStride(unsigned int parType) const = 0;
+
+	/**
+	 * @brief Returns axial coordinates of the DOFs
+	 * @param [out] Pointer to array that is filled with axial coordinates of DOFs
+	 */
+	virtual void axialCoordinates(double* coords) const = 0;
+
+	/**
+	 * @brief Returns radial coordinates of the DOFs
+	 * @param [out] Pointer to array that is filled with radial coordinates of DOFs
+	 */
+	virtual void radialCoordinates(double* coords) const = 0;
+
+	/**
+	 * @brief Returns particle coordinates of the DOFs
+	 * @param [in] parType Particle type index
+	 * @param [out] Pointer to array that is filled with particle coordinates of DOFs
+	 */
+	virtual void particleCoordinates(unsigned int parType, double* coords) const = 0;
 };
 
 } // namespace cadet

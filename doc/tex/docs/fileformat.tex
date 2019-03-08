@@ -107,16 +107,20 @@ For the latter, please refer to the corresponding sections in the previous chapt
   ]
   \node {\hyperref[sec:FFOutput]{output}} [edge from parent fork down]
     child[sibling distance=45mm] { node { \hyperref[tab:FFOutputSolution]{solution} } [edge from parent fork down]
-              child[sibling distance=20mm] { node { \hyperref[tab:FFOutputSensitivityUnit]{unit\_000} } }
-              child[sibling distance=20mm] { node { \hyperref[tab:FFOutputSensitivityUnit]{unit\_001} } }
-    }   
+              child[sibling distance=20mm] { node { \hyperref[tab:FFOutputSolutionUnit]{unit\_000} } }
+              child[sibling distance=20mm] { node { \hyperref[tab:FFOutputSolutionUnit]{unit\_001} } }
+    }
     child[sibling distance=45mm] { node { sensitivity } [edge from parent fork down]
               child[sibling distance=20mm] { node { param\_000 } }
               child[sibling distance=20mm] { node { param\_001 } [edge from parent fork down]
                       child[sibling distance=20mm] { node { \hyperref[tab:FFOutputSensitivityParamUnit]{unit\_000} } }
                       child[sibling distance=20mm] { node { \hyperref[tab:FFOutputSensitivityParamUnit]{unit\_001} } }
               }
-          };
+    }
+    child[sibling distance=45mm] { node { coordinates } [edge from parent fork down]
+              child[sibling distance=20mm] { node { \hyperref[tab:FFOutputCoordinatesUnit]{unit\_000} } }
+              child[sibling distance=20mm] { node { \hyperref[tab:FFOutputCoordinatesUnit]{unit\_001} } }
+    };
 \end{tikzpicture}
 \caption{\label{fig:FFOutput}Structure of the groups in the output part of the file format}
 \end{figure}
@@ -1339,6 +1343,9 @@ This group also takes precedence over a possibly existing \texttt{/input/model/u
 \end{groupscope}
 
 \begin{groupscope}{/input/return/unit\_XXX}{tab:FFReturnUnit}
+  \begin{dataset}[type=int, range={$\{0,1\}$}]{WRITE\_COORDINATES}
+    Write coordinates of discretization nodes
+  \end{dataset}
   \begin{dataset}[type=int, range={$\{0,1\}$}]{WRITE\_SOLUTION\_INLET}
     Write solutions at unit operation inlet $c^l_i(t,0)$
   \end{dataset}
@@ -1580,7 +1587,7 @@ This group also takes precedence over a possibly existing \texttt{/input/model/u
   \end{dataset}
 \end{groupscope}
 
-\begin{groupscope}{/output/solution/unit\_XXX}{tab:FFOutputSensitivityUnit}
+\begin{groupscope}{/output/solution/unit\_XXX}{tab:FFOutputSolutionUnit}
   \begin{dataset}[type=double,unit={\si{\mol\per\cubic\metre\of{IV}}}]{SOLUTION\_BULK}
     Interstitial solution as $n_{\text{Time}} \times \texttt{UNITOPORDERING}$ tensor in row-major storage
   \end{dataset}
@@ -1811,6 +1818,18 @@ This group also takes precedence over a possibly existing \texttt{/input/model/u
   \begin{dataset}[type=double,unit={\si{\mol\per\cubic\metre\of{IV}\per\second\per\ParamUnit}}]{SENSDOT\_INLET\_PORT\_XXX\_COMP\_YYY}
     Component \texttt{YYY} at inlet port \texttt{XXX} of the sensitivity time derivative of the unit operation.
     Only present if \texttt{SPLIT\_COMPONENTS\_DATA} is enabled and \texttt{SPLIT\_PORTS\_DATA} is enabled.
+  \end{dataset}
+\end{groupscope}
+
+\begin{groupscope}{/output/coordinates/unit\_XXX}{tab:FFOutputCoordinatesUnit}
+  \begin{dataset}[type=double,unit={\si{\metre}},length=\texttt{NCOL}]{AXIAL\_COORDINATES}
+    Axial coordinates of the bulk discretization nodes
+  \end{dataset}
+  \begin{dataset}[type=double,unit={\si{\metre}},length=\texttt{NRAD}]{RADIAL\_COORDINATES}
+    Radial coordinates of the bulk discretization nodes (only for 2D unit operations)
+  \end{dataset}
+  \begin{dataset}[type=double,unit={\si{\metre}},length=\texttt{NPAR}]{PARTICLE\_COORDINATES\_XXX}
+    Coordinates of the particle discretization nodes in particles of type \texttt{XXX}
   \end{dataset}
 \end{groupscope}
 

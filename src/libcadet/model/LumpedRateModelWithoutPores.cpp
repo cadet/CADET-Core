@@ -317,14 +317,14 @@ void LumpedRateModelWithoutPores::setFlowRates(active const* in, active const* o
 
 void LumpedRateModelWithoutPores::reportSolution(ISolutionRecorder& recorder, double const* const solution) const
 {
-	Exporter expr(_disc, solution);
+	Exporter expr(_disc, *this, solution);
 	recorder.beginUnitOperation(_unitOpIdx, *this, expr);
 	recorder.endUnitOperation();
 }
 
 void LumpedRateModelWithoutPores::reportSolutionStructure(ISolutionRecorder& recorder) const
 {
-	Exporter expr(_disc, nullptr);
+	Exporter expr(_disc, *this, nullptr);
 	recorder.unitOperationStructure(_unitOpIdx, *this, expr);
 }
 

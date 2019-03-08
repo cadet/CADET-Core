@@ -802,14 +802,14 @@ void GeneralRateModel2D::setFlowRates(active const* in, active const* out) CADET
 
 void GeneralRateModel2D::reportSolution(ISolutionRecorder& recorder, double const* const solution) const
 {
-	Exporter expr(_disc, solution);
+	Exporter expr(_disc, *this, solution);
 	recorder.beginUnitOperation(_unitOpIdx, *this, expr);
 	recorder.endUnitOperation();
 }
 
 void GeneralRateModel2D::reportSolutionStructure(ISolutionRecorder& recorder) const
 {
-	Exporter expr(_disc, nullptr);
+	Exporter expr(_disc, *this, nullptr);
 	recorder.unitOperationStructure(_unitOpIdx, *this, expr);
 }
 

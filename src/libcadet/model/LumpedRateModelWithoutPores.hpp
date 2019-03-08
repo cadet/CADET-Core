@@ -259,8 +259,8 @@ protected:
 	{
 	public:
 
-		Exporter(const Discretization& disc, double const* data) : _disc(disc), _idx(disc), _data(data) { }
-		Exporter(const Discretization&& disc, double const* data) = delete;
+		Exporter(const Discretization& disc, const LumpedRateModelWithoutPores& model, double const* data) : _disc(disc), _idx(disc), _model(model), _data(data) { }
+		Exporter(const Discretization&& disc, const LumpedRateModelWithoutPores& model, double const* data) = delete;
 
 		virtual bool hasParticleFlux() const CADET_NOEXCEPT { return false; }
 		virtual bool hasParticleMobilePhase() const CADET_NOEXCEPT { return false; }
@@ -269,7 +269,7 @@ protected:
 
 		virtual unsigned int numComponents() const CADET_NOEXCEPT { return _disc.nComp; }
 		virtual unsigned int numAxialCells() const CADET_NOEXCEPT { return _disc.nCol; }
-		virtual unsigned int numRadialCells() const CADET_NOEXCEPT { return 1u; }
+		virtual unsigned int numRadialCells() const CADET_NOEXCEPT { return 0; }
 		virtual unsigned int numInletPorts() const CADET_NOEXCEPT { return 1; }
 		virtual unsigned int numOutletPorts() const CADET_NOEXCEPT { return 1; }
 		virtual unsigned int numParticleTypes() const CADET_NOEXCEPT { return 1u; }
@@ -325,9 +325,19 @@ protected:
 		virtual unsigned int particleMobilePhaseStride(unsigned int parType) const { return 0; }
 		virtual unsigned int solidPhaseStride(unsigned int parType) const { return _idx.strideColCell(); }
 
+		virtual void axialCoordinates(double* coords) const
+		{
+			const double h = static_cast<double>(_model._convDispOp.columnLength()) / static_cast<double>(_disc.nCol);
+			for (unsigned int i = 0; i < _disc.nCol; ++i)
+				coords[i] = (i + 0.5) * h;
+		}
+		virtual void radialCoordinates(double* coords) const { }
+		virtual void particleCoordinates(unsigned int parType, double* coords) const { }
+
 	protected:
 		const Discretization& _disc;
 		const Indexer _idx;
+		const LumpedRateModelWithoutPores& _model;
 		double const* const _data;
 
 		const std::array<StateOrdering, 2> _concentrationOrdering = { { StateOrdering::AxialCell, StateOrdering::Component } };

@@ -33,6 +33,7 @@ classdef Model < handle & matlab.mixin.Heterogeneous
 	properties
 		hasChangedReturnConfig; % Stores whether the return configuration has changed
 		unitOpIdx; % Index of this unit operation in a system (0-based)
+		returnCoordinates; % Determines whether node coordinates are returned
 		returnSolutionInlet; % Determines whether the solution at the inlet is returned
 		returnSolutionOutlet; % Determines whether the solution at the outlet is returned
 		returnSolutionBulk; % Determines whether the solution in the bulk volume is returned
@@ -75,6 +76,8 @@ classdef Model < handle & matlab.mixin.Heterogeneous
 			obj.unitOpIdx = -1;
 			obj.data = [];
 			obj.data.UNIT_TYPE = obj.name;
+
+			obj.returnCoordinates = true;
 
 			obj.returnSolutionInlet = false;
 			obj.returnSolutionOutlet = true;
@@ -124,6 +127,8 @@ classdef Model < handle & matlab.mixin.Heterogeneous
 			end
 			validateattributes(obj.nComponents, {'numeric'}, {'scalar', 'nonempty', '>=', 1, 'finite', 'real'}, '', 'nComponents');
 			validateattributes(obj.unitOpIdx, {'numeric'}, {'scalar', 'nonempty', '>=', 0, 'finite', 'real'}, '', 'unitOpIdx');
+
+			validateattributes(obj.returnCoordinates, {'logical'}, {'scalar', 'nonempty'}, '', 'returnCoordinates');
 
 			validateattributes(obj.returnSolutionInlet, {'logical'}, {'scalar', 'nonempty'}, '', 'returnSolutionInlet');
 			validateattributes(obj.returnSolutionOutlet, {'logical'}, {'scalar', 'nonempty'}, '', 'returnSolutionOutlet');
@@ -183,6 +188,8 @@ classdef Model < handle & matlab.mixin.Heterogeneous
 
 			res = [];
 
+			res.WRITE_COORDINATES = int32(logical(obj.returnCoordinates));
+
 			res.WRITE_SOLUTION_INLET = int32(logical(obj.returnSolutionInlet));
 			res.WRITE_SOLUTION_OUTLET = int32(logical(obj.returnSolutionOutlet));
 			res.WRITE_SOLUTION_BULK = int32(logical(obj.returnSolutionBulk));
@@ -241,6 +248,8 @@ classdef Model < handle & matlab.mixin.Heterogeneous
 			S.data = obj.data;
 			S.unitOpIdx = obj.unitOpIdx;
 
+			S.returnCoordinates = obj.returnCoordinates;
+
 			S.returnSolutionInlet = obj.returnSolutionInlet;
 			S.returnSolutionOutlet = obj.returnSolutionOutlet;
 			S.returnSolutionBulk = obj.returnSolutionBulk;
@@ -290,6 +299,12 @@ classdef Model < handle & matlab.mixin.Heterogeneous
 
 		function set.hasChanged(obj, val)
 			obj.hasChangedInternal = val;
+		end
+
+		function set.returnCoordinates(obj, val)
+			validateattributes(val, {'logical'}, {'scalar', 'nonempty'}, '', 'returnCoordinates');
+			obj.returnCoordinates = val;
+			obj.hasChangedReturnConfig = true;
 		end
 
 		function set.returnSolutionInlet(obj, val)
@@ -502,6 +517,8 @@ classdef Model < handle & matlab.mixin.Heterogeneous
 			obj.hasChanged = false;
 			obj.data = S.data;
 			obj.unitOpIdx = S.unitOpIdx;
+
+			obj.returnCoordinates = S.returnCoordinates;
 
 			obj.returnSolutionInlet = S.returnSolutionInlet;
 			obj.returnSolutionOutlet = S.returnSolutionOutlet;

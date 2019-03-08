@@ -454,14 +454,14 @@ void LumpedRateModelWithPores::setFlowRates(active const* in, active const* out)
 
 void LumpedRateModelWithPores::reportSolution(ISolutionRecorder& recorder, double const* const solution) const
 {
-	Exporter expr(_disc, solution);
+	Exporter expr(_disc, *this, solution);
 	recorder.beginUnitOperation(_unitOpIdx, *this, expr);
 	recorder.endUnitOperation();
 }
 
 void LumpedRateModelWithPores::reportSolutionStructure(ISolutionRecorder& recorder) const
 {
-	Exporter expr(_disc, nullptr);
+	Exporter expr(_disc, *this, nullptr);
 	recorder.unitOperationStructure(_unitOpIdx, *this, expr);
 }
 
