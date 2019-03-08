@@ -17,8 +17,11 @@ classdef OutletModel < Model
 		name = 'OUTLET'; % Type of the model according to CADET file format specs
 		hasInlet = true; % Determines whether the unit operation has an inlet
 		hasOutlet = false; % Determines whether the unit operation has an outlet
-		nInletPorts = 1; % Number of inlet ports
-		nOutletPorts = 0; % Number of outlet ports
+	end
+
+	properties(Dependent, Transient)
+		nInletPorts; % Number of inlet ports
+		nOutletPorts; % Number of outlet ports
 	end
 
 	methods
@@ -27,6 +30,14 @@ classdef OutletModel < Model
 			%OUTLETMODEL Constructs an OutletModel object
 
 			obj = obj@Model();
+		end
+
+		function val = get.nInletPorts(obj)
+			val = 1;
+		end
+
+		function val = get.nOutletPorts(obj)
+			val = 0;
 		end
 		
 		function S = saveobj(obj)

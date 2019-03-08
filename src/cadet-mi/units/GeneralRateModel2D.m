@@ -1,11 +1,11 @@
 
-classdef GeneralRateModel < Model
-	%GeneralRateModel Represents the general rate model of liquid column chromatography
+classdef GeneralRateModel2D < Model
+	%GeneralRateModel2D Represents the 2D general rate model of liquid column chromatography
 	%   Holds all model specific parameters (e.g., interstitial velocity, dispersion, etc.) which are necessary
 	%   for a CADET simulation. This class is mainly concerned with the transport model. Binding is handled by a
 	%   binding model class.
 	%
-	% See also MODEL, SINGLEGRM, MODELSYSTEM
+	% See also MODEL, SINGLEGRM2D, MODELSYSTEM
 	
 	% Copyright: (C) 2008-2019 The CADET Authors
 	%            See the license note at the end of the file.
@@ -19,8 +19,12 @@ classdef GeneralRateModel < Model
 		% Discretization
 
 		nCellsColumn; % Number of axial cells in the column
+		nCellsRadial; % Number of radial cells in the column
 		nCellsParticle; % Number of radial cells in the particle
 		nBoundStates; % Number of bound states for each component
+
+		radialDiscretizationType; % Type of radial discretization (e.g., equivolume)
+		radialCellPosition; % Positions of the cells in the radial direction (between 0 and columnRadius)
 
 		particleDiscretizationType; % Type of particle discretization (e.g., equivolume)
 		particleCellPosition; % Positions of the cells in the particle (dimensionless, between 0 and 1)
@@ -35,8 +39,12 @@ classdef GeneralRateModel < Model
 
 		% Transport
 		
-		dispersionColumn; % Dispersion coefficient of the mobile phase transport inside the column in [m^2_IV / s]
-		interstitialVelocity; % Interstitial velocity of the mobile phase transport inside the column in [m_IV / s]
+		dispersionColumn; % Axial dispersion coefficient of the mobile phase transport inside the column in [m^2_IV / s]
+		dispersionColumnMultiplexMode; % Multiplex mode of dispersionColumn
+		dispersionColumnRadial; % Radial dispersion coefficient of the mobile phase transport inside the column in [m^2_IV / s]
+		dispersionColumnRadialMultiplexMode; % Multiplex mode of dispersionColumnRadial
+		interstitialVelocity; % Indicates direction of flow [m_IV / s]
+		interstitialVelocityMultiplexMode; % Multiplex mode of interstitialVelocity
 
 		filmDiffusion; % Film diffusion coefficient in [m / s]
 		diffusionParticle; % Diffusion coefficient of the mobile phase components inside the particle in [m^2_MP / s]
@@ -49,10 +57,11 @@ classdef GeneralRateModel < Model
 		poreAccessibility; % Pore accessibility
 
 		columnLength; % Length of the column in [m]
+		columnRadius; % Radius of the column in [m]
 		particleRadius; % Radius of the particles in [m]
 		particleCoreRadius; % Core radius of the particle in [m]
-		crossSectionArea; % Cross section area of the column in [m]
 		particleTypeVolumeFractions; % Volume fractions of particle types
+		particleTypeVolumeFractionsMultiplexMode; % Multiplex mode of particleTypeVolumeFractions
 
 		% Numerical method for advection
 		
@@ -67,23 +76,24 @@ classdef GeneralRateModel < Model
 		maxKrylovSize; % Maximum size of the Krylov subspace
 		maxRestarts; % Maximum number of restarts in GMRES
 		schurSafetyTol; % Schur-complement safety error tolerance
+		linearSolverBulk; % Linear solver used for the column bulk block
 	end
 
-	properties(Dependent, Transient)
+	properties (Dependent, Transient)
 		nInletPorts; % Number of inlet ports
 		nOutletPorts; % Number of outlet ports
 	end
-
+	
 	properties (Constant)
-		name = 'GENERAL_RATE_MODEL'; % Type of the model according to CADET file format specs
+		name = 'GENERAL_RATE_MODEL_2D'; % Type of the model according to CADET file format specs
 		hasInlet = true; % Determines whether the unit operation has an inlet
 		hasOutlet = true; % Determines whether the unit operation has an outlet
 	end
 
 	methods
 		
-		function obj = GeneralRateModel()
-			%GENERALRATEMODEL Constructs a GeneralRateModel object and inserts as much default values as possible
+		function obj = GeneralRateModel2D()
+			%GENERALRATEMODEL2D Constructs a GeneralRateModel2D object and inserts as much default values as possible
 
 			obj = obj@Model();
 			obj.data.discretization = [];
@@ -97,6 +107,9 @@ classdef GeneralRateModel < Model
 			obj.useAnalyticJacobian = true;
 			obj.particleCellPosition = [];
 			obj.particleDiscretizationType = 'EQUIDISTANT_PAR';
+
+			obj.radialCellPosition = [];
+			obj.radialDiscretizationType = 'EQUIDISTANT';
 
 			obj.reconstructionType = 'WENO';
 			obj.wenoBoundaryHandling = 0; % Decrease order of WENO scheme at boundary
@@ -119,6 +132,16 @@ classdef GeneralRateModel < Model
 		function set.nCellsColumn(obj, val)
 			validateattributes(val, {'numeric'}, {'scalar', 'nonempty', '>=', 1, 'finite', 'real'}, '', 'nCellsColumn');
 			obj.data.discretization.NCOL = int32(val);
+			obj.hasChanged = true;
+		end
+
+		function val = get.nCellsRadial(obj)
+			val = double(obj.data.discretization.NRAD);
+		end
+
+		function set.nCellsRadial(obj, val)
+			validateattributes(val, {'numeric'}, {'scalar', 'nonempty', '>=', 1, 'finite', 'real'}, '', 'nCellsRadial');
+			obj.data.discretization.NRAD = int32(val);
 			obj.hasChanged = true;
 		end
 
@@ -170,6 +193,39 @@ classdef GeneralRateModel < Model
 			else
 				if isfield(obj.data.discretization, 'PAR_DISC_VECTOR')
 					obj.data.discretization = rmfield(obj.data.discretization, 'PAR_DISC_VECTOR');
+				end
+			end
+			obj.hasChanged = true;
+		end
+
+		function val = get.radialDiscretizationType(obj)
+			val = obj.data.discretization.RADIAL_DISC_TYPE;
+		end
+
+		function set.radialDiscretizationType(obj, val)
+			if iscell(val)
+				obj.data.discretization.RADIAL_DISC_TYPE = cellfun(@(s) validatestring(s, {'EQUIDISTANT', 'EQUIVOLUME', 'USER_DEFINED'}, '', 'radialDiscretizationType'), val, 'UniformOutput', false);
+			else
+				obj.data.discretization.RADIAL_DISC_TYPE = {validatestring(val, {'EQUIDISTANT', 'EQUIVOLUME', 'USER_DEFINED'}, '', 'radialDiscretizationType')};
+			end
+			obj.hasChanged = true;
+		end
+
+		function val = get.radialCellPosition(obj)
+			if ~isfield(obj.data.discretization, 'RADIAL_COMPARTMENTS')
+				val = [];
+			else
+				val = obj.data.discretization.RADIAL_COMPARTMENTS;
+			end
+		end
+		
+		function set.radialCellPosition(obj, val)
+			if ~isempty(val)
+				validateattributes(val, {'double'}, {'vector', 'increasing', '>=', 0.0, '<=', obj.columnRadius, 'finite', 'real'}, '', 'radialCellPosition');
+				obj.data.discretization.RADIAL_COMPARTMENTS = val;
+			else
+				if isfield(obj.data.discretization, 'RADIAL_COMPARTMENTS')
+					obj.data.discretization = rmfield(obj.data.discretization, 'RADIAL_COMPARTMENTS');
 				end
 			end
 			obj.hasChanged = true;
@@ -261,6 +317,52 @@ classdef GeneralRateModel < Model
 			obj.hasChanged = true;
 		end
 
+		function val = get.dispersionColumnMultiplexMode(obj)
+			if isfield(obj.data, 'COL_DISPERSION_MULTIPLEX')
+				val = double(obj.data.COL_DISPERSION_MULTIPLEX);
+			else
+				val = [];
+			end
+		end
+
+		function set.dispersionColumnMultiplexMode(obj, val)
+			if isempty(val)
+				obj.data = rmfield(obj.data, 'COL_DISPERSION_MULTIPLEX');
+			else
+				validateattributes(val, {'double'}, {'nonnegative', 'scalar', 'nonempty', 'finite', 'real', '>=', 0, '<=', 7}, '', 'dispersionColumnMultiplexMode');
+				obj.data.COL_DISPERSION_MULTIPLEX = int32(val);
+			end
+			obj.hasChanged = true;
+		end
+
+		function val = get.dispersionColumnRadial(obj)
+			val = obj.data.COL_DISPERSION_RADIAL;
+		end
+
+		function set.dispersionColumnRadial(obj, val)
+			validateattributes(val, {'double'}, {'nonnegative', 'vector', 'nonempty', 'finite', 'real'}, '', 'dispersionColumnRadial');
+			obj.data.COL_DISPERSION_RADIAL = val(:);
+			obj.hasChanged = true;
+		end
+
+		function val = get.dispersionColumnRadialMultiplexMode(obj)
+			if isfield(obj.data, 'COL_DISPERSION_RADIAL_MULTIPLEX')
+				val = double(obj.data.COL_DISPERSION_RADIAL_MULTIPLEX);
+			else
+				val = [];
+			end
+		end
+
+		function set.dispersionColumnRadialMultiplexMode(obj, val)
+			if isempty(val)
+				obj.data = rmfield(obj.data, 'COL_DISPERSION_RADIAL_MULTIPLEX');
+			else
+				validateattributes(val, {'double'}, {'nonnegative', 'scalar', 'nonempty', 'finite', 'real', '>=', 0, '<=', 7}, '', 'dispersionColumnRadialMultiplexMode');
+				obj.data.COL_DISPERSION_RADIAL_MULTIPLEX = int32(val);
+			end
+			obj.hasChanged = true;
+		end
+
 		function val = get.interstitialVelocity(obj)
 			if isfield(obj.data, 'VELOCITY')
 				val = obj.data.VELOCITY;
@@ -275,6 +377,24 @@ classdef GeneralRateModel < Model
 			else
 				validateattributes(val, {'double'}, {'positive', 'vector', 'nonempty', 'finite', 'real'}, '', 'interstitialVelocity');
 				obj.data.VELOCITY = val(:);
+			end
+			obj.hasChanged = true;
+		end
+
+		function val = get.interstitialVelocityMultiplexMode(obj)
+			if isfield(obj.data, 'VELOCITY_MULTIPLEX')
+				val = double(obj.data.VELOCITY_MULTIPLEX);
+			else
+				val = [];
+			end
+		end
+
+		function set.interstitialVelocityMultiplexMode(obj, val)
+			if isempty(val)
+				obj.data = rmfield(obj.data, 'VELOCITY_MULTIPLEX');
+			else
+				validateattributes(val, {'double'}, {'nonnegative', 'scalar', 'nonempty', 'finite', 'real', '>=', 0, '<=', 3}, '', 'interstitialVelocityMultiplexMode');
+				obj.data.VELOCITY_MULTIPLEX = int32(val);
 			end
 			obj.hasChanged = true;
 		end
@@ -333,8 +453,8 @@ classdef GeneralRateModel < Model
 		end
 
 		function set.porosityColumn(obj, val)
-			validateattributes(val, {'double'}, {'scalar', 'nonempty', '>=', 0.0, '<=', 1.0, 'finite', 'real'}, '', 'porosityColumn');
-			obj.data.COL_POROSITY = val;
+			validateattributes(val, {'double'}, {'vector', 'nonempty', '>', 0.0, '<=', 1.0, 'finite', 'real'}, '', 'porosityColumn');
+			obj.data.COL_POROSITY = val(:);
 			obj.hasChanged = true;
 		end
 
@@ -343,7 +463,7 @@ classdef GeneralRateModel < Model
 		end
 
 		function set.porosityParticle(obj, val)
-			validateattributes(val, {'double'}, {'vector', 'nonempty', '>=', 0.0, '<=', 1.0, 'finite', 'real'}, '', 'porosityParticle');
+			validateattributes(val, {'double'}, {'vector', 'nonempty', '>', 0.0, '<=', 1.0, 'finite', 'real'}, '', 'porosityParticle');
 			obj.data.PAR_POROSITY = val;
 			obj.hasChanged = true;
 		end
@@ -379,6 +499,16 @@ classdef GeneralRateModel < Model
 			obj.hasChanged = true;
 		end
 
+		function val = get.columnRadius(obj)
+			val = obj.data.COL_RADIUS;
+		end
+
+		function set.columnRadius(obj, val)
+			validateattributes(val, {'double'}, {'positive', 'scalar', 'nonempty', 'finite', 'real'}, '', 'columnRadius');
+			obj.data.COL_RADIUS = val;
+			obj.hasChanged = true;
+		end
+
 		function val = get.particleRadius(obj)
 			val = obj.data.PAR_RADIUS;
 		end
@@ -399,24 +529,6 @@ classdef GeneralRateModel < Model
 			obj.hasChanged = true;
 		end
 
-		function val = get.crossSectionArea(obj)
-			if isfield(obj.data, 'CROSS_SECTION_AREA')
-				val = obj.data.CROSS_SECTION_AREA;
-			else
-				val = [];
-			end
-		end
-
-		function set.crossSectionArea(obj, val)
-			if isempty(val)
-				obj.data = rmfield(obj.data, 'CROSS_SECTION_AREA');
-			else
-				validateattributes(val, {'double'}, {'positive', 'scalar', 'nonempty', 'finite', 'real'}, '', 'crossSectionArea');
-				obj.data.CROSS_SECTION_AREA = val;
-			end
-			obj.hasChanged = true;
-		end
-
 		function val = get.particleTypeVolumeFractions(obj)
 			val = obj.data.PAR_TYPE_VOLFRAC;
 		end
@@ -424,6 +536,24 @@ classdef GeneralRateModel < Model
 		function set.particleTypeVolumeFractions(obj, val)
 			validateattributes(val, {'double'}, {'vector', 'nonempty', '>=', 0.0, '<=', 1.0, 'finite', 'real'}, '', 'particleTypeVolumeFractions');
 			obj.data.PAR_TYPE_VOLFRAC = val;
+			obj.hasChanged = true;
+		end
+
+		function val = get.particleTypeVolumeFractionsMultiplexMode(obj)
+			if isfield(obj.data, 'PAR_TYPE_VOLFRAC_MULTIPLEX')
+				val = double(obj.data.PAR_TYPE_VOLFRAC_MULTIPLEX);
+			else
+				val = [];
+			end
+		end
+
+		function set.particleTypeVolumeFractionsMultiplexMode(obj, val)
+			if isempty(val)
+				obj.data = rmfield(obj.data, 'PAR_TYPE_VOLFRAC_MULTIPLEX');
+			else
+				validateattributes(val, {'double'}, {'nonnegative', 'scalar', 'nonempty', 'finite', 'real', '>=', 0, '<=', 3}, '', 'particleTypeVolumeFractionsMultiplexMode');
+				obj.data.PAR_TYPE_VOLFRAC_MULTIPLEX = int32(val);
+			end
 			obj.hasChanged = true;
 		end
 
@@ -510,10 +640,19 @@ classdef GeneralRateModel < Model
 			obj.hasChanged = true;
 		end
 
+		function val = get.linearSolverBulk(obj)
+			val = obj.data.discretization.LINEAR_SOLVER_BULK;
+		end
+
+		function set.linearSolverBulk(obj, val)
+			obj.data.discretization.LINEAR_SOLVER_BULK = validatestring(val, {'DENSE', 'UMFPACK'}, '', 'linearSolverBulk');
+			obj.hasChanged = true;
+		end
+
 		function set.bindingModel(obj, val)
 			for i = 1:numel(val)
 				if ~isempty(val(i)) && ~isa(val(i), 'BindingModel')
-					error('CADET:invalidConfig', sprintf('Expected a valid binding model at index %d.', i));
+					error('CADET:invalidConfig', 'Expected a valid binding model at index %d.', i);
 				end
 			end
 			obj.bindingModel = val;
@@ -521,13 +660,12 @@ classdef GeneralRateModel < Model
 		end
 
 		function val = get.nInletPorts(obj)
-			val = 1;
+			val = double(obj.data.discretization.NRAD);
 		end
 
 		function val = get.nOutletPorts(obj)
-			val = 1;
+			val = double(obj.data.discretization.NRAD);
 		end
-
 
 		function S = saveobj(obj)
 			S = obj.saveobj@Model();
@@ -558,8 +696,8 @@ classdef GeneralRateModel < Model
 			if ~isfield(obj.data, 'COL_DISPERSION')
 				error('CADET:invalidConfig', 'Property dispersionColumn must be set.');
 			end
-			if (~isfield(obj.data, 'VELOCITY')) && (~isfield(obj.data, 'CROSS_SECTION_AREA'))
-				error('CADET:invalidConfig', 'Property interstitialVelocity or crossSectionArea must be set.');
+			if ~isfield(obj.data, 'COL_DISPERSION_RADIAL')
+				error('CADET:invalidConfig', 'Property dispersionColumn must be set.');
 			end
 			if ~isfield(obj.data, 'FILM_DIFFUSION')
 				error('CADET:invalidConfig', 'Property filmDiffusion must be set.');
@@ -579,12 +717,16 @@ classdef GeneralRateModel < Model
 			if ~isfield(obj.data, 'COL_LENGTH')
 				error('CADET:invalidConfig', 'Property columnLength must be set.');
 			end
+			if ~isfield(obj.data, 'COL_RADIUS')
+				error('CADET:invalidConfig', 'Property columnLength must be set.');
+			end
 			if ~isfield(obj.data, 'PAR_RADIUS')
 				error('CADET:invalidConfig', 'Property particleRadius must be set.');
 			end
 
 
 			validateattributes(obj.nCellsColumn, {'numeric'}, {'scalar', 'nonempty', '>=', 1, 'finite', 'real'}, '', 'nCellsColumn');
+			validateattributes(obj.nCellsRadial, {'numeric'}, {'scalar', 'nonempty', '>=', 1, 'finite', 'real'}, '', 'nCellsRadial');
 			validateattributes(obj.nCellsParticle, {'numeric'}, {'vector', 'nonempty', '>=', 1, 'finite', 'real'}, '', 'nCellsParticle');
 
 			nParType = numel(obj.nCellsParticle);
@@ -599,6 +741,13 @@ classdef GeneralRateModel < Model
 				end
 			end
 
+			if strcmp(obj.radialDiscretizationType, 'USER_DEFINED')
+				validateattributes(obj.radialCellPosition, {'double'}, {'vector', 'increasing', '>=', 0.0, '<=', obj.columnRadius, 'numel', obj.nCellsRadial + 1, 'finite', 'real'}, '', 'radialCellPosition');
+				if (obj.radialCellPosition(1) ~= 0) || (obj.radialCellPosition(end) ~= obj.columnRadius)
+					error('CADET:invalidConfig', 'Expected radialCellPosition to start with 0 and end with %g (columnRadius).', obj.columnRadius);
+				end
+			end
+
 			validateattributes(obj.initialBulk, {'double'}, {'nonnegative', 'vector', 'numel', obj.nComponents, 'finite', 'real'}, '', 'initialBulk');
 			if ~isempty(obj.initialParticle)
 				validateattributes(obj.initialParticle, {'double'}, {'nonnegative', 'vector', 'numel', obj.nComponents * nParType, 'finite', 'real'}, '', 'initialParticle');
@@ -607,19 +756,24 @@ classdef GeneralRateModel < Model
 				validateattributes(obj.initialSolid, {'double'}, {'nonnegative', 'vector', 'numel', sum(obj.nBoundStates), 'finite', 'real'}, '', 'initialSolid');
 			end
 			if ~isempty(obj.initialState)
-				nDof = obj.nCellsColumn * obj.nComponents * (1 + nParType) + obj.nCellsColumn * (obj.nCellsParticle(:).' * (obj.nComponents .* ones(nParType, 1) + kron(eye(nParType), ones(1, obj.nComponents)) * obj.nBoundStates(:)));
+				nDof = obj.nCellsColumn * obj.nCellsRadial * obj.nComponents * (1 + nParType) + obj.nCellsColumn * obj.nCellsRadial * (obj.nCellsParticle(:).' * (obj.nComponents .* ones(nParType, 1) + kron(eye(nParType), ones(1, obj.nComponents)) * obj.nBoundStates(:)));
 				if (numel(obj.initialState) ~= nDof) && (numel(obj.initialState) ~= 2 * nDof)
 					error('CADET:invalidConfig', 'Expected initialState to be of size %d or %d.', nDof, 2*nDof);
 				end
 			end
 
 			nTotalBnd = sum(obj.nBoundStates);
-			if (numel(obj.dispersionColumn) ~= 1) && (numel(obj.dispersionColumn) ~= nSections) && (numel(obj.dispersionColumn) ~= nComponents) && (numel(obj.dispersionColumn) ~= nComponents * nSections)
-				error('CADET:invalidConfig', 'Expected dispersionColumn to be of size %d, %d, %d, or %d.', 1, nComponents, nSections, nComponents * nSections);
+			if ~any(numel(obj.dispersionColumn) == [1, nSections, obj.nComponents, obj.nCellsRadial, nSections * obj.nCellsRadial, nSections * obj.nComponents, nSections * obj.nCellsRadial * obj.nComponents])
+				error('CADET:invalidConfig', 'Expected dispersionColumn to be of size %d, %d, %d, %d, %d, %d, or %d.', ...
+					1, nSections, obj.nComponents, obj.nCellsRadial, nSections * obj.nCellsRadial, nSections * obj.nComponents, nSections * obj.nCellsRadial * obj.nComponents);
+			end
+			if ~any(numel(obj.dispersionColumnRadial) == [1, nSections, obj.nComponents, obj.nCellsRadial, nSections * obj.nCellsRadial, nSections * obj.nComponents, nSections * obj.nCellsRadial * obj.nComponents])
+				error('CADET:invalidConfig', 'Expected dispersionColumn to be of size %d, %d, %d, %d, %d, %d, or %d.', ...
+					1, nSections, obj.nComponents, obj.nCellsRadial, nSections * obj.nCellsRadial, nSections * obj.nComponents, nSections * obj.nCellsRadial * obj.nComponents);
 			end
 			if ~isempty(obj.interstitialVelocity)
-				if (numel(obj.interstitialVelocity) ~= 1) && (numel(obj.interstitialVelocity) ~= nSections)
-					error('CADET:invalidConfig', 'Expected interstitialVelocity to be of size %d or %d (number of time sections).', 1, nSections);
+				if ~any(numel(obj.interstitialVelocity) == [1, nSections, obj.nCellsRadial, nSections * obj.nCellsRadial])
+					error('CADET:invalidConfig', 'Expected interstitialVelocity to be of size %d, %d, %d, or %d.', 1, nSections, obj.nCellsRadial, nSections * obj.nCellsRadial);
 				end
 			end
 			if (numel(obj.filmDiffusion) ~= obj.nComponents * nParType) && (numel(obj.filmDiffusion) ~= nSections * obj.nComponents * nParType)
@@ -632,9 +786,13 @@ classdef GeneralRateModel < Model
 				error('CADET:invalidConfig', 'Expected diffusionParticleSurface to be of size %d (number of bound states) or %d (number of time sections * number of bound states).', nTotalBnd, nSections * nTotalBnd);
 			end
 
-			validateattributes(obj.porosityColumn, {'double'}, {'scalar', 'nonempty', '>=', 0.0, '<=', 1.0, 'finite', 'real'}, '', 'porosityColumn');
-			validateattributes(obj.porosityParticle, {'double'}, {'vector', 'nonempty', 'numel', nParType, '>=', 0.0, '<=', 1.0, 'finite', 'real'}, '', 'porosityParticle');
+			validateattributes(obj.porosityColumn, {'double'}, {'vector', 'nonempty', '>', 0.0, '<=', 1.0, 'finite', 'real'}, '', 'porosityColumn');
+			if (numel(obj.porosityColumn) ~= 1) && (numel(obj.porosityColumn) ~= obj.nCellsRadial)
+				error('CADET:invalidConfig', 'Expected porosityColumn to be of size %d or %d (number of radial zones).', 1, obj.nCellsRadial);
+			end
+			validateattributes(obj.porosityParticle, {'double'}, {'vector', 'nonempty', 'numel', nParType, '>', 0.0, '<=', 1.0, 'finite', 'real'}, '', 'porosityParticle');
 			validateattributes(obj.columnLength, {'double'}, {'positive', 'scalar', 'nonempty', 'finite', 'real'}, '', 'columnLength');
+			validateattributes(obj.columnRadius, {'double'}, {'positive', 'scalar', 'nonempty', 'finite', 'real'}, '', 'columnRadius');
 			validateattributes(obj.particleRadius, {'double'}, {'positive', 'vector', 'numel', nParType, 'nonempty', 'finite', 'real'}, '', 'particleRadius');
 			validateattributes(obj.particleCoreRadius, {'double'}, {'vector', 'numel', nParType, 'nonempty', '>=', 0.0, 'finite', 'real'}, '', 'particleCoreRadius');
 			if any(obj.particleCoreRadius >= obj.particleRadius)
@@ -644,12 +802,12 @@ classdef GeneralRateModel < Model
 				validateattributes(obj.poreAccessibility, {'double'}, {'vector', 'numel', obj.nComponents * nParType, '>=', 0.0, '<=', 1.0, 'finite', 'real'}, '', 'poreAccessibility');
 			end
 			validateattributes(obj.particleTypeVolumeFractions, {'double'}, {'vector', 'nonempty', '>=', 0.0, '<=', 1.0, 'finite', 'real'}, '', 'particleTypeVolumeFractions');
-			if (numel(obj.particleTypeVolumeFractions) ~= nParType) && (numel(obj.particleTypeVolumeFractions) ~= obj.nCellsColumn * nParType)
-				error('CADET:invalidConfig', 'Expected particleTypeVolumeFractions to be of size %d (number of particle types) or %d (number of axial cells * number of particle types).', nParType, obj.nCellsColumn * nParType);
+			if ~any(numel(obj.particleTypeVolumeFractions) == [nParType, nParType * obj.nCellsRadial, nParType * obj.nCellsColumn, nParType * obj.nCellsRadial * obj.nCellsColumn])
+				error('CADET:invalidConfig', 'Expected particleTypeVolumeFractions to be of size %d, %d, %d, or %d.', nParType, nParType * obj.nCellsRadial, nParType * obj.nCellsColumn, nParType * obj.nCellsRadial * obj.nCellsColumn);
 			end
 			sumFracs = arrayfun(@(idx) sum(obj.particleTypeVolumeFractions(((idx-1) * nParType + 1):(idx * nParType))), 1:(numel(obj.particleTypeVolumeFractions) / nParType));
 			if any(abs(sumFracs - 1.0) >= 1e-10)
-				error('CADET:invalidConfig', 'Expected particleTypeVolumeFractions to sum to 1.0.');
+				error('CADET:invalidConfig', 'Expected particleTypeVolumeFractions to sum to 1.0 for each cell.');
 			end
 
 			for i = 1:numel(obj.bindingModel)
@@ -759,8 +917,58 @@ classdef GeneralRateModel < Model
 				if (param.SENS_PARTYPE ~= -1)
 					offset = offset + param.SENS_PARTYPE;
 				end
-				if (param.SENS_SECTION > 0)
-					offset = offset + param.SENS_SECTION * numel(obj.nCellsParticle);
+				if ((param.SENS_SECTION >= 0) && (param.SENS_REACTION >= 0))
+					offset = offset + param.SENS_SECTION * numel(obj.nCellsParticle) * obj.nCellsRadial + param.SENS_REACTION * numel(obj.nCellsParticle);
+				else
+					if (param.SENS_SECTION >= 0)
+						offset = offset + param.SENS_SECTION * numel(obj.nCellsParticle);
+					elseif (param.SENS_REACTION >= 0)
+						offset = offset + param.SENS_REACTION * numel(obj.nCellsParticle);
+					end
+				end
+			elseif (strcmp(param.SENS_NAME, 'COL_DISPERSION') || strcmp(param.SENS_NAME, 'COL_DISPERSION_RADIAL'))
+				if (param.SENS_SECTION ~= -1)
+					if (param.SENS_PARTYPE ~= -1)
+						if (param.SENS_COMP ~= -1)
+							offset = param.SENS_SECTION * obj.nComponents * obj.nCellsRadial + param.SENS_PARTYPE * obj.nComponents + param.SENS_COMP;
+						else
+							offset = param.SENS_SECTION * obj.nCellsRadial + param.SENS_PARTYPE;
+						end
+					else
+						if (param.SENS_COMP ~= -1)
+							offset = param.SENS_SECTION * obj.nComponents + param.SENS_COMP;
+						else
+							offset = param.SENS_SECTION;
+						end
+					end
+				else
+					if (param.SENS_PARTYPE ~= -1)
+						if (param.SENS_COMP ~= -1)
+							offset = param.SENS_PARTYPE * obj.nComponents + param.SENS_COMP;
+						else
+							offset = param.SENS_PARTYPE;
+						end
+					else
+						if (param.SENS_COMP ~= -1)
+							offset = param.SENS_COMP;
+						else
+							offset = 0;
+						end
+					end
+				end
+			elseif (strcmp(param.SENS_NAME, 'VELOCITY'))
+				if (param.SENS_SECTION ~= -1)
+					if (param.SENS_PARTYPE ~= -1)
+						offset = param.SENS_SECTION * obj.nCellsRadial + param.SENS_PARTYPE;
+					else
+						offset = param.SENS_SECTION;
+					end
+				else
+					if (param.SENS_PARTYPE ~= -1)
+						offset = param.SENS_PARTYPE;
+					else
+						offset = 0;
+					end
 				end
 			else
 				if (param.SENS_SECTION ~= -1)
@@ -850,8 +1058,58 @@ classdef GeneralRateModel < Model
 				if (param.SENS_PARTYPE ~= -1)
 					offset = offset + param.SENS_PARTYPE;
 				end
-				if (param.SENS_SECTION > 0)
-					offset = offset + param.SENS_SECTION * numel(obj.nCellsParticle);
+				if ((param.SENS_SECTION >= 0) && (param.SENS_REACTION >= 0))
+					offset = offset + param.SENS_SECTION * numel(obj.nCellsParticle) * obj.nCellsRadial + param.SENS_REACTION * numel(obj.nCellsParticle);
+				else
+					if (param.SENS_SECTION >= 0)
+						offset = offset + param.SENS_SECTION * numel(obj.nCellsParticle);
+					elseif (param.SENS_REACTION >= 0)
+						offset = offset + param.SENS_REACTION * numel(obj.nCellsParticle);
+					end
+				end
+			elseif (strcmp(param.SENS_NAME, 'COL_DISPERSION') || strcmp(param.SENS_NAME, 'COL_DISPERSION_RADIAL'))
+				if (param.SENS_SECTION ~= -1)
+					if (param.SENS_PARTYPE ~= -1)
+						if (param.SENS_COMP ~= -1)
+							offset = param.SENS_SECTION * obj.nComponents * obj.nCellsRadial + param.SENS_PARTYPE * obj.nComponents + param.SENS_COMP;
+						else
+							offset = param.SENS_SECTION * obj.nCellsRadial + param.SENS_PARTYPE;
+						end
+					else
+						if (param.SENS_COMP ~= -1)
+							offset = param.SENS_SECTION * obj.nComponents + param.SENS_COMP;
+						else
+							offset = param.SENS_SECTION;
+						end
+					end
+				else
+					if (param.SENS_PARTYPE ~= -1)
+						if (param.SENS_COMP ~= -1)
+							offset = param.SENS_PARTYPE * obj.nComponents + param.SENS_COMP;
+						else
+							offset = param.SENS_PARTYPE;
+						end
+					else
+						if (param.SENS_COMP ~= -1)
+							offset = param.SENS_COMP;
+						else
+							offset = 0;
+						end
+					end
+				end
+			elseif (strcmp(param.SENS_NAME, 'VELOCITY'))
+				if (param.SENS_SECTION ~= -1)
+					if (param.SENS_PARTYPE ~= -1)
+						offset = param.SENS_SECTION * obj.nCellsRadial + param.SENS_PARTYPE;
+					else
+						offset = param.SENS_SECTION;
+					end
+				else
+					if (param.SENS_PARTYPE ~= -1)
+						offset = param.SENS_PARTYPE;
+					else
+						offset = 0;
+					end
 				end
 			else
 				if (param.SENS_SECTION ~= -1)
@@ -949,7 +1207,7 @@ classdef GeneralRateModel < Model
 
 		function obj = loadobj(S)
 			if isstruct(S)
-				obj = GeneralRateModel();
+				obj = GeneralRateModel2D();
 				obj.loadobjInternal(S);
 			end
 		end

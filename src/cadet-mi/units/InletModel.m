@@ -14,8 +14,11 @@ classdef (Abstract) InletModel < Model
 		name = 'INLET'; % Type of the model according to CADET file format specs
 		hasInlet = false; % Determines whether the unit operation has an inlet
 		hasOutlet = true; % Determines whether the unit operation has an outlet
-		nInletPorts = 0; % Number of inlet ports
-		nOutletPorts = 1; % Number of outlet ports
+	end
+
+	properties(Dependent, Transient)
+		nInletPorts; % Number of inlet ports
+		nOutletPorts; % Number of outlet ports
 	end
 
 	methods
@@ -54,6 +57,14 @@ classdef (Abstract) InletModel < Model
 			%   NOTIFYSYNC() resets the HASCHANGED property.
 
 			obj.notifySync@Model();
+		end
+
+		function val = get.nInletPorts(obj)
+			val = 0;
+		end
+
+		function val = get.nOutletPorts(obj)
+			val = 1;
 		end
 
 	end

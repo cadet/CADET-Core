@@ -61,13 +61,16 @@ classdef LumpedRateModelWithPores < Model
 		maxRestarts; % Maximum number of restarts in GMRES
 		schurSafetyTol; % Schur-complement safety error tolerance
 	end
-	
+
+	properties(Dependent, Transient)
+		nInletPorts; % Number of inlet ports
+		nOutletPorts; % Number of outlet ports
+	end
+
 	properties (Constant)
 		name = 'LUMPED_RATE_MODEL_WITH_PORES'; % Type of the model according to CADET file format specs
 		hasInlet = true; % Determines whether the unit operation has an inlet
 		hasOutlet = true; % Determines whether the unit operation has an outlet
-		nInletPorts = 1; % Number of inlet ports
-		nOutletPorts = 1; % Number of outlet ports
 	end
 
 	methods
@@ -419,6 +422,14 @@ classdef LumpedRateModelWithPores < Model
 			end
 			obj.bindingModel = val;
 			obj.hasChanged = true;
+		end
+
+		function val = get.nInletPorts(obj)
+			val = 1;
+		end
+
+		function val = get.nOutletPorts(obj)
+			val = 1;
 		end
 
 
