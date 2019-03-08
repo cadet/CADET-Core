@@ -633,6 +633,8 @@ protected:
 	inline void validateConfig(const ISolutionExporter& exporter, StorageConfig& cfg)
 	{
 		// Only store fields that really exist
+		cfg.storeOutlet = (exporter.numOutletPorts() > 0) && cfg.storeOutlet;
+		cfg.storeInlet = (exporter.numInletPorts() > 0) && cfg.storeInlet;
 		cfg.storeParticle = exporter.hasParticleMobilePhase() && cfg.storeParticle;
 		cfg.storeSolid = exporter.hasSolidPhase() && cfg.storeSolid;
 		cfg.storeFlux = exporter.hasParticleFlux() && cfg.storeFlux;
