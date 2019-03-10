@@ -110,7 +110,7 @@ public:
 	 * @param [in] nComp Number of components
 	 * @param [in] nBoundStates Array with number of bound states for each component
 	 */
-	inline void registerParameters(std::unordered_map<ParameterId, active*>& parameters, unsigned int unitOpIdx, unsigned int parTypeIdx, unsigned int nComp, unsigned int const* nBoundStates)
+	inline void registerParameters(std::unordered_map<ParameterId, active*>& parameters, UnitOpIdx unitOpIdx, ParticleTypeIdx parTypeIdx, unsigned int nComp, unsigned int const* nBoundStates)
 	{
 		_kA.registerParam("LIN_KA", parameters, unitOpIdx, parTypeIdx, nComp, nBoundStates);
 		_kD.registerParam("LIN_KD", parameters, unitOpIdx, parTypeIdx, nComp, nBoundStates);
@@ -241,7 +241,7 @@ public:
 	 * @param [in] nComp Number of components
 	 * @param [in] nBoundStates Array with number of bound states for each component
 	 */
-	inline void registerParameters(std::unordered_map<ParameterId, active*>& parameters, unsigned int unitOpIdx, unsigned int parTypeIdx, unsigned int nComp, unsigned int const* nBoundStates)
+	inline void registerParameters(std::unordered_map<ParameterId, active*>& parameters, UnitOpIdx unitOpIdx, ParticleTypeIdx parTypeIdx, unsigned int nComp, unsigned int const* nBoundStates)
 	{
 		_kA.registerParam("LIN_KA", parameters, unitOpIdx, parTypeIdx, nComp, nBoundStates);
 		_kD.registerParam("LIN_KD", parameters, unitOpIdx, parTypeIdx, nComp, nBoundStates);
@@ -409,7 +409,7 @@ public:
 		return true;
 	}
 
-	virtual bool configure(IParameterProvider& paramProvider, unsigned int unitOpIdx, unsigned int parTypeIdx)
+	virtual bool configure(IParameterProvider& paramProvider, UnitOpIdx unitOpIdx, ParticleTypeIdx parTypeIdx)
 	{
 		_parameters.clear();
 
@@ -425,7 +425,7 @@ public:
 		return true;
 	}
 
-	virtual void fillBoundPhaseInitialParameters(ParameterId* params, unsigned int unitOpIdx, unsigned int parTypeIdx) const CADET_NOEXCEPT
+	virtual void fillBoundPhaseInitialParameters(ParameterId* params, UnitOpIdx unitOpIdx, ParticleTypeIdx parTypeIdx) const CADET_NOEXCEPT
 	{
 		unsigned int ctr = 0;
 		for (unsigned int c = 0; c < _nComp; ++c)

@@ -71,7 +71,7 @@ bool SimplifiedMultiStateStericMassActionBinding::configureModelDiscretization(I
 	return res;
 }
 
-bool SimplifiedMultiStateStericMassActionBinding::configureImpl(IParameterProvider& paramProvider, unsigned int unitOpIdx, unsigned int parTypeIdx)
+bool SimplifiedMultiStateStericMassActionBinding::configureImpl(IParameterProvider& paramProvider, UnitOpIdx unitOpIdx, ParticleTypeIdx parTypeIdx)
 {
 	const unsigned int totalBoundStates = numBoundStates(_nBoundStates, _nComp);
 

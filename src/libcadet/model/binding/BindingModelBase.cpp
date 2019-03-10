@@ -47,7 +47,7 @@ bool BindingModelBase::configureModelDiscretization(IParameterProvider& paramPro
 	return configureNonlinearSolver(paramProvider);
 }
 
-bool BindingModelBase::configure(IParameterProvider& paramProvider, unsigned int unitOpIdx, unsigned int parTypeIdx)
+bool BindingModelBase::configure(IParameterProvider& paramProvider, UnitOpIdx unitOpIdx, ParticleTypeIdx parTypeIdx)
 {
 	// Read binding dynamics (quasi-stationary, kinetic)
 	_kineticBinding = paramProvider.getInt("IS_KINETIC");
@@ -57,7 +57,7 @@ bool BindingModelBase::configure(IParameterProvider& paramProvider, unsigned int
 	return configureImpl(paramProvider, unitOpIdx, parTypeIdx);
 }
 
-void BindingModelBase::fillBoundPhaseInitialParameters(ParameterId* params, unsigned int unitOpIdx, unsigned int parTypeIdx) const CADET_NOEXCEPT
+void BindingModelBase::fillBoundPhaseInitialParameters(ParameterId* params, UnitOpIdx unitOpIdx, ParticleTypeIdx parTypeIdx) const CADET_NOEXCEPT
 {
 	unsigned int ctr = 0;
 	for (unsigned int c = 0; c < _nComp; ++c)

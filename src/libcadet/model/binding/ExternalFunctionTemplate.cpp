@@ -89,7 +89,7 @@ public:
 		return validateConfig(nComp, nBoundStates);
 	}
 
-	inline void registerParameters(std::unordered_map<ParameterId, active*>& parameters, unsigned int unitOpIdx, unsigned int parTypeIdx, unsigned int nComp, unsigned int const* nBoundStates)
+	inline void registerParameters(std::unordered_map<ParameterId, active*>& parameters, UnitOpIdx unitOpIdx, ParticleTypeIdx parTypeIdx, unsigned int nComp, unsigned int const* nBoundStates)
 	{
 {% for p in parameters %}
 		_{{ p/varName }}.registerParam("{{ p/confName }}", parameters, unitOpIdx, parTypeIdx, nComp, nBoundStates);
@@ -237,7 +237,7 @@ public:
 		return validateConfig(nComp, nBoundStates);
 	}
 
-	inline void registerParameters(std::unordered_map<ParameterId, active*>& parameters, unsigned int unitOpIdx, unsigned int parTypeIdx, unsigned int nComp, unsigned int const* nBoundStates)
+	inline void registerParameters(std::unordered_map<ParameterId, active*>& parameters, UnitOpIdx unitOpIdx, ParticleTypeIdx parTypeIdx, unsigned int nComp, unsigned int const* nBoundStates)
 	{
 {% for p in parameters %}
 		_{{ p/varName }}.registerParam("{{ p/confName }}", parameters, unitOpIdx, parTypeIdx, nComp, nBoundStates);

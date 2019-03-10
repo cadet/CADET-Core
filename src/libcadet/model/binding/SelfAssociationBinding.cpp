@@ -266,7 +266,7 @@ protected:
 		return _paramHandler.cacheSize(nComp, totalNumBoundStates, nBoundStates);
 	}
 
-	virtual bool configureImpl(IParameterProvider& paramProvider, unsigned int unitOpIdx, unsigned int parTypeIdx)
+	virtual bool configureImpl(IParameterProvider& paramProvider, UnitOpIdx unitOpIdx, ParticleTypeIdx parTypeIdx)
 	{
 		// Read parameters
 		_paramHandler.configure(paramProvider, _nComp, _nBoundStates);

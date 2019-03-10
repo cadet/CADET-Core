@@ -107,7 +107,7 @@ protected:
 	active _refC0; //! Liquid phase reference concentration
 	active _refQ; //! Solid phase reference concentration
 
-	virtual bool configureImpl(IParameterProvider& paramProvider, unsigned int unitOpIdx, unsigned int parTypeIdx);
+	virtual bool configureImpl(IParameterProvider& paramProvider, UnitOpIdx unitOpIdx, ParticleTypeIdx parTypeIdx);
 	
 	template <typename ParamType>
 	inline ParamType sigma(int comp, double state) const;
