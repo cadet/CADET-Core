@@ -28,7 +28,7 @@ namespace cadet
 namespace model
 {
 
-UnitOperationBase::UnitOperationBase(UnitOpIdx unitOpIdx) : _unitOpIdx(unitOpIdx), _binding(0, nullptr)
+UnitOperationBase::UnitOperationBase(UnitOpIdx unitOpIdx) : _unitOpIdx(unitOpIdx), _binding(0, nullptr), _singleBinding(false)
 {
 }
 
@@ -39,8 +39,16 @@ UnitOperationBase::~UnitOperationBase() CADET_NOEXCEPT
 
 void UnitOperationBase::clearBindingModels() CADET_NOEXCEPT
 {
-	for (IBindingModel* bm : _binding)
-		delete bm;
+	if (_singleBinding)
+	{
+		if (!_binding.empty())
+			delete _binding[0];
+	}
+	else
+	{
+		for (IBindingModel* bm : _binding)
+			delete bm;
+	}
 
 	_binding.clear();
 }
@@ -54,11 +62,20 @@ std::unordered_map<ParameterId, double> UnitOperationBase::getAllParameterValues
 	if (_binding.empty())
 		return data;
 
-	for (IBindingModel const* bm : _binding)
+	if (_singleBinding)
 	{
-		const std::unordered_map<ParameterId, double> localData = bm->getAllParameterValues();
+		const std::unordered_map<ParameterId, double> localData = _binding[0]->getAllParameterValues();
 		for (const std::pair<ParameterId, double>& val : localData)
 			data[val.first] = val.second;
+	}
+	else
+	{
+		for (IBindingModel const* bm : _binding)
+		{
+			const std::unordered_map<ParameterId, double> localData = bm->getAllParameterValues();
+			for (const std::pair<ParameterId, double>& val : localData)
+				data[val.first] = val.second;
+		}
 	}
 
 	return data;
@@ -74,11 +91,20 @@ double UnitOperationBase::getParameterDouble(const ParameterId& pId) const
 	// Check binding model parameters
 	if (!_binding.empty())
 	{
-		for (IBindingModel* bm : _binding)
+		if (_singleBinding)
 		{
-			active const* const val = bm->getParameter(pId);
+			active const* const val = _binding[0]->getParameter(pId);
 			if (val)
 				return static_cast<double>(*val);
+		}
+		else
+		{
+			for (IBindingModel* bm : _binding)
+			{
+				active const* const val = bm->getParameter(pId);
+				if (val)
+					return static_cast<double>(*val);
+			}
 		}
 	}
 
@@ -93,11 +119,19 @@ bool UnitOperationBase::hasParameter(const ParameterId& pId) const
 
 	if (!_binding.empty())
 	{
-		for (IBindingModel const* bm : _binding)
+		if (_singleBinding)
 		{
-			if (bm->hasParameter(pId))
+			if (_binding[0]->hasParameter(pId))
 				return true;
-		}		
+		}
+		else
+		{
+			for (IBindingModel const* bm : _binding)
+			{
+				if (bm->hasParameter(pId))
+					return true;
+			}
+		}
 	}
 	
 	return false;
@@ -110,11 +144,19 @@ bool UnitOperationBase::setParameter(const ParameterId& pId, int value)
 
 	if (!_binding.empty())
 	{
-		for (IBindingModel* bm : _binding)
+		if (_singleBinding)
 		{
-			if (bm->setParameter(pId, value))
+			if (_binding[0]->setParameter(pId, value))
 				return true;
-		}		
+		}
+		else
+		{
+			for (IBindingModel* bm : _binding)
+			{
+				if (bm->setParameter(pId, value))
+					return true;
+			}
+		}
 	}
 	return false;
 }
@@ -133,10 +175,18 @@ bool UnitOperationBase::setParameter(const ParameterId& pId, double value)
 
 	if (!_binding.empty())
 	{
-		for (IBindingModel* bm : _binding)
+		if (_singleBinding)
 		{
-			if (bm->setParameter(pId, value))
+			if (_binding[0]->setParameter(pId, value))
 				return true;
+		}
+		else
+		{
+			for (IBindingModel* bm : _binding)
+			{
+				if (bm->setParameter(pId, value))
+					return true;
+			}
 		}
 	}
 
@@ -150,10 +200,18 @@ bool UnitOperationBase::setParameter(const ParameterId& pId, bool value)
 
 	if (!_binding.empty())
 	{
-		for (IBindingModel* bm : _binding)
+		if (_singleBinding)
 		{
-			if (bm->setParameter(pId, value))
+			if (_binding[0]->setParameter(pId, value))
 				return true;
+		}
+		else
+		{
+			for (IBindingModel* bm : _binding)
+			{
+				if (bm->setParameter(pId, value))
+					return true;
+			}
 		}
 	}
 
@@ -176,13 +234,25 @@ void UnitOperationBase::setSensitiveParameterValue(const ParameterId& pId, doubl
 	// Check binding model parameters
 	if (!_binding.empty())
 	{
-		for (IBindingModel* bm : _binding)
+		if (_singleBinding)
 		{
-			active* const val = bm->getParameter(pId);
+			active* const val = _binding[0]->getParameter(pId);
 			if (val && contains(_sensParams, val))
 			{
 				val->setValue(value);
 				return;
+			}
+		}
+		else
+		{
+			for (IBindingModel* bm : _binding)
+			{
+				active* const val = bm->getParameter(pId);
+				if (val && contains(_sensParams, val))
+				{
+					val->setValue(value);
+					return;
+				}
 			}
 		}
 	}
@@ -208,9 +278,9 @@ bool UnitOperationBase::setSensitiveParameter(const ParameterId& pId, unsigned i
 	// Check binding model parameters
 	if (!_binding.empty())
 	{
-		for (IBindingModel* bm : _binding)
+		if (_singleBinding)
 		{
-			active* const paramBinding = bm->getParameter(pId);
+			active* const paramBinding = _binding[0]->getParameter(pId);
 			if (paramBinding)
 			{
 				LOG(Debug) << "Found parameter " << pId << " in AdsorptionModel: Dir " << adDirection << " is set to " << adValue;
@@ -219,6 +289,22 @@ bool UnitOperationBase::setSensitiveParameter(const ParameterId& pId, unsigned i
 				_sensParams.insert(paramBinding);
 				paramBinding->setADValue(adDirection, adValue);
 				return true;
+			}
+		}
+		else
+		{
+			for (IBindingModel* bm : _binding)
+			{
+				active* const paramBinding = bm->getParameter(pId);
+				if (paramBinding)
+				{
+					LOG(Debug) << "Found parameter " << pId << " in AdsorptionModel: Dir " << adDirection << " is set to " << adValue;
+
+					// Register parameter and set AD seed / direction
+					_sensParams.insert(paramBinding);
+					paramBinding->setADValue(adDirection, adValue);
+					return true;
+				}
 			}
 		}
 	}

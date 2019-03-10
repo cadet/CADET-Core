@@ -39,6 +39,8 @@ namespace model
 CSTRModel::CSTRModel(UnitOpIdx unitOpIdx) : UnitOperationBase(unitOpIdx), _nComp(0), _nParType(0), _nBound(nullptr), _boundOffset(nullptr), _strideBound(nullptr), _offsetParType(nullptr), 
 	_totalBound(0), _analyticJac(true), _jac(), _jacFact(), _factorizeJac(false), _consistentInitBuffer(nullptr), _initConditions(0), _initConditionsDot(0)
 {
+	// Mutliplexed binding models make no sense in CSTR
+	_singleBinding = false;
 }
 
 CSTRModel::~CSTRModel() CADET_NOEXCEPT
@@ -230,17 +232,17 @@ bool CSTRModel::configure(IParameterProvider& paramProvider)
 	for (unsigned int i = 0; i < _nComp; ++i)
 		_parameters[makeParamId(hashString("INIT_C"), _unitOpIdx, i, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = _initConditions.data() + i;
 
-	for (unsigned int j = 0; j < _nParType; ++j)
+	for (unsigned int type = 0; type < _nParType; ++type)
 	{
-		if (_binding[j])
-		{
-			std::vector<ParameterId> initParams(_strideBound[j]);
-			_binding[j]->fillBoundPhaseInitialParameters(initParams.data(), _unitOpIdx, j);
+		if (!_binding[type])
+			continue;
 
-			active* const ic = _initConditions.data() + _nComp + _offsetParType[j];
-			for (unsigned int i = 0; i < _strideBound[j]; ++i)
-				_parameters[initParams[i]] = ic + i;
-		}
+		std::vector<ParameterId> initParams(_strideBound[type]);
+		_binding[type]->fillBoundPhaseInitialParameters(initParams.data(), _unitOpIdx, type);
+
+		active* const ic = _initConditions.data() + _nComp + _offsetParType[type];
+		for (unsigned int i = 0; i < _strideBound[type]; ++i)
+			_parameters[initParams[i]] = ic + i;
 	}
 
 	_parameters[makeParamId(hashString("INIT_VOLUME"), _unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = _initConditions.data() + _nComp + _totalBound;
@@ -248,14 +250,15 @@ bool CSTRModel::configure(IParameterProvider& paramProvider)
 	// Reconfigure binding model
 	if (!_binding.empty())
 	{
-		std::ostringstream oss;
 		bool bindingConfSuccess = true;
+		std::ostringstream oss;
 		for (unsigned int type = 0; type < _nParType; ++type)
 		{
-			oss.str("");
-			oss << "adsorption_" << std::setfill('0') << std::setw(3) << std::setprecision(0) << type;
  			if (!_binding[type] || !_binding[type]->requiresConfiguration())
  				continue;
+
+			oss.str("");
+			oss << "adsorption_" << std::setfill('0') << std::setw(3) << std::setprecision(0) << type;
 
  			// If there is just one type, allow legacy "adsorption" scope
 			if (!paramProvider.exists(oss.str()) && (_nParType == 1))
@@ -343,6 +346,7 @@ void CSTRModel::applyInitialCondition(const SimulationState& simState) const
 
 	const unsigned int nDof = numPureDofs();
 	ad::copyFromAd(_initConditions.data(), simState.vecStateY + _nComp, nDof);
+
 	std::copy(_initConditionsDot.data(), _initConditionsDot.data() + nDof, simState.vecStateYdot + _nComp);
 }
 

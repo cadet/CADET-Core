@@ -93,6 +93,8 @@ LumpedRateModelWithoutPores::LumpedRateModelWithoutPores(UnitOpIdx unitOpIdx) : 
 	_jacInlet(), _analyticJac(true), _jacobianAdDirs(0), _factorizeJacobian(false), _tempState(nullptr), _initC(0),
 	_initQ(0), _initState(0), _initStateDot(0)
 {
+	// Multiple particle types are not supported
+	_singleBinding = true;
 }
 
 LumpedRateModelWithoutPores::~LumpedRateModelWithoutPores() CADET_NOEXCEPT
@@ -233,7 +235,7 @@ bool LumpedRateModelWithoutPores::configure(IParameterProvider& paramProvider)
 	if (_binding[0])
 	{
 		std::vector<ParameterId> initParams(_disc.strideBound);
-		_binding[0]->fillBoundPhaseInitialParameters(initParams.data(), _unitOpIdx, 0);
+		_binding[0]->fillBoundPhaseInitialParameters(initParams.data(), _unitOpIdx, cadet::ParTypeIndep);
 
 		for (unsigned int i = 0; i < _disc.strideBound; ++i)
 			_parameters[initParams[i]] = _initQ.data() + i;
@@ -243,7 +245,7 @@ bool LumpedRateModelWithoutPores::configure(IParameterProvider& paramProvider)
 	if (_binding[0] && paramProvider.exists("adsorption") && _binding[0]->requiresConfiguration())
 	{
 		paramProvider.pushScope("adsorption");
-		const bool bindingConfSuccess = _binding[0]->configure(paramProvider, _unitOpIdx, 0);
+		const bool bindingConfSuccess = _binding[0]->configure(paramProvider, _unitOpIdx, cadet::ParTypeIndep);
 		paramProvider.popScope();
 
 		return transportSuccess && bindingConfSuccess;

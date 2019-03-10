@@ -209,8 +209,19 @@ bool LumpedRateModelWithPores::configureModelDiscretization(IParameterProvider& 
 	_binding = std::vector<IBindingModel*>(_disc.nParType, nullptr);
 
 	const std::vector<std::string> bindModelNames = paramProvider.getStringArray("ADSORPTION_MODEL");
-	if (bindModelNames.size() < _disc.nParType)
+
+	if (paramProvider.exists("ADSORPTION_MODEL_MULTIPLEX"))
+		_singleBinding = (paramProvider.getInt("ADSORPTION_MODEL_MULTIPLEX") == 1);
+	else
+	{
+		// Infer multiplex mode
+		_singleBinding = (bindModelNames.size() == 1);
+	}
+
+	if (!_singleBinding && (bindModelNames.size() < _disc.nParType))
 		throw InvalidParameterException("Field ADSORPTION_MODEL contains too few elements (" + std::to_string(_disc.nParType) + " required)");
+	else if (_singleBinding && (bindModelNames.size() != 1))
+		throw InvalidParameterException("Field ADSORPTION_MODEL requires (only) 1 element");
 
 	bool bindingConfSuccess = true;
 	unsigned int bindingRequiredMem = 0;
@@ -218,12 +229,21 @@ bool LumpedRateModelWithPores::configureModelDiscretization(IParameterProvider& 
 	_bindingWorkspaceOffset[0] = 0;
 	for (unsigned int i = 0; i < _disc.nParType; ++i)
 	{
-		_binding[i] = helper.createBindingModel(bindModelNames[i]);
-		if (!_binding[i])
-			throw InvalidParameterException("Unknown binding model " + bindModelNames[i]);
+		if (_singleBinding && (i > 0))
+		{
+			// Reuse first binding model
+			_binding[i] = _binding[0];
+		}
+		else
+		{
+			_binding[i] = helper.createBindingModel(bindModelNames[i]);
+			if (!_binding[i])
+				throw InvalidParameterException("Unknown binding model " + bindModelNames[i]);
 
-		bindingConfSuccess = _binding[i]->configureModelDiscretization(paramProvider, _disc.nComp, _disc.nBound + i * _disc.nComp, _disc.boundOffset + i * _disc.nComp) && bindingConfSuccess;
+			bindingConfSuccess = _binding[i]->configureModelDiscretization(paramProvider, _disc.nComp, _disc.nBound + i * _disc.nComp, _disc.boundOffset + i * _disc.nComp) && bindingConfSuccess;
+		}
 
+		// In case of a single binding model, we still require the additional memory per type because of parallelization
 		if (_binding[i]->requiresWorkspace())
 		{
 			// Required memory (number of doubles) for nonlinear solvers
@@ -335,42 +355,73 @@ bool LumpedRateModelWithPores::configure(IParameterProvider& paramProvider)
 	registerParam1DArray(_parameters, _initC, [=](bool multi, unsigned int comp) { return makeParamId(hashString("INIT_C"), _unitOpIdx, comp, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep); });
 	registerParam2DArray(_parameters, _initCp, [=](bool multi, unsigned int type, unsigned int comp) { return makeParamId(hashString("INIT_CP"), _unitOpIdx, comp, type, BoundStateIndep, ReactionIndep, SectionIndep); }, _disc.nComp);
 
+
 	if (!_binding.empty())
 	{
 		const unsigned int maxBoundStates = *std::max_element(_disc.strideBound, _disc.strideBound + _disc.nParType);
 		std::vector<ParameterId> initParams(maxBoundStates);
-		for (unsigned int type = 0; type < _disc.nParType; ++type)
-		{
-			_binding[type]->fillBoundPhaseInitialParameters(initParams.data(), _unitOpIdx, type);
 
-			active* const iq = _initQ.data() + _disc.nBoundBeforeType[type];
-			for (unsigned int i = 0; i < _disc.strideBound[type]; ++i)
+		if (_singleBinding)
+		{
+			_binding[0]->fillBoundPhaseInitialParameters(initParams.data(), _unitOpIdx, ParTypeIndep);
+
+			active* const iq = _initQ.data() + _disc.nBoundBeforeType[0];
+			for (unsigned int i = 0; i < _disc.strideBound[0]; ++i)
 				_parameters[initParams[i]] = iq + i;
+		}
+		else
+		{
+			for (unsigned int type = 0; type < _disc.nParType; ++type)
+			{
+				_binding[type]->fillBoundPhaseInitialParameters(initParams.data(), _unitOpIdx, type);
+
+				active* const iq = _initQ.data() + _disc.nBoundBeforeType[type];
+				for (unsigned int i = 0; i < _disc.strideBound[type]; ++i)
+					_parameters[initParams[i]] = iq + i;
+			}
 		}
 	}
 
-	// Reconfigure binding model
 	if (!_binding.empty())
 	{
-		std::ostringstream oss;
 		bool bindingConfSuccess = true;
-		for (unsigned int type = 0; type < _disc.nParType; ++type)
+		if (_singleBinding)
 		{
-			oss.str("");
-			oss << "adsorption_" << std::setfill('0') << std::setw(3) << std::setprecision(0) << type;
- 			if (!_binding[type] || !_binding[type]->requiresConfiguration())
- 				continue;
+			if (_binding[0] && _binding[0]->requiresConfiguration())
+			{
+				if (paramProvider.exists("adsorption"))
+					paramProvider.pushScope("adsorption");
+				else if (paramProvider.exists("adsorption_000"))
+					paramProvider.pushScope("adsorption_000");
+				else
+					throw InvalidParameterException("Group \"adsorption\" or \"adsorption_000\" required");
 
- 			// If there is just one type, allow legacy "adsorption" scope
-			if (!paramProvider.exists(oss.str()) && (_disc.nParType == 1))
-				oss.str("adsorption");
+				bindingConfSuccess = _binding[0]->configure(paramProvider, _unitOpIdx, ParTypeIndep);
+				paramProvider.popScope();
+			}
+		}
+		else
+		{
+			std::ostringstream oss;
+			for (unsigned int type = 0; type < _disc.nParType; ++type)
+			{
+	 			if (!_binding[type] || !_binding[type]->requiresConfiguration())
+	 				continue;
 
-			if (!paramProvider.exists(oss.str()))
-				continue;
+				oss.str("");
+				oss << "adsorption_" << std::setfill('0') << std::setw(3) << std::setprecision(0) << type;
 
-			paramProvider.pushScope(oss.str());
-			bindingConfSuccess = _binding[type]->configure(paramProvider, _unitOpIdx, type) && bindingConfSuccess;
-			paramProvider.popScope();
+	 			// If there is just one type, allow legacy "adsorption" scope
+				if (!paramProvider.exists(oss.str()) && (_disc.nParType == 1))
+					oss.str("adsorption");
+
+				if (!paramProvider.exists(oss.str()))
+					continue;
+
+				paramProvider.pushScope(oss.str());
+				bindingConfSuccess = _binding[type]->configure(paramProvider, _unitOpIdx, type) && bindingConfSuccess;
+				paramProvider.popScope();
+			}
 		}
 
 		return transportSuccess && bindingConfSuccess;

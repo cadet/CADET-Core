@@ -397,8 +397,15 @@ Note that all components of component dependent datasets have to be section depe
   \begin{dataset}[type=int,range={$\geq 1$},length=1]{NCOMP}
     Number of chemical components in the chromatographic medium
   \end{dataset}
-  \begin{dataset}[type=string,range={See Section~\ref{sec:FFAdsorption}},length={\texttt{NPARTYPE}}]{ADSORPTION\_MODEL}
-    Specifies the type of adsorption models of each particle type
+  \begin{dataset}[type=string,range={See Section~\ref{sec:FFAdsorption}},length={$1$ / \texttt{NPARTYPE}}]{ADSORPTION\_MODEL}
+    Specifies the type of adsorption models of each particle type (or of all particle types if length is $1$)
+  \end{dataset}
+  \begin{dataset}[unit=--,type=int,range={$\{0, 1\}$},length={1}]{ADSORPTION\_MODEL\_MULTIPLEX}
+    Multiplexing mode of \texttt{ADSORPTION\_MODEL}.
+    If set to $0$, each particle type has a different binding model and the length of \texttt{ADSORPTION\_MODEL} is \texttt{NPARTYPE}.
+    If set to $1$, all particle types share the same binding model and the length of \texttt{ADSORPTION\_MODEL} is $1$.
+
+    This field is optional and inferred from the length of \texttt{ADSORPTION\_MODEL} if left out.
   \end{dataset}
   \begin{dataset}[unit=\si{\mol\per\cubic\metre\of{IV}},type=double,range={$\geq 0$},length={\texttt{NCOMP}}]{INIT\_C}
     Initial concentrations for each component in the bulk mobile phase
@@ -406,8 +413,10 @@ Note that all components of component dependent datasets have to be section depe
   \begin{dataset}[unit=\si{\mol\per\cubic\metre\of{MP}},type=double,range={$\geq 0$},length={$\texttt{NPARTYPE} \cdot \texttt{NCOMP}$}]{INIT\_CP}
     Initial concentrations for each component in the bead liquid phase of each particle type in type-major ordering (optional, \texttt{INIT\_C} is used if left out)
   \end{dataset}
-  \begin{dataset}[unit=\si{\mol\per\cubic\metre\of{SP}},type=double,range={$\geq 0$},length={\texttt{NTOTALBND}}]{INIT\_Q}
-    Initial concentrations for each bound state of each component in the bead solid phase of each particle type in type-component-major ordering
+  \begin{dataset}[unit=\si{\mol\per\cubic\metre\of{SP}},type=double,range={$\geq 0$},length={\texttt{NTOTALBND} / $\sum_{i = 0}^{\texttt{NCOMP} - 1} \texttt{NBND}_i$}]{INIT\_Q}
+    Initial concentrations for each bound state of each component in the bead solid phase.
+    If \texttt{ADSORPTION\_MODEL\_MULTIPLEX} is $0$, values for each particle type are required in type-component-major ordering (length is \texttt{NTOTALBND}).
+    If \texttt{ADSORPTION\_MODEL\_MULTIPLEX} is $1$, values for one particle type are required in component-major ordering (length is $\sum_{i = 0}^{\texttt{NCOMP} - 1} \texttt{NBND}_i$).
   \end{dataset}
   \begin{dataset}[unit=various,type=double,range={$\mathds{R}$},length={\texttt{NDOF} / $2\texttt{NDOF}$}]{INIT\_STATE}
     Full state vector for initialization (optional, \texttt{INIT\_C}, \texttt{INIT\_CP}, and \texttt{INIT\_Q} will be ignored; if length is $2\texttt{NDOF}$, then the second half is used for time derivatives)
@@ -521,8 +530,15 @@ Note that all components of component dependent datasets have to be section depe
   \begin{dataset}[type=int,range={$\geq 1$},length=1]{NCOMP}
     Number of chemical components in the chromatographic medium
   \end{dataset}
-  \begin{dataset}[type=string,range={See Section~\ref{sec:FFAdsorption}},length={\texttt{NPARTYPE}}]{ADSORPTION\_MODEL}
-    Specifies the type of adsorption models of each particle type
+  \begin{dataset}[type=string,range={See Section~\ref{sec:FFAdsorption}},length={$1$ / \texttt{NPARTYPE}}]{ADSORPTION\_MODEL}
+    Specifies the type of adsorption models of each particle type (or of all particle types if length is $1$)
+  \end{dataset}
+  \begin{dataset}[unit=--,type=int,range={$\{0, 1\}$},length={1}]{ADSORPTION\_MODEL\_MULTIPLEX}
+    Multiplexing mode of \texttt{ADSORPTION\_MODEL}.
+    If set to $0$, each particle type has a different binding model and the length of \texttt{ADSORPTION\_MODEL} is \texttt{NPARTYPE}.
+    If set to $1$, all particle types share the same binding model and the length of \texttt{ADSORPTION\_MODEL} is $1$.
+
+    This field is optional and inferred from the length of \texttt{ADSORPTION\_MODEL} if left out.
   \end{dataset}
   \begin{dataset}[unit=\si{\mol\per\cubic\metre\of{IV}},type=double,range={$\geq 0$},length={\texttt{NCOMP}}]{INIT\_C}
     Initial concentrations for each component in the bulk mobile phase
@@ -530,8 +546,10 @@ Note that all components of component dependent datasets have to be section depe
   \begin{dataset}[unit=\si{\mol\per\cubic\metre\of{MP}},type=double,range={$\geq 0$},length={$\texttt{NPARTYPE} \cdot \texttt{NCOMP}$}]{INIT\_CP}
     Initial concentrations for each component in the bead liquid phase of each particle type in type-major ordering (optional, \texttt{INIT\_C} is used if left out)
   \end{dataset}
-  \begin{dataset}[unit=\si{\mol\per\cubic\metre\of{SP}},type=double,range={$\geq 0$},length={\texttt{NTOTALBND}}]{INIT\_Q}
-    Initial concentrations for each bound state of each component in the bead solid phase of each particle type in type-component-major ordering
+  \begin{dataset}[unit=\si{\mol\per\cubic\metre\of{SP}},type=double,range={$\geq 0$},length={\texttt{NTOTALBND} / $\sum_{i = 0}^{\texttt{NCOMP} - 1} \texttt{NBND}_i$}]{INIT\_Q}
+    Initial concentrations for each bound state of each component in the bead solid phase.
+    If \texttt{ADSORPTION\_MODEL\_MULTIPLEX} is $0$, values for each particle type are required in type-component-major ordering (length is \texttt{NTOTALBND}).
+    If \texttt{ADSORPTION\_MODEL\_MULTIPLEX} is $1$, values for one particle type are required in component-major ordering (length is $\sum_{i = 0}^{\texttt{NCOMP} - 1} \texttt{NBND}_i$).
   \end{dataset}
   \begin{dataset}[unit=various,type=double,range={$\mathds{R}$},length={\texttt{NDOF} / $2\texttt{NDOF}$}]{INIT\_STATE}
     Full state vector for initialization (optional, \texttt{INIT\_C}, \texttt{INIT\_CP}, and \texttt{INIT\_Q} will be ignored; if length is $2\texttt{NDOF}$, then the second half is used for time derivatives)
@@ -692,8 +710,15 @@ Note that all components of component dependent datasets have to be section depe
   \begin{dataset}[type=int,range={$\geq 1$},length=1]{NCOMP}
     Number of chemical components in the chromatographic medium
   \end{dataset}
-  \begin{dataset}[type=string,range={See Section~\ref{sec:FFAdsorption}},length={\texttt{NPARTYPE}}]{ADSORPTION\_MODEL}
-    Specifies the type of adsorption models of each particle type
+  \begin{dataset}[type=string,range={See Section~\ref{sec:FFAdsorption}},length={$1$ / \texttt{NPARTYPE}}]{ADSORPTION\_MODEL}
+    Specifies the type of adsorption models of each particle type (or of all particle types if length is $1$)
+  \end{dataset}
+  \begin{dataset}[unit=--,type=int,range={$\{0, 1\}$},length={1}]{ADSORPTION\_MODEL\_MULTIPLEX}
+    Multiplexing mode of \texttt{ADSORPTION\_MODEL}.
+    If set to $0$, each particle type has a different binding model and the length of \texttt{ADSORPTION\_MODEL} is \texttt{NPARTYPE}.
+    If set to $1$, all particle types share the same binding model and the length of \texttt{ADSORPTION\_MODEL} is $1$.
+
+    This field is optional and inferred from the length of \texttt{ADSORPTION\_MODEL} if left out.
   \end{dataset}
   \begin{dataset}[unit=\si{\mol\per\cubic\metre\of{IV}},type=double,range={$\geq 0$},length={\texttt{NCOMP}}]{INIT\_C}
     Initial concentrations for each component in the bulk mobile phase
@@ -701,8 +726,10 @@ Note that all components of component dependent datasets have to be section depe
   \begin{dataset}[unit=\si{\mol\per\cubic\metre\of{MP}},type=double,range={$\geq 0$},length={$\texttt{NPARTYPE} \cdot \texttt{NCOMP}$}]{INIT\_CP}
     Initial concentrations for each component in the bead liquid phase of each particle type in type-major ordering (optional, \texttt{INIT\_C} is used if left out)
   \end{dataset}
-  \begin{dataset}[unit=\si{\mol\per\cubic\metre\of{SP}},type=double,range={$\geq 0$},length={\texttt{NTOTALBND}}]{INIT\_Q}
-    Initial concentrations for each bound state of each component in the bead solid phase of each particle type in type-component-major ordering
+  \begin{dataset}[unit=\si{\mol\per\cubic\metre\of{SP}},type=double,range={$\geq 0$},length={\texttt{NTOTALBND} / $\sum_{i = 0}^{\texttt{NCOMP} - 1} \texttt{NBND}_i$}]{INIT\_Q}
+    Initial concentrations for each bound state of each component in the bead solid phase.
+    If \texttt{ADSORPTION\_MODEL\_MULTIPLEX} is $0$, values for each particle type are required in type-component-major ordering (length is \texttt{NTOTALBND}).
+    If \texttt{ADSORPTION\_MODEL\_MULTIPLEX} is $1$, values for one particle type are required in component-major ordering (length is $\sum_{i = 0}^{\texttt{NCOMP} - 1} \texttt{NBND}_i$).
   \end{dataset}
   \begin{dataset}[unit=various,type=double,range={$\mathds{R}$},length={\texttt{NDOF} / $2\texttt{NDOF}$}]{INIT\_STATE}
     Full state vector for initialization (optional, \texttt{INIT\_C}, \texttt{INIT\_CP}, and \texttt{INIT\_Q} will be ignored; if length is $2\texttt{NDOF}$, then the second half is used for time derivatives)
@@ -911,7 +938,7 @@ Note that all components of component dependent datasets have to be section depe
     Determines whether analytically computed Jacobian matrix (faster) is used (value is $1$) instead of Jacobians generated by algorithmic differentiation (slower, value is $0$)
   \end{dataset}
   \begin{dataset}[type=string,range={See Section~\ref{sec:FFAdsorption}},length={\texttt{NPARTYPE}}]{ADSORPTION\_MODEL}
-    Specifies the type of adsorption models of each particle type (optional, defaults to \texttt{NONE})
+    Specifies the type of adsorption models of each particle type
   \end{dataset}
   \begin{dataset}[unit=\si{\mol\per\cubic\metre\of{IV}},type=double,range={$\geq 0$},length={\texttt{NCOMP}}]{INIT\_C}
     Initial concentrations for each component in the mobile phase
@@ -920,7 +947,8 @@ Note that all components of component dependent datasets have to be section depe
     Initial tank volume
   \end{dataset}
   \begin{dataset}[unit=\si{\mol\per\cubic\metre\of{SP}},type=double,range={$\geq 0$},length={\texttt{NTOTALBND}}]{INIT\_Q}
-    Initial concentrations for each bound state of each component in each particle type's solid phase in type-component-major ordering (optional, defaults to all $0$)
+    Initial concentrations for each bound state of each component in the bead solid phase of each particle type in type-component-major ordering.
+    This field is optional and defaults to all $0$.
   \end{dataset}
   \begin{dataset}[unit=various,type=double,range={$\mathds{R}$},length={\texttt{NDOF} / $2\texttt{NDOF}$}]{INIT\_STATE}
     Full state vector for initialization (optional, \texttt{INIT\_C}, \texttt{INIT\_Q}, and \texttt{INIT\_VOLUME} will be ignored; if length is $2\texttt{NDOF}$, then the second half is used for time derivatives)

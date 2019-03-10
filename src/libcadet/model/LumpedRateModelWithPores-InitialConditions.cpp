@@ -79,8 +79,9 @@ void LumpedRateModelWithPores::applyInitialCondition(const SimulationState& simS
 				simState.vecStateY[offset + comp] = static_cast<double>(_initCp[comp + _disc.nComp * type]);
 
 			// Initialize q
-			for (unsigned int bnd = 0; bnd < _disc.strideBound[type]; ++bnd)
-				simState.vecStateY[offset + idxr.strideParLiquid() + bnd] = static_cast<double>(_initQ[bnd + _disc.nBoundBeforeType[type]]);
+			active const* const iq = _initQ.data() + _disc.nBoundBeforeType[_singleBinding ? 0 : type];
+			for (unsigned int bnd = 0; bnd < _disc.strideBound[_singleBinding ? 0 : type]; ++bnd)
+				simState.vecStateY[offset + idxr.strideParLiquid() + bnd] = static_cast<double>(iq[bnd]);
 		}
 	}
 }
@@ -111,9 +112,8 @@ void LumpedRateModelWithPores::readInitialCondition(IParameterProvider& paramPro
 	if (initC.size() < _disc.nComp)
 		throw InvalidParameterException("INIT_C does not contain enough values for all components");
 
-	if ((_disc.strideBound[_disc.nParType] > 0) && (initQ.size() < _disc.strideBound[_disc.nParType]))
+	if ((_disc.strideBound[_disc.nParType] > 0) && (((initQ.size() < _disc.strideBound[_disc.nParType]) && !_singleBinding) || (initQ.size() < _disc.strideBound[0] && _singleBinding)))
 		throw InvalidParameterException("INIT_Q does not contain enough values for all bound states");
-
 
 	// Check if INIT_CP is present
 	if (paramProvider.exists("INIT_CP"))
@@ -133,7 +133,7 @@ void LumpedRateModelWithPores::readInitialCondition(IParameterProvider& paramPro
 
 	ad::copyToAd(initC.data(), _initC.data(), _disc.nComp);
 	if (!initQ.empty())
-		ad::copyToAd(initQ.data(), _initQ.data(), _disc.strideBound[_disc.nParType]);
+		ad::copyToAd(initQ.data(), _initQ.data(), _disc.strideBound[_singleBinding ? 0 : _disc.nParType]);
 }
 
 /**

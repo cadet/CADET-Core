@@ -71,6 +71,7 @@ protected:
 
 	UnitOpIdx _unitOpIdx; //!< Unit operation index
 	std::vector<IBindingModel*> _binding; //!<  Binding model
+	bool _singleBinding; //!< Determines whether only a single binding model is present
 
 	typedef std::unordered_map<ParameterId, active*> paramMap_t;
 	paramMap_t _parameters; //!< Provides access to all parameters

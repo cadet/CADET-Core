@@ -721,7 +721,7 @@ namespace column
 		const std::vector<cadet::ParameterId> params = {
 			cadet::makeParamId("COL_DISPERSION", 0, cadet::CompIndep, cadet::ParTypeIndep, cadet::BoundStateIndep, cadet::ReactionIndep, cadet::SectionIndep),
 			cadet::makeParamId("CONST_COEFF", 1, 0, cadet::ParTypeIndep, cadet::BoundStateIndep, cadet::ReactionIndep, 0),
-			cadet::makeParamId("SMA_KA", 0, 1, 0, 0, cadet::ReactionIndep, cadet::SectionIndep),
+			cadet::makeParamId("SMA_KA", 0, 1, cadet::ParTypeIndep, 0, cadet::ReactionIndep, cadet::SectionIndep),
 			cadet::makeParamId("CONNECTION", cadet::UnitOpIndep, cadet::CompIndep, cadet::ParTypeIndep, 1, 0, 0),
 		};
 		const std::vector<const char*> paramNames = {"COL_DISPERSION", "CONST_COEFF", "SMA_KA", "CONNECTION"};
@@ -820,7 +820,7 @@ namespace column
 		const std::vector<cadet::ParameterId> params = {
 			cadet::makeParamId("COL_DISPERSION", 0, cadet::CompIndep, cadet::ParTypeIndep, cadet::BoundStateIndep, cadet::ReactionIndep, cadet::SectionIndep),
 			cadet::makeParamId("CONST_COEFF", 1, 0, cadet::ParTypeIndep, cadet::BoundStateIndep, cadet::ReactionIndep, 0),
-			cadet::makeParamId("SMA_KA", 0, 1, 0, 0, cadet::ReactionIndep, cadet::SectionIndep),
+			cadet::makeParamId("SMA_KA", 0, 1, cadet::ParTypeIndep, 0, cadet::ReactionIndep, cadet::SectionIndep),
 			cadet::makeParamId("CONNECTION", cadet::UnitOpIndep, cadet::CompIndep, cadet::ParTypeIndep, 1, 0, 0),
 		};
 		const std::vector<const char*> paramNames = {"COL_DISPERSION", "CONST_COEFF", "SMA_KA", "CONNECTION"};
@@ -973,9 +973,9 @@ namespace column
 
 					unit->setSensitiveParameter(cadet::makeParamId("INIT_C", 0, 0, cadet::ParTypeIndep, cadet::BoundStateIndep, cadet::ReactionIndep, cadet::SectionIndep), 0, 1.0);
 					if (linearBinding)
-						unit->setSensitiveParameter(cadet::makeParamId("LIN_KA", 0, 0, 0, 0, cadet::ReactionIndep, cadet::SectionIndep), 1, 1.0);
+						unit->setSensitiveParameter(cadet::makeParamId("LIN_KA", 0, 0, cadet::ParTypeIndep, 0, cadet::ReactionIndep, cadet::SectionIndep), 1, 1.0);
 					else
-						unit->setSensitiveParameter(cadet::makeParamId("SMA_NU", 0, 1, 0, 0, cadet::ReactionIndep, cadet::SectionIndep), 1, 1.0);
+						unit->setSensitiveParameter(cadet::makeParamId("SMA_NU", 0, 1, cadet::ParTypeIndep, 0, cadet::ReactionIndep, cadet::SectionIndep), 1, 1.0);
 
 					unit->setSensitiveParameter(cadet::makeParamId("COL_LENGTH", 0, cadet::CompIndep, cadet::ParTypeIndep, cadet::BoundStateIndep, cadet::ReactionIndep, cadet::SectionIndep), 2, 1.0);
 
