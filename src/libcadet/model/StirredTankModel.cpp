@@ -446,7 +446,7 @@ void CSTRModel::consistentInitialState(const SimulationTime& simTime, double* co
 			unsigned int const* const bo = _boundOffset + type * _nComp;
 			unsigned int const* const nb = _nBound + type * _nComp;
 			double const* const typeQ = c + _nComp + _offsetParType[type];
-			for (unsigned int i = 0; i < _nComp; i++)
+			for (unsigned int i = 0; i < _nComp; ++i)
 			{
 				double qSum = 0.0;
 				double const* const localQ = typeQ + bo[i];
@@ -665,7 +665,7 @@ void CSTRModel::leanConsistentInitialState(const SimulationTime& simTime, double
 			unsigned int const* const bo = _boundOffset + type * _nComp;
 			unsigned int const* const nb = _nBound + type * _nComp;
 			double const* const typeQ = c + _nComp + _offsetParType[type];
-			for (unsigned int i = 0; i < _nComp; i++)
+			for (unsigned int i = 0; i < _nComp; ++i)
 			{
 				double qSum = 0.0;
 				double const* const localQ = typeQ + bo[i];
@@ -743,7 +743,7 @@ void CSTRModel::leanConsistentInitialTimeDerivative(double t, double timeFactor,
 			const double qFactor = 2.0 * vDot * (1.0 / static_cast<double>(_porosity) - 1.0) / denom;
 			const double factor = flowIn / denom;
 
-			for (unsigned int i = 0; i < _nComp; i++)
+			for (unsigned int i = 0; i < _nComp; ++i)
 			{
 				// TODO: This is wrong as vecStateYdot does not contain \dot{c}_in (on entry)
 				// This scenario violates the assumption that every outlet DOF is dynamic
@@ -777,7 +777,7 @@ void CSTRModel::leanConsistentInitialTimeDerivative(double t, double timeFactor,
 		//             <=> V * \dot{c} = c_in * F_in + c * F_out - \dot{V} * (c + 1 / beta * [sum_j sum_m d_j q_{j,m}]) - V / beta * [sum_j sum_m d_j \dot{q}_{j,m}]
 		//                             = -res - \dot{V} * (c + 1 / beta * [sum_j sum_m d_j q_{j,m}]) - V / beta * [sum_j sum_m d_j \dot{q}_{j,m}]
 		// => \dot{c} = (-res - \dot{V} * (c + 1 / beta * [sum_j sum_m d_j q_{j,m}]) - V / beta * [sum_j sum_m d_j \dot{q}_m]) / V
-		for (unsigned int i = 0; i < _nComp; i++)
+		for (unsigned int i = 0; i < _nComp; ++i)
 		{
 			double qSum = 0.0;
 			double qDotSum = 0.0;
@@ -893,7 +893,7 @@ int CSTRModel::residualImpl(const ParamType& t, unsigned int secIdx, const Param
 
 		// Concentrations: \dot{V} * (c_i + 1 / beta * [sum_j sum_m d_j q_{j,i,m}]) + V * (\dot{c}_i + 1 / beta * [sum_j sum_m d_j \dot{q}_{j,i,m}]) - c_{in,i} * F_in + c_i * F_out == 0
 		const double vDotTimeFactor = static_cast<double>(vDot) * static_cast<double>(timeFactor);
-		for (unsigned int i = 0; i < _nComp; i++)
+		for (unsigned int i = 0; i < _nComp; ++i)
 		{
 			_jac.native(i, i) = vDotTimeFactor + static_cast<double>(flowOut);
 
@@ -1177,7 +1177,7 @@ void CSTRModel::multiplyWithDerivativeJacobian(const SimulationTime& simTime, co
 	double const* const s = sDot + _nComp;
 
 	// Concentrations: \dot{V} * (c_i + 1 / beta * [sum_j sum_m d_j q_{j,i,m}]) + V * (\dot{c}_i + 1 / beta * [sum_j sum_m d_j \dot{q}_{j,i,m}]) - c_{in,i} * F_in + c_i * F_out == 0
-	for (unsigned int i = 0; i < _nComp; i++)
+	for (unsigned int i = 0; i < _nComp; ++i)
 	{
 		r[i] = timeV * s[i];
 
@@ -1218,7 +1218,7 @@ int CSTRModel::linearSolve(double t, double timeFactor, double alpha, double tol
 	const double flowIn = static_cast<double>(_flowRateIn);
 
 	// Handle inlet equations by backsubstitution
-	for (unsigned int i = 0; i < _nComp; i++)
+	for (unsigned int i = 0; i < _nComp; ++i)
 	{
 		rhs[i + _nComp] += flowIn * rhs[i];
 	}
@@ -1252,7 +1252,7 @@ void CSTRModel::addTimeDerivativeJacobian(double t, double timeFactor, const Con
 	// Assemble Jacobian: dRes / dyDot
 
 	// Concentrations: \dot{V} * (c_i + 1 / beta * [sum_j sum_m d_j q_{j,i,m}]) + V * (\dot{c}_i + 1 / beta * [sum_j sum_m d_j \dot{q}_{j,i,m}]) - c_{in,i} * F_in + c_i * F_out == 0
-	for (unsigned int i = 0; i < _nComp; i++)
+	for (unsigned int i = 0; i < _nComp; ++i)
 	{
 		mat.native(i, i) += timeV;
 

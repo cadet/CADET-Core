@@ -1069,9 +1069,9 @@ int GeneralRateModel::residualFlux(const ParamType& t, unsigned int secIdx, Stat
 		}
 
 		// J_{f,p} block, adds outer bead shell state c_{p,i} to flux equation
-		for (unsigned int pblk = 0; pblk < _disc.nCol; pblk++)
+		for (unsigned int pblk = 0; pblk < _disc.nCol; ++pblk)
 		{
-			for (unsigned int comp = 0; comp < _disc.nComp; comp++)
+			for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
 			{
 				const unsigned int eq = pblk * idxr.strideColCell() + comp * idxr.strideColComp();
 				resFluxType[eq] += kf_FV[comp] * yParType[comp + pblk * idxr.strideParBlock(type)];
@@ -1206,7 +1206,7 @@ int GeneralRateModel::residualSensFwdCombine(const ActiveSimulationTime& simTime
 	// tmp1 stores result of (dF / dy) * s
 	// tmp2 stores result of (dF / dyDot) * sDot
 
-	for (unsigned int param = 0; param < yS.size(); param++)
+	for (unsigned int param = 0; param < yS.size(); ++param)
 	{
 		// Directional derivative (dF / dy) * s
 		multiplyWithJacobian(SimulationTime{0.0, 0u, 1.0}, ConstSimulationState{nullptr, nullptr}, yS[param], 1.0, 0.0, tmp1);
@@ -1427,7 +1427,7 @@ void GeneralRateModel::setEquidistantRadialDisc(unsigned int parType)
 	active* const ptrOuterSurfAreaPerVolume = _parOuterSurfAreaPerVolume.data() + _disc.nParCellsBeforeType[parType];
 	active* const ptrInnerSurfAreaPerVolume = _parInnerSurfAreaPerVolume.data() + _disc.nParCellsBeforeType[parType];
 
-	for (unsigned int cell = 0; cell < _disc.nParCell[parType]; cell++)
+	for (unsigned int cell = 0; cell < _disc.nParCell[parType]; ++cell)
 	{
 		const active r_out = radius - static_cast<active>(cell) * dr;
 		const active r_in = radius - static_cast<active>(cell + 1) * dr;

@@ -225,7 +225,7 @@ void GeneralRateModel::consistentInitialState(const SimulationTime& simTime, dou
 
 				// This loop cannot be run in parallel without creating a Jacobian matrix for each thread which would increase memory usage
 				const int localOffsetToParticle = idxr.offsetCp(ParticleTypeIndex{type}, ParticleIndex{static_cast<unsigned int>(pblk)});
-				for(size_t shell = 0; shell < size_t(_disc.nParCell[type]); shell++)
+				for(size_t shell = 0; shell < size_t(_disc.nParCell[type]); ++shell)
 				{
 					const int localOffsetInParticle = static_cast<int>(shell) * idxr.strideParShell(type) + idxr.strideParLiquid();
 

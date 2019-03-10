@@ -348,7 +348,7 @@ int InletModel::residualSensFwdCombine(const ActiveSimulationTime& simTime, cons
 	const std::vector<const double*>& yS, const std::vector<const double*>& ySdot, const std::vector<double*>& resS, active const* adRes, 
 	double* const tmp1, double* const tmp2, double* const tmp3)
 {
-	for (unsigned int param = 0; param < yS.size(); param++)
+	for (unsigned int param = 0; param < yS.size(); ++param)
 	{
 		double* const ptrResS = resS[param];
 		double const* const ptrYs = yS[param];

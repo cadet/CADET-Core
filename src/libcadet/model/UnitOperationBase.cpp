@@ -244,7 +244,7 @@ int UnitOperationBase::residualSensFwdCombine(const ActiveSimulationTime& simTim
 	const std::vector<const double*>& yS, const std::vector<const double*>& ySdot, const std::vector<double*>& resS, active const* adRes,
 	double* const tmp1, double* const tmp2, double* const tmp3)
 {
-	for (unsigned int param = 0; param < yS.size(); param++)
+	for (unsigned int param = 0; param < yS.size(); ++param)
 	{
 		// tmp1 stores result of (dF / dy) * s
 		// tmp2 stores result of (dF / dyDot) * sDot

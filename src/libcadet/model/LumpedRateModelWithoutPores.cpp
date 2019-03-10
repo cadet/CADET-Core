@@ -600,7 +600,7 @@ int LumpedRateModelWithoutPores::residualSensFwdCombine(const ActiveSimulationTi
 	// tmp1 stores result of (dF / dy) * s
 	// tmp2 stores result of (dF / dyDot) * sDot
 
-	for (unsigned int param = 0; param < yS.size(); param++)
+	for (unsigned int param = 0; param < yS.size(); ++param)
 	{
 		// Directional derivative (dF / dy) * s
 		multiplyWithJacobian(SimulationTime{0.0, 0u, 1.0}, ConstSimulationState{nullptr, nullptr}, yS[param], 1.0, 0.0, tmp1);

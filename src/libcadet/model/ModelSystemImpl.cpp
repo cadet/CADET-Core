@@ -1780,7 +1780,7 @@ int ModelSystem::residualSensFwdWithJacobianAlgorithm(unsigned int nSens, const 
 		// Directional derivative (dF / dyDot) * sDot  (always zero so ignore it)
 
 		//The other adRes values have already been taken care of in the unit operations
-		for (unsigned int i = finalOffset; i < numDofs(); i++)
+		for (unsigned int i = finalOffset; i < numDofs(); ++i)
 		{
 			ptrResS[i] += adJac.adRes[i].getADValue(param);
 		}
