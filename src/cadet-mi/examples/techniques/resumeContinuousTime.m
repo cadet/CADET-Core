@@ -26,7 +26,7 @@ function resumeContinuousTime()
 
 	% Add a joint sensitivity
 	params = cell(1, 1);
-	params{1} = makeSensitivity([0,0], {'SMA_KA', 'SMA_KA'}, [1, 2], [0, 0], [-1, -1], [0, 0], [-1, -1], [], [1, 1.59 / 35.5]);
+	params{1} = makeSensitivity([0,0], {'SMA_KA', 'SMA_KA'}, [1, 2], [-1, -1], [-1, -1], [0, 0], [-1, -1], [], [1, 1.59 / 35.5]);
 	sim.setParameters(params, [true]);
 
 	% Compute first half from 0s to 750s

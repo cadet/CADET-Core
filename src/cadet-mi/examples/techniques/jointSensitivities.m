@@ -33,6 +33,7 @@ function jointSensitivities()
 	%   - its unit operation id (0-based index or -1 if independent),
 	%   - name (according to CADET file format specification),
 	%   - component index (0-based index or -1 if independent),
+	%   - particle type index (0-based index or -1 if independent),
 	%   - reaction index (0-based index or -1 if independent),
 	%   - bound phase index (0-based index or -1 if independent), and
 	%   - time integrator section index (0-based index or -1 if independent).
@@ -49,7 +50,7 @@ function jointSensitivities()
 	%          would yield a formally different joint parameter P, since now P = 35.5 * KA_Lysozyme whereas
 	%          P = KA_Lysozyme in the previous formulation. Thus, the relationship of the two model parameters
 	%          KA_Lysozyme and KA_Cytochrome is the same, but the meaning of the joint parameter P is different.
-	params{1} = makeSensitivity([0,0], {'SMA_KA', 'SMA_KA'}, [1, 2], [0, 0], [-1, -1], [0, 0], [-1, -1], [], [1, 1.59 / 35.5]);
+	params{1} = makeSensitivity([0,0], {'SMA_KA', 'SMA_KA'}, [1, 2], [-1, -1], [-1, -1], [0, 0], [-1, -1], [], [1, 1.59 / 35.5]);
 
 	% Param 2: COL_LENGTH (independent of component) in GRM (unit operation 0)
 	params{2} = makeSensitivity([0], {'COL_LENGTH'}, [-1], [-1], [-1], [-1], [-1]);

@@ -608,7 +608,11 @@ classdef LumpedRateModelWithPores < Model
 
 			if ~isfield(obj.data, param.SENS_NAME) && ~isempty(obj.bindingModel)
 				% We don't have this parameter, so try binding model
-				val = obj.bindingModel(param.SENS_PARTYPE+1).getParameterValue(param, obj.nBoundStates((param.SENS_PARTYPE * obj.nComponents + 1):((param.SENS_PARTYPE + 1) * obj.nComponents)));
+				if (param.SENS_PARTYPE >= 0)
+					val = obj.bindingModel(param.SENS_PARTYPE+1).getParameterValue(param, obj.nBoundStates((param.SENS_PARTYPE * obj.nComponents + 1):((param.SENS_PARTYPE + 1) * obj.nComponents)));
+				else
+					val = obj.bindingModel(1).getParameterValue(param, obj.nBoundStates(1:obj.nComponents));
+				end
 				return;
 			end
 			
@@ -677,7 +681,11 @@ classdef LumpedRateModelWithPores < Model
 
 			if ~isfield(obj.data, param.SENS_NAME) && ~isempty(obj.bindingModel)
 				% We don't have this parameter, so try binding model
-				oldVal = obj.bindingModel(param.SENS_PARTYPE+1).setParameterValue(param, obj.nBoundStates((param.SENS_PARTYPE * obj.nComponents + 1):((param.SENS_PARTYPE + 1) * obj.nComponents)), newVal);
+				if (param.SENS_PARTYPE >= 0)
+					oldVal = obj.bindingModel(param.SENS_PARTYPE+1).setParameterValue(param, obj.nBoundStates((param.SENS_PARTYPE * obj.nComponents + 1):((param.SENS_PARTYPE + 1) * obj.nComponents)), newVal);
+				else
+					oldVal = obj.bindingModel(1).setParameterValue(param, obj.nBoundStates(1:obj.nComponents), newVal);
+				end
 				return;
 			end
 

@@ -25,12 +25,13 @@ function parameterizedSimulationMixed()
 	%   - its unit operation id (0-based index or -1 if independent),
 	%   - name (according to CADET file format specification),
 	%   - component index (0-based index or -1 if independent),
+	%   - particle type index (0-based index or -1 if independent),
 	%   - reaction index (0-based index or -1 if independent),
 	%   - bound phase index (0-based index or -1 if independent), and
 	%   - time integrator section index (0-based index or -1 if independent).
 
 	% Parameter 1: SMA_KA of component 2 (Lysozyme, component 1 if read as 0-based) in GRM (unit operation 0)
-	params{1} = makeSensitivity([0], {'SMA_KA'}, [1], [0], [-1], [0], [-1]);
+	params{1} = makeSensitivity([0], {'SMA_KA'}, [1], [-1], [-1], [0], [-1]);
 
 	% Parameter 2: COL_LENGTH (independent of component) in GRM (unit operation 0)
 	params{2} = makeSensitivity([0], {'COL_LENGTH'}, [-1], [-1], [-1], [-1], [-1]);
@@ -41,7 +42,7 @@ function parameterizedSimulationMixed()
 	params{3} = makeSensitivity([1], {'CONST_COEFF'}, [1], [-1], [-1], [-1], [0]);
 
 	% Parameter 4: SMA_LAMBDA (independent of component) in GRM (unit operation 0)
-	params{4} = makeSensitivity([0], {'SMA_LAMBDA'}, [-1], [0], [-1], [-1], [-1]);
+	params{4} = makeSensitivity([0], {'SMA_LAMBDA'}, [-1], [-1], [-1], [-1], [-1]);
 
 	% Set parameters in the Simulator and compute sensitivities for first and last parameter
 	sim.setParameters(params, [true, false, false, true]);

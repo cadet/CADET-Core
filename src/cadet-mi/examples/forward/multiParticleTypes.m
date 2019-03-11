@@ -9,7 +9,7 @@ function multiParticleTypes()
 %   CADET's versatility. Multiple particle types can be used for modeling particle
 %   size distributions, for example.
 %
-%   See also LOADWASHELUTIONSMASINGLE.
+%   See also LOADWASHELUTIONSMASINGLE, PARTICLERADIUSDISTRIBUTION.
 
 % Copyright: (C) 2008-2019 The CADET Authors
 %            See the license note at the end of the file.

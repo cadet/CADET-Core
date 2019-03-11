@@ -29,9 +29,9 @@ function multipleExpLinkedAllParameters()
 
 	% Set model parameters and enable sensitivities
 	params = cell(3, 1);
-	params{1} = makeSensitivity([0], {'SMA_KA'}, [1], [0], [-1], [0], [-1]);
-	params{2} = makeSensitivity([0], {'SMA_KA'}, [2], [0], [-1], [0], [-1]);
-	params{3} = makeSensitivity([0], {'SMA_KA'}, [3], [0], [-1], [0], [-1]);
+	params{1} = makeSensitivity([0], {'SMA_KA'}, [1], [-1], [-1], [0], [-1]);
+	params{2} = makeSensitivity([0], {'SMA_KA'}, [2], [-1], [-1], [0], [-1]);
+	params{3} = makeSensitivity([0], {'SMA_KA'}, [3], [-1], [-1], [0], [-1]);
 	sim.setParameters(params, true(3, 1));
 
 	% Collect data of first experiment in cell array (one cell per wavelength)
@@ -54,9 +54,9 @@ function multipleExpLinkedAllParameters()
 
 	% Set model parameters and enable sensitivities
 	params = cell(3, 1);
-	params{1} = makeSensitivity([0], {'SMA_KA'}, [1], [0], [-1], [0], [-1]);
-	params{2} = makeSensitivity([0], {'SMA_KA'}, [2], [0], [-1], [0], [-1]);
-	params{3} = makeSensitivity([0], {'SMA_KA'}, [3], [0], [-1], [0], [-1]);
+	params{1} = makeSensitivity([0], {'SMA_KA'}, [1], [-1], [-1], [0], [-1]);
+	params{2} = makeSensitivity([0], {'SMA_KA'}, [2], [-1], [-1], [0], [-1]);
+	params{3} = makeSensitivity([0], {'SMA_KA'}, [3], [-1], [-1], [0], [-1]);
 	sim.setParameters(params, true(3, 1));
 
 	% Collect data of first experiment in cell array (one cell per wavelength)

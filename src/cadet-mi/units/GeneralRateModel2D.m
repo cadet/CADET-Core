@@ -402,13 +402,17 @@ classdef GeneralRateModel2D < Model
 		function val = get.filmDiffusion(obj)
 			val = obj.data.FILM_DIFFUSION;
 			if (numel(val) >= obj.nComponents * numel(obj.nCellsParticle)) && (mod(numel(val), obj.nComponents * numel(obj.nCellsParticle)) == 0)
-				val = reshape(val, obj.nComponents, numel(obj.nCellsParticle), numel(val) / (obj.nComponents * numel(obj.nCellsParticle))).';
+				val = permute(reshape(val, obj.nComponents, numel(obj.nCellsParticle), numel(val) / (obj.nComponents * numel(obj.nCellsParticle))), [3,2,1]);
 			end
 		end
 
 		function set.filmDiffusion(obj, val)
-			validateattributes(val, {'double'}, {'nonnegative', '2d', 'nonempty', 'finite', 'real'}, '', 'filmDiffusion');
-			val = val.';
+			validateattributes(val, {'double'}, {'nonnegative', '3d', 'nonempty', 'finite', 'real'}, '', 'filmDiffusion');
+			if length(size(val)) == 3
+				val = permute(val, [3,2,1]);
+			else
+				val = val.';
+			end
 			obj.data.FILM_DIFFUSION = val(:);
 			obj.hasChanged = true;
 		end
@@ -416,13 +420,17 @@ classdef GeneralRateModel2D < Model
 		function val = get.diffusionParticle(obj)
 			val = obj.data.PAR_DIFFUSION;
 			if (numel(val) >= obj.nComponents * numel(obj.nCellsParticle)) && (mod(numel(val), obj.nComponents * numel(obj.nCellsParticle)) == 0)
-				val = reshape(val, obj.nComponents, numel(obj.nCellsParticle), numel(val) / (obj.nComponents * numel(obj.nCellsParticle))).';
+				val = permute(reshape(val, obj.nComponents, numel(obj.nCellsParticle), numel(val) / (obj.nComponents * numel(obj.nCellsParticle))), [3,2,1]);
 			end
 		end
 
 		function set.diffusionParticle(obj, val)
-			validateattributes(val, {'double'}, {'nonnegative', '2d', 'nonempty', 'finite', 'real'}, '', 'diffusionParticle');
-			val = val.';
+			validateattributes(val, {'double'}, {'nonnegative', '3d', 'nonempty', 'finite', 'real'}, '', 'diffusionParticle');
+			if length(size(val)) == 3
+				val = permute(val, [3,2,1]);
+			else
+				val = val.';
+			end
 			obj.data.PAR_DIFFUSION = val(:);
 			obj.hasChanged = true;
 		end
@@ -435,13 +443,14 @@ classdef GeneralRateModel2D < Model
 			
 			val = obj.data.PAR_SURFDIFFUSION;
 			nTotalBnd = sum(obj.nBoundStates);
-			if (nTotalBnd ~= 0) && (numel(val) >= nTotalBnd) && (numel(val) / nTotalBnd == floor(numel(val) / nTotalBnd))
+			if (nTotalBnd ~= 0) && (numel(val) >= nTotalBnd) && (mod(numel(val), nTotalBnd) == 0)
 				val = reshape(val, nTotalBnd, numel(val) / nTotalBnd).';
 			end
 		end
 
 		function set.diffusionParticleSurface(obj, val)
 			validateattributes(val, {'double'}, {'nonnegative', '2d', 'finite', 'real'}, '', 'diffusionParticleSurface');
+			val = val.';
 			obj.data.PAR_SURFDIFFUSION = val(:);
 			obj.hasChanged = true;
 		end
@@ -483,7 +492,8 @@ classdef GeneralRateModel2D < Model
 			if isempty(val)
 				obj.data = rmfield(obj.data, 'PORE_ACCESSIBILITY');
 			else
-				validateattributes(val, {'double'}, {'vector', 'nonempty', '>=', 0.0, '<=', 1.0, 'finite', 'real'}, '', 'poreAccessibility');
+				validateattributes(val, {'double'}, {'2d', 'nonempty', '>=', 0.0, '<=', 1.0, 'finite', 'real'}, '', 'poreAccessibility');
+				val = val.';
 				obj.data.PORE_ACCESSIBILITY = val(:);
 			end
 			obj.hasChanged = true;
@@ -893,7 +903,11 @@ classdef GeneralRateModel2D < Model
 
 			if ~isfield(obj.data, param.SENS_NAME) && ~isempty(obj.bindingModel)
 				% We don't have this parameter, so try binding model
-				val = obj.bindingModel(param.SENS_PARTYPE+1).getParameterValue(param, obj.nBoundStates((param.SENS_PARTYPE * obj.nComponents + 1):((param.SENS_PARTYPE + 1) * obj.nComponents)));
+				if (param.SENS_PARTYPE >= 0)
+					val = obj.bindingModel(param.SENS_PARTYPE+1).getParameterValue(param, obj.nBoundStates((param.SENS_PARTYPE * obj.nComponents + 1):((param.SENS_PARTYPE + 1) * obj.nComponents)));
+				else
+					val = obj.bindingModel(1).getParameterValue(param, obj.nBoundStates(1:obj.nComponents));
+				end
 				return;
 			end
 			
@@ -1035,7 +1049,11 @@ classdef GeneralRateModel2D < Model
 
 			if ~isfield(obj.data, param.SENS_NAME) && ~isempty(obj.bindingModel)
 				% We don't have this parameter, so try binding model
-				oldVal = obj.bindingModel(param.SENS_PARTYPE+1).setParameterValue(param, obj.nBoundStates((param.SENS_PARTYPE * obj.nComponents + 1):((param.SENS_PARTYPE + 1) * obj.nComponents)), newVal);
+				if (param.SENS_PARTYPE >= 0)
+					oldVal = obj.bindingModel(param.SENS_PARTYPE+1).setParameterValue(param, obj.nBoundStates((param.SENS_PARTYPE * obj.nComponents + 1):((param.SENS_PARTYPE + 1) * obj.nComponents)), newVal);
+				else
+					oldVal = obj.bindingModel(1).setParameterValue(param, obj.nBoundStates(1:obj.nComponents), newVal);
+				end
 				return;
 			end
 

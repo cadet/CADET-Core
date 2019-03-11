@@ -34,12 +34,13 @@ function parameterizedSimulationWithSensitivities()
 	%   - its unit operation id (0-based index or -1 if independent),
 	%   - name (according to CADET file format specification),
 	%   - component index (0-based index or -1 if independent),
+	%   - particle type index (0-based index or -1 if independent),
 	%   - reaction index (0-based index or -1 if independent),
 	%   - bound phase index (0-based index or -1 if independent), and
 	%   - time integrator section index (0-based index or -1 if independent).
 
 	% Parameter 1: SMA_KA of component 2 (Lysozyme, component 1 if read as 0-based) in GRM (unit operation 0)
-	params{1} = makeSensitivity([0], {'SMA_KA'}, [1], [0], [-1], [0], [-1]);
+	params{1} = makeSensitivity([0], {'SMA_KA'}, [1], [-1], [-1], [0], [-1]);
 
 	% Parameter 2: CONST_COEFF of component 2 (Lysozyme, component 1 if read as 0-based)
 	%              in inlet unit operation (id 1) and time section 0. This is the loading
