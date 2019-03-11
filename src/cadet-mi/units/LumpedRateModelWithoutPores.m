@@ -203,7 +203,7 @@ classdef LumpedRateModelWithoutPores < Model
 		end
 
 		function set.porosity(obj, val)
-			validateattributes(val, {'double'}, {'scalar', 'nonempty', '>=', 0.0, '<=', 1.0, 'finite', 'real'}, '', 'porosity');
+			validateattributes(val, {'double'}, {'scalar', 'nonempty', '>', 0.0, '<=', 1.0, 'finite', 'real'}, '', 'porosity');
 			obj.data.TOTAL_POROSITY = val;
 			obj.hasChanged = true;
 		end
@@ -356,7 +356,7 @@ classdef LumpedRateModelWithoutPores < Model
 				end
 			end
 
-			validateattributes(obj.porosity, {'double'}, {'scalar', 'nonempty', '>=', 0.0, '<=', 1.0, 'finite', 'real'}, '', 'porosity');
+			validateattributes(obj.porosity, {'double'}, {'scalar', 'nonempty', '>', 0.0, '<=', 1.0, 'finite', 'real'}, '', 'porosity');
 			validateattributes(obj.columnLength, {'double'}, {'positive', 'scalar', 'nonempty', 'finite', 'real'}, '', 'columnLength');
 
 			if ~isempty(obj.bindingModel) && ~isa(obj.bindingModel, 'BindingModel')

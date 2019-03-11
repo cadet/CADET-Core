@@ -21,6 +21,7 @@ classdef GeneralRateModel < Model
 		nCellsColumn; % Number of axial cells in the column
 		nCellsParticle; % Number of radial cells in the particle
 		nBoundStates; % Number of bound states for each component
+		nParticleTypes; % Number of particle types
 
 		particleDiscretizationType; % Type of particle discretization (e.g., equivolume)
 		particleCellPosition; % Positions of the cells in the particle (dimensionless, between 0 and 1)
@@ -39,14 +40,18 @@ classdef GeneralRateModel < Model
 		interstitialVelocity; % Interstitial velocity of the mobile phase transport inside the column in [m_IV / s]
 
 		filmDiffusion; % Film diffusion coefficient in [m / s]
+		filmDiffusionMultiplexMode; % Multiplex mode of film diffusion
 		diffusionParticle; % Diffusion coefficient of the mobile phase components inside the particle in [m^2_MP / s]
+		diffusionParticleMultiplexMode; % Multiplex mode of particle diffusion
 		diffusionParticleSurface; % Diffusion coefficient of the mobile phase components on the surface of the particle in [m^2_SP / s]
+		diffusionParticleSurfaceMultiplexMode; % Multiplex mode of particle surface diffusion
 
 		% Geometry
 		
 		porosityColumn; % Porosity of the column
 		porosityParticle; % Porosity of the particle
 		poreAccessibility; % Pore accessibility
+		poreAccessibilityMultiplexMode; % Multiplex mode of pore accessibility
 
 		columnLength; % Length of the column in [m]
 		particleRadius; % Radius of the particles in [m]
@@ -93,6 +98,7 @@ classdef GeneralRateModel < Model
 			obj.bindingModel = [];
 			obj.particleCoreRadius = 0;
 			obj.particleTypeVolumeFractions = 1;
+			obj.nParticleTypes = 1;
 
 			obj.useAnalyticJacobian = true;
 			obj.particleCellPosition = [];
@@ -139,6 +145,16 @@ classdef GeneralRateModel < Model
 		function set.nBoundStates(obj, val)
 			validateattributes(val, {'numeric'}, {'nonnegative', 'vector', 'nonempty', 'finite', 'real'}, '', 'nBoundStates');
 			obj.data.discretization.NBOUND = int32(val);
+			obj.hasChanged = true;
+		end
+
+		function val = get.nParticleTypes(obj)
+			val = double(obj.data.discretization.NPARTYPE);
+		end
+
+		function set.nParticleTypes(obj, val)
+			validateattributes(val, {'numeric'}, {'scalar', 'nonempty', '>=', 1, 'finite', 'real'}, '', 'nParticleTypes');
+			obj.data.discretization.NPARTYPE = int32(val);
 			obj.hasChanged = true;
 		end
 
@@ -281,8 +297,10 @@ classdef GeneralRateModel < Model
 
 		function val = get.filmDiffusion(obj)
 			val = obj.data.FILM_DIFFUSION;
-			if (numel(val) >= obj.nComponents * numel(obj.nCellsParticle)) && (mod(numel(val), obj.nComponents * numel(obj.nCellsParticle)) == 0)
-				val = permute(reshape(val, obj.nComponents, numel(obj.nCellsParticle), numel(val) / (obj.nComponents * numel(obj.nCellsParticle))), [3,2,1]);
+			if (numel(val) >= obj.nComponents * obj.nParticleTypes) && (mod(numel(val), obj.nComponents * obj.nParticleTypes) == 0)
+				val = permute(reshape(val, obj.nComponents, obj.nParticleTypes, numel(val) / (obj.nComponents * obj.nParticleTypes)), [3,2,1]);
+			elseif (numel(val) >= obj.nComponents) && (mod(numel(val), obj.nComponents) == 0)
+				val = reshape(val, obj.nComponents, numel(val) / obj.nComponents).';
 			end
 		end
 
@@ -297,10 +315,30 @@ classdef GeneralRateModel < Model
 			obj.hasChanged = true;
 		end
 
+		function val = get.filmDiffusionMultiplexMode(obj)
+			if isfield(obj.data, 'FILM_DIFFUSION_MULTIPLEX')
+				val = double(obj.data.FILM_DIFFUSION_MULTIPLEX);
+			else
+				val = [];
+			end
+		end
+
+		function set.filmDiffusionMultiplexMode(obj, val)
+			if isempty(val)
+				obj.data = rmfield(obj.data, 'FILM_DIFFUSION_MULTIPLEX');
+			else
+				validateattributes(val, {'double'}, {'nonnegative', 'scalar', 'nonempty', 'finite', 'real', '>=', 0, '<=', 3}, '', 'filmDiffusionMultiplexMode');
+				obj.data.FILM_DIFFUSION_MULTIPLEX = int32(val);
+			end
+			obj.hasChanged = true;
+		end
+
 		function val = get.diffusionParticle(obj)
 			val = obj.data.PAR_DIFFUSION;
-			if (numel(val) >= obj.nComponents * numel(obj.nCellsParticle)) && (mod(numel(val), obj.nComponents * numel(obj.nCellsParticle)) == 0)
-				val = permute(reshape(val, obj.nComponents, numel(obj.nCellsParticle), numel(val) / (obj.nComponents * numel(obj.nCellsParticle))), [3,2,1]);
+			if (numel(val) >= obj.nComponents * obj.nParticleTypes) && (mod(numel(val), obj.nComponents * obj.nParticleTypes) == 0)
+				val = permute(reshape(val, obj.nComponents, obj.nParticleTypes, numel(val) / (obj.nComponents * obj.nParticleTypes)), [3,2,1]);
+			elseif (numel(val) >= obj.nComponents) && (mod(numel(val), obj.nComponents) == 0)
+				val = reshape(val, obj.nComponents, numel(val) / obj.nComponents).';
 			end
 		end
 
@@ -315,6 +353,24 @@ classdef GeneralRateModel < Model
 			obj.hasChanged = true;
 		end
 
+		function val = get.diffusionParticleMultiplexMode(obj)
+			if isfield(obj.data, 'PAR_DIFFUSION_MULTIPLEX')
+				val = double(obj.data.PAR_DIFFUSION_MULTIPLEX);
+			else
+				val = [];
+			end
+		end
+
+		function set.diffusionParticleMultiplexMode(obj, val)
+			if isempty(val)
+				obj.data = rmfield(obj.data, 'PAR_DIFFUSION_MULTIPLEX');
+			else
+				validateattributes(val, {'double'}, {'nonnegative', 'scalar', 'nonempty', 'finite', 'real', '>=', 0, '<=', 3}, '', 'diffusionParticleMultiplexMode');
+				obj.data.PAR_DIFFUSION_MULTIPLEX = int32(val);
+			end
+			obj.hasChanged = true;
+		end
+
 		function val = get.diffusionParticleSurface(obj)
 			if ~isfield(obj.data, 'PAR_SURFDIFFUSION')
 				val = [];
@@ -322,16 +378,30 @@ classdef GeneralRateModel < Model
 			end
 			
 			val = obj.data.PAR_SURFDIFFUSION;
-			nTotalBnd = sum(obj.nBoundStates);
-			if (nTotalBnd ~= 0) && (numel(val) >= nTotalBnd) && (mod(numel(val), nTotalBnd) == 0)
-				val = reshape(val, nTotalBnd, numel(val) / nTotalBnd).';
-			end
 		end
 
 		function set.diffusionParticleSurface(obj, val)
-			validateattributes(val, {'double'}, {'nonnegative', '2d', 'finite', 'real'}, '', 'diffusionParticleSurface');
+			validateattributes(val, {'double'}, {'nonnegative', 'vector', 'finite', 'real'}, '', 'diffusionParticleSurface');
 			val = val.';
 			obj.data.PAR_SURFDIFFUSION = val(:);
+			obj.hasChanged = true;
+		end
+
+		function val = get.diffusionParticleSurfaceMultiplexMode(obj)
+			if isfield(obj.data, 'PAR_SURFDIFFUSION_MULTIPLEX')
+				val = double(obj.data.PAR_SURFDIFFUSION_MULTIPLEX);
+			else
+				val = [];
+			end
+		end
+
+		function set.diffusionParticleSurfaceMultiplexMode(obj, val)
+			if isempty(val)
+				obj.data = rmfield(obj.data, 'PAR_SURFDIFFUSION_MULTIPLEX');
+			else
+				validateattributes(val, {'double'}, {'nonnegative', 'scalar', 'nonempty', 'finite', 'real', '>=', 0, '<=', 3}, '', 'diffusionParticleSurfaceMultiplexMode');
+				obj.data.PAR_SURFDIFFUSION_MULTIPLEX = int32(val);
+			end
 			obj.hasChanged = true;
 		end
 
@@ -342,7 +412,7 @@ classdef GeneralRateModel < Model
 		end
 
 		function set.porosityColumn(obj, val)
-			validateattributes(val, {'double'}, {'scalar', 'nonempty', '>=', 0.0, '<=', 1.0, 'finite', 'real'}, '', 'porosityColumn');
+			validateattributes(val, {'double'}, {'scalar', 'nonempty', '>', 0.0, '<=', 1.0, 'finite', 'real'}, '', 'porosityColumn');
 			obj.data.COL_POROSITY = val;
 			obj.hasChanged = true;
 		end
@@ -352,7 +422,7 @@ classdef GeneralRateModel < Model
 		end
 
 		function set.porosityParticle(obj, val)
-			validateattributes(val, {'double'}, {'vector', 'nonempty', '>=', 0.0, '<=', 1.0, 'finite', 'real'}, '', 'porosityParticle');
+			validateattributes(val, {'double'}, {'vector', 'nonempty', '>', 0.0, '<=', 1.0, 'finite', 'real'}, '', 'porosityParticle');
 			obj.data.PAR_POROSITY = val;
 			obj.hasChanged = true;
 		end
@@ -360,7 +430,9 @@ classdef GeneralRateModel < Model
 		function val = get.poreAccessibility(obj)
 			if isfield(obj.data, 'PORE_ACCESSIBILITY')
 				val = obj.data.PORE_ACCESSIBILITY;
-				if (numel(val) >= obj.nComponents) && (mod(numel(val), obj.nComponents) == 0)
+				if (numel(val) >= obj.nComponents * obj.nParticleTypes) && (mod(numel(val), obj.nComponents * obj.nParticleTypes) == 0)
+					val = permute(reshape(val, obj.nComponents, obj.nParticleTypes, numel(val) / (obj.nComponents * obj.nParticleTypes)), [3,2,1]);
+				elseif (numel(val) >= obj.nComponents) && (mod(numel(val), obj.nComponents) == 0)
 					val = reshape(val, obj.nComponents, numel(val) / obj.nComponents).';
 				end
 			else
@@ -372,9 +444,31 @@ classdef GeneralRateModel < Model
 			if isempty(val)
 				obj.data = rmfield(obj.data, 'PORE_ACCESSIBILITY');
 			else
-				validateattributes(val, {'double'}, {'2d', 'nonempty', '>=', 0.0, '<=', 1.0, 'finite', 'real'}, '', 'poreAccessibility');
-				val = val.';
+				validateattributes(val, {'double'}, {'3d', 'nonempty', '>=', 0.0, '<=', 1.0, 'finite', 'real'}, '', 'poreAccessibility');
+				if length(size(val)) == 3
+					val = permute(val, [3,2,1]);
+				else
+					val = val.';
+				end
 				obj.data.PORE_ACCESSIBILITY = val(:);
+			end
+			obj.hasChanged = true;
+		end
+
+		function val = get.poreAccessibilityMultiplexMode(obj)
+			if isfield(obj.data, 'PORE_ACCESSIBILITY_MULTIPLEX')
+				val = double(obj.data.PORE_ACCESSIBILITY_MULTIPLEX);
+			else
+				val = [];
+			end
+		end
+
+		function set.poreAccessibilityMultiplexMode(obj, val)
+			if isempty(val)
+				obj.data = rmfield(obj.data, 'PORE_ACCESSIBILITY_MULTIPLEX');
+			else
+				validateattributes(val, {'double'}, {'nonnegative', 'scalar', 'nonempty', 'finite', 'real', '>=', 0, '<=', 3}, '', 'poreAccessibilityMultiplexMode');
+				obj.data.PORE_ACCESSIBILITY_MULTIPLEX = int32(val);
 			end
 			obj.hasChanged = true;
 		end
@@ -596,8 +690,9 @@ classdef GeneralRateModel < Model
 
 			validateattributes(obj.nCellsColumn, {'numeric'}, {'scalar', 'nonempty', '>=', 1, 'finite', 'real'}, '', 'nCellsColumn');
 			validateattributes(obj.nCellsParticle, {'numeric'}, {'vector', 'nonempty', '>=', 1, 'finite', 'real'}, '', 'nCellsParticle');
+			validateattributes(obj.nParticleTypes, {'numeric'}, {'scalar', 'nonempty', '>=', 1, 'finite', 'real'}, '', 'nParticleTypes');
 
-			nParType = numel(obj.nCellsParticle);
+			nParType = obj.nParticleTypes;
 			validateattributes(obj.nBoundStates, {'numeric'}, {'nonnegative', 'vector', 'numel', obj.nComponents * nParType, 'finite', 'real'}, '', 'nBoundStates');
 			
 			for i = 1:length(obj.particleDiscretizationType)
@@ -611,7 +706,10 @@ classdef GeneralRateModel < Model
 
 			validateattributes(obj.initialBulk, {'double'}, {'nonnegative', 'vector', 'numel', obj.nComponents, 'finite', 'real'}, '', 'initialBulk');
 			if ~isempty(obj.initialParticle)
-				validateattributes(obj.initialParticle, {'double'}, {'nonnegative', 'vector', 'numel', obj.nComponents * nParType, 'finite', 'real'}, '', 'initialParticle');
+				validateattributes(obj.initialParticle, {'double'}, {'nonnegative', 'vector', 'finite', 'real'}, '', 'initialParticle');
+				if ~any(numel(obj.initialParticle) == [obj.nComponents, obj.nComponents * nParType])
+					error('CADET:invalidConfig', 'Expected initialParticle to be of size %d, or %d', obj.nComponents, obj.nComponents * nParType);
+				end
 			end
 			if ~isempty(obj.initialSolid)
 				validateattributes(obj.initialSolid, {'double'}, {'nonnegative', 'vector', 'numel', sum(obj.nBoundStates), 'finite', 'real'}, '', 'initialSolid');
@@ -632,26 +730,39 @@ classdef GeneralRateModel < Model
 					error('CADET:invalidConfig', 'Expected interstitialVelocity to be of size %d or %d (number of time sections).', 1, nSections);
 				end
 			end
-			if (numel(obj.filmDiffusion) ~= obj.nComponents * nParType) && (numel(obj.filmDiffusion) ~= nSections * obj.nComponents * nParType)
-				error('CADET:invalidConfig', 'Expected filmDiffusion to be of size %d (number of components) or %d (number of time sections * number of components).', obj.nComponents, nSections * obj.nComponents);
+			if (numel(obj.filmDiffusion) ~= obj.nComponents) && (numel(obj.filmDiffusion) ~= obj.nComponents * nSections) && (numel(obj.filmDiffusion) ~= obj.nComponents * nParType) && (numel(obj.filmDiffusion) ~= nSections * obj.nComponents * nParType)
+				error('CADET:invalidConfig', 'Expected filmDiffusion to be of size %d, %d, %d, or %d.', obj.nComponents, obj.nComponents * nSections, obj.nComponents * nParType, nSections * obj.nComponents * nParType);
 			end
-			if (numel(obj.diffusionParticle) ~= obj.nComponents * nParType) && (numel(obj.diffusionParticle) ~= nSections * obj.nComponents * nParType)
-				error('CADET:invalidConfig', 'Expected diffusionParticle to be of size %d (number of components) or %d (number of time sections * number of components).', obj.nComponents, nSections * obj.nComponents);
+			if (numel(obj.diffusionParticle) ~= obj.nComponents) && (numel(obj.diffusionParticle) ~= obj.nComponents * nSections) && (numel(obj.diffusionParticle) ~= obj.nComponents * nParType) && (numel(obj.diffusionParticle) ~= nSections * obj.nComponents * nParType)
+				error('CADET:invalidConfig', 'Expected diffusionParticle to be of size %d, %d, %d, or %d.', obj.nComponents, obj.nComponents * nSections, obj.nComponents * nParType, nSections * obj.nComponents * nParType);
 			end
-			if (numel(obj.diffusionParticleSurface) ~= nTotalBnd) && (numel(obj.diffusionParticleSurface) ~= nSections * nTotalBnd)
-				error('CADET:invalidConfig', 'Expected diffusionParticleSurface to be of size %d (number of bound states) or %d (number of time sections * number of bound states).', nTotalBnd, nSections * nTotalBnd);
+			if (numel(obj.diffusionParticleSurface) ~= nTotalBnd) && (numel(obj.diffusionParticleSurface) ~= nSections * nTotalBnd) && (numel(obj.diffusionParticleSurface) ~= nSections * sum(obj.nBoundStates(1:obj.nComponents))) && (numel(obj.diffusionParticleSurface) ~= sum(obj.nBoundStates(1:obj.nComponents)))
+				error('CADET:invalidConfig', 'Expected diffusionParticleSurface to be of size %d, %d, %d, or %d.', nTotalBnd, nTotalBnd * nSections, sum(obj.nBoundStates(1:obj.nComponents)), nSections * sum(obj.nBoundStates(1:obj.nComponents)));
 			end
 
-			validateattributes(obj.porosityColumn, {'double'}, {'scalar', 'nonempty', '>=', 0.0, '<=', 1.0, 'finite', 'real'}, '', 'porosityColumn');
-			validateattributes(obj.porosityParticle, {'double'}, {'vector', 'nonempty', 'numel', nParType, '>=', 0.0, '<=', 1.0, 'finite', 'real'}, '', 'porosityParticle');
+			validateattributes(obj.porosityColumn, {'double'}, {'scalar', 'nonempty', '>', 0.0, '<=', 1.0, 'finite', 'real'}, '', 'porosityColumn');
+			validateattributes(obj.porosityParticle, {'double'}, {'vector', 'nonempty', '>', 0.0, '<=', 1.0, 'finite', 'real'}, '', 'porosityParticle');
+			if (numel(obj.porosityParticle) ~= 1) && (numel(obj.porosityParticle) ~= nParType)
+				error('CADET:invalidConfig', 'Expected porosityParticle to be of size %d or %d (number of particle types).', 1, nParType);
+			end
 			validateattributes(obj.columnLength, {'double'}, {'positive', 'scalar', 'nonempty', 'finite', 'real'}, '', 'columnLength');
-			validateattributes(obj.particleRadius, {'double'}, {'positive', 'vector', 'numel', nParType, 'nonempty', 'finite', 'real'}, '', 'particleRadius');
-			validateattributes(obj.particleCoreRadius, {'double'}, {'vector', 'numel', nParType, 'nonempty', '>=', 0.0, 'finite', 'real'}, '', 'particleCoreRadius');
+			validateattributes(obj.particleRadius, {'double'}, {'positive', 'vector', 'nonempty', 'finite', 'real'}, '', 'particleRadius');
+			if (numel(obj.particleRadius) ~= 1) && (numel(obj.particleRadius) ~= nParType)
+				error('CADET:invalidConfig', 'Expected particleRadius to be of size %d or %d (number of particle types).', 1, nParType);
+			end
+			validateattributes(obj.particleCoreRadius, {'double'}, {'vector', 'nonempty', '>=', 0.0, 'finite', 'real'}, '', 'particleCoreRadius');
+			if (numel(obj.particleCoreRadius) ~= 1) && (numel(obj.particleCoreRadius) ~= nParType)
+				error('CADET:invalidConfig', 'Expected particleCoreRadius to be of size %d or %d (number of particle types).', 1, nParType);
+			end
+
 			if any(obj.particleCoreRadius >= obj.particleRadius)
 				error('CADET:invalidConfig', 'Expected particleCoreRadius to be smaller than particleRadius.');
 			end
 			if ~isempty(obj.poreAccessibility)
-				validateattributes(obj.poreAccessibility, {'double'}, {'vector', 'numel', obj.nComponents * nParType, '>=', 0.0, '<=', 1.0, 'finite', 'real'}, '', 'poreAccessibility');
+				validateattributes(obj.poreAccessibility, {'double'}, {'vector', '>', 0.0, '<=', 1.0, 'finite', 'real'}, '', 'poreAccessibility');
+				if (numel(obj.poreAccessibility) ~= obj.nComponents) && (numel(obj.poreAccessibility) ~= obj.nComponents * nSections) && (numel(obj.poreAccessibility) ~= obj.nComponents * nParType) && (numel(obj.poreAccessibility) ~= nSections * obj.nComponents * nParType)
+					error('CADET:invalidConfig', 'Expected poreAccessibility to be of size %d, %d, %d, or %d.', obj.nComponents, obj.nComponents * nSections, obj.nComponents * nParType, nSections * obj.nComponents * nParType);
+				end
 			end
 			validateattributes(obj.particleTypeVolumeFractions, {'double'}, {'vector', 'nonempty', '>=', 0.0, '<=', 1.0, 'finite', 'real'}, '', 'particleTypeVolumeFractions');
 			if (numel(obj.particleTypeVolumeFractions) ~= nParType) && (numel(obj.particleTypeVolumeFractions) ~= obj.nCellsColumn * nParType)
@@ -760,7 +871,11 @@ classdef GeneralRateModel < Model
 					offset = offset + param.SENS_BOUNDPHASE;
 				end
 				if (param.SENS_COMP > 0)
-					nBS = obj.nBoundStates((param.SENS_PARTYPE * obj.nComponents + 1):((param.SENS_PARTYPE + 1) * obj.nComponents));
+					if (param.SENS_PARTYPE ~= -1)
+						nBS = obj.nBoundStates((param.SENS_PARTYPE * obj.nComponents + 1):((param.SENS_PARTYPE + 1) * obj.nComponents));
+					else
+						nBS = obj.nBoundStates(1:obj.nComponents);
+					end
 					offset = offset + sum(nBS(1:param.SENS_COMP));
 				end
 				if (param.SENS_PARTYPE > 0)
@@ -774,8 +889,15 @@ classdef GeneralRateModel < Model
 					offset = offset + param.SENS_PARTYPE;
 				end
 				if (param.SENS_SECTION > 0)
-					offset = offset + param.SENS_SECTION * numel(obj.nCellsParticle);
+					offset = offset + param.SENS_SECTION * obj.nParticleTypes;
 				end
+			elseif (strcmp(param.SENS_NAME, 'INIT_Q'))
+				if (param.SENS_PARTYPE ~= -1)
+					offset = offset + sum(obj.nBoundStates(1:((param.SENS_PARTYPE + 1) * obj.nComponents) + param.SENS_COMP));
+				else
+					offset = offset + sum(obj.nBoundStates(1:param.SENS_COMP));
+				end
+				offset = offset + param.SENS_BOUNDPHASE;
 			else
 				if (param.SENS_SECTION ~= -1)
 					% Depends on section
@@ -855,7 +977,11 @@ classdef GeneralRateModel < Model
 					offset = offset + param.SENS_BOUNDPHASE;
 				end
 				if (param.SENS_COMP > 0)
-					nBS = obj.nBoundStates((param.SENS_PARTYPE * obj.nComponents + 1):((param.SENS_PARTYPE + 1) * obj.nComponents));
+					if (param.SENS_PARTYPE ~= -1)
+						nBS = obj.nBoundStates((param.SENS_PARTYPE * obj.nComponents + 1):((param.SENS_PARTYPE + 1) * obj.nComponents));
+					else
+						nBS = obj.nBoundStates(1:obj.nComponents);
+					end
 					offset = offset + sum(nBS(1:param.SENS_COMP));
 				end
 				if (param.SENS_PARTYPE > 0)
@@ -869,8 +995,15 @@ classdef GeneralRateModel < Model
 					offset = offset + param.SENS_PARTYPE;
 				end
 				if (param.SENS_SECTION > 0)
-					offset = offset + param.SENS_SECTION * numel(obj.nCellsParticle);
+					offset = offset + param.SENS_SECTION * obj.nParticleTypes;
 				end
+			elseif (strcmp(param.SENS_NAME, 'INIT_Q'))
+				if (param.SENS_PARTYPE ~= -1)
+					offset = offset + sum(obj.nBoundStates(1:((param.SENS_PARTYPE + 1) * obj.nComponents) + param.SENS_COMP));
+				else
+					offset = offset + sum(obj.nBoundStates(1:param.SENS_COMP));
+				end
+				offset = offset + param.SENS_BOUNDPHASE;
 			else
 				if (param.SENS_SECTION ~= -1)
 					% Depends on section

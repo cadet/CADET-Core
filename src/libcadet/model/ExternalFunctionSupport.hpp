@@ -148,7 +148,7 @@ namespace cadet
 {
 
 template <typename ValType>
-inline void readScalarParameterOrArray(std::vector<ValType>& dest, IParameterProvider& paramProvider, const std::string& dataSet, unsigned int nExpand);
+inline bool readScalarParameterOrArray(std::vector<ValType>& dest, IParameterProvider& paramProvider, const std::string& dataSet, unsigned int nExpand);
 
 namespace model
 {

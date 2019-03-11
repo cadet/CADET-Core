@@ -176,7 +176,7 @@ Some model parameters (see Table~\ref{tab:FFSectionDependentParams}) can be assi
 Section dependency is recognized by specifying the appropriate number of values for the parameters (see \emph{Length} column in the following tables).
 If a parameter depends on both the component and the section, the ordering is section-major.
 
-For instance, the \emph{Length} field of the parameter \texttt{VELOCITY} reads ``1 / \texttt{NSEC}'' which means that it is not recognized as section dependent if only $1$ value (scalar) is passed.
+For instance, the \emph{Length} field of the parameter \texttt{VELOCITY} reads ``$1$ / \texttt{NSEC}'' which means that it is not recognized as section dependent if only $1$ value (scalar) is passed.
 However, if \texttt{NSEC} many values (vector) are present, it will be treated as section dependent.
 
 Note that all components of component dependent datasets have to be section dependent (e.g., you cannot have a section dependency on component $2$ only while the other components are not section dependent).
@@ -410,8 +410,12 @@ Note that all components of component dependent datasets have to be section depe
   \begin{dataset}[unit=\si{\mol\per\cubic\metre\of{IV}},type=double,range={$\geq 0$},length={\texttt{NCOMP}}]{INIT\_C}
     Initial concentrations for each component in the bulk mobile phase
   \end{dataset}
-  \begin{dataset}[unit=\si{\mol\per\cubic\metre\of{MP}},type=double,range={$\geq 0$},length={$\texttt{NPARTYPE} \cdot \texttt{NCOMP}$}]{INIT\_CP}
-    Initial concentrations for each component in the bead liquid phase of each particle type in type-major ordering (optional, \texttt{INIT\_C} is used if left out)
+  \begin{dataset}[unit=\si{\mol\per\cubic\metre\of{MP}},type=double,range={$\geq 0$},length={\texttt{NCOMP} / $\texttt{NPARTYPE} \cdot \texttt{NCOMP}$}]{INIT\_CP}
+    Initial concentrations for each component in the bead liquid phase (optional, \texttt{INIT\_C} is used if left out).
+    The length of this field can be $\texttt{NCOMP}$ (same values for each particle type) or $\texttt{NPARTYPE} \cdot \texttt{NCOMP}$
+
+    Values for each particle type can only be given when \texttt{ADSORPTION\_MODEL\_MULTIPLEX} is $0$.
+    The ordering is type-major.
   \end{dataset}
   \begin{dataset}[unit=\si{\mol\per\cubic\metre\of{SP}},type=double,range={$\geq 0$},length={\texttt{NTOTALBND} / $\sum_{i = 0}^{\texttt{NCOMP} - 1} \texttt{NBND}_i$}]{INIT\_Q}
     Initial concentrations for each bound state of each component in the bead solid phase.
@@ -445,28 +449,88 @@ Note that all components of component dependent datasets have to be section depe
   \begin{dataset}[unit=--,type=double,range={$(0,1]$},length={1}]{COL\_POROSITY}
     Column porosity
   \end{dataset}
-  \begin{dataset}[unit=\si{\metre\per\second},type=double,range={$\geq 0$},length={$\texttt{NPARTYPE} \cdot \texttt{NCOMP}$ / $\texttt{NPARTYPE} \cdot \texttt{NCOMP} \cdot \texttt{NSEC}$}]{FILM\_DIFFUSION}
-    Film diffusion coefficients for each component of each particle type in section-type-major ordering
+  \begin{dataset}[unit=\si{\metre\per\second},type=double,range={$\geq 0$},length={see \texttt{FILM\_DIFFUSION\_MULTIPLEX}}]{FILM\_DIFFUSION}
+    Film diffusion coefficients for each component of each particle type
   \end{dataset}
-  \begin{dataset}[unit=--,type=double,range={$(0,1]$},length={\texttt{NPARTYPE}}]{PAR\_POROSITY}
-    Particle porosity of each particle type
+  \begin{dataset}[unit=--,type=int,range={$\{0, \dots, 3 \}$},length={1}]{FILM\_DIFFUSION\_MULTIPLEX}
+    Multiplexing mode of \texttt{FILM\_DIFFUSION}.
+    Determines whether \texttt{FILM\_DIFFUSION} is treated as component-, type-, and/or section-independent.
+
+    This field is optional.
+    When left out, multiplexing behavior is inferred from the length of \texttt{FILM\_DIFFUSION}.
+
+    Valid modes are:
+    \begin{description}
+      \item[0] Component-dependent, type-independent, section-independent; length of \texttt{FILM\_DIFFUSION} is $\texttt{NCOMP}$
+      \item[1] Component-dependent, type-independent, section-dependent; length of \texttt{FILM\_DIFFUSION} is $\texttt{NCOMP} \cdot \texttt{NSEC}$; ordering is section-major
+      \item[2] Component-dependent, type-dependent, section-independent; length of \texttt{FILM\_DIFFUSION} is $\texttt{NCOMP} \cdot \texttt{NPARTYPE}$; ordering is type-major
+      \item[3] Component-dependent, type-dependent, section-dependent; length of \texttt{FILM\_DIFFUSION} is $\texttt{NCOMP} \cdot \texttt{NPARTYPE} \cdot \texttt{NSEC}$; ordering is section-type-major
+    \end{description}\vspace{-\baselineskip}
   \end{dataset}
-  \begin{dataset}[unit=\si{\metre},type=double,range={$>0$},length={\texttt{NPARTYPE}}]{PAR\_RADIUS}
-    Particle radius of each particle type
+  \begin{dataset}[unit=--,type=double,range={$(0,1]$},length={$1$ / \texttt{NPARTYPE}}]{PAR\_POROSITY}
+    Particle porosity of all particle types or for each particle type
   \end{dataset}
-  \begin{dataset}[unit=\si{\metre},type=double,range={$[0, \texttt{PAR\_RADIUS})$},length={\texttt{NPARTYPE}}]{PAR\_CORERADIUS}
-    Particle core radius of each particle type (optional, defaults to \SI{0}{\metre})
+  \begin{dataset}[unit=\si{\metre},type=double,range={$>0$},length={$1$ / \texttt{NPARTYPE}}]{PAR\_RADIUS}
+    Particle radius of all particle types or for each particle type
   \end{dataset}
-  \begin{dataset}[unit=--,type=double,range={$(0, 1]$},length={$\texttt{NPARTYPE} \cdot \texttt{NCOMP}$}]{PORE\_ACCESSIBILITY}
-    Pore accessibility factor of each component in each particle type in type-major ordering (optional, defaults to $1$)
+  \begin{dataset}[unit=\si{\metre},type=double,range={$[0, \texttt{PAR\_RADIUS})$},length={$1$ / \texttt{NPARTYPE}}]{PAR\_CORERADIUS}
+    Particle core radius of all particle types or for each particle type (optional, defaults to \SI{0}{\metre})
   \end{dataset}
-  \begin{dataset}[unit=\si{\square\metre\of{MP}\per\second},type=double,range={$\geq 0$},length={$\texttt{NPARTYPE} \cdot \texttt{NCOMP}$ / $\texttt{NSEC} \cdot \texttt{NPARTYPE} \cdot \texttt{NCOMP}$}]{PAR\_DIFFUSION}
-    Effective particle diffusion coefficients of each component in each particle type in section-type-major ordering
+  \begin{dataset}[unit=--,type=double,range={$(0, 1]$},length={see \texttt{PORE\_ACCESSIBILITY\_MULTIPLEX}}]{PORE\_ACCESSIBILITY}
+    Pore accessibility factor of each component in each particle type (optional, defaults to $1$)
   \end{dataset}
-  \begin{dataset}[unit=\si{\square\metre\of{SP}\per\second},type=double,range={$\geq 0$},length={$\texttt{NTOTALBND}$ / $\texttt{NSEC} \cdot \texttt{NTOTALBND}$}]{PAR\_SURFDIFFUSION}
-    Particle surface diffusion coefficients of each bound state of each component in each particle type in section-type-component-major ordering
+  \begin{dataset}[unit=--,type=int,range={$\{0, \dots, 3 \}$},length={1}]{PORE\_ACCESSIBILITY\_MULTIPLEX}
+    Multiplexing mode of \texttt{PORE\_ACCESSIBILITY}.
+    Determines whether \texttt{PORE\_ACCESSIBILITY} is treated as component-, type-, and/or section-independent.
+
+    This field is optional.
+    When left out, multiplexing behavior is inferred from the length of \texttt{PORE\_ACCESSIBILITY}.
+
+    Valid modes are:
+    \begin{description}
+      \item[0] Component-dependent, type-independent, section-independent; length of \texttt{PORE\_ACCESSIBILITY} is $\texttt{NCOMP}$
+      \item[1] Component-dependent, type-independent, section-dependent; length of \texttt{PORE\_ACCESSIBILITY} is $\texttt{NCOMP} \cdot \texttt{NSEC}$; ordering is section-major
+      \item[2] Component-dependent, type-dependent, section-independent; length of \texttt{PORE\_ACCESSIBILITY} is $\texttt{NCOMP} \cdot \texttt{NPARTYPE}$; ordering is type-major
+      \item[3] Component-dependent, type-dependent, section-dependent; length of \texttt{PORE\_ACCESSIBILITY} is $\texttt{NCOMP} \cdot \texttt{NPARTYPE} \cdot \texttt{NSEC}$; ordering is section-type-major
+    \end{description}\vspace{-\baselineskip}
   \end{dataset}
-  \begin{dataset}[unit=\si{\metre\per\second},type=double,range={$\mathds{R}$},length={1 / \texttt{NSEC}}]{VELOCITY}
+  \begin{dataset}[unit=\si{\square\metre\of{MP}\per\second},type=double,range={$\geq 0$},length={see \texttt{PAR\_DIFFUSION\_MULTIPLEX}}]{PAR\_DIFFUSION}
+    Effective particle diffusion coefficients of each component in each particle type
+  \end{dataset}
+  \begin{dataset}[unit=--,type=int,range={$\{0, \dots, 3 \}$},length={1}]{PAR\_DIFFUSION\_MULTIPLEX}
+    Multiplexing mode of \texttt{PAR\_DIFFUSION}.
+    Determines whether \texttt{PAR\_DIFFUSION} is treated as component-, type-, and/or section-independent.
+
+    This field is optional.
+    When left out, multiplexing behavior is inferred from the length of \texttt{PAR\_DIFFUSION}.
+
+    Valid modes are:
+    \begin{description}
+      \item[0] Component-dependent, type-independent, section-independent; length of \texttt{PAR\_DIFFUSION} is $\texttt{NCOMP}$
+      \item[1] Component-dependent, type-independent, section-dependent; length of \texttt{PAR\_DIFFUSION} is $\texttt{NCOMP} \cdot \texttt{NSEC}$; ordering is section-major
+      \item[2] Component-dependent, type-dependent, section-independent; length of \texttt{PAR\_DIFFUSION} is $\texttt{NCOMP} \cdot \texttt{NPARTYPE}$; ordering is type-major
+      \item[3] Component-dependent, type-dependent, section-dependent; length of \texttt{PAR\_DIFFUSION} is $\texttt{NCOMP} \cdot \texttt{NPARTYPE} \cdot \texttt{NSEC}$; ordering is section-type-major
+    \end{description}\vspace{-\baselineskip}
+  \end{dataset}
+  \begin{dataset}[unit=\si{\square\metre\of{SP}\per\second},type=double,range={$\geq 0$},length={see \texttt{PAR\_SURFDIFFUSION\_MULTIPLEX}}]{PAR\_SURFDIFFUSION}
+    Particle surface diffusion coefficients of each bound state of each component in each particle type (optional, defaults to all \SI{0}{\square\metre\of{SP}\per\second})
+  \end{dataset}
+  \begin{dataset}[unit=--,type=int,range={$\{0, \dots, 3 \}$},length={1}]{PAR\_SURFDIFFUSION\_MULTIPLEX}
+    Multiplexing mode of \texttt{PAR\_SURFDIFFUSION}.
+    Determines whether \texttt{PAR\_SURFDIFFUSION} is treated as component-, type-, and/or section-independent.
+
+    This field is optional.
+    When left out, multiplexing behavior is inferred from the length of \texttt{PAR\_SURFDIFFUSION}.
+
+    Valid modes are:
+    \begin{description}
+      \item[0] Component-dependent, type-independent, section-independent; length of \texttt{PAR\_SURFDIFFUSION} is $\texttt{NBND}$; ordering is component-major
+      \item[1] Component-dependent, type-independent, section-dependent; length of \texttt{PAR\_SURFDIFFUSION} is $\texttt{NBND} \cdot \texttt{NSEC}$; ordering is section-component-major
+      \item[2] Component-dependent, type-dependent, section-independent; length of \texttt{PAR\_SURFDIFFUSION} is $\texttt{NTOTALBND}$; ordering is type-component-major
+      \item[3] Component-dependent, type-dependent, section-dependent; length of \texttt{PAR\_SURFDIFFUSION} is $\texttt{NTOTALBND} \cdot \texttt{NSEC}$; ordering is section-type-component-major
+    \end{description}\vspace{-\baselineskip}
+  \end{dataset}
+  \begin{dataset}[unit=\si{\metre\per\second},type=double,range={$\mathds{R}$},length={$1$ / \texttt{NSEC}}]{VELOCITY}
     Interstitial velocity of the mobile phase (optional if \texttt{CROSS\_SECTION\_AREA} is present, see Section~\ref{par:MUOPGRMflow})
   \end{dataset}
   \begin{dataset}[unit=\si{\square\metre},type=double,range={$>0$},length={1}]{CROSS\_SECTION\_AREA}
@@ -477,6 +541,8 @@ Note that all components of component dependent datasets have to be section depe
     The volume fractions can be set for all axial cells together or for each individual axial cell.
     For each cell, the volume fractions have to sum to $1$.
     In case of a spatially inhomogeneous setting, the data is expected in cell-major ordering and the \texttt{SENS\_SECTION} field is used for indexing the axial cell when specifying parameter sensitivities.
+
+    This field is optional in case of only one particle type.
   \end{dataset}
 \end{condsubgroup}
 
@@ -484,14 +550,18 @@ Note that all components of component dependent datasets have to be section depe
   \begin{dataset}[type=int,range={$\geq 1$},length=1]{NCOL}
     Number of axial column discretization cells
   \end{dataset}
-  \begin{dataset}[type=int,range={$\geq 1$},length={\texttt{NPARTYPE}}]{NPAR}
+  \begin{dataset}[type=int,range={$\geq 1$},length=1]{NPARTYPE}
+    Number of particle types.
+    Optional, inferred from the length of \texttt{NPAR} or \texttt{NBOUND} if left out.
+  \end{dataset}
+  \begin{dataset}[type=int,range={$\geq 1$},length={$1$ / \texttt{NPARTYPE}}]{NPAR}
     Number of particle (radial) discretization cells for each particle type
   \end{dataset}
-  \begin{dataset}[type=int,range={$\geq 0$},length={$\texttt{NPARTYPE} \cdot \texttt{NCOMP}$}]{NBOUND}
+  \begin{dataset}[type=int,range={$\geq 0$},length={\texttt{NCOMP} / $\texttt{NPARTYPE} \cdot \texttt{NCOMP}$}]{NBOUND}
     Number of bound states for each component in each particle type in type-major ordering
   \end{dataset}
-  \begin{dataset}[type=string,length={\texttt{NPARTYPE}}]{PAR\_DISC\_TYPE}
-    Specifies the discretization scheme inside the particles for each particle type.
+  \begin{dataset}[type=string,length={$1$ / \texttt{NPARTYPE}}]{PAR\_DISC\_TYPE}
+    Specifies the discretization scheme inside the particles for all or each particle type.
     Valid values are \texttt{EQUIDISTANT\_PAR}, \texttt{EQUIVOLUME\_PAR}, and \texttt{USER\_DEFINED\_PAR}.
   \end{dataset}
   \begin{dataset}[unit=--,type=double,range={$[0,1]$},length={$\sum_i (\texttt{NPAR}_i + 1)$}]{PAR\_DISC\_VECTOR}
@@ -543,8 +613,12 @@ Note that all components of component dependent datasets have to be section depe
   \begin{dataset}[unit=\si{\mol\per\cubic\metre\of{IV}},type=double,range={$\geq 0$},length={\texttt{NCOMP}}]{INIT\_C}
     Initial concentrations for each component in the bulk mobile phase
   \end{dataset}
-  \begin{dataset}[unit=\si{\mol\per\cubic\metre\of{MP}},type=double,range={$\geq 0$},length={$\texttt{NPARTYPE} \cdot \texttt{NCOMP}$}]{INIT\_CP}
-    Initial concentrations for each component in the bead liquid phase of each particle type in type-major ordering (optional, \texttt{INIT\_C} is used if left out)
+  \begin{dataset}[unit=\si{\mol\per\cubic\metre\of{MP}},type=double,range={$\geq 0$},length={\texttt{NCOMP} / $\texttt{NPARTYPE} \cdot \texttt{NCOMP}$}]{INIT\_CP}
+    Initial concentrations for each component in the bead liquid phase (optional, \texttt{INIT\_C} is used if left out).
+    The length of this field can be $\texttt{NCOMP}$ (same values for each particle type) or $\texttt{NPARTYPE} \cdot \texttt{NCOMP}$
+
+    Values for each particle type can only be given when \texttt{ADSORPTION\_MODEL\_MULTIPLEX} is $0$.
+    The ordering is type-major.
   \end{dataset}
   \begin{dataset}[unit=\si{\mol\per\cubic\metre\of{SP}},type=double,range={$\geq 0$},length={\texttt{NTOTALBND} / $\sum_{i = 0}^{\texttt{NCOMP} - 1} \texttt{NBND}_i$}]{INIT\_Q}
     Initial concentrations for each bound state of each component in the bead solid phase.
@@ -578,19 +652,49 @@ Note that all components of component dependent datasets have to be section depe
   \begin{dataset}[unit=--,type=double,range={$(0,1]$},length={1}]{COL\_POROSITY}
     Column porosity
   \end{dataset}
-  \begin{dataset}[unit=\si{\metre\per\second},type=double,range={$\geq 0$},length={$\texttt{NPARTYPE} \cdot \texttt{NCOMP}$ / $\texttt{NPARTYPE} \cdot \texttt{NCOMP} \cdot \texttt{NSEC}$}]{FILM\_DIFFUSION}
-    Film diffusion coefficients for each component of each particle type in section-type-major ordering
+  \begin{dataset}[unit=\si{\metre\per\second},type=double,range={$\geq 0$},length={see \texttt{FILM\_DIFFUSION\_MULTIPLEX}}]{FILM\_DIFFUSION}
+    Film diffusion coefficients for each component of each particle type
   \end{dataset}
-  \begin{dataset}[unit=--,type=double,range={$(0,1]$},length={\texttt{NPARTYPE}}]{PAR\_POROSITY}
-    Particle porosity of each particle type
+  \begin{dataset}[unit=--,type=int,range={$\{0, \dots, 3 \}$},length={1}]{FILM\_DIFFUSION\_MULTIPLEX}
+    Multiplexing mode of \texttt{FILM\_DIFFUSION}.
+    Determines whether \texttt{FILM\_DIFFUSION} is treated as component-, type-, and/or section-independent.
+
+    This field is optional.
+    When left out, multiplexing behavior is inferred from the length of \texttt{FILM\_DIFFUSION}.
+
+    Valid modes are:
+    \begin{description}
+      \item[0] Component-dependent, type-independent, section-independent; length of \texttt{FILM\_DIFFUSION} is $\texttt{NCOMP}$
+      \item[1] Component-dependent, type-independent, section-dependent; length of \texttt{FILM\_DIFFUSION} is $\texttt{NCOMP} \cdot \texttt{NSEC}$; ordering is section-major
+      \item[2] Component-dependent, type-dependent, section-independent; length of \texttt{FILM\_DIFFUSION} is $\texttt{NCOMP} \cdot \texttt{NPARTYPE}$; ordering is type-major
+      \item[3] Component-dependent, type-dependent, section-dependent; length of \texttt{FILM\_DIFFUSION} is $\texttt{NCOMP} \cdot \texttt{NPARTYPE} \cdot \texttt{NSEC}$; ordering is section-type-major
+    \end{description}\vspace{-\baselineskip}
   \end{dataset}
-  \begin{dataset}[unit=\si{\metre},type=double,range={$>0$},length={\texttt{NPARTYPE}}]{PAR\_RADIUS}
-    Particle radius of each particle type
+  \begin{dataset}[unit=--,type=double,range={$(0,1]$},length={$1$ / \texttt{NPARTYPE}}]{PAR\_POROSITY}
+    Particle porosity of all particle types or for each particle type
   \end{dataset}
-  \begin{dataset}[unit=--,type=double,range={$(0, 1]$},length={$\texttt{NPARTYPE} \cdot \texttt{NCOMP}$}]{PORE\_ACCESSIBILITY}
-    Pore accessibility factor of each component in each particle type in type-major ordering (optional, defaults to $1$)
+  \begin{dataset}[unit=\si{\metre},type=double,range={$>0$},length={$1$ / \texttt{NPARTYPE}}]{PAR\_RADIUS}
+    Particle radius of all particle types or for each particle type
   \end{dataset}
-  \begin{dataset}[unit=\si{\metre\per\second},type=double,range={$\mathds{R}$},length={1 / \texttt{NSEC}}]{VELOCITY}
+  \begin{dataset}[unit=--,type=double,range={$(0, 1]$},length={see \texttt{PORE\_ACCESSIBILITY\_MULTIPLEX}}]{PORE\_ACCESSIBILITY}
+    Pore accessibility factor of each component in each particle type (optional, defaults to $1$)
+  \end{dataset}
+  \begin{dataset}[unit=--,type=int,range={$\{0, \dots, 3 \}$},length={1}]{PORE\_ACCESSIBILITY\_MULTIPLEX}
+    Multiplexing mode of \texttt{PORE\_ACCESSIBILITY}.
+    Determines whether \texttt{PORE\_ACCESSIBILITY} is treated as component-, type-, and/or section-independent.
+
+    This field is optional.
+    When left out, multiplexing behavior is inferred from the length of \texttt{PORE\_ACCESSIBILITY}.
+
+    Valid modes are:
+    \begin{description}
+      \item[0] Component-dependent, type-independent, section-independent; length of \texttt{PORE\_ACCESSIBILITY} is $\texttt{NCOMP}$
+      \item[1] Component-dependent, type-independent, section-dependent; length of \texttt{PORE\_ACCESSIBILITY} is $\texttt{NCOMP} \cdot \texttt{NSEC}$; ordering is section-major
+      \item[2] Component-dependent, type-dependent, section-independent; length of \texttt{PORE\_ACCESSIBILITY} is $\texttt{NCOMP} \cdot \texttt{NPARTYPE}$; ordering is type-major
+      \item[3] Component-dependent, type-dependent, section-dependent; length of \texttt{PORE\_ACCESSIBILITY} is $\texttt{NCOMP} \cdot \texttt{NPARTYPE} \cdot \texttt{NSEC}$; ordering is section-type-major
+    \end{description}\vspace{-\baselineskip}
+  \end{dataset}
+  \begin{dataset}[unit=\si{\metre\per\second},type=double,range={$\mathds{R}$},length={$1$ / \texttt{NSEC}}]{VELOCITY}
     Interstitial velocity of the mobile phase (optional if \texttt{CROSS\_SECTION\_AREA} is present, see Section~\ref{par:MUOPGRMflow})
   \end{dataset}
   \begin{dataset}[unit=\si{\square\metre},type=double,range={$>0$},length={1}]{CROSS\_SECTION\_AREA}
@@ -601,6 +705,8 @@ Note that all components of component dependent datasets have to be section depe
     The volume fractions can be set for all axial cells together or for each individual axial cell.
     For each cell, the volume fractions have to sum to $1$.
     In case of a spatially inhomogeneous setting, the data is expected in cell-major ordering and the \texttt{SENS\_SECTION} field is used for indexing the axial cell when specifying parameter sensitivities.
+
+    This field is optional in case of only one particle type.
   \end{dataset}
 \end{condsubgroup}
 
@@ -608,7 +714,11 @@ Note that all components of component dependent datasets have to be section depe
   \begin{dataset}[type=int,range={$\geq 1$},length=1]{NCOL}
     Number of axial column discretization cells
   \end{dataset}
-  \begin{dataset}[type=int,range={$\geq 0$},length={$\texttt{NPARTYPE} \cdot \texttt{NCOMP}$}]{NBOUND}
+  \begin{dataset}[type=int,range={$\geq 1$},length=1]{NPARTYPE}
+    Number of particle types.
+    Optional, inferred from the length of \texttt{NBOUND} if left out.
+  \end{dataset}
+  \begin{dataset}[type=int,range={$\geq 0$},length={\texttt{NCOMP} / $\texttt{NPARTYPE} \cdot \texttt{NCOMP}$}]{NBOUND}
     Number of bound states for each component in each particle type in type-major ordering
   \end{dataset}
   \begin{dataset}[type=int,range={$\{0, 1\}$},length=1]{USE\_ANALYTIC\_JACOBIAN}
@@ -677,7 +787,7 @@ Note that all components of component dependent datasets have to be section depe
   \begin{dataset}[unit=--,type=double,range={$[0,1]$},length={1}]{TOTAL\_POROSITY}
     Total porosity
   \end{dataset}
-  \begin{dataset}[unit=\si{\metre\per\second},type=double,range={$\mathds{R}$},length={1 / \texttt{NSEC}}]{VELOCITY}
+  \begin{dataset}[unit=\si{\metre\per\second},type=double,range={$\mathds{R}$},length={$1$ / \texttt{NSEC}}]{VELOCITY}
     Interstitial velocity of the mobile phase (optional if \texttt{CROSS\_SECTION\_AREA} is present, see Section~\ref{par:MUOPGRMflow})
   \end{dataset}
   \begin{dataset}[unit=\si{\square\metre},type=double,range={$>0$},length={1}]{CROSS\_SECTION\_AREA}
@@ -720,16 +830,26 @@ Note that all components of component dependent datasets have to be section depe
 
     This field is optional and inferred from the length of \texttt{ADSORPTION\_MODEL} if left out.
   \end{dataset}
-  \begin{dataset}[unit=\si{\mol\per\cubic\metre\of{IV}},type=double,range={$\geq 0$},length={\texttt{NCOMP}}]{INIT\_C}
-    Initial concentrations for each component in the bulk mobile phase
+  \begin{dataset}[unit=\si{\mol\per\cubic\metre\of{IV}},type=double,range={$\geq 0$},length={$\texttt{NCOMP}$ / $\texttt{NCOMP} \cdot \texttt{NRAD}$}]{INIT\_C}
+    Initial concentrations for each component in all radial zones the bulk mobile phase (length \texttt{NCOMP}), or for each component in each radial zone (length $\texttt{NCOMP} \cdot \texttt{NRAD}$, ordering radial-major)
   \end{dataset}
-  \begin{dataset}[unit=\si{\mol\per\cubic\metre\of{MP}},type=double,range={$\geq 0$},length={$\texttt{NPARTYPE} \cdot \texttt{NCOMP}$}]{INIT\_CP}
-    Initial concentrations for each component in the bead liquid phase of each particle type in type-major ordering (optional, \texttt{INIT\_C} is used if left out)
+  \begin{dataset}[unit=\si{\mol\per\cubic\metre\of{MP}},type=double,range={$\geq 0$}]{INIT\_CP}
+    Initial concentrations for each component in the bead liquid phase (optional, \texttt{INIT\_C} is used if left out).
+    The length of this field can be $\texttt{NCOMP}$ (same values for each radial zone and particle type), $\texttt{NPARTYPE} \cdot \texttt{NCOMP}$ (same values for each radial zone), $\texttt{RAD} \cdot \texttt{NCOMP}$ (same values for each particle type), or $\texttt{NRAD} \cdot \texttt{NPARTYPE} \cdot \texttt{NCOMP}$.
+    The ordering is radial-type-major.
+
+    Values for each particle type can only be given when \texttt{ADSORPTION\_MODEL\_MULTIPLEX} is $0$.
+    In the radial-inhomogeneous case, the \texttt{SENS\_REACTION} field is used for indexing the radial zone when specifying parameter sensitivities.
   \end{dataset}
-  \begin{dataset}[unit=\si{\mol\per\cubic\metre\of{SP}},type=double,range={$\geq 0$},length={\texttt{NTOTALBND} / $\sum_{i = 0}^{\texttt{NCOMP} - 1} \texttt{NBND}_i$}]{INIT\_Q}
+  \begin{dataset}[unit=\si{\mol\per\cubic\metre\of{SP}},type=double,range={$\geq 0$}]{INIT\_Q}
     Initial concentrations for each bound state of each component in the bead solid phase.
     If \texttt{ADSORPTION\_MODEL\_MULTIPLEX} is $0$, values for each particle type are required in type-component-major ordering (length is \texttt{NTOTALBND}).
     If \texttt{ADSORPTION\_MODEL\_MULTIPLEX} is $1$, values for one particle type are required in component-major ordering (length is $\sum_{i = 0}^{\texttt{NCOMP} - 1} \texttt{NBND}_i$).
+
+    Alternatively, values for each radial zone can be supplied.
+    If \texttt{ADSORPTION\_MODEL\_MULTIPLEX} is $0$, values for each radial zone and each particle type are required in radial-type-component-major ordering (length is $\texttt{NRAD} \cdot \texttt{NTOTALBND}$).
+    If \texttt{ADSORPTION\_MODEL\_MULTIPLEX} is $1$, values for each radial zone and all particle types are required in radial-component-major ordering (length is $\texttt{NRAD} \cdot \sum_{i = 0}^{\texttt{NCOMP} - 1} \texttt{NBND}_i$).
+    In the radial-inhomogeneous case, the \texttt{SENS\_REACTION} field is used for indexing the radial zone when specifying parameter sensitivities.
   \end{dataset}
   \begin{dataset}[unit=various,type=double,range={$\mathds{R}$},length={\texttt{NDOF} / $2\texttt{NDOF}$}]{INIT\_STATE}
     Full state vector for initialization (optional, \texttt{INIT\_C}, \texttt{INIT\_CP}, and \texttt{INIT\_Q} will be ignored; if length is $2\texttt{NDOF}$, then the second half is used for time derivatives)
@@ -788,31 +908,91 @@ Note that all components of component dependent datasets have to be section depe
   \begin{dataset}[unit=\si{\metre},type=double,range={$> 0$},length={1}]{COL\_RADIUS}
     Column radius
   \end{dataset}
-  \begin{dataset}[unit=--,type=double,range={$(0,1]$},length={1 / \texttt{NRAD}}]{COL\_POROSITY}
+  \begin{dataset}[unit=--,type=double,range={$(0,1]$},length={$1$ / \texttt{NRAD}}]{COL\_POROSITY}
     Column porosity, either constant (length is 1) or for each radial zone (length is \texttt{NRAD}).
 
     In case of a spatially inhomogeneous setting, the \texttt{SENS\_PARTYPE} field is used for indexing the radial zone when specifying parameter sensitivities.
   \end{dataset}
-  \begin{dataset}[unit=\si{\metre\per\second},type=double,range={$\geq 0$},length={$\texttt{NPARTYPE} \cdot \texttt{NCOMP}$ / $\texttt{NPARTYPE} \cdot \texttt{NCOMP} \cdot \texttt{NSEC}$}]{FILM\_DIFFUSION}
-    Film diffusion coefficients for each component of each particle type in section-type-major ordering
+  \begin{dataset}[unit=\si{\metre\per\second},type=double,range={$\geq 0$},length={see \texttt{FILM\_DIFFUSION\_MULTIPLEX}}]{FILM\_DIFFUSION}
+    Film diffusion coefficients for each component of each particle type
   \end{dataset}
-  \begin{dataset}[unit=--,type=double,range={$(0,1]$},length={\texttt{NPARTYPE}}]{PAR\_POROSITY}
-    Particle porosity of each particle type
+  \begin{dataset}[unit=--,type=int,range={$\{0, \dots, 3 \}$},length={1}]{FILM\_DIFFUSION\_MULTIPLEX}
+    Multiplexing mode of \texttt{FILM\_DIFFUSION}.
+    Determines whether \texttt{FILM\_DIFFUSION} is treated as component-, type-, and/or section-independent.
+
+    This field is optional.
+    When left out, multiplexing behavior is inferred from the length of \texttt{FILM\_DIFFUSION}.
+
+    Valid modes are:
+    \begin{description}
+      \item[0] Component-dependent, type-independent, section-independent; length of \texttt{FILM\_DIFFUSION} is $\texttt{NCOMP}$
+      \item[1] Component-dependent, type-independent, section-dependent; length of \texttt{FILM\_DIFFUSION} is $\texttt{NCOMP} \cdot \texttt{NSEC}$; ordering is section-major
+      \item[2] Component-dependent, type-dependent, section-independent; length of \texttt{FILM\_DIFFUSION} is $\texttt{NCOMP} \cdot \texttt{NPARTYPE}$; ordering is type-major
+      \item[3] Component-dependent, type-dependent, section-dependent; length of \texttt{FILM\_DIFFUSION} is $\texttt{NCOMP} \cdot \texttt{NPARTYPE} \cdot \texttt{NSEC}$; ordering is section-type-major
+    \end{description}\vspace{-\baselineskip}
   \end{dataset}
-  \begin{dataset}[unit=\si{\metre},type=double,range={$>0$},length={\texttt{NPARTYPE}}]{PAR\_RADIUS}
-    Particle radius of each particle type
+  \begin{dataset}[unit=--,type=double,range={$(0,1]$},length={$1$ / \texttt{NPARTYPE}}]{PAR\_POROSITY}
+    Particle porosity of all particle types or for each particle type
   \end{dataset}
-  \begin{dataset}[unit=\si{\metre},type=double,range={$[0, \texttt{PAR\_RADIUS})$},length={\texttt{NPARTYPE}}]{PAR\_CORERADIUS}
-    Particle core radius of each particle type (optional, defaults to \SI{0}{\metre})
+  \begin{dataset}[unit=\si{\metre},type=double,range={$>0$},length={$1$ / \texttt{NPARTYPE}}]{PAR\_RADIUS}
+    Particle radius of all particle types or for each particle type
   \end{dataset}
-  \begin{dataset}[unit=--,type=double,range={$(0, 1]$},length={$\texttt{NPARTYPE} \cdot \texttt{NCOMP}$}]{PORE\_ACCESSIBILITY}
-    Pore accessibility factor of each component in each particle type in type-major ordering (optional, defaults to $1$)
+  \begin{dataset}[unit=\si{\metre},type=double,range={$[0, \texttt{PAR\_RADIUS})$},length={$1$ / \texttt{NPARTYPE}}]{PAR\_CORERADIUS}
+    Particle core radius of all particle types or for each particle type (optional, defaults to \SI{0}{\metre})
   \end{dataset}
-  \begin{dataset}[unit=\si{\square\metre\of{MP}\per\second},type=double,range={$\geq 0$},length={$\texttt{NPARTYPE} \cdot \texttt{NCOMP}$ / $\texttt{NSEC} \cdot \texttt{NPARTYPE} \cdot \texttt{NCOMP}$}]{PAR\_DIFFUSION}
-    Effective particle diffusion coefficients of each component in each particle type in section-type-major ordering
+  \begin{dataset}[unit=--,type=double,range={$(0, 1]$},length={see \texttt{PORE\_ACCESSIBILITY\_MULTIPLEX}}]{PORE\_ACCESSIBILITY}
+    Pore accessibility factor of each component in each particle type (optional, defaults to $1$)
   \end{dataset}
-  \begin{dataset}[unit=\si{\square\metre\of{SP}\per\second},type=double,range={$\geq 0$},length={$\texttt{NTOTALBND}$ / $\texttt{NSEC} \cdot \texttt{NTOTALBND}$}]{PAR\_SURFDIFFUSION}
-    Particle surface diffusion coefficients of each bound state of each component in each particle type in section-type-component-major ordering
+  \begin{dataset}[unit=--,type=int,range={$\{0, \dots, 3 \}$},length={1}]{PORE\_ACCESSIBILITY\_MULTIPLEX}
+    Multiplexing mode of \texttt{PORE\_ACCESSIBILITY}.
+    Determines whether \texttt{PORE\_ACCESSIBILITY} is treated as component-, type-, and/or section-independent.
+
+    This field is optional.
+    When left out, multiplexing behavior is inferred from the length of \texttt{PORE\_ACCESSIBILITY}.
+
+    Valid modes are:
+    \begin{description}
+      \item[0] Component-dependent, type-independent, section-independent; length of \texttt{PORE\_ACCESSIBILITY} is $\texttt{NCOMP}$
+      \item[1] Component-dependent, type-independent, section-dependent; length of \texttt{PORE\_ACCESSIBILITY} is $\texttt{NCOMP} \cdot \texttt{NSEC}$; ordering is section-major
+      \item[2] Component-dependent, type-dependent, section-independent; length of \texttt{PORE\_ACCESSIBILITY} is $\texttt{NCOMP} \cdot \texttt{NPARTYPE}$; ordering is type-major
+      \item[3] Component-dependent, type-dependent, section-dependent; length of \texttt{PORE\_ACCESSIBILITY} is $\texttt{NCOMP} \cdot \texttt{NPARTYPE} \cdot \texttt{NSEC}$; ordering is section-type-major
+    \end{description}\vspace{-\baselineskip}
+  \end{dataset}
+  \begin{dataset}[unit=\si{\square\metre\of{MP}\per\second},type=double,range={$\geq 0$},length={see \texttt{PAR\_DIFFUSION\_MULTIPLEX}}]{PAR\_DIFFUSION}
+    Effective particle diffusion coefficients of each component in each particle type
+  \end{dataset}
+  \begin{dataset}[unit=--,type=int,range={$\{0, \dots, 3 \}$},length={1}]{PAR\_DIFFUSION\_MULTIPLEX}
+    Multiplexing mode of \texttt{PAR\_DIFFUSION}.
+    Determines whether \texttt{PAR\_DIFFUSION} is treated as component-, type-, and/or section-independent.
+
+    This field is optional.
+    When left out, multiplexing behavior is inferred from the length of \texttt{PAR\_DIFFUSION}.
+
+    Valid modes are:
+    \begin{description}
+      \item[0] Component-dependent, type-independent, section-independent; length of \texttt{PAR\_DIFFUSION} is $\texttt{NCOMP}$
+      \item[1] Component-dependent, type-independent, section-dependent; length of \texttt{PAR\_DIFFUSION} is $\texttt{NCOMP} \cdot \texttt{NSEC}$; ordering is section-major
+      \item[2] Component-dependent, type-dependent, section-independent; length of \texttt{PAR\_DIFFUSION} is $\texttt{NCOMP} \cdot \texttt{NPARTYPE}$; ordering is type-major
+      \item[3] Component-dependent, type-dependent, section-dependent; length of \texttt{PAR\_DIFFUSION} is $\texttt{NCOMP} \cdot \texttt{NPARTYPE} \cdot \texttt{NSEC}$; ordering is section-type-major
+    \end{description}\vspace{-\baselineskip}
+  \end{dataset}
+  \begin{dataset}[unit=\si{\square\metre\of{SP}\per\second},type=double,range={$\geq 0$},length={see \texttt{PAR\_SURFDIFFUSION\_MULTIPLEX}}]{PAR\_SURFDIFFUSION}
+    Particle surface diffusion coefficients of each bound state of each component in each particle type (optional, defaults to all \SI{0}{\square\metre\of{SP}\per\second})
+  \end{dataset}
+  \begin{dataset}[unit=--,type=int,range={$\{0, \dots, 3 \}$},length={1}]{PAR\_SURFDIFFUSION\_MULTIPLEX}
+    Multiplexing mode of \texttt{PAR\_SURFDIFFUSION}.
+    Determines whether \texttt{PAR\_SURFDIFFUSION} is treated as component-, type-, and/or section-independent.
+
+    This field is optional.
+    When left out, multiplexing behavior is inferred from the length of \texttt{PAR\_SURFDIFFUSION}.
+
+    Valid modes are:
+    \begin{description}
+      \item[0] Component-dependent, type-independent, section-independent; length of \texttt{PAR\_SURFDIFFUSION} is $\texttt{NBND}$; ordering is component-major
+      \item[1] Component-dependent, type-independent, section-dependent; length of \texttt{PAR\_SURFDIFFUSION} is $\texttt{NBND} \cdot \texttt{NSEC}$; ordering is section-component-major
+      \item[2] Component-dependent, type-dependent, section-independent; length of \texttt{PAR\_SURFDIFFUSION} is $\texttt{NTOTALBND}$; ordering is type-component-major
+      \item[3] Component-dependent, type-dependent, section-dependent; length of \texttt{PAR\_SURFDIFFUSION} is $\texttt{NTOTALBND} \cdot \texttt{NSEC}$; ordering is section-type-component-major
+    \end{description}\vspace{-\baselineskip}
   \end{dataset}
   \begin{dataset}[unit=--,type=double,range={$\mathds{R}$},length={see \texttt{VELOCITY\_MULTIPLEX}}]{VELOCITY}
     Indicates flow direction in each radial zone (forward if value is positive, backward if value is negative), see Section~\ref{par:MUOPGRMflow2D}).
@@ -840,6 +1020,8 @@ Note that all components of component dependent datasets have to be section depe
     For each cell, the volume fractions have to sum to $1$.
 
     In case of a spatially inhomogeneous setting, the \texttt{SENS\_SECTION} field is used for indexing the axial cell and the \texttt{SENS\_REACTION} field is used for indexing the radial cell when specifying parameter sensitivities.
+
+    This field is optional in case of only one particle type.
   \end{dataset}
   \begin{dataset}[unit=--,type=int,range={$\{0, \dots, 3 \}$},length={1}]{PAR\_TYPE\_VOLFRAC\_MULTIPLEX}
     Multiplexing mode of \texttt{PAR\_TYPE\_VOLFRAC}.
@@ -865,10 +1047,14 @@ Note that all components of component dependent datasets have to be section depe
   \begin{dataset}[type=int,range={$\geq 1$},length=1]{NRAD}
     Number of radial column discretization cells
   \end{dataset}
-  \begin{dataset}[type=int,range={$\geq 1$},length={\texttt{NPARTYPE}}]{NPAR}
+  \begin{dataset}[type=int,range={$\geq 1$},length=1]{NPARTYPE}
+    Number of particle types.
+    Optional, inferred from the length of \texttt{NPAR} or \texttt{NBOUND} if left out.
+  \end{dataset}
+  \begin{dataset}[type=int,range={$\geq 1$},length={$1$ / \texttt{NPARTYPE}}]{NPAR}
     Number of particle (radial) discretization cells for each particle type
   \end{dataset}
-  \begin{dataset}[type=int,range={$\geq 0$},length={$\texttt{NPARTYPE} \cdot \texttt{NCOMP}$}]{NBOUND}
+  \begin{dataset}[type=int,range={$\geq 0$},length={\texttt{NCOMP} / $\texttt{NPARTYPE} \cdot \texttt{NCOMP}$}]{NBOUND}
     Number of bound states for each component in each particle type in type-major ordering
   \end{dataset}
   \begin{dataset}[type=string,length=1]{RADIAL\_DISC\_TYPE}
@@ -880,8 +1066,8 @@ Note that all components of component dependent datasets have to be section depe
     The coordinates are absolute and have to include the endpoints $0$ and \texttt{COLUMN\_RADIUS}.
     The values are expected in ascending order (i.e., $0$ is the first and \texttt{COLUMN\_RADIUS} the last value in the array).
   \end{dataset}
-  \begin{dataset}[type=string,length={\texttt{NPARTYPE}}]{PAR\_DISC\_TYPE}
-    Specifies the discretization scheme inside the particles for each particle type.
+  \begin{dataset}[type=string,length={$1$ / \texttt{NPARTYPE}}]{PAR\_DISC\_TYPE}
+    Specifies the discretization scheme inside the particles for all or each particle type.
     Valid values are \texttt{EQUIDISTANT\_PAR}, \texttt{EQUIVOLUME\_PAR}, and \texttt{USER\_DEFINED\_PAR}.
   \end{dataset}
   \begin{dataset}[unit=--,type=double,range={$[0,1]$},length={$\sum_i (\texttt{NPAR}_i + 1)$}]{PAR\_DISC\_VECTOR}
@@ -956,7 +1142,7 @@ Note that all components of component dependent datasets have to be section depe
   \begin{dataset}[unit=--,type=double,range={$(0,1]$},length={1}]{POROSITY}
     Porosity $\varepsilon$ (defaults to $1$)
   \end{dataset}
-  \begin{dataset}[unit=\si{\cubic\metre\per\second},type=double,range={$\geq 0$},length={1 / \texttt{NSEC}}]{FLOWRATE\_FILTER}
+  \begin{dataset}[unit=\si{\cubic\metre\per\second},type=double,range={$\geq 0$},length={$1$ / \texttt{NSEC}}]{FLOWRATE\_FILTER}
     Flow rate of pure liquid without components (optional, defaults to \SI{0}{\cubic\metre\per\second})
   \end{dataset}
   \begin{dataset}[unit=--,type=double,range={$[0,1]$},length={\texttt{NPARTYPE}}]{PAR\_TYPE\_VOLFRAC}
@@ -1554,7 +1740,7 @@ This group also takes precedence over a possibly existing \texttt{/input/model/u
   \begin{dataset}[type=double,range={$\geq 0$},length=1]{RELTOL\_SENS}
     Relative tolerance in the solution of the sensitivity systems
   \end{dataset}
-  \begin{dataset}[type=double,unit={\si{\second}},range={$\geq 0$},length={1 / \texttt{NSEC}}]{INIT\_STEP\_SIZE}
+  \begin{dataset}[type=double,unit={\si{\second}},range={$\geq 0$},length={$1$ / \texttt{NSEC}}]{INIT\_STEP\_SIZE}
     Initial time integrator step size for each section or one value for all sections ($0.0$: IDAS default value), see IDAS guide 4.5, p.\ 36f.
   \end{dataset}
   \begin{dataset}[type=int,range={$\geq 0$},length=1]{MAX\_STEPS}

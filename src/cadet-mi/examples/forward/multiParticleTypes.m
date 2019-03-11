@@ -24,6 +24,7 @@ function multiParticleTypes()
 
 	% Discretization
 	mGrm.nComponents = 4;
+	mGrm.nParticleTypes = 2;
 	mGrm.nCellsColumn = 16; % Attention: This is very low and only used for illustration (short runtime)
 	mGrm.nCellsParticle = [4, 6]; % Attention: This is very low and only used for illustration (short runtime)
 	mGrm.nBoundStates = [ones(mGrm.nComponents, 1); 0; ones(mGrm.nComponents - 1, 1)]; % Number of bound states for each component

@@ -41,7 +41,10 @@ namespace model
 		ComponentSection,
 		Section,
 		Axial,
-		AxialRadial
+		AxialRadial,
+		Type,
+		ComponentType,
+		ComponentSectionType
 	};
 
 } // namespace model

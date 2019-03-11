@@ -41,10 +41,11 @@ namespace cadet
 	 * @param [in] paramProvider Parameter provider from which is read
 	 * @param [in] dataSet Name of the dataset
 	 * @param [in] nExpand How often a single scalar parameter is replicated (@c 1 if scalars should remain scalar)
+	 * @return @c true if a scalar value was read, or @c false if an actual array (more than 1 element) was read
 	 * @tparam ValType Type of the parameter, such as @c active or @c double
 	 */
 	template <typename ValType>
-	inline void readScalarParameterOrArray(std::vector<ValType>& dest, IParameterProvider& paramProvider, const std::string& dataSet, unsigned int nExpand)
+	inline bool readScalarParameterOrArray(std::vector<ValType>& dest, IParameterProvider& paramProvider, const std::string& dataSet, unsigned int nExpand)
 	{
 		dest.clear();
 		if (paramProvider.isArray(dataSet))
@@ -54,6 +55,8 @@ namespace cadet
 			dest.resize(vals.size());
 			for (unsigned int i = 0; i < vals.size(); ++i)
 				dest[i] = vals[i];
+
+			return vals.size() == 1;
 		}
 		else
 		{
@@ -62,6 +65,8 @@ namespace cadet
 			dest.resize(nExpand);
 			for (unsigned int i = 0; i < nExpand; ++i)
 				dest[i] = val;
+
+			return true;
 		}
 	}
 

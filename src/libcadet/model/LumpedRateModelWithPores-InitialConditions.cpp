@@ -18,6 +18,7 @@
 #include "AdUtils.hpp"
 #include "model/parts/BindingConsistentInit.hpp"
 #include "SimulationTypes.hpp"
+#include "SensParamUtil.hpp"
 
 #include <algorithm>
 #include <functional>
@@ -35,6 +36,100 @@ namespace cadet
 
 namespace model
 {
+
+int LumpedRateModelWithPores::multiplexInitialConditions(const cadet::ParameterId& pId, unsigned int adDirection, double adValue)
+{
+	if (_singleBinding)
+	{
+		if ((pId.name == hashString("INIT_CP")) && (pId.section == SectionIndep) && (pId.boundState == BoundStateIndep) && (pId.particleType == ParTypeIndep) && (pId.component != CompIndep) && (pId.reaction == ReactionIndep))
+		{
+			_sensParams.insert(&_initCp[pId.component]);
+			for (unsigned int t = 0; t < _disc.nParType; ++t)
+				_initCp[t * _disc.nComp + pId.component].setADValue(adDirection, adValue);
+		}
+		else if (pId.name == hashString("INIT_CP"))
+			return -1;
+
+		if ((pId.name == hashString("INIT_Q")) && (pId.section == SectionIndep) && (pId.boundState != BoundStateIndep) && (pId.particleType == ParTypeIndep) && (pId.component != CompIndep) && (pId.reaction == ReactionIndep))
+		{
+			_sensParams.insert(&_initQ[_disc.nBoundBeforeType[0] + _disc.boundOffset[pId.component] + pId.boundState]);
+			for (unsigned int t = 0; t < _disc.nParType; ++t)
+				_initQ[_disc.nBoundBeforeType[t] + _disc.boundOffset[t * _disc.nComp + pId.component] + pId.boundState].setADValue(adDirection, adValue);
+		}
+		else if (pId.name == hashString("INIT_Q"))
+			return -1;
+	}
+	else
+	{
+		if ((pId.name == hashString("INIT_CP")) && (pId.section == SectionIndep) && (pId.boundState == BoundStateIndep) && (pId.particleType != ParTypeIndep) && (pId.component != CompIndep) && (pId.reaction == ReactionIndep))
+		{
+			_sensParams.insert(&_initCp[pId.particleType * _disc.nComp + pId.component]);
+			_initCp[pId.particleType * _disc.nComp + pId.component].setADValue(adDirection, adValue);
+		}
+		else if (pId.name == hashString("INIT_CP"))
+			return -1;
+
+		if ((pId.name == hashString("INIT_Q")) && (pId.section == SectionIndep) && (pId.boundState != BoundStateIndep) && (pId.particleType != ParTypeIndep) && (pId.component != CompIndep) && (pId.reaction == ReactionIndep))
+		{
+			_sensParams.insert(&_initQ[_disc.nBoundBeforeType[pId.particleType] + _disc.boundOffset[pId.particleType * _disc.nComp + pId.component] + pId.boundState]);
+			_initQ[_disc.nBoundBeforeType[pId.particleType] + _disc.boundOffset[pId.particleType * _disc.nComp + pId.component] + pId.boundState].setADValue(adDirection, adValue);
+		}
+		else if (pId.name == hashString("INIT_Q"))
+			return -1;
+	}
+	return 0;
+}
+
+int LumpedRateModelWithPores::multiplexInitialConditions(const cadet::ParameterId& pId, double val, bool checkSens)
+{
+	if (_singleBinding)
+	{
+		if ((pId.name == hashString("INIT_CP")) && (pId.section == SectionIndep) && (pId.boundState == BoundStateIndep) && (pId.particleType == ParTypeIndep) && (pId.component != CompIndep) && (pId.reaction == ReactionIndep))
+		{
+			if (checkSens && !contains(_sensParams, &_initCp[pId.component]))
+				return -1;
+
+			for (unsigned int t = 0; t < _disc.nParType; ++t)
+				_initCp[t * _disc.nComp + pId.component].setValue(val);
+		}
+		else if (pId.name == hashString("INIT_CP"))
+			return -1;
+
+		if ((pId.name == hashString("INIT_Q")) && (pId.section == SectionIndep) && (pId.boundState != BoundStateIndep) && (pId.particleType == ParTypeIndep) && (pId.component != CompIndep) && (pId.reaction == ReactionIndep))
+		{
+			if (checkSens && !contains(_sensParams, &_initQ[_disc.nBoundBeforeType[0] + _disc.boundOffset[pId.component] + pId.boundState]))
+				return -1;
+
+			for (unsigned int t = 0; t < _disc.nParType; ++t)
+				_initQ[_disc.nBoundBeforeType[t] + _disc.boundOffset[t * _disc.nComp + pId.component] + pId.boundState].setValue(val);
+		}
+		else if (pId.name == hashString("INIT_Q"))
+			return -1;
+	}
+	else
+	{
+		if ((pId.name == hashString("INIT_CP")) && (pId.section == SectionIndep) && (pId.boundState == BoundStateIndep) && (pId.particleType != ParTypeIndep) && (pId.component != CompIndep) && (pId.reaction == ReactionIndep))
+		{
+			if (checkSens && !contains(_sensParams, &_initCp[pId.particleType * _disc.nComp + pId.component]))
+				return -1;
+
+			_initCp[pId.particleType * _disc.nComp + pId.component].setValue(val);
+		}
+		else if (pId.name == hashString("INIT_CP"))
+			return -1;
+
+		if ((pId.name == hashString("INIT_Q")) && (pId.section == SectionIndep) && (pId.boundState != BoundStateIndep) && (pId.particleType != ParTypeIndep) && (pId.component != CompIndep) && (pId.reaction == ReactionIndep))
+		{
+			if (checkSens && !contains(_sensParams, &_initQ[_disc.nBoundBeforeType[pId.particleType] + _disc.boundOffset[pId.particleType * _disc.nComp + pId.component] + pId.boundState]))
+				return -1;
+
+			_initQ[_disc.nBoundBeforeType[pId.particleType] + _disc.boundOffset[pId.particleType * _disc.nComp + pId.component] + pId.boundState].setValue(val);
+		}
+		else if (pId.name == hashString("INIT_Q"))
+			return -1;
+	}
+	return 0;
+}
 
 void LumpedRateModelWithPores::applyInitialCondition(const SimulationState& simState) const
 {
@@ -79,8 +174,8 @@ void LumpedRateModelWithPores::applyInitialCondition(const SimulationState& simS
 				simState.vecStateY[offset + comp] = static_cast<double>(_initCp[comp + _disc.nComp * type]);
 
 			// Initialize q
-			active const* const iq = _initQ.data() + _disc.nBoundBeforeType[_singleBinding ? 0 : type];
-			for (unsigned int bnd = 0; bnd < _disc.strideBound[_singleBinding ? 0 : type]; ++bnd)
+			active const* const iq = _initQ.data() + _disc.nBoundBeforeType[type];
+			for (unsigned int bnd = 0; bnd < _disc.strideBound[type]; ++bnd)
 				simState.vecStateY[offset + idxr.strideParLiquid() + bnd] = static_cast<double>(iq[bnd]);
 		}
 	}
@@ -104,36 +199,51 @@ void LumpedRateModelWithPores::readInitialCondition(IParameterProvider& paramPro
 	}
 
 	const std::vector<double> initC = paramProvider.getDoubleArray("INIT_C");
-	std::vector<double> initQ;
-
-	if (paramProvider.exists("INIT_Q"))
-		initQ = paramProvider.getDoubleArray("INIT_Q");
-
+	
 	if (initC.size() < _disc.nComp)
 		throw InvalidParameterException("INIT_C does not contain enough values for all components");
 
-	if ((_disc.strideBound[_disc.nParType] > 0) && (((initQ.size() < _disc.strideBound[_disc.nParType]) && !_singleBinding) || (initQ.size() < _disc.strideBound[0] && _singleBinding)))
-		throw InvalidParameterException("INIT_Q does not contain enough values for all bound states");
+	ad::copyToAd(initC.data(), _initC.data(), _disc.nComp);
 
 	// Check if INIT_CP is present
 	if (paramProvider.exists("INIT_CP"))
 	{
 		const std::vector<double> initCp = paramProvider.getDoubleArray("INIT_CP");
 
-		if (initCp.size() < _disc.nComp * _disc.nParType)
+		if (((initCp.size() < _disc.nComp) && _singleBinding) || ((initCp.size() < _disc.nComp * _disc.nParType) && !_singleBinding))
 			throw InvalidParameterException("INIT_CP does not contain enough values for all components");
 
-		ad::copyToAd(initCp.data(), _initCp.data(), _disc.nComp * _disc.nParType);
+		if (!_singleBinding)
+			ad::copyToAd(initCp.data(), _initCp.data(), _disc.nComp * _disc.nParType);
+		else
+		{
+			for (unsigned int t = 0; t < _disc.nParType; ++t)
+				ad::copyToAd(initCp.data(), _initCp.data() + t * _disc.nComp, _disc.nComp);
+		}
 	}
 	else
 	{
-		for (unsigned int type = 0; type < _disc.nParType; ++type)
-			ad::copyToAd(initC.data(), _initCp.data() + _disc.nComp * type, _disc.nComp);
+		for (unsigned int t = 0; t < _disc.nParType; ++t)
+			ad::copyToAd(initC.data(), _initCp.data() + t * _disc.nComp, _disc.nComp);
 	}
 
-	ad::copyToAd(initC.data(), _initC.data(), _disc.nComp);
-	if (!initQ.empty())
-		ad::copyToAd(initQ.data(), _initQ.data(), _disc.strideBound[_singleBinding ? 0 : _disc.nParType]);
+	std::vector<double> initQ;
+	if (paramProvider.exists("INIT_Q"))
+		initQ = paramProvider.getDoubleArray("INIT_Q");
+
+	if (initQ.empty() || (_disc.strideBound[_disc.nParType] == 0))
+		return;
+
+	if ((_disc.strideBound[_disc.nParType] > 0) && (((initQ.size() < _disc.strideBound[_disc.nParType]) && !_singleBinding) || ((initQ.size() < _disc.strideBound[0]) && _singleBinding)))
+		throw InvalidParameterException("INIT_Q does not contain enough values for all bound states");
+
+	if (!_singleBinding)
+		ad::copyToAd(initQ.data(), _initQ.data(), _disc.strideBound[_disc.nParType]);
+	else
+	{
+		for (unsigned int t = 0; t < _disc.nParType; ++t)
+			ad::copyToAd(initQ.data(), _initQ.data() + _disc.nBoundBeforeType[t], _disc.strideBound[t]);
+	}
 }
 
 /**

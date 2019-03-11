@@ -219,6 +219,9 @@ protected:
 	
 	unsigned int numAdDirsForJacobian() const CADET_NOEXCEPT;
 
+	int multiplexInitialConditions(const cadet::ParameterId& pId, unsigned int adDirection, double adValue);
+	int multiplexInitialConditions(const cadet::ParameterId& pId, double val, bool checkSens);
+
 #ifdef CADET_CHECK_ANALYTIC_JACOBIAN
 	void checkAnalyticJacobianAgainstAd(active const* const adRes, unsigned int adDirOffset) const;
 #endif
@@ -273,8 +276,11 @@ protected:
 	linalg::DoubleSparseMatrix _jacInlet; //!< Jacobian inlet DOF block matrix connects inlet DOFs to first bulk cells
 
 	std::vector<active> _parRadius; //!< Particle radius \f$ r_p \f$
+	bool _singleParRadius;
 	std::vector<active> _parCoreRadius; //!< Particle core radius \f$ r_c \f$
+	bool _singleParCoreRadius;
 	std::vector<active> _parPorosity; //!< Particle porosity (internal porosity) \f$ \varepsilon_p \f$
+	bool _singleParPorosity;
 	std::vector<active> _parTypeVolFrac; //!< Volume fraction of each particle type
 	MultiplexMode _parTypeVolFracMode; //!< Multiplexing mode of particle volume fractions
 	std::vector<ParticleDiscretizationMode> _parDiscType; //!< Particle discretization mode
@@ -282,9 +288,13 @@ protected:
 
 	// Vectorial parameters
 	std::vector<active> _filmDiffusion; //!< Film diffusion coefficient \f$ k_f \f$
+	MultiplexMode _filmDiffusionMode;
 	std::vector<active> _parDiffusion; //!< Particle diffusion coefficient \f$ D_p \f$
+	MultiplexMode _parDiffusionMode;
 	std::vector<active> _parSurfDiffusion; //!< Particle surface diffusion coefficient \f$ D_s \f$
+	MultiplexMode _parSurfDiffusionMode;
 	std::vector<active> _poreAccessFactor; //!< Pore accessibility factor \f$ F_{\text{acc}} \f$
+	MultiplexMode _poreAccessFactorMode;
 
 	bool _analyticJac; //!< Determines whether AD or analytic Jacobians are used
 	unsigned int _jacobianAdDirs; //!< Number of AD seed vectors required for Jacobian computation
@@ -302,8 +312,11 @@ protected:
 	double _schurSafety; //!< Safety factor for Schur-complement solution
 
 	std::vector<active> _initC; //!< Liquid bulk phase initial conditions
+	bool _singleRadiusInitC;
 	std::vector<active> _initCp; //!< Liquid particle phase initial conditions
+	bool _singleRadiusInitCp;
 	std::vector<active> _initQ; //!< Solid phase initial conditions
+	bool _singleRadiusInitQ;
 	std::vector<double> _initState; //!< Initial conditions for state vector if given
 	std::vector<double> _initStateDot; //!< Initial conditions for time derivative
 

@@ -28,6 +28,7 @@
 #include "linalg/Gmres.hpp"
 #include "MemoryPool.hpp"
 #include "model/ModelUtils.hpp"
+#include "ParameterMultiplexing.hpp"
 
 #include <array>
 #include <vector>
@@ -211,6 +212,9 @@ protected:
 
 	unsigned int numAdDirsForJacobian() const CADET_NOEXCEPT;
 
+	int multiplexInitialConditions(const cadet::ParameterId& pId, unsigned int adDirection, double adValue);
+	int multiplexInitialConditions(const cadet::ParameterId& pId, double val, bool checkSens);
+
 #ifdef CADET_CHECK_ANALYTIC_JACOBIAN
 	void checkAnalyticJacobianAgainstAd(active const* const adRes, unsigned int adDirOffset) const;
 #endif
@@ -245,12 +249,16 @@ protected:
 
 	active _colPorosity; //!< Column porosity (external porosity) \f$ \varepsilon_c \f$
 	std::vector<active> _parRadius; //!< Particle radius \f$ r_p \f$
+	bool _singleParRadius;
 	std::vector<active> _parPorosity; //!< Particle porosity (internal porosity) \f$ \varepsilon_p \f$
+	bool _singleParPorosity;
 	std::vector<active> _parTypeVolFrac; //!< Volume fraction of each particle type
 
 	// Vectorial parameters
 	std::vector<active> _filmDiffusion; //!< Film diffusion coefficient \f$ k_f \f$
+	MultiplexMode _filmDiffusionMode;
 	std::vector<active> _poreAccessFactor; //!< Pore accessibility factor \f$ F_{\text{acc}} \f$
+	MultiplexMode _poreAccessFactorMode;
 
 	bool _axiallyConstantParTypeVolFrac; //!< Determines whether particle type volume fraction is homogeneous across axial coordinate
 	bool _analyticJac; //!< Determines whether AD or analytic Jacobians are used

@@ -20,6 +20,7 @@ classdef LumpedRateModelWithPores < Model
 
 		nCellsColumn; % Number of axial cells in the column
 		nBoundStates; % Number of bound states for each component
+		nParticleTypes; % Number of particle types
 
 		useAnalyticJacobian; % Determines whether Jacobian is calculated analytically or via AD
 
@@ -35,12 +36,14 @@ classdef LumpedRateModelWithPores < Model
 		interstitialVelocity; % Interstitial velocity of the mobile phase transport inside the column in [m_IV / s]
 
 		filmDiffusion; % Film diffusion coefficient in [m / s]
+		filmDiffusionMultiplexMode; % Multiplex mode of film diffusion
 
 		% Geometry
 		
 		porosityColumn; % Porosity of the column
 		porosityParticle; % Porosity of the particle
 		poreAccessibility; % Pore accessibility
+		poreAccessibilityMultiplexMode; % Multiplex mode of pore accessibility
 
 		columnLength; % Length of the column in [m]
 		particleRadius; % Radius of the particles in [m]
@@ -87,6 +90,7 @@ classdef LumpedRateModelWithPores < Model
 
 			obj.useAnalyticJacobian = true;
 			obj.particleTypeVolumeFractions = 1;
+			obj.nParticleTypes = 1;
 
 			obj.reconstructionType = 'WENO';
 			obj.wenoBoundaryHandling = 0; % Decrease order of WENO scheme at boundary
@@ -119,6 +123,16 @@ classdef LumpedRateModelWithPores < Model
 		function set.nBoundStates(obj, val)
 			validateattributes(val, {'numeric'}, {'nonnegative', 'vector', 'nonempty', 'finite', 'real'}, '', 'nBoundStates');
 			obj.data.discretization.NBOUND = int32(val);
+			obj.hasChanged = true;
+		end
+
+		function val = get.nParticleTypes(obj)
+			val = double(obj.data.discretization.NPARTYPE);
+		end
+
+		function set.nParticleTypes(obj, val)
+			validateattributes(val, {'numeric'}, {'scalar', 'nonempty', '>=', 1, 'finite', 'real'}, '', 'nParticleTypes');
+			obj.data.discretization.NPARTYPE = int32(val);
 			obj.hasChanged = true;
 		end
 
@@ -229,14 +243,38 @@ classdef LumpedRateModelWithPores < Model
 		function val = get.filmDiffusion(obj)
 			val = obj.data.FILM_DIFFUSION;
 			if (numel(val) >= obj.nComponents * numel(obj.porosityParticle)) && (mod(numel(val), obj.nComponents * numel(obj.porosityParticle)) == 0)
-				val = reshape(val, obj.nComponents, numel(obj.porosityParticle), numel(val) / (obj.nComponents * numel(obj.porosityParticle))).';
+				val = permute(reshape(val, obj.nComponents, numel(obj.porosityParticle), numel(val) / (obj.nComponents * numel(obj.porosityParticle))), [3,2,1]);
+			elseif (numel(val) >= obj.nComponents) && (mod(numel(val), obj.nComponents) == 0)
+				val = reshape(val, obj.nComponents, numel(val) / obj.nComponents).';
 			end
 		end
 
 		function set.filmDiffusion(obj, val)
-			validateattributes(val, {'double'}, {'nonnegative', '2d', 'nonempty', 'finite', 'real'}, '', 'filmDiffusion');
-			val = val.';
+			validateattributes(val, {'double'}, {'nonnegative', '3d', 'nonempty', 'finite', 'real'}, '', 'filmDiffusion');
+			if length(size(val)) == 3
+				val = permute(val, [3,2,1]);
+			else
+				val = val.';
+			end
 			obj.data.FILM_DIFFUSION = val(:);
+			obj.hasChanged = true;
+		end
+
+		function val = get.filmDiffusionMultiplexMode(obj)
+			if isfield(obj.data, 'FILM_DIFFUSION_MULTIPLEX')
+				val = double(obj.data.FILM_DIFFUSION_MULTIPLEX);
+			else
+				val = [];
+			end
+		end
+
+		function set.filmDiffusionMultiplexMode(obj, val)
+			if isempty(val)
+				obj.data = rmfield(obj.data, 'FILM_DIFFUSION_MULTIPLEX');
+			else
+				validateattributes(val, {'double'}, {'nonnegative', 'scalar', 'nonempty', 'finite', 'real', '>=', 0, '<=', 3}, '', 'filmDiffusionMultiplexMode');
+				obj.data.FILM_DIFFUSION_MULTIPLEX = int32(val);
+			end
 			obj.hasChanged = true;
 		end
 
@@ -247,7 +285,7 @@ classdef LumpedRateModelWithPores < Model
 		end
 
 		function set.porosityColumn(obj, val)
-			validateattributes(val, {'double'}, {'scalar', 'nonempty', '>=', 0.0, '<=', 1.0, 'finite', 'real'}, '', 'porosityColumn');
+			validateattributes(val, {'double'}, {'scalar', 'nonempty', '>', 0.0, '<=', 1.0, 'finite', 'real'}, '', 'porosityColumn');
 			obj.data.COL_POROSITY = val;
 			obj.hasChanged = true;
 		end
@@ -257,7 +295,7 @@ classdef LumpedRateModelWithPores < Model
 		end
 
 		function set.porosityParticle(obj, val)
-			validateattributes(val, {'double'}, {'vector', 'nonempty', '>=', 0.0, '<=', 1.0, 'finite', 'real'}, '', 'porosityParticle');
+			validateattributes(val, {'double'}, {'vector', 'nonempty', '>', 0.0, '<=', 1.0, 'finite', 'real'}, '', 'porosityParticle');
 			obj.data.PAR_POROSITY = val;
 			obj.hasChanged = true;
 		end
@@ -265,7 +303,9 @@ classdef LumpedRateModelWithPores < Model
 		function val = get.poreAccessibility(obj)
 			if isfield(obj.data, 'PORE_ACCESSIBILITY')
 				val = obj.data.PORE_ACCESSIBILITY;
-				if (numel(val) >= obj.nComponents) && (mod(numel(val), obj.nComponents) == 0)
+				if (numel(val) >= obj.nComponents * numel(obj.porosityParticle)) && (mod(numel(val), obj.nComponents * numel(obj.porosityParticle)) == 0)
+					val = permute(reshape(val, obj.nComponents, numel(obj.porosityParticle), numel(val) / (obj.nComponents * numel(obj.porosityParticle))), [3,2,1]);
+				elseif (numel(val) >= obj.nComponents) && (mod(numel(val), obj.nComponents) == 0)
 					val = reshape(val, obj.nComponents, numel(val) / obj.nComponents).';
 				end
 			else
@@ -277,8 +317,31 @@ classdef LumpedRateModelWithPores < Model
 			if isempty(val)
 				obj.data = rmfield(obj.data, 'PORE_ACCESSIBILITY');
 			else
-				validateattributes(val, {'double'}, {'vector', 'nonempty', '>=', 0.0, '<=', 1.0, 'finite', 'real'}, '', 'poreAccessibility');
+				validateattributes(val, {'double'}, {'3d', 'nonempty', '>=', 0.0, '<=', 1.0, 'finite', 'real'}, '', 'poreAccessibility');
+				if length(size(val)) == 3
+					val = permute(val, [3,2,1]);
+				else
+					val = val.';
+				end
 				obj.data.PORE_ACCESSIBILITY = val(:);
+			end
+			obj.hasChanged = true;
+		end
+
+		function val = get.poreAccessibilityMultiplexMode(obj)
+			if isfield(obj.data, 'PORE_ACCESSIBILITY_MULTIPLEX')
+				val = double(obj.data.PORE_ACCESSIBILITY_MULTIPLEX);
+			else
+				val = [];
+			end
+		end
+
+		function set.poreAccessibilityMultiplexMode(obj, val)
+			if isempty(val)
+				obj.data = rmfield(obj.data, 'PORE_ACCESSIBILITY_MULTIPLEX');
+			else
+				validateattributes(val, {'double'}, {'nonnegative', 'scalar', 'nonempty', 'finite', 'real', '>=', 0, '<=', 3}, '', 'poreAccessibilityMultiplexMode');
+				obj.data.PORE_ACCESSIBILITY_MULTIPLEX = int32(val);
 			end
 			obj.hasChanged = true;
 		end
@@ -481,15 +544,19 @@ classdef LumpedRateModelWithPores < Model
 				error('CADET:invalidConfig', 'Property particleRadius must be set.');
 			end
 
-			nParType = numel(obj.porosityParticle);
+			nParType = obj.nParticleTypes;
 			validateattributes(obj.nCellsColumn, {'numeric'}, {'scalar', 'nonempty', '>=', 1, 'finite', 'real'}, '', 'nCellsColumn');
 			validateattributes(obj.nBoundStates, {'numeric'}, {'nonnegative', 'vector', 'numel', obj.nComponents * nParType, 'finite', 'real'}, '', 'nBoundStates');
+			validateattributes(obj.nParticleTypes, {'numeric'}, {'scalar', 'nonempty', '>=', 1, 'finite', 'real'}, '', 'nParticleTypes');
 
 			nTotalBnd = sum(obj.nBoundStates);
 
 			validateattributes(obj.initialBulk, {'double'}, {'nonnegative', 'vector', 'numel', obj.nComponents, 'finite', 'real'}, '', 'initialBulk');
 			if ~isempty(obj.initialParticle)
-				validateattributes(obj.initialParticle, {'double'}, {'nonnegative', 'vector', 'numel', obj.nComponents * nParType, 'finite', 'real'}, '', 'initialParticle');
+				validateattributes(obj.initialParticle, {'double'}, {'nonnegative', 'vector', 'finite', 'real'}, '', 'initialParticle');
+				if ~any(numel(obj.initialParticle) == [obj.nComponents, obj.nComponents * nParType])
+					error('CADET:invalidConfig', 'Expected initialParticle to be of size %d, or %d', obj.nComponents, obj.nComponents * nParType);
+				end
 			end
 			if ~isempty(obj.initialSolid)
 				validateattributes(obj.initialSolid, {'double'}, {'nonnegative', 'vector', 'numel', nTotalBnd, 'finite', 'real'}, '', 'initialSolid');
@@ -509,16 +576,25 @@ classdef LumpedRateModelWithPores < Model
 					error('CADET:invalidConfig', 'Expected interstitialVelocity to be of size %d or %d (number of time sections).', 1, nSections);
 				end
 			end
-			if (numel(obj.filmDiffusion) ~= obj.nComponents * nParType) && (numel(obj.filmDiffusion) ~= nSections * obj.nComponents * nParType)
-				error('CADET:invalidConfig', 'Expected filmDiffusion to be of size %d (number of components) or %d (number of time sections * number of components).', obj.nComponents, nSections * obj.nComponents);
+			if (numel(obj.filmDiffusion) ~= obj.nComponents) && (numel(obj.filmDiffusion) ~= obj.nComponents * nSections) && (numel(obj.filmDiffusion) ~= obj.nComponents * nParType) && (numel(obj.filmDiffusion) ~= nSections * obj.nComponents * nParType)
+				error('CADET:invalidConfig', 'Expected filmDiffusion to be of size %d, %d, %d, or %d.', obj.nComponents, obj.nComponents * nSections, obj.nComponents * nParType, nSections * obj.nComponents * nParType);
 			end
 
-			validateattributes(obj.porosityColumn, {'double'}, {'scalar', 'nonempty', '>=', 0.0, '<=', 1.0, 'finite', 'real'}, '', 'porosityColumn');
-			validateattributes(obj.porosityParticle, {'double'}, {'vector', 'nonempty', '>=', 0.0, '<=', 1.0, 'finite', 'real', 'numel', nParType}, '', 'porosityParticle');
+			validateattributes(obj.porosityColumn, {'double'}, {'scalar', 'nonempty', '>', 0.0, '<=', 1.0, 'finite', 'real'}, '', 'porosityColumn');
+			validateattributes(obj.porosityParticle, {'double'}, {'vector', 'nonempty', '>', 0.0, '<=', 1.0, 'finite', 'real'}, '', 'porosityParticle');
+			if (numel(obj.porosityParticle) ~= 1) && (numel(obj.porosityParticle) ~= nParType)
+				error('CADET:invalidConfig', 'Expected porosityParticle to be of size %d or %d (number of particle types).', 1, nParType);
+			end
 			validateattributes(obj.columnLength, {'double'}, {'positive', 'scalar', 'nonempty', 'finite', 'real'}, '', 'columnLength');
-			validateattributes(obj.particleRadius, {'double'}, {'positive', 'vector', 'nonempty', 'finite', 'real', 'numel', nParType}, '', 'particleRadius');
+			validateattributes(obj.particleRadius, {'double'}, {'positive', 'vector', 'nonempty', 'finite', 'real'}, '', 'particleRadius');
+			if (numel(obj.particleRadius) ~= 1) && (numel(obj.particleRadius) ~= nParType)
+				error('CADET:invalidConfig', 'Expected particleRadius to be of size %d or %d (number of particle types).', 1, nParType);
+			end
 			if ~isempty(obj.poreAccessibility)
-				validateattributes(obj.poreAccessibility, {'double'}, {'vector', 'numel', obj.nComponents * nParType, '>=', 0.0, '<=', 1.0, 'finite', 'real'}, '', 'poreAccessibility');
+				validateattributes(obj.poreAccessibility, {'double'}, {'vector', '>', 0.0, '<=', 1.0, 'finite', 'real'}, '', 'poreAccessibility');
+				if (numel(obj.poreAccessibility) ~= obj.nComponents) && (numel(obj.poreAccessibility) ~= obj.nComponents * nSections) && (numel(obj.poreAccessibility) ~= obj.nComponents * nParType) && (numel(obj.poreAccessibility) ~= nSections * obj.nComponents * nParType)
+					error('CADET:invalidConfig', 'Expected poreAccessibility to be of size %d, %d, %d, or %d.', obj.nComponents, obj.nComponents * nSections, obj.nComponents * nParType, nSections * obj.nComponents * nParType);
+				end
 			end
 			validateattributes(obj.particleTypeVolumeFractions, {'double'}, {'vector', 'nonempty', '>=', 0.0, '<=', 1.0, 'finite', 'real'}, '', 'particleTypeVolumeFractions');
 			if abs(sum(obj.particleTypeVolumeFractions) - 1.0) >= 1e-10
@@ -615,45 +691,54 @@ classdef LumpedRateModelWithPores < Model
 				end
 				return;
 			end
-			
+
 			val = obj.data.(param.SENS_NAME);
 			offset = 0;
-			if (param.SENS_SECTION ~= -1)
-				% Depends on section
+			if (strcmp(param.SENS_NAME, 'INIT_Q'))
 				if (param.SENS_PARTYPE ~= -1)
-					% Depends on particle type
-					if (param.SENS_COMP ~= 1)
-						% Depends on component
-						offset = param.SENS_SECTION * obj.nComponents * length(obj.nCellsParticle) + param.SENS_PARTYPE * obj.nComponents + param.SENS_COMP;
-					else
-						% Independent of component
-						offset = param.SENS_SECTION * length(obj.nCellsParticle) + param.SENS_PARTYPE;
-					end
+					offset = offset + sum(obj.nBoundStates(1:((param.SENS_PARTYPE + 1) * obj.nComponents) + param.SENS_COMP));
 				else
-					% Independent of particle type
-					if (param.SENS_COMP ~= 1)
-						% Depends on component
-						offset = param.SENS_SECTION * obj.nComponents + param.SENS_COMP;
-					else
-						% Independent of component
-						offset = param.SENS_SECTION;
-					end
+					offset = offset + sum(obj.nBoundStates(1:param.SENS_COMP));
 				end
+				offset = offset + param.SENS_BOUNDPHASE;
 			else
-				% Independent of section
-				if (param.SENS_PARTYPE ~= -1)
-					% Depends on particle type
-					if (param.SENS_COMP ~= 1)
-						% Depends on component
-						offset = param.SENS_PARTYPE * obj.nComponents + param.SENS_COMP;
+				if (param.SENS_SECTION ~= -1)
+					% Depends on section
+					if (param.SENS_PARTYPE ~= -1)
+						% Depends on particle type
+						if (param.SENS_COMP ~= 1)
+							% Depends on component
+							offset = param.SENS_SECTION * obj.nComponents * length(obj.nCellsParticle) + param.SENS_PARTYPE * obj.nComponents + param.SENS_COMP;
+						else
+							% Independent of component
+							offset = param.SENS_SECTION * length(obj.nCellsParticle) + param.SENS_PARTYPE;
+						end
 					else
-						% Independent of component
-						offset = param.SENS_PARTYPE;
+						% Independent of particle type
+						if (param.SENS_COMP ~= 1)
+							% Depends on component
+							offset = param.SENS_SECTION * obj.nComponents + param.SENS_COMP;
+						else
+							% Independent of component
+							offset = param.SENS_SECTION;
+						end
 					end
 				else
-					% Independent of particle type
-					if (param.SENS_COMP >= 0)
-						offset = param.SENS_COMP;
+					% Independent of section
+					if (param.SENS_PARTYPE ~= -1)
+						% Depends on particle type
+						if (param.SENS_COMP ~= 1)
+							% Depends on component
+							offset = param.SENS_PARTYPE * obj.nComponents + param.SENS_COMP;
+						else
+							% Independent of component
+							offset = param.SENS_PARTYPE;
+						end
+					else
+						% Independent of particle type
+						if (param.SENS_COMP >= 0)
+							offset = param.SENS_COMP;
+						end
 					end
 				end
 			end
@@ -690,42 +775,51 @@ classdef LumpedRateModelWithPores < Model
 			end
 
 			offset = 0;
-			if (param.SENS_SECTION ~= -1)
-				% Depends on section
+			if (strcmp(param.SENS_NAME, 'INIT_Q'))
 				if (param.SENS_PARTYPE ~= -1)
-					% Depends on particle type
-					if (param.SENS_COMP ~= 1)
-						% Depends on component
-						offset = param.SENS_SECTION * obj.nComponents * length(obj.nCellsParticle) + param.SENS_PARTYPE * obj.nComponents + param.SENS_COMP;
-					else
-						% Independent of component
-						offset = param.SENS_SECTION * length(obj.nCellsParticle) + param.SENS_PARTYPE;
-					end
+					offset = offset + sum(obj.nBoundStates(1:((param.SENS_PARTYPE + 1) * obj.nComponents) + param.SENS_COMP));
 				else
-					% Independent of particle type
-					if (param.SENS_COMP ~= 1)
-						% Depends on component
-						offset = param.SENS_SECTION * obj.nComponents + param.SENS_COMP;
-					else
-						% Independent of component
-						offset = param.SENS_SECTION;
-					end
+					offset = offset + sum(obj.nBoundStates(1:param.SENS_COMP));
 				end
+				offset = offset + param.SENS_BOUNDPHASE;
 			else
-				% Independent of section
-				if (param.SENS_PARTYPE ~= -1)
-					% Depends on particle type
-					if (param.SENS_COMP ~= 1)
-						% Depends on component
-						offset = param.SENS_PARTYPE * obj.nComponents + param.SENS_COMP;
+				if (param.SENS_SECTION ~= -1)
+					% Depends on section
+					if (param.SENS_PARTYPE ~= -1)
+						% Depends on particle type
+						if (param.SENS_COMP ~= 1)
+							% Depends on component
+							offset = param.SENS_SECTION * obj.nComponents * length(obj.nCellsParticle) + param.SENS_PARTYPE * obj.nComponents + param.SENS_COMP;
+						else
+							% Independent of component
+							offset = param.SENS_SECTION * length(obj.nCellsParticle) + param.SENS_PARTYPE;
+						end
 					else
-						% Independent of component
-						offset = param.SENS_PARTYPE;
+						% Independent of particle type
+						if (param.SENS_COMP ~= 1)
+							% Depends on component
+							offset = param.SENS_SECTION * obj.nComponents + param.SENS_COMP;
+						else
+							% Independent of component
+							offset = param.SENS_SECTION;
+						end
 					end
 				else
-					% Independent of particle type
-					if (param.SENS_COMP >= 0)
-						offset = param.SENS_COMP;
+					% Independent of section
+					if (param.SENS_PARTYPE ~= -1)
+						% Depends on particle type
+						if (param.SENS_COMP ~= 1)
+							% Depends on component
+							offset = param.SENS_PARTYPE * obj.nComponents + param.SENS_COMP;
+						else
+							% Independent of component
+							offset = param.SENS_PARTYPE;
+						end
+					else
+						% Independent of particle type
+						if (param.SENS_COMP >= 0)
+							offset = param.SENS_COMP;
+						end
 					end
 				end
 			end

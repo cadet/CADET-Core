@@ -189,6 +189,9 @@ cadet::model::MultiplexMode readAndRegisterMultiplexParam(cadet::IParameterProvi
 			break;
 		case cadet::model::MultiplexMode::Axial:
 		case cadet::model::MultiplexMode::AxialRadial:
+		case cadet::model::MultiplexMode::Type:
+		case cadet::model::MultiplexMode::ComponentType:
+		case cadet::model::MultiplexMode::ComponentSectionType:
 			cadet_assert(false);
 			break;
 	}
@@ -315,6 +318,9 @@ bool multiplexParameterValue(const cadet::ParameterId& pId, cadet::StringHash na
 			}
 		case cadet::model::MultiplexMode::Axial:
 		case cadet::model::MultiplexMode::AxialRadial:
+		case cadet::model::MultiplexMode::Type:
+		case cadet::model::MultiplexMode::ComponentType:
+		case cadet::model::MultiplexMode::ComponentSectionType:
 			cadet_assert(false);
 			break;
 	}
@@ -433,6 +439,9 @@ bool multiplexParameterAD(const cadet::ParameterId& pId, cadet::StringHash nameH
 			}
 		case cadet::model::MultiplexMode::Axial:
 		case cadet::model::MultiplexMode::AxialRadial:
+		case cadet::model::MultiplexMode::Type:
+		case cadet::model::MultiplexMode::ComponentType:
+		case cadet::model::MultiplexMode::ComponentSectionType:
 			cadet_assert(false);
 			break;
 	}

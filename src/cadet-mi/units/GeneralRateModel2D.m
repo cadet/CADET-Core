@@ -22,6 +22,7 @@ classdef GeneralRateModel2D < Model
 		nCellsRadial; % Number of radial cells in the column
 		nCellsParticle; % Number of radial cells in the particle
 		nBoundStates; % Number of bound states for each component
+		nParticleTypes; % Number of particle types
 
 		radialDiscretizationType; % Type of radial discretization (e.g., equivolume)
 		radialCellPosition; % Positions of the cells in the radial direction (between 0 and columnRadius)
@@ -47,14 +48,18 @@ classdef GeneralRateModel2D < Model
 		interstitialVelocityMultiplexMode; % Multiplex mode of interstitialVelocity
 
 		filmDiffusion; % Film diffusion coefficient in [m / s]
+		filmDiffusionMultiplexMode; % Multiplex mode of film diffusion
 		diffusionParticle; % Diffusion coefficient of the mobile phase components inside the particle in [m^2_MP / s]
+		diffusionParticleMultiplexMode; % Multiplex mode of particle diffusion
 		diffusionParticleSurface; % Diffusion coefficient of the mobile phase components on the surface of the particle in [m^2_SP / s]
+		diffusionParticleSurfaceMultiplexMode; % Multiplex mode of particle surface diffusion
 
 		% Geometry
 		
 		porosityColumn; % Porosity of the column
 		porosityParticle; % Porosity of the particle
 		poreAccessibility; % Pore accessibility
+		poreAccessibilityMultiplexMode; % Multiplex mode of pore accessibility
 
 		columnLength; % Length of the column in [m]
 		columnRadius; % Radius of the column in [m]
@@ -103,6 +108,7 @@ classdef GeneralRateModel2D < Model
 			obj.bindingModel = [];
 			obj.particleCoreRadius = 0;
 			obj.particleTypeVolumeFractions = 1;
+			obj.nParticleTypes = 1;
 
 			obj.useAnalyticJacobian = true;
 			obj.particleCellPosition = [];
@@ -162,6 +168,16 @@ classdef GeneralRateModel2D < Model
 		function set.nBoundStates(obj, val)
 			validateattributes(val, {'numeric'}, {'nonnegative', 'vector', 'nonempty', 'finite', 'real'}, '', 'nBoundStates');
 			obj.data.discretization.NBOUND = int32(val);
+			obj.hasChanged = true;
+		end
+
+		function val = get.nParticleTypes(obj)
+			val = double(obj.data.discretization.NPARTYPE);
+		end
+
+		function set.nParticleTypes(obj, val)
+			validateattributes(val, {'numeric'}, {'scalar', 'nonempty', '>=', 1, 'finite', 'real'}, '', 'nParticleTypes');
+			obj.data.discretization.NPARTYPE = int32(val);
 			obj.hasChanged = true;
 		end
 
@@ -401,8 +417,10 @@ classdef GeneralRateModel2D < Model
 
 		function val = get.filmDiffusion(obj)
 			val = obj.data.FILM_DIFFUSION;
-			if (numel(val) >= obj.nComponents * numel(obj.nCellsParticle)) && (mod(numel(val), obj.nComponents * numel(obj.nCellsParticle)) == 0)
-				val = permute(reshape(val, obj.nComponents, numel(obj.nCellsParticle), numel(val) / (obj.nComponents * numel(obj.nCellsParticle))), [3,2,1]);
+			if (numel(val) >= obj.nComponents * obj.nParticleTypes) && (mod(numel(val), obj.nComponents * obj.nParticleTypes) == 0)
+				val = permute(reshape(val, obj.nComponents, obj.nParticleTypes, numel(val) / (obj.nComponents * obj.nParticleTypes)), [3,2,1]);
+			elseif (numel(val) >= obj.nComponents) && (mod(numel(val), obj.nComponents) == 0)
+				val = reshape(val, obj.nComponents, numel(val) / obj.nComponents).';
 			end
 		end
 
@@ -417,10 +435,30 @@ classdef GeneralRateModel2D < Model
 			obj.hasChanged = true;
 		end
 
+		function val = get.filmDiffusionMultiplexMode(obj)
+			if isfield(obj.data, 'FILM_DIFFUSION_MULTIPLEX')
+				val = double(obj.data.FILM_DIFFUSION_MULTIPLEX);
+			else
+				val = [];
+			end
+		end
+
+		function set.filmDiffusionMultiplexMode(obj, val)
+			if isempty(val)
+				obj.data = rmfield(obj.data, 'FILM_DIFFUSION_MULTIPLEX');
+			else
+				validateattributes(val, {'double'}, {'nonnegative', 'scalar', 'nonempty', 'finite', 'real', '>=', 0, '<=', 3}, '', 'filmDiffusionMultiplexMode');
+				obj.data.FILM_DIFFUSION_MULTIPLEX = int32(val);
+			end
+			obj.hasChanged = true;
+		end
+
 		function val = get.diffusionParticle(obj)
 			val = obj.data.PAR_DIFFUSION;
-			if (numel(val) >= obj.nComponents * numel(obj.nCellsParticle)) && (mod(numel(val), obj.nComponents * numel(obj.nCellsParticle)) == 0)
-				val = permute(reshape(val, obj.nComponents, numel(obj.nCellsParticle), numel(val) / (obj.nComponents * numel(obj.nCellsParticle))), [3,2,1]);
+			if (numel(val) >= obj.nComponents * obj.nParticleTypes) && (mod(numel(val), obj.nComponents * obj.nParticleTypes) == 0)
+				val = permute(reshape(val, obj.nComponents, obj.nParticleTypes, numel(val) / (obj.nComponents * obj.nParticleTypes)), [3,2,1]);
+			elseif (numel(val) >= obj.nComponents) && (mod(numel(val), obj.nComponents) == 0)
+				val = reshape(val, obj.nComponents, numel(val) / obj.nComponents).';
 			end
 		end
 
@@ -435,6 +473,24 @@ classdef GeneralRateModel2D < Model
 			obj.hasChanged = true;
 		end
 
+		function val = get.diffusionParticleMultiplexMode(obj)
+			if isfield(obj.data, 'PAR_DIFFUSION_MULTIPLEX')
+				val = double(obj.data.PAR_DIFFUSION_MULTIPLEX);
+			else
+				val = [];
+			end
+		end
+
+		function set.diffusionParticleMultiplexMode(obj, val)
+			if isempty(val)
+				obj.data = rmfield(obj.data, 'PAR_DIFFUSION_MULTIPLEX');
+			else
+				validateattributes(val, {'double'}, {'nonnegative', 'scalar', 'nonempty', 'finite', 'real', '>=', 0, '<=', 3}, '', 'diffusionParticleMultiplexMode');
+				obj.data.PAR_DIFFUSION_MULTIPLEX = int32(val);
+			end
+			obj.hasChanged = true;
+		end
+
 		function val = get.diffusionParticleSurface(obj)
 			if ~isfield(obj.data, 'PAR_SURFDIFFUSION')
 				val = [];
@@ -442,16 +498,29 @@ classdef GeneralRateModel2D < Model
 			end
 			
 			val = obj.data.PAR_SURFDIFFUSION;
-			nTotalBnd = sum(obj.nBoundStates);
-			if (nTotalBnd ~= 0) && (numel(val) >= nTotalBnd) && (mod(numel(val), nTotalBnd) == 0)
-				val = reshape(val, nTotalBnd, numel(val) / nTotalBnd).';
-			end
 		end
 
 		function set.diffusionParticleSurface(obj, val)
-			validateattributes(val, {'double'}, {'nonnegative', '2d', 'finite', 'real'}, '', 'diffusionParticleSurface');
-			val = val.';
+			validateattributes(val, {'double'}, {'nonnegative', 'vector', 'finite', 'real'}, '', 'diffusionParticleSurface');
 			obj.data.PAR_SURFDIFFUSION = val(:);
+			obj.hasChanged = true;
+		end
+
+		function val = get.diffusionParticleSurfaceMultiplexMode(obj)
+			if isfield(obj.data, 'PAR_SURFDIFFUSION_MULTIPLEX')
+				val = double(obj.data.PAR_SURFDIFFUSION_MULTIPLEX);
+			else
+				val = [];
+			end
+		end
+
+		function set.diffusionParticleSurfaceMultiplexMode(obj, val)
+			if isempty(val)
+				obj.data = rmfield(obj.data, 'PAR_SURFDIFFUSION_MULTIPLEX');
+			else
+				validateattributes(val, {'double'}, {'nonnegative', 'scalar', 'nonempty', 'finite', 'real', '>=', 0, '<=', 3}, '', 'diffusionParticleSurfaceMultiplexMode');
+				obj.data.PAR_SURFDIFFUSION_MULTIPLEX = int32(val);
+			end
 			obj.hasChanged = true;
 		end
 
@@ -480,8 +549,8 @@ classdef GeneralRateModel2D < Model
 		function val = get.poreAccessibility(obj)
 			if isfield(obj.data, 'PORE_ACCESSIBILITY')
 				val = obj.data.PORE_ACCESSIBILITY;
-				if (numel(val) >= obj.nComponents) && (mod(numel(val), obj.nComponents) == 0)
-					val = reshape(val, obj.nComponents, numel(val) / obj.nComponents).';
+				if (numel(val) >= obj.nComponents * obj.nParticleTypes) && (mod(numel(val), obj.nComponents * obj.nParticleTypes) == 0)
+					val = permute(reshape(val, obj.nComponents, obj.nParticleTypes, numel(val) / (obj.nComponents * obj.nParticleTypes)), [3,2,1]);
 				end
 			else
 				val = [];
@@ -492,9 +561,31 @@ classdef GeneralRateModel2D < Model
 			if isempty(val)
 				obj.data = rmfield(obj.data, 'PORE_ACCESSIBILITY');
 			else
-				validateattributes(val, {'double'}, {'2d', 'nonempty', '>=', 0.0, '<=', 1.0, 'finite', 'real'}, '', 'poreAccessibility');
-				val = val.';
+				validateattributes(val, {'double'}, {'3d', 'nonempty', '>=', 0.0, '<=', 1.0, 'finite', 'real'}, '', 'poreAccessibility');
+				if length(size(val)) == 2
+					val = val.';
+				else
+					val = permute(val, [3,2,1]);
+				end
 				obj.data.PORE_ACCESSIBILITY = val(:);
+			end
+			obj.hasChanged = true;
+		end
+
+		function val = get.poreAccessibilityMultiplexMode(obj)
+			if isfield(obj.data, 'PORE_ACCESSIBILITY_MULTIPLEX')
+				val = double(obj.data.PORE_ACCESSIBILITY_MULTIPLEX);
+			else
+				val = [];
+			end
+		end
+
+		function set.poreAccessibilityMultiplexMode(obj, val)
+			if isempty(val)
+				obj.data = rmfield(obj.data, 'PORE_ACCESSIBILITY_MULTIPLEX');
+			else
+				validateattributes(val, {'double'}, {'nonnegative', 'scalar', 'nonempty', 'finite', 'real', '>=', 0, '<=', 3}, '', 'poreAccessibilityMultiplexMode');
+				obj.data.PORE_ACCESSIBILITY_MULTIPLEX = int32(val);
 			end
 			obj.hasChanged = true;
 		end
@@ -738,8 +829,9 @@ classdef GeneralRateModel2D < Model
 			validateattributes(obj.nCellsColumn, {'numeric'}, {'scalar', 'nonempty', '>=', 1, 'finite', 'real'}, '', 'nCellsColumn');
 			validateattributes(obj.nCellsRadial, {'numeric'}, {'scalar', 'nonempty', '>=', 1, 'finite', 'real'}, '', 'nCellsRadial');
 			validateattributes(obj.nCellsParticle, {'numeric'}, {'vector', 'nonempty', '>=', 1, 'finite', 'real'}, '', 'nCellsParticle');
+			validateattributes(obj.nParticleTypes, {'numeric'}, {'scalar', 'nonempty', '>=', 1, 'finite', 'real'}, '', 'nParticleTypes');
 
-			nParType = numel(obj.nCellsParticle);
+			nParType = obj.nParticleTypes;
 			validateattributes(obj.nBoundStates, {'numeric'}, {'nonnegative', 'vector', 'numel', obj.nComponents * nParType, 'finite', 'real'}, '', 'nBoundStates');
 			
 			for i = 1:length(obj.particleDiscretizationType)
@@ -758,12 +850,21 @@ classdef GeneralRateModel2D < Model
 				end
 			end
 
-			validateattributes(obj.initialBulk, {'double'}, {'nonnegative', 'vector', 'numel', obj.nComponents, 'finite', 'real'}, '', 'initialBulk');
+			validateattributes(obj.initialBulk, {'double'}, {'nonnegative', 'vector', 'finite', 'real'}, '', 'initialBulk');
+			if ~any(numel(obj.initialBulk) == [obj.nCellsRadial * obj.nComponents, obj.nComponents])
+				error('CADET:invalidConfig', 'Expected initialBulk to be of size %d or %d', obj.nComponents, obj.nCellsRadial * obj.nComponents);
+			end
 			if ~isempty(obj.initialParticle)
-				validateattributes(obj.initialParticle, {'double'}, {'nonnegative', 'vector', 'numel', obj.nComponents * nParType, 'finite', 'real'}, '', 'initialParticle');
+				validateattributes(obj.initialParticle, {'double'}, {'nonnegative', 'vector', 'finite', 'real'}, '', 'initialParticle');
+				if ~any(numel(obj.initialParticle) == [obj.nCellsRadial * obj.nComponents, obj.nComponents, obj.nCellsRadial * obj.nComponents * nParType, obj.nComponents * nParType])
+					error('CADET:invalidConfig', 'Expected initialParticle to be of size %d, %d, %d, or %d', obj.nComponents, obj.nCellsRadial * obj.nComponents, obj.nComponents * nParType, obj.nCellsRadial * obj.nComponents * nParType);
+				end
 			end
 			if ~isempty(obj.initialSolid)
-				validateattributes(obj.initialSolid, {'double'}, {'nonnegative', 'vector', 'numel', sum(obj.nBoundStates), 'finite', 'real'}, '', 'initialSolid');
+				validateattributes(obj.initialSolid, {'double'}, {'nonnegative', 'vector', 'finite', 'real'}, '', 'initialSolid');
+				if ~any(numel(obj.initialSolid) == [obj.nCellsRadial * sum(obj.nBoundStates), sum(obj.nBoundStates)])
+					error('CADET:invalidConfig', 'Expected initialParticle to be of size %d, or %d', sum(obj.nBoundStates), obj.nCellsRadial * sum(obj.nBoundStates));
+				end
 			end
 			if ~isempty(obj.initialState)
 				nDof = obj.nCellsColumn * obj.nCellsRadial * obj.nComponents * (1 + nParType) + obj.nCellsColumn * obj.nCellsRadial * (obj.nCellsParticle(:).' * (obj.nComponents .* ones(nParType, 1) + kron(eye(nParType), ones(1, obj.nComponents)) * obj.nBoundStates(:)));
@@ -786,30 +887,43 @@ classdef GeneralRateModel2D < Model
 					error('CADET:invalidConfig', 'Expected interstitialVelocity to be of size %d, %d, %d, or %d.', 1, nSections, obj.nCellsRadial, nSections * obj.nCellsRadial);
 				end
 			end
-			if (numel(obj.filmDiffusion) ~= obj.nComponents * nParType) && (numel(obj.filmDiffusion) ~= nSections * obj.nComponents * nParType)
-				error('CADET:invalidConfig', 'Expected filmDiffusion to be of size %d (number of components) or %d (number of time sections * number of components).', obj.nComponents, nSections * obj.nComponents);
+			if (numel(obj.filmDiffusion) ~= obj.nComponents) && (numel(obj.filmDiffusion) ~= obj.nComponents * nSections) && (numel(obj.filmDiffusion) ~= obj.nComponents * nParType) && (numel(obj.filmDiffusion) ~= nSections * obj.nComponents * nParType)
+				error('CADET:invalidConfig', 'Expected filmDiffusion to be of size %d, %d, %d, or %d.', obj.nComponents, obj.nComponents * nSections, obj.nComponents * nParType, nSections * obj.nComponents * nParType);
 			end
-			if (numel(obj.diffusionParticle) ~= obj.nComponents * nParType) && (numel(obj.diffusionParticle) ~= nSections * obj.nComponents * nParType)
-				error('CADET:invalidConfig', 'Expected diffusionParticle to be of size %d (number of components) or %d (number of time sections * number of components).', obj.nComponents, nSections * obj.nComponents);
+			if (numel(obj.diffusionParticle) ~= obj.nComponents) && (numel(obj.diffusionParticle) ~= obj.nComponents * nSections) && (numel(obj.diffusionParticle) ~= obj.nComponents * nParType) && (numel(obj.diffusionParticle) ~= nSections * obj.nComponents * nParType)
+				error('CADET:invalidConfig', 'Expected diffusionParticle to be of size %d, %d, %d, or %d.', obj.nComponents, obj.nComponents * nSections, obj.nComponents * nParType, nSections * obj.nComponents * nParType);
 			end
-			if (numel(obj.diffusionParticleSurface) ~= nTotalBnd) && (numel(obj.diffusionParticleSurface) ~= nSections * nTotalBnd)
-				error('CADET:invalidConfig', 'Expected diffusionParticleSurface to be of size %d (number of bound states) or %d (number of time sections * number of bound states).', nTotalBnd, nSections * nTotalBnd);
+			if (numel(obj.diffusionParticleSurface) ~= nTotalBnd) && (numel(obj.diffusionParticleSurface) ~= nSections * nTotalBnd) && (numel(obj.diffusionParticleSurface) ~= nSections * sum(obj.nBoundStates(1:obj.nComponents))) && (numel(obj.diffusionParticleSurface) ~= sum(obj.nBoundStates(1:obj.nComponents)))
+				error('CADET:invalidConfig', 'Expected diffusionParticleSurface to be of size %d, %d, %d, or %d.', nTotalBnd, nTotalBnd * nSections, sum(obj.nBoundStates(1:obj.nComponents)), nSections * sum(obj.nBoundStates(1:obj.nComponents)));
 			end
 
 			validateattributes(obj.porosityColumn, {'double'}, {'vector', 'nonempty', '>', 0.0, '<=', 1.0, 'finite', 'real'}, '', 'porosityColumn');
 			if (numel(obj.porosityColumn) ~= 1) && (numel(obj.porosityColumn) ~= obj.nCellsRadial)
 				error('CADET:invalidConfig', 'Expected porosityColumn to be of size %d or %d (number of radial zones).', 1, obj.nCellsRadial);
 			end
-			validateattributes(obj.porosityParticle, {'double'}, {'vector', 'nonempty', 'numel', nParType, '>', 0.0, '<=', 1.0, 'finite', 'real'}, '', 'porosityParticle');
+			validateattributes(obj.porosityParticle, {'double'}, {'vector', 'nonempty', '>', 0.0, '<=', 1.0, 'finite', 'real'}, '', 'porosityParticle');
+			if (numel(obj.porosityParticle) ~= 1) && (numel(obj.porosityParticle) ~= nParType)
+				error('CADET:invalidConfig', 'Expected porosityParticle to be of size %d or %d (number of particle types).', 1, nParType);
+			end
 			validateattributes(obj.columnLength, {'double'}, {'positive', 'scalar', 'nonempty', 'finite', 'real'}, '', 'columnLength');
 			validateattributes(obj.columnRadius, {'double'}, {'positive', 'scalar', 'nonempty', 'finite', 'real'}, '', 'columnRadius');
-			validateattributes(obj.particleRadius, {'double'}, {'positive', 'vector', 'numel', nParType, 'nonempty', 'finite', 'real'}, '', 'particleRadius');
-			validateattributes(obj.particleCoreRadius, {'double'}, {'vector', 'numel', nParType, 'nonempty', '>=', 0.0, 'finite', 'real'}, '', 'particleCoreRadius');
+			validateattributes(obj.particleRadius, {'double'}, {'positive', 'vector', 'nonempty', 'finite', 'real'}, '', 'particleRadius');
+			if (numel(obj.particleRadius) ~= 1) && (numel(obj.particleRadius) ~= nParType)
+				error('CADET:invalidConfig', 'Expected particleRadius to be of size %d or %d (number of particle types).', 1, nParType);
+			end
+			validateattributes(obj.particleCoreRadius, {'double'}, {'vector', 'nonempty', '>=', 0.0, 'finite', 'real'}, '', 'particleCoreRadius');
+			if (numel(obj.particleCoreRadius) ~= 1) && (numel(obj.particleCoreRadius) ~= nParType)
+				error('CADET:invalidConfig', 'Expected particleCoreRadius to be of size %d or %d (number of particle types).', 1, nParType);
+			end
+
 			if any(obj.particleCoreRadius >= obj.particleRadius)
 				error('CADET:invalidConfig', 'Expected particleCoreRadius to be smaller than particleRadius.');
 			end
 			if ~isempty(obj.poreAccessibility)
-				validateattributes(obj.poreAccessibility, {'double'}, {'vector', 'numel', obj.nComponents * nParType, '>=', 0.0, '<=', 1.0, 'finite', 'real'}, '', 'poreAccessibility');
+				validateattributes(obj.poreAccessibility, {'double'}, {'vector', '>', 0.0, '<=', 1.0, 'finite', 'real'}, '', 'poreAccessibility');
+				if (numel(obj.poreAccessibility) ~= obj.nComponents) && (numel(obj.poreAccessibility) ~= obj.nComponents * nSections) && (numel(obj.poreAccessibility) ~= obj.nComponents * nParType) && (numel(obj.poreAccessibility) ~= nSections * obj.nComponents * nParType)
+					error('CADET:invalidConfig', 'Expected poreAccessibility to be of size %d, %d, %d, or %d.', obj.nComponents, obj.nComponents * nSections, obj.nComponents * nParType, nSections * obj.nComponents * nParType);
+				end
 			end
 			validateattributes(obj.particleTypeVolumeFractions, {'double'}, {'vector', 'nonempty', '>=', 0.0, '<=', 1.0, 'finite', 'real'}, '', 'particleTypeVolumeFractions');
 			if ~any(numel(obj.particleTypeVolumeFractions) == [nParType, nParType * obj.nCellsRadial, nParType * obj.nCellsColumn, nParType * obj.nCellsRadial * obj.nCellsColumn])
@@ -918,7 +1032,11 @@ classdef GeneralRateModel2D < Model
 					offset = offset + param.SENS_BOUNDPHASE;
 				end
 				if (param.SENS_COMP > 0)
-					nBS = obj.nBoundStates((param.SENS_PARTYPE * obj.nComponents + 1):((param.SENS_PARTYPE + 1) * obj.nComponents));
+					if (param.SENS_PARTYPE ~= -1)
+						nBS = obj.nBoundStates((param.SENS_PARTYPE * obj.nComponents + 1):((param.SENS_PARTYPE + 1) * obj.nComponents));
+					else
+						nBS = obj.nBoundStates(1:obj.nComponents);
+					end
 					offset = offset + sum(nBS(1:param.SENS_COMP));
 				end
 				if (param.SENS_PARTYPE > 0)
@@ -932,14 +1050,47 @@ classdef GeneralRateModel2D < Model
 					offset = offset + param.SENS_PARTYPE;
 				end
 				if ((param.SENS_SECTION >= 0) && (param.SENS_REACTION >= 0))
-					offset = offset + param.SENS_SECTION * numel(obj.nCellsParticle) * obj.nCellsRadial + param.SENS_REACTION * numel(obj.nCellsParticle);
+					offset = offset + param.SENS_SECTION * obj.nParticleTypes * obj.nCellsRadial + param.SENS_REACTION * obj.nParticleTypes;
 				else
 					if (param.SENS_SECTION >= 0)
-						offset = offset + param.SENS_SECTION * numel(obj.nCellsParticle);
+						offset = offset + param.SENS_SECTION * obj.nParticleTypes;
 					elseif (param.SENS_REACTION >= 0)
-						offset = offset + param.SENS_REACTION * numel(obj.nCellsParticle);
+						offset = offset + param.SENS_REACTION * obj.nParticleTypes;
 					end
 				end
+			elseif (strcmp(param.SENS_NAME, 'INIT_C'))
+				if (param.SENS_REACTION ~= -1)
+					offset = offset + param.SENS_REACTION * obj.nComponents;
+				end
+				if (param.SENS_COMP ~= -1)
+					offset = offset + param.SENS_COMP;
+				end
+			elseif (strcmp(param.SENS_NAME, 'INIT_CP'))
+				if ((param.SENS_REACTION ~= -1) && (param.SENS_PARTYPE ~= -1))
+					offset = offset + param.SENS_REACTION * obj.nComponents * obj.nParticleTypes + param.SENS_PARTYPE * obj.nComponents;
+				elseif (param.SENS_PARTYPE ~= -1)
+					offset = offset + param.SENS_PARTYPE * obj.nComponents;
+				elseif (param.SENS_REACTION ~= -1)
+					offset = offset + param.SENS_REACTION * obj.nComponents;
+				end
+				if (param.SENS_COMP ~= -1)
+					offset = offset + param.SENS_COMP;
+				end
+			elseif (strcmp(param.SENS_NAME, 'INIT_Q'))
+				if (param.SENS_REACTION ~= -1)
+					if (param.SENS_PARTYPE ~= -1)
+						offset = offset + param.SENS_REACTION * sum(obj.nBoundStates) + sum(obj.nBoundStates(1:((param.SENS_PARTYPE + 1) * obj.nComponents) + param.SENS_COMP));
+					else
+						offset = offset + param.SENS_REACTION * sum(obj.nBoundStates) + sum(obj.nBoundStates(1:param.SENS_COMP));
+					end
+				else
+					if (param.SENS_PARTYPE ~= -1)
+						offset = offset + sum(obj.nBoundStates(1:((param.SENS_PARTYPE + 1) * obj.nComponents) + param.SENS_COMP));
+					else
+						offset = offset + sum(obj.nBoundStates(1:param.SENS_COMP));
+					end
+				end
+				offset = offset + param.SENS_BOUNDPHASE;
 			elseif (strcmp(param.SENS_NAME, 'COL_DISPERSION') || strcmp(param.SENS_NAME, 'COL_DISPERSION_RADIAL'))
 				if (param.SENS_SECTION ~= -1)
 					if (param.SENS_PARTYPE ~= -1)
@@ -1063,7 +1214,11 @@ classdef GeneralRateModel2D < Model
 					offset = offset + param.SENS_BOUNDPHASE;
 				end
 				if (param.SENS_COMP > 0)
-					nBS = obj.nBoundStates((param.SENS_PARTYPE * obj.nComponents + 1):((param.SENS_PARTYPE + 1) * obj.nComponents));
+					if (param.SENS_PARTYPE ~= -1)
+						nBS = obj.nBoundStates((param.SENS_PARTYPE * obj.nComponents + 1):((param.SENS_PARTYPE + 1) * obj.nComponents));
+					else
+						nBS = obj.nBoundStates(1:obj.nComponents);
+					end
 					offset = offset + sum(nBS(1:param.SENS_COMP));
 				end
 				if (param.SENS_PARTYPE > 0)
@@ -1077,14 +1232,47 @@ classdef GeneralRateModel2D < Model
 					offset = offset + param.SENS_PARTYPE;
 				end
 				if ((param.SENS_SECTION >= 0) && (param.SENS_REACTION >= 0))
-					offset = offset + param.SENS_SECTION * numel(obj.nCellsParticle) * obj.nCellsRadial + param.SENS_REACTION * numel(obj.nCellsParticle);
+					offset = offset + param.SENS_SECTION * obj.nParticleTypes * obj.nCellsRadial + param.SENS_REACTION * obj.nParticleTypes;
 				else
 					if (param.SENS_SECTION >= 0)
-						offset = offset + param.SENS_SECTION * numel(obj.nCellsParticle);
+						offset = offset + param.SENS_SECTION * obj.nParticleTypes;
 					elseif (param.SENS_REACTION >= 0)
-						offset = offset + param.SENS_REACTION * numel(obj.nCellsParticle);
+						offset = offset + param.SENS_REACTION * obj.nParticleTypes;
 					end
 				end
+			elseif (strcmp(param.SENS_NAME, 'INIT_C'))
+				if (param.SENS_REACTION ~= -1)
+					offset = offset + param.SENS_REACTION * obj.nComponents;
+				end
+				if (param.SENS_COMP ~= -1)
+					offset = offset + param.SENS_COMP;
+				end
+			elseif (strcmp(param.SENS_NAME, 'INIT_CP'))
+				if ((param.SENS_REACTION ~= -1) && (param.SENS_PARTYPE ~= -1))
+					offset = offset + param.SENS_REACTION * obj.nComponents * obj.nParticleTypes + param.SENS_PARTYPE * obj.nComponents;
+				elseif (param.SENS_PARTYPE ~= -1)
+					offset = offset + param.SENS_PARTYPE * obj.nComponents;
+				elseif (param.SENS_REACTION ~= -1)
+					offset = offset + param.SENS_REACTION * obj.nComponents;
+				end
+				if (param.SENS_COMP ~= -1)
+					offset = offset + param.SENS_COMP;
+				end
+			elseif (strcmp(param.SENS_NAME, 'INIT_Q'))
+				if (param.SENS_REACTION ~= -1)
+					if (param.SENS_PARTYPE ~= -1)
+						offset = offset + param.SENS_REACTION * sum(obj.nBoundStates) + sum(obj.nBoundStates(1:((param.SENS_PARTYPE + 1) * obj.nComponents) + param.SENS_COMP));
+					else
+						offset = offset + param.SENS_REACTION * sum(obj.nBoundStates) + sum(obj.nBoundStates(1:param.SENS_COMP));
+					end
+				else
+					if (param.SENS_PARTYPE ~= -1)
+						offset = offset + sum(obj.nBoundStates(1:((param.SENS_PARTYPE + 1) * obj.nComponents) + param.SENS_COMP));
+					else
+						offset = offset + sum(obj.nBoundStates(1:param.SENS_COMP));
+					end
+				end
+				offset = offset + param.SENS_BOUNDPHASE;
 			elseif (strcmp(param.SENS_NAME, 'COL_DISPERSION') || strcmp(param.SENS_NAME, 'COL_DISPERSION_RADIAL'))
 				if (param.SENS_SECTION ~= -1)
 					if (param.SENS_PARTYPE ~= -1)

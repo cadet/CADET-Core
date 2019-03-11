@@ -20,6 +20,7 @@ function particleRadiusDistribution()
 
 	% Discretization
 	mGrm.nComponents = 1;
+	mGrm.nParticleTypes = 3;
 	mGrm.nCellsColumn = 16; % Attention: This is very low and only used for illustration (short runtime)
 	mGrm.nCellsParticle = [4, 6, 5]; % Attention: This is very low and only used for illustration (short runtime)
 	mGrm.nBoundStates = ones(mGrm.nComponents * 3, 1); % Number of bound states for each component and particle type

@@ -41,6 +41,217 @@
 	#include <tbb/tbb.h>
 #endif
 
+
+namespace
+{
+
+cadet::model::MultiplexMode readAndRegisterMultiplexParam(cadet::IParameterProvider& paramProvider, std::unordered_map<cadet::ParameterId, cadet::active*>& parameters, std::vector<cadet::active>& values, const std::string& name, unsigned int nParType, unsigned int nComp, cadet::UnitOpIdx uoi)
+{
+	cadet::model::MultiplexMode mode = cadet::model::MultiplexMode::Independent;
+	readScalarParameterOrArray(values, paramProvider, name, 1);
+	if (paramProvider.exists(name + "_MULTIPLEX"))
+	{
+		const int modeConfig = paramProvider.getInt(name + "_MULTIPLEX");
+		if (modeConfig == 0)
+		{
+			mode = cadet::model::MultiplexMode::Component;
+			if (values.size() != nComp)
+				throw cadet::InvalidParameterException("Number of elements in field " + name + " inconsistent with " + name + "_MULTIPLEX (should be " + std::to_string(nComp) + ")");
+		}
+		else if (modeConfig == 1)
+		{
+			mode = cadet::model::MultiplexMode::ComponentSection;
+			if ((values.size() % nComp) != 0)
+				throw cadet::InvalidParameterException("Number of elements in field " + name + " inconsistent with " + name + "_MULTIPLEX (should be positive multiple of " + std::to_string(nComp) + ")");
+		}
+		else if (modeConfig == 2)
+		{
+			mode = cadet::model::MultiplexMode::ComponentType;
+			if (values.size() != nComp * nParType)
+				throw cadet::InvalidParameterException("Number of elements in field " + name + " inconsistent with " + name + "_MULTIPLEX (should be " + std::to_string(nComp * nParType) + ")");
+		}
+		else if (modeConfig == 3)
+		{
+			mode = cadet::model::MultiplexMode::ComponentSectionType;
+			if ((values.size() % (nComp * nParType)) != 0)
+				throw cadet::InvalidParameterException("Number of elements in field " + name + " inconsistent with " + name + "_MULTIPLEX (should be positive multiple of " + std::to_string(nComp * nParType) + ")");
+		}
+	}
+	else
+	{
+		if (values.size() == nComp)
+			mode = cadet::model::MultiplexMode::Component;
+		else if (values.size() == nComp * nParType)
+			mode = cadet::model::MultiplexMode::ComponentType;
+		else if ((values.size() % (nComp * nParType)) == 0)
+			mode = cadet::model::MultiplexMode::ComponentSectionType;
+		else if ((values.size() % nComp) == 0)
+			mode = cadet::model::MultiplexMode::ComponentSection;
+		else
+			throw cadet::InvalidParameterException("Could not infer multiplex mode of field " + name + ", set " + name + "_MULTIPLEX or change number of elements");
+	}
+
+	const cadet::StringHash nameHash = cadet::hashStringRuntime(name);
+	switch (mode)
+	{
+		case cadet::model::MultiplexMode::Component:
+			{
+				std::vector<cadet::active> p(nComp * nParType);
+				for (unsigned int s = 0; s < nParType; ++s)
+					std::copy(values.begin(), values.end(), p.begin() + s * nComp);
+
+				values = std::move(p);
+
+				for (unsigned int s = 0; s < nComp; ++s)
+					parameters[cadet::makeParamId(nameHash, uoi, s, cadet::ParTypeIndep, cadet::BoundStateIndep, cadet::ReactionIndep, cadet::SectionIndep)] = &values[s];
+			}
+			break;
+		case cadet::model::MultiplexMode::ComponentSection:
+			{
+				std::vector<cadet::active> p(values.size() * nParType);
+				for (unsigned int s = 0; s < values.size() / nComp; ++s)
+				{
+					for (unsigned int pt = 0; pt < nParType; ++pt)
+					{
+						std::copy(values.begin() + s * nComp, values.begin() + (s+1) * nComp, p.begin() + s * nParType * nComp + pt * nComp);
+					}
+				}
+
+				values = std::move(p);
+
+				for (unsigned int s = 0; s < values.size() / nComp; ++s)
+				{
+					for (unsigned int i = 0; i < nComp; ++i)
+						parameters[cadet::makeParamId(nameHash, uoi, i, cadet::ParTypeIndep, cadet::BoundStateIndep, cadet::ReactionIndep, s)] = &values[s * nParType * nComp + i];
+				}
+			}
+			break;
+		case cadet::model::MultiplexMode::ComponentType:
+		case cadet::model::MultiplexMode::ComponentSectionType:
+			cadet::registerParam3DArray(parameters, values, [=](bool multi, unsigned int sec, unsigned int pt, unsigned int comp) { return cadet::makeParamId(nameHash, uoi, comp, pt, cadet::BoundStateIndep, cadet::ReactionIndep, multi ? sec : cadet::SectionIndep); }, nComp, nParType);
+			break;
+		case cadet::model::MultiplexMode::RadialSection:
+		case cadet::model::MultiplexMode::Independent:
+		case cadet::model::MultiplexMode::ComponentRadial:
+		case cadet::model::MultiplexMode::ComponentRadialSection:
+		case cadet::model::MultiplexMode::Axial:
+		case cadet::model::MultiplexMode::Section:
+		case cadet::model::MultiplexMode::Type:
+		case cadet::model::MultiplexMode::Radial:
+		case cadet::model::MultiplexMode::AxialRadial:
+			cadet_assert(false);
+			break;
+	}
+
+	return mode;
+}
+
+bool multiplexParameterValue(const cadet::ParameterId& pId, cadet::StringHash nameHash, cadet::model::MultiplexMode mode, std::vector<cadet::active>& data, unsigned int nParType, unsigned int nComp, double value, std::unordered_set<cadet::active*> const* sensParams)
+{
+	if (pId.name != nameHash)
+		return false;
+
+	switch (mode)
+	{
+		case cadet::model::MultiplexMode::Component:
+			{
+				if ((pId.component == cadet::CompIndep) || (pId.particleType != cadet::ParTypeIndep) || (pId.boundState != cadet::BoundStateIndep)
+					|| (pId.reaction != cadet::ReactionIndep) || (pId.section != cadet::SectionIndep))
+					return false;
+
+				if (sensParams && !cadet::contains(*sensParams, &data[pId.component]))
+					return false;
+
+				for (unsigned int i = 0; i < nParType; ++i)
+					data[i * nComp + pId.component].setValue(value);
+
+				return true;
+			}
+		case cadet::model::MultiplexMode::ComponentSection:
+			{
+				if ((pId.component == cadet::CompIndep) || (pId.particleType != cadet::ParTypeIndep) || (pId.boundState != cadet::BoundStateIndep)
+					|| (pId.reaction != cadet::ReactionIndep) || (pId.section == cadet::SectionIndep))
+					return false;
+
+				if (sensParams && !cadet::contains(*sensParams, &data[pId.section * nComp * nParType + pId.component]))
+					return false;
+
+				for (unsigned int i = 0; i < nParType; ++i)
+					data[i * nComp + pId.section * nComp * nParType + pId.component].setValue(value);
+
+				return true;
+			}
+		case cadet::model::MultiplexMode::ComponentType:
+		case cadet::model::MultiplexMode::ComponentSectionType:
+		case cadet::model::MultiplexMode::RadialSection:
+		case cadet::model::MultiplexMode::Independent:
+		case cadet::model::MultiplexMode::ComponentRadial:
+		case cadet::model::MultiplexMode::ComponentRadialSection:
+		case cadet::model::MultiplexMode::Axial:
+		case cadet::model::MultiplexMode::Section:
+		case cadet::model::MultiplexMode::Type:
+		case cadet::model::MultiplexMode::Radial:
+		case cadet::model::MultiplexMode::AxialRadial:
+			cadet_assert(false);
+			break;
+	}
+
+	return false;
+}
+
+bool multiplexParameterAD(const cadet::ParameterId& pId, cadet::StringHash nameHash, cadet::model::MultiplexMode mode, std::vector<cadet::active>& data, unsigned int nParType, unsigned int nComp, unsigned int adDirection, double adValue, std::unordered_set<cadet::active*>& sensParams)
+{
+	if (pId.name != nameHash)
+		return false;
+
+	switch (mode)
+	{
+		case cadet::model::MultiplexMode::Component:
+			{
+				if ((pId.component == cadet::CompIndep) || (pId.particleType != cadet::ParTypeIndep) || (pId.boundState != cadet::BoundStateIndep)
+					|| (pId.reaction != cadet::ReactionIndep) || (pId.section != cadet::SectionIndep))
+					return false;
+
+				sensParams.insert(&data[pId.component]);
+
+				for (unsigned int i = 0; i < nParType; ++i)
+					data[i * nComp + pId.component].setADValue(adDirection, adValue);
+
+				return true;
+			}
+		case cadet::model::MultiplexMode::ComponentSection:
+			{
+				if ((pId.component == cadet::CompIndep) || (pId.particleType != cadet::ParTypeIndep) || (pId.boundState != cadet::BoundStateIndep)
+					|| (pId.reaction != cadet::ReactionIndep) || (pId.section == cadet::SectionIndep))
+					return false;
+
+				sensParams.insert(&data[pId.section * nComp * nParType + pId.component]);
+
+				for (unsigned int i = 0; i < nParType; ++i)
+					data[i * nComp + pId.section * nComp * nParType + pId.component].setADValue(adDirection, adValue);
+
+				return true;
+			}
+		case cadet::model::MultiplexMode::ComponentType:
+		case cadet::model::MultiplexMode::ComponentSectionType:
+		case cadet::model::MultiplexMode::RadialSection:
+		case cadet::model::MultiplexMode::Independent:
+		case cadet::model::MultiplexMode::ComponentRadial:
+		case cadet::model::MultiplexMode::ComponentRadialSection:
+		case cadet::model::MultiplexMode::Axial:
+		case cadet::model::MultiplexMode::Section:
+		case cadet::model::MultiplexMode::Type:
+		case cadet::model::MultiplexMode::Radial:
+		case cadet::model::MultiplexMode::AxialRadial:
+			cadet_assert(false);
+			break;
+	}
+
+	return false;
+}
+
+}  // namespace
+
 namespace cadet
 {
 
@@ -117,10 +328,26 @@ bool LumpedRateModelWithPores::configureModelDiscretization(IParameterProvider& 
 	if (nBound.size() % _disc.nComp != 0)
 		throw InvalidParameterException("Field NBOUND must have a size divisible by NCOMP (" + std::to_string(_disc.nComp) + ")");
 
-	_disc.nParType = nBound.size() / _disc.nComp;
-
-	_disc.nBound = new unsigned int[_disc.nComp * _disc.nParType];
-	std::copy_n(nBound.begin(), _disc.nComp * _disc.nParType, _disc.nBound);
+	if (paramProvider.exists("NPARTYPE"))
+	{
+		_disc.nParType = paramProvider.getInt("NPARTYPE");
+		_disc.nBound = new unsigned int[_disc.nComp * _disc.nParType];
+		if (nBound.size() < _disc.nComp * _disc.nParType)
+		{
+			// Multiplex number of bound states to all particle types
+			for (unsigned int i = 0; i < _disc.nParType; ++i)
+				std::copy_n(nBound.begin(), _disc.nComp, _disc.nBound + i * _disc.nComp);
+		}
+		else
+			std::copy_n(nBound.begin(), _disc.nComp * _disc.nParType, _disc.nBound);
+	}
+	else
+	{
+		// Infer number of particle types
+		_disc.nParType = nBound.size() / _disc.nComp;
+		_disc.nBound = new unsigned int[_disc.nComp * _disc.nParType];
+		std::copy_n(nBound.begin(), _disc.nComp * _disc.nParType, _disc.nBound);
+	}
 
 	// Precompute offsets and total number of bound states (DOFs in solid phase)
 	const unsigned int nTotalBound = std::accumulate(_disc.nBound, _disc.nBound + _disc.nComp * _disc.nParType, 0u);
@@ -275,16 +502,19 @@ bool LumpedRateModelWithPores::configure(IParameterProvider& paramProvider)
 
 	// Read geometry parameters
 	_colPorosity = paramProvider.getDouble("COL_POROSITY");
-	readScalarParameterOrArray(_parRadius, paramProvider, "PAR_RADIUS", _disc.nParType);
-	readScalarParameterOrArray(_parPorosity, paramProvider, "PAR_POROSITY", _disc.nParType);
+	_singleParRadius = readScalarParameterOrArray(_parRadius, paramProvider, "PAR_RADIUS", _disc.nParType);
+	_singleParPorosity = readScalarParameterOrArray(_parPorosity, paramProvider, "PAR_POROSITY", _disc.nParType);
 
 	// Read vectorial parameters (which may also be section dependent; transport)
-	readParameterMatrix(_filmDiffusion, paramProvider, "FILM_DIFFUSION", _disc.nComp * _disc.nParType, 1);
+	_filmDiffusionMode = readAndRegisterMultiplexParam(paramProvider, _parameters, _filmDiffusion, "FILM_DIFFUSION", _disc.nParType, _disc.nComp, _unitOpIdx);
 
 	if (paramProvider.exists("PORE_ACCESSIBILITY"))
-		readParameterMatrix(_poreAccessFactor, paramProvider, "PORE_ACCESSIBILITY", _disc.nComp * _disc.nParType, 1);
+		_poreAccessFactorMode = readAndRegisterMultiplexParam(paramProvider, _parameters, _poreAccessFactor, "PORE_ACCESSIBILITY", _disc.nParType, _disc.nComp, _unitOpIdx);
 	else
+	{
+		_poreAccessFactorMode = MultiplexMode::ComponentType;
 		_poreAccessFactor = std::vector<cadet::active>(_disc.nComp * _disc.nParType, 1.0);
+	}
 
 	// Check whether PAR_TYPE_VOLFRAC is required or not
 	if ((_disc.nParType > 1) && !paramProvider.exists("PAR_TYPE_VOLFRAC"))
@@ -336,8 +566,15 @@ bool LumpedRateModelWithPores::configure(IParameterProvider& paramProvider)
 
 	// Add parameters to map
 	_parameters[makeParamId(hashString("COL_POROSITY"), _unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_colPorosity;
-	registerParam1DArray(_parameters, _parRadius, [=](bool multi, unsigned int type) { return makeParamId(hashString("PAR_RADIUS"), _unitOpIdx, CompIndep, type, BoundStateIndep, ReactionIndep, SectionIndep); });
-	registerParam1DArray(_parameters, _parPorosity, [=](bool multi, unsigned int type) { return makeParamId(hashString("PAR_POROSITY"), _unitOpIdx, CompIndep, type, BoundStateIndep, ReactionIndep, SectionIndep); });
+	if (_singleParRadius)
+		_parameters[makeParamId(hashString("PAR_RADIUS"), _unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_parRadius[0];
+	else
+		registerParam1DArray(_parameters, _parRadius, [=](bool multi, unsigned int type) { return makeParamId(hashString("PAR_RADIUS"), _unitOpIdx, CompIndep, type, BoundStateIndep, ReactionIndep, SectionIndep); });
+
+	if (_singleParPorosity)
+		_parameters[makeParamId(hashString("PAR_POROSITY"), _unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_parPorosity[0];
+	else
+		registerParam1DArray(_parameters, _parPorosity, [=](bool multi, unsigned int type) { return makeParamId(hashString("PAR_POROSITY"), _unitOpIdx, CompIndep, type, BoundStateIndep, ReactionIndep, SectionIndep); });
 
 	if (_axiallyConstantParTypeVolFrac)
 	{
@@ -348,12 +585,16 @@ bool LumpedRateModelWithPores::configure(IParameterProvider& paramProvider)
 	else
 		registerParam2DArray(_parameters, _parTypeVolFrac, [=](bool multi, unsigned cell, unsigned int type) { return makeParamId(hashString("PAR_TYPE_VOLFRAC"), _unitOpIdx, CompIndep, type, BoundStateIndep, ReactionIndep, cell); }, _disc.nParType);
 
-	registerParam3DArray(_parameters, _filmDiffusion, [=](bool multi, unsigned int sec, unsigned int type, unsigned int comp) { return makeParamId(hashString("FILM_DIFFUSION"), _unitOpIdx, comp, type, BoundStateIndep, ReactionIndep, multi ? sec : SectionIndep); }, _disc.nComp, _disc.nParType);
-	registerParam2DArray(_parameters, _poreAccessFactor, [=](bool multi, unsigned int type, unsigned int comp) { return makeParamId(hashString("PORE_ACCESSIBILITY"), _unitOpIdx, comp, type, BoundStateIndep, ReactionIndep, SectionIndep); }, _disc.nComp);
-
 	// Register initial conditions parameters
 	registerParam1DArray(_parameters, _initC, [=](bool multi, unsigned int comp) { return makeParamId(hashString("INIT_C"), _unitOpIdx, comp, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep); });
-	registerParam2DArray(_parameters, _initCp, [=](bool multi, unsigned int type, unsigned int comp) { return makeParamId(hashString("INIT_CP"), _unitOpIdx, comp, type, BoundStateIndep, ReactionIndep, SectionIndep); }, _disc.nComp);
+
+	if (_singleBinding)
+	{
+		for (unsigned int c = 0; c < _disc.nComp; ++c)
+			_parameters[makeParamId(hashString("INIT_CP"), _unitOpIdx, c, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_initCp[c];
+	}
+	else
+		registerParam2DArray(_parameters, _initCp, [=](bool multi, unsigned int type, unsigned int comp) { return makeParamId(hashString("INIT_CP"), _unitOpIdx, comp, type, BoundStateIndep, ReactionIndep, SectionIndep); }, _disc.nComp);
 
 
 	if (!_binding.empty())
@@ -1233,6 +1474,39 @@ bool LumpedRateModelWithPores::setParameter(const ParameterId& pId, double value
 		return true;
 	}
 
+	if (_singleParRadius && (pId.name == hashString("PAR_RADIUS")))
+	{
+		if ((pId.unitOperation != _unitOpIdx) || (pId.section != SectionIndep) || (pId.component != CompIndep) || (pId.boundState != BoundStateIndep) || (pId.reaction != ReactionIndep) || (pId.particleType != ParTypeIndep))
+			return false;
+
+		for (unsigned int i = 0; i < _disc.nParType; ++i)
+			_parRadius[i].setValue(value);
+
+		return true;
+	}
+
+	if (_singleParPorosity && (pId.name == hashString("PAR_POROSITY")))
+	{
+		if ((pId.unitOperation != _unitOpIdx) || (pId.section != SectionIndep) || (pId.component != CompIndep) || (pId.boundState != BoundStateIndep) || (pId.reaction != ReactionIndep) || (pId.particleType != ParTypeIndep))
+			return false;
+
+		for (unsigned int i = 0; i < _disc.nParType; ++i)
+			_parPorosity[i].setValue(value);
+
+		return true;
+	}
+
+	if (multiplexParameterValue(pId, hashString("FILM_DIFFUSION"), _filmDiffusionMode, _filmDiffusion, _disc.nParType, _disc.nComp, value, nullptr))
+		return true;
+	if (multiplexParameterValue(pId, hashString("PORE_ACCESSIBILITY"), _poreAccessFactorMode, _poreAccessFactor, _disc.nParType, _disc.nComp, value, nullptr))
+		return true;
+
+	const int mpIc = multiplexInitialConditions(pId, value, false);
+	if (mpIc > 0)
+		return true;
+	else if (mpIc < 0)
+		return false;
+
 	if (_convDispOp.setParameter(pId, value))
 		return true;
 
@@ -1257,6 +1531,39 @@ void LumpedRateModelWithPores::setSensitiveParameterValue(const ParameterId& pId
 
 		return;
 	}
+
+	if (_singleParRadius && (pId.name == hashString("PAR_RADIUS")))
+	{
+		if ((pId.unitOperation != _unitOpIdx) || (pId.section != SectionIndep) || (pId.component != CompIndep) || (pId.boundState != BoundStateIndep) || (pId.reaction != ReactionIndep) || (pId.particleType != ParTypeIndep))
+			return;
+		if (!contains(_sensParams, &_parRadius[0]))
+			return;
+
+		for (unsigned int i = 0; i < _disc.nParType; ++i)
+			_parRadius[i].setValue(value);
+
+		return;
+	}
+
+	if (_singleParPorosity && (pId.name == hashString("PAR_POROSITY")))
+	{
+		if ((pId.unitOperation != _unitOpIdx) || (pId.section != SectionIndep) || (pId.component != CompIndep) || (pId.boundState != BoundStateIndep) || (pId.reaction != ReactionIndep) || (pId.particleType != ParTypeIndep))
+			return;
+		if (!contains(_sensParams, &_parPorosity[0]))
+			return;
+
+		for (unsigned int i = 0; i < _disc.nParType; ++i)
+			_parPorosity[i].setValue(value);
+
+		return;
+	}
+
+	if (multiplexParameterValue(pId, hashString("FILM_DIFFUSION"), _filmDiffusionMode, _filmDiffusion, _disc.nParType, _disc.nComp, value, &_sensParams))
+		return;
+	if (multiplexParameterValue(pId, hashString("PORE_ACCESSIBILITY"), _poreAccessFactorMode, _poreAccessFactor, _disc.nParType, _disc.nComp, value, &_sensParams))
+		return;
+	if (multiplexInitialConditions(pId, value, true) != 0)
+		return;
 
 	if (_convDispOp.setSensitiveParameterValue(_sensParams, pId, value))
 		return;
@@ -1283,6 +1590,57 @@ bool LumpedRateModelWithPores::setSensitiveParameter(const ParameterId& pId, uns
 
 		return true;
 	}
+
+	if (_singleParRadius && (pId.name == hashString("PAR_RADIUS")))
+	{
+		if ((pId.unitOperation != _unitOpIdx) || (pId.section != SectionIndep) || (pId.component != CompIndep) || (pId.boundState != BoundStateIndep) || (pId.reaction != ReactionIndep) || (pId.particleType != ParTypeIndep))
+			return false;
+
+		LOG(Debug) << "Found parameter " << pId << ": Dir " << adDirection << " is set to " << adValue;
+
+		// Register parameter and set AD seed / direction
+		_sensParams.insert(&_parRadius[0]);
+		for (unsigned int i = 0; i < _disc.nParType; ++i)
+			_parRadius[i].setADValue(adDirection, adValue);
+
+		return true;
+	}
+
+	if (_singleParPorosity && (pId.name == hashString("PAR_POROSITY")))
+	{
+		if ((pId.unitOperation != _unitOpIdx) || (pId.section != SectionIndep) || (pId.component != CompIndep) || (pId.boundState != BoundStateIndep) || (pId.reaction != ReactionIndep) || (pId.particleType != ParTypeIndep))
+			return false;
+
+		LOG(Debug) << "Found parameter " << pId << ": Dir " << adDirection << " is set to " << adValue;
+
+		// Register parameter and set AD seed / direction
+		_sensParams.insert(&_parPorosity[0]);
+		for (unsigned int i = 0; i < _disc.nParType; ++i)
+			_parPorosity[i].setADValue(adDirection, adValue);
+
+		return true;
+	}
+
+	if (multiplexParameterAD(pId, hashString("FILM_DIFFUSION"), _filmDiffusionMode, _filmDiffusion, _disc.nParType, _disc.nComp, adDirection, adValue, _sensParams))
+	{
+		LOG(Debug) << "Found parameter " << pId << ": Dir " << adDirection << " is set to " << adValue;
+		return true;
+	}
+
+	if (multiplexParameterAD(pId, hashString("PORE_ACCESSIBILITY"), _poreAccessFactorMode, _poreAccessFactor, _disc.nParType, _disc.nComp, adDirection, adValue, _sensParams))
+	{
+		LOG(Debug) << "Found parameter " << pId << ": Dir " << adDirection << " is set to " << adValue;
+		return true;
+	}
+
+	const int mpIc = multiplexInitialConditions(pId, adDirection, adValue);
+	if (mpIc > 0)
+	{
+		LOG(Debug) << "Found parameter " << pId << ": Dir " << adDirection << " is set to " << adValue;
+		return true;
+	}
+	else if (mpIc < 0)
+		return false;
 
 	if (_convDispOp.setSensitiveParameter(_sensParams, pId, adDirection, adValue))
 	{

@@ -18,6 +18,7 @@
 #include "AdUtils.hpp"
 #include "model/parts/BindingConsistentInit.hpp"
 #include "SimulationTypes.hpp"
+#include "SensParamUtil.hpp"
 
 #include <algorithm>
 #include <functional>
@@ -35,6 +36,308 @@ namespace cadet
 
 namespace model
 {
+
+int GeneralRateModel2D::multiplexInitialConditions(const cadet::ParameterId& pId, unsigned int adDirection, double adValue)
+{
+	if (pId.name == hashString("INIT_C") && (pId.section == SectionIndep) && (pId.boundState == BoundStateIndep) && (pId.particleType == ParTypeIndep) && (pId.component != CompIndep))
+	{
+		if ((pId.reaction == ReactionIndep) && _singleRadiusInitC)
+		{
+			_sensParams.insert(&_initC[pId.component]);
+			for (unsigned int r = 0; r < _disc.nRad; ++r)
+				_initC[r * _disc.nComp + pId.component].setADValue(adDirection, adValue);
+
+			return 1;
+		}
+		else if ((pId.reaction != ReactionIndep) && !_singleRadiusInitC)
+		{
+			_sensParams.insert(&_initC[pId.reaction * _disc.nComp + pId.component]);
+			_initC[pId.reaction * _disc.nComp + pId.component].setADValue(adDirection, adValue);
+			return 1;
+		}
+
+		return -1;
+	}
+	else if (pId.name == hashString("INIT_C"))
+		return -1;
+
+	if (_singleBinding)
+	{
+		if (_singleRadiusInitCp)
+		{
+			if ((pId.name == hashString("INIT_CP")) && (pId.section == SectionIndep) && (pId.boundState == BoundStateIndep) && (pId.particleType == ParTypeIndep) && (pId.component != CompIndep) && (pId.reaction == ReactionIndep))
+			{
+				_sensParams.insert(&_initCp[pId.component]);
+				for (unsigned int r = 0; r < _disc.nRad; ++r)
+				{
+					for (unsigned int t = 0; t < _disc.nParType; ++t)
+						_initCp[r * _disc.nComp * _disc.nParType + t * _disc.nComp + pId.component].setADValue(adDirection, adValue);
+				}
+				return 1;
+			}
+			else if (pId.name == hashString("INIT_CP"))
+				return -1;
+		}
+		else
+		{
+			if ((pId.name == hashString("INIT_CP")) && (pId.section == SectionIndep) && (pId.boundState == BoundStateIndep) && (pId.particleType == ParTypeIndep) && (pId.component != CompIndep) && (pId.reaction != ReactionIndep))
+			{
+				_sensParams.insert(&_initCp[pId.reaction * _disc.nComp * _disc.nParType + pId.component]);
+				for (unsigned int t = 0; t < _disc.nParType; ++t)
+					_initCp[pId.reaction * _disc.nComp * _disc.nParType + t * _disc.nComp + pId.component].setADValue(adDirection, adValue);
+
+				return 1;
+			}
+			else if (pId.name == hashString("INIT_CP"))
+				return -1;
+		}
+
+		if (_singleRadiusInitQ)
+		{
+			if ((pId.name == hashString("INIT_Q")) && (pId.section == SectionIndep) && (pId.boundState != BoundStateIndep) && (pId.particleType == ParTypeIndep) && (pId.component != CompIndep) && (pId.reaction == ReactionIndep))
+			{
+				_sensParams.insert(&_initQ[_disc.nBoundBeforeType[0] + _disc.boundOffset[pId.component] + pId.boundState]);
+				for (unsigned int r = 0; r < _disc.nRad; ++r)
+				{
+					for (unsigned int t = 0; t < _disc.nParType; ++t)
+						_initQ[r * _disc.strideBound[_disc.nParType] + _disc.nBoundBeforeType[t] + _disc.boundOffset[t * _disc.nComp + pId.component] + pId.boundState].setADValue(adDirection, adValue);
+				}
+				return 1;
+			}
+			else if (pId.name == hashString("INIT_Q"))
+				return -1;
+		}
+		else
+		{
+			if ((pId.name == hashString("INIT_Q")) && (pId.section == SectionIndep) && (pId.boundState != BoundStateIndep) && (pId.particleType == ParTypeIndep) && (pId.component != CompIndep) && (pId.reaction != ReactionIndep))
+			{
+				_sensParams.insert(&_initQ[pId.reaction * _disc.strideBound[_disc.nParType] + _disc.nBoundBeforeType[0] + _disc.boundOffset[pId.component] + pId.boundState]);
+				for (unsigned int t = 0; t < _disc.nParType; ++t)
+					_initQ[pId.reaction * _disc.strideBound[_disc.nParType] + _disc.nBoundBeforeType[t] + _disc.boundOffset[t * _disc.nComp + pId.component] + pId.boundState].setADValue(adDirection, adValue);
+
+				return 1;
+			}
+			else if (pId.name == hashString("INIT_Q"))
+				return -1;
+		}
+	}
+	else
+	{
+		if (_singleRadiusInitCp)
+		{
+			if ((pId.name == hashString("INIT_CP")) && (pId.section == SectionIndep) && (pId.boundState == BoundStateIndep) && (pId.particleType != ParTypeIndep) && (pId.component != CompIndep) && (pId.reaction == ReactionIndep))
+			{
+				_sensParams.insert(&_initCp[pId.particleType * _disc.nComp + pId.component]);
+				for (unsigned int r = 0; r < _disc.nRad; ++r)
+					_initCp[r * _disc.nComp * _disc.nParType + pId.particleType * _disc.nComp + pId.component].setADValue(adDirection, adValue);
+
+				return 1;
+			}
+			else if (pId.name == hashString("INIT_CP"))
+				return -1;
+		}
+		else
+		{
+			if ((pId.name == hashString("INIT_CP")) && (pId.section == SectionIndep) && (pId.boundState == BoundStateIndep) && (pId.particleType != ParTypeIndep) && (pId.component != CompIndep) && (pId.reaction != ReactionIndep))
+			{
+				_sensParams.insert(&_initCp[pId.reaction * _disc.nComp * _disc.nParType + pId.particleType * _disc.nComp + pId.component]);
+				_initCp[pId.reaction * _disc.nComp * _disc.nParType + pId.particleType * _disc.nComp + pId.component].setADValue(adDirection, adValue);
+
+				return 1;
+			}
+			else if (pId.name == hashString("INIT_CP"))
+				return -1;
+		}
+
+		if (_singleRadiusInitQ)
+		{
+			if ((pId.name == hashString("INIT_Q")) && (pId.section == SectionIndep) && (pId.boundState != BoundStateIndep) && (pId.particleType != ParTypeIndep) && (pId.component != CompIndep) && (pId.reaction == ReactionIndep))
+			{
+				_sensParams.insert(&_initQ[_disc.nBoundBeforeType[pId.particleType] + _disc.boundOffset[pId.particleType * _disc.nComp + pId.component] + pId.boundState]);
+				for (unsigned int r = 0; r < _disc.nRad; ++r)
+					_initQ[r * _disc.strideBound[_disc.nParType] + _disc.nBoundBeforeType[pId.particleType] + _disc.boundOffset[pId.particleType * _disc.nComp + pId.component] + pId.boundState].setADValue(adDirection, adValue);
+
+				return 1;
+			}
+			else if (pId.name == hashString("INIT_Q"))
+				return -1;
+		}
+		else
+		{
+			if ((pId.name == hashString("INIT_Q")) && (pId.section == SectionIndep) && (pId.boundState != BoundStateIndep) && (pId.particleType != ParTypeIndep) && (pId.component != CompIndep) && (pId.reaction != ReactionIndep))
+			{
+				_sensParams.insert(&_initQ[pId.reaction * _disc.strideBound[_disc.nParType] + _disc.nBoundBeforeType[pId.particleType] + _disc.boundOffset[pId.particleType * _disc.nComp + pId.component] + pId.boundState]);
+				_initQ[pId.reaction * _disc.strideBound[_disc.nParType] + _disc.nBoundBeforeType[pId.particleType] + _disc.boundOffset[pId.particleType * _disc.nComp + pId.component] + pId.boundState].setADValue(adDirection, adValue);
+
+				return 1;
+			}
+			else if (pId.name == hashString("INIT_Q"))
+				return -1;
+		}
+	}
+	return 0;
+}
+
+int GeneralRateModel2D::multiplexInitialConditions(const cadet::ParameterId& pId, double val, bool checkSens)
+{
+	if (pId.name == hashString("INIT_C") && (pId.section == SectionIndep) && (pId.boundState == BoundStateIndep) && (pId.particleType == ParTypeIndep) && (pId.component != CompIndep))
+	{
+		if ((pId.reaction == ReactionIndep) && _singleRadiusInitC)
+		{
+			if (checkSens && !contains(_sensParams, &_initC[pId.component]))
+				return -1;
+
+			for (unsigned int r = 0; r < _disc.nRad; ++r)
+				_initC[r * _disc.nComp + pId.component].setValue(val);
+
+			return 1;
+		}
+		else if ((pId.reaction != ReactionIndep) && !_singleRadiusInitC)
+		{
+			if (checkSens && !contains(_sensParams, &_initC[pId.reaction * _disc.nComp + pId.component]))
+				return -1;
+
+			_initC[pId.reaction * _disc.nComp + pId.component].setValue(val);
+			return 1;
+		}
+		else
+			return -1;
+	}
+
+	if (_singleBinding)
+	{
+		if (_singleRadiusInitCp)
+		{
+			if ((pId.name == hashString("INIT_CP")) && (pId.section == SectionIndep) && (pId.boundState == BoundStateIndep) && (pId.particleType == ParTypeIndep) && (pId.component != CompIndep) && (pId.reaction == ReactionIndep))
+			{
+				if (checkSens && !contains(_sensParams, &_initCp[pId.component]))
+					return -1;
+
+				for (unsigned int r = 0; r < _disc.nRad; ++r)
+				{
+					for (unsigned int t = 0; t < _disc.nParType; ++t)
+						_initCp[r * _disc.nComp * _disc.nParType + t * _disc.nComp + pId.component].setValue(val);
+				}
+
+				return 1;
+			}
+			else if (pId.name == hashString("INIT_CP"))
+				return -1;
+		}
+		else
+		{
+			if ((pId.name == hashString("INIT_CP")) && (pId.section == SectionIndep) && (pId.boundState == BoundStateIndep) && (pId.particleType == ParTypeIndep) && (pId.component != CompIndep) && (pId.reaction != ReactionIndep))
+			{
+				if (checkSens && !contains(_sensParams, &_initCp[pId.reaction * _disc.nComp * _disc.nParType + pId.component]))
+					return -1;
+
+				for (unsigned int t = 0; t < _disc.nParType; ++t)
+					_initCp[pId.reaction * _disc.nComp * _disc.nParType + t * _disc.nComp + pId.component].setValue(val);
+
+				return 1;
+			}
+			else if (pId.name == hashString("INIT_CP"))
+				return -1;
+		}
+
+		if (_singleRadiusInitQ)
+		{
+			if ((pId.name == hashString("INIT_Q")) && (pId.section == SectionIndep) && (pId.boundState != BoundStateIndep) && (pId.particleType == ParTypeIndep) && (pId.component != CompIndep) && (pId.reaction == ReactionIndep))
+			{
+				if (checkSens && !contains(_sensParams, &_initQ[_disc.nBoundBeforeType[0] + _disc.boundOffset[pId.component] + pId.boundState]))
+					return -1;
+
+				for (unsigned int r = 0; r < _disc.nRad; ++r)
+				{
+					for (unsigned int t = 0; t < _disc.nParType; ++t)
+						_initQ[r * _disc.strideBound[_disc.nParType] + _disc.nBoundBeforeType[t] + _disc.boundOffset[t * _disc.nComp + pId.component] + pId.boundState].setValue(val);
+				}
+
+				return 1;
+			}
+			else if (pId.name == hashString("INIT_Q"))
+				return -1;
+		}
+		else
+		{
+			if ((pId.name == hashString("INIT_Q")) && (pId.section == SectionIndep) && (pId.boundState != BoundStateIndep) && (pId.particleType == ParTypeIndep) && (pId.component != CompIndep) && (pId.reaction != ReactionIndep))
+			{
+				if (checkSens && !contains(_sensParams, &_initQ[pId.reaction * _disc.strideBound[_disc.nParType] + _disc.nBoundBeforeType[0] + _disc.boundOffset[pId.component] + pId.boundState]))
+					return -1;
+
+				for (unsigned int t = 0; t < _disc.nParType; ++t)
+					_initQ[pId.reaction * _disc.strideBound[_disc.nParType] + _disc.nBoundBeforeType[t] + _disc.boundOffset[t * _disc.nComp + pId.component] + pId.boundState].setValue(val);
+
+				return 1;
+			}
+			else if (pId.name == hashString("INIT_Q"))
+				return -1;
+		}
+	}
+	else
+	{
+		if (_singleRadiusInitCp)
+		{
+			if ((pId.name == hashString("INIT_CP")) && (pId.section == SectionIndep) && (pId.boundState == BoundStateIndep) && (pId.particleType != ParTypeIndep) && (pId.component != CompIndep) && (pId.reaction == ReactionIndep))
+			{
+				if (checkSens && !contains(_sensParams, &_initCp[pId.particleType * _disc.nComp + pId.component]))
+					return -1;
+
+				for (unsigned int r = 0; r < _disc.nRad; ++r)
+					_initCp[r * _disc.nComp * _disc.nParType + pId.particleType * _disc.nComp + pId.component].setValue(val);
+
+				return 1;
+			}
+			else if (pId.name == hashString("INIT_CP"))
+				return -1;
+		}
+		else
+		{
+			if ((pId.name == hashString("INIT_CP")) && (pId.section == SectionIndep) && (pId.boundState == BoundStateIndep) && (pId.particleType != ParTypeIndep) && (pId.component != CompIndep) && (pId.reaction != ReactionIndep))
+			{
+				if (checkSens && !contains(_sensParams, &_initCp[pId.reaction * _disc.nComp * _disc.nParType + pId.particleType * _disc.nComp + pId.component]))
+					return -1;
+
+				_initCp[pId.reaction * _disc.nComp * _disc.nParType + pId.particleType * _disc.nComp + pId.component].setValue(val);
+
+				return 1;
+			}
+			else if (pId.name == hashString("INIT_CP"))
+				return -1;
+		}
+
+		if (_singleRadiusInitQ)
+		{
+			if ((pId.name == hashString("INIT_Q")) && (pId.section == SectionIndep) && (pId.boundState != BoundStateIndep) && (pId.particleType != ParTypeIndep) && (pId.component != CompIndep) && (pId.reaction == ReactionIndep))
+			{
+				if (checkSens && !contains(_sensParams, &_initQ[_disc.nBoundBeforeType[pId.particleType] + _disc.boundOffset[pId.particleType * _disc.nComp + pId.component] + pId.boundState]))
+					return -1;
+
+				for (unsigned int r = 0; r < _disc.nRad; ++r)
+					_initQ[r * _disc.strideBound[_disc.nParType] + _disc.nBoundBeforeType[pId.particleType] + _disc.boundOffset[pId.particleType * _disc.nComp + pId.component] + pId.boundState].setValue(val);
+
+				return 1;
+			}
+			else if (pId.name == hashString("INIT_Q"))
+				return -1;
+		}
+		else
+		{
+			if ((pId.name == hashString("INIT_Q")) && (pId.section == SectionIndep) && (pId.boundState != BoundStateIndep) && (pId.particleType != ParTypeIndep) && (pId.component != CompIndep) && (pId.reaction != ReactionIndep))
+			{
+				if (checkSens && !contains(_sensParams, &_initQ[pId.reaction * _disc.strideBound[_disc.nParType] + _disc.nBoundBeforeType[pId.particleType] + _disc.boundOffset[pId.particleType * _disc.nComp + pId.component] + pId.boundState]))
+					return -1;
+
+				_initQ[pId.reaction * _disc.strideBound[_disc.nParType] + _disc.nBoundBeforeType[pId.particleType] + _disc.boundOffset[pId.particleType * _disc.nComp + pId.component] + pId.boundState].setValue(val);
+
+				return 1;
+			}
+			else if (pId.name == hashString("INIT_Q"))
+				return -1;
+		}
+	}
+	return 0;
+}
 
 void GeneralRateModel2D::applyInitialCondition(const SimulationState& simState) const
 {
@@ -67,7 +370,7 @@ void GeneralRateModel2D::applyInitialCondition(const SimulationState& simState) 
 		{
 			// Loop over components in cell
 			for (unsigned comp = 0; comp < _disc.nComp; ++comp)
-				stateYbulk[col * idxr.strideColAxialCell() + rad * idxr.strideColRadialCell() + comp * idxr.strideColComp()] = static_cast<double>(_initC[comp]);
+				stateYbulk[col * idxr.strideColAxialCell() + rad * idxr.strideColRadialCell() + comp * idxr.strideColComp()] = static_cast<double>(_initC[comp + rad * _disc.nComp]);
 		}
 	}
 
@@ -76,6 +379,7 @@ void GeneralRateModel2D::applyInitialCondition(const SimulationState& simState) 
 	{
 		for (unsigned int col = 0; col < _disc.nCol * _disc.nRad; ++col)
 		{
+			const unsigned int rad = col % _disc.nRad;
 			const unsigned int offset = idxr.offsetCp(ParticleTypeIndex{type}, ParticleIndex{col});
 
 			// Loop over particle cells
@@ -85,11 +389,11 @@ void GeneralRateModel2D::applyInitialCondition(const SimulationState& simState) 
 
 				// Initialize c_p
 				for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
-					simState.vecStateY[shellOffset + comp] = static_cast<double>(_initCp[comp + _disc.nComp * type]);
+					simState.vecStateY[shellOffset + comp] = static_cast<double>(_initCp[comp + _disc.nComp * type + rad * _disc.nComp * _disc.nParType]);
 
 				// Initialize q
-				active const* const iq = _initQ.data() + _disc.nBoundBeforeType[_singleBinding ? 0 : type];
-				for (unsigned int bnd = 0; bnd < _disc.strideBound[_singleBinding ? 0 : type]; ++bnd)
+				active const* const iq = _initQ.data() + rad * _disc.strideBound[_disc.nParType] + _disc.nBoundBeforeType[type];
+				for (unsigned int bnd = 0; bnd < _disc.strideBound[type]; ++bnd)
 					simState.vecStateY[shellOffset + idxr.strideParLiquid() + bnd] = static_cast<double>(iq[bnd]);
 			}
 		}
@@ -114,36 +418,119 @@ void GeneralRateModel2D::readInitialCondition(IParameterProvider& paramProvider)
 	}
 
 	const std::vector<double> initC = paramProvider.getDoubleArray("INIT_C");
-	std::vector<double> initQ;
+	_singleRadiusInitC = (initC.size() < _disc.nComp * _disc.nRad);
+	
+	if (((initC.size() < _disc.nComp) && _singleRadiusInitC) || ((initC.size() < _disc.nComp * _disc.nRad) && !_singleRadiusInitC))
+		throw InvalidParameterException("INIT_C does not contain enough values for all components (and radial zones)");
 
-	if (paramProvider.exists("INIT_Q"))
-		initQ = paramProvider.getDoubleArray("INIT_Q");
-
-	if (initC.size() < _disc.nComp)
-		throw InvalidParameterException("INIT_C does not contain enough values for all components");
-
-	if ((_disc.strideBound[_disc.nParType] > 0) && (((initQ.size() < _disc.strideBound[_disc.nParType]) && !_singleBinding) || (initQ.size() < _disc.strideBound[0] && _singleBinding)))
-		throw InvalidParameterException("INIT_Q does not contain enough values for all bound states");
+	if (!_singleRadiusInitC)
+		ad::copyToAd(initC.data(), _initC.data(), _disc.nComp * _disc.nRad);
+	else
+	{
+		for (unsigned int r = 0; r < _disc.nRad; ++r)
+			ad::copyToAd(initC.data(), _initC.data() + r * _disc.nComp, _disc.nComp);
+	}
 
 	// Check if INIT_CP is present
 	if (paramProvider.exists("INIT_CP"))
 	{
 		const std::vector<double> initCp = paramProvider.getDoubleArray("INIT_CP");
 
-		if (initCp.size() < _disc.nComp * _disc.nParType)
+		_singleRadiusInitCp = (initCp.size() == _disc.nComp * _disc.nParType) || (initCp.size() == _disc.nComp);
+
+		if (
+			((initCp.size() < _disc.nComp * _disc.nParType) && !_singleBinding && _singleRadiusInitCp) || ((initCp.size() < _disc.nComp) && _singleBinding && _singleRadiusInitCp)
+				|| ((initCp.size() < _disc.nComp * _disc.nRad) && _singleBinding && !_singleRadiusInitCp)
+				|| ((initCp.size() < _disc.nComp * _disc.nParType * _disc.nRad) && !_singleBinding && !_singleRadiusInitCp)
+			)
 			throw InvalidParameterException("INIT_CP does not contain enough values for all components");
 
-		ad::copyToAd(initCp.data(), _initCp.data(), _disc.nComp * _disc.nParType);
+		if (!_singleBinding && !_singleRadiusInitCp)
+			ad::copyToAd(initCp.data(), _initCp.data(), _disc.nComp * _disc.nParType * _disc.nRad);
+		else if (!_singleBinding && _singleRadiusInitCp)
+		{
+			for (unsigned int r = 0; r < _disc.nRad; ++r)
+				ad::copyToAd(initCp.data(), _initCp.data() + r * _disc.nComp * _disc.nParType, _disc.nComp * _disc.nParType);
+		}
+		else if (_singleBinding && !_singleRadiusInitCp)
+		{
+			for (unsigned int r = 0; r < _disc.nRad; ++r)
+			{
+				for (unsigned int t = 0; t < _disc.nParType; ++t)
+					ad::copyToAd(initCp.data() + r * _disc.nComp, _initCp.data() + t * _disc.nComp + r * _disc.nComp * _disc.nParType, _disc.nComp);
+			}
+		}
+		else if (_singleBinding && _singleRadiusInitCp)
+		{
+			for (unsigned int r = 0; r < _disc.nRad; ++r)
+			{
+				for (unsigned int t = 0; t < _disc.nParType; ++t)
+					ad::copyToAd(initCp.data(), _initCp.data() + t * _disc.nComp + r * _disc.nComp * _disc.nParType, _disc.nComp);
+			}
+		}
 	}
 	else
 	{
-		for (unsigned int type = 0; type < _disc.nParType; ++type)
-			ad::copyToAd(initC.data(), _initCp.data() + _disc.nComp * type, _disc.nComp);
+		_singleRadiusInitCp = _singleRadiusInitC;
+
+		if (!_singleRadiusInitCp)
+		{
+			for (unsigned int r = 0; r < _disc.nRad; ++r)
+			{
+				for (unsigned int t = 0; t < _disc.nParType; ++t)
+					ad::copyToAd(initC.data() + r * _disc.nComp, _initCp.data() + t * _disc.nComp + r * _disc.nComp * _disc.nParType, _disc.nComp);
+			}
+		}
+		else
+		{
+			for (unsigned int r = 0; r < _disc.nRad; ++r)
+			{
+				for (unsigned int t = 0; t < _disc.nParType; ++t)
+					ad::copyToAd(initC.data(), _initCp.data() + t * _disc.nComp + r * _disc.nComp * _disc.nParType, _disc.nComp);
+			}
+		}
 	}
 
-	ad::copyToAd(initC.data(), _initC.data(), _disc.nComp);
-	if (!initQ.empty())
-		ad::copyToAd(initQ.data(), _initQ.data(), _disc.strideBound[_singleBinding ? 0 : _disc.nParType]);
+	std::vector<double> initQ;
+	if (paramProvider.exists("INIT_Q"))
+	{
+		initQ = paramProvider.getDoubleArray("INIT_Q");
+		_singleRadiusInitQ = (initQ.size() == _disc.strideBound[0]) || (initQ.size() == _disc.strideBound[_disc.nParType]);
+	}
+
+	if (initQ.empty() || (_disc.strideBound[_disc.nParType] == 0))
+		return;
+
+	if ((_disc.strideBound[_disc.nParType] > 0) && (
+		((initQ.size() < _disc.strideBound[_disc.nParType]) && !_singleBinding && _singleRadiusInitQ) || ((initQ.size() < _disc.strideBound[0]) && _singleBinding && _singleRadiusInitQ)
+			|| ((initQ.size() < _disc.strideBound[0] * _disc.nRad) && _singleBinding && !_singleRadiusInitQ)
+			|| ((initQ.size() < _disc.strideBound[_disc.nParType] * _disc.nRad) && !_singleBinding && !_singleRadiusInitQ)
+		))
+		throw InvalidParameterException("INIT_Q does not contain enough values for all bound states");
+
+	if (!_singleBinding && !_singleRadiusInitQ)
+		ad::copyToAd(initQ.data(), _initQ.data(), _disc.strideBound[_disc.nParType] * _disc.nRad);
+	else if (!_singleBinding && _singleRadiusInitQ)
+	{
+		for (unsigned int r = 0; r < _disc.nRad; ++r)
+			ad::copyToAd(initQ.data(), _initQ.data() + r * _disc.strideBound[_disc.nParType], _disc.strideBound[_disc.nParType]);
+	}
+	else if (_singleBinding && !_singleRadiusInitQ)
+	{
+		for (unsigned int r = 0; r < _disc.nRad; ++r)
+		{
+			for (unsigned int t = 0; t < _disc.nParType; ++t)
+				ad::copyToAd(initQ.data() + r * _disc.strideBound[0], _initQ.data() + _disc.nBoundBeforeType[t] + r * _disc.strideBound[_disc.nParType], _disc.strideBound[t]);
+		}
+	}
+	else if (_singleBinding && _singleRadiusInitQ)
+	{
+		for (unsigned int r = 0; r < _disc.nRad; ++r)
+		{
+			for (unsigned int t = 0; t < _disc.nParType; ++t)
+				ad::copyToAd(initQ.data(), _initQ.data() + _disc.nBoundBeforeType[t] + r * _disc.strideBound[_disc.nParType], _disc.strideBound[t]);
+		}
+	}
 }
 
 /**
@@ -562,7 +949,7 @@ void GeneralRateModel2D::initializeSensitivityStates(const std::vector<double*>&
 			{
 				// Loop over components in cell
 				for (unsigned comp = 0; comp < _disc.nComp; ++comp)
-					stateYbulk[col * idxr.strideColAxialCell() + rad * idxr.strideColRadialCell() + comp * idxr.strideColComp()] = _initC[comp].getADValue(param);
+					stateYbulk[col * idxr.strideColAxialCell() + rad * idxr.strideColRadialCell() + comp * idxr.strideColComp()] = _initC[comp + rad * _disc.nComp].getADValue(param);
 			}
 		}
 
@@ -571,6 +958,7 @@ void GeneralRateModel2D::initializeSensitivityStates(const std::vector<double*>&
 		{
 			for (unsigned int col = 0; col < _disc.nCol * _disc.nRad; ++col)
 			{
+				const unsigned int rad = col % _disc.nRad;
 				const unsigned int offset = idxr.offsetCp(ParticleTypeIndex{type}, ParticleIndex{col});
 
 				// Loop over particle cells
@@ -582,11 +970,11 @@ void GeneralRateModel2D::initializeSensitivityStates(const std::vector<double*>&
 					
 					// Initialize c_p
 					for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
-						stateYparticle[comp] = _initCp[comp + type * _disc.nComp].getADValue(param);
+						stateYparticle[comp] = _initCp[comp + type * _disc.nComp + rad * _disc.nComp * _disc.nParType].getADValue(param);
 
 					// Initialize q
 					for (unsigned int bnd = 0; bnd < _disc.strideBound[type]; ++bnd)
-						stateYparticleSolid[bnd] = _initQ[bnd + _disc.nBoundBeforeType[type]].getADValue(param);
+						stateYparticleSolid[bnd] = _initQ[bnd + _disc.nBoundBeforeType[type] + _disc.strideBound[_disc.nParType] * rad].getADValue(param);
 				}
 			}
 		}
