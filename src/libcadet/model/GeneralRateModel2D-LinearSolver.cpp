@@ -251,7 +251,6 @@ int GeneralRateModel2D::linearSolve(double t, double timeFactor, double alpha, d
 
 		// Note that rhs is updated in-place with the solution of the Schur-complement
 		// The temporary storage is only needed to hold the right hand side of the Schur-complement
-		// TODO: Check whether number of fluxes should be used instead of numDofs()
 		const double tolerance = std::sqrt(static_cast<double>(_gmres.matrixSize())) * outerTol * _schurSafety;
 
 		BENCH_START(_timerGmres);

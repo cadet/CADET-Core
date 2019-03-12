@@ -251,7 +251,7 @@ int GeneralRateModel::linearSolve(double t, double timeFactor, double alpha, dou
 
 		// Note that rhs is updated in-place with the solution of the Schur-complement
 		// The temporary storage is only needed to hold the right hand side of the Schur-complement
-		const double tolerance = std::sqrt(static_cast<double>(numDofs())) * outerTol * _schurSafety;
+		const double tolerance = std::sqrt(static_cast<double>(_gmres.matrixSize())) * outerTol * _schurSafety;
 
 		BENCH_START(_timerGmres);
 		const int gmresResult = _gmres.solve(tolerance, weight + idxr.offsetJf(), _tempState + idxr.offsetJf(), rhs + idxr.offsetJf());
