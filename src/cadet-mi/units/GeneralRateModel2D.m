@@ -1399,6 +1399,7 @@ classdef GeneralRateModel2D < Model
 		function loadobjInternal(obj, S)
 			obj.loadobjInternal@Model(S);
 
+			obj.bindingModel = BindingModel.empty();
 			if ~isempty(S.bindingModel)
 				for i = 1:length(S.bindingModel)
 					ctor = str2func([S.bindingModelClass{i} '.loadobj']);
