@@ -67,7 +67,7 @@ public:
 
 	virtual void setSectionTimes(double const* secTimes, bool const* secContinuity, unsigned int nSections) { }
 
-	virtual double externalProfile(double t, double z, double r, unsigned int sec)
+	virtual double externalProfile(double t, double z, double rho, double r, unsigned int sec)
 	{
 		// z denotes relative axial position in the column, i.e., z is in [0,1].
 		// 
@@ -118,7 +118,7 @@ public:
 		return _dataY[idx] + (_dataY[idx + 1] - _dataY[idx]) * (transT - _time[idx]) / (_time[idx + 1] - _time[idx]);
 	}
 
-	virtual double timeDerivative(double t, double z, double r, unsigned int sec)
+	virtual double timeDerivative(double t, double z, double rho, double r, unsigned int sec)
 	{
 		// Compute transformed time
 		const double transT = (1.0 - z) / _velocity + t;

@@ -65,14 +65,14 @@ public:
 		return true;
 	}
 
-	virtual double externalProfile(double t, double z, double r, unsigned int sec)
+	virtual double externalProfile(double t, double z, double rho, double r, unsigned int sec)
 	{
 
 		// Again, we're out of data, so perform constant extrapolation
 		return 0.0;
 	}
 
-	virtual double timeDerivative(double t, double z, double r, unsigned int sec)
+	virtual double timeDerivative(double t, double z, double rho, double r, unsigned int sec)
 	{
 		// Again, we're out of data, so perform constant extrapolation
 		return 0.0;

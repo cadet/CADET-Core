@@ -75,7 +75,7 @@ public:
 			&& (_const.size() == _quad.size()) && (_const.size() == _cub.size());
 	}
 
-	virtual double externalProfile(double t, double z, double r, unsigned int sec)
+	virtual double externalProfile(double t, double z, double rho, double r, unsigned int sec)
 	{
 		// Compute transformed time and find index of the section
 		const double transT = (1.0 - z) / _velocity + t;
@@ -103,7 +103,7 @@ public:
 		return _const[idx] + tShift * (_lin[idx] + tShift * (_quad[idx] + tShift * _cub[idx]));
 	}
 
-	virtual double timeDerivative(double t, double z, double r, unsigned int sec)
+	virtual double timeDerivative(double t, double z, double rho, double r, unsigned int sec)
 	{
 		// Compute transformed time and find index of the section
 		const double transT = (1.0 - z) / _velocity + t;

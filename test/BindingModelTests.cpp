@@ -48,8 +48,8 @@ namespace
 	public:
 		virtual bool configure(cadet::IParameterProvider* paramProvider) { return true; }
 		virtual const char* name() const CADET_NOEXCEPT { return "CONSTFUN"; }
-		virtual double externalProfile(double t, double z, double r, unsigned int sec) { return 1.0; }
-		virtual double timeDerivative(double t, double z, double r, unsigned int sec) { return 0.0; }
+		virtual double externalProfile(double t, double z, double rho, double r, unsigned int sec) { return 1.0; }
+		virtual double timeDerivative(double t, double z, double rho, double r, unsigned int sec) { return 0.0; }
 		virtual void setSectionTimes(double const* secTimes, bool const* secContinuity, unsigned int nSections) { }
 	};
 
@@ -58,8 +58,8 @@ namespace
 	public:
 		virtual bool configure(cadet::IParameterProvider* paramProvider) { return true; }
 		virtual const char* name() const CADET_NOEXCEPT { return "LINFUN"; }
-		virtual double externalProfile(double t, double z, double r, unsigned int sec) { return t; }
-		virtual double timeDerivative(double t, double z, double r, unsigned int sec) { return 1.0; }
+		virtual double externalProfile(double t, double z, double rho, double r, unsigned int sec) { return t; }
+		virtual double timeDerivative(double t, double z, double rho, double r, unsigned int sec) { return 1.0; }
 		virtual void setSectionTimes(double const* secTimes, bool const* secContinuity, unsigned int nSections) { }
 	};
 

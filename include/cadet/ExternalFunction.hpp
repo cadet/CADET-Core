@@ -54,22 +54,24 @@ public:
 	 * 
 	 * @param [in]  t       Absolute simulation time
 	 * @param [in]  z       Normalized axial position in the column in [0,1]
-	 * @param [in]  r       Normalized radial position in the column in [0,1]
+	 * @param [in]  rho     Normalized radial position in the column in [0,1]
+	 * @param [in]  r       Normalized radial position in the particle in [0,1]
 	 * @param [in]  sec     Index of the current time section
 	 * @return Function value
 	 */
-	virtual double externalProfile(double t, double z, double r, unsigned int sec) = 0;
+	virtual double externalProfile(double t, double z, double rho, double r, unsigned int sec) = 0;
 
 	/**
 	 * @brief Returns the time derivative of the function at a given time and spatial position
 	 * 
 	 * @param [in]  t              Absolute simulation time
 	 * @param [in]  z              Normalized axial position in the column in [0,1]
-	 * @param [in]  r              Normalized radial position in the column in [0,1]
+	 * @param [in]  rho            Normalized radial position in the column in [0,1]
+	 * @param [in]  r              Normalized radial position in the particle in [0,1]
 	 * @param [in]  sec            Index of the current time section
 	 * @return Time derivative of the external function
 	 */
-	virtual double timeDerivative(double t, double z, double r, unsigned int sec) = 0;
+	virtual double timeDerivative(double t, double z, double rho, double r, unsigned int sec) = 0;
 
 	/**
 	 * @brief Sets the section time vector

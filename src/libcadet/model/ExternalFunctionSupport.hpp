@@ -284,7 +284,7 @@ namespace model
 			{
 				IExternalFunction* const fun = _extFun[i];
 				if (fun)
-					buffer[i] = fun->externalProfile(t, colPos.axial, colPos.particle, secIdx);
+					buffer[i] = fun->externalProfile(t, colPos.axial, colPos.radial, colPos.particle, secIdx);
 				else
 					buffer[i] = 0.0;
 			}
@@ -305,7 +305,7 @@ namespace model
 			{
 				IExternalFunction* const fun = _extFun[i];
 				if (fun)
-					buffer[i] = fun->timeDerivative(t, colPos.axial, colPos.particle, secIdx);
+					buffer[i] = fun->timeDerivative(t, colPos.axial, colPos.radial, colPos.particle, secIdx);
 				else
 					buffer[i] = 0.0;
 			}
