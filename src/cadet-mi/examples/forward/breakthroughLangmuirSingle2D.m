@@ -154,3 +154,15 @@ function [result, solution] = breakthroughLangmuirSingle2D()
 	xlabel('Time [s]');
 	ylabel('Concentration [mM]');
 end
+
+% =============================================================================
+%  CADET - The Chromatography Analysis and Design Toolkit
+%  
+%  Copyright (C) 2008-2019: The CADET Authors
+%            Please see the AUTHORS and CONTRIBUTORS file.
+%  
+%  All rights reserved. This program and the accompanying materials
+%  are made available under the terms of the GNU Public License v3.0 (or, at
+%  your option, any later version) which accompanies this distribution, and
+%  is available at http://www.gnu.org/licenses/gpl.html
+% =============================================================================
