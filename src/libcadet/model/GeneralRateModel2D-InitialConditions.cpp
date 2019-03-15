@@ -839,7 +839,7 @@ void GeneralRateModel2D::consistentInitialTimeDerivative(const SimulationTime& s
  */
 void GeneralRateModel2D::leanConsistentInitialState(const SimulationTime& simTime, double* const vecStateY, const AdJacobianParams& adJac, double errorTol)
 {
-	if ((_parDiffusion.size() > _disc.nComp * _disc.nParType) || (_parSurfDiffusion.size() > _disc.strideBound[_disc.nParType]))
+	if (isSectionDependent(_parDiffusionMode) || isSectionDependent(_parSurfDiffusionMode))
 		LOG(Warning) << "Lean consistent initialization is not appropriate for section-dependent pore and surface diffusion";
 
 	BENCH_SCOPE(_timerConsistentInit);
@@ -900,7 +900,7 @@ void GeneralRateModel2D::leanConsistentInitialState(const SimulationTime& simTim
  */
 void GeneralRateModel2D::leanConsistentInitialTimeDerivative(double t, double timeFactor, double const* const vecStateY, double* const vecStateYdot, double* const res)
 {
-	if ((_parDiffusion.size() > _disc.nComp * _disc.nParType) || (_parSurfDiffusion.size() > _disc.strideBound[_disc.nParType]))
+	if (isSectionDependent(_parDiffusionMode) || isSectionDependent(_parSurfDiffusionMode))
 		LOG(Warning) << "Lean consistent initialization is not appropriate for section-dependent pore and surface diffusion";
 
 	BENCH_SCOPE(_timerConsistentInit);
@@ -1217,7 +1217,7 @@ void GeneralRateModel2D::consistentInitialSensitivity(const ActiveSimulationTime
 void GeneralRateModel2D::leanConsistentInitialSensitivity(const ActiveSimulationTime& simTime, const ConstSimulationState& simState,
 	std::vector<double*>& vecSensY, std::vector<double*>& vecSensYdot, active const* const adRes)
 {
-	if ((_parDiffusion.size() > _disc.nComp * _disc.nParType) || (_parSurfDiffusion.size() > _disc.strideBound[_disc.nParType]))
+	if (isSectionDependent(_parDiffusionMode) || isSectionDependent(_parSurfDiffusionMode))
 		LOG(Warning) << "Lean consistent initialization is not appropriate for section-dependent pore and surface diffusion";
 
 	BENCH_SCOPE(_timerConsistentInit);
