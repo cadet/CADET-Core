@@ -17,10 +17,21 @@
 # libraries. If one or more COMPONENTS are specified, the module will attempt to
 # find the specified components.
 #
-# On UNIX systems, this module will read the variable SUNDIALS_USE_STATIC_LIBRARIES
+# Valid components are
+#   * sundials_cvode
+#   * sundials_cvodes
+#   * sundials_ida
+#   * sundials_idas
+#   * sundials_kinsol
+#   * sundials_nvecserial
+#   * sundials_nvecopenmp
+#   * sundials_nvecpthreads
+#
+#
+# On UNIX systems, this module will read the variable SUNDIALS_PREFER_STATIC_LIBRARIES
 # to determine whether or not to prefer a static link to a dynamic link for SUNDIALS
 # and all of it's dependencies.  To use this feature, make sure that the
-# SUNDIALS_USE_STATIC_LIBRARIES variable is set before the call to find_package.
+# SUNDIALS_PREFER_STATIC_LIBRARIES variable is set before the call to find_package.
 #
 # To provide the module with a hint about where to find your SUNDIALS installation,
 # you can set the environment variable SUNDIALS_ROOT. The FindSUNDIALS module will
@@ -34,19 +45,12 @@
 #  SUNDIALS_VERSION_MINOR - Minro version
 #  SUNDIALS_VERSION_PATCH - Patch level
 #  SUNDIALS_VERSION - Full version string
-
-
-include(FindPackageHandleStandardArgs)
-
-
-# List of user definable search paths
-set (SUNDIALS_USER_PATHS
-#    ${PATH_SUNDIALS_ROOT}
-)
+#
+# This module exports the target SUNDIALS::<component> if it was found.
 
 
 # List of the valid SUNDIALS components
-set( SUNDIALS_VALID_COMPONENTS
+set(SUNDIALS_VALID_COMPONENTS
     sundials_cvode
     sundials_cvodes
     sundials_ida
@@ -57,30 +61,36 @@ set( SUNDIALS_VALID_COMPONENTS
     sundials_nvecpthreads
 )
 
-
-if( NOT SUNDIALS_FIND_COMPONENTS )
-    set( SUNDIALS_WANT_COMPONENTS ${SUNDIALS_VALID_COMPONENTS} )
+if (NOT SUNDIALS_FIND_COMPONENTS)
+    set(SUNDIALS_WANT_COMPONENTS ${SUNDIALS_VALID_COMPONENTS})
 else()
     # add the extra specified components, ensuring that they are valid.
-    foreach( _COMPONENT ${SUNDIALS_FIND_COMPONENTS} )
-        string (TOLOWER ${_COMPONENT} _COMPONENT_LOWER)
-        list( FIND SUNDIALS_VALID_COMPONENTS ${_COMPONENT_LOWER} COMPONENT_LOCATION )
-        if( ${COMPONENT_LOCATION} EQUAL -1 )
-            message( FATAL_ERROR
-                "\"${_COMPONENT_LOWER}\" is not a valid SUNDIALS component." )
+    foreach(_COMPONENT ${SUNDIALS_FIND_COMPONENTS})
+        string(TOLOWER ${_COMPONENT} _COMPONENT_LOWER)
+        list(FIND SUNDIALS_VALID_COMPONENTS ${_COMPONENT_LOWER} COMPONENT_LOCATION)
+        if (${COMPONENT_LOCATION} EQUAL -1)
+            message(FATAL_ERROR "\"${_COMPONENT_LOWER}\" is not a valid SUNDIALS component.")
         else()
-            list( APPEND SUNDIALS_WANT_COMPONENTS ${_COMPONENT_LOWER} )
+            list(APPEND SUNDIALS_WANT_COMPONENTS ${_COMPONENT_LOWER})
         endif()
     endforeach()
 endif()
 
+find_package(PkgConfig QUIET)
+if (PKG_CONFIG_FOUND)
+    pkg_check_modules(PKGCONFIG_SUNDIALS QUIET sundials)
+else()
+    set(PKGCONFIG_SUNDIALS_INCLUDE_DIRS "")
+endif()
+
 
 # find the SUNDIALS include directories
-find_path( SUNDIALS_INCLUDE_DIR sundials_types.h
+find_path(SUNDIALS_INCLUDE_DIR sundials_types.h
     PATHS
         ${SUNDIALS_USER_PATHS}
         ${SUNDIALS_ROOT}
         ${SUNDIALS_ROOT_DIR}
+        ${PKGCONFIG_SUNDIALS_INCLUDE_DIRS}
     ENV
         SUNDIALS_ROOT
         SUNDIALS_ROOT_DIR
@@ -88,17 +98,17 @@ find_path( SUNDIALS_INCLUDE_DIR sundials_types.h
         include
         include/sundials
 )
-set( SUNDIALS_INCLUDE_DIRS
+set(SUNDIALS_INCLUDE_DIRS
     "${SUNDIALS_INCLUDE_DIR}/.."
     "${SUNDIALS_INCLUDE_DIR}"
 )
 
 # extract version
-if(SUNDIALS_INCLUDE_DIR)
+if (SUNDIALS_INCLUDE_DIR)
     file(READ "${SUNDIALS_INCLUDE_DIR}/sundials_config.h" _SUNDIALS_VERSION_FILE)
 
     string(FIND "${_SUNDIALS_VERSION_FILE}" "SUNDIALS_PACKAGE_VERSION" index)
-    if("${index}" LESS 0)
+    if ("${index}" LESS 0)
         # Handle versions from 3.0.0 onwards (including)
         string(REGEX REPLACE ".*#define SUNDIALS_VERSION \"([0-9]+)\\.([0-9]+)\\.([0-9]+)\".*" "\\1" SUNDIALS_VERSION_MAJOR "${_SUNDIALS_VERSION_FILE}")
         string(REGEX REPLACE ".*#define SUNDIALS_VERSION \"([0-9]+)\\.([0-9]+)\\.([0-9]+)\".*" "\\2" SUNDIALS_VERSION_MINOR "${_SUNDIALS_VERSION_FILE}")
@@ -115,24 +125,25 @@ endif()
 
 
 # find the SUNDIALS libraries
-foreach( LIB ${SUNDIALS_WANT_COMPONENTS} )
-    if( UNIX AND SUNDIALS_USE_STATIC_LIBRARIES )
+foreach(LIB ${SUNDIALS_WANT_COMPONENTS})
+    if (UNIX AND SUNDIALS_PREFER_STATIC_LIBRARIES)
         # According to bug 1643 on the CMake bug tracker, this is the
         # preferred method for searching for a static library.
         # See http://www.cmake.org/Bug/view.php?id=1643.  We search
         # first for the full static library name, but fall back to a
         # generic search on the name if the static search fails.
-        set( THIS_LIBRARY_SEARCH lib${LIB}.a ${LIB} )
+        set(THIS_LIBRARY_SEARCH lib${LIB}.a ${LIB})
     else()
-        set( THIS_LIBRARY_SEARCH ${LIB} )
+        set(THIS_LIBRARY_SEARCH ${LIB})
     endif()
 
-    find_library( SUNDIALS_${LIB}_LIBRARY
+    find_library(SUNDIALS_${LIB}_LIBRARY
         NAMES ${THIS_LIBRARY_SEARCH}
         PATHS
             ${SUNDIALS_USER_PATHS}
             ${SUNDIALS_ROOT}
             ${SUNDIALS_ROOT_DIR}
+            ${PKGCONFIG_SUNDIALS_INCLUDE_DIRS}
             ${SUNDIALS_INCLUDE_DIR}/..
         ENV
             SUNDIALS_ROOT
@@ -142,16 +153,40 @@ foreach( LIB ${SUNDIALS_WANT_COMPONENTS} )
             Lib
     )
 
+    set(SUNDIALS_${LIB}_FOUND FALSE)
     if (SUNDIALS_${LIB}_LIBRARY)
-        list( APPEND SUNDIALS_LIBRARIES ${SUNDIALS_${LIB}_LIBRARY} )
+        list(APPEND SUNDIALS_LIBRARIES ${SUNDIALS_${LIB}_LIBRARY})
+        set(SUNDIALS_${LIB}_FOUND TRUE)
     endif()
     mark_as_advanced(SUNDIALS_${LIB}_LIBRARY)
 endforeach()
 
-find_package_handle_standard_args( SUNDIALS
+
+include(FindPackageHandleStandardArgs)
+find_package_handle_standard_args(SUNDIALS
     REQUIRED_VARS SUNDIALS_LIBRARIES SUNDIALS_INCLUDE_DIRS
     VERSION_VAR SUNDIALS_VERSION
+    HANDLE_COMPONENTS
 )
+
+include(FeatureSummary)
+set_package_properties(SUNDIALS PROPERTIES
+    URL "https://computation.llnl.gov/projects/sundials"
+    DESCRIPTION "SUNDIALS Suite of nonlinear and differential/algebraic equation solvers"
+)
+
+if (SUNDIALS_FOUND)
+    foreach(LIB ${SUNDIALS_WANT_COMPONENTS})
+        if (SUNDIALS_${LIB}_LIBRARY)
+            add_library(SUNDIALS::${LIB} UNKNOWN IMPORTED)
+            set_target_properties(SUNDIALS::${LIB} PROPERTIES
+                INTERFACE_INCLUDE_DIRECTORIES "${SUNDIALS_INCLUDE_DIRS}"
+                IMPORTED_LOCATION ${SUNDIALS_${LIB}_LIBRARY}
+            )
+        endif()
+    endforeach()
+endif()
+
 
 mark_as_advanced(
     SUNDIALS_LIBRARIES

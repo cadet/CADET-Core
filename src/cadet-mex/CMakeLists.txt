@@ -11,52 +11,45 @@
 # =============================================================================
 
 # Name of the current project
-project (CadetMex CXX C)
+project(CadetMex CXX C)
 
 
 # ---------------------------------------------------
 #   Create mex file 
 # ---------------------------------------------------
-matlab_add_mex(NAME cadet-mex SRC cadet-mex.cpp MatlabCommands.cpp MatlabExternalFunction.cpp OUTPUT_NAME CadetMex LINK_TO libcadet_mex ${Matlab_LAPACK_LIBRARY} ${Matlab_BLAS_LIBRARY} ${Matlab_TBB_LIBRARY})
+matlab_add_mex(NAME cadet-mex SRC cadet-mex.cpp MatlabCommands.cpp MatlabExternalFunction.cpp OUTPUT_NAME CadetMex LINK_TO libcadet_mex)
 
 # Add include directories for access to exported LIBCADET header files.
-target_include_directories (cadet-mex PRIVATE ${CMAKE_SOURCE_DIR}/include ${CMAKE_SOURCE_DIR}/src/cadet-mex ${CMAKE_BINARY_DIR})
-
-cadet_target_compile_features(cadet-mex)
-
-target_compile_definitions(cadet-mex PRIVATE -DCADET_MATLABMEX -DMATLAB_MEX_FILE)
+target_include_directories(cadet-mex PRIVATE ${CMAKE_SOURCE_DIR}/include ${CMAKE_SOURCE_DIR}/src/cadet-mex ${CMAKE_BINARY_DIR})
+target_compile_definitions(cadet-mex PRIVATE CADET_MATLABMEX MATLAB_MEX_FILE)
 
 # Check if we are running on a 32 or 64 bit system
 if (CMAKE_SIZEOF_VOID_P EQUAL 8)
 	# 64 bit
-	target_compile_definitions(cadet-mex PRIVATE -DCADET_MEX_64BIT)
+	target_compile_definitions(cadet-mex PRIVATE CADET_MEX_64BIT)
 else()
 	# 32 bit
-	target_compile_definitions(cadet-mex PRIVATE -DCADET_MEX_32BIT)
+	target_compile_definitions(cadet-mex PRIVATE CADET_MEX_32BIT)
 endif()
 
 if (Matlab_DECLARES_CREATEUNINITNUMERICMATRIX)
-	target_compile_definitions(cadet-mex PRIVATE -DMATLAB_HAVE_CREATEUNINITNUMERICMATRIX)
+	target_compile_definitions(cadet-mex PRIVATE MATLAB_HAVE_CREATEUNINITNUMERICMATRIX)
 endif()
 
 if (Matlab_DECLARES_CREATEUNINITNUMERICARRAY)
-	target_compile_definitions(cadet-mex PRIVATE -DMATLAB_HAVE_CREATEUNINITNUMERICARRAY)
+	target_compile_definitions(cadet-mex PRIVATE MATLAB_HAVE_CREATEUNINITNUMERICARRAY)
 endif()
-
-# ---------------------------------------------------
-
-cadet_apply_compile_options(cadet-mex)
 
 # ---------------------------------------------------
 #   Setup installation
 # ---------------------------------------------------
 
 # Install the cadet-mex executable
-install (CODE "MESSAGE(\"\nInstall CADET-MEX\n\")")
-install (DIRECTORY ../cadet-mi/ DESTINATION matlab)
-install (TARGETS cadet-mex RUNTIME DESTINATION matlab/bin LIBRARY DESTINATION matlab/bin)
+install(CODE "MESSAGE(\"\nInstall CADET-MEX\n\")")
+install(DIRECTORY ${CMAKE_SOURCE_DIR}/src/cadet-mi/ DESTINATION matlab FILES_MATCHING REGEX ".*\.(m|md)$")
+install(TARGETS cadet-mex RUNTIME DESTINATION matlab/bin LIBRARY DESTINATION matlab/bin)
 
 # ---------------------------------------------------
 
 # Info message
-message (STATUS "Added CADET-MEX module")
+message(STATUS "Added CADET-MEX module")

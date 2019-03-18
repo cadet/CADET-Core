@@ -11,63 +11,53 @@
 # =============================================================================
 
 # Name of the current project
-project (CadetTools CXX C)
+project(CadetTools CXX C)
 
-set(TOOLS_TARGETS )
+set(TOOLS_TARGETS)
 
 # Add the executables
 if (HDF5_FOUND)
-	add_executable (createLWE createLWE.cpp)
+	add_executable(createLWE createLWE.cpp)
 	list(APPEND TOOLS_TARGETS createLWE)
 
-	add_executable (createSCLin createSCLin.cpp)
+	add_executable(createSCLin createSCLin.cpp)
 	list(APPEND TOOLS_TARGETS createSCLin)
 
-	add_executable (createSCLinStep createSCLinStep.cpp)
+	add_executable(createSCLinStep createSCLinStep.cpp)
 	list(APPEND TOOLS_TARGETS createSCLinStep)
 
-	add_executable (createMCLin createMCLin.cpp)
+	add_executable(createMCLin createMCLin.cpp)
 	list(APPEND TOOLS_TARGETS createMCLin)
 
-	add_executable (createSCLang createSCLang.cpp)
+	add_executable(createSCLang createSCLang.cpp)
 	list(APPEND TOOLS_TARGETS createSCLang)
 
-	add_executable (createConvBenchmark createConvBenchmark.cpp)
+	add_executable(createConvBenchmark createConvBenchmark.cpp)
 	list(APPEND TOOLS_TARGETS createConvBenchmark)
 
-	add_executable (convertFile convertFile.cpp ${CMAKE_SOURCE_DIR}/src/io/FileIO.cpp FormatConverter.cpp ${CMAKE_SOURCE_DIR}/ThirdParty/pugixml/pugixml.cpp)
+	add_executable(convertFile convertFile.cpp ${CMAKE_SOURCE_DIR}/src/io/FileIO.cpp FormatConverter.cpp ${CMAKE_SOURCE_DIR}/ThirdParty/pugixml/pugixml.cpp)
 	target_include_directories(convertFile PRIVATE ${CMAKE_SOURCE_DIR}/ThirdParty/pugixml ${CMAKE_SOURCE_DIR}/ThirdParty/json)
 	list(APPEND TOOLS_TARGETS convertFile)
 endif()
 
 foreach(_TARGET IN LISTS TOOLS_TARGETS)
 	# Add include directories for access to exported LIBCADET header files.
-	target_include_directories (${_TARGET} PRIVATE ${CMAKE_SOURCE_DIR}/include ${CMAKE_BINARY_DIR})
+	target_include_directories(${_TARGET} PRIVATE ${CMAKE_SOURCE_DIR}/include ${CMAKE_BINARY_DIR})
 	# Add include directories for third party components
-	target_include_directories (${_TARGET} PRIVATE ${CMAKE_SOURCE_DIR}/ThirdParty/tclap/include)
+	target_include_directories(${_TARGET} PRIVATE ${CMAKE_SOURCE_DIR}/ThirdParty/tclap/include)
 
-	cadet_target_compile_features(${_TARGET})
-endforeach()
-
-# ---------------------------------------------------
-#   Linking to external libraries
-# ---------------------------------------------------
-
-# Link to HDF5
-foreach(_TARGET IN LISTS TOOLS_TARGETS)
-	target_include_directories (${_TARGET} PRIVATE ${HDF5_INCLUDE_DIRS})
-	target_compile_definitions (${_TARGET} PRIVATE ${HDF5_DEFINITIONS})
-	target_link_libraries(${_TARGET} PRIVATE ${HDF5_LIBRARIES})
+	target_link_libraries(${_TARGET} PRIVATE CADET::CompileOptions HDF5::HDF5)
 endforeach()
 
 # ---------------------------------------------------
 
-install (TARGETS ${TOOLS_TARGETS} RUNTIME DESTINATION bin)
+install(CODE "MESSAGE(\"\nInstall CADET Tools\n\")")
+install(TARGETS ${TOOLS_TARGETS} RUNTIME)
 
 # ---------------------------------------------------
 
-set (TOOLS_TARGETS ${TOOLS_TARGETS} PARENT_SCOPE)
+unset(TOOLS_TARGETS)
 
 # Info message
-message (STATUS "Added tools")
+message(STATUS "Added tools")
 

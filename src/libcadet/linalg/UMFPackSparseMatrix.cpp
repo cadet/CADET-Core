@@ -13,8 +13,10 @@
 #include "linalg/UMFPackSparseMatrix.hpp"
 #include <algorithm>
 
-#ifndef CADET_MATLABMEX
+#if !defined(CADET_FORCE_MATLAB_UMFPACK) || !defined(CADET_MATLABMEX)
+
 	#include "umfpack.h"
+
 #else
 
 /*
@@ -58,12 +60,13 @@
 
 #endif
 
+
 namespace 
 {
 	template <typename int_t>
 	class UMFPackInterface {};
 
-#ifdef CADET_MATLABMEX
+#if defined(CADET_FORCE_MATLAB_UMFPACK) && defined(CADET_MATLABMEX)
 
 	template <>
 	class UMFPackInterface<size_t>

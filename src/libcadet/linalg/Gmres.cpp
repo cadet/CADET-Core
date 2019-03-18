@@ -13,9 +13,9 @@
 #include "cadet/cadetCompilerInfo.hpp"
 #include "linalg/Gmres.hpp"
 
-#if defined(CADET_SUNDIALS_IFACE_2)
+#if CADET_SUNDIALS_IFACE == 2
 	#include <sundials/sundials_spgmr.h>
-#elif defined(CADET_SUNDIALS_IFACE_3)
+#elif CADET_SUNDIALS_IFACE == 3
 	#include <sunlinsol/sunlinsol_spgmr.h>
 #endif
 
@@ -38,9 +38,9 @@ int gmresCallback(void* userData, N_Vector v, N_Vector z)
 }
 
 Gmres::Gmres() CADET_NOEXCEPT :
-#if defined(CADET_SUNDIALS_IFACE_2)
+#if CADET_SUNDIALS_IFACE == 2
 	_mem(nullptr),
-#elif defined(CADET_SUNDIALS_IFACE_3)
+#elif CADET_SUNDIALS_IFACE == 3
 	_linearSolver(nullptr),
 #endif
 	_ortho(Orthogonalization::ModifiedGramSchmidt), _maxRestarts(0), _matrixSize(0), _matVecMul(nullptr), _userData(nullptr)
@@ -49,10 +49,10 @@ Gmres::Gmres() CADET_NOEXCEPT :
 
 Gmres::~Gmres() CADET_NOEXCEPT
 {
-#if defined(CADET_SUNDIALS_IFACE_2)
+#if CADET_SUNDIALS_IFACE == 2
 	if (_mem)
 		SpgmrFree(_mem);
-#elif defined(CADET_SUNDIALS_IFACE_3)
+#elif CADET_SUNDIALS_IFACE == 3
 	if (_linearSolver)
 		SUNLinSolFree(_linearSolver);
 #endif
@@ -77,9 +77,9 @@ void Gmres::initialize(unsigned int matrixSize, unsigned int maxKrylov, Orthogon
 	NVec_Const(0.0, NV_tmpl);
 
 	// Size of allocated memory is either _maxKrylov or _cc.neq_bnd()
-#if defined(CADET_SUNDIALS_IFACE_2)
+#if CADET_SUNDIALS_IFACE == 2
 	_mem = SpgmrMalloc(maxKrylov, NV_tmpl);
-#elif defined(CADET_SUNDIALS_IFACE_3)
+#elif CADET_SUNDIALS_IFACE == 3
 	_linearSolver = SUNSPGMR(NV_tmpl, PREC_NONE, maxKrylov);
 	SUNLinSolSetATimes(_linearSolver, this, &gmresCallback);
 	SUNLinSolInitialize_SPGMR(_linearSolver);
@@ -104,7 +104,7 @@ int Gmres::solve(double tolerance, double const* weight, double const* rhs, doub
 
 	const int gsType = static_cast<typename std::underlying_type<Orthogonalization>::type>(_ortho);
 
-#if defined(CADET_SUNDIALS_IFACE_2)
+#if CADET_SUNDIALS_IFACE == 2
 	int nIter = 0;
 	int nPrecondSolve = 0;
 	double resNorm = -1.0;
@@ -112,7 +112,7 @@ int Gmres::solve(double tolerance, double const* weight, double const* rhs, doub
 			PREC_NONE, gsType, tolerance, _maxRestarts, NULL,
 			NV_weight, NV_weight, &gmresCallback, NULL, 
 			&resNorm, &nIter, &nPrecondSolve);
-#elif defined(CADET_SUNDIALS_IFACE_3)
+#elif CADET_SUNDIALS_IFACE == 3
 	SUNSPGMRSetGSType(_linearSolver, gsType);
 	SUNSPGMRSetMaxRestarts(_linearSolver, _maxRestarts);
 	SUNLinSolSetScalingVectors(_linearSolver, NV_weight, NV_weight);
@@ -133,7 +133,7 @@ int Gmres::solve(double tolerance, double const* weight, double const* rhs, doub
 	return flag;
 }
 
-#if defined(CADET_SUNDIALS_IFACE_2)
+#if CADET_SUNDIALS_IFACE == 2
 	const char* Gmres::getReturnFlagName(int flag) const CADET_NOEXCEPT
 	{
 		switch (flag)
@@ -157,7 +157,7 @@ int Gmres::solve(double tolerance, double const* weight, double const* rhs, doub
 		default: return "NO_VALID_FLAG";
 		}
 	}
-#elif defined(CADET_SUNDIALS_IFACE_3)
+#elif CADET_SUNDIALS_IFACE == 3
 	const char* Gmres::getReturnFlagName(int flag) const CADET_NOEXCEPT
 	{
 		switch (flag)

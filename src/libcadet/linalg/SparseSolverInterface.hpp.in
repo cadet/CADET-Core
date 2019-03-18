@@ -18,7 +18,7 @@
 #ifndef LIBCADET_SPARSESOLVERINTERFACE_HPP_
 #define LIBCADET_SPARSESOLVERINTERFACE_HPP_
 
-#ifdef CADET_MATLABMEX
+#if defined(CADET_FORCE_MATLAB_UMFPACK) && defined(CADET_MATLABMEX)
 	#include <stddef.h>
 #endif
 
@@ -28,10 +28,12 @@ namespace cadet
 namespace linalg
 {
 
-#ifdef CADET_MATLABMEX
+#if defined(CADET_FORCE_MATLAB_UMFPACK) && defined(CADET_MATLABMEX)
+
 	// Matlab uses mwIndex = size_t for indexing sparse matrices.
 	// Hence, it seems probable that size_t is also used for calling Matlab's own UMFPACK functions.
-	// When building the MEX interface, we rely on Matlab's UMFPACK version and use size_t for indexing.
+	// When building the MEX interface and CADET_FORCE_MATLAB_UMFPACK is set, we rely on Matlab's 
+	// UMFPACK version and use size_t for indexing.
 
 	// Note that this excludes using SuperLU (unless it is build with size_t as index type, which is not the default)
 
@@ -40,13 +42,15 @@ namespace linalg
 	// Always enable UMFPACK (Matlab distributes its own version), always disable SuperLU
 	#define UMFPACK_FOUND
 	#undef SUPERLU_FOUND
+
 #else
+
 	typedef @SPARSE_INT_TYPE@ sparse_int_t;
 
 	#cmakedefine UMFPACK_FOUND
 	#cmakedefine SUPERLU_FOUND
-#endif
 
+#endif
 
 } // namespace linalg
 

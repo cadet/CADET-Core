@@ -11,13 +11,14 @@
 # =============================================================================
 
 # Name of the current project
-project (CadetBuildTools CXX C)
+project(CadetBuildTools CXX C)
 
 # Add the template code generator
 add_executable(templateCodeGen ${CMAKE_SOURCE_DIR}/src/build-tools/templateCodeGen.cpp)
 target_include_directories(templateCodeGen PRIVATE ${CMAKE_SOURCE_DIR}/ThirdParty/json ${CMAKE_SOURCE_DIR}/ThirdParty/inja)
-cadet_target_compile_features(templateCodeGen)
+target_compile_features(templateCodeGen PRIVATE cxx_std_11)
+set_target_properties(templateCodeGen PROPERTIES CXX_EXTENSIONS OFF)
 
 # Info message
-message (STATUS "Added build tools")
+message(STATUS "Added build tools")
 

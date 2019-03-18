@@ -24,9 +24,9 @@
 #include <functional>
 
 // Forward declare SUNDIALS types
-#if defined(CADET_SUNDIALS_IFACE_2)
+#if CADET_SUNDIALS_IFACE == 2
 	typedef struct _SpgmrMemRec SpgmrMemRec;
-#elif defined(CADET_SUNDIALS_IFACE_3)
+#elif CADET_SUNDIALS_IFACE == 3
 	typedef struct _generic_SUNLinearSolver *SUNLinearSolver;
 #endif
 
@@ -186,9 +186,9 @@ public:
 
 protected:
 
-#if defined(CADET_SUNDIALS_IFACE_2)
+#if CADET_SUNDIALS_IFACE == 2
 	SpgmrMemRec* _mem; //!< SUNDIALS memory
-#elif defined(CADET_SUNDIALS_IFACE_3)
+#elif CADET_SUNDIALS_IFACE == 3
 	SUNLinearSolver _linearSolver; //!< SUNDIALS linear solver object
 #endif
 	Orthogonalization _ortho; //!< Orthogonalization method

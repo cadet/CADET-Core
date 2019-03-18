@@ -11,65 +11,46 @@
 # =============================================================================
 
 # Name of the current project
-project (CadetCLI CXX C)
+project(CadetCLI CXX C)
 
 # Add the executable CADET-CLI
-add_executable (cadet-cli ${CMAKE_SOURCE_DIR}/ThirdParty/pugixml/pugixml.cpp
-    ${CMAKE_SOURCE_DIR}/src/cadet-cli/cadet-cli.cpp
-    ${CMAKE_SOURCE_DIR}/src/io/JsonParameterProvider.cpp)
+add_executable(cadet-cli
+	${CMAKE_SOURCE_DIR}/ThirdParty/pugixml/pugixml.cpp
+	${CMAKE_SOURCE_DIR}/src/cadet-cli/cadet-cli.cpp
+	${CMAKE_SOURCE_DIR}/src/io/JsonParameterProvider.cpp
+)
 
 # ---------------------------------------------------
 #   Linking to LIBCADET and add dependencies
 # ---------------------------------------------------
 
-# Prefer static link
-if (BUILD_STATIC_LIBS OR STANDALONE)
-	target_link_libraries(cadet-cli PRIVATE libcadet_static)
-else ()
-	target_link_libraries(cadet-cli PRIVATE libcadet_shared)
-endif ()
-# ---------------------------------------------------
+target_link_libraries(cadet-cli PRIVATE libcadet_static)
   
 # Add include directories for access to exported LIBCADET header files.
-target_include_directories(cadet-cli PRIVATE ${CMAKE_SOURCE_DIR}/include ${CMAKE_SOURCE_DIR}/ThirdParty/pugixml ${CMAKE_SOURCE_DIR}/ThirdParty/json ${CMAKE_SOURCE_DIR}/ThirdParty/tclap/include ${CMAKE_BINARY_DIR})
-
-cadet_target_compile_features(cadet-cli)
-
-
-# ---------------------------------------------------
-#   Linking to external libraries
-# ---------------------------------------------------
+target_include_directories(cadet-cli PRIVATE ${CMAKE_SOURCE_DIR}/ThirdParty/pugixml ${CMAKE_SOURCE_DIR}/ThirdParty/json ${CMAKE_SOURCE_DIR}/ThirdParty/tclap/include ${CMAKE_BINARY_DIR})
 
 # Link to HDF5
-target_include_directories(cadet-cli PRIVATE ${HDF5_INCLUDE_DIRS})
-target_compile_definitions(cadet-cli PRIVATE ${HDF5_DEFINITIONS})
-target_link_libraries(cadet-cli PRIVATE ${HDF5_LIBRARIES})
+target_link_libraries(cadet-cli PRIVATE HDF5::HDF5)
 
 # Link to TBB for timer
-if (BENCHMARK_MODE OR CADET_PARALLEL_FLAG)
-	target_include_directories(cadet-cli PRIVATE ${TBB_INCLUDE_DIRS})
-	target_link_libraries(cadet-cli PRIVATE ${TBB_LIBRARIES})
-	target_compile_definitions(cadet-cli PRIVATE ${TBB_DEFINITIONS})
+if (ENABLE_BENCHMARK OR CADET_PARALLEL_FLAG)
+	target_link_libraries(cadet-cli PRIVATE ${TBB_TARGET})
 endif()
-
-# ---------------------------------------------------
 
 # ---------------------------------------------------
 #   Setup installation
 # ---------------------------------------------------
 
 # Install the cadet-cli executable
-install (CODE "MESSAGE(\"\nInstall CADET-CLI\n\")")
-install (TARGETS cadet-cli RUNTIME DESTINATION bin)
+install(CODE "MESSAGE(\"\nInstall CADET-CLI\n\")")
+install(TARGETS cadet-cli RUNTIME)
 
 if (BUILD_CADET_MEX)
 	# Also install into matlab/bin
-	install (TARGETS cadet-cli RUNTIME DESTINATION matlab/bin)
+	install(TARGETS cadet-cli RUNTIME DESTINATION matlab/bin)
 endif()
 
 # ---------------------------------------------------
 
-set (CADET_CLI_TARGETS cadet-cli PARENT_SCOPE)
-
 # Info message
-message (STATUS "Added CADET-CLI module")
+message(STATUS "Added CADET-CLI module")

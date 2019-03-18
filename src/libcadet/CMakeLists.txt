@@ -11,30 +11,10 @@
 # =============================================================================
 
 # Name of the current project
-project (CadetLibrary CXX C)
-
-# Option that allows users to build static and/or shared libraries
-option (BUILD_SHARED_LIBS "Build shared libraries" ON)
-option (BUILD_STATIC_LIBS "Build static libraries" OFF)
-
-if (STANDALONE)
-	set(BUILD_SHARED_LIBS OFF)
-	set(BUILD_STATIC_LIBS ON)
-endif()
-
-# Make sure we build at least one type of libraries
-if (NOT BUILD_STATIC_LIBS AND NOT BUILD_SHARED_LIBS)
-	print_warning ("Both static and shared library generation were disabled"
-	    "Building shared libraries was re-enabled")
-	set (BUILD_SHARED_LIBS ON CACHE BOOL "Build shared libraries")
-endif ()
-
+project(CadetLibrary CXX C)
 
 # Git integration
 configure_file("${CMAKE_CURRENT_SOURCE_DIR}/VersionInfo.cpp.in" "${CMAKE_CURRENT_BINARY_DIR}/VersionInfo.cpp" @ONLY)
-
-# LAPACK interface
-#configure_file("${CMAKE_CURRENT_SOURCE_DIR}/LapackInterface.hpp.in" "${CMAKE_CURRENT_BINARY_DIR}/LapackInterface.hpp" @ONLY)
 
 configure_file("${CMAKE_CURRENT_SOURCE_DIR}/CompileTimeConfig.hpp.in" "${CMAKE_CURRENT_BINARY_DIR}/CompileTimeConfig.hpp" @ONLY)
 
@@ -96,7 +76,7 @@ CHECK_CXX_SOURCE_COMPILES("#include \"cadetCompilerInfo.hpp\" \n class Test { pu
 cmake_pop_check_state()
 
 # LIBCADET_BINDINGMODEL_SOURCES holds all source files of binding models
-set (LIBCADET_BINDINGMODEL_SOURCES
+set(LIBCADET_BINDINGMODEL_SOURCES
 	${CMAKE_SOURCE_DIR}/src/libcadet/model/binding/DummyBinding.cpp
 	${CMAKE_SOURCE_DIR}/src/libcadet/model/binding/LinearBinding.cpp
 	${CMAKE_SOURCE_DIR}/src/libcadet/model/binding/StericMassActionBinding.cpp
@@ -114,7 +94,7 @@ set (LIBCADET_BINDINGMODEL_SOURCES
 )
 
 # LIBCADET_SOURCES holds all source files for LIBCADET target
-set (LIBCADET_SOURCES
+set(LIBCADET_SOURCES
 	${CMAKE_CURRENT_BINARY_DIR}/VersionInfo.cpp
 	${CMAKE_SOURCE_DIR}/src/libcadet/Logging.cpp
 	${CMAKE_SOURCE_DIR}/src/libcadet/FactoryFuncs.cpp
@@ -159,15 +139,16 @@ set (LIBCADET_NONLINALG_SOURCES
 )
 
 if (ENABLE_GRM_2D)
-	set (LIBCADET_NONLINALG_SPARSE_SOURCES)
+	set(LIBCADET_NONLINALG_SPARSE_SOURCES)
 	if (SUPERLU_FOUND)
-		list (APPEND LIBCADET_NONLINALG_SPARSE_SOURCES ${CMAKE_SOURCE_DIR}/src/libcadet/linalg/SuperLUSparseMatrix.cpp)
+		list(APPEND LIBCADET_NONLINALG_SPARSE_SOURCES ${CMAKE_SOURCE_DIR}/src/libcadet/linalg/SuperLUSparseMatrix.cpp)
 		set(SPARSE_INT_TYPE "${SUPERLU_INT_TYPE}")
 	endif()
 	if (UMFPACK_FOUND)
-		list (APPEND LIBCADET_NONLINALG_SPARSE_SOURCES ${CMAKE_SOURCE_DIR}/src/libcadet/linalg/UMFPackSparseMatrix.cpp)
+		list(APPEND LIBCADET_NONLINALG_SPARSE_SOURCES ${CMAKE_SOURCE_DIR}/src/libcadet/linalg/UMFPackSparseMatrix.cpp)
 	endif()
-	list (APPEND LIBCADET_SOURCES ${CMAKE_SOURCE_DIR}/src/libcadet/model/parts/TwoDimensionalConvectionDispersionOperator.cpp
+	list (APPEND LIBCADET_SOURCES
+		${CMAKE_SOURCE_DIR}/src/libcadet/model/parts/TwoDimensionalConvectionDispersionOperator.cpp
 		${CMAKE_SOURCE_DIR}/src/libcadet/model/GeneralRateModel2D.cpp
 		${CMAKE_SOURCE_DIR}/src/libcadet/model/GeneralRateModel2D-LinearSolver.cpp
 		${CMAKE_SOURCE_DIR}/src/libcadet/model/GeneralRateModel2D-InitialConditions.cpp
@@ -193,259 +174,144 @@ foreach(BM IN LISTS LIBCADET_BINDINGMODEL_SOURCES)
 endforeach()
 
 
-set (LIBCADET_TARGETS )
-set (LIBCADET_SHARED_TARGETS )
-set (LIBNONLINALG_TARGETS )
 
+add_library(CADET::LibOptions INTERFACE IMPORTED)
+if (ENABLE_ANALYTIC_JACOBIAN_CHECK)
+	target_compile_definitions(CADET::LibOptions INTERFACE CADET_CHECK_ANALYTIC_JACOBIAN)
+endif()
+if (ENABLE_BENCHMARK)
+	target_compile_definitions(CADET::LibOptions INTERFACE CADET_BENCHMARK_MODE)
+endif()
+
+
+
+set(LIBCADET_TARGETS)
 if (LAPACK_FOUND)
-	set(LIB_LAPACK_DEFINE "-DCADET_LAPACK_TRAILING_UNDERSCORE")
+	set(LIB_LAPACK_DEFINE "CADET_LAPACK_TRAILING_UNDERSCORE")
 
 	# Add the build target for the static nonlinalg library
 	add_library(libcadet_nonlinalg_static STATIC ${LIBCADET_NONLINALG_SOURCES} ${LIBCADET_NONLINALG_SPARSE_SOURCES})
 	set_target_properties(libcadet_nonlinalg_static PROPERTIES OUTPUT_NAME cadet_nonlinalg_static)
-	target_compile_definitions(libcadet_nonlinalg_static PRIVATE -Dlibcadet_nonlinalg_static_EXPORTS ${LIB_LAPACK_DEFINE})
+	target_compile_definitions(libcadet_nonlinalg_static PRIVATE libcadet_nonlinalg_static_EXPORTS ${LIB_LAPACK_DEFINE})
+	target_link_libraries(libcadet_nonlinalg_static PUBLIC CADET::CompileOptions PRIVATE SUNDIALS::sundials_idas ${SUNDIALS_NVEC_TARGET} LAPACK::LAPACK)
 
-	list (APPEND LIBNONLINALG_TARGETS libcadet_nonlinalg_static)
+	if (ENABLE_GRM_2D)
+		if (SUPERLU_FOUND)
+			target_link_libraries(libcadet_nonlinalg_static PRIVATE SuperLU::SuperLU)
+		endif()
+		if (UMFPACK_FOUND)
+			target_link_libraries(libcadet_nonlinalg_static PRIVATE UMFPACK::UMFPACK)
+		endif()
+	endif()
+
 
 	# Add the build target for CADET object library
 	add_library(libcadet_object OBJECT ${LIBCADET_SOURCES})
-	target_compile_definitions(libcadet_object PRIVATE -Dlibcadet_EXPORTS ${LIB_LAPACK_DEFINE} ${TBB_DEFINITIONS} ${CADET_PARALLEL_FLAG})
-	list (APPEND LIBCADET_TARGETS libcadet_object)
+	target_compile_definitions(libcadet_object PRIVATE libcadet_EXPORTS ${LIB_LAPACK_DEFINE})
+	target_link_libraries(libcadet_object PUBLIC CADET::CompileOptions CADET::LibOptions PRIVATE CADET::AD libcadet_nonlinalg_static SUNDIALS::sundials_idas ${SUNDIALS_NVEC_TARGET} ${TBB_TARGET})
 
 	# ---------------------------------------------------
 	#   Build the static library
 	# ---------------------------------------------------
-	if (BUILD_STATIC_LIBS)
 
-		# Add the build target for the static CADET library
-		add_library(libcadet_static STATIC $<TARGET_OBJECTS:libcadet_object>)
-		set_target_properties(libcadet_static PROPERTIES OUTPUT_NAME cadet_static)
-		target_link_libraries(libcadet_static PRIVATE libcadet_nonlinalg_static)
-		
-		list (APPEND LIBCADET_TARGETS libcadet_static)
-
-	endif ()
-	# ---------------------------------------------------
+	add_library(libcadet_static STATIC $<TARGET_OBJECTS:libcadet_object>)
+	set_target_properties(libcadet_static PROPERTIES OUTPUT_NAME cadet_static)
+	target_link_libraries(libcadet_static PUBLIC CADET::CompileOptions CADET::LibOptions PRIVATE CADET::AD libcadet_nonlinalg_static SUNDIALS::sundials_idas ${SUNDIALS_NVEC_TARGET} ${TBB_TARGET})
 
 	# ---------------------------------------------------
 	#   Build the shared library
 	# ---------------------------------------------------
-	if (BUILD_SHARED_LIBS)
 
-		# Add the build target for the shared CADET library
-		add_library(libcadet_shared SHARED $<TARGET_OBJECTS:libcadet_object>)
-		set_target_properties(libcadet_shared PROPERTIES OUTPUT_NAME cadet)
-		target_link_libraries(libcadet_shared PRIVATE libcadet_nonlinalg_static)
-		target_link_libraries (libcadet_shared PRIVATE ${LAPACK_LIBRARIES})
-		if (ENABLE_GRM_2D)
-			if (SUPERLU_FOUND)
-				target_link_libraries (libcadet_shared PRIVATE ${SUPERLU_LIBRARIES})
-			endif()
-			if (UMFPACK_FOUND)
-				target_link_libraries (libcadet_shared PRIVATE ${UMFPACK_LIBRARIES})
-			endif()
-		endif()
+	add_library(libcadet_shared SHARED $<TARGET_OBJECTS:libcadet_object>)
+	set_target_properties(libcadet_shared PROPERTIES OUTPUT_NAME cadet)
+	target_link_libraries (libcadet_shared PUBLIC CADET::CompileOptions CADET::LibOptions PRIVATE CADET::AD libcadet_nonlinalg_static SUNDIALS::sundials_idas ${SUNDIALS_NVEC_TARGET} ${TBB_TARGET})
 
-		list (APPEND LIBCADET_TARGETS libcadet_shared)
-		list (APPEND LIBCADET_SHARED_TARGETS libcadet_shared)
+	list(APPEND LIBCADET_TARGETS libcadet_nonlinalg_static libcadet_object libcadet_static libcadet_shared)
 
-	endif ()
-	# ---------------------------------------------------
 endif ()
-
-set(ALL_LOCAL_TARGETS ${LIBNONLINALG_TARGETS} ${LIBCADET_TARGETS})
-
-foreach(_TARGET IN LISTS ALL_LOCAL_TARGETS)
-	set_target_properties(${_TARGET} PROPERTIES DEBUG_POSTFIX _d VERSION ${CADET_VERSION} SOVERSION "0")
-	set_target_properties(${_TARGET} PROPERTIES POSITION_INDEPENDENT_CODE ON)
-
-	cadet_target_compile_features(${_TARGET})
-
-	if (NOT ("libcadet_object" STREQUAL ${_TARGET}))
-		target_link_libraries(${_TARGET} PRIVATE ${SUNDIALS_LIBRARIES})
-	endif()
-endforeach()
-
-# Link to BLAS, LAPACK, and maybe SuperLU
-foreach(_TARGET IN LISTS LIBNONLINALG_TARGETS)
-	 target_link_libraries (${_TARGET} PRIVATE ${LAPACK_LIBRARIES})
-	 set_target_properties (${_TARGET} PROPERTIES LINK_FLAGS "${LAPACK_LINKER_FLAGS}")
-
-	if (ENABLE_GRM_2D)
-		if (SUPERLU_FOUND)
-			target_link_libraries (${_TARGET} PRIVATE ${SUPERLU_LIBRARIES})
-		endif()
-		if (UMFPACK_FOUND)
-			target_link_libraries (${_TARGET} PRIVATE ${UMFPACK_LIBRARIES})
-		endif()
-	endif()
-endforeach()
-
-# Add include directories
-foreach(_TARGET IN LISTS LIBNONLINALG_TARGETS)
-	target_include_directories (${_TARGET} PRIVATE ${CMAKE_SOURCE_DIR}/include ${CMAKE_SOURCE_DIR}/src/libcadet ${CMAKE_BINARY_DIR} ${SUNDIALS_INCLUDE_DIRS})
-
-	if (ENABLE_GRM_2D)
-		if (SUPERLU_FOUND)
-			target_include_directories (${_TARGET} PRIVATE ${SUPERLU_INCLUDE_DIRS})
-		endif()
-		if (UMFPACK_FOUND)
-			target_include_directories (${_TARGET} PRIVATE ${UMFPACK_INCLUDE_DIRS})
-		endif()
-		target_include_directories (${_TARGET} PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
-	endif()
-endforeach()
-foreach(_TARGET IN LISTS LIBCADET_TARGETS)
-	target_include_directories (${_TARGET} PUBLIC $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/include> $<INSTALL_INTERFACE:include> 
-	    PRIVATE ${CMAKE_SOURCE_DIR}/src/libcadet ${CMAKE_BINARY_DIR} ${SUNDIALS_INCLUDE_DIRS} ${TBB_INCLUDE_DIRS})
-
-	if (ENABLE_GRM_2D)
-		if (SUPERLU_FOUND)
-			target_include_directories (${_TARGET} PRIVATE ${SUPERLU_INCLUDE_DIRS})
-		endif()
-		if (UMFPACK_FOUND)
-			target_include_directories (${_TARGET} PRIVATE ${UMFPACK_INCLUDE_DIRS})
-		endif()
-		target_include_directories (${_TARGET} PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
-	endif()
-endforeach()
-
-# Link against TBB
-if (CADET_PARALLEL_FLAG)
-	foreach(_TARGET IN LISTS LIBCADET_TARGETS)
-		if (NOT ("libcadet_object" STREQUAL ${_TARGET}))
-			target_link_libraries(${_TARGET} PRIVATE ${TBB_LIBRARIES})
-		endif()
-	endforeach()
-endif()
 
 # ---------------------------------------------------
 #   Build the Matlab library
 # ---------------------------------------------------
-if (BUILD_CADET_MEX)
+if (ENABLE_CADET_MEX)
 
 	set(MATLAB_LAPACK_DEFINE)
 	if (Matlab_LAPACK_TRAILING_UNDERSCORE)
-		set(MATLAB_LAPACK_DEFINE "-DCADET_LAPACK_TRAILING_UNDERSCORE")
+		set(MATLAB_LAPACK_DEFINE "CADET_LAPACK_TRAILING_UNDERSCORE")
 	endif()
 
-	set(MATLAB_TBB_ENABLE "")
-	if (Matlab_TBB_COMPATIBLE)
-		# Enable TBB parallelization if Matlab's TBB is compatible to system TBB's headers
-		set(MATLAB_TBB_ENABLE ${CADET_PARALLEL_FLAG})
+	set(LIBCADET_NONLINALG_MEX_SOURCES ${LIBCADET_NONLINALG_SPARSE_SOURCES})
+	if (MATLAB_FORCE_UMFPACK)
+		set(LIBCADET_NONLINALG_MEX_SOURCES ${CMAKE_SOURCE_DIR}/src/libcadet/linalg/UMFPackSparseMatrix.cpp)
 	endif()
 
 	# Add the build target for the mex nonlinalg library
-	add_library(libcadet_nonlinalg_mex STATIC ${LIBCADET_NONLINALG_SOURCES} ${CMAKE_SOURCE_DIR}/src/libcadet/linalg/UMFPackSparseMatrix.cpp)
-	set_target_properties(libcadet_nonlinalg_mex PROPERTIES OUTPUT_NAME cadet_nonlinalg_mex)
-	set_target_properties(libcadet_nonlinalg_mex PROPERTIES LINK_SEARCH_START_STATIC ON)
-	set_target_properties(libcadet_nonlinalg_mex PROPERTIES LINK_SEARCH_END_STATIC ON)
-	target_compile_definitions(libcadet_nonlinalg_mex PRIVATE -DCADET_MATLABMEX -DMATLAB_MEX_FILE ${MATLAB_LAPACK_DEFINE} -Dlibcadet_mex_EXPORTS)
-	target_include_directories(libcadet_nonlinalg_mex PRIVATE ${CMAKE_SOURCE_DIR}/include ${CMAKE_SOURCE_DIR}/src/libcadet ${CMAKE_BINARY_DIR} ${CMAKE_CURRENT_BINARY_DIR} ${SUNDIALS_INCLUDE_DIRS})
+	add_library(libcadet_nonlinalg_mex STATIC ${LIBCADET_NONLINALG_SOURCES} ${LIBCADET_NONLINALG_MEX_SOURCES})
+	set_target_properties(libcadet_nonlinalg_mex PROPERTIES 
+		OUTPUT_NAME cadet_nonlinalg_mex
+		LINK_SEARCH_START_STATIC ON
+		LINK_SEARCH_END_STATIC ON
+	)
+	target_compile_definitions(libcadet_nonlinalg_mex PRIVATE CADET_MATLABMEX MATLAB_MEX_FILE ${MATLAB_LAPACK_DEFINE} libcadet_mex_EXPORTS)
+	target_link_libraries(libcadet_nonlinalg_mex PUBLIC CADET::CompileOptions PRIVATE SUNDIALS::sundials_idas ${SUNDIALS_NVEC_TARGET} ${Matlab_LAPACK_LIBRARY} ${Matlab_BLAS_LIBRARY})
 
-	set_target_properties(libcadet_nonlinalg_mex PROPERTIES DEBUG_POSTFIX _d VERSION ${CADET_VERSION} SOVERSION "0")
-	set_target_properties(libcadet_nonlinalg_mex PROPERTIES POSITION_INDEPENDENT_CODE ON)
-
-	cadet_target_compile_features(libcadet_nonlinalg_mex)
-
-	target_link_libraries (libcadet_nonlinalg_mex PRIVATE ${SUNDIALS_STATIC_LIBRARIES})
-	if (ENABLE_GRM_2D)
+	if (ENABLE_GRM_2D AND NOT MATLAB_FORCE_UMFPACK)
+		if (UMFPACK_FOUND)
+			target_link_libraries(libcadet_nonlinalg_mex PRIVATE UMFPACK::UMFPACK)
+		endif()
+		if (SUPERLU_FOUND)
+			target_link_libraries(libcadet_nonlinalg_mex PRIVATE SuperLU::SuperLU)
+		endif()
+	elseif (ENABLE_GRM_2D AND MATLAB_FORCE_UMFPACK)
+		target_compile_definitions(libcadet_nonlinalg_mex PUBLIC CADET_FORCE_MATLAB_UMFPACK)
 		target_link_libraries(libcadet_nonlinalg_mex PRIVATE ${Matlab_UMFPACK_LIBRARY})
 	endif()
 
-	list(APPEND ALL_LOCAL_TARGETS libcadet_nonlinalg_mex)
-
 	# Add the build target for the mex CADET library
 	add_library(libcadet_mex STATIC ${LIBCADET_SOURCES})
-	set_target_properties(libcadet_mex PROPERTIES OUTPUT_NAME cadet_mex)
-	set_target_properties(libcadet_mex PROPERTIES LINK_SEARCH_START_STATIC ON)
-	set_target_properties(libcadet_mex PROPERTIES LINK_SEARCH_END_STATIC ON)
-	target_compile_definitions(libcadet_mex PRIVATE -DCADET_MATLABMEX -DMATLAB_MEX_FILE ${MATLAB_LAPACK_DEFINE} -Dlibcadet_mex_EXPORTS ${TBB_DEFINITIONS} ${MATLAB_TBB_ENABLE})
-	target_link_libraries(libcadet_mex PRIVATE libcadet_nonlinalg_mex ${SUNDIALS_STATIC_LIBRARIES} ${Matlab_TBB_LIBRARY})
-	if (ENABLE_GRM_2D)
-		target_link_libraries(libcadet_mex PRIVATE ${Matlab_UMFPACK_LIBRARY})
-	endif()
-	
-	target_include_directories (libcadet_mex PUBLIC $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/include> $<INSTALL_INTERFACE:include> 
-	    PRIVATE ${CMAKE_SOURCE_DIR}/src/libcadet ${CMAKE_BINARY_DIR} ${CMAKE_CURRENT_BINARY_DIR} ${SUNDIALS_INCLUDE_DIRS} ${TBB_INCLUDE_DIRS})
+	set_target_properties(libcadet_mex PROPERTIES 
+		OUTPUT_NAME cadet_mex
+		LINK_SEARCH_START_STATIC ON
+		LINK_SEARCH_END_STATIC ON
+	)
+	target_compile_definitions(libcadet_mex PRIVATE CADET_MATLABMEX MATLAB_MEX_FILE ${MATLAB_LAPACK_DEFINE} libcadet_mex_EXPORTS)
+	target_link_libraries(libcadet_mex PUBLIC CADET::CompileOptions CADET::LibOptions PRIVATE CADET::AD libcadet_nonlinalg_mex SUNDIALS::sundials_idas ${SUNDIALS_NVEC_TARGET} ${Matlab_TBB_TARGET})
 
-	set_target_properties(libcadet_mex PROPERTIES DEBUG_POSTFIX _d VERSION ${CADET_VERSION} SOVERSION "0")
-	set_target_properties(libcadet_mex PROPERTIES POSITION_INDEPENDENT_CODE ON)
-
-	cadet_target_compile_features(libcadet_mex)
-
-	list(APPEND LIBCADET_TARGETS libcadet_mex)
-	list(APPEND ALL_LOCAL_TARGETS libcadet_mex)
+	list(APPEND LIBCADET_TARGETS libcadet_mex libcadet_nonlinalg_mex)
 
 	unset(MATLAB_LAPACK_DEFINE)
 endif ()
-# ---------------------------------------------------
-
-unset(LIBCADET_NONLINALG_SOURCES)
-unset(LIBCADET_SOURCES)
-
-# ---------------------------------------------------
-#   Other configuration options
-# ---------------------------------------------------
-
-# Option that allows users to switch on verification of analytical Jacobian by AD
-if (CMAKE_BUILD_TYPE STREQUAL "Debug")
-	option (CHECK_ANALYTIC_JACOBIAN "Toggle verification of analytical Jacobian by AD (only Debug builds)" OFF)
-endif ()
-
-# Option that allows users to specify the AD library
-set (ADLIB "sfad" CACHE STRING "Selects the AD library, options are 'adolc', 'sfad', 'setfad'")
-string(TOLOWER ${ADLIB} ADLIB)
-if (ADLIB STREQUAL "adolc")
-	message (STATUS "AD library: ADOL-C")
-elseif (ADLIB STREQUAL "sfad")
-	message (STATUS "AD library: SFAD")
-elseif (ADLIB STREQUAL "setfad")
-	message (STATUS "AD library: SETFAD")
-else ()
-	message (FATAL_ERROR "Unkown AD library ${ADLIB} (options are 'adolc', 'sfad', 'setfad')")
-endif ()
 
 foreach(_TARGET IN LISTS LIBCADET_TARGETS)
-	if (CHECK_ANALYTIC_JACOBIAN AND (CMAKE_BUILD_TYPE STREQUAL "Debug"))
-		target_compile_definitions(${_TARGET} PRIVATE -DCADET_CHECK_ANALYTIC_JACOBIAN)
-	endif ()
-
-	cadet_choose_ad_lib(${_TARGET})
+	target_include_directories(${_TARGET}
+		PUBLIC $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/include> $<INSTALL_INTERFACE:include> 
+		PRIVATE ${CMAKE_SOURCE_DIR}/src/libcadet ${CMAKE_BINARY_DIR} ${CMAKE_CURRENT_BINARY_DIR}
+	)
+	set_target_properties(${_TARGET} PROPERTIES DEBUG_POSTFIX _d VERSION ${CADET_VERSION} SOVERSION "0")
+	set_target_properties(${_TARGET} PROPERTIES POSITION_INDEPENDENT_CODE ON)
 endforeach()
 
-
-# ---------------------------------------------------
+unset(LIBCADET_NONLINALG_SOURCES)
+unset(LIBCADET_NONLINALG_SPARSE_SOURCES)
+unset(LIBCADET_SOURCES)
 
 # ---------------------------------------------------
 #   Set installation related stuff
 # ---------------------------------------------------
 
-list(REMOVE_ITEM ALL_LOCAL_TARGETS libcadet_object)
-install (CODE "MESSAGE(\"\nInstall LIBCADET\n\")")
-install(TARGETS ${ALL_LOCAL_TARGETS} EXPORT libcadet-targets
-        RUNTIME DESTINATION bin
-        LIBRARY DESTINATION lib
-        ARCHIVE DESTINATION lib)
-install(FILES ${CMAKE_BINARY_DIR}/cadet/cadetCompilerInfo.hpp DESTINATION include/cadet)
-install(DIRECTORY ${CMAKE_SOURCE_DIR}/include/cadet DESTINATION include)
-install(EXPORT libcadet-targets DESTINATION lib)
-
-if (BUILD_CADET_MEX)
-	# Also install into matlab/bin
-	install(TARGETS ${LIBCADET_SHARED_TARGETS} 
-	        RUNTIME DESTINATION matlab/bin
-	        LIBRARY DESTINATION matlab/bin)
+list(REMOVE_ITEM LIBCADET_TARGETS libcadet_object)
+if (ENABLE_CADET_MEX)
+	list(REMOVE_ITEM LIBCADET_TARGETS libcadet_mex libcadet_nonlinalg_mex)
 endif()
 
-# ---------------------------------------------------
+install(CODE "MESSAGE(\"\nInstall LIBCADET\n\")")
+install(TARGETS ${LIBCADET_TARGETS} EXPORT libcadet-targets)
+install(FILES ${CMAKE_BINARY_DIR}/cadet/cadetCompilerInfo.hpp DESTINATION include/cadet)
+install(DIRECTORY ${CMAKE_SOURCE_DIR}/include/cadet DESTINATION include)
+#install(EXPORT libcadet-targets DESTINATION lib NAMESPACE "CADET::" FILE CADET.cmake)
 
-# Make variable visible in parent scope
-set (LIB_TARGETS ${ALL_LOCAL_TARGETS} PARENT_SCOPE)
+# ---------------------------------------------------
 unset(LIBCADET_TARGETS)
-unset(LIBCADET_SHARED_TARGETS)
-unset(LIBNONLINALG_TARGETS)
-unset(ALL_LOCAL_TARGETS)
 
 # Info message
-message (STATUS "Added LIBCADET module")
+message(STATUS "Added LIBCADET module")

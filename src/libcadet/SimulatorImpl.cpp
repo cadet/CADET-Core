@@ -442,7 +442,7 @@ namespace cadet
 		IDA_mem->ida_lfree          = nullptr;
 //		IDA_mem->ida_efun           = &weightWrapper;
 //		IDA_mem->ida_user_efun      = 1;
-#if defined(CADET_SUNDIALS_IFACE_2)
+#if CADET_SUNDIALS_IFACE <= 2
 		IDA_mem->ida_setupNonNull   = false;
 #endif
 
