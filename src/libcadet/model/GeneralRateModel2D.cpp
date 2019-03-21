@@ -1000,7 +1000,7 @@ void GeneralRateModel2D::checkAnalyticJacobianAgainstAd(active const* const adRe
 {
 	Indexer idxr(_disc);
 
-	LOG(Debug) << "AD dir offset: " << adDirOffset << " DiagDirCol: " << _convDispOp.jacobian().lowerBandwidth() << " DiagDirPar: " << _jacP[0].lowerBandwidth();
+	LOG(Debug) << "AD dir offset: " << adDirOffset << " DiagDirPar: " << _jacP[0].lowerBandwidth();
 
 	// Particles
 	double maxDiffPar = 0.0;
