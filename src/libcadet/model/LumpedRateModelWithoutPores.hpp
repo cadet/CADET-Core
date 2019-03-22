@@ -146,8 +146,11 @@ public:
 	{
 		return std::vector<double>({
 			_timerResidual.totalElapsedTime(),
+			_timerResidualPar.totalElapsedTime(),
 			_timerResidualSens.totalElapsedTime(),
+			_timerResidualSensPar.totalElapsedTime(),
 			_timerConsistentInit.totalElapsedTime(),
+			_timerConsistentInitPar.totalElapsedTime(),
 			_timerLinearSolve.totalElapsedTime(),
 			_timerFactorize.totalElapsedTime()
 		});
@@ -157,8 +160,11 @@ public:
 	{
 		static const char* const desc[] = {
 			"Residual",
+			"ResidualPar",
 			"ResidualSens",
+			"ResidualSensPar",
 			"ConsistentInit",
+			"ConsistentInitPar",
 			"LinearSolve",
 			"Factorize"
 		};
@@ -219,8 +225,11 @@ protected:
 	std::vector<double> _initStateDot; //!< Initial conditions for time derivative
 
 	BENCH_TIMER(_timerResidual)
+	BENCH_TIMER(_timerResidualPar)
 	BENCH_TIMER(_timerResidualSens)
+	BENCH_TIMER(_timerResidualSensPar)
 	BENCH_TIMER(_timerConsistentInit)
+	BENCH_TIMER(_timerConsistentInitPar)
 	BENCH_TIMER(_timerLinearSolve)
 	BENCH_TIMER(_timerFactorize)
 
