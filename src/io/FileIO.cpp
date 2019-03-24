@@ -113,6 +113,11 @@ public:
 		return _io.tensorDimensions(elementName);
 	}
 
+	virtual std::size_t numElements(const std::string& elementName)
+	{
+		return _io.arraySize(elementName);
+	}
+
 protected:
 	reader_t _io;
 };
@@ -581,6 +586,14 @@ public:
 		}
 		else
 			return std::vector<std::size_t>();
+	}
+
+	virtual std::size_t numElements(const std::string& elementName)
+	{
+		if (base_t::_opened.top()->find(elementName) == base_t::_opened.top()->end())
+			return 0;
+
+		return base_t::_opened.top()->at(elementName).size();
 	}
 
 	virtual void writeTensorDouble(const std::string& dataSetName, const std::size_t rank, const std::size_t* dims, const double* buffer, const std::size_t stride, const std::size_t blockSize)

@@ -380,6 +380,14 @@ bool JsonParameterProvider::isArray(const std::string& paramName)
 	return _opened.top()->at(paramName).is_array();
 }
 
+std::size_t JsonParameterProvider::numElements(const std::string& paramName)
+{
+#ifdef CADET_JSON_LOGGING_ENABLE
+	LOG(Debug) << "NUMELEMENTS " << paramName << " = " << (_opened.top()->at(paramName).size());
+#endif
+	return _opened.top()->at(paramName).size();
+}
+
 void JsonParameterProvider::pushScope(const std::string& scope)
 {
 #ifdef CADET_JSON_LOGGING_ENABLE

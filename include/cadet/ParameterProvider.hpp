@@ -128,6 +128,13 @@ public:
 	virtual bool isArray(const std::string& paramName) = 0;
 
 	/**
+	 * @brief Returns the number of elements (of an array) in a given field
+	 * @param [in] paramName Name of the parameter
+	 * @return Number of elements in the given field
+	 */
+	virtual std::size_t numElements(const std::string& paramName) = 0;
+
+	/**
 	 * @brief Changes to a given namespace subscope
 	 *
 	 * @param [in] scope Name of the scope

@@ -83,6 +83,10 @@ public:
 	inline std::vector<size_t> tensorDimensions(const std::string& elementName);
 	inline std::vector<size_t> tensorDimensions(const char* elementName) { return tensorDimensions(std::string(elementName)); }
 
+	/// \brief Returns the number of elements in the array identified by name
+	inline size_t arraySize(const std::string& elementName);
+	inline size_t arraySize(const char* elementName) { return arraySize(std::string(elementName)); }
+
 	/// \brief Returns the number of items in the group
 	inline int numItems();
 
@@ -305,7 +309,7 @@ std::vector<size_t> XMLBase::tensorDimensions(const std::string& elementName)
 	const std::string dims_str = dataset.attribute(_attrDims.c_str()).value();
 
 	// Get dims and compute buffer size
-	std::vector<std::string> dims_vec = split(dims_str, _dimsSeparator.c_str());
+	const std::vector<std::string> dims_vec = split(dims_str, _dimsSeparator.c_str());
 	std::vector<size_t> dims(dims_vec.size());
 	for (size_t i = 0; i < dims_vec.size(); ++i)
 	{
@@ -314,6 +318,35 @@ std::vector<size_t> XMLBase::tensorDimensions(const std::string& elementName)
 
 	closeGroup();
 	return dims;
+}
+
+
+size_t XMLBase::arraySize(const std::string& elementName)
+{
+	// Open dataset and throw if it does not exist
+	xml_node dataset = _groupOpened.node().find_child_by_attribute(_nodeDset.c_str(), _attrName.c_str(), elementName.c_str());
+	if (!dataset)
+	{
+		std::ostringstream oss;
+		oss << "Dataset '" << elementName << "' does not exist!";
+		throw IOException(oss.str());
+	}
+
+	const std::string dims_str = dataset.attribute(_attrDims.c_str()).value();
+
+	// Get dims and compute number of elements
+	const std::vector<std::string> dims_vec = split(dims_str, _dimsSeparator.c_str());
+	if (dims_vec.empty())
+		return 0;
+
+	size_t n = 1;
+	for (size_t i = 0; i < dims_vec.size(); ++i)
+	{
+		n *= std::stoi(dims_vec[i]);
+	}
+
+	closeGroup();
+	return n;
 }
 
 

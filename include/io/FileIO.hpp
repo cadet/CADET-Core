@@ -41,6 +41,7 @@ public:
 	virtual std::vector<std::string> getStringArray(const std::string& paramName) = 0;
 
 	virtual std::vector<std::size_t> tensorDimensions(const std::string& elementName) = 0;
+	virtual std::size_t numElements(const std::string& elementName) = 0;
 
 	virtual bool isArray(const std::string& paramName) = 0;
 	virtual bool isString(const std::string& elementName) = 0;

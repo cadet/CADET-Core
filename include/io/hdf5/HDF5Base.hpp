@@ -82,6 +82,10 @@ public:
 	inline std::vector<size_t> tensorDimensions(const std::string& elementName);
 	inline std::vector<size_t> tensorDimensions(const char* elementName) { return tensorDimensions(std::string(elementName)); }
 
+	/// \brief Returns the number of elements in the array identified by name
+	inline size_t arraySize(const std::string& elementName);
+	inline size_t arraySize(const char* elementName) { return arraySize(std::string(elementName)); }
+
 	/// \brief Returns the number of items in the group
 	inline int numItems();
 
@@ -301,7 +305,7 @@ std::vector<size_t> HDF5Base::tensorDimensions(const std::string& elementName)
 	closeGroup();
 
 	if (dataSet < 0)
-		throw IOException("Field \"" + elementName + "\" does not exist in group " + getFullGroupName());		
+		throw IOException("Field \"" + elementName + "\" does not exist in group " + getFullGroupName());
 
 	// Determine the datatype and allocate buffer
 	const hid_t dataSpace = H5Dget_space(dataSet);
@@ -312,7 +316,7 @@ std::vector<size_t> HDF5Base::tensorDimensions(const std::string& elementName)
 		return dims;
 
 	std::vector<hsize_t> buffer(rank);
-	H5Sget_simple_extent_dims(dataSpace, buffer.data(), nullptr); 
+	H5Sget_simple_extent_dims(dataSpace, buffer.data(), nullptr);
 
 	H5Sclose(dataSpace);
 	H5Dclose(dataSet);
@@ -321,6 +325,26 @@ std::vector<size_t> HDF5Base::tensorDimensions(const std::string& elementName)
 		dims[i] = buffer[i];
 
 	return dims;
+}
+
+
+size_t HDF5Base::arraySize(const std::string& elementName)
+{
+	// Get the dataset we want to read from
+	openGroup();
+	const hid_t dataSet = H5Dopen2(_groupsOpened.top(), elementName.c_str(), H5P_DEFAULT);
+	closeGroup();
+
+	if (dataSet < 0)
+		throw IOException("Field \"" + elementName + "\" does not exist in group " + getFullGroupName());
+
+	const hid_t dataSpace = H5Dget_space(dataSet);
+	const hsize_t n = H5Sget_simple_extent_npoints(dataSpace);
+
+	H5Sclose(dataSpace);
+	H5Dclose(dataSet);
+
+	return n;
 }
 
 

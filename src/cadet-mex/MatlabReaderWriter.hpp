@@ -79,6 +79,10 @@ public:
 	inline bool isVector(const std::string& elementName) { return isVector(elementName.c_str()); }
 	inline bool isVector(const char* elementName);
 
+	/// \brief Returns the number of elements in the array identified by name
+	inline size_t arraySize(const std::string& elementName) { return arraySize(elementName.c_str()); }
+	inline size_t arraySize(const char* elementName);
+
 	/// \brief Convenience wrapper for reading vectors
 	template <typename T>
 	std::vector<T> vector(const std::string& dataSetName);
@@ -184,6 +188,12 @@ bool MatlabReaderWriter::isVector(const char* elementName)
 {
 	openGroup();
 	return mxGetNumberOfElements(mxGetField(_group, 0, elementName)) > 1;
+}
+
+size_t MatlabReaderWriter::arraySize(const char* elementName)
+{
+	openGroup();
+	return mxGetNumberOfElements(mxGetField(_group, 0, elementName));
 }
 
 void MatlabReaderWriter::pushGroup(const std::string& groupName)

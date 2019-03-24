@@ -128,6 +128,13 @@ public:
 		return val;
 	}
 
+	virtual std::size_t numElements(const std::string& paramName)
+	{
+		const std::size_t val = _reader.arraySize(paramName);
+		LOG(Debug) << "NUMELEMENTS " << paramName << " = " << val;
+		return val;
+	}
+
 	virtual void pushScope(const std::string& scope)
 	{
 		LOG(Debug) << "SCOPE " << scope;

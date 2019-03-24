@@ -61,6 +61,7 @@ public:
 	virtual std::vector<std::string> getStringArray(const std::string& paramName);
 	virtual bool exists(const std::string& paramName);
 	virtual bool isArray(const std::string& paramName);
+	virtual std::size_t numElements(const std::string& paramName);
 	virtual void pushScope(const std::string& scope);
 	virtual void popScope();
 
