@@ -296,6 +296,12 @@ namespace detail
 		}
 
 		/**
+		 * @brief Returns the number of elements in the matrix
+		 * @return Number of elements in the matrix
+		 */
+		inline unsigned int elements() const CADET_NOEXCEPT { return _cols * _rows; }
+
+		/**
 		 * @brief Returns the number of columns
 		 * @return Number of columns
 		 */
