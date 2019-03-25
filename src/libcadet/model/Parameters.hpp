@@ -181,6 +181,48 @@ protected:
 
 
 /**
+ * @brief Reaction dependent scalar external parameter
+ * @details A single value per reaction.
+ */
+class ScalarReactionDependentParameter
+{
+public:
+
+	typedef std::vector<active> storage_t;
+
+	ScalarReactionDependentParameter(std::vector<active>& p) : _p(&p) { }
+	ScalarReactionDependentParameter(std::vector<active>* p) : _p(p) { }
+
+	inline void configure(const std::string& varName, IParameterProvider& paramProvider, unsigned int nComp, unsigned int const* nBoundStates)
+	{
+		if (paramProvider.exists(varName))
+			readParameterMatrix(*_p, paramProvider, varName, 1, 1);
+		else
+			_p->clear();
+	}
+
+	inline void registerParam(const std::string& varName, std::unordered_map<ParameterId, active*>& parameters, UnitOpIdx unitOpIdx, ParticleTypeIdx parTypeIdx, unsigned int nComp, unsigned int const* nBoundStates)
+	{
+		const StringHash nameHash = hashStringRuntime(varName);
+		registerParam1DArray(parameters, *_p, [=](bool multi, unsigned int r) { return makeParamId(nameHash, unitOpIdx, CompIndep, parTypeIdx, BoundStateIndep, r, SectionIndep); });
+	}
+
+	inline void reserve(unsigned int nReactions, unsigned int nComp, unsigned int nBoundStates)
+	{
+		_p->reserve(nReactions);
+	}
+
+	inline std::size_t size() const CADET_NOEXCEPT { return _p->size(); }
+
+	inline const std::vector<active>& get() const CADET_NOEXCEPT { return *_p; }
+	inline std::vector<active>& get() CADET_NOEXCEPT { return *_p; }
+
+protected:
+	std::vector<active>* _p;
+};
+
+
+/**
  * @brief Component and bound state dependent external parameter
  * @details A single value per component and bound state / binding site type.
  * @tparam compMajor Determines whether the values are stored in component-major or bound-state-/binding-site-type-major ordering
@@ -743,6 +785,89 @@ public:
 		}
 		return 0;
 	}
+
+	inline const storage_t& base() const CADET_NOEXCEPT { return _base; }
+
+	template <typename T>
+	inline void prepareCache(T& cache, void* ptr) const
+	{
+		cache.fromTemplate(ptr, _base);
+	}
+
+protected:
+	std::vector<active> _base;
+	std::vector<active> _linear;
+	std::vector<active> _quad;
+	std::vector<active> _cube;
+};
+
+
+/**
+ * @brief Reaction dependent scalar external parameter
+ * @details A single value per reaction.
+ */
+class ExternalScalarReactionDependentParameter
+{
+public:
+
+	typedef std::vector<active> storage_t;
+
+	inline void configure(const std::string& varName, IParameterProvider& paramProvider, unsigned int nComp, unsigned int const* nBoundStates)
+	{
+		readParameterMatrix(_base, paramProvider, "EXT_" + varName, 1, 1);
+		readParameterMatrix(_linear, paramProvider, "EXT_" + varName + "_T", 1, 1);
+		readParameterMatrix(_quad, paramProvider, "EXT_" + varName + "_TT", 1, 1);
+		readParameterMatrix(_cube, paramProvider, "EXT_" + varName + "_TTT", 1, 1);
+	}
+
+	inline void registerParam(const std::string& varName, std::unordered_map<ParameterId, active*>& parameters, UnitOpIdx unitOpIdx, ParticleTypeIdx parTypeIdx, unsigned int nComp, unsigned int const* nBoundStates)
+	{
+		const StringHash hashConst = hashStringRuntime("EXT_" + varName);
+		registerParam1DArray(parameters, _base, [=](bool multi, unsigned int r) { return makeParamId(hashConst, unitOpIdx, CompIndep, parTypeIdx, BoundStateIndep, r, SectionIndep); });
+
+		const StringHash hashLinear = hashStringRuntime("EXT_" + varName + "_T");
+		registerParam1DArray(parameters, _linear, [=](bool multi, unsigned int r) { return makeParamId(hashLinear, unitOpIdx, CompIndep, parTypeIdx, BoundStateIndep, r, SectionIndep); });
+
+		const StringHash hashQuad = hashStringRuntime("EXT_" + varName + "_TT");
+		registerParam1DArray(parameters, _quad, [=](bool multi, unsigned int r) { return makeParamId(hashQuad, unitOpIdx, CompIndep, parTypeIdx, BoundStateIndep, r, SectionIndep); });
+
+		const StringHash hashCube = hashStringRuntime("EXT_" + varName + "_TTT");
+		registerParam1DArray(parameters, _cube, [=](bool multi, unsigned int r) { return makeParamId(hashCube, unitOpIdx, CompIndep, parTypeIdx, BoundStateIndep, r, SectionIndep); });
+	}
+
+	inline void reserve(unsigned int nReactions, unsigned int nComp, unsigned int nBoundStates)
+	{
+		_base.reserve(nReactions);
+		_linear.reserve(nReactions);
+		_quad.reserve(nReactions);
+		_cube.reserve(nReactions);
+	}
+
+	inline void update(std::vector<active>& result, double extVal, unsigned int nComp, unsigned int const* nBoundStates) const
+	{
+		update(result.data(), extVal, nComp, nBoundStates);
+	}
+
+	inline void update(active* result, double extVal, unsigned int nComp, unsigned int const* nBoundStates) const
+	{
+		for (unsigned int i = 0; i < _base.size(); ++i)
+			result[i] = _base[i] + extVal * (_linear[i] + extVal * (_quad[i] + extVal * _cube[i]));
+	}
+
+	inline void updateTimeDerivative(std::vector<active>& result, double extVal, double extTimeDiff, unsigned int nComp, unsigned int const* nBoundStates) const
+	{
+		updateTimeDerivative(result.data(), extVal, extTimeDiff, nComp, nBoundStates);
+	}
+
+	inline void updateTimeDerivative(active* result, double extVal, double extTimeDiff, unsigned int nComp, unsigned int const* nBoundStates) const
+	{
+		for (unsigned int i = 0; i < _base.size(); ++i)
+			result[i] = extTimeDiff * (static_cast<double>(_linear[i]) + extVal * (2.0 * static_cast<double>(_quad[i]) + 3.0 * extVal * static_cast<double>(_cube[i])));
+	}
+
+	inline std::size_t size() const CADET_NOEXCEPT { return _base.size(); }
+
+	inline const std::size_t additionalDynamicMemory(unsigned int nReactions, unsigned int nComp, unsigned int totalNumBoundStates) const CADET_NOEXCEPT { return nReactions * sizeof(active); }
 
 	inline const storage_t& base() const CADET_NOEXCEPT { return _base; }
 
