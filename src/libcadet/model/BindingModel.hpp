@@ -322,7 +322,7 @@ public:
 	 * @param [in] colPos Position in normalized coordinates (column inlet = 0, column outlet = 1; outer shell = 1, inner center = 0)
 	 * @param [in] y Pointer to first bound state of the first component in the current particle shell
 	 * @param [in] offsetCp Offset from @p y to the first component of the mobile phase in the current particle shell
-	 * @param [in,out] jac Row iterator pointing to the first bound states row of the underlying BandMatrix in which the Jacobian is stored
+	 * @param [in,out] jac Row iterator pointing to the first bound states row of the underlying matrix in which the Jacobian is stored
 	 * @param [in,out] workSpace Memory work space
 	 */
 	virtual void analyticJacobian(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, int offsetCp, linalg::BandMatrix::RowIterator jac, void* workSpace) const = 0;
@@ -337,7 +337,7 @@ public:
 	 *          It is always required, even if the Jacobian is computed using AD.
 	 *
 	 * @param [in] alpha Factor of the time derivatives which comes from a BDF discretization and the time transformation
-	 * @param [in,out] jac Row iterator pointing to the first bound states row of the underlying BandMatrix in which the Jacobian is stored
+	 * @param [in,out] jac Row iterator pointing to the first bound states row of the underlying matrix in which the Jacobian is stored
 	 */
 	virtual void jacobianAddDiscretized(double alpha, linalg::FactorizableBandMatrix::RowIterator jac) const = 0;
 	virtual void jacobianAddDiscretized(double alpha, linalg::DenseBandedRowIterator jac) const = 0;

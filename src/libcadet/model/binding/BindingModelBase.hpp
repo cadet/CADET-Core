@@ -101,10 +101,7 @@ protected:
 	 * @brief Configures the binding model
 	 * @details This function implements the (re-)configuration of a binding model. It is called when
 	 *          the binding model is configured or reconfigured. On call the _parameters map will always
-	 *          be empty and _kineticBinding is already configured. If @p reconfigure is @c true, then
-	 *          the binding model has been configured before and the member variables should have enough
-	 *          memory reserved.
-	 * @param [in] reconfigure @c true if reconfigure() was called, @c false if configure() was called
+	 *          be empty and _kineticBinding is already configured.
 	 * @param [in] paramProvider Parameter provider
 	 * @param [in] unitOpIdx Unit operation index
 	 * @param [in] parTypeIdx Particle type index
