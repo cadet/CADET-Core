@@ -248,4 +248,15 @@ namespace cadet
 	{
 		return _bindingModels.exists(name);
 	}
+
+	model::IDynamicReactionModel* ModelBuilder::createDynamicReactionModel(const std::string& name) const
+	{
+		return _reactionModels.createDynamic(name);
+	}
+
+	bool ModelBuilder::isValidDynamicReactionModel(const std::string& name) const
+	{
+		return _reactionModels.existsDynamic(name);
+	}
+
 } // namespace cadet

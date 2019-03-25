@@ -30,6 +30,7 @@ class IExternalFunction;
 	namespace model
 	{
 		class IBindingModel;
+		class IDynamicReactionModel;
 	}
 
 /**
@@ -61,6 +62,21 @@ public:
 	 * @return @c true if a binding model of this name exists, otherwise @c false
 	 */
 	virtual bool isValidBindingModel(const std::string& name) const = 0;
+
+	/**
+	 * @brief Creates an IDynamicReactionModel object of the given @p name
+	 * @details The caller owns the returned IDynamicReactionModel object.
+	 * @param [in] name Name of the IDynamicReactionModel object
+	 * @return Object of the given IDynamicReactionModel @p name or @c nullptr if that name does not exist
+	 */
+	virtual model::IDynamicReactionModel* createDynamicReactionModel(const std::string& name) const = 0;
+
+	/**
+	 * @brief Checks if there is an IDynamicReactionModel of the given @p name
+	 * @param [in] name Name of the IDynamicReactionModel object
+	 * @return @c true if a dynamic reaction model of this name exists, otherwise @c false
+	 */
+	virtual bool isValidDynamicReactionModel(const std::string& name) const = 0;
 
 	/**
 	 * @brief Creates an IExternalFunction object of the given @p type

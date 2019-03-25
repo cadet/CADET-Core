@@ -20,6 +20,7 @@
 
 #include "cadet/ModelBuilder.hpp"
 #include "BindingModelFactory.hpp"
+#include "ReactionModelFactory.hpp"
 #include "ConfigurationHelper.hpp"
 
 #include <vector>
@@ -59,6 +60,8 @@ public:
 	virtual IInletProfile* createInletProfile(const std::string& type) const;
 	virtual model::IBindingModel* createBindingModel(const std::string& name) const;
 	virtual bool isValidBindingModel(const std::string& name) const;
+	virtual model::IDynamicReactionModel* createDynamicReactionModel(const std::string& name) const;
+	virtual bool isValidDynamicReactionModel(const std::string& name) const;
 	virtual IExternalFunction* createExternalFunction(const std::string& type) const;
 
 protected:
@@ -80,6 +83,7 @@ protected:
 	void registerModel();
 
 	BindingModelFactory _bindingModels; //!< Factory for IBindingModel implementations
+	ReactionModelFactory _reactionModels; //!< Factory for IDynamicReactionModel implementations
 
 	typedef std::unordered_map<std::string, std::function<IUnitOperation*(UnitOpIdx)>> ModelFactoryContainer_t;
 	typedef std::unordered_map<std::string, std::function<IInletProfile*(void)>> InletFactoryContainer_t;
