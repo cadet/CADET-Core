@@ -19,12 +19,14 @@ namespace cadet
 	{
 		namespace reaction
 		{
+			void registerMassActionLawReaction(std::unordered_map<std::string, std::function<model::IDynamicReactionModel*()>>& reactions);
 		}
 	}
 
 	ReactionModelFactory::ReactionModelFactory()
 	{
 		// Register all reaction models here
+		model::reaction::registerMassActionLawReaction(_dynamicModels);
 	}
 
 	ReactionModelFactory::~ReactionModelFactory() { }

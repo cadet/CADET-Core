@@ -74,6 +74,16 @@ namespace model
 		 * @return Memory size in bytes
 		 */
 		inline std::size_t cacheSize(unsigned int nComp, unsigned int totalNumBoundStates, unsigned int const* nBoundStates) const CADET_NOEXCEPT { return 0; }
+
+		/**
+		 * @brief Returns how much memory is required for caching in bytes
+		 * @details Memory size in bytes.
+		 * @param [in] nReactions Number of reactions
+		 * @param [in] nComp Number of components
+		 * @param [in] totalNumBoundStates Total number of bound states
+		 * @return Memory size in bytes
+		 */
+		inline std::size_t cacheSize(unsigned int nReactions, unsigned int nComp, unsigned int totalNumBoundStates) const CADET_NOEXCEPT { return 0; }
 	};
 
 	/**

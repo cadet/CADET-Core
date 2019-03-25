@@ -93,6 +93,11 @@ set(LIBCADET_BINDINGMODEL_SOURCES
 	${CMAKE_SOURCE_DIR}/src/libcadet/model/binding/MultiComponentSpreadingBinding.cpp
 )
 
+# LIBCADET_REACTIONMODEL_SOURCES holds all source files of reaction models
+set(LIBCADET_REACTIONMODEL_SOURCES
+	${CMAKE_SOURCE_DIR}/src/libcadet/model/reaction/MassActionLawReaction.cpp
+)
+
 # LIBCADET_SOURCES holds all source files for LIBCADET target
 set(LIBCADET_SOURCES
 	${CMAKE_CURRENT_BINARY_DIR}/VersionInfo.cpp
@@ -120,6 +125,7 @@ set(LIBCADET_SOURCES
 	${CMAKE_SOURCE_DIR}/src/libcadet/model/ParameterMultiplexing.cpp
 	${CMAKE_SOURCE_DIR}/src/libcadet/model/parts/ConvectionDispersionOperator.cpp
 	${CMAKE_SOURCE_DIR}/src/libcadet/model/parts/ConvectionDispersionKernel.cpp
+	${CMAKE_SOURCE_DIR}/src/libcadet/model/reaction/ReactionModelBase.cpp
 	${CMAKE_SOURCE_DIR}/src/libcadet/model/binding/BindingModelBase.cpp
 	${CMAKE_SOURCE_DIR}/src/libcadet/model/inlet/PiecewiseCubicPoly.cpp
 	${CMAKE_SOURCE_DIR}/src/libcadet/model/extfun/LinearInterpolationExternalFunction.cpp
@@ -161,19 +167,30 @@ if (ENABLE_GRM_2D)
 	configure_file("${CMAKE_CURRENT_SOURCE_DIR}/linalg/SparseSolverInterface.hpp.in" "${CMAKE_CURRENT_BINARY_DIR}/SparseSolverInterface.hpp" @ONLY)
 endif()
 
-# Preprocess binding models
+# Preprocess binding and reaction models
 foreach(BM IN LISTS LIBCADET_BINDINGMODEL_SOURCES)
 	get_filename_component(BMFILEWE ${BM} NAME_WE)
 	get_filename_component(BMFILE ${BM} NAME)
-	add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${BMFILE} 
+	add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${BMFILE}
 		COMMAND templateCodeGen ${CMAKE_SOURCE_DIR}/src/libcadet/model/binding/ExternalFunctionTemplate.cpp ${BM} ${CMAKE_CURRENT_BINARY_DIR}/${BMFILE} 
-		MAIN_DEPENDENCY ${BM} 
-		DEPENDS ${CMAKE_SOURCE_DIR}/src/libcadet/model/binding/ExternalFunctionTemplate.cpp 
+		MAIN_DEPENDENCY ${BM}
+		DEPENDS ${CMAKE_SOURCE_DIR}/src/libcadet/model/binding/ExternalFunctionTemplate.cpp
 		COMMENT "Generating code for ${BMFILEWE}"
 	)
 	list (APPEND LIBCADET_SOURCES "${CMAKE_CURRENT_BINARY_DIR}/${BMFILE}")
 endforeach()
 
+foreach(RM IN LISTS LIBCADET_REACTIONMODEL_SOURCES)
+	get_filename_component(RMFILEWE ${RM} NAME_WE)
+	get_filename_component(RMFILE ${RM} NAME)
+	add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${RMFILE}
+		COMMAND templateCodeGen ${CMAKE_SOURCE_DIR}/src/libcadet/model/reaction/ExternalFunctionTemplate.cpp ${RM} ${CMAKE_CURRENT_BINARY_DIR}/${RMFILE} 
+		MAIN_DEPENDENCY ${RM}
+		DEPENDS ${CMAKE_SOURCE_DIR}/src/libcadet/model/reaction/ExternalFunctionTemplate.cpp
+		COMMENT "Generating code for ${RMFILEWE}"
+	)
+	list (APPEND LIBCADET_SOURCES "${CMAKE_CURRENT_BINARY_DIR}/${RMFILE}")
+endforeach()
 
 
 add_library(CADET::LibOptions INTERFACE IMPORTED)
