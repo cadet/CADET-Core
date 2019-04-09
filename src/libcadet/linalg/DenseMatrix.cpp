@@ -35,10 +35,7 @@ void DenseMatrixBase::submatrixSetAll(double val, unsigned int startRow, unsigne
 
 	for (unsigned int i = 0; i < numRows; ++i)
 	{
-		for (unsigned int j = 0; j < numCols; ++j)
-		{
-			ptrDest[i * stride() + j] = val;
-		}
+		std::fill(ptrDest + i * stride(), ptrDest + i * stride() + numCols, val);
 	}
 }
 
@@ -57,10 +54,7 @@ void DenseMatrixBase::submatrixAssign(const DenseMatrixBase& mat, unsigned int s
 
 	for (unsigned int i = 0; i < numRows; ++i)
 	{
-		for (unsigned int j = 0; j < numCols; ++j)
-		{
-			ptrDest[i * stride() + j] = ptrSrc[i * mat.stride() + j];
-		}
+		std::copy(ptrSrc + i * mat.stride(), ptrSrc + i * mat.stride() + numCols, ptrDest + i * stride());
 	}
 }
 
