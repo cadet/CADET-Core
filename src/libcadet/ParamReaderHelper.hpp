@@ -284,17 +284,31 @@ namespace cadet
 	/**
 	 * @brief Registers a 1D parameter array
 	 * @param [in,out] map Map to which the parameters are added
+	 * @param [in] params Array with parameters to be registered
+	 * @param [in] size Number of elements in the array
+	 * @param [in] pic Callable that returns a ParameterId based on whether there is more than one item in the array and the array index
+	 */
+	template <class ParamIdCreator>
+	inline void registerParam1DArray(std::unordered_map<ParameterId, active*>& map, active* params, unsigned int size, ParamIdCreator&& pic)
+	{
+		const bool multi = size > 1;
+		for (unsigned int i = 0; i < size; ++i)
+		{
+			map[pic(multi, i)] = params + i;
+		}
+	}
+
+
+	/**
+	 * @brief Registers a 1D parameter array
+	 * @param [in,out] map Map to which the parameters are added
 	 * @param [in] params Vector with parameters to be registered
 	 * @param [in] pic Callable that returns a ParameterId based on whether there is more than one item in the array and the array index
 	 */
 	template <class ParamIdCreator>
-	inline void registerParam1DArray(std::unordered_map<ParameterId, active*>& map, std::vector<active>& params, ParamIdCreator pic)
+	inline void registerParam1DArray(std::unordered_map<ParameterId, active*>& map, std::vector<active>& params, ParamIdCreator&& pic)
 	{
-		const bool multi = params.size() > 1;
-		for (unsigned int i = 0; i < params.size(); ++i)
-		{
-			map[pic(multi, i)] = &params[i];
-		}
+		registerParam1DArray(map, params.data(), params.size(), std::forward<ParamIdCreator>(pic));
 	}
 
 
@@ -327,20 +341,40 @@ namespace cadet
 	 *          whether there are multiple outer indices (e.g., more than one row), the outer index, and the inner index.
 	 * 
 	 * @param [in,out] map Map to which the parameters are added
+	 * @param [in] params Linearized array with parameters to be registered
+	 * @param [in] size Number of elements in the array
+	 * @param [in] pic Callable that returns a ParameterId based on whether more than one outer index is present, the outer index, and the inner index
+	 * @param [in] innerSize Size of the inner dimension
+	 */
+	template <class ParamIdCreator>
+	inline void registerParam2DArray(std::unordered_map<ParameterId, active*>& map, active* params, unsigned int size, ParamIdCreator&& pic, unsigned int innerSize)
+	{
+		const bool multiOuter = size > innerSize;
+		for (unsigned int i = 0; i < size; ++i)
+		{
+			const unsigned int idxOuter = i / innerSize;
+			const unsigned int idxInner = i % innerSize;
+			map[pic(multiOuter, idxOuter, idxInner)] = params + i;
+		}
+	}
+
+
+	/**
+	 * @brief Registers a 2D parameter array
+	 * @details The linearized array is processed sequentially. For each linear index, the corresponding outer and inner index
+	 *          is computed. For a row-major storage, this corresponds to row and column index, respectively. In this case,
+	 *          the @p innerSize is the number of columns. The callable @p pic is used to construct a ParameterId based on
+	 *          whether there are multiple outer indices (e.g., more than one row), the outer index, and the inner index.
+	 * 
+	 * @param [in,out] map Map to which the parameters are added
 	 * @param [in] params Linearized vector with parameters to be registered
 	 * @param [in] pic Callable that returns a ParameterId based on whether more than one outer index is present, the outer index, and the inner index
 	 * @param [in] innerSize Size of the inner dimension
 	 */
 	template <class ParamIdCreator>
-	inline void registerParam2DArray(std::unordered_map<ParameterId, active*>& map, std::vector<active>& params, ParamIdCreator pic, unsigned int innerSize)
+	inline void registerParam2DArray(std::unordered_map<ParameterId, active*>& map, std::vector<active>& params, ParamIdCreator&& pic, unsigned int innerSize)
 	{
-		const bool multiOuter = params.size() > innerSize;
-		for (unsigned int i = 0; i < params.size(); ++i)
-		{
-			const unsigned int idxOuter = i / innerSize;
-			const unsigned int idxInner = i % innerSize;
-			map[pic(multiOuter, idxOuter, idxInner)] = &params[i];
-		}
+		registerParam2DArray(map, params.data(), params.size(), std::forward<ParamIdCreator>(pic), innerSize);
 	}
 
 
@@ -387,23 +421,45 @@ namespace cadet
 	 *          the mid index, and the inner index.
 	 * 
 	 * @param [in,out] map Map to which the parameters are added
+	 * @param [in] params Linearized array with parameters to be registered
+	 * @param [in] size Number of elements in the array
+	 * @param [in] pic Callable that returns a ParameterId based on whether more than one outer index is present, outer index, mid index, and inner index
+	 * @param [in] innerSize Size of the inner dimension
+	 * @param [in] midSize Size of the mid dimension
+	 */
+	template <class ParamIdCreator>
+	inline void registerParam3DArray(std::unordered_map<ParameterId, active*>& map, active* params, unsigned int size, ParamIdCreator&& pic, unsigned int innerSize, unsigned int midSize)
+	{
+		const bool multiOuter = size > innerSize * midSize;
+		for (unsigned int i = 0; i < size; ++i)
+		{
+			const unsigned int idxOuter = i / (innerSize * midSize);
+			const unsigned int idxRem = i % (innerSize * midSize);
+			const unsigned int idxMid = idxRem / innerSize;
+			const unsigned int idxInner = idxRem % innerSize;
+			map[pic(multiOuter, idxOuter, idxMid, idxInner)] = params + i;
+		}
+	}
+
+
+	/**
+	 * @brief Registers a 3D parameter array
+	 * @details The linearized array is processed sequentially. For each linear index, the corresponding outer, mid, and inner index
+	 *          is computed. For a page-row-major storage, this corresponds to page, row, and column index, respectively. In this case,
+	 *          the @p innerSize is the number of columns and @p midSize is the number of rows. The callable @p pic is used to
+	 *          construct a ParameterId based on whether there are multiple outer indices (e.g., more than one page), the outer index,
+	 *          the mid index, and the inner index.
+	 * 
+	 * @param [in,out] map Map to which the parameters are added
 	 * @param [in] params Linearized vector with parameters to be registered
 	 * @param [in] pic Callable that returns a ParameterId based on whether more than one outer index is present, outer index, mid index, and inner index
 	 * @param [in] innerSize Size of the inner dimension
 	 * @param [in] midSize Size of the mid dimension
 	 */
 	template <class ParamIdCreator>
-	inline void registerParam3DArray(std::unordered_map<ParameterId, active*>& map, std::vector<active>& params, ParamIdCreator pic, unsigned int innerSize, unsigned int midSize)
+	inline void registerParam3DArray(std::unordered_map<ParameterId, active*>& map, std::vector<active>& params, ParamIdCreator&& pic, unsigned int innerSize, unsigned int midSize)
 	{
-		const bool multiOuter = params.size() > innerSize * midSize;
-		for (unsigned int i = 0; i < params.size(); ++i)
-		{
-			const unsigned int idxOuter = i / (innerSize * midSize);
-			const unsigned int idxRem = i % (innerSize * midSize);
-			const unsigned int idxMid = idxRem / innerSize;
-			const unsigned int idxInner = idxRem % innerSize;
-			map[pic(multiOuter, idxOuter, idxMid, idxInner)] = &params[i];
-		}
+		registerParam3DArray(map, params.data(), params.size(), std::forward<ParamIdCreator>(pic), innerSize, midSize);
 	}
 
 
