@@ -24,6 +24,67 @@
 namespace cadet
 {
 	/**
+	 * @brief Treats a memory block as array of the given type
+	 * @details Treats a given memory block as an array of the given type.
+	 *          If the type requires initialization, its constructor is called on
+	 *          each array element. Otherwise, it is simply filled with @c 0.
+	 * 
+	 *          The array has to be released after use by calling releaseRawArray().
+	 * 
+	 * @param [in] mem Pointer to memory block
+	 * @param [in] numElements Number of array elements
+	 * @return Pointer to first array element of the given type
+	 */
+	template <typename T>
+	typename std::enable_if<!std::is_arithmetic<T>::value, T*>::type rawMemoryAsArray(void* mem, unsigned int numElements)
+	{
+		// Call constructor on every element
+		T* cur = reinterpret_cast<T*>(mem);
+		for (unsigned int i = 0; i < numElements; ++i)
+		{
+			// Default constructor
+			new(cur) T;
+			++cur;
+		}
+
+		return reinterpret_cast<T*>(mem);
+	}
+
+	template <typename T>
+	typename std::enable_if<std::is_arithmetic<T>::value, T*>::type rawMemoryAsArray(void* mem, unsigned int numElements)
+	{
+		// Arithmetic types do not need constructor, but initialization to zero
+		T* const cur = reinterpret_cast<T*>(mem);
+		std::fill_n(cur, numElements, T(0));
+		return reinterpret_cast<T*>(mem);
+	}
+
+	/**
+	 * @brief Releases an array created from rawMemoryAsArray()
+	 * @details If necessary, calls the destructor on each array element.
+	 * 
+	 * @param [in] mem Pointer to first element of array in raw memory block
+	 * @param [in] numElements Number of array elements
+	 */
+	template <typename T>
+	typename std::enable_if<!std::is_arithmetic<T>::value, void>::type releaseRawArray(T* const mem, unsigned int numElements)
+	{
+		// Call destructor on every element
+		T* cur = reinterpret_cast<T*>(mem);
+		for (unsigned int i = 0; i < numElements; ++i)
+		{
+			cur->~T();
+			++cur;
+		}
+	}
+
+	template <typename T>
+	typename std::enable_if<std::is_arithmetic<T>::value, void>::type releaseRawArray(T* const mem, unsigned int numElements)
+	{
+		// Arithmetic types do not need destructor
+	}
+
+	/**
 	 * @brief Manages a memory pool for arrays of various types
 	 * @details An ArrayPool manages a block of memory which can be used to create arrays of
 	 *          various types. It is initialized to allocate a block of memory big enough to
@@ -140,11 +201,7 @@ namespace cadet
 
 			// Arithmetic types do not need constructor, but initialization to zero
 			T* cur = reinterpret_cast<T*>(_mem);
-			for (unsigned int i = 0; i < n; ++i)
-			{
-				*cur = T(0);
-				++cur;
-			}
+			std::fill_n(cur, n, T(0));
 
 			_numElements = n;
 			return reinterpret_cast<T*>(_mem);
