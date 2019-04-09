@@ -95,6 +95,7 @@ set(LIBCADET_BINDINGMODEL_SOURCES
 
 # LIBCADET_REACTIONMODEL_SOURCES holds all source files of reaction models
 set(LIBCADET_REACTIONMODEL_SOURCES
+	${CMAKE_SOURCE_DIR}/src/libcadet/model/reaction/DummyReaction.cpp
 	${CMAKE_SOURCE_DIR}/src/libcadet/model/reaction/MassActionLawReaction.cpp
 )
 
