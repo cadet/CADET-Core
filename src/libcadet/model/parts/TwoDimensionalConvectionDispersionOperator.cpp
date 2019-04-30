@@ -715,9 +715,9 @@ bool TwoDimensionalConvectionDispersionOperator::configureModelDiscretization(IP
 	// Default to sparse solver if available (preferably UMFPACK), fall back to dense
 	if (!_linearSolver)
 	{
-#ifdef UMFPACK_FOUND
+#if defined(UMFPACK_FOUND)
 		_linearSolver = new SparseDirectSolver<linalg::UMFPackSparseMatrix>(&_jacC);
-#elif SUPERLU_FOUND
+#elif defined(SUPERLU_FOUND)
 		_linearSolver = new SparseDirectSolver<linalg::SuperLUSparseMatrix>(&_jacC);
 #else		
 		_linearSolver = new DenseDirectSolver(&_jacC);
