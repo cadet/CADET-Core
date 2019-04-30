@@ -12,12 +12,14 @@
 
 #include "model/GeneralRateModel.hpp"
 #include "BindingModelFactory.hpp"
+#include "ReactionModelFactory.hpp"
 #include "ParamReaderHelper.hpp"
 #include "cadet/Exceptions.hpp"
 #include "cadet/ExternalFunction.hpp"
 #include "cadet/SolutionRecorder.hpp"
 #include "ConfigurationHelper.hpp"
 #include "model/BindingModel.hpp"
+#include "model/ReactionModel.hpp"
 #include "SimulationTypes.hpp"
 #include "linalg/DenseMatrix.hpp"
 #include "linalg/BandMatrix.hpp"
@@ -56,6 +58,7 @@ int schurComplementMultiplierGRM(void* userData, double const* x, double* z)
 
 
 GeneralRateModel::GeneralRateModel(UnitOpIdx unitOpIdx) : UnitOperationBase(unitOpIdx),
+	_bindingWorkspaceOffset(nullptr), _dynReactionWorkspaceOffset(nullptr), _dynReactionBulk(nullptr),
 	_jacP(nullptr), _jacPdisc(nullptr), _jacPF(nullptr), _jacFP(nullptr), _jacInlet(),
 	_analyticJac(true), _jacobianAdDirs(0), _factorizeJacobian(false), _tempState(nullptr),
 	_initC(0), _initCp(0), _initQ(0), _initState(0), _initStateDot(0)
@@ -73,6 +76,8 @@ GeneralRateModel::~GeneralRateModel() CADET_NOEXCEPT
 	delete[] _jacPdisc;
 
 	delete[] _bindingWorkspaceOffset;
+	delete[] _dynReactionWorkspaceOffset;
+	delete _dynReactionBulk;
 
 	delete[] _disc.nParCell;
 	delete[] _disc.parTypeOffset;
@@ -345,11 +350,91 @@ bool GeneralRateModel::configureModelDiscretization(IParameterProvider& paramPro
 		}
 	}
 
+	// ==== Construct and configure dynamic reaction model
+	bool reactionConfSuccess = true;
+	unsigned int reactionRequiredMem = 0;
+
+	_dynReactionBulk = nullptr;
+	if (paramProvider.exists("REACTION_MODEL"))
+	{
+		const std::string dynReactName = paramProvider.getString("REACTION_MODEL");
+		_dynReactionBulk = helper.createDynamicReactionModel(dynReactName);
+		if (!_dynReactionBulk)
+			throw InvalidParameterException("Unknown dynamic reaction model " + dynReactName);
+
+		paramProvider.pushScope("reaction_bulk");
+		reactionConfSuccess = _dynReactionBulk->configureModelDiscretization(paramProvider, _disc.nComp, nullptr, nullptr);
+		paramProvider.popScope();
+
+		if (_dynReactionBulk->requiresWorkspace())
+		{
+			// Required memory (number of doubles) for nonlinear solvers
+			const unsigned int requiredMem = (_dynReactionBulk->workspaceSize(_disc.nComp, 0, nullptr) + sizeof(double) - 1) / sizeof(double);
+			reactionRequiredMem += requiredMem;
+		}
+	}
+
+	clearDynamicReactionModels();
+	_dynReaction = std::vector<IDynamicReactionModel*>(_disc.nParType, nullptr);
+
+	if (paramProvider.exists("REACTION_MODEL_PARTICLES"))
+	{
+		const std::vector<std::string> dynReactModelNames = paramProvider.getStringArray("REACTION_MODEL_PARTICLES");
+
+		if (paramProvider.exists("REACTION_MODEL_PARTICLES_MULTIPLEX"))
+			_singleDynReaction = (paramProvider.getInt("REACTION_MODEL_PARTICLES_MULTIPLEX") == 1);
+		else
+		{
+			// Infer multiplex mode
+			_singleDynReaction = (dynReactModelNames.size() == 1);
+		}
+
+		if (!_singleDynReaction && (dynReactModelNames.size() < _disc.nParType))
+			throw InvalidParameterException("Field REACTION_MODEL_PARTICLES contains too few elements (" + std::to_string(_disc.nParType) + " required)");
+		else if (_singleDynReaction && (dynReactModelNames.size() != 1))
+			throw InvalidParameterException("Field REACTION_MODEL_PARTICLES requires (only) 1 element");
+
+		_dynReactionWorkspaceOffset = new unsigned int[_disc.nParType];
+		_dynReactionWorkspaceOffset[0] = reactionRequiredMem;
+		for (unsigned int i = 0; i < _disc.nParType; ++i)
+		{
+			if (_singleDynReaction && (i > 0))
+			{
+				// Reuse first binding model
+				_dynReaction[i] = _dynReaction[0];
+			}
+			else
+			{
+				_dynReaction[i] = helper.createDynamicReactionModel(dynReactModelNames[i]);
+				if (!_dynReaction[i])
+					throw InvalidParameterException("Unknown dynamic reaction model " + dynReactModelNames[i]);
+
+				reactionConfSuccess = _dynReaction[i]->configureModelDiscretization(paramProvider, _disc.nComp, _disc.nBound + i * _disc.nComp, _disc.boundOffset + i * _disc.nComp) && reactionConfSuccess;
+			}
+
+			// In case of a single binding model, we still require the additional memory per type because of parallelization
+			if (_dynReaction[i]->requiresWorkspace())
+			{
+				// Required memory (number of doubles) for nonlinear solvers
+				const unsigned int requiredMem = (_dynReaction[i]->workspaceSize(_disc.nComp, _disc.strideBound[i], _disc.nBound + i * _disc.nComp) + sizeof(double) - 1) / sizeof(double) * _disc.nCol;
+				reactionRequiredMem += requiredMem;
+
+				if (i != _disc.nParType - 1)
+					_dynReactionWorkspaceOffset[i+1] = _dynReactionWorkspaceOffset[i] + requiredMem;
+			}
+			else
+			{
+				if (i != _disc.nParType - 1)
+					_dynReactionWorkspaceOffset[i+1] = _dynReactionWorkspaceOffset[i];
+			}
+		}
+	}
+
 	// setup the memory for tempState based on state vector or memory needed for consistent initialization of isotherms, whichever is larger
-	const unsigned int size = std::max(numDofs(), bindingRequiredMem);
+	const unsigned int size = std::max(std::max(numDofs(), bindingRequiredMem), reactionRequiredMem);
 	_tempState = new double[size];
 
-	return transportSuccess && bindingConfSuccess;
+	return transportSuccess && bindingConfSuccess && reactionConfSuccess;
 }
 
 bool GeneralRateModel::configure(IParameterProvider& paramProvider)
@@ -501,9 +586,9 @@ bool GeneralRateModel::configure(IParameterProvider& paramProvider)
 	}
 
 	// Reconfigure binding model
+	bool bindingConfSuccess = true;
 	if (!_binding.empty())
 	{
-		bool bindingConfSuccess = true;
 		if (_singleBinding)
 		{
 			if (_binding[0] && _binding[0]->requiresConfiguration())
@@ -542,11 +627,60 @@ bool GeneralRateModel::configure(IParameterProvider& paramProvider)
 				paramProvider.popScope();
 			}
 		}
-
-		return transportSuccess && bindingConfSuccess;
 	}
 
-	return transportSuccess;
+	// Reconfigure reaction model
+	bool dynReactionConfSuccess = true;
+	if (_dynReactionBulk)
+	{
+		paramProvider.pushScope("reaction_bulk");
+		dynReactionConfSuccess = _dynReactionBulk->configure(paramProvider, _unitOpIdx, ParTypeIndep);
+		paramProvider.popScope();
+	}
+
+	if (!_dynReaction.empty())
+	{
+		if (_singleDynReaction)
+		{
+			if (_dynReaction[0] && _dynReaction[0]->requiresConfiguration())
+			{
+				if (paramProvider.exists("reaction_particle"))
+					paramProvider.pushScope("reaction_particle");
+				else if (paramProvider.exists("reaction_particle_000"))
+					paramProvider.pushScope("reaction_particle_000");
+				else
+					throw InvalidParameterException("Group \"reaction_particle\" or \"reaction_particle_000\" required");
+
+				dynReactionConfSuccess = _dynReaction[0]->configure(paramProvider, _unitOpIdx, ParTypeIndep) && dynReactionConfSuccess;
+				paramProvider.popScope();
+			}
+		}
+		else
+		{
+			std::ostringstream oss;
+			for (unsigned int type = 0; type < _disc.nParType; ++type)
+			{
+	 			if (!_dynReaction[type] || !_dynReaction[type]->requiresConfiguration())
+	 				continue;
+
+				oss.str("");
+				oss << "reaction_particle_" << std::setfill('0') << std::setw(3) << std::setprecision(0) << type;
+
+	 			// If there is just one type, allow legacy "reaction_particle" scope
+				if (!paramProvider.exists(oss.str()) && (_disc.nParType == 1))
+					oss.str("reaction_particle");
+
+				if (!paramProvider.exists(oss.str()))
+					continue;
+
+				paramProvider.pushScope(oss.str());
+				dynReactionConfSuccess = _dynReaction[type]->configure(paramProvider, _unitOpIdx, type) && dynReactionConfSuccess;
+				paramProvider.popScope();
+			}
+		}
+	}
+
+	return transportSuccess && bindingConfSuccess && dynReactionConfSuccess;
 }
 
 unsigned int GeneralRateModel::numAdDirsForJacobian() const CADET_NOEXCEPT
@@ -856,7 +990,7 @@ int GeneralRateModel::residualImpl(const ParamType& t, unsigned int secIdx, cons
 #endif
 	{
 		if (cadet_unlikely(pblk == 0))
-			_convDispOp.residual(t, secIdx, timeFactor, y, yDot, res, wantJac);
+			residualBulk<StateType, ResidualType, ParamType, wantJac>(t, secIdx, timeFactor, y, yDot, res);
 		else
 		{
 			const unsigned int type = (pblk - 1) / _disc.nCol;
@@ -879,6 +1013,37 @@ int GeneralRateModel::residualImpl(const ParamType& t, unsigned int secIdx, cons
 }
 
 template <typename StateType, typename ResidualType, typename ParamType, bool wantJac>
+int GeneralRateModel::residualBulk(const ParamType& t, unsigned int secIdx, const ParamType& timeFactor, StateType const* yBase, double const* yDotBase, ResidualType* resBase)
+{
+	_convDispOp.residual(t, secIdx, timeFactor, yBase, yDotBase, resBase, wantJac);
+	if (!_dynReactionBulk)
+		return 0;
+
+	// Get offsets
+	Indexer idxr(_disc);
+	StateType const* y = yBase + idxr.offsetC();
+	ResidualType* res = resBase + idxr.offsetC();
+
+	const unsigned int reactionRequiredMem = (_dynReactionBulk->workspaceSize(_disc.nComp, 0, nullptr) + sizeof(double) - 1) / sizeof(double);
+
+	for (unsigned int col = 0; col < _disc.nCol; ++col, y += idxr.strideColCell(), res += idxr.strideColCell())
+	{
+		double* const buffer = _tempState;
+
+		const ColumnPosition colPos{(0.5 + static_cast<double>(col)) / static_cast<double>(_disc.nCol), 0.0, 0.0};
+		_dynReactionBulk->residualLiquidAdd(static_cast<double>(t), secIdx, colPos, y, res, -1.0, buffer);
+
+		if (wantJac)
+		{
+			// static_cast should be sufficient here, but this statement is also analyzed when wantJac = false
+			_dynReactionBulk->analyticJacobianLiquidAdd(static_cast<double>(t), secIdx, colPos, reinterpret_cast<double const*>(y), -1.0, _convDispOp.jacobian().row(0), buffer);
+		}
+	}
+
+	return 0;
+}
+
+template <typename StateType, typename ResidualType, typename ParamType, bool wantJac>
 int GeneralRateModel::residualParticle(const ParamType& t, unsigned int parType, unsigned int colCell, unsigned int secIdx, const ParamType& timeFactor, StateType const* yBase, double const* yDotBase, ResidualType* resBase)
 {
 	Indexer idxr(_disc);
@@ -888,8 +1053,12 @@ int GeneralRateModel::residualParticle(const ParamType& t, unsigned int parType,
 	double const* yDot = yDotBase + idxr.offsetCp(ParticleTypeIndex{parType}, ParticleIndex{colCell});
 	ResidualType* res = resBase + idxr.offsetCp(ParticleTypeIndex{parType}, ParticleIndex{colCell});
 
-	const unsigned int requiredMem = (_binding[parType]->workspaceSize(_disc.nComp, _disc.strideBound[parType], _disc.nBound + parType * _disc.nComp) + sizeof(double) - 1) / sizeof(double);
-	double* const buffer = _tempState + _bindingWorkspaceOffset[parType] + requiredMem * colCell;
+	const unsigned int bindingRequiredMem = (_binding[parType]->workspaceSize(_disc.nComp, _disc.strideBound[parType], _disc.nBound + parType * _disc.nComp) + sizeof(double) - 1) / sizeof(double);
+	double* const bindBuffer = _tempState + _bindingWorkspaceOffset[parType] + bindingRequiredMem * colCell;
+
+	IDynamicReactionModel* const dynReaction = _dynReaction[parType];
+	const unsigned int reactionRequiredMem = dynReaction ? (dynReaction->workspaceSize(_disc.nComp, _disc.strideBound[parType], _disc.nBound + parType * _disc.nComp) + sizeof(double) - 1) / sizeof(double) : 0u;
+	double* const reactionBuffer = dynReaction ? (_tempState + _dynReactionWorkspaceOffset[parType] + reactionRequiredMem * colCell) : nullptr;
 
 	// Prepare parameters
 	active const* const parDiff = getSectionDependentSlice(_parDiffusion, _disc.nComp * _disc.nParType, secIdx) + parType * _disc.nComp;
@@ -1039,11 +1208,23 @@ int GeneralRateModel::residualParticle(const ParamType& t, unsigned int parType,
 		if (!yDotBase)
 			yDot = nullptr;
 
-		_binding[parType]->residual(t, secIdx, timeFactor, ColumnPosition{z, 0.0, static_cast<double>(parCenterRadius[par]) / static_cast<double>(_parRadius[parType])}, y, y - _disc.nComp, yDot, res, buffer);
+		const ColumnPosition colPos{z, 0.0, static_cast<double>(parCenterRadius[par]) / static_cast<double>(_parRadius[parType])};
+		_binding[parType]->residual(t, secIdx, timeFactor, colPos, y, y - _disc.nComp, yDot, res, bindBuffer);
 		if (wantJac)
 		{
 			// static_cast should be sufficient here, but this statement is also analyzed when wantJac = false
-			_binding[parType]->analyticJacobian(static_cast<double>(t), secIdx, ColumnPosition{z, 0.0, static_cast<double>(parCenterRadius[par]) / static_cast<double>(_parRadius[parType])}, reinterpret_cast<double const*>(y), _disc.nComp, jac, buffer);
+			_binding[parType]->analyticJacobian(static_cast<double>(t), secIdx, colPos, reinterpret_cast<double const*>(y), _disc.nComp, jac, bindBuffer);
+		}
+
+		// Reaction
+		if (dynReaction)
+		{
+			dynReaction->residualCombinedAdd(static_cast<double>(t), secIdx, colPos, y - _disc.nComp, res - _disc.nComp, -1.0, reactionBuffer);
+			if (wantJac)
+			{
+				// static_cast should be sufficient here, but this statement is also analyzed when wantJac = false
+				dynReaction->analyticJacobianCombinedAdd(static_cast<double>(t), secIdx, colPos, reinterpret_cast<double const*>(y - _disc.nComp), -1.0, jac - _disc.nComp, reactionBuffer);
+			}
 		}
 
 		// Advance pointers over all bound states

@@ -41,6 +41,8 @@ namespace cadet
 namespace model
 {
 
+class IDynamicReactionModel;
+
 /**
  * @brief General rate model of liquid column chromatography
  * @details See @cite Guiochon2006, @cite Gu1995, @cite Felinger2004
@@ -198,6 +200,9 @@ protected:
 	int residualImpl(const ParamType& t, unsigned int secIdx, const ParamType& timeFactor, StateType const* const y, double const* const yDot, ResidualType* const res);
 
 	template <typename StateType, typename ResidualType, typename ParamType, bool wantJac>
+	int residualBulk(const ParamType& t, unsigned int secIdx, const ParamType& timeFactor, StateType const* y, double const* yDot, ResidualType* res);
+
+	template <typename StateType, typename ResidualType, typename ParamType, bool wantJac>
 	int residualParticle(const ParamType& t, unsigned int parType, unsigned int colCell, unsigned int secIdx, const ParamType& timeFactor, StateType const* y, double const* yDot, ResidualType* res);
 
 	template <typename StateType, typename ResidualType, typename ParamType>
@@ -260,9 +265,11 @@ protected:
 
 	Discretization _disc; //!< Discretization info
 	unsigned int* _bindingWorkspaceOffset; //!< Array with offsets (per particle type) into temporary memory for use as workspace in binding models
+	unsigned int* _dynReactionWorkspaceOffset; //!< Array with offsets (per particle type) into temporary memory for use as workspace in reaction models
 //	IExternalFunction* _extFun; //!< External function (owned by library user)
 
 	parts::ConvectionDispersionOperator _convDispOp; //!< Convection dispersion operator for interstitial volume transport
+	IDynamicReactionModel* _dynReactionBulk; //!< Dynamic reactions in the bulk volume
 
 	linalg::BandMatrix* _jacP; //!< Particle jacobian diagonal blocks (all of them)
 	linalg::FactorizableBandMatrix* _jacPdisc; //!< Particle jacobian diagonal blocks (all of them) with time derivatives from BDF method

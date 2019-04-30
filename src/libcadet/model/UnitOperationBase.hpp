@@ -33,6 +33,7 @@ namespace model
 {
 
 class IBindingModel;
+class IDynamicReactionModel;
 
 /**
  * @brief Base class for unit operation models
@@ -68,10 +69,13 @@ public:
 protected:
 
 	void clearBindingModels() CADET_NOEXCEPT;
+	void clearDynamicReactionModels() CADET_NOEXCEPT;
 
 	UnitOpIdx _unitOpIdx; //!< Unit operation index
-	std::vector<IBindingModel*> _binding; //!<  Binding model
+	std::vector<IBindingModel*> _binding; //!< Binding model
 	bool _singleBinding; //!< Determines whether only a single binding model is present
+	std::vector<IDynamicReactionModel*> _dynReaction; //!< Dynamic reaction model
+	bool _singleDynReaction; //!< Determines whether only a single dynamic reaction model is present
 
 	typedef std::unordered_map<ParameterId, active*> paramMap_t;
 	paramMap_t _parameters; //!< Provides access to all parameters
