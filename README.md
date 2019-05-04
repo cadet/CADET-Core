@@ -41,8 +41,8 @@ CADET has been successfully built and run on the following platforms:
 
 What you need to build CADET:
 
-* A C++11 capable compiler (e.g., GCC >= 4.7, Clang >= 3.3, MS Visual Studio >= 2015)
-* [CMake](http://cmake.org/) >= 3.6.0
+* A C++14 capable compiler (e.g., GCC >= 5, Clang >= 3.4, MS Visual Studio >= 2015)
+* [CMake](http://cmake.org/) >= 3.12.0
 * IDAS of the [SUNDIALS](http://computation.llnl.gov/casc/sundials/main.html) package
 * A LAPACK implementation (e.g., [LAPACK](http://www.netlib.org/lapack/index.html), [CLAPACK](https://icl.cs.utk.edu/lapack-for-windows/clapack/index.html#build), [Intel MKL](https://software.intel.com/sites/campaigns/nest/), or a native one provided by your operating system)
 * [HDF5](http://www.hdfgroup.org/HDF5/)
