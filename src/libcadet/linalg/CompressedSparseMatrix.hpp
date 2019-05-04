@@ -739,6 +739,13 @@ public:
 	BandedSparseRowIterator(const BandedSparseRowIterator& cpy) = default;
 	BandedSparseRowIterator& operator=(const BandedSparseRowIterator& cpy) = default;
 
+	BandedSparseRowIterator(BandedSparseRowIterator&& cpy) CADET_NOEXCEPT = default;
+#ifdef COMPILER_SUPPORT_NOEXCEPT_DEFAULTED_MOVE
+	BandedSparseRowIterator& operator=(BandedSparseRowIterator&& cpy) CADET_NOEXCEPT = default;
+#else
+	BandedSparseRowIterator& operator=(BandedSparseRowIterator&& cpy) = default;
+#endif
+
 	/**
 	 * @brief Sets all matrix elements in the row to the given value
 	 * @param [in] val Value all matrix elements in the row are set to
@@ -933,6 +940,13 @@ public:
 	// Default copy and assignment semantics
 	ConstBandedSparseRowIterator(const ConstBandedSparseRowIterator& cpy) = default;
 	ConstBandedSparseRowIterator& operator=(const ConstBandedSparseRowIterator& cpy) = default;
+
+	ConstBandedSparseRowIterator(ConstBandedSparseRowIterator&& cpy) CADET_NOEXCEPT = default;
+#ifdef COMPILER_SUPPORT_NOEXCEPT_DEFAULTED_MOVE
+	ConstBandedSparseRowIterator& operator=(ConstBandedSparseRowIterator&& cpy) CADET_NOEXCEPT = default;
+#else
+	ConstBandedSparseRowIterator& operator=(ConstBandedSparseRowIterator&& cpy) = default;
+#endif
 
 	/**
 	 * @brief Accesses an element in the current row where the main diagonal is centered (index @c 0)
