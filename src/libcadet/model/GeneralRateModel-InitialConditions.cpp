@@ -301,7 +301,7 @@ void GeneralRateModel::readInitialCondition(IParameterProvider& paramProvider)
  * @param [in] errorTol Error tolerance for algebraic equations
  * @todo Decrease amount of allocated memory by partially using temporary vectors (state and Schur complement)
  */
-void GeneralRateModel::consistentInitialState(const SimulationTime& simTime, double* const vecStateY, const AdJacobianParams& adJac, double errorTol)
+void GeneralRateModel::consistentInitialState(const SimulationTime& simTime, double* const vecStateY, const AdJacobianParams& adJac, double errorTol, const util::ThreadLocalArray& threadLocalMem)
 {
 	BENCH_SCOPE(_timerConsistentInit);
 
@@ -315,8 +315,6 @@ void GeneralRateModel::consistentInitialState(const SimulationTime& simTime, dou
 		if (_binding[type]->hasAlgebraicEquations())
 		{
 			// TODO: Check memory consumption and offsets
-			// Round up
-			const unsigned int requiredMem = (_binding[type]->workspaceSize(_disc.nComp, _disc.strideBound[type], _disc.nBound + type * _disc.nComp) + sizeof(double) - 1) / sizeof(double);
 
 			ad::BandedJacobianExtractor jacExtractor(_jacP[type * _disc.nCol].lowerBandwidth(), _jacP[type * _disc.nCol].lowerBandwidth(), _jacP[type * _disc.nCol].upperBandwidth());
 
@@ -345,12 +343,9 @@ void GeneralRateModel::consistentInitialState(const SimulationTime& simTime, dou
 					active* const localAdRes = adJac.adRes ? adJac.adRes + localOffsetToParticle : nullptr;
 					active* const localAdY = adJac.adY ? adJac.adY + localOffsetToParticle : nullptr;
 
-					// We are essentially creating a 2d vector of blocks out of a linear strip of memory
-					const unsigned int offset = _bindingWorkspaceOffset[type] + requiredMem * pblk;
-
 					// Solve algebraic variables
 					_binding[type]->consistentInitialState(simTime.t, simTime.secIdx, ColumnPosition{z, 0.0, static_cast<double>(_parCenterRadius[_disc.nParCellsBeforeType[type] + shell]) / static_cast<double>(_parRadius[type])}, qShell, qShell - idxr.strideParLiquid(), errorTol,
-						localAdRes, localAdY, localOffsetInParticle, adJac.adDirOffset, jacExtractor, _tempState + offset, jacobianMatrix);
+						localAdRes, localAdY, localOffsetInParticle, adJac.adDirOffset, jacExtractor, threadLocalMem.get(), jacobianMatrix);
 				}
 			} CADET_PARFOR_END;
 		}
@@ -412,7 +407,7 @@ void GeneralRateModel::consistentInitialState(const SimulationTime& simTime, dou
  * @param [in] vecStateY Consistently initialized state vector
  * @param [in,out] vecStateYdot On entry, residual without taking time derivatives into account. On exit, consistent state time derivatives.
  */
-void GeneralRateModel::consistentInitialTimeDerivative(const SimulationTime& simTime, double const* vecStateY, double* const vecStateYdot)
+void GeneralRateModel::consistentInitialTimeDerivative(const SimulationTime& simTime, double const* vecStateY, double* const vecStateYdot, const util::ThreadLocalArray& threadLocalMem)
 {
 	BENCH_SCOPE(_timerConsistentInit);
 
@@ -460,13 +455,11 @@ void GeneralRateModel::consistentInitialTimeDerivative(const SimulationTime& sim
 			// Overwrite rows corresponding to algebraic equations with the Jacobian and set right hand side to 0
 			if (_binding[type]->hasAlgebraicEquations())
 			{
-				const unsigned int requiredMem = (_binding[type]->workspaceSize(_disc.nComp, _disc.strideBound[type], _disc.nBound + type * _disc.nComp) + sizeof(double) - 1) / sizeof(double);
-
 				parts::BindingConsistentInitializer::consistentInitialTimeDerivative(_binding[type], simTime, jac,
 					_jacP[pblk].row(j * static_cast<unsigned int>(idxr.strideParShell(type)) + static_cast<unsigned int>(idxr.strideParLiquid())),
 					vecStateYdot + idxr.offsetCp(ParticleTypeIndex{type}, ParticleIndex{par}) + static_cast<int>(j) * idxr.strideParShell(type) + idxr.strideParLiquid(),
 					ColumnPosition{z, 0.0, static_cast<double>(_parCenterRadius[_disc.nParCellsBeforeType[type] + j]) / static_cast<double>(_parRadius[type])},
-					_tempState + _bindingWorkspaceOffset[type] + requiredMem * par);
+					threadLocalMem.get());
 			}
 
 			// Advance pointers over all bound states
@@ -550,7 +543,7 @@ void GeneralRateModel::consistentInitialTimeDerivative(const SimulationTime& sim
  * @param [in,out] adJac Jacobian information for AD (AD vectors for residual and state, direction offset)
  * @param [in] errorTol Error tolerance for algebraic equations
  */
-void GeneralRateModel::leanConsistentInitialState(const SimulationTime& simTime, double* const vecStateY, const AdJacobianParams& adJac, double errorTol)
+void GeneralRateModel::leanConsistentInitialState(const SimulationTime& simTime, double* const vecStateY, const AdJacobianParams& adJac, double errorTol, const util::ThreadLocalArray& threadLocalMem)
 {
 	if (isSectionDependent(_parDiffusionMode) || isSectionDependent(_parSurfDiffusionMode))
 		LOG(Warning) << "Lean consistent initialization is not appropriate for section-dependent pore and surface diffusion";
@@ -611,7 +604,7 @@ void GeneralRateModel::leanConsistentInitialState(const SimulationTime& simTime,
  * @param [in,out] vecStateYdot On entry, inconsistent state time derivatives. On exit, partially consistent state time derivatives.
  * @param [in] res On entry, residual without taking time derivatives into account. The data is overwritten during execution of the function.
  */
-void GeneralRateModel::leanConsistentInitialTimeDerivative(double t, double timeFactor, double const* const vecStateY, double* const vecStateYdot, double* const res)
+void GeneralRateModel::leanConsistentInitialTimeDerivative(double t, double timeFactor, double const* const vecStateY, double* const vecStateYdot, double* const res, const util::ThreadLocalArray& threadLocalMem)
 {
 	if (isSectionDependent(_parDiffusionMode) || isSectionDependent(_parSurfDiffusionMode))
 		LOG(Warning) << "Lean consistent initialization is not appropriate for section-dependent pore and surface diffusion";
@@ -743,7 +736,7 @@ void GeneralRateModel::initializeSensitivityStates(const std::vector<double*>& v
  * @todo Decrease amount of allocated memory by partially using temporary vectors (state and Schur complement)
  */
 void GeneralRateModel::consistentInitialSensitivity(const ActiveSimulationTime& simTime, const ConstSimulationState& simState,
-	std::vector<double*>& vecSensY, std::vector<double*>& vecSensYdot, active const* const adRes)
+	std::vector<double*>& vecSensY, std::vector<double*>& vecSensYdot, active const* const adRes, const util::ThreadLocalArray& threadLocalMem)
 {
 	BENCH_SCOPE(_timerConsistentInit);
 
@@ -923,7 +916,7 @@ void GeneralRateModel::consistentInitialSensitivity(const ActiveSimulationTime& 
  * @todo Decrease amount of allocated memory by partially using temporary vectors (state and Schur complement)
  */
 void GeneralRateModel::leanConsistentInitialSensitivity(const ActiveSimulationTime& simTime, const ConstSimulationState& simState,
-	std::vector<double*>& vecSensY, std::vector<double*>& vecSensYdot, active const* const adRes)
+	std::vector<double*>& vecSensY, std::vector<double*>& vecSensYdot, active const* const adRes, const util::ThreadLocalArray& threadLocalMem)
 {
 	if (isSectionDependent(_parDiffusionMode) || isSectionDependent(_parSurfDiffusionMode))
 		LOG(Warning) << "Lean consistent initialization is not appropriate for section-dependent pore and surface diffusion";

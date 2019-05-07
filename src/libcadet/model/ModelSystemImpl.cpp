@@ -148,14 +148,14 @@ namespace
 	template <>
 	struct ConsistentInit<FullTag>
 	{
-		static inline void state(cadet::IUnitOperation* model, const cadet::SimulationTime& simTime, double* const vecStateY, const cadet::AdJacobianParams& adJac, double errorTol)
+		static inline void state(cadet::IUnitOperation* model, const cadet::SimulationTime& simTime, double* const vecStateY, const cadet::AdJacobianParams& adJac, double errorTol, const cadet::util::ThreadLocalArray& threadLocalMem)
 		{
-			model->consistentInitialState(simTime, vecStateY, adJac, errorTol);
+			model->consistentInitialState(simTime, vecStateY, adJac, errorTol, threadLocalMem);
 		}
 
-		static inline void timeDerivative(cadet::IUnitOperation* model, const cadet::SimulationTime& simTime, double const* vecStateY, double* const vecStateYdot, double* const res)
+		static inline void timeDerivative(cadet::IUnitOperation* model, const cadet::SimulationTime& simTime, double const* vecStateY, double* const vecStateYdot, double* const res, const cadet::util::ThreadLocalArray& threadLocalMem)
 		{
-			model->consistentInitialTimeDerivative(simTime, vecStateY, vecStateYdot);
+			model->consistentInitialTimeDerivative(simTime, vecStateY, vecStateYdot, threadLocalMem);
 		}
 
 		static inline int residualWithJacobian(cadet::model::ModelSystem& ms, const cadet::ActiveSimulationTime& simTime, const cadet::ConstSimulationState& simState, double* const res, double* const temp,
@@ -165,23 +165,23 @@ namespace
 		}
 
 		static inline void parameterSensitivity(cadet::IUnitOperation* model, const cadet::ActiveSimulationTime& simTime, const cadet::ConstSimulationState& simState,
-			std::vector<double*>& vecSensYlocal, std::vector<double*>& vecSensYdotLocal, cadet::active const* const adRes)
+			std::vector<double*>& vecSensYlocal, std::vector<double*>& vecSensYdotLocal, cadet::active const* const adRes, const cadet::util::ThreadLocalArray& threadLocalMem)
 		{
-			model->consistentInitialSensitivity(simTime, simState, vecSensYlocal, vecSensYdotLocal, adRes);
+			model->consistentInitialSensitivity(simTime, simState, vecSensYlocal, vecSensYdotLocal, adRes, threadLocalMem);
 		}
 	};
 
 	template <>
 	struct ConsistentInit<LeanTag>
 	{
-		static inline void state(cadet::IUnitOperation* model, const cadet::SimulationTime& simTime, double* const vecStateY, const cadet::AdJacobianParams& adJac, double errorTol)
+		static inline void state(cadet::IUnitOperation* model, const cadet::SimulationTime& simTime, double* const vecStateY, const cadet::AdJacobianParams& adJac, double errorTol, const cadet::util::ThreadLocalArray& threadLocalMem)
 		{
-			model->leanConsistentInitialState(simTime, vecStateY, adJac, errorTol);
+			model->leanConsistentInitialState(simTime, vecStateY, adJac, errorTol, threadLocalMem);
 		}
 
-		static inline void timeDerivative(cadet::IUnitOperation* model, const cadet::SimulationTime& simTime, double const* vecStateY, double* const vecStateYdot, double* const res)
+		static inline void timeDerivative(cadet::IUnitOperation* model, const cadet::SimulationTime& simTime, double const* vecStateY, double* const vecStateYdot, double* const res, const cadet::util::ThreadLocalArray& threadLocalMem)
 		{
-			model->leanConsistentInitialTimeDerivative(simTime.t, simTime.timeFactor, vecStateY, vecStateYdot, res);
+			model->leanConsistentInitialTimeDerivative(simTime.t, simTime.timeFactor, vecStateY, vecStateYdot, res, threadLocalMem);
 		}
 
 		static inline int residualWithJacobian(cadet::model::ModelSystem& ms, const cadet::ActiveSimulationTime& simTime, const cadet::ConstSimulationState& simState, double* const res, double* const temp,
@@ -191,9 +191,9 @@ namespace
 		}
 
 		static inline void parameterSensitivity(cadet::IUnitOperation* model, const cadet::ActiveSimulationTime& simTime, const cadet::ConstSimulationState& simState,
-			std::vector<double*>& vecSensYlocal, std::vector<double*>& vecSensYdotLocal, cadet::active const* const adRes)
+			std::vector<double*>& vecSensYlocal, std::vector<double*>& vecSensYdotLocal, cadet::active const* const adRes, const cadet::util::ThreadLocalArray& threadLocalMem)
 		{
-			model->leanConsistentInitialSensitivity(simTime, simState, vecSensYlocal, vecSensYdotLocal, adRes);
+			model->leanConsistentInitialSensitivity(simTime, simState, vecSensYlocal, vecSensYdotLocal, adRes, threadLocalMem);
 		}
 	};
 
@@ -205,9 +205,9 @@ namespace
 	struct ResidualSensCaller<true>
 	{
 		static inline int call(cadet::IUnitOperation* model, const cadet::ActiveSimulationTime& simTime, 
-			const cadet::ConstSimulationState& simState, const cadet::AdJacobianParams& adJac)
+			const cadet::ConstSimulationState& simState, const cadet::AdJacobianParams& adJac, const cadet::util::ThreadLocalArray& threadLocalMem)
 		{
-			return model->residualSensFwdWithJacobian(simTime, simState, adJac);
+			return model->residualSensFwdWithJacobian(simTime, simState, adJac, threadLocalMem);
 		}
 	};
 
@@ -215,9 +215,9 @@ namespace
 	struct ResidualSensCaller<false>
 	{
 		static inline int call(cadet::IUnitOperation* model, const cadet::ActiveSimulationTime& simTime, 
-			const cadet::ConstSimulationState& simState, const cadet::AdJacobianParams& adJac)
+			const cadet::ConstSimulationState& simState, const cadet::AdJacobianParams& adJac, const cadet::util::ThreadLocalArray& threadLocalMem)
 		{
-			return model->residualSensFwdAdOnly(simTime, simState, adJac.adRes);
+			return model->residualSensFwdAdOnly(simTime, simState, adJac.adRes, threadLocalMem);
 		}
 	};
 
@@ -1547,7 +1547,7 @@ int ModelSystem::residual(const SimulationTime& simTime, const ConstSimulationSt
 	{
 		IUnitOperation* const m = _models[i];
 		const unsigned int offset = _dofOffset[i];
-		_errorIndicator[i] = m->residual(simTime, applyOffset(simState, offset), res + offset);
+		_errorIndicator[i] = m->residual(simTime, applyOffset(simState, offset), res + offset, _threadLocalStorage);
 	} CADET_PARFOR_END;
 
 	// Handle connections
@@ -1572,7 +1572,7 @@ int ModelSystem::residualWithJacobian(const ActiveSimulationTime& simTime, const
 		const unsigned int offset = _dofOffset[i];
 
 		_errorIndicator[i] = m->residualWithJacobian(simTime, applyOffset(simState, offset),
-			res + offset, applyOffset(adJac, offset));
+			res + offset, applyOffset(adJac, offset), _threadLocalStorage);
 
 	} CADET_PARFOR_END;
 
@@ -1729,7 +1729,7 @@ int ModelSystem::residualSensFwdWithJacobianAlgorithm(unsigned int nSens, const 
 		IUnitOperation* const m = _models[i];
 		const unsigned int offset = _dofOffset[i];
 
-		_errorIndicator[i] = ResidualSensCaller<evalJacobian>::call(m, simTime, applyOffset(simState, offset), applyOffset(adJac, offset));
+		_errorIndicator[i] = ResidualSensCaller<evalJacobian>::call(m, simTime, applyOffset(simState, offset), applyOffset(adJac, offset), _threadLocalStorage);
 	} CADET_PARFOR_END;
 
 	// Connect units
@@ -1807,7 +1807,7 @@ int ModelSystem::dResDpFwdWithJacobian(const ActiveSimulationTime& simTime, cons
 		const unsigned int offset = _dofOffset[i];
 
 		_errorIndicator[i] = m->residualSensFwdWithJacobian(simTime, applyOffset(simState, offset),
-			applyOffset(adJac, offset));
+			applyOffset(adJac, offset), _threadLocalStorage);
 
 	} CADET_PARFOR_END;
 
@@ -1935,7 +1935,7 @@ void ModelSystem::consistentInitialConditionAlgorithm(const SimulationTime& simT
 		const unsigned int offset = _dofOffset[i];
 		if (!m->hasInlet())
 		{
-			ConsistentInit<tag_t>::state(m, simTime, simState.vecStateY + offset, applyOffset(adJac, offset), errorTol);
+			ConsistentInit<tag_t>::state(m, simTime, simState.vecStateY + offset, applyOffset(adJac, offset), errorTol, _threadLocalStorage);
 		}
 	}
 
@@ -1957,7 +1957,7 @@ void ModelSystem::consistentInitialConditionAlgorithm(const SimulationTime& simT
 		const unsigned int offset = _dofOffset[i];
 		if (m->hasInlet())
 		{
-			ConsistentInit<tag_t>::state(m, simTime, simState.vecStateY + offset, applyOffset(adJac, offset), errorTol);
+			ConsistentInit<tag_t>::state(m, simTime, simState.vecStateY + offset, applyOffset(adJac, offset), errorTol, _threadLocalStorage);
 		}
 	}
 
@@ -1982,7 +1982,7 @@ void ModelSystem::consistentInitialConditionAlgorithm(const SimulationTime& simT
 	{
 		IUnitOperation* const m = _models[i];
 		const unsigned int offset = _dofOffset[i];
-		ConsistentInit<tag_t>::timeDerivative(m, simTime, simState.vecStateY + offset, simState.vecStateYdot + offset, _tempState + offset);
+		ConsistentInit<tag_t>::timeDerivative(m, simTime, simState.vecStateY + offset, simState.vecStateYdot + offset, _tempState + offset, _threadLocalStorage);
 	}
 
 	// Zero out the coupling DOFs (provides right hand side of 0 for solveCouplingDOF())
@@ -2034,7 +2034,7 @@ void ModelSystem::consistentInitialSensitivityAlgorithm(const ActiveSimulationTi
 				vecSensYdotLocal[j] = vecSensYdot[j] + offset;
 			}
 
-			ConsistentInit<tag_t>::parameterSensitivity(m, simTime, applyOffset(simState, offset), vecSensYlocal, vecSensYdotLocal, adRes + offset);
+			ConsistentInit<tag_t>::parameterSensitivity(m, simTime, applyOffset(simState, offset), vecSensYlocal, vecSensYdotLocal, adRes + offset, _threadLocalStorage);
 		}
 	}
 
@@ -2064,7 +2064,7 @@ void ModelSystem::consistentInitialSensitivityAlgorithm(const ActiveSimulationTi
 				vecSensYdotLocal[j] = vecSensYdot[j] + offset;
 			}
 
-			ConsistentInit<tag_t>::parameterSensitivity(m, simTime, applyOffset(simState, offset), vecSensYlocal, vecSensYdotLocal, adRes + offset);
+			ConsistentInit<tag_t>::parameterSensitivity(m, simTime, applyOffset(simState, offset), vecSensYlocal, vecSensYdotLocal, adRes + offset, _threadLocalStorage);
 		}
 	}
 		
@@ -2701,6 +2701,17 @@ void ModelSystem::expandErrorTol(double const* errorSpec, unsigned int errorSpec
 	{
 		m->expandErrorTol(errorSpec, errorSpecSize, expandOut);
 	}
+}
+
+void ModelSystem::setupParallelization(unsigned int numThreads)
+{
+	unsigned int tlsSize = 0;
+	for (IUnitOperation const* m : _models)
+		tlsSize = std::max(tlsSize, m->threadLocalMemorySize());
+
+	// Calculate equivalent number of doubles from number of bytes (and round up)
+	const unsigned int numDoubles = (tlsSize + sizeof(double) - 1) / sizeof(double);
+	_threadLocalStorage.resize(numThreads, numDoubles);
 }
 
 }  // namespace model

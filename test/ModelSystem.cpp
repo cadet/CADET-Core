@@ -19,6 +19,7 @@
 #include "ModelBuilderImpl.hpp"
 #include "model/ModelSystemImpl.hpp"
 #include "SimulationTypes.hpp"
+#include "ParallelSupport.hpp"
 #include "JsonTestModels.hpp"
 #include "JacobianHelper.hpp"
 #include "ColumnTests.hpp"
@@ -115,13 +116,14 @@ namespace
 		virtual void applyInitialCondition(const cadet::SimulationState& simState) const { }
 		virtual void readInitialCondition(cadet::IParameterProvider& paramProvider) { }
 
-		virtual int residual(const cadet::SimulationTime& simTime, const cadet::ConstSimulationState& simState, double* const res)
+		virtual int residual(const cadet::SimulationTime& simTime, const cadet::ConstSimulationState& simState, double* const res, const cadet::util::ThreadLocalStorage<double>& tls)
 		{
 			std::copy(simState.vecStateY, simState.vecStateY + numDofs(), res);
 			return 0;
 		}
 
-		virtual int residualWithJacobian(const cadet::ActiveSimulationTime& simTime, const cadet::ConstSimulationState& simState, double* const res, const cadet::AdJacobianParams& adJac)
+		virtual int residualWithJacobian(const cadet::ActiveSimulationTime& simTime, const cadet::ConstSimulationState& simState, double* const res,
+			const cadet::AdJacobianParams& adJac, const cadet::util::ThreadLocalStorage<double>& tls)
 		{
 			std::copy(simState.vecStateY, simState.vecStateY + numDofs(), res);
 			return 0;
@@ -150,31 +152,31 @@ namespace
 		virtual unsigned int localInletComponentIndex(unsigned int port) const CADET_NOEXCEPT { return port * _nComp; }
 		virtual unsigned int localInletComponentStride(unsigned int port) const CADET_NOEXCEPT { return 1u; }
 
-		virtual int residualSensFwdAdOnly(const cadet::ActiveSimulationTime& simTime, const cadet::ConstSimulationState& simState, cadet::active* const adRes) { return 0; }
+		virtual int residualSensFwdAdOnly(const cadet::ActiveSimulationTime& simTime, const cadet::ConstSimulationState& simState, cadet::active* const adRes, const cadet::util::ThreadLocalStorage<double>& tls) { return 0; }
 
 		virtual int residualSensFwdCombine(const cadet::ActiveSimulationTime& simTime, const cadet::ConstSimulationState& simState, 
 			const std::vector<const double*>& yS, const std::vector<const double*>& ySdot, const std::vector<double*>& resS, cadet::active const* adRes, 
 			double* const tmp1, double* const tmp2, double* const tmp3) { return 0; }
 
-		virtual int residualSensFwdWithJacobian(const cadet::ActiveSimulationTime& simTime, const cadet::ConstSimulationState& simState, const cadet::AdJacobianParams& adJac) { return 0; }
+		virtual int residualSensFwdWithJacobian(const cadet::ActiveSimulationTime& simTime, const cadet::ConstSimulationState& simState, const cadet::AdJacobianParams& adJac, const cadet::util::ThreadLocalStorage<double>& tls) { return 0; }
 
-		virtual void consistentInitialState(const cadet::SimulationTime& simTime, double* const vecStateY, const cadet::AdJacobianParams& adJac, double errorTol)
+		virtual void consistentInitialState(const cadet::SimulationTime& simTime, double* const vecStateY, const cadet::AdJacobianParams& adJac, double errorTol, const cadet::util::ThreadLocalStorage<double>& tls)
 		{
 			std::fill_n(vecStateY + _nInletPorts * _nComp, _nOutletPorts * _nComp, 0.0);
 		}
 
-		virtual void consistentInitialTimeDerivative(const cadet::SimulationTime& simTime, double const* vecStateY, double* const vecStateYdot)
+		virtual void consistentInitialTimeDerivative(const cadet::SimulationTime& simTime, double const* vecStateY, double* const vecStateYdot, const cadet::util::ThreadLocalStorage<double>& tls)
 		{
 			std::fill_n(vecStateYdot + _nInletPorts * _nComp, _nOutletPorts * _nComp, 0.0);
 		}
 
-		virtual void leanConsistentInitialState(const cadet::SimulationTime& simTime, double* const vecStateY, const cadet::AdJacobianParams& adJac, double errorTol) { }
-		virtual void leanConsistentInitialTimeDerivative(double t, double timeFactor, double const* const vecStateY, double* const vecStateYdot, double* const res) { }
+		virtual void leanConsistentInitialState(const cadet::SimulationTime& simTime, double* const vecStateY, const cadet::AdJacobianParams& adJac, double errorTol, const cadet::util::ThreadLocalStorage<double>& tls) { }
+		virtual void leanConsistentInitialTimeDerivative(double t, double timeFactor, double const* const vecStateY, double* const vecStateYdot, double* const res, const cadet::util::ThreadLocalStorage<double>& tls) { }
 
-		virtual void consistentInitialSensitivity(const cadet::ActiveSimulationTime& simTime, const cadet::ConstSimulationState& simState,
-			std::vector<double*>& vecSensY, std::vector<double*>& vecSensYdot, cadet::active const* const adRes) { }
-		virtual void leanConsistentInitialSensitivity(const cadet::ActiveSimulationTime& simTime, const cadet::ConstSimulationState& simState,
-			std::vector<double*>& vecSensY, std::vector<double*>& vecSensYdot, cadet::active const* const adRes) { }
+		virtual void consistentInitialSensitivity(const cadet::ActiveSimulationTime& simTime, const cadet::ConstSimulationState& simState, std::vector<double*>& vecSensY,
+			std::vector<double*>& vecSensYdot, cadet::active const* const adRes, const cadet::util::ThreadLocalStorage<double>& tls) { }
+		virtual void leanConsistentInitialSensitivity(const cadet::ActiveSimulationTime& simTime, const cadet::ConstSimulationState& simState, std::vector<double*>& vecSensY,
+			std::vector<double*>& vecSensYdot, cadet::active const* const adRes, const cadet::util::ThreadLocalStorage<double>& tls) { }
 
 		virtual void setExternalFunctions(cadet::IExternalFunction** extFuns, unsigned int size) { }
 
@@ -199,6 +201,8 @@ namespace
 		{
 			std::fill_n(ret, numDofs(), 0.0);
 		}
+
+		virtual unsigned int threadLocalMemorySize() const CADET_NOEXCEPT { return 0; }
 
 		inline const std::vector<cadet::active>& inFlow() const CADET_NOEXCEPT { return _inFlow; }
 		inline const std::vector<cadet::active>& outFlow() const CADET_NOEXCEPT { return _outFlow; }
@@ -611,10 +615,12 @@ TEST_CASE("ModelSystem Jacobian AD vs analytic", "[ModelSystem],[Jacobian],[AD]"
 			cadet::IModelSystem* const cadSysAna = mb->createSystem(jpp);
 			REQUIRE(cadSysAna);
 			cadet::model::ModelSystem* const sysAna = reinterpret_cast<cadet::model::ModelSystem*>(cadSysAna);
+			sysAna->setupParallelization(cadet::util::getMaxThreads());
 
 			cadet::IModelSystem* const cadSysAD = mb->createSystem(jpp);
 			REQUIRE(cadSysAD);
 			cadet::model::ModelSystem* const sysAD = reinterpret_cast<cadet::model::ModelSystem*>(cadSysAD);
+			sysAD->setupParallelization(cadet::util::getMaxThreads());
 
 			bool* const secContArray = new bool[secCont.size()];
 			std::copy(secCont.begin(), secCont.end(), secContArray);
@@ -715,6 +721,7 @@ TEST_CASE("ModelSystem time derivative Jacobian FD vs analytic", "[ModelSystem],
 			cadet::IModelSystem* const cadSys = mb->createSystem(jpp);
 			REQUIRE(cadSys);
 			cadet::model::ModelSystem* const sys = reinterpret_cast<cadet::model::ModelSystem*>(cadSys);
+			sys->setupParallelization(cadet::util::getMaxThreads());
 
 			bool* const secContArray = new bool[secCont.size()];
 			std::copy(secCont.begin(), secCont.end(), secContArray);
@@ -785,6 +792,7 @@ TEST_CASE("ModelSystem sensitivity Jacobians", "[ModelSystem],[Sensitivity]")
 			cadet::IModelSystem* const cadSys = mb->createSystem(jpp);
 			REQUIRE(cadSys);
 			cadet::model::ModelSystem* const sys = reinterpret_cast<cadet::model::ModelSystem*>(cadSys);
+			sys->setupParallelization(cadet::util::getMaxThreads());
 
 			bool* const secContArray = new bool[secCont.size()];
 			std::copy(secCont.begin(), secCont.end(), secContArray);

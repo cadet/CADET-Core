@@ -89,10 +89,10 @@ public:
 	virtual void reportSolution(ISolutionRecorder& recorder, double const* const solution) const;
 	virtual void reportSolutionStructure(ISolutionRecorder& recorder) const;
 
-	virtual int residual(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res);
-	virtual int residualWithJacobian(const ActiveSimulationTime& simTime, const ConstSimulationState& simState, double* const res, const AdJacobianParams& adJac);
-	virtual int residualSensFwdAdOnly(const ActiveSimulationTime& simTime, const ConstSimulationState& simState, active* const adRes);
-	virtual int residualSensFwdWithJacobian(const ActiveSimulationTime& simTime, const ConstSimulationState& simState, const AdJacobianParams& adJac);
+	virtual int residual(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res, const util::ThreadLocalArray& threadLocalMem);
+	virtual int residualWithJacobian(const ActiveSimulationTime& simTime, const ConstSimulationState& simState, double* const res, const AdJacobianParams& adJac, const util::ThreadLocalArray& threadLocalMem);
+	virtual int residualSensFwdAdOnly(const ActiveSimulationTime& simTime, const ConstSimulationState& simState, active* const adRes, const util::ThreadLocalArray& threadLocalMem);
+	virtual int residualSensFwdWithJacobian(const ActiveSimulationTime& simTime, const ConstSimulationState& simState, const AdJacobianParams& adJac, const util::ThreadLocalArray& threadLocalMem);
 
 	virtual int residualSensFwdCombine(const ActiveSimulationTime& simTime, const ConstSimulationState& simState, 
 		const std::vector<const double*>& yS, const std::vector<const double*>& ySdot, const std::vector<double*>& resS, active const* adRes, 
@@ -107,18 +107,18 @@ public:
 	virtual void applyInitialCondition(const SimulationState& simState) const;
 	virtual void readInitialCondition(IParameterProvider& paramProvider);
 
-	virtual void consistentInitialState(const SimulationTime& simTime, double* const vecStateY, const AdJacobianParams& adJac, double errorTol);
-	virtual void consistentInitialTimeDerivative(const SimulationTime& simTime, double const* vecStateY, double* const vecStateYdot);
+	virtual void consistentInitialState(const SimulationTime& simTime, double* const vecStateY, const AdJacobianParams& adJac, double errorTol, const util::ThreadLocalArray& threadLocalMem);
+	virtual void consistentInitialTimeDerivative(const SimulationTime& simTime, double const* vecStateY, double* const vecStateYdot, const util::ThreadLocalArray& threadLocalMem);
 
 	virtual void consistentInitialSensitivity(const ActiveSimulationTime& simTime, const ConstSimulationState& simState,
-		std::vector<double*>& vecSensY, std::vector<double*>& vecSensYdot, active const* const adRes);
+		std::vector<double*>& vecSensY, std::vector<double*>& vecSensYdot, active const* const adRes, const util::ThreadLocalArray& threadLocalMem);
 	virtual void initializeSensitivityStates(const std::vector<double*>& vecSensY) const;
 
-	virtual void leanConsistentInitialState(const SimulationTime& simTime, double* const vecStateY, const AdJacobianParams& adJac, double errorTol);
-	virtual void leanConsistentInitialTimeDerivative(double t, double timeFactor, double const* const vecStateY, double* const vecStateYdot, double* const res);
+	virtual void leanConsistentInitialState(const SimulationTime& simTime, double* const vecStateY, const AdJacobianParams& adJac, double errorTol, const util::ThreadLocalArray& threadLocalMem);
+	virtual void leanConsistentInitialTimeDerivative(double t, double timeFactor, double const* const vecStateY, double* const vecStateYdot, double* const res, const util::ThreadLocalArray& threadLocalMem);
 
 	virtual void leanConsistentInitialSensitivity(const ActiveSimulationTime& simTime, const ConstSimulationState& simState,
-		std::vector<double*>& vecSensY, std::vector<double*>& vecSensYdot, active const* const adRes);
+		std::vector<double*>& vecSensY, std::vector<double*>& vecSensYdot, active const* const adRes, const util::ThreadLocalArray& threadLocalMem);
 
 	virtual void setExternalFunctions(IExternalFunction** extFuns, unsigned int size) { }
 
@@ -137,6 +137,8 @@ public:
 
 	virtual void expandErrorTol(double const* errorSpec, unsigned int errorSpecSize, double* expandOut) { }
 
+	virtual unsigned int threadLocalMemorySize() const CADET_NOEXCEPT { return 0; }
+
 #ifdef CADET_BENCHMARK_MODE
 	virtual std::vector<double> benchmarkTimings() const { return std::vector<double>(0); }
 	virtual char const* const* benchmarkDescriptions() const { return nullptr; }
@@ -149,7 +151,7 @@ protected:
 	template <typename T> T const* const getData() const;
 
 	template <typename ResidualType, typename ParamType>
-	int residualImpl(const ParamType& t, unsigned int secIdx, const ParamType& timeFactor, const ConstSimulationState& simState, ResidualType* const res);
+	int residualImpl(const ParamType& t, unsigned int secIdx, const ParamType& timeFactor, const ConstSimulationState& simState, ResidualType* const res, const util::ThreadLocalArray& threadLocalMem);
 
 	UnitOpIdx _unitOpIdx; //!< Unit operation index
 	unsigned int _nComp; //!< Number of components

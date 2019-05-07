@@ -20,6 +20,7 @@
 #include "UnitOperation.hpp"
 #include "UnitOperationTests.hpp"
 #include "SimulationTypes.hpp"
+#include "ParallelSupport.hpp"
 
 #include "Utils.hpp"
 
@@ -62,20 +63,22 @@ namespace unitoperation
 		// Obtain memory
 		std::vector<double> yDot(unit->numDofs(), 0.0);
 		std::vector<double> res(unit->numDofs(), 0.0);
+		cadet::util::ThreadLocalStorage<double> tls;
+		tls.resize(unit->threadLocalMemorySize());
 
 		// Initialize algebraic variables in state vector
-		unit->consistentInitialState(SimulationTime{0.0, 0u, 1.0}, y, adParams, consTol);
+		unit->consistentInitialState(SimulationTime{0.0, 0u, 1.0}, y, adParams, consTol, tls);
 
 		// Evaluate residual without yDot and update Jacobians
 		// Store residual in yDot
-		unit->residualWithJacobian(ActiveSimulationTime{0.0, 0u, 1.0}, ConstSimulationState{y, nullptr}, yDot.data(), adParams);
+		unit->residualWithJacobian(ActiveSimulationTime{0.0, 0u, 1.0}, ConstSimulationState{y, nullptr}, yDot.data(), adParams, tls);
 		CAPTURE(yDot);
 
 		// Initialize time derivative of state
-		unit->consistentInitialTimeDerivative(SimulationTime{0.0, 0u, 1.0}, y, yDot.data());
+		unit->consistentInitialTimeDerivative(SimulationTime{0.0, 0u, 1.0}, y, yDot.data(), tls);
 
 		// Check norm of residual (but skip over connection DOFs at the beginning of the local state vector slice)
-		unit->residual(SimulationTime{0.0, 0u, 1.0}, ConstSimulationState{y, yDot.data()}, res.data());
+		unit->residual(SimulationTime{0.0, 0u, 1.0}, ConstSimulationState{y, yDot.data()}, res.data(), tls);
 		INFO("Residual " << linalg::linfNorm(res.data() + unit->numComponents() * unit->numInletPorts(), unit->numDofs() - unit->numComponents() * unit->numInletPorts()));
 		CAPTURE(res);
 		CHECK(linalg::linfNorm(res.data() + unit->numComponents() * unit->numInletPorts(), unit->numDofs() - unit->numComponents() * unit->numInletPorts()) <= absTol);
@@ -109,12 +112,15 @@ namespace unitoperation
 
 		const AdJacobianParams adParams{adRes, adY, nSens};
 
+		cadet::util::ThreadLocalStorage<double> tls;
+		tls.resize(unit->threadLocalMemorySize());
+
 		// Setup matrices
 		unit->notifyDiscontinuousSectionTransition(0.0, 0u, adParams);
 
 		// Calculate dres / dp and Jacobians
 		const ActiveSimulationTime simTime{0.0, 0u, 1.0};
-		unit->residualSensFwdWithJacobian(simTime, ConstSimulationState{y, yDot}, adParams);
+		unit->residualSensFwdWithJacobian(simTime, ConstSimulationState{y, yDot}, adParams, tls);
 
 		// Obtain memory
 		std::vector<double> sensY(unit->numDofs() * nSens, 0.0);
@@ -145,10 +151,10 @@ namespace unitoperation
 		util::populate(sensYdot.data(), [](unsigned int idx) { return std::abs(std::sin(idx * 0.9)) + 1e-4; }, sensYdot.size());
 
 		// Initialize sensitivity state vectors
-		unit->consistentInitialSensitivity(simTime, ConstSimulationState{y, yDot}, vecSensY, vecSensYdot, adRes);
+		unit->consistentInitialSensitivity(simTime, ConstSimulationState{y, yDot}, vecSensY, vecSensYdot, adRes,tls);
 
 		// Check norm of residual (but skip over connection DOFs at the beginning of the local state vector slice)
-		unit->residualSensFwdAdOnly(simTime, ConstSimulationState{y, yDot}, adRes);
+		unit->residualSensFwdAdOnly(simTime, ConstSimulationState{y, yDot}, adRes, tls);
 		unit->residualSensFwdCombine(simTime, ConstSimulationState{y, yDot}, cVecSensY, cVecSensYdot, vecRes, adRes, tmp1.data(), tmp2.data(), tmp3.data());
 
 		for (unsigned int i = 0; i < nSens; ++i)
@@ -190,11 +196,13 @@ namespace unitoperation
 		// Obtain memory
 		std::vector<double> y(unit->numDofs(), 0.0);
 		std::vector<double> jac(unit->numDofs(), 0.0);
+		cadet::util::ThreadLocalStorage<double> tls;
+		tls.resize(unit->threadLocalMemorySize());
 
 		// Assemble Jacobian
 		const ActiveSimulationTime simTime{0.0, 0u, 1.0};
 		const ConstSimulationState simState{y.data(), nullptr};
-		unit->residualWithJacobian(simTime, simState, jac.data(), adParams);
+		unit->residualWithJacobian(simTime, simState, jac.data(), adParams, tls);
 
 		// Check ports and components
 		const unsigned int inletBlockSize = unit->numInletPorts() * unit->numComponents();

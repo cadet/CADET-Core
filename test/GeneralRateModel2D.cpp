@@ -21,6 +21,7 @@
 #include "cadet/ModelBuilder.hpp"
 #include "ModelBuilderImpl.hpp"
 #include "cadet/FactoryFuncs.hpp"
+#include "ParallelSupport.hpp"
 
 TEST_CASE("GRM2D LWE forward vs backward flow", "[GRM2D],[Simulation]")
 {
@@ -221,6 +222,8 @@ TEST_CASE("GRM2D with 1 radial zone matches GRM", "[GRM],[GRM2D],[UnitOp],[Jacob
 	std::vector<double> jacDir(nDof, 0.0);
 	std::vector<double> jacCol1(nDof, 0.0);
 	std::vector<double> jacCol2(nDof, 0.0);
+	cadet::util::ThreadLocalStorage<double> tls;
+	tls.resize(std::max(grm2d->threadLocalMemorySize(), grm->threadLocalMemorySize()));
 
 	// Fill state vectors with some values
 	cadet::test::util::populate(y.data(), [=](unsigned int idx) { return std::abs(std::sin(idx * 0.13)) + 1e-4; }, nDof);
@@ -229,8 +232,8 @@ TEST_CASE("GRM2D with 1 radial zone matches GRM", "[GRM],[GRM2D],[UnitOp],[Jacob
 	// Compute Jacobian
 	const cadet::ActiveSimulationTime simTime{0.0, 0u, 1.0};
 	const cadet::ConstSimulationState simState{y.data(), yDot.data()};
-	grm->residualWithJacobian(simTime, simState, jacCol1.data(), noAdParams);
-	grm2d->residualWithJacobian(simTime, simState, jacCol2.data(), noAdParams);
+	grm->residualWithJacobian(simTime, simState, jacCol1.data(), noAdParams, tls);
+	grm2d->residualWithJacobian(simTime, simState, jacCol2.data(), noAdParams, tls);
 
 	for (unsigned int i = 0; i < nDof; ++i)
 	{

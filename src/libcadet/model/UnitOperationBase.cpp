@@ -46,7 +46,10 @@ namespace
 			{
 				for (T const* bm : items)
 				{
-					const std::unordered_map<ParameterId, double> localData = bm->getAllParameterValues();
+                    if (!bm)
+                        continue;
+
+                    const std::unordered_map<ParameterId, double> localData = bm->getAllParameterValues();
 					for (const std::pair<ParameterId, double>& val : localData)
 						data[val.first] = val.second;
 				}
@@ -73,7 +76,10 @@ namespace
 			{
 				for (T* bm : items)
 				{
-					active const* const val = bm->getParameter(pId);
+                    if (!bm)
+                        continue;
+
+                    active const* const val = bm->getParameter(pId);
 					if (val)
 					{
 						out = static_cast<double>(*val);
@@ -101,7 +107,7 @@ namespace
 			{
 				for (T const* bm : items)
 				{
-					if (bm->hasParameter(pId))
+					if (bm && bm->hasParameter(pId))
 						return true;
 				}
 			}
@@ -124,7 +130,7 @@ namespace
 			{
 				for (T* bm : items)
 				{
-					if (bm->setParameter(pId, value))
+					if (bm && bm->setParameter(pId, value))
 						return true;
 				}
 			}
@@ -151,6 +157,9 @@ namespace
 			{
 				for (T* bm : items)
 				{
+                    if (!bm)
+                        continue;
+
 					active* const val = bm->getParameter(pId);
 					if (val && contains(sensParams, val))
 					{
@@ -184,6 +193,9 @@ namespace
 			{
 				for (T* bm : items)
 				{
+				    if (!bm)
+				        continue;
+
 					active* const paramBinding = bm->getParameter(pId);
 					if (paramBinding)
 					{

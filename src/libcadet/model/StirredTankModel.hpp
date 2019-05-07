@@ -74,12 +74,12 @@ public:
 	virtual void reportSolution(ISolutionRecorder& recorder, double const* const solution) const;
 	virtual void reportSolutionStructure(ISolutionRecorder& recorder) const;
 
-	virtual int residual(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res);
-	virtual int residual(const ActiveSimulationTime& simTime, const ConstSimulationState& simState, double* const res, const AdJacobianParams& adJac, bool updateJacobian, bool paramSensitivity);
+	virtual int residual(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res, const util::ThreadLocalArray& threadLocalMem);
+	virtual int residual(const ActiveSimulationTime& simTime, const ConstSimulationState& simState, double* const res, const AdJacobianParams& adJac, const util::ThreadLocalArray& threadLocalMem, bool updateJacobian, bool paramSensitivity);
 
-	virtual int residualWithJacobian(const ActiveSimulationTime& simTime, const ConstSimulationState& simState, double* const res, const AdJacobianParams& adJac);
-	virtual int residualSensFwdAdOnly(const ActiveSimulationTime& simTime, const ConstSimulationState& simState, active* const adRes);
-	virtual int residualSensFwdWithJacobian(const ActiveSimulationTime& simTime, const ConstSimulationState& simState, const AdJacobianParams& adJac);
+	virtual int residualWithJacobian(const ActiveSimulationTime& simTime, const ConstSimulationState& simState, double* const res, const AdJacobianParams& adJac, const util::ThreadLocalArray& threadLocalMem);
+	virtual int residualSensFwdAdOnly(const ActiveSimulationTime& simTime, const ConstSimulationState& simState, active* const adRes, const util::ThreadLocalArray& threadLocalMem);
+	virtual int residualSensFwdWithJacobian(const ActiveSimulationTime& simTime, const ConstSimulationState& simState, const AdJacobianParams& adJac, const util::ThreadLocalArray& threadLocalMem);
 
 	virtual int linearSolve(double t, double timeFactor, double alpha, double tol, double* const rhs, double const* const weight,
 		const ConstSimulationState& simState);
@@ -89,18 +89,18 @@ public:
 	virtual void applyInitialCondition(const SimulationState& simState) const;
 	virtual void readInitialCondition(IParameterProvider& paramProvider);
 
-	virtual void consistentInitialState(const SimulationTime& simTime, double* const vecStateY, const AdJacobianParams& adJac, double errorTol);
-	virtual void consistentInitialTimeDerivative(const SimulationTime& simTime, double const* vecStateY, double* const vecStateYdot);
+	virtual void consistentInitialState(const SimulationTime& simTime, double* const vecStateY, const AdJacobianParams& adJac, double errorTol, const util::ThreadLocalArray& threadLocalMem);
+	virtual void consistentInitialTimeDerivative(const SimulationTime& simTime, double const* vecStateY, double* const vecStateYdot, const util::ThreadLocalArray& threadLocalMem);
 	
 	virtual void initializeSensitivityStates(const std::vector<double*>& vecSensY) const;
 	virtual void consistentInitialSensitivity(const ActiveSimulationTime& simTime, const ConstSimulationState& simState,
-		std::vector<double*>& vecSensY, std::vector<double*>& vecSensYdot, active const* const adRes);
+		std::vector<double*>& vecSensY, std::vector<double*>& vecSensYdot, active const* const adRes, const util::ThreadLocalArray& threadLocalMem);
 
-	virtual void leanConsistentInitialState(const SimulationTime& simTime, double* const vecStateY, const AdJacobianParams& adJac, double errorTol);
-	virtual void leanConsistentInitialTimeDerivative(double t, double timeFactor, double const* const vecStateY, double* const vecStateYdot, double* const res);
+	virtual void leanConsistentInitialState(const SimulationTime& simTime, double* const vecStateY, const AdJacobianParams& adJac, double errorTol, const util::ThreadLocalArray& threadLocalMem);
+	virtual void leanConsistentInitialTimeDerivative(double t, double timeFactor, double const* const vecStateY, double* const vecStateYdot, double* const res, const util::ThreadLocalArray& threadLocalMem);
 	
 	virtual void leanConsistentInitialSensitivity(const ActiveSimulationTime& simTime, const ConstSimulationState& simState,
-		std::vector<double*>& vecSensY, std::vector<double*>& vecSensYdot, active const* const adRes);
+		std::vector<double*>& vecSensY, std::vector<double*>& vecSensYdot, active const* const adRes, const util::ThreadLocalArray& threadLocalMem);
 
 	virtual void setExternalFunctions(IExternalFunction** extFuns, unsigned int size) { }
 
@@ -119,6 +119,8 @@ public:
 
 	virtual void expandErrorTol(double const* errorSpec, unsigned int errorSpecSize, double* expandOut) { }
 
+	virtual unsigned int threadLocalMemorySize() const CADET_NOEXCEPT;
+
 #ifdef CADET_BENCHMARK_MODE
 	virtual std::vector<double> benchmarkTimings() const { return std::vector<double>(0); }
 	virtual char const* const* benchmarkDescriptions() const { return nullptr; }
@@ -132,7 +134,7 @@ public:
 protected:
 
 	template <typename StateType, typename ResidualType, typename ParamType, bool wantJac>
-	int residualImpl(const ParamType& t, unsigned int secIdx, const ParamType& timeFactor, StateType const* const y, double const* const yDot, ResidualType* const res);
+	int residualImpl(const ParamType& t, unsigned int secIdx, const ParamType& timeFactor, StateType const* const y, double const* const yDot, ResidualType* const res, const util::ThreadLocalArray& threadLocalMem);
 
 	template <typename MatrixType>
 	void addTimeDerivativeJacobian(double t, double timeFactor, const ConstSimulationState& simState, MatrixType& mat);
@@ -161,7 +163,6 @@ protected:
 	linalg::DenseMatrix _jac; //!< Jacobian
 	linalg::DenseMatrix _jacFact; //!< Factorized Jacobian
 	bool _factorizeJac; //!< Flag that tracks whether the Jacobian needs to be factorized
-	double* _consistentInitBuffer; //!< Memory for consistent initialization (solving nonlinear equations)
 
 	std::vector<active> _initConditions; //!< Initial conditions, ordering: Liquid phase concentration, solid phase concentration, volume
 	std::vector<double> _initConditionsDot; //!< Initial conditions for time derivative

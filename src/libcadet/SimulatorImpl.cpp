@@ -1062,6 +1062,10 @@ namespace cadet
 			init.initialize(_nThreads);
 		else
 			init.initialize(tbb::task_scheduler_init::default_num_threads());
+
+		_model->setupParallelization(tbb::this_task_arena::max_concurrency());
+#else
+		_model->setupParallelization(1);
 #endif
 
 		// Set number of threads in SUNDIALS OpenMP-enabled implementation

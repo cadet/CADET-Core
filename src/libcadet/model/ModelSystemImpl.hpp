@@ -33,6 +33,7 @@
 #ifdef CADET_PARALLELIZE
 	#include <tbb/spin_mutex.h>
 #endif
+#include "ParallelSupport.hpp"
 
 #include "linalg/SparseMatrix.hpp"
 #include "linalg/Gmres.hpp"
@@ -141,6 +142,8 @@ public:
 
 	virtual void expandErrorTol(double const* errorSpec, unsigned int errorSpecSize, double* expandOut);
 	virtual std::vector<double> calculateErrorTolsForAdditionalDofs(double const* errorTol, unsigned int errorTolLength);
+
+	virtual void setupParallelization(unsigned int numThreads);
 
 #ifdef CADET_BENCHMARK_MODE
 	virtual std::vector<double> benchmarkTimings() const
@@ -264,6 +267,8 @@ protected:
 
 	std::vector<double> _initState; //!< Initial state vector
 	std::vector<double> _initStateDot; //!< Initial time derivative state vector
+
+	util::ThreadLocalStorage<double> _threadLocalStorage; //!< Local storage for each thread
 
 #ifdef CADET_PARALLELIZE
 	typedef tbb::spin_mutex SchurComplementMutex;

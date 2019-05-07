@@ -58,7 +58,7 @@ int schurComplementMultiplierGRM(void* userData, double const* x, double* z)
 
 
 GeneralRateModel::GeneralRateModel(UnitOpIdx unitOpIdx) : UnitOperationBase(unitOpIdx),
-	_bindingWorkspaceOffset(nullptr), _dynReactionWorkspaceOffset(nullptr), _dynReactionBulk(nullptr),
+	_dynReactionBulk(nullptr),
 	_jacP(nullptr), _jacPdisc(nullptr), _jacPF(nullptr), _jacFP(nullptr), _jacInlet(),
 	_analyticJac(true), _jacobianAdDirs(0), _factorizeJacobian(false), _tempState(nullptr),
 	_initC(0), _initCp(0), _initQ(0), _initState(0), _initStateDot(0)
@@ -75,8 +75,6 @@ GeneralRateModel::~GeneralRateModel() CADET_NOEXCEPT
 	delete[] _jacP;
 	delete[] _jacPdisc;
 
-	delete[] _bindingWorkspaceOffset;
-	delete[] _dynReactionWorkspaceOffset;
 	delete _dynReactionBulk;
 
 	delete[] _disc.nParCell;
@@ -314,9 +312,6 @@ bool GeneralRateModel::configureModelDiscretization(IParameterProvider& paramPro
 		throw InvalidParameterException("Field ADSORPTION_MODEL requires (only) 1 element");
 
 	bool bindingConfSuccess = true;
-	unsigned int bindingRequiredMem = 0;
-	_bindingWorkspaceOffset = new unsigned int[_disc.nParType];
-	_bindingWorkspaceOffset[0] = 0;
 	for (unsigned int i = 0; i < _disc.nParType; ++i)
 	{
 		if (_singleBinding && (i > 0))
@@ -332,27 +327,10 @@ bool GeneralRateModel::configureModelDiscretization(IParameterProvider& paramPro
 
 			bindingConfSuccess = _binding[i]->configureModelDiscretization(paramProvider, _disc.nComp, _disc.nBound + i * _disc.nComp, _disc.boundOffset + i * _disc.nComp) && bindingConfSuccess;
 		}
-
-		// In case of a single binding model, we still require the additional memory per type because of parallelization
-		if (_binding[i]->requiresWorkspace())
-		{
-			// Required memory (number of doubles) for nonlinear solvers
-			const unsigned int requiredMem = (_binding[i]->workspaceSize(_disc.nComp, _disc.strideBound[i], _disc.nBound + i * _disc.nComp) + sizeof(double) - 1) / sizeof(double) * _disc.nCol;
-			bindingRequiredMem += requiredMem;
-
-			if (i != _disc.nParType - 1)
-				_bindingWorkspaceOffset[i+1] = _bindingWorkspaceOffset[i] + requiredMem;
-		}
-		else
-		{
-			if (i != _disc.nParType - 1)
-				_bindingWorkspaceOffset[i+1] = _bindingWorkspaceOffset[i];
-		}
 	}
 
 	// ==== Construct and configure dynamic reaction model
 	bool reactionConfSuccess = true;
-	unsigned int reactionRequiredMem = 0;
 
 	_dynReactionBulk = nullptr;
 	if (paramProvider.exists("REACTION_MODEL"))
@@ -365,13 +343,6 @@ bool GeneralRateModel::configureModelDiscretization(IParameterProvider& paramPro
 		paramProvider.pushScope("reaction_bulk");
 		reactionConfSuccess = _dynReactionBulk->configureModelDiscretization(paramProvider, _disc.nComp, nullptr, nullptr);
 		paramProvider.popScope();
-
-		if (_dynReactionBulk->requiresWorkspace())
-		{
-			// Required memory (number of doubles) for nonlinear solvers
-			const unsigned int requiredMem = (_dynReactionBulk->workspaceSize(_disc.nComp, 0, nullptr) + sizeof(double) - 1) / sizeof(double);
-			reactionRequiredMem += requiredMem;
-		}
 	}
 
 	clearDynamicReactionModels();
@@ -394,8 +365,6 @@ bool GeneralRateModel::configureModelDiscretization(IParameterProvider& paramPro
 		else if (_singleDynReaction && (dynReactModelNames.size() != 1))
 			throw InvalidParameterException("Field REACTION_MODEL_PARTICLES requires (only) 1 element");
 
-		_dynReactionWorkspaceOffset = new unsigned int[_disc.nParType];
-		_dynReactionWorkspaceOffset[0] = reactionRequiredMem;
 		for (unsigned int i = 0; i < _disc.nParType; ++i)
 		{
 			if (_singleDynReaction && (i > 0))
@@ -411,28 +380,11 @@ bool GeneralRateModel::configureModelDiscretization(IParameterProvider& paramPro
 
 				reactionConfSuccess = _dynReaction[i]->configureModelDiscretization(paramProvider, _disc.nComp, _disc.nBound + i * _disc.nComp, _disc.boundOffset + i * _disc.nComp) && reactionConfSuccess;
 			}
-
-			// In case of a single binding model, we still require the additional memory per type because of parallelization
-			if (_dynReaction[i]->requiresWorkspace())
-			{
-				// Required memory (number of doubles) for nonlinear solvers
-				const unsigned int requiredMem = (_dynReaction[i]->workspaceSize(_disc.nComp, _disc.strideBound[i], _disc.nBound + i * _disc.nComp) + sizeof(double) - 1) / sizeof(double) * _disc.nCol;
-				reactionRequiredMem += requiredMem;
-
-				if (i != _disc.nParType - 1)
-					_dynReactionWorkspaceOffset[i+1] = _dynReactionWorkspaceOffset[i] + requiredMem;
-			}
-			else
-			{
-				if (i != _disc.nParType - 1)
-					_dynReactionWorkspaceOffset[i+1] = _dynReactionWorkspaceOffset[i];
-			}
 		}
 	}
 
-	// setup the memory for tempState based on state vector or memory needed for consistent initialization of isotherms, whichever is larger
-	const unsigned int size = std::max(std::max(numDofs(), bindingRequiredMem), reactionRequiredMem);
-	_tempState = new double[size];
+	// Setup the memory for tempState based on state vector
+	_tempState = new double[numDofs()];
 
 	return transportSuccess && bindingConfSuccess && reactionConfSuccess;
 }
@@ -683,6 +635,36 @@ bool GeneralRateModel::configure(IParameterProvider& paramProvider)
 	return transportSuccess && bindingConfSuccess && dynReactionConfSuccess;
 }
 
+unsigned int GeneralRateModel::threadLocalMemorySize() const CADET_NOEXCEPT
+{
+	unsigned int maxRequiredMem = 0;
+	for (unsigned int i = 0; i < _disc.nParType; ++i)
+	{
+		if (_binding[i]->requiresWorkspace())
+		{
+			const unsigned int requiredMem = _binding[i]->workspaceSize(_disc.nComp, _disc.strideBound[i], _disc.nBound + i * _disc.nComp);
+			maxRequiredMem = std::max(maxRequiredMem, requiredMem);
+		}
+	}
+
+	if (_dynReactionBulk && _dynReactionBulk->requiresWorkspace())
+	{
+		const unsigned int requiredMem = _dynReactionBulk->workspaceSize(_disc.nComp, 0, nullptr);
+		maxRequiredMem = std::max(maxRequiredMem, requiredMem);
+	}
+
+	for (unsigned int i = 0; i < _disc.nParType; ++i)
+	{
+		if (_dynReaction[i] && _dynReaction[i]->requiresWorkspace())
+		{
+			const unsigned int requiredMem = _dynReaction[i]->workspaceSize(_disc.nComp, _disc.strideBound[i], _disc.nBound + i * _disc.nComp);
+			maxRequiredMem = std::max(maxRequiredMem, requiredMem);
+		}
+	}
+
+	return maxRequiredMem;
+}
+
 unsigned int GeneralRateModel::numAdDirsForJacobian() const CADET_NOEXCEPT
 {
 	// We need as many directions as the highest bandwidth of the diagonal blocks:
@@ -860,24 +842,24 @@ void GeneralRateModel::checkAnalyticJacobianAgainstAd(active const* const adRes,
 
 #endif
 
-int GeneralRateModel::residual(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res)
+int GeneralRateModel::residual(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res, const util::ThreadLocalArray& threadLocalMem)
 {
 	BENCH_SCOPE(_timerResidual);
 
 	// Evaluate residual do not compute Jacobian or parameter sensitivities
-	return residualImpl<double, double, double, false>(simTime.t, simTime.secIdx, simTime.timeFactor, simState.vecStateY, simState.vecStateYdot, res);
+	return residualImpl<double, double, double, false>(simTime.t, simTime.secIdx, simTime.timeFactor, simState.vecStateY, simState.vecStateYdot, res, threadLocalMem);
 }
 
-int GeneralRateModel::residualWithJacobian(const ActiveSimulationTime& simTime, const ConstSimulationState& simState, double* const res, const AdJacobianParams& adJac)
+int GeneralRateModel::residualWithJacobian(const ActiveSimulationTime& simTime, const ConstSimulationState& simState, double* const res, const AdJacobianParams& adJac, const util::ThreadLocalArray& threadLocalMem)
 {
 	BENCH_SCOPE(_timerResidual);
 
 	// Evaluate residual, use AD for Jacobian if required but do not evaluate parameter derivatives
-	return residual(simTime, simState, res, adJac, true, false);
+	return residual(simTime, simState, res, adJac, threadLocalMem, true, false);
 }
 
 int GeneralRateModel::residual(const ActiveSimulationTime& simTime, const ConstSimulationState& simState, double* const res, 
-	const AdJacobianParams& adJac, bool updateJacobian, bool paramSensitivity)
+	const AdJacobianParams& adJac, const util::ThreadLocalArray& threadLocalMem, bool updateJacobian, bool paramSensitivity)
 {
 	if (updateJacobian)
 	{
@@ -888,7 +870,7 @@ int GeneralRateModel::residual(const ActiveSimulationTime& simTime, const ConstS
 		{
 			if (paramSensitivity)
 			{
-				const int retCode = residualImpl<double, active, active, true>(simTime.t, simTime.secIdx, simTime.timeFactor, simState.vecStateY, simState.vecStateYdot, adJac.adRes);
+				const int retCode = residualImpl<double, active, active, true>(simTime.t, simTime.secIdx, simTime.timeFactor, simState.vecStateY, simState.vecStateYdot, adJac.adRes, threadLocalMem);
 
 				// Copy AD residuals to original residuals vector
 				if (res)
@@ -897,7 +879,7 @@ int GeneralRateModel::residual(const ActiveSimulationTime& simTime, const ConstS
 				return retCode;
 			}
 			else
-				return residualImpl<double, double, double, true>(static_cast<double>(simTime.t), simTime.secIdx, static_cast<double>(simTime.timeFactor), simState.vecStateY, simState.vecStateYdot, res);
+				return residualImpl<double, double, double, true>(static_cast<double>(simTime.t), simTime.secIdx, static_cast<double>(simTime.timeFactor), simState.vecStateY, simState.vecStateYdot, res, threadLocalMem);
 		}
 		else
 		{
@@ -912,9 +894,9 @@ int GeneralRateModel::residual(const ActiveSimulationTime& simTime, const ConstS
 			// Evaluate with AD enabled
 			int retCode = 0;
 			if (paramSensitivity)
-				retCode = residualImpl<active, active, active, false>(simTime.t, simTime.secIdx, simTime.timeFactor, adJac.adY, simState.vecStateYdot, adJac.adRes);
+				retCode = residualImpl<active, active, active, false>(simTime.t, simTime.secIdx, simTime.timeFactor, adJac.adY, simState.vecStateYdot, adJac.adRes, threadLocalMem);
 			else
-				retCode = residualImpl<active, active, double, false>(static_cast<double>(simTime.t), simTime.secIdx, static_cast<double>(simTime.timeFactor), adJac.adY, simState.vecStateYdot, adJac.adRes);
+				retCode = residualImpl<active, active, double, false>(static_cast<double>(simTime.t), simTime.secIdx, static_cast<double>(simTime.timeFactor), adJac.adY, simState.vecStateYdot, adJac.adRes, threadLocalMem);
 
 			// Copy AD residuals to original residuals vector
 			if (res)
@@ -937,15 +919,15 @@ int GeneralRateModel::residual(const ActiveSimulationTime& simTime, const ConstS
 		// Evaluate with AD enabled
 		int retCode = 0;
 		if (paramSensitivity)
-			retCode = residualImpl<active, active, active, false>(simTime.t, simTime.secIdx, simTime.timeFactor, adJac.adY, simState.vecStateYdot, adJac.adRes);
+			retCode = residualImpl<active, active, active, false>(simTime.t, simTime.secIdx, simTime.timeFactor, adJac.adY, simState.vecStateYdot, adJac.adRes, threadLocalMem);
 		else
-			retCode = residualImpl<active, active, double, false>(static_cast<double>(simTime.t), simTime.secIdx, static_cast<double>(simTime.timeFactor), adJac.adY, simState.vecStateYdot, adJac.adRes);
+			retCode = residualImpl<active, active, double, false>(static_cast<double>(simTime.t), simTime.secIdx, static_cast<double>(simTime.timeFactor), adJac.adY, simState.vecStateYdot, adJac.adRes, threadLocalMem);
 
 		// Only do comparison if we have a residuals vector (which is not always the case)
 		if (res)
 		{
 			// Evaluate with analytical Jacobian which is stored in the band matrices
-			retCode = residualImpl<double, double, double, true>(static_cast<double>(simTime.t), simTime.secIdx, static_cast<double>(simTime.timeFactor), simState.vecStateY, simState.vecStateYdot, res);
+			retCode = residualImpl<double, double, double, true>(static_cast<double>(simTime.t), simTime.secIdx, static_cast<double>(simTime.timeFactor), simState.vecStateY, simState.vecStateYdot, res, threadLocalMem);
 
 			// Compare AD with anaytic Jacobian
 			checkAnalyticJacobianAgainstAd(adJac.adRes, adJac.adDirOffset);
@@ -965,7 +947,7 @@ int GeneralRateModel::residual(const ActiveSimulationTime& simTime, const ConstS
 			// @todo Check if this is necessary
 			ad::resetAd(adJac.adRes, numDofs());
 
-			const int retCode = residualImpl<double, active, active, false>(simTime.t, simTime.secIdx, simTime.timeFactor, simState.vecStateY, simState.vecStateYdot, adJac.adRes);
+			const int retCode = residualImpl<double, active, active, false>(simTime.t, simTime.secIdx, simTime.timeFactor, simState.vecStateY, simState.vecStateYdot, adJac.adRes, threadLocalMem);
 
 			// Copy AD residuals to original residuals vector
 			if (res)
@@ -974,12 +956,12 @@ int GeneralRateModel::residual(const ActiveSimulationTime& simTime, const ConstS
 			return retCode;
 		}
 		else
-			return residualImpl<double, double, double, false>(static_cast<double>(simTime.t), simTime.secIdx, static_cast<double>(simTime.timeFactor), simState.vecStateY, simState.vecStateYdot, res);
+			return residualImpl<double, double, double, false>(static_cast<double>(simTime.t), simTime.secIdx, static_cast<double>(simTime.timeFactor), simState.vecStateY, simState.vecStateYdot, res, threadLocalMem);
 	}
 }
 
 template <typename StateType, typename ResidualType, typename ParamType, bool wantJac>
-int GeneralRateModel::residualImpl(const ParamType& t, unsigned int secIdx, const ParamType& timeFactor, StateType const* const y, double const* const yDot, ResidualType* const res)
+int GeneralRateModel::residualImpl(const ParamType& t, unsigned int secIdx, const ParamType& timeFactor, StateType const* const y, double const* const yDot, ResidualType* const res, const util::ThreadLocalArray& threadLocalMem)
 {
 	BENCH_START(_timerResidualPar);
 
@@ -990,12 +972,12 @@ int GeneralRateModel::residualImpl(const ParamType& t, unsigned int secIdx, cons
 #endif
 	{
 		if (cadet_unlikely(pblk == 0))
-			residualBulk<StateType, ResidualType, ParamType, wantJac>(t, secIdx, timeFactor, y, yDot, res);
+			residualBulk<StateType, ResidualType, ParamType, wantJac>(t, secIdx, timeFactor, y, yDot, res, threadLocalMem);
 		else
 		{
 			const unsigned int type = (pblk - 1) / _disc.nCol;
 			const unsigned int par = (pblk - 1) % _disc.nCol;
-			residualParticle<StateType, ResidualType, ParamType, wantJac>(t, type, par, secIdx, timeFactor, y, yDot, res);
+			residualParticle<StateType, ResidualType, ParamType, wantJac>(t, type, par, secIdx, timeFactor, y, yDot, res, threadLocalMem);
 		}
 	} CADET_PARFOR_END;
 
@@ -1013,7 +995,7 @@ int GeneralRateModel::residualImpl(const ParamType& t, unsigned int secIdx, cons
 }
 
 template <typename StateType, typename ResidualType, typename ParamType, bool wantJac>
-int GeneralRateModel::residualBulk(const ParamType& t, unsigned int secIdx, const ParamType& timeFactor, StateType const* yBase, double const* yDotBase, ResidualType* resBase)
+int GeneralRateModel::residualBulk(const ParamType& t, unsigned int secIdx, const ParamType& timeFactor, StateType const* yBase, double const* yDotBase, ResidualType* resBase, const util::ThreadLocalArray& threadLocalMem)
 {
 	_convDispOp.residual(t, secIdx, timeFactor, yBase, yDotBase, resBase, wantJac);
 	if (!_dynReactionBulk)
@@ -1044,7 +1026,8 @@ int GeneralRateModel::residualBulk(const ParamType& t, unsigned int secIdx, cons
 }
 
 template <typename StateType, typename ResidualType, typename ParamType, bool wantJac>
-int GeneralRateModel::residualParticle(const ParamType& t, unsigned int parType, unsigned int colCell, unsigned int secIdx, const ParamType& timeFactor, StateType const* yBase, double const* yDotBase, ResidualType* resBase)
+int GeneralRateModel::residualParticle(const ParamType& t, unsigned int parType, unsigned int colCell, unsigned int secIdx, const ParamType& timeFactor, StateType const* yBase,
+	double const* yDotBase, ResidualType* resBase, const util::ThreadLocalArray& threadLocalMem)
 {
 	Indexer idxr(_disc);
 
@@ -1053,12 +1036,9 @@ int GeneralRateModel::residualParticle(const ParamType& t, unsigned int parType,
 	double const* yDot = yDotBase + idxr.offsetCp(ParticleTypeIndex{parType}, ParticleIndex{colCell});
 	ResidualType* res = resBase + idxr.offsetCp(ParticleTypeIndex{parType}, ParticleIndex{colCell});
 
-	const unsigned int bindingRequiredMem = (_binding[parType]->workspaceSize(_disc.nComp, _disc.strideBound[parType], _disc.nBound + parType * _disc.nComp) + sizeof(double) - 1) / sizeof(double);
-	double* const bindBuffer = _tempState + _bindingWorkspaceOffset[parType] + bindingRequiredMem * colCell;
+	double* const buffer = threadLocalMem.get();
 
 	IDynamicReactionModel* const dynReaction = _dynReaction[parType];
-	const unsigned int reactionRequiredMem = dynReaction ? (dynReaction->workspaceSize(_disc.nComp, _disc.strideBound[parType], _disc.nBound + parType * _disc.nComp) + sizeof(double) - 1) / sizeof(double) : 0u;
-	double* const reactionBuffer = dynReaction ? (_tempState + _dynReactionWorkspaceOffset[parType] + reactionRequiredMem * colCell) : nullptr;
 
 	// Prepare parameters
 	active const* const parDiff = getSectionDependentSlice(_parDiffusion, _disc.nComp * _disc.nParType, secIdx) + parType * _disc.nComp;
@@ -1209,21 +1189,21 @@ int GeneralRateModel::residualParticle(const ParamType& t, unsigned int parType,
 			yDot = nullptr;
 
 		const ColumnPosition colPos{z, 0.0, static_cast<double>(parCenterRadius[par]) / static_cast<double>(_parRadius[parType])};
-		_binding[parType]->residual(t, secIdx, timeFactor, colPos, y, y - _disc.nComp, yDot, res, bindBuffer);
+		_binding[parType]->residual(t, secIdx, timeFactor, colPos, y, y - _disc.nComp, yDot, res, buffer);
 		if (wantJac)
 		{
 			// static_cast should be sufficient here, but this statement is also analyzed when wantJac = false
-			_binding[parType]->analyticJacobian(static_cast<double>(t), secIdx, colPos, reinterpret_cast<double const*>(y), _disc.nComp, jac, bindBuffer);
+			_binding[parType]->analyticJacobian(static_cast<double>(t), secIdx, colPos, reinterpret_cast<double const*>(y), _disc.nComp, jac, buffer);
 		}
 
 		// Reaction
 		if (dynReaction)
 		{
-			dynReaction->residualCombinedAdd(static_cast<double>(t), secIdx, colPos, y - _disc.nComp, res - _disc.nComp, -1.0, reactionBuffer);
+			dynReaction->residualCombinedAdd(static_cast<double>(t), secIdx, colPos, y - _disc.nComp, res - _disc.nComp, -1.0, buffer);
 			if (wantJac)
 			{
 				// static_cast should be sufficient here, but this statement is also analyzed when wantJac = false
-				dynReaction->analyticJacobianCombinedAdd(static_cast<double>(t), secIdx, colPos, reinterpret_cast<double const*>(y - _disc.nComp), -1.0, jac - _disc.nComp, reactionBuffer);
+				dynReaction->analyticJacobianCombinedAdd(static_cast<double>(t), secIdx, colPos, reinterpret_cast<double const*>(y - _disc.nComp), -1.0, jac - _disc.nComp, buffer);
 			}
 		}
 
@@ -1425,21 +1405,21 @@ void GeneralRateModel::assembleOffdiagJac(double t, unsigned int secIdx)
 	_discParFlux.destroy<double>();
 }
 
-int GeneralRateModel::residualSensFwdWithJacobian(const ActiveSimulationTime& simTime, const ConstSimulationState& simState, const AdJacobianParams& adJac)
+int GeneralRateModel::residualSensFwdWithJacobian(const ActiveSimulationTime& simTime, const ConstSimulationState& simState, const AdJacobianParams& adJac, const util::ThreadLocalArray& threadLocalMem)
 {
 	BENCH_SCOPE(_timerResidualSens);
 
 	// Evaluate residual for all parameters using AD in vector mode and at the same time update the 
 	// Jacobian (in one AD run, if analytic Jacobians are disabled)
-	return residual(simTime, simState, nullptr, adJac, true, true);
+	return residual(simTime, simState, nullptr, adJac, threadLocalMem, true, true);
 }
 
-int GeneralRateModel::residualSensFwdAdOnly(const ActiveSimulationTime& simTime, const ConstSimulationState& simState, active* const adRes)
+int GeneralRateModel::residualSensFwdAdOnly(const ActiveSimulationTime& simTime, const ConstSimulationState& simState, active* const adRes, const util::ThreadLocalArray& threadLocalMem)
 {
 	BENCH_SCOPE(_timerResidualSens);
 
 	// Evaluate residual for all parameters using AD in vector mode
-	return residualImpl<double, active, active, false>(simTime.t, simTime.secIdx, simTime.timeFactor, simState.vecStateY, simState.vecStateYdot, adRes); 
+	return residualImpl<double, active, active, false>(simTime.t, simTime.secIdx, simTime.timeFactor, simState.vecStateY, simState.vecStateYdot, adRes, threadLocalMem); 
 }
 
 int GeneralRateModel::residualSensFwdCombine(const ActiveSimulationTime& simTime, const ConstSimulationState& simState, 

@@ -23,6 +23,7 @@
 #include "Utils.hpp"
 #include "common/Driver.hpp"
 #include "SimulationTypes.hpp"
+#include "ParallelSupport.hpp"
 
 #include "JsonTestModels.hpp"
 #include "ModelBuilderImpl.hpp"
@@ -409,19 +410,21 @@ namespace particle
 		std::vector<double> jacDir(unitAD->numDofs(), 0.0);
 		std::vector<double> jacCol1(unitAD->numDofs(), 0.0);
 		std::vector<double> jacCol2(unitAD->numDofs(), 0.0);
+		cadet::util::ThreadLocalStorage<double> tls;
+		tls.resize(unitAna->threadLocalMemorySize());
 
 		// Fill state vector with some values
 		util::populate(y.data(), [](unsigned int idx) { return std::abs(std::sin(idx * 0.13)) + 1e-4; }, unitAna->numDofs());
 //		util::populate(y.data(), [](unsigned int idx) { return 1.0; }, unitAna->numDofs());
 
 		// Compute state Jacobian
-		unitAna->residualWithJacobian(ActiveSimulationTime{0.0, 0u, 1.0}, ConstSimulationState{y.data(), nullptr}, jacDir.data(), noParams);
-		unitAD->residualWithJacobian(ActiveSimulationTime{0.0, 0u, 1.0}, ConstSimulationState{y.data(), nullptr}, jacDir.data(), adParams);
+		unitAna->residualWithJacobian(ActiveSimulationTime{0.0, 0u, 1.0}, ConstSimulationState{y.data(), nullptr}, jacDir.data(), noParams, tls);
+		unitAD->residualWithJacobian(ActiveSimulationTime{0.0, 0u, 1.0}, ConstSimulationState{y.data(), nullptr}, jacDir.data(), adParams, tls);
 		std::fill(jacDir.begin(), jacDir.end(), 0.0);
 
 		// Compare Jacobians
-		cadet::test::checkJacobianPatternFD(unitAna, unitAD, y.data(), nullptr, jacDir.data(), jacCol1.data(), jacCol2.data());
-		cadet::test::checkJacobianPatternFD(unitAna, unitAna, y.data(), nullptr, jacDir.data(), jacCol1.data(), jacCol2.data());
+		cadet::test::checkJacobianPatternFD(unitAna, unitAD, y.data(), nullptr, jacDir.data(), jacCol1.data(), jacCol2.data(), tls);
+		cadet::test::checkJacobianPatternFD(unitAna, unitAna, y.data(), nullptr, jacDir.data(), jacCol1.data(), jacCol2.data(), tls);
 		cadet::test::compareJacobian(unitAna, unitAD, nullptr, nullptr, jacDir.data(), jacCol1.data(), jacCol2.data());
 //		cadet::test::compareJacobianFD(unitAna, unitAD, y.data(), nullptr, jacDir.data(), jacCol1.data(), jacCol2.data());
 
@@ -487,13 +490,15 @@ namespace particle
 		std::vector<double> jacDir(nDof, 0.0);
 		std::vector<double> jacCol1(nDof, 0.0);
 		std::vector<double> jacCol2(nDof, 0.0);
+		cadet::util::ThreadLocalStorage<double> tls;
+		tls.resize(unit->threadLocalMemorySize());
 
 		// Fill state vectors with some values
 		util::populate(y.data(), [=](unsigned int idx) { return std::abs(std::sin(idx * 0.13)) + 1e-4; }, nDof);
 		util::populate(yDot.data(), [=](unsigned int idx) { return std::abs(std::sin((idx + nDof) * 0.13)) + 1e-4; }, nDof);
 
 		// Compare Jacobians
-		cadet::test::compareTimeDerivativeJacobianFD(unit, unit, y.data(), yDot.data(), jacDir.data(), jacCol1.data(), jacCol2.data(), h, absTol, relTol);
+		cadet::test::compareTimeDerivativeJacobianFD(unit, unit, y.data(), yDot.data(), jacDir.data(), jacCol1.data(), jacCol2.data(), tls, h, absTol, relTol);
 
 		mb->destroyUnitOperation(unit);
 		destroyModelBuilder(mb);
@@ -528,19 +533,21 @@ namespace particle
 		std::vector<double> jacDir(unitFD->numDofs(), 0.0);
 		std::vector<double> jacCol1(unitFD->numDofs(), 0.0);
 		std::vector<double> jacCol2(unitFD->numDofs(), 0.0);
+		cadet::util::ThreadLocalStorage<double> tls;
+		tls.resize(unitAna->threadLocalMemorySize());
 
 		// Fill state vector with some values
 		util::populate(y.data(), [](unsigned int idx) { return std::abs(std::sin(idx * 0.13)) + 1e-4; }, unitAna->numDofs());
 //		util::populate(y.data(), [](unsigned int idx) { return 1.0; }, unitAna->numDofs());
 
 		// Compute state Jacobian
-		unitAna->residualWithJacobian(ActiveSimulationTime{0.0, 0u, 1.0}, ConstSimulationState{y.data(), nullptr}, jacDir.data(), noParams);
-		unitFD->residualWithJacobian(ActiveSimulationTime{0.0, 0u, 1.0}, ConstSimulationState{y.data(), nullptr}, jacDir.data(), noParams);
+		unitAna->residualWithJacobian(ActiveSimulationTime{0.0, 0u, 1.0}, ConstSimulationState{y.data(), nullptr}, jacDir.data(), noParams, tls);
+		unitFD->residualWithJacobian(ActiveSimulationTime{0.0, 0u, 1.0}, ConstSimulationState{y.data(), nullptr}, jacDir.data(), noParams, tls);
 		std::fill(jacDir.begin(), jacDir.end(), 0.0);
 
 		// Compare Jacobians
 		cadet::test::compareJacobianArrowHeadFD(
-			[=](double const* lDir, double* res) -> void { unitFD->residual(SimulationTime{0.0, 0u, 1.0}, ConstSimulationState{lDir, nullptr}, res); }, 
+			[=, &tls](double const* lDir, double* res) -> void { unitFD->residual(SimulationTime{0.0, 0u, 1.0}, ConstSimulationState{lDir, nullptr}, res, tls); }, 
 			[&](double const* lDir, double* res) -> void { unitAna->multiplyWithJacobian(SimulationTime{0.0, 0u, 1.0}, ConstSimulationState{y.data(), nullptr}, lDir, 1.0, 0.0, res); }, 
 			y.data(), jacDir.data(), jacCol1.data(), jacCol2.data(), unitFD->numDofs(), fluxOffset, h, absTol, relTol);
 

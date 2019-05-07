@@ -463,6 +463,13 @@ public:
 	 */
 	virtual std::vector<double> calculateErrorTolsForAdditionalDofs(double const* errorTol, unsigned int errorTolLength) = 0;
 
+	/**
+	 * @brief Performs setup of parallelization for the given number of threads
+	 * @details This function is called upon the beginning of the time integration process.
+	 * @param [in] numThreads Number of threads
+	 */
+	virtual void setupParallelization(unsigned int numThreads) = 0;
+
 protected:
 };
 

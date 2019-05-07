@@ -30,6 +30,12 @@
 namespace cadet
 {
 
+namespace util
+{
+	template <typename item_t> class ThreadLocalStorage;
+	typedef ThreadLocalStorage<double> ThreadLocalArray;	
+}
+
 namespace test
 {
 
@@ -48,7 +54,8 @@ namespace test
  * @param [in] absTol Absolute error tolerance
  * @param [in] relTol Relative error tolerance
  */
-inline void compareJacobian(const std::function<void(double const*, double*)> multJacA, const std::function<void(double const*, double*)> multJacB, double* dir, double* colA, double* colB, unsigned int n, unsigned int m, double absTol, double relTol)
+inline void compareJacobian(const std::function<void(double const*, double*)> multJacA, const std::function<void(double const*, double*)> multJacB, double* dir, double* colA, double* colB,
+	unsigned int n, unsigned int m, double absTol, double relTol)
 {
 	std::fill(dir, dir + n, 0.0);
 	for (unsigned int col = 0; col < n; ++col)
@@ -82,7 +89,8 @@ inline void compareJacobian(const std::function<void(double const*, double*)> mu
  * @param [in] n Number of DOFs in the model
  * @param [in] m Number of equations in the model
  */
-inline void compareJacobian(const std::function<void(double const*, double*)> multJacA, const std::function<void(double const*, double*)> multJacB, double* dir, double* colA, double* colB, unsigned int n, unsigned int m)
+inline void compareJacobian(const std::function<void(double const*, double*)> multJacA, const std::function<void(double const*, double*)> multJacB, double* dir, double* colA, double* colB,
+	unsigned int n, unsigned int m)
 {
 	compareJacobian(multJacA, multJacB, dir, colA, colB, n, m, RelApprox::defaultEpsilon(), RelApprox::defaultMargin());
 }
@@ -159,7 +167,8 @@ inline void compareJacobian(cadet::IUnitOperation* modelA, cadet::IUnitOperation
  * @param [in] absTol Absolute error tolerance
  * @param [in] relTol Relative error tolerance
  */
-inline void compareJacobianArrowHeadFD(const std::function<void(double const*, double*)>& residual, const std::function<void(double const*, double*)>& multiplyJacobian, double const* y, double* dir, double* colA, double* colB, unsigned int n, unsigned int offset, double h = 1e-6, double absTol = 0.0, double relTol = std::numeric_limits<float>::epsilon() * 100.0)
+inline void compareJacobianArrowHeadFD(const std::function<void(double const*, double*)>& residual, const std::function<void(double const*, double*)>& multiplyJacobian, double const* y, double* dir,
+	double* colA, double* colB, unsigned int n, unsigned int offset, double h = 1e-6, double absTol = 0.0, double relTol = std::numeric_limits<float>::epsilon() * 100.0)
 {
 	// Compare bottom macro row until we hit right macro column
 	for (unsigned int col = 0; col < offset; ++col)
@@ -256,7 +265,8 @@ inline void compareJacobianArrowHeadFD(const std::function<void(double const*, d
  * @param [in] absTol Absolute error tolerance
  * @param [in] relTol Relative error tolerance
  */
-inline void compareJacobianFD(const std::function<void(double const*, double*)>& residual, const std::function<void(double const*, double*)>& multiplyJacobian, double const* y, double* dir, double* colA, double* colB, unsigned int n, unsigned int m, double h = 1e-6, double absTol = 0.0, double relTol = std::numeric_limits<float>::epsilon() * 100.0)
+inline void compareJacobianFD(const std::function<void(double const*, double*)>& residual, const std::function<void(double const*, double*)>& multiplyJacobian, double const* y, double* dir,
+	double* colA, double* colB, unsigned int n, unsigned int m, double h = 1e-6, double absTol = 0.0, double relTol = std::numeric_limits<float>::epsilon() * 100.0)
 {
 	for (unsigned int col = 0; col < n; ++col)
 	{
@@ -312,7 +322,8 @@ inline void compareJacobianFD(const std::function<void(double const*, double*)>&
  * @param [in] absTol Absolute error tolerance
  * @param [in] relTol Relative error tolerance
  */
-inline void compareJacobianFD(const std::function<void(double const*, double*)>& residual, const std::function<void(double const*, double*)>& multiplyJacobian, double const* y, double* dir, double* colA, double* colB, unsigned int n, double h = 1e-6, double absTol = 0.0, double relTol = std::numeric_limits<float>::epsilon() * 100.0)
+inline void compareJacobianFD(const std::function<void(double const*, double*)>& residual, const std::function<void(double const*, double*)>& multiplyJacobian, double const* y, double* dir,
+	double* colA, double* colB, unsigned int n, double h = 1e-6, double absTol = 0.0, double relTol = std::numeric_limits<float>::epsilon() * 100.0)
 {
 	compareJacobianFD(residual, multiplyJacobian, y, dir, colA, colB, n, n, h, absTol, relTol);
 }
@@ -330,14 +341,16 @@ inline void compareJacobianFD(const std::function<void(double const*, double*)>&
  * @param [in] dir Memory for computing finite differences
  * @param [in] colA Memory for Jacobian column of @p modelA
  * @param [in] colB Memory for Jacobian column of @p modelB
+ * @param [in] tls Thread local storage for @p modelA
  * @param [in] h Step size for centered finite differences
  * @param [in] absTol Absolute error tolerance
  * @param [in] relTol Relative error tolerance
  */
-inline void compareJacobianFD(cadet::IUnitOperation* modelA, cadet::IUnitOperation* modelB, double const* y, double const* yDot, double* dir, double* colA, double* colB, double h = 1e-6, double absTol = 0.0, double relTol = std::numeric_limits<float>::epsilon() * 100.0)
+inline void compareJacobianFD(cadet::IUnitOperation* modelA, cadet::IUnitOperation* modelB, double const* y, double const* yDot, double* dir, double* colA, double* colB, const cadet::util::ThreadLocalArray& tls,
+	double h = 1e-6, double absTol = 0.0, double relTol = std::numeric_limits<float>::epsilon() * 100.0)
 {
 	compareJacobianFD(
-		[=](double const* lDir, double* res) -> void { modelA->residual(SimulationTime{0.0, 0u, 1.0}, ConstSimulationState{lDir, yDot}, res); }, 
+		[=, &tls](double const* lDir, double* res) -> void { modelA->residual(SimulationTime{0.0, 0u, 1.0}, ConstSimulationState{lDir, yDot}, res, tls); }, 
 		[=](double const* lDir, double* res) -> void { modelB->multiplyWithJacobian(SimulationTime{0.0, 0u, 1.0}, ConstSimulationState{y, yDot}, lDir, 1.0, 0.0, res); }, 
 		y, dir, colA, colB, modelA->numDofs(), modelA->numDofs(), h, absTol, relTol);
 }
@@ -355,7 +368,8 @@ inline void compareJacobianFD(cadet::IUnitOperation* modelA, cadet::IUnitOperati
  * @param [in] n Number of DOFs in the model
  * @param [in] m Number of equations in the model
  */
-inline void checkJacobianPatternFD(const std::function<void(double const*, double*)>& residual, const std::function<void(double const*, double*)>& multiplyJacobian, double const* y, double* dir, double* colA, double* colB, unsigned int n, unsigned int m)
+inline void checkJacobianPatternFD(const std::function<void(double const*, double*)>& residual, const std::function<void(double const*, double*)>& multiplyJacobian, double const* y, double* dir,
+	double* colA, double* colB, unsigned int n, unsigned int m)
 {
 	const double h = 1e-5;
 	for (unsigned int col = 0; col < n; ++col)
@@ -416,7 +430,8 @@ inline void checkJacobianPatternFD(const std::function<void(double const*, doubl
  * @param [in] colB Memory for Jacobian column
  * @param [in] n Number of DOFs in the model
  */
-inline void checkJacobianPatternFD(const std::function<void(double const*, double*)>& residual, const std::function<void(double const*, double*)>& multiplyJacobian, double const* y, double* dir, double* colA, double* colB, unsigned int n)
+inline void checkJacobianPatternFD(const std::function<void(double const*, double*)>& residual, const std::function<void(double const*, double*)>& multiplyJacobian, double const* y,
+	double* dir, double* colA, double* colB, unsigned int n)
 {
 	checkJacobianPatternFD(residual, multiplyJacobian, y, dir, colA, colB, n, n);
 }
@@ -433,11 +448,12 @@ inline void checkJacobianPatternFD(const std::function<void(double const*, doubl
  * @param [in] dir Memory for computing finite differences
  * @param [in] colA Memory for Jacobian column of @p modelA
  * @param [in] colB Memory for Jacobian column of @p modelB
+ * @param [in] tls Thread local storage for @p modelA
  */
-inline void checkJacobianPatternFD(cadet::IUnitOperation* modelA, cadet::IUnitOperation* modelB, double const* y, double const* yDot, double* dir, double* colA, double* colB)
+inline void checkJacobianPatternFD(cadet::IUnitOperation* modelA, cadet::IUnitOperation* modelB, double const* y, double const* yDot, double* dir, double* colA, double* colB, const cadet::util::ThreadLocalArray& tls)
 {
 	checkJacobianPatternFD(
-		[=](double const* lDir, double* res) -> void { modelA->residual(SimulationTime{0.0, 0u, 1.0}, ConstSimulationState{lDir, yDot}, res); },
+		[=, &tls](double const* lDir, double* res) -> void { modelA->residual(SimulationTime{0.0, 0u, 1.0}, ConstSimulationState{lDir, yDot}, res, tls); },
 		[=](double const* lDir, double* res) -> void { modelB->multiplyWithJacobian(SimulationTime{0.0, 0u, 1.0}, ConstSimulationState{y, yDot}, lDir, 1.0, 0.0, res); },
 		y, dir, colA, colB, modelA->numDofs(), modelA->numDofs());
 }
@@ -487,14 +503,16 @@ inline void compareTimeDerivativeJacobian(cadet::IUnitOperation* modelA, cadet::
  * @param [in] dir Memory for computing finite differences
  * @param [in] colA Memory for Jacobian column of @p modelA
  * @param [in] colB Memory for Jacobian column of @p modelB
+ * @param [in] tls Thread local storage for @p modelA
  * @param [in] h Step size for centered finite differences
  * @param [in] absTol Absolute error tolerance
  * @param [in] relTol Relative error tolerance
  */
-inline void compareTimeDerivativeJacobianFD(cadet::IUnitOperation* modelA, cadet::IUnitOperation* modelB, double const* y, double const* yDot, double* dir, double* colA, double* colB, double h = 1e-6, double absTol = 0.0, double relTol = std::numeric_limits<float>::epsilon() * 100.0)
+inline void compareTimeDerivativeJacobianFD(cadet::IUnitOperation* modelA, cadet::IUnitOperation* modelB, double const* y, double const* yDot, double* dir, double* colA, double* colB,
+	const cadet::util::ThreadLocalArray& tls, double h = 1e-6, double absTol = 0.0, double relTol = std::numeric_limits<float>::epsilon() * 100.0)
 {
 	compareJacobianFD(
-		[=](double const* lDir, double* res) -> void { modelA->residual(SimulationTime{0.0, 0u, 1.0}, ConstSimulationState{y, lDir}, res); }, 
+		[=, &tls](double const* lDir, double* res) -> void { modelA->residual(SimulationTime{0.0, 0u, 1.0}, ConstSimulationState{y, lDir}, res, tls); }, 
 		[=](double const* lDir, double* res) -> void { modelB->multiplyWithDerivativeJacobian(SimulationTime{0.0, 0u, 1.0}, ConstSimulationState{y, yDot}, lDir, res); }, 
 		yDot, dir, colA, colB, modelA->numDofs(), modelA->numDofs(), h, absTol, relTol);
 }

@@ -37,6 +37,12 @@ struct ActiveSimulationTime;
 struct SimulationState;
 struct ConstSimulationState;
 
+namespace util
+{
+	template <typename item_t> class ThreadLocalStorage;
+	typedef ThreadLocalStorage<double> ThreadLocalArray;	
+}
+
 /**
  * @brief Defines an unit operation model interface
  * @details 
@@ -204,7 +210,7 @@ public:
 	 * @param [out] res Pointer to local residual vector
 	 * @return @c 0 on success, @c -1 on non-recoverable error, and @c +1 on recoverable error
 	 */
-	virtual int residual(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res) = 0;
+	virtual int residual(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res, const util::ThreadLocalArray& threadLocalMem) = 0;
 
 	/**
 	 * @brief Computes the residual and updates the Jacobian
@@ -215,7 +221,7 @@ public:
 	 * @param [in,out] adJac Jacobian information for AD (AD vectors for residual and state, direction offset)
 	 * @return @c 0 on success, @c -1 on non-recoverable error, and @c +1 on recoverable error
 	 */
-	virtual int residualWithJacobian(const ActiveSimulationTime& simTime, const ConstSimulationState& simState, double* const res, const AdJacobianParams& adJac) = 0;
+	virtual int residualWithJacobian(const ActiveSimulationTime& simTime, const ConstSimulationState& simState, double* const res, const AdJacobianParams& adJac, const util::ThreadLocalArray& threadLocalMem) = 0;
 
 	/**
 	 * @brief Computes the solution of the linear system involving the system Jacobian
@@ -383,7 +389,7 @@ public:
 	 * @param [in,out] adRes Pointer to local residual vector of AD datatypes for computing the sensitivity derivatives
 	 * @return @c 0 on success, @c -1 on non-recoverable error, and @c +1 on recoverable error
 	 */
-	virtual int residualSensFwdAdOnly(const ActiveSimulationTime& simTime, const ConstSimulationState& simState, active* const adRes) = 0;
+	virtual int residualSensFwdAdOnly(const ActiveSimulationTime& simTime, const ConstSimulationState& simState, active* const adRes, const util::ThreadLocalArray& threadLocalMem) = 0;
 
 	/**
 	 * @brief Computes the residual of the forward sensitivity systems using the result of residualSensFwdAdOnly()
@@ -413,7 +419,7 @@ public:
 	 * @param [in,out] adJac Jacobian information for AD (AD vectors for residual and state, direction offset)
 	 * @return @c 0 on success, @c -1 on non-recoverable error, and @c +1 on recoverable error
 	 */
-	virtual int residualSensFwdWithJacobian(const ActiveSimulationTime& simTime, const ConstSimulationState& simState, const AdJacobianParams& adJac) = 0;
+	virtual int residualSensFwdWithJacobian(const ActiveSimulationTime& simTime, const ConstSimulationState& simState, const AdJacobianParams& adJac, const cadet::util::ThreadLocalArray& threadLocalMem) = 0;
 
 	/**
 	 * @brief Computes consistent initial values (state variables without their time derivatives)
@@ -429,7 +435,7 @@ public:
 	 * @param [in,out] adJac Jacobian information for AD (AD vectors for residual and state, direction offset)
 	 * @param [in] errorTol Error tolerance for algebraic equations
 	 */
-	virtual void consistentInitialState(const SimulationTime& simTime, double* const vecStateY, const AdJacobianParams& adJac, double errorTol) = 0;
+	virtual void consistentInitialState(const SimulationTime& simTime, double* const vecStateY, const AdJacobianParams& adJac, double errorTol, const util::ThreadLocalArray& threadLocalMem) = 0;
 
 	/**
 	 * @brief Computes consistent initial time derivatives
@@ -444,7 +450,7 @@ public:
 	 * @param [in] vecStateY Consistently initialized state vector
 	 * @param [in,out] vecStateYdot On entry, residual without taking time derivatives into account. On exit, consistent state time derivatives.
 	 */
-	virtual void consistentInitialTimeDerivative(const SimulationTime& simTime, double const* vecStateY, double* const vecStateYdot) = 0;
+	virtual void consistentInitialTimeDerivative(const SimulationTime& simTime, double const* vecStateY, double* const vecStateYdot, const util::ThreadLocalArray& threadLocalMem) = 0;
 
 	/**
 	 * @brief Computes approximately / partially consistent initial values (state variables without their time derivatives)
@@ -463,7 +469,7 @@ public:
 	 * @param [in,out] adJac Jacobian information for AD (AD vectors for residual and state, direction offset)
 	 * @param [in] errorTol Error tolerance for algebraic equations
 	 */
-	virtual void leanConsistentInitialState(const SimulationTime& simTime, double* const vecStateY, const AdJacobianParams& adJac, double errorTol) = 0;
+	virtual void leanConsistentInitialState(const SimulationTime& simTime, double* const vecStateY, const AdJacobianParams& adJac, double errorTol, const util::ThreadLocalArray& threadLocalMem) = 0;
 
 	/**
 	 * @brief Computes approximately / partially consistent initial time derivatives
@@ -483,7 +489,7 @@ public:
 	 * @param [in,out] vecStateYdot On entry, inconsistent state time derivatives. On exit, partially consistent state time derivatives.
 	 * @param [in] res On entry, residual without taking time derivatives into account. The data is overwritten during execution of the function.
 	 */
-	virtual void leanConsistentInitialTimeDerivative(double t, double timeFactor, double const* const vecStateY, double* const vecStateYdot, double* const res) = 0;
+	virtual void leanConsistentInitialTimeDerivative(double t, double timeFactor, double const* const vecStateY, double* const vecStateYdot, double* const res, const util::ThreadLocalArray& threadLocalMem) = 0;
 
 	/**
 	 * @brief Computes consistent initial conditions for all sensitivity subsystems
@@ -500,7 +506,7 @@ public:
 	 * @param [in] adRes Pointer to local residual vector of AD datatypes with parameter sensitivities
 	 */
 	virtual void consistentInitialSensitivity(const ActiveSimulationTime& simTime, const ConstSimulationState& simState,
-		std::vector<double*>& vecSensY, std::vector<double*>& vecSensYdot, active const* const adRes) = 0;
+		std::vector<double*>& vecSensY, std::vector<double*>& vecSensYdot, active const* const adRes, const util::ThreadLocalArray& threadLocalMem) = 0;
 
 	/**
 	 * @brief Computes approximately / partially consistent initial conditions for all sensitivity subsystems
@@ -520,7 +526,7 @@ public:
 	 * @param [in] adRes Pointer to local residual vector of AD datatypes with parameter sensitivities
 	 */
 	virtual void leanConsistentInitialSensitivity(const ActiveSimulationTime& simTime, const ConstSimulationState& simState,
-		std::vector<double*>& vecSensY, std::vector<double*>& vecSensYdot, active const* const adRes) = 0;
+		std::vector<double*>& vecSensY, std::vector<double*>& vecSensYdot, active const* const adRes, const util::ThreadLocalArray& threadLocalMem) = 0;
 
 	/**
 	 * @brief Sets external functions for this binding model
@@ -567,6 +573,13 @@ public:
 	 * @param [out] ret Vector @f$ z @f$ which stores the result of the operation
 	 */
 	virtual void multiplyWithDerivativeJacobian(const SimulationTime& simTime, const ConstSimulationState& simState, double const* sDot, double* ret) = 0;
+
+	/**
+	 * @brief Returns the amount of thread local memory required by the unit operation
+	 * @details The amount of thread local memory is returned in bytes.
+	 * @return Required thread local memory size in bytes
+	 */
+	virtual unsigned int threadLocalMemorySize() const CADET_NOEXCEPT = 0;
 };
 
 } // namespace cadet

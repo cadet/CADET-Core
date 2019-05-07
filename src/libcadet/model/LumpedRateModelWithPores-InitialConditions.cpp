@@ -295,7 +295,7 @@ void LumpedRateModelWithPores::readInitialCondition(IParameterProvider& paramPro
  * @param [in] errorTol Error tolerance for algebraic equations
  * @todo Decrease amount of allocated memory by partially using temporary vectors (state and Schur complement)
  */
-void LumpedRateModelWithPores::consistentInitialState(const SimulationTime& simTime, double* const vecStateY, const AdJacobianParams& adJac, double errorTol)
+void LumpedRateModelWithPores::consistentInitialState(const SimulationTime& simTime, double* const vecStateY, const AdJacobianParams& adJac, double errorTol, const util::ThreadLocalArray& threadLocalMem)
 {
 	BENCH_SCOPE(_timerConsistentInit);
 
@@ -309,8 +309,6 @@ void LumpedRateModelWithPores::consistentInitialState(const SimulationTime& simT
 		if (_binding[type]->hasAlgebraicEquations())
 		{
 			// TODO: Check memory consumption and offsets
-			// Round up
-			const unsigned int requiredMem = (_binding[type]->workspaceSize(_disc.nComp, _disc.strideBound[type], _disc.nBound + type * _disc.nComp) + sizeof(double) - 1) / sizeof(double);
 
 			ad::BandedJacobianExtractor jacExtractor(_jacP[type].lowerBandwidth(), _jacP[type].lowerBandwidth(), _jacP[type].upperBandwidth());
 
@@ -336,12 +334,9 @@ void LumpedRateModelWithPores::consistentInitialState(const SimulationTime& simT
 				active* const localAdRes = adJac.adRes ? adJac.adRes + localOffsetToParticle : nullptr;
 				active* const localAdY = adJac.adY ? adJac.adY + localOffsetToParticle : nullptr;
 
-				// We are essentially creating a 2d vector of blocks out of a linear strip of memory
-				const unsigned int offset = _bindingWorkspaceOffset[type] + requiredMem * pblk;
-
 				// Solve algebraic variables
 				_binding[type]->consistentInitialState(simTime.t, simTime.secIdx, ColumnPosition{z, 0.0, static_cast<double>(_parRadius[type]) * 0.5}, qShell, qShell - localOffsetInParticle , errorTol, localAdRes, localAdY,
-					localOffsetInParticle, adJac.adDirOffset, jacExtractor, _tempState + offset, jacobianMatrix);
+					localOffsetInParticle, adJac.adDirOffset, jacExtractor, threadLocalMem.get(), jacobianMatrix);
 			} CADET_PARFOR_END;
 		}
 	}
@@ -402,7 +397,7 @@ void LumpedRateModelWithPores::consistentInitialState(const SimulationTime& simT
  * @param [in] vecStateY Consistently initialized state vector
  * @param [in,out] vecStateYdot On entry, residual without taking time derivatives into account. On exit, consistent state time derivatives.
  */
-void LumpedRateModelWithPores::consistentInitialTimeDerivative(const SimulationTime& simTime, double const* vecStateY, double* const vecStateYdot)
+void LumpedRateModelWithPores::consistentInitialTimeDerivative(const SimulationTime& simTime, double const* vecStateY, double* const vecStateYdot, const util::ThreadLocalArray& threadLocalMem)
 {
 	BENCH_SCOPE(_timerConsistentInit);
 
@@ -446,12 +441,10 @@ void LumpedRateModelWithPores::consistentInitialTimeDerivative(const SimulationT
 			// Overwrite rows corresponding to algebraic equations with the Jacobian and set right hand side to 0
 			if (_binding[type]->hasAlgebraicEquations())
 			{
-				const unsigned int requiredMem = (_binding[type]->workspaceSize(_disc.nComp, _disc.strideBound[type], _disc.nBound + type * _disc.nComp) + sizeof(double) - 1) / sizeof(double);
-
 				parts::BindingConsistentInitializer::consistentInitialTimeDerivative(_binding[type], simTime, jac,
 					_jacP[type].row(static_cast<unsigned int>(idxr.strideParBlock(type)) * pblk + static_cast<unsigned int>(idxr.strideParLiquid())),
 					vecStateYdot + idxr.offsetCp(ParticleTypeIndex{static_cast<unsigned int>(type)}, ParticleIndex{pblk}) + idxr.strideParLiquid(),
-					ColumnPosition{z, 0.0, static_cast<double>(_parRadius[type]) * 0.5}, _tempState + _bindingWorkspaceOffset[type] + requiredMem * pblk);
+					ColumnPosition{z, 0.0, static_cast<double>(_parRadius[type]) * 0.5}, threadLocalMem.get());
 			}
 		}
 
@@ -531,7 +524,7 @@ void LumpedRateModelWithPores::consistentInitialTimeDerivative(const SimulationT
  * @param [in,out] adJac Jacobian information for AD (AD vectors for residual and state, direction offset)
  * @param [in] errorTol Error tolerance for algebraic equations
  */
-void LumpedRateModelWithPores::leanConsistentInitialState(const SimulationTime& simTime, double* const vecStateY, const AdJacobianParams& adJac, double errorTol)
+void LumpedRateModelWithPores::leanConsistentInitialState(const SimulationTime& simTime, double* const vecStateY, const AdJacobianParams& adJac, double errorTol, const util::ThreadLocalArray& threadLocalMem)
 {
 	BENCH_SCOPE(_timerConsistentInit);
 
@@ -589,7 +582,7 @@ void LumpedRateModelWithPores::leanConsistentInitialState(const SimulationTime& 
  * @param [in,out] vecStateYdot On entry, inconsistent state time derivatives. On exit, partially consistent state time derivatives.
  * @param [in] res On entry, residual without taking time derivatives into account. The data is overwritten during execution of the function.
  */
-void LumpedRateModelWithPores::leanConsistentInitialTimeDerivative(double t, double timeFactor, double const* const vecStateY, double* const vecStateYdot, double* const res)
+void LumpedRateModelWithPores::leanConsistentInitialTimeDerivative(double t, double timeFactor, double const* const vecStateY, double* const vecStateYdot, double* const res, const util::ThreadLocalArray& threadLocalMem)
 {
 	BENCH_SCOPE(_timerConsistentInit);
 
@@ -712,7 +705,7 @@ void LumpedRateModelWithPores::initializeSensitivityStates(const std::vector<dou
  * @todo Decrease amount of allocated memory by partially using temporary vectors (state and Schur complement)
  */
 void LumpedRateModelWithPores::consistentInitialSensitivity(const ActiveSimulationTime& simTime, const ConstSimulationState& simState,
-	std::vector<double*>& vecSensY, std::vector<double*>& vecSensYdot, active const* const adRes)
+	std::vector<double*>& vecSensY, std::vector<double*>& vecSensYdot, active const* const adRes, const util::ThreadLocalArray& threadLocalMem)
 {
 	BENCH_SCOPE(_timerConsistentInit);
 
@@ -885,7 +878,7 @@ void LumpedRateModelWithPores::consistentInitialSensitivity(const ActiveSimulati
  * @todo Decrease amount of allocated memory by partially using temporary vectors (state and Schur complement)
  */
 void LumpedRateModelWithPores::leanConsistentInitialSensitivity(const ActiveSimulationTime& simTime, const ConstSimulationState& simState,
-	std::vector<double*>& vecSensY, std::vector<double*>& vecSensYdot, active const* const adRes)
+	std::vector<double*>& vecSensY, std::vector<double*>& vecSensYdot, active const* const adRes, const util::ThreadLocalArray& threadLocalMem)
 {
 	BENCH_SCOPE(_timerConsistentInit);
 

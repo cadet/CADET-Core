@@ -55,7 +55,7 @@ int schurComplementMultiplierLRMPores(void* userData, double const* x, double* z
 
 
 LumpedRateModelWithPores::LumpedRateModelWithPores(UnitOpIdx unitOpIdx) : UnitOperationBase(unitOpIdx),
-	_bindingWorkspaceOffset(0), _jacP(0), _jacPdisc(0), _jacPF(0), _jacFP(0), _jacInlet(), _analyticJac(true),
+	_jacP(0), _jacPdisc(0), _jacPF(0), _jacFP(0), _jacInlet(), _analyticJac(true),
 	_jacobianAdDirs(0), _factorizeJacobian(false), _tempState(nullptr), _initC(0), _initCp(0), _initQ(0),
 	_initState(0), _initStateDot(0)
 {
@@ -240,9 +240,6 @@ bool LumpedRateModelWithPores::configureModelDiscretization(IParameterProvider& 
 		throw InvalidParameterException("Field ADSORPTION_MODEL requires (only) 1 element");
 
 	bool bindingConfSuccess = true;
-	unsigned int bindingRequiredMem = 0;
-	_bindingWorkspaceOffset.resize(_disc.nParType);
-	_bindingWorkspaceOffset[0] = 0;
 	for (unsigned int i = 0; i < _disc.nParType; ++i)
 	{
 		if (_singleBinding && (i > 0))
@@ -258,27 +255,10 @@ bool LumpedRateModelWithPores::configureModelDiscretization(IParameterProvider& 
 
 			bindingConfSuccess = _binding[i]->configureModelDiscretization(paramProvider, _disc.nComp, _disc.nBound + i * _disc.nComp, _disc.boundOffset + i * _disc.nComp) && bindingConfSuccess;
 		}
-
-		// In case of a single binding model, we still require the additional memory per type because of parallelization
-		if (_binding[i]->requiresWorkspace())
-		{
-			// Required memory (number of doubles) for nonlinear solvers
-			const unsigned int requiredMem = (_binding[i]->workspaceSize(_disc.nComp, _disc.strideBound[i], _disc.nBound + i * _disc.nComp) + sizeof(double) - 1) / sizeof(double) * _disc.nCol;
-			bindingRequiredMem += requiredMem;
-
-			if (i != _disc.nParType - 1)
-				_bindingWorkspaceOffset[i+1] = _bindingWorkspaceOffset[i] + requiredMem;
-		}
-		else
-		{
-			if (i != _disc.nParType - 1)
-				_bindingWorkspaceOffset[i+1] = _bindingWorkspaceOffset[i];
-		}
 	}
 
-	// setup the memory for tempState based on state vector or memory needed for consistent initialization of isotherms, whichever is larger
-	const unsigned int size = std::max(numDofs(), bindingRequiredMem);
-	_tempState = new double[size];
+	// Setup the memory for tempState based on state vector
+	_tempState = new double[numDofs()];
 
 	return transportSuccess && bindingConfSuccess;
 }
@@ -451,6 +431,21 @@ bool LumpedRateModelWithPores::configure(IParameterProvider& paramProvider)
 	return transportSuccess;
 }
 
+unsigned int LumpedRateModelWithPores::threadLocalMemorySize() const CADET_NOEXCEPT
+{
+	unsigned int bindingRequiredMem = 0;
+	for (unsigned int i = 0; i < _disc.nParType; ++i)
+	{
+		if (_binding[i]->requiresWorkspace())
+		{
+			// Required memory (number of doubles) for nonlinear solvers
+			const unsigned int requiredMem = _binding[i]->workspaceSize(_disc.nComp, _disc.strideBound[i], _disc.nBound + i * _disc.nComp);
+			bindingRequiredMem = std::max(bindingRequiredMem, requiredMem);
+		}
+	}
+	return bindingRequiredMem;
+}
+
 unsigned int LumpedRateModelWithPores::numAdDirsForJacobian() const CADET_NOEXCEPT
 {
 	// We need as many directions as the highest bandwidth of the diagonal blocks:
@@ -619,24 +614,24 @@ void LumpedRateModelWithPores::checkAnalyticJacobianAgainstAd(active const* cons
 
 #endif
 
-int LumpedRateModelWithPores::residual(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res)
+int LumpedRateModelWithPores::residual(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res, const util::ThreadLocalArray& threadLocalMem)
 {
 	BENCH_SCOPE(_timerResidual);
 
 	// Evaluate residual do not compute Jacobian or parameter sensitivities
-	return residualImpl<double, double, double, false>(simTime.t, simTime.secIdx, simTime.timeFactor, simState.vecStateY, simState.vecStateYdot, res);
+	return residualImpl<double, double, double, false>(simTime.t, simTime.secIdx, simTime.timeFactor, simState.vecStateY, simState.vecStateYdot, res, threadLocalMem);
 }
 
-int LumpedRateModelWithPores::residualWithJacobian(const ActiveSimulationTime& simTime, const ConstSimulationState& simState, double* const res, const AdJacobianParams& adJac)
+int LumpedRateModelWithPores::residualWithJacobian(const ActiveSimulationTime& simTime, const ConstSimulationState& simState, double* const res, const AdJacobianParams& adJac, const util::ThreadLocalArray& threadLocalMem)
 {
 	BENCH_SCOPE(_timerResidual);
 
 	// Evaluate residual, use AD for Jacobian if required but do not evaluate parameter derivatives
-	return residual(simTime, simState, res, adJac, true, false);
+	return residual(simTime, simState, res, adJac, threadLocalMem, true, false);
 }
 
 int LumpedRateModelWithPores::residual(const ActiveSimulationTime& simTime, const ConstSimulationState& simState, double* const res, 
-	const AdJacobianParams& adJac, bool updateJacobian, bool paramSensitivity)
+	const AdJacobianParams& adJac, const util::ThreadLocalArray& threadLocalMem, bool updateJacobian, bool paramSensitivity)
 {
 	if (updateJacobian)
 	{
@@ -647,7 +642,7 @@ int LumpedRateModelWithPores::residual(const ActiveSimulationTime& simTime, cons
 		{
 			if (paramSensitivity)
 			{
-				const int retCode = residualImpl<double, active, active, true>(simTime.t, simTime.secIdx, simTime.timeFactor, simState.vecStateY, simState.vecStateYdot, adJac.adRes);
+				const int retCode = residualImpl<double, active, active, true>(simTime.t, simTime.secIdx, simTime.timeFactor, simState.vecStateY, simState.vecStateYdot, adJac.adRes, threadLocalMem);
 
 				// Copy AD residuals to original residuals vector
 				if (res)
@@ -656,7 +651,7 @@ int LumpedRateModelWithPores::residual(const ActiveSimulationTime& simTime, cons
 				return retCode;
 			}
 			else
-				return residualImpl<double, double, double, true>(static_cast<double>(simTime.t), simTime.secIdx, static_cast<double>(simTime.timeFactor), simState.vecStateY, simState.vecStateYdot, res);
+				return residualImpl<double, double, double, true>(static_cast<double>(simTime.t), simTime.secIdx, static_cast<double>(simTime.timeFactor), simState.vecStateY, simState.vecStateYdot, res, threadLocalMem);
 		}
 		else
 		{
@@ -671,9 +666,9 @@ int LumpedRateModelWithPores::residual(const ActiveSimulationTime& simTime, cons
 			// Evaluate with AD enabled
 			int retCode = 0;
 			if (paramSensitivity)
-				retCode = residualImpl<active, active, active, false>(simTime.t, simTime.secIdx, simTime.timeFactor, adJac.adY, simState.vecStateYdot, adJac.adRes);
+				retCode = residualImpl<active, active, active, false>(simTime.t, simTime.secIdx, simTime.timeFactor, adJac.adY, simState.vecStateYdot, adJac.adRes, threadLocalMem);
 			else
-				retCode = residualImpl<active, active, double, false>(static_cast<double>(simTime.t), simTime.secIdx, static_cast<double>(simTime.timeFactor), adJac.adY, simState.vecStateYdot, adJac.adRes);
+				retCode = residualImpl<active, active, double, false>(static_cast<double>(simTime.t), simTime.secIdx, static_cast<double>(simTime.timeFactor), adJac.adY, simState.vecStateYdot, adJac.adRes, threadLocalMem);
 
 			// Copy AD residuals to original residuals vector
 			if (res)
@@ -696,15 +691,15 @@ int LumpedRateModelWithPores::residual(const ActiveSimulationTime& simTime, cons
 		// Evaluate with AD enabled
 		int retCode = 0;
 		if (paramSensitivity)
-			retCode = residualImpl<active, active, active, false>(simTime.t, simTime.secIdx, simTime.timeFactor, adJac.adY, simState.vecStateYdot, adJac.adRes);
+			retCode = residualImpl<active, active, active, false>(simTime.t, simTime.secIdx, simTime.timeFactor, adJac.adY, simState.vecStateYdot, adJac.adRes, threadLocalMem);
 		else
-			retCode = residualImpl<active, active, double, false>(static_cast<double>(simTime.t), simTime.secIdx, static_cast<double>(simTime.timeFactor), adJac.adY, simState.vecStateYdot, adJac.adRes);
+			retCode = residualImpl<active, active, double, false>(static_cast<double>(simTime.t), simTime.secIdx, static_cast<double>(simTime.timeFactor), adJac.adY, simState.vecStateYdot, adJac.adRes, threadLocalMem);
 
 		// Only do comparison if we have a residuals vector (which is not always the case)
 		if (res)
 		{
 			// Evaluate with analytical Jacobian which is stored in the band matrices
-			retCode = residualImpl<double, double, double, true>(static_cast<double>(simTime.t), simTime.secIdx, static_cast<double>(simTime.timeFactor), simState.vecStateY, simState.vecStateYdot, res);
+			retCode = residualImpl<double, double, double, true>(static_cast<double>(simTime.t), simTime.secIdx, static_cast<double>(simTime.timeFactor), simState.vecStateY, simState.vecStateYdot, res, threadLocalMem);
 
 			// Compare AD with anaytic Jacobian
 			checkAnalyticJacobianAgainstAd(adJac.adRes, adJac.adDirOffset);
@@ -724,7 +719,7 @@ int LumpedRateModelWithPores::residual(const ActiveSimulationTime& simTime, cons
 			// @todo Check if this is necessary
 			ad::resetAd(adJac.adRes, numDofs());
 
-			const int retCode = residualImpl<double, active, active, false>(simTime.t, simTime.secIdx, simTime.timeFactor, simState.vecStateY, simState.vecStateYdot, adJac.adRes);
+			const int retCode = residualImpl<double, active, active, false>(simTime.t, simTime.secIdx, simTime.timeFactor, simState.vecStateY, simState.vecStateYdot, adJac.adRes, threadLocalMem);
 
 			// Copy AD residuals to original residuals vector
 			if (res)
@@ -733,12 +728,12 @@ int LumpedRateModelWithPores::residual(const ActiveSimulationTime& simTime, cons
 			return retCode;
 		}
 		else
-			return residualImpl<double, double, double, false>(static_cast<double>(simTime.t), simTime.secIdx, static_cast<double>(simTime.timeFactor), simState.vecStateY, simState.vecStateYdot, res);
+			return residualImpl<double, double, double, false>(static_cast<double>(simTime.t), simTime.secIdx, static_cast<double>(simTime.timeFactor), simState.vecStateY, simState.vecStateYdot, res, threadLocalMem);
 	}
 }
 
 template <typename StateType, typename ResidualType, typename ParamType, bool wantJac>
-int LumpedRateModelWithPores::residualImpl(const ParamType& t, unsigned int secIdx, const ParamType& timeFactor, StateType const* const y, double const* const yDot, ResidualType* const res)
+int LumpedRateModelWithPores::residualImpl(const ParamType& t, unsigned int secIdx, const ParamType& timeFactor, StateType const* const y, double const* const yDot, ResidualType* const res, const util::ThreadLocalArray& threadLocalMem)
 {
 	// Reset Jacobian
 	if (wantJac)
@@ -761,7 +756,7 @@ int LumpedRateModelWithPores::residualImpl(const ParamType& t, unsigned int secI
 		{
 			const unsigned int type = (pblk - 1) / _disc.nCol;
 			const unsigned int par = (pblk - 1) % _disc.nCol;
-			residualParticle<StateType, ResidualType, ParamType, wantJac>(t, type, par, secIdx, timeFactor, y, yDot, res);
+			residualParticle<StateType, ResidualType, ParamType, wantJac>(t, type, par, secIdx, timeFactor, y, yDot, res, threadLocalMem);
 		}
 	} CADET_PARFOR_END;
 
@@ -779,7 +774,7 @@ int LumpedRateModelWithPores::residualImpl(const ParamType& t, unsigned int secI
 }
 
 template <typename StateType, typename ResidualType, typename ParamType, bool wantJac>
-int LumpedRateModelWithPores::residualParticle(const ParamType& t, unsigned int parType, unsigned int colCell, unsigned int secIdx, const ParamType& timeFactor, StateType const* yBase, double const* yDotBase, ResidualType* resBase)
+int LumpedRateModelWithPores::residualParticle(const ParamType& t, unsigned int parType, unsigned int colCell, unsigned int secIdx, const ParamType& timeFactor, StateType const* yBase, double const* yDotBase, ResidualType* resBase, const util::ThreadLocalArray& threadLocalMem)
 {
 	Indexer idxr(_disc);
 
@@ -789,7 +784,7 @@ int LumpedRateModelWithPores::residualParticle(const ParamType& t, unsigned int 
 	ResidualType* res = resBase + idxr.offsetCp(ParticleTypeIndex{parType}, ParticleIndex{colCell});
 
 	const unsigned int requiredMem = (_binding[parType]->workspaceSize(_disc.nComp, _disc.strideBound[parType], _disc.nBound + parType * _disc.nComp) + sizeof(double) - 1) / sizeof(double);
-	double* const buffer = _tempState + _bindingWorkspaceOffset[parType] + requiredMem * colCell;
+	double* const buffer = threadLocalMem.get();
 
 	// Prepare parameters
 	const ParamType radius = static_cast<ParamType>(_parRadius[parType]);
@@ -1012,21 +1007,21 @@ void LumpedRateModelWithPores::assembleOffdiagJac(double t, unsigned int secIdx)
 }
 
 int LumpedRateModelWithPores::residualSensFwdWithJacobian(const ActiveSimulationTime& simTime, const ConstSimulationState& simState,
-	const AdJacobianParams& adJac)
+	const AdJacobianParams& adJac, const util::ThreadLocalArray& threadLocalMem)
 {
 	BENCH_SCOPE(_timerResidualSens);
 
 	// Evaluate residual for all parameters using AD in vector mode and at the same time update the 
 	// Jacobian (in one AD run, if analytic Jacobians are disabled)
-	return residual(simTime, simState, nullptr, adJac, true, true);
+	return residual(simTime, simState, nullptr, adJac, threadLocalMem, true, true);
 }
 
-int LumpedRateModelWithPores::residualSensFwdAdOnly(const ActiveSimulationTime& simTime, const ConstSimulationState& simState, active* const adRes)
+int LumpedRateModelWithPores::residualSensFwdAdOnly(const ActiveSimulationTime& simTime, const ConstSimulationState& simState, active* const adRes, const util::ThreadLocalArray& threadLocalMem)
 {
 	BENCH_SCOPE(_timerResidualSens);
 
 	// Evaluate residual for all parameters using AD in vector mode
-	return residualImpl<double, active, active, false>(simTime.t, simTime.secIdx, simTime.timeFactor, simState.vecStateY, simState.vecStateYdot, adRes); 
+	return residualImpl<double, active, active, false>(simTime.t, simTime.secIdx, simTime.timeFactor, simState.vecStateY, simState.vecStateYdot, adRes, threadLocalMem); 
 }
 
 int LumpedRateModelWithPores::residualSensFwdCombine(const ActiveSimulationTime& simTime, const ConstSimulationState& simState, 

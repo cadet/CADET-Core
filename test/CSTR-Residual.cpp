@@ -16,6 +16,7 @@
 #include "model/StirredTankModel.hpp"
 #include "ModelBuilderImpl.hpp"
 #include "SimulationTypes.hpp"
+#include "ParallelSupport.hpp"
 
 #include "JsonTestModels.hpp"
 #include "JacobianHelper.hpp"
@@ -93,14 +94,16 @@ inline void checkJacobianAD(double flowRateIn, double flowRateOut, double flowRa
 	std::vector<double> jacDir(nDof, 0.0);
 	std::vector<double> jacCol1(nDof, 0.0);
 	std::vector<double> jacCol2(nDof, 0.0);
+	cadet::util::ThreadLocalStorage<double> tls;
+	tls.resize(cstrAna->threadLocalMemorySize());
 
 	// Fill state vectors with some values
 	cadet::test::util::populate(y.data(), [=](unsigned int idx) { return std::abs(std::sin(idx * 0.13)) + 1e-4; }, nDof);
 	cadet::test::util::populate(yDot.data(), [=](unsigned int idx) { return std::abs(std::sin((idx + nDof) * 0.13)) + 1e-4; }, nDof);
 
 	// Compute state Jacobian
-	cstrAna->residualWithJacobian(cadet::ActiveSimulationTime{0.0, 0u, 1.0}, cadet::ConstSimulationState{y.data(), nullptr}, jacDir.data(), noParams);
-	cstrAD->residualWithJacobian(cadet::ActiveSimulationTime{0.0, 0u, 1.0}, cadet::ConstSimulationState{y.data(), nullptr}, jacDir.data(), adParams);
+	cstrAna->residualWithJacobian(cadet::ActiveSimulationTime{0.0, 0u, 1.0}, cadet::ConstSimulationState{y.data(), nullptr}, jacDir.data(), noParams, tls);
+	cstrAD->residualWithJacobian(cadet::ActiveSimulationTime{0.0, 0u, 1.0}, cadet::ConstSimulationState{y.data(), nullptr}, jacDir.data(), adParams, tls);
 	std::fill(jacDir.begin(), jacDir.end(), 0.0);
 
 	// Compare Jacobians
@@ -139,18 +142,20 @@ inline void checkJacobianFD(double flowRateIn, double flowRateOut, double flowRa
 	std::vector<double> jacDir(nDof, 0.0);
 	std::vector<double> jacCol1(nDof, 0.0);
 	std::vector<double> jacCol2(nDof, 0.0);
+	cadet::util::ThreadLocalStorage<double> tls;
+	tls.resize(cstr->threadLocalMemorySize());
 
 	// Fill state vectors with some values
 	cadet::test::util::populate(y.data(), [=](unsigned int idx) { return std::abs(std::sin(idx * 0.13)) + 1e-4; }, nDof);
 	cadet::test::util::populate(yDot.data(), [=](unsigned int idx) { return std::abs(std::sin((idx + nDof) * 0.13)) + 1e-4; }, nDof);
 
 	// Compute state Jacobian
-	cstr->residualWithJacobian(cadet::ActiveSimulationTime{0.0, 0u, 1.0}, cadet::ConstSimulationState{y.data(), yDot.data()}, jacDir.data(), cadet::AdJacobianParams{nullptr, nullptr, 0u});
+	cstr->residualWithJacobian(cadet::ActiveSimulationTime{0.0, 0u, 1.0}, cadet::ConstSimulationState{y.data(), yDot.data()}, jacDir.data(), cadet::AdJacobianParams{nullptr, nullptr, 0u}, tls);
 	std::fill(jacDir.begin(), jacDir.end(), 0.0);
 
 	// Compare Jacobians
 //	cadet::test::checkJacobianPatternFD(cstr, cstr, y.data(), yDot.data(), jacDir.data(), jacCol1.data(), jacCol2.data());
-	cadet::test::compareJacobianFD(cstr, cstr, y.data(), yDot.data(), jacDir.data(), jacCol1.data(), jacCol2.data());
+	cadet::test::compareJacobianFD(cstr, cstr, y.data(), yDot.data(), jacDir.data(), jacCol1.data(), jacCol2.data(), tls);
 
 	mb->destroyUnitOperation(cstr);
 	destroyModelBuilder(mb);	
@@ -182,13 +187,15 @@ inline void checkTimeDerivativeJacobianFD(double flowRateIn, double flowRateOut,
 	std::vector<double> jacDir(nDof, 0.0);
 	std::vector<double> jacCol1(nDof, 0.0);
 	std::vector<double> jacCol2(nDof, 0.0);
+	cadet::util::ThreadLocalStorage<double> tls;
+	tls.resize(cstr->threadLocalMemorySize());
 
 	// Fill state vectors with some values
 	cadet::test::util::populate(y.data(), [=](unsigned int idx) { return std::abs(std::sin(idx * 0.13)) + 1e-4; }, nDof);
 	cadet::test::util::populate(yDot.data(), [=](unsigned int idx) { return std::abs(std::sin((idx + nDof) * 0.13)) + 1e-4; }, nDof);
 
 	// Compare Jacobians
-	cadet::test::compareTimeDerivativeJacobianFD(cstr, cstr, y.data(), yDot.data(), jacDir.data(), jacCol1.data(), jacCol2.data());
+	cadet::test::compareTimeDerivativeJacobianFD(cstr, cstr, y.data(), yDot.data(), jacDir.data(), jacCol1.data(), jacCol2.data(), tls);
 
 	mb->destroyUnitOperation(cstr);
 	destroyModelBuilder(mb);
