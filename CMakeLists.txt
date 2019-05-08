@@ -171,7 +171,7 @@ if (TBB_FOUND)
 	endif()
 
 	if (CMAKE_BUILD_TYPE STREQUAL "Debug")
-		if (DEBUG_THREADING)
+		if (ENABLE_DEBUG_THREADING)
 			set(CADET_PARALLEL_FLAG "CADET_PARALLELIZE")
 		endif()
 	else()
