@@ -49,8 +49,7 @@ namespace model
  *          Some binding models require a dedicated salt component, which is always given
  *          by component 0.
  *          
- *          The ordering inside the solid phase can be chosen by the binding model to some
- *          extent. In general, the ordering is component-major, that means, all bound
+ *          The ordering inside the solid phase is component-major, that means, all bound
  *          phases for each component are listed one after the other. For a model having
  *          4 components with 1, 0, 3, 2 bound states, respectively, the ordering is
  *          comp0bnd0, comp2bnd0, comp2bnd1, comp2bnd2, comp3bnd0, comp3bnd1.
@@ -370,6 +369,14 @@ public:
 	 * @param [in,out] workSpace Memory work space
 	 */
 	virtual void timeDerivativeAlgebraicResidual(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, double* dResDt, void* workSpace) const = 0;
+
+	/**
+	 * @brief Returns an array that determines whether each bound state is quasi-stationary
+	 * @details Each entry represents a truth value (converts to @c bool) that determines whether
+	 *          the corresponding bound state is quasi-stationary (@c true) or not (@c false).
+	 * @return Array that determines quasi-stationarity of bound states
+	 */
+	virtual int const* boundStateQuasiStationarity() const CADET_NOEXCEPT = 0;
 protected:
 };
 

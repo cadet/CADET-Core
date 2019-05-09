@@ -268,6 +268,12 @@ protected:
 
 	virtual bool configureImpl(IParameterProvider& paramProvider, UnitOpIdx unitOpIdx, ParticleTypeIdx parTypeIdx)
 	{
+		if (_kineticBinding)
+		{
+			// First equation is Salt, which is always algebraic
+			_stateQuasistationarity[0] = true;
+		}
+
 		// Read parameters
 		_paramHandler.configure(paramProvider, _nComp, _nBoundStates);
 

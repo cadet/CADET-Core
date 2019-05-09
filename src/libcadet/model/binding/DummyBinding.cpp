@@ -12,8 +12,10 @@
 
 #include "model/BindingModel.hpp"
 #include "ParamIdUtil.hpp"
+#include "model/ModelUtils.hpp"
 
 #include <unordered_map>
+#include <vector>
 
 namespace cadet
 {
@@ -29,7 +31,7 @@ class DummyBinding : public IBindingModel
 {
 public:
 
-	DummyBinding() { }
+	DummyBinding() : _stateQuasistationarity(0, false) { }
 	virtual ~DummyBinding() CADET_NOEXCEPT { }
 
 	static const char* identifier() { return "NONE"; }
@@ -40,6 +42,7 @@ public:
 	{
 		_nComp = nComp;
 		_nBoundStates = nBound;
+		_stateQuasistationarity.resize(numBoundStates(nBound, nComp), false);
 		return true;
 	}
 
@@ -175,10 +178,12 @@ public:
 	virtual bool hasAlgebraicEquations() const CADET_NOEXCEPT { return false; }
 	virtual bool dependsOnTime() const CADET_NOEXCEPT { return false; }
 	virtual bool requiresWorkspace() const CADET_NOEXCEPT { return false; }
+	virtual int const* boundStateQuasiStationarity() const CADET_NOEXCEPT { return _stateQuasistationarity.data(); }
 
 protected:
 	int _nComp; //!< Number of components
 	unsigned int const* _nBoundStates; //!< Array with number of bound states for each component
+	std::vector<int> _stateQuasistationarity; //!< Determines whether each bound state is quasi-stationary (@c true) or not (@c false)
 };
 
 namespace binding

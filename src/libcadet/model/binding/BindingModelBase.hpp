@@ -83,10 +83,13 @@ public:
 
 	virtual void timeDerivativeAlgebraicResidual(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, double* dResDt, void* workSpace) const { }
 
+	virtual int const* boundStateQuasiStationarity() const CADET_NOEXCEPT { return _stateQuasistationarity.data(); }
+
 protected:
 	int _nComp; //!< Number of components
 	unsigned int const* _nBoundStates; //!< Array with number of bound states for each component
 	bool _kineticBinding; //!< Determines whether binding is kinetic (@c true) or quasi-stationary (@c false)
+	std::vector<int> _stateQuasistationarity; //!< Determines whether each bound state is quasi-stationary (@c true) or not (@c false)
 
 	std::unordered_map<ParameterId, active*> _parameters; //!< Map used to translate ParameterIds to actual variables
 	nonlin::Solver* _nonlinearSolver; //!< Nonlinear equation solver for consistent initialization

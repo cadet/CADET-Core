@@ -73,6 +73,12 @@ bool SimplifiedMultiStateStericMassActionBinding::configureModelDiscretization(I
 
 bool SimplifiedMultiStateStericMassActionBinding::configureImpl(IParameterProvider& paramProvider, UnitOpIdx unitOpIdx, ParticleTypeIdx parTypeIdx)
 {
+	if (_kineticBinding)
+	{
+		// First equation is Salt, which is always algebraic
+		_stateQuasistationarity[0] = true;
+	}
+
 	const unsigned int totalBoundStates = numBoundStates(_nBoundStates, _nComp);
 
 	// Read parameters

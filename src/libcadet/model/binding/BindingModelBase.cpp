@@ -31,7 +31,7 @@ namespace cadet
 namespace model
 {
 
-BindingModelBase::BindingModelBase() : _nComp(0), _nBoundStates(nullptr), _nonlinearSolver(nullptr) { }
+BindingModelBase::BindingModelBase() : _nComp(0), _nBoundStates(nullptr), _stateQuasistationarity(0, false), _nonlinearSolver(nullptr) { }
 BindingModelBase::~BindingModelBase() CADET_NOEXCEPT
 {
 	delete _nonlinearSolver;
@@ -44,6 +44,8 @@ bool BindingModelBase::configureModelDiscretization(IParameterProvider& paramPro
 	if (hasMultipleBoundStates(nBound, nComp) && !supportsMultistate())
 		throw InvalidParameterException("Binding model does not support multiple bound states");
 
+	_stateQuasistationarity.resize(numBoundStates(nBound, nComp), false);
+
 	return configureNonlinearSolver(paramProvider);
 }
 
@@ -51,6 +53,7 @@ bool BindingModelBase::configure(IParameterProvider& paramProvider, UnitOpIdx un
 {
 	// Read binding dynamics (quasi-stationary, kinetic)
 	_kineticBinding = paramProvider.getInt("IS_KINETIC");
+	std::fill(_stateQuasistationarity.begin(), _stateQuasistationarity.end(), !_kineticBinding);
 
 	// Clear all parameters and reconfigure
 	_parameters.clear();

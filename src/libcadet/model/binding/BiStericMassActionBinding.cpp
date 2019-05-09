@@ -299,6 +299,13 @@ protected:
 
 	virtual bool configureImpl(IParameterProvider& paramProvider, UnitOpIdx unitOpIdx, ParticleTypeIdx parTypeIdx)
 	{
+		if (_kineticBinding)
+		{
+			// First equations are Salt, which are always algebraic
+			const unsigned int numStates = firstNonEmptyBoundStates(_nBoundStates, _nComp);
+			std::fill_n(_stateQuasistationarity.data(), numStates, true);
+		}
+
 		// Read parameters
 		_paramHandler.configure(paramProvider, _nComp, _nBoundStates);
 

@@ -392,7 +392,7 @@ class LinearBindingBase : public IBindingModel
 {
 public:
 
-	LinearBindingBase() : _nComp(0), _nBoundStates(nullptr) { }
+	LinearBindingBase() : _nComp(0), _nBoundStates(nullptr), _stateQuasistationarity(0, false) { }
 	virtual ~LinearBindingBase() CADET_NOEXCEPT { }
 
 	static const char* identifier() { return ParamHandler_t::identifier(); }
@@ -406,6 +406,8 @@ public:
 		if (hasMultipleBoundStates(nBound, nComp))
 			throw InvalidParameterException("Linear binding model does not support multiple bound states");
 
+		_stateQuasistationarity.resize(numBoundStates(nBound, nComp), false);
+
 		return true;
 	}
 
@@ -415,6 +417,7 @@ public:
 
 		// Read binding dynamics (quasi-stationary, kinetic)
 		_kineticBinding = paramProvider.getInt("IS_KINETIC");
+		std::fill(_stateQuasistationarity.begin(), _stateQuasistationarity.end(), !_kineticBinding);
 
 		// Read parameters (k_a and k_d)
 		_paramHandler.configure(paramProvider, _nComp, _nBoundStates);
@@ -641,11 +644,13 @@ public:
 	virtual bool hasAlgebraicEquations() const CADET_NOEXCEPT { return !_kineticBinding; }
 	virtual bool dependsOnTime() const CADET_NOEXCEPT { return ParamHandler_t::dependsOnTime(); }
 	virtual bool requiresWorkspace() const CADET_NOEXCEPT { return ParamHandler_t::requiresWorkspace(); }
+	virtual int const* boundStateQuasiStationarity() const CADET_NOEXCEPT { return _stateQuasistationarity.data(); }
 
 protected:
 	int _nComp; //!< Number of components
 	unsigned int const* _nBoundStates; //!< Array with number of bound states for each component
 	bool _kineticBinding; //!< Determines whether binding is kinetic (@c true) or quasi-stationary (@c false)
+	std::vector<int> _stateQuasistationarity; //!< Determines whether each bound state is quasi-stationary (@c true) or not (@c false)
 
 	ParamHandler_t _paramHandler; //!< Parameters
 
