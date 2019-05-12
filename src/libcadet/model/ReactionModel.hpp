@@ -69,6 +69,13 @@ public:
 	virtual bool requiresConfiguration() const CADET_NOEXCEPT = 0;
 
 	/**
+	 * @brief Returns whether the dynamic reaction model uses the IParameterProvider in configureModelDiscretization()
+	 * @details If the IParameterProvider is used in configureModelDiscretization(), it has to be in the correct scope.
+	 * @return @c true if the IParameterProvider is used in configureModelDiscretization(), otherwise @c false
+	 */
+	virtual bool usesParamProviderInDiscretizationConfig() const CADET_NOEXCEPT = 0;
+
+	/**
 	 * @brief Sets the number of components in the model
 	 * @details This function is called prior to configure() by the underlying model.
 	 *          It can only be called once. Model parameters are configured by configure().

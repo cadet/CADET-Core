@@ -12,6 +12,7 @@
 
 #include "model/StirredTankModel.hpp"
 #include "ParamReaderHelper.hpp"
+#include "ParamReaderScopes.hpp"
 #include "cadet/Exceptions.hpp"
 #include "cadet/SolutionRecorder.hpp"
 #include "model/BindingModel.hpp"
@@ -28,8 +29,6 @@
 
 #include <algorithm>
 #include <functional>
-#include <sstream>
-#include <iomanip>
 
 namespace cadet
 {
@@ -173,6 +172,7 @@ bool CSTRModel::configureModelDiscretization(IParameterProvider& paramProvider, 
 			if (!_binding[i])
 				throw InvalidParameterException("Unknown binding model " + bindModelNames[i]);
 
+			MultiplexedScopeSelector scopeGuard(paramProvider, "adsorption", _nParType == 1, i, _nParType == 1, _binding[i]->usesParamProviderInDiscretizationConfig());
 			bindingConfSuccess = _binding[i]->configureModelDiscretization(paramProvider, _nComp, _nBound + i * _nComp, _boundOffset + i * _nComp) && bindingConfSuccess;
 		}
 	}
@@ -240,25 +240,16 @@ bool CSTRModel::configure(IParameterProvider& paramProvider)
 	if (!_binding.empty())
 	{
 		bool bindingConfSuccess = true;
-		std::ostringstream oss;
 		for (unsigned int type = 0; type < _nParType; ++type)
 		{
  			if (!_binding[type] || !_binding[type]->requiresConfiguration())
  				continue;
 
-			oss.str("");
-			oss << "adsorption_" << std::setfill('0') << std::setw(3) << std::setprecision(0) << type;
-
- 			// If there is just one type, allow legacy "adsorption" scope
-			if (!paramProvider.exists(oss.str()) && (_nParType == 1))
-				oss.str("adsorption");
-
-			if (!paramProvider.exists(oss.str()))
+			MultiplexedScopeSelector scopeGuard(paramProvider, "adsorption", type, _nParType == 1, false);
+			if (scopeGuard.isActive())
 				continue;
-
-			paramProvider.pushScope(oss.str());
+			
 			bindingConfSuccess = _binding[type]->configure(paramProvider, _unitOpIdx, type) && bindingConfSuccess;
-			paramProvider.popScope();
 		}
 
 		return bindingConfSuccess;

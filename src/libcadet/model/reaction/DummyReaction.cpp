@@ -33,6 +33,7 @@ public:
 	virtual const char* name() const CADET_NOEXCEPT { return "NONE"; }
 
 	virtual bool requiresConfiguration() const CADET_NOEXCEPT { return false; }
+	virtual bool usesParamProviderInDiscretizationConfig() const CADET_NOEXCEPT { return false; }
 
 	virtual bool configureModelDiscretization(IParameterProvider& paramProvider, unsigned int nComp, unsigned int const* nBound, unsigned int const* boundOffset)
 	{

@@ -198,7 +198,14 @@ bool LumpedRateModelWithoutPores::configureModelDiscretization(IParameterProvide
 	if (!_binding[0])
 		throw InvalidParameterException("Unknown binding model " + paramProvider.getString("ADSORPTION_MODEL"));
 
-	const bool bindingConfSuccess = _binding[0]->configureModelDiscretization(paramProvider, _disc.nComp, _disc.nBound, _disc.boundOffset);
+	bool bindingConfSuccess = true;
+	if (_binding[0]->usesParamProviderInDiscretizationConfig())
+		paramProvider.pushScope("adsorption");
+
+	_binding[0]->configureModelDiscretization(paramProvider, _disc.nComp, _disc.nBound, _disc.boundOffset);
+
+	if (_binding[0]->usesParamProviderInDiscretizationConfig())
+		paramProvider.popScope();
 
 	// Setup the memory for tempState based on state vector
 	_tempState = new double[numDofs()];

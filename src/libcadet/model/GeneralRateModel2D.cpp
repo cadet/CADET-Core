@@ -13,6 +13,7 @@
 #include "model/GeneralRateModel2D.hpp"
 #include "BindingModelFactory.hpp"
 #include "ParamReaderHelper.hpp"
+#include "ParamReaderScopes.hpp"
 #include "cadet/Exceptions.hpp"
 #include "cadet/ExternalFunction.hpp"
 #include "cadet/SolutionRecorder.hpp"
@@ -34,8 +35,6 @@
 #include <algorithm>
 #include <functional>
 #include <numeric>
-#include <sstream>
-#include <iomanip>
 
 #include "ParallelSupport.hpp"
 #ifdef CADET_PARALLELIZE
@@ -592,6 +591,7 @@ bool GeneralRateModel2D::configureModelDiscretization(IParameterProvider& paramP
 			if (!_binding[i])
 				throw InvalidParameterException("Unknown binding model " + bindModelNames[i]);
 
+			MultiplexedScopeSelector scopeGuard(paramProvider, "adsorption", _singleBinding, i, _disc.nParType == 1, _binding[i]->usesParamProviderInDiscretizationConfig());
 			bindingConfSuccess = _binding[i]->configureModelDiscretization(paramProvider, _disc.nComp, _disc.nBound + i * _disc.nComp, _disc.boundOffset + i * _disc.nComp) && bindingConfSuccess;
 		}
 	}
@@ -785,38 +785,23 @@ bool GeneralRateModel2D::configure(IParameterProvider& paramProvider)
 		{
 			if (_binding[0] && _binding[0]->requiresConfiguration())
 			{
-				if (paramProvider.exists("adsorption"))
-					paramProvider.pushScope("adsorption");
-				else if (paramProvider.exists("adsorption_000"))
-					paramProvider.pushScope("adsorption_000");
-				else
-					throw InvalidParameterException("Group \"adsorption\" or \"adsorption_000\" required");
-
+				MultiplexedScopeSelector scopeGuard(paramProvider, "adsorption", true);
 				bindingConfSuccess = _binding[0]->configure(paramProvider, _unitOpIdx, ParTypeIndep);
-				paramProvider.popScope();
 			}
 		}
 		else
 		{
-			std::ostringstream oss;
 			for (unsigned int type = 0; type < _disc.nParType; ++type)
 			{
 	 			if (!_binding[type] || !_binding[type]->requiresConfiguration())
 	 				continue;
 
-				oss.str("");
-				oss << "adsorption_" << std::setfill('0') << std::setw(3) << std::setprecision(0) << type;
-
-	 			// If there is just one type, allow legacy "adsorption" scope
-				if (!paramProvider.exists(oss.str()) && (_disc.nParType == 1))
-					oss.str("adsorption");
-
-				if (!paramProvider.exists(oss.str()))
+	 			// Check whether required = true and no isActive() check should be performed
+				MultiplexedScopeSelector scopeGuard(paramProvider, "adsorption", type, _disc.nParType == 1, false);
+				if (scopeGuard.isActive())
 					continue;
 
-				paramProvider.pushScope(oss.str());
 				bindingConfSuccess = _binding[type]->configure(paramProvider, _unitOpIdx, type) && bindingConfSuccess;
-				paramProvider.popScope();
 			}
 		}
 

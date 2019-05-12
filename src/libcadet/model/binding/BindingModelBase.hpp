@@ -60,6 +60,7 @@ public:
 	virtual ~BindingModelBase() CADET_NOEXCEPT;
 
 	virtual bool requiresConfiguration() const CADET_NOEXCEPT { return true; }
+	virtual bool usesParamProviderInDiscretizationConfig() const CADET_NOEXCEPT { return true; }
 	virtual bool configure(IParameterProvider& paramProvider, UnitOpIdx unitOpIdx, ParticleTypeIdx parTypeIdx);
 	virtual bool configureModelDiscretization(IParameterProvider& paramProvider, unsigned int nComp, unsigned int const* nBound, unsigned int const* boundOffset);
 	virtual void fillBoundPhaseInitialParameters(ParameterId* params, UnitOpIdx unitOpIdx, ParticleTypeIdx parTypeIdx) const CADET_NOEXCEPT;
