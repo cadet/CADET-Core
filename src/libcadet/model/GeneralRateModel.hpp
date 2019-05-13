@@ -266,6 +266,7 @@ protected:
 	};
 
 	Discretization _disc; //!< Discretization info
+	std::vector<bool> _hasSurfaceDiffusion; //!< Determines whether surface diffusion is present in each particle type
 //	IExternalFunction* _extFun; //!< External function (owned by library user)
 
 	parts::ConvectionDispersionOperator _convDispOp; //!< Convection dispersion operator for interstitial volume transport

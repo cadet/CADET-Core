@@ -37,6 +37,7 @@
 #include <algorithm>
 #include <functional>
 #include <numeric>
+#include <iterator>
 
 #include "ParallelSupport.hpp"
 #ifdef CADET_PARALLELIZE
@@ -57,7 +58,7 @@ int schurComplementMultiplierGRM(void* userData, double const* x, double* z)
 
 
 GeneralRateModel::GeneralRateModel(UnitOpIdx unitOpIdx) : UnitOperationBase(unitOpIdx),
-	_dynReactionBulk(nullptr),
+	_hasSurfaceDiffusion(0, false), _dynReactionBulk(nullptr),
 	_jacP(nullptr), _jacPdisc(nullptr), _jacPF(nullptr), _jacFP(nullptr), _jacInlet(),
 	_analyticJac(true), _jacobianAdDirs(0), _factorizeJacobian(false), _tempState(nullptr),
 	_initC(0), _initCp(0), _initQ(0), _initState(0), _initStateDot(0)
@@ -253,40 +254,38 @@ bool GeneralRateModel::configureModelDiscretization(IParameterProvider& paramPro
 	_initCp.resize(_disc.nComp * _disc.nParType);
 	_initQ.resize(nTotalBound);
 
+	const bool optimizeSurfDiffusion = paramProvider.exists("FIX_ZERO_SURFACE_DIFFUSION") ? paramProvider.getBool("FIX_ZERO_SURFACE_DIFFUSION") : false;
+
 	paramProvider.popScope();
 
-	const bool transportSuccess = _convDispOp.configureModelDiscretization(paramProvider, _disc.nComp, _disc.nCol);
-
-	// Allocate memory
-	Indexer idxr(_disc);
-
-	_jacInlet.resize(_disc.nComp);
-
-	_jacP = new linalg::BandMatrix[_disc.nCol * _disc.nParType];
-	_jacPdisc = new linalg::FactorizableBandMatrix[_disc.nCol * _disc.nParType];
-	for (unsigned int j = 0; j < _disc.nParType; ++j)
+	if (optimizeSurfDiffusion)
 	{
-		linalg::BandMatrix* const ptrJac = _jacP + _disc.nCol * j;
-		linalg::FactorizableBandMatrix* const ptrJacDisc = _jacPdisc + _disc.nCol * j;
-		for (unsigned int i = 0; i < _disc.nCol; ++i)
+		// Check whether surface diffusion is present
+		_hasSurfaceDiffusion.resize(_disc.nParType, false);
+		if (paramProvider.exists("PAR_SURFDIFFUSION"))
 		{
-			ptrJacDisc[i].resize(_disc.nParCell[j] * (_disc.nComp + _disc.strideBound[j]), _disc.nComp + _disc.strideBound[j], _disc.nComp + 2 * _disc.strideBound[j]);
-			ptrJac[i].resize(_disc.nParCell[j] * (_disc.nComp + _disc.strideBound[j]), _disc.nComp + _disc.strideBound[j], _disc.nComp + 2 * _disc.strideBound[j]);
+			const std::vector<double> surfDiff = paramProvider.getDoubleArray("PAR_SURFDIFFUSION");
+			for (unsigned int i = 0; i < _disc.nParType; ++i)
+			{
+				// Check surface diffusion coefficients of each particle type
+				for (unsigned int j = 0; j < _disc.nBound[i]; ++j)
+				{
+					if (surfDiff[_disc.nBoundBeforeType[i] + j] != 0.0)
+					{
+						_hasSurfaceDiffusion[i] = true;
+						break;
+					}
+				}
+			}
 		}
 	}
-
-	_jacPF = new linalg::DoubleSparseMatrix[_disc.nCol * _disc.nParType];
-	_jacFP = new linalg::DoubleSparseMatrix[_disc.nCol * _disc.nParType];
-	for (unsigned int i = 0; i < _disc.nCol * _disc.nParType; ++i)
+	else
 	{
-		_jacPF[i].resize(_disc.nComp);
-		_jacFP[i].resize(_disc.nComp);
+		// Assume that surface diffusion is present
+		_hasSurfaceDiffusion.resize(_disc.nParType, true);
 	}
 
-	_jacCF.resize(_disc.nComp * _disc.nCol * _disc.nParType);
-	_jacFC.resize(_disc.nComp * _disc.nCol * _disc.nParType);
-
-	_discParFlux.resize(sizeof(active) * _disc.nComp);
+	const bool transportSuccess = _convDispOp.configureModelDiscretization(paramProvider, _disc.nComp, _disc.nCol);
 
 	// Set whether analytic Jacobian is used
 	useAnalyticJacobian(analyticJac);
@@ -388,8 +387,52 @@ bool GeneralRateModel::configureModelDiscretization(IParameterProvider& paramPro
 		}
 	}
 
-	// Setup the memory for tempState based on state vector
+	// Allocate memory
 	_tempState = new double[numDofs()];
+
+	_jacInlet.resize(_disc.nComp);
+
+	_jacP = new linalg::BandMatrix[_disc.nCol * _disc.nParType];
+	_jacPdisc = new linalg::FactorizableBandMatrix[_disc.nCol * _disc.nParType];
+	for (unsigned int j = 0; j < _disc.nParType; ++j)
+	{
+		linalg::BandMatrix* const ptrJac = _jacP + _disc.nCol * j;
+		linalg::FactorizableBandMatrix* const ptrJacDisc = _jacPdisc + _disc.nCol * j;
+
+		const unsigned int lowerBandwidth = _disc.nComp + _disc.strideBound[j];
+
+		// Upper bandwidth of state Jacobian depends on whether surface diffusion is enabled
+		const unsigned int upperBandwidth = lowerBandwidth + (_hasSurfaceDiffusion[j] ? _disc.strideBound[j] : 0);
+
+		// Find index of last quasi-stationary bound state
+		int const* const qsBoundState = _binding[j]->boundStateQuasiStationarity();
+		const std::reverse_iterator<int const*> itLast = std::find_if(std::reverse_iterator<int const*>(qsBoundState + _disc.strideBound[j]), std::reverse_iterator<int const*>(qsBoundState),
+			[](int i) -> bool { return i; });
+		const int idxLastQuasiStationaryBoundState = (&(*itLast) != qsBoundState - 1) ? std::distance(itLast, std::reverse_iterator<int const*>(qsBoundState)) - 1 : 0;
+
+		// Upper bandwidth of time-discretized system Jacobian might include dq/dt terms from bound states (in case of quasi-stationary bound states)
+		// However, if surface diffusion is present, the dq/dt terms are already accounted for in the increased bandwidth from surface diffusion
+		const unsigned int upperBandwidthDisc = std::max(lowerBandwidth + idxLastQuasiStationaryBoundState, upperBandwidth);
+
+		for (unsigned int i = 0; i < _disc.nCol; ++i)
+		{
+			ptrJac[i].resize(_disc.nParCell[j] * lowerBandwidth, lowerBandwidth, upperBandwidth);
+			ptrJacDisc[i].resize(_disc.nParCell[j] * lowerBandwidth, lowerBandwidth, upperBandwidthDisc);
+		}
+	}
+
+	_jacPF = new linalg::DoubleSparseMatrix[_disc.nCol * _disc.nParType];
+	_jacFP = new linalg::DoubleSparseMatrix[_disc.nCol * _disc.nParType];
+	for (unsigned int i = 0; i < _disc.nCol * _disc.nParType; ++i)
+	{
+		_jacPF[i].resize(_disc.nComp);
+		_jacFP[i].resize(_disc.nComp);
+	}
+
+	_jacCF.resize(_disc.nComp * _disc.nCol * _disc.nParType);
+	_jacFC.resize(_disc.nComp * _disc.nCol * _disc.nParType);
+
+	_discParFlux.resize(sizeof(active) * _disc.nComp);
 
 	return transportSuccess && bindingConfSuccess && reactionConfSuccess;
 }
@@ -573,7 +616,7 @@ bool GeneralRateModel::configure(IParameterProvider& paramProvider)
 
 	// Reconfigure reaction model
 	bool dynReactionConfSuccess = true;
-	if (_dynReactionBulk)
+	if (_dynReactionBulk && _dynReactionBulk->requiresConfiguration())
 	{
 		paramProvider.pushScope("reaction_bulk");
 		dynReactionConfSuccess = _dynReactionBulk->configure(paramProvider, _unitOpIdx, ParTypeIndep);
@@ -586,15 +629,8 @@ bool GeneralRateModel::configure(IParameterProvider& paramProvider)
 		{
 			if (_dynReaction[0] && _dynReaction[0]->requiresConfiguration())
 			{
-				if (paramProvider.exists("reaction_particle"))
-					paramProvider.pushScope("reaction_particle");
-				else if (paramProvider.exists("reaction_particle_000"))
-					paramProvider.pushScope("reaction_particle_000");
-				else
-					throw InvalidParameterException("Group \"reaction_particle\" or \"reaction_particle_000\" required");
-
+				MultiplexedScopeSelector scopeGuard(paramProvider, "reaction_particle", true);
 				dynReactionConfSuccess = _dynReaction[0]->configure(paramProvider, _unitOpIdx, ParTypeIndep) && dynReactionConfSuccess;
-				paramProvider.popScope();
 			}
 		}
 		else
@@ -1096,31 +1132,34 @@ int GeneralRateModel::residualParticle(const ParamType& t, unsigned int parType,
 				*res -= outerAreaPerVolume * dp * gradCp;
 
 				// Surface diffusion contribution
-				for (unsigned int i = 0; i < nBound; ++i)
+				if (cadet_unlikely(_hasSurfaceDiffusion[parType]))
 				{
-					// See above for explanation of curIdx value
-					const int curIdx = idxr.strideParLiquid() - comp + idxr.offsetBoundComp(ParticleTypeIndex{parType}, ComponentIndex{comp}) + i;
-					const ResidualType gradQ = (y[-idxr.strideParShell(parType) + curIdx] - y[curIdx]) / dr;
-					*res -= outerAreaPerVolume * static_cast<ParamType>(parSurfDiff[idxr.offsetBoundComp(ParticleTypeIndex{parType}, ComponentIndex{comp}) + i]) * invBetaP * gradQ;
-				}
-
-				if (wantJac)
-				{
-					const double localInvBetaP = static_cast<double>(invBetaP);
-					const double ouApV = static_cast<double>(outerAreaPerVolume);
-					const double ldr = static_cast<double>(dr);
-
-					// Liquid phase
-					jac[0] += ouApV * static_cast<double>(dp) / ldr; // dres / dc_p,i^(p,j)
-					jac[-idxr.strideParShell(parType)] = -ouApV * static_cast<double>(dp) / ldr; // dres / dc_p,i^(p,j-1)
-
-					// Solid phase
 					for (unsigned int i = 0; i < nBound; ++i)
 					{
 						// See above for explanation of curIdx value
 						const int curIdx = idxr.strideParLiquid() - comp + idxr.offsetBoundComp(ParticleTypeIndex{parType}, ComponentIndex{comp}) + i;
-						jac[curIdx] += ouApV * localInvBetaP * static_cast<double>(parSurfDiff[idxr.offsetBoundComp(ParticleTypeIndex{parType}, ComponentIndex{comp}) + i]) / ldr; // dres / dq_i^(p,j)
-						jac[-idxr.strideParShell(parType) + curIdx] = -ouApV * localInvBetaP * static_cast<double>(parSurfDiff[idxr.offsetBoundComp(ParticleTypeIndex{parType}, ComponentIndex{comp}) + i]) / ldr; // dres / dq_i^(p,j-1)
+						const ResidualType gradQ = (y[-idxr.strideParShell(parType) + curIdx] - y[curIdx]) / dr;
+						*res -= outerAreaPerVolume * static_cast<ParamType>(parSurfDiff[idxr.offsetBoundComp(ParticleTypeIndex{parType}, ComponentIndex{comp}) + i]) * invBetaP * gradQ;
+					}
+
+					if (wantJac)
+					{
+						const double localInvBetaP = static_cast<double>(invBetaP);
+						const double ouApV = static_cast<double>(outerAreaPerVolume);
+						const double ldr = static_cast<double>(dr);
+
+						// Liquid phase
+						jac[0] += ouApV * static_cast<double>(dp) / ldr; // dres / dc_p,i^(p,j)
+						jac[-idxr.strideParShell(parType)] = -ouApV * static_cast<double>(dp) / ldr; // dres / dc_p,i^(p,j-1)
+
+						// Solid phase
+						for (unsigned int i = 0; i < nBound; ++i)
+						{
+							// See above for explanation of curIdx value
+							const int curIdx = idxr.strideParLiquid() - comp + idxr.offsetBoundComp(ParticleTypeIndex{parType}, ComponentIndex{comp}) + i;
+							jac[curIdx] += ouApV * localInvBetaP * static_cast<double>(parSurfDiff[idxr.offsetBoundComp(ParticleTypeIndex{parType}, ComponentIndex{comp}) + i]) / ldr; // dres / dq_i^(p,j)
+							jac[-idxr.strideParShell(parType) + curIdx] = -ouApV * localInvBetaP * static_cast<double>(parSurfDiff[idxr.offsetBoundComp(ParticleTypeIndex{parType}, ComponentIndex{comp}) + i]) / ldr; // dres / dq_i^(p,j-1)
+						}
 					}
 				}
 			}
@@ -1137,31 +1176,34 @@ int GeneralRateModel::residualParticle(const ParamType& t, unsigned int parType,
 				*res += innerAreaPerVolume * dp * gradCp;
 
 				// Surface diffusion contribution
-				for (unsigned int i = 0; i < nBound; ++i)
+				if (cadet_unlikely(_hasSurfaceDiffusion[parType]))
 				{
-					// See above for explanation of curIdx value
-					const unsigned int curIdx = idxr.strideParLiquid() - comp + idxr.offsetBoundComp(ParticleTypeIndex{parType}, ComponentIndex{comp}) + i;
-					const ResidualType gradQ = (y[curIdx] - y[idxr.strideParShell(parType) + curIdx]) / dr;
-					*res += innerAreaPerVolume * static_cast<ParamType>(parSurfDiff[idxr.offsetBoundComp(ParticleTypeIndex{parType}, ComponentIndex{comp}) + i]) * invBetaP * gradQ;
-				}
-
-				if (wantJac)
-				{
-					const double localInvBetaP = static_cast<double>(invBetaP);
-					const double inApV = static_cast<double>(innerAreaPerVolume);
-					const double ldr = static_cast<double>(dr);
-
-					// Liquid phase
-					jac[0] += inApV * static_cast<double>(dp) / ldr; // dres / dc_p,i^(p,j)
-					jac[idxr.strideParShell(parType)] = -inApV * static_cast<double>(dp) / ldr; // dres / dc_p,i^(p,j+1)
-
-					// Solid phase
 					for (unsigned int i = 0; i < nBound; ++i)
 					{
 						// See above for explanation of curIdx value
-						const int curIdx = idxr.strideParLiquid() - comp + idxr.offsetBoundComp(ParticleTypeIndex{parType}, ComponentIndex{comp}) + i;
-						jac[curIdx] += inApV * localInvBetaP * static_cast<double>(parSurfDiff[idxr.offsetBoundComp(ParticleTypeIndex{parType}, ComponentIndex{comp}) + i]) / ldr; // dres / dq_i^(p,j)
-						jac[idxr.strideParShell(parType) + curIdx] = -inApV * localInvBetaP * static_cast<double>(parSurfDiff[idxr.offsetBoundComp(ParticleTypeIndex{parType}, ComponentIndex{comp}) + i]) / ldr; // dres / dq_i^(p,j-1)
+						const unsigned int curIdx = idxr.strideParLiquid() - comp + idxr.offsetBoundComp(ParticleTypeIndex{parType}, ComponentIndex{comp}) + i;
+						const ResidualType gradQ = (y[curIdx] - y[idxr.strideParShell(parType) + curIdx]) / dr;
+						*res += innerAreaPerVolume * static_cast<ParamType>(parSurfDiff[idxr.offsetBoundComp(ParticleTypeIndex{parType}, ComponentIndex{comp}) + i]) * invBetaP * gradQ;
+					}
+
+					if (wantJac)
+					{
+						const double localInvBetaP = static_cast<double>(invBetaP);
+						const double inApV = static_cast<double>(innerAreaPerVolume);
+						const double ldr = static_cast<double>(dr);
+
+						// Liquid phase
+						jac[0] += inApV * static_cast<double>(dp) / ldr; // dres / dc_p,i^(p,j)
+						jac[idxr.strideParShell(parType)] = -inApV * static_cast<double>(dp) / ldr; // dres / dc_p,i^(p,j+1)
+
+						// Solid phase
+						for (unsigned int i = 0; i < nBound; ++i)
+						{
+							// See above for explanation of curIdx value
+							const int curIdx = idxr.strideParLiquid() - comp + idxr.offsetBoundComp(ParticleTypeIndex{parType}, ComponentIndex{comp}) + i;
+							jac[curIdx] += inApV * localInvBetaP * static_cast<double>(parSurfDiff[idxr.offsetBoundComp(ParticleTypeIndex{parType}, ComponentIndex{comp}) + i]) / ldr; // dres / dq_i^(p,j)
+							jac[idxr.strideParShell(parType) + curIdx] = -inApV * localInvBetaP * static_cast<double>(parSurfDiff[idxr.offsetBoundComp(ParticleTypeIndex{parType}, ComponentIndex{comp}) + i]) / ldr; // dres / dq_i^(p,j-1)
+						}
 					}
 				}
 			}

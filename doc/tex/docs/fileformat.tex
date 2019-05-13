@@ -589,6 +589,13 @@ Note that all components of component dependent datasets have to be section depe
   \begin{dataset}[type=double,range={$\geq 0$},length=1]{SCHUR\_SAFETY}
     Schur safety factor; Influences the tradeoff between linear iterations and nonlinear error control; see IDAS guide Section~2.1 and 5.
   \end{dataset}
+  \begin{dataset}[type=int,range={$\{0, 1\}$},length=1]{FIX\_ZERO\_SURFACE\_DIFFUSION}
+    Determines whether the surface diffusion parameters \texttt{PAR\_SURFDIFFUSION} are fixed if the parameters are zero.
+    If the parameters are fixed to zero ($\texttt{FIX\_ZERO\_SURFACE\_DIFFUSION} = 1$, $\texttt{PAR\_SURFDIFFUSION} = 0$), the parameters must not become non-zero during this or subsequent simulation runs.
+    The internal data structures are optimized for a more efficient simulation.
+
+    This field is optional and defaults to $0$ (optimization disabled in favor of flexibility).
+  \end{dataset}
 \end{condsubgroup}
 
 \subsubsection{Lumped rate model with pores}
