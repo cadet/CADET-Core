@@ -46,15 +46,26 @@ bool BindingModelBase::configureModelDiscretization(IParameterProvider& paramPro
 
 	_stateQuasistationarity.resize(numBoundStates(nBound, nComp), false);
 
+	// Read binding dynamics (quasi-stationary, kinetic)
+	if (paramProvider.isArray("IS_KINETIC"))
+	{
+		const std::vector<int> vecKin = paramProvider.getIntArray("IS_KINETIC");
+		if (vecKin.size() < _stateQuasistationarity.size())
+			throw InvalidParameterException("IS_KINETIC has to have at least " + std::to_string(_stateQuasistationarity.size()) + " elements");
+
+		std::copy_n(vecKin.begin(), _stateQuasistationarity.size(), _stateQuasistationarity.begin());
+	}
+	else
+	{
+		_kineticBinding = paramProvider.getInt("IS_KINETIC");
+		std::fill(_stateQuasistationarity.begin(), _stateQuasistationarity.end(), !_kineticBinding);
+	}
+
 	return configureNonlinearSolver(paramProvider);
 }
 
 bool BindingModelBase::configure(IParameterProvider& paramProvider, UnitOpIdx unitOpIdx, ParticleTypeIdx parTypeIdx)
 {
-	// Read binding dynamics (quasi-stationary, kinetic)
-	_kineticBinding = paramProvider.getInt("IS_KINETIC");
-	std::fill(_stateQuasistationarity.begin(), _stateQuasistationarity.end(), !_kineticBinding);
-
 	// Clear all parameters and reconfigure
 	_parameters.clear();
 	return configureImpl(paramProvider, unitOpIdx, parTypeIdx);

@@ -409,16 +409,27 @@ public:
 
 		_stateQuasistationarity.resize(numBoundStates(nBound, nComp), false);
 
+		// Read binding dynamics (quasi-stationary, kinetic)
+		if (paramProvider.isArray("IS_KINETIC"))
+		{
+			const std::vector<int> vecKin = paramProvider.getIntArray("IS_KINETIC");
+			if (vecKin.size() < _stateQuasistationarity.size())
+				throw InvalidParameterException("IS_KINETIC has to have at least " + std::to_string(_stateQuasistationarity.size()) + " elements");
+
+			std::copy_n(vecKin.begin(), _stateQuasistationarity.size(), _stateQuasistationarity.begin());
+		}
+		else
+		{
+			_kineticBinding = paramProvider.getInt("IS_KINETIC");
+			std::fill(_stateQuasistationarity.begin(), _stateQuasistationarity.end(), !_kineticBinding);
+		}
+
 		return true;
 	}
 
 	virtual bool configure(IParameterProvider& paramProvider, UnitOpIdx unitOpIdx, ParticleTypeIdx parTypeIdx)
 	{
 		_parameters.clear();
-
-		// Read binding dynamics (quasi-stationary, kinetic)
-		_kineticBinding = paramProvider.getInt("IS_KINETIC");
-		std::fill(_stateQuasistationarity.begin(), _stateQuasistationarity.end(), !_kineticBinding);
 
 		// Read parameters (k_a and k_d)
 		_paramHandler.configure(paramProvider, _nComp, _nBoundStates);
