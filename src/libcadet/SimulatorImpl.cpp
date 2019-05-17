@@ -1082,14 +1082,19 @@ namespace cadet
 		}
 #endif
 
-		_timerIntegration.start();
-
 		// Set number of AD directions
 		// @todo This is problematic if multiple Simulators are run concurrently!
 #if defined(ACTIVE_ADOLC) || defined(ACTIVE_SFAD) || defined(ACTIVE_SETFAD)
 		LOG(Debug) << "Setting AD directions from " << ad::getDirections() << " to " << numSensitivityAdDirections() + _model->requiredADdirs();
+		if (numSensitivityAdDirections() + _model->requiredADdirs() > ad::getMaxDirections())
+			throw InvalidParameterException("Requested " + std::to_string(numSensitivityAdDirections() + _model->requiredADdirs()) + " AD directions, but only "
+				+ std::to_string(ad::getMaxDirections()) + " are supported");
+
 		ad::setDirections(numSensitivityAdDirections() + _model->requiredADdirs());
 #endif
+
+		_timerIntegration.start();
+
 		// Setup AD vectors by model
 		_model->prepareADvectors(AdJacobianParams{_vecADres, _vecADy, numSensitivityAdDirections()});
 
