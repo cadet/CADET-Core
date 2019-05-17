@@ -19,6 +19,7 @@
 #define CADET_JSONPARAMETERPROVIDER_HPP_
 
 #include "cadet/ParameterProvider.hpp"
+#include "common/CompilerSpecific.hpp"
 
 #include <string>
 #include <stack>
@@ -85,6 +86,7 @@ public:
 	inline nlohmann::json* data() { return _root; }
 	inline nlohmann::json const* data() const { return _root; }
 
+	void toFile(const std::string& fileName) const;
 	static JsonParameterProvider fromFile(const std::string& fileName);
 private:
 	JsonParameterProvider();
@@ -92,6 +94,10 @@ private:
 
 	nlohmann::json* _root;
 	std::stack<nlohmann::json*> _opened;
+
+#ifdef CADET_DEBUG
+	std::string _scopePath;
+#endif
 };
 
 std::ostream& operator<<(std::ostream& out, const JsonParameterProvider& jpp);

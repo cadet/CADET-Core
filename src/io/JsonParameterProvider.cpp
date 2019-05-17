@@ -16,6 +16,8 @@
 #include <fstream>
 #include <iomanip>
 
+#include "common/CompilerSpecific.hpp"
+
 #define CADET_JSONPARAMETERPROVIDER_NOFORWARD
 #include "common/JsonParameterProvider.hpp"
 
@@ -96,38 +98,59 @@ namespace cadet
 
 JsonParameterProvider::JsonParameterProvider() : _root(nullptr)
 {
+#ifdef CADET_DEBUG
+	_scopePath = "/";
+#endif
 }
 
 JsonParameterProvider::JsonParameterProvider(const char* data) : _root(new json(json::parse(data)))
 {
 	_opened.push(_root);
+#ifdef CADET_DEBUG
+	_scopePath = "/";
+#endif
 }
 
 JsonParameterProvider::JsonParameterProvider(const std::string& data) : _root(new json(json::parse(data)))
 {
 	_opened.push(_root);
+#ifdef CADET_DEBUG
+	_scopePath = "/";
+#endif
 }
 
 JsonParameterProvider::JsonParameterProvider(const json& data) : _root(new json(data))
 {
 	_opened.push(_root);
+#ifdef CADET_DEBUG
+	_scopePath = "/";
+#endif
 }
 
 JsonParameterProvider::JsonParameterProvider(json* data) : _root(data)
 {
 	_opened.push(_root);
+#ifdef CADET_DEBUG
+	_scopePath = "/";
+#endif
 }
 
 JsonParameterProvider::JsonParameterProvider(const JsonParameterProvider& cpy)
 {
 	_root = new json(*cpy._root);
 	_opened = cpy._opened;
+#ifdef CADET_DEBUG
+	_scopePath = cpy._scopePath;
+#endif
 }
 
 JsonParameterProvider::JsonParameterProvider(JsonParameterProvider&& cpy) CADET_NOEXCEPT : _root(cpy._root), _opened(std::move(cpy._opened))
 {
 	cpy._root = nullptr;
 	cpy._opened = std::stack<json*>();
+#ifdef CADET_DEBUG
+	_scopePath = std::move(cpy._scopePath);
+#endif
 }
 
 JsonParameterProvider::~JsonParameterProvider() CADET_NOEXCEPT
@@ -141,6 +164,11 @@ JsonParameterProvider& JsonParameterProvider::operator=(const JsonParameterProvi
 
 	_root = new json(*cpy._root);
 	_opened = cpy._opened;
+
+#ifdef CADET_DEBUG
+	_scopePath = cpy._scopePath;
+#endif
+
 	return *this;
 }
 
@@ -153,6 +181,11 @@ JsonParameterProvider& JsonParameterProvider::operator=(JsonParameterProvider&& 
 	cpy._opened = std::stack<nlohmann::json*>();
 
 	_opened.push(_root);
+
+#ifdef CADET_DEBUG
+	_scopePath = std::move(cpy._scopePath);
+#endif
+
 	return *this;
 }
 
@@ -394,6 +427,10 @@ void JsonParameterProvider::pushScope(const std::string& scope)
 	LOG(Debug) << "SCOPE " << scope;
 #endif
 	_opened.push(&_opened.top()->at(scope));
+
+#ifdef CADET_DEBUG
+	_scopePath += "/" + scope;
+#endif
 }
 
 void JsonParameterProvider::popScope()
@@ -402,6 +439,15 @@ void JsonParameterProvider::popScope()
 	LOG(Debug) << "SCOPE POP";
 #endif
 	_opened.pop();
+
+#ifdef CADET_DEBUG
+	std::size_t lastIdx = std::string::npos;
+	if (_scopePath.back() == '/')
+		lastIdx = _scopePath.length() - 2;
+
+	const std::size_t idx = _scopePath.find_last_of('/', lastIdx);
+	_scopePath.erase(idx);
+#endif
 }
 
 void JsonParameterProvider::addScope(const std::string& scope)
@@ -474,6 +520,12 @@ void JsonParameterProvider::copy(const std::string& src, const std::string& dest
 {
 	const json j = (*_opened.top())[src];
 	(*_opened.top())[dest] = j;
+}
+
+void JsonParameterProvider::toFile(const std::string& fileName) const
+{
+    std::ofstream ofs(fileName, std::ios::out | std::ios::trunc);
+    ofs << _root->dump(4);
 }
 
 JsonParameterProvider JsonParameterProvider::fromFile(const std::string& fileName)
