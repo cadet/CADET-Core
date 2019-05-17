@@ -32,8 +32,7 @@ namespace cadet
 
 namespace util
 {
-	template <typename item_t> class ThreadLocalStorage;
-	typedef ThreadLocalStorage<double> ThreadLocalArray;	
+	class ThreadLocalStorage;
 }
 
 namespace test
@@ -346,7 +345,7 @@ inline void compareJacobianFD(const std::function<void(double const*, double*)>&
  * @param [in] absTol Absolute error tolerance
  * @param [in] relTol Relative error tolerance
  */
-inline void compareJacobianFD(cadet::IUnitOperation* modelA, cadet::IUnitOperation* modelB, double const* y, double const* yDot, double* dir, double* colA, double* colB, const cadet::util::ThreadLocalArray& tls,
+inline void compareJacobianFD(cadet::IUnitOperation* modelA, cadet::IUnitOperation* modelB, double const* y, double const* yDot, double* dir, double* colA, double* colB, cadet::util::ThreadLocalStorage& tls,
 	double h = 1e-6, double absTol = 0.0, double relTol = std::numeric_limits<float>::epsilon() * 100.0)
 {
 	compareJacobianFD(
@@ -450,7 +449,7 @@ inline void checkJacobianPatternFD(const std::function<void(double const*, doubl
  * @param [in] colB Memory for Jacobian column of @p modelB
  * @param [in] tls Thread local storage for @p modelA
  */
-inline void checkJacobianPatternFD(cadet::IUnitOperation* modelA, cadet::IUnitOperation* modelB, double const* y, double const* yDot, double* dir, double* colA, double* colB, const cadet::util::ThreadLocalArray& tls)
+inline void checkJacobianPatternFD(cadet::IUnitOperation* modelA, cadet::IUnitOperation* modelB, double const* y, double const* yDot, double* dir, double* colA, double* colB, cadet::util::ThreadLocalStorage& tls)
 {
 	checkJacobianPatternFD(
 		[=, &tls](double const* lDir, double* res) -> void { modelA->residual(SimulationTime{0.0, 0u, 1.0}, ConstSimulationState{lDir, yDot}, res, tls); },
@@ -509,7 +508,7 @@ inline void compareTimeDerivativeJacobian(cadet::IUnitOperation* modelA, cadet::
  * @param [in] relTol Relative error tolerance
  */
 inline void compareTimeDerivativeJacobianFD(cadet::IUnitOperation* modelA, cadet::IUnitOperation* modelB, double const* y, double const* yDot, double* dir, double* colA, double* colB,
-	const cadet::util::ThreadLocalArray& tls, double h = 1e-6, double absTol = 0.0, double relTol = std::numeric_limits<float>::epsilon() * 100.0)
+	cadet::util::ThreadLocalStorage& tls, double h = 1e-6, double absTol = 0.0, double relTol = std::numeric_limits<float>::epsilon() * 100.0)
 {
 	compareJacobianFD(
 		[=, &tls](double const* lDir, double* res) -> void { modelA->residual(SimulationTime{0.0, 0u, 1.0}, ConstSimulationState{y, lDir}, res, tls); }, 

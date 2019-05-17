@@ -17,10 +17,10 @@
  * example is given by LangmuirBinding.
  * 
  * The implementation in this file intentionally does not use common code as provided
- * by BindingModelBase or PureBindingModelBase. Thus, it can be used as an example
- * for learning how to develop custom binding models and getting an impression of
- * what happens behind the curtains. For serious binding models, have a look at the
- * LangmuirBinding model, which makes use of common code.
+ * by BindingModelBase. Thus, it can be used as an example for learning how to
+ * develop custom binding models and getting an impression of what happens behind
+ * the curtains. For serious binding models, have a look at the LangmuirBinding model,
+ * which makes use of common code.
  * 
  * For implementing externally dependent binding models, the storage of the model 
  * parameters is encapsulated from the actual model implementation. The default
@@ -49,12 +49,14 @@
 #include "model/Parameters.hpp"
 #include "LocalVector.hpp"
 #include "SimulationTypes.hpp"
+#include "Memory.hpp"
 
 #include <vector>
 #include <unordered_map>
 #include <functional>
 #include <algorithm>
 #include <iterator>
+#include <tuple>
 
 namespace cadet
 {
@@ -79,6 +81,7 @@ public:
 	};
 
 	typedef ConstParams params_t;
+	typedef ConstParams const* ParamsHandle;
 
 	/**
 	 * @brief Returns name of the binding model
@@ -140,9 +143,9 @@ public:
 	 * @param [in,out] workSpace Memory buffer for updated data
 	 * @return Externally dependent parameter values
 	 */
-	inline const params_t& update(double t, unsigned int secIdx, const ColumnPosition& colPos, unsigned int nComp, unsigned int const* nBoundStates, void* workSpace) const
+	inline ParamsHandle update(double t, unsigned int secIdx, const ColumnPosition& colPos, unsigned int nComp, unsigned int const* nBoundStates, LinearBufferAllocator& workSpace) const
 	{
-		return _localParams;
+		return &_localParams;
 	}
 
 	/**
@@ -156,9 +159,9 @@ public:
 	 * @param [in,out] workSpace Memory buffer for updated data
 	 * @return Time derivatives of externally dependent parameters
 	 */
-	inline const params_t updateTimeDerivative(double t, unsigned int secIdx, const ColumnPosition& colPos, unsigned int nComp, unsigned int const* nBoundStates, void* workSpace) const
+	inline std::tuple<ParamsHandle, ParamsHandle> updateTimeDerivative(double t, unsigned int secIdx, const ColumnPosition& colPos, unsigned int nComp, unsigned int const* nBoundStates, LinearBufferAllocator& workSpace) const
 	{
-		return _localParams;
+		return std::make_tuple<ParamsHandle, ParamsHandle>(&_localParams, nullptr);
 	}
 
 protected:
@@ -207,6 +210,7 @@ public:
 	};
 
 	typedef VariableParams params_t;
+	typedef ConstBufferedScalar<params_t> ParamsHandle;
 
 	ExtLinearParamHandler() CADET_NOEXCEPT { }
 
@@ -272,36 +276,28 @@ public:
 	 * @param [in,out] workSpace Memory buffer for updated data
 	 * @return Externally dependent parameter values
 	 */
-	inline const params_t& update(double t, unsigned int secIdx, const ColumnPosition& colPos, unsigned int nComp, unsigned int const* nBoundStates, void* workSpace) const
+	inline ParamsHandle update(double t, unsigned int secIdx, const ColumnPosition& colPos, unsigned int nComp, unsigned int const* nBoundStates, LinearBufferAllocator& workSpace) const
 	{
-		// Construct params_t in workSpace
-		params_t* const localParams = reinterpret_cast<params_t*>(workSpace);
-		new (localParams) params_t;
-
-		// Pointer to buffer for function evaluation
-		double* const extFunBuffer = cadet::util::advancePointer<double>(workSpace, sizeof(params_t));
-
-		// Pointer to buffer for actual parameter data (skip buffer for external time derivatives, see cacheSize() below)
-		void* buffer = cadet::util::advancePointer<void>(workSpace, sizeof(params_t) + 2 * 2 * sizeof(double));
+		// Allocate params_t and buffer for function evaluation
+		BufferedScalar<params_t> localParams = workSpace.scalar<params_t>();
+		BufferedArray<double> extFunBuffer = workSpace.array<double>(2);
 
 		// Evaluate external functions in buffer
-		evaluateExternalFunctions(t, secIdx, colPos, 2, extFunBuffer);
+		evaluateExternalFunctions(t, secIdx, colPos, 2, static_cast<double*>(extFunBuffer));
 
-		// Prepare the buffer for the data, update the data, and advance buffer pointer to next item
-		_kA.prepareCache(localParams->kA, buffer);
-		_kA.update(util::dataOfLocalVersion(localParams->kA), extFunBuffer[0], nComp, nBoundStates);
-		buffer = util::advancePointer(buffer, util::memoryForDataOf(localParams->kA));
+		// Prepare the buffer for the data and update the data
+		_kA.prepareCache(localParams->kA, workSpace);
+		_kA.update(cadet::util::dataOfLocalVersion(localParams->kA), extFunBuffer[0], nComp, nBoundStates);
 
-		_kD.prepareCache(localParams->kD, buffer);
-		_kD.update(util::dataOfLocalVersion(localParams->kD), extFunBuffer[1], nComp, nBoundStates);
+		_kD.prepareCache(localParams->kD, workSpace);
+		_kD.update(cadet::util::dataOfLocalVersion(localParams->kD), extFunBuffer[1], nComp, nBoundStates);
 
-		return *localParams;
+		return std::move(localParams);
 	}
 
 	/**
 	 * @brief Calculates time derivative in case of external dependence
-	 * @details It is assumed that update() has just been called with the same @p workSpace before this function is called.
-	 *          The time derivatives are constructed in the given @p workSpace memory buffer.
+	 * @details The time derivatives are constructed in the given @p workSpace memory buffer.
 	 * @param [in] t Current time
 	 * @param [in] z Axial coordinate in the column
 	 * @param [in] r Radial coordinate in the bead
@@ -309,32 +305,36 @@ public:
 	 * @param [in] nComp Number of components
 	 * @param [in] nBoundStates Array with number of bound states for each component
 	 * @param [in,out] workSpace Memory buffer for updated data
-	 * @return Time derivatives of externally dependent parameters
+	 * @return Tuple with externally dependent parameter values and their time derivatives
 	 */
-	inline params_t updateTimeDerivative(double t, unsigned int secIdx, const ColumnPosition& colPos, unsigned int nComp, unsigned int const* nBoundStates, void* workSpace) const
+	inline std::tuple<ParamsHandle, ParamsHandle> updateTimeDerivative(double t, unsigned int secIdx, const ColumnPosition& colPos, unsigned int nComp, unsigned int const* nBoundStates, LinearBufferAllocator& workSpace) const
 	{
-		VariableParams p;
+		// Allocate params_t for parameters and their time derivatives
+		BufferedScalar<params_t> localParams = workSpace.scalar<params_t>();
+		BufferedScalar<params_t> p = workSpace.scalar<params_t>();
 
-		// Pointers to buffers and already calculated external function values
-		params_t* const localParams = reinterpret_cast<params_t*>(workSpace);
-		double* const extFunBuffer = cadet::util::advancePointer<double>(workSpace, sizeof(params_t));
-		double* const extDerivBuffer = extFunBuffer + 2;
+		// Allocate buffer for external function values and their time derivatives
+		BufferedArray<double> extFunBuffer = workSpace.array<double>(2);
+		BufferedArray<double> extDerivBuffer = workSpace.array<double>(2);
 
-		// Pointer to buffer for time derivatives
-		void* buffer = util::ptrToEndOfData(localParams->kD);
+		// Evaluate external functions and their time derivatives
+		evaluateExternalFunctions(t, secIdx, colPos, 2, static_cast<double*>(extFunBuffer));
+		evaluateTimeDerivativeExternalFunctions(t, secIdx, colPos, 2, static_cast<double*>(extDerivBuffer));
 
-		// Evaluate time derivatives of external functions
-		evaluateTimeDerivativeExternalFunctions(t, secIdx, colPos, 2, extDerivBuffer);
+		// Prepare the buffer for the data and update the data
+		_kA.prepareCache(localParams->kA, workSpace);
+		_kA.update(cadet::util::dataOfLocalVersion(localParams->kA), extFunBuffer[0], nComp, nBoundStates);
 
-		// Prepare the buffer for the data, update the data, and advance buffer pointer to next item
-		_kA.prepareCache(p.kA, buffer);
-		_kA.updateTimeDerivative(util::dataOfLocalVersion(p.kA), extFunBuffer[0], extDerivBuffer[0], nComp, nBoundStates);
-		buffer = util::advancePointer(buffer, util::memoryForDataOf(p.kA));
+		_kA.prepareCache(p->kA, workSpace);
+		_kA.updateTimeDerivative(cadet::util::dataOfLocalVersion(p->kA), extFunBuffer[0], extDerivBuffer[0], nComp, nBoundStates);
 
-		_kD.prepareCache(p.kD, buffer);
-		_kD.updateTimeDerivative(util::dataOfLocalVersion(p.kD), extFunBuffer[1], extDerivBuffer[1], nComp, nBoundStates);
+		_kD.prepareCache(localParams->kD, workSpace);
+		_kD.update(cadet::util::dataOfLocalVersion(localParams->kD), extFunBuffer[1], nComp, nBoundStates);
 
-		return p;
+		_kD.prepareCache(p->kD, workSpace);
+		_kD.updateTimeDerivative(cadet::util::dataOfLocalVersion(p->kD), extFunBuffer[1], extDerivBuffer[1], nComp, nBoundStates);
+
+		return std::make_tuple<ParamsHandle, ParamsHandle>(std::move(localParams), std::move(p));;
 	}
 
 	/**
@@ -353,7 +353,9 @@ public:
 		//  + buffer for external function time derivative evaluations (2 parameters)
 		//  + buffer for actual parameter data (memory for _kA data + memory for _kD data)
 		//  + buffer for parameter time derivatives (memory for _kA data + memory for _kD data)
-		return sizeof(params_t) + 2 * 2 * sizeof(double) + 2 * (_kA.additionalDynamicMemory(nComp, totalNumBoundStates, nBoundStates) + _kD.additionalDynamicMemory(nComp, totalNumBoundStates, nBoundStates));
+		return 2 * sizeof(params_t) + alignof(params_t) 
+			+ 2 * 2 * sizeof(double) + alignof(double) 
+			+ 2 * (_kA.additionalDynamicMemory(nComp, totalNumBoundStates, nBoundStates) + _kD.additionalDynamicMemory(nComp, totalNumBoundStates, nBoundStates));
 	}
 
 protected:
@@ -392,13 +394,14 @@ class LinearBindingBase : public IBindingModel
 {
 public:
 
-	LinearBindingBase() : _nComp(0), _nBoundStates(nullptr), _stateQuasistationarity(0, false) { }
+	LinearBindingBase() : _nComp(0), _nBoundStates(nullptr), _reactionQuasistationarity(0, false) { }
 	virtual ~LinearBindingBase() CADET_NOEXCEPT { }
 
 	static const char* identifier() { return ParamHandler_t::identifier(); }
 	virtual const char* name() const CADET_NOEXCEPT { return ParamHandler_t::identifier(); }
 	virtual bool requiresConfiguration() const CADET_NOEXCEPT { return true; }
 	virtual bool usesParamProviderInDiscretizationConfig() const CADET_NOEXCEPT { return true; }
+	virtual bool implementsAnalyticJacobian() const CADET_NOEXCEPT { return true; }
 
 	virtual bool configureModelDiscretization(IParameterProvider& paramProvider, unsigned int nComp, unsigned int const* nBound, unsigned int const* boundOffset)
 	{
@@ -407,21 +410,21 @@ public:
 		if (hasMultipleBoundStates(nBound, nComp))
 			throw InvalidParameterException("Linear binding model does not support multiple bound states");
 
-		_stateQuasistationarity.resize(numBoundStates(nBound, nComp), false);
+		_reactionQuasistationarity.resize(numBoundStates(nBound, nComp), false);
 
 		// Read binding dynamics (quasi-stationary, kinetic)
 		if (paramProvider.isArray("IS_KINETIC"))
 		{
 			const std::vector<int> vecKin = paramProvider.getIntArray("IS_KINETIC");
-			if (vecKin.size() < _stateQuasistationarity.size())
-				throw InvalidParameterException("IS_KINETIC has to have at least " + std::to_string(_stateQuasistationarity.size()) + " elements");
+			if (vecKin.size() < _reactionQuasistationarity.size())
+				throw InvalidParameterException("IS_KINETIC has to have at least " + std::to_string(_reactionQuasistationarity.size()) + " elements");
 
-			std::copy_n(vecKin.begin(), _stateQuasistationarity.size(), _stateQuasistationarity.begin());
+			std::copy_n(vecKin.begin(), _reactionQuasistationarity.size(), _reactionQuasistationarity.begin());
 		}
 		else
 		{
-			_kineticBinding = paramProvider.getInt("IS_KINETIC");
-			std::fill(_stateQuasistationarity.begin(), _stateQuasistationarity.end(), !_kineticBinding);
+			const bool kineticBinding = paramProvider.getInt("IS_KINETIC");
+			std::fill(_reactionQuasistationarity.begin(), _reactionQuasistationarity.end(), !kineticBinding);
 		}
 
 		return true;
@@ -486,18 +489,6 @@ public:
 		return false;
 	}
 
-	virtual void getAlgebraicBlock(unsigned int& idxStart, unsigned int& len) const
-	{
-		idxStart = 0;
-
-		// If we have kinetic binding, then we don't have algebraic equations
-		// Otherwise, all equations are algebraic
-		if (_kineticBinding)
-			len = 0;
-		else
-			len = numBoundStates(_nBoundStates, _nComp);
-	}
-
 	virtual active* getParameter(const ParameterId& pId)
 	{
 		auto paramHandle = _parameters.find(pId);
@@ -514,127 +505,59 @@ public:
 		return _paramHandler.cacheSize(nComp, totalNumBoundStates, nBoundStates);
 	}
 
-	virtual void consistentInitialState(double t, unsigned int secIdx, const ColumnPosition& colPos, double* const vecStateY, double errorTol, 
-		active* const adRes, active* const adY, unsigned int adEqOffset, unsigned int adDirOffset, const ad::IJacobianExtractor& jacExtractor, 
-		double* const workingMemory, linalg::detail::DenseMatrixBase& workingMat) const
-	{
-		consistentInitialState(t, secIdx, colPos, vecStateY, vecStateY - _nComp, errorTol, adRes, adY, adEqOffset, adDirOffset, jacExtractor, workingMemory, workingMat);
-	}
-
-	virtual void consistentInitialState(double t, unsigned int secIdx, const ColumnPosition& colPos, double* const vecStateY, double const* const yCp, double errorTol, active* const adRes, active* const adY,
-		unsigned int adEqOffset, unsigned int adDirOffset, const ad::IJacobianExtractor& jacExtractor, double* const workingMemory,
-		linalg::detail::DenseMatrixBase& workingMat) const
-	{
-		// If we have kinetic binding, there are no algebraic equations and we are done
-		if (_kineticBinding)
-			return;
-
-		const typename ParamHandler_t::params_t& p = _paramHandler.update(t, secIdx, colPos, _nComp, _nBoundStates, workingMemory);
-
-		// Compute the q_i from their corresponding c_{p,i}
-
-		unsigned int bndIdx = 0;
-		for (int i = 0; i < _nComp; ++i)
-		{
-			// Skip components without bound states (bound state index bndIdx is not advanced)
-			if (_nBoundStates[i] == 0)
-				continue;
-
-			// Solve  k_a * c_p - k_d * q == 0  for q to obtain  q = k_a / k_d * c_p
-			vecStateY[bndIdx] = static_cast<double>(p.kA[i]) / static_cast<double>(p.kD[i]) * yCp[i];
-
-			// Next bound component
-			++bndIdx;
-		}
-	}
-
 	virtual void setExternalFunctions(IExternalFunction** extFuns, unsigned int size) { _paramHandler.setExternalFunctions(extFuns, size); }
 
-	// The next four residual() function implementations, two analyticJacobian() function implementations, and
-	// two jacobianAddDiscretized() function implementations are usually hidden behind
-	// CADET_BINDINGMODEL_RESIDUAL_BOILERPLATE
-	// which just expands to the eight implementations below.
+	// The next three flux() function implementations and two analyticJacobian() function
+	// implementations are usually hidden behind
+	// CADET_BINDINGMODELBASE_BOILERPLATE
+	// which just expands to the six implementations below.
 
-	virtual int residual(const active& t, unsigned int secIdx, const active& timeFactor, const ColumnPosition& colPos,
-		active const* y, active const* yCp, double const* yDot, active* res, void* workSpace) const
+	virtual int flux(double t, unsigned int secIdx, const ColumnPosition& colPos,
+		active const* y, active const* yCp, active* res, LinearBufferAllocator workSpace, WithParamSensitivity) const
 	{
-		return residualImpl<active, active, active>(t, secIdx, timeFactor, colPos, y, yCp, yDot, res, workSpace);
+		return fluxImpl<active, active, active>(t, secIdx, colPos, y, yCp, res, workSpace);
 	}
 
-	virtual int residual(double t, unsigned int secIdx, double timeFactor, const ColumnPosition& colPos,
-		active const* y, active const* yCp, double const* yDot, active* res, void* workSpace) const
+	virtual int flux(double t, unsigned int secIdx, const ColumnPosition& colPos,
+		active const* y, active const* yCp, active* res, LinearBufferAllocator workSpace, WithoutParamSensitivity) const
 	{
-		return residualImpl<active, active, double>(t, secIdx, timeFactor, colPos, y, yCp, yDot, res, workSpace);
+		return fluxImpl<active, active, double>(t, secIdx, colPos, y, yCp, res, workSpace);
 	}
 
-	virtual int residual(const active& t, unsigned int secIdx, const active& timeFactor, const ColumnPosition& colPos,
-		double const* y, double const* yCp, double const* yDot, active* res, void* workSpace) const
+	virtual int flux(double t, unsigned int secIdx, const ColumnPosition& colPos,
+		double const* y, double const* yCp, active* res, LinearBufferAllocator workSpace) const
 	{
-		return residualImpl<double, active, active>(t, secIdx, timeFactor, colPos, y, yCp, yDot, res, workSpace);
+		return fluxImpl<double, active, active>(t, secIdx, colPos, y, yCp, res, workSpace);
 	}
 
-	virtual int residual(double t, unsigned int secIdx, double timeFactor, const ColumnPosition& colPos,
-		double const* y, double const* yCp, double const* yDot, double* res, void* workSpace) const
+	virtual int flux(double t, unsigned int secIdx, const ColumnPosition& colPos,
+		double const* y, double const* yCp, double* res, LinearBufferAllocator workSpace) const
 	{
-		return residualImpl<double, double, double>(t, secIdx, timeFactor, colPos, y, yCp, yDot, res, workSpace);
+		return fluxImpl<double, double, double>(t, secIdx, colPos, y, yCp, res, workSpace);
 	}
 
-	virtual void analyticJacobian(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, linalg::BandMatrix::RowIterator jac, void* workSpace) const
-	{
-		jacobianImpl(t, secIdx, colPos, y, _nComp, jac, workSpace);
-	}
-
-	virtual void analyticJacobian(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, linalg::DenseBandedRowIterator jac, void* workSpace) const
-	{
-		jacobianImpl(t, secIdx, colPos, y, _nComp, jac, workSpace);
-	}
-
-	virtual void analyticJacobian(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, int offsetCp, linalg::BandMatrix::RowIterator jac, void* workSpace) const
+	virtual void analyticJacobian(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, int offsetCp, linalg::BandMatrix::RowIterator jac, LinearBufferAllocator workSpace) const
 	{
 		jacobianImpl(t, secIdx, colPos, y, offsetCp, jac, workSpace);
 	}
 
-	virtual void analyticJacobian(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, int offsetCp, linalg::DenseBandedRowIterator jac, void* workSpace) const
+	virtual void analyticJacobian(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, int offsetCp, linalg::DenseBandedRowIterator jac, LinearBufferAllocator workSpace) const
 	{
 		jacobianImpl(t, secIdx, colPos, y, offsetCp, jac, workSpace);
 	}
 
-	virtual void jacobianAddDiscretized(double alpha, linalg::FactorizableBandMatrix::RowIterator jac) const
+	virtual void timeDerivativeQuasiStationaryFluxes(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* yCp, double const* y, double* dResDt, LinearBufferAllocator workSpace) const
 	{
-		jacobianAddDiscretizedImpl(alpha, jac);
-	}
-
-	virtual void jacobianAddDiscretized(double alpha, linalg::DenseBandedRowIterator jac) const
-	{
-		jacobianAddDiscretizedImpl(alpha, jac);
-	}
-
-	virtual void multiplyWithDerivativeJacobian(double const* yDotS, double* const res, double timeFactor) const
-	{
-		// Multiplier is 0 if quasi-stationary and 1 if kinetic binding
-		const double multiplier = _kineticBinding ? timeFactor : 0.0;
-
-		const unsigned int eqSize = numBoundStates(_nBoundStates, _nComp);
-		for (unsigned int i = 0; i < eqSize; ++i)
-		{
-			res[i] = multiplier * yDotS[i];
-		}
-	}
-
-	virtual void timeDerivativeAlgebraicResidual(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, double* dResDt, void* workSpace) const
-	{
-		if (!hasAlgebraicEquations())
+		if (!hasQuasiStationaryReactions())
 			return;
 
 		if (!ParamHandler_t::dependsOnTime())
 			return;
 
 		// Update external function and compute time derivative of parameters
-		const typename ParamHandler_t::params_t& p = _paramHandler.update(t, secIdx, colPos, _nComp, _nBoundStates, workSpace);
-		const typename ParamHandler_t::params_t dpDt = _paramHandler.updateTimeDerivative(t, secIdx, colPos, _nComp, _nBoundStates, workSpace);
-
-		// Pointer to first component in liquid phase
-		double const* yCp = y - _nComp;
+		typename ParamHandler_t::ParamsHandle p;
+		typename ParamHandler_t::ParamsHandle dpDt;
+		std::tie(p, dpDt) = _paramHandler.updateTimeDerivative(t, secIdx, colPos, _nComp, _nBoundStates, workSpace);
 
 		unsigned int bndIdx = 0;
 		for (int i = 0; i < _nComp; ++i)
@@ -643,39 +566,18 @@ public:
 			if (_nBoundStates[i] == 0)
 				continue;
 
-			dResDt[bndIdx] = -(static_cast<double>(dpDt.kA[i]) * yCp[i] - static_cast<double>(dpDt.kD[i]) * y[bndIdx]);
+			dResDt[bndIdx] = -static_cast<double>(dpDt->kA[i]) * yCp[i] + static_cast<double>(dpDt->kD[i]) * y[bndIdx];
 
 			// Next bound component
 			++bndIdx;
 		}
 	}
 
-	virtual bool hasSalt() const CADET_NOEXCEPT { return false; }
-	virtual bool supportsMultistate() const CADET_NOEXCEPT { return false; }
-	virtual bool supportsNonBinding() const CADET_NOEXCEPT { return true; }
-	virtual bool hasAlgebraicEquations() const CADET_NOEXCEPT { return !_kineticBinding; }
-	virtual bool dependsOnTime() const CADET_NOEXCEPT { return ParamHandler_t::dependsOnTime(); }
-	virtual bool requiresWorkspace() const CADET_NOEXCEPT { return ParamHandler_t::requiresWorkspace(); }
-	virtual int const* boundStateQuasiStationarity() const CADET_NOEXCEPT { return _stateQuasistationarity.data(); }
-
-protected:
-	int _nComp; //!< Number of components
-	unsigned int const* _nBoundStates; //!< Array with number of bound states for each component
-	bool _kineticBinding; //!< Determines whether binding is kinetic (@c true) or quasi-stationary (@c false)
-	std::vector<int> _stateQuasistationarity; //!< Determines whether each bound state is quasi-stationary (@c true) or not (@c false)
-
-	ParamHandler_t _paramHandler; //!< Parameters
-
-	std::unordered_map<ParameterId, active*> _parameters; //!< Map used to translate ParameterIds to actual variables
-
-	template <typename StateType, typename ResidualType, typename ParamType>
-	int residualImpl(const ParamType& t, unsigned int secIdx, const ParamType& timeFactor, const ColumnPosition& colPos,
-		StateType const* y, StateType const* yCp, double const* yDot, ResidualType* res, void* workSpace) const
+	virtual bool preConsistentInitialState(double t, unsigned int secIdx, const ColumnPosition& colPos, double* y, double const* yCp, LinearBufferAllocator workSpace) const
 	{
-		const typename ParamHandler_t::params_t& p = _paramHandler.update(static_cast<double>(t), secIdx, colPos, _nComp, _nBoundStates, workSpace);
-
-		// Implement k_a * c_{p,i} - k_d * q_i
-		// Note that we actually need dq / dt - [k_a * c_{p,i} - k_d * q_i] = 0
+		// The linear algebraic equations are easily solved, that is, we don't require a full nonlinear solver
+		
+		typename ParamHandler_t::ParamsHandle const p = _paramHandler.update(t, secIdx, colPos, _nComp, _nBoundStates, workSpace);
 
 		unsigned int bndIdx = 0;
 		for (int i = 0; i < _nComp; ++i)
@@ -684,13 +586,73 @@ protected:
 			if (_nBoundStates[i] == 0)
 				continue;
 
-			res[bndIdx] = -(static_cast<ParamType>(p.kA[i]) * yCp[i] - static_cast<ParamType>(p.kD[i]) * y[bndIdx]);
-
-			// Add time derivative if necessary
-			if (_kineticBinding && yDot)
+			// Skip dynamic binding reactions
+			if (!_reactionQuasistationarity[i])
 			{
-				res[bndIdx] += timeFactor * yDot[bndIdx];
+				// Next bound component
+				++bndIdx;
+				continue;
 			}
+
+			// q = k_a / k_d * c_p
+			y[bndIdx] = static_cast<double>(p->kA[i]) / static_cast<double>(p->kD[i]) * yCp[i];
+
+			// Next bound component
+			++bndIdx;
+		}
+
+		// Consistent initialization is complete, don't call a nonlinear solver
+		return false;
+	}
+
+	virtual void postConsistentInitialState(double t, unsigned int secIdx, const ColumnPosition& colPos, double* y, double const* yCp, LinearBufferAllocator workSpace) const
+	{
+		// There's nothing to do here since the algebraic equations have already been solved in preConsistentInitialState()
+	}
+
+	virtual bool hasSalt() const CADET_NOEXCEPT { return false; }
+	virtual bool supportsMultistate() const CADET_NOEXCEPT { return false; }
+	virtual bool supportsNonBinding() const CADET_NOEXCEPT { return true; }
+
+	virtual bool hasQuasiStationaryReactions() const CADET_NOEXCEPT
+	{
+		return std::any_of(_reactionQuasistationarity.begin(), _reactionQuasistationarity.end(), [](int i) -> bool { return i; });
+	}
+
+	virtual bool hasDynamicReactions() const CADET_NOEXCEPT
+	{
+		return std::any_of(_reactionQuasistationarity.begin(), _reactionQuasistationarity.end(), [](int i) -> bool { return !static_cast<bool>(i); });
+	}
+
+	virtual bool dependsOnTime() const CADET_NOEXCEPT { return ParamHandler_t::dependsOnTime(); }
+	virtual bool requiresWorkspace() const CADET_NOEXCEPT { return ParamHandler_t::requiresWorkspace(); }
+	virtual int const* reactionQuasiStationarity() const CADET_NOEXCEPT { return _reactionQuasistationarity.data(); }
+
+protected:
+	int _nComp; //!< Number of components
+	unsigned int const* _nBoundStates; //!< Array with number of bound states for each component
+	std::vector<int> _reactionQuasistationarity; //!< Determines whether each bound state is quasi-stationary (@c true) or not (@c false)
+
+	ParamHandler_t _paramHandler; //!< Parameters
+
+	std::unordered_map<ParameterId, active*> _parameters; //!< Map used to translate ParameterIds to actual variables
+
+	template <typename StateType, typename ResidualType, typename ParamType>
+	int fluxImpl(double t, unsigned int secIdx, const ColumnPosition& colPos,
+		StateType const* y, StateType const* yCp, ResidualType* res, LinearBufferAllocator workSpace) const
+	{
+		typename ParamHandler_t::ParamsHandle const p = _paramHandler.update(t, secIdx, colPos, _nComp, _nBoundStates, workSpace);
+
+		// Implement -k_a * c_{p,i} + k_d * q_i
+
+		unsigned int bndIdx = 0;
+		for (int i = 0; i < _nComp; ++i)
+		{
+			// Skip components without bound states (bound state index bndIdx is not advanced)
+			if (_nBoundStates[i] == 0)
+				continue;
+
+			res[bndIdx] = -static_cast<ParamType>(p->kA[i]) * yCp[i] + static_cast<ParamType>(p->kD[i]) * y[bndIdx];
 
 			// Next bound component
 			++bndIdx;
@@ -700,9 +662,9 @@ protected:
 	}
 
 	template <typename RowIterator>
-	inline void jacobianImpl(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, int offsetCp, RowIterator jac, void* workSpace) const
+	inline void jacobianImpl(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, int offsetCp, RowIterator jac, LinearBufferAllocator workSpace) const
 	{
-		const typename ParamHandler_t::params_t& p = _paramHandler.update(t, secIdx, colPos, _nComp, _nBoundStates, workSpace);
+		typename ParamHandler_t::ParamsHandle const p = _paramHandler.update(t, secIdx, colPos, _nComp, _nBoundStates, workSpace);
 
 		int bndIdx = 0;
 		for (int i = 0; i < _nComp; ++i)
@@ -711,8 +673,8 @@ protected:
 			if (_nBoundStates[i] == 0)
 				continue;
 
-			jac[0] = static_cast<double>(p.kD[i]); // dres / dq_i
-			jac[i - bndIdx - offsetCp] = -static_cast<double>(p.kA[i]); // dres / dc_{p,i}
+			jac[0] = static_cast<double>(p->kD[i]); // dres / dq_i
+			jac[i - bndIdx - offsetCp] = -static_cast<double>(p->kA[i]); // dres / dc_{p,i}
 			// The distance from liquid phase to solid phase is reduced for each non-binding component
 			// since a bound state is neglected. The number of neglected bound states so far is i - bndIdx.
 			// Thus, by going back offsetCp - (i - bndIdx) = -[ i - bndIdx - offsetCp ] we get to the corresponding
@@ -723,20 +685,6 @@ protected:
 		}
 	}
 
-	template <typename RowIterator>
-	inline void jacobianAddDiscretizedImpl(double alpha, RowIterator jac) const
-	{
-		// We only add time derivatives for kinetic binding
-		if (!_kineticBinding)
-			return;
-
-		// All equations are kinetic
-		const unsigned int eqSize = numBoundStates(_nBoundStates, _nComp);
-		for (unsigned int i = 0; i < eqSize; ++i, ++jac)
-		{
-			jac[0] += alpha;
-		}
-	}
 };
 
 typedef LinearBindingBase<LinearParamHandler> LinearBinding;

@@ -222,7 +222,7 @@ TEST_CASE("GRM2D with 1 radial zone matches GRM", "[GRM],[GRM2D],[UnitOp],[Jacob
 	std::vector<double> jacDir(nDof, 0.0);
 	std::vector<double> jacCol1(nDof, 0.0);
 	std::vector<double> jacCol2(nDof, 0.0);
-	cadet::util::ThreadLocalStorage<double> tls;
+	cadet::util::ThreadLocalStorage tls;
 	tls.resize(std::max(grm2d->threadLocalMemorySize(), grm->threadLocalMemorySize()));
 
 	// Fill state vectors with some values

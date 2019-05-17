@@ -21,7 +21,7 @@
 #include "ParamIdUtil.hpp"
 #include "AutoDiff.hpp"
 #include "linalg/BandMatrix.hpp"
-#include "MemoryPool.hpp"
+#include "Memory.hpp"
 #include "Weno.hpp"
 
 #include <unordered_map>

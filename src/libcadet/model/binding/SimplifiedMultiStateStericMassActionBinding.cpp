@@ -68,17 +68,14 @@ bool SimplifiedMultiStateStericMassActionBinding::configureModelDiscretization(I
 	_kWS_lin.reserve(nComp);
 	_kWS_quad.reserve(nComp);
 
+	// First flux is salt, which is always quasi-stationary
+	_reactionQuasistationarity[0] = true;
+
 	return res;
 }
 
 bool SimplifiedMultiStateStericMassActionBinding::configureImpl(IParameterProvider& paramProvider, UnitOpIdx unitOpIdx, ParticleTypeIdx parTypeIdx)
 {
-	if (_kineticBinding)
-	{
-		// First equation is Salt, which is always algebraic
-		_stateQuasistationarity[0] = true;
-	}
-
 	const unsigned int totalBoundStates = numBoundStates(_nBoundStates, _nComp);
 
 	// Read parameters
@@ -212,106 +209,9 @@ bool SimplifiedMultiStateStericMassActionBinding::configureImpl(IParameterProvid
 	return true;
 }
 
-void SimplifiedMultiStateStericMassActionBinding::getAlgebraicBlock(unsigned int& idxStart, unsigned int& len) const
-{
-	// First equation is Salt, which is always algebraic
-	idxStart = 0;
-	if (_kineticBinding)
-		len = 1;
-	else
-		len = numBoundStates(_nBoundStates, _nComp);
-}
-
 unsigned int SimplifiedMultiStateStericMassActionBinding::workspaceSize(unsigned int nComp, unsigned int totalNumBoundStates, unsigned int const* nBoundStates) const CADET_NOEXCEPT
 {
-	// Determine problem size
-	const unsigned int eqSize = numBoundStates(_nBoundStates, _nComp);
-	// Ask nonlinear solver how much memory it needs for this kind of problem
-	return _nonlinearSolver->workspaceSize(eqSize) * sizeof(double);
-}
-
-void SimplifiedMultiStateStericMassActionBinding::consistentInitialState(double t, unsigned int secIdx, const ColumnPosition& colPos, double* const vecStateY, double const* const yCp, double errorTol, 
-	active* const adRes, active* const adY, unsigned int adEqOffset, unsigned int adDirOffset, const ad::IJacobianExtractor& jacExtractor, 
-	double* const workingMemory, linalg::detail::DenseMatrixBase& workingMat) const
-{
-	if (!_kineticBinding)
-	{
-		// All equations are algebraic and (except for salt equation) nonlinear
-		// Compute the q_i from their corresponding c_{p,i}
-
-		// Determine problem size
-		const unsigned int eqSize = numBoundStates(_nBoundStates, _nComp);
-		double* const workSpace = workingMemory + _nonlinearSolver->workspaceSize(eqSize);
-		std::fill(workingMemory, workSpace, 0.0);
-
-		// Select between analytic and AD Jacobian
-		std::function<bool(double const* const, linalg::detail::DenseMatrixBase& jac)> jacobianFunc;
-		if (adRes && adY)
-		{
-			// AD Jacobian
-			jacobianFunc = [&](double const* const x, linalg::detail::DenseMatrixBase& mat) -> bool { 
-				// Copy over state vector to AD state vector (without changing directional values to keep seed vectors)
-				// and initalize residuals with zero (also resetting directional values)
-				ad::copyToAd(x, adY + adEqOffset, eqSize);
-				// @todo Check if this is necessary
-				ad::resetAd(adRes + adEqOffset, eqSize);
-
-				// Call residual with AD enabled
-				residualImpl<active, double, active, double>(t, secIdx, 1.0, colPos, adY + adEqOffset, yCp, nullptr, adRes + adEqOffset, workSpace);
-				
-#ifdef CADET_CHECK_ANALYTIC_JACOBIAN			
-				// Compute analytic Jacobian
-				mat.setAll(0.0);
-				jacobianImpl(t, secIdx, colPos, x, yCp, _nComp, mat.row(0), workSpace); 
-
-				// Compare
-				const double diff = jacExtractor.compareWithJacobian(adRes, adEqOffset, adDirOffset, mat);
-				LOG(Debug) << "MaxDiff " << adEqOffset << ": " << diff;
-#endif
-				// Extract Jacobian
-				jacExtractor.extractJacobian(adRes, adEqOffset, adDirOffset, mat);
-				return true;
-			};
-		}
-		else
-		{
-			// Analytic Jacobian
-			jacobianFunc = [&](double const* const x, linalg::detail::DenseMatrixBase& mat) -> bool {
-				mat.setAll(0.0);
-				jacobianImpl(t, secIdx, colPos, x, yCp, _nComp, mat.row(0), workSpace);
-				return true;
-			};
-		}
-
-		const bool conv = _nonlinearSolver->solve([&](double const* const x, double* const res) -> bool {
-				residualImpl<double, double, double, double>(t, secIdx, 1.0, colPos, x, yCp, nullptr, res, workSpace); 
-				return true; 
-			}, 
-			jacobianFunc,
-			errorTol, vecStateY, workingMemory, workingMat, eqSize);
-	}
-
-	// Compute salt component from given bound states q_i^j
-	// This also corrects invalid salt values from nonlinear solver
-	// in case of rapid equilibrium
-
-	// Salt equation: q_0 - Lambda + Sum[Sum[nu_i^j * q_i^j, j], i] == 0 
-	//           <=>  q_0 == Lambda - Sum[Sum[nu_i^j * q_i^j, j], i]
-	vecStateY[0] = static_cast<double>(_lambda);
-
-	// Loop over all components i
-	unsigned int bndIdx = 1;
-	for (int i = 1; i < _nComp; ++i)
-	{
-		// Loop over all bound states j
-		for (unsigned int j = 0; j < _nBoundStates[i]; ++j)
-		{
-			vecStateY[0] -= nu<double>(i, j) * vecStateY[bndIdx];
-
-			// Next bound component
-			++bndIdx;
-		}
-	}
+	return 0;
 }
 
 template <typename ParamType>
@@ -345,8 +245,8 @@ inline ParamType SimplifiedMultiStateStericMassActionBinding::k_ws(int comp, dou
 }
 
 template <typename StateType, typename CpStateType, typename ResidualType, typename ParamType>
-int SimplifiedMultiStateStericMassActionBinding::residualImpl(const ParamType& t, unsigned int secIdx, const ParamType& timeFactor, const ColumnPosition& colPos,
-	StateType const* y, CpStateType const* yCp, double const* yDot, ResidualType* res, void* workSpace) const
+int SimplifiedMultiStateStericMassActionBinding::fluxImpl(double t, unsigned int secIdx, const ColumnPosition& colPos,
+	StateType const* y, CpStateType const* yCp, ResidualType* res, LinearBufferAllocator workSpace) const
 {
 	// Salt equation: q_0 - Lambda + Sum[Sum[nu_i^j * q_i^j, j], i] == 0 
 	//           <=>  q_0 == Lambda - Sum[Sum[nu_i^j * q_i^j, j], i] 
@@ -419,12 +319,6 @@ int SimplifiedMultiStateStericMassActionBinding::residualImpl(const ParamType& t
 				res[bndIdx] -= curSW * y[bndIdx + 1] * pow(yCp0_divRef, nuDiff);
 			}
 
-			// Add time derivative if necessary
-			if (_kineticBinding && yDot)
-			{
-				res[bndIdx] += timeFactor * yDot[bndIdx];
-			}
-
 			// Next bound component
 			++bndIdx;
 		}
@@ -432,21 +326,8 @@ int SimplifiedMultiStateStericMassActionBinding::residualImpl(const ParamType& t
 	return 0;
 }
 
-void SimplifiedMultiStateStericMassActionBinding::multiplyWithDerivativeJacobian(double const* yDotS, double* const res, double timeFactor) const
-{
-	// Multiplier is 0 if quasi-stationary and 1 if kinetic binding
-	const double multiplier = _kineticBinding ? timeFactor : 0.0;
-
-	// First state is salt (always algebraic)
-	res[0] = 0.0;
-
-	const unsigned int eqSize = numBoundStates(_nBoundStates, _nComp);
-	for (unsigned int i = 1; i < eqSize; ++i)
-		res[i] = multiplier * yDotS[i];
-}
-
 template <typename RowIterator>
-void SimplifiedMultiStateStericMassActionBinding::jacobianImpl(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, double const* yCp, int offsetCp, RowIterator jac, void* workSpace) const
+void SimplifiedMultiStateStericMassActionBinding::jacobianImpl(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, double const* yCp, int offsetCp, RowIterator jac, LinearBufferAllocator workSpace) const
 {
 	double q0_bar = y[0];
 
@@ -584,19 +465,34 @@ void SimplifiedMultiStateStericMassActionBinding::jacobianImpl(double t, unsigne
 	}	
 }
 
-template <typename RowIterator>
-void SimplifiedMultiStateStericMassActionBinding::jacobianAddDiscretizedImpl(double alpha, RowIterator jac) const
+bool SimplifiedMultiStateStericMassActionBinding::preConsistentInitialState(double t, unsigned int secIdx, const ColumnPosition& colPos, double* y, double const* yCp, LinearBufferAllocator workSpace) const
 {
-	// We only add time derivatives for kinetic binding
-	if (!_kineticBinding)
-		return;
+	// Compute salt component from given bound states q_i^j
 
-	// Skip salt equation which is always algebraic
-	++jac;
+	// Salt equation: q_0 - Lambda + Sum[Sum[nu_i^j * q_i^j, j], i] == 0 
+	//           <=>  q_0 == Lambda - Sum[Sum[nu_i^j * q_i^j, j], i]
+	y[0] = static_cast<double>(_lambda);
 
-	const unsigned int eqSize = numBoundStates(_nBoundStates, _nComp) - 1;
-	for (unsigned int i = 0; i < eqSize; ++i, ++jac)
-		jac[0] += alpha;
+	// Loop over all components i
+	unsigned int bndIdx = 1;
+	for (int i = 1; i < _nComp; ++i)
+	{
+		// Loop over all bound states j
+		for (unsigned int j = 0; j < _nBoundStates[i]; ++j)
+		{
+			y[0] -= nu<double>(i, j) * y[bndIdx];
+
+			// Next bound component
+			++bndIdx;
+		}
+	}
+
+	return true;
+}
+
+void SimplifiedMultiStateStericMassActionBinding::postConsistentInitialState(double t, unsigned int secIdx, const ColumnPosition& colPos, double* y, double const* yCp, LinearBufferAllocator workSpace) const
+{
+	preConsistentInitialState(t, secIdx, colPos, y, yCp, workSpace);
 }
 
 }  // namespace model

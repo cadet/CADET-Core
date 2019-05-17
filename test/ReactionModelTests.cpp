@@ -29,6 +29,7 @@
 #include "linalg/BandMatrix.hpp"
 #include "AdUtils.hpp"
 #include "AutoDiff.hpp"
+#include "Memory.hpp"
 
 #include <algorithm>
 #include <cstring>
@@ -69,21 +70,20 @@ namespace
 	public:
 
 		ConfiguredDynamicReactionModel(ConfiguredDynamicReactionModel&& cpy) CADET_NOEXCEPT 
-			: _reaction(cpy._reaction), _nComp(cpy._nComp), _nBound(cpy._nBound), _boundOffset(cpy._boundOffset), _buffer(cpy._buffer), _extFuns(cpy._extFuns)
+			: _reaction(cpy._reaction), _nComp(cpy._nComp), _nBound(cpy._nBound), _boundOffset(cpy._boundOffset), _buffer(std::move(cpy._buffer)), _bufferMemory(cpy._bufferMemory), _extFuns(cpy._extFuns)
 		{
 			cpy._reaction = nullptr;
 			cpy._nBound = nullptr;
 			cpy._boundOffset = nullptr;
-			cpy._buffer = nullptr;
+			cpy._bufferMemory = nullptr;
 			cpy._extFuns = nullptr;
 		}
 
 		~ConfiguredDynamicReactionModel()
 		{
-			if (_buffer)
-				delete[] _buffer;
-			if (_extFuns)
-				delete[] _extFuns;
+			::operator delete(_bufferMemory);
+
+			delete[] _extFuns;
 			delete[] _boundOffset;
 			delete _reaction;
 		}
@@ -94,13 +94,14 @@ namespace
 			_nComp = cpy._nComp;
 			_nBound = cpy._nBound;
 			_boundOffset = cpy._boundOffset;
-			_buffer = cpy._buffer;
+			_buffer = std::move(cpy._buffer);
+			_bufferMemory = cpy._bufferMemory;
 			_extFuns = cpy._extFuns;
 
 			cpy._reaction = nullptr;
 			cpy._nBound = nullptr;
 			cpy._boundOffset = nullptr;
-			cpy._buffer = nullptr;
+			cpy._bufferMemory = nullptr;
 			cpy._extFuns = nullptr;
 
 			return *this;			
@@ -137,20 +138,22 @@ namespace
 			if (rm->requiresWorkspace())
 				requiredMem = rm->workspaceSize(nComp, totalBoundStates, boundOffset);
 
-			char* buffer = nullptr;
+			void* buffer = nullptr;
+			void* bufferEnd = nullptr;
 			if (requiredMem > 0)
 			{
-				buffer = new char[requiredMem];
+				buffer = ::operator new(requiredMem);
+				bufferEnd = static_cast<char*>(buffer) + requiredMem;
 				std::memset(buffer, 0, requiredMem);
 			}
 
-			return ConfiguredDynamicReactionModel(rm, nComp, nBound, boundOffset, buffer, extFuns);
+			return ConfiguredDynamicReactionModel(rm, nComp, nBound, boundOffset, buffer, bufferEnd, extFuns);
 		}
 
 		inline cadet::model::IDynamicReactionModel& model() { return *_reaction; }
 		inline const cadet::model::IDynamicReactionModel& model() const { return *_reaction; }
 
-		inline void* buffer() { return _buffer; }
+		inline cadet::LinearBufferAllocator buffer() { return _buffer; }
 		inline unsigned int nComp() const { return _nComp; }
 		inline unsigned int const* nBound() const { return _nBound; }
 		inline unsigned int const* boundOffset() const { return _boundOffset; }
@@ -159,8 +162,8 @@ namespace
 
 	private:
 
-		ConfiguredDynamicReactionModel(cadet::model::IDynamicReactionModel* reaction, unsigned int nComp, unsigned int const* nBound, unsigned int const* boundOffset, char* buffer, cadet::IExternalFunction* extFuns) 
-			: _reaction(reaction), _nComp(nComp), _nBound(nBound), _boundOffset(boundOffset), _buffer(buffer), _extFuns(extFuns)
+		ConfiguredDynamicReactionModel(cadet::model::IDynamicReactionModel* reaction, unsigned int nComp, unsigned int const* nBound, unsigned int const* boundOffset, void* buffer, void* bufferEnd, cadet::IExternalFunction* extFuns) 
+			: _reaction(reaction), _nComp(nComp), _nBound(nBound), _boundOffset(boundOffset), _buffer(buffer, bufferEnd), _bufferMemory(buffer), _extFuns(extFuns)
 		{
 		}
 
@@ -168,7 +171,8 @@ namespace
 		unsigned int _nComp;
 		unsigned int const* _nBound;
 		unsigned int const* _boundOffset;
-		char* _buffer;
+		cadet::LinearBufferAllocator _buffer;
+		void* _bufferMemory;
 		cadet::IExternalFunction* _extFuns;
 	};
 }
@@ -205,7 +209,7 @@ void testDynamicJacobianAD(const char* modelName, unsigned int nComp, unsigned i
 	ad::prepareAdVectorSeedsForDenseMatrix(adY, 0, numDofs);
 	ad::copyToAd(yState.data(), adY, numDofs);
 	ad::resetAd(adRes, numDofs);
-	crm.model().residualCombinedAdd(1.0, 0u, ColumnPosition{0.0, 0.0, 0.0}, adY, adRes, 1.0, crm.buffer());
+	crm.model().residualCombinedAdd(1.0, 0u, ColumnPosition{0.0, 0.0, 0.0}, adY, adY + crm.nComp(), adRes, adRes + crm.nComp(), 1.0, crm.buffer());
 
 	// Extract Jacobian
 	cadet::linalg::DenseMatrix jacAD;
@@ -215,13 +219,13 @@ void testDynamicJacobianAD(const char* modelName, unsigned int nComp, unsigned i
 	// Calculate analytic Jacobian
 	cadet::linalg::DenseMatrix jacAna;
 	jacAna.resize(numDofs, numDofs);
-	crm.model().analyticJacobianCombinedAdd(1.0, 0u, ColumnPosition{0.0, 0.0, 0.0}, yState.data(), 1.0, jacAna.row(0), crm.buffer());
+	crm.model().analyticJacobianCombinedAdd(1.0, 0u, ColumnPosition{0.0, 0.0, 0.0}, yState.data(), yState.data() + crm.nComp(), 1.0, jacAna.row(0), jacAna.row(crm.nComp()), crm.buffer());
 
 	cadet::test::checkJacobianPatternFD(
 		[&](double const* lDir, double* res) -> void
 			{
 				std::fill_n(res, numDofs, 0.0);
-				crm.model().residualCombinedAdd(1.0, 0u, ColumnPosition{0.0, 0.0, 0.0}, lDir, res, 1.0, crm.buffer());
+				crm.model().residualCombinedAdd(1.0, 0u, ColumnPosition{0.0, 0.0, 0.0}, lDir, lDir + crm.nComp(), res, res + crm.nComp(), 1.0, crm.buffer());
 			},
 		[&](double const* lDir, double* res) -> void 
 			{
@@ -233,7 +237,7 @@ void testDynamicJacobianAD(const char* modelName, unsigned int nComp, unsigned i
 		[&](double const* lDir, double* res) -> void
 			{
 				std::fill_n(res, numDofs, 0.0);
-				crm.model().residualCombinedAdd(1.0, 0u, ColumnPosition{0.0, 0.0, 0.0}, lDir, res, 1.0, crm.buffer());
+				crm.model().residualCombinedAdd(1.0, 0u, ColumnPosition{0.0, 0.0, 0.0}, lDir, lDir + crm.nComp(), res, res + crm.nComp(), 1.0, crm.buffer());
 			},
 		[&](double const* lDir, double* res) -> void 
 			{

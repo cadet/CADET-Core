@@ -16,7 +16,6 @@
 #include "model/binding/RefConcentrationSupport.hpp"
 #include "model/ModelUtils.hpp"
 #include "cadet/Exceptions.hpp"
-#include "nonlin/Solver.hpp"
 #include "model/Parameters.hpp"
 #include "LocalVector.hpp"
 #include "SimulationTypes.hpp"
@@ -25,18 +24,6 @@
 #include <unordered_map>
 #include <string>
 #include <vector>
-
-#include "AdUtils.hpp"
-#include "linalg/Norms.hpp"
-
-#include "LoggingUtils.hpp"
-#include "Logging.hpp"
-
-namespace cadet
-{
-
-namespace model
-{
 
 /*<codegen>
 {
@@ -68,6 +55,12 @@ namespace model
  sigma = Steric factor
  refC0, refQ = Reference concentrations
 */
+
+namespace cadet
+{
+
+namespace model
+{
 
 inline const char* SelfAssociationParamHandler::identifier() CADET_NOEXCEPT { return "SELF_ASSOCIATION"; }
 
@@ -106,7 +99,7 @@ inline bool ExtSelfAssociationParamHandler::validateConfig(unsigned int nComp, u
  * @tparam ParamHandler_t Type that can add support for external function dependence
  */
 template <class ParamHandler_t>
-class SelfAssociationBindingBase : public BindingModelBase
+class SelfAssociationBindingBase : public ParamHandlerBindingModelBase<ParamHandler_t>
 {
 public:
 
@@ -114,7 +107,6 @@ public:
 	virtual ~SelfAssociationBindingBase() CADET_NOEXCEPT { }
 
 	static const char* identifier() { return ParamHandler_t::identifier(); }
-	virtual const char* name() const CADET_NOEXCEPT { return ParamHandler_t::identifier(); }
 
 	virtual bool configureModelDiscretization(IParameterProvider& paramProvider, unsigned int nComp, unsigned int const* nBound, unsigned int const* boundOffset)
 	{
@@ -124,90 +116,27 @@ public:
 		if (nBound[0] != 1)
 			throw InvalidParameterException("Self association binding model requires exactly one bound state for salt component");
 
+		// First flux is salt, which is always quasi-stationary
+		_reactionQuasistationarity[0] = true;
+
 		return res;
 	}
 
-	virtual void getAlgebraicBlock(unsigned int& idxStart, unsigned int& len) const
+	virtual bool hasSalt() const CADET_NOEXCEPT { return true; }
+	virtual bool supportsMultistate() const CADET_NOEXCEPT { return false; }
+	virtual bool supportsNonBinding() const CADET_NOEXCEPT { return true; }
+	virtual bool hasQuasiStationaryReactions() const CADET_NOEXCEPT { return true; }
+	virtual bool implementsAnalyticJacobian() const CADET_NOEXCEPT { return true; }
+
+	virtual bool preConsistentInitialState(double t, unsigned int secIdx, const ColumnPosition& colPos, double* y, double const* yCp, LinearBufferAllocator workSpace) const
 	{
-		// First equation is Salt, which is always algebraic
-		idxStart = 0;
-		if (_kineticBinding)
-			len = 1;
-		else
-			len = numBoundStates(_nBoundStates, _nComp);
-	}
-
-	virtual void consistentInitialState(double t, unsigned int secIdx, const ColumnPosition& colPos, double* const vecStateY, double const* const yCp, double errorTol, 
-		active* const adRes, active* const adY, unsigned int adEqOffset, unsigned int adDirOffset, const ad::IJacobianExtractor& jacExtractor, 
-		double* const workingMemory, linalg::detail::DenseMatrixBase& workingMat) const
-	{
-		if (!_kineticBinding)
-		{
-			// All equations are algebraic and (except for salt equation) nonlinear
-			// Compute the q_i from their corresponding c_{p,i}
-
-			// Determine problem size
-			const unsigned int eqSize = numBoundStates(_nBoundStates, _nComp);
-			double* const workSpace = workingMemory + _nonlinearSolver->workspaceSize(eqSize);
-			std::fill(workingMemory, workSpace, 0.0);
-
-			// Select between analytic and AD Jacobian
-			std::function<bool(double const* const, linalg::detail::DenseMatrixBase& jac)> jacobianFunc;
-			if (adRes && adY)
-			{
-				// AD Jacobian
-				jacobianFunc = [&](double const* const x, linalg::detail::DenseMatrixBase& mat) -> bool { 
-					// Copy over state vector to AD state vector (without changing directional values to keep seed vectors)
-					// and initalize residuals with zero (also resetting directional values)
-					ad::copyToAd(x, adY + adEqOffset, eqSize);
-					// @todo Check if this is necessary
-					ad::resetAd(adRes + adEqOffset, eqSize);
-
-					// Call residual with AD enabled
-					residualImpl<active, double, active, double>(t, secIdx, 1.0, colPos, adY + adEqOffset, yCp, nullptr, adRes + adEqOffset, workSpace);
-					
-#ifdef CADET_CHECK_ANALYTIC_JACOBIAN			
-					// Compute analytic Jacobian
-					mat.setAll(0.0);
-					jacobianImpl(t, secIdx, colPos, x, yCp, _nComp, mat.row(0), workSpace); 
-
-					// Compare
-					const double diff = jacExtractor.compareWithJacobian(adRes, adEqOffset, adDirOffset, mat);
-					LOG(Debug) << "MaxDiff " << adEqOffset << ": " << diff;
-#endif
-					// Extract Jacobian
-					jacExtractor.extractJacobian(adRes, adEqOffset, adDirOffset, mat);
-					return true;
-				};
-			}
-			else
-			{
-				// Analytic Jacobian
-				jacobianFunc = [&](double const* const x, linalg::detail::DenseMatrixBase& mat) -> bool { 
-					mat.setAll(0.0);
-					jacobianImpl(t, secIdx, colPos, x, yCp, _nComp, mat.row(0), workSpace); 
-					return true;
-				};
-			}
-
-			const bool conv = _nonlinearSolver->solve([&](double const* const x, double* const res) -> bool {
-					residualImpl<double, double, double, double>(t, secIdx, 1.0, colPos, x, yCp, nullptr, res, workSpace); 
-					return true; 
-				}, 
-				jacobianFunc,
-				errorTol, vecStateY, workingMemory, workingMat, eqSize);
-		}
-
-		const typename ParamHandler_t::params_t& p = _paramHandler.update(t, secIdx, colPos, _nComp, _nBoundStates, workingMemory);
+		typename ParamHandler_t::ParamsHandle const p = _paramHandler.update(t, secIdx, colPos, _nComp, _nBoundStates, workSpace);
 
 		// Compute salt component from given bound states q_j
-		// This also corrects invalid salt values from nonlinear solver
-		// in case of rapid equilibrium
 
-		// Salt equation: q_0 - Lambda + Sum[nu_j * q_j, j] == 0 
-		//           <=>  q_0 == Lambda - Sum[nu_j * q_j, j] 
-		vecStateY[0] = 0.0;
-		double kahanCompensation = 0.0;
+		// Salt equation: q_0 - Lambda + Sum[nu_j * q_j, j] == 0
+		//           <=>  q_0 == Lambda - Sum[nu_j * q_j, j]
+		y[0] = static_cast<double>(p->lambda);
 
 		unsigned int bndIdx = 1;
 		for (int j = 1; j < _nComp; ++j)
@@ -216,83 +145,38 @@ public:
 			if (_nBoundStates[j] == 0)
 				continue;
 
-			const double diff = -static_cast<double>(p.nu[j]) * vecStateY[bndIdx] - kahanCompensation;
-			const double tempSum = vecStateY[0] + diff;
-			kahanCompensation = (tempSum - vecStateY[0]) - diff;
-			vecStateY[0] = tempSum;
-
-//				vecStateY[0] -= static_cast<double>(p.nu[j]) * vecStateY[bndIdx];
+			y[0] -= static_cast<double>(p->nu[j]) * y[bndIdx];
 
 			// Next bound component
 			++bndIdx;
 		}
 
-		const double diff = static_cast<double>(p.lambda) - kahanCompensation;
-		const double tempSum = vecStateY[0] + diff;
-		vecStateY[0] = tempSum;
-	}
-
-	CADET_BINDINGMODEL_RESIDUAL_JACOBIAN_BOILERPLATE
-
-	virtual void setExternalFunctions(IExternalFunction** extFuns, unsigned int size) { _paramHandler.setExternalFunctions(extFuns, size); }
-
-	virtual void multiplyWithDerivativeJacobian(double const* yDotS, double* const res, double timeFactor) const
-	{
-		// Multiplier is 0 if quasi-stationary and 1 if kinetic binding
-		// However, due to premultiplication of time derivatives with the timeFactor (because of time transformation),
-		// we set it to timeFactor instead of 1.0 in order to save some multiplications
-		const double multiplier = _kineticBinding ? timeFactor : 0.0;
-
-		// First state is salt (always algebraic)
-		res[0] = 0.0;
-
-		const unsigned int eqSize = numBoundStates(_nBoundStates, _nComp);
-		for (unsigned int i = 1; i < eqSize; ++i)
-			res[i] = multiplier * yDotS[i];
-	}
-
-	virtual bool hasSalt() const CADET_NOEXCEPT { return true; }
-	virtual bool supportsMultistate() const CADET_NOEXCEPT { return false; }
-	virtual bool supportsNonBinding() const CADET_NOEXCEPT { return true; }
-	virtual bool hasAlgebraicEquations() const CADET_NOEXCEPT { return true; }
-	virtual bool dependsOnTime() const CADET_NOEXCEPT { return ParamHandler_t::dependsOnTime(); }
-	virtual bool requiresWorkspace() const CADET_NOEXCEPT { return true; }
-
-protected:
-	ParamHandler_t _paramHandler; //!< Handles parameters and their dependence on external functions
-
-	virtual unsigned int paramCacheSize(unsigned int nComp, unsigned int totalNumBoundStates, unsigned int const* nBoundStates) const CADET_NOEXCEPT
-	{
-		return _paramHandler.cacheSize(nComp, totalNumBoundStates, nBoundStates);
-	}
-
-	virtual bool configureImpl(IParameterProvider& paramProvider, UnitOpIdx unitOpIdx, ParticleTypeIdx parTypeIdx)
-	{
-		if (_kineticBinding)
-		{
-			// First equation is Salt, which is always algebraic
-			_stateQuasistationarity[0] = true;
-		}
-
-		// Read parameters
-		_paramHandler.configure(paramProvider, _nComp, _nBoundStates);
-
-		// Register parameters
-		_paramHandler.registerParameters(_parameters, unitOpIdx, parTypeIdx, _nComp, _nBoundStates);
-
 		return true;
 	}
+	
+	virtual void postConsistentInitialState(double t, unsigned int secIdx, const ColumnPosition& colPos, double* y, double const* yCp, LinearBufferAllocator workSpace) const
+	{
+		preConsistentInitialState(t, secIdx, colPos, y, yCp, workSpace);
+	}
+
+	CADET_BINDINGMODELBASE_BOILERPLATE
+
+protected:
+	using ParamHandlerBindingModelBase<ParamHandler_t>::_paramHandler;
+	using ParamHandlerBindingModelBase<ParamHandler_t>::_reactionQuasistationarity;
+	using ParamHandlerBindingModelBase<ParamHandler_t>::_nComp;
+	using ParamHandlerBindingModelBase<ParamHandler_t>::_nBoundStates;
 
 	template <typename StateType, typename CpStateType, typename ResidualType, typename ParamType>
-	int residualImpl(const ParamType& t, unsigned int secIdx, const ParamType& timeFactor, const ColumnPosition& colPos,
-		StateType const* y, CpStateType const* yCp, double const* yDot, ResidualType* res, void* workSpace) const
+	int fluxImpl(double t, unsigned int secIdx, const ColumnPosition& colPos, StateType const* y,
+		CpStateType const* yCp, ResidualType* res, LinearBufferAllocator workSpace) const
 	{
-		const typename ParamHandler_t::params_t& p = _paramHandler.update(static_cast<double>(t), secIdx, colPos, _nComp, _nBoundStates, workSpace);
+		typename ParamHandler_t::ParamsHandle const p = _paramHandler.update(t, secIdx, colPos, _nComp, _nBoundStates, workSpace);
 
-		// Salt equation: q_0 - Lambda + Sum[nu_j * q_j, j] == 0 
-		//           <=>  q_0 == Lambda - Sum[nu_j * q_j, j] 
+		// Salt flux: q_0 - Lambda + Sum[nu_j * q_j, j] == 0 
+		//       <=>  q_0 == Lambda - Sum[nu_j * q_j, j] 
 		// Also compute \bar{q}_0 = q_0 - Sum[sigma_j * q_j, j]
-		res[0] = y[0] - static_cast<ParamType>(p.lambda);
+		res[0] = y[0] - static_cast<ParamType>(p->lambda);
 		ResidualType q0_bar = y[0];
 
 		unsigned int bndIdx = 1;
@@ -302,18 +186,17 @@ protected:
 			if (_nBoundStates[j] == 0)
 				continue;
 
-			res[0] += static_cast<ParamType>(p.nu[j]) * y[bndIdx];
-			q0_bar -= static_cast<ParamType>(p.sigma[j]) * y[bndIdx];
+			res[0] += static_cast<ParamType>(p->nu[j]) * y[bndIdx];
+			q0_bar -= static_cast<ParamType>(p->sigma[j]) * y[bndIdx];
 
 			// Next bound component
 			++bndIdx;
 		}
 
-		const ResidualType q0_bar_divRef = q0_bar / static_cast<ParamType>(p.refQ);
-		const ResidualType yCp0_divRef = yCp[0] / static_cast<ParamType>(p.refC0);
+		const ResidualType q0_bar_divRef = q0_bar / static_cast<ParamType>(p->refQ);
+		const ResidualType yCp0_divRef = yCp[0] / static_cast<ParamType>(p->refC0);
 
-		// Protein equations: dq_i / dt - ( (k_{a,i} + k_{a2,i} * c_{p,i}) * c_{p,i} * \bar{q}_0^{nu_i} - k_{d,i} * q_i * c_{p,0}^{nu_i} ) == 0
-		//               <=>  dq_i / dt == (k_{a,i} + k_{a2,i} * c_{p,i}) * c_{p,i} * \bar{q}_0^{nu_i} - k_{d,i} * q_i * c_{p,0}^{nu_i}
+		// Protein fluxes: -(k_{a,i} + k_{a2,i} * c_{p,i}) * c_{p,i} * \bar{q}_0^{nu_i} + k_{d,i} * q_i * c_{p,0}^{nu_i}
 		bndIdx = 1;
 		for (int i = 1; i < _nComp; ++i)
 		{
@@ -321,17 +204,11 @@ protected:
 			if (_nBoundStates[i] == 0)
 				continue;
 
-			const ResidualType c0_pow_nu = pow(yCp0_divRef, static_cast<ParamType>(p.nu[i]));
-			const ResidualType q0_bar_pow_nu = pow(q0_bar_divRef, static_cast<ParamType>(p.nu[i]));
+			const ResidualType c0_pow_nu = pow(yCp0_divRef, static_cast<ParamType>(p->nu[i]));
+			const ResidualType q0_bar_pow_nu = pow(q0_bar_divRef, static_cast<ParamType>(p->nu[i]));
 
 			// Residual
-			res[bndIdx] = static_cast<ParamType>(p.kD[i]) * y[bndIdx] * c0_pow_nu - yCp[i] * (static_cast<ParamType>(p.kA[i]) + yCp[i] * static_cast<ParamType>(p.kA2[i])) * q0_bar_pow_nu;
-
-			// Add time derivative if necessary
-			if (_kineticBinding && yDot)
-			{
-				res[bndIdx] += timeFactor * yDot[bndIdx];
-			}
+			res[bndIdx] = static_cast<ParamType>(p->kD[i]) * y[bndIdx] * c0_pow_nu - yCp[i] * (static_cast<ParamType>(p->kA[i]) + yCp[i] * static_cast<ParamType>(p->kA2[i])) * q0_bar_pow_nu;
 
 			// Next bound component
 			++bndIdx;
@@ -341,13 +218,13 @@ protected:
 	}
 
 	template <typename RowIterator>
-	void jacobianImpl(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, double const* yCp, int offsetCp, RowIterator jac, void* workSpace) const
+	void jacobianImpl(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, double const* yCp, int offsetCp, RowIterator jac, LinearBufferAllocator workSpace) const
 	{
-		const typename ParamHandler_t::params_t& p = _paramHandler.update(t, secIdx, colPos, _nComp, _nBoundStates, workSpace);
+		typename ParamHandler_t::ParamsHandle const p = _paramHandler.update(t, secIdx, colPos, _nComp, _nBoundStates, workSpace);
 
 		double q0_bar = y[0];
 
-		// Salt equation: q_0 - Lambda + Sum[nu_j * q_j, j] == 0
+		// Salt flux: q_0 - Lambda + Sum[nu_j * q_j, j] == 0
 		jac[0] = 1.0;
 		int bndIdx = 1;
 		for (int j = 1; j < _nComp; ++j)
@@ -356,24 +233,24 @@ protected:
 			if (_nBoundStates[j] == 0)
 				continue;
 
-			jac[bndIdx] = static_cast<double>(p.nu[j]);
+			jac[bndIdx] = static_cast<double>(p->nu[j]);
 
 			// Calculate \bar{q}_0 = q_0 - Sum[sigma_j * q_j, j]
-			q0_bar -= static_cast<double>(p.sigma[j]) * y[bndIdx];
+			q0_bar -= static_cast<double>(p->sigma[j]) * y[bndIdx];
 
 			// Next bound component
 			++bndIdx;
 		}
 
-		// Advance to protein equations
+		// Advance to protein fluxes
 		++jac;
 
-		const double refC0 = static_cast<double>(p.refC0);
-		const double refQ = static_cast<double>(p.refQ);
+		const double refC0 = static_cast<double>(p->refC0);
+		const double refQ = static_cast<double>(p->refQ);
 		const double yCp0_divRef = yCp[0] / refC0;
 		const double q0_bar_divRef = q0_bar / refQ;
 
-		// Protein equations: dq_i / dt - ( (k_{a,i} + k_{a2,i} * c_{p,i}) * c_{p,i} * \bar{q}_0^{nu_i} - k_{d,i} * q_i * c_{p,0}^{nu_i} ) == 0
+		// Protein fluxes: -(k_{a,i} + k_{a2,i} * c_{p,i}) * c_{p,i} * \bar{q}_0^{nu_i} + k_{d,i} * q_i * c_{p,0}^{nu_i}
 		// We have already computed \bar{q}_0 in the loop above
 		bndIdx = 1;
 		for (int i = 1; i < _nComp; ++i)
@@ -386,10 +263,10 @@ protected:
 			// Getting to c_{p,i}: -bndIdx takes us to q_0, another -offsetCp to c_{p,0} and a +i to c_{p,i}.
 			//                     This means jac[i - bndIdx - offsetCp] corresponds to c_{p,i}.
 
-			const double ka = static_cast<double>(p.kA[i]);
-			const double ka2 = static_cast<double>(p.kA2[i]);
-			const double kd = static_cast<double>(p.kD[i]);
-			const double nu = static_cast<double>(p.nu[i]);
+			const double ka = static_cast<double>(p->kA[i]);
+			const double ka2 = static_cast<double>(p->kA2[i]);
+			const double kd = static_cast<double>(p->kD[i]);
+			const double nu = static_cast<double>(p->nu[i]);
 
 			const double effKa = yCp[i] * (ka + ka2 * yCp[i]);
 			const double c0_pow_nu     = pow(yCp0_divRef, nu);
@@ -413,7 +290,7 @@ protected:
 					continue;
 
 				// dres_i / dq_j
-				jac[bndIdx2 - bndIdx] = -effKa * nu * q0_bar_pow_nu_m1_divRef * (-static_cast<double>(p.sigma[j]));
+				jac[bndIdx2 - bndIdx] = -effKa * nu * q0_bar_pow_nu_m1_divRef * (-static_cast<double>(p->sigma[j]));
 				// Getting to q_j: -bndIdx takes us to q_0, another +bndIdx2 to q_j. This means jac[bndIdx2 - bndIdx] corresponds to q_j.
 
 				++bndIdx2;
@@ -422,25 +299,10 @@ protected:
 			// Add to dres_i / dq_i
 			jac[0] += kd * c0_pow_nu;
 
-			// Advance to next equation and Jacobian row
+			// Advance to next flux and Jacobian row
 			++bndIdx;
 			++jac;
 		}
-	}
-
-	template <typename RowIterator>
-	void jacobianAddDiscretizedImpl(double alpha, RowIterator jac) const
-	{
-		// We only add time derivatives for kinetic binding
-		if (!_kineticBinding)
-			return;
-
-		// Skip salt equation which is always algebraic
-		++jac;
-
-		const unsigned int eqSize = numBoundStates(_nBoundStates, _nComp) - 1;
-		for (unsigned int i = 0; i < eqSize; ++i, ++jac)
-			jac[0] += alpha;
 	}
 };
 

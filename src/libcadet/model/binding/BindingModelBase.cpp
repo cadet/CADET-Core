@@ -13,7 +13,6 @@
 #include "model/binding/BindingModelBase.hpp"
 #include "model/ModelUtils.hpp"
 #include "cadet/Exceptions.hpp"
-#include "nonlin/Solver.hpp"
 #include "ParamReaderHelper.hpp"
 
 #include "AdUtils.hpp"
@@ -31,10 +30,9 @@ namespace cadet
 namespace model
 {
 
-BindingModelBase::BindingModelBase() : _nComp(0), _nBoundStates(nullptr), _stateQuasistationarity(0, false), _nonlinearSolver(nullptr) { }
+BindingModelBase::BindingModelBase() : _nComp(0), _nBoundStates(nullptr), _reactionQuasistationarity(0, false), _hasQuasiStationary(false), _hasDynamic(true) { }
 BindingModelBase::~BindingModelBase() CADET_NOEXCEPT
 {
-	delete _nonlinearSolver;
 }
 
 bool BindingModelBase::configureModelDiscretization(IParameterProvider& paramProvider, unsigned int nComp, unsigned int const* nBound, unsigned int const* boundOffset)
@@ -44,24 +42,27 @@ bool BindingModelBase::configureModelDiscretization(IParameterProvider& paramPro
 	if (hasMultipleBoundStates(nBound, nComp) && !supportsMultistate())
 		throw InvalidParameterException("Binding model does not support multiple bound states");
 
-	_stateQuasistationarity.resize(numBoundStates(nBound, nComp), false);
+	_reactionQuasistationarity.resize(numBoundStates(nBound, nComp), false);
 
 	// Read binding dynamics (quasi-stationary, kinetic)
 	if (paramProvider.isArray("IS_KINETIC"))
 	{
 		const std::vector<int> vecKin = paramProvider.getIntArray("IS_KINETIC");
-		if (vecKin.size() < _stateQuasistationarity.size())
-			throw InvalidParameterException("IS_KINETIC has to have at least " + std::to_string(_stateQuasistationarity.size()) + " elements");
+		if (vecKin.size() < _reactionQuasistationarity.size())
+			throw InvalidParameterException("IS_KINETIC has to have at least " + std::to_string(_reactionQuasistationarity.size()) + " elements");
 
-		std::copy_n(vecKin.begin(), _stateQuasistationarity.size(), _stateQuasistationarity.begin());
+		std::copy_n(vecKin.begin(), _reactionQuasistationarity.size(), _reactionQuasistationarity.begin());
 	}
 	else
 	{
-		_kineticBinding = paramProvider.getInt("IS_KINETIC");
-		std::fill(_stateQuasistationarity.begin(), _stateQuasistationarity.end(), !_kineticBinding);
+		const bool kineticBinding = paramProvider.getInt("IS_KINETIC");
+		std::fill(_reactionQuasistationarity.begin(), _reactionQuasistationarity.end(), !kineticBinding);
 	}
 
-	return configureNonlinearSolver(paramProvider);
+	_hasQuasiStationary = std::any_of(_reactionQuasistationarity.begin(), _reactionQuasistationarity.end(), [](int i) -> bool { return i; });
+	_hasDynamic = std::any_of(_reactionQuasistationarity.begin(), _reactionQuasistationarity.end(), [](int i) -> bool { return !static_cast<bool>(i); });
+
+	return true;
 }
 
 bool BindingModelBase::configure(IParameterProvider& paramProvider, UnitOpIdx unitOpIdx, ParticleTypeIdx parTypeIdx)
@@ -79,27 +80,6 @@ void BindingModelBase::fillBoundPhaseInitialParameters(ParameterId* params, Unit
 		for (unsigned int bp = 0; bp < _nBoundStates[c]; ++bp, ++ctr)
 			params[ctr] = makeParamId(hashString("INIT_Q"), unitOpIdx, c, parTypeIdx, bp, ReactionIndep, SectionIndep);
 	}
-}
-
-bool BindingModelBase::configureNonlinearSolver(IParameterProvider& paramProvider)
-{
-	if (paramProvider.exists("consistency_solver"))
-	{
-		paramProvider.pushScope("consistency_solver");
-
-		const std::string name = paramProvider.getString("SOLVER_NAME");
-		delete _nonlinearSolver;
-		_nonlinearSolver = nonlin::createSolver(name);
-		_nonlinearSolver->configure(paramProvider);
-
-		paramProvider.popScope();
-	}
-	else if (!_nonlinearSolver)
-	{
-		// Use default solver with default settings
-		_nonlinearSolver = nonlin::createSolver("");
-	}
-	return true;	
 }
 
 std::unordered_map<ParameterId, double> BindingModelBase::getAllParameterValues() const
@@ -146,166 +126,6 @@ active* BindingModelBase::getParameter(const ParameterId& pId)
 	}
 
 	return nullptr;
-}
-
-unsigned int BindingModelBase::workspaceSize(unsigned int nComp, unsigned int totalNumBoundStates, unsigned int const* nBoundStates) const CADET_NOEXCEPT
-{
-	// Determine problem size
-	const unsigned int eqSize = numBoundStates(_nBoundStates, _nComp);
-	// Ask nonlinear solver how much memory it needs for this kind of problem
-	return _nonlinearSolver->workspaceSize(eqSize) * sizeof(double) + paramCacheSize(nComp, totalNumBoundStates, nBoundStates);
-}
-
-/*
-void BindingModelBase::timeDerivativeAlgebraicResidual(double t, unsigned int secIdx, const ColumnPosition& colPos, double* const y, double* dResDt) const
-{
-	if (!hasAlgebraicEquations())
-		return;
-
-	unsigned int start = 0;
-	unsigned int len = 0;
-	getAlgebraicBlock(start, len);
-
-	// Assumes no external dependence
-	std::fill_n(dResDt, len, 0.0);
-}
-*/
-
-
-PureBindingModelBase::PureBindingModelBase() { }
-PureBindingModelBase::~PureBindingModelBase() CADET_NOEXCEPT { }
-
-void PureBindingModelBase::getAlgebraicBlock(unsigned int& idxStart, unsigned int& len) const
-{
-	idxStart = 0;
-	if (_kineticBinding)
-		len = 0;
-	else
-		len = numBoundStates(_nBoundStates, _nComp);
-}
-
-void PureBindingModelBase::jacobianAddDiscretized(double alpha, linalg::FactorizableBandMatrix::RowIterator jac) const
-{
-	jacobianAddDiscretizedImpl(alpha, jac);
-}
-
-void PureBindingModelBase::jacobianAddDiscretized(double alpha, linalg::DenseBandedRowIterator jac) const
-{
-	jacobianAddDiscretizedImpl(alpha, jac);
-}
-
-template <typename RowIterator>
-void PureBindingModelBase::jacobianAddDiscretizedImpl(double alpha, RowIterator jac) const
-{
-	// We only add time derivatives for kinetic binding
-	if (!_kineticBinding)
-		return;
-
-	// All equations are kinetic
-	const unsigned int eqSize = numBoundStates(_nBoundStates, _nComp);
-	for (unsigned int i = 0; i < eqSize; ++i, ++jac)
-	{
-		jac[0] += alpha;
-	}
-}
-
-void PureBindingModelBase::multiplyWithDerivativeJacobian(double const* yDotS, double* const res, double timeFactor) const
-{
-	// Multiplier is 0 if quasi-stationary and 1 if kinetic binding
-	// However, due to premultiplication of time derivatives with the timeFactor (because of time transformation),
-	// we set it to timeFactor instead of 1.0 in order to save some multiplications
-	const double multiplier = _kineticBinding ? timeFactor : 0.0;
-
-	const unsigned int eqSize = numBoundStates(_nBoundStates, _nComp);
-	for (unsigned int i = 0; i < eqSize; ++i)
-	{
-		res[i] = multiplier * yDotS[i];
-	}
-}
-
-void PureBindingModelBase::consistentInitialState(double t, unsigned int secIdx, const ColumnPosition& colPos, double* const vecStateY, double const* const yCp, double errorTol, 
-	active* const adRes, active* const adY, unsigned int adEqOffset, unsigned int adDirOffset, const ad::IJacobianExtractor& jacExtractor, 
-	double* const workingMemory, linalg::detail::DenseMatrixBase& workingMat) const
-{
-	// If we have kinetic binding, there are no algebraic equations and we are done
-	if (_kineticBinding)
-		return;
-
-	// All equations are algebraic and (except for salt equation) nonlinear
-	// Compute the q_i from their corresponding c_{p,i}
-
-	// Determine problem size
-	const unsigned int eqSize = numBoundStates(_nBoundStates, _nComp);
-
-	// Check if workingMat satisfies size requirements
-	cadet_assert(workingMat.rows() >= eqSize);
-	cadet_assert(workingMat.columns() >= eqSize);
-
-	double* const resBuffer = workingMemory + _nonlinearSolver->workspaceSize(eqSize);
-	std::fill(workingMemory, resBuffer, 0.0);
-
-	// Check if workingMat satisfies size requirements
-	cadet_assert(workingMat.rows() >= eqSize);
-	cadet_assert(workingMat.columns() >= eqSize);
-
-	// Select between analytic and AD Jacobian
-	std::function<bool(double const* const, linalg::detail::DenseMatrixBase& jac)> jacobianFunc;
-	if (adRes && adY)
-	{
-		// AD Jacobian
-		jacobianFunc = [&](double const* const x, linalg::detail::DenseMatrixBase& mat) -> bool { 
-			// Copy over state vector to AD state vector (without changing directional values to keep seed vectors)
-			// and initalize residuals with zero (also resetting directional values)
-			ad::copyToAd(x, adY + adEqOffset, eqSize);
-			// @todo Check if this is necessary
-			ad::resetAd(adRes + adEqOffset, eqSize);
-
-			// Call residual with AD enabled
-			residualCore(t, secIdx, 1.0, colPos, adY + adEqOffset, yCp, nullptr, adRes + adEqOffset, resBuffer);
-			
-#ifdef CADET_CHECK_ANALYTIC_JACOBIAN			
-			// Compute analytic Jacobian
-			mat.setAll(0.0);
-			analyticJacobianCore(t, secIdx, colPos, x, yCp, _nComp, mat.row(0), resBuffer);
-
-			// Compare
-			const double diff = jacExtractor.compareWithJacobian(adRes, adEqOffset, adDirOffset, mat);
-			LOG(Debug) << "MaxDiff " << adEqOffset << ": " << diff;
-#endif
-			// Extract Jacobian
-			jacExtractor.extractJacobian(adRes, adEqOffset, adDirOffset, mat);
-			return true;
-		};
-	}
-	else
-	{
-		// Analytic Jacobian
-		jacobianFunc = [&](double const* const x, linalg::detail::DenseMatrixBase& mat) -> bool
-		{ 
-			mat.setAll(0.0);
-			// TODO: Check if _nComp is enough offsetCp - also check implementations of other binding models
-			analyticJacobianCore(t, secIdx, colPos, x, yCp, _nComp, mat.row(0), resBuffer);
-			return true;
-		};
-	}
-
-	const bool conv = _nonlinearSolver->solve([&](double const* const x, double* const res) -> bool
-		{
-			residualCore(t, secIdx, 1.0, colPos, x, yCp, nullptr, res, resBuffer); 
-			return true; 
-		}, 
-		jacobianFunc,
-		errorTol, vecStateY, workingMemory, workingMat, eqSize);
-}
-
-void PureBindingModelBase::analyticJacobian(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, int offsetCp, linalg::BandMatrix::RowIterator jac, void* workSpace) const
-{
-	analyticJacobianCore(t, secIdx, colPos, y, y - offsetCp, offsetCp, jac, workSpace);
-}
-
-void PureBindingModelBase::analyticJacobian(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, int offsetCp, linalg::DenseBandedRowIterator jac, void* workSpace) const
-{
-	analyticJacobianCore(t, secIdx, colPos, y, y - offsetCp, offsetCp, jac, workSpace);
 }
 
 }  // namespace model

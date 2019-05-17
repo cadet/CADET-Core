@@ -20,7 +20,7 @@
 
 #include "AutoDiff.hpp"
 #include "MathUtil.hpp"
-#include "MemoryPool.hpp"
+#include "Memory.hpp"
 #include "common/CompilerSpecific.hpp"
 #include "cadet/Exceptions.hpp"
 

@@ -16,9 +16,10 @@
 #include "cadet/Exceptions.hpp"
 #include "cadet/SolutionRecorder.hpp"
 #include "model/BindingModel.hpp"
-#include "model/parts/BindingConsistentInit.hpp"
+#include "model/ReactionModel.hpp"
 #include "SimulationTypes.hpp"
 #include "ParallelSupport.hpp"
+#include "linalg/Subset.hpp"
 
 #include "ConfigurationHelper.hpp"
 #include "linalg/Norms.hpp"
@@ -36,11 +37,36 @@ namespace cadet
 namespace model
 {
 
-CSTRModel::CSTRModel(UnitOpIdx unitOpIdx) : UnitOperationBase(unitOpIdx), _nComp(0), _nParType(0), _nBound(nullptr), _boundOffset(nullptr), _strideBound(nullptr), _offsetParType(nullptr), 
-	_totalBound(0), _analyticJac(true), _jac(), _jacFact(), _factorizeJac(false), _initConditions(0), _initConditionsDot(0)
+namespace
 {
-	// Mutliplexed binding models make no sense in CSTR
+	inline void bindingFlux(IBindingModel* binding, const active& t, unsigned int secIdx, const ColumnPosition& colPos, active const* yCp, active const* yQ, active* res, cadet::LinearBufferAllocator buffer)
+	{
+		binding->flux(static_cast<double>(t), secIdx, colPos, yQ, yCp, res, buffer, WithParamSensitivity());
+	}
+
+	inline void bindingFlux(IBindingModel* binding, double t, unsigned int secIdx, const ColumnPosition& colPos, active const* yCp, active const* yQ, active* res, cadet::LinearBufferAllocator buffer)
+	{
+		binding->flux(t, secIdx, colPos, yQ, yCp, res, buffer, WithoutParamSensitivity());
+	}
+
+	inline void bindingFlux(IBindingModel* binding, const active& t, unsigned int secIdx, const ColumnPosition& colPos, double const* yCp, double const* yQ, active* res, cadet::LinearBufferAllocator buffer)
+	{
+		binding->flux(static_cast<double>(t), secIdx, colPos, yQ, yCp, res, buffer);
+	}
+
+	inline void bindingFlux(IBindingModel* binding, double t, unsigned int secIdx, const ColumnPosition& colPos, double const* yCp, double const* yQ, double* res, cadet::LinearBufferAllocator buffer)
+	{
+		binding->flux(t, secIdx, colPos, yQ, yCp, res, buffer);
+	}
+}
+
+
+CSTRModel::CSTRModel(UnitOpIdx unitOpIdx) : UnitOperationBase(unitOpIdx), _nComp(0), _nParType(0), _nBound(nullptr), _boundOffset(nullptr), _strideBound(nullptr), _offsetParType(nullptr), 
+	_totalBound(0), _analyticJac(true), _jac(), _jacFact(), _factorizeJac(false), _initConditions(0), _initConditionsDot(0), _dynReactionBulk(nullptr)
+{
+	// Mutliplexed binding and reaction models make no sense in CSTR
 	_singleBinding = false;
+	_singleDynReaction = false;
 }
 
 CSTRModel::~CSTRModel() CADET_NOEXCEPT
@@ -49,11 +75,13 @@ CSTRModel::~CSTRModel() CADET_NOEXCEPT
 	delete[] _nBound;
 	delete[] _strideBound;
 	delete[] _offsetParType;
+
+	delete _dynReactionBulk;
 }
 
 unsigned int CSTRModel::numDofs() const CADET_NOEXCEPT
 {
-	return 2 *_nComp + _totalBound + 1;
+	return 2 * _nComp + _totalBound + 1;
 }
 
 unsigned int CSTRModel::numPureDofs() const CADET_NOEXCEPT
@@ -119,6 +147,7 @@ bool CSTRModel::configureModelDiscretization(IParameterProvider& paramProvider, 
 		_totalBound = 0;
 		_nBound = nullptr;
 		_boundOffset = nullptr;
+		_strideBound = nullptr;
 		_offsetParType = nullptr;
 	}
 
@@ -152,6 +181,14 @@ bool CSTRModel::configureModelDiscretization(IParameterProvider& paramProvider, 
 #endif
 	useAnalyticJacobian(analyticJac);
 
+	// Create nonlinear solver for consistent initialization
+	if (paramProvider.exists("discretization"))
+	{
+		paramProvider.pushScope("discretization");
+		configureNonlinearSolver(paramProvider);
+		paramProvider.popScope();
+	}
+
 	// ==== Construct and configure binding models
 	clearBindingModels();
 	_binding = std::vector<IBindingModel*>(_nParType, nullptr);
@@ -177,7 +214,47 @@ bool CSTRModel::configureModelDiscretization(IParameterProvider& paramProvider, 
 		}
 	}
 
-	return bindingConfSuccess;
+	// ==== Construct and configure dynamic reaction model
+	clearDynamicReactionModels();
+	bool reactionConfSuccess = true;
+
+	_dynReactionBulk = nullptr;
+	if (paramProvider.exists("REACTION_MODEL"))
+	{
+		const std::string dynReactName = paramProvider.getString("REACTION_MODEL");
+		_dynReactionBulk = helper.createDynamicReactionModel(dynReactName);
+		if (!_dynReactionBulk)
+			throw InvalidParameterException("Unknown dynamic reaction model " + dynReactName);
+
+		if (_dynReactionBulk->usesParamProviderInDiscretizationConfig())
+			paramProvider.pushScope("reaction_bulk");
+
+		reactionConfSuccess = _dynReactionBulk->configureModelDiscretization(paramProvider, _nComp, nullptr, nullptr);
+
+		if (_dynReactionBulk->usesParamProviderInDiscretizationConfig())
+			paramProvider.popScope();
+	}
+
+	_dynReaction = std::vector<IDynamicReactionModel*>(_nParType, nullptr);
+
+	if (paramProvider.exists("REACTION_MODEL_PARTICLES"))
+	{
+		const std::vector<std::string> dynReactModelNames = paramProvider.getStringArray("REACTION_MODEL_PARTICLES");
+		if (dynReactModelNames.size() < _nParType)
+			throw InvalidParameterException("Field REACTION_MODEL_PARTICLES contains too few elements (" + std::to_string(_nParType) + " required)");
+
+		for (unsigned int i = 0; i < _nParType; ++i)
+		{
+			_dynReaction[i] = helper.createDynamicReactionModel(dynReactModelNames[i]);
+			if (!_dynReaction[i])
+				throw InvalidParameterException("Unknown dynamic reaction model " + dynReactModelNames[i]);
+
+			MultiplexedScopeSelector scopeGuard(paramProvider, "reaction_particle", _nParType == 1, i, _nParType == 1, _dynReaction[i]->usesParamProviderInDiscretizationConfig());
+			reactionConfSuccess = _dynReaction[i]->configureModelDiscretization(paramProvider, _nComp, _nBound + i * _nComp, _boundOffset + i * _nComp) && reactionConfSuccess;
+		}
+	}
+
+	return bindingConfSuccess && reactionConfSuccess;
 }
 
 bool CSTRModel::configure(IParameterProvider& paramProvider)
@@ -237,42 +314,90 @@ bool CSTRModel::configure(IParameterProvider& paramProvider)
 	_parameters[makeParamId(hashString("INIT_VOLUME"), _unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = _initConditions.data() + _nComp + _totalBound;
 
 	// Reconfigure binding model
+	bool bindingConfSuccess = true;
 	if (!_binding.empty())
 	{
-		bool bindingConfSuccess = true;
 		for (unsigned int type = 0; type < _nParType; ++type)
 		{
  			if (!_binding[type] || !_binding[type]->requiresConfiguration())
  				continue;
 
-			MultiplexedScopeSelector scopeGuard(paramProvider, "adsorption", type, _nParType == 1, false);
-			if (scopeGuard.isActive())
-				continue;
-			
+			MultiplexedScopeSelector scopeGuard(paramProvider, "adsorption", type, _nParType == 1, true);
 			bindingConfSuccess = _binding[type]->configure(paramProvider, _unitOpIdx, type) && bindingConfSuccess;
 		}
-
-		return bindingConfSuccess;
 	}
 
-	return true;
+	// Reconfigure reaction model
+	bool dynReactionConfSuccess = true;
+	if (_dynReactionBulk && _dynReactionBulk->requiresConfiguration())
+	{
+		paramProvider.pushScope("reaction_bulk");
+		dynReactionConfSuccess = _dynReactionBulk->configure(paramProvider, _unitOpIdx, ParTypeIndep);
+		paramProvider.popScope();
+	}
+
+	for (unsigned int type = 0; type < _nParType; ++type)
+	{
+		if (!_dynReaction[type] || !_dynReaction[type]->requiresConfiguration())
+			continue;
+
+		MultiplexedScopeSelector scopeGuard(paramProvider, "reaction_particle", type, _nParType == 1, true);
+		dynReactionConfSuccess = _dynReaction[type]->configure(paramProvider, _unitOpIdx, type) && dynReactionConfSuccess;
+	}
+
+	return bindingConfSuccess && dynReactionConfSuccess;
 }
 
 unsigned int CSTRModel::threadLocalMemorySize() const CADET_NOEXCEPT
 {
-	const unsigned int nVar = _nComp + _totalBound + 1;
-	unsigned int bindingRequiredMem = 2 * nVar * sizeof(double);
+	LinearMemorySizer lms;
 
-	if (_nParType == 0)
-		return bindingRequiredMem;
-
+	// Memory for residualImpl()
 	for (unsigned int i = 0; i < _nParType; ++i)
 	{
-		if (_binding[i]->requiresWorkspace())
-			bindingRequiredMem = std::max(bindingRequiredMem, _binding[i]->workspaceSize(_nComp, _strideBound[i], _nBound + i * _nComp));
+		if (_binding[i] && _binding[i]->requiresWorkspace())
+			lms.fitBlock(_binding[i]->workspaceSize(_nComp, _strideBound[i], _nBound + i * _nComp));
+		if (_dynReaction[i] && _dynReaction[i]->requiresWorkspace())
+			lms.fitBlock(_dynReaction[i]->workspaceSize(_nComp, _strideBound[i], _nBound + i * _nComp));
 	}
 
-	return bindingRequiredMem;
+	if (_dynReactionBulk && _dynReactionBulk->requiresWorkspace())
+		lms.fitBlock(_dynReactionBulk->workspaceSize(_nComp, 0, nullptr));
+
+	const unsigned int maxStrideBound = *std::max_element(_strideBound, _strideBound + _nParType);
+	lms.add<active>(_nComp + maxStrideBound);
+	lms.add<double>((maxStrideBound + _nComp) * (maxStrideBound + _nComp));
+
+	lms.commit();
+	const std::size_t resImplSize = lms.bufferSize();
+
+	// Memory for consistentInitialTimeDerivative()
+	for (unsigned int i = 0; i < _nParType; ++i)
+	{
+		if (_binding[i] && _binding[i]->requiresWorkspace())
+			lms.fitBlock(_binding[i]->workspaceSize(_nComp, _strideBound[i], _nBound + i * _nComp));
+	}
+	lms.add<double>(_nComp + _totalBound + 1);
+	lms.commit();
+
+	// Memory for consistentInitialState()
+	lms.add<int>(_nComp + _totalBound);
+	lms.add<double>(_nComp + _totalBound);
+	lms.add<double>(_nComp);
+	lms.add<double>(_nComp + _totalBound);
+	lms.add<double>(numDofs());
+	lms.add<double>(_nonlinearSolver->workspaceSize(_nComp + _totalBound) * sizeof(double));
+	lms.addBlock(resImplSize);
+	lms.commit();
+
+	// Memory for consistentInitialSensitivity
+	lms.add<int>(_totalBound);
+	lms.add<double>(_nComp + _totalBound + 1);
+	lms.add<double>(_nComp + _totalBound);
+	lms.add<double>(_totalBound);
+	lms.commit();
+
+	return lms.bufferSize();
 }
 
 void CSTRModel::setSectionTimes(double const* secTimes, bool const* secContinuity, unsigned int nSections)
@@ -388,7 +513,7 @@ void CSTRModel::readInitialCondition(IParameterProvider& paramProvider)
 		_initConditions[_nComp + _totalBound].setValue(0.0);
 }
 
-void CSTRModel::consistentInitialState(const SimulationTime& simTime, double* const vecStateY, const AdJacobianParams& adJac, double errorTol, const util::ThreadLocalArray& threadLocalMem)
+void CSTRModel::consistentInitialState(const SimulationTime& simTime, double* const vecStateY, const AdJacobianParams& adJac, double errorTol, util::ThreadLocalStorage& threadLocalMem)
 {
 	double * const c = vecStateY + _nComp;
 	const double v = c[_nComp + _totalBound];
@@ -460,27 +585,287 @@ void CSTRModel::consistentInitialState(const SimulationTime& simTime, double* co
 	}
 	else
 	{
-		double* const buffer = threadLocalMem.get();
+		LinearBufferAllocator tlmAlloc = threadLocalMem.get();
+		BufferedArray<int> qsMask = tlmAlloc.array<int>(_nComp + _totalBound);
+
+		// Check whether quasi-stationary reactions are present and construct mask array
+		bool hasNoQSreactions = true;
+		std::fill_n(static_cast<int*>(qsMask), _nComp + _totalBound, false);
+		int* localMask = static_cast<int*>(qsMask) + _nComp;
+		for (unsigned int type = 0; type < _nParType; ++type, localMask += _strideBound[type])
+		{
+			if (!_binding[type]->hasQuasiStationaryReactions())
+				continue;
+
+			// Determine whether nonlinear solver is required
+			const ColumnPosition colPos{0.0, 0.0, 0.0};
+			if (!_binding[type]->preConsistentInitialState(simTime.t, simTime.secIdx, colPos, c + _nComp + _offsetParType[type], c, tlmAlloc))
+				continue;
+
+			hasNoQSreactions = false;
+
+			// Construct mask
+			int const* const qsMaskSrc = _binding[type]->reactionQuasiStationarity();
+			std::copy_n(qsMaskSrc, _strideBound[type], localMask);
+
+			// Mark component for conserved moiety if it has a quasi-stationary bound state
+			unsigned int idx = 0;
+			for (unsigned int comp = 0; comp < _nComp; ++ comp)
+			{
+				// Skip components that are already marked
+				if (qsMask[comp])
+				{
+					idx += _nBound[type * _nComp + comp];
+					continue;
+				}
+
+				for (unsigned int state = 0; state < _nBound[type * _nComp + comp]; ++state, ++idx)
+				{
+					if (qsMaskSrc[idx])
+					{
+						qsMask[comp] = true;
+						break;
+					}
+				}
+			}
+		}
+
+		// Consistent init is not required as we do not have quasi-stationary reactions
+		if (hasNoQSreactions)
+			return;
+
+		const linalg::ConstMaskArray mask{static_cast<int*>(qsMask), static_cast<int>(_nComp + _totalBound)};
+		const int probSize = linalg::numMaskActive(mask);
+
+		// Extract initial values from current state
+		BufferedArray<double> solution = tlmAlloc.array<double>(probSize);
+		linalg::selectVectorSubset(c, mask, static_cast<double*>(solution));
+
+		// Save values of conserved moieties
+		const unsigned int numActiveComp = numMaskActive(mask, _nComp);
+		BufferedArray<double> conservedQuants = tlmAlloc.array<double>(numActiveComp);
+		const double epsQ = 1.0 - static_cast<double>(_porosity);
+		unsigned int idx = 0;
+		for (unsigned int comp = 0; comp < _nComp; ++comp)
+		{
+			if (!qsMask[comp])
+				continue;
+
+			conservedQuants[idx] = static_cast<double>(_porosity) * c[comp];
+			for (unsigned int type = 0; type < _nParType; ++type)
+			{
+				const double factor = epsQ * static_cast<double>(_parTypeVolFrac[type]);
+				for (unsigned int state = 0; state < _nBound[type * _nComp + comp]; ++state)
+				{
+					const unsigned int bndIdx = _offsetParType[type] + _boundOffset[type * _nComp + comp] + state;
+					if (!qsMask[_nComp + bndIdx])
+						continue;
+
+					conservedQuants[idx] += factor * c[_nComp + bndIdx];
+				}
+			}
+
+			++idx;
+		}
+
+		linalg::DenseMatrixView jacobianMatrix(_jacFact.data(), _jacFact.pivotData(), probSize, probSize);
+
+		BufferedArray<double> baFullX = tlmAlloc.array<double>(mask.len);
+		double* const fullX = static_cast<double*>(baFullX);
+
+		BufferedArray<double> baFullResidual = tlmAlloc.array<double>(numDofs());
+		double* const fullResidual = static_cast<double*>(baFullResidual);
+
+		BufferedArray<double> baNonlinMem = tlmAlloc.array<double>(_nonlinearSolver->workspaceSize(probSize));
+		double* const nonlinMem = static_cast<double*>(baNonlinMem);
+
+		std::function<bool(double const* const, linalg::detail::DenseMatrixBase&)> jacFunc;
+		if (adJac.adY && adJac.adRes)
+		{
+			active* const localAdY = adJac.adY + _nComp;
+			active* const localAdRes = adJac.adRes + _nComp;
+
+			jacFunc = [&](double const* const x, linalg::detail::DenseMatrixBase& mat)
+			{
+				// Copy over state vector to AD state vector (without changing directional values to keep seed vectors)
+				// and initalize residuals with zero (also resetting directional values)
+				ad::copyToAd(c, localAdY, mask.len);
+				// @todo Check if this is necessary
+				ad::resetAd(localAdRes, mask.len);
+
+				// Prepare input vector by overwriting masked items
+				linalg::applyVectorSubset(x, mask, localAdY);
+
+				// Call residual function
+				residualImpl<active, active, double, false>(simTime.t, simTime.secIdx, 0.0, localAdY, nullptr, localAdRes, tlmAlloc.manageRemainingMemory());
+
+#ifdef CADET_CHECK_ANALYTIC_JACOBIAN
+				std::copy_n(c, mask.len, fullX);
+				linalg::applyVectorSubset(x, mask, fullX);
+
+				// Compute analytic Jacobian
+				residualImpl<double, double, double, true>(simTime.t, simTime.secIdx, 0.0, fullX, nullptr, fullResidual, tlmAlloc.manageRemainingMemory());
+
+				// Compare
+				const double diff = ad::compareDenseJacobianWithAd(localAdRes, adJac.adDirOffset, _jac);
+				LOG(Debug) << "MaxDiff " << adEqOffset << ": " << diff;
+#endif
+
+				// Extract Jacobian from AD
+				ad::extractDenseJacobianFromAd(localAdRes, adJac.adDirOffset, _jac);
+
+				// Extract Jacobian from full Jacobian
+				mat.setAll(0.0);
+				linalg::copyMatrixSubset(_jac, mask, mask, mat);
+
+				// Replace upper part with conservation relations
+				mat.submatrixSetAll(0.0, 0, 0, numActiveComp, probSize);
+
+				unsigned int rIdx = 0;
+				const double epsQ = 1.0 - static_cast<double>(_porosity);
+
+				for (unsigned int comp = 0; comp < _nComp; ++comp)
+				{
+					if (!mask.mask[comp])
+						continue;
+
+					mat.native(rIdx, rIdx) = static_cast<double>(_porosity);
+
+					for (unsigned int type = 0; type < _nParType; ++type)
+					{
+						const double factor = epsQ * static_cast<double>(_parTypeVolFrac[type]);;
+
+						const unsigned int offset = _nComp + _offsetParType[type] + _boundOffset[type * _nComp + comp];
+						unsigned int bIdx = numActiveComp + numMaskActive(mask, _nComp, _boundOffset[type * _nComp + comp]);
+						for (unsigned int state = 0; state < _nBound[type * _nComp + comp]; ++state)
+						{
+							if (!mask.mask[offset + state])
+								continue;
+
+							mat.native(rIdx, bIdx) = factor;
+							++bIdx;
+						}
+					}
+
+					++rIdx;
+				}
+
+				return true;
+			};
+		}
+		else
+		{
+			jacFunc = [&](double const* const x, linalg::detail::DenseMatrixBase& mat)
+			{
+				// Prepare input vector by overwriting masked items
+				std::copy_n(c, mask.len, fullX);
+				linalg::applyVectorSubset(x, mask, fullX);
+
+				// Call residual function
+				residualImpl<double, double, double, true>(simTime.t, simTime.secIdx, 0.0, fullX, nullptr, fullResidual, tlmAlloc.manageRemainingMemory());
+
+				// Extract Jacobian from full Jacobian
+				mat.setAll(0.0);
+				linalg::copyMatrixSubset(_jac, mask, mask, mat);
+
+				// Replace upper part with conservation relations
+				mat.submatrixSetAll(0.0, 0, 0, numActiveComp, probSize);
+
+				unsigned int rIdx = 0;
+				const double epsQ = 1.0 - static_cast<double>(_porosity);
+
+				for (unsigned int comp = 0; comp < _nComp; ++comp)
+				{
+					if (!mask.mask[comp])
+						continue;
+
+					mat.native(rIdx, rIdx) = static_cast<double>(_porosity);
+
+					for (unsigned int type = 0; type < _nParType; ++type)
+					{
+						const double factor = epsQ * static_cast<double>(_parTypeVolFrac[type]);;
+
+						const unsigned int offset = _nComp + _offsetParType[type] + _boundOffset[type * _nComp + comp];
+						unsigned int bIdx = numActiveComp + numMaskActive(mask, _nComp, _boundOffset[type * _nComp + comp]);
+						for (unsigned int state = 0; state < _nBound[type * _nComp + comp]; ++state)
+						{
+							if (!mask.mask[offset + state])
+								continue;
+
+							mat.native(rIdx, bIdx) = factor;
+							++bIdx;
+						}
+					}
+
+					++rIdx;
+				}
+
+				return true;
+			};
+		}
+
+		// Apply nonlinear solver
+		_nonlinearSolver->solve(
+			[&](double const* const x, double* const r)
+			{
+				// Prepare input vector by overwriting masked items
+				std::copy_n(c, mask.len, fullX);
+				linalg::applyVectorSubset(x, mask, fullX);
+
+				// Call residual function
+				residualImpl<double, double, double, false>(simTime.t, simTime.secIdx, 0.0, fullX, nullptr, fullResidual, tlmAlloc.manageRemainingMemory());
+
+				// Extract values from residual
+				linalg::selectVectorSubset(fullResidual, mask, r);
+
+				// Calculate residual of conserved moieties
+				std::fill_n(r, numActiveComp, 0.0);
+				unsigned int rIdx = 0;
+				const double epsQ = 1.0 - static_cast<double>(_porosity);
+
+				for (unsigned int comp = 0; comp < _nComp; ++comp)
+				{
+					if (!mask.mask[comp])
+						continue;
+
+					r[rIdx] = static_cast<double>(_porosity) * x[rIdx] - conservedQuants[rIdx];
+
+					for (unsigned int type = 0; type < _nParType; ++type)
+					{
+						const double factor = epsQ * static_cast<double>(_parTypeVolFrac[type]);;
+
+						const unsigned int offset = _nComp + _offsetParType[type] + _boundOffset[type * _nComp + comp];
+						unsigned int bIdx = numActiveComp + numMaskActive(mask, _nComp, _boundOffset[type * _nComp + comp]);
+						for (unsigned int state = 0; state < _nBound[type * _nComp + comp]; ++state)
+						{
+							if (!mask.mask[offset + state])
+								continue;
+
+							r[rIdx] += factor * x[bIdx];
+							++bIdx;
+						}
+					}
+
+					++rIdx;
+				}
+
+				return true;
+			},
+			jacFunc, errorTol, static_cast<double*>(solution), nonlinMem, jacobianMatrix, probSize);
+
+		// Apply solution
+		linalg::applyVectorSubset(static_cast<double*>(solution), mask, c);
+
+		// Refine / correct solution
 		for (unsigned int type = 0; type < _nParType; ++type)
 		{
-			// Compute quasi-stationary binding model state
-			if (_binding[type]->hasAlgebraicEquations())
-			{
-				const unsigned int offset = _nComp + _offsetParType[type];
-				active* const localAdRes = adJac.adRes ? adJac.adRes + offset : nullptr;
-				active* const localAdY = adJac.adY ? adJac.adY + offset : nullptr;
-
-				linalg::DenseMatrixView jacobianMatrix(_jacFact.data(), _jacFact.pivotData(), _strideBound[type], _strideBound[type]);
-
-				// Solve algebraic variables
-				_binding[type]->consistentInitialState(simTime.t, simTime.secIdx, ColumnPosition{0.0, 0.0, 0.0}, c + offset, c, errorTol, localAdRes, localAdY,
-					offset, adJac.adDirOffset, ad::DenseJacobianExtractor(), buffer, jacobianMatrix);
-			}
+			const ColumnPosition colPos{0.0, 0.0, 0.0};
+			_binding[type]->postConsistentInitialState(simTime.t, simTime.secIdx, colPos, c + _nComp + _offsetParType[type], c, tlmAlloc);
 		}
 	}
 }
 
-void CSTRModel::consistentInitialTimeDerivative(const SimulationTime& simTime, double const* vecStateY, double* const vecStateYdot, const util::ThreadLocalArray& threadLocalMem) 
+void CSTRModel::consistentInitialTimeDerivative(const SimulationTime& simTime, double const* vecStateY, double* const vecStateYdot, util::ThreadLocalStorage& threadLocalMem) 
 {
 	double const* const c = vecStateY + _nComp;
 	double* const cDot = vecStateYdot + _nComp;
@@ -588,34 +973,58 @@ void CSTRModel::consistentInitialTimeDerivative(const SimulationTime& simTime, d
 		}
 	}
 
-	double* const buffer = threadLocalMem.get();
+	LinearBufferAllocator tlmAlloc = threadLocalMem.get();
 
 	// Overwrite rows corresponding to algebraic equations with the Jacobian and set right hand side to 0
+	BufferedArray<double> dFluxDt = tlmAlloc.array<double>(_nComp + _totalBound + 1);
+	unsigned int idx = _nComp;
 	for (unsigned int type = 0; type < _nParType; ++type)
 	{
-		if (_binding[type]->hasAlgebraicEquations())
+		if (!_binding[type]->hasQuasiStationaryReactions())
 		{
-			parts::BindingConsistentInitializer::consistentInitialTimeDerivative(_binding[type], simTime, _jacFact.row(_nComp + _offsetParType[type]),
-				_jac.row(_nComp + _offsetParType[type]), vecStateYdot + 2 * _nComp + _offsetParType[type], ColumnPosition{0.0, 0.0, 0.0}, buffer);
+			idx += _strideBound[type];
+			continue;
+		}
+
+		int const* const mask = _binding[type]->reactionQuasiStationarity();
+
+		// Obtain derivative of fluxes wrt. time
+		std::fill_n(static_cast<double*>(dFluxDt), _strideBound[type], 0.0);
+		if (_binding[type]->dependsOnTime())
+		{
+			_binding[type]->timeDerivativeQuasiStationaryFluxes(simTime.t, simTime.secIdx,
+				ColumnPosition{0.0, 0.0, 0.0},
+				c, c + _nComp + _offsetParType[type], static_cast<double*>(dFluxDt), tlmAlloc);
+		}
+
+		// Copy row from original Jacobian and set right hand side
+		double* const qShellDot = cDot + _nComp + _offsetParType[type];
+		for (int i = 0; i < _strideBound[type]; ++i, ++idx)
+		{
+			if (!mask[idx])
+				continue;
+
+			_jacFact.copyRowFrom(_jac, idx, idx);
+			qShellDot[idx] = -dFluxDt[i];
 		}
 	}
 
 	// Factorize
-	const bool result = _jacFact.robustFactorize(buffer);
+	const bool result = _jacFact.robustFactorize(static_cast<double*>(dFluxDt));
 	if (!result)
 	{
 		LOG(Error) << "Factorize() failed";
 	}
 
 	// Solve
-	const bool result2 = _jacFact.robustSolve(vecStateYdot + _nComp, buffer);
+	const bool result2 = _jacFact.robustSolve(vecStateYdot + _nComp, static_cast<double*>(dFluxDt));
 	if (!result2)
 	{
 		LOG(Error) << "Solve() failed";
 	}
 }
 
-void CSTRModel::leanConsistentInitialState(const SimulationTime& simTime, double* const vecStateY, const AdJacobianParams& adJac, double errorTol, const util::ThreadLocalArray& threadLocalMem)
+void CSTRModel::leanConsistentInitialState(const SimulationTime& simTime, double* const vecStateY, const AdJacobianParams& adJac, double errorTol, util::ThreadLocalStorage& threadLocalMem)
 {
 	// It is assumed that the bound states are (approximately) correctly initialized.
 	// Thus, only the liquid phase has to be initialized
@@ -682,7 +1091,7 @@ void CSTRModel::leanConsistentInitialState(const SimulationTime& simTime, double
 	}
 }
 
-void CSTRModel::leanConsistentInitialTimeDerivative(double t, double timeFactor, double const* const vecStateY, double* const vecStateYdot, double* const res, const util::ThreadLocalArray& threadLocalMem)
+void CSTRModel::leanConsistentInitialTimeDerivative(double t, double timeFactor, double const* const vecStateY, double* const vecStateYdot, double* const res, util::ThreadLocalStorage& threadLocalMem)
 {
 	// It is assumed that the bound states are (approximately) correctly initialized.
 	// Thus, only the liquid phase has to be initialized
@@ -806,18 +1215,18 @@ void CSTRModel::leanConsistentInitialTimeDerivative(double t, double timeFactor,
 }
 
 void CSTRModel::leanConsistentInitialSensitivity(const ActiveSimulationTime& simTime, const ConstSimulationState& simState,
-	std::vector<double*>& vecSensY, std::vector<double*>& vecSensYdot, active const* const adRes, const util::ThreadLocalArray& threadLocalMem)
+	std::vector<double*>& vecSensY, std::vector<double*>& vecSensYdot, active const* const adRes, util::ThreadLocalStorage& threadLocalMem)
 {
 	consistentInitialSensitivity(simTime, simState, vecSensY, vecSensYdot, adRes, threadLocalMem);
 }
 
-int CSTRModel::residual(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res, const util::ThreadLocalArray& threadLocalMem)
+int CSTRModel::residual(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res, util::ThreadLocalStorage& threadLocalMem)
 {
-	return residualImpl<double, double, double, false>(simTime.t, simTime.secIdx, simTime.timeFactor, simState.vecStateY, simState.vecStateYdot, res, threadLocalMem);
+	return residualImpl<double, double, double, false>(simTime.t, simTime.secIdx, simTime.timeFactor, simState.vecStateY, simState.vecStateYdot, res, threadLocalMem.get());
 }
 
 template <typename StateType, typename ResidualType, typename ParamType, bool wantJac>
-int CSTRModel::residualImpl(const ParamType& t, unsigned int secIdx, const ParamType& timeFactor, StateType const* const y, double const* const yDot, ResidualType* const res, const util::ThreadLocalArray& threadLocalMem)
+int CSTRModel::residualImpl(const ParamType& t, unsigned int secIdx, const ParamType& timeFactor, StateType const* const y, double const* const yDot, ResidualType* const res, LinearBufferAllocator tlmAlloc)
 {
 	StateType const* const cIn = y;
 	StateType const* const c = y + _nComp;
@@ -851,8 +1260,8 @@ int CSTRModel::residualImpl(const ParamType& t, unsigned int secIdx, const Param
 
 			// Sum q_{i,1} + q_{i,2} + ... + q_{i,N_i}
 			// and sum dq_{i,1} / dt + dq_{i,2} / dt + ... + dq_{i,N_i} / dt
-			StateType qSum = 0.0;
-			double qDotSum = 0.0;
+			typename DoubleActivePromoter<StateType, ResidualType>::type qSum = 0.0;
+			typename ActivePromoter<ParamType>::type qDotSum = 0.0;
 
 			for (unsigned int type = 0; type < _nParType; ++type)
 			{
@@ -867,9 +1276,8 @@ int CSTRModel::residualImpl(const ParamType& t, unsigned int secIdx, const Param
 					qDotSumType += qDot[j];
 				}
 
-				const double pvf = static_cast<double>(_parTypeVolFrac[type]);
-				qSum += pvf * qSumType;
-				qDotSum += pvf * qDotSumType;
+				qSum += static_cast<ParamType>(_parTypeVolFrac[type]) * qSumType;
+				qDotSum += static_cast<ParamType>(_parTypeVolFrac[type]) * qDotSumType;
 			}
 
 			// Divide by beta and add c_i and dc_i / dt
@@ -879,22 +1287,11 @@ int CSTRModel::residualImpl(const ParamType& t, unsigned int secIdx, const Param
 		resC[i] += -flowIn * cIn[i] + flowOut * c[i];
 	}
 
-	// Bound states
-	double* const buffer = threadLocalMem.get();
-	for (unsigned int type = 0; type < _nParType; ++type)
-	{
-		double const* const qDot = yDot ? yDot + 2 * _nComp + _offsetParType[type] : nullptr;
-		_binding[type]->residual(t, secIdx, timeFactor, ColumnPosition{0.0, 0.0, 0.0}, c + _nComp + _offsetParType[type], c, qDot, res + 2 * _nComp + _offsetParType[type], buffer);
-	}
-
-	// Volume: \dot{V} = F_{in} - F_{out} - F_{filter}
-	res[2 * _nComp + _totalBound] = vDot - flowIn + flowOut + static_cast<ParamType>(_curFlowRateFilter);
-
 	if (wantJac)
 	{
 		_jac.setAll(0.0);
 
-		// Assemble Jacobian: dRes / dy
+		// Assemble Jacobian: Liquid phase
 
 		// Concentrations: \dot{V} * (c_i + 1 / beta * [sum_j sum_m d_j q_{j,i,m}]) + V * (\dot{c}_i + 1 / beta * [sum_j sum_m d_j \dot{q}_{j,i,m}]) - c_{in,i} * F_in + c_i * F_out == 0
 		const double vDotTimeFactor = static_cast<double>(vDot) * static_cast<double>(timeFactor);
@@ -930,19 +1327,154 @@ int CSTRModel::residualImpl(const ParamType& t, unsigned int secIdx, const Param
 				_jac.native(i, _nComp + _totalBound) = (cDot[i] + static_cast<double>(invBeta) * qDotSum) * static_cast<double>(timeFactor);
 			}
 		}
-
-		// Bound states
-		for (unsigned int type = 0; type < _nParType; ++type)
-			_binding[0]->analyticJacobian(static_cast<double>(t), secIdx, ColumnPosition{0.0, 0.0, 0.0}, reinterpret_cast<double const*>(y) + 2 * _nComp + _offsetParType[type], _nComp + _offsetParType[type], _jac.row(_nComp + _offsetParType[type]), buffer);
-
-		// Volume: \dot{V} - F_{in} + F_{out} + F_{filter} == 0
 	}
+
+	// Reactions in liquid phase
+	const ColumnPosition colPos{0.0, 0.0, 0.0};
+
+	if (_dynReactionBulk)
+	{
+		LinearBufferAllocator subAlloc = tlmAlloc.manageRemainingMemory();
+		BufferedArray<ResidualType> flux = subAlloc.array<ResidualType>(_nComp);
+
+		_dynReactionBulk->residualLiquidAdd(static_cast<double>(t), secIdx, colPos, c, static_cast<ResidualType*>(flux), -1.0, subAlloc);
+
+		for (unsigned int comp = 0; comp < _nComp; ++comp)
+			resC[comp] += v * flux[comp];
+
+		if (wantJac)
+		{
+			for (unsigned int comp = 0; comp < _nComp; ++comp)
+				_jac.native(comp, _nComp + _totalBound) += static_cast<double>(flux[comp]);
+
+			_dynReactionBulk->analyticJacobianLiquidAdd(static_cast<double>(t), secIdx, colPos, reinterpret_cast<double const*>(c), -static_cast<double>(v), _jac.row(0), subAlloc);
+		}
+	}
+
+	// Bound states
+	for (unsigned int type = 0; type < _nParType; ++type)
+	{
+		// Binding
+		IBindingModel* const binding = _binding[type];
+		bindingFlux(binding, t, secIdx, colPos, c, c + _nComp + _offsetParType[type], res + 2 * _nComp + _offsetParType[type], tlmAlloc);
+		int const* const qsReaction = binding->reactionQuasiStationarity();
+
+		if (binding->hasDynamicReactions() && yDot)
+		{
+			double const* const qDot = yDot + 2 * _nComp + _offsetParType[type];
+			ResidualType* const resQ = resC + _nComp + _offsetParType[type];
+			unsigned int idx = 0;
+			for (unsigned int comp = 0; comp < _nComp; ++comp)
+			{
+				for (unsigned int state = 0; state < _nBound[type * _nComp + comp]; ++state, ++idx)
+				{
+					// Skip quasi-stationary fluxes
+					if (qsReaction[idx])
+						continue;
+
+					// Add time derivative to solid phase
+					resQ[idx] = timeFactor * qDot[idx];
+				}
+			}
+		}
+
+		if (wantJac)
+		{
+			// Assemble Jacobian: Binding
+			_binding[type]->analyticJacobian(static_cast<double>(t), secIdx, colPos, reinterpret_cast<double const*>(y) + 2 * _nComp + _offsetParType[type], _nComp + _offsetParType[type], _jac.row(_nComp + _offsetParType[type]), tlmAlloc);
+		}
+
+		// Reaction
+		IDynamicReactionModel* const dynReaction = _dynReaction[type];
+		if (dynReaction)
+		{
+			LinearBufferAllocator subAlloc = tlmAlloc.manageRemainingMemory();
+
+			ResidualType* const resQ = resC + _nComp + _offsetParType[type];
+			BufferedArray<ResidualType> fluxBuffer = subAlloc.array<ResidualType>(_nComp + _strideBound[type]);
+			ResidualType* const fluxLiquid = static_cast<ResidualType*>(fluxBuffer);
+			ResidualType* const fluxSolid = fluxLiquid + _nComp;
+
+			std::fill_n(fluxLiquid, _nComp, 0.0);
+			std::fill_n(fluxSolid, _strideBound[type], 0.0);
+			dynReaction->residualCombinedAdd(static_cast<double>(t), secIdx, colPos, c, c + _nComp + _offsetParType[type], fluxLiquid, fluxSolid, -1.0, subAlloc);
+
+			for (unsigned int comp = 0; comp < _nComp; ++comp)
+				resC[comp] += v * fluxLiquid[comp];
+
+			typedef typename DoubleActivePromoter<StateType, ParamType>::type FactorType;
+			const FactorType liquidFactor = v * invBeta * static_cast<ParamType>(_parTypeVolFrac[type]);
+			unsigned int idx = 0;
+			for (unsigned int comp = 0; comp < _nComp; ++comp)
+			{
+				for (unsigned int bnd = 0; bnd < _nBound[type * _nComp + comp]; ++bnd, ++idx)
+				{
+					// Add reaction term to mobile phase
+					resC[comp] += static_cast<typename DoubleActiveDemoter<FactorType, ResidualType>::type>(liquidFactor) * fluxSolid[idx];
+
+					if (!qsReaction[idx])
+					{
+						// Add reaction term to solid phase
+						resQ[idx] += fluxSolid[idx];
+					}
+				}
+			}
+
+			if (wantJac)
+			{
+				// Assemble Jacobian: Reaction
+
+				// dRes / dV
+				idx = 0;
+				for (unsigned int comp = 0; comp < _nComp; ++comp)
+				{
+					double sum = 0;
+					for (unsigned int bnd = 0; bnd < _nBound[type * _nComp + comp]; ++bnd, ++idx)
+						sum += static_cast<double>(fluxSolid[idx]);
+
+					_jac.native(comp, _nComp + _totalBound) += static_cast<double>(fluxLiquid[comp]) + static_cast<double>(invBeta) * static_cast<double>(_parTypeVolFrac[type]) * sum;
+				}
+
+				// dRes / dC and dRes / dQ
+				BufferedArray<double> fluxJacobianMem = subAlloc.array<double>((_strideBound[type] + _nComp) * (_strideBound[type] + _nComp));
+				linalg::DenseMatrixView jacFlux(static_cast<double*>(fluxJacobianMem), nullptr, _strideBound[type] + _nComp, _strideBound[type] + _nComp);
+				dynReaction->analyticJacobianCombinedAdd(static_cast<double>(t), secIdx, colPos, reinterpret_cast<double const*>(c), reinterpret_cast<double const*>(c + _nComp + _offsetParType[type]),
+					-1.0, jacFlux.row(0), jacFlux.row(_nComp), subAlloc);
+
+				idx = 0;
+				const double liquidFactor = static_cast<double>(v) * static_cast<double>(invBeta) * static_cast<double>(_parTypeVolFrac[type]);
+				for (unsigned int comp = 0; comp < _nComp; ++comp)
+				{
+					// Add bulk part of reaction to mobile phase Jacobian
+					jacFlux.addSubmatrixTo(_jac, static_cast<double>(v), comp, 0, 1, _nComp, comp, 0);
+					jacFlux.addSubmatrixTo(_jac, static_cast<double>(v), comp, _nComp, 1, _strideBound[type], comp, _nComp + _offsetParType[type]);
+
+					for (unsigned int bnd = 0; bnd < _nBound[type * _nComp + comp]; ++bnd, ++idx)
+					{
+						// Add Jacobian row to mobile phase
+						jacFlux.addSubmatrixTo(_jac, liquidFactor, _nComp + idx, 0, 1, _nComp, comp, 0);
+						jacFlux.addSubmatrixTo(_jac, liquidFactor, _nComp + idx, _nComp, 1, _strideBound[type], comp, _nComp + _offsetParType[type]);
+
+						if (!qsReaction[idx])
+						{
+							// Add Jacobian row to solid phase
+							jacFlux.addSubmatrixTo(_jac, 1.0, _nComp + idx, 0, 1, _nComp, _nComp + _offsetParType[type] + idx, 0);
+							jacFlux.addSubmatrixTo(_jac, 1.0, _nComp + idx, _nComp, 1, _strideBound[type], _nComp + _offsetParType[type] + idx, _nComp + _offsetParType[type]);
+						}
+					}
+				}
+			}
+		}
+	}
+
+	// Volume: \dot{V} = F_{in} - F_{out} - F_{filter}
+	res[2 * _nComp + _totalBound] = vDot - flowIn + flowOut + static_cast<ParamType>(_curFlowRateFilter);
 
 	return 0;
 }
 
 int CSTRModel::residual(const ActiveSimulationTime& simTime, const ConstSimulationState& simState, double* const res,
-	const AdJacobianParams& adJac, const util::ThreadLocalArray& threadLocalMem, bool updateJacobian, bool paramSensitivity)
+	const AdJacobianParams& adJac, util::ThreadLocalStorage& threadLocalMem, bool updateJacobian, bool paramSensitivity)
 {
 	if (updateJacobian)
 	{
@@ -953,7 +1485,7 @@ int CSTRModel::residual(const ActiveSimulationTime& simTime, const ConstSimulati
 		{
 			if (paramSensitivity)
 			{
-				const int retCode = residualImpl<double, active, active, true>(simTime.t, simTime.secIdx, simTime.timeFactor, simState.vecStateY, simState.vecStateYdot, adJac.adRes, threadLocalMem);
+				const int retCode = residualImpl<double, active, active, true>(simTime.t, simTime.secIdx, simTime.timeFactor, simState.vecStateY, simState.vecStateYdot, adJac.adRes, threadLocalMem.get());
 
 				// Copy AD residuals to original residuals vector
 				if (res)
@@ -962,7 +1494,7 @@ int CSTRModel::residual(const ActiveSimulationTime& simTime, const ConstSimulati
 				return retCode;
 			}
 			else
-				return residualImpl<double, double, double, true>(static_cast<double>(simTime.t), simTime.secIdx, static_cast<double>(simTime.timeFactor), simState.vecStateY, simState.vecStateYdot, res, threadLocalMem);
+				return residualImpl<double, double, double, true>(static_cast<double>(simTime.t), simTime.secIdx, static_cast<double>(simTime.timeFactor), simState.vecStateY, simState.vecStateYdot, res, threadLocalMem.get());
 		}
 		else
 		{
@@ -977,9 +1509,9 @@ int CSTRModel::residual(const ActiveSimulationTime& simTime, const ConstSimulati
 			// Evaluate with AD enabled
 			int retCode = 0;
 			if (paramSensitivity)
-				retCode = residualImpl<active, active, active, false>(simTime.t, simTime.secIdx, simTime.timeFactor, adJac.adY, simState.vecStateYdot, adJac.adRes, threadLocalMem);
+				retCode = residualImpl<active, active, active, false>(simTime.t, simTime.secIdx, simTime.timeFactor, adJac.adY, simState.vecStateYdot, adJac.adRes, threadLocalMem.get());
 			else
-				retCode = residualImpl<active, active, double, false>(static_cast<double>(simTime.t), simTime.secIdx, static_cast<double>(simTime.timeFactor), adJac.adY, simState.vecStateYdot, adJac.adRes, threadLocalMem);
+				retCode = residualImpl<active, active, double, false>(static_cast<double>(simTime.t), simTime.secIdx, static_cast<double>(simTime.timeFactor), adJac.adY, simState.vecStateYdot, adJac.adRes, threadLocalMem.get());
 
 			// Copy AD residuals to original residuals vector
 			if (res)
@@ -1002,15 +1534,15 @@ int CSTRModel::residual(const ActiveSimulationTime& simTime, const ConstSimulati
 		// Evaluate with AD enabled
 		int retCode = 0;
 		if (paramSensitivity)
-			retCode = residualImpl<active, active, active, false>(simTime.t, simTime.secIdx, simTime.timeFactor, adJac.adY, simState.vecStateYdot, adJac.adRes, threadLocalMem);
+			retCode = residualImpl<active, active, active, false>(simTime.t, simTime.secIdx, simTime.timeFactor, adJac.adY, simState.vecStateYdot, adJac.adRes, threadLocalMem.get());
 		else
-			retCode = residualImpl<active, active, double, false>(static_cast<double>(simTime.t), simTime.secIdx, static_cast<double>(simTime.timeFactor), adJac.adY, simState.vecStateYdot, adJac.adRes, threadLocalMem);
+			retCode = residualImpl<active, active, double, false>(static_cast<double>(simTime.t), simTime.secIdx, static_cast<double>(simTime.timeFactor), adJac.adY, simState.vecStateYdot, adJac.adRes, threadLocalMem.get());
 
 		// Only do comparison if we have a residuals vector (which is not always the case)
 		if (res)
 		{
 			// Evaluate with analytical Jacobian which is stored in the band matrices
-			retCode = residualImpl<double, double, double, true>(static_cast<double>(simTime.t), simTime.secIdx, static_cast<double>(simTime.timeFactor), simState.vecStateY, simState.vecStateYdot, res, threadLocalMem);
+			retCode = residualImpl<double, double, double, true>(static_cast<double>(simTime.t), simTime.secIdx, static_cast<double>(simTime.timeFactor), simState.vecStateY, simState.vecStateYdot, res, threadLocalMem.get());
 
 			// Compare AD with anaytic Jacobian
 			checkAnalyticJacobianAgainstAd(adJac.adRes, adJac.adDirOffset);
@@ -1030,7 +1562,7 @@ int CSTRModel::residual(const ActiveSimulationTime& simTime, const ConstSimulati
 			// @todo Check if this is necessary
 			ad::resetAd(adJac.adRes, numDofs());
 
-			const int retCode = residualImpl<double, active, active, false>(simTime.t, simTime.secIdx, simTime.timeFactor, simState.vecStateY, simState.vecStateYdot, adJac.adRes, threadLocalMem);
+			const int retCode = residualImpl<double, active, active, false>(simTime.t, simTime.secIdx, simTime.timeFactor, simState.vecStateY, simState.vecStateYdot, adJac.adRes, threadLocalMem.get());
 
 			// Copy AD residuals to original residuals vector
 			if (res)
@@ -1039,22 +1571,22 @@ int CSTRModel::residual(const ActiveSimulationTime& simTime, const ConstSimulati
 			return retCode;
 		}
 		else
-			return residualImpl<double, double, double, false>(static_cast<double>(simTime.t), simTime.secIdx, static_cast<double>(simTime.timeFactor), simState.vecStateY, simState.vecStateYdot, res, threadLocalMem);
+			return residualImpl<double, double, double, false>(static_cast<double>(simTime.t), simTime.secIdx, static_cast<double>(simTime.timeFactor), simState.vecStateY, simState.vecStateYdot, res, threadLocalMem.get());
 	}
 }
 
-int CSTRModel::residualWithJacobian(const ActiveSimulationTime& simTime, const ConstSimulationState& simState, double* const res, const AdJacobianParams& adJac, const util::ThreadLocalArray& threadLocalMem)
+int CSTRModel::residualWithJacobian(const ActiveSimulationTime& simTime, const ConstSimulationState& simState, double* const res, const AdJacobianParams& adJac, util::ThreadLocalStorage& threadLocalMem)
 {
 	return residual(simTime, simState, res, adJac, threadLocalMem, true, false);
 }
 
-int CSTRModel::residualSensFwdAdOnly(const ActiveSimulationTime& simTime, const ConstSimulationState& simState, active* const adRes, const util::ThreadLocalArray& threadLocalMem)
+int CSTRModel::residualSensFwdAdOnly(const ActiveSimulationTime& simTime, const ConstSimulationState& simState, active* const adRes, util::ThreadLocalStorage& threadLocalMem)
 {
 	// Evaluate residual for all parameters using AD in vector mode
-	return residualImpl<double, active, active, false>(simTime.t, simTime.secIdx, simTime.timeFactor, simState.vecStateY, simState.vecStateYdot, adRes, threadLocalMem);
+	return residualImpl<double, active, active, false>(simTime.t, simTime.secIdx, simTime.timeFactor, simState.vecStateY, simState.vecStateYdot, adRes, threadLocalMem.get());
 }
 
-int CSTRModel::residualSensFwdWithJacobian(const ActiveSimulationTime& simTime, const ConstSimulationState& simState, const AdJacobianParams& adJac, const cadet::util::ThreadLocalArray& threadLocalMem)
+int CSTRModel::residualSensFwdWithJacobian(const ActiveSimulationTime& simTime, const ConstSimulationState& simState, const AdJacobianParams& adJac, util::ThreadLocalStorage& threadLocalMem)
 {
 	// Evaluate residual for all parameters using AD in vector mode and at the same time update the 
 	// Jacobian (in one AD run, if analytic Jacobians are disabled)
@@ -1072,11 +1604,36 @@ void CSTRModel::initializeSensitivityStates(const std::vector<double*>& vecSensY
 }
 
 void CSTRModel::consistentInitialSensitivity(const ActiveSimulationTime& simTime, const ConstSimulationState& simState,
-	std::vector<double*>& vecSensY, std::vector<double*>& vecSensYdot, active const* const adRes, const util::ThreadLocalArray& threadLocalMem)
+	std::vector<double*>& vecSensY, std::vector<double*>& vecSensYdot, active const* const adRes, util::ThreadLocalStorage& threadLocalMem)
 {
 	// TODO: Handle v = 0
 
-	double* const buffer = threadLocalMem.get();
+	LinearBufferAllocator tlmAlloc = threadLocalMem.get();
+	BufferedArray<int> qsMaskBuffer = tlmAlloc.array<int>(_totalBound);
+	int* const qsMask = static_cast<int*>(qsMaskBuffer);
+	int* localMask = static_cast<int*>(qsMask);
+
+	// Check whether quasi-stationary reactions are present and construct mask array
+	bool hasQSreactions = false;
+	std::fill_n(static_cast<int*>(qsMask), _totalBound, false);
+	for (unsigned int type = 0; type < _nParType; ++type, localMask += _strideBound[type])
+	{
+		if (!_binding[type]->hasQuasiStationaryReactions())
+			continue;
+
+		hasQSreactions = true;
+
+		// Construct mask
+		int const* const qsMaskSrc = _binding[type]->reactionQuasiStationarity();
+		std::copy_n(qsMaskSrc, _strideBound[type], localMask);
+	}
+
+	const linalg::ConstMaskArray mask{static_cast<int*>(qsMask), static_cast<int>(_totalBound)};
+	const int probSize = linalg::numMaskActive(mask);
+	BufferedArray<double> buffer = tlmAlloc.array<double>(_nComp + _totalBound + 1);
+	BufferedArray<double> rhs = tlmAlloc.array<double>(probSize);
+	BufferedArray<double> rhsUnmasked = tlmAlloc.array<double>(_totalBound);
+
 	for (unsigned int param = 0; param < vecSensY.size(); ++param)
 	{
 		double* const sensY = vecSensY[param];
@@ -1089,22 +1646,38 @@ void CSTRModel::consistentInitialSensitivity(const ActiveSimulationTime& simTime
 		// Step 1: Solve algebraic equations
 
 		// Step 1a: Compute quasi-stationary binding model state
-		for (unsigned int type = 0; type < _nParType; ++type)
+		if (hasQSreactions)
 		{
-			if (_binding[type]->hasAlgebraicEquations())
-			{
-				// Get algebraic block
-				unsigned int algStart = 0;
-				unsigned int algLen = 0;
-				_binding[type]->getAlgebraicBlock(algStart, algLen);
+			double* const maskedMultiplier = static_cast<double*>(buffer);
 
-				// Reuse memory for dense matrix
-				linalg::DenseMatrixView jacobianMatrix(_jacFact.data(), _jacFact.pivotData(), algLen, algLen);
+			linalg::DenseMatrixView jacobianMatrix(_jacFact.data(), _jacFact.pivotData(), probSize, probSize);
+			jacobianMatrix.setAll(0.0);
 
-				// We used to apply robustFactorize() and robustSolve() here, but the model part will only use factorize() and solve()
-				parts::BindingConsistentInitializer::consistentInitialSensitivityState(algStart, algLen, jacobianMatrix,
-					_jac, _nComp, _nComp + _offsetParType[type], _nComp + _offsetParType[type], _strideBound[type], sensY, sensYdot, buffer);
-			}
+			// Extract subproblem Jacobian from full Jacobian
+			linalg::copyMatrixSubset(_jac, mask, mask, _nComp, _nComp, jacobianMatrix, 0);
+
+			// Construct right hand side
+			linalg::selectVectorSubset(sensYdot + 2 * _nComp, mask, static_cast<double*>(rhs));
+
+			// Zero out masked elements
+			std::copy_n(sensY + _nComp, _nComp + _totalBound + 1, maskedMultiplier);
+			linalg::fillVectorSubset(maskedMultiplier + _nComp, mask, 0.0);
+
+			// Assemble right hand side
+			_jac.submatrixMultiplyVector(maskedMultiplier, _nComp, 0, _totalBound, _nComp + _totalBound + 1, static_cast<double*>(rhsUnmasked));
+			linalg::vectorSubsetAdd(static_cast<double*>(rhsUnmasked), mask, -1.0, 1.0, static_cast<double*>(rhs));
+
+			// Precondition
+			double* const scaleFactors = static_cast<double*>(buffer);
+			jacobianMatrix.rowScaleFactors(scaleFactors);
+			jacobianMatrix.scaleRows(scaleFactors);
+
+			// Solve
+			jacobianMatrix.factorize();
+			jacobianMatrix.solve(scaleFactors, static_cast<double*>(rhs));
+
+			// Write back
+			linalg::applyVectorSubset(static_cast<double*>(rhs), mask, sensY + 2 * _nComp);
 		}
 
 		// Step 2: Compute the correct time derivative of the state vector
@@ -1123,22 +1696,35 @@ void CSTRModel::consistentInitialSensitivity(const ActiveSimulationTime& simTime
 		// Overwrite rows corresponding to algebraic equations with the Jacobian and set right hand side to 0
 		for (unsigned int type = 0; type < _nParType; ++type)
 		{
-			if (_binding[type]->hasAlgebraicEquations())
+			if (!_binding[type]->hasQuasiStationaryReactions())
+				continue;
+
+			double* const localQdot = sensYdot + 2 * _nComp + _offsetParType[type];
+			int const* const localMask = mask.mask + _offsetParType[type];
+			for (unsigned int i = 0; i < _strideBound[type]; ++i)
 			{
-				parts::BindingConsistentInitializer::consistentInitialSensitivityTimeDerivative(_binding[type], _jacFact.row(_nComp + _offsetParType[type]),
-					_jac.row(_nComp + _offsetParType[type]), sensYdot + 2 * _nComp + _offsetParType[type]);
+				if (!localMask[i])
+					continue;
+
+				const unsigned int idx = _nComp + _offsetParType[type] + i;
+				_jacFact.copyRowFrom(_jac, idx, idx);
+
+				// Right hand side is -\frac{\partial^2 res(t, y, \dot{y})}{\partial p \partial t}
+				// If the residual is not explicitly depending on time, this expression is 0
+				// @todo This is wrong if external functions are used. Take that into account!
+				localQdot[i] = 0.0;
 			}
 		}
 
 		// Factorize
-		const bool result = _jacFact.robustFactorize(buffer);
+		const bool result = _jacFact.robustFactorize(static_cast<double*>(buffer));
 		if (!result)
 		{
 			LOG(Error) << "Factorize() failed";
 		}
 
 		// Solve
-		const bool result2 = _jacFact.robustSolve(sensYdot + _nComp, buffer);
+		const bool result2 = _jacFact.robustSolve(sensYdot + _nComp, static_cast<double*>(buffer));
 		if (!result2)
 		{
 			LOG(Error) << "Solve() failed";
@@ -1177,8 +1763,8 @@ void CSTRModel::multiplyWithDerivativeJacobian(const SimulationTime& simTime, co
 	double const* const q = simState.vecStateY + 2 * _nComp;
 	const double v = simState.vecStateY[2 * _nComp + _totalBound];
 	const double invBeta = 1.0 / static_cast<double>(_porosity) - 1.0;
-	const double vInvBeta = simTime.timeFactor * v * invBeta;
 	const double timeV = simTime.timeFactor * v;
+	const double vInvBeta = timeV * invBeta;
 	double* const r = ret + _nComp;
 	double const* const s = sDot + _nComp;
 
@@ -1212,7 +1798,27 @@ void CSTRModel::multiplyWithDerivativeJacobian(const SimulationTime& simTime, co
 
 	// Bound states
 	for (unsigned int type = 0; type < _nParType; ++type)
-		_binding[type]->multiplyWithDerivativeJacobian(s + _nComp + _offsetParType[type], r + _nComp + _offsetParType[type], simTime.timeFactor);
+	{
+		// Jump to solid phase of current particle type
+		double* const rQ = r + _nComp + _offsetParType[type];
+		double const* const sQ = s + _nComp + _offsetParType[type];
+		std::fill_n(rQ, _strideBound[type], 0.0);
+
+		// Skip binding models without dynamic binding fluxes
+		IBindingModel* const binding = _binding[type];
+		if (!binding->hasDynamicReactions())
+			continue;
+
+		int const* const qsReaction = binding->reactionQuasiStationarity();
+		for (unsigned int idx = 0; idx < _strideBound[type]; ++idx)
+		{
+			// Skip quasi-stationary fluxes
+			if (qsReaction[idx])
+				continue;
+
+			rQ[idx] = simTime.timeFactor * sQ[idx];
+		}
+	}
 
 	// Volume: \dot{V} - F_{in} + F_{out} + F_{filter} == 0
 	r[_nComp + _totalBound] = simTime.timeFactor * s[_nComp + _totalBound];
@@ -1252,8 +1858,8 @@ void CSTRModel::addTimeDerivativeJacobian(double t, double timeFactor, const Con
 	double const* const q = simState.vecStateY + 2 * _nComp;
 	const double v = simState.vecStateY[2 * _nComp + _totalBound];
 	const double invBeta = 1.0 / static_cast<double>(_porosity) - 1.0;
-	const double vInvBeta = timeFactor * v * invBeta;
 	const double timeV = timeFactor * v;
+	const double vInvBeta = timeV * invBeta;
 
 	// Assemble Jacobian: dRes / dyDot
 
@@ -1286,8 +1892,27 @@ void CSTRModel::addTimeDerivativeJacobian(double t, double timeFactor, const Con
 	}
 
 	// Bound states
+	unsigned int globalIdx = _nComp;
 	for (unsigned int type = 0; type < _nParType; ++type)
-		_binding[type]->jacobianAddDiscretized(timeFactor, mat.row(_nComp + _offsetParType[type]));
+	{
+		IBindingModel* const binding = _binding[type];
+		if (!binding->hasDynamicReactions())
+		{
+			// Skip binding models without dynamic binding fluxes
+			globalIdx += _strideBound[type];
+			continue;
+		}
+
+		int const* const qsReaction = binding->reactionQuasiStationarity();
+		for (unsigned int idx = 0; idx < _strideBound[type]; ++idx, ++globalIdx)
+		{
+			// Skip quasi-stationary fluxes
+			if (qsReaction[idx])
+				continue;
+
+			mat.native(globalIdx, globalIdx) += timeFactor;
+		}
+	}
 
 	// Volume: \dot{V} - F_{in} + F_{out} + F_{filter} == 0
 	mat.native(_nComp + _totalBound, _nComp + _totalBound) += timeFactor;

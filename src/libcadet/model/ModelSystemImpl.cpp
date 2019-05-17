@@ -148,12 +148,12 @@ namespace
 	template <>
 	struct ConsistentInit<FullTag>
 	{
-		static inline void state(cadet::IUnitOperation* model, const cadet::SimulationTime& simTime, double* const vecStateY, const cadet::AdJacobianParams& adJac, double errorTol, const cadet::util::ThreadLocalArray& threadLocalMem)
+		static inline void state(cadet::IUnitOperation* model, const cadet::SimulationTime& simTime, double* const vecStateY, const cadet::AdJacobianParams& adJac, double errorTol, cadet::util::ThreadLocalStorage& threadLocalMem)
 		{
 			model->consistentInitialState(simTime, vecStateY, adJac, errorTol, threadLocalMem);
 		}
 
-		static inline void timeDerivative(cadet::IUnitOperation* model, const cadet::SimulationTime& simTime, double const* vecStateY, double* const vecStateYdot, double* const res, const cadet::util::ThreadLocalArray& threadLocalMem)
+		static inline void timeDerivative(cadet::IUnitOperation* model, const cadet::SimulationTime& simTime, double const* vecStateY, double* const vecStateYdot, double* const res, cadet::util::ThreadLocalStorage& threadLocalMem)
 		{
 			model->consistentInitialTimeDerivative(simTime, vecStateY, vecStateYdot, threadLocalMem);
 		}
@@ -165,7 +165,7 @@ namespace
 		}
 
 		static inline void parameterSensitivity(cadet::IUnitOperation* model, const cadet::ActiveSimulationTime& simTime, const cadet::ConstSimulationState& simState,
-			std::vector<double*>& vecSensYlocal, std::vector<double*>& vecSensYdotLocal, cadet::active const* const adRes, const cadet::util::ThreadLocalArray& threadLocalMem)
+			std::vector<double*>& vecSensYlocal, std::vector<double*>& vecSensYdotLocal, cadet::active const* const adRes, cadet::util::ThreadLocalStorage& threadLocalMem)
 		{
 			model->consistentInitialSensitivity(simTime, simState, vecSensYlocal, vecSensYdotLocal, adRes, threadLocalMem);
 		}
@@ -174,12 +174,12 @@ namespace
 	template <>
 	struct ConsistentInit<LeanTag>
 	{
-		static inline void state(cadet::IUnitOperation* model, const cadet::SimulationTime& simTime, double* const vecStateY, const cadet::AdJacobianParams& adJac, double errorTol, const cadet::util::ThreadLocalArray& threadLocalMem)
+		static inline void state(cadet::IUnitOperation* model, const cadet::SimulationTime& simTime, double* const vecStateY, const cadet::AdJacobianParams& adJac, double errorTol, cadet::util::ThreadLocalStorage& threadLocalMem)
 		{
 			model->leanConsistentInitialState(simTime, vecStateY, adJac, errorTol, threadLocalMem);
 		}
 
-		static inline void timeDerivative(cadet::IUnitOperation* model, const cadet::SimulationTime& simTime, double const* vecStateY, double* const vecStateYdot, double* const res, const cadet::util::ThreadLocalArray& threadLocalMem)
+		static inline void timeDerivative(cadet::IUnitOperation* model, const cadet::SimulationTime& simTime, double const* vecStateY, double* const vecStateYdot, double* const res, cadet::util::ThreadLocalStorage& threadLocalMem)
 		{
 			model->leanConsistentInitialTimeDerivative(simTime.t, simTime.timeFactor, vecStateY, vecStateYdot, res, threadLocalMem);
 		}
@@ -191,7 +191,7 @@ namespace
 		}
 
 		static inline void parameterSensitivity(cadet::IUnitOperation* model, const cadet::ActiveSimulationTime& simTime, const cadet::ConstSimulationState& simState,
-			std::vector<double*>& vecSensYlocal, std::vector<double*>& vecSensYdotLocal, cadet::active const* const adRes, const cadet::util::ThreadLocalArray& threadLocalMem)
+			std::vector<double*>& vecSensYlocal, std::vector<double*>& vecSensYdotLocal, cadet::active const* const adRes, cadet::util::ThreadLocalStorage& threadLocalMem)
 		{
 			model->leanConsistentInitialSensitivity(simTime, simState, vecSensYlocal, vecSensYdotLocal, adRes, threadLocalMem);
 		}
@@ -205,7 +205,7 @@ namespace
 	struct ResidualSensCaller<true>
 	{
 		static inline int call(cadet::IUnitOperation* model, const cadet::ActiveSimulationTime& simTime, 
-			const cadet::ConstSimulationState& simState, const cadet::AdJacobianParams& adJac, const cadet::util::ThreadLocalArray& threadLocalMem)
+			const cadet::ConstSimulationState& simState, const cadet::AdJacobianParams& adJac, cadet::util::ThreadLocalStorage& threadLocalMem)
 		{
 			return model->residualSensFwdWithJacobian(simTime, simState, adJac, threadLocalMem);
 		}
@@ -215,7 +215,7 @@ namespace
 	struct ResidualSensCaller<false>
 	{
 		static inline int call(cadet::IUnitOperation* model, const cadet::ActiveSimulationTime& simTime, 
-			const cadet::ConstSimulationState& simState, const cadet::AdJacobianParams& adJac, const cadet::util::ThreadLocalArray& threadLocalMem)
+			const cadet::ConstSimulationState& simState, const cadet::AdJacobianParams& adJac, cadet::util::ThreadLocalStorage& threadLocalMem)
 		{
 			return model->residualSensFwdAdOnly(simTime, simState, adJac.adRes, threadLocalMem);
 		}
@@ -2709,9 +2709,7 @@ void ModelSystem::setupParallelization(unsigned int numThreads)
 	for (IUnitOperation const* m : _models)
 		tlsSize = std::max(tlsSize, m->threadLocalMemorySize());
 
-	// Calculate equivalent number of doubles from number of bytes (and round up)
-	const unsigned int numDoubles = (tlsSize + sizeof(double) - 1) / sizeof(double);
-	_threadLocalStorage.resize(numThreads, numDoubles);
+	_threadLocalStorage.resize(numThreads, tlsSize);
 }
 
 }  // namespace model

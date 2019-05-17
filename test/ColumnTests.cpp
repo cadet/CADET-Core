@@ -451,7 +451,7 @@ namespace column
 				// Compute state Jacobian
 				const ActiveSimulationTime simTime{0.0, 0u, 1.0};
 				const ConstSimulationState simState{y.data(), nullptr};
-				cadet::util::ThreadLocalStorage<double> tls;
+				cadet::util::ThreadLocalStorage tls;
 				tls.resize(unitAna->threadLocalMemorySize());
 
 				unitAna->residualWithJacobian(simTime, simState, jacDir.data(), noAdParams, tls);
@@ -528,7 +528,7 @@ namespace column
 				// Compute state Jacobian
 				const ActiveSimulationTime simTime{0.0, 0u, 1.0};
 				const ConstSimulationState simState{y.data(), nullptr};
-				cadet::util::ThreadLocalStorage<double> tls;
+				cadet::util::ThreadLocalStorage tls;
 				tls.resize(unit->threadLocalMemorySize());
 
 				unit->residualWithJacobian(simTime, simState, jacDir.data(), noAdParams, tls);
@@ -566,32 +566,43 @@ namespace column
 
 		// Use some test case parameters
 		cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding(uoType);
-		const unsigned int nComp = jpp.getInt("NCOMP");
 
-		cadet::IUnitOperation* const unit = createAndConfigureUnit(uoType, *mb, jpp, cadet::Weno::maxOrder());
+		for (int bindMode = 0; bindMode < 2; ++bindMode)
+		{
+			const bool isKinetic = bindMode;
+			SECTION(isKinetic ? "Kinetic binding" : "Quasi-stationary binding")
+			{
+				cadet::test::setBindingMode(jpp, isKinetic);
 
-		cadet::util::ThreadLocalStorage<double> tls;
-		tls.resize(unit->threadLocalMemorySize());
+				cadet::IUnitOperation* const unit = createAndConfigureUnit(uoType, *mb, jpp, cadet::Weno::maxOrder());
 
-		// Setup matrices
-		unit->notifyDiscontinuousSectionTransition(0.0, 0u, AdJacobianParams{nullptr, nullptr, 0u});
+				cadet::util::ThreadLocalStorage tls;
+				tls.resize(unit->threadLocalMemorySize());
 
-		// Obtain memory for state, Jacobian multiply direction, Jacobian column
-		const unsigned int nDof = unit->numDofs();
-		std::vector<double> y(nDof, 0.0);
-		std::vector<double> yDot(nDof, 0.0);
-		std::vector<double> jacDir(nDof, 0.0);
-		std::vector<double> jacCol1(nDof, 0.0);
-		std::vector<double> jacCol2(nDof, 0.0);
+				// Setup matrices
+				unit->notifyDiscontinuousSectionTransition(0.0, 0u, AdJacobianParams{nullptr, nullptr, 0u});
 
-		// Fill state vectors with some values
-		util::populate(y.data(), [=](unsigned int idx) { return std::abs(std::sin(idx * 0.13)) + 1e-4; }, nDof);
-		util::populate(yDot.data(), [=](unsigned int idx) { return std::abs(std::sin((idx + nDof) * 0.13)) + 1e-4; }, nDof);
+				// Obtain memory for state, Jacobian multiply direction, Jacobian column
+				const unsigned int nDof = unit->numDofs();
+				std::vector<double> y(nDof, 0.0);
+				std::vector<double> yDot(nDof, 0.0);
+				std::vector<double> jacDir(nDof, 0.0);
+				std::vector<double> jacCol1(nDof, 0.0);
+				std::vector<double> jacCol2(nDof, 0.0);
 
-		// Compare Jacobians
-		cadet::test::compareTimeDerivativeJacobianFD(unit, unit, y.data(), yDot.data(), jacDir.data(), jacCol1.data(), jacCol2.data(), tls, h, absTol, relTol);
+				// Fill state vectors with some values
+				util::populate(y.data(), [=](unsigned int idx) { return std::abs(std::sin(idx * 0.13)) + 1e-4; }, nDof);
+				util::populate(yDot.data(), [=](unsigned int idx) {
+					return std::abs(std::sin((idx + nDof) * 0.13)) + 1e-4;
+				}, nDof);
 
-		mb->destroyUnitOperation(unit);
+				// Compare Jacobians
+				cadet::test::compareTimeDerivativeJacobianFD(unit, unit, y.data(), yDot.data(), jacDir.data(), jacCol1.data(), jacCol2.data(), tls, h, absTol, relTol);
+
+				mb->destroyUnitOperation(unit);
+			}
+		}
+
 		destroyModelBuilder(mb);
 	}
 
@@ -605,7 +616,7 @@ namespace column
 		cadet::IUnitOperation* const unitAna = createAndConfigureUnit(uoType, *mb, jpp, cadet::Weno::maxOrder());
 		cadet::IUnitOperation* const unitFD = createAndConfigureUnit(uoType, *mb, jpp, cadet::Weno::maxOrder());
 
-		cadet::util::ThreadLocalStorage<double> tls;
+		cadet::util::ThreadLocalStorage tls;
 		tls.resize(unitAna->threadLocalMemorySize());
 
 		// Obtain offset to fluxes
@@ -648,7 +659,6 @@ namespace column
 
 		// Use some test case parameters
 		cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding(uoType);
-		const unsigned int nComp = jpp.getInt("NCOMP");
 
 		for (int bindMode = 0; bindMode < 2; ++bindMode)
 		{
@@ -687,7 +697,7 @@ namespace column
 				std::vector<const double*> ySdot(1, zeros.data());
 				std::vector<double*> resS(1, nullptr);
 
-				cadet::util::ThreadLocalStorage<double> tls;
+				cadet::util::ThreadLocalStorage tls;
 				tls.resize(unit->threadLocalMemorySize());
 
 				// Fill state vector with some values

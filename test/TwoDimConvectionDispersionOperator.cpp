@@ -61,7 +61,7 @@ namespace
 		// Configure the operator
 		typedef std::unordered_map<cadet::ParameterId, cadet::active*> ParameterMap;
 		ParameterMap parameters;
-		REQUIRE(convDispOp.configureModelDiscretization(jpp, nComp, nCol, nRad));
+		REQUIRE(convDispOp.configureModelDiscretization(jpp, nComp, nCol, nRad, false));
 		REQUIRE(convDispOp.configure(0, jpp, parameters));
 	}
 

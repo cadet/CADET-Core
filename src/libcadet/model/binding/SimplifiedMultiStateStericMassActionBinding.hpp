@@ -68,25 +68,21 @@ public:
 
 	virtual bool configureModelDiscretization(IParameterProvider& paramProvider, unsigned int nComp, unsigned int const* nBound, unsigned int const* boundOffset);
 
-	virtual void getAlgebraicBlock(unsigned int& idxStart, unsigned int& len) const;
-
 	virtual unsigned int workspaceSize(unsigned int nComp, unsigned int totalNumBoundStates, unsigned int const* nBoundStates) const CADET_NOEXCEPT;
-
-	virtual void consistentInitialState(double t, unsigned int secIdx, const ColumnPosition& colPos, double* const vecStateY, double const* const yCp, double errorTol, active* const adRes, active* const adY,
-		unsigned int adEqOffset, unsigned int adDirOffset, const ad::IJacobianExtractor& jacExtractor, double* const workingMemory,
-		linalg::detail::DenseMatrixBase& workingMat) const;
-
-	CADET_BINDINGMODEL_RESIDUAL_JACOBIAN_BOILERPLATE
-
-	virtual void multiplyWithDerivativeJacobian(double const* yDotS, double* const res, double timeFactor) const;
 
 	virtual bool hasSalt() const CADET_NOEXCEPT { return true; }
 	virtual bool supportsMultistate() const CADET_NOEXCEPT { return true; }
 	virtual bool supportsNonBinding() const CADET_NOEXCEPT { return true; }
-	virtual bool hasAlgebraicEquations() const CADET_NOEXCEPT { return true; }
+	virtual bool hasQuasiStationaryReactions() const CADET_NOEXCEPT { return true; }
 
 	virtual bool dependsOnTime() const CADET_NOEXCEPT { return false; }
 	virtual bool requiresWorkspace() const CADET_NOEXCEPT { return true; }
+	virtual bool implementsAnalyticJacobian() const CADET_NOEXCEPT { return true; }
+
+	virtual bool preConsistentInitialState(double t, unsigned int secIdx, const ColumnPosition& colPos, double* y, double const* yCp, LinearBufferAllocator workSpace) const;
+	virtual void postConsistentInitialState(double t, unsigned int secIdx, const ColumnPosition& colPos, double* y, double const* yCp, LinearBufferAllocator workSpace) const;
+
+	CADET_BINDINGMODELBASE_BOILERPLATE
 
 protected:
 	active _lambda; //! Ionic capacity
@@ -122,14 +118,11 @@ protected:
 	inline ParamType k_ws(int comp, double state) const;
 
 	template <typename StateType, typename CpStateType, typename ResidualType, typename ParamType>
-	int residualImpl(const ParamType& t, unsigned int secIdx, const ParamType& timeFactor, const ColumnPosition& colPos,
-		StateType const* y, CpStateType const* yCp, double const* yDot, ResidualType* res, void* workSpace) const;
+	int fluxImpl(double t, unsigned int secIdx, const ColumnPosition& colPos,
+		StateType const* y, CpStateType const* yCp, ResidualType* res, LinearBufferAllocator workSpace) const;
 
 	template <typename RowIterator>
-	void jacobianImpl(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, double const* yCp, int offsetCp, RowIterator jac, void* workSpace) const;
-
-	template <typename RowIterator>
-	void jacobianAddDiscretizedImpl(double alpha, RowIterator jac) const;
+	void jacobianImpl(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, double const* yCp, int offsetCp, RowIterator jac, LinearBufferAllocator workSpace) const;
 };
 
 

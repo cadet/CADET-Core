@@ -21,7 +21,7 @@
 #include "ParamIdUtil.hpp"
 #include "AutoDiff.hpp"
 #include "linalg/CompressedSparseMatrix.hpp"
-#include "MemoryPool.hpp"
+#include "Memory.hpp"
 #include "Weno.hpp"
 #include "model/ParameterMultiplexing.hpp"
 
@@ -70,7 +70,7 @@ public:
 	void setFlowRates(int compartment, const active& in, const active& out) CADET_NOEXCEPT;
 	void setFlowRates(active const* in, active const* out) CADET_NOEXCEPT;
 
-	bool configureModelDiscretization(IParameterProvider& paramProvider, unsigned int nComp, unsigned int nCol, unsigned int nRad);
+	bool configureModelDiscretization(IParameterProvider& paramProvider, unsigned int nComp, unsigned int nCol, unsigned int nRad, bool dynamicReactions);
 	bool configure(UnitOpIdx unitOpIdx, IParameterProvider& paramProvider, std::unordered_map<ParameterId, active*>& parameters);
 	bool notifyDiscontinuousSectionTransition(double t, unsigned int secIdx);
 
@@ -148,6 +148,7 @@ protected:
 	unsigned int _nComp; //!< Number of components
 	unsigned int _nCol; //!< Number of axial cells
 	unsigned int _nRad; //!< Number of radial cells
+	bool _hasDynamicReactions; //!< Determines whether the model has dynamic reactions (only relevant for sparsity pattern)
 
 	active _colLength; //!< Column length \f$ L \f$
 	active _colRadius; //!< Column radius \f$ r_c \f$

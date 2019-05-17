@@ -473,28 +473,23 @@ void LumpedRateModelWithPores::assembleDiscretizedJacobianParticleBlock(unsigned
 	linalg::FactorizableBandMatrix::RowIterator jac = fbm.row(0);
 	for (unsigned int j = 0; j < _disc.nCol; ++j)
 	{
-		// Mobile phase (advances jac accordingly)
-		addMobilePhaseTimeDerivativeToJacobianParticleBlock(jac, idxr, alpha, timeFactor, parType);
-
-		// Stationary phase
-		_binding[parType]->jacobianAddDiscretized(alpha * timeFactor, jac);
-
-		// Advance pointers over all bound states
-		jac += idxr.strideParBound(parType);
+		// Mobile and solid phase (advances jac accordingly)
+		addTimeDerivativeToJacobianParticleBlock(jac, idxr, alpha, timeFactor, parType);
 	}
 }
 
 /**
- * @brief Adds Jacobian @f$ \frac{\partial F}{\partial \dot{y}} @f$ to bead mobile phase rows of system Jacobian
+ * @brief Adds Jacobian @f$ \frac{\partial F}{\partial \dot{y}} @f$ to bead rows of system Jacobian
  * @details Actually adds @f$ \alpha \frac{\partial F}{\partial \dot{y}} @f$, which is useful
  *          for constructing the linear system in BDF time discretization.
  * @param [in,out] jac On entry, RowIterator of the particle block pointing to the beginning of a bead shell;
- *                     on exit, the iterator points to the end of the mobile phase
+ *                     on exit, the iterator points to the end of the bead shell
  * @param [in] idxr Indexer
  * @param [in] alpha Value of \f$ \alpha \f$ (arises from BDF time discretization)
  * @param [in] timeFactor Factor which is premultiplied to the time derivatives originating from time transformation
+ * @param [in] parType Index of the particle type
  */
-void LumpedRateModelWithPores::addMobilePhaseTimeDerivativeToJacobianParticleBlock(linalg::FactorizableBandMatrix::RowIterator& jac, const Indexer& idxr, double alpha, double timeFactor, unsigned int parType)
+void LumpedRateModelWithPores::addTimeDerivativeToJacobianParticleBlock(linalg::FactorizableBandMatrix::RowIterator& jac, const Indexer& idxr, double alpha, double timeFactor, unsigned int parType)
 {
 	// Compute total factor
 	alpha *= timeFactor;
@@ -518,6 +513,18 @@ void LumpedRateModelWithPores::addMobilePhaseTimeDerivativeToJacobianParticleBlo
 			//   + i go to current bound state
 			jac[idxr.strideParLiquid() - comp + idxr.offsetBoundComp(ParticleTypeIndex{parType}, ComponentIndex{static_cast<unsigned int>(comp)}) + i] += alpha * invBetaP;
 		}
+	}
+
+	// Solid phase
+	int const* const qsReaction = _binding[parType]->reactionQuasiStationarity();
+	for (unsigned int bnd = 0; bnd < _disc.strideBound[parType]; ++bnd, ++jac)
+	{
+		// Add derivative with respect to dynamic states to Jacobian
+		if (qsReaction[bnd])
+			continue;
+
+		// Add derivative with respect to dq / dt to Jacobian
+		jac[0] += alpha;
 	}
 }
 

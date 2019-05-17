@@ -410,7 +410,7 @@ namespace particle
 		std::vector<double> jacDir(unitAD->numDofs(), 0.0);
 		std::vector<double> jacCol1(unitAD->numDofs(), 0.0);
 		std::vector<double> jacCol2(unitAD->numDofs(), 0.0);
-		cadet::util::ThreadLocalStorage<double> tls;
+		cadet::util::ThreadLocalStorage tls;
 		tls.resize(unitAna->threadLocalMemorySize());
 
 		// Fill state vector with some values
@@ -490,7 +490,7 @@ namespace particle
 		std::vector<double> jacDir(nDof, 0.0);
 		std::vector<double> jacCol1(nDof, 0.0);
 		std::vector<double> jacCol2(nDof, 0.0);
-		cadet::util::ThreadLocalStorage<double> tls;
+		cadet::util::ThreadLocalStorage tls;
 		tls.resize(unit->threadLocalMemorySize());
 
 		// Fill state vectors with some values
@@ -533,7 +533,7 @@ namespace particle
 		std::vector<double> jacDir(unitFD->numDofs(), 0.0);
 		std::vector<double> jacCol1(unitFD->numDofs(), 0.0);
 		std::vector<double> jacCol2(unitFD->numDofs(), 0.0);
-		cadet::util::ThreadLocalStorage<double> tls;
+		cadet::util::ThreadLocalStorage tls;
 		tls.resize(unitAna->threadLocalMemorySize());
 
 		// Fill state vector with some values

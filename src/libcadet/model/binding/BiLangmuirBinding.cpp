@@ -23,12 +23,6 @@
 #include <unordered_map>
 #include <functional>
 
-namespace cadet
-{
-
-namespace model
-{
-
 /*<codegen>
 {
 	"name": "BiLangmuirParamHandler",
@@ -48,6 +42,12 @@ namespace model
  kD = Desorption rate in binding site-major ordering
  qMax = Capacity in binding site-major ordering
 */
+
+namespace cadet
+{
+
+namespace model
+{
 
 inline const char* BiLangmuirParamHandler::identifier() CADET_NOEXCEPT { return "MULTI_COMPONENT_BILANGMUIR"; }
 
@@ -89,7 +89,7 @@ inline bool ExtBiLangmuirParamHandler::validateConfig(unsigned int nComp, unsign
  * @tparam ParamHandler_t Type that can add support for external function dependence
  */
 template <class ParamHandler_t>
-class BiLangmuirBindingBase : public PureBindingModelBase
+class BiLangmuirBindingBase : public ParamHandlerBindingModelBase<ParamHandler_t>
 {
 public:
 
@@ -97,7 +97,6 @@ public:
 	virtual ~BiLangmuirBindingBase() CADET_NOEXCEPT { }
 
 	static const char* identifier() { return ParamHandler_t::identifier(); }
-	virtual const char* name() const CADET_NOEXCEPT { return ParamHandler_t::identifier(); }
 
 	virtual bool configureModelDiscretization(IParameterProvider& paramProvider, unsigned int nComp, unsigned int const* nBound, unsigned int const* boundOffset)
 	{
@@ -124,38 +123,34 @@ public:
 		return res;
 	}
 
-	virtual void setExternalFunctions(IExternalFunction** extFuns, unsigned int size) { _paramHandler.setExternalFunctions(extFuns, size); }
-
 	virtual bool hasSalt() const CADET_NOEXCEPT { return false; }
 	virtual bool supportsMultistate() const CADET_NOEXCEPT { return true; }
 	virtual bool supportsNonBinding() const CADET_NOEXCEPT { return true; }
-	virtual bool dependsOnTime() const CADET_NOEXCEPT { return ParamHandler_t::dependsOnTime(); }
-	virtual bool requiresWorkspace() const CADET_NOEXCEPT { return hasAlgebraicEquations() || ParamHandler_t::requiresWorkspace(); }
+	virtual bool implementsAnalyticJacobian() const CADET_NOEXCEPT { return true; }
 
-	virtual void timeDerivativeAlgebraicResidual(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, double* dResDt, void* workSpace) const
+	virtual void timeDerivativeQuasiStationaryFluxes(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* yCp, double const* y, double* dResDt, LinearBufferAllocator workSpace) const
 	{
-		if (!hasAlgebraicEquations())
+		if (!this->hasQuasiStationaryReactions())
 			return;
 
 		if (!ParamHandler_t::dependsOnTime())
 			return;
 
 		// Update external function and compute time derivative of parameters
-		const typename ParamHandler_t::params_t& p = _paramHandler.update(t, secIdx, colPos, _nComp, _nBoundStates, workSpace);
-		const typename ParamHandler_t::params_t dpDt = _paramHandler.updateTimeDerivative(t, secIdx, colPos, _nComp, _nBoundStates, workSpace);
+		typename ParamHandler_t::ParamsHandle p;
+		typename ParamHandler_t::ParamsHandle dpDt;
+		std::tie(p, dpDt) = _paramHandler.updateTimeDerivative(t, secIdx, colPos, _nComp, _nBoundStates, workSpace);
 
-		// Protein equations: dq_i^j / dt - ( k_{a,i}^j * c_{p,i} * (1 - \sum q_i^j / q_{max,i}^j) - k_{d,i}^j * q_i^j) == 0
-		//               <=>  dq_i^j / dt == k_{a,i}^j * c_{p,i} * (1 - \sum q_i^j / q_{max,i}^j) - k_{d,i}^j * q_i^j
+		// Protein flux: -k_{a,i}^j * c_{p,i} * (1 - \sum q_i^j / q_{max,i}^j) + k_{d,i}^j * q_i^j
 
-		double const* const yCp = y - _nComp;
-		const unsigned int nSites = p.kA.slices();
+		const unsigned int nSites = p->kA.slices();
 
 		// Ordering of the states is (q_{comp,state})
 		// q_{0,0}, q{0,1}, q_{0,2}, q_{1,0}, q_{1,1}, q_{1,2}, ...
 		// A state corresponds to a type of binding site. It is assumed that all components have either 0
 		// or the same number of states. Thus, a component is either non-binding or has nSites bound states.
 		//
-		// The same ordering is used for the equations. That is, q_{0,0}, q_{1,0} and q_{0,1}, q_{1,1} and ... each
+		// The same ordering is used for the fluxes. That is, q_{0,0}, q_{1,0} and q_{0,1}, q_{1,1} and ... each
 		// form one Langmuir binding model system.
 
 		// Loop over all binding site types
@@ -164,12 +159,12 @@ public:
 			// y, and dResDt point to q_{0,site}
 
 			// Get parameter slice for current binding site type
-			active const* const localKa = p.kA[site];
-			active const* const localKd = p.kD[site];
-			active const* const localQmax = p.qMax[site];
-			active const* const localKaT = dpDt.kA[site];
-			active const* const localKdT = dpDt.kD[site];
-			active const* const localQmaxT = dpDt.qMax[site];
+			active const* const localKa = p->kA[site];
+			active const* const localKd = p->kD[site];
+			active const* const localQmax = p->qMax[site];
+			active const* const localKaT = dpDt->kA[site];
+			active const* const localKdT = dpDt->kD[site];
+			active const* const localQmaxT = dpDt->qMax[site];
 
 			double qSum = 1.0;
 			double qSumT = 0.0;
@@ -211,58 +206,43 @@ public:
 		}
 	}
 
-	CADET_PUREBINDINGMODELBASE_BOILERPLATE
+	CADET_BINDINGMODELBASE_BOILERPLATE
 
 protected:
-	ParamHandler_t _paramHandler; //!< Handles parameters and their dependence on external functions
+	using ParamHandlerBindingModelBase<ParamHandler_t>::_paramHandler;
+	using ParamHandlerBindingModelBase<ParamHandler_t>::_reactionQuasistationarity;
+	using ParamHandlerBindingModelBase<ParamHandler_t>::_nComp;
+	using ParamHandlerBindingModelBase<ParamHandler_t>::_nBoundStates;
+
 	unsigned int _numBindingComp; //!< Number of binding components
 
-	virtual unsigned int paramCacheSize(unsigned int nComp, unsigned int totalNumBoundStates, unsigned int const* nBoundStates) const CADET_NOEXCEPT
-	{
-		return _paramHandler.cacheSize(nComp, totalNumBoundStates, nBoundStates);
-	}
-
-	virtual bool configureImpl(IParameterProvider& paramProvider, UnitOpIdx unitOpIdx, ParticleTypeIdx parTypeIdx)
-	{
-		// Read parameters
-		_paramHandler.configure(paramProvider, _nComp, _nBoundStates);
-
-		// Register parameters
-		_paramHandler.registerParameters(_parameters, unitOpIdx, parTypeIdx, _nComp, _nBoundStates);
-
-		return true;
-	}
-
 	template <typename StateType, typename CpStateType, typename ResidualType, typename ParamType>
-	int residualImpl(const ParamType& t, unsigned int secIdx, const ParamType& timeFactor, const ColumnPosition& colPos,
-		StateType const* y, CpStateType const* yCp, double const* yDot, ResidualType* res, void* workSpace) const
+	int fluxImpl(double t, unsigned int secIdx, const ColumnPosition& colPos, StateType const* y,
+		CpStateType const* yCp, ResidualType* res, LinearBufferAllocator workSpace) const
 	{
-		const typename ParamHandler_t::params_t& p = _paramHandler.update(static_cast<double>(t), secIdx, colPos, _nComp, _nBoundStates, workSpace);
+		typename ParamHandler_t::ParamsHandle const p = _paramHandler.update(t, secIdx, colPos, _nComp, _nBoundStates, workSpace);
 
-		const bool hasYdot = yDot;
+		// Protein flux: -k_{a,i}^j * c_{p,i} * (1 - \sum q_i^j / q_{max,i}^j) + k_{d,i}^j * q_i^j
 
-		// Protein equations: dq_i^j / dt - ( k_{a,i}^j * c_{p,i} * (1 - \sum q_i^j / q_{max,i}^j) - k_{d,i}^j * q_i^j) == 0
-		//               <=>  dq_i^j / dt == k_{a,i}^j * c_{p,i} * (1 - \sum q_i^j / q_{max,i}^j) - k_{d,i}^j * q_i^j
-
-		const unsigned int nSites = p.kA.slices();
+		const unsigned int nSites = p->kA.slices();
 
 		// Ordering of the states is (q_{comp,state})
 		// q_{0,0}, q{0,1}, q_{0,2}, q_{1,0}, q_{1,1}, q_{1,2}, ...
 		// A state corresponds to a type of binding site. It is assumed that all components have either 0
 		// or the same number of states. Thus, a component is either non-binding or has nSites bound states.
 		//
-		// The same ordering is used for the equations. That is, q_{0,0}, q_{1,0} and q_{0,1}, q_{1,1} and ... each
+		// The same ordering is used for the fluxes. That is, q_{0,0}, q_{1,0} and q_{0,1}, q_{1,1} and ... each
 		// form one Langmuir binding model system.
 
 		// Loop over all binding site types
-		for (unsigned int site = 0; site < nSites; ++site, ++y, ++yDot, ++res)
+		for (unsigned int site = 0; site < nSites; ++site, ++y, ++res)
 		{
-			// y, yDot, and res point to q_{0,site}
+			// y, and res point to q_{0,site}
 
 			// Get parameter slice for current binding site type
-			active const* const localKa = p.kA[site];
-			active const* const localKd = p.kD[site];
-			active const* const localQmax = p.qMax[site];
+			active const* const localKa = p->kA[site];
+			active const* const localKd = p->kD[site];
+			active const* const localQmax = p->qMax[site];
 
 			ResidualType qSum = 1.0;
 			unsigned int bndIdx = 0;
@@ -292,12 +272,6 @@ protected:
 				// Residual
 				res[bndIdx * nSites] = static_cast<ParamType>(localKd[i]) * y[bndIdx * nSites] - static_cast<ParamType>(localKa[i]) * yCp[i] * static_cast<ParamType>(localQmax[i]) * qSum;
 
-				// Add time derivative if necessary
-				if (_kineticBinding && hasYdot)
-				{
-					res[bndIdx * nSites] += timeFactor * yDot[bndIdx * nSites];
-				}
-
 				// Next bound component
 				++bndIdx;
 			}
@@ -307,26 +281,26 @@ protected:
 	}
 
 	template <typename RowIterator>
-	void jacobianImpl(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, double const* yCp, int offsetCp, RowIterator jac, void* workSpace) const
+	void jacobianImpl(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, double const* yCp, int offsetCp, RowIterator jac, LinearBufferAllocator workSpace) const
 	{
-		const typename ParamHandler_t::params_t& p = _paramHandler.update(t, secIdx, colPos, _nComp, _nBoundStates, workSpace);
+		typename ParamHandler_t::ParamsHandle const p = _paramHandler.update(t, secIdx, colPos, _nComp, _nBoundStates, workSpace);
 
-		// Protein equations: dq_i^j / dt - ( k_{a,i}^j * c_{p,i} * (1 - \sum q_i^j / q_{max,i}^j) - k_{d,i}^j * q_i^j) == 0
+		// Protein flux: -k_{a,i}^j * c_{p,i} * (1 - \sum q_i^j / q_{max,i}^j) + k_{d,i}^j * q_i^j
 
 		// Ordering of the states is (q_{comp,state}, example uses 2 components, 3 binding sites)
 		// q_{0,0}, q{0,1}, q_{0,2}, q_{1,0}, q_{1,1}, q_{1,2}, ...
-		// Ordering of the equations is the same, that is, we need nSites steps to jump from one equation of a Langmuir
+		// Ordering of the fluxes is the same, that is, we need nSites steps to jump from one flux of a Langmuir
 		// binding model system to the next.
 
-		const int nSites = static_cast<int>(p.kA.slices());
+		const int nSites = static_cast<int>(p->kA.slices());
 
 		// Loop over all binding site types
 		for (unsigned int site = 0; site < nSites; ++site, ++y)
 		{
 			// Get parameter slice for current binding site type
-			active const* const localKa = p.kA[site];
-			active const* const localKd = p.kD[site];
-			active const* const localQmax = p.qMax[site];
+			active const* const localKa = p->kA[site];
+			active const* const localKd = p->kD[site];
+			active const* const localQmax = p->qMax[site];
 
 			double qSum = 1.0;
 			int bndIdx = 0;
@@ -377,12 +351,12 @@ protected:
 				// Add to dres_i / dq_{i,site}
 				jac[0] += kd;
 
-				// Advance to next equation and Jacobian row
+				// Advance to next flux and Jacobian row
 				++bndIdx;
 				jac += nSites;
-				// Note that there is a spacing of nSites between the equations inside one binding site type
+				// Note that there is a spacing of nSites between the fluxes inside one binding site type
 			}
-			// We are at the end of the equations block q_{_numBindingComp,site} and need to jump back to the beginning
+			// We are at the end of the flux block q_{_numBindingComp,site} and need to jump back to the beginning
 			// by using -_numBindingComp * nSites steps. From there, we take one step forward to arrive at q_{0,site+1}.
 			jac -= _numBindingComp * nSites - 1;
 		}

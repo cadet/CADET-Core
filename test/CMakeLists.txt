@@ -42,8 +42,9 @@ endif()
 
 add_executable(testRunner testRunner.cpp JsonTestModels.cpp ColumnTests.cpp UnitOperationTests.cpp SimHelper.cpp ParticleHelper.cpp
 	GeneralRateModel.cpp GeneralRateModel2D.cpp LumpedRateModelWithPores.cpp LumpedRateModelWithoutPores.cpp
-	CSTR-Residual.cpp CSTR-Simulation.cpp 
+	CSTR-Residual.cpp CSTR-Simulation.cpp
 	ConvectionDispersionOperator.cpp
+	CellKernelTests.cpp
 	BindingModelTests.cpp BindingModels.cpp
 	ReactionModelTests.cpp ReactionModels.cpp
 	ModelSystem.cpp

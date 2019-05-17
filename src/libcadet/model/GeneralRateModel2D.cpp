@@ -19,6 +19,8 @@
 #include "cadet/SolutionRecorder.hpp"
 #include "ConfigurationHelper.hpp"
 #include "model/BindingModel.hpp"
+#include "model/ReactionModel.hpp"
+#include "model/parts/BindingCellKernel.hpp"
 #include "SimulationTypes.hpp"
 #include "linalg/DenseMatrix.hpp"
 #include "linalg/BandMatrix.hpp"
@@ -326,7 +328,7 @@ int schurComplementMultiplierGRM2D(void* userData, double const* x, double* z)
 
 
 GeneralRateModel2D::GeneralRateModel2D(UnitOpIdx unitOpIdx) : UnitOperationBase(unitOpIdx),
-	_jacP(nullptr), _jacPdisc(nullptr), _jacPF(nullptr), _jacFP(nullptr), _jacInlet(),
+	_dynReactionBulk(nullptr), _jacP(nullptr), _jacPdisc(nullptr), _jacPF(nullptr), _jacFP(nullptr), _jacInlet(),
 	_analyticJac(true), _jacobianAdDirs(0), _factorizeJacobian(false), _tempState(nullptr),
 	_initC(0), _singleRadiusInitC(true), _initCp(0), _singleRadiusInitCp(true), _initQ(0), _singleRadiusInitQ(true), _initState(0), _initStateDot(0)
 {
@@ -335,6 +337,8 @@ GeneralRateModel2D::GeneralRateModel2D(UnitOpIdx unitOpIdx) : UnitOperationBase(
 GeneralRateModel2D::~GeneralRateModel2D() CADET_NOEXCEPT
 {
 	delete[] _tempState;
+
+	delete _dynReactionBulk;
 
 	delete[] _jacPF;
 	delete[] _jacFP;
@@ -520,9 +524,10 @@ bool GeneralRateModel2D::configureModelDiscretization(IParameterProvider& paramP
 	_initCp.resize(_disc.nComp * _disc.nRad * _disc.nParType);
 	_initQ.resize(nTotalBound * _disc.nRad);
 
-	paramProvider.popScope();
+	// Create nonlinear solver for consistent initialization
+	configureNonlinearSolver(paramProvider);
 
-	const bool transportSuccess = _convDispOp.configureModelDiscretization(paramProvider, _disc.nComp, _disc.nCol, _disc.nRad);
+	paramProvider.popScope();
 
 	// Allocate memory
 	Indexer idxr(_disc);
@@ -596,10 +601,71 @@ bool GeneralRateModel2D::configureModelDiscretization(IParameterProvider& paramP
 		}
 	}
 
+	// ==== Construct and configure dynamic reaction model
+	bool reactionConfSuccess = true;
+
+	_dynReactionBulk = nullptr;
+	if (paramProvider.exists("REACTION_MODEL"))
+	{
+		const std::string dynReactName = paramProvider.getString("REACTION_MODEL");
+		_dynReactionBulk = helper.createDynamicReactionModel(dynReactName);
+		if (!_dynReactionBulk)
+			throw InvalidParameterException("Unknown dynamic reaction model " + dynReactName);
+
+		if (_dynReactionBulk->usesParamProviderInDiscretizationConfig())
+			paramProvider.pushScope("reaction_bulk");
+
+		reactionConfSuccess = _dynReactionBulk->configureModelDiscretization(paramProvider, _disc.nComp, nullptr, nullptr);
+
+		if (_dynReactionBulk->usesParamProviderInDiscretizationConfig())
+			paramProvider.popScope();
+	}
+
+	clearDynamicReactionModels();
+	_dynReaction = std::vector<IDynamicReactionModel*>(_disc.nParType, nullptr);
+
+	if (paramProvider.exists("REACTION_MODEL_PARTICLES"))
+	{
+		const std::vector<std::string> dynReactModelNames = paramProvider.getStringArray("REACTION_MODEL_PARTICLES");
+
+		if (paramProvider.exists("REACTION_MODEL_PARTICLES_MULTIPLEX"))
+			_singleDynReaction = (paramProvider.getInt("REACTION_MODEL_PARTICLES_MULTIPLEX") == 1);
+		else
+		{
+			// Infer multiplex mode
+			_singleDynReaction = (dynReactModelNames.size() == 1);
+		}
+
+		if (!_singleDynReaction && (dynReactModelNames.size() < _disc.nParType))
+			throw InvalidParameterException("Field REACTION_MODEL_PARTICLES contains too few elements (" + std::to_string(_disc.nParType) + " required)");
+		else if (_singleDynReaction && (dynReactModelNames.size() != 1))
+			throw InvalidParameterException("Field REACTION_MODEL_PARTICLES requires (only) 1 element");
+
+		for (unsigned int i = 0; i < _disc.nParType; ++i)
+		{
+			if (_singleDynReaction && (i > 0))
+			{
+				// Reuse first binding model
+				_dynReaction[i] = _dynReaction[0];
+			}
+			else
+			{
+				_dynReaction[i] = helper.createDynamicReactionModel(dynReactModelNames[i]);
+				if (!_dynReaction[i])
+					throw InvalidParameterException("Unknown dynamic reaction model " + dynReactModelNames[i]);
+
+				MultiplexedScopeSelector scopeGuard(paramProvider, "reaction_particle", _singleDynReaction, i, _disc.nParType == 1, _dynReaction[i]->usesParamProviderInDiscretizationConfig());
+				reactionConfSuccess = _dynReaction[i]->configureModelDiscretization(paramProvider, _disc.nComp, _disc.nBound + i * _disc.nComp, _disc.boundOffset + i * _disc.nComp) && reactionConfSuccess;
+			}
+		}
+	}
+
+	const bool transportSuccess = _convDispOp.configureModelDiscretization(paramProvider, _disc.nComp, _disc.nCol, _disc.nRad, _dynReactionBulk);
+
 	// Setup the memory for tempState based on state vector
 	_tempState = new double[numDofs()];
 
-	return transportSuccess && bindingConfSuccess;
+	return transportSuccess && bindingConfSuccess && reactionConfSuccess;
 }
 
 bool GeneralRateModel2D::configure(IParameterProvider& paramProvider)
@@ -778,9 +844,9 @@ bool GeneralRateModel2D::configure(IParameterProvider& paramProvider)
 	}
 
 	// Reconfigure binding model
+	bool bindingConfSuccess = true;
 	if (!_binding.empty())
 	{
-		bool bindingConfSuccess = true;
 		if (_singleBinding)
 		{
 			if (_binding[0] && _binding[0]->requiresConfiguration())
@@ -798,50 +864,88 @@ bool GeneralRateModel2D::configure(IParameterProvider& paramProvider)
 
 	 			// Check whether required = true and no isActive() check should be performed
 				MultiplexedScopeSelector scopeGuard(paramProvider, "adsorption", type, _disc.nParType == 1, false);
-				if (scopeGuard.isActive())
+				if (!scopeGuard.isActive())
 					continue;
 
 				bindingConfSuccess = _binding[type]->configure(paramProvider, _unitOpIdx, type) && bindingConfSuccess;
 			}
 		}
-
-		return transportSuccess && bindingConfSuccess;
 	}
 
-	return transportSuccess;
+	// Reconfigure reaction model
+	bool dynReactionConfSuccess = true;
+	if (_dynReactionBulk && _dynReactionBulk->requiresConfiguration())
+	{
+		paramProvider.pushScope("reaction_bulk");
+		dynReactionConfSuccess = _dynReactionBulk->configure(paramProvider, _unitOpIdx, ParTypeIndep);
+		paramProvider.popScope();
+	}
+
+	if (_singleDynReaction)
+	{
+		if (_dynReaction[0] && _dynReaction[0]->requiresConfiguration())
+		{
+			MultiplexedScopeSelector scopeGuard(paramProvider, "reaction_particle", true);
+			dynReactionConfSuccess = _dynReaction[0]->configure(paramProvider, _unitOpIdx, ParTypeIndep) && dynReactionConfSuccess;
+		}
+	}
+	else
+	{
+		for (unsigned int type = 0; type < _disc.nParType; ++type)
+		{
+ 			if (!_dynReaction[type] || !_dynReaction[type]->requiresConfiguration())
+ 				continue;
+
+			MultiplexedScopeSelector scopeGuard(paramProvider, "reaction_particle", type, _disc.nParType == 1, true);
+			dynReactionConfSuccess = _dynReaction[type]->configure(paramProvider, _unitOpIdx, type) && dynReactionConfSuccess;
+		}
+	}
+
+	return transportSuccess && bindingConfSuccess && dynReactionConfSuccess;
 }
 
 
 unsigned int GeneralRateModel2D::threadLocalMemorySize() const CADET_NOEXCEPT
 {
-	unsigned int maxRequiredMem = 0;
+	LinearMemorySizer lms;
+
+	// Memory for residualImpl()
 	for (unsigned int i = 0; i < _disc.nParType; ++i)
 	{
-		if (_binding[i]->requiresWorkspace())
-		{
-			const unsigned int requiredMem = _binding[i]->workspaceSize(_disc.nComp, _disc.strideBound[i], _disc.nBound + i * _disc.nComp);
-			maxRequiredMem = std::max(maxRequiredMem, requiredMem);
-		}
-	}
+		if (_binding[i] && _binding[i]->requiresWorkspace())
+			lms.fitBlock(_binding[i]->workspaceSize(_disc.nComp, _disc.strideBound[i], _disc.nBound + i * _disc.nComp));
 
-/*
-	if (_dynReactionBulk && _dynReactionBulk->requiresWorkspace())
-	{
-		const unsigned int requiredMem = _dynReactionBulk->workspaceSize(_disc.nComp, 0, nullptr);
-		maxRequiredMem = std::max(maxRequiredMem, requiredMem);
-	}
-
-	for (unsigned int i = 0; i < _disc.nParType; ++i)
-	{
 		if (_dynReaction[i] && _dynReaction[i]->requiresWorkspace())
-		{
-			const unsigned int requiredMem = _dynReaction[i]->workspaceSize(_disc.nComp, _disc.strideBound[i], _disc.nBound + i * _disc.nComp);
-			maxRequiredMem = std::max(maxRequiredMem, requiredMem);
-		}
+			lms.fitBlock(_dynReaction[i]->workspaceSize(_disc.nComp, _disc.strideBound[i], _disc.nBound + i * _disc.nComp));
 	}
-*/
 
-	return maxRequiredMem;
+	if (_dynReactionBulk && _dynReactionBulk->requiresWorkspace())
+		lms.fitBlock(_dynReactionBulk->workspaceSize(_disc.nComp, 0, nullptr));
+
+	const unsigned int maxStrideBound = *std::max_element(_disc.strideBound, _disc.strideBound + _disc.nParType);
+	lms.add<active>(_disc.nComp + maxStrideBound);
+	lms.add<double>((maxStrideBound + _disc.nComp) * (maxStrideBound + _disc.nComp));
+
+	lms.commit();
+	const std::size_t resImplSize = lms.bufferSize();
+
+	// Memory for consistentInitialState()
+	lms.add<double>(_nonlinearSolver->workspaceSize(_disc.nComp + maxStrideBound) * sizeof(double));
+	lms.add<double>(_disc.nComp + maxStrideBound);
+	lms.add<double>(_disc.nComp + maxStrideBound);
+	lms.add<double>(_disc.nComp + maxStrideBound);
+	lms.add<double>((_disc.nComp + maxStrideBound) * (_disc.nComp + maxStrideBound));
+	lms.add<double>(_disc.nComp);
+
+	lms.addBlock(resImplSize);
+	lms.commit();
+
+	// Memory for consistentInitialSensitivity
+	lms.add<double>(_disc.nComp + maxStrideBound);
+	lms.add<double>(maxStrideBound);
+	lms.commit();
+
+	return lms.bufferSize();
 }
 
 unsigned int GeneralRateModel2D::numAdDirsForJacobian() const CADET_NOEXCEPT
@@ -1014,7 +1118,7 @@ void GeneralRateModel2D::checkAnalyticJacobianAgainstAd(active const* const adRe
 
 #endif
 
-int GeneralRateModel2D::residual(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res, const util::ThreadLocalArray& threadLocalMem)
+int GeneralRateModel2D::residual(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res, util::ThreadLocalStorage& threadLocalMem)
 {
 	BENCH_SCOPE(_timerResidual);
 
@@ -1022,7 +1126,7 @@ int GeneralRateModel2D::residual(const SimulationTime& simTime, const ConstSimul
 	return residualImpl<double, double, double, false>(simTime.t, simTime.secIdx, simTime.timeFactor, simState.vecStateY, simState.vecStateYdot, res, threadLocalMem);
 }
 
-int GeneralRateModel2D::residualWithJacobian(const ActiveSimulationTime& simTime, const ConstSimulationState& simState, double* const res, const AdJacobianParams& adJac, const util::ThreadLocalArray& threadLocalMem)
+int GeneralRateModel2D::residualWithJacobian(const ActiveSimulationTime& simTime, const ConstSimulationState& simState, double* const res, const AdJacobianParams& adJac, util::ThreadLocalStorage& threadLocalMem)
 {
 	BENCH_SCOPE(_timerResidual);
 
@@ -1031,7 +1135,7 @@ int GeneralRateModel2D::residualWithJacobian(const ActiveSimulationTime& simTime
 }
 
 int GeneralRateModel2D::residual(const ActiveSimulationTime& simTime, const ConstSimulationState& simState, double* const res, 
-	const AdJacobianParams& adJac, const util::ThreadLocalArray& threadLocalMem, bool updateJacobian, bool paramSensitivity)
+	const AdJacobianParams& adJac, util::ThreadLocalStorage& threadLocalMem, bool updateJacobian, bool paramSensitivity)
 {
 	if (updateJacobian)
 	{
@@ -1133,7 +1237,7 @@ int GeneralRateModel2D::residual(const ActiveSimulationTime& simTime, const Cons
 }
 
 template <typename StateType, typename ResidualType, typename ParamType, bool wantJac>
-int GeneralRateModel2D::residualImpl(const ParamType& t, unsigned int secIdx, const ParamType& timeFactor, StateType const* const y, double const* const yDot, ResidualType* const res, const util::ThreadLocalArray& threadLocalMem)
+int GeneralRateModel2D::residualImpl(const ParamType& t, unsigned int secIdx, const ParamType& timeFactor, StateType const* const y, double const* const yDot, ResidualType* const res, util::ThreadLocalStorage& threadLocalMem)
 {
 	BENCH_START(_timerResidualPar);
 
@@ -1144,7 +1248,7 @@ int GeneralRateModel2D::residualImpl(const ParamType& t, unsigned int secIdx, co
 #endif
 	{
 		if (cadet_unlikely(pblk == 0))
-			_convDispOp.residual(t, secIdx, timeFactor, y, yDot, res, wantJac);
+			residualBulk<StateType, ResidualType, ParamType, wantJac>(t, secIdx, timeFactor, y, yDot, res, threadLocalMem);
 		else
 		{
 			const unsigned int type = (pblk - 1) / (_disc.nCol * _disc.nRad);
@@ -1167,7 +1271,40 @@ int GeneralRateModel2D::residualImpl(const ParamType& t, unsigned int secIdx, co
 }
 
 template <typename StateType, typename ResidualType, typename ParamType, bool wantJac>
-int GeneralRateModel2D::residualParticle(const ParamType& t, unsigned int parType, unsigned int colCell, unsigned int secIdx, const ParamType& timeFactor, StateType const* yBase, double const* yDotBase, ResidualType* resBase, const util::ThreadLocalArray& threadLocalMem)
+int GeneralRateModel2D::residualBulk(const ParamType& t, unsigned int secIdx, const ParamType& timeFactor, StateType const* yBase, double const* yDotBase, ResidualType* resBase, util::ThreadLocalStorage& threadLocalMem)
+{
+	_convDispOp.residual(t, secIdx, timeFactor, yBase, yDotBase, resBase, wantJac);
+	if (!_dynReactionBulk)
+		return 0;
+
+	// Get offsets
+	Indexer idxr(_disc);
+	StateType const* y = yBase + idxr.offsetC();
+	ResidualType* res = resBase + idxr.offsetC();
+	LinearBufferAllocator tlmAlloc = threadLocalMem.get();
+
+	for (unsigned int colCell = 0; colCell < _disc.nCol * _disc.nRad; ++colCell, y += idxr.strideColRadialCell(), res += idxr.strideColRadialCell())
+	{
+		const unsigned int axialCell = colCell / _disc.nRad;
+		const unsigned int radialCell = colCell % _disc.nRad;
+		const double r = static_cast<double>(_convDispOp.radialCenters()[radialCell]) / static_cast<double>(_convDispOp.columnRadius());
+		const double z = (0.5 + static_cast<double>(axialCell)) / static_cast<double>(_disc.nCol);
+
+		const ColumnPosition colPos{z, r, 0.0};
+		_dynReactionBulk->residualLiquidAdd(static_cast<double>(t), secIdx, colPos, y, res, -1.0, tlmAlloc);
+
+		if (wantJac)
+		{
+			// static_cast should be sufficient here, but this statement is also analyzed when wantJac = false
+			_dynReactionBulk->analyticJacobianLiquidAdd(static_cast<double>(t), secIdx, colPos, reinterpret_cast<double const*>(y), -1.0, _convDispOp.jacobian().row(colCell * idxr.strideColRadialCell()), tlmAlloc);
+		}
+	}
+
+	return 0;
+}
+
+template <typename StateType, typename ResidualType, typename ParamType, bool wantJac>
+int GeneralRateModel2D::residualParticle(const ParamType& t, unsigned int parType, unsigned int colCell, unsigned int secIdx, const ParamType& timeFactor, StateType const* yBase, double const* yDotBase, ResidualType* resBase, util::ThreadLocalStorage& threadLocalMem)
 {
 	Indexer idxr(_disc);
 
@@ -1176,7 +1313,7 @@ int GeneralRateModel2D::residualParticle(const ParamType& t, unsigned int parTyp
 	double const* yDot = yDotBase + idxr.offsetCp(ParticleTypeIndex{parType}, ParticleIndex{colCell});
 	ResidualType* res = resBase + idxr.offsetCp(ParticleTypeIndex{parType}, ParticleIndex{colCell});
 
-	double* const buffer = threadLocalMem.get();
+	LinearBufferAllocator tlmAlloc = threadLocalMem.get();
 
 	// Prepare parameters
 	active const* const parDiff = getSectionDependentSlice(_parDiffusion, _disc.nComp * _disc.nParType, secIdx) + parType * _disc.nComp;
@@ -1206,9 +1343,33 @@ int GeneralRateModel2D::residualParticle(const ParamType& t, unsigned int parTyp
 	active const* const innerSurfPerVol = _parInnerSurfAreaPerVolume.data() + _disc.nParCellsBeforeType[parType];
 	active const* const parCenterRadius = _parCenterRadius.data() + _disc.nParCellsBeforeType[parType];
 
+	int const* const qsReaction = _binding[parType]->reactionQuasiStationarity();
+
+	const parts::cell::CellParameters cellResParams
+		{
+			_disc.nComp,
+			_disc.nBound + _disc.nComp * parType,
+			_disc.boundOffset + _disc.nComp * parType,
+			_disc.strideBound[parType],
+			qsReaction,
+			_parPorosity[parType],
+			_poreAccessFactor.data() + _disc.nComp * parType,
+			_binding[parType],
+			_dynReaction[parType]
+		};
+
 	// Loop over particle cells
 	for (unsigned int par = 0; par < _disc.nParCell[parType]; ++par)
 	{
+		const ColumnPosition colPos{z, r, static_cast<double>(parCenterRadius[par]) / static_cast<double>(_parRadius[parType])};
+
+		// Handle time derivatives, binding, dynamic reactions
+		parts::cell::residualKernel<StateType, ResidualType, ParamType, parts::cell::CellParameters, linalg::BandMatrix::RowIterator, wantJac, true>(
+			static_cast<double>(t), secIdx, timeFactor, colPos, y, yDotBase ? yDot : nullptr, res, jac, cellResParams, tlmAlloc
+		);
+
+		// We still need to handle transport and quasi-stationary reactions
+
 		// Geometry
 		const ParamType outerAreaPerVolume = static_cast<ParamType>(outerSurfPerVol[par]);
 		const ParamType innerAreaPerVolume = static_cast<ParamType>(innerSurfPerVol[par]);
@@ -1216,30 +1377,8 @@ int GeneralRateModel2D::residualParticle(const ParamType& t, unsigned int parTyp
 		// Mobile phase
 		for (unsigned int comp = 0; comp < _disc.nComp; ++comp, ++res, ++y, ++yDot, ++jac)
 		{
-			*res = 0.0;
 			const unsigned int nBound = _disc.nBound[_disc.nComp * parType + comp];
 			const ParamType invBetaP = (1.0 - static_cast<ParamType>(_parPorosity[parType])) / (static_cast<ParamType>(_poreAccessFactor[_disc.nComp * parType + comp]) * static_cast<ParamType>(_parPorosity[parType]));
-
-			// Add time derivatives
-			if (yDotBase)
-			{
-				// Ultimately, we need dc_{p,comp} / dt + 1 / beta_p * [ sum_i  dq_comp^i / dt ]
-				// Compute the sum in the brackets first, then divide by beta_p and add dc_p / dt
-
-				// Sum dq_comp^1 / dt + dq_comp^2 / dt + ... + dq_comp^{N_comp} / dt
-				for (unsigned int i = 0; i < nBound; ++i)
-					// Index explanation:
-					//   -comp -> go back to beginning of liquid phase
-					//   + strideParLiquid() skip to solid phase
-					//   + offsetBoundComp() jump to component (skips all bound states of previous components)
-					//   + i go to current bound state
-					// Remember this, you'll see it quite a lot ...
-					*res += yDot[idxr.strideParLiquid() - comp + idxr.offsetBoundComp(ParticleTypeIndex{parType}, ComponentIndex{comp}) + i];
-
-				// Divide by beta_p and add dcp_i / dt
-				*res = timeFactor * (yDot[0] + invBetaP * res[0]);
-			}
-
 			const ParamType dp = static_cast<ParamType>(parDiff[comp]);
 
 			// Add flow through outer surface
@@ -1326,21 +1465,55 @@ int GeneralRateModel2D::residualParticle(const ParamType& t, unsigned int parTyp
 		}
 
 		// Bound phases
-		if (!yDotBase)
-			yDot = nullptr;
-
-		_binding[parType]->residual(t, secIdx, timeFactor, ColumnPosition{z, r, static_cast<double>(parCenterRadius[par]) / static_cast<double>(_parRadius[parType])}, y, y - _disc.nComp, yDot, res, buffer);
-		if (wantJac)
+		for (unsigned int bnd = 0; bnd < _disc.strideBound[parType]; ++bnd, ++res, ++y, ++jac)
 		{
-			// static_cast should be sufficient here, but this statement is also analyzed when wantJac = false
-			_binding[parType]->analyticJacobian(static_cast<double>(t), secIdx, ColumnPosition{z, r, static_cast<double>(parCenterRadius[par]) / static_cast<double>(_parRadius[parType])}, reinterpret_cast<double const*>(y), _disc.nComp, jac, buffer);
+			// Skip quasi-stationary bound states
+			if (qsReaction[bnd])
+				continue;
+
+			// Add flow through outer surface
+			// Note that this term vanishes for the most outer shell due to boundary conditions
+			if (cadet_likely(par != 0))
+			{
+				// Difference between two cell-centers
+				const ParamType dr = static_cast<ParamType>(parCenterRadius[par - 1]) - static_cast<ParamType>(parCenterRadius[par]);
+
+				const ResidualType gradQ = (y[-idxr.strideParShell(parType)] - y[0]) / dr;
+				*res -= outerAreaPerVolume * static_cast<ParamType>(parSurfDiff[bnd]) * gradQ;
+
+				if (wantJac)
+				{
+					const double ouApV = static_cast<double>(outerAreaPerVolume);
+					const double ldr = static_cast<double>(dr);
+
+					jac[0] += ouApV * static_cast<double>(parSurfDiff[bnd]) / ldr; // dres / dq_i^(p,j)
+					jac[-idxr.strideParShell(parType)] += -ouApV * static_cast<double>(parSurfDiff[bnd]) / ldr; // dres / dq_i^(p,j-1)
+				}
+			}
+
+			// Add flow through inner surface
+			// Note that this term vanishes for the most inner shell due to boundary conditions
+			if (cadet_likely(par != _disc.nParCell[parType] - 1))
+			{
+				// Difference between two cell-centers
+				const ParamType dr = static_cast<ParamType>(parCenterRadius[par]) - static_cast<ParamType>(parCenterRadius[par + 1]);
+
+				const ResidualType gradQ = (y[0] - y[idxr.strideParShell(parType)]) / dr;
+				*res += innerAreaPerVolume * static_cast<ParamType>(parSurfDiff[bnd]) * gradQ;
+
+				if (wantJac)
+				{
+					const double inApV = static_cast<double>(innerAreaPerVolume);
+					const double ldr = static_cast<double>(dr);
+
+					jac[0] += inApV * static_cast<double>(parSurfDiff[bnd]) / ldr; // dres / dq_i^(p,j)
+					jac[idxr.strideParShell(parType)] += -inApV * static_cast<double>(parSurfDiff[bnd]) / ldr; // dres / dq_i^(p,j-1)
+				}
+			}
 		}
 
 		// Advance pointers over all bound states
-		y += idxr.strideParBound(parType);
 		yDot += idxr.strideParBound(parType);
-		res += idxr.strideParBound(parType);
-		jac += idxr.strideParBound(parType);
 	}
 	return 0;
 }
@@ -1544,7 +1717,7 @@ void GeneralRateModel2D::assembleOffdiagJac(double t, unsigned int secIdx)
 	_discParFlux.destroy<double>();
 }
 
-int GeneralRateModel2D::residualSensFwdWithJacobian(const ActiveSimulationTime& simTime, const ConstSimulationState& simState, const AdJacobianParams& adJac, const util::ThreadLocalArray& threadLocalMem)
+int GeneralRateModel2D::residualSensFwdWithJacobian(const ActiveSimulationTime& simTime, const ConstSimulationState& simState, const AdJacobianParams& adJac, util::ThreadLocalStorage& threadLocalMem)
 {
 	BENCH_SCOPE(_timerResidualSens);
 
@@ -1553,7 +1726,7 @@ int GeneralRateModel2D::residualSensFwdWithJacobian(const ActiveSimulationTime& 
 	return residual(simTime, simState, nullptr, adJac, threadLocalMem, true, true);
 }
 
-int GeneralRateModel2D::residualSensFwdAdOnly(const ActiveSimulationTime& simTime, const ConstSimulationState& simState, active* const adRes, const util::ThreadLocalArray& threadLocalMem)
+int GeneralRateModel2D::residualSensFwdAdOnly(const ActiveSimulationTime& simTime, const ConstSimulationState& simState, active* const adRes, util::ThreadLocalStorage& threadLocalMem)
 {
 	BENCH_SCOPE(_timerResidualSens);
 
@@ -1702,32 +1875,14 @@ void GeneralRateModel2D::multiplyWithDerivativeJacobian(const SimulationTime& si
 			const double invBetaP = (1.0 / static_cast<double>(_parPorosity[type]) - 1.0) * simTime.timeFactor;
 			unsigned int const* const nBound = _disc.nBound + type * _disc.nComp;
 			unsigned int const* const boundOffset = _disc.boundOffset + type * _disc.nComp;
+			int const* const qsReaction = _binding[type]->reactionQuasiStationarity();
 
 			// Particle shells
 			for (unsigned int shell = 0; shell < _disc.nParCell[type]; ++shell)
 			{
 				double const* const localSdot = sDot + idxr.offsetCp(ParticleTypeIndex{type}, ParticleIndex{pblk}) + shell * idxr.strideParShell(type);
 				double* const localRet = ret + idxr.offsetCp(ParticleTypeIndex{type}, ParticleIndex{pblk}) + shell * idxr.strideParShell(type);
-
-				// Mobile phase
-				for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
-				{
-					// Add derivative with respect to dc_p / dt to Jacobian
-					localRet[comp] = simTime.timeFactor * localSdot[comp];
-
-					// Add derivative with respect to dq / dt to Jacobian (normal equations)
-					for (unsigned int i = 0; i < nBound[comp]; ++i)
-					{
-						// Index explanation:
-						//   nComp -> skip mobile phase
-						//   + boundOffset[comp] skip bound states of all previous components
-						//   + i go to current bound state
-						localRet[comp] += invBetaP * localSdot[_disc.nComp + boundOffset[comp] + i];
-					}
-				}
-
-				// Solid phase
-				_binding[type]->multiplyWithDerivativeJacobian(localSdot + _disc.nComp, localRet + _disc.nComp, simTime.timeFactor);
+				parts::cell::multiplyWithDerivativeJacobianKernel<true>(localSdot, localRet, _disc.nComp, nBound, boundOffset, _disc.strideBound[type], qsReaction, simTime.timeFactor, invBetaP);
 			}
 		}
 	} CADET_PARFOR_END;

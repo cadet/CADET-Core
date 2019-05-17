@@ -20,11 +20,13 @@
 
 #include "common/CompilerSpecific.hpp"
 #include "SlicedVector.hpp"
+#include "Memory.hpp"
 
 #include <vector>
 #include <algorithm>
 #include <cstring>
 #include <type_traits>
+#include <memory>
 
 namespace cadet
 {
@@ -51,6 +53,18 @@ inline T* advancePointer(void* p, std::ptrdiff_t delta) CADET_NOEXCEPT
 }
 
 /**
+ * @brief Align a pointer to a given value
+ * @param [in] ptr Pointer to be aligned
+ * @param [in] alignment Alignment
+ * @return Aligned pointer
+ */
+inline void* alignPtr(void* ptr, std::size_t alignment) CADET_NOEXCEPT
+{
+	std::size_t space = 2 * alignment;
+	return std::align(alignment, alignment, ptr, space);
+}
+
+/**
  * @brief Represents a fixed size std::vector<T> in a contiguous buffer
  * @details The contents of the std::vector<T> are appended to the memory of the LocalVector<T>
  *          in a contiguous buffer. Thus, the full data is represented in a linear slab of memory.
@@ -64,13 +78,17 @@ class LocalVector
 {
 public:
 	LocalVector() CADET_NOEXCEPT : _size(0), _data(nullptr) { }
-	~LocalVector() CADET_NOEXCEPT { }
+	~LocalVector() CADET_NOEXCEPT
+	{
+		if (_data)
+			releaseRawArray<T>(_data, _size);
+	}
 
 	// Default copy and move mechanisms
-	LocalVector(const LocalVector<T>& cpy) = default;
+	LocalVector(const LocalVector<T>& cpy) = delete;
 	LocalVector(LocalVector<T>&& cpy) CADET_NOEXCEPT = default;
 
-	inline LocalVector<T>& operator=(const LocalVector<T>& cpy) = default;
+	inline LocalVector<T>& operator=(const LocalVector<T>& cpy) = delete;
 
 #ifdef COMPILER_SUPPORT_NOEXCEPT_DEFAULTED_MOVE
 	inline LocalVector<T>& operator=(LocalVector<T>&& cpy) CADET_NOEXCEPT = default;
@@ -104,27 +122,15 @@ public:
 
 	/**
 	 * @brief Prepares internal data structures for representing the given vector in some buffer
-	 * @details Places pointers inside the buffer given by @p ptrData such that there
+	 * @details Places pointers inside the buffer given by @p buffer such that there
 	 *          is enough room for copying the given vector @p v.
-	 * @param [in,out] ptrData Pointer to buffer where the data is stored
+	 * @param [in,out] buffer Buffer used for placing the contents of this object
 	 * @param [in] v Template
 	 */
-	inline void fromTemplate(void* ptrData, const std::vector<T>& v)
+	inline void fromTemplate(LinearBufferAllocator& buffer, const std::vector<T>& v)
 	{
-		_data = reinterpret_cast<T*>(ptrData);
+		_data = buffer.unmanagedArray<T>(v.size());
 		_size = v.size();
-	}
-
-	/**
-	 * @brief Stores the given data in the given buffer
-	 * @details Combines fromTemplate() and assign().
-	 * @param [in,out] ptrData Pointer to buffer where the data is stored
-	 * @param [in] v Data source
-	 */
-	inline void from(void* ptrData, const std::vector<T>& v)
-	{
-		fromTemplate(ptrData, v);
-		assign(v);
 	}
 
 	/**
@@ -133,81 +139,7 @@ public:
 	 * @return Size in bytes required for representing the given data
 	 */
 	static inline std::size_t requiredMemoryFor(const std::vector<T>& v) CADET_NOEXCEPT { return requiredMemoryFor(v.size()); }
-	static inline std::size_t requiredMemoryFor(std::size_t n) CADET_NOEXCEPT { return sizeof(LocalVector<T>) + sizeof(T) * n; }
-
-	/**
-	 * @brief Constructs a copy of the given data in the given memory buffer
-	 * @details Constructs the LocalVector<T> at the beginning of the given buffer and
-	 *          appends the actual data of the vector<T>. The required size of the buffer
-	 *          is given by requiredMemoryFor().
-	 * 
-	 * @param [in,out] ptr Buffer
-	 * @param [in] v Data to copy
-	 * @return LocalVector resembling a copy of the given vector
-	 */
-	static inline LocalVector* constructIn(void* ptr, const std::vector<T>& v)
-	{
-		return constructIn(ptr, v.size(), v.data());
-	}
-
-	/**
-	 * @brief Constructs a copy of the given data in the given memory buffer
-	 * @details Constructs the LocalVector<T> at the beginning of the given buffer and
-	 *          appends the actual data of the array. The required size of the buffer
-	 *          is given by requiredMemoryFor().
-	 * 
-	 * @param [in,out] ptr Buffer
-	 * @param [in] n Number of elements in the data array @p v
-	 * @param [in] v Data to copy
-	 * @return LocalVector resembling a copy of the given data array
-	 */
-	static inline LocalVector* constructIn(void* ptr, std::size_t n, T const* v)
-	{
-		return constructIn(ptr, advancePointer<T>(ptr, sizeof(LocalVector<T>)), n, v);
-	}
-
-	/**
-	 * @brief Constructs a copy of the given data in the given memory buffer
-	 * @details Constructs the LocalVector<T> at one place in the given buffer and
-	 *          puts the actual data of the vector<T> at some other place. The required
-	 *          size of the buffer is given by requiredMemoryFor().
-	 * 
-	 * @param [in,out] ptrBase Pointer to buffer where class is to be instantiated
-	 * @param [in,out] ptrData Pointer to buffer where data is placed
-	 * @param [in] v Data to copy
-	 * @return LocalVector resembling a copy of the given vector
-	 */
-	static inline LocalVector* constructIn(void* ptrBase, void* ptrData, const std::vector<T>& v)
-	{
-		return constructIn(ptrBase, ptrData, v.size(), v.data());
-	}
-
-	/**
-	 * @brief Constructs a copy of the given data in the given memory buffer
-	 * @details Constructs the LocalVector<T> at one place in the given buffer and
-	 *          puts the actual data of the vector<T> at some other place. The required
-	 *          size of the buffer is given by requiredMemoryFor().
-	 * 
-	 * @param [in,out] ptrBase Pointer to buffer where class is to be instantiated
-	 * @param [in,out] ptrData Pointer to buffer where data is placed
-	 * @param [in] n Number of elements in the data array @p v
-	 * @param [in] v Data to copy
-	 * @return LocalVector resembling a copy of the given data array
-	 */
-	static inline LocalVector* constructIn(void* ptrBase, void* ptrData, std::size_t n, T const* v)
-	{
-		static_assert(std::is_trivially_copyable<T>::value || std::is_same<T, active>::value, "memcpy requires is_trivially_copyable<T>");
-
-		// Construct LocalVector<T>
-		LocalVector<T>* const lv = reinterpret_cast<LocalVector<T>*>(ptrBase);
-		new(lv) LocalVector<T>(n);
-
-		// Copy data and assign
-		lv->_data = reinterpret_cast<T*>(ptrData);
-		std::memcpy(lv->_data, v, n);
-
-		return lv;
-	}
+	static inline std::size_t requiredMemoryFor(std::size_t n) CADET_NOEXCEPT { return sizeof(LocalVector<T>) + alignof(LocalVector<T>) + sizeof(T) * n + alignof(T); }
 
 protected:
 	LocalVector(std::size_t size) CADET_NOEXCEPT : _size(size), _data(nullptr) { }
@@ -233,13 +165,19 @@ public:
 	typedef typename SlicedVector<T>::size_type size_type;
 
 	LocalSlicedVector() CADET_NOEXCEPT : _indexSize(0), _values(nullptr), _index(nullptr) { }
-	~LocalSlicedVector() CADET_NOEXCEPT { }
+	~LocalSlicedVector() CADET_NOEXCEPT
+	{
+		if (_values)
+			releaseRawArray<T>(_values, _index[_indexSize - 1]);
+		if (_index)
+			releaseRawArray<size_type>(_index, _indexSize);
+	}
 
 	// Default copy and move mechanisms
-	LocalSlicedVector(const LocalSlicedVector<T>& cpy) = default;
+	LocalSlicedVector(const LocalSlicedVector<T>& cpy) = delete;
 	LocalSlicedVector(LocalSlicedVector<T>&& cpy) CADET_NOEXCEPT = default;
 
-	inline LocalSlicedVector<T>& operator=(const LocalSlicedVector<T>& cpy) = default;
+	inline LocalSlicedVector<T>& operator=(const LocalSlicedVector<T>& cpy) = delete;
 
 #ifdef COMPILER_SUPPORT_NOEXCEPT_DEFAULTED_MOVE
 	inline LocalSlicedVector<T>& operator=(LocalSlicedVector<T>&& cpy) CADET_NOEXCEPT = default;
@@ -420,29 +358,17 @@ public:
 
 	/**
 	 * @brief Prepares internal data structures for representing the given SlicedVector in some buffer
-	 * @details Places pointers inside the buffer given by @p ptrData such that there
+	 * @details Places pointers inside the buffer given by @p buffer such that there
 	 *          is enough room for copying the given SlicedVector @p v.
-	 * @param [in,out] ptrData Pointer to buffer where the data is stored
+	 * @param [in,out] buffer Buffer used for placing the contents of this object
 	 * @param [in] v Template
 	 */
-	inline void fromTemplate(void* ptrData, const SlicedVector<T>& v)
+	inline void fromTemplate(LinearBufferAllocator& buffer, const SlicedVector<T>& v)
 	{
-		_values = reinterpret_cast<T*>(ptrData);
-		_index = advancePointer<size_type>(_values, sizeof(T) * v.size());
+		_values = buffer.unmanagedArray<T>(v.size());
+		_index = buffer.unmanagedArray<size_type>(v.slices() + 1);
 		_indexSize = v.slices() + 1;
 		assignIndices(v);
-	}
-
-	/**
-	 * @brief Stores the given data in the given buffer
-	 * @details Combines fromTemplate() and assign().
-	 * @param [in,out] ptrData Pointer to buffer where the data is stored
-	 * @param [in] v Data source
-	 */
-	inline void from(void* ptrData, const SlicedVector<T>& v)
-	{
-		fromTemplate(ptrData, v);
-		assign(v);
 	}
 
 	/**
@@ -450,49 +376,9 @@ public:
 	 * @param [in] v Data to represent in a linearized local buffer
 	 * @return Size in bytes required for representing the given data
 	 */
-	static inline std::size_t requiredMemoryFor(const SlicedVector<T>& v) CADET_NOEXCEPT { return sizeof(LocalSlicedVector<T>) + (v.slices() + 1) * sizeof(size_type) + v.size() * sizeof(T); }
-
-	/**
-	 * @brief Constructs a copy of the given data in the given memory buffer
-	 * @details Constructs the LocalSlicedVector<T> at the beginning of the given buffer and
-	 *          appends the actual data of the SlicedVector<T>. The required size of the buffer
-	 *          is given by requiredMemoryFor().
-	 * 
-	 * @param [in,out] ptr Buffer
-	 * @param [in] v Data to copy
-	 * @return LocalSlicedVector resembling a copy of the given SlicedVector
-	 */
-	static inline LocalSlicedVector* constructIn(void* ptr, const SlicedVector<T>& v)
+	static inline std::size_t requiredMemoryFor(const SlicedVector<T>& v) CADET_NOEXCEPT
 	{
-		return constructIn(ptr, advancePointer<T>(ptr, sizeof(LocalSlicedVector<T>)), v);
-	}
-
-	/**
-	 * @brief Constructs a copy of the given data in the given memory buffer
-	 * @details Constructs the LocalSlicedVector<T> at one place in the given buffer and
-	 *          puts the actual data of the SlicedVector<T> at another. The required size
-	 *          of the buffer is given by requiredMemoryFor().
-	 * 
-	 * @param [in,out] ptrBase Pointer to buffer where class is to be instantiated
-	 * @param [in,out] ptrData Pointer to buffer where data is placed
-	 * @param [in] v Data to copy
-	 * @return LocalSlicedVector resembling a copy of the given SlicedVector
-	 */
-	static inline LocalSlicedVector* constructIn(void* ptrBase, void* ptrData, const SlicedVector<T>& v)
-	{
-		static_assert(std::is_trivially_copyable<T>::value || std::is_same<T, active>::value, "memcpy requires is_trivially_copyable<T>");
-
-		// Construct LocalSlicedVector<T>
-		LocalSlicedVector<T>* const lv = reinterpret_cast<LocalSlicedVector<T>*>(ptrBase);
-		new(lv) LocalSlicedVector<T>(v.slices() + 1);
-
-		// Copy data and assign
-		lv->_values = reinterpret_cast<T*>(ptrData);
-		std::memcpy(lv->_values, v.data(), v.size());
-		lv->_index = advancePointer<size_type>(lv->_values, sizeof(T) * v.size());
-		std::memcpy(lv->_index, v.indices(), v.slices() + 1);
-
-		return lv;
+		return sizeof(LocalSlicedVector<T>) + alignof(LocalSlicedVector<T>) + (v.slices() + 1) * sizeof(size_type) + alignof(size_type) + v.size() * sizeof(T) + alignof(T);
 	}
 
 protected:
@@ -525,53 +411,6 @@ inline active* dataOfLocalVersion(LocalSlicedVector<active>& v) CADET_NOEXCEPT
 }
 
 /**
- * @brief Returns a pointer behind the data of the given container
- * @param [in] v Container
- * @return Pointer behind the data of the given container
- */
-inline void* ptrToEndOfData(active& v) CADET_NOEXCEPT
-{
-	return &v;
-}
-
-inline void* ptrToEndOfData(LocalVector<active>& v) CADET_NOEXCEPT
-{
-	return v.data() + v.size();
-}
-
-inline void* ptrToEndOfData(LocalSlicedVector<active>& v) CADET_NOEXCEPT
-{
-	return v.indices() + v.slices() + 1;
-}
-
-/**
- * @brief Returns the number of bytes required for representing the given data with a local equivalent
- * @param [in] v Data to represent
- * @return Number of bytes required for representing the data with a local equivalent
- */
-inline std::size_t memoryForLocalVersionOf(double v) CADET_NOEXCEPT
-{
-	return sizeof(double);
-}
-
-inline std::size_t memoryForLocalVersionOf(const active& v) CADET_NOEXCEPT
-{
-	return sizeof(active);
-}
-
-template <class T>
-inline std::size_t memoryForLocalVersionOf(const std::vector<T>& v) CADET_NOEXCEPT
-{
-	return LocalVector<T>::requiredMemoryFor(v);
-}
-
-template <class T>
-inline std::size_t memoryForLocalVersionOf(const SlicedVector<T>& v) CADET_NOEXCEPT
-{
-	return LocalSlicedVector<T>::requiredMemoryFor(v);
-}
-
-/**
  * @brief Returns the size of the given data in bytes
  * @details Externally dependent parameters are stored in a struct, usually called
  *          VariableParams. This is sufficient for "static" parameter types that do
@@ -579,6 +418,9 @@ inline std::size_t memoryForLocalVersionOf(const SlicedVector<T>& v) CADET_NOEXC
  *          For containers using additional memory, which may be dynamically allocated,
  *          we need some more memory. The amount of additional memory is computed by
  *          this family of functions.
+ *          
+ *          Note that this is a generous estimate since additional space for alignment
+ *          is included.
  * @param [in] v Data
  * @return Size of the data in bytes
  */
@@ -599,27 +441,27 @@ inline std::size_t memoryForDataOf(const active& v) CADET_NOEXCEPT
 template <class T>
 inline std::size_t memoryForDataOf(const std::vector<T>& v) CADET_NOEXCEPT
 {
-	return v.size() * sizeof(T);
+	return v.size() * sizeof(T) + alignof(T);
 }
 
 template <class T>
 inline std::size_t memoryForDataOf(const SlicedVector<T>& v) CADET_NOEXCEPT
 {
 	// Required memory: Slice index array + items array
-	return (v.slices() + 1) * sizeof(typename SlicedVector<T>::size_type) + v.size() * sizeof(T);
+	return (v.slices() + 1) * sizeof(typename SlicedVector<T>::size_type) + alignof(typename SlicedVector<T>::size_type) + v.size() * sizeof(T) + alignof(T);
 }
 
 template <class T>
 inline std::size_t memoryForDataOf(const LocalVector<T>& v) CADET_NOEXCEPT
 {
-	return v.size() * sizeof(T);
+	return v.size() * sizeof(T) + alignof(T);
 }
 
 template <class T>
 inline std::size_t memoryForDataOf(const LocalSlicedVector<T>& v) CADET_NOEXCEPT
 {
 	// Required memory: Slice index array + items array
-	return (v.slices() + 1) * sizeof(typename LocalSlicedVector<T>::size_type) + v.size() * sizeof(T);
+	return (v.slices() + 1) * sizeof(typename LocalSlicedVector<T>::size_type) + alignof(typename LocalSlicedVector<T>::size_type) + v.size() * sizeof(T) + alignof(T);
 }
 
 

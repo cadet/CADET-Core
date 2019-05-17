@@ -21,6 +21,7 @@
 #include "UnitOperation.hpp"
 #include "AutoDiff.hpp"
 #include "ParamIdUtil.hpp"
+#include "nonlin/Solver.hpp"
 
 #include <unordered_map>
 #include <unordered_set>
@@ -70,6 +71,7 @@ protected:
 
 	void clearBindingModels() CADET_NOEXCEPT;
 	void clearDynamicReactionModels() CADET_NOEXCEPT;
+	void configureNonlinearSolver(IParameterProvider& paramProvider);
 
 	UnitOpIdx _unitOpIdx; //!< Unit operation index
 	std::vector<IBindingModel*> _binding; //!< Binding model
@@ -80,6 +82,8 @@ protected:
 	typedef std::unordered_map<ParameterId, active*> paramMap_t;
 	paramMap_t _parameters; //!< Provides access to all parameters
 	std::unordered_set<active*> _sensParams; //!< Holds all parameters with activated AD directions
+
+	nonlin::Solver* _nonlinearSolver; //!< Solver for nonlinear equations (consistent initialization)
 };
 
 } // namespace model

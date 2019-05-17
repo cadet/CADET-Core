@@ -24,12 +24,6 @@
 #include <string>
 #include <vector>
 
-namespace cadet
-{
-
-namespace model
-{
-
 /*<codegen>
 {
 	"name": "SaskaParamHandler",
@@ -47,6 +41,12 @@ namespace model
  h = Henry coefficient
  k = Quadratic factor
 */
+
+namespace cadet
+{
+
+namespace model
+{
 
 inline const char* SaskaParamHandler::identifier() CADET_NOEXCEPT { return "SASKA"; }
 
@@ -82,7 +82,7 @@ inline bool ExtSaskaParamHandler::validateConfig(unsigned int nComp, unsigned in
  * @tparam ParamHandler_t Type that can add support for external function dependence
  */
 template <class ParamHandler_t>
-class SaskaBindingBase : public PureBindingModelBase
+class SaskaBindingBase : public ParamHandlerBindingModelBase<ParamHandler_t>
 {
 public:
 
@@ -90,29 +90,23 @@ public:
 	virtual ~SaskaBindingBase() CADET_NOEXCEPT { }
 
 	static const char* identifier() { return ParamHandler_t::identifier(); }
-	virtual const char* name() const CADET_NOEXCEPT { return ParamHandler_t::identifier(); }
 
-	virtual void setExternalFunctions(IExternalFunction** extFuns, unsigned int size) { _paramHandler.setExternalFunctions(extFuns, size); }
-	virtual bool dependsOnTime() const CADET_NOEXCEPT { return ParamHandler_t::dependsOnTime(); }
-	virtual bool requiresWorkspace() const CADET_NOEXCEPT { return hasAlgebraicEquations() || ParamHandler_t::requiresWorkspace(); }
+	virtual bool implementsAnalyticJacobian() const CADET_NOEXCEPT { return true; }
 
-	virtual void timeDerivativeAlgebraicResidual(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, double* dResDt, void* workSpace) const
+	virtual void timeDerivativeQuasiStationaryFluxes(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* yCp, double const* y, double* dResDt, LinearBufferAllocator workSpace) const
 	{
-		if (!hasAlgebraicEquations())
+		if (!this->hasQuasiStationaryReactions())
 			return;
 
 		if (!ParamHandler_t::dependsOnTime())
 			return;
 
 		// Update external function and compute time derivative of parameters
-		const typename ParamHandler_t::params_t& p = _paramHandler.update(t, secIdx, colPos, _nComp, _nBoundStates, workSpace);
-		const typename ParamHandler_t::params_t dpDt = _paramHandler.updateTimeDerivative(t, secIdx, colPos, _nComp, _nBoundStates, workSpace);
+		typename ParamHandler_t::ParamsHandle p;
+		typename ParamHandler_t::ParamsHandle dpDt;
+		std::tie(p, dpDt) = _paramHandler.updateTimeDerivative(t, secIdx, colPos, _nComp, _nBoundStates, workSpace);
 
-		// Pointer to first component in liquid phase
-		double const* yCp = y - _nComp;
-
-		// Protein equations: dq_i / dt - ( H_i c_{p,i} + \sum_j k_{ij} c_{p,i} c_{p,j} - q_i ) == 0
-		//               <=>  dq_i / dt == H_i c_{p,i} + \sum_j k_{ij} c_{p,i} c_{p,j} - q_i
+		// Protein fluxes: -H_i c_{p,i} - \sum_j k_{ij} c_{p,i} c_{p,j} + q_i
 		unsigned int bndIdx = 0;
 		for (int i = 0; i < _nComp; ++i)
 		{
@@ -120,8 +114,8 @@ public:
 			if (_nBoundStates[i] == 0)
 				continue;
 
-			const active h = dpDt.h[i];
-			active const* const kSlice = dpDt.k[i];
+			const active h = dpDt->h[i];
+			active const* const kSlice = dpDt->k[i];
 
 			// Residual
 			dResDt[bndIdx] = -static_cast<double>(h) * yCp[i];
@@ -133,35 +127,21 @@ public:
 		}
 	}
 
-	CADET_PUREBINDINGMODELBASE_BOILERPLATE
+	CADET_BINDINGMODELBASE_BOILERPLATE
 
 protected:
-	ParamHandler_t _paramHandler; //!< Handles parameters and their dependence on external functions
-
-	virtual unsigned int paramCacheSize(unsigned int nComp, unsigned int totalNumBoundStates, unsigned int const* nBoundStates) const CADET_NOEXCEPT
-	{
-		return _paramHandler.cacheSize(nComp, totalNumBoundStates, nBoundStates);
-	}
-
-	virtual bool configureImpl(IParameterProvider& paramProvider, UnitOpIdx unitOpIdx, ParticleTypeIdx parTypeIdx)
-	{
-		// Read parameters
-		_paramHandler.configure(paramProvider, _nComp, _nBoundStates);
-
-		// Register parameters
-		_paramHandler.registerParameters(_parameters, unitOpIdx, parTypeIdx, _nComp, _nBoundStates);
-
-		return true;
-	}
+	using ParamHandlerBindingModelBase<ParamHandler_t>::_paramHandler;
+	using ParamHandlerBindingModelBase<ParamHandler_t>::_reactionQuasistationarity;
+	using ParamHandlerBindingModelBase<ParamHandler_t>::_nComp;
+	using ParamHandlerBindingModelBase<ParamHandler_t>::_nBoundStates;
 
 	template <typename StateType, typename CpStateType, typename ResidualType, typename ParamType>
-	int residualImpl(const ParamType& t, unsigned int secIdx, const ParamType& timeFactor, const ColumnPosition& colPos,
-		StateType const* y, CpStateType const* yCp, double const* yDot, ResidualType* res, void* workSpace) const
+	int fluxImpl(double t, unsigned int secIdx, const ColumnPosition& colPos, StateType const* y,
+		CpStateType const* yCp, ResidualType* res, LinearBufferAllocator workSpace) const
 	{
-		const typename ParamHandler_t::params_t& p = _paramHandler.update(static_cast<double>(t), secIdx, colPos, _nComp, _nBoundStates, workSpace);
+		typename ParamHandler_t::ParamsHandle const p = _paramHandler.update(t, secIdx, colPos, _nComp, _nBoundStates, workSpace);
 
-		// Protein equations: dq_i / dt - ( H_i c_{p,i} + \sum_j k_{ij} c_{p,i} c_{p,j} - q_i ) == 0
-		//               <=>  dq_i / dt == H_i c_{p,i} + \sum_j k_{ij} c_{p,i} c_{p,j} - q_i
+		// Protein fluxes: -H_i c_{p,i} - \sum_j k_{ij} c_{p,i} c_{p,j} + q_i
 		unsigned int bndIdx = 0;
 		for (int i = 0; i < _nComp; ++i)
 		{
@@ -169,19 +149,13 @@ protected:
 			if (_nBoundStates[i] == 0)
 				continue;
 
-			const active h = p.h[i];
-			active const* const kSlice = p.k[i];
+			const active h = p->h[i];
+			active const* const kSlice = p->k[i];
 
 			// Residual
 			res[bndIdx] = -static_cast<ParamType>(h) * yCp[i] + y[bndIdx];
 			for (int j = 0; j < _nComp; ++j)
 				res[bndIdx] -= static_cast<ParamType>(kSlice[j]) * yCp[i] * yCp[j];
-
-			// Add time derivative if necessary
-			if (_kineticBinding && yDot)
-			{
-				res[bndIdx] += timeFactor * yDot[bndIdx];
-			}
 
 			// Next bound component
 			++bndIdx;
@@ -191,12 +165,11 @@ protected:
 	}
 
 	template <typename RowIterator>
-	void jacobianImpl(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, double const* yCp, int offsetCp, RowIterator jac, void* workSpace) const
+	void jacobianImpl(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, double const* yCp, int offsetCp, RowIterator jac, LinearBufferAllocator workSpace) const
 	{
-		const typename ParamHandler_t::params_t& p = _paramHandler.update(t, secIdx, colPos, _nComp, _nBoundStates, workSpace);
+		typename ParamHandler_t::ParamsHandle const p = _paramHandler.update(t, secIdx, colPos, _nComp, _nBoundStates, workSpace);
 
-		// Protein equations: dq_i / dt - ( H_i c_{p,i} + \sum_j k_{ij} c_{p,i} c_{p,j} - q_i ) == 0
-		//               <=>  dq_i / dt - ( H_i c_{p,i} + c_{p,i} * \sum_j k_{ij} c_{p,j} - q_i ) == 0
+		// Protein fluxes: -H_i c_{p,i} - \sum_j k_{ij} c_{p,i} c_{p,j} + q_i
 		int bndIdx = 0;
 		for (int i = 0; i < _nComp; ++i)
 		{
@@ -204,8 +177,8 @@ protected:
 			if (_nBoundStates[i] == 0)
 				continue;
 
-			const double h = static_cast<double>(p.h[i]);
-			active const* const kSlice = p.k[i];
+			const double h = static_cast<double>(p->h[i]);
+			active const* const kSlice = p->k[i];
 
 			// dres_i / dc_{p,j}
 			for (int j = 0; j < _nComp; ++j)
@@ -222,7 +195,7 @@ protected:
 			// dres_i / dq_i
 			jac[0] = 1.0;
 
-			// Advance to next equation and Jacobian row
+			// Advance to next flux and Jacobian row
 			++bndIdx;
 			++jac;
 		}

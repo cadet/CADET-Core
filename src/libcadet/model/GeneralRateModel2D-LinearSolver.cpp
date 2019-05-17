@@ -12,6 +12,7 @@
 
 #include "model/GeneralRateModel2D.hpp"
 #include "model/BindingModel.hpp"
+#include "model/parts/BindingCellKernel.hpp"
 #include "linalg/DenseMatrix.hpp"
 #include "linalg/BandMatrix.hpp"
 #include "AdUtils.hpp"
@@ -496,53 +497,26 @@ void GeneralRateModel2D::assembleDiscretizedJacobianParticleBlock(unsigned int p
 	linalg::FactorizableBandMatrix::RowIterator jac = fbm.row(0);
 	for (unsigned int j = 0; j < _disc.nParCell[parType]; ++j)
 	{
-		// Mobile phase (advances jac accordingly)
-		addMobilePhaseTimeDerivativeToJacobianParticleBlock(jac, idxr, alpha, timeFactor, parType);
-
-		// Stationary phase
-		_binding[parType]->jacobianAddDiscretized(alpha * timeFactor, jac);
-
-		// Advance pointers over all bound states
-		jac += idxr.strideParBound(parType);
+		// Mobile and stationary phase (advances jac accordingly)
+		addTimeDerivativeToJacobianParticleShell(jac, idxr, alpha, timeFactor, parType);
 	}
 }
 
 /**
- * @brief Adds Jacobian @f$ \frac{\partial F}{\partial \dot{y}} @f$ to bead mobile phase rows of system Jacobian
+ * @brief Adds Jacobian @f$ \frac{\partial F}{\partial \dot{y}} @f$ to bead rows of system Jacobian
  * @details Actually adds @f$ \alpha \frac{\partial F}{\partial \dot{y}} @f$, which is useful
  *          for constructing the linear system in BDF time discretization.
  * @param [in,out] jac On entry, RowIterator of the particle block pointing to the beginning of a bead shell;
- *                     on exit, the iterator points to the end of the mobile phase
+ *                     on exit, the iterator points to the end of the bead shell
  * @param [in] idxr Indexer
  * @param [in] alpha Value of \f$ \alpha \f$ (arises from BDF time discretization)
  * @param [in] timeFactor Factor which is premultiplied to the time derivatives originating from time transformation
  * @param [in] parType Index of the particle type
  */
-void GeneralRateModel2D::addMobilePhaseTimeDerivativeToJacobianParticleBlock(linalg::FactorizableBandMatrix::RowIterator& jac, const Indexer& idxr, double alpha, double timeFactor, unsigned int parType)
+void GeneralRateModel2D::addTimeDerivativeToJacobianParticleShell(linalg::FactorizableBandMatrix::RowIterator& jac, const Indexer& idxr, double alpha, double timeFactor, unsigned int parType)
 {
-	// Compute total factor
-	alpha *= timeFactor;
-
-	// Mobile phase
-	for (int comp = 0; comp < static_cast<int>(_disc.nComp); ++comp, ++jac)
-	{
-		// Add derivative with respect to dc_p / dt to Jacobian
-		jac[0] += alpha;
-
-		const double invBetaP = (1.0 - static_cast<double>(_parPorosity[parType])) / (static_cast<double>(_poreAccessFactor[_disc.nComp * parType + comp]) * static_cast<double>(_parPorosity[parType]));
-
-		// Add derivative with respect to dq / dt to Jacobian
-		const int nBound = static_cast<int>(_disc.nBound[_disc.nComp * parType + comp]);
-		for (int i = 0; i < nBound; ++i)
-		{
-			// Index explanation:
-			//   -comp -> go back to beginning of liquid phase
-			//   + strideParLiquid() skip to solid phase
-			//   + offsetBoundComp() jump to component (skips all bound states of previous components)
-			//   + i go to current bound state
-			jac[idxr.strideParLiquid() - comp + idxr.offsetBoundComp(ParticleTypeIndex{parType}, ComponentIndex{static_cast<unsigned int>(comp)}) + i] += alpha * invBetaP;
-		}
-	}
+	parts::cell::addTimeDerivativeToJacobianParticleShell<linalg::FactorizableBandMatrix::RowIterator, true>(jac, alpha * timeFactor, static_cast<double>(_parPorosity[parType]), _disc.nComp, _disc.nBound + _disc.nComp * parType,
+		_poreAccessFactor.data() + _disc.nComp * parType, _disc.strideBound[parType], _disc.boundOffset + _disc.nComp * parType, _binding[parType]->reactionQuasiStationarity());
 }
 
 

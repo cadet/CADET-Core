@@ -116,14 +116,14 @@ namespace
 		virtual void applyInitialCondition(const cadet::SimulationState& simState) const { }
 		virtual void readInitialCondition(cadet::IParameterProvider& paramProvider) { }
 
-		virtual int residual(const cadet::SimulationTime& simTime, const cadet::ConstSimulationState& simState, double* const res, const cadet::util::ThreadLocalStorage<double>& tls)
+		virtual int residual(const cadet::SimulationTime& simTime, const cadet::ConstSimulationState& simState, double* const res, cadet::util::ThreadLocalStorage& tls)
 		{
 			std::copy(simState.vecStateY, simState.vecStateY + numDofs(), res);
 			return 0;
 		}
 
 		virtual int residualWithJacobian(const cadet::ActiveSimulationTime& simTime, const cadet::ConstSimulationState& simState, double* const res,
-			const cadet::AdJacobianParams& adJac, const cadet::util::ThreadLocalStorage<double>& tls)
+			const cadet::AdJacobianParams& adJac, cadet::util::ThreadLocalStorage& tls)
 		{
 			std::copy(simState.vecStateY, simState.vecStateY + numDofs(), res);
 			return 0;
@@ -152,31 +152,31 @@ namespace
 		virtual unsigned int localInletComponentIndex(unsigned int port) const CADET_NOEXCEPT { return port * _nComp; }
 		virtual unsigned int localInletComponentStride(unsigned int port) const CADET_NOEXCEPT { return 1u; }
 
-		virtual int residualSensFwdAdOnly(const cadet::ActiveSimulationTime& simTime, const cadet::ConstSimulationState& simState, cadet::active* const adRes, const cadet::util::ThreadLocalStorage<double>& tls) { return 0; }
+		virtual int residualSensFwdAdOnly(const cadet::ActiveSimulationTime& simTime, const cadet::ConstSimulationState& simState, cadet::active* const adRes, cadet::util::ThreadLocalStorage& tls) { return 0; }
 
 		virtual int residualSensFwdCombine(const cadet::ActiveSimulationTime& simTime, const cadet::ConstSimulationState& simState, 
 			const std::vector<const double*>& yS, const std::vector<const double*>& ySdot, const std::vector<double*>& resS, cadet::active const* adRes, 
 			double* const tmp1, double* const tmp2, double* const tmp3) { return 0; }
 
-		virtual int residualSensFwdWithJacobian(const cadet::ActiveSimulationTime& simTime, const cadet::ConstSimulationState& simState, const cadet::AdJacobianParams& adJac, const cadet::util::ThreadLocalStorage<double>& tls) { return 0; }
+		virtual int residualSensFwdWithJacobian(const cadet::ActiveSimulationTime& simTime, const cadet::ConstSimulationState& simState, const cadet::AdJacobianParams& adJac, cadet::util::ThreadLocalStorage& tls) { return 0; }
 
-		virtual void consistentInitialState(const cadet::SimulationTime& simTime, double* const vecStateY, const cadet::AdJacobianParams& adJac, double errorTol, const cadet::util::ThreadLocalStorage<double>& tls)
+		virtual void consistentInitialState(const cadet::SimulationTime& simTime, double* const vecStateY, const cadet::AdJacobianParams& adJac, double errorTol, cadet::util::ThreadLocalStorage& tls)
 		{
 			std::fill_n(vecStateY + _nInletPorts * _nComp, _nOutletPorts * _nComp, 0.0);
 		}
 
-		virtual void consistentInitialTimeDerivative(const cadet::SimulationTime& simTime, double const* vecStateY, double* const vecStateYdot, const cadet::util::ThreadLocalStorage<double>& tls)
+		virtual void consistentInitialTimeDerivative(const cadet::SimulationTime& simTime, double const* vecStateY, double* const vecStateYdot, cadet::util::ThreadLocalStorage& tls)
 		{
 			std::fill_n(vecStateYdot + _nInletPorts * _nComp, _nOutletPorts * _nComp, 0.0);
 		}
 
-		virtual void leanConsistentInitialState(const cadet::SimulationTime& simTime, double* const vecStateY, const cadet::AdJacobianParams& adJac, double errorTol, const cadet::util::ThreadLocalStorage<double>& tls) { }
-		virtual void leanConsistentInitialTimeDerivative(double t, double timeFactor, double const* const vecStateY, double* const vecStateYdot, double* const res, const cadet::util::ThreadLocalStorage<double>& tls) { }
+		virtual void leanConsistentInitialState(const cadet::SimulationTime& simTime, double* const vecStateY, const cadet::AdJacobianParams& adJac, double errorTol, cadet::util::ThreadLocalStorage& tls) { }
+		virtual void leanConsistentInitialTimeDerivative(double t, double timeFactor, double const* const vecStateY, double* const vecStateYdot, double* const res, cadet::util::ThreadLocalStorage& tls) { }
 
 		virtual void consistentInitialSensitivity(const cadet::ActiveSimulationTime& simTime, const cadet::ConstSimulationState& simState, std::vector<double*>& vecSensY,
-			std::vector<double*>& vecSensYdot, cadet::active const* const adRes, const cadet::util::ThreadLocalStorage<double>& tls) { }
+			std::vector<double*>& vecSensYdot, cadet::active const* const adRes, cadet::util::ThreadLocalStorage& tls) { }
 		virtual void leanConsistentInitialSensitivity(const cadet::ActiveSimulationTime& simTime, const cadet::ConstSimulationState& simState, std::vector<double*>& vecSensY,
-			std::vector<double*>& vecSensYdot, cadet::active const* const adRes, const cadet::util::ThreadLocalStorage<double>& tls) { }
+			std::vector<double*>& vecSensYdot, cadet::active const* const adRes, cadet::util::ThreadLocalStorage& tls) { }
 
 		virtual void setExternalFunctions(cadet::IExternalFunction** extFuns, unsigned int size) { }
 

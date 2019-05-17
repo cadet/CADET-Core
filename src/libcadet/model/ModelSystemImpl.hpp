@@ -268,7 +268,7 @@ protected:
 	std::vector<double> _initState; //!< Initial state vector
 	std::vector<double> _initStateDot; //!< Initial time derivative state vector
 
-	util::ThreadLocalStorage<double> _threadLocalStorage; //!< Local storage for each thread
+	util::ThreadLocalStorage _threadLocalStorage; //!< Local storage for each thread
 
 #ifdef CADET_PARALLELIZE
 	typedef tbb::spin_mutex SchurComplementMutex;

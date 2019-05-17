@@ -94,7 +94,7 @@ inline void checkJacobianAD(double flowRateIn, double flowRateOut, double flowRa
 	std::vector<double> jacDir(nDof, 0.0);
 	std::vector<double> jacCol1(nDof, 0.0);
 	std::vector<double> jacCol2(nDof, 0.0);
-	cadet::util::ThreadLocalStorage<double> tls;
+	cadet::util::ThreadLocalStorage tls;
 	tls.resize(cstrAna->threadLocalMemorySize());
 
 	// Fill state vectors with some values
@@ -142,7 +142,7 @@ inline void checkJacobianFD(double flowRateIn, double flowRateOut, double flowRa
 	std::vector<double> jacDir(nDof, 0.0);
 	std::vector<double> jacCol1(nDof, 0.0);
 	std::vector<double> jacCol2(nDof, 0.0);
-	cadet::util::ThreadLocalStorage<double> tls;
+	cadet::util::ThreadLocalStorage tls;
 	tls.resize(cstr->threadLocalMemorySize());
 
 	// Fill state vectors with some values
@@ -187,7 +187,7 @@ inline void checkTimeDerivativeJacobianFD(double flowRateIn, double flowRateOut,
 	std::vector<double> jacDir(nDof, 0.0);
 	std::vector<double> jacCol1(nDof, 0.0);
 	std::vector<double> jacCol2(nDof, 0.0);
-	cadet::util::ThreadLocalStorage<double> tls;
+	cadet::util::ThreadLocalStorage tls;
 	tls.resize(cstr->threadLocalMemorySize());
 
 	// Fill state vectors with some values

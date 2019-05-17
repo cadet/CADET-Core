@@ -23,12 +23,6 @@
 #include <unordered_map>
 #include <functional>
 
-namespace cadet
-{
-
-namespace model
-{
-
 /*<codegen>
 {
 	"name": "SpreadingParamHandler",
@@ -52,6 +46,12 @@ namespace model
  k12 = Transition rate from state @f$ q_i^A @f$ to state @f$ q_i^B @f$
  k21 = Transition rate from state @f$ q_i^B @f$ to state @f$ q_i^A @f$
 */
+
+namespace cadet
+{
+
+namespace model
+{
 
 inline const char* SpreadingParamHandler::identifier() CADET_NOEXCEPT { return "MULTI_COMPONENT_SPREADING"; }
 
@@ -94,7 +94,7 @@ inline bool ExtSpreadingParamHandler::validateConfig(unsigned int nComp, unsigne
  * @tparam ParamHandler_t Type that can add support for external function dependence
  */
 template <class ParamHandler_t>
-class MultiComponentSpreadingBindingBase : public PureBindingModelBase
+class MultiComponentSpreadingBindingBase : public ParamHandlerBindingModelBase<ParamHandler_t>
 {
 public:
 
@@ -102,7 +102,6 @@ public:
 	virtual ~MultiComponentSpreadingBindingBase() CADET_NOEXCEPT { }
 
 	static const char* identifier() { return ParamHandler_t::identifier(); }
-	virtual const char* name() const CADET_NOEXCEPT { return ParamHandler_t::identifier(); }
 
 	virtual bool configureModelDiscretization(IParameterProvider& paramProvider, unsigned int nComp, unsigned int const* nBound, unsigned int const* boundOffset)
 	{
@@ -126,47 +125,32 @@ public:
 		return res;
 	}
 
-	virtual void setExternalFunctions(IExternalFunction** extFuns, unsigned int size) { _paramHandler.setExternalFunctions(extFuns, size); }
-	virtual bool dependsOnTime() const CADET_NOEXCEPT { return ParamHandler_t::dependsOnTime(); }
-
 	virtual bool hasSalt() const CADET_NOEXCEPT { return false; }
 	virtual bool supportsMultistate() const CADET_NOEXCEPT { return true; }
 	virtual bool supportsNonBinding() const CADET_NOEXCEPT { return true; }
-	virtual bool requiresWorkspace() const CADET_NOEXCEPT { return hasAlgebraicEquations() || ParamHandler_t::requiresWorkspace(); }
+	virtual bool implementsAnalyticJacobian() const CADET_NOEXCEPT { return true; }
 
-	CADET_PUREBINDINGMODELBASE_BOILERPLATE
+	CADET_BINDINGMODELBASE_BOILERPLATE
 
 protected:
-	ParamHandler_t _paramHandler; //!< Handles parameters and their dependence on external functions
+	using ParamHandlerBindingModelBase<ParamHandler_t>::_paramHandler;
+	using ParamHandlerBindingModelBase<ParamHandler_t>::_reactionQuasistationarity;
+	using ParamHandlerBindingModelBase<ParamHandler_t>::_nComp;
+	using ParamHandlerBindingModelBase<ParamHandler_t>::_nBoundStates;
+
 	unsigned int _numBindingComp; //!< Number of binding components
 
-	virtual unsigned int paramCacheSize(unsigned int nComp, unsigned int totalNumBoundStates, unsigned int const* nBoundStates) const CADET_NOEXCEPT
-	{
-		return _paramHandler.cacheSize(nComp, totalNumBoundStates, nBoundStates);
-	}
-
-	virtual bool configureImpl(IParameterProvider& paramProvider, UnitOpIdx unitOpIdx, ParticleTypeIdx parTypeIdx)
-	{
-		// Read parameters
-		_paramHandler.configure(paramProvider, _nComp, _nBoundStates);
-
-		// Register parameters
-		_paramHandler.registerParameters(_parameters, unitOpIdx, parTypeIdx, _nComp, _nBoundStates);
-
-		return true;
-	}
-
 	template <typename StateType, typename CpStateType, typename ResidualType, typename ParamType>
-	int residualImpl(const ParamType& t, unsigned int secIdx, const ParamType& timeFactor, const ColumnPosition& colPos,
-		StateType const* y, CpStateType const* yCp, double const* yDot, ResidualType* res, void* workSpace) const
+	int fluxImpl(double t, unsigned int secIdx, const ColumnPosition& colPos, StateType const* y,
+		CpStateType const* yCp, ResidualType* res, LinearBufferAllocator workSpace) const
 	{
-		const typename ParamHandler_t::params_t& p = _paramHandler.update(static_cast<double>(t), secIdx, colPos, _nComp, _nBoundStates, workSpace);
+		typename ParamHandler_t::ParamsHandle const p = _paramHandler.update(t, secIdx, colPos, _nComp, _nBoundStates, workSpace);
 
 		ResidualType qSum = 1.0;
 		unsigned int bndIdx = 0;
 		for (int j = 0; j < 2; ++j)
 		{
-			active const* const localQmax = p.qMax[j];
+			active const* const localQmax = p->qMax[j];
 			for (int i = 0; i < _nComp; ++i)
 			{
 				// Skip components without bound states (bound state index bndIdx is not advanced)
@@ -181,9 +165,9 @@ protected:
 		}
 
 		// First bound state (A)
-		active const* localKa = p.kA[0];
-		active const* localKd = p.kD[0];
-		active const* localQmax = p.qMax[0];
+		active const* localKa = p->kA[0];
+		active const* localKd = p->kD[0];
+		active const* localQmax = p->qMax[0];
 
 		bndIdx = 0;
 		for (int i = 0; i < _nComp; ++i)
@@ -193,22 +177,16 @@ protected:
 				continue;
 
 			// Residual
-			res[bndIdx] = static_cast<ParamType>(localKd[i]) * y[bndIdx] - static_cast<ParamType>(p.k21[i]) * y[bndIdx + _numBindingComp] 
-					- (static_cast<ParamType>(localKa[i]) * yCp[i] - static_cast<ParamType>(p.k12[i]) * y[bndIdx]) * static_cast<ParamType>(localQmax[i]) * qSum;
-
-			// Add time derivative if necessary
-			if (_kineticBinding && yDot)
-			{
-				res[bndIdx] += timeFactor * yDot[bndIdx];
-			}
+			res[bndIdx] = static_cast<ParamType>(localKd[i]) * y[bndIdx] - static_cast<ParamType>(p->k21[i]) * y[bndIdx + _numBindingComp] 
+					- (static_cast<ParamType>(localKa[i]) * yCp[i] - static_cast<ParamType>(p->k12[i]) * y[bndIdx]) * static_cast<ParamType>(localQmax[i]) * qSum;
 
 			// Next bound component
 			++bndIdx;
 		}
 
 		// Second bound state (B)
-		localKa = p.kA[1];
-		localKd = p.kD[1];
+		localKa = p->kA[1];
+		localKd = p->kD[1];
 		// Still use q_{max}^A here
 
 		for (int i = 0; i < _nComp; ++i)
@@ -218,14 +196,8 @@ protected:
 				continue;
 
 			// Residual
-			res[bndIdx] = (static_cast<ParamType>(localKd[i]) + static_cast<ParamType>(p.k21[i])) * y[bndIdx] 
-					- (static_cast<ParamType>(localKa[i]) * yCp[i] + static_cast<ParamType>(p.k12[i]) * y[bndIdx - _numBindingComp]) * static_cast<ParamType>(localQmax[i]) * qSum;
-
-			// Add time derivative if necessary
-			if (_kineticBinding && yDot)
-			{
-				res[bndIdx] += timeFactor * yDot[bndIdx];
-			}
+			res[bndIdx] = (static_cast<ParamType>(localKd[i]) + static_cast<ParamType>(p->k21[i])) * y[bndIdx] 
+					- (static_cast<ParamType>(localKa[i]) * yCp[i] + static_cast<ParamType>(p->k12[i]) * y[bndIdx - _numBindingComp]) * static_cast<ParamType>(localQmax[i]) * qSum;
 
 			// Next bound component
 			++bndIdx;
@@ -235,15 +207,15 @@ protected:
 	}
 
 	template <typename RowIterator>
-	void jacobianImpl(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, double const* yCp, int offsetCp, RowIterator jac, void* workSpace) const
+	void jacobianImpl(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, double const* yCp, int offsetCp, RowIterator jac, LinearBufferAllocator workSpace) const
 	{
-		const typename ParamHandler_t::params_t& p = _paramHandler.update(t, secIdx, colPos, _nComp, _nBoundStates, workSpace);
+		typename ParamHandler_t::ParamsHandle const p = _paramHandler.update(t, secIdx, colPos, _nComp, _nBoundStates, workSpace);
 
 		double qSum = 1.0;
 		int bndIdx = 0;
 		for (int j = 0; j < 2; ++j)
 		{
-			active const* const localQmax = p.qMax[j];
+			active const* const localQmax = p->qMax[j];
 			for (int i = 0; i < _nComp; ++i)
 			{
 				// Skip components without bound states (bound state index bndIdx is not advanced)
@@ -257,10 +229,10 @@ protected:
 			}
 		}
 
-		active const* localKa = p.kA[0];
-		active const* localKd = p.kD[0];
-		active const* const qMax1 = p.qMax[0];
-		active const* const qMax2 = p.qMax[1];
+		active const* localKa = p->kA[0];
+		active const* localKd = p->kD[0];
+		active const* const qMax1 = p->qMax[0];
+		active const* const qMax2 = p->qMax[1];
 
 		// First state (A)
 		bndIdx = 0;
@@ -279,7 +251,7 @@ protected:
 			//                     This means jac[i - bndIdx - offsetCp] corresponds to c_{p,i}.
 
 			// Fill dres_i / dq_j^A
-			const double factor = (ka * yCp[i] - y[bndIdx] * static_cast<double>(p.k12[i])) * static_cast<double>(qMax1[i]);
+			const double factor = (ka * yCp[i] - y[bndIdx] * static_cast<double>(p->k12[i])) * static_cast<double>(qMax1[i]);
 			int bndIdx2 = 0;
 			for (int j = 0; j < _nComp; ++j)
 			{
@@ -295,7 +267,7 @@ protected:
 			}
 
 			// Add to dres_i / dq_i^A
-			jac[0] += kd + static_cast<double>(p.k12[i]) * static_cast<double>(qMax1[i]) * qSum; // last summand by product rule
+			jac[0] += kd + static_cast<double>(p->k12[i]) * static_cast<double>(qMax1[i]) * qSum; // last summand by product rule
 
 			// Fill dres_i / dq_j^B
 			for (int j = 0; j < _nComp; ++j)
@@ -312,16 +284,16 @@ protected:
 			}
 
 			// Add to dres_i / dq_i^B
-			jac[_numBindingComp] -= static_cast<double>(p.k21[i]);
+			jac[_numBindingComp] -= static_cast<double>(p->k21[i]);
 
-			// Advance to next equation and Jacobian row
+			// Advance to next flux and Jacobian row
 			++bndIdx;
 			++jac;
 		}
 
 		// Second state (B)
-		localKa = p.kA[1];
-		localKd = p.kD[1];
+		localKa = p->kA[1];
+		localKd = p->kD[1];
 
 		for (int i = 0; i < _nComp; ++i)
 		{
@@ -338,7 +310,7 @@ protected:
 			//                     This means jac[i - bndIdx - offsetCp] corresponds to c_{p,i}.
 
 			// Fill dres_i / dq_j^A
-			const double factor = (ka * yCp[i] + y[bndIdx - static_cast<int>(_numBindingComp)] * static_cast<double>(p.k12[i])) * static_cast<double>(qMax1[i]);
+			const double factor = (ka * yCp[i] + y[bndIdx - static_cast<int>(_numBindingComp)] * static_cast<double>(p->k12[i])) * static_cast<double>(qMax1[i]);
 			int bndIdx2 = 0;
 			for (int j = 0; j < _nComp; ++j)
 			{
@@ -368,12 +340,12 @@ protected:
 			}
 
 			// Add to dres_i / dq_i^B
-			jac[0] += kd + static_cast<double>(p.k21[i]);
+			jac[0] += kd + static_cast<double>(p->k21[i]);
 
 			// Add to dres_i / dq_i^A
-			jac[-static_cast<int>(_numBindingComp)] -= static_cast<double>(p.k12[i]) * static_cast<double>(qMax1[i]) * qSum;  // last summand by product rule
+			jac[-static_cast<int>(_numBindingComp)] -= static_cast<double>(p->k12[i]) * static_cast<double>(qMax1[i]) * qSum;  // last summand by product rule
 
-			// Advance to next equation and Jacobian row
+			// Advance to next flux and Jacobian row
 			++bndIdx;
 			++jac;
 		}

@@ -24,7 +24,9 @@
 #include "cadet/ParameterId.hpp"
 #include "linalg/DenseMatrix.hpp"
 #include "linalg/BandMatrix.hpp"
+#include "linalg/CompressedSparseMatrix.hpp"
 #include "AutoDiff.hpp"
+#include "Memory.hpp"
 
 namespace cadet
 {
@@ -167,7 +169,6 @@ public:
 	/**
 	 * @brief Returns the size of the required workspace in bytes
 	 * @details The memory is required for externally dependent dynamic reaction models.
-	 * 
 	 * @param [in] nComp Number of components
 	 * @param [in] totalNumBoundStates Total number of bound states
 	 * @param [in] nBoundStates Array with bound states for each component
@@ -191,22 +192,22 @@ public:
 	 * @param [in] secIdx Index of the current section
 	 * @param [in] colPos Position in normalized coordinates (column inlet = 0, column outlet = 1; outer shell = 1, inner center = 0)
 	 * @param [in] y Pointer to first component in the current cell
-	 * @param [out] res Pointer to residual equation of first bound state of the first component in the current particle shell
+	 * @param [out] res Pointer to residual of the first component in the current particle shell's liquid phase
 	 * @param [in] factor Factor @f$ \gamma @f$
 	 * @param [in,out] workSpace Memory work space
 	 * @return @c 0 on success, @c -1 on non-recoverable error, and @c +1 on recoverable error
 	 */
-	virtual int residualLiquidAdd(const active& t, unsigned int secIdx, const ColumnPosition& colPos, active const* y,
-		active* res, double factor, void* workSpace) const = 0;
+	virtual int residualLiquidAdd(double t, unsigned int secIdx, const ColumnPosition& colPos, active const* y,
+		active* res, const active& factor, LinearBufferAllocator workSpace) const = 0;
 
 	virtual int residualLiquidAdd(double t, unsigned int secIdx, const ColumnPosition& colPos, active const* y,
-		active* res, double factor, void* workSpace) const = 0;
-
-	virtual int residualLiquidAdd(const active& t, unsigned int secIdx, const ColumnPosition& colPos, double const* y,
-		active* res, double factor, void* workSpace) const = 0;
+		active* res, double factor, LinearBufferAllocator workSpace) const = 0;
 
 	virtual int residualLiquidAdd(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y,
-		double* res, double factor, void* workSpace) const = 0;
+		active* res, double factor, LinearBufferAllocator workSpace) const = 0;
+
+	virtual int residualLiquidAdd(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y,
+		double* res, double factor, LinearBufferAllocator workSpace) const = 0;
 
 	/**
 	 * @brief Adds the analytical Jacobian of the reaction terms for one liquid phase cell
@@ -229,8 +230,9 @@ public:
 	 * @param [in,out] jac Row iterator pointing to the first component row of the underlying matrix in which the Jacobian is stored
 	 * @param [in,out] workSpace Memory work space
 	 */
-	virtual void analyticJacobianLiquidAdd(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, double factor, linalg::BandMatrix::RowIterator jac, void* workSpace) const = 0;
-	virtual void analyticJacobianLiquidAdd(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, double factor, linalg::DenseBandedRowIterator jac, void* workSpace) const = 0;
+	virtual void analyticJacobianLiquidAdd(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, double factor, linalg::BandMatrix::RowIterator jac, LinearBufferAllocator workSpace) const = 0;
+	virtual void analyticJacobianLiquidAdd(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, double factor, linalg::DenseBandedRowIterator jac, LinearBufferAllocator workSpace) const = 0;
+	virtual void analyticJacobianLiquidAdd(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, double factor, linalg::BandedSparseRowIterator jac, LinearBufferAllocator workSpace) const = 0;
 
 	/**
 	 * @brief Evaluates the residual for one combined phase cell
@@ -247,23 +249,22 @@ public:
 	 * @param [in] t Current time point
 	 * @param [in] secIdx Index of the current section
 	 * @param [in] colPos Position in normalized coordinates (column inlet = 0, column outlet = 1; outer shell = 1, inner center = 0)
-	 * @param [in] y Pointer to first component in the current cell
-	 * @param [out] res Pointer to residual equation of first bound state of the first component in the current particle shell
+	 * @param [in] yLiquid Pointer to first component in the current cell's liquid phase
+	 * @param [in] ySolid Pointer to first component in the current cell's solid phase
+	 * @param [out] resLiquid Pointer to residual of the first component in the current particle shell's liquid phase
+	 * @param [out] resSolid Pointer to residual of the first bound state of the first component in the current particle shell
 	 * @param [in] factor Factor @f$ \gamma @f$
 	 * @param [in,out] workSpace Memory work space
 	 * @return @c 0 on success, @c -1 on non-recoverable error, and @c +1 on recoverable error
 	 */
-	virtual int residualCombinedAdd(const active& t, unsigned int secIdx, const ColumnPosition& colPos, active const* y,
-		active* res, double factor, void* workSpace) const = 0;
+	virtual int residualCombinedAdd(double t, unsigned int secIdx, const ColumnPosition& colPos, active const* yLiquid,
+		active const* ySolid, active* resLiquid, active* resSolid, double factor, LinearBufferAllocator workSpace) const = 0;
 
-	virtual int residualCombinedAdd(double t, unsigned int secIdx, const ColumnPosition& colPos, active const* y,
-		active* res, double factor, void* workSpace) const = 0;
+	virtual int residualCombinedAdd(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* yLiquid,
+		double const* ySolid, active* resLiquid, active* resSolid, double factor, LinearBufferAllocator workSpace) const = 0;
 
-	virtual int residualCombinedAdd(const active& t, unsigned int secIdx, const ColumnPosition& colPos, double const* y,
-		active* res, double factor, void* workSpace) const = 0;
-
-	virtual int residualCombinedAdd(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y,
-		double* res, double factor, void* workSpace) const = 0;
+	virtual int residualCombinedAdd(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* yLiquid,
+		double const* ySolid, double* resLiquid, double* resSolid, double factor, LinearBufferAllocator workSpace) const = 0;
 
 	/**
 	 * @brief Adds the analytical Jacobian of the reaction terms for one combined phase cell
@@ -281,13 +282,16 @@ public:
 	 * @param [in] t Current time point
 	 * @param [in] secIdx Index of the current section
 	 * @param [in] colPos Position in normalized coordinates (column inlet = 0, column outlet = 1; outer shell = 1, inner center = 0)
-	 * @param [in] y Pointer to first component in the current cell
+	 * @param [in] yLiquid Pointer to first component in the current cell's liquid phase
+	 * @param [in] ySolid Pointer to first component in the current cell's solid phase
 	 * @param [in] factor Factor @f$ \gamma @f$
-	 * @param [in,out] jac Row iterator pointing to the first component row of the underlying matrix in which the Jacobian is stored
+	 * @param [in,out] jacLiquid Row iterator pointing to the first component row of the underlying matrix in which the Jacobian is stored
+	 * @param [in,out] jacSolid Row iterator pointing to the first bound state row of the underlying matrix in which the Jacobian is stored
 	 * @param [in,out] workSpace Memory work space
 	 */
-	virtual void analyticJacobianCombinedAdd(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, double factor, linalg::BandMatrix::RowIterator jac, void* workSpace) const = 0;
-	virtual void analyticJacobianCombinedAdd(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, double factor, linalg::DenseBandedRowIterator jac, void* workSpace) const = 0;
+	virtual void analyticJacobianCombinedAdd(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* yLiquid, double const* ySolid, double factor, linalg::BandMatrix::RowIterator jacLiquid, linalg::BandMatrix::RowIterator jacSolid, LinearBufferAllocator workSpace) const = 0;
+	virtual void analyticJacobianCombinedAdd(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* yLiquid, double const* ySolid, double factor, linalg::DenseBandedRowIterator jacLiquid, linalg::DenseBandedRowIterator jacSolid, LinearBufferAllocator workSpace) const = 0;
+	virtual void analyticJacobianCombinedAdd(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* yLiquid, double const* ySolid, double factor, linalg::BandMatrix::RowIterator jacLiquid, linalg::DenseBandedRowIterator jacSolid, LinearBufferAllocator workSpace) const = 0;
 
 protected:
 };

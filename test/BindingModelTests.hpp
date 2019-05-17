@@ -19,15 +19,106 @@
 #define CADETTEST_BINDINGMODELTEST_HPP_
 
 #include <limits>
+#include "cadet/ExternalFunction.hpp"
+#include "Memory.hpp"
 
 namespace cadet
 {
+
+namespace model
+{
+	class IBindingModel;
+}
 
 namespace test
 {
 
 namespace binding
 {
+
+	class ConstExternalFunction : public cadet::IExternalFunction
+	{
+	public:
+		virtual bool configure(cadet::IParameterProvider* paramProvider) { return true; }
+		virtual const char* name() const CADET_NOEXCEPT { return "CONSTFUN"; }
+		virtual double externalProfile(double t, double z, double rho, double r, unsigned int sec) { return 1.0; }
+		virtual double timeDerivative(double t, double z, double rho, double r, unsigned int sec) { return 0.0; }
+		virtual void setSectionTimes(double const* secTimes, bool const* secContinuity, unsigned int nSections) { }
+	};
+
+	class LinearExternalFunction : public cadet::IExternalFunction
+	{
+	public:
+		virtual bool configure(cadet::IParameterProvider* paramProvider) { return true; }
+		virtual const char* name() const CADET_NOEXCEPT { return "LINFUN"; }
+		virtual double externalProfile(double t, double z, double rho, double r, unsigned int sec) { return t; }
+		virtual double timeDerivative(double t, double z, double rho, double r, unsigned int sec) { return 1.0; }
+		virtual void setSectionTimes(double const* secTimes, bool const* secContinuity, unsigned int nSections) { }
+	};
+
+	class ConfiguredBindingModel
+	{
+	public:
+
+		ConfiguredBindingModel(ConfiguredBindingModel&& cpy) CADET_NOEXCEPT 
+			: _binding(cpy._binding), _nComp(cpy._nComp), _nBound(cpy._nBound), _boundOffset(cpy._boundOffset), _buffer(std::move(cpy._buffer)), _bufferMemory(cpy._bufferMemory), _extFuns(cpy._extFuns)
+		{
+			cpy._binding = nullptr;
+			cpy._nBound = nullptr;
+			cpy._boundOffset = nullptr;
+			cpy._bufferMemory = nullptr;
+			cpy._extFuns = nullptr;
+		}
+
+		~ConfiguredBindingModel();
+
+		inline ConfiguredBindingModel& operator=(ConfiguredBindingModel&& cpy) CADET_NOEXCEPT
+		{
+			_binding = cpy._binding;
+			_nComp = cpy._nComp;
+			_nBound = cpy._nBound;
+			_boundOffset = cpy._boundOffset;
+			_buffer = std::move(cpy._buffer);
+			_bufferMemory = cpy._bufferMemory;
+			_extFuns = cpy._extFuns;
+
+			cpy._binding = nullptr;
+			cpy._nBound = nullptr;
+			cpy._boundOffset = nullptr;
+			cpy._bufferMemory = nullptr;
+			cpy._extFuns = nullptr;
+
+			return *this;
+		}
+
+		static ConfiguredBindingModel create(const char* name, unsigned int nComp, unsigned int const* nBound, bool isKinetic, const char* config);
+		static ConfiguredBindingModel create(const char* name, unsigned int nComp, unsigned int const* nBound, int const* isKinetic, const char* config);
+
+		inline cadet::model::IBindingModel& model() { return *_binding; }
+		inline const cadet::model::IBindingModel& model() const { return *_binding; }
+
+		inline cadet::LinearBufferAllocator buffer() { return _buffer; }
+		inline unsigned int nComp() const { return _nComp; }
+		inline unsigned int const* nBound() const { return _nBound; }
+		inline unsigned int const* boundOffset() const { return _boundOffset; }
+
+		inline unsigned int numBoundStates() const { return _boundOffset[_nComp - 1] + _nBound[_nComp - 1]; }
+
+	private:
+
+		ConfiguredBindingModel(cadet::model::IBindingModel* binding, unsigned int nComp, unsigned int const* nBound, unsigned int const* boundOffset, void* bufferStart, void* bufferEnd, cadet::IExternalFunction* extFuns) 
+			: _binding(binding), _nComp(nComp), _nBound(nBound), _boundOffset(boundOffset), _buffer(bufferStart, bufferEnd), _bufferMemory(bufferStart), _extFuns(extFuns)
+		{
+		}
+
+		cadet::model::IBindingModel* _binding;
+		unsigned int _nComp;
+		unsigned int const* _nBound;
+		unsigned int const* _boundOffset;
+		cadet::LinearBufferAllocator _buffer;
+		void* _bufferMemory;
+		cadet::IExternalFunction* _extFuns;
+	};
 
 	/**
 	 * @brief Checks the analytic Jacobian of the binding model against AD
@@ -41,59 +132,6 @@ namespace binding
 	 * @param [in] relTol Relative error tolerance
 	 */
 	void testJacobianAD(const char* modelName, unsigned int nComp, unsigned int const* nBound, bool isKinetic, const char* config, double const* point, double absTol = 0.0, double relTol = std::numeric_limits<float>::epsilon() * 100.0);
-
-	/**
-	 * @brief Checks the time derivative Jacobian of the binding model against finite differences
-	 * @details Uses centered finite differences. The analytic Jacobian is provided by jacobianAddDiscretized().
-	 * @param [in] modelName Name of the binding model
-	 * @param [in] nComp Number of components
-	 * @param [in] nBound Array with number of bound states for each component
-	 * @param [in] isKinetic Determines whether kinetic or quasi-stationary binding mode is applied
-	 * @param [in] config JSON string with binding model parameters
-	 * @param [in] h Step size of centered finite differences
-	 * @param [in] absTol Absolute error tolerance
-	 * @param [in] relTol Relative error tolerance
-	 */
-	void testTimeDerivativeJacobianFD(const char* modelName, unsigned int nComp, unsigned int const* nBound, bool isKinetic, const char* config, double h = 1e-6, double absTol = 0.0, double relTol = std::numeric_limits<float>::epsilon() * 100.0);
-
-	/**
-	 * @brief Checks the multiplyWithDerivativeJacobian() function against jacobianAddDiscretized()
-	 * @param [in] modelName Name of the binding model
-	 * @param [in] nComp Number of components
-	 * @param [in] nBound Array with number of bound states for each component
-	 * @param [in] isKinetic Determines whether kinetic or quasi-stationary binding mode is applied
-	 * @param [in] config JSON string with binding model parameters
-	 * @param [in] absTol Absolute error tolerance
-	 * @param [in] relTol Relative error tolerance
-	 */
-	void testTimeDerivativeJacobianMultiplyFunction(const char* modelName, unsigned int nComp, unsigned int const* nBound, bool isKinetic, const char* config, double absTol = 0.0, double relTol = std::numeric_limits<float>::epsilon() * 100.0);
-
-	/**
-	 * @brief Checks consistency of getAlgebraicBlock() and hasAlgebraicEquations() against structure of time derivative Jacobian
-	 * @details Algebraic equations are detected in the time derivative Jacobian by checking for all-zero rows.
-	 *          The Jacobian is obtained from jacobianAddDiscretized().
-	 * @param [in] modelName Name of the binding model
-	 * @param [in] nComp Number of components
-	 * @param [in] nBound Array with number of bound states for each component
-	 * @param [in] isKinetic Determines whether kinetic or quasi-stationary binding mode is applied
-	 * @param [in] config JSON string with binding model parameters
-	 */
-	void testConsistencyOfAlgebraicEquationFunctions(const char* modelName, unsigned int nComp, unsigned int const* nBound, bool isKinetic, const char* config);
-
-	/**
-	 * @brief Checks consistent initialization of algebraic equations
-	 * @details Calls consistentInitialState() and checks if the residual of the algebraic equations is (almost) 0.
-	 * @param [in] modelName Name of the binding model
-	 * @param [in] nComp Number of components
-	 * @param [in] nBound Array with number of bound states for each component
-	 * @param [in] isKinetic Determines whether kinetic or quasi-stationary binding mode is applied
-	 * @param [in] config JSON string with binding model parameters
-	 * @param [in] useAD Determines whether the Jacobian is computed via AD or analytically
-	 * @param [in] point Liquid phase and initial solid phase values to start the process from
-	 * @param [in] consTol Error tolerance for consistent initialization solver
-	 * @param [in] absTol Error tolerance for checking whether algebraic residual is 0
-	 */
-	 void testConsistentInitialization(const char* modelName, unsigned int nComp, unsigned int const* nBound, bool isKinetic, const char* config, bool useAD, double const* point, double consTol, double absTol);
 
 	/**
 	 * @brief Checks residual and analytic Jacobian of normal model variant against externally dependent ones

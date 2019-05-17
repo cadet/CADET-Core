@@ -63,7 +63,7 @@ namespace unitoperation
 		// Obtain memory
 		std::vector<double> yDot(unit->numDofs(), 0.0);
 		std::vector<double> res(unit->numDofs(), 0.0);
-		cadet::util::ThreadLocalStorage<double> tls;
+		cadet::util::ThreadLocalStorage tls;
 		tls.resize(unit->threadLocalMemorySize());
 
 		// Initialize algebraic variables in state vector
@@ -112,7 +112,7 @@ namespace unitoperation
 
 		const AdJacobianParams adParams{adRes, adY, nSens};
 
-		cadet::util::ThreadLocalStorage<double> tls;
+		cadet::util::ThreadLocalStorage tls;
 		tls.resize(unit->threadLocalMemorySize());
 
 		// Setup matrices
@@ -196,7 +196,7 @@ namespace unitoperation
 		// Obtain memory
 		std::vector<double> y(unit->numDofs(), 0.0);
 		std::vector<double> jac(unit->numDofs(), 0.0);
-		cadet::util::ThreadLocalStorage<double> tls;
+		cadet::util::ThreadLocalStorage tls;
 		tls.resize(unit->threadLocalMemorySize());
 
 		// Assemble Jacobian

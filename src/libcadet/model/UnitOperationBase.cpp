@@ -213,7 +213,7 @@ namespace
 }
 
 UnitOperationBase::UnitOperationBase(UnitOpIdx unitOpIdx) : _unitOpIdx(unitOpIdx), _binding(0, nullptr), _singleBinding(false),
-	_dynReaction(0, nullptr), _singleDynReaction(false)
+	_dynReaction(0, nullptr), _singleDynReaction(false), _nonlinearSolver(nullptr)
 {
 }
 
@@ -221,6 +221,8 @@ UnitOperationBase::~UnitOperationBase() CADET_NOEXCEPT
 {
 	clearBindingModels();
 	clearDynamicReactionModels();
+
+	delete _nonlinearSolver;
 }
 
 void UnitOperationBase::clearBindingModels() CADET_NOEXCEPT
@@ -405,6 +407,25 @@ void UnitOperationBase::clearSensParams()
 unsigned int UnitOperationBase::numSensParams() const
 {
 	return _sensParams.size();
+}
+
+void UnitOperationBase::configureNonlinearSolver(IParameterProvider& paramProvider)
+{
+	if (paramProvider.exists("consistency_solver"))
+	{
+		paramProvider.pushScope("consistency_solver");
+
+		const std::string nonlinName = paramProvider.getString("SOLVER_NAME");
+		_nonlinearSolver = nonlin::createSolver(nonlinName);
+		_nonlinearSolver->configure(paramProvider);
+
+		paramProvider.popScope();
+	}
+	else
+	{
+		// Use default solver with default settings
+		_nonlinearSolver = nonlin::createSolver("");
+	}
 }
 
 int UnitOperationBase::residualSensFwdCombine(const ActiveSimulationTime& simTime, const ConstSimulationState& simState,

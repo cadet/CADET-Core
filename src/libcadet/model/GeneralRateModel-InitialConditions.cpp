@@ -14,9 +14,10 @@
 #include "model/BindingModel.hpp"
 #include "linalg/DenseMatrix.hpp"
 #include "linalg/BandMatrix.hpp"
+#include "linalg/Subset.hpp"
 #include "ParamReaderHelper.hpp"
 #include "AdUtils.hpp"
-#include "model/parts/BindingConsistentInit.hpp"
+#include "model/parts/BindingCellKernel.hpp"
 #include "SimulationTypes.hpp"
 #include "SensParamUtil.hpp"
 
@@ -301,7 +302,7 @@ void GeneralRateModel::readInitialCondition(IParameterProvider& paramProvider)
  * @param [in] errorTol Error tolerance for algebraic equations
  * @todo Decrease amount of allocated memory by partially using temporary vectors (state and Schur complement)
  */
-void GeneralRateModel::consistentInitialState(const SimulationTime& simTime, double* const vecStateY, const AdJacobianParams& adJac, double errorTol, const util::ThreadLocalArray& threadLocalMem)
+void GeneralRateModel::consistentInitialState(const SimulationTime& simTime, double* const vecStateY, const AdJacobianParams& adJac, double errorTol, util::ThreadLocalStorage& threadLocalMem)
 {
 	BENCH_SCOPE(_timerConsistentInit);
 
@@ -312,43 +313,276 @@ void GeneralRateModel::consistentInitialState(const SimulationTime& simTime, dou
 	// Step 1a: Compute quasi-stationary binding model state
 	for (unsigned int type = 0; type < _disc.nParType; ++type)
 	{
-		if (_binding[type]->hasAlgebraicEquations())
+		if (!_binding[type]->hasQuasiStationaryReactions())
+			continue;
+
+		// Copy quasi-stationary binding mask to a local array that also includes the mobile phase
+		std::vector<int> qsMask(_disc.nComp + _disc.strideBound[type], false);
+		int const* const qsMaskSrc = _binding[type]->reactionQuasiStationarity();
+		std::copy_n(qsMaskSrc, _disc.strideBound[type], qsMask.data() + _disc.nComp);
+
+		// Activate mobile phase components that have at least one active bound state
+		unsigned int bndStartIdx = 0;
+		unsigned int numActiveComp = 0;
+		for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
 		{
-			// TODO: Check memory consumption and offsets
-
-			ad::BandedJacobianExtractor jacExtractor(_jacP[type * _disc.nCol].lowerBandwidth(), _jacP[type * _disc.nCol].lowerBandwidth(), _jacP[type * _disc.nCol].upperBandwidth());
-
-			//Problem capturing variables here
-#ifdef CADET_PARALLELIZE
-			BENCH_SCOPE(_timerConsistentInitPar);
-			tbb::parallel_for(size_t(0), size_t(_disc.nCol), [&](size_t pblk)
-#else
-			for (unsigned int pblk = 0; pblk < _disc.nCol; ++pblk)
-#endif
+			for (unsigned int bnd = 0; bnd < _disc.nBound[_disc.nComp * type + comp]; ++bnd)
 			{
-				// Reuse memory of band matrix for dense matrix
-				linalg::DenseMatrixView jacobianMatrix(_jacPdisc[type * _disc.nCol + pblk].data(), _jacPdisc[type * _disc.nCol + pblk].pivot(), _disc.strideBound[type], _disc.strideBound[type]);
-
-				// Midpoint of current column cell (z coordinate) - needed in externally dependent adsorption kinetic
-				const double z = (0.5 + static_cast<double>(pblk)) / static_cast<double>(_disc.nCol);
-
-				// This loop cannot be run in parallel without creating a Jacobian matrix for each thread which would increase memory usage
-				const int localOffsetToParticle = idxr.offsetCp(ParticleTypeIndex{type}, ParticleIndex{static_cast<unsigned int>(pblk)});
-				for(size_t shell = 0; shell < size_t(_disc.nParCell[type]); ++shell)
+				if (qsMaskSrc[bndStartIdx + bnd])
 				{
-					const int localOffsetInParticle = static_cast<int>(shell) * idxr.strideParShell(type) + idxr.strideParLiquid();
-
-					// Get pointer to q variables in a shell of particle pblk
-					double* const qShell = vecStateY + localOffsetToParticle + localOffsetInParticle;
-					active* const localAdRes = adJac.adRes ? adJac.adRes + localOffsetToParticle : nullptr;
-					active* const localAdY = adJac.adY ? adJac.adY + localOffsetToParticle : nullptr;
-
-					// Solve algebraic variables
-					_binding[type]->consistentInitialState(simTime.t, simTime.secIdx, ColumnPosition{z, 0.0, static_cast<double>(_parCenterRadius[_disc.nParCellsBeforeType[type] + shell]) / static_cast<double>(_parRadius[type])}, qShell, qShell - idxr.strideParLiquid(), errorTol,
-						localAdRes, localAdY, localOffsetInParticle, adJac.adDirOffset, jacExtractor, threadLocalMem.get(), jacobianMatrix);
+					++numActiveComp;
+					qsMask[comp] = true;
+					break;
 				}
-			} CADET_PARFOR_END;
+			}
+
+			bndStartIdx += _disc.nBound[_disc.nComp * type + comp];
 		}
+
+		const linalg::ConstMaskArray mask{qsMask.data(), static_cast<int>(_disc.nComp + _disc.strideBound[type])};
+		const int probSize = linalg::numMaskActive(mask);
+
+#ifdef CADET_PARALLELIZE
+		BENCH_SCOPE(_timerConsistentInitPar);
+		tbb::parallel_for(size_t(0), size_t(_disc.nCol), [&](size_t pblk)
+#else
+		for (unsigned int pblk = 0; pblk < _disc.nCol; ++pblk)
+#endif
+		{
+			LinearBufferAllocator tlmAlloc = threadLocalMem.get();
+
+			// Reuse memory of band matrix for dense matrix
+			linalg::DenseMatrixView fullJacobianMatrix(_jacPdisc[type * _disc.nCol + pblk].data(), nullptr, mask.len, mask.len);
+
+			// Midpoint of current column cell (z coordinate) - needed in externally dependent adsorption kinetic
+			const double z = (0.5 + static_cast<double>(pblk)) / static_cast<double>(_disc.nCol);
+
+			// Get workspace memory
+			BufferedArray<double> nonlinMemBuffer = tlmAlloc.array<double>(_nonlinearSolver->workspaceSize(probSize));
+			double* const nonlinMem = static_cast<double*>(nonlinMemBuffer);
+
+			BufferedArray<double> solutionBuffer = tlmAlloc.array<double>(probSize);
+			double* const solution = static_cast<double*>(solutionBuffer);
+
+			BufferedArray<double> fullResidualBuffer = tlmAlloc.array<double>(mask.len);
+			double* const fullResidual = static_cast<double*>(fullResidualBuffer);
+
+			BufferedArray<double> fullXBuffer = tlmAlloc.array<double>(mask.len);
+			double* const fullX = static_cast<double*>(fullXBuffer);
+
+			BufferedArray<double> jacobianMemBuffer = tlmAlloc.array<double>(probSize * probSize);
+			double* const jacobianMem = static_cast<double*>(jacobianMemBuffer);
+
+			BufferedArray<double> conservedQuantsBuffer = tlmAlloc.array<double>(numActiveComp);
+			double* const conservedQuants = static_cast<double*>(conservedQuantsBuffer);
+
+			linalg::DenseMatrixView jacobianMatrix(jacobianMem, _jacPdisc[type * _disc.nCol + pblk].pivot(), probSize, probSize);
+			const parts::cell::CellParameters cellResParams = makeCellResidualParams(type, mask.mask + _disc.nComp);
+
+			// This loop cannot be run in parallel without creating a Jacobian matrix for each thread which would increase memory usage
+			const int localOffsetToParticle = idxr.offsetCp(ParticleTypeIndex{type}, ParticleIndex{static_cast<unsigned int>(pblk)});
+			for(size_t shell = 0; shell < size_t(_disc.nParCell[type]); ++shell)
+			{
+				const int localOffsetInParticle = static_cast<int>(shell) * idxr.strideParShell(type);
+
+				// Get pointer to q variables in a shell of particle pblk
+				double* const qShell = vecStateY + localOffsetToParticle + localOffsetInParticle + idxr.strideParLiquid();
+				active* const localAdRes = adJac.adRes ? adJac.adRes + localOffsetToParticle + localOffsetInParticle : nullptr;
+				active* const localAdY = adJac.adY ? adJac.adY + localOffsetToParticle + localOffsetInParticle : nullptr;
+
+				const ColumnPosition colPos{z, 0.0, static_cast<double>(_parCenterRadius[_disc.nParCellsBeforeType[type] + shell]) / static_cast<double>(_parRadius[type])};
+
+				// Determine whether nonlinear solver is required
+				if (!_binding[type]->preConsistentInitialState(simTime.t, simTime.secIdx, colPos, qShell, qShell - idxr.strideParLiquid(), tlmAlloc))
+					continue;
+
+				// Extract initial values from current state
+				linalg::selectVectorSubset(qShell - _disc.nComp, mask, solution);
+
+				// Save values of conserved moieties
+				const double epsQ = 1.0 - static_cast<double>(_parPorosity[type]);
+				linalg::conservedMoietiesFromPartitionedMask(mask, _disc.nBound + type * _disc.nComp, _disc.nComp, qShell - _disc.nComp, conservedQuants, static_cast<double>(_parPorosity[type]), epsQ);
+
+				std::function<bool(double const* const, linalg::detail::DenseMatrixBase&)> jacFunc;
+				if (localAdY && localAdRes)
+				{
+					jacFunc = [&](double const* const x, linalg::detail::DenseMatrixBase& mat)
+					{
+						// Copy over state vector to AD state vector (without changing directional values to keep seed vectors)
+						// and initalize residuals with zero (also resetting directional values)
+						ad::copyToAd(qShell - _disc.nComp, localAdY, mask.len);
+						// @todo Check if this is necessary
+						ad::resetAd(localAdRes, mask.len);
+
+						// Prepare input vector by overwriting masked items
+						linalg::applyVectorSubset(x, mask, localAdY);
+
+						// Call residual function
+						parts::cell::residualKernel<active, active, double, parts::cell::CellParameters, linalg::DenseBandedRowIterator, false, true>(
+							simTime.t, simTime.secIdx, 0.0, colPos, localAdY, nullptr, localAdRes, fullJacobianMatrix.row(0), cellResParams, tlmAlloc
+						);
+
+#ifdef CADET_CHECK_ANALYTIC_JACOBIAN
+						std::copy_n(qShell - _disc.nComp, mask.len, fullX);
+						linalg::applyVectorSubset(x, mask, fullX);
+
+						// Compute analytic Jacobian
+						parts::cell::residualKernel<double, double, double, parts::cell::CellParameters, linalg::DenseBandedRowIterator, true, true>(
+							simTime.t, simTime.secIdx, 0.0, colPos, fullX, nullptr, fullResidual, fullJacobianMatrix.row(0), cellResParams, tlmAlloc
+						);
+
+						// Compare
+						const double diff = ad::compareDenseJacobianWithBandedAd(
+							localAdRes, localOffsetInParticle, adJac.adDirOffset, _jacP[type * _disc.nCol].lowerBandwidth(),
+							_jacP[type * _disc.nCol].lowerBandwidth(), _jacP[type * _disc.nCol].upperBandwidth(), fullJacobianMatrix
+						);
+						LOG(Debug) << "MaxDiff " << adEqOffset << ": " << diff;
+#endif
+
+						// Extract Jacobian from AD
+						ad::extractDenseJacobianFromBandedAd(
+							localAdRes, localOffsetInParticle, adJac.adDirOffset, _jacP[type * _disc.nCol].lowerBandwidth(),
+							_jacP[type * _disc.nCol].lowerBandwidth(), _jacP[type * _disc.nCol].upperBandwidth(), fullJacobianMatrix
+						);
+
+						// Extract Jacobian from full Jacobian
+						mat.setAll(0.0);
+						linalg::copyMatrixSubset(fullJacobianMatrix, mask, mask, mat);
+
+						// Replace upper part with conservation relations
+						mat.submatrixSetAll(0.0, 0, 0, numActiveComp, probSize);
+
+						unsigned int bndIdx = 0;
+						unsigned int rIdx = 0;
+						unsigned int bIdx = 0;
+						for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
+						{
+							if (!mask.mask[comp])
+							{
+								bndIdx += _disc.nBound[_disc.nComp * type + comp];
+								continue;
+							}
+
+							mat.native(rIdx, rIdx) = static_cast<double>(_parPorosity[type]);
+
+							for (unsigned int bnd = 0; bnd < _disc.nBound[_disc.nComp * type + comp]; ++bnd, ++bndIdx)
+							{
+								if (mask.mask[bndIdx])
+								{
+									mat.native(rIdx, bIdx + numActiveComp) = epsQ;
+									++bIdx;
+								}
+							}
+
+							++rIdx;
+						}
+
+						return true;
+					};
+				}
+				else
+				{
+					jacFunc = [&](double const* const x, linalg::detail::DenseMatrixBase& mat)
+					{
+						// Prepare input vector by overwriting masked items
+						std::copy_n(qShell - _disc.nComp, mask.len, fullX);
+						linalg::applyVectorSubset(x, mask, fullX);
+
+						// Call residual function
+						parts::cell::residualKernel<double, double, double, parts::cell::CellParameters, linalg::DenseBandedRowIterator, true, true>(
+							simTime.t, simTime.secIdx, 0.0, colPos, fullX, nullptr, fullResidual, fullJacobianMatrix.row(0), cellResParams, tlmAlloc
+						);
+
+						// Extract Jacobian from full Jacobian
+						mat.setAll(0.0);
+						linalg::copyMatrixSubset(fullJacobianMatrix, mask, mask, mat);
+
+						// Replace upper part with conservation relations
+						mat.submatrixSetAll(0.0, 0, 0, numActiveComp, probSize);
+
+						unsigned int bndIdx = 0;
+						unsigned int rIdx = 0;
+						unsigned int bIdx = 0;
+						for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
+						{
+							if (!mask.mask[comp])
+							{
+								bndIdx += _disc.nBound[_disc.nComp * type + comp];
+								continue;
+							}
+
+							mat.native(rIdx, rIdx) = static_cast<double>(_parPorosity[type]);
+
+							for (unsigned int bnd = 0; bnd < _disc.nBound[_disc.nComp * type + comp]; ++bnd, ++bndIdx)
+							{
+								if (mask.mask[bndIdx])
+								{
+									mat.native(rIdx, bIdx + numActiveComp) = epsQ;
+									++bIdx;
+								}
+							}
+
+							++rIdx;
+						}
+
+						return true;
+					};
+				}
+
+				// Apply nonlinear solver
+				_nonlinearSolver->solve(
+					[&](double const* const x, double* const r)
+					{
+						// Prepare input vector by overwriting masked items
+						std::copy_n(qShell - _disc.nComp, mask.len, fullX);
+						linalg::applyVectorSubset(x, mask, fullX);
+
+						// Call residual function
+						parts::cell::residualKernel<double, double, double, parts::cell::CellParameters, linalg::DenseBandedRowIterator, false, true>(
+							simTime.t, simTime.secIdx, 0.0, colPos, fullX, nullptr, fullResidual, fullJacobianMatrix.row(0), cellResParams, tlmAlloc
+						);
+
+						// Extract values from residual
+						linalg::selectVectorSubset(fullResidual, mask, r);
+
+						// Calculate residual of conserved moieties
+						std::fill_n(r, numActiveComp, 0.0);
+						unsigned int bndIdx = _disc.nComp;
+						unsigned int rIdx = 0;
+						unsigned int bIdx = 0;
+						for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
+						{
+							if (!mask.mask[comp])
+							{
+								bndIdx += _disc.nBound[_disc.nComp * type + comp];
+								continue;
+							}
+
+							r[rIdx] = static_cast<double>(_parPorosity[type]) * x[rIdx] - conservedQuants[rIdx];
+
+							for (unsigned int bnd = 0; bnd < _disc.nBound[_disc.nComp * type + comp]; ++bnd, ++bndIdx)
+							{
+								if (mask.mask[bndIdx])
+								{
+									r[rIdx] += epsQ * x[bIdx + numActiveComp];
+									++bIdx;
+								}
+							}
+
+							++rIdx;
+						}
+
+						return true;
+					},
+					jacFunc, errorTol, solution, nonlinMem, jacobianMatrix, probSize);
+
+				// Apply solution
+				linalg::applyVectorSubset(solution, mask, qShell - idxr.strideParLiquid());
+
+				// Refine / correct solution
+				_binding[type]->postConsistentInitialState(simTime.t, simTime.secIdx, colPos, qShell, qShell - idxr.strideParLiquid(), tlmAlloc);
+			}
+		} CADET_PARFOR_END;
 	}
 
 	// Step 1b: Compute fluxes j_f
@@ -407,7 +641,7 @@ void GeneralRateModel::consistentInitialState(const SimulationTime& simTime, dou
  * @param [in] vecStateY Consistently initialized state vector
  * @param [in,out] vecStateYdot On entry, residual without taking time derivatives into account. On exit, consistent state time derivatives.
  */
-void GeneralRateModel::consistentInitialTimeDerivative(const SimulationTime& simTime, double const* vecStateY, double* const vecStateYdot, const util::ThreadLocalArray& threadLocalMem)
+void GeneralRateModel::consistentInitialTimeDerivative(const SimulationTime& simTime, double const* vecStateY, double* const vecStateYdot, util::ThreadLocalStorage& threadLocalMem)
 {
 	BENCH_SCOPE(_timerConsistentInit);
 
@@ -443,27 +677,43 @@ void GeneralRateModel::consistentInitialTimeDerivative(const SimulationTime& sim
 		fbm.setAll(0.0);
 
 		linalg::FactorizableBandMatrix::RowIterator jac = fbm.row(0);
+
+		LinearBufferAllocator tlmAlloc = threadLocalMem.get();
+		double* const dFluxDt = _tempState + idxr.offsetCp(ParticleTypeIndex{type}, ParticleIndex{par});
+
 		for (unsigned int j = 0; j < _disc.nParCell[type]; ++j)
 		{
-			// Mobile phase (advances jac accordingly)
-			addMobilePhaseTimeDerivativeToJacobianParticleBlock(jac, idxr, 1.0, simTime.timeFactor, type);
+			addTimeDerivativeToJacobianParticleShell(jac, idxr, 1.0, simTime.timeFactor, type);
+			// Iterator jac has already been advanced to next shell
 
-			// Stationary phase
-			// Populate matrix with time derivative Jacobian first
-			_binding[type]->jacobianAddDiscretized(simTime.timeFactor, jac);
+			if (!_binding[type]->hasQuasiStationaryReactions())
+				continue;
 
-			// Overwrite rows corresponding to algebraic equations with the Jacobian and set right hand side to 0
-			if (_binding[type]->hasAlgebraicEquations())
+			// Get iterators to beginning of solid phase
+			linalg::BandMatrix::RowIterator jacSolidOrig = _jacP[pblk].row(j * static_cast<unsigned int>(idxr.strideParShell(type)) + static_cast<unsigned int>(idxr.strideParLiquid()));
+			linalg::FactorizableBandMatrix::RowIterator jacSolid = jac - idxr.strideParBound(type);
+
+			int const* const mask = _binding[type]->reactionQuasiStationarity();
+			double* const qShellDot = vecStateYdot + idxr.offsetCp(ParticleTypeIndex{type}, ParticleIndex{par}) + static_cast<int>(j) * idxr.strideParShell(type) + idxr.strideParLiquid();
+
+			// Obtain derivative of fluxes wrt. time
+			std::fill_n(dFluxDt, _disc.strideBound[type], 0.0);
+			if (_binding[type]->dependsOnTime())
 			{
-				parts::BindingConsistentInitializer::consistentInitialTimeDerivative(_binding[type], simTime, jac,
-					_jacP[pblk].row(j * static_cast<unsigned int>(idxr.strideParShell(type)) + static_cast<unsigned int>(idxr.strideParLiquid())),
-					vecStateYdot + idxr.offsetCp(ParticleTypeIndex{type}, ParticleIndex{par}) + static_cast<int>(j) * idxr.strideParShell(type) + idxr.strideParLiquid(),
+				_binding[type]->timeDerivativeQuasiStationaryFluxes(simTime.t, simTime.secIdx,
 					ColumnPosition{z, 0.0, static_cast<double>(_parCenterRadius[_disc.nParCellsBeforeType[type] + j]) / static_cast<double>(_parRadius[type])},
-					threadLocalMem.get());
+					qShellDot - _disc.nComp, qShellDot, dFluxDt, tlmAlloc);
 			}
 
-			// Advance pointers over all bound states
-			jac += idxr.strideParBound(type);
+			// Copy row from original Jacobian and set right hand side
+			for (int i = 0; i < idxr.strideParBound(type); ++i, ++jacSolid, ++jacSolidOrig)
+			{
+				if (!mask[i])
+					continue;
+
+				jacSolid.copyRowFrom(jacSolidOrig);
+				qShellDot[i] = -dFluxDt[i];
+			}
 		}
 
 		// Precondition
@@ -543,7 +793,7 @@ void GeneralRateModel::consistentInitialTimeDerivative(const SimulationTime& sim
  * @param [in,out] adJac Jacobian information for AD (AD vectors for residual and state, direction offset)
  * @param [in] errorTol Error tolerance for algebraic equations
  */
-void GeneralRateModel::leanConsistentInitialState(const SimulationTime& simTime, double* const vecStateY, const AdJacobianParams& adJac, double errorTol, const util::ThreadLocalArray& threadLocalMem)
+void GeneralRateModel::leanConsistentInitialState(const SimulationTime& simTime, double* const vecStateY, const AdJacobianParams& adJac, double errorTol, util::ThreadLocalStorage& threadLocalMem)
 {
 	if (isSectionDependent(_parDiffusionMode) || isSectionDependent(_parSurfDiffusionMode))
 		LOG(Warning) << "Lean consistent initialization is not appropriate for section-dependent pore and surface diffusion";
@@ -552,7 +802,43 @@ void GeneralRateModel::leanConsistentInitialState(const SimulationTime& simTime,
 
 	Indexer idxr(_disc);
 
-	// Step 1: Compute fluxes j_f
+	// Step 1: Solve algebraic equations
+
+	// Step 1a: Compute quasi-stationary binding model state
+	for (unsigned int type = 0; type < _disc.nParType; ++type)
+	{
+		if (_binding[type]->hasQuasiStationaryReactions())
+		{
+#ifdef CADET_PARALLELIZE
+			BENCH_SCOPE(_timerConsistentInitPar);
+			tbb::parallel_for(size_t(0), size_t(_disc.nCol), [&](size_t pblk)
+#else
+			for (unsigned int pblk = 0; pblk < _disc.nCol; ++pblk)
+#endif
+			{
+				LinearBufferAllocator tlmAlloc = threadLocalMem.get();
+
+				// Midpoint of current column cell (z coordinate) - needed in externally dependent adsorption kinetic
+				const double z = (0.5 + static_cast<double>(pblk)) / static_cast<double>(_disc.nCol);
+
+				const int localOffsetToParticle = idxr.offsetCp(ParticleTypeIndex{type}, ParticleIndex{static_cast<unsigned int>(pblk)});
+				for(size_t shell = 0; shell < size_t(_disc.nParCell[type]); ++shell)
+				{
+					// Get pointer to q variables in a shell of particle pblk
+					const int localOffsetInParticle = static_cast<int>(shell) * idxr.strideParShell(type) + idxr.strideParLiquid();
+					double* const qShell = vecStateY + localOffsetToParticle + localOffsetInParticle;
+
+					const ColumnPosition colPos{z, 0.0, static_cast<double>(_parCenterRadius[_disc.nParCellsBeforeType[type] + shell]) / static_cast<double>(_parRadius[type])};
+
+					// Perform consistent initialization that does not require a full fledged nonlinear solver (that may fail or damage the current state vector)
+					if (!_binding[type]->preConsistentInitialState(simTime.t, simTime.secIdx, colPos, qShell, qShell - idxr.strideParLiquid(), tlmAlloc))
+						continue;
+				}
+			} CADET_PARFOR_END;
+		}
+	}
+
+	// Step 1b: Compute fluxes j_f
 
 	// Reset j_f to 0.0
 	double* const jf = vecStateY + idxr.offsetJf();
@@ -604,7 +890,7 @@ void GeneralRateModel::leanConsistentInitialState(const SimulationTime& simTime,
  * @param [in,out] vecStateYdot On entry, inconsistent state time derivatives. On exit, partially consistent state time derivatives.
  * @param [in] res On entry, residual without taking time derivatives into account. The data is overwritten during execution of the function.
  */
-void GeneralRateModel::leanConsistentInitialTimeDerivative(double t, double timeFactor, double const* const vecStateY, double* const vecStateYdot, double* const res, const util::ThreadLocalArray& threadLocalMem)
+void GeneralRateModel::leanConsistentInitialTimeDerivative(double t, double timeFactor, double const* const vecStateY, double* const vecStateYdot, double* const res, util::ThreadLocalStorage& threadLocalMem)
 {
 	if (isSectionDependent(_parDiffusionMode) || isSectionDependent(_parSurfDiffusionMode))
 		LOG(Warning) << "Lean consistent initialization is not appropriate for section-dependent pore and surface diffusion";
@@ -736,7 +1022,7 @@ void GeneralRateModel::initializeSensitivityStates(const std::vector<double*>& v
  * @todo Decrease amount of allocated memory by partially using temporary vectors (state and Schur complement)
  */
 void GeneralRateModel::consistentInitialSensitivity(const ActiveSimulationTime& simTime, const ConstSimulationState& simState,
-	std::vector<double*>& vecSensY, std::vector<double*>& vecSensYdot, active const* const adRes, const util::ThreadLocalArray& threadLocalMem)
+	std::vector<double*>& vecSensY, std::vector<double*>& vecSensYdot, active const* const adRes, util::ThreadLocalStorage& threadLocalMem)
 {
 	BENCH_SCOPE(_timerConsistentInit);
 
@@ -756,34 +1042,67 @@ void GeneralRateModel::consistentInitialSensitivity(const ActiveSimulationTime& 
 		// Step 1a: Compute quasi-stationary binding model state
 		for (unsigned int type = 0; type < _disc.nParType; ++type)
 		{
-			if (_binding[type]->hasAlgebraicEquations())
-			{
+			if (!_binding[type]->hasQuasiStationaryReactions())
+				continue;
+
+			int const* const qsMask = _binding[type]->reactionQuasiStationarity();
+			const linalg::ConstMaskArray mask{qsMask, static_cast<int>(_disc.strideBound[type])};
+			const int probSize = linalg::numMaskActive(mask);
+
 #ifdef CADET_PARALLELIZE
-				BENCH_SCOPE(_timerConsistentInitPar);
-				tbb::parallel_for(size_t(0), size_t(_disc.nCol), [&](size_t pblk)
+			BENCH_SCOPE(_timerConsistentInitPar);
+			tbb::parallel_for(size_t(0), size_t(_disc.nCol), [&](size_t pblk)
 #else
-				for (unsigned int pblk = 0; pblk < _disc.nCol; ++pblk)
+			for (unsigned int pblk = 0; pblk < _disc.nCol; ++pblk)
 #endif
+			{
+				// Reuse memory of band matrix for dense matrix
+				linalg::DenseMatrixView jacobianMatrix(_jacPdisc[type * _disc.nCol + pblk].data(), _jacPdisc[type * _disc.nCol + pblk].pivot(), probSize, probSize);
+
+				// Get workspace memory
+				LinearBufferAllocator tlmAlloc = threadLocalMem.get();
+
+				BufferedArray<double> rhsBuffer = tlmAlloc.array<double>(probSize);
+				double* const rhs = static_cast<double*>(rhsBuffer);
+
+				BufferedArray<double> rhsUnmaskedBuffer = tlmAlloc.array<double>(idxr.strideParBound(type));
+				double* const rhsUnmasked = static_cast<double*>(rhsUnmaskedBuffer);
+
+				double* const maskedMultiplier = _tempState + idxr.offsetCp(ParticleTypeIndex{type}, ParticleIndex{static_cast<unsigned int>(pblk)});
+				double* const scaleFactors = _tempState + idxr.offsetCp(ParticleTypeIndex{type}, ParticleIndex{static_cast<unsigned int>(pblk)});
+
+				for (unsigned int shell = 0; shell < _disc.nParCell[type]; ++shell)
 				{
-					// Get algebraic block
-					unsigned int algStart = 0;
-					unsigned int algLen = 0;
-					_binding[type]->getAlgebraicBlock(algStart, algLen);
+					const int jacRowOffset = static_cast<int>(shell) * idxr.strideParShell(type) + _disc.nComp;
+					const int localQOffset = idxr.offsetCp(ParticleTypeIndex{type}, ParticleIndex{static_cast<unsigned int>(pblk)}) + static_cast<int>(shell) * idxr.strideParShell(type) + idxr.strideParLiquid();
 
-					// Reuse memory of band matrix for dense matrix
-					linalg::DenseMatrixView jacobianMatrix(_jacPdisc[type * _disc.nCol + pblk].data(), _jacPdisc[type * _disc.nCol + pblk].pivot(), algLen, algLen);
+					// Extract subproblem Jacobian from full Jacobian
+					jacobianMatrix.setAll(0.0);
+					linalg::copyMatrixSubset(_jacP[type * _disc.nCol + pblk], mask, mask, jacRowOffset, 0, jacobianMatrix);
 
-					for (unsigned int shell = 0; shell < _disc.nParCell[type]; ++shell)
-					{
-						const unsigned int jacRowOffset = shell * static_cast<unsigned int>(idxr.strideParShell(type)) + static_cast<unsigned int>(idxr.strideParLiquid());
-						const int localCpOffset = idxr.offsetCp(ParticleTypeIndex{type}, ParticleIndex{static_cast<unsigned int>(pblk)}) + static_cast<int>(shell) * idxr.strideParShell(type);
+					// Construct right hand side
+					linalg::selectVectorSubset(sensYdot + localQOffset, mask, rhs);
 
-						parts::BindingConsistentInitializer::consistentInitialSensitivityState(algStart, algLen, jacobianMatrix,
-							_jacP[type * _disc.nCol + pblk], localCpOffset, jacRowOffset, idxr.strideParLiquid(), _disc.strideBound[type],
-							sensY, sensYdot, _tempState + idxr.offsetCp(ParticleTypeIndex{type}, ParticleIndex{static_cast<unsigned int>(pblk)}));
-					}
-				} CADET_PARFOR_END;
-			}
+					// Zero out masked elements
+					std::copy_n(sensY + localQOffset - idxr.strideParLiquid(), idxr.strideParShell(type), maskedMultiplier);
+					linalg::fillVectorSubset(maskedMultiplier + _disc.nComp, mask, 0.0);
+
+					// Assemble right hand side
+					_jacP[type * _disc.nCol + pblk].submatrixMultiplyVector(maskedMultiplier, jacRowOffset, -static_cast<int>(_disc.nComp), _disc.strideBound[type], idxr.strideParShell(type), rhsUnmasked);
+					linalg::vectorSubsetAdd(rhsUnmasked, mask, -1.0, 1.0, rhs);
+
+					// Precondition
+					jacobianMatrix.rowScaleFactors(scaleFactors);
+					jacobianMatrix.scaleRows(scaleFactors);
+
+					// Solve
+					jacobianMatrix.factorize();
+					jacobianMatrix.solve(scaleFactors, rhs);
+
+					// Write back
+					linalg::applyVectorSubset(rhs, mask, sensY + localQOffset);
+				}
+			} CADET_PARFOR_END;
 		}
 
 		// Step 1b: Compute fluxes j_f, right hand side is -dF / dp
@@ -821,23 +1140,34 @@ void GeneralRateModel::consistentInitialSensitivity(const ActiveSimulationTime& 
 			linalg::FactorizableBandMatrix::RowIterator jac = fbm.row(0);
 			for (unsigned int j = 0; j < _disc.nParCell[type]; ++j)
 			{
-				// Mobile phase (advances jac accordingly)
-				addMobilePhaseTimeDerivativeToJacobianParticleBlock(jac, idxr, 1.0, static_cast<double>(simTime.timeFactor), type);
-
-				// Stationary phase
 				// Populate matrix with time derivative Jacobian first
-				_binding[type]->jacobianAddDiscretized(static_cast<double>(simTime.timeFactor), jac);
+				addTimeDerivativeToJacobianParticleShell(jac, idxr, 1.0, static_cast<double>(simTime.timeFactor), type);
+				// Iterator jac has already been advanced to next shell
 
 				// Overwrite rows corresponding to algebraic equations with the Jacobian and set right hand side to 0
-				if (_binding[type]->hasAlgebraicEquations())
+				if (_binding[type]->hasQuasiStationaryReactions())
 				{
-					parts::BindingConsistentInitializer::consistentInitialSensitivityTimeDerivative(_binding[type], jac,
-						_jacP[pblk].row(j * static_cast<unsigned int>(idxr.strideParShell(type)) + static_cast<unsigned int>(idxr.strideParLiquid())),
-						sensYdot + idxr.offsetCp(ParticleTypeIndex{type}, ParticleIndex{par}) + static_cast<int>(j) * idxr.strideParShell(type) + idxr.strideParLiquid());
-				}
+					// Get iterators to beginning of solid phase
+					linalg::BandMatrix::RowIterator jacSolidOrig = _jacP[pblk].row(j * static_cast<unsigned int>(idxr.strideParShell(type)) + static_cast<unsigned int>(idxr.strideParLiquid()));
+					linalg::FactorizableBandMatrix::RowIterator jacSolid = jac - idxr.strideParBound(type);
 
-				// Advance pointers over all bound states
-				jac += idxr.strideParBound(type);
+					int const* const mask = _binding[type]->reactionQuasiStationarity();
+					double* const qShellDot = sensYdot + idxr.offsetCp(ParticleTypeIndex{type}, ParticleIndex{par}) + static_cast<int>(j) * idxr.strideParShell(type) + idxr.strideParLiquid();
+
+					// Copy row from original Jacobian and set right hand side
+					for (int i = 0; i < idxr.strideParBound(type); ++i, ++jacSolid, ++jacSolidOrig)
+					{
+						if (!mask[i])
+							continue;
+
+						jacSolid.copyRowFrom(jacSolidOrig);
+
+						// Right hand side is -\frac{\partial^2 res(t, y, \dot{y})}{\partial p \partial t}
+						// If the residual is not explicitly depending on time, this expression is 0
+						// @todo This is wrong if external functions are used. Take that into account!
+						qShellDot[i] = 0.0;
+					}
+				}
 			}   
 
 			// Precondition
@@ -916,7 +1246,7 @@ void GeneralRateModel::consistentInitialSensitivity(const ActiveSimulationTime& 
  * @todo Decrease amount of allocated memory by partially using temporary vectors (state and Schur complement)
  */
 void GeneralRateModel::leanConsistentInitialSensitivity(const ActiveSimulationTime& simTime, const ConstSimulationState& simState,
-	std::vector<double*>& vecSensY, std::vector<double*>& vecSensYdot, active const* const adRes, const util::ThreadLocalArray& threadLocalMem)
+	std::vector<double*>& vecSensY, std::vector<double*>& vecSensYdot, active const* const adRes, util::ThreadLocalStorage& threadLocalMem)
 {
 	if (isSectionDependent(_parDiffusionMode) || isSectionDependent(_parSurfDiffusionMode))
 		LOG(Warning) << "Lean consistent initialization is not appropriate for section-dependent pore and surface diffusion";

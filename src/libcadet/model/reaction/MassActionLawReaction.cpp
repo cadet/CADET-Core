@@ -18,19 +18,13 @@
 #include "LocalVector.hpp"
 #include "SimulationTypes.hpp"
 #include "linalg/ActiveDenseMatrix.hpp"
-#include "MemoryPool.hpp"
+#include "Memory.hpp"
 
 #include <functional>
 #include <algorithm>
 #include <unordered_map>
 #include <string>
 #include <vector>
-
-namespace cadet
-{
-
-namespace model
-{
 
 /*<codegen>
 {
@@ -57,6 +51,12 @@ namespace model
  kFwdSolid = Forward rate for reactions in particle solid phase
  kBwdSolid = Backward rate for reactions in particle solid phase
 */
+
+namespace cadet
+{
+
+namespace model
+{
 
 inline const char* MassActionLawParamHandler::identifier() CADET_NOEXCEPT { return "MASS_ACTION_LAW"; }
 
@@ -155,48 +155,6 @@ namespace
 	}
 
 	/**
-	 * @brief Selects the @c active type between @c double and @c active
-	 * @tparam A Type A
-	 * @tparam B Type B
-	 */
-	template <typename A, typename B>
-	struct DoubleActivePromoter { };
-
-	template <>
-	struct DoubleActivePromoter<cadet::active, cadet::active> { typedef cadet::active type; };
-
-	template <>
-	struct DoubleActivePromoter<cadet::active, double> { typedef cadet::active type; };
-
-	template <>
-	struct DoubleActivePromoter<double, cadet::active> { typedef cadet::active type; };
-
-	template <>
-	struct DoubleActivePromoter<double, double> { typedef double type; };
-
-
-	/**
-	 * @brief Selects the @c double type between @c double and @c active
-	 * @tparam A Type A
-	 * @tparam B Type B
-	 */
-	template <typename A, typename B>
-	struct DoubleActiveDemoter { };
-
-	template <>
-	struct DoubleActiveDemoter<cadet::active, cadet::active> { typedef cadet::active type; };
-
-	template <>
-	struct DoubleActiveDemoter<cadet::active, double> { typedef double type; };
-
-	template <>
-	struct DoubleActiveDemoter<double, cadet::active> { typedef double type; };
-
-	template <>
-	struct DoubleActiveDemoter<double, double> { typedef double type; };
-
-
-	/**
 	 * @brief Calculate gradient of reaction rate (flux) in liquid phase
 	 * @param [out] fluxGrad Array that holds the gradient of the reaction rate
 	 * @param [in] r Index of the reaction
@@ -243,9 +201,11 @@ namespace
 	 * @param [in] rate Rate constant
 	 * @param [in] expLiquid Matrix with exponents of the liquid phase concentrations in the rate law
 	 * @param [in] expSolid Matrix with exponents of the solid phase concentrations in the rate law
-	 * @param [in] y Array of concentrations (points to first component of liquid phase concentrations)
+	 * @param [in] yLiquid Array of liquid phase concentrations (points to first component of liquid phase concentrations)
+	 * @param [in] ySolid Array of solid phase concentrations (points to first component of solid phase concentrations)
 	 */
-	inline void fluxGradCombined(double* fluxGrad, unsigned int r, unsigned int nComp, unsigned int nTotalBoundStates, double rate, const cadet::linalg::ActiveDenseMatrix& expLiquid, const cadet::linalg::ActiveDenseMatrix& expSolid, double const* y)
+	inline void fluxGradCombined(double* fluxGrad, unsigned int r, unsigned int nComp, unsigned int nTotalBoundStates, double rate,
+		const cadet::linalg::ActiveDenseMatrix& expLiquid, const cadet::linalg::ActiveDenseMatrix& expSolid, double const* yLiquid, double const* ySolid)
 	{
 		for (unsigned int c = 0; c < nComp; ++c)
 		{
@@ -269,11 +229,11 @@ namespace
 			if (cadet_unlikely(expLiquid.native(c, r) != 0.0))
 			{
 				const double exponentValue = static_cast<double>(expLiquid.native(c, r));
-				const double v = pow(y[c], exponentValue);
+				const double v = pow(yLiquid[c], exponentValue);
 				for (unsigned int j = 0; j < c; ++j)
 					fluxGrad[j] *= v;
 
-				fluxGrad[c] *= exponentValue * pow(y[c], exponentValue - 1.0);
+				fluxGrad[c] *= exponentValue * pow(yLiquid[c], exponentValue - 1.0);
 
 				for (unsigned int j = c + 1; j < nComp + nTotalBoundStates; ++j)
 					fluxGrad[j] *= v;
@@ -286,11 +246,11 @@ namespace
 			if (cadet_unlikely(expSolid.native(c, r) != 0.0))
 			{
 				const double exponentValue = static_cast<double>(expSolid.native(c, r));
-				const double v = pow(y[nComp + c], exponentValue);
+				const double v = pow(ySolid[c], exponentValue);
 				for (unsigned int j = 0; j < nComp + c; ++j)
 					fluxGrad[j] *= v;
 
-				fluxGrad[nComp + c] *= exponentValue * pow(y[nComp + c], exponentValue - 1.0);
+				fluxGrad[nComp + c] *= exponentValue * pow(ySolid[c], exponentValue - 1.0);
 
 				for (unsigned int j = c + 1; j < nTotalBoundStates; ++j)
 					fluxGrad[nComp + j] *= v;
@@ -576,18 +536,18 @@ protected:
 		return true;
 	}
 
-	template <typename StateType, typename ResidualType, typename ParamType>
-	int residualLiquidImpl(const ParamType& t, unsigned int secIdx, const ColumnPosition& colPos,
-		StateType const* y, ResidualType* res, double factor, void* workSpace) const
+	template <typename StateType, typename ResidualType, typename ParamType, typename FactorType>
+	int residualLiquidImpl(double t, unsigned int secIdx, const ColumnPosition& colPos,
+		StateType const* y, ResidualType* res, const FactorType& factor, LinearBufferAllocator workSpace) const
 	{
-		const typename ParamHandler_t::params_t& p = _paramHandler.update(static_cast<double>(t), secIdx, colPos, _nComp, _nBoundStates, static_cast<active*>(workSpace) + maxNumReactions());
+		typename ParamHandler_t::ParamsHandle const p = _paramHandler.update(t, secIdx, colPos, _nComp, _nBoundStates, workSpace);
 
 		// Calculate fluxes
 		typedef typename DoubleActivePromoter<StateType, ParamType>::type flux_t;
-		flux_t* const fluxes = rawMemoryAsArray<flux_t>(workSpace, maxNumReactions());
+		BufferedArray<flux_t> fluxes = workSpace.array<flux_t>(maxNumReactions());
 		for (unsigned int r = 0; r < _stoichiometryBulk.columns(); ++r)
 		{
-			flux_t fwd = rateConstantOrZero(static_cast<typename DoubleActiveDemoter<flux_t, active>::type>(p.kFwdBulk[r]), r, _expBulkFwd, _nComp);
+			flux_t fwd = rateConstantOrZero(static_cast<typename DoubleActiveDemoter<flux_t, active>::type>(p->kFwdBulk[r]), r, _expBulkFwd, _nComp);
 			for (unsigned int c = 0; c < _nComp; ++c)
 			{
 				if (_expBulkFwd.native(c, r) != 0.0)
@@ -595,7 +555,7 @@ protected:
 						static_cast<typename DoubleActiveDemoter<flux_t, active>::type>(_expBulkFwd.native(c, r)));
 			}
 
-			flux_t bwd = rateConstantOrZero(static_cast<typename DoubleActiveDemoter<flux_t, active>::type>(p.kBwdBulk[r]), r, _expBulkBwd, _nComp);
+			flux_t bwd = rateConstantOrZero(static_cast<typename DoubleActiveDemoter<flux_t, active>::type>(p->kBwdBulk[r]), r, _expBulkBwd, _nComp);
 			for (unsigned int c = 0; c < _nComp; ++c)
 			{
 				if (_expBulkBwd.native(c, r) != 0.0)
@@ -603,53 +563,51 @@ protected:
 						static_cast<typename DoubleActiveDemoter<flux_t, active>::type>(_expBulkBwd.native(c, r)));
 			}
 
-			LOG(Debug) << "Flux " << r << ": -> " << static_cast<double>(fwd) << "  <- " << static_cast<double>(bwd) << "  <-> " << static_cast<double>(fwd-bwd);
 			fluxes[r] = fwd - bwd;
 		}
 
 		// Add reaction terms to residual
-		_stoichiometryBulk.multiplyVector(fluxes, factor, 1.0, res);
+		_stoichiometryBulk.multiplyVector(static_cast<flux_t*>(fluxes), factor, res);
 
-		releaseRawArray(fluxes, maxNumReactions());
 		return 0;
 	}
 
 	template <typename StateType, typename ResidualType, typename ParamType>
-	int residualCombinedImpl(const ParamType& t, unsigned int secIdx, const ColumnPosition& colPos,
-		StateType const* y, ResidualType* res, double factor, void* workSpace) const
+	int residualCombinedImpl(double t, unsigned int secIdx, const ColumnPosition& colPos,
+		StateType const* yLiquid, StateType const* ySolid, ResidualType* resLiquid, ResidualType* resSolid, double factor, LinearBufferAllocator workSpace) const
 	{
-		const typename ParamHandler_t::params_t& p = _paramHandler.update(static_cast<double>(t), secIdx, colPos, _nComp, _nBoundStates, static_cast<active*>(workSpace) + maxNumReactions());
+		typename ParamHandler_t::ParamsHandle const p = _paramHandler.update(t, secIdx, colPos, _nComp, _nBoundStates, workSpace);
 
 		// Calculate fluxes in liquid phase
 		typedef typename DoubleActivePromoter<StateType, ParamType>::type flux_t;
-		flux_t* const fluxes = rawMemoryAsArray<flux_t>(workSpace, maxNumReactions());
+		BufferedArray<flux_t> fluxes = workSpace.array<flux_t>(maxNumReactions());
 		for (unsigned int r = 0; r < _stoichiometryLiquid.columns(); ++r)
 		{
-			flux_t fwd = rateConstantOrZero(static_cast<typename DoubleActiveDemoter<flux_t, active>::type>(p.kFwdLiquid[r]), r, _expLiquidFwd, _expLiquidFwdSolid, _nComp, _nTotalBoundStates);
+			flux_t fwd = rateConstantOrZero(static_cast<typename DoubleActiveDemoter<flux_t, active>::type>(p->kFwdLiquid[r]), r, _expLiquidFwd, _expLiquidFwdSolid, _nComp, _nTotalBoundStates);
 			for (unsigned int c = 0; c < _nComp; ++c)
 			{
 				if (_expLiquidFwd.native(c, r) != 0.0)
-					fwd *= pow(static_cast<typename DoubleActiveDemoter<flux_t, active>::type>(y[c]),
+					fwd *= pow(static_cast<typename DoubleActiveDemoter<flux_t, active>::type>(yLiquid[c]),
 						static_cast<typename DoubleActiveDemoter<flux_t, active>::type>(_expLiquidFwd.native(c, r)));
 			}
 			for (unsigned int c = 0; c < _nTotalBoundStates; ++c)
 			{
 				if (_expLiquidFwdSolid.native(c, r) != 0.0)
-					fwd *= pow(static_cast<typename DoubleActiveDemoter<flux_t, active>::type>(y[c + _nComp]),
+					fwd *= pow(static_cast<typename DoubleActiveDemoter<flux_t, active>::type>(ySolid[c]),
 						static_cast<typename DoubleActiveDemoter<flux_t, active>::type>(_expLiquidFwdSolid.native(c, r)));
 			}
 
-			flux_t bwd = rateConstantOrZero(static_cast<typename DoubleActiveDemoter<flux_t, active>::type>(p.kBwdLiquid[r]), r, _expLiquidBwd, _expLiquidBwdSolid, _nComp, _nTotalBoundStates);
+			flux_t bwd = rateConstantOrZero(static_cast<typename DoubleActiveDemoter<flux_t, active>::type>(p->kBwdLiquid[r]), r, _expLiquidBwd, _expLiquidBwdSolid, _nComp, _nTotalBoundStates);
 			for (unsigned int c = 0; c < _nComp; ++c)
 			{
 				if (_expLiquidBwd.native(c, r) != 0.0)
-					bwd *= pow(static_cast<typename DoubleActiveDemoter<flux_t, active>::type>(y[c]),
+					bwd *= pow(static_cast<typename DoubleActiveDemoter<flux_t, active>::type>(yLiquid[c]),
 						static_cast<typename DoubleActiveDemoter<flux_t, active>::type>(_expLiquidBwd.native(c, r)));
 			}
 			for (unsigned int c = 0; c < _nTotalBoundStates; ++c)
 			{
 				if (_expLiquidBwdSolid.native(c, r) != 0.0)
-					bwd *= pow(static_cast<typename DoubleActiveDemoter<flux_t, active>::type>(y[c + _nComp]),
+					bwd *= pow(static_cast<typename DoubleActiveDemoter<flux_t, active>::type>(ySolid[c]),
 						static_cast<typename DoubleActiveDemoter<flux_t, active>::type>(_expLiquidBwdSolid.native(c, r)));
 			}
 
@@ -657,42 +615,39 @@ protected:
 		}
 
 		// Add reaction terms to liquid phase residual
-		_stoichiometryLiquid.multiplyVector(fluxes, factor, 1.0, res);
+		_stoichiometryLiquid.multiplyVector(static_cast<flux_t*>(fluxes), factor, resLiquid);
 
 		if (_nTotalBoundStates == 0)
-		{
-			releaseRawArray(fluxes, maxNumReactions());
 			return 0;
-		}
 
 		// Calculate fluxes in solid phase
 		for (unsigned int r = 0; r < _stoichiometrySolid.columns(); ++r)
 		{
-			flux_t fwd = rateConstantOrZero(static_cast<typename DoubleActiveDemoter<flux_t, active>::type>(p.kFwdSolid[r]), r, _expSolidFwdLiquid, _expSolidFwd, _nComp, _nTotalBoundStates);
+			flux_t fwd = rateConstantOrZero(static_cast<typename DoubleActiveDemoter<flux_t, active>::type>(p->kFwdSolid[r]), r, _expSolidFwdLiquid, _expSolidFwd, _nComp, _nTotalBoundStates);
 			for (unsigned int c = 0; c < _nComp; ++c)
 			{
 				if (_expSolidFwdLiquid.native(c, r) != 0.0)
-					fwd *= pow(static_cast<typename DoubleActiveDemoter<flux_t, active>::type>(y[c]),
+					fwd *= pow(static_cast<typename DoubleActiveDemoter<flux_t, active>::type>(yLiquid[c]),
 						static_cast<typename DoubleActiveDemoter<flux_t, active>::type>(_expSolidFwdLiquid.native(c, r)));
 			}
 			for (unsigned int c = 0; c < _nTotalBoundStates; ++c)
 			{
 				if (_expSolidFwd.native(c, r) != 0.0)
-					fwd *= pow(static_cast<typename DoubleActiveDemoter<flux_t, active>::type>(y[c + _nComp]),
+					fwd *= pow(static_cast<typename DoubleActiveDemoter<flux_t, active>::type>(ySolid[c]),
 						static_cast<typename DoubleActiveDemoter<flux_t, active>::type>(_expSolidFwd.native(c, r)));
 			}
 
-			flux_t bwd = rateConstantOrZero(static_cast<typename DoubleActiveDemoter<flux_t, active>::type>(p.kBwdSolid[r]), r, _expSolidBwdLiquid, _expSolidBwd, _nComp, _nTotalBoundStates);
+			flux_t bwd = rateConstantOrZero(static_cast<typename DoubleActiveDemoter<flux_t, active>::type>(p->kBwdSolid[r]), r, _expSolidBwdLiquid, _expSolidBwd, _nComp, _nTotalBoundStates);
 			for (unsigned int c = 0; c < _nComp; ++c)
 			{
 				if (_expSolidBwdLiquid.native(c, r) != 0.0)
-					bwd *= pow(static_cast<typename DoubleActiveDemoter<flux_t, active>::type>(y[c]),
+					bwd *= pow(static_cast<typename DoubleActiveDemoter<flux_t, active>::type>(yLiquid[c]),
 						static_cast<typename DoubleActiveDemoter<flux_t, active>::type>(_expSolidBwdLiquid.native(c, r)));
 			}
 			for (unsigned int c = 0; c < _nTotalBoundStates; ++c)
 			{
 				if (_expSolidBwd.native(c, r) != 0.0)
-					bwd *= pow(static_cast<typename DoubleActiveDemoter<flux_t, active>::type>(y[c + _nComp]),
+					bwd *= pow(static_cast<typename DoubleActiveDemoter<flux_t, active>::type>(ySolid[c]),
 						static_cast<typename DoubleActiveDemoter<flux_t, active>::type>(_expSolidBwd.native(c, r)));
 			}
 
@@ -700,24 +655,24 @@ protected:
 		}
 
 		// Add reaction terms to solid phase residual
-		_stoichiometrySolid.multiplyVector(fluxes, factor, 1.0, res + _nComp);
+		_stoichiometrySolid.multiplyVector(static_cast<flux_t*>(fluxes), factor, resSolid);
 
-		releaseRawArray(fluxes, maxNumReactions());
 		return 0;
 	}
 
 	template <typename RowIterator>
-	void jacobianLiquidImpl(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, double factor, const RowIterator& jac, void* workSpace) const
+	void jacobianLiquidImpl(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, double factor, const RowIterator& jac, LinearBufferAllocator workSpace) const
 	{
-		const typename ParamHandler_t::params_t& p = _paramHandler.update(t, secIdx, colPos, _nComp, _nBoundStates, static_cast<double*>(workSpace) + 2 * _nComp);
+		typename ParamHandler_t::ParamsHandle const p = _paramHandler.update(t, secIdx, colPos, _nComp, _nBoundStates, workSpace);
 
-		double* const fluxGradFwd = rawMemoryAsArray<double>(workSpace, 2 * _nComp);
+		BufferedArray<double> fluxes = workSpace.array<double>(2 * _nComp);
+		double* const fluxGradFwd = static_cast<double*>(fluxes);
 		double* const fluxGradBwd = fluxGradFwd + _nComp;
 		for (unsigned int r = 0; r < _stoichiometryBulk.columns(); ++r)
 		{
 			// Calculate gradients of forward and backward fluxes
-			fluxGradLiquid(fluxGradFwd, r, _nComp, static_cast<double>(p.kFwdBulk[r]), _expBulkFwd, y);
-			fluxGradLiquid(fluxGradBwd, r, _nComp, static_cast<double>(p.kBwdBulk[r]), _expBulkBwd, y);
+			fluxGradLiquid(fluxGradFwd, r, _nComp, static_cast<double>(p->kFwdBulk[r]), _expBulkFwd, y);
+			fluxGradLiquid(fluxGradBwd, r, _nComp, static_cast<double>(p->kBwdBulk[r]), _expBulkBwd, y);
 
 			// Add gradients to Jacobian
 			RowIterator curJac = jac;
@@ -728,26 +683,25 @@ protected:
 					curJac[col - static_cast<int>(row)] += colFactor * (fluxGradFwd[col] - fluxGradBwd[col]);
 			}
 		}
-
-		releaseRawArray(fluxGradFwd, 2 * _nComp);
 	}
 
-	template <typename RowIterator>
-	void jacobianCombinedImpl(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, double factor, const RowIterator& jac, void* workSpace) const
+	template <typename RowIteratorLiquid, typename RowIteratorSolid>
+	void jacobianCombinedImpl(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* yLiquid, double const* ySolid, double factor, const RowIteratorLiquid& jacLiquid, const RowIteratorSolid& jacSolid, LinearBufferAllocator workSpace) const
 	{
-		const typename ParamHandler_t::params_t& p = _paramHandler.update(t, secIdx, colPos, _nComp, _nBoundStates, static_cast<active*>(workSpace) + 2 * (_nComp + _nTotalBoundStates));
+		typename ParamHandler_t::ParamsHandle const p = _paramHandler.update(t, secIdx, colPos, _nComp, _nBoundStates, workSpace);
 
-		double* const fluxGradFwd = rawMemoryAsArray<double>(workSpace, 2 * (_nComp + _nTotalBoundStates));
+		BufferedArray<double> fluxes = workSpace.array<double>(2 * (_nComp + _nTotalBoundStates));
+		double* const fluxGradFwd = static_cast<double*>(fluxes);
 		double* const fluxGradBwd = fluxGradFwd + _nComp + _nTotalBoundStates;
 
 		for (unsigned int r = 0; r < _stoichiometryLiquid.columns(); ++r)
 		{
 			// Calculate gradients of forward and backward fluxes
-			fluxGradCombined(fluxGradFwd, r, _nComp, _nTotalBoundStates, static_cast<double>(p.kFwdLiquid[r]), _expLiquidFwd, _expLiquidFwdSolid, y);
-			fluxGradCombined(fluxGradBwd, r, _nComp, _nTotalBoundStates, static_cast<double>(p.kBwdLiquid[r]), _expLiquidBwd, _expLiquidBwdSolid, y);
+			fluxGradCombined(fluxGradFwd, r, _nComp, _nTotalBoundStates, static_cast<double>(p->kFwdLiquid[r]), _expLiquidFwd, _expLiquidFwdSolid, yLiquid, ySolid);
+			fluxGradCombined(fluxGradBwd, r, _nComp, _nTotalBoundStates, static_cast<double>(p->kBwdLiquid[r]), _expLiquidBwd, _expLiquidBwdSolid, yLiquid, ySolid);
 
 			// Add gradients to Jacobian
-			RowIterator curJac = jac;
+			RowIteratorLiquid curJac = jacLiquid;
 			for (unsigned int row = 0; row < _nComp; ++row, ++curJac)
 			{
 				const double colFactor = static_cast<double>(_stoichiometryLiquid.native(row, r)) * factor;
@@ -757,19 +711,16 @@ protected:
 		}
 
 		if (_nTotalBoundStates == 0)
-		{
-			releaseRawArray(fluxGradFwd, 2 * (_nComp + _nTotalBoundStates));
 			return;
-		}
 
 		for (unsigned int r = 0; r < _stoichiometrySolid.columns(); ++r)
 		{
 			// Calculate gradients of forward and backward fluxes
-			fluxGradCombined(fluxGradFwd, r, _nComp, _nTotalBoundStates, static_cast<double>(p.kFwdSolid[r]), _expSolidFwdLiquid, _expSolidFwd, y);
-			fluxGradCombined(fluxGradBwd, r, _nComp, _nTotalBoundStates, static_cast<double>(p.kBwdSolid[r]), _expSolidBwdLiquid, _expSolidBwd, y);
+			fluxGradCombined(fluxGradFwd, r, _nComp, _nTotalBoundStates, static_cast<double>(p->kFwdSolid[r]), _expSolidFwdLiquid, _expSolidFwd, yLiquid, ySolid);
+			fluxGradCombined(fluxGradBwd, r, _nComp, _nTotalBoundStates, static_cast<double>(p->kBwdSolid[r]), _expSolidBwdLiquid, _expSolidBwd, yLiquid, ySolid);
 
 			// Add gradients to Jacobian
-			RowIterator curJac = jac + _nComp;
+			RowIteratorSolid curJac = jacSolid;
 			for (unsigned int row = 0; row < _nTotalBoundStates; ++row, ++curJac)
 			{
 				const double colFactor = static_cast<double>(_stoichiometrySolid.native(row, r)) * factor;
@@ -777,8 +728,6 @@ protected:
 					curJac[col - static_cast<int>(_nComp) - static_cast<int>(row)] += colFactor * (fluxGradFwd[col] - fluxGradBwd[col]);
 			}
 		}
-
-		releaseRawArray(fluxGradFwd, 2 * (_nComp + _nTotalBoundStates));
 	}
 };
 

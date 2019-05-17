@@ -19,6 +19,16 @@
  */
 
 /* <codegentemplate> */
+#include "Memory.hpp"
+
+#include <tuple>
+
+namespace cadet
+{
+
+namespace model
+{
+
 class {{ name }} : public cadet::model::ConstParamHandlerBase
 {
 public:
@@ -49,6 +59,7 @@ public:
 	};
 
 	typedef ConstParams params_t;
+	typedef ConstParams const* ParamsHandle;
 
 	static inline const char* identifier() CADET_NOEXCEPT;
 
@@ -121,19 +132,19 @@ public:
 {% endif %}
 	}
 
-	inline const params_t& update(double t, unsigned int secIdx, const ColumnPosition& colPos, unsigned int nComp, unsigned int const* nBoundStates, void* workSpace) const
+	inline ParamsHandle update(double t, unsigned int secIdx, const ColumnPosition& colPos, unsigned int nComp, unsigned int const* nBoundStates, LinearBufferAllocator& workSpace) const
 	{
-		return _localParams;
+		return &_localParams;
 	}
 
-	inline const params_t updateTimeDerivative(double t, unsigned int secIdx, const ColumnPosition& colPos, unsigned int nComp, unsigned int const* nBoundStates, void* workSpace) const
+	inline std::tuple<ParamsHandle, ParamsHandle> updateTimeDerivative(double t, unsigned int secIdx, const ColumnPosition& colPos, unsigned int nComp, unsigned int const* nBoundStates, LinearBufferAllocator& workSpace) const
 	{
-		return _localParams;
+		return std::make_tuple<ParamsHandle, ParamsHandle>(&_localParams, nullptr);
 	}
 
 protected:
 	inline bool validateConfig(unsigned int nReactions, unsigned int nComp, unsigned int const* nBoundStates);
-	
+
 	ConstParams _localParams;
 
 {% for p in parameters %}
@@ -203,6 +214,8 @@ public:
 	};
 	
 	typedef VariableParams params_t;
+	typedef ConstBufferedScalar<params_t> ParamsHandle;
+
 	static inline const char* identifier() CADET_NOEXCEPT;
 	
 	{{ externalName }}() CADET_NOEXCEPT
@@ -269,13 +282,11 @@ public:
 {% endif %}
 	}
 
-	inline const params_t& update(double t, unsigned int secIdx, const ColumnPosition& colPos, unsigned int nComp, unsigned int const* nBoundStates, void* workSpace) const
+	inline ParamsHandle update(double t, unsigned int secIdx, const ColumnPosition& colPos, unsigned int nComp, unsigned int const* nBoundStates, LinearBufferAllocator& workSpace) const
 	{
-		params_t* const localParams = reinterpret_cast<params_t*>(workSpace);
-		new (localParams) params_t;
-		double* const extFunBuffer = cadet::util::advancePointer<double>(workSpace, sizeof(params_t));
-		void* buffer = cadet::util::advancePointer<void>(workSpace, sizeof(params_t) + 2 * {{ length(parameters) }} * sizeof(double));
-		evaluateExternalFunctions(t, secIdx, colPos, {{ length(parameters) }}, extFunBuffer);
+		BufferedScalar<params_t> localParams = workSpace.scalar<params_t>();
+		BufferedArray<double> extFunBuffer = workSpace.array<double>({{ length(parameters) }});
+		evaluateExternalFunctions(t, secIdx, colPos, {{ length(parameters) }}, static_cast<double*>(extFunBuffer));
 {% if exists("constantParameters") %}
 	{% for p in constantParameters %}
 		{% if length(p/varName) > 1 %}
@@ -287,45 +298,52 @@ public:
 		{% endif %}
 	{% endfor %}
 {% endif %}
+
 {% for p in parameters %}
-		_{{ p/varName }}.prepareCache(localParams->{{ p/varName }}, buffer);
+		_{{ p/varName }}.prepareCache(localParams->{{ p/varName }}, workSpace);
 		_{{ p/varName }}.update(cadet::util::dataOfLocalVersion(localParams->{{ p/varName }}), extFunBuffer[{{ index }}], nComp, nBoundStates);
-		{% if not is_last %}buffer = cadet::util::advancePointer(buffer, cadet::util::memoryForDataOf(localParams->{{ p/varName }}));{% endif %}
 {% endfor %}
-		return *localParams;
+
+		return std::move(localParams);
 	}
 
-	inline params_t updateTimeDerivative(double t, unsigned int secIdx, const ColumnPosition& colPos, unsigned int nComp, unsigned int const* nBoundStates, void* workSpace) const
+	inline std::tuple<ParamsHandle, ParamsHandle> updateTimeDerivative(double t, unsigned int secIdx, const ColumnPosition& colPos, unsigned int nComp, unsigned int const* nBoundStates, LinearBufferAllocator& workSpace) const
 	{
-		VariableParams p;
-		params_t* const localParams = reinterpret_cast<params_t*>(workSpace);
-		double* const extFunBuffer = cadet::util::advancePointer<double>(workSpace, sizeof(params_t));
-		double* const extDerivBuffer = extFunBuffer + {{ length(parameters) }};
-		void* buffer = util::ptrToEndOfData(localParams->{% for p in parameters %} {% if index1 == length(parameters) %} {{ p/varName }} {% endif %} {% endfor %});
-		evaluateTimeDerivativeExternalFunctions(t, secIdx, colPos, {{ length(parameters) }}, extDerivBuffer);
+		BufferedScalar<params_t> localParams = workSpace.scalar<params_t>();
+		BufferedScalar<params_t> p = workSpace.scalar<params_t>();
+		BufferedArray<double> extFunBuffer = workSpace.array<double>({{ length(parameters) }});
+		BufferedArray<double> extDerivBuffer = workSpace.array<double>({{ length(parameters) }});
+		evaluateExternalFunctions(t, secIdx, colPos, {{ length(parameters) }}, static_cast<double*>(extFunBuffer));
+		evaluateTimeDerivativeExternalFunctions(t, secIdx, colPos, {{ length(parameters) }}, static_cast<double*>(extDerivBuffer));
 
 {% if exists("constantParameters") %}
 	{% for p in constantParameters %}
 		{% if length(p/varName) > 1 %}
 			{% for v in p/varName %}
-				p.{{ v }} = _constParams.{{ v }};
+				localParams->{{ v }} = _constParams.{{ v }};
+				p->{{ v }} = _constParams.{{ v }};
 			{% endfor %}
 		{% else %}
-			p.{{ p/varName }} = _constParams.{{ p/varName }};
+			localParams->{{ p/varName }} = _constParams.{{ p/varName }};
+			p->{{ p/varName }} = _constParams.{{ p/varName }};
 		{% endif %}
 	{% endfor %}
 {% endif %}
+
 {% for p in parameters %}
-		_{{ p/varName }}.prepareCache(p.{{ p/varName }}, buffer);
-		_{{ p/varName }}.updateTimeDerivative(cadet::util::dataOfLocalVersion(p.{{ p/varName }}), extFunBuffer[{{ index }}], extDerivBuffer[{{ index }}], nComp, nBoundStates);
-		{% if not is_last %}buffer = cadet::util::advancePointer(buffer, cadet::util::memoryForDataOf(p.{{ p/varName }}));{% endif %}
+		_{{ p/varName }}.prepareCache(localParams->{{ p/varName }}, workSpace);
+		_{{ p/varName }}.update(cadet::util::dataOfLocalVersion(localParams->{{ p/varName }}), extFunBuffer[{{ index }}], nComp, nBoundStates);
+
+		_{{ p/varName }}.prepareCache(p->{{ p/varName }}, workSpace);
+		_{{ p/varName }}.updateTimeDerivative(cadet::util::dataOfLocalVersion(p->{{ p/varName }}), extFunBuffer[{{ index }}], extDerivBuffer[{{ index }}], nComp, nBoundStates);
 {% endfor %}
-		return p;
+
+		return std::make_tuple<ParamsHandle, ParamsHandle>(std::move(localParams), std::move(p));
 	}
 
 	inline std::size_t cacheSize(unsigned int nReactions, unsigned int nComp, unsigned int totalNumBoundStates) const CADET_NOEXCEPT
 	{
-		return sizeof(params_t) + 2 * {{ length(parameters) }} * sizeof(double) + 2 * (
+		return 2 * sizeof(params_t) + alignof(params_t) + 2 * {{ length(parameters) }} * sizeof(double) + alignof(double) + 2 * (
 {% for p in parameters %}
 		_{{ p/varName }}.additionalDynamicMemory(nReactions, nComp, totalNumBoundStates) {% if not is_last %} + {% endif %}
 {% endfor %}
@@ -334,7 +352,7 @@ public:
 
 protected:
 	inline bool validateConfig(unsigned int nReactions, unsigned int nComp, unsigned int const* nBoundStates);
-	
+
 	ConstParams _constParams;
 
 {% for p in parameters %}
@@ -350,3 +368,6 @@ protected:
 	{% endfor %}
 {% endif %}
 };
+
+} // namespace model
+} // namespace cadet

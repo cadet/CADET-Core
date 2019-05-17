@@ -632,7 +632,7 @@ public:
 	 * @param [in] ptr Pointer to cache buffer
 	 */
 	template <typename T>
-	inline void prepareCache(T& cache, void* ptr) const { }
+	inline void prepareCache(T& cache, LinearBufferAllocator& buffer) const { }
 
 protected:
 	active _base;
@@ -700,14 +700,14 @@ public:
 
 	inline std::size_t size() const CADET_NOEXCEPT { return _base.size(); }
 
-	inline const std::size_t additionalDynamicMemory(unsigned int nComp, unsigned int totalNumBoundStates, unsigned int const* nBoundStates) const CADET_NOEXCEPT { return nComp * sizeof(active); }
+	inline const std::size_t additionalDynamicMemory(unsigned int nComp, unsigned int totalNumBoundStates, unsigned int const* nBoundStates) const CADET_NOEXCEPT { return nComp * sizeof(active) + alignof(active); }
 
 	inline const storage_t& base() const CADET_NOEXCEPT { return _base; }
 
 	template <typename T>
-	inline void prepareCache(T& cache, void* ptr) const
+	inline void prepareCache(T& cache, LinearBufferAllocator& buffer) const
 	{
-		cache.fromTemplate(ptr, _base);
+		cache.fromTemplate(buffer, _base);
 	}
 
 protected:
@@ -781,7 +781,7 @@ public:
 		for (unsigned int i = 0; i < nComp; ++i)
 		{
 			if (nBoundStates[i] != 0)
-				return nBoundStates[i] * sizeof(active);
+				return nBoundStates[i] * sizeof(active) + alignof(active);
 		}
 		return 0;
 	}
@@ -789,9 +789,9 @@ public:
 	inline const storage_t& base() const CADET_NOEXCEPT { return _base; }
 
 	template <typename T>
-	inline void prepareCache(T& cache, void* ptr) const
+	inline void prepareCache(T& cache, LinearBufferAllocator& buffer) const
 	{
-		cache.fromTemplate(ptr, _base);
+		cache.fromTemplate(buffer, _base);
 	}
 
 protected:
@@ -867,14 +867,14 @@ public:
 
 	inline std::size_t size() const CADET_NOEXCEPT { return _base.size(); }
 
-	inline const std::size_t additionalDynamicMemory(unsigned int nReactions, unsigned int nComp, unsigned int totalNumBoundStates) const CADET_NOEXCEPT { return nReactions * sizeof(active); }
+	inline const std::size_t additionalDynamicMemory(unsigned int nReactions, unsigned int nComp, unsigned int totalNumBoundStates) const CADET_NOEXCEPT { return nReactions * sizeof(active) + alignof(active); }
 
 	inline const storage_t& base() const CADET_NOEXCEPT { return _base; }
 
 	template <typename T>
-	inline void prepareCache(T& cache, void* ptr) const
+	inline void prepareCache(T& cache, LinearBufferAllocator& buffer) const
 	{
-		cache.fromTemplate(ptr, _base);
+		cache.fromTemplate(buffer, _base);
 	}
 
 protected:
@@ -970,20 +970,20 @@ public:
 	inline const std::size_t additionalDynamicMemory(unsigned int nComp, unsigned int totalNumBoundStates, unsigned int const* nBoundStates) const CADET_NOEXCEPT
 	{
 		if (compMajor)
-			return totalNumBoundStates * sizeof(active) + (nComp + 1) * sizeof(typename util::SlicedVector<active>::size_type);
+			return totalNumBoundStates * sizeof(active) + alignof(active) + (nComp + 1) * sizeof(typename util::SlicedVector<active>::size_type) + alignof(typename util::SlicedVector<active>::size_type);
 		else
 		{
 			const unsigned int numStates = firstNonEmptyBoundStates(nBoundStates, nComp);
-			return numStates * nComp * sizeof(active) + (numStates + 1) * sizeof(typename util::SlicedVector<active>::size_type);
+			return numStates * nComp * sizeof(active) + alignof(active) + (numStates + 1) * sizeof(typename util::SlicedVector<active>::size_type) + alignof(typename util::SlicedVector<active>::size_type);
 		}
 	}
 
 	inline const storage_t& base() const CADET_NOEXCEPT { return _base; }
 
 	template <typename T>
-	inline void prepareCache(T& cache, void* ptr) const
+	inline void prepareCache(T& cache, LinearBufferAllocator& buffer) const
 	{
-		cache.fromTemplate(ptr, _base);
+		cache.fromTemplate(buffer, _base);
 	}
 
 protected:
@@ -1076,15 +1076,15 @@ public:
 		for (unsigned int i = 0; i < nComp; ++i)
 			sumSquared += nBoundStates[i] * nBoundStates[i];
 
-		return sumSquared * sizeof(active) + (nComp + 1) * sizeof(typename util::SlicedVector<active>::size_type);
+		return sumSquared * sizeof(active) + alignof(active) + (nComp + 1) * sizeof(typename util::SlicedVector<active>::size_type) + alignof(typename util::SlicedVector<active>::size_type);
 	}
 
 	inline const storage_t& base() const CADET_NOEXCEPT { return _base; }
 
 	template <typename T>
-	inline void prepareCache(T& cache, void* ptr) const
+	inline void prepareCache(T& cache, LinearBufferAllocator& buffer) const
 	{
-		cache.fromTemplate(ptr, _base);
+		cache.fromTemplate(buffer, _base);
 	}
 
 protected:
@@ -1158,15 +1158,15 @@ public:
 
 	inline const std::size_t additionalDynamicMemory(unsigned int nComp, unsigned int totalNumBoundStates, unsigned int const* nBoundStates) const CADET_NOEXCEPT
 	{
-		return nComp * nComp * sizeof(active) + (nComp + 1) * sizeof(typename util::SlicedVector<active>::size_type);
+		return nComp * nComp * sizeof(active) + alignof(active) + (nComp + 1) * sizeof(typename util::SlicedVector<active>::size_type) + alignof(typename util::SlicedVector<active>::size_type);
 	}
 
 	inline const storage_t& base() const CADET_NOEXCEPT { return _base; }
 
 	template <typename T>
-	inline void prepareCache(T& cache, void* ptr) const
+	inline void prepareCache(T& cache, LinearBufferAllocator& buffer) const
 	{
-		cache.fromTemplate(ptr, _base);
+		cache.fromTemplate(buffer, _base);
 	}
 
 protected:

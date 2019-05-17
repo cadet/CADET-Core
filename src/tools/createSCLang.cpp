@@ -126,8 +126,8 @@ int main(int argc, char** argv)
 
 				writer.scalar<int>("NCOL", opts.nCol); // 64
 				writer.scalar<int>("NPAR", opts.nPar); // 16
-				const int nBound[] = {1, 1, 1, 1};
-				writer.vector<int>("NBOUND", 4, nBound);
+				const int nBound[] = {1};
+				writer.vector<int>("NBOUND", 1, nBound);
 
 				writer.scalar("PAR_DISC_TYPE", std::string("EQUIDISTANT_PAR"));
 

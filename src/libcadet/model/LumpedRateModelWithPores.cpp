@@ -19,6 +19,8 @@
 #include "cadet/SolutionRecorder.hpp"
 #include "ConfigurationHelper.hpp"
 #include "model/BindingModel.hpp"
+#include "model/ReactionModel.hpp"
+#include "model/parts/BindingCellKernel.hpp"
 #include "SimulationTypes.hpp"
 #include "linalg/DenseMatrix.hpp"
 #include "linalg/BandMatrix.hpp"
@@ -54,7 +56,7 @@ int schurComplementMultiplierLRMPores(void* userData, double const* x, double* z
 
 
 LumpedRateModelWithPores::LumpedRateModelWithPores(UnitOpIdx unitOpIdx) : UnitOperationBase(unitOpIdx),
-	_jacP(0), _jacPdisc(0), _jacPF(0), _jacFP(0), _jacInlet(), _analyticJac(true),
+	_dynReactionBulk(nullptr), _jacP(0), _jacPdisc(0), _jacPF(0), _jacFP(0), _jacInlet(), _analyticJac(true),
 	_jacobianAdDirs(0), _factorizeJacobian(false), _tempState(nullptr), _initC(0), _initCp(0), _initQ(0),
 	_initState(0), _initStateDot(0)
 {
@@ -63,6 +65,8 @@ LumpedRateModelWithPores::LumpedRateModelWithPores(UnitOpIdx unitOpIdx) : UnitOp
 LumpedRateModelWithPores::~LumpedRateModelWithPores() CADET_NOEXCEPT
 {
 	delete[] _tempState;
+
+	delete _dynReactionBulk;
 
 	delete[] _disc.parTypeOffset;
 	delete[] _disc.nBound;
@@ -188,6 +192,9 @@ bool LumpedRateModelWithPores::configureModelDiscretization(IParameterProvider& 
 	_initCp.resize(_disc.nComp * _disc.nParType);
 	_initQ.resize(nTotalBound);
 
+	// Create nonlinear solver for consistent initialization
+	configureNonlinearSolver(paramProvider);
+
 	paramProvider.popScope();
 
 	const bool transportSuccess = _convDispOp.configureModelDiscretization(paramProvider, _disc.nComp, _disc.nCol);
@@ -257,10 +264,69 @@ bool LumpedRateModelWithPores::configureModelDiscretization(IParameterProvider& 
 		}
 	}
 
+	// ==== Construct and configure dynamic reaction model
+	bool reactionConfSuccess = true;
+
+	_dynReactionBulk = nullptr;
+	if (paramProvider.exists("REACTION_MODEL"))
+	{
+		const std::string dynReactName = paramProvider.getString("REACTION_MODEL");
+		_dynReactionBulk = helper.createDynamicReactionModel(dynReactName);
+		if (!_dynReactionBulk)
+			throw InvalidParameterException("Unknown dynamic reaction model " + dynReactName);
+
+		if (_dynReactionBulk->usesParamProviderInDiscretizationConfig())
+			paramProvider.pushScope("reaction_bulk");
+
+		reactionConfSuccess = _dynReactionBulk->configureModelDiscretization(paramProvider, _disc.nComp, nullptr, nullptr);
+
+		if (_dynReactionBulk->usesParamProviderInDiscretizationConfig())
+			paramProvider.popScope();
+	}
+
+	clearDynamicReactionModels();
+	_dynReaction = std::vector<IDynamicReactionModel*>(_disc.nParType, nullptr);
+
+	if (paramProvider.exists("REACTION_MODEL_PARTICLES"))
+	{
+		const std::vector<std::string> dynReactModelNames = paramProvider.getStringArray("REACTION_MODEL_PARTICLES");
+
+		if (paramProvider.exists("REACTION_MODEL_PARTICLES_MULTIPLEX"))
+			_singleDynReaction = (paramProvider.getInt("REACTION_MODEL_PARTICLES_MULTIPLEX") == 1);
+		else
+		{
+			// Infer multiplex mode
+			_singleDynReaction = (dynReactModelNames.size() == 1);
+		}
+
+		if (!_singleDynReaction && (dynReactModelNames.size() < _disc.nParType))
+			throw InvalidParameterException("Field REACTION_MODEL_PARTICLES contains too few elements (" + std::to_string(_disc.nParType) + " required)");
+		else if (_singleDynReaction && (dynReactModelNames.size() != 1))
+			throw InvalidParameterException("Field REACTION_MODEL_PARTICLES requires (only) 1 element");
+
+		for (unsigned int i = 0; i < _disc.nParType; ++i)
+		{
+			if (_singleDynReaction && (i > 0))
+			{
+				// Reuse first binding model
+				_dynReaction[i] = _dynReaction[0];
+			}
+			else
+			{
+				_dynReaction[i] = helper.createDynamicReactionModel(dynReactModelNames[i]);
+				if (!_dynReaction[i])
+					throw InvalidParameterException("Unknown dynamic reaction model " + dynReactModelNames[i]);
+
+				MultiplexedScopeSelector scopeGuard(paramProvider, "reaction_particle", _singleDynReaction, i, _disc.nParType == 1, _dynReaction[i]->usesParamProviderInDiscretizationConfig());
+				reactionConfSuccess = _dynReaction[i]->configureModelDiscretization(paramProvider, _disc.nComp, _disc.nBound + i * _disc.nComp, _disc.boundOffset + i * _disc.nComp) && reactionConfSuccess;
+			}
+		}
+	}
+
 	// Setup the memory for tempState based on state vector
 	_tempState = new double[numDofs()];
 
-	return transportSuccess && bindingConfSuccess;
+	return transportSuccess && bindingConfSuccess && reactionConfSuccess;
 }
 
 bool LumpedRateModelWithPores::configure(IParameterProvider& paramProvider)
@@ -383,9 +449,9 @@ bool LumpedRateModelWithPores::configure(IParameterProvider& paramProvider)
 		}
 	}
 
+	bool bindingConfSuccess = true;
 	if (!_binding.empty())
 	{
-		bool bindingConfSuccess = true;
 		if (_singleBinding)
 		{
 			if (_binding[0] && _binding[0]->requiresConfiguration())
@@ -403,32 +469,87 @@ bool LumpedRateModelWithPores::configure(IParameterProvider& paramProvider)
 
 	 			// Check whether required = true and no isActive() check should be performed
 				MultiplexedScopeSelector scopeGuard(paramProvider, "adsorption", type, _disc.nParType == 1, false);
-				if (scopeGuard.isActive())
+				if (!scopeGuard.isActive())
 					continue;
 
 				bindingConfSuccess = _binding[type]->configure(paramProvider, _unitOpIdx, type) && bindingConfSuccess;
 			}
 		}
-
-		return transportSuccess && bindingConfSuccess;
 	}
 
-	return transportSuccess;
+	// Reconfigure reaction model
+	bool dynReactionConfSuccess = true;
+	if (_dynReactionBulk && _dynReactionBulk->requiresConfiguration())
+	{
+		paramProvider.pushScope("reaction_bulk");
+		dynReactionConfSuccess = _dynReactionBulk->configure(paramProvider, _unitOpIdx, ParTypeIndep);
+		paramProvider.popScope();
+	}
+
+	if (_singleDynReaction)
+	{
+		if (_dynReaction[0] && _dynReaction[0]->requiresConfiguration())
+		{
+			MultiplexedScopeSelector scopeGuard(paramProvider, "reaction_particle", true);
+			dynReactionConfSuccess = _dynReaction[0]->configure(paramProvider, _unitOpIdx, ParTypeIndep) && dynReactionConfSuccess;
+		}
+	}
+	else
+	{
+		for (unsigned int type = 0; type < _disc.nParType; ++type)
+		{
+ 			if (!_dynReaction[type] || !_dynReaction[type]->requiresConfiguration())
+ 				continue;
+
+			MultiplexedScopeSelector scopeGuard(paramProvider, "reaction_particle", type, _disc.nParType == 1, true);
+			dynReactionConfSuccess = _dynReaction[type]->configure(paramProvider, _unitOpIdx, type) && dynReactionConfSuccess;
+		}
+	}
+
+	return transportSuccess && bindingConfSuccess && dynReactionConfSuccess;
 }
 
 unsigned int LumpedRateModelWithPores::threadLocalMemorySize() const CADET_NOEXCEPT
 {
-	unsigned int bindingRequiredMem = 0;
+	LinearMemorySizer lms;
+
+	// Memory for residualImpl()
 	for (unsigned int i = 0; i < _disc.nParType; ++i)
 	{
-		if (_binding[i]->requiresWorkspace())
-		{
-			// Required memory (number of doubles) for nonlinear solvers
-			const unsigned int requiredMem = _binding[i]->workspaceSize(_disc.nComp, _disc.strideBound[i], _disc.nBound + i * _disc.nComp);
-			bindingRequiredMem = std::max(bindingRequiredMem, requiredMem);
-		}
+		if (_binding[i] && _binding[i]->requiresWorkspace())
+			lms.fitBlock(_binding[i]->workspaceSize(_disc.nComp, _disc.strideBound[i], _disc.nBound + i * _disc.nComp));
+
+		if (_dynReaction[i] && _dynReaction[i]->requiresWorkspace())
+			lms.fitBlock(_dynReaction[i]->workspaceSize(_disc.nComp, _disc.strideBound[i], _disc.nBound + i * _disc.nComp));
 	}
-	return bindingRequiredMem;
+
+	if (_dynReactionBulk && _dynReactionBulk->requiresWorkspace())
+		lms.fitBlock(_dynReactionBulk->workspaceSize(_disc.nComp, 0, nullptr));
+
+	const unsigned int maxStrideBound = *std::max_element(_disc.strideBound, _disc.strideBound + _disc.nParType);
+	lms.add<active>(_disc.nComp + maxStrideBound);
+	lms.add<double>((maxStrideBound + _disc.nComp) * (maxStrideBound + _disc.nComp));
+
+	lms.commit();
+	const std::size_t resImplSize = lms.bufferSize();
+
+	// Memory for consistentInitialState()
+	lms.add<double>(_nonlinearSolver->workspaceSize(_disc.nComp + maxStrideBound) * sizeof(double));
+	lms.add<double>(_disc.nComp + maxStrideBound);
+	lms.add<double>(_disc.nComp + maxStrideBound);
+	lms.add<double>(_disc.nComp + maxStrideBound);
+	lms.add<double>((_disc.nComp + maxStrideBound) * (_disc.nComp + maxStrideBound));
+	lms.add<double>(_disc.nComp);
+
+	lms.addBlock(resImplSize);
+	lms.commit();
+
+	// Memory for consistentInitialSensitivity
+	lms.add<double>(_disc.nComp + maxStrideBound);
+	lms.add<double>(maxStrideBound);
+	lms.commit();
+
+	return lms.bufferSize();
 }
 
 unsigned int LumpedRateModelWithPores::numAdDirsForJacobian() const CADET_NOEXCEPT
@@ -599,7 +720,7 @@ void LumpedRateModelWithPores::checkAnalyticJacobianAgainstAd(active const* cons
 
 #endif
 
-int LumpedRateModelWithPores::residual(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res, const util::ThreadLocalArray& threadLocalMem)
+int LumpedRateModelWithPores::residual(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res, util::ThreadLocalStorage& threadLocalMem)
 {
 	BENCH_SCOPE(_timerResidual);
 
@@ -607,7 +728,7 @@ int LumpedRateModelWithPores::residual(const SimulationTime& simTime, const Cons
 	return residualImpl<double, double, double, false>(simTime.t, simTime.secIdx, simTime.timeFactor, simState.vecStateY, simState.vecStateYdot, res, threadLocalMem);
 }
 
-int LumpedRateModelWithPores::residualWithJacobian(const ActiveSimulationTime& simTime, const ConstSimulationState& simState, double* const res, const AdJacobianParams& adJac, const util::ThreadLocalArray& threadLocalMem)
+int LumpedRateModelWithPores::residualWithJacobian(const ActiveSimulationTime& simTime, const ConstSimulationState& simState, double* const res, const AdJacobianParams& adJac, util::ThreadLocalStorage& threadLocalMem)
 {
 	BENCH_SCOPE(_timerResidual);
 
@@ -616,7 +737,7 @@ int LumpedRateModelWithPores::residualWithJacobian(const ActiveSimulationTime& s
 }
 
 int LumpedRateModelWithPores::residual(const ActiveSimulationTime& simTime, const ConstSimulationState& simState, double* const res, 
-	const AdJacobianParams& adJac, const util::ThreadLocalArray& threadLocalMem, bool updateJacobian, bool paramSensitivity)
+	const AdJacobianParams& adJac, util::ThreadLocalStorage& threadLocalMem, bool updateJacobian, bool paramSensitivity)
 {
 	if (updateJacobian)
 	{
@@ -718,7 +839,7 @@ int LumpedRateModelWithPores::residual(const ActiveSimulationTime& simTime, cons
 }
 
 template <typename StateType, typename ResidualType, typename ParamType, bool wantJac>
-int LumpedRateModelWithPores::residualImpl(const ParamType& t, unsigned int secIdx, const ParamType& timeFactor, StateType const* const y, double const* const yDot, ResidualType* const res, const util::ThreadLocalArray& threadLocalMem)
+int LumpedRateModelWithPores::residualImpl(const ParamType& t, unsigned int secIdx, const ParamType& timeFactor, StateType const* const y, double const* const yDot, ResidualType* const res, util::ThreadLocalStorage& threadLocalMem)
 {
 	// Reset Jacobian
 	if (wantJac)
@@ -736,7 +857,7 @@ int LumpedRateModelWithPores::residualImpl(const ParamType& t, unsigned int secI
 #endif
 	{
 		if (cadet_unlikely(pblk == 0))
-			_convDispOp.residual(t, secIdx, timeFactor, y, yDot, res, wantJac);
+			residualBulk<StateType, ResidualType, ParamType, wantJac>(t, secIdx, timeFactor, y, yDot, res, threadLocalMem);
 		else
 		{
 			const unsigned int type = (pblk - 1) / _disc.nCol;
@@ -759,7 +880,35 @@ int LumpedRateModelWithPores::residualImpl(const ParamType& t, unsigned int secI
 }
 
 template <typename StateType, typename ResidualType, typename ParamType, bool wantJac>
-int LumpedRateModelWithPores::residualParticle(const ParamType& t, unsigned int parType, unsigned int colCell, unsigned int secIdx, const ParamType& timeFactor, StateType const* yBase, double const* yDotBase, ResidualType* resBase, const util::ThreadLocalArray& threadLocalMem)
+int LumpedRateModelWithPores::residualBulk(const ParamType& t, unsigned int secIdx, const ParamType& timeFactor, StateType const* yBase, double const* yDotBase, ResidualType* resBase, util::ThreadLocalStorage& threadLocalMem)
+{
+	_convDispOp.residual(t, secIdx, timeFactor, yBase, yDotBase, resBase, wantJac);
+	if (!_dynReactionBulk)
+		return 0;
+
+	// Get offsets
+	Indexer idxr(_disc);
+	StateType const* y = yBase + idxr.offsetC();
+	ResidualType* res = resBase + idxr.offsetC();
+	LinearBufferAllocator tlmAlloc = threadLocalMem.get();
+
+	for (unsigned int col = 0; col < _disc.nCol; ++col, y += idxr.strideColCell(), res += idxr.strideColCell())
+	{
+		const ColumnPosition colPos{(0.5 + static_cast<double>(col)) / static_cast<double>(_disc.nCol), 0.0, 0.0};
+		_dynReactionBulk->residualLiquidAdd(static_cast<double>(t), secIdx, colPos, y, res, -1.0, tlmAlloc);
+
+		if (wantJac)
+		{
+			// static_cast should be sufficient here, but this statement is also analyzed when wantJac = false
+			_dynReactionBulk->analyticJacobianLiquidAdd(static_cast<double>(t), secIdx, colPos, reinterpret_cast<double const*>(y), -1.0, _convDispOp.jacobian().row(col * idxr.strideColCell()), tlmAlloc);
+		}
+	}
+
+	return 0;
+}
+
+template <typename StateType, typename ResidualType, typename ParamType, bool wantJac>
+int LumpedRateModelWithPores::residualParticle(const ParamType& t, unsigned int parType, unsigned int colCell, unsigned int secIdx, const ParamType& timeFactor, StateType const* yBase, double const* yDotBase, ResidualType* resBase, util::ThreadLocalStorage& threadLocalMem)
 {
 	Indexer idxr(_disc);
 
@@ -768,73 +917,30 @@ int LumpedRateModelWithPores::residualParticle(const ParamType& t, unsigned int 
 	double const* yDot = yDotBase + idxr.offsetCp(ParticleTypeIndex{parType}, ParticleIndex{colCell});
 	ResidualType* res = resBase + idxr.offsetCp(ParticleTypeIndex{parType}, ParticleIndex{colCell});
 
-	const unsigned int requiredMem = (_binding[parType]->workspaceSize(_disc.nComp, _disc.strideBound[parType], _disc.nBound + parType * _disc.nComp) + sizeof(double) - 1) / sizeof(double);
-	double* const buffer = threadLocalMem.get();
-
 	// Prepare parameters
 	const ParamType radius = static_cast<ParamType>(_parRadius[parType]);
 
 	// Midpoint of current column cell (z coordinate) - needed in externally dependent adsorption kinetic
-	const double z = 1.0 / static_cast<double>(_disc.nCol) * (0.5 + colCell);
+	const double z = (0.5 + colCell) / static_cast<double>(_disc.nCol);
 
-	// Add time derivatives
-	if (yDotBase)
-	{
-		for (unsigned int comp = 0; comp < _disc.nComp; ++comp, ++res, ++y, ++yDot)
+	const parts::cell::CellParameters cellResParams
 		{
-			*res = 0.0;
-			const unsigned int nBound = _disc.nBound[parType * _disc.nComp + comp];
-			const ParamType invBetaP = (1.0 - static_cast<ParamType>(_parPorosity[parType])) / (static_cast<ParamType>(_poreAccessFactor[parType * _disc.nComp + comp]) * static_cast<ParamType>(_parPorosity[parType]));
+			_disc.nComp,
+			_disc.nBound + _disc.nComp * parType,
+			_disc.boundOffset + _disc.nComp * parType,
+			_disc.strideBound[parType],
+			_binding[parType]->reactionQuasiStationarity(),
+			_parPorosity[parType],
+			_poreAccessFactor.data() + _disc.nComp * parType,
+			_binding[parType],
+			_dynReaction[parType]
+		};
 
-			// Ultimately, we need dc_{p,comp} / dt + 1 / beta_p * [ sum_i  dq_comp^i / dt ]
-			// Compute the sum in the brackets first, then divide by beta_p and add dc_p / dt
-
-			// Sum dq_comp^1 / dt + dq_comp^2 / dt + ... + dq_comp^{N_comp} / dt
-			for (unsigned int i = 0; i < nBound; ++i)
-				// Index explanation:
-				//   -comp -> go back to beginning of liquid phase
-				//   + strideParLiquid() skip to solid phase
-				//   + offsetBoundComp() jump to component (skips all bound states of previous components)
-				//   + i go to current bound state
-				// Remember this, you'll see it quite a lot ...
-				*res += yDot[idxr.strideParLiquid() - comp + idxr.offsetBoundComp(ParticleTypeIndex{parType}, ComponentIndex{comp}) + i];
-
-			// Divide by beta_p and add dcp_i / dt
-			*res = timeFactor * (yDot[0] + invBetaP * res[0]);
-		}
-	}
-	else
-	{
-		std::fill(res, res + _disc.nComp, 0.0);
-
-		// Advance over liquid phase
-		res += _disc.nComp;
-		y += _disc.nComp;
-		yDot += _disc.nComp;
-	}
-
-	// Bound phases
-	if (!yDotBase)
-		yDot = nullptr;
-
-	_binding[parType]->residual(t, secIdx, timeFactor, ColumnPosition{z, 0.0, static_cast<double>(radius) * 0.5}, y, y - _disc.nComp, yDot, res, buffer);
-	if (wantJac)
-	{
-		if (cadet_likely(_disc.strideBound[parType] > 0))
-		{
-			// The RowIterator is always centered on the main diagonal.
-			// This means that jac[0] is the main diagonal, jac[-1] is the first lower diagonal,
-			// and jac[1] is the first upper diagonal. We can also access the rows from left to
-			// right beginning with the last lower diagonal moving towards the main diagonal and
-			// continuing to the last upper diagonal by using the native() method.
-
-			// Obtain row iterator pointing to beginning of current cell's solid phase
-			linalg::BandMatrix::RowIterator jac = _jacP[parType].row(colCell * idxr.strideParBlock(parType) + idxr.strideParLiquid());
-
-			// static_cast should be sufficient here, but this statement is also analyzed when wantJac = false
-			_binding[parType]->analyticJacobian(static_cast<double>(t), secIdx, ColumnPosition{z, 0.0, static_cast<double>(radius) * 0.5}, reinterpret_cast<double const*>(y), _disc.nComp, jac, buffer);
-		}
-	}
+	// Handle time derivatives, binding, dynamic reactions
+	parts::cell::residualKernel<StateType, ResidualType, ParamType, parts::cell::CellParameters, linalg::BandMatrix::RowIterator, wantJac, true>(
+		static_cast<double>(t), secIdx, timeFactor, ColumnPosition{z, 0.0, static_cast<double>(radius) * 0.5}, y, yDotBase ? yDot : nullptr, res, 
+		_jacP[parType].row(colCell * idxr.strideParBlock(parType)), cellResParams, threadLocalMem.get()
+	);
 
 	return 0;
 }
@@ -992,7 +1098,7 @@ void LumpedRateModelWithPores::assembleOffdiagJac(double t, unsigned int secIdx)
 }
 
 int LumpedRateModelWithPores::residualSensFwdWithJacobian(const ActiveSimulationTime& simTime, const ConstSimulationState& simState,
-	const AdJacobianParams& adJac, const util::ThreadLocalArray& threadLocalMem)
+	const AdJacobianParams& adJac, util::ThreadLocalStorage& threadLocalMem)
 {
 	BENCH_SCOPE(_timerResidualSens);
 
@@ -1001,7 +1107,7 @@ int LumpedRateModelWithPores::residualSensFwdWithJacobian(const ActiveSimulation
 	return residual(simTime, simState, nullptr, adJac, threadLocalMem, true, true);
 }
 
-int LumpedRateModelWithPores::residualSensFwdAdOnly(const ActiveSimulationTime& simTime, const ConstSimulationState& simState, active* const adRes, const util::ThreadLocalArray& threadLocalMem)
+int LumpedRateModelWithPores::residualSensFwdAdOnly(const ActiveSimulationTime& simTime, const ConstSimulationState& simState, active* const adRes, util::ThreadLocalStorage& threadLocalMem)
 {
 	BENCH_SCOPE(_timerResidualSens);
 
@@ -1166,7 +1272,18 @@ void LumpedRateModelWithPores::multiplyWithDerivativeJacobian(const SimulationTi
 			}
 
 			// Solid phase
-			_binding[type]->multiplyWithDerivativeJacobian(localSdot + _disc.nComp, localRet + _disc.nComp, simTime.timeFactor);
+			double const* const solidSdot = localSdot + _disc.nComp;
+			double* const solidRet = localRet + _disc.nComp;
+			int const* const qsReaction = _binding[type]->reactionQuasiStationarity();
+
+			for (unsigned int bnd = 0; bnd < _disc.strideBound[type]; ++bnd)
+			{
+				// Add derivative with respect to dynamic states to Jacobian
+				if (qsReaction[bnd])
+					solidRet[bnd] = 0.0;
+				else
+					solidRet[bnd] = simTime.timeFactor * solidSdot[bnd];
+			}
 		}
 	} CADET_PARFOR_END;
 

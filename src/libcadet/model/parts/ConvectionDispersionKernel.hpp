@@ -19,7 +19,7 @@
 #define LIBCADET_CONVECTIONDISPERSIONKERNEL_HPP_
 
 #include "AutoDiff.hpp"
-#include "MemoryPool.hpp"
+#include "Memory.hpp"
 #include "Weno.hpp"
 #include "Stencil.hpp"
 #include "linalg/CompressedSparseMatrix.hpp"

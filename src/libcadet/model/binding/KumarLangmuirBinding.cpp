@@ -24,12 +24,6 @@
 #include <string>
 #include <vector>
 
-namespace cadet
-{
-
-namespace model
-{
-
 /*<codegen>
 {
 	"name": "KumarLangmuirParamHandler",
@@ -55,6 +49,12 @@ namespace model
  kAct = Activation temperature @f$ k_{\text{act}} = \frac{E_a}{R} @f$
  nu = Salt exponents / characteristic charges @f$ \nu @f$
 */
+
+namespace cadet
+{
+
+namespace model
+{
 
 inline const char* KumarLangmuirParamHandler::identifier() CADET_NOEXCEPT { return "KUMAR_MULTI_COMPONENT_LANGMUIR"; }
 
@@ -95,7 +95,7 @@ inline bool ExtKumarLangmuirParamHandler::validateConfig(unsigned int nComp, uns
  * @tparam ParamHandler_t Type that can add support for external function dependence
  */
 template <class ParamHandler_t>
-class KumarLangmuirBindingBase : public PureBindingModelBase
+class KumarLangmuirBindingBase : public ParamHandlerBindingModelBase<ParamHandler_t>
 {
 public:
 
@@ -103,7 +103,6 @@ public:
 	virtual ~KumarLangmuirBindingBase() CADET_NOEXCEPT { }
 
 	static const char* identifier() { return ParamHandler_t::identifier(); }
-	virtual const char* name() const CADET_NOEXCEPT { return ParamHandler_t::identifier(); }
 
 	virtual bool configureModelDiscretization(IParameterProvider& paramProvider, unsigned int nComp, unsigned int const* nBound, unsigned int const* boundOffset)
 	{
@@ -116,41 +115,24 @@ public:
 		return res;
 	}
 
-	virtual void setExternalFunctions(IExternalFunction** extFuns, unsigned int size) { _paramHandler.setExternalFunctions(extFuns, size); }
-
 	virtual bool hasSalt() const CADET_NOEXCEPT { return true; }	
-	virtual bool dependsOnTime() const CADET_NOEXCEPT { return ParamHandler_t::dependsOnTime(); }
-	virtual bool requiresWorkspace() const CADET_NOEXCEPT { return hasAlgebraicEquations() || ParamHandler_t::requiresWorkspace(); }
+	virtual bool implementsAnalyticJacobian() const CADET_NOEXCEPT { return true; }
 
-	CADET_PUREBINDINGMODELBASE_BOILERPLATE
+	CADET_BINDINGMODELBASE_BOILERPLATE
 
 protected:
-	ParamHandler_t _paramHandler; //!< Handles parameters and their dependence on external functions
-
-	virtual unsigned int paramCacheSize(unsigned int nComp, unsigned int totalNumBoundStates, unsigned int const* nBoundStates) const CADET_NOEXCEPT
-	{
-		return _paramHandler.cacheSize(nComp, totalNumBoundStates, nBoundStates);
-	}
-
-	virtual bool configureImpl(IParameterProvider& paramProvider, UnitOpIdx unitOpIdx, ParticleTypeIdx parTypeIdx)
-	{
-		// Read parameters
-		_paramHandler.configure(paramProvider, _nComp, _nBoundStates);
-
-		// Register parameters
-		_paramHandler.registerParameters(_parameters, unitOpIdx, parTypeIdx, _nComp, _nBoundStates);
-
-		return true;
-	}
+	using ParamHandlerBindingModelBase<ParamHandler_t>::_paramHandler;
+	using ParamHandlerBindingModelBase<ParamHandler_t>::_reactionQuasistationarity;
+	using ParamHandlerBindingModelBase<ParamHandler_t>::_nComp;
+	using ParamHandlerBindingModelBase<ParamHandler_t>::_nBoundStates;
 
 	template <typename StateType, typename CpStateType, typename ResidualType, typename ParamType>
-	int residualImpl(const ParamType& t, unsigned int secIdx, const ParamType& timeFactor, const ColumnPosition& colPos,
-		StateType const* y, CpStateType const* yCp, double const* yDot, ResidualType* res, void* workSpace) const
+	int fluxImpl(double t, unsigned int secIdx, const ColumnPosition& colPos, StateType const* y,
+		CpStateType const* yCp, ResidualType* res, LinearBufferAllocator workSpace) const
 	{
-		const typename ParamHandler_t::params_t& p = _paramHandler.update(static_cast<double>(t), secIdx, colPos, _nComp, _nBoundStates, workSpace);
+		typename ParamHandler_t::ParamsHandle const p = _paramHandler.update(t, secIdx, colPos, _nComp, _nBoundStates, workSpace);
 
-		// Protein equations: dq_i / dt - ( k_{a,i} * exp( k_{act,i} / T ) * c_{p,i} * q_{max,i} * (1 - \sum_j q_j / q_{max,j}) - (c_{p,0})^{\nu_i} * k_{d,i} * q_i) == 0
-		//               <=>  dq_i / dt == k_{a,i} * exp( k_{act,i} / T ) * c_{p,i} * q_{max,i} * (1 - \sum_j q_j / q_{max,j}) - (c_{p,0})^{\nu_i} * k_{d,i} * q_i
+		// Protein fluxes: -k_{a,i} * exp( k_{act,i} / T ) * c_{p,i} * q_{max,i} * (1 - \sum_j q_j / q_{max,j}) + (c_{p,0})^{\nu_i} * k_{d,i} * q_i
 		ResidualType qSum = 1.0;
 		unsigned int bndIdx = 0;
 		for (int i = 1; i < _nComp; ++i)
@@ -159,7 +141,7 @@ protected:
 			if (_nBoundStates[i] == 0)
 				continue;
 
-			qSum -= y[bndIdx] / static_cast<ParamType>(p.qMax[i]);
+			qSum -= y[bndIdx] / static_cast<ParamType>(p->qMax[i]);
 
 			// Next bound component
 			++bndIdx;
@@ -173,15 +155,9 @@ protected:
 				continue;
 
 			// Residual
-			const ResidualType ka = static_cast<ParamType>(p.kA[i]) * exp(static_cast<ParamType>(p.kAct[i]) / static_cast<ParamType>(p.temperature));
-			const ResidualType kd = pow(yCp[0], static_cast<ParamType>(p.nu[i])) * static_cast<ParamType>(p.kD[i]);
-			res[bndIdx] = kd * y[bndIdx] - ka * yCp[i] * static_cast<ParamType>(p.qMax[i]) * qSum;
-
-			// Add time derivative if necessary
-			if (_kineticBinding && yDot)
-			{
-				res[bndIdx] += timeFactor * yDot[bndIdx];
-			}
+			const ResidualType ka = static_cast<ParamType>(p->kA[i]) * exp(static_cast<ParamType>(p->kAct[i]) / static_cast<ParamType>(p->temperature));
+			const ResidualType kd = pow(yCp[0], static_cast<ParamType>(p->nu[i])) * static_cast<ParamType>(p->kD[i]);
+			res[bndIdx] = kd * y[bndIdx] - ka * yCp[i] * static_cast<ParamType>(p->qMax[i]) * qSum;
 
 			// Next bound component
 			++bndIdx;
@@ -191,11 +167,11 @@ protected:
 	}
 
 	template <typename RowIterator>
-	void jacobianImpl(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, double const* yCp, int offsetCp, RowIterator jac, void* workSpace) const
+	void jacobianImpl(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, double const* yCp, int offsetCp, RowIterator jac, LinearBufferAllocator workSpace) const
 	{
-		const typename ParamHandler_t::params_t& p = _paramHandler.update(t, secIdx, colPos, _nComp, _nBoundStates, workSpace);
+		typename ParamHandler_t::ParamsHandle const p = _paramHandler.update(t, secIdx, colPos, _nComp, _nBoundStates, workSpace);
 
-		// Protein equations: dq_i / dt - ( k_{a,i} * exp( k_{act,i} / T ) * c_{p,i} * q_{max,i} * (1 - \sum_j q_j / q_{max,j}) - (c_{p,0})^{\nu_i} * k_{d,i} * q_i) == 0
+		// Protein fluxes: -k_{a,i} * exp( k_{act,i} / T ) * c_{p,i} * q_{max,i} * (1 - \sum_j q_j / q_{max,j}) + (c_{p,0})^{\nu_i} * k_{d,i} * q_i
 		double qSum = 1.0;
 		int bndIdx = 0;
 		for (int i = 1; i < _nComp; ++i)
@@ -204,7 +180,7 @@ protected:
 			if (_nBoundStates[i] == 0)
 				continue;
 
-			qSum -= y[bndIdx] / static_cast<double>(p.qMax[i]);
+			qSum -= y[bndIdx] / static_cast<double>(p->qMax[i]);
 
 			// Next bound component
 			++bndIdx;
@@ -217,16 +193,16 @@ protected:
 			if (_nBoundStates[i] == 0)
 				continue;
 
-			const double ka = static_cast<double>(p.kA[i]) * exp(static_cast<double>(p.kAct[i]) / static_cast<double>(p.temperature));
-			const double kd = pow(yCp[0], static_cast<double>(p.nu[i])) * static_cast<double>(p.kD[i]);
+			const double ka = static_cast<double>(p->kA[i]) * exp(static_cast<double>(p->kAct[i]) / static_cast<double>(p->temperature));
+			const double kd = pow(yCp[0], static_cast<double>(p->nu[i])) * static_cast<double>(p->kD[i]);
 
 			// dres_i / dc_{p,i}
-			jac[i - bndIdx - offsetCp] = -ka * static_cast<double>(p.qMax[i]) * qSum;
+			jac[i - bndIdx - offsetCp] = -ka * static_cast<double>(p->qMax[i]) * qSum;
 			// Getting to c_{p,i}: -bndIdx takes us to q_0, another -offsetCp to c_{p,0} and a +i to c_{p,i}.
 			//                     This means jac[i - bndIdx - offsetCp] corresponds to c_{p,i}.
 
 			// dres_i / dc_{p,0}
-			jac[-bndIdx - offsetCp] = static_cast<double>(p.kD[i]) * static_cast<double>(p.nu[i]) * pow(yCp[0], static_cast<double>(p.nu[i]) - 1.0) * y[bndIdx];
+			jac[-bndIdx - offsetCp] = static_cast<double>(p->kD[i]) * static_cast<double>(p->nu[i]) * pow(yCp[0], static_cast<double>(p->nu[i]) - 1.0) * y[bndIdx];
 
 			// Fill dres_i / dq_j
 			int bndIdx2 = 0;
@@ -237,7 +213,7 @@ protected:
 					continue;
 
 				// dres_i / dq_j
-				jac[bndIdx2 - bndIdx] = ka * yCp[i] * static_cast<double>(p.qMax[i]) / static_cast<double>(p.qMax[j]);
+				jac[bndIdx2 - bndIdx] = ka * yCp[i] * static_cast<double>(p->qMax[i]) / static_cast<double>(p->qMax[j]);
 				// Getting to q_j: -bndIdx takes us to q_0, another +bndIdx2 to q_j. This means jac[bndIdx2 - bndIdx] corresponds to q_j.
 
 				++bndIdx2;
@@ -246,7 +222,7 @@ protected:
 			// Add to dres_i / dq_i
 			jac[0] += kd;
 
-			// Advance to next equation and Jacobian row
+			// Advance to next flux and Jacobian row
 			++bndIdx;
 			++jac;
 		}

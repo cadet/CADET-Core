@@ -87,12 +87,6 @@ public:
 		return false;
 	}
 
-	virtual void getAlgebraicBlock(unsigned int& idxStart, unsigned int& len) const
-	{
-		idxStart = 0;
-		len = 0;
-	}
-
 	virtual active* getParameter(const ParameterId& pId)
 	{
 		return nullptr;
@@ -103,83 +97,54 @@ public:
 		return 0;
 	}
 
-	virtual void consistentInitialState(double t, unsigned int secIdx, const ColumnPosition& colPos, double* const vecStateY, double errorTol, 
-		active* const adRes, active* const adY, unsigned int adEqOffset, unsigned int adDirOffset, const ad::IJacobianExtractor& jacExtractor, 
-		double* const workingMemory, linalg::detail::DenseMatrixBase& workingMat) const
-	{
-	}
-
-	virtual void consistentInitialState(double t, unsigned int secIdx, const ColumnPosition& colPos, double* const vecStateY, double const* const mobilePhase, double errorTol, active* const adRes, active* const adY,
-		unsigned int adEqOffset, unsigned int adDirOffset, const ad::IJacobianExtractor& jacExtractor, double* const workingMemory,
-		linalg::detail::DenseMatrixBase& workingMat) const
-	{
-	}
-
-	virtual int residual(const active& t, unsigned int secIdx, const active& timeFactor, const ColumnPosition& colPos,
-		active const* y, active const* yCp, double const* yDot, active* res, void* workSpace) const
+	virtual int flux(double t, unsigned int secIdx, const ColumnPosition& colPos,
+		active const* y, active const* yCp, active* res, LinearBufferAllocator workSpace, WithParamSensitivity) const
 	{
 		return 0;
 	}
 
-	virtual int residual(double t, unsigned int secIdx, double timeFactor, const ColumnPosition& colPos,
-		active const* y, active const* yCp, double const* yDot, active* res, void* workSpace) const
+	virtual int flux(double t, unsigned int secIdx, const ColumnPosition& colPos,
+		active const* y, active const* yCp, active* res, LinearBufferAllocator workSpace, WithoutParamSensitivity) const
 	{
 		return 0;
 	}
 
-	virtual int residual(const active& t, unsigned int secIdx, const active& timeFactor, const ColumnPosition& colPos,
-		double const* y, double const* yCp, double const* yDot, active* res, void* workSpace) const
+	virtual int flux(double t, unsigned int secIdx, const ColumnPosition& colPos,
+		double const* y, double const* yCp, active* res, LinearBufferAllocator workSpace) const
 	{
 		return 0;
 	}
 
-	virtual int residual(double t, unsigned int secIdx, double timeFactor, const ColumnPosition& colPos,
-		double const* y, double const* yCp, double const* yDot, double* res, void* workSpace) const
+	virtual int flux(double t, unsigned int secIdx, const ColumnPosition& colPos,
+		double const* y, double const* yCp, double* res, LinearBufferAllocator workSpace) const
 	{
 		return 0;
 	}
 
 	virtual void setExternalFunctions(IExternalFunction** extFuns, unsigned int size) { }
 
-	virtual void analyticJacobian(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, linalg::BandMatrix::RowIterator jac, void* workSpace) const
+	virtual void analyticJacobian(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, int offsetCp, linalg::BandMatrix::RowIterator jac, LinearBufferAllocator workSpace) const
 	{
 	}
 
-	virtual void analyticJacobian(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, linalg::DenseBandedRowIterator jac, void* workSpace) const
+	virtual void analyticJacobian(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, int offsetCp, linalg::DenseBandedRowIterator jac, LinearBufferAllocator workSpace) const
 	{
 	}
 
-	virtual void analyticJacobian(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, int offsetCp, linalg::BandMatrix::RowIterator jac, void* workSpace) const
-	{
-	}
-
-	virtual void analyticJacobian(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, int offsetCp, linalg::DenseBandedRowIterator jac, void* workSpace) const
-	{
-	}
-
-	virtual void jacobianAddDiscretized(double alpha, linalg::FactorizableBandMatrix::RowIterator jac) const
-	{
-	}
-
-	virtual void jacobianAddDiscretized(double alpha, linalg::DenseBandedRowIterator jac) const
-	{
-	}
-
-	virtual void multiplyWithDerivativeJacobian(double const* yDotS, double* const res, double timeFactor) const
-	{
-	}
-
-	virtual void timeDerivativeAlgebraicResidual(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, double* dResDt, void* workSpace) const
-	{
-	}
+	virtual void timeDerivativeQuasiStationaryFluxes(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* yCp, double const* y, double* dResDt, LinearBufferAllocator workSpace) const { }
 
 	virtual bool hasSalt() const CADET_NOEXCEPT { return false; }
 	virtual bool supportsMultistate() const CADET_NOEXCEPT { return true; }
 	virtual bool supportsNonBinding() const CADET_NOEXCEPT { return true; }
-	virtual bool hasAlgebraicEquations() const CADET_NOEXCEPT { return false; }
+	virtual bool hasQuasiStationaryReactions() const CADET_NOEXCEPT { return false; }
+	virtual bool hasDynamicReactions() const CADET_NOEXCEPT { return true; }
 	virtual bool dependsOnTime() const CADET_NOEXCEPT { return false; }
 	virtual bool requiresWorkspace() const CADET_NOEXCEPT { return false; }
-	virtual int const* boundStateQuasiStationarity() const CADET_NOEXCEPT { return _stateQuasistationarity.data(); }
+	virtual bool implementsAnalyticJacobian() const CADET_NOEXCEPT { return true; }
+	virtual int const* reactionQuasiStationarity() const CADET_NOEXCEPT { return _stateQuasistationarity.data(); }
+
+	virtual bool preConsistentInitialState(double t, unsigned int secIdx, const ColumnPosition& colPos, double* y, double const* yCp, LinearBufferAllocator workSpace) const { return false; }
+	virtual void postConsistentInitialState(double t, unsigned int secIdx, const ColumnPosition& colPos, double* y, double const* yCp, LinearBufferAllocator workSpace) const { }
 
 protected:
 	int _nComp; //!< Number of components

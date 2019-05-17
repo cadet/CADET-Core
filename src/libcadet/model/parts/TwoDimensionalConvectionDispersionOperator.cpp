@@ -675,13 +675,15 @@ TwoDimensionalConvectionDispersionOperator::~TwoDimensionalConvectionDispersionO
  * @param [in] paramProvider Parameter provider for reading parameters
  * @param [in] nComp Number of components
  * @param [in] nCol Number of axial cells
+ * @param [in] dynamicReactions Determines whether the sparsity pattern accounts for dynamic reactions
  * @return @c true if configuration went fine, @c false otherwise
  */
-bool TwoDimensionalConvectionDispersionOperator::configureModelDiscretization(IParameterProvider& paramProvider, unsigned int nComp, unsigned int nCol, unsigned int nRad)
+bool TwoDimensionalConvectionDispersionOperator::configureModelDiscretization(IParameterProvider& paramProvider, unsigned int nComp, unsigned int nCol, unsigned int nRad, bool dynamicReactions)
 {
 	_nComp = nComp;
 	_nCol = nCol;
 	_nRad = nRad;
+	_hasDynamicReactions = dynamicReactions;
 
 	paramProvider.pushScope("discretization");
 
@@ -1150,6 +1152,28 @@ void TwoDimensionalConvectionDispersionOperator::setSparsityPattern()
 					const unsigned int idxCur = idxColRadBlock + comp;
 					pattern.add(idxCur, idxCur + _nComp);
 					pattern.add(idxCur, idxCur - _nComp);
+				}
+			}
+		}
+	}
+
+	// Add space for dynamic reactions
+	if (_hasDynamicReactions)
+	{
+		// Add nComp x nComp diagonal blocks (everything can react with everything)
+		for (unsigned int col = 0; col < _nCol; ++col)
+		{
+			const unsigned int idxColBlock = col * _nRad * _nComp;
+
+			for (unsigned int rad = 0; rad < _nRad; ++rad)
+			{
+				const unsigned int idxColRadBlock = idxColBlock + rad * _nComp;
+
+				for (unsigned int comp = 0; comp < _nComp; ++comp)
+				{
+					const unsigned int idxCur = idxColRadBlock + comp;
+					for (unsigned int comp2 = 0; comp2 < _nComp; ++comp2)
+						pattern.add(idxCur, idxColRadBlock + comp2);
 				}
 			}
 		}
