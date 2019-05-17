@@ -312,6 +312,24 @@ public:
 	}
 
 	/**
+	 * @brief Multiplies the matrix @f$ A @f$ with a given vector @f$ x @f$ and adds it to another vector
+	 * @details Computes @f$ y = \alpha Ax + y @f$, where @f$ A @f$ is this matrix and @f$ x @f$ is given.
+	 * @param [in] x Vector this matrix is multiplied with
+	 * @param [in] alpha Factor @f$ \alpha @f$ in front of @f$ Ax @f$
+	 * @param [out] y Result of the matrix-vector multiplication
+	 */
+	template <typename operand_t, typename result_t>
+	void multiplyVector(const operand_t* const x, const active& alpha, result_t* const y) const
+	{
+		for (unsigned int r = 0; r < _rows; ++r)
+		{
+			active const* const row = _data + r * stride();
+			for (unsigned int c = 0; c < _cols; ++c)
+				y[r] += static_cast<typename DoubleDemoter<result_t>::type>(alpha) * static_cast<typename DoubleDemoter<result_t>::type>(row[c]) * static_cast<typename DoubleActiveDemoter<result_t, operand_t>::type>(x[c]);
+		}
+	}
+
+	/**
 	 * @brief Multiplies the transpose of the matrix @f$ A @f$ with a given vector @f$ x @f$ and adds it to another vector
 	 * @details Computes @f$ y = \alpha A^T x + \beta y @f$, where @f$ A @f$ is this matrix and @f$ x @f$ is given.
 	 * @param [in] x Vector this matrix is multiplied with

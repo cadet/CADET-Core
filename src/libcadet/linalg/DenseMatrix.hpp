@@ -512,6 +512,38 @@ namespace detail
 		}
 
 		/**
+		 * @brief Adds a submatrix @f$ X @f$ of this matrix to a submatrix @f$ B @f$ of another matrix
+		 * @details Performs @f$ Y = Y + \alpha X @f$.
+		 * @param [in,out] dest Destination matrix containing @f$ Y @f$
+		 * @param [in] factor Factor @f$ \alpha @f$
+		 * @param [in] srcRow Index of the first row of the source submatrix
+		 * @param [in] srcCol Index of the first column of the source submatrix
+		 * @param [in] numRows Number of rows of the submatrix
+		 * @param [in] numCols Number of columns of the submatrix
+		 * @param [in] destRow Index of the first row of the destination submatrix
+		 * @param [in] destCol Index of the first column of the destination submatrix
+		 */
+		inline void addSubmatrixTo(DenseMatrixBase& dest, const double factor, const unsigned int srcRow, const unsigned int srcCol, const unsigned int numRows, const unsigned int numCols, const unsigned int destRow, const unsigned int destCol)
+		{
+			cadet_assert(_rows >= srcRow + numRows);
+			cadet_assert(_cols >= srcCol + numCols);
+			cadet_assert(_rows > srcRow);
+			cadet_assert(_cols > srcCol);
+			cadet_assert(dest._rows >= destRow + numRows);
+			cadet_assert(dest._cols >= destCol + numCols);
+			cadet_assert(dest._rows > destRow);
+			cadet_assert(dest._cols > destCol);
+
+			double* ptrDest = dest._data + destRow * dest.stride() + destCol;
+			double const* ptrSrc = _data + srcRow * stride() + srcCol;
+			for (unsigned int r = 0; r < numRows; ++r, ptrDest += dest.stride(), ptrSrc += stride())
+			{
+				for (unsigned int c = 0; c < numCols; ++c)
+					ptrDest[c] += factor * ptrSrc[c];
+			}
+		}
+
+		/**
 		 * @brief Sets all elements of a submatrix of this matrix to the given value
 		 * @details The submatrix is given by its first row and column and its number of rows and columns.
 		 * @param [in] val Value the submatrix is set to
@@ -534,6 +566,20 @@ namespace detail
 		 */
 		void submatrixAssign(const DenseMatrixBase& mat, unsigned int startRow, unsigned int startCol, 
 			unsigned int numRows, unsigned int numCols);
+
+		/**
+		 * @brief Copies a row of a given dense matrix into this matrix
+		 * @details Copies a row from a given source in dense storage into this matrix.
+		 * @param [in] mat Source matrix in dense storage format
+		 * @param [in] srcRow Index of the source row to be copied from @p mat
+		 * @param [in] destRow Index of the target row
+		 */
+		inline void copyRowFrom(const DenseMatrixBase& mat, const unsigned int srcRow, unsigned int destRow)
+		{
+			cadet_assert(mat._rows > srcRow);
+			cadet_assert(_cols >= mat._cols);
+			std::copy_n(mat._data + mat._cols * srcRow, mat._cols, _data + _cols * destRow);
+		}
 
 		/**
 		 * @brief Multiplies the matrix @f$ A @f$ with a given vector @f$ x @f$ using LAPACK
