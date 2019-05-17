@@ -26,34 +26,6 @@
 #include "MatrixHelper.hpp"
 
 /**
- * @brief Create a BandMatrix of given type and fill entries with their linear array index (1-based)
- * @param [in] Number of rows
- * @param [in] Lower bandwidth (excluding main diagonal)
- * @param [in] Upper bandwidth (excluding main diagonal)
- * @tparam Matrix_t Type of banded matrix to create
- * @return Banded matrix of given shape
- */
-template <typename Matrix_t>
-Matrix_t createBandMatrix(unsigned int rows, unsigned int lower, unsigned int upper)
-{
-	Matrix_t bm;
-	bm.resize(rows, lower, upper);
-
-	double val = 1.0;
-	for (unsigned int row = 0; row < bm.rows(); ++row)
-	{
-		const int lower = std::max(-static_cast<int>(bm.lowerBandwidth()), -static_cast<int>(row));
-		const int upper = std::min(static_cast<int>(bm.upperBandwidth()), static_cast<int>(bm.rows() - row) - 1);
-		for (int col = lower; col <= upper; ++col)
-		{
-			bm.centered(row, col) = val;
-			val += 1.0;
-		}
-	}
-	return bm;
-}
-
-/**
  * @brief Creates a residual that has a banded Jacobian matrix as created by createBandMatrix()
  * @param [in] x AD enabled residual argument
  * @param [out] out Vector that holds the residual
@@ -106,7 +78,7 @@ TEST_CASE("Extract banded Jacobian via AD", "[AD],[BandMatrix]")
 	cadet::ad::extractBandedJacobianFromAd(res, 0, lowerBand, bm);
 
 	// Get reference matrix
-	const cadet::linalg::BandMatrix ref = createBandMatrix<cadet::linalg::BandMatrix>(matSize, lowerBand, upperBand);
+	const cadet::linalg::BandMatrix ref = cadet::test::createBandMatrix<cadet::linalg::BandMatrix>(matSize, lowerBand, upperBand);
 
 	// Compare matrices
 	const unsigned int n = ref.rows() * ref.stride();
@@ -147,21 +119,27 @@ TEST_CASE("Extract dense submatrix from banded Jacobian via AD", "[AD],[DenseMat
 	cadet::linalg::DenseMatrix dm;
 	dm.resize(3, 6);
 
+	dm.setAll(0.0);
 	cadet::ad::extractDenseJacobianFromBandedAd(res, 0, 0, lowerBand, lowerBand, upperBand, dm);
 	cadet::test::checkMatrixAgainstLinearArray(dm.data(), {1, 2, 3, 4, 0, 0, 5, 6, 7, 8, 9, 0, 10, 11, 12, 13, 14, 15});
 
+	dm.setAll(0.0);
 	cadet::ad::extractDenseJacobianFromBandedAd(res, 1, 0, lowerBand, lowerBand, upperBand, dm);
 	cadet::test::checkMatrixAgainstLinearArray(dm.data(), {6, 7, 8, 9, 0, 0, 11, 12, 13, 14, 15, 0, 16, 17, 18, 19, 20, 21});
 
+	dm.setAll(0.0);
 	cadet::ad::extractDenseJacobianFromBandedAd(res, 2, 0, lowerBand, lowerBand, upperBand, dm);
 	cadet::test::checkMatrixAgainstLinearArray(dm.data(), {12, 13, 14, 15, 0, 0, 17, 18, 19, 20, 21, 0, 22, 23, 24, 25, 26, 27});
 
+	dm.setAll(0.0);
 	cadet::ad::extractDenseJacobianFromBandedAd(res, 5, 0, lowerBand, lowerBand, upperBand, dm);
 	cadet::test::checkMatrixAgainstLinearArray(dm.data(), {30, 31, 32, 33, 0, 0, 35, 36, 37, 38, 39, 0, 40, 41, 42, 43, 44, 0});
 
+	dm.setAll(0.0);
 	cadet::ad::extractDenseJacobianFromBandedAd(res, 6, 0, lowerBand, lowerBand, upperBand, dm);
 	cadet::test::checkMatrixAgainstLinearArray(dm.data(), {36, 37, 38, 39, 0, 0, 41, 42, 43, 44, 0, 0, 45, 46, 47, 48, 0, 0});
 
+	dm.setAll(0.0);
 	cadet::ad::extractDenseJacobianFromBandedAd(res, 7, 0, lowerBand, lowerBand, upperBand, dm);
 	cadet::test::checkMatrixAgainstLinearArray(dm.data(), {42, 43, 44, 0, 0, 0, 46, 47, 48, 0, 0, 0, 49, 50, 51, 0, 0, 0});
 

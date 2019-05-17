@@ -39,6 +39,34 @@ inline void checkMatrixAgainstLinearArray(double const* mat, const std::vector<d
 		CHECK(matRef[i] == RelApprox(mat[i]));
 }
 
+/**
+ * @brief Create a BandMatrix of given type and fill entries with their linear array index (1-based)
+ * @param [in] Number of rows
+ * @param [in] Lower bandwidth (excluding main diagonal)
+ * @param [in] Upper bandwidth (excluding main diagonal)
+ * @tparam Matrix_t Type of banded matrix to create
+ * @return Banded matrix of given shape
+ */
+template <typename Matrix_t>
+Matrix_t createBandMatrix(unsigned int rows, unsigned int lower, unsigned int upper)
+{
+	Matrix_t bm;
+	bm.resize(rows, lower, upper);
+
+	double val = 1.0;
+	for (unsigned int row = 0; row < bm.rows(); ++row)
+	{
+		const int lower = std::max(-static_cast<int>(bm.lowerBandwidth()), -static_cast<int>(row));
+		const int upper = std::min(static_cast<int>(bm.upperBandwidth()), static_cast<int>(bm.rows() - row) - 1);
+		for (int col = lower; col <= upper; ++col)
+		{
+			bm.centered(row, col) = val;
+			val += 1.0;
+		}
+	}
+	return bm;
+}
+
 } // namespace test
 } // namespace cadet
 

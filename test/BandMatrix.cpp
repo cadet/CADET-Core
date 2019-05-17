@@ -22,34 +22,6 @@
 #include "MatrixHelper.hpp"
 
 /**
- * @brief Create a BandMatrix of given type and fill entries with their linear array index (1-based)
- * @param [in] Number of rows
- * @param [in] Lower bandwidth (excluding main diagonal)
- * @param [in] Upper bandwidth (excluding main diagonal)
- * @tparam Matrix_t Type of banded matrix to create
- * @return Banded matrix of given shape
- */
-template <typename Matrix_t>
-Matrix_t createBandMatrix(unsigned int rows, unsigned int lower, unsigned int upper)
-{
-	Matrix_t bm;
-	bm.resize(rows, lower, upper);
-
-	double val = 1.0;
-	for (unsigned int row = 0; row < bm.rows(); ++row)
-	{
-		const int lower = std::max(-static_cast<int>(bm.lowerBandwidth()), -static_cast<int>(row));
-		const int upper = std::min(static_cast<int>(bm.upperBandwidth()), static_cast<int>(bm.rows() - row) - 1);
-		for (int col = lower; col <= upper; ++col)
-		{
-			bm.centered(row, col) = val;
-			val += 1.0;
-		}
-	}
-	return bm;
-}
-
-/**
  * @brief Converts a BandMatrix into a FactorizableBandMatrix
  * @details Just copies the values.
  * @param [in] bm Source matrix
@@ -97,7 +69,7 @@ TEST_CASE("Copying BandMatrix to FactorizableBandMatrix", "[BandMatrix],[LinAlg]
 	using cadet::linalg::BandMatrix;
 	using cadet::linalg::FactorizableBandMatrix;
 
-	const BandMatrix bm = createBandMatrix<BandMatrix>(10, 2, 3);
+	const BandMatrix bm = cadet::test::createBandMatrix<BandMatrix>(10, 2, 3);
 	const FactorizableBandMatrix fbm = fromBandMatrix(bm);
 
 	for (unsigned int row = 0; row < bm.rows(); ++row)
@@ -115,7 +87,7 @@ TEST_CASE("FactorizableBandMatrix iterator read access", "[BandMatrix],[LinAlg]"
 {
 	using cadet::linalg::FactorizableBandMatrix;
 
-	const FactorizableBandMatrix fbm = createBandMatrix<FactorizableBandMatrix>(10, 2, 3);
+	const FactorizableBandMatrix fbm = cadet::test::createBandMatrix<FactorizableBandMatrix>(10, 2, 3);
 	FactorizableBandMatrix::ConstRowIterator it = fbm.row(0);
 	for (unsigned int row = 0; row < fbm.rows(); ++row, ++it)
 	{
@@ -133,7 +105,7 @@ TEST_CASE("FactorizableBandMatrix solves", "[BandMatrix],[LinAlg]")
 	using cadet::linalg::FactorizableBandMatrix;
 	using cadet::linalg::BandMatrix;
 
-	const BandMatrix bm = createBandMatrix<BandMatrix>(10, 2, 3);
+	const BandMatrix bm = cadet::test::createBandMatrix<BandMatrix>(10, 2, 3);
 	FactorizableBandMatrix fbm = fromBandMatrix(bm);
 	
 	REQUIRE(fbm.factorize());
@@ -178,7 +150,7 @@ TEST_CASE("BandMatrix::submatrixMultiplyVector", "[BandMatrix],[LinAlg]")
 
 	SECTION("Matrix size: 8 rows, 2+1+3 bandwidth")
 	{
-		const BandMatrix bm = createBandMatrix<BandMatrix>(8, 2, 3);
+		const BandMatrix bm = cadet::test::createBandMatrix<BandMatrix>(8, 2, 3);
 
 		testSubMatrixMultiply(bm, 0, 0, 5, 5, {1, 2, 3, 4, 0, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 0, 16, 17, 18, 19, 0, 0, 22, 23, 24});
 		testSubMatrixMultiply(bm, 2, 0, 5, 5, {12, 13, 14, 15, 0, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 0, 28, 29, 30, 31, 0, 0, 33, 34, 35});
@@ -200,7 +172,7 @@ TEST_CASE("BandMatrix::submatrixMultiplyVector", "[BandMatrix],[LinAlg]")
 
 	SECTION("Matrix size: 24 rows, 6+1+9 bandwidth")
 	{
-		const BandMatrix bm = createBandMatrix<BandMatrix>(24, 6, 9);
+		const BandMatrix bm = cadet::test::createBandMatrix<BandMatrix>(24, 6, 9);
 		
 		testSubMatrixMultiply(bm, 3, 1, 1, 2, {38, 39});
 		testSubMatrixMultiply(bm, 3, -1, 1, 3, {36, 37, 38});
