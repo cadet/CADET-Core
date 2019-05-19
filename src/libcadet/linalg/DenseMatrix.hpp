@@ -66,6 +66,14 @@ namespace detail
 		 */
 		DenseBandedRowIterator(MatrixType& mat, unsigned int row) CADET_NOEXCEPT : _matrix(&mat), _pos(_matrix->_data + row * _matrix->stride() + row), _rowIdx(row) { }
 
+		/**
+		 * @brief Creates a DenseBandedRowIterator for the given matrix
+		 * @param [in] mat Matrix this DenseBandedRowIterator accesses
+		 * @param [in] row Index of the row of the iterator points so
+		 * @param [in] diagOffset Diagonal this iterator points to (offset)
+		 */
+		DenseBandedRowIterator(MatrixType& mat, unsigned int row, int diagOffset) CADET_NOEXCEPT : _matrix(&mat), _pos(_matrix->_data + static_cast<int>(row * _matrix->stride() + row) + diagOffset), _rowIdx(row) { }
+
 		DenseBandedRowIterator(const DenseBandedRowIterator& cpy, int rowChange) CADET_NOEXCEPT : _matrix(cpy._matrix), _pos(cpy._pos + rowChange * static_cast<int>(cpy._matrix->stride() + 1)), _rowIdx(static_cast<int>(cpy._rowIdx) + rowChange) { }
 		DenseBandedRowIterator(const DenseBandedRowIterator& cpy) CADET_NOEXCEPT : _matrix(cpy._matrix), _pos(cpy._pos), _rowIdx(cpy._rowIdx) { }
 		DenseBandedRowIterator(DenseBandedRowIterator&& cpy) CADET_NOEXCEPT : _matrix(cpy._matrix), _pos(cpy._pos), _rowIdx(cpy._rowIdx) { }
@@ -144,6 +152,69 @@ namespace detail
 		{
 			cadet_assert(_matrix->columns() >= ri._matrix->columns());
 			std::copy_n(ri._pos - ri._rowIdx, _matrix->columns(), _pos - _rowIdx);
+		}
+
+		/**
+		 * @brief Adds a subset of this row @f$ x @f$ to another row @f$ y @f$ performing @f$ y = y + \alpha x @f$
+		 * @details Although the subset is specified with a bandmatrix interface, the rows are
+		            added as in a normal matrix.
+		 * @param [in] riDest Row iterator pointing to the destination row @f$ y @f$
+		 * @param [in] factor Factor @f$ \alpha @f$
+		 * @param [in] lowerBand Start point of the row subset as lower band index
+		 * @param [in] upperBand End point of the row subset as upper band index
+		 * @tparam OtherMatrix Underlying matrix type of other row iterator
+		 */
+		template <typename OtherMatrix>
+		inline void addSubsetTo(const DenseBandedRowIterator<OtherMatrix>& riDest, double factor, int lowerBand, int upperBand) const
+		{
+			cadet_assert(_matrix->columns() >= riDest._matrix->columns());
+			
+			const int idxStart = _rowIdx + lowerBand;
+			const int idxEnd = _rowIdx + upperBand;
+			
+			cadet_assert(idxStart >= 0);
+			cadet_assert(idxEnd < _matrix->columns());
+
+			double* const dest = riDest._pos - riDest._rowIdx;
+			double const* const src = _pos - _rowIdx;
+			for (int i = idxStart; i < idxEnd; ++i)
+				dest[i] += factor * src[i];
+		}
+
+		/**
+		 * @brief Adds a subset of this row @f$ x @f$ to another row @f$ y @f$ performing @f$ y = y + \alpha x @f$
+		 * @details Although the subset is specified with a bandmatrix interface, the rows are
+		            added as in a normal matrix.
+		 * @param [in] riDest Row iterator pointing to the destination row @f$ y @f$
+		 * @param [in] factor Factor @f$ \alpha @f$
+		 * @param [in] lowerBand Start point of the row subset as lower band index
+		 * @param [in] upperBand End point of the row subset as upper band index
+		 * @param [in] shift Unused
+		 * @tparam OtherMatrix Underlying matrix type of other row iterator
+		 */
+		template <typename OtherMatrix>
+		inline void addSubsetTo(const DenseBandedRowIterator<OtherMatrix>& riDest, double factor, int lowerBand, int upperBand, int shift) const
+		{
+			addSubsetTo(riDest, factor, lowerBand, upperBand);
+		}
+
+		/**
+		 * @brief Adds the given array to the current row
+		 * @details Performs the operation @f$ y = y + \alpha x @f$, where @f$ x @f$ may only be a
+		 *          subset of the current row the iterator points to. The start of the subset is
+		 *          given by @p startDiag. The subset has to fully fit into the matrix row.
+		 * @param [in] row Pointer to array @f$ x @f$ that is added to the given row @f$ y @f$
+		 * @param [in] startDiag Index of the diagonal at which the row is added
+		 * @param [in] length Length of the array
+		 * @param [in] factor Factor @f$ \alpha @f$
+		 */
+		inline void addArray(double const* row, int startDiag, int length, double factor)
+		{
+			cadet_assert(startDiag + _rowIdx >= 0);
+			cadet_assert(startDiag + length + _rowIdx <= static_cast<int>(_matrix->columns()));
+			double* const dest = _pos + startDiag;
+			for (int i = 0; i < length; ++i)
+				dest[i] += factor * row[i];
 		}
 
 		inline DenseBandedRowIterator& operator++() CADET_NOEXCEPT
@@ -356,6 +427,20 @@ namespace detail
 		}
 
 		/**
+		 * @brief Creates a RowIterator pointing to the given row
+		 * @param [in] idx Index of the row
+		 * @param [in] diag Index of the diagonal the iterator points to
+		 * @return RowIterator pointing to the given row
+		 */
+		inline RowIterator row(unsigned int idx, int diag)
+		{
+			cadet_assert(idx < _rows);
+			cadet_assert(static_cast<int>(idx) + diag < _cols);
+			cadet_assert(static_cast<int>(idx) + diag >= 0);
+			return RowIterator(*this, idx, diag);
+		}
+
+		/**
 		 * @brief Copies a submatrix of a given banded matrix into this matrix
 		 * @details Copies a rectangular submatrix from a given source in banded storage into this matrix.
 		 *          The top left matrix element is given by @p startRow and @p startDiag. The size of the
@@ -368,7 +453,7 @@ namespace detail
 		 * @tparam MatType_t Type of a matrix in banded storage
 		 */
 		template <typename MatType_t>
-		inline void copySubmatrixFromBanded(const MatType_t& mat, unsigned int startRow, int startDiag, unsigned int numRows, unsigned int numCols)
+		inline void copySubmatrixFromBanded(const MatType_t& mat, const unsigned int startRow, const int startDiag, const unsigned int numRows, const unsigned int numCols)
 		{
 			cadet_assert(_rows >= numRows);
 			cadet_assert(_cols >= numCols);
@@ -403,13 +488,13 @@ namespace detail
 		 *          
 		 *          The submatrix is copied into the top left corner of this matrix. The rest of the matrix
 		 *          is left unchanged.
-		 * @param [in] mat Source matrix in banded storage format
+		 * @param [in] mat Source matrix in dense storage format
 		 * @param [in] startRow Index of the first row of the submatrix in the source
 		 * @param [in] startCol Index of the first column of the submatrix in the source
 		 * @param [in] numRows Number of rows to be copied
 		 * @param [in] numCols Number of columns to be copied
 		 */
-		inline void copySubmatrix(const DenseMatrixBase& mat, unsigned int startRow, unsigned int startCol, unsigned int numRows, unsigned int numCols)
+		inline void copySubmatrix(const DenseMatrixBase& mat, const unsigned int startRow, const unsigned int startCol, const unsigned int numRows, const unsigned int numCols)
 		{
 			cadet_assert(_rows >= numRows);
 			cadet_assert(_cols >= numCols);

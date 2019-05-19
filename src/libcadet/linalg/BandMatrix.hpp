@@ -47,7 +47,7 @@ public:
 	{
 #ifdef CADET_DEBUG
 		_row = -1;
-#endif		
+#endif
 	}
 
 	/**
@@ -58,7 +58,7 @@ public:
 	{
 #ifdef CADET_DEBUG
 		_row = 0;
-#endif		
+#endif
 	}
 
 	/**
@@ -70,7 +70,7 @@ public:
 	{
 #ifdef CADET_DEBUG
 		_row = 0;
-#endif		
+#endif
 	}
 
 	/**
@@ -82,7 +82,7 @@ public:
 	{
 #ifdef CADET_DEBUG
 		_row = row;
-#endif		
+#endif
 	}
 
 	/**
@@ -95,26 +95,26 @@ public:
 	{
 #ifdef CADET_DEBUG
 		_row = row;
-#endif		
+#endif
 	}
 
 	BandedRowIterator(const BandedRowIterator& cpy) CADET_NOEXCEPT : _matrix(cpy._matrix), _pos(cpy._pos)
 	{
 #ifdef CADET_DEBUG
 		_row = cpy._row;
-#endif		
+#endif
 	}
 	BandedRowIterator(const BandedRowIterator& cpy, int rowChange) CADET_NOEXCEPT : _matrix(cpy._matrix), _pos(cpy._pos + rowChange * static_cast<int>(cpy._matrix->stride()))
 	{
 #ifdef CADET_DEBUG
 		_row = cpy._row + rowChange;
-#endif		
+#endif
 	}
 	BandedRowIterator(BandedRowIterator&& cpy) CADET_NOEXCEPT : _matrix(cpy._matrix), _pos(cpy._pos)
 	{
 #ifdef CADET_DEBUG
 		_row = cpy._row;
-#endif		
+#endif
 	}
 
 	inline BandedRowIterator& operator=(const BandedRowIterator& cpy) CADET_NOEXCEPT
@@ -125,7 +125,7 @@ public:
 		_pos = cpy._pos;
 #ifdef CADET_DEBUG
 		_row = cpy._row;
-#endif		
+#endif
 		return *this;
 	}
 
@@ -135,7 +135,7 @@ public:
 		_pos = cpy._pos;
 #ifdef CADET_DEBUG
 		_row = cpy._row;
-#endif		
+#endif
 		return *this;
 	}
 
@@ -159,6 +159,45 @@ public:
 		cadet_assert(it.nonZeroColumnsPerRow() >= nonZeroColumnsPerRow());
 		for (unsigned int i = 0; i < _matrix->apparentStride(); ++i)
 			_pos[i] = it.native(i);
+	}
+
+	/**
+	 * @brief Adds a subset of this row @f$ x @f$ to another row @f$ y @f$ performing @f$ y = y + \alpha x @f$
+	 * @details The subset has to fully fit into the destination row (taking into account the @p shift).
+	 * @param [in] riDest Row iterator pointing to the destination row @f$ y @f$
+	 * @param [in] factor Factor @f$ \alpha @f$
+	 * @param [in] lowerBand Start point of the row subset as lower band index
+	 * @param [in] upperBand End point of the row subset as upper band index
+	 * @param [in] shift Amount of items the subset is shifted to the right in the destination row
+	 */
+	template <typename OtherIterator_t>
+	inline void addSubsetTo(const OtherIterator_t& riDest, double factor, int lowerBand, int upperBand, int shift) const
+	{
+		cadet_assert(static_cast<int>(riDest._matrix->upperBandwidth()) >= shift + upperBand);
+		cadet_assert(static_cast<int>(riDest._matrix->lowerBandwidth()) >= -shift - lowerBand);
+		double* const dest = riDest._pos + static_cast<int>(riDest._matrix->_lowerBand) + shift;
+		double const* const src = _pos + _matrix->_lowerBand;
+		for (int i = lowerBand; i < upperBand; ++i)
+			dest[i] += factor * src[i];
+	}
+
+	/**
+	 * @brief Adds the given array to the current row
+	 * @details Performs the operation @f$ y = y + \alpha x @f$, where @f$ x @f$ may only be a
+	 *          subset of the current row the iterator points to. The start of the subset is
+	 *          given by @p startDiag. The subset has to fully fit into the matrix row.
+	 * @param [in] row Pointer to array @f$ x @f$ that is added to the given row @f$ y @f$
+	 * @param [in] startDiag Index of the diagonal at which the row is added
+	 * @param [in] length Length of the array
+	 * @param [in] factor Factor @f$ \alpha @f$
+	 */
+	inline void addArray(double const* row, int startDiag, int length, double factor)
+	{
+		cadet_assert(-startDiag <= _matrix->lowerBandwidth());
+		cadet_assert(startDiag + length <= _matrix->upperBandwidth());
+		double* const dest = _pos + startDiag;
+		for (int i = 0; i < length; ++i)
+			dest[i] += factor * row[i];
 	}
 
 	/**
@@ -222,7 +261,7 @@ public:
 		_pos += _matrix->stride();
 #ifdef CADET_DEBUG
 		++_row;
-#endif		
+#endif
 		return *this;
 	}
 
@@ -231,7 +270,7 @@ public:
 		_pos -= _matrix->stride();
 #ifdef CADET_DEBUG
 		--_row;
-#endif		
+#endif
 		return *this;
 	}
 
@@ -240,7 +279,7 @@ public:
 		_pos += idx * _matrix->stride();
 #ifdef CADET_DEBUG
 		_row += idx;
-#endif		
+#endif
 		return *this;
 	}
 
@@ -249,7 +288,7 @@ public:
 		_pos -= idx * _matrix->stride();
 #ifdef CADET_DEBUG
 		_row -= idx;
-#endif		
+#endif
 		return *this;
 	}
 
@@ -318,7 +357,7 @@ public:
 	{
 #ifdef CADET_DEBUG
 		_row = -1;
-#endif		
+#endif
 	}
 
 	/**
@@ -329,7 +368,7 @@ public:
 	{
 #ifdef CADET_DEBUG
 		_row = 0;
-#endif		
+#endif
 	}
 
 	/**
@@ -341,7 +380,7 @@ public:
 	{
 #ifdef CADET_DEBUG
 		_row = 0;
-#endif		
+#endif
 	}
 
 	/**
@@ -353,7 +392,7 @@ public:
 	{
 #ifdef CADET_DEBUG
 		_row = row;
-#endif		
+#endif
 	}
 
 	/**
@@ -366,26 +405,26 @@ public:
 	{
 #ifdef CADET_DEBUG
 		_row = row;
-#endif		
+#endif
 	}
 
 	ConstBandedRowIterator(const ConstBandedRowIterator& cpy) CADET_NOEXCEPT : _matrix(cpy._matrix), _pos(cpy._pos)
 	{
 #ifdef CADET_DEBUG
 		_row = cpy._row;
-#endif		
+#endif
 	}
 	ConstBandedRowIterator(const ConstBandedRowIterator& cpy, int rowChange) CADET_NOEXCEPT : _matrix(cpy._matrix), _pos(cpy._pos + rowChange * static_cast<int>(cpy._matrix->stride()))
 	{
 #ifdef CADET_DEBUG
 		_row = cpy._row + rowChange;
-#endif		
+#endif
 	}
 	ConstBandedRowIterator(const ConstBandedRowIterator&& cpy) CADET_NOEXCEPT : _matrix(cpy._matrix), _pos(cpy._pos)
 	{
 #ifdef CADET_DEBUG
 		_row = cpy._row;
-#endif		
+#endif
 	}
 
 	inline ConstBandedRowIterator& operator=(const ConstBandedRowIterator& cpy) CADET_NOEXCEPT
@@ -396,7 +435,7 @@ public:
 		_pos = cpy._pos;
 #ifdef CADET_DEBUG
 		_row = cpy._row;
-#endif		
+#endif
 		return *this;
 	}
 
@@ -406,7 +445,7 @@ public:
 		_pos = cpy._pos;
 #ifdef CADET_DEBUG
 		_row = cpy._row;
-#endif		
+#endif
 		return *this;
 	}
 
@@ -454,7 +493,7 @@ public:
 		_pos += _matrix->stride();
 #ifdef CADET_DEBUG
 		++_row;
-#endif		
+#endif
 		return *this;
 	}
 
@@ -463,7 +502,7 @@ public:
 		_pos -= _matrix->stride();
 #ifdef CADET_DEBUG
 		--_row;
-#endif		
+#endif
 		return *this;
 	}
 
@@ -472,7 +511,7 @@ public:
 		_pos += idx * _matrix->stride();
 #ifdef CADET_DEBUG
 		_row += idx;
-#endif		
+#endif
 		return *this;
 	}
 
@@ -481,7 +520,7 @@ public:
 		_pos -= idx * _matrix->stride();
 #ifdef CADET_DEBUG
 		_row -= idx;
-#endif		
+#endif
 		return *this;
 	}
 
