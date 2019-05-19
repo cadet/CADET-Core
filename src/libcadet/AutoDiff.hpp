@@ -179,4 +179,53 @@
 #endif  // #if defined ACTIVE_
 
 
+namespace cadet
+{
+	/**
+	 * @brief Selects the @c active type between @c double and @c active
+	 * @tparam A Type A
+	 * @tparam B Type B
+	 */
+	template <typename A, typename B>
+	struct DoubleActivePromoter { };
+
+	template <>
+	struct DoubleActivePromoter<cadet::active, cadet::active> { typedef cadet::active type; };
+
+	template <>
+	struct DoubleActivePromoter<cadet::active, double> { typedef cadet::active type; };
+
+	template <>
+	struct DoubleActivePromoter<double, cadet::active> { typedef cadet::active type; };
+
+	template <>
+	struct DoubleActivePromoter<double, double> { typedef double type; };
+
+	template <typename A>
+	using ActivePromoter = DoubleActivePromoter<A, double>;
+
+	/**
+	 * @brief Selects the @c double type between @c double and @c active
+	 * @tparam A Type A
+	 * @tparam B Type B
+	 */
+	template <typename A, typename B>
+	struct DoubleActiveDemoter { };
+
+	template <>
+	struct DoubleActiveDemoter<cadet::active, cadet::active> { typedef cadet::active type; };
+
+	template <>
+	struct DoubleActiveDemoter<cadet::active, double> { typedef double type; };
+
+	template <>
+	struct DoubleActiveDemoter<double, cadet::active> { typedef double type; };
+
+	template <>
+	struct DoubleActiveDemoter<double, double> { typedef double type; };
+
+	template <typename A>
+	using DoubleDemoter = DoubleActiveDemoter<A, cadet::active>;
+}
+
 #endif  // LIBCADET_AUTODIFF_HPP_

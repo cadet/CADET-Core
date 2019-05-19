@@ -30,6 +30,8 @@ namespace cadet
 namespace linalg
 {
 
+
+
 /**
  * @brief Represents a dense matrix base class providing common functionality
  * @details This class uses row-major storage ordering. It does not provide
@@ -249,7 +251,7 @@ public:
 			y[r] = 0.0;
 			active const* const row = _data + r * stride();
 			for (unsigned int c = 0; c < _cols; ++c)
-				y[r] += static_cast<result_t>(row[c] * x[c]);
+				y[r] += static_cast<typename DoubleDemoter<result_t>::type>(row[c]) * static_cast<typename DoubleActiveDemoter<result_t, operand_t>::type>(x[c]);
 		}
 	}
 
@@ -267,7 +269,7 @@ public:
 			y[r] = 0.0;
 			active const* const col = _data + r;
 			for (unsigned int c = 0; c < _cols; ++c)
-				y[r] += static_cast<result_t>(col[c * stride()] * x[c]);
+				y[r] += static_cast<typename DoubleDemoter<result_t>::type>(col[c * stride()]) * static_cast<typename DoubleActiveDemoter<result_t, operand_t>::type>(x[c]);
 		}
 	}
 
@@ -287,7 +289,25 @@ public:
 			y[r] *= beta;
 			active const* const row = _data + r * stride();
 			for (unsigned int c = 0; c < _cols; ++c)
-				y[r] += static_cast<result_t>(alpha * row[c] * x[c]);
+				y[r] += alpha * static_cast<typename DoubleDemoter<result_t>::type>(row[c]) * static_cast<typename DoubleActiveDemoter<result_t, operand_t>::type>(x[c]);
+		}
+	}
+
+	/**
+	 * @brief Multiplies the matrix @f$ A @f$ with a given vector @f$ x @f$ and adds it to another vector
+	 * @details Computes @f$ y = \alpha Ax + y @f$, where @f$ A @f$ is this matrix and @f$ x @f$ is given.
+	 * @param [in] x Vector this matrix is multiplied with
+	 * @param [in] alpha Factor @f$ \alpha @f$ in front of @f$ Ax @f$
+	 * @param [out] y Result of the matrix-vector multiplication
+	 */
+	template <typename operand_t, typename result_t>
+	void multiplyVector(const operand_t* const x, double alpha, result_t* const y) const
+	{
+		for (unsigned int r = 0; r < _rows; ++r)
+		{
+			active const* const row = _data + r * stride();
+			for (unsigned int c = 0; c < _cols; ++c)
+				y[r] += alpha * static_cast<typename DoubleDemoter<result_t>::type>(row[c]) * static_cast<typename DoubleActiveDemoter<result_t, operand_t>::type>(x[c]);
 		}
 	}
 
@@ -307,7 +327,25 @@ public:
 			y[r] *= beta;
 			active const* const col = _data + r;
 			for (unsigned int c = 0; c < _cols; ++c)
-				y[r] += static_cast<result_t>(alpha * col[c * stride()] * x[c]);
+				y[r] += alpha * static_cast<typename DoubleDemoter<result_t>::type>(col[c * stride()]) * static_cast<typename DoubleActiveDemoter<result_t, operand_t>::type>(x[c]);
+		}
+	}
+
+	/**
+	 * @brief Multiplies the transpose of the matrix @f$ A @f$ with a given vector @f$ x @f$ and adds it to another vector
+	 * @details Computes @f$ y = \alpha A^T x + y @f$, where @f$ A @f$ is this matrix and @f$ x @f$ is given.
+	 * @param [in] x Vector this matrix is multiplied with
+	 * @param [in] alpha Factor @f$ \alpha @f$ in front of @f$ A^T x @f$
+	 * @param [out] y Result of the matrix-vector multiplication
+	 */
+	template <typename operand_t, typename result_t>
+	void transposedMultiplyVector(const operand_t* const x, double alpha, result_t* const y) const
+	{
+		for (unsigned int r = 0; r < _rows; ++r)
+		{
+			active const* const col = _data + r;
+			for (unsigned int c = 0; c < _cols; ++c)
+				y[r] += alpha * static_cast<typename DoubleDemoter<result_t>::type>(col[c * stride()]) * static_cast<typename DoubleActiveDemoter<result_t, operand_t>::type>(x[c]);
 		}
 	}
 
@@ -334,7 +372,7 @@ public:
 			y[r] *= beta;
 			active const* const row = _data + r * stride();
 			for (unsigned int c = 0; c < _cols; ++c)
-				y[r] += static_cast<result_t>(alpha1 * row[c] * x[c]);
+				y[r] += alpha1 * static_cast<typename DoubleDemoter<result_t>::type>(row[c]) * static_cast<typename DoubleActiveDemoter<result_t, operand_t>::type>(x[c]);
 		}
 
 		for (unsigned int r = idxSplit; r < _rows; ++r)
@@ -342,7 +380,7 @@ public:
 			y[r] *= beta;
 			active const* const row = _data + r * stride();
 			for (unsigned int c = 0; c < _cols; ++c)
-				y[r] += static_cast<result_t>(alpha2 * row[c] * x[c]);
+				y[r] += alpha2 * static_cast<typename DoubleDemoter<result_t>::type>(row[c]) * static_cast<typename DoubleActiveDemoter<result_t, operand_t>::type>(x[c]);
 		}
 	}
 
