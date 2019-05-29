@@ -159,8 +159,8 @@ namespace
 		mxSetFieldByNumber(structArray, idx, 2, cadet::mex::io::scalar<cadet::ComponentIdx, int32_t>(pId.component, cadet::CompIndep));
 		mxSetFieldByNumber(structArray, idx, 3, cadet::mex::io::scalar<cadet::ReactionIdx, int32_t>(pId.reaction, cadet::ReactionIndep));
 		mxSetFieldByNumber(structArray, idx, 4, cadet::mex::io::scalar<cadet::BoundStateIdx, int32_t>(pId.boundState, cadet::BoundStateIndep));
-		mxSetFieldByNumber(structArray, idx, 4, cadet::mex::io::scalar<cadet::ParticleTypeIdx, int32_t>(pId.particleType, cadet::ParTypeIndep));
-		mxSetFieldByNumber(structArray, idx, 5, cadet::mex::io::scalar<cadet::SectionIdx, int32_t>(pId.section, cadet::SectionIndep));
+		mxSetFieldByNumber(structArray, idx, 5, cadet::mex::io::scalar<cadet::ParticleTypeIdx, int32_t>(pId.particleType, cadet::ParTypeIndep));
+		mxSetFieldByNumber(structArray, idx, 6, cadet::mex::io::scalar<cadet::SectionIdx, int32_t>(pId.section, cadet::SectionIndep));
 	}
 
 }
