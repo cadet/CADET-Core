@@ -173,7 +173,7 @@ namespace detail
 			const int idxEnd = _rowIdx + upperBand;
 			
 			cadet_assert(idxStart >= 0);
-			cadet_assert(idxEnd < _matrix->columns());
+			cadet_assert(idxEnd <= _matrix->columns());
 
 			double* const dest = riDest._pos - riDest._rowIdx;
 			double const* const src = _pos - _rowIdx;
