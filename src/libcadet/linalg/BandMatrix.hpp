@@ -156,8 +156,9 @@ public:
 	template <typename OtherIterator_t>
 	inline void copyRowFrom(const OtherIterator_t& it)
 	{
-		cadet_assert(it.nonZeroColumnsPerRow() >= nonZeroColumnsPerRow());
-		for (unsigned int i = 0; i < _matrix->apparentStride(); ++i)
+		cadet_assert(it.nonZeroColumnsPerRow() <= nonZeroColumnsPerRow());
+		cadet_assert(it.matrix().lowerBandwidth() == _matrix->lowerBandwidth());
+		for (unsigned int i = 0; i < std::min(it.nonZeroColumnsPerRow(), nonZeroColumnsPerRow()); ++i)
 			_pos[i] = it.native(i);
 	}
 
@@ -1136,17 +1137,34 @@ public:
 	{
 		cadet_assert(_rows == bdm.rows());
 		cadet_assert(_lowerBand == bdm.lowerBandwidth());
-		cadet_assert(_upperBand == bdm.upperBandwidth());
+		cadet_assert(_upperBand >= bdm.upperBandwidth());
 
-		// Copy data over and take into account that the local storage is larger and that
-		// LAPACK needs the first _upperBand values in each row as additional storage
-		const double* src = bdm.data();
-		double* local = _data + _upperBand;
-		const unsigned int as = apparentStride();
-		const unsigned int ls = stride();
-		for (unsigned int i = 0; i < _rows; ++i, local += ls, src += as)
+		if (cadet_likely(_upperBand == bdm.upperBandwidth()))
 		{
-			std::copy_n(src, as, local);
+			// Copy data over and take into account that the local storage is larger and that
+			// LAPACK needs the first _upperBand values in each row as additional storage
+			const double *src = bdm.data();
+			double *local = _data + _upperBand;
+			const unsigned int as = apparentStride();
+			const unsigned int ls = stride();
+			for (unsigned int i = 0; i < _rows; ++i, local += ls, src += as)
+			{
+				std::copy_n(src, as, local);
+			}
+		}
+		else
+		{
+			// Only copy what bdm has and zero out the remaining entries
+			const double *src = bdm.data();
+			double *local = _data + _upperBand;
+			const unsigned int srcStride = bdm.stride();
+			const unsigned int diff = apparentStride() - srcStride;
+			const unsigned int ls = stride();
+			for (unsigned int i = 0; i < _rows; ++i, local += ls, src += srcStride)
+			{
+				std::copy_n(src, srcStride, local);
+				std::fill_n(local + srcStride, diff, 0.0);
+			}
 		}
 	}
 
