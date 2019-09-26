@@ -91,9 +91,9 @@ namespace log
 		 * @details In this version, the statement is passed on. Thus, the parameter is saved in a (nested) pair.
 		 */
 		template <LogLevel lvl, class paramList_t, class param_t>
-		inline LogMessage<lvl, true, NestedList<paramList_t, const param_t*> > operator<<(const LogMessage<lvl, true, paramList_t>& lm, const param_t& p) CADET_NOEXCEPT
+		inline LogMessage<lvl, true, NestedList<paramList_t, const param_t*>> operator<<(const LogMessage<lvl, true, paramList_t>& lm, const param_t& p) CADET_NOEXCEPT
 		{
-			return LogMessage<lvl, true, NestedList<paramList_t, const param_t*> >(NestedList<paramList_t, const param_t*>(lm.params, &p));
+			return LogMessage<lvl, true, NestedList<paramList_t, const param_t*>>(NestedList<paramList_t, const param_t*>(lm.params, &p));
 		}
 
 		/**

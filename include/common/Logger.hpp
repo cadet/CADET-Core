@@ -69,7 +69,7 @@ namespace log
 	 * @tparam switchLvl Defines the first log level that is sent to std::cout
 	 */
 	template <LogLevel switchLvl>
-	class SelectiveStdWritePolicy : public BufferedWritePolicyBase<SelectiveStdWritePolicy<switchLvl> >
+	class SelectiveStdWritePolicy : public BufferedWritePolicyBase<SelectiveStdWritePolicy<switchLvl>>
 	{
 	public:
 		static inline void begin(const char* fileName, const char* funcName, unsigned int line, LogLevel lvl) { }
