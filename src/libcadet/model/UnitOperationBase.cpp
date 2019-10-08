@@ -34,57 +34,63 @@ namespace
 	template <typename T>
 	void getAllParameterValuesImpl(std::unordered_map<ParameterId, double>& data, const std::vector<T*>& items, bool singleItem)
 	{
-		if (!items.empty())
+		if (items.empty())
+			return;
+
+		if (singleItem)
 		{
-			if (singleItem)
+			if (!items[0])
+				return;
+
+			const std::unordered_map<ParameterId, double> localData = items[0]->getAllParameterValues();
+			for (const std::pair<ParameterId, double>& val : localData)
+				data[val.first] = val.second;
+		}
+		else
+		{
+			for (T const* bm : items)
 			{
-				const std::unordered_map<ParameterId, double> localData = items[0]->getAllParameterValues();
+                if (!bm)
+                    continue;
+
+                const std::unordered_map<ParameterId, double> localData = bm->getAllParameterValues();
 				for (const std::pair<ParameterId, double>& val : localData)
 					data[val.first] = val.second;
 			}
-			else
-			{
-				for (T const* bm : items)
-				{
-                    if (!bm)
-                        continue;
-
-                    const std::unordered_map<ParameterId, double> localData = bm->getAllParameterValues();
-					for (const std::pair<ParameterId, double>& val : localData)
-						data[val.first] = val.second;
-				}
-			}
-		}		
+		}
 	}
 
 	template <typename T>
 	bool getParameterDoubleImpl(const ParameterId& pId, const std::vector<T*>& items, bool singleItem, double& out)
 	{
 		// Check binding model parameters
-		if (!items.empty())
+		if (items.empty())
+			return false;
+
+		if (singleItem)
 		{
-			if (singleItem)
+			if (!items[0])
+				return false;
+
+			active const* const val = items[0]->getParameter(pId);
+			if (val)
 			{
-				active const* const val = items[0]->getParameter(pId);
+				out = static_cast<double>(*val);
+				return true;
+			}
+		}
+		else
+		{
+			for (T* bm : items)
+			{
+                if (!bm)
+                    continue;
+
+                active const* const val = bm->getParameter(pId);
 				if (val)
 				{
 					out = static_cast<double>(*val);
 					return true;
-				}
-			}
-			else
-			{
-				for (T* bm : items)
-				{
-                    if (!bm)
-                        continue;
-
-                    active const* const val = bm->getParameter(pId);
-					if (val)
-					{
-						out = static_cast<double>(*val);
-						return true;
-					}
 				}
 			}
 		}
@@ -96,20 +102,20 @@ namespace
 	template <typename T>
 	bool hasParameterImpl(const ParameterId& pId, const std::vector<T*>& items, bool singleItem)
 	{
-		if (!items.empty())
+		if (items.empty())
+			return false;
+
+		if (singleItem)
 		{
-			if (singleItem)
+			if (items[0] && items[0]->hasParameter(pId))
+				return true;
+		}
+		else
+		{
+			for (T const* bm : items)
 			{
-				if (items[0]->hasParameter(pId))
+				if (bm && bm->hasParameter(pId))
 					return true;
-			}
-			else
-			{
-				for (T const* bm : items)
-				{
-					if (bm && bm->hasParameter(pId))
-						return true;
-				}
 			}
 		}
 
@@ -119,20 +125,20 @@ namespace
 	template <typename T, typename param_t>
 	bool setParameterImpl(const ParameterId& pId, param_t value, const std::vector<T*>& items, bool singleItem)
 	{
-		if (!items.empty())
+		if (items.empty())
+			return false;
+
+		if (singleItem)
 		{
-			if (singleItem)
+			if (items[0] && items[0]->setParameter(pId, value))
+				return true;
+		}
+		else
+		{
+			for (T* bm : items)
 			{
-				if (items[0]->setParameter(pId, value))
+				if (bm && bm->setParameter(pId, value))
 					return true;
-			}
-			else
-			{
-				for (T* bm : items)
-				{
-					if (bm && bm->setParameter(pId, value))
-						return true;
-				}
 			}
 		}
 
@@ -142,30 +148,33 @@ namespace
 	template <typename T>
 	bool setSensitiveParameterValueImpl(const ParameterId& pId, double value, const std::unordered_set<active*>& sensParams, const std::vector<T*>& items, bool singleItem)
 	{
-		if (!items.empty())
+		if (items.empty())
+			return false;
+
+		if (singleItem)
 		{
-			if (singleItem)
+			if (!items[0])
+				return false;
+
+			active* const val = items[0]->getParameter(pId);
+			if (val && contains(sensParams, val))
 			{
-				active* const val = items[0]->getParameter(pId);
+				val->setValue(value);
+				return true;
+			}
+		}
+		else
+		{
+			for (T* bm : items)
+			{
+                if (!bm)
+                    continue;
+
+				active* const val = bm->getParameter(pId);
 				if (val && contains(sensParams, val))
 				{
 					val->setValue(value);
 					return true;
-				}
-			}
-			else
-			{
-				for (T* bm : items)
-				{
-                    if (!bm)
-                        continue;
-
-					active* const val = bm->getParameter(pId);
-					if (val && contains(sensParams, val))
-					{
-						val->setValue(value);
-						return true;
-					}
 				}
 			}
 		}
@@ -176,34 +185,37 @@ namespace
 	template <typename T>
 	bool setSensitiveParameterImpl(const ParameterId& pId, unsigned int adDirection, double adValue, std::unordered_set<active*>& sensParams, const std::vector<T*>& items, bool singleItem)
 	{
-		if (!items.empty())
+		if (items.empty())
+			return false;
+
+		if (singleItem)
 		{
-			if (singleItem)
+			if (!items[0])
+				return false;
+
+			active* const paramBinding = items[0]->getParameter(pId);
+			if (paramBinding)
 			{
-				active* const paramBinding = items[0]->getParameter(pId);
+				// Register parameter and set AD seed / direction
+				sensParams.insert(paramBinding);
+				paramBinding->setADValue(adDirection, adValue);
+				return true;
+			}
+		}
+		else
+		{
+			for (T* bm : items)
+			{
+			    if (!bm)
+			        continue;
+
+				active* const paramBinding = bm->getParameter(pId);
 				if (paramBinding)
 				{
 					// Register parameter and set AD seed / direction
 					sensParams.insert(paramBinding);
 					paramBinding->setADValue(adDirection, adValue);
 					return true;
-				}
-			}
-			else
-			{
-				for (T* bm : items)
-				{
-				    if (!bm)
-				        continue;
-
-					active* const paramBinding = bm->getParameter(pId);
-					if (paramBinding)
-					{
-						// Register parameter and set AD seed / direction
-						sensParams.insert(paramBinding);
-						paramBinding->setADValue(adDirection, adValue);
-						return true;
-					}
 				}
 			}
 		}
