@@ -26,6 +26,7 @@
 #include <vector>
 #include <sstream>
 #include <algorithm>
+#include <cstdlib>
 
 #include "AutoDiff.hpp"
 #include "LoggingUtils.hpp"
@@ -151,6 +152,15 @@ namespace
 	{
 		return hasNaN(NVEC_DATA(p), NVEC_LENGTH(p));
 	}
+
+	inline std::string getIDAReturnFlagName(int solverFlag)
+	{
+		char const* const retFlagName = IDAGetReturnFlagName(solverFlag);
+		const std::string flagName = retFlagName;
+		std::free(const_cast<char*>(retFlagName));
+
+		return flagName;
+	}
 }
 
 namespace cadet
@@ -177,7 +187,7 @@ namespace cadet
 		cadet::Simulator* const sim = static_cast<cadet::Simulator*>(eh_data);
 
 		std::ostringstream oss;
-		oss << "In function '" << function << "' of module '" << module << "', error code '" << IDAGetReturnFlagName(error_code) << "':\n" << msg;
+		oss << "In function '" << function << "' of module '" << module << "', error code '" << getIDAReturnFlagName(error_code) << "':\n" << msg;
 
 		// @todo Find an error handling system and put it here
 		if (error_code < 0) 
@@ -1403,8 +1413,9 @@ namespace cadet
 					_lastIntTime = _timerIntegration.stop();
 
 					// An error occured
-					LOG(Error) << "IDASolve returned " << IDAGetReturnFlagName(solverFlag) << " at t = " << static_cast<double>(realT);
-					throw IntegrationException(std::string("Error in IDASolve: ") + IDAGetReturnFlagName(solverFlag) + std::string(" at t = " + std::to_string(static_cast<double>(realT)))); //todo might not be necessary
+					const std::string errorFlag = getIDAReturnFlagName(solverFlag);
+					LOG(Error) << "IDASolve returned " << errorFlag << " at t = " << static_cast<double>(realT);
+					throw IntegrationException(std::string("Error in IDASolve: ") + errorFlag + std::string(" at t = " + std::to_string(static_cast<double>(realT)))); //todo might not be necessary
 					break;
 				} // switch
 
