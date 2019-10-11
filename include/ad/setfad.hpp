@@ -47,59 +47,43 @@ namespace sfad
 
 
 	// Main data type that actually holds the derivative vector
-	template <typename real_t, template <class T> class storage_t>
-	class FwdET : public storage_t<real_t>, public Expr<FwdET<real_t, storage_t>, real_t>
+	template <typename real_t>
+	class FwdET : public Expr<FwdET<real_t>, real_t>
 	{
 	public:
 		typedef std::size_t idx_t;
 
-		FwdET() SFAD_NOEXCEPT_EXPR(noexcept(storage_t<real_t>())) : storage_t<real_t>(), _val(0)
+		FwdET(const real_t val) SFAD_NOEXCEPT : _val(0)
 		{
 			setADValue(real_t(0));
 		}
-		FwdET(const real_t val) SFAD_NOEXCEPT_EXPR(noexcept(storage_t<real_t>()) : storage_t<real_t>(), _val(val)
+		FwdET(const real_t val) SFAD_NOEXCEPT : _val(val)
 		{
 			setADValue(real_t(0));
 		}
-		FwdET(const real_t val, real_t const* const grad) SFAD_NOEXCEPT_EXPR(noexcept(storage_t<real_t>())) : storage_t<real_t>(), _val(val)
+		FwdET(const real_t val, real_t const* const grad) SFAD_NOEXCEPT : _val(val)
 		{
-			storage_t<real_t>::copyGradient(grad);
+			std::copy_n(grad, detail::globalGradSize, _grad);
 		}
-		FwdET(const FwdET<real_t, storage_t>& cpy) SFAD_NOEXCEPT_EXPR(noexcept(storage_t<real_t>(cpy))) : storage_t<real_t>(cpy), _val(cpy._val) { }
-		FwdET(FwdET<real_t, storage_t>&& other) SFAD_NOEXCEPT_EXPR(noexcept(storage_t<real_t>(std::move(other))) : storage_t<real_t>(std::move(other)), _val(std::move(other._val)) { }
+		FwdET(const FwdET<real_t>& cpy) SFAD_NOEXCEPT = default;
+		FwdET(FwdET<real_t>&& other) SFAD_NOEXCEPT = default;
 
 		// Contains the one (and only) loop in expression template paradigm
 		template <typename A>
-		FwdET(const Expr<A, real_t>& other) SFAD_NOEXCEPT_EXPR(noexcept(storage_t<real_t>()) : storage_t<real_t>(), _val(other.value())
+		FwdET(const Expr<A, real_t>& other) SFAD_NOEXCEPT : _val(other.value())
 		{
 			for (idx_t i = 0; i < detail::globalGradSize; ++i)
-				storage_t<real_t>::_grad[i] = other.gradient(i);
+				_grad[i] = other.gradient(i);
 		}
 
-		~FwdET() SFAD_NOEXCEPT { }
+		~FwdET() SFAD_NOEXCEPT = default;
 
-		FwdET<real_t, storage_t>& operator=(FwdET<real_t, storage_t>&& other) SFAD_NOEXCEPT
-		{
-			_val = std::move(other._val);
-			storage_t<real_t>::moveAssign(std::move(other));
-
-			return *this;
-		}
-
-		FwdET<real_t, storage_t>& operator=(const FwdET<real_t, storage_t>& other)
-		{
-			if (sfad_likely(this != &other))
-			{
-				_val = other._val;
-				storage_t<real_t>::copyGradient(other._grad);
-			}
-
-			return *this;
-		}
+		FwdET<real_t>& operator=(FwdET<real_t>&& other) SFAD_NOEXCEPT = default;
+		FwdET<real_t>& operator=(const FwdET<real_t>& other) SFAD_NOEXCEPT = default;
 
 		inline const idx_t gradientSize() const SFAD_NOEXCEPT { return detail::globalGradSize; }
 
-		template<typename T, template <class T2> class s_t> friend void swap (FwdET<T, s_t>& x, FwdET<T, s_t>& y) SFAD_NOEXCEPT;
+		template<typename T> friend void swap (FwdET<T>& x, FwdET<T>& y) SFAD_NOEXCEPT;
 
 		// ADOL-C compatibility
 
@@ -107,9 +91,9 @@ namespace sfad
 		inline const real_t getValue() const SFAD_NOEXCEPT { return _val; }
 		inline void setValue(const real_t v) SFAD_NOEXCEPT { _val = v; }
 		
-		inline real_t getADValue(const idx_t idx) { return storage_t<real_t>::_grad[idx]; }
-		inline const real_t getADValue(const idx_t idx) const { return storage_t<real_t>::_grad[idx]; }
-		inline void setADValue(const idx_t idx, const real_t v) { storage_t<real_t>::_grad[idx] = v; }
+		inline real_t getADValue(const idx_t idx) { return _grad[idx]; }
+		inline const real_t getADValue(const idx_t idx) const { return _grad[idx]; }
+		inline void setADValue(const idx_t idx, const real_t v) { _grad[idx] = v; }
 		inline void setADValue(const real_t v)
 		{
 			fillADValue(v);
@@ -125,19 +109,19 @@ namespace sfad
 		}
 		inline void fillADValue(const idx_t start, const idx_t end, const real_t v)
 		{
-			std::fill(storage_t<real_t>::_grad + start, storage_t<real_t>::_grad + end, v);
+			std::fill(_grad + start, _grad + end, v);
 		}
 
 		// Modern C++ accessor
 
-		inline real_t& operator[](const idx_t idx) { return storage_t<real_t>::_grad[idx]; }
-		inline const real_t operator[](const idx_t idx) const { return storage_t<real_t>::_grad[idx]; }
+		inline real_t& operator[](const idx_t idx) { return _grad[idx]; }
+		inline const real_t operator[](const idx_t idx) const { return _grad[idx]; }
 
 		// Explicit cast operator to underlying scalar type
 		explicit operator real_t() const SFAD_NOEXCEPT { return _val; }
 		
 		// Assignment
-		inline FwdET<real_t, storage_t>& operator=(const real_t v)
+		inline FwdET<real_t>& operator=(const real_t v)
 		{
 			_val = v;
 			setADValue(real_t(0));
@@ -147,86 +131,86 @@ namespace sfad
 
 		// Contains the one (and only) loop in expression template paradigm
 		template <class T>
-		inline FwdET<real_t, storage_t>& operator=(const Expr<T, real_t>& v)
+		inline FwdET<real_t>& operator=(const Expr<T, real_t>& v)
 		{
 			_val = v.value();
 			for (idx_t i = 0; i < detail::globalGradSize; ++i)
-				storage_t<real_t>::_grad[i] = v.gradient(i);
+				_grad[i] = v.gradient(i);
 
 			return *this;
 		}
 
 		// Expr class interface
 	    const real_t value() const SFAD_NOEXCEPT { return _val; }
-	    const real_t gradient(std::size_t idx) const { return storage_t<real_t>::_grad[idx]; }
+	    const real_t gradient(std::size_t idx) const { return _grad[idx]; }
 
 
 	    // AssignOp Operators, i.e., +=, -=, *=, /=
 
 		// Addition
-		inline FwdET<real_t, storage_t>& operator+=(const real_t v)
+		inline FwdET<real_t>& operator+=(const real_t v)
 		{
 			_val += v;
 			return *this;
 		}
 
-		inline FwdET<real_t, storage_t>& operator+=(const FwdET<real_t, storage_t>& a)
+		inline FwdET<real_t>& operator+=(const FwdET<real_t>& a)
 		{
 			_val += a._val;
 			for (idx_t i = 0; i < detail::globalGradSize; ++i)
-				storage_t<real_t>::_grad[i] += a._grad[i];
+				_grad[i] += a._grad[i];
 
 			return *this;
 		}
 
 		// Substraction
-		inline FwdET<real_t, storage_t>& operator-=(const real_t v)
+		inline FwdET<real_t>& operator-=(const real_t v)
 		{
 			_val -= v;
 			return *this;
 		}
 
-		inline FwdET<real_t, storage_t>& operator-=(const FwdET<real_t, storage_t>& a)
+		inline FwdET<real_t>& operator-=(const FwdET<real_t>& a)
 		{
 			_val -= a._val;
 			for (idx_t i = 0; i < detail::globalGradSize; ++i)
-				storage_t<real_t>::_grad[i] -= a._grad[i];
+				_grad[i] -= a._grad[i];
 
 			return *this;
 		}
 
 		// Multiplication
-		inline FwdET<real_t, storage_t>& operator*=(const real_t v)
+		inline FwdET<real_t>& operator*=(const real_t v)
 		{
 			_val *= v;
 			for (idx_t i = 0; i < detail::globalGradSize; ++i)
-				storage_t<real_t>::_grad[i] *= v;
+				_grad[i] *= v;
 			return *this;
 		}
 
-		inline FwdET<real_t, storage_t>& operator*=(const FwdET<real_t, storage_t>& a)
+		inline FwdET<real_t>& operator*=(const FwdET<real_t>& a)
 		{
 			for (idx_t i = 0; i < detail::globalGradSize; ++i)
-				storage_t<real_t>::_grad[i] = a._val * storage_t<real_t>::_grad[i] + _val * a._grad[i];
+				_grad[i] = a._val * _grad[i] + _val * a._grad[i];
 
 			_val *= a._val;
 			return *this;
 		}
 		
 		// Division
-		inline FwdET<real_t, storage_t>& operator/=(const real_t v)
+		inline FwdET<real_t>& operator/=(const real_t v)
 		{
 			_val /= v;
 			for (idx_t i = 0; i < detail::globalGradSize; ++i)
-				storage_t<real_t>::_grad[i] /= v;
+				_grad[i] /= v;
 			return *this;
 		}
 
-		inline FwdET<real_t, storage_t>& operator/=(const FwdET<real_t, storage_t>& a)
+		inline FwdET<real_t>& operator/=(const FwdET<real_t>& a)
 		{
 			for (idx_t i = 0; i < detail::globalGradSize; ++i)
 //				_grad[i] = (_grad[i] - _val / a._val * a._grad[i]) / a._val;
-				storage_t<real_t>::_grad[i] = (storage_t<real_t>::_grad[i] * a._val - _val * a._grad[i]) / (a._val * a._val);
+				_grad[i] = (_grad[i] * a._val - _val * a._grad[i]) / (a._val * a._val);
 
 			_val /= a._val;
 			return *this;
@@ -234,6 +218,7 @@ namespace sfad
 
 	protected:
 		real_t _val;
+		real_t _grad[SFAD_DEFAULT_DIR];
 	};
 
 	// Basic arithmetics
@@ -485,9 +470,9 @@ namespace sfad
 		class CLASSNAME : public Expr<CLASSNAME<A,real_t>, real_t>									\
 		{																							\
 		public:																						\
-			CLASSNAME(const Expr<A, real_t>& a) SFAD_NOEXCEPT : _a(a.base()), _cache(CACHEOP) { }		\
+			CLASSNAME(const Expr<A, real_t>& a) SFAD_NOEXCEPT : _a(a.base()), _cache(CACHEOP) { }	\
 																									\
-			inline const real_t value() const SFAD_NOEXCEPT { return VALOP; }							\
+			inline const real_t value() const SFAD_NOEXCEPT { return VALOP; }						\
 			inline const real_t gradient(std::size_t idx) const { return FUNCDIFF; }				\
 																									\
 		protected:																					\
@@ -615,8 +600,8 @@ namespace sfad
 	template <class A, typename real_t>
 	inline ScalarPow<A, real_t> pow(const real_t a, const Expr<A, real_t>& b) SFAD_NOEXCEPT { return ScalarPow<A, real_t>(a, b.base()); }
 
-	template <typename real_t, template <class T> class storage_t>
-	void swap(FwdET<real_t, storage_t>& x, FwdET<real_t, storage_t>& y) SFAD_NOEXCEPT
+	template <typename real_t>
+	void swap(FwdET<real_t>& x, FwdET<real_t>& y) SFAD_NOEXCEPT
 	{
 		using std::swap;
 		swap(x._val, y._val);

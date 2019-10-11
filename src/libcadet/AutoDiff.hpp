@@ -139,9 +139,9 @@
 	{
 		
 		#if defined(ACTIVE_SFAD)
-			typedef sfad::Fwd<double, sfad::StackStorage> active;
+			typedef sfad::Fwd<double> active;
 		#else
-			typedef sfad::FwdET<double, sfad::StackStorage> active;
+			typedef sfad::FwdET<double> active;
 		#endif
 
 		namespace ad
