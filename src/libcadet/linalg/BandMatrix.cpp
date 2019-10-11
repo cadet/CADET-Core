@@ -96,6 +96,7 @@ void scaleRows(double* data, unsigned int elemPerRow, unsigned int stride, doubl
 {
 	for (unsigned int i = 0; i < numRows; ++i, data += stride)
 	{
+		cadet_assert(scalingFactors[i] != 0.0);
 		for (unsigned int j = 0; j < elemPerRow; ++j)
 			data[j] /= scalingFactors[i];
 	}

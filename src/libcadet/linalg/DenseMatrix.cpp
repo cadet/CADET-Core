@@ -300,6 +300,7 @@ void DenseMatrixBase::scaleRows(double const* scalingFactors, unsigned int numRo
 	const unsigned int ld = stride();
 	for (unsigned int i = 0; i < numRows; ++i)
 	{
+		cadet_assert(scalingFactors[i] != 0.0);
 		for (unsigned int j = 0; j < _cols; ++j)
 			_data[i * ld + j] /= scalingFactors[i];
 	}
@@ -311,7 +312,10 @@ void DenseMatrixBase::scaleColumns(double const* scalingFactors, unsigned int nu
 	for (unsigned int i = 0; i < _rows; ++i)
 	{
 		for (unsigned int j = 0; j < numCols; ++j)
+		{
+			cadet_assert(scalingFactors[j] != 0.0);
 			_data[i * ld + j] /= scalingFactors[j];
+		}
 	}
 }
 
