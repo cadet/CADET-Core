@@ -1123,10 +1123,10 @@ int GeneralRateModel2D::residual(const SimulationTime& simTime, const ConstSimul
 	BENCH_SCOPE(_timerResidual);
 
 	// Evaluate residual do not compute Jacobian or parameter sensitivities
-	return residualImpl<double, double, double, false>(simTime.t, simTime.secIdx, simTime.timeFactor, simState.vecStateY, simState.vecStateYdot, res, threadLocalMem);
+	return residualImpl<double, double, double, false>(simTime.t, simTime.secIdx, simState.vecStateY, simState.vecStateYdot, res, threadLocalMem);
 }
 
-int GeneralRateModel2D::residualWithJacobian(const ActiveSimulationTime& simTime, const ConstSimulationState& simState, double* const res, const AdJacobianParams& adJac, util::ThreadLocalStorage& threadLocalMem)
+int GeneralRateModel2D::residualWithJacobian(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res, const AdJacobianParams& adJac, util::ThreadLocalStorage& threadLocalMem)
 {
 	BENCH_SCOPE(_timerResidual);
 
@@ -1134,7 +1134,7 @@ int GeneralRateModel2D::residualWithJacobian(const ActiveSimulationTime& simTime
 	return residual(simTime, simState, res, adJac, threadLocalMem, true, false);
 }
 
-int GeneralRateModel2D::residual(const ActiveSimulationTime& simTime, const ConstSimulationState& simState, double* const res, 
+int GeneralRateModel2D::residual(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res, 
 	const AdJacobianParams& adJac, util::ThreadLocalStorage& threadLocalMem, bool updateJacobian, bool paramSensitivity)
 {
 	if (updateJacobian)
@@ -1146,7 +1146,7 @@ int GeneralRateModel2D::residual(const ActiveSimulationTime& simTime, const Cons
 		{
 			if (paramSensitivity)
 			{
-				const int retCode = residualImpl<double, active, active, true>(simTime.t, simTime.secIdx, simTime.timeFactor, simState.vecStateY, simState.vecStateYdot, adJac.adRes, threadLocalMem);
+				const int retCode = residualImpl<double, active, active, true>(simTime.t, simTime.secIdx, simState.vecStateY, simState.vecStateYdot, adJac.adRes, threadLocalMem);
 
 				// Copy AD residuals to original residuals vector
 				if (res)
@@ -1155,14 +1155,14 @@ int GeneralRateModel2D::residual(const ActiveSimulationTime& simTime, const Cons
 				return retCode;
 			}
 			else
-				return residualImpl<double, double, double, true>(static_cast<double>(simTime.t), simTime.secIdx, static_cast<double>(simTime.timeFactor), simState.vecStateY, simState.vecStateYdot, res, threadLocalMem);
+				return residualImpl<double, double, double, true>(simTime.t, simTime.secIdx, simState.vecStateY, simState.vecStateYdot, res, threadLocalMem);
 		}
 		else
 		{
 			// Compute Jacobian via AD
 
 			// Copy over state vector to AD state vector (without changing directional values to keep seed vectors)
-			// and initalize residuals with zero (also resetting directional values)
+			// and initialize residuals with zero (also resetting directional values)
 			ad::copyToAd(simState.vecStateY, adJac.adY, numDofs());
 			// @todo Check if this is necessary
 			ad::resetAd(adJac.adRes, numDofs());
@@ -1170,9 +1170,9 @@ int GeneralRateModel2D::residual(const ActiveSimulationTime& simTime, const Cons
 			// Evaluate with AD enabled
 			int retCode = 0;
 			if (paramSensitivity)
-				retCode = residualImpl<active, active, active, false>(simTime.t, simTime.secIdx, simTime.timeFactor, adJac.adY, simState.vecStateYdot, adJac.adRes, threadLocalMem);
+				retCode = residualImpl<active, active, active, false>(simTime.t, simTime.secIdx, adJac.adY, simState.vecStateYdot, adJac.adRes, threadLocalMem);
 			else
-				retCode = residualImpl<active, active, double, false>(static_cast<double>(simTime.t), simTime.secIdx, static_cast<double>(simTime.timeFactor), adJac.adY, simState.vecStateYdot, adJac.adRes, threadLocalMem);
+				retCode = residualImpl<active, active, double, false>(simTime.t, simTime.secIdx, adJac.adY, simState.vecStateYdot, adJac.adRes, threadLocalMem);
 
 			// Copy AD residuals to original residuals vector
 			if (res)
@@ -1187,7 +1187,7 @@ int GeneralRateModel2D::residual(const ActiveSimulationTime& simTime, const Cons
 		// Compute Jacobian via AD
 
 		// Copy over state vector to AD state vector (without changing directional values to keep seed vectors)
-		// and initalize residuals with zero (also resetting directional values)
+		// and initialize residuals with zero (also resetting directional values)
 		ad::copyToAd(simState.vecStateY, adJac.adY, numDofs());
 		// @todo Check if this is necessary
 		ad::resetAd(adJac.adRes, numDofs());
@@ -1195,15 +1195,15 @@ int GeneralRateModel2D::residual(const ActiveSimulationTime& simTime, const Cons
 		// Evaluate with AD enabled
 		int retCode = 0;
 		if (paramSensitivity)
-			retCode = residualImpl<active, active, active, false>(simTime.t, simTime.secIdx, simTime.timeFactor, adJac.adY, simState.vecStateYdot, adJac.adRes, threadLocalMem);
+			retCode = residualImpl<active, active, active, false>(simTime.t, simTime.secIdx, adJac.adY, simState.vecStateYdot, adJac.adRes, threadLocalMem);
 		else
-			retCode = residualImpl<active, active, double, false>(static_cast<double>(simTime.t), simTime.secIdx, static_cast<double>(simTime.timeFactor), adJac.adY, simState.vecStateYdot, adJac.adRes, threadLocalMem);
+			retCode = residualImpl<active, active, double, false>(simTime.t, simTime.secIdx, adJac.adY, simState.vecStateYdot, adJac.adRes, threadLocalMem);
 
 		// Only do comparison if we have a residuals vector (which is not always the case)
 		if (res)
 		{
 			// Evaluate with analytical Jacobian which is stored in the band matrices
-			retCode = residualImpl<double, double, double, true>(static_cast<double>(simTime.t), simTime.secIdx, static_cast<double>(simTime.timeFactor), simState.vecStateY, simState.vecStateYdot, res, threadLocalMem);
+			retCode = residualImpl<double, double, double, true>(simTime.t, simTime.secIdx, simState.vecStateY, simState.vecStateYdot, res, threadLocalMem);
 
 			// Compare AD with anaytic Jacobian
 			checkAnalyticJacobianAgainstAd(adJac.adRes, adJac.adDirOffset);
@@ -1219,11 +1219,11 @@ int GeneralRateModel2D::residual(const ActiveSimulationTime& simTime, const Cons
 	{
 		if (paramSensitivity)
 		{
-			// Initalize residuals with zero
+			// initialize residuals with zero
 			// @todo Check if this is necessary
 			ad::resetAd(adJac.adRes, numDofs());
 
-			const int retCode = residualImpl<double, active, active, false>(simTime.t, simTime.secIdx, simTime.timeFactor, simState.vecStateY, simState.vecStateYdot, adJac.adRes, threadLocalMem);
+			const int retCode = residualImpl<double, active, active, false>(simTime.t, simTime.secIdx, simState.vecStateY, simState.vecStateYdot, adJac.adRes, threadLocalMem);
 
 			// Copy AD residuals to original residuals vector
 			if (res)
@@ -1232,12 +1232,12 @@ int GeneralRateModel2D::residual(const ActiveSimulationTime& simTime, const Cons
 			return retCode;
 		}
 		else
-			return residualImpl<double, double, double, false>(static_cast<double>(simTime.t), simTime.secIdx, static_cast<double>(simTime.timeFactor), simState.vecStateY, simState.vecStateYdot, res, threadLocalMem);
+			return residualImpl<double, double, double, false>(simTime.t, simTime.secIdx, simState.vecStateY, simState.vecStateYdot, res, threadLocalMem);
 	}
 }
 
 template <typename StateType, typename ResidualType, typename ParamType, bool wantJac>
-int GeneralRateModel2D::residualImpl(const ParamType& t, unsigned int secIdx, const ParamType& timeFactor, StateType const* const y, double const* const yDot, ResidualType* const res, util::ThreadLocalStorage& threadLocalMem)
+int GeneralRateModel2D::residualImpl(double t, unsigned int secIdx, StateType const* const y, double const* const yDot, ResidualType* const res, util::ThreadLocalStorage& threadLocalMem)
 {
 	BENCH_START(_timerResidualPar);
 
@@ -1248,12 +1248,12 @@ int GeneralRateModel2D::residualImpl(const ParamType& t, unsigned int secIdx, co
 #endif
 	{
 		if (cadet_unlikely(pblk == 0))
-			residualBulk<StateType, ResidualType, ParamType, wantJac>(t, secIdx, timeFactor, y, yDot, res, threadLocalMem);
+			residualBulk<StateType, ResidualType, ParamType, wantJac>(t, secIdx, y, yDot, res, threadLocalMem);
 		else
 		{
 			const unsigned int type = (pblk - 1) / (_disc.nCol * _disc.nRad);
 			const unsigned int par = (pblk - 1) % (_disc.nCol * _disc.nRad);
-			residualParticle<StateType, ResidualType, ParamType, wantJac>(t, type, par, secIdx, timeFactor, y, yDot, res, threadLocalMem);
+			residualParticle<StateType, ResidualType, ParamType, wantJac>(t, type, par, secIdx, y, yDot, res, threadLocalMem);
 		}
 	} CADET_PARFOR_END;
 
@@ -1271,9 +1271,9 @@ int GeneralRateModel2D::residualImpl(const ParamType& t, unsigned int secIdx, co
 }
 
 template <typename StateType, typename ResidualType, typename ParamType, bool wantJac>
-int GeneralRateModel2D::residualBulk(const ParamType& t, unsigned int secIdx, const ParamType& timeFactor, StateType const* yBase, double const* yDotBase, ResidualType* resBase, util::ThreadLocalStorage& threadLocalMem)
+int GeneralRateModel2D::residualBulk(double t, unsigned int secIdx, StateType const* yBase, double const* yDotBase, ResidualType* resBase, util::ThreadLocalStorage& threadLocalMem)
 {
-	_convDispOp.residual(t, secIdx, timeFactor, yBase, yDotBase, resBase, wantJac);
+	_convDispOp.residual(t, secIdx, yBase, yDotBase, resBase, wantJac, typename ParamSens<ParamType>::enabled());
 	if (!_dynReactionBulk)
 		return 0;
 
@@ -1291,12 +1291,12 @@ int GeneralRateModel2D::residualBulk(const ParamType& t, unsigned int secIdx, co
 		const double z = (0.5 + static_cast<double>(axialCell)) / static_cast<double>(_disc.nCol);
 
 		const ColumnPosition colPos{z, r, 0.0};
-		_dynReactionBulk->residualLiquidAdd(static_cast<double>(t), secIdx, colPos, y, res, -1.0, tlmAlloc);
+		_dynReactionBulk->residualLiquidAdd(t, secIdx, colPos, y, res, -1.0, tlmAlloc);
 
 		if (wantJac)
 		{
 			// static_cast should be sufficient here, but this statement is also analyzed when wantJac = false
-			_dynReactionBulk->analyticJacobianLiquidAdd(static_cast<double>(t), secIdx, colPos, reinterpret_cast<double const*>(y), -1.0, _convDispOp.jacobian().row(colCell * idxr.strideColRadialCell()), tlmAlloc);
+			_dynReactionBulk->analyticJacobianLiquidAdd(t, secIdx, colPos, reinterpret_cast<double const*>(y), -1.0, _convDispOp.jacobian().row(colCell * idxr.strideColRadialCell()), tlmAlloc);
 		}
 	}
 
@@ -1304,7 +1304,7 @@ int GeneralRateModel2D::residualBulk(const ParamType& t, unsigned int secIdx, co
 }
 
 template <typename StateType, typename ResidualType, typename ParamType, bool wantJac>
-int GeneralRateModel2D::residualParticle(const ParamType& t, unsigned int parType, unsigned int colCell, unsigned int secIdx, const ParamType& timeFactor, StateType const* yBase, double const* yDotBase, ResidualType* resBase, util::ThreadLocalStorage& threadLocalMem)
+int GeneralRateModel2D::residualParticle(double t, unsigned int parType, unsigned int colCell, unsigned int secIdx, StateType const* yBase, double const* yDotBase, ResidualType* resBase, util::ThreadLocalStorage& threadLocalMem)
 {
 	Indexer idxr(_disc);
 
@@ -1365,7 +1365,7 @@ int GeneralRateModel2D::residualParticle(const ParamType& t, unsigned int parTyp
 
 		// Handle time derivatives, binding, dynamic reactions
 		parts::cell::residualKernel<StateType, ResidualType, ParamType, parts::cell::CellParameters, linalg::BandMatrix::RowIterator, wantJac, true>(
-			static_cast<double>(t), secIdx, timeFactor, colPos, y, yDotBase ? yDot : nullptr, res, jac, cellResParams, tlmAlloc
+			t, secIdx, colPos, y, yDotBase ? yDot : nullptr, res, jac, cellResParams, tlmAlloc
 		);
 
 		// We still need to handle transport and quasi-stationary reactions
@@ -1519,7 +1519,7 @@ int GeneralRateModel2D::residualParticle(const ParamType& t, unsigned int parTyp
 }
 
 template <typename StateType, typename ResidualType, typename ParamType>
-int GeneralRateModel2D::residualFlux(const ParamType& t, unsigned int secIdx, StateType const* yBase, double const* yDotBase, ResidualType* resBase)
+int GeneralRateModel2D::residualFlux(double t, unsigned int secIdx, StateType const* yBase, double const* yDotBase, ResidualType* resBase)
 {
 	Indexer idxr(_disc);
 
@@ -1717,7 +1717,7 @@ void GeneralRateModel2D::assembleOffdiagJac(double t, unsigned int secIdx)
 	_discParFlux.destroy<double>();
 }
 
-int GeneralRateModel2D::residualSensFwdWithJacobian(const ActiveSimulationTime& simTime, const ConstSimulationState& simState, const AdJacobianParams& adJac, util::ThreadLocalStorage& threadLocalMem)
+int GeneralRateModel2D::residualSensFwdWithJacobian(const SimulationTime& simTime, const ConstSimulationState& simState, const AdJacobianParams& adJac, util::ThreadLocalStorage& threadLocalMem)
 {
 	BENCH_SCOPE(_timerResidualSens);
 
@@ -1726,15 +1726,15 @@ int GeneralRateModel2D::residualSensFwdWithJacobian(const ActiveSimulationTime& 
 	return residual(simTime, simState, nullptr, adJac, threadLocalMem, true, true);
 }
 
-int GeneralRateModel2D::residualSensFwdAdOnly(const ActiveSimulationTime& simTime, const ConstSimulationState& simState, active* const adRes, util::ThreadLocalStorage& threadLocalMem)
+int GeneralRateModel2D::residualSensFwdAdOnly(const SimulationTime& simTime, const ConstSimulationState& simState, active* const adRes, util::ThreadLocalStorage& threadLocalMem)
 {
 	BENCH_SCOPE(_timerResidualSens);
 
 	// Evaluate residual for all parameters using AD in vector mode
-	return residualImpl<double, active, active, false>(simTime.t, simTime.secIdx, simTime.timeFactor, simState.vecStateY, simState.vecStateYdot, adRes, threadLocalMem); 
+	return residualImpl<double, active, active, false>(simTime.t, simTime.secIdx, simState.vecStateY, simState.vecStateYdot, adRes, threadLocalMem); 
 }
 
-int GeneralRateModel2D::residualSensFwdCombine(const ActiveSimulationTime& simTime, const ConstSimulationState& simState, 
+int GeneralRateModel2D::residualSensFwdCombine(const SimulationTime& simTime, const ConstSimulationState& simState, 
 	const std::vector<const double*>& yS, const std::vector<const double*>& ySdot, const std::vector<double*>& resS, active const* adRes, 
 	double* const tmp1, double* const tmp2, double* const tmp3)
 {
@@ -1743,7 +1743,7 @@ int GeneralRateModel2D::residualSensFwdCombine(const ActiveSimulationTime& simTi
 	// tmp1 stores result of (dF / dy) * s
 	// tmp2 stores result of (dF / dyDot) * sDot
 
-	const SimulationTime cst{static_cast<double>(simTime.t), simTime.secIdx, static_cast<double>(simTime.timeFactor)};
+	const SimulationTime cst{simTime.t, simTime.secIdx};
 	const ConstSimulationState css{nullptr, nullptr};
 	for (unsigned int param = 0; param < yS.size(); ++param)
 	{
@@ -1846,7 +1846,7 @@ void GeneralRateModel2D::multiplyWithJacobian(const SimulationTime& simTime, con
 /**
  * @brief Multiplies the time derivative Jacobian @f$ \frac{\partial F}{\partial \dot{y}}\left(t, y, \dot{y}\right) @f$ with a given vector
  * @details The operation @f$ z = \frac{\partial F}{\partial \dot{y}} x @f$ is performed.
- *          The matrix-vector multiplication is transformed matrix-free (i.e., no matrix is explicitly formed).
+ *          The matrix-vector multiplication is performed matrix-free (i.e., no matrix is explicitly formed).
  * @param [in] simTime Current simulation time point
  * @param [in] simState Simulation state vectors
  * @param [in] sDot Vector @f$ x @f$ that is transformed by the Jacobian @f$ \frac{\partial F}{\partial \dot{y}} @f$
@@ -1872,7 +1872,7 @@ void GeneralRateModel2D::multiplyWithDerivativeJacobian(const SimulationTime& si
 			const unsigned int pblk = idxParLoop % (_disc.nCol * _disc.nRad);
 			const unsigned int type = idxParLoop / (_disc.nCol * _disc.nRad);
 
-			const double invBetaP = (1.0 / static_cast<double>(_parPorosity[type]) - 1.0) * simTime.timeFactor;
+			const double invBetaP = (1.0 / static_cast<double>(_parPorosity[type]) - 1.0);
 			unsigned int const* const nBound = _disc.nBound + type * _disc.nComp;
 			unsigned int const* const boundOffset = _disc.boundOffset + type * _disc.nComp;
 			int const* const qsReaction = _binding[type]->reactionQuasiStationarity();
@@ -1882,7 +1882,7 @@ void GeneralRateModel2D::multiplyWithDerivativeJacobian(const SimulationTime& si
 			{
 				double const* const localSdot = sDot + idxr.offsetCp(ParticleTypeIndex{type}, ParticleIndex{pblk}) + shell * idxr.strideParShell(type);
 				double* const localRet = ret + idxr.offsetCp(ParticleTypeIndex{type}, ParticleIndex{pblk}) + shell * idxr.strideParShell(type);
-				parts::cell::multiplyWithDerivativeJacobianKernel<true>(localSdot, localRet, _disc.nComp, nBound, boundOffset, _disc.strideBound[type], qsReaction, simTime.timeFactor, invBetaP);
+				parts::cell::multiplyWithDerivativeJacobianKernel<true>(localSdot, localRet, _disc.nComp, nBound, boundOffset, _disc.strideBound[type], qsReaction, 1.0, invBetaP);
 			}
 		}
 	} CADET_PARFOR_END;

@@ -87,15 +87,15 @@ public:
 
 	virtual int residual(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res, util::ThreadLocalStorage& threadLocalMem);
 
-	virtual int residualWithJacobian(const ActiveSimulationTime& simTime, const ConstSimulationState& simState, double* const res, const AdJacobianParams& adJac, util::ThreadLocalStorage& threadLocalMem);
-	virtual int residualSensFwdAdOnly(const ActiveSimulationTime& simTime, const ConstSimulationState& simState, active* const adRes, util::ThreadLocalStorage& threadLocalMem);
-	virtual int residualSensFwdWithJacobian(const ActiveSimulationTime& simTime, const ConstSimulationState& simState, const AdJacobianParams& adJac, util::ThreadLocalStorage& threadLocalMem);
+	virtual int residualWithJacobian(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res, const AdJacobianParams& adJac, util::ThreadLocalStorage& threadLocalMem);
+	virtual int residualSensFwdAdOnly(const SimulationTime& simTime, const ConstSimulationState& simState, active* const adRes, util::ThreadLocalStorage& threadLocalMem);
+	virtual int residualSensFwdWithJacobian(const SimulationTime& simTime, const ConstSimulationState& simState, const AdJacobianParams& adJac, util::ThreadLocalStorage& threadLocalMem);
 
-	virtual int residualSensFwdCombine(const ActiveSimulationTime& simTime, const ConstSimulationState& simState, 
+	virtual int residualSensFwdCombine(const SimulationTime& simTime, const ConstSimulationState& simState, 
 		const std::vector<const double*>& yS, const std::vector<const double*>& ySdot, const std::vector<double*>& resS, active const* adRes, 
 		double* const tmp1, double* const tmp2, double* const tmp3);
 
-	virtual int linearSolve(double t, double timeFactor, double alpha, double tol, double* const rhs, double const* const weight,
+	virtual int linearSolve(double t, double alpha, double tol, double* const rhs, double const* const weight,
 		const ConstSimulationState& simState);
 
 	virtual void prepareADvectors(const AdJacobianParams& adJac) const;
@@ -107,13 +107,13 @@ public:
 	virtual void consistentInitialTimeDerivative(const SimulationTime& simTime, double const* vecStateY, double* const vecStateYdot, util::ThreadLocalStorage& threadLocalMem);
 
 	virtual void initializeSensitivityStates(const std::vector<double*>& vecSensY) const;
-	virtual void consistentInitialSensitivity(const ActiveSimulationTime& simTime, const ConstSimulationState& simState,
+	virtual void consistentInitialSensitivity(const SimulationTime& simTime, const ConstSimulationState& simState,
 		std::vector<double*>& vecSensY, std::vector<double*>& vecSensYdot, active const* const adRes, util::ThreadLocalStorage& threadLocalMem);
 
 	virtual void leanConsistentInitialState(const SimulationTime& simTime, double* const vecStateY, const AdJacobianParams& adJac, double errorTol, util::ThreadLocalStorage& threadLocalMem);
-	virtual void leanConsistentInitialTimeDerivative(double t, double timeFactor, double const* const vecStateY, double* const vecStateYdot, double* const res, util::ThreadLocalStorage& threadLocalMem);
+	virtual void leanConsistentInitialTimeDerivative(double t, double const* const vecStateY, double* const vecStateYdot, double* const res, util::ThreadLocalStorage& threadLocalMem);
 
-	virtual void leanConsistentInitialSensitivity(const ActiveSimulationTime& simTime, const ConstSimulationState& simState,
+	virtual void leanConsistentInitialSensitivity(const SimulationTime& simTime, const ConstSimulationState& simState,
 		std::vector<double*>& vecSensY, std::vector<double*>& vecSensYdot, active const* const adRes, util::ThreadLocalStorage& threadLocalMem);
 
 	virtual bool hasInlet() const CADET_NOEXCEPT { return true; }
@@ -178,15 +178,15 @@ protected:
 
 	class Indexer;
 
-	int residual(const ActiveSimulationTime& simTime, const ConstSimulationState& simState, double* const res, const AdJacobianParams& adJac, util::ThreadLocalStorage& threadLocalMem, bool updateJacobian, bool paramSensitivity);
+	int residual(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res, const AdJacobianParams& adJac, util::ThreadLocalStorage& threadLocalMem, bool updateJacobian, bool paramSensitivity);
 
 	template <typename StateType, typename ResidualType, typename ParamType, bool wantJac>
-	int residualImpl(const ParamType& t, unsigned int secIdx, const ParamType& timeFactor, StateType const* const y, double const* const yDot, ResidualType* const res, util::ThreadLocalStorage& threadLocalMem);
+	int residualImpl(double t, unsigned int secIdx, StateType const* const y, double const* const yDot, ResidualType* const res, util::ThreadLocalStorage& threadLocalMem);
 
 	void extractJacobianFromAD(active const* const adRes, unsigned int adDirOffset);
 
-	void assembleDiscretizedJacobian(double alpha, const Indexer& idxr, double timeFactor);
-	void addTimeDerivativeToJacobianCell(linalg::FactorizableBandMatrix::RowIterator& jac, const Indexer& idxr, double alpha, double invBetaP, double timeFactor) const;
+	void assembleDiscretizedJacobian(double alpha, const Indexer& idxr);
+	void addTimeDerivativeToJacobianCell(linalg::FactorizableBandMatrix::RowIterator& jac, const Indexer& idxr, double alpha, double invBetaP) const;
 
 #ifdef CADET_CHECK_ANALYTIC_JACOBIAN
 	void checkAnalyticJacobianAgainstAd(active const* const adRes, unsigned int adDirOffset) const;

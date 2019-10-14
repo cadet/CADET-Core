@@ -202,19 +202,6 @@ protected:
 	void resetSensParams();
 
 	/**
-	 * @brief Transforms the user solution times according to the (transformed) section times 
-	 */
-	void transformSolutionTimes();
-
-	/**
-	 * @brief Calculates _transformedTimes from _sectionTimes via time transformation
-	 * @details Since the _sectionTimes are reset, it may be necessary to reset their AD directions.
-	 *          This is done if @p resetSens is set to @c true.
-	 * @param [in] resetSens Set to @c true if AD directions should be updated, otherwise @c false
-	 */
-	void calculateTimeTransformation(bool resetSens);
-
-	/**
 	 * @brief Updates the error tolerances in IDAS
 	 * @details Sets the absolute and relative error tolerances in IDAS. If the absolute error
 	 *          tolerances are given as vector / array, a model is required to expand the
@@ -223,16 +210,6 @@ protected:
 	 *          initialized yet, nothing happens.
 	 */
 	void updateMainErrorTolerances();
-
-	const active timeFactor(unsigned int curSec) const;
-	inline const active timeFactor() const { return timeFactor(_curSec); }
-
-	template <typename time_t>
-	double toTransformedTime(double t, const std::vector<time_t>& oldTimes, const std::vector<double>& newTimes) const;
-
-	inline double toTransformedTime(double t) const { return toTransformedTime(t, _sectionTimes, _transformedTimes); }
-	inline active toRealTime(double t) const { return toRealTime(t, _curSec); }
-	active toRealTime(double t, unsigned int curSec) const;
 
 	friend int ::cadet::residualDaeWrapper(double t, N_Vector y, N_Vector yDot, N_Vector res, void* userData);
 
@@ -250,8 +227,6 @@ protected:
 
 	void* _idaMemBlock; //!< IDAS internal memory
 
-	std::vector<double> _transformedTimes; //!< Stores the section time points (start, end)
-	
 	/**
 	 * @brief Determines whether the transition from section i to section i+1 is continuous.
 	 * @details The solver will be reset only at discontinuous transitions. The i-th element 
@@ -261,7 +236,6 @@ protected:
 	std::vector<bool> _sectionContinuity;
 
 	std::vector<double> _solutionTimes; //!< Contains the time transformed user specified times for writing solutions to the output
-	std::vector<double> _solutionTimesOriginal; //!< Contains the original user specified times for writing solutions to the output
 
 	N_Vector _vecStateY; //!< IDAS state vector	
 	N_Vector _vecStateYdot; //!< IDAS state vector time derivative

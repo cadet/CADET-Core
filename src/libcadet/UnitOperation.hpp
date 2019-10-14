@@ -33,7 +33,6 @@ class IExternalFunction;
 
 struct AdJacobianParams;
 struct SimulationTime;
-struct ActiveSimulationTime;
 struct SimulationState;
 struct ConstSimulationState;
 
@@ -220,7 +219,7 @@ public:
 	 * @param [in,out] adJac Jacobian information for AD (AD vectors for residual and state, direction offset)
 	 * @return @c 0 on success, @c -1 on non-recoverable error, and @c +1 on recoverable error
 	 */
-	virtual int residualWithJacobian(const ActiveSimulationTime& simTime, const ConstSimulationState& simState, double* const res, const AdJacobianParams& adJac, util::ThreadLocalStorage& threadLocalMem) = 0;
+	virtual int residualWithJacobian(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res, const AdJacobianParams& adJac, util::ThreadLocalStorage& threadLocalMem) = 0;
 
 	/**
 	 * @brief Computes the solution of the linear system involving the system Jacobian
@@ -230,7 +229,6 @@ public:
 	 *          may help with this. Error weights (see IDAS guide) are given in @p weight. The solution is returned in @p rhs.
 	 *
 	 * @param [in] t Current time point
-	 * @param [in] timeFactor Used for time transformation (pre factor of time derivatives) and to compute parameter derivatives with respect to section length
 	 * @param [in] alpha Value of \f$ \alpha \f$ (arises from BDF time discretization)
 	 * @param [in] tol Error tolerance for the solution of the linear system from outer Newton iteration
 	 * @param [in,out] rhs On entry the right hand side of the linear equation system, on exit the solution
@@ -238,7 +236,7 @@ public:
 	 * @param [in] simState State of the simulation (state vector and its time derivative)
 	 * @return @c 0 on success, @c -1 on non-recoverable error, and @c +1 on recoverable error
 	 */
-	virtual int linearSolve(double t, double timeFactor, double alpha, double tol, double* const rhs, double const* const weight,
+	virtual int linearSolve(double t, double alpha, double tol, double* const rhs, double const* const weight,
 		const ConstSimulationState& simState) = 0;
 
 	/**
@@ -388,7 +386,7 @@ public:
 	 * @param [in,out] adRes Pointer to local residual vector of AD datatypes for computing the sensitivity derivatives
 	 * @return @c 0 on success, @c -1 on non-recoverable error, and @c +1 on recoverable error
 	 */
-	virtual int residualSensFwdAdOnly(const ActiveSimulationTime& simTime, const ConstSimulationState& simState, active* const adRes, util::ThreadLocalStorage& threadLocalMem) = 0;
+	virtual int residualSensFwdAdOnly(const SimulationTime& simTime, const ConstSimulationState& simState, active* const adRes, util::ThreadLocalStorage& threadLocalMem) = 0;
 
 	/**
 	 * @brief Computes the residual of the forward sensitivity systems using the result of residualSensFwdAdOnly()
@@ -405,7 +403,7 @@ public:
 	 * @param [in] tmp3 Temporary storage in the size of local state vector of @p y
 	 * @return @c 0 on success, @c -1 on non-recoverable error, and @c +1 on recoverable error
 	 */
-	virtual int residualSensFwdCombine(const ActiveSimulationTime& simTime, const ConstSimulationState& simState, 
+	virtual int residualSensFwdCombine(const SimulationTime& simTime, const ConstSimulationState& simState, 
 		const std::vector<const double*>& yS, const std::vector<const double*>& ySdot, const std::vector<double*>& resS, active const* adRes, 
 		double* const tmp1, double* const tmp2, double* const tmp3) = 0;
 
@@ -418,7 +416,7 @@ public:
 	 * @param [in,out] adJac Jacobian information for AD (AD vectors for residual and state, direction offset)
 	 * @return @c 0 on success, @c -1 on non-recoverable error, and @c +1 on recoverable error
 	 */
-	virtual int residualSensFwdWithJacobian(const ActiveSimulationTime& simTime, const ConstSimulationState& simState, const AdJacobianParams& adJac, util::ThreadLocalStorage& threadLocalMem) = 0;
+	virtual int residualSensFwdWithJacobian(const SimulationTime& simTime, const ConstSimulationState& simState, const AdJacobianParams& adJac, util::ThreadLocalStorage& threadLocalMem) = 0;
 
 	/**
 	 * @brief Computes consistent initial values (state variables without their time derivatives)
@@ -483,12 +481,11 @@ public:
 	 *          consistent initialization!
 	 *          
 	 * @param [in] t Current time point
-	 * @param [in] timeFactor Used for time transformation (pre factor of time derivatives) and to compute parameter derivatives with respect to section length
 	 * @param [in] vecStateY (Lean) consistent initial state
 	 * @param [in,out] vecStateYdot On entry, inconsistent state time derivatives. On exit, partially consistent state time derivatives.
 	 * @param [in] res On entry, residual without taking time derivatives into account. The data is overwritten during execution of the function.
 	 */
-	virtual void leanConsistentInitialTimeDerivative(double t, double timeFactor, double const* const vecStateY, double* const vecStateYdot, double* const res, util::ThreadLocalStorage& threadLocalMem) = 0;
+	virtual void leanConsistentInitialTimeDerivative(double t, double const* const vecStateY, double* const vecStateYdot, double* const res, util::ThreadLocalStorage& threadLocalMem) = 0;
 
 	/**
 	 * @brief Computes consistent initial conditions for all sensitivity subsystems
@@ -504,7 +501,7 @@ public:
 	 * @param [in,out] vecSensYdot Time derivative state vectors of the sensitivity subsystems to be initialized
 	 * @param [in] adRes Pointer to local residual vector of AD datatypes with parameter sensitivities
 	 */
-	virtual void consistentInitialSensitivity(const ActiveSimulationTime& simTime, const ConstSimulationState& simState,
+	virtual void consistentInitialSensitivity(const SimulationTime& simTime, const ConstSimulationState& simState,
 		std::vector<double*>& vecSensY, std::vector<double*>& vecSensYdot, active const* const adRes, util::ThreadLocalStorage& threadLocalMem) = 0;
 
 	/**
@@ -524,7 +521,7 @@ public:
 	 * @param [in,out] vecSensYdot Time derivative state vectors of the sensitivity subsystems to be initialized
 	 * @param [in] adRes Pointer to local residual vector of AD datatypes with parameter sensitivities
 	 */
-	virtual void leanConsistentInitialSensitivity(const ActiveSimulationTime& simTime, const ConstSimulationState& simState,
+	virtual void leanConsistentInitialSensitivity(const SimulationTime& simTime, const ConstSimulationState& simState,
 		std::vector<double*>& vecSensY, std::vector<double*>& vecSensYdot, active const* const adRes, util::ThreadLocalStorage& threadLocalMem) = 0;
 
 	/**
@@ -565,7 +562,7 @@ public:
 	/**
 	 * @brief Multiplies the time derivative Jacobian @f$ \frac{\partial F}{\partial \dot{y}}\left(t, y, \dot{y}\right) @f$ with a given vector
 	 * @details The operation @f$ z = \frac{\partial F}{\partial \dot{y}} x @f$ is performed.
-	 *          The matrix-vector multiplication is transformed matrix-free (i.e., no matrix is explicitly formed).
+	 *          The matrix-vector multiplication is performed matrix-free (i.e., no matrix is explicitly formed).
 	 * @param [in] simTime Simulation time information (time point, section index, pre-factor of time derivatives)
 	 * @param [in] simState State of the simulation (state vector and its time derivative)
 	 * @param [in] sDot Vector @f$ x @f$ that is transformed by the Jacobian @f$ \frac{\partial F}{\partial \dot{y}} @f$

@@ -24,6 +24,7 @@
 #include "Memory.hpp"
 #include "Weno.hpp"
 #include "model/ParameterMultiplexing.hpp"
+#include "SimulationTypes.hpp"
 
 #include <unordered_map>
 #include <unordered_set>
@@ -33,7 +34,6 @@ namespace cadet
 {
 
 class IParameterProvider;
-struct SimulationTime;
 
 namespace model
 {
@@ -74,15 +74,15 @@ public:
 	bool configure(UnitOpIdx unitOpIdx, IParameterProvider& paramProvider, std::unordered_map<ParameterId, active*>& parameters);
 	bool notifyDiscontinuousSectionTransition(double t, unsigned int secIdx);
 
-	int residual(double t, unsigned int secIdx, double timeFactor, double const* y, double const* yDot, double* res, bool wantJac);
-	int residual(double t, unsigned int secIdx, double timeFactor, active const* y, double const* yDot, active* res, bool wantJac);
-	int residual(const active& t, unsigned int secIdx, const active& timeFactor, double const* y, double const* yDot, active* res, bool wantJac);
-	int residual(const active& t, unsigned int secIdx, const active& timeFactor, active const* y, double const* yDot, active* res, bool wantJac);
+	int residual(double t, unsigned int secIdx, double const* y, double const* yDot, double* res, bool wantJac, WithoutParamSensitivity);
+	int residual(double t, unsigned int secIdx, active const* y, double const* yDot, active* res, bool wantJac, WithoutParamSensitivity);
+	int residual(double t, unsigned int secIdx, active const* y, double const* yDot, active* res, bool wantJac, WithParamSensitivity);
+	int residual(double t, unsigned int secIdx, double const* y, double const* yDot, active* res, bool wantJac, WithParamSensitivity);
 
 	bool solveTimeDerivativeSystem(const SimulationTime& simTime, double* const rhs);
 	void multiplyWithDerivativeJacobian(const SimulationTime& simTime, double const* sDot, double* ret) const;
 
-	bool assembleAndFactorizeDiscretizedJacobian(double alpha, double timeFactor);
+	bool assembleAndFactorizeDiscretizedJacobian(double alpha);
 	bool solveDiscretizedJacobian(double* rhs, double const* weight, double const* init, double outerTol) const;
 
 	bool setParameter(const ParameterId& pId, double value);
@@ -115,10 +115,10 @@ protected:
 
 	friend int schurComplementMultiplier2DCDO(void* userData, double const* x, double* z);
 
-	void assembleDiscretizedJacobian(double alpha, double timeFactor);
+	void assembleDiscretizedJacobian(double alpha);
 
 	template <typename StateType, typename ResidualType, typename ParamType, bool wantJac>
-	int residualImpl(const ParamType& t, unsigned int secIdx, const ParamType& timeFactor, StateType const* y, double const* yDot, ResidualType* res);
+	int residualImpl(double t, unsigned int secIdx, StateType const* y, double const* yDot, ResidualType* res);
 
 	void setSparsityPattern();
 

@@ -34,7 +34,6 @@ class IExternalFunction;
 
 struct AdJacobianParams;
 struct SimulationTime;
-struct ActiveSimulationTime;
 struct SimulationState;
 struct ConstSimulationState;
 
@@ -245,7 +244,7 @@ public:
 	 * @param [in,out] adRes Pointer to global residual vector of AD datatypes for computing the parameter sensitivities
 	 * @param [in,out] adY Pointer to global state vector of AD datatypes that can be used for computing the Jacobian (or @c nullptr if AD is disabled)
 	 */
-	virtual void consistentInitialSensitivity(const ActiveSimulationTime& simTime, const ConstSimulationState& simState,
+	virtual void consistentInitialSensitivity(const SimulationTime& simTime, const ConstSimulationState& simState,
 		std::vector<double*>& vecSensY, std::vector<double*>& vecSensYdot, active* const adRes, active* const adY) = 0;
 
 	/**
@@ -283,7 +282,7 @@ public:
 	 * @param [in,out] adRes Pointer to global residual vector of AD datatypes for computing the parameter sensitivities
 	 * @param [in,out] adY Pointer to global state vector of AD datatypes that can be used for computing the Jacobian (or @c nullptr if AD is disabled)
 	 */
-	virtual void leanConsistentInitialSensitivity(const ActiveSimulationTime& simTime, const ConstSimulationState& simState,
+	virtual void leanConsistentInitialSensitivity(const SimulationTime& simTime, const ConstSimulationState& simState,
 		std::vector<double*>& vecSensY, std::vector<double*>& vecSensYdot, active* const adRes, active* const adY) = 0;
 
 	/**
@@ -305,7 +304,7 @@ public:
 	 * @param [in,out] adJac Jacobian information for AD (AD vectors for residual and state, direction offset)
 	 * @return @c 0 on success, @c -1 on non-recoverable error, and @c +1 on recoverable error
 	 */
-	virtual int residualWithJacobian(const ActiveSimulationTime& simTime, const ConstSimulationState& simState, double* const res, const AdJacobianParams& adJac) = 0;
+	virtual int residualWithJacobian(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res, const AdJacobianParams& adJac) = 0;
 
 	/**
 	 * @brief Computes the @f$ \ell^\infty@f$-norm of the residual vector
@@ -332,7 +331,7 @@ public:
 	 * @param [in] tmp3 Temporary storage in the size of global state vector of @p y
 	 * @return @c 0 on success, @c -1 on non-recoverable error, and @c +1 on recoverable error
 	 */
-	virtual int residualSensFwd(unsigned int nSens, const ActiveSimulationTime& simTime,
+	virtual int residualSensFwd(unsigned int nSens, const SimulationTime& simTime,
 		const ConstSimulationState& simState, double const* const res,
 		const std::vector<const double*>& yS, const std::vector<const double*>& ySdot, const std::vector<double*>& resS,
 		active* const adRes, double* const tmp1, double* const tmp2, double* const tmp3) = 0;
@@ -353,7 +352,7 @@ public:
 	 * @param [in] tmp3 Temporary storage in the size of global state vector of @p y
 	 * @return @c 0 on success, @c -1 on non-recoverable error, and @c +1 on recoverable error
 	 */
-	virtual int residualSensFwdWithJacobian(unsigned int nSens, const ActiveSimulationTime& simTime,
+	virtual int residualSensFwdWithJacobian(unsigned int nSens, const SimulationTime& simTime,
 		const ConstSimulationState& simState, double const* const res,
 		const std::vector<const double*>& yS, const std::vector<const double*>& ySdot, const std::vector<double*>& resS,
 		const AdJacobianParams& adJac, double* const tmp1, double* const tmp2, double* const tmp3) = 0;
@@ -370,7 +369,7 @@ public:
 	 * @param [in,out] adRes Pointer to global residual vector of AD datatypes for computing the sensitivity derivatives
 	 * @param [in] tmp Temporary storage in the size of global state vector @p y
 	 */
-	virtual void residualSensFwdNorm(unsigned int nSens, const ActiveSimulationTime& simTime, 
+	virtual void residualSensFwdNorm(unsigned int nSens, const SimulationTime& simTime, 
 			const ConstSimulationState& simState,
 			const std::vector<const double*>& yS, const std::vector<const double*>& ySdot, double* const norms,
 			active* const adRes, double* const tmp) = 0;
@@ -386,7 +385,6 @@ public:
 	 *          in time and state \f$(t, y, \dot{y})\f$.
 	 *
 	 * @param [in] t Current time point
-	 * @param [in] timeFactor Used for time transformation (pre factor of time derivatives) and to compute parameter derivatives with respect to section length
 	 * @param [in] alpha Value of \f$ \alpha \f$ (arises from BDF time discretization)
 	 * @param [in] tol Error tolerance for the solution of the linear system from outer Newton iteration
 	 * @param [in,out] rhs On entry the right hand side of the linear equation system, on exit the solution
@@ -394,7 +392,7 @@ public:
 	 * @param [in] simState State of the simulation (state vector and its time derivative)
 	 * @return @c 0 on success, @c -1 on non-recoverable error, and @c +1 on recoverable error
 	 */
-	virtual int linearSolve(double t, double timeFactor, double alpha, double tol, double* const rhs, double const* const weight,
+	virtual int linearSolve(double t, double alpha, double tol, double* const rhs, double const* const weight,
 		const ConstSimulationState& simState) = 0;
 
 	/**

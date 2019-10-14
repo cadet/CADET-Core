@@ -221,51 +221,50 @@ void ConvectionDispersionOperatorBase::setFlowRates(const active& in, const acti
  * @brief Computes the residual of the transport equations
  * @param [in] t Current time point
  * @param [in] secIdx Index of the current section
- * @param [in] timeFactor Used to compute parameter derivatives with respect to section length (nominal value should always be 1.0)
  * @param [in] y Pointer to unit operation's state vector
  * @param [in] yDot Pointer to unit operation's time derivative state vector
  * @param [out] res Pointer to unit operation's residual vector
  * @param [in] jac Matrix that holds the Jacobian
  * @return @c 0 on success, @c -1 on non-recoverable error, and @c +1 on recoverable error
  */
-int ConvectionDispersionOperatorBase::residual(double t, unsigned int secIdx, double timeFactor, double const* y, double const* yDot, double* res, linalg::BandMatrix& jac)
+int ConvectionDispersionOperatorBase::residual(double t, unsigned int secIdx, double const* y, double const* yDot, double* res, linalg::BandMatrix& jac)
 {
 	// Reset Jacobian
 	jac.setAll(0.0);
 
-	return residualImpl<double, double, double, linalg::BandMatrix::RowIterator, true>(t, secIdx, timeFactor, y, yDot, res, jac.row(0));
+	return residualImpl<double, double, double, linalg::BandMatrix::RowIterator, true>(t, secIdx, y, yDot, res, jac.row(0));
 }
 
-int ConvectionDispersionOperatorBase::residual(double t, unsigned int secIdx, double timeFactor, double const* y, double const* yDot, double* res)
+int ConvectionDispersionOperatorBase::residual(double t, unsigned int secIdx, double const* y, double const* yDot, double* res, WithoutParamSensitivity)
 {
-	return residualImpl<double, double, double, linalg::BandMatrix::RowIterator, false>(t, secIdx, timeFactor, y, yDot, res, linalg::BandMatrix::RowIterator());
+	return residualImpl<double, double, double, linalg::BandMatrix::RowIterator, false>(t, secIdx, y, yDot, res, linalg::BandMatrix::RowIterator());
 }
 
-int ConvectionDispersionOperatorBase::residual(double t, unsigned int secIdx, double timeFactor, active const* y, double const* yDot, active* res)
+int ConvectionDispersionOperatorBase::residual(double t, unsigned int secIdx, active const* y, double const* yDot, active* res, WithoutParamSensitivity)
 {
-	return residualImpl<active, active, double, linalg::BandMatrix::RowIterator, false>(t, secIdx, timeFactor, y, yDot, res, linalg::BandMatrix::RowIterator());
+	return residualImpl<active, active, double, linalg::BandMatrix::RowIterator, false>(t, secIdx, y, yDot, res, linalg::BandMatrix::RowIterator());
 }
 
-int ConvectionDispersionOperatorBase::residual(const active& t, unsigned int secIdx, const active& timeFactor, double const* y, double const* yDot, active* res, linalg::BandMatrix& jac)
+int ConvectionDispersionOperatorBase::residual(double t, unsigned int secIdx, double const* y, double const* yDot, active* res, linalg::BandMatrix& jac)
 {
 	// Reset Jacobian
 	jac.setAll(0.0);
 
-	return residualImpl<double, active, active, linalg::BandMatrix::RowIterator, true>(t, secIdx, timeFactor, y, yDot, res, jac.row(0));
+	return residualImpl<double, active, active, linalg::BandMatrix::RowIterator, true>(t, secIdx, y, yDot, res, jac.row(0));
 }
 
-int ConvectionDispersionOperatorBase::residual(const active& t, unsigned int secIdx, const active& timeFactor, double const* y, double const* yDot, active* res)
+int ConvectionDispersionOperatorBase::residual(double t, unsigned int secIdx, double const* y, double const* yDot, active* res, WithParamSensitivity)
 {
-	return residualImpl<double, active, active, linalg::BandMatrix::RowIterator, false>(t, secIdx, timeFactor, y, yDot, res, linalg::BandMatrix::RowIterator());
+	return residualImpl<double, active, active, linalg::BandMatrix::RowIterator, false>(t, secIdx, y, yDot, res, linalg::BandMatrix::RowIterator());
 }
 
-int ConvectionDispersionOperatorBase::residual(const active& t, unsigned int secIdx, const active& timeFactor, active const* y, double const* yDot, active* res)
+int ConvectionDispersionOperatorBase::residual(double t, unsigned int secIdx, active const* y, double const* yDot, active* res, WithParamSensitivity)
 {
-	return residualImpl<active, active, active, linalg::BandMatrix::RowIterator, false>(t, secIdx, timeFactor, y, yDot, res, linalg::BandMatrix::RowIterator());
+	return residualImpl<active, active, active, linalg::BandMatrix::RowIterator, false>(t, secIdx, y, yDot, res, linalg::BandMatrix::RowIterator());
 }
 
 template <typename StateType, typename ResidualType, typename ParamType, typename RowIteratorType, bool wantJac>
-int ConvectionDispersionOperatorBase::residualImpl(const ParamType& t, unsigned int secIdx, const ParamType& timeFactor, StateType const* y, double const* yDot, ResidualType* res, RowIteratorType jacBegin)
+int ConvectionDispersionOperatorBase::residualImpl(double t, unsigned int secIdx, StateType const* y, double const* yDot, ResidualType* res, RowIteratorType jacBegin)
 {
 	const ParamType u = static_cast<ParamType>(_curVelocity);
 	active const* const d_c = getSectionDependentSlice(_colDispersion, _nComp, secIdx);
@@ -287,13 +286,13 @@ int ConvectionDispersionOperatorBase::residualImpl(const ParamType& t, unsigned 
 		_nComp
 	};
 
-	return convdisp::residualKernel<StateType, ResidualType, ParamType, RowIteratorType, wantJac>(convdisp::SimulationTime<ParamType>{t, secIdx, timeFactor}, y, yDot, res, jacBegin, fp);
+	return convdisp::residualKernel<StateType, ResidualType, ParamType, RowIteratorType, wantJac>(SimulationTime{t, secIdx}, y, yDot, res, jacBegin, fp);
 }
 
 /**
  * @brief Multiplies the time derivative Jacobian @f$ \frac{\partial F}{\partial \dot{y}}\left(t, y, \dot{y}\right) @f$ with a given vector
  * @details The operation @f$ z = \frac{\partial F}{\partial \dot{y}} x @f$ is performed.
- *          The matrix-vector multiplication is transformed matrix-free (i.e., no matrix is explicitly formed).
+ *          The matrix-vector multiplication is performed matrix-free (i.e., no matrix is explicitly formed).
  *          
  *          Note that this function only performs multiplication with the Jacobian of the (axial) transport equations.
  *          The input vectors are assumed to point to the beginning (including inlet DOFs) of the respective unit operation's arrays.
@@ -311,7 +310,7 @@ void ConvectionDispersionOperatorBase::multiplyWithDerivativeJacobian(const Simu
 	{
 		for (unsigned int j = 0; j < _nComp; ++j, ++localRet, ++localSdot)
 		{
-			*localRet = simTime.timeFactor * (*localSdot);
+			*localRet = (*localSdot);
 		}
 	}
 }
@@ -322,12 +321,9 @@ void ConvectionDispersionOperatorBase::multiplyWithDerivativeJacobian(const Simu
  *          @f[ \begin{align*} \text{_jacCdisc} = \text{_jacCdisc} + \alpha \frac{\partial F}{\partial \dot{y}}. \end{align*} @f]
  *          The factor @f$ \alpha @f$ is useful when constructing the linear system in the time integration process.
  * @param [in] alpha Factor in front of @f$ \frac{\partial F}{\partial \dot{y}} @f$
- * @param [in] timeFactor Factor which is premultiplied to the time derivatives originating from time transformation
  */
-void ConvectionDispersionOperatorBase::addTimeDerivativeToJacobian(double alpha, double timeFactor, linalg::FactorizableBandMatrix& jacDisc)
+void ConvectionDispersionOperatorBase::addTimeDerivativeToJacobian(double alpha, linalg::FactorizableBandMatrix& jacDisc)
 {
-	alpha *= timeFactor;
-
 	const int gapCell = strideColCell() - static_cast<int>(_nComp) * strideColComp();
 	linalg::FactorizableBandMatrix::RowIterator jac = jacDisc.row(0);
 	for (unsigned int i = 0; i < _nCol; ++i, jac += gapCell)
@@ -604,43 +600,42 @@ void ConvectionDispersionOperator::setFlowRates(const active& in, const active& 
  * @brief Computes the residual of the transport equations
  * @param [in] t Current time point
  * @param [in] secIdx Index of the current section
- * @param [in] timeFactor Used to compute parameter derivatives with respect to section length (nominal value should always be 1.0)
  * @param [in] y Pointer to unit operation's state vector
  * @param [in] yDot Pointer to unit operation's time derivative state vector
  * @param [out] res Pointer to unit operation's residual vector
  * @param [in] wantJac Determines whether analytic Jacobian is computed
  * @return @c 0 on success, @c -1 on non-recoverable error, and @c +1 on recoverable error
  */
-int ConvectionDispersionOperator::residual(double t, unsigned int secIdx, double timeFactor, double const* y, double const* yDot, double* res, bool wantJac)
+int ConvectionDispersionOperator::residual(double t, unsigned int secIdx, double const* y, double const* yDot, double* res, bool wantJac, WithoutParamSensitivity)
 {
 	if (wantJac)
-		return _baseOp.residual(t, secIdx, timeFactor, y, yDot, res, _jacC);
+		return _baseOp.residual(t, secIdx, y, yDot, res, _jacC);
 	else
-		return _baseOp.residual(t, secIdx, timeFactor, y, yDot, res);
+		return _baseOp.residual(t, secIdx, y, yDot, res, WithoutParamSensitivity());
 }
 
-int ConvectionDispersionOperator::residual(double t, unsigned int secIdx, double timeFactor, active const* y, double const* yDot, active* res, bool wantJac)
+int ConvectionDispersionOperator::residual(double t, unsigned int secIdx, active const* y, double const* yDot, active* res, bool wantJac, WithoutParamSensitivity)
 {
-	return _baseOp.residual(t, secIdx, timeFactor, y, yDot, res);
+	return _baseOp.residual(t, secIdx, y, yDot, res, WithoutParamSensitivity());
 }
 
-int ConvectionDispersionOperator::residual(const active& t, unsigned int secIdx, const active& timeFactor, double const* y, double const* yDot, active* res, bool wantJac)
+int ConvectionDispersionOperator::residual(double t, unsigned int secIdx, active const* y, double const* yDot, active* res, bool wantJac, WithParamSensitivity)
+{
+	return _baseOp.residual(t, secIdx, y, yDot, res, WithParamSensitivity());
+}
+
+int ConvectionDispersionOperator::residual(double t, unsigned int secIdx, double const* y, double const* yDot, active* res, bool wantJac, WithParamSensitivity)
 {
 	if (wantJac)
-		return _baseOp.residual(t, secIdx, timeFactor, y, yDot, res, _jacC);
+		return _baseOp.residual(t, secIdx, y, yDot, res, _jacC);
 	else
-		return _baseOp.residual(t, secIdx, timeFactor, y, yDot, res);
-}
-
-int ConvectionDispersionOperator::residual(const active& t, unsigned int secIdx, const active& timeFactor, active const* y, double const* yDot, active* res, bool wantJac)
-{
-	return _baseOp.residual(t, secIdx, timeFactor, y, yDot, res);
+		return _baseOp.residual(t, secIdx, y, yDot, res, WithParamSensitivity());
 }
 
 /**
  * @brief Multiplies the time derivative Jacobian @f$ \frac{\partial F}{\partial \dot{y}}\left(t, y, \dot{y}\right) @f$ with a given vector
  * @details The operation @f$ z = \frac{\partial F}{\partial \dot{y}} x @f$ is performed.
- *          The matrix-vector multiplication is transformed matrix-free (i.e., no matrix is explicitly formed).
+ *          The matrix-vector multiplication is performed matrix-free (i.e., no matrix is explicitly formed).
  *          
  *          Note that this function only performs multiplication with the Jacobian of the (axial) transport equations.
  *          The input vectors are assumed to point to the beginning (including inlet DOFs) of the respective unit operation's arrays.
@@ -699,15 +694,14 @@ double ConvectionDispersionOperator::checkAnalyticJacobianAgainstAd(active const
  *          the solution of the linear system mentioned above (@f$ \alpha_0 = \alpha @f$ given in @p alpha).
  *
  * @param [in] alpha Value of \f$ \alpha \f$ (arises from BDF time discretization)
- * @param [in] timeFactor Factor which is premultiplied to the time derivatives originating from time transformation
  */
-void ConvectionDispersionOperator::assembleDiscretizedJacobian(double alpha, double timeFactor)
+void ConvectionDispersionOperator::assembleDiscretizedJacobian(double alpha)
 {
 	// Copy normal matrix over to factorizable matrix
 	_jacCdisc.copyOver(_jacC);
 
 	// Add time derivatives
-	addTimeDerivativeToJacobian(alpha, timeFactor);
+	addTimeDerivativeToJacobian(alpha);
 }
 
 
@@ -717,23 +711,21 @@ void ConvectionDispersionOperator::assembleDiscretizedJacobian(double alpha, dou
  *          @f[ \begin{align*} \text{_jacCdisc} = \text{_jacCdisc} + \alpha \frac{\partial F}{\partial \dot{y}}. \end{align*} @f]
  *          The factor @f$ \alpha @f$ is useful when constructing the linear system in the time integration process.
  * @param [in] alpha Factor in front of @f$ \frac{\partial F}{\partial \dot{y}} @f$
- * @param [in] timeFactor Factor which is premultiplied to the time derivatives originating from time transformation
  */
-void ConvectionDispersionOperator::addTimeDerivativeToJacobian(double alpha, double timeFactor)
+void ConvectionDispersionOperator::addTimeDerivativeToJacobian(double alpha)
 {
-	_baseOp.addTimeDerivativeToJacobian(alpha, timeFactor, _jacCdisc);
+	_baseOp.addTimeDerivativeToJacobian(alpha, _jacCdisc);
 }
 
 /**
  * @brief Assembles and factorizes the time discretized Jacobian
  * @details See assembleDiscretizedJacobian() for assembly of the time discretized Jacobian.
  * @param [in] alpha Factor in front of @f$ \frac{\partial F}{\partial \dot{y}} @f$
- * @param [in] timeFactor Factor which is premultiplied to the time derivatives originating from time transformation
  * @return @c true if factorization went fine, otherwise @c false
  */
-bool ConvectionDispersionOperator::assembleAndFactorizeDiscretizedJacobian(double alpha, double timeFactor)
+bool ConvectionDispersionOperator::assembleAndFactorizeDiscretizedJacobian(double alpha)
 {
-	assembleDiscretizedJacobian(alpha, timeFactor);
+	assembleDiscretizedJacobian(alpha);
 	return _jacCdisc.factorize();
 }
 
@@ -763,7 +755,7 @@ bool ConvectionDispersionOperator::solveTimeDerivativeSystem(const SimulationTim
 {
 	// Assemble
 	_jacCdisc.setAll(0.0);
-	addTimeDerivativeToJacobian(1.0, simTime.timeFactor);
+	addTimeDerivativeToJacobian(1.0);
 
 	// Factorize
 	const bool result = _jacCdisc.factorize();

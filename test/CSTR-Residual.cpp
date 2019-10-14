@@ -102,8 +102,8 @@ inline void checkJacobianAD(double flowRateIn, double flowRateOut, double flowRa
 	cadet::test::util::populate(yDot.data(), [=](unsigned int idx) { return std::abs(std::sin((idx + nDof) * 0.13)) + 1e-4; }, nDof);
 
 	// Compute state Jacobian
-	cstrAna->residualWithJacobian(cadet::ActiveSimulationTime{0.0, 0u, 1.0}, cadet::ConstSimulationState{y.data(), nullptr}, jacDir.data(), noParams, tls);
-	cstrAD->residualWithJacobian(cadet::ActiveSimulationTime{0.0, 0u, 1.0}, cadet::ConstSimulationState{y.data(), nullptr}, jacDir.data(), adParams, tls);
+	cstrAna->residualWithJacobian(cadet::SimulationTime{0.0, 0u}, cadet::ConstSimulationState{y.data(), nullptr}, jacDir.data(), noParams, tls);
+	cstrAD->residualWithJacobian(cadet::SimulationTime{0.0, 0u}, cadet::ConstSimulationState{y.data(), nullptr}, jacDir.data(), adParams, tls);
 	std::fill(jacDir.begin(), jacDir.end(), 0.0);
 
 	// Compare Jacobians
@@ -150,7 +150,7 @@ inline void checkJacobianFD(double flowRateIn, double flowRateOut, double flowRa
 	cadet::test::util::populate(yDot.data(), [=](unsigned int idx) { return std::abs(std::sin((idx + nDof) * 0.13)) + 1e-4; }, nDof);
 
 	// Compute state Jacobian
-	cstr->residualWithJacobian(cadet::ActiveSimulationTime{0.0, 0u, 1.0}, cadet::ConstSimulationState{y.data(), yDot.data()}, jacDir.data(), cadet::AdJacobianParams{nullptr, nullptr, 0u}, tls);
+	cstr->residualWithJacobian(cadet::SimulationTime{0.0, 0u}, cadet::ConstSimulationState{y.data(), yDot.data()}, jacDir.data(), cadet::AdJacobianParams{nullptr, nullptr, 0u}, tls);
 	std::fill(jacDir.begin(), jacDir.end(), 0.0);
 
 	// Compare Jacobians

@@ -158,13 +158,13 @@ namespace
 			model->consistentInitialTimeDerivative(simTime, vecStateY, vecStateYdot, threadLocalMem);
 		}
 
-		static inline int residualWithJacobian(cadet::model::ModelSystem& ms, const cadet::ActiveSimulationTime& simTime, const cadet::ConstSimulationState& simState, double* const res, double* const temp,
+		static inline int residualWithJacobian(cadet::model::ModelSystem& ms, const cadet::SimulationTime& simTime, const cadet::ConstSimulationState& simState, double* const res, double* const temp,
 			const cadet::AdJacobianParams& adJac)
 		{
 			return ms.residualWithJacobian(simTime, simState, res, adJac);
 		}
 
-		static inline void parameterSensitivity(cadet::IUnitOperation* model, const cadet::ActiveSimulationTime& simTime, const cadet::ConstSimulationState& simState,
+		static inline void parameterSensitivity(cadet::IUnitOperation* model, const cadet::SimulationTime& simTime, const cadet::ConstSimulationState& simState,
 			std::vector<double*>& vecSensYlocal, std::vector<double*>& vecSensYdotLocal, cadet::active const* const adRes, cadet::util::ThreadLocalStorage& threadLocalMem)
 		{
 			model->consistentInitialSensitivity(simTime, simState, vecSensYlocal, vecSensYdotLocal, adRes, threadLocalMem);
@@ -181,16 +181,16 @@ namespace
 
 		static inline void timeDerivative(cadet::IUnitOperation* model, const cadet::SimulationTime& simTime, double const* vecStateY, double* const vecStateYdot, double* const res, cadet::util::ThreadLocalStorage& threadLocalMem)
 		{
-			model->leanConsistentInitialTimeDerivative(simTime.t, simTime.timeFactor, vecStateY, vecStateYdot, res, threadLocalMem);
+			model->leanConsistentInitialTimeDerivative(simTime.t, vecStateY, vecStateYdot, res, threadLocalMem);
 		}
 
-		static inline int residualWithJacobian(cadet::model::ModelSystem& ms, const cadet::ActiveSimulationTime& simTime, const cadet::ConstSimulationState& simState, double* const res, double* const temp,
+		static inline int residualWithJacobian(cadet::model::ModelSystem& ms, const cadet::SimulationTime& simTime, const cadet::ConstSimulationState& simState, double* const res, double* const temp,
 			const cadet::AdJacobianParams& adJac)
 		{
 			return ms.residualWithJacobian(simTime, simState, temp, adJac);
 		}
 
-		static inline void parameterSensitivity(cadet::IUnitOperation* model, const cadet::ActiveSimulationTime& simTime, const cadet::ConstSimulationState& simState,
+		static inline void parameterSensitivity(cadet::IUnitOperation* model, const cadet::SimulationTime& simTime, const cadet::ConstSimulationState& simState,
 			std::vector<double*>& vecSensYlocal, std::vector<double*>& vecSensYdotLocal, cadet::active const* const adRes, cadet::util::ThreadLocalStorage& threadLocalMem)
 		{
 			model->leanConsistentInitialSensitivity(simTime, simState, vecSensYlocal, vecSensYdotLocal, adRes, threadLocalMem);
@@ -204,7 +204,7 @@ namespace
 	template <>
 	struct ResidualSensCaller<true>
 	{
-		static inline int call(cadet::IUnitOperation* model, const cadet::ActiveSimulationTime& simTime, 
+		static inline int call(cadet::IUnitOperation* model, const cadet::SimulationTime& simTime, 
 			const cadet::ConstSimulationState& simState, const cadet::AdJacobianParams& adJac, cadet::util::ThreadLocalStorage& threadLocalMem)
 		{
 			return model->residualSensFwdWithJacobian(simTime, simState, adJac, threadLocalMem);
@@ -214,7 +214,7 @@ namespace
 	template <>
 	struct ResidualSensCaller<false>
 	{
-		static inline int call(cadet::IUnitOperation* model, const cadet::ActiveSimulationTime& simTime, 
+		static inline int call(cadet::IUnitOperation* model, const cadet::SimulationTime& simTime, 
 			const cadet::ConstSimulationState& simState, const cadet::AdJacobianParams& adJac, cadet::util::ThreadLocalStorage& threadLocalMem)
 		{
 			return model->residualSensFwdAdOnly(simTime, simState, adJac.adRes, threadLocalMem);
@@ -1557,7 +1557,7 @@ int ModelSystem::residual(const SimulationTime& simTime, const ConstSimulationSt
 	return totalErrorIndicatorFromLocal(_errorIndicator);
 }
 
-int ModelSystem::residualWithJacobian(const ActiveSimulationTime& simTime, const ConstSimulationState& simState,
+int ModelSystem::residualWithJacobian(const SimulationTime& simTime, const ConstSimulationState& simState,
 	double* const res, const AdJacobianParams& adJac)
 {
 	BENCH_START(_timerResidual);
@@ -1623,7 +1623,7 @@ void ModelSystem::residualConnectUnitOps(unsigned int secIdx, StateType const* c
 	}
 }
 
-int ModelSystem::residualSensFwd(unsigned int nSens, const ActiveSimulationTime& simTime,
+int ModelSystem::residualSensFwd(unsigned int nSens, const SimulationTime& simTime,
 	const ConstSimulationState& simState, double const* const res,
 	const std::vector<const double*>& yS, const std::vector<const double*>& ySdot, const std::vector<double*>& resS,
 	active* const adRes, double* const tmp1, double* const tmp2, double* const tmp3)
@@ -1659,7 +1659,7 @@ void ModelSystem::multiplyWithMacroJacobian(double const* yS, double alpha, doub
 	}
 }
 
-void ModelSystem::residualSensFwdNorm(unsigned int nSens, const ActiveSimulationTime& simTime,
+void ModelSystem::residualSensFwdNorm(unsigned int nSens, const SimulationTime& simTime,
 		const ConstSimulationState& simState,
 		const std::vector<const double*>& yS, const std::vector<const double*>& ySdot, double* const norms,
 		active* const adRes, double* const tmp)
@@ -1688,7 +1688,7 @@ void ModelSystem::residualSensFwdNorm(unsigned int nSens, const ActiveSimulation
 		norms[i] = linalg::linfNorm(tempRes[i], nDOFs);
 }
 
-int ModelSystem::residualSensFwdWithJacobian(unsigned int nSens, const ActiveSimulationTime& simTime,
+int ModelSystem::residualSensFwdWithJacobian(unsigned int nSens, const SimulationTime& simTime,
 		const ConstSimulationState& simState, double const* const res,
 		const std::vector<const double*>& yS, const std::vector<const double*>& ySdot, const std::vector<double*>& resS,
 		const AdJacobianParams& adJac, double* const tmp1, double* const tmp2, double* const tmp3)
@@ -1697,7 +1697,7 @@ int ModelSystem::residualSensFwdWithJacobian(unsigned int nSens, const ActiveSim
 }
 
 template <bool evalJacobian>
-int ModelSystem::residualSensFwdWithJacobianAlgorithm(unsigned int nSens, const ActiveSimulationTime& simTime,
+int ModelSystem::residualSensFwdWithJacobianAlgorithm(unsigned int nSens, const SimulationTime& simTime,
 	const ConstSimulationState& simState, double const* const res,
 	const std::vector<const double*>& yS, const std::vector<const double*>& ySdot, const std::vector<double*>& resS,
 	const AdJacobianParams& adJac, double* const tmp1, double* const tmp2, double* const tmp3)
@@ -1790,7 +1790,7 @@ int ModelSystem::residualSensFwdWithJacobianAlgorithm(unsigned int nSens, const 
 	return totalErrorIndicatorFromLocal(_errorIndicator);
 }
 
-int ModelSystem::dResDpFwdWithJacobian(const ActiveSimulationTime& simTime, const ConstSimulationState& simState,
+int ModelSystem::dResDpFwdWithJacobian(const SimulationTime& simTime, const ConstSimulationState& simState,
 	const AdJacobianParams& adJac)
 {
 	BENCH_SCOPE(_timerResidualSens);
@@ -1966,12 +1966,7 @@ void ModelSystem::consistentInitialConditionAlgorithm(const SimulationTime& simT
 
 	// Evaluate residual for right hand side without time derivatives \dot{y} and store it in vecStateYdot (or _tempState in case of lean initialization)
 	// Also evaluate the Jacobian at the current position
-	{
-		active at = simTime.t;
-		active atf = simTime.timeFactor;
-		ConsistentInit<tag_t>::residualWithJacobian(*this, ActiveSimulationTime{at, simTime.secIdx, atf}, ConstSimulationState{simState.vecStateY, nullptr}, simState.vecStateYdot, _tempState, adJac);
-	}
-
+	ConsistentInit<tag_t>::residualWithJacobian(*this, simTime, ConstSimulationState{simState.vecStateY, nullptr}, simState.vecStateYdot, _tempState, adJac);
 
 	LOG(Debug) << "Residual post state: " << log::VectorPtr<double>(simState.vecStateYdot, numDofs());
 
@@ -2000,7 +1995,7 @@ void ModelSystem::consistentInitialConditions(const SimulationTime& simTime, con
 	consistentInitialConditionAlgorithm<FullTag>(simTime, simState, adJac, errorTol);
 }
 
-void ModelSystem::consistentInitialSensitivity(const ActiveSimulationTime& simTime, 
+void ModelSystem::consistentInitialSensitivity(const SimulationTime& simTime, 
 	const ConstSimulationState& simState, std::vector<double*>& vecSensY, 
 	std::vector<double*>& vecSensYdot, active* const adRes, active* const adY)
 {
@@ -2008,7 +2003,7 @@ void ModelSystem::consistentInitialSensitivity(const ActiveSimulationTime& simTi
 }
 
 template <typename tag_t>
-void ModelSystem::consistentInitialSensitivityAlgorithm(const ActiveSimulationTime& simTime, 
+void ModelSystem::consistentInitialSensitivityAlgorithm(const SimulationTime& simTime, 
 	const ConstSimulationState& simState, std::vector<double*>& vecSensY, 
 	std::vector<double*>& vecSensYdot, active* const adRes, active* const adY)
 {
@@ -2096,7 +2091,7 @@ void ModelSystem::leanConsistentInitialConditions(const SimulationTime& simTime,
 	consistentInitialConditionAlgorithm<LeanTag>(simTime, simState, adJac, errorTol);
 }
 
-void ModelSystem::leanConsistentInitialSensitivity(const ActiveSimulationTime& simTime, const ConstSimulationState& simState,
+void ModelSystem::leanConsistentInitialSensitivity(const SimulationTime& simTime, const ConstSimulationState& simState,
 	std::vector<double*>& vecSensY, std::vector<double*>& vecSensYdot, active* const adRes, active* const adY)
 {
 	consistentInitialSensitivityAlgorithm<LeanTag>(simTime, simState, vecSensY, vecSensYdot, adRes, adY);
@@ -2285,7 +2280,7 @@ void ModelSystem::genJacobian(const SimulationTime& simTime, const ConstSimulati
  * @param [in] tmp2
  * @param [in] tmp3
  */
-void ModelSystem::genJacobian(unsigned int nSens, const ActiveSimulationTime& simTime,
+void ModelSystem::genJacobian(unsigned int nSens, const SimulationTime& simTime,
 	const ConstSimulationState& simState, double const* const res,
 	const std::vector<const double*>& yS, const std::vector<const double*>& ySdot, const std::vector<double*>& resS,
 	active* const adRes, double* const tmp1, double* const tmp2, double* const tmp3)
@@ -2511,7 +2506,7 @@ void ModelSystem::genJacobian(unsigned int nSens, const ActiveSimulationTime& si
 	}
 }
 
-int ModelSystem::linearSolve(double t, double timeFactor, double alpha, double outerTol, double* const rhs, double const* const weight,
+int ModelSystem::linearSolve(double t, double alpha, double outerTol, double* const rhs, double const* const weight,
 	const ConstSimulationState& simState)
 {
 	// TODO: Add early out error checks
@@ -2528,7 +2523,7 @@ int ModelSystem::linearSolve(double t, double timeFactor, double alpha, double o
 	{
 		IUnitOperation* const m = _models[i];
 		const unsigned int offset = _dofOffset[i];
-		_errorIndicator[i] = m->linearSolve(t, timeFactor, alpha, outerTol, rhs + offset, weight + offset, applyOffset(simState, offset));
+		_errorIndicator[i] = m->linearSolve(t, alpha, outerTol, rhs + offset, weight + offset, applyOffset(simState, offset));
 	} CADET_PARFOR_END;
 
 	// Solve last row of L with backwards substitution: y_f = b_f - \sum_{i=0}^{N_z} J_{f,i} y_i
@@ -2563,7 +2558,7 @@ int ModelSystem::linearSolve(double t, double timeFactor, double alpha, double o
 	// Instead of changing the interface a lambda function is used and closed over the additional variables
 	auto schurComplementMatrixVectorPartial = [&, this](void* userData, double const* x, double* z) -> int 
 	{
-		return ModelSystem::schurComplementMatrixVector(x, z, t, timeFactor, alpha, outerTol, weight, simState);
+		return ModelSystem::schurComplementMatrixVector(x, z, t, alpha, outerTol, weight, simState);
 	};
 
 	_gmres.matrixVectorMultiplier(schurComplementMatrixVectorPartial);
@@ -2597,7 +2592,7 @@ int ModelSystem::linearSolve(double t, double timeFactor, double alpha, double o
 		_jacNF[idxModel].multiplyVector(rhs + finalOffset, _tempState + offset);
 
 		// Apply N_i^{-1} to tempState_i
-		const int linSolve = m->linearSolve(t, timeFactor, alpha, outerTol, _tempState + offset, weight + offset, applyOffset(simState, offset));
+		const int linSolve = m->linearSolve(t, alpha, outerTol, _tempState + offset, weight + offset, applyOffset(simState, offset));
 		_errorIndicator[idxModel] = updateErrorIndicator(_errorIndicator[idxModel], linSolve);
 
 		// Compute rhs_i = y_i - N_i^{-1} * N_{i,f} * y_f = y_i - tempState_i
@@ -2629,7 +2624,7 @@ S &= J_f - J_{f,0} \, J_0^{-1} \, J_{0,f} - \sum_{p=1}^{N_z}{J_{f,p} \, J_p^{-1}
 * @param [out] z Result of the matrix-vector multiplication
 * @return @c 0 if successful, any other value in case of failure
 */
-int ModelSystem::schurComplementMatrixVector(double const* x, double* z, double t, double timeFactor, double alpha, double outerTol, double const* const weight,
+int ModelSystem::schurComplementMatrixVector(double const* x, double* z, double t, double alpha, double outerTol, double const* const weight,
 	const ConstSimulationState& simState) const
 {
 	BENCH_SCOPE(_timerMatVec);
@@ -2652,7 +2647,7 @@ int ModelSystem::schurComplementMatrixVector(double const* x, double* z, double 
 		_jacNF[idxModel].multiplyVector(x, _tempState + offset);
 
 		// Apply N_i^{-1} to tempState_i
-		const int linSolve = m->linearSolve(t, timeFactor, alpha, outerTol, _tempState + offset, weight + offset, applyOffset(simState, offset));
+		const int linSolve = m->linearSolve(t, alpha, outerTol, _tempState + offset, weight + offset, applyOffset(simState, offset));
 		_errorIndicator[idxModel] = updateErrorIndicator(_errorIndicator[idxModel], linSolve);
 
 		// Apply J_{f,i} and subtract results from z

@@ -122,14 +122,14 @@ namespace
 			return 0;
 		}
 
-		virtual int residualWithJacobian(const cadet::ActiveSimulationTime& simTime, const cadet::ConstSimulationState& simState, double* const res,
+		virtual int residualWithJacobian(const cadet::SimulationTime& simTime, const cadet::ConstSimulationState& simState, double* const res,
 			const cadet::AdJacobianParams& adJac, cadet::util::ThreadLocalStorage& tls)
 		{
 			std::copy(simState.vecStateY, simState.vecStateY + numDofs(), res);
 			return 0;
 		}
 
-		virtual int linearSolve(double t, double timeFactor, double alpha, double tol, double* const rhs, double const* const weight,
+		virtual int linearSolve(double t, double alpha, double tol, double* const rhs, double const* const weight,
 			const cadet::ConstSimulationState& simState)
 		{
 			return 0;
@@ -152,13 +152,13 @@ namespace
 		virtual unsigned int localInletComponentIndex(unsigned int port) const CADET_NOEXCEPT { return port * _nComp; }
 		virtual unsigned int localInletComponentStride(unsigned int port) const CADET_NOEXCEPT { return 1u; }
 
-		virtual int residualSensFwdAdOnly(const cadet::ActiveSimulationTime& simTime, const cadet::ConstSimulationState& simState, cadet::active* const adRes, cadet::util::ThreadLocalStorage& tls) { return 0; }
+		virtual int residualSensFwdAdOnly(const cadet::SimulationTime& simTime, const cadet::ConstSimulationState& simState, cadet::active* const adRes, cadet::util::ThreadLocalStorage& tls) { return 0; }
 
-		virtual int residualSensFwdCombine(const cadet::ActiveSimulationTime& simTime, const cadet::ConstSimulationState& simState, 
+		virtual int residualSensFwdCombine(const cadet::SimulationTime& simTime, const cadet::ConstSimulationState& simState, 
 			const std::vector<const double*>& yS, const std::vector<const double*>& ySdot, const std::vector<double*>& resS, cadet::active const* adRes, 
 			double* const tmp1, double* const tmp2, double* const tmp3) { return 0; }
 
-		virtual int residualSensFwdWithJacobian(const cadet::ActiveSimulationTime& simTime, const cadet::ConstSimulationState& simState, const cadet::AdJacobianParams& adJac, cadet::util::ThreadLocalStorage& tls) { return 0; }
+		virtual int residualSensFwdWithJacobian(const cadet::SimulationTime& simTime, const cadet::ConstSimulationState& simState, const cadet::AdJacobianParams& adJac, cadet::util::ThreadLocalStorage& tls) { return 0; }
 
 		virtual void consistentInitialState(const cadet::SimulationTime& simTime, double* const vecStateY, const cadet::AdJacobianParams& adJac, double errorTol, cadet::util::ThreadLocalStorage& tls)
 		{
@@ -171,11 +171,11 @@ namespace
 		}
 
 		virtual void leanConsistentInitialState(const cadet::SimulationTime& simTime, double* const vecStateY, const cadet::AdJacobianParams& adJac, double errorTol, cadet::util::ThreadLocalStorage& tls) { }
-		virtual void leanConsistentInitialTimeDerivative(double t, double timeFactor, double const* const vecStateY, double* const vecStateYdot, double* const res, cadet::util::ThreadLocalStorage& tls) { }
+		virtual void leanConsistentInitialTimeDerivative(double t, double const* const vecStateY, double* const vecStateYdot, double* const res, cadet::util::ThreadLocalStorage& tls) { }
 
-		virtual void consistentInitialSensitivity(const cadet::ActiveSimulationTime& simTime, const cadet::ConstSimulationState& simState, std::vector<double*>& vecSensY,
+		virtual void consistentInitialSensitivity(const cadet::SimulationTime& simTime, const cadet::ConstSimulationState& simState, std::vector<double*>& vecSensY,
 			std::vector<double*>& vecSensYdot, cadet::active const* const adRes, cadet::util::ThreadLocalStorage& tls) { }
-		virtual void leanConsistentInitialSensitivity(const cadet::ActiveSimulationTime& simTime, const cadet::ConstSimulationState& simState, std::vector<double*>& vecSensY,
+		virtual void leanConsistentInitialSensitivity(const cadet::SimulationTime& simTime, const cadet::ConstSimulationState& simState, std::vector<double*>& vecSensY,
 			std::vector<double*>& vecSensYdot, cadet::active const* const adRes, cadet::util::ThreadLocalStorage& tls) { }
 
 		virtual void setExternalFunctions(cadet::IExternalFunction** extFuns, unsigned int size) { }
@@ -264,7 +264,7 @@ namespace
 		std::vector<double> jac(nDof * nDof, 0.0);
 		std::vector<double> y(nDof, 0.0);
 
-		const cadet::SimulationTime simTime{0.0, 0u, 1.0};
+		const cadet::SimulationTime simTime{0.0, 0u};
 		const cadet::ConstSimulationState simState{y.data(), y.data()};
 		for (unsigned int i = 0; i < nDof; ++i)
 		{
@@ -658,25 +658,25 @@ TEST_CASE("ModelSystem Jacobian AD vs analytic", "[ModelSystem],[Jacobian],[AD]"
 			cadet::test::util::populate(yDot.data(), [=](unsigned int idx) { return std::abs(std::sin((idx + nDof) * 0.13)) + 1e-4; }, nDof);
 
 			// Compute state Jacobian
-			const cadet::ActiveSimulationTime simTime{0.0, 0u, 1.0};
+			const cadet::SimulationTime simTime{0.0, 0u};
 			sysAna->residualWithJacobian(simTime, cadet::ConstSimulationState{y.data(), yDot.data()}, jacDir.data(), noParams);
 			sysAD->residualWithJacobian(simTime, cadet::ConstSimulationState{y.data(), yDot.data()}, jacDir.data(), adParams);
 			std::fill(jacDir.begin(), jacDir.end(), 0.0);
 
 			// Compare Jacobians
 			cadet::test::checkJacobianPatternFD(
-				[sysAna, &yDot](double const* lDir, double* res) -> void { sysAna->residual(cadet::SimulationTime{0.0, 0u, 1.0}, cadet::ConstSimulationState{lDir, yDot.data()}, res); },
-				[sysAD, &y, &yDot](double const* lDir, double* res) -> void { sysAD->multiplyWithJacobian(cadet::SimulationTime{0.0, 0u, 1.0}, cadet::ConstSimulationState{y.data(), yDot.data()}, lDir, 1.0, 0.0, res); },
+				[sysAna, &yDot](double const* lDir, double* res) -> void { sysAna->residual(cadet::SimulationTime{0.0, 0u}, cadet::ConstSimulationState{lDir, yDot.data()}, res); },
+				[sysAD, &y, &yDot](double const* lDir, double* res) -> void { sysAD->multiplyWithJacobian(cadet::SimulationTime{0.0, 0u}, cadet::ConstSimulationState{y.data(), yDot.data()}, lDir, 1.0, 0.0, res); },
 				y.data(), jacDir.data(), jacCol1.data(), jacCol2.data(), nDof);
 
 			cadet::test::checkJacobianPatternFD(
-				[sysAna, &yDot](double const* lDir, double* res) -> void { sysAna->residual(cadet::SimulationTime{0.0, 0u, 1.0}, cadet::ConstSimulationState{lDir, yDot.data()}, res); },
-				[sysAna, &y, &yDot](double const* lDir, double* res) -> void { sysAna->multiplyWithJacobian(cadet::SimulationTime{0.0, 0u, 1.0}, cadet::ConstSimulationState{y.data(), yDot.data()}, lDir, 1.0, 0.0, res); },
+				[sysAna, &yDot](double const* lDir, double* res) -> void { sysAna->residual(cadet::SimulationTime{0.0, 0u}, cadet::ConstSimulationState{lDir, yDot.data()}, res); },
+				[sysAna, &y, &yDot](double const* lDir, double* res) -> void { sysAna->multiplyWithJacobian(cadet::SimulationTime{0.0, 0u}, cadet::ConstSimulationState{y.data(), yDot.data()}, lDir, 1.0, 0.0, res); },
 				y.data(), jacDir.data(), jacCol1.data(), jacCol2.data(), nDof);
 
 			cadet::test::compareJacobian(
-				[sysAna, &y, &yDot](double const* lDir, double* res) -> void { sysAna->multiplyWithJacobian(cadet::SimulationTime{0.0, 0u, 1.0}, cadet::ConstSimulationState{y.data(), yDot.data()}, lDir, 1.0, 0.0, res); },
-				[sysAD, &y, &yDot](double const* lDir, double* res) -> void { sysAD->multiplyWithJacobian(cadet::SimulationTime{0.0, 0u, 1.0}, cadet::ConstSimulationState{y.data(), yDot.data()}, lDir, 1.0, 0.0, res); },
+				[sysAna, &y, &yDot](double const* lDir, double* res) -> void { sysAna->multiplyWithJacobian(cadet::SimulationTime{0.0, 0u}, cadet::ConstSimulationState{y.data(), yDot.data()}, lDir, 1.0, 0.0, res); },
+				[sysAD, &y, &yDot](double const* lDir, double* res) -> void { sysAD->multiplyWithJacobian(cadet::SimulationTime{0.0, 0u}, cadet::ConstSimulationState{y.data(), yDot.data()}, lDir, 1.0, 0.0, res); },
 				jacDir.data(), jacCol1.data(), jacCol2.data(), nDof);
 
 			delete[] adRes;
@@ -744,13 +744,13 @@ TEST_CASE("ModelSystem time derivative Jacobian FD vs analytic", "[ModelSystem],
 			cadet::test::util::populate(yDot.data(), [=](unsigned int idx) { return std::abs(std::sin((idx + nDof) * 0.13)) + 1e-4; }, nDof);
 
 			// Compute state Jacobian
-			sys->residualWithJacobian(cadet::ActiveSimulationTime{0.0, 0u, 1.0}, cadet::ConstSimulationState{y.data(), yDot.data()}, jacDir.data(), cadet::AdJacobianParams{nullptr, nullptr, 0u});
+			sys->residualWithJacobian(cadet::SimulationTime{0.0, 0u}, cadet::ConstSimulationState{y.data(), yDot.data()}, jacDir.data(), cadet::AdJacobianParams{nullptr, nullptr, 0u});
 			std::fill(jacDir.begin(), jacDir.end(), 0.0);
 
 			// Compare Jacobians
 			cadet::test::compareJacobianFD(
-				[sys, &y](double const* lDir, double* res) -> void { sys->residual(cadet::SimulationTime{0.0, 0u, 1.0}, cadet::ConstSimulationState{y.data(), lDir}, res); },
-				[sys, &y, &yDot](double const* lDir, double* res) -> void { sys->multiplyWithDerivativeJacobian(cadet::SimulationTime{0.0, 0u, 1.0}, cadet::ConstSimulationState{y.data(), yDot.data()}, lDir, res); },
+				[sys, &y](double const* lDir, double* res) -> void { sys->residual(cadet::SimulationTime{0.0, 0u}, cadet::ConstSimulationState{y.data(), lDir}, res); },
+				[sys, &y, &yDot](double const* lDir, double* res) -> void { sys->multiplyWithDerivativeJacobian(cadet::SimulationTime{0.0, 0u}, cadet::ConstSimulationState{y.data(), yDot.data()}, lDir, res); },
 				yDot.data(), jacDir.data(), jacCol1.data(), jacCol2.data(), nDof, h, absTol, relTol);
 		}
 	}
@@ -832,16 +832,16 @@ TEST_CASE("ModelSystem sensitivity Jacobians", "[ModelSystem],[Sensitivity]")
 			cadet::test::util::populate(yDot.data(), [=](unsigned int idx) { return std::abs(std::sin((idx + nDof) * 0.13)) + 1e-4; }, nDof);
 
 			// Calculate Jacobian
-			sys->residualWithJacobian(cadet::ActiveSimulationTime{0.0, 0u, 1.0}, cadet::ConstSimulationState{y.data(), yDot.data()}, jacDir.data(), cadet::AdJacobianParams{adRes, nullptr, 0u});
+			sys->residualWithJacobian(cadet::SimulationTime{0.0, 0u}, cadet::ConstSimulationState{y.data(), yDot.data()}, jacDir.data(), cadet::AdJacobianParams{adRes, nullptr, 0u});
 
 			// Check state Jacobian
 			cadet::test::compareJacobianFD(
 				[&](double const* lDir, double* res) -> void {
 					yS[0] = lDir;
 					resS[0] = res;
-					sys->residualSensFwd(1, cadet::ActiveSimulationTime{0.0, 0u, 1.0}, cadet::ConstSimulationState{y.data(), yDot.data()}, nullptr, yS, ySdot, resS, adRes, temp1.data(), temp2.data(), temp3.data());
+					sys->residualSensFwd(1, cadet::SimulationTime{0.0, 0u}, cadet::ConstSimulationState{y.data(), yDot.data()}, nullptr, yS, ySdot, resS, adRes, temp1.data(), temp2.data(), temp3.data());
 				}, 
-				[&](double const* lDir, double* res) -> void { sys->multiplyWithJacobian(cadet::SimulationTime{0.0, 0u, 1.0}, cadet::ConstSimulationState{y.data(), yDot.data()}, lDir, 1.0, 0.0, res); }, 
+				[&](double const* lDir, double* res) -> void { sys->multiplyWithJacobian(cadet::SimulationTime{0.0, 0u}, cadet::ConstSimulationState{y.data(), yDot.data()}, lDir, 1.0, 0.0, res); }, 
 				zeros.data(), jacDir.data(), jacCol1.data(), jacCol2.data(), nDof, h, absTol, relTol);
 
 			// Reset evaluation point
@@ -853,9 +853,9 @@ TEST_CASE("ModelSystem sensitivity Jacobians", "[ModelSystem],[Sensitivity]")
 				[&](double const* lDir, double* res) -> void {
 					ySdot[0] = lDir;
 					resS[0] = res;
-					sys->residualSensFwd(1, cadet::ActiveSimulationTime{0.0, 0u, 1.0}, cadet::ConstSimulationState{y.data(), yDot.data()}, nullptr, yS, ySdot, resS, adRes, temp1.data(), temp2.data(), temp3.data());
+					sys->residualSensFwd(1, cadet::SimulationTime{0.0, 0u}, cadet::ConstSimulationState{y.data(), yDot.data()}, nullptr, yS, ySdot, resS, adRes, temp1.data(), temp2.data(), temp3.data());
 				}, 
-				[&](double const* lDir, double* res) -> void { sys->multiplyWithDerivativeJacobian(cadet::SimulationTime{0.0, 0u, 1.0}, cadet::ConstSimulationState{y.data(), yDot.data()}, lDir, res); }, 
+				[&](double const* lDir, double* res) -> void { sys->multiplyWithDerivativeJacobian(cadet::SimulationTime{0.0, 0u}, cadet::ConstSimulationState{y.data(), yDot.data()}, lDir, res); }, 
 				zeros.data(), jacDir.data(), jacCol1.data(), jacCol2.data(), nDof, h, absTol, relTol);
 
 			delete[] adRes;

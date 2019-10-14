@@ -177,7 +177,7 @@ void testJacobianAD(const char* modelName, unsigned int nComp, unsigned int cons
 	// Evaluate with AD
 	ad::prepareAdVectorSeedsForDenseMatrix(adY, 0, numDofs);
 	ad::copyToAd(yState.data(), adY, numDofs);
-	cbm.model().flux(1.0, 0u, ColumnPosition{0.0, 0.0, 0.0}, adY + cbm.nComp(), adY, adRes, cbm.buffer(), cadet::model::WithoutParamSensitivity());
+	cbm.model().flux(1.0, 0u, ColumnPosition{0.0, 0.0, 0.0}, adY + cbm.nComp(), adY, adRes, cbm.buffer(), cadet::WithoutParamSensitivity());
 
 	// Extract Jacobian
 	cadet::linalg::DenseMatrix jacAD;
@@ -281,7 +281,7 @@ void testNonBindingConsistency(const char* modelName, unsigned int nComp, unsign
 		// Evaluate with AD
 		ad::prepareAdVectorSeedsForDenseMatrix(adY, 0, numDofs);
 		ad::copyToAd(yState.data(), adY, numDofs);
-		cbm.model().flux(1.0, 0u, ColumnPosition{0.0, 0.0, 0.0}, adY + cbm.nComp(), adY, adRes, cbm.buffer(), cadet::model::WithoutParamSensitivity());
+		cbm.model().flux(1.0, 0u, ColumnPosition{0.0, 0.0, 0.0}, adY + cbm.nComp(), adY, adRes, cbm.buffer(), cadet::WithoutParamSensitivity());
 
 		// Extract Jacobian
 		ad::extractDenseJacobianFromAd(adRes, 0, jac);
@@ -372,7 +372,7 @@ void testNonbindingBindingConsistency(const char* modelName, unsigned int nCompB
 		// Evaluate with AD, all binding
 		ad::prepareAdVectorSeedsForDenseMatrix(adY, 0, numDofsBnd);
 		ad::copyToAd(yStateBnd.data(), adY, numDofsBnd);
-		cbmBnd.model().flux(1.0, 0u, ColumnPosition{0.0, 0.0, 0.0}, adY + cbmBnd.nComp(), adY, adRes, cbmBnd.buffer(), cadet::model::WithoutParamSensitivity());
+		cbmBnd.model().flux(1.0, 0u, ColumnPosition{0.0, 0.0, 0.0}, adY + cbmBnd.nComp(), adY, adRes, cbmBnd.buffer(), cadet::WithoutParamSensitivity());
 
 		// Extract Jacobian, all binding
 		ad::extractDenseJacobianFromAd(adRes, 0, jacBnd);
@@ -382,7 +382,7 @@ void testNonbindingBindingConsistency(const char* modelName, unsigned int nCompB
 		ad::resetAd(adY, numDofsNonBnd);
 		ad::prepareAdVectorSeedsForDenseMatrix(adY, 0, numDofsNonBnd);
 		ad::copyToAd(yStateNonBnd.data(), adY, numDofsNonBnd);
-		cbmNonBnd.model().flux(1.0, 0u, ColumnPosition{0.0, 0.0, 0.0}, adY + cbmNonBnd.nComp(), adY, adRes, cbmNonBnd.buffer(), cadet::model::WithoutParamSensitivity());
+		cbmNonBnd.model().flux(1.0, 0u, ColumnPosition{0.0, 0.0, 0.0}, adY + cbmNonBnd.nComp(), adY, adRes, cbmNonBnd.buffer(), cadet::WithoutParamSensitivity());
 
 		// Extract Jacobian, with nonbinding
 		ad::extractDenseJacobianFromAd(adRes, 0, jacNonBnd);

@@ -409,7 +409,7 @@ void GeneralRateModel::consistentInitialState(const SimulationTime& simTime, dou
 					jacFunc = [&](double const* const x, linalg::detail::DenseMatrixBase& mat)
 					{
 						// Copy over state vector to AD state vector (without changing directional values to keep seed vectors)
-						// and initalize residuals with zero (also resetting directional values)
+						// and initialize residuals with zero (also resetting directional values)
 						ad::copyToAd(qShell - _disc.nComp, localAdY, mask.len);
 						// @todo Check if this is necessary
 						ad::resetAd(localAdRes, mask.len);
@@ -419,7 +419,7 @@ void GeneralRateModel::consistentInitialState(const SimulationTime& simTime, dou
 
 						// Call residual function
 						parts::cell::residualKernel<active, active, double, parts::cell::CellParameters, linalg::DenseBandedRowIterator, false, true>(
-							simTime.t, simTime.secIdx, 0.0, colPos, localAdY, nullptr, localAdRes, fullJacobianMatrix.row(0), cellResParams, tlmAlloc
+							simTime.t, simTime.secIdx, colPos, localAdY, nullptr, localAdRes, fullJacobianMatrix.row(0), cellResParams, tlmAlloc
 						);
 
 #ifdef CADET_CHECK_ANALYTIC_JACOBIAN
@@ -428,7 +428,7 @@ void GeneralRateModel::consistentInitialState(const SimulationTime& simTime, dou
 
 						// Compute analytic Jacobian
 						parts::cell::residualKernel<double, double, double, parts::cell::CellParameters, linalg::DenseBandedRowIterator, true, true>(
-							simTime.t, simTime.secIdx, 0.0, colPos, fullX, nullptr, fullResidual, fullJacobianMatrix.row(0), cellResParams, tlmAlloc
+							simTime.t, simTime.secIdx, colPos, fullX, nullptr, fullResidual, fullJacobianMatrix.row(0), cellResParams, tlmAlloc
 						);
 
 						// Compare
@@ -490,7 +490,7 @@ void GeneralRateModel::consistentInitialState(const SimulationTime& simTime, dou
 
 						// Call residual function
 						parts::cell::residualKernel<double, double, double, parts::cell::CellParameters, linalg::DenseBandedRowIterator, true, true>(
-							simTime.t, simTime.secIdx, 0.0, colPos, fullX, nullptr, fullResidual, fullJacobianMatrix.row(0), cellResParams, tlmAlloc
+							simTime.t, simTime.secIdx, colPos, fullX, nullptr, fullResidual, fullJacobianMatrix.row(0), cellResParams, tlmAlloc
 						);
 
 						// Extract Jacobian from full Jacobian
@@ -539,7 +539,7 @@ void GeneralRateModel::consistentInitialState(const SimulationTime& simTime, dou
 
 						// Call residual function
 						parts::cell::residualKernel<double, double, double, parts::cell::CellParameters, linalg::DenseBandedRowIterator, false, true>(
-							simTime.t, simTime.secIdx, 0.0, colPos, fullX, nullptr, fullResidual, fullJacobianMatrix.row(0), cellResParams, tlmAlloc
+							simTime.t, simTime.secIdx, colPos, fullX, nullptr, fullResidual, fullJacobianMatrix.row(0), cellResParams, tlmAlloc
 						);
 
 						// Extract values from residual
@@ -683,7 +683,7 @@ void GeneralRateModel::consistentInitialTimeDerivative(const SimulationTime& sim
 
 		for (unsigned int j = 0; j < _disc.nParCell[type]; ++j)
 		{
-			addTimeDerivativeToJacobianParticleShell(jac, idxr, 1.0, simTime.timeFactor, type);
+			addTimeDerivativeToJacobianParticleShell(jac, idxr, 1.0, type);
 			// Iterator jac has already been advanced to next shell
 
 			if (!_binding[type]->hasQuasiStationaryReactions())
@@ -885,12 +885,11 @@ void GeneralRateModel::leanConsistentInitialState(const SimulationTime& simTime,
  *     consistent initialization!
  *     
  * @param [in] t Current time point
- * @param [in] timeFactor Used for time transformation (pre factor of time derivatives) and to compute parameter derivatives with respect to section length
  * @param [in] vecStateY (Lean) consistently initialized state vector
  * @param [in,out] vecStateYdot On entry, inconsistent state time derivatives. On exit, partially consistent state time derivatives.
  * @param [in] res On entry, residual without taking time derivatives into account. The data is overwritten during execution of the function.
  */
-void GeneralRateModel::leanConsistentInitialTimeDerivative(double t, double timeFactor, double const* const vecStateY, double* const vecStateYdot, double* const res, util::ThreadLocalStorage& threadLocalMem)
+void GeneralRateModel::leanConsistentInitialTimeDerivative(double t, double const* const vecStateY, double* const vecStateYdot, double* const res, util::ThreadLocalStorage& threadLocalMem)
 {
 	if (isSectionDependent(_parDiffusionMode) || isSectionDependent(_parSurfDiffusionMode))
 		LOG(Warning) << "Lean consistent initialization is not appropriate for section-dependent pore and surface diffusion";
@@ -908,7 +907,7 @@ void GeneralRateModel::leanConsistentInitialTimeDerivative(double t, double time
 	double* const resSlice = res + idxr.offsetC();
 
 	// Handle bulk block
-	_convDispOp.solveTimeDerivativeSystem(SimulationTime{t, 0u, timeFactor}, resSlice);
+	_convDispOp.solveTimeDerivativeSystem(SimulationTime{t, 0u}, resSlice);
 
 	// Note that we have solved with the *positive* residual as right hand side
 	// instead of the *negative* one. Fortunately, we are dealing with linear systems,
@@ -1021,7 +1020,7 @@ void GeneralRateModel::initializeSensitivityStates(const std::vector<double*>& v
  * @param [in] adRes Pointer to residual vector of AD datatypes with parameter sensitivities
  * @todo Decrease amount of allocated memory by partially using temporary vectors (state and Schur complement)
  */
-void GeneralRateModel::consistentInitialSensitivity(const ActiveSimulationTime& simTime, const ConstSimulationState& simState,
+void GeneralRateModel::consistentInitialSensitivity(const SimulationTime& simTime, const ConstSimulationState& simState,
 	std::vector<double*>& vecSensY, std::vector<double*>& vecSensYdot, active const* const adRes, util::ThreadLocalStorage& threadLocalMem)
 {
 	BENCH_SCOPE(_timerConsistentInit);
@@ -1115,12 +1114,12 @@ void GeneralRateModel::consistentInitialSensitivity(const ActiveSimulationTime& 
 		// Step 2a: Assemble, factorize, and solve diagonal blocks of linear system
 
 		// Compute right hand side by adding -dF / dy * s = -J * s to -dF / dp which is already stored in sensYdot
-		multiplyWithJacobian(toSimple(simTime), simState, sensY, -1.0, 1.0, sensYdot);
+		multiplyWithJacobian(simTime, simState, sensY, -1.0, 1.0, sensYdot);
 
 		// Note that we have correctly negated the right hand side
 
 		// Handle bulk block
-		_convDispOp.solveTimeDerivativeSystem(toSimple(simTime), sensYdot + idxr.offsetC());
+		_convDispOp.solveTimeDerivativeSystem(simTime, sensYdot + idxr.offsetC());
 
 		// Process the particle blocks
 #ifdef CADET_PARALLELIZE
@@ -1141,7 +1140,7 @@ void GeneralRateModel::consistentInitialSensitivity(const ActiveSimulationTime& 
 			for (unsigned int j = 0; j < _disc.nParCell[type]; ++j)
 			{
 				// Populate matrix with time derivative Jacobian first
-				addTimeDerivativeToJacobianParticleShell(jac, idxr, 1.0, static_cast<double>(simTime.timeFactor), type);
+				addTimeDerivativeToJacobianParticleShell(jac, idxr, 1.0, type);
 				// Iterator jac has already been advanced to next shell
 
 				// Overwrite rows corresponding to algebraic equations with the Jacobian and set right hand side to 0
@@ -1245,7 +1244,7 @@ void GeneralRateModel::consistentInitialSensitivity(const ActiveSimulationTime& 
  * @param [in] adRes Pointer to residual vector of AD datatypes with parameter sensitivities
  * @todo Decrease amount of allocated memory by partially using temporary vectors (state and Schur complement)
  */
-void GeneralRateModel::leanConsistentInitialSensitivity(const ActiveSimulationTime& simTime, const ConstSimulationState& simState,
+void GeneralRateModel::leanConsistentInitialSensitivity(const SimulationTime& simTime, const ConstSimulationState& simState,
 	std::vector<double*>& vecSensY, std::vector<double*>& vecSensYdot, active const* const adRes, util::ThreadLocalStorage& threadLocalMem)
 {
 	if (isSectionDependent(_parDiffusionMode) || isSectionDependent(_parSurfDiffusionMode))
@@ -1280,14 +1279,14 @@ void GeneralRateModel::leanConsistentInitialSensitivity(const ActiveSimulationTi
 		// Step 2a: Assemble, factorize, and solve diagonal blocks of linear system
 
 		// Compute right hand side by adding -dF / dy * s = -J * s to -dF / dp which is already stored in _tempState
-		multiplyWithJacobian(toSimple(simTime), simState, sensY, -1.0, 1.0, _tempState);
+		multiplyWithJacobian(simTime, simState, sensY, -1.0, 1.0, _tempState);
 
 		// Copy relevant parts to sensYdot for use as right hand sides
 		std::copy(_tempState + idxr.offsetC(), _tempState + idxr.offsetCp(), sensYdot + idxr.offsetC());
 		std::copy(_tempState + idxr.offsetJf(), _tempState + numDofs(), sensYdot);
 
 		// Handle bulk block
-		_convDispOp.solveTimeDerivativeSystem(toSimple(simTime), sensYdot + idxr.offsetC());
+		_convDispOp.solveTimeDerivativeSystem(simTime, sensYdot + idxr.offsetC());
 
 		// Step 2b: Solve for fluxes j_f by backward substitution
 		solveForFluxes(sensYdot, idxr);

@@ -468,7 +468,7 @@ public:
 
 	virtual bool initialize(IParameterProvider& paramProvider, unsigned int nComp, unsigned int nCol, unsigned int nRad, const Weno& weno) = 0;
 	virtual void setSparsityPattern(const cadet::linalg::SparsityPattern& pattern) = 0;
-	virtual void assembleDiscretizedJacobian(double alpha, double timeFactor) = 0;
+	virtual void assembleDiscretizedJacobian(double alpha) = 0;
 	virtual bool factorize() = 0;
 	virtual bool solveDiscretizedJacobian(double* rhs, double const* weight, double const* init, double outerTol) const = 0;
 };
@@ -493,9 +493,9 @@ public:
 
 	virtual void setSparsityPattern(const linalg::SparsityPattern& pattern) { }
 
-	virtual void assembleDiscretizedJacobian(double alpha, double timeFactor)
+	virtual void assembleDiscretizedJacobian(double alpha)
 	{
-		_alpha = alpha * timeFactor;
+		_alpha = alpha;
 	}
 
 	virtual bool factorize() { return true; }
@@ -555,13 +555,10 @@ int schurComplementMultiplier2DCDO(void* userData, double const* x, double* z)
 			_jacCdisc.prepare();
 		}
 
-		virtual void assembleDiscretizedJacobian(double alpha, double timeFactor)
+		virtual void assembleDiscretizedJacobian(double alpha)
 		{
 			// Copy normal matrix over to factorizable matrix
 			_jacCdisc.copyFromSamePattern(*_jacC);
-
-			// Add time derivatives
-			alpha *= timeFactor;
 
 			for (unsigned int i = 0; i < _jacC->rows(); ++i)
 				_jacCdisc.centered(i, 0) += alpha;
@@ -613,10 +610,8 @@ public:
 
 	virtual void setSparsityPattern(const linalg::SparsityPattern& pattern) { }
 
-	virtual void assembleDiscretizedJacobian(double alpha, double timeFactor)
+	virtual void assembleDiscretizedJacobian(double alpha)
 	{
-		alpha *= timeFactor;
-
 		// Copy normal matrix over to factorizable matrix
 		_jacCdisc.setAll(0.0);
 
@@ -949,47 +944,46 @@ const active& TwoDimensionalConvectionDispersionOperator::radialDispersion(unsig
  * @brief Computes the residual of the transport equations
  * @param [in] t Current time point
  * @param [in] secIdx Index of the current section
- * @param [in] timeFactor Used to compute parameter derivatives with respect to section length (nominal value should always be 1.0)
  * @param [in] y Pointer to unit operation's state vector
  * @param [in] yDot Pointer to unit operation's time derivative state vector
  * @param [out] res Pointer to unit operation's residual vector
  * @param [in] wantJac Determines whether the Jacobian is computed or not
  * @return @c 0 on success, @c -1 on non-recoverable error, and @c +1 on recoverable error
  */
-int TwoDimensionalConvectionDispersionOperator::residual(double t, unsigned int secIdx, double timeFactor, double const* y, double const* yDot, double* res, bool wantJac)
+int TwoDimensionalConvectionDispersionOperator::residual(double t, unsigned int secIdx, double const* y, double const* yDot, double* res, bool wantJac, WithoutParamSensitivity)
 {
 	if (wantJac)
-		return residualImpl<double, double, double, true>(t, secIdx, timeFactor, y, yDot, res);
+		return residualImpl<double, double, double, true>(t, secIdx, y, yDot, res);
 	else
-		return residualImpl<double, double, double, false>(t, secIdx, timeFactor, y, yDot, res);
+		return residualImpl<double, double, double, false>(t, secIdx, y, yDot, res);
 }
 
-int TwoDimensionalConvectionDispersionOperator::residual(double t, unsigned int secIdx, double timeFactor, active const* y, double const* yDot, active* res, bool wantJac)
+int TwoDimensionalConvectionDispersionOperator::residual(double t, unsigned int secIdx, active const* y, double const* yDot, active* res, bool wantJac, WithoutParamSensitivity)
 {
 	if (wantJac)
-		return residualImpl<active, active, double, true>(t, secIdx, timeFactor, y, yDot, res);
+		return residualImpl<active, active, double, true>(t, secIdx, y, yDot, res);
 	else
-		return residualImpl<active, active, double, false>(t, secIdx, timeFactor, y, yDot, res);
+		return residualImpl<active, active, double, false>(t, secIdx, y, yDot, res);
 }
 
-int TwoDimensionalConvectionDispersionOperator::residual(const active& t, unsigned int secIdx, const active& timeFactor, double const* y, double const* yDot, active* res, bool wantJac)
+int TwoDimensionalConvectionDispersionOperator::residual(double t, unsigned int secIdx, double const* y, double const* yDot, active* res, bool wantJac, WithParamSensitivity)
 {
 	if (wantJac)
-		return residualImpl<double, active, active, true>(t, secIdx, timeFactor, y, yDot, res);
+		return residualImpl<double, active, active, true>(t, secIdx, y, yDot, res);
 	else
-		return residualImpl<double, active, active, false>(t, secIdx, timeFactor, y, yDot, res);
+		return residualImpl<double, active, active, false>(t, secIdx, y, yDot, res);
 }
 
-int TwoDimensionalConvectionDispersionOperator::residual(const active& t, unsigned int secIdx, const active& timeFactor, active const* y, double const* yDot, active* res, bool wantJac)
+int TwoDimensionalConvectionDispersionOperator::residual(double t, unsigned int secIdx, active const* y, double const* yDot, active* res, bool wantJac, WithParamSensitivity)
 {
 	if (wantJac)
-		return residualImpl<active, active, active, true>(t, secIdx, timeFactor, y, yDot, res);
+		return residualImpl<active, active, active, true>(t, secIdx, y, yDot, res);
 	else
-		return residualImpl<active, active, active, false>(t, secIdx, timeFactor, y, yDot, res);
+		return residualImpl<active, active, active, false>(t, secIdx, y, yDot, res);
 }
 
 template <typename StateType, typename ResidualType, typename ParamType, bool wantJac>
-int TwoDimensionalConvectionDispersionOperator::residualImpl(const ParamType& t, unsigned int secIdx, const ParamType& timeFactor, StateType const* y, double const* yDot, ResidualType* res)
+int TwoDimensionalConvectionDispersionOperator::residualImpl(double t, unsigned int secIdx, StateType const* y, double const* yDot, ResidualType* res)
 {
 	if (wantJac)
 	{
@@ -1019,9 +1013,9 @@ int TwoDimensionalConvectionDispersionOperator::residualImpl(const ParamType& t,
 		};
 
 		if (wantJac)
-			convdisp::residualKernel<StateType, ResidualType, ParamType, linalg::BandedSparseRowIterator, true>(convdisp::SimulationTime<ParamType>{t, secIdx, timeFactor}, y, yDot, res, _jacC.row(i * _nComp), fp);
+			convdisp::residualKernel<StateType, ResidualType, ParamType, linalg::BandedSparseRowIterator, true>(SimulationTime{t, secIdx}, y, yDot, res, _jacC.row(i * _nComp), fp);
 		else
-			convdisp::residualKernel<StateType, ResidualType, ParamType, linalg::BandedSparseRowIterator, false>(convdisp::SimulationTime<ParamType>{t, secIdx, timeFactor}, y, yDot, res, _jacC.row(i * _nComp), fp);
+			convdisp::residualKernel<StateType, ResidualType, ParamType, linalg::BandedSparseRowIterator, false>(SimulationTime{t, secIdx}, y, yDot, res, _jacC.row(i * _nComp), fp);
 	}
 
 	// Handle radial dispersion
@@ -1186,7 +1180,7 @@ void TwoDimensionalConvectionDispersionOperator::setSparsityPattern()
 /**
  * @brief Multiplies the time derivative Jacobian @f$ \frac{\partial F}{\partial \dot{y}}\left(t, y, \dot{y}\right) @f$ with a given vector
  * @details The operation @f$ z = \frac{\partial F}{\partial \dot{y}} x @f$ is performed.
- *          The matrix-vector multiplication is transformed matrix-free (i.e., no matrix is explicitly formed).
+ *          The matrix-vector multiplication is performed matrix-free (i.e., no matrix is explicitly formed).
  *          
  *          Note that this function only performs multiplication with the Jacobian of the (axial) transport equations.
  *          The input vectors are assumed to point to the beginning (including inlet DOFs) of the respective unit operation's arrays.
@@ -1199,7 +1193,7 @@ void TwoDimensionalConvectionDispersionOperator::multiplyWithDerivativeJacobian(
 	double* localRet = ret + _nComp * _nRad;
 	double const* localSdot = sDot + _nComp * _nRad;
 	for (unsigned int i = 0; i < _nCol * _nComp * _nRad; ++i)
-		localRet[i] = simTime.timeFactor * localSdot[i];
+		localRet[i] = localSdot[i];
 }
 
 /**
@@ -1216,23 +1210,21 @@ void TwoDimensionalConvectionDispersionOperator::multiplyWithDerivativeJacobian(
  *          the solution of the linear system mentioned above (@f$ \alpha_0 = \alpha @f$ given in @p alpha).
  *
  * @param [in] alpha Value of \f$ \alpha \f$ (arises from BDF time discretization)
- * @param [in] timeFactor Factor which is premultiplied to the time derivatives originating from time transformation
  */
-void TwoDimensionalConvectionDispersionOperator::assembleDiscretizedJacobian(double alpha, double timeFactor)
+void TwoDimensionalConvectionDispersionOperator::assembleDiscretizedJacobian(double alpha)
 {
-	_linearSolver->assembleDiscretizedJacobian(alpha, timeFactor);
+	_linearSolver->assembleDiscretizedJacobian(alpha);
 }
 
 /**
  * @brief Assembles and factorizes the time discretized Jacobian
  * @details See assembleDiscretizedJacobian() for assembly of the time discretized Jacobian.
  * @param [in] alpha Factor in front of @f$ \frac{\partial F}{\partial \dot{y}} @f$
- * @param [in] timeFactor Factor which is premultiplied to the time derivatives originating from time transformation
  * @return @c true if factorization went fine, otherwise @c false
  */
-bool TwoDimensionalConvectionDispersionOperator::assembleAndFactorizeDiscretizedJacobian(double alpha, double timeFactor)
+bool TwoDimensionalConvectionDispersionOperator::assembleAndFactorizeDiscretizedJacobian(double alpha)
 {
-	assembleDiscretizedJacobian(alpha, timeFactor);
+	assembleDiscretizedJacobian(alpha);
 	return _linearSolver->factorize();
 }
 
@@ -1260,10 +1252,6 @@ bool TwoDimensionalConvectionDispersionOperator::solveDiscretizedJacobian(double
  */
 bool TwoDimensionalConvectionDispersionOperator::solveTimeDerivativeSystem(const SimulationTime& simTime, double* const rhs)
 {
-	const double invFactor = 1.0 / simTime.timeFactor;
-	for (unsigned int i = 0; i < _nComp * _nRad * _nCol; ++i)
-		rhs[i] *= invFactor;
-
 	return true;
 }
 

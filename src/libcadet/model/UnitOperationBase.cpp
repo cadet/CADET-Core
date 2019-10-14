@@ -440,7 +440,7 @@ void UnitOperationBase::configureNonlinearSolver(IParameterProvider& paramProvid
 	}
 }
 
-int UnitOperationBase::residualSensFwdCombine(const ActiveSimulationTime& simTime, const ConstSimulationState& simState,
+int UnitOperationBase::residualSensFwdCombine(const SimulationTime& simTime, const ConstSimulationState& simState,
 	const std::vector<const double*>& yS, const std::vector<const double*>& ySdot, const std::vector<double*>& resS, active const* adRes,
 	double* const tmp1, double* const tmp2, double* const tmp3)
 {
@@ -450,10 +450,10 @@ int UnitOperationBase::residualSensFwdCombine(const ActiveSimulationTime& simTim
 		// tmp2 stores result of (dF / dyDot) * sDot
 
 		// Directional derivative (dF / dy) * s
-		multiplyWithJacobian(toSimple(simTime), simState, yS[param], 1.0, 0.0, tmp1);
+		multiplyWithJacobian(simTime, simState, yS[param], 1.0, 0.0, tmp1);
 
 		// Directional derivative (dF / dyDot) * sDot
-		multiplyWithDerivativeJacobian(toSimple(simTime), simState, ySdot[param], tmp2);
+		multiplyWithDerivativeJacobian(simTime, simState, ySdot[param], tmp2);
 
 		// Complete sens residual is the sum:
 		double* const ptrResS = resS[param];

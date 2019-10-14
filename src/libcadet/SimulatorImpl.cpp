@@ -209,11 +209,10 @@ namespace cadet
 	{
 		cadet::Simulator* const sim = static_cast<cadet::Simulator*>(userData);
 		const unsigned int secIdx = sim->getCurrentSection(t);
-		const active timeFactor = sim->timeFactor();
 
-		LOG(Trace) << "==> Residual at t = " << static_cast<double>(sim->toRealTime(t)) << " sec = " << secIdx;
+		LOG(Trace) << "==> Residual at t = " << t << " sec = " << secIdx;
 
-		return sim->_model->residualWithJacobian(cadet::ActiveSimulationTime{sim->toRealTime(t), secIdx, timeFactor}, cadet::ConstSimulationState{NVEC_DATA(y), NVEC_DATA(yDot)}, NVEC_DATA(res), 
+		return sim->_model->residualWithJacobian(cadet::SimulationTime{t, secIdx}, cadet::ConstSimulationState{NVEC_DATA(y), NVEC_DATA(yDot)}, NVEC_DATA(res), 
 			cadet::AdJacobianParams{sim->_vecADres, sim->_vecADy, sim->numSensitivityAdDirections()});
 	}
 
@@ -303,14 +302,13 @@ namespace cadet
 	int linearSolveWrapper(IDAMem IDA_mem, N_Vector rhs, N_Vector weight, N_Vector y, N_Vector yDot, N_Vector res)
 	{
 		cadet::Simulator* const sim = static_cast<cadet::Simulator*>(IDA_mem->ida_lmem);
-		const double t = static_cast<double>(sim->toRealTime(IDA_mem->ida_tn));
+		const double t = IDA_mem->ida_tn;
 		const double alpha = IDA_mem->ida_cj;
 		const double tol = IDA_mem->ida_epsNewt;
-		const active timeFactor = sim->timeFactor();
 
 		LOG(Trace) << "==> Solve at t = " << t << " alpha = " << alpha << " tol = " << tol;
 
-		return sim->_model->linearSolve(t, static_cast<double>(timeFactor), alpha, tol, NVEC_DATA(rhs), NVEC_DATA(weight), cadet::ConstSimulationState{NVEC_DATA(y), NVEC_DATA(yDot)});
+		return sim->_model->linearSolve(t, alpha, tol, NVEC_DATA(rhs), NVEC_DATA(weight), cadet::ConstSimulationState{NVEC_DATA(y), NVEC_DATA(yDot)});
 	}
 
 	/**
@@ -325,17 +323,16 @@ namespace cadet
 		const std::vector<const double*> sensYdot = convertNVectorToStdVectorPtrs<const double*>(ySDot, ns);
 		std::vector<double*> sensRes = convertNVectorToStdVectorPtrs<double*>(resS, ns);
 		const unsigned int secIdx = sim->getCurrentSection(t);
-		const active timeFactor = sim->timeFactor();
 		
-		LOG(Trace) << "==> Residual SENS at t = " << static_cast<double>(sim->toRealTime(t)) << " sec = " << secIdx;
+		LOG(Trace) << "==> Residual SENS at t = " << t << " sec = " << secIdx;
 
 /*
-		reinterpret_cast<cadet::model::ModelSystem*>(sim->_model)->genJacobian(static_cast<double>(sim->toRealTime(t)), secIdx, static_cast<double>(timeFactor), NVEC_DATA(y), NVEC_DATA(yDot));
-		reinterpret_cast<cadet::model::ModelSystem*>(sim->_model)->genJacobian(ns, sim->toRealTime(t), secIdx, timeFactor, NVEC_DATA(y), NVEC_DATA(yDot), NVEC_DATA(res),
+		reinterpret_cast<cadet::model::ModelSystem*>(sim->_model)->genJacobian(t, secIdx, NVEC_DATA(y), NVEC_DATA(yDot));
+		reinterpret_cast<cadet::model::ModelSystem*>(sim->_model)->genJacobian(ns, t, NVEC_DATA(y), NVEC_DATA(yDot), NVEC_DATA(res),
 			sensY, sensYdot, sensRes, sim->_vecADres, NVEC_DATA(tmp1), NVEC_DATA(tmp2), NVEC_DATA(tmp3));
 */
 
-		return sim->_model->residualSensFwd(ns, cadet::ActiveSimulationTime{sim->toRealTime(t), secIdx, timeFactor}, cadet::ConstSimulationState{NVEC_DATA(y), NVEC_DATA(yDot)}, NVEC_DATA(res), 
+		return sim->_model->residualSensFwd(ns, cadet::SimulationTime{t, secIdx}, cadet::ConstSimulationState{NVEC_DATA(y), NVEC_DATA(yDot)}, NVEC_DATA(res), 
 			sensY, sensYdot, sensRes, sim->_vecADres, NVEC_DATA(tmp1), NVEC_DATA(tmp2), NVEC_DATA(tmp3));
 	}
 
@@ -423,8 +420,8 @@ namespace cadet
 		_model->applyInitialCondition(SimulationState{NVEC_DATA(_vecStateY), NVEC_DATA(_vecStateYdot)});
 
 		// Use 0.0 as beginning of simulation time if we haven't set section times yet
-		if (_transformedTimes.size() > 0)
-			IDAInit(_idaMemBlock, &residualDaeWrapper, _transformedTimes[0], _vecStateY, _vecStateYdot);
+		if (_sectionTimes.size() > 0)
+			IDAInit(_idaMemBlock, &residualDaeWrapper, static_cast<double>(_sectionTimes[0]), _vecStateY, _vecStateYdot);
 		else
 			IDAInit(_idaMemBlock, &residualDaeWrapper, 0.0, _vecStateY, _vecStateYdot);			
 
@@ -640,7 +637,7 @@ namespace cadet
 	void Simulator::applyInitialCondition()
 	{
 		_model->applyInitialCondition(SimulationState{NVEC_DATA(_vecStateY), NVEC_DATA(_vecStateYdot)});
-		IDAReInit(_idaMemBlock, _transformedTimes[0], _vecStateY, _vecStateYdot);
+		IDAReInit(_idaMemBlock, static_cast<double>(_sectionTimes[0]), _vecStateY, _vecStateYdot);
 
 		// Better check for consistency
 		_skipConsistencyStateY = false;
@@ -657,7 +654,7 @@ namespace cadet
 		double* const y = NVEC_DATA(_vecStateY);
 		std::copy(initState, initState + NVEC_LENGTH(_vecStateY), y);
 
-		IDAReInit(_idaMemBlock, _transformedTimes[0], _vecStateY, _vecStateYdot);
+		IDAReInit(_idaMemBlock, static_cast<double>(_sectionTimes[0]), _vecStateY, _vecStateYdot);
 
 		// We need to compute matching yDot for consistency
 		_skipConsistencyStateY = false;
@@ -673,7 +670,7 @@ namespace cadet
 		double* const yDot = NVEC_DATA(_vecStateYdot);
 		std::copy(initStateDot, initStateDot + NVEC_LENGTH(_vecStateY), yDot);
 
-		IDAReInit(_idaMemBlock, _transformedTimes[0], _vecStateY, _vecStateYdot);
+		IDAReInit(_idaMemBlock, static_cast<double>(_sectionTimes[0]), _vecStateY, _vecStateYdot);
 
 		// Do not assume that the initial state is consistent
 		_skipConsistencyStateY = false;
@@ -820,10 +817,6 @@ namespace cadet
 		if (isSectionTimeParameter(id, _sectionTimes.size()))
 		{
 			_sectionTimes[id.section].setValue(value);
-
-			// Update the time transformation
-			calculateTimeTransformation(false);
-
 			// Do not exit here, since model can also contain instances of SECTION_TIMES
 		}
 
@@ -862,10 +855,6 @@ namespace cadet
 			if (isSectionTimeParameter(id, _sectionTimes.size()))
 			{
 				_sectionTimes[id.section].setValue(value);
-
-				// Update the time transformation
-				calculateTimeTransformation(false);
-
 				// Do not exit here, since model can also contain instances of SECTION_TIMES
 			}
 
@@ -904,10 +893,6 @@ namespace cadet
 		if (isSectionTimeParameter(id, _sectionTimes.size()))
 		{
 			_sectionTimes[id.section].setValue(value);
-
-			// Update the time transformation
-			calculateTimeTransformation(false);
-			
 			// Do not exit here, since model can also contain instances of SECTION_TIMES
 		}
 
@@ -918,10 +903,6 @@ namespace cadet
 	void Simulator::setSolutionTimes(const std::vector<double>& solutionTimes)
 	{
 		_solutionTimes = solutionTimes;
-		_solutionTimesOriginal = solutionTimes;
-
-		// Transform user solution times
-		transformSolutionTimes();
 	}
 
 	const std::vector<double>& Simulator::getSolutionTimes() const
@@ -945,7 +926,7 @@ namespace cadet
 			if (sectionTimes[i] > sectionTimes[i + 1])
 				throw InvalidParameterException("The end time of each section must be greater than its start time (failed for section " + std::to_string(i) + ")!");
 
-		// Send original section times to models
+		// Send section times to models
 		if (_model)
 		{
 			bool* const secCont = new bool[sectionContinuity.size()];
@@ -962,9 +943,6 @@ namespace cadet
 
 		_sectionContinuity = sectionContinuity;
 
-		// Calculate the transformed section times
-		calculateTimeTransformation(true);
-
 		// Set AD sensitivities
 		unsigned int globalIdx = 0;
 		for (unsigned int i = 0; i < _sensitiveParams.slices(); ++i)
@@ -978,32 +956,6 @@ namespace cadet
 		}
 	}
 
-	void Simulator::transformSolutionTimes()
-	{
-		for (unsigned int i = 0; i < _solutionTimes.size(); ++i)
-			_solutionTimes[i] = toTransformedTime(_solutionTimesOriginal[i], _sectionTimes, _transformedTimes);
-	}
-
-	void Simulator::calculateTimeTransformation(bool resetSens)
-	{
-		// Transform section times
-		_transformedTimes.clear();
-		_transformedTimes.reserve(_sectionTimes.size());
-		for (unsigned int i = 0; i < _sectionTimes.size(); ++i)
-			_transformedTimes.push_back(static_cast<double>(_sectionTimes[i]));
-//			_transformedTimes.push_back(i);
-
-		// Transform user solution times
-		transformSolutionTimes();
-
-		// Set AD directions for section times again
-		if (resetSens)
-			resetSensParams();
-
-		// Update IDAS
-		IDAReInit(_idaMemBlock, _transformedTimes[0], _vecStateY, _vecStateYdot);		
-	}
-
 	void Simulator::setSolutionRecorder(ISolutionRecorder* recorder)
 	{
 		_solRecorder = recorder;
@@ -1012,47 +964,6 @@ namespace cadet
 			_solRecorder->prepare(NVEC_LENGTH(_vecStateY), _sensitiveParams.slices(), _solutionTimes.size());
 			_model->reportSolutionStructure(*_solRecorder);
 		}
-	}
-
-	const active Simulator::timeFactor(unsigned int curSec) const
-	{
-//		return (_transformedTimes[curSec + 1] - _transformedTimes[curSec]) / static_cast<double>(_sectionTimes[curSec + 1] - _sectionTimes[curSec]);
-		return (_transformedTimes[curSec + 1] - _transformedTimes[curSec]) / (_sectionTimes[curSec + 1] - _sectionTimes[curSec]);
-	}
-
-	template <typename time_t>
-	double Simulator::toTransformedTime(double t, const std::vector<time_t>& oldTimes, const std::vector<double>& newTimes) const
-	{
-		if (t == static_cast<double>(oldTimes[0]))
-			return newTimes[0];
-		
-		for (unsigned int i = 1; i < newTimes.size(); ++i)
-		{
-			if (t <= static_cast<double>(oldTimes[i]))
-			{
-				// Floating point errors can lead to slightly exceeding newTimes[i] when using the formula below,
-				// which in turn causes IDA to fail due to an incorrect stopping time
-				// By explicitly checking for and returning the exact value, this problem is prevented
-				if (t == static_cast<double>(oldTimes[i]))
-					return newTimes[i];
-
-				return newTimes[i-1] + (t - static_cast<double>(oldTimes[i-1])) / (static_cast<double>(oldTimes[i]) - static_cast<double>(oldTimes[i-1])) * (newTimes[i] - newTimes[i-1]);
-			}
-		}
-
-		return -1.0;
-	}
-
-	active Simulator::toRealTime(double t, unsigned int curSec) const
-	{
-		for (unsigned int i = curSec; i < _transformedTimes.size()-1; ++i)
-		{
-			if ((t >= _transformedTimes[i]) && (t <= _transformedTimes[i + 1]))
-			{
-				return _sectionTimes[i] + (t - _transformedTimes[i]) / (_transformedTimes[i + 1] - _transformedTimes[i]) * (_sectionTimes[i + 1] - _sectionTimes[i]);
-			}
-		}
-		return active(-1.0);
 	}
 
 	void Simulator::integrate()
@@ -1134,28 +1045,27 @@ namespace cadet
 			idaTask = IDA_NORMAL;
 		}
 
-		LOG(Debug) << "Integration span: [" << _transformedTimes[0] << ", " << _transformedTimes.back() 
-			<< "] transformed, [" << static_cast<double>(_sectionTimes[0]) << ", " << static_cast<double>(_sectionTimes.back()) << "] sections";
+		LOG(Debug) << "Integration span: [" << static_cast<double>(_sectionTimes[0]) << ", " << static_cast<double>(_sectionTimes.back()) << "] sections";
 		
 		if (writeAtUserTimes)
 		{
 			LOG(Debug) << "Solution time span: [" << _solutionTimes[0] << ", " << _solutionTimes.back() << "]";
 		}
 
-		double transformedT = _transformedTimes[0];
+		double curT = static_cast<double>(_sectionTimes[0]);
 		_curSec = 0;
-		const double tEnd = writeAtUserTimes ? _solutionTimes.back() : _transformedTimes.back();
-		while (transformedT < tEnd)
+		const double tEnd = writeAtUserTimes ? _solutionTimes.back() : static_cast<double>(_sectionTimes.back());
+		while (curT < tEnd)
 		{
-			// Get smallest index with t_i >= transformedT (t_i being a _transformedTimes element)
-			// This will return i if transformedT == _transformedTimes[i], which effectively advances
+			// Get smallest index with t_i >= curT (t_i being a _sectionTimes element)
+			// This will return i if curT == _sectionTimes[i], which effectively advances
 			// the index if required
-			_curSec = getNextSection(transformedT, _curSec);
-			const double startTime = _transformedTimes[_curSec];
+			_curSec = getNextSection(curT, _curSec);
+			const double startTime = static_cast<double>(_sectionTimes[_curSec]);
 
 			// Determine continuous time slice
 			unsigned int skip = 1; // Always finish the current section
-			for (size_t i = _curSec; i < _transformedTimes.size() - 2; ++i)
+			for (size_t i = _curSec; i < _sectionTimes.size() - 2; ++i)
 			{
 				if (!_sectionContinuity[i])
 					break;
@@ -1165,8 +1075,8 @@ namespace cadet
 				++skip;
 			}
 
-			const double endTime = writeAtUserTimes ? std::min(_transformedTimes[_curSec + skip], tEnd) : _transformedTimes[_curSec + skip];
-			transformedT = startTime;
+			const double endTime = writeAtUserTimes ? std::min(static_cast<double>(_sectionTimes[_curSec + skip]), tEnd) : static_cast<double>(_sectionTimes[_curSec + skip]);
+			curT = startTime;
 
 			LOG(Debug) << " ###### SECTION " << _curSec << " from " << startTime << " to " << endTime;
 
@@ -1178,15 +1088,11 @@ namespace cadet
 			IDASetStopTime(_idaMemBlock, endTime);
 
 			// Update Jacobian
-			active realT = toRealTime(transformedT, _curSec);
-			_model->notifyDiscontinuousSectionTransition(static_cast<double>(realT), _curSec, AdJacobianParams{_vecADres, _vecADy, numSensitivityAdDirections()});
-
-			// Get time factor
-			const active curTimeFactor = timeFactor(_curSec);
+			_model->notifyDiscontinuousSectionTransition(curT, _curSec, AdJacobianParams{_vecADres, _vecADy, numSensitivityAdDirections()});
 
 			// Compute consistent initial values
 			LOG(Debug) << "---====--- CONSISTENCY ---====--- ";
-			const double consPrev = _model->residualNorm(SimulationTime{static_cast<double>(realT), _curSec, static_cast<double>(curTimeFactor)}, ConstSimulationState{NVEC_DATA(_vecStateY), NVEC_DATA(_vecStateYdot)});
+			const double consPrev = _model->residualNorm(SimulationTime{curT, _curSec}, ConstSimulationState{NVEC_DATA(_vecStateY), NVEC_DATA(_vecStateYdot)});
 			LOG(Debug) << " ==========> Consistency error prev: " << consPrev;
 
 			if (!_skipConsistencyStateY && (_consistentInitMode != ConsistentInitialization::None))
@@ -1194,18 +1100,18 @@ namespace cadet
 				const ConsistentInitialization mode = currentConsistentInitMode(_consistentInitMode, _curSec);
 				if (mode == ConsistentInitialization::Full)
 				{
-					_model->consistentInitialConditions(SimulationTime{static_cast<double>(realT), _curSec, static_cast<double>(curTimeFactor)}, SimulationState{NVEC_DATA(_vecStateY), NVEC_DATA(_vecStateYdot)}, 
+					_model->consistentInitialConditions(SimulationTime{curT, _curSec}, SimulationState{NVEC_DATA(_vecStateY), NVEC_DATA(_vecStateYdot)}, 
 						AdJacobianParams{_vecADres, _vecADy, numSensitivityAdDirections()}, _algTol);
 
-					const double consPost = _model->residualNorm(SimulationTime{static_cast<double>(realT), _curSec, static_cast<double>(curTimeFactor)}, ConstSimulationState{NVEC_DATA(_vecStateY), NVEC_DATA(_vecStateYdot)});
+					const double consPost = _model->residualNorm(SimulationTime{curT, _curSec}, ConstSimulationState{NVEC_DATA(_vecStateY), NVEC_DATA(_vecStateYdot)});
 					LOG(Debug) << " ==========> Consistency error post Full: " << consPost;
 				}
 				else if (mode == ConsistentInitialization::Lean)
 				{
-					_model->leanConsistentInitialConditions(SimulationTime{static_cast<double>(realT), _curSec, static_cast<double>(curTimeFactor)}, SimulationState{NVEC_DATA(_vecStateY), NVEC_DATA(_vecStateYdot)},
+					_model->leanConsistentInitialConditions(SimulationTime{curT, _curSec}, SimulationState{NVEC_DATA(_vecStateY), NVEC_DATA(_vecStateYdot)},
 						AdJacobianParams{_vecADres, _vecADy, numSensitivityAdDirections()}, _algTol);
 
-					const double consPost = _model->residualNorm(SimulationTime{static_cast<double>(realT), _curSec, static_cast<double>(curTimeFactor)}, ConstSimulationState{NVEC_DATA(_vecStateY), NVEC_DATA(_vecStateYdot)});
+					const double consPost = _model->residualNorm(SimulationTime{curT, _curSec}, ConstSimulationState{NVEC_DATA(_vecStateY), NVEC_DATA(_vecStateYdot)});
 					LOG(Debug) << " ==========> Consistency error post Lean: " << consPost;
 				}
 				else
@@ -1227,7 +1133,7 @@ namespace cadet
 
 				std::vector<double> norms(_sensitiveParams.slices(), 0.0);
 				std::vector<double> temp(_model->numDofs(), 0.0);
-				_model->residualSensFwdNorm(_sensitiveParams.slices(), ActiveSimulationTime{realT, _curSec, curTimeFactor}, ConstSimulationState{NVEC_DATA(_vecStateY), NVEC_DATA(_vecStateYdot)},
+				_model->residualSensFwdNorm(_sensitiveParams.slices(), SimulationTime{curT, _curSec}, ConstSimulationState{NVEC_DATA(_vecStateY), NVEC_DATA(_vecStateYdot)},
 					sensYdbg, sensYdotDbg, norms.data(), _vecADres, temp.data());
 
 				LOG(Debug) << " ==========> Sens consistency error prev: " << norms;
@@ -1239,10 +1145,10 @@ namespace cadet
 					// Compute consistent initial conditions for sensitivity subsystems
 					std::vector<double*> sensY = convertNVectorToStdVectorPtrs<double*>(_vecFwdYs, _sensitiveParams.slices());
 					std::vector<double*> sensYdot = convertNVectorToStdVectorPtrs<double*>(_vecFwdYsDot, _sensitiveParams.slices());
-					_model->consistentInitialSensitivity(ActiveSimulationTime{realT, _curSec, curTimeFactor}, ConstSimulationState{NVEC_DATA(_vecStateY), NVEC_DATA(_vecStateYdot)}, sensY, sensYdot, _vecADres, _vecADy);
+					_model->consistentInitialSensitivity(SimulationTime{curT, _curSec}, ConstSimulationState{NVEC_DATA(_vecStateY), NVEC_DATA(_vecStateYdot)}, sensY, sensYdot, _vecADres, _vecADy);
 
 #ifdef CADET_DEBUG
-					_model->residualSensFwdNorm(_sensitiveParams.slices(), ActiveSimulationTime{realT, _curSec, curTimeFactor}, ConstSimulationState{NVEC_DATA(_vecStateY), NVEC_DATA(_vecStateYdot)},
+					_model->residualSensFwdNorm(_sensitiveParams.slices(), SimulationTime{curT, _curSec}, ConstSimulationState{NVEC_DATA(_vecStateY), NVEC_DATA(_vecStateYdot)},
 						sensYdbg, sensYdotDbg, norms.data(), _vecADres, temp.data());
 
 					LOG(Debug) << " ==========> Sens consistency error post Full: " << norms;
@@ -1253,10 +1159,10 @@ namespace cadet
 					// Compute consistent initial conditions for sensitivity subsystems
 					std::vector<double*> sensY = convertNVectorToStdVectorPtrs<double*>(_vecFwdYs, _sensitiveParams.slices());
 					std::vector<double*> sensYdot = convertNVectorToStdVectorPtrs<double*>(_vecFwdYsDot, _sensitiveParams.slices());
-					_model->leanConsistentInitialSensitivity(ActiveSimulationTime{realT, _curSec, curTimeFactor}, ConstSimulationState{NVEC_DATA(_vecStateY), NVEC_DATA(_vecStateYdot)}, sensY, sensYdot, _vecADres, _vecADy);
+					_model->leanConsistentInitialSensitivity(SimulationTime{curT, _curSec}, ConstSimulationState{NVEC_DATA(_vecStateY), NVEC_DATA(_vecStateYdot)}, sensY, sensYdot, _vecADres, _vecADy);
 
 #ifdef CADET_DEBUG
-					_model->residualSensFwdNorm(_sensitiveParams.slices(), ActiveSimulationTime{realT, _curSec, curTimeFactor}, ConstSimulationState{NVEC_DATA(_vecStateY), NVEC_DATA(_vecStateYdot)},
+					_model->residualSensFwdNorm(_sensitiveParams.slices(), SimulationTime{curT, _curSec}, ConstSimulationState{NVEC_DATA(_vecStateY), NVEC_DATA(_vecStateYdot)},
 						sensYdbg, sensYdotDbg, norms.data(), _vecADres, temp.data());
 
 					LOG(Debug) << " ==========> Sens consistency error post Lean: " << norms;
@@ -1289,8 +1195,8 @@ namespace cadet
 			if (writeAtUserTimes)
 			{
 				// Write initial conditions only if desired by user
-				if (_curSec == 0 && _solutionTimes.front() == transformedT)
-					writeSolution(static_cast<double>(realT));
+				if (_curSec == 0 && _solutionTimes.front() == curT)
+					writeSolution(curT);
 
 				// Initialize iterator and forward it to the first solution time that lies inside the current section
 				it = _solutionTimes.begin();
@@ -1299,7 +1205,7 @@ namespace cadet
 			else
 			{
 				// Always write initial conditions if solutions are written at integration times
-				if (_curSec == 0) writeSolution(static_cast<double>(realT));
+				if (_curSec == 0) writeSolution(curT);
 
 				// Here tOut - only during the first call to IDASolve - specifies the direction
 				// and rough scale of the independent variable, see IDAS Guide p.33
@@ -1322,10 +1228,9 @@ namespace cadet
 				}
 
 				// IDA Step 11: Advance solution in time
-				solverFlag = IDASolve(_idaMemBlock, tOut, &transformedT, _vecStateY, _vecStateYdot, idaTask);
-				LOG(Debug) << "Solve from " << transformedT << " to " << tOut << " => " 
+				solverFlag = IDASolve(_idaMemBlock, tOut, &curT, _vecStateY, _vecStateYdot, idaTask);
+				LOG(Debug) << "Solve from " << curT << " to " << tOut << " => " 
 					<< (solverFlag == IDA_SUCCESS ? "IDA_SUCCESS" : "") << (solverFlag == IDA_TSTOP_RETURN ? "IDA_TSTOP_RETURN" : "");
-				realT = toRealTime(transformedT, _curSec);
 
 #ifdef CADET_DEBUG
 				{
@@ -1382,10 +1287,10 @@ namespace cadet
 					// and output of sensitivities)
 					if (wantSensitivities)
 					{
-						IDAGetSens(_idaMemBlock, &transformedT, _vecFwdYs);
-						IDAGetSensDky(_idaMemBlock, transformedT, 1, _vecFwdYsDot);
+						IDAGetSens(_idaMemBlock, &curT, _vecFwdYs);
+						IDAGetSensDky(_idaMemBlock, curT, 1, _vecFwdYsDot);
 					}
-					writeSolution(static_cast<double>(realT));
+					writeSolution(curT);
 					++it;
 					break;
 				case IDA_ROOT_RETURN:
@@ -1397,16 +1302,16 @@ namespace cadet
 					// and output of sensitivities)
 					if (wantSensitivities)
 					{
-						IDAGetSens(_idaMemBlock, &transformedT, _vecFwdYs);
-						IDAGetSensDky(_idaMemBlock, transformedT, 1, _vecFwdYsDot);
+						IDAGetSens(_idaMemBlock, &curT, _vecFwdYs);
+						IDAGetSensDky(_idaMemBlock, curT, 1, _vecFwdYsDot);
 					}
 
 					// Section end time was reached (in previous step)
-					if (!writeAtUserTimes && (endTime == _transformedTimes.back()))
+					if (!writeAtUserTimes && (endTime == static_cast<double>(_sectionTimes.back())))
 					{
 						// Write a solution for the ultimate endTime in the last section,
 						// when we write at integration times.
-						writeSolution(static_cast<double>(realT));
+						writeSolution(curT);
 					}
 					break;
 				default:
@@ -1414,8 +1319,8 @@ namespace cadet
 
 					// An error occured
 					const std::string errorFlag = getIDAReturnFlagName(solverFlag);
-					LOG(Error) << "IDASolve returned " << errorFlag << " at t = " << static_cast<double>(realT);
-					throw IntegrationException(std::string("Error in IDASolve: ") + errorFlag + std::string(" at t = " + std::to_string(static_cast<double>(realT)))); //todo might not be necessary
+					LOG(Error) << "IDASolve returned " << errorFlag << " at t = " << curT;
+					throw IntegrationException(std::string("Error in IDASolve: ") + errorFlag + std::string(" at t = ") + std::to_string(curT)); //todo might not be necessary
 					break;
 				} // switch
 
@@ -1523,12 +1428,8 @@ namespace cadet
 			_nThreads = 0;
 
 		_solutionTimes.clear();
-		_solutionTimesOriginal.clear();
 		if (paramProvider.exists("USER_SOLUTION_TIMES"))
-		{
 			_solutionTimes = paramProvider.getDoubleArray("USER_SOLUTION_TIMES");
-			_solutionTimesOriginal = _solutionTimes;
-		}
 
 		if (paramProvider.exists("CONSISTENT_INIT_MODE"))
 			_consistentInitMode = toConsistentInitialization(paramProvider.getInt("CONSISTENT_INIT_MODE"));
@@ -1709,12 +1610,12 @@ namespace cadet
 
 	unsigned int Simulator::getNextSection(double t, unsigned int startIdx) const
 	{
-		if (t < _transformedTimes[startIdx])
+		if (t < _sectionTimes[startIdx])
 			return -1;
 
-		for (unsigned int i = startIdx; i < _transformedTimes.size() - 1; ++i)
+		for (unsigned int i = startIdx; i < _sectionTimes.size() - 1; ++i)
 		{
-			if (_transformedTimes[i] >= t)
+			if (_sectionTimes[i] >= t)
 				return i;
 		}
 
@@ -1725,9 +1626,9 @@ namespace cadet
 	{
 		//TODO: Use binary search
 		
-		for (unsigned int i = _curSec; i < _transformedTimes.size() - 1; ++i)
+		for (unsigned int i = _curSec; i < _sectionTimes.size() - 1; ++i)
 		{
-			if ((t >= _transformedTimes[i]) && (t <= _transformedTimes[i+1]))
+			if ((t >= _sectionTimes[i]) && (t <= _sectionTimes[i+1]))
 				return i;
 		}
 

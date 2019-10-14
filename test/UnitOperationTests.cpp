@@ -67,18 +67,18 @@ namespace unitoperation
 		tls.resize(unit->threadLocalMemorySize());
 
 		// Initialize algebraic variables in state vector
-		unit->consistentInitialState(SimulationTime{0.0, 0u, 1.0}, y, adParams, consTol, tls);
+		unit->consistentInitialState(SimulationTime{0.0, 0u}, y, adParams, consTol, tls);
 
 		// Evaluate residual without yDot and update Jacobians
 		// Store residual in yDot
-		unit->residualWithJacobian(ActiveSimulationTime{0.0, 0u, 1.0}, ConstSimulationState{y, nullptr}, yDot.data(), adParams, tls);
+		unit->residualWithJacobian(SimulationTime{0.0, 0u}, ConstSimulationState{y, nullptr}, yDot.data(), adParams, tls);
 		CAPTURE(yDot);
 
 		// Initialize time derivative of state
-		unit->consistentInitialTimeDerivative(SimulationTime{0.0, 0u, 1.0}, y, yDot.data(), tls);
+		unit->consistentInitialTimeDerivative(SimulationTime{0.0, 0u}, y, yDot.data(), tls);
 
 		// Check norm of residual (but skip over connection DOFs at the beginning of the local state vector slice)
-		unit->residual(SimulationTime{0.0, 0u, 1.0}, ConstSimulationState{y, yDot.data()}, res.data(), tls);
+		unit->residual(SimulationTime{0.0, 0u}, ConstSimulationState{y, yDot.data()}, res.data(), tls);
 		INFO("Residual " << linalg::linfNorm(res.data() + unit->numComponents() * unit->numInletPorts(), unit->numDofs() - unit->numComponents() * unit->numInletPorts()));
 		CAPTURE(res);
 		CHECK(linalg::linfNorm(res.data() + unit->numComponents() * unit->numInletPorts(), unit->numDofs() - unit->numComponents() * unit->numInletPorts()) <= absTol);
@@ -119,7 +119,7 @@ namespace unitoperation
 		unit->notifyDiscontinuousSectionTransition(0.0, 0u, adParams);
 
 		// Calculate dres / dp and Jacobians
-		const ActiveSimulationTime simTime{0.0, 0u, 1.0};
+		const SimulationTime simTime{0.0, 0u};
 		unit->residualSensFwdWithJacobian(simTime, ConstSimulationState{y, yDot}, adParams, tls);
 
 		// Obtain memory
@@ -200,7 +200,7 @@ namespace unitoperation
 		tls.resize(unit->threadLocalMemorySize());
 
 		// Assemble Jacobian
-		const ActiveSimulationTime simTime{0.0, 0u, 1.0};
+		const SimulationTime simTime{0.0, 0u};
 		const ConstSimulationState simState{y.data(), nullptr};
 		unit->residualWithJacobian(simTime, simState, jac.data(), adParams, tls);
 
@@ -219,7 +219,7 @@ namespace unitoperation
 				const unsigned int curItem = inletOffset + comp * inletStride;
 
 				y[curItem] = 1.0;
-				unit->multiplyWithJacobian(SimulationTime{0.0, 0u, 1.0}, simState, y.data(), 1.0, 0.0, jac.data());
+				unit->multiplyWithJacobian(SimulationTime{0.0, 0u}, simState, y.data(), 1.0, 0.0, jac.data());
 				y[curItem] = 0.0;
 
 				// Check inlet block of Jacobian column

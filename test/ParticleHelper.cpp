@@ -418,8 +418,8 @@ namespace particle
 //		util::populate(y.data(), [](unsigned int idx) { return 1.0; }, unitAna->numDofs());
 
 		// Compute state Jacobian
-		unitAna->residualWithJacobian(ActiveSimulationTime{0.0, 0u, 1.0}, ConstSimulationState{y.data(), nullptr}, jacDir.data(), noParams, tls);
-		unitAD->residualWithJacobian(ActiveSimulationTime{0.0, 0u, 1.0}, ConstSimulationState{y.data(), nullptr}, jacDir.data(), adParams, tls);
+		unitAna->residualWithJacobian(SimulationTime{0.0, 0u}, ConstSimulationState{y.data(), nullptr}, jacDir.data(), noParams, tls);
+		unitAD->residualWithJacobian(SimulationTime{0.0, 0u}, ConstSimulationState{y.data(), nullptr}, jacDir.data(), adParams, tls);
 		std::fill(jacDir.begin(), jacDir.end(), 0.0);
 
 		// Compare Jacobians
@@ -541,14 +541,14 @@ namespace particle
 //		util::populate(y.data(), [](unsigned int idx) { return 1.0; }, unitAna->numDofs());
 
 		// Compute state Jacobian
-		unitAna->residualWithJacobian(ActiveSimulationTime{0.0, 0u, 1.0}, ConstSimulationState{y.data(), nullptr}, jacDir.data(), noParams, tls);
-		unitFD->residualWithJacobian(ActiveSimulationTime{0.0, 0u, 1.0}, ConstSimulationState{y.data(), nullptr}, jacDir.data(), noParams, tls);
+		unitAna->residualWithJacobian(SimulationTime{0.0, 0u}, ConstSimulationState{y.data(), nullptr}, jacDir.data(), noParams, tls);
+		unitFD->residualWithJacobian(SimulationTime{0.0, 0u}, ConstSimulationState{y.data(), nullptr}, jacDir.data(), noParams, tls);
 		std::fill(jacDir.begin(), jacDir.end(), 0.0);
 
 		// Compare Jacobians
 		cadet::test::compareJacobianArrowHeadFD(
-			[=, &tls](double const* lDir, double* res) -> void { unitFD->residual(SimulationTime{0.0, 0u, 1.0}, ConstSimulationState{lDir, nullptr}, res, tls); }, 
-			[&](double const* lDir, double* res) -> void { unitAna->multiplyWithJacobian(SimulationTime{0.0, 0u, 1.0}, ConstSimulationState{y.data(), nullptr}, lDir, 1.0, 0.0, res); }, 
+			[=, &tls](double const* lDir, double* res) -> void { unitFD->residual(SimulationTime{0.0, 0u}, ConstSimulationState{lDir, nullptr}, res, tls); }, 
+			[&](double const* lDir, double* res) -> void { unitAna->multiplyWithJacobian(SimulationTime{0.0, 0u}, ConstSimulationState{y.data(), nullptr}, lDir, 1.0, 0.0, res); }, 
 			y.data(), jacDir.data(), jacCol1.data(), jacCol2.data(), unitFD->numDofs(), fluxOffset, h, absTol, relTol);
 
 		mb->destroyUnitOperation(unitAna);

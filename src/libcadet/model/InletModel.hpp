@@ -90,16 +90,16 @@ public:
 	virtual void reportSolutionStructure(ISolutionRecorder& recorder) const;
 
 	virtual int residual(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res, util::ThreadLocalStorage& threadLocalMem);
-	virtual int residualWithJacobian(const ActiveSimulationTime& simTime, const ConstSimulationState& simState, double* const res, const AdJacobianParams& adJac, util::ThreadLocalStorage& threadLocalMem);
-	virtual int residualSensFwdAdOnly(const ActiveSimulationTime& simTime, const ConstSimulationState& simState, active* const adRes, util::ThreadLocalStorage& threadLocalMem);
-	virtual int residualSensFwdWithJacobian(const ActiveSimulationTime& simTime, const ConstSimulationState& simState, const AdJacobianParams& adJac, util::ThreadLocalStorage& threadLocalMem);
+	virtual int residualWithJacobian(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res, const AdJacobianParams& adJac, util::ThreadLocalStorage& threadLocalMem);
+	virtual int residualSensFwdAdOnly(const SimulationTime& simTime, const ConstSimulationState& simState, active* const adRes, util::ThreadLocalStorage& threadLocalMem);
+	virtual int residualSensFwdWithJacobian(const SimulationTime& simTime, const ConstSimulationState& simState, const AdJacobianParams& adJac, util::ThreadLocalStorage& threadLocalMem);
 
-	virtual int residualSensFwdCombine(const ActiveSimulationTime& simTime, const ConstSimulationState& simState, 
+	virtual int residualSensFwdCombine(const SimulationTime& simTime, const ConstSimulationState& simState, 
 		const std::vector<const double*>& yS, const std::vector<const double*>& ySdot, const std::vector<double*>& resS, active const* adRes, 
 		double* const tmp1, double* const tmp2, double* const tmp3);
 
 	// linearSolve is a null operation (the result is I^-1 *rhs -> rhs) since the Jacobian is an identity matrix
-	virtual int linearSolve(double t, double timeFactor, double alpha, double tol, double* const rhs, double const* const weight,
+	virtual int linearSolve(double t, double alpha, double tol, double* const rhs, double const* const weight,
 		const ConstSimulationState& simState) { return 0; }
 
 	virtual void prepareADvectors(const AdJacobianParams& adJac) const;
@@ -110,14 +110,14 @@ public:
 	virtual void consistentInitialState(const SimulationTime& simTime, double* const vecStateY, const AdJacobianParams& adJac, double errorTol, util::ThreadLocalStorage& threadLocalMem);
 	virtual void consistentInitialTimeDerivative(const SimulationTime& simTime, double const* vecStateY, double* const vecStateYdot, util::ThreadLocalStorage& threadLocalMem);
 
-	virtual void consistentInitialSensitivity(const ActiveSimulationTime& simTime, const ConstSimulationState& simState,
+	virtual void consistentInitialSensitivity(const SimulationTime& simTime, const ConstSimulationState& simState,
 		std::vector<double*>& vecSensY, std::vector<double*>& vecSensYdot, active const* const adRes, util::ThreadLocalStorage& threadLocalMem);
 	virtual void initializeSensitivityStates(const std::vector<double*>& vecSensY) const;
 
 	virtual void leanConsistentInitialState(const SimulationTime& simTime, double* const vecStateY, const AdJacobianParams& adJac, double errorTol, util::ThreadLocalStorage& threadLocalMem);
-	virtual void leanConsistentInitialTimeDerivative(double t, double timeFactor, double const* const vecStateY, double* const vecStateYdot, double* const res, util::ThreadLocalStorage& threadLocalMem);
+	virtual void leanConsistentInitialTimeDerivative(double t, double const* const vecStateY, double* const vecStateYdot, double* const res, util::ThreadLocalStorage& threadLocalMem);
 
-	virtual void leanConsistentInitialSensitivity(const ActiveSimulationTime& simTime, const ConstSimulationState& simState,
+	virtual void leanConsistentInitialSensitivity(const SimulationTime& simTime, const ConstSimulationState& simState,
 		std::vector<double*>& vecSensY, std::vector<double*>& vecSensYdot, active const* const adRes, util::ThreadLocalStorage& threadLocalMem);
 
 	virtual void setExternalFunctions(IExternalFunction** extFuns, unsigned int size) { }
@@ -146,12 +146,12 @@ public:
 
 protected:
 
-	template <typename T> T const* moveInletValues(double const* const rawValues, const active& t, unsigned int secIdx) const;
+	template <typename T> T const* moveInletValues(double const* const rawValues, double t, unsigned int secIdx) const;
 
 	template <typename T> T const* const getData() const;
 
 	template <typename ResidualType, typename ParamType>
-	int residualImpl(const ParamType& t, unsigned int secIdx, const ParamType& timeFactor, const ConstSimulationState& simState, ResidualType* const res, util::ThreadLocalStorage& threadLocalMem);
+	int residualImpl(double t, unsigned int secIdx, const ConstSimulationState& simState, ResidualType* const res, util::ThreadLocalStorage& threadLocalMem);
 
 	UnitOpIdx _unitOpIdx; //!< Unit operation index
 	unsigned int _nComp; //!< Number of components

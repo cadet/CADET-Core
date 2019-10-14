@@ -39,22 +39,22 @@ namespace model
 
 namespace
 {
-	inline void bindingFlux(IBindingModel* binding, const active& t, unsigned int secIdx, const ColumnPosition& colPos, active const* yCp, active const* yQ, active* res, cadet::LinearBufferAllocator buffer)
+	inline void bindingFlux(IBindingModel* binding, double t, unsigned int secIdx, const ColumnPosition& colPos, active const* yCp, active const* yQ, active* res, cadet::LinearBufferAllocator buffer, WithParamSensitivity)
 	{
-		binding->flux(static_cast<double>(t), secIdx, colPos, yQ, yCp, res, buffer, WithParamSensitivity());
+		binding->flux(t, secIdx, colPos, yQ, yCp, res, buffer, WithParamSensitivity());
 	}
 
-	inline void bindingFlux(IBindingModel* binding, double t, unsigned int secIdx, const ColumnPosition& colPos, active const* yCp, active const* yQ, active* res, cadet::LinearBufferAllocator buffer)
+	inline void bindingFlux(IBindingModel* binding, double t, unsigned int secIdx, const ColumnPosition& colPos, active const* yCp, active const* yQ, active* res, cadet::LinearBufferAllocator buffer, WithoutParamSensitivity)
 	{
 		binding->flux(t, secIdx, colPos, yQ, yCp, res, buffer, WithoutParamSensitivity());
 	}
 
-	inline void bindingFlux(IBindingModel* binding, const active& t, unsigned int secIdx, const ColumnPosition& colPos, double const* yCp, double const* yQ, active* res, cadet::LinearBufferAllocator buffer)
+	inline void bindingFlux(IBindingModel* binding, double t, unsigned int secIdx, const ColumnPosition& colPos, double const* yCp, double const* yQ, active* res, cadet::LinearBufferAllocator buffer, WithParamSensitivity)
 	{
-		binding->flux(static_cast<double>(t), secIdx, colPos, yQ, yCp, res, buffer);
+		binding->flux(t, secIdx, colPos, yQ, yCp, res, buffer);
 	}
 
-	inline void bindingFlux(IBindingModel* binding, double t, unsigned int secIdx, const ColumnPosition& colPos, double const* yCp, double const* yQ, double* res, cadet::LinearBufferAllocator buffer)
+	inline void bindingFlux(IBindingModel* binding, double t, unsigned int secIdx, const ColumnPosition& colPos, double const* yCp, double const* yQ, double* res, cadet::LinearBufferAllocator buffer, WithoutParamSensitivity)
 	{
 		binding->flux(t, secIdx, colPos, yQ, yCp, res, buffer);
 	}
@@ -688,7 +688,7 @@ void CSTRModel::consistentInitialState(const SimulationTime& simTime, double* co
 			jacFunc = [&](double const* const x, linalg::detail::DenseMatrixBase& mat)
 			{
 				// Copy over state vector to AD state vector (without changing directional values to keep seed vectors)
-				// and initalize residuals with zero (also resetting directional values)
+				// and initialize residuals with zero (also resetting directional values)
 				ad::copyToAd(c, localAdY, mask.len);
 				// @todo Check if this is necessary
 				ad::resetAd(localAdRes, mask.len);
@@ -697,14 +697,14 @@ void CSTRModel::consistentInitialState(const SimulationTime& simTime, double* co
 				linalg::applyVectorSubset(x, mask, localAdY);
 
 				// Call residual function
-				residualImpl<active, active, double, false>(simTime.t, simTime.secIdx, 0.0, localAdY, nullptr, localAdRes, tlmAlloc.manageRemainingMemory());
+				residualImpl<active, active, double, false>(simTime.t, simTime.secIdx, localAdY, nullptr, localAdRes, tlmAlloc.manageRemainingMemory());
 
 #ifdef CADET_CHECK_ANALYTIC_JACOBIAN
 				std::copy_n(c, mask.len, fullX);
 				linalg::applyVectorSubset(x, mask, fullX);
 
 				// Compute analytic Jacobian
-				residualImpl<double, double, double, true>(simTime.t, simTime.secIdx, 0.0, fullX, nullptr, fullResidual, tlmAlloc.manageRemainingMemory());
+				residualImpl<double, double, double, true>(simTime.t, simTime.secIdx, fullX, nullptr, fullResidual, tlmAlloc.manageRemainingMemory());
 
 				// Compare
 				const double diff = ad::compareDenseJacobianWithAd(localAdRes, adJac.adDirOffset, _jac);
@@ -762,7 +762,7 @@ void CSTRModel::consistentInitialState(const SimulationTime& simTime, double* co
 				linalg::applyVectorSubset(x, mask, fullX);
 
 				// Call residual function
-				residualImpl<double, double, double, true>(simTime.t, simTime.secIdx, 0.0, fullX, nullptr, fullResidual, tlmAlloc.manageRemainingMemory());
+				residualImpl<double, double, double, true>(simTime.t, simTime.secIdx, fullX, nullptr, fullResidual, tlmAlloc.manageRemainingMemory());
 
 				// Extract Jacobian from full Jacobian
 				mat.setAll(0.0);
@@ -813,7 +813,7 @@ void CSTRModel::consistentInitialState(const SimulationTime& simTime, double* co
 				linalg::applyVectorSubset(x, mask, fullX);
 
 				// Call residual function
-				residualImpl<double, double, double, false>(simTime.t, simTime.secIdx, 0.0, fullX, nullptr, fullResidual, tlmAlloc.manageRemainingMemory());
+				residualImpl<double, double, double, false>(simTime.t, simTime.secIdx, fullX, nullptr, fullResidual, tlmAlloc.manageRemainingMemory());
 
 				// Extract values from residual
 				linalg::selectVectorSubset(fullResidual, mask, r);
@@ -880,7 +880,7 @@ void CSTRModel::consistentInitialTimeDerivative(const SimulationTime& simTime, d
 
 	// Assemble time derivative Jacobian
 	_jacFact.setAll(0.0);
-	addTimeDerivativeJacobian(simTime.t, simTime.timeFactor, ConstSimulationState{vecStateY, nullptr}, _jacFact);
+	addTimeDerivativeJacobian(simTime.t, 1.0, ConstSimulationState{vecStateY, nullptr}, _jacFact);
 
 	// Check if volume is 0
 	if (v == 0.0)
@@ -1091,7 +1091,7 @@ void CSTRModel::leanConsistentInitialState(const SimulationTime& simTime, double
 	}
 }
 
-void CSTRModel::leanConsistentInitialTimeDerivative(double t, double timeFactor, double const* const vecStateY, double* const vecStateYdot, double* const res, util::ThreadLocalStorage& threadLocalMem)
+void CSTRModel::leanConsistentInitialTimeDerivative(double t, double const* const vecStateY, double* const vecStateYdot, double* const res, util::ThreadLocalStorage& threadLocalMem)
 {
 	// It is assumed that the bound states are (approximately) correctly initialized.
 	// Thus, only the liquid phase has to be initialized
@@ -1214,7 +1214,7 @@ void CSTRModel::leanConsistentInitialTimeDerivative(double t, double timeFactor,
 	}
 }
 
-void CSTRModel::leanConsistentInitialSensitivity(const ActiveSimulationTime& simTime, const ConstSimulationState& simState,
+void CSTRModel::leanConsistentInitialSensitivity(const SimulationTime& simTime, const ConstSimulationState& simState,
 	std::vector<double*>& vecSensY, std::vector<double*>& vecSensYdot, active const* const adRes, util::ThreadLocalStorage& threadLocalMem)
 {
 	consistentInitialSensitivity(simTime, simState, vecSensY, vecSensYdot, adRes, threadLocalMem);
@@ -1222,11 +1222,11 @@ void CSTRModel::leanConsistentInitialSensitivity(const ActiveSimulationTime& sim
 
 int CSTRModel::residual(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res, util::ThreadLocalStorage& threadLocalMem)
 {
-	return residualImpl<double, double, double, false>(simTime.t, simTime.secIdx, simTime.timeFactor, simState.vecStateY, simState.vecStateYdot, res, threadLocalMem.get());
+	return residualImpl<double, double, double, false>(simTime.t, simTime.secIdx, simState.vecStateY, simState.vecStateYdot, res, threadLocalMem.get());
 }
 
 template <typename StateType, typename ResidualType, typename ParamType, bool wantJac>
-int CSTRModel::residualImpl(const ParamType& t, unsigned int secIdx, const ParamType& timeFactor, StateType const* const y, double const* const yDot, ResidualType* const res, LinearBufferAllocator tlmAlloc)
+int CSTRModel::residualImpl(double t, unsigned int secIdx, StateType const* const y, double const* const yDot, ResidualType* const res, LinearBufferAllocator tlmAlloc)
 {
 	StateType const* const cIn = y;
 	StateType const* const c = y + _nComp;
@@ -1281,7 +1281,7 @@ int CSTRModel::residualImpl(const ParamType& t, unsigned int secIdx, const Param
 			}
 
 			// Divide by beta and add c_i and dc_i / dt
-			resC[i] = timeFactor * ((cDot[i] + invBeta * qDotSum) * v + vDot * (c[i] + invBeta * qSum));
+			resC[i] = ((cDot[i] + invBeta * qDotSum) * v + vDot * (c[i] + invBeta * qSum));
 		}
 
 		resC[i] += -flowIn * cIn[i] + flowOut * c[i];
@@ -1294,7 +1294,7 @@ int CSTRModel::residualImpl(const ParamType& t, unsigned int secIdx, const Param
 		// Assemble Jacobian: Liquid phase
 
 		// Concentrations: \dot{V} * (c_i + 1 / beta * [sum_j sum_m d_j q_{j,i,m}]) + V * (\dot{c}_i + 1 / beta * [sum_j sum_m d_j \dot{q}_{j,i,m}]) - c_{in,i} * F_in + c_i * F_out == 0
-		const double vDotTimeFactor = static_cast<double>(vDot) * static_cast<double>(timeFactor);
+		const double vDotTimeFactor = static_cast<double>(vDot);
 		for (unsigned int i = 0; i < _nComp; ++i)
 		{
 			_jac.native(i, i) = vDotTimeFactor + static_cast<double>(flowOut);
@@ -1324,7 +1324,7 @@ int CSTRModel::residualImpl(const ParamType& t, unsigned int secIdx, const Param
 					qDotSum += static_cast<double>(_parTypeVolFrac[type]) * qDotSumType;
 				}
 
-				_jac.native(i, _nComp + _totalBound) = (cDot[i] + static_cast<double>(invBeta) * qDotSum) * static_cast<double>(timeFactor);
+				_jac.native(i, _nComp + _totalBound) = (cDot[i] + static_cast<double>(invBeta) * qDotSum);
 			}
 		}
 	}
@@ -1337,7 +1337,7 @@ int CSTRModel::residualImpl(const ParamType& t, unsigned int secIdx, const Param
 		LinearBufferAllocator subAlloc = tlmAlloc.manageRemainingMemory();
 		BufferedArray<ResidualType> flux = subAlloc.array<ResidualType>(_nComp);
 
-		_dynReactionBulk->residualLiquidAdd(static_cast<double>(t), secIdx, colPos, c, static_cast<ResidualType*>(flux), -1.0, subAlloc);
+		_dynReactionBulk->residualLiquidAdd(t, secIdx, colPos, c, static_cast<ResidualType*>(flux), -1.0, subAlloc);
 
 		for (unsigned int comp = 0; comp < _nComp; ++comp)
 			resC[comp] += v * flux[comp];
@@ -1347,7 +1347,7 @@ int CSTRModel::residualImpl(const ParamType& t, unsigned int secIdx, const Param
 			for (unsigned int comp = 0; comp < _nComp; ++comp)
 				_jac.native(comp, _nComp + _totalBound) += static_cast<double>(flux[comp]);
 
-			_dynReactionBulk->analyticJacobianLiquidAdd(static_cast<double>(t), secIdx, colPos, reinterpret_cast<double const*>(c), -static_cast<double>(v), _jac.row(0), subAlloc);
+			_dynReactionBulk->analyticJacobianLiquidAdd(t, secIdx, colPos, reinterpret_cast<double const*>(c), -static_cast<double>(v), _jac.row(0), subAlloc);
 		}
 	}
 
@@ -1356,7 +1356,8 @@ int CSTRModel::residualImpl(const ParamType& t, unsigned int secIdx, const Param
 	{
 		// Binding
 		IBindingModel* const binding = _binding[type];
-		bindingFlux(binding, t, secIdx, colPos, c, c + _nComp + _offsetParType[type], res + 2 * _nComp + _offsetParType[type], tlmAlloc);
+		bindingFlux(binding, t, secIdx, colPos, c, c + _nComp + _offsetParType[type], res + 2 * _nComp + _offsetParType[type], tlmAlloc, typename ParamSens<ParamType>::enabled());
+
 		int const* const qsReaction = binding->reactionQuasiStationarity();
 
 		if (binding->hasDynamicReactions() && yDot)
@@ -1373,7 +1374,7 @@ int CSTRModel::residualImpl(const ParamType& t, unsigned int secIdx, const Param
 						continue;
 
 					// Add time derivative to solid phase
-					resQ[idx] = timeFactor * qDot[idx];
+					resQ[idx] = qDot[idx];
 				}
 			}
 		}
@@ -1381,7 +1382,7 @@ int CSTRModel::residualImpl(const ParamType& t, unsigned int secIdx, const Param
 		if (wantJac)
 		{
 			// Assemble Jacobian: Binding
-			_binding[type]->analyticJacobian(static_cast<double>(t), secIdx, colPos, reinterpret_cast<double const*>(y) + 2 * _nComp + _offsetParType[type], _nComp + _offsetParType[type], _jac.row(_nComp + _offsetParType[type]), tlmAlloc);
+			_binding[type]->analyticJacobian(t, secIdx, colPos, reinterpret_cast<double const*>(y) + 2 * _nComp + _offsetParType[type], _nComp + _offsetParType[type], _jac.row(_nComp + _offsetParType[type]), tlmAlloc);
 		}
 
 		// Reaction
@@ -1397,7 +1398,7 @@ int CSTRModel::residualImpl(const ParamType& t, unsigned int secIdx, const Param
 
 			std::fill_n(fluxLiquid, _nComp, 0.0);
 			std::fill_n(fluxSolid, _strideBound[type], 0.0);
-			dynReaction->residualCombinedAdd(static_cast<double>(t), secIdx, colPos, c, c + _nComp + _offsetParType[type], fluxLiquid, fluxSolid, -1.0, subAlloc);
+			dynReaction->residualCombinedAdd(t, secIdx, colPos, c, c + _nComp + _offsetParType[type], fluxLiquid, fluxSolid, -1.0, subAlloc);
 
 			for (unsigned int comp = 0; comp < _nComp; ++comp)
 				resC[comp] += v * fluxLiquid[comp];
@@ -1438,7 +1439,7 @@ int CSTRModel::residualImpl(const ParamType& t, unsigned int secIdx, const Param
 				// dRes / dC and dRes / dQ
 				BufferedArray<double> fluxJacobianMem = subAlloc.array<double>((_strideBound[type] + _nComp) * (_strideBound[type] + _nComp));
 				linalg::DenseMatrixView jacFlux(static_cast<double*>(fluxJacobianMem), nullptr, _strideBound[type] + _nComp, _strideBound[type] + _nComp);
-				dynReaction->analyticJacobianCombinedAdd(static_cast<double>(t), secIdx, colPos, reinterpret_cast<double const*>(c), reinterpret_cast<double const*>(c + _nComp + _offsetParType[type]),
+				dynReaction->analyticJacobianCombinedAdd(t, secIdx, colPos, reinterpret_cast<double const*>(c), reinterpret_cast<double const*>(c + _nComp + _offsetParType[type]),
 					-1.0, jacFlux.row(0), jacFlux.row(_nComp), subAlloc);
 
 				idx = 0;
@@ -1473,7 +1474,7 @@ int CSTRModel::residualImpl(const ParamType& t, unsigned int secIdx, const Param
 	return 0;
 }
 
-int CSTRModel::residual(const ActiveSimulationTime& simTime, const ConstSimulationState& simState, double* const res,
+int CSTRModel::residual(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res,
 	const AdJacobianParams& adJac, util::ThreadLocalStorage& threadLocalMem, bool updateJacobian, bool paramSensitivity)
 {
 	if (updateJacobian)
@@ -1485,7 +1486,7 @@ int CSTRModel::residual(const ActiveSimulationTime& simTime, const ConstSimulati
 		{
 			if (paramSensitivity)
 			{
-				const int retCode = residualImpl<double, active, active, true>(simTime.t, simTime.secIdx, simTime.timeFactor, simState.vecStateY, simState.vecStateYdot, adJac.adRes, threadLocalMem.get());
+				const int retCode = residualImpl<double, active, active, true>(simTime.t, simTime.secIdx, simState.vecStateY, simState.vecStateYdot, adJac.adRes, threadLocalMem.get());
 
 				// Copy AD residuals to original residuals vector
 				if (res)
@@ -1494,14 +1495,14 @@ int CSTRModel::residual(const ActiveSimulationTime& simTime, const ConstSimulati
 				return retCode;
 			}
 			else
-				return residualImpl<double, double, double, true>(static_cast<double>(simTime.t), simTime.secIdx, static_cast<double>(simTime.timeFactor), simState.vecStateY, simState.vecStateYdot, res, threadLocalMem.get());
+				return residualImpl<double, double, double, true>(simTime.t, simTime.secIdx, simState.vecStateY, simState.vecStateYdot, res, threadLocalMem.get());
 		}
 		else
 		{
 			// Compute Jacobian via AD
 
 			// Copy over state vector to AD state vector (without changing directional values to keep seed vectors)
-			// and initalize residuals with zero (also resetting directional values)
+			// and initialize residuals with zero (also resetting directional values)
 			ad::copyToAd(simState.vecStateY, adJac.adY, numDofs());
 			// @todo Check if this is necessary
 			ad::resetAd(adJac.adRes, numDofs());
@@ -1509,9 +1510,9 @@ int CSTRModel::residual(const ActiveSimulationTime& simTime, const ConstSimulati
 			// Evaluate with AD enabled
 			int retCode = 0;
 			if (paramSensitivity)
-				retCode = residualImpl<active, active, active, false>(simTime.t, simTime.secIdx, simTime.timeFactor, adJac.adY, simState.vecStateYdot, adJac.adRes, threadLocalMem.get());
+				retCode = residualImpl<active, active, active, false>(simTime.t, simTime.secIdx, adJac.adY, simState.vecStateYdot, adJac.adRes, threadLocalMem.get());
 			else
-				retCode = residualImpl<active, active, double, false>(static_cast<double>(simTime.t), simTime.secIdx, static_cast<double>(simTime.timeFactor), adJac.adY, simState.vecStateYdot, adJac.adRes, threadLocalMem.get());
+				retCode = residualImpl<active, active, double, false>(simTime.t, simTime.secIdx, adJac.adY, simState.vecStateYdot, adJac.adRes, threadLocalMem.get());
 
 			// Copy AD residuals to original residuals vector
 			if (res)
@@ -1526,7 +1527,7 @@ int CSTRModel::residual(const ActiveSimulationTime& simTime, const ConstSimulati
 		// Compute Jacobian via AD
 
 		// Copy over state vector to AD state vector (without changing directional values to keep seed vectors)
-		// and initalize residuals with zero (also resetting directional values)
+		// and initialize residuals with zero (also resetting directional values)
 		ad::copyToAd(simState.vecStateY, adJac.adY, numDofs());
 		// @todo Check if this is necessary
 		ad::resetAd(adJac.adRes, numDofs());
@@ -1534,15 +1535,15 @@ int CSTRModel::residual(const ActiveSimulationTime& simTime, const ConstSimulati
 		// Evaluate with AD enabled
 		int retCode = 0;
 		if (paramSensitivity)
-			retCode = residualImpl<active, active, active, false>(simTime.t, simTime.secIdx, simTime.timeFactor, adJac.adY, simState.vecStateYdot, adJac.adRes, threadLocalMem.get());
+			retCode = residualImpl<active, active, active, false>(simTime.t, simTime.secIdx, adJac.adY, simState.vecStateYdot, adJac.adRes, threadLocalMem.get());
 		else
-			retCode = residualImpl<active, active, double, false>(static_cast<double>(simTime.t), simTime.secIdx, static_cast<double>(simTime.timeFactor), adJac.adY, simState.vecStateYdot, adJac.adRes, threadLocalMem.get());
+			retCode = residualImpl<active, active, double, false>(simTime.t, simTime.secIdx, adJac.adY, simState.vecStateYdot, adJac.adRes, threadLocalMem.get());
 
 		// Only do comparison if we have a residuals vector (which is not always the case)
 		if (res)
 		{
 			// Evaluate with analytical Jacobian which is stored in the band matrices
-			retCode = residualImpl<double, double, double, true>(static_cast<double>(simTime.t), simTime.secIdx, static_cast<double>(simTime.timeFactor), simState.vecStateY, simState.vecStateYdot, res, threadLocalMem.get());
+			retCode = residualImpl<double, double, double, true>(simTime.t, simTime.secIdx, simState.vecStateY, simState.vecStateYdot, res, threadLocalMem.get());
 
 			// Compare AD with anaytic Jacobian
 			checkAnalyticJacobianAgainstAd(adJac.adRes, adJac.adDirOffset);
@@ -1558,11 +1559,11 @@ int CSTRModel::residual(const ActiveSimulationTime& simTime, const ConstSimulati
 	{
 		if (paramSensitivity)
 		{
-			// Initalize residuals with zero
+			// initialize residuals with zero
 			// @todo Check if this is necessary
 			ad::resetAd(adJac.adRes, numDofs());
 
-			const int retCode = residualImpl<double, active, active, false>(simTime.t, simTime.secIdx, simTime.timeFactor, simState.vecStateY, simState.vecStateYdot, adJac.adRes, threadLocalMem.get());
+			const int retCode = residualImpl<double, active, active, false>(simTime.t, simTime.secIdx, simState.vecStateY, simState.vecStateYdot, adJac.adRes, threadLocalMem.get());
 
 			// Copy AD residuals to original residuals vector
 			if (res)
@@ -1571,22 +1572,22 @@ int CSTRModel::residual(const ActiveSimulationTime& simTime, const ConstSimulati
 			return retCode;
 		}
 		else
-			return residualImpl<double, double, double, false>(static_cast<double>(simTime.t), simTime.secIdx, static_cast<double>(simTime.timeFactor), simState.vecStateY, simState.vecStateYdot, res, threadLocalMem.get());
+			return residualImpl<double, double, double, false>(simTime.t, simTime.secIdx, simState.vecStateY, simState.vecStateYdot, res, threadLocalMem.get());
 	}
 }
 
-int CSTRModel::residualWithJacobian(const ActiveSimulationTime& simTime, const ConstSimulationState& simState, double* const res, const AdJacobianParams& adJac, util::ThreadLocalStorage& threadLocalMem)
+int CSTRModel::residualWithJacobian(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res, const AdJacobianParams& adJac, util::ThreadLocalStorage& threadLocalMem)
 {
 	return residual(simTime, simState, res, adJac, threadLocalMem, true, false);
 }
 
-int CSTRModel::residualSensFwdAdOnly(const ActiveSimulationTime& simTime, const ConstSimulationState& simState, active* const adRes, util::ThreadLocalStorage& threadLocalMem)
+int CSTRModel::residualSensFwdAdOnly(const SimulationTime& simTime, const ConstSimulationState& simState, active* const adRes, util::ThreadLocalStorage& threadLocalMem)
 {
 	// Evaluate residual for all parameters using AD in vector mode
-	return residualImpl<double, active, active, false>(simTime.t, simTime.secIdx, simTime.timeFactor, simState.vecStateY, simState.vecStateYdot, adRes, threadLocalMem.get());
+	return residualImpl<double, active, active, false>(simTime.t, simTime.secIdx, simState.vecStateY, simState.vecStateYdot, adRes, threadLocalMem.get());
 }
 
-int CSTRModel::residualSensFwdWithJacobian(const ActiveSimulationTime& simTime, const ConstSimulationState& simState, const AdJacobianParams& adJac, util::ThreadLocalStorage& threadLocalMem)
+int CSTRModel::residualSensFwdWithJacobian(const SimulationTime& simTime, const ConstSimulationState& simState, const AdJacobianParams& adJac, util::ThreadLocalStorage& threadLocalMem)
 {
 	// Evaluate residual for all parameters using AD in vector mode and at the same time update the 
 	// Jacobian (in one AD run, if analytic Jacobians are disabled)
@@ -1603,7 +1604,7 @@ void CSTRModel::initializeSensitivityStates(const std::vector<double*>& vecSensY
 	}
 }
 
-void CSTRModel::consistentInitialSensitivity(const ActiveSimulationTime& simTime, const ConstSimulationState& simState,
+void CSTRModel::consistentInitialSensitivity(const SimulationTime& simTime, const ConstSimulationState& simState,
 	std::vector<double*>& vecSensY, std::vector<double*>& vecSensYdot, active const* const adRes, util::ThreadLocalStorage& threadLocalMem)
 {
 	// TODO: Handle v = 0
@@ -1685,13 +1686,13 @@ void CSTRModel::consistentInitialSensitivity(const ActiveSimulationTime& simTime
 		// Step 2a: Assemble, factorize, and solve diagonal blocks of linear system
 
 		// Compute right hand side by adding -dF / dy * s = -J * s to -dF / dp which is already stored in sensYdot
-		multiplyWithJacobian(toSimple(simTime), simState, sensY, -1.0, 1.0, sensYdot);
+		multiplyWithJacobian(simTime, simState, sensY, -1.0, 1.0, sensYdot);
 
 		// Note that we have correctly negated the right hand side
 
 		// Assemble dF / dYdot
 		_jacFact.setAll(0.0);
-		addTimeDerivativeJacobian(static_cast<double>(simTime.t), static_cast<double>(simTime.timeFactor), simState, _jacFact);
+		addTimeDerivativeJacobian(simTime.t, 1.0, simState, _jacFact);
 
 		// Overwrite rows corresponding to algebraic equations with the Jacobian and set right hand side to 0
 		for (unsigned int type = 0; type < _nParType; ++type)
@@ -1763,7 +1764,7 @@ void CSTRModel::multiplyWithDerivativeJacobian(const SimulationTime& simTime, co
 	double const* const q = simState.vecStateY + 2 * _nComp;
 	const double v = simState.vecStateY[2 * _nComp + _totalBound];
 	const double invBeta = 1.0 / static_cast<double>(_porosity) - 1.0;
-	const double timeV = simTime.timeFactor * v;
+	const double timeV = v;
 	const double vInvBeta = timeV * invBeta;
 	double* const r = ret + _nComp;
 	double const* const s = sDot + _nComp;
@@ -1793,7 +1794,7 @@ void CSTRModel::multiplyWithDerivativeJacobian(const SimulationTime& simTime, co
 
 			qSum += static_cast<double>(_parTypeVolFrac[type]) * qSumType;
 		}
-		r[i] += simTime.timeFactor * (c[i] + invBeta * qSum) * s[_nComp + _totalBound];
+		r[i] += (c[i] + invBeta * qSum) * s[_nComp + _totalBound];
 	}
 
 	// Bound states
@@ -1816,15 +1817,15 @@ void CSTRModel::multiplyWithDerivativeJacobian(const SimulationTime& simTime, co
 			if (qsReaction[idx])
 				continue;
 
-			rQ[idx] = simTime.timeFactor * sQ[idx];
+			rQ[idx] = sQ[idx];
 		}
 	}
 
 	// Volume: \dot{V} - F_{in} + F_{out} + F_{filter} == 0
-	r[_nComp + _totalBound] = simTime.timeFactor * s[_nComp + _totalBound];
+	r[_nComp + _totalBound] = s[_nComp + _totalBound];
 }
 
-int CSTRModel::linearSolve(double t, double timeFactor, double alpha, double tol, double* const rhs, double const* const weight,
+int CSTRModel::linearSolve(double t, double alpha, double tol, double* const rhs, double const* const weight,
 	const ConstSimulationState& simState)
 {
 	const double flowIn = static_cast<double>(_flowRateIn);
@@ -1842,7 +1843,7 @@ int CSTRModel::linearSolve(double t, double timeFactor, double alpha, double tol
 		_factorizeJac = false;
 		_jacFact.copyFrom(_jac);
 
-		addTimeDerivativeJacobian(t, timeFactor * alpha, simState, _jacFact);
+		addTimeDerivativeJacobian(t, alpha, simState, _jacFact);
 		success = _jacFact.factorize();
 	}
 	success = success && _jacFact.solve(rhs + _nComp);
@@ -1852,13 +1853,13 @@ int CSTRModel::linearSolve(double t, double timeFactor, double alpha, double tol
 }
 
 template <typename MatrixType>
-void CSTRModel::addTimeDerivativeJacobian(double t, double timeFactor, const ConstSimulationState& simState, MatrixType& mat)
+void CSTRModel::addTimeDerivativeJacobian(double t, double alpha, const ConstSimulationState& simState, MatrixType& mat)
 {
 	double const* const c = simState.vecStateY + _nComp;
 	double const* const q = simState.vecStateY + 2 * _nComp;
 	const double v = simState.vecStateY[2 * _nComp + _totalBound];
 	const double invBeta = 1.0 / static_cast<double>(_porosity) - 1.0;
-	const double timeV = timeFactor * v;
+	const double timeV = v * alpha;
 	const double vInvBeta = timeV * invBeta;
 
 	// Assemble Jacobian: dRes / dyDot
@@ -1888,7 +1889,7 @@ void CSTRModel::addTimeDerivativeJacobian(double t, double timeFactor, const Con
 
 			qSum += static_cast<double>(_parTypeVolFrac[type]) * qSumType;
 		}
-		mat.native(i, _nComp + _totalBound) += timeFactor * (c[i] + invBeta * qSum);
+		mat.native(i, _nComp + _totalBound) += alpha * (c[i] + invBeta * qSum);
 	}
 
 	// Bound states
@@ -1910,12 +1911,12 @@ void CSTRModel::addTimeDerivativeJacobian(double t, double timeFactor, const Con
 			if (qsReaction[idx])
 				continue;
 
-			mat.native(globalIdx, globalIdx) += timeFactor;
+			mat.native(globalIdx, globalIdx) += alpha;
 		}
 	}
 
 	// Volume: \dot{V} - F_{in} + F_{out} + F_{filter} == 0
-	mat.native(_nComp + _totalBound, _nComp + _totalBound) += timeFactor;
+	mat.native(_nComp + _totalBound, _nComp + _totalBound) += alpha;
 }
 
 /**

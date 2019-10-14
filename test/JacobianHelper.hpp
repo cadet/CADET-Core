@@ -127,8 +127,8 @@ inline void compareJacobian(const std::function<void(double const*, double*)> mu
 inline void compareJacobian(cadet::IUnitOperation* modelA, cadet::IUnitOperation* modelB, double const* y, double const* yDot, double* dir, double* colA, double* colB, double absTol, double relTol)
 {
 	compareJacobian(
-		[=](double const* lDir, double* res) -> void { modelA->multiplyWithJacobian(SimulationTime{0.0, 0u, 1.0}, ConstSimulationState{y, yDot}, lDir, 1.0, 0.0, res); },
-		[=](double const* lDir, double* res) -> void { modelB->multiplyWithJacobian(SimulationTime{0.0, 0u, 1.0}, ConstSimulationState{y, yDot}, lDir, 1.0, 0.0, res); },
+		[=](double const* lDir, double* res) -> void { modelA->multiplyWithJacobian(SimulationTime{0.0, 0u}, ConstSimulationState{y, yDot}, lDir, 1.0, 0.0, res); },
+		[=](double const* lDir, double* res) -> void { modelB->multiplyWithJacobian(SimulationTime{0.0, 0u}, ConstSimulationState{y, yDot}, lDir, 1.0, 0.0, res); },
 		dir, colA, colB, modelA->numDofs(), modelA->numDofs(), absTol, relTol
 		);
 }
@@ -349,8 +349,8 @@ inline void compareJacobianFD(cadet::IUnitOperation* modelA, cadet::IUnitOperati
 	double h = 1e-6, double absTol = 0.0, double relTol = std::numeric_limits<float>::epsilon() * 100.0)
 {
 	compareJacobianFD(
-		[=, &tls](double const* lDir, double* res) -> void { modelA->residual(SimulationTime{0.0, 0u, 1.0}, ConstSimulationState{lDir, yDot}, res, tls); }, 
-		[=](double const* lDir, double* res) -> void { modelB->multiplyWithJacobian(SimulationTime{0.0, 0u, 1.0}, ConstSimulationState{y, yDot}, lDir, 1.0, 0.0, res); }, 
+		[=, &tls](double const* lDir, double* res) -> void { modelA->residual(SimulationTime{0.0, 0u}, ConstSimulationState{lDir, yDot}, res, tls); }, 
+		[=](double const* lDir, double* res) -> void { modelB->multiplyWithJacobian(SimulationTime{0.0, 0u}, ConstSimulationState{y, yDot}, lDir, 1.0, 0.0, res); }, 
 		y, dir, colA, colB, modelA->numDofs(), modelA->numDofs(), h, absTol, relTol);
 }
 
@@ -452,8 +452,8 @@ inline void checkJacobianPatternFD(const std::function<void(double const*, doubl
 inline void checkJacobianPatternFD(cadet::IUnitOperation* modelA, cadet::IUnitOperation* modelB, double const* y, double const* yDot, double* dir, double* colA, double* colB, cadet::util::ThreadLocalStorage& tls)
 {
 	checkJacobianPatternFD(
-		[=, &tls](double const* lDir, double* res) -> void { modelA->residual(SimulationTime{0.0, 0u, 1.0}, ConstSimulationState{lDir, yDot}, res, tls); },
-		[=](double const* lDir, double* res) -> void { modelB->multiplyWithJacobian(SimulationTime{0.0, 0u, 1.0}, ConstSimulationState{y, yDot}, lDir, 1.0, 0.0, res); },
+		[=, &tls](double const* lDir, double* res) -> void { modelA->residual(SimulationTime{0.0, 0u}, ConstSimulationState{lDir, yDot}, res, tls); },
+		[=](double const* lDir, double* res) -> void { modelB->multiplyWithJacobian(SimulationTime{0.0, 0u}, ConstSimulationState{y, yDot}, lDir, 1.0, 0.0, res); },
 		y, dir, colA, colB, modelA->numDofs(), modelA->numDofs());
 }
 
@@ -476,8 +476,8 @@ inline void compareTimeDerivativeJacobian(cadet::IUnitOperation* modelA, cadet::
 	{
 		dir[col] = 1.0;
 
-		modelA->multiplyWithDerivativeJacobian(SimulationTime{0.0, 0u, 1.0}, ConstSimulationState{y, yDot}, dir, colA);
-		modelB->multiplyWithDerivativeJacobian(SimulationTime{0.0, 0u, 1.0}, ConstSimulationState{y, yDot}, dir, colB);
+		modelA->multiplyWithDerivativeJacobian(SimulationTime{0.0, 0u}, ConstSimulationState{y, yDot}, dir, colA);
+		modelB->multiplyWithDerivativeJacobian(SimulationTime{0.0, 0u}, ConstSimulationState{y, yDot}, dir, colB);
 
 		for (unsigned int row = 0; row < n; ++row)
 		{
@@ -511,8 +511,8 @@ inline void compareTimeDerivativeJacobianFD(cadet::IUnitOperation* modelA, cadet
 	cadet::util::ThreadLocalStorage& tls, double h = 1e-6, double absTol = 0.0, double relTol = std::numeric_limits<float>::epsilon() * 100.0)
 {
 	compareJacobianFD(
-		[=, &tls](double const* lDir, double* res) -> void { modelA->residual(SimulationTime{0.0, 0u, 1.0}, ConstSimulationState{y, lDir}, res, tls); }, 
-		[=](double const* lDir, double* res) -> void { modelB->multiplyWithDerivativeJacobian(SimulationTime{0.0, 0u, 1.0}, ConstSimulationState{y, yDot}, lDir, res); }, 
+		[=, &tls](double const* lDir, double* res) -> void { modelA->residual(SimulationTime{0.0, 0u}, ConstSimulationState{y, lDir}, res, tls); }, 
+		[=](double const* lDir, double* res) -> void { modelB->multiplyWithDerivativeJacobian(SimulationTime{0.0, 0u}, ConstSimulationState{y, yDot}, lDir, res); }, 
 		yDot, dir, colA, colB, modelA->numDofs(), modelA->numDofs(), h, absTol, relTol);
 }
 

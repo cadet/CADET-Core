@@ -214,20 +214,20 @@ unsigned int InletModel::numSensParams() const
 	return _sensParamsInlet.size();
 }
 
-template<> double const* InletModel::moveInletValues(double const* const rawValues, const active& t, unsigned int secIdx) const
+template<> double const* InletModel::moveInletValues(double const* const rawValues, double t, unsigned int secIdx) const
 {
 	// No parameter derivatives required, return raw values
 	return rawValues;
 }
 
-template<> active const* InletModel::moveInletValues(double const* const rawValues, const active& t, unsigned int secIdx) const
+template<> active const* InletModel::moveInletValues(double const* const rawValues, double t, unsigned int secIdx) const
 {
 	// Convert to active
 	for (unsigned int i = 0; i < _nComp; ++i)
 		_inletConcentrations[i] = rawValues[i];
 
 	// Get time derivative
-	_inlet->timeDerivative(static_cast<double>(t), secIdx, _inletDerivatives + _nComp);
+//	_inlet->timeDerivative(t, secIdx, _inletDerivatives + _nComp);
 //	LOG(Debug) << "dInlet / dt = " << cadet::log::VectorPtr<double>(_inletDerivatives + _nComp, _nComp); 
 
 	// Retrieve parameter derivatives
@@ -235,14 +235,13 @@ template<> active const* InletModel::moveInletValues(double const* const rawValu
 	{
 		const unsigned int adDir = std::get<0>(sp.second);
 		const double adValue = std::get<1>(sp.second);
-		const double tAdVal = t.getADValue(adDir);
 
-		_inlet->parameterDerivative(static_cast<double>(t), secIdx, sp.first, _inletDerivatives);
+		_inlet->parameterDerivative(t, secIdx, sp.first, _inletDerivatives);
 //		LOG(Debug) << "dInlet / dp = " << cadet::log::VectorPtr<double>(_inletDerivatives, _nComp); 
 
 		// Copy derivatives into AD datatypes
 		for (unsigned int i = 0; i < _nComp; ++i)
-			_inletConcentrations[i].setADValue(adDir, _inletConcentrations[i].getADValue(adDir) + _inletDerivatives[i] * adValue + _inletDerivatives[_nComp + i] * tAdVal);
+			_inletConcentrations[i].setADValue(adDir, _inletConcentrations[i].getADValue(adDir) + _inletDerivatives[i] * adValue);
 
 //		LOG(Debug) << "totalInlet " << adDir << " " << cadet::log::VectorPtr<cadet::active>(_inletConcentrations, _nComp);
 	}
@@ -289,37 +288,37 @@ void InletModel::readInitialCondition(IParameterProvider& paramProvider) { }
 
 void InletModel::consistentInitialState(const SimulationTime& simTime, double* const vecStateY, const AdJacobianParams& adJac, double errorTol, util::ThreadLocalStorage& threadLocalMem)
 { 
-	_inlet->inletConcentration(static_cast<double>(simTime.t), simTime.secIdx, _inletConcentrationsRaw);
+	_inlet->inletConcentration(simTime.t, simTime.secIdx, _inletConcentrationsRaw);
 	std::copy_n(_inletConcentrationsRaw, _nComp, vecStateY);
 }
 
 void InletModel::leanConsistentInitialState(const SimulationTime& simTime, double* const vecStateY, const AdJacobianParams& adJac, double errorTol, util::ThreadLocalStorage& threadLocalMem)
 {
 	consistentInitialState(simTime, vecStateY, adJac, errorTol, threadLocalMem);
-	_inlet->timeDerivative(static_cast<double>(simTime.t), simTime.secIdx, _inletDerivatives);
+	_inlet->timeDerivative(simTime.t, simTime.secIdx, _inletDerivatives);
 }
 
 void InletModel::consistentInitialTimeDerivative(const SimulationTime& simTime, double const* vecStateY, double* const vecStateYdot, util::ThreadLocalStorage& threadLocalMem)
 { 
-	_inlet->timeDerivative(static_cast<double>(simTime.t), simTime.secIdx, _inletDerivatives);
+	_inlet->timeDerivative(simTime.t, simTime.secIdx, _inletDerivatives);
 	std::copy_n(_inletDerivatives, _nComp, vecStateYdot);
 }
 
-void InletModel::leanConsistentInitialTimeDerivative(double t, double timeFactor, double const* const vecStateY, double* const vecStateYdot, double* const res, util::ThreadLocalStorage& threadLocalMem)
+void InletModel::leanConsistentInitialTimeDerivative(double t, double const* const vecStateY, double* const vecStateYdot, double* const res, util::ThreadLocalStorage& threadLocalMem)
 {
 	std::copy_n(_inletDerivatives, _nComp, vecStateYdot);
 }
 
 int InletModel::residual(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res, util::ThreadLocalStorage& threadLocalMem)
 {
-	return residualImpl<double, double>(static_cast<double>(simTime.t), simTime.secIdx, static_cast<double>(simTime.timeFactor), simState, res, threadLocalMem);
+	return residualImpl<double, double>(simTime.t, simTime.secIdx, simState, res, threadLocalMem);
 }
 
 template <typename ResidualType, typename ParamType>
-int InletModel::residualImpl(const ParamType& t, unsigned int secIdx, const ParamType& timeFactor, const ConstSimulationState& simState, ResidualType* const res, util::ThreadLocalStorage& threadLocalMem)
+int InletModel::residualImpl(double t, unsigned int secIdx, const ConstSimulationState& simState, ResidualType* const res, util::ThreadLocalStorage& threadLocalMem)
 {
 	// Evaluate the user-specified function for the inlet concentration
-	_inlet->inletConcentration(static_cast<double>(t), secIdx, _inletConcentrationsRaw);
+	_inlet->inletConcentration(t, secIdx, _inletConcentrationsRaw);
 
 	// Copy inlet concentrations over to active types if necessary
 	moveInletValues<ResidualType>(_inletConcentrationsRaw, t, secIdx);
@@ -333,18 +332,18 @@ int InletModel::residualImpl(const ParamType& t, unsigned int secIdx, const Para
 	return 0;
 }
 
-int InletModel::residualWithJacobian(const ActiveSimulationTime& simTime, const ConstSimulationState& simState, double* const res, const AdJacobianParams& adJac, util::ThreadLocalStorage& threadLocalMem)
+int InletModel::residualWithJacobian(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res, const AdJacobianParams& adJac, util::ThreadLocalStorage& threadLocalMem)
 {
-	return residualImpl<double, double>(static_cast<double>(simTime.t), simTime.secIdx, static_cast<double>(simTime.timeFactor), simState, res, threadLocalMem);
+	return residualImpl<double, double>(simTime.t, simTime.secIdx, simState, res, threadLocalMem);
 }
 
-int InletModel::residualSensFwdAdOnly(const ActiveSimulationTime& simTime, const ConstSimulationState& simState, active* const adRes, util::ThreadLocalStorage& threadLocalMem)
+int InletModel::residualSensFwdAdOnly(const SimulationTime& simTime, const ConstSimulationState& simState, active* const adRes, util::ThreadLocalStorage& threadLocalMem)
 {
 	// Evaluate residual for all parameters using AD in vector mode
-	return residualImpl<active, active>(simTime.t, simTime.secIdx, simTime.timeFactor, simState, adRes, threadLocalMem);
+	return residualImpl<active, active>(simTime.t, simTime.secIdx, simState, adRes, threadLocalMem);
 }
 
-int InletModel::residualSensFwdCombine(const ActiveSimulationTime& simTime, const ConstSimulationState& simState, 
+int InletModel::residualSensFwdCombine(const SimulationTime& simTime, const ConstSimulationState& simState, 
 	const std::vector<const double*>& yS, const std::vector<const double*>& ySdot, const std::vector<double*>& resS, active const* adRes, 
 	double* const tmp1, double* const tmp2, double* const tmp3)
 {
@@ -360,10 +359,10 @@ int InletModel::residualSensFwdCombine(const ActiveSimulationTime& simTime, cons
 	return 0;
 }
 
-int InletModel::residualSensFwdWithJacobian(const ActiveSimulationTime& simTime, const ConstSimulationState& simState, const AdJacobianParams& adJac, util::ThreadLocalStorage& threadLocalMem)
+int InletModel::residualSensFwdWithJacobian(const SimulationTime& simTime, const ConstSimulationState& simState, const AdJacobianParams& adJac, util::ThreadLocalStorage& threadLocalMem)
 {
 	// Evaluate residual for all parameters using AD in vector mode, Jacobian is always analytic (identity matrix)
-	return residualImpl<active, active>(simTime.t, simTime.secIdx, simTime.timeFactor, simState, adJac.adRes, threadLocalMem);
+	return residualImpl<active, active>(simTime.t, simTime.secIdx, simState, adJac.adRes, threadLocalMem);
 }
 
 void InletModel::initializeSensitivityStates(const std::vector<double*>& vecSensY) const
@@ -371,7 +370,7 @@ void InletModel::initializeSensitivityStates(const std::vector<double*>& vecSens
 	// The work is actually done in consistentInitialSensitivity()
 }
 
-void InletModel::consistentInitialSensitivity(const ActiveSimulationTime& simTime, const ConstSimulationState& simState,
+void InletModel::consistentInitialSensitivity(const SimulationTime& simTime, const ConstSimulationState& simState,
 	std::vector<double*>& vecSensY, std::vector<double*>& vecSensYdot, active const* const adRes, util::ThreadLocalStorage& threadLocalMem)
 {
 	for (unsigned int param = 0; param < vecSensY.size(); ++param)
@@ -388,7 +387,7 @@ void InletModel::consistentInitialSensitivity(const ActiveSimulationTime& simTim
 		const unsigned int adDir = std::get<0>(sp.second);
 		const double adValue = std::get<1>(sp.second);
 
-		_inlet->timeParameterDerivative(static_cast<double>(simTime.t), simTime.secIdx, sp.first, _inletDerivatives);
+		_inlet->timeParameterDerivative(simTime.t, simTime.secIdx, sp.first, _inletDerivatives);
 
 		// Copy derivatives into vecSensYdot
 		for (unsigned int i = 0; i < _nComp; ++i)
@@ -398,7 +397,7 @@ void InletModel::consistentInitialSensitivity(const ActiveSimulationTime& simTim
 	}
 }
 
-void InletModel::leanConsistentInitialSensitivity(const ActiveSimulationTime& simTime, const ConstSimulationState& simState,
+void InletModel::leanConsistentInitialSensitivity(const SimulationTime& simTime, const ConstSimulationState& simState,
 	std::vector<double*>& vecSensY, std::vector<double*>& vecSensYdot, active const* const adRes, util::ThreadLocalStorage& threadLocalMem)
 {
 	consistentInitialSensitivity(simTime, simState, vecSensY, vecSensYdot, adRes, threadLocalMem);

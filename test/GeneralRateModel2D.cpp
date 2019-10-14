@@ -230,7 +230,7 @@ TEST_CASE("GRM2D with 1 radial zone matches GRM", "[GRM],[GRM2D],[UnitOp],[Jacob
 	cadet::test::util::populate(yDot.data(), [=](unsigned int idx) { return std::abs(std::sin((idx + nDof) * 0.13)) + 1e-4; }, nDof);
 
 	// Compute Jacobian
-	const cadet::ActiveSimulationTime simTime{0.0, 0u, 1.0};
+	const cadet::SimulationTime simTime{0.0, 0u};
 	const cadet::ConstSimulationState simState{y.data(), yDot.data()};
 	grm->residualWithJacobian(simTime, simState, jacCol1.data(), noAdParams, tls);
 	grm2d->residualWithJacobian(simTime, simState, jacCol2.data(), noAdParams, tls);
@@ -249,8 +249,8 @@ TEST_CASE("GRM2D with 1 radial zone matches GRM", "[GRM],[GRM2D],[UnitOp],[Jacob
 	std::copy(jacCol1.begin(), jacCol1.end(), jacCol2.begin());
 	std::fill(jacDir.begin(), jacDir.end(), 1.0);
 
-	REQUIRE(grm->linearSolve(0.0, 1.0, 1.0, 0.33, jacCol1.data(), jacDir.data(), simState) == 0);
-	REQUIRE(grm2d->linearSolve(0.0, 1.0, 1.0, 0.33, jacCol2.data(), jacDir.data(), simState) == 0);
+	REQUIRE(grm->linearSolve(0.0, 1.0, 0.33, jacCol1.data(), jacDir.data(), simState) == 0);
+	REQUIRE(grm2d->linearSolve(0.0, 1.0, 0.33, jacCol2.data(), jacDir.data(), simState) == 0);
 
 	for (unsigned int i = 0; i < nDof; ++i)
 	{

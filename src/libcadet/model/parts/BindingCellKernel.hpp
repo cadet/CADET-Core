@@ -41,25 +41,25 @@ namespace cell
 namespace
 {
 	template <typename KernelParamsType>
-	void bindingFlux(double t, unsigned int secIdx, const ColumnPosition& colPos, active const* y, active* res, const KernelParamsType& params, LinearBufferAllocator buffer, const active&)
+	void bindingFlux(double t, unsigned int secIdx, const ColumnPosition& colPos, active const* y, active* res, const KernelParamsType& params, LinearBufferAllocator buffer, WithParamSensitivity)
 	{
 		params.binding->flux(t, secIdx, colPos, y, y - params.nComp, res, buffer, WithParamSensitivity());
 	}
 
 	template <typename KernelParamsType>
-	void bindingFlux(double t, unsigned int secIdx, const ColumnPosition& colPos, active const* y, active* res, const KernelParamsType& params, LinearBufferAllocator buffer, double)
+	void bindingFlux(double t, unsigned int secIdx, const ColumnPosition& colPos, active const* y, active* res, const KernelParamsType& params, LinearBufferAllocator buffer, WithoutParamSensitivity)
 	{
 		params.binding->flux(t, secIdx, colPos, y, y - params.nComp, res, buffer, WithoutParamSensitivity());
 	}
 
 	template <typename KernelParamsType>
-	void bindingFlux(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, active* res, const KernelParamsType& params, LinearBufferAllocator buffer, const active&)
+	void bindingFlux(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, active* res, const KernelParamsType& params, LinearBufferAllocator buffer, WithParamSensitivity)
 	{
 		params.binding->flux(t, secIdx, colPos, y, y - params.nComp, res, buffer);
 	}
 
 	template <typename KernelParamsType>
-	void bindingFlux(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, double* res, const KernelParamsType& params, LinearBufferAllocator buffer, double)
+	void bindingFlux(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, double* res, const KernelParamsType& params, LinearBufferAllocator buffer, WithoutParamSensitivity)
 	{
 		params.binding->flux(t, secIdx, colPos, y, y - params.nComp, res, buffer);
 	}
@@ -79,7 +79,7 @@ struct CellParameters
 };
 
 template <typename StateType, typename ResidualType, typename ParamType, typename KernelParamsType, typename RowIteratorType, bool wantJac, bool handleMobilePhaseDerivative>
-void residualKernel(double t, unsigned int secIdx, const ParamType& timeFactor, const ColumnPosition& colPos, StateType const* y,
+void residualKernel(double t, unsigned int secIdx, const ColumnPosition& colPos, StateType const* y,
 	double const* yDot, ResidualType* res, RowIteratorType jacBase, const KernelParamsType& params, LinearBufferAllocator buffer)
 {
 	// Mobile phase
@@ -98,20 +98,21 @@ void residualKernel(double t, unsigned int secIdx, const ParamType& timeFactor, 
 			// Compute the sum in the brackets first, then divide by beta_p and add dc_p / dt
 
 			// Sum dq_comp^1 / dt + dq_comp^2 / dt + ... + dq_comp^{N_comp} / dt
+			double dqSum = 0.0;
 			for (unsigned int i = 0; i < params.nBound[comp]; ++i)
 			{
 				// Index explanation:
 				//   + nComp skip to solid phase
 				//   + boundOffset[comp] jump to component (skips all bound states of previous components)
 				//   + i go to current bound state
-				*res += yDot[params.nComp + params.boundOffset[comp] + i];
+				dqSum += yDot[params.nComp + params.boundOffset[comp] + i];
 			}
 
 			// Divide by beta_p and add dcp_i / dt
 			if (handleMobilePhaseDerivative)
-				*res = timeFactor * (yDot[comp] + invBetaP * res[0]);
+				*res = (yDot[comp] + invBetaP * dqSum);
 			else
-				*res = timeFactor * invBetaP * res[0];
+				*res += invBetaP * dqSum;
 		}
 	}
 	else
@@ -124,7 +125,7 @@ void residualKernel(double t, unsigned int secIdx, const ParamType& timeFactor, 
 	// Solid phase
 
 	// Binding
-	bindingFlux(t, secIdx, colPos, y, res, params, buffer, timeFactor);
+	bindingFlux(t, secIdx, colPos, y, res, params, buffer, typename ParamSens<ParamType>::enabled());
 	if (wantJac)
 	{
 		// static_cast should be sufficient here, but this statement is also analyzed when wantJac = false
@@ -143,7 +144,7 @@ void residualKernel(double t, unsigned int secIdx, const ParamType& timeFactor, 
 					continue;
 
 				// Add time derivative to solid phase
-				res[idx] += timeFactor * yDot[params.nComp + idx];
+				res[idx] += yDot[params.nComp + idx];
 			}
 		}
 	}

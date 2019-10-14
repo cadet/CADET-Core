@@ -25,6 +25,7 @@
 #include "linalg/DenseMatrix.hpp"
 #include "linalg/BandMatrix.hpp"
 #include "AutoDiff.hpp"
+#include "SimulationTypes.hpp"
 #include "Memory.hpp"
 
 namespace cadet
@@ -37,9 +38,6 @@ struct ColumnPosition;
 
 namespace model
 {
-
-struct WithParamSensitivity {};
-struct WithoutParamSensitivity {};
 
 /**
  * @brief Defines an internal BindingModel interface

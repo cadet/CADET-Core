@@ -192,7 +192,7 @@ TEST_CASE("CellKernel time derivative Jacobian analytic vs FD", "[CellKernel],[J
 				[=, &cbm, &colPos, &y, &params](double const* fx, double* fy)
 				{
 					cadet::linalg::DenseMatrix::RowIterator jac;
-					cadet::model::parts::cell::residualKernel<double, double, double, cadet::model::parts::cell::CellParameters, cadet::linalg::DenseMatrix::RowIterator, false, true>(0.0, 0u, 1.0, colPos, y.data(), fx, fy, jac, params, cbm.buffer());
+					cadet::model::parts::cell::residualKernel<double, double, double, cadet::model::parts::cell::CellParameters, cadet::linalg::DenseMatrix::RowIterator, false, true>(0.0, 0u, colPos, y.data(), fx, fy, jac, params, cbm.buffer());
 				},
 				[=, &cbm](double const* fx, double* fy)
 				{
@@ -271,7 +271,7 @@ TEST_CASE("CellKernel Jacobian analytic vs AD", "[CellKernel],[Jacobian],[AD]")
 
 			// Calculate Jacobian via AD
 			cadet::linalg::DenseMatrix::RowIterator jac;
-			cadet::model::parts::cell::residualKernel<cadet::active, cadet::active, double, cadet::model::parts::cell::CellParameters, cadet::linalg::DenseMatrix::RowIterator, false, true>(0.0, 0u, 1.0, colPos, adY, yDot.data(), adRes, jac, params, cbm.buffer());
+			cadet::model::parts::cell::residualKernel<cadet::active, cadet::active, double, cadet::model::parts::cell::CellParameters, cadet::linalg::DenseMatrix::RowIterator, false, true>(0.0, 0u, colPos, adY, yDot.data(), adRes, jac, params, cbm.buffer());
 			cadet::linalg::DenseMatrix matAd;
 			matAd.resize(nDof, nDof);
 			cadet::ad::extractDenseJacobianFromAd(adRes, 0u, matAd);
@@ -281,7 +281,7 @@ TEST_CASE("CellKernel Jacobian analytic vs AD", "[CellKernel],[Jacobian],[AD]")
 			cadet::linalg::DenseMatrix matAna;
 			matAna.resize(nDof, nDof);
 			jac = matAna.row(0);
-			cadet::model::parts::cell::residualKernel<double, double, double, cadet::model::parts::cell::CellParameters, cadet::linalg::DenseMatrix::RowIterator, true, true>(0.0, 0u, 1.0, colPos, y.data(), yDot.data(), res.data(), jac, params, cbm.buffer());
+			cadet::model::parts::cell::residualKernel<double, double, double, cadet::model::parts::cell::CellParameters, cadet::linalg::DenseMatrix::RowIterator, true, true>(0.0, 0u, colPos, y.data(), yDot.data(), res.data(), jac, params, cbm.buffer());
 
 			for (unsigned int i = 0; i < nDof; ++i)
 				CHECK(res[i] == static_cast<double>(adRes[i]));

@@ -449,7 +449,7 @@ namespace column
 			SECTION("Forward then backward flow (nonzero state)")
 			{
 				// Compute state Jacobian
-				const ActiveSimulationTime simTime{0.0, 0u, 1.0};
+				const SimulationTime simTime{0.0, 0u};
 				const ConstSimulationState simState{y.data(), nullptr};
 				cadet::util::ThreadLocalStorage tls;
 				tls.resize(unitAna->threadLocalMemorySize());
@@ -526,7 +526,7 @@ namespace column
 			SECTION("Forward then backward flow (nonzero state)")
 			{
 				// Compute state Jacobian
-				const ActiveSimulationTime simTime{0.0, 0u, 1.0};
+				const SimulationTime simTime{0.0, 0u};
 				const ConstSimulationState simState{y.data(), nullptr};
 				cadet::util::ThreadLocalStorage tls;
 				tls.resize(unit->threadLocalMemorySize());
@@ -637,14 +637,14 @@ namespace column
 //		util::populate(y.data(), [](unsigned int idx) { return 1.0; }, unitAna->numDofs());
 
 		// Compute state Jacobian
-		unitAna->residualWithJacobian(ActiveSimulationTime{0.0, 0u, 1.0}, ConstSimulationState{y.data(), nullptr}, jacDir.data(), AdJacobianParams{nullptr, nullptr, 0u}, tls);
-		unitFD->residualWithJacobian(ActiveSimulationTime{0.0, 0u, 1.0}, ConstSimulationState{y.data(), nullptr}, jacDir.data(), AdJacobianParams{nullptr, nullptr, 0u}, tls);
+		unitAna->residualWithJacobian(SimulationTime{0.0, 0u}, ConstSimulationState{y.data(), nullptr}, jacDir.data(), AdJacobianParams{nullptr, nullptr, 0u}, tls);
+		unitFD->residualWithJacobian(SimulationTime{0.0, 0u}, ConstSimulationState{y.data(), nullptr}, jacDir.data(), AdJacobianParams{nullptr, nullptr, 0u}, tls);
 		std::fill(jacDir.begin(), jacDir.end(), 0.0);
 
 		// Compare Jacobians
 		cadet::test::compareJacobianArrowHeadFD(
-			[=, &tls](double const* lDir, double* res) -> void { unitFD->residual(SimulationTime{0.0, 0u, 1.0}, ConstSimulationState{lDir, nullptr}, res, tls); }, 
-			[&](double const* lDir, double* res) -> void { unitAna->multiplyWithJacobian(SimulationTime{0.0, 0u, 1.0}, ConstSimulationState{y.data(), nullptr}, lDir, 1.0, 0.0, res); }, 
+			[=, &tls](double const* lDir, double* res) -> void { unitFD->residual(SimulationTime{0.0, 0u}, ConstSimulationState{lDir, nullptr}, res, tls); }, 
+			[&](double const* lDir, double* res) -> void { unitAna->multiplyWithJacobian(SimulationTime{0.0, 0u}, ConstSimulationState{y.data(), nullptr}, lDir, 1.0, 0.0, res); }, 
 			y.data(), jacDir.data(), jacCol1.data(), jacCol2.data(), unitFD->numDofs(), fluxOffset, h, absTol, relTol);
 
 		mb->destroyUnitOperation(unitAna);
@@ -705,19 +705,19 @@ namespace column
 				util::populate(yDot.data(), [=](unsigned int idx) { return std::abs(std::sin((idx + nDof) * 0.13)) + 1e-4; }, nDof);
 
 				// Calculate Jacobian
-				unit->residualWithJacobian(ActiveSimulationTime{0.0, 0u, 1.0}, ConstSimulationState{y.data(), yDot.data()}, jacDir.data(), adParams, tls);
+				unit->residualWithJacobian(SimulationTime{0.0, 0u}, ConstSimulationState{y.data(), yDot.data()}, jacDir.data(), adParams, tls);
 
 				// Calculate parameter derivative
-				unit->residualSensFwdAdOnly(ActiveSimulationTime{0.0, 0u, 1.0}, ConstSimulationState{y.data(), yDot.data()}, adRes, tls);
+				unit->residualSensFwdAdOnly(SimulationTime{0.0, 0u}, ConstSimulationState{y.data(), yDot.data()}, adRes, tls);
 
 				// Check state Jacobian
 				cadet::test::compareJacobianFD(
 					[&](double const* lDir, double* res) -> void {
 						yS[0] = lDir;
 						resS[0] = res;
-						unit->residualSensFwdCombine(ActiveSimulationTime{0.0, 0u, 1.0}, ConstSimulationState{y.data(), yDot.data()}, yS, ySdot, resS, adRes, temp1.data(), temp2.data(), temp3.data());
+						unit->residualSensFwdCombine(SimulationTime{0.0, 0u}, ConstSimulationState{y.data(), yDot.data()}, yS, ySdot, resS, adRes, temp1.data(), temp2.data(), temp3.data());
 					}, 
-					[&](double const* lDir, double* res) -> void { unit->multiplyWithJacobian(SimulationTime{0.0, 0u, 1.0}, ConstSimulationState{y.data(), yDot.data()}, lDir, 1.0, 0.0, res); }, 
+					[&](double const* lDir, double* res) -> void { unit->multiplyWithJacobian(SimulationTime{0.0, 0u}, ConstSimulationState{y.data(), yDot.data()}, lDir, 1.0, 0.0, res); }, 
 					zeros.data(), jacDir.data(), jacCol1.data(), jacCol2.data(), nDof, h, absTol, relTol);
 
 				// Reset evaluation point
@@ -729,9 +729,9 @@ namespace column
 					[&](double const* lDir, double* res) -> void {
 						ySdot[0] = lDir;
 						resS[0] = res;
-						unit->residualSensFwdCombine(ActiveSimulationTime{0.0, 0u, 1.0}, ConstSimulationState{y.data(), yDot.data()}, yS, ySdot, resS, adRes, temp1.data(), temp2.data(), temp3.data());
+						unit->residualSensFwdCombine(SimulationTime{0.0, 0u}, ConstSimulationState{y.data(), yDot.data()}, yS, ySdot, resS, adRes, temp1.data(), temp2.data(), temp3.data());
 					}, 
-					[&](double const* lDir, double* res) -> void { unit->multiplyWithDerivativeJacobian(SimulationTime{0.0, 0u, 1.0}, ConstSimulationState{y.data(), yDot.data()}, lDir, res); }, 
+					[&](double const* lDir, double* res) -> void { unit->multiplyWithDerivativeJacobian(SimulationTime{0.0, 0u}, ConstSimulationState{y.data(), yDot.data()}, lDir, res); }, 
 					zeros.data(), jacDir.data(), jacCol1.data(), jacCol2.data(), nDof, h, absTol, relTol);
 
 				delete[] adRes;

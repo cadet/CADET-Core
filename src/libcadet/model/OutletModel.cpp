@@ -162,7 +162,7 @@ int OutletModel::residual(const SimulationTime& simTime, const ConstSimulationSt
 	return 0;
 }
 
-int OutletModel::residualWithJacobian(const ActiveSimulationTime& simTime, const ConstSimulationState& simState, 
+int OutletModel::residualWithJacobian(const SimulationTime& simTime, const ConstSimulationState& simState, 
 	double* const res, const AdJacobianParams& adJac, util::ThreadLocalStorage& threadLocalMem)
 {
 	// Jacobian is always identity
@@ -170,7 +170,7 @@ int OutletModel::residualWithJacobian(const ActiveSimulationTime& simTime, const
 	return 0;
 }
 
-int OutletModel::residualSensFwdAdOnly(const ActiveSimulationTime& simTime, const ConstSimulationState& simState, active* const adRes, util::ThreadLocalStorage& threadLocalMem)
+int OutletModel::residualSensFwdAdOnly(const SimulationTime& simTime, const ConstSimulationState& simState, active* const adRes, util::ThreadLocalStorage& threadLocalMem)
 {
 	for (unsigned int i = 0; i < _nComp; ++i)
 		adRes[i] = simState.vecStateY[i];
@@ -178,7 +178,7 @@ int OutletModel::residualSensFwdAdOnly(const ActiveSimulationTime& simTime, cons
 	return 0;
 }
 
-int OutletModel::residualSensFwdCombine(const ActiveSimulationTime& simTime, const ConstSimulationState& simState, 
+int OutletModel::residualSensFwdCombine(const SimulationTime& simTime, const ConstSimulationState& simState, 
 	const std::vector<const double*>& yS, const std::vector<const double*>& ySdot, const std::vector<double*>& resS, active const* adRes, 
 	double* const tmp1, double* const tmp2, double* const tmp3)
 {
@@ -192,7 +192,7 @@ int OutletModel::residualSensFwdCombine(const ActiveSimulationTime& simTime, con
 	return 0;
 }
 
-int OutletModel::residualSensFwdWithJacobian(const ActiveSimulationTime& simTime, const ConstSimulationState& simState, const AdJacobianParams& adJac, util::ThreadLocalStorage& threadLocalMem)
+int OutletModel::residualSensFwdWithJacobian(const SimulationTime& simTime, const ConstSimulationState& simState, const AdJacobianParams& adJac, util::ThreadLocalStorage& threadLocalMem)
 {
 	for (unsigned int i = 0; i < _nComp; ++i)
 		adJac.adRes[i] = simState.vecStateY[i];
@@ -202,13 +202,13 @@ int OutletModel::residualSensFwdWithJacobian(const ActiveSimulationTime& simTime
 
 void OutletModel::initializeSensitivityStates(const std::vector<double*>& vecSensY) const { }
 
-void OutletModel::consistentInitialSensitivity(const ActiveSimulationTime& simTime, const ConstSimulationState& simState,
+void OutletModel::consistentInitialSensitivity(const SimulationTime& simTime, const ConstSimulationState& simState,
 	std::vector<double*>& vecSensY, std::vector<double*>& vecSensYdot, active const* const adRes, util::ThreadLocalStorage& threadLocalMem)
 {
 	// Nothing to do here as inlet DOFs are initialized by ModelSystem
 }
 
-void OutletModel::leanConsistentInitialSensitivity(const ActiveSimulationTime& simTime, const ConstSimulationState& simState,
+void OutletModel::leanConsistentInitialSensitivity(const SimulationTime& simTime, const ConstSimulationState& simState,
 	std::vector<double*>& vecSensY, std::vector<double*>& vecSensYdot, active const* const adRes, util::ThreadLocalStorage& threadLocalMem)
 {
 	// Nothing to do here as inlet DOFs are initialized by ModelSystem

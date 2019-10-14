@@ -73,10 +73,10 @@ namespace
 
 			// Central finite differences
 			y[nInletDof + col] = ref * (1.0 + h);
-			convDispOp.residual(0.0, 0u, 1.0, y, nullptr, jacCol1, false);
+			convDispOp.residual(0.0, 0u, y, nullptr, jacCol1, false, cadet::WithoutParamSensitivity());
 
 			y[nInletDof + col] = ref * (1.0 - h);
-			convDispOp.residual(0.0, 0u, 1.0, y, nullptr, jacCol2, false);
+			convDispOp.residual(0.0, 0u, y, nullptr, jacCol2, false, cadet::WithoutParamSensitivity());
 
 			y[nInletDof + col] = ref;
 
@@ -128,14 +128,14 @@ void testBulk2DJacobianWenoForwardBackward(int wenoOrder)
 			convDispOp.setFlowRates(i, 1e-2 * convDispOp.crossSection(i) * convDispOp.columnPorosity(i), 0.0);
 
 		convDispOp.notifyDiscontinuousSectionTransition(0.0, 0u);
-		convDispOp.residual(0.0, 0u, 1.0, y.data(), nullptr, jacCol1.data(), true);
+		convDispOp.residual(0.0, 0u, y.data(), nullptr, jacCol1.data(), true, cadet::WithoutParamSensitivity());
 
 		// Compare Jacobian pattern against FD
 		compareSparseJacobianAgainstFD(convDispOp, nInletDof, nPureDof, y.data(), jacCol1.data(), jacCol2.data(), h, relTol, absTol);
 
 		// Reverse flow
 		convDispOp.notifyDiscontinuousSectionTransition(0.0, 1u);
-		convDispOp.residual(0.0, 1u, 1.0, y.data(), nullptr, jacCol1.data(), true);
+		convDispOp.residual(0.0, 1u, y.data(), nullptr, jacCol1.data(), true, cadet::WithoutParamSensitivity());
 
 		// Compare Jacobian pattern against FD
 		compareSparseJacobianAgainstFD(convDispOp, nInletDof, nPureDof, y.data(), jacCol1.data(), jacCol2.data(), h, relTol, absTol);
@@ -170,7 +170,7 @@ void testBulk2DJacobianSparsityWeno(int wenoOrder, bool forwardFlow)
 			convDispOp.setFlowRates(i, 1e-2 * convDispOp.crossSection(i) * convDispOp.columnPorosity(i), 0.0);
 
 		convDispOp.notifyDiscontinuousSectionTransition(0.0, 0u);
-		convDispOp.residual(0.0, 0u, 1.0, y.data(), nullptr, jacCol1.data(), true);
+		convDispOp.residual(0.0, 0u, y.data(), nullptr, jacCol1.data(), true, cadet::WithoutParamSensitivity());
 
 		// Compare Jacobian pattern with FD
 		for (int col = 0; col < nPureDof; ++col)
@@ -179,10 +179,10 @@ void testBulk2DJacobianSparsityWeno(int wenoOrder, bool forwardFlow)
 
 			// Central finite differences
 			y[nInletDof + col] = ref * (1.0 + h);
-			convDispOp.residual(0.0, 0u, 1.0, y.data(), nullptr, jacCol1.data(), false);
+			convDispOp.residual(0.0, 0u, y.data(), nullptr, jacCol1.data(), false, cadet::WithoutParamSensitivity());
 
 			y[nInletDof + col] = ref * (1.0 - h);
-			convDispOp.residual(0.0, 0u, 1.0, y.data(), nullptr, jacCol2.data(), false);
+			convDispOp.residual(0.0, 0u, y.data(), nullptr, jacCol2.data(), false, cadet::WithoutParamSensitivity());
 
 			y[nInletDof + col] = ref;
 

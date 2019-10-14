@@ -23,6 +23,7 @@
 #include "Weno.hpp"
 #include "Stencil.hpp"
 #include "linalg/CompressedSparseMatrix.hpp"
+#include "SimulationTypes.hpp"
 
 namespace cadet
 {
@@ -35,14 +36,6 @@ namespace parts
 
 namespace convdisp
 {
-
-template <typename T>
-struct SimulationTime
-{
-	T t;
-	unsigned int secIdx;
-	T timeFactor;
-};
 
 template <typename T>
 struct FlowParameters
@@ -65,7 +58,7 @@ struct FlowParameters
 namespace impl
 {
 	template <typename StateType, typename ResidualType, typename ParamType, typename RowIteratorType, bool wantJac>
-	int residualForwardsFlow(const SimulationTime<ParamType>& simTime, StateType const* y, double const* yDot, ResidualType* res, RowIteratorType jacBegin, const FlowParameters<ParamType>& p)
+	int residualForwardsFlow(const SimulationTime& simTime, StateType const* y, double const* yDot, ResidualType* res, RowIteratorType jacBegin, const FlowParameters<ParamType>& p)
 	{
 		const ParamType h2 = p.h * p.h;
 
@@ -96,7 +89,7 @@ namespace impl
 			{
 				double const* const yDotBulkComp = yDot + p.offsetToBulk + comp;
 				for (unsigned int col = 0; col < p.nCol; ++col)
-					resBulkComp[col * p.strideCell] = simTime.timeFactor * yDotBulkComp[col * p.strideCell];
+					resBulkComp[col * p.strideCell] = yDotBulkComp[col * p.strideCell];
 			}
 			else
 			{
@@ -207,7 +200,7 @@ namespace impl
 	}
 
 	template <typename StateType, typename ResidualType, typename ParamType, typename RowIteratorType, bool wantJac>
-	int residualBackwardsFlow(const SimulationTime<ParamType>& simTime, StateType const* y, double const* yDot, ResidualType* res, RowIteratorType jacBegin, const FlowParameters<ParamType>& p)
+	int residualBackwardsFlow(const SimulationTime& simTime, StateType const* y, double const* yDot, ResidualType* res, RowIteratorType jacBegin, const FlowParameters<ParamType>& p)
 	{
 		const ParamType h2 = p.h * p.h;
 
@@ -238,7 +231,7 @@ namespace impl
 			{
 				double const* const yDotBulkComp = yDot + p.offsetToBulk + comp;
 				for (unsigned int col = 0; col < p.nCol; ++col)
-					resBulkComp[col * p.strideCell] = simTime.timeFactor * yDotBulkComp[col * p.strideCell];
+					resBulkComp[col * p.strideCell] = yDotBulkComp[col * p.strideCell];
 			}
 			else
 			{
@@ -361,7 +354,7 @@ namespace impl
 
 
 template <typename StateType, typename ResidualType, typename ParamType, typename RowIteratorType, bool wantJac>
-int residualKernel(const SimulationTime<ParamType>& simTime, StateType const* y, double const* yDot, ResidualType* res, RowIteratorType jacBegin, const FlowParameters<ParamType>& p)
+int residualKernel(const SimulationTime& simTime, StateType const* y, double const* yDot, ResidualType* res, RowIteratorType jacBegin, const FlowParameters<ParamType>& p)
 {
 	if (p.u >= 0.0)
 		return impl::residualForwardsFlow<StateType, ResidualType, ParamType, RowIteratorType, wantJac>(simTime, y, yDot, res, jacBegin, p);

@@ -101,7 +101,6 @@ namespace model
  *
  *
  * @param [in] t Current time point
- * @param [in] timeFactor Factor which is premultiplied to the time derivatives originating from time transformation
  * @param [in] alpha Value of \f$ \alpha \f$ (arises from BDF time discretization)
  * @param [in] outerTol Error tolerance for the solution of the linear system from outer Newton iteration
  * @param [in,out] rhs On entry the right hand side of the linear equation system, on exit the solution
@@ -109,7 +108,7 @@ namespace model
  * @param [in] simState State of the simulation (state vector and its time derivatives) at which the Jacobian is evaluated
  * @return @c 0 on success, @c -1 on non-recoverable error, and @c +1 on recoverable error
  */
-int GeneralRateModel::linearSolve(double t, double timeFactor, double alpha, double outerTol, double* const rhs, double const* const weight,
+int GeneralRateModel::linearSolve(double t, double alpha, double outerTol, double* const rhs, double const* const weight,
 	const ConstSimulationState& simState)
 {
 	BENCH_SCOPE(_timerLinearSolve);
@@ -132,7 +131,7 @@ int GeneralRateModel::linearSolve(double t, double timeFactor, double alpha, dou
 #endif
 		{
 			// Assemble and factorize discretized bulk Jacobian
-			const bool result = _convDispOp.assembleAndFactorizeDiscretizedJacobian(alpha, timeFactor);
+			const bool result = _convDispOp.assembleAndFactorizeDiscretizedJacobian(alpha);
 			if (cadet_unlikely(!result))
 			{
 				LOG(Error) << "Factorize() failed for bulk block";
@@ -154,7 +153,7 @@ int GeneralRateModel::linearSolve(double t, double timeFactor, double alpha, dou
 				const unsigned int par = pblk % _disc.nCol;
 
 				// Assemble
-				assembleDiscretizedJacobianParticleBlock(type, par, alpha, idxr, timeFactor);
+				assembleDiscretizedJacobianParticleBlock(type, par, alpha, idxr);
 
 				// Factorize
 				const bool result = _jacPdisc[pblk].factorize();
@@ -483,9 +482,8 @@ int GeneralRateModel::schurComplementMatrixVector(double const* x, double* z) co
  * @param [in] pblk Index of the particle block within a type
  * @param [in] alpha Value of \f$ \alpha \f$ (arises from BDF time discretization)
  * @param [in] idxr Indexer
- * @param [in] timeFactor Factor which is premultiplied to the time derivatives originating from time transformation
  */
-void GeneralRateModel::assembleDiscretizedJacobianParticleBlock(unsigned int parType, unsigned int pblk, double alpha, const Indexer& idxr, double timeFactor)
+void GeneralRateModel::assembleDiscretizedJacobianParticleBlock(unsigned int parType, unsigned int pblk, double alpha, const Indexer& idxr)
 {
 	linalg::FactorizableBandMatrix& fbm = _jacPdisc[_disc.nCol * parType + pblk];
 	const linalg::BandMatrix& bm = _jacP[_disc.nCol * parType + pblk];
@@ -497,7 +495,7 @@ void GeneralRateModel::assembleDiscretizedJacobianParticleBlock(unsigned int par
 	linalg::FactorizableBandMatrix::RowIterator jac = fbm.row(0);
 	for (unsigned int j = 0; j < _disc.nParCell[parType]; ++j)
 	{
-		addTimeDerivativeToJacobianParticleShell(jac, idxr, alpha, timeFactor, parType);
+		addTimeDerivativeToJacobianParticleShell(jac, idxr, alpha, parType);
 		// Iterator jac has already been advanced to next shell		
 	}
 }
@@ -510,12 +508,11 @@ void GeneralRateModel::assembleDiscretizedJacobianParticleBlock(unsigned int par
  *                     on exit, the iterator points to the end of the bead shell
  * @param [in] idxr Indexer
  * @param [in] alpha Value of \f$ \alpha \f$ (arises from BDF time discretization)
- * @param [in] timeFactor Factor which is premultiplied to the time derivatives originating from time transformation
  * @param [in] parType Index of the particle type
  */
-void GeneralRateModel::addTimeDerivativeToJacobianParticleShell(linalg::FactorizableBandMatrix::RowIterator& jac, const Indexer& idxr, double alpha, double timeFactor, unsigned int parType)
+void GeneralRateModel::addTimeDerivativeToJacobianParticleShell(linalg::FactorizableBandMatrix::RowIterator& jac, const Indexer& idxr, double alpha, unsigned int parType)
 {
-	parts::cell::addTimeDerivativeToJacobianParticleShell<linalg::FactorizableBandMatrix::RowIterator, true>(jac, alpha * timeFactor, static_cast<double>(_parPorosity[parType]), _disc.nComp, _disc.nBound + _disc.nComp * parType,
+	parts::cell::addTimeDerivativeToJacobianParticleShell<linalg::FactorizableBandMatrix::RowIterator, true>(jac, alpha, static_cast<double>(_parPorosity[parType]), _disc.nComp, _disc.nBound + _disc.nComp * parType,
 		_poreAccessFactor.data() + _disc.nComp * parType, _disc.strideBound[parType], _disc.boundOffset + _disc.nComp * parType, _binding[parType]->reactionQuasiStationarity());
 }
 

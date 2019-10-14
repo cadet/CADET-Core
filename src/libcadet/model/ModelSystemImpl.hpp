@@ -102,25 +102,25 @@ public:
 
 	virtual int residual(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res);
 
-	virtual int residualWithJacobian(const ActiveSimulationTime& simTime, const ConstSimulationState& simState, double* const res, const AdJacobianParams& adJac);
+	virtual int residualWithJacobian(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res, const AdJacobianParams& adJac);
 	virtual double residualNorm(const SimulationTime& simTime, const ConstSimulationState& simState);
 
-	virtual int residualSensFwd(unsigned int nSens, const ActiveSimulationTime& simTime,
+	virtual int residualSensFwd(unsigned int nSens, const SimulationTime& simTime,
 		const ConstSimulationState& simState, double const* const res,
 		const std::vector<const double*>& yS, const std::vector<const double*>& ySdot, const std::vector<double*>& resS,
 		active* const adRes, double* const tmp1, double* const tmp2, double* const tmp3);
 
-	virtual int residualSensFwdWithJacobian(unsigned int nSens, const ActiveSimulationTime& simTime,
+	virtual int residualSensFwdWithJacobian(unsigned int nSens, const SimulationTime& simTime,
 		const ConstSimulationState& simState, double const* const res,
 		const std::vector<const double*>& yS, const std::vector<const double*>& ySdot, const std::vector<double*>& resS,
 		const AdJacobianParams& adJac, double* const tmp1, double* const tmp2, double* const tmp3);
 
-	virtual void residualSensFwdNorm(unsigned int nSens, const ActiveSimulationTime& simTime, 
+	virtual void residualSensFwdNorm(unsigned int nSens, const SimulationTime& simTime, 
 		const ConstSimulationState& simState,
 		const std::vector<const double*>& yS, const std::vector<const double*>& ySdot, double* const norms,
 		active* const adRes, double* const tmp);
 
-	virtual int linearSolve(double t, double timeFactor, double alpha, double tol, double* const rhs, double const* const weight,
+	virtual int linearSolve(double t, double alpha, double tol, double* const rhs, double const* const weight,
 		const ConstSimulationState& simState);
 
 	virtual void prepareADvectors(const AdJacobianParams& adJac) const;
@@ -132,11 +132,11 @@ public:
 
 	virtual void consistentInitialConditions(const SimulationTime& simTime, const SimulationState& simState, const AdJacobianParams& adJac, double errorTol);
 
-	virtual void consistentInitialSensitivity(const ActiveSimulationTime& simTime, const ConstSimulationState& simState,
+	virtual void consistentInitialSensitivity(const SimulationTime& simTime, const ConstSimulationState& simState,
 		std::vector<double*>& vecSensY, std::vector<double*>& vecSensYdot, active* const adRes, active* const adY);
 	virtual void leanConsistentInitialConditions(const SimulationTime& simTime, const SimulationState& simState, const AdJacobianParams& adJac, double errorTol);
 
-	virtual void leanConsistentInitialSensitivity(const ActiveSimulationTime& simTime, const ConstSimulationState& simState,
+	virtual void leanConsistentInitialSensitivity(const SimulationTime& simTime, const ConstSimulationState& simState,
 		std::vector<double*>& vecSensY, std::vector<double*>& vecSensYdot, active* const adRes, active* const adY);
 	virtual void setSectionTimes(double const* secTimes, bool const* secContinuity, unsigned int nSections);
 
@@ -174,7 +174,7 @@ public:
 
 	void genJacobian(const SimulationTime& simTime, const ConstSimulationState& simState);
 
-	void genJacobian(unsigned int nSens, const ActiveSimulationTime& simTime,
+	void genJacobian(unsigned int nSens, const SimulationTime& simTime,
 		const ConstSimulationState& simState, double const* const res,
 		const std::vector<const double*>& yS, const std::vector<const double*>& ySdot, const std::vector<double*>& resS,
 		active* const adRes, double* const tmp1, double* const tmp2, double* const tmp3);
@@ -183,7 +183,7 @@ public:
 	virtual void multiplyWithDerivativeJacobian(const SimulationTime& simTime, const ConstSimulationState& simState, double const* yS, double* ret);
 protected:
 
-	int schurComplementMatrixVector(double const* x, double* z, double t, double timeFactor, double alpha, double outerTol, double const* const weight,
+	int schurComplementMatrixVector(double const* x, double* z, double t, double alpha, double outerTol, double const* const weight,
 		const ConstSimulationState& simState) const;
 
 	void configureSwitches(IParameterProvider& paramProvider);
@@ -198,7 +198,7 @@ protected:
 		multiplyWithMacroJacobian(yS, 1.0, 0.0, ret);
 	}
 
-	int dResDpFwdWithJacobian(const ActiveSimulationTime& simTime, const ConstSimulationState& simState, const AdJacobianParams& adJac);
+	int dResDpFwdWithJacobian(const SimulationTime& simTime, const ConstSimulationState& simState, const AdJacobianParams& adJac);
 
 	void rebuildInternalDataStructures();
 	void allocateSuperStructMatrices();
@@ -217,10 +217,10 @@ protected:
 	void consistentInitialConditionAlgorithm(const SimulationTime& simTime, const SimulationState& simState, const AdJacobianParams& adJac, double errorTol);
 
 	template <typename tag_t>
-	void consistentInitialSensitivityAlgorithm(const ActiveSimulationTime& simTime, const ConstSimulationState& simState,
+	void consistentInitialSensitivityAlgorithm(const SimulationTime& simTime, const ConstSimulationState& simState,
 		std::vector<double*>& vecSensY, std::vector<double*>& vecSensYdot, active* const adRes, active* const adY);
 	template <bool evalJacobian>
-	int residualSensFwdWithJacobianAlgorithm(unsigned int nSens, const ActiveSimulationTime& simTime,
+	int residualSensFwdWithJacobianAlgorithm(unsigned int nSens, const SimulationTime& simTime,
 		const ConstSimulationState& simState, double const* const res,
 		const std::vector<const double*>& yS, const std::vector<const double*>& ySdot, const std::vector<double*>& resS,
 		const AdJacobianParams& adJac, double* const tmp1, double* const tmp2, double* const tmp3);

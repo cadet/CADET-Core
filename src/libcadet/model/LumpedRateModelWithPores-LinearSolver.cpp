@@ -100,7 +100,6 @@ namespace model
  *
  *
  * @param [in] t Current time point
- * @param [in] timeFactor Factor which is premultiplied to the time derivatives originating from time transformation
  * @param [in] alpha Value of \f$ \alpha \f$ (arises from BDF time discretization)
  * @param [in] outerTol Error tolerance for the solution of the linear system from outer Newton iteration
  * @param [in,out] rhs On entry the right hand side of the linear equation system, on exit the solution
@@ -108,7 +107,7 @@ namespace model
  * @param [in] simState State of the simulation (state vector and its time derivatives) at which the Jacobian is evaluated
  * @return @c 0 on success, @c -1 on non-recoverable error, and @c +1 on recoverable error
  */
-int LumpedRateModelWithPores::linearSolve(double t, double timeFactor, double alpha, double outerTol, double* const rhs, double const* const weight,
+int LumpedRateModelWithPores::linearSolve(double t, double alpha, double outerTol, double* const rhs, double const* const weight,
 	const ConstSimulationState& simState)
 {
 	BENCH_SCOPE(_timerLinearSolve);
@@ -131,7 +130,7 @@ int LumpedRateModelWithPores::linearSolve(double t, double timeFactor, double al
 #endif
 		{
 			// Assemble and factorize discretized bulk Jacobian
-			const bool result = _convDispOp.assembleAndFactorizeDiscretizedJacobian(alpha, timeFactor);
+			const bool result = _convDispOp.assembleAndFactorizeDiscretizedJacobian(alpha);
 			if (cadet_unlikely(!result))
 			{
 				LOG(Error) << "Factorize() failed for bulk block";
@@ -150,7 +149,7 @@ int LumpedRateModelWithPores::linearSolve(double t, double timeFactor, double al
 #endif
 			{
 				// Assemble
-				assembleDiscretizedJacobianParticleBlock(type, alpha, idxr, timeFactor);
+				assembleDiscretizedJacobianParticleBlock(type, alpha, idxr);
 
 				// Factorize
 				const bool result = _jacPdisc[type].factorize();
@@ -459,9 +458,8 @@ int LumpedRateModelWithPores::schurComplementMatrixVector(double const* x, doubl
  * @param [in] parType Index of the particle type block
  * @param [in] alpha Value of \f$ \alpha \f$ (arises from BDF time discretization)
  * @param [in] idxr Indexer
- * @param [in] timeFactor Factor which is premultiplied to the time derivatives originating from time transformation
  */
-void LumpedRateModelWithPores::assembleDiscretizedJacobianParticleBlock(unsigned int parType, double alpha, const Indexer& idxr, double timeFactor)
+void LumpedRateModelWithPores::assembleDiscretizedJacobianParticleBlock(unsigned int parType, double alpha, const Indexer& idxr)
 {
 	linalg::FactorizableBandMatrix& fbm = _jacPdisc[parType];
 	const linalg::BandMatrix& bm = _jacP[parType];
@@ -474,7 +472,7 @@ void LumpedRateModelWithPores::assembleDiscretizedJacobianParticleBlock(unsigned
 	for (unsigned int j = 0; j < _disc.nCol; ++j)
 	{
 		// Mobile and solid phase (advances jac accordingly)
-		addTimeDerivativeToJacobianParticleBlock(jac, idxr, alpha, timeFactor, parType);
+		addTimeDerivativeToJacobianParticleBlock(jac, idxr, alpha, parType);
 	}
 }
 
@@ -486,14 +484,10 @@ void LumpedRateModelWithPores::assembleDiscretizedJacobianParticleBlock(unsigned
  *                     on exit, the iterator points to the end of the bead shell
  * @param [in] idxr Indexer
  * @param [in] alpha Value of \f$ \alpha \f$ (arises from BDF time discretization)
- * @param [in] timeFactor Factor which is premultiplied to the time derivatives originating from time transformation
  * @param [in] parType Index of the particle type
  */
-void LumpedRateModelWithPores::addTimeDerivativeToJacobianParticleBlock(linalg::FactorizableBandMatrix::RowIterator& jac, const Indexer& idxr, double alpha, double timeFactor, unsigned int parType)
+void LumpedRateModelWithPores::addTimeDerivativeToJacobianParticleBlock(linalg::FactorizableBandMatrix::RowIterator& jac, const Indexer& idxr, double alpha, unsigned int parType)
 {
-	// Compute total factor
-	alpha *= timeFactor;
-
 	// Mobile phase
 	for (int comp = 0; comp < static_cast<int>(_disc.nComp); ++comp, ++jac)
 	{

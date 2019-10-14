@@ -50,17 +50,6 @@ struct SimulationTime
 {
 	double t; //!< Time of the simulation
 	unsigned int secIdx; //!< Index of the current section
-	double timeFactor; //!< Used for time transformation (pre factor of time derivatives) and to compute parameter derivatives with respect to section length
-};
-
-/**
- * @brief Simulation time point
- */
-struct ActiveSimulationTime
-{
-	const active& t; //!< Time of the simulation
-	unsigned int secIdx; //!< Index of the current section
-	const active& timeFactor; //!< Used for time transformation (pre factor of time derivatives) and to compute parameter derivatives with respect to section length
 };
 
 /**
@@ -92,14 +81,29 @@ inline ConstSimulationState toConst(const SimulationState& simState)
 }
 
 /**
- * @brief Converts an AD-enabled (i.e., active) simulation time point to a simple one
- * @param [in] simTime AD-enabled simulation time
- * @return Simple simulation time
+ * @brief Type tag for including parameter sensitivities
  */
-inline SimulationTime toSimple(const ActiveSimulationTime& simTime)
-{
-	return SimulationTime{static_cast<double>(simTime.t), simTime.secIdx, static_cast<double>(simTime.timeFactor)};
-}
+struct WithParamSensitivity {};
+
+/**
+ * @brief Type tag for excluding parameter sensitivities
+ */
+struct WithoutParamSensitivity {};
+
+/**
+ * @brief Type used for choosing the parameter sensitivity tag type
+ * @details Chooses WithoutParamSensitivity if @p T is @c double and
+ *          WithParamSensitivity if @p T is @c active.
+ * @tparam T Parameter data type
+ */
+template <typename T>
+struct ParamSens { };
+
+template <>
+struct ParamSens<double> { typedef WithoutParamSensitivity enabled; };
+
+template <>
+struct ParamSens<active> { typedef WithParamSensitivity enabled; };
 
 } // namespace cadet
 

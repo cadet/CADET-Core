@@ -23,6 +23,7 @@
 #include "linalg/BandMatrix.hpp"
 #include "Memory.hpp"
 #include "Weno.hpp"
+#include "SimulationTypes.hpp"
 
 #include <unordered_map>
 #include <unordered_set>
@@ -72,15 +73,15 @@ public:
 	bool configure(UnitOpIdx unitOpIdx, IParameterProvider& paramProvider, std::unordered_map<ParameterId, active*>& parameters);
 	bool notifyDiscontinuousSectionTransition(double t, unsigned int secIdx);
 
-	int residual(double t, unsigned int secIdx, double timeFactor, double const* y, double const* yDot, double* res, linalg::BandMatrix& jac);
-	int residual(double t, unsigned int secIdx, double timeFactor, double const* y, double const* yDot, double* res);
-	int residual(double t, unsigned int secIdx, double timeFactor, active const* y, double const* yDot, active* res);
-	int residual(const active& t, unsigned int secIdx, const active& timeFactor, double const* y, double const* yDot, active* res, linalg::BandMatrix& jac);
-	int residual(const active& t, unsigned int secIdx, const active& timeFactor, double const* y, double const* yDot, active* res);
-	int residual(const active& t, unsigned int secIdx, const active& timeFactor, active const* y, double const* yDot, active* res);
+	int residual(double t, unsigned int secIdx, double const* y, double const* yDot, double* res, linalg::BandMatrix& jac);
+	int residual(double t, unsigned int secIdx, double const* y, double const* yDot, active* res, linalg::BandMatrix& jac);
+	int residual(double t, unsigned int secIdx, double const* y, double const* yDot, double* res, WithoutParamSensitivity);
+	int residual(double t, unsigned int secIdx, double const* y, double const* yDot, active* res, WithParamSensitivity);
+	int residual(double t, unsigned int secIdx, active const* y, double const* yDot, active* res, WithParamSensitivity);
+	int residual(double t, unsigned int secIdx, active const* y, double const* yDot, active* res, WithoutParamSensitivity);
 
 	void multiplyWithDerivativeJacobian(const SimulationTime& simTime, double const* sDot, double* ret) const;
-	void addTimeDerivativeToJacobian(double alpha, double timeFactor, linalg::FactorizableBandMatrix& jacDisc);
+	void addTimeDerivativeToJacobian(double alpha, linalg::FactorizableBandMatrix& jacDisc);
 
 	inline const active& columnLength() const CADET_NOEXCEPT { return _colLength; }
 	inline const active& crossSectionArea() const CADET_NOEXCEPT { return _crossSection; }
@@ -101,13 +102,13 @@ public:
 protected:
 
 	template <typename StateType, typename ResidualType, typename ParamType, typename RowIteratorType, bool wantJac>
-	int residualImpl(const ParamType& t, unsigned int secIdx, const ParamType& timeFactor, StateType const* y, double const* yDot, ResidualType* res, RowIteratorType jacBegin);
+	int residualImpl(double t, unsigned int secIdx, StateType const* y, double const* yDot, ResidualType* res, RowIteratorType jacBegin);
 
 	template <typename StateType, typename ResidualType, typename ParamType, typename RowIteratorType, bool wantJac>
-	int residualForwardsFlow(const ParamType& t, unsigned int secIdx, const ParamType& timeFactor, StateType const* y, double const* yDot, ResidualType* res, RowIteratorType jacBegin);
+	int residualForwardsFlow(double t, unsigned int secIdx, StateType const* y, double const* yDot, ResidualType* res, RowIteratorType jacBegin);
 
 	template <typename StateType, typename ResidualType, typename ParamType, typename RowIteratorType, bool wantJac>
-	int residualBackwardsFlow(const ParamType& t, unsigned int secIdx, const ParamType& timeFactor, StateType const* y, double const* yDot, ResidualType* res, RowIteratorType jacBegin);
+	int residualBackwardsFlow(double t, unsigned int secIdx, StateType const* y, double const* yDot, ResidualType* res, RowIteratorType jacBegin);
 
 	unsigned int _nComp; //!< Number of components
 	unsigned int _nCol; //!< Number of axial cells
@@ -173,10 +174,10 @@ public:
 	bool configure(UnitOpIdx unitOpIdx, IParameterProvider& paramProvider, std::unordered_map<ParameterId, active*>& parameters);
 	bool notifyDiscontinuousSectionTransition(double t, unsigned int secIdx, const AdJacobianParams& adJac);
 
-	int residual(double t, unsigned int secIdx, double timeFactor, double const* y, double const* yDot, double* res, bool wantJac);
-	int residual(double t, unsigned int secIdx, double timeFactor, active const* y, double const* yDot, active* res, bool wantJac);
-	int residual(const active& t, unsigned int secIdx, const active& timeFactor, double const* y, double const* yDot, active* res, bool wantJac);
-	int residual(const active& t, unsigned int secIdx, const active& timeFactor, active const* y, double const* yDot, active* res, bool wantJac);
+	int residual(double t, unsigned int secIdx, double const* y, double const* yDot, double* res, bool wantJac, WithoutParamSensitivity);
+	int residual(double t, unsigned int secIdx, active const* y, double const* yDot, active* res, bool wantJac, WithParamSensitivity);
+	int residual(double t, unsigned int secIdx, active const* y, double const* yDot, active* res, bool wantJac, WithoutParamSensitivity);
+	int residual(double t, unsigned int secIdx, double const* y, double const* yDot, active* res, bool wantJac, WithParamSensitivity);
 
 	void prepareADvectors(const AdJacobianParams& adJac) const;
 	void extractJacobianFromAD(active const* const adRes, unsigned int adDirOffset);
@@ -184,7 +185,7 @@ public:
 	bool solveTimeDerivativeSystem(const SimulationTime& simTime, double* const rhs);
 	void multiplyWithDerivativeJacobian(const SimulationTime& simTime, double const* sDot, double* ret) const;
 
-	bool assembleAndFactorizeDiscretizedJacobian(double alpha, double timeFactor);
+	bool assembleAndFactorizeDiscretizedJacobian(double alpha);
 	bool solveDiscretizedJacobian(double* rhs) const;
 
 #ifdef CADET_CHECK_ANALYTIC_JACOBIAN
@@ -216,8 +217,8 @@ public:
 
 protected:
 
-	void addTimeDerivativeToJacobian(double alpha, double timeFactor);
-	void assembleDiscretizedJacobian(double alpha, double timeFactor);
+	void addTimeDerivativeToJacobian(double alpha);
+	void assembleDiscretizedJacobian(double alpha);
 
 	ConvectionDispersionOperatorBase _baseOp;
 
