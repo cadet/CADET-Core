@@ -30,17 +30,15 @@ namespace cadet
 namespace test
 {
 
-namespace detail
-{
-
-	// Performs equivalent check of std::fabs(lhs - rhs) <= margin
-	// But without the subtraction to allow for INFINITY in comparison
-	inline bool marginComparison(double lhs, double rhs, double margin)
+	namespace detail
 	{
-		return (lhs + margin >= rhs) && (rhs + margin >= lhs);
+		// Performs equivalent check of std::fabs(lhs - rhs) <= margin
+		// But without the subtraction to allow for INFINITY in comparison
+		inline bool marginComparison(double lhs, double rhs, double margin)
+		{
+			return (lhs + margin >= rhs) && (rhs + margin >= lhs);
+		}
 	}
-
-}
 
 	/**
 	 * @brief Represents an approximate number to compare against
@@ -63,8 +61,8 @@ namespace detail
 			return RelApprox(0.0);
 		}
 
-		static inline  double defaultEpsilon() { return std::numeric_limits<float>::epsilon() * 100.0; }
-		static inline  double defaultMargin() { return 0.0; }
+		static inline double defaultEpsilon() { return std::numeric_limits<float>::epsilon() * 100.0; }
+		static inline double defaultMargin() { return 0.0; }
 
 		template <typename T, typename = typename std::enable_if<std::is_constructible<double, T>::value>::type>
 		RelApprox operator()(T const& value)
@@ -80,14 +78,14 @@ namespace detail
 		explicit RelApprox(T const& value) : RelApprox(static_cast<double>(value)) { }
 
 		template <typename T, typename = typename std::enable_if<std::is_constructible<double, T>::value>::type>
-		friend bool operator == (const T& lhs, RelApprox const& rhs)
+		friend bool operator==(const T& lhs, RelApprox const& rhs)
 		{
-			auto lhs_v = static_cast<double>(lhs);
+			const auto lhs_v = static_cast<double>(lhs);
 			return rhs.equalityComparisonImpl(lhs_v);
 		}
 
 		template <typename T, typename = typename std::enable_if<std::is_constructible<double, T>::value>::type>
-		friend bool operator == (RelApprox const& lhs, const T& rhs)
+		friend bool operator==(RelApprox const& lhs, const T& rhs)
 		{
 			return operator==(rhs, lhs);
 		}
@@ -99,43 +97,42 @@ namespace detail
 		}
 
 		template <typename T, typename = typename std::enable_if<std::is_constructible<double, T>::value>::type>
-		friend bool operator != (RelApprox const& lhs, T const& rhs)
+		friend bool operator!=(RelApprox const& lhs, T const& rhs)
 		{
 			return !operator==(rhs, lhs);
 		}
 
 		template <typename T, typename = typename std::enable_if<std::is_constructible<double, T>::value>::type>
-		friend bool operator <= (T const& lhs, RelApprox const& rhs)
+		friend bool operator<=(T const& lhs, RelApprox const& rhs)
 		{
-			return static_cast<double>(lhs) < rhs._value || lhs == rhs;
+			return (static_cast<double>(lhs) < rhs._value) || (lhs == rhs);
 		}
 
 		template <typename T, typename = typename std::enable_if<std::is_constructible<double, T>::value>::type>
-		friend bool operator <= (RelApprox const& lhs, T const& rhs)
+		friend bool operator<=(RelApprox const& lhs, T const& rhs)
 		{
-			return lhs._value < static_cast<double>(rhs) || lhs == rhs;
+			return (lhs._value < static_cast<double>(rhs)) || (lhs == rhs);
 		}
 
 		template <typename T, typename = typename std::enable_if<std::is_constructible<double, T>::value>::type>
-		friend bool operator >= (T const& lhs, RelApprox const& rhs)
+		friend bool operator>=(T const& lhs, RelApprox const& rhs)
 		{
-			return static_cast<double>(lhs) > rhs._value || lhs == rhs;
+			return (static_cast<double>(lhs) > rhs._value) || (lhs == rhs);
 		}
 
 		template <typename T, typename = typename std::enable_if<std::is_constructible<double, T>::value>::type>
-		friend bool operator >= (RelApprox const& lhs, T const& rhs)
+		friend bool operator>=(RelApprox const& lhs, T const& rhs)
 		{
-			return lhs._value > static_cast<double>(rhs) || lhs == rhs;
+			return (lhs._value > static_cast<double>(rhs)) || (lhs == rhs);
 		}
 
 		template <typename T, typename = typename std::enable_if<std::is_constructible<double, T>::value>::type>
 		RelApprox& epsilon(T const& newEpsilon)
 		{
 			const double epsilonAsDouble = static_cast<double>(newEpsilon);
-			if(epsilonAsDouble < 0 || epsilonAsDouble > 1.0)
-			{
+			if (epsilonAsDouble < 0 || epsilonAsDouble > 1.0)
 				throw std::domain_error("Invalid RelApprox::epsilon: " + Catch::Detail::stringify(epsilonAsDouble) + ", RelApprox::epsilon has to be between 0 and 1");
-			}
+
 			_epsilon = epsilonAsDouble;
 			return *this;
 		}
@@ -144,10 +141,9 @@ namespace detail
 		RelApprox& margin(T const& newMargin)
 		{
 			const double marginAsDouble = static_cast<double>(newMargin);
-			if(marginAsDouble < 0)
-			{
-				throw std::domain_error ("Invalid RelApprox::margin: " + Catch::Detail::stringify(marginAsDouble) + ", RelApprox::Margin has to be non-negative.");
-			}
+			if (marginAsDouble < 0)
+				throw std::domain_error("Invalid RelApprox::margin: " + Catch::Detail::stringify(marginAsDouble) + ", RelApprox::Margin has to be non-negative.");
+
 			_margin = marginAsDouble;
 			return *this;
 		}
@@ -159,7 +155,8 @@ namespace detail
 			return *this;
 		}
 
-		std::string toString() const {
+		std::string toString() const
+		{
 			Catch::ReusableStringStream rss;
 			rss << "RelApprox( " << ::Catch::Detail::stringify(_value) << " )";
 			return rss.str();
