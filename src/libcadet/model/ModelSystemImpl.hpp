@@ -207,6 +207,7 @@ protected:
 	unsigned int totalNumOutletPorts() const CADET_NOEXCEPT;
 	unsigned int maxUnitInletPorts() const CADET_NOEXCEPT;
 	unsigned int maxUnitOutletPorts() const CADET_NOEXCEPT;
+	void addDefaultPortsToConnectionList(std::vector<double>& conList) const;
 
 	template <typename ParamType>
 	bool setParameterImpl(const ParameterId& pId, const ParamType value);

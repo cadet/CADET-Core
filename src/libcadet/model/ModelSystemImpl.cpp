@@ -75,6 +75,21 @@ namespace
 	}
 
 	/**
+	 * @brief Returns whether one or more unit operations have multiple ports
+	 * @param [in] models List of unit operation models
+	 * @return @c true if the list contains at least one unit operation model with multiple ports, @c false otherwise
+	 */
+	inline bool hasMultiPortUnits(const std::vector<cadet::IUnitOperation*>& models)
+	{
+		for (cadet::IUnitOperation const* m : models)
+		{
+			if ((m->numInletPorts() > 1) || (m->numOutletPorts() > 1))
+				return true;
+		}
+		return false;
+	}
+
+	/**
 	 * @brief Selects either double or active SparseMatrix based on template argument
 	 * @details Helper function that returns either @p a or @p b depending on the template argument.
 	 * @param [in] a SparseMatrix of double elements
@@ -781,6 +796,17 @@ void ModelSystem::configureSwitches(IParameterProvider& paramProvider)
 	const StringHash flowHash = hashString("CONNECTION");
 #endif
 
+	// Default: ports are not given in connection list
+	bool conListHasPorts = false;
+
+	// Override default by user option
+	if (paramProvider.exists("CONNECTIONS_INCLUDE_PORTS"))
+		conListHasPorts = paramProvider.getBool("CONNECTIONS_INCLUDE_PORTS");
+
+	// If we have unit operations with multiple ports, we require ports in connection list
+	if (hasMultiPortUnits(_models))
+		conListHasPorts = true;
+
 	std::ostringstream oss;
 	for (unsigned int i = 0; i < numSwitches; ++i)
 	{
@@ -795,6 +821,14 @@ void ModelSystem::configureSwitches(IParameterProvider& paramProvider)
 			throw InvalidParameterException("SECTION index has to be monotonically increasing (switch " + std::to_string(i) + ")");
 
 		std::vector<double> connFlow = paramProvider.getDoubleArray("CONNECTIONS");
+		if (!conListHasPorts)
+		{
+			if ((connFlow.size() % 5) != 0)
+				throw InvalidParameterException("CONNECTIONS matrix has to have 5 columns if CONNECTIONS_INCLUDE_PORTS is disabled");
+
+			addDefaultPortsToConnectionList(connFlow);
+		}
+
 		if ((connFlow.size() % 7) != 0)
 			throw InvalidParameterException("CONNECTIONS matrix has to have 7 columns");
 
@@ -842,6 +876,30 @@ void ModelSystem::configureSwitches(IParameterProvider& paramProvider)
 
 	if (_switchSectionIndex[0] != 0)
 		throw InvalidParameterException("First element of SECTION in connections group has to be 0");
+}
+
+/**
+ * @brief Add default ports to connection list
+ * @details Adds source and destination ports of @c -1 to the connection list. The list is
+ *          overwritten, that is, all pointers and iterators are invalidated.
+ * @param [in,out] conList On entry, list of connections without ports;
+ *                         on exit, list of connections including default ports
+ */
+void ModelSystem::addDefaultPortsToConnectionList(std::vector<double>& conList) const
+{
+	const int numRows = conList.size() / 5;
+	std::vector<double> newList(numRows * 7, -1.0);
+
+	double const* src = conList.data();
+	double* dest = newList.data();
+	for (int i = 0; i < numRows; ++i, src += 5, dest += 7)
+	{
+		dest[0] = src[0];
+		dest[1] = src[1];
+		std::copy_n(src + 2, 3, dest + 4);
+	}
+
+	conList = std::move(newList);
 }
 
 bool ModelSystem::configureModel(IParameterProvider& paramProvider, unsigned int unitOpIdx)

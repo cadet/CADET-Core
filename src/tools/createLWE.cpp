@@ -323,6 +323,7 @@ int main(int argc, char** argv)
 		{
 			Scope<cadet::io::HDF5Writer> su(writer, "connections");
 			writer.scalar<int>("NSWITCHES", 1);
+			writer.scalar<int>("CONNECTIONS_INCLUDE_PORTS", 1);
 
 			{
 				Scope<cadet::io::HDF5Writer> s1(writer, "switch_000");

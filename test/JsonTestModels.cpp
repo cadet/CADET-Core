@@ -280,6 +280,7 @@ json createLWEJson(const std::string& uoType)
 		{
 			json con;
 			con["NSWITCHES"] = 1;
+			con["CONNECTIONS_INCLUDE_PORTS"] = true;
 
 			{
 				json sw;
@@ -539,6 +540,7 @@ cadet::JsonParameterProvider createPulseInjectionColumn(const std::string& uoTyp
 		{
 			json con;
 			con["NSWITCHES"] = 1;
+			con["CONNECTIONS_INCLUDE_PORTS"] = true;
 
 			{
 				json sw;
@@ -785,6 +787,7 @@ cadet::JsonParameterProvider createLinearBenchmark(bool dynamicBinding, bool non
 		{
 			json con;
 			con["NSWITCHES"] = 1;
+			con["CONNECTIONS_INCLUDE_PORTS"] = true;
 
 			{
 				json sw;
@@ -984,6 +987,7 @@ cadet::JsonParameterProvider createCSTRBenchmark(unsigned int nSec, double endTi
 		{
 			json con;
 			con["NSWITCHES"] = nSec;
+			con["CONNECTIONS_INCLUDE_PORTS"] = true;
 
 			for (unsigned int i = 0; i < nSec; ++i)
 			{

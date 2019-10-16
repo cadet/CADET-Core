@@ -230,6 +230,7 @@ namespace
 			"connections":
 			{
 				"NSWITCHES": 1,
+				"CONNECTIONS_INCLUDE_PORTS": true,
 				"switch_000":
 				{
 					"SECTION": 0
