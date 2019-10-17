@@ -188,6 +188,8 @@ bool CSTRModel::configureModelDiscretization(IParameterProvider& paramProvider, 
 		configureNonlinearSolver(paramProvider);
 		paramProvider.popScope();
 	}
+	else
+		configureNonlinearSolver();
 
 	// ==== Construct and configure binding models
 	clearBindingModels();

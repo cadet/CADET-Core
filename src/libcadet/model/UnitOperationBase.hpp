@@ -72,6 +72,7 @@ protected:
 	void clearBindingModels() CADET_NOEXCEPT;
 	void clearDynamicReactionModels() CADET_NOEXCEPT;
 	void configureNonlinearSolver(IParameterProvider& paramProvider);
+	void configureNonlinearSolver();
 
 	UnitOpIdx _unitOpIdx; //!< Unit operation index
 	std::vector<IBindingModel*> _binding; //!< Binding model

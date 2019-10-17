@@ -440,6 +440,12 @@ void UnitOperationBase::configureNonlinearSolver(IParameterProvider& paramProvid
 	}
 }
 
+void UnitOperationBase::configureNonlinearSolver()
+{
+	// Use default solver with default settings
+	_nonlinearSolver = nonlin::createSolver("");
+}
+
 int UnitOperationBase::residualSensFwdCombine(const SimulationTime& simTime, const ConstSimulationState& simState,
 	const std::vector<const double*>& yS, const std::vector<const double*>& ySdot, const std::vector<double*>& resS, active const* adRes,
 	double* const tmp1, double* const tmp2, double* const tmp3)
