@@ -142,6 +142,10 @@ public:
 		return std::make_tuple<ParamsHandle, ParamsHandle>(&_localParams, nullptr);
 	}
 
+{% for p in parameters %}
+	inline const {{ p/type }}& {{ p/varName }}() const CADET_NOEXCEPT { return _{{ p/varName }}; }
+{% endfor %}
+
 protected:
 	inline bool validateConfig(unsigned int nComp, unsigned int const* nBoundStates);
 	
@@ -349,6 +353,10 @@ public:
 {% endfor %}
 		);
 	}
+
+{% for p in parameters %}
+	inline const External{{ p/type }}& {{ p/varName }}() const CADET_NOEXCEPT { return _{{ p/varName }}; }
+{% endfor %}
 
 protected:
 	inline bool validateConfig(unsigned int nComp, unsigned int const* nBoundStates);

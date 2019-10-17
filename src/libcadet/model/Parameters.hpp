@@ -99,6 +99,12 @@ public:
 	inline const active& get() const CADET_NOEXCEPT { return *_p; }
 	inline active& get() CADET_NOEXCEPT { return *_p; }
 
+	/**
+	 * @brief Returns the number of elements in the parameter
+	 * @return Number of elements in the parameter
+	 */
+	inline std::size_t size() const CADET_NOEXCEPT { return 1; }
+
 protected:
 	active* _p;
 };
@@ -427,6 +433,12 @@ public:
 	 */
 	inline void reserve(unsigned int numElem, unsigned int numSlices, unsigned int nComp, unsigned int const* nBoundStates) { }
 
+	/**
+	 * @brief Returns the number of elements in the parameter
+	 * @return Number of elements in the parameter
+	 */
+	inline std::size_t size() const CADET_NOEXCEPT { return 1; }
+
 protected:
 	active* _refC; //!< Reference liquid phase concentration
 	active* _refQ; //!< Reference solid phase concentration
@@ -490,6 +502,12 @@ public:
 		_refC->reserve(numSlices);
 		_refQ->reserve(numSlices);
 	}
+
+	/**
+	 * @brief Returns the number of elements in the parameter
+	 * @return Number of elements in the parameter
+	 */
+	inline std::size_t size() const CADET_NOEXCEPT { return _refC->size(); }
 
 protected:
 	std::vector<active>* _refC; //!< Reference liquid phase concentration
@@ -633,6 +651,12 @@ public:
 	 */
 	template <typename T>
 	inline void prepareCache(T& cache, LinearBufferAllocator& buffer) const { }
+
+	/**
+	 * @brief Returns the number of elements in the parameter
+	 * @return Number of elements in the parameter
+	 */
+	inline std::size_t size() const CADET_NOEXCEPT { return 1; }
 
 protected:
 	active _base;

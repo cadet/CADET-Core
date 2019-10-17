@@ -400,20 +400,22 @@ protected:
 		_paramHandler.configure(paramProvider, maxNumReactions(), _nComp, _nBoundStates);
 		_paramHandler.registerParameters(_parameters, unitOpIdx, parTypeIdx, _nComp, _nBoundStates);
 
-/*
-		if ((_paramHandler._kFwdBulk.size() != _paramHandler._kBwdBulk.size()) || (_paramHandler._kFwdBulk.size() != _stoichiometryBulk.columns()))
+		if ((_stoichiometryBulk.columns() > 0) && ((_paramHandler.kFwdBulk().size() < _stoichiometryBulk.columns()) || (_paramHandler.kBwdBulk().size() < _stoichiometryBulk.columns())))
 			throw InvalidParameterException("MAL_KFWD_BULK and MAL_KBWD_BULK have to have the same size (number of reactions)");
 
-		if ((_paramHandler._kFwdLiquid.size() != _paramHandler._kBwdLiquid.size()) || (_paramHandler._kFwdLiquid.size() != _stoichiometryLiquid.columns()))
+		if ((_stoichiometryLiquid.columns() > 0) && ((_paramHandler.kFwdLiquid().size() < _stoichiometryLiquid.columns()) || (_paramHandler.kBwdLiquid().size() < _stoichiometryLiquid.columns())))
 			throw InvalidParameterException("MAL_KFWD_LIQUID and MAL_KBWD_LIQUID have to have the same size (number of reactions)");
 
-		if ((_paramHandler._kFwdSolid.size() != _paramHandler._kBwdSolid.size()) || (_paramHandler._kFwdSolid.size() != _stoichiometrySolid.columns()))
+		if ((_stoichiometrySolid.columns() > 0) && ((_paramHandler.kFwdSolid().size() < _stoichiometrySolid.columns()) || (_paramHandler.kBwdSolid().size() < _stoichiometrySolid.columns())))
 			throw InvalidParameterException("MAL_KFWD_SOLID and MAL_KBWD_SOLID have to have the same size (number of reactions)");
-*/
 
 		if (paramProvider.exists("MAL_STOICHIOMETRY_BULK"))
 		{
 			const std::vector<double> s = paramProvider.getDoubleArray("MAL_STOICHIOMETRY_BULK");
+
+			if (s.size() != _stoichiometryBulk.elements())
+				throw InvalidParameterException("MAL_STOICHIOMETRY_BULK has changed size (number of reactions changed)");
+
 			std::copy(s.begin(), s.end(), _stoichiometryBulk.data());
 		}
 		registerCompRowMatrix(_parameters, unitOpIdx, parTypeIdx, "MAL_STOICHIOMETRY_BULK", _stoichiometryBulk);
@@ -452,6 +454,10 @@ protected:
 		if (paramProvider.exists("MAL_STOICHIOMETRY_LIQUID"))
 		{
 			const std::vector<double> s = paramProvider.getDoubleArray("MAL_STOICHIOMETRY_LIQUID");
+
+			if (s.size() != _stoichiometryLiquid.elements())
+				throw InvalidParameterException("MAL_STOICHIOMETRY_LIQUID has changed size (number of reactions changed)");
+
 			std::copy(s.begin(), s.end(), _stoichiometryLiquid.data());
 		}
 		registerCompRowMatrix(_parameters, unitOpIdx, parTypeIdx, "MAL_STOICHIOMETRY_LIQUID", _stoichiometryLiquid);
@@ -496,6 +502,10 @@ protected:
 		if (paramProvider.exists("MAL_STOICHIOMETRY_SOLID"))
 		{
 			const std::vector<double> s = paramProvider.getDoubleArray("MAL_STOICHIOMETRY_SOLID");
+
+			if (s.size() != _stoichiometrySolid.elements())
+				throw InvalidParameterException("MAL_STOICHIOMETRY_SOLID has changed size (number of reactions changed)");
+
 			std::copy(s.begin(), s.end(), _stoichiometrySolid.data());
 		}
 		registerBoundStateRowMatrix(_parameters, unitOpIdx, parTypeIdx, "MAL_STOICHIOMETRY_SOLID", _stoichiometrySolid, _nComp, _boundOffset);
