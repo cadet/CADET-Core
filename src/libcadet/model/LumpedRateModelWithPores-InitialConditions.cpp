@@ -435,7 +435,7 @@ void LumpedRateModelWithPores::consistentInitialState(const SimulationTime& simT
 
 					// Compare
 					const double diff = ad::compareDenseJacobianWithBandedAd(
-						localAdRes, pblk * idxr.strideParBlock(type), adJac.adDirOffset, _jacP[type].lowerBandwidth(),
+						adJac.adRes + idxr.offsetCp(ParticleTypeIndex{type}), pblk * idxr.strideParBlock(type), adJac.adDirOffset, _jacP[type].lowerBandwidth(),
 						_jacP[type].lowerBandwidth(), _jacP[type].upperBandwidth(), fullJacobianMatrix
 					);
 					LOG(Debug) << "MaxDiff " << adEqOffset << ": " << diff;
@@ -443,7 +443,7 @@ void LumpedRateModelWithPores::consistentInitialState(const SimulationTime& simT
 
 					// Extract Jacobian from AD
 					ad::extractDenseJacobianFromBandedAd(
-						localAdRes, pblk * idxr.strideParBlock(type), adJac.adDirOffset, _jacP[type].lowerBandwidth(),
+						adJac.adRes + idxr.offsetCp(ParticleTypeIndex{type}), pblk * idxr.strideParBlock(type), adJac.adDirOffset, _jacP[type].lowerBandwidth(),
 						_jacP[type].lowerBandwidth(), _jacP[type].upperBandwidth(), fullJacobianMatrix
 					);
 

@@ -729,7 +729,7 @@ void GeneralRateModel2D::consistentInitialState(const SimulationTime& simTime, d
 
 						// Compare
 						const double diff = ad::compareDenseJacobianWithBandedAd(
-							localAdRes, localOffsetInParticle, adJac.adDirOffset, _jacP[type * _disc.nCol * _disc.nRad].lowerBandwidth(),
+							localAdRes - localOffsetInParticle, localOffsetInParticle, adJac.adDirOffset, _jacP[type * _disc.nCol * _disc.nRad].lowerBandwidth(),
 							_jacP[type * _disc.nCol * _disc.nRad].lowerBandwidth(), _jacP[type * _disc.nCol * _disc.nRad].upperBandwidth(), fullJacobianMatrix
 						);
 						LOG(Debug) << "MaxDiff " << adEqOffset << ": " << diff;
@@ -737,7 +737,7 @@ void GeneralRateModel2D::consistentInitialState(const SimulationTime& simTime, d
 
 						// Extract Jacobian from AD
 						ad::extractDenseJacobianFromBandedAd(
-							localAdRes, localOffsetInParticle, adJac.adDirOffset, _jacP[type * _disc.nCol * _disc.nRad].lowerBandwidth(),
+							localAdRes - localOffsetInParticle, localOffsetInParticle, adJac.adDirOffset, _jacP[type * _disc.nCol * _disc.nRad].lowerBandwidth(),
 							_jacP[type * _disc.nCol * _disc.nRad].lowerBandwidth(), _jacP[type * _disc.nCol * _disc.nRad].upperBandwidth(), fullJacobianMatrix
 						);
 

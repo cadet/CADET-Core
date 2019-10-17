@@ -433,7 +433,7 @@ void GeneralRateModel::consistentInitialState(const SimulationTime& simTime, dou
 
 						// Compare
 						const double diff = ad::compareDenseJacobianWithBandedAd(
-							localAdRes, localOffsetInParticle, adJac.adDirOffset, _jacP[type * _disc.nCol].lowerBandwidth(),
+							localAdRes - localOffsetInParticle, localOffsetInParticle, adJac.adDirOffset, _jacP[type * _disc.nCol].lowerBandwidth(),
 							_jacP[type * _disc.nCol].lowerBandwidth(), _jacP[type * _disc.nCol].upperBandwidth(), fullJacobianMatrix
 						);
 						LOG(Debug) << "MaxDiff " << adEqOffset << ": " << diff;
@@ -441,7 +441,7 @@ void GeneralRateModel::consistentInitialState(const SimulationTime& simTime, dou
 
 						// Extract Jacobian from AD
 						ad::extractDenseJacobianFromBandedAd(
-							localAdRes, localOffsetInParticle, adJac.adDirOffset, _jacP[type * _disc.nCol].lowerBandwidth(),
+							localAdRes - localOffsetInParticle, localOffsetInParticle, adJac.adDirOffset, _jacP[type * _disc.nCol].lowerBandwidth(),
 							_jacP[type * _disc.nCol].lowerBandwidth(), _jacP[type * _disc.nCol].upperBandwidth(), fullJacobianMatrix
 						);
 

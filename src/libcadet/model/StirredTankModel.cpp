@@ -364,7 +364,7 @@ unsigned int CSTRModel::threadLocalMemorySize() const CADET_NOEXCEPT
 	if (_dynReactionBulk && _dynReactionBulk->requiresWorkspace())
 		lms.fitBlock(_dynReactionBulk->workspaceSize(_nComp, 0, nullptr));
 
-	const unsigned int maxStrideBound = *std::max_element(_strideBound, _strideBound + _nParType);
+	const unsigned int maxStrideBound = _strideBound ? *std::max_element(_strideBound, _strideBound + _nParType) : 0;
 	lms.add<active>(_nComp + maxStrideBound);
 	lms.add<double>((maxStrideBound + _nComp) * (maxStrideBound + _nComp));
 
@@ -592,7 +592,7 @@ void CSTRModel::consistentInitialState(const SimulationTime& simTime, double* co
 		bool hasNoQSreactions = true;
 		std::fill_n(static_cast<int*>(qsMask), _nComp + _totalBound, false);
 		int* localMask = static_cast<int*>(qsMask) + _nComp;
-		for (unsigned int type = 0; type < _nParType; ++type, localMask += _strideBound[type])
+		for (unsigned int type = 0; type < _nParType; localMask += _strideBound[type], ++type)
 		{
 			if (!_binding[type]->hasQuasiStationaryReactions())
 				continue;
@@ -670,7 +670,7 @@ void CSTRModel::consistentInitialState(const SimulationTime& simTime, double* co
 
 		linalg::DenseMatrixView jacobianMatrix(_jacFact.data(), _jacFact.pivotData(), probSize, probSize);
 
-		BufferedArray<double> baFullX = tlmAlloc.array<double>(mask.len);
+		BufferedArray<double> baFullX = tlmAlloc.array<double>(numDofs());
 		double* const fullX = static_cast<double*>(baFullX);
 
 		BufferedArray<double> baFullResidual = tlmAlloc.array<double>(numDofs());
@@ -682,11 +682,13 @@ void CSTRModel::consistentInitialState(const SimulationTime& simTime, double* co
 		std::function<bool(double const* const, linalg::detail::DenseMatrixBase&)> jacFunc;
 		if (adJac.adY && adJac.adRes)
 		{
-			active* const localAdY = adJac.adY + _nComp;
-			active* const localAdRes = adJac.adRes + _nComp;
+			ad::copyToAd(vecStateY, adJac.adY, _nComp);
 
 			jacFunc = [&](double const* const x, linalg::detail::DenseMatrixBase& mat)
 			{
+				active* const localAdY = adJac.adY + _nComp;
+				active* const localAdRes = adJac.adRes + _nComp;
+
 				// Copy over state vector to AD state vector (without changing directional values to keep seed vectors)
 				// and initialize residuals with zero (also resetting directional values)
 				ad::copyToAd(c, localAdY, mask.len);
@@ -697,7 +699,7 @@ void CSTRModel::consistentInitialState(const SimulationTime& simTime, double* co
 				linalg::applyVectorSubset(x, mask, localAdY);
 
 				// Call residual function
-				residualImpl<active, active, double, false>(simTime.t, simTime.secIdx, localAdY, nullptr, localAdRes, tlmAlloc.manageRemainingMemory());
+				residualImpl<active, active, double, false>(simTime.t, simTime.secIdx, adJac.adY, nullptr, adJac.adRes, tlmAlloc.manageRemainingMemory());
 
 #ifdef CADET_CHECK_ANALYTIC_JACOBIAN
 				std::copy_n(c, mask.len, fullX);
@@ -758,8 +760,8 @@ void CSTRModel::consistentInitialState(const SimulationTime& simTime, double* co
 			jacFunc = [&](double const* const x, linalg::detail::DenseMatrixBase& mat)
 			{
 				// Prepare input vector by overwriting masked items
-				std::copy_n(c, mask.len, fullX);
-				linalg::applyVectorSubset(x, mask, fullX);
+				std::copy_n(c, mask.len, fullX + _nComp);
+				linalg::applyVectorSubset(x, mask, fullX + _nComp);
 
 				// Call residual function
 				residualImpl<double, double, double, true>(simTime.t, simTime.secIdx, fullX, nullptr, fullResidual, tlmAlloc.manageRemainingMemory());
@@ -804,19 +806,22 @@ void CSTRModel::consistentInitialState(const SimulationTime& simTime, double* co
 			};
 		}
 
+		// Copy inlet values
+		std::copy_n(vecStateY, _nComp, fullX);
+
 		// Apply nonlinear solver
 		_nonlinearSolver->solve(
 			[&](double const* const x, double* const r)
 			{
 				// Prepare input vector by overwriting masked items
-				std::copy_n(c, mask.len, fullX);
-				linalg::applyVectorSubset(x, mask, fullX);
+				std::copy_n(c, mask.len, fullX + _nComp);
+				linalg::applyVectorSubset(x, mask, fullX + _nComp);
 
 				// Call residual function
 				residualImpl<double, double, double, false>(simTime.t, simTime.secIdx, fullX, nullptr, fullResidual, tlmAlloc.manageRemainingMemory());
 
 				// Extract values from residual
-				linalg::selectVectorSubset(fullResidual, mask, r);
+				linalg::selectVectorSubset(fullResidual + _nComp, mask, r);
 
 				// Calculate residual of conserved moieties
 				std::fill_n(r, numActiveComp, 0.0);
@@ -1001,11 +1006,11 @@ void CSTRModel::consistentInitialTimeDerivative(const SimulationTime& simTime, d
 		double* const qShellDot = cDot + _nComp + _offsetParType[type];
 		for (int i = 0; i < _strideBound[type]; ++i, ++idx)
 		{
-			if (!mask[idx])
+			if (!mask[i])
 				continue;
 
 			_jacFact.copyRowFrom(_jac, idx, idx);
-			qShellDot[idx] = -dFluxDt[i];
+			qShellDot[i] = -dFluxDt[i];
 		}
 	}
 
@@ -1374,7 +1379,7 @@ int CSTRModel::residualImpl(double t, unsigned int secIdx, StateType const* cons
 						continue;
 
 					// Add time derivative to solid phase
-					resQ[idx] = qDot[idx];
+					resQ[idx] += qDot[idx];
 				}
 			}
 		}
@@ -1617,7 +1622,7 @@ void CSTRModel::consistentInitialSensitivity(const SimulationTime& simTime, cons
 	// Check whether quasi-stationary reactions are present and construct mask array
 	bool hasQSreactions = false;
 	std::fill_n(static_cast<int*>(qsMask), _totalBound, false);
-	for (unsigned int type = 0; type < _nParType; ++type, localMask += _strideBound[type])
+	for (unsigned int type = 0; type < _nParType; localMask += _strideBound[type], ++type)
 	{
 		if (!_binding[type]->hasQuasiStationaryReactions())
 			continue;
