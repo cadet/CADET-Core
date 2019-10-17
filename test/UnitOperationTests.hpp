@@ -22,12 +22,48 @@ namespace cadet
 {
 
 class IUnitOperation;
+class IModelBuilder;
+class JsonParameterProvider;
 
 namespace test
 {
 
 namespace unitoperation
 {
+	/**
+	 * @brief Creates a runnable unit operation model
+	 * @details Creates a unit operation model and configures it using the given IParameterProvider @p jpp.
+	 * @param [in] jpp Configuration of the model
+	 * @param [in] mb ModelBuilder
+	 * @return Runnable unit operation model
+	 */
+	cadet::IUnitOperation* createAndConfigureUnit(cadet::JsonParameterProvider& jpp, cadet::IModelBuilder& mb);
+
+	/**
+	 * @brief Creates a runnable unit operation model
+	 * @details Creates a unit operation model and configures it using the given IParameterProvider @p jpp.
+	 * @param [in] uoType Unit operation type
+	 * @param [in] mb ModelBuilder
+	 * @param [in] jpp Configuration of the model
+	 * @return Runnable unit operation model
+	 */
+	cadet::IUnitOperation* createAndConfigureUnit(const std::string& uoType, cadet::IModelBuilder& mb, cadet::JsonParameterProvider& jpp);
+
+	/**
+	 * @brief Checks the full analytic Jacobian against AD for a given model
+	 * @param [in] jpp Unit operation configuration
+	 */
+	void testJacobianAD(cadet::JsonParameterProvider& jpp);
+
+	/**
+	 * @brief Checks the (analytic) time derivative Jacobian against FD for a given model
+	 * @details Uses centered finite differences.
+	 * @param [in] jpp Unit operation configuration
+	 * @param [in] h Step size of centered finite differences
+	 * @param [in] absTol Absolute error tolerance
+	 * @param [in] relTol Relative error tolerance
+	 */
+	void testTimeDerivativeJacobianFD(cadet::JsonParameterProvider& jpp, double h, double absTol, double relTol);
 
 	/**
 	 * @brief Checks the consistent initialization of a generic unit operation

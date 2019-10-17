@@ -62,6 +62,7 @@ namespace
 
 		// Set WENO order
 		cadet::test::column::setWenoOrder(jpp, wenoOrder);
+
 		// Configure
 		cadet::ModelBuilder& temp = *reinterpret_cast<cadet::ModelBuilder*>(&mb);
 		REQUIRE(unit->configureModelDiscretization(jpp, temp));
@@ -609,12 +610,16 @@ namespace column
 	void testArrowHeadJacobianFD(const std::string& uoType, double h, double absTol, double relTol)
 	{
 		cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding(uoType);
+		testArrowHeadJacobianFD(jpp, h, absTol, relTol);
+	}
 
+	void testArrowHeadJacobianFD(cadet::JsonParameterProvider& jpp, double h, double absTol, double relTol)
+	{
 		cadet::IModelBuilder* const mb = cadet::createModelBuilder();
 		REQUIRE(nullptr != mb);
 
-		cadet::IUnitOperation* const unitAna = createAndConfigureUnit(uoType, *mb, jpp, cadet::Weno::maxOrder());
-		cadet::IUnitOperation* const unitFD = createAndConfigureUnit(uoType, *mb, jpp, cadet::Weno::maxOrder());
+		cadet::IUnitOperation* const unitAna = unitoperation::createAndConfigureUnit(jpp, *mb);
+		cadet::IUnitOperation* const unitFD = unitoperation::createAndConfigureUnit(jpp, *mb);
 
 		cadet::util::ThreadLocalStorage tls;
 		tls.resize(unitAna->threadLocalMemorySize());
@@ -623,8 +628,9 @@ namespace column
 		const unsigned int fluxOffset = fluxOffsetOfColumnUnitOp(unitFD);
 
 		// Setup matrices
-		unitAna->notifyDiscontinuousSectionTransition(0.0, 0u, AdJacobianParams{nullptr, nullptr, 0u});
-		unitFD->notifyDiscontinuousSectionTransition(0.0, 0u, AdJacobianParams{nullptr, nullptr, 0u});
+		const AdJacobianParams noParams{nullptr, nullptr, 0u};
+		unitAna->notifyDiscontinuousSectionTransition(0.0, 0u, noParams);
+		unitFD->notifyDiscontinuousSectionTransition(0.0, 0u, noParams);
 
 		// Obtain memory for state, Jacobian multiply direction, Jacobian column
 		std::vector<double> y(unitFD->numDofs(), 0.0);
@@ -637,8 +643,8 @@ namespace column
 //		util::populate(y.data(), [](unsigned int idx) { return 1.0; }, unitAna->numDofs());
 
 		// Compute state Jacobian
-		unitAna->residualWithJacobian(SimulationTime{0.0, 0u}, ConstSimulationState{y.data(), nullptr}, jacDir.data(), AdJacobianParams{nullptr, nullptr, 0u}, tls);
-		unitFD->residualWithJacobian(SimulationTime{0.0, 0u}, ConstSimulationState{y.data(), nullptr}, jacDir.data(), AdJacobianParams{nullptr, nullptr, 0u}, tls);
+		unitAna->residualWithJacobian(SimulationTime{0.0, 0u}, ConstSimulationState{y.data(), nullptr}, jacDir.data(), noParams, tls);
+		unitFD->residualWithJacobian(SimulationTime{0.0, 0u}, ConstSimulationState{y.data(), nullptr}, jacDir.data(), noParams, tls);
 		std::fill(jacDir.begin(), jacDir.end(), 0.0);
 
 		// Compare Jacobians

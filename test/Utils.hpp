@@ -173,6 +173,46 @@ namespace util
 		return OptionalGroupScope<ParamProvider>(jpp, grp);
 	}
 
+	/**
+	 * @brief ParameterProvider scope guard for existent group
+	 * @details Opens and closes the given ParameterProvider scope.
+	 */
+	template <typename ParamProvider>
+	class GroupScope
+	{
+	public:
+
+		/**
+		 * @brief Enters a given scope if it exists
+		 * @param [in,out] jpp ParameterProvider
+		 * @param [in] grp Name of group
+		 */
+		GroupScope(ParamProvider& jpp, const std::string& grp) : _jpp(jpp)
+		{
+			_jpp.pushScope(grp);
+		}
+
+		~GroupScope()
+		{
+			_jpp.popScope();
+		}
+
+	private:
+		ParamProvider& _jpp;
+	};
+
+	/**
+	 * @brief Enters a given group and leaves it when leaving the current scope
+	 * @details The group has to exist.
+	 * @param [in,out] jpp ParameterProvider
+	 * @param [in] grp Name of the group
+	 */
+	template <typename ParamProvider>
+	inline GroupScope<ParamProvider> makeGroupScope(ParamProvider& jpp, const std::string& grp)
+	{
+		return GroupScope<ParamProvider>(jpp, grp);
+	}
+
 } // namespace util
 } // namespace test
 } // namespace cadet

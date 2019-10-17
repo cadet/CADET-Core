@@ -15,10 +15,16 @@
 #define CADET_LOGGING_DISABLE
 #include "Logging.hpp"
 
+#include "cadet/ModelBuilder.hpp"
+#include "cadet/FactoryFuncs.hpp"
+#include "common/JsonParameterProvider.hpp"
+
+#include "ModelBuilderImpl.hpp"
 #include "AutoDiff.hpp"
 #include "linalg/Norms.hpp"
 #include "UnitOperation.hpp"
 #include "UnitOperationTests.hpp"
+#include "JacobianHelper.hpp"
 #include "SimulationTypes.hpp"
 #include "ParallelSupport.hpp"
 
@@ -34,6 +40,112 @@ namespace test
 
 namespace unitoperation
 {
+
+	cadet::IUnitOperation* createAndConfigureUnit(cadet::JsonParameterProvider& jpp, cadet::IModelBuilder& mb)
+	{
+		return createAndConfigureUnit(jpp.getString("UNIT_TYPE"), mb, jpp);
+	}
+
+	cadet::IUnitOperation* createAndConfigureUnit(const std::string& uoType, cadet::IModelBuilder& mb, cadet::JsonParameterProvider& jpp)
+	{
+		// Create a unit
+		cadet::IModel* const iUnit = mb.createUnitOperation(uoType, 0);
+		REQUIRE(nullptr != iUnit);
+
+		cadet::IUnitOperation* const unit = reinterpret_cast<cadet::IUnitOperation*>(iUnit);
+
+		// Configure
+		cadet::ModelBuilder& temp = *reinterpret_cast<cadet::ModelBuilder*>(&mb);
+		REQUIRE(unit->configureModelDiscretization(jpp, temp));
+		REQUIRE(unit->configure(jpp));
+
+		return unit;
+	}
+
+	void testJacobianAD(cadet::JsonParameterProvider& jpp)
+	{
+		cadet::IModelBuilder* const mb = cadet::createModelBuilder();
+		REQUIRE(nullptr != mb);
+
+		cadet::IUnitOperation* const unitAna = createAndConfigureUnit(jpp, *mb);
+		cadet::IUnitOperation* const unitAD = createAndConfigureUnit(jpp, *mb);
+
+		// Enable AD
+		cadet::ad::setDirections(cadet::ad::getMaxDirections());
+		unitAD->useAnalyticJacobian(false);
+
+		cadet::active* adRes = new cadet::active[unitAD->numDofs()];
+		cadet::active* adY = new cadet::active[unitAD->numDofs()];
+
+		const AdJacobianParams noParams{nullptr, nullptr, 0u};
+		const AdJacobianParams adParams{adRes, adY, 0u};
+
+		unitAD->prepareADvectors(adParams);
+
+		// Setup matrices
+		unitAna->notifyDiscontinuousSectionTransition(0.0, 0u, noParams);
+		unitAD->notifyDiscontinuousSectionTransition(0.0, 0u, adParams);
+
+		// Obtain memory for state, Jacobian multiply direction, Jacobian column
+		std::vector<double> y(unitAD->numDofs(), 0.0);
+		std::vector<double> jacDir(unitAD->numDofs(), 0.0);
+		std::vector<double> jacCol1(unitAD->numDofs(), 0.0);
+		std::vector<double> jacCol2(unitAD->numDofs(), 0.0);
+		cadet::util::ThreadLocalStorage tls;
+		tls.resize(unitAna->threadLocalMemorySize());
+
+		// Fill state vector with some values
+		util::populate(y.data(), [](unsigned int idx) { return std::abs(std::sin(idx * 0.13)) + 1e-4; }, unitAna->numDofs());
+//		util::populate(y.data(), [](unsigned int idx) { return 1.0; }, unitAna->numDofs());
+
+		// Compute state Jacobian
+		unitAna->residualWithJacobian(SimulationTime{0.0, 0u}, ConstSimulationState{y.data(), nullptr}, jacDir.data(), noParams, tls);
+		unitAD->residualWithJacobian(SimulationTime{0.0, 0u}, ConstSimulationState{y.data(), nullptr}, jacDir.data(), adParams, tls);
+		std::fill(jacDir.begin(), jacDir.end(), 0.0);
+
+		// Compare Jacobians
+		cadet::test::checkJacobianPatternFD(unitAna, unitAD, y.data(), nullptr, jacDir.data(), jacCol1.data(), jacCol2.data(), tls);
+		cadet::test::checkJacobianPatternFD(unitAna, unitAna, y.data(), nullptr, jacDir.data(), jacCol1.data(), jacCol2.data(), tls);
+		cadet::test::compareJacobian(unitAna, unitAD, nullptr, nullptr, jacDir.data(), jacCol1.data(), jacCol2.data());
+//		cadet::test::compareJacobianFD(unitAna, unitAD, y.data(), nullptr, jacDir.data(), jacCol1.data(), jacCol2.data());
+
+		delete[] adRes;
+		delete[] adY;
+		mb->destroyUnitOperation(unitAna);
+		mb->destroyUnitOperation(unitAD);
+		destroyModelBuilder(mb);
+	}
+
+	void testTimeDerivativeJacobianFD(cadet::JsonParameterProvider& jpp, double h, double absTol, double relTol)
+	{
+		cadet::IModelBuilder* const mb = cadet::createModelBuilder();
+		REQUIRE(nullptr != mb);
+
+		cadet::IUnitOperation* const unit = createAndConfigureUnit(jpp, *mb);
+
+		// Setup matrices
+		unit->notifyDiscontinuousSectionTransition(0.0, 0u, AdJacobianParams{nullptr, nullptr, 0u});
+
+		// Obtain memory for state, Jacobian multiply direction, Jacobian column
+		const unsigned int nDof = unit->numDofs();
+		std::vector<double> y(nDof, 0.0);
+		std::vector<double> yDot(nDof, 0.0);
+		std::vector<double> jacDir(nDof, 0.0);
+		std::vector<double> jacCol1(nDof, 0.0);
+		std::vector<double> jacCol2(nDof, 0.0);
+		cadet::util::ThreadLocalStorage tls;
+		tls.resize(unit->threadLocalMemorySize());
+
+		// Fill state vectors with some values
+		util::populate(y.data(), [=](unsigned int idx) { return std::abs(std::sin(idx * 0.13)) + 1e-4; }, nDof);
+		util::populate(yDot.data(), [=](unsigned int idx) { return std::abs(std::sin((idx + nDof) * 0.13)) + 1e-4; }, nDof);
+
+		// Compare Jacobians
+		cadet::test::compareTimeDerivativeJacobianFD(unit, unit, y.data(), yDot.data(), jacDir.data(), jacCol1.data(), jacCol2.data(), tls, h, absTol, relTol);
+
+		mb->destroyUnitOperation(unit);
+		destroyModelBuilder(mb);
+	}
 
 	void testConsistentInitialization(cadet::IUnitOperation* const unit, bool adEnabled, double* const y, double consTol, double absTol)
 	{
@@ -61,6 +173,7 @@ namespace unitoperation
 		unit->notifyDiscontinuousSectionTransition(0.0, 0u, adParams);
 
 		// Obtain memory
+		std::vector<double> yIn(y, y + unit->numComponents() * unit->numInletPorts());
 		std::vector<double> yDot(unit->numDofs(), 0.0);
 		std::vector<double> res(unit->numDofs(), 0.0);
 		cadet::util::ThreadLocalStorage tls;
@@ -68,6 +181,10 @@ namespace unitoperation
 
 		// Initialize algebraic variables in state vector
 		unit->consistentInitialState(SimulationTime{0.0, 0u}, y, adParams, consTol, tls);
+
+		// Make sure inlet DOFs have not been touched
+		for (unsigned int i = 0; i < yIn.size(); ++i)
+			CHECK(yIn[i] == y[i]);
 
 		// Evaluate residual without yDot and update Jacobians
 		// Store residual in yDot

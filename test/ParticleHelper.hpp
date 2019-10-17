@@ -19,7 +19,6 @@
 #define CADETTEST_PARTICLEHELPER_HPP_
 
 #include "cadet/ParameterId.hpp"
-#include "common/JsonParameterProvider.hpp"
 
 #include <vector>
 
@@ -36,7 +35,7 @@ namespace particle
 
 	/**
 	 * @brief Extends a model to multiple particle types by replicating the first type
-	 * @param [in,out] jpp ParameterProvider to change the number of axial cells in
+	 * @param [in,out] jpp ParameterProvider to extend
 	 * @param [in] unit Index of unit operation
 	 * @param [in] nTypes Total number of particle types
 	 * @param [in] volFrac Array with volume fractions of particle types
@@ -45,15 +44,38 @@ namespace particle
 
 	/**
 	 * @brief Extends a model to multiple particle types by replicating the first type
-	 * @param [in,out] jpp ParameterProvider to change the number of axial cells in
+	 * @param [in,out] jpp ParameterProvider to extend
 	 * @param [in] nTypes Total number of particle types
 	 * @param [in] volFrac Array with volume fractions of particle types
 	 */
 	void extendModelToManyParticleTypes(cadet::JsonParameterProvider& jpp, unsigned int nTypes, double const* const volFrac);
 
 	/**
+	 * @brief Extends a model to multiple particle types by replicating the first type
+	 * @details Modifies the double-valued parameters of the replicated particle types by a factor given in @p paramFactors.
+	            The source particle type retains a factor of @c 1.0 that is not included in @p paramFactors, which has length @c nTypes-1.
+	 * @param [in,out] jpp ParameterProvider to extend
+	 * @param [in] unit Index of unit operation
+	 * @param [in] nTypes Total number of particle types
+	 * @param [in] paramFactors Array with factors for replicated double-valued parameters
+	 * @param [in] volFrac Array with volume fractions of particle types
+	 */
+	void extendModelToManyParticleTypes(cadet::JsonParameterProvider& jpp, UnitOpIdx unit, unsigned int nTypes, double const* const paramFactors, double const* const volFrac);
+
+	/**
+	 * @brief Extends a model to multiple particle types by replicating the first type
+	 * @details Modifies the double-valued parameters of the replicated particle types by a factor given in @p paramFactors.
+	            The source particle type retains a factor of @c 1.0 that is not included in @p paramFactors, which has length @c nTypes-1.
+	 * @param [in,out] jpp ParameterProvider to extend
+	 * @param [in] nTypes Total number of particle types
+	 * @param [in] paramFactors Array with factors for replicated double-valued parameters
+	 * @param [in] volFrac Array with volume fractions of particle types
+	 */
+	void extendModelToManyParticleTypes(cadet::JsonParameterProvider& jpp, unsigned int nTypes, double const* const paramFactors, double const* const volFrac);
+
+	/**
 	 * @brief Sets the volume fractions of the particle types
-	 * @param [in,out] jpp ParameterProvider to change the number of axial cells in
+	 * @param [in,out] jpp ParameterProvider to extend
 	 * @param [in] unit Index of unit operation
 	 * @param [in] volFrac Array with volume fractions of particle types
 	 */
@@ -61,10 +83,17 @@ namespace particle
 
 	/**
 	 * @brief Sets the volume fractions of the particle types
-	 * @param [in,out] jpp ParameterProvider to change the number of axial cells in
+	 * @param [in,out] jpp ParameterProvider to extend
 	 * @param [in] volFrac Array with volume fractions of particle types
 	 */
 	void setParticleTypeVolumeFractions(cadet::JsonParameterProvider& jpp, const std::vector<double>& volFrac);
+
+	/**
+	 * @brief Assigns spatially varying particle type volume fractions based on the current values
+	 * @param [in,out] jpp ParameterProvider to extend
+	 * @param [in] nParType Number of particle types
+	 */
+	void scrambleParticleTypeFractionsSpatially(cadet::JsonParameterProvider& jpp, unsigned int nParType);
 
 	/**
 	 * @brief Checks whether results of simulation with one particle type matches the one with two (identical) particle types

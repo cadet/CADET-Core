@@ -20,6 +20,8 @@
 
 #include "JsonTestModels.hpp"
 #include "JacobianHelper.hpp"
+#include "ParticleHelper.hpp"
+#include "ReactionModelTests.hpp"
 #include "SimHelper.hpp"
 #include "UnitOperationTests.hpp"
 #include "Utils.hpp"
@@ -49,6 +51,36 @@ cadet::model::CSTRModel* createAndConfigureCSTR(cadet::IModelBuilder& mb, cadet:
 	REQUIRE(cstr->configure(jpp));
 
 	return cstr;
+}
+
+/**
+ * @brief Creates a CSTR model with two components and linear binding model
+ * @return Two component CSTR model with linear binding model
+ */
+inline cadet::JsonParameterProvider createTwoComponentLinearTestCase()
+{
+	cadet::JsonParameterProvider jpp = createCSTR(2);
+	cadet::test::addBoundStates(jpp, {1, 1}, 0.5);
+	cadet::test::addLinearBindingModel(jpp, true, {0.1, 0.2}, {1.0, 0.9});
+	cadet::test::setInitialConditions(jpp, {1.0, 2.0}, {3.0, 4.0}, 6.0);
+	cadet::test::setFlowRates(jpp, 0, 1.0);
+
+	return jpp;
+}
+
+/**
+ * @brief Creates a CSTR model with two components, linear binding model, and three particle types
+ * @return Two component CSTR model with linear binding model and three particle types
+ */
+inline cadet::JsonParameterProvider createTwoComponentLinearThreeParticleTypesTestCase()
+{
+	cadet::JsonParameterProvider jpp = createTwoComponentLinearTestCase();
+
+	const double parVolFrac[] = {0.3, 0.6, 0.1};
+	const double parFactor[] = {0.9, 0.8};
+	cadet::test::particle::extendModelToManyParticleTypes(jpp, 3, parFactor, parVolFrac);
+
+	return jpp;
 }
 
 inline void checkJacobianAD(double flowRateIn, double flowRateOut, double flowRateFilter, std::function<void(cadet::JsonParameterProvider&, unsigned int)> modelRefiner)
@@ -555,4 +587,136 @@ TEST_CASE("StirredTankModel inlet DOF Jacobian", "[CSTR],[UnitOp],[Jacobian],[In
 		}
 	}
 	destroyModelBuilder(mb);
+}
+
+TEST_CASE("CSTR multiple particle types Jacobian analytic vs AD", "[CSTR],[Jacobian],[AD],[ParticleType]")
+{
+	cadet::JsonParameterProvider jpp = createTwoComponentLinearTestCase();
+	cadet::test::particle::testJacobianMixedParticleTypes(jpp);
+}
+
+TEST_CASE("CSTR multiple particle types time derivative Jacobian vs FD", "[CSTR],[UnitOp],[Residual],[Jacobian],[ParticleType]")
+{
+	cadet::JsonParameterProvider jpp = createTwoComponentLinearTestCase();
+	cadet::test::particle::testTimeDerivativeJacobianMixedParticleTypesFD(jpp, 1e-6, 0.0, 9e-4);
+}
+
+TEST_CASE("CSTR dynamic reactions Jacobian vs AD bulk", "[CSTR],[Jacobian],[AD],[ReactionModel]")
+{
+	cadet::JsonParameterProvider jpp = createTwoComponentLinearTestCase();
+	cadet::test::reaction::testUnitJacobianDynamicReactionsAD(jpp, true, false, false);
+}
+
+TEST_CASE("CSTR dynamic reactions Jacobian vs AD particle", "[CSTR],[Jacobian],[AD],[ReactionModel]")
+{
+	cadet::JsonParameterProvider jpp = createTwoComponentLinearTestCase();
+	cadet::test::reaction::testUnitJacobianDynamicReactionsAD(jpp, false, true, false);
+}
+
+TEST_CASE("CSTR dynamic reactions Jacobian vs AD modified particle", "[CSTR],[Jacobian],[AD],[ReactionModel]")
+{
+	cadet::JsonParameterProvider jpp = createTwoComponentLinearTestCase();
+	cadet::test::reaction::testUnitJacobianDynamicReactionsAD(jpp, false, true, true);
+}
+
+TEST_CASE("CSTR dynamic reactions Jacobian vs AD bulk and particle", "[CSTR],[Jacobian],[AD],[ReactionModel]")
+{
+	cadet::JsonParameterProvider jpp = createTwoComponentLinearTestCase();
+	cadet::test::reaction::testUnitJacobianDynamicReactionsAD(jpp, true, true, false);
+}
+
+TEST_CASE("CSTR dynamic reactions Jacobian vs AD bulk and modified particle", "[CSTR],[Jacobian],[AD],[ReactionModel]")
+{
+	cadet::JsonParameterProvider jpp = createTwoComponentLinearTestCase();
+	cadet::test::reaction::testUnitJacobianDynamicReactionsAD(jpp, true, true, true);
+}
+
+TEST_CASE("CSTR dynamic reactions time derivative Jacobian vs FD bulk", "[CSTR],[Jacobian],[Residual],[ReactionModel]")
+{
+	cadet::JsonParameterProvider jpp = createTwoComponentLinearTestCase();
+	cadet::test::reaction::testTimeDerivativeJacobianDynamicReactionsFD(jpp, true, false, false, 1e-6, 1e-14, 8e-4);
+}
+
+TEST_CASE("CSTR dynamic reactions time derivative Jacobian vs FD particle", "[CSTR],[Jacobian],[Residual],[ReactionModel]")
+{
+	cadet::JsonParameterProvider jpp = createTwoComponentLinearTestCase();
+	cadet::test::reaction::testTimeDerivativeJacobianDynamicReactionsFD(jpp, false, true, false, 1e-6, 1e-14, 8e-4);
+}
+
+TEST_CASE("CSTR dynamic reactions time derivative Jacobian vs FD modified particle", "[CSTR],[Jacobian],[Residual],[ReactionModel]")
+{
+	cadet::JsonParameterProvider jpp = createTwoComponentLinearTestCase();
+	cadet::test::reaction::testTimeDerivativeJacobianDynamicReactionsFD(jpp, false, true, true, 1e-6, 1e-14, 8e-4);
+}
+
+TEST_CASE("CSTR dynamic reactions time derivative Jacobian vs FD bulk and particle", "[CSTR],[Jacobian],[Residual],[ReactionModel]")
+{
+	cadet::JsonParameterProvider jpp = createTwoComponentLinearTestCase();
+	cadet::test::reaction::testTimeDerivativeJacobianDynamicReactionsFD(jpp, true, true, false, 1e-6, 1e-14, 8e-4);
+}
+
+TEST_CASE("CSTR dynamic reactions time derivative Jacobian vs FD bulk and modified particle", "[CSTR],[Jacobian],[Residual],[ReactionModel]")
+{
+	cadet::JsonParameterProvider jpp = createTwoComponentLinearTestCase();
+	cadet::test::reaction::testTimeDerivativeJacobianDynamicReactionsFD(jpp, true, true, true, 1e-6, 1e-14, 8e-4);
+}
+
+TEST_CASE("CSTR multi particle types dynamic reactions Jacobian vs AD bulk", "[CSTR],[Jacobian],[AD],[ReactionModel],[ParticleType]")
+{
+	cadet::JsonParameterProvider jpp = createTwoComponentLinearThreeParticleTypesTestCase();
+	cadet::test::reaction::testUnitJacobianDynamicReactionsAD(jpp, true, false, false);
+}
+
+TEST_CASE("CSTR multi particle types dynamic reactions Jacobian vs AD particle", "[CSTR],[Jacobian],[AD],[ReactionModel],[ParticleType]")
+{
+	cadet::JsonParameterProvider jpp = createTwoComponentLinearThreeParticleTypesTestCase();
+	cadet::test::reaction::testUnitJacobianDynamicReactionsAD(jpp, false, true, false);
+}
+
+TEST_CASE("CSTR multi particle types dynamic reactions Jacobian vs AD modified particle", "[CSTR],[Jacobian],[AD],[ReactionModel],[ParticleType]")
+{
+	cadet::JsonParameterProvider jpp = createTwoComponentLinearThreeParticleTypesTestCase();
+	cadet::test::reaction::testUnitJacobianDynamicReactionsAD(jpp, false, true, true);
+}
+
+TEST_CASE("CSTR multi particle types dynamic reactions Jacobian vs AD bulk and particle", "[CSTR],[Jacobian],[AD],[ReactionModel],[ParticleType]")
+{
+	cadet::JsonParameterProvider jpp = createTwoComponentLinearThreeParticleTypesTestCase();
+	cadet::test::reaction::testUnitJacobianDynamicReactionsAD(jpp, true, true, false);
+}
+
+TEST_CASE("CSTR multi particle types dynamic reactions Jacobian vs AD bulk and modified particle", "[CSTR],[Jacobian],[AD],[ReactionModel],[ParticleType]")
+{
+	cadet::JsonParameterProvider jpp = createTwoComponentLinearThreeParticleTypesTestCase();
+	cadet::test::reaction::testUnitJacobianDynamicReactionsAD(jpp, true, true, true);
+}
+
+TEST_CASE("CSTR multi particle types dynamic reactions time derivative Jacobian vs FD bulk", "[CSTR],[Jacobian],[Residual],[ReactionModel],[ParticleType]")
+{
+	cadet::JsonParameterProvider jpp = createTwoComponentLinearThreeParticleTypesTestCase();
+	cadet::test::reaction::testTimeDerivativeJacobianDynamicReactionsFD(jpp, true, false, false, 1e-6, 1e-14, 8e-4);
+}
+
+TEST_CASE("CSTR multi particle types dynamic reactions time derivative Jacobian vs FD particle", "[CSTR],[Jacobian],[Residual],[ReactionModel],[ParticleType]")
+{
+	cadet::JsonParameterProvider jpp = createTwoComponentLinearThreeParticleTypesTestCase();
+	cadet::test::reaction::testTimeDerivativeJacobianDynamicReactionsFD(jpp, false, true, false, 1e-6, 1e-14, 8e-4);
+}
+
+TEST_CASE("CSTR multi particle types dynamic reactions time derivative Jacobian vs FD modified particle", "[CSTR],[Jacobian],[Residual],[ReactionModel],[ParticleType]")
+{
+	cadet::JsonParameterProvider jpp = createTwoComponentLinearThreeParticleTypesTestCase();
+	cadet::test::reaction::testTimeDerivativeJacobianDynamicReactionsFD(jpp, false, true, true, 1e-6, 1e-14, 8e-4);
+}
+
+TEST_CASE("CSTR multi particle types dynamic reactions time derivative Jacobian vs FD bulk and particle", "[CSTR],[Jacobian],[Residual],[ReactionModel],[ParticleType]")
+{
+	cadet::JsonParameterProvider jpp = createTwoComponentLinearThreeParticleTypesTestCase();
+	cadet::test::reaction::testTimeDerivativeJacobianDynamicReactionsFD(jpp, true, true, false, 1e-6, 1e-14, 8e-4);
+}
+
+TEST_CASE("CSTR multi particle types dynamic reactions time derivative Jacobian vs FD bulk and modified particle", "[CSTR],[Jacobian],[Residual],[ReactionModel],[ParticleType]")
+{
+	cadet::JsonParameterProvider jpp = createTwoComponentLinearThreeParticleTypesTestCase();
+	cadet::test::reaction::testTimeDerivativeJacobianDynamicReactionsFD(jpp, true, true, true, 1e-6, 1e-14, 8e-4);
 }

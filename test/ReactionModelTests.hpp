@@ -18,10 +18,13 @@
 #ifndef CADETTEST_REACTIONODELTEST_HPP_
 #define CADETTEST_REACTIONODELTEST_HPP_
 
+#include "cadet/ParameterId.hpp"
 #include <limits>
 
 namespace cadet
 {
+
+class JsonParameterProvider;
 
 namespace test
 {
@@ -40,6 +43,61 @@ namespace reaction
 	 * @param [in] relTol Relative error tolerance
 	 */
 	void testDynamicJacobianAD(const char* modelName, unsigned int nComp, unsigned int const* nBound, const char* config, double const* point, double absTol = 0.0, double relTol = std::numeric_limits<float>::epsilon() * 100.0);
+
+	/**
+	 * @brief Extends a model with dynamic reactions in each phase and particle type
+	 * @param [in,out] jpp ParameterProvider to extend
+	 * @param [in] unit Index of unit operation
+	 * @param [in] bulk Determines whether reactions are added to bulk volume
+	 * @param [in] particle Determines whether reactions are added to each particle type
+	 * @param [in] particleModifiers Determines whether reaction rates in particles are modified by the respective other phase
+	 */
+	void extendModelWithDynamicReactions(cadet::JsonParameterProvider& jpp, UnitOpIdx unit, bool bulk, bool particle, bool particleModifiers);
+
+	/**
+	 * @brief Checks the full analytic Jacobian of a unit operation model with dynamic reactions against AD
+	 * @param [in] jpp Unit operation configuration
+	 * @param [in] bulk Determines whether reactions are added to bulk volume
+	 * @param [in] particle Determines whether reactions are added to each particle type
+	 * @param [in] particleModifiers Determines whether reaction rates in particles are modified by the respective other phase
+	 */
+	void testUnitJacobianDynamicReactionsAD(cadet::JsonParameterProvider& jpp, bool bulk, bool particle, bool particleModifiers);
+
+	/**
+	 * @brief Checks the full analytic Jacobian of a unit operation model with dynamic reactions against AD
+	 * @details Uses a model with linear binding model and two components.
+	 * @param [in] uoType Unit operation type
+	 * @param [in] bulk Determines whether reactions are added to bulk volume
+	 * @param [in] particle Determines whether reactions are added to each particle type
+	 * @param [in] particleModifiers Determines whether reaction rates in particles are modified by the respective other phase
+	 */
+	void testUnitJacobianDynamicReactionsAD(const std::string& uoType, bool bulk, bool particle, bool particleModifiers);
+
+	/**
+	 * @brief Checks the (analytic) time derivative Jacobian against FD for a model with dynamic reactions
+	 * @details Uses centered finite differences.
+	 * @param [in] jpp Unit operation configuration
+	 * @param [in] bulk Determines whether reactions are added to bulk volume
+	 * @param [in] particle Determines whether reactions are added to each particle type
+	 * @param [in] particleModifiers Determines whether reaction rates in particles are modified by the respective other phase
+	 * @param [in] h Step size of centered finite differences
+	 * @param [in] absTol Absolute error tolerance
+	 * @param [in] relTol Relative error tolerance
+	 */
+	void testTimeDerivativeJacobianDynamicReactionsFD(cadet::JsonParameterProvider& jpp, bool bulk, bool particle, bool particleModifiers, double h, double absTol, double relTol);
+
+	/**
+	 * @brief Checks the (analytic) time derivative Jacobian against FD for a model with dynamic reactions
+	 * @details Uses centered finite differences. Uses a model with linear binding model and two components.
+	 * @param [in] uoType Unit operation type
+	 * @param [in] bulk Determines whether reactions are added to bulk volume
+	 * @param [in] particle Determines whether reactions are added to each particle type
+	 * @param [in] particleModifiers Determines whether reaction rates in particles are modified by the respective other phase
+	 * @param [in] h Step size of centered finite differences
+	 * @param [in] absTol Absolute error tolerance
+	 * @param [in] relTol Relative error tolerance
+	 */
+	void testTimeDerivativeJacobianDynamicReactionsFD(const std::string& uoType, bool bulk, bool particle, bool particleModifiers, double h, double absTol, double relTol);
 
 } // namespace reaction
 } // namespace test

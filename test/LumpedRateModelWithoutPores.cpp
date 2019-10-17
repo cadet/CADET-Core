@@ -13,6 +13,7 @@
 #include <catch.hpp>
 
 #include "ColumnTests.hpp"
+#include "ReactionModelTests.hpp"
 #include "Weno.hpp"
 #include "Utils.hpp"
 
@@ -124,4 +125,24 @@ TEST_CASE("LRM consistent sensitivity initialization with SMA binding", "[LRM],[
 TEST_CASE("LRM inlet DOF Jacobian", "[LRM],[UnitOp],[Jacobian],[Inlet]")
 {
 	cadet::test::column::testInletDofJacobian("LUMPED_RATE_MODEL_WITHOUT_PORES");
+}
+
+TEST_CASE("LRM dynamic reactions Jacobian vs AD bulk", "[LRM],[Jacobian],[AD],[ReactionModel]")
+{
+	cadet::test::reaction::testUnitJacobianDynamicReactionsAD("LUMPED_RATE_MODEL_WITHOUT_PORES", true, false, false);
+}
+
+TEST_CASE("LRM dynamic reactions Jacobian vs AD modified bulk", "[LRM],[Jacobian],[AD],[ReactionModel]")
+{
+	cadet::test::reaction::testUnitJacobianDynamicReactionsAD("LUMPED_RATE_MODEL_WITHOUT_PORES", true, false, true);
+}
+
+TEST_CASE("LRM dynamic reactions time derivative Jacobian vs FD bulk", "[LRM],[Jacobian],[Residual],[ReactionModel]")
+{
+	cadet::test::reaction::testTimeDerivativeJacobianDynamicReactionsFD("LUMPED_RATE_MODEL_WITHOUT_PORES", true, false, false, 1e-6, 1e-14, 8e-4);
+}
+
+TEST_CASE("LRM dynamic reactions time derivative Jacobian vs FD modified bulk", "[LRM],[Jacobian],[Residual],[ReactionModel]")
+{
+	cadet::test::reaction::testTimeDerivativeJacobianDynamicReactionsFD("LUMPED_RATE_MODEL_WITHOUT_PORES", true, false, true, 1e-6, 1e-14, 8e-4);
 }
