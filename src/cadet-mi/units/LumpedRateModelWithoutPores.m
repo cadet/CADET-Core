@@ -12,6 +12,7 @@ classdef LumpedRateModelWithoutPores < Model
 
 	properties
 		bindingModel; % Object of the used binding model class
+		reactionModel; % Object of the used reaction model class for the bulk volume
 	end
 
 	properties (Dependent)
@@ -70,6 +71,7 @@ classdef LumpedRateModelWithoutPores < Model
 
 			% Set some default values
 			obj.bindingModel = [];
+			obj.reactionModel = [];
 
 			obj.useAnalyticJacobian = true;
 
@@ -285,6 +287,17 @@ classdef LumpedRateModelWithoutPores < Model
 			obj.hasChanged = true;
 		end
 
+		function set.reactionModel(obj, val)
+			if numel(val) > 1
+				error('CADET:invalidConfig', 'Expected a single reaction model instead of array.');
+			end
+			if ~isempty(val) && ~isa(val, 'ReactionModel')
+				error('CADET:invalidConfig', 'Expected a valid reaction model.');
+			end
+			obj.reactionModel = val;
+			obj.hasChanged = true;
+		end
+
 		function val = get.nInletPorts(obj)
 			val = 1;
 		end
@@ -301,6 +314,14 @@ classdef LumpedRateModelWithoutPores < Model
 			if ~isempty(obj.bindingModel)
 				S.bindingModelClass = class(obj.bindingModel);
 				S.bindingModel = obj.bindingModel.saveobj();
+			end
+
+			S.reactionModel = [];
+			S.reactionModelClass = [];
+
+			if ~isempty(obj.reactionModel)
+				S.reactionModelClass = class(obj.reactionModel);
+				S.reactionModel = obj.reactionModel.saveobj();
 			end
 		end
 
@@ -370,6 +391,17 @@ classdef LumpedRateModelWithoutPores < Model
 				validateattributes(obj.nBoundStates, {'numeric'}, {'nonnegative', 'vector', 'numel', obj.nComponents, 'finite', 'real'}, '', 'nBoundStates');
 				res = obj.bindingModel.validate(obj.nComponents, obj.nBoundStates) && res;
 			end
+
+			if ~isempty(obj.reactionModel)
+				if ~isa(obj.reactionModel, 'ReactionModel')
+					error('CADET:invalidConfig', 'Expected a valid reaction model.');
+				end
+				res = obj.reactionModel.validate(obj.nComponents, obj.nBoundStates(((i-1) * obj.nComponents + 1):(i * obj.nComponents))) && res;
+
+				if ~obj.reactionModelBulk.hasLiquidPhaseReactions && ~obj.reactionModelBulk.hasSolidPhaseReactions
+					warning('CADET:unexptectedConfig', 'Reaction model does neither contain liquid nor solid phase reactions.');
+				end
+			end
 		end
 
 		function res = assembleConfig(obj)
@@ -394,6 +426,13 @@ classdef LumpedRateModelWithoutPores < Model
 			else
 				res.ADSORPTION_MODEL = obj.bindingModel.name;
 				res.adsorption = obj.bindingModel.assembleConfig();
+			end
+
+			if isempty(obj.reactionModel)
+				res.REACTION_MODEL = 'NONE';
+			else
+				res.REACTION_MODEL = obj.reactionModel.name;
+				res.reaction = obj.reactionModel.assembleConfig();
 			end
 		end
 
@@ -436,9 +475,22 @@ classdef LumpedRateModelWithoutPores < Model
 				return;
 			end
 
-			if ~isfield(obj.data, param.SENS_NAME) && ~isempty(obj.bindingModel)
-				% We don't have this parameter, so try binding model
-				val = obj.bindingModel.getParameterValue(param, obj.nBoundStates);
+			if ~isfield(obj.data, param.SENS_NAME)
+				% We don't have this parameter
+
+				if ~isempty(obj.bindingModel)
+					% Try binding model
+					val = obj.bindingModel.getParameterValue(param, obj.nBoundStates(1:obj.nComponents));
+					return;
+				end
+
+				if ~isempty(obj.reactionModel)
+					% Try reaction model
+					val = obj.reactionModel.getParameterValue(param, obj.nBoundStates(1:obj.nComponents));
+					return;
+				end
+
+				val = nan;
 				return;
 			end
 			
@@ -472,9 +524,22 @@ classdef LumpedRateModelWithoutPores < Model
 				return;
 			end
 
-			if ~isfield(obj.data, param.SENS_NAME) && ~isempty(obj.bindingModel)
-				% We don't have this parameter, so try binding model
-				oldVal = obj.bindingModel.setParameterValue(param, obj.nBoundStates, newVal);
+			if ~isfield(obj.data, param.SENS_NAME)
+				% We don't have this parameter
+
+				if ~isempty(obj.bindingModel)
+					% Try binding model
+					oldVal = obj.bindingModel.setParameterValue(param, obj.nBoundStates(1:obj.nComponents), newVal);
+					return;
+				end
+
+				if ~isempty(obj.reactionModel)
+					% Try reaction model
+					oldVal = obj.reactionModel.setParameterValue(param, obj.nBoundStates(1:obj.nComponents), newVal);
+					return;
+				end
+
+				oldVal = nan;
 				return;
 			end
 
@@ -499,13 +564,19 @@ classdef LumpedRateModelWithoutPores < Model
 			if ~isempty(obj.bindingModel)
 				obj.bindingModel.notifySync();
 			end
+
+			if ~isempty(obj.reactionModel)
+				obj.reactionModel.notifySync();
+			end
 		end
 	end
 
 	methods (Access = 'protected')
 
 		function val = getHasChanged(obj)
-			val = obj.getHasChanged@Model() || (~isempty(obj.bindingModel) && obj.bindingModel.hasChanged);
+			val = obj.getHasChanged@Model() || ...
+			(~isempty(obj.bindingModel) && obj.bindingModel.hasChanged) || ...
+			(~isempty(obj.reactionModel) && obj.reactionModel.hasChanged);
 		end
 
 		function loadobjInternal(obj, S)
@@ -515,6 +586,12 @@ classdef LumpedRateModelWithoutPores < Model
 			if ~isempty(S.bindingModel)
 				ctor = str2func([S.bindingModelClass '.loadobj']);
 				obj.bindingModel = ctor(S.bindingModel);
+			end
+
+			obj.reactionModel = ReactionModel.empty();
+			if ~isempty(S.reactionModel)
+				ctor = str2func([S.reactionModelClass '.loadobj']);
+				obj.reactionModel = ctor(S.reactionModel);
 			end
 		end
 

@@ -12,6 +12,8 @@ classdef GeneralRateModel < Model
 
 	properties
 		bindingModel; % Object of the used binding model class
+		reactionModelBulk; % Object of the used reaction model class for the bulk volume
+		reactionModelParticle; % Object of the used reaction model class for the particle volume
 	end
 
 	properties (Dependent)
@@ -96,6 +98,8 @@ classdef GeneralRateModel < Model
 
 			% Set some default values
 			obj.bindingModel = [];
+			obj.reactionModelBulk = [];
+			obj.reactionModelParticle = [];
 			obj.particleCoreRadius = 0;
 			obj.particleTypeVolumeFractions = 1;
 			obj.nParticleTypes = 1;
@@ -624,6 +628,27 @@ classdef GeneralRateModel < Model
 			obj.hasChanged = true;
 		end
 
+		function set.reactionModelBulk(obj, val)
+			if numel(val) > 1
+				error('CADET:invalidConfig', 'Expected a single reaction model instead of array.');
+			end
+			if ~isempty(val) && ~isa(val, 'ReactionModel')
+				error('CADET:invalidConfig', 'Expected a valid reaction model.');
+			end
+			obj.reactionModelBulk = val;
+			obj.hasChanged = true;
+		end
+
+		function set.reactionModelParticle(obj, val)
+			for i = 1:numel(val)
+				if ~isempty(val(i)) && ~isa(val(i), 'ReactionModel')
+					error('CADET:invalidConfig', 'Expected a valid reaction model at index %d.', i);
+				end
+			end
+			obj.reactionModelParticle = val;
+			obj.hasChanged = true;
+		end
+
 		function val = get.nInletPorts(obj)
 			val = 1;
 		end
@@ -635,6 +660,7 @@ classdef GeneralRateModel < Model
 
 		function S = saveobj(obj)
 			S = obj.saveobj@Model();
+
 			S.bindingModel = [];
 			S.bindingModelClass = [];
 
@@ -644,6 +670,26 @@ classdef GeneralRateModel < Model
 				for i = 1:numel(obj.bindingModel)
 					S.bindingModelClass{i} = class(obj.bindingModel(i));
 					S.bindingModel{i} = obj.bindingModel(i).saveobj();
+				end
+			end
+
+			S.reactionModelBulk = [];
+			S.reactionModelBulkClass = [];
+
+			if ~isempty(obj.reactionModelBulk)
+				S.reactionModelBulkClass = class(obj.reactionModelBulk);
+				S.reactionModelBulk = obj.reactionModelBulk.saveobj();
+			end
+
+			S.reactionModelParticle = [];
+			S.reactionModelParticleClass = [];
+
+			if ~isempty(obj.reactionModelParticle)
+				S.reactionModelParticleClass = cell(numel(obj.reactionModelParticle), 1);
+				S.reactionModelParticle = cell(numel(obj.reactionModelParticle), 1);
+				for i = 1:numel(obj.reactionModelParticle)
+					S.reactionModelParticleClass{i} = class(obj.reactionModelParticle(i));
+					S.reactionModelParticle{i} = obj.reactionModelParticle(i).saveobj();
 				end
 			end
 		end
@@ -785,6 +831,32 @@ classdef GeneralRateModel < Model
 					res = obj.bindingModel(i).validate(obj.nComponents, obj.nBoundStates(((i-1) * obj.nComponents + 1):(i * obj.nComponents))) && res;
 				end
 			end
+
+			if ~isempty(obj.reactionModelBulk)
+				if ~isa(obj.reactionModelBulk, 'ReactionModel')
+					error('CADET:invalidConfig', 'Expected a valid reaction model in bulk volume.');
+				end
+
+				res = obj.reactionModelBulk.validate(obj.nComponents, obj.nBoundStates(((i-1) * obj.nComponents + 1):(i * obj.nComponents))) && res;
+
+				if ~obj.reactionModelBulk.hasBulkPhaseReactions
+					warning('CADET:unexptectedConfig', 'Bulk reaction model does not contain bulk reactions.');
+				end
+			end
+
+			for i = 1:numel(obj.reactionModelParticle)
+				if ~isempty(obj.reactionModelParticle(i)) && ~isa(obj.reactionModelParticle(i), 'ReactionModel')
+					error('CADET:invalidConfig', 'Expected a valid reaction model in particle volume.');
+				end
+
+				if ~isempty(obj.reactionModelParticle(i))
+					res = obj.reactionModelParticle(i).validate(obj.nComponents, obj.nBoundStates(((i-1) * obj.nComponents + 1):(i * obj.nComponents))) && res;
+
+					if ~obj.reactionModelParticle(i).hasLiquidPhaseReactions && ~obj.reactionModelParticle(i).hasSolidPhaseReactions
+						warning('CADET:unexptectedConfig', 'Particle reaction model %d does neither contain liquid nor solid phase reactions.', i);
+					end
+				end
+			end
 		end
 
 		function res = assembleConfig(obj)
@@ -807,6 +879,27 @@ classdef GeneralRateModel < Model
 				else
 					res.ADSORPTION_MODEL{i} = obj.bindingModel(i).name;
 					res.(sprintf('adsorption_%03d', i-1)) = obj.bindingModel(i).assembleConfig();
+				end
+			end
+
+			if isempty(obj.reactionModelBulk)
+				res.REACTION_MODEL = 'NONE';
+			else
+				res.REACTION_MODEL = obj.reactionModelBulk.name;
+				res.reaction_bulk = obj.reactionModelBulk.assembleConfig();
+			end
+
+			if isempty(obj.reactionModelParticle)
+				error('CADET:invalidConfig', 'Expected valid reaction model for particle volume.');
+			end
+
+			res.REACTION_MODEL_PARTICLES = cell(numel(obj.reactionModelParticle), 1);
+			for i = 1:length(obj.reactionModelParticle)
+				if isempty(obj.reactionModelParticle(i))
+					res.REACTION_MODEL_PARTICLES{i} = 'NONE';
+				else
+					res.REACTION_MODEL_PARTICLES{i} = obj.reactionModelParticle(i).name;
+					res.(sprintf('reaction_particle_%03d', i-1)) = obj.reactionModelParticle(i).assembleConfig();
 				end
 			end
 		end
@@ -854,16 +947,39 @@ classdef GeneralRateModel < Model
 				return;
 			end
 
-			if ~isfield(obj.data, param.SENS_NAME) && ~isempty(obj.bindingModel)
-				% We don't have this parameter, so try binding model
-				if (param.SENS_PARTYPE >= 0)
-					val = obj.bindingModel(param.SENS_PARTYPE+1).getParameterValue(param, obj.nBoundStates((param.SENS_PARTYPE * obj.nComponents + 1):((param.SENS_PARTYPE + 1) * obj.nComponents)));
-				else
-					val = obj.bindingModel(1).getParameterValue(param, obj.nBoundStates(1:obj.nComponents));
+			if ~isfield(obj.data, param.SENS_NAME)
+				% We don't have this parameter
+
+				if ~isempty(obj.bindingModel)
+					% Try binding model
+					if (param.SENS_PARTYPE >= 0)
+						val = obj.bindingModel(param.SENS_PARTYPE+1).getParameterValue(param, obj.nBoundStates((param.SENS_PARTYPE * obj.nComponents + 1):((param.SENS_PARTYPE + 1) * obj.nComponents)));
+					else
+						val = obj.bindingModel(1).getParameterValue(param, obj.nBoundStates(1:obj.nComponents));
+					end
+					return;
 				end
+
+				if ~isempty(obj.reactionModelBulk)
+					% Try reaction model
+					val = obj.reactionModelBulk.getParameterValue(param, obj.nBoundStates(1:obj.nComponents));
+					return;
+				end
+
+				if ~isempty(obj.reactionModelParticle)
+					% Try reaction model
+					if (param.SENS_PARTYPE >= 0)
+						val = obj.reactionModelParticle(param.SENS_PARTYPE+1).getParameterValue(param, obj.nBoundStates((param.SENS_PARTYPE * obj.nComponents + 1):((param.SENS_PARTYPE + 1) * obj.nComponents)));
+					else
+						val = obj.reactionModelParticle(1).getParameterValue(param, obj.nBoundStates(1:obj.nComponents));
+					end
+					return;
+				end
+
+				val = nan;
 				return;
 			end
-			
+
 			val = obj.data.(param.SENS_NAME);
 			offset = 0;
 			if (strcmp(param.SENS_NAME, 'PAR_SURFDIFFUSION'))
@@ -961,13 +1077,36 @@ classdef GeneralRateModel < Model
 				return;
 			end
 
-			if ~isfield(obj.data, param.SENS_NAME) && ~isempty(obj.bindingModel)
-				% We don't have this parameter, so try binding model
-				if (param.SENS_PARTYPE >= 0)
-					oldVal = obj.bindingModel(param.SENS_PARTYPE+1).setParameterValue(param, obj.nBoundStates((param.SENS_PARTYPE * obj.nComponents + 1):((param.SENS_PARTYPE + 1) * obj.nComponents)), newVal);
-				else
-					oldVal = obj.bindingModel(1).setParameterValue(param, obj.nBoundStates(1:obj.nComponents), newVal);
+			if ~isfield(obj.data, param.SENS_NAME)
+				% We don't have this parameter
+
+				if ~isempty(obj.bindingModel)
+					% Try binding model
+					if (param.SENS_PARTYPE >= 0)
+						oldVal = obj.bindingModel(param.SENS_PARTYPE+1).setParameterValue(param, obj.nBoundStates((param.SENS_PARTYPE * obj.nComponents + 1):((param.SENS_PARTYPE + 1) * obj.nComponents)), newVal);
+					else
+						oldVal = obj.bindingModel(1).setParameterValue(param, obj.nBoundStates(1:obj.nComponents), newVal);
+					end
+					return;
 				end
+
+				if ~isempty(obj.reactionModelBulk)
+					% Try reaction model
+					oldVal = obj.reactionModelBulk.setParameterValue(param, obj.nBoundStates(1:obj.nComponents), newVal);
+					return;
+				end
+
+				if ~isempty(obj.reactionModelParticle)
+					% Try reaction model
+					if (param.SENS_PARTYPE >= 0)
+						oldVal = obj.reactionModelParticle(param.SENS_PARTYPE+1).setParameterValue(param, obj.nBoundStates((param.SENS_PARTYPE * obj.nComponents + 1):((param.SENS_PARTYPE + 1) * obj.nComponents)), newVal);
+					else
+						oldVal = obj.reactionModelParticle(1).setParameterValue(param, obj.nBoundStates(1:obj.nComponents), newVal);
+					end
+					return;
+				end
+
+				oldVal = nan;
 				return;
 			end
 
@@ -1054,9 +1193,20 @@ classdef GeneralRateModel < Model
 			%   NOTIFYSYNC() resets the HASCHANGED property.
 
 			obj.notifySync@Model();
+
 			if ~isempty(obj.bindingModel)
 				for i = 1:length(obj.bindingModel)
 					obj.bindingModel(i).notifySync();
+				end
+			end
+
+			if ~isempty(obj.reactionModelBulk)
+				obj.reactionModelBulk.notifySync();
+			end
+
+			if ~isempty(obj.reactionModelParticle)
+				for i = 1:length(obj.reactionModelParticle)
+					obj.reactionModelParticle(i).notifySync();
 				end
 			end
 		end
@@ -1072,13 +1222,29 @@ classdef GeneralRateModel < Model
 			end
 
 			% Check binding models
-			if isempty(obj.bindingModel)
-				return;
+			if ~isempty(obj.bindingModel)
+				for i = 1:length(obj.bindingModel)
+					if obj.bindingModel(i).hasChanged
+						val = true;
+						return
+					end
+				end
 			end
-			for i = 1:length(obj.bindingModel)
-				if obj.bindingModel(i).hasChanged
+
+			% Check reaction models
+			if ~isempty(obj.reactionModelBulk)
+				if obj.reactionModelBulk.hasChanged
 					val = true;
 					return
+				end
+			end
+
+			if ~isempty(obj.reactionModelParticle)
+				for i = 1:length(obj.reactionModelParticle)
+					if obj.reactionModelParticle(i).hasChanged
+						val = true;
+						return
+					end
 				end
 			end
 		end
@@ -1091,6 +1257,21 @@ classdef GeneralRateModel < Model
 				for i = 1:length(S.bindingModel)
 					ctor = str2func([S.bindingModelClass{i} '.loadobj']);
 					obj.bindingModel(i) = ctor(S.bindingModel{i});
+				end
+			end
+
+			if ~isempty(S.reactionModelBulk)
+				ctor = str2func([S.reactionModelBulkClass '.loadobj']);
+				obj.reactionModelBulk = ctor(S.reactionModelBulk);
+			else
+				obj.reactionModelBulk = ReactionModel.empty();
+			end
+
+			obj.reactionModelParticle = ReactionModel.empty();
+			if ~isempty(S.reactionModelParticle)
+				for i = 1:length(S.reactionModelParticle)
+					ctor = str2func([S.reactionModelParticleClass{i} '.loadobj']);
+					obj.reactionModelParticle(i) = ctor(S.reactionModelParticle{i});
 				end
 			end
 		end
