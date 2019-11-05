@@ -484,7 +484,7 @@ classdef LumpedRateModelWithPores < Model
 		function set.bindingModel(obj, val)
 			for i = 1:numel(val)
 				if ~isempty(val(i)) && ~isa(val(i), 'BindingModel')
-					error('CADET:invalidConfig', sprintf('Expected a valid binding model at index %d.', i));
+					error('CADET:invalidConfig', 'Expected a valid binding model at index %d.', i);
 				end
 			end
 			obj.bindingModel = val;
