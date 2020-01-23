@@ -78,3 +78,4 @@ doc/tex/docs/*.aux
 *.iws
 *.kdev4
 .kdev4/
+compile_commands.json
