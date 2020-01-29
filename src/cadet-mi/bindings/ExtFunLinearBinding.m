@@ -40,6 +40,9 @@ classdef ExtFunLinearBinding < KineticQuasiStationaryBindingModel
 		% Desorption rate in [1 / (s * [T]^3)], cubic term of external dependence
 		kD_TTT;
 		EXT_LIN_KD_TTT;
+		% Indices of external functions (0-based)
+		externalSource;
+		EXTFUN;
 	end
 
 	methods

@@ -142,37 +142,37 @@ classdef KumarLangmuirBinding < KineticQuasiStationaryBindingModel
 			val = obj.kA;
 		end
 		function set.KMCL_KA(obj, val)
-			obj.kA = KMCL_KA;
+			obj.kA = val;
 		end
 		function val = get.KMCL_KD(obj)
 			val = obj.kD;
 		end
 		function set.KMCL_KD(obj, val)
-			obj.kD = KMCL_KD;
+			obj.kD = val;
 		end
 		function val = get.KMCL_KACT(obj)
 			val = obj.kAct;
 		end
 		function set.KMCL_KACT(obj, val)
-			obj.kAct = KMCL_KACT;
+			obj.kAct = val;
 		end
 		function val = get.KMCL_QMAX(obj)
 			val = obj.qMax;
 		end
 		function set.KMCL_QMAX(obj, val)
-			obj.qMax = KMCL_QMAX;
+			obj.qMax = val;
 		end
 		function val = get.KMCL_NU(obj)
 			val = obj.nu;
 		end
 		function set.KMCL_NU(obj, val)
-			obj.nu = KMCL_NU;
+			obj.nu = val;
 		end
 		function val = get.KMCL_TEMP(obj)
 			val = obj.temperature;
 		end
 		function set.KMCL_TEMP(obj, val)
-			obj.temperature = KMCL_TEMP;
+			obj.temperature = val;
 		end
 
 	end

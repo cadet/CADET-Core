@@ -20,38 +20,38 @@ classdef ExtFunKumarLangmuirBinding < KineticQuasiStationaryBindingModel
 		kA;
 		EXT_KMCL_KA;
 		% Adsorption rate in [m^3_MP / (mol * s * [T])], linear term of external dependence
-		kA;
-		EXT_KMCL_KA;
+		kA_T;
+		EXT_KMCL_KA_T;
 		% Adsorption rate in [m^3_MP / (mol * s * [T]^2)], quadratic term of external dependence
-		kA;
-		EXT_KMCL_KA;
+		kA_TT;
+		EXT_KMCL_KA_TT;
 		% Adsorption rate in [m^3_MP / (mol * s * [T]^3)], cubic term of external dependence
-		kA;
-		EXT_KMCL_KA;
+		kA_TTT;
+		EXT_KMCL_KA_TTT;
 		% Desorption rate in [m^(3 * nu_i)_MP / (mol^(nu_i) * s)], constant term of external dependence
 		kD;
 		EXT_KMCL_KD;
 		% Desorption rate in [m^(3 * nu_i)_MP / (mol^(nu_i) * s * [T])], linear term of external dependence
-		kD;
-		EXT_KMCL_KD;
+		kD_T;
+		EXT_KMCL_KD_T;
 		% Desorption rate in [m^(3 * nu_i)_MP / (mol^(nu_i) * s * [T]^2)], quadratic term of external dependence
-		kD;
-		EXT_KMCL_KD;
+		kD_TT;
+		EXT_KMCL_KD_TT;
 		% Desorption rate in [m^(3 * nu_i)_MP / (mol^(nu_i) * s * [T]^3)], cubic term of external dependence
-		kD;
-		EXT_KMCL_KD;
+		kD_TTT;
+		EXT_KMCL_KD_TTT;
 		% Activation temperature in [K], constant term of external dependence
 		kAct;
 		EXT_KMCL_KACT;
 		% Activation temperature in [K / [T]], linear term of external dependence
-		kAct;
-		EXT_KMCL_KACT;
+		kAct_T;
+		EXT_KMCL_KACT_T;
 		% Activation temperature in [K / [T]^2], quadratic term of external dependence
-		kAct;
-		EXT_KMCL_KACT;
+		kAct_TT;
+		EXT_KMCL_KACT_TT;
 		% Activation temperature in [K / [T]^3], cubic term of external dependence
-		kAct;
-		EXT_KMCL_KACT;
+		kAct_TTT;
+		EXT_KMCL_KACT_TTT;
 		% Capacity in [mol / m^3_SP], constant term of external dependence
 		qMax;
 		EXT_KMCL_QMAX;
@@ -407,148 +407,148 @@ classdef ExtFunKumarLangmuirBinding < KineticQuasiStationaryBindingModel
 			val = obj.kA;
 		end
 		function set.EXT_KMCL_KA(obj, val)
-			obj.kA = KMCL_KA;
+			obj.kA = val;
 		end
 		function val = get.EXT_KMCL_KD(obj)
 			val = obj.kD;
 		end
 		function set.EXT_KMCL_KD(obj, val)
-			obj.kD = KMCL_KD;
+			obj.kD = val;
 		end
 		function val = get.EXT_KMCL_KACT(obj)
 			val = obj.kAct;
 		end
 		function set.EXT_KMCL_KACT(obj, val)
-			obj.kAct = KMCL_KACT;
+			obj.kAct = val;
 		end
 		function val = get.EXT_KMCL_QMAX(obj)
 			val = obj.qMax;
 		end
 		function set.EXT_KMCL_QMAX(obj, val)
-			obj.qMax = KMCL_QMAX;
+			obj.qMax = val;
 		end
 		function val = get.EXT_KMCL_NU(obj)
 			val = obj.nu;
 		end
 		function set.EXT_KMCL_NU(obj, val)
-			obj.nu = KMCL_NU;
+			obj.nu = val;
 		end
 		function val = get.EXT_KMCL_TEMP(obj)
 			val = obj.temperature;
 		end
 		function set.EXT_KMCL_TEMP(obj, val)
-			obj.temperature = KMCL_TEMP;
+			obj.temperature = val;
 		end
 
 		function val = get.EXT_KMCL_KA_T(obj)
 			val = obj.kA_T;
 		end
 		function set.EXT_KMCL_KA_T(obj, val)
-			obj.kA_T = KMCL_KA_T;
+			obj.kA_T = val;
 		end
 		function val = get.EXT_KMCL_KD_T(obj)
 			val = obj.kD_T;
 		end
 		function set.EXT_KMCL_KD_T(obj, val)
-			obj.kD_T = KMCL_KD_T;
+			obj.kD_T = val;
 		end
 		function val = get.EXT_KMCL_KACT_T(obj)
 			val = obj.kAct_T;
 		end
 		function set.EXT_KMCL_KACT_T(obj, val)
-			obj.kAct_T = KMCL_KACT_T;
+			obj.kAct_T = val;
 		end
 		function val = get.EXT_KMCL_QMAX_T(obj)
 			val = obj.qMax_T;
 		end
 		function set.EXT_KMCL_QMAX_T(obj, val)
-			obj.qMax_T = KMCL_QMAX_T;
+			obj.qMax_T = val;
 		end
 		function val = get.EXT_KMCL_NU_T(obj)
 			val = obj.nu_T;
 		end
 		function set.EXT_KMCL_NU_T(obj, val)
-			obj.nu_T = KMCL_NU_T;
+			obj.nu_T = val;
 		end
 		function val = get.EXT_KMCL_TEMP_T(obj)
 			val = obj.temperature_T;
 		end
 		function set.EXT_KMCL_TEMP_T(obj, val)
-			obj.temperature_T = KMCL_TEMP_T;
+			obj.temperature_T = val;
 		end
 
 		function val = get.EXT_KMCL_KA_TT(obj)
 			val = obj.kA_TT;
 		end
 		function set.EXT_KMCL_KA_TT(obj, val)
-			obj.kA_TT = KMCL_KA_TT;
+			obj.kA_TT = val;
 		end
 		function val = get.EXT_KMCL_KD_TT(obj)
 			val = obj.kD_TT;
 		end
 		function set.EXT_KMCL_KD_TT(obj, val)
-			obj.kD_TT = KMCL_KD_TT;
+			obj.kD_TT = val;
 		end
 		function val = get.EXT_KMCL_KACT_TT(obj)
 			val = obj.kAct_TT;
 		end
 		function set.EXT_KMCL_KACT_TT(obj, val)
-			obj.kAct_TT = KMCL_KACT_TT;
+			obj.kAct_TT = val;
 		end
 		function val = get.EXT_KMCL_QMAX_TT(obj)
 			val = obj.qMax_TT;
 		end
 		function set.EXT_KMCL_QMAX_TT(obj, val)
-			obj.qMax_TT = KMCL_QMAX_TT;
+			obj.qMax_TT = val;
 		end
 		function val = get.EXT_KMCL_NU_TT(obj)
 			val = obj.nu_TT;
 		end
 		function set.EXT_KMCL_NU_TT(obj, val)
-			obj.nu_TT = KMCL_NU_TT;
+			obj.nu_TT = val;
 		end
 		function val = get.EXT_KMCL_TEMP_TT(obj)
 			val = obj.temperature_TT;
 		end
 		function set.EXT_KMCL_TEMP_TT(obj, val)
-			obj.temperature_TT = KMCL_TEMP_TT;
+			obj.temperature_TT = val;
 		end
 
 		function val = get.EXT_KMCL_KA_TTT(obj)
 			val = obj.kA_TTT;
 		end
 		function set.EXT_KMCL_KA_TTT(obj, val)
-			obj.kA_TTT = KMCL_KA_TTT;
+			obj.kA_TTT = val;
 		end
 		function val = get.EXT_KMCL_KD_TTT(obj)
 			val = obj.kD_TTT;
 		end
 		function set.EXT_KMCL_KD_TTT(obj, val)
-			obj.kD_TTT = KMCL_KD_TTT;
+			obj.kD_TTT = val;
 		end
 		function val = get.EXT_KMCL_KACT_TTT(obj)
 			val = obj.kAct_TTT;
 		end
 		function set.EXT_KMCL_KACT_TTT(obj, val)
-			obj.kAct_TTT = KMCL_KACT_TTT;
+			obj.kAct_TTT = val;
 		end
 		function val = get.EXT_KMCL_QMAX_TTT(obj)
 			val = obj.qMax_TTT;
 		end
 		function set.EXT_KMCL_QMAX_TTT(obj, val)
-			obj.qMax_TTT = KMCL_QMAX_TTT;
+			obj.qMax_TTT = val;
 		end
 		function val = get.EXT_KMCL_NU_TTT(obj)
 			val = obj.nu_TTT;
 		end
 		function set.EXT_KMCL_NU_TTT(obj, val)
-			obj.nu_TTT = KMCL_NU_TTT;
+			obj.nu_TTT = val;
 		end
 		function val = get.EXT_KMCL_TEMP_TTT(obj)
 			val = obj.temperature_TTT;
 		end
 		function set.EXT_KMCL_TEMP_TTT(obj, val)
-			obj.temperature_TTT = KMCL_TEMP_TTT;
+			obj.temperature_TTT = val;
 		end
 
 		function val = get.externalSource(obj)

@@ -120,16 +120,6 @@ classdef ExtFunSaskaBinding < KineticQuasiStationaryBindingModel
 			obj.hasChanged = true;
 		end
 
-		function val = get.h(obj)
-			val = obj.data.EXT_SASKA_H;
-		end
-
-		function set.h(obj, val)
-			validateattributes(val, {'double'}, {'vector', 'nonempty', 'finite', 'real'}, '', 'h');
-			obj.data.EXT_SASKA_H = val;
-			obj.hasChanged = true;
-		end
-
 		function val = get.k_T(obj)
 			val = obj.data.EXT_SASKA_K_T;
 			val = reshape(val, sqrt(numel(val)), sqrt(numel(val))).';

@@ -26,8 +26,8 @@ classdef ExtFunSelfAssociationBinding < KineticQuasiStationaryBindingModel
 		kA_TT;
 		EXT_SAI_KA1_TT;
 		% Adsorption rate in [m^3_MP / (m^3_SP * s * [T]^3)], cubic term of external dependence
-		kA_TT;
-		EXT_SAI_KA1_TT;
+		kA_TTT;
+		EXT_SAI_KA1_TTT;
 		% Adsorption rate of dimerization in [m^6_MP / (m^6_SP * s)], constant term of external dependence
 		kAdimer;
 		EXT_SAI_KA2;

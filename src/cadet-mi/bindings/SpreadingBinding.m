@@ -176,7 +176,7 @@ classdef SpreadingBinding < KineticQuasiStationaryBindingModel
 						offset = offset + sum(nBoundStates(1:param.SENS_COMP));
 					end
 				otherwise
-					offset = obj.offsetToParameter@KineticQuasiStationaryBindingModel(nBoundStates, param)
+					offset = obj.offsetToParameter@KineticQuasiStationaryBindingModel(nBoundStates, param);
 			end
 		end
 
