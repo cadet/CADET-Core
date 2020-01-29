@@ -97,13 +97,16 @@ classdef GeneralRateModel2D < Model
 		hasOutlet = true; % Determines whether the unit operation has an outlet
 	end
 
+	properties (Constant, Access = 'protected')
+		hasConsistencySolver = true; % Determines whether this unit operation model has a consistency solver
+	end
+
 	methods
 		
 		function obj = GeneralRateModel2D()
 			%GENERALRATEMODEL2D Constructs a GeneralRateModel2D object and inserts as much default values as possible
 
 			obj = obj@Model();
-			obj.data.discretization = [];
 			obj.data.discretization.weno = [];
 
 			% Set some default values

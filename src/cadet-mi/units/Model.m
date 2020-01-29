@@ -14,6 +14,10 @@ classdef Model < handle & matlab.mixin.Heterogeneous
 		hasChangedInternal; % Actually stores the value of the hasChanged property
 	end
 
+	properties (Abstract, Constant, Access = 'protected')
+		hasConsistencySolver; % Determines whether this unit operation model has a consistency solver
+	end
+
 	properties (Constant, Transient, Abstract)
 		name; % Name of the model according to CADET file format specs
 		hasInlet; % Determines whether the unit operation has an inlet
@@ -28,6 +32,10 @@ classdef Model < handle & matlab.mixin.Heterogeneous
 	properties (Dependent, Transient)
 		nComponents; % Number of chemical components
 		hasChanged; % Determines whether this object has changed after the last synchronization with CADET (C++ layer)
+		solverName; % Name of the consistency solver
+		maxIterations; % Maximum number of solver iterations
+		initialDamping; % Initial damping of the consistency solver
+		minDamping; % Minimum damping of the consistency solver
 	end
 
 	properties
@@ -76,6 +84,8 @@ classdef Model < handle & matlab.mixin.Heterogeneous
 			obj.unitOpIdx = -1;
 			obj.data = [];
 			obj.data.UNIT_TYPE = obj.name;
+			obj.data.discretization = [];
+			obj.data.discretization.consistency_solver = [];
 
 			obj.returnCoordinates = true;
 
@@ -110,6 +120,11 @@ classdef Model < handle & matlab.mixin.Heterogeneous
 			obj.returnSensDotSolid = false;
 			obj.returnSensDotFlux = false;
 			obj.returnSensDotVolume = false;
+
+			obj.solverName = {'ATRN_ERR', 'LEVMAR'};
+			obj.maxIterations = 50;
+			obj.initialDamping = 1e-2;
+			obj.minDamping = 1e-4;
 		end
 
 		function res = validate(obj, sectionTimes)
@@ -481,6 +496,71 @@ classdef Model < handle & matlab.mixin.Heterogeneous
 			retChanged = obj.hasChangedReturnConfig;
 		end
 
+		function val = get.solverName(obj)
+			if isfield(obj.data.discretization.consistency_solver, 'SUBSOLVERS')
+				val = obj.data.discretization.consistency_solver.SUBSOLVERS;
+			else
+				val = obj.data.discretization.consistency_solver.SOLVER_NAME;
+			end
+		end
+
+		function set.solverName(obj, val)
+			% Only accept single string or cell array of strings
+			if ~iscell(val) && ~ischar(val)
+				error('CADET:invalidConfig', 'Expected solverName to be a string or cell array of strings.');
+			end
+
+			% If it is a single cell, treat it as a string
+			if iscell(val) && (numel(val) == 1)
+				val = val{1};
+				validateattributes(val, {'char'}, {}, '', 'solverName');
+			end
+
+			if iscell(val)
+				for i = 1:length(val)
+					validateattributes(val{i}, {'char'}, {}, '', 'solverName');
+					val{i} = validatestring(val{i}, {'LEVMAR', 'ATRN_RES', 'ATRN_ERR'}, '', 'solverName');
+				end
+
+				obj.data.discretization.consistency_solver.SOLVER_NAME = 'COMPOSITE';
+				obj.data.discretization.consistency_solver.SUBSOLVERS = val;
+			else
+				val = validatestring(val, {'LEVMAR', 'ATRN_RES', 'ATRN_ERR'}, '', 'solverName');
+				obj.data.discretization.consistency_solver = rmfield(obj.data.discretization.consistency_solver, 'SUBSOLVERS');
+				obj.data.discretization.consistency_solver.SOLVER_NAME = val;
+			end
+			obj.hasChanged = true;
+		end
+
+		function val = get.maxIterations(obj)
+			val = double(obj.data.discretization.consistency_solver.MAX_ITERATIONS);
+		end
+
+		function set.maxIterations(obj, val)
+			validateattributes(val, {'double'}, {'scalar', 'nonempty', 'finite', 'real', '>=', 1}, '', 'maxIterations');
+			obj.data.discretization.consistency_solver.MAX_ITERATIONS = int32(val);
+			obj.hasChanged = true;
+		end
+
+		function val = get.initialDamping(obj)
+			val = obj.data.discretization.consistency_solver.INIT_DAMPING;
+		end
+
+		function set.initialDamping(obj, val)
+			validateattributes(val, {'double'}, {'scalar', 'nonempty', 'finite', 'real', '>=', 0.0}, '', 'initialDamping');
+			obj.data.discretization.consistency_solver.INIT_DAMPING = val;
+			obj.hasChanged = true;
+		end
+
+		function val = get.minDamping(obj)
+			val = obj.data.discretization.consistency_solver.MIN_DAMPING;
+		end
+
+		function set.minDamping(obj, val)
+			validateattributes(val, {'double'}, {'scalar', 'nonempty', 'finite', 'real', '>=', 0.0}, '', 'minDamping');
+			obj.data.discretization.consistency_solver.MIN_DAMPING = val;
+			obj.hasChanged = true;
+		end
 	end
 
 	methods (Abstract)

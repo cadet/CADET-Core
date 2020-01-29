@@ -22,10 +22,6 @@ classdef BindingModel < handle & matlab.mixin.Heterogeneous
 		data; % Struct with stored property values
 	end
 
-	properties (Abstract, Constant, Access = 'protected')
-		hasConsistencySolver; % Determines whether this binding model has a consistency solver
-	end
-
 	properties (Transient)
 		hasChanged; % Determines whether this object has changed after the last synchronization with CADET (C++ layer)
 	end
@@ -34,26 +30,12 @@ classdef BindingModel < handle & matlab.mixin.Heterogeneous
 		name; % Name of the binding model according to CADET file format specs
 	end
 
-	properties (Dependent, Transient)
-		solverName; % Name of the consistency solver
-		maxIterations; % Maximum number of solver iterations
-		initialDamping; % Initial damping of the consistency solver
-		minDamping; % Minimum damping of the consistency solver
-	end
-
 	methods
 
 		function obj = BindingModel()
 			%BINDINGMODEL Constructs a binding model base class object
 
 			obj.hasChanged = true;
-			obj.data.consistency_solver = [];
-
-			% Set some defaults
-			obj.solverName = {'ATRN_ERR', 'LEVMAR'};
-			obj.maxIterations = 50;
-			obj.initialDamping = 1e-2;
-			obj.minDamping = 1e-4;
 		end
 
 		function res = validate(obj, nComponents, nBoundStates)
@@ -147,72 +129,6 @@ classdef BindingModel < handle & matlab.mixin.Heterogeneous
 			%   NOTIFYSYNC() resets the HASCHANGED property.
 
 			obj.hasChanged = false;
-		end
-
-		function val = get.solverName(obj)
-			if isfield(obj.data.consistency_solver, 'SUBSOLVERS')
-				val = obj.data.consistency_solver.SUBSOLVERS;
-			else
-				val = obj.data.consistency_solver.SOLVER_NAME;
-			end
-		end
-
-		function set.solverName(obj, val)
-			% Only accept single string or cell array of strings
-			if ~iscell(val) && ~ischar(val)
-				error('CADET:invalidConfig', 'Expected solverName to be a string or cell array of strings.');
-			end
-
-			% If it is a single cell, treat it as a string
-			if iscell(val) && (numel(val) == 1)
-				val = val{1};
-				validateattributes(val, {'char'}, {}, '', 'solverName');
-			end
-
-			if iscell(val)
-				for i = 1:length(val)
-					validateattributes(val{i}, {'char'}, {}, '', 'solverName');
-					val{i} = validatestring(val{i}, {'LEVMAR', 'ATRN_RES', 'ATRN_ERR'}, '', 'solverName');
-				end
-
-				obj.data.consistency_solver.SOLVER_NAME = 'COMPOSITE';
-				obj.data.consistency_solver.SUBSOLVERS = val;
-			else
-				val = validatestring(val, {'LEVMAR', 'ATRN_RES', 'ATRN_ERR'}, '', 'solverName');
-				obj.data.consistency_solver = rmfield(obj.data.consistency_solver, 'SUBSOLVERS');
-				obj.data.consistency_solver.SOLVER_NAME = val;
-			end
-			obj.hasChanged = true;
-		end
-
-		function val = get.maxIterations(obj)
-			val = double(obj.data.consistency_solver.MAX_ITERATIONS);
-		end
-
-		function set.maxIterations(obj, val)
-			validateattributes(val, {'double'}, {'scalar', 'nonempty', 'finite', 'real', '>=', 1}, '', 'maxIterations');
-			obj.data.consistency_solver.MAX_ITERATIONS = int32(val);
-			obj.hasChanged = true;
-		end
-
-		function val = get.initialDamping(obj)
-			val = obj.data.consistency_solver.INIT_DAMPING;
-		end
-
-		function set.initialDamping(obj, val)
-			validateattributes(val, {'double'}, {'scalar', 'nonempty', 'finite', 'real', '>=', 0.0}, '', 'initialDamping');
-			obj.data.consistency_solver.INIT_DAMPING = val;
-			obj.hasChanged = true;
-		end
-
-		function val = get.minDamping(obj)
-			val = obj.data.consistency_solver.MIN_DAMPING;
-		end
-
-		function set.minDamping(obj, val)
-			validateattributes(val, {'double'}, {'scalar', 'nonempty', 'finite', 'real', '>=', 0.0}, '', 'minDamping');
-			obj.data.consistency_solver.MIN_DAMPING = val;
-			obj.hasChanged = true;
 		end
 
 		function S = saveobj(obj)

@@ -7,10 +7,6 @@ classdef SaskaBinding < KineticQuasiStationaryBindingModel
 	% Copyright: (C) 2008-2019 The CADET Authors
 	%            See the license note at the end of the file.
 
-	properties (Constant, Access = 'protected')
-		hasConsistencySolver = true; % Determines whether this binding model has a consistency solver
-	end
-
 	properties(Constant)
 		name = 'SASKA'; % Name of the binding model according to CADET file format specs
 	end

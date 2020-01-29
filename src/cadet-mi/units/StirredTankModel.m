@@ -41,6 +41,10 @@ classdef StirredTankModel < Model
 		hasOutlet = true; % Determines whether the unit operation has an outlet
 	end
 
+	properties (Constant, Access = 'protected')
+		hasConsistencySolver = true; % Determines whether this unit operation model has a consistency solver
+	end
+
 	methods
 		
 		function obj = StirredTankModel()

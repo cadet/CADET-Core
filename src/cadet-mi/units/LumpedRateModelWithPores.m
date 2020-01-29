@@ -78,13 +78,16 @@ classdef LumpedRateModelWithPores < Model
 		hasOutlet = true; % Determines whether the unit operation has an outlet
 	end
 
+	properties (Constant, Access = 'protected')
+		hasConsistencySolver = true; % Determines whether this unit operation model has a consistency solver
+	end
+
 	methods
 		
 		function obj = LumpedRateModelWithPores()
 			%LUMPEDRATEMODELWITHPORES Constructs a LumpedRateModelWithPores object and inserts as much default values as possible
 
 			obj = obj@Model();
-			obj.data.discretization = [];
 			obj.data.discretization.weno = [];
 
 			% Set some default values

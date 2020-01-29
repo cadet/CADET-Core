@@ -21,6 +21,10 @@ classdef (Abstract) InletModel < Model
 		nOutletPorts; % Number of outlet ports
 	end
 
+	properties (Constant, Access = 'protected')
+		hasConsistencySolver = false; % Determines whether this unit operation model has a consistency solver
+	end
+
 	methods
 		
 		function obj = InletModel()
