@@ -76,8 +76,8 @@ inline bool ExtMassActionLawParamHandler::validateConfig(unsigned int nReactions
 namespace
 {
 	/**
-	 * @brief Registers a matrix-valued parameter (row-major storage) with bound states as columns
-	 * @details The matrix-valued parameter has as many columns as there are bound states in the system.
+	 * @brief Registers a matrix-valued parameter (row-major storage) with bound states as rows
+	 * @details The matrix-valued parameter has as many rows as there are bound states in the system.
 	 * @param [in,out] parameters Parameter map
 	 * @param [in] unitOpIdx Unit operation id
 	 * @param [in] parTypeIdx Particle type index
@@ -101,8 +101,8 @@ namespace
 	}
 
 	/**
-	 * @brief Registers a matrix-valued parameter (row-major storage) with components as columns
-	 * @details The matrix-valued parameter has as many columns as there are components in the system.
+	 * @brief Registers a matrix-valued parameter (row-major storage) with components as rows
+	 * @details The matrix-valued parameter has as many rows as there are components in the system.
 	 * @param [in,out] parameters Parameter map
 	 * @param [in] unitOpIdx Unit operation id
 	 * @param [in] parTypeIdx Particle type index

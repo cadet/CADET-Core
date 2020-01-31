@@ -226,9 +226,10 @@ The GRM describes transport of solute molecules through the interstitial column 
 Consider a column of length $L>0$ filled with spherical beads of (possibly) multiple types with radius $r_{p,j} \ll L$ (see Fig.~\ref{fig:ModelGRMColumn}), where $j$ is the particle type index. 
 The mass balance in the interstitial column volume is described by
 \begin{align}
-	\frac{\partial c^l_i}{\partial t} &= -u \frac{\partial c^l_i}{\partial z} + D_{\text{ax},i} \frac{\partial^2 c^l_i}{\partial z^2} - \frac{1}{\beta_c} \sum_j d_j \frac{3}{r_{p,j}} k_{f,j,i} \left[ c^l_i - c^p_{j,i}(\cdot, \cdot, r_{p,j}) \right]. \label{eq:ModelColumn}
+	\frac{\partial c^l_i}{\partial t} &= -u \frac{\partial c^l_i}{\partial z} + D_{\text{ax},i} \frac{\partial^2 c^l_i}{\partial z^2} - \frac{1}{\beta_c} \sum_j d_j \frac{3}{r_{p,j}} k_{f,j,i} \left[ c^l_i - c^p_{j,i}(\cdot, \cdot, r_{p,j}) \right] + f_{\text{react},i}^l\left(c^l\right). \label{eq:ModelColumn}
 \end{align}
 Here, $c^l_i\colon \left[0, T_{\text{end}}\right] \times [0, L] \rightarrow \mathds{R}^{\geq 0}$ denotes the concentration in the interstitial column volume, $c^p_{j,i}\colon \left[0, T_{\text{end}}\right] \times [0, L] \times [r_{c,j}, r_{p,j}] \rightarrow \mathds{R}^{\geq 0}$ the liquid phase concentration in the beads, $k_{f,j,i}$ the film diffusion coefficient, $D_{\text{ax},i}$ the dispersion coefficient, $u$ the interstitial velocity, $d_j$ the volume fraction of particle type $j$, and $\beta_c = \varepsilon_c / (1 - \varepsilon_c)$ the column phase ratio, where $\varepsilon_c$ is the column porosity (ratio of interstitial volume to total column volume).
+If reactions are considered, the term $f_{\text{react},i}^l\left(c^l\right)$ represents the net change of concentration $c_i$ due to reactions involving component $i$.
 
 Danckwerts boundary conditions \cite{Danckwerts1953} are applied to inlet and outlet of the column:
 \begin{align}
@@ -238,16 +239,19 @@ Danckwerts boundary conditions \cite{Danckwerts1953} are applied to inlet and ou
 Note that the outlet boundary condition Eq.~\eqref{eq:BCOutlet} is also known as ``do nothing'' or natural outflow condition.
 
 In the liquid phase of the porous beads (see Fig.~\ref{fig:ModelGRMBead}) the mass balance is given by
-\begin{align}
-	\frac{\pdiff c^p_{j,i}}{\pdiff t} + \frac{1 - \varepsilon_{p,j}}{F_{\text{acc},j,i} \varepsilon_{p,j}} \frac{\pdiff}{\pdiff t} \sum_{m_{j,i}} c^s_{j,i,m_{j,i}} = \underbrace{D_{p,j,i} \left[\frac{\pdiff^2}{\pdiff r^2} + \frac{2}{r} \frac{\pdiff}{\pdiff r} \right]c^p_{j,i}}_{\text{Pore diffusion}} + \underbrace{\frac{1 - \varepsilon_{p,j}}{F_{\text{acc},j,i} \varepsilon_{p,j}} D_{s,j,i} \left[\frac{\pdiff^2}{\pdiff r^2} + \frac{2}{r} \frac{\pdiff }{\pdiff r} \right] \sum_{m_{j,i}} c^s_{j,i,m_{j,i}} }_{\text{Surface diffusion}}, \label{eq:ModelBead}
-\end{align}
+\begin{equation} \begin{split}
+	\frac{\partial c^p_{j,i}}{\partial t} + \frac{1 - \varepsilon_{p,j}}{F_{\text{acc},j,i} \varepsilon_{p,j}} \frac{\partial}{\partial t} \sum_{m_{j,i}} c^s_{j,i,m_{j,i}} = &\underbrace{D_{p,j,i} \left[\frac{\partial^2}{\partial r^2} + \frac{2}{r} \frac{\partial}{\partial r} \right]c^p_{j,i}}_{\text{Pore diffusion}} \\
+	&+ \underbrace{\frac{1 - \varepsilon_{p,j}}{F_{\text{acc},j,i} \varepsilon_{p,j}} D_{s,j,i} \left[\frac{\partial^2}{\partial r^2} + \frac{2}{r} \frac{\partial }{\partial r} \right] \sum_{m_{j,i}} c^s_{j,i,m_{j,i}} }_{\text{Surface diffusion}} \\
+	&+ f_{\text{react},j,i}^p\left( c_j^p, c_j^s \right) + \frac{1 - \varepsilon_{p,j}}{F_{\text{acc},j,i} \varepsilon_{p,j}} f_{\text{react},j,i}^s\left( c_j^p, c_j^s \right), \label{eq:ModelBead}
+\end{split}\end{equation}
 where $c^s_{j,i,m_{j,i}}\colon \left[0, T_{\text{end}}\right] \times [0,L] \times [r_{c,j}, r_{p,j}] \rightarrow \mathds{R}^{\geq 0}$ denotes the solid phase concentration of the $i$th component's $m_{j,i}$th bound state in the beads of $j$th type, $D_{p,j,i}$ the effective diffusion coefficient in the beads, $D_{s,j,i}$ the surface diffusion coefficient, $F_{\text{acc},j,i} \in [0,1]$ the pore accessibility factor, and $\varepsilon_{p,j}$ the particle porosity (ratio of pore volume to total bead volume).
 The inner bead radius $r_{c,j} \in [0, r_{p,j})$ is assumed to be $0$ by default, but can be positive in order to account for core shell particles that have an impermeable core.
+Reaction terms in liquid and solid phase are collected in $f_{\text{react},j,i}^p( c_j^p, c_j^s)$ and $f_{\text{react},j,i}^s(c_j^p, c_j^s)$, respectively.
 
 The GRM is used with both quasi-stationary (Eq.~\eqref{eq:REqBinding}) and dynamic (Eq.~\eqref{eq:DynBinding}) binding models. \index{Binding!Models}\index{Binding!Dynamic}\index{Binding!Quasi-stationary}
 \begin{alignat}{2}
 	\text{quasi-stationary: }& & 0 &= f_{\text{ads},j}\left( c^p_j, c^s_j\right), \label{eq:REqBinding} \\
-	\text{dynamic: }& & \frac{\partial c^s_j}{\partial t} &= f_{\text{ads},j}\left( c^p_j, c^s_j\right). \label{eq:DynBinding}
+	\text{dynamic: }& & \frac{\partial c^s_j}{\partial t} &= f_{\text{ads},j}\left( c^p_j, c^s_j\right) + f_{\text{react},j}^s\left( c_j^p, c_j^s \right). \label{eq:DynBinding}
 \end{alignat}
 Note that $c^p_j$ and $c^s_j$ denote the vector of all $c^p_{j,i}$ and $c^s_{j,i,m_{j,i}}$, respectively.
 
@@ -479,8 +483,11 @@ The lumped rate model with pores \index{Model!Lumped rate model with pores}\inde
 The particle phase $c^p_j$ is still there, but no mass transfer happens except for binding and film diffusion.
 Hence, the model equations are given by
 \begin{align}
-	\frac{\partial c^l_i}{\partial t} &= -u \frac{\partial c^l_i}{\partial z} + D_{\text{ax},i} \frac{\partial^2 c^l_i}{\partial z^2} - \frac{1}{\beta_c} \sum_{j} d_j \frac{3}{r_{p,j}} k_{f,j,i}\left[ c^l_i - c^p_{j,i} \right], \\
-	\frac{\pdiff c^p_{j,i}}{\pdiff t} + \frac{1 - \varepsilon_{p,j}}{F_{\text{acc},j,i} \varepsilon_{p,j}} \frac{\pdiff}{\pdiff t} \sum_{m_{j,i}} c^s_{j,i,m_{j,i}} &= \frac{3}{F_{\text{acc},j,i} \varepsilon_{p,j} r_{p,j}}k_{f,j,i}\left[ c^l_i - c^p_{j,i} \right]
+	\frac{\partial c^l_i}{\partial t} &= -u \frac{\partial c^l_i}{\partial z} + D_{\text{ax},i} \frac{\partial^2 c^l_i}{\partial z^2} - \frac{1}{\beta_c} \sum_{j} d_j \frac{3}{r_{p,j}} k_{f,j,i}\left[ c^l_i - c^p_{j,i} \right] + f_{\text{react},i}^l\left(c^l\right), \\
+	\begin{split}
+	\frac{\partial c^p_{j,i}}{\partial t} &+ \frac{1 - \varepsilon_{p,j}}{F_{\text{acc},j,i} \varepsilon_{p,j}} \frac{\partial}{\partial t} \sum_{m_{j,i}} c^s_{j,i,m_{j,i}} = \frac{3}{F_{\text{acc},j,i} \varepsilon_{p,j} r_{p,j}}k_{f,j,i}\left[ c^l_i - c^p_{j,i} \right] \\
+	&\qquad\qquad\qquad\qquad\qquad\qquad\qquad+ f_{\text{react},j,i}^p\left( c_j^p, c_j^s \right) + \frac{1 - \varepsilon_{p,j}}{F_{\text{acc},j,i} \varepsilon_{p,j}} f_{\text{react},j,i}^s\left( c_j^p, c_j^s \right)
+	\end{split}
 \end{align}
 with the same meanings of variables and parameters as in the general rate model. 
 The equations are complemented by Danckwerts boundary conditions \cite{Danckwerts1953}
@@ -492,7 +499,7 @@ The equations are complemented by Danckwerts boundary conditions \cite{Danckwert
 As for the general rate model, both quasi-stationary and dynamic binding models are supported:
 \begin{alignat*}{2}
 	\text{quasi-stationary: }& & 0 &= f_{\text{ads},j}\left( c^p_j, c^s_j\right), \\
-	\text{dynamic: }& & \frac{\partial c^s_j}{\partial t} &= f_{\text{ads},j}\left( c^p_j, c^s_j\right).
+	\text{dynamic: }& & \frac{\partial c^s_j}{\partial t} &= f_{\text{ads},j}\left( c^p_j, c^s_j\right) + f_{\text{react},j}^s\left( c_j^p, c_j^s \right).
 \end{alignat*}
 By default, the following initial conditions are applied for all $z \in [0,L]$:
 \begin{align}
@@ -514,7 +521,7 @@ The particle phase $c^p$ is removed and the porosity $\varepsilon_t$ is taken as
 The phase ratio is denoted by $\beta_t = \varepsilon_t / (1 - \varepsilon_t)$ accordingly.
 The model equations are given by
 \begin{align}
-	\frac{\partial c^l_i}{\partial t} + \frac{1}{\beta_t} \frac{\pdiff}{\pdiff t} \sum_{m_i} c^s_{i,m_i} &= -u \frac{\partial c^l_i}{\partial z} + D_{\text{ax},i} \frac{\partial^2 c^l_i}{\partial z^2},
+	\frac{\partial c^l_i}{\partial t} + \frac{1}{\beta_t} \frac{\partial}{\partial t} \sum_{m_i} c^s_{i,m_i} &= -u \frac{\partial c^l_i}{\partial z} + D_{\text{ax},i} \frac{\partial^2 c^l_i}{\partial z^2} + f_{\text{react},i}^l\left( c^l, c^s \right) + \frac{1}{\beta_t} f_{\text{react},i}^s\left( c^l, c^s \right),
 \end{align}
 where $\beta_t = \varepsilon_t / (1 - \varepsilon_t)$ denotes the (total) phase ratio.
 The equations are complemented by Danckwerts boundary conditions \cite{Danckwerts1953}
@@ -526,7 +533,7 @@ The equations are complemented by Danckwerts boundary conditions \cite{Danckwert
 Both quasi-stationary and dynamic binding models are supported:
 \begin{alignat*}{2}
 	\text{quasi-stationary: }& & 0 &= f_{\text{ads}}\left( c^l, c^s\right), \\
-	\text{dynamic: }& & \frac{\partial q}{\partial t} &= f_{\text{ads}}\left( c^l, c^s\right).
+	\text{dynamic: }& & \frac{\partial q}{\partial t} &= f_{\text{ads}}\left( c^l, c^s\right) + f_{\text{react}}^s\left( c^l, c^s \right).
 \end{alignat*}
 By default, the following initial conditions are applied for all $z \in [0,L]$:
 \begin{align}
@@ -544,9 +551,9 @@ The general rate model as introduced in Section~\ref{sec:MUOPGRM} assumes homoge
 This allows to consider transport along the axial dimension only.
 However, due to packing irregularity and inhomogeneous flow at the inlet (i.e., frits), this assumption may be a crude approximation.
 This model can be improved by introducing a radial coordinate $\rho \in [0, R]$\index{Model!General rate model 2D}\index{Model!GRM 2D}\index{Unit operation!General rate model 2D}\index{Unit operation!GRM 2D}, where $R$ is the column radius, in the interstitial volume Eq.~\eqref{eq:ModelColumn}:
-\begin{align}
-	\varepsilon_c \frac{\partial c^l_i}{\partial t} &= -\varepsilon_c u \frac{\partial c^l_i}{\partial z} + \varepsilon_c D_{\text{ax},i} \frac{\partial^2 c^l_i}{\partial z^2} + \frac{1}{\rho} \frac{\partial}{\partial \rho} \left( \rho D_{\text{rad},i} \frac{\partial}{\partial \rho} \left( \varepsilon_c c^l_i \right) \right) - \left(1 - \varepsilon_c\right) \sum_j d_j \frac{ 3 k_{f,j,i} }{r_{p,j}} \left[ c^l_i - c^p_{j,i}(\cdot, \cdot, \cdot, r_{p,j}) \right]. \label{eq:ModelColumn2D}
-\end{align}
+\begin{equation} \begin{split}
+	\varepsilon_c \frac{\partial c^l_i}{\partial t} = &-\varepsilon_c u \frac{\partial c^l_i}{\partial z} + \varepsilon_c D_{\text{ax},i} \frac{\partial^2 c^l_i}{\partial z^2} + \frac{1}{\rho} \frac{\partial}{\partial \rho} \left( \rho D_{\text{rad},i} \frac{\partial}{\partial \rho} \left( \varepsilon_c c^l_i \right) \right) \\ &- \left(1 - \varepsilon_c\right) \sum_j d_j \frac{ 3 k_{f,j,i} }{r_{p,j}} \left[ c^l_i - c^p_{j,i}(\cdot, \cdot, \cdot, r_{p,j}) \right] + \varepsilon_c f_{\text{react},i}^l\left(c^l\right). \label{eq:ModelColumn2D}
+\end{split} \end{equation}
 Here, $c^l_i\colon \left[0, T_{\text{end}}\right] \times [0, L] \times [0, R] \rightarrow \mathds{R}^{\geq 0}$, $c^p_{j,i}\colon \left[0, T_{\text{end}}\right] \times [0, L] \times [0, R] \times [r_{c,j}, r_{p,j}] \rightarrow \mathds{R}^{\geq 0}$, and $c^s_{j,i,m_{j,i}}\colon \left[0, T_{\text{end}}\right] \times [0, L] \times [0, R] \times [r_{c,j}, r_{p,j}] \rightarrow \mathds{R}^{\geq 0}$ depend on $\rho$.
 Additionally, the porosity $\varepsilon_c$, axial dispersion coefficient $D_{\text{ax},i}$, radial dispersion coefficient $D_{\text{rad},i}$, and interstitial velocity $u$ may depend on $\rho$.
 
@@ -600,12 +607,12 @@ When combined with a binding model, it can be used to model batch uptake experim
 
 Assuming that the fluid inside the tank is well-mixed and that the volume can vary, the governing equations are given by
 \begin{align*}
-	\frac{\mathrm{d}}{\mathrm{d}t} \left(\left[ c_i + \frac{1-\varepsilon}{\varepsilon} \sum_j d_j \sum_{m_{j,i}} c^s_{j,i,m_{j,i}} \right] V\right) &= F_{\text{in}} c_{\text{in},i} - F_{\text{out}} c_i,
+	\frac{\mathrm{d}}{\mathrm{d}t} \left(\left[ c_i + \frac{1-\varepsilon}{\varepsilon} \sum_j d_j \sum_{m_{j,i}} c^s_{j,i,m_{j,i}} \right] V\right) &= F_{\text{in}} c_{\text{in},i} - F_{\text{out}} c_i + V f_{\text{react},i}^l\left( c \right) + V \frac{1-\varepsilon}{\varepsilon}\sum_j d_j f_{\text{react},j,i}^s\left( c, c_j^s \right),
 \end{align*}
 which balances the mass, the binding equation
 \begin{alignat*}{2}
 	\text{quasi-stationary: }& & 0 &= f_{\text{ads},j}\left( c, c^s_j\right), \\
-	\text{dynamic: }& & \frac{\partial c^s_j}{\partial t} &= f_{\text{ads},j}\left( c, c^s_j\right),
+	\text{dynamic: }& & \frac{\partial c^s_j}{\partial t} &= f_{\text{ads},j}\left( c, c^s_j\right) + f_{\text{react},j}^s\left( c, c_j^s \right),
 \end{alignat*}
 depending on whether quasi-stationary or dynamic binding is used, and the evolution of volume
 \begin{align*}

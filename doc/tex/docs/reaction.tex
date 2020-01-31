@@ -1,0 +1,100 @@
+%!TEX root = ../all.tex
+% =============================================================================
+%  CADET - The Chromatography Analysis and Design Toolkit
+%  
+%  Copyright © 2008-2019: The CADET Authors
+%            Please see the AUTHORS and CONTRIBUTORS file.
+%  
+%  All rights reserved. This program and the accompanying materials
+%  are made available under the terms of the GNU Public License v3.0 (or, at
+%  your option, any later version) which accompanies this distribution, and
+%  is available at http://www.gnu.org/licenses/gpl.html
+% =============================================================================
+
+\section{Reaction models}
+
+Reaction models \index{Reaction!Models}\index{Model!Reaction model} describe the (net) fluxes $f_{\text{react}}$ of a reaction mechanism.
+The most common mechanism is the mass action law.
+
+\paragraph{Correlation of forward- and backward rate constants}
+
+Note that forward rate constant $k_{\text{fwd},i}$ and backward rate constant $k_{\text{bwd},i}$ of reaction $i$ are linearly correlated due to the form of the equilibrium constant $k_{\text{eq},i}$:
+\begin{align*}
+  k_{\text{fwd},i} = k_{\text{eq},i} k_{\text{bwd},i}.
+\end{align*}
+This correlation can potentially degrade performance of some optimization algorithms.
+The parameters can be decoupled by reparameterization:
+\begin{align*}
+  r_{\text{net},i} &= k_{\text{fwd},i} f_{\text{fwd},i} - k_{\text{bwd},i} f_{\text{bwd},i} = k_{\text{bwd},i} \left[ k_{\text{eq},i} f_{\text{fwd},i} - f_{\text{bwd},i} \right] = k_{\text{fwd},i} \left[ f_{\text{fwd},i} - \frac{1}{k_{\text{eq},i}} f_{\text{bwd},i} \right].
+\end{align*}
+This can be achieved by a (nonlinear) parameter transform
+\begin{align*}
+  F\left( k_{\text{eq},i}, k_{\text{bwd},i} \right) = \begin{pmatrix} k_{\text{eq},i} k_{\text{bwd},i} \\ k_{\text{bwd},i} \end{pmatrix} \text{ with Jacobian } J_F\left( k_{\text{eq},i}, k_{\text{bwd},i} \right) = \begin{pmatrix} k_{\text{bwd},i} & k_{\text{eq},i} \\ 0 & 1 \end{pmatrix}.
+\end{align*}
+
+\paragraph{Dependence on external function}
+\phantomsection\label{par:MRExternalFunctions}
+
+A reaction model may depend on an external function or profile $T\colon \left[ 0, T_{\text{end}}\right] \times [0, L] \to \mathds{R}$, where $L$ denotes the physical length of the unit operation, or $T\colon \left[0, T_{\text{end}}\right] \to \mathds{R}$ if the unit operation model has no axial length. \index{Reaction!External function}
+By using an external profile, it is possible to account for effects that are not directly modeled in \CADET{} (e.g., temperature).
+The dependence of each parameter is modeled by a polynomial of third degree.
+For example, the forward rate constant $k_{\text{fwd}}$ is really given by
+\begin{align*}
+  k_{\text{fwd}}(T) &= k_{\text{fwd},3} T^3 + k_{\text{fwd},2} T^2 + k_{\text{fwd},1} T + k_{\text{fwd},0}.
+\end{align*}
+While $k_{\text{fwd},0}$ is set by the original parameter \texttt{XXX\_KFWD} of the file format (\texttt{XXX} being a placeholder for the reaction model), the parameters $k_{\text{fwd},3}$, $k_{\text{fwd},2}$, and $k_{\text{fwd},1}$ are given by \texttt{XXX\_KFWD\_TTT}, \texttt{XXX\_KFWD\_TT}, and \texttt{XXX\_KFWD\_T}, respectively.
+The identifier of the externally dependent reaction model is constructed from the original identifier by prepending \texttt{EXT\_} (e.g., \texttt{MASS\_ACTION\_LAW} is changed into \texttt{EXT\_MASS\_ACTION\_LAW}).
+This pattern applies to all parameters and supporting reaction models.
+Note that the parameter units have to be adapted to the unit of the external profile by dividing with an appropriate power.
+
+Each parameter of the externally dependent reaction model can depend on a different external source.
+The 0-based indices of the external source for each parameter is given in the dataset \texttt{EXTFUN}.
+By assigning only one index to \texttt{EXTFUN}, all parameters use the same source.
+The ordering of the parameters in \texttt{EXTFUN} is given by the ordering in the file format specification in Section~\ref{sec:FFReaction}.
+
+\subsection{Mass action law}\label{sec:MRMassActionLaw}
+
+The mass action law \index{Reaction!Mass action law} reaction model is suitable for most reactions.
+Note that the concentrations are directly used for calculating the fluxes.
+Hence, the model only holds for dilute solutions under the assumption of a well-stirred reaction vessel.
+These assumptions can be weakened by passing to the generalized mass action law, which uses chemical activities instead of concentrations.
+
+The mass action law states that the speed of a reaction is proportional to the product of the concentrations of their reactants.
+The net flux for component $i$ is given by
+\begin{align*}
+  f_{\text{react},i}^l\left(c^l\right) = \sum_{j=0}^{N_{\text{react}}-1} s_{i,j}^l \varphi^l_j\left(c^l\right), \qquad \varphi^l_j(c^l) = k^l_{\text{fwd},j} \prod_{\ell=0}^{N_{\text{comp}}-1} \left(c^l_{\ell}\right)^{e^l_{\text{fwd},\ell,j}} - k^l_{\text{bwd},j} \prod_{\ell=0}^{N_{\text{comp}}-1} \left(c^l_{\ell}\right)^{e^l_{\text{bwd},\ell,j}},
+\end{align*}
+where $S^l = (s^l_{i,j}) \in \mathds{R}^{N_{\text{comp}} \times N_{\text{react}}}$ is the stoichiometric matrix, $\varphi^l_j(c)$ is the net flux of reaction $j$, and $k^l_{\text{fwd},j}$ and $k^l_{\text{bwd},j}$ are the rate constants.
+The matrices $E^l_{\text{fwd}} = (e^l_{\text{fwd},\ell,j}) \in \mathds{R}^{N_{\text{comp}} \times N_{\text{react}}}$ and $E^l_{\text{bwd}} = (e^l_{\text{bwd},\ell,j}) \in \mathds{R}^{N_{\text{comp}} \times N_{\text{react}}}$ are usually derived by the order of the reaction, that is,
+\begin{align}
+	e^l_{\text{fwd},\ell,j} = -\min(0, s^l_{\ell,j}), \qquad e^l_{\text{bwd},\ell,j} = \max(0, -s^l_{\ell,j}). \label{eq:MRMassActionLawExpMatDefault}
+\end{align}
+However, these defaults can be changed by providing those matrices.
+
+In situations where both liquid and solid phase are present (e.g., in a bead), the respective other phase may act as a modifier in the net flux equation.
+For example, consider reactions in the liquid phase of a particle given by
+\begin{align*}
+  f_{\text{react},i}^p\left(c^p, c^s\right) &= \sum_{j=0}^{N_{\text{react}}-1} s_{i,j}^p \varphi^p_j\left(c^p, c^s\right),
+\end{align*}
+where
+\begin{equation*} \begin{split}
+  \varphi^p_j(c^p, c^s) &= k^p_{\text{fwd},j} \left[\prod_{\ell=0}^{N_{\text{comp}}-1} \left(c^p_{\ell}\right)^{e^p_{\text{fwd},\ell,j}}\right] \left[\prod_{m=0}^{\sum_{i=0}^{N_{\text{comp}}-1} N_{\text{bnd},i}-1} \left(c^s_{m}\right)^{e^{ps}_{\text{fwd},m,j}}\right] \\
+  &\phantom{=}\quad - k^p_{\text{bwd},j} \left[\prod_{\ell=0}^{N_{\text{comp}}-1} \left(c^p_{\ell}\right)^{e^p_{\text{bwd},\ell,j}}\right] \left[\prod_{m=0}^{\sum_{i=0}^{N_{\text{comp}}-1} N_{\text{bnd},i}-1} \left(c^s_{m}\right)^{e^{ps}_{\text{bwd},m,j}}\right].
+\end{split} \end{equation*}
+The forward and backward rates of the liquid phase particle reactions can be modified by a power of every bound state in the solid phase of the particle.
+The exponents of these powers are given by the matrices $E^{ps}_{\text{fwd}} = (e^{ps}_{\text{fwd},m,j})$ and $E^{ps}_{\text{bwd}} = (e^{ps}_{\text{bwd},m,j})$, which are both of size $(\sum_i N_{\text{bnd},i}) \times N_{\text{react}}$.
+Whereas the exponent matrices $E^{p}_{\text{fwd}}, E^{p}_{\text{bwd}} \in \mathds{R}^{N_{\text{comp}} \times N_{\text{react}}}$ are initialized based on the stoichiometric matrix $S^{p} \in \mathds{R}^{N_{\text{comp}} \times N_{\text{react}}}$, see Eq.~\eqref{eq:MRMassActionLawExpMatDefault}, the exponent matrices $E^{ps}_{\text{fwd}}, E^{ps}_{\text{bwd}}$ of the modifier terms default to $0$.
+
+Vice versa, the rates of solid phase reactions can be modified by liquid phase concentrations.
+The corresponding exponent matrices $E^{sp}_{\text{fwd}} = (e^{sp}_{\text{fwd},\ell,j})$ and $E^{sp}_{\text{bwd}} = (e^{sp}_{\text{bwd},\ell,j})$ are both of size $N_{\text{comp}} \times N_{\text{react}}$.
+\begin{align*}
+  f_{\text{react},i}^s\left(c^s, c^p\right) &= \sum_{j=0}^{N_{\text{react}}-1} s_{i,j}^s \varphi^s_j\left(c^s, c^p\right),
+\end{align*}
+where
+\begin{equation*} \begin{split}
+  \varphi^s_j(c^s, c^p) &= k^s_{\text{fwd},j} \left[\prod_{m=0}^{\sum_{i=0}^{N_{\text{comp}}-1} N_{\text{bnd},i}-1} \left(c^s_{m}\right)^{e^{s}_{\text{fwd},m,j}}\right] \left[\prod_{\ell=0}^{N_{\text{comp}}-1} \left(c^p_{\ell}\right)^{e^{sp}_{\text{fwd},\ell,j}}\right] \\
+  &\phantom{=}\quad - k^p_{\text{bwd},j} \left[\prod_{m=0}^{\sum_{i=0}^{N_{\text{comp}}-1} N_{\text{bnd},i}-1} \left(c^s_{m}\right)^{e^{s}_{\text{bwd},m,j}}\right] \left[\prod_{\ell=0}^{N_{\text{comp}}-1} \left(c^p_{\ell}\right)^{e^{sp}_{\text{bwd},\ell,j}}\right].
+\end{split} \end{equation*}
+Whereas the exponent matrices $E^{s}_{\text{fwd}}, E^{s}_{\text{bwd}} \in \mathds{R}^{(\sum_i N_{\text{bnd},i}) \times N_{\text{react}}}$ are initialized based on the stoichiometric matrix $S^{s} \in \mathds{R}^{(\sum_i N_{\text{bnd},i}) \times N_{\text{react}}}$, see Eq.~\eqref{eq:MRMassActionLawExpMatDefault}, the exponent matrices $E^{sp}_{\text{fwd}}, E^{sp}_{\text{bwd}}$ of the modifier terms default to $0$.
+
+The layout of the matrices in the file format is presented in Table~\ref{tab:FFReactionMassActionLaw}.

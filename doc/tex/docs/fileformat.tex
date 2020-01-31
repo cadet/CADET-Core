@@ -90,12 +90,13 @@ For the latter, please refer to the corresponding sections in the previous chapt
   every node/.style={draw=black,semithick,font={\footnotesize\ttfamily}},
   ]
   \node { \hyperref[sec:FFModelUnitOp]{unit\_000} } [edge from parent fork down]
-        child[sibling distance=23mm] { node { \hyperref[sec:FFAdsorption]{adsorption} } [edge from parent fork down]
-                child { node { \hyperref[tab:FFModelUnitOpAdsorptionConsSolver]{consistency\_solver} } }
-        }
+        child[sibling distance=23mm] { node { \hyperref[sec:FFAdsorption]{adsorption} } }
         child[sibling distance=23mm] { node { \hyperref[tab:FFModelUnitOpDiscretizationGRM]{discretization} } [edge from parent fork down]
                 child { node { \hyperref[tab:FFModelUnitOpDiscretizationWeno]{weno} } }
-        };
+                child { node { \hyperref[tab:FFModelUnitOpConsSolver]{consistency\_solver} } }
+        }
+        child[sibling distance=25mm] { node { \hyperref[sec:FFReaction]{reaction\_bulk} } }
+        child[sibling distance=26mm] { node { \hyperref[sec:FFReaction]{reaction\_particle} } };
 \end{tikzpicture}
 \caption[Structure of the groups in a column unit operation]{\label{fig:FFModelUnitOpColumn}Structure of the groups in a column unit operation (\texttt{/input/model} group)}
 \end{figure}
@@ -148,6 +149,7 @@ Common notation and identifiers that are used in the subsequent description are 
 \texttt{NBND}\textsubscript{i} & Number of bound states of component $i$ of a unit operation \\[0.5ex]
 \texttt{NTOTALBND} & Total number of bound states of a unit operation (sum of all bound states of all components) \\[0.5ex]
 \texttt{NSTATES} & Maximum of the number of bound states for each component of a unit operation \\[0.5ex]
+\texttt{NREACT} & Number of reactions \\[0.5ex]
 \texttt{NDOF} & Total number of degrees of freedom of the current unit operation model or system of unit operations \\[0.5ex]
 \texttt{NSEC} & Number of time integration sections \\[0.5ex]
 \texttt{PARAM\_VALUE} & Value of a generic unspecified parameter \\
@@ -398,7 +400,7 @@ Note that all components of component dependent datasets have to be section depe
     Number of chemical components in the chromatographic medium
   \end{dataset}
   \begin{dataset}[type=string,range={See Section~\ref{sec:FFAdsorption}},length={$1$ / \texttt{NPARTYPE}}]{ADSORPTION\_MODEL}
-    Specifies the type of adsorption models of each particle type (or of all particle types if length is $1$)
+    Specifies the type of adsorption model of each particle type (or of all particle types if length is $1$)
   \end{dataset}
   \begin{dataset}[unit=--,type=int,range={$\{0, 1\}$},length={1}]{ADSORPTION\_MODEL\_MULTIPLEX}
     Multiplexing mode of \texttt{ADSORPTION\_MODEL}.
@@ -406,6 +408,21 @@ Note that all components of component dependent datasets have to be section depe
     If set to $1$, all particle types share the same binding model and the length of \texttt{ADSORPTION\_MODEL} is $1$.
 
     This field is optional and inferred from the length of \texttt{ADSORPTION\_MODEL} if left out.
+  \end{dataset}
+  \begin{dataset}[type=string,range={See Section~\ref{sec:FFReaction}},length=1]{REACTION\_MODEL\_BULK}
+    Specifies the type of reaction model of the bulk volume.
+    The model is configured in the subgroup \texttt{reaction\_bulk}.
+  \end{dataset}
+  \begin{dataset}[type=string,range={See Section~\ref{sec:FFReaction}},length={$1$ / \texttt{NPARTYPE}}]{REACTION\_MODEL\_PARTICLES}
+    Specifies the type of reaction model of each particle type (or of all particle types if length is $1$).
+    The model is configured in the subgroup \texttt{reaction\_particle}, or \texttt{reaction\_particle\_XXX} in case of disabled multiplexing.
+  \end{dataset}
+  \begin{dataset}[unit=--,type=int,range={$\{0, 1\}$},length={1}]{REACTION\_MODEL\_PARTICLES\_MULTIPLEX}
+    Multiplexing mode of \texttt{REACTION\_MODEL\_PARTICLES}.
+    If set to $0$, each particle type has a different reaction model and the length of \texttt{REACTION\_MODEL\_PARTICLES} is \texttt{NPARTYPE}.
+    If set to $1$, all particle types share the same reaction model and the length of \texttt{REACTION\_MODEL\_PARTICLES} is $1$.
+
+    This field is optional and inferred from the length of \texttt{REACTION\_MODEL\_PARTICLES} if left out.
   \end{dataset}
   \begin{dataset}[unit=\si{\mol\per\cubic\metre\of{IV}},type=double,range={$\geq 0$},length={\texttt{NCOMP}}]{INIT\_C}
     Initial concentrations for each component in the bulk mobile phase
@@ -617,6 +634,21 @@ Note that all components of component dependent datasets have to be section depe
 
     This field is optional and inferred from the length of \texttt{ADSORPTION\_MODEL} if left out.
   \end{dataset}
+  \begin{dataset}[type=string,range={See Section~\ref{sec:FFReaction}},length=1]{REACTION\_MODEL\_BULK}
+    Specifies the type of reaction model of the bulk volume.
+    The model is configured in the subgroup \texttt{reaction\_bulk}.
+  \end{dataset}
+  \begin{dataset}[type=string,range={See Section~\ref{sec:FFReaction}},length={$1$ / \texttt{NPARTYPE}}]{REACTION\_MODEL\_PARTICLES}
+    Specifies the type of reaction model of each particle type (or of all particle types if length is $1$).
+    The model is configured in the subgroup \texttt{reaction\_particle}, or \texttt{reaction\_particle\_XXX} in case of disabled multiplexing.
+  \end{dataset}
+  \begin{dataset}[unit=--,type=int,range={$\{0, 1\}$},length={1}]{REACTION\_MODEL\_PARTICLES\_MULTIPLEX}
+    Multiplexing mode of \texttt{REACTION\_MODEL\_PARTICLES}.
+    If set to $0$, each particle type has a different reaction model and the length of \texttt{REACTION\_MODEL\_PARTICLES} is \texttt{NPARTYPE}.
+    If set to $1$, all particle types share the same reaction model and the length of \texttt{REACTION\_MODEL\_PARTICLES} is $1$.
+
+    This field is optional and inferred from the length of \texttt{REACTION\_MODEL\_PARTICLES} if left out.
+  \end{dataset}
   \begin{dataset}[unit=\si{\mol\per\cubic\metre\of{IV}},type=double,range={$\geq 0$},length={\texttt{NCOMP}}]{INIT\_C}
     Initial concentrations for each component in the bulk mobile phase
   \end{dataset}
@@ -761,6 +793,10 @@ Note that all components of component dependent datasets have to be section depe
   \begin{dataset}[type=string,range={See Section~\ref{sec:FFAdsorption}},length=1]{ADSORPTION\_MODEL}
     Specifies the type of adsorption model
   \end{dataset}
+  \begin{dataset}[type=string,range={See Section~\ref{sec:FFReaction}},length=1]{REACTION\_MODEL}
+    Specifies the type of reaction model of the combined bulk and particle volume.
+    The model is configured in the subgroup \texttt{reaction}.
+  \end{dataset}
   \begin{dataset}[unit=\si{\mol\per\cubic\metre\of{IV}},type=double,range={$\geq 0$},length={\texttt{NCOMP}}]{INIT\_C}
     Initial concentrations for each component in the bulk mobile phase
   \end{dataset}
@@ -836,6 +872,21 @@ Note that all components of component dependent datasets have to be section depe
     If set to $1$, all particle types share the same binding model and the length of \texttt{ADSORPTION\_MODEL} is $1$.
 
     This field is optional and inferred from the length of \texttt{ADSORPTION\_MODEL} if left out.
+  \end{dataset}
+  \begin{dataset}[type=string,range={See Section~\ref{sec:FFReaction}},length=1]{REACTION\_MODEL\_BULK}
+    Specifies the type of reaction model of the bulk volume.
+    The model is configured in the subgroup \texttt{reaction\_bulk}.
+  \end{dataset}
+  \begin{dataset}[type=string,range={See Section~\ref{sec:FFReaction}},length={$1$ / \texttt{NPARTYPE}}]{REACTION\_MODEL\_PARTICLES}
+    Specifies the type of reaction model of each particle type (or of all particle types if length is $1$).
+    The model is configured in the subgroup \texttt{reaction\_particle}, or \texttt{reaction\_particle\_XXX} in case of disabled multiplexing.
+  \end{dataset}
+  \begin{dataset}[unit=--,type=int,range={$\{0, 1\}$},length={1}]{REACTION\_MODEL\_PARTICLES\_MULTIPLEX}
+    Multiplexing mode of \texttt{REACTION\_MODEL\_PARTICLES}.
+    If set to $0$, each particle type has a different reaction model and the length of \texttt{REACTION\_MODEL\_PARTICLES} is \texttt{NPARTYPE}.
+    If set to $1$, all particle types share the same reaction model and the length of \texttt{REACTION\_MODEL\_PARTICLES} is $1$.
+
+    This field is optional and inferred from the length of \texttt{REACTION\_MODEL\_PARTICLES} if left out.
   \end{dataset}
   \begin{dataset}[unit=\si{\mol\per\cubic\metre\of{IV}},type=double,range={$\geq 0$},length={$\texttt{NCOMP}$ / $\texttt{NCOMP} \cdot \texttt{NRAD}$}]{INIT\_C}
     Initial concentrations for each component in all radial zones the bulk mobile phase (length \texttt{NCOMP}), or for each component in each radial zone (length $\texttt{NCOMP} \cdot \texttt{NRAD}$, ordering radial-major)
@@ -1133,6 +1184,21 @@ Note that all components of component dependent datasets have to be section depe
   \begin{dataset}[type=string,range={See Section~\ref{sec:FFAdsorption}},length={\texttt{NPARTYPE}}]{ADSORPTION\_MODEL}
     Specifies the type of adsorption models of each particle type
   \end{dataset}
+  \begin{dataset}[type=string,range={See Section~\ref{sec:FFReaction}},length=1]{REACTION\_MODEL\_BULK}
+    Specifies the type of reaction model of the bulk volume.
+    The model is configured in the subgroup \texttt{reaction\_bulk}.
+  \end{dataset}
+  \begin{dataset}[type=string,range={See Section~\ref{sec:FFReaction}},length={$1$ / \texttt{NPARTYPE}}]{REACTION\_MODEL\_PARTICLES}
+    Specifies the type of reaction model of each particle type (or of all particle types if length is $1$).
+    The model is configured in the subgroup \texttt{reaction\_particle}, or \texttt{reaction\_particle\_XXX} in case of disabled multiplexing.
+  \end{dataset}
+  \begin{dataset}[unit=--,type=int,range={$\{0, 1\}$},length={1}]{REACTION\_MODEL\_PARTICLES\_MULTIPLEX}
+    Multiplexing mode of \texttt{REACTION\_MODEL\_PARTICLES}.
+    If set to $0$, each particle type has a different reaction model and the length of \texttt{REACTION\_MODEL\_PARTICLES} is \texttt{NPARTYPE}.
+    If set to $1$, all particle types share the same reaction model and the length of \texttt{REACTION\_MODEL\_PARTICLES} is $1$.
+
+    This field is optional and inferred from the length of \texttt{REACTION\_MODEL\_PARTICLES} if left out.
+  \end{dataset}
   \begin{dataset}[unit=\si{\mol\per\cubic\metre\of{IV}},type=double,range={$\geq 0$},length={\texttt{NCOMP}}]{INIT\_C}
     Initial concentrations for each component in the mobile phase
   \end{dataset}
@@ -1182,7 +1248,26 @@ Note that all components of component dependent datasets have to be section depe
   \end{dataset}
 \end{subgroup}
 
-\subsection{Adsorption models}\label{sec:FFAdsorption}
+\subsection{Nonlinear solver for consistent initialization}
+
+\begin{subgroup}{/input/model/unit\_XXX/discretization/consistency\_solver}{Nonlinear consistency solver parameters}{tab:FFModelUnitOpConsSolver}
+  \begin{dataset}[type=string,length=1]{SOLVER\_NAME}
+    Name of the solver.
+    Available solvers are \texttt{LEVMAR}, \texttt{ATRN\_RES}, \texttt{ATRN\_ERR}, and \texttt{COMPOSITE}.
+  \end{dataset}
+  \begin{dataset}[type=double,range={$\geq 0$},length=1]{INIT\_DAMPING}
+    Initial damping factor (default is $0.01$)
+  \end{dataset}
+  \begin{dataset}[type=double,range={$\geq 0$},length=1]{MIN\_DAMPING}
+    Minimal damping factor (default is $0.0001$; ignored by \texttt{LEVMAR})
+  \end{dataset}
+  \begin{dataset}[type=string,length={$> 1$}]{SUBSOLVERS}
+    Vector with names of solvers for the composite solver (only required for composite solver).
+    See \texttt{SOLVER\_NAME} for available solvers.
+  \end{dataset}
+\end{subgroup}
+
+\subsection{Binding models}\label{sec:FFAdsorption}
 
 \paragraph{Externally dependent binding models}
 
@@ -1216,23 +1301,6 @@ The parameters are then placed in the group \texttt{/input/model/unit\_XXX/adsor
 
 Note that, in any case, \texttt{/input/model/unit\_XXX/adsorption\_000} contains the parameters of the first (and possibly sole) particle type.
 This group also takes precedence over a possibly existing \texttt{/input/model/unit\_XXX/adsorption} group.
-
-\begin{subgroup}{/input/model/unit\_XXX/adsorption/consistency\_solver}{Nonlinear consistency solver parameters}{tab:FFModelUnitOpAdsorptionConsSolver}
-  \begin{dataset}[type=string,length=1]{SOLVER\_NAME}
-    Name of the solver.
-    Available solvers are \texttt{LEVMAR}, \texttt{ATRN\_RES}, \texttt{ATRN\_ERR}, and \texttt{COMPOSITE}.
-  \end{dataset}
-  \begin{dataset}[type=double,range={$\geq 0$},length=1]{INIT\_DAMPING}
-    Initial damping factor (default is $0.01$)
-  \end{dataset}
-  \begin{dataset}[type=double,range={$\geq 0$},length=1]{MIN\_DAMPING}
-    Minimal damping factor (default is $0.0001$; ignored by \texttt{LEVMAR})
-  \end{dataset}
-  \begin{dataset}[type=string,length={$> 1$}]{SUBSOLVERS}
-    Vector with names of solvers for the composite solver (only required for composite solver).
-    See \texttt{SOLVER\_NAME} for available solvers.
-  \end{dataset}
-\end{subgroup}
 
 \begin{condsubgroup}{/input/model/unit\_XXX/adsorption}{ADSORPTION\_MODEL = LINEAR}{tab:FFAdsorptionLinear}
   \begin{dataset}[type=int,range={$\{ 0,1 \}$},length=1]{IS\_KINETIC}
@@ -1541,6 +1609,108 @@ This group also takes precedence over a possibly existing \texttt{/input/model/u
   \begin{dataset}[unit=\si{\mol\per\raiseto{3}\metre\of{SP}}, type = double, range={$> 0$}, length={$\{1,\texttt{NSTATES}\}$}]{BISMA\_REFQ} 
     Reference solid phase concentration for each binding site type or one value for all types (optional, defaults to $1.0$)
   \end{dataset} 
+\end{condsubgroup}
+
+\subsection{Reaction models}\label{sec:FFReaction}
+
+\paragraph{Externally dependent reaction models}
+
+Some reaction models have a variant that can use external sources\index{Reaction!External function} as specified in Section~\ref{sec:FFModelSystem} (also see Section~\ref{par:MRExternalFunctions}).
+For the sake of brevity, only the standard variant of those reaction models is specified below.
+In order to obtain the format for the externally dependent variant, first replace the reaction model name \texttt{XXX} by \texttt{EXT\_XXX}.
+Each parameter $p$ (except for stoichiometric and exponent matrices) depends on a (possibly distinct) external source in a polynomial way:
+\begin{align*}
+  p(T) &= p_{\texttt{TTT}} T^3 + p_{\texttt{TT}} T^2 + p_{\texttt{T}} T + p.
+\end{align*}
+Thus, a parameter \texttt{XXX\_YYY} of the standard reaction model variant is replaced by the four parameters \texttt{EXT\_XXX\_YYY}, \texttt{EXT\_XXX\_YYY\_T}, \texttt{EXT\_XXX\_YYY\_TT}, and \texttt{EXT\_XXX\_YYY\_TTT}.
+Since each parameter can depend on a different external source, the dataset \texttt{EXTFUN} (not listed in the standard variants below) should contain a vector of 0-based integer indices of the external source of each parameter.
+The ordering of the parameters in \texttt{EXTFUN} is given by the ordering in the standard variant.
+However, if only one index is passed in \texttt{EXTFUN}, this external source is used for all parameters.
+
+Note that parameter sensitivities with respect to column radius, column length, particle core radius, and particle radius may be wrong when using externally dependent reaction models.
+This is caused by not taking into account the derivative of the external profile with respect to column position.
+
+\paragraph{Multiple particle types}\index{Model!Multiple particle types}\index{Model!Particle types}
+
+The group that contains the parameters of a reaction model in unit operation with index \texttt{XXX} reads \texttt{/input/model/unit\_XXX/reaction\_particle}.
+This is valid for models with a single particle type.
+If a model has multiple particle types, it may have a different reaction model in each type.
+The parameters are then placed in the group \texttt{/input/model/unit\_XXX/reaction\_particle\_YYY} instead, where \texttt{YYY} denotes the index of the particle type.
+
+Note that, in any case, \texttt{/input/model/unit\_XXX/reaction\_particle\_000} contains the parameters of the first (and possibly sole) particle type.
+This group also takes precedence over a possibly existing \texttt{/input/model/unit\_XXX/adsorption\_particle} group.
+
+\begin{condsubgroup}{/input/model/unit\_XXX/reaction}{REACTION\_MODEL = MASS\_ACTION\_LAW}{tab:FFReactionMassActionLaw}
+  \begin{dataset}[type=double,range={$\geq 0$},length={\texttt{NREACT}}]{MAL\_KFWD\_BULK}
+    Forward rate constants for bulk volume reactions (available for external functions)
+  \end{dataset}
+  \begin{dataset}[type=double,range={$\geq 0$},length={\texttt{NREACT}}]{MAL\_KBWD\_BULK}
+    Backward rate constants for bulk volume reactions (available for external functions)
+  \end{dataset}
+  \begin{dataset}[type=double,range={$\geq 0$},length={\texttt{NREACT}}]{MAL\_KFWD\_LIQUID}
+    Forward rate constants for particle liquid phase reactions (available for external functions)
+  \end{dataset}
+  \begin{dataset}[type=double,range={$\geq 0$},length={\texttt{NREACT}}]{MAL\_KBWD\_LIQUID}
+    Backward rate constants for particle liquid phase reactions (available for external functions)
+  \end{dataset}
+  \begin{dataset}[type=double,range={$\geq 0$},length={\texttt{NREACT}}]{MAL\_KFWD\_SOLID}
+    Forward rate constants for particle solid phase reactions (available for external functions)
+  \end{dataset}
+  \begin{dataset}[type=double,range={$\geq 0$},length={\texttt{NREACT}}]{MAL\_KBWD\_SOLID}
+    Backward rate constants for particle solid phase reactions (available for external functions)
+  \end{dataset}
+  \begin{dataset}[type=double,length={$\texttt{NCOMP} \cdot \texttt{NREACT}$}]{MAL\_STOICHIOMETRY\_BULK
+}
+    Stoichiometric matrix of bulk volume reactions as $\texttt{NCOMP} \times \texttt{NREACT}$ matrix in row-major storage
+  \end{dataset}
+  \begin{dataset}[type=double,length={$\texttt{NCOMP} \cdot \texttt{NREACT}$}]{MAL\_EXPONENTS\_BULK\_FWD
+}
+    Forward exponent matrix of bulk volume reactions as $\texttt{NCOMP} \times \texttt{NREACT}$ matrix in row-major storage (optional, calculated from \texttt{MAL\_STOICHIOMETRY\_BULK} by default)
+  \end{dataset}
+  \begin{dataset}[type=double,length={$\texttt{NCOMP} \cdot \texttt{NREACT}$}]{MAL\_EXPONENTS\_BULK\_BWD
+}
+    Backward exponent matrix of bulk volume reactions as $\texttt{NCOMP} \times \texttt{NREACT}$ matrix in row-major storage (optional, calculated from \texttt{MAL\_STOICHIOMETRY\_BULK} by default)
+  \end{dataset}
+  \begin{dataset}[type=double,length={$\texttt{NCOMP} \cdot \texttt{NREACT}$}]{MAL\_STOICHIOMETRY\_LIQUID
+}
+    Stoichiometric matrix of particle liquid phase reactions as $\texttt{NCOMP} \times \texttt{NREACT}$ matrix in row-major storage
+  \end{dataset}
+  \begin{dataset}[type=double,length={$\texttt{NCOMP} \cdot \texttt{NREACT}$}]{MAL\_EXPONENTS\_LIQUID\_FWD
+}
+    Forward exponent matrix of particle liquid phase reactions as $\texttt{NCOMP} \times \texttt{NREACT}$ matrix in row-major storage (optional, calculated from \texttt{MAL\_STOICHIOMETRY\_LIQUID} by default)
+  \end{dataset}
+  \begin{dataset}[type=double,length={$\texttt{NCOMP} \cdot \texttt{NREACT}$}]{MAL\_EXPONENTS\_LIQUID\_BWD
+}
+    Backward exponent matrix of particle liquid phase reactions as $\texttt{NCOMP} \times \texttt{NREACT}$ matrix in row-major storage (optional, calculated from \texttt{MAL\_STOICHIOMETRY\_LIQUID} by default)
+  \end{dataset}
+  \begin{dataset}[type=double,length={$\texttt{NTOTALBND} \cdot \texttt{NREACT}$}]{MAL\_EXPONENTS\_LIQUID\_FWD\_MODSOLID
+}
+    Forward solid phase modifier exponent matrix of particle liquid phase reactions as $\texttt{NTOTALBND} \times \texttt{NREACT}$ matrix in row-major storage (optional, defaults to all $0$)
+  \end{dataset}
+  \begin{dataset}[type=double,length={$\texttt{NTOTALBND} \cdot \texttt{NREACT}$}]{MAL\_EXPONENTS\_LIQUID\_BWD\_MODSOLID
+}
+    Backward solid phase modifier exponent matrix of particle liquid phase reactions as $\texttt{NTOTALBND} \times \texttt{NREACT}$ matrix in row-major storage (optional, defaults to all $0$)
+  \end{dataset}
+  \begin{dataset}[type=double,length={$\texttt{NTOTALBND} \cdot \texttt{NREACT}$}]{MAL\_STOICHIOMETRY\_SOLID
+}
+    Stoichiometric matrix of particle solid phase reactions as $\texttt{NTOTALBND} \times \texttt{NREACT}$ matrix in row-major storage
+  \end{dataset}
+  \begin{dataset}[type=double,length={$\texttt{NTOTALBND} \cdot \texttt{NREACT}$}]{MAL\_EXPONENTS\_SOLID\_FWD
+}
+    Forward exponent matrix of particle solid phase reactions as $\texttt{NTOTALBND} \times \texttt{NREACT}$ matrix in row-major storage (optional, calculated from \texttt{MAL\_STOICHIOMETRY\_SOLID} by default)
+  \end{dataset}
+  \begin{dataset}[type=double,length={$\texttt{NTOTALBND} \cdot \texttt{NREACT}$}]{MAL\_EXPONENTS\_SOLID\_BWD
+}
+    Backward exponent matrix of particle solid phase reactions as $\texttt{NTOTALBND} \times \texttt{NREACT}$ matrix in row-major storage (optional, calculated from \texttt{MAL\_STOICHIOMETRY\_SOLID} by default)
+  \end{dataset}
+  \begin{dataset}[type=double,length={$\texttt{NCOMP} \cdot \texttt{NREACT}$}]{MAL\_EXPONENTS\_SOLID\_FWD\_MODLIQUID
+}
+    Forward liquid phase modifier exponent matrix of particle solid phase reactions as $\texttt{NCOMP} \times \texttt{NREACT}$ matrix in row-major storage (optional, defaults to all $0$)
+  \end{dataset}
+  \begin{dataset}[type=double,length={$\texttt{NCOMP} \cdot \texttt{NREACT}$}]{MAL\_EXPONENTS\_SOLID\_BWD\_MODLIQUID
+}
+    Backward liquid phase modifier exponent matrix of particle solid phase reactions as $\texttt{NCOMP} \times \texttt{NREACT}$ matrix in row-major storage (optional, defaults to all $0$)
+  \end{dataset}
 \end{condsubgroup}
 
 \subsection{Return data}
