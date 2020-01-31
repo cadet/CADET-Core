@@ -15,7 +15,7 @@
 
 This chapter gives an overview of the simulation process and the different steps involved.
 
-CADET uses a backward-differentiation-formula (BDF) time discretization as implemented by the IDAS solver from SUNDIALS \cite{Hindmarsh2005}.
+\CADET{} uses a backward-differentiation-formula (BDF) time discretization as implemented by the IDAS solver from SUNDIALS \cite{Hindmarsh2005}.
 Each time step requires the solution of a nonlinear algebraic system of equations is performed by a Newton method.
 Since chromatographic systems can exhibit strong nonlinearity and stiff systems, the Jacobian of the equation system is always updated (i.e., an ``exact'' Newton method is used).
 
@@ -147,7 +147,7 @@ This assumption allows an accelerated simulation as there is no memory allocatio
 \section{Consistent initialization}\label{sec:SimConsistentInit}
 
 At the beginning of the simulation and on discontinuous section transitions, consistent initial conditions have to be computed. \index{Simulation!Consistent initialization}\index{Consistent initialization}
-In CADET, the general differential-algebraic equation (DAE)
+In \CADET{}, the general differential-algebraic equation (DAE)
 \begin{align*}
 	F(t, y, \dot{y}, p) = 0
 \end{align*}
@@ -198,7 +198,7 @@ This requires (possibly many) solutions of linear equation systems involving the
 The Jacobian of $H$, which is the linear combination of the partial derivatives $\partial F / \partial y$ and $\partial F / \partial \dot{y}$, can be calculated in two ways.
 The fastest way is the analytic computation, which is to be preferred if available.
 However, the implementation of the analytic Jacobian can be time consuming and complicated, especially when quickly testing new models.
-As a remedy, CADET offers to compute the complicated Jacobian $\partial F / \partial y$ automatically by automatic differentiation (AD).
+As a remedy, \CADET{} offers to compute the complicated Jacobian $\partial F / \partial y$ automatically by automatic differentiation (AD).
 The much simpler Jacobian $\partial F / \partial \dot{y}$ has to be implemented manually.
 
 \paragraph{Adaptivity}
@@ -235,7 +235,7 @@ This is particularly relevant for problems with steep fronts as a low spatial re
 \section{Parameter sensitivities}\label{sec:SimParamSens}
 
 Parameter sensitivities $s = \partial y / \partial p$ \index{Parameter sensitivity} of a solution $y$ to the DAE with respect to some parameter $p$ are required for various tasks, for example, parameter estimation, process design, and process analysis.
-The CADET simulator implements the forward sensitivity approach which creates a linear companion DAE for each sensitive parameter
+The \CADET{} simulator implements the forward sensitivity approach which creates a linear companion DAE for each sensitive parameter
 \begin{align*}
 	0 &= \frac{\mathrm{d}}{\mathrm{d}p} F(t, y, \dot{y}, p) = \frac{\partial F}{\partial y}(t, y, \dot{y}, p) \frac{\partial y}{\partial p} + \frac{\partial F}{\partial \dot{y}}(t, y, \dot{y}, p) \frac{\partial \dot{y}}{\partial p} + \frac{\partial F}{\partial p}(t, y, \dot{y}, p) \\
 	&= \frac{\partial F}{\partial y}(t, y, \dot{y}, p) s + \frac{\partial F}{\partial \dot{y}}(t, y, \dot{y}, p) \dot{s} + \frac{\partial F}{\partial p}(t, y, \dot{y}, p).

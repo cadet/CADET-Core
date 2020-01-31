@@ -11,11 +11,11 @@
 %  is available at http://www.gnu.org/licenses/gpl.html
 % =============================================================================
 
-\chapter{CADET File Format Specifications}
+\chapter{\CADET{} File Format Specifications}
 
-The CADET framework is designed to work on a file format structured into groups and datasets. This
+The \CADET{} framework is designed to work on a file format structured into groups and datasets. This
 concept may be implemented by different file formats.
-At the moment, CADET natively supports HDF5 and XML as file formats.
+At the moment, \CADET{} natively supports HDF5 and XML as file formats.
 The choice is not limited to those two formats but can be extended as needed.
 In this section the general layout and structure of the file format is described.
 
@@ -29,7 +29,7 @@ The simulator assumes that the input file uses the most recent format version an
 \section{Global structure}
 
 The global structure (see Fig.~\ref{fig:FFRoot}) is divided into three parts: \texttt{input}, \texttt{output}, and \texttt{meta}.
-Every valid CADET file needs an \texttt{input} group (see Fig.~\ref{fig:FFInput}) which contains all relevant information for simulating a model.
+Every valid \CADET{} file needs an \texttt{input} group (see Fig.~\ref{fig:FFInput}) which contains all relevant information for simulating a model.
 It does not need an \texttt{output} (see Fig.~\ref{fig:FFOutput}) or \texttt{meta} (see Fig.~\ref{fig:FFRoot}) group, since those are created when results are written.
 Whereas the \texttt{output} group is solely used as output and holds the results of the simulation, the \texttt{meta} group is used for input and output.
 Details such as file format version and simulator version are read from and written to the \texttt{meta} group.
@@ -160,7 +160,7 @@ Common notation and identifiers that are used in the subsequent description are 
 \section{Ordering of multi dimensional data}
 
 Some model parameters, especially in certain binding models, require multi dimensional data.
-Since CADET only reads one dimensional arrays, the layout of the data has to be specified (i.e., the way how the data is linearized in memory).
+Since \CADET{} only reads one dimensional arrays, the layout of the data has to be specified (i.e., the way how the data is linearized in memory).
 The term ``\emph{xyz}-major'' means that the index corresponding to \emph{xyz} changes the slowest.
 
 For instance, suppose a model with $2$ components and $3$ bound states has a ``component-major'' dataset.
@@ -2061,13 +2061,13 @@ This group also takes precedence over a possibly existing \texttt{/input/model/u
     Version of the file format (defaults to $030102 = 3.1.2$ if omitted) with two digits per part (Major.Minor.Patch)
   \end{dataset}
   \begin{dataset}[type=string,inout={Out}]{CADET\_VERSION}
-    Version of the executed CADET simulator
+    Version of the executed \CADET{} simulator
   \end{dataset}
   \begin{dataset}[type=string,inout={Out}]{CADET\_COMMIT}
-    Git commit SHA1 from which the CADET simulator was built
+    Git commit SHA1 from which the \CADET{} simulator was built
   \end{dataset}
   \begin{dataset}[type=string,inout={Out}]{CADET\_BRANCH}
-    Git branch from which the CADET simulator was built
+    Git branch from which the \CADET{} simulator was built
   \end{dataset}
   \begin{dataset}[type=double,unit={\si{\second}},inout={Out}]{TIME\_SIM}
     Time that the time integration took (excluding any preparations and postprocessing)
