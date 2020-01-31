@@ -1,6 +1,6 @@
 
 classdef StirredTankModel < Model
-	%StirredTankModel Represents a continuously stirred (reaction) tank model (short CSTR)
+	%StirredTankModel Represents a continuous stirred (reaction) tank model (short CSTR)
 	%   Holds all model specific parameters which are necessary for a CADET simulation.
 	%
 	% See also MODEL, SINGLECSTR, MODELSYSTEM

@@ -35,7 +35,7 @@ namespace model
 {
 
 /**
- * @brief Continuously stirred tank (reactor) model
+ * @brief Continuous stirred tank (reactor) model
  * @details This is a simple CSTR model with variable volume using the ``well mixed assumption''.
  * @f[\begin{align}
 	\frac{\mathrm{d}}{\mathrm{d} t}\left( V \left[ c_i + \frac{1}{\beta} \sum_{j=1}^{N_{\text{bnd},i}} q_{i,j} \right] \right) &= F_{\text{in}} c_{\text{in},i} - F_{\text{out}} c_i \\
