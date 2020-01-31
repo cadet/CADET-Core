@@ -96,6 +96,24 @@ See Tables~\ref{tab:FFModelSystemConnections} and \ref{tab:FFModelConnectionSwit
 
 \section{Unit operation models}
 
+\phantomsection\label{par:MFeatureMatrix}
+
+A short comparison of the most prominent unit operation model features is given in Table~\ref{tab:MFeatureMatrix}.
+
+\begin{table}[!ht]
+\centering
+\begin{tabu}to \linewidth[m]{X>{\centering\arraybackslash}p{2cm}>{\centering\arraybackslash}p{2cm}>{\centering\arraybackslash}p{2cm}>{\centering\arraybackslash}p{2cm}} \toprule
+\rowfont[c]\normalfont Unit operation model & Radial diffusion & Particle diffusion & Film diffusion & Multiple-particle \\ \midrule
+2D General rate model & \cmark & \cmark & \cmark & \cmark \\
+General rate model & \xmark & \cmark & \cmark & \cmark \\
+Lumped rate model with pores & \xmark & \xmark & \cmark & \cmark \\
+Lumped rate model without pores & \xmark & \xmark & \xmark & \xmark \\
+Continuous stirred tank & \xmark & \xmark & \xmark & \cmark \\
+\bottomrule
+\end{tabu}
+\caption{\label{tab:MFeatureMatrix}Supported features of the different unit operation models}
+\end{table}
+
 \subsection{Inlet}\label{sec:MUOPInlet}
 
 A system inlet unit operation \index{Model!Inlet}\index{Unit operation!Inlet} is a pseudo unit operation since there is no physical correspondence.
