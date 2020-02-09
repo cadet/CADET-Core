@@ -5,7 +5,7 @@ classdef PiecewiseCubicPolyProfile < handle
 	%   conditions are met at the interfaces of two adjacent pieces), but can also represent
 	%   discontinuous data (such as step profiles).
 	
-	% Copyright: (C) 2008-2019 The CADET Authors
+	% Copyright: (C) 2008-2020 The CADET Authors
 	%            See the license note at the end of the file.
 	
 	properties (Transient)
@@ -500,7 +500,7 @@ end
 % =============================================================================
 %  CADET - The Chromatography Analysis and Design Toolkit
 %  
-%  Copyright (C) 2008-2019: The CADET Authors
+%  Copyright (C) 2008-2020: The CADET Authors
 %            Please see the AUTHORS and CONTRIBUTORS file.
 %  
 %  All rights reserved. This program and the accompanying materials

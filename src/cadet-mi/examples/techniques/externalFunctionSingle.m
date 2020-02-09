@@ -8,7 +8,7 @@ function externalFunctionSingle()
 %
 %   See also BREAKTHROUGHLANGMUIRSINGLE, EXTERNALFUNCTIONMULTIPLE
 
-% Copyright: (C) 2008-2019 The CADET Authors
+% Copyright: (C) 2008-2020 The CADET Authors
 %            See the license note at the end of the file.
 
 	% General rate model
@@ -155,7 +155,7 @@ end
 % =============================================================================
 %  CADET - The Chromatography Analysis and Design Toolkit
 %  
-%  Copyright (C) 2008-2019: The CADET Authors
+%  Copyright (C) 2008-2020: The CADET Authors
 %            Please see the AUTHORS and CONTRIBUTORS file.
 %  
 %  All rights reserved. This program and the accompanying materials
