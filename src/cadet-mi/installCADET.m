@@ -21,6 +21,8 @@ function success = installCADET()
 	path([localPath filesep 'units'], path);
 	fprintf('Adding %s to MATLAB PATH\n', [localPath filesep 'bindings']);
 	path([localPath filesep 'bindings'], path);
+	fprintf('Adding %s to MATLAB PATH\n', [localPath filesep 'reactions']);
+	path([localPath filesep 'reactions'], path);
 	fprintf('Adding %s to MATLAB PATH\n', [localPath filesep 'extfuns']);
 	path([localPath filesep 'extfuns'], path);
 
