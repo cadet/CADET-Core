@@ -223,6 +223,7 @@ classdef ModelSystem < handle
 
 			% Assemble switches
 			res.connections.NSWITCHES = int32(length(obj.connectionStartSection));
+			res.connections.CONNECTIONS_INCLUDE_PORTS = int32(1);
 			for i = 1:length(obj.connectionStartSection)
 				curMat = obj.connections{i}.';
 				curSwitch = [];
