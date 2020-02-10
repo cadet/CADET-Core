@@ -721,16 +721,16 @@ classdef LumpedRateModelWithPores < Model
 			end
 
 			if isempty(obj.reactionModelParticle)
-				error('CADET:invalidConfig', 'Expected valid reaction model for particle volume.');
-			end
-
-			res.REACTION_MODEL_PARTICLES = cell(numel(obj.reactionModelParticle), 1);
-			for i = 1:length(obj.reactionModelParticle)
-				if isempty(obj.reactionModelParticle(i))
-					res.REACTION_MODEL_PARTICLES{i} = 'NONE';
-				else
-					res.REACTION_MODEL_PARTICLES{i} = obj.reactionModelParticle(i).name;
-					res.(sprintf('reaction_particle_%03d', i-1)) = obj.reactionModelParticle(i).assembleConfig();
+				res.REACTION_MODEL_PARTICLES = 'NONE';
+			else
+				res.REACTION_MODEL_PARTICLES = cell(numel(obj.reactionModelParticle), 1);
+				for i = 1:length(obj.reactionModelParticle)
+					if isempty(obj.reactionModelParticle(i))
+						res.REACTION_MODEL_PARTICLES{i} = 'NONE';
+					else
+						res.REACTION_MODEL_PARTICLES{i} = obj.reactionModelParticle(i).name;
+						res.(sprintf('reaction_particle_%03d', i-1)) = obj.reactionModelParticle(i).assembleConfig();
+					end
 				end
 			end
 		end
