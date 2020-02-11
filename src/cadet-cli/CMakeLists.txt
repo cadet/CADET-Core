@@ -18,6 +18,7 @@ add_executable(cadet-cli
 	${CMAKE_SOURCE_DIR}/ThirdParty/pugixml/pugixml.cpp
 	${CMAKE_SOURCE_DIR}/src/cadet-cli/cadet-cli.cpp
 	${CMAKE_SOURCE_DIR}/src/io/JsonParameterProvider.cpp
+	${CMAKE_SOURCE_DIR}/src/cadet-cli/ProgressBar.cpp
 )
 
 # ---------------------------------------------------

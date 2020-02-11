@@ -19,6 +19,7 @@
 
 #include <tclap/CmdLine.h>
 #include "common/TclapUtils.hpp"
+#include "ProgressBar.hpp"
 
 #include "Logging.hpp"
 
@@ -113,7 +114,44 @@ namespace TCLAP
 			v = lvl;
 		}
 	}
-}
+} // namespace TCLAP
+
+class ProgressBarNotifier : public cadet::INotificationCallback
+{
+public:
+	ProgressBarNotifier() : _progBar(), _secStrBuffer(13) { }
+	virtual ~ProgressBarNotifier() CADET_NOEXCEPT { }
+
+	virtual void timeIntegrationStart()
+	{
+		_progBar.begin();
+	}
+
+	virtual void timeIntegrationEnd()
+	{
+		_progBar.finish("Done");
+	}
+
+	virtual void timeIntegrationError(char const* message, unsigned int section, double time, double progress) { }
+
+	virtual bool timeIntegrationSection(unsigned int section, double time, double const* state, double const* stateDot, double progress)
+	{
+		snprintf(_secStrBuffer.data(), _secStrBuffer.size(), "Init Sec %3u", section);
+		_progBar.update(progress, _secStrBuffer.data());
+		return true;
+	}
+
+	virtual bool timeIntegrationStep(unsigned int section, double time, double const* state, double const* stateDot, double progress)
+	{
+		snprintf(_secStrBuffer.data(), _secStrBuffer.size(), "Section %3u", section);
+		_progBar.update(progress, _secStrBuffer.data());
+		return true;
+	}
+
+protected:
+	cadet::ProgressBar _progBar;
+	std::vector<char> _secStrBuffer;
+};
 
 template <class Reader_t>
 class FileReaderDriverConfigurator
@@ -151,7 +189,7 @@ public:
 };
 
 template <class DriverConfigurator_t, class Writer_t>
-void run(const std::string& inFileName, const std::string& outFileName)
+void run(const std::string& inFileName, const std::string& outFileName, bool showProgressBar)
 {
 	cadet::Driver drv;
 	
@@ -160,6 +198,14 @@ void run(const std::string& inFileName, const std::string& outFileName)
 		dc.configure(drv, inFileName);
 	}
 
+	std::unique_ptr<ProgressBarNotifier> pb = nullptr;
+
+#ifndef CADET_BENCHMARK_MODE
+	if (showProgressBar)
+		pb = std::make_unique<ProgressBarNotifier>();
+#endif
+
+	drv.simulator()->setNotificationCallback(pb.get());
 	drv.run();
 
 	Writer_t writer;
@@ -217,6 +263,7 @@ int main(int argc, char** argv)
 	std::string inFileName = "";
 	std::string outFileName = "";
 	cadet::LogLevel logLevel = cadet::LogLevel::Trace;
+	bool showProgressBar = false;
 
 	try
 	{
@@ -224,6 +271,7 @@ int main(int argc, char** argv)
 		TCLAP::CmdLine cmd("Simulates a chromatography setup using CADET", ' ', "1.0");
 		cmd.setOutput(&customOut);
 
+		cmd >> (new TCLAP::SwitchArg("", "progress", "Show a progress bar"))->storeIn(&showProgressBar);
 		cmd >> (new TCLAP::ValueArg<cadet::LogLevel>("L", "loglevel", "Set the log level", false, cadet::LogLevel::Trace, "LogLevel"))->storeIn(&logLevel);
 		cmd >> (new TCLAP::UnlabeledValueArg<std::string>("input", "Input file", true, "", "File"))->storeIn(&inFileName);
 		cmd >> (new TCLAP::UnlabeledValueArg<std::string>("output", "Output file (defaults to input file)", false, "", "File"))->storeIn(&outFileName);
@@ -272,11 +320,11 @@ int main(int argc, char** argv)
 		{
 			if (cadet::util::caseInsensitiveEquals(fileExtOut, "h5"))
 			{
-				run<FileReaderDriverConfigurator<cadet::io::HDF5Reader>, cadet::io::HDF5Writer>(inFileName, outFileName);
+				run<FileReaderDriverConfigurator<cadet::io::HDF5Reader>, cadet::io::HDF5Writer>(inFileName, outFileName, showProgressBar);
 			}
 			else if (cadet::util::caseInsensitiveEquals(fileExtOut, "xml"))
 			{
-				run<FileReaderDriverConfigurator<cadet::io::HDF5Reader>, cadet::io::XMLWriter>(inFileName, outFileName);
+				run<FileReaderDriverConfigurator<cadet::io::HDF5Reader>, cadet::io::XMLWriter>(inFileName, outFileName, showProgressBar);
 			}
 			else
 			{
@@ -288,11 +336,11 @@ int main(int argc, char** argv)
 		{
 			if (cadet::util::caseInsensitiveEquals(fileExtOut, "xml"))
 			{
-				run<FileReaderDriverConfigurator<cadet::io::XMLReader>, cadet::io::XMLWriter>(inFileName, outFileName);
+				run<FileReaderDriverConfigurator<cadet::io::XMLReader>, cadet::io::XMLWriter>(inFileName, outFileName, showProgressBar);
 			}
 			else if (cadet::util::caseInsensitiveEquals(fileExtOut, "h5"))
 			{
-				run<FileReaderDriverConfigurator<cadet::io::XMLReader>, cadet::io::HDF5Writer>(inFileName, outFileName);
+				run<FileReaderDriverConfigurator<cadet::io::XMLReader>, cadet::io::HDF5Writer>(inFileName, outFileName, showProgressBar);
 			}
 			else
 			{
@@ -304,11 +352,11 @@ int main(int argc, char** argv)
 		{
 			if (cadet::util::caseInsensitiveEquals(fileExtOut, "xml"))
 			{
-				run<JsonDriverConfigurator, cadet::io::XMLWriter>(inFileName, outFileName);
+				run<JsonDriverConfigurator, cadet::io::XMLWriter>(inFileName, outFileName, showProgressBar);
 			}
 			else if (cadet::util::caseInsensitiveEquals(fileExtOut, "h5"))
 			{
-				run<JsonDriverConfigurator, cadet::io::HDF5Writer>(inFileName, outFileName);
+				run<JsonDriverConfigurator, cadet::io::HDF5Writer>(inFileName, outFileName, showProgressBar);
 			}
 			else
 			{
