@@ -13,6 +13,7 @@
 #include "cadet/Exceptions.hpp"
 #include "cadet/SolutionRecorder.hpp"
 #include "cadet/ParameterProvider.hpp"
+#include "cadet/Notification.hpp"
 #include "SimulatorImpl.hpp"
 #include "SimulatableModel.hpp"
 #include "UnitOperation.hpp"
@@ -342,7 +343,7 @@ namespace cadet
 		_nThreads(0), _sensErrorTestEnabled(true), _maxNewtonIter(3), _maxErrorTestFail(7), _maxConvTestFail(10),
 		_maxNewtonIterSens(3), _curSec(0), _skipConsistencyStateY(false), _skipConsistencySensitivity(false),
 		_consistentInitMode(ConsistentInitialization::Full), _consistentInitModeSens(ConsistentInitialization::Full),
-		_vecADres(nullptr), _vecADy(nullptr), _lastIntTime(0.0)
+		_vecADres(nullptr), _vecADy(nullptr), _lastIntTime(0.0), _notification(nullptr)
 	{
 #if defined(ACTIVE_ADOLC) || defined(ACTIVE_SFAD) || defined(ACTIVE_SETFAD)
 		LOG(Debug) << "Resetting AD directions from " << ad::getDirections() << " to default " << ad::getMaxDirections();
@@ -1014,6 +1015,9 @@ namespace cadet
 		ad::setDirections(numSensitivityAdDirections() + _model->requiredADdirs());
 #endif
 
+		if (_notification)
+			_notification->timeIntegrationStart();
+
 		_timerIntegration.start();
 
 		// Setup AD vectors by model
@@ -1184,6 +1188,14 @@ namespace cadet
 			}
 			_skipConsistencySensitivity = false;
 
+			// Notify user and check for user abort
+			if (_notification)
+			{
+				const double progress = (curT - static_cast<double>(_sectionTimes[0])) / (tEnd - static_cast<double>(_sectionTimes[0]));
+				if (!_notification->timeIntegrationSection(_curSec, curT, NVEC_DATA(_vecStateY), NVEC_DATA(_vecStateYdot), progress))
+					return;
+			}
+
 			// IDAS Step 5.2: Re-initialization of the solver
 			IDAReInit(_idaMemBlock, startTime, _vecStateY, _vecStateYdot);
 			if (wantSensitivities)
@@ -1292,6 +1304,17 @@ namespace cadet
 					}
 					writeSolution(curT);
 					++it;
+
+					// Notify user and check for user abort
+					if (_notification)
+					{
+						const double progress = (curT - static_cast<double>(_sectionTimes[0])) / (tEnd - static_cast<double>(_sectionTimes[0]));
+						if (!_notification->timeIntegrationStep(_curSec, curT, NVEC_DATA(_vecStateY), NVEC_DATA(_vecStateYdot), progress))
+						{
+							_lastIntTime = _timerIntegration.stop();
+							return;
+						}
+					}
 					break;
 				case IDA_ROOT_RETURN:
 					// A root was found
@@ -1313,6 +1336,17 @@ namespace cadet
 						// when we write at integration times.
 						writeSolution(curT);
 					}
+
+					// Notify user and check for user abort
+					if (_notification)
+					{
+						const double progress = (curT - static_cast<double>(_sectionTimes[0])) / (tEnd - static_cast<double>(_sectionTimes[0]));
+						if (!_notification->timeIntegrationStep(_curSec, curT, NVEC_DATA(_vecStateY), NVEC_DATA(_vecStateYdot), progress))
+						{
+							_lastIntTime = _timerIntegration.stop();
+							return;
+						}
+					}
 					break;
 				default:
 					_lastIntTime = _timerIntegration.stop();
@@ -1320,6 +1354,13 @@ namespace cadet
 					// An error occured
 					const std::string errorFlag = getIDAReturnFlagName(solverFlag);
 					LOG(Error) << "IDASolve returned " << errorFlag << " at t = " << curT;
+
+					if (_notification)
+					{
+						const double progress = (curT - static_cast<double>(_sectionTimes[0])) / (tEnd - static_cast<double>(_sectionTimes[0]));
+						_notification->timeIntegrationError(errorFlag.c_str(), _curSec, curT, progress);
+					}
+
 					throw IntegrationException(std::string("Error in IDASolve: ") + errorFlag + std::string(" at t = ") + std::to_string(curT)); //todo might not be necessary
 					break;
 				} // switch
@@ -1329,6 +1370,9 @@ namespace cadet
 		} // for (_sec ...)
 
 		_lastIntTime = _timerIntegration.stop();
+
+		if (_notification)
+			_notification->timeIntegrationEnd();
 	}
 
 	double const* Simulator::getLastSolution(unsigned int& len) const
@@ -1655,6 +1699,11 @@ namespace cadet
 	void Simulator::setNumThreads(unsigned int nThreads) CADET_NOEXCEPT
 	{
 		_nThreads = nThreads;
+	}
+
+	void Simulator::setNotificationCallback(INotificationCallback* nc) CADET_NOEXCEPT
+	{
+		_notification = nc;
 	}
 
 } // namespace cadet

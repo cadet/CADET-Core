@@ -33,6 +33,7 @@ namespace cadet
 class IModelSystem;
 class ISolutionRecorder;
 class IParameterProvider;
+class INotificationCallback;
 
 enum class ConsistentInitialization : int
 {
@@ -713,6 +714,12 @@ public:
 	 * @return Accumulated time of all calls of integrate() in seconds
 	 */
 	virtual double totalSimulationDuration() const CADET_NOEXCEPT = 0;
+
+	/**
+	 * @brief Sets the receiver for notifications
+	 * @param[in] nc Object to receive notifications or @c nullptr to disable notifications
+	 */
+	virtual void setNotificationCallback(INotificationCallback* nc) CADET_NOEXCEPT = 0;
 };
 
 } // namespace cadet

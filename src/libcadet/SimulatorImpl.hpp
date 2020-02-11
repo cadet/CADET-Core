@@ -131,6 +131,8 @@ public:
 
 	virtual double lastSimulationDuration() const CADET_NOEXCEPT { return _lastIntTime; }
 	virtual double totalSimulationDuration() const CADET_NOEXCEPT { return _timerIntegration.totalElapsedTime(); }
+
+	virtual void setNotificationCallback(INotificationCallback* nc) CADET_NOEXCEPT;
 protected:
 
 	/**
@@ -275,6 +277,8 @@ protected:
 
 	Timer _timerIntegration; //!< Timer measuring the duration of the call to integrate()
 	double _lastIntTime; //!< Last simulation duration
+
+	INotificationCallback* _notification; //!< Callback handler for notifications
 };
 
 } // namespace cadet

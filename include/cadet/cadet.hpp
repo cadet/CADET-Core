@@ -45,3 +45,4 @@
 #include "cadet/SolutionRecorder.hpp"
 #include "cadet/Simulator.hpp"
 #include "cadet/FactoryFuncs.hpp"
+#include "cadet/Notification.hpp"
