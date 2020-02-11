@@ -64,10 +64,22 @@ Hence, the mass balance of a single unit operation is taken with respect to all 
 \phantomsection\label{par:MUOPNetworkConfig}
 
 The connections \index{Network!Connectivity} between the different unit operations in the network are specified by a table.
-The first two columns specify source and destination unit operation id.
-The next two columns give source and destination port indices.
-Source and destination component indices are given by the following two columns.
-Finally, the seventh column specifies the volumetric flow rate of this connection.
+There are two table formats:
+\begin{itemize}
+	\item The long format includes seven columns.
+	The first two columns specify source and destination unit operation id.
+	The next two columns give source and destination port indices.
+	Source and destination component indices are given by the following two columns.
+	Finally, the seventh column specifies the volumetric flow rate of this connection.
+	\item The short format includes five columns.
+	The first two columns specify source and destination unit operation id.
+	Source and destination component indices are given by the following two columns.
+	Finally, the fifth column specifies the volumetric flow rate of this connection.
+	Here, the omitted port indices default to $-1$, which connects all ports of the source unit operation to the corresponding ports of the target. 
+\end{itemize}
+By default, the short format is used (i.e., a table with five columns is expected).
+However, if a unit operation with multiple ports is present, a table with seven columns is required.
+The default format can be overruled by setting a field (see Table~\ref{tab:FFModelConnectionSwitch}).
 
 With this setup, it is possible to connect single components of unit operations with each other yielding a maximum in flexibility.
 However, the predominant case is to connect all components of the source unit operations with their respective counterparts in the destination unit.
