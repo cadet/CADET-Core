@@ -1303,8 +1303,10 @@ Note that, in any case, \texttt{/input/model/unit\_XXX/adsorption\_000} contains
 This group also takes precedence over a possibly existing \texttt{/input/model/unit\_XXX/adsorption} group.
 
 \begin{condsubgroup}{/input/model/unit\_XXX/adsorption}{ADSORPTION\_MODEL = LINEAR}{tab:FFAdsorptionLinear}
-  \begin{dataset}[type=int,range={$\{ 0,1 \}$},length=1]{IS\_KINETIC}
-    Selects kinetic or quasi-stationary adsorption mode: 1 = kinetic, 0 = quasi-stationary
+  \begin{dataset}[type=int,range={$\{ 0,1 \}$},length={1 / \texttt{NTOTALBND}}]{IS\_KINETIC}
+    Selects kinetic or quasi-stationary adsorption mode: 1 = kinetic, 0 = quasi-stationary.
+    If a single value is given, the mode is set for all bound states.
+    Otherwise, the adsorption mode is set for each bound state separately.
   \end{dataset}
   \begin{dataset}[unit=\si{\cubic\metre\of{MP}\per\cubic\metre\of{SP}\per\second},type=double,range={$\geq 0$},length={\texttt{NCOMP}}]{LIN\_KA}
     Adsorption rate constants for each component
@@ -1315,8 +1317,10 @@ This group also takes precedence over a possibly existing \texttt{/input/model/u
 \end{condsubgroup}
 
 \begin{condsubgroup}{/input/model/unit\_XXX/adsorption}{ADSORPTION\_MODEL = MULTI\_COMPONENT\_LANGMUIR}{tab:FFAdsorptionMultiCompLangmuir}
-  \begin{dataset}[type=int,range={$\{ 0,1 \}$},length=1]{IS\_KINETIC}
-    Selects kinetic or quasi-stationary adsorption mode: 1 = kinetic, 0 = quasi-stationary
+  \begin{dataset}[type=int,range={$\{ 0,1 \}$},length={1 / \texttt{NTOTALBND}}]{IS\_KINETIC}
+    Selects kinetic or quasi-stationary adsorption mode: 1 = kinetic, 0 = quasi-stationary.
+    If a single value is given, the mode is set for all bound states.
+    Otherwise, the adsorption mode is set for each bound state separately.
   \end{dataset}
   \begin{dataset}[type=double,range={$\geq 0$},length={\texttt{NCOMP}}]{MCL\_KA}
     Adsorption rate constants
@@ -1330,8 +1334,10 @@ This group also takes precedence over a possibly existing \texttt{/input/model/u
 \end{condsubgroup}
 
 \begin{condsubgroup}{/input/model/unit\_XXX/adsorption}{ADSORPTION\_MODEL = MULTI\_COMPONENT\_ANTILANGMUIR}{tab:FFAdsorptionMultiCompAntiLangmuir}
-  \begin{dataset}[type=int,range={$\{ 0,1 \}$},length=1]{IS\_KINETIC}
-    Selects kinetic or quasi-stationary adsorption mode: 1 = kinetic, 0 = quasi-stationary
+  \begin{dataset}[type=int,range={$\{ 0,1 \}$},length={1 / \texttt{NTOTALBND}}]{IS\_KINETIC}
+    Selects kinetic or quasi-stationary adsorption mode: 1 = kinetic, 0 = quasi-stationary.
+    If a single value is given, the mode is set for all bound states.
+    Otherwise, the adsorption mode is set for each bound state separately.
   \end{dataset}
   \begin{dataset}[unit=\si{\cubic\metre\of{MP}\per\mol\per\second}, type=double,range={$\geq 0$},length={\texttt{NCOMP}}]{MCAL\_KA}
     Adsorption rate constants
@@ -1348,8 +1354,10 @@ This group also takes precedence over a possibly existing \texttt{/input/model/u
 \end{condsubgroup}
 
 \begin{condsubgroup}{/input/model/unit\_XXX/adsorption}{ADSORPTION\_MODEL = MOBILE\_PHASE\_MODULATOR}{tab:FFAdsorptionMobilePhaseModulator}
-\begin{dataset}[type=int,range={$\{ 0,1 \}$},length=1]{IS\_KINETIC}
-    Selects kinetic or quasi-stationary adsorption mode: 1 = kinetic, 0 = quasi-stationary
+\begin{dataset}[type=int,range={$\{ 0,1 \}$},length={1 / \texttt{NTOTALBND}}]{IS\_KINETIC}
+    Selects kinetic or quasi-stationary adsorption mode: 1 = kinetic, 0 = quasi-stationary.
+    If a single value is given, the mode is set for all bound states.
+    Otherwise, the adsorption mode is set for each bound state separately.
   \end{dataset}
   \begin{dataset}[unit=\si{\cubic\metre\of{MP}\per\mol\per\second}, type=double,range={$\geq 0$},length={\texttt{NCOMP}}]{MPM\_KA}
     Adsorption rate constants
@@ -1369,8 +1377,10 @@ This group also takes precedence over a possibly existing \texttt{/input/model/u
 \end{condsubgroup}
   
 \begin{condsubgroup}{/input/model/unit\_XXX/adsorption}{ADSORPTION\_MODEL = STERIC\_MASS\_ACTION}{tab:FFAdsorptionStericMassAction}
-  \begin{dataset}[type=int,range={$\{ 0,1 \}$},length=1]{IS\_KINETIC}
-    Selects kinetic or quasi-stationary adsorption mode: 1 = kinetic, 0 = quasi-stationary
+  \begin{dataset}[type=int,range={$\{ 0,1 \}$},length={1 / \texttt{NTOTALBND}}]{IS\_KINETIC}
+    Selects kinetic or quasi-stationary adsorption mode: 1 = kinetic, 0 = quasi-stationary.
+    If a single value is given, the mode is set for all bound states.
+    Otherwise, the adsorption mode is set for each bound state separately.
   \end{dataset}
   \begin{dataset}[unit=\si{\raiseto{3}\metre\of{MP}\per\raiseto{3}\metre\of{SP}\per\second}, type=double,range={$\geq 0$},length={\texttt{NCOMP}}]{SMA\_KA}
     Adsorption rate constants
@@ -1396,8 +1406,10 @@ This group also takes precedence over a possibly existing \texttt{/input/model/u
 \end{condsubgroup}
 
 \begin{condsubgroup}{/input/model/unit\_XXX/adsorption}{ADSORPTION\_MODEL = SELF\_ASSOCIATION}{tab:FFAdsorptionSelfAssociation}
-\begin{dataset}[type=int,range={$\{ 0,1 \}$},length=1]{IS\_KINETIC}
-    Selects kinetic or quasi-stationary adsorption mode: 1 = kinetic, 0 = quasi-stationary
+\begin{dataset}[type=int,range={$\{ 0,1 \}$},length={1 / \texttt{NTOTALBND}}]{IS\_KINETIC}
+    Selects kinetic or quasi-stationary adsorption mode: 1 = kinetic, 0 = quasi-stationary.
+    If a single value is given, the mode is set for all bound states.
+    Otherwise, the adsorption mode is set for each bound state separately.
   \end{dataset}
   \begin{dataset}[unit=\si{\raiseto{3}\metre\of{MP}\per\raiseto{3}\metre\of{SP}\per\second}, type=double,range={$\geq 0$},length={\texttt{NCOMP}}]{SAI\_KA1}
     Adsorption rate constants
@@ -1426,8 +1438,10 @@ This group also takes precedence over a possibly existing \texttt{/input/model/u
 \end{condsubgroup}
 
 \begin{condsubgroup}{/input/model/unit\_XXX/adsorption}{ADSORPTION\_MODEL = SASKA}{tab:FFAdsorptionSaska}
-\begin{dataset}[type=int,range={$\{ 0,1 \}$},length=1]{IS\_KINETIC}
-    Selects kinetic or quasi-stationary adsorption mode: 1 = kinetic, 0 = quasi-stationary
+\begin{dataset}[type=int,range={$\{ 0,1 \}$},length={1 / \texttt{NTOTALBND}}]{IS\_KINETIC}
+    Selects kinetic or quasi-stationary adsorption mode: 1 = kinetic, 0 = quasi-stationary.
+    If a single value is given, the mode is set for all bound states.
+    Otherwise, the adsorption mode is set for each bound state separately.
   \end{dataset}
   \begin{dataset}[unit=\si{\cubic\metre\of{MP}\per\cubic\metre\of{SP}\per\second}, type=double,range={$\mathds{R}$},length={\texttt{NCOMP}}]{SASKA\_H}
     Henry coefficient
@@ -1438,8 +1452,10 @@ This group also takes precedence over a possibly existing \texttt{/input/model/u
 \end{condsubgroup}
 
 \begin{condsubgroup}{/input/model/unit\_XXX/adsorption}{ADSORPTION\_MODEL = MULTI\_COMPONENT\_BILANGMUIR}{tab:FFAdsorptionBiLangmuir}
-\begin{dataset}[type=int,range={$\{ 0,1 \}$},length=1]{IS\_KINETIC}
-    Selects kinetic or quasi-stationary adsorption mode: 1 = kinetic, 0 = quasi-stationary
+\begin{dataset}[type=int,range={$\{ 0,1 \}$},length={1 / \texttt{NTOTALBND}}]{IS\_KINETIC}
+    Selects kinetic or quasi-stationary adsorption mode: 1 = kinetic, 0 = quasi-stationary.
+    If a single value is given, the mode is set for all bound states.
+    Otherwise, the adsorption mode is set for each bound state separately.
   \end{dataset}
   \begin{dataset}[unit=\si{\cubic\metre\of{MP}\per\mol\per\second}, type=double,range={$\geq 0$},length={$\texttt{NSTATES} \cdot \texttt{NCOMP}$}]{MCBL\_KA}
     Adsorption rate constants in state-major ordering
@@ -1453,8 +1469,10 @@ This group also takes precedence over a possibly existing \texttt{/input/model/u
 \end{condsubgroup}
 
 \begin{condsubgroup}{/input/model/unit\_XXX/adsorption}{ADSORPTION\_MODEL = KUMAR\_MULTI\_COMPONENT\_LANGMUIR}{tab:FFAdsorptionKumarLangmuir}
-\begin{dataset}[type=int,range={$\{ 0,1 \}$},length=1]{IS\_KINETIC}
-    Selects kinetic or quasi-stationary adsorption mode: 1 = kinetic, 0 = quasi-stationary
+\begin{dataset}[type=int,range={$\{ 0,1 \}$},length={1 / \texttt{NTOTALBND}}]{IS\_KINETIC}
+    Selects kinetic or quasi-stationary adsorption mode: 1 = kinetic, 0 = quasi-stationary.
+    If a single value is given, the mode is set for all bound states.
+    Otherwise, the adsorption mode is set for each bound state separately.
   \end{dataset}
   \begin{dataset}[unit=\si{\raiseto{3}\metre\of{MP}\per\mol\per\second}, type=double,range={$\geq 0$},length={\texttt{NCOMP}}]{KMCL\_KA}
     Adsorption pre-exponential factors
@@ -1477,8 +1495,10 @@ This group also takes precedence over a possibly existing \texttt{/input/model/u
 \end{condsubgroup}
 
 \begin{condsubgroup}{/input/model/unit\_XXX/adsorption}{ADSORPTION\_MODEL = MULTI\_COMPONENT\_SPREADING}{tab:FFAdsorptionMultiCompSpreading}
-\begin{dataset}[type=int,range={$\{ 0,1 \}$},length=1]{IS\_KINETIC}
-    Selects kinetic or quasi-stationary adsorption mode: 1 = kinetic, 0 = quasi-stationary
+\begin{dataset}[type=int,range={$\{ 0,1 \}$},length={1 / \texttt{NTOTALBND}}]{IS\_KINETIC}
+    Selects kinetic or quasi-stationary adsorption mode: 1 = kinetic, 0 = quasi-stationary.
+    If a single value is given, the mode is set for all bound states.
+    Otherwise, the adsorption mode is set for each bound state separately.
   \end{dataset}
   \begin{dataset}[unit=\si{\cubic\metre\of{MP}\per\mol\per\second}, type = double, range={$\geq 0$}, length={\texttt{NTOTALBND}}]{MCSPR\_KA} 
     Adsorption rate constants in state-major ordering   
@@ -1498,8 +1518,10 @@ This group also takes precedence over a possibly existing \texttt{/input/model/u
 \end{condsubgroup}
 
 \begin{condsubgroup}{/input/model/unit\_XXX/adsorption}{ADSORPTION\_MODEL = MULTISTATE\_STERIC\_MASS\_ACTION}{tab:FFAdsorptionMultiStateStericMassAction}
-\begin{dataset}[type=int,range={$\{ 0,1 \}$},length=1]{IS\_KINETIC}
-    Selects kinetic or quasi-stationary adsorption mode: 1 = kinetic, 0 = quasi-stationary
+\begin{dataset}[type=int,range={$\{ 0,1 \}$},length={1 / \texttt{NTOTALBND}}]{IS\_KINETIC}
+    Selects kinetic or quasi-stationary adsorption mode: 1 = kinetic, 0 = quasi-stationary.
+    If a single value is given, the mode is set for all bound states.
+    Otherwise, the adsorption mode is set for each bound state separately.
   \end{dataset}
   \begin{dataset}[unit=\si{\raiseto{3}\metre\of{MP}\per\raiseto{3}\metre\of{SP}\per\second}, type = double, range={$\geq 0$}, length={\texttt{NTOTALBND}}]{MSSMA\_KA} 
     Adsorption rate constants of the components to the different bound states in component-major ordering
@@ -1528,8 +1550,10 @@ This group also takes precedence over a possibly existing \texttt{/input/model/u
 \end{condsubgroup}
 
 \begin{condsubgroup}{/input/model/unit\_XXX/adsorption}{ADSORPTION\_MODEL = SIMPLE\_MULTISTATE\_STERIC\_MASS\_ACTION}{tab:FFAdsorptionSimpleMultiStateStericMassAction}
-\begin{dataset}[type=int,range={$\{ 0,1 \}$},length=1]{IS\_KINETIC}
-    Selects kinetic or quasi-stationary adsorption mode: 1 = kinetic, 0 = quasi-stationary
+\begin{dataset}[type=int,range={$\{ 0,1 \}$},length={1 / \texttt{NTOTALBND}}]{IS\_KINETIC}
+    Selects kinetic or quasi-stationary adsorption mode: 1 = kinetic, 0 = quasi-stationary.
+    If a single value is given, the mode is set for all bound states.
+    Otherwise, the adsorption mode is set for each bound state separately.
   \end{dataset}
   \begin{dataset}[unit=\si{\mol\per\cubic\metre\of{SP}}, type = double, range={$\geq 0$}, length={1}]{SMSSMA\_LAMBDA} 
     Stationary phase capacity (monovalent salt counterions); The total number of binding sites available on the resin surface
@@ -1585,8 +1609,10 @@ This group also takes precedence over a possibly existing \texttt{/input/model/u
 \end{condsubgroup}
 
 \begin{condsubgroup}{/input/model/unit\_XXX/adsorption}{ADSORPTION\_MODEL = BI\_STERIC\_MASS\_ACTION}{tab:FFAdsorptionBiStericMassAction}
-\begin{dataset}[type=int,range={$\{ 0,1 \}$},length=1]{IS\_KINETIC}
-    Selects kinetic or quasi-stationary adsorption mode: 1 = kinetic, 0 = quasi-stationary
+\begin{dataset}[type=int,range={$\{ 0,1 \}$},length={1 / \texttt{NTOTALBND}}]{IS\_KINETIC}
+    Selects kinetic or quasi-stationary adsorption mode: 1 = kinetic, 0 = quasi-stationary.
+    If a single value is given, the mode is set for all bound states.
+    Otherwise, the adsorption mode is set for each bound state separately.
   \end{dataset}
   \begin{dataset}[unit=\si{\raiseto{3}\metre\of{MP}\per\raiseto{3}\metre\of{SP}\per\second}, type = double, range={$\geq 0.0$}, length={$\texttt{NSTATES} \cdot \texttt{NCOMP}$}]{BISMA\_KA} 
     Adsorption rate constants in state-major ordering
