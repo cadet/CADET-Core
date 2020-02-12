@@ -337,7 +337,7 @@ namespace cadet
 
 				inline double stopCore() const
 				{
-					return std::chrono::duration<double>(std::chrono::high_resolution_clock::now() - _startTime).count();
+					return std::chrono::duration_cast<std::chrono::seconds>(std::chrono::high_resolution_clock::now() - _startTime).count();
 				}
 
 			protected:
