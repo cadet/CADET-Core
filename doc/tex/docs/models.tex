@@ -281,7 +281,7 @@ Reaction terms in liquid and solid phase are collected in $f_{\text{react},j,i}^
 The GRM is used with both quasi-stationary (Eq.~\eqref{eq:REqBinding}) and dynamic (Eq.~\eqref{eq:DynBinding}) binding models. \index{Binding!Models}\index{Binding!Dynamic}\index{Binding!Quasi-stationary}
 \begin{alignat}{2}
 	\text{quasi-stationary: }& & 0 &= f_{\text{ads},j}\left( c^p_j, c^s_j\right), \label{eq:REqBinding} \\
-	\text{dynamic: }& & \frac{\partial c^s_j}{\partial t} &= f_{\text{ads},j}\left( c^p_j, c^s_j\right) + f_{\text{react},j}^s\left( c_j^p, c_j^s \right). \label{eq:DynBinding}
+	\text{dynamic: }& & \frac{\partial c^s_j}{\partial t} &= D_{s,j} \left[\frac{\partial^2}{\partial r^2} + \frac{2}{r} \frac{\partial }{\partial r} \right] c^s_{j} + f_{\text{ads},j}\left( c^p_j, c^s_j\right) + f_{\text{react},j}^s\left( c_j^p, c_j^s \right). \label{eq:DynBinding}
 \end{alignat}
 Note that $c^p_j$ and $c^s_j$ denote the vector of all $c^p_{j,i}$ and $c^s_{j,i,m_{j,i}}$, respectively.
 
