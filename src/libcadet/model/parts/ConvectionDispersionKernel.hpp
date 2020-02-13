@@ -342,14 +342,6 @@ namespace impl
 		return 0;
 	}
 
-	class DummyStencil
-	{
-	public:
-		DummyStencil() { }
-		inline const double operator[](const int idx) const { return 0.0; }
-	};
-
-
 } // namespace impl
 
 

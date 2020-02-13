@@ -31,6 +31,18 @@ namespace parts
 namespace convdisp
 {
 
+namespace impl
+{
+
+	class DummyStencil
+	{
+	public:
+		DummyStencil() { }
+		inline const double operator[](const int idx) const { return 0.0; }
+	};
+
+} // namespace impl
+
 void sparsityPattern(linalg::SparsityPatternRowIterator itBegin, unsigned int nComp, unsigned int nCol, int strideCell, double u, Weno& weno)
 {
 	impl::DummyStencil stencil;
