@@ -32,7 +32,7 @@
 	"parameters":
 		[
 			{ "type": "ScalarParameter", "varName": "lambda", "confName": "SAI_LAMBDA"},
-			{ "type": "ScalarComponentDependentParameter", "varName": "kA", "confName": "SAI_KA"},
+			{ "type": "ScalarComponentDependentParameter", "varName": "kA", "confName": "SAI_KA1"},
 			{ "type": "ScalarComponentDependentParameter", "varName": "kA2", "confName": "SAI_KA2"},
 			{ "type": "ScalarComponentDependentParameter", "varName": "kD", "confName": "SAI_KD"},
 			{ "type": "ScalarComponentDependentParameter", "varName": "nu", "confName": "SAI_NU"},

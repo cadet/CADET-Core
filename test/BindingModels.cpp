@@ -368,24 +368,24 @@ CADET_BINDINGTEST_ALLBINDING("BI_STERIC_MASS_ACTION", "EXT_BI_STERIC_MASS_ACTION
 
 
 CADET_BINDINGTEST("SELF_ASSOCIATION", "EXT_SELF_ASSOCIATION", (1,1,1), (1,1,0,1), (1.2, 2.0, 1.5, 80.0, 3.5, 2.7), (1.2, 2.0, 3.0, 1.5, 80.0, 3.5, 2.7), \
-	R"json(	"SAI_KA": [0.0, 3.55, 1.59],
+	R"json(	"SAI_KA1": [0.0, 3.55, 1.59],
 	        "SAI_KA2": [0.0, 1.5, 2.5],
 	        "SAI_KD": [0.0, 10.0, 10.0],
 	        "SAI_NU": [0.0, 2.0, 1.5],
 	        "SAI_SIGMA": [0.0, 11.83, 10.6],
 	        "SAI_LAMBDA": 100.0
 	)json", \
-	R"json(	"SAI_KA": [0.0, 3.55, 7.7, 1.59],
+	R"json(	"SAI_KA1": [0.0, 3.55, 7.7, 1.59],
 	        "SAI_KA2": [0.0, 1.5, 2.0, 2.5],
 	        "SAI_KD": [0.0, 10.0, 10.0, 10.0],
 	        "SAI_NU": [0.0, 2.0, 3.7, 1.5],
 	        "SAI_SIGMA": [0.0, 11.83, 10.0, 10.6],
 	        "SAI_LAMBDA": 100.0
 	)json", \
-	R"json(	"EXT_SAI_KA": [0.0, 0.0, 0.0],
-	        "EXT_SAI_KA_T": [0.0, 3.55, 1.59],
-	        "EXT_SAI_KA_TT": [0.0, 0.0, 0.0],
-	        "EXT_SAI_KA_TTT": [0.0, 0.0, 0.0],
+	R"json(	"EXT_SAI_KA1": [0.0, 0.0, 0.0],
+	        "EXT_SAI_KA1_T": [0.0, 3.55, 1.59],
+	        "EXT_SAI_KA1_TT": [0.0, 0.0, 0.0],
+	        "EXT_SAI_KA1_TTT": [0.0, 0.0, 0.0],
 	        "EXT_SAI_KA2": [0.0, 0.0, 0.0],
 	        "EXT_SAI_KA2_T": [0.0, 1.5, 2.5],
 	        "EXT_SAI_KA2_TT": [0.0, 0.0, 0.0],
@@ -407,10 +407,10 @@ CADET_BINDINGTEST("SELF_ASSOCIATION", "EXT_SELF_ASSOCIATION", (1,1,1), (1,1,0,1)
 	        "EXT_SAI_LAMBDA_TT": 0.0,
 	        "EXT_SAI_LAMBDA_TTT": 0.0
 	)json", \
-	R"json(	"EXT_SAI_KA": [0.0, 0.0, 0.0, 0.0],
-		    "EXT_SAI_KA_T": [0.0, 3.55, 7.7, 1.59],
-	        "EXT_SAI_KA_TT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_SAI_KA_TTT": [0.0, 0.0, 0.0, 0.0],
+	R"json(	"EXT_SAI_KA1": [0.0, 0.0, 0.0, 0.0],
+		    "EXT_SAI_KA1_T": [0.0, 3.55, 7.7, 1.59],
+	        "EXT_SAI_KA1_TT": [0.0, 0.0, 0.0, 0.0],
+	        "EXT_SAI_KA1_TTT": [0.0, 0.0, 0.0, 0.0],
 	        "EXT_SAI_KA2": [0.0, 0.0, 0.0, 0.0],
 	        "EXT_SAI_KA2_T": [0.0, 1.5, 2.0, 2.5],
 	        "EXT_SAI_KA2_TT": [0.0, 0.0, 0.0, 0.0],
