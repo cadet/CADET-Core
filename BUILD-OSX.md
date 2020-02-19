@@ -42,6 +42,7 @@ Build HDF5 yourself:
 ## SUNDIALS
 
 You can either build SUNDIALS yourself or rely on the `hdf5` package of [Homebrew](http://brew.sh/).
+Note that a version <= 3.2.1 is required.
 
 Obtain SUNDIALS from Homebrew:
 * Open a terminal and execute `brew install sundials`

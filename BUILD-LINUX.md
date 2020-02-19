@@ -39,7 +39,7 @@ Build HDF5 yourself:
 
 ## SUNDIALS
 
-* Download SUNDIALS source from http://computation.llnl.gov/projects/sundials/sundials-software
+* Download SUNDIALS source from http://computation.llnl.gov/projects/sundials/sundials-software (version <= 3.2.1)
 * Unzip
 * Open a terminal and change to the parent directory of the unzipped directory
 * Create a new folder `sundialsbuild` and change to it
