@@ -438,7 +438,7 @@ void LumpedRateModelWithPores::consistentInitialState(const SimulationTime& simT
 						adJac.adRes + idxr.offsetCp(ParticleTypeIndex{type}), pblk * idxr.strideParBlock(type), adJac.adDirOffset, _jacP[type].lowerBandwidth(),
 						_jacP[type].lowerBandwidth(), _jacP[type].upperBandwidth(), fullJacobianMatrix
 					);
-					LOG(Debug) << "MaxDiff " << adEqOffset << ": " << diff;
+					LOG(Debug) << "MaxDiff: " << diff;
 #endif
 
 					// Extract Jacobian from AD

@@ -712,7 +712,7 @@ void CSTRModel::consistentInitialState(const SimulationTime& simTime, double* co
 
 				// Compare
 				const double diff = ad::compareDenseJacobianWithAd(localAdRes, adJac.adDirOffset, _jac);
-				LOG(Debug) << "MaxDiff " << adEqOffset << ": " << diff;
+				LOG(Debug) << "MaxDiff: " << diff;
 #endif
 
 				// Extract Jacobian from AD

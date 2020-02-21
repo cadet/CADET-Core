@@ -1142,7 +1142,7 @@ void LumpedRateModelWithoutPores::consistentInitialState(const SimulationTime& s
 					adJac.adRes + idxr.offsetC(), col * idxr.strideColCell(), adJac.adDirOffset, _jac.lowerBandwidth(),
 					_jac.lowerBandwidth(), _jac.upperBandwidth(), fullJacobianMatrix
 				);
-				LOG(Debug) << "MaxDiff " << adEqOffset << ": " << diff;
+				LOG(Debug) << "MaxDiff: " << diff;
 #endif
 
 				// Extract Jacobian from AD

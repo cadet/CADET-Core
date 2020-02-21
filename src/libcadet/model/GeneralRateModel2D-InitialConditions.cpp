@@ -732,7 +732,7 @@ void GeneralRateModel2D::consistentInitialState(const SimulationTime& simTime, d
 							localAdRes - localOffsetInParticle, localOffsetInParticle, adJac.adDirOffset, _jacP[type * _disc.nCol * _disc.nRad].lowerBandwidth(),
 							_jacP[type * _disc.nCol * _disc.nRad].lowerBandwidth(), _jacP[type * _disc.nCol * _disc.nRad].upperBandwidth(), fullJacobianMatrix
 						);
-						LOG(Debug) << "MaxDiff " << adEqOffset << ": " << diff;
+						LOG(Debug) << "MaxDiff: " << diff;
 #endif
 
 						// Extract Jacobian from AD
