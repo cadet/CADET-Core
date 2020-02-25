@@ -77,7 +77,7 @@ ConfiguredBindingModel ConfiguredBindingModel::create(const char* name, unsigned
 
 	// Configure
 	cadet::JsonParameterProvider jpp(config);
-    jpp.set("IS_KINETIC", isKinetic);
+	jpp.set("IS_KINETIC", isKinetic);
 	bm->configureModelDiscretization(jpp, nComp, nBound, boundOffset);
 	if (bm->requiresConfiguration())
 	{
@@ -121,7 +121,7 @@ ConfiguredBindingModel ConfiguredBindingModel::create(const char* name, unsigned
 
 	// Configure
 	cadet::JsonParameterProvider jpp(config);
-    jpp.set("IS_KINETIC", std::vector<int>(isKinetic, isKinetic + nComp));
+	jpp.set("IS_KINETIC", std::vector<int>(isKinetic, isKinetic + nComp));
 	bm->configureModelDiscretization(jpp, nComp, nBound, boundOffset);
 	if (bm->requiresConfiguration())
 	{
