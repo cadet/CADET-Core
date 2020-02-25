@@ -48,10 +48,21 @@ bool BindingModelBase::configureModelDiscretization(IParameterProvider& paramPro
 	if (paramProvider.isArray("IS_KINETIC"))
 	{
 		const std::vector<int> vecKin = paramProvider.getIntArray("IS_KINETIC");
-		if (vecKin.size() < _reactionQuasistationarity.size())
+		if (vecKin.size() == 1)
+		{
+			// Treat an array with a single element as scalar
+			std::fill(_reactionQuasistationarity.begin(), _reactionQuasistationarity.end(), !static_cast<bool>(vecKin[0]));
+		}
+		else if (vecKin.size() < _reactionQuasistationarity.size())
+		{
+			// Error on too few elements
 			throw InvalidParameterException("IS_KINETIC has to have at least " + std::to_string(_reactionQuasistationarity.size()) + " elements");
-
-		std::copy_n(vecKin.begin(), _reactionQuasistationarity.size(), _reactionQuasistationarity.begin());
+		}
+		else
+		{
+			// Copy what we need (ignore excess values)
+			std::copy_n(vecKin.begin(), _reactionQuasistationarity.size(), _reactionQuasistationarity.begin());
+		}
 	}
 	else
 	{
