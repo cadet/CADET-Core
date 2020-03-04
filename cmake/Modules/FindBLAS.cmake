@@ -864,6 +864,17 @@ if (BLAS_FOUND AND NOT TARGET BLAS::BLAS)
   else()
     # it is unknown whether we have caught shared or static library
     add_library(BLAS::BLAS UNKNOWN IMPORTED)
-    set_target_properties(BLAS::BLAS PROPERTIES IMPORTED_LOCATION ${BLAS_LIBRARIES})
+
+    list(LENGTH BLAS_LIBRARIES NUMLIBS)
+    if (NUMLIBS GREATER 1)
+      list(POP_BACK BLAS_LIBRARIES REAL_BLAS_LIB)
+      set_target_properties(BLAS::BLAS PROPERTIES IMPORTED_LOCATION ${REAL_BLAS_LIB})
+      foreach (AUX_LIB ${BLAS_LIBRARIES})
+        target_link_libraries(BLAS::BLAS INTERFACE ${AUXLIB})
+      endforeach()
+    else()
+      set_target_properties(BLAS::BLAS PROPERTIES IMPORTED_LOCATION ${BLAS_LIBRARIES})
+    endif()
+
   endif()
 endif()
