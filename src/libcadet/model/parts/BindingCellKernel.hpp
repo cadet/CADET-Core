@@ -180,6 +180,7 @@ void residualKernel(double t, unsigned int secIdx, const ColumnPosition& colPos,
 		{
 			BufferedArray<double> fluxSolidJacobian = buffer.template array<double>(params.nTotalBound * (params.nTotalBound + params.nComp));
 			linalg::DenseMatrixView dmv(static_cast<double*>(fluxSolidJacobian), nullptr, params.nTotalBound, params.nTotalBound + params.nComp);
+			dmv.setAll(0.0);
 
 			// static_cast should be sufficient here, but this statement is also analyzed when wantJac = false
 			params.dynReaction->analyticJacobianCombinedAdd(t, secIdx, colPos, reinterpret_cast<double const*>(y - params.nComp), reinterpret_cast<double const*>(y), -1.0, jacBase, dmv.row(0, params.nComp), buffer);
