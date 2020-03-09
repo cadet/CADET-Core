@@ -196,7 +196,7 @@ public:
 	{
 		cadet_assert(-startDiag <= _matrix->lowerBandwidth());
 		cadet_assert(startDiag + length <= _matrix->upperBandwidth());
-		double* const dest = _pos + startDiag;
+		double* const dest = _pos + _matrix->_lowerBand + startDiag;
 		for (int i = 0; i < length; ++i)
 			dest[i] += factor * row[i];
 	}
