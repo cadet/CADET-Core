@@ -94,6 +94,9 @@ namespace binding
 		static ConfiguredBindingModel create(const char* name, unsigned int nComp, unsigned int const* nBound, bool isKinetic, const char* config);
 		static ConfiguredBindingModel create(const char* name, unsigned int nComp, unsigned int const* nBound, int const* isKinetic, const char* config);
 
+		void increaseBufferSize(int inc);
+		int requiredBufferSize() CADET_NOEXCEPT;
+
 		inline cadet::model::IBindingModel& model() { return *_binding; }
 		inline const cadet::model::IBindingModel& model() const { return *_binding; }
 

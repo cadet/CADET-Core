@@ -20,17 +20,90 @@
 
 #include "cadet/ParameterId.hpp"
 #include <limits>
+#include "Memory.hpp"
+
 
 namespace cadet
 {
 
 class JsonParameterProvider;
+class IExternalFunction;
+
+namespace model
+{
+	class IDynamicReactionModel;
+}
 
 namespace test
 {
 
 namespace reaction
 {
+	class ConfiguredDynamicReactionModel
+	{
+	public:
+
+		ConfiguredDynamicReactionModel(ConfiguredDynamicReactionModel&& cpy) CADET_NOEXCEPT
+			: _reaction(cpy._reaction), _nComp(cpy._nComp), _nBound(cpy._nBound), _boundOffset(cpy._boundOffset), _buffer(std::move(cpy._buffer)), _bufferMemory(cpy._bufferMemory), _extFuns(cpy._extFuns)
+		{
+			cpy._reaction = nullptr;
+			cpy._nBound = nullptr;
+			cpy._boundOffset = nullptr;
+			cpy._bufferMemory = nullptr;
+			cpy._extFuns = nullptr;
+		}
+
+		~ConfiguredDynamicReactionModel();
+
+		inline ConfiguredDynamicReactionModel& operator=(ConfiguredDynamicReactionModel&& cpy) CADET_NOEXCEPT
+		{
+			_reaction = cpy._reaction;
+			_nComp = cpy._nComp;
+			_nBound = cpy._nBound;
+			_boundOffset = cpy._boundOffset;
+			_buffer = std::move(cpy._buffer);
+			_bufferMemory = cpy._bufferMemory;
+			_extFuns = cpy._extFuns;
+
+			cpy._reaction = nullptr;
+			cpy._nBound = nullptr;
+			cpy._boundOffset = nullptr;
+			cpy._bufferMemory = nullptr;
+			cpy._extFuns = nullptr;
+
+			return *this;
+		}
+
+		static ConfiguredDynamicReactionModel create(const char* name, unsigned int nComp, unsigned int const* nBound, const char* config);
+
+		void increaseBufferSize(int inc);
+		int requiredBufferSize() CADET_NOEXCEPT;
+
+		inline cadet::model::IDynamicReactionModel& model() { return *_reaction; }
+		inline const cadet::model::IDynamicReactionModel& model() const { return *_reaction; }
+
+		inline cadet::LinearBufferAllocator buffer() { return _buffer; }
+		inline unsigned int nComp() const { return _nComp; }
+		inline unsigned int const* nBound() const { return _nBound; }
+		inline unsigned int const* boundOffset() const { return _boundOffset; }
+
+		inline unsigned int numBoundStates() const { return _boundOffset[_nComp - 1] + _nBound[_nComp - 1]; }
+
+	private:
+
+		ConfiguredDynamicReactionModel(cadet::model::IDynamicReactionModel* reaction, unsigned int nComp, unsigned int const* nBound, unsigned int const* boundOffset, void* bufferStart, void* bufferEnd, cadet::IExternalFunction* extFuns)
+			: _reaction(reaction), _nComp(nComp), _nBound(nBound), _boundOffset(boundOffset), _buffer(bufferStart, bufferEnd), _bufferMemory(bufferStart), _extFuns(extFuns)
+		{
+		}
+
+		cadet::model::IDynamicReactionModel* _reaction;
+		unsigned int _nComp;
+		unsigned int const* _nBound;
+		unsigned int const* _boundOffset;
+		cadet::LinearBufferAllocator _buffer;
+		void* _bufferMemory;
+		cadet::IExternalFunction* _extFuns;
+	};
 
 	/**
 	 * @brief Checks the analytic Jacobians of the dynamic reaction model against AD

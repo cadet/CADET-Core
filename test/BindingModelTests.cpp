@@ -150,6 +150,35 @@ ConfiguredBindingModel ConfiguredBindingModel::create(const char* name, unsigned
 	return ConfiguredBindingModel(bm, nComp, nBound, boundOffset, buffer, bufferEnd, extFuns);
 }
 
+void ConfiguredBindingModel::increaseBufferSize(int inc)
+{
+	const int bufSize = requiredBufferSize() + inc;
+
+	::operator delete(_bufferMemory);
+	_bufferMemory = ::operator new(bufSize);
+	std::memset(_bufferMemory, 0, bufSize);
+
+#ifdef CADET_DEBUG
+	_buffer.setBuffer(_bufferMemory, static_cast<char*>(_bufferMemory) + bufSize);
+#else
+	_buffer.setBuffer(_bufferMemory);
+#endif
+}
+
+int ConfiguredBindingModel::requiredBufferSize() CADET_NOEXCEPT
+{
+	if (_binding->requiresWorkspace())
+	{
+		unsigned int totalBoundStates = 0;
+		for (int i = 0; i < _nComp; ++i)
+			totalBoundStates += _nBound[i];
+
+		return _binding->workspaceSize(_nComp, totalBoundStates, _boundOffset);
+	}
+
+	return 0;
+}
+
 void testJacobianAD(const char* modelName, unsigned int nComp, unsigned int const* nBound, bool isKinetic, const char* config, double const* point, double absTol, double relTol)
 {
 	ConfiguredBindingModel cbm = ConfiguredBindingModel::create(modelName, nComp, nBound, isKinetic, config);

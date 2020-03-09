@@ -68,117 +68,6 @@ namespace
 		virtual double timeDerivative(double t, double z, double rho, double r, unsigned int sec) { return 1.0; }
 		virtual void setSectionTimes(double const* secTimes, bool const* secContinuity, unsigned int nSections) { }
 	};
-
-	class ConfiguredDynamicReactionModel
-	{
-	public:
-
-		ConfiguredDynamicReactionModel(ConfiguredDynamicReactionModel&& cpy) CADET_NOEXCEPT 
-			: _reaction(cpy._reaction), _nComp(cpy._nComp), _nBound(cpy._nBound), _boundOffset(cpy._boundOffset), _buffer(std::move(cpy._buffer)), _bufferMemory(cpy._bufferMemory), _extFuns(cpy._extFuns)
-		{
-			cpy._reaction = nullptr;
-			cpy._nBound = nullptr;
-			cpy._boundOffset = nullptr;
-			cpy._bufferMemory = nullptr;
-			cpy._extFuns = nullptr;
-		}
-
-		~ConfiguredDynamicReactionModel()
-		{
-			::operator delete(_bufferMemory);
-
-			delete[] _extFuns;
-			delete[] _boundOffset;
-			delete _reaction;
-		}
-
-		inline ConfiguredDynamicReactionModel& operator=(ConfiguredDynamicReactionModel&& cpy) CADET_NOEXCEPT
-		{
-			_reaction = cpy._reaction;
-			_nComp = cpy._nComp;
-			_nBound = cpy._nBound;
-			_boundOffset = cpy._boundOffset;
-			_buffer = std::move(cpy._buffer);
-			_bufferMemory = cpy._bufferMemory;
-			_extFuns = cpy._extFuns;
-
-			cpy._reaction = nullptr;
-			cpy._nBound = nullptr;
-			cpy._boundOffset = nullptr;
-			cpy._bufferMemory = nullptr;
-			cpy._extFuns = nullptr;
-
-			return *this;			
-		}
-
-		static ConfiguredDynamicReactionModel create(const char* name, unsigned int nComp, unsigned int const* nBound, const char* config)
-		{
-			cadet::model::IDynamicReactionModel* const rm = createDynamicReactionModel(name);
-
-			// Calculate offset of bound states
-			unsigned int* boundOffset = new unsigned int[nComp];
-			boundOffset[0] = 0;
-			for (unsigned int i = 1; i < nComp; ++i)
-			{
-				boundOffset[i] = boundOffset[i-1] + nBound[i-1];
-			}
-			const unsigned int totalBoundStates = boundOffset[nComp - 1] + nBound[nComp - 1];
-
-			// Configure
-			cadet::JsonParameterProvider jpp(config);
-			rm->configureModelDiscretization(jpp, nComp, nBound, boundOffset);
-			if (rm->requiresConfiguration())
-			{
-				jpp.set("EXTFUN", std::vector<int>(1, 0));
-				REQUIRE(rm->configure(jpp, 0, 0));
-			}
-
-			// Assign external functions
-			cadet::IExternalFunction* extFuns = new LinearExternalFunction[50];
-			rm->setExternalFunctions(&extFuns, 50);
-
-			// Allocate memory buffer
-			unsigned int requiredMem = 0;
-			if (rm->requiresWorkspace())
-				requiredMem = rm->workspaceSize(nComp, totalBoundStates, boundOffset);
-
-			void* buffer = nullptr;
-			void* bufferEnd = nullptr;
-			if (requiredMem > 0)
-			{
-				buffer = ::operator new(requiredMem);
-				bufferEnd = static_cast<char*>(buffer) + requiredMem;
-				std::memset(buffer, 0, requiredMem);
-			}
-
-			return ConfiguredDynamicReactionModel(rm, nComp, nBound, boundOffset, buffer, bufferEnd, extFuns);
-		}
-
-		inline cadet::model::IDynamicReactionModel& model() { return *_reaction; }
-		inline const cadet::model::IDynamicReactionModel& model() const { return *_reaction; }
-
-		inline cadet::LinearBufferAllocator buffer() { return _buffer; }
-		inline unsigned int nComp() const { return _nComp; }
-		inline unsigned int const* nBound() const { return _nBound; }
-		inline unsigned int const* boundOffset() const { return _boundOffset; }
-
-		inline unsigned int numBoundStates() const { return _boundOffset[_nComp - 1] + _nBound[_nComp - 1]; }
-
-	private:
-
-		ConfiguredDynamicReactionModel(cadet::model::IDynamicReactionModel* reaction, unsigned int nComp, unsigned int const* nBound, unsigned int const* boundOffset, void* buffer, void* bufferEnd, cadet::IExternalFunction* extFuns) 
-			: _reaction(reaction), _nComp(nComp), _nBound(nBound), _boundOffset(boundOffset), _buffer(buffer, bufferEnd), _bufferMemory(buffer), _extFuns(extFuns)
-		{
-		}
-
-		cadet::model::IDynamicReactionModel* _reaction;
-		unsigned int _nComp;
-		unsigned int const* _nBound;
-		unsigned int const* _boundOffset;
-		cadet::LinearBufferAllocator _buffer;
-		void* _bufferMemory;
-		cadet::IExternalFunction* _extFuns;
-	};
 }
 
 namespace cadet
@@ -189,6 +78,87 @@ namespace test
 
 namespace reaction
 {
+
+	ConfiguredDynamicReactionModel::~ConfiguredDynamicReactionModel()
+	{
+		::operator delete(_bufferMemory);
+
+		delete[] _extFuns;
+		delete[] _boundOffset;
+		delete _reaction;
+	}
+
+	ConfiguredDynamicReactionModel ConfiguredDynamicReactionModel::create(const char* name, unsigned int nComp, unsigned int const* nBound, const char* config)
+	{
+		cadet::model::IDynamicReactionModel* const rm = createDynamicReactionModel(name);
+
+		// Calculate offset of bound states
+		unsigned int* boundOffset = new unsigned int[nComp];
+		boundOffset[0] = 0;
+		for (unsigned int i = 1; i < nComp; ++i)
+		{
+			boundOffset[i] = boundOffset[i-1] + nBound[i-1];
+		}
+		const unsigned int totalBoundStates = boundOffset[nComp - 1] + nBound[nComp - 1];
+
+		// Configure
+		cadet::JsonParameterProvider jpp(config);
+		rm->configureModelDiscretization(jpp, nComp, nBound, boundOffset);
+		if (rm->requiresConfiguration())
+		{
+			jpp.set("EXTFUN", std::vector<int>(1, 0));
+			REQUIRE(rm->configure(jpp, 0, 0));
+		}
+
+		// Assign external functions
+		cadet::IExternalFunction* extFuns = new LinearExternalFunction[50];
+		rm->setExternalFunctions(&extFuns, 50);
+
+		// Allocate memory buffer
+		unsigned int requiredMem = 0;
+		if (rm->requiresWorkspace())
+			requiredMem = rm->workspaceSize(nComp, totalBoundStates, boundOffset);
+
+		void* buffer = nullptr;
+		void* bufferEnd = nullptr;
+		if (requiredMem > 0)
+		{
+			buffer = ::operator new(requiredMem);
+			bufferEnd = static_cast<char*>(buffer) + requiredMem;
+			std::memset(buffer, 0, requiredMem);
+		}
+
+		return ConfiguredDynamicReactionModel(rm, nComp, nBound, boundOffset, buffer, bufferEnd, extFuns);
+	}
+
+	void ConfiguredDynamicReactionModel::increaseBufferSize(int inc)
+	{
+		const int bufSize = requiredBufferSize() + inc;
+
+		::operator delete(_bufferMemory);
+		_bufferMemory = ::operator new(bufSize);
+		std::memset(_bufferMemory, 0, bufSize);
+
+#ifdef CADET_DEBUG
+		_buffer.setBuffer(_bufferMemory, static_cast<char*>(_bufferMemory) + bufSize);
+#else
+		_buffer.setBuffer(_bufferMemory);
+#endif
+	}
+
+	int ConfiguredDynamicReactionModel::requiredBufferSize() CADET_NOEXCEPT
+	{
+		if (_reaction->requiresWorkspace())
+		{
+			unsigned int totalBoundStates = 0;
+			for (int i = 0; i < _nComp; ++i)
+				totalBoundStates += _nBound[i];
+
+			return _reaction->workspaceSize(_nComp, totalBoundStates, _boundOffset);
+		}
+
+		return 0;
+	}
 
 	void extendModelWithDynamicReactions(cadet::JsonParameterProvider& jpp, UnitOpIdx unit, bool bulk, bool particle, bool particleModifiers)
 	{
