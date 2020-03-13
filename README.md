@@ -54,8 +54,8 @@ Please find instructions on how to build, install, or use CADET in the [Wiki](ht
 
 For example, there are tutorials on
 
-* [How to install CADET](https://github.com/modsim/cadet/wiki/Install-CADET)
-* [How to build CADET](https://github.com/modsim/cadet/wiki/Build-CADET)
+* [How to install CADET](https://github.com/modsim/CADET/wiki/How-to-install-CADET)
+* [How to build CADET](https://github.com/modsim/CADET/wiki/How-to-build-CADET)
 
 ## Online Simulator
 
