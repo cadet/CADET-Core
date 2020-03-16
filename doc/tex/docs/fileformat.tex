@@ -1644,6 +1644,66 @@ This group also takes precedence over a possibly existing \texttt{/input/model/u
   \end{dataset} 
 \end{condsubgroup}
 
+\begin{condsubgroup}{/input/model/unit\_XXX/adsorption}{ADSORPTION\_MODEL = GENERALIZED\_ION\_EXCHANGE}{tab:FFAdsorptionGeneralizedIonExchange}
+  \begin{dataset}[type=int,range={$\{ 0,1 \}$},length={1 / \texttt{NTOTALBND}}]{IS\_KINETIC}
+    Selects kinetic or quasi-stationary adsorption mode: 1 = kinetic, 0 = quasi-stationary.
+    If a single value is given, the mode is set for all bound states.
+    Otherwise, the adsorption mode is set for each bound state separately.
+  \end{dataset}
+  \begin{dataset}[unit=\si{\raiseto{3}\metre\of{MP}\per\raiseto{3}\metre\of{SP}\per\second}, type=double,range={$\geq 0$},length={\texttt{NCOMP}}]{GIEX\_KA}
+    Base value of adsorption rate constant
+  \end{dataset}
+  \begin{dataset}[unit=\si{\per\ModUnit},type=double,length={\texttt{NCOMP}}]{GIEX\_KA\_LIN}
+    Coefficient of linear dependence of adsorption rate constant on modifier component
+  \end{dataset}
+  \begin{dataset}[unit=\si{\per\square\ModUnit},type=double,length={\texttt{NCOMP}}]{GIEX\_KA\_QUAD}
+    Coefficient of quadratic dependence of adsorption rate constant on modifier component
+  \end{dataset}
+  \begin{dataset}[type=double,length={\texttt{NCOMP}}]{GIEX\_KA\_SALT}
+    Salt coefficient of adsorption rate constants; difference of water-protein and salt-protein interactions
+  \end{dataset}
+  \begin{dataset}[unit=\si{\raiseto{3}\metre\of{MP}\per\mol}, type=double,length={\texttt{NCOMP}}]{GIEX\_KA\_PROT}
+    Protein coefficient of adsorption rate constants; difference of water-protein and protein-protein interactions
+  \end{dataset}
+  \begin{dataset}[unit=\si{\per\second}, type=double,range={$\geq 0$},length={\texttt{NCOMP}}]{GIEX\_KD}
+    Base value of desorption rate constant
+  \end{dataset}
+  \begin{dataset}[unit=\si{\per\ModUnit},type=double,length={\texttt{NCOMP}}]{GIEX\_KD\_LIN}
+    Coefficient of linear dependence of desorption rate constant on modifier component
+  \end{dataset}
+  \begin{dataset}[unit=\si{\per\square\ModUnit},type=double,length={\texttt{NCOMP}}]{GIEX\_KD\_QUAD}
+    Coefficient of quadratic dependence of desorption rate constant on modifier component
+  \end{dataset}
+  \begin{dataset}[type=double,length={\texttt{NCOMP}}]{GIEX\_KD\_SALT}
+    Salt coefficient of desorption rate constants; difference of water-protein and salt-protein interactions
+  \end{dataset}
+  \begin{dataset}[unit=\si{\raiseto{3}\metre\of{MP}\per\mol}, type=double,length={\texttt{NCOMP}}]{GIEX\_KD\_PROT}
+    Protein coefficient of desorption rate constants; difference of water-protein and protein-protein interactions
+  \end{dataset}
+  \begin{dataset}[type=double,length={\texttt{NCOMP}}]{GIEX\_NU}
+    Base value for characteristic charges of the protein; The number of sites $\nu$ that the protein interacts with on the resin surface
+  \end{dataset}
+  \begin{dataset}[unit=\si{\per\ModUnit},type=double,length={\texttt{NCOMP}}]{GIEX\_NU\_LIN}
+    Coefficient of linear dependence of characteristic charge on modifier component
+  \end{dataset}
+  \begin{dataset}[unit=\si{\per\square\ModUnit},type=double,length={\texttt{NCOMP}}]{GIEX\_NU\_QUAD}
+    Coefficient of quadratic dependence of characteristic charge on modifier component
+  \end{dataset}
+  \begin{dataset}[type=double,range={$\geq 0$},length={\texttt{NCOMP}}]{GIEX\_SIGMA}
+    Steric factors of the protein; The number of sites $\sigma$ on the surface that are shielded by the protein and prevented from exchange with the salt counterions in solution
+  \end{dataset}
+  \begin{dataset}[unit=\si{\mol\per\cubic\metre\of{SP}}, type=double,range={$\geq 0$},length={1}]{GIEX\_LAMBDA}
+    Stationary phase capacity (monovalent salt counterions); The total number of binding sites available on the resin surface 
+  \end{dataset}
+  \begin{dataset}[unit=\si{\mol\per\raiseto{3}\metre\of{MP}}, type=double,range={$> 0$},length={1}]{GIEX\_REFC0}
+    Reference liquid phase concentration (optional, defaults to $1.0$)
+  \end{dataset}
+  \begin{dataset}[unit=\si{\mol\per\raiseto{3}\metre\of{SP}}, type=double,range={$> 0$},length={1}]{GIEX\_REFQ}
+    Reference solid phase concentration (optional, defaults to $1.0$) 
+  \end{dataset}
+\end{condsubgroup}
+
+
 \subsection{Reaction models}\label{sec:FFReaction}
 
 \paragraph{Externally dependent reaction models}

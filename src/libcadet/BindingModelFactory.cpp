@@ -35,6 +35,7 @@ namespace cadet
 			void registerSelfAssociationModel(std::unordered_map<std::string, std::function<model::IBindingModel*()>>& bindings);
 			void registerSaskaModel(std::unordered_map<std::string, std::function<model::IBindingModel*()>>& bindings);
 			void registerMultiComponentSpreadingModel(std::unordered_map<std::string, std::function<model::IBindingModel*()>>& bindings);
+			void registerGeneralizedIonExchangeModel(std::unordered_map<std::string, std::function<model::IBindingModel*()>>& bindings);
 		}
 	}
 
@@ -55,6 +56,7 @@ namespace cadet
 		model::binding::registerSelfAssociationModel(_bindingModels);
 		model::binding::registerSaskaModel(_bindingModels);
 		model::binding::registerMultiComponentSpreadingModel(_bindingModels);
+		model::binding::registerGeneralizedIonExchangeModel(_bindingModels);
 		registerModel<model::SimplifiedMultiStateStericMassActionBinding>();
 	}
 
