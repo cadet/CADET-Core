@@ -430,21 +430,34 @@ void testNonbindingBindingConsistency(const char* modelName, unsigned int nCompB
 	// Compare Jacobians
 	const unsigned int rowOffsetBnd = useAD ? 0 : cbmBnd.nComp();
 	const unsigned int rowOffsetNonBnd = useAD ? 0 : cbmNonBnd.nComp();
-	unsigned int colBnd = 0;
-	for (unsigned int col = 0; col < numDofsNonBnd; ++col)
+
+	// Check liquid phase
+	unsigned int c1 = 0;
+	unsigned int c2 = 0;
+	for (unsigned int col = 0; col < std::min(nCompBnd, nCompNonBnd); ++col, ++c1, ++c2)
 	{
-		// Skip non-binding liquid phase columns
-		if ((col < nCompNonBnd) && (nBoundNonBnd[col] == 0))
-			continue;
+		if ((nBound[c1] == 0) && (nBoundNonBnd[c2] > 0))
+			++c1;
+		else if ((nBound[c1] > 0) && (nBoundNonBnd[c2] == 0))
+			++c2;
 
 		for (unsigned int row = 0; row < numEqBnd; ++row)
 		{
 			CAPTURE(col);
-			CAPTURE(colBnd);
 			CAPTURE(row);
-			CHECK(jacBnd.native(row + rowOffsetBnd, colBnd) == jacNonBnd.native(row + rowOffsetNonBnd, col));
+			CHECK(jacBnd.native(row + rowOffsetBnd, c1) == jacNonBnd.native(row + rowOffsetNonBnd, c2));
 		}
-		++colBnd;
+	}
+
+	// Check all bound states
+	for (unsigned int col = 0; col < numEqNonBnd; ++col)
+	{
+		for (unsigned int row = 0; row < numEqBnd; ++row)
+		{
+			CAPTURE(col);
+			CAPTURE(row);
+			CHECK(jacBnd.native(row + rowOffsetBnd, col + nCompBnd) == jacNonBnd.native(row + rowOffsetNonBnd, col + nCompNonBnd));
+		}
 	}
 }
 
