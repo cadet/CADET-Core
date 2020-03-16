@@ -372,6 +372,9 @@ public:
 		return true;
 	}
 
+	virtual unsigned int numReactionsLiquid() const CADET_NOEXCEPT { return _stoichiometryBulk.columns(); }
+	virtual unsigned int numReactionsCombined() const CADET_NOEXCEPT { return _stoichiometryLiquid.columns() + _stoichiometrySolid.columns(); }
+
 	CADET_DYNAMICREACTIONMODEL_BOILERPLATE
 
 protected:

@@ -90,6 +90,9 @@ public:
 	virtual void analyticJacobianCombinedAdd(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* yLiquid, double const* ySolid, double factor, linalg::DenseBandedRowIterator jacLiquid, linalg::DenseBandedRowIterator jacSolid, LinearBufferAllocator workSpace) const { }
 	virtual void analyticJacobianCombinedAdd(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* yLiquid, double const* ySolid, double factor, linalg::BandMatrix::RowIterator jacLiquid, linalg::DenseBandedRowIterator jacSolid, LinearBufferAllocator workSpace) const { }
 
+	virtual unsigned int numReactionsLiquid() const CADET_NOEXCEPT { return 0; }
+	virtual unsigned int numReactionsCombined() const CADET_NOEXCEPT { return 0; }
+
 protected:
 };
 

@@ -293,6 +293,18 @@ public:
 	virtual void analyticJacobianCombinedAdd(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* yLiquid, double const* ySolid, double factor, linalg::DenseBandedRowIterator jacLiquid, linalg::DenseBandedRowIterator jacSolid, LinearBufferAllocator workSpace) const = 0;
 	virtual void analyticJacobianCombinedAdd(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* yLiquid, double const* ySolid, double factor, linalg::BandMatrix::RowIterator jacLiquid, linalg::DenseBandedRowIterator jacSolid, LinearBufferAllocator workSpace) const = 0;
 
+	/**
+	 * @brief Returns the number of reactions for a liquid phase cell
+	 * @return Number of reactions
+	 */
+	virtual unsigned int numReactionsLiquid() const CADET_NOEXCEPT = 0;
+
+	/**
+	 * @brief Returns the number of reactions for a combined phase cell
+	 * @return Number of reactions
+	 */
+	virtual unsigned int numReactionsCombined() const CADET_NOEXCEPT = 0;
+
 protected:
 };
 
