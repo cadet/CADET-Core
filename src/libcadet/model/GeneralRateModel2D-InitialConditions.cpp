@@ -672,7 +672,7 @@ void GeneralRateModel2D::consistentInitialState(const SimulationTime& simTime, d
 					_parPorosity[type],
 					_poreAccessFactor.data() + _disc.nComp * type,
 					_binding[type],
-					_dynReaction[type]
+					(_dynReaction[type] && (_dynReaction[type]->numReactionsCombined() > 0)) ? _dynReaction[type] : nullptr
 				};
 
 			// This loop cannot be run in parallel without creating a Jacobian matrix for each thread which would increase memory usage

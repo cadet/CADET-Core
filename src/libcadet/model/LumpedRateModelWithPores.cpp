@@ -883,7 +883,7 @@ template <typename StateType, typename ResidualType, typename ParamType, bool wa
 int LumpedRateModelWithPores::residualBulk(double t, unsigned int secIdx, StateType const* yBase, double const* yDotBase, ResidualType* resBase, util::ThreadLocalStorage& threadLocalMem)
 {
 	_convDispOp.residual(t, secIdx, yBase, yDotBase, resBase, wantJac, typename ParamSens<ParamType>::enabled());
-	if (!_dynReactionBulk)
+	if (!_dynReactionBulk || (_dynReactionBulk->numReactionsLiquid() == 0))
 		return 0;
 
 	// Get offsets
@@ -933,7 +933,7 @@ int LumpedRateModelWithPores::residualParticle(double t, unsigned int parType, u
 			_parPorosity[parType],
 			_poreAccessFactor.data() + _disc.nComp * parType,
 			_binding[parType],
-			_dynReaction[parType]
+			(_dynReaction[parType] && (_dynReaction[parType]->numReactionsCombined() > 0)) ? _dynReaction[parType] : nullptr
 		};
 
 	// Handle time derivatives, binding, dynamic reactions

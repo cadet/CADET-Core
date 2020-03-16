@@ -1339,7 +1339,7 @@ int CSTRModel::residualImpl(double t, unsigned int secIdx, StateType const* cons
 	// Reactions in liquid phase
 	const ColumnPosition colPos{0.0, 0.0, 0.0};
 
-	if (_dynReactionBulk)
+	if (_dynReactionBulk && (_dynReactionBulk->numReactionsLiquid() > 0))
 	{
 		LinearBufferAllocator subAlloc = tlmAlloc.manageRemainingMemory();
 		BufferedArray<ResidualType> flux = subAlloc.array<ResidualType>(_nComp);
@@ -1394,7 +1394,7 @@ int CSTRModel::residualImpl(double t, unsigned int secIdx, StateType const* cons
 
 		// Reaction
 		IDynamicReactionModel* const dynReaction = _dynReaction[type];
-		if (dynReaction)
+		if (dynReaction && (dynReaction->numReactionsCombined() > 0))
 		{
 			LinearBufferAllocator subAlloc = tlmAlloc.manageRemainingMemory();
 

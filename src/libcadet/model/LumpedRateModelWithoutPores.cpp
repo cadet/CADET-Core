@@ -599,7 +599,7 @@ int LumpedRateModelWithoutPores::residualImpl(double t, unsigned int secIdx, Sta
 				_totalPorosity,
 				nullptr,
 				_binding[0],
-				_dynReaction[0]
+				(_dynReaction[0] && (_dynReaction[0]->numReactionsCombined() > 0)) ? _dynReaction[0] : nullptr
 			};
 
 		// Midpoint of current column cell (z coordinate) - needed in externally dependent adsorption kinetic
@@ -1085,7 +1085,7 @@ void LumpedRateModelWithoutPores::consistentInitialState(const SimulationTime& s
 				_totalPorosity,
 				nullptr,
 				_binding[0],
-				_dynReaction[0]
+				(_dynReaction[0] && (_dynReaction[0]->numReactionsCombined() > 0)) ? _dynReaction[0] : nullptr
 			};
 
 		const int localOffsetToCell = idxr.offsetC() + col * idxr.strideColCell();
