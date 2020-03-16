@@ -171,13 +171,16 @@ protected:
 	int fluxImpl(double t, unsigned int secIdx, const ColumnPosition& colPos, StateType const* y,
 		CpStateType const* yCp, ResidualType* res, LinearBufferAllocator workSpace) const
 	{
+		using CpStateParamType = typename DoubleActivePromoter<CpStateType, ParamType>::type;
+		using StateParamType = typename DoubleActivePromoter<StateType, ParamType>::type;
+
 		typename ParamHandler_t::ParamsHandle const p = _paramHandler.update(t, secIdx, colPos, _nComp, _nBoundStates, workSpace);
 
 		// Salt flux: q_0 - Lambda + Sum[nu_j * q_j, j] == 0 
 		//       <=>  q_0 == Lambda - Sum[nu_j * q_j, j] 
 		// Also compute \bar{q}_0 = q_0 - Sum[sigma_j * q_j, j]
 		res[0] = y[0] - static_cast<ParamType>(p->lambda);
-		ResidualType q0_bar = y[0];
+		StateParamType q0_bar = y[0];
 
 		unsigned int bndIdx = 1;
 		for (int j = 1; j < _nComp; ++j)
@@ -193,8 +196,8 @@ protected:
 			++bndIdx;
 		}
 
-		const ResidualType q0_bar_divRef = q0_bar / static_cast<ParamType>(p->refQ);
-		const ResidualType yCp0_divRef = yCp[0] / static_cast<ParamType>(p->refC0);
+		const StateParamType q0_bar_divRef = q0_bar / static_cast<ParamType>(p->refQ);
+		const CpStateParamType yCp0_divRef = yCp[0] / static_cast<ParamType>(p->refC0);
 
 		// Protein fluxes: -(k_{a,i} + k_{a2,i} * c_{p,i}) * c_{p,i} * \bar{q}_0^{nu_i} + k_{d,i} * q_i * c_{p,0}^{nu_i}
 		bndIdx = 1;
@@ -204,8 +207,8 @@ protected:
 			if (_nBoundStates[i] == 0)
 				continue;
 
-			const ResidualType c0_pow_nu = pow(yCp0_divRef, static_cast<ParamType>(p->nu[i]));
-			const ResidualType q0_bar_pow_nu = pow(q0_bar_divRef, static_cast<ParamType>(p->nu[i]));
+			const CpStateParamType c0_pow_nu = pow(yCp0_divRef, static_cast<ParamType>(p->nu[i]));
+			const StateParamType q0_bar_pow_nu = pow(q0_bar_divRef, static_cast<ParamType>(p->nu[i]));
 
 			// Residual
 			res[bndIdx] = static_cast<ParamType>(p->kD[i]) * y[bndIdx] * c0_pow_nu - yCp[i] * (static_cast<ParamType>(p->kA[i]) + yCp[i] * static_cast<ParamType>(p->kA2[i])) * q0_bar_pow_nu;

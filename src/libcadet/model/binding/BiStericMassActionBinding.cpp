@@ -212,6 +212,9 @@ protected:
 	int fluxImpl(double t, unsigned int secIdx, const ColumnPosition& colPos, StateType const* y,
 		CpStateType const* yCp, ResidualType* res, LinearBufferAllocator workSpace) const
 	{
+		using CpStateParamType = typename DoubleActivePromoter<CpStateType, ParamType>::type;
+		using StateParamType = typename DoubleActivePromoter<StateType, ParamType>::type;
+
 		typename ParamHandler_t::ParamsHandle const p = _paramHandler.update(t, secIdx, colPos, _nComp, _nBoundStates, workSpace);
 
 		const unsigned int numStates = p->lambda.size();
@@ -241,7 +244,7 @@ protected:
 			//       <=>  q_0 == Lambda - Sum[nu_j * q_j, j] 
 			// Also compute \bar{q}_0 = q_0 - Sum[sigma_j * q_j, j]
 			res[0] = y[0] - static_cast<ParamType>(p->lambda[bndSite]);
-			ResidualType q0_bar = y[0];
+			StateParamType q0_bar = y[0];
 
 			// bndIdx is used as a counter inside one binding site type
 			// Getting from one component to another requires a step size of numStates (stride)
@@ -270,8 +273,8 @@ protected:
 				if (_nBoundStates[i] == 0)
 					continue;
 
-				const ResidualType c0_pow_nu_divRef = pow(yCp0_divRef, static_cast<ParamType>(curNu[i]));
-				const ResidualType q0_bar_pow_nu_divRef = pow(q0_bar_divRef, static_cast<ParamType>(curNu[i]));
+				const CpStateParamType c0_pow_nu_divRef = pow(yCp0_divRef, static_cast<ParamType>(curNu[i]));
+				const StateParamType q0_bar_pow_nu_divRef = pow(q0_bar_divRef, static_cast<ParamType>(curNu[i]));
 
 				// Residual
 				res[bndIdx * numStates] = static_cast<ParamType>(curKd[i]) * y[bndIdx * numStates] * c0_pow_nu_divRef - static_cast<ParamType>(curKa[i]) * yCp[i] * q0_bar_pow_nu_divRef;

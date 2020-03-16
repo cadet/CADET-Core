@@ -248,11 +248,14 @@ template <typename StateType, typename CpStateType, typename ResidualType, typen
 int SimplifiedMultiStateStericMassActionBinding::fluxImpl(double t, unsigned int secIdx, const ColumnPosition& colPos,
 	StateType const* y, CpStateType const* yCp, ResidualType* res, LinearBufferAllocator workSpace) const
 {
+	using CpStateParamType = typename DoubleActivePromoter<CpStateType, ParamType>::type;
+	using StateParamType = typename DoubleActivePromoter<StateType, ParamType>::type;
+
 	// Salt equation: q_0 - Lambda + Sum[Sum[nu_i^j * q_i^j, j], i] == 0 
 	//           <=>  q_0 == Lambda - Sum[Sum[nu_i^j * q_i^j, j], i] 
 	// Also compute \bar{q}_0 = q_0 - Sum[Sum[sigma_i^j * q_i^j, j], i]
 	res[0] = y[0] - static_cast<ParamType>(_lambda);
-	ResidualType q0_bar = y[0];
+	StateParamType q0_bar = y[0];
 
 	unsigned int bndIdx = 1;
 
@@ -270,8 +273,8 @@ int SimplifiedMultiStateStericMassActionBinding::fluxImpl(double t, unsigned int
 		}
 	}
 
-	const ResidualType q0_bar_divRef = q0_bar / static_cast<ParamType>(_refQ);
-	const ResidualType yCp0_divRef = yCp[0] / static_cast<ParamType>(_refC0);
+	const StateParamType q0_bar_divRef = q0_bar / static_cast<ParamType>(_refQ);
+	const CpStateParamType yCp0_divRef = yCp[0] / static_cast<ParamType>(_refC0);
 
 	// Protein equations
 
@@ -286,8 +289,8 @@ int SimplifiedMultiStateStericMassActionBinding::fluxImpl(double t, unsigned int
 		for (unsigned int j = 0; j < _nBoundStates[i]; ++j)
 		{
 			const ParamType curNu = nu<ParamType>(i, j);
-			const ResidualType c0_pow_nu = pow(yCp0_divRef, curNu);
-			const ResidualType q0_bar_pow_nu = pow(q0_bar_divRef, curNu);
+			const CpStateParamType c0_pow_nu = pow(yCp0_divRef, curNu);
+			const StateParamType q0_bar_pow_nu = pow(q0_bar_divRef, curNu);
 
 			// Calculate residual
 			// Adsorption and desorption

@@ -201,13 +201,16 @@ protected:
 	int fluxImpl(double t, unsigned int secIdx, const ColumnPosition& colPos, StateType const* y,
 		CpStateType const* yCp, ResidualType* res, LinearBufferAllocator workSpace) const
 	{
+		using CpStateParamType = typename DoubleActivePromoter<CpStateType, ParamType>::type;
+		using StateParamType = typename DoubleActivePromoter<StateType, ParamType>::type;
+
 		typename ParamHandler_t::ParamsHandle const p = _paramHandler.update(t, secIdx, colPos, _nComp, _nBoundStates, workSpace);
 
 		// Salt flux: q_0 - Lambda + Sum[Sum[nu_i^j * q_i^j, j], i] == 0 
 		//       <=>  q_0 == Lambda - Sum[Sum[nu_i^j * q_i^j, j], i] 
 		// Also compute \bar{q}_0 = q_0 - Sum[Sum[sigma_i^j * q_i^j, j], i]
 		res[0] = y[0] - static_cast<ParamType>(p->lambda);
-		ResidualType q0_bar = y[0];
+		StateParamType q0_bar = y[0];
 
 		unsigned int bndIdx = 1;
 
@@ -230,8 +233,8 @@ protected:
 
 		const ParamType refC0 = static_cast<ParamType>(p->refC0);
 		const ParamType refQ = static_cast<ParamType>(p->refQ);
-		const ResidualType yCp0_divRef = yCp[0] / refC0;
-		const ResidualType q0_bar_divRef = q0_bar / refQ;
+		const CpStateParamType yCp0_divRef = yCp[0] / refC0;
+		const StateParamType q0_bar_divRef = q0_bar / refQ;
 
 		// Protein fluxes
 
@@ -248,8 +251,8 @@ protected:
 			// Loop over bound states j of component i
 			for (unsigned int j = 0; j < nBoundStatesI; ++j)
 			{
-				const ResidualType c0_pow_nu = pow(yCp0_divRef, static_cast<ParamType>(curNu[j]));
-				const ResidualType q0_bar_pow_nu = pow(q0_bar_divRef, static_cast<ParamType>(curNu[j]));
+				const CpStateParamType c0_pow_nu = pow(yCp0_divRef, static_cast<ParamType>(curNu[j]));
+				const StateParamType q0_bar_pow_nu = pow(q0_bar_divRef, static_cast<ParamType>(curNu[j]));
 
 				// Calculate residual
 				// Adsorption and desorption
