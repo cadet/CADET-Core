@@ -19,6 +19,7 @@
 #define LIBCADET_NONLINGENERALSOLVER_HPP_
 
 #include <functional>
+#include <string>
 
 namespace cadet
 {
