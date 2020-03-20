@@ -71,16 +71,16 @@ bool isStdErrAttachedToTerminal();
 	{
 		DWORD st;
 		const int fn = _fileno(stdout);
-		HANDLE hd = static_cast<HANDLE>(_get_osfhandle(fn));
-		return _isatty(fn) && (h != INVALIDE_HANDLE_VALUE) && GetConsoleMode(h, &st);
+		HANDLE hd = reinterpret_cast<HANDLE>(_get_osfhandle(fn));
+		return _isatty(fn) && (h != INVALID_HANDLE_VALUE) && GetConsoleMode(h, &st);
 	}
 
 	bool isStdErrAttachedToTerminal()
 	{
 		DWORD st;
 		const int fn = _fileno(stderr);
-		HANDLE hd = static_cast<HANDLE>(_get_osfhandle(fn));
-		return _isatty(fn) && (h != INVALIDE_HANDLE_VALUE) && GetConsoleMode(h, &st);
+		HANDLE hd = reinterpret_cast<HANDLE>(_get_osfhandle(fn));
+		return _isatty(fn) && (h != INVALID_HANDLE_VALUE) && GetConsoleMode(h, &st);
 	}
 
 #elif __unix__ || __linux__ || __APPLE__
@@ -116,6 +116,7 @@ bool isStdErrAttachedToTerminal();
 #include "ProgressBar.hpp"
 #include "common/CompilerSpecific.hpp"
 
+#include <algorithm>
 #include <cstdio>
 
 namespace cadet
@@ -194,7 +195,7 @@ namespace cadet
 		_buffer.resize(columns + 2);
 
 		// Add prefix to buffer
-		snprintf(_buffer.data(), _buffer.size(), "\r [");
+		std::snprintf(_buffer.data(), _buffer.size(), "\r [");
 
 		// Add terminal '\0' char
 		_buffer.back() = '\0';
@@ -219,7 +220,7 @@ namespace cadet
 
 		// Extrapolate remaining time
 		const double elapsedSec = std::chrono::duration_cast<std::chrono::seconds>(curTime - _startTime).count();
-		const double remainingSec = std::max(0.0, elapsedSec * (1.0 / std::max(_progress, 1e-10) - 1.0));
+		const double remainingSec = (std::max)(0.0, elapsedSec * (1.0 / (std::max)(_progress, 1e-10) - 1.0));
 
 		// Compute size for the bar, reserve 4 chars for braces and spaces
 		const int barSize = _barRatio * (_termWidth - 4);
@@ -228,7 +229,7 @@ namespace cadet
 		int pos = 3;
 
 		// Add bar
-		const int barProgWidth = std::max(0.0, _progress * barSize - 1);
+		const int barProgWidth = (std::max)(0.0, _progress * barSize - 1);
 		char* const ptrBar = _buffer.data() + pos;
 		for (int i = 0; i < barProgWidth; ++i)
 			ptrBar[i] = '=';
@@ -244,7 +245,7 @@ namespace cadet
 			ptrBar[i] = ' ';
 
 		pos += barSize;
-		const int textSize = snprintf(_buffer.data() + pos, _buffer.size() - pos, "] %4.1f%% (%5.1f>%5.1f s) %s", _progress * 100.0, elapsedSec, remainingSec, _message.c_str());
+		const int textSize = std::snprintf(_buffer.data() + pos, _buffer.size() - pos, "] %4.1f%% (%5.1f>%5.1f s) %s", _progress * 100.0, elapsedSec, remainingSec, _message.c_str());
 
 		if (textSize + pos < _buffer.size() - 1)
 		{
