@@ -139,6 +139,44 @@ find_library(COLAMD_LIBRARY
         Lib64
 )
 
+find_library(CCOLAMD_LIBRARY
+    NAMES
+        ccolamd
+        libccolamd
+    PATHS
+        ${UMFPACK_INCLUDE_DIR}
+        ${UMFPACK_INCLUDE_DIR}/..
+        ${UMFPACK_ROOT}
+        ${UMFPACK_ROOT_DIR}
+    ENV
+        UMFPACK_ROOT
+        UMFPACK_ROOT_DIR
+    PATH_SUFFIXES 
+        lib
+        lib64
+        Lib
+        Lib64
+)
+
+find_library(CAMD_LIBRARY
+    NAMES
+        camd
+        libcamd
+    PATHS
+        ${UMFPACK_INCLUDE_DIR}
+        ${UMFPACK_INCLUDE_DIR}/..
+        ${UMFPACK_ROOT}
+        ${UMFPACK_ROOT_DIR}
+    ENV
+        UMFPACK_ROOT
+        UMFPACK_ROOT_DIR
+    PATH_SUFFIXES 
+        lib
+        lib64
+        Lib
+        Lib64
+)
+
 find_library(AMD_LIBRARY
     NAMES
         amd
@@ -181,7 +219,30 @@ if (NOT DEFINED BLAS_FOUND)
     find_package(BLAS QUIET)
 endif()
 
-list(APPEND UMFPACK_LIBRARIES ${UMFPACK_LIBRARY} ${COLAMD_LIBRARY} ${CHOLMOD_LIBRARY} ${AMD_LIBRARY} ${CONF_LIBRARY} ${BLAS_LIBRARIES})
+list(APPEND UMFPACK_LIBRARIES ${UMFPACK_LIBRARY} ${COLAMD_LIBRARY} ${CCOLAMD_LIBRARY} ${AMD_LIBRARY} ${CAMD_LIBRARY} ${CHOLMOD_LIBRARY} ${CONF_LIBRARY} ${BLAS_LIBRARIES})
+
+find_library(METIS_LIBRARY
+    NAMES
+        metis
+        libmetis
+    PATHS
+        ${UMFPACK_INCLUDE_DIR}
+        ${UMFPACK_INCLUDE_DIR}/..
+        ${UMFPACK_ROOT}
+        ${UMFPACK_ROOT_DIR}
+    ENV
+        UMFPACK_ROOT
+        UMFPACK_ROOT_DIR
+    PATH_SUFFIXES 
+        lib
+        lib64
+        Lib
+        Lib64
+)
+
+if (METIS_LIBRARY)
+    list(APPEND UMFPACK_LIBRARIES ${METIS_LIBRARY})
+endif()
 
 include(FindPackageHandleStandardArgs)
 find_package_handle_standard_args(UMFPACK
@@ -214,10 +275,22 @@ if (UMFPACK_FOUND AND NOT TARGET UMFPACK::UMFPACK)
         IMPORTED_LOCATION ${COLAMD_LIBRARY}
     )
 
+    add_library(UMFPACK::CCOLAMD UNKNOWN IMPORTED)
+    set_target_properties(UMFPACK::CCOLAMD PROPERTIES
+        INTERFACE_INCLUDE_DIRECTORIES "${UMFPACK_INCLUDE_DIRS}"
+        IMPORTED_LOCATION ${CCOLAMD_LIBRARY}
+    )
+
     add_library(UMFPACK::AMD UNKNOWN IMPORTED)
     set_target_properties(UMFPACK::AMD PROPERTIES
         INTERFACE_INCLUDE_DIRECTORIES "${UMFPACK_INCLUDE_DIRS}"
         IMPORTED_LOCATION ${AMD_LIBRARY}
+    )
+
+    add_library(UMFPACK::CAMD UNKNOWN IMPORTED)
+    set_target_properties(UMFPACK::CAMD PROPERTIES
+        INTERFACE_INCLUDE_DIRECTORIES "${UMFPACK_INCLUDE_DIRS}"
+        IMPORTED_LOCATION ${CAMD_LIBRARY}
     )
 
     add_library(UMFPACK::CHOLMOD UNKNOWN IMPORTED)
@@ -237,11 +310,24 @@ if (UMFPACK_FOUND AND NOT TARGET UMFPACK::UMFPACK)
         INTERFACE_INCLUDE_DIRECTORIES "${UMFPACK_INCLUDE_DIRS}"
         IMPORTED_LOCATION ${UMFPACK_LIBRARY}
     )
+
     target_link_libraries(UMFPACK::UMFPACK INTERFACE 
         UMFPACK::COLAMD
+        UMFPACK::CCOLAMD
         UMFPACK::AMD
+        UMFPACK::CAMD
         UMFPACK::CHOLMOD
         UMFPACK::config
         BLAS::BLAS
     )
+
+    if (METIS_LIBRARY)
+        add_library(UMFPACK::METIS UNKNOWN IMPORTED)
+        set_target_properties(UMFPACK::METIS PROPERTIES
+            INTERFACE_INCLUDE_DIRECTORIES "${UMFPACK_INCLUDE_DIRS}"
+            IMPORTED_LOCATION ${METIS_LIBRARY}
+        )
+        target_link_libraries(UMFPACK::UMFPACK INTERFACE UMFPACK::METIS)
+    endif()
+
 endif()
