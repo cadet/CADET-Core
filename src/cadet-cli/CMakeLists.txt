@@ -25,7 +25,11 @@ add_executable(cadet-cli
 #   Linking to LIBCADET and add dependencies
 # ---------------------------------------------------
 
-target_link_libraries(cadet-cli PRIVATE libcadet_static)
+if (ENABLE_STATIC_LINK_CLI)
+	target_link_libraries(cadet-cli PRIVATE libcadet_static)
+else()
+	target_link_libraries(cadet-cli PRIVATE libcadet_shared)
+endif()
   
 # Add include directories for access to exported LIBCADET header files.
 target_include_directories(cadet-cli PRIVATE ${CMAKE_SOURCE_DIR}/ThirdParty/pugixml ${CMAKE_SOURCE_DIR}/ThirdParty/json ${CMAKE_SOURCE_DIR}/ThirdParty/tclap/include ${CMAKE_BINARY_DIR})

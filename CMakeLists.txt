@@ -123,8 +123,11 @@ add_feature_info(ENABLE_TESTS ENABLE_TESTS "Build CADET tests")
 option(ENABLE_IPO "Enable interprocedural optimization if compiler supports it" ON)
 add_feature_info(ENABLE_IPO ENABLE_IPO "Enable interprocedural optimization if compiler supports it")
 
-option(ENABLE_STATIC_LINK "Prefer static over dynamic linking" ON)
-add_feature_info(ENABLE_STATIC_LINK ENABLE_STATIC_LINK "Prefer static over dynamic linking")
+option(ENABLE_STATIC_LINK_DEPS "Prefer static over dynamic linking of dependencies" ON)
+add_feature_info(ENABLE_STATIC_LINK_DEPS ENABLE_STATIC_LINK_DEPS "Prefer static over dynamic linking of dependencies")
+
+option(ENABLE_STATIC_LINK_CLI "Prefer static over dynamic linking for CADET CLI" ON)
+add_feature_info(ENABLE_STATIC_LINK_CLI ENABLE_STATIC_LINK_CLI "Prefer static over dynamic linking for CADET CLI")
 
 option(CMAKE_INSTALL_RPATH_USE_LINK_PATH "Add paths to linker search and installed rpath" ON)
 add_feature_info(CMAKE_INSTALL_RPATH_USE_LINK_PATH CMAKE_INSTALL_RPATH_USE_LINK_PATH "Add paths to linker search and installed rpath")
@@ -152,7 +155,7 @@ endif()
 # ---------------------------------------------------
 include(WriteCompilerDetectionHeader)
 
-set(TBB_PREFER_STATIC_LIBS ${ENABLE_STATIC_LINK})
+set(TBB_PREFER_STATIC_LIBS ${ENABLE_STATIC_LINK_DEPS})
 set(TBB_USE_DEBUG_BUILD OFF)
 find_package(TBB COMPONENTS tbb OPTIONAL_COMPONENTS tbb_preview)
 set_package_properties(TBB PROPERTIES
@@ -190,7 +193,7 @@ if (TBB_FOUND)
 	unset(TBB_IFACE_COMP_DEF)
 endif()
 
-#set(BLA_STATIC ${ENABLE_STATIC_LINK})
+set(BLA_STATIC ${ENABLE_STATIC_LINK_DEPS})
 find_package(LAPACK)
 set_package_properties(LAPACK PROPERTIES
 	TYPE RECOMMENDED
@@ -198,7 +201,7 @@ set_package_properties(LAPACK PROPERTIES
 )
 
 # SUNDIALS_ROOT environment variable can be used to find SUNDIALS package
-set(SUNDIALS_PREFER_STATIC_LIBRARIES ${ENABLE_STATIC_LINK})
+set(SUNDIALS_PREFER_STATIC_LIBRARIES ${ENABLE_STATIC_LINK_DEPS})
 find_package(SUNDIALS REQUIRED COMPONENTS sundials_idas sundials_nvecserial OPTIONAL_COMPONENTS sundials_nvecopenmp)
 set_package_properties(SUNDIALS PROPERTIES
 	TYPE REQUIRED
@@ -234,7 +237,7 @@ if (SUNDIALS_FOUND)
 endif()
 
 if (ENABLE_CADET_TOOLS OR ENABLE_CADET_CLI)
-	set(HDF5_USE_STATIC_LIBRARIES ${ENABLE_STATIC_LINK})
+	set(HDF5_USE_STATIC_LIBRARIES ${ENABLE_STATIC_LINK_DEPS})
 	find_package(HDF5 COMPONENTS C)
 	set_package_properties(HDF5 PROPERTIES
 		DESCRIPTION "Hierarchical Data Format 5 (HDF5)"
