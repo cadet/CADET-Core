@@ -46,16 +46,25 @@ What you need to build CADET:
 * IDAS of the [SUNDIALS](http://computation.llnl.gov/casc/sundials/main.html) package (version <= 3.2.1)
 * A LAPACK implementation (e.g., [LAPACK](http://www.netlib.org/lapack/index.html), [CLAPACK](https://icl.cs.utk.edu/lapack-for-windows/clapack/index.html#build), [Intel MKL](https://software.intel.com/sites/campaigns/nest/), or a native one provided by your operating system)
 * [HDF5](http://www.hdfgroup.org/HDF5/)
+
+CADET can optionally use:
+
+* [TBB](https://github.com/intel/tbb) for parallelization
+* [UMFPACK from SuiteSparse](http://faculty.cse.tamu.edu/davis/suitesparse.html) and/or [SuperLU](http://crd-legacy.lbl.gov/~xiaoye/SuperLU/) for 2D General Rate Model
 * MATLAB (R2010b or higher, optional but highly recommended for interfacing the simulator) 
 
 ## Tutorials and Instructions
 
-Please find instructions on how to build, install, or use CADET in the [Wiki](https://github.com/modsim/cadet/wiki).
-
+Please find instructions on how to install, or use CADET in the [Wiki](https://github.com/modsim/cadet/wiki).
 For example, there are tutorials on
 
 * [How to install CADET](https://github.com/modsim/CADET/wiki/How-to-install-CADET)
-* [How to build CADET](https://github.com/modsim/CADET/wiki/How-to-build-CADET)
+
+For instructions on how to build CADET see
+
+* [BUILD-WINDOWS.md](https://github.com/modsim/CADET/blob/master/BUILD-WINDOWS.md) for building on MS Windows
+* [BUILD-LINUX.md](https://github.com/modsim/CADET/blob/master/BUILD-LINUX.md) for building on Linux
+* [BUILD-OSX.md](https://github.com/modsim/CADET/blob/master/BUILD-OSX.md) for building on Mac OSX
 
 ## Online Simulator
 

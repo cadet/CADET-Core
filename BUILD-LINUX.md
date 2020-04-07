@@ -1,7 +1,7 @@
 # Prerequisites
 
-* CMake (>= 3.1.0)
-* GCC >= 4.7 or Clang >= 3.3
+* CMake (>= 3.12.0)
+* GCC >= 5.0 or Clang >= 3.4
 * Optional: MATLAB R2009a or greater
 * Optional: Git
 
@@ -13,6 +13,7 @@ Assumed directory structure:
    |   |- sundials
    |   |- hdf5
    |   |- superlu
+   |   |- suitesparse
    |-code
    |-cadet
    |-build
@@ -43,7 +44,7 @@ Build HDF5 yourself:
 * Unzip
 * Open a terminal and change to the parent directory of the unzipped directory
 * Create a new folder `sundialsbuild` and change to it
-* Execute `cmake -DCMAKE_INSTALL_PREFIX="<ROOT>/Libs/sundials" -DEXAMPLES_ENABLE=OFF -DOPENMP_ENABLE=ON -DBUILD_SHARED_LIBS=OFF -DCMAKE_C_FLAGS=-fPIC ../sundials-2.7.0/`
+* Execute `cmake -DCMAKE_INSTALL_PREFIX="<ROOT>/Libs/sundials" -DEXAMPLES_ENABLE=OFF -DOPENMP_ENABLE=ON -DBUILD_SHARED_LIBS=OFF -DCMAKE_C_FLAGS=-fPIC ../sundials-3.2.1/`
 * Execute `make install`
 * Delete the folder `sundialsbuild` (e.g., execute `rm -rf sundialsbuild` in the parent directory of `sundialsbuild`)
 
@@ -78,6 +79,8 @@ Obtain LAPACK from your distribution:
 * Open a terminal and change to `<ROOT>/build`
 * If you have built HDF5 yourself, execute `export HDF5_ROOT=<ROOT>/Libs/hdf5`
 * Execute `export SUNDIALS_ROOT=<ROOT>/Libs/sundials`
+* Execute `export SUPERLU_ROOT=<ROOT>/Libs/superlu`
+* Execute `export UMFPACK_ROOT=<ROOT>/Libs/suitesparse`
 * Using standard LAPACK: Execute `cmake -DCMAKE_INSTALL_PREFIX="<ROOT>/cadet" ../code/`
  
     Using MKL (sequential): Execute `cmake -DCMAKE_INSTALL_PREFIX="<ROOT>/cadet" -DCMAKE_LIBRARY_PATH="<MKL_ROOT>/lib/intel64" -DBLA_VENDOR=Intel10_64lp_seq ../code/`

@@ -1,7 +1,7 @@
 # Prerequisites
 
-* CMake (>= 3.1.0)
-* GCC >= 4.7 or Clang >= 3.3
+* CMake (>= 3.12.0)
+* GCC >= 5.0 or Clang >= 3.4
 * Optional: MATLAB R2009a or greater
 * Optional: Git
 
@@ -13,6 +13,7 @@ Assumed directory structure:
    |   |- sundials
    |   |- hdf5
    |   |- superlu
+   |   |- suitesparse
    |-code
    |-cadet
    |-build
@@ -41,8 +42,8 @@ Build HDF5 yourself:
 
 ## SUNDIALS
 
-You can either build SUNDIALS yourself or rely on the `hdf5` package of [Homebrew](http://brew.sh/).
-Note that a version <= 3.2.1 is required.
+You can either build SUNDIALS yourself or rely on the `sundials` package of [Homebrew](http://brew.sh/).
+Note that a version <= 3.2.1 is required whereas the current version provided by Homebrew is >= 5.1.0.
 
 Obtain SUNDIALS from Homebrew:
 * Open a terminal and execute `brew install sundials`
@@ -53,7 +54,7 @@ Build SUNDIALS yourself:
 * Unzip
 * Open a terminal and change to the parent directory of the unzipped directory
 * Create a new folder `sundialsbuild` and change to it
-* Execute `cmake -DCMAKE_INSTALL_PREFIX="<ROOT>/Libs/sundials" -DEXAMPLES_ENABLE=OFF -DOPENMP_ENABLE=ON -DBUILD_SHARED_LIBS=OFF -DCMAKE_C_FLAGS=-fPIC -DCMAKE_BUILD_TYPE=Release ../sundials-2.7.0/`
+* Execute `cmake -DCMAKE_INSTALL_PREFIX="<ROOT>/Libs/sundials" -DEXAMPLES_ENABLE=OFF -DOPENMP_ENABLE=ON -DBUILD_SHARED_LIBS=OFF -DCMAKE_C_FLAGS=-fPIC -DCMAKE_BUILD_TYPE=Release ../sundials-3.2.1/`
 * Execute `make install`
 * Delete the folder `sundialsbuild` (e.g., execute `rm -rf sundialsbuild` in the parent directory of `sundialsbuild`)
 
@@ -85,6 +86,8 @@ You can either use the native LAPACK implementation provided by Mac OS X (vecLib
 * Open a terminal and change to `<ROOT>/build`
 * If you have built HDF5 yourself, execute `export HDF5_ROOT=<ROOT>/Libs/hdf5`
 * If you have built SUNDIALS yourself, execute `export SUNDIALS_ROOT=<ROOT>/Libs/sundials`
+* Execute `export SUPERLU_ROOT=<ROOT>/Libs/superlu`
+* Execute `export UMFPACK_ROOT=<ROOT>/Libs/suitesparse`
 * Using standard LAPACK: Execute `cmake -DCMAKE_INSTALL_PREFIX="<ROOT>/cadet" ../code/`
  
     Using MKL (sequential): Execute `cmake -DCMAKE_INSTALL_PREFIX="<ROOT>/cadet" -DCMAKE_LIBRARY_PATH="<MKL_ROOT>/lib/intel64_win" -DBLA_VENDOR=Intel10_64lp_seq ../code/`
