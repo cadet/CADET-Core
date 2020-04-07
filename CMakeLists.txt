@@ -345,6 +345,9 @@ if (ENABLE_CADET_MEX)
 		PURPOSE "Native MATLAB interface"
 	)
 
+	option(MATLAB_USE_SYSTEM_LAPACK "Forcefully enables usage of system's LAPACK instead of MATLAB's one" ON)
+	add_feature_info(MATLAB_USE_SYSTEM_LAPACK MATLAB_USE_SYSTEM_LAPACK "Forcefully enables usage of system's LAPACK instead of MATLAB's one")
+
 	option(MATLAB_FORCE_UMFPACK "Forcefully use MATLAB's UMFPACK as sole sparse solver in MEX interface" OFF)
 	add_feature_info(MATLAB_FORCE_UMFPACK MATLAB_FORCE_UMFPACK "Forcefully use MATLAB's UMFPACK as sole sparse solver in MEX interface")
 
@@ -352,7 +355,7 @@ if (ENABLE_CADET_MEX)
 	option(MATLAB_FORCE_ENABLE_TBB "Forcefully enable usage of MATLAB's TBB library in case system TBB is not compatible and not enforced" OFF)
 	add_feature_info(MATLAB_FORCE_ENABLE_TBB MATLAB_FORCE_ENABLE_TBB "Forcefully enable usage of MATLAB's TBB library in case system TBB is not compatible and not enforced")
 
-	option(MATLAB_USE_SYSTEM_TBB "Forcefully enables usage of system TBB instead of MATLAB's one" ON)
+	option(MATLAB_USE_SYSTEM_TBB "Forcefully enables usage of system's TBB instead of MATLAB's one" ON)
 	add_feature_info(MATLAB_USE_SYSTEM_TBB MATLAB_USE_SYSTEM_TBB "Forcefully enables usage of system TBB instead of MATLAB's one")
 
 	if (Matlab_FOUND)

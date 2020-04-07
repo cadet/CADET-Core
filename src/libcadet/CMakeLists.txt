@@ -248,6 +248,7 @@ if (LAPACK_FOUND)
 
 	list(APPEND LIBCADET_TARGETS libcadet_nonlinalg_static libcadet_object libcadet_static libcadet_shared)
 
+	unset(LIB_LAPACK_DEFINE)
 endif ()
 
 # ---------------------------------------------------
@@ -255,8 +256,13 @@ endif ()
 # ---------------------------------------------------
 if (ENABLE_CADET_MEX)
 
+	# Determine #defines for LAPACK implementation
 	set(MATLAB_LAPACK_DEFINE)
-	if (Matlab_LAPACK_TRAILING_UNDERSCORE)
+	if ((NOT MATLAB_USE_SYSTEM_LAPACK) AND Matlab_LAPACK_LIBRARY_FOUND)
+		if (Matlab_LAPACK_TRAILING_UNDERSCORE)
+			set(MATLAB_LAPACK_DEFINE "CADET_LAPACK_TRAILING_UNDERSCORE")
+		endif()
+	else()
 		set(MATLAB_LAPACK_DEFINE "CADET_LAPACK_TRAILING_UNDERSCORE")
 	endif()
 
@@ -273,7 +279,14 @@ if (ENABLE_CADET_MEX)
 		LINK_SEARCH_END_STATIC ON
 	)
 	target_compile_definitions(libcadet_nonlinalg_mex PRIVATE CADET_MATLABMEX MATLAB_MEX_FILE ${MATLAB_LAPACK_DEFINE} libcadet_mex_EXPORTS)
-	target_link_libraries(libcadet_nonlinalg_mex PUBLIC CADET::CompileOptions PRIVATE SUNDIALS::sundials_idas ${SUNDIALS_NVEC_TARGET} ${Matlab_LAPACK_LIBRARY} ${Matlab_BLAS_LIBRARY})
+	target_link_libraries(libcadet_nonlinalg_mex PUBLIC CADET::CompileOptions PRIVATE SUNDIALS::sundials_idas ${SUNDIALS_NVEC_TARGET})
+	
+	# Link against Matlab's or system's LAPACK
+	if ((NOT MATLAB_USE_SYSTEM_LAPACK) AND Matlab_LAPACK_LIBRARY_FOUND)
+		target_link_libraries(libcadet_nonlinalg_mex PUBLIC CADET::CompileOptions PRIVATE ${Matlab_LAPACK_LIBRARY} ${Matlab_BLAS_LIBRARY})
+	else()
+		target_link_libraries(libcadet_nonlinalg_mex PUBLIC CADET::CompileOptions PRIVATE LAPACK::LAPACK)
+	endif()
 
 	if (ENABLE_GRM_2D AND NOT MATLAB_FORCE_UMFPACK)
 		if (UMFPACK_FOUND)
@@ -297,10 +310,16 @@ if (ENABLE_CADET_MEX)
 	target_compile_definitions(libcadet_mex PRIVATE CADET_MATLABMEX MATLAB_MEX_FILE ${MATLAB_LAPACK_DEFINE} libcadet_mex_EXPORTS)
 	target_link_libraries(libcadet_mex PUBLIC CADET::CompileOptions CADET::LibOptions PRIVATE CADET::AD libcadet_nonlinalg_mex SUNDIALS::sundials_idas ${SUNDIALS_NVEC_TARGET} ${Matlab_TBB_TARGET})
 
+	# Enable usage of Matlab's LAPACK libs
+	if ((NOT MATLAB_USE_SYSTEM_LAPACK) AND Matlab_LAPACK_LIBRARY_FOUND)
+		target_compile_definitions(libcadet_nonlinalg_mex PRIVATE CADET_MATLAB_LAPACK)
+		target_compile_definitions(libcadet_mex PRIVATE CADET_MATLAB_LAPACK)
+	endif()
+
 	list(APPEND LIBCADET_TARGETS libcadet_mex libcadet_nonlinalg_mex)
 
 	unset(MATLAB_LAPACK_DEFINE)
-endif ()
+endif()
 
 foreach(_TARGET IN LISTS LIBCADET_TARGETS)
 	target_include_directories(${_TARGET}
