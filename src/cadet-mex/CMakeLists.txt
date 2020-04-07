@@ -47,6 +47,7 @@ endif()
 # Install the cadet-mex executable
 install(CODE "MESSAGE(\"\nInstall CADET-MEX\n\")")
 install(DIRECTORY ${CMAKE_SOURCE_DIR}/src/cadet-mi/ DESTINATION matlab FILES_MATCHING REGEX ".*\.(m|md)$")
+install(FILES ${CMAKE_SOURCE_DIR}/AUTHORS ${CMAKE_SOURCE_DIR}/CONTRIBUTORS ${CMAKE_SOURCE_DIR}/LICENSE.txt DESTINATION matlab)
 install(TARGETS cadet-mex RUNTIME DESTINATION matlab/bin LIBRARY DESTINATION matlab/bin)
 
 # ---------------------------------------------------
