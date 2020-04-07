@@ -51,6 +51,7 @@ bool isStdErrAttachedToTerminal();
 
 	#include <windows.h>
 	#include <io.h>
+	#include <stdio.h>
 
 	ConsoleSize getConsoleSize(StandardStream ss)
 	{
@@ -72,7 +73,7 @@ bool isStdErrAttachedToTerminal();
 		DWORD st;
 		const int fn = _fileno(stdout);
 		HANDLE hd = reinterpret_cast<HANDLE>(_get_osfhandle(fn));
-		return _isatty(fn) && (h != INVALID_HANDLE_VALUE) && GetConsoleMode(h, &st);
+		return _isatty(fn) && (hd != INVALID_HANDLE_VALUE) && GetConsoleMode(hd, &st);
 	}
 
 	bool isStdErrAttachedToTerminal()
@@ -80,7 +81,7 @@ bool isStdErrAttachedToTerminal();
 		DWORD st;
 		const int fn = _fileno(stderr);
 		HANDLE hd = reinterpret_cast<HANDLE>(_get_osfhandle(fn));
-		return _isatty(fn) && (h != INVALID_HANDLE_VALUE) && GetConsoleMode(h, &st);
+		return _isatty(fn) && (hd != INVALID_HANDLE_VALUE) && GetConsoleMode(hd, &st);
 	}
 
 #elif __unix__ || __linux__ || __APPLE__
