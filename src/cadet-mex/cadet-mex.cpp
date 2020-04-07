@@ -14,14 +14,6 @@
 	#define MATLAB_MEX_FILE
 #endif
 
-/*
-#ifdef _MSC_VER
-	#define DLL_EXPORT_SYM _declspec(dllexport)
-#else
-	#define DLL_EXPORT_SYM __attribute__((visibility("default")))
-#endif
-*/
-
 #include <mex.h>
 
 #include <cstdint>
@@ -116,7 +108,7 @@ namespace cadet
 	}
 }
 
-extern "C" DLL_EXPORT_SYM void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
+MEXFUNCTION_LINKAGE void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
 {
 	LogReceiverScope lrs;
 
