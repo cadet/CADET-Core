@@ -296,8 +296,19 @@ if (ENABLE_CADET_TOOLS OR ENABLE_CADET_CLI)
 
 		# Find szip and zlib libs if we need them
 		if (NOT HDF5_DONT_NEED_ZLIBS)
-			find_library(HDF5_SZLIB NAMES szip libszip PATHS ${HDF5_LIBRARY_DIRS})
-			find_library(HDF5_ZLIB NAMES zlib libzlib PATHS ${HDF5_LIBRARY_DIRS})
+
+			# Prefer static libs if enabled
+			set(_HDF5_ORIG_CMAKE_FIND_LIBRARY_SUFFIXES ${CMAKE_FIND_LIBRARY_SUFFIXES})
+			if(ENABLE_STATIC_LINK_DEPS)
+				if(WIN32)
+					set(CMAKE_FIND_LIBRARY_SUFFIXES .lib ${CMAKE_FIND_LIBRARY_SUFFIXES})
+				else()
+					set(CMAKE_FIND_LIBRARY_SUFFIXES .a ${CMAKE_FIND_LIBRARY_SUFFIXES})
+				endif()
+			endif()
+
+			find_library(HDF5_SZLIB NAMES libszip szip PATHS ${HDF5_LIBRARY_DIRS})
+			find_library(HDF5_ZLIB NAMES libzlib zlib PATHS ${HDF5_LIBRARY_DIRS})
 
 			if (HDF5_SZLIB)
 				list(APPEND HDF5_LIBRARIES ${HDF5_SZLIB})
@@ -313,6 +324,9 @@ if (ENABLE_CADET_TOOLS OR ENABLE_CADET_CLI)
 			endif()
 			unset(HDF5_SZLIB)
 			unset(HDF5_ZLIB)
+
+			set(CMAKE_FIND_LIBRARY_SUFFIXES ${_HDF5_ORIG_CMAKE_FIND_LIBRARY_SUFFIXES})
+			unset(_HDF5_ORIG_CMAKE_FIND_LIBRARY_SUFFIXES)
 		endif()
 	endif()
 endif()
