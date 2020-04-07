@@ -117,7 +117,7 @@ endif()
 set(SUPERLU_LIBRARIES ${SUPERLU_LIBRARY} ${BLAS_LIBRARIES})
 
 include(FindPackageHandleStandardArgs)
-find_package_handle_standard_args(SUPERLU
+find_package_handle_standard_args(SuperLU
     REQUIRED_VARS BLAS_FOUND SUPERLU_LIBRARIES SUPERLU_INCLUDE_DIRS
     VERSION_VAR SUPERLU_VERSION
 )
