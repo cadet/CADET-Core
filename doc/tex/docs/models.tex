@@ -275,7 +275,7 @@ In the liquid phase of the porous beads (see Fig.~\ref{fig:ModelGRMBead}) the ma
 	&+ f_{\text{react},j,i}^p\left( c_j^p, c_j^s \right) + \frac{1 - \varepsilon_{p,j}}{F_{\text{acc},j,i} \varepsilon_{p,j}} f_{\text{react},j,i}^s\left( c_j^p, c_j^s \right), \label{eq:ModelBead}
 \end{split}\end{equation}
 where $c^s_{j,i,m_{j,i}}\colon \left[0, T_{\text{end}}\right] \times [0,L] \times [r_{c,j}, r_{p,j}] \rightarrow \mathds{R}^{\geq 0}$ denotes the solid phase concentration of the $i$th component's $m_{j,i}$th bound state in the beads of $j$th type, $D_{p,j,i}$ the effective diffusion coefficient in the beads, $D_{s,j,i}$ the surface diffusion coefficient, $F_{\text{acc},j,i} \in [0,1]$ the pore accessibility factor, and $\varepsilon_{p,j}$ the particle porosity (ratio of pore volume to total bead volume).
-The inner bead radius $r_{c,j} \in [0, r_{p,j})$ is assumed to be $0$ by default, but can be positive in order to account for core shell particles that have an impermeable core.
+The inner bead radius $r_{c,j} \in [0, r_{p,j})$ is assumed to be $0$ by default, but can be positive in order to account for core-shell particles that have an impermeable core.
 Reaction terms in liquid and solid phase are collected in $f_{\text{react},j,i}^p( c_j^p, c_j^s)$ and $f_{\text{react},j,i}^s(c_j^p, c_j^s)$, respectively.
 
 The GRM is used with both quasi-stationary (Eq.~\eqref{eq:REqBinding}) and dynamic (Eq.~\eqref{eq:DynBinding}) binding models. \index{Binding!Models}\index{Binding!Dynamic}\index{Binding!Quasi-stationary}
