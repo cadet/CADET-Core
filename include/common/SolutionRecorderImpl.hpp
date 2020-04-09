@@ -58,7 +58,7 @@ public:
 	InternalStorageUnitOpRecorder(UnitOpIdx idx) : _cfgSolution({false, false, false, true, false, false}),
 		_cfgSolutionDot({false, false, false, false, false, false}), _cfgSensitivity({false, false, false, true, false, false}),
 		_cfgSensitivityDot({false, false, false, true, false, false}), _storeTime(false), _storeCoordinates(false), _splitComponents(true), _splitPorts(true),
-		_curCfg(nullptr), _nComp(0), _nVolumeDof(0), _numTimesteps(0), _numSens(0), _unitOp(idx), _needsReAlloc(false),
+		_singleAsMultiPortUnitOps(false), _curCfg(nullptr), _nComp(0), _nVolumeDof(0), _numTimesteps(0), _numSens(0), _unitOp(idx), _needsReAlloc(false),
 		_axialCoords(0), _radialCoords(0), _particleCoords(0)
 	{
 	}
@@ -622,6 +622,9 @@ public:
 	inline bool splitPorts() const CADET_NOEXCEPT { return _splitPorts; }
 	inline void splitPorts(bool st) CADET_NOEXCEPT { _splitPorts = st; }
 
+	inline bool treatSingleAsMultiPortUnitOps() const CADET_NOEXCEPT { return _singleAsMultiPortUnitOps; }
+	inline void treatSingleAsMultiPortUnitOps(bool smp) CADET_NOEXCEPT { _singleAsMultiPortUnitOps = smp; }
+
 	inline UnitOpIdx unitOperation() const CADET_NOEXCEPT { return _unitOp; }
 	inline void unitOperation(UnitOpIdx idx) CADET_NOEXCEPT { _unitOp = idx; }
 
@@ -743,8 +746,16 @@ protected:
 						for (unsigned int comp = 0; comp < _nComp; ++comp)
 						{
 							oss.str("");
-							oss << prefix << "_OUTLET_PORT_" << std::setfill('0') << std::setw(3) << std::setprecision(0) << port 
-								<<  "_COMP_" << std::setfill('0') << std::setw(3) << std::setprecision(0) << comp;
+							if ((_nOutletPorts == 1) && !_singleAsMultiPortUnitOps)
+							{
+								oss << prefix << "_OUTLET_COMP_" << std::setfill('0') << std::setw(3) << std::setprecision(0) << comp;
+							}
+							else
+							{
+								oss << prefix << "_OUTLET_PORT_" << std::setfill('0') << std::setw(3) << std::setprecision(0) << port 
+									<<  "_COMP_" << std::setfill('0') << std::setw(3) << std::setprecision(0) << comp;
+							}
+
 							writer.template vector<double>(oss.str(), _numTimesteps, _curStorage->outlet.data() + comp + port * _nComp, _nComp * _nOutletPorts);
 						}
 					}
@@ -754,7 +765,11 @@ protected:
 					for (unsigned int port = 0; port < _nOutletPorts; ++port)
 					{
 						oss.str("");
-						oss << prefix << "_OUTLET_PORT_" << std::setfill('0') << std::setw(3) << std::setprecision(0) << port;
+						if ((_nOutletPorts == 1) && !_singleAsMultiPortUnitOps)
+							oss << prefix << "_OUTLET";
+						else
+							oss << prefix << "_OUTLET_PORT_" << std::setfill('0') << std::setw(3) << std::setprecision(0) << port;
+
 						writer.template matrix<double>(oss.str(), _numTimesteps, _nComp, _curStorage->outlet.data() + port * _nComp, _nOutletPorts * _nComp, _nComp);
 					}
 				}
@@ -767,14 +782,17 @@ protected:
 					{
 						oss.str("");
 						oss << prefix << "_OUTLET_COMP_" << std::setfill('0') << std::setw(3) << std::setprecision(0) << comp;
-						writer.template matrix<double>(oss.str(), _numTimesteps, _nOutletPorts, _curStorage->outlet.data() + comp, _nComp);
+						if ((_nOutletPorts == 1) && !_singleAsMultiPortUnitOps)
+							writer.template vector<double>(oss.str(), _numTimesteps, _curStorage->outlet.data() + comp, _nComp);
+						else
+							writer.template matrix<double>(oss.str(), _numTimesteps, _nOutletPorts, _curStorage->outlet.data() + comp, _nComp);
 					}
 				}
 				else
 				{
 					oss.str("");
 					oss << prefix << "_OUTLET";
-					if (_nOutletPorts == 1)
+					if ((_nOutletPorts == 1) && !_singleAsMultiPortUnitOps)
 					{
 						const std::vector<std::size_t> layout = {_numTimesteps, _nComp};
 						writer.template tensor<double>(oss.str(), layout.size(), layout.data(), _curStorage->outlet.data());
@@ -799,8 +817,16 @@ protected:
 						for (unsigned int comp = 0; comp < _nComp; ++comp)
 						{
 							oss.str("");
-							oss << prefix << "_INLET_PORT_" << std::setfill('0') << std::setw(3) << std::setprecision(0) << port 
-								<<  "_COMP_" << std::setfill('0') << std::setw(3) << std::setprecision(0) << comp;
+							if ((_nInletPorts == 1) && !_singleAsMultiPortUnitOps)
+							{
+								oss << prefix << "_INLET_COMP_" << std::setfill('0') << std::setw(3) << std::setprecision(0) << comp;
+							}
+							else
+							{
+								oss << prefix << "_INLET_PORT_" << std::setfill('0') << std::setw(3) << std::setprecision(0) << port 
+									<<  "_COMP_" << std::setfill('0') << std::setw(3) << std::setprecision(0) << comp;
+							}
+
 							writer.template vector<double>(oss.str(), _numTimesteps, _curStorage->inlet.data() + comp + port * _nComp, _nComp * _nInletPorts);
 						}
 					}
@@ -810,7 +836,11 @@ protected:
 					for (unsigned int port = 0; port < _nInletPorts; ++port)
 					{
 						oss.str("");
-						oss << prefix << "_INLET_PORT_" << std::setfill('0') << std::setw(3) << std::setprecision(0) << port;
+						if ((_nInletPorts == 1) && !_singleAsMultiPortUnitOps)
+							oss << prefix << "_INLET";
+						else
+							oss << prefix << "_INLET_PORT_" << std::setfill('0') << std::setw(3) << std::setprecision(0) << port;
+
 						writer.template matrix<double>(oss.str(), _numTimesteps, _nComp, _curStorage->inlet.data() + port * _nComp, _nInletPorts * _nComp, _nComp);
 					}
 				}
@@ -823,14 +853,17 @@ protected:
 					{
 						oss.str("");
 						oss << prefix << "_INLET_COMP_" << std::setfill('0') << std::setw(3) << std::setprecision(0) << comp;
-						writer.template matrix<double>(oss.str(), _numTimesteps, _nInletPorts, _curStorage->inlet.data() + comp, _nComp);
+						if ((_nInletPorts == 1) && !_singleAsMultiPortUnitOps)
+							writer.template vector<double>(oss.str(), _numTimesteps, _curStorage->inlet.data() + comp, _nComp);
+						else
+							writer.template matrix<double>(oss.str(), _numTimesteps, _nInletPorts, _curStorage->inlet.data() + comp, _nComp);
 					}
 				}
 				else
 				{
 					oss.str("");
 					oss << prefix << "_INLET";
-					if (_nInletPorts == 1)
+					if ((_nInletPorts == 1) && !_singleAsMultiPortUnitOps)
 					{
 						const std::vector<std::size_t> layout = {_numTimesteps, _nComp};
 						writer.template tensor<double>(oss.str(), layout.size(), layout.data(), _curStorage->inlet.data());
@@ -937,6 +970,7 @@ protected:
 	bool _storeCoordinates;
 	bool _splitComponents;
 	bool _splitPorts;
+	bool _singleAsMultiPortUnitOps;
 
 	StorageConfig const* _curCfg;
 	Storage* _curStorage;

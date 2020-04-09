@@ -1819,10 +1819,13 @@ This group also takes precedence over a possibly existing \texttt{/input/model/u
     Write full sensitivity state vectors at last time point (optional, defaults to 0)
   \end{dataset}
   \begin{dataset}[type = int, range={$\{0,1\}$}]{SPLIT\_COMPONENTS\_DATA}
-    Determines whether a joint dataset (matrix) for all components is created or if each component is put in a separate dataset (\texttt{XXX\_COMP\_000}, \texttt{XXX\_COMP\_001}, etc.) (optional, defaults to 1)
+    Determines whether a joint dataset (matrix or tensor) for all components is created or if each component is put in a separate dataset (\texttt{XXX\_COMP\_000}, \texttt{XXX\_COMP\_001}, etc.) (optional, defaults to 1)
   \end{dataset}
   \begin{dataset}[type = int, range={$\{0,1\}$}]{SPLIT\_PORTS\_DATA}
-    Determines whether a joint dataset (matrix) for all inlet/outlet ports is created or if each port is put in a separate dataset (\texttt{XXX\_PORT\_000}, \texttt{XXX\_PORT\_001}, etc.) (optional, defaults to 1)
+    Determines whether a joint dataset (matrix or tensor) for all inlet/outlet ports is created or if each port is put in a separate dataset (\texttt{XXX\_PORT\_000}, \texttt{XXX\_PORT\_001}, etc.) (optional, defaults to 1)
+  \end{dataset}
+  \begin{dataset}[type = int, range={$\{0,1\}$}]{SINGLE\_AS\_MULTI\_PORT}
+    Determines whether single port unit operations are treated as multi port unit operations in the output naming scheme (i.e., \texttt{\_PORT\_XYZ\_} is added to the name) (optional, defaults to 0)
   \end{dataset}
 \end{groupscope}
 
@@ -2100,18 +2103,22 @@ This group also takes precedence over a possibly existing \texttt{/input/model/u
   \begin{dataset}[type=double,unit={\si{\mol\per\cubic\metre\of{IV}}}]{SOLUTION\_OUTLET}
     Tensor of solutions at the unit operation outlet with components as columns in time-port-major storage.
     Only present if \texttt{SPLIT\_COMPONENTS\_DATA} and \texttt{SPLIT\_PORTS\_DATA} are both disabled.
+    If the unit operation only has a single port, the port-dimension is removed if \texttt{SINGLE\_AS\_MULTI\_PORT} is disabled.
   \end{dataset}
   \begin{dataset}[type=double,unit={\si{\mol\per\cubic\metre\of{IV}}}]{SOLUTION\_INLET}
     Tensor of solutions at the unit operation inlet with components as columns in time-port-major storage.
     Only present if \texttt{SPLIT\_COMPONENTS\_DATA} and \texttt{SPLIT\_PORTS\_DATA} are both disabled.
+    If the unit operation only has a single port, the port-dimension is removed if \texttt{SINGLE\_AS\_MULTI\_PORT} is disabled.
   \end{dataset}
   \begin{dataset}[type=double,unit={\si{\mol\per\cubic\metre\of{IV}}}]{SOLUTION\_OUTLET\_COMP\_XXX}
     Component \texttt{XXX} of the solution at all outlet ports of the unit operation as matrix in time-major storage.
     Only present if \texttt{SPLIT\_COMPONENTS\_DATA} is enabled and \texttt{SPLIT\_PORTS\_DATA} is disabled.
+    If the unit operation only has a single port, a vector (1D array) is returned instead of a matrix if \texttt{SINGLE\_AS\_MULTI\_PORT} is disabled.
   \end{dataset}
   \begin{dataset}[type=double,unit={\si{\mol\per\cubic\metre\of{IV}}}]{SOLUTION\_INLET\_COMP\_XXX}
     Component \texttt{XXX} of the solution at all inlet ports of the unit operation inlet as matrix in time-major storage.
     Only present if \texttt{SPLIT\_COMPONENTS\_DATA} is enabled and \texttt{SPLIT\_PORTS\_DATA} is disabled.
+    If the unit operation only has a single port, a vector (1D array) is returned instead of a matrix if \texttt{SINGLE\_AS\_MULTI\_PORT} is disabled.
   \end{dataset}
   \begin{dataset}[type=double,unit={\si{\mol\per\cubic\metre\of{IV}}}]{SOLUTION\_OUTLET\_PORT\_XXX}
     All components at outlet port \texttt{XXX} of the solution of the unit operation as matrix in time-major storage.
@@ -2123,11 +2130,13 @@ This group also takes precedence over a possibly existing \texttt{/input/model/u
   \end{dataset}
   \begin{dataset}[type=double,unit={\si{\mol\per\cubic\metre\of{IV}}}]{SOLUTION\_OUTLET\_PORT\_XXX\_COMP\_YYY}
     Component \texttt{YYY} at outlet port \texttt{XXX} of the solution of the unit operation.
-    Only present if \texttt{SPLIT\_COMPONENTS\_DATA} is enabled and \texttt{SPLIT\_PORTS\_DATA} is enabled.
+    Only present if \texttt{SPLIT\_COMPONENTS\_DATA} and \texttt{SPLIT\_PORTS\_DATA} are enabled, and the unit operation has multiple outlet ports.
+    If the unit operation only has a single port, the field is created if \texttt{SINGLE\_AS\_MULTI\_PORT} is enabled.
   \end{dataset}
   \begin{dataset}[type=double,unit={\si{\mol\per\cubic\metre\of{IV}}}]{SOLUTION\_INLET\_PORT\_XXX\_COMP\_YYY}
     Component \texttt{YYY} at inlet port \texttt{XXX} of the solution of the unit operation.
-    Only present if \texttt{SPLIT\_COMPONENTS\_DATA} is enabled and \texttt{SPLIT\_PORTS\_DATA} is enabled.
+    Only present if \texttt{SPLIT\_COMPONENTS\_DATA} and \texttt{SPLIT\_PORTS\_DATA} are enabled, and the unit operation has multiple inlet ports.
+    If the unit operation only has a single port, the field is created if \texttt{SINGLE\_AS\_MULTI\_PORT} is enabled.
   \end{dataset}
   \begin{dataset}[type=double,unit={\si{\mol\per\cubic\metre\of{IV}\per\second}}]{SOLDOT\_BULK}
     Interstitial solution time derivative as $n_{\text{Time}} \times \texttt{UNITOPORDERING}$ tensor in row-major storage
@@ -2157,18 +2166,22 @@ This group also takes precedence over a possibly existing \texttt{/input/model/u
   \begin{dataset}[type=double,unit={\si{\mol\per\cubic\metre\of{IV}\per\second}}]{SOLDOT\_OUTLET}
     Tensor of solution time derivatives at the unit operation outlet with components as columns in time-port-major storage.
     Only present if \texttt{SPLIT\_COMPONENTS\_DATA} and \texttt{SPLIT\_PORTS\_DATA} are both disabled.
+    If the unit operation only has a single port, the port-dimension is removed if \texttt{SINGLE\_AS\_MULTI\_PORT} is disabled.
   \end{dataset}
   \begin{dataset}[type=double,unit={\si{\mol\per\cubic\metre\of{IV}\per\second}}]{SOLDOT\_INLET}
     Tensor of solution time derivatives at the unit operation inlet with components as columns in time-port-major storage.
     Only present if \texttt{SPLIT\_COMPONENTS\_DATA} and \texttt{SPLIT\_PORTS\_DATA} are both disabled.
+    If the unit operation only has a single port, the port-dimension is removed if \texttt{SINGLE\_AS\_MULTI\_PORT} is disabled.
   \end{dataset}
   \begin{dataset}[type=double,unit={\si{\mol\per\cubic\metre\of{IV}\per\second}}]{SOLDOT\_OUTLET\_COMP\_XXX}
     Component \texttt{XXX} of the solution time derivative at all outlet ports of the unit operation as matrix in time-major storage.
     Only present if \texttt{SPLIT\_COMPONENTS\_DATA} is enabled and \texttt{SPLIT\_PORTS\_DATA} is disabled.
+    If the unit operation only has a single port, a vector (1D array) is returned instead of a matrix if \texttt{SINGLE\_AS\_MULTI\_PORT} is disabled.
   \end{dataset}
   \begin{dataset}[type=double,unit={\si{\mol\per\cubic\metre\of{IV}\per\second}}]{SOLDOT\_INLET\_COMP\_XXX}
     Component \texttt{XXX} of the solution time derivative at all inlet ports of the unit operation inlet as matrix in time-major storage.
     Only present if \texttt{SPLIT\_COMPONENTS\_DATA} is enabled and \texttt{SPLIT\_PORTS\_DATA} is disabled.
+    If the unit operation only has a single port, a vector (1D array) is returned instead of a matrix if \texttt{SINGLE\_AS\_MULTI\_PORT} is disabled.
   \end{dataset}
   \begin{dataset}[type=double,unit={\si{\mol\per\cubic\metre\of{IV}\per\second}}]{SOLDOT\_OUTLET\_PORT\_XXX}
     All components at outlet port \texttt{XXX} of the solution time derivative of the unit operation as matrix in time-major storage.
@@ -2180,11 +2193,13 @@ This group also takes precedence over a possibly existing \texttt{/input/model/u
   \end{dataset}
   \begin{dataset}[type=double,unit={\si{\mol\per\cubic\metre\of{IV}\per\second}}]{SOLDOT\_OUTLET\_PORT\_XXX\_COMP\_YYY}
     Component \texttt{YYY} at outlet port \texttt{XXX} of the solution time derivative of the unit operation.
-    Only present if \texttt{SPLIT\_COMPONENTS\_DATA} is enabled and \texttt{SPLIT\_PORTS\_DATA} is enabled.
+    Only present if \texttt{SPLIT\_COMPONENTS\_DATA} and \texttt{SPLIT\_PORTS\_DATA} are enabled, and the unit operation has multiple outlet ports.
+    If the unit operation only has a single port, the field is created if \texttt{SINGLE\_AS\_MULTI\_PORT} is enabled.
   \end{dataset}
   \begin{dataset}[type=double,unit={\si{\mol\per\cubic\metre\of{IV}\per\second}}]{SOLDOT\_INLET\_PORT\_XXX\_COMP\_YYY}
     Component \texttt{YYY} at inlet port \texttt{XXX} of the solution time derivative of the unit operation.
-    Only present if \texttt{SPLIT\_COMPONENTS\_DATA} is enabled and \texttt{SPLIT\_PORTS\_DATA} is enabled.
+    Only present if \texttt{SPLIT\_COMPONENTS\_DATA} and \texttt{SPLIT\_PORTS\_DATA} are enabled, and the unit operation has multiple inlet ports.
+    If the unit operation only has a single port, the field is created if \texttt{SINGLE\_AS\_MULTI\_PORT} is enabled.
   \end{dataset}
 \end{groupscope}
 
@@ -2217,18 +2232,22 @@ This group also takes precedence over a possibly existing \texttt{/input/model/u
   \begin{dataset}[type=double,unit={\si{\mol\per\cubic\metre\of{IV}\per\ParamUnit}}]{SENS\_OUTLET}
     Tensor of sensitivities at the unit operation outlet with components as columns in time-port-major storage.
     Only present if \texttt{SPLIT\_COMPONENTS\_DATA} and \texttt{SPLIT\_PORTS\_DATA} are both disabled.
+    If the unit operation only has a single port, the port-dimension is removed if \texttt{SINGLE\_AS\_MULTI\_PORT} is disabled.
   \end{dataset}
   \begin{dataset}[type=double,unit={\si{\mol\per\cubic\metre\of{IV}\per\ParamUnit}}]{SENS\_INLET}
     Tensor of sensitivities at the unit operation inlet with components as columns in time-port-major storage.
     Only present if \texttt{SPLIT\_COMPONENTS\_DATA} and \texttt{SPLIT\_PORTS\_DATA} are both disabled.
+    If the unit operation only has a single port, the port-dimension is removed if \texttt{SINGLE\_AS\_MULTI\_PORT} is disabled.
   \end{dataset}
   \begin{dataset}[type=double,unit={\si{\mol\per\cubic\metre\of{IV}\per\ParamUnit}}]{SENS\_OUTLET\_COMP\_XXX}
     Component \texttt{XXX} of the sensitivity at all outlet ports of the unit operation as matrix in time-major storage.
     Only present if \texttt{SPLIT\_COMPONENTS\_DATA} is enabled and \texttt{SPLIT\_PORTS\_DATA} is disabled.
+    If the unit operation only has a single port, a vector (1D array) is returned instead of a matrix if \texttt{SINGLE\_AS\_MULTI\_PORT} is disabled.
   \end{dataset}
   \begin{dataset}[type=double,unit={\si{\mol\per\cubic\metre\of{IV}\per\ParamUnit}}]{SENS\_INLET\_COMP\_XXX}
     Component \texttt{XXX} of the sensitivity at all inlet ports of the unit operation inlet as matrix in time-major storage.
     Only present if \texttt{SPLIT\_COMPONENTS\_DATA} is enabled and \texttt{SPLIT\_PORTS\_DATA} is disabled.
+    If the unit operation only has a single port, a vector (1D array) is returned instead of a matrix if \texttt{SINGLE\_AS\_MULTI\_PORT} is disabled.
   \end{dataset}
   \begin{dataset}[type=double,unit={\si{\mol\per\cubic\metre\of{IV}\per\ParamUnit}}]{SENS\_OUTLET\_PORT\_XXX}
     All components at outlet port \texttt{XXX} of the sensitivity of the unit operation as matrix in time-major storage.
@@ -2240,11 +2259,13 @@ This group also takes precedence over a possibly existing \texttt{/input/model/u
   \end{dataset}
   \begin{dataset}[type=double,unit={\si{\mol\per\cubic\metre\of{IV}\per\ParamUnit}}]{SENS\_OUTLET\_PORT\_XXX\_COMP\_YYY}
     Component \texttt{YYY} at outlet port \texttt{XXX} of the sensitivity of the unit operation.
-    Only present if \texttt{SPLIT\_COMPONENTS\_DATA} is enabled and \texttt{SPLIT\_PORTS\_DATA} is enabled.
+    Only present if \texttt{SPLIT\_COMPONENTS\_DATA} and \texttt{SPLIT\_PORTS\_DATA} are enabled, and the unit operation has multiple outlet ports.
+    If the unit operation only has a single port, the field is created if \texttt{SINGLE\_AS\_MULTI\_PORT} is enabled.
   \end{dataset}
   \begin{dataset}[type=double,unit={\si{\mol\per\cubic\metre\of{IV}\per\ParamUnit}}]{SENS\_INLET\_PORT\_XXX\_COMP\_YYY}
     Component \texttt{YYY} at inlet port \texttt{XXX} of the sensitivity of the unit operation.
-    Only present if \texttt{SPLIT\_COMPONENTS\_DATA} is enabled and \texttt{SPLIT\_PORTS\_DATA} is enabled.
+    Only present if \texttt{SPLIT\_COMPONENTS\_DATA} and \texttt{SPLIT\_PORTS\_DATA} are enabled, and the unit operation has multiple inlet ports.
+    If the unit operation only has a single port, the field is created if \texttt{SINGLE\_AS\_MULTI\_PORT} is enabled.
   \end{dataset}
   \begin{dataset}[type=double,unit={\si{\mol\per\cubic\metre\of{IV}\per\second\per\ParamUnit}}]{SENSDOT\_BULK}
     Interstitial sensitivity time derivative as $n_{\text{Time}} \times \texttt{UNITOPORDERING}$ tensor in row-major storage
@@ -2274,18 +2295,22 @@ This group also takes precedence over a possibly existing \texttt{/input/model/u
   \begin{dataset}[type=double,unit={\si{\mol\per\cubic\metre\of{IV}\per\second\per\ParamUnit}}]{SENSDOT\_OUTLET}
     Tensor of sensitivity time derivatives at the unit operation outlet with components as columns in time-port-major storage.
     Only present if \texttt{SPLIT\_COMPONENTS\_DATA} and \texttt{SPLIT\_PORTS\_DATA} are both disabled.
+    If the unit operation only has a single port, the port-dimension is removed if \texttt{SINGLE\_AS\_MULTI\_PORT} is disabled.
   \end{dataset}
   \begin{dataset}[type=double,unit={\si{\mol\per\cubic\metre\of{IV}\per\second\per\ParamUnit}}]{SENSDOT\_INLET}
     Tensor of sensitivity time derivatives at the unit operation inlet with components as columns in time-port-major storage.
     Only present if \texttt{SPLIT\_COMPONENTS\_DATA} and \texttt{SPLIT\_PORTS\_DATA} are both disabled.
+    If the unit operation only has a single port, the port-dimension is removed if \texttt{SINGLE\_AS\_MULTI\_PORT} is disabled.
   \end{dataset}
   \begin{dataset}[type=double,unit={\si{\mol\per\cubic\metre\of{IV}\per\second\per\ParamUnit}}]{SENSDOT\_OUTLET\_COMP\_XXX}
     Component \texttt{XXX} of the sensitivity time derivative at all outlet ports of the unit operation as matrix in time-major storage.
     Only present if \texttt{SPLIT\_COMPONENTS\_DATA} is enabled and \texttt{SPLIT\_PORTS\_DATA} is disabled.
+    If the unit operation only has a single port, a vector (1D array) is returned instead of a matrix if \texttt{SINGLE\_AS\_MULTI\_PORT} is disabled.
   \end{dataset}
   \begin{dataset}[type=double,unit={\si{\mol\per\cubic\metre\of{IV}\per\second\per\ParamUnit}}]{SENSDOT\_INLET\_COMP\_XXX}
     Component \texttt{XXX} of the sensitivity time derivative at all inlet ports of the unit operation inlet as matrix in time-major storage.
     Only present if \texttt{SPLIT\_COMPONENTS\_DATA} is enabled and \texttt{SPLIT\_PORTS\_DATA} is disabled.
+    If the unit operation only has a single port, a vector (1D array) is returned instead of a matrix if \texttt{SINGLE\_AS\_MULTI\_PORT} is disabled.
   \end{dataset}
   \begin{dataset}[type=double,unit={\si{\mol\per\cubic\metre\of{IV}\per\second\per\ParamUnit}}]{SENSDOT\_OUTLET\_PORT\_XXX}
     All components at outlet port \texttt{XXX} of the sensitivity time derivative of the unit operation as matrix in time-major storage.
@@ -2297,11 +2322,13 @@ This group also takes precedence over a possibly existing \texttt{/input/model/u
   \end{dataset}
   \begin{dataset}[type=double,unit={\si{\mol\per\cubic\metre\of{IV}\per\second\per\ParamUnit}}]{SENSDOT\_OUTLET\_PORT\_XXX\_COMP\_YYY}
     Component \texttt{YYY} at outlet port \texttt{XXX} of the sensitivity time derivative of the unit operation.
-    Only present if \texttt{SPLIT\_COMPONENTS\_DATA} is enabled and \texttt{SPLIT\_PORTS\_DATA} is enabled.
+    Only present if \texttt{SPLIT\_COMPONENTS\_DATA} and \texttt{SPLIT\_PORTS\_DATA} are enabled, and the unit operation has multiple outlet ports.
+    If the unit operation only has a single port, the field is created if \texttt{SINGLE\_AS\_MULTI\_PORT} is enabled.
   \end{dataset}
   \begin{dataset}[type=double,unit={\si{\mol\per\cubic\metre\of{IV}\per\second\per\ParamUnit}}]{SENSDOT\_INLET\_PORT\_XXX\_COMP\_YYY}
     Component \texttt{YYY} at inlet port \texttt{XXX} of the sensitivity time derivative of the unit operation.
-    Only present if \texttt{SPLIT\_COMPONENTS\_DATA} is enabled and \texttt{SPLIT\_PORTS\_DATA} is enabled.
+    Only present if \texttt{SPLIT\_COMPONENTS\_DATA} and \texttt{SPLIT\_PORTS\_DATA} are enabled, and the unit operation has multiple inlet ports.
+    If the unit operation only has a single port, the field is created if \texttt{SINGLE\_AS\_MULTI\_PORT} is enabled.
   \end{dataset}
 \end{groupscope}
 
