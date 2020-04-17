@@ -34,7 +34,7 @@ Obtain HDF5 from Homebrew:
 * Homebrew has installed HDF5 to `/usr/local`
 
 Build HDF5 yourself:
-* Download CMake-enabled source from https://support.hdfgroup.org/HDF5/release/cmakebuild.html or https://support.hdfgroup.org/HDF5/release/cmakebuild5110.html
+* Download CMake-enabled source from https://www.hdfgroup.org/downloads/hdf5/source-code/
 * Unzip and make sure that the directory path does not contain blank spaces
 * Open a terminal and change to the unzipped directory
 * Execute `ctest -S HDF5config.cmake,BUILD_GENERATOR=Unix,INSTALLDIR="<ROOT>/Libs/hdf5" -C Release -V`

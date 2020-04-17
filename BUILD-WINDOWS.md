@@ -31,7 +31,7 @@ We also assume that Intel MKL is installed.
 ## HDF5
 
 * Make sure that no HDF5 libraries are installed (remove already existing HDF5 installations)
-* Download CMake-enabled source from https://support.hdfgroup.org/HDF5/release/cmakebuild.html or https://support.hdfgroup.org/HDF5/release/cmakebuild5110.html
+* Download CMake-enabled source from https://www.hdfgroup.org/downloads/hdf5/source-code/
 * Unzip and make sure that the directory path does not contain blank spaces
 * Open VS2019x64 Command Prompt and change to the unzipped directory
 * Execute `ctest -S HDF5config.cmake,BUILD_GENERATOR=VS201964,INSTALLDIR="<ROOT>\Libs\hdf5" -C Release -V`

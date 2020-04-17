@@ -32,7 +32,7 @@ Obtain HDF5 from your distribution:
 * Additional postfixes or prefixes in the library names (e.g., Debian uses `libhdf5_serial.*` instead of `libhdf5.*`) can cause troubles when CMake is trying to find HDF5. If this is the case, you can circumvent this by using symlinks `ln -s libhdf5_serial.* libhdf5.*`. However, this can later cause troubles because other packages might contain this file.
 
 Build HDF5 yourself:
-* Download CMake-enabled source from https://support.hdfgroup.org/HDF5/release/cmakebuild.html or https://support.hdfgroup.org/HDF5/release/cmakebuild5110.html
+* Download CMake-enabled source from https://www.hdfgroup.org/downloads/hdf5/source-code/
 * Unzip and make sure that the directory path does not contain blank spaces
 * Open a terminal and change to the unzipped directory
 * Execute `ctest -S HDF5config.cmake,BUILD_GENERATOR=Unix,INSTALLDIR="<ROOT>/Libs/hdf5" -C Release -V`
