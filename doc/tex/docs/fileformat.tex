@@ -1232,7 +1232,7 @@ Note that all components of component dependent datasets have to be section depe
 
 \subsection{Flux reconstruction methods}
 
-\begin{subgroup}{/input/model/unit\_XXX}{WENO parameters}{tab:FFModelUnitOpDiscretizationWeno}
+\begin{subgroup}{/input/model/unit\_XXX/discretization/weno}{WENO parameters}{tab:FFModelUnitOpDiscretizationWeno}
   \begin{dataset}[type=int,range={$\{ 0,1,2,3 \}$},length=1]{BOUNDARY\_MODEL}
     Boundary model type:
     \begin{description}
@@ -1249,8 +1249,8 @@ Note that all components of component dependent datasets have to be section depe
     WENO order, also called WENO $k$:
     \begin{description}
       \item[1] Standard upwind scheme (order 1)
-      \item[1] WENO 2 (order 3)
-      \item[2] WENO 3 (order 5)
+      \item[2] WENO 2 (order 3)
+      \item[3] WENO 3 (order 5)
     \end{description}\vspace{-\baselineskip}
   \end{dataset}
 \end{subgroup}
