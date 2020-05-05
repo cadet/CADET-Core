@@ -179,7 +179,7 @@ protected:
 		virtual unsigned int numComponents() const CADET_NOEXCEPT { return _nComp; }
 		virtual unsigned int numAxialCells() const CADET_NOEXCEPT { return 0; }
 		virtual unsigned int numRadialCells() const CADET_NOEXCEPT { return 0; }
-		virtual unsigned int numInletPorts() const CADET_NOEXCEPT { return 0; }
+		virtual unsigned int numInletPorts() const CADET_NOEXCEPT { return 1; }
 		virtual unsigned int numOutletPorts() const CADET_NOEXCEPT { return 1; }
 		virtual unsigned int numParticleTypes() const CADET_NOEXCEPT { return 0; }
 		virtual unsigned int numParticleShells(unsigned int parType) const CADET_NOEXCEPT { return 0; }
