@@ -353,16 +353,16 @@ classdef StirredTankModel < Model
 			res = obj.assembleConfig@Model();
 
 			if isempty(obj.bindingModel)
-				error('CADET:invalidConfig', 'Expected valid binding model.');
-			end
-
-			res.ADSORPTION_MODEL = cell(numel(obj.bindingModel), 1);
-			for i = 1:length(obj.bindingModel)
-				if isempty(obj.bindingModel(i))
-					res.ADSORPTION_MODEL{i} = 'NONE';
-				else
-					res.ADSORPTION_MODEL{i} = obj.bindingModel(i).name;
-					res.(sprintf('adsorption_%03d', i-1)) = obj.bindingModel(i).assembleConfig();
+				res.ADSORPTION_MODEL = 'NONE';
+			else
+				res.ADSORPTION_MODEL = cell(numel(obj.bindingModel), 1);
+				for i = 1:length(obj.bindingModel)
+					if isempty(obj.bindingModel(i))
+						res.ADSORPTION_MODEL{i} = 'NONE';
+					else
+						res.ADSORPTION_MODEL{i} = obj.bindingModel(i).name;
+						res.(sprintf('adsorption_%03d', i-1)) = obj.bindingModel(i).assembleConfig();
+					end
 				end
 			end
 
