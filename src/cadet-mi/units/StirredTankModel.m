@@ -298,9 +298,11 @@ classdef StirredTankModel < Model
 			end
 
 			validateattributes(obj.porosity, {'double'}, {'scalar', 'nonempty', '>=', 0.0, '<=', 1.0, 'finite', 'real'}, '', 'porosity');
-			validateattributes(obj.particleTypeVolumeFractions, {'double'}, {'vector', 'numel', length(obj.nBoundStates) / obj.nComponents, 'nonempty', '>=', 0.0, '<=', 1.0, 'finite', 'real'}, '', 'particleTypeVolumeFractions');
-			if abs(sum(obj.particleTypeVolumeFractions) - 1.0) >= 1e-10
-				error('CADET:invalidConfig', 'Expected particleTypeVolumeFractions to sum to 1.0.');
+			if ~isempty(obj.bindingModel)
+				validateattributes(obj.particleTypeVolumeFractions, {'double'}, {'vector', 'numel', length(obj.nBoundStates) / obj.nComponents, 'nonempty', '>=', 0.0, '<=', 1.0, 'finite', 'real'}, '', 'particleTypeVolumeFractions');
+				if abs(sum(obj.particleTypeVolumeFractions) - 1.0) >= 1e-10
+					error('CADET:invalidConfig', 'Expected particleTypeVolumeFractions to sum to 1.0.');
+				end
 			end
 
 			for i = 1:numel(obj.bindingModel)
