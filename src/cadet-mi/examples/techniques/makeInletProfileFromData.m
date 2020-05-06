@@ -42,7 +42,7 @@ function makeInletProfileFromData()
 
 	% Run the simulation and extract the solution for plotting it later
 	res = sim.run();
-	sol = [res.solution.time, res.solution.outlet{1}];
+	sol = [res.solution.time, squeeze(res.solution.outlet{1})];
 
 	% Convert inlet profile (component 1) to Matlab style piecewise polynomial
 	pp = inletProfile.makePiecewisePoly([], 1);

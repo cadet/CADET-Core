@@ -37,8 +37,8 @@ function resumeResetTime()
 
 	% Run the first half and extract solution and sensitivity
 	res1 = sim.runWithParameters([]);
-	sol1 = [res1.solution.time, res1.solution.outlet{1}];
-	sens1 = [res1.solution.time, res1.sensitivity.jacobian{1}];
+	sol1 = [res1.solution.time, squeeze(res1.solution.outlet{1})];
+	sens1 = [res1.solution.time, squeeze(res1.sensitivity.jacobian{1})];
 
 	% Prepare for second half:
 	%   - Since time is resetted, we will simulate from 0s to 750s again
@@ -50,8 +50,8 @@ function resumeResetTime()
 	res2 = sim.resumeWithParameters([]);
 
 	% Shift the time by 750s for a continuous output
-	sol2 = [res2.solution.time + 750, res2.solution.outlet{1}];
-	sens2 = [res2.solution.time + 750, res2.sensitivity.jacobian{1}];
+	sol2 = [res2.solution.time + 750, squeeze(res2.solution.outlet{1})];
+	sens2 = [res2.solution.time + 750, squeeze(res2.sensitivity.jacobian{1})];
 
 	% Glue the two pieces together by appending the second half to the first one
 	sol = [sol1; sol2];

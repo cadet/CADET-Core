@@ -25,8 +25,8 @@ function saveLoadSimulator()
 	res2 = loadedSim.run();
 
 	% Plot the difference of the two solutions
-	solution = [res.solution.time, res.solution.outlet{1}];
-	solution2 = [res2.solution.time, res2.solution.outlet{1}];
+	solution = [res.solution.time, squeeze(res.solution.outlet{1})];
+	solution2 = [res2.solution.time, squeeze(res2.solution.outlet{1})];
 	plot(solution(:, 1), abs(solution(:, 3:end) - solution2(:, 3:end)));
 	legend('Lysozyme', 'Cytochrome', 'Ribonuclease');
 	grid on;

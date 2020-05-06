@@ -15,7 +15,7 @@ function makeInletProfileFromResults()
 
 	% Run the simulation and extract the solution for plotting it later
 	res1 = sim.run();
-	sol1 = [res1.solution.time, res1.solution.outlet{1}];
+	sol1 = [res1.solution.time, squeeze(res1.solution.outlet{1})];
 
 	% Convert solution into inlet profile
 	sim.model.inlet = PiecewiseCubicPolyProfile.fromResult(res1);
@@ -35,7 +35,7 @@ function makeInletProfileFromResults()
 
 	% Run the simulation again with the new inlet profile and extract the solution
 	res2 = sim.run();
-	sol2 = [res2.solution.time, res2.solution.outlet{1}];
+	sol2 = [res2.solution.time, squeeze(res2.solution.outlet{1})];
 
 	% Plot both solutions side by side
 	figure;

@@ -25,7 +25,7 @@ function repeatedlyContinueFromSamePoint()
 	res1 = sim.run();
 
 	% Extract solution
-	sol1 = [res1.solution.time, res1.solution.outlet{1}];
+	sol1 = [res1.solution.time, squeeze(res1.solution.outlet{1})];
 
 	% Set initial state to last state and disable output of last system state
 	sim.model.initStateY = res1.solution.lastState;
@@ -60,7 +60,7 @@ function repeatedlyContinueFromSamePoint()
 
 		% Extract solution and glue the pieces together
 		shapes{i} = [sol1; ...
-		             res2.solution.time, res2.solution.outlet{1}];
+		             res2.solution.time, squeeze(res2.solution.outlet{1})];
 	end
 
 	% Plot the results

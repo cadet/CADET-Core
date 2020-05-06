@@ -44,12 +44,12 @@ function parameterizedSimulationWithoutSensitivities()
 
 	% Run first simulation with current parameters set in the model
 	res1 = sim.runWithParameters([]);
-	sol1 = [res1.solution.time, res1.solution.outlet{1}];
+	sol1 = [res1.solution.time, squeeze(res1.solution.outlet{1})];
 
 	% Run second simulation with the parameters given in the vector (i.e., lower adsoprtion rate, 
 	% longer column, and higher loading), skip validation of input data on second run
 	res2 = sim.runWithParameters([30, 0.016, 1.1], true);
-	sol2 = [res2.solution.time, res2.solution.outlet{1}];
+	sol2 = [res2.solution.time, squeeze(res2.solution.outlet{1})];
 
 	% Note that the model parameters have changed to the given values:
 	assert(sim.model(1).bindingModel.kA(2) == 30);

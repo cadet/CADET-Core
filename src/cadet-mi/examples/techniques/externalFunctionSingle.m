@@ -107,7 +107,7 @@ function externalFunctionSingle()
 
 	% Run simulation and extract results
 	res = sim.run();
-	sol = [res.solution.time, res.solution.outlet{1}];
+	sol = [res.solution.time, squeeze(res.solution.outlet{1})];
 	
 	% Plot the chromatogram
 	subplot(1, 3, 1);
@@ -139,7 +139,7 @@ function externalFunctionSingle()
 	sim.absTol = 1e-10;
 	sim.relTol = 1e-8;
 	res2 = sim.run();
-	sol2 = [res2.solution.time, res2.solution.outlet{1}];
+	sol2 = [res2.solution.time, squeeze(res2.solution.outlet{1})];
 	
 	% Plot the chromatogram
 	subplot(1, 3, 3);

@@ -98,7 +98,7 @@ function [solution] = breakthroughParticleCoreRadius()
 	% Note that we need to extract the outlet of the first unit operation,
 	% which is the general rate model (main unit operation is always first
 	% in the SingleXYZ models)
-	solution = [result.solution.time, result.solution.outlet{1}];
+	solution = [result.solution.time, squeeze(result.solution.outlet{1})];
 
 	% Step 4: Vary particle core radius and run again
 	% ===================================================
@@ -112,7 +112,7 @@ function [solution] = breakthroughParticleCoreRadius()
 		result = sim.run();
 
 		% Collect results by appending (this is slow, consider preallocating memory)
-		solution = [solution, result.solution.outlet{1}];
+		solution = [solution, squeeze(result.solution.outlet{1})];
 	end
 
 	% Plot the solution

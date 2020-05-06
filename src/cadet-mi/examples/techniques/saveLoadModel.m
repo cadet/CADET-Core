@@ -32,7 +32,7 @@ function saveLoadModel()
 	res = sim.run();    
 
 	% Plot the solution
-	solution = [res.solution.time, res.solution.outlet{1}];
+	solution = [res.solution.time, squeeze(res.solution.outlet{1})];
 	plot(solution(:, 1), solution(:, 3:end));
 	legend('Lysozyme', 'Cytochrome', 'Ribonuclease');
 	grid on;

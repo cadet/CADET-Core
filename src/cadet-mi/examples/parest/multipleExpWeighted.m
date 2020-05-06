@@ -28,7 +28,7 @@ function multipleExpWeighted()
 	sim.setParameters(params, true(3, 1));
 
 	% Apply 4% gaussian noise to first experiment
-	outlet = applyNoise(res.solution.outlet{1}, 0.04);
+	outlet = applyNoise(squeeze(res.solution.outlet{1}), 0.04);
 
 	% Collect data of first experiment in cell array (one cell per wavelength)
 	% Note that time points of the measurements are given in sim.solutionTimes
@@ -58,7 +58,7 @@ function multipleExpWeighted()
 	sim.setParameters(params, true(3, 1));
 
 	% Apply 6% gaussian noise to first experiment
-	outlet = applyNoise(res.solution.outlet{1}, 0.06);
+	outlet = applyNoise(squeeze(res.solution.outlet{1}), 0.06);
 
 	% Collect data of first experiment in cell array (one cell per wavelength)
 	% Note that time points of the measurements are given in sim.solutionTimes

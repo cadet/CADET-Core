@@ -73,19 +73,19 @@ function jointSensitivities()
 
 	% Run first simulation with current parameters set in the model
 	res1 = sim.runWithParameters([]);
-	sol1 = [res1.solution.time, res1.solution.outlet{1}];
+	sol1 = [res1.solution.time, squeeze(res1.solution.outlet{1})];
 
 	% Extract sensitivities into a 3D array. The first dimension is time (rows), the second is
 	% component (columns), and the third dimension is the parameter (sheets). The time is prepended
 	% as first column to all sheets.
-	sens1 = [repmat(res1.solution.time, 1, 1, size(res1.sensitivity.jacobian{1}, 3)), res1.sensitivity.jacobian{1}];
+	sens1 = [repmat(res1.solution.time, 1, 1, size(res1.sensitivity.jacobian{1}, 4)), squeeze(res1.sensitivity.jacobian{1})];
 	% Note that res1.sensitivity.jacobian{1} has 2 sheets since only two parameter sensitivities are
 	% computed.
 	
 	% Run second simulation with the parameters given in the vector (skip validation of input data on second run)
 	res2 = sim.runWithParameters([30, 0.016, 1.1, 120], true);
-	sol2 = [res2.solution.time, res1.solution.outlet{1}];
-	sens2 = [repmat(res2.solution.time, 1, 1, size(res2.sensitivity.jacobian{1}, 3)), res2.sensitivity.jacobian{1}];
+	sol2 = [res2.solution.time, squeeze(res1.solution.outlet{1})];
+	sens2 = [repmat(res2.solution.time, 1, 1, size(res2.sensitivity.jacobian{1}, 4)), squeeze(res2.sensitivity.jacobian{1})];
 
 	% The model parameters have changed to the given values:
 	assert(sim.model(1).bindingModel.kA(2) == 30); % = joint parameter

@@ -158,7 +158,7 @@ function [result, solution] = loadWashElutionSMAsystem2D()
 	result = sim.run();
 
 	% Extract solution into a matrix with time being the first column
-	solution = [result.solution.time, result.solution.outlet{3}];
+	solution = [result.solution.time, squeeze(result.solution.outlet{3})];
 
 	% Plot the solution
 	compName = {'Salt', 'Lysozyme', 'Cytochrome', 'Ribonuclease'};

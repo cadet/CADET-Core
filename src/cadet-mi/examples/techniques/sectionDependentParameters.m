@@ -98,7 +98,7 @@ function sectionDependentParameters()
 
 	% Run the model and extract solution
 	result = sim.run();
-	solution = [result.solution.time, result.solution.outlet{1}];
+	solution = [result.solution.time, squeeze(result.solution.outlet{1})];
 
 	% Plot the solution
 	subplot(1, 2, 1);

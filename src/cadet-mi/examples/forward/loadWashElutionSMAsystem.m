@@ -142,7 +142,7 @@ function [result, solution] = loadWashElutionSMAsystem()
 	% Extract solution into a matrix with time being the first column
 	% Note that we need to extract the outlet of the third unit operation, 
 	% which is the OutletModel (order in the ModelSystem matters)
-	solution = [result.solution.time, result.solution.outlet{3}];
+	solution = [result.solution.time, squeeze(result.solution.outlet{3})];
 
 	% Plot the solution
 	plot(solution(:, 1), solution(:, 3:end));

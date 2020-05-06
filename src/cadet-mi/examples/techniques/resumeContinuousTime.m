@@ -37,8 +37,8 @@ function resumeContinuousTime()
 
 	% Run the first half and extract solution and sensitivity
 	res1 = sim.runWithParameters([]);
-	sol1 = [res1.solution.time, res1.solution.outlet{1}];
-	sens1 = [res1.solution.time, res1.sensitivity.jacobian{1}];
+	sol1 = [res1.solution.time, squeeze(res1.solution.outlet{1})];
+	sens1 = [res1.solution.time, squeeze(res1.sensitivity.jacobian{1})];
 
 	% Prepare for second half:
 	%   - Since time is not resetted, solutionTimes is set from 750s to 1500s
@@ -51,8 +51,8 @@ function resumeContinuousTime()
 	res2 = sim.resumeWithParameters([]);
 
 	% Extract solution and sensitivity
-	sol2 = [res2.solution.time, res2.solution.outlet{1}];
-	sens2 = [res2.solution.time, res2.sensitivity.jacobian{1}];
+	sol2 = [res2.solution.time, squeeze(res2.solution.outlet{1})];
+	sens2 = [res2.solution.time, squeeze(res2.sensitivity.jacobian{1})];
 
 	% Glue the two pieces together by appending the second half to the first one
 	sol = [sol1; sol2];

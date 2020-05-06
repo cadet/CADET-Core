@@ -37,7 +37,7 @@ function multipleExpLinkedAllParameters()
 	% Collect data of first experiment in cell array (one cell per wavelength)
 	% Note that time points of the measurements are given in sim.solutionTimes
 	data = cell(1, 1);
-	data{1} = res.solution.outlet{1}(:, 2);
+	data{1} = squeeze(res.solution.outlet{1}(:, 1, 2));
 
 	% Specify which components are observed in which factor (extinction coefficient) for each wavelength
 	idxComp = cell(1, 1);
@@ -62,7 +62,7 @@ function multipleExpLinkedAllParameters()
 	% Collect data of first experiment in cell array (one cell per wavelength)
 	% Note that time points of the measurements are given in sim.solutionTimes
 	data = cell(1, 1);
-	data{1} = sum(res.solution.outlet{1}(:, 2:end), 2);
+	data{1} = sum(squeeze(res.solution.outlet{1}(:, 1, 2:end)), 2);
 
 	% Specify which components are observed in which factor (extinction coefficient) for each wavelength
 	idxComp = cell(1, 1);

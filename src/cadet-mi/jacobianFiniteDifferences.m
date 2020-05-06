@@ -16,13 +16,13 @@ function jac = jacobianFiniteDifferences(sim, params, fdSteps)
 		curParams = params;
 		curParams(i) = curParams(i) * (1 + fdSteps(i));
 		right = sim.runWithParameters(curParams, true);
-		right = right.solution.outlet; % Format is [nTime, nComp]
+		right = right.solution.outlet; % Format is [nTime, nPort, nComp]
 
 		% Left point of FD
 		curParams = params;
 		curParams(i) = curParams(i) * (1 - fdSteps(i));
 		left = sim.runWithParameters(curParams, true);
-		left = left.solution.outlet; % Format is [nTime, nComp]
+		left = left.solution.outlet; % Format is [nTime, nPort, nComp]
 
 		if i == 1
 			% Reserve space

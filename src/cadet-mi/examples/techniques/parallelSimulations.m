@@ -43,7 +43,7 @@ function parallelSimulations()
 
 		% Run simulation and extract results
 		localRes = sim.runWithParameters(samples(i, :));
-		result{i} = [localRes.solution.time, localRes.solution.outlet{1}];
+		result{i} = [localRes.solution.time, squeeze(localRes.solution.outlet{1})];
 	end
 	
 	% Plot all curves in one figure

@@ -98,7 +98,7 @@ function particleRadiusDistribution()
 	% Note that we need to extract the outlet of the first unit operation,
 	% which is the general rate model (main unit operation is always first
 	% in the SingleXYZ models)
-	solution = [result.solution.time, result.solution.outlet{1}];
+	solution = [result.solution.time, squeeze(result.solution.outlet{1})];
 
 	% Plot the solution
 	plot(solution(:, 1), solution(:, 2));

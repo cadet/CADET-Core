@@ -483,7 +483,7 @@ classdef PiecewiseCubicPolyProfile < handle
 
 			obj.breaks = res.solution.time;
 			if (length(res.solution.outlet) >= unitOpIdx + 1)
-				obj = PiecewiseCubicPolyProfile.fromUniformData(res.solution.time, max(0.0, res.solution.outlet{unitOpIdx+1}));
+				obj = PiecewiseCubicPolyProfile.fromUniformData(res.solution.time, max(0.0, squeeze(res.solution.outlet{unitOpIdx+1})));
 			else
 				if isempty(res.solution.outlet)
 					error('CADET:funcParamError', 'Expected nonempty res.solution.outlet field.');

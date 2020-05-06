@@ -142,7 +142,7 @@ function [result, solution] = breakthroughLangmuirSingle2D()
 	result = sim.run();
 
 	% Extract solution into a matrix with time being the first column
-	solution = [result.solution.time, squeeze(result.solution.outlet{2}), result.solution.inlet{3}];
+	solution = [result.solution.time, squeeze(result.solution.outlet{2}), squeeze(result.solution.inlet{3})];
 
 	% Plot the solution
 	plot(solution(:, 1), solution(:, end), 'LineWidth', 2, 'LineStyle', '--');
