@@ -571,7 +571,7 @@ public:
 		writer.scalar("TIME_SIM", _sim->lastSimulationDuration());
 
 		if (!writer.exists("FILE_FORMAT"))
-			writer.scalar("FILE_FORMAT", 30102);
+			writer.scalar("FILE_FORMAT", 40000);
 
 		writer.popGroup();
 	}
