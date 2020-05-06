@@ -42,6 +42,8 @@ classdef ResultsHelper
 			end
 			if isfield(res, 'coordinates')
 				maxUnitCoords = max(cellfun(@(x) max([-1, sscanf(x, 'unit_%d')]), fieldnames(res.coordinates))) + 1;
+			else
+				maxUnitCoords = 0;
 			end
 
 			if (maxUnit == 0) && ((nargin > 1) && ~isempty(numUnitOperations))
