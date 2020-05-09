@@ -318,7 +318,7 @@ if (UMFPACK_FOUND AND NOT TARGET UMFPACK::UMFPACK)
         UMFPACK::CAMD
         UMFPACK::CHOLMOD
         UMFPACK::config
-        BLAS::BLAS
+        ${BLAS_LIBRARIES}
     )
 
     if (METIS_LIBRARY)

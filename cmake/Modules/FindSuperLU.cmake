@@ -145,5 +145,5 @@ if (SUPERLU_FOUND AND NOT TARGET SuperLU::SuperLU)
         INTERFACE_INCLUDE_DIRECTORIES "${SUPERLU_INCLUDE_DIRS}"
         IMPORTED_LOCATION ${SUPERLU_LIBRARY}
     )
-    target_link_libraries(SuperLU::SuperLU INTERFACE BLAS::BLAS)
+    target_link_libraries(SuperLU::SuperLU INTERFACE ${BLAS_LIBRARIES})
 endif()

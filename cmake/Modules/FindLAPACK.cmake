@@ -500,30 +500,3 @@ endif()
 
 cmake_pop_check_state()
 set(CMAKE_FIND_LIBRARY_SUFFIXES ${_lapack_ORIG_CMAKE_FIND_LIBRARY_SUFFIXES})
-
-if (LAPACK_FOUND AND NOT TARGET LAPACK::LAPACK)
-  list(LENGTH LAPACK_LIBRARIES LAPACK_LEN)
-  if (LAPACK_LEN GREATER 1)
-    list(GET LAPACK_LIBRARIES 0 LAPACK_MAIN_LIBRARY)
-    set(LAPACK_SUPPORT_LIBRARIES ${LAPACK_LIBRARIES})
-    list(REMOVE_AT LAPACK_SUPPORT_LIBRARIES 0)
-  else()
-    set(LAPACK_MAIN_LIBRARY ${LAPACK_LIBRARIES}) 
-    set(LAPACK_SUPPORT_LIBRARIES)
-  endif()
-
-  if (APPLE AND (${LAPACK_MAIN_LIBRARY} MATCHES "\\.framework$"))
-    # IMPORTED_LOCATION needs full path to binary, but on OSX we have path to framework directory
-    add_library(LAPACK::LAPACK INTERFACE IMPORTED)
-    target_link_libraries(LAPACK::LAPACK INTERFACE ${LAPACK_MAIN_LIBRARY})
-  else()
-    # it is unknown whether we have caught shared or static library
-    add_library(LAPACK::LAPACK UNKNOWN IMPORTED)
-    set_target_properties(LAPACK::LAPACK PROPERTIES IMPORTED_LOCATION ${LAPACK_MAIN_LIBRARY})
-  endif()
-  if (LAPACK_SUPPORT_LIBRARIES)
-    target_link_libraries(LAPACK::LAPACK INTERFACE ${LAPACK_SUPPORT_LIBRARIES})
-  endif()
-
-  target_link_libraries(LAPACK::LAPACK INTERFACE BLAS::BLAS)
-endif()

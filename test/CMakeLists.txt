@@ -21,11 +21,11 @@ set(TEST_LIBCADET_TARGETS )
 if (LAPACK_FOUND)
 	add_executable(testAdaptiveTRNewton testAdaptiveTRNewton.cpp)
 	target_include_directories(testAdaptiveTRNewton PRIVATE ${CMAKE_SOURCE_DIR}/src/libcadet ${CMAKE_SOURCE_DIR}/include ${CMAKE_BINARY_DIR} ${CMAKE_SOURCE_DIR}/ThirdParty/tclap/include)
-	target_link_libraries(testAdaptiveTRNewton PRIVATE CADET::CompileOptions libcadet_nonlinalg_static LAPACK::LAPACK)
+	target_link_libraries(testAdaptiveTRNewton PRIVATE CADET::CompileOptions libcadet_nonlinalg_static ${LAPACK_LIBRARIES})
 
 	add_executable(testSMANonlinearSolve testSMANonlinearSolve.cpp)
 	target_include_directories(testSMANonlinearSolve PRIVATE ${CMAKE_SOURCE_DIR}/src/libcadet ${CMAKE_SOURCE_DIR}/include ${CMAKE_BINARY_DIR} ${CMAKE_SOURCE_DIR}/ThirdParty/tclap/include)
-	target_link_libraries(testSMANonlinearSolve PRIVATE CADET::CompileOptions libcadet_nonlinalg_static LAPACK::LAPACK)
+	target_link_libraries(testSMANonlinearSolve PRIVATE CADET::CompileOptions libcadet_nonlinalg_static ${LAPACK_LIBRARIES})
 endif()
 
 add_executable(testLogging testLogging.cpp)

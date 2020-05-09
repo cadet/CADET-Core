@@ -988,28 +988,3 @@ endif()
 
 cmake_pop_check_state()
 set(CMAKE_FIND_LIBRARY_SUFFIXES ${_blas_ORIG_CMAKE_FIND_LIBRARY_SUFFIXES})
-
-if (BLAS_FOUND AND NOT TARGET BLAS::BLAS)
-  if ((APPLE AND (${BLAS_LIBRARIES} MATCHES "\\.framework$")) OR (BLAS_LIBRARIES STREQUAL ""))
-    # IMPORTED_LOCATION needs full path to binary, but on OSX we have path to framework directory
-    add_library(BLAS::BLAS INTERFACE IMPORTED)
-    target_link_libraries(BLAS::BLAS INTERFACE ${BLAS_LIBRARIES})
-  else()
-    # it is unknown whether we have caught shared or static library
-    add_library(BLAS::BLAS UNKNOWN IMPORTED)
-
-    set(BLAS_LIBRARIES_TEMP ${BLAS_LIBRARIES})
-    list(LENGTH BLAS_LIBRARIES_TEMP NUMLIBS)
-    if (NUMLIBS GREATER 1)
-      list(POP_BACK BLAS_LIBRARIES_TEMP REAL_BLAS_LIB)
-      set_target_properties(BLAS::BLAS PROPERTIES IMPORTED_LOCATION ${REAL_BLAS_LIB})
-      foreach (AUX_LIB ${BLAS_LIBRARIES_TEMP})
-        target_link_libraries(BLAS::BLAS INTERFACE ${AUXLIB})
-      endforeach()
-    else()
-      set_target_properties(BLAS::BLAS PROPERTIES IMPORTED_LOCATION ${BLAS_LIBRARIES_TEMP})
-    endif()
-
-    unset(BLAS_LIBRARIES_TEMP)
-  endif()
-endif()
