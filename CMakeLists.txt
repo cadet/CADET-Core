@@ -335,12 +335,14 @@ if (ENABLE_CADET_TOOLS OR ENABLE_CADET_CLI)
 endif()
 
 if (ENABLE_GRM_2D)
+	set(SUPERLU_PREFER_STATIC_LIBS ${ENABLE_STATIC_LINK_DEPS})
 	find_package(SuperLU)
 	set_package_properties(SuperLU PROPERTIES
 		TYPE RECOMMENDED
 		PURPOSE "Sparse matrix solver"
 	)
 
+	set(UMFPACK_PREFER_STATIC_LIBS ${ENABLE_STATIC_LINK_DEPS})
 	find_package(UMFPACK)
 	set_package_properties(UMFPACK PROPERTIES
 		TYPE RECOMMENDED
