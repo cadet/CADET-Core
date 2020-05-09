@@ -126,6 +126,9 @@ add_feature_info(ENABLE_IPO ENABLE_IPO "Enable interprocedural optimization if c
 option(ENABLE_STATIC_LINK_DEPS "Prefer static over dynamic linking of dependencies" ON)
 add_feature_info(ENABLE_STATIC_LINK_DEPS ENABLE_STATIC_LINK_DEPS "Prefer static over dynamic linking of dependencies")
 
+option(ENABLE_STATIC_LINK_LAPACK "Prefer static over dynamic linking of LAPACK and BLAS" OFF)
+add_feature_info(ENABLE_STATIC_LINK_LAPACK ENABLE_STATIC_LINK_LAPACK "Prefer static over dynamic linking of LAPACK and BLAS")
+
 option(ENABLE_STATIC_LINK_CLI "Prefer static over dynamic linking for CADET CLI" ON)
 add_feature_info(ENABLE_STATIC_LINK_CLI ENABLE_STATIC_LINK_CLI "Prefer static over dynamic linking for CADET CLI")
 
@@ -193,7 +196,7 @@ if (TBB_FOUND)
 	unset(TBB_IFACE_COMP_DEF)
 endif()
 
-set(BLA_STATIC ${ENABLE_STATIC_LINK_DEPS})
+set(BLA_STATIC ${ENABLE_STATIC_LINK_LAPACK})
 find_package(LAPACK)
 set_package_properties(LAPACK PROPERTIES
 	TYPE RECOMMENDED
