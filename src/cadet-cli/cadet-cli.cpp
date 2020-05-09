@@ -221,7 +221,8 @@ void run(const std::string& inFileName, const std::string& outFileName, bool sho
 	// Write timings in JSON format
 
 	// First, timings of the ModelSystem
-	std::cout << "{\n\"ModelSystem\":\n\t{\n";
+	std::cout << "{\n\"TotalTimeIntegration\": " << drv.simulator()->totalSimulationDuration() << ",\n";
+	std::cout << "\"ModelSystem\":\n\t{\n";
 	const std::vector<double> sysTiming = drv.model()->benchmarkTimings();
 	char const* const* sysDesc = drv.model()->benchmarkDescriptions();
 
