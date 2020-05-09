@@ -14,7 +14,7 @@
 project(CadetLibrary CXX C)
 
 # Git integration
-configure_file("${CMAKE_CURRENT_SOURCE_DIR}/VersionInfo.cpp.in" "${CMAKE_CURRENT_BINARY_DIR}/VersionInfo.cpp" @ONLY)
+configure_file("${CMAKE_CURRENT_SOURCE_DIR}/VersionInfo.cpp.in" "${CMAKE_CURRENT_BINARY_DIR}/VersionInfo.cpp" ESCAPE_QUOTES @ONLY)
 
 configure_file("${CMAKE_CURRENT_SOURCE_DIR}/CompileTimeConfig.hpp.in" "${CMAKE_CURRENT_BINARY_DIR}/CompileTimeConfig.hpp" @ONLY)
 
