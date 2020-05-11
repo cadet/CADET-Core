@@ -123,13 +123,13 @@ add_feature_info(ENABLE_TESTS ENABLE_TESTS "Build CADET tests")
 option(ENABLE_IPO "Enable interprocedural optimization if compiler supports it" ON)
 add_feature_info(ENABLE_IPO ENABLE_IPO "Enable interprocedural optimization if compiler supports it")
 
-option(ENABLE_STATIC_LINK_DEPS "Prefer static over dynamic linking of dependencies" ON)
+option(ENABLE_STATIC_LINK_DEPS "Prefer static over dynamic linking of dependencies" OFF)
 add_feature_info(ENABLE_STATIC_LINK_DEPS ENABLE_STATIC_LINK_DEPS "Prefer static over dynamic linking of dependencies")
 
 option(ENABLE_STATIC_LINK_LAPACK "Prefer static over dynamic linking of LAPACK and BLAS" OFF)
 add_feature_info(ENABLE_STATIC_LINK_LAPACK ENABLE_STATIC_LINK_LAPACK "Prefer static over dynamic linking of LAPACK and BLAS")
 
-option(ENABLE_STATIC_LINK_CLI "Prefer static over dynamic linking for CADET CLI" ON)
+option(ENABLE_STATIC_LINK_CLI "Prefer static over dynamic linking for CADET CLI" OFF)
 add_feature_info(ENABLE_STATIC_LINK_CLI ENABLE_STATIC_LINK_CLI "Prefer static over dynamic linking for CADET CLI")
 
 option(CMAKE_INSTALL_RPATH_USE_LINK_PATH "Add paths to linker search and installed rpath" ON)
