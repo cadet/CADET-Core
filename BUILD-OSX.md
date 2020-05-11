@@ -88,11 +88,12 @@ You can either use the native LAPACK implementation provided by Mac OS X (vecLib
 * If you have built SUNDIALS yourself, execute `export SUNDIALS_ROOT=<ROOT>/Libs/sundials`
 * Execute `export SUPERLU_ROOT=<ROOT>/Libs/superlu`
 * Execute `export UMFPACK_ROOT=<ROOT>/Libs/suitesparse`
+* If using MKL, execute `export MKLROOT=/opt/intel/mkl`
 * Using standard LAPACK: Execute `cmake -DCMAKE_INSTALL_PREFIX="<ROOT>/cadet" ../code/`
  
-    Using MKL (sequential): Execute `cmake -DCMAKE_INSTALL_PREFIX="<ROOT>/cadet" -DCMAKE_LIBRARY_PATH="<MKL_ROOT>/lib/intel64_win" -DBLA_VENDOR=Intel10_64lp_seq ../code/`
+    Using MKL (sequential): Execute `cmake -DCMAKE_INSTALL_PREFIX="<ROOT>/cadet" -DBLA_VENDOR=Intel10_64lp_seq ../code/`
  
-    Using MKL (parallel): Execute `cmake -DCMAKE_INSTALL_PREFIX="<ROOT>/cadet" -DCMAKE_LIBRARY_PATH="<MKL_ROOT>/lib/intel64_win" -DBLA_VENDOR=Intel10_64lp ../code/`
+    Using MKL (parallel): Execute `cmake -DCMAKE_INSTALL_PREFIX="<ROOT>/cadet" -DBLA_VENDOR=Intel10_64lp ../code/`
 * Execute `make`
 * Execute `make install`
 

@@ -90,11 +90,11 @@ If MKL is used, skip this step.
 * Execute `set TBB_ROOT=<ROOT>\Libs\tbb`
 * Execute `set HDF5_ROOT=<ROOT>\Libs\hdf5`
 * If using MKL, execute `set MKLROOT=C:\Program Files (x86)\IntelSWTools\compilers_and_libraries_2020.0.166\windows\mkl`
-* Using CLAPACK: Execute `cmake -DCMAKE_INSTALL_PREFIX="<ROOT>\cadet" -DBUILD_TESTS=OFF -DCMAKE_LIBRARY_PATH="<ROOT>\Libs\clapack\lib" -G "Visual Studio 16 2019" -A x64 -DBLA_VENDOR=CLAPACK -DENABLE_STATIC_LINK_CLI=OFF -DENABLE_STATIC_LINK_LAPACK=ON ..\code\`
+* Using CLAPACK: Execute `cmake -DCMAKE_INSTALL_PREFIX="<ROOT>\cadet" -DBUILD_TESTS=OFF -DCMAKE_LIBRARY_PATH="<ROOT>\Libs\clapack\lib" -G "Visual Studio 16 2019" -A x64 -DBLA_VENDOR=CLAPACK -DENABLE_STATIC_LINK_LAPACK=ON ..\code\`
  
-    Using MKL (sequential): Execute `cmake -DCMAKE_INSTALL_PREFIX="<ROOT>\cadet" -DBUILD_TESTS=OFF -G "Visual Studio 16 2019" -A x64 -DBLA_VENDOR=Intel10_64lp_seq -DENABLE_STATIC_LINK_CLI=OFF -DENABLE_STATIC_LINK_LAPACK=ON ..\code\`
+    Using MKL (sequential): Execute `cmake -DCMAKE_INSTALL_PREFIX="<ROOT>\cadet" -DBUILD_TESTS=OFF -G "Visual Studio 16 2019" -A x64 -DBLA_VENDOR=Intel10_64lp_seq -DENABLE_STATIC_LINK_LAPACK=ON ..\code\`
  
-    Using MKL (parallel): Execute `cmake -DCMAKE_INSTALL_PREFIX="<ROOT>\cadet" -DBUILD_TESTS=OFF -G "Visual Studio 16 2019" -A x64 -DBLA_VENDOR=Intel10_64lp -DENABLE_STATIC_LINK_CLI=OFF -DENABLE_STATIC_LINK_LAPACK=ON ..\code\`
+    Using MKL (parallel): Execute `cmake -DCMAKE_INSTALL_PREFIX="<ROOT>\cadet" -DBUILD_TESTS=OFF -G "Visual Studio 16 2019" -A x64 -DBLA_VENDOR=Intel10_64lp -DENABLE_STATIC_LINK_LAPACK=ON ..\code\`
 * Execute `msbuild.exe INSTALL.vcxproj /p:Configuration=Release;Platform=x64`
 * If CADET does not start (i.e., `cadet-cli` does not run), try copying `<ROOT>\Libs\tbb\bin\intel64\vc14\tbb_preview.dll` to the directory that contains `cadet-cli` (i.e., `<ROOT>\cadet\bin\`)
 * If the Matlab interface does not work, try copying `<ROOT>\Libs\tbb\bin\intel64\vc14\tbb_preview.dll` to the directory that contains `CadetMex.mexw64` (i.e., `<ROOT>\cadet\matlab\bin\`)
