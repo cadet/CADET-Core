@@ -18,6 +18,7 @@
 #ifndef LIBCADET_SLICEDVECTOR_HPP_
 #define LIBCADET_SLICEDVECTOR_HPP_
 
+#include "cadet/cadetCompilerInfo.hpp"
 #include "common/CompilerSpecific.hpp"
 #include <vector>
 #include <algorithm>
