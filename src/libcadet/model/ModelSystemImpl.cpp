@@ -16,6 +16,7 @@
 #include "cadet/ExternalFunction.hpp"
 
 #include "ConfigurationHelper.hpp"
+#include "graph/GraphAlgos.hpp"
 #include "SensParamUtil.hpp"
 #include "SimulationTypes.hpp"
 
@@ -309,22 +310,28 @@ void ModelSystem::rebuildInternalDataStructures()
 	// Calculate array with DOF offsets
 	_dofOffset.clear();
 	_dofs.clear();
+	_conDofOffset.clear();
 
 	// The additional entry holds the offset for the superstructure
 	_dofOffset.reserve(_models.size()+1);
 	_dofs.reserve(_models.size() + 1);
+	_conDofOffset.reserve(_models.size() + 1);
 
 	// Process DOF from models
 	unsigned int totalDof = 0;
+	unsigned int conTotalDof = 0;
 	for (IUnitOperation const* m : _models)
 	{
 		_dofOffset.push_back(totalDof);
+		_conDofOffset.push_back(conTotalDof);
 		totalDof += m->numDofs();
+		conTotalDof += m->numInletPorts() * m->numComponents();
 		_dofs.push_back(m->numDofs());
 	}
 
 	// Process DOF from superstructure
 	_dofOffset.push_back(totalDof);
+	_conDofOffset.push_back(conTotalDof);
 
 	/*
 		A mapping is required that turns a local model, port index, and component index into the location of the inlet DOF in
@@ -611,6 +618,7 @@ void ModelSystem::configureSwitches(IParameterProvider& paramProvider)
 	_connections.reserve(numSwitches * 6 * _models.size() * _models.size(), numSwitches);
 	_flowRates.clear();
 	_flowRates.reserve(numSwitches * _models.size() * _models.size(), numSwitches);
+	_linearModelOrdering.reserve(numSwitches * _models.size(), numSwitches);
 
 #if CADET_COMPILER_CXX_CONSTEXPR
 	constexpr StringHash flowHash = hashString("CONNECTION");
@@ -628,6 +636,13 @@ void ModelSystem::configureSwitches(IParameterProvider& paramProvider)
 	// If we have unit operations with multiple ports, we require ports in connection list
 	if (hasMultiPortUnits(_models))
 		conListHasPorts = true;
+
+	// Default: detect cycles
+	int linearSolveMode = 0;
+
+	// Override default by user option
+	if (paramProvider.exists("LINEAR_SOLUTION_MODE"))
+		linearSolveMode = paramProvider.getInt("LINEAR_SOLUTION_MODE");
 
 	std::ostringstream oss;
 	for (unsigned int i = 0; i < numSwitches; ++i)
@@ -690,6 +705,65 @@ void ModelSystem::configureSwitches(IParameterProvider& paramProvider)
 		else
 			// Add empty slice
 			_flowRates.pushBackSlice(nullptr, 0);
+
+		if (linearSolveMode == 1)
+		{
+			// Parallel coupling
+			_linearModelOrdering.pushBackSlice(0);
+			LOG(Debug) << "Select parallel coupling for switch " << i;
+		}
+		else if (linearSolveMode == 2)
+		{
+			// Sequential coupling
+			
+			const util::SlicedVector<int> adjList = graph::adjacencyListFromConnectionList(conn.data(), _models.size(), conn.size() / 6);
+			std::vector<int> topoOrder;
+			const bool hasCycles = graph::topologicalSort(adjList, topoOrder);
+
+			if (hasCycles)
+			{
+				LOG(Warning) << "Detected cycle in connections of switch " << i << ", reverting to parallel coupling";
+				_linearModelOrdering.pushBackSlice(0);
+			}
+			else
+			{
+				_linearModelOrdering.pushBackSlice(topoOrder);
+				LOG(Debug) << "Select sequential coupling for switch " << i;
+				LOG(Debug) << "Reversed ordering: " << topoOrder;
+			}
+		}
+		else
+		{
+			// Auto detect coupling
+
+			// TODO: Add heuristic for number and complexity of unit operations
+			
+			// Simple heuristic: At least 6 models (regardless of complexity) => Parallelize
+			if (_models.size() >= 6)
+			{
+				_linearModelOrdering.pushBackSlice(0);
+				LOG(Debug) << "Select parallel coupling for switch " << i << " (at least 6 models)";
+			}
+			else
+			{
+				// Less than 6 models => Select depending on existence of cycles
+				const util::SlicedVector<int> adjList = graph::adjacencyListFromConnectionList(conn.data(), _models.size(), conn.size() / 6);
+				std::vector<int> topoOrder;
+				const bool hasCycles = graph::topologicalSort(adjList, topoOrder);
+
+				if (hasCycles)
+				{
+					_linearModelOrdering.pushBackSlice(0);
+					LOG(Debug) << "Select parallel coupling for switch " << i << " (cycles found)";
+				}
+				else
+				{
+					_linearModelOrdering.pushBackSlice(topoOrder);
+					LOG(Debug) << "Select sequential coupling for switch " << i << " (no cycles found, less than 6 models)";
+					LOG(Debug) << "Reversed ordering: " << topoOrder;
+				}
+			}
+		}
 
 		paramProvider.popScope();
 	}

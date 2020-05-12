@@ -306,7 +306,7 @@ public:
 	}
 
 	/**
-	 * @brief Multiplies this sparse matrix with a vector and adds the result to another vector
+	 * @brief Multiplies this sparse matrix with a vector and subtracts the result from another vector
 	 * @details Computes the matrix vector operation \f$ b - Ax \f$, where the matrix vector
 	 *          product is subtracted from @p out, which is \f$ b \f$.
 	 *
@@ -323,7 +323,7 @@ public:
 	}
 
 	/**
-	 * @brief Multiplies this sparse matrix with a vector and adds the scaled result to another vector
+	 * @brief Multiplies this sparse matrix with a vector and subtracts the scaled result from another vector
 	 * @details Computes the matrix vector operation \f$ b - \alpha Ax \f$, where the matrix vector
 	 *          product is subtracted from @p out, which is \f$ b \f$.
 	 *
@@ -338,6 +338,29 @@ public:
 	{
 		for (unsigned int i = 0; i < _curIdx; ++i)
 			out[_rows[i]] -= alpha * _values[i] * x[_cols[i]];
+	}
+
+	/**
+	 * @brief Multiplies a row span of this sparse matrix with a vector and subtracts the result from another vector
+	 * @details Computes the matrix vector operation \f$ b - Ax \f$ for the row span [ @p startRow, @pendRow ),
+	 *          where \f$ b \f$ is given by @p out, which also receives the result.
+	 *
+	 * @param [in] x Vector to multiply with
+	 * @param [in,out] out Vector to subtract the matrix-vector product from
+	 * @param [in] startRow Index of the first row
+	 * @param [in] endRow Index one past the last row
+	 * @tparam arg_t Type of the vector \f$ x \f$
+	 * @tparam result_t Type of the vector \f$ y \f$
+	 */
+	template <typename arg_t, typename result_t>
+	inline void multiplySubtract(arg_t const* const x, result_t* const out, unsigned int startRow, unsigned int endRow) const
+	{
+		for (unsigned int i = 0; i < _curIdx; ++i)
+		{
+			const unsigned int r = _rows[i];
+			if ((r >= startRow) && (r < endRow))
+				out[r] -= _values[i] * x[_cols[i]];
+		}
 	}
 
 	/**

@@ -186,6 +186,12 @@ public:
 
 protected:
 
+	int linearSolveSequential(double t, double alpha, double tol, double* const rhs, double const* const weight,
+		const ConstSimulationState& simState);
+
+	int linearSolveParallel(double t, double alpha, double tol, double* const rhs, double const* const weight,
+		const ConstSimulationState& simState);
+
 	int schurComplementMatrixVector(double const* x, double* z, double t, double alpha, double outerTol, double const* const weight,
 		const ConstSimulationState& simState) const;
 
@@ -243,10 +249,12 @@ protected:
 	linalg::SparseMatrix<active>* _jacActiveFN; //!< Jacobian block connecting outlets to coupling DOF
 	std::vector<unsigned int> _dofOffset; //!< Vector with DOF offsets for each unit operation
 	std::vector<unsigned int> _dofs; //!< Vector with DOF for each unit
+	std::vector<unsigned int> _conDofOffset; //!< Vector with connection DOF offsets for each unit operation
 	util::SlicedVector<int> _connections; //!< Vector of connection lists for each section
 	util::SlicedVector<active> _flowRates; //!< Vector of connection flow rates for each section
 	std::vector<unsigned int> _switchSectionIndex; //!< Holds indices of sections where valves are switched
 	unsigned int _curSwitchIndex; //!< Current index in _switchSectionIndex list 
+	util::SlicedVector<int> _linearModelOrdering; //!< Dependency-consistent ordering of unit operation models for linear execution
 
 	mutable std::vector<int> _errorIndicator; //!< Storage for return value of unit operation function calls
 

@@ -279,6 +279,12 @@ Note that all components of component dependent datasets have to be section depe
     Determines whether the \texttt{CONNECTIONS} table includes ports ($1$) or not ($0$).
     Optional, defaults to $0$ unless a unit operation model with multiple ports is present.
   \end{dataset}
+  \begin{dataset}[type=int,range={$\{ 0,1,2 \}$},length=1]{LINEAR\_SOLUTION\_MODE}
+    Determines whether the system of models is solved in parallel ($1$) or sequentially ($2$).
+    A sequential solution is only possible for systems without cyclic connections.
+    The setting can be chosen automatically ($0$) based on a heuristic.
+    Optional, defaults to automatic ($0$).
+  \end{dataset}
 \end{groupscope}
 
 \begin{groupscope}{/input/model/connections/switch\_XXX}{tab:FFModelConnectionSwitch}

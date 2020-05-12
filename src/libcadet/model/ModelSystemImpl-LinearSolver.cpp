@@ -33,6 +33,73 @@ namespace model
 int ModelSystem::linearSolve(double t, double alpha, double outerTol, double* const rhs, double const* const weight,
 	const ConstSimulationState& simState)
 {
+	if (_linearModelOrdering.sliceSize(_curSwitchIndex) == 0)
+	{
+		// Parallel
+		return linearSolveParallel(t, alpha, outerTol, rhs, weight, simState);
+	}
+	else
+	{
+		// Linear
+		return linearSolveSequential(t, alpha, outerTol, rhs, weight, simState);
+	}
+}
+
+int ModelSystem::linearSolveSequential(double t, double alpha, double outerTol, double* const rhs, double const* const weight,
+	const ConstSimulationState& simState)
+{
+	// TODO: Add early out error checks
+
+	BENCH_SCOPE(_timerLinearSolve);
+
+	// Topological sort needs to be iterated backwards (each item depends on all items behind it)
+	int const* order = _linearModelOrdering[_curSwitchIndex] + _models.size() - 1;
+	for (int i = 0; i < _models.size(); ++i, --order)
+	{
+		const int idxUnit = *order;
+		IUnitOperation* const m = _models[idxUnit];
+		const unsigned int offset = _dofOffset[idxUnit];
+
+		if (m->hasInlet() > 0)
+		{
+			// Solve inlet first
+			const unsigned int finalOffset = _dofOffset.back();
+
+			// N_{f,x} Outlet (lower) matrices; Bottom macro-row
+			// N_{f,x,1} * y_1 + ... + N_{f,x,nModels} * y_{nModels} + y_{coupling} = f
+			// y_{coupling} = f - N_{f,x,1} * y_1 - ... - N_{f,x,nModels} * y_{nModels}
+			for (unsigned int j = 0; j < _models.size(); ++j)
+			{
+				const unsigned int offset2 = _dofOffset[j];
+				_jacFN[j].multiplySubtract(rhs + offset2, rhs + finalOffset, _conDofOffset[idxUnit], _conDofOffset[idxUnit+1]);
+			}
+
+			// Calculate inlet DOF for unit operation based on the coupling conditions.
+			// y_{unit op inlet} - y_{coupling} = 0
+			// y_{unit op inlet} = y_{coupling}
+			unsigned int idxCoupling = finalOffset + _conDofOffset[idxUnit];
+			for (unsigned int port = 0; port < m->numInletPorts(); ++port)
+			{
+				const unsigned int localIndex = m->localInletComponentIndex(port);
+				const unsigned int localStride = m->localInletComponentStride(port);
+				for (unsigned int comp = 0; comp < m->numComponents(); ++comp)
+				{
+					rhs[offset + localIndex + comp*localStride] = rhs[idxCoupling];
+					++idxCoupling;
+				}
+			}
+		}
+
+		// Solve unit operation itself
+		_errorIndicator[idxUnit] = m->linearSolve(t, alpha, outerTol, rhs + offset, weight + offset, applyOffset(simState, offset));
+	}
+
+	return totalErrorIndicatorFromLocal(_errorIndicator);
+}
+
+int ModelSystem::linearSolveParallel(double t, double alpha, double outerTol, double* const rhs, double const* const weight,
+	const ConstSimulationState& simState)
+{
 	// TODO: Add early out error checks
 
 	BENCH_SCOPE(_timerLinearSolve);
