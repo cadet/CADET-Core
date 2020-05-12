@@ -56,9 +56,13 @@ classdef SpreadingBinding < KineticQuasiStationaryBindingModel
 			%   NBOUNDSTATES to validate the parameters of the binding model.
 			%   Returns true in RES if everything is fine and false otherwise.
 
-			validateattributes(obj.kA, {'double'}, {'vector', 'nonempty', '>=', 0.0, 'finite', 'real', 'numel', sum(nBoundStates)}, '', 'kA');
-			validateattributes(obj.kD, {'double'}, {'vector', 'nonempty', '>=', 0.0, 'finite', 'real', 'numel', sum(nBoundStates)}, '', 'kD');
-			validateattributes(obj.qMax, {'double'}, {'vector', 'nonempty', '>', 0.0, 'finite', 'real', 'numel', sum(nBoundStates)}, '', 'qMax');
+			if any((nBoundStates ~= 0) & (nBoundStates ~= 2))
+				error('CADET:invalidParameter', 'SpreadingBinding requires each component to have either 0 or 2 bound states.');
+			end
+
+			validateattributes(obj.kA, {'double'}, {'vector', 'nonempty', '>=', 0.0, 'finite', 'real', 'numel', 2 * nComponents}, '', 'kA');
+			validateattributes(obj.kD, {'double'}, {'vector', 'nonempty', '>=', 0.0, 'finite', 'real', 'numel', 2 * nComponents}, '', 'kD');
+			validateattributes(obj.qMax, {'double'}, {'vector', 'nonempty', '>', 0.0, 'finite', 'real', 'numel', 2 * nComponents}, '', 'qMax');
 			validateattributes(obj.k12, {'double'}, {'vector', 'nonempty', '>=', 0.0, 'finite', 'real', 'numel', nComponents}, '', 'k12');
 			validateattributes(obj.k21, {'double'}, {'scalar', 'nonempty', '>=', 0.0, 'finite', 'real', 'numel', nComponents}, '', 'k21');
 			res = obj.validate@KineticQuasiStationaryBindingModel(nComponents, nBoundStates);
@@ -144,36 +148,6 @@ classdef SpreadingBinding < KineticQuasiStationaryBindingModel
 		end
 		function set.MCSPR_K21(obj, val)
 			obj.k21 = val;
-		end
-
-	end
-
-	methods (Access = 'protected')
-
-		function offset = offsetToParameter(obj, nBoundStates, param)
-			%OFFSETTOPARAMETER Computes the (zero-based) offset to the given parameter in a linearized array
-			%   OFFSET = OFFSETTOPARAMETER(NBOUNDSTATES, PARAM) uses the number of bound states of each
-			%   component given in the vector NBOUNDSTATES and the parameter struct PARAM to compute the
-			%   0-based offset of the parameter in a linearized array. The fields SENS_COMP, SENS_BOUNDPHASE,
-			%   SENS_REACTION, and SENS_SECTION of PARAM are used to calculate the offset.
-			%
-			%   This implementation assumes component-state-major ordering for MCSPR_KA, MCSPR_KD, and MCSPR_QMAX
-			%   and section-boundphase-component-major ordering for all other parameters.
-			%
-			% See also BINDINGMODEL.OFFSETTOPARAMETER
-
-			switch param.SENS_NAME
-				case {'MCSPR_KA', 'MCSPR_KD', 'MCSPR_QMAX'}
-					offset = 0;
-					if (param.SENS_BOUNDPHASE ~= -1)
-						offset = offset + param.SENS_BOUNDPHASE;
-					end
-					if (param.SENS_COMP ~= -1)
-						offset = offset + sum(nBoundStates(1:param.SENS_COMP));
-					end
-				otherwise
-					offset = obj.offsetToParameter@KineticQuasiStationaryBindingModel(nBoundStates, param);
-			end
 		end
 
 	end
