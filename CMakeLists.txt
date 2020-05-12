@@ -408,7 +408,7 @@ if (ENABLE_CADET_MEX)
 			endif()
 		endif()
 	else()
-		mssage(STATUS "Matlab not found, disabling ENABLE_CADET_MEX")
+		message(STATUS "Matlab not found, disabling ENABLE_CADET_MEX")
 		set(ENABLE_CADET_MEX OFF)
 	endif()
 
