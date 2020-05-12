@@ -82,8 +82,8 @@ inline bool ExtBiLangmuirParamHandler::validateConfig(unsigned int nComp, unsign
  *          While components without bound state (i.e., non-binding components) are supported, all other components must have
  *          the same number of bound states (i.e., binding sites).
  *          
- *          Internal state vector order is state-major. The state vector is composed of all bound states and within each bound state
- *          all components are listed.
+ *          Internal state vector order is component-major. The state vector is composed of all components and within each component
+ *          all bound states are listed.
  *          
  *          See @cite Guiochon2006.
  * @tparam ParamHandler_t Type that can add support for external function dependence

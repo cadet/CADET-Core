@@ -90,7 +90,7 @@ inline bool ExtSpreadingParamHandler::validateConfig(unsigned int nComp, unsigne
  *          While components without bound state (i.e., non-binding components) are supported, all other components must have
  *          @c 2 bound states.
  *          
- *          Internal state vector layout is state-major. First, all components of state A are placed, then all components of state B.
+ *          Internal state vector layout is component-major. First, all bound states of component 0 are placed, then all bound states of component 1, etc.
  * @tparam ParamHandler_t Type that can add support for external function dependence
  */
 template <class ParamHandler_t>
