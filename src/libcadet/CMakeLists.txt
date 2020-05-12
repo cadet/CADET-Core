@@ -114,6 +114,9 @@ set(LIBCADET_SOURCES
 	${CMAKE_SOURCE_DIR}/src/libcadet/ReactionModelFactory.cpp
 	${CMAKE_SOURCE_DIR}/src/libcadet/graph/GraphAlgos.cpp
 	${CMAKE_SOURCE_DIR}/src/libcadet/model/ModelSystemImpl.cpp
+	${CMAKE_SOURCE_DIR}/src/libcadet/model/ModelSystemImpl-Residual.cpp
+	${CMAKE_SOURCE_DIR}/src/libcadet/model/ModelSystemImpl-LinearSolver.cpp
+	${CMAKE_SOURCE_DIR}/src/libcadet/model/ModelSystemImpl-InitialConditions.cpp
 	${CMAKE_SOURCE_DIR}/src/libcadet/model/UnitOperationBase.cpp
 	${CMAKE_SOURCE_DIR}/src/libcadet/model/InletModel.cpp
 	${CMAKE_SOURCE_DIR}/src/libcadet/model/OutletModel.cpp

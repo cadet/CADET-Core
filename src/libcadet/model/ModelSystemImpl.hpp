@@ -172,15 +172,18 @@ public:
 	}
 #endif
 
+	void multiplyWithJacobian(const SimulationTime& simTime, const ConstSimulationState& simState, double const* yS, double alpha, double beta, double* ret);
+	void multiplyWithDerivativeJacobian(const SimulationTime& simTime, const ConstSimulationState& simState, double const* yS, double* ret);
+
+#ifdef CADET_DEBUG
 	void genJacobian(const SimulationTime& simTime, const ConstSimulationState& simState);
 
 	void genJacobian(unsigned int nSens, const SimulationTime& simTime,
 		const ConstSimulationState& simState, double const* const res,
 		const std::vector<const double*>& yS, const std::vector<const double*>& ySdot, const std::vector<double*>& resS,
 		active* const adRes, double* const tmp1, double* const tmp2, double* const tmp3);
+#endif
 
-	virtual void multiplyWithJacobian(const SimulationTime& simTime, const ConstSimulationState& simState, double const* yS, double alpha, double beta, double* ret);
-	virtual void multiplyWithDerivativeJacobian(const SimulationTime& simTime, const ConstSimulationState& simState, double const* yS, double* ret);
 protected:
 
 	int schurComplementMatrixVector(double const* x, double* z, double t, double alpha, double outerTol, double const* const weight,
