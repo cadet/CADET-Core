@@ -53,6 +53,7 @@ classdef ModelSystem < handle
 		systemMaxKrylovSize; % Maximum size of the Krylov subspace
 		systemMaxRestarts; % Maximum number of restarts in GMRES
 		systemSchurSafetyTol; % Schur-complement safety error tolerance
+		systemLinearSolutionMode; % Determines whether parallel (1) or sequential (2) solution mode is used for linear systems
 	end
 	
 	properties (Dependent, Transient)
@@ -76,6 +77,7 @@ classdef ModelSystem < handle
 			obj.data.external = [];
 			obj.data.solver = [];
 
+			obj.systemLinearSolutionMode = 0; % Automatically detect linear solution mode
 			obj.systemGramSchmidtType = 1; % Modified Gram-Schmidt (more stable)
 			obj.systemMaxKrylovSize = 0; % Use largest possible size
 			obj.systemMaxRestarts = 0;
@@ -490,6 +492,16 @@ classdef ModelSystem < handle
 		function set.systemSchurSafetyTol(obj, val)
 			validateattributes(val, {'double'}, {'positive', 'scalar', 'nonempty', 'finite', 'real'}, '', 'schurSafetyTol');
 			obj.data.solver.SCHUR_SAFETY = val;
+			obj.hasSystemChanged = true;
+		end
+
+		function val = get.systemLinearSolutionMode(obj)
+			val = double(obj.data.solver.LINEAR_SOLUTION_MODE);
+		end
+
+		function set.systemLinearSolutionMode(obj, val)
+			validateattributes(val, {'numeric'}, {'>=', 0, '<=', 2, 'nonnegative', 'scalar', 'nonempty', 'finite', 'real'}, '', 'linearSolutionMode');
+			obj.data.solver.LINEAR_SOLUTION_MODE = int32(val);
 			obj.hasSystemChanged = true;
 		end
 		

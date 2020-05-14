@@ -31,6 +31,7 @@ classdef SingleUnitOpSystem < handle
 		systemMaxKrylovSize; % Maximum size of the Krylov subspace
 		systemMaxRestarts; % Maximum number of restarts in GMRES
 		systemSchurSafetyTol; % Schur-complement safety error tolerance
+		systemLinearSolutionMode; % Determines whether parallel (1) or sequential (2) solution mode is used for linear systems
 	end
 
 	properties (Constant)
@@ -60,6 +61,7 @@ classdef SingleUnitOpSystem < handle
 			
 			obj.flowRate = 1.0;
 
+			obj.systemLinearSolutionMode = 2; % Sequential solution mode
 			obj.systemGramSchmidtType = 1; % Modified Gram-Schmidt (more stable)
 			obj.systemMaxKrylovSize = 0; % Use largest possible size
 			obj.systemMaxRestarts = 0;
@@ -202,6 +204,16 @@ classdef SingleUnitOpSystem < handle
 			obj.hasSystemChanged = true;
 		end
 		
+		function val = get.systemLinearSolutionMode(obj)
+			val = double(obj.solverOptions.LINEAR_SOLUTION_MODE);
+		end
+
+		function set.systemLinearSolutionMode(obj, val)
+			validateattributes(val, {'numeric'}, {'>=', 0, '<=', 2, 'nonnegative', 'scalar', 'nonempty', 'finite', 'real'}, '', 'linearSolutionMode');
+			obj.solverOptions.LINEAR_SOLUTION_MODE = int32(val);
+			obj.hasSystemChanged = true;
+		end
+
 		function set.flowRate(obj, val)
 			validateattributes(val, {'double'}, {'>=', 0.0, 'scalar', 'nonempty', 'finite', 'real'}, '', 'flowRate');
 			obj.flowRate = val;
