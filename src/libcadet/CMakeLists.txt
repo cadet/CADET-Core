@@ -170,8 +170,10 @@ if (ENABLE_GRM_2D)
 	if (NOT SUPERLU_FOUND)
 		set(SPARSE_INT_TYPE "int")
 	endif()
-	configure_file("${CMAKE_CURRENT_SOURCE_DIR}/linalg/SparseSolverInterface.hpp.in" "${CMAKE_CURRENT_BINARY_DIR}/SparseSolverInterface.hpp" @ONLY)
+else()
+	set(SPARSE_INT_TYPE "int")
 endif()
+configure_file("${CMAKE_CURRENT_SOURCE_DIR}/linalg/SparseSolverInterface.hpp.in" "${CMAKE_CURRENT_BINARY_DIR}/SparseSolverInterface.hpp" @ONLY)
 
 # Preprocess binding and reaction models
 foreach(BM IN LISTS LIBCADET_BINDINGMODEL_SOURCES)
