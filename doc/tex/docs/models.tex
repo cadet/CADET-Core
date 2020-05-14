@@ -106,6 +106,31 @@ Hence, the one required (i.e., the first) entry must have a section index of $0$
 Note that the section index has to be monotonically increasing throughout the list of valve configurations.
 See Tables~\ref{tab:FFModelSystemConnections} and \ref{tab:FFModelConnectionSwitch}.
 
+\paragraph{Solution of the linear systems}
+\phantomsection\label{par:MUOPNetworkLinearSolver}
+
+Each time step in the simulation requires the solution of a nonlinear system Eq.~\eqref{eq:BDFNonlinSystem} (see Sec.~\ref{sec:SimTimeIntegration}).
+The nonlinear problem is solved by a Newton iteration, which, in turn, requires the solution of a linear system that essentially consists of the Jacobians of the unit operations and some coupling matrices from Eqs.~\eqref{eq:NetworkInletConnection} and \eqref{eq:NetworkConnection}.
+
+These linear systems are either solved in parallel or sequentially.
+The parallel method first solves each unit operation (in parallel) to compute the solution at its outlet.
+Using these values, the inlets are adjusted and the unit operations are solved again.
+This is iterated until the system is fully solved.
+
+In contrast, the sequential method first determines an ordering of the unit operations such that each unit only receives inflow from the previous units in the ordering.
+Such an ordering requires an acyclic graph of unit operations.
+Finally, the linear system is solved by solving the unit operations in the ordering determined above.
+Before a unit is solved, its inlet is calculated from the outlets of the previously solved units.
+This means, the system is solved from system inlets to system outlets.
+
+The parallel method works regardless of the network topology (i.e., cycles in the graph), but requires to solve each unit operation at least twice.
+The sequential method solvs each unit exactly once, but is restricted to acyclic networks and works best for small graphs.
+By default, \CADET{} uses a heuristic to select an appropriate solution method.
+This default can be overridden by a flag (see Table~\ref{tab:FFModelSolver}).
+
+The solution method is selected for each valve switch individually.
+If some network configurations contain cycles, the parallel method is chosen for them regardless of the method used for the other configurations.
+
 \section{Unit operation models}
 
 \phantomsection\label{par:MFeatureMatrix}
