@@ -254,7 +254,8 @@ protected:
 	util::SlicedVector<active> _flowRates; //!< Vector of connection flow rates for each section
 	std::vector<unsigned int> _switchSectionIndex; //!< Holds indices of sections where valves are switched
 	unsigned int _curSwitchIndex; //!< Current index in _switchSectionIndex list 
-	util::SlicedVector<int> _linearModelOrdering; //!< Dependency-consistent ordering of unit operation models for linear execution
+	util::SlicedVector<int> _linearModelOrdering; //!< Dependency-consistent ordering of unit operation models for linear execution (for each switch)
+	int _linearSolutionMode; //!< Linear solution mode (0: automatic, 1: parallel, 2: sequential)
 
 	mutable std::vector<int> _errorIndicator; //!< Storage for return value of unit operation function calls
 

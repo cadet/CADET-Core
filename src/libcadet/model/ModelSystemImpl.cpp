@@ -592,6 +592,14 @@ bool ModelSystem::configure(IParameterProvider& paramProvider)
 	const int gsType = paramProvider.getInt("GS_TYPE");
 	const int maxRestarts = paramProvider.getInt("MAX_RESTARTS");
 	_schurSafety = paramProvider.getDouble("SCHUR_SAFETY");
+
+	// Default: automatic
+	_linearSolutionMode = 0;
+
+	// Override default by user option
+	if (paramProvider.exists("LINEAR_SOLUTION_MODE"))
+		_linearSolutionMode = paramProvider.getInt("LINEAR_SOLUTION_MODE");
+
 	paramProvider.popScope();
 
 	_gmres.orthoMethod(linalg::toOrthogonalization(gsType));
@@ -636,13 +644,6 @@ void ModelSystem::configureSwitches(IParameterProvider& paramProvider)
 	// If we have unit operations with multiple ports, we require ports in connection list
 	if (hasMultiPortUnits(_models))
 		conListHasPorts = true;
-
-	// Default: detect cycles
-	int linearSolveMode = 0;
-
-	// Override default by user option
-	if (paramProvider.exists("LINEAR_SOLUTION_MODE"))
-		linearSolveMode = paramProvider.getInt("LINEAR_SOLUTION_MODE");
 
 	std::ostringstream oss;
 	for (unsigned int i = 0; i < numSwitches; ++i)
@@ -706,15 +707,15 @@ void ModelSystem::configureSwitches(IParameterProvider& paramProvider)
 			// Add empty slice
 			_flowRates.pushBackSlice(nullptr, 0);
 
-		if (linearSolveMode == 1)
+		if (_linearSolutionMode == 1)
 		{
-			// Parallel coupling
+			// Parallel solution method
 			_linearModelOrdering.pushBackSlice(0);
-			LOG(Debug) << "Select parallel coupling for switch " << i;
+			LOG(Debug) << "Select parallel solution method for switch " << i;
 		}
-		else if (linearSolveMode == 2)
+		else if (_linearSolutionMode == 2)
 		{
-			// Sequential coupling
+			// Sequential solution method
 			
 			const util::SlicedVector<int> adjList = graph::adjacencyListFromConnectionList(conn.data(), _models.size(), conn.size() / 6);
 			std::vector<int> topoOrder;
@@ -722,19 +723,19 @@ void ModelSystem::configureSwitches(IParameterProvider& paramProvider)
 
 			if (hasCycles)
 			{
-				LOG(Warning) << "Detected cycle in connections of switch " << i << ", reverting to parallel coupling";
+				LOG(Warning) << "Detected cycle in connections of switch " << i << ", reverting to parallel solution method";
 				_linearModelOrdering.pushBackSlice(0);
 			}
 			else
 			{
 				_linearModelOrdering.pushBackSlice(topoOrder);
-				LOG(Debug) << "Select sequential coupling for switch " << i;
+				LOG(Debug) << "Select sequential solution method for switch " << i;
 				LOG(Debug) << "Reversed ordering: " << topoOrder;
 			}
 		}
 		else
 		{
-			// Auto detect coupling
+			// Auto detect solution method
 
 			// TODO: Add heuristic for number and complexity of unit operations
 			
@@ -742,7 +743,7 @@ void ModelSystem::configureSwitches(IParameterProvider& paramProvider)
 			if (_models.size() >= 6)
 			{
 				_linearModelOrdering.pushBackSlice(0);
-				LOG(Debug) << "Select parallel coupling for switch " << i << " (at least 6 models)";
+				LOG(Debug) << "Select parallel solution method for switch " << i << " (at least 6 models)";
 			}
 			else
 			{
@@ -754,12 +755,12 @@ void ModelSystem::configureSwitches(IParameterProvider& paramProvider)
 				if (hasCycles)
 				{
 					_linearModelOrdering.pushBackSlice(0);
-					LOG(Debug) << "Select parallel coupling for switch " << i << " (cycles found)";
+					LOG(Debug) << "Select parallel solution method for switch " << i << " (cycles found)";
 				}
 				else
 				{
 					_linearModelOrdering.pushBackSlice(topoOrder);
-					LOG(Debug) << "Select sequential coupling for switch " << i << " (no cycles found, less than 6 models)";
+					LOG(Debug) << "Select sequential solution method for switch " << i << " (no cycles found, less than 6 models)";
 					LOG(Debug) << "Reversed ordering: " << topoOrder;
 				}
 			}
