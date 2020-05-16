@@ -34,7 +34,7 @@
 			#define CADET_API
 		#endif
 	#else
-		#define CADET_API
+		#define CADET_API __attribute__((visibility("default")))
 	#endif
 #endif
 

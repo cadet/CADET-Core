@@ -73,6 +73,10 @@ project(CadetFramework
 # Always use '-fPIC'/'-fPIE' option
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
+# Hide symbols by default
+set(CMAKE_C_VISIBILITY_PRESET hidden)
+set(CMAKE_CXX_VISIBILITY_PRESET hidden)
+
 # Enable folders for IDEs
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
