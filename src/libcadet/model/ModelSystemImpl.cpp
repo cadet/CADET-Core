@@ -628,6 +628,7 @@ void ModelSystem::configureSwitches(IParameterProvider& paramProvider)
 	_flowRates.clear();
 	_flowRates.reserve(numSwitches * _models.size() * _models.size(), numSwitches);
 	_linearModelOrdering.reserve(numSwitches * _models.size(), numSwitches);
+	_linearModelOrdering.clear();
 
 #if CADET_COMPILER_CXX_CONSTEXPR
 	constexpr StringHash flowHash = hashString("CONNECTION");
