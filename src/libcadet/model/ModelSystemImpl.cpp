@@ -447,6 +447,11 @@ bool ModelSystem::configureModelDiscretization(IParameterProvider& paramProvider
 	rebuildInternalDataStructures();
 
 	_parameters.clear();
+
+	paramProvider.pushScope("solver");
+	readLinearSolutionMode(paramProvider);
+	paramProvider.popScope();
+
 	configureSwitches(paramProvider);
 	_curSwitchIndex = 0;
 
@@ -587,16 +592,11 @@ bool ModelSystem::configure(IParameterProvider& paramProvider)
 
 	// Reconfigure solver settings
 	paramProvider.pushScope("solver");
+
 	const int gsType = paramProvider.getInt("GS_TYPE");
 	const int maxRestarts = paramProvider.getInt("MAX_RESTARTS");
 	_schurSafety = paramProvider.getDouble("SCHUR_SAFETY");
-
-	// Default: automatic
-	_linearSolutionMode = 0;
-
-	// Override default by user option
-	if (paramProvider.exists("LINEAR_SOLUTION_MODE"))
-		_linearSolutionMode = paramProvider.getInt("LINEAR_SOLUTION_MODE");
+	readLinearSolutionMode(paramProvider);
 
 	paramProvider.popScope();
 
@@ -808,6 +808,16 @@ bool ModelSystem::configureModel(IParameterProvider& paramProvider, unsigned int
 		return false;
 
 	return model->configure(paramProvider);
+}
+
+void ModelSystem::readLinearSolutionMode(IParameterProvider& paramProvider)
+{
+	// Default: automatic
+	_linearSolutionMode = 0;
+
+	// Override default by user option
+	if (paramProvider.exists("LINEAR_SOLUTION_MODE"))
+		_linearSolutionMode = paramProvider.getInt("LINEAR_SOLUTION_MODE");
 }
 
 /**

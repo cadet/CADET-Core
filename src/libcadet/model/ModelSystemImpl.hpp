@@ -209,6 +209,7 @@ protected:
 
 	int dResDpFwdWithJacobian(const SimulationTime& simTime, const ConstSimulationState& simState, const AdJacobianParams& adJac);
 
+	void readLinearSolutionMode(IParameterProvider& paramProvider);
 	void rebuildInternalDataStructures();
 	void allocateSuperStructMatrices();
 	void assembleSuperStructMatrices(unsigned int secIdx);
