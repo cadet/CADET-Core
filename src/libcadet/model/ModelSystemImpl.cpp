@@ -552,8 +552,6 @@ bool ModelSystem::configure(IParameterProvider& paramProvider)
 {
 	_parameters.clear();
 
-	configureSwitches(paramProvider);
-
 	// Reconfigure all external functions
 	bool success = true;
 	if (paramProvider.exists("external"))
@@ -604,6 +602,9 @@ bool ModelSystem::configure(IParameterProvider& paramProvider)
 
 	_gmres.orthoMethod(linalg::toOrthogonalization(gsType));
 	_gmres.maxRestarts(maxRestarts);
+
+	// Reconfigure switches
+	configureSwitches(paramProvider);
 
 	return success;
 }
