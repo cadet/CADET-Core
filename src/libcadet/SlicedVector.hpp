@@ -175,14 +175,14 @@ public:
 	 * @param [in] idxSlice Index of the slice
 	 * @return Pointer to the first element of the given slice
 	 */
-	inline T const* operator[](size_type idxSlice) const { return &_values[_index[idxSlice]]; }
+	inline T const* operator[](size_type idxSlice) const { return _values.data() + _index[idxSlice]; }
 
 	/**
 	 * @brief Returns a pointer to the first element of a given slice
 	 * @param [in] idxSlice Index of the slice
 	 * @return Pointer to the first element of the given slice
 	 */
-	inline T* operator[](size_type idxSlice) { return &_values[_index[idxSlice]]; }
+	inline T* operator[](size_type idxSlice) { return _values.data() + _index[idxSlice]; }
 
 	/**
 	 * @brief Returns the element at the given position in the given slice
@@ -235,14 +235,14 @@ public:
 	 * @param [in] idxSlice Index of the slice
 	 * @return Pointer to the first element of the given slice
 	 */
-	inline T const* at(size_type idxSlice) const { return &_values[_index[idxSlice]]; }
+	inline T const* at(size_type idxSlice) const { return _values.data() + _index[idxSlice]; }
 
 	/**
 	 * @brief Returns a pointer to the first element of a given slice
 	 * @param [in] idxSlice Index of the slice
 	 * @return Pointer to the first element of the given slice
 	 */
-	inline T* at(size_type idxSlice) { return &_values[_index[idxSlice]]; }
+	inline T* at(size_type idxSlice) { return _values.data() + _index[idxSlice]; }
 
 	/**
 	 * @brief Returns a pointer to the first element of the last slice
