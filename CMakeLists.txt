@@ -95,6 +95,9 @@ add_feature_info(ENABLE_BENCHMARK ENABLE_BENCHMARK "Enables benchmark mode (fine
 option(ENABLE_PLATFORM_TIMER "Use a platform-dependent timer" OFF)
 add_feature_info(ENABLE_PLATFORM_TIMER ENABLE_PLATFORM_TIMER "Use a platform-dependent timer")
 
+option(ENABLE_THREADING "Use multi-threading" ON)
+add_feature_info(ENABLE_THREADING ENABLE_THREADING "Use multi-threading")
+
 option(ENABLE_DEBUG_THREADING "Use multi-threading in debug builds" OFF)
 add_feature_info(ENABLE_DEBUG_THREADING ENABLE_DEBUG_THREADING "Use multi-threading in debug builds")
 
@@ -162,42 +165,44 @@ endif()
 # ---------------------------------------------------
 include(WriteCompilerDetectionHeader)
 
-set(TBB_PREFER_STATIC_LIBS ${ENABLE_STATIC_LINK_DEPS})
-set(TBB_USE_DEBUG_BUILD OFF)
-find_package(TBB COMPONENTS tbb OPTIONAL_COMPONENTS tbb_preview)
-set_package_properties(TBB PROPERTIES
-	TYPE RECOMMENDED
-	PURPOSE "Accelerates computation via multi-threading"
-)
-
-set(CADET_PARALLEL_FLAG "")
 set(TBB_TARGET "")
-if (TBB_FOUND)
-	# Use tbb_preview instead of tbb if it has been found
-	if (TBB_tbb_preview_FOUND)
-		set(TBB_TARGET "TBB::TBBpreview")
-	else()
-		set(TBB_TARGET "TBB::TBB")
-	endif()
+if (ENABLE_THREADING)
+	set(TBB_PREFER_STATIC_LIBS ${ENABLE_STATIC_LINK_DEPS})
+	set(TBB_USE_DEBUG_BUILD OFF)
+	find_package(TBB COMPONENTS tbb OPTIONAL_COMPONENTS tbb_preview)
+	set_package_properties(TBB PROPERTIES
+		TYPE RECOMMENDED
+		PURPOSE "Accelerates computation via multi-threading"
+	)
 
-	if (CMAKE_BUILD_TYPE STREQUAL "Debug")
-		if (ENABLE_DEBUG_THREADING)
+	set(CADET_PARALLEL_FLAG "")
+	if (TBB_FOUND)
+		# Use tbb_preview instead of tbb if it has been found
+		if (TBB_tbb_preview_FOUND)
+			set(TBB_TARGET "TBB::TBBpreview")
+		else()
+			set(TBB_TARGET "TBB::TBB")
+		endif()
+
+		if (CMAKE_BUILD_TYPE STREQUAL "Debug")
+			if (ENABLE_DEBUG_THREADING)
+				set(CADET_PARALLEL_FLAG "CADET_PARALLELIZE")
+			endif()
+		else()
 			set(CADET_PARALLEL_FLAG "CADET_PARALLELIZE")
 		endif()
-	else()
-		set(CADET_PARALLEL_FLAG "CADET_PARALLELIZE")
-	endif()
 
-	get_target_property(TBB_IFACE_COMP_DEF ${TBB_TARGET} INTERFACE_COMPILE_DEFINITIONS)
-	if (TBB_IFACE_COMP_DEF)
-		list(APPEND TBB_IFACE_COMP_DEF ${CADET_PARALLEL_FLAG})
-	else()
-		set(TBB_IFACE_COMP_DEF ${CADET_PARALLEL_FLAG})
+		get_target_property(TBB_IFACE_COMP_DEF ${TBB_TARGET} INTERFACE_COMPILE_DEFINITIONS)
+		if (TBB_IFACE_COMP_DEF)
+			list(APPEND TBB_IFACE_COMP_DEF ${CADET_PARALLEL_FLAG})
+		else()
+			set(TBB_IFACE_COMP_DEF ${CADET_PARALLEL_FLAG})
+		endif()
+		if (TBB_IFACE_COMP_DEF)
+			set_target_properties(${TBB_TARGET} PROPERTIES INTERFACE_COMPILE_DEFINITIONS "${TBB_IFACE_COMP_DEF}")
+		endif()
+		unset(TBB_IFACE_COMP_DEF)
 	endif()
-	if (TBB_IFACE_COMP_DEF)
-		set_target_properties(${TBB_TARGET} PROPERTIES INTERFACE_COMPILE_DEFINITIONS "${TBB_IFACE_COMP_DEF}")
-	endif()
-	unset(TBB_IFACE_COMP_DEF)
 endif()
 
 set(BLA_STATIC ${ENABLE_STATIC_LINK_LAPACK})
@@ -374,6 +379,9 @@ if (ENABLE_CADET_MEX)
 	option(MATLAB_FORCE_UMFPACK "Forcefully use MATLAB's UMFPACK as sole sparse solver in MEX interface" OFF)
 	add_feature_info(MATLAB_FORCE_UMFPACK MATLAB_FORCE_UMFPACK "Forcefully use MATLAB's UMFPACK as sole sparse solver in MEX interface")
 
+	option(MATLAB_ENABLE_THREADING "Enable multi-threading in MATLAB" ON)
+	add_feature_info(MATLAB_ENABLE_THREADING MATLAB_ENABLE_THREADING "Enable multi-threading in MATLAB")
+
 	# Check TBB <-> Matlab compatibility
 	option(MATLAB_FORCE_ENABLE_TBB "Forcefully enable usage of MATLAB's TBB library in case system TBB is not compatible and not enforced" OFF)
 	add_feature_info(MATLAB_FORCE_ENABLE_TBB MATLAB_FORCE_ENABLE_TBB "Forcefully enable usage of MATLAB's TBB library in case system TBB is not compatible and not enforced")
@@ -394,19 +402,21 @@ if (ENABLE_CADET_MEX)
 		endif()
 
 		set(Matlab_TBB_TARGET "")
-		if (TBB_tbb_preview_FOUND OR (TBB_FOUND AND MATLAB_USE_SYSTEM_TBB))
-			# Linking to tbb_preview usually works
-			set(Matlab_TBB_TARGET ${TBB_TARGET})
-		else()
-			if (Matlab_TBB_LIBRARY_FOUND AND TBB_FOUND)
-				if (TBB_INTERFACE_VERSION LESS_EQUAL Matlab_TBB_INTERFACE_VERSION)
-					# System TBB is older than or same age as Matlab's TBB
-					set(Matlab_TBB_TARGET "MATLAB::TBB")
-				else()
-					if (MATLAB_FORCE_ENABLE_TBB)
+		if (MATLAB_ENABLE_THREADING)
+			if (TBB_tbb_preview_FOUND OR (TBB_FOUND AND MATLAB_USE_SYSTEM_TBB))
+				# Linking to tbb_preview usually works
+				set(Matlab_TBB_TARGET ${TBB_TARGET})
+			else()
+				if (Matlab_TBB_LIBRARY_FOUND AND TBB_FOUND)
+					if (TBB_INTERFACE_VERSION LESS_EQUAL Matlab_TBB_INTERFACE_VERSION)
+						# System TBB is older than or same age as Matlab's TBB
 						set(Matlab_TBB_TARGET "MATLAB::TBB")
 					else()
-						message(WARNING "Matlab's TBB version is older (${Matlab_TBB_INTERFACE_VERSION}) than the system headers (${TBB_INTERFACE_VERSION}). TBB parallelization is disabled in MEX interface. Set -DMATLAB_FORCE_ENABLE_TBB=ON to enforce TBB support.")
+						if (MATLAB_FORCE_ENABLE_TBB)
+							set(Matlab_TBB_TARGET "MATLAB::TBB")
+						else()
+							message(WARNING "Matlab's TBB version is older (${Matlab_TBB_INTERFACE_VERSION}) than the system headers (${TBB_INTERFACE_VERSION}). TBB parallelization is disabled in MEX interface. Set -DMATLAB_FORCE_ENABLE_TBB=ON to enforce TBB support.")
+						endif()
 					endif()
 				endif()
 			endif()
