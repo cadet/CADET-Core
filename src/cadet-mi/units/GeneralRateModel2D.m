@@ -25,6 +25,7 @@ classdef GeneralRateModel2D < Model
 		nCellsParticle; % Number of radial cells in the particle
 		nBoundStates; % Number of bound states for each component
 		nParticleTypes; % Number of particle types
+		particleBoundaryOrder; % Order of accuracy of particle boundary condition discretization
 
 		radialDiscretizationType; % Type of radial discretization (e.g., equivolume)
 		radialCellPosition; % Positions of the cells in the radial direction (between 0 and columnRadius)
@@ -120,6 +121,7 @@ classdef GeneralRateModel2D < Model
 			obj.useAnalyticJacobian = true;
 			obj.particleCellPosition = [];
 			obj.particleDiscretizationType = 'EQUIDISTANT_PAR';
+			obj.particleBoundaryOrder = 2;
 
 			obj.radialCellPosition = [];
 			obj.radialDiscretizationType = 'EQUIDISTANT';
@@ -198,6 +200,16 @@ classdef GeneralRateModel2D < Model
 			else
 				obj.data.discretization.PAR_DISC_TYPE = {validatestring(val, {'EQUIDISTANT_PAR', 'EQUIVOLUME_PAR', 'USER_DEFINED_PAR'}, '', 'particleDiscretizationType')};
 			end
+			obj.hasChanged = true;
+		end
+
+		function val = get.particleBoundaryOrder(obj)
+			val = double(obj.data.discretization.PAR_BOUNDARY_ORDER);
+		end
+
+		function set.particleBoundaryOrder(obj, val)
+			validateattributes(val, {'numeric'}, {'scalar', 'nonempty', '>=', 1, '<=', 2, 'finite', 'real', 'integer'}, '', 'particleBoundaryOrder');
+			obj.data.discretization.PAR_BOUNDARY_ORDER = int32(val);
 			obj.hasChanged = true;
 		end
 

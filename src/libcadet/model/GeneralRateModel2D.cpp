@@ -514,6 +514,16 @@ bool GeneralRateModel2D::configureModelDiscretization(IParameterProvider& paramP
 	const bool analyticJac = false;
 #endif
 
+	// Read bulk-particle interface discretization order
+	// Default to second order
+	_colParBoundaryOrder = 2;
+	if (paramProvider.exists("PAR_BOUNDARY_ORDER"))
+	{
+		_colParBoundaryOrder = paramProvider.getInt("PAR_BOUNDARY_ORDER");
+		if ((_colParBoundaryOrder < 1) || (_colParBoundaryOrder > 2))
+			throw InvalidParameterException("Field PAR_BOUNDARY_ORDER is out of valid range (1 or 2)");
+	}
+
 	// Initialize and configure GMRES for solving the Schur-complement
 	_gmres.initialize(_disc.nCol * _disc.nRad * _disc.nComp * _disc.nParType, paramProvider.getInt("MAX_KRYLOV"), linalg::toOrthogonalization(paramProvider.getInt("GS_TYPE")), paramProvider.getInt("MAX_RESTARTS"));
 	_gmres.matrixVectorMultiplier(&schurComplementMultiplierGRM2D, this);
@@ -1559,10 +1569,16 @@ int GeneralRateModel2D::residualFlux(double t, unsigned int secIdx, StateType co
 		const ParamType jacPF_val = -outerAreaPerVolume / epsP;
 
 		// Discretized film diffusion kf for finite volumes
-		const ParamType absOuterShellHalfRadius = 0.5 * static_cast<ParamType>(_parCellSize[_disc.nParCellsBeforeType[type]]);
-		for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
+		if (cadet_likely(_colParBoundaryOrder == 2))
 		{
-			kf_FV[comp] = 1.0 / (absOuterShellHalfRadius / epsP / static_cast<ParamType>(_poreAccessFactor[type * _disc.nComp + comp]) / static_cast<ParamType>(parDiff[comp]) + 1.0 / static_cast<ParamType>(filmDiff[comp]));
+			const ParamType absOuterShellHalfRadius = 0.5 * static_cast<ParamType>(_parCellSize[_disc.nParCellsBeforeType[type]]);
+			for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
+				kf_FV[comp] = 1.0 / (absOuterShellHalfRadius / epsP / static_cast<ParamType>(_poreAccessFactor[type * _disc.nComp + comp]) / static_cast<ParamType>(parDiff[comp]) + 1.0 / static_cast<ParamType>(filmDiff[comp]));
+		}
+		else
+		{
+			for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
+				kf_FV[comp] = static_cast<ParamType>(filmDiff[comp]);
 		}
 
 		// J_{0,f} block, adds flux to column void / bulk volume equations
@@ -1655,12 +1671,18 @@ void GeneralRateModel2D::assembleOffdiagJac(double t, unsigned int secIdx)
 		const double outerAreaPerVolume = static_cast<double>(_parOuterSurfAreaPerVolume[_disc.nParCellsBeforeType[type]]);
 
 		const double jacPF_val = -outerAreaPerVolume / epsP;
-		const double absOuterShellHalfRadius = 0.5 * static_cast<double>(_parCellSize[_disc.nParCellsBeforeType[type]]);
 
 		// Discretized film diffusion kf for finite volumes
-		for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
+		if (cadet_likely(_colParBoundaryOrder == 2))
 		{
-			kf_FV[comp] = 1.0 / (absOuterShellHalfRadius / epsP / static_cast<double>(_poreAccessFactor[type * _disc.nComp + comp]) / static_cast<double>(parDiff[comp]) + 1.0 / static_cast<double>(filmDiff[comp]));
+			const double absOuterShellHalfRadius = 0.5 * static_cast<double>(_parCellSize[_disc.nParCellsBeforeType[type]]);
+			for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
+				kf_FV[comp] = 1.0 / (absOuterShellHalfRadius / epsP / static_cast<double>(_poreAccessFactor[type * _disc.nComp + comp]) / static_cast<double>(parDiff[comp]) + 1.0 / static_cast<double>(filmDiff[comp]));
+		}
+		else
+		{
+			for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
+				kf_FV[comp] = static_cast<double>(filmDiff[comp]);
 		}
 
 		// J_{0,f} block, adds flux to column void / bulk volume equations

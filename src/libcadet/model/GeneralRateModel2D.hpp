@@ -319,6 +319,7 @@ protected:
 	double* _tempState; //!< Temporary storage with the size of the state vector or larger if binding models require it
 	linalg::Gmres _gmres; //!< GMRES algorithm for the Schur-complement in linearSolve()
 	double _schurSafety; //!< Safety factor for Schur-complement solution
+	int _colParBoundaryOrder; //!< Order of the bulk-particle boundary discretization
 
 	std::vector<active> _initC; //!< Liquid bulk phase initial conditions
 	bool _singleRadiusInitC;
