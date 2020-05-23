@@ -447,7 +447,7 @@ classdef ParameterFit < handle
 
 				% Simulate				
 				newLastResult{i} = obj.models{i}.runWithParameters(localParams, true);
-				resSol = squeeze(newLastResult{i}.solution.outlet); % Format is [nTime, nComp]
+				resSol = newLastResult{i}.solution.outlet(:, 1, :); % Format is [nTime, nComp]
 				resJac = newLastResult{i}.sensitivity.jacobian; % Format is [nTime, nComp, nParam]
 
 				curUnit = obj.idxUnit{i};
@@ -470,7 +470,7 @@ classdef ParameterFit < handle
 					res(resIdx:resIdx+nPoints-1) = (obj.weightsExp(i) .* curWeightWave(j)) .* curWeightData{j} .* (resSol{unitTrace}(curMask{j}, :) * curComp{j} - curData{j});
 
 					if (nargout > 1) && ~isempty(resJac{unitTrace})
-						curJac = squeeze(resJac{unitTrace}); % Format is [nTime, nComp, nParam]
+						curJac = resJac{unitTrace}(:, 1, :, :); % Format is [nTime, nComp, nParam]
 
 						% Loop over parameters
 						for k = 1:size(curJac, 3)
