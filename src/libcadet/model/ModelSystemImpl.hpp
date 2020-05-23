@@ -149,6 +149,7 @@ public:
 	virtual std::vector<double> benchmarkTimings() const
 	{
 		return std::vector<double>({
+			static_cast<double>(numDofs()),
 			_timerResidual.totalElapsedTime(),
 			_timerResidualSens.totalElapsedTime(),
 			_timerConsistentInit.totalElapsedTime(),
@@ -161,6 +162,7 @@ public:
 	virtual char const* const* benchmarkDescriptions() const
 	{
 		static const char* const desc[] = {
+			"DOFs",
 			"Residual",
 			"ResidualSens",
 			"ConsistentInit",
