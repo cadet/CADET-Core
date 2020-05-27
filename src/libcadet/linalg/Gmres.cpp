@@ -29,10 +29,22 @@ namespace cadet
 namespace linalg
 {
 
+#ifdef CADET_BENCHMARK_MODE
+	void incrementGmresIter(Gmres* gmres)
+	{
+		++gmres->_numIter;
+	}
+#endif
+
 // Wrapper function that calls the user function with the supplied user data
 int gmresCallback(void* userData, N_Vector v, N_Vector z)
 {
 	Gmres* const g = static_cast<Gmres*>(userData);
+
+#ifdef CADET_BENCHMARK_MODE
+	incrementGmresIter(p);
+#endif
+
 	Gmres::MatrixVectorMultFun callback = g->matrixVectorMultiplier();
 	return callback(g->userData(), NVEC_DATA(v), NVEC_DATA(z));
 }
@@ -132,11 +144,6 @@ int Gmres::solve(double tolerance, double const* weight, double const* rhs, doub
 	NVec_Destroy(NV_rhs);
 	NVec_Destroy(NV_weight);
 	NVec_Destroy(NV_sol);
-
-#ifdef CADET_BENCHMARK_MODE
-	// Accumulate number of iterations
-	_numIter += nIter;
-#endif
 
 	return flag;
 }

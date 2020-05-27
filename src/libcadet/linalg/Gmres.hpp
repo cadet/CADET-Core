@@ -207,6 +207,7 @@ protected:
 
 #ifdef CADET_BENCHMARK_MODE
 	int _numIter; //!< Accumulated number of iterations
+	friend void incrementGmresIter(Gmres* gmres);
 #endif
 };
 
