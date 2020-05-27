@@ -154,8 +154,7 @@ public:
 			_timerResidualSensPar.totalElapsedTime(),
 			_timerConsistentInit.totalElapsedTime(),
 			_timerConsistentInitPar.totalElapsedTime(),
-			_timerLinearSolve.totalElapsedTime(),
-			_timerFactorize.totalElapsedTime()
+			_timerLinearSolve.totalElapsedTime()
 		});
 	}
 
@@ -169,8 +168,7 @@ public:
 			"ResidualSensPar",
 			"ConsistentInit",
 			"ConsistentInitPar",
-			"LinearSolve",
-			"Factorize"
+			"LinearSolve"
 		};
 		return desc;
 	}
@@ -235,7 +233,6 @@ protected:
 	BENCH_TIMER(_timerConsistentInit)
 	BENCH_TIMER(_timerConsistentInitPar)
 	BENCH_TIMER(_timerLinearSolve)
-	BENCH_TIMER(_timerFactorize)
 
 	class Indexer
 	{
