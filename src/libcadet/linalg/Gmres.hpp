@@ -184,6 +184,14 @@ public:
 	 */
 	const char* getReturnFlagName(int flag) const CADET_NOEXCEPT;
 
+#ifdef CADET_BENCHMARK_MODE
+	/**
+	 * @brief Returns the total number of iterations over all calls of solve()
+	 * @return Total number of iterations
+	 */
+	inline int numIterations() const CADET_NOEXCEPT { return _numIter; }
+#endif
+
 protected:
 
 #if CADET_SUNDIALS_IFACE == 2
@@ -196,6 +204,10 @@ protected:
 	unsigned int _matrixSize; //!< Size of the square matrix
 	MatrixVectorMultFun _matVecMul; //!< Matrix-vector multiplication function required for GMRES algorithm
 	void* _userData; //!< User data for matrix-vector multiplication function
+
+#ifdef CADET_BENCHMARK_MODE
+	int _numIter; //!< Accumulated number of iterations
+#endif
 };
 
 } // namespace linalg

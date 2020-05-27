@@ -45,6 +45,9 @@ Gmres::Gmres() CADET_NOEXCEPT :
 #endif
 	_ortho(Orthogonalization::ModifiedGramSchmidt), _maxRestarts(0), _matrixSize(0), _matVecMul(nullptr), _userData(nullptr)
 {
+#ifdef CADET_BENCHMARK_MODE
+	_numIter = 0;
+#endif
 }
 
 Gmres::~Gmres() CADET_NOEXCEPT
@@ -119,7 +122,7 @@ int Gmres::solve(double tolerance, double const* weight, double const* rhs, doub
 	SUNLinSolSetup(_linearSolver, nullptr);
 	const int flag = SUNLinSolSolve(_linearSolver, nullptr, NV_sol, NV_rhs, tolerance);
 
-#ifdef CADET_DEBUG
+#if defined(CADET_DEBUG) || defined(CADET_BENCHMARK_MODE)
 	const int nIter = SUNLinSolNumIters(_linearSolver);
 	const double resNorm = SUNLinSolResNorm(_linearSolver);
 #endif
@@ -129,6 +132,11 @@ int Gmres::solve(double tolerance, double const* weight, double const* rhs, doub
 	NVec_Destroy(NV_rhs);
 	NVec_Destroy(NV_weight);
 	NVec_Destroy(NV_sol);
+
+#ifdef CADET_BENCHMARK_MODE
+	// Accumulate number of iterations
+	_numIter += nIter;
+#endif
 
 	return flag;
 }

@@ -177,7 +177,8 @@ public:
 			_timerFactorize.totalElapsedTime(),
 			_timerFactorizePar.totalElapsedTime(),
 			_timerMatVec.totalElapsedTime(),
-			_timerGmres.totalElapsedTime()
+			_timerGmres.totalElapsedTime(),
+			static_cast<double>(_gmres.numIterations())
 		});
 	}
 
@@ -196,7 +197,8 @@ public:
 			"Factorize",
 			"FactorizePar",
 			"MatVec",
-			"Gmres"
+			"Gmres",
+			"NumGMRESIter"
 		};
 		return desc;
 	}

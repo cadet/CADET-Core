@@ -155,7 +155,8 @@ public:
 			_timerConsistentInit.totalElapsedTime(),
 			_timerLinearAssemble.totalElapsedTime(),
 			_timerLinearSolve.totalElapsedTime(),
-			_timerMatVec.totalElapsedTime()
+			_timerMatVec.totalElapsedTime(),
+			static_cast<double>(_gmres.numIterations())
 		});
 	}
 
@@ -168,7 +169,8 @@ public:
 			"ConsistentInit",
 			"LinearAssemble",
 			"LinearSolve",
-			"MatVec"
+			"MatVec",
+			"NumGMRESIter"
 		};
 		return desc;
 	}
