@@ -18,7 +18,7 @@
 #ifndef LIBCADET_UNITOPERATIONBASE_HPP_
 #define LIBCADET_UNITOPERATIONBASE_HPP_
 
-#include "UnitOperation.hpp"
+#include "model/UnitOperation.hpp"
 #include "AutoDiff.hpp"
 #include "ParamIdUtil.hpp"
 #include "nonlin/Solver.hpp"

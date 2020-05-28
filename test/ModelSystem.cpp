@@ -24,7 +24,7 @@
 #include "JacobianHelper.hpp"
 #include "ColumnTests.hpp"
 #include "Utils.hpp"
-#include "UnitOperation.hpp"
+#include "model/UnitOperation.hpp"
 
 #include <limits>
 #include <vector>

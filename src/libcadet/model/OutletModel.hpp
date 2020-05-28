@@ -20,7 +20,7 @@
 
 #include "cadet/SolutionExporter.hpp"
 
-#include "UnitOperation.hpp"
+#include "model/UnitOperation.hpp"
 #include "AutoDiff.hpp"
 #include "ParamIdUtil.hpp"
 #include "model/ModelUtils.hpp"

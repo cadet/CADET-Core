@@ -22,7 +22,7 @@
 #include "SimHelper.hpp"
 #include "ParticleHelper.hpp"
 #include "common/Driver.hpp"
-#include "UnitOperation.hpp"
+#include "model/UnitOperation.hpp"
 #include "SimulationTypes.hpp"
 
 #include <cmath>

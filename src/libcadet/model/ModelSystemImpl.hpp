@@ -19,7 +19,7 @@
 #define LIBCADET_MODELSYSTEM_IMPL_HPP_
 
 #include "SimulatableModel.hpp"
-#include "UnitOperation.hpp"
+#include "model/UnitOperation.hpp"
 #include "AutoDiff.hpp"
 #include "SlicedVector.hpp"
 #include "ParamIdUtil.hpp"

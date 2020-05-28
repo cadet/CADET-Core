@@ -28,7 +28,7 @@
 
 #include "common/JsonParameterProvider.hpp"
 #include "JsonTestModels.hpp"
-#include "UnitOperation.hpp"
+#include "model/UnitOperation.hpp"
 
 namespace
 {

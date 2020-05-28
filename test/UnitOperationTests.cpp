@@ -22,7 +22,7 @@
 #include "ModelBuilderImpl.hpp"
 #include "AutoDiff.hpp"
 #include "linalg/Norms.hpp"
-#include "UnitOperation.hpp"
+#include "model/UnitOperation.hpp"
 #include "UnitOperationTests.hpp"
 #include "JacobianHelper.hpp"
 #include "SimulationTypes.hpp"

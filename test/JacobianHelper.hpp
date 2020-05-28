@@ -18,7 +18,7 @@
 #ifndef CADETTEST_JACOBIANHELPER_HPP_
 #define CADETTEST_JACOBIANHELPER_HPP_
 
-#include "UnitOperation.hpp"
+#include "model/UnitOperation.hpp"
 #include "SimulationTypes.hpp"
 
 #include <catch.hpp>

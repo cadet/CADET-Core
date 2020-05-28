@@ -16,7 +16,6 @@
 #include "cadet/Notification.hpp"
 #include "SimulatorImpl.hpp"
 #include "SimulatableModel.hpp"
-#include "UnitOperation.hpp"
 #include "ParamIdUtil.hpp"
 #include "SimulationTypes.hpp"
 
