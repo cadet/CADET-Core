@@ -30,6 +30,9 @@
 	typedef struct _generic_SUNLinearSolver *SUNLinearSolver;
 #endif
 
+typedef struct _generic_N_Vector *N_Vector;
+
+
 namespace cadet
 {
 
@@ -207,7 +210,7 @@ protected:
 
 #ifdef CADET_BENCHMARK_MODE
 	int _numIter; //!< Accumulated number of iterations
-	friend void incrementGmresIter(Gmres* gmres);
+	friend int gmresCallback(void* userData, N_Vector v, N_Vector z);
 #endif
 };
 
