@@ -1461,6 +1461,10 @@ void GeneralRateModel2D::consistentInitialSensitivity(const SimulationTime& simT
 		BENCH_STOP(_timerConsistentInitPar);
 #endif
 
+		// TODO: Right hand side for fluxes should be -d^2res/(dp dy) * \dot{y}
+		// If parameters depend on time, then it should be
+		// -d^2res/(dp dy) * \dot{y} - d^2res/(dt dy) * s - d^2res/(dp dt)
+
 		// Step 2b: Solve for fluxes j_f by backward substitution
 		solveForFluxes(sensYdot, idxr);
 	}
