@@ -205,10 +205,6 @@ add_library(CADET::LibOptions INTERFACE IMPORTED)
 if (ENABLE_ANALYTIC_JACOBIAN_CHECK)
 	target_compile_definitions(CADET::LibOptions INTERFACE CADET_CHECK_ANALYTIC_JACOBIAN)
 endif()
-if (ENABLE_BENCHMARK)
-	target_compile_definitions(CADET::LibOptions INTERFACE CADET_BENCHMARK_MODE)
-endif()
-
 
 
 set(LIBCADET_TARGETS)

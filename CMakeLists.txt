@@ -460,6 +460,10 @@ else()
 	target_compile_definitions(CADET::CompileOptions INTERFACE CADET_LOGLEVEL_MIN=Warning NDEBUG)
 endif()
 
+if (ENABLE_BENCHMARK)
+	target_compile_definitions(CADET::CompileOptions INTERFACE CADET_BENCHMARK_MODE)
+endif()
+
 if (ENABLE_PLATFORM_TIMER)
 	target_compile_definitions(CADET::CompileOptions INTERFACE CADET_USE_PLATFORM_TIMER)
 	if ((NOT APPLE) AND (NOT WIN32))
