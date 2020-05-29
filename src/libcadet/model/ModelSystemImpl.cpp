@@ -20,6 +20,7 @@
 #include "SensParamUtil.hpp"
 #include "SimulationTypes.hpp"
 
+#include <sstream>
 #include <iomanip>
 
 #include "LoggingUtils.hpp"
@@ -76,6 +77,14 @@ namespace
 				return true;
 		}
 		return false;
+	}
+
+	template <typename T>
+	std::string toSciString(const T val, const int prec = 6)
+	{
+		std::ostringstream out;
+		out << std::scientific << std::setprecision(prec) << val;
+		return out.str();
 	}
 }
 
@@ -206,24 +215,6 @@ unsigned int ModelSystem::totalNumOutletPorts() const CADET_NOEXCEPT
 	unsigned int nPorts = 0;
 	for (IUnitOperation const* m : _models)
 		nPorts += m->numOutletPorts();
-
-	return nPorts;
-}
-
-unsigned int ModelSystem::maxUnitInletPorts() const CADET_NOEXCEPT
-{
-	unsigned int nPorts = 0;
-	for (IUnitOperation const* m : _models)
-		nPorts = std::max(nPorts, m->numInletPorts());
-
-	return nPorts;
-}
-
-unsigned int ModelSystem::maxUnitOutletPorts() const CADET_NOEXCEPT
-{
-	unsigned int nPorts = 0;
-	for (IUnitOperation const* m : _models)
-		nPorts = std::max(nPorts, m->numOutletPorts());
 
 	return nPorts;
 }
@@ -535,12 +526,35 @@ bool ModelSystem::configureModelDiscretization(IParameterProvider& paramProvider
 	_tempState = new double[numDofs()];
 
 //	_tempSchur = new double[*std::max_element(_dofs.begin(), _dofs.end())];
-	_flowRateIn.resize(maxUnitInletPorts(), 0.0);
-	_flowRateOut.resize(maxUnitOutletPorts(), 0.0);
+	_flowRateIn.reserve(totalNumInletPorts(), _models.size());
+	_flowRateOut.reserve(totalNumOutletPorts(), _models.size());
 
 	_totalInletFlow.reserve(totalNumInletPorts(), _models.size());
+	_totalInletFlowLin.reserve(totalNumInletPorts(), _models.size());
+	_totalInletFlowQuad.reserve(totalNumInletPorts(), _models.size());
+	_totalInletFlowCub.reserve(totalNumInletPorts(), _models.size());
+
+	_totalOutletFlow.reserve(totalNumOutletPorts(), _models.size());
+	_totalOutletFlowLin.reserve(totalNumOutletPorts(), _models.size());
+	_totalOutletFlowQuad.reserve(totalNumOutletPorts(), _models.size());
+	_totalOutletFlowCub.reserve(totalNumOutletPorts(), _models.size());
+
 	for (IUnitOperation const* m : _models)
+	{
+		_flowRateIn.pushBackSlice(m->numInletPorts());
 		_totalInletFlow.pushBackSlice(m->numInletPorts());
+		_totalInletFlowLin.pushBackSlice(m->numInletPorts());
+		_totalInletFlowQuad.pushBackSlice(m->numInletPorts());
+		_totalInletFlowCub.pushBackSlice(m->numInletPorts());
+
+		_flowRateOut.pushBackSlice(m->numOutletPorts());
+		_totalOutletFlow.pushBackSlice(m->numOutletPorts());
+		_totalOutletFlowLin.pushBackSlice(m->numOutletPorts());
+		_totalOutletFlowQuad.pushBackSlice(m->numOutletPorts());
+		_totalOutletFlowCub.pushBackSlice(m->numOutletPorts());
+	}
+
+	assembleRightMacroColumn();
 
 #ifdef CADET_DEBUG
 
@@ -632,8 +646,14 @@ void ModelSystem::configureSwitches(IParameterProvider& paramProvider)
 
 #if CADET_COMPILER_CXX_CONSTEXPR
 	constexpr StringHash flowHash = hashString("CONNECTION");
+	constexpr StringHash flowHashLin = hashString("CONNECTION_LIN");
+	constexpr StringHash flowHashQuad = hashString("CONNECTION_QUAD");
+	constexpr StringHash flowHashCub = hashString("CONNECTION_CUBE");
 #else
 	const StringHash flowHash = hashString("CONNECTION");
+	const StringHash flowHashLin = hashString("CONNECTION_LIN");
+	const StringHash flowHashQuad = hashString("CONNECTION_QUAD");
+	const StringHash flowHashCub = hashString("CONNECTION_CUBE");
 #endif
 
 	// Default: ports are not given in connection list
@@ -646,6 +666,13 @@ void ModelSystem::configureSwitches(IParameterProvider& paramProvider)
 	// If we have unit operations with multiple ports, we require ports in connection list
 	if (hasMultiPortUnits(_models))
 		conListHasPorts = true;
+
+	// Default: no dynamic flow rates
+	_hasDynamicFlowRates = false;
+
+	// Override default by user option
+	if (paramProvider.exists("CONNECTIONS_INCLUDE_DYNAMIC_FLOW"))
+		_hasDynamicFlowRates = paramProvider.getBool("CONNECTIONS_INCLUDE_DYNAMIC_FLOW");
 
 	std::ostringstream oss;
 	for (unsigned int i = 0; i < numSwitches; ++i)
@@ -663,19 +690,38 @@ void ModelSystem::configureSwitches(IParameterProvider& paramProvider)
 		std::vector<double> connFlow = paramProvider.getDoubleArray("CONNECTIONS");
 		if (!conListHasPorts)
 		{
-			if ((connFlow.size() % 5) != 0)
-				throw InvalidParameterException("CONNECTIONS matrix has to have 5 columns if CONNECTIONS_INCLUDE_PORTS is disabled");
+			if (_hasDynamicFlowRates)
+			{
+				if ((connFlow.size() % 8) != 0)
+					throw InvalidParameterException("CONNECTIONS matrix has to have 8 columns if CONNECTIONS_INCLUDE_PORTS is disabled and CONNECTIONS_INCLUDE_DYNAMIC_FLOW is enabled");
+			}
+			else
+			{
+				if ((connFlow.size() % 5) != 0)
+					throw InvalidParameterException("CONNECTIONS matrix has to have 5 columns if CONNECTIONS_INCLUDE_PORTS is disabled and CONNECTIONS_INCLUDE_DYNAMIC_FLOW is disabled");
+			}
 
 			addDefaultPortsToConnectionList(connFlow);
 		}
 
-		if ((connFlow.size() % 7) != 0)
-			throw InvalidParameterException("CONNECTIONS matrix has to have 7 columns");
+		if (!_hasDynamicFlowRates)
+		{
+			if ((connFlow.size() % 7) != 0)
+				throw InvalidParameterException("CONNECTIONS matrix has to have 5 or 7 columns if CONNECTIONS_INCLUDE_DYNAMIC_FLOW is disabled");
 
-		std::vector<int> conn(connFlow.size() / 7 * 6, 0);
-		std::vector<double> fr(connFlow.size() / 7, 0.0);
-		
-		checkConnectionList(connFlow, conn, fr, i);
+			addDefaultDynamicFlowRatesToConnectionList(connFlow);
+		}
+
+		if ((connFlow.size() % 10) != 0)
+			throw InvalidParameterException("CONNECTIONS matrix has to have 10 columns");
+
+		std::vector<int> conn(connFlow.size() / 10 * 6, 0);
+		std::vector<double> fr(connFlow.size() / 10, 0.0);
+		std::vector<double> frLin(connFlow.size() / 10, 0.0);
+		std::vector<double> frQuad(connFlow.size() / 10, 0.0);
+		std::vector<double> frCub(connFlow.size() / 10, 0.0);
+
+		checkConnectionList(connFlow, conn, fr, frLin, frQuad, frCub, i);
 
 		_connections.pushBackSlice(conn);
 
@@ -684,10 +730,19 @@ void ModelSystem::configureSwitches(IParameterProvider& paramProvider)
 		if (fr.size() > 0)
 		{
 			_flowRates.pushBack(fr[0]);
+			_flowRatesLin.pushBack(frLin[0]);
+			_flowRatesQuad.pushBack(frQuad[0]);
+			_flowRatesCub.pushBack(frCub[0]);
 			_parameters[makeParamId(flowHash, UnitOpIndep, conn[2], conn[3], conn[0], conn[1], _switchSectionIndex.back())] = _flowRates.back();
+			_parameters[makeParamId(flowHashLin, UnitOpIndep, conn[2], conn[3], conn[0], conn[1], _switchSectionIndex.back())] = _flowRatesLin.back();
+			_parameters[makeParamId(flowHashQuad, UnitOpIndep, conn[2], conn[3], conn[0], conn[1], _switchSectionIndex.back())] = _flowRatesQuad.back();
+			_parameters[makeParamId(flowHashCub, UnitOpIndep, conn[2], conn[3], conn[0], conn[1], _switchSectionIndex.back())] = _flowRatesCub.back();
 			for (unsigned int j = 1; j < fr.size(); ++j)
 			{
 				_flowRates.pushBackInLastSlice(fr[j]);
+				_flowRatesLin.pushBackInLastSlice(frLin[j]);
+				_flowRatesQuad.pushBackInLastSlice(frQuad[j]);
+				_flowRatesCub.pushBackInLastSlice(frCub[j]);
 
 				// Check if a previous identical connection (except for component indices) exists
 				bool found = false;
@@ -702,12 +757,22 @@ void ModelSystem::configureSwitches(IParameterProvider& paramProvider)
 
 				// Only register the first occurrence of a flow parameter
 				if (!found)
+				{
 					_parameters[makeParamId(flowHash, UnitOpIndep, conn[6*j+2], conn[6*j+3], conn[6*j], conn[6*j+1], _switchSectionIndex.back())] = (_flowRates.back() + j);
+					_parameters[makeParamId(flowHashLin, UnitOpIndep, conn[6*j+2], conn[6*j+3], conn[6*j], conn[6*j+1], _switchSectionIndex.back())] = (_flowRatesLin.back() + j);
+					_parameters[makeParamId(flowHashQuad, UnitOpIndep, conn[6*j+2], conn[6*j+3], conn[6*j], conn[6*j+1], _switchSectionIndex.back())] = (_flowRatesQuad.back() + j);
+					_parameters[makeParamId(flowHashCub, UnitOpIndep, conn[6*j+2], conn[6*j+3], conn[6*j], conn[6*j+1], _switchSectionIndex.back())] = (_flowRatesCub.back() + j);
+				}
 			}
 		}
 		else
+		{
 			// Add empty slice
 			_flowRates.pushBackSlice(nullptr, 0);
+			_flowRatesLin.pushBackSlice(nullptr, 0);
+			_flowRatesQuad.pushBackSlice(nullptr, 0);
+			_flowRatesCub.pushBackSlice(nullptr, 0);
+		}
 
 		if (_linearSolutionMode == 1)
 		{
@@ -786,16 +851,46 @@ void ModelSystem::configureSwitches(IParameterProvider& paramProvider)
  */
 void ModelSystem::addDefaultPortsToConnectionList(std::vector<double>& conList) const
 {
-	const int numRows = conList.size() / 5;
-	std::vector<double> newList(numRows * 7, -1.0);
+	const int strideSrc = _hasDynamicFlowRates ? 8 : 5;
+	const int strideDest = _hasDynamicFlowRates ? 10 : 7;
+	const int numRows = conList.size() / strideSrc;
+	std::vector<double> newList(numRows * strideDest, -1.0);
 
 	double const* src = conList.data();
 	double* dest = newList.data();
-	for (int i = 0; i < numRows; ++i, src += 5, dest += 7)
+	for (int i = 0; i < numRows; ++i, src += strideSrc, dest += strideDest)
 	{
+		// Always copy unit operation indices
 		dest[0] = src[0];
 		dest[1] = src[1];
-		std::copy_n(src + 2, 3, dest + 4);
+
+		// Skip ports (default filled with -1)
+
+		// Copy the rest of the line
+		std::copy_n(src + 2, strideDest - 4, dest + 4);
+	}
+
+	conList = std::move(newList);
+}
+
+
+/**
+ * @brief Add default dynamic flow rates to connection list
+ * @details Adds linear, quadratic, and cubic flow rate coefficients to the list
+ *          The list is overwritten, that is, all pointers and iterators are invalidated.
+ * @param [in,out] conList On entry, list of connections without dynamic flow rates;
+ *                         on exit, list of connections including dynamic flow rates
+ */
+void ModelSystem::addDefaultDynamicFlowRatesToConnectionList(std::vector<double>& conList) const
+{
+	const int numRows = conList.size() / 7;
+	std::vector<double> newList(numRows * 10, 0.0);
+
+	double const* src = conList.data();
+	double* dest = newList.data();
+	for (int i = 0; i < numRows; ++i, src += 7, dest += 10)
+	{
+		std::copy_n(src, 7, dest);
 	}
 
 	conList = std::move(newList);
@@ -833,22 +928,38 @@ void ModelSystem::readLinearSolutionMode(IParameterProvider& paramProvider)
  *              in the local _models vector.
  * @param [out] flowRates Vector with flow rates for each connection in the list. It is assumed
  *              to be pre-allocated (same number of rows as @p conn).
+ * @param [out] flowRatesLin Vector with linear flow rate coefficients for each connection in the list. It is assumed
+ *              to be pre-allocated (same number of rows as @p conn).
+ * @param [out] flowRatesQuad Vector with quadratic flow rate coefficients for each connection in the list. It is assumed
+ *              to be pre-allocated (same number of rows as @p conn).
+ * @param [out] flowRatesCub Vector with cubic flow rate coefficients for each connection in the list. It is assumed
+ *              to be pre-allocated (same number of rows as @p conn).
  * @param [in] idxSwitch Index of the valve switch that corresponds to this connection list
  */
-void ModelSystem::checkConnectionList(const std::vector<double>& conn, std::vector<int>& connOnly, std::vector<double>& flowRates, unsigned int idxSwitch) const
+void ModelSystem::checkConnectionList(const std::vector<double>& conn, std::vector<int>& connOnly, std::vector<double>& flowRates, std::vector<double>& flowRatesLin, std::vector<double>& flowRatesQuad, std::vector<double>& flowRatesCub, unsigned int idxSwitch) const
 {
 	std::vector<double> totalInflow(_models.size(), 0.0);
+	std::vector<double> totalInflowLin(_models.size(), 0.0);
+	std::vector<double> totalInflowQuad(_models.size(), 0.0);
+	std::vector<double> totalInflowCub(_models.size(), 0.0);
 	std::vector<double> totalOutflow(_models.size(), 0.0);
-	for (unsigned int i = 0; i < conn.size() / 7; ++i)
+	std::vector<double> totalOutflowLin(_models.size(), 0.0);
+	std::vector<double> totalOutflowQuad(_models.size(), 0.0);
+	std::vector<double> totalOutflowCub(_models.size(), 0.0);
+
+	for (unsigned int i = 0; i < conn.size() / 10; ++i)
 	{
 		// Extract current connection
-		int uoSource = static_cast<int>(conn[7*i]);
-		int uoDest = static_cast<int>(conn[7*i+1]);
-		const int portSource = static_cast<int>(conn[7*i+2]);
-		const int portDest = static_cast<int>(conn[7*i+3]);
-		const int compSource = static_cast<int>(conn[7*i+4]);
-		const int compDest = static_cast<int>(conn[7*i+5]);
-		double fr = conn[7*i + 6];
+		int uoSource = static_cast<int>(conn[10*i]);
+		int uoDest = static_cast<int>(conn[10*i+1]);
+		const int portSource = static_cast<int>(conn[10*i+2]);
+		const int portDest = static_cast<int>(conn[10*i+3]);
+		const int compSource = static_cast<int>(conn[10*i+4]);
+		const int compDest = static_cast<int>(conn[10*i+5]);
+		double fr = conn[10*i + 6];
+		double frLin = conn[10*i + 7];
+		double frQuad = conn[10*i + 8];
+		double frCub = conn[10*i + 9];
 
 		if (uoSource < 0)
 			throw InvalidParameterException("In CONNECTIONS matrix (switch " + std::to_string(idxSwitch) + " row " + std::to_string(i) + "): Source unit operation id has to be at least 0 in connection");
@@ -912,10 +1023,13 @@ void ModelSystem::checkConnectionList(const std::vector<double>& conn, std::vect
 		bool found = false;
 		for (unsigned int j = 0; j < i; ++j)
 		{
-			if ((conn[7*j] == uoSource) && (uoDest == conn[7*j+1]) && (conn[7*j+2] == portSource) && (portDest == conn[7*j+3]))
+			if ((conn[10*j] == uoSource) && (uoDest == conn[10*j+1]) && (conn[10*j+2] == portSource) && (portDest == conn[10*j+3]))
 			{
 				// Take flow rate that appears first
-				fr = conn[7*j+6];
+				fr = conn[10*j+6];
+				frLin = conn[10*j+7];
+				frQuad = conn[10*j+8];
+				frCub = conn[10*j+9];
 				found = true;
 				break;
 			}
@@ -927,10 +1041,19 @@ void ModelSystem::checkConnectionList(const std::vector<double>& conn, std::vect
 			// Add flow rates to balance
 			totalInflow[uoDest] += fr;
 			totalOutflow[uoSource] += fr;
+			totalInflowLin[uoDest] += frLin;
+			totalOutflowLin[uoSource] += frLin;
+			totalInflowQuad[uoDest] += frQuad;
+			totalOutflowQuad[uoSource] += frQuad;
+			totalInflowCub[uoDest] += frCub;
+			totalOutflowCub[uoSource] += frCub;
 		}
 
 		// Add flow rate to list
 		flowRates[i] = fr;
+		flowRatesLin[i] = frLin;
+		flowRatesQuad[i] = frQuad;
+		flowRatesCub[i] = frCub;
 	}
 
 	// Check flow rate balance
@@ -946,10 +1069,26 @@ void ModelSystem::checkConnectionList(const std::vector<double>& conn, std::vect
 		if ((totalOutflow[i] >= 0.0) && isTerminal(connOnly.data(), connOnly.size() / 6, i))
 			continue;
 
-		// Check balance and account for whether accumulation is allowed
+		// Unit operations that can accumulate cannot be checked
+		if (_models[i]->canAccumulate())
+			continue;
+
+		// Check balance
 		const double diff = std::abs(totalInflow[i] - totalOutflow[i]);
-		if (((diff >= 1e-15) || (diff >= 1e-15 * std::abs(totalOutflow[i]))) && !_models[i]->canAccumulate())
-			throw InvalidParameterException("In CONNECTIONS matrix (switch " + std::to_string(idxSwitch) + "): Flow rate balance is not closed for unit operation " + std::to_string(i) + ", imbalanced by " + std::to_string(diff));
+		if ((diff >= 1e-15) || (diff > 1e-15 * std::abs(totalOutflow[i])))
+			throw InvalidParameterException("In CONNECTIONS matrix (switch " + std::to_string(idxSwitch) + "): Flow rate balance is not closed for unit operation " + std::to_string(i) + ", imbalanced by " + toSciString(diff));
+
+		const double diffLin = std::abs(totalInflowLin[i] - totalOutflowLin[i]);
+		if ((diffLin >= 1e-15) || (diffLin > 1e-15 * std::abs(totalOutflowLin[i])))
+			throw InvalidParameterException("In CONNECTIONS matrix (switch " + std::to_string(idxSwitch) + "): Linear flow rate coefficient balance is not closed for unit operation " + std::to_string(i) + ", imbalanced by " + toSciString(diffLin));
+
+		const double diffQuad = std::abs(totalInflowQuad[i] - totalOutflowQuad[i]);
+		if ((diffQuad >= 1e-15) || (diffQuad > 1e-15 * std::abs(totalOutflowQuad[i])))
+			throw InvalidParameterException("In CONNECTIONS matrix (switch " + std::to_string(idxSwitch) + "): Quadratic flow rate coefficient balance is not closed for unit operation " + std::to_string(i) + ", imbalanced by " + toSciString(diffQuad));
+
+		const double diffCub = std::abs(totalInflowCub[i] - totalOutflowCub[i]);
+		if ((diffCub >= 1e-15) || (diffCub > 1e-15 * std::abs(totalOutflowCub[i])))
+			throw InvalidParameterException("In CONNECTIONS matrix (switch " + std::to_string(idxSwitch) + "): Cubic flow rate coefficient balance is not closed for unit operation " + std::to_string(i) + ", imbalanced by " + toSciString(diffCub));
 	}
 
 	// TODO: Check for conflicting entries

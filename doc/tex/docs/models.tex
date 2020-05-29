@@ -106,6 +106,19 @@ Hence, the one required (i.e., the first) entry must have a section index of $0$
 Note that the section index has to be monotonically increasing throughout the list of valve configurations.
 See Tables~\ref{tab:FFModelSystemConnections} and \ref{tab:FFModelConnectionSwitch}.
 
+\paragraph{Dynamic flow rates}
+\phantomsection\label{par:MUOPNetworkDynamicFlowRates}
+
+The volumetric flow rates may vary over time while the valve configuration is active.
+The rates are assumed to be cubic polynomials,
+\begin{align*}
+	Q = Q_0 + Q_1(t - t_s) + Q_2(t-t_s)^2 + Q_3(t-t_s)^3,
+\end{align*}
+where $t_s$ is the beginning of the time section that triggers the valve switch.
+
+Note that the denominator in Eq.~\ref{eq:NetworkConnection} must always be positive.
+That is, the flow rate coefficients have to be chosen such that the flow into every connected inlet port is strictly positive at all times.
+
 \paragraph{Solution of the linear systems}
 \phantomsection\label{par:MUOPNetworkLinearSolver}
 

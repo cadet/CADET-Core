@@ -225,6 +225,216 @@ void ModelSystem::solveCouplingDOF(double* const vec)
 	}
 }
 
+void ModelSystem::subtractDresConDt(double t, double* dResConDt, double const* vecStateY)
+{
+	const double secT = t - _switchStartTime;
+
+	int const* const ptrConn = _connections[_curSwitchIndex];
+	active const* const ptrRate = _flowRates[_curSwitchIndex];
+	active const* const ptrRateLin = _flowRatesLin[_curSwitchIndex];
+	active const* const ptrRateQuad = _flowRatesQuad[_curSwitchIndex];
+	active const* const ptrRateCub = _flowRatesCub[_curSwitchIndex];
+
+	for (unsigned int i = 0; i < _connections.sliceSize(_curSwitchIndex) / 6; ++i)
+	{
+		// Extract current connection
+		const int uoSource = ptrConn[6*i];
+		const int uoDest = ptrConn[6*i + 1];
+		const int portSource = ptrConn[6*i + 2];
+		const int portDest = ptrConn[6*i + 3];
+		const int compSource = ptrConn[6*i + 4];
+		const int compDest = ptrConn[6*i + 5];
+
+		// Obtain index of first connection from uoSource to uoDest
+		unsigned int idx = i;
+		for (unsigned int j = 0; j < i; ++j)
+		{
+			if ((ptrConn[6*j] == uoSource) && (ptrConn[6*j + 1] == uoDest) && (ptrConn[6*j + 2] == portSource) && (ptrConn[6*j + 3] == portDest))
+			{
+				idx = j;
+				break;
+			}
+		}
+
+		// idx contains the index of the first connection from uoSource to uoDest
+		// Hence, ptrRate[idx] is the flow rate to use for this connection
+
+		IUnitOperation const* const modelSource = _models[uoSource];
+		const unsigned int offset = _dofOffset[uoSource];
+
+		// The outlet column is the outlet index + component number * outlet stride
+
+		if (portSource == -1)
+		{
+			for (unsigned int j = 0; j < modelSource->numOutletPorts(); ++j)
+			{
+				const unsigned int outletIndex = modelSource->localOutletComponentIndex(j);
+				const unsigned int outletStride = modelSource->localOutletComponentStride(j);
+
+				const double totInFlow = cubicPoly<double>(_totalInletFlow(uoDest, j), _totalInletFlowLin(uoDest, j), _totalInletFlowQuad(uoDest, j), _totalInletFlowCub(uoDest, j), secT);
+				const double totInFlowOverDt = cubicPolyDeriv<double>(_totalInletFlowLin(uoDest, j), _totalInletFlowQuad(uoDest, j), _totalInletFlowCub(uoDest, j), secT);
+				const double inFlow = cubicPoly<double>(ptrRate, ptrRateLin, ptrRateQuad, ptrRateCub, idx, secT);
+				const double inFlowOverDt = cubicPolyDeriv<double>(ptrRateLin, ptrRateQuad, ptrRateCub, idx, secT);
+
+				// Quotient rule: (u/v)' = ( u' v - u v' ) / v^2 = u' / v - u v' / v^2 = (u' - uv' / v) / v
+				const double dvdt = (inFlowOverDt - inFlow * totInFlowOverDt / totInFlow) / totInFlow;
+
+				if (compSource == -1)
+				{
+					// Connect all components with the same flow rate
+					for (unsigned int comp = 0; comp < modelSource->numComponents(); ++comp)
+					{
+						const unsigned int row = _couplingIdxMap[std::make_tuple(uoDest, j, comp)];  // destination coupling DOF
+						const unsigned int col = outletIndex + outletStride * comp;
+						dResConDt[row] += dvdt * vecStateY[offset + col];
+					}
+				}
+				else
+				{
+					const unsigned int row = _couplingIdxMap[std::make_tuple(uoDest, j, compDest)];  // destination coupling DOF
+					const unsigned int col = outletIndex + outletStride * compSource;
+					dResConDt[row] += dvdt * vecStateY[offset + col];
+				}
+			}
+		}
+		else
+		{
+			const unsigned int outletIndex = modelSource->localOutletComponentIndex(portSource);
+			const unsigned int outletStride = modelSource->localOutletComponentStride(portSource);
+
+			const double totInFlow = cubicPoly<double>(_totalInletFlow(uoDest, portDest), _totalInletFlowLin(uoDest, portDest), _totalInletFlowQuad(uoDest, portDest), _totalInletFlowCub(uoDest, portDest), secT);
+			const double totInFlowOverDt = cubicPolyDeriv<double>(_totalInletFlowLin(uoDest, portDest), _totalInletFlowQuad(uoDest, portDest), _totalInletFlowCub(uoDest, portDest), secT);
+			const double inFlow = cubicPoly<double>(ptrRate, ptrRateLin, ptrRateQuad, ptrRateCub, idx, secT);
+			const double inFlowOverDt = cubicPolyDeriv<double>(ptrRateLin, ptrRateQuad, ptrRateCub, idx, secT);
+
+			// Quotient rule: (u/v)' = ( u' v - u v' ) / v^2 = u' / v - u v' / v^2 = (u' - uv' / v) / v
+			const double dvdt = (inFlowOverDt - inFlow * totInFlowOverDt / totInFlow) / totInFlow;
+
+			if (compSource == -1)
+			{
+				// Connect all components with the same flow rate
+				for (unsigned int comp = 0; comp < modelSource->numComponents(); ++comp)
+				{
+					const unsigned int row = _couplingIdxMap[std::make_tuple(uoDest, portDest, comp)];  // destination coupling DOF
+					const unsigned int col = outletIndex + outletStride * comp;
+					dResConDt[row] += dvdt * vecStateY[offset + col];
+				}
+			}
+			else
+			{
+				const unsigned int row = _couplingIdxMap[std::make_tuple(uoDest, portDest, compDest)];  // destination coupling DOF
+				const unsigned int col = outletIndex + outletStride * compSource;
+				dResConDt[row] += dvdt * vecStateY[offset + col];
+			}
+		}
+	}
+}
+
+void ModelSystem::subtractDresConDtDp(double t, unsigned int adDir, double* dResConDt, double const* vecStateY)
+{
+	const double secT = t - _switchStartTime;
+
+	int const* const ptrConn = _connections[_curSwitchIndex];
+	active const* const ptrRate = _flowRates[_curSwitchIndex];
+	active const* const ptrRateLin = _flowRatesLin[_curSwitchIndex];
+	active const* const ptrRateQuad = _flowRatesQuad[_curSwitchIndex];
+	active const* const ptrRateCub = _flowRatesCub[_curSwitchIndex];
+
+	for (unsigned int i = 0; i < _connections.sliceSize(_curSwitchIndex) / 6; ++i)
+	{
+		// Extract current connection
+		const int uoSource = ptrConn[6*i];
+		const int uoDest = ptrConn[6*i + 1];
+		const int portSource = ptrConn[6*i + 2];
+		const int portDest = ptrConn[6*i + 3];
+		const int compSource = ptrConn[6*i + 4];
+		const int compDest = ptrConn[6*i + 5];
+
+		// Obtain index of first connection from uoSource to uoDest
+		unsigned int idx = i;
+		for (unsigned int j = 0; j < i; ++j)
+		{
+			if ((ptrConn[6*j] == uoSource) && (ptrConn[6*j + 1] == uoDest) && (ptrConn[6*j + 2] == portSource) && (ptrConn[6*j + 3] == portDest))
+			{
+				idx = j;
+				break;
+			}
+		}
+
+		// idx contains the index of the first connection from uoSource to uoDest
+		// Hence, ptrRate[idx] is the flow rate to use for this connection
+
+		IUnitOperation const* const modelSource = _models[uoSource];
+		const unsigned int offset = _dofOffset[uoSource];
+
+		// The outlet column is the outlet index + component number * outlet stride
+
+		if (portSource == -1)
+		{
+			for (unsigned int j = 0; j < modelSource->numOutletPorts(); ++j)
+			{
+				const unsigned int outletIndex = modelSource->localOutletComponentIndex(j);
+				const unsigned int outletStride = modelSource->localOutletComponentStride(j);
+
+				const double totInFlow = cubicPoly(_totalInletFlow(uoDest, j), _totalInletFlowLin(uoDest, j), _totalInletFlowQuad(uoDest, j), _totalInletFlowCub(uoDest, j), secT, adDir);
+				const double totInFlowOverDt = cubicPolyDeriv(_totalInletFlowLin(uoDest, j), _totalInletFlowQuad(uoDest, j), _totalInletFlowCub(uoDest, j), secT, adDir);
+				const double inFlow = cubicPoly(ptrRate, ptrRateLin, ptrRateQuad, ptrRateCub, idx, secT, adDir);
+				const double inFlowOverDt = cubicPolyDeriv(ptrRateLin, ptrRateQuad, ptrRateCub, idx, secT, adDir);
+
+				// Quotient rule: (u/v)' = ( u' v - u v' ) / v^2 = u' / v - u v' / v^2 = (u' - uv' / v) / v
+				const double dvdt = (inFlowOverDt - inFlow * totInFlowOverDt / totInFlow) / totInFlow;
+
+				if (compSource == -1)
+				{
+					// Connect all components with the same flow rate
+					for (unsigned int comp = 0; comp < modelSource->numComponents(); ++comp)
+					{
+						const unsigned int row = _couplingIdxMap[std::make_tuple(uoDest, j, comp)];  // destination coupling DOF
+						const unsigned int col = outletIndex + outletStride * comp;
+						dResConDt[row] += dvdt * vecStateY[offset + col];
+					}
+				}
+				else
+				{
+					const unsigned int row = _couplingIdxMap[std::make_tuple(uoDest, j, compDest)];  // destination coupling DOF
+					const unsigned int col = outletIndex + outletStride * compSource;
+					dResConDt[row] += dvdt * vecStateY[offset + col];
+				}
+			}
+		}
+		else
+		{
+			const unsigned int outletIndex = modelSource->localOutletComponentIndex(portSource);
+			const unsigned int outletStride = modelSource->localOutletComponentStride(portSource);
+
+			const double totInFlow = cubicPoly(_totalInletFlow(uoDest, portDest), _totalInletFlowLin(uoDest, portDest), _totalInletFlowQuad(uoDest, portDest), _totalInletFlowCub(uoDest, portDest), secT, adDir);
+			const double totInFlowOverDt = cubicPolyDeriv(_totalInletFlowLin(uoDest, portDest), _totalInletFlowQuad(uoDest, portDest), _totalInletFlowCub(uoDest, portDest), secT, adDir);
+			const double inFlow = cubicPoly(ptrRate, ptrRateLin, ptrRateQuad, ptrRateCub, idx, secT, adDir);
+			const double inFlowOverDt = cubicPolyDeriv(ptrRateLin, ptrRateQuad, ptrRateCub, idx, secT, adDir);
+
+			// Quotient rule: (u/v)' = ( u' v - u v' ) / v^2 = u' / v - u v' / v^2 = (u' - uv' / v) / v
+			const double dvdt = (inFlowOverDt - inFlow * totInFlowOverDt / totInFlow) / totInFlow;
+
+			if (compSource == -1)
+			{
+				// Connect all components with the same flow rate
+				for (unsigned int comp = 0; comp < modelSource->numComponents(); ++comp)
+				{
+					const unsigned int row = _couplingIdxMap[std::make_tuple(uoDest, portDest, comp)];  // destination coupling DOF
+					const unsigned int col = outletIndex + outletStride * comp;
+					dResConDt[row] += dvdt * vecStateY[offset + col];
+				}
+			}
+			else
+			{
+				const unsigned int row = _couplingIdxMap[std::make_tuple(uoDest, portDest, compDest)];  // destination coupling DOF
+				const unsigned int col = outletIndex + outletStride * compSource;
+				dResConDt[row] += dvdt * vecStateY[offset + col];
+			}
+		}
+	}
+}
+
 template <typename tag_t>
 void ModelSystem::consistentInitialConditionAlgorithm(const SimulationTime& simTime, const SimulationState& simState,
 	const AdJacobianParams& adJac, double errorTol)
@@ -287,6 +497,14 @@ void ModelSystem::consistentInitialConditionAlgorithm(const SimulationTime& simT
 
 	// Zero out the coupling DOFs (provides right hand side of 0 for solveCouplingDOF())
 	std::fill(simState.vecStateYdot + finalOffset, simState.vecStateYdot + numDofs(), 0.0);
+
+	if (_hasDynamicFlowRates)
+	{
+		// Right hand side is actually -dres_con / dt
+		double* const dResConDt = simState.vecStateY + finalOffset;
+		subtractDresConDt(simTime.t, dResConDt, simState.vecStateY);
+	}
+
 	// Calculate coupling DOFs
 	solveCouplingDOF(simState.vecStateYdot);
 
@@ -373,7 +591,7 @@ void ModelSystem::consistentInitialSensitivityAlgorithm(const SimulationTime& si
 		double* const vsyd = vecSensYdot[i];
 
 		// Calculate -(d^2 res_con / (dy dp)) * \dot{y}
-		if (_models.empty())
+		if (cadet_unlikely(_models.empty()))
 		{
 			std::fill(vsyd + finalOffset, vsyd + numDofs(), 0.0);
 		}
@@ -386,6 +604,18 @@ void ModelSystem::consistentInitialSensitivityAlgorithm(const SimulationTime& si
 				ad::adMatrixVectorMultiply(_jacActiveFN[j], simState.vecStateYdot + offset, vsyd + finalOffset, -1.0, 1.0, i);
 			}
 		}
+
+		if (_hasDynamicFlowRates)
+		{
+			// The right hand side is actually
+			// -(d^2 res_con / (dy dp)) * \dot{y} - (d^2 res_con / (dt dy)) * s - (d^2 res_con / (dt dp))
+			// We already have the first term and need the remaining two
+			// -(d^2 res_con / (dt dy)) * s - (d^2 res_con / (dt dp))
+			
+			subtractDresConDt(simTime.t, vsyd + finalOffset, vecSensY[i]);
+			subtractDresConDtDp(simTime.t, i, vsyd + finalOffset, simState.vecStateY);
+		}
+
 		solveCouplingDOF(vsyd);
 	}
 }

@@ -279,20 +279,33 @@ Note that all components of component dependent datasets have to be section depe
     Determines whether the \texttt{CONNECTIONS} table includes ports ($1$) or not ($0$).
     Optional, defaults to $0$ unless a unit operation model with multiple ports is present.
   \end{dataset}
+  \begin{dataset}[type=int,range={$\{ 0,1 \}$},length=1]{CONNECTIONS\_INCLUDE\_DYNAMIC\_FLOW}
+    Determines whether the \texttt{CONNECTIONS} table includes linear, quadratic, and cubic flow rate coefficients ($1$) or not ($0$).
+    Optional, defaults to $0$.
+  \end{dataset}
 \end{groupscope}
 
 \begin{groupscope}{/input/model/connections/switch\_XXX}{tab:FFModelConnectionSwitch}
   \begin{dataset}[type=int,range={$\geq 0$},length=1]{SECTION}
     Index of the section that activates this connection set
   \end{dataset}
-  \begin{dataset}[type=double,range={$\geq -1$},length={$5 \cdot \texttt{NCONNECTIONS}$ / $7 \cdot \texttt{NCONNECTIONS}$}]{CONNECTIONS}
+  \begin{dataset}[type=double,range={$\geq -1$},length={$\{5,7,8,10\} \cdot \texttt{NCONNECTIONS}$}]{CONNECTIONS}
     Matrix with list of connections in row-major storage.
-    Columns are \emph{UnitOpID from}, \emph{UnitOpID to}, \emph{Port from}, \emph{Port to}, \emph{Component from}, \emph{Component to}, \emph{volumetric flow rate}.
+    Columns are \emph{UnitOpID from}, \emph{UnitOpID to}, \emph{Port from}, \emph{Port to}, \emph{Component from}, \emph{Component to}, \emph{volumetric flow rate}, \emph{linear flow rate coefficient}, \emph{quadratic flow rate coefficient}, \emph{cubic flow rate coefficient}.
     If both port indices are $-1$, all ports are connected.
     If both component indices are $-1$, all components are connected.
 
+    The flow rate is a cubic function of time,
+    \begin{align*}
+      Q = Q_0 + Q_1(t - t_s) + Q_2(t-t_s)^2 + Q_3(t-t_s)^3,
+    \end{align*}
+    where $t_s$ is the beginning of the section that activates the switch (i.e., \texttt{SECTION\_TIMES} at index \texttt{SECTION}).
+
     The port indices are left out if \texttt{CONNECTIONS\_INCLUDE\_PORTS} is set to $0$ and no unit operation with multiple ports is present in the system.
     If a unit operation with multiple ports is present, \texttt{CONNECTIONS\_INCLUDE\_PORTS} is ignored and port indices are mandatory.
+
+    The last three flow rate coefficients are left out if \texttt{CONNECTIONS\_INCLUDE\_DYNAMIC\_FLOW} is set to $0$.
+    Contrary to the constant coefficient, which has the parameter name \texttt{CONNECTION}, the other coefficients are named \texttt{CONNECTION\_LIN}, \texttt{CONNECTION\_QUAD}, and \texttt{CONNECTION\_CUB}, respectively.
 
     For addressing the flow rates as a parameter senstivity, the mapping is as follows:
     \begin{description}

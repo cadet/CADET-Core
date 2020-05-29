@@ -74,4 +74,49 @@ namespace
 			adJac.adDirOffset
 		};
 	}
+
+	template <typename res_t>
+	inline res_t cubicPoly(const cadet::active& constCoeff, const cadet::active& linCoeff, const cadet::active& quadCoeff, const cadet::active& cubCoeff, double v)
+	{
+		return static_cast<res_t>(constCoeff) + v * (static_cast<res_t>(linCoeff) + v * (static_cast<res_t>(quadCoeff) + v * static_cast<res_t>(cubCoeff)));
+	}
+
+	template <typename res_t>
+	inline res_t cubicPoly(cadet::active const* constCoeff, cadet::active const* linCoeff, cadet::active const* quadCoeff, cadet::active const* cubCoeff, unsigned int idx, double v)
+	{
+		return cubicPoly<res_t>(constCoeff[idx], linCoeff[idx], quadCoeff[idx], cubCoeff[idx], v);
+	}
+
+	template <typename res_t>
+	inline res_t cubicPolyDeriv(const cadet::active& linCoeff, const cadet::active& quadCoeff, const cadet::active& cubCoeff, double v)
+	{
+		return static_cast<res_t>(linCoeff) + v * (2.0 * static_cast<res_t>(quadCoeff) + 3.0 * v * static_cast<res_t>(cubCoeff));
+	}
+
+	template <typename res_t>
+	inline res_t cubicPolyDeriv(cadet::active const* linCoeff, cadet::active const* quadCoeff, cadet::active const* cubCoeff, unsigned int idx, double v)
+	{
+		return cubicPolyDeriv<res_t>(linCoeff[idx], quadCoeff[idx], cubCoeff[idx], v);
+	}
+
+
+	inline double cubicPoly(const cadet::active& constCoeff, const cadet::active& linCoeff, const cadet::active& quadCoeff, const cadet::active& cubCoeff, double v, unsigned int adDir)
+	{
+		return constCoeff.getADValue(adDir) + v * (linCoeff.getADValue(adDir) + v * (quadCoeff.getADValue(adDir) + v * cubCoeff.getADValue(adDir)));
+	}
+
+	inline double cubicPoly(cadet::active const* constCoeff, cadet::active const* linCoeff, cadet::active const* quadCoeff, cadet::active const* cubCoeff, unsigned int idx, double v, unsigned int adDir)
+	{
+		return cubicPoly(constCoeff[idx], linCoeff[idx], quadCoeff[idx], cubCoeff[idx], v, adDir);
+	}
+
+	inline double cubicPolyDeriv(const cadet::active& linCoeff, const cadet::active& quadCoeff, const cadet::active& cubCoeff, double v, unsigned int adDir)
+	{
+		return linCoeff.getADValue(adDir) + v * (2.0 * quadCoeff.getADValue(adDir) + 3.0 * v * cubCoeff.getADValue(adDir));
+	}
+
+	inline double cubicPolyDeriv(cadet::active const* linCoeff, cadet::active const* quadCoeff, cadet::active const* cubCoeff, unsigned int idx, double v, unsigned int adDir)
+	{
+		return cubicPolyDeriv(linCoeff[idx], quadCoeff[idx], cubCoeff[idx], v, adDir);
+	}
 }

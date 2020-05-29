@@ -108,65 +108,29 @@ void ModelSystem::notifyDiscontinuousSectionTransition(double t, unsigned int se
 			_curSwitchIndex = 0;
 	}
 
+	if ((0 == secIdx) || (prevSwitch != _curSwitchIndex))
+	{
+		// A switch has occurred -> Compute flow rate coefficients
+		_switchStartTime = t;
+		calcUnitFlowRateCoefficients();
+
+		if (cadet_likely(!_hasDynamicFlowRates))
+			assembleBottomMacroRow(t);
+	}
+
 	// Notify models that a discontinuous section transition has happened
-	int const* ptrConn = _connections[_curSwitchIndex];
-	active const* const conRates = _flowRates[_curSwitchIndex];
 	for (unsigned int i = 0; i < _models.size(); ++i)
 	{
 		const unsigned int offset = _dofOffset[i];
-		std::fill(_flowRateIn.begin(), _flowRateIn.end(), 0.0);
-		std::fill(_flowRateOut.begin(), _flowRateOut.end(), 0.0);
 
-		// Compute total inlet and outlet flow rate for this unit operation by traversing connection list
-		for (unsigned int j = 0; j < _connections.sliceSize(_curSwitchIndex) / 6; ++j)
-		{
-			const int uoSource = ptrConn[6*j];
-			const int uoDest = ptrConn[6*j+1];
-			const int portSource = ptrConn[6*j+2];
-			const int portDest = ptrConn[6*j+3];
-
-			// Make sure this is the first connection (there may be several with different components)
-			bool skip = false;
-			for (unsigned int k = 0; k < j; ++k)
-			{
-				if ((ptrConn[6*k] == uoSource) && (ptrConn[6*k+1] == uoDest) && (ptrConn[6*k+2] == portSource) && (ptrConn[6*k+3] == portDest))
-				{
-					skip = true;
-					break;
-				}
-			}
-
-			// Skip this row in connection list if there was a previous connection
-			if (skip)
-				continue;
-
-			if (uoSource == i)
-			{
-				if (portSource >= 0)
-					_flowRateOut[portSource] += conRates[j];
-				else
-				{
-					for (unsigned int k = 0; k < _models[i]->numOutletPorts(); ++k)
-						_flowRateOut[k] += conRates[j];
-				}
-			}
-			if (uoDest == i)
-			{
-				if (portDest >= 0)
-					_flowRateIn[portDest] += conRates[j];
-				else
-				{
-					for (unsigned int k = 0; k < _models[i]->numInletPorts(); ++k)
-						_flowRateIn[k] += conRates[j];
-				}
-			}
-		}
-
-		_models[i]->setFlowRates(_flowRateIn.data(), _flowRateOut.data());
+		updateModelFlowRates(t, i);
+		_models[i]->setFlowRates(_flowRateIn[i], _flowRateOut[i]);
 		_models[i]->notifyDiscontinuousSectionTransition(t, secIdx, applyOffset(adJac, offset));
 	}
 
 #ifdef CADET_DEBUG
+	int const* ptrConn = _connections[_curSwitchIndex];
+
 	LOG(Debug) << "Switching from valve configuration " << prevSwitch << " to " << _curSwitchIndex << " (sec = " << secIdx << " wrapSec = " << wrapSec << ")";
 	for (unsigned int i = 0; i < _connections.sliceSize(_curSwitchIndex) / 6; ++i, ptrConn += 6)
 	{
@@ -184,57 +148,103 @@ void ModelSystem::notifyDiscontinuousSectionTransition(double t, unsigned int se
 		           << uoDest << " (" << _models[uoDest]->unitOperationName() << ") port " << portDest << " comp " << compDest;
 	}
 #endif
-
-	if ((0 == secIdx) || (prevSwitch != _curSwitchIndex))
-		assembleSuperStructMatrices(secIdx);		
 }
 
 /**
-* @brief Rebuild the outer network connection matrices in the super structure
-* @details Rebuild NF and FN matrices. This should only be called if the connections have changed. 
-* @param [in] secIdx Section index
-*/
-void ModelSystem::assembleSuperStructMatrices(unsigned int secIdx)
+ * @brief Updates inlet and outlet flow rates of the given unit operation
+ * @details Updates the corresponding slice of _flowRateIn and _flowRateOut.
+ * @param[in] t Time
+ * @param[in] idxUnit Unit operation index
+ */
+void ModelSystem::updateModelFlowRates(double t, unsigned int idxUnit)
 {
-	// Clear the matrices before we set new entries
-	for (unsigned int i = 0; i < numModels(); ++i)
+	active* const in = _flowRateIn[idxUnit];
+	active* const in0 = _totalInletFlow[idxUnit];
+
+	active* const out = _flowRateOut[idxUnit];
+	active* const out0 = _totalOutletFlow[idxUnit];
+
+	if (cadet_unlikely(_hasDynamicFlowRates))
 	{
-		_jacNF[i].clear();
-		_jacActiveFN[i].clear();
+		// Convert to time since start of section
+		const double secT = t - _switchStartTime;
+
+		active* const in1 = _totalInletFlowLin[idxUnit];
+		active* const in2 = _totalInletFlowQuad[idxUnit];
+		active* const in3 = _totalInletFlowCub[idxUnit];
+		for (unsigned int i = 0; i < _models[idxUnit]->numInletPorts(); ++i)
+			in[i] = cubicPoly<active>(in0, in1, in2, in3, i, secT);
+
+		active* const out1 = _totalOutletFlowLin[idxUnit];
+		active* const out2 = _totalOutletFlowQuad[idxUnit];
+		active* const out3 = _totalOutletFlowCub[idxUnit];
+		for (unsigned int i = 0; i < _models[idxUnit]->numOutletPorts(); ++i)
+			out[i] = cubicPoly<active>(out0, out1, out2, out3, i, secT);
+	}
+	else
+	{
+		std::copy(in0, in0 + _models[idxUnit]->numInletPorts(), in);
+		std::copy(out0, out0 + _models[idxUnit]->numOutletPorts(), out);
+	}
+}
+
+
+/**
+ * @brief Updates inlet and outlet flow rates of the given unit operation
+ * @details Updates the corresponding slice of _flowRateIn and _flowRateOut.
+ * @param[in] t Time
+ * @param[in] idxUnit Unit operation index
+ */
+void ModelSystem::updateDynamicModelFlowRates(double t, unsigned int idxUnit)
+{
+	// Convert to time since start of section
+	const double secT = t - _switchStartTime;
+
+	active* const in = _flowRateIn[idxUnit];
+	active* const in0 = _totalInletFlow[idxUnit];
+	active* const in1 = _totalInletFlowLin[idxUnit];
+	active* const in2 = _totalInletFlowQuad[idxUnit];
+	active* const in3 = _totalInletFlowCub[idxUnit];
+	for (unsigned int i = 0; i < _models[idxUnit]->numInletPorts(); ++i)
+	{
+		in[i] = cubicPoly<active>(in0, in1, in2, in3, i, secT);
+		LOG(Debug) << "Flow in unit " << idxUnit << " port " << i << ": " << static_cast<double>(in[i]);
 	}
 
-	// Assemble Jacobian submatrices
-
-	// Right macro-column
-	// NF
-	unsigned int couplingIdx = 0;
-	for (unsigned int i = 0; i < numModels(); ++i)
+	active* const out = _flowRateOut[idxUnit];
+	active* const out0 = _totalOutletFlow[idxUnit];
+	active* const out1 = _totalOutletFlowLin[idxUnit];
+	active* const out2 = _totalOutletFlowQuad[idxUnit];
+	active* const out3 = _totalOutletFlowCub[idxUnit];
+	for (unsigned int i = 0; i < _models[idxUnit]->numOutletPorts(); ++i)
 	{
-		IUnitOperation const* const model = _models[i];
-		
-		// Only items with an inlet have non-zero entries in the NF matrices
-		if (model->hasInlet())
-		{
-			for (unsigned int port = 0; port < model->numInletPorts(); ++port)
-			{
-				// Each component generates a -1 for its inlet in the NF[i] matrix and increases the couplingIdx by 1
-				const unsigned int localInletComponentIndex = model->localInletComponentIndex(port);
-				const unsigned int localInletComponentStride = model->localInletComponentStride(port);
-				for (unsigned int comp = 0; comp < model->numComponents(); ++comp)
-				{
-					_jacNF[i].addElement(localInletComponentIndex + comp * localInletComponentStride, couplingIdx, -1.0);
-					++couplingIdx;
-				}
-			}
-		}
+		out[i] = cubicPoly<active>(out0, out1, out2, out3, i, secT);
+		LOG(Debug) << "Flow out unit " << idxUnit << " port " << i << ": " << static_cast<double>(out[i]);
 	}
+}
 
+/**
+* @brief Calculate inlet and outlet flow rate coefficients for each unit operation in current section
+*/
+void ModelSystem::calcUnitFlowRateCoefficients()
+{
 	// Calculate total flow rate for each inlet
 	int const* const ptrConn = _connections[_curSwitchIndex];
 	active const* const ptrRate = _flowRates[_curSwitchIndex];
+	active const* const ptrRateLin = _flowRatesLin[_curSwitchIndex];
+	active const* const ptrRateQuad = _flowRatesQuad[_curSwitchIndex];
+	active const* const ptrRateCub = _flowRatesCub[_curSwitchIndex];
 
-	// Reset _totalInletFlow back to zero
+	// Reset total flows back to zero
 	_totalInletFlow.fill(0.0);
+	_totalInletFlowLin.fill(0.0);
+	_totalInletFlowQuad.fill(0.0);
+	_totalInletFlowCub.fill(0.0);
+
+	_totalOutletFlow.fill(0.0);
+	_totalOutletFlowLin.fill(0.0);
+	_totalOutletFlowQuad.fill(0.0);
+	_totalOutletFlowCub.fill(0.0);
 
 	// Compute total volumetric inflow for each unit operation port
 	for (unsigned int i = 0; i < _connections.sliceSize(_curSwitchIndex) / 6; ++i)
@@ -261,14 +271,102 @@ void ModelSystem::assembleSuperStructMatrices(unsigned int secIdx)
 			continue;
 
 		// Use the first flow rate from uoSource to uoDest
+
 		if (portDest < 0)
 		{
 			for (unsigned int j = 0; j < _models[uoDest]->numInletPorts(); ++j)
+			{
 				_totalInletFlow(uoDest, j) += ptrRate[i];
+				_totalInletFlowLin(uoDest, j) += ptrRateLin[i];
+				_totalInletFlowQuad(uoDest, j) += ptrRateQuad[i];
+				_totalInletFlowCub(uoDest, j) += ptrRateCub[i];
+			}
 		}
 		else
+		{
 			_totalInletFlow(uoDest, portDest) += ptrRate[i];
+			_totalInletFlowLin(uoDest, portDest) += ptrRateLin[i];
+			_totalInletFlowQuad(uoDest, portDest) += ptrRateQuad[i];
+			_totalInletFlowCub(uoDest, portDest) += ptrRateCub[i];
+		}
+
+		if (portSource < 0)
+		{
+			for (unsigned int j = 0; j < _models[uoSource]->numOutletPorts(); ++j)
+			{
+				_totalOutletFlow(uoSource, j) += ptrRate[i];
+				_totalOutletFlowLin(uoSource, j) += ptrRateLin[i];
+				_totalOutletFlowQuad(uoSource, j) += ptrRateQuad[i];
+				_totalOutletFlowCub(uoSource, j) += ptrRateCub[i];
+			}
+		}
+		else
+		{
+			_totalOutletFlow(uoSource, portSource) += ptrRate[i];
+			_totalOutletFlowLin(uoSource, portSource) += ptrRateLin[i];
+			_totalOutletFlowQuad(uoSource, portSource) += ptrRateQuad[i];
+			_totalOutletFlowCub(uoSource, portSource) += ptrRateCub[i];
+		}
 	}
+}
+
+/**
+ * @brief Assembles the right macro column handling the connections
+ * @details Only depends on models and their ports / components.
+ *          Does not depend on connections between units.
+ */
+void ModelSystem::assembleRightMacroColumn()
+{
+	// Clear the matrices before we set new entries
+	for (unsigned int i = 0; i < numModels(); ++i)
+		_jacNF[i].clear();
+
+	// Assemble Jacobian submatrices
+
+	// Right macro-column
+	// NF
+	unsigned int couplingIdx = 0;
+	for (unsigned int i = 0; i < numModels(); ++i)
+	{
+		IUnitOperation const* const model = _models[i];
+		
+		// Only items with an inlet have non-zero entries in the NF matrices
+		if (model->hasInlet())
+		{
+			for (unsigned int port = 0; port < model->numInletPorts(); ++port)
+			{
+				// Each component generates a -1 for its inlet in the NF[i] matrix and increases the couplingIdx by 1
+				const unsigned int localInletComponentIndex = model->localInletComponentIndex(port);
+				const unsigned int localInletComponentStride = model->localInletComponentStride(port);
+				for (unsigned int comp = 0; comp < model->numComponents(); ++comp)
+				{
+					_jacNF[i].addElement(localInletComponentIndex + comp * localInletComponentStride, couplingIdx, -1.0);
+					++couplingIdx;
+				}
+			}
+		}
+	}
+}
+
+/**
+ * @brief Assembles the bottom macro row handling the connections
+ * @details Computes flow rates and ratios for coupling unit operations.
+ * @param[in] t Simulation time
+ */
+void ModelSystem::assembleBottomMacroRow(double t)
+{
+	// Convert to time since start of section
+	const double secT = t - _switchStartTime;
+
+	// Clear the matrices before we set new entries
+	for (unsigned int i = 0; i < numModels(); ++i)
+		_jacActiveFN[i].clear();
+
+	int const* const ptrConn = _connections[_curSwitchIndex];
+	active const* const ptrRate = _flowRates[_curSwitchIndex];
+	active const* const ptrRateLin = _flowRatesLin[_curSwitchIndex];
+	active const* const ptrRateQuad = _flowRatesQuad[_curSwitchIndex];
+	active const* const ptrRateCub = _flowRatesCub[_curSwitchIndex];
 
 	// Bottom macro-row
 	// FN
@@ -307,21 +405,25 @@ void ModelSystem::assembleSuperStructMatrices(unsigned int secIdx)
 				const unsigned int outletIndex = modelSource->localOutletComponentIndex(j);
 				const unsigned int outletStride = modelSource->localOutletComponentStride(j);
 
+				const active totInFlow = cubicPoly<active>(_totalInletFlow(uoDest, j), _totalInletFlowLin(uoDest, j), _totalInletFlowQuad(uoDest, j), _totalInletFlowCub(uoDest, j), secT);
+				const active inFlow = -cubicPoly<active>(ptrRate, ptrRateLin, ptrRateQuad, ptrRateCub, idx, secT) / totInFlow;
+
 				if (compSource == -1)
 				{
+
 					// Connect all components with the same flow rate
 					for (unsigned int comp = 0; comp < modelSource->numComponents(); ++comp)
 					{
 						const unsigned int row = _couplingIdxMap[std::make_tuple(uoDest, j, comp)];  // destination coupling DOF
 						const unsigned int col = outletIndex + outletStride * comp;
-						_jacActiveFN[uoSource].addElement(row, col, -ptrRate[idx] / _totalInletFlow(uoDest, j));
+						_jacActiveFN[uoSource].addElement(row, col, inFlow);
 					}
 				}
 				else
 				{
 					const unsigned int row = _couplingIdxMap[std::make_tuple(uoDest, j, compDest)];  // destination coupling DOF
 					const unsigned int col = outletIndex + outletStride * compSource;
-					_jacActiveFN[uoSource].addElement(row, col, -ptrRate[idx] / _totalInletFlow(uoDest,j));
+					_jacActiveFN[uoSource].addElement(row, col, inFlow);
 				}
 			}
 		}
@@ -330,6 +432,9 @@ void ModelSystem::assembleSuperStructMatrices(unsigned int secIdx)
 			const unsigned int outletIndex = modelSource->localOutletComponentIndex(portSource);
 			const unsigned int outletStride = modelSource->localOutletComponentStride(portSource);
 
+			const active totInFlow = cubicPoly<active>(_totalInletFlow(uoDest, portDest), _totalInletFlowLin(uoDest, portDest), _totalInletFlowQuad(uoDest, portDest), _totalInletFlowCub(uoDest, portDest), secT);
+			const active inFlow = -cubicPoly<active>(ptrRate, ptrRateLin, ptrRateQuad, ptrRateCub, idx, secT) / totInFlow;
+
 			if (compSource == -1)
 			{
 				// Connect all components with the same flow rate
@@ -337,21 +442,21 @@ void ModelSystem::assembleSuperStructMatrices(unsigned int secIdx)
 				{
 					const unsigned int row = _couplingIdxMap[std::make_tuple(uoDest, portDest, comp)];  // destination coupling DOF
 					const unsigned int col = outletIndex + outletStride * comp;
-					_jacActiveFN[uoSource].addElement(row, col, -ptrRate[idx] / _totalInletFlow(uoDest, portDest));
+					_jacActiveFN[uoSource].addElement(row, col, inFlow);
 				}
 			}
 			else
 			{
 				const unsigned int row = _couplingIdxMap[std::make_tuple(uoDest, portDest, compDest)];  // destination coupling DOF
 				const unsigned int col = outletIndex + outletStride * compSource;
-				_jacActiveFN[uoSource].addElement(row, col, -ptrRate[idx] / _totalInletFlow(uoDest, portDest));
+				_jacActiveFN[uoSource].addElement(row, col, inFlow);
 			}
 		}
 	}
 
 	// Copy active sparse matrices to their double pendants
 	for (unsigned int i = 0; i < numModels(); ++i)
-		_jacFN[i].copyFrom(_jacActiveFN[i]);
+		_jacFN[i].copyFrom(_jacActiveFN[i]);	
 }
 
 double ModelSystem::residualNorm(const SimulationTime& simTime, const ConstSimulationState& simState)
@@ -373,10 +478,20 @@ int ModelSystem::residual(const SimulationTime& simTime, const ConstSimulationSt
 	{
 		IUnitOperation* const m = _models[i];
 		const unsigned int offset = _dofOffset[i];
+
+		if (cadet_unlikely(_hasDynamicFlowRates))
+		{
+			updateDynamicModelFlowRates(simTime.t, i);
+			m->setFlowRates(_flowRateIn[i], _flowRateOut[i]);
+		}
+
 		_errorIndicator[i] = m->residual(simTime, applyOffset(simState, offset), res + offset, _threadLocalStorage);
 	} CADET_PARFOR_END;
 
 	// Handle connections
+	if (cadet_unlikely(_hasDynamicFlowRates))
+		assembleBottomMacroRow(simTime.t);
+
 	residualConnectUnitOps<double, double, double>(simTime.secIdx, simState.vecStateY, simState.vecStateYdot, res);
 
 	BENCH_STOP(_timerResidual);
@@ -397,12 +512,21 @@ int ModelSystem::residualWithJacobian(const SimulationTime& simTime, const Const
 		IUnitOperation* const m = _models[i];
 		const unsigned int offset = _dofOffset[i];
 
+		if (cadet_unlikely(_hasDynamicFlowRates))
+		{
+			updateDynamicModelFlowRates(simTime.t, i);
+			m->setFlowRates(_flowRateIn[i], _flowRateOut[i]);
+		}
+
 		_errorIndicator[i] = m->residualWithJacobian(simTime, applyOffset(simState, offset),
 			res + offset, applyOffset(adJac, offset), _threadLocalStorage);
 
 	} CADET_PARFOR_END;
 
 	// Handle connections
+	if (cadet_unlikely(_hasDynamicFlowRates))
+		assembleBottomMacroRow(simTime.t);
+
 	residualConnectUnitOps<double, double, double>(simTime.secIdx, simState.vecStateY, simState.vecStateYdot, res);
 
 	BENCH_STOP(_timerResidual);
@@ -555,10 +679,19 @@ int ModelSystem::residualSensFwdWithJacobianAlgorithm(unsigned int nSens, const 
 		IUnitOperation* const m = _models[i];
 		const unsigned int offset = _dofOffset[i];
 
+		if (cadet_unlikely(_hasDynamicFlowRates))
+		{
+			updateDynamicModelFlowRates(simTime.t, i);
+			m->setFlowRates(_flowRateIn[i], _flowRateOut[i]);
+		}
+
 		_errorIndicator[i] = ResidualSensCaller<evalJacobian>::call(m, simTime, applyOffset(simState, offset), applyOffset(adJac, offset), _threadLocalStorage);
 	} CADET_PARFOR_END;
 
 	// Connect units
+	if (cadet_unlikely(_hasDynamicFlowRates))
+		assembleBottomMacroRow(simTime.t);
+
 	residualConnectUnitOps<double, active, active>(simTime.secIdx, simState.vecStateY, simState.vecStateYdot, adJac.adRes);
 
 #ifdef CADET_PARALLELIZE

@@ -216,17 +216,22 @@ protected:
 	void readLinearSolutionMode(IParameterProvider& paramProvider);
 	void rebuildInternalDataStructures();
 	void allocateSuperStructMatrices();
-	void assembleSuperStructMatrices(unsigned int secIdx);
+	void calcUnitFlowRateCoefficients();
+	void assembleRightMacroColumn();
+	void assembleBottomMacroRow(double t);
 	unsigned int totalNumInletPorts() const CADET_NOEXCEPT;
 	unsigned int totalNumOutletPorts() const CADET_NOEXCEPT;
-	unsigned int maxUnitInletPorts() const CADET_NOEXCEPT;
-	unsigned int maxUnitOutletPorts() const CADET_NOEXCEPT;
 	void addDefaultPortsToConnectionList(std::vector<double>& conList) const;
+	void addDefaultDynamicFlowRatesToConnectionList(std::vector<double>& conList) const;
+	void updateModelFlowRates(double t, unsigned int idxUnit);
+	void updateDynamicModelFlowRates(double t, unsigned int idxUnit);
+	void subtractDresConDt(double t, double* dResConDt, double const* vecStateY);
+	void subtractDresConDtDp(double t, unsigned int adDir, double* dResConDt, double const* vecStateY);
 
 	template <typename ParamType>
 	bool setParameterImpl(const ParameterId& pId, const ParamType value);
 
-	void checkConnectionList(const std::vector<double>& conn, std::vector<int>& connOnly, std::vector<double>& totalOutflow, unsigned int idxSwitch) const;
+	void checkConnectionList(const std::vector<double>& conn, std::vector<int>& connOnly, std::vector<double>& flow, std::vector<double>& flowLin, std::vector<double>& flowQuad, std::vector<double>& flowCub, unsigned int idxSwitch) const;
 
 	template <typename tag_t>
 	void consistentInitialConditionAlgorithm(const SimulationTime& simTime, const SimulationState& simState, const AdJacobianParams& adJac, double errorTol);
@@ -257,6 +262,9 @@ protected:
 	std::vector<unsigned int> _conDofOffset; //!< Vector with connection DOF offsets for each unit operation
 	util::SlicedVector<int> _connections; //!< Vector of connection lists for each section
 	util::SlicedVector<active> _flowRates; //!< Vector of connection flow rates for each section
+	util::SlicedVector<active> _flowRatesLin; //!< Vector of linear coefficients of connection flow rates for each section
+	util::SlicedVector<active> _flowRatesQuad; //!< Vector of quadratic coefficients of connection flow rates for each section
+	util::SlicedVector<active> _flowRatesCub; //!< Vector of cubic coefficients of connection flow rates for each section
 	std::vector<unsigned int> _switchSectionIndex; //!< Holds indices of sections where valves are switched
 	unsigned int _curSwitchIndex; //!< Current index in _switchSectionIndex list 
 	util::SlicedVector<int> _linearModelOrdering; //!< Dependency-consistent ordering of unit operation models for linear execution (for each switch)
@@ -266,8 +274,17 @@ protected:
 
 	double* _tempState; //!< Temporary storage for the state vector
 	util::SlicedVector<active> _totalInletFlow; //!< Total flow rate into each inlet at the current section
-	std::vector<active> _flowRateIn; //!< Cache for inlet port flow rates
-	std::vector<active> _flowRateOut; //!< Cache for outlet port flow rates
+	util::SlicedVector<active> _totalInletFlowLin; //!< Total linear flow rate coefficient into each inlet at the current section
+	util::SlicedVector<active> _totalInletFlowQuad; //!< Total quadratic flow rate coefficient into each inlet at the current section
+	util::SlicedVector<active> _totalInletFlowCub; //!< Total cubic flow rate coefficient into each inlet at the current section
+	util::SlicedVector<active> _totalOutletFlow; //!< Total flow rate into each outlet at the current section
+	util::SlicedVector<active> _totalOutletFlowLin; //!< Total linear flow rate coefficient into each outlet at the current section
+	util::SlicedVector<active> _totalOutletFlowQuad; //!< Total quadratic flow rate coefficient into each outlet at the current section
+	util::SlicedVector<active> _totalOutletFlowCub; //!< Total cubic flow rate coefficient into each outlet at the current section
+	util::SlicedVector<active> _flowRateIn; //!< Cache for inlet port flow rates
+	util::SlicedVector<active> _flowRateOut; //!< Cache for outlet port flow rates
+	bool _hasDynamicFlowRates; //!< Determines whether dynamic flow rates are used or not
+	double _switchStartTime; //!< Start time of current switch
 
 	std::vector<std::vector<const double*>> _yStemp; //!< Needed to store offsets for unit operations
 	std::vector<std::vector<const double*>> _yStempDot;  //!< Needed to store offsets for unit operations
