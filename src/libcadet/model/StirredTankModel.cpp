@@ -1344,6 +1344,7 @@ int CSTRModel::residualImpl(double t, unsigned int secIdx, StateType const* cons
 		LinearBufferAllocator subAlloc = tlmAlloc.manageRemainingMemory();
 		BufferedArray<ResidualType> flux = subAlloc.array<ResidualType>(_nComp);
 
+		std::fill_n(static_cast<ResidualType*>(flux), _nComp, 0.0);
 		_dynReactionBulk->residualLiquidAdd(t, secIdx, colPos, c, static_cast<ResidualType*>(flux), -1.0, subAlloc);
 
 		for (unsigned int comp = 0; comp < _nComp; ++comp)
