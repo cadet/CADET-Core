@@ -53,7 +53,9 @@ CADET can optionally use:
 * [UMFPACK from SuiteSparse](http://faculty.cse.tamu.edu/davis/suitesparse.html) and/or [SuperLU](http://crd-legacy.lbl.gov/~xiaoye/SuperLU/) for 2D General Rate Model
 * MATLAB (R2010b or higher, optional but highly recommended for interfacing the simulator) 
 
-## Tutorials and Instructions
+## Forum, Tutorials and Instructions
+
+Many topics regarding chromatography modeling and simulation are discussed in the [CADET Forum](https://forum.cadet-web.de).
 
 Please find instructions on how to install, or use CADET in the [Wiki](https://github.com/modsim/cadet/wiki).
 For example, there are tutorials on
