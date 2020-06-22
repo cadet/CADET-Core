@@ -467,10 +467,14 @@ classdef ParameterFit < handle
 				for j = 1:length(curUnit)
 					nPoints = numel(curData{j});
 					unitTrace = curUnit(j) + 1;
-					res(resIdx:resIdx+nPoints-1) = (obj.weightsExp(i) .* curWeightWave(j)) .* curWeightData{j} .* (resSol{unitTrace}(curMask{j}, :) * curComp{j} - curData{j});
+					curSol = resSol{unitTrace}(curMask{j}, 1, :);
+					curSol = reshape(curSol, [size(curSol, 1), size(curSol, 3)]);
+					res(resIdx:resIdx+nPoints-1) = (obj.weightsExp(i) .* curWeightWave(j)) .* curWeightData{j} .* (curSol * curComp{j} - curData{j});
 
 					if (nargout > 1) && ~isempty(resJac{unitTrace})
-						curJac = resJac{unitTrace}(:, 1, :, :); % Format is [nTime, nComp, nParam]
+						curJacSize = size(resJac{unitTrace});
+						curJac = resJac{unitTrace}(:, 1, :, :); % Format of curJac is [nTime, nComp, nParam]
+						curJac = reshape(curJac, curJacSize([1 3 4]));
 
 						% Loop over parameters
 						for k = 1:size(curJac, 3)
@@ -649,7 +653,9 @@ classdef ParameterFit < handle
 					curWeightWave = obj.weightsWave{i};
 					for j = 1:length(curUnit)
 						unitTrace = curUnit(j) + 1;
-						curSol = resSol{unitTrace}(curMask{j}, :) * curComp{j};
+						curSol = resSol{unitTrace}(curMask{j}, 1, :);
+						curSol = reshape(curSol, [size(curSol, 1), size(curSol, 3)]);
+						curSol = curSol * curComp{j};
 						plotData = curData{j};
 
 						if useWeights
@@ -718,7 +724,9 @@ classdef ParameterFit < handle
 					curWeightWave = obj.weightsWave{i};
 					for j = 1:length(curUnit)
 						unitTrace = curUnit(j) + 1;
-						curSol = resSol{unitTrace}(curMask{j}, :) * curComp{j};
+						curSol = resSol{unitTrace}(curMask{j}, 1, :);
+						curSol = reshape(curSol, [size(curSol, 1), size(curSol, 3)]);
+						curSol = curSol * curComp{j};
 
 						if useWeights
 							curSol = curSol .* (obj.weightsExp(i) .* curWeightWave(j) .* curWeightData{j});
