@@ -521,7 +521,7 @@ void ModelSystem::consistentInitialConditionAlgorithm(const SimulationTime& simT
 	if (_hasDynamicFlowRates)
 	{
 		// Right hand side is actually -dres_con / dt
-		double* const dResConDt = simState.vecStateY + finalOffset;
+		double* const dResConDt = simState.vecStateYdot + finalOffset;
 		subtractDresConDt(simTime.t, dResConDt, simState.vecStateY);
 	}
 
