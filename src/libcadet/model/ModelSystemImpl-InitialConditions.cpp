@@ -268,10 +268,15 @@ void ModelSystem::subtractDresConDt(double t, double* dResConDt, double const* v
 		{
 			for (unsigned int j = 0; j < modelSource->numOutletPorts(); ++j)
 			{
+				const double totInFlow = cubicPoly<double>(_totalInletFlow(uoDest, j), _totalInletFlowLin(uoDest, j), _totalInletFlowQuad(uoDest, j), _totalInletFlowCub(uoDest, j), secT);
+
+				// Ignore ports with incoming flow rate 0
+				if (totInFlow <= 0.0)
+					continue;
+
 				const unsigned int outletIndex = modelSource->localOutletComponentIndex(j);
 				const unsigned int outletStride = modelSource->localOutletComponentStride(j);
 
-				const double totInFlow = cubicPoly<double>(_totalInletFlow(uoDest, j), _totalInletFlowLin(uoDest, j), _totalInletFlowQuad(uoDest, j), _totalInletFlowCub(uoDest, j), secT);
 				const double totInFlowOverDt = cubicPolyDeriv<double>(_totalInletFlowLin(uoDest, j), _totalInletFlowQuad(uoDest, j), _totalInletFlowCub(uoDest, j), secT);
 				const double inFlow = cubicPoly<double>(ptrRate, ptrRateLin, ptrRateQuad, ptrRateCub, idx, secT);
 				const double inFlowOverDt = cubicPolyDeriv<double>(ptrRateLin, ptrRateQuad, ptrRateCub, idx, secT);
@@ -299,10 +304,15 @@ void ModelSystem::subtractDresConDt(double t, double* dResConDt, double const* v
 		}
 		else
 		{
+			const double totInFlow = cubicPoly<double>(_totalInletFlow(uoDest, portDest), _totalInletFlowLin(uoDest, portDest), _totalInletFlowQuad(uoDest, portDest), _totalInletFlowCub(uoDest, portDest), secT);
+
+			// Ignore ports with incoming flow rate 0
+			if (totInFlow <= 0.0)
+				continue;
+
 			const unsigned int outletIndex = modelSource->localOutletComponentIndex(portSource);
 			const unsigned int outletStride = modelSource->localOutletComponentStride(portSource);
 
-			const double totInFlow = cubicPoly<double>(_totalInletFlow(uoDest, portDest), _totalInletFlowLin(uoDest, portDest), _totalInletFlowQuad(uoDest, portDest), _totalInletFlowCub(uoDest, portDest), secT);
 			const double totInFlowOverDt = cubicPolyDeriv<double>(_totalInletFlowLin(uoDest, portDest), _totalInletFlowQuad(uoDest, portDest), _totalInletFlowCub(uoDest, portDest), secT);
 			const double inFlow = cubicPoly<double>(ptrRate, ptrRateLin, ptrRateQuad, ptrRateCub, idx, secT);
 			const double inFlowOverDt = cubicPolyDeriv<double>(ptrRateLin, ptrRateQuad, ptrRateCub, idx, secT);
@@ -373,10 +383,15 @@ void ModelSystem::subtractDresConDtDp(double t, unsigned int adDir, double* dRes
 		{
 			for (unsigned int j = 0; j < modelSource->numOutletPorts(); ++j)
 			{
+				const double totInFlow = cubicPoly(_totalInletFlow(uoDest, j), _totalInletFlowLin(uoDest, j), _totalInletFlowQuad(uoDest, j), _totalInletFlowCub(uoDest, j), secT, adDir);
+
+				// Ignore ports with incoming flow rate 0
+				if (totInFlow <= 0.0)
+					continue;
+
 				const unsigned int outletIndex = modelSource->localOutletComponentIndex(j);
 				const unsigned int outletStride = modelSource->localOutletComponentStride(j);
 
-				const double totInFlow = cubicPoly(_totalInletFlow(uoDest, j), _totalInletFlowLin(uoDest, j), _totalInletFlowQuad(uoDest, j), _totalInletFlowCub(uoDest, j), secT, adDir);
 				const double totInFlowOverDt = cubicPolyDeriv(_totalInletFlowLin(uoDest, j), _totalInletFlowQuad(uoDest, j), _totalInletFlowCub(uoDest, j), secT, adDir);
 				const double inFlow = cubicPoly(ptrRate, ptrRateLin, ptrRateQuad, ptrRateCub, idx, secT, adDir);
 				const double inFlowOverDt = cubicPolyDeriv(ptrRateLin, ptrRateQuad, ptrRateCub, idx, secT, adDir);
@@ -404,10 +419,15 @@ void ModelSystem::subtractDresConDtDp(double t, unsigned int adDir, double* dRes
 		}
 		else
 		{
+			const double totInFlow = cubicPoly(_totalInletFlow(uoDest, portDest), _totalInletFlowLin(uoDest, portDest), _totalInletFlowQuad(uoDest, portDest), _totalInletFlowCub(uoDest, portDest), secT, adDir);
+
+			// Ignore ports with incoming flow rate 0
+			if (totInFlow <= 0.0)
+				continue;
+
 			const unsigned int outletIndex = modelSource->localOutletComponentIndex(portSource);
 			const unsigned int outletStride = modelSource->localOutletComponentStride(portSource);
 
-			const double totInFlow = cubicPoly(_totalInletFlow(uoDest, portDest), _totalInletFlowLin(uoDest, portDest), _totalInletFlowQuad(uoDest, portDest), _totalInletFlowCub(uoDest, portDest), secT, adDir);
 			const double totInFlowOverDt = cubicPolyDeriv(_totalInletFlowLin(uoDest, portDest), _totalInletFlowQuad(uoDest, portDest), _totalInletFlowCub(uoDest, portDest), secT, adDir);
 			const double inFlow = cubicPoly(ptrRate, ptrRateLin, ptrRateQuad, ptrRateCub, idx, secT, adDir);
 			const double inFlowOverDt = cubicPolyDeriv(ptrRateLin, ptrRateQuad, ptrRateCub, idx, secT, adDir);

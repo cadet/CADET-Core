@@ -402,10 +402,15 @@ void ModelSystem::assembleBottomMacroRow(double t)
 		{
 			for (unsigned int j = 0; j < modelSource->numOutletPorts(); ++j)
 			{
+				const active totInFlow = cubicPoly<active>(_totalInletFlow(uoDest, j), _totalInletFlowLin(uoDest, j), _totalInletFlowQuad(uoDest, j), _totalInletFlowCub(uoDest, j), secT);
+
+				// Ignore ports with incoming flow rate 0
+				if (totInFlow <= 0.0)
+					continue;
+				
 				const unsigned int outletIndex = modelSource->localOutletComponentIndex(j);
 				const unsigned int outletStride = modelSource->localOutletComponentStride(j);
 
-				const active totInFlow = cubicPoly<active>(_totalInletFlow(uoDest, j), _totalInletFlowLin(uoDest, j), _totalInletFlowQuad(uoDest, j), _totalInletFlowCub(uoDest, j), secT);
 				const active inFlow = -cubicPoly<active>(ptrRate, ptrRateLin, ptrRateQuad, ptrRateCub, idx, secT) / totInFlow;
 
 				if (compSource == -1)
@@ -429,10 +434,15 @@ void ModelSystem::assembleBottomMacroRow(double t)
 		}
 		else
 		{
+			const active totInFlow = cubicPoly<active>(_totalInletFlow(uoDest, portDest), _totalInletFlowLin(uoDest, portDest), _totalInletFlowQuad(uoDest, portDest), _totalInletFlowCub(uoDest, portDest), secT);
+
+			// Ignore ports with incoming flow rate 0
+			if (totInFlow <= 0.0)
+				continue;
+
 			const unsigned int outletIndex = modelSource->localOutletComponentIndex(portSource);
 			const unsigned int outletStride = modelSource->localOutletComponentStride(portSource);
 
-			const active totInFlow = cubicPoly<active>(_totalInletFlow(uoDest, portDest), _totalInletFlowLin(uoDest, portDest), _totalInletFlowQuad(uoDest, portDest), _totalInletFlowCub(uoDest, portDest), secT);
 			const active inFlow = -cubicPoly<active>(ptrRate, ptrRateLin, ptrRateQuad, ptrRateCub, idx, secT) / totInFlow;
 
 			if (compSource == -1)
