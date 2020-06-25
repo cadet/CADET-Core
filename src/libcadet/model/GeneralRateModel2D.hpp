@@ -464,7 +464,7 @@ protected:
 			return _solidOrdering.data();
 		}
 
-		virtual unsigned int bulkMobilePhaseStride() const { return _idx.strideColAxialCell(); }
+		virtual unsigned int bulkMobilePhaseStride() const { return _idx.strideColRadialCell(); }
 		virtual unsigned int particleMobilePhaseStride(unsigned int parType) const { return _idx.strideParShell(parType); }
 		virtual unsigned int solidPhaseStride(unsigned int parType) const { return _idx.strideParShell(parType); }
 
