@@ -29,10 +29,10 @@
  * @details The correct macro, CADET_BINDINGTEST_SINGLE_IMPL_NONBNDJACCONST_false or CADET_BINDINGTEST_SINGLE_IMPL_NONBNDJACCONST_true,
  *          is selected by concatentation with a variable: CADET_BINDINGTEST_SINGLE_IMPL_NONBNDJACCONST_##SomeVar(...)
  */
-#define CADET_BINDINGTEST_SINGLE_IMPL_NONBNDJACCONST_false(modelName, tagName, someNonBinding, stateSomeNon, configSomeNon)
+#define CADET_BINDINGTEST_SINGLE_IMPL_NONBNDJACCONST_false(modelName, tagName, postFix, someNonBinding, stateSomeNon, configSomeNon)
 
-#define CADET_BINDINGTEST_SINGLE_IMPL_NONBNDJACCONST_true(modelName, tagName, someNonBinding, stateSomeNon, configSomeNon) \
-	TEST_CASE(modelName " binding model consistency of non-binding Jacobian columns", "[BindingModel],[Jacobian]," tagName) \
+#define CADET_BINDINGTEST_SINGLE_IMPL_NONBNDJACCONST_true(modelName, tagName, postFix, someNonBinding, stateSomeNon, configSomeNon) \
+	TEST_CASE(modelName " binding model consistency of non-binding Jacobian columns" postFix, "[BindingModel],[Jacobian]," tagName) \
 	{ \
 		const unsigned int nBound3[] = BRACED_INIT_LIST someNonBinding; \
 		const double state3[] = BRACED_INIT_LIST stateSomeNon; \
@@ -65,10 +65,10 @@
  * @details The correct macro, CADET_BINDINGTEST_SINGLE_IMPL_BNDVSNONBND_false or CADET_BINDINGTEST_SINGLE_IMPL_BNDVSNONBND_true,
  *          is selected by concatentation with a variable: CADET_BINDINGTEST_SINGLE_IMPL_BNDVSNONBND_##SomeVar(...)
  */
-#define CADET_BINDINGTEST_SINGLE_IMPL_BNDVSNONBND_false(modelName, tagName, allBinding, someNonBinding, stateAll, stateSomeNon, configAll, configSomeNon)
+#define CADET_BINDINGTEST_SINGLE_IMPL_BNDVSNONBND_false(modelName, tagName, postFix, allBinding, someNonBinding, stateAll, stateSomeNon, configAll, configSomeNon)
 
-#define CADET_BINDINGTEST_SINGLE_IMPL_BNDVSNONBND_true(modelName, tagName, allBinding, someNonBinding, stateAll, stateSomeNon, configAll, configSomeNon) \
-	TEST_CASE(modelName " binding model consistency of non-binding vs binding", "[BindingModel],[Jacobian]," tagName) \
+#define CADET_BINDINGTEST_SINGLE_IMPL_BNDVSNONBND_true(modelName, tagName, postFix, allBinding, someNonBinding, stateAll, stateSomeNon, configAll, configSomeNon) \
+	TEST_CASE(modelName " binding model consistency of non-binding vs binding" postFix, "[BindingModel],[Jacobian]," tagName) \
 	{ \
 		const unsigned int nBound2[] = BRACED_INIT_LIST allBinding; \
 		const unsigned int nBound3[] = BRACED_INIT_LIST someNonBinding; \
@@ -102,6 +102,7 @@
  * @brief Emits tests for a binding model having a non-binding and an all-binding variant
  * @param modelName Identifier of the model as string (e.g. "LINEAR")
  * @param tagName Tags added to the tests as string (e.g., "[SOMETAG]")
+ * @param postFix String appended to the test description / name
  * @param allBinding Array with number of bound states of the all-binding variant in parentheses (e.g., (1, 1, 2))
  * @param someNonBinding Array with number of bound states of the non-binding variant in parentheses (e.g., (1, 0, 2))
  * @param stateAll Array with full state vector (liquid and solid phase) of the all-binding variant in parentheses
@@ -113,8 +114,8 @@
  * @param usesNonBindingLiquidPhase Determines whether a test for all-zero Jacobian columns belonging to non-binding components is created
  * @param cmpBndVsNonbnd Determines whether a test for all-binding vs non-binding variant (Jacobian and residual) is created
  */
-#define CADET_BINDINGTEST_SINGLE_IMPL(modelName, tagName, allBinding, someNonBinding, stateAll, stateSomeNon, configAll, configSomeNon, consInitTol, consInitCheckTol, usesNonBindingLiquidPhase, cmpBndVsNonbnd) \
-	TEST_CASE(modelName " binding model analytic Jacobian vs AD", "[Jacobian],[AD],[BindingModel]," tagName) \
+#define CADET_BINDINGTEST_SINGLE_IMPL(modelName, tagName, postFix, allBinding, someNonBinding, stateAll, stateSomeNon, configAll, configSomeNon, consInitTol, consInitCheckTol, usesNonBindingLiquidPhase, cmpBndVsNonbnd) \
+	TEST_CASE(modelName " binding model analytic Jacobian vs AD" postFix, "[Jacobian],[AD],[BindingModel]," tagName) \
 	{ \
 		const unsigned int nBound2[] = BRACED_INIT_LIST allBinding; \
 		const unsigned int nBound3[] = BRACED_INIT_LIST someNonBinding; \
@@ -136,8 +137,8 @@
 			} \
 		} \
 	} \
-	CADET_BINDINGTEST_SINGLE_IMPL_NONBNDJACCONST_##usesNonBindingLiquidPhase(modelName, tagName, someNonBinding, stateSomeNon, configSomeNon) \
-	CADET_BINDINGTEST_SINGLE_IMPL_BNDVSNONBND_##cmpBndVsNonbnd(modelName, tagName, allBinding, someNonBinding, stateAll, stateSomeNon, configAll, configSomeNon)
+	CADET_BINDINGTEST_SINGLE_IMPL_NONBNDJACCONST_##usesNonBindingLiquidPhase(modelName, tagName, postFix, someNonBinding, stateSomeNon, configSomeNon) \
+	CADET_BINDINGTEST_SINGLE_IMPL_BNDVSNONBND_##cmpBndVsNonbnd(modelName, tagName, postFix, allBinding, someNonBinding, stateAll, stateSomeNon, configAll, configSomeNon)
 
 
 /**
@@ -155,13 +156,14 @@
  * @param cmpBndVsNonbnd Determines whether a test for all-binding vs non-binding variant (Jacobian and residual) is created
  */
 #define CADET_BINDINGTEST_SINGLE(modelName, allBinding, someNonBinding, stateAll, stateSomeNon, configAll, configSomeNon, consInitTol, consInitCheckTol, usesNonBindingLiquidPhase, cmpBndVsNonbnd) \
-	CADET_BINDINGTEST_SINGLE_IMPL(modelName, "[" modelName "]", allBinding, someNonBinding, stateAll, stateSomeNon, configAll, configSomeNon, consInitTol, consInitCheckTol, usesNonBindingLiquidPhase, cmpBndVsNonbnd)
+	CADET_BINDINGTEST_SINGLE_IMPL(modelName, "[" modelName "]", "", allBinding, someNonBinding, stateAll, stateSomeNon, configAll, configSomeNon, consInitTol, consInitCheckTol, usesNonBindingLiquidPhase, cmpBndVsNonbnd)
 
 
 /**
  * @brief Emits tests for a binding model that can have external function dependence and has a non-binding and an all-binding variant
  * @param modelName Identifier of the model as string (e.g. "LINEAR")
  * @param extModelName Identifier of the externally dependent model as string (e.g. "EXT_LINEAR")
+ * @param postFix String appended to the test description / name
  * @param allBinding Array with number of bound states of the all-binding variant in parentheses (e.g., (1, 1, 2))
  * @param someNonBinding Array with number of bound states of the non-binding variant in parentheses (e.g., (1, 0, 2))
  * @param stateAll Array with full state vector (liquid and solid phase) of the all-binding variant in parentheses
@@ -175,10 +177,10 @@
  * @param usesNonBindingLiquidPhase Determines whether a test for all-zero Jacobian columns belonging to non-binding components is created
  * @param cmpBndVsNonbnd Determines whether a test for all-binding vs non-binding variant (Jacobian and residual) is created
  */
-#define CADET_BINDINGTEST(modelName, extModelName, allBinding, someNonBinding, stateAll, stateSomeNon, configAll, configSomeNon, extConfigAll, extConfigSomeNon, consInitTol, consInitCheckTol, usesNonBindingLiquidPhase, cmpBndVsNonbnd) \
-	CADET_BINDINGTEST_SINGLE_IMPL(modelName, "[" modelName "]", allBinding, someNonBinding, stateAll, stateSomeNon, configAll, configSomeNon, consInitTol, consInitCheckTol, usesNonBindingLiquidPhase, cmpBndVsNonbnd) \
-	CADET_BINDINGTEST_SINGLE_IMPL(extModelName, "[ExternalFunction],[" extModelName "]", allBinding, someNonBinding, stateAll, stateSomeNon, extConfigAll, extConfigSomeNon, consInitTol, consInitCheckTol, usesNonBindingLiquidPhase, cmpBndVsNonbnd) \
-	TEST_CASE(modelName " binding model consistent with externally dependent variant", "[BindingModel],[ExternalFunction],[" modelName "],[" extModelName "]") \
+#define CADET_BINDINGTEST_MULTI(modelName, extModelName, postFix, allBinding, someNonBinding, stateAll, stateSomeNon, configAll, configSomeNon, extConfigAll, extConfigSomeNon, consInitTol, consInitCheckTol, usesNonBindingLiquidPhase, cmpBndVsNonbnd) \
+	CADET_BINDINGTEST_SINGLE_IMPL(modelName, "[" modelName "]", postFix, allBinding, someNonBinding, stateAll, stateSomeNon, configAll, configSomeNon, consInitTol, consInitCheckTol, usesNonBindingLiquidPhase, cmpBndVsNonbnd) \
+	CADET_BINDINGTEST_SINGLE_IMPL(extModelName, "[ExternalFunction],[" extModelName "]", postFix, allBinding, someNonBinding, stateAll, stateSomeNon, extConfigAll, extConfigSomeNon, consInitTol, consInitCheckTol, usesNonBindingLiquidPhase, cmpBndVsNonbnd) \
+	TEST_CASE(modelName " binding model consistent with externally dependent variant" postFix, "[BindingModel],[ExternalFunction],[" modelName "],[" extModelName "]") \
 	{ \
 		const unsigned int nBound2[] = BRACED_INIT_LIST allBinding; \
 		const unsigned int nBound3[] = BRACED_INIT_LIST someNonBinding; \
@@ -201,6 +203,26 @@
 		} \
 	}
 
+
+/**
+ * @brief Emits tests for a binding model that can have external function dependence and has a non-binding and an all-binding variant
+ * @param modelName Identifier of the model as string (e.g. "LINEAR")
+ * @param extModelName Identifier of the externally dependent model as string (e.g. "EXT_LINEAR")
+ * @param allBinding Array with number of bound states of the all-binding variant in parentheses (e.g., (1, 1, 2))
+ * @param someNonBinding Array with number of bound states of the non-binding variant in parentheses (e.g., (1, 0, 2))
+ * @param stateAll Array with full state vector (liquid and solid phase) of the all-binding variant in parentheses
+ * @param stateSomeNon Array with full state vector (liquid and solid phase) of the non-binding variant in parentheses
+ * @param configAll Interior of a JSON object block with parameters for the all-binding variant
+ * @param configSomeNon Interior of a JSON object block with parameters for the non-binding variant
+ * @param extConfigAll Interior of a JSON object block with parameters for the externally dependent all-binding variant
+ * @param extConfigSomeNon Interior of a JSON object block with parameters for the externally dependent non-binding variant
+ * @param consInitTol Error tolerance for nonlinear solvers in consistent initialization
+ * @param consInitCheckTol Error tolerance for residual check in consistent initialization
+ * @param usesNonBindingLiquidPhase Determines whether a test for all-zero Jacobian columns belonging to non-binding components is created
+ * @param cmpBndVsNonbnd Determines whether a test for all-binding vs non-binding variant (Jacobian and residual) is created
+ */
+#define CADET_BINDINGTEST(modelName, extModelName, allBinding, someNonBinding, stateAll, stateSomeNon, configAll, configSomeNon, extConfigAll, extConfigSomeNon, consInitTol, consInitCheckTol, usesNonBindingLiquidPhase, cmpBndVsNonbnd) \
+	CADET_BINDINGTEST_MULTI(modelName, extModelName, "", allBinding, someNonBinding, stateAll, stateSomeNon, configAll, configSomeNon, extConfigAll, extConfigSomeNon, consInitTol, consInitCheckTol, usesNonBindingLiquidPhase, cmpBndVsNonbnd)
 
 /**
  * @brief Emits tests for a binding model that does not allow non-binding components
