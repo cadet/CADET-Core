@@ -85,6 +85,7 @@ set(LIBCADET_BINDINGMODEL_SOURCES
 	${CMAKE_SOURCE_DIR}/src/libcadet/model/binding/BiLangmuirBinding.cpp
 	${CMAKE_SOURCE_DIR}/src/libcadet/model/binding/KumarLangmuirBinding.cpp
 	${CMAKE_SOURCE_DIR}/src/libcadet/model/binding/MobilePhaseModulatorLangmuirBinding.cpp
+	${CMAKE_SOURCE_DIR}/src/libcadet/model/binding/ExtendedMobilePhaseModulatorLangmuirBinding.cpp
 	${CMAKE_SOURCE_DIR}/src/libcadet/model/binding/SelfAssociationBinding.cpp
 	${CMAKE_SOURCE_DIR}/src/libcadet/model/binding/BiStericMassActionBinding.cpp
 	${CMAKE_SOURCE_DIR}/src/libcadet/model/binding/SaskaBinding.cpp

@@ -1410,6 +1410,35 @@ This group also takes precedence over a possibly existing \texttt{/input/model/u
   \end{dataset}
 \end{condsubgroup}
   
+\begin{condsubgroup}{/input/model/unit\_XXX/adsorption}{ADSORPTION\_MODEL = EXTENDED\_MOBILE\_PHASE\_MODULATOR}{tab:FFAdsorptionExtendedMobilePhaseModulator}
+\begin{dataset}[type=int,range={$\{ 0,1 \}$},length={1 / \texttt{NTOTALBND}}]{IS\_KINETIC}
+    Selects kinetic or quasi-stationary adsorption mode: 1 = kinetic, 0 = quasi-stationary.
+    If a single value is given, the mode is set for all bound states.
+    Otherwise, the adsorption mode is set for each bound state separately.
+  \end{dataset}
+  \begin{dataset}[type=int,range={$\{ 0,1,2 \}$},length={\texttt{NCOMP}}]{EMPM\_COMP\_MODE}
+    Determines the mode of each component ($0$ denotes the modifier component, $1$ is linear binding, $2$ is modified Langmuir binding).
+    At most one modifier component is allowed, that is, a modifier is not required.
+
+    Note that this field has the same name for the externally dependent variant of the model.
+  \end{dataset}
+  \begin{dataset}[unit=\si{\cubic\metre\of{MP}\per\mol\per\second}, type=double,range={$\geq 0$},length={\texttt{NCOMP}}]{EMPM\_KA}
+    Adsorption rate constants
+  \end{dataset}
+  \begin{dataset}[unit=\si{\raiseto{3\beta}\metre\of{MP}\per\raiseto{\beta}\mol\per\second}, type=double,range={$\geq 0$},length={\texttt{NCOMP}}]{EMPM\_KD}
+    Desorption rate constants
+  \end{dataset}
+  \begin{dataset}[unit=\si{\mol\per\cubic\metre\of{SP}}, type=double,range={$\geq 0$},length={\texttt{NCOMP}}]{EMPM\_QMAX}
+    Maximum adsorption capacities
+  \end{dataset}
+  \begin{dataset}[unit=\si{\mol\per\cubic\metre\of{SP}}, type=double,range={$\geq 0$},length={\texttt{NCOMP}}]{EMPM\_BETA}
+    Parameters describing the ion-exchange characteristics (IEX)
+  \end{dataset}
+  \begin{dataset}[unit=\si{\cubic\metre\of{MP}\per\mol}, type=double,range={$\geq 0$},length={\texttt{NCOMP}}]{EMPM\_GAMMA}
+    Parameters describing the hydrophobicity (HIC)
+  \end{dataset}
+\end{condsubgroup}
+
 \begin{condsubgroup}{/input/model/unit\_XXX/adsorption}{ADSORPTION\_MODEL = STERIC\_MASS\_ACTION}{tab:FFAdsorptionStericMassAction}
   \begin{dataset}[type=int,range={$\{ 0,1 \}$},length={1 / \texttt{NTOTALBND}}]{IS\_KINETIC}
     Selects kinetic or quasi-stationary adsorption mode: 1 = kinetic, 0 = quasi-stationary.

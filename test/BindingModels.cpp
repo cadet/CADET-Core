@@ -187,6 +187,316 @@ CADET_BINDINGTEST("MOBILE_PHASE_MODULATOR", "EXT_MOBILE_PHASE_MODULATOR", (1,1,1
 	1e-10, 1e-10, CADET_NONBINDING_LIQUIDPHASE_COMP_UNUSED, CADET_COMPARE_BINDING_VS_NONBINDING);
 
 
+CADET_BINDINGTEST_MULTI("EXTENDED_MOBILE_PHASE_MODULATOR", "EXT_EXTENDED_MOBILE_PHASE_MODULATOR", " all linear", (1,1,1), (1,1,0,1), (1.2, 1.5, 2.0, 0.5, 1.5, 1.8), (1.2, 1.5, 0.0, 2.0, 0.5, 1.5, 1.8), \
+	R"json( "EMPM_KA": [0.0, 1.14, 2.0],
+	        "EMPM_KD": [0.0, 0.004, 0.008],
+	        "EMPM_QMAX": [0.0, 4.88, 3.5],
+	        "EMPM_GAMMA": [0.0, 0.5, -1.0],
+	        "EMPM_BETA": [0.0, 1.5, 2.0],
+	        "EMPM_COMP_MODE": [1,1,1]
+	)json", \
+	R"json( "EMPM_KA": [0.0, 1.14, 1.0, 2.0],
+	        "EMPM_KD": [0.0, 0.004, 2.0, 0.008],
+	        "EMPM_QMAX": [0.0, 4.88, 3.0, 3.5],
+	        "EMPM_GAMMA": [0.0, 0.5, 0.0, -1.0],
+	        "EMPM_BETA": [0.0, 1.5, 0.0, 2.0],
+	        "EMPM_COMP_MODE": [1,1,1,1]
+	)json", \
+	R"json( "EXT_EMPM_KA": [0.0, 0.0, 0.0],
+	        "EXT_EMPM_KA_T": [0.0, 1.14, 2.0],
+	        "EXT_EMPM_KA_TT": [0.0, 0.0, 0.0],
+	        "EXT_EMPM_KA_TTT": [0.0, 0.0, 0.0],
+	        "EXT_EMPM_KD": [0.0, 0.0, 0.0],
+	        "EXT_EMPM_KD_T": [0.0, 0.004, 0.008],
+	        "EXT_EMPM_KD_TT": [0.0, 0.0, 0.0],
+	        "EXT_EMPM_KD_TTT": [0.0, 0.0, 0.0],
+	        "EXT_EMPM_QMAX": [0.0, 0.0, 0.0],
+	        "EXT_EMPM_QMAX_T": [0.0, 4.88, 3.5],
+	        "EXT_EMPM_QMAX_TT": [0.0, 0.0, 0.0],
+	        "EXT_EMPM_QMAX_TTT": [0.0, 0.0, 0.0],
+	        "EXT_EMPM_GAMMA": [0.0, 0.0, 0.0],
+	        "EXT_EMPM_GAMMA_T": [0.0, 0.5, -1.0],
+	        "EXT_EMPM_GAMMA_TT": [0.0, 0.0, 0.0],
+	        "EXT_EMPM_GAMMA_TTT": [0.0, 0.0, 0.0],
+	        "EXT_EMPM_BETA": [0.0, 0.0, 0.0],
+	        "EXT_EMPM_BETA_T": [0.0, 1.5, 2.0],
+	        "EXT_EMPM_BETA_TT": [0.0, 0.0, 0.0],
+	        "EXT_EMPM_BETA_TTT": [0.0, 0.0, 0.0],
+	        "EMPM_COMP_MODE": [1,1,1]
+	)json", \
+	R"json( "EXT_EMPM_KA": [0.0, 0.0, 0.0, 0.0],
+	        "EXT_EMPM_KA_T": [0.0, 1.14, 1.0, 2.0],
+	        "EXT_EMPM_KA_TT": [0.0, 0.0, 0.0, 0.0],
+	        "EXT_EMPM_KA_TTT": [0.0, 0.0, 0.0, 0.0],
+	        "EXT_EMPM_KD": [0.0, 0.0, 0.0, 0.0],
+	        "EXT_EMPM_KD_T": [0.0, 0.004, 2.0, 0.008],
+	        "EXT_EMPM_KD_TT": [0.0, 0.0, 0.0, 0.0],
+	        "EXT_EMPM_KD_TTT": [0.0, 0.0, 0.0, 0.0],
+	        "EXT_EMPM_QMAX": [0.0, 0.0, 0.0, 0.0],
+	        "EXT_EMPM_QMAX_T": [0.0, 4.88, 3.0, 3.5],
+	        "EXT_EMPM_QMAX_TT": [0.0, 0.0, 0.0, 0.0],
+	        "EXT_EMPM_QMAX_TTT": [0.0, 0.0, 0.0, 0.0],
+	        "EXT_EMPM_GAMMA": [0.0, 0.0, 0.0, 0.0],
+	        "EXT_EMPM_GAMMA_T": [0.0, 0.5, 0.0, -1.0],
+	        "EXT_EMPM_GAMMA_TT": [0.0, 0.0, 0.0, 0.0],
+	        "EXT_EMPM_GAMMA_TTT": [0.0, 0.0, 0.0, 0.0],
+	        "EXT_EMPM_BETA": [0.0, 0.0, 0.0, 0.0],
+	        "EXT_EMPM_BETA_T": [0.0, 1.5, 0.0, 2.0],
+	        "EXT_EMPM_BETA_TT": [0.0, 0.0, 0.0, 0.0],
+	        "EXT_EMPM_BETA_TTT": [0.0, 0.0, 0.0, 0.0],
+	        "EMPM_COMP_MODE": [1,1,1,1]
+	)json", \
+	1e-10, 1e-10, CADET_NONBINDING_LIQUIDPHASE_COMP_UNUSED, CADET_COMPARE_BINDING_VS_NONBINDING);
+
+
+CADET_BINDINGTEST_MULTI("EXTENDED_MOBILE_PHASE_MODULATOR", "EXT_EXTENDED_MOBILE_PHASE_MODULATOR", " all Langmuir", (1,1,1), (1,1,0,1), (1.2, 1.5, 2.0, 0.5, 1.5, 1.8), (1.2, 1.5, 0.0, 2.0, 0.5, 1.5, 1.8), \
+	R"json( "EMPM_KA": [1.6, 1.14, 2.0],
+	        "EMPM_KD": [0.006, 0.004, 0.008],
+	        "EMPM_QMAX": [1.0, 4.88, 3.5],
+	        "EMPM_GAMMA": [1.5, 0.5, -1.0],
+	        "EMPM_BETA": [0.8, 1.5, 2.0],
+	        "EMPM_COMP_MODE": [2,2,2]
+	)json", \
+	R"json( "EMPM_KA": [1.6, 1.14, 1.0, 2.0],
+	        "EMPM_KD": [0.006, 0.004, 2.0, 0.008],
+	        "EMPM_QMAX": [1.0, 4.88, 3.0, 3.5],
+	        "EMPM_GAMMA": [1.5, 0.5, 0.0, -1.0],
+	        "EMPM_BETA": [0.8, 1.5, 0.0, 2.0],
+	        "EMPM_COMP_MODE": [2,2,2,2]
+	)json", \
+	R"json( "EXT_EMPM_KA": [0.0, 0.0, 0.0],
+	        "EXT_EMPM_KA_T": [1.6, 1.14, 2.0],
+	        "EXT_EMPM_KA_TT": [0.0, 0.0, 0.0],
+	        "EXT_EMPM_KA_TTT": [0.0, 0.0, 0.0],
+	        "EXT_EMPM_KD": [0.0, 0.0, 0.0],
+	        "EXT_EMPM_KD_T": [0.006, 0.004, 0.008],
+	        "EXT_EMPM_KD_TT": [0.0, 0.0, 0.0],
+	        "EXT_EMPM_KD_TTT": [0.0, 0.0, 0.0],
+	        "EXT_EMPM_QMAX": [0.0, 0.0, 0.0],
+	        "EXT_EMPM_QMAX_T": [1.0, 4.88, 3.5],
+	        "EXT_EMPM_QMAX_TT": [0.0, 0.0, 0.0],
+	        "EXT_EMPM_QMAX_TTT": [0.0, 0.0, 0.0],
+	        "EXT_EMPM_GAMMA": [0.0, 0.0, 0.0],
+	        "EXT_EMPM_GAMMA_T": [1.5, 0.5, -1.0],
+	        "EXT_EMPM_GAMMA_TT": [0.0, 0.0, 0.0],
+	        "EXT_EMPM_GAMMA_TTT": [0.0, 0.0, 0.0],
+	        "EXT_EMPM_BETA": [0.0, 0.0, 0.0],
+	        "EXT_EMPM_BETA_T": [0.8, 1.5, 2.0],
+	        "EXT_EMPM_BETA_TT": [0.0, 0.0, 0.0],
+	        "EXT_EMPM_BETA_TTT": [0.0, 0.0, 0.0],
+	        "EMPM_COMP_MODE": [2,2,2]
+	)json", \
+	R"json( "EXT_EMPM_KA": [0.0, 0.0, 0.0, 0.0],
+	        "EXT_EMPM_KA_T": [1.6, 1.14, 1.0, 2.0],
+	        "EXT_EMPM_KA_TT": [0.0, 0.0, 0.0, 0.0],
+	        "EXT_EMPM_KA_TTT": [0.0, 0.0, 0.0, 0.0],
+	        "EXT_EMPM_KD": [0.0, 0.0, 0.0, 0.0],
+	        "EXT_EMPM_KD_T": [0.006, 0.004, 2.0, 0.008],
+	        "EXT_EMPM_KD_TT": [0.0, 0.0, 0.0, 0.0],
+	        "EXT_EMPM_KD_TTT": [0.0, 0.0, 0.0, 0.0],
+	        "EXT_EMPM_QMAX": [0.0, 0.0, 0.0, 0.0],
+	        "EXT_EMPM_QMAX_T": [1.0, 4.88, 3.0, 3.5],
+	        "EXT_EMPM_QMAX_TT": [0.0, 0.0, 0.0, 0.0],
+	        "EXT_EMPM_QMAX_TTT": [0.0, 0.0, 0.0, 0.0],
+	        "EXT_EMPM_GAMMA": [0.0, 0.0, 0.0, 0.0],
+	        "EXT_EMPM_GAMMA_T": [1.5, 0.5, 0.0, -1.0],
+	        "EXT_EMPM_GAMMA_TT": [0.0, 0.0, 0.0, 0.0],
+	        "EXT_EMPM_GAMMA_TTT": [0.0, 0.0, 0.0, 0.0],
+	        "EXT_EMPM_BETA": [0.0, 0.0, 0.0, 0.0],
+	        "EXT_EMPM_BETA_T": [0.8, 1.5, 0.0, 2.0],
+	        "EXT_EMPM_BETA_TT": [0.0, 0.0, 0.0, 0.0],
+	        "EXT_EMPM_BETA_TTT": [0.0, 0.0, 0.0, 0.0],
+	        "EMPM_COMP_MODE": [2,2,2,2]
+	)json", \
+	1e-10, 1e-10, CADET_NONBINDING_LIQUIDPHASE_COMP_UNUSED, CADET_COMPARE_BINDING_VS_NONBINDING);
+
+
+CADET_BINDINGTEST_MULTI("EXTENDED_MOBILE_PHASE_MODULATOR", "EXT_EXTENDED_MOBILE_PHASE_MODULATOR", " mixed", (1,1,1), (1,1,0,1), (1.2, 1.5, 2.0, 0.5, 1.5, 1.8), (1.2, 1.5, 0.0, 2.0, 0.5, 1.5, 1.8), \
+	R"json( "EMPM_KA": [1.6, 1.14, 2.0],
+	        "EMPM_KD": [0.006, 0.004, 0.008],
+	        "EMPM_QMAX": [1.0, 4.88, 3.5],
+	        "EMPM_GAMMA": [1.5, 0.5, -1.0],
+	        "EMPM_BETA": [0.8, 1.5, 2.0],
+	        "EMPM_COMP_MODE": [2,1,2]
+	)json", \
+	R"json( "EMPM_KA": [1.6, 1.14, 1.0, 2.0],
+	        "EMPM_KD": [0.006, 0.004, 2.0, 0.008],
+	        "EMPM_QMAX": [1.0, 4.88, 3.0, 3.5],
+	        "EMPM_GAMMA": [1.5, 0.5, 0.0, -1.0],
+	        "EMPM_BETA": [0.8, 1.5, 0.0, 2.0],
+	        "EMPM_COMP_MODE": [2,1,2,2]
+	)json", \
+	R"json( "EXT_EMPM_KA": [0.0, 0.0, 0.0],
+	        "EXT_EMPM_KA_T": [1.6, 1.14, 2.0],
+	        "EXT_EMPM_KA_TT": [0.0, 0.0, 0.0],
+	        "EXT_EMPM_KA_TTT": [0.0, 0.0, 0.0],
+	        "EXT_EMPM_KD": [0.0, 0.0, 0.0],
+	        "EXT_EMPM_KD_T": [0.006, 0.004, 0.008],
+	        "EXT_EMPM_KD_TT": [0.0, 0.0, 0.0],
+	        "EXT_EMPM_KD_TTT": [0.0, 0.0, 0.0],
+	        "EXT_EMPM_QMAX": [0.0, 0.0, 0.0],
+	        "EXT_EMPM_QMAX_T": [1.0, 4.88, 3.5],
+	        "EXT_EMPM_QMAX_TT": [0.0, 0.0, 0.0],
+	        "EXT_EMPM_QMAX_TTT": [0.0, 0.0, 0.0],
+	        "EXT_EMPM_GAMMA": [0.0, 0.0, 0.0],
+	        "EXT_EMPM_GAMMA_T": [1.5, 0.5, -1.0],
+	        "EXT_EMPM_GAMMA_TT": [0.0, 0.0, 0.0],
+	        "EXT_EMPM_GAMMA_TTT": [0.0, 0.0, 0.0],
+	        "EXT_EMPM_BETA": [0.0, 0.0, 0.0],
+	        "EXT_EMPM_BETA_T": [0.8, 1.5, 2.0],
+	        "EXT_EMPM_BETA_TT": [0.0, 0.0, 0.0],
+	        "EXT_EMPM_BETA_TTT": [0.0, 0.0, 0.0],
+	        "EMPM_COMP_MODE": [2,1,2]
+	)json", \
+	R"json( "EXT_EMPM_KA": [0.0, 0.0, 0.0, 0.0],
+	        "EXT_EMPM_KA_T": [1.6, 1.14, 1.0, 2.0],
+	        "EXT_EMPM_KA_TT": [0.0, 0.0, 0.0, 0.0],
+	        "EXT_EMPM_KA_TTT": [0.0, 0.0, 0.0, 0.0],
+	        "EXT_EMPM_KD": [0.0, 0.0, 0.0, 0.0],
+	        "EXT_EMPM_KD_T": [0.006, 0.004, 2.0, 0.008],
+	        "EXT_EMPM_KD_TT": [0.0, 0.0, 0.0, 0.0],
+	        "EXT_EMPM_KD_TTT": [0.0, 0.0, 0.0, 0.0],
+	        "EXT_EMPM_QMAX": [0.0, 0.0, 0.0, 0.0],
+	        "EXT_EMPM_QMAX_T": [1.0, 4.88, 3.0, 3.5],
+	        "EXT_EMPM_QMAX_TT": [0.0, 0.0, 0.0, 0.0],
+	        "EXT_EMPM_QMAX_TTT": [0.0, 0.0, 0.0, 0.0],
+	        "EXT_EMPM_GAMMA": [0.0, 0.0, 0.0, 0.0],
+	        "EXT_EMPM_GAMMA_T": [1.5, 0.5, 0.0, -1.0],
+	        "EXT_EMPM_GAMMA_TT": [0.0, 0.0, 0.0, 0.0],
+	        "EXT_EMPM_GAMMA_TTT": [0.0, 0.0, 0.0, 0.0],
+	        "EXT_EMPM_BETA": [0.0, 0.0, 0.0, 0.0],
+	        "EXT_EMPM_BETA_T": [0.8, 1.5, 0.0, 2.0],
+	        "EXT_EMPM_BETA_TT": [0.0, 0.0, 0.0, 0.0],
+	        "EXT_EMPM_BETA_TTT": [0.0, 0.0, 0.0, 0.0],
+	        "EMPM_COMP_MODE": [2,1,2,2]
+	)json", \
+	1e-10, 1e-10, CADET_NONBINDING_LIQUIDPHASE_COMP_UNUSED, CADET_COMPARE_BINDING_VS_NONBINDING);
+
+
+CADET_BINDINGTEST_MULTI("EXTENDED_MOBILE_PHASE_MODULATOR", "EXT_EXTENDED_MOBILE_PHASE_MODULATOR", " Langmuir modified", (1,1,1), (1,1,0,1), (1.2, 1.5, 2.0, 0.5, 1.5, 1.8), (1.2, 1.5, 0.0, 2.0, 0.5, 1.5, 1.8), \
+	R"json( "EMPM_KA": [1.6, 1.14, 2.0],
+	        "EMPM_KD": [0.006, 0.004, 0.008],
+	        "EMPM_QMAX": [1.0, 4.88, 3.5],
+	        "EMPM_GAMMA": [1.5, 0.5, -1.0],
+	        "EMPM_BETA": [0.8, 1.5, 2.0],
+	        "EMPM_COMP_MODE": [2,2,0]
+	)json", \
+	R"json( "EMPM_KA": [1.6, 1.14, 1.0, 2.0],
+	        "EMPM_KD": [0.006, 0.004, 2.0, 0.008],
+	        "EMPM_QMAX": [1.0, 4.88, 3.0, 3.5],
+	        "EMPM_GAMMA": [1.5, 0.5, 0.0, -1.0],
+	        "EMPM_BETA": [0.8, 1.5, 0.0, 2.0],
+	        "EMPM_COMP_MODE": [2,2,2,0]
+	)json", \
+	R"json( "EXT_EMPM_KA": [0.0, 0.0, 0.0],
+	        "EXT_EMPM_KA_T": [1.6, 1.14, 2.0],
+	        "EXT_EMPM_KA_TT": [0.0, 0.0, 0.0],
+	        "EXT_EMPM_KA_TTT": [0.0, 0.0, 0.0],
+	        "EXT_EMPM_KD": [0.0, 0.0, 0.0],
+	        "EXT_EMPM_KD_T": [0.006, 0.004, 0.008],
+	        "EXT_EMPM_KD_TT": [0.0, 0.0, 0.0],
+	        "EXT_EMPM_KD_TTT": [0.0, 0.0, 0.0],
+	        "EXT_EMPM_QMAX": [0.0, 0.0, 0.0],
+	        "EXT_EMPM_QMAX_T": [1.0, 4.88, 3.5],
+	        "EXT_EMPM_QMAX_TT": [0.0, 0.0, 0.0],
+	        "EXT_EMPM_QMAX_TTT": [0.0, 0.0, 0.0],
+	        "EXT_EMPM_GAMMA": [0.0, 0.0, 0.0],
+	        "EXT_EMPM_GAMMA_T": [1.5, 0.5, -1.0],
+	        "EXT_EMPM_GAMMA_TT": [0.0, 0.0, 0.0],
+	        "EXT_EMPM_GAMMA_TTT": [0.0, 0.0, 0.0],
+	        "EXT_EMPM_BETA": [0.0, 0.0, 0.0],
+	        "EXT_EMPM_BETA_T": [0.8, 1.5, 2.0],
+	        "EXT_EMPM_BETA_TT": [0.0, 0.0, 0.0],
+	        "EXT_EMPM_BETA_TTT": [0.0, 0.0, 0.0],
+	        "EMPM_COMP_MODE": [2,2,0]
+	)json", \
+	R"json( "EXT_EMPM_KA": [0.0, 0.0, 0.0, 0.0],
+	        "EXT_EMPM_KA_T": [1.6, 1.14, 1.0, 2.0],
+	        "EXT_EMPM_KA_TT": [0.0, 0.0, 0.0, 0.0],
+	        "EXT_EMPM_KA_TTT": [0.0, 0.0, 0.0, 0.0],
+	        "EXT_EMPM_KD": [0.0, 0.0, 0.0, 0.0],
+	        "EXT_EMPM_KD_T": [0.006, 0.004, 2.0, 0.008],
+	        "EXT_EMPM_KD_TT": [0.0, 0.0, 0.0, 0.0],
+	        "EXT_EMPM_KD_TTT": [0.0, 0.0, 0.0, 0.0],
+	        "EXT_EMPM_QMAX": [0.0, 0.0, 0.0, 0.0],
+	        "EXT_EMPM_QMAX_T": [1.0, 4.88, 3.0, 3.5],
+	        "EXT_EMPM_QMAX_TT": [0.0, 0.0, 0.0, 0.0],
+	        "EXT_EMPM_QMAX_TTT": [0.0, 0.0, 0.0, 0.0],
+	        "EXT_EMPM_GAMMA": [0.0, 0.0, 0.0, 0.0],
+	        "EXT_EMPM_GAMMA_T": [1.5, 0.5, 0.0, -1.0],
+	        "EXT_EMPM_GAMMA_TT": [0.0, 0.0, 0.0, 0.0],
+	        "EXT_EMPM_GAMMA_TTT": [0.0, 0.0, 0.0, 0.0],
+	        "EXT_EMPM_BETA": [0.0, 0.0, 0.0, 0.0],
+	        "EXT_EMPM_BETA_T": [0.8, 1.5, 0.0, 2.0],
+	        "EXT_EMPM_BETA_TT": [0.0, 0.0, 0.0, 0.0],
+	        "EXT_EMPM_BETA_TTT": [0.0, 0.0, 0.0, 0.0],
+	        "EMPM_COMP_MODE": [2,2,2,0]
+	)json", \
+	1e-10, 1e-10, CADET_NONBINDING_LIQUIDPHASE_COMP_UNUSED, CADET_COMPARE_BINDING_VS_NONBINDING);
+
+
+CADET_BINDINGTEST_MULTI("EXTENDED_MOBILE_PHASE_MODULATOR", "EXT_EXTENDED_MOBILE_PHASE_MODULATOR", " mixed modified", (1,1,1), (1,1,0,1), (1.2, 1.5, 2.0, 0.5, 1.5, 1.8), (1.2, 1.5, 0.0, 2.0, 0.5, 1.5, 1.8), \
+	R"json( "EMPM_KA": [1.6, 1.14, 2.0],
+	        "EMPM_KD": [0.006, 0.004, 0.008],
+	        "EMPM_QMAX": [1.0, 4.88, 3.5],
+	        "EMPM_GAMMA": [1.5, 0.5, -1.0],
+	        "EMPM_BETA": [0.8, 1.5, 2.0],
+	        "EMPM_COMP_MODE": [2,1,0]
+	)json", \
+	R"json( "EMPM_KA": [1.6, 1.14, 1.0, 2.0],
+	        "EMPM_KD": [0.006, 0.004, 2.0, 0.008],
+	        "EMPM_QMAX": [1.0, 4.88, 3.0, 3.5],
+	        "EMPM_GAMMA": [1.5, 0.5, 0.0, -1.0],
+	        "EMPM_BETA": [0.8, 1.5, 0.0, 2.0],
+	        "EMPM_COMP_MODE": [2,1,2,0]
+	)json", \
+	R"json( "EXT_EMPM_KA": [0.0, 0.0, 0.0],
+	        "EXT_EMPM_KA_T": [1.6, 1.14, 2.0],
+	        "EXT_EMPM_KA_TT": [0.0, 0.0, 0.0],
+	        "EXT_EMPM_KA_TTT": [0.0, 0.0, 0.0],
+	        "EXT_EMPM_KD": [0.0, 0.0, 0.0],
+	        "EXT_EMPM_KD_T": [0.006, 0.004, 0.008],
+	        "EXT_EMPM_KD_TT": [0.0, 0.0, 0.0],
+	        "EXT_EMPM_KD_TTT": [0.0, 0.0, 0.0],
+	        "EXT_EMPM_QMAX": [0.0, 0.0, 0.0],
+	        "EXT_EMPM_QMAX_T": [1.0, 4.88, 3.5],
+	        "EXT_EMPM_QMAX_TT": [0.0, 0.0, 0.0],
+	        "EXT_EMPM_QMAX_TTT": [0.0, 0.0, 0.0],
+	        "EXT_EMPM_GAMMA": [0.0, 0.0, 0.0],
+	        "EXT_EMPM_GAMMA_T": [1.5, 0.5, -1.0],
+	        "EXT_EMPM_GAMMA_TT": [0.0, 0.0, 0.0],
+	        "EXT_EMPM_GAMMA_TTT": [0.0, 0.0, 0.0],
+	        "EXT_EMPM_BETA": [0.0, 0.0, 0.0],
+	        "EXT_EMPM_BETA_T": [0.8, 1.5, 2.0],
+	        "EXT_EMPM_BETA_TT": [0.0, 0.0, 0.0],
+	        "EXT_EMPM_BETA_TTT": [0.0, 0.0, 0.0],
+	        "EMPM_COMP_MODE": [2,1,0]
+	)json", \
+	R"json( "EXT_EMPM_KA": [0.0, 0.0, 0.0, 0.0],
+	        "EXT_EMPM_KA_T": [1.6, 1.14, 1.0, 2.0],
+	        "EXT_EMPM_KA_TT": [0.0, 0.0, 0.0, 0.0],
+	        "EXT_EMPM_KA_TTT": [0.0, 0.0, 0.0, 0.0],
+	        "EXT_EMPM_KD": [0.0, 0.0, 0.0, 0.0],
+	        "EXT_EMPM_KD_T": [0.006, 0.004, 2.0, 0.008],
+	        "EXT_EMPM_KD_TT": [0.0, 0.0, 0.0, 0.0],
+	        "EXT_EMPM_KD_TTT": [0.0, 0.0, 0.0, 0.0],
+	        "EXT_EMPM_QMAX": [0.0, 0.0, 0.0, 0.0],
+	        "EXT_EMPM_QMAX_T": [1.0, 4.88, 3.0, 3.5],
+	        "EXT_EMPM_QMAX_TT": [0.0, 0.0, 0.0, 0.0],
+	        "EXT_EMPM_QMAX_TTT": [0.0, 0.0, 0.0, 0.0],
+	        "EXT_EMPM_GAMMA": [0.0, 0.0, 0.0, 0.0],
+	        "EXT_EMPM_GAMMA_T": [1.5, 0.5, 0.0, -1.0],
+	        "EXT_EMPM_GAMMA_TT": [0.0, 0.0, 0.0, 0.0],
+	        "EXT_EMPM_GAMMA_TTT": [0.0, 0.0, 0.0, 0.0],
+	        "EXT_EMPM_BETA": [0.0, 0.0, 0.0, 0.0],
+	        "EXT_EMPM_BETA_T": [0.8, 1.5, 0.0, 2.0],
+	        "EXT_EMPM_BETA_TT": [0.0, 0.0, 0.0, 0.0],
+	        "EXT_EMPM_BETA_TTT": [0.0, 0.0, 0.0, 0.0],
+	        "EMPM_COMP_MODE": [2,1,2,0]
+	)json", \
+	1e-10, 1e-10, CADET_NONBINDING_LIQUIDPHASE_COMP_UNUSED, CADET_COMPARE_BINDING_VS_NONBINDING);
+
+
 CADET_BINDINGTEST("KUMAR_MULTI_COMPONENT_LANGMUIR", "EXT_KUMAR_MULTI_COMPONENT_LANGMUIR", (0,1,1), (0,1,0,1), (1.2, 1.5, 2.0, 0.75, 1.5), (1.2, 1.5, 0.0, 2.0, 0.75, 1.5), \
 	R"json( "KMCL_KA": [0.0, 1.14, 2.0],
 	        "KMCL_KD": [0.0, 0.004, 0.008],
