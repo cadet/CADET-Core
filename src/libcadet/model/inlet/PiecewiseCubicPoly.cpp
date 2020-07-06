@@ -17,6 +17,7 @@
 
 #include "cadet/InletProfile.hpp"
 #include "cadet/ParameterProvider.hpp"
+#include "cadet/Exceptions.hpp"
 #include "common/CompilerSpecific.hpp"
 
 #include <vector>
@@ -349,26 +350,58 @@ public:
 		{
 			paramProvider->pushScope(oss.str());
 
-			const std::vector<double> cons = paramProvider->getDoubleArray("CONST_COEFF");
-			const std::vector<double> lin = paramProvider->getDoubleArray("LIN_COEFF");
-			const std::vector<double> quad = paramProvider->getDoubleArray("QUAD_COEFF");
-			const std::vector<double> cub = paramProvider->getDoubleArray("CUBE_COEFF");
-
 			// Preallocate memory if possible
 			if ((i == 0) && (_sectionTimes.size() > 0))
 			{
-				const unsigned int nComp = cons.size();
-
 				_const.reserve(nComp * _sectionTimes.size());
 				_lin.reserve(nComp * _sectionTimes.size());
 				_quad.reserve(nComp * _sectionTimes.size());
 				_cub.reserve(nComp * _sectionTimes.size());
 			}
 
-			_const.insert(_const.end(), cons.begin(), cons.begin() + nComp);
-			_lin.insert(_lin.end(), lin.begin(), lin.begin() + nComp);
-			_quad.insert(_quad.end(), quad.begin(), quad.begin() + nComp);
-			_cub.insert(_cub.end(), cub.begin(), cub.begin() + nComp);
+			if (paramProvider->exists("CONST_COEFF"))
+			{
+				const std::vector<double> cons = paramProvider->getDoubleArray("CONST_COEFF");
+				if (cons.size() < nComp)
+					throw InvalidParameterException("Not enough elements in CONST_COEF (expected " + std::to_string(nComp) + ", got " + std::to_string(cons.size()) + " in section " + std::to_string(i) + ")");
+
+				_const.insert(_const.end(), cons.begin(), cons.begin() + nComp);
+			}
+			else
+				_const.insert(_const.end(), nComp, 0.0);
+
+			if (paramProvider->exists("LIN_COEFF"))
+			{
+				const std::vector<double> lin = paramProvider->getDoubleArray("LIN_COEFF");
+				if (lin.size() < nComp)
+					throw InvalidParameterException("Not enough elements in LIN_COEFF (expected " + std::to_string(nComp) + ", got " + std::to_string(lin.size()) + " in section " + std::to_string(i) + ")");
+
+				_lin.insert(_lin.end(), lin.begin(), lin.begin() + nComp);
+			}
+			else
+				_lin.insert(_lin.end(), nComp, 0.0);
+
+			if (paramProvider->exists("QUAD_COEFF"))
+			{
+				const std::vector<double> quad = paramProvider->getDoubleArray("QUAD_COEFF");
+				if (quad.size() < nComp)
+					throw InvalidParameterException("Not enough elements in QUAD_COEFF (expected " + std::to_string(nComp) + ", got " + std::to_string(quad.size()) + " in section " + std::to_string(i) + ")");
+
+				_quad.insert(_quad.end(), quad.begin(), quad.begin() + nComp);
+			}
+			else
+				_quad.insert(_quad.end(), nComp, 0.0);
+
+			if (paramProvider->exists("CUBE_COEFF"))
+			{
+				const std::vector<double> cub = paramProvider->getDoubleArray("CUBE_COEFF");
+				if (cub.size() < nComp)
+					throw InvalidParameterException("Not enough elements in CUBE_COEFF (expected " + std::to_string(nComp) + ", got " + std::to_string(cub.size()) + " in section " + std::to_string(i) + ")");
+
+				_cub.insert(_cub.end(), cub.begin(), cub.begin() + nComp);
+			}
+			else
+				_cub.insert(_cub.end(), nComp, 0.0);
 
 			paramProvider->popScope();
 
