@@ -97,7 +97,7 @@ inline const char* to_string(ConsistentInitialization ci) CADET_NOEXCEPT
 		case ConsistentInitialization::NoneOnceThenLean:
 			return "NoneOnceThenLean";
 	}
-	return "Unkown";
+	return "Unknown";
 }
 
 /**
@@ -138,14 +138,20 @@ inline ConsistentInitialization toConsistentInitialization(int ci) CADET_NOEXCEP
 	{
 		case static_cast<typename std::underlying_type<ConsistentInitialization>::type>(ConsistentInitialization::None):
 			return ConsistentInitialization::None;
-		case static_cast<typename std::underlying_type<ConsistentInitialization>::type>(ConsistentInitialization::FullFirstOnly):
-			return ConsistentInitialization::FullFirstOnly;
-		case static_cast<typename std::underlying_type<ConsistentInitialization>::type>(ConsistentInitialization::LeanFirstOnly):
-			return ConsistentInitialization::LeanFirstOnly;
 		case static_cast<typename std::underlying_type<ConsistentInitialization>::type>(ConsistentInitialization::Full):
 			return ConsistentInitialization::Full;
+		case static_cast<typename std::underlying_type<ConsistentInitialization>::type>(ConsistentInitialization::FullFirstOnly):
+			return ConsistentInitialization::FullFirstOnly;
 		case static_cast<typename std::underlying_type<ConsistentInitialization>::type>(ConsistentInitialization::Lean):
 			return ConsistentInitialization::Lean;
+		case static_cast<typename std::underlying_type<ConsistentInitialization>::type>(ConsistentInitialization::LeanFirstOnly):
+			return ConsistentInitialization::LeanFirstOnly;
+		case static_cast<typename std::underlying_type<ConsistentInitialization>::type>(ConsistentInitialization::FullOnceThenLean):
+			return ConsistentInitialization::FullOnceThenLean;
+		case static_cast<typename std::underlying_type<ConsistentInitialization>::type>(ConsistentInitialization::NoneOnceThenFull):
+			return ConsistentInitialization::NoneOnceThenFull;
+		case static_cast<typename std::underlying_type<ConsistentInitialization>::type>(ConsistentInitialization::NoneOnceThenLean):
+			return ConsistentInitialization::NoneOnceThenLean;
 	}
 	return ConsistentInitialization::Full;
 }
