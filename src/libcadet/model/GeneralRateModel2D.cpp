@@ -1973,10 +1973,10 @@ void GeneralRateModel2D::setEquidistantRadialDisc(unsigned int parType)
 
 	for (unsigned int cell = 0; cell < _disc.nParCell[parType]; ++cell)
 	{
-		const active r_out = _parRadius[parType] - static_cast<active>(cell) * dr;
-		const active r_in = _parRadius[parType] - static_cast<active>(cell + 1) * dr;
+		const active r_out = _parRadius[parType] - static_cast<double>(cell) * dr;
+		const active r_in = _parRadius[parType] - static_cast<double>(cell + 1) * dr;
 
-		ptrCenterRadius[cell] = _parRadius[parType] - (0.5 + static_cast<active>(cell)) * dr;
+		ptrCenterRadius[cell] = _parRadius[parType] - (0.5 + static_cast<double>(cell)) * dr;
 
 		// Compute denominator -> corresponding to cell volume
 		const active vol = pow(r_out, 3.0) - pow(r_in, 3.0);
