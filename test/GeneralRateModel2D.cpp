@@ -43,9 +43,14 @@ TEST_CASE("GRM2D time derivative Jacobian vs FD", "[GRM2D],[UnitOp],[Residual],[
 	cadet::test::column::testTimeDerivativeJacobianFD("GENERAL_RATE_MODEL_2D", 1e-6, 0.0, 9e-4);
 }
 
-TEST_CASE("GRM2D flux Jacobian vs FD", "[GRM2D],[UnitOp],[Residual],[Jacobian]")
+TEST_CASE("GRM2D rapid-equilibrium binding flux Jacobian vs FD", "[GRM2D],[UnitOp],[Residual],[Jacobian]")
 {
-	cadet::test::column::testArrowHeadJacobianFD("GENERAL_RATE_MODEL_2D", 1e-6, 2e-9);
+	cadet::test::column::testArrowHeadJacobianFD("GENERAL_RATE_MODEL_2D", false, 1e-6, 2e-9);
+}
+
+TEST_CASE("GRM2D dynamic binding flux Jacobian vs FD", "[GRM2D],[UnitOp],[Residual],[Jacobian]")
+{
+	cadet::test::column::testArrowHeadJacobianFD("GENERAL_RATE_MODEL_2D", true, 1e-6, 2e-9);
 }
 
 TEST_CASE("GRM2D sensitivity Jacobians", "[GRM2D],[UnitOp],[Sensitivity]")

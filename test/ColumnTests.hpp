@@ -155,6 +155,17 @@ namespace column
 	/**
 	 * @brief Checks the bottom macro row and right macro column of the Jacobian against FD
 	 * @details Uses centered finite differences to check the flux part of the Jacobian.
+	 * @param [in] uoType Unit operation type
+	 * @param [in] dynamicBinding Determines whether dynamic binding is used
+	 * @param [in] h Step size of centered finite differences
+	 * @param [in] absTol Absolute error tolerance
+	 * @param [in] relTol Relative error tolerance
+	 */
+	void testArrowHeadJacobianFD(const std::string& uoType, bool dynamicBinding, double h = 1e-6, double absTol = 0.0, double relTol = std::numeric_limits<float>::epsilon() * 100.0);
+
+	/**
+	 * @brief Checks the bottom macro row and right macro column of the Jacobian against FD
+	 * @details Uses centered finite differences to check the flux part of the Jacobian.
 	 * @param [in] jpp Configured column model
 	 * @param [in] h Step size of centered finite differences
 	 * @param [in] absTol Absolute error tolerance

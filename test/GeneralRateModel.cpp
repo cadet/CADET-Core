@@ -52,9 +52,14 @@ TEST_CASE("GRM time derivative Jacobian vs FD", "[GRM],[UnitOp],[Residual],[Jaco
 	cadet::test::column::testTimeDerivativeJacobianFD("GENERAL_RATE_MODEL", 1e-6, 0.0, 9e-4);
 }
 
-TEST_CASE("GRM flux Jacobian vs FD", "[GRM],[UnitOp],[Residual],[Jacobian]")
+TEST_CASE("GRM rapid-equilibrium binding flux Jacobian vs FD", "[GRM],[UnitOp],[Residual],[Jacobian]")
 {
-	cadet::test::column::testArrowHeadJacobianFD("GENERAL_RATE_MODEL", 1e-6, 2e-9);
+	cadet::test::column::testArrowHeadJacobianFD("GENERAL_RATE_MODEL", false, 1e-6, 2e-9);
+}
+
+TEST_CASE("GRM dynamic binding flux Jacobian vs FD", "[GRM],[UnitOp],[Residual],[Jacobian]")
+{
+	cadet::test::column::testArrowHeadJacobianFD("GENERAL_RATE_MODEL", true, 1e-6, 2e-9);
 }
 
 TEST_CASE("GRM sensitivity Jacobians", "[GRM],[UnitOp],[Sensitivity]")

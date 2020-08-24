@@ -240,13 +240,14 @@ namespace cadet
 	 * @param [in] secIdx Index of the current section
 	 * @return Pointer to the first element of the correct vectorial parameter array
 	 */
-	inline active const* getSectionDependentSlice(const std::vector<active>& data, unsigned int nElements, unsigned int secIdx)
+	template <typename T>
+	inline T const* getSectionDependentSlice(const std::vector<T>& data, unsigned int nElements, unsigned int secIdx)
 	{
 		// Check if the vector contains enough elements
 		if (cadet_unlikely(data.size() >= nElements * (secIdx + 1)))
 		{
 			// Advance data pointer to correct position
-			active const* out = data.data();
+			T const* out = data.data();
 			return out + nElements * secIdx;
 		}
 		else
@@ -266,7 +267,8 @@ namespace cadet
 	 * @param [in] secIdx Index of the current section
 	 * @return The correct scalar parameter
 	 */
-	inline const active& getSectionDependentScalar(const std::vector<active>& data, unsigned int secIdx)
+	template <typename T>
+	inline const T& getSectionDependentScalar(const std::vector<T>& data, unsigned int secIdx)
 	{
 		if (cadet_unlikely(data.size() > 1))
 		{
