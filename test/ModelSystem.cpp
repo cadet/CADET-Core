@@ -92,7 +92,7 @@ namespace
 
 #ifdef CADET_BENCHMARK_MODE
 		virtual std::vector<double> benchmarkTimings() const { return std::vector<double>(); }
-		virtual char const* const* benchmarkDescriptions() const { return ""; }
+		virtual char const* const* benchmarkDescriptions() const { return nullptr; }
 #endif
 
 		virtual unsigned int numDofs() const CADET_NOEXCEPT { return (_nInletPorts + _nOutletPorts) * _nComp; }
