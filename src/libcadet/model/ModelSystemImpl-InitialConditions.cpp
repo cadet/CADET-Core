@@ -464,7 +464,11 @@ void ModelSystem::consistentInitialConditionAlgorithm(const SimulationTime& simT
 	// Phase 1: Compute algebraic state variables
 
 	// Consistent initial state for unit operations that only have outlets (system input, Inlet unit operation)
+#ifdef CADET_PARALLELIZE
+	tbb::parallel_for(size_t(0), _models.size(), [=](size_t i)
+#else
 	for (unsigned int i = 0; i < _models.size(); ++i)
+#endif
 	{
 		IUnitOperation* const m = _models[i];
 		const unsigned int offset = _dofOffset[i];
@@ -472,7 +476,7 @@ void ModelSystem::consistentInitialConditionAlgorithm(const SimulationTime& simT
 		{
 			ConsistentInit<tag_t>::state(m, simTime, simState.vecStateY + offset, applyOffset(adJac, offset), errorTol, _threadLocalStorage);
 		}
-	}
+	} CADET_PARFOR_END;
 
 	// Calculate coupling DOFs
 	// These operations only requires correct unit operation outlet DOFs.
@@ -486,7 +490,11 @@ void ModelSystem::consistentInitialConditionAlgorithm(const SimulationTime& simT
 	solveCouplingDOF(simState.vecStateY);
 
 	// Consistent initial state for all other unit operations (unit operations that have inlets)
+#ifdef CADET_PARALLELIZE
+	tbb::parallel_for(size_t(0), _models.size(), [=](size_t i)
+#else
 	for (unsigned int i = 0; i < _models.size(); ++i)
+#endif
 	{
 		IUnitOperation* const m = _models[i];
 		const unsigned int offset = _dofOffset[i];
@@ -494,7 +502,7 @@ void ModelSystem::consistentInitialConditionAlgorithm(const SimulationTime& simT
 		{
 			ConsistentInit<tag_t>::state(m, simTime, simState.vecStateY + offset, applyOffset(adJac, offset), errorTol, _threadLocalStorage);
 		}
-	}
+	} CADET_PARFOR_END;
 
 
 	// Phase 2: Calculate residual with current state
@@ -508,12 +516,16 @@ void ModelSystem::consistentInitialConditionAlgorithm(const SimulationTime& simT
 	// Phase3 3: Calculate dynamic state variables yDot
 
 	// Calculate all local yDot state variables
+#ifdef CADET_PARALLELIZE
+	tbb::parallel_for(size_t(0), _models.size(), [=](size_t i)
+#else
 	for (unsigned int i = 0; i < _models.size(); ++i)
+#endif
 	{
 		IUnitOperation* const m = _models[i];
 		const unsigned int offset = _dofOffset[i];
 		ConsistentInit<tag_t>::timeDerivative(m, simTime, simState.vecStateY + offset, simState.vecStateYdot + offset, _tempState + offset, _threadLocalStorage);
-	}
+	} CADET_PARFOR_END;
 
 	// Zero out the coupling DOFs (provides right hand side of 0 for solveCouplingDOF())
 	std::fill(simState.vecStateYdot + finalOffset, simState.vecStateYdot + numDofs(), 0.0);
