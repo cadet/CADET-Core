@@ -67,7 +67,7 @@ classdef Simulator
 						end
 					otherwise
 						error('CADET', 'Interface %s is not available.', interface);
-				end				
+				end
 			end
 		end
 
