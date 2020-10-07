@@ -176,7 +176,7 @@ void residualKernel(double t, unsigned int secIdx, const ColumnPosition& colPos,
 			}
 		}
 
-		if (wantJac)
+		if (wantJac && (params.nTotalBound > 0))
 		{
 			BufferedArray<double> fluxSolidJacobian = buffer.template array<double>(params.nTotalBound * (params.nTotalBound + params.nComp));
 			linalg::DenseMatrixView dmv(static_cast<double*>(fluxSolidJacobian), nullptr, params.nTotalBound, params.nTotalBound + params.nComp);
