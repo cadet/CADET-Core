@@ -1808,56 +1808,43 @@ This group also takes precedence over a possibly existing \texttt{/input/model/u
   \begin{dataset}[type=double,range={$\geq 0$},length={\texttt{NREACT}}]{MAL\_KBWD\_SOLID}
     Backward rate constants for particle solid phase reactions (available for external functions)
   \end{dataset}
-  \begin{dataset}[type=double,length={$\texttt{NCOMP} \cdot \texttt{NREACT}$}]{MAL\_STOICHIOMETRY\_BULK
-}
+  \begin{dataset}[type=double,length={$\texttt{NCOMP} \cdot \texttt{NREACT}$}]{MAL\_STOICHIOMETRY\_BULK}
     Stoichiometric matrix of bulk volume reactions as $\texttt{NCOMP} \times \texttt{NREACT}$ matrix in row-major storage
   \end{dataset}
-  \begin{dataset}[type=double,length={$\texttt{NCOMP} \cdot \texttt{NREACT}$}]{MAL\_EXPONENTS\_BULK\_FWD
-}
+  \begin{dataset}[type=double,length={$\texttt{NCOMP} \cdot \texttt{NREACT}$}]{MAL\_EXPONENTS\_BULK\_FWD}
     Forward exponent matrix of bulk volume reactions as $\texttt{NCOMP} \times \texttt{NREACT}$ matrix in row-major storage (optional, calculated from \texttt{MAL\_STOICHIOMETRY\_BULK} by default)
   \end{dataset}
-  \begin{dataset}[type=double,length={$\texttt{NCOMP} \cdot \texttt{NREACT}$}]{MAL\_EXPONENTS\_BULK\_BWD
-}
+  \begin{dataset}[type=double,length={$\texttt{NCOMP} \cdot \texttt{NREACT}$}]{MAL\_EXPONENTS\_BULK\_BWD}
     Backward exponent matrix of bulk volume reactions as $\texttt{NCOMP} \times \texttt{NREACT}$ matrix in row-major storage (optional, calculated from \texttt{MAL\_STOICHIOMETRY\_BULK} by default)
   \end{dataset}
-  \begin{dataset}[type=double,length={$\texttt{NCOMP} \cdot \texttt{NREACT}$}]{MAL\_STOICHIOMETRY\_LIQUID
-}
+  \begin{dataset}[type=double,length={$\texttt{NCOMP} \cdot \texttt{NREACT}$}]{MAL\_STOICHIOMETRY\_LIQUID}
     Stoichiometric matrix of particle liquid phase reactions as $\texttt{NCOMP} \times \texttt{NREACT}$ matrix in row-major storage
   \end{dataset}
-  \begin{dataset}[type=double,length={$\texttt{NCOMP} \cdot \texttt{NREACT}$}]{MAL\_EXPONENTS\_LIQUID\_FWD
-}
+  \begin{dataset}[type=double,length={$\texttt{NCOMP} \cdot \texttt{NREACT}$}]{MAL\_EXPONENTS\_LIQUID\_FWD}
     Forward exponent matrix of particle liquid phase reactions as $\texttt{NCOMP} \times \texttt{NREACT}$ matrix in row-major storage (optional, calculated from \texttt{MAL\_STOICHIOMETRY\_LIQUID} by default)
   \end{dataset}
-  \begin{dataset}[type=double,length={$\texttt{NCOMP} \cdot \texttt{NREACT}$}]{MAL\_EXPONENTS\_LIQUID\_BWD
-}
+  \begin{dataset}[type=double,length={$\texttt{NCOMP} \cdot \texttt{NREACT}$}]{MAL\_EXPONENTS\_LIQUID\_BWD}
     Backward exponent matrix of particle liquid phase reactions as $\texttt{NCOMP} \times \texttt{NREACT}$ matrix in row-major storage (optional, calculated from \texttt{MAL\_STOICHIOMETRY\_LIQUID} by default)
   \end{dataset}
-  \begin{dataset}[type=double,length={$\texttt{NTOTALBND} \cdot \texttt{NREACT}$}]{MAL\_EXPONENTS\_LIQUID\_FWD\_MODSOLID
-}
+  \begin{dataset}[type=double,length={$\texttt{NTOTALBND} \cdot \texttt{NREACT}$}]{MAL\_EXPONENTS\_LIQUID\_FWD\_MODSOLID}
     Forward solid phase modifier exponent matrix of particle liquid phase reactions as $\texttt{NTOTALBND} \times \texttt{NREACT}$ matrix in row-major storage (optional, defaults to all $0$)
   \end{dataset}
-  \begin{dataset}[type=double,length={$\texttt{NTOTALBND} \cdot \texttt{NREACT}$}]{MAL\_EXPONENTS\_LIQUID\_BWD\_MODSOLID
-}
+  \begin{dataset}[type=double,length={$\texttt{NTOTALBND} \cdot \texttt{NREACT}$}]{MAL\_EXPONENTS\_LIQUID\_BWD\_MODSOLID}
     Backward solid phase modifier exponent matrix of particle liquid phase reactions as $\texttt{NTOTALBND} \times \texttt{NREACT}$ matrix in row-major storage (optional, defaults to all $0$)
   \end{dataset}
-  \begin{dataset}[type=double,length={$\texttt{NTOTALBND} \cdot \texttt{NREACT}$}]{MAL\_STOICHIOMETRY\_SOLID
-}
+  \begin{dataset}[type=double,length={$\texttt{NTOTALBND} \cdot \texttt{NREACT}$}]{MAL\_STOICHIOMETRY\_SOLID}
     Stoichiometric matrix of particle solid phase reactions as $\texttt{NTOTALBND} \times \texttt{NREACT}$ matrix in row-major storage
   \end{dataset}
-  \begin{dataset}[type=double,length={$\texttt{NTOTALBND} \cdot \texttt{NREACT}$}]{MAL\_EXPONENTS\_SOLID\_FWD
-}
+  \begin{dataset}[type=double,length={$\texttt{NTOTALBND} \cdot \texttt{NREACT}$}]{MAL\_EXPONENTS\_SOLID\_FWD}
     Forward exponent matrix of particle solid phase reactions as $\texttt{NTOTALBND} \times \texttt{NREACT}$ matrix in row-major storage (optional, calculated from \texttt{MAL\_STOICHIOMETRY\_SOLID} by default)
   \end{dataset}
-  \begin{dataset}[type=double,length={$\texttt{NTOTALBND} \cdot \texttt{NREACT}$}]{MAL\_EXPONENTS\_SOLID\_BWD
-}
+  \begin{dataset}[type=double,length={$\texttt{NTOTALBND} \cdot \texttt{NREACT}$}]{MAL\_EXPONENTS\_SOLID\_BWD}
     Backward exponent matrix of particle solid phase reactions as $\texttt{NTOTALBND} \times \texttt{NREACT}$ matrix in row-major storage (optional, calculated from \texttt{MAL\_STOICHIOMETRY\_SOLID} by default)
   \end{dataset}
-  \begin{dataset}[type=double,length={$\texttt{NCOMP} \cdot \texttt{NREACT}$}]{MAL\_EXPONENTS\_SOLID\_FWD\_MODLIQUID
-}
+  \begin{dataset}[type=double,length={$\texttt{NCOMP} \cdot \texttt{NREACT}$}]{MAL\_EXPONENTS\_SOLID\_FWD\_MODLIQUID}
     Forward liquid phase modifier exponent matrix of particle solid phase reactions as $\texttt{NCOMP} \times \texttt{NREACT}$ matrix in row-major storage (optional, defaults to all $0$)
   \end{dataset}
-  \begin{dataset}[type=double,length={$\texttt{NCOMP} \cdot \texttt{NREACT}$}]{MAL\_EXPONENTS\_SOLID\_BWD\_MODLIQUID
-}
+  \begin{dataset}[type=double,length={$\texttt{NCOMP} \cdot \texttt{NREACT}$}]{MAL\_EXPONENTS\_SOLID\_BWD\_MODLIQUID}
     Backward liquid phase modifier exponent matrix of particle solid phase reactions as $\texttt{NCOMP} \times \texttt{NREACT}$ matrix in row-major storage (optional, defaults to all $0$)
   \end{dataset}
 \end{condsubgroup}
