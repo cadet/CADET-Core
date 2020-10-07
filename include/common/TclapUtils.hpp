@@ -38,7 +38,8 @@ namespace TCLAP
 			std::cout << "Built from commit " << cadet::getLibraryCommitHash() << "\n";
 		    std::cout << "CADET homepage: <http://www.cadet-web.de>\n";
 		    std::cout << "Fork CADET on GitHub: <https://github.com/modsim/CADET>\n";
-		    std::cout << "Report bugs to the issue tracker on GitHub or <cadet@fz-juelich.de>" << std::endl;
+		    std::cout << "Report bugs to the issue tracker on GitHub or <cadet@fz-juelich.de>\n";
+			std::cout << "See the accompanying LICENSE.txt, AUTHORS, and CONTRIBUTORS files" << std::endl;
 		}
 
 	protected:
@@ -61,7 +62,8 @@ namespace TCLAP
 			std::cout << "This is " << _progName << "\n";
 		    std::cout << "CADET homepage: <http://www.cadet-web.de>\n";
 		    std::cout << "Fork CADET on GitHub: <https://github.com/modsim/CADET>\n";
-		    std::cout << "Report bugs to the issue tracker on GitHub or cadet@fz-juelich.de" << std::endl;
+		    std::cout << "Report bugs to the issue tracker on GitHub or <cadet@fz-juelich.de>\n";
+			std::cout << "See the accompanying LICENSE.txt, AUTHORS, and CONTRIBUTORS files" << std::endl;
 		}
 
 	protected:
