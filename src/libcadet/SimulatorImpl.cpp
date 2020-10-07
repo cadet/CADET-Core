@@ -344,7 +344,7 @@ namespace cadet
 		_consistentInitMode(ConsistentInitialization::Full), _consistentInitModeSens(ConsistentInitialization::Full),
 		_vecADres(nullptr), _vecADy(nullptr), _lastIntTime(0.0), _notification(nullptr)
 	{
-#if defined(ACTIVE_ADOLC) || defined(ACTIVE_SFAD) || defined(ACTIVE_SETFAD)
+#if defined(ACTIVE_SFAD) || defined(ACTIVE_SETFAD)
 		LOG(Debug) << "Resetting AD directions from " << ad::getDirections() << " to default " << ad::getMaxDirections();
 		ad::setDirections(ad::getMaxDirections());
 #endif
@@ -1005,7 +1005,7 @@ namespace cadet
 
 		// Set number of AD directions
 		// @todo This is problematic if multiple Simulators are run concurrently!
-#if defined(ACTIVE_ADOLC) || defined(ACTIVE_SFAD) || defined(ACTIVE_SETFAD)
+#if defined(ACTIVE_SFAD) || defined(ACTIVE_SETFAD)
 		LOG(Debug) << "Setting AD directions from " << ad::getDirections() << " to " << numSensitivityAdDirections() + _model->requiredADdirs();
 		if (numSensitivityAdDirections() + _model->requiredADdirs() > ad::getMaxDirections())
 			throw InvalidParameterException("Requested " + std::to_string(numSensitivityAdDirections() + _model->requiredADdirs()) + " AD directions, but only "

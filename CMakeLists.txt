@@ -111,7 +111,7 @@ add_feature_info(ENABLE_SUNDIALS_OPENMP ENABLE_SUNDIALS_OPENMP "Prefer OpenMP ve
 option(ENABLE_ANALYTIC_JACOBIAN_CHECK "Enable verification of analytical Jacobian by AD" OFF)
 add_feature_info(ENABLE_ANALYTIC_JACOBIAN_CHECK ENABLE_ANALYTIC_JACOBIAN_CHECK "Enable verification of analytical Jacobian by AD")
 
-set (ADLIB "sfad" CACHE STRING "Selects the AD library, options are 'adolc', 'sfad', 'setfad'")
+set (ADLIB "sfad" CACHE STRING "Selects the AD library, options are 'sfad', 'setfad'")
 string(TOLOWER ${ADLIB} ADLIB)
 
 
@@ -473,11 +473,7 @@ if (ENABLE_PLATFORM_TIMER)
 endif()
 
 add_library(CADET::AD INTERFACE IMPORTED)
-if (ADLIB STREQUAL "adolc")
-	message(STATUS "AD library: ADOL-C")
-	target_compile_definitions(CADET::AD INTERFACE ACTIVE_ADOLC)
-	target_include_directories(CADET::AD INTERFACE "${CMAKE_SOURCE_DIR}/ThirdParty/ADOL-C/include")
-elseif (ADLIB STREQUAL "sfad")
+if (ADLIB STREQUAL "sfad")
 	message(STATUS "AD library: SFAD")
 	target_compile_definitions(CADET::AD INTERFACE ACTIVE_SFAD)
 	target_include_directories(CADET::AD INTERFACE "${CMAKE_SOURCE_DIR}/include/ad")
@@ -486,7 +482,7 @@ elseif (ADLIB STREQUAL "setfad")
 	target_compile_definitions(CADET::AD INTERFACE ACTIVE_SETFAD)
 	target_include_directories(CADET::AD INTERFACE "${CMAKE_SOURCE_DIR}/include/ad")
 else()
-	message(FATAL_ERROR "Unkown AD library ${ADLIB} (options are 'adolc', 'sfad', 'setfad')")
+	message(FATAL_ERROR "Unkown AD library ${ADLIB} (options are 'sfad', 'setfad')")
 endif()
 
 

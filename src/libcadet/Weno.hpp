@@ -201,8 +201,6 @@ private:
 #if defined(ACTIVE_SETFAD) || defined(ACTIVE_SFAD)
 		using cadet::sqr;
 		using sfad::sqr;
-#elif defined(ACTIVE_ADOLC)
-		using cadet::sqr;
 #endif
 
 		// Local order of the scheme that is actually used (may be changed by treatment of boundaries)

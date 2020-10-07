@@ -16,7 +16,7 @@
 #include "AutoDiff.hpp"
 
 
-#if defined(ACTIVE_ADOLC) || defined(ACTIVE_SFAD) || defined(ACTIVE_SETFAD)
+#if defined(ACTIVE_SFAD) || defined(ACTIVE_SETFAD)
 	ACTIVE_INIT
 #endif
 
@@ -25,9 +25,7 @@ namespace cadet
 	namespace ad
 	{
 
-#if defined(ACTIVE_ADOLC)
-
-#elif defined(ACTIVE_SFAD) || defined(ACTIVE_SETFAD)
+#if defined(ACTIVE_SFAD) || defined(ACTIVE_SETFAD)
 
 #endif
 
