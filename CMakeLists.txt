@@ -514,11 +514,13 @@ endif()
 # ---------------------------------------------------
 
 # Packaging support
+include(CPack)
 set(CPACK_PACKAGE_VENDOR "CADET")
 set(CPACK_PACKAGE_DESCRIPTION_SUMMARY ${PROJECT_DESCRIPTION})
 set(CPACK_PACKAGE_VERSION_MAJOR ${PROJECT_VERSION_MAJOR})
 set(CPACK_PACKAGE_VERSION_MINOR ${PROJECT_VERSION_MINOR})
 set(CPACK_PACKAGE_VERSION_PATCH ${PROJECT_VERSION_PATCH})
+set(CPACK_STRIP_FILES ON)
 
 # Combine LICENSE.txt and LICENSE-ThirdParty.txt
 file(WRITE "${CMAKE_BINARY_DIR}/LICENSE.txt" "####################################################################################\n")
@@ -534,7 +536,6 @@ file(APPEND "${CMAKE_BINARY_DIR}/LICENSE.txt" "\n\n${LICENSE_THIRDPARTY}")
 set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_BINARY_DIR}/LICENSE.txt")
 set(CPACK_RESOURCE_FILE_README "${CMAKE_SOURCE_DIR}/README.md")
 
-set(CPACK_SOURCE_GENERATOR "TGZ;ZIP")
 set(CPACK_SOURCE_IGNORE_FILES
 	/.git
 	/\\\\.DS_Store
