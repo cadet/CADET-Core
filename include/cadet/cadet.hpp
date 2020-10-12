@@ -15,7 +15,7 @@
  * The library provides a fast and accurate forward simulator for the general rate model of column liquid chromatography
  * 
  * @authors    Eric von Lieres, Joel Andersson, Andreas Puettmann, Sebastian Schnittert, Samuel Leweke, William Heymann
- * @version    4.0.1
+ * @version    4.1.0
  * @date       2008-2020
  * @copyright  GNU General Public License v3.0 (or, at your option, any later version).
  */
