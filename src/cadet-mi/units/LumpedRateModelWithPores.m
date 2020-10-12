@@ -51,6 +51,7 @@ classdef LumpedRateModelWithPores < Model
 		particleRadius; % Radius of the particles in [m]
 		crossSectionArea; % Cross section area of the column in [m]
 		particleTypeVolumeFractions; % Volume fractions of particle types
+		particleGeometry; % Type of particle geometry (i.e., 'SPHERE', 'CYLINDER', 'SLAB')
 
 		% Numerical method for advection
 		
@@ -98,6 +99,7 @@ classdef LumpedRateModelWithPores < Model
 			obj.useAnalyticJacobian = true;
 			obj.particleTypeVolumeFractions = 1;
 			obj.nParticleTypes = 1;
+			obj.particleGeometry = 'SPHERE';
 
 			obj.reconstructionType = 'WENO';
 			obj.wenoBoundaryHandling = 0; % Decrease order of WENO scheme at boundary
@@ -140,6 +142,19 @@ classdef LumpedRateModelWithPores < Model
 		function set.nParticleTypes(obj, val)
 			validateattributes(val, {'numeric'}, {'scalar', 'nonempty', '>=', 1, 'finite', 'real'}, '', 'nParticleTypes');
 			obj.data.discretization.NPARTYPE = int32(val);
+			obj.hasChanged = true;
+		end
+
+		function val = get.particleGeometry(obj)
+			val = obj.data.discretization.PAR_GEOM;
+		end
+
+		function set.particleGeometry(obj, val)
+			if iscell(val)
+				obj.data.discretization.PAR_GEOM = cellfun(@(s) validatestring(s, {'SPHERE', 'CYLINDER', 'SLAB'}, '', 'particleGeometry'), val, 'UniformOutput', false);
+			else
+				obj.data.discretization.PAR_GEOM = {validatestring(val, {'SPHERE', 'CYLINDER', 'SLAB'}, '', 'particleGeometry')};
+			end
 			obj.hasChanged = true;
 		end
 
@@ -644,6 +659,9 @@ classdef LumpedRateModelWithPores < Model
 				if (numel(obj.poreAccessibility) ~= obj.nComponents) && (numel(obj.poreAccessibility) ~= obj.nComponents * nSections) && (numel(obj.poreAccessibility) ~= obj.nComponents * nParType) && (numel(obj.poreAccessibility) ~= nSections * obj.nComponents * nParType)
 					error('CADET:invalidConfig', 'Expected poreAccessibility to be of size %d, %d, %d, or %d.', obj.nComponents, obj.nComponents * nSections, obj.nComponents * nParType, nSections * obj.nComponents * nParType);
 				end
+			end
+			if (numel(obj.particleGeometry) ~= 1) && (numel(obj.particleGeometry) ~= nParType)
+				error('CADET:invalidConfig', 'Expected particleGeometry to be of size %d or %d (number of particle types).', 1, nParType);
 			end
 			validateattributes(obj.particleTypeVolumeFractions, {'double'}, {'vector', 'nonempty', '>=', 0.0, '<=', 1.0, 'finite', 'real'}, '', 'particleTypeVolumeFractions');
 			if abs(sum(obj.particleTypeVolumeFractions) - 1.0) >= 1e-10

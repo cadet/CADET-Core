@@ -320,6 +320,10 @@ namespace cadet
 namespace model
 {
 
+constexpr double SurfVolRatioSphere = 3.0;
+constexpr double SurfVolRatioCylinder = 2.0;
+constexpr double SurfVolRatioSlab = 1.0;
+
 int schurComplementMultiplierGRM2D(void* userData, double const* x, double* z)
 {
 	GeneralRateModel2D* const grm = static_cast<GeneralRateModel2D*>(userData);
@@ -497,6 +501,32 @@ bool GeneralRateModel2D::configureModelDiscretization(IParameterProvider& paramP
 			_parDiscType[i] = ParticleDiscretizationMode::Equivolume;
 		else if (pdt[i] == "USER_DEFINED_PAR")
 			_parDiscType[i] = ParticleDiscretizationMode::UserDefined;
+	}
+
+	// Read particle geometry and default to "SPHERICAL"
+	_parGeomSurfToVol = std::vector<double>(_disc.nParType, SurfVolRatioSphere);
+	if (paramProvider.exists("PAR_GEOM"))
+	{
+		std::vector<std::string> pg = paramProvider.getStringArray("PAR_GEOM");
+		if ((pg.size() == 1) && (_disc.nParType > 1))
+		{
+			// Multiplex using first value
+			pg.resize(_disc.nParType, pg[0]);
+		}
+		else if (pg.size() < _disc.nParType)
+			throw InvalidParameterException("Field PAR_GEOM contains too few elements (" + std::to_string(_disc.nParType) + " required)");
+
+		for (unsigned int i = 0; i < _disc.nParType; ++i)
+		{
+			if (pg[i] == "SPHERE")
+				_parGeomSurfToVol[i] = SurfVolRatioSphere;
+			else if (pg[i] == "CYLINDER")
+				_parGeomSurfToVol[i] = SurfVolRatioCylinder;
+			else if (pg[i] == "SLAB")
+				_parGeomSurfToVol[i] = SurfVolRatioSlab;
+			else
+				throw InvalidParameterException("Unknown particle geometry type \"" + pg[i] + "\" at index " + std::to_string(i) + " of field PAR_GEOM");
+		}
 	}
 
 	if (paramProvider.exists("PAR_DISC_VECTOR"))
@@ -1564,7 +1594,7 @@ int GeneralRateModel2D::residualFlux(double t, unsigned int secIdx, StateType co
 		active const* const filmDiff = getSectionDependentSlice(_filmDiffusion, _disc.nComp * _disc.nParType, secIdx) + type * _disc.nComp;
 		active const* const parDiff = getSectionDependentSlice(_parDiffusion, _disc.nComp * _disc.nParType, secIdx) + type * _disc.nComp;
 
-		const ParamType surfaceToVolumeRatio = 3.0 / static_cast<ParamType>(_parRadius[type]);
+		const ParamType surfaceToVolumeRatio = _parGeomSurfToVol[type] / static_cast<ParamType>(_parRadius[type]);
 		const ParamType outerAreaPerVolume = static_cast<ParamType>(_parOuterSurfAreaPerVolume[_disc.nParCellsBeforeType[type]]);
 
 		const ParamType jacPF_val = -outerAreaPerVolume / epsP;
@@ -1706,7 +1736,7 @@ void GeneralRateModel2D::assembleOffdiagJac(double t, unsigned int secIdx)
 		active const* const filmDiff = getSectionDependentSlice(_filmDiffusion, _disc.nComp * _disc.nParType, secIdx) + type * _disc.nComp;
 		active const* const parDiff = getSectionDependentSlice(_parDiffusion, _disc.nComp * _disc.nParType, secIdx) + type * _disc.nComp;
 
-		const double surfaceToVolumeRatio = 3.0 / static_cast<double>(_parRadius[type]);
+		const double surfaceToVolumeRatio = _parGeomSurfToVol[type] / static_cast<double>(_parRadius[type]);
 		const double outerAreaPerVolume = static_cast<double>(_parOuterSurfAreaPerVolume[_disc.nParCellsBeforeType[type]]);
 
 		const double jacPF_val = -outerAreaPerVolume / epsP;
@@ -2042,26 +2072,61 @@ void GeneralRateModel2D::expandErrorTol(double const* errorSpec, unsigned int er
  */
 void GeneralRateModel2D::setEquidistantRadialDisc(unsigned int parType)
 {
-	const active radius = _parRadius[parType] - _parCoreRadius[parType];
-	const active dr = radius / static_cast<double>(_disc.nParCell[parType]);
-	std::fill(_parCellSize.data() + _disc.nParCellsBeforeType[parType], _parCellSize.data() + _disc.nParCellsBeforeType[parType] + _disc.nParCell[parType], dr);
-
 	active* const ptrCenterRadius = _parCenterRadius.data() + _disc.nParCellsBeforeType[parType];
 	active* const ptrOuterSurfAreaPerVolume = _parOuterSurfAreaPerVolume.data() + _disc.nParCellsBeforeType[parType];
 	active* const ptrInnerSurfAreaPerVolume = _parInnerSurfAreaPerVolume.data() + _disc.nParCellsBeforeType[parType];
 
-	for (unsigned int cell = 0; cell < _disc.nParCell[parType]; ++cell)
+	const active radius = _parRadius[parType] - _parCoreRadius[parType];
+	const active dr = radius / static_cast<double>(_disc.nParCell[parType]);
+	std::fill(_parCellSize.data() + _disc.nParCellsBeforeType[parType], _parCellSize.data() + _disc.nParCellsBeforeType[parType] + _disc.nParCell[parType], dr);
+
+	if (_parGeomSurfToVol[parType] == SurfVolRatioSphere)
 	{
-		const active r_out = _parRadius[parType] - static_cast<double>(cell) * dr;
-		const active r_in = _parRadius[parType] - static_cast<double>(cell + 1) * dr;
+		for (unsigned int cell = 0; cell < _disc.nParCell[parType]; ++cell)
+		{
+			const active r_out = _parRadius[parType] - static_cast<double>(cell) * dr;
+			const active r_in = _parRadius[parType] - static_cast<double>(cell + 1) * dr;
 
-		ptrCenterRadius[cell] = _parRadius[parType] - (0.5 + static_cast<double>(cell)) * dr;
+			ptrCenterRadius[cell] = _parRadius[parType] - (0.5 + static_cast<double>(cell)) * dr;
 
-		// Compute denominator -> corresponding to cell volume
-		const active vol = pow(r_out, 3.0) - pow(r_in, 3.0);
+			// Compute denominator -> corresponding to cell volume
+			const active vol = pow(r_out, 3.0) - pow(r_in, 3.0);
 
-		ptrOuterSurfAreaPerVolume[cell] = 3.0 * sqr(r_out) / vol;
-		ptrInnerSurfAreaPerVolume[cell] = 3.0 * sqr(r_in) / vol;
+			ptrOuterSurfAreaPerVolume[cell] = 3.0 * sqr(r_out) / vol;
+			ptrInnerSurfAreaPerVolume[cell] = 3.0 * sqr(r_in) / vol;
+		}
+	}
+	else if (_parGeomSurfToVol[parType] == SurfVolRatioCylinder)
+	{
+		for (unsigned int cell = 0; cell < _disc.nParCell[parType]; ++cell)
+		{
+			const active r_out = _parRadius[parType] - static_cast<double>(cell) * dr;
+			const active r_in = _parRadius[parType] - static_cast<double>(cell + 1) * dr;
+
+			ptrCenterRadius[cell] = _parRadius[parType] - (0.5 + static_cast<double>(cell)) * dr;
+
+			// Compute denominator -> corresponding to cell volume
+			const active vol = sqr(r_out) - sqr(r_in);
+
+			ptrOuterSurfAreaPerVolume[cell] = 2.0 * r_out / vol;
+			ptrInnerSurfAreaPerVolume[cell] = 2.0 * r_in / vol;
+		}
+	}
+	else if (_parGeomSurfToVol[parType] == SurfVolRatioSlab)
+	{
+		for (unsigned int cell = 0; cell < _disc.nParCell[parType]; ++cell)
+		{
+			const active r_out = _parRadius[parType] - static_cast<double>(cell) * dr;
+			const active r_in = _parRadius[parType] - static_cast<double>(cell + 1) * dr;
+
+			ptrCenterRadius[cell] = _parRadius[parType] - (0.5 + static_cast<double>(cell)) * dr;
+
+			// Compute denominator -> corresponding to cell volume
+			const active vol = r_out - r_in;
+
+			ptrOuterSurfAreaPerVolume[cell] = 1.0 / vol;
+			ptrInnerSurfAreaPerVolume[cell] = 1.0 / vol;
+		}
 	}
 }
 
@@ -2070,30 +2135,79 @@ void GeneralRateModel2D::setEquidistantRadialDisc(unsigned int parType)
  */
 void GeneralRateModel2D::setEquivolumeRadialDisc(unsigned int parType)
 {
-	active r_out = _parRadius[parType];
-	active r_in = _parCoreRadius[parType];
-	const active volumePerShell = (pow(_parRadius[parType], 3.0) - pow(_parCoreRadius[parType], 3.0)) / static_cast<double>(_disc.nParCell[parType]);
-
 	active* const ptrCellSize = _parCellSize.data() + _disc.nParCellsBeforeType[parType];
 	active* const ptrCenterRadius = _parCenterRadius.data() + _disc.nParCellsBeforeType[parType];
 	active* const ptrOuterSurfAreaPerVolume = _parOuterSurfAreaPerVolume.data() + _disc.nParCellsBeforeType[parType];
 	active* const ptrInnerSurfAreaPerVolume = _parInnerSurfAreaPerVolume.data() + _disc.nParCellsBeforeType[parType];
 
-	for (unsigned int cell = 0; cell < _disc.nParCell[parType]; ++cell)
+	if (_parGeomSurfToVol[parType] == SurfVolRatioSphere)
 	{
-		if (cell != (_disc.nParCell[parType] - 1))
-			r_in = pow(pow(r_out, 3.0) - volumePerShell, (1.0 / 3.0));
-		else
-			r_in = _parCoreRadius[parType];
+		active r_out = _parRadius[parType];
+		active r_in = _parCoreRadius[parType];
+		const active volumePerShell = (pow(_parRadius[parType], 3.0) - pow(_parCoreRadius[parType], 3.0)) / static_cast<double>(_disc.nParCell[parType]);
 
-		ptrCellSize[cell] = r_out - r_in;
-		ptrCenterRadius[cell] = (r_out + r_in) * 0.5;
+		for (unsigned int cell = 0; cell < _disc.nParCell[parType]; ++cell)
+		{
+			if (cell != (_disc.nParCell[parType] - 1))
+				r_in = pow(pow(r_out, 3.0) - volumePerShell, (1.0 / 3.0));
+			else
+				r_in = _parCoreRadius[parType];
 
-		ptrOuterSurfAreaPerVolume[cell] = 3.0 * sqr(r_out) / volumePerShell;
-		ptrInnerSurfAreaPerVolume[cell] = 3.0 * sqr(r_in) / volumePerShell;
+			ptrCellSize[cell] = r_out - r_in;
+			ptrCenterRadius[cell] = (r_out + r_in) * 0.5;
 
-		// For the next cell: r_out == r_in of the current cell
-		r_out = r_in;
+			ptrOuterSurfAreaPerVolume[cell] = 3.0 * sqr(r_out) / volumePerShell;
+			ptrInnerSurfAreaPerVolume[cell] = 3.0 * sqr(r_in) / volumePerShell;
+
+			// For the next cell: r_out == r_in of the current cell
+			r_out = r_in;
+		}
+	}
+	else if (_parGeomSurfToVol[parType] == SurfVolRatioCylinder)
+	{
+		active r_out = _parRadius[parType];
+		active r_in = _parCoreRadius[parType];
+		const active volumePerShell = (sqr(_parRadius[parType]) - sqr(_parCoreRadius[parType])) / static_cast<double>(_disc.nParCell[parType]);
+
+		for (unsigned int cell = 0; cell < _disc.nParCell[parType]; ++cell)
+		{
+			if (cell != (_disc.nParCell[parType] - 1))
+				r_in = sqrt(sqr(r_out) - volumePerShell);
+			else
+				r_in = _parCoreRadius[parType];
+
+			ptrCellSize[cell] = r_out - r_in;
+			ptrCenterRadius[cell] = (r_out + r_in) * 0.5;
+
+			ptrOuterSurfAreaPerVolume[cell] = 2.0 * r_out / volumePerShell;
+			ptrInnerSurfAreaPerVolume[cell] = 2.0 * r_in / volumePerShell;
+
+			// For the next cell: r_out == r_in of the current cell
+			r_out = r_in;
+		}
+	}
+	else if (_parGeomSurfToVol[parType] == SurfVolRatioSlab)
+	{
+		active r_out = _parRadius[parType];
+		active r_in = _parCoreRadius[parType];
+		const active volumePerShell = (_parRadius[parType] - _parCoreRadius[parType]) / static_cast<double>(_disc.nParCell[parType]);
+
+		for (unsigned int cell = 0; cell < _disc.nParCell[parType]; ++cell)
+		{
+			if (cell != (_disc.nParCell[parType] - 1))
+				r_in = r_out - volumePerShell;
+			else
+				r_in = _parCoreRadius[parType];
+
+			ptrCellSize[cell] = r_out - r_in;
+			ptrCenterRadius[cell] = (r_out + r_in) * 0.5;
+
+			ptrOuterSurfAreaPerVolume[cell] = 1.0 / volumePerShell;
+			ptrInnerSurfAreaPerVolume[cell] = 1.0 / volumePerShell;
+
+			// For the next cell: r_out == r_in of the current cell
+			r_out = r_in;
+		}
 	}
 }
 
@@ -2109,11 +2223,11 @@ void GeneralRateModel2D::setUserdefinedRadialDisc(unsigned int parType)
 	active* const ptrInnerSurfAreaPerVolume = _parInnerSurfAreaPerVolume.data() + _disc.nParCellsBeforeType[parType];
 
 	// Care for the right ordering and include 0.0 / 1.0 if not already in the vector.
-	std::vector<double> orderedInterfaces = std::vector<double>(_parDiscVector.begin() + _disc.nParCellsBeforeType[parType] + parType, 
+	std::vector<active> orderedInterfaces = std::vector<active>(_parDiscVector.begin() + _disc.nParCellsBeforeType[parType] + parType, 
 		_parDiscVector.begin() + _disc.nParCellsBeforeType[parType] + parType + _disc.nParCell[parType] + 1);
 
 	// Sort in descending order
-	std::sort(orderedInterfaces.begin(), orderedInterfaces.end(), std::greater<double>());
+	std::sort(orderedInterfaces.begin(), orderedInterfaces.end(), std::greater<active>());
 
 	// Force first and last element to be 1.0 and 0.0, respectively
 	orderedInterfaces[0] = 1.0;
@@ -2121,18 +2235,49 @@ void GeneralRateModel2D::setUserdefinedRadialDisc(unsigned int parType)
 
 	// Map [0, 1] -> [core radius, particle radius] via linear interpolation
 	for (unsigned int cell = 0; cell < _disc.nParCell[parType]; ++cell)
-		orderedInterfaces[cell] = orderedInterfaces[cell] * (static_cast<double>(_parRadius[parType]) - static_cast<double>(_parCoreRadius[parType])) + static_cast<double>(_parCoreRadius[parType]);
+		orderedInterfaces[cell] = static_cast<double>(orderedInterfaces[cell]) * (_parRadius[parType] - _parCoreRadius[parType]) + _parCoreRadius[parType];
 
-	for (unsigned int cell = 0; cell < _disc.nParCell[parType]; ++cell)
+	if (_parGeomSurfToVol[parType] == SurfVolRatioSphere)
 	{
-		ptrCellSize[cell] = orderedInterfaces[cell] - orderedInterfaces[cell + 1];
-		ptrCenterRadius[cell] = (orderedInterfaces[cell] + orderedInterfaces[cell + 1]) * 0.5;
+		for (unsigned int cell = 0; cell < _disc.nParCell[parType]; ++cell)
+		{
+			ptrCellSize[cell] = orderedInterfaces[cell] - orderedInterfaces[cell + 1];
+			ptrCenterRadius[cell] = (orderedInterfaces[cell] + orderedInterfaces[cell + 1]) * 0.5;
 
-		// Compute denominator -> corresponding to cell volume
-		const active vol = std::pow(orderedInterfaces[cell], 3.0) - std::pow(orderedInterfaces[cell + 1], 3.0);
+			// Compute denominator -> corresponding to cell volume
+			const active vol = pow(orderedInterfaces[cell], 3.0) - pow(orderedInterfaces[cell + 1], 3.0);
 
-		ptrOuterSurfAreaPerVolume[cell] = 3.0 * sqr(orderedInterfaces[cell]) / vol;
-		ptrInnerSurfAreaPerVolume[cell] = 3.0 * sqr(orderedInterfaces[cell + 1]) / vol;
+			ptrOuterSurfAreaPerVolume[cell] = 3.0 * sqr(orderedInterfaces[cell]) / vol;
+			ptrInnerSurfAreaPerVolume[cell] = 3.0 * sqr(orderedInterfaces[cell + 1]) / vol;
+		}
+	}
+	else if (_parGeomSurfToVol[parType] == SurfVolRatioCylinder)
+	{
+		for (unsigned int cell = 0; cell < _disc.nParCell[parType]; ++cell)
+		{
+			ptrCellSize[cell] = orderedInterfaces[cell] - orderedInterfaces[cell + 1];
+			ptrCenterRadius[cell] = (orderedInterfaces[cell] + orderedInterfaces[cell + 1]) * 0.5;
+
+			// Compute denominator -> corresponding to cell volume
+			const active vol = sqr(orderedInterfaces[cell]) - sqr(orderedInterfaces[cell + 1]);
+
+			ptrOuterSurfAreaPerVolume[cell] = 2.0 * orderedInterfaces[cell] / vol;
+			ptrInnerSurfAreaPerVolume[cell] = 2.0 * orderedInterfaces[cell + 1] / vol;
+		}
+	}
+	else if (_parGeomSurfToVol[parType] == SurfVolRatioSlab)
+	{
+		for (unsigned int cell = 0; cell < _disc.nParCell[parType]; ++cell)
+		{
+			ptrCellSize[cell] = orderedInterfaces[cell] - orderedInterfaces[cell + 1];
+			ptrCenterRadius[cell] = (orderedInterfaces[cell] + orderedInterfaces[cell + 1]) * 0.5;
+
+			// Compute denominator -> corresponding to cell volume
+			const active vol = orderedInterfaces[cell] - orderedInterfaces[cell + 1];
+
+			ptrOuterSurfAreaPerVolume[cell] = 1.0 / vol;
+			ptrInnerSurfAreaPerVolume[cell] = 1.0 / vol;
+		}
 	}
 }
 

@@ -48,6 +48,10 @@ namespace cadet
 namespace model
 {
 
+constexpr double SurfVolRatioSphere = 3.0;
+constexpr double SurfVolRatioCylinder = 2.0;
+constexpr double SurfVolRatioSlab = 1.0;
+
 int schurComplementMultiplierLRMPores(void* userData, double const* x, double* z)
 {
 	LumpedRateModelWithPores* const lrm = static_cast<LumpedRateModelWithPores*>(userData);
@@ -194,6 +198,32 @@ bool LumpedRateModelWithPores::configureModelDiscretization(IParameterProvider& 
 
 	// Create nonlinear solver for consistent initialization
 	configureNonlinearSolver(paramProvider);
+
+	// Read particle geometry and default to "SPHERICAL"
+	_parGeomSurfToVol = std::vector<double>(_disc.nParType, SurfVolRatioSphere);
+	if (paramProvider.exists("PAR_GEOM"))
+	{
+		std::vector<std::string> pg = paramProvider.getStringArray("PAR_GEOM");
+		if ((pg.size() == 1) && (_disc.nParType > 1))
+		{
+			// Multiplex using first value
+			pg.resize(_disc.nParType, pg[0]);
+		}
+		else if (pg.size() < _disc.nParType)
+			throw InvalidParameterException("Field PAR_GEOM contains too few elements (" + std::to_string(_disc.nParType) + " required)");
+
+		for (unsigned int i = 0; i < _disc.nParType; ++i)
+		{
+			if (pg[i] == "SPHERE")
+				_parGeomSurfToVol[i] = SurfVolRatioSphere;
+			else if (pg[i] == "CYLINDER")
+				_parGeomSurfToVol[i] = SurfVolRatioCylinder;
+			else if (pg[i] == "SLAB")
+				_parGeomSurfToVol[i] = SurfVolRatioSlab;
+			else
+				throw InvalidParameterException("Unknown particle geometry type \"" + pg[i] + "\" at index " + std::to_string(i) + " of field PAR_GEOM");
+		}
+	}
 
 	paramProvider.popScope();
 
@@ -976,8 +1006,8 @@ int LumpedRateModelWithPores::residualFlux(double t, unsigned int secIdx, StateT
 		active const* const filmDiff = getSectionDependentSlice(_filmDiffusion, _disc.nComp * _disc.nParType, secIdx) + type * _disc.nComp;
 		active const* const poreAccFactor = _poreAccessFactor.data() + type * _disc.nComp;
 
-		const ParamType jacCF_val = invBetaC * 3.0 / radius;
-		const ParamType jacPF_val = -3.0 / (epsP * radius);
+		const ParamType jacCF_val = invBetaC * _parGeomSurfToVol[type] / radius;
+		const ParamType jacPF_val = -_parGeomSurfToVol[type] / (epsP * radius);
 
 		// J_{0,f} block, adds flux to column void / bulk volume equations
 		for (unsigned int i = 0; i < _disc.nCol * _disc.nComp; ++i)
@@ -1049,8 +1079,8 @@ void LumpedRateModelWithPores::assembleOffdiagJac(double t, unsigned int secIdx)
 
 		const double epsP = static_cast<double>(_parPorosity[type]);
 		const double radius = static_cast<double>(_parRadius[type]);
-		const double jacCF_val = invBetaC * 3.0 / radius;
-		const double jacPF_val = -3.0 / (radius * epsP);
+		const double jacCF_val = invBetaC * _parGeomSurfToVol[type] / radius;
+		const double jacPF_val = -_parGeomSurfToVol[type] / (radius * epsP);
 
 		active const* const filmDiff = getSectionDependentSlice(_filmDiffusion, _disc.nComp * _disc.nParType, secIdx) + type * _disc.nComp;
 		active const* const poreAccFactor = _poreAccessFactor.data() + type * _disc.nComp;

@@ -257,6 +257,7 @@ protected:
 	linalg::DoubleSparseMatrix _jacInlet; //!< Jacobian inlet DOF block matrix connects inlet DOFs to first bulk cells
 
 	active _colPorosity; //!< Column porosity (external porosity) \f$ \varepsilon_c \f$
+	std::vector<double> _parGeomSurfToVol; //!< Particle surface to volume ratio factor (i.e., 3.0 for spherical, 2.0 for cylindrical, 1.0 for hexahedral)
 	std::vector<active> _parRadius; //!< Particle radius \f$ r_p \f$
 	bool _singleParRadius;
 	std::vector<active> _parPorosity; //!< Particle porosity (internal porosity) \f$ \varepsilon_p \f$

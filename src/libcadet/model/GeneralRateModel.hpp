@@ -306,6 +306,7 @@ protected:
 	std::vector<active> _parTypeVolFrac; //!< Volume fraction of each particle type
 	std::vector<ParticleDiscretizationMode> _parDiscType; //!< Particle discretization mode
 	std::vector<double> _parDiscVector; //!< Particle discretization shell edges
+	std::vector<double> _parGeomSurfToVol; //!< Particle surface to volume ratio factor (i.e., 3.0 for spherical, 2.0 for cylindrical, 1.0 for hexahedral)
 
 	// Vectorial parameters
 	std::vector<active> _filmDiffusion; //!< Film diffusion coefficient \f$ k_f \f$

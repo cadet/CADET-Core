@@ -152,13 +152,13 @@ A short comparison of the most prominent unit operation model features is given 
 
 \begin{table}[!ht]
 \centering
-\begin{tabu}to \linewidth[m]{X>{\centering\arraybackslash}p{2cm}>{\centering\arraybackslash}p{2cm}>{\centering\arraybackslash}p{2cm}>{\centering\arraybackslash}p{2cm}} \toprule
-\rowfont[c]\normalfont Unit operation model & Radial diffusion & Particle diffusion & Film diffusion & Multiple-particle \\ \midrule
-2D General rate model & \cmark & \cmark & \cmark & \cmark \\
-General rate model & \xmark & \cmark & \cmark & \cmark \\
-Lumped rate model with pores & \xmark & \xmark & \cmark & \cmark \\
-Lumped rate model without pores & \xmark & \xmark & \xmark & \xmark \\
-Continuous stirred tank & \xmark & \xmark & \xmark & \cmark \\
+\begin{tabu}to \linewidth[m]{X>{\centering\arraybackslash}p{1.6cm}>{\centering\arraybackslash}p{1.6cm}>{\centering\arraybackslash}p{1.6cm}>{\centering\arraybackslash}p{1.6cm}>{\centering\arraybackslash}p{1.6cm}} \toprule
+\rowfont[c]\normalfont Unit operation model & Radial diffusion & Particle diffusion & Film diffusion & Multiple-particle & Particle geometries \\ \midrule
+2D General rate model & \cmark & \cmark & \cmark & \cmark & \cmark \\
+General rate model & \xmark & \cmark & \cmark & \cmark & \cmark \\
+Lumped rate model with pores & \xmark & \xmark & \cmark & \cmark & \cmark \\
+Lumped rate model without pores & \xmark & \xmark & \xmark & \xmark & \xmark \\
+Continuous stirred tank & \xmark & \xmark & \xmark & \cmark & \xmark \\
 \bottomrule
 \end{tabu}
 \caption{\label{tab:MFeatureMatrix}Supported features of the different unit operation models}
@@ -488,10 +488,109 @@ By default, the following initial conditions are applied for all $z \in [0,L]$ a
 
 See Table~\ref{tab:FFModelUnitOpGRM}.
 
+\paragraph{Particle geometry}
+\phantomsection\label{par:MUOPGRMParticleGeometry}
+
+In the model above, spherical particles are considered.
+Other supported particle forms are cylinders and slabs.
+For cylinders, it is assumed that molecules can only enter through the lateral surface (i.e., the caps are sealed).
+Slabs are assumed to have two large sides such that molecules enter through the two large faces (i.e., the remaining four small faces are sealed).
+
+All particle forms support core-shell beads that have an impermeable core.
+The particles are characterized by their (outer) ``radius'' $r_{p,j}$ and their (inner) core ``radius'' $r_{c,j} \in [0, r_{p,j})$.
+See Fig.~\ref{fig:ModelGRMParticleGeometries}.
+
+\begin{figure}[!hptb]
+	\centering
+	\begin{tikzpicture}[>=stealth]
+
+		\draw (0,0) circle (2cm);
+		\draw[dashed] (2,0) arc (0:180:2 and 0.6);
+		\path[fill=white,draw=black] (0,0) circle (0.75cm);
+		\draw[dashed] (0.75,0) arc (0:180:0.75 and 0.225);
+		\draw (-0.75,0) arc (180:360:0.75 and 0.225);
+
+		\draw (-2,0) arc (180:360:2 and 0.6);
+
+		\fill[fill=black] (0,0) circle (1pt);
+		\draw[dashed] (0,0 ) -- node[above]{$r_{c}$} (2,0);
+		\node[right] at (2,0) {$r_p$};
+
+		\begin{scope}[shift={(4.5,0)}]
+			\node[cylinder,draw=black,aspect=3.25,minimum height=3.5cm,minimum width=2.5cm,shape border rotate=0,] (column) {};
+			%cylinder uses custom fill, cylinder body fill=red!30,cylinder end fill=red!10
+
+			\draw[dashed]
+				let \p1 = ($ (column.after bottom) - (column.before bottom) $),
+					\n1 = {0.5*veclen(\x1,\y1)-0.5\pgflinewidth},
+					\p2 = ($ (column.bottom) - (column.after bottom)!.5!(column.before bottom) $),
+					\n2 = {veclen(\x2,\y2)-0.5\pgflinewidth}
+				in
+					([yshift=-0.5\pgflinewidth] column.before bottom) arc [start angle=-90, end angle=90, y radius=\n1, x radius=\n2];
+
+			\draw[]
+				let \p1 = ($ (column.before top) - (column.after top) $),
+					\n1 = {0.4*(0.5*veclen(\x1,\y1)-0.5\pgflinewidth)},
+					\p2 = ($ (column.top) - (column.before top)!.5!(column.after top) $),
+					\n2 = {0.4*(veclen(\x2,\y2)-0.5\pgflinewidth)}
+				in
+					([yshift=-0.75cm] column.before top) arc [start angle=90, end angle=-270, y radius=\n1, x radius=\n2];
+
+			\draw[dashed]
+				let \p1 = ($ (column.before top) - (column.after top) $),
+					\n1 = {0.4*(0.5*veclen(\x1,\y1)-0.5\pgflinewidth)},
+					\p2 = ($ (column.top) - (column.before top)!.5!(column.after top) $),
+					\n2 = {0.4*(veclen(\x2,\y2)-0.5\pgflinewidth)}
+				in
+					([yshift=-0.75cm] column.after bottom) arc [start angle=90, end angle=-270, y radius=\n1, x radius=\n2];
+
+			\draw[dashed] ([yshift=-0.75cm] column.after bottom) -- ([yshift=-0.75cm] column.before top);
+			\draw[dashed] ([yshift=0.75cm] column.before bottom) -- ([yshift=0.75cm] column.after top);
+		
+			\fill[fill=black] (0,0) circle (1pt);
+			\draw[dashed] (0,0) -- (0,1.25) node[above] {$r_p$};
+			\node[above,right] at (0,0.75) {$r_c$};
+		\end{scope}
+
+		\begin{scope}[shift={(9,-0.5)}]
+		
+			\draw (-1.5,-0.125) rectangle (1.5,0.125);
+			\draw (-1.5,0.125) rectangle (1.5,0.5);
+			\draw (-1.5,-0.125) rectangle (1.5,-0.5);
+
+			\draw (-1.5,0.5) -- ++(1.35,1.2) -- ++(3,0) -- ++(-1.35,-1.2);
+			\draw[dashed] (-1.5,-0.5) -- ++(1.35,1.2) -- ++(3,0);
+			\draw (2.85,1.7) -- ++(0,-1) -- (1.5,-0.5);
+			\draw[dashed] (-0.15,1.7) -- ++(0,-1);
+
+			\draw[dashed] (-1.5,-0.125) -- ++(1.35,1.2) -- ++(3,0); % -- ++(-1.35,-1.2);
+			\draw (1.5,-0.125) -- ++(1.35,1.2);
+			\draw[dashed] (-1.5,0.125) -- ++(1.35,1.2) -- ++(3,0); % -- ++(-1.35,-1.2);
+			\draw (1.5,0.125) -- ++(1.35,1.2);
+
+			\fill[fill=black] (0,0) circle (1pt);
+			\draw[dashed] (0,0) -- (0,-0.5) node[below] {$r_p$};
+			\node[below,right] at (0,-0.125) {$r_c$};
+
+		\end{scope}
+
+	\end{tikzpicture}
+	\caption{Particle geometries\label{fig:ModelGRMParticleGeometries}}
+\end{figure}
+
+For cylinders, the factor $3 / r_{p,j}$ in \eqref{eq:ModelColumn} changes to $2 / r_{p,j}$ and the diffusion operator in \eqref{eq:ModelBead} and \eqref{eq:DynBinding} changes as
+\begin{align*}
+	\left[\frac{\partial^2}{\partial r^2} + \frac{2}{r} \frac{\partial }{\partial r} \right] \quad \rightarrow \quad \left[\frac{\partial^2}{\partial r^2} + \frac{1}{r} \frac{\partial }{\partial r} \right].
+\end{align*}
+For slabs, the factor $3 / r_{p,j}$ in \eqref{eq:ModelColumn} changes to $1 / r_{p,j}$ and the diffusion operator in \eqref{eq:ModelBead} and \eqref{eq:DynBinding} changes as
+\begin{align*}
+	\left[\frac{\partial^2}{\partial r^2} + \frac{2}{r} \frac{\partial }{\partial r} \right] \quad \rightarrow \quad \frac{\partial^2}{\partial r^2}.
+\end{align*}
+
 \paragraph{Multiple particle types}
 \phantomsection\label{par:MUOPGRMMultiParticleTypes}
 
-A particle type \index{Model!Multiple particle types}\index{Model!Particle types} has its own set of mass transfer parameters $\varepsilon_{p,j}$, $D_{p,j}$, $D_{s,j}$, etc (see Eq.~\eqref{eq:ModelBead}) and its own binding model $f_{\mathrm{ads}}$ (including a possibly differing number of bound states).
+A particle type \index{Model!Multiple particle types}\index{Model!Particle types} has its own set of mass transfer and geometry parameters $\varepsilon_{p,j}$, $D_{p,j}$, $D_{s,j}$, etc.\ (see Eq.~\eqref{eq:ModelBead}) and its own binding model $f_{\mathrm{ads}}$ (including a possibly differing number of bound states).
 This allows, for example, modeling of particle size distributions or potential applications with differently functionalized beads (e.g., immobilized enzymes).
 
 The distribution of the particle types is governed by their volume fractions $d_j$ in Eq.~\eqref{eq:ModelColumn}.
@@ -574,7 +673,7 @@ By default, the following initial conditions are applied for all $z \in [0,L]$:
 	c^l_i(0, z) &= 0, & c^p_{j,i}(0, z) &= 0, & c^s_{j,i,m_{j,i}}(0,z) &= 0.
 \end{align}
 
-Multiple particle types are supported (see Section~\ref{par:MUOPGRMMultiParticleTypes}).
+Multiple particle types and all particle geometries are supported (see Section~\ref{par:MUOPGRMMultiParticleTypes}).
 This model can also be used to simulate size exclusion chromatography (see Section~\ref{par:MUOPGRMSizeExclusion}).\index{Model!Size exclusion chromatography}
 For the specification of flow rate and direction, the same holds as for the general rate model (see Section~\ref{par:MUOPGRMflow}).
 See Table~\ref{tab:FFModelUnitOpLRMP}.

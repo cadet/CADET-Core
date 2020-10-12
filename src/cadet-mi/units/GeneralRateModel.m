@@ -28,6 +28,7 @@ classdef GeneralRateModel < Model
 
 		particleDiscretizationType; % Type of particle discretization (e.g., equivolume)
 		particleCellPosition; % Positions of the cells in the particle (dimensionless, between 0 and 1)
+		particleGeometry; % Type of particle geometry (i.e., 'SPHERE', 'CYLINDER', 'SLAB')
 
 		useAnalyticJacobian; % Determines whether Jacobian is calculated analytically or via AD
 
@@ -108,6 +109,7 @@ classdef GeneralRateModel < Model
 			obj.particleTypeVolumeFractions = 1;
 			obj.nParticleTypes = 1;
 			obj.particleBoundaryOrder = 2;
+			obj.particleGeometry = 'SPHERE';
 
 			obj.useAnalyticJacobian = true;
 			obj.particleCellPosition = [];
@@ -206,6 +208,19 @@ classdef GeneralRateModel < Model
 				if isfield(obj.data.discretization, 'PAR_DISC_VECTOR')
 					obj.data.discretization = rmfield(obj.data.discretization, 'PAR_DISC_VECTOR');
 				end
+			end
+			obj.hasChanged = true;
+		end
+
+		function val = get.particleGeometry(obj)
+			val = obj.data.discretization.PAR_GEOM;
+		end
+
+		function set.particleGeometry(obj, val)
+			if iscell(val)
+				obj.data.discretization.PAR_GEOM = cellfun(@(s) validatestring(s, {'SPHERE', 'CYLINDER', 'SLAB'}, '', 'particleGeometry'), val, 'UniformOutput', false);
+			else
+				obj.data.discretization.PAR_GEOM = {validatestring(val, {'SPHERE', 'CYLINDER', 'SLAB'}, '', 'particleGeometry')};
 			end
 			obj.hasChanged = true;
 		end
@@ -755,7 +770,11 @@ classdef GeneralRateModel < Model
 
 			nParType = obj.nParticleTypes;
 			validateattributes(obj.nBoundStates, {'numeric'}, {'nonnegative', 'vector', 'numel', obj.nComponents * nParType, 'finite', 'real'}, '', 'nBoundStates');
-			
+
+			if (numel(obj.particleDiscretizationType) ~= 1) && (numel(obj.particleDiscretizationType) ~= nParType)
+				error('CADET:invalidConfig', 'Expected particleDiscretizationType to be of size %d or %d (number of particle types).', 1, nParType);
+			end
+
 			for i = 1:length(obj.particleDiscretizationType)
 				if strcmp(obj.particleDiscretizationType{i}, 'USER_DEFINED_PAR') && ~isempty(obj.particleCellPosition)
 					validateattributes(obj.particleCellPosition, {'double'}, {'vector', 'increasing', '>=', 0.0, '<=', 1.0, 'numel', obj.nCellsParticle + nParType, 'finite', 'real'}, '', 'particleCellPosition');
@@ -763,6 +782,10 @@ classdef GeneralRateModel < Model
 						error('CADET:invalidConfig', 'Expected particleCellPosition to start with 0 and end with 1.');
 					end
 				end
+			end
+
+			if (numel(obj.particleGeometry) ~= 1) && (numel(obj.particleGeometry) ~= nParType)
+				error('CADET:invalidConfig', 'Expected particleGeometry to be of size %d or %d (number of particle types).', 1, nParType);
 			end
 
 			validateattributes(obj.initialBulk, {'double'}, {'nonnegative', 'vector', 'numel', obj.nComponents, 'finite', 'real'}, '', 'initialBulk');
