@@ -67,7 +67,7 @@ The net flux for component $i$ is given by
 where $S^l = (s^l_{i,j}) \in \mathds{R}^{N_{\text{comp}} \times N_{\text{react}}}$ is the stoichiometric matrix, $\varphi^l_j(c)$ is the net flux of reaction $j$, and $k^l_{\text{fwd},j}$ and $k^l_{\text{bwd},j}$ are the rate constants.
 The matrices $E^l_{\text{fwd}} = (e^l_{\text{fwd},\ell,j}) \in \mathds{R}^{N_{\text{comp}} \times N_{\text{react}}}$ and $E^l_{\text{bwd}} = (e^l_{\text{bwd},\ell,j}) \in \mathds{R}^{N_{\text{comp}} \times N_{\text{react}}}$ are usually derived by the order of the reaction, that is,
 \begin{align}
-	e^l_{\text{fwd},\ell,j} = -\min(0, s^l_{\ell,j}), \qquad e^l_{\text{bwd},\ell,j} = \max(0, -s^l_{\ell,j}). \label{eq:MRMassActionLawExpMatDefault}
+	e^l_{\text{fwd},\ell,j} = \max(0, -s^l_{\ell,j}), \qquad e^l_{\text{bwd},\ell,j} = \max(0, s^l_{\ell,j}). \label{eq:MRMassActionLawExpMatDefault}
 \end{align}
 However, these defaults can be changed by providing those matrices.
 
