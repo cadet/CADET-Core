@@ -774,7 +774,11 @@ namespace cadet
 		 */
 		void resize(std::size_t numBytes)
 		{
-			cadet_assert(numBytes > 0);
+			if (numBytes == 0)
+			{
+				reset();
+				return;
+			}
 
 			if (numBytes != _capacity)
 			{
