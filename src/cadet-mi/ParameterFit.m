@@ -472,9 +472,13 @@ classdef ParameterFit < handle
 					res(resIdx:resIdx+nPoints-1) = (obj.weightsExp(i) .* curWeightWave(j)) .* curWeightData{j} .* (curSol * curComp{j} - curData{j});
 
 					if (nargout > 1) && ~isempty(resJac{unitTrace})
-						curJacSize = size(resJac{unitTrace});
-						curJac = resJac{unitTrace}(:, 1, :, :); % Format of curJac is [nTime, nComp, nParam]
-						curJac = reshape(curJac, curJacSize([1 3 4]));
+						if ndims(resJac{unitTrace}) == 4
+							curJacSize = size(resJac{unitTrace});
+							curJac = resJac{unitTrace}(:, 1, :, :); % Format of curJac is [nTime, nComp, nParam]
+							curJac = reshape(curJac, curJacSize([1 3 4]));
+						else
+							curJac = resJac{unitTrace}; % Format of curJac is [nTime, nComp, nParam]
+						end
 
 						% Loop over parameters
 						for k = 1:size(curJac, 3)
