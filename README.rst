@@ -15,9 +15,9 @@ CADET
 
 - **Website (including documentation):** https://cadet.github.io
 - **Forum:** https://forum.cadet-web.de
-- **Demo:** https://www.cadet-web.de 
 - **Source:** https://github.com/modsim/cadet
 - **Bug reports:** https://github.com/modsim/cadet/issues
+- **Demo:** https://www.cadet-web.de 
 
 Download and Installation
 -------------------------
