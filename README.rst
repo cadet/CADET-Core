@@ -17,7 +17,7 @@ CADET
 - **Forum:** https://forum.cadet-web.de
 - **Source:** https://github.com/modsim/cadet
 - **Bug reports:** https://github.com/modsim/cadet/issues
-
+- **Demo:** https://www.cadet-web.de 
 
 Download and Installation
 -------------------------
@@ -25,17 +25,10 @@ Download and Installation
 Download the `latest release <https://github.com/modsim/cadet/releases>`_ for your platform.
 `Additional information <https://cadet.github.io/getting_started/installation>`_ and a `tutorial <https://cadet.github.io/getting_started/tutorials/breakthrough>`_ are available to guide you through the installation and the first steps of using CADET.
 
-
-Online Simulator
-----------------
-
-Try CADET in the browser using the `online simulator web service <http://www.cadet-web.de>`_.
-
-
 Ongoing Development
 -------------------
 
-Since CADET is actively developed, do not expect a stable API. Breaking changes and extensive restructuring may occur in any commit and release. For non-developers, it is recommended to upgrade from release to release instead of always working with the most recent commit.
+We do our best to provide you with a stable API. However, CADET is actively developed and breaking changes can sometimes be unavoidable. For non-developers, it is recommended to upgrade from release to release instead of always working with the most recent commit.
 
 Bugs
 ----
