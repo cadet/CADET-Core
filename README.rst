@@ -28,7 +28,7 @@ Download the `latest release <https://github.com/modsim/cadet/releases>`_ for yo
 Ongoing Development
 -------------------
 
-Since CADET is actively developed, do not expect a stable API. Breaking changes and extensive restructuring may occur in any commit and release. For non-developers, it is recommended to upgrade from release to release instead of always working with the most recent commit.
+We do our best to provide you with a stable API. However, CADET is actively developed and breaking changes can sometimes be unavoidable. For non-developers, it is recommended to upgrade from release to release instead of always working with the most recent commit.
 
 Bugs
 ----
