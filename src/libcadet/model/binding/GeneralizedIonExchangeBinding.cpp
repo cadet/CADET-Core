@@ -86,6 +86,10 @@ inline bool GIEXParamHandler::validateConfig(unsigned int nComp, unsigned int co
 	if (_sigma.size() < nComp)
 		throw InvalidParameterException("GIEX_SIGMA requires NCOMP entries");
 
+	// Assume monovalent salt ions by default
+	if (_nu.get()[0] <= 0.0)
+		_nu.get()[0] = 1.0;
+
 	return true;
 }
 
@@ -104,6 +108,10 @@ inline bool ExtGIEXParamHandler::validateConfig(unsigned int nComp, unsigned int
 		throw InvalidParameterException("EXT_GIEX_NU requires NCOMP entries");
 	if (_sigma.size() < nComp)
 		throw InvalidParameterException("EXT_GIEX_SIGMA requires NCOMP entries");
+
+	// Assume monovalent salt ions by default
+	if (_nu.base()[0] <= 0.0)
+		_nu.base()[0] = 1.0;
 
 	return true;
 }
@@ -168,8 +176,8 @@ public:
 		// Pseudo component 1 is pH
 		const double pH = yCp[1];
 
-		// Salt equation: q_0 - Lambda + Sum[nu_j(pH) * q_j, j] == 0
-		//           <=>  q_0 == Lambda - Sum[nu_j(pH) * q_j, j]
+		// Salt equation: nu_0 * q_0 - Lambda + Sum[nu_j(pH) * q_j, j] == 0
+		//           <=>  q_0 == (Lambda - Sum[nu_j(pH) * q_j, j]) / nu_0
 		y[0] = static_cast<double>(p->lambda);
 
 		unsigned int bndIdx = 1;
@@ -186,6 +194,8 @@ public:
 			// Next bound component
 			++bndIdx;
 		}
+
+		y[0] /= static_cast<double>(p->nu[0]);
 
 		return true;
 	}
@@ -216,11 +226,11 @@ protected:
 		// Pseudo component 1 is pH
 		const CpStateType pH = yCp[1];
 
-		// Salt flux: q_0 - Lambda + Sum[nu_j * q_j, j] == 0 
-		//       <=>  q_0 == Lambda - Sum[nu_j * q_j, j] 
-		// Also compute \bar{q}_0 = q_0 - Sum[sigma_j * q_j, j]
-		res[0] = y[0] - static_cast<ParamType>(p->lambda);
-		StateParamType q0_bar = y[0];
+		// Salt flux: nu_0 * q_0 - Lambda + Sum[nu_j * q_j, j] == 0 
+		//       <=>  nu_0 * q_0 == Lambda - Sum[nu_j * q_j, j] 
+		// Also compute \bar{q}_0 = nu_0 * q_0 - Sum[sigma_j * q_j, j]
+		res[0] = static_cast<ParamType>(p->nu[0]) * y[0] - static_cast<ParamType>(p->lambda);
+		StateParamType q0_bar = static_cast<ParamType>(p->nu[0]) * y[0];
 
 		unsigned int bndIdx = 1;
 		for (int j = 2; j < _nComp; ++j)
@@ -243,7 +253,7 @@ protected:
 		const CpStateParamType yCp0_divRef = yCp[0] / refC0;
 		const StateParamType q0_bar_divRef = q0_bar / refQ;
 
-		// Protein fluxes: -k_{a,i}(c_p, q, \mathrm{pH}) * \bar{q}_0^{\nu_i(\mathrm{pH})} * c_{p,i} + k_{d,i}(c_p, q, \mathrm{pH}) * c_{p,0}^{\nu_i(pH)} * q_i
+		// Protein fluxes: -k_{a,i}(c_p, q, \mathrm{pH}) * \bar{q}_0^{\nu_i(\mathrm{pH}) / \nu_0} * c_{p,i} + k_{d,i}(c_p, q, \mathrm{pH}) * c_{p,0}^{\nu_i(pH) / \nu_0} * q_i
 		bndIdx = 1;
 		for (int i = 2; i < _nComp; ++i)
 		{
@@ -251,9 +261,9 @@ protected:
 			if (_nBoundStates[i] == 0)
 				continue;
 
-			const CpStateParamType nu_i = static_cast<ParamType>(p->nu[i]) + pH * (static_cast<ParamType>(p->nuLin[i]) + pH * static_cast<ParamType>(p->nuQuad[i]));
-			const CpStateParamType c0_pow_nu = pow(yCp0_divRef, nu_i);
-			const StateParamType q0_bar_pow_nu = pow(q0_bar_divRef, nu_i);
+			const CpStateParamType nu_i_over_nu0 = (static_cast<ParamType>(p->nu[i]) + pH * (static_cast<ParamType>(p->nuLin[i]) + pH * static_cast<ParamType>(p->nuQuad[i]))) / static_cast<ParamType>(p->nu[0]);
+			const CpStateParamType c0_pow_nu = pow(yCp0_divRef, nu_i_over_nu0);
+			const StateParamType q0_bar_pow_nu = pow(q0_bar_divRef, nu_i_over_nu0);
 			
 			// k_{a,i}(c_p, q, \mathrm{pH}) = k_{a,i,0} \exp(k_{a,i,1} \mathrm{pH} + k_{a,i,2} \mathrm{pH}^2 + k_{a,i,\mathrm{salt}} c_{p,0} + k_{a,i,\mathrm{prot}} c_{p,i})
 			const CpStateParamType ka_i = static_cast<ParamType>(p->kA[i]) * 
@@ -283,14 +293,14 @@ protected:
 		// Pseudo component 1 is pH
 		const double pH = yCp[1];
 
-		double q0_bar = y[0];
+		double q0_bar = static_cast<double>(p->nu[0]) * y[0];
 
 		// Getting to c_{p,0}: -bndIdx takes us to q_0, another -offsetCp to c_{p,0}. This means jac[-bndIdx - offsetCp] corresponds to c_{p,0}.
 		// Getting to c_{p,i}: -bndIdx takes us to q_0, another -offsetCp to c_{p,0} and a +i to c_{p,i}.
 		//                     This means jac[i - bndIdx - offsetCp] corresponds to c_{p,i}.
 
-		// Salt flux: q_0 - Lambda + Sum[nu_j * q_j, j] == 0
-		jac[0] = 1.0;
+		// Salt flux: nu_0 * q_0 - Lambda + Sum[nu_j * q_j, j] == 0
+		jac[0] = static_cast<double>(p->nu[0]);
 		int bndIdx = 1;
 		for (int j = 2; j < _nComp; ++j)
 		{
@@ -303,7 +313,7 @@ protected:
 			jac[bndIdx] = nu_j;
 			jac[1 - offsetCp] += (static_cast<double>(p->nuLin[j]) + 2.0 * pH * static_cast<double>(p->nuQuad[j])) * y[bndIdx];
 
-			// Calculate \bar{q}_0 = q_0 - Sum[sigma_j * q_j, j]
+			// Calculate \bar{q}_0 = nu_0 * q_0 - Sum[sigma_j * q_j, j]
 			q0_bar -= static_cast<double>(p->sigma[j]) * y[bndIdx];
 
 			// Next bound component
@@ -329,8 +339,8 @@ protected:
 
 			const double ka = static_cast<double>(p->kA[i]);
 			const double kd = static_cast<double>(p->kD[i]);
-			const double nu = static_cast<double>(p->nu[i]) + pH * (static_cast<double>(p->nuLin[i]) + pH * static_cast<double>(p->nuQuad[i]));
-			const double dNuDpH = static_cast<double>(p->nuLin[i]) + 2.0 * pH * static_cast<double>(p->nuQuad[i]);
+			const double nu = (static_cast<double>(p->nu[i]) + pH * (static_cast<double>(p->nuLin[i]) + pH * static_cast<double>(p->nuQuad[i]))) / static_cast<double>(p->nu[0]);
+			const double dNuDpH = (static_cast<double>(p->nuLin[i]) + 2.0 * pH * static_cast<double>(p->nuQuad[i])) / static_cast<double>(p->nu[0]);
 
 			const double c0_pow_nu     = pow(yCp0_divRef, nu);
 			const double q0_bar_pow_nu = pow(q0_bar_divRef, nu);
@@ -356,7 +366,7 @@ protected:
 			// dres_i / dc_{p,i}
 			jac[i - bndIdx - offsetCp] = -ka_i * q0_bar_pow_nu * (1.0 + yCp[i] * static_cast<double>(p->kAProt[i])) + kd_i * y[bndIdx] * c0_pow_nu * static_cast<double>(p->kDProt[i]);
 			// dres_i / dq_0
-			jac[-bndIdx] = -ka_i * yCp[i] * q0_bar_pow_nu_m1_divRef;
+			jac[-bndIdx] = -ka_i * yCp[i] * q0_bar_pow_nu_m1_divRef * static_cast<double>(p->nu[0]);
 
 			// Fill dres_i / dq_j
 			int bndIdx2 = 1;

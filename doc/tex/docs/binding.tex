@@ -156,17 +156,17 @@ The steric mass action model takes charges of the molecules into account \cite{B
 Each component has a characteristic charge $\nu$ that determines the number of available binding sites $\Lambda$ (ionic capacity) used up by a molecule.
 Due to the molecule's shape, some additional binding sites (steric shielding factor $\sigma$) may be shielded from other molecules and are not available for binding.
 \begin{align*}
-  \frac{\mathrm{d} q_i}{\mathrm{d} t} = k_{a,i} c_{p,i}\left( \frac{\bar{q}_0 }{q_{\text{ref}}} \right)^{\nu_i} - k_{d,i}\: q_i\: \left(\frac{c_{p,0}}{c_{\text{ref}}}\right)^{\nu_i} && i = 1, \dots, N_{\text{comp}} - 1,
+  \frac{\mathrm{d} q_i}{\mathrm{d} t} = k_{a,i} c_{p,i}\left( \frac{\bar{q}_0 }{q_{\text{ref}}} \right)^{\frac{\nu_i}{\nu_0}} - k_{d,i}\: q_i\: \left(\frac{c_{p,0}}{c_{\text{ref}}}\right)^{\frac{\nu_i}{\nu_0}} && i = 1, \dots, N_{\text{comp}} - 1,
 \end{align*}
 where $c_{p,0}$ and $q_0$ denote the salt concentrations in the liquid and solid phase of the beads, respectively.
 The number of free binding sites
 \begin{align*}
-  \bar{q}_0 = \Lambda - \sum_{j=1}^{N_{\text{comp}} - 1} \left( \nu_j + \sigma_j \right) q_j = q_0 - \sum_{j=1}^{N_{\text{comp}} - 1} \sigma_j q_j
+  \bar{q}_0 = \Lambda - \sum_{j=1}^{N_{\text{comp}} - 1} \left( \nu_j + \sigma_j \right) q_j = \nu_0 q_0 - \sum_{j=1}^{N_{\text{comp}} - 1} \sigma_j q_j
 \end{align*}
 is calculated from the number of bound counter ions $q_0$ by taking steric shielding into account.
 In turn, the number of bound counter ions $q_0$ (electro-neutrality condition) is given by
 \begin{align*}
-  q_0 = \Lambda - \sum_{j=1}^{N_{\text{comp}} - 1} \nu_j q_j,
+  \nu_0 q_0 = \Lambda - \sum_{j=1}^{N_{\text{comp}} - 1} \nu_j q_j,
 \end{align*}
 which also compensates for the missing equation for $\frac{\mathrm{d} q_0}{\mathrm{d}t}$.
 See Table~\ref{tab:FFAdsorptionStericMassAction}.
@@ -179,12 +179,12 @@ This binding model is similar to the steric mass action model (see Section~\ref{
 The dimerization, which is the immobilization of protein at some already bound protein, is also termed ``self-association''.
 It is modeled by adding a quadratic (in $c_{p,i}$) term to the adsorption part of the equation.
 \begin{align*}
-  \frac{\mathrm{d} q_i}{\mathrm{d} t} &= c_{p,i}\left( \frac{\bar{q}_0}{q_{\text{ref}}} \right)^{\nu_i} \left[ k_{a,i,1} + k_{a,i,2} c_{p,i} \right] - k_{d,i}\: q_i\: \left(\frac{c_{p,0}}{c_{\text{ref}}}\right)^{\nu_i} && i = 1, \dots, N_{\text{comp}} - 1, \\
-  q_0 &= \Lambda - \sum_{j=1}^{N_{\text{comp}} - 1} \nu_j q_j,
+  \frac{\mathrm{d} q_i}{\mathrm{d} t} &= c_{p,i}\left( \frac{\bar{q}_0}{q_{\text{ref}}} \right)^{\frac{\nu_i}{\nu_0}} \left[ k_{a,i,1} + k_{a,i,2} c_{p,i} \right] - k_{d,i}\: q_i\: \left(\frac{c_{p,0}}{c_{\text{ref}}}\right)^{\frac{\nu_i}{\nu_0}} && i = 1, \dots, N_{\text{comp}} - 1, \\
+  \nu_0 q_0 &= \Lambda - \sum_{j=1}^{N_{\text{comp}} - 1} \nu_j q_j,
 \end{align*}
 where the number of available binding sites is given by
 \begin{align*}
-  \bar{q}_0 = \Lambda - \sum_{j=1}^{N_{\text{comp}} - 1} \left( \nu_j + \sigma_j \right) q_j = q_0 - \sum_{j=1}^{N_{\text{comp}} - 1} \sigma_j q_j.
+  \bar{q}_0 = \Lambda - \sum_{j=1}^{N_{\text{comp}} - 1} \left( \nu_j + \sigma_j \right) q_j = \nu_0 q_0 - \sum_{j=1}^{N_{\text{comp}} - 1} \sigma_j q_j.
 \end{align*}
 See Table~\ref{tab:FFAdsorptionSelfAssociation}.
 
@@ -287,9 +287,9 @@ In the multi-state SMA model a variable number of states of the bound molecule (
 \end{align*}
 The exchange between the different states of each component is allowed and, since the molecules can potentially bind in all states at the same binding site, competitive effects are present.
 \begin{align*}
-  \frac{\mathrm{d} q_{i,j}}{\mathrm{d} t} =& \phantom{+} k_{a,i}^{(j)} c_{p,i} \left(\frac{\bar{q}_0}{q_{\text{ref}}}\right)^{\nu_{i,j}} - k_{d,i}^{(j)}\: q_{i,j}\: \left(\frac{c_{p,0}}{c_{\text{ref}}}\right)^{\nu_{i,j}} \\
-  &- \sum_{\ell = 0}^{j-1} \underbrace{k^{(i)}_{j\ell}\: q_{i,j}\: \left(\frac{c_{p,0}}{c_{\text{ref}}}\right)^{\left(\nu_{i,j} - \nu_{i,\ell}\right)}}_{\text{to weak state}} - \sum_{\ell = j+1}^{M_i - 1} \underbrace{k^{(i)}_{j\ell}\: q_{i,j}\: \left(\frac{\bar{q}_0}{q_{\text{ref}}}\right)^{\left(\nu_{i,\ell} - \nu_{i,j}\right)}}_{\text{to strong state}} \\
-  &+ \sum_{\ell = 0}^{j-1} \underbrace{k^{(i)}_{\ell j}\: q_{i,\ell}\: \left(\frac{\bar{q}_0}{q_{\text{ref}}}\right)^{\left(\nu_{i,j} - \nu_{i,\ell}\right)}}_{\text{from weak state}} + \sum_{\ell = j+1}^{M_i - 1} \underbrace{k^{(i)}_{\ell j}\: q_{i,\ell}\: \left(\frac{c_{p,0}}{c_{\text{ref}}}\right)^{\left(\nu_{i,\ell} - \nu_{i,j}\right)}}_{\text{from strong state}} & \begin{aligned}
+  \frac{\mathrm{d} q_{i,j}}{\mathrm{d} t} =& \phantom{+} k_{a,i}^{(j)} c_{p,i} \left(\frac{\bar{q}_0}{q_{\text{ref}}}\right)^{\frac{\nu_{i,j}}{\nu_0}} - k_{d,i}^{(j)}\: q_{i,j}\: \left(\frac{c_{p,0}}{c_{\text{ref}}}\right)^{\frac{\nu_{i,j}}{\nu_0}} \\
+  &- \sum_{\ell = 0}^{j-1} \underbrace{k^{(i)}_{j\ell}\: q_{i,j}\: \left(\frac{c_{p,0}}{c_{\text{ref}}}\right)^{\frac{\nu_{i,j} - \nu_{i,\ell}}{\nu_0}}}_{\text{to weak state}} - \sum_{\ell = j+1}^{M_i - 1} \underbrace{k^{(i)}_{j\ell}\: q_{i,j}\: \left(\frac{\bar{q}_0}{q_{\text{ref}}}\right)^{\frac{\nu_{i,\ell} - \nu_{i,j}}{\nu_0}}}_{\text{to strong state}} \\
+  &+ \sum_{\ell = 0}^{j-1} \underbrace{k^{(i)}_{\ell j}\: q_{i,\ell}\: \left(\frac{\bar{q}_0}{q_{\text{ref}}}\right)^{\frac{\nu_{i,j} - \nu_{i,\ell}}{\nu_0}}}_{\text{from weak state}} + \sum_{\ell = j+1}^{M_i - 1} \underbrace{k^{(i)}_{\ell j}\: q_{i,\ell}\: \left(\frac{c_{p,0}}{c_{\text{ref}}}\right)^{\frac{\nu_{i,\ell} - \nu_{i,j}}{\nu_0}}}_{\text{from strong state}} & \begin{aligned}
     i &= 1, \dots, N_{\text{comp}} - 1, \\ j &= 0, \dots, M_i - 1,
   \end{aligned}
 \end{align*}
@@ -299,7 +299,7 @@ where $c_{p,0}$ and $q_0$ denote the salt concentrations in the liquid and solid
 \end{align*}
 A neutrality condition compensating for the missing equation for $\frac{\mathrm{d} q_0}{\mathrm{d}t}$ is required:
 \begin{align*}
-  q_0 = \Lambda - \sum_{j=1}^{N_{\text{comp}} - 1} \sum_{\ell=0}^{M_j - 1} \nu_{j,\ell} q_{j,\ell}.
+  \nu_0 q_0 = \Lambda - \sum_{j=1}^{N_{\text{comp}} - 1} \sum_{\ell=0}^{M_j - 1} \nu_{j,\ell} q_{j,\ell}.
 \end{align*}
 See Table~\ref{tab:FFAdsorptionMultiStateStericMassAction}.
 
@@ -331,7 +331,7 @@ See Table~\ref{tab:FFAdsorptionSimpleMultiStateStericMassAction}.
 Similar to the Bi-Langmuir model (see Section~\ref{sec:MBBiLangmuir}), the Bi-SMA model adds $M - 1$ \emph{additional} types of binding sites $q_{i,j}$ ($0 \leq j \leq M - 1$) to the SMA model (see Section~\ref{sec:MBStericMassAction}) without allowing an exchange between the different sites $q_{i,j}$ and $q_{i,k}$ ($k \neq j$). \index{Binding!Bi steric mass action}
 Therefore, there are no competitivity effects between the two types of binding sites and they have independent capacities.
 \begin{align*}
-  \frac{\mathrm{d} q_{i,j}}{\mathrm{d} t} &= k_{a,i,j} c_{p,i} \left(\frac{\bar{q}_{0,j}}{q_{\text{ref},j}} \right)^{\nu_{i,j}} - k_{d,i,j}\: q_{i,j}\: \left(\frac{c_{p,0}}{c_{\text{ref},j}}\right)^{\nu_{i,j}} & i = 1, \dots, N_{\text{comp}} - 1, \quad j = 0, \dots, M - 1,
+  \frac{\mathrm{d} q_{i,j}}{\mathrm{d} t} &= k_{a,i,j} c_{p,i} \left(\frac{\bar{q}_{0,j}}{q_{\text{ref},j}} \right)^{\frac{\nu_{i,j}}{\nu_{0,j}}} - k_{d,i,j}\: q_{i,j}\: \left(\frac{c_{p,0}}{c_{\text{ref},j}}\right)^{\frac{\nu_{i,j}}{\nu_{0,j}}} & i = 1, \dots, N_{\text{comp}} - 1, \quad j = 0, \dots, M - 1,
 \end{align*}
 where $c_{p,0}$ and $q_{0,j}$ ($0 \leq j \leq M - 1$) denote the salt concentrations in the liquid and solid phases of the beads respectively. The number of available salt ions $\bar{q}_{0,j}$ for each binding site type $0 \leq j \leq M - 1$ is given by
 \begin{align*}
@@ -339,7 +339,7 @@ where $c_{p,0}$ and $q_{0,j}$ ($0 \leq j \leq M - 1$) denote the salt concentrat
 \end{align*}
 Electro-neutrality conditions compensating for the missing equations for $\frac{\mathrm{d} q_{0,j}}{\mathrm{d}t}$ are required:
 \begin{align*}
-  q_{0,j} &= \Lambda_j - \sum_{k=1}^{N_{\text{comp}} - 1} \nu_{k,j} q_{k,j} & j = 0, \dots, M - 1.
+  \nu_{0,j} q_{0,j} &= \Lambda_j - \sum_{k=1}^{N_{\text{comp}} - 1} \nu_{k,j} q_{k,j} & j = 0, \dots, M - 1.
 \end{align*}
 Note that all binding components must have exactly the same number of binding site types $M \geq 1$.
 See Table~\ref{tab:FFAdsorptionBiStericMassAction}.
@@ -356,12 +356,12 @@ The generalized ion exchange model is based on the steric mass action model \cit
 In addition to the first component $c_{p,0}$, which represents salt, the second component $c_{p,1}$ represents another non-binding modifier (e.g., pH).
 In comparison to the SMA model, the characteristic charge $\nu$ and the adsorption and desorption rate constants are modified:
 \begin{align*}
-  q_0 &= \Lambda - \sum_{j=2}^{N_{\text{comp}} - 1} \nu_j(c_{p,1}) q_j \\
-  \frac{\partial q_i}{\partial t} &= k_{a,i}(c_{p,0},c_{p,1}) \: c_{p,i} \: \left( \frac{\bar{q}_0 }{q_{\text{ref}}} \right)^{\nu_i(c_{p,1})} - k_{d,i}(c_{p,0},c_{p,1}) \: q_i \: \left( \frac{c_{p,0}}{c_{\text{ref}}} \right)^{\nu_i(c_{p,1})} & &i = 2, \dots, N_{\text{comp}} - 1,
+  \nu_0 q_0 &= \Lambda - \sum_{j=2}^{N_{\text{comp}} - 1} \nu_j(c_{p,1}) q_j \\
+  \frac{\partial q_i}{\partial t} &= k_{a,i}(c_{p,0},c_{p,1}) \: c_{p,i} \: \left( \frac{\bar{q}_0 }{q_{\text{ref}}} \right)^{\frac{\nu_i(c_{p,1})}{\nu_0}} - k_{d,i}(c_{p,0},c_{p,1}) \: q_i \: \left( \frac{c_{p,0}}{c_{\text{ref}}} \right)^{\frac{\nu_i(c_{p,1})}{\nu_0}} & &i = 2, \dots, N_{\text{comp}} - 1,
 \end{align*}
 where
 \begin{align*}
-  \bar{q}_0 &= \Lambda - \sum_{j=2}^{N_{\text{comp}} - 1} \left( \nu_j(c_{p,1}) + \sigma_j \right) q_j = q_0 - \sum_{j=2}^{N_{\text{comp}} - 1} \sigma_j q_j
+  \bar{q}_0 &= \Lambda - \sum_{j=2}^{N_{\text{comp}} - 1} \left( \nu_j(c_{p,1}) + \sigma_j \right) q_j = \nu_0 q_0 - \sum_{j=2}^{N_{\text{comp}} - 1} \sigma_j q_j
 \end{align*}
 The dependence of the parameters on $c_{p,0}$ and $c_{p,1}$ is given for $i = 2, \dots, N_{\text{comp}} - 1$ by
 \begin{align*}

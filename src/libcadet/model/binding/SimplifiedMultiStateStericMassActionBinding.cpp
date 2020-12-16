@@ -96,6 +96,11 @@ bool SimplifiedMultiStateStericMassActionBinding::configureImpl(IParameterProvid
 	readParameterMatrix(_kWS_quad, paramProvider, "SMSSMA_KWS_QUAD", _nComp, 1);
 	readReferenceConcentrations(paramProvider, "SMSSMA_", _refC0, _refQ);
 
+	if (paramProvider.exists("SMSSMA_NU_SALT"))
+		_nu0 = paramProvider.getDouble("SMSSMA_NU_SALT");
+	else
+		_nu0 = 1.0;
+
 	// Check parameters
 	if ((_kA.size() != _kD.size()) || (_kA.size() != totalBoundStates))
 		throw InvalidParameterException("SMSSMA_KA and SMSSMA_KD have to have the same size");
@@ -203,6 +208,7 @@ bool SimplifiedMultiStateStericMassActionBinding::configureImpl(IParameterProvid
 	registerComponentDependentParam(hashString("SMSSMA_KWS"), _parameters, _kWS, unitOpIdx, parTypeIdx);
 	registerComponentDependentParam(hashString("SMSSMA_KWS_LIN"), _parameters, _kWS_lin, unitOpIdx, parTypeIdx);
 	registerComponentDependentParam(hashString("SMSSMA_KWS_QUAD"), _parameters, _kWS_quad, unitOpIdx, parTypeIdx);
+	_parameters[makeParamId(hashString("SMSSMA_NU_SALT"), unitOpIdx, 0, parTypeIdx, BoundStateIndep, ReactionIndep, SectionIndep)] = &_nu0;
 	_parameters[makeParamId(hashString("SMSSMA_REFC0"), unitOpIdx, CompIndep, parTypeIdx, BoundStateIndep, ReactionIndep, SectionIndep)] = &_refC0;
 	_parameters[makeParamId(hashString("SMSSMA_REFQ"), unitOpIdx, CompIndep, parTypeIdx, BoundStateIndep, ReactionIndep, SectionIndep)] = &_refQ;
 
@@ -254,8 +260,8 @@ int SimplifiedMultiStateStericMassActionBinding::fluxImpl(double t, unsigned int
 	// Salt equation: q_0 - Lambda + Sum[Sum[nu_i^j * q_i^j, j], i] == 0 
 	//           <=>  q_0 == Lambda - Sum[Sum[nu_i^j * q_i^j, j], i] 
 	// Also compute \bar{q}_0 = q_0 - Sum[Sum[sigma_i^j * q_i^j, j], i]
-	res[0] = y[0] - static_cast<ParamType>(_lambda);
-	StateParamType q0_bar = y[0];
+	res[0] = static_cast<ParamType>(_nu0) * y[0] - static_cast<ParamType>(_lambda);
+	StateParamType q0_bar = static_cast<ParamType>(_nu0) * y[0];
 
 	unsigned int bndIdx = 1;
 
@@ -288,7 +294,7 @@ int SimplifiedMultiStateStericMassActionBinding::fluxImpl(double t, unsigned int
 		// Loop over bound states j of component i
 		for (unsigned int j = 0; j < _nBoundStates[i]; ++j)
 		{
-			const ParamType curNu = nu<ParamType>(i, j);
+			const ParamType curNu = nu<ParamType>(i, j) / static_cast<ParamType>(_nu0);
 			const CpStateParamType c0_pow_nu = pow(yCp0_divRef, curNu);
 			const StateParamType q0_bar_pow_nu = pow(q0_bar_divRef, curNu);
 
@@ -302,7 +308,7 @@ int SimplifiedMultiStateStericMassActionBinding::fluxImpl(double t, unsigned int
 				const ParamType curSW = k_sw<ParamType>(i, j - 1);
 				const ParamType curWS = k_ws<ParamType>(i, j - 1);
 
-				const ParamType nuDiff = curNu - nu<ParamType>(i, j - 1);
+				const ParamType nuDiff = curNu - nu<ParamType>(i, j - 1) / static_cast<ParamType>(_nu0);
 				// Conversion to weaker state
 				res[bndIdx] += curSW * y[bndIdx] * pow(yCp0_divRef, nuDiff);
 				// Conversion from weaker state
@@ -315,7 +321,7 @@ int SimplifiedMultiStateStericMassActionBinding::fluxImpl(double t, unsigned int
 				const ParamType curSW = k_sw<ParamType>(i, j);
 				const ParamType curWS = k_ws<ParamType>(i, j);
 
-				const ParamType nuDiff = nu<ParamType>(i, j + 1) - curNu;
+				const ParamType nuDiff = nu<ParamType>(i, j + 1) / static_cast<ParamType>(_nu0) - curNu;
 				// Conversion to stronger state
 				res[bndIdx] += curWS * y[bndIdx] * pow(q0_bar_divRef, nuDiff);
 				// Conversion from stronger state
@@ -332,10 +338,10 @@ int SimplifiedMultiStateStericMassActionBinding::fluxImpl(double t, unsigned int
 template <typename RowIterator>
 void SimplifiedMultiStateStericMassActionBinding::jacobianImpl(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, double const* yCp, int offsetCp, RowIterator jac, LinearBufferAllocator workSpace) const
 {
-	double q0_bar = y[0];
+	double q0_bar = static_cast<double>(_nu0) * y[0];
 
 	// Salt equation: q_0 - Lambda + Sum[Sum[nu_j * q_i^j, j], i] == 0
-	jac[0] = 1.0;
+	jac[0] = static_cast<double>(_nu0);
 	int bndIdx = 1;
 	for (int i = 1; i < _nComp; ++i)
 	{
@@ -375,7 +381,7 @@ void SimplifiedMultiStateStericMassActionBinding::jacobianImpl(double t, unsigne
 
 			const double ka = static_cast<double>(curKa[j]);
 			const double kd = static_cast<double>(curKd[j]);
-			const double curNu = nu<double>(i, j);
+			const double curNu = nu<double>(i, j) / static_cast<double>(_nu0);
 
 			const double c0_pow_nu     = pow(yCp0_divRef, curNu);
 			const double q0_bar_pow_nu = pow(q0_bar_divRef, curNu);
@@ -387,7 +393,7 @@ void SimplifiedMultiStateStericMassActionBinding::jacobianImpl(double t, unsigne
 			// dres_i / dc_{p,i}
 			jac[i - bndIdx - offsetCp] = -ka * q0_bar_pow_nu;
 			// dres_i / dq_0
-			jac[-bndIdx] = -ka * yCp[i] * q0_bar_pow_nu_m1_divRef;
+			jac[-bndIdx] = -ka * yCp[i] * q0_bar_pow_nu_m1_divRef * static_cast<double>(_nu0);
 
 			// Fill dres_i / dq_i^j (no flux terms, just handle \bar{q}_0^{nu_i} term)
 			int bndIdx2 = 1;
@@ -415,13 +421,13 @@ void SimplifiedMultiStateStericMassActionBinding::jacobianImpl(double t, unsigne
 				const double curSW = k_sw<double>(i, j - 1);
 				const double curWS = k_ws<double>(i, j - 1);
 
-				const double nuDiff = curNu - nu<double>(i, j-1);
+				const double nuDiff = curNu - nu<double>(i, j-1) / static_cast<double>(_nu0);
 				const double q0_bar_pow_nudiff_deriv = curWS * y[bndIdx - 1] * nuDiff * pow(q0_bar_divRef, nuDiff - 1.0) / refQ;
 
 				// dres_i / dc_{p,0}
 				jac[-bndIdx - offsetCp] += curSW * y[bndIdx] * nuDiff * pow(yCp0_divRef, nuDiff - 1.0) / refC0;
 				// dres_i / dq_0
-				jac[-bndIdx] -= q0_bar_pow_nudiff_deriv;
+				jac[-bndIdx] -= q0_bar_pow_nudiff_deriv * static_cast<double>(_nu0);
 				// dres_i / dq_i^j (current outer loop element)
 				jac[0] += curSW * pow(yCp0_divRef, nuDiff);
 				// dres_i / dq_i^l (without dq0_bar / dq_i^l)
@@ -441,13 +447,13 @@ void SimplifiedMultiStateStericMassActionBinding::jacobianImpl(double t, unsigne
 				const double curSW = k_sw<double>(i, j);
 				const double curWS = k_ws<double>(i, j);
 
-				const double nuDiff = nu<double>(i, j+1) - curNu;
+				const double nuDiff = nu<double>(i, j+1) / static_cast<double>(_nu0) - curNu;
 				const double q0_bar_pow_nudiff_deriv = curWS * y[bndIdx] * nuDiff * pow(q0_bar_divRef, nuDiff - 1.0) / refQ;
 
 				// dres_i / dc_{p,0}
 				jac[-bndIdx - offsetCp] -= curSW * y[bndIdx + 1] * nuDiff * pow(yCp0_divRef, nuDiff - 1.0) / refC0;
 				// dres_i / dq_0
-				jac[-bndIdx] += q0_bar_pow_nudiff_deriv;
+				jac[-bndIdx] += q0_bar_pow_nudiff_deriv * static_cast<double>(_nu0);
 				// dres_i / dq_i^j (current outer loop element)
 				jac[0] += curWS * pow(q0_bar_divRef, nuDiff);
 				// dres_i / dq_i^l
@@ -472,8 +478,8 @@ bool SimplifiedMultiStateStericMassActionBinding::preConsistentInitialState(doub
 {
 	// Compute salt component from given bound states q_i^j
 
-	// Salt equation: q_0 - Lambda + Sum[Sum[nu_i^j * q_i^j, j], i] == 0 
-	//           <=>  q_0 == Lambda - Sum[Sum[nu_i^j * q_i^j, j], i]
+	// Salt equation: nu_0 * q_0 - Lambda + Sum[Sum[nu_i^j * q_i^j, j], i] == 0 
+	//           <=>  q_0 == (Lambda - Sum[Sum[nu_i^j * q_i^j, j], i]) / nu_0
 	y[0] = static_cast<double>(_lambda);
 
 	// Loop over all components i
@@ -489,6 +495,8 @@ bool SimplifiedMultiStateStericMassActionBinding::preConsistentInitialState(doub
 			++bndIdx;
 		}
 	}
+
+	y[0] /= static_cast<double>(_nu0);
 
 	return true;
 }

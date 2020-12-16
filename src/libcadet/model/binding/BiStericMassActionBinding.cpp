@@ -71,6 +71,13 @@ inline bool BiSMAParamHandler::validateConfig(unsigned int nComp, unsigned int c
 	if (_lambda.size() != numStates)
 		throw InvalidParameterException("BISMA_LAMBDA has to have as many elements as there are binding sites");
 
+	util::SlicedVector<active>& nu = _nu.get();
+	for (int i = 0; i < numStates; ++i)
+	{
+		if (nu(i, 0) <= 0.0)
+			nu(i, 0) = 1.0;
+	}
+
 	return true;
 }
 
@@ -84,6 +91,13 @@ inline bool ExtBiSMAParamHandler::validateConfig(unsigned int nComp, unsigned in
 		throw InvalidParameterException("BISMA_KA, BISMA_KD, BISMA_NU, and BISMA_SIGMA have to have the same size");
 	if (_lambda.size() != numStates)
 		throw InvalidParameterException("BISMA_LAMBDA has to have as many elements as there are binding sites");
+
+	util::SlicedVector<active>& nu = _nu.base();
+	for (int i = 0; i < numStates; ++i)
+	{
+		if (nu(i, 0) <= 0.0)
+			nu(i, 0) = 1.0;
+	}
 
 	return true;
 }
@@ -169,8 +183,8 @@ public:
 		// Loop over all binding site types
 		for (unsigned int bndSite = 0; bndSite < numStates; ++bndSite)
 		{
-			// Salt equation: q_0 - Lambda + Sum[nu_j * q_j, j] == 0 
-			//           <=>  q_0 == Lambda - Sum[nu_j * q_j, j] 
+			// Salt equation: nu_0 * q_0 - Lambda + Sum[nu_j * q_j, j] == 0 
+			//           <=>  q_0 == (Lambda - Sum[nu_j * q_j, j]) / nu_0
 			y[bndSite] = static_cast<double>(p->lambda[bndSite]);
 
 			// Get nu slice for bound state bndSite
@@ -188,6 +202,8 @@ public:
 				// Next bound component
 				++bndIdx;
 			}
+
+			y[bndSite] /= static_cast<double>(curNu[0]);
 		}
 
 		return true;
@@ -243,8 +259,8 @@ protected:
 			// Salt flux: q_0 - Lambda + Sum[nu_j * q_j, j] == 0 
 			//       <=>  q_0 == Lambda - Sum[nu_j * q_j, j] 
 			// Also compute \bar{q}_0 = q_0 - Sum[sigma_j * q_j, j]
-			res[0] = y[0] - static_cast<ParamType>(p->lambda[bndSite]);
-			StateParamType q0_bar = y[0];
+			res[0] = static_cast<ParamType>(curNu[0]) * y[0] - static_cast<ParamType>(p->lambda[bndSite]);
+			StateParamType q0_bar = static_cast<ParamType>(curNu[0]) * y[0];
 
 			// bndIdx is used as a counter inside one binding site type
 			// Getting from one component to another requires a step size of numStates (stride)
@@ -273,8 +289,9 @@ protected:
 				if (_nBoundStates[i] == 0)
 					continue;
 
-				const CpStateParamType c0_pow_nu_divRef = pow(yCp0_divRef, static_cast<ParamType>(curNu[i]));
-				const StateParamType q0_bar_pow_nu_divRef = pow(q0_bar_divRef, static_cast<ParamType>(curNu[i]));
+				const ParamType nu_over_nu0 = static_cast<ParamType>(curNu[i]) / static_cast<ParamType>(curNu[0]);
+				const CpStateParamType c0_pow_nu_divRef = pow(yCp0_divRef, nu_over_nu0);
+				const StateParamType q0_bar_pow_nu_divRef = pow(q0_bar_divRef, nu_over_nu0);
 
 				// Residual
 				res[bndIdx * numStates] = static_cast<ParamType>(curKd[i]) * y[bndIdx * numStates] * c0_pow_nu_divRef - static_cast<ParamType>(curKa[i]) * yCp[i] * q0_bar_pow_nu_divRef;
@@ -310,10 +327,10 @@ protected:
 			active const* const curKd = p->kD[bndSite];
 			const double refC0 = static_cast<double>(p->refC0[bndSite]);
 			const double refQ = static_cast<double>(p->refQ[bndSite]);
-			double q0_bar = y[0];
+			double q0_bar = static_cast<double>(curNu[0]) * y[0];
 
 			// Salt flux: q_0 - Lambda + Sum[nu_j * q_j, j] == 0
-			curJac[0] = 1.0;
+			curJac[0] = static_cast<double>(curNu[0]);
 
 			int bndIdx = 1;
 			for (int j = 1; j < _nComp; ++j)
@@ -354,19 +371,19 @@ protected:
 
 				const double ka = static_cast<double>(curKa[i]);
 				const double kd = static_cast<double>(curKd[i]);
-				const double nu = static_cast<double>(curNu[i]);
+				const double nu_over_nu0 = static_cast<double>(curNu[i]) / static_cast<double>(curNu[0]);
 
-				const double c0_pow_nu     = pow(yCp0_divRef, nu);
-				const double q0_bar_pow_nu = pow(q0_bar_divRef, nu);
-				const double c0_pow_nu_m1_divRef     = pow(yCp0_divRef, nu - 1.0);
-				const double q0_bar_pow_nu_m1_divRef = pow(q0_bar_divRef, nu - 1.0) / refQ;
+				const double c0_pow_nu     = pow(yCp0_divRef, nu_over_nu0);
+				const double q0_bar_pow_nu = pow(q0_bar_divRef, nu_over_nu0);
+				const double c0_pow_nu_m1_divRef     = pow(yCp0_divRef, nu_over_nu0 - 1.0);
+				const double q0_bar_pow_nu_m1_divRef = pow(q0_bar_divRef, nu_over_nu0 - 1.0) / refQ;
 
 				// dres_i / dc_{p,0}
-				curJac[-bndSite - offsetCp - numStates * bndIdx] = kd * y[bndIdx * numStates] * nu * c0_pow_nu_m1_divRef / refC0;
+				curJac[-bndSite - offsetCp - numStates * bndIdx] = kd * y[bndIdx * numStates] * nu_over_nu0 * c0_pow_nu_m1_divRef / refC0;
 				// dres_i / dc_{p,i}
 				curJac[i - bndSite - offsetCp - numStates * bndIdx] = -ka * q0_bar_pow_nu;
 				// dres_i / dq_{0,bndSite}
-				curJac[-bndIdx * numStates] = -ka * yCp[i] * nu * q0_bar_pow_nu_m1_divRef;
+				curJac[-bndIdx * numStates] = -ka * yCp[i] * nu_over_nu0 * q0_bar_pow_nu_m1_divRef * static_cast<double>(curNu[0]);
 
 				// Fill dres_i / dq_{j,bndSite}
 				int bndIdx2 = 1;
@@ -377,7 +394,7 @@ protected:
 						continue;
 
 					// dres_i / dq_{j,bndSite}
-					curJac[(bndIdx2 - bndIdx) * numStates] = -ka * yCp[i] * nu * q0_bar_pow_nu_m1_divRef * (-static_cast<double>(curSigma[j]));
+					curJac[(bndIdx2 - bndIdx) * numStates] = -ka * yCp[i] * nu_over_nu0 * q0_bar_pow_nu_m1_divRef * (-static_cast<double>(curSigma[j]));
 					// Getting to q_j: -bndIdx * numStates takes us to q_{0,bndSite}, another +bndIdx2 * numStates to
 					// q_{j,bndSite}. This means curJac[(bndIdx2 - bndIdx) * numStates] corresponds to q_{j,bndSite}.
 

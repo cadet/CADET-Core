@@ -591,13 +591,13 @@ CADET_BINDINGTEST_ALLBINDING("MULTI_COMPONENT_BILANGMUIR", "EXT_MULTI_COMPONENT_
 CADET_BINDINGTEST("STERIC_MASS_ACTION", "EXT_STERIC_MASS_ACTION", (1,1,1), (1,1,0,1), (1.2, 2.0, 1.5, 80.0, 3.5, 2.7), (1.2, 2.0, 3.0, 1.5, 80.0, 3.5, 2.7), \
 	R"json( "SMA_KA": [0.0, 3.55, 1.59],
 	        "SMA_KD": [0.0, 10.0, 10.0],
-	        "SMA_NU": [0.0, 2.0, 1.5],
+	        "SMA_NU": [1.5, 2.0, 1.5],
 	        "SMA_SIGMA": [0.0, 11.83, 10.6],
 	        "SMA_LAMBDA": 100.0
 	)json", \
 	R"json( "SMA_KA": [0.0, 3.55, 7.7, 1.59],
 	        "SMA_KD": [0.0, 10.0, 10.0, 10.0],
-	        "SMA_NU": [0.0, 2.0, 3.7, 1.5],
+	        "SMA_NU": [1.5, 2.0, 3.7, 1.5],
 	        "SMA_SIGMA": [0.0, 11.83, 10.0, 10.6],
 	        "SMA_LAMBDA": 100.0
 	)json", \
@@ -609,7 +609,7 @@ CADET_BINDINGTEST("STERIC_MASS_ACTION", "EXT_STERIC_MASS_ACTION", (1,1,1), (1,1,
 	        "EXT_SMA_KD_T": [0.0, 10.0, 10.0],
 	        "EXT_SMA_KD_TT": [0.0, 0.0, 0.0],
 	        "EXT_SMA_KD_TTT": [0.0, 0.0, 0.0],
-	        "EXT_SMA_NU": [0.0, 0.0, 0.0],
+	        "EXT_SMA_NU": [1.5, 0.0, 0.0],
 	        "EXT_SMA_NU_T": [0.0, 2.0, 1.5],
 	        "EXT_SMA_NU_TT": [0.0, 0.0, 0.0],
 	        "EXT_SMA_NU_TTT": [0.0, 0.0, 0.0],
@@ -630,7 +630,7 @@ CADET_BINDINGTEST("STERIC_MASS_ACTION", "EXT_STERIC_MASS_ACTION", (1,1,1), (1,1,
 	        "EXT_SMA_KD_T": [0.0, 10.0, 10.0, 10.0],
 	        "EXT_SMA_KD_TT": [0.0, 0.0, 0.0, 0.0],
 	        "EXT_SMA_KD_TTT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_SMA_NU": [0.0, 0.0, 0.0, 0.0],
+	        "EXT_SMA_NU": [1.5, 0.0, 0.0, 0.0],
 	        "EXT_SMA_NU_T": [0.0, 2.0, 3.7, 1.5],
 	        "EXT_SMA_NU_TT": [0.0, 0.0, 0.0, 0.0],
 	        "EXT_SMA_NU_TTT": [0.0, 0.0, 0.0, 0.0],
@@ -649,7 +649,7 @@ CADET_BINDINGTEST("STERIC_MASS_ACTION", "EXT_STERIC_MASS_ACTION", (1,1,1), (1,1,
 CADET_BINDINGTEST_ALLBINDING("BI_STERIC_MASS_ACTION", "EXT_BI_STERIC_MASS_ACTION", (2,2,2), (1.2, 2.0, 1.5, 80.0, 80.0, 3.5, 3.5, 2.7, 2.7), \
 	R"json( "BISMA_KA": [0.0, 3.55, 1.59, 0.0, 3.55, 1.59],
 	        "BISMA_KD": [0.0, 10.0, 10.0, 0.0, 10.0, 10.0],
-	        "BISMA_NU": [0.0, 2.0, 1.5, 0.0, 2.0, 1.5],
+	        "BISMA_NU": [1.2, 2.0, 1.5, 1.5, 2.0, 1.5],
 	        "BISMA_SIGMA": [0.0, 11.83, 10.6, 0.0, 11.83, 10.6],
 	        "BISMA_LAMBDA": [100.0, 100.0]
 	)json", \
@@ -661,7 +661,7 @@ CADET_BINDINGTEST_ALLBINDING("BI_STERIC_MASS_ACTION", "EXT_BI_STERIC_MASS_ACTION
 	        "EXT_BISMA_KD_T": [0.0, 10.0, 10.0, 0.0, 10.0, 10.0],
 	        "EXT_BISMA_KD_TT": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
 	        "EXT_BISMA_KD_TTT": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-	        "EXT_BISMA_NU": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+	        "EXT_BISMA_NU": [1.2, 0.0, 0.0, 1.5, 0.0, 0.0],
 	        "EXT_BISMA_NU_T": [0.0, 2.0, 1.5, 0.0, 2.0, 1.5],
 	        "EXT_BISMA_NU_TT": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
 	        "EXT_BISMA_NU_TTT": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
@@ -681,14 +681,14 @@ CADET_BINDINGTEST("SELF_ASSOCIATION", "EXT_SELF_ASSOCIATION", (1,1,1), (1,1,0,1)
 	R"json( "SAI_KA1": [0.0, 3.55, 1.59],
 	        "SAI_KA2": [0.0, 1.5, 2.5],
 	        "SAI_KD": [0.0, 10.0, 10.0],
-	        "SAI_NU": [0.0, 2.0, 1.5],
+	        "SAI_NU": [1.5, 2.0, 1.5],
 	        "SAI_SIGMA": [0.0, 11.83, 10.6],
 	        "SAI_LAMBDA": 100.0
 	)json", \
 	R"json( "SAI_KA1": [0.0, 3.55, 7.7, 1.59],
 	        "SAI_KA2": [0.0, 1.5, 2.0, 2.5],
 	        "SAI_KD": [0.0, 10.0, 10.0, 10.0],
-	        "SAI_NU": [0.0, 2.0, 3.7, 1.5],
+	        "SAI_NU": [1.5, 2.0, 3.7, 1.5],
 	        "SAI_SIGMA": [0.0, 11.83, 10.0, 10.6],
 	        "SAI_LAMBDA": 100.0
 	)json", \
@@ -704,7 +704,7 @@ CADET_BINDINGTEST("SELF_ASSOCIATION", "EXT_SELF_ASSOCIATION", (1,1,1), (1,1,0,1)
 	        "EXT_SAI_KD_T": [0.0, 10.0, 10.0],
 	        "EXT_SAI_KD_TT": [0.0, 0.0, 0.0],
 	        "EXT_SAI_KD_TTT": [0.0, 0.0, 0.0],
-	        "EXT_SAI_NU": [0.0, 0.0, 0.0],
+	        "EXT_SAI_NU": [1.5, 0.0, 0.0],
 	        "EXT_SAI_NU_T": [0.0, 2.0, 1.5],
 	        "EXT_SAI_NU_TT": [0.0, 0.0, 0.0],
 	        "EXT_SAI_NU_TTT": [0.0, 0.0, 0.0],
@@ -729,7 +729,7 @@ CADET_BINDINGTEST("SELF_ASSOCIATION", "EXT_SELF_ASSOCIATION", (1,1,1), (1,1,0,1)
 	        "EXT_SAI_KD_T": [0.0, 10.0, 10.0, 10.0],
 	        "EXT_SAI_KD_TT": [0.0, 0.0, 0.0, 0.0],
 	        "EXT_SAI_KD_TTT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_SAI_NU": [0.0, 0.0, 0.0, 0.0],
+	        "EXT_SAI_NU": [1.5, 0.0, 0.0, 0.0],
 	        "EXT_SAI_NU_T": [0.0, 2.0, 3.7, 1.5],
 	        "EXT_SAI_NU_TT": [0.0, 0.0, 0.0, 0.0],
 	        "EXT_SAI_NU_TTT": [0.0, 0.0, 0.0, 0.0],
@@ -835,14 +835,14 @@ CADET_BINDINGTEST("MULTI_COMPONENT_SPREADING", "EXT_MULTI_COMPONENT_SPREADING", 
 CADET_BINDINGTEST("MULTISTATE_STERIC_MASS_ACTION", "EXT_MULTISTATE_STERIC_MASS_ACTION", (1,2,1), (1,2,0,1), (1.2, 2.0, 1.5, 80.0, 2.5, 2.7, 1.8), (1.2, 2.0, 3.0, 1.5, 80.0, 2.5, 2.7, 1.8), \
 	R"json( "MSSMA_KA": [0.0, 3.55, 1.59, 4.0],
 	        "MSSMA_KD": [0.0, 10.0, 10.0, 10.0],
-	        "MSSMA_NU": [0.0, 1.5, 2.0, 1.9],
+	        "MSSMA_NU": [1.2, 1.5, 2.0, 1.9],
 	        "MSSMA_SIGMA": [0.0, 11.83, 10.6, 9.8],
 	        "MSSMA_RATES": [0.0, 0.9, 0.8, 1.2, 1.1, 1.4],
 	        "MSSMA_LAMBDA": 100.0
 	)json", \
 	R"json( "MSSMA_KA": [0.0, 3.55, 1.59, 4.0],
 	        "MSSMA_KD": [0.0, 10.0, 10.0, 10.0],
-	        "MSSMA_NU": [0.0, 1.5, 2.0, 1.9],
+	        "MSSMA_NU": [1.2, 1.5, 2.0, 1.9],
 	        "MSSMA_SIGMA": [0.0, 11.83, 10.6, 9.8],
 	        "MSSMA_RATES": [0.0, 0.9, 0.8, 1.2, 1.1, 1.4],
 	        "MSSMA_LAMBDA": 100.0
@@ -855,7 +855,7 @@ CADET_BINDINGTEST("MULTISTATE_STERIC_MASS_ACTION", "EXT_MULTISTATE_STERIC_MASS_A
 	        "EXT_MSSMA_KD_T": [0.0, 10.0, 10.0, 10.0, 0.0],
 	        "EXT_MSSMA_KD_TT": [0.0, 0.0, 0.0, 0.0],
 	        "EXT_MSSMA_KD_TTT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_MSSMA_NU": [0.0, 0.0, 0.0, 0.0],
+	        "EXT_MSSMA_NU": [1.2, 0.0, 0.0, 0.0],
 	        "EXT_MSSMA_NU_T": [0.0, 1.5, 2.0, 1.9],
 	        "EXT_MSSMA_NU_TT": [0.0, 0.0, 0.0, 0.0],
 	        "EXT_MSSMA_NU_TTT": [0.0, 0.0, 0.0, 0.0],
@@ -880,7 +880,7 @@ CADET_BINDINGTEST("MULTISTATE_STERIC_MASS_ACTION", "EXT_MULTISTATE_STERIC_MASS_A
 	        "EXT_MSSMA_KD_T": [0.0, 10.0, 10.0, 10.0, 0.0],
 	        "EXT_MSSMA_KD_TT": [0.0, 0.0, 0.0, 0.0],
 	        "EXT_MSSMA_KD_TTT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_MSSMA_NU": [0.0, 0.0, 0.0, 0.0],
+	        "EXT_MSSMA_NU": [1.2, 0.0, 0.0, 0.0],
 	        "EXT_MSSMA_NU_T": [0.0, 1.5, 2.0, 1.9],
 	        "EXT_MSSMA_NU_TT": [0.0, 0.0, 0.0, 0.0],
 	        "EXT_MSSMA_NU_TTT": [0.0, 0.0, 0.0, 0.0],
@@ -915,7 +915,8 @@ CADET_BINDINGTEST_SINGLE("SIMPLIFIED_MULTISTATE_STERIC_MASS_ACTION", (1,2,1), (1
 	        "SMSSMA_KWS": [0.0, 0.8, 1.1],
 	        "SMSSMA_KWS_LIN": [0.0, 0.2, 0.3],
 	        "SMSSMA_KWS_QUAD": [0.0, -0.1, -0.1],
-	        "SMSSMA_LAMBDA": 100.0
+	        "SMSSMA_LAMBDA": 100.0,
+	        "SMSSMA_NU_SALT": 1.2
 	)json", \
 	R"json( "SMSSMA_KA": [0.0, 3.55, 1.59, 4.0],
 	        "SMSSMA_KD": [0.0, 10.0, 10.0, 10.0],
@@ -931,7 +932,8 @@ CADET_BINDINGTEST_SINGLE("SIMPLIFIED_MULTISTATE_STERIC_MASS_ACTION", (1,2,1), (1
 	        "SMSSMA_KWS": [0.0, 0.8, 0.0, 1.1],
 	        "SMSSMA_KWS_LIN": [0.0, 0.2, 0.0, 0.3],
 	        "SMSSMA_KWS_QUAD": [0.0, -0.1, 0.0, -0.1],
-	        "SMSSMA_LAMBDA": 100.0
+	        "SMSSMA_LAMBDA": 100.0,
+	        "SMSSMA_NU_SALT": 1.2
 	)json", \
 	1e-10, 1e-10, CADET_NONBINDING_LIQUIDPHASE_COMP_UNUSED, CADET_COMPARE_BINDING_VS_NONBINDING);
 
@@ -946,7 +948,7 @@ CADET_BINDINGTEST("GENERALIZED_ION_EXCHANGE", "EXT_GENERALIZED_ION_EXCHANGE", (1
 	        "GIEX_KD_QUAD": [0.0, 0.0, 0.9, 0.7],
 	        "GIEX_KD_SALT": [0.0, 0.0, 1.0, 1.2],
 	        "GIEX_KD_PROT": [0.0, 0.0, 0.9, 1.1],
-	        "GIEX_NU": [0.0, 0.0, 2.0, 1.5],
+	        "GIEX_NU": [1.2, 0.0, 2.0, 1.5],
 	        "GIEX_NU_LIN": [0.0, 0.0, 0.5, 1.1],
 	        "GIEX_NU_QUAD": [0.0, 0.0, 0.8, 0.9],
 	        "GIEX_SIGMA": [0.0, 0.0, 11.83, 10.6],
@@ -962,7 +964,7 @@ CADET_BINDINGTEST("GENERALIZED_ION_EXCHANGE", "EXT_GENERALIZED_ION_EXCHANGE", (1
 	        "GIEX_KD_QUAD": [0.0, 0.0, 0.9, 2.1, 0.7],
 	        "GIEX_KD_SALT": [0.0, 0.0, 1.0, 3.7, 1.2],
 	        "GIEX_KD_PROT": [0.0, 0.0, 0.9, 4.8, 1.1],
-	        "GIEX_NU": [0.0, 0.0, 2.0, 3.7, 1.5],
+	        "GIEX_NU": [1.2, 0.0, 2.0, 3.7, 1.5],
 	        "GIEX_NU_LIN": [0.0, 0.0, 0.5, 1.3, 1.1],
 	        "GIEX_NU_QUAD": [0.0, 0.0, 0.8, 4.7, 0.9],
 	        "GIEX_SIGMA": [0.0, 0.0, 11.83, 10.0, 10.6],
@@ -1008,7 +1010,7 @@ CADET_BINDINGTEST("GENERALIZED_ION_EXCHANGE", "EXT_GENERALIZED_ION_EXCHANGE", (1
 	        "EXT_GIEX_KD_PROT_T": [0.0, 0.0, 0.9, 1.1],
 	        "EXT_GIEX_KD_PROT_TT": [0.0, 0.0, 0.0, 0.0],
 	        "EXT_GIEX_KD_PROT_TTT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_GIEX_NU": [0.0, 0.0, 0.0, 0.0],
+	        "EXT_GIEX_NU": [1.2, 0.0, 0.0, 0.0],
 	        "EXT_GIEX_NU_T": [0.0, 0.0, 2.0, 1.5],
 	        "EXT_GIEX_NU_TT": [0.0, 0.0, 0.0, 0.0],
 	        "EXT_GIEX_NU_TTT": [0.0, 0.0, 0.0, 0.0],
@@ -1069,7 +1071,7 @@ CADET_BINDINGTEST("GENERALIZED_ION_EXCHANGE", "EXT_GENERALIZED_ION_EXCHANGE", (1
 	        "EXT_GIEX_KD_PROT_T": [0.0, 0.0, 0.9, 8.0, 1.1],
 	        "EXT_GIEX_KD_PROT_TT": [0.0, 0.0, 0.0, 0.0, 0.0],
 	        "EXT_GIEX_KD_PROT_TTT": [0.0, 0.0, 0.0, 0.0, 0.0],
-	        "EXT_GIEX_NU": [0.0, 0.0, 0.0, 0.0, 0.0],
+	        "EXT_GIEX_NU": [1.2, 0.0, 0.0, 0.0, 0.0],
 	        "EXT_GIEX_NU_T": [0.0, 0.0, 2.0, 3.7, 1.5],
 	        "EXT_GIEX_NU_TT": [0.0, 0.0, 0.0, 0.0, 0.0],
 	        "EXT_GIEX_NU_TTT": [0.0, 0.0, 0.0, 0.0, 0.0],

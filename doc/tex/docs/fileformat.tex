@@ -1467,10 +1467,11 @@ This group also takes precedence over a possibly existing \texttt{/input/model/u
     Desorption rate constants
   \end{dataset}
   \begin{dataset}[type=double,range={$\geq 0$},length={\texttt{NCOMP}}]{SMA\_NU}
-    Characteristic charges of the protein; The number of sites $\nu$ that the protein interacts with on the resin surface
+    Characteristic charges of the proteins; The number of sites $\nu$ that the protein interacts with on the resin surface.
+    The first entry denotes the valence of the salt ions (defaults to 1 if $\leq 0$).
   \end{dataset}
   \begin{dataset}[type=double,range={$\geq 0$},length={\texttt{NCOMP}}]{SMA\_SIGMA}
-    Steric factors of the protein; The number of sites $\sigma$ on the surface that are shielded by the protein and prevented from exchange with the salt counterions in solution
+    Steric factors of the proteins; The number of sites $\sigma$ on the surface that are shielded by the protein and prevented from exchange with the salt counterions in solution
   \end{dataset}
   \begin{dataset}[unit=\si{\mol\per\cubic\metre\of{SP}}, type=double,range={$\geq 0$},length={1}]{SMA\_LAMBDA}
     Stationary phase capacity (monovalent salt counterions); The total number of binding sites available on the resin surface 
@@ -1499,10 +1500,11 @@ This group also takes precedence over a possibly existing \texttt{/input/model/u
     Desorption rate constants
   \end{dataset}
   \begin{dataset}[type=double,range={$\geq 0$},length={\texttt{NCOMP}}]{SAI\_NU}
-    Characteristic charges $\nu$ of the protein
+    Characteristic charges $\nu$ of the proteins.
+    The first entry denotes the valence of the salt ions (defaults to 1 if $\leq 0$).
   \end{dataset}
   \begin{dataset}[type=double,range={$\geq 0$},length={\texttt{NCOMP}}]{SAI\_SIGMA}
-    Steric factors $\sigma$ of the protein
+    Steric factors $\sigma$ of the proteins
   \end{dataset}
   \begin{dataset}[unit=\si{\mol\per\cubic\metre\of{SP}}, type=double,range={$\geq 0$},length={1}]{SAI\_LAMBDA}
     Stationary phase capacity (monovalent salt counterions); The total number of binding sites available on the resin surface
@@ -1608,7 +1610,8 @@ This group also takes precedence over a possibly existing \texttt{/input/model/u
     Desorption rate constants of the components in the different bound states in component-major ordering
   \end{dataset} 
   \begin{dataset}[type = double, range={$\geq 0$}, length={\texttt{NTOTALBND}}]{MSSMA\_NU} 
-    Characteristic charges of the components in the different bound states in component-major ordering
+    Characteristic charges of the components in the different bound states in component-major ordering.
+    The first entry denotes the valence of the salt ions (defaults to 1 if $\leq 0$).
   \end{dataset} 
   \begin{dataset}[type = double, range={$\geq 0$}, length={\texttt{NTOTALBND}}]{MSSMA\_SIGMA} 
     Steric factors of the components in the different bound states in component-major ordering
@@ -1642,7 +1645,7 @@ This group also takes precedence over a possibly existing \texttt{/input/model/u
   \begin{dataset}[unit=\si{\per\second}, type = double, range={$\geq 0$}, length={\texttt{NTOTALBND}}]{SMSSMA\_KD} 
     Desorption rate constants of the components to the different bound states in component-major ordering
   \end{dataset} 
-  \begin{dataset}[unit=\si{\per\second}, type = double, range={$\geq 0$}, length={\texttt{NCOMP}}]{SMSSMA\_NU\_MIN} 
+  \begin{dataset}[type = double, range={$\geq 0$}, length={\texttt{NCOMP}}]{SMSSMA\_NU\_MIN} 
     Characteristic charges of the components in the first (weakest) bound state
   \end{dataset} 
   \begin{dataset}[type = double, range={$\geq 0$}, length={\texttt{NCOMP}}]{SMSSMA\_NU\_MAX} 
@@ -1684,6 +1687,9 @@ This group also takes precedence over a possibly existing \texttt{/input/model/u
   \begin{dataset}[unit=\si{\mol\per\raiseto{3}\metre\of{SP}}, type = double, range={$> 0$}, length={1}]{SMSSMA\_REFQ} 
     Reference solid phase concentration (optional, defaults to $1.0$)
   \end{dataset} 
+  \begin{dataset}[type = double, range={$\geq 0$}, length={\texttt{NCOMP}}]{SMSSMA\_NU\_SALT}
+    Denotes the valence of the salt ions (optional, defaults to 1)
+  \end{dataset} 
 \end{condsubgroup}
 
 \begin{condsubgroup}{/input/model/unit\_XXX/adsorption}{ADSORPTION\_MODEL = BI\_STERIC\_MASS\_ACTION}{tab:FFAdsorptionBiStericMassAction}
@@ -1699,7 +1705,8 @@ This group also takes precedence over a possibly existing \texttt{/input/model/u
     Desorption rate constants in state-major ordering
   \end{dataset} 
   \begin{dataset}[unit=\si{\per\second}, type = double, range={$\geq 0.0$}, length={$\texttt{NSTATES} \cdot \texttt{NCOMP}$}]{BISMA\_NU} 
-    Characteristic charges $\nu_{i,j}$ of the $i$th protein with respect to the $j$th binding site type in state-major ordering
+    Characteristic charges $\nu_{i,j}$ of the $i$th protein with respect to the $j$th binding site type in state-major ordering.
+    The first entry of each binding site type denotes the valence of the salt ions (defaults to 1 if $\leq 0$).
   \end{dataset} 
   \begin{dataset}[unit=\si{\per\second}, type = double, range={$\geq 0.0$}, length={$\texttt{NSTATES} \cdot \texttt{NCOMP}$}]{BISMA\_SIGMA} 
     Steric factors $\sigma_{i,j}$ of the $i$th protein with respect to the $j$th binding site type in state-major ordering
@@ -1752,7 +1759,8 @@ This group also takes precedence over a possibly existing \texttt{/input/model/u
     Protein coefficient of desorption rate constants; difference of water-protein and protein-protein interactions
   \end{dataset}
   \begin{dataset}[type=double,length={\texttt{NCOMP}}]{GIEX\_NU}
-    Base value for characteristic charges of the protein; The number of sites $\nu$ that the protein interacts with on the resin surface
+    Base value for characteristic charges of the protein; The number of sites $\nu$ that the protein interacts with on the resin surface.
+    The first entry denotes the valence of the salt ions (defaults to 1 if $\leq 0$).
   \end{dataset}
   \begin{dataset}[unit=\si{\per\ModUnit},type=double,length={\texttt{NCOMP}}]{GIEX\_NU\_LIN}
     Coefficient of linear dependence of characteristic charge on modifier component

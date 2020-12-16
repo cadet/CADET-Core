@@ -624,6 +624,7 @@ public:
 	 * @brief Returns the base value that does not depend on an external value
 	 * @return Constant base value
 	 */
+	inline storage_t& base() CADET_NOEXCEPT { return _base; }
 	inline const storage_t& base() const CADET_NOEXCEPT { return _base; }
 
 	/**
@@ -726,6 +727,7 @@ public:
 
 	inline const std::size_t additionalDynamicMemory(unsigned int nComp, unsigned int totalNumBoundStates, unsigned int const* nBoundStates) const CADET_NOEXCEPT { return nComp * sizeof(active) + alignof(active); }
 
+	inline storage_t& base() CADET_NOEXCEPT { return _base; }
 	inline const storage_t& base() const CADET_NOEXCEPT { return _base; }
 
 	template <typename T>
@@ -810,6 +812,7 @@ public:
 		return 0;
 	}
 
+	inline storage_t& base() CADET_NOEXCEPT { return _base; }
 	inline const storage_t& base() const CADET_NOEXCEPT { return _base; }
 
 	template <typename T>
@@ -893,6 +896,7 @@ public:
 
 	inline const std::size_t additionalDynamicMemory(unsigned int nReactions, unsigned int nComp, unsigned int totalNumBoundStates) const CADET_NOEXCEPT { return nReactions * sizeof(active) + alignof(active); }
 
+	inline storage_t& base() CADET_NOEXCEPT { return _base; }
 	inline const storage_t& base() const CADET_NOEXCEPT { return _base; }
 
 	template <typename T>
@@ -1002,6 +1006,7 @@ public:
 		}
 	}
 
+	inline storage_t& base() CADET_NOEXCEPT { return _base; }
 	inline const storage_t& base() const CADET_NOEXCEPT { return _base; }
 
 	template <typename T>
@@ -1103,6 +1108,7 @@ public:
 		return sumSquared * sizeof(active) + alignof(active) + (nComp + 1) * sizeof(typename util::SlicedVector<active>::size_type) + alignof(typename util::SlicedVector<active>::size_type);
 	}
 
+	inline storage_t& base() CADET_NOEXCEPT { return _base; }
 	inline const storage_t& base() const CADET_NOEXCEPT { return _base; }
 
 	template <typename T>
@@ -1185,6 +1191,7 @@ public:
 		return nComp * nComp * sizeof(active) + alignof(active) + (nComp + 1) * sizeof(typename util::SlicedVector<active>::size_type) + alignof(typename util::SlicedVector<active>::size_type);
 	}
 
+	inline storage_t& base() CADET_NOEXCEPT { return _base; }
 	inline const storage_t& base() const CADET_NOEXCEPT { return _base; }
 
 	template <typename T>

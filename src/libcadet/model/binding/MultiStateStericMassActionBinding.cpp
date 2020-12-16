@@ -71,7 +71,7 @@ inline bool MSSMAParamHandler::validateConfig(unsigned int nComp, unsigned int c
 	if ((_kA.size() != _kD.size()) || (_kA.size() != _nu.size()) || (_kA.size() != _sigma.size()) || (_kA.size() != totalBoundStates))
 		throw InvalidParameterException("MSSMA_KA, MSSMA_KD, MSSMA_NU, and MSSMA_SIGMA have to have the same size");
 
-	const util::SlicedVector<active>& n = _nu.get();
+	util::SlicedVector<active>& n = _nu.get();
 	for (unsigned int i = 0; i < nComp; ++i)
 	{
 		active const* curNu = n[i];
@@ -81,6 +81,10 @@ inline bool MSSMAParamHandler::validateConfig(unsigned int nComp, unsigned int c
 				throw InvalidParameterException("MSSMA_NU is not monotonically increasing for component " + std::to_string(i) + " at bound state " + std::to_string(j));
 		}
 	}
+
+	// Assume monovalent salt ions by default
+	if (n.native(0) <= 0.0)
+		n.native(0) = 1.0;
 
 	return true;
 }
@@ -93,6 +97,10 @@ inline bool ExtMSSMAParamHandler::validateConfig(unsigned int nComp, unsigned in
 
 	if ((_kA.size() != _kD.size()) || (_kA.size() != _nu.size()) || (_kA.size() != _sigma.size()) || (_kA.size() != totalBoundStates))
 		throw InvalidParameterException("EXT_MSSMA_KA, EXT_MSSMA_KD, EXT_MSSMA_NU, and EXT_MSSMA_SIGMA have to have the same size");
+
+	// Assume monovalent salt ions by default
+	if (_nu.base().native(0) <= 0.0)
+		_nu.base().native(0) = 1.0;
 
 	return true;
 }
@@ -160,8 +168,8 @@ public:
 
 		// Compute salt component from given bound states q_i^j
 
-		// Salt equation: q_0 - Lambda + Sum[Sum[nu_i^j * q_i^j, j], i] == 0 
-		//           <=>  q_0 == Lambda - Sum[Sum[nu_i^j * q_i^j, j], i]
+		// Salt equation: q_0 * nu_0 - Lambda + Sum[Sum[nu_i^j * q_i^j, j], i] == 0 
+		//           <=>  q_0 == (Lambda - Sum[Sum[nu_i^j * q_i^j, j], i]) / nu_0
 		y[0] = static_cast<double>(p->lambda);
 
 		// Loop over all components i
@@ -180,6 +188,8 @@ public:
 				++bndIdx;
 			}
 		}
+
+		y[0] /= static_cast<double>(p->nu.native(0));
 
 		return true;
 	}
@@ -206,11 +216,11 @@ protected:
 
 		typename ParamHandler_t::ParamsHandle const p = _paramHandler.update(t, secIdx, colPos, _nComp, _nBoundStates, workSpace);
 
-		// Salt flux: q_0 - Lambda + Sum[Sum[nu_i^j * q_i^j, j], i] == 0 
-		//       <=>  q_0 == Lambda - Sum[Sum[nu_i^j * q_i^j, j], i] 
-		// Also compute \bar{q}_0 = q_0 - Sum[Sum[sigma_i^j * q_i^j, j], i]
-		res[0] = y[0] - static_cast<ParamType>(p->lambda);
-		StateParamType q0_bar = y[0];
+		// Salt flux: q_0 * nu_0 - Lambda + Sum[Sum[nu_i^j * q_i^j, j], i] == 0 
+		//       <=>  q_0 * nu_0 == Lambda - Sum[Sum[nu_i^j * q_i^j, j], i] 
+		// Also compute \bar{q}_0 = q_0 * nu_0 - Sum[Sum[sigma_i^j * q_i^j, j], i]
+		res[0] = static_cast<ParamType>(p->nu.native(0)) * y[0] - static_cast<ParamType>(p->lambda);
+		StateParamType q0_bar = static_cast<ParamType>(p->nu.native(0)) * y[0];
 
 		unsigned int bndIdx = 1;
 
@@ -251,8 +261,9 @@ protected:
 			// Loop over bound states j of component i
 			for (unsigned int j = 0; j < nBoundStatesI; ++j)
 			{
-				const CpStateParamType c0_pow_nu = pow(yCp0_divRef, static_cast<ParamType>(curNu[j]));
-				const StateParamType q0_bar_pow_nu = pow(q0_bar_divRef, static_cast<ParamType>(curNu[j]));
+				const ParamType nu_over_nu0 = static_cast<ParamType>(curNu[j]) / static_cast<ParamType>(p->nu.native(0));
+				const CpStateParamType c0_pow_nu = pow(yCp0_divRef, nu_over_nu0);
+				const StateParamType q0_bar_pow_nu = pow(q0_bar_divRef, nu_over_nu0);
 
 				// Calculate residual
 				// Adsorption and desorption
@@ -261,11 +272,11 @@ protected:
 				// Conversion to and from weaker states
 				for (unsigned int l = 0; l < j; ++l)
 				{
-					const ParamType nuDiff = static_cast<ParamType>(curNu[j]) - static_cast<ParamType>(curNu[l]);
+					const ParamType nuDiff_over_nu0 = (static_cast<ParamType>(curNu[j]) - static_cast<ParamType>(curNu[l])) / static_cast<ParamType>(p->nu.native(0));
 					// Conversion to weaker state
-					res[bndIdx] += static_cast<ParamType>(curRates[nBoundStatesI * j + l]) * y[bndIdx] * pow(yCp0_divRef, nuDiff);
+					res[bndIdx] += static_cast<ParamType>(curRates[nBoundStatesI * j + l]) * y[bndIdx] * pow(yCp0_divRef, nuDiff_over_nu0);
 					// Conversion from weaker state
-					res[bndIdx] -= static_cast<ParamType>(curRates[nBoundStatesI * l + j]) * y[bndIdx - j + l] * pow(q0_bar_divRef, nuDiff);
+					res[bndIdx] -= static_cast<ParamType>(curRates[nBoundStatesI * l + j]) * y[bndIdx - j + l] * pow(q0_bar_divRef, nuDiff_over_nu0);
 					// Getting to q_i^l: bndIdx takes us to q_i^j, subtracting j sets the pointer back
 					//                   to q_i^0, and adding l brings us to q_i^l.
 					//                   This means y[bndIdx - j + l] corresponds to q_i^l
@@ -274,11 +285,11 @@ protected:
 				// Conversion to and from stronger states
 				for (unsigned int l = j+1; l < nBoundStatesI; ++l)
 				{
-					const ParamType nuDiff = static_cast<ParamType>(curNu[l]) - static_cast<ParamType>(curNu[j]);
+					const ParamType nuDiff_over_nu0 = (static_cast<ParamType>(curNu[l]) - static_cast<ParamType>(curNu[j])) / static_cast<ParamType>(p->nu.native(0));
 					// Conversion to stronger state
-					res[bndIdx] += static_cast<ParamType>(curRates[nBoundStatesI * j + l]) * y[bndIdx] * pow(q0_bar_divRef, nuDiff);
+					res[bndIdx] += static_cast<ParamType>(curRates[nBoundStatesI * j + l]) * y[bndIdx] * pow(q0_bar_divRef, nuDiff_over_nu0);
 					// Conversion from stronger state
-					res[bndIdx] -= static_cast<ParamType>(curRates[nBoundStatesI * l + j]) * y[bndIdx - j + l] * pow(yCp0_divRef, nuDiff);
+					res[bndIdx] -= static_cast<ParamType>(curRates[nBoundStatesI * l + j]) * y[bndIdx - j + l] * pow(yCp0_divRef, nuDiff_over_nu0);
 				}
 
 				// Next bound component
@@ -293,10 +304,10 @@ protected:
 	{
 		typename ParamHandler_t::ParamsHandle const p = _paramHandler.update(t, secIdx, colPos, _nComp, _nBoundStates, workSpace);
 
-		double q0_bar = y[0];
+		double q0_bar = static_cast<double>(p->nu.native(0)) * y[0];
 
-		// Salt flux: q_0 - Lambda + Sum[Sum[nu_j * q_i^j, j], i] == 0
-		jac[0] = 1.0;
+		// Salt flux: nu_0 * q_0 - Lambda + Sum[Sum[nu_j * q_i^j, j], i] == 0
+		jac[0] = static_cast<double>(p->nu.native(0));
 		int bndIdx = 1;
 		for (int i = 1; i < _nComp; ++i)
 		{
@@ -307,7 +318,7 @@ protected:
 			{
 				jac[bndIdx] = static_cast<double>(curNu[j]);
 
-				// Calculate \bar{q}_0 = q_0 - Sum[Sum[sigma_j * q_i^j, j], i]
+				// Calculate \bar{q}_0 = nu_0 * q_0 - Sum[Sum[sigma_j * q_i^j, j], i]
 				q0_bar -= static_cast<double>(curSigma[j]) * y[bndIdx];
 
 				// Next bound component
@@ -345,18 +356,19 @@ protected:
 				const double ka = static_cast<double>(curKa[j]);
 				const double kd = static_cast<double>(curKd[j]);
 				const double nu = static_cast<double>(curNu[j]);
+				const double nu_over_nu0 = nu / static_cast<double>(p->nu.native(0));
 
-				const double c0_pow_nu     = pow(yCp0_divRef, nu);
-				const double q0_bar_pow_nu = pow(q0_bar_divRef, nu);
-				const double c0_pow_nu_m1_divRef     = pow(yCp0_divRef, nu - 1.0) / refC0;
-				const double q0_bar_pow_nu_m1_divRef = nu * pow(q0_bar_divRef, nu - 1.0) / refQ;
+				const double c0_pow_nu     = pow(yCp0_divRef, nu_over_nu0);
+				const double q0_bar_pow_nu = pow(q0_bar_divRef, nu_over_nu0);
+				const double c0_pow_nu_m1_divRef     = pow(yCp0_divRef, nu_over_nu0 - 1.0) / refC0;
+				const double q0_bar_pow_nu_m1_divRef = nu_over_nu0 * pow(q0_bar_divRef, nu_over_nu0 - 1.0) / refQ;
 
 				// dres_i / dc_{p,0}
-				jac[-bndIdx - offsetCp] = kd * y[bndIdx] * nu * c0_pow_nu_m1_divRef;
+				jac[-bndIdx - offsetCp] = kd * y[bndIdx] * nu_over_nu0 * c0_pow_nu_m1_divRef;
 				// dres_i / dc_{p,i}
 				jac[i - bndIdx - offsetCp] = -ka * q0_bar_pow_nu;
 				// dres_i / dq_0
-				jac[-bndIdx] = -ka * yCp[i] * q0_bar_pow_nu_m1_divRef;
+				jac[-bndIdx] = -ka * yCp[i] * q0_bar_pow_nu_m1_divRef * static_cast<double>(p->nu.native(0));
 
 				// Fill dres_i / dq_i^j (no flux terms, just handle \bar{q}_0^{nu_i} term)
 				int bndIdx2 = 1;
@@ -382,13 +394,13 @@ protected:
 				// Conversion to and from weaker states
 				for (int l = 0; l < j; ++l)
 				{
-					const double nuDiff = nu - static_cast<double>(curNu[l]);
+					const double nuDiff = (nu - static_cast<double>(curNu[l])) / static_cast<double>(p->nu.native(0));
 					const double q0_bar_pow_nudiff_deriv = static_cast<double>(curRates[nBoundStatesI * l + j]) * y[bndIdx - j + l] * nuDiff * pow(q0_bar_divRef, nuDiff - 1.0) / refQ;
 
 					// dres_i / dc_{p,0}
 					jac[-bndIdx - offsetCp] += static_cast<double>(curRates[nBoundStatesI * j + l]) * y[bndIdx] * nuDiff * pow(yCp0_divRef, nuDiff - 1.0) / refC0;
 					// dres_i / dq_0
-					jac[-bndIdx] -= q0_bar_pow_nudiff_deriv;
+					jac[-bndIdx] -= q0_bar_pow_nudiff_deriv * static_cast<double>(p->nu.native(0));
 					// dres_i / dq_i^j (current outer loop element)
 					jac[0] += static_cast<double>(curRates[nBoundStatesI * j + l]) * pow(yCp0_divRef, nuDiff);
 					// dres_i / dq_i^l (without dq0_bar / dq_i^l)
@@ -406,13 +418,13 @@ protected:
 				// Conversion to and from stronger states
 				for (int l = j+1; l < static_cast<int>(nBoundStatesI); ++l)
 				{
-					const double nuDiff = static_cast<double>(curNu[l]) - nu;
+					const double nuDiff = (static_cast<double>(curNu[l]) - nu) / static_cast<double>(p->nu.native(0));
 					const double q0_bar_pow_nudiff_deriv = static_cast<double>(curRates[nBoundStatesI * j + l]) * y[bndIdx] * nuDiff * pow(q0_bar_divRef, nuDiff - 1.0) / refQ;
 
 					// dres_i / dc_{p,0}
 					jac[-bndIdx - offsetCp] -= static_cast<double>(curRates[nBoundStatesI * l + j]) * y[bndIdx - j + l] * nuDiff * pow(yCp0_divRef, nuDiff - 1.0) / refC0;
 					// dres_i / dq_0
-					jac[-bndIdx] += q0_bar_pow_nudiff_deriv;
+					jac[-bndIdx] += q0_bar_pow_nudiff_deriv * static_cast<double>(p->nu.native(0));
 					// dres_i / dq_i^j (current outer loop element)
 					jac[0] += static_cast<double>(curRates[nBoundStatesI * j + l]) * pow(q0_bar_divRef, nuDiff);
 					// dres_i / dq_i^l

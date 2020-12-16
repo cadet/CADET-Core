@@ -85,7 +85,8 @@ public:
 	CADET_BINDINGMODELBASE_BOILERPLATE
 
 protected:
-	active _lambda; //! Ionic capacity
+	active _lambda; //!< Ionic capacity
+	active _nu0; //!< Valence of salt ions
 	util::SlicedVector<active> _kA; //!< Adsorption rate in component-major ordering
 	util::SlicedVector<active> _kD; //!< Desorption rate in component-major ordering
 	std::vector<active> _nuMin; //!< Characteristic charge, minimum value
