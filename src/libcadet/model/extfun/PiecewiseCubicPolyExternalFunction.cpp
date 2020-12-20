@@ -84,7 +84,11 @@ public:
 		if (transT <= _sectionTimes[0])
 			return _const[0];
 		if (transT >= _sectionTimes.back())
-			return _const.back();
+		{
+			const int n = _sectionTimes.size();
+			const double tShift = _sectionTimes[n-1] - _sectionTimes[n-2];
+			return _const.back() + tShift * (_lin.back() + tShift * (_quad.back() + tShift * _cub.back()));
+		}
 
 		// Find the the interval [_sectionTimes[idx], _sectionTimes[idx+1]] in which transT is located
 		const std::vector<double>::iterator it = std::lower_bound(_sectionTimes.begin(), _sectionTimes.end(), transT);
