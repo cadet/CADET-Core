@@ -97,7 +97,7 @@ public:
 		//   
 		// where p_i is the polynomial on section i given by the interval [t_i, t_{i+1}].
 
-		const double tShift = t - _sectionTimes[idx];
+		const double tShift = transT - _sectionTimes[idx];
 
 		// Evaluate polynomial using Horner's scheme
 		return _const[idx] + tShift * (_lin[idx] + tShift * (_quad[idx] + tShift * _cub[idx]));
@@ -126,7 +126,7 @@ public:
 		//   
 		// where p_i is the polynomial on section i given by the interval [t_i, t_{i+1}].
 
-		const double tShift = t - _sectionTimes[idx];
+		const double tShift = transT - _sectionTimes[idx];
 
 		// Evaluate polynomial using Horner's scheme
 		return _lin[idx] + tShift * (2.0 * _quad[idx] + tShift * 3.0 * _cub[idx]);
