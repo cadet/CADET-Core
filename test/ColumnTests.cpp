@@ -666,7 +666,8 @@ namespace column
 
 	void testArrowHeadJacobianFD(const std::string& uoType, double h, double absTol, double relTol)
 	{
-		testArrowHeadJacobianFD(uoType, h, absTol, relTol);
+		cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding(uoType);
+		testArrowHeadJacobianFD(jpp, h, absTol, relTol);
 	}
 
 	void testArrowHeadJacobianFD(const std::string& uoType, bool dynamicBinding, double h, double absTol, double relTol)
