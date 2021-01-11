@@ -49,7 +49,8 @@
 		],
 	"constantParameters":
 		[
-			{ "type": "ReferenceConcentrationParameter", "varName": ["refC0", "refQ"], "objName": "refConcentration", "confPrefix": "GIEX_"}
+			{ "type": "ReferenceConcentrationParameter", "varName": ["refC0", "refQ"], "objName": "refConcentration", "confPrefix": "GIEX_"},
+			{ "type": "ReferenceConcentrationParameter", "varName": ["refPhC0", "refPhQ"], "objName": "refConcentrationPh", "confPrefix": "GIEX_PH", "skipConfig": true}
 		]
 }
 </codegen>*/
@@ -62,6 +63,7 @@
  nu = Characteristic charge
  sigma = Steric factor
  refC0, refQ = Reference concentrations
+ refPhC0,refPhQ = Reference concentrations for pH dependent powers
 */
 
 namespace cadet
@@ -214,6 +216,25 @@ protected:
 	using ParamHandlerBindingModelBase<ParamHandler_t>::_nComp;
 	using ParamHandlerBindingModelBase<ParamHandler_t>::_nBoundStates;
 
+	virtual bool configureImpl(IParameterProvider& paramProvider, UnitOpIdx unitOpIdx, ParticleTypeIdx parTypeIdx)
+	{
+		const bool valid = ParamHandlerBindingModelBase<ParamHandler_t>::configureImpl(paramProvider, unitOpIdx, parTypeIdx);
+
+		if (paramProvider.exists(std::string(_paramHandler.prefixInConfiguration()) + "GIEX_PHREFC0") && paramProvider.exists(std::string(_paramHandler.prefixInConfiguration()) + "GIEX_PHREFQ"))
+		{
+			// Parameters are present, use them
+			_paramHandler.refConcentrationPh().configure("GIEX_PH", paramProvider, _nComp, _nBoundStates);
+		}
+		else
+		{
+			// Default to standard reference concentration
+			_paramHandler.refConcentrationPh().getC() = _paramHandler.refConcentration().getC();
+			_paramHandler.refConcentrationPh().getQ() = _paramHandler.refConcentration().getQ();
+		}
+
+		return valid;
+	}
+
 	template <typename StateType, typename CpStateType, typename ResidualType, typename ParamType>
 	int fluxImpl(double t, unsigned int secIdx, const ColumnPosition& colPos, StateType const* y,
 		CpStateType const* yCp, ResidualType* res, LinearBufferAllocator workSpace) const
@@ -250,8 +271,12 @@ protected:
 
 		const ParamType refC0 = static_cast<ParamType>(p->refC0);
 		const ParamType refQ = static_cast<ParamType>(p->refQ);
+		const ParamType refC0ph = static_cast<ParamType>(p->refPhC0);
+		const ParamType refQph = static_cast<ParamType>(p->refPhQ);
 		const CpStateParamType yCp0_divRef = yCp[0] / refC0;
 		const StateParamType q0_bar_divRef = q0_bar / refQ;
+		const CpStateParamType yCp0_ph_divRef = yCp[0] / refC0ph;
+		const StateParamType q0_bar_ph_divRef = q0_bar / refQph;
 
 		// Protein fluxes: -k_{a,i}(c_p, q, \mathrm{pH}) * \bar{q}_0^{\nu_i(\mathrm{pH}) / \nu_0} * c_{p,i} + k_{d,i}(c_p, q, \mathrm{pH}) * c_{p,0}^{\nu_i(pH) / \nu_0} * q_i
 		bndIdx = 1;
@@ -261,9 +286,13 @@ protected:
 			if (_nBoundStates[i] == 0)
 				continue;
 
-			const CpStateParamType nu_i_over_nu0 = (static_cast<ParamType>(p->nu[i]) + pH * (static_cast<ParamType>(p->nuLin[i]) + pH * static_cast<ParamType>(p->nuQuad[i]))) / static_cast<ParamType>(p->nu[0]);
-			const CpStateParamType c0_pow_nu = pow(yCp0_divRef, nu_i_over_nu0);
-			const StateParamType q0_bar_pow_nu = pow(q0_bar_divRef, nu_i_over_nu0);
+//			const CpStateParamType nu_i_over_nu0 = (static_cast<ParamType>(p->nu[i]) + pH * (static_cast<ParamType>(p->nuLin[i]) + pH * static_cast<ParamType>(p->nuQuad[i]))) / static_cast<ParamType>(p->nu[0]);
+//			const CpStateParamType c0_pow_nu = pow(yCp0_divRef, nu_i_over_nu0);
+//			const StateParamType q0_bar_pow_nu = pow(q0_bar_divRef, nu_i_over_nu0);
+			const CpStateParamType nu_i_0_over_nu0 = static_cast<ParamType>(p->nu[i]) / static_cast<ParamType>(p->nu[0]);
+			const CpStateParamType nu_i_pH_over_nu0 = pH * (static_cast<ParamType>(p->nuLin[i]) + pH * static_cast<ParamType>(p->nuQuad[i])) / static_cast<ParamType>(p->nu[0]);
+			const CpStateParamType c0_pow_nu = pow(yCp0_divRef, nu_i_0_over_nu0) * pow(yCp0_ph_divRef, nu_i_pH_over_nu0);
+			const StateParamType q0_bar_pow_nu = pow(q0_bar_divRef, nu_i_0_over_nu0) * pow(q0_bar_ph_divRef, nu_i_pH_over_nu0);
 			
 			// k_{a,i}(c_p, q, \mathrm{pH}) = k_{a,i,0} \exp(k_{a,i,1} \mathrm{pH} + k_{a,i,2} \mathrm{pH}^2 + k_{a,i,\mathrm{salt}} c_{p,0} + k_{a,i,\mathrm{prot}} c_{p,i})
 			const CpStateParamType ka_i = static_cast<ParamType>(p->kA[i]) * 
@@ -325,8 +354,12 @@ protected:
 
 		const double refC0 = static_cast<double>(p->refC0);
 		const double refQ = static_cast<double>(p->refQ);
+		const double refC0ph = static_cast<double>(p->refPhC0);
+		const double refQph = static_cast<double>(p->refPhQ);
 		const double yCp0_divRef = yCp[0] / refC0;
 		const double q0_bar_divRef = q0_bar / refQ;
+		const double yCp0_ph_divRef = yCp[0] / refC0ph;
+		const double q0_bar_ph_divRef = q0_bar / refQph;
 
 		// Protein fluxes: -k_{a,i} * c_{p,i} * \bar{q}_0^{nu_i} + k_{d,i} * q_i * c_{p,0}^{nu_i}
 		// We have already computed \bar{q}_0 in the loop above
@@ -339,13 +372,15 @@ protected:
 
 			const double ka = static_cast<double>(p->kA[i]);
 			const double kd = static_cast<double>(p->kD[i]);
-			const double nu = (static_cast<double>(p->nu[i]) + pH * (static_cast<double>(p->nuLin[i]) + pH * static_cast<double>(p->nuQuad[i]))) / static_cast<double>(p->nu[0]);
+			const double nu_0 = static_cast<double>(p->nu[i]) / static_cast<double>(p->nu[0]);
+			const double nu_pH = pH * (static_cast<double>(p->nuLin[i]) + pH * static_cast<double>(p->nuQuad[i])) / static_cast<double>(p->nu[0]);
+			const double nu = nu_0 + nu_pH;
 			const double dNuDpH = (static_cast<double>(p->nuLin[i]) + 2.0 * pH * static_cast<double>(p->nuQuad[i])) / static_cast<double>(p->nu[0]);
 
-			const double c0_pow_nu     = pow(yCp0_divRef, nu);
-			const double q0_bar_pow_nu = pow(q0_bar_divRef, nu);
-			const double c0_pow_nu_m1_divRef     = pow(yCp0_divRef, nu - 1.0) / refC0;
-			const double q0_bar_pow_nu_m1_divRef = nu * pow(q0_bar_divRef, nu - 1.0) / refQ;
+			const double c0_pow_nu     = pow(yCp0_divRef, nu_0) * pow(yCp0_ph_divRef, nu_pH);
+			const double q0_bar_pow_nu = pow(q0_bar_divRef, nu_0) * pow(q0_bar_ph_divRef, nu_pH);
+			const double c0_pow_nu_m1_divRef     = nu * pow(yCp0_divRef, nu_0 - 1.0) * pow(yCp0_ph_divRef, nu_pH) / refC0;
+			const double q0_bar_pow_nu_m1_divRef = nu * pow(q0_bar_divRef, nu_0 - 1.0) * pow(q0_bar_ph_divRef, nu_pH) / refQ;
 
 			// k_{a,i}(c_p, q, \mathrm{pH}) = k_{a,i,0} \exp(k_{a,i,1} \mathrm{pH} + k_{a,i,2} \mathrm{pH}^2 + k_{a,i,\mathrm{salt}} c_{p,0} + k_{a,i,\mathrm{prot}} c_{p,i})
 			const double ka_i = ka * 
@@ -360,9 +395,9 @@ protected:
 			const double dKdDpH = kd_i * (static_cast<double>(p->kDLin[i]) + 2.0 * pH * static_cast<double>(p->kDQuad[i]));
 
 			// dres_i / dc_{p,0}
-			jac[-bndIdx - offsetCp] = kd_i * y[bndIdx] * (nu * c0_pow_nu_m1_divRef + c0_pow_nu * static_cast<double>(p->kDSalt[i]) / refC0) - ka_i * yCp[i] * q0_bar_pow_nu * static_cast<double>(p->kASalt[i]) / refC0;
+			jac[-bndIdx - offsetCp] = kd_i * y[bndIdx] * (c0_pow_nu_m1_divRef + c0_pow_nu * static_cast<double>(p->kDSalt[i]) / refC0) - ka_i * yCp[i] * q0_bar_pow_nu * static_cast<double>(p->kASalt[i]) / refC0;
 			// dres_i / dc_{p,1}
-			jac[1 - bndIdx - offsetCp] = y[bndIdx] * c0_pow_nu * (dKdDpH + kd_i * std::log(yCp0_divRef) * dNuDpH) - yCp[i] * q0_bar_pow_nu * (dKaDpH + ka_i * std::log(q0_bar_divRef) * dNuDpH);
+			jac[1 - bndIdx - offsetCp] = y[bndIdx] * c0_pow_nu * (dKdDpH + kd_i * std::log(yCp0_ph_divRef) * dNuDpH) - yCp[i] * q0_bar_pow_nu * (dKaDpH + ka_i * std::log(q0_bar_ph_divRef) * dNuDpH);
 			// dres_i / dc_{p,i}
 			jac[i - bndIdx - offsetCp] = -ka_i * q0_bar_pow_nu * (1.0 + yCp[i] * static_cast<double>(p->kAProt[i])) + kd_i * y[bndIdx] * c0_pow_nu * static_cast<double>(p->kDProt[i]);
 			// dres_i / dq_0

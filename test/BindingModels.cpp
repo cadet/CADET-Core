@@ -593,13 +593,17 @@ CADET_BINDINGTEST("STERIC_MASS_ACTION", "EXT_STERIC_MASS_ACTION", (1,1,1), (1,1,
 	        "SMA_KD": [0.0, 10.0, 10.0],
 	        "SMA_NU": [1.5, 2.0, 1.5],
 	        "SMA_SIGMA": [0.0, 11.83, 10.6],
-	        "SMA_LAMBDA": 100.0
+	        "SMA_LAMBDA": 100.0,
+	        "SMA_REFC0": 2.0,
+	        "SMA_REFQ": 1.1
 	)json", \
 	R"json( "SMA_KA": [0.0, 3.55, 7.7, 1.59],
 	        "SMA_KD": [0.0, 10.0, 10.0, 10.0],
 	        "SMA_NU": [1.5, 2.0, 3.7, 1.5],
 	        "SMA_SIGMA": [0.0, 11.83, 10.0, 10.6],
-	        "SMA_LAMBDA": 100.0
+	        "SMA_LAMBDA": 100.0,
+	        "SMA_REFC0": 2.0,
+	        "SMA_REFQ": 1.1
 	)json", \
 	R"json( "EXT_SMA_KA": [0.0, 0.0, 0.0],
 	        "EXT_SMA_KA_T": [0.0, 3.55, 1.59],
@@ -620,7 +624,9 @@ CADET_BINDINGTEST("STERIC_MASS_ACTION", "EXT_STERIC_MASS_ACTION", (1,1,1), (1,1,
 	        "EXT_SMA_LAMBDA": 0.0,
 	        "EXT_SMA_LAMBDA_T": 100.0,
 	        "EXT_SMA_LAMBDA_TT": 0.0,
-	        "EXT_SMA_LAMBDA_TTT": 0.0
+	        "EXT_SMA_LAMBDA_TTT": 0.0,
+	        "EXT_SMA_REFC0": 2.0,
+	        "EXT_SMA_REFQ": 1.1
 	)json", \
 	R"json( "EXT_SMA_KA": [0.0, 0.0, 0.0, 0.0],
 	        "EXT_SMA_KA_T": [0.0, 3.55, 7.7, 1.59],
@@ -641,7 +647,9 @@ CADET_BINDINGTEST("STERIC_MASS_ACTION", "EXT_STERIC_MASS_ACTION", (1,1,1), (1,1,
 	        "EXT_SMA_LAMBDA": 0.0,
 	        "EXT_SMA_LAMBDA_T": 100.0,
 	        "EXT_SMA_LAMBDA_TT": 0.0,
-	        "EXT_SMA_LAMBDA_TTT": 0.0
+	        "EXT_SMA_LAMBDA_TTT": 0.0,
+	        "EXT_SMA_REFC0": 2.0,
+	        "EXT_SMA_REFQ": 1.1
 	)json", \
 	1e-10, 1e-8, CADET_NONBINDING_LIQUIDPHASE_COMP_UNUSED, CADET_COMPARE_BINDING_VS_NONBINDING);
 
@@ -952,7 +960,11 @@ CADET_BINDINGTEST("GENERALIZED_ION_EXCHANGE", "EXT_GENERALIZED_ION_EXCHANGE", (1
 	        "GIEX_NU_LIN": [0.0, 0.0, 0.5, 1.1],
 	        "GIEX_NU_QUAD": [0.0, 0.0, 0.8, 0.9],
 	        "GIEX_SIGMA": [0.0, 0.0, 11.83, 10.6],
-	        "GIEX_LAMBDA": 100.0
+	        "GIEX_LAMBDA": 100.0,
+	        "GIEX_REFC0": 2.0,
+	        "GIEX_REFQ": 50.0,
+	        "GIEX_PHREFC0": 2.5,
+	        "GIEX_PHREFQ": 45.0
 	)json", \
 	R"json( "GIEX_KA": [0.0, 0.0, 3.55, 7.7, 1.59],
 	        "GIEX_KA_LIN": [0.0, 0.0, 0.8, 1.2, 0.9],
@@ -968,7 +980,11 @@ CADET_BINDINGTEST("GENERALIZED_ION_EXCHANGE", "EXT_GENERALIZED_ION_EXCHANGE", (1
 	        "GIEX_NU_LIN": [0.0, 0.0, 0.5, 1.3, 1.1],
 	        "GIEX_NU_QUAD": [0.0, 0.0, 0.8, 4.7, 0.9],
 	        "GIEX_SIGMA": [0.0, 0.0, 11.83, 10.0, 10.6],
-	        "GIEX_LAMBDA": 100.0
+	        "GIEX_LAMBDA": 100.0,
+	        "GIEX_REFC0": 2.0,
+	        "GIEX_REFQ": 50.0,
+	        "GIEX_PHREFC0": 2.5,
+	        "GIEX_PHREFQ": 45.0
 	)json", \
 	R"json( "EXT_GIEX_KA": [0.0, 0.0, 0.0, 0.0],
 	        "EXT_GIEX_KA_T": [0.0, 0.0, 3.55, 1.59],
@@ -1029,7 +1045,11 @@ CADET_BINDINGTEST("GENERALIZED_ION_EXCHANGE", "EXT_GENERALIZED_ION_EXCHANGE", (1
 	        "EXT_GIEX_LAMBDA": 0.0,
 	        "EXT_GIEX_LAMBDA_T": 100.0,
 	        "EXT_GIEX_LAMBDA_TT": 0.0,
-	        "EXT_GIEX_LAMBDA_TTT": 0.0
+	        "EXT_GIEX_LAMBDA_TTT": 0.0,
+	        "EXT_GIEX_REFC0": 2.0,
+	        "EXT_GIEX_REFQ": 50.0,
+	        "EXT_GIEX_PHREFC0": 2.5,
+	        "EXT_GIEX_PHREFQ": 45.0
 	)json", \
 	R"json( "EXT_GIEX_KA": [0.0, 0.0, 0.0, 0.0, 0.0],
 	        "EXT_GIEX_KA_T": [0.0, 0.0, 3.55, 7.7, 1.59],
@@ -1090,7 +1110,11 @@ CADET_BINDINGTEST("GENERALIZED_ION_EXCHANGE", "EXT_GENERALIZED_ION_EXCHANGE", (1
 	        "EXT_GIEX_LAMBDA": 0.0,
 	        "EXT_GIEX_LAMBDA_T": 100.0,
 	        "EXT_GIEX_LAMBDA_TT": 0.0,
-	        "EXT_GIEX_LAMBDA_TTT": 0.0
+	        "EXT_GIEX_LAMBDA_TTT": 0.0,
+	        "EXT_GIEX_REFC0": 2.0,
+	        "EXT_GIEX_REFQ": 50.0,
+	        "EXT_GIEX_PHREFC0": 2.5,
+	        "EXT_GIEX_PHREFQ": 45.0
 	)json", \
 	1e-10, 1e-8, CADET_NONBINDING_LIQUIDPHASE_COMP_USED, CADET_COMPARE_BINDING_VS_NONBINDING);
 
