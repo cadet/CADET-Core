@@ -144,7 +144,16 @@ public:
 
 {% for p in parameters %}
 	inline const {{ p/type }}& {{ p/varName }}() const CADET_NOEXCEPT { return _{{ p/varName }}; }
+	inline {{ p/type }}& {{ p/varName }}() CADET_NOEXCEPT { return _{{ p/varName }}; }
 {% endfor %}
+{% if exists("constantParameters") %}
+	{% for p in constantParameters %}
+		{% if length(p/varName) == 1 %}
+			inline const {{ p/type }}& {{ p/varName }}() const CADET_NOEXCEPT { return _{{ p/varName }}; }
+			inline {{ p/type }}& {{ p/varName }}() CADET_NOEXCEPT { return _{{ p/varName }}; }
+		{% endif %}
+	{% endfor %}
+{% endif %}
 
 protected:
 	inline bool validateConfig(unsigned int nReactions, unsigned int nComp, unsigned int const* nBoundStates);
@@ -356,7 +365,16 @@ public:
 
 {% for p in parameters %}
 	inline const External{{ p/type }}& {{ p/varName }}() const CADET_NOEXCEPT { return _{{ p/varName }}; }
+	inline External{{ p/type }}& {{ p/varName }}() CADET_NOEXCEPT { return _{{ p/varName }}; }
 {% endfor %}
+{% if exists("constantParameters") %}
+	{% for p in constantParameters %}
+		{% if length(p/varName) == 1 %}
+			inline const {{ p/type }}& {{ p/varName }}() const CADET_NOEXCEPT { return _{{ p/varName }}; }
+			inline {{ p/type }}& {{ p/varName }}() CADET_NOEXCEPT { return _{{ p/varName }}; }
+		{% endif %}
+	{% endfor %}
+{% endif %}
 
 protected:
 	inline bool validateConfig(unsigned int nReactions, unsigned int nComp, unsigned int const* nBoundStates);
