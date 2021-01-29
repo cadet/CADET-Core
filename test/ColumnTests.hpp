@@ -19,6 +19,7 @@
 #define CADETTEST_COLUMNSIMTEST_HPP_
 
 #include <limits>
+#include <string>
 
 namespace cadet
 {
@@ -109,6 +110,21 @@ namespace column
 	void testWenoForwardBackward(const char* uoType, int wenoOrder, double absTol, double relTol);
 
 	/**
+	 * @brief Checks the full Jacobian against AD and FD pattern switching
+	 * @details Checks the analytic Jacobian against the AD Jacobian and checks both against the FD pattern.
+	 * @param [in] jpp Configured column model
+	 */
+	void testJacobianAD(cadet::JsonParameterProvider& jpp);
+
+	/**
+	 * @brief Checks the full Jacobian against AD and FD pattern switching in case of variable surface diffusion coefficient
+	 * @details Checks the analytic Jacobian against the AD Jacobian and checks both against the FD pattern.
+	 * @param [in] uoType Unit operation type
+	 * @param [in] dynamicBinding Determines whether dynamic binding is used
+	 */
+	void testJacobianADVariableParSurfDiff(const std::string& uoType, bool dynamicBinding);
+
+	/**
 	 * @brief Checks the full Jacobian against AD and FD pattern switching from forward to backward flow and back
 	 * @details Checks the analytic Jacobian against the AD Jacobian and checks both against the FD pattern.
 	 *          Checks both forward and backward flow mode as well as switching between them.
@@ -172,6 +188,16 @@ namespace column
 	 * @param [in] relTol Relative error tolerance
 	 */
 	void testArrowHeadJacobianFD(cadet::JsonParameterProvider& jpp, double h = 1e-6, double absTol = 0.0, double relTol = std::numeric_limits<float>::epsilon() * 100.0);
+
+	/**
+	 * @brief Checks the bottom macro row and right macro column of the Jacobian against FD in case of variable surface diffusion coefficient
+	 * @details Uses centered finite differences to check the flux part of the Jacobian.
+	 * @param [in] uoType Unit operation type
+	 * @param [in] h Step size of centered finite differences
+	 * @param [in] absTol Absolute error tolerance
+	 * @param [in] relTol Relative error tolerance
+	 */
+	void testArrowHeadJacobianFDVariableParSurfDiff(const std::string& uoType, double h = 1e-6, double absTol = 0.0, double relTol = std::numeric_limits<float>::epsilon() * 100.0);
 
 	/**
 	 * @brief Checks the forward sensitivity residual using analytic Jacobians

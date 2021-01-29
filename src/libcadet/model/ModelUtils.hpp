@@ -18,6 +18,14 @@
 #ifndef LIBCADET_MODELUTILS_HPP_
 #define LIBCADET_MODELUTILS_HPP_
 
+#include "cadet/ParameterId.hpp"
+#include "ParamIdUtil.hpp"
+#include "AutoDiff.hpp"
+#include "SensParamUtil.hpp"
+
+#include <unordered_set>
+#include <unordered_map>
+
 namespace cadet
 {
 
@@ -110,6 +118,202 @@ inline unsigned int firstNonEmptyBoundStates(unsigned int const* const nBound, u
 	}
 	return nStates;
 }
+
+
+
+
+template <typename T>
+void getAllParameterValues(std::unordered_map<ParameterId, double>& data, const std::vector<T*>& items, bool singleItem)
+{
+	if (items.empty())
+		return;
+
+	if (singleItem)
+	{
+		if (!items[0])
+			return;
+
+		const std::unordered_map<ParameterId, double> localData = items[0]->getAllParameterValues();
+		for (const std::pair<ParameterId, double>& val : localData)
+			data[val.first] = val.second;
+	}
+	else
+	{
+		for (T const* bm : items)
+		{
+            if (!bm)
+                continue;
+
+            const std::unordered_map<ParameterId, double> localData = bm->getAllParameterValues();
+			for (const std::pair<ParameterId, double>& val : localData)
+				data[val.first] = val.second;
+		}
+	}
+}
+
+template <typename T>
+bool getParameterDouble(const ParameterId& pId, const std::vector<T*>& items, bool singleItem, double& out)
+{
+	// Check binding model parameters
+	if (items.empty())
+		return false;
+
+	if (singleItem)
+	{
+		if (!items[0])
+			return false;
+
+		active const* const val = items[0]->getParameter(pId);
+		if (val)
+		{
+			out = static_cast<double>(*val);
+			return true;
+		}
+	}
+	else
+	{
+		for (T* bm : items)
+		{
+            if (!bm)
+                continue;
+
+            active const* const val = bm->getParameter(pId);
+			if (val)
+			{
+				out = static_cast<double>(*val);
+				return true;
+			}
+		}
+	}
+
+	// Not found
+	return false;
+}
+
+template <typename T>
+bool hasParameter(const ParameterId& pId, const std::vector<T*>& items, bool singleItem)
+{
+	if (items.empty())
+		return false;
+
+	if (singleItem)
+	{
+		if (items[0] && items[0]->hasParameter(pId))
+			return true;
+	}
+	else
+	{
+		for (T const* bm : items)
+		{
+			if (bm && bm->hasParameter(pId))
+				return true;
+		}
+	}
+
+	return false;
+}
+
+template <typename T, typename param_t>
+bool setParameter(const ParameterId& pId, param_t value, const std::vector<T*>& items, bool singleItem)
+{
+	if (items.empty())
+		return false;
+
+	if (singleItem)
+	{
+		if (items[0] && items[0]->setParameter(pId, value))
+			return true;
+	}
+	else
+	{
+		for (T* bm : items)
+		{
+			if (bm && bm->setParameter(pId, value))
+				return true;
+		}
+	}
+
+	return false;
+}
+
+template <typename T>
+bool setSensitiveParameterValue(const ParameterId& pId, double value, const std::unordered_set<active*>& sensParams, const std::vector<T*>& items, bool singleItem)
+{
+	if (items.empty())
+		return false;
+
+	if (singleItem)
+	{
+		if (!items[0])
+			return false;
+
+		active* const val = items[0]->getParameter(pId);
+		if (val && contains(sensParams, val))
+		{
+			val->setValue(value);
+			return true;
+		}
+	}
+	else
+	{
+		for (T* bm : items)
+		{
+            if (!bm)
+                continue;
+
+			active* const val = bm->getParameter(pId);
+			if (val && contains(sensParams, val))
+			{
+				val->setValue(value);
+				return true;
+			}
+		}
+	}
+
+	return false;
+}
+
+template <typename T>
+bool setSensitiveParameter(const ParameterId& pId, unsigned int adDirection, double adValue, std::unordered_set<active*>& sensParams, const std::vector<T*>& items, bool singleItem)
+{
+	if (items.empty())
+		return false;
+
+	if (singleItem)
+	{
+		if (!items[0])
+			return false;
+
+		active* const paramBinding = items[0]->getParameter(pId);
+		if (paramBinding)
+		{
+			// Register parameter and set AD seed / direction
+			sensParams.insert(paramBinding);
+			paramBinding->setADValue(adDirection, adValue);
+			return true;
+		}
+	}
+	else
+	{
+		for (T* bm : items)
+		{
+		    if (!bm)
+		        continue;
+
+			active* const paramBinding = bm->getParameter(pId);
+			if (paramBinding)
+			{
+				// Register parameter and set AD seed / direction
+				sensParams.insert(paramBinding);
+				paramBinding->setADValue(adDirection, adValue);
+				return true;
+			}
+		}
+	}
+
+	return false;
+}
+
 
 } // namespace model
 } // namespace cadet

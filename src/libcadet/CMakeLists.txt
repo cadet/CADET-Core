@@ -113,6 +113,7 @@ set(LIBCADET_SOURCES
 	${CMAKE_SOURCE_DIR}/src/libcadet/Weno.cpp
 	${CMAKE_SOURCE_DIR}/src/libcadet/BindingModelFactory.cpp
 	${CMAKE_SOURCE_DIR}/src/libcadet/ReactionModelFactory.cpp
+	${CMAKE_SOURCE_DIR}/src/libcadet/ParameterDependenceFactory.cpp
 	${CMAKE_SOURCE_DIR}/src/libcadet/graph/GraphAlgos.cpp
 	${CMAKE_SOURCE_DIR}/src/libcadet/model/ModelSystemImpl.cpp
 	${CMAKE_SOURCE_DIR}/src/libcadet/model/ModelSystemImpl-Residual.cpp
@@ -137,6 +138,9 @@ set(LIBCADET_SOURCES
 	${CMAKE_SOURCE_DIR}/src/libcadet/model/inlet/PiecewiseCubicPoly.cpp
 	${CMAKE_SOURCE_DIR}/src/libcadet/model/extfun/LinearInterpolationExternalFunction.cpp
 	${CMAKE_SOURCE_DIR}/src/libcadet/model/extfun/PiecewiseCubicPolyExternalFunction.cpp
+	${CMAKE_SOURCE_DIR}/src/libcadet/model/paramdep/ParameterDependenceBase.cpp
+	${CMAKE_SOURCE_DIR}/src/libcadet/model/paramdep/LiquidSaltSolidParameterDependence.cpp
+	${CMAKE_SOURCE_DIR}/src/libcadet/model/paramdep/DummyParameterDependence.cpp
 )
 
 # LIBCADET_NONLINALG_SOURCES holds all source files for LIBCADET_NONLINALG target

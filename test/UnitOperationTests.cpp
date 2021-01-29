@@ -82,10 +82,6 @@ namespace unitoperation
 
 		unitAD->prepareADvectors(adParams);
 
-		// Setup matrices
-		unitAna->notifyDiscontinuousSectionTransition(0.0, 0u, noParams);
-		unitAD->notifyDiscontinuousSectionTransition(0.0, 0u, adParams);
-
 		// Obtain memory for state, Jacobian multiply direction, Jacobian column
 		std::vector<double> y(unitAD->numDofs(), 0.0);
 		std::vector<double> jacDir(unitAD->numDofs(), 0.0);
@@ -97,6 +93,10 @@ namespace unitoperation
 		// Fill state vector with some values
 		util::populate(y.data(), [](unsigned int idx) { return std::abs(std::sin(idx * 0.13)) + 1e-4; }, unitAna->numDofs());
 //		util::populate(y.data(), [](unsigned int idx) { return 1.0; }, unitAna->numDofs());
+
+		// Setup matrices
+		unitAna->notifyDiscontinuousSectionTransition(0.0, 0u, {y.data(), nullptr}, noParams);
+		unitAD->notifyDiscontinuousSectionTransition(0.0, 0u, {y.data(), nullptr}, adParams);
 
 		// Compute state Jacobian
 		unitAna->residualWithJacobian(SimulationTime{0.0, 0u}, ConstSimulationState{y.data(), nullptr}, jacDir.data(), noParams, tls);
@@ -123,9 +123,6 @@ namespace unitoperation
 
 		cadet::IUnitOperation* const unit = createAndConfigureUnit(jpp, *mb);
 
-		// Setup matrices
-		unit->notifyDiscontinuousSectionTransition(0.0, 0u, AdJacobianParams{nullptr, nullptr, 0u});
-
 		// Obtain memory for state, Jacobian multiply direction, Jacobian column
 		const unsigned int nDof = unit->numDofs();
 		std::vector<double> y(nDof, 0.0);
@@ -139,6 +136,9 @@ namespace unitoperation
 		// Fill state vectors with some values
 		util::populate(y.data(), [=](unsigned int idx) { return std::abs(std::sin(idx * 0.13)) + 1e-4; }, nDof);
 		util::populate(yDot.data(), [=](unsigned int idx) { return std::abs(std::sin((idx + nDof) * 0.13)) + 1e-4; }, nDof);
+
+		// Setup matrices
+		unit->notifyDiscontinuousSectionTransition(0.0, 0u, {y.data(), yDot.data()}, AdJacobianParams{nullptr, nullptr, 0u});
 
 		// Compare Jacobians
 		cadet::test::compareTimeDerivativeJacobianFD(unit, unit, y.data(), yDot.data(), jacDir.data(), jacCol1.data(), jacCol2.data(), tls, h, absTol, relTol);
@@ -169,15 +169,15 @@ namespace unitoperation
 
 		const AdJacobianParams adParams{adRes, adY, 0};
 
-		// Setup matrices
-		unit->notifyDiscontinuousSectionTransition(0.0, 0u, adParams);
-
 		// Obtain memory
 		std::vector<double> yIn(y, y + unit->numComponents() * unit->numInletPorts());
 		std::vector<double> yDot(unit->numDofs(), 0.0);
 		std::vector<double> res(unit->numDofs(), 0.0);
 		cadet::util::ThreadLocalStorage tls;
 		tls.resize(unit->threadLocalMemorySize());
+
+		// Setup matrices
+		unit->notifyDiscontinuousSectionTransition(0.0, 0u, {y, yDot.data()}, adParams);
 
 		// Initialize algebraic variables in state vector
 		unit->consistentInitialState(SimulationTime{0.0, 0u}, y, adParams, consTol, tls);
@@ -233,7 +233,7 @@ namespace unitoperation
 		tls.resize(unit->threadLocalMemorySize());
 
 		// Setup matrices
-		unit->notifyDiscontinuousSectionTransition(0.0, 0u, adParams);
+		unit->notifyDiscontinuousSectionTransition(0.0, 0u, {nullptr, nullptr}, adParams);
 
 		// Calculate dres / dp and Jacobians
 		const SimulationTime simTime{0.0, 0u};
@@ -307,14 +307,14 @@ namespace unitoperation
 
 		const AdJacobianParams adParams{adRes, adY, 0};
 
-		// Setup matrices
-		unit->notifyDiscontinuousSectionTransition(0.0, 0u, adParams);
-
 		// Obtain memory
 		std::vector<double> y(unit->numDofs(), 0.0);
 		std::vector<double> jac(unit->numDofs(), 0.0);
 		cadet::util::ThreadLocalStorage tls;
 		tls.resize(unit->threadLocalMemorySize());
+
+		// Setup matrices
+		unit->notifyDiscontinuousSectionTransition(0.0, 0u, {y.data(), nullptr}, adParams);
 
 		// Assemble Jacobian
 		const SimulationTime simTime{0.0, 0u};

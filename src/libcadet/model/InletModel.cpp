@@ -260,7 +260,7 @@ template<> active const* const InletModel::getData() const
 }
 
 void InletModel::useAnalyticJacobian(const bool analyticJac) { }
-void InletModel::notifyDiscontinuousSectionTransition(double t, unsigned int secIdx, const AdJacobianParams& adJac) { }
+void InletModel::notifyDiscontinuousSectionTransition(double t, unsigned int secIdx, const ConstSimulationState& simState, const AdJacobianParams& adJac) { }
 
 void InletModel::reportSolution(ISolutionRecorder& recorder, double const* const solution) const
 {

@@ -416,7 +416,7 @@ void CSTRModel::useAnalyticJacobian(const bool analyticJac)
 #endif
 }
 
-void CSTRModel::notifyDiscontinuousSectionTransition(double t, unsigned int secIdx, const AdJacobianParams& adJac)
+void CSTRModel::notifyDiscontinuousSectionTransition(double t, unsigned int secIdx, const ConstSimulationState& simState, const AdJacobianParams& adJac)
 {
 	if (_flowRateFilter.size() > 1)
 	{

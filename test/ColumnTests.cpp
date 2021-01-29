@@ -408,6 +408,62 @@ namespace column
 		}
 	}
 
+	void testJacobianAD(cadet::JsonParameterProvider& jpp)
+	{
+		cadet::IModelBuilder* const mb = cadet::createModelBuilder();
+		REQUIRE(nullptr != mb);
+
+		cadet::IUnitOperation* const unitAna = unitoperation::createAndConfigureUnit(jpp, *mb);
+		cadet::IUnitOperation* const unitAD = unitoperation::createAndConfigureUnit(jpp, *mb);
+
+		// Enable AD
+		cadet::ad::setDirections(cadet::ad::getMaxDirections());
+		unitAD->useAnalyticJacobian(false);
+
+		cadet::active* adRes = new cadet::active[unitAD->numDofs()];
+		cadet::active* adY = new cadet::active[unitAD->numDofs()];
+
+		// Obtain memory for state, Jacobian multiply direction, Jacobian column
+		std::vector<double> y(unitAD->numDofs(), 0.0);
+		std::vector<double> jacDir(unitAD->numDofs(), 0.0);
+		std::vector<double> jacCol1(unitAD->numDofs(), 0.0);
+		std::vector<double> jacCol2(unitAD->numDofs(), 0.0);
+
+		// Fill state vector with some values
+		util::populate(y.data(), [](unsigned int idx) { return std::abs(std::sin(idx * 0.13)) + 1e-4; }, unitAna->numDofs());
+//			util::populate(y.data(), [](unsigned int idx) { return 1.0; }, unitAna->numDofs());
+
+		// Setup matrices
+		const AdJacobianParams noAdParams{nullptr, nullptr, 0u};
+		const AdJacobianParams adParams{adRes, adY, 0u};
+		unitAD->prepareADvectors(adParams);
+
+		const ConstSimulationState simState{y.data(), nullptr};
+		unitAna->notifyDiscontinuousSectionTransition(0.0, 0u, simState, noAdParams);
+		unitAD->notifyDiscontinuousSectionTransition(0.0, 0u, simState, adParams);
+
+		// Compute state Jacobian
+		const SimulationTime simTime{0.0, 0u};
+		cadet::util::ThreadLocalStorage tls;
+		tls.resize(unitAna->threadLocalMemorySize());
+
+		unitAna->residualWithJacobian(simTime, simState, jacDir.data(), noAdParams, tls);
+		unitAD->residualWithJacobian(simTime, simState, jacDir.data(), adParams, tls);
+		std::fill(jacDir.begin(), jacDir.end(), 0.0);
+
+		// Compare Jacobians
+		cadet::test::checkJacobianPatternFD(unitAna, unitAD, y.data(), nullptr, jacDir.data(), jacCol1.data(), jacCol2.data(), tls);
+		cadet::test::checkJacobianPatternFD(unitAna, unitAna, y.data(), nullptr, jacDir.data(), jacCol1.data(), jacCol2.data(), tls);
+		cadet::test::compareJacobian(unitAna, unitAD, nullptr, nullptr, jacDir.data(), jacCol1.data(), jacCol2.data());
+//				cadet::test::compareJacobianFD(unitAna, unitAD, y.data(), nullptr, jacDir.data(), jacCol1.data(), jacCol2.data());
+
+		delete[] adRes;
+		delete[] adY;
+		mb->destroyUnitOperation(unitAna);
+		mb->destroyUnitOperation(unitAD);
+		destroyModelBuilder(mb);
+	}
+
 	void testJacobianWenoForwardBackward(const std::string& uoType, int wenoOrder)
 	{
 		cadet::IModelBuilder* const mb = cadet::createModelBuilder();
@@ -429,14 +485,6 @@ namespace column
 			cadet::active* adRes = new cadet::active[unitAD->numDofs()];
 			cadet::active* adY = new cadet::active[unitAD->numDofs()];
 
-			// Setup matrices
-			const AdJacobianParams noAdParams{nullptr, nullptr, 0u};
-			const AdJacobianParams adParams{adRes, adY, 0u};
-			unitAD->prepareADvectors(adParams);
-
-			unitAna->notifyDiscontinuousSectionTransition(0.0, 0u, noAdParams);
-			unitAD->notifyDiscontinuousSectionTransition(0.0, 0u, adParams);
-
 			// Obtain memory for state, Jacobian multiply direction, Jacobian column
 			std::vector<double> y(unitAD->numDofs(), 0.0);
 			std::vector<double> jacDir(unitAD->numDofs(), 0.0);
@@ -446,6 +494,14 @@ namespace column
 			// Fill state vector with some values
 			util::populate(y.data(), [](unsigned int idx) { return std::abs(std::sin(idx * 0.13)) + 1e-4; }, unitAna->numDofs());
 //			util::populate(y.data(), [](unsigned int idx) { return 1.0; }, unitAna->numDofs());
+
+			// Setup matrices
+			const AdJacobianParams noAdParams{nullptr, nullptr, 0u};
+			const AdJacobianParams adParams{adRes, adY, 0u};
+			unitAD->prepareADvectors(adParams);
+
+			unitAna->notifyDiscontinuousSectionTransition(0.0, 0u, {y.data(), nullptr}, noAdParams);
+			unitAD->notifyDiscontinuousSectionTransition(0.0, 0u, {y.data(), nullptr}, adParams);
 
 			SECTION("Forward then backward flow (nonzero state)")
 			{
@@ -473,8 +529,8 @@ namespace column
 				REQUIRE(paramSet2);
 
 				// Setup
-				unitAna->notifyDiscontinuousSectionTransition(0.0, 0u, noAdParams);
-				unitAD->notifyDiscontinuousSectionTransition(0.0, 0u, adParams);
+				unitAna->notifyDiscontinuousSectionTransition(0.0, 0u, {y.data(), nullptr}, noAdParams);
+				unitAD->notifyDiscontinuousSectionTransition(0.0, 0u, {y.data(), nullptr}, adParams);
 
 				// Compute state Jacobian
 				unitAna->residualWithJacobian(simTime, simState, jacDir.data(), noAdParams, tls);
@@ -510,10 +566,6 @@ namespace column
 
 			cadet::IUnitOperation* const unit = createAndConfigureUnit(uoType, *mb, jpp, wenoOrder);
 
-			// Setup matrices
-			const AdJacobianParams noAdParams{nullptr, nullptr, 0u};
-			unit->notifyDiscontinuousSectionTransition(0.0, 0u, noAdParams);
-
 			// Obtain memory for state, Jacobian multiply direction, Jacobian column
 			std::vector<double> y(unit->numDofs(), 0.0);
 			std::vector<double> jacDir(unit->numDofs(), 0.0);
@@ -523,6 +575,10 @@ namespace column
 			// Fill state vector with some values
 			util::populate(y.data(), [](unsigned int idx) { return std::abs(std::sin(idx * 0.13)) + 1e-4; }, unit->numDofs());
 //			util::populate(y.data(), [](unsigned int idx) { return 1.0; }, unit->numDofs());
+
+			// Setup matrices
+			const AdJacobianParams noAdParams{nullptr, nullptr, 0u};
+			unit->notifyDiscontinuousSectionTransition(0.0, 0u, {y.data(), nullptr}, noAdParams);
 
 			SECTION("Forward then backward flow (nonzero state)")
 			{
@@ -544,7 +600,7 @@ namespace column
 				REQUIRE(paramSet);
 
 				// Setup
-				unit->notifyDiscontinuousSectionTransition(0.0, 0u, noAdParams);
+				unit->notifyDiscontinuousSectionTransition(0.0, 0u, {y.data(), nullptr}, noAdParams);
 
 				// Compute state Jacobian
 				unit->residualWithJacobian(simTime, simState, jacDir.data(), noAdParams, tls);
@@ -580,9 +636,6 @@ namespace column
 				cadet::util::ThreadLocalStorage tls;
 				tls.resize(unit->threadLocalMemorySize());
 
-				// Setup matrices
-				unit->notifyDiscontinuousSectionTransition(0.0, 0u, AdJacobianParams{nullptr, nullptr, 0u});
-
 				// Obtain memory for state, Jacobian multiply direction, Jacobian column
 				const unsigned int nDof = unit->numDofs();
 				std::vector<double> y(nDof, 0.0);
@@ -596,6 +649,9 @@ namespace column
 				util::populate(yDot.data(), [=](unsigned int idx) {
 					return std::abs(std::sin((idx + nDof) * 0.13)) + 1e-4;
 				}, nDof);
+
+				// Setup matrices
+				unit->notifyDiscontinuousSectionTransition(0.0, 0u, {y.data(), yDot.data()}, AdJacobianParams{nullptr, nullptr, 0u});
 
 				// Compare Jacobians
 				cadet::test::compareTimeDerivativeJacobianFD(unit, unit, y.data(), yDot.data(), jacDir.data(), jacCol1.data(), jacCol2.data(), tls, h, absTol, relTol);
@@ -619,6 +675,38 @@ namespace column
 		testArrowHeadJacobianFD(jpp, h, absTol, relTol);
 	}
 
+	void testArrowHeadJacobianFDVariableParSurfDiff(const std::string& uoType, double h, double absTol, double relTol)
+	{
+		cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding(uoType);
+		setBindingMode(jpp, false);
+		{
+			auto ms = util::makeOptionalGroupScope(jpp, "model");
+			auto us = util::makeOptionalGroupScope(jpp, "unit_000");
+
+			jpp.set("PAR_SURFDIFFUSION_DEP", "LIQUID_SALT_EXPONENTIAL");
+			jpp.set("PAR_SURFDIFFUSION_EXPFACTOR", std::vector<double>{ 0.8, 1.6 });
+			jpp.set("PAR_SURFDIFFUSION_EXPARGMULT", std::vector<double>{ 1.3, 2.1 });
+		}
+
+		testArrowHeadJacobianFD(jpp, h, absTol, relTol);
+	}
+
+	void testJacobianADVariableParSurfDiff(const std::string& uoType, bool dynamicBinding)
+	{
+		cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding(uoType);
+		setBindingMode(jpp, dynamicBinding);
+		{
+			auto ms = util::makeOptionalGroupScope(jpp, "model");
+			auto us = util::makeOptionalGroupScope(jpp, "unit_000");
+
+			jpp.set("PAR_SURFDIFFUSION_DEP", "LIQUID_SALT_EXPONENTIAL");
+			jpp.set("PAR_SURFDIFFUSION_EXPFACTOR", std::vector<double>{ 0.8, 1.6 });
+			jpp.set("PAR_SURFDIFFUSION_EXPARGMULT", std::vector<double>{ 1.3, 2.1 });
+		}
+
+		testJacobianAD(jpp);
+	}
+
 	void testArrowHeadJacobianFD(cadet::JsonParameterProvider& jpp, double h, double absTol, double relTol)
 	{
 		cadet::IModelBuilder* const mb = cadet::createModelBuilder();
@@ -633,11 +721,6 @@ namespace column
 		// Obtain offset to fluxes
 		const unsigned int fluxOffset = fluxOffsetOfColumnUnitOp(unitFD);
 
-		// Setup matrices
-		const AdJacobianParams noParams{nullptr, nullptr, 0u};
-		unitAna->notifyDiscontinuousSectionTransition(0.0, 0u, noParams);
-		unitFD->notifyDiscontinuousSectionTransition(0.0, 0u, noParams);
-
 		// Obtain memory for state, Jacobian multiply direction, Jacobian column
 		std::vector<double> y(unitFD->numDofs(), 0.0);
 		std::vector<double> jacDir(unitFD->numDofs(), 0.0);
@@ -647,6 +730,11 @@ namespace column
 		// Fill state vector with some values
 		util::populate(y.data(), [](unsigned int idx) { return std::abs(std::sin(idx * 0.13)) + 1e-4; }, unitAna->numDofs());
 //		util::populate(y.data(), [](unsigned int idx) { return 1.0; }, unitAna->numDofs());
+
+		// Setup matrices
+		const AdJacobianParams noParams{nullptr, nullptr, 0u};
+		unitAna->notifyDiscontinuousSectionTransition(0.0, 0u, {y.data(), nullptr}, noParams);
+		unitFD->notifyDiscontinuousSectionTransition(0.0, 0u, {y.data(), nullptr}, noParams);
 
 		// Compute state Jacobian
 		unitAna->residualWithJacobian(SimulationTime{0.0, 0u}, ConstSimulationState{y.data(), nullptr}, jacDir.data(), noParams, tls);
@@ -689,9 +777,6 @@ namespace column
 				// Add dispersion parameter sensitivity
 				REQUIRE(unit->setSensitiveParameter(makeParamId(hashString("COL_DISPERSION"), 0, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep), 0, 1.0));
 
-				// Setup matrices
-				unit->notifyDiscontinuousSectionTransition(0.0, 0u, adParams);
-
 				// Obtain memory for state, Jacobian multiply direction, Jacobian column
 				const unsigned int nDof = unit->numDofs();
 				const std::vector<double> zeros(nDof, 0.0);
@@ -715,6 +800,9 @@ namespace column
 				// Fill state vector with some values
 				util::populate(y.data(), [](unsigned int idx) { return std::abs(std::sin(idx * 0.13)) + 1e-4; }, nDof);
 				util::populate(yDot.data(), [=](unsigned int idx) { return std::abs(std::sin((idx + nDof) * 0.13)) + 1e-4; }, nDof);
+
+				// Setup matrices
+				unit->notifyDiscontinuousSectionTransition(0.0, 0u, {y.data(), yDot.data()}, adParams);
 
 				// Calculate Jacobian
 				unit->residualWithJacobian(SimulationTime{0.0, 0u}, ConstSimulationState{y.data(), yDot.data()}, jacDir.data(), adParams, tls);

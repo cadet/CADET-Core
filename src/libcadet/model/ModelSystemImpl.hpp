@@ -81,7 +81,7 @@ public:
 
 	virtual bool configureModelDiscretization(IParameterProvider& paramProvider, IConfigHelper& helper);
 	virtual bool configure(IParameterProvider& paramProvider);
-	virtual void notifyDiscontinuousSectionTransition(double t, unsigned int secIdx, const AdJacobianParams& adJac);
+	virtual void notifyDiscontinuousSectionTransition(double t, unsigned int secIdx, const ConstSimulationState& simState, const AdJacobianParams& adJac);
 	virtual bool configureModel(IParameterProvider& paramProvider, unsigned int unitOpIdx);
 
 	virtual bool hasParameter(const ParameterId& pId) const;

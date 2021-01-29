@@ -47,6 +47,7 @@ add_executable(testRunner testRunner.cpp JsonTestModels.cpp ColumnTests.cpp Unit
 	CellKernelTests.cpp
 	BindingModelTests.cpp BindingModels.cpp
 	ReactionModelTests.cpp ReactionModels.cpp
+	ParamDepTests.cpp ParameterDependencies.cpp
 	ModelSystem.cpp
 	BandMatrix.cpp DenseMatrix.cpp SparseMatrix.cpp StringHashing.cpp LogUtils.cpp AD.cpp Subset.cpp Graph.cpp
 	"${CMAKE_CURRENT_BINARY_DIR}/Paths.cpp" "${CMAKE_SOURCE_DIR}/src/io/JsonParameterProvider.cpp"

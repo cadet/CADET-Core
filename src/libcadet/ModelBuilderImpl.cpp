@@ -259,4 +259,14 @@ namespace cadet
 		return _reactionModels.existsDynamic(name);
 	}
 
+	model::IParameterDependence* ModelBuilder::createParameterDependence(const std::string& name) const
+	{
+		return _paramDeps.create(name);
+	}
+
+	bool ModelBuilder::isValidParameterDependence(const std::string& name) const
+	{
+		return _paramDeps.exists(name);
+	}
+
 } // namespace cadet

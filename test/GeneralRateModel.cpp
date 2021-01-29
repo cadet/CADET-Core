@@ -57,6 +57,21 @@ TEST_CASE("GRM rapid-equilibrium binding flux Jacobian vs FD", "[GRM],[UnitOp],[
 	cadet::test::column::testArrowHeadJacobianFD("GENERAL_RATE_MODEL", false, 1e-6, 2e-9);
 }
 
+TEST_CASE("GRM rapid-equilibrium binding with surf diff par dep flux Jacobian vs FD", "[GRM],[UnitOp],[Residual],[Jacobian],[ParameterDependence]")
+{
+	cadet::test::column::testArrowHeadJacobianFDVariableParSurfDiff("GENERAL_RATE_MODEL", 1e-6, 5e-9);
+}
+
+TEST_CASE("GRM dynamic binding with surf diff par dep Jacobian vs AD", "[GRM],[UnitOp],[Residual],[Jacobian],[ParameterDependence]")
+{
+	cadet::test::column::testJacobianADVariableParSurfDiff("GENERAL_RATE_MODEL", true);
+}
+
+TEST_CASE("GRM rapid-equilibrium binding with surf diff par dep Jacobian vs AD", "[GRM],[UnitOp],[Residual],[Jacobian],[ParameterDependence]")
+{
+	cadet::test::column::testJacobianADVariableParSurfDiff("GENERAL_RATE_MODEL", false);
+}
+
 TEST_CASE("GRM dynamic binding flux Jacobian vs FD", "[GRM],[UnitOp],[Residual],[Jacobian]")
 {
 	cadet::test::column::testArrowHeadJacobianFD("GENERAL_RATE_MODEL", true, 1e-6, 2e-9);

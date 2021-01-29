@@ -174,9 +174,10 @@ public:
 	 *          
 	 * @param [in] t Current time point
 	 * @param [in] secIdx Index of the new section that is about to be integrated
+	 * @param [in] simState Simulation state
 	 * @param [in,out] adJac Jacobian information for AD (AD vectors for residual and state, direction offset)
 	 */
-	virtual void notifyDiscontinuousSectionTransition(double t, unsigned int secIdx, const AdJacobianParams& adJac) = 0;
+	virtual void notifyDiscontinuousSectionTransition(double t, unsigned int secIdx, const ConstSimulationState& simState, const AdJacobianParams& adJac) = 0;
 
 	/**
 	 * @brief Applies initial conditions to the state vector and its time derivative

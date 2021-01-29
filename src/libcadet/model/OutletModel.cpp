@@ -126,7 +126,7 @@ unsigned int OutletModel::numSensParams() const
 }
 
 void OutletModel::useAnalyticJacobian(const bool analyticJac) { }
-void OutletModel::notifyDiscontinuousSectionTransition(double t, unsigned int secIdx, const AdJacobianParams& adJac) { }
+void OutletModel::notifyDiscontinuousSectionTransition(double t, unsigned int secIdx, const ConstSimulationState& simState, const AdJacobianParams& adJac) { }
 
 void OutletModel::reportSolution(ISolutionRecorder& recorder, double const* const solution) const
 {

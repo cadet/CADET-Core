@@ -1091,7 +1091,7 @@ namespace cadet
 			IDASetStopTime(_idaMemBlock, endTime);
 
 			// Update Jacobian
-			_model->notifyDiscontinuousSectionTransition(curT, _curSec, AdJacobianParams{_vecADres, _vecADy, numSensitivityAdDirections()});
+			_model->notifyDiscontinuousSectionTransition(curT, _curSec, ConstSimulationState{NVEC_DATA(_vecStateY), NVEC_DATA(_vecStateYdot)}, AdJacobianParams{_vecADres, _vecADy, numSensitivityAdDirections()});
 
 			// Compute consistent initial values
 			LOG(Debug) << "---====--- CONSISTENCY ---====--- ";

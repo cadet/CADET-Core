@@ -43,6 +43,68 @@ inline void readReferenceConcentrations(IParameterProvider& paramProvider, const
 namespace model
 {
 
+/**
+ * @brief Scalar bool external parameter
+ * @details Just a single bool value.
+ */
+class ScalarBoolParameter
+{
+public:
+
+	/**
+	 * @brief Underlying type
+	 */
+	typedef bool storage_t;
+
+	ScalarBoolParameter(bool& p) : _p(&p) { }
+	ScalarBoolParameter(bool* p) : _p(p) { }
+
+	/**
+	 * @brief Reads parameters and verifies them
+	 * @details See IBindingModel::configure() for details.
+	 * @param [in] varName Name of the parameter
+	 * @param [in] paramProvider IParameterProvider used for reading parameters
+	 * @param [in] nComp Number of components
+	 * @param [in] nBoundStates Array with number of bound states for each component
+	 * @return @c true if the parameters were read and validated successfully, otherwise @c false
+	 */
+	inline void configure(const std::string& varName, IParameterProvider& paramProvider, unsigned int nComp, unsigned int const* nBoundStates)
+	{
+		*_p = paramProvider.getBool(varName);
+	}
+
+	/**
+	 * @brief Registers the parameters in a map for further use
+	 * @param [in] varName Name of the parameter
+	 * @param [in,out] parameters Map in which the parameters are stored
+	 * @param [in] unitOpIdx Index of the unit operation used for registering the parameters
+	 * @param [in] nComp Number of components
+	 * @param [in] nBoundStates Array with number of bound states for each component
+	 */
+	inline void registerParam(const std::string& varName, std::unordered_map<ParameterId, active*>& parameters, UnitOpIdx unitOpIdx, ParticleTypeIdx parTypeIdx, unsigned int nComp, unsigned int const* nBoundStates) { }
+
+	/**
+	 * @brief Reserves space in the storage of the parameters
+	 * @param [in] numElem Total number of components in all slices / binding site types
+	 * @param [in] numSlices Number of slices / binding site types
+	 * @param [in] nComp Number of components
+	 * @param [in] nBoundStates Array with number of bound states for each component
+	 */
+	inline void reserve(unsigned int numElem, unsigned int numSlices, unsigned int nComp, unsigned int const* nBoundStates) { }
+
+	inline const bool& get() const CADET_NOEXCEPT { return *_p; }
+	inline bool& get() CADET_NOEXCEPT { return *_p; }
+
+	/**
+	 * @brief Returns the number of elements in the parameter
+	 * @return Number of elements in the parameter
+	 */
+	inline std::size_t size() const CADET_NOEXCEPT { return 1; }
+
+protected:
+	bool* _p;
+};
+
 
 /**
  * @brief Scalar external parameter

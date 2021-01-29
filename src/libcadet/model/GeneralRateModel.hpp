@@ -50,6 +50,7 @@ namespace parts
 }
 
 class IDynamicReactionModel;
+class IParameterDependence;
 
 /**
  * @brief General rate model of liquid column chromatography
@@ -96,7 +97,7 @@ public:
 
 	virtual bool configureModelDiscretization(IParameterProvider& paramProvider, IConfigHelper& helper);
 	virtual bool configure(IParameterProvider& paramProvider);
-	virtual void notifyDiscontinuousSectionTransition(double t, unsigned int secIdx, const AdJacobianParams& adJac);
+	virtual void notifyDiscontinuousSectionTransition(double t, unsigned int secIdx, const ConstSimulationState& simState, const AdJacobianParams& adJac);
 
 	virtual void useAnalyticJacobian(const bool analyticJac);
 
@@ -156,8 +157,14 @@ public:
 	}
 
 	virtual bool setParameter(const ParameterId& pId, double value);
+	virtual bool setParameter(const ParameterId& pId, int value);
+	virtual bool setParameter(const ParameterId& pId, bool value);
 	virtual bool setSensitiveParameter(const ParameterId& pId, unsigned int adDirection, double adValue);
 	virtual void setSensitiveParameterValue(const ParameterId& id, double value);
+
+	virtual std::unordered_map<ParameterId, double> getAllParameterValues() const;
+	virtual double getParameterDouble(const ParameterId& pId) const;
+	virtual bool hasParameter(const ParameterId& pId) const;
 
 	virtual unsigned int threadLocalMemorySize() const CADET_NOEXCEPT;
 
@@ -222,7 +229,8 @@ protected:
 	template <typename StateType, typename ResidualType, typename ParamType>
 	int residualFlux(double t, unsigned int secIdx, StateType const* y, double const* yDot, ResidualType* res);
 
-	void assembleOffdiagJac(double t, unsigned int secIdx);
+	void assembleOffdiagJac(double t, unsigned int secIdx, double const* vecStateY);
+	void assembleOffdiagJacFluxParticle(double t, unsigned int secIdx, double const* vecStateY);
 	void extractJacobianFromAD(active const* const adRes, unsigned int adDirOffset);
 
 	int schurComplementMatrixVector(double const* x, double* z) const;
@@ -240,6 +248,8 @@ protected:
 
 	int multiplexInitialConditions(const cadet::ParameterId& pId, unsigned int adDirection, double adValue);
 	int multiplexInitialConditions(const cadet::ParameterId& pId, double val, bool checkSens);
+
+	void clearParDepSurfDiffusion();
 
 	parts::cell::CellParameters makeCellResidualParams(unsigned int parType, int const* qsReaction) const;
 
@@ -317,6 +327,9 @@ protected:
 	MultiplexMode _parSurfDiffusionMode;
 	std::vector<active> _poreAccessFactor; //!< Pore accessibility factor \f$ F_{\text{acc}} \f$
 	MultiplexMode _poreAccessFactorMode;
+	std::vector<IParameterDependence*> _parDepSurfDiffusion; //!< Parameter dependencies for particle surface diffusion
+	bool _singleParDepSurfDiffusion; //!< Determines whether a single parameter dependence for particle surface diffusion is used
+	bool _hasParDepSurfDiffusion; //!< Determines whether particle surface diffusion parameter dependencies are present
 
 	bool _axiallyConstantParTypeVolFrac; //!< Determines whether particle type volume fraction is homogeneous across axial coordinate
 	bool _analyticJac; //!< Determines whether AD or analytic Jacobians are used

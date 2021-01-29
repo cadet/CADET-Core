@@ -613,7 +613,7 @@ void LumpedRateModelWithPores::useAnalyticJacobian(const bool analyticJac)
 #endif
 }
 
-void LumpedRateModelWithPores::notifyDiscontinuousSectionTransition(double t, unsigned int secIdx, const AdJacobianParams& adJac)
+void LumpedRateModelWithPores::notifyDiscontinuousSectionTransition(double t, unsigned int secIdx, const ConstSimulationState& simState, const AdJacobianParams& adJac)
 {
 	// Setup flux Jacobian blocks at the beginning of the simulation or in case of
 	// section dependent film or particle diffusion coefficients

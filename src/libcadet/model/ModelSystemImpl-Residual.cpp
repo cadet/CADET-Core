@@ -87,7 +87,7 @@ namespace cadet
 namespace model
 {
 
-void ModelSystem::notifyDiscontinuousSectionTransition(double t, unsigned int secIdx, const AdJacobianParams& adJac)
+void ModelSystem::notifyDiscontinuousSectionTransition(double t, unsigned int secIdx, const ConstSimulationState& simState, const AdJacobianParams& adJac)
 {
 	// Check if simulation is (re-)starting from the very beginning
 	if (secIdx == 0)
@@ -125,7 +125,7 @@ void ModelSystem::notifyDiscontinuousSectionTransition(double t, unsigned int se
 
 		updateModelFlowRates(t, i);
 		_models[i]->setFlowRates(_flowRateIn[i], _flowRateOut[i]);
-		_models[i]->notifyDiscontinuousSectionTransition(t, secIdx, applyOffset(adJac, offset));
+		_models[i]->notifyDiscontinuousSectionTransition(t, secIdx, simState, applyOffset(adJac, offset));
 	}
 
 #ifdef CADET_DEBUG

@@ -280,11 +280,6 @@ TEST_CASE("GRM2D with 1 radial zone matches GRM", "[GRM],[GRM2D],[UnitOp],[Jacob
 	grm->setFlowRates(flowIn, flowOut);
 	grm2d->setFlowRates(flowIn, flowOut);
 
-	// Setup matrices
-	const cadet::AdJacobianParams noAdParams{nullptr, nullptr, 0u};
-	grm->notifyDiscontinuousSectionTransition(0.0, 0u, noAdParams);
-	grm2d->notifyDiscontinuousSectionTransition(0.0, 0u, noAdParams);
-
 	// Obtain memory for state, Jacobian multiply direction, Jacobian column
 	const unsigned int nDof = grm->numDofs();
 	std::vector<double> y(nDof, 0.0);
@@ -298,6 +293,11 @@ TEST_CASE("GRM2D with 1 radial zone matches GRM", "[GRM],[GRM2D],[UnitOp],[Jacob
 	// Fill state vectors with some values
 	cadet::test::util::populate(y.data(), [=](unsigned int idx) { return std::abs(std::sin(idx * 0.13)) + 1e-4; }, nDof);
 	cadet::test::util::populate(yDot.data(), [=](unsigned int idx) { return std::abs(std::sin((idx + nDof) * 0.13)) + 1e-4; }, nDof);
+
+	// Setup matrices
+	const cadet::AdJacobianParams noAdParams{nullptr, nullptr, 0u};
+	grm->notifyDiscontinuousSectionTransition(0.0, 0u, {y.data(), yDot.data()}, noAdParams);
+	grm2d->notifyDiscontinuousSectionTransition(0.0, 0u, {y.data(), yDot.data()}, noAdParams);
 
 	// Compute Jacobian
 	const cadet::SimulationTime simTime{0.0, 0u};

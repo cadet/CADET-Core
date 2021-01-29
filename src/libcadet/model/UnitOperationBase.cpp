@@ -16,6 +16,7 @@
 #include "SimulationTypes.hpp"
 
 #include "SensParamUtil.hpp"
+#include "ModelUtils.hpp"
 
 #include "LoggingUtils.hpp"
 #include "Logging.hpp"
@@ -28,201 +29,6 @@ namespace cadet
 
 namespace model
 {
-
-namespace
-{
-	template <typename T>
-	void getAllParameterValuesImpl(std::unordered_map<ParameterId, double>& data, const std::vector<T*>& items, bool singleItem)
-	{
-		if (items.empty())
-			return;
-
-		if (singleItem)
-		{
-			if (!items[0])
-				return;
-
-			const std::unordered_map<ParameterId, double> localData = items[0]->getAllParameterValues();
-			for (const std::pair<ParameterId, double>& val : localData)
-				data[val.first] = val.second;
-		}
-		else
-		{
-			for (T const* bm : items)
-			{
-                if (!bm)
-                    continue;
-
-                const std::unordered_map<ParameterId, double> localData = bm->getAllParameterValues();
-				for (const std::pair<ParameterId, double>& val : localData)
-					data[val.first] = val.second;
-			}
-		}
-	}
-
-	template <typename T>
-	bool getParameterDoubleImpl(const ParameterId& pId, const std::vector<T*>& items, bool singleItem, double& out)
-	{
-		// Check binding model parameters
-		if (items.empty())
-			return false;
-
-		if (singleItem)
-		{
-			if (!items[0])
-				return false;
-
-			active const* const val = items[0]->getParameter(pId);
-			if (val)
-			{
-				out = static_cast<double>(*val);
-				return true;
-			}
-		}
-		else
-		{
-			for (T* bm : items)
-			{
-                if (!bm)
-                    continue;
-
-                active const* const val = bm->getParameter(pId);
-				if (val)
-				{
-					out = static_cast<double>(*val);
-					return true;
-				}
-			}
-		}
-
-		// Not found
-		return false;
-	}
-
-	template <typename T>
-	bool hasParameterImpl(const ParameterId& pId, const std::vector<T*>& items, bool singleItem)
-	{
-		if (items.empty())
-			return false;
-
-		if (singleItem)
-		{
-			if (items[0] && items[0]->hasParameter(pId))
-				return true;
-		}
-		else
-		{
-			for (T const* bm : items)
-			{
-				if (bm && bm->hasParameter(pId))
-					return true;
-			}
-		}
-
-		return false;
-	}
-
-	template <typename T, typename param_t>
-	bool setParameterImpl(const ParameterId& pId, param_t value, const std::vector<T*>& items, bool singleItem)
-	{
-		if (items.empty())
-			return false;
-
-		if (singleItem)
-		{
-			if (items[0] && items[0]->setParameter(pId, value))
-				return true;
-		}
-		else
-		{
-			for (T* bm : items)
-			{
-				if (bm && bm->setParameter(pId, value))
-					return true;
-			}
-		}
-
-		return false;
-	}
-
-	template <typename T>
-	bool setSensitiveParameterValueImpl(const ParameterId& pId, double value, const std::unordered_set<active*>& sensParams, const std::vector<T*>& items, bool singleItem)
-	{
-		if (items.empty())
-			return false;
-
-		if (singleItem)
-		{
-			if (!items[0])
-				return false;
-
-			active* const val = items[0]->getParameter(pId);
-			if (val && contains(sensParams, val))
-			{
-				val->setValue(value);
-				return true;
-			}
-		}
-		else
-		{
-			for (T* bm : items)
-			{
-                if (!bm)
-                    continue;
-
-				active* const val = bm->getParameter(pId);
-				if (val && contains(sensParams, val))
-				{
-					val->setValue(value);
-					return true;
-				}
-			}
-		}
-
-		return false;
-	}
-
-	template <typename T>
-	bool setSensitiveParameterImpl(const ParameterId& pId, unsigned int adDirection, double adValue, std::unordered_set<active*>& sensParams, const std::vector<T*>& items, bool singleItem)
-	{
-		if (items.empty())
-			return false;
-
-		if (singleItem)
-		{
-			if (!items[0])
-				return false;
-
-			active* const paramBinding = items[0]->getParameter(pId);
-			if (paramBinding)
-			{
-				// Register parameter and set AD seed / direction
-				sensParams.insert(paramBinding);
-				paramBinding->setADValue(adDirection, adValue);
-				return true;
-			}
-		}
-		else
-		{
-			for (T* bm : items)
-			{
-			    if (!bm)
-			        continue;
-
-				active* const paramBinding = bm->getParameter(pId);
-				if (paramBinding)
-				{
-					// Register parameter and set AD seed / direction
-					sensParams.insert(paramBinding);
-					paramBinding->setADValue(adDirection, adValue);
-					return true;
-				}
-			}
-		}
-
-		return false;
-	}
-}
 
 UnitOperationBase::UnitOperationBase(UnitOpIdx unitOpIdx) : _unitOpIdx(unitOpIdx), _binding(0, nullptr), _singleBinding(false),
 	_dynReaction(0, nullptr), _singleDynReaction(false), _nonlinearSolver(nullptr)
@@ -275,8 +81,8 @@ std::unordered_map<ParameterId, double> UnitOperationBase::getAllParameterValues
 	std::transform(_parameters.begin(), _parameters.end(), std::inserter(data, data.end()),
 	               [](const std::pair<const ParameterId, active*>& p) { return std::make_pair(p.first, static_cast<double>(*p.second)); });
 
-	getAllParameterValuesImpl(data, _binding, _singleBinding);
-	getAllParameterValuesImpl(data, _dynReaction, _singleDynReaction);
+	model::getAllParameterValues(data, _binding, _singleBinding);
+	model::getAllParameterValues(data, _dynReaction, _singleDynReaction);
 
 	return data;
 }
@@ -289,9 +95,9 @@ double UnitOperationBase::getParameterDouble(const ParameterId& pId) const
 		return static_cast<double>(*paramHandle->second);
 
 	double val = std::numeric_limits<double>::quiet_NaN();
-	if (getParameterDoubleImpl(pId, _binding, _singleBinding, val))
+	if (model::getParameterDouble(pId, _binding, _singleBinding, val))
 		return val;
-	if (getParameterDoubleImpl(pId, _dynReaction, _singleDynReaction, val))
+	if (model::getParameterDouble(pId, _dynReaction, _singleDynReaction, val))
 		return val;
 
 	// Not found
@@ -303,9 +109,9 @@ bool UnitOperationBase::hasParameter(const ParameterId& pId) const
 	if (_parameters.find(pId) != _parameters.end())
 		return true;
 
-	if (hasParameterImpl(pId, _binding, _singleBinding))
+	if (model::hasParameter(pId, _binding, _singleBinding))
 		return true;
-	if (hasParameterImpl(pId, _dynReaction, _singleDynReaction))
+	if (model::hasParameter(pId, _dynReaction, _singleDynReaction))
 		return true;
 	
 	return false;
@@ -316,9 +122,9 @@ bool UnitOperationBase::setParameter(const ParameterId& pId, int value)
 	if ((pId.unitOperation != _unitOpIdx) && (pId.unitOperation != UnitOpIndep))
 		return false;
 
-	if (setParameterImpl(pId, value, _binding, _singleBinding))
+	if (model::setParameter(pId, value, _binding, _singleBinding))
 		return true;
-	if (setParameterImpl(pId, value, _dynReaction, _singleDynReaction))
+	if (model::setParameter(pId, value, _dynReaction, _singleDynReaction))
 		return true;
 
 	return false;
@@ -336,9 +142,9 @@ bool UnitOperationBase::setParameter(const ParameterId& pId, double value)
 		return true;
 	}
 
-	if (setParameterImpl(pId, value, _binding, _singleBinding))
+	if (model::setParameter(pId, value, _binding, _singleBinding))
 		return true;
-	if (setParameterImpl(pId, value, _dynReaction, _singleDynReaction))
+	if (model::setParameter(pId, value, _dynReaction, _singleDynReaction))
 		return true;
 
 	return false;
@@ -349,9 +155,9 @@ bool UnitOperationBase::setParameter(const ParameterId& pId, bool value)
 	if ((pId.unitOperation != _unitOpIdx) && (pId.unitOperation != UnitOpIndep))
 		return false;
 
-	if (setParameterImpl(pId, value, _binding, _singleBinding))
+	if (model::setParameter(pId, value, _binding, _singleBinding))
 		return true;
-	if (setParameterImpl(pId, value, _dynReaction, _singleDynReaction))
+	if (model::setParameter(pId, value, _dynReaction, _singleDynReaction))
 		return true;
 
 	return false;
@@ -370,9 +176,9 @@ void UnitOperationBase::setSensitiveParameterValue(const ParameterId& pId, doubl
 		return;
 	}
 
-	if (setSensitiveParameterValueImpl(pId, value, _sensParams, _binding, _singleBinding))
+	if (model::setSensitiveParameterValue(pId, value, _sensParams, _binding, _singleBinding))
 		return;
-	if (setSensitiveParameterValueImpl(pId, value, _sensParams, _dynReaction, _singleDynReaction))
+	if (model::setSensitiveParameterValue(pId, value, _sensParams, _dynReaction, _singleDynReaction))
 		return;
 }
 
@@ -393,12 +199,12 @@ bool UnitOperationBase::setSensitiveParameter(const ParameterId& pId, unsigned i
 		return true;
 	}
 
-	if (setSensitiveParameterImpl(pId, adDirection, adValue, _sensParams, _binding, _singleBinding))
+	if (model::setSensitiveParameter(pId, adDirection, adValue, _sensParams, _binding, _singleBinding))
 	{
 		LOG(Debug) << "Found parameter " << pId << " in AdsorptionModel: Dir " << adDirection << " is set to " << adValue;
 		return true;
 	}
-	if (setSensitiveParameterImpl(pId, adDirection, adValue, _sensParams, _dynReaction, _singleDynReaction))
+	if (model::setSensitiveParameter(pId, adDirection, adValue, _sensParams, _dynReaction, _singleDynReaction))
 	{
 		LOG(Debug) << "Found parameter " << pId << " in DynamicReactionModel: Dir " << adDirection << " is set to " << adValue;
 		return true;

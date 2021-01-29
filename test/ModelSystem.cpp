@@ -44,6 +44,8 @@ namespace
 		virtual cadet::IExternalFunction* createExternalFunction(const std::string& type) const { return nullptr; }
 		virtual cadet::model::IDynamicReactionModel* createDynamicReactionModel(const std::string& name) const { return nullptr; }
 		virtual bool isValidDynamicReactionModel(const std::string& name) const { return false; }
+		virtual cadet::model::IParameterDependence* createParameterDependence(const std::string& name) const { return nullptr; }
+		virtual bool isValidParameterDependence(const std::string& name) const { return false; }
 	};
 
 	class DummyUnitOperation : public cadet::IUnitOperation
@@ -112,7 +114,7 @@ namespace
 		virtual void clearSensParams() { }
 		virtual unsigned int numSensParams() const { return 0; }
 
-		virtual void notifyDiscontinuousSectionTransition(double t, unsigned int secIdx, const cadet::AdJacobianParams& adJac) { }
+		virtual void notifyDiscontinuousSectionTransition(double t, unsigned int secIdx, const cadet::ConstSimulationState& simState, const cadet::AdJacobianParams& adJac) { }
 		virtual void applyInitialCondition(const cadet::SimulationState& simState) const { }
 		virtual void readInitialCondition(cadet::IParameterProvider& paramProvider) { }
 
@@ -547,7 +549,7 @@ namespace
 
 		// Setup matrices
 		const cadet::AdJacobianParams noParams{nullptr, nullptr, 0u};
-		sys->notifyDiscontinuousSectionTransition(0.0, 0u, noParams);
+		sys->notifyDiscontinuousSectionTransition(0.0, 0u, {nullptr, nullptr}, noParams);
 
 		const std::vector<unsigned int> dofOffsets = calculateDofOffsets(*sys);
 		const std::vector<double> jac = calculateJacobian(*sys);
@@ -642,10 +644,6 @@ TEST_CASE("ModelSystem Jacobian AD vs analytic", "[ModelSystem],[Jacobian],[AD]"
 
 			sysAD->prepareADvectors(adParams);
 
-			// Setup matrices
-			sysAna->notifyDiscontinuousSectionTransition(0.0, 0u, noParams);
-			sysAD->notifyDiscontinuousSectionTransition(0.0, 0u, adParams);
-
 			// Obtain memory for state, Jacobian multiply direction, Jacobian column
 			const unsigned int nDof = sysAD->numDofs();
 			std::vector<double> y(nDof, 0.0);
@@ -657,6 +655,10 @@ TEST_CASE("ModelSystem Jacobian AD vs analytic", "[ModelSystem],[Jacobian],[AD]"
 			// Fill state vector with some values
 			cadet::test::util::populate(y.data(), [](unsigned int idx) { return std::abs(std::sin(idx * 0.13)) + 1e-4; }, nDof);
 			cadet::test::util::populate(yDot.data(), [=](unsigned int idx) { return std::abs(std::sin((idx + nDof) * 0.13)) + 1e-4; }, nDof);
+
+			// Setup matrices
+			sysAna->notifyDiscontinuousSectionTransition(0.0, 0u, {y.data(), yDot.data()}, noParams);
+			sysAD->notifyDiscontinuousSectionTransition(0.0, 0u, {y.data(), yDot.data()}, adParams);
 
 			// Compute state Jacobian
 			const cadet::SimulationTime simTime{0.0, 0u};
@@ -729,9 +731,6 @@ TEST_CASE("ModelSystem time derivative Jacobian FD vs analytic", "[ModelSystem],
 			sys->setSectionTimes(secTimes.data(), secContArray, secTimes.size() - 1);
 			delete[] secContArray;
 
-			// Setup matrices
-			sys->notifyDiscontinuousSectionTransition(0.0, 0u, cadet::AdJacobianParams{nullptr, nullptr, 0u});
-
 			// Obtain memory for state, Jacobian multiply direction, Jacobian column
 			const unsigned int nDof = sys->numDofs();
 			std::vector<double> y(nDof, 0.0);
@@ -743,6 +742,9 @@ TEST_CASE("ModelSystem time derivative Jacobian FD vs analytic", "[ModelSystem],
 			// Fill state vector with some values
 			cadet::test::util::populate(y.data(), [](unsigned int idx) { return std::abs(std::sin(idx * 0.13)) + 1e-4; }, nDof);
 			cadet::test::util::populate(yDot.data(), [=](unsigned int idx) { return std::abs(std::sin((idx + nDof) * 0.13)) + 1e-4; }, nDof);
+
+			// Setup matrices
+			sys->notifyDiscontinuousSectionTransition(0.0, 0u, {y.data(), yDot.data()}, cadet::AdJacobianParams{nullptr, nullptr, 0u});
 
 			// Compute state Jacobian
 			sys->residualWithJacobian(cadet::SimulationTime{0.0, 0u}, cadet::ConstSimulationState{y.data(), yDot.data()}, jacDir.data(), cadet::AdJacobianParams{nullptr, nullptr, 0u});
@@ -808,9 +810,6 @@ TEST_CASE("ModelSystem sensitivity Jacobians", "[ModelSystem],[Sensitivity]")
 			// Add dispersion parameter sensitivity
 			REQUIRE(sys->setSensitiveParameter(cadet::makeParamId(cadet::hashString("COL_DISPERSION"), 0, cadet::CompIndep, cadet::ParTypeIndep, cadet::BoundStateIndep, cadet::ReactionIndep, cadet::SectionIndep), 0, 1.0));
 
-			// Setup matrices
-			sys->notifyDiscontinuousSectionTransition(0.0, 0u, cadet::AdJacobianParams{adRes, nullptr, 0u});
-
 			// Obtain memory for state, Jacobian multiply direction, Jacobian column
 			const unsigned int nDof = sys->numDofs();
 			const std::vector<double> zeros(nDof, 0.0);
@@ -831,6 +830,9 @@ TEST_CASE("ModelSystem sensitivity Jacobians", "[ModelSystem],[Sensitivity]")
 			// Fill state vector with some values
 			cadet::test::util::populate(y.data(), [](unsigned int idx) { return std::abs(std::sin(idx * 0.13)) + 1e-4; }, nDof);
 			cadet::test::util::populate(yDot.data(), [=](unsigned int idx) { return std::abs(std::sin((idx + nDof) * 0.13)) + 1e-4; }, nDof);
+
+			// Setup matrices
+			sys->notifyDiscontinuousSectionTransition(0.0, 0u, {y.data(), yDot.data()}, cadet::AdJacobianParams{adRes, nullptr, 0u});
 
 			// Calculate Jacobian
 			sys->residualWithJacobian(cadet::SimulationTime{0.0, 0u}, cadet::ConstSimulationState{y.data(), yDot.data()}, jacDir.data(), cadet::AdJacobianParams{adRes, nullptr, 0u});
