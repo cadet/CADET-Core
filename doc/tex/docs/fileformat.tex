@@ -573,6 +573,126 @@ Note that all components of component dependent datasets have to be section depe
       \item[3] Component-dependent, type-dependent, section-dependent; length of \texttt{PAR\_SURFDIFFUSION} is $\texttt{NTOTALBND} \cdot \texttt{NSEC}$; ordering is section-type-component-major
     \end{description}\vspace{-\baselineskip}
   \end{dataset}
+  \begin{dataset}[unit=--,type=string,length={$1$ / \texttt{NPARTYPE}}]{PAR\_SURFDIFFUSION\_DEP}
+    Parameter dependence of \texttt{PAR\_SURFDIFFUSION}.
+    Valid dependencies are:
+    \begin{description}
+      \item[\texttt{NONE}] Original parameter is used unmodified.
+      \item[\texttt{LIQUID_SALT_EXPONENTIAL}] Original parameter is modified by exponential law of liquid phase salt concentration.
+      \item[\texttt{LIQUID_SALT_POWER}] Original parameter is modified by power law of liquid phase salt concentration.
+      \item[\texttt{LIQUID_SALT_COLLOIDAL_AFFINITY}] Original parameter is modified by colloidal binding affinity based on liquid phase salt concentration.
+    \end{description}
+    Optional: If left out, no parameter dependence is assumed and the original surface diffusion coefficients are used unmodified.
+  \end{dataset}
+  \begin{dataset}[unit=--,type=double,range={$\geq 0$},length={\texttt{NBND}}]{PAR\_SURFDIFFUSION\_EXPFACTOR}
+    Factor $p_1$ in exponential law particle surface diffusion relation
+    \begin{equation*}
+      D_{s,i,m} = \tilde{D}_{s,i,m} p_{1,i,m} \exp(p_{2,i,m} c^p_0),
+    \end{equation*}
+    where $\tilde{D}_{s,i,m}$ is the original surface diffusion coefficient.
+    Only required if \texttt{PAR\_SURFDIFFUSION\_DEP} is \texttt{LIQUID\_SALT\_EXPONENTIAL}.
+  \end{dataset}
+  \begin{dataset}[unit=\si{\cubic\metre\of{MP}\per\mol},type=double,range={$\mathds{R}$},length={\texttt{NBND}}]{PAR\_SURFDIFFUSION\_EXPARGMULT}
+    Factor $p_2$ in exponential law particle surface diffusion relation
+    \begin{equation*}
+      D_{s,i,m} = \tilde{D}_{s,i,m} p_{1,i,m} \exp(p_{2,i,m} c^p_0),
+    \end{equation*}
+    where $\tilde{D}_{s,i,m}$ is the original surface diffusion coefficient.
+    Only required if \texttt{PAR\_SURFDIFFUSION\_DEP} is \texttt{LIQUID\_SALT\_EXPONENTIAL}.
+  \end{dataset}
+  \begin{dataset}[unit=--,type=double,range={$\geq 0$},length={\texttt{NBND}}]{PAR\_SURFDIFFUSION\_POWFACTOR}
+    Factor $p_1$ in power law particle surface diffusion relation
+    \begin{equation*}
+      D_{s,i,m} = \tilde{D}_{s,i,m} p_{1,i,m} \left(c^p_0\right)^{p_{2,i,m}},
+    \end{equation*}
+    where $\tilde{D}_{s,i,m}$ is the original surface diffusion coefficient.
+    Only required if \texttt{PAR\_SURFDIFFUSION\_DEP} is \texttt{LIQUID\_SALT\_POWER}.
+  \end{dataset}
+  \begin{dataset}[unit=--,type=double,range={$\mathds{R}$},length={\texttt{NBND}}]{PAR\_SURFDIFFUSION\_POWEXP}
+    Factor $p_2$ in power law particle surface diffusion relation
+    \begin{equation*}
+      D_{s,i,m} = \tilde{D}_{s,i,m} p_{1,i,m} \left(c^p_0\right)^{p_{2,i,m}},
+    \end{equation*}
+    where $\tilde{D}_{s,i,m}$ is the original surface diffusion coefficient.
+    Only required if \texttt{PAR\_SURFDIFFUSION\_DEP} is \texttt{LIQUID\_SALT\_POWER}.
+  \end{dataset}
+  \begin{dataset}[unit=--,type=double,range={$\mathds{R}$},length={\texttt{NBND}}]{PAR\_SURFDIFFUSION\_LOGKEQFACTOR}
+    Factor $p_1$ in colloidal affinity particle surface diffusion relation
+    \begin{equation*}
+      D_{s,i,m} = \tilde{D}_{s,i,m} \left[ p_{4,i,m} \left(k_{i,m}\left(c^p_0\right)\right)^{p_{5,i,m}} + p_{6,i,m} \exp\left( p_{7,i,m} k_{i,m}\left( c^p_0 \right) \right) \right],
+    \end{equation*}
+    where $\tilde{D}_{s,i,m}$ is the original surface diffusion coefficient and
+    \begin{equation*}
+      k_{i,m}( c^p_0 ) = p_{1,i,m} \left(c^p_0\right)^{p_{2,i,m}} + p_{3,i,m}.
+    \end{equation*}
+    Only required if \texttt{PAR\_SURFDIFFUSION\_DEP} is \texttt{LIQUID\_SALT\_COLLOIDAL\_AFFINITY}.
+  \end{dataset}
+  \begin{dataset}[unit=--,type=double,range={$\mathds{R}$},length={\texttt{NBND}}]{PAR\_SURFDIFFUSION\_LOGKEQEXP}
+    Factor $p_2$ in colloidal affinity particle surface diffusion relation
+    \begin{equation*}
+      D_{s,i,m} = \tilde{D}_{s,i,m} \left[ p_{4,i,m} \left(k_{i,m}\left(c^p_0\right)\right)^{p_{5,i,m}} + p_{6,i,m} \exp\left( p_{7,i,m} k_{i,m}\left( c^p_0 \right) \right) \right],
+    \end{equation*}
+    where $\tilde{D}_{s,i,m}$ is the original surface diffusion coefficient and
+    \begin{equation*}
+      k_{i,m}( c^p_0 ) = p_{1,i,m} \left(c^p_0\right)^{p_{2,i,m}} + p_{3,i,m}.
+    \end{equation*}
+    Only required if \texttt{PAR\_SURFDIFFUSION\_DEP} is \texttt{LIQUID\_SALT\_COLLOIDAL\_AFFINITY}.
+  \end{dataset}
+  \begin{dataset}[unit=--,type=double,range={$\mathds{R}$},length={\texttt{NBND}}]{PAR\_SURFDIFFUSION\_LOGKEQCONST}
+    Factor $p_3$ in colloidal affinity particle surface diffusion relation
+    \begin{equation*}
+      D_{s,i,m} = \tilde{D}_{s,i,m} \left[ p_{4,i,m} \left(k_{i,m}\left(c^p_0\right)\right)^{p_{5,i,m}} + p_{6,i,m} \exp\left( p_{7,i,m} k_{i,m}\left( c^p_0 \right) \right) \right],
+    \end{equation*}
+    where $\tilde{D}_{s,i,m}$ is the original surface diffusion coefficient and
+    \begin{equation*}
+      k_{i,m}( c^p_0 ) = p_{1,i,m} \left(c^p_0\right)^{p_{2,i,m}} + p_{3,i,m}.
+    \end{equation*}
+    Only required if \texttt{PAR\_SURFDIFFUSION\_DEP} is \texttt{LIQUID\_SALT\_COLLOIDAL\_AFFINITY}.
+  \end{dataset}
+  \begin{dataset}[unit=--,type=double,range={$\mathds{R}$},length={\texttt{NBND}}]{PAR\_SURFDIFFUSION\_POWFACTOR}
+    Factor $p_4$ in colloidal affinity particle surface diffusion relation
+    \begin{equation*}
+      D_{s,i,m} = \tilde{D}_{s,i,m} \left[ p_{4,i,m} \left(k_{i,m}\left(c^p_0\right)\right)^{p_{5,i,m}} + p_{6,i,m} \exp\left( p_{7,i,m} k_{i,m}\left( c^p_0 \right) \right) \right],
+    \end{equation*}
+    where $\tilde{D}_{s,i,m}$ is the original surface diffusion coefficient and
+    \begin{equation*}
+      k_{i,m}( c^p_0 ) = p_{1,i,m} \left(c^p_0\right)^{p_{2,i,m}} + p_{3,i,m}.
+    \end{equation*}
+    Only required if \texttt{PAR\_SURFDIFFUSION\_DEP} is \texttt{LIQUID\_SALT\_COLLOIDAL\_AFFINITY}.
+  \end{dataset}
+  \begin{dataset}[unit=--,type=double,range={$\mathds{R}$},length={\texttt{NBND}}]{PAR\_SURFDIFFUSION\_POWEXP}
+    Factor $p_5$ in colloidal affinity particle surface diffusion relation
+    \begin{equation*}
+      D_{s,i,m} = \tilde{D}_{s,i,m} \left[ p_{4,i,m} \left(k_{i,m}\left(c^p_0\right)\right)^{p_{5,i,m}} + p_{6,i,m} \exp\left( p_{7,i,m} k_{i,m}\left( c^p_0 \right) \right) \right],
+    \end{equation*}
+    where $\tilde{D}_{s,i,m}$ is the original surface diffusion coefficient and
+    \begin{equation*}
+      k_{i,m}( c^p_0 ) = p_{1,i,m} \left(c^p_0\right)^{p_{2,i,m}} + p_{3,i,m}.
+    \end{equation*}
+    Only required if \texttt{PAR\_SURFDIFFUSION\_DEP} is \texttt{LIQUID\_SALT\_COLLOIDAL\_AFFINITY}.
+  \end{dataset}
+  \begin{dataset}[unit=--,type=double,range={$\mathds{R}$},length={\texttt{NBND}}]{PAR\_SURFDIFFUSION\_EXPFACTOR}
+    Factor $p_6$ in colloidal affinity particle surface diffusion relation
+    \begin{equation*}
+      D_{s,i,m} = \tilde{D}_{s,i,m} \left[ p_{4,i,m} \left(k_{i,m}\left(c^p_0\right)\right)^{p_{5,i,m}} + p_{6,i,m} \exp\left( p_{7,i,m} k_{i,m}\left( c^p_0 \right) \right) \right],
+    \end{equation*}
+    where $\tilde{D}_{s,i,m}$ is the original surface diffusion coefficient and
+    \begin{equation*}
+      k_{i,m}( c^p_0 ) = p_{1,i,m} \left(c^p_0\right)^{p_{2,i,m}} + p_{3,i,m}.
+    \end{equation*}
+    Only required if \texttt{PAR\_SURFDIFFUSION\_DEP} is \texttt{LIQUID\_SALT\_COLLOIDAL\_AFFINITY}.
+  \end{dataset}
+  \begin{dataset}[unit=--,type=double,range={$\mathds{R}$},length={\texttt{NBND}}]{PAR\_SURFDIFFUSION\_EXPARGMULT}
+    Factor $p_7$ in colloidal affinity particle surface diffusion relation
+    \begin{equation*}
+      D_{s,i,m} = \tilde{D}_{s,i,m} \left[ p_{4,i,m} \left(k_{i,m}\left(c^p_0\right)\right)^{p_{5,i,m}} + p_{6,i,m} \exp\left( p_{7,i,m} k_{i,m}\left( c^p_0 \right) \right) \right],
+    \end{equation*}
+    where $\tilde{D}_{s,i,m}$ is the original surface diffusion coefficient and
+    \begin{equation*}
+      k_{i,m}( c^p_0 ) = p_{1,i,m} \left(c^p_0\right)^{p_{2,i,m}} + p_{3,i,m}.
+    \end{equation*}
+    Only required if \texttt{PAR\_SURFDIFFUSION\_DEP} is \texttt{LIQUID\_SALT\_COLLOIDAL\_AFFINITY}.
+  \end{dataset}
   \begin{dataset}[unit=\si{\metre\per\second},type=double,range={$\mathds{R}$},length={$1$ / \texttt{NSEC}}]{VELOCITY}
     Interstitial velocity of the mobile phase (optional if \texttt{CROSS\_SECTION\_AREA} is present, see Section~\ref{par:MUOPGRMflow})
   \end{dataset}
