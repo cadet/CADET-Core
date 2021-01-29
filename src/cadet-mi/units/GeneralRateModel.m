@@ -50,6 +50,15 @@ classdef GeneralRateModel < Model
 		diffusionParticleSurface; % Diffusion coefficient of the mobile phase components on the surface of the particle in [m^2_SP / s]
 		diffusionParticleSurfaceMultiplexMode; % Multiplex mode of particle surface diffusion
 
+		diffusionParticleSurfaceDependence; % Parameter dependence of surface diffusion coefficients
+		surfDiffExpFactor; % Factor of exponential term in surface diffusion parameter dependence
+		surfDiffExpArgMult; % Argument multiplier of exponential term in surface diffusion parameter dependence
+		surfDiffPowFactor; % Factor of power law term in surface diffusion parameter dependence
+		surfDiffPowExp; % Exponent of power law term in surface diffusion parameter dependence
+		surfDiffLogKeqPowFactor; % Factor of power law term in log(Keq) of surface diffusion parameter dependence
+		surfDiffLogKeqPowExp; % Exponent of power law term in log(Keq) of surface diffusion parameter dependence
+		surfDiffLogKeqConst; % Constant of power law term in log(Keq) of surface diffusion parameter dependence
+
 		% Geometry
 		
 		porosityColumn; % Porosity of the column
@@ -436,6 +445,136 @@ classdef GeneralRateModel < Model
 				validateattributes(val, {'double'}, {'nonnegative', 'scalar', 'nonempty', 'finite', 'real', '>=', 0, '<=', 3}, '', 'diffusionParticleSurfaceMultiplexMode');
 				obj.data.PAR_SURFDIFFUSION_MULTIPLEX = int32(val);
 			end
+			obj.hasChanged = true;
+		end
+
+		function val = get.diffusionParticleSurfaceDependence(obj)
+			if isfield(obj.data, 'PAR_SURFDIFFUSION_DEP')
+				val = double(obj.data.PAR_SURFDIFFUSION_DEP);
+			else
+				val = [];
+			end
+		end
+
+		function set.diffusionParticleSurfaceDependence(obj, val)
+			if isempty(val)
+				obj.data = rmfield(obj.data, 'PAR_SURFDIFFUSION_DEP');
+			else
+				validatestring(val, {'LIQUID_SALT_EXPONENTIAL', 'LIQUID_SALT_POWER', 'LIQUID_SALT_COLLOIDAL_AFFINITY'}, '', 'diffusionParticleSurfaceDependence');
+				obj.data.PAR_SURFDIFFUSION_DEP = val;
+			end
+			obj.hasChanged = true;
+		end
+
+		function val = get.surfDiffExpFactor(obj)
+			if ~isfield(obj.data, 'PAR_SURFDIFFUSION_EXPFACTOR')
+				val = [];
+				return;
+			end
+			
+			val = obj.data.PAR_SURFDIFFUSION_EXPFACTOR;
+		end
+
+		function set.surfDiffExpFactor(obj, val)
+			validateattributes(val, {'double'}, {'vector', 'finite', 'real'}, '', 'surfDiffExpFactor');
+			val = val.';
+			obj.data.PAR_SURFDIFFUSION_EXPFACTOR = val(:);
+			obj.hasChanged = true;
+		end
+
+		function val = get.surfDiffExpArgMult(obj)
+			if ~isfield(obj.data, 'PAR_SURFDIFFUSION_EXPARGMULT')
+				val = [];
+				return;
+			end
+			
+			val = obj.data.PAR_SURFDIFFUSION_EXPARGMULT;
+		end
+
+		function set.surfDiffExpArgMult(obj, val)
+			validateattributes(val, {'double'}, {'vector', 'finite', 'real'}, '', 'surfDiffExpArgMult');
+			val = val.';
+			obj.data.PAR_SURFDIFFUSION_EXPARGMULT = val(:);
+			obj.hasChanged = true;
+		end
+
+		function val = get.surfDiffPowFactor(obj)
+			if ~isfield(obj.data, 'PAR_SURFDIFFUSION_POWFACTOR')
+				val = [];
+				return;
+			end
+			
+			val = obj.data.PAR_SURFDIFFUSION_POWFACTOR;
+		end
+
+		function set.surfDiffPowFactor(obj, val)
+			validateattributes(val, {'double'}, {'vector', 'finite', 'real'}, '', 'surfDiffPowFactor');
+			val = val.';
+			obj.data.PAR_SURFDIFFUSION_POWFACTOR = val(:);
+			obj.hasChanged = true;
+		end
+
+		function val = get.surfDiffPowExp(obj)
+			if ~isfield(obj.data, 'PAR_SURFDIFFUSION_POWEXP')
+				val = [];
+				return;
+			end
+			
+			val = obj.data.PAR_SURFDIFFUSION_POWEXP;
+		end
+
+		function set.surfDiffPowExp(obj, val)
+			validateattributes(val, {'double'}, {'vector', 'finite', 'real'}, '', 'surfDiffPowExp');
+			val = val.';
+			obj.data.PAR_SURFDIFFUSION_POWEXP = val(:);
+			obj.hasChanged = true;
+		end
+
+		function val = get.surfDiffLogKeqPowFactor(obj)
+			if ~isfield(obj.data, 'PAR_SURFDIFFUSION_LOGKEQFACTOR')
+				val = [];
+				return;
+			end
+			
+			val = obj.data.PAR_SURFDIFFUSION_LOGKEQFACTOR;
+		end
+
+		function set.surfDiffLogKeqPowFactor(obj, val)
+			validateattributes(val, {'double'}, {'vector', 'finite', 'real'}, '', 'surfDiffLogKeqPowFactor');
+			val = val.';
+			obj.data.PAR_SURFDIFFUSION_LOGKEQFACTOR = val(:);
+			obj.hasChanged = true;
+		end
+
+		function val = get.surfDiffLogKeqPowExp(obj)
+			if ~isfield(obj.data, 'PAR_SURFDIFFUSION_LOGKEQEXP')
+				val = [];
+				return;
+			end
+			
+			val = obj.data.PAR_SURFDIFFUSION_LOGKEQEXP;
+		end
+
+		function set.surfDiffLogKeqPowExp(obj, val)
+			validateattributes(val, {'double'}, {'vector', 'finite', 'real'}, '', 'surfDiffLogKeqPowExp');
+			val = val.';
+			obj.data.PAR_SURFDIFFUSION_LOGKEQEXP = val(:);
+			obj.hasChanged = true;
+		end
+
+		function val = get.surfDiffLogKeqConst(obj)
+			if ~isfield(obj.data, 'PAR_SURFDIFFUSION_LOGKEQCONST')
+				val = [];
+				return;
+			end
+			
+			val = obj.data.PAR_SURFDIFFUSION_LOGKEQCONST;
+		end
+
+		function set.surfDiffLogKeqConst(obj, val)
+			validateattributes(val, {'double'}, {'vector', 'finite', 'real'}, '', 'surfDiffLogKeqConst');
+			val = val.';
+			obj.data.PAR_SURFDIFFUSION_LOGKEQCONST = val(:);
 			obj.hasChanged = true;
 		end
 
