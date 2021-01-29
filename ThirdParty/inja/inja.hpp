@@ -380,11 +380,24 @@ public:
 	}
 
 	template<typename T = json>
-  T eval_expression(const Parsed::ElementExpression& element, const json& data) {
+	T eval_expression(const Parsed::ElementExpression& element, const json& data) {
 		const json var = eval_function(element, data);
 		if (var.empty()) return T();
 		try {
 			return var.get<T>();
+		} catch (json::type_error& e) {
+			inja_throw("json_error", e.what());
+			throw;
+		}
+	}
+
+	template<typename T = json>
+	std::vector<T> eval_vector_expression(const Parsed::ElementExpression& element, const json& data) {
+		const json var = eval_function(element, data);
+		if (var.empty()) return std::vector<T>(0);
+		if (!var.is_array() && !var.is_object()) return std::vector<T>{ var };
+		try {
+			return var.get<std::vector<T>>();
 		} catch (json::type_error& e) {
 			inja_throw("json_error", e.what());
 			throw;
@@ -410,7 +423,7 @@ public:
 				return result;
 			}
 			case Parsed::Function::Length: {
-				const std::vector<json> list = eval_expression<std::vector<json>>(element.args[0], data);
+				const std::vector<json> list = eval_vector_expression<json>(element.args[0], data);
 				return list.size();
 			}
 			case Parsed::Function::Sort: {
