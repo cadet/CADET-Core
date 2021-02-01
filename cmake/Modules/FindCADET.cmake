@@ -10,7 +10,7 @@
 #  is available at http://www.gnu.org/licenses/gpl.html
 # =============================================================================
 
-# Find CADET, the Chromatography Analysis and DEsign Toolkit.
+# Find CADET.
 #
 # On UNIX systems, this module will read the variable CADET_USE_STATIC_LIBRARIES
 # to determine whether or not to prefer a static link over a dynamic link for CADET

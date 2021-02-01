@@ -11,7 +11,7 @@
 // =============================================================================
 
 /**
- * @mainpage The Chromatography Analysis and Design Toolkit (CADET)
+ * @mainpage CADET
  * The library provides a fast and accurate forward simulator for the general rate model of column liquid chromatography
  * 
  * @authors    Eric von Lieres, Joel Andersson, Andreas Puettmann, Sebastian Schnittert, Samuel Leweke, William Heymann
