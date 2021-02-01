@@ -46,4 +46,4 @@ License
 
 Released under GPL v3. License (see `LICENSE.txt <https://github.com/modsim/CADET/blob/master/LICENSE.txt>`_)::
 
-   Copyright (C) 2004-2020 CADET Authors 
+   Copyright (C) 2004-2021 CADET Authors 

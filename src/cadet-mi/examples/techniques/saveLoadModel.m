@@ -6,7 +6,7 @@ function saveLoadModel()
 %
 %   See also SAVELOADSIMULATOR.
 
-% Copyright: (C) 2008-2020 The CADET Authors
+% Copyright: (C) 2008-2021 The CADET Authors
 %            See the license note at the end of the file.
 
 	% Create the model (SingleGRM object)
@@ -98,7 +98,7 @@ end
 % =============================================================================
 %  CADET
 %  
-%  Copyright (C) 2008-2020: The CADET Authors
+%  Copyright (C) 2008-2021: The CADET Authors
 %            Please see the AUTHORS and CONTRIBUTORS file.
 %  
 %  All rights reserved. This program and the accompanying materials

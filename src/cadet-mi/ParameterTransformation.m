@@ -5,7 +5,7 @@ classdef ParameterTransformation < handle & matlab.mixin.Heterogeneous
 	%   INVERSETRANSFORM(), and a function that applies the chain rule
 	%   for the inverse transformation CHAINRULEINVTRANSFORM().
 
-	% Copyright: (C) 2008-2020 The CADET Authors
+	% Copyright: (C) 2008-2021 The CADET Authors
 	%            See the license note at the end of the file.
 
 	methods (Abstract)
@@ -29,7 +29,7 @@ end
 % =============================================================================
 %  CADET
 %  
-%  Copyright (C) 2008-2020: The CADET Authors
+%  Copyright (C) 2008-2021: The CADET Authors
 %            Please see the AUTHORS and CONTRIBUTORS file.
 %  
 %  All rights reserved. obj program and the accompanying materials

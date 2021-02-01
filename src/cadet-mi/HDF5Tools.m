@@ -5,7 +5,7 @@ classdef HDF5Tools < handle
 	%   datasets. The process also works in the other direction, where an
 	%   HDF5 file is read in and converted to Matlab structs and arrays.
 	
-	% Copyright: (C) 2008-2020 The CADET Authors
+	% Copyright: (C) 2008-2021 The CADET Authors
 	%            See the license note at the end of the file.
 
 	methods (Static)
@@ -183,7 +183,7 @@ end
 % =============================================================================
 %  CADET
 %  
-%  Copyright (C) 2008-2020: The CADET Authors
+%  Copyright (C) 2008-2021: The CADET Authors
 %            Please see the AUTHORS and CONTRIBUTORS file.
 %  
 %  All rights reserved. This program and the accompanying materials

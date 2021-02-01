@@ -22,7 +22,7 @@ function sens = makeSensitivity(unitOpIdx, name, comp, parType, reaction, boundP
 %
 % See also EXTRACTPARAM.
 
-% Copyright: (C) 2008-2020 The CADET Authors
+% Copyright: (C) 2008-2021 The CADET Authors
 %            See the license note at the end of the file.
 
 	if ~iscell(name) && ischar(name)
@@ -63,7 +63,7 @@ end
 % =============================================================================
 %  CADET
 %  
-%  Copyright (C) 2008-2020: The CADET Authors
+%  Copyright (C) 2008-2021: The CADET Authors
 %            Please see the AUTHORS and CONTRIBUTORS file.
 %  
 %  All rights reserved. obj program and the accompanying materials
