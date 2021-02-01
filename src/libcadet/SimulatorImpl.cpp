@@ -37,6 +37,10 @@
 
 	#define TBB_PREVIEW_GLOBAL_CONTROL 1
 	#include <tbb/global_control.h>
+
+	#ifdef CADET_TBB_GLOBALCTRL
+		#include <tbb/task_arena.h>
+	#endif
 #endif
 
 namespace
@@ -978,12 +982,15 @@ namespace cadet
 		// This sets up the tbb thread limiter
 		// TBB can use up to _nThreads but it may use fewer
 #ifdef CADET_PARALLELIZE
+	#ifdef CADET_TBB_GLOBALCTRL
+		tbb::global_control tbbGlobalControl(tbb::global_control::max_allowed_parallelism, (_nThreads > 0) ? _nThreads : tbb::this_task_arena::max_concurrency());
+	#else
 		tbb::task_scheduler_init init(tbb::task_scheduler_init::deferred);
 		if (_nThreads > 0)
 			init.initialize(_nThreads);
 		else
 			init.initialize(tbb::task_scheduler_init::default_num_threads());
-
+	#endif
 		_model->setupParallelization(tbb::this_task_arena::max_concurrency());
 #else
 		_model->setupParallelization(1);

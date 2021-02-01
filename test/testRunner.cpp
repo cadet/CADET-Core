@@ -18,6 +18,10 @@
 
 	#define TBB_PREVIEW_GLOBAL_CONTROL 1
 	#include <tbb/global_control.h>
+
+	#ifdef CADET_TBB_GLOBALCTRL
+		#include <tbb/task_arena.h>
+	#endif
 #endif
 
 
@@ -52,7 +56,11 @@ int main(int argc, char* argv[])
 #endif
 
 #ifdef CADET_PARALLELIZE
-	int nThreads = tbb::task_scheduler_init::automatic;
+	#ifdef CADET_TBB_GLOBALCTRL
+		int nThreads = tbb::this_task_arena::max_concurrency();
+	#else
+		int nThreads = tbb::task_scheduler_init::automatic;
+	#endif
 #else
 	int nThreads = 0;
 #endif
@@ -68,10 +76,14 @@ int main(int argc, char* argv[])
 		return returnCode;
 
 #ifdef CADET_PARALLELIZE
-	if (nThreads <= 0)
-		nThreads = tbb::task_scheduler_init::automatic;
+	#ifdef CADET_TBB_GLOBALCTRL
+		tbb::global_control tbbGlobalControl(tbb::global_control::max_allowed_parallelism, (nThreads <= 0) ? tbb::this_task_arena::max_concurrency() : nThreads);
+	#else
+		if (nThreads <= 0)
+			nThreads = tbb::task_scheduler_init::automatic;
 
-	tbb::task_scheduler_init taskSchedulerInit(nThreads);
+		tbb::task_scheduler_init taskSchedulerInit(nThreads);
+	#endif
 #endif
 
 	// Run tests
