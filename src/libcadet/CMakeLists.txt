@@ -1,5 +1,5 @@
 # =============================================================================
-#  CADET - The Chromatography Analysis and Design Toolkit
+#  CADET
 #  
 #  Copyright © 2008-2020: The CADET Authors
 #            Please see the AUTHORS and CONTRIBUTORS file.
@@ -26,7 +26,7 @@ write_compiler_detection_header(
 	FEATURES cxx_noexcept cxx_user_literals cxx_constexpr cxx_variadic_templates
 	PROLOG "\
 // =============================================================================\n\
-//  CADET - The Chromatography Analysis and Design Toolkit\n\
+//  CADET\n\
 //  \n\
 //  Copyright © 2008-2020: The CADET Authors\n\
 //            Please see the AUTHORS and CONTRIBUTORS file.\n\

@@ -686,7 +686,7 @@ classdef ResultsHelper
 end
 
 % =============================================================================
-%  CADET - The Chromatography Analysis and Design Toolkit
+%  CADET
 %  
 %  Copyright (C) 2008-2020: The CADET Authors
 %            Please see the AUTHORS and CONTRIBUTORS file.

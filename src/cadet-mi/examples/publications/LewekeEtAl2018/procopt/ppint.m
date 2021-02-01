@@ -41,7 +41,7 @@ function pp = ppint(pp, c)
 end
 
 % =============================================================================
-%  CADET - The Chromatography Analysis and Design Toolkit
+%  CADET
 %  
 %  Copyright (C) 2008-2016: The CADET Authors
 %            Please see the AUTHORS and CONTRIBUTORS file.
