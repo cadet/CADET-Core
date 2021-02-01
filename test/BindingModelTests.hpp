@@ -131,10 +131,11 @@ namespace binding
 	 * @param [in] isKinetic Determines whether kinetic or quasi-stationary binding mode is applied
 	 * @param [in] config JSON string with binding model parameters
 	 * @param [in] point Liquid phase and solid phase values to check Jacobian at
+	 * @param [in] skipStructureTest Determines whether the structural test using finite differences is skipped
 	 * @param [in] absTol Absolute error tolerance
 	 * @param [in] relTol Relative error tolerance
 	 */
-	void testJacobianAD(const char* modelName, unsigned int nComp, unsigned int const* nBound, bool isKinetic, const char* config, double const* point, double absTol = 0.0, double relTol = std::numeric_limits<float>::epsilon() * 100.0);
+	void testJacobianAD(const char* modelName, unsigned int nComp, unsigned int const* nBound, bool isKinetic, const char* config, double const* point, bool skipStructureTest = false, double absTol = 0.0, double relTol = std::numeric_limits<float>::epsilon() * 100.0);
 
 	/**
 	 * @brief Checks residual and analytic Jacobian of normal model variant against externally dependent ones
