@@ -391,10 +391,17 @@ bool GeneralRateModel::configureModelDiscretization(IParameterProvider& paramPro
 			const std::vector<double> surfDiff = paramProvider.getDoubleArray("PAR_SURFDIFFUSION");
 			for (unsigned int i = 0; i < _disc.nParType; ++i)
 			{
+				// Assume particle surface diffusion if a parameter dependence is present
+				if (_parDepSurfDiffusion[i])
+				{
+					_hasSurfaceDiffusion[i] = true;
+					continue;
+				}
+
 				double const* const lsd = surfDiff.data() + _disc.nBoundBeforeType[i];
 
 				// Check surface diffusion coefficients of each particle type
-				for (unsigned int j = 0; j < _disc.nBound[i]; ++j)
+				for (unsigned int j = 0; j < _disc.strideBound[i]; ++j)
 				{
 					if (lsd[j] != 0.0)
 					{
