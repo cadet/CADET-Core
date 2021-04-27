@@ -159,6 +159,8 @@ public:
 	{% endfor %}
 {% endif %}
 
+	inline char const* prefixInConfiguration() const CADET_NOEXCEPT { return ""; }
+
 protected:
 	inline bool validateConfig(unsigned int nReactions, unsigned int nComp, unsigned int const* nBoundStates);
 
@@ -383,6 +385,8 @@ public:
 		{% endif %}
 	{% endfor %}
 {% endif %}
+
+	inline char const* prefixInConfiguration() const CADET_NOEXCEPT { return "EXT_"; }
 
 protected:
 	inline bool validateConfig(unsigned int nReactions, unsigned int nComp, unsigned int const* nBoundStates);
