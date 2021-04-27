@@ -501,6 +501,12 @@ public:
 	 */
 	inline std::size_t size() const CADET_NOEXCEPT { return 1; }
 
+	inline const active& getC() const CADET_NOEXCEPT { return *_refC; }
+	inline active& getC() CADET_NOEXCEPT { return *_refC; }
+
+	inline const active& getQ() const CADET_NOEXCEPT { return *_refQ; }
+	inline active& getQ() CADET_NOEXCEPT { return *_refQ; }
+
 protected:
 	active* _refC; //!< Reference liquid phase concentration
 	active* _refQ; //!< Reference solid phase concentration
