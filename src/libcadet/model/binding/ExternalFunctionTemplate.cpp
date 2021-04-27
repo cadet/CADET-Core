@@ -86,14 +86,18 @@ public:
 	inline bool configure(IParameterProvider& paramProvider, unsigned int nComp, unsigned int const* nBoundStates)
 	{
 {% for p in parameters %}
+	{% if not existsIn(p, "skipConfig") %}
 		_{{ p/varName }}.configure("{{ p/confName }}", paramProvider, nComp, nBoundStates);
+	{% endif %}
 {% endfor %}
 {% if exists("constantParameters") %}
 	{% for p in constantParameters %}
-		{% if length(p/varName) > 1 %}
-			{{ p/objName }}.configure("{{ p/confPrefix }}", paramProvider, nComp, nBoundStates);
-		{% else %}
-			_{{ p/varName }}.configure("{{ p/confName }}", paramProvider, nComp, nBoundStates);
+		{% if not existsIn(p, "skipConfig") %}
+			{% if length(p/varName) > 1 %}
+				_{{ p/objName }}.configure("{{ p/confPrefix }}", paramProvider, nComp, nBoundStates);
+			{% else %}
+				_{{ p/varName }}.configure("{{ p/confName }}", paramProvider, nComp, nBoundStates);
+			{% endif %}
 		{% endif %}
 	{% endfor %}
 {% endif %}
@@ -248,14 +252,18 @@ public:
 	inline bool configure(IParameterProvider& paramProvider, unsigned int nComp, unsigned int const* nBoundStates)
 	{
 {% for p in parameters %}
+	{% if not existsIn(p, "skipConfig") %}
 		_{{ p/varName }}.configure("{{ p/confName }}", paramProvider, nComp, nBoundStates);
+	{% endif %}
 {% endfor %}
 {% if exists("constantParameters") %}
 	{% for p in constantParameters %}
-		{% if length(p/varName) > 1 %}
-			{{ p/objName }}.configure("{{ p/confPrefix }}", paramProvider, nComp, nBoundStates);
-		{% else %}
-			_{{ p/varName }}.configure("{{ p/confName }}", paramProvider, nComp, nBoundStates);
+		{% if not existsIn(p, "skipConfig") %}
+			{% if length(p/varName) > 1 %}
+				_{{ p/objName }}.configure("{{ p/confPrefix }}", paramProvider, nComp, nBoundStates);
+			{% else %}
+				_{{ p/varName }}.configure("{{ p/confName }}", paramProvider, nComp, nBoundStates);
+			{% endif %}
 		{% endif %}
 	{% endfor %}
 {% endif %}
