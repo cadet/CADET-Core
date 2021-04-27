@@ -49,7 +49,7 @@
 		],
 	"constantParameters":
 		[
-			{ "type": "ReferenceConcentrationParameter", "varName": ["refC0", "refQ"], "objName": "_refConcentration", "confPrefix": "GIEX_"}
+			{ "type": "ReferenceConcentrationParameter", "varName": ["refC0", "refQ"], "objName": "refConcentration", "confPrefix": "GIEX_"}
 		]
 }
 </codegen>*/

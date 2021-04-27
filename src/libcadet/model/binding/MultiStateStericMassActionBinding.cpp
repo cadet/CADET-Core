@@ -40,7 +40,7 @@
 		],
 	"constantParameters":
 		[
-			{ "type": "ReferenceConcentrationParameter", "varName": ["refC0", "refQ"], "objName": "_refConcentration", "confPrefix": "MSSMA_"}
+			{ "type": "ReferenceConcentrationParameter", "varName": ["refC0", "refQ"], "objName": "refConcentration", "confPrefix": "MSSMA_"}
 		]
 }
 </codegen>*/
