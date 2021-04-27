@@ -39,7 +39,7 @@
 		],
 	"constantParameters":
 		[
-			{ "type": "ReferenceConcentrationBoundStateDependentParameter", "varName": ["refC0", "refQ"], "objName": "_refConcentration", "confPrefix": "BISMA_"}
+			{ "type": "ReferenceConcentrationBoundStateDependentParameter", "varName": ["refC0", "refQ"], "objName": "refConcentration", "confPrefix": "BISMA_"}
 		]
 }
 </codegen>*/

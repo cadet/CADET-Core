@@ -74,7 +74,7 @@ public:
 		,
 	{% for p in constantParameters %}
 		{% if length(p/varName) > 1 %}
-			{{ p/objName }}({% for v in p/varName %} &_localParams.{{ v }} {% if not is_last %},{% endif %} {% endfor %})
+			_{{ p/objName }}({% for v in p/varName %} &_localParams.{{ v }} {% if not is_last %},{% endif %} {% endfor %})
 		{% else %}
 			_{{ p/varName }}(&_localParams.{{ p/varName }})
 		{% endif %}
@@ -112,7 +112,7 @@ public:
 {% if exists("constantParameters") %}
 	{% for p in constantParameters %}
 		{% if length(p/varName) > 1 %}
-			{{ p/objName }}.registerParam("{{ p/confPrefix }}", parameters, unitOpIdx, parTypeIdx, nComp, nBoundStates);
+			_{{ p/objName }}.registerParam("{{ p/confPrefix }}", parameters, unitOpIdx, parTypeIdx, nComp, nBoundStates);
 		{% else %}
 			_{{ p/varName }}.registerParam("{{ p/confName }}", parameters, unitOpIdx, parTypeIdx, nComp, nBoundStates);
 		{% endif %}
@@ -128,7 +128,7 @@ public:
 {% if exists("constantParameters") %}
 	{% for p in constantParameters %}
 		{% if length(p/varName) > 1 %}
-			{{ p/objName }}.reserve(nReactions, nComp, nBoundStates);
+			_{{ p/objName }}.reserve(nReactions, nComp, nBoundStates);
 		{% else %}
 			_{{ p/varName }}.reserve(nReactions, nComp, nBoundStates);
 		{% endif %}
@@ -155,6 +155,9 @@ public:
 		{% if length(p/varName) == 1 %}
 			inline const {{ p/type }}& {{ p/varName }}() const CADET_NOEXCEPT { return _{{ p/varName }}; }
 			inline {{ p/type }}& {{ p/varName }}() CADET_NOEXCEPT { return _{{ p/varName }}; }
+		{% else %}
+			inline const {{ p/type }}& {{ p/objName }}() const CADET_NOEXCEPT { return _{{ p/objName }}; }
+			inline {{ p/type }}& {{ p/objName }}() CADET_NOEXCEPT { return _{{ p/objName }}; }
 		{% endif %}
 	{% endfor %}
 {% endif %}
@@ -172,7 +175,7 @@ protected:
 {% if exists("constantParameters") %}
 	{% for p in constantParameters %}
 		{% if length(p/varName) > 1 %}
-			{{ p/type }} {{ p/objName }};
+			{{ p/type }} _{{ p/objName }};
 		{% else %}
 			{{ p/type }} _{{ p/varName }};
 		{% endif %}
@@ -242,7 +245,7 @@ public:
 		:
 	{% for p in constantParameters %}
 		{% if length(p/varName) > 1 %}
-			{{ p/objName }}({% for v in p/varName %} &_constParams.{{ v }} {% if not is_last %},{% endif %} {% endfor %})
+			_{{ p/objName }}({% for v in p/varName %} &_constParams.{{ v }} {% if not is_last %},{% endif %} {% endfor %})
 		{% else %}
 			_{{ p/varName }}(&_constParams.{{ p/varName }})
 		{% endif %}
@@ -281,7 +284,7 @@ public:
 {% if exists("constantParameters") %}
 	{% for p in constantParameters %}
 		{% if length(p/varName) > 1 %}
-			{{ p/objName }}.registerParam("{{ p/confPrefix }}", parameters, unitOpIdx, parTypeIdx, nComp, nBoundStates);
+			_{{ p/objName }}.registerParam("{{ p/confPrefix }}", parameters, unitOpIdx, parTypeIdx, nComp, nBoundStates);
 		{% else %}
 			_{{ p/varName }}.registerParam("{{ p/confName }}", parameters, unitOpIdx, parTypeIdx, nComp, nBoundStates);
 		{% endif %}
@@ -297,7 +300,7 @@ public:
 {% if exists("constantParameters") %}
 	{% for p in constantParameters %}
 		{% if length(p/varName) > 1 %}
-			{{ p/objName }}.reserve(nReactions, nComp, nBoundStates);
+			_{{ p/objName }}.reserve(nReactions, nComp, nBoundStates);
 		{% else %}
 			_{{ p/varName }}.reserve(nReactions, nComp, nBoundStates);
 		{% endif %}
@@ -382,6 +385,9 @@ public:
 		{% if length(p/varName) == 1 %}
 			inline const {{ p/type }}& {{ p/varName }}() const CADET_NOEXCEPT { return _{{ p/varName }}; }
 			inline {{ p/type }}& {{ p/varName }}() CADET_NOEXCEPT { return _{{ p/varName }}; }
+		{% else %}
+			inline const {{ p/type }}& {{ p/objName }}() const CADET_NOEXCEPT { return _{{ p/objName }}; }
+			inline {{ p/type }}& {{ p/objName }}() CADET_NOEXCEPT { return _{{ p/objName }}; }
 		{% endif %}
 	{% endfor %}
 {% endif %}
@@ -399,7 +405,7 @@ protected:
 {% if exists("constantParameters") %}
 	{% for p in constantParameters %}
 		{% if length(p/varName) > 1 %}
-			{{ p/type }} {{ p/objName }};
+			{{ p/type }} _{{ p/objName }};
 		{% else %}
 			{{ p/type }} _{{ p/varName }};
 		{% endif %}
