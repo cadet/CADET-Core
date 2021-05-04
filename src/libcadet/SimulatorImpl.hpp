@@ -22,7 +22,13 @@
 #include <unordered_map>
 
 #include "SundialsVector.hpp"
-#include <idas/idas_impl.h>
+
+#if CADET_SUNDIALS_IFACE <= 3
+	#include <idas/idas_impl.h>
+#elif CADET_SUNDIALS_IFACE == 5
+	#include <sundials/linearsolver.h>
+	typedef void* IDA_mem;
+#endif
 
 #include "cadet/Simulator.hpp"
 #include "AutoDiff.hpp"
@@ -279,6 +285,10 @@ protected:
 	double _lastIntTime; //!< Last simulation duration
 
 	INotificationCallback* _notification; //!< Callback handler for notifications
+
+#if CADET_SUNDIALS_IFACE == 5
+	SUNLinearSolver _linearSolver;
+#endif
 };
 
 } // namespace cadet
