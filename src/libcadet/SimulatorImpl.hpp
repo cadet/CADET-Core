@@ -229,6 +229,10 @@ protected:
 			N_Vector* yS, N_Vector* ySDot, N_Vector* resS,
 			void *userData, N_Vector tmp1, N_Vector tmp2, N_Vector tmp3);
 
+#if CADET_SUNDIALS_IFACE == 5
+	friend int linearSolverSolve(SUNLinearSolver ls, SUNMatrix, N_Vector x, N_Vector b, double tol);
+#endif
+
 	ISimulatableModel* _model; //!< Simulated model, not owned by the Simulator
 
 	ISolutionRecorder* _solRecorder;
