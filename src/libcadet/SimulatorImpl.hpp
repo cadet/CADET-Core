@@ -25,8 +25,8 @@
 
 #if CADET_SUNDIALS_IFACE <= 3
 	#include <idas/idas_impl.h>
-#elif CADET_SUNDIALS_IFACE == 5
-	#include <sundials/linearsolver.h>
+#elif CADET_SUNDIALS_IFACE >= 5
+	#include <sundials/sundials_linearsolver.h>
 	typedef void* IDA_mem;
 #endif
 
@@ -40,7 +40,12 @@ namespace cadet
 
 int residualDaeWrapper(double t, N_Vector y, N_Vector yDot, N_Vector res, void* userData);
 
-int linearSolveWrapper(IDAMem IDA_mem, N_Vector rhs, N_Vector weight, N_Vector yCur, N_Vector yDotCur, N_Vector resCur);
+#if CADET_SUNDIALS_IFACE >= 5
+	int linearSolverSolve(SUNLinearSolver ls, SUNMatrix, N_Vector x, N_Vector b, double tol);
+	int linearSolverSetScalingVectors(SUNLinearSolver ls, N_Vector weight, N_Vector);
+#else
+	int linearSolveWrapper(IDAMem IDA_mem, N_Vector rhs, N_Vector weight, N_Vector y, N_Vector yDot, N_Vector res);
+#endif
 
 int residualSensWrapper(int ns, double t, N_Vector y, N_Vector yDot, N_Vector res, 
 		N_Vector* yS, N_Vector* ySDot, N_Vector* resS,
@@ -221,16 +226,17 @@ protected:
 
 	friend int ::cadet::residualDaeWrapper(double t, N_Vector y, N_Vector yDot, N_Vector res, void* userData);
 
-	friend int ::cadet::linearSolveWrapper(IDAMem IDA_mem, N_Vector rhs, N_Vector weight, N_Vector yCur, N_Vector yDotCur, N_Vector resCur);
-
 //	friend int ::cadet::weightWrapper(N_Vector y, N_Vector ewt, void *user_data);
 
 	friend int ::cadet::residualSensWrapper(int ns, double t, N_Vector y, N_Vector yDot, N_Vector res, 
 			N_Vector* yS, N_Vector* ySDot, N_Vector* resS,
 			void *userData, N_Vector tmp1, N_Vector tmp2, N_Vector tmp3);
 
-#if CADET_SUNDIALS_IFACE == 5
-	friend int linearSolverSolve(SUNLinearSolver ls, SUNMatrix, N_Vector x, N_Vector b, double tol);
+#if CADET_SUNDIALS_IFACE >= 5
+	friend int ::cadet::linearSolverSolve(SUNLinearSolver ls, SUNMatrix, N_Vector x, N_Vector b, double tol);
+	friend int ::cadet::linearSolverSetScalingVectors(SUNLinearSolver ls, N_Vector weight, N_Vector);
+#else
+	friend int ::cadet::linearSolveWrapper(IDAMem IDA_mem, N_Vector rhs, N_Vector weight, N_Vector yCur, N_Vector yDotCur, N_Vector resCur);
 #endif
 
 	ISimulatableModel* _model; //!< Simulated model, not owned by the Simulator
@@ -290,8 +296,9 @@ protected:
 
 	INotificationCallback* _notification; //!< Callback handler for notifications
 
-#if CADET_SUNDIALS_IFACE == 5
+#if CADET_SUNDIALS_IFACE >= 5
 	SUNLinearSolver _linearSolver;
+	N_Vector _linearSolverWeight;
 #endif
 };
 

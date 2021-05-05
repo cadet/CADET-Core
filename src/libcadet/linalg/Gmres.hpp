@@ -28,7 +28,7 @@
 	typedef struct _SpgmrMemRec SpgmrMemRec;
 #elif CADET_SUNDIALS_IFACE == 3
 	typedef struct _generic_SUNLinearSolver *SUNLinearSolver;
-#elif CADET_SUNDIALS_IFACE == 5
+#elif CADET_SUNDIALS_IFACE >= 5
 	typedef struct _generic_SUNLinearSolver *SUNLinearSolver;
 #endif
 
@@ -203,7 +203,7 @@ protected:
 	SpgmrMemRec* _mem; //!< SUNDIALS memory
 #elif CADET_SUNDIALS_IFACE == 3
 	SUNLinearSolver _linearSolver; //!< SUNDIALS linear solver object
-#elif CADET_SUNDIALS_IFACE == 5
+#elif CADET_SUNDIALS_IFACE >= 5
 	SUNLinearSolver _linearSolver; //!< SUNDIALS linear solver object
 #endif
 	Orthogonalization _ortho; //!< Orthogonalization method

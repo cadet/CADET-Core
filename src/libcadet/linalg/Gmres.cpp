@@ -17,7 +17,7 @@
 	#include <sundials/sundials_spgmr.h>
 #elif CADET_SUNDIALS_IFACE == 3
 	#include <sunlinsol/sunlinsol_spgmr.h>
-#elif CADET_SUNDIALS_IFACE == 5
+#elif CADET_SUNDIALS_IFACE >= 5
 	#include <sunlinsol/sunlinsol_spgmr.h>
 #endif
 
@@ -49,7 +49,7 @@ Gmres::Gmres() CADET_NOEXCEPT :
 	_mem(nullptr),
 #elif CADET_SUNDIALS_IFACE == 3
 	_linearSolver(nullptr),
-#elif CADET_SUNDIALS_IFACE == 5
+#elif CADET_SUNDIALS_IFACE >= 5
 	_linearSolver(nullptr),
 #endif
 	_ortho(Orthogonalization::ModifiedGramSchmidt), _maxRestarts(0), _matrixSize(0), _matVecMul(nullptr), _userData(nullptr)
@@ -67,7 +67,7 @@ Gmres::~Gmres() CADET_NOEXCEPT
 #elif CADET_SUNDIALS_IFACE == 3
 	if (_linearSolver)
 		SUNLinSolFree(_linearSolver);
-#elif CADET_SUNDIALS_IFACE == 5
+#elif CADET_SUNDIALS_IFACE >= 5
 	if (_linearSolver)
 		SUNLinSolFree(_linearSolver);
 #endif
@@ -98,7 +98,7 @@ void Gmres::initialize(unsigned int matrixSize, unsigned int maxKrylov, Orthogon
 	_linearSolver = SUNSPGMR(NV_tmpl, PREC_NONE, maxKrylov);
 	SUNLinSolSetATimes(_linearSolver, this, &gmresCallback);
 	SUNLinSolInitialize_SPGMR(_linearSolver);
-#elif CADET_SUNDIALS_IFACE == 5
+#elif CADET_SUNDIALS_IFACE >= 5
 	_linearSolver = SUNLinSol_SPGMR(NV_tmpl, PREC_NONE, maxKrylov);
 	SUNLinSolSetATimes_SPGMR(_linearSolver, this, &gmresCallback);
 	SUNLinSolInitialize_SPGMR(_linearSolver);
@@ -142,7 +142,7 @@ int Gmres::solve(double tolerance, double const* weight, double const* rhs, doub
 		const int nIter = SUNLinSolNumIters(_linearSolver);
 		const double resNorm = SUNLinSolResNorm(_linearSolver);
 	#endif
-#elif CADET_SUNDIALS_IFACE == 5
+#elif CADET_SUNDIALS_IFACE >= 5
 	SUNLinSol_SPGMRSetGSType(_linearSolver, gsType);
 	SUNLinSol_SPGMRSetMaxRestarts(_linearSolver, _maxRestarts);
 	SUNLinSolSetScalingVectors(_linearSolver, NV_weight, NV_weight);
@@ -216,7 +216,7 @@ int Gmres::solve(double tolerance, double const* weight, double const* rhs, doub
 		default: return "NO_VALID_FLAG";
 		}
 	}
-#elif CADET_SUNDIALS_IFACE == 5
+#elif CADET_SUNDIALS_IFACE >= 5
 	const char* Gmres::getReturnFlagName(int flag) const CADET_NOEXCEPT
 	{
 		switch (flag)
