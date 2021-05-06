@@ -425,7 +425,7 @@ bool GeneralRateModel::configureModelDiscretization(IParameterProvider& paramPro
 	_binding = std::vector<IBindingModel*>(_disc.nParType, nullptr);
 	bool bindingConfSuccess = true;
 
-	if (paramParameter.exists("ADSORPTION_MODEL"))
+	if (paramProvider.exists("ADSORPTION_MODEL"))
 	{
 		const std::vector<std::string> bindModelNames = paramProvider.getStringArray("ADSORPTION_MODEL");
 
