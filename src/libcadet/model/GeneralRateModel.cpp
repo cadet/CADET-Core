@@ -423,102 +423,49 @@ bool GeneralRateModel::configureModelDiscretization(IParameterProvider& paramPro
 	// ==== Construct and configure binding model
 	clearBindingModels();
 	_binding = std::vector<IBindingModel*>(_disc.nParType, nullptr);
-	bool bindingConfSuccess = true;
 
-	std::vector<std::string> bindModelNames = { "NONE" };
+	std::vector<std::string> BindingNameTemp = { "NONE" };
+
+	if (!paramProvider.exists("ADSORPTION_MODEL"))
+=======
 	if (paramProvider.exists("ADSORPTION_MODEL"))
-		bindModelNames = paramProvider.getStringArray("ADSORPTION_MODEL");
+	{
+		BindingNameTemp = paramProvider.getStringArray("ADSORPTION_MODEL");
+	}
+
+	const std::vector<std::string> bindModelNames = BindingNameTemp;
 
 	if (paramProvider.exists("ADSORPTION_MODEL_MULTIPLEX"))
 		_singleBinding = (paramProvider.getInt("ADSORPTION_MODEL_MULTIPLEX") == 1);
 	else
 	{
-=======
-	if (!paramProvider.exists("ADSORPTION_MODEL"))
-	{
-		const std::vector<std::string> bindModelNames = {"NONE"};
+		// Infer multiplex mode
+		_singleBinding = (bindModelNames.size() == 1);
+	}
 
-		if (paramProvider.exists("ADSORPTION_MODEL_MULTIPLEX"))
-			_singleBinding = (paramProvider.getInt("ADSORPTION_MODEL_MULTIPLEX") == 1);
+	if (!_singleBinding && (bindModelNames.size() < _disc.nParType))
+		throw InvalidParameterException("Field ADSORPTION_MODEL contains too few elements (" + std::to_string(_disc.nParType) + " required)");
+	else if (_singleBinding && (bindModelNames.size() != 1))
+		throw InvalidParameterException("Field ADSORPTION_MODEL requires (only) 1 element");
+
+	bool bindingConfSuccess = true;
+	for (unsigned int i = 0; i < _disc.nParType; ++i)
+	{
+		if (_singleBinding && (i > 0))
+		{
+			// Reuse first binding model
+			_binding[i] = _binding[0];
+		}
 		else
 		{
-			// Infer multiplex mode
-			_singleBinding = (bindModelNames.size() == 1);
+			_binding[i] = helper.createBindingModel(bindModelNames[i]);
+			if (!_binding[i])
+				throw InvalidParameterException("Unknown binding model " + bindModelNames[i]);
+
+			MultiplexedScopeSelector scopeGuard(paramProvider, "adsorption", _singleBinding, i, _disc.nParType == 1, _binding[i]->usesParamProviderInDiscretizationConfig());
+			bindingConfSuccess = _binding[i]->configureModelDiscretization(paramProvider, _disc.nComp, _disc.nBound + i * _disc.nComp, _disc.boundOffset + i * _disc.nComp) && bindingConfSuccess;
 		}
-
-		if (!_singleBinding && (bindModelNames.size() < _disc.nParType))
-			throw InvalidParameterException("Field ADSORPTION_MODEL contains too few elements (" + std::to_string(_disc.nParType) + " required)");
-		else if (_singleBinding && (bindModelNames.size() != 1))
-			throw InvalidParameterException("Field ADSORPTION_MODEL requires (only) 1 element");
-
-		bool bindingConfSuccess = true;
-		for (unsigned int i = 0; i < _disc.nParType; ++i)
-		{
-			if (_singleBinding && (i > 0))
-			{
-				// Reuse first binding model
-				_binding[i] = _binding[0];
-			}
-			else
-			{
-				_binding[i] = helper.createBindingModel(bindModelNames[i]);
-				if (!_binding[i])
-					throw InvalidParameterException("Unknown binding model " + bindModelNames[i]);
-
-				MultiplexedScopeSelector scopeGuard(paramProvider, "adsorption", _singleBinding, i, _disc.nParType == 1, _binding[i]->usesParamProviderInDiscretizationConfig());
-				bindingConfSuccess = _binding[i]->configureModelDiscretization(paramProvider, _disc.nComp, _disc.nBound + i * _disc.nComp, _disc.boundOffset + i * _disc.nComp) && bindingConfSuccess;
-			}
-		}
-
 	}
-
-	else
-	{
->>>>>>> 1257226... Added to branch
-		const std::vector<std::string> bindModelNames = paramProvider.getStringArray("ADSORPTION_MODEL");
-
-		if (paramProvider.exists("ADSORPTION_MODEL_MULTIPLEX"))
-			_singleBinding = (paramProvider.getInt("ADSORPTION_MODEL_MULTIPLEX") == 1);
-		else
-		{
-			// Infer multiplex mode
-			_singleBinding = (bindModelNames.size() == 1);
-		}
-
-		if (!_singleBinding && (bindModelNames.size() < _disc.nParType))
-			throw InvalidParameterException("Field ADSORPTION_MODEL contains too few elements (" + std::to_string(_disc.nParType) + " required)");
-		else if (_singleBinding && (bindModelNames.size() != 1))
-			throw InvalidParameterException("Field ADSORPTION_MODEL requires (only) 1 element");
-
-		bool bindingConfSuccess = true;
-		for (unsigned int i = 0; i < _disc.nParType; ++i)
-		{
-			if (_singleBinding && (i > 0))
-			{
-				// Reuse first binding model
-				_binding[i] = _binding[0];
-			}
-			else
-			{
-				_binding[i] = helper.createBindingModel(bindModelNames[i]);
-				if (!_binding[i])
-					throw InvalidParameterException("Unknown binding model " + bindModelNames[i]);
-
-				MultiplexedScopeSelector scopeGuard(paramProvider, "adsorption", _singleBinding, i, _disc.nParType == 1, _binding[i]->usesParamProviderInDiscretizationConfig());
-				bindingConfSuccess = _binding[i]->configureModelDiscretization(paramProvider, _disc.nComp, _disc.nBound + i * _disc.nComp, _disc.boundOffset + i * _disc.nComp) && bindingConfSuccess;
-			}
-		}
-
-	}
-	else
-	{
-		_singleBinding = true;
-		_binding[0] = helper.createBindingModel("NONE");
-	}
-
-
-
-
 
 	// ==== Construct and configure dynamic reaction model
 	bool reactionConfSuccess = true;
