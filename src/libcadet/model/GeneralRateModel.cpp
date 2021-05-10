@@ -424,14 +424,13 @@ bool GeneralRateModel::configureModelDiscretization(IParameterProvider& paramPro
 	clearBindingModels();
 	_binding = std::vector<IBindingModel*>(_disc.nParType, nullptr);
 	
-	std::vector<std::string> BindingNameTemp = { "NONE" };
+	std::vector<std::string> bindModelNames = { "NONE" };
 
 	if (paramProvider.exists("ADSORPTION_MODEL"))
 	{
-		BindingNameTemp = paramProvider.getStringArray("ADSORPTION_MODEL");
+		bindModelNames = paramProvider.getStringArray("ADSORPTION_MODEL");
 	}
 
-	const std::vector<std::string> bindModelNames = BindingNameTemp;
 
 	if (paramProvider.exists("ADSORPTION_MODEL_MULTIPLEX"))
 		_singleBinding = (paramProvider.getInt("ADSORPTION_MODEL_MULTIPLEX") == 1);
