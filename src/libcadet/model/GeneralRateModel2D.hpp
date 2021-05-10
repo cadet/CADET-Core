@@ -433,7 +433,7 @@ protected:
 		virtual double const* inlet(unsigned int port, unsigned int& stride) const
 		{
 			stride = _idx.strideColComp();
-			return &_idx.c(_data, 0, port, 0);
+			return _data + port * _disc.nComp;
 		}
 		virtual double const* outlet(unsigned int port, unsigned int& stride) const
 		{
