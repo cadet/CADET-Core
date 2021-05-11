@@ -261,8 +261,16 @@ bool LumpedRateModelWithPores::configureModelDiscretization(IParameterProvider& 
 	_binding = std::vector<IBindingModel*>(_disc.nParType, nullptr);
 
 	std::vector<std::string> bindModelNames = { "NONE" };
+<<<<<<< HEAD
 	if (paramProvider.exists("ADSORPTION_MODEL"))
 		bindModelNames = paramProvider.getStringArray("ADSORPTION_MODEL");
+=======
+
+	if (paramProvider.exists("ADSORPTION_MODEL"))
+	{
+		bindModelNames = paramProvider.getStringArray("ADSORPTION_MODEL");
+	}
+>>>>>>> 93268e7... Adding NO_ADSOPRTION as default option in 2D GRM, LRMwP and LRmwoP
 
 	if (paramProvider.exists("ADSORPTION_MODEL_MULTIPLEX"))
 		_singleBinding = (paramProvider.getInt("ADSORPTION_MODEL_MULTIPLEX") == 1);

@@ -199,11 +199,22 @@ bool LumpedRateModelWithoutPores::configureModelDiscretization(IParameterProvide
 	clearBindingModels();
 	_binding.push_back(nullptr);
 
+<<<<<<< HEAD
 	if (paramProvider.exists("ADSORPTION_MODEL"))
 		_binding[0] = helper.createBindingModel(paramProvider.getString("ADSORPTION_MODEL"));
 	else
 		_binding[0] = helper.createBindingModel("NONE");
 
+=======
+	_binding[0] = helper.createBindingModel("NONE");
+
+	if (paramProvider.exists("ADSORPTION_MODEL"))
+	{
+		_binding[0] = helper.createBindingModel(paramProvider.getString("ADSORPTION_MODEL"));
+	}
+
+	
+>>>>>>> 93268e7... Adding NO_ADSOPRTION as default option in 2D GRM, LRMwP and LRmwoP
 	if (!_binding[0])
 		throw InvalidParameterException("Unknown binding model " + paramProvider.getString("ADSORPTION_MODEL"));
 
