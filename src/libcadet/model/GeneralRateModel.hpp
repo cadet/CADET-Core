@@ -458,10 +458,10 @@ protected:
 		virtual double const* outlet(unsigned int port, unsigned int& stride) const
 		{
 			stride = _idx.strideColComp();
-            if (_model._convDispOp.currentVelocity() > 0)
-                return &_idx.c(_data, _disc.nCol - 1, 0);
-            else
-                return &_idx.c(_data, 0, 0);
+			if (_model._convDispOp.currentVelocity() > 0)
+				return &_idx.c(_data, _disc.nCol - 1, 0);
+			else
+				return &_idx.c(_data, 0, 0);
 		}
 
 		virtual StateOrdering const* concentrationOrdering(unsigned int& len) const
