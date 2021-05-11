@@ -200,6 +200,7 @@ bool LumpedRateModelWithoutPores::configureModelDiscretization(IParameterProvide
 	_binding.push_back(nullptr);
 
 <<<<<<< HEAD
+<<<<<<< HEAD
 	if (paramProvider.exists("ADSORPTION_MODEL"))
 		_binding[0] = helper.createBindingModel(paramProvider.getString("ADSORPTION_MODEL"));
 	else
@@ -208,11 +209,16 @@ bool LumpedRateModelWithoutPores::configureModelDiscretization(IParameterProvide
 =======
 	_binding[0] = helper.createBindingModel("NONE");
 
+=======
+>>>>>>> 1a12ca6... Remove the white space in GRM.cpp and added the NONE adsoprtion in else statement in LRMwoP.cpp
 	if (paramProvider.exists("ADSORPTION_MODEL"))
 	{
 		_binding[0] = helper.createBindingModel(paramProvider.getString("ADSORPTION_MODEL"));
 	}
-
+	else
+	{
+		_binding[0] = helper.createBindingModel("NONE");
+	}
 	
 >>>>>>> 93268e7... Adding NO_ADSOPRTION as default option in 2D GRM, LRMwP and LRmwoP
 	if (!_binding[0])
