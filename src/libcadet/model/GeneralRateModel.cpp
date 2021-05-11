@@ -463,7 +463,10 @@ bool GeneralRateModel::configureModelDiscretization(IParameterProvider& paramPro
 			bindingConfSuccess = _binding[i]->configureModelDiscretization(paramProvider, _disc.nComp, _disc.nBound + i * _disc.nComp, _disc.boundOffset + i * _disc.nComp) && bindingConfSuccess;
 		}
 	}
+<<<<<<< HEAD
 
+=======
+>>>>>>> 4167147... White space deleted from GRM.cpp
 	// ==== Construct and configure dynamic reaction model
 	bool reactionConfSuccess = true;
 
