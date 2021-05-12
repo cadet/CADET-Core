@@ -199,7 +199,11 @@ bool LumpedRateModelWithoutPores::configureModelDiscretization(IParameterProvide
 	clearBindingModels();
 	_binding.push_back(nullptr);
 
-	_binding[0] = helper.createBindingModel(paramProvider.getString("ADSORPTION_MODEL"));
+	if (paramProvider.exists("ADSORPTION_MODEL"))
+		_binding[0] = helper.createBindingModel(paramProvider.getString("ADSORPTION_MODEL"));
+	else
+		_binding[0] = helper.createBindingModel("NONE");
+
 	if (!_binding[0])
 		throw InvalidParameterException("Unknown binding model " + paramProvider.getString("ADSORPTION_MODEL"));
 
