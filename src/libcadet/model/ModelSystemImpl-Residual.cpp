@@ -108,14 +108,12 @@ void ModelSystem::notifyDiscontinuousSectionTransition(double t, unsigned int se
 			_curSwitchIndex = 0;
 	}
 
-	if ((0 == secIdx) || (prevSwitch != _curSwitchIndex))
+	const bool switchOccurred = (0 == secIdx) || (prevSwitch != _curSwitchIndex);
+	if (switchOccurred)
 	{
 		// A switch has occurred -> Compute flow rate coefficients
 		_switchStartTime = t;
 		calcUnitFlowRateCoefficients();
-
-		if (cadet_likely(!_hasDynamicFlowRates))
-			assembleBottomMacroRow(t);
 	}
 
 	// Notify models that a discontinuous section transition has happened
@@ -126,6 +124,12 @@ void ModelSystem::notifyDiscontinuousSectionTransition(double t, unsigned int se
 		updateModelFlowRates(t, i);
 		_models[i]->setFlowRates(_flowRateIn[i], _flowRateOut[i]);
 		_models[i]->notifyDiscontinuousSectionTransition(t, secIdx, simState, applyOffset(adJac, offset));
+	}
+
+	if (cadet_likely(switchOccurred && !_hasDynamicFlowRates))
+	{
+		// Update bottom macro row *after* models have changed their flow directions due to updating their internal velocities
+		assembleBottomMacroRow(t);
 	}
 
 #ifdef CADET_DEBUG
