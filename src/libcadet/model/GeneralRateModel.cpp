@@ -423,12 +423,10 @@ bool GeneralRateModel::configureModelDiscretization(IParameterProvider& paramPro
 	// ==== Construct and configure binding model
 	clearBindingModels();
 	_binding = std::vector<IBindingModel*>(_disc.nParType, nullptr);
-	std::vector<std::string> bindModelNames = { "NONE" };
 
+	std::vector<std::string> bindModelNames = { "NONE" };
 	if (paramProvider.exists("ADSORPTION_MODEL"))
-	{
 		bindModelNames = paramProvider.getStringArray("ADSORPTION_MODEL");
-	}
 
 	if (paramProvider.exists("ADSORPTION_MODEL_MULTIPLEX"))
 		_singleBinding = (paramProvider.getInt("ADSORPTION_MODEL_MULTIPLEX") == 1);
@@ -461,6 +459,7 @@ bool GeneralRateModel::configureModelDiscretization(IParameterProvider& paramPro
 			bindingConfSuccess = _binding[i]->configureModelDiscretization(paramProvider, _disc.nComp, _disc.nBound + i * _disc.nComp, _disc.boundOffset + i * _disc.nComp) && bindingConfSuccess;
 		}
 	}
+
 	// ==== Construct and configure dynamic reaction model
 	bool reactionConfSuccess = true;
 
