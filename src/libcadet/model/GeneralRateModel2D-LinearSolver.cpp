@@ -27,7 +27,7 @@
 
 #ifdef CADET_PARALLELIZE
 	#include <tbb/parallel_for.h>
-    #include <tbb/flow_graph.h>
+	#include <tbb/flow_graph.h>
 
 	typedef tbb::flow::continue_node< tbb::flow::continue_msg > node_t;
 	typedef const tbb::flow::continue_msg & msg_t;
