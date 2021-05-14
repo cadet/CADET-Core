@@ -25,7 +25,8 @@
 #include "ParallelSupport.hpp"
 
 #ifdef CADET_PARALLELIZE
-	#include <tbb/tbb.h>
+	#include <tbb/parallel_for.h>
+    #include <tbb/flow_graph.h>
 
 	typedef tbb::flow::continue_node< tbb::flow::continue_msg > node_t;
 	typedef const tbb::flow::continue_msg & msg_t;
@@ -170,7 +171,7 @@ int LumpedRateModelWithPores::linearSolve(double t, double alpha, double outerTo
 
 	// rhs is passed twice but due to the values in jacA the writes happen to a different area of the rhs than the reads.
 #ifdef CADET_PARALLELIZE
-	node_t C(g, [&](msg_t) 
+	node_t C(g, [&](msg_t)
 #endif
 	{
 		_jacInlet.multiplySubtract(rhs, rhs + idxr.offsetC());
@@ -216,7 +217,7 @@ int LumpedRateModelWithPores::linearSolve(double t, double alpha, double outerTo
 	// matrix-vector multiplications are added in-place to rhs. We would need one copy of rhs
 	// for each thread and later fuse them together (reduction statement).
 #ifdef CADET_PARALLELIZE
-	node_t F(g, [&](msg_t) 
+	node_t F(g, [&](msg_t)
 #endif
 	{
 		_jacFC.multiplySubtract(rhs + idxr.offsetC(), rhs + idxr.offsetJf());
@@ -258,7 +259,7 @@ int LumpedRateModelWithPores::linearSolve(double t, double alpha, double outerTo
 	// Threads that are done with solving the bulk column blocks can proceed
 	// to solving the particle blocks
 #ifdef CADET_PARALLELIZE
-	node_t G(g, [&](msg_t) 
+	node_t G(g, [&](msg_t)
 #endif
 	{
 		double* const localCol = _tempState + idxr.offsetC();
@@ -277,7 +278,7 @@ int LumpedRateModelWithPores::linearSolve(double t, double alpha, double outerTo
 	} CADET_PARNODE_END;
 
 #ifdef CADET_PARALLELIZE
-	node_t H(g, [&](msg_t) 
+	node_t H(g, [&](msg_t)
 #endif
 	{
 #ifdef CADET_PARALLELIZE
@@ -377,7 +378,7 @@ int LumpedRateModelWithPores::schurComplementMatrixVector(double const* x, doubl
 	_jacCF.multiplyAdd(x, _tempState + idxr.offsetC());
 
 #ifdef CADET_PARALLELIZE
-	node_t A(g, [&](msg_t) 
+	node_t A(g, [&](msg_t)
 #endif
 	{
 		// Apply J_0^{-1}
@@ -414,7 +415,7 @@ int LumpedRateModelWithPores::schurComplementMatrixVector(double const* x, doubl
 	} CADET_PARNODE_END;
 
 #ifdef CADET_PARALLELIZE
-	node_t C(g, [&](msg_t) 
+	node_t C(g, [&](msg_t)
 #endif
 	{
 		// Apply J_{f,0} and subtract results from z

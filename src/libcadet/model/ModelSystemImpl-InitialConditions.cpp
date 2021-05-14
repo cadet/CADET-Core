@@ -23,7 +23,7 @@
 
 #include "ParallelSupport.hpp"
 #ifdef CADET_PARALLELIZE
-	#include <tbb/tbb.h>
+	#include <tbb/parallel_for.h>
 #endif
 
 #include "model/ModelSystemImpl-Helper.hpp"
@@ -100,7 +100,7 @@ int ModelSystem::dResDpFwdWithJacobian(const SimulationTime& simTime, const Cons
 {
 	BENCH_SCOPE(_timerResidualSens);
 
-	// Evaluate residual for all parameters using AD in vector mode and at the same time update the 
+	// Evaluate residual for all parameters using AD in vector mode and at the same time update the
 	// Jacobian (in one AD run, if analytic Jacobians are disabled)
 #ifdef CADET_PARALLELIZE
 	tbb::parallel_for(size_t(0), _models.size(), [&](size_t i)
@@ -211,7 +211,7 @@ void ModelSystem::solveCouplingDOF(double* const vec)
 		const unsigned int offset = _dofOffset[i];
 		if (!m->hasInlet())
 			continue;
-		
+
 		for (unsigned int port = 0; port < m->numInletPorts(); ++port)
 		{
 			const unsigned int localIndex = m->localInletComponentIndex(port);
@@ -544,22 +544,22 @@ void ModelSystem::consistentInitialConditionAlgorithm(const SimulationTime& simT
 	// genJacobian(simTime, vecStateY, vecStateYdot);
 }
 
-void ModelSystem::consistentInitialConditions(const SimulationTime& simTime, const SimulationState& simState, 
+void ModelSystem::consistentInitialConditions(const SimulationTime& simTime, const SimulationState& simState,
 	const AdJacobianParams& adJac, double errorTol)
 {
 	consistentInitialConditionAlgorithm<FullTag>(simTime, simState, adJac, errorTol);
 }
 
-void ModelSystem::consistentInitialSensitivity(const SimulationTime& simTime, 
-	const ConstSimulationState& simState, std::vector<double*>& vecSensY, 
+void ModelSystem::consistentInitialSensitivity(const SimulationTime& simTime,
+	const ConstSimulationState& simState, std::vector<double*>& vecSensY,
 	std::vector<double*>& vecSensYdot, active* const adRes, active* const adY)
 {
 	consistentInitialSensitivityAlgorithm<FullTag>(simTime, simState, vecSensY, vecSensYdot, adRes, adY);
 }
 
 template <typename tag_t>
-void ModelSystem::consistentInitialSensitivityAlgorithm(const SimulationTime& simTime, 
-	const ConstSimulationState& simState, std::vector<double*>& vecSensY, 
+void ModelSystem::consistentInitialSensitivityAlgorithm(const SimulationTime& simTime,
+	const ConstSimulationState& simState, std::vector<double*>& vecSensY,
 	std::vector<double*>& vecSensYdot, active* const adRes, active* const adY)
 {
 	BENCH_SCOPE(_timerConsistentInit);
@@ -617,7 +617,7 @@ void ModelSystem::consistentInitialSensitivityAlgorithm(const SimulationTime& si
 			ConsistentInit<tag_t>::parameterSensitivity(m, simTime, applyOffset(simState, offset), vecSensYlocal, vecSensYdotLocal, adRes + offset, _threadLocalStorage);
 		}
 	}
-		
+
 	for (unsigned int i = 0; i < vecSensY.size(); ++i)
 	{
 		double* const vsyd = vecSensYdot[i];
@@ -643,7 +643,7 @@ void ModelSystem::consistentInitialSensitivityAlgorithm(const SimulationTime& si
 			// -(d^2 res_con / (dy dp)) * \dot{y} - (d^2 res_con / (dt dy)) * s - (d^2 res_con / (dt dp))
 			// We already have the first term and need the remaining two
 			// -(d^2 res_con / (dt dy)) * s - (d^2 res_con / (dt dp))
-			
+
 			subtractDresConDt(simTime.t, vsyd + finalOffset, vecSensY[i]);
 			subtractDresConDtDp(simTime.t, i, vsyd + finalOffset, simState.vecStateY);
 		}
@@ -652,7 +652,7 @@ void ModelSystem::consistentInitialSensitivityAlgorithm(const SimulationTime& si
 	}
 }
 
-void ModelSystem::leanConsistentInitialConditions(const SimulationTime& simTime, const SimulationState& simState, 
+void ModelSystem::leanConsistentInitialConditions(const SimulationTime& simTime, const SimulationState& simState,
 	const AdJacobianParams& adJac, double errorTol)
 {
 	consistentInitialConditionAlgorithm<LeanTag>(simTime, simState, adJac, errorTol);

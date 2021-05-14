@@ -1,9 +1,9 @@
 // =============================================================================
 //  CADET
-//  
+//
 //  Copyright © 2008-2021: The CADET Authors
 //            Please see the AUTHORS and CONTRIBUTORS file.
-//  
+//
 //  All rights reserved. This program and the accompanying materials
 //  are made available under the terms of the GNU Public License v3.0 (or, at
 //  your option, any later version) which accompanies this distribution, and
@@ -118,7 +118,7 @@ bool SimplifiedMultiStateStericMassActionBinding::configureImpl(IParameterProvid
 	{
 		if (_nBoundStates[i] == 0)
 			continue;
-		
+
 		// ---- Check sigma
 		// Endpoints have to be non-negative
 		if ((_sigmaMin[i] < 0.0) || (_sigmaMax[i] < 0.0))
@@ -257,8 +257,8 @@ int SimplifiedMultiStateStericMassActionBinding::fluxImpl(double t, unsigned int
 	using CpStateParamType = typename DoubleActivePromoter<CpStateType, ParamType>::type;
 	using StateParamType = typename DoubleActivePromoter<StateType, ParamType>::type;
 
-	// Salt equation: q_0 - Lambda + Sum[Sum[nu_i^j * q_i^j, j], i] == 0 
-	//           <=>  q_0 == Lambda - Sum[Sum[nu_i^j * q_i^j, j], i] 
+	// Salt equation: q_0 - Lambda + Sum[Sum[nu_i^j * q_i^j, j], i] == 0
+	//           <=>  q_0 == Lambda - Sum[Sum[nu_i^j * q_i^j, j], i]
 	// Also compute \bar{q}_0 = q_0 - Sum[Sum[sigma_i^j * q_i^j, j], i]
 	res[0] = static_cast<ParamType>(_nu0) * y[0] - static_cast<ParamType>(_lambda);
 	StateParamType q0_bar = static_cast<ParamType>(_nu0) * y[0];
@@ -471,14 +471,14 @@ void SimplifiedMultiStateStericMassActionBinding::jacobianImpl(double t, unsigne
 			++bndIdx;
 			++jac;
 		}
-	}	
+	}
 }
 
 bool SimplifiedMultiStateStericMassActionBinding::preConsistentInitialState(double t, unsigned int secIdx, const ColumnPosition& colPos, double* y, double const* yCp, LinearBufferAllocator workSpace) const
 {
 	// Compute salt component from given bound states q_i^j
 
-	// Salt equation: nu_0 * q_0 - Lambda + Sum[Sum[nu_i^j * q_i^j, j], i] == 0 
+	// Salt equation: nu_0 * q_0 - Lambda + Sum[Sum[nu_i^j * q_i^j, j], i] == 0
 	//           <=>  q_0 == (Lambda - Sum[Sum[nu_i^j * q_i^j, j], i]) / nu_0
 	y[0] = static_cast<double>(_lambda);
 
