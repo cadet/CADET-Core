@@ -1,9 +1,9 @@
 // =============================================================================
 //  CADET
-//  
+//
 //  Copyright © 2008-2021: The CADET Authors
 //            Please see the AUTHORS and CONTRIBUTORS file.
-//  
+//
 //  All rights reserved. This program and the accompanying materials
 //  are made available under the terms of the GNU Public License v3.0 (or, at
 //  your option, any later version) which accompanies this distribution, and
@@ -11,7 +11,7 @@
 // =============================================================================
 
 /**
- * @file 
+ * @file
  * Defines a ParameterProvider that uses JSON.
  */
 
@@ -24,13 +24,7 @@
 #include <string>
 #include <stack>
 #include <ostream>
-
-#ifndef CADET_JSONPARAMETERPROVIDER_NOFORWARD
-	namespace nlohmann
-	{
-		class json;
-	}
-#endif
+#include <json.hpp>
 
 namespace cadet
 {
