@@ -1,9 +1,9 @@
 // =============================================================================
 //  CADET
-//  
+//
 //  Copyright © 2008-2021: The CADET Authors
 //            Please see the AUTHORS and CONTRIBUTORS file.
-//  
+//
 //  All rights reserved. This program and the accompanying materials
 //  are made available under the terms of the GNU Public License v3.0 (or, at
 //  your option, any later version) which accompanies this distribution, and
@@ -11,7 +11,7 @@
 // =============================================================================
 
 /**
- * @file 
+ * @file
  * Provides parameter classes.
  */
 
@@ -24,6 +24,7 @@
 #include "AutoDiff.hpp"
 #include "SlicedVector.hpp"
 #include "ParamReaderHelper.hpp"
+#include "model/binding/RefConcentrationSupport.hpp"
 
 #include <vector>
 #include <string>
@@ -34,11 +35,6 @@
 namespace cadet
 {
 
-template <typename ValType>
-inline void readReferenceConcentrations(IParameterProvider& paramProvider, unsigned int numRefConc, const std::string& prefix, std::vector<ValType>& refC0, std::vector<ValType>& refQ);
-
-template <typename ValType>
-inline void readReferenceConcentrations(IParameterProvider& paramProvider, const std::string& prefix, ValType& refC0, ValType& refQ);
 
 namespace model
 {
@@ -704,7 +700,7 @@ public:
 	 *          is stored in the struct. Memory for the content of the container (i.e., the
 	 *          elements) is still required. This function computes this amount of additional
 	 *          memory.
-	 * 
+	 *
 	 * @param [in] nComp Number of components
 	 * @param [in] totalNumBoundStates Total number of bound states
 	 * @param [in] nBoundStates Array with number of bound states for each component
