@@ -19,7 +19,7 @@
 
 #include "ParallelSupport.hpp"
 #ifdef CADET_PARALLELIZE
-	#include <tbb/tbb.h>
+	#include <tbb/parallel_for.h>
 #endif
 
 #include "model/ModelSystemImpl-Helper.hpp"
@@ -147,13 +147,13 @@ int ModelSystem::linearSolveParallel(double t, double alpha, double outerTol, do
 
 	// The network version of the schurCompletmentMatrixVector function need access to more information than the current interface
 	// Instead of changing the interface a lambda function is used and closed over the additional variables
-	auto schurComplementMatrixVectorPartial = [&, this](void* userData, double const* x, double* z) -> int 
+	auto schurComplementMatrixVectorPartial = [&, this](void* userData, double const* x, double* z) -> int
 	{
 		return ModelSystem::schurComplementMatrixVector(x, z, t, alpha, outerTol, weight, simState);
 	};
 
 	_gmres.matrixVectorMultiplier(schurComplementMatrixVectorPartial);
-	
+
 	// Reset error indicator as it is used in schurComplementMatrixVector()
 	const int curError = totalErrorIndicatorFromLocal(_errorIndicator);
 	std::fill(_errorIndicator.begin(), _errorIndicator.end(), 0);
@@ -255,7 +255,7 @@ int ModelSystem::schurComplementMatrixVector(double const* x, double* z, double 
 
 /**
  * @brief Multiplies a vector with the full Jacobian of the entire system (i.e., @f$ \frac{\partial F}{\partial y}\left(t, y, \dot{y}\right) @f$)
- * @details Actually, the operation @f$ z = \alpha \frac{\partial F}{\partial y} x + \beta z @f$ is performed. 
+ * @details Actually, the operation @f$ z = \alpha \frac{\partial F}{\partial y} x + \beta z @f$ is performed.
  * @param [in] simTime Current simulation time point
  * @param [in] simState Simulation state vectors
  * @param [in] yS Vector @f$ x @f$ that is transformed by the Jacobian @f$ \frac{\partial F}{\partial y} @f$
@@ -276,7 +276,7 @@ void ModelSystem::multiplyWithJacobian(const SimulationTime& simTime, const Cons
 
 /**
  * @brief Multiplies a vector with the full time derivative Jacobian of the entire system (i.e., @f$ \frac{\partial F}{\partial \dot{y}}\left(t, y, \dot{y}\right) @f$)
- * @details The operation @f$ z = \frac{\partial F}{\partial \dot{y}} x @f$ is performed. 
+ * @details The operation @f$ z = \frac{\partial F}{\partial \dot{y}} x @f$ is performed.
  * @param [in] simTime Current simulation time point
  * @param [in] simState Simulation state vectors
  * @param [in] yS Vector @f$ x @f$ that is transformed by the Jacobian @f$ \frac{\partial F}{\partial \dot{y}} @f$
@@ -332,7 +332,7 @@ void ModelSystem::multiplyWithDerivativeJacobian(const SimulationTime& simTime, 
 			// Clear res and resh
 			std::fill(res.begin(), res.end(), 0.0);
 			std::fill(resh.begin(), resh.end(), 0.0);
-			
+
 			// Copy y and yDot
 			std::copy_n(simState.vecStateY, size, &f[0]);
 			std::copy_n(simState.vecStateY, size, &fh[0]);
@@ -356,7 +356,7 @@ void ModelSystem::multiplyWithDerivativeJacobian(const SimulationTime& simTime, 
 				jacobianFD[i*size + j] = (resh[j] - res[j]) / stepSize;
 			}
 		}
-		
+
 		// create JacobianDot
 		for (unsigned int i = 0; i < size; ++i)
 		{
@@ -499,7 +499,7 @@ void ModelSystem::multiplyWithDerivativeJacobian(const SimulationTime& simTime, 
 			CySph[j] = ySph[j];
 			CySdotph[j] = ySdotph[j];
 		}
-		
+
 		// create Jacobian
 		for (unsigned int i = 0; i < size; ++i)
 		{
@@ -520,7 +520,7 @@ void ModelSystem::multiplyWithDerivativeJacobian(const SimulationTime& simTime, 
 			// tmp3
 			std::copy_n(tmp3, size, &tmp3mh[0]);
 			std::copy_n(tmp3, size, &tmp3ph[0]);
-			
+
 			// Clear sync up
 			for (unsigned int j = 0; j < nSens; ++j)
 			{
@@ -644,7 +644,7 @@ void ModelSystem::multiplyWithDerivativeJacobian(const SimulationTime& simTime, 
 			}
 		}
 
-		// Free memory 
+		// Free memory
 
 		for (unsigned int j = 0; j < nSens; ++j)
 		{

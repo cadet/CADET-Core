@@ -21,7 +21,7 @@
 
 #include "ParallelSupport.hpp"
 #ifdef CADET_PARALLELIZE
-	#include <tbb/tbb.h>
+	#include <tbb/parallel_for.h>
 #endif
 
 #include "model/ModelSystemImpl-Helper.hpp"
@@ -63,7 +63,7 @@ namespace
 	template <>
 	struct ResidualSensCaller<true>
 	{
-		static inline int call(cadet::IUnitOperation* model, const cadet::SimulationTime& simTime, 
+		static inline int call(cadet::IUnitOperation* model, const cadet::SimulationTime& simTime,
 			const cadet::ConstSimulationState& simState, const cadet::AdJacobianParams& adJac, cadet::util::ThreadLocalStorage& threadLocalMem)
 		{
 			return model->residualSensFwdWithJacobian(simTime, simState, adJac, threadLocalMem);
@@ -73,7 +73,7 @@ namespace
 	template <>
 	struct ResidualSensCaller<false>
 	{
-		static inline int call(cadet::IUnitOperation* model, const cadet::SimulationTime& simTime, 
+		static inline int call(cadet::IUnitOperation* model, const cadet::SimulationTime& simTime,
 			const cadet::ConstSimulationState& simState, const cadet::AdJacobianParams& adJac, cadet::util::ThreadLocalStorage& threadLocalMem)
 		{
 			return model->residualSensFwdAdOnly(simTime, simState, adJac.adRes, threadLocalMem);
@@ -333,7 +333,7 @@ void ModelSystem::assembleRightMacroColumn()
 	for (unsigned int i = 0; i < numModels(); ++i)
 	{
 		IUnitOperation const* const model = _models[i];
-		
+
 		// Only items with an inlet have non-zero entries in the NF matrices
 		if (model->hasInlet())
 		{
@@ -411,7 +411,7 @@ void ModelSystem::assembleBottomMacroRow(double t)
 				// Ignore ports with incoming flow rate 0
 				if (totInFlow <= 0.0)
 					continue;
-				
+
 				const unsigned int outletIndex = modelSource->localOutletComponentIndex(j);
 				const unsigned int outletStride = modelSource->localOutletComponentStride(j);
 
@@ -470,7 +470,7 @@ void ModelSystem::assembleBottomMacroRow(double t)
 
 	// Copy active sparse matrices to their double pendants
 	for (unsigned int i = 0; i < numModels(); ++i)
-		_jacFN[i].copyFrom(_jacActiveFN[i]);	
+		_jacFN[i].copyFrom(_jacActiveFN[i]);
 }
 
 double ModelSystem::residualNorm(const SimulationTime& simTime, const ConstSimulationState& simState)
@@ -568,7 +568,7 @@ void ModelSystem::residualConnectUnitOps(unsigned int secIdx, StateType const* c
 	for (unsigned int i = finalOffset; i < numDofs(); ++i)
 		res[i] = y[i];
 
-	// These could technically be done in parallel but from profiling no time is spent here 
+	// These could technically be done in parallel but from profiling no time is spent here
 	// and the parallelization has more overhead than can be gained.
 
 	// N_{x,f} Inlets (Right) matrices; Right macro-column
@@ -599,7 +599,7 @@ int ModelSystem::residualSensFwd(unsigned int nSens, const SimulationTime& simTi
 void ModelSystem::multiplyWithMacroJacobian(double const* yS, double alpha, double beta, double* ret)
 {
 	const unsigned int finalOffset = _dofOffset.back();
-	
+
 	// Set ret_con = yS_con
 	// This applies the identity matrix in the bottom right corner of the Jaocbian (network coupling equation)
 

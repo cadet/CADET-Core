@@ -1,9 +1,9 @@
 // =============================================================================
 //  CADET
-//  
+//
 //  Copyright © 2008-2021: The CADET Authors
 //            Please see the AUTHORS and CONTRIBUTORS file.
-//  
+//
 //  All rights reserved. This program and the accompanying materials
 //  are made available under the terms of the GNU Public License v3.0 (or, at
 //  your option, any later version) which accompanies this distribution, and
@@ -33,7 +33,7 @@
 #include "Logging.hpp"
 
 #ifdef CADET_PARALLELIZE
-	#include <tbb/tbb.h>
+	#include <tbb/parallel_for.h>
 
 	#define TBB_PREVIEW_GLOBAL_CONTROL 1
 	#include <tbb/global_control.h>
@@ -194,7 +194,7 @@ namespace cadet
 		oss << "In function '" << function << "' of module '" << module << "', error code '" << getIDAReturnFlagName(error_code) << "':\n" << msg;
 
 		// @todo Find an error handling system and put it here
-		if (error_code < 0) 
+		if (error_code < 0)
 		{
 			// Error
 			LOG(Error) << oss.str();
@@ -216,7 +216,7 @@ namespace cadet
 
 		LOG(Trace) << "==> Residual at t = " << t << " sec = " << secIdx;
 
-		return sim->_model->residualWithJacobian(cadet::SimulationTime{t, secIdx}, cadet::ConstSimulationState{NVEC_DATA(y), NVEC_DATA(yDot)}, NVEC_DATA(res), 
+		return sim->_model->residualWithJacobian(cadet::SimulationTime{t, secIdx}, cadet::ConstSimulationState{NVEC_DATA(y), NVEC_DATA(yDot)}, NVEC_DATA(res),
 			cadet::AdJacobianParams{sim->_vecADres, sim->_vecADy, sim->numSensitivityAdDirections()});
 	}
 
@@ -224,7 +224,7 @@ namespace cadet
 	* @brief Change the error weights in the state vector
 	* @details This sets the error weight to 0 for the network coupling equations, duplicated inlets
 	*          and inlet and outlet state vector entries. Those entries are all solved exactly and
-	*          without this the solver takes more steps and smaller steps for some simulations. 
+	*          without this the solver takes more steps and smaller steps for some simulations.
 	*          The problem is the largest error is usually on the first and last column cells in the GRM
 	*          and since the algebraic systems are solved exactly they end up duplicating those errors exactly.
 	*          In many cases this leads to a system that would have passed error control failing due to the error
@@ -233,7 +233,7 @@ namespace cadet
 	* @param [out] ewt Weight vector
 	* @param [in] user_data User data originally supplied to IDAS
 	*/
-/*	
+/*
 	int weightWrapper(N_Vector y, N_Vector ewt, void *user_data)
 	{
 		cadet::Simulator* const sim = static_cast<cadet::Simulator*>(user_data);
@@ -318,7 +318,7 @@ namespace cadet
 	/**
 	* @brief IDAS wrapper function to call the model's residualSensFwd() method
 	*/
-	int residualSensWrapper(int ns, double t, N_Vector y, N_Vector yDot, N_Vector res, 
+	int residualSensWrapper(int ns, double t, N_Vector y, N_Vector yDot, N_Vector res,
 			N_Vector* yS, N_Vector* ySDot, N_Vector* resS,
 			void *userData, N_Vector tmp1, N_Vector tmp2, N_Vector tmp3)
 	{
@@ -327,7 +327,7 @@ namespace cadet
 		const std::vector<const double*> sensYdot = convertNVectorToStdVectorPtrs<const double*>(ySDot, ns);
 		std::vector<double*> sensRes = convertNVectorToStdVectorPtrs<double*>(resS, ns);
 		const unsigned int secIdx = sim->getCurrentSection(t);
-		
+
 		LOG(Trace) << "==> Residual SENS at t = " << t << " sec = " << secIdx;
 
 /*
@@ -336,11 +336,11 @@ namespace cadet
 			sensY, sensYdot, sensRes, sim->_vecADres, NVEC_DATA(tmp1), NVEC_DATA(tmp2), NVEC_DATA(tmp3));
 */
 
-		return sim->_model->residualSensFwd(ns, cadet::SimulationTime{t, secIdx}, cadet::ConstSimulationState{NVEC_DATA(y), NVEC_DATA(yDot)}, NVEC_DATA(res), 
+		return sim->_model->residualSensFwd(ns, cadet::SimulationTime{t, secIdx}, cadet::ConstSimulationState{NVEC_DATA(y), NVEC_DATA(yDot)}, NVEC_DATA(res),
 			sensY, sensYdot, sensRes, sim->_vecADres, NVEC_DATA(tmp1), NVEC_DATA(tmp2), NVEC_DATA(tmp3));
 	}
 
-	Simulator::Simulator() : _model(nullptr), _solRecorder(nullptr), _idaMemBlock(nullptr), _vecStateY(nullptr), 
+	Simulator::Simulator() : _model(nullptr), _solRecorder(nullptr), _idaMemBlock(nullptr), _vecStateY(nullptr),
 		_vecStateYdot(nullptr), _vecFwdYs(nullptr), _vecFwdYsDot(nullptr),
 		_relTolS(1.0e-9), _absTol(1, 1.0e-12), _relTol(1.0e-9), _initStepSize(1, 1.0e-6), _maxSteps(10000), _maxStepSize(0.0),
 		_nThreads(0), _sensErrorTestEnabled(true), _maxNewtonIter(3), _maxErrorTestFail(7), _maxConvTestFail(10),
@@ -370,7 +370,7 @@ namespace cadet
 			NVec_DestroyArray(_vecFwdYsDot, _sensitiveParams.slices());
 		}
 		_sensitiveParams.clear();
-		
+
 		if (_vecStateYdot)
 			NVec_Destroy(_vecStateYdot);
 		if (_vecStateY)
@@ -427,7 +427,7 @@ namespace cadet
 		if (_sectionTimes.size() > 0)
 			IDAInit(_idaMemBlock, &residualDaeWrapper, static_cast<double>(_sectionTimes[0]), _vecStateY, _vecStateYdot);
 		else
-			IDAInit(_idaMemBlock, &residualDaeWrapper, 0.0, _vecStateY, _vecStateYdot);			
+			IDAInit(_idaMemBlock, &residualDaeWrapper, 0.0, _vecStateY, _vecStateYdot);
 
 		// IDAS Step 6: Specify integration tolerances (S: scalar; V: array)
 		updateMainErrorTolerances();
@@ -752,7 +752,7 @@ namespace cadet
 
 		_sensitiveParams.pushBackSlice(ids, numParams);
 		_absTolS.push_back(absTolS);
-		
+
 		if (diffFactors)
 			_sensitiveParamsFactor.insert(_sensitiveParamsFactor.end(), diffFactors, diffFactors + numParams);
 		else
@@ -789,7 +789,7 @@ namespace cadet
 		if (isSectionTimeParameter(id, _sectionTimes.size()))
 		{
 			// Correct adValue
-			LOG(Debug) << "Found parameter " << id << " in SECTION_TIMES: Dir " << adDirection << " is set to " 
+			LOG(Debug) << "Found parameter " << id << " in SECTION_TIMES: Dir " << adDirection << " is set to "
 				<< adValue << " [" << static_cast<double>(_sectionTimes[id.section]) << " < " << _sectionTimes.size() << "]";
 			_sectionTimes[id.section].setADValue(adDirection, adValue);
 
@@ -809,7 +809,7 @@ namespace cadet
 			_sectionTimes[i].setADValue(0.0);
 
 		initializeFwdSensitivities();
-	}	
+	}
 
 	unsigned int Simulator::numSensParams() const CADET_NOEXCEPT
 	{
@@ -1056,7 +1056,7 @@ namespace cadet
 		}
 
 		LOG(Debug) << "Integration span: [" << static_cast<double>(_sectionTimes[0]) << ", " << static_cast<double>(_sectionTimes.back()) << "] sections";
-		
+
 		if (writeAtUserTimes)
 		{
 			LOG(Debug) << "Solution time span: [" << _solutionTimes[0] << ", " << _solutionTimes.back() << "]";
@@ -1110,7 +1110,7 @@ namespace cadet
 				const ConsistentInitialization mode = currentConsistentInitMode(_consistentInitMode, _curSec);
 				if (mode == ConsistentInitialization::Full)
 				{
-					_model->consistentInitialConditions(SimulationTime{curT, _curSec}, SimulationState{NVEC_DATA(_vecStateY), NVEC_DATA(_vecStateYdot)}, 
+					_model->consistentInitialConditions(SimulationTime{curT, _curSec}, SimulationState{NVEC_DATA(_vecStateY), NVEC_DATA(_vecStateYdot)},
 						AdJacobianParams{_vecADres, _vecADy, numSensitivityAdDirections()}, _algTol);
 
 					const double consPost = _model->residualNorm(SimulationTime{curT, _curSec}, ConstSimulationState{NVEC_DATA(_vecStateY), NVEC_DATA(_vecStateYdot)});
@@ -1247,7 +1247,7 @@ namespace cadet
 
 				// IDA Step 11: Advance solution in time
 				solverFlag = IDASolve(_idaMemBlock, tOut, &curT, _vecStateY, _vecStateYdot, idaTask);
-				LOG(Debug) << "Solve from " << curT << " to " << tOut << " => " 
+				LOG(Debug) << "Solve from " << curT << " to " << tOut << " => "
 					<< (solverFlag == IDA_SUCCESS ? "IDA_SUCCESS" : "") << (solverFlag == IDA_TSTOP_RETURN ? "IDA_TSTOP_RETURN" : "");
 
 #ifdef CADET_DEBUG
@@ -1411,7 +1411,7 @@ namespace cadet
 		_relTol = relTol;
 		_maxSteps = maxSteps;
 		_maxStepSize = maxStepSize;
-		
+
 		_initStepSize.clear();
 		_initStepSize.push_back(initStepSize);
 	}
@@ -1430,7 +1430,7 @@ namespace cadet
 	void Simulator::configure(IParameterProvider& paramProvider)
 	{
 		paramProvider.pushScope("time_integrator");
-		
+
 		_absTol.clear();
 		if (paramProvider.isArray("ABSTOL"))
 			_absTol = paramProvider.getDoubleArray("ABSTOL");
@@ -1449,7 +1449,7 @@ namespace cadet
 			_initStepSize = paramProvider.getDoubleArray("INIT_STEP_SIZE");
 		else
 			_initStepSize.push_back(paramProvider.getDouble("INIT_STEP_SIZE"));
-		
+
 		if (paramProvider.exists("RELTOL_SENS"))
 			_relTolS = paramProvider.getDouble("RELTOL_SENS");
 		else
@@ -1635,7 +1635,7 @@ namespace cadet
 			return;
 
 		_solRecorder->beginTimestep(t);
-		
+
 		_solRecorder->beginSolution();
 		_model->reportSolution(*_solRecorder, NVEC_DATA(_vecStateY));
 		_solRecorder->endSolution();
@@ -1675,7 +1675,7 @@ namespace cadet
 	unsigned int Simulator::getCurrentSection(double t) const
 	{
 		//TODO: Use binary search
-		
+
 		for (unsigned int i = _curSec; i < _sectionTimes.size() - 1; ++i)
 		{
 			if ((t >= _sectionTimes[i]) && (t <= _sectionTimes[i+1]))

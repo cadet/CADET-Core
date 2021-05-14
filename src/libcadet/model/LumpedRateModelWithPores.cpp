@@ -39,7 +39,7 @@
 
 #include "ParallelSupport.hpp"
 #ifdef CADET_PARALLELIZE
-	#include <tbb/tbb.h>
+	#include <tbb/parallel_for.h>
 #endif
 
 namespace cadet
@@ -158,7 +158,7 @@ bool LumpedRateModelWithPores::configureModelDiscretization(IParameterProvider& 
 	{
 		unsigned int* const ptrOffset = _disc.boundOffset + j * _disc.nComp;
 		unsigned int* const ptrBound = _disc.nBound + j * _disc.nComp;
-		
+
 		ptrOffset[0] = 0;
 		for (unsigned int i = 1; i < _disc.nComp; ++i)
 		{
@@ -425,7 +425,7 @@ bool LumpedRateModelWithPores::configure(IParameterProvider& paramProvider)
 	// Check that particle volume fractions sum to 1.0
 	for (unsigned int i = 0; i < _disc.nCol; ++i)
 	{
-		const double volFracSum = std::accumulate(_parTypeVolFrac.begin() + i * _disc.nParType, _parTypeVolFrac.begin() + (i+1) * _disc.nParType, 0.0, 
+		const double volFracSum = std::accumulate(_parTypeVolFrac.begin() + i * _disc.nParType, _parTypeVolFrac.begin() + (i+1) * _disc.nParType, 0.0,
 			[](double a, const active& b) -> double { return a + static_cast<double>(b); });
 		if (std::abs(1.0 - volFracSum) > 1e-10)
 			throw InvalidParameterException("Sum of field PAR_TYPE_VOLFRAC differs from 1.0 (is " + std::to_string(volFracSum) + ") in axial cell " + std::to_string(i));
@@ -438,7 +438,7 @@ bool LumpedRateModelWithPores::configure(IParameterProvider& paramProvider)
 	{
 		// Register only the first nParType items
 		for (unsigned int i = 0; i < _disc.nParType; ++i)
-			_parameters[makeParamId(hashString("PAR_TYPE_VOLFRAC"), _unitOpIdx, CompIndep, i, BoundStateIndep, ReactionIndep, SectionIndep)] = &_parTypeVolFrac[i];			
+			_parameters[makeParamId(hashString("PAR_TYPE_VOLFRAC"), _unitOpIdx, CompIndep, i, BoundStateIndep, ReactionIndep, SectionIndep)] = &_parTypeVolFrac[i];
 	}
 	else
 		registerParam2DArray(_parameters, _parTypeVolFrac, [=](bool multi, unsigned cell, unsigned int type) { return makeParamId(hashString("PAR_TYPE_VOLFRAC"), _unitOpIdx, CompIndep, type, BoundStateIndep, ReactionIndep, cell); }, _disc.nParType);
@@ -689,7 +689,7 @@ void LumpedRateModelWithPores::prepareADvectors(const AdJacobianParams& adJac) c
 
 	Indexer idxr(_disc);
 
-	// Column block	
+	// Column block
 	_convDispOp.prepareADvectors(adJac);
 
 	// Particle block
@@ -768,7 +768,7 @@ int LumpedRateModelWithPores::residualWithJacobian(const SimulationTime& simTime
 	return residual(simTime, simState, res, adJac, threadLocalMem, true, false);
 }
 
-int LumpedRateModelWithPores::residual(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res, 
+int LumpedRateModelWithPores::residual(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res,
 	const AdJacobianParams& adJac, util::ThreadLocalStorage& threadLocalMem, bool updateJacobian, bool paramSensitivity)
 {
 	if (updateJacobian)
@@ -970,7 +970,7 @@ int LumpedRateModelWithPores::residualParticle(double t, unsigned int parType, u
 
 	// Handle time derivatives, binding, dynamic reactions
 	parts::cell::residualKernel<StateType, ResidualType, ParamType, parts::cell::CellParameters, linalg::BandMatrix::RowIterator, wantJac, true>(
-		t, secIdx, ColumnPosition{z, 0.0, static_cast<double>(radius) * 0.5}, y, yDotBase ? yDot : nullptr, res, 
+		t, secIdx, ColumnPosition{z, 0.0, static_cast<double>(radius) * 0.5}, y, yDotBase ? yDot : nullptr, res,
 		_jacP[parType].row(colCell * idxr.strideParBlock(parType)), cellResParams, threadLocalMem.get()
 	);
 
@@ -1134,7 +1134,7 @@ int LumpedRateModelWithPores::residualSensFwdWithJacobian(const SimulationTime& 
 {
 	BENCH_SCOPE(_timerResidualSens);
 
-	// Evaluate residual for all parameters using AD in vector mode and at the same time update the 
+	// Evaluate residual for all parameters using AD in vector mode and at the same time update the
 	// Jacobian (in one AD run, if analytic Jacobians are disabled)
 	return residual(simTime, simState, nullptr, adJac, threadLocalMem, true, true);
 }
@@ -1144,11 +1144,11 @@ int LumpedRateModelWithPores::residualSensFwdAdOnly(const SimulationTime& simTim
 	BENCH_SCOPE(_timerResidualSens);
 
 	// Evaluate residual for all parameters using AD in vector mode
-	return residualImpl<double, active, active, false>(simTime.t, simTime.secIdx, simState.vecStateY, simState.vecStateYdot, adRes, threadLocalMem); 
+	return residualImpl<double, active, active, false>(simTime.t, simTime.secIdx, simState.vecStateY, simState.vecStateYdot, adRes, threadLocalMem);
 }
 
-int LumpedRateModelWithPores::residualSensFwdCombine(const SimulationTime& simTime, const ConstSimulationState& simState, 
-	const std::vector<const double*>& yS, const std::vector<const double*>& ySdot, const std::vector<double*>& resS, active const* adRes, 
+int LumpedRateModelWithPores::residualSensFwdCombine(const SimulationTime& simTime, const ConstSimulationState& simState,
+	const std::vector<const double*>& yS, const std::vector<const double*>& ySdot, const std::vector<double*>& resS, active const* adRes,
 	double* const tmp1, double* const tmp2, double* const tmp3)
 {
 	BENCH_SCOPE(_timerResidualSens);
@@ -1188,7 +1188,7 @@ int LumpedRateModelWithPores::residualSensFwdCombine(const SimulationTime& simTi
 /**
  * @brief Multiplies the given vector with the system Jacobian (i.e., @f$ \frac{\partial F}{\partial y}\left(t, y, \dot{y}\right) @f$)
  * @details Actually, the operation @f$ z = \alpha \frac{\partial F}{\partial y} x + \beta z @f$ is performed.
- * 
+ *
  *          Note that residual() or one of its cousins has to be called with the requested point @f$ (t, y, \dot{y}) @f$ once
  *          before calling multiplyWithJacobian() as this implementation ignores the given @f$ (t, y, \dot{y}) @f$.
  * @param [in] simTime Current simulation time point

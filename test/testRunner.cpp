@@ -1,9 +1,9 @@
 // =============================================================================
 //  CADET
-//  
+//
 //  Copyright © 2008-2021: The CADET Authors
 //            Please see the AUTHORS and CONTRIBUTORS file.
-//  
+//
 //  All rights reserved. This program and the accompanying materials
 //  are made available under the terms of the GNU Public License v3.0 (or, at
 //  your option, any later version) which accompanies this distribution, and
@@ -14,8 +14,6 @@
 #include <catch.hpp>
 
 #ifdef CADET_PARALLELIZE
-	#include <tbb/tbb.h>
-
 	#define TBB_PREVIEW_GLOBAL_CONTROL 1
 	#include <tbb/global_control.h>
 

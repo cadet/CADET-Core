@@ -44,7 +44,7 @@
 
 #include "ParallelSupport.hpp"
 #ifdef CADET_PARALLELIZE
-	#include <tbb/tbb.h>
+	#include <tbb/parallel_for.h>
 #endif
 
 namespace cadet
@@ -203,7 +203,7 @@ bool GeneralRateModel::configureModelDiscretization(IParameterProvider& paramPro
 	{
 		unsigned int* const ptrOffset = _disc.boundOffset + j * _disc.nComp;
 		unsigned int* const ptrBound = _disc.nBound + j * _disc.nComp;
-		
+
 		ptrOffset[0] = 0;
 		for (unsigned int i = 1; i < _disc.nComp; ++i)
 		{
@@ -331,7 +331,7 @@ bool GeneralRateModel::configureModelDiscretization(IParameterProvider& paramPro
 		const std::vector<std::string> psdDepNames = paramProvider.getStringArray("PAR_SURFDIFFUSION_DEP");
 		if ((psdDepNames.size() == 1) || (_disc.nParType == 1))
 			_singleParDepSurfDiffusion = true;
-	
+
 		if (!_singleParDepSurfDiffusion && (psdDepNames.size() < _disc.nParType))
 			throw InvalidParameterException("Field PAR_SURFDIFFUSION_DEP contains too few elements (" + std::to_string(_disc.nParType) + " required)");
 		else if (_singleParDepSurfDiffusion && (psdDepNames.size() != 1))
@@ -575,7 +575,7 @@ bool GeneralRateModel::configureModelDiscretization(IParameterProvider& paramPro
 			}
 		}
 
-		LOG(Debug) << "Jacobian bandwidth particle type " << j << ": " << lowerBandwidth << "+1+" << upperBandwidth; 
+		LOG(Debug) << "Jacobian bandwidth particle type " << j << ": " << lowerBandwidth << "+1+" << upperBandwidth;
 
 		for (unsigned int i = 0; i < _disc.nCol; ++i)
 		{
@@ -676,7 +676,7 @@ bool GeneralRateModel::configure(IParameterProvider& paramProvider)
 	// Check that particle volume fractions sum to 1.0
 	for (unsigned int i = 0; i < _disc.nCol; ++i)
 	{
-		const double volFracSum = std::accumulate(_parTypeVolFrac.begin() + i * _disc.nParType, _parTypeVolFrac.begin() + (i+1) * _disc.nParType, 0.0, 
+		const double volFracSum = std::accumulate(_parTypeVolFrac.begin() + i * _disc.nParType, _parTypeVolFrac.begin() + (i+1) * _disc.nParType, 0.0,
 			[](double a, const active& b) -> double { return a + static_cast<double>(b); });
 		if (std::abs(1.0 - volFracSum) > 1e-10)
 			throw InvalidParameterException("Sum of field PAR_TYPE_VOLFRAC differs from 1.0 (is " + std::to_string(volFracSum) + ") in axial cell " + std::to_string(i));
@@ -738,7 +738,7 @@ bool GeneralRateModel::configure(IParameterProvider& paramProvider)
 	{
 		// Register only the first nParType items
 		for (unsigned int i = 0; i < _disc.nParType; ++i)
-			_parameters[makeParamId(hashString("PAR_TYPE_VOLFRAC"), _unitOpIdx, CompIndep, i, BoundStateIndep, ReactionIndep, SectionIndep)] = &_parTypeVolFrac[i];			
+			_parameters[makeParamId(hashString("PAR_TYPE_VOLFRAC"), _unitOpIdx, CompIndep, i, BoundStateIndep, ReactionIndep, SectionIndep)] = &_parTypeVolFrac[i];
 	}
 	else
 		registerParam2DArray(_parameters, _parTypeVolFrac, [=](bool multi, unsigned cell, unsigned int type) { return makeParamId(hashString("PAR_TYPE_VOLFRAC"), _unitOpIdx, CompIndep, type, BoundStateIndep, ReactionIndep, cell); }, _disc.nParType);
@@ -989,7 +989,7 @@ void GeneralRateModel::prepareADvectors(const AdJacobianParams& adJac) const
 
 	Indexer idxr(_disc);
 
-	// Column block	
+	// Column block
 	_convDispOp.prepareADvectors(adJac);
 
 	// Particle blocks
@@ -1077,7 +1077,7 @@ int GeneralRateModel::residualWithJacobian(const SimulationTime& simTime, const 
 	return residual(simTime, simState, res, adJac, threadLocalMem, true, false);
 }
 
-int GeneralRateModel::residual(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res, 
+int GeneralRateModel::residual(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res,
 	const AdJacobianParams& adJac, util::ThreadLocalStorage& threadLocalMem, bool updateJacobian, bool paramSensitivity)
 {
 	if (updateJacobian)
@@ -2288,7 +2288,7 @@ int GeneralRateModel::residualSensFwdWithJacobian(const SimulationTime& simTime,
 {
 	BENCH_SCOPE(_timerResidualSens);
 
-	// Evaluate residual for all parameters using AD in vector mode and at the same time update the 
+	// Evaluate residual for all parameters using AD in vector mode and at the same time update the
 	// Jacobian (in one AD run, if analytic Jacobians are disabled)
 	return residual(simTime, simState, nullptr, adJac, threadLocalMem, true, true);
 }
@@ -2298,11 +2298,11 @@ int GeneralRateModel::residualSensFwdAdOnly(const SimulationTime& simTime, const
 	BENCH_SCOPE(_timerResidualSens);
 
 	// Evaluate residual for all parameters using AD in vector mode
-	return residualImpl<double, active, active, false>(simTime.t, simTime.secIdx, simState.vecStateY, simState.vecStateYdot, adRes, threadLocalMem); 
+	return residualImpl<double, active, active, false>(simTime.t, simTime.secIdx, simState.vecStateY, simState.vecStateYdot, adRes, threadLocalMem);
 }
 
-int GeneralRateModel::residualSensFwdCombine(const SimulationTime& simTime, const ConstSimulationState& simState, 
-	const std::vector<const double*>& yS, const std::vector<const double*>& ySdot, const std::vector<double*>& resS, active const* adRes, 
+int GeneralRateModel::residualSensFwdCombine(const SimulationTime& simTime, const ConstSimulationState& simState,
+	const std::vector<const double*>& yS, const std::vector<const double*>& ySdot, const std::vector<double*>& resS, active const* adRes,
 	double* const tmp1, double* const tmp2, double* const tmp3)
 {
 	BENCH_SCOPE(_timerResidualSens);
@@ -2342,7 +2342,7 @@ int GeneralRateModel::residualSensFwdCombine(const SimulationTime& simTime, cons
 /**
  * @brief Multiplies the given vector with the system Jacobian (i.e., @f$ \frac{\partial F}{\partial y}\left(t, y, \dot{y}\right) @f$)
  * @details Actually, the operation @f$ z = \alpha \frac{\partial F}{\partial y} x + \beta z @f$ is performed.
- * 
+ *
  *          Note that residual() or one of its cousins has to be called with the requested point @f$ (t, y, \dot{y}) @f$ once
  *          before calling multiplyWithJacobian() as this implementation ignores the given @f$ (t, y, \dot{y}) @f$.
  * @param [in] simTime Current simulation time point
@@ -2659,7 +2659,7 @@ void GeneralRateModel::setUserdefinedRadialDisc(unsigned int parType)
 	active* const ptrInnerSurfAreaPerVolume = _parInnerSurfAreaPerVolume.data() + _disc.nParCellsBeforeType[parType];
 
 	// Care for the right ordering and include 0.0 / 1.0 if not already in the vector.
-	std::vector<active> orderedInterfaces = std::vector<active>(_parDiscVector.begin() + _disc.nParCellsBeforeType[parType] + parType, 
+	std::vector<active> orderedInterfaces = std::vector<active>(_parDiscVector.begin() + _disc.nParCellsBeforeType[parType] + parType,
 		_parDiscVector.begin() + _disc.nParCellsBeforeType[parType] + parType + _disc.nParCell[parType] + 1);
 
 	// Sort in descending order
@@ -2979,7 +2979,7 @@ bool GeneralRateModel::hasParameter(const ParameterId& pId) const
 {
 	if (model::hasParameter(pId, _parDepSurfDiffusion, _singleParDepSurfDiffusion))
 		return true;
-	
+
 	return UnitOperationBase::hasParameter(pId);
 }
 

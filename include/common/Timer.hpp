@@ -1,9 +1,9 @@
 // =============================================================================
 //  CADET
-//  
+//
 //  Copyright © 2008-2021: The CADET Authors
 //            Please see the AUTHORS and CONTRIBUTORS file.
-//  
+//
 //  All rights reserved. This program and the accompanying materials
 //  are made available under the terms of the GNU Public License v3.0 (or, at
 //  your option, any later version) which accompanies this distribution, and
@@ -11,7 +11,7 @@
 // =============================================================================
 
 /**
- * @file 
+ * @file
  * Provides an accumulating timer for measuring execution time.
  * If CADET_USE_PLATFORM_TIMER is defined, then a platform-dependent timer implementation
  * is used. Otherwise, an implementation using OpenMP (if available) or the standard C++
@@ -21,7 +21,7 @@
 #ifndef CADET_TIMER_HPP_
 #define CADET_TIMER_HPP_
 
-namespace cadet 
+namespace cadet
 {
 
 	/**
@@ -45,7 +45,7 @@ namespace cadet
 		 * @details Accumulates the total elapsed time over all start() and stop() calls.
 		 * @return Elapsed time since the last call to start() in seconds
 		 */
-		inline double stop() 
+		inline double stop()
 		{
 			const double elapsed = timer_t::stopCore();
 			_totalElapsed += elapsed;
@@ -82,7 +82,7 @@ namespace cadet
 
 	#ifdef _WIN32
 		// Windows (x64 and x86)
-		
+
 		#define NOMINMAX
 		#define _WINDOWS
 		#ifndef WIN32_LEAN_AND_MEAN
@@ -90,7 +90,7 @@ namespace cadet
 		#endif
 		#include <windows.h>
 
-		namespace cadet 
+		namespace cadet
 		{
 
 			/**
@@ -99,7 +99,7 @@ namespace cadet
 			class WindowsTimer
 			{
 			public:
-				WindowsTimer() 
+				WindowsTimer()
 				{
 					// Get frequency of the clock
 					QueryPerformanceFrequency(&_frequency);
@@ -109,7 +109,7 @@ namespace cadet
 				{
 					QueryPerformanceCounter(&_startCount);
 				}
-				
+
 			protected:
 
 				inline double stopCore() const
@@ -137,7 +137,7 @@ namespace cadet
 		#include <time.h>
 		#include <sys/time.h>
 
-		namespace cadet 
+		namespace cadet
 		{
 
 			/**
@@ -149,11 +149,11 @@ namespace cadet
 				// Constructor
 				LinuxTimer() { }
 
-				inline void start() 
+				inline void start()
 				{
 					clock_gettime(CLOCK_MONOTONIC, &_startCount);
 				}
-				
+
 			protected:
 
 				inline double stopCore() const
@@ -186,7 +186,7 @@ namespace cadet
 		#include <mach/mach.h>
 		#include <mach/mach_time.h>
 
-		namespace cadet 
+		namespace cadet
 		{
 
 			/**
@@ -201,17 +201,17 @@ namespace cadet
 					mach_timebase_info(&_timebaseInfo);
 				}
 
-				inline void start() 
+				inline void start()
 				{
 					_startCount = mach_absolute_time();
 				}
-				
-			protected:    
-				
+
+			protected:
+
 				inline double stopCore() const
 				{
 					const uint64_t lastCount = mach_absolute_time();
-					
+
 					// Convert elapsed time to seconds
 					// Hopefully this does not overflow
 					return static_cast<double>((lastCount - _startCount) * _timebaseInfo.numer / _timebaseInfo.denom) / 1.0e9;
@@ -233,8 +233,8 @@ namespace cadet
 	#ifdef _OPENMP
 
 		#include <omp.h>
-		
-		namespace cadet 
+
+		namespace cadet
 		{
 
 			/**
@@ -273,9 +273,9 @@ namespace cadet
 
 	#elif defined(CADET_PARALLELIZE)
 
-		#include <tbb/tbb.h>
-		
-		namespace cadet 
+		#include <tbb/tick_count.h>
+
+		namespace cadet
 		{
 
 			/**
