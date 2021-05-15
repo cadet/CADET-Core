@@ -221,7 +221,7 @@ namespace cadet
 			_numElements = 0;
 		}
 
-		inline const unsigned int numElements() const CADET_NOEXCEPT { return _numElements; }
+		inline unsigned int numElements() const CADET_NOEXCEPT { return _numElements; }
 
 	protected:
 		void* _mem; //<! Memory block

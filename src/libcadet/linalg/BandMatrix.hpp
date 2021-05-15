@@ -212,7 +212,7 @@ public:
 	 * @return Matrix element at the given position
 	 */
 	inline double& centered(int diagonal) { return (*this)(diagonal); }
-	inline const double centered(int diagonal) const { return (*this)(diagonal); }
+	inline double centered(int diagonal) const { return (*this)(diagonal); }
 
 	/**
 	 * @brief Accesses an element in the current row where the lowest diagonal is indexed by @c 0
@@ -231,7 +231,7 @@ public:
 		return _pos[col];
 	}
 
-	inline const double native(unsigned int col) const
+	inline double native(unsigned int col) const
 	{
 		cadet_assert(col < _matrix->stride());
 		cadet_assert(_row < _matrix->rows());
@@ -246,7 +246,7 @@ public:
 		return _pos[diagonal + _matrix->_lowerBand];
 	}
 
-	inline const double operator()(int diagonal) const
+	inline double operator()(int diagonal) const
 	{
 		cadet_assert(diagonal <= static_cast<int>(_matrix->_upperBand));
 		cadet_assert(-diagonal <= static_cast<int>(_matrix->_lowerBand));
@@ -255,7 +255,7 @@ public:
 	}
 
 	inline double& operator[](int diagonal) { return (*this)(diagonal); }
-	inline const double operator[](int diagonal) const { return (*this)(diagonal); }
+	inline double operator[](int diagonal) const { return (*this)(diagonal); }
 
 	inline BandedRowIterator& operator++() CADET_NOEXCEPT
 	{
@@ -460,7 +460,7 @@ public:
 	 * 
 	 * @return Matrix element at the given position
 	 */
-	inline const double centered(int diagonal) const { return (*this)(diagonal); }
+	inline double centered(int diagonal) const { return (*this)(diagonal); }
 
 	/**
 	 * @brief Accesses an element in the current row where the lowest diagonal is indexed by @c 0
@@ -472,14 +472,14 @@ public:
 	 * 
 	 * @return Matrix element at the given position
 	 */
-	inline const double native(unsigned int col) const
+	inline double native(unsigned int col) const
 	{
 		cadet_assert(col < _matrix->stride());
 		cadet_assert(_row < _matrix->rows());
 		return _pos[col];
 	}
 
-	inline const double operator()(int diagonal) const
+	inline double operator()(int diagonal) const
 	{
 		cadet_assert(diagonal <= static_cast<int>(_matrix->_upperBand));
 		cadet_assert(-diagonal <= static_cast<int>(_matrix->_lowerBand));
@@ -487,7 +487,7 @@ public:
 		return _pos[diagonal + _matrix->_lowerBand];
 	}
 
-	inline const double operator[](int diagonal) const { return (*this)(diagonal); }
+	inline double operator[](int diagonal) const { return (*this)(diagonal); }
 
 	inline ConstBandedRowIterator& operator++() CADET_NOEXCEPT
 	{
@@ -725,7 +725,7 @@ public:
 	 * @return Matrix element at the given position
 	 */
 	inline double& centered(unsigned int row, int diagonal) { return (*this)(row, diagonal); }
-	inline const double centered(unsigned int row, int diagonal) const { return (*this)(row, diagonal); }
+	inline double centered(unsigned int row, int diagonal) const { return (*this)(row, diagonal); }
 
 	/**
 	 * @brief Accesses an element in the matrix where the lowest diagonal is indexed by @c 0
@@ -745,7 +745,7 @@ public:
 		return _data[row * stride() + col];
 	}
 
-	inline const double native(unsigned int row, unsigned int col) const
+	inline double native(unsigned int row, unsigned int col) const
 	{
 		cadet_assert(row < _rows);
 		cadet_assert(col < stride());
@@ -760,7 +760,7 @@ public:
 		return _data[static_cast<int>(row * stride() + _lowerBand) + diagonal];
 	}
 
-	inline const double operator()(unsigned int row, int diagonal) const
+	inline double operator()(unsigned int row, int diagonal) const
 	{
 		cadet_assert(row < _rows);
 		cadet_assert(diagonal <= static_cast<int>(_upperBand));
@@ -1189,7 +1189,7 @@ public:
 	 * @return Matrix element at the given position
 	 */
 	inline double& centered(unsigned int row, int diagonal) { return (*this)(row, diagonal); }
-	inline const double centered(unsigned int row, int diagonal) const { return (*this)(row, diagonal); }
+	inline double centered(unsigned int row, int diagonal) const { return (*this)(row, diagonal); }
 
 	/**
 	 * @brief Accesses an element in the matrix where the lowest diagonal is indexed by @c 0
@@ -1209,7 +1209,7 @@ public:
 		return _data[row * stride() + col];
 	}
 
-	inline const double native(unsigned int row, unsigned int col) const
+	inline double native(unsigned int row, unsigned int col) const
 	{
 		cadet_assert(row < _rows);
 		cadet_assert(col < stride());
@@ -1225,7 +1225,7 @@ public:
 		return _data[static_cast<int>(row * stride() + _lowerBand + _upperBand) + diagonal];
 	}
 
-	inline const double operator()(unsigned int row, int diagonal) const
+	inline double operator()(unsigned int row, int diagonal) const
 	{
 		cadet_assert(row < _rows);
 		cadet_assert(diagonal <= static_cast<int>(_upperBand));

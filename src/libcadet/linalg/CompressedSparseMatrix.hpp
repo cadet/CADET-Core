@@ -202,7 +202,7 @@ protected:
 		 * @brief Returns the number of non-zero entries in this row
 		 * @return Number of non-zero entries in this row
 		 */
-		const unsigned int numNonZeros() const CADET_NOEXCEPT { return _colIdx.size(); }
+		unsigned int numNonZeros() const CADET_NOEXCEPT { return _colIdx.size(); }
 
 	protected:
 		std::vector<sparse_int_t> _colIdx; //!< Sorted column indices of non-zero elements in this row
@@ -285,7 +285,7 @@ public:
 		_pattern->add(_row, _row + diagonal);
 		return _dummy;
 	}
-	inline const double centered(int diagonal) const { return 0.0; }
+	inline double centered(int diagonal) const { return 0.0; }
 
 	/**
 	 * @brief Accesses an element in the current row where the lowest diagonal is indexed by @c 0
@@ -306,7 +306,7 @@ public:
 		return _dummy;
 	}
 
-	inline const double native(unsigned int col) const { return 0.0; }
+	inline double native(unsigned int col) const { return 0.0; }
 
 	inline double& operator()(int diagonal)
 	{
@@ -317,10 +317,10 @@ public:
 		return _dummy;
 	}
 
-	inline const double operator()(int diagonal) const { return 0.0; }
+	inline double operator()(int diagonal) const { return 0.0; }
 
 	inline double& operator[](int diagonal) { return (*this)(diagonal); }
-	inline const double operator[](int diagonal) const { return (*this)(diagonal); }
+	inline double operator[](int diagonal) const { return (*this)(diagonal); }
 
 	inline SparsityPatternRowIterator& operator++() CADET_NOEXCEPT
 	{
@@ -535,7 +535,7 @@ public:
 	 * @param [in] col Column index
 	 * @return Value of the element at the given position
 	 */
-	inline const double operator()(sparse_int_t row, sparse_int_t col) const CADET_NOEXCEPT
+	inline double operator()(sparse_int_t row, sparse_int_t col) const CADET_NOEXCEPT
 	{
 		cadet_assert((row >= 0) && (row < rows()));
 		cadet_assert((col >= 0) && (col < rows()));
@@ -661,7 +661,7 @@ public:
 	 * @return Matrix element at the given position
 	 */
 	inline double& centered(int row, int diagonal) { return (*this)(row, row + diagonal); }
-	inline const double centered(int row, int diagonal) const { return (*this)(row, row + diagonal); }
+	inline double centered(int row, int diagonal) const { return (*this)(row, row + diagonal); }
 
 	/**
 	 * @brief Accesses an element in the matrix
@@ -672,7 +672,7 @@ public:
 	 * @return Matrix element at the given position
 	 */
 	inline double& native(int row, int col) { return (*this)(row, col); }
-	inline const double native(int row, int col) const { return (*this)(row, col); }
+	inline double native(int row, int col) const { return (*this)(row, col); }
 
 	/**
 	 * @brief Provides direct access to the underlying memory
@@ -778,7 +778,7 @@ public:
 	 * @return Matrix element at the given position
 	 */
 	inline double& centered(int diagonal) { return native(_row + diagonal); }
-	inline const double centered(int diagonal) const { return native(_row + diagonal); }
+	inline double centered(int diagonal) const { return native(_row + diagonal); }
 
 	/**
 	 * @brief Accesses an element in the current row where the lowest diagonal is indexed by @c 0
@@ -802,7 +802,7 @@ public:
 		return _dummy;
 	}
 
-	inline const double native(sparse_int_t col) const
+	inline double native(sparse_int_t col) const
 	{
 		cadet_assert((col >= 0) && (col < _matrix->rows()));
 
@@ -819,10 +819,10 @@ public:
 	}
 
 	inline double& operator()(int diagonal) { return centered(diagonal); }
-	inline const double operator()(int diagonal) const { return centered(diagonal); }
+	inline double operator()(int diagonal) const { return centered(diagonal); }
 
 	inline double& operator[](int diagonal) { return centered(diagonal); }
-	inline const double operator[](int diagonal) const { return centered(diagonal); }
+	inline double operator[](int diagonal) const { return centered(diagonal); }
 
 	inline BandedSparseRowIterator& operator++() CADET_NOEXCEPT
 	{
@@ -958,14 +958,14 @@ public:
 	 * 
 	 * @return Matrix element at the given position
 	 */
-	inline const double centered(int diagonal) const { return native(_row + diagonal); }
+	inline double centered(int diagonal) const { return native(_row + diagonal); }
 
 	/**
 	 * @brief Accesses an element in the current row where the lowest diagonal is indexed by @c 0
 	 * @param [in] col Index of the column
 	 * @return Matrix element at the given position
 	 */
-	inline const double native(sparse_int_t col) const
+	inline double native(sparse_int_t col) const
 	{
 		cadet_assert((col >= 0) && (col < _matrix->rows()));
 
@@ -981,8 +981,8 @@ public:
 		return 0.0;
 	}
 
-	inline const double operator()(int diagonal) const { return centered(diagonal); }
-	inline const double operator[](int diagonal) const { return centered(diagonal); }
+	inline double operator()(int diagonal) const { return centered(diagonal); }
+	inline double operator[](int diagonal) const { return centered(diagonal); }
 
 	inline ConstBandedSparseRowIterator& operator++() CADET_NOEXCEPT
 	{
