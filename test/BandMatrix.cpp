@@ -72,7 +72,7 @@ TEST_CASE("Copying BandMatrix to FactorizableBandMatrix", "[BandMatrix],[LinAlg]
 	const BandMatrix bm = cadet::test::createBandMatrix<BandMatrix>(10, 2, 3);
 	const FactorizableBandMatrix fbm = fromBandMatrix(bm);
 
-	for (unsigned int row = 0; row < bm.rows(); ++row)
+	for (int row = 0; row < bm.rows(); ++row)
 	{
 		const int lower = std::max(-static_cast<int>(bm.lowerBandwidth()), -static_cast<int>(row));
 		const int upper = std::min(static_cast<int>(bm.upperBandwidth()), static_cast<int>(bm.rows() - row) - 1);
@@ -89,7 +89,7 @@ TEST_CASE("FactorizableBandMatrix iterator read access", "[BandMatrix],[LinAlg]"
 
 	const FactorizableBandMatrix fbm = cadet::test::createBandMatrix<FactorizableBandMatrix>(10, 2, 3);
 	FactorizableBandMatrix::ConstRowIterator it = fbm.row(0);
-	for (unsigned int row = 0; row < fbm.rows(); ++row, ++it)
+	for (int row = 0; row < fbm.rows(); ++row, ++it)
 	{
 		const int lower = std::max(-static_cast<int>(fbm.lowerBandwidth()), -static_cast<int>(row));
 		const int upper = std::min(static_cast<int>(fbm.upperBandwidth()), static_cast<int>(fbm.rows() - row) - 1);
@@ -112,7 +112,7 @@ TEST_CASE("FactorizableBandMatrix solves", "[BandMatrix],[LinAlg]")
 
 	// Prepare some right hand side
 	std::vector<double> y(fbm.rows(), 0.0);
-	for (unsigned int i = 0; i < fbm.rows(); ++i)
+	for (int i = 0; i < fbm.rows(); ++i)
 		y[i] = std::sin(6.283185307 * i / static_cast<double>(fbm.rows()));
 
 	// Solve

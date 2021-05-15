@@ -28,7 +28,7 @@ void SparsityPattern::compressTo(sparse_int_t* colIdx, sparse_int_t* rowStart) c
 
 	sparse_int_t* curColIdx = colIdx;
 	int curRowStart = 0;
-	for (int r = 0; r < _rows.size(); ++r)
+	for (int r = 0; r < static_cast<int>(_rows.size()); ++r)
 	{
 		// Mark beginning of row
 		rowStart[r] = curRowStart;
@@ -66,7 +66,7 @@ std::ostream& operator<<(std::ostream& out, const CompressedSparseMatrix& sm)
 	elems << "elems = [";
 
 
-	for (unsigned int row = 0; row < sm.rows(); ++row)
+	for (int row = 0; row < sm.rows(); ++row)
 	{
 		sparse_int_t const* const colIdx = sm.columnIndicesOfRow(row);
 		double const* const localVal = sm.valuesOfRow(row);
@@ -104,7 +104,7 @@ void CompressedSparseMatrix::copyFromSamePattern(const CompressedSparseMatrix& s
 	std::copy(src._values.begin(), src._values.end(), _values.begin());
 }
 
-void CompressedSparseMatrix::resize(unsigned int numRows, unsigned int numNonZeros)
+void CompressedSparseMatrix::resize(int numRows, int numNonZeros)
 {
 	_values.clear();
 	_values.resize(numNonZeros, 0.0);

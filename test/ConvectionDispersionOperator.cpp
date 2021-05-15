@@ -158,7 +158,7 @@ void testResidualBulkWenoForwardBackward(int wenoOrder)
 		std::vector<double> res(nDof, 0.0);
 
 		// The first nComp DOFs are inlet DOFs
-		for (unsigned int i = 0; i < nComp; ++i)
+		for (int i = 0; i < nComp; ++i)
 			y[i] = i + 1.0;
 
 		// Check forward against backward residual with zero state

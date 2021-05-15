@@ -1373,7 +1373,7 @@ void LumpedRateModelWithoutPores::consistentInitialTimeDerivative(const Simulati
 		}
 
 		// Copy row from original Jacobian and set right hand side
-		for (int i = 0; i < _disc.strideBound; ++i, ++jacSolid, ++jacSolidOrig)
+		for (unsigned int i = 0; i < _disc.strideBound; ++i, ++jacSolid, ++jacSolidOrig)
 		{
 			if (!mask[i])
 				continue;
@@ -1654,7 +1654,7 @@ void LumpedRateModelWithoutPores::consistentInitialSensitivity(const SimulationT
 				double* const qShellDot = sensYdot + idxr.offsetC() + idxr.strideColCell() * col + idxr.strideColLiquid();
 
 				// Copy row from original Jacobian and set right hand side
-				for (int i = 0; i < _disc.strideBound; ++i, ++jacSolid, ++jacSolidOrig)
+				for (unsigned int i = 0; i < _disc.strideBound; ++i, ++jacSolid, ++jacSolidOrig)
 				{
 					if (!mask[i])
 						continue;

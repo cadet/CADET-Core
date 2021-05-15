@@ -148,7 +148,7 @@ protected:
 
 	template <typename T> T const* moveInletValues(double const* const rawValues, double t, unsigned int secIdx) const;
 
-	template <typename T> T const* const getData() const;
+	template <typename T> T const* getData() const;
 
 	template <typename ResidualType, typename ParamType>
 	int residualImpl(double t, unsigned int secIdx, const ConstSimulationState& simState, ResidualType* const res, util::ThreadLocalStorage& threadLocalMem);

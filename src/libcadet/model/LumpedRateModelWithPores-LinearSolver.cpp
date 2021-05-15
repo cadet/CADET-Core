@@ -300,7 +300,7 @@ int LumpedRateModelWithPores::linearSolve(double t, double alpha, double outerTo
 			}
 
 			// Compute rhs_i = y_i - J_i^{-1} * J_{i,f} * y_f = y_i - tempState_i
-			for (int i = 0; i < idxr.strideParBlock(type) * _disc.nCol; ++i)
+			for (unsigned int i = 0; i < idxr.strideParBlock(type) * _disc.nCol; ++i)
 				rhsPar[i] -= localPar[i];
 		} CADET_PARFOR_END;
 	} CADET_PARNODE_END;

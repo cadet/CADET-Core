@@ -87,7 +87,7 @@ struct SMAProblem
 #endif 
 
 	inline const char* name() const { return "SMAProblem"; }
-	inline const int size() const { return 4; }
+	inline int size() const { return 4; }
 	void init()
 	{
 		_jacMatrix.resize(size(), size());

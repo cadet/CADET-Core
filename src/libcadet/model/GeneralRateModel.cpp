@@ -343,7 +343,7 @@ bool GeneralRateModel::configureModelDiscretization(IParameterProvider& paramPro
 			{
 				_hasParDepSurfDiffusion = false;
 				_singleParDepSurfDiffusion = true;
-				_parDepSurfDiffusion = std::move(std::vector<IParameterDependence*>(_disc.nParType, nullptr));
+				_parDepSurfDiffusion = std::vector<IParameterDependence*>(_disc.nParType, nullptr);
 			}
 			else
 			{
@@ -351,14 +351,14 @@ bool GeneralRateModel::configureModelDiscretization(IParameterProvider& paramPro
 				if (!pd)
 					throw InvalidParameterException("Unknown parameter dependence " + psdDepNames[0]);
 
-				_parDepSurfDiffusion = std::move(std::vector<IParameterDependence*>(_disc.nParType, pd));
+				_parDepSurfDiffusion = std::vector<IParameterDependence*>(_disc.nParType, pd);
 				parSurfDiffDepConfSuccess = pd->configureModelDiscretization(paramProvider, _disc.nComp, _disc.nBound, _disc.boundOffset);
 				_hasParDepSurfDiffusion = true;
 			}
 		}
 		else
 		{
-			_parDepSurfDiffusion = std::move(std::vector<IParameterDependence*>(_disc.nParType, nullptr));
+			_parDepSurfDiffusion = std::vector<IParameterDependence*>(_disc.nParType, nullptr);
 
 			for (unsigned int i = 0; i < _disc.nParType; ++i)
 			{
@@ -379,13 +379,13 @@ bool GeneralRateModel::configureModelDiscretization(IParameterProvider& paramPro
 	{
 		_hasParDepSurfDiffusion = false;
 		_singleParDepSurfDiffusion = true;
-		_parDepSurfDiffusion = std::move(std::vector<IParameterDependence*>(_disc.nParType, nullptr));
+		_parDepSurfDiffusion = std::vector<IParameterDependence*>(_disc.nParType, nullptr);
 	}
 
 	if (optimizeParticleJacobianBandwidth)
 	{
 		// Check whether surface diffusion is present
-		_hasSurfaceDiffusion = std::move(std::vector<bool>(_disc.nParType, false));
+		_hasSurfaceDiffusion = std::vector<bool>(_disc.nParType, false);
 		if (paramProvider.exists("PAR_SURFDIFFUSION"))
 		{
 			const std::vector<double> surfDiff = paramProvider.getDoubleArray("PAR_SURFDIFFUSION");
@@ -415,7 +415,7 @@ bool GeneralRateModel::configureModelDiscretization(IParameterProvider& paramPro
 	else
 	{
 		// Assume that surface diffusion is present
-		_hasSurfaceDiffusion = std::move(std::vector<bool>(_disc.nParType, true));
+		_hasSurfaceDiffusion = std::vector<bool>(_disc.nParType, true);
 	}
 
 	const bool transportSuccess = _convDispOp.configureModelDiscretization(paramProvider, _disc.nComp, _disc.nCol);
@@ -559,7 +559,7 @@ bool GeneralRateModel::configureModelDiscretization(IParameterProvider& paramPro
 			}
 
 			int const* const rqs = _binding[j]->reactionQuasiStationarity();
-			for (int k = 0; k < _disc.strideBound[j]; ++k)
+			for (unsigned int k = 0; k < _disc.strideBound[j]; ++k)
 			{
 				// Skip bound states without surface diffusion (i.e., rapid-equilibrium)
 				if (rqs[k])
@@ -703,7 +703,7 @@ bool GeneralRateModel::configure(IParameterProvider& paramProvider)
 		}
 		else if (!_singleParDepSurfDiffusion)
 		{
-			for (int i = 0; i < _disc.nParType; ++i)
+			for (unsigned int i = 0; i < _disc.nParType; ++i)
 			{
 				if (!_parDepSurfDiffusion[i])
 					continue;
@@ -891,7 +891,7 @@ unsigned int GeneralRateModel::numAdDirsForJacobian() const CADET_NOEXCEPT
 	// the bandwidth of the particle blocks are given by the number of components and bound states.
 
 	// Get maximum stride of particle type blocks
-	unsigned int maxStride = 0;
+	int maxStride = 0;
 	for (unsigned int type = 0; type < _disc.nParType; ++type)
 	{
 		maxStride = std::max(maxStride, _jacP[type * _disc.nCol].stride());
@@ -1460,7 +1460,7 @@ int GeneralRateModel::residualParticle(double t, unsigned int parType, unsigned 
 				{
 					// No surface diffusion
 					// Liquid phase
-					const double localInvBetaP = static_cast<double>(invBetaP);
+//					const double localInvBetaP = static_cast<double>(invBetaP);
 					const double ouApV = static_cast<double>(outerAreaPerVolume);
 					const double ldr = static_cast<double>(dr);
 
@@ -1611,7 +1611,7 @@ int GeneralRateModel::residualParticle(double t, unsigned int parType, unsigned 
 				{
 					// No surface diffusion
 					// Liquid phase
-					const double localInvBetaP = static_cast<double>(invBetaP);
+//					const double localInvBetaP = static_cast<double>(invBetaP);
 					const double inApV = static_cast<double>(innerAreaPerVolume);
 					const double ldr = static_cast<double>(dr);
 
@@ -2165,7 +2165,7 @@ void GeneralRateModel::assembleOffdiagJacFluxParticle(double t, unsigned int sec
 
 	Indexer idxr(_disc);
 
-	const double invBetaC = 1.0 / static_cast<double>(_colPorosity) - 1.0;
+//	const double invBetaC = 1.0 / static_cast<double>(_colPorosity) - 1.0;
 
 	// Discretized film diffusion kf for finite volumes
 	double* const kf_FV = _discParFlux.create<double>(_disc.nComp);

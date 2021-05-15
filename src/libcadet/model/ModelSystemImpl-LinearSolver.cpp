@@ -54,7 +54,7 @@ int ModelSystem::linearSolveSequential(double t, double alpha, double outerTol, 
 
 	// Topological sort needs to be iterated backwards (each item depends on all items behind it)
 	int const* order = _linearModelOrdering[_curSwitchIndex] + _models.size() - 1;
-	for (int i = 0; i < _models.size(); ++i, --order)
+	for (int i = 0; i < static_cast<int>(_models.size()); ++i, --order)
 	{
 		const int idxUnit = *order;
 		IUnitOperation* const m = _models[idxUnit];

@@ -188,7 +188,7 @@ namespace cadet
 	 */
 	void idasErrorHandler(int error_code, const char* module, const char* function, char* msg, void* eh_data)
 	{
-		cadet::Simulator* const sim = static_cast<cadet::Simulator*>(eh_data);
+//		cadet::Simulator* const sim = static_cast<cadet::Simulator*>(eh_data);
 
 		std::ostringstream oss;
 		oss << "In function '" << function << "' of module '" << module << "', error code '" << getIDAReturnFlagName(error_code) << "':\n" << msg;
@@ -1393,12 +1393,12 @@ namespace cadet
 		return NVEC_DATA(_vecStateYdot);
 	}
 
-	const std::vector<double const*> Simulator::getLastSensitivities(unsigned int& len) const
+	std::vector<double const*> Simulator::getLastSensitivities(unsigned int& len) const
 	{
 		return convertNVectorToStdVectorConstPtrs(len, _vecFwdYs, _sensitiveParams.slices());
 	}
 
-	const std::vector<double const*> Simulator::getLastSensitivityDerivatives(unsigned int& len) const
+	std::vector<double const*> Simulator::getLastSensitivityDerivatives(unsigned int& len) const
 	{
 		return convertNVectorToStdVectorConstPtrs(len, _vecFwdYsDot, _sensitiveParams.slices());
 	}
@@ -1685,12 +1685,12 @@ namespace cadet
 		return -1;
 	}
 
-	IModelSystem* const Simulator::model() CADET_NOEXCEPT
+	IModelSystem* Simulator::model() CADET_NOEXCEPT
 	{
 		return _model;
 	}
 
-	IModelSystem const* const Simulator::model() const CADET_NOEXCEPT
+	IModelSystem const* Simulator::model() const CADET_NOEXCEPT
 	{
 		return _model;
 	}

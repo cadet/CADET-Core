@@ -249,12 +249,12 @@ template<> active const* InletModel::moveInletValues(double const* const rawValu
 	return _inletConcentrations;
 }
 
-template<> double const* const InletModel::getData() const
+template<> double const* InletModel::getData() const
 {
 	return _inletConcentrationsRaw;
 }
 
-template<> active const* const InletModel::getData() const
+template<> active const* InletModel::getData() const
 {
 	return _inletConcentrations;
 }

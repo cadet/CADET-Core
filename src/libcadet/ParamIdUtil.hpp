@@ -37,16 +37,16 @@ namespace std
 namespace cadet
 {
 
-	inline const bool operator==(const ParameterId& a, const ParameterId& b) CADET_NOEXCEPT
+	inline bool operator==(const ParameterId& a, const ParameterId& b) CADET_NOEXCEPT
 	{
 		return (a.name == b.name) && (a.unitOperation == b.unitOperation) && (a.component == b.component)
 			&& (a.particleType == b.particleType) && (a.boundState == b.boundState) && (a.reaction == b.reaction)
 			&& (a.section == b.section);
 	}
 
-	inline const bool operator!=(const ParameterId& a, const ParameterId& b) CADET_NOEXCEPT { return !(a == b); }
+	inline bool operator!=(const ParameterId& a, const ParameterId& b) CADET_NOEXCEPT { return !(a == b); }
 
-	inline const bool operator<(const ParameterId& a, const ParameterId& b) CADET_NOEXCEPT
+	inline bool operator<(const ParameterId& a, const ParameterId& b) CADET_NOEXCEPT
 	{
 		return std::tie(a.name, a.unitOperation, a.component, a.particleType, a.boundState, a.reaction, a.section) < std::tie(b.name, b.unitOperation, b.component, b.particleType, b.boundState, b.reaction, b.section);
 	}

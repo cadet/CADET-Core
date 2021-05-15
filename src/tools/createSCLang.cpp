@@ -42,7 +42,6 @@ struct ProgramOptions
 int main(int argc, char** argv)
 {
 	ProgramOptions opts;
-	const double nanVal = std::numeric_limits<double>::quiet_NaN();
 
 	try
 	{

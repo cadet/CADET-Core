@@ -706,7 +706,7 @@ public:
 	 * @param [in] nBoundStates Array with number of bound states for each component
 	 * @return Amount of additional memory in bytes
 	 */
-	inline const std::size_t additionalDynamicMemory(unsigned int nComp, unsigned int totalNumBoundStates, unsigned int const* nBoundStates) const CADET_NOEXCEPT { return 0; }
+	inline std::size_t additionalDynamicMemory(unsigned int nComp, unsigned int totalNumBoundStates, unsigned int const* nBoundStates) const CADET_NOEXCEPT { return 0; }
 
 	/**
 	 * @brief Prepares the cache for the updated values
@@ -789,7 +789,7 @@ public:
 
 	inline std::size_t size() const CADET_NOEXCEPT { return _base.size(); }
 
-	inline const std::size_t additionalDynamicMemory(unsigned int nComp, unsigned int totalNumBoundStates, unsigned int const* nBoundStates) const CADET_NOEXCEPT { return nComp * sizeof(active) + alignof(active); }
+	inline std::size_t additionalDynamicMemory(unsigned int nComp, unsigned int totalNumBoundStates, unsigned int const* nBoundStates) const CADET_NOEXCEPT { return nComp * sizeof(active) + alignof(active); }
 
 	inline storage_t& base() CADET_NOEXCEPT { return _base; }
 	inline const storage_t& base() const CADET_NOEXCEPT { return _base; }
@@ -866,7 +866,7 @@ public:
 
 	inline std::size_t size() const CADET_NOEXCEPT { return _base.size(); }
 
-	inline const std::size_t additionalDynamicMemory(unsigned int nComp, unsigned int totalNumBoundStates, unsigned int const* nBoundStates) const CADET_NOEXCEPT
+	inline std::size_t additionalDynamicMemory(unsigned int nComp, unsigned int totalNumBoundStates, unsigned int const* nBoundStates) const CADET_NOEXCEPT
 	{
 		for (unsigned int i = 0; i < nComp; ++i)
 		{
@@ -958,7 +958,7 @@ public:
 
 	inline std::size_t size() const CADET_NOEXCEPT { return _base.size(); }
 
-	inline const std::size_t additionalDynamicMemory(unsigned int nReactions, unsigned int nComp, unsigned int totalNumBoundStates) const CADET_NOEXCEPT { return nReactions * sizeof(active) + alignof(active); }
+	inline std::size_t additionalDynamicMemory(unsigned int nReactions, unsigned int nComp, unsigned int totalNumBoundStates) const CADET_NOEXCEPT { return nReactions * sizeof(active) + alignof(active); }
 
 	inline storage_t& base() CADET_NOEXCEPT { return _base; }
 	inline const storage_t& base() const CADET_NOEXCEPT { return _base; }
@@ -1059,7 +1059,7 @@ public:
 	inline typename util::SlicedVector<active>::size_type slices() const CADET_NOEXCEPT { return _base.slices(); }
 	inline typename util::SlicedVector<active>::size_type size() const CADET_NOEXCEPT { return _base.size(); }
 
-	inline const std::size_t additionalDynamicMemory(unsigned int nComp, unsigned int totalNumBoundStates, unsigned int const* nBoundStates) const CADET_NOEXCEPT
+	inline std::size_t additionalDynamicMemory(unsigned int nComp, unsigned int totalNumBoundStates, unsigned int const* nBoundStates) const CADET_NOEXCEPT
 	{
 		if (compMajor)
 			return totalNumBoundStates * sizeof(active) + alignof(active) + (nComp + 1) * sizeof(typename util::SlicedVector<active>::size_type) + alignof(typename util::SlicedVector<active>::size_type);
@@ -1163,7 +1163,7 @@ public:
 	inline typename util::SlicedVector<active>::size_type slices() const CADET_NOEXCEPT { return _base.slices(); }
 	inline typename util::SlicedVector<active>::size_type size() const CADET_NOEXCEPT { return _base.size(); }
 
-	inline const std::size_t additionalDynamicMemory(unsigned int nComp, unsigned int totalNumBoundStates, unsigned int const* nBoundStates) const CADET_NOEXCEPT
+	inline std::size_t additionalDynamicMemory(unsigned int nComp, unsigned int totalNumBoundStates, unsigned int const* nBoundStates) const CADET_NOEXCEPT
 	{
 		unsigned int sumSquared = 0;
 		for (unsigned int i = 0; i < nComp; ++i)
@@ -1250,7 +1250,7 @@ public:
 	inline typename util::SlicedVector<active>::size_type slices() const CADET_NOEXCEPT { return _base.slices(); }
 	inline typename util::SlicedVector<active>::size_type size() const CADET_NOEXCEPT { return _base.size(); }
 
-	inline const std::size_t additionalDynamicMemory(unsigned int nComp, unsigned int totalNumBoundStates, unsigned int const* nBoundStates) const CADET_NOEXCEPT
+	inline std::size_t additionalDynamicMemory(unsigned int nComp, unsigned int totalNumBoundStates, unsigned int const* nBoundStates) const CADET_NOEXCEPT
 	{
 		return nComp * nComp * sizeof(active) + alignof(active) + (nComp + 1) * sizeof(typename util::SlicedVector<active>::size_type) + alignof(typename util::SlicedVector<active>::size_type);
 	}

@@ -341,7 +341,7 @@ namespace cadet
 		inline const T& operator*() const { return _ptr; }
 
 		inline T* operator->() { return _ptr; }
-		inline T* const operator->() const { return _ptr; }
+		inline T* operator->() const { return _ptr; }
 
 		explicit operator T*() const { return _ptr; }
 
@@ -406,7 +406,7 @@ namespace cadet
 
 		inline const T& operator[](int idx) const { return _ptr[idx]; }
 		inline const T& operator*() const { return _ptr; }
-		inline T const* const operator->() const { return _ptr; }
+		inline T const* operator->() const { return _ptr; }
 
 		explicit operator T const*() const { return _ptr; }
 
@@ -455,7 +455,7 @@ namespace cadet
 		inline const T& operator*() const { return _ptr; }
 
 		inline T* operator->() { return _ptr; }
-		inline T* const operator->() const { return _ptr; }
+		inline T* operator->() const { return _ptr; }
 
 		explicit operator T*() const { return _ptr; }
 
@@ -511,7 +511,7 @@ namespace cadet
 		}
 
 		inline const T& operator*() const { return _ptr; }
-		inline T const* const operator->() const { return _ptr; }
+		inline T const* operator->() const { return _ptr; }
 
 		explicit operator T const*() const { return _ptr; }
 

@@ -55,7 +55,7 @@ public:
 	virtual void fillBoundPhaseInitialParameters(ParameterId* params, UnitOpIdx unitOpIdx, ParticleTypeIdx parTypeIdx) const CADET_NOEXCEPT
 	{
 		unsigned int ctr = 0;
-		for (unsigned int c = 0; c < _nComp; ++c)
+		for (int c = 0; c < _nComp; ++c)
 		{
 			for (unsigned int bp = 0; bp < _nBoundStates[c]; ++bp, ++ctr)
 				params[ctr] = makeParamId(hashString("INIT_Q"), unitOpIdx, c, parTypeIdx, bp, ReactionIndep, SectionIndep);

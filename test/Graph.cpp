@@ -21,7 +21,7 @@ namespace
 	bool dependsOn(const int nUnits, const std::vector<int>& connections, const int unit, const int unitDep)
 	{
 		// Checks whether unit depends on unitDep
-		for (int i = 0; i < connections.size() / 6; ++i)
+		for (unsigned int i = 0; i < connections.size() / 6; ++i)
 		{
 			if ((connections[i * 6] == unitDep) && (connections[i * 6 + 1] == unit))
 				return true;

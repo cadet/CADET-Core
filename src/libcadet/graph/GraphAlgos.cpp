@@ -40,7 +40,7 @@ namespace graph
 				const int to = conList[6*j+1];
 
 				bool found = false;
-				for (int k = 0; k < adjNode.size(); ++k)
+				for (int k = 0; k < static_cast<int>(adjNode.size()); ++k)
 				{
 					if (adjNode[k] == to)
 					{

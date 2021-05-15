@@ -491,6 +491,12 @@ if (ENABLE_PLATFORM_TIMER)
 	endif()
 endif()
 
+target_compile_options(CADET::CompileOptions INTERFACE $<$<OR:$<CXX_COMPILER_ID:Clang>,$<CXX_COMPILER_ID:AppleClang>,$<CXX_COMPILER_ID:GNU>>:
+		-Wall -pedantic-errors -Wextra -Wno-unused-parameter -Wno-unused-function> #-Wconversion -Wsign-conversion
+	$<$<CXX_COMPILER_ID:MSVC>:
+		/W4>
+)
+
 add_library(CADET::AD INTERFACE IMPORTED)
 if (ADLIB STREQUAL "sfad")
 	message(STATUS "AD library: SFAD")

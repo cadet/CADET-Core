@@ -109,7 +109,7 @@ namespace nonlin
 	bool adaptiveTrustRegionNewtonMethod(std::function<bool(double const* const, double* const)> residual, std::function<bool(double const* const, double* const)> jacobianSolver,
 		unsigned int maxIter, double resTol, double damping, double minDamping, double* const point, double* const workingMemory, unsigned int size)
 	{
-		const double thetaMax = 0.25; // Determines whether switch to quasi-newton updates is performed (not implemented)
+//		const double thetaMax = 0.25; // Determines whether switch to quasi-newton updates is performed (not implemented)
 		const bool restricted = false; // Determines if restricted monotonicity test is used
 		double mu = 0.0;
 		double lastResidualNorm = 0.0;
@@ -315,7 +315,7 @@ namespace nonlin
 		std::function<bool(double* const)> jacobianResolver, unsigned int maxIter, double errTol, double damping, double minDamping, double* const point, 
 		double* const workingMemory, unsigned int size)
 	{
-		const double thetaMax = 0.25; // Determines whether switch to quasi-newton updates is performed (not implemented)
+//		const double thetaMax = 0.25; // Determines whether switch to quasi-newton updates is performed (not implemented)
 		const bool restricted = false; // Determines if restricted monotonicity test is used
 		double mu = 0.0;
 

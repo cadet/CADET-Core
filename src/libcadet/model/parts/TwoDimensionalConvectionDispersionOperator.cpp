@@ -560,7 +560,7 @@ int schurComplementMultiplier2DCDO(void* userData, double const* x, double* z)
 			// Copy normal matrix over to factorizable matrix
 			_jacCdisc.copyFromSamePattern(*_jacC);
 
-			for (unsigned int i = 0; i < _jacC->rows(); ++i)
+			for (int i = 0; i < _jacC->rows(); ++i)
 				_jacCdisc.centered(i, 0) += alpha;
 		}
 
@@ -616,7 +616,7 @@ public:
 		_jacCdisc.setAll(0.0);
 
 		linalg::FactorizableBandMatrix::RowIterator jac = _jacCdisc.row(0);
-		for (std::size_t i = 0; i < _jacC->rows(); ++i, ++jac)
+		for (int i = 0; i < _jacC->rows(); ++i, ++jac)
 		{
 			linalg::sparse_int_t const* const colIdx = _jacC->columnIndicesOfRow(i);
 			double const* const vals = _jacC->valuesOfRow(i);
