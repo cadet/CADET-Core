@@ -97,7 +97,7 @@ namespace linalg
 	 * @param [in] mask Mask
 	 * @return Number of active elements in mask
 	 */
-	inline unsigned int numMaskActive(const ConstMaskArray& mask)
+	inline int numMaskActive(const ConstMaskArray& mask)
 	{
 		return std::count_if(mask.mask, mask.mask + mask.len, [](const int i) -> bool { return i; });
 	}
@@ -108,7 +108,7 @@ namespace linalg
 	 * @param [in] len Length of the mask subset that is checked
 	 * @return Number of active elements in mask subset
 	 */
-	inline unsigned int numMaskActive(const ConstMaskArray& mask, int len)
+	inline int numMaskActive(const ConstMaskArray& mask, int len)
 	{
 		cadet_assert(len <= mask.len);
 		cadet_assert(len >= 0);

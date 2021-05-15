@@ -62,7 +62,7 @@ protected:
 	int _nComp; //!< Number of components
 	unsigned int const* _nBoundStates; //!< Array with number of bound states for each component
 	unsigned int const* _boundOffset; //!< Array with offsets to the first bound state of each component
-	unsigned int _nTotalBoundStates;
+	int _nTotalBoundStates;
 
 	std::unordered_map<ParameterId, active*> _parameters; //!< Map used to translate ParameterIds to actual variables
 

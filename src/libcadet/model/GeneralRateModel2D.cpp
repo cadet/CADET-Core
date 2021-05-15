@@ -998,7 +998,7 @@ unsigned int GeneralRateModel2D::numAdDirsForJacobian() const CADET_NOEXCEPT
 	// the bandwidth of the particle blocks are given by the number of components and bound states.
 
 	// Get maximum stride of particle type blocks
-	unsigned int maxStride = 0;
+	int maxStride = 0;
 	for (unsigned int type = 0; type < _disc.nParType; ++type)
 	{
 		maxStride = std::max(maxStride, _jacP[type * _disc.nCol * _disc.nRad].stride());

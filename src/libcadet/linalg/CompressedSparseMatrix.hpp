@@ -48,7 +48,7 @@ public:
 	 * @param [in] nRows Number of rows in the square matrix
 	 * @param [in] averageNumNonZeros Average number of non-zero entries per row
 	 */
-	SparsityPattern(unsigned int nRows, unsigned int averageNumNonZeros) : _rows(nRows, MatrixRowPattern(averageNumNonZeros)), _numNonZero(0) { }
+	SparsityPattern(int nRows, int averageNumNonZeros) : _rows(nRows, MatrixRowPattern(averageNumNonZeros)), _numNonZero(0) { }
 
 	~SparsityPattern() CADET_NOEXCEPT { }
 
@@ -68,14 +68,14 @@ public:
 	 * @brief Returns the number of non-zero entries in this pattern
 	 * @return Number of non-zero entries in the matrix
 	 */
-	inline unsigned int numNonZeros() const CADET_NOEXCEPT { return _numNonZero; }
+	inline int numNonZeros() const CADET_NOEXCEPT { return _numNonZero; }
 
 	/**
 	 * @brief Returns the number of rows (or columns) of this square matrix
 	 * @details It does not matter whether some rows are fully empty.
 	 * @return Number of rows (or columns) of this square matrix
 	 */
-	inline unsigned int rows() const CADET_NOEXCEPT { return _rows.size(); }
+	inline int rows() const CADET_NOEXCEPT { return _rows.size(); }
 
 	/**
 	 * @brief Adds an entry to the pattern
@@ -84,8 +84,8 @@ public:
 	 */
 	inline void add(int row, int col)
 	{
-		cadet_assert((row >= 0) && (row < _rows.size()));
-		cadet_assert((col >= 0) && (col < _rows.size()));
+		cadet_assert((row >= 0) && (row < static_cast<int>(_rows.size())));
+		cadet_assert((col >= 0) && (col < static_cast<int>(_rows.size())));
 
 		if (_rows[row].add(col))
 			++_numNonZero;
@@ -99,8 +99,8 @@ public:
 	 */
 	inline bool isNonZero(int row, int col) const CADET_NOEXCEPT
 	{
-		cadet_assert((row >= 0) && (row < _rows.size()));
-		cadet_assert((col >= 0) && (col < _rows.size()));
+		cadet_assert((row >= 0) && (row < static_cast<int>(_rows.size())));
+		cadet_assert((col >= 0) && (col < static_cast<int>(_rows.size())));
 
 		return _rows[row].contains(col);
 	}
@@ -202,14 +202,14 @@ protected:
 		 * @brief Returns the number of non-zero entries in this row
 		 * @return Number of non-zero entries in this row
 		 */
-		unsigned int numNonZeros() const CADET_NOEXCEPT { return _colIdx.size(); }
+		int numNonZeros() const CADET_NOEXCEPT { return _colIdx.size(); }
 
 	protected:
 		std::vector<sparse_int_t> _colIdx; //!< Sorted column indices of non-zero elements in this row
 	};
 
 	std::vector<MatrixRowPattern> _rows; //!< Rows with their non-zero indices
-	unsigned int _numNonZero; //!< Number of non-zero entries in the matrix
+	int _numNonZero; //!< Number of non-zero entries in the matrix
 };
 
 /**
@@ -263,7 +263,7 @@ public:
 		if (val == 0.0)
 			return;
 
-		for (std::size_t i = 0; i < _pattern->rows(); ++i)
+		for (int i = 0; i < _pattern->rows(); ++i)
 			_pattern->add(_row, i);
 	}
 
@@ -297,7 +297,7 @@ public:
 	 * 
 	 * @return Matrix element at the given position
 	 */
-	inline double& native(unsigned int col)
+	inline double& native(int col)
 	{
 		cadet_assert(_pattern);
 		cadet_assert(col < _pattern->rows());
@@ -306,7 +306,7 @@ public:
 		return _dummy;
 	}
 
-	inline double native(unsigned int col) const { return 0.0; }
+	inline double native(int col) const { return 0.0; }
 
 	inline double& operator()(int diagonal)
 	{
@@ -405,7 +405,7 @@ public:
 	 * @param [in] numRows Matrix size (i.e., number of rows or columns)
 	 * @param [in] numNonZeros Maximum number of non-zero elements
 	 */
-	CompressedSparseMatrix(unsigned int numRows, unsigned int numNonZeros) : _dummy(0.0) { resize(numRows, numNonZeros); }
+	CompressedSparseMatrix(int numRows, int numNonZeros) : _dummy(0.0) { resize(numRows, numNonZeros); }
 
 	/**
 	 * @brief Creates a CompressedSparseMatrix with the given pattern
@@ -465,7 +465,7 @@ public:
 	 * @param [in] numRows Matrix size (i.e., number of rows or columns)
 	 * @param [in] numNonZeros Maximum number of non-zero elements
 	 */
-	void resize(unsigned int numRows, unsigned int numNonZeros);
+	void resize(int numRows, int numNonZeros);
 
 	/**
 	 * @brief Assigns the given sparsity pattern
@@ -615,19 +615,19 @@ public:
 	 * @brief Returns the number of (structurally) non-zero elements in the matrix
 	 * @return Number of (structurally) non-zero elements in the matrix
 	 */
-	inline unsigned int numNonZeros() const CADET_NOEXCEPT { return _values.size(); }
+	inline int numNonZeros() const CADET_NOEXCEPT { return _values.size(); }
 
 	/**
 	 * @brief Returns the number of rows and columns (square matrix)
 	 * @return Number of rows and columns
 	 */
-	inline unsigned int matrixSize() const CADET_NOEXCEPT { return _rowStart.size() - 2; }
+	inline int matrixSize() const CADET_NOEXCEPT { return _rowStart.size() - 2; }
 	
 	/**
 	 * @brief Returns the number of rows
 	 * @return Number of rows
 	 */
-	inline unsigned int rows() const CADET_NOEXCEPT { return _rowStart.size() - 2; }
+	inline int rows() const CADET_NOEXCEPT { return _rowStart.size() - 2; }
 
 	/**
 	 * @brief Sets all matrix elements to the given value

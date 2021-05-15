@@ -196,12 +196,12 @@ namespace
 
 		// Modify matrices
 		double* const vs = factMat.valuesOfRow(0);
-		for (unsigned int i = 0; i < factMat.numNonZeros(); ++i)
+		for (int i = 0; i < factMat.numNonZeros(); ++i)
 			vs[i] *= 2.0;
 
 		dm = createSmallMatrixDense();
 		double* const vd = dm.data();
-		for (unsigned int i = 0; i < dm.rows() * dm.columns(); ++i)
+		for (int i = 0; i < dm.rows() * dm.columns(); ++i)
 			vd[i] *= 2.0;
 
 		// Factorize again

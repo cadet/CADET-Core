@@ -37,13 +37,13 @@ namespace
 	inline void recoverTimeDerivativeMatrixFromColumns(const std::function<void(double*, double*)>& multiplier, cadet::linalg::DenseMatrix& mat, double* vec, double* rhs)
 	{
 		std::fill_n(vec, mat.columns(), 0.0);
-		for (unsigned int i = 0; i < mat.columns(); ++i)
+		for (int i = 0; i < mat.columns(); ++i)
 		{
 			vec[i] = 1.0;
 
 			multiplier(vec, rhs);
 
-			for (unsigned int j = 0; j < mat.rows(); ++j)
+			for (int j = 0; j < mat.rows(); ++j)
 				mat.native(j, i) = rhs[j];
 
 			vec[i] = 0.0;
@@ -52,9 +52,9 @@ namespace
 
 	inline void compareMatrix(const cadet::linalg::DenseMatrix& matA, const cadet::linalg::DenseMatrix& matB, double relTol, double absTol)
 	{
-		for (unsigned int row = 0; row < matA.rows(); ++row)
+		for (int row = 0; row < matA.rows(); ++row)
 		{
-			for (unsigned int col = 0; col < matA.columns(); ++col)
+			for (int col = 0; col < matA.columns(); ++col)
 			{
 				CAPTURE(row);
 				CAPTURE(col);

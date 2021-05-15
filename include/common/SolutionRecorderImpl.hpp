@@ -55,9 +55,9 @@ public:
 
 	InternalStorageUnitOpRecorder() : InternalStorageUnitOpRecorder(UnitOpIndep) { }
 
-	InternalStorageUnitOpRecorder(UnitOpIdx idx) : _cfgSolution({false, false, false, true, false, false}),
-		_cfgSolutionDot({false, false, false, false, false, false}), _cfgSensitivity({false, false, false, true, false, false}),
-		_cfgSensitivityDot({false, false, false, true, false, false}), _storeTime(false), _storeCoordinates(false), _splitComponents(true), _splitPorts(true),
+	InternalStorageUnitOpRecorder(UnitOpIdx idx) : _cfgSolution({false, false, false, true, false, false, false}),
+		_cfgSolutionDot({false, false, false, false, false, false, false}), _cfgSensitivity({false, false, false, true, false, false, false}),
+		_cfgSensitivityDot({false, false, false, true, false, false, false}), _storeTime(false), _storeCoordinates(false), _splitComponents(true), _splitPorts(true),
 		_singleAsMultiPortUnitOps(false), _curCfg(nullptr), _nComp(0), _nVolumeDof(0), _numTimesteps(0), _numSens(0), _unitOp(idx), _needsReAlloc(false),
 		_axialCoords(0), _radialCoords(0), _particleCoords(0)
 	{
@@ -1232,7 +1232,7 @@ public:
 
 	inline unsigned int numRecorders() const CADET_NOEXCEPT { return _recorders.size(); }
 	inline InternalStorageUnitOpRecorder* recorder(unsigned int idx) CADET_NOEXCEPT { return _recorders[idx]; }
-	inline InternalStorageUnitOpRecorder* const recorder(unsigned int idx) const CADET_NOEXCEPT { return _recorders[idx]; }
+	inline InternalStorageUnitOpRecorder* recorder(unsigned int idx) const CADET_NOEXCEPT { return _recorders[idx]; }
 
 	inline InternalStorageUnitOpRecorder* unitOperation(UnitOpIdx idx) CADET_NOEXCEPT
 	{

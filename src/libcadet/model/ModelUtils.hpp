@@ -297,8 +297,8 @@ bool setSensitiveParameter(const ParameterId& pId, unsigned int adDirection, dou
 	{
 		for (T* bm : items)
 		{
-		    if (!bm)
-		        continue;
+			if (!bm)
+				continue;
 
 			active* const paramBinding = bm->getParameter(pId);
 			if (paramBinding)

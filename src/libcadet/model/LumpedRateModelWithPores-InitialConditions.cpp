@@ -1203,7 +1203,7 @@ void LumpedRateModelWithPores::leanConsistentInitialSensitivity(const Simulation
 
 		// Copy parameter derivative from AD to tempState and negate it
 		// We need to use _tempState in order to keep sensYdot unchanged at this point
-		for (unsigned int i = 0; i < idxr.offsetCp(); ++i)
+		for (int i = 0; i < idxr.offsetCp(); ++i)
 			_tempState[i] = -adRes[i].getADValue(param);
 
 		std::fill(_tempState + idxr.offsetCp(), _tempState + idxr.offsetJf(), 0.0);

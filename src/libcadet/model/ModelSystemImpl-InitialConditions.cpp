@@ -157,7 +157,6 @@ void ModelSystem::readInitialCondition(IParameterProvider& paramProvider)
 	for (unsigned int i = 0; i < _models.size(); ++i)
 	{
 		IUnitOperation* const m = _models[i];
-		const unsigned int offset = _dofOffset[i];
 
 		oss.str("");
 		oss << "unit_" << std::setfill('0') << std::setw(3) << std::setprecision(0) << static_cast<int>(m->unitOperationId());

@@ -330,7 +330,7 @@ public:
 		_{{ p/varName }}.update(cadet::util::dataOfLocalVersion(localParams->{{ p/varName }}), extFunBuffer[{{ index }}], nComp, nBoundStates);
 {% endfor %}
 
-		return std::move(localParams);
+		return localParams;
 	}
 
 	inline std::tuple<ParamsHandle, ParamsHandle> updateTimeDerivative(double t, unsigned int secIdx, const ColumnPosition& colPos, unsigned int nComp, unsigned int const* nBoundStates, LinearBufferAllocator& workSpace) const

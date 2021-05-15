@@ -276,7 +276,7 @@ int ConvectionDispersionOperatorBase::residualImpl(double t, unsigned int secIdx
 	const ParamType u = static_cast<ParamType>(_curVelocity);
 	active const* const d_c = getSectionDependentSlice(_colDispersion, _nComp, secIdx);
 	const ParamType h = static_cast<ParamType>(_colLength) / static_cast<double>(_nCol);
-	const int strideCell = strideColCell();
+//	const int strideCell = strideColCell();
 
 	convdisp::FlowParameters<ParamType> fp{
 		u,
@@ -484,7 +484,7 @@ ConvectionDispersionOperator::~ConvectionDispersionOperator() CADET_NOEXCEPT
  * @details Band compression is used to minimize the amount of AD directions.
  * @return Number of required AD directions
  */
-unsigned int ConvectionDispersionOperator::requiredADdirs() const CADET_NOEXCEPT
+int ConvectionDispersionOperator::requiredADdirs() const CADET_NOEXCEPT
 {
 	return _jacC.stride();
 }

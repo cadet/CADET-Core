@@ -28,7 +28,7 @@ namespace linalg
 namespace
 {
 
-void bandMatrixVectorMultiplication(unsigned int rows, unsigned int upperBand, unsigned int lowerBand, unsigned int stride,
+void bandMatrixVectorMultiplication(int rows, int upperBand, int lowerBand, int stride,
 	double const* const data, double alpha, double beta, double const* const x, double* const y)
 {
 	// Since LAPACK uses column-major storage and we use row-major,
@@ -63,7 +63,7 @@ void bandMatrixToSparseString(std::ostream& out, const MatrixType& mt)
 	rows << "rows = [";
 	elems << "elems = [";
 
-	for (unsigned int row = 0; row < mt.rows(); ++row)
+	for (int row = 0; row < mt.rows(); ++row)
 	{
 		const int lower = std::max(-static_cast<int>(mt.lowerBandwidth()), -static_cast<int>(row));
 		const int upper = std::min(static_cast<int>(mt.upperBandwidth()), static_cast<int>(mt.rows() - row) - 1);
@@ -92,22 +92,22 @@ void bandMatrixToSparseString(std::ostream& out, const MatrixType& mt)
 	out << "size: " << mt.rows() << " bandwidth: " << mt.lowerBandwidth() << " + 1 + " << mt.upperBandwidth();
 }
 
-void scaleRows(double* data, unsigned int elemPerRow, unsigned int stride, double const* scalingFactors, unsigned int numRows)
+void scaleRows(double* data, int elemPerRow, int stride, double const* scalingFactors, int numRows)
 {
-	for (unsigned int i = 0; i < numRows; ++i, data += stride)
+	for (int i = 0; i < numRows; ++i, data += stride)
 	{
 		cadet_assert(scalingFactors[i] != 0.0);
-		for (unsigned int j = 0; j < elemPerRow; ++j)
+		for (int j = 0; j < elemPerRow; ++j)
 			data[j] /= scalingFactors[i];
 	}
 }
 
-void rowScaleFactors(double const* data, unsigned int elemPerRow, unsigned int stride, double* scalingFactors, unsigned int numRows)
+void rowScaleFactors(double const* data, int elemPerRow, int stride, double* scalingFactors, int numRows)
 {
-	for (unsigned int i = 0; i < numRows; ++i, data += stride)
+	for (int i = 0; i < numRows; ++i, data += stride)
 	{
 		scalingFactors[i] = 0.0;
-		for (unsigned int j = 0; j < elemPerRow; ++j)
+		for (int j = 0; j < elemPerRow; ++j)
 			scalingFactors[i] = std::max(scalingFactors[i], std::abs(data[j]));
 	}
 }
@@ -119,8 +119,8 @@ void BandMatrix::multiplyVector(const double* const x, double alpha, double beta
 	bandMatrixVectorMultiplication(_rows, _upperBand, _lowerBand, stride(), _data, alpha, beta, x, y);
 }
 
-void BandMatrix::submatrixMultiplyVector(const double* const x, unsigned int startRow, int startDiag, 
-		unsigned int numRows, unsigned int numCols, double alpha, double beta, double* const y) const
+void BandMatrix::submatrixMultiplyVector(const double* const x, int startRow, int startDiag, 
+		int numRows, int numCols, double alpha, double beta, double* const y) const
 {
 	cadet_assert(startDiag >= -static_cast<int>(_lowerBand));
 	cadet_assert(startDiag <= static_cast<int>(_upperBand));
@@ -130,10 +130,10 @@ void BandMatrix::submatrixMultiplyVector(const double* const x, unsigned int sta
 	const int upperBand = static_cast<int>(_upperBand);
 	const int lowerBand = static_cast<int>(_lowerBand);
 
-	for (unsigned int r = 0; r < numRows; ++r)
+	for (int r = 0; r < numRows; ++r)
 	{
 		double temp = 0.0;
-		for (unsigned int c = 0; c < numCols; ++c)
+		for (int c = 0; c < numCols; ++c)
 		{
 			// Compute diagonal index of current position and shift it by startDiag
 			const int curDiag = c - r + startDiag;
@@ -176,20 +176,20 @@ void BandMatrix::submatrixMultiplyVector(const double* const x, unsigned int sta
 		ku = std::min(static_cast<lapackInt_t>(numCols), ku + static_cast<lapackInt_t>(startDiag));
 	}
 
-	unsigned int offset = 0;
+	int offset = 0;
 
 	// LAPACK computes y <- alpha * A * x + beta * y
 	LapackMultiplyDenseBanded(trans, &m, &n, &kl, &ku, &alpha, const_cast<double*>(_data) + startRow * stride() + offset, &ldab, const_cast<double*>(x), &inc, &beta, const_cast<double*>(y), &inc);
 */
 }
 
-void BandMatrix::scaleRows(double const* scalingFactors, unsigned int numRows)
+void BandMatrix::scaleRows(double const* scalingFactors, int numRows)
 {
 	cadet_assert(numRows <= _rows);
 	cadet::linalg::scaleRows(_data, stride(), stride(), scalingFactors, numRows);
 }
 
-void BandMatrix::rowScaleFactors(double* scalingFactors, unsigned int numRows) const
+void BandMatrix::rowScaleFactors(double* scalingFactors, int numRows) const
 {
 	cadet_assert(numRows <= _rows);
 	cadet::linalg::rowScaleFactors(_data, stride(), stride(), scalingFactors, numRows);
@@ -247,18 +247,18 @@ bool FactorizableBandMatrix::solve(double* rhs) const
 
 bool FactorizableBandMatrix::solve(double const* scalingFactors, double* rhs) const
 {
-	for (unsigned int i = 0; i < _rows; ++i)
+	for (int i = 0; i < _rows; ++i)
 		rhs[i] /= scalingFactors[i];
 	return solve(rhs);
 }
 
-void FactorizableBandMatrix::scaleRows(double const* scalingFactors, unsigned int numRows)
+void FactorizableBandMatrix::scaleRows(double const* scalingFactors, int numRows)
 {
 	cadet_assert(numRows <= _rows);
 	cadet::linalg::scaleRows(_data + _upperBand, apparentStride(), stride(), scalingFactors, numRows);
 }
 
-void FactorizableBandMatrix::rowScaleFactors(double* scalingFactors, unsigned int numRows) const
+void FactorizableBandMatrix::rowScaleFactors(double* scalingFactors, int numRows) const
 {
 	cadet_assert(numRows <= _rows);
 	cadet::linalg::rowScaleFactors(_data + _upperBand, apparentStride(), stride(), scalingFactors, numRows);

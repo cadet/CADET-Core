@@ -132,11 +132,11 @@ protected:
 	// Indexer functionality
 
 	// Strides
-	inline const int strideColCell() const CADET_NOEXCEPT { return static_cast<int>(_strideCell); }
-	inline const int strideColComp() const CADET_NOEXCEPT { return 1; }
+	inline int strideColCell() const CADET_NOEXCEPT { return static_cast<int>(_strideCell); }
+	inline int strideColComp() const CADET_NOEXCEPT { return 1; }
 
 	// Offsets
-	inline const int offsetC() const CADET_NOEXCEPT { return _nComp; }
+	inline int offsetC() const CADET_NOEXCEPT { return _nComp; }
 };
 
 
@@ -166,7 +166,7 @@ public:
 	ConvectionDispersionOperator();
 	~ConvectionDispersionOperator() CADET_NOEXCEPT;
 
-	unsigned int requiredADdirs() const CADET_NOEXCEPT;
+	int requiredADdirs() const CADET_NOEXCEPT;
 
 	void setFlowRates(const active& in, const active& out, const active& colPorosity) CADET_NOEXCEPT;
 
@@ -228,7 +228,7 @@ protected:
 	// Indexer functionality
 
 	// Offsets
-	inline const int offsetC() const CADET_NOEXCEPT { return _baseOp.nComp(); }
+	inline int offsetC() const CADET_NOEXCEPT { return _baseOp.nComp(); }
 };
 
 } // namespace parts

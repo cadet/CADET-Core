@@ -1006,7 +1006,7 @@ void CSTRModel::consistentInitialTimeDerivative(const SimulationTime& simTime, d
 
 		// Copy row from original Jacobian and set right hand side
 		double* const qShellDot = cDot + _nComp + _offsetParType[type];
-		for (int i = 0; i < _strideBound[type]; ++i, ++idx)
+		for (unsigned int i = 0; i < _strideBound[type]; ++i, ++idx)
 		{
 			if (!mask[i])
 				continue;

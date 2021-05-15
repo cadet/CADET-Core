@@ -72,7 +72,7 @@ inline bool BiSMAParamHandler::validateConfig(unsigned int nComp, unsigned int c
 		throw InvalidParameterException("BISMA_LAMBDA has to have as many elements as there are binding sites");
 
 	util::SlicedVector<active>& nu = _nu.get();
-	for (int i = 0; i < numStates; ++i)
+	for (unsigned int i = 0; i < numStates; ++i)
 	{
 		if (nu(i, 0) <= 0.0)
 			nu(i, 0) = 1.0;
@@ -93,7 +93,7 @@ inline bool ExtBiSMAParamHandler::validateConfig(unsigned int nComp, unsigned in
 		throw InvalidParameterException("BISMA_LAMBDA has to have as many elements as there are binding sites");
 
 	util::SlicedVector<active>& nu = _nu.base();
-	for (int i = 0; i < numStates; ++i)
+	for (unsigned int i = 0; i < numStates; ++i)
 	{
 		if (nu(i, 0) <= 0.0)
 			nu(i, 0) = 1.0;

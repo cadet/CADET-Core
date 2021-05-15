@@ -638,8 +638,8 @@ void GeneralRateModel2D::consistentInitialState(const SimulationTime& simTime, d
 
 			// Midpoint of current column cell (z, rho coordinate) - needed in externally dependent adsorption kinetic
 			const unsigned int axialCell = pblk / _disc.nRad;
-			const unsigned int radialCell = pblk % _disc.nRad;
-			const double r = static_cast<double>(_convDispOp.radialCenters()[radialCell]) / static_cast<double>(_convDispOp.columnRadius());
+//			const unsigned int radialCell = pblk % _disc.nRad;
+//			const double r = static_cast<double>(_convDispOp.radialCenters()[radialCell]) / static_cast<double>(_convDispOp.columnRadius());
 			const double z = (0.5 + static_cast<double>(axialCell)) / static_cast<double>(_disc.nCol);
 
 			// Get workspace memory
@@ -1533,7 +1533,7 @@ void GeneralRateModel2D::leanConsistentInitialSensitivity(const SimulationTime& 
 
 		// Copy parameter derivative from AD to tempState and negate it
 		// We need to use _tempState in order to keep sensYdot unchanged at this point
-		for (unsigned int i = 0; i < idxr.offsetCp(); ++i)
+		for (int i = 0; i < idxr.offsetCp(); ++i)
 			_tempState[i] = -adRes[i].getADValue(param);
 
 		std::fill(_tempState + idxr.offsetCp(), _tempState + idxr.offsetJf(), 0.0);

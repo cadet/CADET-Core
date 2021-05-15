@@ -122,7 +122,7 @@ public:
 	 * @param [in] rows The number of rows
 	 * @param [in] cols The number of columns
 	 */
-	inline void resize(unsigned int rows, unsigned int cols)
+	inline void resize(int rows, int cols)
 	{
 		_cols = cols;
 		_rows = rows;
@@ -153,8 +153,8 @@ public:
 	 * 
 	 * @return Matrix element at the given position
 	 */
-	inline active& diagonalElement(unsigned int row, int diagonal) { return (*this)(row, diagonal); }
-	inline const active& diagonalElement(unsigned int row, int diagonal) const { return (*this)(row, diagonal); }
+	inline active& diagonalElement(int row, int diagonal) { return (*this)(row, diagonal); }
+	inline const active& diagonalElement(int row, int diagonal) const { return (*this)(row, diagonal); }
 
 	/**
 	 * @brief Accesses an element in the matrix
@@ -165,21 +165,21 @@ public:
 	 * 
 	 * @return Matrix element at the given position
 	 */
-	inline active& native(unsigned int row, unsigned int col)
+	inline active& native(int row, int col)
 	{
 		cadet_assert(row < _rows);
 		cadet_assert(col < _cols);
 		return _data[row * stride() + col];
 	}
 
-	inline const active& native(unsigned int row, unsigned int col) const
+	inline const active& native(int row, int col) const
 	{
 		cadet_assert(row < _rows);
 		cadet_assert(col < _cols);
 		return _data[row * stride() + col];
 	}
 
-	inline active& operator()(unsigned int row, int diagonal)
+	inline active& operator()(int row, int diagonal)
 	{
 		cadet_assert(row < _rows);
 		cadet_assert(diagonal < static_cast<int>(_cols - row));
@@ -187,7 +187,7 @@ public:
 		return _data[static_cast<int>(row * stride() + row) + diagonal];
 	}
 
-	inline const active& operator()(unsigned int row, int diagonal) const
+	inline const active& operator()(int row, int diagonal) const
 	{
 		cadet_assert(row < _rows);
 		cadet_assert(diagonal < static_cast<int>(_cols - row));
@@ -199,19 +199,19 @@ public:
 	 * @brief Returns the number of elements in the matrix
 	 * @return Number of elements in the matrix
 	 */
-	inline unsigned int elements() const CADET_NOEXCEPT { return _cols * _rows; }
+	inline int elements() const CADET_NOEXCEPT { return _cols * _rows; }
 
 	/**
 	 * @brief Returns the number of columns
 	 * @return Number of columns
 	 */
-	inline unsigned int columns() const CADET_NOEXCEPT { return _cols; }
+	inline int columns() const CADET_NOEXCEPT { return _cols; }
 
 	/**
 	 * @brief Returns the number of rows
 	 * @return Number of rows
 	 */
-	inline unsigned int rows() const CADET_NOEXCEPT { return _rows; }
+	inline int rows() const CADET_NOEXCEPT { return _rows; }
 	
 	/**
 	 * @brief Provides direct access to the underlying memory
@@ -224,14 +224,14 @@ public:
 	 * @brief Returns the number of elements in an array row
 	 * @return Number of elements in a matrix row
 	 */
-	inline unsigned int stride() const CADET_NOEXCEPT { return _cols; }
+	inline int stride() const CADET_NOEXCEPT { return _cols; }
 
 	/**
 	 * @brief Provides access to the underlying data in the given row
 	 * @param [in] idx Index of the row
 	 * @return Pointer to first element in the given row
 	 */
-	inline active* rowPtr(unsigned int idx)
+	inline active* rowPtr(int idx)
 	{
 		cadet_assert(idx < _rows);
 		return _data + stride() * idx;
@@ -246,11 +246,11 @@ public:
 	template <typename operand_t, typename result_t>
 	inline void multiplyVector(const operand_t* const x, result_t* const y) const
 	{
-		for (unsigned int r = 0; r < _rows; ++r)
+		for (int r = 0; r < _rows; ++r)
 		{
 			y[r] = 0.0;
 			active const* const row = _data + r * stride();
-			for (unsigned int c = 0; c < _cols; ++c)
+			for (int c = 0; c < _cols; ++c)
 				y[r] += static_cast<typename DoubleDemoter<result_t>::type>(row[c]) * static_cast<typename DoubleActiveDemoter<result_t, operand_t>::type>(x[c]);
 		}
 	}
@@ -264,11 +264,11 @@ public:
 	template <typename operand_t, typename result_t>
 	inline void transposedMultiplyVector(const operand_t* const x, result_t* const y) const
 	{
-		for (unsigned int r = 0; r < _rows; ++r)
+		for (int r = 0; r < _rows; ++r)
 		{
 			y[r] = 0.0;
 			active const* const col = _data + r;
-			for (unsigned int c = 0; c < _cols; ++c)
+			for (int c = 0; c < _cols; ++c)
 				y[r] += static_cast<typename DoubleDemoter<result_t>::type>(col[c * stride()]) * static_cast<typename DoubleActiveDemoter<result_t, operand_t>::type>(x[c]);
 		}
 	}
@@ -284,11 +284,11 @@ public:
 	template <typename operand_t, typename result_t>
 	void multiplyVector(const operand_t* const x, double alpha, double beta, result_t* const y) const
 	{
-		for (unsigned int r = 0; r < _rows; ++r)
+		for (int r = 0; r < _rows; ++r)
 		{
 			y[r] *= beta;
 			active const* const row = _data + r * stride();
-			for (unsigned int c = 0; c < _cols; ++c)
+			for (int c = 0; c < _cols; ++c)
 				y[r] += alpha * static_cast<typename DoubleDemoter<result_t>::type>(row[c]) * static_cast<typename DoubleActiveDemoter<result_t, operand_t>::type>(x[c]);
 		}
 	}
@@ -303,10 +303,10 @@ public:
 	template <typename operand_t, typename result_t>
 	void multiplyVector(const operand_t* const x, double alpha, result_t* const y) const
 	{
-		for (unsigned int r = 0; r < _rows; ++r)
+		for (int r = 0; r < _rows; ++r)
 		{
 			active const* const row = _data + r * stride();
-			for (unsigned int c = 0; c < _cols; ++c)
+			for (int c = 0; c < _cols; ++c)
 				y[r] += alpha * static_cast<typename DoubleDemoter<result_t>::type>(row[c]) * static_cast<typename DoubleActiveDemoter<result_t, operand_t>::type>(x[c]);
 		}
 	}
@@ -321,10 +321,10 @@ public:
 	template <typename operand_t, typename result_t>
 	void multiplyVector(const operand_t* const x, const active& alpha, result_t* const y) const
 	{
-		for (unsigned int r = 0; r < _rows; ++r)
+		for (int r = 0; r < _rows; ++r)
 		{
 			active const* const row = _data + r * stride();
-			for (unsigned int c = 0; c < _cols; ++c)
+			for (int c = 0; c < _cols; ++c)
 				y[r] += static_cast<typename DoubleDemoter<result_t>::type>(alpha) * static_cast<typename DoubleDemoter<result_t>::type>(row[c]) * static_cast<typename DoubleActiveDemoter<result_t, operand_t>::type>(x[c]);
 		}
 	}
@@ -340,11 +340,11 @@ public:
 	template <typename operand_t, typename result_t>
 	void transposedMultiplyVector(const operand_t* const x, double alpha, double beta, result_t* const y) const
 	{
-		for (unsigned int r = 0; r < _rows; ++r)
+		for (int r = 0; r < _rows; ++r)
 		{
 			y[r] *= beta;
 			active const* const col = _data + r;
-			for (unsigned int c = 0; c < _cols; ++c)
+			for (int c = 0; c < _cols; ++c)
 				y[r] += alpha * static_cast<typename DoubleDemoter<result_t>::type>(col[c * stride()]) * static_cast<typename DoubleActiveDemoter<result_t, operand_t>::type>(x[c]);
 		}
 	}
@@ -359,10 +359,10 @@ public:
 	template <typename operand_t, typename result_t>
 	void transposedMultiplyVector(const operand_t* const x, double alpha, result_t* const y) const
 	{
-		for (unsigned int r = 0; r < _rows; ++r)
+		for (int r = 0; r < _rows; ++r)
 		{
 			active const* const col = _data + r;
-			for (unsigned int c = 0; c < _cols; ++c)
+			for (int c = 0; c < _cols; ++c)
 				y[r] += alpha * static_cast<typename DoubleDemoter<result_t>::type>(col[c * stride()]) * static_cast<typename DoubleActiveDemoter<result_t, operand_t>::type>(x[c]);
 		}
 	}
@@ -383,21 +383,21 @@ public:
 	 * @param [out] y Result of the matrix-vector multiplication
 	 */
 	template <typename operand_t, typename result_t, typename numeric_t>
-	void multiplyVectorSplit(const operand_t* const x, double alpha1, const numeric_t& alpha2, double beta, unsigned int idxSplit, result_t* const y) const
+	void multiplyVectorSplit(const operand_t* const x, double alpha1, const numeric_t& alpha2, double beta, int idxSplit, result_t* const y) const
 	{
-		for (unsigned int r = 0; r < idxSplit; ++r)
+		for (int r = 0; r < idxSplit; ++r)
 		{
 			y[r] *= beta;
 			active const* const row = _data + r * stride();
-			for (unsigned int c = 0; c < _cols; ++c)
+			for (int c = 0; c < _cols; ++c)
 				y[r] += alpha1 * static_cast<typename DoubleDemoter<result_t>::type>(row[c]) * static_cast<typename DoubleActiveDemoter<result_t, operand_t>::type>(x[c]);
 		}
 
-		for (unsigned int r = idxSplit; r < _rows; ++r)
+		for (int r = idxSplit; r < _rows; ++r)
 		{
 			y[r] *= beta;
 			active const* const row = _data + r * stride();
-			for (unsigned int c = 0; c < _cols; ++c)
+			for (int c = 0; c < _cols; ++c)
 				y[r] += alpha2 * static_cast<typename DoubleDemoter<result_t>::type>(row[c]) * static_cast<typename DoubleActiveDemoter<result_t, operand_t>::type>(x[c]);
 		}
 	}
@@ -410,7 +410,7 @@ public:
 	 * @param [in] rows The number of rows
 	 * @param [in] cols The number of columns
 	 */
-	inline void shrinkOrExpandFast(unsigned int rows, unsigned int cols)
+	inline void shrinkOrExpandFast(int rows, int cols)
 	{
 		_cols = cols;
 		_rows = rows;
@@ -426,7 +426,7 @@ public:
 	 * @param [in] rows The number of rows
 	 * @param [in] cols The number of columns
 	 */
-	inline void shrinkOrExpand(unsigned int rows, unsigned int cols)
+	inline void shrinkOrExpand(int rows, int cols)
 	{
 		shrinkOrExpandFast(rows, cols);
 		setAll(0.0);
@@ -434,8 +434,8 @@ public:
 
 protected:
 	active* _data; //!< Pointer to the array in which the matrix is stored
-	unsigned int _rows; //!< Number of rows
-	unsigned int _cols; //!< Number of columns
+	int _rows; //!< Number of rows
+	int _cols; //!< Number of columns
 
 	/**
 	 * @brief Initializes the matrix with the given memory of the given size
@@ -443,7 +443,7 @@ protected:
 	 * @param [in] rows Number of rows
 	 * @param [in] cols Number of columns
 	 */
-	ActiveDenseMatrix(active* const data, unsigned int rows, unsigned int cols) CADET_NOEXCEPT : _data(data), _rows(rows), _cols(cols) { }
+	ActiveDenseMatrix(active* const data, int rows, int cols) CADET_NOEXCEPT : _data(data), _rows(rows), _cols(cols) { }
 
 	/**
 	 * @brief Copies all values from the source to the local array

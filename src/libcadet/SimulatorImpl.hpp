@@ -96,8 +96,8 @@ public:
 	virtual double const* getLastSolution(unsigned int& len) const;
 	virtual double const* getLastSolutionDerivative(unsigned int& len) const;
 
-	virtual const std::vector<double const*> getLastSensitivities(unsigned int& len) const;
-	virtual const std::vector<double const*> getLastSensitivityDerivatives(unsigned int& len) const;
+	virtual std::vector<double const*> getLastSensitivities(unsigned int& len) const;
+	virtual std::vector<double const*> getLastSensitivityDerivatives(unsigned int& len) const;
 
 	virtual void configure(IParameterProvider& paramProvider);
 	virtual void reconfigure(IParameterProvider& paramProvider);
@@ -123,8 +123,8 @@ public:
 	virtual bool reconfigureModel(IParameterProvider& paramProvider);
 	virtual bool reconfigureModel(IParameterProvider& paramProvider, unsigned int unitOpIdx);
 
-	virtual IModelSystem* const model() CADET_NOEXCEPT;
-	virtual IModelSystem const* const model() const CADET_NOEXCEPT;
+	virtual IModelSystem* model() CADET_NOEXCEPT;
+	virtual IModelSystem const* model() const CADET_NOEXCEPT;
 
 	virtual unsigned int numDofs() const CADET_NOEXCEPT;
 	virtual void setNumThreads(unsigned int nThreads) CADET_NOEXCEPT;

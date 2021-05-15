@@ -50,8 +50,8 @@ namespace ad
  * @param [in] upperBandwidth Upper bandwidth (number of upper superdiagonals) of the banded Jacobian
  * @param [in] diagDir Diagonal direction index
  */
-void prepareAdVectorSeedsForBandMatrix(active* const adVec, unsigned int adDirOffset, unsigned int rows, 
-	unsigned int lowerBandwidth, unsigned int upperBandwidth, unsigned int diagDir);
+void prepareAdVectorSeedsForBandMatrix(active* const adVec, int adDirOffset, int rows, 
+	int lowerBandwidth, int upperBandwidth, int diagDir);
 
 /**
  * @brief Extracts a band matrix from band compressed AD seed vectors
@@ -62,7 +62,7 @@ void prepareAdVectorSeedsForBandMatrix(active* const adVec, unsigned int adDirOf
  * @param [in] diagDir Diagonal direction index
  * @param [out] mat BandMatrix to be populated with the Jacobian
  */
-void extractBandedJacobianFromAd(active const* const adVec, unsigned int adDirOffset, unsigned int diagDir, linalg::BandMatrix& mat);
+void extractBandedJacobianFromAd(active const* const adVec, int adDirOffset, int diagDir, linalg::BandMatrix& mat);
 
 /**
  * @brief Sets seed vectors on an AD vector for computing a dense Jacobian
@@ -70,7 +70,7 @@ void extractBandedJacobianFromAd(active const* const adVec, unsigned int adDirOf
  * @param [in] adDirOffset Offset in the AD directions (can be used to move past parameter sensitivity directions)
  * @param [in] cols Nnumber of Jacobian columns (length of the AD vector and number of seed vectors)
  */
-void prepareAdVectorSeedsForDenseMatrix(active* const adVec, unsigned int adDirOffset, unsigned int cols); 
+void prepareAdVectorSeedsForDenseMatrix(active* const adVec, int adDirOffset, int cols); 
 
 /**
  * @brief Extracts a dense matrix from AD seed vectors
@@ -80,7 +80,7 @@ void prepareAdVectorSeedsForDenseMatrix(active* const adVec, unsigned int adDirO
  * @param [in] adDirOffset Offset in the AD directions (can be used to move past parameter sensitivity directions)
  * @param [out] mat DenseMatrix to be populated with the Jacobian, where the matrix is of the correct size and allocated
  */
-void extractDenseJacobianFromAd(active const* const adVec, unsigned int adDirOffset, linalg::detail::DenseMatrixBase& mat);
+void extractDenseJacobianFromAd(active const* const adVec, int adDirOffset, linalg::detail::DenseMatrixBase& mat);
 
 /**
  * @brief Extracts a dense submatrix from band compressed AD seed vectors
@@ -96,8 +96,8 @@ void extractDenseJacobianFromAd(active const* const adVec, unsigned int adDirOff
  * @param [in] upperBandwidth Upper bandwidth (number of upper superdiagonals) of the banded Jacobian
  * @param [out] mat Dense matrix to be populated with the Jacobian submatrix
  */
-void extractDenseJacobianFromBandedAd(active const* const adVec, unsigned int row, unsigned int adDirOffset, unsigned int diagDir, 
-	unsigned int lowerBandwidth, unsigned int upperBandwidth, linalg::detail::DenseMatrixBase& mat);
+void extractDenseJacobianFromBandedAd(active const* const adVec, int row, int adDirOffset, int diagDir, 
+	int lowerBandwidth, int upperBandwidth, linalg::detail::DenseMatrixBase& mat);
 
 /**
  * @brief Compares a banded Jacobian with an AD version derived by band compressed AD seed vectors
@@ -113,7 +113,7 @@ void extractDenseJacobianFromBandedAd(active const* const adVec, unsigned int ro
  * @param [in] mat BandMatrix populated with the analytic Jacobian
  * @return The maximum absolute relative difference between the matrix elements
  */
-double compareBandedJacobianWithAd(active const* const adVec, unsigned int adDirOffset, unsigned int diagDir, const linalg::BandMatrix& mat);
+double compareBandedJacobianWithAd(active const* const adVec, int adDirOffset, int diagDir, const linalg::BandMatrix& mat);
 
 /**
  * @brief Compares a dense Jacobian with an AD version derived by AD seed vectors
@@ -128,7 +128,7 @@ double compareBandedJacobianWithAd(active const* const adVec, unsigned int adDir
  * @param [in] mat Dense matrix populated with the analytic Jacobian
  * @return The maximum absolute relative difference between the matrix elements
  */
-double compareDenseJacobianWithAd(active const* const adVec, unsigned int adDirOffset, const linalg::detail::DenseMatrixBase& mat);
+double compareDenseJacobianWithAd(active const* const adVec, int adDirOffset, const linalg::detail::DenseMatrixBase& mat);
 
 /**
  * @brief Compares a dense submatrix with a band compressed AD version
@@ -149,8 +149,8 @@ double compareDenseJacobianWithAd(active const* const adVec, unsigned int adDirO
  * @param [in] mat Dense matrix populated with the dense Jacobian submatrix
  * @return The maximum absolute relative difference between the matrix elements
  */
-double compareDenseJacobianWithBandedAd(active const* const adVec, unsigned int row, unsigned int adDirOffset, unsigned int diagDir, 
-	unsigned int lowerBandwidth, unsigned int upperBandwidth, const linalg::detail::DenseMatrixBase& mat);
+double compareDenseJacobianWithBandedAd(active const* const adVec, int row, int adDirOffset, int diagDir, 
+	int lowerBandwidth, int upperBandwidth, const linalg::detail::DenseMatrixBase& mat);
 
 /**
  * @brief Performs the operation @f$ y = \alpha A x + \beta y @f$ using the derivative matrix
@@ -165,7 +165,7 @@ double compareDenseJacobianWithBandedAd(active const* const adVec, unsigned int 
  * @param [in] beta Factor @f$ \beta @f$ in front of @f$ y @f$
  * @param [in] adDir AD direction to use (selects the derivative matrix)
  */
-void adMatrixVectorMultiply(const linalg::SparseMatrix<active>& mat, double const* x, double* y, double alpha, double beta, unsigned int adDir);
+void adMatrixVectorMultiply(const linalg::SparseMatrix<active>& mat, double const* x, double* y, double alpha, double beta, int adDir);
 
 /**
  * @brief Copies the results (0th derivative) of an AD vector to a double vector
@@ -174,9 +174,9 @@ void adMatrixVectorMultiply(const linalg::SparseMatrix<active>& mat, double cons
  * @param [in] size Size of the vectors
  * @todo Check if loop unrolling is beneficial
  */
-inline void copyFromAd(active const* const adVec, double* const dest, unsigned int size)
+inline void copyFromAd(active const* const adVec, double* const dest, int size)
 {
-	for (unsigned int i = 0; i < size; ++i)
+	for (int i = 0; i < size; ++i)
 		dest[i] = static_cast<double>(adVec[i]);
 }
 
@@ -189,9 +189,9 @@ inline void copyFromAd(active const* const adVec, double* const dest, unsigned i
  * @param [in] adDir AD direction
  * @todo Check if loop unrolling is beneficial
  */
-inline void copyFromAdDirection(active const* const adVec, double* const dest, unsigned int size, unsigned int adDir)
+inline void copyFromAdDirection(active const* const adVec, double* const dest, int size, int adDir)
 {
-	for (unsigned int i = 0; i < size; ++i)
+	for (int i = 0; i < size; ++i)
 		dest[i] = adVec[i].getADValue(adDir);
 }
 
@@ -202,9 +202,9 @@ inline void copyFromAdDirection(active const* const adVec, double* const dest, u
  * @param [in] size Size of the vectors
  * @todo Check if loop unrolling is beneficial
  */
-inline void copyToAd(double const* const src, active* const adVec, unsigned int size)
+inline void copyToAd(double const* const src, active* const adVec, int size)
 {
-	for (unsigned int i = 0; i < size; ++i)
+	for (int i = 0; i < size; ++i)
 		adVec[i].setValue(src[i]);
 }
 
@@ -215,9 +215,9 @@ inline void copyToAd(double const* const src, active* const adVec, unsigned int 
  * @param [in] size Size of the vectors
  * @todo Check if loop unrolling is beneficial
  */
-inline void copyToAdResetSens(double const* const src, active* const adVec, unsigned int size)
+inline void copyToAdResetSens(double const* const src, active* const adVec, int size)
 {
-	for (unsigned int i = 0; i < size; ++i)
+	for (int i = 0; i < size; ++i)
 		adVec[i] = src[i];
 }
 
@@ -228,9 +228,9 @@ inline void copyToAdResetSens(double const* const src, active* const adVec, unsi
  * @param [in] val Value
  * @todo Check if loop unrolling is beneficial
  */
-inline void fillAd(active* const adVec, unsigned int size, double val)
+inline void fillAd(active* const adVec, int size, double val)
 {
-	for (unsigned int i = 0; i < size; ++i)
+	for (int i = 0; i < size; ++i)
 		adVec[i].setValue(val);
 }
 
@@ -240,9 +240,9 @@ inline void fillAd(active* const adVec, unsigned int size, double val)
  * @param [in] size Length of the vector
  * @todo Check if loop unrolling is beneficial
  */
-inline void resetAd(active* const adVec, unsigned int size)
+inline void resetAd(active* const adVec, int size)
 {
-	for (unsigned int i = 0; i < size; ++i)
+	for (int i = 0; i < size; ++i)
 		adVec[i] = 0.0;
 }
 
@@ -262,7 +262,7 @@ public:
 	 * @param [in] adDirOffset Offset in the AD directions (can be used to move past parameter sensitivity directions)
 	 * @param [out] mat Matrix which stores the Jacobian
 	 */
-	virtual void extractJacobian(active const* adRes, unsigned int row, unsigned int adDirOffset, linalg::detail::DenseMatrixBase& mat) const = 0;
+	virtual void extractJacobian(active const* adRes, int row, int adDirOffset, linalg::detail::DenseMatrixBase& mat) const = 0;
 
 	/**
 	 * @brief Compares the AD Jacobian with a given Jacobian matrix and returns the maximum absolute difference
@@ -272,7 +272,7 @@ public:
 	 * @param [in] mat Matrix which stores another Jacobian used for comparison
 	 * @return Maximum absolute difference between AD and given Jacobian matrix
 	 */
-	virtual double compareWithJacobian(active const* adRes, unsigned int row, unsigned int adDirOffset, linalg::detail::DenseMatrixBase& mat) const = 0;
+	virtual double compareWithJacobian(active const* adRes, int row, int adDirOffset, linalg::detail::DenseMatrixBase& mat) const = 0;
 };
 
 /**
@@ -283,8 +283,8 @@ class DenseJacobianExtractor : public IJacobianExtractor
 {
 public:
 	DenseJacobianExtractor();
-	virtual void extractJacobian(active const* adRes, unsigned int row, unsigned int adDirOffset, linalg::detail::DenseMatrixBase& mat) const;
-	virtual double compareWithJacobian(active const* adRes, unsigned int row, unsigned int adDirOffset, linalg::detail::DenseMatrixBase& mat) const;
+	virtual void extractJacobian(active const* adRes, int row, int adDirOffset, linalg::detail::DenseMatrixBase& mat) const;
+	virtual double compareWithJacobian(active const* adRes, int row, int adDirOffset, linalg::detail::DenseMatrixBase& mat) const;
 protected:
 };
 
@@ -295,13 +295,13 @@ protected:
 class BandedJacobianExtractor : public IJacobianExtractor
 {
 public:
-	BandedJacobianExtractor(unsigned int diagDir, unsigned int lowerBandwidth, unsigned int upperBandwidth);
-	virtual void extractJacobian(active const* adRes, unsigned int row, unsigned int adDirOffset, linalg::detail::DenseMatrixBase& mat) const;
-	virtual double compareWithJacobian(active const* adRes, unsigned int row, unsigned int adDirOffset, linalg::detail::DenseMatrixBase& mat) const;
+	BandedJacobianExtractor(int diagDir, int lowerBandwidth, int upperBandwidth);
+	virtual void extractJacobian(active const* adRes, int row, int adDirOffset, linalg::detail::DenseMatrixBase& mat) const;
+	virtual double compareWithJacobian(active const* adRes, int row, int adDirOffset, linalg::detail::DenseMatrixBase& mat) const;
 protected:
-	unsigned int _diagDir;
-	unsigned int _lowerBandwidth;
-	unsigned int _upperBandwidth;
+	int _diagDir;
+	int _lowerBandwidth;
+	int _upperBandwidth;
 };
 
 } // namespace ad

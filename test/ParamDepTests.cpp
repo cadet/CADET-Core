@@ -92,7 +92,7 @@ void testLiquidJacobianAD(const char* modelName, unsigned int nComp, unsigned in
 	cadet::linalg::DenseMatrix jacAna;
 	jacAna.resize(numDofs, numDofs);
 
-	for (int comp = 0; comp < nComp; ++comp)
+	for (unsigned int comp = 0; comp < nComp; ++comp)
 		cpd.model().analyticJacobianLiquidAdd(ColumnPosition{0.0, 0.0, 0.0}, 2.1, point, comp, factor, 0, jacAna.row(comp));
 
 	// Enable AD
@@ -104,7 +104,7 @@ void testLiquidJacobianAD(const char* modelName, unsigned int nComp, unsigned in
 	ad::prepareAdVectorSeedsForDenseMatrix(adY, 0, numDofs);
 	ad::copyToAd(point, adY, numDofs);
 
-	for (int comp = 0; comp < nComp; ++comp)
+	for (unsigned int comp = 0; comp < nComp; ++comp)
 		adRes[comp] = factor * cpd.model().liquidParameter(ColumnPosition{0.0, 0.0, 0.0}, 2.1, adY, comp);
 
 	// Extract Jacobian
@@ -149,9 +149,9 @@ void testCombinedJacobianAD(const char* modelName, unsigned int nComp, unsigned 
 	cadet::linalg::DenseMatrix jacAna;
 	jacAna.resize(numDofs, numDofs);
 
-	for (int comp = 0; comp < nComp; ++comp)
+	for (unsigned int comp = 0; comp < nComp; ++comp)
 		cpd.model().analyticJacobianCombinedAddLiquid(ColumnPosition{0.0, 0.0, 0.0}, 2.1, point, point + nComp, comp, factor, 0, jacAna.row(comp));
-	for (int bnd = 0; bnd < cpd.numBoundStates(); ++bnd)
+	for (unsigned int bnd = 0; bnd < cpd.numBoundStates(); ++bnd)
 		cpd.model().analyticJacobianCombinedAddSolid(ColumnPosition{0.0, 0.0, 0.0}, 2.1, point, point + nComp, bnd, factor, 0, jacAna.row(nComp + bnd));
 
 	// Enable AD
@@ -163,9 +163,9 @@ void testCombinedJacobianAD(const char* modelName, unsigned int nComp, unsigned 
 	ad::prepareAdVectorSeedsForDenseMatrix(adY, 0, numDofs);
 	ad::copyToAd(point, adY, numDofs);
 
-	for (int comp = 0; comp < nComp; ++comp)
+	for (unsigned int comp = 0; comp < nComp; ++comp)
 		adRes[comp] = factor * cpd.model().combinedParameterLiquid(ColumnPosition{0.0, 0.0, 0.0}, 2.1, adY, adY + nComp, comp);
-	for (int bnd = 0; bnd < cpd.numBoundStates(); ++bnd)
+	for (unsigned int bnd = 0; bnd < cpd.numBoundStates(); ++bnd)
 		adRes[nComp + bnd] = factor * cpd.model().combinedParameterSolid(ColumnPosition{0.0, 0.0, 0.0}, 2.1, adY, adY + nComp, bnd);
 
 	// Extract Jacobian

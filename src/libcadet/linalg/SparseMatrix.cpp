@@ -35,8 +35,8 @@ std::ostream& operator<<(std::ostream& out, const DoubleSparseMatrix& sm)
 	rows << "rows = [";
 	elems << "elems = [";
 
-	const std::vector<unsigned int>& spRows = sm.rows();
-	const std::vector<unsigned int>& spCols = sm.cols();
+	const std::vector<int>& spRows = sm.rows();
+	const std::vector<int>& spCols = sm.cols();
 	const std::vector<double>& spVals = sm.values();
 
 	for (unsigned int i = 0; i < sm.numNonZero(); ++i)
