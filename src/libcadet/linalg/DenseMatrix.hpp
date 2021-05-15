@@ -106,7 +106,7 @@ namespace detail
 		 * @return Matrix element at the given position
 		 */
 		inline double& centered(int diagonal) { return (*this)(diagonal); }
-		inline const double centered(int diagonal) const { return (*this)(diagonal); }
+		inline double centered(int diagonal) const { return (*this)(diagonal); }
 
 		inline double& operator()(int diagonal)
 		{
@@ -119,7 +119,7 @@ namespace detail
 			return _pos[diagonal];
 		}
 
-		inline const double operator()(int diagonal) const
+		inline double operator()(int diagonal) const
 		{
 			// Check if out of scope
 			if (cadet_unlikely(diagonal >= static_cast<int>(_matrix->columns()) - _rowIdx))
@@ -131,7 +131,7 @@ namespace detail
 		}
 
 		inline double& operator[](int diagonal) { return (*this)(diagonal); }
-		inline const double operator[](int diagonal) const { return (*this)(diagonal); }
+		inline double operator[](int diagonal) const { return (*this)(diagonal); }
 
 		/**
 		 * @brief Sets all row elements to the given value
@@ -325,7 +325,7 @@ namespace detail
 		 * @return Matrix element at the given position
 		 */
 		inline double& diagonalElement(unsigned int row, int diagonal) { return (*this)(row, diagonal); }
-		inline const double diagonalElement(unsigned int row, int diagonal) const { return (*this)(row, diagonal); }
+		inline double diagonalElement(unsigned int row, int diagonal) const { return (*this)(row, diagonal); }
 
 		/**
 		 * @brief Accesses an element in the matrix
@@ -343,7 +343,7 @@ namespace detail
 			return _data[row * stride() + col];
 		}
 
-		inline const double native(unsigned int row, unsigned int col) const
+		inline double native(unsigned int row, unsigned int col) const
 		{
 			cadet_assert(row < _rows);
 			cadet_assert(col < _cols);
@@ -358,7 +358,7 @@ namespace detail
 			return _data[static_cast<int>(row * stride() + row) + diagonal];
 		}
 
-		inline const double operator()(unsigned int row, int diagonal) const
+		inline double operator()(unsigned int row, int diagonal) const
 		{
 			cadet_assert(row < _rows);
 			cadet_assert(diagonal < static_cast<int>(_cols - row));

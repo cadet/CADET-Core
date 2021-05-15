@@ -158,7 +158,7 @@ namespace cadet
 		CachingStencil(const std::initializer_list<double> vals, MemoryPoolType& memPool, unsigned int offset) : CachingStencil(vals.size(), memPool, offset) { initialize(vals); }
 		~CachingStencil() CADET_NOEXCEPT { _memPool.template destroy<double>(); }
 
-		inline const double operator[](const int idx) const
+		inline double operator[](const int idx) const
 		{
 			cadet_assert(idx >= -static_cast<int>(_offset));
 			cadet_assert(idx < static_cast<int>(_size - _offset));
