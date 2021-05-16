@@ -1,7 +1,7 @@
 // =============================================================================
-//  CADET - The Chromatography Analysis and Design Toolkit
+//  CADET
 //  
-//  Copyright © 2008-2019: The CADET Authors
+//  Copyright © 2008-2021: The CADET Authors
 //            Please see the AUTHORS and CONTRIBUTORS file.
 //  
 //  All rights reserved. This program and the accompanying materials
@@ -12,7 +12,7 @@
 
 /**
  * @file 
- * Defines the mixer/splitter model.
+ * Defines the outlet model.
  */
 
 #ifndef LIBCADET_MIXERSPLITTERMODEL_HPP_
@@ -20,7 +20,7 @@
 
 #include "cadet/SolutionExporter.hpp"
 
-#include "UnitOperation.hpp"
+#include "model/UnitOperation.hpp"
 #include "AutoDiff.hpp"
 #include "ParamIdUtil.hpp"
 #include "model/ModelUtils.hpp"
@@ -37,7 +37,7 @@ namespace model
 {
 
 /**
- * @brief Mixer/Splitter model
+ * @brief MixerSplitter model
  * @details This unit operation is for recombination of streams
  */
 class MixerSplitterModel : public IUnitOperation
@@ -54,7 +54,7 @@ public:
 
 	virtual UnitOpIdx unitOperationId() const CADET_NOEXCEPT { return _unitOpIdx; }
 	virtual unsigned int numComponents() const CADET_NOEXCEPT { return _nComp; }
-	virtual void setFlowRates(active const* in, active const* out) CADET_NOEXCEPT;
+	virtual void setFlowRates(active const* in, active const* out) CADET_NOEXCEPT { }
 	virtual unsigned int numInletPorts() const CADET_NOEXCEPT { return 1; }
 	virtual unsigned int numOutletPorts() const CADET_NOEXCEPT { return 1; }
 	virtual bool canAccumulate() const CADET_NOEXCEPT { return false; }
@@ -64,7 +64,7 @@ public:
 
 	virtual bool configureModelDiscretization(IParameterProvider& paramProvider, IConfigHelper& helper);
 	virtual bool configure(IParameterProvider& paramProvider);
-	virtual void notifyDiscontinuousSectionTransition(double t, unsigned int secIdx, const AdJacobianParams& adJac);
+	virtual void notifyDiscontinuousSectionTransition(double t, unsigned int secIdx, const ConstSimulationState& simState, const AdJacobianParams& adJac);
 	
 	virtual std::unordered_map<ParameterId, double> getAllParameterValues() const;
 	virtual bool hasParameter(const ParameterId& pId) const;
@@ -85,18 +85,18 @@ public:
 	virtual void reportSolution(ISolutionRecorder& recorder, double const* const solution) const;
 	virtual void reportSolutionStructure(ISolutionRecorder& recorder) const;
 
-	virtual int residual(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res);
-	virtual int residualWithJacobian(const ActiveSimulationTime& simTime, const ConstSimulationState& simState, double* const res, const AdJacobianParams& adJac);
-	virtual int residualSensFwdAdOnly(const ActiveSimulationTime& simTime, const ConstSimulationState& simState, active* const adRes);
-	virtual int residualSensFwdWithJacobian(const ActiveSimulationTime& simTime, const ConstSimulationState& simState, const AdJacobianParams& adJac);
+	virtual int residual(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res, util::ThreadLocalStorage& threadLocalMem);
+	virtual int residualWithJacobian(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res, const AdJacobianParams& adJac, util::ThreadLocalStorage& threadLocalMem);
+	virtual int residualSensFwdAdOnly(const SimulationTime& simTime, const ConstSimulationState& simState, active* const adRes, util::ThreadLocalStorage& threadLocalMem);
+	virtual int residualSensFwdWithJacobian(const SimulationTime& simTime, const ConstSimulationState& simState, const AdJacobianParams& adJac, util::ThreadLocalStorage& threadLocalMem);
 
-	virtual int residualSensFwdCombine(const ActiveSimulationTime& simTime, const ConstSimulationState& simState, 
+	virtual int residualSensFwdCombine(const SimulationTime& simTime, const ConstSimulationState& simState, 
 		const std::vector<const double*>& yS, const std::vector<const double*>& ySdot, const std::vector<double*>& resS, active const* adRes, 
 		double* const tmp1, double* const tmp2, double* const tmp3);
 
 
 	// linearSolve and assembleAndPrepareDAEJacobian are null operations since there are only inlet DOFs, which are treated by ModelSystem
-	virtual int linearSolve(double t, double timeFactor, double alpha, double tol, double* const rhs, double const* const weight,
+	virtual int linearSolve(double t, double alpha, double tol, double* const rhs, double const* const weight,
 		const ConstSimulationState& simState) { return 0; }
 
 	virtual void prepareADvectors(const AdJacobianParams& adJac) const;
@@ -104,18 +104,18 @@ public:
 	virtual void applyInitialCondition(const SimulationState& simState) const;
 	virtual void readInitialCondition(IParameterProvider& paramProvider);
 
-	virtual void consistentInitialState(const SimulationTime& simTime, double* const vecStateY, const AdJacobianParams& adJac, double errorTol) { }
-	virtual void consistentInitialTimeDerivative(const SimulationTime& simTime, double const* vecStateY, double* const vecStateYdot) { }
+	virtual void consistentInitialState(const SimulationTime& simTime, double* const vecStateY, const AdJacobianParams& adJac, double errorTol, util::ThreadLocalStorage& threadLocalMem) { }
+	virtual void consistentInitialTimeDerivative(const SimulationTime& simTime, double const* vecStateY, double* const vecStateYdot, util::ThreadLocalStorage& threadLocalMem) { }
 
-	virtual void consistentInitialSensitivity(const ActiveSimulationTime& simTime, const ConstSimulationState& simState,
-		std::vector<double*>& vecSensY, std::vector<double*>& vecSensYdot, active const* const adRes);
+	virtual void consistentInitialSensitivity(const SimulationTime& simTime, const ConstSimulationState& simState,
+		std::vector<double*>& vecSensY, std::vector<double*>& vecSensYdot, active const* const adRes, util::ThreadLocalStorage& threadLocalMem);
 	virtual void initializeSensitivityStates(const std::vector<double*>& vecSensY) const;
 
-	virtual void leanConsistentInitialState(const SimulationTime& simTime, double* const vecStateY, const AdJacobianParams& adJac, double errorTol) { }
-	virtual void leanConsistentInitialTimeDerivative(double t, double timeFactor, double const* const vecStateY, double* const vecStateYdot, double* const res) { }
+	virtual void leanConsistentInitialState(const SimulationTime& simTime, double* const vecStateY, const AdJacobianParams& adJac, double errorTol, util::ThreadLocalStorage& threadLocalMem) { }
+	virtual void leanConsistentInitialTimeDerivative(double t, double const* const vecStateY, double* const vecStateYdot, double* const res, util::ThreadLocalStorage& threadLocalMem) { }
 
-	virtual void leanConsistentInitialSensitivity(const ActiveSimulationTime& simTime, const ConstSimulationState& simState,
-		std::vector<double*>& vecSensY, std::vector<double*>& vecSensYdot, active const* const adRes);
+	virtual void leanConsistentInitialSensitivity(const SimulationTime& simTime, const ConstSimulationState& simState,
+		std::vector<double*>& vecSensY, std::vector<double*>& vecSensYdot, active const* const adRes, util::ThreadLocalStorage& threadLocalMem);
 
 	virtual void setExternalFunctions(IExternalFunction** extFuns, unsigned int size) { }
 
@@ -125,7 +125,7 @@ public:
 	virtual bool hasInlet() const CADET_NOEXCEPT { return true; }
 	virtual bool hasOutlet() const CADET_NOEXCEPT { return true; }
 
-	virtual unsigned int localOutletComponentIndex(unsigned int port) const CADET_NOEXCEPT { return 0; }
+	virtual unsigned int localOutletComponentIndex(unsigned int port) const CADET_NOEXCEPT { return _nComp; }
 	virtual unsigned int localOutletComponentStride(unsigned int port) const CADET_NOEXCEPT { return 1; }
 	virtual unsigned int localInletComponentIndex(unsigned int port) const CADET_NOEXCEPT { return 0; }
 	virtual unsigned int localInletComponentStride(unsigned int port) const CADET_NOEXCEPT { return 1; }
@@ -134,20 +134,17 @@ public:
 
 	virtual void expandErrorTol(double const* errorSpec, unsigned int errorSpecSize, double* expandOut) { }
 
+	virtual unsigned int threadLocalMemorySize() const CADET_NOEXCEPT { return 0; }
+
 #ifdef CADET_BENCHMARK_MODE
 	virtual std::vector<double> benchmarkTimings() const { return std::vector<double>(0); }
 	virtual char const* const* benchmarkDescriptions() const { return nullptr; }
 #endif
 
-    inline void setFlowRates(double in, double out) CADET_NOEXCEPT { _flowRateIn = in; _flowRateOut = out; }
-
 protected:
 
 	UnitOpIdx _unitOpIdx; //!< Unit operation index
 	unsigned int _nComp; //!< Number of components
-
-	active _flowRateIn; //!< Volumetric flow rate of incoming stream
-	active _flowRateOut; //!< Volumetric flow rate of drawn outgoing stream
 
 	class Exporter : public ISolutionExporter
 	{
@@ -185,7 +182,7 @@ protected:
 			return _data;
 		}
 		virtual double const* outlet(unsigned int port, unsigned int& stride) const
-		{
+		{n
 			stride = 1;
 			return _data;
 		}

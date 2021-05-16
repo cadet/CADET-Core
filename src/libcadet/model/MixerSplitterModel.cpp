@@ -1,7 +1,7 @@
 // =============================================================================
-//  CADET - The Chromatography Analysis and Design Toolkit
+//  CADET
 //
-//  Copyright © 2008-2019: The CADET Authors
+//  Copyright © 2008-2021: The CADET Authors
 //            Please see the AUTHORS and CONTRIBUTORS file.
 //
 //  All rights reserved. This program and the accompanying materials
@@ -62,12 +62,6 @@ unsigned int MixerSplitterModel::numPureDofs() const CADET_NOEXCEPT
 bool MixerSplitterModel::usesAD() const CADET_NOEXCEPT
 {
 	return false;
-}
-
-void MixerSplitterModel::setFlowRates(active const* in, active const* out) CADET_NOEXCEPT 
-{ 
-	_flowRateIn = in[0];
-	_flowRateOut = out[0];
 }
 
 bool MixerSplitterModel::configureModelDiscretization(IParameterProvider& paramProvider, IConfigHelper& helper)
@@ -132,7 +126,7 @@ unsigned int MixerSplitterModel::numSensParams() const
 }
 
 void MixerSplitterModel::useAnalyticJacobian(const bool analyticJac) { }
-void MixerSplitterModel::notifyDiscontinuousSectionTransition(double t, unsigned int secIdx, const AdJacobianParams& adJac) { }
+void MixerSplitterModel::notifyDiscontinuousSectionTransition(double t, unsigned int secIdx, const ConstSimulationState& simState, const AdJacobianParams& adJac) { }
 
 void MixerSplitterModel::reportSolution(ISolutionRecorder& recorder, double const* const solution) const
 {
@@ -162,21 +156,21 @@ void MixerSplitterModel::applyInitialCondition(const SimulationState& simState) 
 
 void MixerSplitterModel::readInitialCondition(IParameterProvider& paramProvider) { }
 
-int MixerSplitterModel::residual(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res)
+int MixerSplitterModel::residual(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res, util::ThreadLocalStorage& threadLocalMem)
 {
 	::residual(simState.vecStateY, _nComp, res);
 	return 0;
 }
 
-int MixerSplitterModel::residualWithJacobian(const ActiveSimulationTime& simTime, const ConstSimulationState& simState, 
-	double* const res, const AdJacobianParams& adJac)
+int MixerSplitterModel::residualWithJacobian(const SimulationTime& simTime, const ConstSimulationState& simState, 
+	double* const res, const AdJacobianParams& adJac, util::ThreadLocalStorage& threadLocalMem)
 {
 	// Jacobian is always identity
 	::residual(simState.vecStateY, _nComp, res);
 	return 0;
 }
 
-int MixerSplitterModel::residualSensFwdAdOnly(const ActiveSimulationTime& simTime, const ConstSimulationState& simState, active* const adRes)
+int MixerSplitterModel::residualSensFwdAdOnly(const SimulationTime& simTime, const ConstSimulationState& simState, active* const adRes, util::ThreadLocalStorage& threadLocalMem)
 {
 	for (unsigned int i = 0; i < _nComp; ++i)
 		adRes[i] = simState.vecStateY[i];
@@ -184,7 +178,7 @@ int MixerSplitterModel::residualSensFwdAdOnly(const ActiveSimulationTime& simTim
 	return 0;
 }
 
-int MixerSplitterModel::residualSensFwdCombine(const ActiveSimulationTime& simTime, const ConstSimulationState& simState, 
+int MixerSplitterModel::residualSensFwdCombine(const SimulationTime& simTime, const ConstSimulationState& simState, 
 	const std::vector<const double*>& yS, const std::vector<const double*>& ySdot, const std::vector<double*>& resS, active const* adRes, 
 	double* const tmp1, double* const tmp2, double* const tmp3)
 {
@@ -198,7 +192,7 @@ int MixerSplitterModel::residualSensFwdCombine(const ActiveSimulationTime& simTi
 	return 0;
 }
 
-int MixerSplitterModel::residualSensFwdWithJacobian(const ActiveSimulationTime& simTime, const ConstSimulationState& simState, const AdJacobianParams& adJac)
+int MixerSplitterModel::residualSensFwdWithJacobian(const SimulationTime& simTime, const ConstSimulationState& simState, const AdJacobianParams& adJac, util::ThreadLocalStorage& threadLocalMem)
 {
 	for (unsigned int i = 0; i < _nComp; ++i)
 		adJac.adRes[i] = simState.vecStateY[i];
@@ -208,14 +202,14 @@ int MixerSplitterModel::residualSensFwdWithJacobian(const ActiveSimulationTime& 
 
 void MixerSplitterModel::initializeSensitivityStates(const std::vector<double*>& vecSensY) const { }
 
-void MixerSplitterModel::consistentInitialSensitivity(const ActiveSimulationTime& simTime, const ConstSimulationState& simState,
-	std::vector<double*>& vecSensY, std::vector<double*>& vecSensYdot, active const* const adRes)
+void MixerSplitterModel::consistentInitialSensitivity(const SimulationTime& simTime, const ConstSimulationState& simState,
+	std::vector<double*>& vecSensY, std::vector<double*>& vecSensYdot, active const* const adRes, util::ThreadLocalStorage& threadLocalMem)
 {
 	// Nothing to do here as inlet DOFs are initialized by ModelSystem
 }
 
-void MixerSplitterModel::leanConsistentInitialSensitivity(const ActiveSimulationTime& simTime, const ConstSimulationState& simState,
-	std::vector<double*>& vecSensY, std::vector<double*>& vecSensYdot, active const* const adRes)
+void MixerSplitterModel::leanConsistentInitialSensitivity(const SimulationTime& simTime, const ConstSimulationState& simState,
+	std::vector<double*>& vecSensY, std::vector<double*>& vecSensYdot, active const* const adRes, util::ThreadLocalStorage& threadLocalMem)
 {
 	// Nothing to do here as inlet DOFs are initialized by ModelSystem
 }
