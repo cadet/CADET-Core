@@ -47,7 +47,7 @@ namespace std
 	template<>
 	struct hash<cadet::ParameterId>
 	{
-		inline size_t operator()(const cadet::ParameterId& pId) const CADET_NOEXCEPT
+		inline std::size_t operator()(const cadet::ParameterId& pId) const CADET_NOEXCEPT
 		{
 			return cadet::hashParameter(pId);
 		}
@@ -968,7 +968,7 @@ void setSectionTimes(cadet::Driver& drv, int nlhs, mxArray** plhs, int nrhs, con
 		std::vector<bool> secCont(nSections - 2);
 		const MatlabAutoConverter<bool, int32_t> secContSource(prhs[3], "CadetMex: Command 'setsectimes' requires section continuity of type 'int32'.\n");
 
-		for (unsigned int i = 0; i < secCont.size(); ++i)
+		for (std::size_t i = 0; i < secCont.size(); ++i)
 			secCont[i] = secContSource[i];
 
 		drv.simulator()->setSectionTimes(secTimes, secCont);

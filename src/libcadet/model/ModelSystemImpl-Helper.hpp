@@ -28,7 +28,7 @@ namespace
 	inline int totalErrorIndicatorFromLocal(const std::vector<int>& err)
 	{
 		int totalError = 0;
-		for (unsigned int i = 0; i < err.size(); ++i)
+		for (std::size_t i = 0; i < err.size(); ++i)
 		{
 			// Negative values are non-recoverable errors
 			if (err[i] < 0)

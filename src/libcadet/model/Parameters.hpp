@@ -772,7 +772,7 @@ public:
 
 	inline void update(active* result, double extVal, unsigned int nComp, unsigned int const* nBoundStates) const
 	{
-		for (unsigned int i = 0; i < _base.size(); ++i)
+		for (std::size_t i = 0; i < _base.size(); ++i)
 			result[i] = _base[i] + extVal * (_linear[i] + extVal * (_quad[i] + extVal * _cube[i]));
 	}
 
@@ -783,7 +783,7 @@ public:
 
 	inline void updateTimeDerivative(active* result, double extVal, double extTimeDiff, unsigned int nComp, unsigned int const* nBoundStates) const
 	{
-		for (unsigned int i = 0; i < _base.size(); ++i)
+		for (std::size_t i = 0; i < _base.size(); ++i)
 			result[i] = extTimeDiff * (static_cast<double>(_linear[i]) + extVal * (2.0 * static_cast<double>(_quad[i]) + 3.0 * extVal * static_cast<double>(_cube[i])));
 	}
 
@@ -849,7 +849,7 @@ public:
 
 	inline void update(active* result, double extVal, unsigned int nComp, unsigned int const* nBoundStates) const
 	{
-		for (unsigned int i = 0; i < _base.size(); ++i)
+		for (std::size_t i = 0; i < _base.size(); ++i)
 			result[i] = _base[i] + extVal * (_linear[i] + extVal * (_quad[i] + extVal * _cube[i]));
 	}
 
@@ -860,7 +860,7 @@ public:
 
 	inline void updateTimeDerivative(active* result, double extVal, double extTimeDiff, unsigned int nComp, unsigned int const* nBoundStates) const
 	{
-		for (unsigned int i = 0; i < _base.size(); ++i)
+		for (std::size_t i = 0; i < _base.size(); ++i)
 			result[i] = extTimeDiff * (static_cast<double>(_linear[i]) + extVal * (2.0 * static_cast<double>(_quad[i]) + 3.0 * extVal * static_cast<double>(_cube[i])));
 	}
 
@@ -941,7 +941,7 @@ public:
 
 	inline void update(active* result, double extVal, unsigned int nComp, unsigned int const* nBoundStates) const
 	{
-		for (unsigned int i = 0; i < _base.size(); ++i)
+		for (std::size_t i = 0; i < _base.size(); ++i)
 			result[i] = _base[i] + extVal * (_linear[i] + extVal * (_quad[i] + extVal * _cube[i]));
 	}
 
@@ -952,7 +952,7 @@ public:
 
 	inline void updateTimeDerivative(active* result, double extVal, double extTimeDiff, unsigned int nComp, unsigned int const* nBoundStates) const
 	{
-		for (unsigned int i = 0; i < _base.size(); ++i)
+		for (std::size_t i = 0; i < _base.size(); ++i)
 			result[i] = extTimeDiff * (static_cast<double>(_linear[i]) + extVal * (2.0 * static_cast<double>(_quad[i]) + 3.0 * extVal * static_cast<double>(_cube[i])));
 	}
 
@@ -1041,7 +1041,7 @@ public:
 
 	inline void update(active* result, double extVal, unsigned int nComp, unsigned int const* nBoundStates) const
 	{
-		for (unsigned int i = 0; i < _base.size(); ++i)
+		for (std::size_t i = 0; i < _base.size(); ++i)
 			result[i] = _base.native(i) + extVal * (_linear.native(i) + extVal * (_quad.native(i) + extVal * _cube.native(i)));
 	}
 
@@ -1052,7 +1052,7 @@ public:
 
 	inline void updateTimeDerivative(active* result, double extVal, double extTimeDiff, unsigned int nComp, unsigned int const* nBoundStates) const
 	{
-		for (unsigned int i = 0; i < _base.size(); ++i)
+		for (std::size_t i = 0; i < _base.size(); ++i)
 			result[i] = extTimeDiff * (static_cast<double>(_linear.native(i)) + extVal * (2.0 * static_cast<double>(_quad.native(i)) + 3.0 * extVal * static_cast<double>(_cube.native(i))));
 	}
 
@@ -1145,7 +1145,7 @@ public:
 
 	inline void update(active* result, double extVal, unsigned int nComp, unsigned int const* nBoundStates) const
 	{
-		for (unsigned int i = 0; i < _base.size(); ++i)
+		for (std::size_t i = 0; i < _base.size(); ++i)
 			result[i] = _base.native(i) + extVal * (_linear.native(i) + extVal * (_quad.native(i) + extVal * _cube.native(i)));
 	}
 
@@ -1156,7 +1156,7 @@ public:
 
 	inline void updateTimeDerivative(active* result, double extVal, double extTimeDiff, unsigned int nComp, unsigned int const* nBoundStates) const
 	{
-		for (unsigned int i = 0; i < _base.size(); ++i)
+		for (std::size_t i = 0; i < _base.size(); ++i)
 			result[i] = extTimeDiff * (static_cast<double>(_linear.native(i)) + extVal * (2.0 * static_cast<double>(_quad.native(i)) + 3.0 * extVal * static_cast<double>(_cube.native(i))));
 	}
 
@@ -1232,7 +1232,7 @@ public:
 
 	inline void update(active* result, double extVal, unsigned int nComp, unsigned int const* nBoundStates) const
 	{
-		for (unsigned int i = 0; i < _base.size(); ++i)
+		for (std::size_t i = 0; i < _base.size(); ++i)
 			result[i] = _base.native(i) + extVal * (_linear.native(i) + extVal * (_quad.native(i) + extVal * _cube.native(i)));
 	}
 
@@ -1243,7 +1243,7 @@ public:
 
 	inline void updateTimeDerivative(active* result, double extVal, double extTimeDiff, unsigned int nComp, unsigned int const* nBoundStates) const
 	{
-		for (unsigned int i = 0; i < _base.size(); ++i)
+		for (std::size_t i = 0; i < _base.size(); ++i)
 			result[i] = extTimeDiff * (static_cast<double>(_linear.native(i)) + extVal * (2.0 * static_cast<double>(_quad.native(i)) + 3.0 * extVal * static_cast<double>(_cube.native(i))));
 	}
 

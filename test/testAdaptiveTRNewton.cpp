@@ -191,7 +191,7 @@ void run()
 	printVector("Referenc", p.solution, p.size());
 
 	double errorLinf = 0.0;
-	for (unsigned int i = 0; i < p.size(); ++i)
+	for (std::size_t i = 0; i < p.size(); ++i)
 	{
 		errorLinf = std::max(std::abs(sol[i] - p.solution[i]), errorLinf);
 	}

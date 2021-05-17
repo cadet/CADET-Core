@@ -135,7 +135,7 @@ namespace log
 		os << "[";
 		if (!v.empty())
 		{
-			for (unsigned int i = 0; i < v.size()-1; ++i)
+			for (std::size_t i = 0; i < v.size()-1; ++i)
 				os << v[i] << ",";
 			os << v.back();
 		}

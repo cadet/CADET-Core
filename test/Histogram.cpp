@@ -28,7 +28,7 @@ namespace test
 		unsigned int nValid = 0;
 
 		// Find min and max
-		for (unsigned int i = 0; i < data.size() / skip; ++i)
+		for (std::size_t i = 0; i < data.size() / skip; ++i)
 		{
 			const double v = std::log10(data[i * skip + lane]);
 			if (std::isfinite(v))
@@ -42,7 +42,7 @@ namespace test
 		// Do binning
 		const double binWidth = (maxVal - minVal) / static_cast<double>(nBins);
 		std::vector<unsigned int> bins(nBins, 0);
-		for (unsigned int i = 0; i < data.size() / skip; ++i)
+		for (std::size_t i = 0; i < data.size() / skip; ++i)
 		{
 			const double v = std::log10(data[i * skip + lane]);
 			if (!std::isfinite(v))
@@ -85,7 +85,7 @@ namespace test
 	std::vector<T> quantile(std::vector<T>& data, const std::vector<T>& probs, unsigned int skip, unsigned int lane)
 	{
 		std::vector<T> d(data.size() / skip);
-		for (unsigned int i = 0; i < d.size(); ++i)
+		for (std::size_t i = 0; i < d.size(); ++i)
 			d[i] = data[i * skip + lane];
 
 		std::sort(d.begin(), d.end());

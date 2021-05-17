@@ -33,6 +33,7 @@
 
 #include <cmath>
 #include <functional>
+#include <cstdint>
 
 /**
  * @brief Returns the absolute path to the test/ folder of the project

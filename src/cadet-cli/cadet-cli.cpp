@@ -226,7 +226,7 @@ void run(const std::string& inFileName, const std::string& outFileName, bool sho
 	const std::vector<double> sysTiming = drv.model()->benchmarkTimings();
 	char const* const* sysDesc = drv.model()->benchmarkDescriptions();
 
-	for (unsigned int i = 0; i < sysTiming.size()-1; ++i)
+	for (std::size_t i = 0; i < sysTiming.size()-1; ++i)
 		std::cout << "\t\t\"" << sysDesc[i] << "\": " << sysTiming[i] << ",\n";
 
 	std::cout << "\t\t\"" << sysDesc[sysTiming.size()-1] << "\": " << sysTiming[sysTiming.size()-1] << "\n\t}";
@@ -243,7 +243,7 @@ void run(const std::string& inFileName, const std::string& outFileName, bool sho
 		const std::vector<double> grmTiming = m->benchmarkTimings();
 		char const* const* grmDesc = m->benchmarkDescriptions();
 
-		for (unsigned int i = 0; i < grmTiming.size()-1; ++i)
+		for (std::size_t i = 0; i < grmTiming.size()-1; ++i)
 			std::cout << "\t\t\"" << grmDesc[i] << "\": " << grmTiming[i] << ",\n";
 
 		std::cout << "\t\t\"" << grmDesc[grmTiming.size()-1] << "\": " << grmTiming[grmTiming.size()-1] << "\n\t}";

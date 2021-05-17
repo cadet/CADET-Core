@@ -80,8 +80,8 @@ public:
 	inline bool isVector(const char* elementName);
 
 	/// \brief Returns the number of elements in the array identified by name
-	inline size_t arraySize(const std::string& elementName) { return arraySize(elementName.c_str()); }
-	inline size_t arraySize(const char* elementName);
+	inline std::size_t arraySize(const std::string& elementName) { return arraySize(elementName.c_str()); }
+	inline std::size_t arraySize(const char* elementName);
 
 	/// \brief Convenience wrapper for reading vectors
 	template <typename T>
@@ -89,35 +89,35 @@ public:
 
 	/// \brief Convenience wrapper for reading scalars
 	template <typename T>
-	T scalar(const std::string& dataSetName, size_t position = 0);
+	T scalar(const std::string& dataSetName, std::size_t position = 0);
 
 	/// \brief Write data from C-array to a dataset
 	template <typename T>
-	void write(const std::string& dataSetName, const size_t rank, const size_t* dims, const T* buffer, const size_t stride = 1, const size_t blockSize = 1);
+	void write(const std::string& dataSetName, const std::size_t rank, const std::size_t* dims, const T* buffer, const std::size_t stride = 1, const std::size_t blockSize = 1);
 
 	/// \brief Convenience wrapper for writing tensors from C-array
 	template <typename T>
-	void tensor(const std::string& dataSetName, const size_t rank, const size_t* dims, const T* buffer, const size_t stride = 1, const size_t blockSize = 1);
+	void tensor(const std::string& dataSetName, const std::size_t rank, const std::size_t* dims, const T* buffer, const std::size_t stride = 1, const std::size_t blockSize = 1);
 
 	/// \brief Convenience wrapper for writing tensors from std::vector
 	template <typename T>
-	void tensor(const std::string& dataSetName, const size_t rank, const size_t* dims, const std::vector<T>& buffer, const size_t stride = 1, const size_t blockSize = 1);
+	void tensor(const std::string& dataSetName, const std::size_t rank, const std::size_t* dims, const std::vector<T>& buffer, const std::size_t stride = 1, const std::size_t blockSize = 1);
 
 	/// \brief Convenience wrapper for writing matrices from C-array
 	template <typename T>
-	void matrix(const std::string& dataSetName, const size_t rows, const size_t cols, const T* buffer, const size_t stride = 1, const size_t blockSize = 1);
+	void matrix(const std::string& dataSetName, const std::size_t rows, const std::size_t cols, const T* buffer, const std::size_t stride = 1, const std::size_t blockSize = 1);
 
 	/// \brief Convenience wrapper for writing matrices from std::vector
 	template <typename T>
-	void matrix(const std::string& dataSetName, const size_t rows, const size_t cols, const std::vector<T>& buffer, const size_t stride = 1, const size_t blockSize = 1);
+	void matrix(const std::string& dataSetName, const std::size_t rows, const std::size_t cols, const std::vector<T>& buffer, const std::size_t stride = 1, const std::size_t blockSize = 1);
 
 	/// \brief Convenience wrapper for writing vectors from C-array
 	template <typename T>
-	void vector(const std::string& dataSetName, const size_t length, const T* buffer, const size_t stride = 1, const size_t blockSize = 1);
+	void vector(const std::string& dataSetName, const std::size_t length, const T* buffer, const std::size_t stride = 1, const std::size_t blockSize = 1);
 
 	/// \brief Convenience wrapper for writing vectors from std::vector
 	template <typename T>
-	void vector(const std::string& dataSetName, const std::vector<T>& buffer, const size_t stride = 1, const size_t blockSize = 1);
+	void vector(const std::string& dataSetName, const std::vector<T>& buffer, const std::size_t stride = 1, const std::size_t blockSize = 1);
 
 	/// \brief Convenience wrapper for writing scalars
 	template <typename T>
@@ -148,7 +148,7 @@ protected:
 	template <typename T>
 	std::vector<T> read();
 
-	mxArray* createStructField(const std::string& dataSetName, const size_t rank, const size_t* dims, const void* buffer, const size_t stride, const mxClassID type);
+	mxArray* createStructField(const std::string& dataSetName, const std::size_t rank, const std::size_t* dims, const void* buffer, const std::size_t stride, const mxClassID type);
 
 	void openGroup(bool create = false);
 	void openAndCreateGroup();
@@ -190,7 +190,7 @@ bool MatlabReaderWriter::isVector(const char* elementName)
 	return mxGetNumberOfElements(mxGetField(_group, 0, elementName)) > 1;
 }
 
-size_t MatlabReaderWriter::arraySize(const char* elementName)
+std::size_t MatlabReaderWriter::arraySize(const char* elementName)
 {
 	openGroup();
 	return mxGetNumberOfElements(mxGetField(_group, 0, elementName));

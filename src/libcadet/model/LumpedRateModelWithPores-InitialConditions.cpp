@@ -339,7 +339,7 @@ void LumpedRateModelWithPores::consistentInitialState(const SimulationTime& simT
 		//Problem capturing variables here
 #ifdef CADET_PARALLELIZE
 		BENCH_SCOPE(_timerConsistentInitPar);
-		tbb::parallel_for(size_t(0), size_t(_disc.nCol), [&](size_t pblk)
+		tbb::parallel_for(std::size_t(0), static_cast<std::size_t>(_disc.nCol), [&](std::size_t pblk)
 #else
 		for (unsigned int pblk = 0; pblk < _disc.nCol; ++pblk)
 #endif
@@ -663,7 +663,7 @@ void LumpedRateModelWithPores::consistentInitialTimeDerivative(const SimulationT
 	// Process the particle blocks
 #ifdef CADET_PARALLELIZE
 	BENCH_START(_timerConsistentInitPar);
-	tbb::parallel_for(size_t(0), size_t(_disc.nParType), [&](size_t type)
+	tbb::parallel_for(std::size_t(0), static_cast<std::size_t>(_disc.nParType), [&](std::size_t type)
 #else
 	for (unsigned int type = 0; type < _disc.nParType; ++type)
 #endif
@@ -882,7 +882,7 @@ void LumpedRateModelWithPores::leanConsistentInitialTimeDerivative(double t, dou
 void LumpedRateModelWithPores::initializeSensitivityStates(const std::vector<double*>& vecSensY) const
 {
 	Indexer idxr(_disc);
-	for (unsigned int param = 0; param < vecSensY.size(); ++param)
+	for (std::size_t param = 0; param < vecSensY.size(); ++param)
 	{
 		double* const stateYbulk = vecSensY[param] + idxr.offsetC();
 
@@ -975,7 +975,7 @@ void LumpedRateModelWithPores::consistentInitialSensitivity(const SimulationTime
 
 	Indexer idxr(_disc);
 
-	for (unsigned int param = 0; param < vecSensY.size(); ++param)
+	for (std::size_t param = 0; param < vecSensY.size(); ++param)
 	{
 		double* const sensY = vecSensY[param];
 		double* const sensYdot = vecSensYdot[param];
@@ -998,7 +998,7 @@ void LumpedRateModelWithPores::consistentInitialSensitivity(const SimulationTime
 
 #ifdef CADET_PARALLELIZE
 			BENCH_SCOPE(_timerConsistentInitPar);
-			tbb::parallel_for(size_t(0), size_t(_disc.nCol), [&](size_t pblk)
+			tbb::parallel_for(std::size_t(0), static_cast<std::size_t>(_disc.nCol), [&](std::size_t pblk)
 #else
 			for (unsigned int pblk = 0; pblk < _disc.nCol; ++pblk)
 #endif
@@ -1069,7 +1069,7 @@ void LumpedRateModelWithPores::consistentInitialSensitivity(const SimulationTime
 		// Process the particle blocks
 #ifdef CADET_PARALLELIZE
 		BENCH_START(_timerConsistentInitPar);
-		tbb::parallel_for(size_t(0), size_t(_disc.nParType), [&](size_t type)
+		tbb::parallel_for(std::size_t(0), static_cast<std::size_t>(_disc.nParType), [&](std::size_t type)
 #else
 		for (unsigned int type = 0; type < _disc.nParType; ++type)
 #endif
@@ -1196,7 +1196,7 @@ void LumpedRateModelWithPores::leanConsistentInitialSensitivity(const Simulation
 
 	Indexer idxr(_disc);
 
-	for (unsigned int param = 0; param < vecSensY.size(); ++param)
+	for (std::size_t param = 0; param < vecSensY.size(); ++param)
 	{
 		double* const sensY = vecSensY[param];
 		double* const sensYdot = vecSensYdot[param];

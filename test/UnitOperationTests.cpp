@@ -183,7 +183,7 @@ namespace unitoperation
 		unit->consistentInitialState(SimulationTime{0.0, 0u}, y, adParams, consTol, tls);
 
 		// Make sure inlet DOFs have not been touched
-		for (unsigned int i = 0; i < yIn.size(); ++i)
+		for (std::size_t i = 0; i < yIn.size(); ++i)
 			CHECK(yIn[i] == y[i]);
 
 		// Evaluate residual without yDot and update Jacobians

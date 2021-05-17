@@ -27,7 +27,7 @@ namespace std
 	template<>
 	struct hash<cadet::ParameterId>
 	{
-		inline size_t operator()(const cadet::ParameterId& pId) const CADET_NOEXCEPT
+		inline std::size_t operator()(const cadet::ParameterId& pId) const CADET_NOEXCEPT
 		{
 			return cadet::hashParameter(pId);
 		}

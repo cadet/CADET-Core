@@ -145,7 +145,7 @@ int GeneralRateModel2D::linearSolve(double t, double alpha, double outerTol, dou
 #endif
 		{
 #ifdef CADET_PARALLELIZE
-			tbb::parallel_for(size_t(0), size_t(_disc.nCol * _disc.nRad * _disc.nParType), [&](size_t pblk)
+			tbb::parallel_for(std::size_t(0), static_cast<std::size_t>(_disc.nCol * _disc.nRad * _disc.nParType), [&](std::size_t pblk)
 #else
 			for (unsigned int pblk = 0; pblk < _disc.nCol * _disc.nRad * _disc.nParType; ++pblk)
 #endif
@@ -205,7 +205,7 @@ int GeneralRateModel2D::linearSolve(double t, double alpha, double outerTol, dou
 #endif
 	{
 #ifdef CADET_PARALLELIZE
-		tbb::parallel_for(size_t(0), size_t(_disc.nCol * _disc.nRad * _disc.nParType), [&](size_t pblk)
+		tbb::parallel_for(std::size_t(0), static_cast<std::size_t>(_disc.nCol * _disc.nRad * _disc.nParType), [&](std::size_t pblk)
 #else
 		for (unsigned int pblk = 0; pblk < _disc.nCol * _disc.nRad * _disc.nParType; ++pblk)
 #endif
@@ -296,7 +296,7 @@ int GeneralRateModel2D::linearSolve(double t, double alpha, double outerTol, dou
 #endif
 	{
 #ifdef CADET_PARALLELIZE
-		tbb::parallel_for(size_t(0), size_t(_disc.nCol * _disc.nRad * _disc.nParType), [&](size_t pblk)
+		tbb::parallel_for(std::size_t(0), static_cast<std::size_t>(_disc.nCol * _disc.nRad * _disc.nParType), [&](std::size_t pblk)
 #else
 		for (unsigned int pblk = 0; pblk < _disc.nCol * _disc.nRad * _disc.nParType; ++pblk)
 #endif
@@ -412,7 +412,7 @@ int GeneralRateModel2D::schurComplementMatrixVector(double const* x, double* z) 
 	{
 		// Handle particle blocks
 #ifdef CADET_PARALLELIZE
-		tbb::parallel_for(size_t(0), size_t(_disc.nCol * _disc.nRad * _disc.nParType), [&](size_t pblk)
+		tbb::parallel_for(std::size_t(0), static_cast<std::size_t>(_disc.nCol * _disc.nRad * _disc.nParType), [&](std::size_t pblk)
 #else
 		for (unsigned int pblk = 0; pblk < _disc.nCol * _disc.nRad * _disc.nParType; ++pblk)
 #endif

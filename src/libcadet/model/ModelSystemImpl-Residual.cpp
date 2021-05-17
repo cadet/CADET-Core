@@ -117,7 +117,7 @@ void ModelSystem::notifyDiscontinuousSectionTransition(double t, unsigned int se
 	}
 
 	// Notify models that a discontinuous section transition has happened
-	for (unsigned int i = 0; i < _models.size(); ++i)
+	for (std::size_t i = 0; i < _models.size(); ++i)
 	{
 		const unsigned int offset = _dofOffset[i];
 
@@ -485,9 +485,9 @@ int ModelSystem::residual(const SimulationTime& simTime, const ConstSimulationSt
 	BENCH_START(_timerResidual);
 
 #ifdef CADET_PARALLELIZE
-	tbb::parallel_for(size_t(0), _models.size(), [&](size_t i)
+	tbb::parallel_for(std::size_t(0), _models.size(), [&](std::size_t i)
 #else
-	for (unsigned int i = 0; i < _models.size(); ++i)
+	for (std::size_t i = 0; i < _models.size(); ++i)
 #endif
 	{
 		IUnitOperation* const m = _models[i];
@@ -518,9 +518,9 @@ int ModelSystem::residualWithJacobian(const SimulationTime& simTime, const Const
 	BENCH_START(_timerResidual);
 
 #ifdef CADET_PARALLELIZE
-	tbb::parallel_for(size_t(0), _models.size(), [&](size_t i)
+	tbb::parallel_for(std::size_t(0), _models.size(), [&](std::size_t i)
 #else
-	for (unsigned int i = 0; i < _models.size(); ++i)
+	for (std::size_t i = 0; i < _models.size(); ++i)
 #endif
 	{
 		IUnitOperation* const m = _models[i];
@@ -573,14 +573,14 @@ void ModelSystem::residualConnectUnitOps(unsigned int secIdx, StateType const* c
 
 	// N_{x,f} Inlets (Right) matrices; Right macro-column
 	unsigned int offset;
-	for (unsigned int i = 0; i < _models.size(); ++i)
+	for (std::size_t i = 0; i < _models.size(); ++i)
 	{
 		offset = _dofOffset[i];
 		_jacNF[i].multiplyAdd(y + finalOffset, res + offset);
 	}
 
 	// N_{f,x} Outlet (Lower) matrices; Bottom macro-row
-	for (unsigned int i = 0; i < _models.size(); ++i)
+	for (std::size_t i = 0; i < _models.size(); ++i)
 	{
 		offset = _dofOffset[i];
 		select<ParamType>(_jacFN[i], _jacActiveFN[i]).multiplyAdd(y + offset, res + finalOffset);
@@ -609,14 +609,14 @@ void ModelSystem::multiplyWithMacroJacobian(double const* yS, double alpha, doub
 	}
 
 	// N_{x,f} Inlets (Right) matrices
-	for (unsigned int i = 0; i < _models.size(); ++i)
+	for (std::size_t i = 0; i < _models.size(); ++i)
 	{
 		const unsigned int offset = _dofOffset[i];
 		_jacNF[i].multiplyAdd(yS + finalOffset, ret + offset, alpha);
 	}
 
 	// N_{f,x} Outlet (Lower) matrices
-	for (unsigned int i = 0; i < _models.size(); ++i)
+	for (std::size_t i = 0; i < _models.size(); ++i)
 	{
 		const unsigned int offset = _dofOffset[i];
 		_jacFN[i].multiplyAdd(yS + offset, ret + finalOffset, alpha);
@@ -635,7 +635,7 @@ void ModelSystem::residualSensFwdNorm(unsigned int nSens, const SimulationTime& 
 	tempRes.reserve(nSens * nDOFs, nSens);
 
 	std::vector<double*> resPtr(nSens, nullptr);
-	for (unsigned int i = 0; i < resPtr.size(); ++i)
+	for (std::size_t i = 0; i < resPtr.size(); ++i)
 	{
 		tempRes.pushBackSlice(nDOFs);
 		resPtr[i] = tempRes[i];
@@ -685,7 +685,7 @@ int ModelSystem::residualSensFwdWithJacobianAlgorithm(unsigned int nSens, const 
 	// Step 1: Calculate sensitivities using AD in vector mode
 
 #ifdef CADET_PARALLELIZE
-	tbb::parallel_for(size_t(0), size_t(nModels), [&](size_t i)
+	tbb::parallel_for(std::size_t(0), static_cast<std::size_t>(nModels), [&](std::size_t i)
 #else
 	for (unsigned int i = 0; i < nModels; ++i)
 #endif
@@ -709,7 +709,7 @@ int ModelSystem::residualSensFwdWithJacobianAlgorithm(unsigned int nSens, const 
 	residualConnectUnitOps<double, active, active>(simTime.secIdx, simState.vecStateY, simState.vecStateYdot, adJac.adRes);
 
 #ifdef CADET_PARALLELIZE
-	tbb::parallel_for(size_t(0), size_t(nModels), [&](size_t i)
+	tbb::parallel_for(std::size_t(0), static_cast<std::size_t>(nModels), [&](std::size_t i)
 #else
 	for (unsigned int i = 0; i < nModels; ++i)
 #endif
@@ -720,7 +720,7 @@ int ModelSystem::residualSensFwdWithJacobianAlgorithm(unsigned int nSens, const 
 
 		// Move this outside the loop, these are memory addresses and should never change
 		// Use correct offset in sensitivity state vectors
-		for (unsigned int j = 0; j < yS.size(); ++j)
+		for (std::size_t j = 0; j < yS.size(); ++j)
 		{
 			_yStemp[i][j] = yS[j] + offset;
 			_yStempDot[i][j] = ySdot[j] + offset;
@@ -739,9 +739,9 @@ int ModelSystem::residualSensFwdWithJacobianAlgorithm(unsigned int nSens, const 
 	// Handle super structure (i.e., right macro column and lower macro row)
 
 #ifdef CADET_PARALLELIZE
-	tbb::parallel_for(size_t(0), yS.size(), [&](size_t param)
+	tbb::parallel_for(std::size_t(0), yS.size(), [&](std::size_t param)
 #else
-	for (unsigned int param = 0; param < yS.size(); ++param)
+	for (std::size_t param = 0; param < yS.size(); ++param)
 #endif
 	{
 		double* const ptrResS = resS[param];
