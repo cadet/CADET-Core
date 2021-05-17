@@ -65,7 +65,7 @@ public:
 	{
 		std::vector<cadet::ParameterId> params;
 		params.reserve((_sectionTimes.size() - 1) * _nComp * 4);
-		for (unsigned int sec = 0; sec < _sectionTimes.size() - 1; ++sec)
+		for (std::size_t sec = 0; sec < _sectionTimes.size() - 1; ++sec)
 		{
 			for (unsigned int comp = 0; comp < _nComp; ++comp)
 			{

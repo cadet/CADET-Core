@@ -883,7 +883,7 @@ int LumpedRateModelWithPores::residualImpl(double t, unsigned int secIdx, StateT
 	BENCH_START(_timerResidualPar);
 
 #ifdef CADET_PARALLELIZE
-	tbb::parallel_for(size_t(0), size_t(_disc.nCol * _disc.nParType + 1), [&](size_t pblk)
+	tbb::parallel_for(std::size_t(0), static_cast<std::size_t>(_disc.nCol * _disc.nParType + 1), [&](std::size_t pblk)
 #else
 	for (unsigned int pblk = 0; pblk < _disc.nCol * _disc.nParType + 1; ++pblk)
 #endif
@@ -1156,7 +1156,7 @@ int LumpedRateModelWithPores::residualSensFwdCombine(const SimulationTime& simTi
 	// tmp1 stores result of (dF / dy) * s
 	// tmp2 stores result of (dF / dyDot) * sDot
 
-	for (unsigned int param = 0; param < yS.size(); ++param)
+	for (std::size_t param = 0; param < yS.size(); ++param)
 	{
 		// Directional derivative (dF / dy) * s
 		multiplyWithJacobian(SimulationTime{0.0, 0u}, ConstSimulationState{nullptr, nullptr}, yS[param], 1.0, 0.0, tmp1);
@@ -1171,7 +1171,7 @@ int LumpedRateModelWithPores::residualSensFwdCombine(const SimulationTime& simTi
 		// Complete sens residual is the sum:
 		// TODO: Chunk TBB loop
 #ifdef CADET_PARALLELIZE
-		tbb::parallel_for(size_t(0), size_t(numDofs()), [&](size_t i)
+		tbb::parallel_for(std::size_t(0), static_cast<std::size_t>(numDofs()), [&](std::size_t i)
 #else
 		for (unsigned int i = 0; i < numDofs(); ++i)
 #endif
@@ -1209,7 +1209,7 @@ void LumpedRateModelWithPores::multiplyWithJacobian(const SimulationTime& simTim
 	}
 
 #ifdef CADET_PARALLELIZE
-	tbb::parallel_for(size_t(0), size_t(_disc.nParType + 1), [&](size_t idx)
+	tbb::parallel_for(std::size_t(0), static_cast<std::size_t>(_disc.nParType + 1), [&](std::size_t idx)
 #else
 	for (unsigned int idx = 0; idx < _disc.nParType + 1; ++idx)
 #endif
@@ -1262,7 +1262,7 @@ void LumpedRateModelWithPores::multiplyWithDerivativeJacobian(const SimulationTi
 	Indexer idxr(_disc);
 
 #ifdef CADET_PARALLELIZE
-	tbb::parallel_for(size_t(0), size_t(_disc.nCol * _disc.nParType + 1), [&](size_t idx)
+	tbb::parallel_for(std::size_t(0), static_cast<std::size_t>(_disc.nCol * _disc.nParType + 1), [&](std::size_t idx)
 #else
 	for (unsigned int idx = 0; idx < _disc.nCol * _disc.nParType + 1; ++idx)
 #endif

@@ -144,7 +144,7 @@ int LumpedRateModelWithPores::linearSolve(double t, double alpha, double outerTo
 #endif
 		{
 #ifdef CADET_PARALLELIZE
-			tbb::parallel_for(size_t(0), size_t(_disc.nParType), [&](size_t type)
+			tbb::parallel_for(std::size_t(0), static_cast<std::size_t>(_disc.nParType), [&](std::size_t type)
 #else
 			for (unsigned int type = 0; type < _disc.nParType; ++type)
 #endif
@@ -199,7 +199,7 @@ int LumpedRateModelWithPores::linearSolve(double t, double alpha, double outerTo
 #endif
 	{
 #ifdef CADET_PARALLELIZE
-		tbb::parallel_for(size_t(0), size_t(_disc.nParType), [&](size_t type)
+		tbb::parallel_for(std::size_t(0), static_cast<std::size_t>(_disc.nParType), [&](std::size_t type)
 #else
 		for (unsigned int type = 0; type < _disc.nParType; ++type)
 #endif
@@ -282,7 +282,7 @@ int LumpedRateModelWithPores::linearSolve(double t, double alpha, double outerTo
 #endif
 	{
 #ifdef CADET_PARALLELIZE
-		tbb::parallel_for(size_t(0), size_t(_disc.nParType), [&](size_t type)
+		tbb::parallel_for(std::size_t(0), static_cast<std::size_t>(_disc.nParType), [&](std::size_t type)
 #else
 		for (unsigned int type = 0; type < _disc.nParType; ++type)
 #endif
@@ -395,7 +395,7 @@ int LumpedRateModelWithPores::schurComplementMatrixVector(double const* x, doubl
 	{
 		// Handle particle blocks
 #ifdef CADET_PARALLELIZE
-		tbb::parallel_for(size_t(0), size_t(_disc.nParType), [&](size_t type)
+		tbb::parallel_for(std::size_t(0), static_cast<std::size_t>(_disc.nParType), [&](std::size_t type)
 #else
 		for (unsigned int type = 0; type < _disc.nParType; ++type)
 #endif

@@ -46,7 +46,7 @@ bool multiplexTypeParameterValue(const ParameterId& pId, StringHash nameHash, bo
 	if (sensParams && !contains(*sensParams, &data[0]))
 		return false;
 
-	for (unsigned int i = 0; i < data.size(); ++i)
+	for (std::size_t i = 0; i < data.size(); ++i)
 		data[i].setValue(value);
 
 	return true;
@@ -61,7 +61,7 @@ bool multiplexTypeParameterAD(const ParameterId& pId, StringHash nameHash, bool 
 		return false;
 
 	sensParams.insert(&data[0]);
-	for (unsigned int i = 0; i < data.size(); ++i)
+	for (std::size_t i = 0; i < data.size(); ++i)
 		data[i].setADValue(adDirection, adValue);
 
 	return true;
@@ -133,7 +133,7 @@ MultiplexMode readAndRegisterMultiplexCompTypeSecParam(IParameterProvider& param
 		case MultiplexMode::ComponentSection:
 			{
 				std::vector<active> p(values.size() * nParType);
-				for (unsigned int s = 0; s < values.size() / nComp; ++s)
+				for (std::size_t s = 0; s < values.size() / nComp; ++s)
 				{
 					for (unsigned int pt = 0; pt < nParType; ++pt)
 					{
@@ -143,7 +143,7 @@ MultiplexMode readAndRegisterMultiplexCompTypeSecParam(IParameterProvider& param
 
 				values = std::move(p);
 
-				for (unsigned int s = 0; s < values.size() / nComp; ++s)
+				for (std::size_t s = 0; s < values.size() / nComp; ++s)
 				{
 					for (unsigned int i = 0; i < nComp; ++i)
 						parameters[makeParamId(nameHash, uoi, i, ParTypeIndep, BoundStateIndep, ReactionIndep, s)] = &values[s * nParType * nComp + i];
@@ -348,7 +348,7 @@ MultiplexMode readAndRegisterMultiplexBndCompTypeSecParam(IParameterProvider& pa
 		case MultiplexMode::ComponentSection:
 			{
 				std::vector<active> p(values.size() / strideBound[0] * nTotalBound);
-				for (unsigned int s = 0; s < values.size() / strideBound[0]; ++s)
+				for (std::size_t s = 0; s < values.size() / strideBound[0]; ++s)
 				{
 					for (unsigned int pt = 0; pt < nParType; ++pt)
 					{
@@ -358,7 +358,7 @@ MultiplexMode readAndRegisterMultiplexBndCompTypeSecParam(IParameterProvider& pa
 
 				values = std::move(p);
 
-				for (unsigned int sec = 0; sec < values.size() / strideBound[0]; ++sec)
+				for (std::size_t sec = 0; sec < values.size() / strideBound[0]; ++sec)
 				{
 					unsigned int idx = nTotalBound * sec;
 					for (unsigned int c = 0; c < nComp; ++c)
@@ -374,7 +374,7 @@ MultiplexMode readAndRegisterMultiplexBndCompTypeSecParam(IParameterProvider& pa
 			{
 				unsigned int idx = 0;
 				const bool multiSec = (values.size() != nTotalBound);
-				for (unsigned int sec = 0; sec < values.size() / nTotalBound; ++sec)
+				for (std::size_t sec = 0; sec < values.size() / nTotalBound; ++sec)
 				{
 					for (unsigned int type = 0; type < nParType; ++type)
 					{

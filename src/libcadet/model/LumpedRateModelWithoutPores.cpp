@@ -584,7 +584,7 @@ int LumpedRateModelWithoutPores::residualImpl(double t, unsigned int secIdx, Sta
 	Indexer idxr(_disc);
 
 #ifdef CADET_PARALLELIZE
-	tbb::parallel_for(size_t(0), size_t(_disc.nCol), [&](size_t col)
+	tbb::parallel_for(std::size_t(0), static_cast<std::size_t>(_disc.nCol), [&](std::size_t col)
 #else
 	for (unsigned int col = 0; col < _disc.nCol; ++col)
 #endif
@@ -652,7 +652,7 @@ int LumpedRateModelWithoutPores::residualSensFwdCombine(const SimulationTime& si
 	// tmp1 stores result of (dF / dy) * s
 	// tmp2 stores result of (dF / dyDot) * sDot
 
-	for (unsigned int param = 0; param < yS.size(); ++param)
+	for (std::size_t param = 0; param < yS.size(); ++param)
 	{
 		// Directional derivative (dF / dy) * s
 		multiplyWithJacobian(SimulationTime{0.0, 0u}, ConstSimulationState{nullptr, nullptr}, yS[param], 1.0, 0.0, tmp1);
@@ -667,7 +667,7 @@ int LumpedRateModelWithoutPores::residualSensFwdCombine(const SimulationTime& si
 		// Complete sens residual is the sum:
 		// TODO: Chunk TBB loop
 #ifdef CADET_PARALLELIZE
-		tbb::parallel_for(size_t(0), size_t(numDofs()), [&](size_t i)
+		tbb::parallel_for(std::size_t(0), static_cast<std::size_t>(numDofs()), [&](std::size_t i)
 #else
 		for (unsigned int i = 0; i < numDofs(); ++i)
 #endif
@@ -1046,7 +1046,7 @@ void LumpedRateModelWithoutPores::consistentInitialState(const SimulationTime& s
 	//Problem capturing variables here
 #ifdef CADET_PARALLELIZE
 	BENCH_SCOPE(_timerConsistentInitPar);
-	tbb::parallel_for(size_t(0), size_t(_disc.nCol), [&](size_t col)
+	tbb::parallel_for(std::size_t(0), static_cast<std::size_t>(_disc.nCol), [&](std::size_t col)
 #else
 	for (unsigned int col = 0; col < _disc.nCol; ++col)
 #endif
@@ -1489,7 +1489,7 @@ void LumpedRateModelWithoutPores::leanConsistentInitialTimeDerivative(double t, 
 void LumpedRateModelWithoutPores::initializeSensitivityStates(const std::vector<double*>& vecSensY) const
 {
 	Indexer idxr(_disc);
-	for (unsigned int param = 0; param < vecSensY.size(); ++param)
+	for (std::size_t param = 0; param < vecSensY.size(); ++param)
 	{
 		double* const stateYbulk = vecSensY[param] + idxr.offsetC();
 
@@ -1550,7 +1550,7 @@ void LumpedRateModelWithoutPores::consistentInitialSensitivity(const SimulationT
 
 	Indexer idxr(_disc);
 
-	for (unsigned int param = 0; param < vecSensY.size(); ++param)
+	for (std::size_t param = 0; param < vecSensY.size(); ++param)
 	{
 		double* const sensY = vecSensY[param];
 		double* const sensYdot = vecSensYdot[param];
@@ -1569,7 +1569,7 @@ void LumpedRateModelWithoutPores::consistentInitialSensitivity(const SimulationT
 
 #ifdef CADET_PARALLELIZE
 			BENCH_SCOPE(_timerConsistentInitPar);
-			tbb::parallel_for(size_t(0), size_t(_disc.nCol), [&](size_t col)
+			tbb::parallel_for(std::size_t(0), static_cast<std::size_t>(_disc.nCol), [&](std::size_t col)
 #else
 			for (unsigned int col = 0; col < _disc.nCol; ++col)
 #endif
@@ -1722,7 +1722,7 @@ void LumpedRateModelWithoutPores::leanConsistentInitialSensitivity(const Simulat
 
 	Indexer idxr(_disc);
 
-	for (unsigned int param = 0; param < vecSensY.size(); ++param)
+	for (std::size_t param = 0; param < vecSensY.size(); ++param)
 	{
 		double* const sensY = vecSensY[param];
 		double* const sensYdot = vecSensYdot[param];

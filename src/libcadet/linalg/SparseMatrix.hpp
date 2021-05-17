@@ -81,7 +81,7 @@ public:
 	SparseMatrix(const SparseMatrix<otherReal_t>& cpy) : _rows(cpy._rows), _cols(cpy._cols), _curIdx(cpy._curIdx)
 	{
 		_values.reserve(cpy._values.size());
-		for (unsigned int i = 0; i < cpy._values.size(); ++i)
+		for (std::size_t i = 0; i < cpy._values.size(); ++i)
 			_values.push_back(static_cast<real_t>(cpy._values[i]));
 	}
 
@@ -113,7 +113,7 @@ public:
 		const std::vector<otherReal_t>& srcVals = src.values();
 		_values.clear();
 		_values.reserve(srcVals.size());
-		for (unsigned int i = 0; i < srcVals.size(); ++i)
+		for (std::size_t i = 0; i < srcVals.size(); ++i)
 			_values.push_back(static_cast<real_t>(srcVals[i]));
 	}
 

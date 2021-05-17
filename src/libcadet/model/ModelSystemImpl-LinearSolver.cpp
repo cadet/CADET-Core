@@ -68,7 +68,7 @@ int ModelSystem::linearSolveSequential(double t, double alpha, double outerTol, 
 			// N_{f,x} Outlet (lower) matrices; Bottom macro-row
 			// N_{f,x,1} * y_1 + ... + N_{f,x,nModels} * y_{nModels} + y_{coupling} = f
 			// y_{coupling} = f - N_{f,x,1} * y_1 - ... - N_{f,x,nModels} * y_{nModels}
-			for (unsigned int j = 0; j < _models.size(); ++j)
+			for (std::size_t j = 0; j < _models.size(); ++j)
 			{
 				const unsigned int offset2 = _dofOffset[j];
 				_jacFN[j].multiplySubtract(rhs + offset2, rhs + finalOffset, _conDofOffset[idxUnit], _conDofOffset[idxUnit+1]);
@@ -107,9 +107,9 @@ int ModelSystem::linearSolveParallel(double t, double alpha, double outerTol, do
 	const unsigned int finalOffset = _dofOffset[_models.size()];
 
 #ifdef CADET_PARALLELIZE
-	tbb::parallel_for(size_t(0), _models.size(), [=](size_t i)
+	tbb::parallel_for(std::size_t(0), _models.size(), [=](std::size_t i)
 #else
-	for (unsigned int i = 0; i < _models.size(); ++i)
+	for (std::size_t i = 0; i < _models.size(); ++i)
 #endif
 	{
 		IUnitOperation* const m = _models[i];
@@ -121,7 +121,7 @@ int ModelSystem::linearSolveParallel(double t, double alpha, double outerTol, do
 	// Note that we cannot easily parallelize this loop since the results of the sparse
 	// matrix-vector multiplications are added in-place to rhs. We would need one copy of rhs
 	// for each thread and later fuse them together (reduction statement).
-	for (unsigned int i = 0; i < _models.size(); ++i)
+	for (std::size_t i = 0; i < _models.size(); ++i)
 	{
 		const unsigned int offset = _dofOffset[i];
 		_jacFN[i].multiplySubtract(rhs + offset, rhs + finalOffset);
@@ -171,9 +171,9 @@ int ModelSystem::linearSolveParallel(double t, double alpha, double outerTol, do
 	// ==== Step 4: Solve U * x = y by backward substitution
 	// The fluxes are already solved and remain unchanged
 #ifdef CADET_PARALLELIZE
-	tbb::parallel_for(size_t(0), _models.size(), [=](size_t idxModel)
+	tbb::parallel_for(std::size_t(0), _models.size(), [=](std::size_t idxModel)
 #else
-	for (unsigned int idxModel = 0; idxModel < _models.size(); ++idxModel)
+	for (std::size_t idxModel = 0; idxModel < _models.size(); ++idxModel)
 #endif
 	{
 		IUnitOperation* const m = _models[idxModel];
@@ -226,9 +226,9 @@ int ModelSystem::schurComplementMatrixVector(double const* x, double* z, double 
 	// Inlets and outlets don't participate in the Schur solver since one of NF or FN for them is always 0
 	// As a result we only have to work with items that have both an inlet and an outlet
 #ifdef CADET_PARALLELIZE
-	tbb::parallel_for(size_t(0), _inOutModels.size(), [=](size_t i)
+	tbb::parallel_for(std::size_t(0), _inOutModels.size(), [=](std::size_t i)
 #else
-	for (unsigned int i = 0; i < _inOutModels.size(); ++i)
+	for (std::size_t i = 0; i < _inOutModels.size(); ++i)
 #endif
 	{
 		const unsigned int idxModel = _inOutModels[i];
@@ -265,7 +265,7 @@ int ModelSystem::schurComplementMatrixVector(double const* x, double* z, double 
  */
 void ModelSystem::multiplyWithJacobian(const SimulationTime& simTime, const ConstSimulationState& simState, double const* yS, double alpha, double beta, double* ret)
 {
-	for (unsigned int idxModel = 0; idxModel < _models.size(); ++idxModel)
+	for (std::size_t idxModel = 0; idxModel < _models.size(); ++idxModel)
 	{
 		IUnitOperation* const m = _models[idxModel];
 		const unsigned int offset = _dofOffset[idxModel];
@@ -284,7 +284,7 @@ void ModelSystem::multiplyWithJacobian(const SimulationTime& simTime, const Cons
  */
 void ModelSystem::multiplyWithDerivativeJacobian(const SimulationTime& simTime, const ConstSimulationState& simState, double const* yS, double* ret)
 {
-	for (unsigned int idxModel = 0; idxModel < _models.size(); ++idxModel)
+	for (std::size_t idxModel = 0; idxModel < _models.size(); ++idxModel)
 	{
 		IUnitOperation* const m = _models[idxModel];
 		const unsigned int offset = _dofOffset[idxModel];

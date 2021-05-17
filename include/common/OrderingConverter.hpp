@@ -158,7 +158,7 @@ public:
 	inline void linearToSubscriptRowMajor(index_t index, std::vector<index_t>& idx) const
 	{
 		cadet_assert(idx.size() == _subscript.size());
-		for (unsigned int i = 0; i < _prodToRow.size() - 1; ++i)
+		for (std::size_t i = 0; i < _prodToRow.size() - 1; ++i)
 		{
 			idx[i] = index / _prodToRow[i];
 			index -= idx[i] * _prodToRow[i];
@@ -175,7 +175,7 @@ public:
 	inline void linearToSubscriptColMajor(index_t index, std::vector<index_t>& idx) const
 	{
 		cadet_assert(idx.size() == _subscript.size());
-		for (int i = _prodToCol.size() - 1; i >= 1; --i)
+		for (std::size_t i = _prodToCol.size() - 1; i >= 1; --i)
 		{
 			idx[i] = index / _prodToCol[i];
 			index -= idx[i] * _prodToCol[i];
@@ -278,7 +278,7 @@ protected:
 	inline index_t subscriptToLinear(T const* idx, const std::vector<index_t>& dimsProd) const
 	{
 		index_t retIndex = 0;
-		for (unsigned int i = 0; i < dimsProd.size(); ++i)
+		for (std::size_t i = 0; i < dimsProd.size(); ++i)
 			retIndex += idx[i] * dimsProd[i];
 		return retIndex;
 	}

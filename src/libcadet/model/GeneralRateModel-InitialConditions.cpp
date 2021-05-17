@@ -344,7 +344,7 @@ void GeneralRateModel::consistentInitialState(const SimulationTime& simTime, dou
 
 #ifdef CADET_PARALLELIZE
 		BENCH_SCOPE(_timerConsistentInitPar);
-		tbb::parallel_for(size_t(0), size_t(_disc.nCol), [&](size_t pblk)
+		tbb::parallel_for(std::size_t(0), static_cast<std::size_t>(_disc.nCol), [&](std::size_t pblk)
 #else
 		for (unsigned int pblk = 0; pblk < _disc.nCol; ++pblk)
 #endif
@@ -381,7 +381,7 @@ void GeneralRateModel::consistentInitialState(const SimulationTime& simTime, dou
 
 			// This loop cannot be run in parallel without creating a Jacobian matrix for each thread which would increase memory usage
 			const int localOffsetToParticle = idxr.offsetCp(ParticleTypeIndex{type}, ParticleIndex{static_cast<unsigned int>(pblk)});
-			for(size_t shell = 0; shell < size_t(_disc.nParCell[type]); ++shell)
+			for(std::size_t shell = 0; shell < static_cast<std::size_t>(_disc.nParCell[type]); ++shell)
 			{
 				const int localOffsetInParticle = static_cast<int>(shell) * idxr.strideParShell(type);
 
@@ -661,7 +661,7 @@ void GeneralRateModel::consistentInitialTimeDerivative(const SimulationTime& sim
 	// Process the particle blocks
 #ifdef CADET_PARALLELIZE
 	BENCH_START(_timerConsistentInitPar);
-	tbb::parallel_for(size_t(0), size_t(_disc.nCol * _disc.nParType), [&](size_t pblk)
+	tbb::parallel_for(std::size_t(0), static_cast<std::size_t>(_disc.nCol * _disc.nParType), [&](std::size_t pblk)
 #else
 	for (unsigned int pblk = 0; pblk < _disc.nCol * _disc.nParType; ++pblk)
 #endif
@@ -811,7 +811,7 @@ void GeneralRateModel::leanConsistentInitialState(const SimulationTime& simTime,
 		{
 #ifdef CADET_PARALLELIZE
 			BENCH_SCOPE(_timerConsistentInitPar);
-			tbb::parallel_for(size_t(0), size_t(_disc.nCol), [&](size_t pblk)
+			tbb::parallel_for(std::size_t(0), static_cast<std::size_t>(_disc.nCol), [&](std::size_t pblk)
 #else
 			for (unsigned int pblk = 0; pblk < _disc.nCol; ++pblk)
 #endif
@@ -822,7 +822,7 @@ void GeneralRateModel::leanConsistentInitialState(const SimulationTime& simTime,
 				const double z = (0.5 + static_cast<double>(pblk)) / static_cast<double>(_disc.nCol);
 
 				const int localOffsetToParticle = idxr.offsetCp(ParticleTypeIndex{type}, ParticleIndex{static_cast<unsigned int>(pblk)});
-				for(size_t shell = 0; shell < size_t(_disc.nParCell[type]); ++shell)
+				for(std::size_t shell = 0; shell < static_cast<std::size_t>(_disc.nParCell[type]); ++shell)
 				{
 					// Get pointer to q variables in a shell of particle pblk
 					const int localOffsetInParticle = static_cast<int>(shell) * idxr.strideParShell(type) + idxr.strideParLiquid();
@@ -928,7 +928,7 @@ void GeneralRateModel::leanConsistentInitialTimeDerivative(double t, double cons
 void GeneralRateModel::initializeSensitivityStates(const std::vector<double*>& vecSensY) const
 {
 	Indexer idxr(_disc);
-	for (unsigned int param = 0; param < vecSensY.size(); ++param)
+	for (std::size_t param = 0; param < vecSensY.size(); ++param)
 	{
 		double* const stateYbulk = vecSensY[param] + idxr.offsetC();
 
@@ -1027,7 +1027,7 @@ void GeneralRateModel::consistentInitialSensitivity(const SimulationTime& simTim
 
 	Indexer idxr(_disc);
 
-	for (unsigned int param = 0; param < vecSensY.size(); ++param)
+	for (std::size_t param = 0; param < vecSensY.size(); ++param)
 	{
 		double* const sensY = vecSensY[param];
 		double* const sensYdot = vecSensYdot[param];
@@ -1050,7 +1050,7 @@ void GeneralRateModel::consistentInitialSensitivity(const SimulationTime& simTim
 
 #ifdef CADET_PARALLELIZE
 			BENCH_SCOPE(_timerConsistentInitPar);
-			tbb::parallel_for(size_t(0), size_t(_disc.nCol), [&](size_t pblk)
+			tbb::parallel_for(std::size_t(0), static_cast<std::size_t>(_disc.nCol), [&](std::size_t pblk)
 #else
 			for (unsigned int pblk = 0; pblk < _disc.nCol; ++pblk)
 #endif
@@ -1124,7 +1124,7 @@ void GeneralRateModel::consistentInitialSensitivity(const SimulationTime& simTim
 		// Process the particle blocks
 #ifdef CADET_PARALLELIZE
 		BENCH_START(_timerConsistentInitPar);
-		tbb::parallel_for(size_t(0), size_t(_disc.nCol * _disc.nParType), [&](size_t pblk)
+		tbb::parallel_for(std::size_t(0), static_cast<std::size_t>(_disc.nCol * _disc.nParType), [&](std::size_t pblk)
 #else
 		for (unsigned int pblk = 0; pblk < _disc.nCol * _disc.nParType; ++pblk)
 #endif
@@ -1258,7 +1258,7 @@ void GeneralRateModel::leanConsistentInitialSensitivity(const SimulationTime& si
 
 	Indexer idxr(_disc);
 
-	for (unsigned int param = 0; param < vecSensY.size(); ++param)
+	for (std::size_t param = 0; param < vecSensY.size(); ++param)
 	{
 		double* const sensY = vecSensY[param];
 		double* const sensYdot = vecSensYdot[param];

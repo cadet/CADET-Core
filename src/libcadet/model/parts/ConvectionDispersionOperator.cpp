@@ -139,7 +139,7 @@ bool ConvectionDispersionOperatorBase::configure(UnitOpIdx unitOpIdx, IParameter
 	if (_dispersionCompIndep)
 	{
 		std::vector<active> expanded(_colDispersion.size() * _nComp);
-		for (unsigned int i = 0; i < _colDispersion.size(); ++i)
+		for (std::size_t i = 0; i < _colDispersion.size(); ++i)
 			std::fill(expanded.begin() + i * _nComp, expanded.begin() + (i + 1) * _nComp, _colDispersion[i]);
 
 		_colDispersion = std::move(expanded);
@@ -156,7 +156,7 @@ bool ConvectionDispersionOperatorBase::configure(UnitOpIdx unitOpIdx, IParameter
 		if (_colDispersion.size() > _nComp)
 		{
 			// Register only the first item in each section
-			for (unsigned int i = 0; i < _colDispersion.size() / _nComp; ++i)
+			for (std::size_t i = 0; i < _colDispersion.size() / _nComp; ++i)
 				parameters[makeParamId(hashString("COL_DISPERSION"), unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, i)] = &_colDispersion[i * _nComp];
 		}
 		else

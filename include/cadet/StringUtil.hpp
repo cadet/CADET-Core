@@ -20,6 +20,7 @@
 
 #include "cadet/cadetCompilerInfo.hpp"
 
+#include <cstddef>
 #include <cstdint>
 #include <cctype>
 #include <string>
@@ -51,13 +52,13 @@ CADET_CONSTEXPR static inline sip_word rotl64(const sip_word word, const unsigne
 	class ConstString
 	{
 	public:
-		template<size_t N>
+		template<std::size_t N>
 		constexpr ConstString(const char(&s)[N]) : m_Str(s), m_Size(N - 1) { }
-		constexpr ConstString(const char* s, size_t len) : m_Str(s), m_Size(len) { }
+		constexpr ConstString(const char* s, std::size_t len) : m_Str(s), m_Size(len) { }
 	
-		constexpr size_t size() const { return m_Size; }
+		constexpr std::size_t size() const { return m_Size; }
 	
-		constexpr unsigned char operator[] (size_t n) const
+		constexpr unsigned char operator[] (std::size_t n) const
 		{
 			return static_cast<unsigned char>(m_Str[n]);
 		}
@@ -135,12 +136,12 @@ CADET_CONSTEXPR static inline sip_word rotl64(const sip_word word, const unsigne
 			return (rounds > 0) ? mixLoop(mix(s), rounds - 1) : s;
 		}
 
-		constexpr static inline sip_word tailWordInternal(const ConstString& cs, const sip_word tailWord, const size_t offset, const unsigned int tailSize)
+		constexpr static inline sip_word tailWordInternal(const ConstString& cs, const sip_word tailWord, const std::size_t offset, const unsigned int tailSize)
 		{
 			return (tailSize == 0) ? tailWord : tailWordInternal(cs, tailWord | (static_cast<sip_word>(cs[offset + tailSize - 1]) << ((tailSize - 1) * 8)), offset, tailSize - 1);
 		}
 
-		constexpr static inline sip_word tailWord(const ConstString& cs, const size_t offset, const size_t insize)
+		constexpr static inline sip_word tailWord(const ConstString& cs, const std::size_t offset, const std::size_t insize)
 		{
 			return tailWordInternal(cs, static_cast<sip_word>(insize) << 56, offset, insize & 7);
 		}
@@ -189,7 +190,7 @@ CADET_CONSTEXPR static inline sip_word rotl64(const sip_word word, const unsigne
 		}
 
 		const char* m_Str;
-		size_t m_Size;
+		std::size_t m_Size;
 	};
 
 #endif
@@ -245,7 +246,7 @@ static inline void mix(sip_word &state0, sip_word &state1, sip_word &state2, sip
  * @return SipHash value of the given data
  */
 template<const int rounds, const int finalisation_rounds>
-static inline sip_word siphash(const void *in, const size_t insize, const sip_word key0 = 0, const sip_word key1 = 0)
+static inline sip_word siphash(const void *in, const std::size_t insize, const sip_word key0 = 0, const sip_word key1 = 0)
 {
 	sip_word state0 = key0 ^ 0x736f6d6570736575ull;
 	sip_word state1 = key1 ^ 0x646f72616e646f6dull;
@@ -395,7 +396,7 @@ inline bool caseInsensitiveEquals(const std::string& a, const std::string& b)
 	 * @param [in] len Length of the compiletime string
 	 * @return SipHash24 value of the given compiletime string
 	 */
-	constexpr StringHash operator "" _hash(const char* str, size_t len)
+	constexpr StringHash operator "" _hash(const char* str, std::size_t len)
 	{
 		return util::hash::ConstString(str, len).hash();
 	}

@@ -401,7 +401,7 @@ namespace cadet
 
 			// Convert from active to double
 			double* const secTimes = new double[_sectionTimes.size()];
-			for (unsigned int i = 0; i < _sectionTimes.size(); ++i)
+			for (std::size_t i = 0; i < _sectionTimes.size(); ++i)
 				secTimes[i] = static_cast<double>(_sectionTimes[i]);
 
 			_model->setSectionTimes(secTimes, secCont, _sectionTimes.size() - 1);
@@ -704,7 +704,7 @@ namespace cadet
 
 		// Add section times
 		const StringHash secTimesName = hashString("SECTION_TIMES");
-		for (unsigned int i = 0; i < _sectionTimes.size(); ++i)
+		for (std::size_t i = 0; i < _sectionTimes.size(); ++i)
 			data[makeParamId(secTimesName, UnitOpIndep, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, i)] = static_cast<double>(_sectionTimes[i]);
 
 		return data;
@@ -805,7 +805,7 @@ namespace cadet
 		_absTolS.clear();
 
 		_model->clearSensParams();
-		for (unsigned int i = 0; i < _sectionTimes.size(); ++i)
+		for (std::size_t i = 0; i < _sectionTimes.size(); ++i)
 			_sectionTimes[i].setADValue(0.0);
 
 		initializeFwdSensitivities();
@@ -926,7 +926,7 @@ namespace cadet
 			throw std::invalid_argument("At least one section has to be specified!");
 
 		// Ensure that all section start times are smaller than their end times
-		for (unsigned int i = 0; i < sectionTimes.size() - 1; ++i)
+		for (std::size_t i = 0; i < sectionTimes.size() - 1; ++i)
 			if (sectionTimes[i] > sectionTimes[i + 1])
 				throw InvalidParameterException("The end time of each section must be greater than its start time (failed for section " + std::to_string(i) + ")!");
 
@@ -942,7 +942,7 @@ namespace cadet
 		// Copy section times into AD (active) data type
 		_sectionTimes.clear();
 		_sectionTimes.reserve(sectionTimes.size());
-		for (unsigned int i = 0; i < sectionTimes.size(); ++i)
+		for (std::size_t i = 0; i < sectionTimes.size(); ++i)
 			_sectionTimes.push_back(sectionTimes[i]);
 
 		_sectionContinuity = sectionContinuity;
@@ -1075,7 +1075,7 @@ namespace cadet
 
 			// Determine continuous time slice
 			unsigned int skip = 1; // Always finish the current section
-			for (size_t i = _curSec; i < _sectionTimes.size() - 2; ++i)
+			for (std::size_t i = _curSec; i < _sectionTimes.size() - 2; ++i)
 			{
 				if (!_sectionContinuity[i])
 					break;
@@ -1184,7 +1184,7 @@ namespace cadet
 				}
 
 #ifdef CADET_DEBUG
-				for (unsigned int j = 0; j < norms.size(); ++j)
+				for (std::size_t j = 0; j < norms.size(); ++j)
 				{
 					LOG(Debug) << "sensY[" << j << "] = " << log::VectorPtr<double>(NVEC_DATA(_vecFwdYs[j]), _model->numDofs()) << ";";
 					LOG(Debug) << "sensYdot[" << j << "] = " << log::VectorPtr<double>(NVEC_DATA(_vecFwdYsDot[j]), _model->numDofs()) << ";";
@@ -1663,7 +1663,7 @@ namespace cadet
 		if (t < _sectionTimes[startIdx])
 			return -1;
 
-		for (unsigned int i = startIdx; i < _sectionTimes.size() - 1; ++i)
+		for (std::size_t i = startIdx; i < _sectionTimes.size() - 1; ++i)
 		{
 			if (_sectionTimes[i] >= t)
 				return i;
@@ -1676,7 +1676,7 @@ namespace cadet
 	{
 		//TODO: Use binary search
 
-		for (unsigned int i = _curSec; i < _sectionTimes.size() - 1; ++i)
+		for (std::size_t i = _curSec; i < _sectionTimes.size() - 1; ++i)
 		{
 			if ((t >= _sectionTimes[i]) && (t <= _sectionTimes[i+1]))
 				return i;

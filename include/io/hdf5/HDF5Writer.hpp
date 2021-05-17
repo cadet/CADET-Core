@@ -38,35 +38,35 @@ public:
 
 	/// \brief Write data from C-array to a dataset
 	template <typename T>
-	void write(const std::string& dataSetName, const size_t rank, const size_t* dims, const T* buffer);
+	void write(const std::string& dataSetName, const std::size_t rank, const std::size_t* dims, const T* buffer);
 
 	/// \brief Write data from C-array to a dataset
 	template <typename T>
-	void write(const std::string& dataSetName, const size_t rank, const size_t* dims, const T* buffer, const size_t stride = 1, const size_t blockSize = 1);
+	void write(const std::string& dataSetName, const std::size_t rank, const std::size_t* dims, const T* buffer, const std::size_t stride = 1, const std::size_t blockSize = 1);
 
 	/// \brief Convenience wrapper for writing tensors from C-array
 	template <typename T>
-	void tensor(const std::string& dataSetName, const size_t rank, const size_t* dims, const T* buffer, const size_t stride = 1, const size_t blockSize = 1);
+	void tensor(const std::string& dataSetName, const std::size_t rank, const std::size_t* dims, const T* buffer, const std::size_t stride = 1, const std::size_t blockSize = 1);
 
 	/// \brief Convenience wrapper for writing tensors from std::vector
 	template <typename T>
-	void tensor(const std::string& dataSetName, const size_t rank, const size_t* dims, const std::vector<T>& buffer, const size_t stride = 1, const size_t blockSize = 1);
+	void tensor(const std::string& dataSetName, const std::size_t rank, const std::size_t* dims, const std::vector<T>& buffer, const std::size_t stride = 1, const std::size_t blockSize = 1);
 
 	/// \brief Convenience wrapper for writing matrices from C-array
 	template <typename T>
-	void matrix(const std::string& dataSetName, const size_t rows, const size_t cols, const T* buffer, const size_t stride = 1, const size_t blockSize = 1);
+	void matrix(const std::string& dataSetName, const std::size_t rows, const std::size_t cols, const T* buffer, const std::size_t stride = 1, const std::size_t blockSize = 1);
 
 	/// \brief Convenience wrapper for writing matrices from std::vector
 	template <typename T>
-	void matrix(const std::string& dataSetName, const size_t rows, const size_t cols, const std::vector<T>& buffer, const size_t stride = 1, const size_t blockSize = 1);
+	void matrix(const std::string& dataSetName, const std::size_t rows, const std::size_t cols, const std::vector<T>& buffer, const std::size_t stride = 1, const std::size_t blockSize = 1);
 
 	/// \brief Convenience wrapper for writing vectors from C-array
 	template <typename T>
-	void vector(const std::string& dataSetName, const size_t length, const T* buffer, const size_t stride = 1, const size_t blockSize = 1);
+	void vector(const std::string& dataSetName, const std::size_t length, const T* buffer, const std::size_t stride = 1, const std::size_t blockSize = 1);
 
 	/// \brief Convenience wrapper for writing vectors from std::vector
 	template <typename T>
-	void vector(const std::string& dataSetName, const std::vector<T>& buffer, const size_t stride = 1, const size_t blockSize = 1);
+	void vector(const std::string& dataSetName, const std::vector<T>& buffer, const std::size_t stride = 1, const std::size_t blockSize = 1);
 
 	/// \brief Convenience wrapper for writing scalars
 	template <typename T>
@@ -87,7 +87,7 @@ public:
 
 private:
 
-	void writeWork(const std::string& dataSetName, hid_t memType, hid_t fileType, const size_t rank, const size_t* dims, const void* buffer, const size_t stride, const size_t blockSize);
+	void writeWork(const std::string& dataSetName, hid_t memType, hid_t fileType, const std::size_t rank, const std::size_t* dims, const void* buffer, const std::size_t stride, const std::size_t blockSize);
 
 	bool                    _writeScalar;
 	bool                    _writeExtendible;
@@ -114,31 +114,31 @@ HDF5Writer::~HDF5Writer() CADET_NOEXCEPT { }
 //   Template specializations of member function write() for diffenet data types
 // ============================================================================================================
 template <>
-void HDF5Writer::write<double>(const std::string& dataSetName, const size_t rank, const size_t* dims, const double* buffer, const size_t stride, const size_t blockSize)
+void HDF5Writer::write<double>(const std::string& dataSetName, const std::size_t rank, const std::size_t* dims, const double* buffer, const std::size_t stride, const std::size_t blockSize)
 {
 	writeWork(dataSetName, H5T_NATIVE_DOUBLE, H5T_IEEE_F64LE, rank, dims, buffer, stride, blockSize);
 }
 
 template <>
-void HDF5Writer::write<int>(const std::string& dataSetName, const size_t rank, const size_t* dims, const int* buffer, const size_t stride, const size_t blockSize)
+void HDF5Writer::write<int>(const std::string& dataSetName, const std::size_t rank, const std::size_t* dims, const int* buffer, const std::size_t stride, const std::size_t blockSize)
 {
 	writeWork(dataSetName, H5T_NATIVE_INT, H5T_STD_I32LE, rank, dims, buffer, stride, blockSize);
 }
 
 template <>
-void HDF5Writer::write<uint64_t>(const std::string& dataSetName, const size_t rank, const size_t* dims, const uint64_t* buffer, const size_t stride, const size_t blockSize)
+void HDF5Writer::write<uint64_t>(const std::string& dataSetName, const std::size_t rank, const std::size_t* dims, const uint64_t* buffer, const std::size_t stride, const std::size_t blockSize)
 {
 	writeWork(dataSetName, H5T_NATIVE_UINT64, H5T_STD_I32LE, rank, dims, buffer, stride, blockSize);
 }
 
 template <>
-void HDF5Writer::write<std::string>(const std::string& dataSetName, const size_t rank, const size_t* dims, const std::string* buffer, const size_t stride, const size_t blockSize)
+void HDF5Writer::write<std::string>(const std::string& dataSetName, const std::size_t rank, const std::size_t* dims, const std::string* buffer, const std::size_t stride, const std::size_t blockSize)
 {
 	hid_t dataType = H5Tcopy(H5T_C_S1);
 	H5Tset_size(dataType, H5T_VARIABLE);
 
-	size_t bufSize = 1;
-	for (size_t i = 0; i < rank; ++i)
+	std::size_t bufSize = 1;
+	for (std::size_t i = 0; i < rank; ++i)
 	{
 		bufSize *= dims[i];
 	}
@@ -147,10 +147,10 @@ void HDF5Writer::write<std::string>(const std::string& dataSetName, const size_t
 	char const** strBuffer = new char const*[bufSize];
 
 	// Loop over blocks
-	size_t counter = 0;
-	for (size_t i = 0; i < bufSize / blockSize; ++i)
+	std::size_t counter = 0;
+	for (std::size_t i = 0; i < bufSize / blockSize; ++i)
 	{
-		for (size_t j = 0; j < blockSize; ++j, ++counter)
+		for (std::size_t j = 0; j < blockSize; ++j, ++counter)
 			strBuffer[counter] = buffer[i * stride + j].c_str();
 	}
 
@@ -164,13 +164,13 @@ void HDF5Writer::write<std::string>(const std::string& dataSetName, const size_t
 
 // Template that matches on every unsupported type and throws an exception
 template <typename T>
-void HDF5Writer::write(const std::string& dataSetName, const size_t rank, const size_t* dims, const T* buffer)
+void HDF5Writer::write(const std::string& dataSetName, const std::size_t rank, const std::size_t* dims, const T* buffer)
 {
 	throw IOException("You may not try to write an unsupported type");
 }
 
 template <typename T>
-void HDF5Writer::write(const std::string& dataSetName, const size_t rank, const size_t* dims, const T* buffer, const size_t stride, const size_t blockSize)
+void HDF5Writer::write(const std::string& dataSetName, const std::size_t rank, const std::size_t* dims, const T* buffer, const std::size_t stride, const std::size_t blockSize)
 {
 	throw IOException("You may not try to write an unsupported type");
 }
@@ -181,11 +181,11 @@ void HDF5Writer::write(const std::string& dataSetName, const size_t rank, const 
 //   Convenience wrappers
 // ============================================================================================================
 template <typename T>
-void HDF5Writer::tensor(const std::string& dataSetName, const size_t rank, const size_t* dims, const std::vector<T>& buffer, const size_t stride, const size_t blockSize)
+void HDF5Writer::tensor(const std::string& dataSetName, const std::size_t rank, const std::size_t* dims, const std::vector<T>& buffer, const std::size_t stride, const std::size_t blockSize)
 {
 #ifdef CADET_DEBUG
-	size_t bufSize = 1;
-	for (size_t i = 0; i < rank; ++i)
+	std::size_t bufSize = 1;
+	for (std::size_t i = 0; i < rank; ++i)
 		bufSize *= dims[i];
 	cadet_assert(bufSize <= buffer.size());
 #endif
@@ -193,36 +193,36 @@ void HDF5Writer::tensor(const std::string& dataSetName, const size_t rank, const
 }
 
 template <typename T>
-void HDF5Writer::tensor(const std::string& dataSetName, const size_t rank, const size_t* dims, const T* buffer, const size_t stride, const size_t blockSize)
+void HDF5Writer::tensor(const std::string& dataSetName, const std::size_t rank, const std::size_t* dims, const T* buffer, const std::size_t stride, const std::size_t blockSize)
 {
 	write<T>(dataSetName, rank, dims, buffer, stride, blockSize);
 }
 
 template <typename T>
-void HDF5Writer::matrix(const std::string& dataSetName, const size_t rows, const size_t cols, const T* buffer, const size_t stride, const size_t blockSize)
+void HDF5Writer::matrix(const std::string& dataSetName, const std::size_t rows, const std::size_t cols, const T* buffer, const std::size_t stride, const std::size_t blockSize)
 {
-	const size_t dims[2] = {rows, cols};
+	const std::size_t dims[2] = {rows, cols};
 	write<T>(dataSetName, 2, dims, buffer, stride, blockSize);
 }
 
 template <typename T>
-void HDF5Writer::matrix(const std::string& dataSetName, const size_t rows, const size_t cols, const std::vector<T>& buffer, const size_t stride, const size_t blockSize)
+void HDF5Writer::matrix(const std::string& dataSetName, const std::size_t rows, const std::size_t cols, const std::vector<T>& buffer, const std::size_t stride, const std::size_t blockSize)
 {
 	cadet_assert(rows*cols <= buffer.size());
-	const size_t dims[2] = {rows, cols};
+	const std::size_t dims[2] = {rows, cols};
 	write<T>(dataSetName, 2, dims, buffer.data(), stride, blockSize);
 }
 
 template <typename T>
-void HDF5Writer::vector(const std::string& dataSetName, const size_t length, const T* buffer, const size_t stride, const size_t blockSize)
+void HDF5Writer::vector(const std::string& dataSetName, const std::size_t length, const T* buffer, const std::size_t stride, const std::size_t blockSize)
 {
 	write<T>(dataSetName, 1, &length, buffer, stride, blockSize);
 }
 
 template <typename T>
-void HDF5Writer::vector(const std::string& dataSetName, const std::vector<T>& buffer, const size_t stride, const size_t blockSize)
+void HDF5Writer::vector(const std::string& dataSetName, const std::vector<T>& buffer, const std::size_t stride, const std::size_t blockSize)
 {
-	const size_t length = buffer.size() / stride;
+	const std::size_t length = buffer.size() / stride;
 	write<T>(dataSetName, 1, &length, buffer.data(), stride, blockSize);
 }
 
@@ -255,7 +255,7 @@ void HDF5Writer::unlinkDataset(const std::string& dsName)
 }
 
 
-void HDF5Writer::writeWork(const std::string& dataSetName, hid_t memType, hid_t fileType, const size_t rank, const size_t* dims, const void* buffer, const size_t stride, const size_t blockSize)
+void HDF5Writer::writeWork(const std::string& dataSetName, hid_t memType, hid_t fileType, const std::size_t rank, const std::size_t* dims, const void* buffer, const std::size_t stride, const std::size_t blockSize)
 {
 	hid_t propList = H5Pcreate(H5P_DATASET_CREATE);
 	hid_t dataSpace;
@@ -264,7 +264,7 @@ void HDF5Writer::writeWork(const std::string& dataSetName, hid_t memType, hid_t 
 		if (_writeExtendible || _writeCompressed) // we need chunking
 		{
 			_chunks  = new hsize_t[rank];
-			for (size_t i = 0; i < rank; ++i)
+			for (std::size_t i = 0; i < rank; ++i)
 				_chunks[i] = (_writeExtendible) ? static_cast<hsize_t>(dims[i] * _chunkFactor) : dims[i]; // leave some space in all dims, if extendible
 
 			H5Pset_chunk(propList, rank, _chunks);
@@ -274,17 +274,17 @@ void HDF5Writer::writeWork(const std::string& dataSetName, hid_t memType, hid_t 
 		_maxDims = new hsize_t[rank];
 		if (_writeExtendible) // we set maxdims unlimited
 		{
-			for (size_t i = 0; i < rank; ++i)
+			for (std::size_t i = 0; i < rank; ++i)
 				_maxDims[i] = H5S_UNLIMITED;
 		}
 		else // we set maxdims to dims of the buffer
 		{
-			for (size_t i = 0; i < rank; ++i)
+			for (std::size_t i = 0; i < rank; ++i)
 				_maxDims[i] = dims[i];
 		}
 
 		hsize_t* convDims = new hsize_t[rank];
-		for (size_t i = 0; i < rank; ++i)
+		for (std::size_t i = 0; i < rank; ++i)
 		{
 			convDims[i] = dims[i];
 		}

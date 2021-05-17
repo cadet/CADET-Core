@@ -1285,7 +1285,7 @@ int GeneralRateModel2D::residualImpl(double t, unsigned int secIdx, StateType co
 	BENCH_START(_timerResidualPar);
 
 #ifdef CADET_PARALLELIZE
-	tbb::parallel_for(size_t(0), size_t(_disc.nCol * _disc.nRad * _disc.nParType + 1), [&](size_t pblk)
+	tbb::parallel_for(std::size_t(0), static_cast<std::size_t>(_disc.nCol * _disc.nRad * _disc.nParType + 1), [&](std::size_t pblk)
 #else
 	for (unsigned int pblk = 0; pblk < _disc.nCol * _disc.nRad * _disc.nParType + 1; ++pblk)
 #endif
@@ -1878,7 +1878,7 @@ int GeneralRateModel2D::residualSensFwdCombine(const SimulationTime& simTime, co
 
 	const SimulationTime cst{simTime.t, simTime.secIdx};
 	const ConstSimulationState css{nullptr, nullptr};
-	for (unsigned int param = 0; param < yS.size(); ++param)
+	for (std::size_t param = 0; param < yS.size(); ++param)
 	{
 
 		// Directional derivative (dF / dy) * s
@@ -1894,7 +1894,7 @@ int GeneralRateModel2D::residualSensFwdCombine(const SimulationTime& simTime, co
 		// Complete sens residual is the sum:
 		// TODO: Chunk TBB loop
 #ifdef CADET_PARALLELIZE
-		tbb::parallel_for(size_t(0), size_t(numDofs()), [&](size_t i)
+		tbb::parallel_for(std::size_t(0), static_cast<std::size_t>(numDofs()), [&](std::size_t i)
 #else
 		for (unsigned int i = 0; i < numDofs(); ++i)
 #endif
@@ -1932,7 +1932,7 @@ void GeneralRateModel2D::multiplyWithJacobian(const SimulationTime& simTime, con
 	}
 
 #ifdef CADET_PARALLELIZE
-	tbb::parallel_for(size_t(0), size_t(_disc.nCol * _disc.nRad * _disc.nParType + 1), [&](size_t idx)
+	tbb::parallel_for(std::size_t(0), static_cast<std::size_t>(_disc.nCol * _disc.nRad * _disc.nParType + 1), [&](std::size_t idx)
 #else
 	for (unsigned int idx = 0; idx < _disc.nCol * _disc.nRad * _disc.nParType + 1; ++idx)
 #endif
@@ -1990,7 +1990,7 @@ void GeneralRateModel2D::multiplyWithDerivativeJacobian(const SimulationTime& si
 	Indexer idxr(_disc);
 
 #ifdef CADET_PARALLELIZE
-	tbb::parallel_for(size_t(0), size_t(_disc.nCol * _disc.nRad * _disc.nParType + 1), [&](size_t idx)
+	tbb::parallel_for(std::size_t(0), static_cast<std::size_t>(_disc.nCol * _disc.nRad * _disc.nParType + 1), [&](std::size_t idx)
 #else
 	for (unsigned int idx = 0; idx < _disc.nCol * _disc.nRad * _disc.nParType + 1; ++idx)
 #endif

@@ -15,6 +15,7 @@
 
 #include <string>
 #include <vector>
+#include <cstdint>
 
 #include "cadet/LibExportImport.hpp"
 #include "cadet/cadetCompilerInfo.hpp"

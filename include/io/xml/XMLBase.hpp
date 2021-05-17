@@ -80,12 +80,12 @@ public:
 	inline bool isGroup(const char* elementName) { return isGroup(std::string(elementName)); }
 
 	/// \brief Returns the dimensions of the tensor identified by name
-	inline std::vector<size_t> tensorDimensions(const std::string& elementName);
-	inline std::vector<size_t> tensorDimensions(const char* elementName) { return tensorDimensions(std::string(elementName)); }
+	inline std::vector<std::size_t> tensorDimensions(const std::string& elementName);
+	inline std::vector<std::size_t> tensorDimensions(const char* elementName) { return tensorDimensions(std::string(elementName)); }
 
 	/// \brief Returns the number of elements in the array identified by name
-	inline size_t arraySize(const std::string& elementName);
-	inline size_t arraySize(const char* elementName) { return arraySize(std::string(elementName)); }
+	inline std::size_t arraySize(const std::string& elementName);
+	inline std::size_t arraySize(const char* elementName) { return arraySize(std::string(elementName)); }
 
 	/// \brief Returns the number of items in the group
 	inline int numItems();
@@ -233,13 +233,13 @@ bool XMLBase::isVector(const char* elementName)
 	}
 
 	// Read text and attributes
-	size_t rank          = dataset.attribute(_attrRank.c_str()).as_int();
+	std::size_t rank          = dataset.attribute(_attrRank.c_str()).as_int();
 	std::string dims_str = dataset.attribute(_attrDims.c_str()).value();
 
 	// Get dims and compute buffer size
 	std::vector<std::string> dims_vec = split(dims_str, _dimsSeparator.c_str());
 	int items = 1;
-	for (size_t i = 0; i < rank; ++i)
+	for (std::size_t i = 0; i < rank; ++i)
 	{
 		items *= std::stoi(dims_vec[i]);
 	}
@@ -295,7 +295,7 @@ bool XMLBase::isGroup(const std::string& elementName)
 }
 
 
-std::vector<size_t> XMLBase::tensorDimensions(const std::string& elementName)
+std::vector<std::size_t> XMLBase::tensorDimensions(const std::string& elementName)
 {
 	// Open dataset and throw if it does not exist
 	xml_node dataset = _groupOpened.node().find_child_by_attribute(_nodeDset.c_str(), _attrName.c_str(), elementName.c_str());
@@ -310,8 +310,8 @@ std::vector<size_t> XMLBase::tensorDimensions(const std::string& elementName)
 
 	// Get dims and compute buffer size
 	const std::vector<std::string> dims_vec = split(dims_str, _dimsSeparator.c_str());
-	std::vector<size_t> dims(dims_vec.size());
-	for (size_t i = 0; i < dims_vec.size(); ++i)
+	std::vector<std::size_t> dims(dims_vec.size());
+	for (std::size_t i = 0; i < dims_vec.size(); ++i)
 	{
 		dims[i] = std::stoi(dims_vec[i]);
 	}
@@ -321,7 +321,7 @@ std::vector<size_t> XMLBase::tensorDimensions(const std::string& elementName)
 }
 
 
-size_t XMLBase::arraySize(const std::string& elementName)
+std::size_t XMLBase::arraySize(const std::string& elementName)
 {
 	// Open dataset and throw if it does not exist
 	xml_node dataset = _groupOpened.node().find_child_by_attribute(_nodeDset.c_str(), _attrName.c_str(), elementName.c_str());
@@ -339,8 +339,8 @@ size_t XMLBase::arraySize(const std::string& elementName)
 	if (dims_vec.empty())
 		return 0;
 
-	size_t n = 1;
-	for (size_t i = 0; i < dims_vec.size(); ++i)
+	std::size_t n = 1;
+	for (std::size_t i = 0; i < dims_vec.size(); ++i)
 	{
 		n *= std::stoi(dims_vec[i]);
 	}
@@ -405,8 +405,8 @@ void XMLBase::setGroup(const std::string& groupName)
 {
 	_groupNames.clear();
 
-	size_t start   = 0;
-	size_t end     = 0;
+	std::size_t start   = 0;
+	std::size_t end     = 0;
 	std::string delimiter("/");
 
 	// Quick return when called with empty group name
@@ -471,7 +471,7 @@ void XMLBase::openGroup(bool forceCreation)
 		if (forceCreation && _enable_write)
 		{
 			xml_node newNode;
-			size_t ngrpexist = _groupExists.size();
+			std::size_t ngrpexist = _groupExists.size();
 			// Check for any parent group to be existent
 			for (std::vector<std::string>::const_iterator it = _groupNames.begin() + ngrpexist; it < _groupNames.end(); ++it)
 			{
