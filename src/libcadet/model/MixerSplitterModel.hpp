@@ -97,7 +97,7 @@ public:
 
 	// linearSolve and assembleAndPrepareDAEJacobian are null operations since there are only inlet DOFs, which are treated by ModelSystem
 	virtual int linearSolve(double t, double alpha, double tol, double* const rhs, double const* const weight,
-		const ConstSimulationState& simState) { return 0; }
+		const ConstSimulationState& simState);
 
 	virtual void prepareADvectors(const AdJacobianParams& adJac) const;
 
@@ -182,9 +182,9 @@ protected:
 			return _data;
 		}
 		virtual double const* outlet(unsigned int port, unsigned int& stride) const
-		{n
+		{
 			stride = 1;
-			return _data;
+			return _data + _nComp;
 		}
 
 		virtual StateOrdering const* concentrationOrdering(unsigned int& len) const

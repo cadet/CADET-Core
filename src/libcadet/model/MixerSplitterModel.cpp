@@ -51,12 +51,12 @@ MixerSplitterModel::~MixerSplitterModel() CADET_NOEXCEPT
 
 unsigned int MixerSplitterModel::numDofs() const CADET_NOEXCEPT
 {
-	return _nComp;
+	return 2 * _nComp;
 }
 
 unsigned int MixerSplitterModel::numPureDofs() const CADET_NOEXCEPT
 {
-	return 0;
+	return _nComp;
 }
 
 bool MixerSplitterModel::usesAD() const CADET_NOEXCEPT
@@ -226,6 +226,16 @@ void MixerSplitterModel::multiplyWithJacobian(const SimulationTime& simTime, con
 void MixerSplitterModel::multiplyWithDerivativeJacobian(const SimulationTime& simTime, const ConstSimulationState& simState, double const* sDot, double* ret)
 {
 	std::fill_n(ret, numDofs(), 0.0);
+}
+
+int MixerSplitterModel::linearSolve(double t, double alpha, double tol, double* const rhs, double const* const weight,
+	const ConstSimulationState& simState)
+{
+	// Handle inlet equations by backsubstitution
+	for (unsigned int i = 0; i < _nComp; ++i)
+	{
+		rhs[i + _nComp] += rhs[i];
+	}
 }
 
 void registerMixerSplitterModel(std::unordered_map<std::string, std::function<IUnitOperation*(UnitOpIdx)>>& models)
