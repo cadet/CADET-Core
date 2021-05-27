@@ -63,6 +63,10 @@ void readDataOutputConfig(ParamProvider_t& pp, StorageConfig_t& cfg, const std::
 	else
 		cfg.storeFlux = false;
 
+	if (pp.exists("WRITE_" + dataType + "_LAST"))
+		cfg.storeLast = pp.getBool("WRITE_" + dataType + "_LAST");
+	else
+		cfg.storeLast = false;
 /*
 	if (pp.exists("WRITE_" + dataType + "_ALL"))
 	{

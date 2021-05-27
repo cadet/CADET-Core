@@ -51,6 +51,7 @@ public:
 		bool storeOutlet;
 		bool storeInlet;
 		bool storeVolume;
+		bool storeLast;
 	};
 
 	InternalStorageUnitOpRecorder() : InternalStorageUnitOpRecorder(UnitOpIndep) { }
