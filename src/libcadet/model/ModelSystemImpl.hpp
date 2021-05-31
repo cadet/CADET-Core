@@ -79,6 +79,14 @@ public:
 	virtual bool usesAD() const CADET_NOEXCEPT;
 	virtual unsigned int requiredADdirs() const CADET_NOEXCEPT;
 
+	/**
+	 * @brief Return the index and length of state vector relavant to each unit operation
+	 * @details This function returns starting index and stride of the last_state_vector
+	 *			related to each unit operation. This will faciliate the user to read
+	 *			the state vector in a more efficient manner.
+	 */
+	virtual std::vector<int> getModelSlice() const CADET_NOEXCEPT = 0;
+
 	virtual bool configureModelDiscretization(IParameterProvider& paramProvider, IConfigHelper& helper);
 	virtual bool configure(IParameterProvider& paramProvider);
 	virtual void notifyDiscontinuousSectionTransition(double t, unsigned int secIdx, const ConstSimulationState& simState, const AdJacobianParams& adJac);

@@ -280,6 +280,26 @@ unsigned int ModelSystem::numPureDofs() const CADET_NOEXCEPT
 	return dofs;
 }
 
+std::vector<int> ModelSystem::getModelSlice() const CADET_NOEXCEPT
+{
+	std::vector<int> index_stride;
+	unsigned int stride = 0;
+	unsigned int index= 0;
+	std::vector<unsigned int> dofs = 0;
+	unsigned int counter = 0;
+	for (IUnitOperation* m : _models)
+	{
+		dofs[counter]= m->numPureDofs();
+		stride = dofs[counter];
+		index_stride[2*counter] = index;
+		index_stride[2*counter + 1] = stride;
+		counter = counter + 1;
+		index = dofs[counter];
+	}
+	return index_stride;
+}
+
+
 bool ModelSystem::usesAD() const CADET_NOEXCEPT
 {
 	for (IUnitOperation* m : _models)
