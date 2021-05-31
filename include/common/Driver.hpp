@@ -281,7 +281,9 @@ public:
 		{
 			const std::vector<double> initY = pp.getDoubleArray("INIT_STATE_Y");
 			const std::vector<double> initYdot = pp.getDoubleArray("INIT_STATE_YDOT");
-			if (initY.size() >= _sim->numDofs())
+			if (initY.size() != _sim->numDofs() || initY.size() != 2*_sim->numDofs())
+				throw InvalidParameterException("Length of INIT_STATE_Y should be equal to NDOF or 2*NDOF");
+			else if (initY.size() >= _sim->numDofs())
 			{
 				if (initYdot.size() >= _sim->numDofs())
 					_sim->applyInitialCondition(initY.data(), initYdot.data());
