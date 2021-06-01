@@ -76,8 +76,6 @@ public:
 
 	virtual unsigned int numDofs() const CADET_NOEXCEPT;
 	virtual unsigned int numPureDofs() const CADET_NOEXCEPT;
-	virtual bool usesAD() const CADET_NOEXCEPT;
-	virtual unsigned int requiredADdirs() const CADET_NOEXCEPT;
 
 	/**
 	 * @brief Return the index and length of state vector relavant to each unit operation
@@ -85,7 +83,11 @@ public:
 	 *			related to each unit operation. This will faciliate the user to read
 	 *			the state vector in a more efficient manner.
 	 */
-	virtual std::vector<int> getModelSlice() const CADET_NOEXCEPT = 0;
+	virtual std::vector<int> getModelSlice()const CADET_NOEXCEPT;
+	//virtual IModel* getModelSlice(std::vector<int> index_stride);
+
+	virtual bool usesAD() const CADET_NOEXCEPT;
+	virtual unsigned int requiredADdirs() const CADET_NOEXCEPT;
 
 	virtual bool configureModelDiscretization(IParameterProvider& paramProvider, IConfigHelper& helper);
 	virtual bool configure(IParameterProvider& paramProvider);

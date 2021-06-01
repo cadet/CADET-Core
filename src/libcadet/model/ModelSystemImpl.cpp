@@ -14,7 +14,7 @@
 #include "cadet/ParameterProvider.hpp"
 #include "cadet/Exceptions.hpp"
 #include "cadet/ExternalFunction.hpp"
-
+#include "cadet/ModelSystem.hpp"
 #include "ConfigurationHelper.hpp"
 #include "graph/GraphAlgos.hpp"
 #include "SensParamUtil.hpp"
@@ -283,18 +283,18 @@ unsigned int ModelSystem::numPureDofs() const CADET_NOEXCEPT
 std::vector<int> ModelSystem::getModelSlice() const CADET_NOEXCEPT
 {
 	std::vector<int> index_stride;
-	unsigned int stride = 0;
-	unsigned int index= 0;
-	std::vector<unsigned int> dofs = 0;
+	int stride = 0;
+	int index= 0;
+	unsigned int dofs =0;
 	unsigned int counter = 0;
+	
 	for (IUnitOperation* m : _models)
 	{
-		dofs[counter]= m->numPureDofs();
-		stride = dofs[counter];
-		index_stride[2*counter] = index;
-		index_stride[2*counter + 1] = stride;
+		dofs= m->numPureDofs();
+		stride = dofs;
+		auto iter2 = index_stride.insert(index_stride.begin() + 2*counter, { index,stride });
 		counter = counter + 1;
-		index = dofs[counter];
+		index = index + dofs;
 	}
 	return index_stride;
 }
