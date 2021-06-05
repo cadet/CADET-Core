@@ -111,7 +111,7 @@ add_feature_info(ENABLE_SUNDIALS_OPENMP ENABLE_SUNDIALS_OPENMP "Prefer OpenMP ve
 option(ENABLE_ANALYTIC_JACOBIAN_CHECK "Enable verification of analytical Jacobian by AD" OFF)
 add_feature_info(ENABLE_ANALYTIC_JACOBIAN_CHECK ENABLE_ANALYTIC_JACOBIAN_CHECK "Enable verification of analytical Jacobian by AD")
 
-set (ADLIB "sfad" CACHE STRING "Selects the AD library, options are 'sfad', 'setfad'")
+set(ADLIB "sfad" CACHE STRING "Selects the AD library, options are 'sfad', 'setfad'")
 string(TOLOWER ${ADLIB} ADLIB)
 
 
@@ -127,6 +127,8 @@ add_feature_info(ENABLE_CADET_TOOLS ENABLE_CADET_TOOLS "Build CADET tools")
 option(ENABLE_TESTS "Build CADET tests" ON)
 add_feature_info(ENABLE_TESTS ENABLE_TESTS "Build CADET tests")
 
+option(ENABLE_PACKAGED_SUNDIALS "Use packaged SUNDIALS code" ON)
+add_feature_info(ENABLE_PACKAGED_SUNDIALS ENABLE_TESTS "Use packaged SUNDIALS code")
 
 option(ENABLE_IPO "Enable interprocedural optimization if compiler supports it" ON)
 add_feature_info(ENABLE_IPO ENABLE_IPO "Enable interprocedural optimization if compiler supports it")
@@ -228,40 +230,56 @@ set_package_properties(LAPACK PROPERTIES
 	PURPOSE "Solution of dense linear systems"
 )
 
-# SUNDIALS_ROOT environment variable can be used to find SUNDIALS package
-set(SUNDIALS_PREFER_STATIC_LIBRARIES ${ENABLE_STATIC_LINK_DEPS})
-find_package(SUNDIALS REQUIRED COMPONENTS sundials_idas sundials_nvecserial OPTIONAL_COMPONENTS sundials_nvecopenmp)
-set_package_properties(SUNDIALS PROPERTIES
-	TYPE REQUIRED
-	PURPOSE "Time integration"
-)
+if (NOT ENABLE_PACKAGED_SUNDIALS)
+	# SUNDIALS_ROOT environment variable can be used to find SUNDIALS package
+	set(SUNDIALS_PREFER_STATIC_LIBRARIES ${ENABLE_STATIC_LINK_DEPS})
+	find_package(SUNDIALS REQUIRED COMPONENTS sundials_idas sundials_nvecserial OPTIONAL_COMPONENTS sundials_nvecopenmp)
+	set_package_properties(SUNDIALS PROPERTIES
+		TYPE REQUIRED
+		PURPOSE "Time integration"
+	)
 
-# Check whether OpenMP is available in SUNDIAL'S NVECTOR module
-set(SUNDIALS_NVEC_TARGET "SUNDIALS::sundials_nvecserial")
-if (SUNDIALS_sundials_nvecopenmp_LIBRARY AND ENABLE_SUNDIALS_OPENMP)
-	# Prefer OpenMP over serial version
-	set(SUNDIALS_NVEC_TARGET "SUNDIALS::sundials_nvecopenmp")
+	# Check whether OpenMP is available in SUNDIAL'S NVECTOR module
+	set(SUNDIALS_NVEC_TARGET "SUNDIALS::sundials_nvecserial")
+	if (SUNDIALS_sundials_nvecopenmp_LIBRARY AND ENABLE_SUNDIALS_OPENMP)
+		# Prefer OpenMP over serial version
+		set(SUNDIALS_NVEC_TARGET "SUNDIALS::sundials_nvecopenmp")
 
-	get_target_property(SUNDIALS_IFACE_COMP_DEF SUNDIALS::sundials_nvecopenmp INTERFACE_COMPILE_DEFINITIONS)
-	if (SUNDIALS_IFACE_COMP_DEF)
-		list(APPEND SUNDIALS_IFACE_COMP_DEF "CADET_SUNDIALS_OPENMP")
-	else()
-		set(SUNDIALS_IFACE_COMP_DEF "CADET_SUNDIALS_OPENMP")
+		get_target_property(SUNDIALS_IFACE_COMP_DEF SUNDIALS::sundials_nvecopenmp INTERFACE_COMPILE_DEFINITIONS)
+		if (SUNDIALS_IFACE_COMP_DEF)
+			list(APPEND SUNDIALS_IFACE_COMP_DEF "CADET_SUNDIALS_OPENMP")
+		else()
+			set(SUNDIALS_IFACE_COMP_DEF "CADET_SUNDIALS_OPENMP")
+		endif()
+		set_target_properties(SUNDIALS::sundials_nvecopenmp PROPERTIES INTERFACE_COMPILE_DEFINITIONS "${SUNDIALS_IFACE_COMP_DEF}")
+		unset(SUNDIALS_IFACE_COMP_DEF)
 	endif()
-	set_target_properties(SUNDIALS::sundials_nvecopenmp PROPERTIES INTERFACE_COMPILE_DEFINITIONS "${SUNDIALS_IFACE_COMP_DEF}")
-	unset(SUNDIALS_IFACE_COMP_DEF)
-endif()
 
-# Determine SUNDIALS interface version
-if (SUNDIALS_FOUND)
-	get_target_property(SUNDIALS_IFACE_COMP_DEF SUNDIALS::sundials_idas INTERFACE_COMPILE_DEFINITIONS)
-	if (SUNDIALS_IFACE_COMP_DEF)
-		list(APPEND SUNDIALS_IFACE_COMP_DEF "CADET_SUNDIALS_IFACE=${SUNDIALS_VERSION_MAJOR}")
-	else()
-		set(SUNDIALS_IFACE_COMP_DEF "CADET_SUNDIALS_IFACE=${SUNDIALS_VERSION_MAJOR}")
+	# Determine SUNDIALS interface version
+	if (SUNDIALS_FOUND)
+		get_target_property(SUNDIALS_IFACE_COMP_DEF SUNDIALS::sundials_idas INTERFACE_COMPILE_DEFINITIONS)
+		if (SUNDIALS_IFACE_COMP_DEF)
+			list(APPEND SUNDIALS_IFACE_COMP_DEF "CADET_SUNDIALS_IFACE=${SUNDIALS_VERSION_MAJOR}")
+		else()
+			set(SUNDIALS_IFACE_COMP_DEF "CADET_SUNDIALS_IFACE=${SUNDIALS_VERSION_MAJOR}")
+		endif()
+		set_target_properties(SUNDIALS::sundials_idas PROPERTIES INTERFACE_COMPILE_DEFINITIONS "${SUNDIALS_IFACE_COMP_DEF}")
+		unset(SUNDIALS_IFACE_COMP_DEF)
 	endif()
-	set_target_properties(SUNDIALS::sundials_idas PROPERTIES INTERFACE_COMPILE_DEFINITIONS "${SUNDIALS_IFACE_COMP_DEF}")
-	unset(SUNDIALS_IFACE_COMP_DEF)
+else()
+	set(SUNDIALS_FOUND TRUE)
+	set(SUNDIALS_VERSION "3.2.1")
+	set(SUNDIALS_NVEC_TARGET "SUNDIALS::sundials_nvecserial")
+	add_subdirectory(ThirdParty/sundials)
+
+	add_library(SUNDIALS::sundials_idas INTERFACE IMPORTED)
+	target_link_libraries(SUNDIALS::sundials_idas INTERFACE sundials_idas_static)
+	target_include_directories(SUNDIALS::sundials_idas INTERFACE ThirdParty/sundials/include ThirdParty/sundials/src "${CMAKE_BINARY_DIR}/ThirdParty/sundials/include")
+	set_target_properties(SUNDIALS::sundials_idas PROPERTIES INTERFACE_COMPILE_DEFINITIONS "CADET_SUNDIALS_IFACE=3")
+
+	add_library(SUNDIALS::sundials_nvecserial INTERFACE IMPORTED)
+	target_include_directories(SUNDIALS::sundials_nvecserial INTERFACE ThirdParty/sundials/include "${CMAKE_BINARY_DIR}/ThirdParty/sundials/include")
+	target_link_libraries(SUNDIALS::sundials_nvecserial INTERFACE sundials_nvecserial_static)
 endif()
 
 if (ENABLE_CADET_TOOLS OR ENABLE_CADET_CLI)
@@ -611,11 +629,17 @@ if (TBB_FOUND)
 	message("  Libs ${TBB_LIBRARIES}")
 endif()
 
-message("Found SUNDIALS: ${SUNDIALS_FOUND}")
-if (SUNDIALS_FOUND)
+if (ENABLE_PACKAGED_SUNDIALS)
+	message("Found SUNDIALS: ${SUNDIALS_FOUND}")
 	message("  Version ${SUNDIALS_VERSION}")
-	message("  Includes ${SUNDIALS_INCLUDE_DIRS}")
-	message("  Libs ${SUNDIALS_LIBRARIES}")
+	message("  Packaged")
+else()
+	message("Found SUNDIALS: ${SUNDIALS_FOUND}")
+	if (SUNDIALS_FOUND)
+		message("  Version ${SUNDIALS_VERSION}")
+		message("  Includes ${SUNDIALS_INCLUDE_DIRS}")
+		message("  Libs ${SUNDIALS_LIBRARIES}")
+	endif()
 endif()
 
 if (ENABLE_GRM_2D)
