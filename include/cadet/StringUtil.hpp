@@ -1,9 +1,9 @@
 // =============================================================================
 //  CADET
-//  
+//
 //  Copyright © 2008-2021: The CADET Authors
 //            Please see the AUTHORS and CONTRIBUTORS file.
-//  
+//
 //  All rights reserved. This program and the accompanying materials
 //  are made available under the terms of the GNU Public License v3.0 (or, at
 //  your option, any later version) which accompanies this distribution, and
@@ -11,7 +11,7 @@
 // =============================================================================
 
 /**
- * @file 
+ * @file
  * Provides compile- and runtime string hashing
  */
 
@@ -55,9 +55,9 @@ CADET_CONSTEXPR static inline sip_word rotl64(const sip_word word, const unsigne
 		template<std::size_t N>
 		constexpr ConstString(const char(&s)[N]) : m_Str(s), m_Size(N - 1) { }
 		constexpr ConstString(const char* s, std::size_t len) : m_Str(s), m_Size(len) { }
-	
+
 		constexpr std::size_t size() const { return m_Size; }
-	
+
 		constexpr unsigned char operator[] (std::size_t n) const
 		{
 			return static_cast<unsigned char>(m_Str[n]);
@@ -75,7 +75,7 @@ CADET_CONSTEXPR static inline sip_word rotl64(const sip_word word, const unsigne
 		}
 
 	private:
-	 
+
 		/**
 		 * @brief 256 bit state
 		 */
@@ -217,18 +217,18 @@ static inline sip_word read64(unsigned char const* const p)
  */
 static inline void mix(sip_word &state0, sip_word &state1, sip_word &state2, sip_word &state3)
 {
-	state0 += state1; 
+	state0 += state1;
 	state2 += state3;
-	state1 = rotl64(state1, 13); 
+	state1 = rotl64(state1, 13);
 	state3 = rotl64(state3, 16);
 	state1 ^= state0;
 	state3 ^= state2;
 	state0 = rotl64(state0, 32);
 	state2 += state1;
 	state0 += state3;
-	state1 = rotl64(state1, 17); 
+	state1 = rotl64(state1, 17);
 	state3 = rotl64(state3, 21);
-	state1 ^= state2; 
+	state1 ^= state2;
 	state3 ^= state0;
 	state2 = rotl64(state2, 32);
 }
@@ -236,7 +236,7 @@ static inline void mix(sip_word &state0, sip_word &state1, sip_word &state2, sip
 /**
  * @brief Computes the SipHash value of the given data at runtime
  * @details Implementation taken from https://chiselapp.com/user/Justin_be_my_guide/repository/siple/artifact/f7d1b255a09c1d67
- * 
+ *
  * @param [in] in Input data
  * @param [in] insize Size of the input data (in byte)
  * @param [in] key0 Arbitrary key (defaults to 0)
@@ -273,13 +273,13 @@ static inline sip_word siphash(const void *in, const std::size_t insize, const s
 
 	switch (tail_size)
 	{
-		case 7: tail_word |= (sip_word)char_in[6] << 48;
-		case 6: tail_word |= (sip_word)char_in[5] << 40;
-		case 5: tail_word |= (sip_word)char_in[4] << 32;
-		case 4: tail_word |= (sip_word)char_in[3] << 24;
-		case 3: tail_word |= (sip_word)char_in[2] << 16;
-		case 2: tail_word |= (sip_word)char_in[1] << 8;
-		case 1: tail_word |= (sip_word)char_in[0];
+		case 7: tail_word |= (sip_word)char_in[6] << 48; [[fallthrough]];
+		case 6: tail_word |= (sip_word)char_in[5] << 40; [[fallthrough]];
+		case 5: tail_word |= (sip_word)char_in[4] << 32; [[fallthrough]];
+		case 4: tail_word |= (sip_word)char_in[3] << 24; [[fallthrough]];
+		case 3: tail_word |= (sip_word)char_in[2] << 16; [[fallthrough]];
+		case 2: tail_word |= (sip_word)char_in[1] << 8; [[fallthrough]];
+		case 1: tail_word |= (sip_word)char_in[0]; [[fallthrough]];
 		case 0: break;
 	}
 
@@ -304,7 +304,7 @@ static inline sip_word siphash(const void *in, const std::size_t insize, const s
 /**
  * @brief Computes the SipHash24 value of the given string at runtime
  * @details Computes a 64 bit hash value of the string at runtime
- * 
+ *
  * @param [in] str String
  * @param [in] key0 Arbitrary key (defaults to 0)
  * @param [in] key1 Arbitrary key (defaults to 0)
@@ -318,7 +318,7 @@ inline StringHash SipHash24runtime(const std::string& str, const StringHash key0
 /**
  * @brief Computes the SipHash24 value of the given string at runtime
  * @details Computes a 64 bit hash value of the string at runtime
- * 
+ *
  * @param [in] str String
  * @param [in] key0 Arbitrary key (defaults to 0)
  * @param [in] key1 Arbitrary key (defaults to 0)
@@ -336,7 +336,7 @@ inline StringHash SipHash24runtime(char const* const str, const StringHash key0 
 	/**
 	 * @brief Computes the SipHash24 value of the given string
 	 * @details Computes a 64 bit hash value of the string at compiletime
-	 * 
+	 *
 	 * @param [in] cs Compiletime string
 	 * @param [in] key0 Arbitrary key (defaults to 0)
 	 * @param [in] key1 Arbitrary key (defaults to 0)
@@ -352,7 +352,7 @@ inline StringHash SipHash24runtime(char const* const str, const StringHash key0 
 	/**
 	 * @brief Computes the SipHash24 value of the given string at runtime
 	 * @details Computes a 64 bit hash value of the string at runtime
-	 * 
+	 *
 	 * @param [in] str String
 	 * @param [in] key0 Arbitrary key (defaults to 0)
 	 * @param [in] key1 Arbitrary key (defaults to 0)
@@ -391,7 +391,7 @@ inline bool caseInsensitiveEquals(const std::string& a, const std::string& b)
 	/**
 	 * @brief Computes the SipHash24 value of the given string
 	 * @details Computes a 64 bit hash value of the string at compiletime using SipHash24 with both keys 0
-	 * 
+	 *
 	 * @param [in] str Compiletime string
 	 * @param [in] len Length of the compiletime string
 	 * @return SipHash24 value of the given compiletime string
