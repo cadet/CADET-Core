@@ -40,7 +40,7 @@ Build HDF5 yourself:
 * Execute `ctest -S HDF5config.cmake,BUILD_GENERATOR=Unix,INSTALLDIR="<ROOT>/Libs/hdf5" -C Release -V`
 * Extract the created `HDF5-1.10.0-patch1-Darwin.tar.gz` file to `<ROOT>/Libs/hdf5` such that you have `<ROOT>/Libs/hdf5/lib`
 
-## SUNDIALS
+## SUNDIALS (Optional)
 
 You can either build SUNDIALS yourself or rely on the `sundials` package of [Homebrew](http://brew.sh/).
 Note that a version <= 3.2.1 is required whereas the current version provided by Homebrew is >= 5.1.0.
@@ -62,7 +62,7 @@ Build SUNDIALS yourself:
 
 You can either use the native LAPACK implementation provided by Mac OS X (vecLib, Accelerate) or install the freely available [Intel MKL](https://software.intel.com/sites/campaigns/nest/) which is very fast and probably faster than Accelerate.
 
-## SuperLU
+## SuperLU (Optional)
 
 * Download SuperLU source from https://github.com/xiaoyeli/superlu
 * Unzip
@@ -72,7 +72,7 @@ You can either use the native LAPACK implementation provided by Mac OS X (vecLib
 * Execute `make install`
 * Delete the folder `superlubuild` (e.g., execute `rm -rf superlubuild` in the parent directory of `superlubuild`)
 
-## UMFPACK
+## UMFPACK (Optional)
 
 * Download SuiteSparse source from http://faculty.cse.tamu.edu/davis/suitesparse.html
 * Unzip
@@ -85,9 +85,9 @@ You can either use the native LAPACK implementation provided by Mac OS X (vecLib
 * Place the source in `<ROOT>/code` and create the directory `<ROOT>/build`
 * Open a terminal and change to `<ROOT>/build`
 * If you have built HDF5 yourself, execute `export HDF5_ROOT=<ROOT>/Libs/hdf5`
-* If you have built SUNDIALS yourself, execute `export SUNDIALS_ROOT=<ROOT>/Libs/sundials`
-* Execute `export SUPERLU_ROOT=<ROOT>/Libs/superlu`
-* Execute `export UMFPACK_ROOT=<ROOT>/Libs/suitesparse`
+* If you have built SUNDIALS yourself, execute `export SUNDIALS_ROOT=<ROOT>/Libs/sundials` and add `-DENABLE_PACKAGED_SUNDIALS=OFF` to the CMake command (see below)
+* If you have built SuperLU, execute `export SUPERLU_ROOT=<ROOT>/Libs/superlu`
+* If you have built UMFPACK, execute `export UMFPACK_ROOT=<ROOT>/Libs/suitesparse`
 * If using MKL, execute `export MKLROOT=/opt/intel/mkl`
 * Using standard LAPACK: Execute `cmake -DCMAKE_INSTALL_PREFIX="<ROOT>/cadet" ../code/`
  

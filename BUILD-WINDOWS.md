@@ -37,7 +37,7 @@ We also assume that Intel MKL is installed.
 * Execute `ctest -S HDF5config.cmake,BUILD_GENERATOR=VS201964,INSTALLDIR="<ROOT>\Libs\hdf5" -C Release -V`
 * Extract the created `HDF5-1.12.0-win64.zip` file to `<ROOT>/Libs/hdf5` such that you have `<ROOT>/Libs/hdf5/lib`
 
-## SUNDIALS
+## SUNDIALS (Optional)
 
 * Download SUNDIALS source from http://computation.llnl.gov/projects/sundials/sundials-software (version <= 3.2.1)
 * Unzip
@@ -65,7 +65,7 @@ If MKL is used, skip this step.
 * Download a release from https://github.com/oneapi-src/oneTBB/releases
 * Unzip to `<ROOT>/Libs/tbb` such that you have `<ROOT>/Libs/tbb/README`
 
-## SuiteSparse
+## UMFPACK (Optional)
 
 * Download SuiteSparse source from http://faculty.cse.tamu.edu/davis/suitesparse.html
 * Download CMake build system source from https://github.com/jlblancoc/suitesparse-metis-for-windows
@@ -85,8 +85,8 @@ If MKL is used, skip this step.
 * Download release of CADET or checkout from git
 * Place the source in `<ROOT>\code` and create the directory `<ROOT>\build`
 * Open VS2019x64 Command Prompt and change to `<ROOT>\build`
-* Execute `set SUNDIALS_ROOT=<ROOT>\Libs\sundials`
-* Execute `set UMFPACK_ROOT=<ROOT>\Libs\suitesparse`
+* If you have built SUNDIALS, execute `set SUNDIALS_ROOT=<ROOT>\Libs\sundials` and add `-DENABLE_PACKAGED_SUNDIALS=OFF` to the CMake command (see below)
+* If you have built UMFPACK, execute `set UMFPACK_ROOT=<ROOT>\Libs\suitesparse`
 * Execute `set TBB_ROOT=<ROOT>\Libs\tbb`
 * Execute `set HDF5_ROOT=<ROOT>\Libs\hdf5`
 * If using MKL, execute `set MKLROOT=C:\Program Files (x86)\IntelSWTools\compilers_and_libraries_2020.0.166\windows\mkl`
