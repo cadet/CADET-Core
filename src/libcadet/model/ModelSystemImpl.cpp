@@ -1104,7 +1104,7 @@ std::unordered_map<ParameterId, double> ModelSystem::getAllParameterValues() con
 	for (IUnitOperation* m : _models)
 	{
 		const std::unordered_map<ParameterId, double> localData = m->getAllParameterValues();
-		for (const std::pair<ParameterId, double>& val : localData)
+		for (const std::pair<const ParameterId, double>& val : localData)
 			data[val.first] = val.second;
 	}
 
