@@ -175,7 +175,7 @@ namespace cadet
 		{
 			double const* const ptrY = NVEC_DATA(nv);
 			os << "[";
-			for (unsigned int i = 0; i < NVEC_LENGTH(nv)-1; ++i)
+			for (std::size_t i = 0; i < NVEC_LENGTH(nv)-1; ++i)
 				os << ptrY[i] << ",";
 			os << ptrY[NVEC_LENGTH(nv)-1] << "]";
 			return os;
