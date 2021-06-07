@@ -1,7 +1,7 @@
 # Prerequisites
 
 * CMake (>= 3.12.0)
-* GCC >= 5.0 or Clang >= 3.4
+* GCC >= 7.0, Clang >= 3.9, or Intel C++ 18.0
 * Optional: MATLAB R2009a or greater
 * Optional: Git
 

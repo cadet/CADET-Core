@@ -1,7 +1,7 @@
 # Prerequisites
 
 * CMake (>= 3.12.0)
-* Microsoft Visual Studio 2015 (Community Edition, or better)
+* Microsoft Visual Studio 2017 (Community Edition, or better) or Intel C++ 18.0
 * Optional: MATLAB R2009a or greater
 * Optional: Git
 * Optional: Intel MKL
