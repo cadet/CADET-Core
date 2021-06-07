@@ -255,7 +255,7 @@ int GeneralRateModel::linearSolve(double t, double alpha, double outerTol, doubl
 		const double tolerance = std::sqrt(static_cast<double>(_gmres.matrixSize())) * outerTol * _schurSafety;
 
 		BENCH_START(_timerGmres);
-		const int gmresResult = _gmres.solve(tolerance, weight + idxr.offsetJf(), _tempState + idxr.offsetJf(), rhs + idxr.offsetJf());
+		_gmres.solve(tolerance, weight + idxr.offsetJf(), _tempState + idxr.offsetJf(), rhs + idxr.offsetJf());
 		BENCH_STOP(_timerGmres);
 
 		// Remove temporary results that are leftovers from schurComplementMatrixVector()
