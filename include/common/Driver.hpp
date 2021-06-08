@@ -194,7 +194,7 @@ void readSensitivityInitialState(ParamProvider_t& pp, const char* prefix, std::v
 class Driver
 {
 public:
-	Driver() : _sim(nullptr), _builder(nullptr), _storage(nullptr), _writeLastState(false), _writeLastStateSens(false), _writeLastStateUnit(false)
+	Driver() : _sim(nullptr), _builder(nullptr), _storage(nullptr), _writeLastState(false), _writeLastStateSens(false), _writeLastStateUnit(false),_flag(1000,false)
 	{
 		_builder = cadetCreateModelBuilder();
 	}
@@ -466,11 +466,24 @@ public:
 			_writeLastState = pp.getBool("WRITE_SOLUTION_LAST");
 		else
 			_writeLastState = false;
+
 		// Adding a new output variable
-		if (pp.exists("WRITE_SOLUTION_LAST_UNIT"))
-			_writeLastStateUnit = pp.getBool("WRITE_SOLUTION_LAST_UNIT");
-		else
-			_writeLastStateUnit = false;
+		std::ostringstream oss;
+		for (int i = 0; i <= _sim->model()->maxUnitOperationId(); ++i)
+		{
+			oss.str("");
+			oss << "unit_" << std::setfill('0') << std::setw(3) << std::setprecision(0) << i;
+			pp.pushScope(oss.str());
+			if (pp.exists("WRITE_SOLUTION_LAST_UNIT"))
+			{
+				_writeLastStateUnit = pp.getBool("WRITE_SOLUTION_LAST_UNIT");
+				_flag[i] = true;
+			}
+				
+			else
+				_writeLastStateUnit = false;
+			pp.popScope();
+		}
 
 		if (pp.exists("WRITE_SENS_LAST"))
 			_writeLastStateSens = pp.getBool("WRITE_SENS_LAST");
@@ -540,8 +553,42 @@ public:
 			writer.vector("LAST_STATE_Y", len, lastY);
 			writer.vector("LAST_STATE_YDOT", len, lastYdot); 
 		}
-		//Here starts my work: Jazib
-		if(_writeLastStateUnit)
+
+		/*Implementatoin of writing last state Y and YDot for each unit operation*/
+
+		for (int i = 0; i <= _sim->model()->maxUnitOperationId(); ++i)
+		{
+			std::ostringstream oss;
+			oss.str("");
+			oss << "unit_" << std::setfill('0') << std::setw(3) << std::setprecision(0) << i;
+			writer.pushGroup("solution");
+			writer.pushGroup(oss.str());
+			if (_flag[i] == true)
+			{
+				unsigned int len = 0;
+				double const* const lastY = _sim->getLastSolution(len);
+				double const* const lastYdot = _sim->getLastSolutionDerivative(len);
+
+				const unsigned int* index_stride = _sim->model()->getModelSlice();
+				int count;
+				std::vector<double> dataVecTemp;
+				std::vector<double> lastYdotTemp;
+				count = 0;
+				for (int j = index_stride[i]; j < index_stride[i + 1]; j++)
+				{
+					dataVecTemp.insert(dataVecTemp.begin() + count, lastY[j]);
+					lastYdotTemp.insert(lastYdotTemp.begin() + count, lastYdot[j]);
+					count++;
+				}
+
+				writer.template vector<double>("LAST_STATE_Y", dataVecTemp.size(), dataVecTemp.data());
+				writer.template vector<double>("LAST_STATE_YDOT", lastYdotTemp.size(), lastYdotTemp.data());
+			}
+			writer.popGroup();
+			writer.popGroup();
+		}
+
+		/*if(_writeLastStateUnit)
 		{
 			unsigned int len = 0;
 			double const* const lastY = _sim->getLastSolution(len);
@@ -550,6 +597,7 @@ public:
 			std::vector<int> index_stride = _sim->model()->getModelSlice();
 			int count;
 
+			
 			std::ostringstream oss;
 			for (int i=0; i<=_sim->model()->maxUnitOperationId();++i)
 			{
@@ -570,12 +618,11 @@ public:
 				writer.pushGroup(oss.str());
 				writer.template vector<double>("LAST_STATE_Y", dataVecTemp.size(), dataVecTemp.data());
 				writer.template vector<double>("LAST_STATE_YDOT", lastYdotTemp.size(), lastYdotTemp.data());
-				//writer.vector("LAST_STATE_YDOT", len, lastYdot);
 				writer.popGroup();
 				writer.popGroup();
 
 			}
-		}
+		}*/
 		// here it ends: Jazib
 		if (_writeLastStateSens)
 		{
@@ -658,6 +705,7 @@ protected:
 
 	bool _writeLastState;
 	bool _writeLastStateUnit;
+	std::vector<bool> _flag;
 	bool _writeLastStateSens;
 
 	/**

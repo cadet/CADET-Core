@@ -170,7 +170,7 @@ public:
 	 *			related to each unit operation. This will faciliate the user to read
 	 *			the state vector in a more efficient manner.
 	 */
-	virtual std::vector<int> getModelSlice() const CADET_NOEXCEPT=0;
+	virtual const unsigned int* getModelSlice() const CADET_NOEXCEPT=0;
 	//virtual IModel* getModelSlice(std::vector<int> index_stride) = 0;
 
 #ifdef CADET_BENCHMARK_MODE

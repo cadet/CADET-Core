@@ -83,7 +83,7 @@ public:
 	 *			related to each unit operation. This will faciliate the user to read
 	 *			the state vector in a more efficient manner.
 	 */
-	virtual std::vector<int> getModelSlice()const CADET_NOEXCEPT;
+	virtual const unsigned int* getModelSlice()const CADET_NOEXCEPT;
 	//virtual IModel* getModelSlice(std::vector<int> index_stride);
 
 	virtual bool usesAD() const CADET_NOEXCEPT;

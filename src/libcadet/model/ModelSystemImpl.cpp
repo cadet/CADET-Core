@@ -19,7 +19,7 @@
 #include "graph/GraphAlgos.hpp"
 #include "SensParamUtil.hpp"
 #include "SimulationTypes.hpp"
-
+#include<iostream>
 #include <sstream>
 #include <iomanip>
 
@@ -280,23 +280,9 @@ unsigned int ModelSystem::numPureDofs() const CADET_NOEXCEPT
 	return dofs;
 }
 
-std::vector<int> ModelSystem::getModelSlice() const CADET_NOEXCEPT
+const unsigned int* ModelSystem::getModelSlice() const CADET_NOEXCEPT
 {
-	std::vector<int> index_stride;
-	int stride = 0;
-	int index= 0;
-	unsigned int dofs =0;
-	unsigned int counter = 0;
-	
-	for (IUnitOperation* m : _models)
-	{
-		dofs= m->numPureDofs();
-		stride = dofs;
-		auto iter2 = index_stride.insert(index_stride.begin() + 2*counter, { index,stride });
-		counter = counter + 1;
-		index = index + dofs;
-	}
-	return index_stride;
+	return _dofOffset.data();
 }
 
 
