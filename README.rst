@@ -18,6 +18,7 @@ CADET
 - **Source:** https://github.com/modsim/cadet
 - **Bug reports:** https://github.com/modsim/cadet/issues
 - **Demo:** https://www.cadet-web.de 
+- **Newsletter:** https://cadet-web.de/newsletter/
 
 Download and Installation
 -------------------------
