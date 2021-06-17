@@ -80,7 +80,7 @@ To cite CADET please use the following publication:
     simulation/index
     interface/index
     .. examples/index
-    :doc:`CADET-Match <cadet-match/index>`
+    CADET-Match <https://cadet.github.io/CADET-Match/master/index.html>
     license
     zbibliography
     Legal notice <https://www.fz-juelich.de/portal/EN/Service/LegalNotice/_node.html>
