@@ -31,25 +31,18 @@ extensions = [
     'sphinx_sitemap',
     'sphinxcontrib.bibtex',
     'sphinx_multiversion',
-    'sphinx.ext.intersphinx',
 ]
 
 # Bibliography
 bibtex_bibfiles = ['literature.bib']
 
-# Intersphinx
-intersphinx_mapping = {
-        'cadet-match': ('https://cadet.readthedocs.io/projects/cadet-match/en/latest/', None),
-            }
-
 # Multiversion
-# smv_released_pattern = r'^tags/.*$'         # Tags only
+smv_released_pattern = r'^tags/.*$'         # Tags only
 smv_tag_whitelist = r'^v\d+\.\d+\.\d+$'     # Include tags like "v2.1.1"
-# smv_remote_whitelist = r"^origin$"          # Use branches from remote origin
-smv_remote_whitelist = None                   # Only use local branches
-# smv_branch_whitelist = r"^master$"          # Only use master branch
-smv_branch_whitelist = r'^.*$'                # Include all branches
+smv_branch_whitelist = r"^master$"          # Only use master branch
+smv_remote_whitelist = r"^origin$"          # Use branches from remote origin
 smv_outputdir_format = '{ref.name}'         # Use the branch/tag name
+smv_remote_whitelist = None                 # Only use local branches
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
