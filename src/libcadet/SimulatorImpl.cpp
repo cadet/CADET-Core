@@ -1472,7 +1472,7 @@ namespace cadet
 
 		paramProvider.popScope();
 
-		if (paramProvider.exists("NTHREADS"))
+		if (paramProvider.exists("NTHREADS") && (paramProvider.getInt("NTHREADS") > 0))
 			_nThreads = paramProvider.getInt("NTHREADS");
 		else
 			_nThreads = 0;
