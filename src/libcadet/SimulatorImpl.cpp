@@ -1473,7 +1473,11 @@ namespace cadet
 		paramProvider.popScope();
 
 		if (paramProvider.exists("NTHREADS"))
-			_nThreads = paramProvider.getInt("NTHREADS");
+		{
+			// Ensure numThreads >= 0
+			const int numThreads = paramProvider.getInt("NTHREADS");
+			_nThreads = std::max(numThreads, 0);
+		}
 		else
 			_nThreads = 0;
 
