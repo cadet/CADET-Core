@@ -29,6 +29,17 @@ if (ENABLE_STATIC_LINK_CLI)
 	target_link_libraries(cadet-cli PRIVATE libcadet_static)
 else()
 	target_link_libraries(cadet-cli PRIVATE libcadet_shared)
+
+	# On Windows, copy libcadet.dll file to directory of cadet-cli.exe in order to ease debugging
+	if (WIN32)
+		add_custom_command(
+			TARGET cadet-cli
+			POST_BUILD
+			COMMAND ${CMAKE_COMMAND} -E copy
+				$<TARGET_FILE:libcadet_shared>
+				$<TARGET_FILE_DIR:cadet-cli>/$<TARGET_FILE_NAME:libcadet_shared>
+		)
+	endif()
 endif()
   
 # Add include directories for access to exported LIBCADET header files.
