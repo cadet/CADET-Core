@@ -80,9 +80,7 @@ namespace cadet
 				Affine_layer1_Jacobian(number_of_input, std::vector<double>(number_of_nodes_W1, 0.0)),
 				Affine_layer_2(number_of_input, std::vector<double>(number_of_nodes_W2, 0.0)),
 				Affine_layer_2_Jacobian(number_of_input, std::vector<double>(number_of_nodes_W2, 0.0)),
-				Affine_layer_3(number_of_input, std::vector<double>(number_of_outputs, 0.0)),
-				ANN_cp(100),
-				ANN_q(100){}
+				Affine_layer_3(number_of_input, std::vector<double>(number_of_outputs, 0.0)){}
 
 			virtual ~MachineLearningBindingBase() CADET_NOEXCEPT { }
 
@@ -126,8 +124,6 @@ namespace cadet
 			std::vector< std::vector<double> > second_hidden_layer_W2;
 			std::vector< std::vector<double> > bias_vector_3;
 			std::vector< std::vector<double> > last_layer;
-			std::vector<double> ANN_cp; //Defining these vectors to store trained ANN curve for spline fitting
-			std::vector<double> ANN_q;  //Defining these vectors to store trained ANN curve for spline fitting
 			/***************************************************************************************************/
 			/***Defining the vectors that will be used in the calculation of predicted value of isotherm*******/
 			/***************************************************************************************************/
@@ -337,9 +333,6 @@ namespace cadet
 				paramProvider.pushScope("model_weights");
 				paramProvider.pushScope("layer_0");
 
-				ANN_cp = paramProvider.getDoubleArray("pore_phase_concentration");
-				ANN_q = paramProvider.getDoubleArray("solid_phase_concentration");
-
 				const std::vector<double> bias0 = paramProvider.getDoubleArray("bias"); //Reading the biad vector from input file
 				oneD_to_twoD(bias0, bias_vector_1); // Copying 1D bias vector into 2D vector format
 
@@ -424,9 +417,6 @@ namespace cadet
 				/* ***************************************************
 				****Forward propagation of the neural network********
 				******************************************************/
-
-
-
 				const double factor = 1 / (1 - 0.69);
 				const double epsilon_e = 0.399;
 				double h = 0.0;
@@ -436,56 +426,29 @@ namespace cadet
 				double b = 5.5858426e4;
 				double epsil = 8.48484848e-4;
 
-
-
 				double input_temp = cp[0] * keq;
 
-				tk::spline s;
-				s.set_boundary(tk::spline::second_deriv, 0.0,
-					tk::spline::second_deriv, 0.0);
-				s.set_points(ANN_cp, ANN_q, tk::spline::cspline);
-				s.make_monotonic();
-				//double x = 1.5, y = s(x), deriv = s.deriv(1, x);
+				std::vector<std::vector<double>> matCp = { {input_temp} };
 
-				
+				Matrix_mul(Affine_layer_1, matCp, first_hidden_layer_W1, bias_vector_1);
+				ReLu(Affine_layer_1);
 
-				//std::vector<std::vector<double>> matCp = { {input_temp} };
+				/* @Brief: Propagating the first hidden layer to the second hidden layer and also using activation function right after*/
 
+				Matrix_mul(Affine_layer_2, Affine_layer_1, second_hidden_layer_W2, bias_vector_2);
+				ReLu(Affine_layer_2);
 
-				//Matrix_mul(Affine_layer_1, matCp, first_hidden_layer_W1, bias_vector_1);
-				//ReLu(Affine_layer_1);
+				/* @Brief: Propagating the input layer to the first hidden layer */
+				Matrix_mul(Affine_layer_3, Affine_layer_2, last_layer, bias_vector_3);
 
-
-				///* @Brief: Propagating the first hidden layer to the second hidden layer and also using activation function right after*/
-
-				//Matrix_mul(Affine_layer_2, Affine_layer_1, second_hidden_layer_W2, bias_vector_2);
-				//ReLu(Affine_layer_2);
-
-
-
-				///* @Brief: Propagating the input layer to the first hidden layer */
-				//Matrix_mul(Affine_layer_3, Affine_layer_2, last_layer, bias_vector_3);
-
-				//if (cp[0] == 0.0)
-				//{
-				//	h = Affine_layer_3[0][0]; //+ h * Affine_layer_3[0][0];//(a * pow(input_temp, 2) + b * input_temp);//+h * Affine_layer_3[0][0];
-				//}
-
-				//q[0] = (Affine_layer_3[0][0] - 0.68329354) * factor - 9.1749014070917696e-09;// 
-
-				q[0] = s(cp[0])*factor;
+				q[0] = (Affine_layer_3[0][0] - 0.68329354) * factor - 9.1749014070917696e-09;// 
+						
 
 				//std::cout << "checking :" << q[0] <<  "\n";
 
-				//q[0] = q[0] / (1.0 - 0.69);
-				//q[0] = Affine_layer_3[0][0];
-				//q[0] = keq * 148.422 * cp[0] / (1 + keq * cp[0]);
-				//std::cout << "For Input: " << cp[0] << " Prediction is: " << q[0] << "\n";
-
-
-				//Intialisation(Affine_layer_1);
-				//Intialisation(Affine_layer_2);
-				//Intialisation(Affine_layer_3);
+				Intialisation(Affine_layer_1);
+				Intialisation(Affine_layer_2);
+				Intialisation(Affine_layer_3);
 
 			}
 
@@ -534,19 +497,7 @@ namespace cadet
 
 						double input_temp = yCp[0] * keq;
 
-						std::vector< std::vector<double> >dout(number_of_outputs, std::vector<double>(number_of_input));
-						diagonal_one(dout);
-
-						tk::spline s;
-						s.set_boundary(tk::spline::second_deriv, 0.0,
-							tk::spline::second_deriv, 0.0);
-						s.set_points(ANN_cp, ANN_q, tk::spline::cspline);
-						s.make_monotonic();
-
-						dout[0][0] = s.deriv(1, yCp[0]);
-						//double x = 1.5, y = s(x), deriv = s.deriv(1, x);
-
-						//std::vector<std::vector<double>> matCp = { {input_temp} };
+						std::vector<std::vector<double>> matCp = { {input_temp} };
 						////std::cout << "Input is: " << matCp[0][0] << "\n";
 
 						//h = input_temp / epsil;
@@ -556,59 +507,39 @@ namespace cadet
 						//**************Jacobian of the neural network**********
 						//******************************************************/
 
-						//std::vector<std::vector<double>>Ax_a(number_of_input, std::vector<double>(number_of_nodes_W1, 0.0));
-						//std::vector<std::vector<double>>HB_b(number_of_input, std::vector<double>(number_of_nodes_W2, 0.0));
-						////*******************************************************
-						//// Computing H*B + b 
+						std::vector<std::vector<double>>Ax_a(number_of_input, std::vector<double>(number_of_nodes_W1, 0.0));
+						std::vector<std::vector<double>>HB_b(number_of_input, std::vector<double>(number_of_nodes_W2, 0.0));
+						//*******************************************************
+						// Computing H*B + b 
 
-						//Matrix_mul(Ax_a, matCp, first_hidden_layer_W1, bias_vector_1);
-						//ReLu(Ax_a);
-
-
-						//Matrix_mul(HB_b, Ax_a, second_hidden_layer_W2, bias_vector_2);
-						//ReLu(HB_b);
-
-						////*****************************************************
-
-						//std::vector< std::vector<double> >dout(number_of_outputs, std::vector<double>(number_of_input));
-						//diagonal_one(dout);
-
-						//Affine_Backward(Affine_layer_2_Jacobian, dout, last_layer);
-
-						//relu_backward(Affine_layer_2_Jacobian, HB_b);
-
-						//Affine_Backward(Affine_layer1_Jacobian, Affine_layer_2_Jacobian, second_hidden_layer_W2);
-
-						////********Again computing Ax+a for taking the elu derivative**********
-						//std::vector<std::vector<double>>Ax_a_second(number_of_input, std::vector<double>(number_of_nodes_W1, 0.0));
-						//Matrix_mul(Ax_a_second, matCp, first_hidden_layer_W1, bias_vector_1);
-						////********************************************************************
-
-						//relu_backward(Affine_layer1_Jacobian, Ax_a_second);
-
-						//Intialisation(dout);
-						//Affine_Backward(dout, Affine_layer1_Jacobian, first_hidden_layer_W1);
+						Matrix_mul(Ax_a, matCp, first_hidden_layer_W1, bias_vector_1);
+						ReLu(Ax_a);
 
 
-						/*if (input_temp <= epsil)
-						{
-							dout[0][0] = (1-h)*(keq * 148.422 / (1 + keq * yCp[0] * yCp[0])) + h * keq * dout[0][0];//(2 * a * input_temp + b);//+h * keq * dout[0][0];
-							//std::cout << "NN Jacobian is: " << dout[0][0] << "\n";
-						}
-						else
-						{
-							dout[0][0] = keq * dout[0][0];
-						}*/
+						Matrix_mul(HB_b, Ax_a, second_hidden_layer_W2, bias_vector_2);
+						ReLu(HB_b);
 
-						/*if (input_temp <= 0.02212813)
-						{
-							h = (keq * qq) / pow(1 + keq * yCp[0], 2);
-							//h = -164422620000000 * pow(input_temp, 5) + 10321455000000 * pow(input_temp, 4) - 245540280000 * pow(input_temp, 3) + 2779448100 * pow(input_temp, 2) - 15609898 * input_temp + 4.0575e4;
-						}
-						else
-						{
-							h = 5*a * pow(yCp[0], 4) + 4*b * pow(yCp[0], 3) + 3*c * pow(yCp[0], 2) + 2*d * pow(yCp[0], 1) + e ;
-						}*/
+						//*****************************************************
+
+						std::vector< std::vector<double> >dout(number_of_outputs, std::vector<double>(number_of_input));
+						diagonal_one(dout);
+
+						Affine_Backward(Affine_layer_2_Jacobian, dout, last_layer);
+
+						relu_backward(Affine_layer_2_Jacobian, HB_b);
+
+						Affine_Backward(Affine_layer1_Jacobian, Affine_layer_2_Jacobian, second_hidden_layer_W2);
+
+						//********Again computing Ax+a for taking the elu derivative**********
+						std::vector<std::vector<double>>Ax_a_second(number_of_input, std::vector<double>(number_of_nodes_W1, 0.0));
+						Matrix_mul(Ax_a_second, matCp, first_hidden_layer_W1, bias_vector_1);
+						//********************************************************************
+
+						relu_backward(Affine_layer1_Jacobian, Ax_a_second);
+
+						Intialisation(dout);
+						Affine_Backward(dout, Affine_layer1_Jacobian, first_hidden_layer_W1);
+
 						dout[0][0] =  factor * dout[0][0]; //*keq
 						// dres_i / dc_{p,j} = -kkin[i] * df_i / dc_{p,j}
 						//dout[0][0] = keq * 148.422 / (1 + keq * yCp[0] * yCp[0]);
@@ -623,8 +554,8 @@ namespace cadet
 						//                     This means jac[j - bndIdx - offsetCp] corresponds to c_{p,j}.
 						//std::cout << "Time " << t << " Jac is : " << jac[j - bndIdx - offsetCp]<<"\n";
 
-						//Intialisation(Affine_layer_2_Jacobian);
-						//Intialisation(Affine_layer1_Jacobian);
+						Intialisation(Affine_layer_2_Jacobian);
+						Intialisation(Affine_layer1_Jacobian);
 					}
 
 					// dres_i / dq_i

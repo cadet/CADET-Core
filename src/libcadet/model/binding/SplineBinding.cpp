@@ -19,7 +19,7 @@
 #include "LocalVector.hpp"
 #include "SimulationTypes.hpp"
 #include "AdUtils.hpp"
-#include "C:\Users\hassan\Desktop\Spline Implementation\spline-master\src\spline.h"
+#include "model/binding/spline.h"
 #include<iostream>
 #include <functional>
 #include <unordered_map>
@@ -70,8 +70,10 @@ namespace cadet
 		{
 		public:
 
-			SplineBindingBase() : pore_phase_values(number_of_cp_points), Spline_parameters(trained_parameters){}
-
+			SplineBindingBase() :pore_phase_concentration(number_of_cp_points), 
+				Spline_parameters(trained_parameters),
+				solid_phase_concentration(number_of_cp_points){}
+			
 			virtual ~SplineBindingBase() CADET_NOEXCEPT { }
 
 			static const char* identifier() { return ParamHandler_t::identifier(); }
@@ -98,12 +100,13 @@ namespace cadet
 			using ParamHandlerBindingModelBase<ParamHandler_t>::_nComp;
 			using ParamHandlerBindingModelBase<ParamHandler_t>::_nBoundStates;
 
-			const int number_of_cp_points = 100;
+			
+			const int number_of_cp_points = 20;
 			const int trained_parameters = (number_of_cp_points - 1) * 4;
 
-			std::vector<double> pore_phase_values; //Defining these vectors to store trained ANN curve for spline fitting
+			std::vector<double> pore_phase_concentration; //Defining these vectors to store trained ANN curve for spline fitting
 			std::vector<double> Spline_parameters;  //Defining these vectors to store trained ANN curve for spline fitting
-
+			std::vector<double> solid_phase_concentration;
 
 			/***************************************************************************************************/
 			size_t find_closest(double x, std::vector<double>m_x) const
@@ -124,7 +127,6 @@ namespace cadet
 				return idx;
 			}
 
-			/*Question: One of the */
 			virtual bool configureImpl(IParameterProvider& paramProvider, UnitOpIdx unitOpIdx, ParticleTypeIdx parTypeIdx)
 			{
 				// Read parameters
@@ -141,8 +143,15 @@ namespace cadet
 				paramProvider.pushScope("model_weights");
 				paramProvider.pushScope("Spline_Input_Parameters");
 
-				pore_phase_values = paramProvider.getDoubleArray("Input");
-				Spline_parameters = paramProvider.getDoubleArray("Parameters");
+				solid_phase_concentration = paramProvider.getDoubleArray("q_vals");
+				pore_phase_concentration = paramProvider.getDoubleArray("c_vals");
+				
+				tk::spline s;
+				s.set_boundary(tk::spline::second_deriv, 0.0,
+					tk::spline::second_deriv, 0.0);
+				s.set_points(pore_phase_concentration, solid_phase_concentration, tk::spline::cspline);
+				s.make_monotonic();
+				Spline_parameters = s.coeff();
 
 				paramProvider.popScope(); // model_weights
 				paramProvider.popScope(); // adsorption
@@ -201,19 +210,20 @@ namespace cadet
 				******************************************************/
 				const double factor = 1 / (1 - 0.69);
 				double pore_val = cp[0];
-				size_t n = pore_phase_values.size();
+				size_t n = pore_phase_concentration.size();
 				size_t n_param = Spline_parameters.size();
 
-				size_t idx = find_closest(pore_val, pore_phase_values);
+				size_t idx = find_closest(pore_val, pore_phase_concentration);
 
-				double h = cp[0] - pore_phase_values[idx];
+				double h = cp[0] - pore_phase_concentration[idx];
 				double interpol;
+				
 
-				if (cp[0] < pore_phase_values[0]) {
+				if (cp[0] < pore_phase_concentration[0]) {
 					// extrapolation to the left
 					interpol = (Spline_parameters[1] * h + Spline_parameters[2]) * h + Spline_parameters[3];
 				}
-				else if (cp[0] >= pore_phase_values[n - 1]) {
+				else if (cp[0] >= pore_phase_concentration[n - 1]) {
 					// extrapolation to the right
 					interpol = (Spline_parameters[n_param - 3] * h + Spline_parameters[n_param - 2]) * h + Spline_parameters[n_param - 1];
 				}
@@ -226,7 +236,6 @@ namespace cadet
 
 				q[0] = interpol *factor;
 				
-
 			}
 
 			void mlModel(double* q, active const* cp, LinearBufferAllocator workSpace) const
@@ -268,31 +277,22 @@ namespace cadet
 						double First_derivative;
 						double pore_val = yCp[0];
 
-						size_t n = pore_phase_values.size();
+						size_t n = pore_phase_concentration.size();
 
+						size_t idx = find_closest(pore_val, pore_phase_concentration);
 
-						size_t idx = find_closest(pore_val, pore_phase_values);
-
-						double h = yCp[0] - pore_phase_values[idx];
+						double h = yCp[0] - pore_phase_concentration[idx];
 
 						std::vector< std::vector<double> >dout(1, std::vector<double>(1));
 						dout[0][0] = 0.0;
 
-
 						First_derivative = (3.0 * Spline_parameters[4 * idx] * h + 2.0 * Spline_parameters[4 * idx + 1]) * h + Spline_parameters[4 * idx + 2];
-						/*tk::spline s;
-						s.set_boundary(tk::spline::second_deriv, 0.0,
-							tk::spline::second_deriv, 0.0);
-						s.set_points(ANN_cp, ANN_q, tk::spline::cspline);
-						s.make_monotonic();
-
-						dout[0][0] = s.deriv(1, yCp[0]);*/
-				
+										
 						dout[0][0] =  factor * First_derivative; //*keq
 						// dres_i / dc_{p,j} = -kkin[i] * df_i / dc_{p,j}
 						//dout[0][0] = keq * 148.422 / (1 + keq * yCp[0] * yCp[0]);
 						jac[j - bndIdx - offsetCp] = -1 * (dout[0][0]);
-						//std::cout << "Time " << t << " Jac is : " << jac[j - bndIdx - offsetCp] << "\n";
+						
 					}
 
 					// dres_i / dq_i
