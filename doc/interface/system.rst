@@ -135,7 +135,8 @@ Group /input/model/external/source_XXX - EXTFUN_TYPE = LINEAR_INTERP_DATA
 
 ``VELOCITY``
 
-   Velocity of the external profile in positive column axial direction
+   Velocity of the external profile in positive column axial direction.
+   The velocity is normalized to a column with length 1, hence the unit :math:`\mathrm{s}^{-1}`.
 
    **Unit:** :math:`\mathrm{s}^{-1}`
    
@@ -170,7 +171,8 @@ Group /input/model/external/source_XXX - EXTFUN_TYPE = PIECEWISE_CUBIC_POLY
 
 ``VELOCITY``
 
-   Velocity of the external profile in positive column axial direction
+   Velocity of the external profile in positive column axial direction.
+   The velocity is normalized to a column with length 1, hence the unit :math:`\mathrm{s}^{-1}`.
 
    **Unit:** :math:`\mathrm{s}^{-1}`
    
