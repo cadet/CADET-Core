@@ -6,7 +6,7 @@ Binding models
 Externally dependent binding models
 -----------------------------------
 
-Some binding models have a variant that can use external sources as specified in :ref:`FFModelExternalSourceLinInterp</input/model/external/>` (also see Section :ref:`dependence-on-external-function_bind` for more information, and Section :ref:`binding_model_feature` on which binding models support this feature).
+Some binding models have a variant that can use external sources as specified in :ref:`/input/model/external/<FFModelExternalSourceLinInterp>` (also see Section :ref:`dependence-on-external-function_bind` for more information, and Section :ref:`binding_model_feature` on which binding models support this feature).
 For the sake of brevity, only the standard variant of those binding models is specified below.
 In order to obtain the format for the externally dependent variant, first replace the binding model name ``XXX`` by ``EXT_XXX``.
 Each parameter :math:`p` (except for reference concentrations ``XXX_REFC0`` and ``XXX_REFQ``) depends on a (possibly distinct) external source in a polynomial way: 
@@ -37,7 +37,7 @@ In this case, the entries in their parameters that correspond to non-binding com
 .. _multiple-particle-types_binding:
 
 Multiple particle types
-^^^^^^^^^^^^^^^^^^^^^^^
+-----------------------
 
 The group that contains the parameters of a binding model in unit operation with index ``XXX`` reads ``/input/model/unit_XXX/adsorption``.
 This is valid for models with a single particle type.
