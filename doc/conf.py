@@ -42,7 +42,6 @@ smv_tag_whitelist = r'^v\d+\.\d+\.\d+$'     # Include tags like "v2.1.1"
 smv_branch_whitelist = r"^master$"          # Only use master branch
 smv_remote_whitelist = r"^origin$"          # Use branches from remote origin
 smv_outputdir_format = '{ref.name}'         # Use the branch/tag name
-smv_remote_whitelist = None                 # Only use local branches
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
