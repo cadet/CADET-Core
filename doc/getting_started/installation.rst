@@ -33,8 +33,9 @@ Install from source
 Install a frontend
 ------------------
 
-As of now, a Matlab and a Python frontend are provided.
+As of now, a MATLAB and a Python frontend are provided.
 In general, we recommend to use the Python frontend.
+Note that the MATLAB interface is no longer actively developed and will be deprecated in a later version.
 
 Install CADET-Python
 ^^^^^^^^^^^^^^^^^^^^
@@ -74,5 +75,8 @@ If you would also like to use `CADET-Match <https://github.com/modsim/CADET-Matc
 Install CADET-MI
 ^^^^^^^^^^^^^^^^
 
-The Matlab frontend is distributed with the pre-built binaries.
-Run Matlab and call ``installCADET()`` in the command window.
+.. warning::
+    Note that the MATLAB interface is no longer actively developed and will be deprecated in a later version.
+
+The MATLAB frontend is distributed with the pre-built binaries.
+Run MATLAB and call ``installCADET()`` in the command window.

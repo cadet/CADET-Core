@@ -174,7 +174,7 @@ Build CADET
    copying ``<ROOT>\Libs\tbb\bin\intel64\vc14\tbb_preview.dll`` to the
    directory that contains ``cadet-cli`` (i.e., ``<ROOT>\cadet\bin\``)
 
--  If the Matlab interface does not work, try copying
+-  If the MATLAB interface does not work, try copying
    ``<ROOT>\Libs\tbb\bin\intel64\vc14\tbb_preview.dll`` to the directory
    that contains ``CadetMex.mexw64`` (i.e.,
    ``<ROOT>\cadet\matlab\bin\``)

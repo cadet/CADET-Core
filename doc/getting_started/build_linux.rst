@@ -144,7 +144,7 @@ Build CADET
    Using MKL (parallel): Execute
    ``cmake -DCMAKE_INSTALL_PREFIX="<ROOT>/cadet" -DBLA_VENDOR=Intel10_64lp ../code/``
 
--  If CMake was not able to locate Matlab, execute
+-  If CMake was not able to locate MATLAB, execute
    ``export MATLAB_ROOT=/path/to/my/MATLAB/R2016a`` and try to run CMake
    again
 
