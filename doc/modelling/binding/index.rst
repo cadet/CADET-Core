@@ -43,7 +43,13 @@ This can be achieved by a (nonlinear) parameter transform
         F\left( k_{\text{eq},i}, k_{d,i} \right) = \begin{pmatrix} k_{\text{eq},i} k_{d,i} \\ k_{d,i} \end{pmatrix} \text{ with Jacobian } J_F\left( k_{\text{eq},i}, k_{d,i} \right) = \begin{pmatrix} k_{d,i} & k_{\text{eq},i} \\ 0 & 1 \end{pmatrix}.
     \end{aligned}
 
-**Dependence on external function:** A binding model may depend on an external function or profile :math:`T\colon \left[ 0, T_{\text{end}}\right] \times [0, L] \to \mathbb{R}`, where :math:`L` denotes the physical length of the unit operation, or :math:`T\colon \left[0, T_{\text{end}}\right] \to \mathbb{R}` if the unit operation model has no axial length.
+
+.. _dependence-on-external-function_bind:
+
+Dependence on external function
+-------------------------------
+
+A binding model may depend on an external function or profile :math:`T\colon \left[ 0, T_{\text{end}}\right] \times [0, L] \to \mathbb{R}`, where :math:`L` denotes the physical length of the unit operation, or :math:`T\colon \left[0, T_{\text{end}}\right] \to \mathbb{R}` if the unit operation model has no axial length.
 By using an external profile, it is possible to account for effects that are not directly modeled in CADET (e.g., temperature).
 The dependence of each parameter is modeled by a polynomial of third degree. For example, the adsorption rate :math:`k_a` is really given by
 
@@ -63,7 +69,13 @@ The 0-based indices of the external source for each parameter is given in the da
 By assigning only one index to ``EXTFUN``, all parameters use the same source.
 The ordering of the parameters in ``EXTFUN`` is given by the ordering in the file format specification in Section :ref:`FFAdsorption`.
 
-**Binding model feature matrix:** A short comparison of the most prominent binding model features is given in :numref:`MBFeatureMatrix`.
+
+.. _binding_model_feature:
+
+Binding model feature matrix
+----------------------------
+
+A short comparison of the most prominent binding model features is given in :numref:`MBFeatureMatrix`.
 The implemented binding models can be divided into two main classes: Single-state and multi-state binding.
 While single-state models only have one bound state per component (or less), multi-state models provide multiple (possibly different) bound states for each component, which may correspond to different binding orientations or binding site types.
 The models also differ in whether a mobile phase modifier (e.g., salt) is supported to modulate the binding behavior.

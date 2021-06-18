@@ -224,7 +224,7 @@ Two dimensional general rate model
    
 ``PAR_CORERADIUS``
 
-   Particle core radius of all particle types or for each particle type (optional, defaults to \SI{0}{\metre})
+   Particle core radius of all particle types or for each particle type (optional, defaults to :math:`\SI{0}{\metre}`)
 
    **Unit:** :math:`\mathrm{m}`
    

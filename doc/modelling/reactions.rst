@@ -117,11 +117,10 @@ This can be achieved by a (nonlinear) parameter transform
     \end{aligned}
 
 
-.. _dependence-on-external-function:
+.. _dependence-on-external-function_react:
 
 Dependence on external function
 -------------------------------
-
 
 A reaction model may depend on an external function or profile :math:`T\colon \left[ 0, T_{\mathrm{end}}\right] \times [0, L] \to \mathbb{R}`, where :math:`L` denotes the physical length of the unit operation, or :math:`T\colon \left[0, T_{\mathrm{end}}\right] \to \mathbb{R}` if the unit operation model has no axial length.
 By using an external profile, it is possible to account for effects that are not directly modeled in CADET (e.g., temperature).

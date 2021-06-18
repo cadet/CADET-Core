@@ -6,7 +6,7 @@ Binding models
 Externally dependent binding models
 -----------------------------------
 
-Some binding models have a variant that can use external sources as specified in Section :ref:`FFModelSystem` (also see Section :ref:`MBFeatureMatrix` and Table :ref:`MBFeatureMatrix` on which binding models support this feature).
+Some binding models have a variant that can use external sources as specified in :ref:`FFModelExternalSourceLinInterp</input/model/external/>` (also see Section :ref:`dependence-on-external-function_bind` for more information, and Section :ref:`binding_model_feature` on which binding models support this feature).
 For the sake of brevity, only the standard variant of those binding models is specified below.
 In order to obtain the format for the externally dependent variant, first replace the binding model name ``XXX`` by ``EXT_XXX``.
 Each parameter :math:`p` (except for reference concentrations ``XXX_REFC0`` and ``XXX_REFQ``) depends on a (possibly distinct) external source in a polynomial way: 
