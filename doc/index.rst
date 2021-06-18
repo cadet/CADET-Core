@@ -29,6 +29,7 @@ The resulting models are solved with state-of-the-art mathematical algorithms an
 - **Forum:** https://forum.cadet-web.de
 - **Source:** https://github.com/modsim/cadet
 - **Demo:** http://cadet-web.de
+- **Newsletter:** https://cadet-web.de/newsletter/
 
 Features
 --------
