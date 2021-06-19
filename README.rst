@@ -7,11 +7,8 @@ CADET
 .. image:: https://img.shields.io/github/downloads/modsim/cadet/latest/total.svg
    :target: https://github.com/modsim/CADET/releases
 
-.. image:: https://img.shields.io/travis/modsim/CADET/master.svg?logo=travis&maxAge=3600)
-   :target: https://travis-ci.org/modsim/CADET
-
-.. image:: https://img.shields.io/appveyor/ci/sleweke/cadet/master.svg?logo=appveyor&maxAge=3600svg=true
-   :target: https://ci.appveyor.com/project/sleweke/cadet
+.. image:: https://github.com/modsim/CADET/actions/workflows/ci.yml/badge.svg
+   :target: https://github.com/modsim/CADET/actions
 
 - **Website (including documentation):** https://cadet.github.io
 - **Forum:** https://forum.cadet-web.de

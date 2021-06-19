@@ -60,8 +60,8 @@
 #
 # This module will set the following variables:
 #
-# * TBB_FOUND             - Set to false, or undefined, if we haven’t found, or
-#                           don’t want to use TBB.
+# * TBB_FOUND             - Set to false, or undefined, if we haven't found, or
+#                           don't want to use TBB.
 # * TBB_<component>_FOUND - If False, optional <component> part of TBB sytem is
 #                           not available.
 # * TBB_VERSION           - The full version string
@@ -170,6 +170,7 @@ if(NOT TBB_FOUND)
 
     # Add the library path search suffix for the VC independent version of TBB
     list(APPEND TBB_LIB_PATH_SUFFIX "lib/${TBB_ARCHITECTURE}/vc_mt")
+    list(APPEND TBB_LIB_PATH_SUFFIX "win-x64")
 
   elseif(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
     # OS X

@@ -1,0 +1,171 @@
+name: CI
+
+on: [push, pull_request]
+
+jobs:
+  Win64:
+    runs-on: windows-latest
+    strategy:
+      fail-fast: true
+    env:
+      BASE_DIR: ${{ github.workspace }}
+      SRC_DIR: ${{ github.workspace }}/src
+      BUILD_DIR: ${{ github.workspace }}/build
+      INSTALL_PREFIX: ${{ github.workspace }}/cadet
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: true
+          path: src
+      - uses: ilammy/msvc-dev-cmd@v1
+      - uses: actions/cache@v3
+        id: cache
+        with:
+          path: |
+            ${{ github.workspace }}/hdf5
+            ${{ github.workspace }}/suitesparse/install
+          key: ${{ runner.os }}-deps
+      - name: Download MKL and TBB
+        run: |
+          cd "${env:BASE_DIR}"
+          $base_dir = $($env:BASE_DIR.Replace('\', '/'))
+          nuget install inteltbb.devel.win -Version 2021.8.0.25874
+          nuget install intelmkl.static.win-x64 -Version 2023.0.0.25930
+          Invoke-WebRequest -Uri "https://gitlab.com/libeigen/eigen/-/archive/master/eigen-master.zip" -OutFile eigen.zip
+          7z x eigen.zip
+      - name: Build UMFPACK and HDF5
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: |
+          $base_dir = $($env:BASE_DIR.Replace('\', '/'))
+          Invoke-WebRequest -Uri "https://www.hdfgroup.org/package/cmake-hdf5-1-14-0-zip/?wpdmdl=17553" -OutFile hdf5.zip
+          7z x hdf5.zip
+          cd CMake-hdf5-1.14.0
+          cmake -DCMAKE_BUILD_TYPE:STRING=Release -DBUILD_SHARED_LIBS:BOOL=ON -DHDF5_BUILD_FORTRAN:BOOL=OFF -DHDF5_ENABLE_F2003:BOOL=OFF -DHDF5_BUILD_JAVA:BOOL=OFF -DCMAKE_INSTALL_PREFIX:PATH="${base_dir}/hdf5" -DCTEST_CONFIGURATION_TYPE:STRING=Release -DBUILD_TESTING=OFF -DHDF5_BUILD_TOOLS=OFF -DHDF5_BUILD_EXAMPLES=OFF -DHDF5_BUILD_HL_LIB=OFF -DHDF5_BUILD_CPP_LIB=OFF -DHDF5_ALLOW_EXTERNAL_SUPPORT:STRING=TGZ -DTGZPATH:PATH="${base_dir}/CMake-hdf5-1.14.0" -DHDF5_PACKAGE_EXTLIBS:BOOL=ON -DSITE:STRING=WIN10VS202264.XXXX -DBUILDNAME:STRING=Windows-WIN10-vs2022-STATIC -G "Ninja"  hdf5-1.14.0
+          ninja install
+          cd "${env:BASE_DIR}"
+          Invoke-WebRequest -Uri "https://github.com/DrTimothyAldenDavis/SuiteSparse/archive/v5.7.2.zip" -OutFile suitesparse.zip
+          7z x suitesparse.zip -osuitesparse\code -y
+          Invoke-WebRequest -Uri "https://github.com/jlblancoc/suitesparse-metis-for-windows/archive/e8d953dffb8a99aa8b65ff3ff03e12a3ed72f90c.zip" -OutFile ssb.zip
+          7z x ssb.zip -osuitesparse\code -y
+          cd ${env:BASE_DIR}\suitesparse\code
+          xcopy .\SuiteSparse-5.7.2 .\suitesparse-metis-for-windows-e8d953dffb8a99aa8b65ff3ff03e12a3ed72f90c\SuiteSparse /s /e /y /q
+          cd "${env:BASE_DIR}\suitesparse\code\suitesparse-metis-for-windows-e8d953dffb8a99aa8b65ff3ff03e12a3ed72f90c"
+          Remove-Item -ErrorAction Ignore -Recurse -Force lapack_windows
+          Remove-Item -ErrorAction Ignore -Recurse -Force lapack_windows
+          cd "${env:BASE_DIR}\suitesparse\code"
+          mkdir build
+          cd build
+          $ENV:MKLROOT="${env:BASE_DIR}/intelmkl.static.win-x64.2023.0.0.25930/lib/native/win-x64".Replace('\', '/')
+          cmake -DCMAKE_INSTALL_PREFIX="${base_dir}\suitesparse\install" -DBLA_VENDOR=Intel10_64lp_seq -DBLA_STATIC=ON -G "Ninja" -DCMAKE_C_FLAGS="/GL" -DCMAKE_STATIC_LINKER_FLAGS="/LTCG" -DCMAKE_BUILD_TYPE=Release -DBUILD_METIS=OFF ..\suitesparse-metis-for-windows-e8d953dffb8a99aa8b65ff3ff03e12a3ed72f90c\
+          ninja install
+      - name: Build and Install
+        run: |
+          cd "${env:BASE_DIR}"
+          cmake -E make_directory "${env:BUILD_DIR}"
+          cmake -E make_directory "${env:INSTALL_PREFIX}"
+          cd "${env:BUILD_DIR}"
+          $ENV:MKLROOT="${env:BASE_DIR}/intelmkl.static.win-x64.2023.0.0.25930/lib/native/win-x64".Replace('\', '/')
+          $ENV:TBB_ROOT="${env:BASE_DIR}/inteltbb.devel.win.2021.8.0.25874/lib/native".Replace('\', '/')
+          $ENV:UMFPACK_ROOT="${env:BASE_DIR}/suitesparse/install".Replace('\', '/')
+          $install_prefix = $($env:INSTALL_PREFIX.Replace('\', '/'))
+          $src_dir = $($env:SRC_DIR.Replace('\', '/'))
+          $base_dir = $($env:BASE_DIR.Replace('\', '/'))
+          cmake -G "Ninja" -DCMAKE_INSTALL_PREFIX="${install_prefix}" -DCMAKE_BUILD_TYPE=Release -DHDF5_ROOT="${base_dir}/hdf5" -DENABLE_CADET_MEX=OFF -DENABLE_STATIC_LINK_DEPS=ON -DENABLE_STATIC_LINK_LAPACK=ON -DBLA_VENDOR=Intel10_64lp_seq "${src_dir}"
+          ninja
+          ninja install
+      - name: Include Deps and Package
+        run: |
+          cd "${env:BASE_DIR}"
+          Copy-Item "${env:BASE_DIR}\inteltbb.redist.win.2021.8.0.25874\runtimes\win-x64\native\tbb12.dll" "${env:INSTALL_PREFIX}\bin\"
+          Copy-Item "${env:BASE_DIR}\inteltbb.redist.win.2021.8.0.25874\runtimes\win-x64\native\tbb12.dll" "${env:BUILD_DIR}\src\cadet-cli\"
+          Copy-Item "${env:BASE_DIR}\inteltbb.redist.win.2021.8.0.25874\runtimes\win-x64\native\tbb12.dll" "${env:BUILD_DIR}\test\"
+          7z a "${env:BASE_DIR}\cadet-${{ runner.os }}.zip" cadet\
+      - name: Check if it runs
+        run: |
+          cd "${env:INSTALL_PREFIX}\bin"
+          .\cadet-cli.exe --version
+          .\createLWE.exe
+          .\cadet-cli.exe LWE.h5
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: cadet-${{ runner.os }}
+          retention-days: 5
+          path: ${{ github.workspace }}/cadet-${{ runner.os }}.zip
+  Ubuntu-latest:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: true
+    defaults:
+      run:
+        shell: bash -l {0}
+    env:
+      SRC_DIR: ${{ github.workspace }}/src
+      BUILD_DIR: ${{ github.workspace }}/build
+      INSTALL_PREFIX: ${{ github.workspace }}/install
+      BUILD_TYPE: Release
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: true
+          path: src
+      - name: Install Dependencies
+        run: |
+          sudo apt -y install \
+            build-essential \
+            libhdf5-dev \
+            liblapack-dev \
+            libblas-dev \
+            libtbb-dev \
+            libsuperlu-dev \
+            libeigen3-dev;
+      - name: Build and Install
+        run: |
+          cmake -E make_directory "${BUILD_DIR}"
+          cmake -E make_directory "${INSTALL_PREFIX}"
+          cd "${BUILD_DIR}"
+          cmake -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" -DCMAKE_BUILD_TYPE="${BUILD_TYPE}" -DENABLE_CADET_MEX=OFF "${SRC_DIR}"
+          make install -j$(nproc)
+      - name: Check if it runs
+        run: |
+          export LD_LIBRARY_PATH=${INSTALL_PREFIX}/lib:$LD_LIBRARY_PATH
+          ${INSTALL_PREFIX}/bin/cadet-cli --version || true
+          ${INSTALL_PREFIX}/bin/createLWE
+          ${INSTALL_PREFIX}/bin/cadet-cli LWE.h5 || true
+  MacOS:
+    runs-on: macos-latest
+    strategy:
+      fail-fast: true
+    defaults:
+      run:
+        shell: bash -l {0}
+    env:
+      SRC_DIR: ${{ github.workspace }}/src
+      BUILD_DIR: ${{ github.workspace }}/build
+      INSTALL_PREFIX: ${{ github.workspace }}/install
+      BUILD_TYPE: Release
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: true
+          path: src
+      - name: Install Dependencies
+        run: |
+          brew update > /dev/null || true
+          brew install cmake --without-docs
+          brew install hdf5
+          brew install tbb
+          brew install eigen
+      - name: Build and Install
+        run: |
+          cmake -E make_directory "${BUILD_DIR}"
+          cmake -E make_directory "${INSTALL_PREFIX}"
+          cd "${BUILD_DIR}"
+          cmake -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" -DCMAKE_BUILD_TYPE="${BUILD_TYPE}" -DENABLE_CADET_MEX=OFF "${SRC_DIR}"
+          make install -j$(sysctl -n hw.logicalcpu)
+      - name: Check if it runs
+        run: |
+          ${INSTALL_PREFIX}/bin/cadet-cli --version || true
+          ${INSTALL_PREFIX}/bin/createLWE
+          ${INSTALL_PREFIX}/bin/cadet-cli LWE.h5 || true
+
