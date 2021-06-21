@@ -34,6 +34,11 @@ Ensure you have [mamba](https://mamba.readthedocs.io/en/latest/installation.html
 To build the documentation for all releases and the master branch, run:
 
 ```sh
-sphinx-multiversion ./ ./build/
+sphinx-multiversion ./ ./build/ -D 'exhale_args.containmentFolder=${sourcedir}/api'
 ```
 
+On Windows, use the following command:
+
+```powershell
+sphinx-multiversion ./ ./build/ -D exhale_args.containmentFolder=${sourcedir}/api
+```
