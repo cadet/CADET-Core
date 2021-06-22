@@ -563,7 +563,8 @@ double spline::deriv(int order, double x) const
 std::vector<double> spline::coeff() const
 {
     size_t n = m_x.size();
-    std::vector<double> coeff_vec(n * 4);
+    
+    std::vector<double> coeff_vec((n-1) * 4);
     for (int i = 0; i < n - 1; i++)
     {
         coeff_vec[4*i] = m_d[i];
