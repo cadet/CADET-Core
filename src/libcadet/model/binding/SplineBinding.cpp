@@ -85,8 +85,8 @@ namespace cadet
 				return _paramHandler.cacheSize(nComp, totalNumBoundStates, nBoundStates)
 					+ sizeof(double) * nComp + alignof(double) // Add the memory for the qML buffer
 					+ sizeof(double) * nComp + alignof(double) // Add the memory for the c_p buffer	
-					+ sizeof(double) * 20 + alignof(double) 		// Add the memory for the Affine_layer_1 buffer	
-					+ sizeof(double) * 20 + alignof(double);    // Add the memory for the Affine_layer_1_Jacobian buffer
+					+ sizeof(double) * number_of_cp_points + alignof(double) 		// Add the memory for the Affine_layer_1 buffer	
+					+ sizeof(double) * number_of_cp_points + alignof(double);    // Add the memory for the Affine_layer_1_Jacobian buffer
 			}
 
 			CADET_BINDINGMODELBASE_BOILERPLATE
