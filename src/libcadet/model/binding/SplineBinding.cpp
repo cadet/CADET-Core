@@ -84,12 +84,9 @@ namespace cadet
 			{
 				return _paramHandler.cacheSize(nComp, totalNumBoundStates, nBoundStates)
 					+ sizeof(double) * nComp + alignof(double) // Add the memory for the qML buffer
-					+ sizeof(double) * nComp + alignof(double); // Add the memory for the c_p buffer	
-					//+ sizeof(double) * number_of_input * number_of_nodes_W1 + alignof(double) 		// Add the memory for the Affine_layer_1 buffer	
-					//+ sizeof(double) * number_of_input * number_of_nodes_W1 + alignof(double)    // Add the memory for the Affine_layer_1_Jacobian buffer
-					//+ sizeof(double) * number_of_input * number_of_nodes_W2 + alignof(double)    // Add the memory for the Affine_layer_2 buffer
-					//+ sizeof(double) * number_of_input * number_of_nodes_W2 + alignof(double)    // Add the memory for the Affine_layer_2_Jacobian buffer
-					//+ sizeof(double) * number_of_input * number_of_outputs + alignof(double);    // Add the memory for the Affine_layer_3 buffer
+					+ sizeof(double) * nComp + alignof(double) // Add the memory for the c_p buffer	
+					+ sizeof(double) * 20 + alignof(double) 		// Add the memory for the Affine_layer_1 buffer	
+					+ sizeof(double) * 20 + alignof(double);    // Add the memory for the Affine_layer_1_Jacobian buffer
 			}
 
 			CADET_BINDINGMODELBASE_BOILERPLATE
@@ -100,7 +97,6 @@ namespace cadet
 			using ParamHandlerBindingModelBase<ParamHandler_t>::_nComp;
 			using ParamHandlerBindingModelBase<ParamHandler_t>::_nBoundStates;
 
-			
 			const int number_of_cp_points = 20;
 			const int trained_parameters = (number_of_cp_points - 1) * 4;
 
@@ -137,14 +133,12 @@ namespace cadet
 
 				//Input parameters
 
-
-
 				// Read some ML parameters
 				paramProvider.pushScope("model_weights");
-				paramProvider.pushScope("Spline_Input_Parameters");
+				paramProvider.pushScope("spline_input_parameters");
 
-				solid_phase_concentration = paramProvider.getDoubleArray("q_vals");
-				pore_phase_concentration = paramProvider.getDoubleArray("c_vals");
+				solid_phase_concentration = paramProvider.getDoubleArray("Q_VALS"); 
+				pore_phase_concentration = paramProvider.getDoubleArray("C_VALS");
 				
 				tk::spline s;
 				s.set_boundary(tk::spline::second_deriv, 0.0,
@@ -156,9 +150,6 @@ namespace cadet
 				paramProvider.popScope(); // model_weights
 				paramProvider.popScope(); // adsorption
 
-				/**
-				 * JAZIB: Read ML parameters and model data here (Done)
-				 */
 
 				return true;
 			}
@@ -291,7 +282,7 @@ namespace cadet
 						dout[0][0] =  factor * First_derivative; //*keq
 						// dres_i / dc_{p,j} = -kkin[i] * df_i / dc_{p,j}
 						//dout[0][0] = keq * 148.422 / (1 + keq * yCp[0] * yCp[0]);
-						jac[j - bndIdx - offsetCp] = -1 * (dout[0][0]);
+						jac[j - bndIdx - offsetCp] = -kkin * (dout[0][0]);
 						
 					}
 
