@@ -128,7 +128,7 @@ option(ENABLE_TESTS "Build CADET tests" ON)
 add_feature_info(ENABLE_TESTS ENABLE_TESTS "Build CADET tests")
 
 option(ENABLE_PACKAGED_SUNDIALS "Use packaged SUNDIALS code" ON)
-add_feature_info(ENABLE_PACKAGED_SUNDIALS ENABLE_TESTS "Use packaged SUNDIALS code")
+add_feature_info(ENABLE_PACKAGED_SUNDIALS ENABLE_PACKAGED_SUNDIALS "Use packaged SUNDIALS code")
 
 option(ENABLE_IPO "Enable interprocedural optimization if compiler supports it" ON)
 add_feature_info(ENABLE_IPO ENABLE_IPO "Enable interprocedural optimization if compiler supports it")
