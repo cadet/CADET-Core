@@ -283,7 +283,7 @@ if(BLAS_FOUND)
         set(LAPACK_mkl_LIB_PATH_SUFFIXES
             "compiler/lib" "compiler/lib/${LAPACK_mkl_ARCH_NAME}_${LAPACK_mkl_OS_NAME}"
             "mkl/lib" "mkl/lib/${LAPACK_mkl_ARCH_NAME}_${LAPACK_mkl_OS_NAME}"
-            "lib/${LAPACK_mkl_ARCH_NAME}_${LAPACK_mkl_OS_NAME}")
+            "lib/${LAPACK_mkl_ARCH_NAME}_${LAPACK_mkl_OS_NAME}" "lib" "lib64")
 
         # First try empty lapack libs
         if(NOT ${_LIBRARIES})

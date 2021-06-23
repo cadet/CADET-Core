@@ -482,7 +482,7 @@ if(BLA_VENDOR MATCHES "Intel" OR BLA_VENDOR STREQUAL "All")
       set(BLAS_mkl_LIB_PATH_SUFFIXES
           "compiler/lib" "compiler/lib/${BLAS_mkl_ARCH_NAME}_${BLAS_mkl_OS_NAME}"
           "mkl/lib" "mkl/lib/${BLAS_mkl_ARCH_NAME}_${BLAS_mkl_OS_NAME}"
-          "lib/${BLAS_mkl_ARCH_NAME}_${BLAS_mkl_OS_NAME}")
+          "lib/${BLAS_mkl_ARCH_NAME}_${BLAS_mkl_OS_NAME}" "lib" "lib64")
 
       foreach(IT ${BLAS_SEARCH_LIBS})
         string(REPLACE " " ";" SEARCH_LIBS ${IT})
