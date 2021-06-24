@@ -1,9 +1,9 @@
 // =============================================================================
 //  CADET
-//  
+//
 //  Copyright © 2008-2021: The CADET Authors
 //            Please see the AUTHORS and CONTRIBUTORS file.
-//  
+//
 //  All rights reserved. This program and the accompanying materials
 //  are made available under the terms of the GNU Public License v3.0 (or, at
 //  your option, any later version) which accompanies this distribution, and
@@ -15,6 +15,7 @@
 #include "cadet/StringUtil.hpp"
 
 #include <cstddef>
+#include <cstdint>
 #include <string>
 
 ////////////////////////////////////////////////////////////////////////////////////
@@ -116,12 +117,12 @@ int siphashRefMain( uint8_t *out, const uint8_t *in, uint64_t inlen, const uint8
 
   switch( left )
   {
-  case 7: b |= ( ( uint64_t )in[ 6] )  << 48;
-  case 6: b |= ( ( uint64_t )in[ 5] )  << 40;
-  case 5: b |= ( ( uint64_t )in[ 4] )  << 32;
-  case 4: b |= ( ( uint64_t )in[ 3] )  << 24;
-  case 3: b |= ( ( uint64_t )in[ 2] )  << 16;
-  case 2: b |= ( ( uint64_t )in[ 1] )  <<  8;
+  case 7: b |= ( ( uint64_t )in[ 6] )  << 48; [[fallthrough]];
+  case 6: b |= ( ( uint64_t )in[ 5] )  << 40; [[fallthrough]];
+  case 5: b |= ( ( uint64_t )in[ 4] )  << 32; [[fallthrough]];
+  case 4: b |= ( ( uint64_t )in[ 3] )  << 24; [[fallthrough]];
+  case 3: b |= ( ( uint64_t )in[ 2] )  << 16; [[fallthrough]];
+  case 2: b |= ( ( uint64_t )in[ 1] )  <<  8; [[fallthrough]];
   case 1: b |= ( ( uint64_t )in[ 0] ); break;
   case 0: break;
   }
@@ -165,7 +166,7 @@ inline uint64_t sipHashRef(char const* data, unsigned int len)
 
     for (int i = 0; i < KEYLEN; ++i)
         k[i] = 0;
-    
+
     siphashRefMain( out, reinterpret_cast<const uint8_t*>(data), len, k );
 
     return *(reinterpret_cast<uint64_t*>(out));

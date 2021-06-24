@@ -37,7 +37,7 @@
 
 #include "ParallelSupport.hpp"
 #ifdef CADET_PARALLELIZE
-	#include <tbb/tbb.h>
+	#include <tbb/parallel_for.h>
 #endif
 
 namespace
@@ -54,7 +54,7 @@ namespace
 	};
 
 	template <typename ResidualType, typename ParamType>
-	class ConvOpResidual<double, ResidualType, ParamType, true> 
+	class ConvOpResidual<double, ResidualType, ParamType, true>
 	{
 	public:
 		static inline void call(cadet::model::parts::ConvectionDispersionOperatorBase& op, double t, unsigned int secIdx, double const* const y, double const* const yDot, ResidualType* const res, cadet::linalg::BandMatrix& jac)
@@ -64,7 +64,7 @@ namespace
 	};
 
 	template <typename ResidualType, typename ParamType>
-	class ConvOpResidual<double, ResidualType, ParamType, false> 
+	class ConvOpResidual<double, ResidualType, ParamType, false>
 	{
 	public:
 		static inline void call(cadet::model::parts::ConvectionDispersionOperatorBase& op, double t, unsigned int secIdx, double const* const y, double const* const yDot, ResidualType* const res, cadet::linalg::BandMatrix& jac)
@@ -74,7 +74,7 @@ namespace
 	};
 
 	template <typename ResidualType, typename ParamType>
-	class ConvOpResidual<cadet::active, ResidualType, ParamType, false> 
+	class ConvOpResidual<cadet::active, ResidualType, ParamType, false>
 	{
 	public:
 		static inline void call(cadet::model::parts::ConvectionDispersionOperatorBase& op, double t, unsigned int secIdx, cadet::active const* const y, double const* const yDot, ResidualType* const res, cadet::linalg::BandMatrix& jac)
@@ -199,7 +199,11 @@ bool LumpedRateModelWithoutPores::configureModelDiscretization(IParameterProvide
 	clearBindingModels();
 	_binding.push_back(nullptr);
 
-	_binding[0] = helper.createBindingModel(paramProvider.getString("ADSORPTION_MODEL"));
+	if (paramProvider.exists("ADSORPTION_MODEL"))
+		_binding[0] = helper.createBindingModel(paramProvider.getString("ADSORPTION_MODEL"));
+	else
+		_binding[0] = helper.createBindingModel("NONE");
+
 	if (!_binding[0])
 		throw InvalidParameterException("Unknown binding model " + paramProvider.getString("ADSORPTION_MODEL"));
 
@@ -470,7 +474,7 @@ int LumpedRateModelWithoutPores::residualWithJacobian(const SimulationTime& simT
 	return residual(simTime, simState, res, adJac, threadLocalMem, true, false);
 }
 
-int LumpedRateModelWithoutPores::residual(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res, 
+int LumpedRateModelWithoutPores::residual(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res,
 	const AdJacobianParams& adJac, util::ThreadLocalStorage& threadLocalMem, bool updateJacobian, bool paramSensitivity)
 {
 	if (updateJacobian)
@@ -580,7 +584,7 @@ int LumpedRateModelWithoutPores::residualImpl(double t, unsigned int secIdx, Sta
 	Indexer idxr(_disc);
 
 #ifdef CADET_PARALLELIZE
-	tbb::parallel_for(size_t(0), size_t(_disc.nCol), [&](size_t col)
+	tbb::parallel_for(std::size_t(0), static_cast<std::size_t>(_disc.nCol), [&](std::size_t col)
 #else
 	for (unsigned int col = 0; col < _disc.nCol; ++col)
 #endif
@@ -626,7 +630,7 @@ int LumpedRateModelWithoutPores::residualSensFwdWithJacobian(const SimulationTim
 {
 	BENCH_SCOPE(_timerResidualSens);
 
-	// Evaluate residual for all parameters using AD in vector mode and at the same time update the 
+	// Evaluate residual for all parameters using AD in vector mode and at the same time update the
 	// Jacobian (in one AD run, if analytic Jacobians are disabled)
 	return residual(simTime, simState, nullptr, adJac, threadLocalMem, true, true);
 }
@@ -636,11 +640,11 @@ int LumpedRateModelWithoutPores::residualSensFwdAdOnly(const SimulationTime& sim
 	BENCH_SCOPE(_timerResidualSens);
 
 	// Evaluate residual for all parameters using AD in vector mode
-	return residualImpl<double, active, active, false>(simTime.t, simTime.secIdx, simState.vecStateY, simState.vecStateYdot, adRes, threadLocalMem); 
+	return residualImpl<double, active, active, false>(simTime.t, simTime.secIdx, simState.vecStateY, simState.vecStateYdot, adRes, threadLocalMem);
 }
 
-int LumpedRateModelWithoutPores::residualSensFwdCombine(const SimulationTime& simTime, const ConstSimulationState& simState, 
-	const std::vector<const double*>& yS, const std::vector<const double*>& ySdot, const std::vector<double*>& resS, active const* adRes, 
+int LumpedRateModelWithoutPores::residualSensFwdCombine(const SimulationTime& simTime, const ConstSimulationState& simState,
+	const std::vector<const double*>& yS, const std::vector<const double*>& ySdot, const std::vector<double*>& resS, active const* adRes,
 	double* const tmp1, double* const tmp2, double* const tmp3)
 {
 	BENCH_SCOPE(_timerResidualSens);
@@ -648,7 +652,7 @@ int LumpedRateModelWithoutPores::residualSensFwdCombine(const SimulationTime& si
 	// tmp1 stores result of (dF / dy) * s
 	// tmp2 stores result of (dF / dyDot) * sDot
 
-	for (unsigned int param = 0; param < yS.size(); ++param)
+	for (std::size_t param = 0; param < yS.size(); ++param)
 	{
 		// Directional derivative (dF / dy) * s
 		multiplyWithJacobian(SimulationTime{0.0, 0u}, ConstSimulationState{nullptr, nullptr}, yS[param], 1.0, 0.0, tmp1);
@@ -663,7 +667,7 @@ int LumpedRateModelWithoutPores::residualSensFwdCombine(const SimulationTime& si
 		// Complete sens residual is the sum:
 		// TODO: Chunk TBB loop
 #ifdef CADET_PARALLELIZE
-		tbb::parallel_for(size_t(0), size_t(numDofs()), [&](size_t i)
+		tbb::parallel_for(std::size_t(0), static_cast<std::size_t>(numDofs()), [&](std::size_t i)
 #else
 		for (unsigned int i = 0; i < numDofs(); ++i)
 #endif
@@ -680,7 +684,7 @@ int LumpedRateModelWithoutPores::residualSensFwdCombine(const SimulationTime& si
 /**
  * @brief Multiplies the given vector with the system Jacobian (i.e., @f$ \frac{\partial F}{\partial y}\left(t, y, \dot{y}\right) @f$)
  * @details Actually, the operation @f$ z = \alpha \frac{\partial F}{\partial y} x + \beta z @f$ is performed.
- * 
+ *
  *          Note that residual() or one of its cousins has to be called with the requested point @f$ (t, y, \dot{y}) @f$ once
  *          before calling multiplyWithJacobian() as this implementation ignores the given @f$ (t, y, \dot{y}) @f$.
  * @param [in] simTime Current simulation time point
@@ -978,7 +982,7 @@ void LumpedRateModelWithoutPores::readInitialCondition(IParameterProvider& param
  * @details Given the DAE \f[ F(t, y, \dot{y}) = 0, \f] the initial values \f$ y_0 \f$ and \f$ \dot{y}_0 \f$ have
  *          to be consistent. This functions updates the initial state \f$ y_0 \f$ and overwrites the time
  *          derivative \f$ \dot{y}_0 \f$ such that they are consistent.
- *          
+ *
  *          The process works in two steps:
  *          <ol>
  *              <li>Solve all algebraic equations in the model (e.g., quasi-stationary isotherms, reaction equilibria).</li>
@@ -986,17 +990,17 @@ void LumpedRateModelWithoutPores::readInitialCondition(IParameterProvider& param
  *                 However, because of the algebraic equations, we need additional conditions to fully determine
  *                 @f$ \dot{y}@f$. By differentiating the algebraic equations with respect to time, we get the
  *                 missing linear equations (recall that the state vector @f$ y @f$ is fixed).
- * 
- *     The right hand side of the linear system is given by the negative residual without contribution 
- *     of @f$ \dot{y} @f$ for differential equations and 0 for algebraic equations 
+ *
+ *     The right hand side of the linear system is given by the negative residual without contribution
+ *     of @f$ \dot{y} @f$ for differential equations and 0 for algebraic equations
  *     (@f$ -\frac{\partial F}{\partial t}@f$, to be more precise).</li>
  *          </ol>
- *     
+ *
  *     This function performs step 1. See consistentInitialTimeDerivative() for step 2.
- *     
+ *
  * 	   This function is to be used with consistentInitialTimeDerivative(). Do not mix normal and lean
  *     consistent initialization!
- *     
+ *
  * @param [in] simTime Simulation time information (time point, section index, pre-factor of time derivatives)
  * @param [in,out] vecStateY State vector with initial values that are to be updated for consistency
  * @param [in,out] adJac Jacobian information for AD (AD vectors for residual and state, direction offset)
@@ -1042,7 +1046,7 @@ void LumpedRateModelWithoutPores::consistentInitialState(const SimulationTime& s
 	//Problem capturing variables here
 #ifdef CADET_PARALLELIZE
 	BENCH_SCOPE(_timerConsistentInitPar);
-	tbb::parallel_for(size_t(0), size_t(_disc.nCol), [&](size_t col)
+	tbb::parallel_for(std::size_t(0), static_cast<std::size_t>(_disc.nCol), [&](std::size_t col)
 #else
 	for (unsigned int col = 0; col < _disc.nCol; ++col)
 #endif
@@ -1295,25 +1299,25 @@ void LumpedRateModelWithoutPores::consistentInitialState(const SimulationTime& s
  * @details Given the DAE \f[ F(t, y, \dot{y}) = 0, \f] the initial values \f$ y_0 \f$ and \f$ \dot{y}_0 \f$ have
  *          to be consistent. This functions updates the initial state \f$ y_0 \f$ and overwrites the time
  *          derivative \f$ \dot{y}_0 \f$ such that they are consistent.
- *          
+ *
  *          The process works in two steps:
  *          <ol>
  *              <li>Solve all algebraic equations in the model (e.g., quasi-stationary isotherms, reaction equilibria).</li>
  *              <li>Compute the time derivatives of the state @f$ \dot{y} @f$ such that the residual is 0.
  *                 However, because of the algebraic equations, we need additional conditions to fully determine
  *                 @f$ \dot{y}@f$. By differentiating the algebraic equations with respect to time, we get the
- *                 missing linear equations (recall that the state vector @f$ y @f$ is fixed). 
+ *                 missing linear equations (recall that the state vector @f$ y @f$ is fixed).
  *
- *     The right hand side of the linear system is given by the negative residual without contribution 
- *     of @f$ \dot{y} @f$ for differential equations and 0 for algebraic equations 
+ *     The right hand side of the linear system is given by the negative residual without contribution
+ *     of @f$ \dot{y} @f$ for differential equations and 0 for algebraic equations
  *     (@f$ -\frac{\partial F}{\partial t}@f$, to be more precise).</li>
  *          </ol>
  *
  *     This function performs step 2. See consistentInitialState() for step 1.
- *     
+ *
  * 	   This function is to be used with consistentInitialState(). Do not mix normal and lean
  *     consistent initialization!
- *     
+ *
  * @param [in] simTime Simulation time information (time point, section index, pre-factor of time derivatives)
  * @param [in] vecStateY Consistently initialized state vector
  * @param [in,out] vecStateYdot On entry, residual without taking time derivatives into account. On exit, consistent state time derivatives.
@@ -1369,7 +1373,7 @@ void LumpedRateModelWithoutPores::consistentInitialTimeDerivative(const Simulati
 		}
 
 		// Copy row from original Jacobian and set right hand side
-		for (int i = 0; i < _disc.strideBound; ++i, ++jacSolid, ++jacSolidOrig)
+		for (unsigned int i = 0; i < _disc.strideBound; ++i, ++jacSolid, ++jacSolidOrig)
 		{
 			if (!mask[i])
 				continue;
@@ -1403,11 +1407,11 @@ void LumpedRateModelWithoutPores::consistentInitialTimeDerivative(const Simulati
  * @details Given the DAE \f[ F(t, y, \dot{y}) = 0, \f] the initial values \f$ y_0 \f$ and \f$ \dot{y}_0 \f$ have
  *          to be consistent. This functions updates the initial state \f$ y_0 \f$ and overwrites the time
  *          derivative \f$ \dot{y}_0 \f$ such that they are consistent.
- *          
+ *
  *          This function performs a relaxed consistent initialization: Only parts of the vectors are updated
  *          and, hence, consistency is not guaranteed. Since there is less work to do, it is probably faster than
  *          the standard process represented by consistentInitialState().
- *          
+ *
  *          The process works in two steps:
  *          <ol>
  *              <li>Keep state and time derivative vectors as they are (i.e., do not solve algebraic equations).</li>
@@ -1415,10 +1419,10 @@ void LumpedRateModelWithoutPores::consistentInitialTimeDerivative(const Simulati
  *              mobile phase variables.</li>
  *          </ol>
  *     This function performs step 1. See leanConsistentInitialTimeDerivative() for step 2.
- *     
+ *
  * 	   This function is to be used with leanConsistentInitialTimeDerivative(). Do not mix normal and lean
  *     consistent initialization!
- *     
+ *
  * @param [in] simTime Simulation time information (time point, section index, pre-factor of time derivatives)
  * @param [in,out] vecStateY State vector with initial values that are to be updated for consistency
  * @param [in,out] adJac Jacobian information for AD (AD vectors for residual and state, direction offset)
@@ -1433,11 +1437,11 @@ void LumpedRateModelWithoutPores::leanConsistentInitialState(const SimulationTim
  * @details Given the DAE \f[ F(t, y, \dot{y}) = 0, \f] the initial values \f$ y_0 \f$ and \f$ \dot{y}_0 \f$ have
  *          to be consistent. This functions updates the initial state \f$ y_0 \f$ and overwrites the time
  *          derivative \f$ \dot{y}_0 \f$ such that they are consistent.
- *          
+ *
  *          This function performs a relaxed consistent initialization: Only parts of the vectors are updated
  *          and, hence, consistency is not guaranteed. Since there is less work to do, it is probably faster than
  *          the standard process represented by consistentInitialState().
- *          
+ *
  *          The process works in two steps:
  *          <ol>
  *              <li>Keep state and time derivative vectors as they are (i.e., do not solve algebraic equations).</li>
@@ -1445,10 +1449,10 @@ void LumpedRateModelWithoutPores::leanConsistentInitialState(const SimulationTim
  *              mobile phase variables.</li>
  *          </ol>
  *     This function performs step 2. See leanConsistentInitialState() for step 1.
- *     
+ *
  * 	   This function is to be used with leanConsistentInitialState(). Do not mix normal and lean
  *     consistent initialization!
- *     
+ *
  * @param [in] t Current time point
  * @param [in] vecStateY (Lean) consistently initialized state vector
  * @param [in,out] vecStateYdot On entry, inconsistent state time derivatives. On exit, partially consistent state time derivatives.
@@ -1485,7 +1489,7 @@ void LumpedRateModelWithoutPores::leanConsistentInitialTimeDerivative(double t, 
 void LumpedRateModelWithoutPores::initializeSensitivityStates(const std::vector<double*>& vecSensY) const
 {
 	Indexer idxr(_disc);
-	for (unsigned int param = 0; param < vecSensY.size(); ++param)
+	for (std::size_t param = 0; param < vecSensY.size(); ++param)
 	{
 		double* const stateYbulk = vecSensY[param] + idxr.offsetC();
 
@@ -1513,7 +1517,7 @@ void LumpedRateModelWithoutPores::initializeSensitivityStates(const std::vector<
  *          The initial values of this linear DAE, @f$ s_0 = \frac{\partial y_0}{\partial p} @f$ and @f$ \dot{s}_0 = \frac{\partial \dot{y}_0}{\partial p} @f$
  *          have to be consistent with the sensitivity DAE. This functions updates the initial sensitivity\f$ s_0 \f$ and overwrites the time
  *          derivative \f$ \dot{s}_0 \f$ such that they are consistent.
- *          
+ *
  *          The process follows closely the one of consistentInitialConditions() and, in fact, is a linearized version of it.
  *          This is necessary because the initial conditions of the sensitivity system \f$ s_0 \f$ and \f$ \dot{s}_0 \f$ are
  *          related to the initial conditions \f$ y_0 \f$ and \f$ \dot{y}_0 \f$ of the original DAE by differentiating them
@@ -1526,7 +1530,7 @@ void LumpedRateModelWithoutPores::initializeSensitivityStates(const std::vector<
  *                 However, because of the algebraic equations, we need additional conditions to fully determine
  *                 @f$ \dot{s}@f$. By differentiating the algebraic equations with respect to time, we get the
  *                 missing linear equations (recall that the sensitivity vector @f$ s @f$ is fixed).
- *                
+ *
  *     Let @f$ \mathcal{I}_d @f$ denote the index set of differential equations.
  *     The right hand side of the linear system is given by @f[ -\frac{\partial F}{\partial y}(t, y, \dot{y}) s - \frac{\partial F}{\partial p}(t, y, \dot{y}), @f]
  *     which is 0 for algebraic equations (@f$ -\frac{\partial^2 F}{\partial t \partial p}@f$, to be more precise).</li>
@@ -1546,7 +1550,7 @@ void LumpedRateModelWithoutPores::consistentInitialSensitivity(const SimulationT
 
 	Indexer idxr(_disc);
 
-	for (unsigned int param = 0; param < vecSensY.size(); ++param)
+	for (std::size_t param = 0; param < vecSensY.size(); ++param)
 	{
 		double* const sensY = vecSensY[param];
 		double* const sensYdot = vecSensYdot[param];
@@ -1565,7 +1569,7 @@ void LumpedRateModelWithoutPores::consistentInitialSensitivity(const SimulationT
 
 #ifdef CADET_PARALLELIZE
 			BENCH_SCOPE(_timerConsistentInitPar);
-			tbb::parallel_for(size_t(0), size_t(_disc.nCol), [&](size_t col)
+			tbb::parallel_for(std::size_t(0), static_cast<std::size_t>(_disc.nCol), [&](std::size_t col)
 #else
 			for (unsigned int col = 0; col < _disc.nCol; ++col)
 #endif
@@ -1650,7 +1654,7 @@ void LumpedRateModelWithoutPores::consistentInitialSensitivity(const SimulationT
 				double* const qShellDot = sensYdot + idxr.offsetC() + idxr.strideColCell() * col + idxr.strideColLiquid();
 
 				// Copy row from original Jacobian and set right hand side
-				for (int i = 0; i < _disc.strideBound; ++i, ++jacSolid, ++jacSolidOrig)
+				for (unsigned int i = 0; i < _disc.strideBound; ++i, ++jacSolid, ++jacSolidOrig)
 				{
 					if (!mask[i])
 						continue;
@@ -1693,7 +1697,7 @@ void LumpedRateModelWithoutPores::consistentInitialSensitivity(const SimulationT
  *          The initial values of this linear DAE, @f$ s_0 = \frac{\partial y_0}{\partial p} @f$ and @f$ \dot{s}_0 = \frac{\partial \dot{y}_0}{\partial p} @f$
  *          have to be consistent with the sensitivity DAE. This functions updates the initial sensitivity\f$ s_0 \f$ and overwrites the time
  *          derivative \f$ \dot{s}_0 \f$ such that they are consistent.
- *          
+ *
  *          The process follows closely the one of leanConsistentInitialConditions() and, in fact, is a linearized version of it.
  *          This is necessary because the initial conditions of the sensitivity system \f$ s_0 \f$ and \f$ \dot{s}_0 \f$ are
  *          related to the initial conditions \f$ y_0 \f$ and \f$ \dot{y}_0 \f$ of the original DAE by differentiating them
@@ -1718,7 +1722,7 @@ void LumpedRateModelWithoutPores::leanConsistentInitialSensitivity(const Simulat
 
 	Indexer idxr(_disc);
 
-	for (unsigned int param = 0; param < vecSensY.size(); ++param)
+	for (std::size_t param = 0; param < vecSensY.size(); ++param)
 	{
 		double* const sensY = vecSensY[param];
 		double* const sensYdot = vecSensYdot[param];

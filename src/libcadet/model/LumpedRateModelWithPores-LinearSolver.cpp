@@ -25,7 +25,8 @@
 #include "ParallelSupport.hpp"
 
 #ifdef CADET_PARALLELIZE
-	#include <tbb/tbb.h>
+	#include <tbb/parallel_for.h>
+	#include <tbb/flow_graph.h>
 
 	typedef tbb::flow::continue_node< tbb::flow::continue_msg > node_t;
 	typedef const tbb::flow::continue_msg & msg_t;
@@ -143,7 +144,7 @@ int LumpedRateModelWithPores::linearSolve(double t, double alpha, double outerTo
 #endif
 		{
 #ifdef CADET_PARALLELIZE
-			tbb::parallel_for(size_t(0), size_t(_disc.nParType), [&](size_t type)
+			tbb::parallel_for(std::size_t(0), static_cast<std::size_t>(_disc.nParType), [&](std::size_t type)
 #else
 			for (unsigned int type = 0; type < _disc.nParType; ++type)
 #endif
@@ -170,7 +171,7 @@ int LumpedRateModelWithPores::linearSolve(double t, double alpha, double outerTo
 
 	// rhs is passed twice but due to the values in jacA the writes happen to a different area of the rhs than the reads.
 #ifdef CADET_PARALLELIZE
-	node_t C(g, [&](msg_t) 
+	node_t C(g, [&](msg_t)
 #endif
 	{
 		_jacInlet.multiplySubtract(rhs, rhs + idxr.offsetC());
@@ -198,7 +199,7 @@ int LumpedRateModelWithPores::linearSolve(double t, double alpha, double outerTo
 #endif
 	{
 #ifdef CADET_PARALLELIZE
-		tbb::parallel_for(size_t(0), size_t(_disc.nParType), [&](size_t type)
+		tbb::parallel_for(std::size_t(0), static_cast<std::size_t>(_disc.nParType), [&](std::size_t type)
 #else
 		for (unsigned int type = 0; type < _disc.nParType; ++type)
 #endif
@@ -216,7 +217,7 @@ int LumpedRateModelWithPores::linearSolve(double t, double alpha, double outerTo
 	// matrix-vector multiplications are added in-place to rhs. We would need one copy of rhs
 	// for each thread and later fuse them together (reduction statement).
 #ifdef CADET_PARALLELIZE
-	node_t F(g, [&](msg_t) 
+	node_t F(g, [&](msg_t)
 #endif
 	{
 		_jacFC.multiplySubtract(rhs + idxr.offsetC(), rhs + idxr.offsetJf());
@@ -240,7 +241,7 @@ int LumpedRateModelWithPores::linearSolve(double t, double alpha, double outerTo
 		const double tolerance = std::sqrt(static_cast<double>(numDofs())) * outerTol * _schurSafety;
 
 		BENCH_START(_timerGmres);
-		const int gmresResult = _gmres.solve(tolerance, weight + idxr.offsetJf(), _tempState + idxr.offsetJf(), rhs + idxr.offsetJf());
+		_gmres.solve(tolerance, weight + idxr.offsetJf(), _tempState + idxr.offsetJf(), rhs + idxr.offsetJf());
 		BENCH_STOP(_timerGmres);
 
 		// Remove temporary results that are leftovers from schurComplementMatrixVector()
@@ -258,7 +259,7 @@ int LumpedRateModelWithPores::linearSolve(double t, double alpha, double outerTo
 	// Threads that are done with solving the bulk column blocks can proceed
 	// to solving the particle blocks
 #ifdef CADET_PARALLELIZE
-	node_t G(g, [&](msg_t) 
+	node_t G(g, [&](msg_t)
 #endif
 	{
 		double* const localCol = _tempState + idxr.offsetC();
@@ -277,11 +278,11 @@ int LumpedRateModelWithPores::linearSolve(double t, double alpha, double outerTo
 	} CADET_PARNODE_END;
 
 #ifdef CADET_PARALLELIZE
-	node_t H(g, [&](msg_t) 
+	node_t H(g, [&](msg_t)
 #endif
 	{
 #ifdef CADET_PARALLELIZE
-		tbb::parallel_for(size_t(0), size_t(_disc.nParType), [&](size_t type)
+		tbb::parallel_for(std::size_t(0), static_cast<std::size_t>(_disc.nParType), [&](std::size_t type)
 #else
 		for (unsigned int type = 0; type < _disc.nParType; ++type)
 #endif
@@ -299,7 +300,7 @@ int LumpedRateModelWithPores::linearSolve(double t, double alpha, double outerTo
 			}
 
 			// Compute rhs_i = y_i - J_i^{-1} * J_{i,f} * y_f = y_i - tempState_i
-			for (int i = 0; i < idxr.strideParBlock(type) * _disc.nCol; ++i)
+			for (unsigned int i = 0; i < idxr.strideParBlock(type) * _disc.nCol; ++i)
 				rhsPar[i] -= localPar[i];
 		} CADET_PARFOR_END;
 	} CADET_PARNODE_END;
@@ -377,7 +378,7 @@ int LumpedRateModelWithPores::schurComplementMatrixVector(double const* x, doubl
 	_jacCF.multiplyAdd(x, _tempState + idxr.offsetC());
 
 #ifdef CADET_PARALLELIZE
-	node_t A(g, [&](msg_t) 
+	node_t A(g, [&](msg_t)
 #endif
 	{
 		// Apply J_0^{-1}
@@ -394,7 +395,7 @@ int LumpedRateModelWithPores::schurComplementMatrixVector(double const* x, doubl
 	{
 		// Handle particle blocks
 #ifdef CADET_PARALLELIZE
-		tbb::parallel_for(size_t(0), size_t(_disc.nParType), [&](size_t type)
+		tbb::parallel_for(std::size_t(0), static_cast<std::size_t>(_disc.nParType), [&](std::size_t type)
 #else
 		for (unsigned int type = 0; type < _disc.nParType; ++type)
 #endif
@@ -414,7 +415,7 @@ int LumpedRateModelWithPores::schurComplementMatrixVector(double const* x, doubl
 	} CADET_PARNODE_END;
 
 #ifdef CADET_PARALLELIZE
-	node_t C(g, [&](msg_t) 
+	node_t C(g, [&](msg_t)
 #endif
 	{
 		// Apply J_{f,0} and subtract results from z

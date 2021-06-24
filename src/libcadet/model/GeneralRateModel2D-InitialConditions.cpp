@@ -29,7 +29,7 @@
 
 #include "ParallelSupport.hpp"
 #ifdef CADET_PARALLELIZE
-	#include <tbb/tbb.h>
+	#include <tbb/parallel_for.h>
 #endif
 
 namespace cadet
@@ -420,7 +420,7 @@ void GeneralRateModel2D::readInitialCondition(IParameterProvider& paramProvider)
 
 	const std::vector<double> initC = paramProvider.getDoubleArray("INIT_C");
 	_singleRadiusInitC = (initC.size() < _disc.nComp * _disc.nRad);
-	
+
 	if (((initC.size() < _disc.nComp) && _singleRadiusInitC) || ((initC.size() < _disc.nComp * _disc.nRad) && !_singleRadiusInitC))
 		throw InvalidParameterException("INIT_C does not contain enough values for all components (and radial zones)");
 
@@ -539,7 +539,7 @@ void GeneralRateModel2D::readInitialCondition(IParameterProvider& paramProvider)
  * @details Given the DAE \f[ F(t, y, \dot{y}) = 0, \f] the initial values \f$ y_0 \f$ and \f$ \dot{y}_0 \f$ have
  *          to be consistent. This functions updates the initial state \f$ y_0 \f$ and overwrites the time
  *          derivative \f$ \dot{y}_0 \f$ such that they are consistent.
- *          
+ *
  *          The process works in two steps:
  *          <ol>
  *              <li>Solve all algebraic equations in the model (e.g., quasi-stationary isotherms, reaction equilibria).
@@ -563,20 +563,20 @@ void GeneralRateModel2D::readInitialCondition(IParameterProvider& paramProvider)
  *                 \end{align} @f]
  *                 where @f$ \dot{J}_i @f$ denotes the Jacobian with respect to @f$ \dot{y}@f$. Note that the
  *                 @f$ J_{i,f} @f$ matrices in the right column are missing.
- *                 
- *     The right hand side of the linear system is given by the negative residual without contribution 
- *     of @f$ \dot{y} @f$ for differential equations and 0 for algebraic equations 
+ *
+ *     The right hand side of the linear system is given by the negative residual without contribution
+ *     of @f$ \dot{y} @f$ for differential equations and 0 for algebraic equations
  *     (@f$ -\frac{\partial F}{\partial t}@f$, to be more precise).
- *     
+ *
  *     The linear system is solved by backsubstitution. First, the diagonal blocks are solved in parallel.
  *     Then, the equations for the fluxes @f$ j_f @f$ are solved by substituting in the solution of the
  *     diagonal blocks.</li>
  *          </ol>
  *     This function performs step 1. See consistentInitialTimeDerivative() for step 2.
- *     
+ *
  * 	   This function is to be used with consistentInitialTimeDerivative(). Do not mix normal and lean
  *     consistent initialization!
- *     
+ *
  * @param [in] simTime Simulation time information (time point, section index, pre-factor of time derivatives)
  * @param [in,out] vecStateY State vector with initial values that are to be updated for consistency
  * @param [in,out] adJac Jacobian information for AD (AD vectors for residual and state, direction offset)
@@ -626,7 +626,7 @@ void GeneralRateModel2D::consistentInitialState(const SimulationTime& simTime, d
 		//Problem capturing variables here
 #ifdef CADET_PARALLELIZE
 		BENCH_SCOPE(_timerConsistentInitPar);
-		tbb::parallel_for(size_t(0), size_t(_disc.nCol * _disc.nRad), [&](size_t pblk)
+		tbb::parallel_for(std::size_t(0), static_cast<std::size_t>(_disc.nCol * _disc.nRad), [&](std::size_t pblk)
 #else
 		for (unsigned int pblk = 0; pblk < _disc.nCol * _disc.nRad; ++pblk)
 #endif
@@ -638,8 +638,8 @@ void GeneralRateModel2D::consistentInitialState(const SimulationTime& simTime, d
 
 			// Midpoint of current column cell (z, rho coordinate) - needed in externally dependent adsorption kinetic
 			const unsigned int axialCell = pblk / _disc.nRad;
-			const unsigned int radialCell = pblk % _disc.nRad;
-			const double r = static_cast<double>(_convDispOp.radialCenters()[radialCell]) / static_cast<double>(_convDispOp.columnRadius());
+//			const unsigned int radialCell = pblk % _disc.nRad;
+//			const double r = static_cast<double>(_convDispOp.radialCenters()[radialCell]) / static_cast<double>(_convDispOp.columnRadius());
 			const double z = (0.5 + static_cast<double>(axialCell)) / static_cast<double>(_disc.nCol);
 
 			// Get workspace memory
@@ -677,7 +677,7 @@ void GeneralRateModel2D::consistentInitialState(const SimulationTime& simTime, d
 
 			// This loop cannot be run in parallel without creating a Jacobian matrix for each thread which would increase memory usage
 			const int localOffsetToParticle = idxr.offsetCp(ParticleTypeIndex{type}, ParticleIndex{static_cast<unsigned int>(pblk)});
-			for(size_t shell = 0; shell < size_t(_disc.nParCell[type]); ++shell)
+			for(std::size_t shell = 0; shell < static_cast<std::size_t>(_disc.nParCell[type]); ++shell)
 			{
 				const int localOffsetInParticle = static_cast<int>(shell) * idxr.strideParShell(type);
 
@@ -895,7 +895,7 @@ void GeneralRateModel2D::consistentInitialState(const SimulationTime& simTime, d
  * @details Given the DAE \f[ F(t, y, \dot{y}) = 0, \f] the initial values \f$ y_0 \f$ and \f$ \dot{y}_0 \f$ have
  *          to be consistent. This functions updates the initial state \f$ y_0 \f$ and overwrites the time
  *          derivative \f$ \dot{y}_0 \f$ such that they are consistent.
- *          
+ *
  *          The process works in two steps:
  *          <ol>
  *              <li>Solve all algebraic equations in the model (e.g., quasi-stationary isotherms, reaction equilibria).
@@ -919,20 +919,20 @@ void GeneralRateModel2D::consistentInitialState(const SimulationTime& simTime, d
  *                 \end{align} @f]
  *                 where @f$ \dot{J}_i @f$ denotes the Jacobian with respect to @f$ \dot{y}@f$. Note that the
  *                 @f$ J_{i,f} @f$ matrices in the right column are missing.
- *                 
- *     The right hand side of the linear system is given by the negative residual without contribution 
- *     of @f$ \dot{y} @f$ for differential equations and 0 for algebraic equations 
+ *
+ *     The right hand side of the linear system is given by the negative residual without contribution
+ *     of @f$ \dot{y} @f$ for differential equations and 0 for algebraic equations
  *     (@f$ -\frac{\partial F}{\partial t}@f$, to be more precise).
- *     
+ *
  *     The linear system is solved by backsubstitution. First, the diagonal blocks are solved in parallel.
  *     Then, the equations for the fluxes @f$ j_f @f$ are solved by substituting in the solution of the
  *     diagonal blocks.</li>
  *          </ol>
  *     This function performs step 2. See consistentInitialState() for step 1.
- *     
+ *
  * 	   This function is to be used with consistentInitialState(). Do not mix normal and lean
  *     consistent initialization!
- *     
+ *
  * @param [in] simTime Simulation time information (time point, section index, pre-factor of time derivatives)
  * @param [in] vecStateY Consistently initialized state vector
  * @param [in,out] vecStateYdot On entry, residual without taking time derivatives into account. On exit, consistent state time derivatives.
@@ -957,7 +957,7 @@ void GeneralRateModel2D::consistentInitialTimeDerivative(const SimulationTime& s
 	// Process the particle blocks
 #ifdef CADET_PARALLELIZE
 	BENCH_START(_timerConsistentInitPar);
-	tbb::parallel_for(size_t(0), size_t(_disc.nCol * _disc.nRad * _disc.nParType), [&](size_t pblk)
+	tbb::parallel_for(std::size_t(0), static_cast<std::size_t>(_disc.nCol * _disc.nRad * _disc.nParType), [&](std::size_t pblk)
 #else
 	for (unsigned int pblk = 0; pblk < _disc.nCol * _disc.nRad * _disc.nParType; ++pblk)
 #endif
@@ -1055,11 +1055,11 @@ void GeneralRateModel2D::consistentInitialTimeDerivative(const SimulationTime& s
  * @details Given the DAE \f[ F(t, y, \dot{y}) = 0, \f] the initial values \f$ y_0 \f$ and \f$ \dot{y}_0 \f$ have
  *          to be consistent. This functions updates the initial state \f$ y_0 \f$ and overwrites the time
  *          derivative \f$ \dot{y}_0 \f$ such that they are consistent.
- *          
+ *
  *          This function performs a relaxed consistent initialization: Only parts of the vectors are updated
  *          and, hence, consistency is not guaranteed. Since there is less work to do, it is probably faster than
  *          the standard process represented by consistentInitialState().
- *          
+ *
  *          The process works in two steps:
  *          <ol>
  *              <li>Keep state and time derivative vectors as they are (i.e., do not solve algebraic equations).
@@ -1074,19 +1074,19 @@ void GeneralRateModel2D::consistentInitialTimeDerivative(const SimulationTime& s
  *                  \end{array}\right],
  *                 \end{align} @f]
  *                 where @f$ \dot{J}_0 @f$ denotes the bulk block Jacobian with respect to @f$ \dot{y}@f$.
- *                 
- *     The right hand side of the linear system is given by the negative residual without contribution 
+ *
+ *     The right hand side of the linear system is given by the negative residual without contribution
  *     of @f$ \dot{y} @f$ for the bulk block and 0 for the flux block.
- *     
+ *
  *     The linear system is solved by backsubstitution. First, the bulk block is solved.
  *     Then, the equations for the fluxes @f$ j_f @f$ are solved by substituting in the solution of the
  *     bulk block and the unchanged particle block time derivative vectors.</li>
  *          </ol>
  *     This function performs step 1. See leanConsistentInitialTimeDerivative() for step 2.
- *     
+ *
  * 	   This function is to be used with leanConsistentInitialTimeDerivative(). Do not mix normal and lean
  *     consistent initialization!
- *     
+ *
  * @param [in] simTime Simulation time information (time point, section index, pre-factor of time derivatives)
  * @param [in,out] vecStateY State vector with initial values that are to be updated for consistency
  * @param [in,out] adJac Jacobian information for AD (AD vectors for residual and state, direction offset)
@@ -1115,11 +1115,11 @@ void GeneralRateModel2D::leanConsistentInitialState(const SimulationTime& simTim
  * @details Given the DAE \f[ F(t, y, \dot{y}) = 0, \f] the initial values \f$ y_0 \f$ and \f$ \dot{y}_0 \f$ have
  *          to be consistent. This functions updates the initial state \f$ y_0 \f$ and overwrites the time
  *          derivative \f$ \dot{y}_0 \f$ such that they are consistent.
- *          
+ *
  *          This function performs a relaxed consistent initialization: Only parts of the vectors are updated
  *          and, hence, consistency is not guaranteed. Since there is less work to do, it is probably faster than
  *          the standard process represented by consistentInitialTimeDerivative().
- *          
+ *
  *          The process works in two steps:
  *          <ol>
  *              <li>Keep state and time derivative vectors as they are (i.e., do not solve algebraic equations).
@@ -1134,19 +1134,19 @@ void GeneralRateModel2D::leanConsistentInitialState(const SimulationTime& simTim
  *                  \end{array}\right],
  *                 \end{align} @f]
  *                 where @f$ \dot{J}_0 @f$ denotes the bulk block Jacobian with respect to @f$ \dot{y}@f$.
- *                 
- *     The right hand side of the linear system is given by the negative residual without contribution 
+ *
+ *     The right hand side of the linear system is given by the negative residual without contribution
  *     of @f$ \dot{y} @f$ for the bulk block and 0 for the flux block.
- *     
+ *
  *     The linear system is solved by backsubstitution. First, the bulk block is solved.
  *     Then, the equations for the fluxes @f$ j_f @f$ are solved by substituting in the solution of the
  *     bulk block and the unchanged particle block time derivative vectors.</li>
  *          </ol>
  *     This function performs step 2. See leanConsistentInitialState() for step 1.
- *     
+ *
  * 	   This function is to be used with leanConsistentInitialState(). Do not mix normal and lean
  *     consistent initialization!
- *     
+ *
  * @param [in] t Current time point
  * @param [in] vecStateY (Lean) consistently initialized state vector
  * @param [in,out] vecStateYdot On entry, inconsistent state time derivatives. On exit, partially consistent state time derivatives.
@@ -1191,7 +1191,7 @@ void GeneralRateModel2D::leanConsistentInitialTimeDerivative(double t, double co
 void GeneralRateModel2D::initializeSensitivityStates(const std::vector<double*>& vecSensY) const
 {
 	Indexer idxr(_disc);
-	for (unsigned int param = 0; param < vecSensY.size(); ++param)
+	for (std::size_t param = 0; param < vecSensY.size(); ++param)
 	{
 		double* const stateYbulk = vecSensY[param] + idxr.offsetC();
 
@@ -1221,7 +1221,7 @@ void GeneralRateModel2D::initializeSensitivityStates(const std::vector<double*>&
 					const unsigned int shellOffset = offset + shell * idxr.strideParShell(type);
 					double* const stateYparticle = vecSensY[param] + shellOffset;
 					double* const stateYparticleSolid = stateYparticle + idxr.strideParLiquid();
-					
+
 					// Initialize c_p
 					for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
 						stateYparticle[comp] = _initCp[comp + type * _disc.nComp + rad * _disc.nComp * _disc.nParType].getADValue(param);
@@ -1243,7 +1243,7 @@ void GeneralRateModel2D::initializeSensitivityStates(const std::vector<double*>&
  *          The initial values of this linear DAE, @f$ s_0 = \frac{\partial y_0}{\partial p} @f$ and @f$ \dot{s}_0 = \frac{\partial \dot{y}_0}{\partial p} @f$
  *          have to be consistent with the sensitivity DAE. This functions updates the initial sensitivity\f$ s_0 \f$ and overwrites the time
  *          derivative \f$ \dot{s}_0 \f$ such that they are consistent.
- *          
+ *
  *          The process follows closely the one of consistentInitialConditions() and, in fact, is a linearized version of it.
  *          This is necessary because the initial conditions of the sensitivity system \f$ s_0 \f$ and \f$ \dot{s}_0 \f$ are
  *          related to the initial conditions \f$ y_0 \f$ and \f$ \dot{y}_0 \f$ of the original DAE by differentiating them
@@ -1271,11 +1271,11 @@ void GeneralRateModel2D::initializeSensitivityStates(const std::vector<double*>&
  *                 \end{align} @f]
  *                 where @f$ \dot{J}_i @f$ denotes the Jacobian with respect to @f$ \dot{y}@f$. Note that the
  *                 @f$ J_{i,f} @f$ matrices in the right column are missing.
- *                
+ *
  *     Let @f$ \mathcal{I}_d @f$ denote the index set of differential equations.
  *     The right hand side of the linear system is given by @f[ -\frac{\partial F}{\partial y}(t, y, \dot{y}) s - \frac{\partial F}{\partial p}(t, y, \dot{y}), @f]
  *     which is 0 for algebraic equations (@f$ -\frac{\partial^2 F}{\partial t \partial p}@f$, to be more precise).
- *     
+ *
  *     The linear system is solved by backsubstitution. First, the diagonal blocks are solved in parallel.
  *     Then, the equations for the fluxes @f$ j_f @f$ are solved by substituting in the solution of the
  *     diagonal blocks.</li>
@@ -1295,7 +1295,7 @@ void GeneralRateModel2D::consistentInitialSensitivity(const SimulationTime& simT
 
 	Indexer idxr(_disc);
 
-	for (unsigned int param = 0; param < vecSensY.size(); ++param)
+	for (std::size_t param = 0; param < vecSensY.size(); ++param)
 	{
 		double* const sensY = vecSensY[param];
 		double* const sensYdot = vecSensYdot[param];
@@ -1318,7 +1318,7 @@ void GeneralRateModel2D::consistentInitialSensitivity(const SimulationTime& simT
 
 #ifdef CADET_PARALLELIZE
 			BENCH_SCOPE(_timerConsistentInitPar);
-			tbb::parallel_for(size_t(0), size_t(_disc.nCol * _disc.nRad), [&](size_t pblk)
+			tbb::parallel_for(std::size_t(0), static_cast<std::size_t>(_disc.nCol * _disc.nRad), [&](std::size_t pblk)
 #else
 			for (unsigned int pblk = 0; pblk < _disc.nCol * _disc.nRad; ++pblk)
 #endif
@@ -1392,7 +1392,7 @@ void GeneralRateModel2D::consistentInitialSensitivity(const SimulationTime& simT
 		// Process the particle blocks
 #ifdef CADET_PARALLELIZE
 		BENCH_START(_timerConsistentInitPar);
-		tbb::parallel_for(size_t(0), size_t(_disc.nCol * _disc.nRad * _disc.nParType), [&](size_t pblk)
+		tbb::parallel_for(std::size_t(0), static_cast<std::size_t>(_disc.nCol * _disc.nRad * _disc.nParType), [&](std::size_t pblk)
 #else
 		for (unsigned int pblk = 0; pblk < _disc.nCol * _disc.nRad * _disc.nParType; ++pblk)
 #endif
@@ -1435,7 +1435,7 @@ void GeneralRateModel2D::consistentInitialSensitivity(const SimulationTime& simT
 						qShellDot[i] = 0.0;
 					}
 				}
-			}   
+			}
 
 			// Precondition
 			double* const scaleFactors = _tempState + idxr.offsetCp(ParticleTypeIndex{type}, ParticleIndex{par});
@@ -1478,7 +1478,7 @@ void GeneralRateModel2D::consistentInitialSensitivity(const SimulationTime& simT
  *          The initial values of this linear DAE, @f$ s_0 = \frac{\partial y_0}{\partial p} @f$ and @f$ \dot{s}_0 = \frac{\partial \dot{y}_0}{\partial p} @f$
  *          have to be consistent with the sensitivity DAE. This functions updates the initial sensitivity\f$ s_0 \f$ and overwrites the time
  *          derivative \f$ \dot{s}_0 \f$ such that they are consistent.
- *          
+ *
  *          The process follows closely the one of leanConsistentInitialConditions() and, in fact, is a linearized version of it.
  *          This is necessary because the initial conditions of the sensitivity system \f$ s_0 \f$ and \f$ \dot{s}_0 \f$ are
  *          related to the initial conditions \f$ y_0 \f$ and \f$ \dot{y}_0 \f$ of the original DAE by differentiating them
@@ -1499,11 +1499,11 @@ void GeneralRateModel2D::consistentInitialSensitivity(const SimulationTime& simT
  *                  \end{array}\right],
  *                 \end{align} @f]
  *                 where @f$ \dot{J}_0 @f$ denotes the bulk block Jacobian with respect to @f$ \dot{y}@f$.
- *                
+ *
  *     Let @f$ \mathcal{I}_d @f$ denote the index set of differential equations.
  *     The right hand side of the linear system is given by @f[ -\frac{\partial F}{\partial y}(t, y, \dot{y}) s - \frac{\partial F}{\partial p}(t, y, \dot{y}), @f]
  *     which is 0 for algebraic equations (@f$ -\frac{\partial^2 F}{\partial t \partial p}@f$, to be more precise).
- *     
+ *
  *     The linear system is solved by backsubstitution. First, the bulk block is solved.
  *     Then, the equations for the fluxes @f$ j_f @f$ are solved by substituting in the solution of the
  *     bulk block and the unchanged particle block time derivative vectors.</li>
@@ -1526,14 +1526,14 @@ void GeneralRateModel2D::leanConsistentInitialSensitivity(const SimulationTime& 
 
 	Indexer idxr(_disc);
 
-	for (unsigned int param = 0; param < vecSensY.size(); ++param)
+	for (std::size_t param = 0; param < vecSensY.size(); ++param)
 	{
 		double* const sensY = vecSensY[param];
 		double* const sensYdot = vecSensYdot[param];
 
 		// Copy parameter derivative from AD to tempState and negate it
 		// We need to use _tempState in order to keep sensYdot unchanged at this point
-		for (unsigned int i = 0; i < idxr.offsetCp(); ++i)
+		for (int i = 0; i < idxr.offsetCp(); ++i)
 			_tempState[i] = -adRes[i].getADValue(param);
 
 		std::fill(_tempState + idxr.offsetCp(), _tempState + idxr.offsetJf(), 0.0);
@@ -1575,7 +1575,7 @@ void GeneralRateModel2D::leanConsistentInitialSensitivity(const SimulationTime& 
  */
 void GeneralRateModel2D::solveForFluxes(double* const vecState, const Indexer& idxr) const
 {
-	// We have j_f - k_f * (c - c_p) == 0 
+	// We have j_f - k_f * (c - c_p) == 0
 	// Thus, jacFC contains -k_f and jacFP +k_f.
 	// We just need to subtract both -k_f * c and k_f * c_p to get j_f == k_f * (c - c_p)
 

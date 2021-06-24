@@ -1,7 +1,7 @@
 # Prerequisites
 
 * CMake (>= 3.12.0)
-* GCC >= 5.0 or Clang >= 3.4
+* GCC >= 7.0, Clang >= 3.9, or Intel C++ 18.0
 * Optional: MATLAB R2009a or greater
 * Optional: Git
 
@@ -38,7 +38,7 @@ Build HDF5 yourself:
 * Execute `ctest -S HDF5config.cmake,BUILD_GENERATOR=Unix,INSTALLDIR="<ROOT>/Libs/hdf5" -C Release -V`
 * Extract the created `HDF5-1.10.0-patch1-Linux.tar.gz` file to `<ROOT>/Libs/hdf5` such that you have `<ROOT>/Libs/hdf5/lib`
 
-## SUNDIALS
+## SUNDIALS (Optional)
 
 * Download SUNDIALS source from http://computation.llnl.gov/projects/sundials/sundials-software (version <= 3.2.1)
 * Unzip
@@ -55,7 +55,7 @@ You can either use a LAPACK implementation provided by your distribution or inst
 Obtain LAPACK from your distribution:
 * Install the packages (LAPACK and BLAS) of your distribution (e.g., `liblapack3`, `liblapack-dev`, `libblas3`, `libblas-dev` for Ubuntu and Debian). Note that some packages only provide reference (i.e., slow) implementations and others (e.g., ATLAS, GOTO) perform much faster.
 
-## SuperLU
+## SuperLU (Optional)
 
 * Download SuperLU source from https://github.com/xiaoyeli/superlu
 * Unzip
@@ -65,7 +65,7 @@ Obtain LAPACK from your distribution:
 * Execute `make install`
 * Delete the folder `superlubuild` (e.g., execute `rm -rf superlubuild` in the parent directory of `superlubuild`)
 
-## UMFPACK
+## UMFPACK (Optional)
 
 * Download SuiteSparse source from http://faculty.cse.tamu.edu/davis/suitesparse.html
 * Unzip
@@ -78,9 +78,9 @@ Obtain LAPACK from your distribution:
 * Place the source in `<ROOT>/code` and create the directory `<ROOT>/build`
 * Open a terminal and change to `<ROOT>/build`
 * If you have built HDF5 yourself, execute `export HDF5_ROOT=<ROOT>/Libs/hdf5`
-* Execute `export SUNDIALS_ROOT=<ROOT>/Libs/sundials`
-* Execute `export SUPERLU_ROOT=<ROOT>/Libs/superlu`
-* Execute `export UMFPACK_ROOT=<ROOT>/Libs/suitesparse`
+* If you have built SUNDIALS, execute `export SUNDIALS_ROOT=<ROOT>/Libs/sundials` and add `-DENABLE_PACKAGED_SUNDIALS=OFF` to the CMake command (see below)
+* If you have built SuperLU, execute `export SUPERLU_ROOT=<ROOT>/Libs/superlu`
+* If you have built UMFPACK, execute `export UMFPACK_ROOT=<ROOT>/Libs/suitesparse`
 * If using MKL, execute `export MKLROOT=/opt/intel/mkl`
 * Using standard LAPACK: Execute `cmake -DCMAKE_INSTALL_PREFIX="<ROOT>/cadet" ../code/`
  

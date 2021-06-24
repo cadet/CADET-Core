@@ -336,7 +336,7 @@ public:
 				// Convert to ParameterIds
 				std::vector<cadet::ParameterId> sensParams;
 				sensParams.reserve(sensName.size());
-				for (unsigned int i = 0; i < sensName.size(); ++i)
+				for (std::size_t i = 0; i < sensName.size(); ++i)
 					sensParams.push_back(cadet::makeParamId(sensName[i], sensUnit[i], sensComp[i], sensParType[i], sensBoundState[i], sensReaction[i], sensSection[i]));
 
 				double sensTol = 1e-05;
@@ -535,7 +535,7 @@ public:
 			const std::vector<double const*> lastYdot = _sim->getLastSensitivityDerivatives(len);
 
 			std::ostringstream oss;
-			for (unsigned int i = 0; i < lastY.size(); ++i)
+			for (std::size_t i = 0; i < lastY.size(); ++i)
 			{
 				oss.str("");
 				oss << "LAST_STATE_SENSY_" << std::setfill('0') << std::setw(3) << std::setprecision(0) << i;

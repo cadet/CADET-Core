@@ -35,7 +35,7 @@ namespace test
  */
 inline void checkMatrixAgainstLinearArray(double const* mat, const std::vector<double>& matRef)
 {
-	for (unsigned int i = 0; i < matRef.size(); ++i)
+	for (std::size_t i = 0; i < matRef.size(); ++i)
 		CHECK(matRef[i] == RelApprox(mat[i]));
 }
 
@@ -54,7 +54,7 @@ Matrix_t createBandMatrix(unsigned int rows, unsigned int lower, unsigned int up
 	bm.resize(rows, lower, upper);
 
 	double val = 1.0;
-	for (unsigned int row = 0; row < bm.rows(); ++row)
+	for (int row = 0; row < bm.rows(); ++row)
 	{
 		const int lower = std::max(-static_cast<int>(bm.lowerBandwidth()), -static_cast<int>(row));
 		const int upper = std::min(static_cast<int>(bm.upperBandwidth()), static_cast<int>(bm.rows() - row) - 1);

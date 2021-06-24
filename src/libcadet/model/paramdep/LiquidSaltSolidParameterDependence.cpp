@@ -35,7 +35,7 @@ namespace
 		if (parTypeIdx == ParTypeIndep)
 		{
 			const std::vector<double> tmp = paramProvider.getDoubleArray(name);
-			if (tmp.size() < nElements)
+			if (static_cast<int>(tmp.size()) < nElements)
 				throw InvalidParameterException(name + " contains too few elements (" + std::to_string(nElements) + " required)");
 
 			out.reserve(nElements);
@@ -52,7 +52,7 @@ namespace
 			if (paramProvider.exists(oss.str()))
 			{
 				const std::vector<double> tmp = paramProvider.getDoubleArray(oss.str());
-				if (tmp.size() < nElements)
+				if (static_cast<int>(tmp.size()) < nElements)
 					throw InvalidParameterException(oss.str() + " contains too few elements (" + std::to_string(nElements) + " required)");
 
 				out.reserve(nElements);

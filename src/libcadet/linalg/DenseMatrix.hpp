@@ -64,7 +64,7 @@ namespace detail
 		 * @param [in] mat Matrix this DenseBandedRowIterator accesses
 		 * @param [in] row Index of the row of the iterator points so
 		 */
-		DenseBandedRowIterator(MatrixType& mat, unsigned int row) CADET_NOEXCEPT : _matrix(&mat), _pos(_matrix->_data + row * _matrix->stride() + row), _rowIdx(row) { }
+		DenseBandedRowIterator(MatrixType& mat, int row) CADET_NOEXCEPT : _matrix(&mat), _pos(_matrix->_data + row * _matrix->stride() + row), _rowIdx(row) { }
 
 		/**
 		 * @brief Creates a DenseBandedRowIterator for the given matrix
@@ -72,7 +72,7 @@ namespace detail
 		 * @param [in] row Index of the row of the iterator points so
 		 * @param [in] diagOffset Diagonal this iterator points to (offset)
 		 */
-		DenseBandedRowIterator(MatrixType& mat, unsigned int row, int diagOffset) CADET_NOEXCEPT : _matrix(&mat), _pos(_matrix->_data + static_cast<int>(row * _matrix->stride() + row) + diagOffset), _rowIdx(row) { }
+		DenseBandedRowIterator(MatrixType& mat, int row, int diagOffset) CADET_NOEXCEPT : _matrix(&mat), _pos(_matrix->_data + static_cast<int>(row * _matrix->stride() + row) + diagOffset), _rowIdx(row) { }
 
 		DenseBandedRowIterator(const DenseBandedRowIterator& cpy, int rowChange) CADET_NOEXCEPT : _matrix(cpy._matrix), _pos(cpy._pos + rowChange * static_cast<int>(cpy._matrix->stride() + 1)), _rowIdx(static_cast<int>(cpy._rowIdx) + rowChange) { }
 		DenseBandedRowIterator(const DenseBandedRowIterator& cpy) CADET_NOEXCEPT : _matrix(cpy._matrix), _pos(cpy._pos), _rowIdx(cpy._rowIdx) { }
@@ -106,7 +106,7 @@ namespace detail
 		 * @return Matrix element at the given position
 		 */
 		inline double& centered(int diagonal) { return (*this)(diagonal); }
-		inline const double centered(int diagonal) const { return (*this)(diagonal); }
+		inline double centered(int diagonal) const { return (*this)(diagonal); }
 
 		inline double& operator()(int diagonal)
 		{
@@ -119,7 +119,7 @@ namespace detail
 			return _pos[diagonal];
 		}
 
-		inline const double operator()(int diagonal) const
+		inline double operator()(int diagonal) const
 		{
 			// Check if out of scope
 			if (cadet_unlikely(diagonal >= static_cast<int>(_matrix->columns()) - _rowIdx))
@@ -131,7 +131,7 @@ namespace detail
 		}
 
 		inline double& operator[](int diagonal) { return (*this)(diagonal); }
-		inline const double operator[](int diagonal) const { return (*this)(diagonal); }
+		inline double operator[](int diagonal) const { return (*this)(diagonal); }
 
 		/**
 		 * @brief Sets all row elements to the given value
@@ -324,8 +324,8 @@ namespace detail
 		 * 
 		 * @return Matrix element at the given position
 		 */
-		inline double& diagonalElement(unsigned int row, int diagonal) { return (*this)(row, diagonal); }
-		inline const double diagonalElement(unsigned int row, int diagonal) const { return (*this)(row, diagonal); }
+		inline double& diagonalElement(int row, int diagonal) { return (*this)(row, diagonal); }
+		inline double diagonalElement(int row, int diagonal) const { return (*this)(row, diagonal); }
 
 		/**
 		 * @brief Accesses an element in the matrix
@@ -336,21 +336,21 @@ namespace detail
 		 * 
 		 * @return Matrix element at the given position
 		 */
-		inline double& native(unsigned int row, unsigned int col)
+		inline double& native(int row, int col)
 		{
 			cadet_assert(row < _rows);
 			cadet_assert(col < _cols);
 			return _data[row * stride() + col];
 		}
 
-		inline const double native(unsigned int row, unsigned int col) const
+		inline double native(int row, int col) const
 		{
 			cadet_assert(row < _rows);
 			cadet_assert(col < _cols);
 			return _data[row * stride() + col];
 		}
 
-		inline double& operator()(unsigned int row, int diagonal)
+		inline double& operator()(int row, int diagonal)
 		{
 			cadet_assert(row < _rows);
 			cadet_assert(diagonal < static_cast<int>(_cols - row));
@@ -358,7 +358,7 @@ namespace detail
 			return _data[static_cast<int>(row * stride() + row) + diagonal];
 		}
 
-		inline const double operator()(unsigned int row, int diagonal) const
+		inline double operator()(int row, int diagonal) const
 		{
 			cadet_assert(row < _rows);
 			cadet_assert(diagonal < static_cast<int>(_cols - row));
@@ -370,19 +370,19 @@ namespace detail
 		 * @brief Returns the number of elements in the matrix
 		 * @return Number of elements in the matrix
 		 */
-		inline unsigned int elements() const CADET_NOEXCEPT { return _cols * _rows; }
+		inline int elements() const CADET_NOEXCEPT { return _cols * _rows; }
 
 		/**
 		 * @brief Returns the number of columns
 		 * @return Number of columns
 		 */
-		inline unsigned int columns() const CADET_NOEXCEPT { return _cols; }
+		inline int columns() const CADET_NOEXCEPT { return _cols; }
 
 		/**
 		 * @brief Returns the number of rows
 		 * @return Number of rows
 		 */
-		inline unsigned int rows() const CADET_NOEXCEPT { return _rows; }
+		inline int rows() const CADET_NOEXCEPT { return _rows; }
 		
 		/**
 		 * @brief Provides direct access to the underlying memory
@@ -402,14 +402,14 @@ namespace detail
 		 * @brief Returns the number of elements in an array row
 		 * @return Number of elements in a matrix row
 		 */
-		inline unsigned int stride() const CADET_NOEXCEPT { return _cols; }
+		inline int stride() const CADET_NOEXCEPT { return _cols; }
 
 		/**
 		 * @brief Provides access to the underlying data in the given row
 		 * @param [in] idx Index of the row
 		 * @return Pointer to first element in the given row
 		 */
-		inline double* rowPtr(unsigned int idx)
+		inline double* rowPtr(int idx)
 		{
 			cadet_assert(idx < _rows);
 			return _data + stride() * idx;
@@ -420,7 +420,7 @@ namespace detail
 		 * @param [in] idx Index of the row
 		 * @return RowIterator pointing to the given row
 		 */
-		inline RowIterator row(unsigned int idx)
+		inline RowIterator row(int idx)
 		{
 			cadet_assert(idx < _rows);
 			return RowIterator(*this, idx);
@@ -432,7 +432,7 @@ namespace detail
 		 * @param [in] diag Index of the diagonal the iterator points to
 		 * @return RowIterator pointing to the given row
 		 */
-		inline RowIterator row(unsigned int idx, int diag)
+		inline RowIterator row(int idx, int diag)
 		{
 			cadet_assert(idx < _rows);
 			cadet_assert(static_cast<int>(idx) + diag < _cols);
@@ -453,7 +453,7 @@ namespace detail
 		 * @tparam MatType_t Type of a matrix in banded storage
 		 */
 		template <typename MatType_t>
-		inline void copySubmatrixFromBanded(const MatType_t& mat, const unsigned int startRow, const int startDiag, const unsigned int numRows, const unsigned int numCols)
+		inline void copySubmatrixFromBanded(const MatType_t& mat, const int startRow, const int startDiag, const int numRows, const int numCols)
 		{
 			cadet_assert(_rows >= numRows);
 			cadet_assert(_cols >= numCols);
@@ -465,9 +465,9 @@ namespace detail
 			const int lowerBand = static_cast<int>(mat.lowerBandwidth());
 
 			double* ptrDest = _data;
-			for (unsigned int r = 0; r < numRows; ++r)
+			for (int r = 0; r < numRows; ++r)
 			{
-				for (unsigned int c = 0; c < numCols; ++c, ++ptrDest)
+				for (int c = 0; c < numCols; ++c, ++ptrDest)
 				{
 					*ptrDest = 0.0;
 
@@ -494,7 +494,7 @@ namespace detail
 		 * @param [in] numRows Number of rows to be copied
 		 * @param [in] numCols Number of columns to be copied
 		 */
-		inline void copySubmatrix(const DenseMatrixBase& mat, const unsigned int startRow, const unsigned int startCol, const unsigned int numRows, const unsigned int numCols)
+		inline void copySubmatrix(const DenseMatrixBase& mat, const int startRow, const int startCol, const int numRows, const int numCols)
 		{
 			cadet_assert(_rows >= numRows);
 			cadet_assert(_cols >= numCols);
@@ -505,7 +505,7 @@ namespace detail
 
 			double* ptrDest = _data;
 			double const* ptrSrc = mat._data + mat._cols * startRow + startCol;
-			for (unsigned int r = 0; r < numRows; ++r, ptrDest += _cols, ptrSrc += mat._cols)
+			for (int r = 0; r < numRows; ++r, ptrDest += _cols, ptrSrc += mat._cols)
 			{
 				std::copy(ptrSrc, ptrSrc + numCols, ptrDest);
 			}
@@ -523,7 +523,7 @@ namespace detail
 		 * @param [in] destRow Index of the first row of the destination submatrix
 		 * @param [in] destCol Index of the first column of the destination submatrix
 		 */
-		inline void addSubmatrixTo(DenseMatrixBase& dest, const double factor, const unsigned int srcRow, const unsigned int srcCol, const unsigned int numRows, const unsigned int numCols, const unsigned int destRow, const unsigned int destCol)
+		inline void addSubmatrixTo(DenseMatrixBase& dest, const double factor, const int srcRow, const int srcCol, const int numRows, const int numCols, const int destRow, const int destCol)
 		{
 			cadet_assert(_rows >= srcRow + numRows);
 			cadet_assert(_cols >= srcCol + numCols);
@@ -536,9 +536,9 @@ namespace detail
 
 			double* ptrDest = dest._data + destRow * dest.stride() + destCol;
 			double const* ptrSrc = _data + srcRow * stride() + srcCol;
-			for (unsigned int r = 0; r < numRows; ++r, ptrDest += dest.stride(), ptrSrc += stride())
+			for (int r = 0; r < numRows; ++r, ptrDest += dest.stride(), ptrSrc += stride())
 			{
-				for (unsigned int c = 0; c < numCols; ++c)
+				for (int c = 0; c < numCols; ++c)
 					ptrDest[c] += factor * ptrSrc[c];
 			}
 		}
@@ -552,8 +552,8 @@ namespace detail
 		 * @param [in] numRows Number of rows of the submatrix
 		 * @param [in] numCols Number of columns of the submatrix
 		 */
-		void submatrixSetAll(double val, unsigned int startRow, unsigned int startCol, 
-			unsigned int numRows, unsigned int numCols);
+		void submatrixSetAll(double val, int startRow, int startCol, 
+			int numRows, int numCols);
 
 		/**
 		 * @brief Copies a given matrix into a submatrix of this matrix
@@ -564,8 +564,8 @@ namespace detail
 		 * @param [in] numRows Number of rows of the submatrix
 		 * @param [in] numCols Number of columns of the submatrix
 		 */
-		void submatrixAssign(const DenseMatrixBase& mat, unsigned int startRow, unsigned int startCol, 
-			unsigned int numRows, unsigned int numCols);
+		void submatrixAssign(const DenseMatrixBase& mat, int startRow, int startCol, 
+			int numRows, int numCols);
 
 		/**
 		 * @brief Copies a row of a given dense matrix into this matrix
@@ -574,7 +574,7 @@ namespace detail
 		 * @param [in] srcRow Index of the source row to be copied from @p mat
 		 * @param [in] destRow Index of the target row
 		 */
-		inline void copyRowFrom(const DenseMatrixBase& mat, const unsigned int srcRow, unsigned int destRow)
+		inline void copyRowFrom(const DenseMatrixBase& mat, const int srcRow, int destRow)
 		{
 			cadet_assert(mat._rows > srcRow);
 			cadet_assert(_cols >= mat._cols);
@@ -603,8 +603,8 @@ namespace detail
 		 * @param [in] numCols Number of columns of the submatrix
 		 * @param [out] y Result of the submatrix-vector multiplication
 		 */
-		inline void submatrixMultiplyVector(const double* const x, unsigned int startRow, unsigned int startCol, 
-			unsigned int numRows, unsigned int numCols, double* const y) const
+		inline void submatrixMultiplyVector(const double* const x, int startRow, int startCol, 
+			int numRows, int numCols, double* const y) const
 		{
 			submatrixMultiplyVector(x, startRow, startCol, numRows, numCols, 1.0, 0.0, y);
 		}
@@ -631,8 +631,8 @@ namespace detail
 		 * @param [in] numCols Number of columns of the submatrix
 		 * @param [out] y Result of the submatrix-vector multiplication
 		 */
-		inline void transposedSubmatrixMultiplyVector(const double* const x, unsigned int startRow, unsigned int startCol, 
-			unsigned int numRows, unsigned int numCols, double* const y) const
+		inline void transposedSubmatrixMultiplyVector(const double* const x, int startRow, int startCol, 
+			int numRows, int numCols, double* const y) const
 		{
 			transposedSubmatrixMultiplyVector(x, startRow, startCol, numRows, numCols, 1.0, 0.0, y);
 		}
@@ -660,8 +660,8 @@ namespace detail
 		 * @param [in] beta Factor @f$ \beta @f$ in front of @f$ y @f$
 		 * @param [out] y Result of the submatrix-vector multiplication
 		 */
-		void submatrixMultiplyVector(const double* const x, unsigned int startRow, unsigned int startCol, 
-			unsigned int numRows, unsigned int numCols, double alpha, double beta, double* const y) const;
+		void submatrixMultiplyVector(const double* const x, int startRow, int startCol, 
+			int numRows, int numCols, double alpha, double beta, double* const y) const;
 
 		/**
 		 * @brief Multiplies the transpose of the matrix @f$ A @f$ with a given vector @f$ x @f$ and adds it to another vector using LAPACK
@@ -686,8 +686,8 @@ namespace detail
 		 * @param [in] beta Factor @f$ \beta @f$ in front of @f$ y @f$
 		 * @param [out] y Result of the submatrix-vector multiplication
 		 */
-		void transposedSubmatrixMultiplyVector(const double* const x, unsigned int startRow, unsigned int startCol, 
-			unsigned int numRows, unsigned int numCols, double alpha, double beta, double* const y) const;
+		void transposedSubmatrixMultiplyVector(const double* const x, int startRow, int startCol, 
+			int numRows, int numCols, double alpha, double beta, double* const y) const;
 
 		/**
 		 * @brief Factorizes the matrix using LAPACK (performs LU factorization)
@@ -736,7 +736,7 @@ namespace detail
 		 * @param [in] size Size of the provided workspace
 		 * @return @c true if the solution process was successful, otherwise @c false
 		 */
-		bool leastSquaresSolve(double* rhs, double* workspace, unsigned int size);
+		bool leastSquaresSolve(double* rhs, double* workspace, int size);
 
 		/**
 		 * @brief Performs a numerically robust (but slower and memory consuming) factorization of the matrix using LAPACK (QR factorization)
@@ -779,7 +779,7 @@ namespace detail
 		 * @details The workspace size is @f$ 2n @f$ for an @f$ n \times n@f$ matrix.
 		 * @return Size of the workspace required for robustFactorize()
 		 */
-		inline unsigned int robustWorkspaceSize() const { return 2 * rows(); }
+		inline int robustWorkspaceSize() const { return 2 * rows(); }
 
 		/**
 		 * @brief Scales rows by dividing them with a given factor
@@ -795,7 +795,7 @@ namespace detail
 		 * @param [in] scalingFactors Vector with scaling factor for each row
 		 * @param [in] numRows The number of rows which are to be scaled (from the top)
 		 */
-		void scaleRows(double const* scalingFactors, unsigned int numRows);
+		void scaleRows(double const* scalingFactors, int numRows);
 
 		/**
 		 * @brief Scales columns by dividing them with a given factor
@@ -811,7 +811,7 @@ namespace detail
 		 * @param [in] scalingFactors Vector with scaling factor for each column
 		 * @param [in] numCols The number of columns which are to be scaled (from the left)
 		 */
-		void scaleColumns(double const* scalingFactors, unsigned int numCols);
+		void scaleColumns(double const* scalingFactors, int numCols);
 
 		/**
 		 * @brief Computes row scaling factors such that the largest absolute value in each row is 1
@@ -827,7 +827,7 @@ namespace detail
 		 * @param [out] scalingFactors Vector in which the row scaling factors are written
 		 * @param [in] numRows The number of rows to be scaled
 		 */
-		void rowScaleFactors(double* scalingFactors, unsigned int numRows) const;
+		void rowScaleFactors(double* scalingFactors, int numRows) const;
 
 		/**
 		 * @brief Computes column scaling factors such that the largest absolute value in each column is 1
@@ -843,7 +843,7 @@ namespace detail
 		 * @param [out] scalingFactors Vector in which the column scaling factors are written
 		 * @param [in] numCols The number of columns to be scaled
 		 */
-		void columnScaleFactors(double* scalingFactors, unsigned int numCols) const;
+		void columnScaleFactors(double* scalingFactors, int numCols) const;
 
 		/**
 		 * @brief Resizes the matrix to the given size without deleting its content
@@ -853,7 +853,7 @@ namespace detail
 		 * @param [in] rows The number of rows
 		 * @param [in] cols The number of columns
 		 */
-		inline void shrinkOrExpandFast(unsigned int rows, unsigned int cols)
+		inline void shrinkOrExpandFast(int rows, int cols)
 		{
 			_cols = cols;
 			_rows = rows;
@@ -869,7 +869,7 @@ namespace detail
 		 * @param [in] rows The number of rows
 		 * @param [in] cols The number of columns
 		 */
-		inline void shrinkOrExpand(unsigned int rows, unsigned int cols)
+		inline void shrinkOrExpand(int rows, int cols)
 		{
 			shrinkOrExpandFast(rows, cols);
 			setAll(0.0);
@@ -877,8 +877,8 @@ namespace detail
 
 	protected:
 		double* _data; //!< Pointer to the array in which the matrix is stored
-		unsigned int _rows; //!< Number of rows
-		unsigned int _cols; //!< Number of columns
+		int _rows; //!< Number of rows
+		int _cols; //!< Number of columns
 		lapackInt_t* _pivot; //!< Pointer to an array which is used for pivoting by factorization methods
 
 		/**
@@ -894,7 +894,7 @@ namespace detail
 		 * @param [in] rows Number of rows
 		 * @param [in] cols Number of columns
 		 */
-		DenseMatrixBase(double* const data, lapackInt_t* const pivot, unsigned int rows, unsigned int cols) CADET_NOEXCEPT : _data(data), _rows(rows), _cols(cols), _pivot(pivot) { }
+		DenseMatrixBase(double* const data, lapackInt_t* const pivot, int rows, int cols) CADET_NOEXCEPT : _data(data), _rows(rows), _cols(cols), _pivot(pivot) { }
 
 		/**
 		 * @brief Copies all values from the source to the local array
@@ -1039,7 +1039,7 @@ public:
 	 * @param [in] rows The number of rows
 	 * @param [in] cols The number of columns
 	 */
-	inline void resize(unsigned int rows, unsigned int cols)
+	inline void resize(int rows, int cols)
 	{
 		_cols = cols;
 		_rows = rows;
@@ -1080,7 +1080,7 @@ public:
 	 * @param [in] rows Number of rows
 	 * @param [in] cols Number of columns
 	 */
-	DenseMatrixView(double* const data, lapackInt_t* const pivot, unsigned int rows, unsigned int cols) CADET_NOEXCEPT : DenseMatrixBase(data, pivot, rows, cols) { }
+	DenseMatrixView(double* const data, lapackInt_t* const pivot, int rows, int cols) CADET_NOEXCEPT : DenseMatrixBase(data, pivot, rows, cols) { }
 
 	/**
 	 * @brief Initializes the view as a submatrix of the given DenseMatrix
@@ -1088,7 +1088,7 @@ public:
 	 * @param [in] startRow Index of the first row of this submatrix
 	 * @param [in] rows Number of rows
 	 */
-	DenseMatrixView(detail::DenseMatrixBase& mat, unsigned int startRow, unsigned int rows) CADET_NOEXCEPT : DenseMatrixBase(mat.rowPtr(startRow), mat.pivotData(), rows, mat.columns())
+	DenseMatrixView(detail::DenseMatrixBase& mat, int startRow, int rows) CADET_NOEXCEPT : DenseMatrixBase(mat.rowPtr(startRow), mat.pivotData(), rows, mat.columns())
 	{
 		cadet_assert(mat.rows() >= startRow + rows);
 	}
@@ -1140,7 +1140,7 @@ public:
 	 * @param [in] rows The number of rows
 	 * @param [in] cols The number of columns
 	 */
-	inline void resizeFast(unsigned int rows, unsigned int cols)
+	inline void resizeFast(int rows, int cols)
 	{
 		_cols = cols;
 		_rows = rows;
@@ -1155,7 +1155,7 @@ public:
 	 * @param [in] rows The number of rows
 	 * @param [in] cols The number of columns
 	 */
-	inline void resize(unsigned int rows, unsigned int cols)
+	inline void resize(int rows, int cols)
 	{
 		resizeFast(rows, cols);
 		setAll(0.0);

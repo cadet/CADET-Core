@@ -55,9 +55,9 @@ public:
 
 	InternalStorageUnitOpRecorder() : InternalStorageUnitOpRecorder(UnitOpIndep) { }
 
-	InternalStorageUnitOpRecorder(UnitOpIdx idx) : _cfgSolution({false, false, false, true, false, false}),
-		_cfgSolutionDot({false, false, false, false, false, false}), _cfgSensitivity({false, false, false, true, false, false}),
-		_cfgSensitivityDot({false, false, false, true, false, false}), _storeTime(false), _storeCoordinates(false), _splitComponents(true), _splitPorts(true),
+	InternalStorageUnitOpRecorder(UnitOpIdx idx) : _cfgSolution({false, false, false, true, false, false, false}),
+		_cfgSolutionDot({false, false, false, false, false, false, false}), _cfgSensitivity({false, false, false, true, false, false, false}),
+		_cfgSensitivityDot({false, false, false, true, false, false, false}), _storeTime(false), _storeCoordinates(false), _splitComponents(true), _splitPorts(true),
 		_singleAsMultiPortUnitOps(false), _curCfg(nullptr), _nComp(0), _nVolumeDof(0), _numTimesteps(0), _numSens(0), _unitOp(idx), _needsReAlloc(false),
 		_axialCoords(0), _radialCoords(0), _particleCoords(0)
 	{
@@ -75,7 +75,7 @@ public:
 		clear(_dataDot);
 
 		// Clear all sensitivity storage
-		for (unsigned int i = 0; i < _sens.size(); ++i)
+		for (std::size_t i = 0; i < _sens.size(); ++i)
 		{
 			clear(_sens[i]);
 			clear(_sensDot[i]);
@@ -351,7 +351,7 @@ public:
 		endSolution();
 
 		// Allocate space for sensitivities
-		for (unsigned int i = 0; i < _sens.size(); ++i)
+		for (std::size_t i = 0; i < _sens.size(); ++i)
 		{
 			beginSensitivity(i);
 			allocateMemory(exporter);
@@ -425,7 +425,7 @@ public:
 
 		if (_curCfg->storeParticle)
 		{
-			for (unsigned int parType = 0; parType < _nParShells.size(); ++parType)
+			for (std::size_t parType = 0; parType < _nParShells.size(); ++parType)
 			{
 				std::vector<double>& cp = _curStorage->particle[parType];
 				double const* data = exporter.particleMobilePhase(parType);
@@ -440,7 +440,7 @@ public:
 
 		if (_curCfg->storeSolid)
 		{
-			for (unsigned int parType = 0; parType < _nParShells.size(); ++parType)
+			for (std::size_t parType = 0; parType < _nParShells.size(); ++parType)
 			{
 				std::vector<double>& cs = _curStorage->solid[parType];
 				double const* data = exporter.solidPhase(parType);
@@ -525,7 +525,7 @@ public:
 		{
 			std::ostringstream oss;
 			unsigned int offset = 0;
-			for (unsigned int pt = 0; pt < _nParShells.size(); ++pt)
+			for (std::size_t pt = 0; pt < _nParShells.size(); ++pt)
 			{
 				if (_nParShells[pt] == 0)
 					continue;
@@ -714,14 +714,14 @@ protected:
 		if (_curCfg->storeParticle)
 		{
 			_curStorage->particle.resize(_nParShells.size());
-			for (unsigned int i = 0; i < _nParShells.size(); ++i)
+			for (std::size_t i = 0; i < _nParShells.size(); ++i)
 				_curStorage->particle[i].reserve(nAllocTimesteps * exporter.numParticleMobilePhaseDofs(i));
 		}
 		
 		if (_curCfg->storeSolid)
 		{
 			_curStorage->solid.resize(_nParShells.size());
-			for (unsigned int i = 0; i < _nParShells.size(); ++i)
+			for (std::size_t i = 0; i < _nParShells.size(); ++i)
 				_curStorage->solid[i].reserve(nAllocTimesteps * exporter.numSolidPhaseDofs(i));
 		}
 
@@ -896,7 +896,7 @@ protected:
 			}
 			else
 			{
-				for (unsigned int parType = 0; parType < _nParShells.size(); ++parType)
+				for (std::size_t parType = 0; parType < _nParShells.size(); ++parType)
 				{
 					std::vector<std::size_t>& pl = _particleLayout[parType];
 					oss.str("");
@@ -918,7 +918,7 @@ protected:
 			}
 			else
 			{
-				for (unsigned int parType = 0; parType < _nParShells.size(); ++parType)
+				for (std::size_t parType = 0; parType < _nParShells.size(); ++parType)
 				{
 					std::vector<std::size_t>& pl = _solidLayout[parType];
 					oss.str("");
@@ -1232,7 +1232,7 @@ public:
 
 	inline unsigned int numRecorders() const CADET_NOEXCEPT { return _recorders.size(); }
 	inline InternalStorageUnitOpRecorder* recorder(unsigned int idx) CADET_NOEXCEPT { return _recorders[idx]; }
-	inline InternalStorageUnitOpRecorder* const recorder(unsigned int idx) const CADET_NOEXCEPT { return _recorders[idx]; }
+	inline InternalStorageUnitOpRecorder* recorder(unsigned int idx) const CADET_NOEXCEPT { return _recorders[idx]; }
 
 	inline InternalStorageUnitOpRecorder* unitOperation(UnitOpIdx idx) CADET_NOEXCEPT
 	{

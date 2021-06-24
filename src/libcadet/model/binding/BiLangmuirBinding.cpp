@@ -160,7 +160,7 @@ public:
 
 			// Get parameter slice for current binding site type
 			active const* const localKa = p->kA[site];
-			active const* const localKd = p->kD[site];
+//			active const* const localKd = p->kD[site];
 			active const* const localQmax = p->qMax[site];
 			active const* const localKaT = dpDt->kA[site];
 			active const* const localKdT = dpDt->kD[site];
@@ -295,7 +295,7 @@ protected:
 		const int nSites = static_cast<int>(p->kA.slices());
 
 		// Loop over all binding site types
-		for (unsigned int site = 0; site < nSites; ++site, ++y)
+		for (int site = 0; site < nSites; ++site, ++y)
 		{
 			// Get parameter slice for current binding site type
 			active const* const localKa = p->kA[site];

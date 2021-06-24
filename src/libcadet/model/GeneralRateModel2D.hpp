@@ -355,28 +355,28 @@ protected:
 		Indexer(const Discretization& disc) : _disc(disc) { }
 
 		// Strides
-		inline const int strideColAxialCell() const CADET_NOEXCEPT { return static_cast<int>(_disc.nComp) * static_cast<int>(_disc.nRad); }
-		inline const int strideColRadialCell() const CADET_NOEXCEPT { return static_cast<int>(_disc.nComp); }
-		inline const int strideColComp() const CADET_NOEXCEPT { return 1; }
+		inline int strideColAxialCell() const CADET_NOEXCEPT { return static_cast<int>(_disc.nComp) * static_cast<int>(_disc.nRad); }
+		inline int strideColRadialCell() const CADET_NOEXCEPT { return static_cast<int>(_disc.nComp); }
+		inline int strideColComp() const CADET_NOEXCEPT { return 1; }
 
-		inline const int strideParComp() const CADET_NOEXCEPT { return 1; }
-		inline const int strideParLiquid() const CADET_NOEXCEPT { return static_cast<int>(_disc.nComp); }
-		inline const int strideParBound(int parType) const CADET_NOEXCEPT { return static_cast<int>(_disc.strideBound[parType]); }
-		inline const int strideParShell(int parType) const CADET_NOEXCEPT { return strideParLiquid() + strideParBound(parType); }
-		inline const int strideParBlock(int parType) const CADET_NOEXCEPT { return static_cast<int>(_disc.nParCell[parType]) * strideParShell(parType); }
+		inline int strideParComp() const CADET_NOEXCEPT { return 1; }
+		inline int strideParLiquid() const CADET_NOEXCEPT { return static_cast<int>(_disc.nComp); }
+		inline int strideParBound(int parType) const CADET_NOEXCEPT { return static_cast<int>(_disc.strideBound[parType]); }
+		inline int strideParShell(int parType) const CADET_NOEXCEPT { return strideParLiquid() + strideParBound(parType); }
+		inline int strideParBlock(int parType) const CADET_NOEXCEPT { return static_cast<int>(_disc.nParCell[parType]) * strideParShell(parType); }
 
-		inline const int strideFluxCell() const CADET_NOEXCEPT { return static_cast<int>(_disc.nComp) * static_cast<int>(_disc.nParType); }
-		inline const int strideFluxParType() const CADET_NOEXCEPT { return static_cast<int>(_disc.nComp); }
-		inline const int strideFluxComp() const CADET_NOEXCEPT { return 1; }
+		inline int strideFluxCell() const CADET_NOEXCEPT { return static_cast<int>(_disc.nComp) * static_cast<int>(_disc.nParType); }
+		inline int strideFluxParType() const CADET_NOEXCEPT { return static_cast<int>(_disc.nComp); }
+		inline int strideFluxComp() const CADET_NOEXCEPT { return 1; }
 
 		// Offsets
-		inline const int offsetC() const CADET_NOEXCEPT { return _disc.nComp * _disc.nRad; }
-		inline const int offsetCp() const CADET_NOEXCEPT { return _disc.nComp * _disc.nCol * _disc.nRad + offsetC(); }
-		inline const int offsetCp(ParticleTypeIndex pti) const CADET_NOEXCEPT { return offsetCp() + _disc.parTypeOffset[pti.value]; }
-		inline const int offsetCp(ParticleTypeIndex pti, ParticleIndex pi) const CADET_NOEXCEPT { return offsetCp() + _disc.parTypeOffset[pti.value] + strideParBlock(pti.value) * pi.value; }
-		inline const int offsetJf() const CADET_NOEXCEPT { return offsetCp() + _disc.parTypeOffset[_disc.nParType]; }
-		inline const int offsetJf(ParticleTypeIndex pti) const CADET_NOEXCEPT { return offsetJf() + pti.value * _disc.nCol * _disc.nComp * _disc.nRad; }
-		inline const int offsetBoundComp(ParticleTypeIndex pti, ComponentIndex comp) const CADET_NOEXCEPT { return _disc.boundOffset[pti.value * _disc.nComp + comp.value]; }
+		inline int offsetC() const CADET_NOEXCEPT { return _disc.nComp * _disc.nRad; }
+		inline int offsetCp() const CADET_NOEXCEPT { return _disc.nComp * _disc.nCol * _disc.nRad + offsetC(); }
+		inline int offsetCp(ParticleTypeIndex pti) const CADET_NOEXCEPT { return offsetCp() + _disc.parTypeOffset[pti.value]; }
+		inline int offsetCp(ParticleTypeIndex pti, ParticleIndex pi) const CADET_NOEXCEPT { return offsetCp() + _disc.parTypeOffset[pti.value] + strideParBlock(pti.value) * pi.value; }
+		inline int offsetJf() const CADET_NOEXCEPT { return offsetCp() + _disc.parTypeOffset[_disc.nParType]; }
+		inline int offsetJf(ParticleTypeIndex pti) const CADET_NOEXCEPT { return offsetJf() + pti.value * _disc.nCol * _disc.nComp * _disc.nRad; }
+		inline int offsetBoundComp(ParticleTypeIndex pti, ComponentIndex comp) const CADET_NOEXCEPT { return _disc.boundOffset[pti.value * _disc.nComp + comp.value]; }
 
 		// Return pointer to first element of state variable in state vector
 		template <typename real_t> inline real_t* c(real_t* const data) const { return data + offsetC(); }
@@ -433,12 +433,15 @@ protected:
 		virtual double const* inlet(unsigned int port, unsigned int& stride) const
 		{
 			stride = _idx.strideColComp();
-			return &_idx.c(_data, 0, port, 0);
+			return _data + port * _disc.nComp;
 		}
 		virtual double const* outlet(unsigned int port, unsigned int& stride) const
 		{
 			stride = _idx.strideColComp();
-			return &_idx.c(_data, _disc.nCol - 1, port, 0);
+			if (_model._convDispOp.currentVelocity(port) >= 0)
+				return &_idx.c(_data, _disc.nCol - 1, port, 0);
+			else
+				return &_idx.c(_data, 0, port, 0);
 		}
 
 		virtual StateOrdering const* concentrationOrdering(unsigned int& len) const

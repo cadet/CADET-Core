@@ -41,9 +41,9 @@ inline cadet::linalg::DenseMatrix randomMatrix(unsigned int numRows, unsigned in
 	cadet::linalg::DenseMatrix dm;
 	dm.resize(numRows, numCols);
 
-	for (unsigned int row = 0; row < dm.rows(); ++row)
+	for (int row = 0; row < dm.rows(); ++row)
 	{
-		for (unsigned int col = 0; col < dm.columns(); ++col)
+		for (int col = 0; col < dm.columns(); ++col)
 			dm.native(row, col) = distribution(generator);
 	}
 	return dm;
@@ -83,7 +83,7 @@ Matrix_t createBandMatrix(unsigned int rows, unsigned int lower, unsigned int up
 	bm.resize(rows, lower, upper);
 
 	double val = 1.0;
-	for (unsigned int row = 0; row < bm.rows(); ++row)
+	for (int row = 0; row < bm.rows(); ++row)
 	{
 		const int lower = std::max(-static_cast<int>(bm.lowerBandwidth()), -static_cast<int>(row));
 		const int upper = std::min(static_cast<int>(bm.upperBandwidth()), static_cast<int>(bm.rows() - row) - 1);
@@ -212,7 +212,7 @@ TEST_CASE("DenseMatrix LU vs QR factorization", "[DenseMatrix],[LinAlg]")
 	// Compare inverse matrices
 	std::vector<double> vecLU(dm.rows(), 0.0);
 	std::vector<double> vecQR(dm2.rows(), 0.0);
-	for (unsigned int i = 0; i < dm.rows(); ++i)
+	for (int i = 0; i < dm.rows(); ++i)
 	{
 		// Obtain i-th column of inverse matrix
 		vecLU[i] = 1.0;
@@ -220,7 +220,7 @@ TEST_CASE("DenseMatrix LU vs QR factorization", "[DenseMatrix],[LinAlg]")
 		dm.solve(vecLU.data());
 		dm2.robustSolve(vecQR.data(), workingMemory.data());
 
-		for (unsigned int j = 0; j < dm.rows(); ++j)
+		for (int j = 0; j < dm.rows(); ++j)
 		{
 			CHECK(vecLU[j] == RelApprox(vecQR[j]));
 			vecLU[j] = 0.0;

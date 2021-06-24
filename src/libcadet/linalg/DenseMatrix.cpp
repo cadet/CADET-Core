@@ -23,8 +23,8 @@ namespace linalg
 namespace detail
 {
 
-void DenseMatrixBase::submatrixSetAll(double val, unsigned int startRow, unsigned int startCol, 
-			unsigned int numRows, unsigned int numCols)
+void DenseMatrixBase::submatrixSetAll(double val, int startRow, int startCol, 
+			int numRows, int numCols)
 {
 	cadet_assert(_rows > startRow);
 	cadet_assert(_cols > startCol);
@@ -33,14 +33,14 @@ void DenseMatrixBase::submatrixSetAll(double val, unsigned int startRow, unsigne
 
 	double* const ptrDest = _data + startRow * stride() + startCol;
 
-	for (unsigned int i = 0; i < numRows; ++i)
+	for (int i = 0; i < numRows; ++i)
 	{
 		std::fill(ptrDest + i * stride(), ptrDest + i * stride() + numCols, val);
 	}
 }
 
-void DenseMatrixBase::submatrixAssign(const DenseMatrixBase& mat, unsigned int startRow, unsigned int startCol, 
-			unsigned int numRows, unsigned int numCols)
+void DenseMatrixBase::submatrixAssign(const DenseMatrixBase& mat, int startRow, int startCol, 
+			int numRows, int numCols)
 {
 	cadet_assert(numRows == mat.rows());
 	cadet_assert(numCols == mat.columns());
@@ -52,7 +52,7 @@ void DenseMatrixBase::submatrixAssign(const DenseMatrixBase& mat, unsigned int s
 	double* const ptrDest = _data + startRow * stride() + startCol;
 	double const* const ptrSrc = mat.data();
 
-	for (unsigned int i = 0; i < numRows; ++i)
+	for (int i = 0; i < numRows; ++i)
 	{
 		std::copy(ptrSrc + i * mat.stride(), ptrSrc + i * mat.stride() + numCols, ptrDest + i * stride());
 	}
@@ -76,8 +76,8 @@ void DenseMatrixBase::multiplyVector(const double* const x, double alpha, double
 	LapackMultiplyDense(trans, &m, &n, &alpha, const_cast<double*>(_data), &lda, const_cast<double*>(x), &inc, &beta, const_cast<double*>(y), &inc);
 }
 
-void DenseMatrixBase::submatrixMultiplyVector(const double* const x, unsigned int startRow, unsigned int startCol, 
-			unsigned int numRows, unsigned int numCols, double alpha, double beta, double* const y) const
+void DenseMatrixBase::submatrixMultiplyVector(const double* const x, int startRow, int startCol, 
+			int numRows, int numCols, double alpha, double beta, double* const y) const
 {
 	cadet_assert(_rows > startRow);
 	cadet_assert(_cols > startCol);
@@ -119,8 +119,8 @@ void DenseMatrixBase::transposedMultiplyVector(const double* const x, double alp
 	LapackMultiplyDense(trans, &m, &n, &alpha, const_cast<double*>(_data), &lda, const_cast<double*>(x), &inc, &beta, const_cast<double*>(y), &inc);
 }
 
-void DenseMatrixBase::transposedSubmatrixMultiplyVector(const double* const x, unsigned int startRow, unsigned int startCol, 
-			unsigned int numRows, unsigned int numCols, double alpha, double beta, double* const y) const
+void DenseMatrixBase::transposedSubmatrixMultiplyVector(const double* const x, int startRow, int startCol, 
+			int numRows, int numCols, double alpha, double beta, double* const y) const
 {
 	cadet_assert(_rows > startRow);
 	cadet_assert(_cols > startCol);
@@ -185,7 +185,7 @@ bool DenseMatrixBase::solve(double* rhs) const
 
 bool DenseMatrixBase::solve(double const* scalingFactors, double* rhs) const
 {
-	for (unsigned int i = 0; i < _rows; ++i)
+	for (int i = 0; i < _rows; ++i)
 		rhs[i] /= scalingFactors[i];
 	return solve(rhs);
 }
@@ -216,7 +216,7 @@ int DenseMatrixBase::optimalLeastSquaresWorkspace() const
 	return static_cast<int>(work);
 }
 
-bool DenseMatrixBase::leastSquaresSolve(double* rhs, double* workspace, unsigned int size)
+bool DenseMatrixBase::leastSquaresSolve(double* rhs, double* workspace, int size)
 {
 	// @todo Replace with calls to underlying LAPACK methods dtrtrs, dgelqf, and dormlq
 	cadet_assert(_rows >= _cols);
@@ -259,7 +259,7 @@ bool DenseMatrixBase::robustFactorize(double* const workspace)
 
 bool DenseMatrixBase::robustSolve(double const* scalingFactors, double* rhs, double* const workspace) const
 {
-	for (unsigned int i = 0; i < _rows; ++i)
+	for (int i = 0; i < _rows; ++i)
 		rhs[i] /= scalingFactors[i];
 	return robustSolve(rhs, workspace);
 }
@@ -295,23 +295,23 @@ bool DenseMatrixBase::robustSolve(double* rhs, double* const workspace) const
 	return flag == 0;
 }
 
-void DenseMatrixBase::scaleRows(double const* scalingFactors, unsigned int numRows)
+void DenseMatrixBase::scaleRows(double const* scalingFactors, int numRows)
 {
-	const unsigned int ld = stride();
-	for (unsigned int i = 0; i < numRows; ++i)
+	const int ld = stride();
+	for (int i = 0; i < numRows; ++i)
 	{
 		cadet_assert(scalingFactors[i] != 0.0);
-		for (unsigned int j = 0; j < _cols; ++j)
+		for (int j = 0; j < _cols; ++j)
 			_data[i * ld + j] /= scalingFactors[i];
 	}
 }
 
-void DenseMatrixBase::scaleColumns(double const* scalingFactors, unsigned int numCols)
+void DenseMatrixBase::scaleColumns(double const* scalingFactors, int numCols)
 {
-	const unsigned int ld = stride();
-	for (unsigned int i = 0; i < _rows; ++i)
+	const int ld = stride();
+	for (int i = 0; i < _rows; ++i)
 	{
-		for (unsigned int j = 0; j < numCols; ++j)
+		for (int j = 0; j < numCols; ++j)
 		{
 			cadet_assert(scalingFactors[j] != 0.0);
 			_data[i * ld + j] /= scalingFactors[j];
@@ -319,24 +319,24 @@ void DenseMatrixBase::scaleColumns(double const* scalingFactors, unsigned int nu
 	}
 }
 
-void DenseMatrixBase::rowScaleFactors(double* scalingFactors, unsigned int numRows) const
+void DenseMatrixBase::rowScaleFactors(double* scalingFactors, int numRows) const
 {
-	const unsigned int ld = stride();
-	for (unsigned int i = 0; i < numRows; ++i)
+	const int ld = stride();
+	for (int i = 0; i < numRows; ++i)
 	{
 		scalingFactors[i] = 0.0;
-		for (unsigned int j = 0; j < _cols; ++j)
+		for (int j = 0; j < _cols; ++j)
 			scalingFactors[i] = std::max(scalingFactors[i], std::abs(_data[i * ld + j]));
 	}
 }
 
-void DenseMatrixBase::columnScaleFactors(double* scalingFactors, unsigned int numCols) const
+void DenseMatrixBase::columnScaleFactors(double* scalingFactors, int numCols) const
 {
-	const unsigned int ld = stride();
-	for (unsigned int j = 0; j < numCols; ++j)
+	const int ld = stride();
+	for (int j = 0; j < numCols; ++j)
 	{
 		scalingFactors[j] = 0.0;
-		for (unsigned int i = 0; i < _rows; ++i)
+		for (int i = 0; i < _rows; ++i)
 			scalingFactors[j] = std::max(scalingFactors[j], std::abs(_data[i * ld + j]));
 	}
 }
@@ -345,9 +345,9 @@ void DenseMatrixBase::columnScaleFactors(double* scalingFactors, unsigned int nu
 std::ostream& operator<<(std::ostream& out, const DenseMatrixBase& bm)
 {
 	out << "[";
-	for (unsigned int i = 0; i < bm.rows(); ++i)
+	for (int i = 0; i < bm.rows(); ++i)
 	{
-		for (unsigned int j = 0; j < bm.columns(); ++j)
+		for (int j = 0; j < bm.columns(); ++j)
 		{
 			out << bm.native(i, j);
 			if (j != bm.columns() - 1)

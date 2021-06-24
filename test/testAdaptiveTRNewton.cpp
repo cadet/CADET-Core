@@ -49,7 +49,7 @@ struct Problem1
 	double jac;
 
 	inline const char* name() const { return "Problem1"; }
-	inline const unsigned int size() const { return 1; }
+	inline unsigned int size() const { return 1; }
 	void init() { }
 
 	bool residual(double const* const x, double* const res)
@@ -80,7 +80,7 @@ struct Problem2
 	cadet::linalg::DenseMatrix jac;
 
 	inline const char* name() const { return "Problem2"; }
-	inline const unsigned int size() const { return 2; }
+	inline unsigned int size() const { return 2; }
 	void init() { jac.resize(size(), size()); }
 
 	bool residual(double const* const x, double* const res)
@@ -121,7 +121,7 @@ struct Problem3
 	cadet::linalg::DenseMatrix jac;
 
 	inline const char* name() const { return "Problem3"; }
-	inline const unsigned int size() const { return 2; }
+	inline unsigned int size() const { return 2; }
 	void init() { jac.resize(size(), size()); }
 
 	bool residual(double const* const x, double* const res)
@@ -191,7 +191,7 @@ void run()
 	printVector("Referenc", p.solution, p.size());
 
 	double errorLinf = 0.0;
-	for (unsigned int i = 0; i < p.size(); ++i)
+	for (std::size_t i = 0; i < p.size(); ++i)
 	{
 		errorLinf = std::max(std::abs(sol[i] - p.solution[i]), errorLinf);
 	}

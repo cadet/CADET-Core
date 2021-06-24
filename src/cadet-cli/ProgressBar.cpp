@@ -248,11 +248,11 @@ namespace cadet
 		pos += barSize;
 		const int textSize = std::snprintf(_buffer.data() + pos, _buffer.size() - pos, "] %4.1f%% (%5.1f>%5.1f s) %s", _progress * 100.0, elapsedSec, remainingSec, _message.c_str());
 
-		if (textSize + pos < _buffer.size() - 1)
+		if (textSize + pos < static_cast<int>(_buffer.size()) - 1)
 		{
 			// Fill remaining buffer
 			char* const ptrBuffer = _buffer.data();
-			for (int i = textSize + pos; i < _buffer.size() - 1; ++i)
+			for (int i = textSize + pos; i < static_cast<int>(_buffer.size()) - 1; ++i)
 				ptrBuffer[i] = ' ';
 		}
 

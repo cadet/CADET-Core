@@ -47,13 +47,13 @@
 			 * @brief Returns the maximum number of allowed AD directions (seed vectors)
 			 * @return Maximum number of allowed AD directions
 			 */
-			inline size_t getMaxDirections() CADET_NOEXCEPT { return SFAD_DEFAULT_DIR; }
+			inline std::size_t getMaxDirections() CADET_NOEXCEPT { return SFAD_DEFAULT_DIR; }
 
 			/**
 			 * @brief Returns the current number of AD directions (seed vectors)
 			 * @return Current number of AD directions
 			 */
-			inline size_t getDirections() CADET_NOEXCEPT { return sfad::getGradientSize(); }
+			inline std::size_t getDirections() CADET_NOEXCEPT { return sfad::getGradientSize(); }
 
 			/**
 			 * @brief Sets the current number of AD directions (seed vectors)
@@ -61,7 +61,7 @@
 			 * 
 			 * @param [in] numDir Number of required AD directions
 			 */
-			inline void setDirections(size_t n)
+			inline void setDirections(std::size_t n)
 			{
 				cadet_assert(n <= SFAD_DEFAULT_DIR);
 				sfad::setGradientSize(n);

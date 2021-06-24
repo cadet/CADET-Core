@@ -53,7 +53,7 @@ namespace cadet
 			// Copy all values from provider to destination
 			const std::vector<double> vals = paramProvider.getDoubleArray(dataSet);
 			dest.resize(vals.size());
-			for (unsigned int i = 0; i < vals.size(); ++i)
+			for (std::size_t i = 0; i < vals.size(); ++i)
 				dest[i] = vals[i];
 
 			return vals.size() == 1;
@@ -104,7 +104,7 @@ namespace cadet
 			dest.resize(vals.size() * nExpand);
 			for (unsigned int j = 0; j < nExpand; ++j)
 			{
-				for (unsigned int i = 0; i < vals.size(); ++i)
+				for (std::size_t i = 0; i < vals.size(); ++i)
 					dest[i + j * vals.size()] = vals[i];
 			}
 		}

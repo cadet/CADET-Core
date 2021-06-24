@@ -39,7 +39,7 @@ public:
 
 	/// \brief Convenience wrapper for reading scalars
 	template <typename T>
-	T scalar(const std::string& dataSetName, size_t position = 0);
+	T scalar(const std::string& dataSetName, std::size_t position = 0);
 
 private:
 
@@ -96,7 +96,7 @@ std::vector<T> XMLReader::vector(const std::string& dataSetName)
 
 
 template <typename T>
-T XMLReader::scalar(const std::string& dataSetName, size_t position)
+T XMLReader::scalar(const std::string& dataSetName, std::size_t position)
 {
 	return vector<T>(dataSetName).at(position);
 }
@@ -118,14 +118,14 @@ std::vector<T> XMLReader::read(const std::string& dataSetName)
 
 	// Read text and attributes
 	std::string data_str = dataset.text().get();
-	size_t rank          = dataset.attribute(_attrRank.c_str()).as_int();
+	std::size_t rank     = dataset.attribute(_attrRank.c_str()).as_int();
 	std::string dims_str = dataset.attribute(_attrDims.c_str()).value();
 
 	// Get dims and compute buffer size
 	std::vector<std::string> dims_vec = split(dims_str, _dimsSeparator.c_str());
-	size_t* dims = new size_t[rank];
-	size_t bufSize = 1;
-	for (size_t i = 0; i < rank; ++i)
+	std::size_t* dims = new std::size_t[rank];
+	std::size_t bufSize = 1;
+	for (std::size_t i = 0; i < rank; ++i)
 	{
 		std::stringstream ss(dims_vec[i]);
 		ss >> dims[i];
@@ -143,7 +143,7 @@ std::vector<T> XMLReader::read(const std::string& dataSetName)
 	}
 
 	std::vector<T> data(bufSize);
-	for (size_t i = 0; i < bufSize; ++i)
+	for (std::size_t i = 0; i < bufSize; ++i)
 	{
 		std::stringstream ss(data_vec[i]);
 		ss >> data[i];

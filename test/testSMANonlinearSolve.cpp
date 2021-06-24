@@ -87,7 +87,7 @@ struct SMAProblem
 #endif 
 
 	inline const char* name() const { return "SMAProblem"; }
-	inline const int size() const { return 4; }
+	inline int size() const { return 4; }
 	void init()
 	{
 		_jacMatrix.resize(size(), size());
@@ -235,7 +235,7 @@ void runNewtonRes(double stdDev)
 	std::normal_distribution<double> distribution(0.0, 1);
 
 	// Randomize
-	for (unsigned int i = 0; i < sol.size(); ++i)
+	for (std::size_t i = 0; i < sol.size(); ++i)
 		sol[i] += stdDev * sol[i] * distribution(generator);
 
 	printVector("Origi", p.initPoint, p.size());
@@ -282,7 +282,7 @@ void runNewtonErr(double stdDev)
 	std::normal_distribution<double> distribution(0.0, 1);
 
 	// Randomize
-	for (unsigned int i = 0; i < sol.size(); ++i)
+	for (std::size_t i = 0; i < sol.size(); ++i)
 		sol[i] += stdDev * sol[i] * distribution(generator);
 
 	printVector("Origi", p.initPoint, p.size());
@@ -327,7 +327,7 @@ void runLevMar(double stdDev)
 	std::vector<double> tempMem(7 * p.size(), 0.0);
 
 	// Randomize
-	for (unsigned int i = 0; i < sol.size(); ++i)
+	for (std::size_t i = 0; i < sol.size(); ++i)
 		sol[i] += stdDev * sol[i] * distribution(generator);
 
 	printVector("Origi", p.initPoint, p.size());

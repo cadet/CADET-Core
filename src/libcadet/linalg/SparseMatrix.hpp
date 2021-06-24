@@ -81,7 +81,7 @@ public:
 	SparseMatrix(const SparseMatrix<otherReal_t>& cpy) : _rows(cpy._rows), _cols(cpy._cols), _curIdx(cpy._curIdx)
 	{
 		_values.reserve(cpy._values.size());
-		for (unsigned int i = 0; i < cpy._values.size(); ++i)
+		for (std::size_t i = 0; i < cpy._values.size(); ++i)
 			_values.push_back(static_cast<real_t>(cpy._values[i]));
 	}
 
@@ -113,7 +113,7 @@ public:
 		const std::vector<otherReal_t>& srcVals = src.values();
 		_values.clear();
 		_values.reserve(srcVals.size());
-		for (unsigned int i = 0; i < srcVals.size(); ++i)
+		for (std::size_t i = 0; i < srcVals.size(); ++i)
 			_values.push_back(static_cast<real_t>(srcVals[i]));
 	}
 
@@ -161,7 +161,7 @@ public:
 	 * @param [in] col Column index
 	 * @param [in] val Value of the element at the given position
 	 */
-	inline void addElement(unsigned int row, unsigned int col, const real_t& val)
+	inline void addElement(int row, int col, const real_t& val)
 	{
 		cadet_assert(_curIdx < _rows.size());
 
@@ -183,7 +183,7 @@ public:
 	 * @param [in] col Column index
 	 * @return Value of the element at the given position
 	 */
-	inline real_t& operator()(unsigned int row, unsigned int col)
+	inline real_t& operator()(int row, int col)
 	{
 		// Try to find the element
 		for (unsigned int i = 0; i < _curIdx; ++i)
@@ -211,7 +211,7 @@ public:
 	 * @param [in] col Column index
 	 * @return Value of the element at the given position
 	 */
-	inline const real_t operator()(unsigned int row, unsigned int col) const
+	inline const real_t operator()(int row, int col) const
 	{
 		// Try to find the element
 		for (unsigned int i = 0; i < _curIdx; ++i)
@@ -369,7 +369,7 @@ public:
 	 *          elements are used.
 	 * @return Vector with row indices
 	 */
-	inline const std::vector<unsigned int>& rows() const CADET_NOEXCEPT { return _rows; }
+	inline const std::vector<int>& rows() const CADET_NOEXCEPT { return _rows; }
 
 	/**
 	 * @brief Returns a vector with column indices
@@ -377,7 +377,7 @@ public:
 	 *          elements are used.
 	 * @return Vector with column indices
 	 */
-	inline const std::vector<unsigned int>& cols() const CADET_NOEXCEPT { return _cols; }
+	inline const std::vector<int>& cols() const CADET_NOEXCEPT { return _cols; }
 
 	/**
 	 * @brief Returns a vector with element values
@@ -394,8 +394,8 @@ public:
 	inline unsigned int numNonZero() const CADET_NOEXCEPT { return _curIdx; }
 
 private:
-	std::vector<unsigned int> _rows; //!< List with row indices of elements
-	std::vector<unsigned int> _cols; //!< List with column indices of elements
+	std::vector<int> _rows; //!< List with row indices of elements
+	std::vector<int> _cols; //!< List with column indices of elements
 	std::vector<real_t> _values; //!< List with values of elements
 	unsigned int _curIdx; //!< Index of the first unused element
 };

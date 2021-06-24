@@ -1,9 +1,9 @@
 // =============================================================================
 //  CADET
-//  
+//
 //  Copyright © 2008-2021: The CADET Authors
 //            Please see the AUTHORS and CONTRIBUTORS file.
-//  
+//
 //  All rights reserved. This program and the accompanying materials
 //  are made available under the terms of the GNU Public License v3.0 (or, at
 //  your option, any later version) which accompanies this distribution, and
@@ -11,7 +11,7 @@
 // =============================================================================
 
 /**
- * @file 
+ * @file
  * Provides functionality for constructing arrays and objects in raw memory.
  */
 
@@ -31,14 +31,14 @@ namespace cadet
 	 * @brief Treats a memory block as array of the given type
 	 * @details Treats a given memory block as an array of the given type.
 	 *          It is assumed that the pointer @p mem is correctly aligned for the given type @p T.
-	 * 
+	 *
 	 *          The array has to be released after use by calling releaseRawArray().
-	 *          
-	 *          See 
+	 *
+	 *          See
 	 *             https://stackoverflow.com/questions/15254/can-placement-new-for-arrays-be-used-in-a-portable-way
 	 *             https://stackoverflow.com/questions/41624685/is-placement-new-legally-required-for-putting-an-int-into-a-char-array
 	 *             https://stackoverflow.com/questions/13466556/aligned-storage-and-strict-aliasing
-	 * 
+	 *
 	 * @param [in] mem Pointer to memory block
 	 * @param [in] numElements Number of array elements
 	 * @return Pointer to first array element of the given type
@@ -66,7 +66,7 @@ namespace cadet
 	 * @brief Releases an array created from rawMemoryAsArray()
 	 * @details Calls the destructor on each array element.
 	 *          This is a no-op for integral types (e.g., int, double).
-	 * 
+	 *
 	 * @param [in] mem Pointer to first element of array in raw memory block
 	 * @param [in] numElements Number of array elements
 	 */
@@ -87,7 +87,7 @@ namespace cadet
 	 * @brief Releases a scalar
 	 * @details Calls the destructor of the item.
 	 *          This is a no-op for integral types (e.g., int, double).
-	 * 
+	 *
 	 * @param [in] mem Pointer to scalar item in raw memory block
 	 */
 	template <typename T>
@@ -125,7 +125,7 @@ namespace cadet
 		/**
 		 * @brief Creates an ArrayPool with the given size in bytes
 		 * @details The size of the pool should be computed by taking @c sizeof(BiggestType) * maxNumElements
-		 * 
+		 *
 		 * @param [in] maxBytes Size of the pool in bytes
 		 * @param [in] maxAlign Most strict alignment of all types that the pool will hold
 		 */
@@ -139,7 +139,7 @@ namespace cadet
 		/**
 		 * @brief Creates an ArrayPool with the given size in bytes
 		 * @details The size of the pool should be computed by taking @c sizeof(BiggestType) * maxNumElements
-		 * 
+		 *
 		 * @param [in] maxBytes Size of the pool in bytes
 		 */
 		ArrayPool(unsigned int maxBytes) : ArrayPool(maxBytes, 0) { }
@@ -150,7 +150,7 @@ namespace cadet
 		 * @brief Resizes the memory pool to the given size
 		 * @details Already created arrays are invalid as the underlying memory pool is reallocated.
 		 *          The user has to make sure that the created array is destroyed prior to calling resize().
-		 * 
+		 *
 		 * @param [in] maxBytes Size of the pool in bytes
 		 */
 		inline void resize(unsigned int maxBytes)
@@ -162,7 +162,7 @@ namespace cadet
 		 * @brief Resizes the memory pool to the given size
 		 * @details Already created arrays are invalid as the underlying memory pool is reallocated.
 		 *          The user has to make sure that the created array is destroyed prior to calling resize().
-		 * 
+		 *
 		 * @param [in] maxBytes Size of the pool in bytes
 		 * @param [in] maxAlign Most strict alignment of all types that the pool will hold
 		 */
@@ -180,7 +180,7 @@ namespace cadet
 		/**
 		 * @brief Creates an array in the pool
 		 * @details Since the array is always created in the same memory, previous arrays will be overwritten.
-		 * 
+		 *
 		 * @param [in] n Number of elements
 		 * @tparam T Type of elements
 		 * @return Pointer to array of the requested size and type
@@ -195,8 +195,12 @@ namespace cadet
 			// Align the memory
 			void* ptr = _mem;
 			std::size_t space = sizeof(T) + alignof(T);
+#ifdef CADET_DEBUG
 			void* const ptr2 = std::align(alignof(T), sizeof(T), ptr, space);
 			cadet_assert(ptr2 != nullptr);
+#else
+			std::align(alignof(T), sizeof(T), ptr, space);
+#endif
 
 			return rawMemoryAsArray<T>(ptr, n);
 		}
@@ -204,7 +208,7 @@ namespace cadet
 		/**
 		 * @brief Destroys a currently active array
 		 * @details The destructor of the array elements is called
-		 * 
+		 *
 		 * @tparam T Type of elements
 		 */
 		template <typename T>
@@ -213,15 +217,19 @@ namespace cadet
 			// Get aligned pointer to first item
 			void* ptr = _mem;
 			std::size_t space = sizeof(T) + alignof(T);
+#ifdef CADET_DEBUG
 			void* const ptr2 = std::align(alignof(T), sizeof(T), ptr, space);
 			cadet_assert(ptr2);
+#else
+			std::align(alignof(T), sizeof(T), ptr, space);
+#endif
 
 			// Call destructor on every element
 			releaseRawArray(reinterpret_cast<T*>(ptr), _numElements);
 			_numElements = 0;
 		}
 
-		inline const unsigned int numElements() const CADET_NOEXCEPT { return _numElements; }
+		inline unsigned int numElements() const CADET_NOEXCEPT { return _numElements; }
 
 	protected:
 		void* _mem; //<! Memory block
@@ -341,7 +349,7 @@ namespace cadet
 		inline const T& operator*() const { return _ptr; }
 
 		inline T* operator->() { return _ptr; }
-		inline T* const operator->() const { return _ptr; }
+		inline T* operator->() const { return _ptr; }
 
 		explicit operator T*() const { return _ptr; }
 
@@ -406,7 +414,7 @@ namespace cadet
 
 		inline const T& operator[](int idx) const { return _ptr[idx]; }
 		inline const T& operator*() const { return _ptr; }
-		inline T const* const operator->() const { return _ptr; }
+		inline T const* operator->() const { return _ptr; }
 
 		explicit operator T const*() const { return _ptr; }
 
@@ -455,7 +463,7 @@ namespace cadet
 		inline const T& operator*() const { return _ptr; }
 
 		inline T* operator->() { return _ptr; }
-		inline T* const operator->() const { return _ptr; }
+		inline T* operator->() const { return _ptr; }
 
 		explicit operator T*() const { return _ptr; }
 
@@ -511,7 +519,7 @@ namespace cadet
 		}
 
 		inline const T& operator*() const { return _ptr; }
-		inline T const* const operator->() const { return _ptr; }
+		inline T const* operator->() const { return _ptr; }
 
 		explicit operator T const*() const { return _ptr; }
 
@@ -602,8 +610,12 @@ namespace cadet
 
 			// Align _mem as required
 			std::size_t space = sizeof(T) + alignof(T);
+#ifdef CADET_DEBUG
 			void* const ptr2 = std::align(alignof(T), sizeof(T), _mem, space);
 			cadet_assert(ptr2 != nullptr);
+#else
+			std::align(alignof(T), sizeof(T), _mem, space);
+#endif
 
 			// Construct elements in buffer and advance pointer
 			T* const ptr = rawMemoryAsArray<T>(_mem, numElements);
@@ -639,8 +651,12 @@ namespace cadet
 		{
 			// Align _mem as required
 			std::size_t space = sizeof(T) + alignof(T);
+#ifdef CADET_DEBUG
 			void* const ptr2 = std::align(alignof(T), sizeof(T), _mem, space);
 			cadet_assert(ptr2 != nullptr);
+#else
+			std::align(alignof(T), sizeof(T), _mem, space);
+#endif
 
 			_mem = static_cast<char*>(_mem) + sizeof(T);
 		}
@@ -662,8 +678,12 @@ namespace cadet
 
 			// Align _mem as required
 			std::size_t space = sizeof(T) + alignof(T);
+#ifdef CADET_DEBUG
 			void* const ptr2 = std::align(alignof(T), sizeof(T), _mem, space);
 			cadet_assert(ptr2 != nullptr);
+#else
+			std::align(alignof(T), sizeof(T), _mem, space);
+#endif
 
 			// Construct element in buffer and advance pointer
 			T* const ptr = new(_mem) T;
@@ -876,7 +896,7 @@ namespace cadet
 		 *          the current one is left unchanged. A typical use-case consists in partitioning
 		 *          a memory block and then reusing the remaining space multiple times in a loop
 		 *          without changing the previous items.
-		 *          
+		 *
 		 *          Note that the remaining memory is not used up. This can cause problems if the
 		 *          memory is overwritten or allocated multiple times.
 		 * @return LinearBufferAllocator operating on the remaining memory

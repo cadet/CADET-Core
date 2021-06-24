@@ -286,8 +286,8 @@ void addTimeDerivativeToJacobianParticleShell(rowIter_t& jac, double alpha, doub
 		const double invBetaP = (1.0 - porosity) / (static_cast<double>(poreAccessFactor[comp]) * porosity);
 
 		// Add derivative with respect to dq / dt to Jacobian
-		const int nBound = static_cast<int>(nBoundPerComp[comp]);
-		for (int i = 0; i < nBoundPerComp[comp]; ++i)
+//		const int nBound = static_cast<int>(nBoundPerComp[comp]);
+		for (int i = 0; i < static_cast<int>(nBoundPerComp[comp]); ++i)
 		{
 			const int idxBoundState = offsetBoundComp[comp] + i;
 

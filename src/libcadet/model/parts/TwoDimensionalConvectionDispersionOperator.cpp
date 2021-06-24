@@ -215,7 +215,7 @@ bool multiplexParameterValue(const cadet::ParameterId& pId, cadet::StringHash na
 				if (sensParams && !cadet::contains(*sensParams, &data[0]))
 					return false;
 
-				for (unsigned int i = 0; i < data.size(); ++i)
+				for (std::size_t i = 0; i < data.size(); ++i)
 					data[i].setValue(value);
 
 				return true;
@@ -343,7 +343,7 @@ bool multiplexParameterAD(const cadet::ParameterId& pId, cadet::StringHash nameH
 
 				sensParams.insert(&data[0]);
 
-				for (unsigned int i = 0; i < data.size(); ++i)
+				for (std::size_t i = 0; i < data.size(); ++i)
 					data[i].setADValue(adDirection, adValue);
 
 				return true;
@@ -560,7 +560,7 @@ int schurComplementMultiplier2DCDO(void* userData, double const* x, double* z)
 			// Copy normal matrix over to factorizable matrix
 			_jacCdisc.copyFromSamePattern(*_jacC);
 
-			for (unsigned int i = 0; i < _jacC->rows(); ++i)
+			for (int i = 0; i < _jacC->rows(); ++i)
 				_jacCdisc.centered(i, 0) += alpha;
 		}
 
@@ -616,7 +616,7 @@ public:
 		_jacCdisc.setAll(0.0);
 
 		linalg::FactorizableBandMatrix::RowIterator jac = _jacCdisc.row(0);
-		for (std::size_t i = 0; i < _jacC->rows(); ++i, ++jac)
+		for (int i = 0; i < _jacC->rows(); ++i, ++jac)
 		{
 			linalg::sparse_int_t const* const colIdx = _jacC->columnIndicesOfRow(i);
 			double const* const vals = _jacC->valuesOfRow(i);
@@ -820,7 +820,7 @@ bool TwoDimensionalConvectionDispersionOperator::configure(UnitOpIdx unitOpIdx, 
 		if (_singleVelocity)
 		{
 			std::vector<active> expanded(_velocity.size() * _nRad);
-			for (unsigned int i = 0; i < _velocity.size(); ++i)
+			for (std::size_t i = 0; i < _velocity.size(); ++i)
 				std::fill(expanded.begin() + i * _nRad, expanded.begin() + (i + 1) * _nRad, _velocity[i]);
 
 			_velocity = std::move(expanded);
@@ -838,7 +838,7 @@ bool TwoDimensionalConvectionDispersionOperator::configure(UnitOpIdx unitOpIdx, 
 		if (_velocity.size() > _nRad)
 		{
 			// Register only the first item in each section
-			for (unsigned int i = 0; i < _velocity.size() / _nRad; ++i)
+			for (std::size_t i = 0; i < _velocity.size() / _nRad; ++i)
 				parameters[makeParamId(hashString("VELOCITY"), unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, i)] = &_velocity[i * _nRad];
 		}
 		else

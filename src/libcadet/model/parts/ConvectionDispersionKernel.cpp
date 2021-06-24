@@ -38,7 +38,7 @@ namespace impl
 	{
 	public:
 		DummyStencil() { }
-		inline const double operator[](const int idx) const { return 0.0; }
+		inline double operator[](const int idx) const { return 0.0; }
 	};
 
 } // namespace impl

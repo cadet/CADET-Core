@@ -134,7 +134,7 @@ void getAllParameterValues(std::unordered_map<ParameterId, double>& data, const 
 			return;
 
 		const std::unordered_map<ParameterId, double> localData = items[0]->getAllParameterValues();
-		for (const std::pair<ParameterId, double>& val : localData)
+		for (const std::pair<const ParameterId, double>& val : localData)
 			data[val.first] = val.second;
 	}
 	else
@@ -145,7 +145,7 @@ void getAllParameterValues(std::unordered_map<ParameterId, double>& data, const 
                 continue;
 
             const std::unordered_map<ParameterId, double> localData = bm->getAllParameterValues();
-			for (const std::pair<ParameterId, double>& val : localData)
+			for (const std::pair<const ParameterId, double>& val : localData)
 				data[val.first] = val.second;
 		}
 	}
@@ -297,8 +297,8 @@ bool setSensitiveParameter(const ParameterId& pId, unsigned int adDirection, dou
 	{
 		for (T* bm : items)
 		{
-		    if (!bm)
-		        continue;
+			if (!bm)
+				continue;
 
 			active* const paramBinding = bm->getParameter(pId);
 			if (paramBinding)

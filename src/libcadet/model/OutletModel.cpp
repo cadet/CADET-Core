@@ -183,7 +183,7 @@ int OutletModel::residualSensFwdCombine(const SimulationTime& simTime, const Con
 	double* const tmp1, double* const tmp2, double* const tmp3)
 {
 	// Directional derivative (dF / dy) * s does nothing since dF / dy = I (identity)
-	for (unsigned int param = 0; param < resS.size(); ++param)
+	for (std::size_t param = 0; param < resS.size(); ++param)
 	{
 		double const* const y = yS[param];
 		double* const res = resS[param];

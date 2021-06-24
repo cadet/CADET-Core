@@ -31,10 +31,10 @@ namespace linalg
 	 * @param [in] size Number of elements in the vector
 	 * @return The @f$\ell^1@f$-norm of the vector
 	 */
-	inline double l1Norm(double const* const x, unsigned int size)
+	inline double l1Norm(double const* const x, int size)
 	{
 		double res = 0.0;
-		for (unsigned int i = 0; i < size; ++i)
+		for (int i = 0; i < size; ++i)
 			res += std::abs(x[i]);
 		return res;
 	}
@@ -46,10 +46,10 @@ namespace linalg
 	 * @param [in] size Number of elements in the vector
 	 * @return The squared @f$\ell^2@f$-norm of the vector
 	 */
-	inline double l2NormSquared(double const* const x, unsigned int size)
+	inline double l2NormSquared(double const* const x, int size)
 	{
 		double res = 0.0;
-		for (unsigned int i = 0; i < size; ++i)
+		for (int i = 0; i < size; ++i)
 			res += sqr(x[i]);
 		return res;
 	}
@@ -61,7 +61,7 @@ namespace linalg
 	 * @param [in] size Number of elements in the vector
 	 * @return The @f$\ell^2@f$-norm of the vector
 	 */
-	inline double l2Norm(double const* const x, unsigned int size)
+	inline double l2Norm(double const* const x, int size)
 	{
 		return std::sqrt(l2NormSquared(x, size));
 	}
@@ -73,10 +73,10 @@ namespace linalg
 	 * @param [in] size Number of elements in the vector
 	 * @return The @f$\ell^\infty@f$-norm of the vector
 	 */
-	inline double linfNorm(double const* const x, unsigned int size)
+	inline double linfNorm(double const* const x, int size)
 	{
 		double res = 0.0;
-		for (unsigned int i = 0; i < size; ++i)
+		for (int i = 0; i < size; ++i)
 		{
 #ifdef CADET_DEBUG			
 			if (cadet_unlikely(std::isnan(x[i])))
@@ -96,10 +96,10 @@ namespace linalg
 	 * @param [in] size Number of elements in the vector
 	 * @return The weighted @f$\ell^2(w)@f$-norm of the vector
 	 */
-	inline double l2normWeighted(double const* const x, double const* const weight, unsigned int size)
+	inline double l2normWeighted(double const* const x, double const* const weight, int size)
 	{
 		double res = 0.0;
-		for (unsigned int i = 0; i < size; ++i)
+		for (int i = 0; i < size; ++i)
 			res += sqr(x[i] / weight[i]);
 		return std::sqrt(res);
 	}
@@ -113,10 +113,10 @@ namespace linalg
 	 * @param [in] size Number of elements in the vector
 	 * @return The @f$\ell^1@f$-norm of the difference
 	 */
-	inline double l1NormDiff(double const* const x, double const* const y, unsigned int size)
+	inline double l1NormDiff(double const* const x, double const* const y, int size)
 	{
 		double res = 0.0;
-		for (unsigned int i = 0; i < size; ++i)
+		for (int i = 0; i < size; ++i)
 			res += std::abs(x[i] - y[i]);
 		return res;
 	}
@@ -129,10 +129,10 @@ namespace linalg
 	 * @param [in] size Number of elements in the vector
 	 * @return The squared @f$\ell^2@f$-norm of the difference
 	 */
-	inline double l2NormSquaredDiff(double const* const x, double const* const y, unsigned int size)
+	inline double l2NormSquaredDiff(double const* const x, double const* const y, int size)
 	{
 		double res = 0.0;
-		for (unsigned int i = 0; i < size; ++i)
+		for (int i = 0; i < size; ++i)
 			res += sqr(x[i] - y[i]);
 		return res;
 	}
@@ -145,7 +145,7 @@ namespace linalg
 	 * @param [in] size Number of elements in the vector
 	 * @return The @f$\ell^2@f$-norm of the difference
 	 */
-	inline double l2NormDiff(double const* const x, double const* const y, unsigned int size)
+	inline double l2NormDiff(double const* const x, double const* const y, int size)
 	{
 		return std::sqrt(l2NormSquaredDiff(x, y, size));
 	}
@@ -158,10 +158,10 @@ namespace linalg
 	 * @param [in] size Number of elements in the vector
 	 * @return The @f$\ell^\infty@f$-norm of the difference
 	 */
-	inline double linfNormDiff(double const* const x, double const* const y, unsigned int size)
+	inline double linfNormDiff(double const* const x, double const* const y, int size)
 	{
 		double res = 0.0;
-		for (unsigned int i = 0; i < size; ++i)
+		for (int i = 0; i < size; ++i)
 		{
 			const double diff = x[i] - y[i];
 #ifdef CADET_DEBUG

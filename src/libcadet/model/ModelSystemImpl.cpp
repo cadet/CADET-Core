@@ -39,7 +39,7 @@ namespace
 	 */
 	inline unsigned int indexOfUnitOp(const std::vector<cadet::IUnitOperation*>& models, unsigned int unitOpIdx)
 	{
-		for (unsigned int i = 0; i < models.size(); ++i)
+		for (std::size_t i = 0; i < models.size(); ++i)
 		{
 			if (models[i]->unitOperationId() == unitOpIdx)
 				return i;
@@ -374,7 +374,7 @@ void ModelSystem::allocateSuperStructMatrices()
 	const unsigned int nModels = numModels();
 	std::vector<unsigned int> sourcesPerUnitOpPerConfig(nModels * _switchSectionIndex.size(), 0u);
 
-	for (unsigned int idx = 0; idx < _switchSectionIndex.size(); ++idx)
+	for (std::size_t idx = 0; idx < _switchSectionIndex.size(); ++idx)
 	{
 		int const* ptrConn = _connections[idx];
 
@@ -410,7 +410,7 @@ void ModelSystem::allocateSuperStructMatrices()
 	std::copy(sourcesPerUnitOpPerConfig.begin(), sourcesPerUnitOpPerConfig.begin() + nModels, numOutgoing.begin());
 
 	// Loop over remaining lines and take maximum per element
-	for (unsigned int sectionIdx = 1; sectionIdx < _switchSectionIndex.size(); ++sectionIdx)
+	for (std::size_t sectionIdx = 1; sectionIdx < _switchSectionIndex.size(); ++sectionIdx)
 	{
 		for (unsigned int i = 0; i < nModels; ++i)
 		{
@@ -578,7 +578,7 @@ bool ModelSystem::configure(IParameterProvider& paramProvider)
 		paramProvider.pushScope("external");
 
 		std::ostringstream oss;
-		for (unsigned int i = 0; i < _extFunctions.size(); ++i)
+		for (std::size_t i = 0; i < _extFunctions.size(); ++i)
 		{
 			IExternalFunction* const func = _extFunctions[i];
 			if (!func)
@@ -737,7 +737,7 @@ void ModelSystem::configureSwitches(IParameterProvider& paramProvider)
 			_parameters[makeParamId(flowHashLin, UnitOpIndep, conn[2], conn[3], conn[0], conn[1], _switchSectionIndex.back())] = _flowRatesLin.back();
 			_parameters[makeParamId(flowHashQuad, UnitOpIndep, conn[2], conn[3], conn[0], conn[1], _switchSectionIndex.back())] = _flowRatesQuad.back();
 			_parameters[makeParamId(flowHashCub, UnitOpIndep, conn[2], conn[3], conn[0], conn[1], _switchSectionIndex.back())] = _flowRatesCub.back();
-			for (unsigned int j = 1; j < fr.size(); ++j)
+			for (std::size_t j = 1; j < fr.size(); ++j)
 			{
 				_flowRates.pushBackInLastSlice(fr[j]);
 				_flowRatesLin.pushBackInLastSlice(frLin[j]);
@@ -947,7 +947,7 @@ void ModelSystem::checkConnectionList(const std::vector<double>& conn, std::vect
 	std::vector<double> totalOutflowQuad(_models.size(), 0.0);
 	std::vector<double> totalOutflowCub(_models.size(), 0.0);
 
-	for (unsigned int i = 0; i < conn.size() / 10; ++i)
+	for (std::size_t i = 0; i < conn.size() / 10; ++i)
 	{
 		// Extract current connection
 		int uoSource = static_cast<int>(conn[10*i]);
@@ -1057,7 +1057,7 @@ void ModelSystem::checkConnectionList(const std::vector<double>& conn, std::vect
 	}
 
 	// Check flow rate balance
-	for (unsigned int i = 0; i < _models.size(); ++i)
+	for (std::size_t i = 0; i < _models.size(); ++i)
 	{
 		// Unit operations with only one port (inlet or outlet) do not need to balance their flows
 		if ((totalInflow[i] >= 0.0) && (totalOutflow[i] == 0.0) && _models[i]->hasInlet() && !_models[i]->hasOutlet())
@@ -1104,7 +1104,7 @@ std::unordered_map<ParameterId, double> ModelSystem::getAllParameterValues() con
 	for (IUnitOperation* m : _models)
 	{
 		const std::unordered_map<ParameterId, double> localData = m->getAllParameterValues();
-		for (const std::pair<ParameterId, double>& val : localData)
+		for (const std::pair<const ParameterId, double>& val : localData)
 			data[val.first] = val.second;
 	}
 
@@ -1329,7 +1329,7 @@ void ModelSystem::clearSensParams()
 
 void ModelSystem::reportSolution(ISolutionRecorder& recorder, double const* const solution) const
 {
-	for (unsigned int i = 0; i < _models.size(); ++i)
+	for (std::size_t i = 0; i < _models.size(); ++i)
 	{
 		IUnitOperation* const m = _models[i];
 		m->reportSolution(recorder, solution + _dofOffset[i]);
@@ -1357,7 +1357,7 @@ void ModelSystem::prepareADvectors(const AdJacobianParams& adJac) const
 	if (!adJac.adY)
 		return;
 
-	for (unsigned int i = 0; i < _models.size(); ++i)
+	for (std::size_t i = 0; i < _models.size(); ++i)
 	{
 		if (_models[i]->usesAD())
 		{

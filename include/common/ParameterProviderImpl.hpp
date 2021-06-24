@@ -100,7 +100,7 @@ public:
 	{
 		const std::vector<int> data = _reader.template vector<int>(paramName);
 		std::vector<bool> bd(data.size());
-		for (unsigned int i = 0; i < data.size(); ++i)
+		for (std::size_t i = 0; i < data.size(); ++i)
 			bd[i] = data[i];
 
 		LOG(Debug) << "GET vector [bool] " << paramName << " = " << bd;

@@ -26,7 +26,8 @@
 #include "ParallelSupport.hpp"
 
 #ifdef CADET_PARALLELIZE
-	#include <tbb/tbb.h>
+	#include <tbb/parallel_for.h>
+	#include <tbb/flow_graph.h>
 
 	typedef tbb::flow::continue_node< tbb::flow::continue_msg > node_t;
 	typedef const tbb::flow::continue_msg & msg_t;
@@ -144,7 +145,7 @@ int GeneralRateModel2D::linearSolve(double t, double alpha, double outerTol, dou
 #endif
 		{
 #ifdef CADET_PARALLELIZE
-			tbb::parallel_for(size_t(0), size_t(_disc.nCol * _disc.nRad * _disc.nParType), [&](size_t pblk)
+			tbb::parallel_for(std::size_t(0), static_cast<std::size_t>(_disc.nCol * _disc.nRad * _disc.nParType), [&](std::size_t pblk)
 #else
 			for (unsigned int pblk = 0; pblk < _disc.nCol * _disc.nRad * _disc.nParType; ++pblk)
 #endif
@@ -176,7 +177,7 @@ int GeneralRateModel2D::linearSolve(double t, double alpha, double outerTol, dou
 
 	// rhs is passed twice but due to the values in jacA the writes happen to a different area of the rhs than the reads.
 #ifdef CADET_PARALLELIZE
-	node_t C(g, [&](msg_t) 
+	node_t C(g, [&](msg_t)
 #endif
 	{
 		_jacInlet.multiplySubtract(rhs, rhs + idxr.offsetC());
@@ -204,7 +205,7 @@ int GeneralRateModel2D::linearSolve(double t, double alpha, double outerTol, dou
 #endif
 	{
 #ifdef CADET_PARALLELIZE
-		tbb::parallel_for(size_t(0), size_t(_disc.nCol * _disc.nRad * _disc.nParType), [&](size_t pblk)
+		tbb::parallel_for(std::size_t(0), static_cast<std::size_t>(_disc.nCol * _disc.nRad * _disc.nParType), [&](std::size_t pblk)
 #else
 		for (unsigned int pblk = 0; pblk < _disc.nCol * _disc.nRad * _disc.nParType; ++pblk)
 #endif
@@ -224,7 +225,7 @@ int GeneralRateModel2D::linearSolve(double t, double alpha, double outerTol, dou
 	// matrix-vector multiplications are added in-place to rhs. We would need one copy of rhs
 	// for each thread and later fuse them together (reduction statement).
 #ifdef CADET_PARALLELIZE
-	node_t F(g, [&](msg_t) 
+	node_t F(g, [&](msg_t)
 #endif
 	{
 		_jacFC.multiplySubtract(rhs + idxr.offsetC(), rhs + idxr.offsetJf());
@@ -254,7 +255,7 @@ int GeneralRateModel2D::linearSolve(double t, double alpha, double outerTol, dou
 		const double tolerance = std::sqrt(static_cast<double>(_gmres.matrixSize())) * outerTol * _schurSafety;
 
 		BENCH_START(_timerGmres);
-		const int gmresResult = _gmres.solve(tolerance, weight + idxr.offsetJf(), _tempState + idxr.offsetJf(), rhs + idxr.offsetJf());
+		_gmres.solve(tolerance, weight + idxr.offsetJf(), _tempState + idxr.offsetJf(), rhs + idxr.offsetJf());
 		BENCH_STOP(_timerGmres);
 
 		// Remove temporary results that are leftovers from schurComplementMatrixVector()
@@ -272,7 +273,7 @@ int GeneralRateModel2D::linearSolve(double t, double alpha, double outerTol, dou
 	// Threads that are done with solving the bulk column blocks can proceed
 	// to solving the particle blocks
 #ifdef CADET_PARALLELIZE
-	node_t G(g, [&](msg_t) 
+	node_t G(g, [&](msg_t)
 #endif
 	{
 		double* const localCol = _tempState + idxr.offsetC();
@@ -291,11 +292,11 @@ int GeneralRateModel2D::linearSolve(double t, double alpha, double outerTol, dou
 	} CADET_PARNODE_END;
 
 #ifdef CADET_PARALLELIZE
-	node_t H(g, [&](msg_t) 
+	node_t H(g, [&](msg_t)
 #endif
 	{
 #ifdef CADET_PARALLELIZE
-		tbb::parallel_for(size_t(0), size_t(_disc.nCol * _disc.nRad * _disc.nParType), [&](size_t pblk)
+		tbb::parallel_for(std::size_t(0), static_cast<std::size_t>(_disc.nCol * _disc.nRad * _disc.nParType), [&](std::size_t pblk)
 #else
 		for (unsigned int pblk = 0; pblk < _disc.nCol * _disc.nRad * _disc.nParType; ++pblk)
 #endif
@@ -394,7 +395,7 @@ int GeneralRateModel2D::schurComplementMatrixVector(double const* x, double* z) 
 	_jacCF.multiplyAdd(x, _tempState + idxr.offsetC());
 
 #ifdef CADET_PARALLELIZE
-	node_t A(g, [&](msg_t) 
+	node_t A(g, [&](msg_t)
 #endif
 	{
 		// Apply J_0^{-1}
@@ -411,7 +412,7 @@ int GeneralRateModel2D::schurComplementMatrixVector(double const* x, double* z) 
 	{
 		// Handle particle blocks
 #ifdef CADET_PARALLELIZE
-		tbb::parallel_for(size_t(0), size_t(_disc.nCol * _disc.nRad * _disc.nParType), [&](size_t pblk)
+		tbb::parallel_for(std::size_t(0), static_cast<std::size_t>(_disc.nCol * _disc.nRad * _disc.nParType), [&](std::size_t pblk)
 #else
 		for (unsigned int pblk = 0; pblk < _disc.nCol * _disc.nRad * _disc.nParType; ++pblk)
 #endif
@@ -434,7 +435,7 @@ int GeneralRateModel2D::schurComplementMatrixVector(double const* x, double* z) 
 	} CADET_PARNODE_END;
 
 #ifdef CADET_PARALLELIZE
-	node_t C(g, [&](msg_t) 
+	node_t C(g, [&](msg_t)
 #endif
 	{
 		// Apply J_{f,0} and subtract results from z

@@ -19,7 +19,7 @@
 
 #include "ParallelSupport.hpp"
 #ifdef CADET_PARALLELIZE
-	#include <tbb/tbb.h>
+	#include <tbb/parallel_for.h>
 #endif
 
 #include "model/ModelSystemImpl-Helper.hpp"
@@ -54,7 +54,7 @@ int ModelSystem::linearSolveSequential(double t, double alpha, double outerTol, 
 
 	// Topological sort needs to be iterated backwards (each item depends on all items behind it)
 	int const* order = _linearModelOrdering[_curSwitchIndex] + _models.size() - 1;
-	for (int i = 0; i < _models.size(); ++i, --order)
+	for (int i = 0; i < static_cast<int>(_models.size()); ++i, --order)
 	{
 		const int idxUnit = *order;
 		IUnitOperation* const m = _models[idxUnit];
@@ -68,7 +68,7 @@ int ModelSystem::linearSolveSequential(double t, double alpha, double outerTol, 
 			// N_{f,x} Outlet (lower) matrices; Bottom macro-row
 			// N_{f,x,1} * y_1 + ... + N_{f,x,nModels} * y_{nModels} + y_{coupling} = f
 			// y_{coupling} = f - N_{f,x,1} * y_1 - ... - N_{f,x,nModels} * y_{nModels}
-			for (unsigned int j = 0; j < _models.size(); ++j)
+			for (std::size_t j = 0; j < _models.size(); ++j)
 			{
 				const unsigned int offset2 = _dofOffset[j];
 				_jacFN[j].multiplySubtract(rhs + offset2, rhs + finalOffset, _conDofOffset[idxUnit], _conDofOffset[idxUnit+1]);
@@ -107,9 +107,9 @@ int ModelSystem::linearSolveParallel(double t, double alpha, double outerTol, do
 	const unsigned int finalOffset = _dofOffset[_models.size()];
 
 #ifdef CADET_PARALLELIZE
-	tbb::parallel_for(size_t(0), _models.size(), [=](size_t i)
+	tbb::parallel_for(std::size_t(0), _models.size(), [=](std::size_t i)
 #else
-	for (unsigned int i = 0; i < _models.size(); ++i)
+	for (std::size_t i = 0; i < _models.size(); ++i)
 #endif
 	{
 		IUnitOperation* const m = _models[i];
@@ -121,7 +121,7 @@ int ModelSystem::linearSolveParallel(double t, double alpha, double outerTol, do
 	// Note that we cannot easily parallelize this loop since the results of the sparse
 	// matrix-vector multiplications are added in-place to rhs. We would need one copy of rhs
 	// for each thread and later fuse them together (reduction statement).
-	for (unsigned int i = 0; i < _models.size(); ++i)
+	for (std::size_t i = 0; i < _models.size(); ++i)
 	{
 		const unsigned int offset = _dofOffset[i];
 		_jacFN[i].multiplySubtract(rhs + offset, rhs + finalOffset);
@@ -147,13 +147,13 @@ int ModelSystem::linearSolveParallel(double t, double alpha, double outerTol, do
 
 	// The network version of the schurCompletmentMatrixVector function need access to more information than the current interface
 	// Instead of changing the interface a lambda function is used and closed over the additional variables
-	auto schurComplementMatrixVectorPartial = [&, this](void* userData, double const* x, double* z) -> int 
+	auto schurComplementMatrixVectorPartial = [&, this](void* userData, double const* x, double* z) -> int
 	{
 		return ModelSystem::schurComplementMatrixVector(x, z, t, alpha, outerTol, weight, simState);
 	};
 
 	_gmres.matrixVectorMultiplier(schurComplementMatrixVectorPartial);
-	
+
 	// Reset error indicator as it is used in schurComplementMatrixVector()
 	const int curError = totalErrorIndicatorFromLocal(_errorIndicator);
 	std::fill(_errorIndicator.begin(), _errorIndicator.end(), 0);
@@ -171,9 +171,9 @@ int ModelSystem::linearSolveParallel(double t, double alpha, double outerTol, do
 	// ==== Step 4: Solve U * x = y by backward substitution
 	// The fluxes are already solved and remain unchanged
 #ifdef CADET_PARALLELIZE
-	tbb::parallel_for(size_t(0), _models.size(), [=](size_t idxModel)
+	tbb::parallel_for(std::size_t(0), _models.size(), [=](std::size_t idxModel)
 #else
-	for (unsigned int idxModel = 0; idxModel < _models.size(); ++idxModel)
+	for (std::size_t idxModel = 0; idxModel < _models.size(); ++idxModel)
 #endif
 	{
 		IUnitOperation* const m = _models[idxModel];
@@ -226,9 +226,9 @@ int ModelSystem::schurComplementMatrixVector(double const* x, double* z, double 
 	// Inlets and outlets don't participate in the Schur solver since one of NF or FN for them is always 0
 	// As a result we only have to work with items that have both an inlet and an outlet
 #ifdef CADET_PARALLELIZE
-	tbb::parallel_for(size_t(0), _inOutModels.size(), [=](size_t i)
+	tbb::parallel_for(std::size_t(0), _inOutModels.size(), [=](std::size_t i)
 #else
-	for (unsigned int i = 0; i < _inOutModels.size(); ++i)
+	for (std::size_t i = 0; i < _inOutModels.size(); ++i)
 #endif
 	{
 		const unsigned int idxModel = _inOutModels[i];
@@ -255,7 +255,7 @@ int ModelSystem::schurComplementMatrixVector(double const* x, double* z, double 
 
 /**
  * @brief Multiplies a vector with the full Jacobian of the entire system (i.e., @f$ \frac{\partial F}{\partial y}\left(t, y, \dot{y}\right) @f$)
- * @details Actually, the operation @f$ z = \alpha \frac{\partial F}{\partial y} x + \beta z @f$ is performed. 
+ * @details Actually, the operation @f$ z = \alpha \frac{\partial F}{\partial y} x + \beta z @f$ is performed.
  * @param [in] simTime Current simulation time point
  * @param [in] simState Simulation state vectors
  * @param [in] yS Vector @f$ x @f$ that is transformed by the Jacobian @f$ \frac{\partial F}{\partial y} @f$
@@ -265,7 +265,7 @@ int ModelSystem::schurComplementMatrixVector(double const* x, double* z, double 
  */
 void ModelSystem::multiplyWithJacobian(const SimulationTime& simTime, const ConstSimulationState& simState, double const* yS, double alpha, double beta, double* ret)
 {
-	for (unsigned int idxModel = 0; idxModel < _models.size(); ++idxModel)
+	for (std::size_t idxModel = 0; idxModel < _models.size(); ++idxModel)
 	{
 		IUnitOperation* const m = _models[idxModel];
 		const unsigned int offset = _dofOffset[idxModel];
@@ -276,7 +276,7 @@ void ModelSystem::multiplyWithJacobian(const SimulationTime& simTime, const Cons
 
 /**
  * @brief Multiplies a vector with the full time derivative Jacobian of the entire system (i.e., @f$ \frac{\partial F}{\partial \dot{y}}\left(t, y, \dot{y}\right) @f$)
- * @details The operation @f$ z = \frac{\partial F}{\partial \dot{y}} x @f$ is performed. 
+ * @details The operation @f$ z = \frac{\partial F}{\partial \dot{y}} x @f$ is performed.
  * @param [in] simTime Current simulation time point
  * @param [in] simState Simulation state vectors
  * @param [in] yS Vector @f$ x @f$ that is transformed by the Jacobian @f$ \frac{\partial F}{\partial \dot{y}} @f$
@@ -284,7 +284,7 @@ void ModelSystem::multiplyWithJacobian(const SimulationTime& simTime, const Cons
  */
 void ModelSystem::multiplyWithDerivativeJacobian(const SimulationTime& simTime, const ConstSimulationState& simState, double const* yS, double* ret)
 {
-	for (unsigned int idxModel = 0; idxModel < _models.size(); ++idxModel)
+	for (std::size_t idxModel = 0; idxModel < _models.size(); ++idxModel)
 	{
 		IUnitOperation* const m = _models[idxModel];
 		const unsigned int offset = _dofOffset[idxModel];
@@ -332,7 +332,7 @@ void ModelSystem::multiplyWithDerivativeJacobian(const SimulationTime& simTime, 
 			// Clear res and resh
 			std::fill(res.begin(), res.end(), 0.0);
 			std::fill(resh.begin(), resh.end(), 0.0);
-			
+
 			// Copy y and yDot
 			std::copy_n(simState.vecStateY, size, &f[0]);
 			std::copy_n(simState.vecStateY, size, &fh[0]);
@@ -356,7 +356,7 @@ void ModelSystem::multiplyWithDerivativeJacobian(const SimulationTime& simTime, 
 				jacobianFD[i*size + j] = (resh[j] - res[j]) / stepSize;
 			}
 		}
-		
+
 		// create JacobianDot
 		for (unsigned int i = 0; i < size; ++i)
 		{
@@ -499,7 +499,7 @@ void ModelSystem::multiplyWithDerivativeJacobian(const SimulationTime& simTime, 
 			CySph[j] = ySph[j];
 			CySdotph[j] = ySdotph[j];
 		}
-		
+
 		// create Jacobian
 		for (unsigned int i = 0; i < size; ++i)
 		{
@@ -520,7 +520,7 @@ void ModelSystem::multiplyWithDerivativeJacobian(const SimulationTime& simTime, 
 			// tmp3
 			std::copy_n(tmp3, size, &tmp3mh[0]);
 			std::copy_n(tmp3, size, &tmp3ph[0]);
-			
+
 			// Clear sync up
 			for (unsigned int j = 0; j < nSens; ++j)
 			{
@@ -644,7 +644,7 @@ void ModelSystem::multiplyWithDerivativeJacobian(const SimulationTime& simTime, 
 			}
 		}
 
-		// Free memory 
+		// Free memory
 
 		for (unsigned int j = 0; j < nSens; ++j)
 		{

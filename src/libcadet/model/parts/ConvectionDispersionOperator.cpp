@@ -139,7 +139,7 @@ bool ConvectionDispersionOperatorBase::configure(UnitOpIdx unitOpIdx, IParameter
 	if (_dispersionCompIndep)
 	{
 		std::vector<active> expanded(_colDispersion.size() * _nComp);
-		for (unsigned int i = 0; i < _colDispersion.size(); ++i)
+		for (std::size_t i = 0; i < _colDispersion.size(); ++i)
 			std::fill(expanded.begin() + i * _nComp, expanded.begin() + (i + 1) * _nComp, _colDispersion[i]);
 
 		_colDispersion = std::move(expanded);
@@ -156,7 +156,7 @@ bool ConvectionDispersionOperatorBase::configure(UnitOpIdx unitOpIdx, IParameter
 		if (_colDispersion.size() > _nComp)
 		{
 			// Register only the first item in each section
-			for (unsigned int i = 0; i < _colDispersion.size() / _nComp; ++i)
+			for (std::size_t i = 0; i < _colDispersion.size() / _nComp; ++i)
 				parameters[makeParamId(hashString("COL_DISPERSION"), unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, i)] = &_colDispersion[i * _nComp];
 		}
 		else
@@ -185,13 +185,20 @@ bool ConvectionDispersionOperatorBase::configure(UnitOpIdx unitOpIdx, IParameter
  */
 bool ConvectionDispersionOperatorBase::notifyDiscontinuousSectionTransition(double t, unsigned int secIdx)
 {
-	const double prevVelocity = static_cast<double>(_curVelocity);
+	double prevVelocity = static_cast<double>(_curVelocity);
 
 	// If we don't have cross section area, velocity is given by parameter
 	if (_crossSection <= 0.0)
 		_curVelocity = getSectionDependentScalar(_velocity, secIdx);
 	else if (!_velocity.empty())
 	{
+		if (secIdx > 0)
+		{
+			const double dir = static_cast<double>(getSectionDependentScalar(_velocity, secIdx - 1));
+			if (dir < 0.0)
+				prevVelocity *= -1.0;
+		}
+
 		// We have both cross section area and interstitial flow rate
 		// _curVelocity has already been set to the network flow rate in setFlowRates()
 		// the direction of the flow (i.e., sign of _curVelocity) is given by _velocity
@@ -269,7 +276,7 @@ int ConvectionDispersionOperatorBase::residualImpl(double t, unsigned int secIdx
 	const ParamType u = static_cast<ParamType>(_curVelocity);
 	active const* const d_c = getSectionDependentSlice(_colDispersion, _nComp, secIdx);
 	const ParamType h = static_cast<ParamType>(_colLength) / static_cast<double>(_nCol);
-	const int strideCell = strideColCell();
+//	const int strideCell = strideColCell();
 
 	convdisp::FlowParameters<ParamType> fp{
 		u,
@@ -477,7 +484,7 @@ ConvectionDispersionOperator::~ConvectionDispersionOperator() CADET_NOEXCEPT
  * @details Band compression is used to minimize the amount of AD directions.
  * @return Number of required AD directions
  */
-unsigned int ConvectionDispersionOperator::requiredADdirs() const CADET_NOEXCEPT
+int ConvectionDispersionOperator::requiredADdirs() const CADET_NOEXCEPT
 {
 	return _jacC.stride();
 }

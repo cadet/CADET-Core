@@ -487,7 +487,7 @@ public:
 	 * @param [out] len Length of the sensitivity state vector
 	 * @return Array with pointers to sensitivity state vectors
 	 */
-	virtual const std::vector<double const*> getLastSensitivities(unsigned int& len) const = 0;
+	virtual std::vector<double const*> getLastSensitivities(unsigned int& len) const = 0;
 
 	/**
 	 * @brief Returns the bare time derivative state vectors of the sensitivity subsystems for the last timepoint
@@ -496,14 +496,14 @@ public:
 	 * @param [out] len Length of the sensitivity state vector
 	 * @return Array with pointers to sensitivity state vectors
 	 */
-	virtual const std::vector<double const*> getLastSensitivityDerivatives(unsigned int& len) const = 0;
+	virtual std::vector<double const*> getLastSensitivityDerivatives(unsigned int& len) const = 0;
 
 	/**
 	 * @brief Returns the simulated model
 	 * @return Simulated model or @c NULL
 	 */
-	virtual IModelSystem* const model() CADET_NOEXCEPT = 0;
-	virtual IModelSystem const* const model() const CADET_NOEXCEPT = 0;
+	virtual IModelSystem* model() CADET_NOEXCEPT = 0;
+	virtual IModelSystem const* model() const CADET_NOEXCEPT = 0;
 
 	/**
 	 * @brief Return the number of DOFs in the current simulation

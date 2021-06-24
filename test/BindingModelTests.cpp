@@ -170,7 +170,7 @@ int ConfiguredBindingModel::requiredBufferSize() CADET_NOEXCEPT
 	if (_binding->requiresWorkspace())
 	{
 		unsigned int totalBoundStates = 0;
-		for (int i = 0; i < _nComp; ++i)
+		for (unsigned int i = 0; i < _nComp; ++i)
 			totalBoundStates += _nBound[i];
 
 		return _binding->workspaceSize(_nComp, totalBoundStates, _boundOffset);

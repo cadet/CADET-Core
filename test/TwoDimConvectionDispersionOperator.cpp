@@ -54,7 +54,7 @@ namespace
 		jpp.set("COL_DISPERSION_RADIAL", cdr);
 
 		std::vector<double> v(2*nRad, 1.0);
-		for (unsigned int i = nRad; i < 2*nRad; ++i)
+		for (int i = nRad; i < 2*nRad; ++i)
 			v[i] = -1.0;
 		jpp.set("VELOCITY", v);
 
@@ -65,7 +65,7 @@ namespace
 		REQUIRE(convDispOp.configure(0, jpp, parameters));
 	}
 
-	inline void compareSparseJacobianAgainstFD(cadet::model::parts::TwoDimensionalConvectionDispersionOperator& convDispOp, unsigned int nInletDof, unsigned int nPureDof, double* y, double* jacCol1, double* jacCol2, double h, double relTol, double absTol)
+	inline void compareSparseJacobianAgainstFD(cadet::model::parts::TwoDimensionalConvectionDispersionOperator& convDispOp, int nInletDof, int nPureDof, double* y, double* jacCol1, double* jacCol2, double h, double relTol, double absTol)
 	{
 		for (int col = 0; col < nPureDof; ++col)
 		{

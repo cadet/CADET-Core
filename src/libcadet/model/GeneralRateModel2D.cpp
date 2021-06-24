@@ -40,7 +40,7 @@
 
 #include "ParallelSupport.hpp"
 #ifdef CADET_PARALLELIZE
-	#include <tbb/tbb.h>
+	#include <tbb/parallel_for.h>
 #endif
 
 namespace
@@ -452,7 +452,7 @@ bool GeneralRateModel2D::configureModelDiscretization(IParameterProvider& paramP
 	{
 		unsigned int* const ptrOffset = _disc.boundOffset + j * _disc.nComp;
 		unsigned int* const ptrBound = _disc.nBound + j * _disc.nComp;
-		
+
 		ptrOffset[0] = 0;
 		for (unsigned int i = 1; i < _disc.nComp; ++i)
 		{
@@ -608,7 +608,9 @@ bool GeneralRateModel2D::configureModelDiscretization(IParameterProvider& paramP
 	clearBindingModels();
 	_binding = std::vector<IBindingModel*>(_disc.nParType, nullptr);
 
-	const std::vector<std::string> bindModelNames = paramProvider.getStringArray("ADSORPTION_MODEL");
+	std::vector<std::string> bindModelNames = { "NONE" };
+	if (paramProvider.exists("ADSORPTION_MODEL"))
+		bindModelNames = paramProvider.getStringArray("ADSORPTION_MODEL");
 
 	if (paramProvider.exists("ADSORPTION_MODEL_MULTIPLEX"))
 		_singleBinding = (paramProvider.getInt("ADSORPTION_MODEL_MULTIPLEX") == 1);
@@ -755,7 +757,7 @@ bool GeneralRateModel2D::configure(IParameterProvider& paramProvider)
 	// Check that particle volume fractions sum to 1.0
 	for (unsigned int i = 0; i < _disc.nCol * _disc.nRad; ++i)
 	{
-		const double volFracSum = std::accumulate(_parTypeVolFrac.begin() + i * _disc.nParType, _parTypeVolFrac.begin() + (i+1) * _disc.nParType, 0.0, 
+		const double volFracSum = std::accumulate(_parTypeVolFrac.begin() + i * _disc.nParType, _parTypeVolFrac.begin() + (i+1) * _disc.nParType, 0.0,
 			[](double a, const active& b) -> double { return a + static_cast<double>(b); });
 		if (std::abs(1.0 - volFracSum) > 1e-10)
 			throw InvalidParameterException("Sum of field PAR_TYPE_VOLFRAC differs from 1.0 (is " + std::to_string(volFracSum) + ") in axial cell " + std::to_string(i / _disc.nRad) + " radial cell " + std::to_string(i % _disc.nRad));
@@ -764,7 +766,7 @@ bool GeneralRateModel2D::configure(IParameterProvider& paramProvider)
 	// Read vectorial parameters (which may also be section dependent; transport)
 	_filmDiffusionMode = readAndRegisterMultiplexCompTypeSecParam(paramProvider, _parameters, _filmDiffusion, "FILM_DIFFUSION", _disc.nParType, _disc.nComp, _unitOpIdx);
 	_parDiffusionMode = readAndRegisterMultiplexCompTypeSecParam(paramProvider, _parameters, _parDiffusion, "PAR_DIFFUSION", _disc.nParType, _disc.nComp, _unitOpIdx);
-	
+
 	if (paramProvider.exists("PAR_SURFDIFFUSION"))
 		_parSurfDiffusionMode = readAndRegisterMultiplexBndCompTypeSecParam(paramProvider, _parameters, _parSurfDiffusion, "PAR_SURFDIFFUSION", _disc.nParType, _disc.nComp, _disc.strideBound, _disc.nBound, _unitOpIdx);
 	else
@@ -996,7 +998,7 @@ unsigned int GeneralRateModel2D::numAdDirsForJacobian() const CADET_NOEXCEPT
 	// the bandwidth of the particle blocks are given by the number of components and bound states.
 
 	// Get maximum stride of particle type blocks
-	unsigned int maxStride = 0;
+	int maxStride = 0;
 	for (unsigned int type = 0; type < _disc.nParType; ++type)
 	{
 		maxStride = std::max(maxStride, _jacP[type * _disc.nCol * _disc.nRad].stride());
@@ -1175,7 +1177,7 @@ int GeneralRateModel2D::residualWithJacobian(const SimulationTime& simTime, cons
 	return residual(simTime, simState, res, adJac, threadLocalMem, true, false);
 }
 
-int GeneralRateModel2D::residual(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res, 
+int GeneralRateModel2D::residual(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res,
 	const AdJacobianParams& adJac, util::ThreadLocalStorage& threadLocalMem, bool updateJacobian, bool paramSensitivity)
 {
 	if (updateJacobian)
@@ -1283,7 +1285,7 @@ int GeneralRateModel2D::residualImpl(double t, unsigned int secIdx, StateType co
 	BENCH_START(_timerResidualPar);
 
 #ifdef CADET_PARALLELIZE
-	tbb::parallel_for(size_t(0), size_t(_disc.nCol * _disc.nRad * _disc.nParType + 1), [&](size_t pblk)
+	tbb::parallel_for(std::size_t(0), static_cast<std::size_t>(_disc.nCol * _disc.nRad * _disc.nParType + 1), [&](std::size_t pblk)
 #else
 	for (unsigned int pblk = 0; pblk < _disc.nCol * _disc.nRad * _disc.nParType + 1; ++pblk)
 #endif
@@ -1852,7 +1854,7 @@ int GeneralRateModel2D::residualSensFwdWithJacobian(const SimulationTime& simTim
 {
 	BENCH_SCOPE(_timerResidualSens);
 
-	// Evaluate residual for all parameters using AD in vector mode and at the same time update the 
+	// Evaluate residual for all parameters using AD in vector mode and at the same time update the
 	// Jacobian (in one AD run, if analytic Jacobians are disabled)
 	return residual(simTime, simState, nullptr, adJac, threadLocalMem, true, true);
 }
@@ -1862,11 +1864,11 @@ int GeneralRateModel2D::residualSensFwdAdOnly(const SimulationTime& simTime, con
 	BENCH_SCOPE(_timerResidualSens);
 
 	// Evaluate residual for all parameters using AD in vector mode
-	return residualImpl<double, active, active, false>(simTime.t, simTime.secIdx, simState.vecStateY, simState.vecStateYdot, adRes, threadLocalMem); 
+	return residualImpl<double, active, active, false>(simTime.t, simTime.secIdx, simState.vecStateY, simState.vecStateYdot, adRes, threadLocalMem);
 }
 
-int GeneralRateModel2D::residualSensFwdCombine(const SimulationTime& simTime, const ConstSimulationState& simState, 
-	const std::vector<const double*>& yS, const std::vector<const double*>& ySdot, const std::vector<double*>& resS, active const* adRes, 
+int GeneralRateModel2D::residualSensFwdCombine(const SimulationTime& simTime, const ConstSimulationState& simState,
+	const std::vector<const double*>& yS, const std::vector<const double*>& ySdot, const std::vector<double*>& resS, active const* adRes,
 	double* const tmp1, double* const tmp2, double* const tmp3)
 {
 	BENCH_SCOPE(_timerResidualSens);
@@ -1876,7 +1878,7 @@ int GeneralRateModel2D::residualSensFwdCombine(const SimulationTime& simTime, co
 
 	const SimulationTime cst{simTime.t, simTime.secIdx};
 	const ConstSimulationState css{nullptr, nullptr};
-	for (unsigned int param = 0; param < yS.size(); ++param)
+	for (std::size_t param = 0; param < yS.size(); ++param)
 	{
 
 		// Directional derivative (dF / dy) * s
@@ -1892,7 +1894,7 @@ int GeneralRateModel2D::residualSensFwdCombine(const SimulationTime& simTime, co
 		// Complete sens residual is the sum:
 		// TODO: Chunk TBB loop
 #ifdef CADET_PARALLELIZE
-		tbb::parallel_for(size_t(0), size_t(numDofs()), [&](size_t i)
+		tbb::parallel_for(std::size_t(0), static_cast<std::size_t>(numDofs()), [&](std::size_t i)
 #else
 		for (unsigned int i = 0; i < numDofs(); ++i)
 #endif
@@ -1909,7 +1911,7 @@ int GeneralRateModel2D::residualSensFwdCombine(const SimulationTime& simTime, co
 /**
  * @brief Multiplies the given vector with the system Jacobian (i.e., @f$ \frac{\partial F}{\partial y}\left(t, y, \dot{y}\right) @f$)
  * @details Actually, the operation @f$ z = \alpha \frac{\partial F}{\partial y} x + \beta z @f$ is performed.
- * 
+ *
  *          Note that residual() or one of its cousins has to be called with the requested point @f$ (t, y, \dot{y}) @f$ once
  *          before calling multiplyWithJacobian() as this implementation ignores the given @f$ (t, y, \dot{y}) @f$.
  * @param [in] simTime Current simulation time point
@@ -1930,7 +1932,7 @@ void GeneralRateModel2D::multiplyWithJacobian(const SimulationTime& simTime, con
 	}
 
 #ifdef CADET_PARALLELIZE
-	tbb::parallel_for(size_t(0), size_t(_disc.nCol * _disc.nRad * _disc.nParType + 1), [&](size_t idx)
+	tbb::parallel_for(std::size_t(0), static_cast<std::size_t>(_disc.nCol * _disc.nRad * _disc.nParType + 1), [&](std::size_t idx)
 #else
 	for (unsigned int idx = 0; idx < _disc.nCol * _disc.nRad * _disc.nParType + 1; ++idx)
 #endif
@@ -1988,7 +1990,7 @@ void GeneralRateModel2D::multiplyWithDerivativeJacobian(const SimulationTime& si
 	Indexer idxr(_disc);
 
 #ifdef CADET_PARALLELIZE
-	tbb::parallel_for(size_t(0), size_t(_disc.nCol * _disc.nRad * _disc.nParType + 1), [&](size_t idx)
+	tbb::parallel_for(std::size_t(0), static_cast<std::size_t>(_disc.nCol * _disc.nRad * _disc.nParType + 1), [&](std::size_t idx)
 #else
 	for (unsigned int idx = 0; idx < _disc.nCol * _disc.nRad * _disc.nParType + 1; ++idx)
 #endif
@@ -2223,7 +2225,7 @@ void GeneralRateModel2D::setUserdefinedRadialDisc(unsigned int parType)
 	active* const ptrInnerSurfAreaPerVolume = _parInnerSurfAreaPerVolume.data() + _disc.nParCellsBeforeType[parType];
 
 	// Care for the right ordering and include 0.0 / 1.0 if not already in the vector.
-	std::vector<active> orderedInterfaces = std::vector<active>(_parDiscVector.begin() + _disc.nParCellsBeforeType[parType] + parType, 
+	std::vector<active> orderedInterfaces = std::vector<active>(_parDiscVector.begin() + _disc.nParCellsBeforeType[parType] + parType,
 		_parDiscVector.begin() + _disc.nParCellsBeforeType[parType] + parType + _disc.nParCell[parType] + 1);
 
 	// Sort in descending order

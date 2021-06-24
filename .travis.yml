@@ -86,19 +86,6 @@ before_install:
       export PATH=${DEPS_DIR}/cmake/bin:${PATH}
     fi
   - cmake --version
-  # Install SUNDIALS
-  - |
-    SUNDIALS_INSTALL=${DEPS_DIR}/sundials/install
-    SUNDIALS_VERSION="3.2.1"
-    if [[ ! -d "${DEPS_DIR}/sundials" || ! -d "${SUNDIALS_INSTALL}" ]]; then
-      SUNDIALS_URL="https://computation.llnl.gov/projects/sundials/download/sundials-${SUNDIALS_VERSION}.tar.gz"
-      mkdir -p sundials sundials/build
-      travis_retry wget -O - ${SUNDIALS_URL} | tar --strip-components=1 -xz -C sundials
-      (cd sundials/build && cmake .. -DCMAKE_INSTALL_PREFIX=${SUNDIALS_INSTALL} -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF -DEXAMPLES_ENABLE=OFF -DOPENMP_ENABLE=ON -DBUILD_KINSOL=OFF -DBUILD_ARKODE=OFF -DBUILD_CVODE=OFF -DBUILD_CVODES=OFF -DEXAMPLES_ENABLE=OFF -DCMAKE_C_FLAGS=-fPIC)
-      (cd sundials/build && make install -j${JOBS})
-    fi
-    export SUNDIALS_ROOT="${SUNDIALS_INSTALL}"
-    export LD_LIBRARY_PATH="${LD_LIBRARY_PATH}:${SUNDIALS_INSTALL}/lib"
   # Linux: Install TBB
   - |
     TBB_INSTALL=${DEPS_DIR}/tbb/install

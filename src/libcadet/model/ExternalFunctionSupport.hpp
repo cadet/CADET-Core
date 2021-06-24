@@ -103,7 +103,7 @@ namespace model
 		{
 			_extFun.clear();
 			_extFun.resize(_extFunIndex.size(), nullptr);
-			for (unsigned int i = 0; i < _extFunIndex.size(); ++i)
+			for (std::size_t i = 0; i < _extFunIndex.size(); ++i)
 			{
 				if ((_extFunIndex[i] >= 0) && (_extFunIndex[i] < size))
 					_extFun[i] = extFuns[_extFunIndex[i]];

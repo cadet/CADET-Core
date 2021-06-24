@@ -1006,7 +1006,7 @@ void CSTRModel::consistentInitialTimeDerivative(const SimulationTime& simTime, d
 
 		// Copy row from original Jacobian and set right hand side
 		double* const qShellDot = cDot + _nComp + _offsetParType[type];
-		for (int i = 0; i < _strideBound[type]; ++i, ++idx)
+		for (unsigned int i = 0; i < _strideBound[type]; ++i, ++idx)
 		{
 			if (!mask[i])
 				continue;
@@ -1605,7 +1605,7 @@ int CSTRModel::residualSensFwdWithJacobian(const SimulationTime& simTime, const 
 void CSTRModel::initializeSensitivityStates(const std::vector<double*>& vecSensY) const
 {
 	const unsigned int nDof = numPureDofs();
-	for (unsigned int param = 0; param < vecSensY.size(); ++param)
+	for (std::size_t param = 0; param < vecSensY.size(); ++param)
 	{
 		double* const sensY = vecSensY[param];
 		ad::copyFromAdDirection(_initConditions.data(), sensY + _nComp, nDof, param);
@@ -1643,7 +1643,7 @@ void CSTRModel::consistentInitialSensitivity(const SimulationTime& simTime, cons
 	BufferedArray<double> rhs = tlmAlloc.array<double>(probSize);
 	BufferedArray<double> rhsUnmasked = tlmAlloc.array<double>(_totalBound);
 
-	for (unsigned int param = 0; param < vecSensY.size(); ++param)
+	for (std::size_t param = 0; param < vecSensY.size(); ++param)
 	{
 		double* const sensY = vecSensY[param];
 		double* const sensYdot = vecSensYdot[param];

@@ -1,9 +1,9 @@
 // =============================================================================
 //  CADET
-//  
+//
 //  Copyright © 2008-2021: The CADET Authors
 //            Please see the AUTHORS and CONTRIBUTORS file.
-//  
+//
 //  All rights reserved. This program and the accompanying materials
 //  are made available under the terms of the GNU Public License v3.0 (or, at
 //  your option, any later version) which accompanies this distribution, and
@@ -12,7 +12,6 @@
 
 #include <json.hpp>
 
-#define CADET_JSONPARAMETERPROVIDER_NOFORWARD
 #include "common/JsonParameterProvider.hpp"
 
 using json = nlohmann::json;
@@ -109,7 +108,7 @@ json createColumnWithSMAJson(const std::string& uoType)
 	"INIT_C": [50.0, 0.0, 0.0, 0.0],
 	"INIT_Q": [1.2e3, 0.0, 0.0, 0.0],
 	"ADSORPTION_MODEL": "STERIC_MASS_ACTION",
-	"adsorption": 
+	"adsorption":
 	{
 		"IS_KINETIC": 1,
 		"SMA_LAMBDA": 1.2e3,
@@ -306,7 +305,7 @@ json createLWEJson(const std::string& uoType)
 					// Connection list is 1x7 since we have 1 connection between
 					// the two unit operations (and we need to have 7 columns)
 					sw["CONNECTIONS"] = {1.0, 0.0, -1.0, -1.0, -1.0, -1.0, 1.0};
-					// Connections: From unit operation 1 port -1 (i.e., all ports) 
+					// Connections: From unit operation 1 port -1 (i.e., all ports)
 					//              to unit operation 0 port -1 (i.e., all ports),
 					//              connect component -1 (i.e., all components)
 					//              to component -1 (i.e., all components) with
@@ -336,14 +335,14 @@ json createLWEJson(const std::string& uoType)
 	{
 		json ret;
 		ret["WRITE_SOLUTION_TIMES"] = true;
-	
+
 		json grm;
 		grm["WRITE_SOLUTION_BULK"] = false;
 		grm["WRITE_SOLUTION_PARTICLE"] = false;
 		grm["WRITE_SOLUTION_FLUX"] = false;
 		grm["WRITE_SOLUTION_INLET"] = true;
 		grm["WRITE_SOLUTION_OUTLET"] = true;
-		
+
 		ret["unit_000"] = grm;
 		config["return"] = ret;
 	}
@@ -566,7 +565,7 @@ cadet::JsonParameterProvider createPulseInjectionColumn(const std::string& uoTyp
 					// Connection list is 1x7 since we have 1 connection between
 					// the two unit operations (and we need to have 7 columns)
 					sw["CONNECTIONS"] = {1.0, 0.0, -1.0, -1.0, -1.0, -1.0, 1.0};
-					// Connections: From unit operation 1 port -1 (i.e., all ports) 
+					// Connections: From unit operation 1 port -1 (i.e., all ports)
 					//              to unit operation 0 port -1 (i.e., all ports),
 					//              connect component -1 (i.e., all components)
 					//              to component -1 (i.e., all components) with
@@ -596,14 +595,14 @@ cadet::JsonParameterProvider createPulseInjectionColumn(const std::string& uoTyp
 	{
 		json ret;
 		ret["WRITE_SOLUTION_TIMES"] = true;
-	
+
 		json grm;
 		grm["WRITE_SOLUTION_BULK"] = false;
 		grm["WRITE_SOLUTION_PARTICLE"] = false;
 		grm["WRITE_SOLUTION_FLUX"] = false;
 		grm["WRITE_SOLUTION_INLET"] = true;
 		grm["WRITE_SOLUTION_OUTLET"] = true;
-		
+
 		ret["unit_000"] = grm;
 		config["return"] = ret;
 	}
@@ -813,7 +812,7 @@ cadet::JsonParameterProvider createLinearBenchmark(bool dynamicBinding, bool non
 					// Connection list is 1x7 since we have 1 connection between
 					// the two unit operations (and we need to have 7 columns)
 					sw["CONNECTIONS"] = {1.0, 0.0, -1.0, -1.0, -1.0, -1.0, 1.0};
-					// Connections: From unit operation 1 port -1 (i.e., all ports) 
+					// Connections: From unit operation 1 port -1 (i.e., all ports)
 					//              to unit operation 0 port -1 (i.e., all ports),
 					//              connect component -1 (i.e., all components)
 					//              to component -1 (i.e., all components) with
@@ -843,14 +842,14 @@ cadet::JsonParameterProvider createLinearBenchmark(bool dynamicBinding, bool non
 	{
 		json ret;
 		ret["WRITE_SOLUTION_TIMES"] = true;
-	
+
 		json grm;
 		grm["WRITE_SOLUTION_BULK"] = false;
 		grm["WRITE_SOLUTION_PARTICLE"] = false;
 		grm["WRITE_SOLUTION_FLUX"] = false;
 		grm["WRITE_SOLUTION_INLET"] = true;
 		grm["WRITE_SOLUTION_OUTLET"] = true;
-		
+
 		ret["unit_000"] = grm;
 		config["return"] = ret;
 	}
@@ -973,7 +972,7 @@ cadet::JsonParameterProvider createCSTRBenchmark(unsigned int nSec, double endTi
 
 			model["unit_001"] = inlet;
 		}
-		
+
 		// Outlet - unit 002
 		{
 			json outlet;
@@ -1000,7 +999,7 @@ cadet::JsonParameterProvider createCSTRBenchmark(unsigned int nSec, double endTi
 				// the three unit operations (and we need to have 7 columns)
 				sw["CONNECTIONS"] = {1.0, 0.0, -1.0, -1.0, -1.0, -1.0, 1.0,
 				                     0.0, 2.0, -1.0, -1.0, -1.0, -1.0, 1.0};
-				// Connections: From unit operation 1 port -1 (i.e., all ports) 
+				// Connections: From unit operation 1 port -1 (i.e., all ports)
 				//              to unit operation 0 port -1 (i.e., all ports),
 				//              connect component -1 (i.e., all components)
 				//              to component -1 (i.e., all components) with
@@ -1036,7 +1035,7 @@ cadet::JsonParameterProvider createCSTRBenchmark(unsigned int nSec, double endTi
 	{
 		json ret;
 		ret["WRITE_SOLUTION_TIMES"] = true;
-	
+
 		json cstr;
 		cstr["WRITE_SOLUTION_BULK"] = false;
 		cstr["WRITE_SOLUTION_SOLID"] = true;
@@ -1044,7 +1043,7 @@ cadet::JsonParameterProvider createCSTRBenchmark(unsigned int nSec, double endTi
 		cstr["WRITE_SOLUTION_INLET"] = true;
 		cstr["WRITE_SOLUTION_OUTLET"] = true;
 		cstr["WRITE_SOLUTION_VOLUME"] = true;
-		
+
 		ret["unit_000"] = cstr;
 		config["return"] = ret;
 	}

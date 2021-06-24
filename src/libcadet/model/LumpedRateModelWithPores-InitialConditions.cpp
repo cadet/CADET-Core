@@ -29,7 +29,7 @@
 
 #include "ParallelSupport.hpp"
 #ifdef CADET_PARALLELIZE
-	#include <tbb/tbb.h>
+	#include <tbb/parallel_for.h>
 #endif
 
 namespace cadet
@@ -169,7 +169,7 @@ void LumpedRateModelWithPores::applyInitialCondition(const SimulationState& simS
 		for (unsigned int col = 0; col < _disc.nCol; ++col)
 		{
 			const unsigned int offset = idxr.offsetCp(ParticleTypeIndex{type}, ParticleIndex{col});
-			
+
 			// Initialize c_p
 			for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
 				simState.vecStateY[offset + comp] = static_cast<double>(_initCp[comp + _disc.nComp * type]);
@@ -200,7 +200,7 @@ void LumpedRateModelWithPores::readInitialCondition(IParameterProvider& paramPro
 	}
 
 	const std::vector<double> initC = paramProvider.getDoubleArray("INIT_C");
-	
+
 	if (initC.size() < _disc.nComp)
 		throw InvalidParameterException("INIT_C does not contain enough values for all components");
 
@@ -252,7 +252,7 @@ void LumpedRateModelWithPores::readInitialCondition(IParameterProvider& paramPro
  * @details Given the DAE \f[ F(t, y, \dot{y}) = 0, \f] the initial values \f$ y_0 \f$ and \f$ \dot{y}_0 \f$ have
  *          to be consistent. This functions updates the initial state \f$ y_0 \f$ and overwrites the time
  *          derivative \f$ \dot{y}_0 \f$ such that they are consistent.
- *          
+ *
  *          The process works in two steps:
  *          <ol>
  *              <li>Solve all algebraic equations in the model (e.g., quasi-stationary isotherms, reaction equilibria).
@@ -276,20 +276,20 @@ void LumpedRateModelWithPores::readInitialCondition(IParameterProvider& paramPro
  *                 \end{align} @f]
  *                 where @f$ \dot{J}_i @f$ denotes the Jacobian with respect to @f$ \dot{y}@f$. Note that the
  *                 @f$ J_{i,f} @f$ matrices in the right column are missing.
- *                 
- *     The right hand side of the linear system is given by the negative residual without contribution 
- *     of @f$ \dot{y} @f$ for differential equations and 0 for algebraic equations 
+ *
+ *     The right hand side of the linear system is given by the negative residual without contribution
+ *     of @f$ \dot{y} @f$ for differential equations and 0 for algebraic equations
  *     (@f$ -\frac{\partial F}{\partial t}@f$, to be more precise).
- *     
+ *
  *     The linear system is solved by backsubstitution. First, the diagonal blocks are solved in parallel.
  *     Then, the equations for the fluxes @f$ j_f @f$ are solved by substituting in the solution of the
  *     diagonal blocks.</li>
  *          </ol>
  *     This function performs step 1. See consistentInitialTimeDerivative() for step 2.
- *     
+ *
  * 	   This function is to be used with consistentInitialTimeDerivative(). Do not mix normal and lean
  *     consistent initialization!
- *     
+ *
  * @param [in] simTime Simulation time information (time point, section index, pre-factor of time derivatives)
  * @param [in,out] vecStateY State vector with initial values that are to be updated for consistency
  * @param [in,out] adJac Jacobian information for AD (AD vectors for residual and state, direction offset)
@@ -339,7 +339,7 @@ void LumpedRateModelWithPores::consistentInitialState(const SimulationTime& simT
 		//Problem capturing variables here
 #ifdef CADET_PARALLELIZE
 		BENCH_SCOPE(_timerConsistentInitPar);
-		tbb::parallel_for(size_t(0), size_t(_disc.nCol), [&](size_t pblk)
+		tbb::parallel_for(std::size_t(0), static_cast<std::size_t>(_disc.nCol), [&](std::size_t pblk)
 #else
 		for (unsigned int pblk = 0; pblk < _disc.nCol; ++pblk)
 #endif
@@ -601,7 +601,7 @@ void LumpedRateModelWithPores::consistentInitialState(const SimulationTime& simT
  * @details Given the DAE \f[ F(t, y, \dot{y}) = 0, \f] the initial values \f$ y_0 \f$ and \f$ \dot{y}_0 \f$ have
  *          to be consistent. This functions updates the initial state \f$ y_0 \f$ and overwrites the time
  *          derivative \f$ \dot{y}_0 \f$ such that they are consistent.
- *          
+ *
  *          The process works in two steps:
  *          <ol>
  *              <li>Solve all algebraic equations in the model (e.g., quasi-stationary isotherms, reaction equilibria).
@@ -625,20 +625,20 @@ void LumpedRateModelWithPores::consistentInitialState(const SimulationTime& simT
  *                 \end{align} @f]
  *                 where @f$ \dot{J}_i @f$ denotes the Jacobian with respect to @f$ \dot{y}@f$. Note that the
  *                 @f$ J_{i,f} @f$ matrices in the right column are missing.
- *                 
- *     The right hand side of the linear system is given by the negative residual without contribution 
- *     of @f$ \dot{y} @f$ for differential equations and 0 for algebraic equations 
+ *
+ *     The right hand side of the linear system is given by the negative residual without contribution
+ *     of @f$ \dot{y} @f$ for differential equations and 0 for algebraic equations
  *     (@f$ -\frac{\partial F}{\partial t}@f$, to be more precise).
- *     
+ *
  *     The linear system is solved by backsubstitution. First, the diagonal blocks are solved in parallel.
  *     Then, the equations for the fluxes @f$ j_f @f$ are solved by substituting in the solution of the
  *     diagonal blocks.</li>
  *          </ol>
  *     This function performs step 2. See consistentInitialState() for step 1.
- *     
+ *
  * 	   This function is to be used with consistentInitialState(). Do not mix normal and lean
  *     consistent initialization!
- *     
+ *
  * @param [in] simTime Simulation time information (time point, section index, pre-factor of time derivatives)
  * @param [in] vecStateY Consistently initialized state vector
  * @param [in,out] vecStateYdot On entry, residual without taking time derivatives into account. On exit, consistent state time derivatives.
@@ -663,7 +663,7 @@ void LumpedRateModelWithPores::consistentInitialTimeDerivative(const SimulationT
 	// Process the particle blocks
 #ifdef CADET_PARALLELIZE
 	BENCH_START(_timerConsistentInitPar);
-	tbb::parallel_for(size_t(0), size_t(_disc.nParType), [&](size_t type)
+	tbb::parallel_for(std::size_t(0), static_cast<std::size_t>(_disc.nParType), [&](std::size_t type)
 #else
 	for (unsigned int type = 0; type < _disc.nParType; ++type)
 #endif
@@ -752,11 +752,11 @@ void LumpedRateModelWithPores::consistentInitialTimeDerivative(const SimulationT
  * @details Given the DAE \f[ F(t, y, \dot{y}) = 0, \f] the initial values \f$ y_0 \f$ and \f$ \dot{y}_0 \f$ have
  *          to be consistent. This functions updates the initial state \f$ y_0 \f$ and overwrites the time
  *          derivative \f$ \dot{y}_0 \f$ such that they are consistent.
- *          
+ *
  *          This function performs a relaxed consistent initialization: Only parts of the vectors are updated
  *          and, hence, consistency is not guaranteed. Since there is less work to do, it is probably faster than
  *          the standard process represented by consistentInitialState().
- *          
+ *
  *          The process works in two steps:
  *          <ol>
  *              <li>Keep state and time derivative vectors as they are (i.e., do not solve algebraic equations).
@@ -771,19 +771,19 @@ void LumpedRateModelWithPores::consistentInitialTimeDerivative(const SimulationT
  *                  \end{array}\right],
  *                 \end{align} @f]
  *                 where @f$ \dot{J}_0 @f$ denotes the bulk block Jacobian with respect to @f$ \dot{y}@f$.
- *                 
- *     The right hand side of the linear system is given by the negative residual without contribution 
+ *
+ *     The right hand side of the linear system is given by the negative residual without contribution
  *     of @f$ \dot{y} @f$ for the bulk block and 0 for the flux block.
- *     
+ *
  *     The linear system is solved by backsubstitution. First, the bulk block is solved.
  *     Then, the equations for the fluxes @f$ j_f @f$ are solved by substituting in the solution of the
  *     bulk block and the unchanged particle block time derivative vectors.</li>
  *          </ol>
  *     This function performs step 1. See leanConsistentInitialTimeDerivative() for step 2.
- *     
+ *
  * 	   This function is to be used with leanConsistentInitialTimeDerivative(). Do not mix normal and lean
  *     consistent initialization!
- *     
+ *
  * @param [in] simTime Simulation time information (time point, section index, pre-factor of time derivatives)
  * @param [in,out] vecStateY State vector with initial values that are to be updated for consistency
  * @param [in,out] adJac Jacobian information for AD (AD vectors for residual and state, direction offset)
@@ -809,11 +809,11 @@ void LumpedRateModelWithPores::leanConsistentInitialState(const SimulationTime& 
  * @details Given the DAE \f[ F(t, y, \dot{y}) = 0, \f] the initial values \f$ y_0 \f$ and \f$ \dot{y}_0 \f$ have
  *          to be consistent. This functions updates the initial state \f$ y_0 \f$ and overwrites the time
  *          derivative \f$ \dot{y}_0 \f$ such that they are consistent.
- *          
+ *
  *          This function performs a relaxed consistent initialization: Only parts of the vectors are updated
  *          and, hence, consistency is not guaranteed. Since there is less work to do, it is probably faster than
  *          the standard process represented by consistentInitialTimeDerivative().
- *          
+ *
  *          The process works in two steps:
  *          <ol>
  *              <li>Keep state and time derivative vectors as they are (i.e., do not solve algebraic equations).
@@ -828,19 +828,19 @@ void LumpedRateModelWithPores::leanConsistentInitialState(const SimulationTime& 
  *                  \end{array}\right],
  *                 \end{align} @f]
  *                 where @f$ \dot{J}_0 @f$ denotes the bulk block Jacobian with respect to @f$ \dot{y}@f$.
- *                 
- *     The right hand side of the linear system is given by the negative residual without contribution 
+ *
+ *     The right hand side of the linear system is given by the negative residual without contribution
  *     of @f$ \dot{y} @f$ for the bulk block and 0 for the flux block.
- *     
+ *
  *     The linear system is solved by backsubstitution. First, the bulk block is solved.
  *     Then, the equations for the fluxes @f$ j_f @f$ are solved by substituting in the solution of the
  *     bulk block and the unchanged particle block time derivative vectors.</li>
  *          </ol>
  *     This function performs step 2. See leanConsistentInitialState() for step 1.
- *     
+ *
  * 	   This function is to be used with leanConsistentInitialState(). Do not mix normal and lean
  *     consistent initialization!
- *     
+ *
  * @param [in] t Current time point
  * @param [in] vecStateY (Lean) consistently initialized state vector
  * @param [in,out] vecStateYdot On entry, inconsistent state time derivatives. On exit, partially consistent state time derivatives.
@@ -882,7 +882,7 @@ void LumpedRateModelWithPores::leanConsistentInitialTimeDerivative(double t, dou
 void LumpedRateModelWithPores::initializeSensitivityStates(const std::vector<double*>& vecSensY) const
 {
 	Indexer idxr(_disc);
-	for (unsigned int param = 0; param < vecSensY.size(); ++param)
+	for (std::size_t param = 0; param < vecSensY.size(); ++param)
 	{
 		double* const stateYbulk = vecSensY[param] + idxr.offsetC();
 
@@ -902,7 +902,7 @@ void LumpedRateModelWithPores::initializeSensitivityStates(const std::vector<dou
 				const unsigned int offset = idxr.offsetCp(ParticleTypeIndex{type}, ParticleIndex{col});
 				double* const stateYparticle = vecSensY[param] + offset;
 				double* const stateYparticleSolid = stateYparticle + idxr.strideParLiquid();
-				
+
 				// Initialize c_p
 				for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
 					stateYparticle[comp] = _initCp[comp + _disc.nComp * type].getADValue(param);
@@ -923,7 +923,7 @@ void LumpedRateModelWithPores::initializeSensitivityStates(const std::vector<dou
  *          The initial values of this linear DAE, @f$ s_0 = \frac{\partial y_0}{\partial p} @f$ and @f$ \dot{s}_0 = \frac{\partial \dot{y}_0}{\partial p} @f$
  *          have to be consistent with the sensitivity DAE. This functions updates the initial sensitivity\f$ s_0 \f$ and overwrites the time
  *          derivative \f$ \dot{s}_0 \f$ such that they are consistent.
- *          
+ *
  *          The process follows closely the one of consistentInitialConditions() and, in fact, is a linearized version of it.
  *          This is necessary because the initial conditions of the sensitivity system \f$ s_0 \f$ and \f$ \dot{s}_0 \f$ are
  *          related to the initial conditions \f$ y_0 \f$ and \f$ \dot{y}_0 \f$ of the original DAE by differentiating them
@@ -951,11 +951,11 @@ void LumpedRateModelWithPores::initializeSensitivityStates(const std::vector<dou
  *                 \end{align} @f]
  *                 where @f$ \dot{J}_i @f$ denotes the Jacobian with respect to @f$ \dot{y}@f$. Note that the
  *                 @f$ J_{i,f} @f$ matrices in the right column are missing.
- *                
+ *
  *     Let @f$ \mathcal{I}_d @f$ denote the index set of differential equations.
  *     The right hand side of the linear system is given by @f[ -\frac{\partial F}{\partial y}(t, y, \dot{y}) s - \frac{\partial F}{\partial p}(t, y, \dot{y}), @f]
  *     which is 0 for algebraic equations (@f$ -\frac{\partial^2 F}{\partial t \partial p}@f$, to be more precise).
- *     
+ *
  *     The linear system is solved by backsubstitution. First, the diagonal blocks are solved in parallel.
  *     Then, the equations for the fluxes @f$ j_f @f$ are solved by substituting in the solution of the
  *     diagonal blocks.</li>
@@ -975,7 +975,7 @@ void LumpedRateModelWithPores::consistentInitialSensitivity(const SimulationTime
 
 	Indexer idxr(_disc);
 
-	for (unsigned int param = 0; param < vecSensY.size(); ++param)
+	for (std::size_t param = 0; param < vecSensY.size(); ++param)
 	{
 		double* const sensY = vecSensY[param];
 		double* const sensYdot = vecSensYdot[param];
@@ -998,7 +998,7 @@ void LumpedRateModelWithPores::consistentInitialSensitivity(const SimulationTime
 
 #ifdef CADET_PARALLELIZE
 			BENCH_SCOPE(_timerConsistentInitPar);
-			tbb::parallel_for(size_t(0), size_t(_disc.nCol), [&](size_t pblk)
+			tbb::parallel_for(std::size_t(0), static_cast<std::size_t>(_disc.nCol), [&](std::size_t pblk)
 #else
 			for (unsigned int pblk = 0; pblk < _disc.nCol; ++pblk)
 #endif
@@ -1069,7 +1069,7 @@ void LumpedRateModelWithPores::consistentInitialSensitivity(const SimulationTime
 		// Process the particle blocks
 #ifdef CADET_PARALLELIZE
 		BENCH_START(_timerConsistentInitPar);
-		tbb::parallel_for(size_t(0), size_t(_disc.nParType), [&](size_t type)
+		tbb::parallel_for(std::size_t(0), static_cast<std::size_t>(_disc.nParType), [&](std::size_t type)
 #else
 		for (unsigned int type = 0; type < _disc.nParType; ++type)
 #endif
@@ -1151,7 +1151,7 @@ void LumpedRateModelWithPores::consistentInitialSensitivity(const SimulationTime
  *          The initial values of this linear DAE, @f$ s_0 = \frac{\partial y_0}{\partial p} @f$ and @f$ \dot{s}_0 = \frac{\partial \dot{y}_0}{\partial p} @f$
  *          have to be consistent with the sensitivity DAE. This functions updates the initial sensitivity\f$ s_0 \f$ and overwrites the time
  *          derivative \f$ \dot{s}_0 \f$ such that they are consistent.
- *          
+ *
  *          The process follows closely the one of leanConsistentInitialConditions() and, in fact, is a linearized version of it.
  *          This is necessary because the initial conditions of the sensitivity system \f$ s_0 \f$ and \f$ \dot{s}_0 \f$ are
  *          related to the initial conditions \f$ y_0 \f$ and \f$ \dot{y}_0 \f$ of the original DAE by differentiating them
@@ -1172,11 +1172,11 @@ void LumpedRateModelWithPores::consistentInitialSensitivity(const SimulationTime
  *                  \end{array}\right],
  *                 \end{align} @f]
  *                 where @f$ \dot{J}_0 @f$ denotes the bulk block Jacobian with respect to @f$ \dot{y}@f$.
- *                
+ *
  *     Let @f$ \mathcal{I}_d @f$ denote the index set of differential equations.
  *     The right hand side of the linear system is given by @f[ -\frac{\partial F}{\partial y}(t, y, \dot{y}) s - \frac{\partial F}{\partial p}(t, y, \dot{y}), @f]
  *     which is 0 for algebraic equations (@f$ -\frac{\partial^2 F}{\partial t \partial p}@f$, to be more precise).
- *     
+ *
  *     The linear system is solved by backsubstitution. First, the bulk block is solved.
  *     Then, the equations for the fluxes @f$ j_f @f$ are solved by substituting in the solution of the
  *     bulk block and the unchanged particle block time derivative vectors.</li>
@@ -1196,14 +1196,14 @@ void LumpedRateModelWithPores::leanConsistentInitialSensitivity(const Simulation
 
 	Indexer idxr(_disc);
 
-	for (unsigned int param = 0; param < vecSensY.size(); ++param)
+	for (std::size_t param = 0; param < vecSensY.size(); ++param)
 	{
 		double* const sensY = vecSensY[param];
 		double* const sensYdot = vecSensYdot[param];
 
 		// Copy parameter derivative from AD to tempState and negate it
 		// We need to use _tempState in order to keep sensYdot unchanged at this point
-		for (unsigned int i = 0; i < idxr.offsetCp(); ++i)
+		for (int i = 0; i < idxr.offsetCp(); ++i)
 			_tempState[i] = -adRes[i].getADValue(param);
 
 		std::fill(_tempState + idxr.offsetCp(), _tempState + idxr.offsetJf(), 0.0);
@@ -1245,7 +1245,7 @@ void LumpedRateModelWithPores::leanConsistentInitialSensitivity(const Simulation
  */
 void LumpedRateModelWithPores::solveForFluxes(double* const vecState, const Indexer& idxr)
 {
-	// We have j_f - k_f * (c - c_p) == 0 
+	// We have j_f - k_f * (c - c_p) == 0
 	// Thus, jacFC contains -k_f and jacFP +k_f.
 	// We just need to subtract both -k_f * c and k_f * c_p to get j_f == k_f * (c - c_p)
 

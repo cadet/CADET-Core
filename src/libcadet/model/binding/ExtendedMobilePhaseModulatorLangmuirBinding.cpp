@@ -109,12 +109,12 @@ public:
 	{
 		const bool res = BindingModelBase::configureModelDiscretization(paramProvider, nComp, nBound, boundOffset);
 
-		_mode = std::move(paramProvider.getIntArray("EMPM_COMP_MODE"));
+		_mode = paramProvider.getIntArray("EMPM_COMP_MODE");
 		if (_mode.size() < nComp)
 			throw InvalidParameterException("Not enough elements in EMPM_COMP_MODE (expected " + std::to_string(nComp) + ", got " + std::to_string(_mode.size()) + ")");
 
 		_idxModifier = -1;
-		for (int i = 0; i < _mode.size(); ++i)
+		for (int i = 0; i < static_cast<int>(_mode.size()); ++i)
 		{
 			if (_mode[i] == static_cast<int>(CompMode::Modifier))
 			{

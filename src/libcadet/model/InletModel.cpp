@@ -249,12 +249,12 @@ template<> active const* InletModel::moveInletValues(double const* const rawValu
 	return _inletConcentrations;
 }
 
-template<> double const* const InletModel::getData() const
+template<> double const* InletModel::getData() const
 {
 	return _inletConcentrationsRaw;
 }
 
-template<> active const* const InletModel::getData() const
+template<> active const* InletModel::getData() const
 {
 	return _inletConcentrations;
 }
@@ -347,7 +347,7 @@ int InletModel::residualSensFwdCombine(const SimulationTime& simTime, const Cons
 	const std::vector<const double*>& yS, const std::vector<const double*>& ySdot, const std::vector<double*>& resS, active const* adRes, 
 	double* const tmp1, double* const tmp2, double* const tmp3)
 {
-	for (unsigned int param = 0; param < yS.size(); ++param)
+	for (std::size_t param = 0; param < yS.size(); ++param)
 	{
 		double* const ptrResS = resS[param];
 		double const* const ptrYs = yS[param];
@@ -373,7 +373,7 @@ void InletModel::initializeSensitivityStates(const std::vector<double*>& vecSens
 void InletModel::consistentInitialSensitivity(const SimulationTime& simTime, const ConstSimulationState& simState,
 	std::vector<double*>& vecSensY, std::vector<double*>& vecSensYdot, active const* const adRes, util::ThreadLocalStorage& threadLocalMem)
 {
-	for (unsigned int param = 0; param < vecSensY.size(); ++param)
+	for (std::size_t param = 0; param < vecSensY.size(); ++param)
 	{
 		// Copy parameter derivative from AD to tempState and negate it
 		for (unsigned int i = 0; i < numDofs(); ++i)

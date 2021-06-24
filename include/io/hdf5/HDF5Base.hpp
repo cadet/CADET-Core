@@ -79,12 +79,12 @@ public:
 	inline bool isGroup(const char* elementName) { return isGroup(std::string(elementName)); }
 
 	/// \brief Returns the dimensions of the tensor identified by name
-	inline std::vector<size_t> tensorDimensions(const std::string& elementName);
-	inline std::vector<size_t> tensorDimensions(const char* elementName) { return tensorDimensions(std::string(elementName)); }
+	inline std::vector<std::size_t> tensorDimensions(const std::string& elementName);
+	inline std::vector<std::size_t> tensorDimensions(const char* elementName) { return tensorDimensions(std::string(elementName)); }
 
 	/// \brief Returns the number of elements in the array identified by name
-	inline size_t arraySize(const std::string& elementName);
-	inline size_t arraySize(const char* elementName) { return arraySize(std::string(elementName)); }
+	inline std::size_t arraySize(const std::string& elementName);
+	inline std::size_t arraySize(const char* elementName) { return arraySize(std::string(elementName)); }
 
 	/// \brief Returns the number of items in the group
 	inline int numItems();
@@ -297,7 +297,7 @@ bool HDF5Base::isGroup(const std::string& elementName)
 }
 
 
-std::vector<size_t> HDF5Base::tensorDimensions(const std::string& elementName)
+std::vector<std::size_t> HDF5Base::tensorDimensions(const std::string& elementName)
 {
 	// Get the dataset we want to read from
 	openGroup();
@@ -311,7 +311,7 @@ std::vector<size_t> HDF5Base::tensorDimensions(const std::string& elementName)
 	const hid_t dataSpace = H5Dget_space(dataSet);
 	const int rank = H5Sget_simple_extent_ndims(dataSpace);
 
-	std::vector<size_t> dims(rank);
+	std::vector<std::size_t> dims(rank);
 	if (rank == 0)
 		return dims;
 
@@ -328,7 +328,7 @@ std::vector<size_t> HDF5Base::tensorDimensions(const std::string& elementName)
 }
 
 
-size_t HDF5Base::arraySize(const std::string& elementName)
+std::size_t HDF5Base::arraySize(const std::string& elementName)
 {
 	// Get the dataset we want to read from
 	openGroup();
@@ -363,7 +363,7 @@ std::string HDF5Base::itemName(int n)
 {
 	openGroup();
 	
-	const size_t len = H5Lget_name_by_idx(_groupsOpened.top(), ".", H5_INDEX_NAME, H5_ITER_NATIVE, n, nullptr, 0, H5P_DEFAULT) + 1;
+	const std::size_t len = H5Lget_name_by_idx(_groupsOpened.top(), ".", H5_INDEX_NAME, H5_ITER_NATIVE, n, nullptr, 0, H5P_DEFAULT) + 1;
 	char* const data = new char[len];
 	data[len-1] = 0;
 	
@@ -388,16 +388,16 @@ std::vector<std::string> HDF5Base::itemNames()
 	names.reserve(info.nlinks);
 
 	// Get required buffer size
-	size_t maxBufSize = 0;
-	for (size_t i = 0; i < info.nlinks; ++i)
+	std::size_t maxBufSize = 0;
+	for (std::size_t i = 0; i < info.nlinks; ++i)
 	{
-		const size_t len = H5Lget_name_by_idx(_groupsOpened.top(), ".", H5_INDEX_NAME, H5_ITER_NATIVE, i, nullptr, 0, H5P_DEFAULT);
+		const std::size_t len = H5Lget_name_by_idx(_groupsOpened.top(), ".", H5_INDEX_NAME, H5_ITER_NATIVE, i, nullptr, 0, H5P_DEFAULT);
 		maxBufSize = std::max(maxBufSize, len + 1);
 	}
 
 	// Read names
 	char* const buffer = new char[maxBufSize];
-	for (size_t i = 0; i < info.nlinks; ++i)
+	for (std::size_t i = 0; i < info.nlinks; ++i)
 	{
 		std::fill(buffer, buffer + maxBufSize, 0);
 
@@ -416,8 +416,8 @@ void HDF5Base::setGroup(const std::string& groupName)
 {
 	_groupNames.clear();
 
-	size_t start   = 0;
-	size_t end     = 0;
+	std::size_t start   = 0;
+	std::size_t end     = 0;
 	std::string delimiter("/");
 
 	// Quick return when called with empty group name

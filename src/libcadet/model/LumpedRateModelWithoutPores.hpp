@@ -240,15 +240,15 @@ protected:
 		Indexer(const Discretization& disc) : _disc(disc) { }
 
 		// Strides
-		inline const int strideColCell() const CADET_NOEXCEPT { return static_cast<int>(_disc.nComp + _disc.strideBound); }
-		inline const int strideColComp() const CADET_NOEXCEPT { return 1; }
+		inline int strideColCell() const CADET_NOEXCEPT { return static_cast<int>(_disc.nComp + _disc.strideBound); }
+		inline int strideColComp() const CADET_NOEXCEPT { return 1; }
 
-		inline const int strideColLiquid() const CADET_NOEXCEPT { return static_cast<int>(_disc.nComp); }
-		inline const int strideColBound() const CADET_NOEXCEPT { return static_cast<int>(_disc.strideBound); }
+		inline int strideColLiquid() const CADET_NOEXCEPT { return static_cast<int>(_disc.nComp); }
+		inline int strideColBound() const CADET_NOEXCEPT { return static_cast<int>(_disc.strideBound); }
 
 		// Offsets
-		inline const int offsetC() const CADET_NOEXCEPT { return _disc.nComp; }
-		inline const int offsetBoundComp(unsigned int comp) const CADET_NOEXCEPT { return _disc.boundOffset[comp]; }
+		inline int offsetC() const CADET_NOEXCEPT { return _disc.nComp; }
+		inline int offsetBoundComp(unsigned int comp) const CADET_NOEXCEPT { return _disc.boundOffset[comp]; }
 
 		// Return pointer to first element of state variable in state vector
 		template <typename real_t> inline real_t* c(real_t* const data) const { return data + offsetC(); }
@@ -299,12 +299,15 @@ protected:
 		virtual double const* inlet(unsigned int port, unsigned int& stride) const
 		{
 			stride = _idx.strideColComp();
-			return &_idx.c(_data, 0, 0);
+			return _data;
 		}
 		virtual double const* outlet(unsigned int port, unsigned int& stride) const
 		{
 			stride = _idx.strideColComp();
-			return &_idx.c(_data, _disc.nCol - 1, 0);
+			if (_model._convDispOp.currentVelocity() >= 0)
+				return &_idx.c(_data, _disc.nCol - 1, 0);
+			else
+				return &_idx.c(_data, 0, 0);
 		}
 
 		virtual StateOrdering const* concentrationOrdering(unsigned int& len) const

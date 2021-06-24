@@ -41,7 +41,7 @@ public:
 
 	/// \brief Convenience wrapper for reading scalars
 	template <typename T>
-	T scalar(const std::string& dataSetName, size_t position = 0);
+	T scalar(const std::string& dataSetName, std::size_t position = 0);
 
 private:
 	template <typename T>
@@ -92,7 +92,7 @@ std::vector<std::string> HDF5Reader::vector<std::string>(const std::string& data
 	// Determine the datatype and allocate buffer
 	const hid_t dataType = H5Dget_type(dataSet);
 	const hid_t dataSpace = H5Dget_space(dataSet);
-	const size_t bufSize = H5Sget_simple_extent_npoints(dataSpace);
+	const std::size_t bufSize = H5Sget_simple_extent_npoints(dataSpace);
 
 	std::vector<std::string> stringVector;
 
@@ -115,7 +115,7 @@ std::vector<std::string> HDF5Reader::vector<std::string>(const std::string& data
 		H5Dread(dataSet, memType, H5S_ALL, H5S_ALL, H5P_DEFAULT, buffer);
 
 		// Copy read c-strings to a vector of std::strings
-		for (size_t i = 0; i < bufSize; ++i)
+		for (std::size_t i = 0; i < bufSize; ++i)
 			stringVector.push_back(std::string(buffer[i]));
 
 		// Free memory alloc'd by the variable length read mechanism
@@ -125,7 +125,7 @@ std::vector<std::string> HDF5Reader::vector<std::string>(const std::string& data
 	}
 	else
 	{
-		const size_t strLen = H5Tget_size(dataType) + 1; // Add 1 for null terminator (maybe unnecessary)
+		const std::size_t strLen = H5Tget_size(dataType) + 1; // Add 1 for null terminator (maybe unnecessary)
 		char* buffer = new char[strLen * bufSize];
 
 		const hid_t memType = H5Tcopy(H5T_C_S1);
@@ -133,7 +133,7 @@ std::vector<std::string> HDF5Reader::vector<std::string>(const std::string& data
 
 		// Read data from file, write it to buffer and copy the items to vector
 		H5Dread(dataSet, memType, H5S_ALL, H5S_ALL, H5P_DEFAULT, buffer);
-		for (size_t i = 0; i < bufSize; ++i)
+		for (std::size_t i = 0; i < bufSize; ++i)
 			stringVector.push_back(std::string(buffer + i * strLen));
 
 		delete[] buffer;
@@ -158,7 +158,7 @@ std::vector<T> HDF5Reader::vector(const std::string& dataSetName)
 
 
 template <typename T>
-T HDF5Reader::scalar(const std::string& dataSetName, size_t position)
+T HDF5Reader::scalar(const std::string& dataSetName, std::size_t position)
 {
 	return vector<T>(dataSetName).at(position);
 }
@@ -178,7 +178,7 @@ std::vector<T> HDF5Reader::read(const std::string& dataSetName, hid_t memType)
 	// Determine the datatype and allocate buffer
 	const hid_t dataType = H5Dget_type(dataSet);
 	const hid_t dataSpace = H5Dget_space(dataSet);
-	const size_t bufSize = H5Sget_simple_extent_npoints(dataSpace);
+	const std::size_t bufSize = H5Sget_simple_extent_npoints(dataSpace);
 
 	if (bufSize == 0)
 	{

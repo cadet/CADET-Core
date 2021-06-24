@@ -95,7 +95,7 @@ inline void parseAndWriteSensitivitiesFromCmdLine(Writer_t& writer, const std::v
 
 	unsigned int correctParams = 0;
 	std::ostringstream oss;
-	for (unsigned int i = 0; i < sensitivities.size(); ++i)
+	for (std::size_t i = 0; i < sensitivities.size(); ++i)
 	{
 		std::vector<std::string> fusedParams;
 		split(sensitivities[i], '+', fusedParams);
@@ -118,7 +118,7 @@ inline void parseAndWriteSensitivitiesFromCmdLine(Writer_t& writer, const std::v
 		paramBoundState.reserve(fusedParams.size());
 		paramFactor.reserve(fusedParams.size());
 
-		for (unsigned int j = 0; j < fusedParams.size(); ++j)
+		for (std::size_t j = 0; j < fusedParams.size(); ++j)
 		{
 			std::vector<std::string> tokens;
 			split(fusedParams[j], '/', tokens);

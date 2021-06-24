@@ -52,7 +52,7 @@ namespace
 		data.reserve(data.size() * (factors.size() + 1));
 		const unsigned int numElements = data.size();
 
-		for (unsigned int i = 0; i < factors.size(); ++i)
+		for (std::size_t i = 0; i < factors.size(); ++i)
 		{
 			for (unsigned int j = 0; j < numElements; ++j)
 				data.push_back(data[j] * factors[i]);

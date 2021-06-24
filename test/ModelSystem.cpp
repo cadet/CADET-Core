@@ -391,7 +391,7 @@ namespace
 		double totalInFlow = 0.0;
 
 		double const* conRow = connections.data();
-		for (unsigned int i = 0; i < connections.size() / 7; ++i, conRow += 7)
+		for (std::size_t i = 0; i < connections.size() / 7; ++i, conRow += 7)
 		{
 			if (static_cast<unsigned int>(conRow[1]) != uoDest)
 				continue;
@@ -406,7 +406,7 @@ namespace
 		// Check connection in Jacobian
 		const unsigned int nDof = sys.numDofs();
 		conRow = connections.data();
-		for (unsigned int i = 0; i < connections.size() / 7; ++i, conRow += 7)
+		for (std::size_t i = 0; i < connections.size() / 7; ++i, conRow += 7)
 		{
 			if (static_cast<unsigned int>(conRow[1]) != uoDest)
 				continue;

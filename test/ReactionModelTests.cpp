@@ -151,7 +151,7 @@ namespace reaction
 		if (_reaction->requiresWorkspace())
 		{
 			unsigned int totalBoundStates = 0;
-			for (int i = 0; i < _nComp; ++i)
+			for (unsigned int i = 0; i < _nComp; ++i)
 				totalBoundStates += _nBound[i];
 
 			return _reaction->workspaceSize(_nComp, totalBoundStates, _boundOffset);

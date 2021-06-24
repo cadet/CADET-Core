@@ -71,7 +71,7 @@
 				if (numThreads < _data.size())
 				{
 					// Remove superfluous buffers at the end
-					for (unsigned int i = 0; i < numThreads - _data.size(); ++i)
+					for (std::size_t i = 0; i < numThreads - _data.size(); ++i)
 						_data.pop_back();
 				}
 				else if (numThreads > _data.size())
@@ -79,7 +79,7 @@
 					// Add some more buffers
 					const unsigned int oldSize = _data.size();
 					_data.resize(numThreads);
-					for (unsigned int i = oldSize; i < _data.size(); ++i)
+					for (std::size_t i = oldSize; i < _data.size(); ++i)
 						_data[i].resize(storageSize);
 				}
 			}

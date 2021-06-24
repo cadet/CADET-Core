@@ -23,7 +23,7 @@
 
 #include "ParallelSupport.hpp"
 #ifdef CADET_PARALLELIZE
-	#include <tbb/tbb.h>
+	#include <tbb/parallel_for.h>
 #endif
 
 #include "model/ModelSystemImpl-Helper.hpp"
@@ -100,12 +100,12 @@ int ModelSystem::dResDpFwdWithJacobian(const SimulationTime& simTime, const Cons
 {
 	BENCH_SCOPE(_timerResidualSens);
 
-	// Evaluate residual for all parameters using AD in vector mode and at the same time update the 
+	// Evaluate residual for all parameters using AD in vector mode and at the same time update the
 	// Jacobian (in one AD run, if analytic Jacobians are disabled)
 #ifdef CADET_PARALLELIZE
-	tbb::parallel_for(size_t(0), _models.size(), [&](size_t i)
+	tbb::parallel_for(std::size_t(0), _models.size(), [&](std::size_t i)
 #else
-	for (unsigned int i = 0; i < _models.size(); ++i)
+	for (std::size_t i = 0; i < _models.size(); ++i)
 #endif
 	{
 		IUnitOperation* const m = _models[i];
@@ -135,7 +135,7 @@ void ModelSystem::applyInitialCondition(const SimulationState& simState) const
 		return;
 	}
 
-	for (unsigned int i = 0; i < _models.size(); ++i)
+	for (std::size_t i = 0; i < _models.size(); ++i)
 	{
 		IUnitOperation const* const m = _models[i];
 		const unsigned int offset = _dofOffset[i];
@@ -154,10 +154,9 @@ void ModelSystem::readInitialCondition(IParameterProvider& paramProvider)
 		_initStateDot = paramProvider.getDoubleArray("INIT_STATE_YDOT");
 
 	std::ostringstream oss;
-	for (unsigned int i = 0; i < _models.size(); ++i)
+	for (std::size_t i = 0; i < _models.size(); ++i)
 	{
 		IUnitOperation* const m = _models[i];
-		const unsigned int offset = _dofOffset[i];
 
 		oss.str("");
 		oss << "unit_" << std::setfill('0') << std::setw(3) << std::setprecision(0) << static_cast<int>(m->unitOperationId());
@@ -175,13 +174,13 @@ void ModelSystem::readInitialCondition(IParameterProvider& paramProvider)
 void ModelSystem::initializeSensitivityStates(const std::vector<double*>& vecSensY) const
 {
 	std::vector<double*> vecSensYlocal(vecSensY.size(), nullptr);
-	for (unsigned int i = 0; i < _models.size(); ++i)
+	for (std::size_t i = 0; i < _models.size(); ++i)
 	{
 		IUnitOperation* const m = _models[i];
 		const unsigned int offset = _dofOffset[i];
 
 		// Use correct offset in sensitivity state vectors
-		for (unsigned int j = 0; j < vecSensY.size(); ++j)
+		for (std::size_t j = 0; j < vecSensY.size(); ++j)
 			vecSensYlocal[j] = vecSensY[j] + offset;
 
 		m->initializeSensitivityStates(vecSensYlocal);
@@ -195,7 +194,7 @@ void ModelSystem::solveCouplingDOF(double* const vec)
 	// N_{f,x} Outlet (lower) matrices; Bottom macro-row
 	// N_{f,x,1} * y_1 + ... + N_{f,x,nModels} * y_{nModels} + y_{coupling} = f
 	// y_{coupling} = f - N_{f,x,1} * y_1 - ... - N_{f,x,nModels} * y_{nModels}
-	for (unsigned int i = 0; i < _models.size(); ++i)
+	for (std::size_t i = 0; i < _models.size(); ++i)
 	{
 		const unsigned int offset = _dofOffset[i];
 		_jacFN[i].multiplySubtract(vec + offset, vec + finalOffset);
@@ -205,13 +204,13 @@ void ModelSystem::solveCouplingDOF(double* const vec)
 	// y_{unit op inlet} - y_{coupling} = 0
 	// y_{unit op inlet} = y_{coupling}
 	unsigned int idxCoupling = finalOffset;
-	for (unsigned int i = 0; i < _models.size(); ++i)
+	for (std::size_t i = 0; i < _models.size(); ++i)
 	{
 		IUnitOperation* const m = _models[i];
 		const unsigned int offset = _dofOffset[i];
 		if (!m->hasInlet())
 			continue;
-		
+
 		for (unsigned int port = 0; port < m->numInletPorts(); ++port)
 		{
 			const unsigned int localIndex = m->localInletComponentIndex(port);
@@ -465,9 +464,9 @@ void ModelSystem::consistentInitialConditionAlgorithm(const SimulationTime& simT
 
 	// Consistent initial state for unit operations that only have outlets (system input, Inlet unit operation)
 #ifdef CADET_PARALLELIZE
-	tbb::parallel_for(size_t(0), _models.size(), [=](size_t i)
+	tbb::parallel_for(std::size_t(0), _models.size(), [=](std::size_t i)
 #else
-	for (unsigned int i = 0; i < _models.size(); ++i)
+	for (std::size_t i = 0; i < _models.size(); ++i)
 #endif
 	{
 		IUnitOperation* const m = _models[i];
@@ -491,9 +490,9 @@ void ModelSystem::consistentInitialConditionAlgorithm(const SimulationTime& simT
 
 	// Consistent initial state for all other unit operations (unit operations that have inlets)
 #ifdef CADET_PARALLELIZE
-	tbb::parallel_for(size_t(0), _models.size(), [=](size_t i)
+	tbb::parallel_for(std::size_t(0), _models.size(), [=](std::size_t i)
 #else
-	for (unsigned int i = 0; i < _models.size(); ++i)
+	for (std::size_t i = 0; i < _models.size(); ++i)
 #endif
 	{
 		IUnitOperation* const m = _models[i];
@@ -517,9 +516,9 @@ void ModelSystem::consistentInitialConditionAlgorithm(const SimulationTime& simT
 
 	// Calculate all local yDot state variables
 #ifdef CADET_PARALLELIZE
-	tbb::parallel_for(size_t(0), _models.size(), [=](size_t i)
+	tbb::parallel_for(std::size_t(0), _models.size(), [=](std::size_t i)
 #else
-	for (unsigned int i = 0; i < _models.size(); ++i)
+	for (std::size_t i = 0; i < _models.size(); ++i)
 #endif
 	{
 		IUnitOperation* const m = _models[i];
@@ -544,22 +543,22 @@ void ModelSystem::consistentInitialConditionAlgorithm(const SimulationTime& simT
 	// genJacobian(simTime, vecStateY, vecStateYdot);
 }
 
-void ModelSystem::consistentInitialConditions(const SimulationTime& simTime, const SimulationState& simState, 
+void ModelSystem::consistentInitialConditions(const SimulationTime& simTime, const SimulationState& simState,
 	const AdJacobianParams& adJac, double errorTol)
 {
 	consistentInitialConditionAlgorithm<FullTag>(simTime, simState, adJac, errorTol);
 }
 
-void ModelSystem::consistentInitialSensitivity(const SimulationTime& simTime, 
-	const ConstSimulationState& simState, std::vector<double*>& vecSensY, 
+void ModelSystem::consistentInitialSensitivity(const SimulationTime& simTime,
+	const ConstSimulationState& simState, std::vector<double*>& vecSensY,
 	std::vector<double*>& vecSensYdot, active* const adRes, active* const adY)
 {
 	consistentInitialSensitivityAlgorithm<FullTag>(simTime, simState, vecSensY, vecSensYdot, adRes, adY);
 }
 
 template <typename tag_t>
-void ModelSystem::consistentInitialSensitivityAlgorithm(const SimulationTime& simTime, 
-	const ConstSimulationState& simState, std::vector<double*>& vecSensY, 
+void ModelSystem::consistentInitialSensitivityAlgorithm(const SimulationTime& simTime,
+	const ConstSimulationState& simState, std::vector<double*>& vecSensY,
 	std::vector<double*>& vecSensYdot, active* const adRes, active* const adY)
 {
 	BENCH_SCOPE(_timerConsistentInit);
@@ -569,7 +568,7 @@ void ModelSystem::consistentInitialSensitivityAlgorithm(const SimulationTime& si
 
 	std::vector<double*> vecSensYlocal(vecSensY.size(), nullptr);
 	std::vector<double*> vecSensYdotLocal(vecSensYdot.size(), nullptr);
-	for (unsigned int i = 0; i < _models.size(); ++i)
+	for (std::size_t i = 0; i < _models.size(); ++i)
 	{
 		IUnitOperation* const m = _models[i];
 
@@ -578,7 +577,7 @@ void ModelSystem::consistentInitialSensitivityAlgorithm(const SimulationTime& si
 			const unsigned int offset = _dofOffset[i];
 
 			// Use correct offset in sensitivity state vectors
-			for (unsigned int j = 0; j < vecSensY.size(); ++j)
+			for (std::size_t j = 0; j < vecSensY.size(); ++j)
 			{
 				vecSensYlocal[j] = vecSensY[j] + offset;
 				vecSensYdotLocal[j] = vecSensYdot[j] + offset;
@@ -599,7 +598,7 @@ void ModelSystem::consistentInitialSensitivityAlgorithm(const SimulationTime& si
 		solveCouplingDOF(vsy);
 	}
 
-	for (unsigned int i = 0; i < _models.size(); ++i)
+	for (std::size_t i = 0; i < _models.size(); ++i)
 	{
 		IUnitOperation* const m = _models[i];
 
@@ -608,7 +607,7 @@ void ModelSystem::consistentInitialSensitivityAlgorithm(const SimulationTime& si
 			const unsigned int offset = _dofOffset[i];
 
 			// Use correct offset in sensitivity state vectors
-			for (unsigned int j = 0; j < vecSensY.size(); ++j)
+			for (std::size_t j = 0; j < vecSensY.size(); ++j)
 			{
 				vecSensYlocal[j] = vecSensY[j] + offset;
 				vecSensYdotLocal[j] = vecSensYdot[j] + offset;
@@ -617,7 +616,7 @@ void ModelSystem::consistentInitialSensitivityAlgorithm(const SimulationTime& si
 			ConsistentInit<tag_t>::parameterSensitivity(m, simTime, applyOffset(simState, offset), vecSensYlocal, vecSensYdotLocal, adRes + offset, _threadLocalStorage);
 		}
 	}
-		
+
 	for (unsigned int i = 0; i < vecSensY.size(); ++i)
 	{
 		double* const vsyd = vecSensYdot[i];
@@ -643,7 +642,7 @@ void ModelSystem::consistentInitialSensitivityAlgorithm(const SimulationTime& si
 			// -(d^2 res_con / (dy dp)) * \dot{y} - (d^2 res_con / (dt dy)) * s - (d^2 res_con / (dt dp))
 			// We already have the first term and need the remaining two
 			// -(d^2 res_con / (dt dy)) * s - (d^2 res_con / (dt dp))
-			
+
 			subtractDresConDt(simTime.t, vsyd + finalOffset, vecSensY[i]);
 			subtractDresConDtDp(simTime.t, i, vsyd + finalOffset, simState.vecStateY);
 		}
@@ -652,7 +651,7 @@ void ModelSystem::consistentInitialSensitivityAlgorithm(const SimulationTime& si
 	}
 }
 
-void ModelSystem::leanConsistentInitialConditions(const SimulationTime& simTime, const SimulationState& simState, 
+void ModelSystem::leanConsistentInitialConditions(const SimulationTime& simTime, const SimulationState& simState,
 	const AdJacobianParams& adJac, double errorTol)
 {
 	consistentInitialConditionAlgorithm<LeanTag>(simTime, simState, adJac, errorTol);
