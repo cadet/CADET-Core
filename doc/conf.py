@@ -73,7 +73,7 @@ html_theme_options = {
 
 html_favicon = '_static/cadet_icon.png'
 html_title = 'CADET'
-html_baseurl = 'https://cadet.github.io/'
+html_baseurl = 'https://cadet.github.io/master/'
 html_static_path = ['_static']
 html_extra_path = ['robots.txt', 'google7a5fbf15028eb634.html']
 html_sidebars = {
