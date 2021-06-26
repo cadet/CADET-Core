@@ -40,6 +40,7 @@ namespace cadet
 			void registerColloidalModel(std::unordered_map<std::string, std::function<model::IBindingModel*()>>& bindings);
 			void registerMachineLearningModel(std::unordered_map<std::string, std::function<model::IBindingModel* ()>>& bindings);
 			void registerSplineModel(std::unordered_map<std::string, std::function<model::IBindingModel* ()>>& bindings);
+			void registerFreundlichLDFModel(std::unordered_map<std::string, std::function<model::IBindingModel* ()>>& bindings);
 		}
 	}
 
@@ -65,6 +66,7 @@ namespace cadet
 		model::binding::registerColloidalModel(_bindingModels);
 		model::binding::registerMachineLearningModel(_bindingModels);
 		model::binding::registerSplineModel(_bindingModels);
+		model::binding::registerFreundlichLDFModel(_bindingModels);
 		registerModel<model::SimplifiedMultiStateStericMassActionBinding>();
 	}
 

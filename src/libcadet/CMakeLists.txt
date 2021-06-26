@@ -96,6 +96,7 @@ set(LIBCADET_BINDINGMODEL_SOURCES
 	${CMAKE_SOURCE_DIR}/src/libcadet/model/binding/ColloidalBinding.cpp
 	${CMAKE_SOURCE_DIR}/src/libcadet/model/binding/MachineLearningBinding.cpp
 	${CMAKE_SOURCE_DIR}/src/libcadet/model/binding/SplineBinding.cpp
+	${CMAKE_SOURCE_DIR}/src/libcadet/model/binding/FreundlichLDFBinding.cpp
 )
 
 # LIBCADET_REACTIONMODEL_SOURCES holds all source files of reaction models
