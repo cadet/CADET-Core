@@ -63,7 +63,7 @@ Then, to install ``CADET-Python`` run:
 
 .. code-block:: bash
 
-    conda install -c immudzen cadet 
+    conda install -c immudzen cadet-python
 
 If you would also like to use `CADET-Match <https://github.com/modsim/CADET-Match>`_ for parameter estimation, run:
 
