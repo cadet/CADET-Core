@@ -64,7 +64,6 @@ math_eqref_format = '{number}'
 #
 html_theme = 'alabaster'
 html_theme_options = {
-    'canonical_url': 'https://cadet.github.io/master/',
     'description': 'CADET - An open platform for integrated process modelling and simulation',
     # 'logo': 'cadet_logo.png',
     'sidebar_collapse': True,
