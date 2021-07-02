@@ -48,7 +48,7 @@ namespace cadet
 	namespace model
 	{
 
-		inline const char* FreundlichLDFParamHandler::identifier() CADET_NOEXCEPT { return "FREUNDLICHLDF"; }
+		inline const char* FreundlichLDFParamHandler::identifier() CADET_NOEXCEPT { return "FREUNDLICH_LDF"; }
 
 		inline bool FreundlichLDFParamHandler::validateConfig(unsigned int nComp, unsigned int const* nBoundStates)
 		{
@@ -58,7 +58,7 @@ namespace cadet
 			return true;
 		}
 
-		inline const char* ExtFreundlichLDFParamHandler::identifier() CADET_NOEXCEPT { return "EXT_FREUNDLICHLDF"; }
+		inline const char* ExtFreundlichLDFParamHandler::identifier() CADET_NOEXCEPT { return "EXT_FREUNDLICH_LDF"; }
 
 		inline bool ExtFreundlichLDFParamHandler::validateConfig(unsigned int nComp, unsigned int const* nBoundStates)
 		{
@@ -107,15 +107,23 @@ namespace cadet
 				q* = k_F * c^(1/n)
 				*/
 				unsigned int bndIdx = 0;
-
+				const double threshold = 1e-12;
 				for (int i = 0; i < _nComp; ++i)
 				{
+					const double n_param = (double)static_cast<ParamType>(p->n[i]);
+					const double kF = (double)static_cast<ParamType>(p->kF[i]);
+					const double kkin = (double)static_cast<ParamType>(p->kkin[i]);
+					double const alpha_1 = ((2 * n_param - 1) / n_param) * kF * std::pow(threshold, (1 - n_param) / n_param);
+					double const alpha_2 = ((1- n_param) / n_param) * kF * std::pow(threshold, (1 - 2*n_param) / n_param);
 					// Skip components without bound states (bound state index bndIdx is not advanced)
 					if (_nBoundStates[i] == 0)
 						continue;
 					
 					// Residual
-					res[bndIdx] = static_cast<ParamType>(p->kkin[i]) * y[bndIdx] - static_cast<ParamType>(p->kkin[i]) * static_cast<ParamType>(p->kF[i]) * std::pow(std::abs((double)yCp[i]), 1.0 / static_cast<double>(p->n[i]));
+					if (std::abs((double)yCp[i]) < threshold )
+						res[bndIdx] = kkin * y[bndIdx] - alpha_1* yCp[i] - alpha_2*std::pow((double)yCp[i],2);
+					else
+						res[bndIdx] = kkin * y[bndIdx] - kkin * kF * std::pow(std::abs((double)yCp[i]), 1.0 / n_param);
 					
 					// Next bound component
 					++bndIdx;
@@ -129,7 +137,7 @@ namespace cadet
 			{
 				typename ParamHandler_t::ParamsHandle const p = _paramHandler.update(t, secIdx, colPos, _nComp, _nBoundStates, workSpace);
 
-				const double threshold = 1e-16;
+				const double threshold = 1e-12;
 				int bndIdx = 0;
 				for (int i = 0; i < _nComp; ++i)
 				{
@@ -138,13 +146,18 @@ namespace cadet
 						continue;
 					// dres / dq_i
 					const double n_param = static_cast<double>(p->n[i]);
+					const double kF = static_cast<double>(p->kF[i]);
+					const double kkin = static_cast<double>(p->kkin[i]);
+					double const alpha_1 = ((2 * n_param - 1) / n_param) * kF * std::pow(threshold, (1 - n_param) / (n_param));
+					double const alpha_2 = ((1 - n_param) / n_param) * kF * std::pow(threshold, (1 - 2 * n_param) / (n_param));
+
 					jac[0] = static_cast<double>(p->kkin[i]); 
 					// dres / dc_{p,i}
 					// This isotherm is non-differentiable at yCp = 0 so following segment of code deals with mitigating this issue.
-					if (std::abs((double)yCp[i]) <= threshold)
-						jac[i - bndIdx - offsetCp] = -(1.0 / n_param) * static_cast<double>(p->kkin[i]) * static_cast<double>(p->kF[i]) * std::pow(threshold, (1.0 - n_param) / n_param);
+					if ( std::abs((double)yCp[i]) < threshold)
+						jac[i - bndIdx - offsetCp] = -alpha_1 - 2 * alpha_2 * yCp[i];
 					else
-						jac[i - bndIdx - offsetCp] = -(1.0 / n_param) * static_cast<double>(p->kkin[i]) * static_cast<double>(p->kF[i]) * std::pow(std::abs((double)yCp[i]), (1.0- n_param)/ n_param);
+						jac[i - bndIdx - offsetCp] = -(1.0 / n_param) * kkin * kF * std::pow(std::abs((double)yCp[i]), (1.0- n_param)/ n_param);
 					
 					// The distance from liquid phase to solid phase is reduced for each non-binding component
 					// since a bound state is neglected. The number of neglected bound states so far is i - bndIdx.
