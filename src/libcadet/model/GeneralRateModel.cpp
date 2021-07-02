@@ -425,8 +425,11 @@ bool GeneralRateModel::configureModelDiscretization(IParameterProvider& paramPro
 	_binding = std::vector<IBindingModel*>(_disc.nParType, nullptr);
 	std::vector<std::string> bindModelNames = { "NONE" };
 
+<<<<<<< HEAD
 	if (!paramProvider.exists("ADSORPTION_MODEL"))
 =======
+=======
+>>>>>>> 2b588b6d6cd61470531d69ec5d5da4cbda7b43c0
 	if (paramProvider.exists("ADSORPTION_MODEL"))
 	{
 		bindModelNames = paramProvider.getStringArray("ADSORPTION_MODEL");
@@ -464,9 +467,12 @@ bool GeneralRateModel::configureModelDiscretization(IParameterProvider& paramPro
 		}
 	}
 <<<<<<< HEAD
+<<<<<<< HEAD
 
 =======
 >>>>>>> 4167147... White space deleted from GRM.cpp
+=======
+>>>>>>> 2b588b6d6cd61470531d69ec5d5da4cbda7b43c0
 	// ==== Construct and configure dynamic reaction model
 	bool reactionConfSuccess = true;
 
