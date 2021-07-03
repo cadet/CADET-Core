@@ -1,7 +1,7 @@
 Bibliography
 ============
 
-.. bibliography:: literature.bib
+.. bibliography:: 
     :style: unsrt
 
 
