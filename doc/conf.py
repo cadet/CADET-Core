@@ -64,8 +64,8 @@ math_eqref_format = '{number}'
 #
 html_theme = 'alabaster'
 html_theme_options = {
+    'description': 'CADET - An open platform for integrated process modelling and simulation',
     # 'logo': 'cadet_logo.png',
-    # 'description': 'Chromatography Analysis and Design Toolkit',
     'sidebar_collapse': True,
     'fixed_sidebar': True,
     'show_powered_by': False,
@@ -75,7 +75,6 @@ html_favicon = '_static/cadet_icon.png'
 html_title = 'CADET'
 html_baseurl = 'https://cadet.github.io/master/'
 html_static_path = ['_static']
-html_extra_path = ['robots.txt', 'google7a5fbf15028eb634.html']
 html_sidebars = {
     '**': [
         'about.html',
