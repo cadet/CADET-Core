@@ -24,7 +24,7 @@ Download and Installation
 -------------------------
 
 Download the `latest release <https://github.com/modsim/cadet/releases>`_ for your platform.
-`Additional information <https://cadet.github.io/getting_started/installation>`_ and a `tutorial <https://cadet.github.io/getting_started/tutorials/breakthrough>`_ are available to guide you through the installation and the first steps of using CADET.
+`Additional information <https://cadet.github.io/master/getting_started/installation>`_ and a `tutorial <https://cadet.github.io/master/getting_started/tutorials/breakthrough>`_ are available to guide you through the installation and the first steps of using CADET.
 
 Ongoing Development
 -------------------
