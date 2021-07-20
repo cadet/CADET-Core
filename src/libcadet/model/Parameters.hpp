@@ -788,6 +788,7 @@ public:
 	}
 
 	inline std::size_t size() const CADET_NOEXCEPT { return _base.size(); }
+	inline bool allSameSize() const CADET_NOEXCEPT { return (_base.size() == _linear.size()) && (_base.size() == _quad.size()) && (_base.size() == _cube.size()); }
 
 	inline std::size_t additionalDynamicMemory(unsigned int nComp, unsigned int totalNumBoundStates, unsigned int const* nBoundStates) const CADET_NOEXCEPT { return nComp * sizeof(active) + alignof(active); }
 
@@ -865,6 +866,7 @@ public:
 	}
 
 	inline std::size_t size() const CADET_NOEXCEPT { return _base.size(); }
+	inline bool allSameSize() const CADET_NOEXCEPT { return (_base.size() == _linear.size()) && (_base.size() == _quad.size()) && (_base.size() == _cube.size()); }
 
 	inline std::size_t additionalDynamicMemory(unsigned int nComp, unsigned int totalNumBoundStates, unsigned int const* nBoundStates) const CADET_NOEXCEPT
 	{
@@ -957,6 +959,7 @@ public:
 	}
 
 	inline std::size_t size() const CADET_NOEXCEPT { return _base.size(); }
+	inline bool allSameSize() const CADET_NOEXCEPT { return (_base.size() == _linear.size()) && (_base.size() == _quad.size()) && (_base.size() == _cube.size()); }
 
 	inline std::size_t additionalDynamicMemory(unsigned int nReactions, unsigned int nComp, unsigned int totalNumBoundStates) const CADET_NOEXCEPT { return nReactions * sizeof(active) + alignof(active); }
 
@@ -1058,6 +1061,7 @@ public:
 
 	inline typename util::SlicedVector<active>::size_type slices() const CADET_NOEXCEPT { return _base.slices(); }
 	inline typename util::SlicedVector<active>::size_type size() const CADET_NOEXCEPT { return _base.size(); }
+	inline bool allSameSize() const CADET_NOEXCEPT { return (_base.size() == _linear.size()) && (_base.size() == _quad.size()) && (_base.size() == _cube.size()); }
 
 	inline std::size_t additionalDynamicMemory(unsigned int nComp, unsigned int totalNumBoundStates, unsigned int const* nBoundStates) const CADET_NOEXCEPT
 	{
@@ -1162,6 +1166,7 @@ public:
 
 	inline typename util::SlicedVector<active>::size_type slices() const CADET_NOEXCEPT { return _base.slices(); }
 	inline typename util::SlicedVector<active>::size_type size() const CADET_NOEXCEPT { return _base.size(); }
+	inline bool allSameSize() const CADET_NOEXCEPT { return (_base.size() == _linear.size()) && (_base.size() == _quad.size()) && (_base.size() == _cube.size()); }
 
 	inline std::size_t additionalDynamicMemory(unsigned int nComp, unsigned int totalNumBoundStates, unsigned int const* nBoundStates) const CADET_NOEXCEPT
 	{
@@ -1249,6 +1254,7 @@ public:
 
 	inline typename util::SlicedVector<active>::size_type slices() const CADET_NOEXCEPT { return _base.slices(); }
 	inline typename util::SlicedVector<active>::size_type size() const CADET_NOEXCEPT { return _base.size(); }
+	inline bool allSameSize() const CADET_NOEXCEPT { return (_base.size() == _linear.size()) && (_base.size() == _quad.size()) && (_base.size() == _cube.size()); }
 
 	inline std::size_t additionalDynamicMemory(unsigned int nComp, unsigned int totalNumBoundStates, unsigned int const* nBoundStates) const CADET_NOEXCEPT
 	{
