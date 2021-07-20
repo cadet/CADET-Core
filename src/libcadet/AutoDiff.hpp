@@ -141,6 +141,25 @@ namespace cadet
 
 	template <typename A>
 	using DoubleDemoter = DoubleActiveDemoter<A, cadet::active>;
+
+	/**
+	 * @brief Selects value type @c double or reference type @c active&
+	 * @tparam A Base type (i.e., @c double or @c active)
+	 */
+	template <typename A>
+	struct ActiveRefOrDouble { };
+
+	template <>
+	struct ActiveRefOrDouble<cadet::active> { typedef cadet::active& type; };
+
+	template <>
+	struct ActiveRefOrDouble<const cadet::active> { typedef const cadet::active& type; };
+
+	template <>
+	struct ActiveRefOrDouble<double> { typedef double type; };
+
+	template <>
+	struct ActiveRefOrDouble<const double> { typedef const double type; };
 }
 
 #endif  // LIBCADET_AUTODIFF_HPP_
