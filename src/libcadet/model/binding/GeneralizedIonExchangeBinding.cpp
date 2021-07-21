@@ -193,6 +193,19 @@ inline bool GIEXParamHandler::validate(unsigned int nComp, unsigned int const* n
 			_nu.get()[i] = 1.0;
 	}
 
+	// Check breaks
+	for (int i = 0; i < nComp; ++i)
+	{
+		cadet::active const* const b = _nuBreaks.get().data() + nPieces * i;
+		for (int j = 0; j < nPieces; ++j)
+		{
+			if (b[j] >= b[j+1])
+			{
+				throw InvalidParameterException("GIEX_NU_BREAKS must be strictly increasing for each component");
+			}
+		}
+	}
+
 	return true;
 }
 
@@ -311,6 +324,7 @@ public:
 
 		// Pseudo component 1 is pH
 		const double pH = yCp[1];
+		const int nPieces = (p->nuBreaks.size() > 0) ? (p->nuBreaks.size() - 1) : 0;
 
 		// Salt equation: nu_0 * q_0 - Lambda + Sum[nu_j(pH) * q_j, j] == 0
 		//           <=>  q_0 == (Lambda - Sum[nu_j(pH) * q_j, j]) / nu_0
@@ -323,9 +337,8 @@ public:
 			if (_nBoundStates[j] == 0)
 				continue;
 
-			const double nu_j = static_cast<double>(p->nu[j]) + pH * (static_cast<double>(p->nuLin[j]) + pH * static_cast<double>(p->nuQuad[j]));
-
-			y[0] -= nu_j * y[bndIdx];
+			const auto [nuConst, nuVar] = evaluateNu<typename ParamHandler_t::params_t, double, double>(j, nPieces, *p, pH);
+			y[0] -= (nuConst + nuVar) * y[bndIdx];
 
 			// Next bound component
 			++bndIdx;
@@ -357,22 +370,22 @@ protected:
 		_paramHandler.configure(paramProvider, _nComp, _nBoundStates);
 
 		if (paramProvider.exists(std::string(_paramHandler.prefixInConfiguration()) + "GIEX_NU_LIN"))
-			_paramHandler.nuLin().configure("GIEX_PH", paramProvider, _nComp, _nBoundStates);
+			_paramHandler.nuLin().configure("GIEX_NU_LIN", paramProvider, _nComp, _nBoundStates);
 		else
 			assignZeros(_paramHandler.nuLin(), _paramHandler.nu().size());
 
 		if (paramProvider.exists(std::string(_paramHandler.prefixInConfiguration()) + "GIEX_NU_QUAD"))
-			_paramHandler.nuQuad().configure("GIEX_PH", paramProvider, _nComp, _nBoundStates);
+			_paramHandler.nuQuad().configure("GIEX_NU_QUAD", paramProvider, _nComp, _nBoundStates);
 		else
 			assignZeros(_paramHandler.nuQuad(), _paramHandler.nu().size());
 
 		if (paramProvider.exists(std::string(_paramHandler.prefixInConfiguration()) + "GIEX_NU_CUBE"))
-			_paramHandler.nuCube().configure("GIEX_PH", paramProvider, _nComp, _nBoundStates);
+			_paramHandler.nuCube().configure("GIEX_NU_CUBE", paramProvider, _nComp, _nBoundStates);
 		else
 			assignZeros(_paramHandler.nuCube(), _paramHandler.nu().size());
 
 		if (paramProvider.exists(std::string(_paramHandler.prefixInConfiguration()) + "GIEX_NU_BREAKS"))
-			_paramHandler.nuBreaks().configure("GIEX_PH", paramProvider, _nComp, _nBoundStates);
+			_paramHandler.nuBreaks().configure("GIEX_NU_BREAKS", paramProvider, _nComp, _nBoundStates);
 		else
 			assignSinglePiece(_paramHandler.nuBreaks());
 
