@@ -153,7 +153,7 @@ namespace model
 
 inline const char* GIEXParamHandler::identifier() CADET_NOEXCEPT { return "GENERALIZED_ION_EXCHANGE"; }
 
-inline bool GIEXParamHandler::validateConfig(unsigned int nComp, unsigned int const* nBoundStates)
+inline bool GIEXParamHandler::validate(unsigned int nComp, unsigned int const* nBoundStates)
 {
 	if (nComp <= 2)
 		throw InvalidParameterException("GENERALIZED_ION_EXCHANGE requires at least 3 components");
@@ -198,7 +198,7 @@ inline bool GIEXParamHandler::validateConfig(unsigned int nComp, unsigned int co
 
 inline const char* ExtGIEXParamHandler::identifier() CADET_NOEXCEPT { return "EXT_GENERALIZED_ION_EXCHANGE"; }
 
-inline bool ExtGIEXParamHandler::validateConfig(unsigned int nComp, unsigned int const* nBoundStates)
+inline bool ExtGIEXParamHandler::validate(unsigned int nComp, unsigned int const* nBoundStates)
 {
 	if (nComp <= 2)
 		throw InvalidParameterException("EXT_GENERALIZED_ION_EXCHANGE requires at least 3 components");
@@ -349,10 +349,12 @@ protected:
 	using ParamHandlerBindingModelBase<ParamHandler_t>::_reactionQuasistationarity;
 	using ParamHandlerBindingModelBase<ParamHandler_t>::_nComp;
 	using ParamHandlerBindingModelBase<ParamHandler_t>::_nBoundStates;
+	using ParamHandlerBindingModelBase<ParamHandler_t>::_parameters;
 
 	virtual bool configureImpl(IParameterProvider& paramProvider, UnitOpIdx unitOpIdx, ParticleTypeIdx parTypeIdx)
 	{
-		const bool valid = ParamHandlerBindingModelBase<ParamHandler_t>::configureImpl(paramProvider, unitOpIdx, parTypeIdx);
+		// Read parameters
+		_paramHandler.configure(paramProvider, _nComp, _nBoundStates);
 
 		if (paramProvider.exists(std::string(_paramHandler.prefixInConfiguration()) + "GIEX_NU_LIN"))
 			_paramHandler.nuLin().configure("GIEX_PH", paramProvider, _nComp, _nBoundStates);
@@ -386,7 +388,10 @@ protected:
 			_paramHandler.refConcentrationPh().getQ() = _paramHandler.refConcentration().getQ();
 		}
 
-		return valid;
+		// Register parameters
+		_paramHandler.registerParameters(_parameters, unitOpIdx, parTypeIdx, _nComp, _nBoundStates);
+
+		return _paramHandler.validate(_nComp, _nBoundStates);
 	}
 
 	template <typename StateType, typename CpStateType, typename ResidualType, typename ParamType>
