@@ -194,14 +194,17 @@ inline bool GIEXParamHandler::validate(unsigned int nComp, unsigned int const* n
 	}
 
 	// Check breaks
-	for (int i = 0; i < nComp; ++i)
+	if (_nuBreaks.size() > 1)
 	{
-		cadet::active const* const b = _nuBreaks.get().data() + nPieces * i;
-		for (int j = 0; j < nPieces; ++j)
+		for (int i = 0; i < nComp; ++i)
 		{
-			if (b[j] >= b[j+1])
+			cadet::active const* const b = _nuBreaks.get().data() + (nPieces + 1) * i;
+			for (int j = 0; j < nPieces; ++j)
 			{
-				throw InvalidParameterException("GIEX_NU_BREAKS must be strictly increasing for each component");
+				if (b[j] >= b[j+1])
+				{
+					throw InvalidParameterException("GIEX_NU_BREAKS must be strictly increasing for each component");
+				}
 			}
 		}
 	}
