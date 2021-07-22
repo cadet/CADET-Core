@@ -110,6 +110,7 @@ namespace
 		{
 			const int offset = comp * nPieces;
 			const auto [nuConst, nuVar] = cadet::evaluateCubicPiecewisePolynomialSplit<ph_t, typename cadet::DoubleActivePromoter<param_t, cp_state_t>::type>(pH, p.nuBreaks.data() + comp * (nPieces + 1), p.nu.data() + offset, p.nuLin.data() + offset, p.nuQuad.data() + offset, p.nuCube.data() + offset, nPieces);
+			LOG(Debug) << "cpQNuPowers " << comp << ": at " << static_cast<double>(pH) << ":" << static_cast<double>(nuConst) << " + " << static_cast<double>(nuVar) << " = " << static_cast<double>(nuConst) + static_cast<double>(nuVar);
 			const cp_state_t nu_i_0_over_nu0 = static_cast<param_t>(nuConst) / static_cast<param_t>(p.nu[0]);
 			const cp_state_t nu_i_pH_over_nu0 = nuVar / static_cast<param_t>(p.nu[0]);
 			return {pow(cpBase, nu_i_0_over_nu0) * pow(cpVar, nu_i_pH_over_nu0), pow(qBase, nu_i_0_over_nu0) * pow(qVar, nu_i_pH_over_nu0)};
@@ -126,7 +127,10 @@ namespace
 		else
 		{
 			const int offset = comp * nPieces;
-			return cadet::evaluateCubicPiecewisePolynomialSplit<ph_t, result_t>(pH, p.nuBreaks.data() + comp * (nPieces + 1), p.nu.data() + offset, p.nuLin.data() + offset, p.nuQuad.data() + offset, p.nuCube.data() + offset, nPieces);
+//			return cadet::evaluateCubicPiecewisePolynomialSplit<ph_t, result_t>(pH, p.nuBreaks.data() + comp * (nPieces + 1), p.nu.data() + offset, p.nuLin.data() + offset, p.nuQuad.data() + offset, p.nuCube.data() + offset, nPieces);
+			const auto [nuConst, nuVar] = cadet::evaluateCubicPiecewisePolynomialSplit<ph_t, result_t>(pH, p.nuBreaks.data() + comp * (nPieces + 1), p.nu.data() + offset, p.nuLin.data() + offset, p.nuQuad.data() + offset, p.nuCube.data() + offset, nPieces);
+			LOG(Debug) << "evalNu " << comp << ": at " << static_cast<double>(pH) << ": " << static_cast<double>(nuConst) << " + " << static_cast<double>(nuVar) << " = " << static_cast<double>(nuConst) + static_cast<double>(nuVar);
+			return std::make_tuple(nuConst, nuVar);
 		}
 	}
 
@@ -327,7 +331,7 @@ public:
 
 		// Pseudo component 1 is pH
 		const double pH = yCp[1];
-		const int nPieces = (p->nuBreaks.size() > 0) ? (p->nuBreaks.size() - 1) : 0;
+		const int nPieces = (p->nuBreaks.size() > 0) ? (p->nu.size() / _nComp) : 0;
 
 		// Salt equation: nu_0 * q_0 - Lambda + Sum[nu_j(pH) * q_j, j] == 0
 		//           <=>  q_0 == (Lambda - Sum[nu_j(pH) * q_j, j]) / nu_0
@@ -420,7 +424,7 @@ protected:
 
 		typename ParamHandler_t::ParamsHandle const p = _paramHandler.update(t, secIdx, colPos, _nComp, _nBoundStates, workSpace);
 
-		const int nPieces = (p->nuBreaks.size() > 0) ? (p->nuBreaks.size() - 1) : 0;
+		const int nPieces = (p->nuBreaks.size() > 0) ? (p->nu.size() / _nComp) : 0;
 
 		// Pseudo component 1 is pH
 		const PhType pH = yCp[1];
@@ -499,7 +503,7 @@ protected:
 	void jacobianImpl(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, double const* yCp, int offsetCp, RowIterator jac, LinearBufferAllocator workSpace) const
 	{
 		typename ParamHandler_t::ParamsHandle const p = _paramHandler.update(t, secIdx, colPos, _nComp, _nBoundStates, workSpace);
-		const int nPieces = (p->nuBreaks.size() > 0) ? (p->nuBreaks.size() - 1) : 0;
+		const int nPieces = (p->nuBreaks.size() > 0) ? (p->nu.size() / _nComp) : 0;
 
 		// Pseudo component 1 is pH
 		const double pH = yCp[1];
