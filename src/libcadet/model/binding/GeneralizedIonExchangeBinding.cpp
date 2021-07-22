@@ -110,7 +110,6 @@ namespace
 		{
 			const int offset = comp * nPieces;
 			const auto [nuConst, nuVar] = cadet::evaluateCubicPiecewisePolynomialSplit<ph_t, typename cadet::DoubleActivePromoter<param_t, cp_state_t>::type>(pH, p.nuBreaks.data() + comp * (nPieces + 1), p.nu.data() + offset, p.nuLin.data() + offset, p.nuQuad.data() + offset, p.nuCube.data() + offset, nPieces);
-			LOG(Debug) << "cpQNuPowers " << comp << ": at " << static_cast<double>(pH) << ":" << static_cast<double>(nuConst) << " + " << static_cast<double>(nuVar) << " = " << static_cast<double>(nuConst) + static_cast<double>(nuVar);
 			const cp_state_t nu_i_0_over_nu0 = static_cast<param_t>(nuConst) / static_cast<param_t>(p.nu[0]);
 			const cp_state_t nu_i_pH_over_nu0 = nuVar / static_cast<param_t>(p.nu[0]);
 			return {pow(cpBase, nu_i_0_over_nu0) * pow(cpVar, nu_i_pH_over_nu0), pow(qBase, nu_i_0_over_nu0) * pow(qVar, nu_i_pH_over_nu0)};
@@ -127,10 +126,7 @@ namespace
 		else
 		{
 			const int offset = comp * nPieces;
-//			return cadet::evaluateCubicPiecewisePolynomialSplit<ph_t, result_t>(pH, p.nuBreaks.data() + comp * (nPieces + 1), p.nu.data() + offset, p.nuLin.data() + offset, p.nuQuad.data() + offset, p.nuCube.data() + offset, nPieces);
-			const auto [nuConst, nuVar] = cadet::evaluateCubicPiecewisePolynomialSplit<ph_t, result_t>(pH, p.nuBreaks.data() + comp * (nPieces + 1), p.nu.data() + offset, p.nuLin.data() + offset, p.nuQuad.data() + offset, p.nuCube.data() + offset, nPieces);
-			LOG(Debug) << "evalNu " << comp << ": at " << static_cast<double>(pH) << ": " << static_cast<double>(nuConst) << " + " << static_cast<double>(nuVar) << " = " << static_cast<double>(nuConst) + static_cast<double>(nuVar);
-			return std::make_tuple(nuConst, nuVar);
+			return cadet::evaluateCubicPiecewisePolynomialSplit<ph_t, result_t>(pH, p.nuBreaks.data() + comp * (nPieces + 1), p.nu.data() + offset, p.nuLin.data() + offset, p.nuQuad.data() + offset, p.nuCube.data() + offset, nPieces);
 		}
 	}
 
