@@ -12,9 +12,9 @@ Freundlich LDF
    bound states. Otherwise, the adsorption mode is set for each bound
    state separately.
 
-===================  =========================  =========================================
-**Type:** int        **Range:** {0,1}           **Length:** 1/NTOTALBND
-===================  =========================  =========================================
+===================  =========================  ==================================
+**Type:** int        **Range:** {0,1}   	 **Length:** 1/NTOTALBND
+===================  =========================  ==================================  
 
 ``FLDF_KKIN``
    Driving force coefficient for each component
@@ -23,17 +23,17 @@ Freundlich LDF
 **Unit:** :math:`s^{-1}`
 
 ===================  =========================  ==================================
-**Type:** double     **Range:** :math:`\ge 0`   **Length:** 1/NTOTALBND
+**Type:** double     **Range:** :math:`\ge 0`    **Length:** 1/NTOTALBND
 ===================  =========================  ==================================  
 
 
 ``FLDF_KF``
    Freundlich coefficient for each component
 
-**Unit:** :math:`m_{MP}^3~m_{SP}^{-3}~s^{-1}`
+**Unit:** :math:`\left(\frac{m^3}{mol^3}\right)^2`
 
 ===================  =========================  ==================================
-**Type:** double     **Range:** :math:`\ge 0`   **Length:** 1/NTOTALBND
+**Type:** double     **Range:** :math:`\ge 0`    **Length:** 1/NTOTALBND
 ===================  =========================  ==================================  
 
 ``FLDF_N``
@@ -42,7 +42,7 @@ Freundlich LDF
 **Unit:** :[-]
 
 ===================  =========================  ==================================
-**Type:** double     **Range:** :math:`\gt 0`   **Length:** 1/NTOTALBND
+**Type:** double     **Range:** :math:`> 0`      **Length:** 1/NTOTALBND
 ===================  =========================  ==================================  
 
 
