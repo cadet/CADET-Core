@@ -30,7 +30,7 @@ Freundlich LDF
 ``FLDF_KF``
    Freundlich coefficient for each component
 
-**Unit:** :math:`\left(\frac{m^3}{mol^3}\right)^2`
+**Unit:** :math:`\frac{m^3}{mol^3}`
 
 ===================  =========================  ==================================
 **Type:** double     **Range:** :math:`\ge 0`    **Length:** 1/NTOTALBND
