@@ -56,7 +56,7 @@ A quantitative description of an actual separation process requires the simultan
 
 .. math::
     \begin{aligned}
-        \frac{\mathrm{d} q_i}{\mathrm{d} t} = k_{kkin_{,i}}\left(q - q^*\right) && i = 0, \dots, N_{\text{comp}} - 1.
+        \frac{\mathrm{d} q_i}{\mathrm{d} t} = k_{kkin_{,i}}\left(q^*_i - q_i\right) && i = 0, \dots, N_{\text{comp}} - 1.
     \end{aligned}
 
 where :math:`q` and :math:`q^*` are the adsorbed-phase concentration in equilibrium with the bulk phase concentration and adsorbed-phase concentration averaged over the entire bulk volume respectively. While, :math:`k_{kkin}` is the linear driving force coefficient :cite:`Alpay1992`. 
