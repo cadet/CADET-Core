@@ -14,12 +14,10 @@
 #include "cadet/ParameterProvider.hpp"
 #include "cadet/Exceptions.hpp"
 #include "cadet/ExternalFunction.hpp"
-#include "cadet/ModelSystem.hpp"
 #include "ConfigurationHelper.hpp"
 #include "graph/GraphAlgos.hpp"
 #include "SensParamUtil.hpp"
 #include "SimulationTypes.hpp"
-#include<iostream>
 #include <sstream>
 #include <iomanip>
 
@@ -280,7 +278,7 @@ unsigned int ModelSystem::numPureDofs() const CADET_NOEXCEPT
 	return dofs;
 }
 
-const unsigned int* ModelSystem::getModelSlice() const CADET_NOEXCEPT
+unsigned int const* ModelSystem::getModelStateOffsets() const CADET_NOEXCEPT
 {
 	return _dofOffset.data();
 }
