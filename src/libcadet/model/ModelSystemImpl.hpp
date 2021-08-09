@@ -78,13 +78,10 @@ public:
 	virtual unsigned int numPureDofs() const CADET_NOEXCEPT;
 
 	/**
-	 * @brief Return the index and length of state vector relavant to each unit operation
-	 * @details This function returns starting index and stride of the last_state_vector
-	 *			related to each unit operation. This will faciliate the user to read
-	 *			the state vector in a more efficient manner.
+	 * @brief Return the offset indices corresponding to the last state of each unit operation
 	 */
-	virtual const unsigned int* getModelSlice()const CADET_NOEXCEPT;
-	//virtual IModel* getModelSlice(std::vector<int> index_stride);
+	virtual unsigned int const* getModelStateOffsets()const CADET_NOEXCEPT;
+
 
 	virtual bool usesAD() const CADET_NOEXCEPT;
 	virtual unsigned int requiredADdirs() const CADET_NOEXCEPT;
