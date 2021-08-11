@@ -273,16 +273,26 @@ public:
 		_sim->setSectionTimes(secTimes, secCont);
 
 		// Specify initial values
-		if (pp.exists("INIT_STATE_Y") && pp.exists("INIT_STATE_YDOT"))
+		if (pp.exists("INIT_STATE_Y"))
 		{
 			const std::vector<double> initY = pp.getDoubleArray("INIT_STATE_Y");
-			const std::vector<double> initYdot = pp.getDoubleArray("INIT_STATE_YDOT");
-			if (initY.size() >= _sim->numDofs())
+			if (initY.size() != _sim->numDofs())
 			{
-				if (initYdot.size() >= _sim->numDofs())
-					_sim->applyInitialCondition(initY.data(), initYdot.data());
-				else
-					_sim->applyInitialCondition(initY.data());
+				throw InvalidParameterException("Length of INIT_STATE_Y should be equal to NDOF");
+			}
+
+			if (pp.exists("INIT_STATE_YDOT"))
+			{
+				const std::vector<double> initYdot = pp.getDoubleArray("INIT_STATE_YDOT");
+				if (initYdot.size() != _sim->numDofs())
+				{
+					throw InvalidParameterException("Length of INIT_STATE_YDOT should be equal to NDOF");
+				}
+				_sim->applyInitialCondition(initY.data(), initYdot.data());
+			}
+			else
+			{
+				_sim->applyInitialCondition(initY.data());
 			}
 		}
 		else
