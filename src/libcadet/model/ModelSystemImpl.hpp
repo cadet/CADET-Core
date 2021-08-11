@@ -78,8 +78,9 @@ public:
 	virtual unsigned int numPureDofs() const CADET_NOEXCEPT;
 
 	/**
-	* @brief Returns the offset to the local slice of each unit operation model in the global state vector
-	* @return Pointer to the vector containing the offset to local slice of each unit operation
+	* @brief Returns the length of the local slice of each unit operation model in the global state vector
+	* @param [in] Unit operation ID for which slice of last state is required
+	* @return Start and end indices of the local slice of each unit operation
 	*/
 	virtual std::tuple<unsigned int, unsigned int> getModelStateOffsets(UnitOpIdx unitOp) const CADET_NOEXCEPT;
 
