@@ -162,12 +162,12 @@ public:
 	 */
 	virtual void removeExternalFunction(IExternalFunction const* extFun) = 0;
 
-
 	/**
-	* @brief Return the offset indices corresponding to the last state of each unit operation
+	* @brief Returns the length of the local slice of each unit operation model in the global state vector
+	* @param [in] Unit operation ID for which slice of last state is required
+	* @return Start and end indices of the local slice of each unit operation 
 	*/
-	virtual unsigned int const* getModelStateOffsets() const CADET_NOEXCEPT=0;
-	//virtual IModel* getModelSlice(std::vector<int> index_stride) = 0;
+	virtual std::tuple<unsigned int, unsigned int> getModelStateOffsets(UnitOpIdx unitOp)const CADET_NOEXCEPT = 0;
 
 #ifdef CADET_BENCHMARK_MODE
 	/**

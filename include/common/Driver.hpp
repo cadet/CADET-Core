@@ -191,7 +191,7 @@ void readSensitivityInitialState(ParamProvider_t& pp, const char* prefix, std::v
 class Driver
 {
 public:
-	Driver() : _sim(nullptr), _builder(nullptr), _storage(nullptr), _writeLastState(false), _writeLastStateSens(false), _writeLastStateUnitId(), _writeLastStateUnit(false)
+	Driver() : _sim(nullptr), _builder(nullptr), _storage(nullptr), _writeLastState(false), _writeLastStateSens(false)
 	{
 		_builder = cadetCreateModelBuilder();
 	}
@@ -264,7 +264,7 @@ public:
 
 		// Create and configure model
 		cadet::IModelSystem* model = _builder->createSystem(pp);
-
+		
 		// Hand model over to simulator
 		_sim->initializeModel(*model);
 		_sim->setSectionTimes(secTimes, secCont);
@@ -476,14 +476,14 @@ public:
 				pp.pushScope(oss.str());
 				if (pp.exists("WRITE_SOLUTION_LAST_UNIT"))
 				{
-					_writeLastStateUnit = pp.getBool("WRITE_SOLUTION_LAST_UNIT");
-					if (_writeLastStateUnit==true)
+					const bool _writeLastStateUnit = pp.getBool("WRITE_SOLUTION_LAST_UNIT");
+					if (_writeLastStateUnit)
 						_writeLastStateUnitId.push_back(i);
 				}
 				pp.popScope();
 			}
 		}
-
+		
 		if (pp.exists("WRITE_SENS_LAST"))
 			_writeLastStateSens = pp.getBool("WRITE_SENS_LAST");
 		else
@@ -557,19 +557,21 @@ public:
 		std::ostringstream oss;
 		for (int i = 0; i < _writeLastStateUnitId.size(); ++i)
 		{
-			const unsigned int lastStateUnitId = _writeLastStateUnitId[i];
+			unsigned int dofOffset_start, dofOffset_end;
+			std::tie(dofOffset_start, dofOffset_end) = _sim->model()->getModelStateOffsets(_writeLastStateUnitId[i]);
+
 			oss.str("");
-			oss << "unit_" << std::setfill('0') << std::setw(3) << std::setprecision(0) << lastStateUnitId;
+			oss << "unit_" << std::setfill('0') << std::setw(3) << std::setprecision(0) << _writeLastStateUnitId[i];
 			writer.pushGroup("solution");
 			writer.pushGroup(oss.str());
 			
 			unsigned int len = 0;
 			double const* const lastY = _sim->getLastSolution(len);
 			double const* const lastYdot = _sim->getLastSolutionDerivative(len);
-			const unsigned int* modelOffsets = _sim->model()->getModelStateOffsets();
+			//const unsigned int* modelOffsets = _sim->model()->getModelStateOffsets();
 
-			writer.template vector<double>("LAST_STATE_Y", modelOffsets[lastStateUnitId + 1] - modelOffsets[lastStateUnitId], lastY + modelOffsets[lastStateUnitId]);
-			writer.template vector<double>("LAST_STATE_YDOT", modelOffsets[lastStateUnitId + 1] - modelOffsets[lastStateUnitId], lastYdot + modelOffsets[lastStateUnitId]);
+			writer.template vector<double>("LAST_STATE_Y", dofOffset_end - dofOffset_start, lastY + dofOffset_start);
+			writer.template vector<double>("LAST_STATE_YDOT", dofOffset_end - dofOffset_start, lastYdot + dofOffset_start);
 			
 			writer.popGroup();
 			writer.popGroup();
@@ -638,7 +640,25 @@ public:
 	inline cadet::IModelSystem* model() const { return _sim->model(); }
 
 	inline void setWriteLastState(bool writeLastState) CADET_NOEXCEPT { _writeLastState = writeLastState; }
-	inline void setWriteLastStateOfUnit(UnitOpIdx uid, bool writeLastStateUnit) CADET_NOEXCEPT {_writeLastStateUnit = writeLastStateUnit; };
+	inline void setWriteLastStateOfUnit(UnitOpIdx uid, bool writeLastStateUnit) CADET_NOEXCEPT
+	{
+		std::vector<unsigned int>::iterator it = std::find(_writeLastStateUnitId.begin(), _writeLastStateUnitId.end(), uid);
+		if (writeLastStateUnit)
+		{
+			if (it == _writeLastStateUnitId.end())
+			{
+				_writeLastStateUnitId.push_back(uid);
+			}
+		}
+		else 
+		{
+			if (it != _writeLastStateUnitId.end())
+			{
+				const unsigned index = std::distance(_writeLastStateUnitId.begin(), it);
+				_writeLastStateUnitId.erase(_writeLastStateUnitId.begin() + index);
+			}
+		}
+	}
 	inline void setWriteLastStateSens(bool writeLastState) CADET_NOEXCEPT { _writeLastStateSens = writeLastState; }
 	inline void setWriteSolutionTimes(bool solTimes) CADET_NOEXCEPT
 	{
@@ -655,7 +675,6 @@ protected:
 	cadet::InternalStorageSystemRecorder* _storage; //!< Storage for results
 
 	bool _writeLastState;
-	bool _writeLastStateUnit;
 	std::vector<unsigned int> _writeLastStateUnitId;
 	bool _writeLastStateSens;
 

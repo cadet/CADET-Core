@@ -278,11 +278,14 @@ unsigned int ModelSystem::numPureDofs() const CADET_NOEXCEPT
 	return dofs;
 }
 
-unsigned int const* ModelSystem::getModelStateOffsets() const CADET_NOEXCEPT
+std::tuple<unsigned int, unsigned int> ModelSystem::getModelStateOffsets(UnitOpIdx unitOp) const CADET_NOEXCEPT
 {
-	return _dofOffset.data();
+	for (IUnitOperation* m : _models)
+	{
+		if (m->unitOperationId() == unitOp)
+			return  std::make_tuple(_dofOffset[(unsigned int)m->unitOperationId()], _dofOffset[(unsigned int)m->unitOperationId()+1]);
+	}
 }
-
 
 bool ModelSystem::usesAD() const CADET_NOEXCEPT
 {
