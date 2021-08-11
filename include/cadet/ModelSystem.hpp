@@ -19,6 +19,7 @@
 #define LIBCADET_MODELSYSTEM_HPP_
 
 #include <unordered_map>
+#include <tuple>
 #ifdef CADET_BENCHMARK_MODE
 	#include <vector>
 #endif
@@ -163,11 +164,11 @@ public:
 	virtual void removeExternalFunction(IExternalFunction const* extFun) = 0;
 
 	/**
-	* @brief Returns the length of the local slice of each unit operation model in the global state vector
-	* @param [in] Unit operation ID for which slice of last state is required
-	* @return Start and end indices of the local slice of each unit operation 
+	* @brief Returns the start and end indices of a unit operation's local slice in the global state vector
+	* @param [in] unitOp Unit operation ID for which local state position is required
+	* @return Start and end indices of the local slice of model @p unitOp
 	*/
-	virtual std::tuple<unsigned int, unsigned int> getModelStateOffsets(UnitOpIdx unitOp)const CADET_NOEXCEPT = 0;
+	virtual std::tuple<unsigned int, unsigned int> getModelStateOffsets(UnitOpIdx unitOp) const CADET_NOEXCEPT = 0;
 
 #ifdef CADET_BENCHMARK_MODE
 	/**

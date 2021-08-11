@@ -22,7 +22,9 @@
 #include <vector>
 #include <iomanip>
 #include <sstream>
+
 #include "cadet/cadet.hpp"
+
 #include "common/SolutionRecorderImpl.hpp"
 
 namespace cadet
@@ -264,7 +266,7 @@ public:
 
 		// Create and configure model
 		cadet::IModelSystem* model = _builder->createSystem(pp);
-		
+
 		// Hand model over to simulator
 		_sim->initializeModel(*model);
 		_sim->setSectionTimes(secTimes, secCont);
@@ -474,21 +476,23 @@ public:
 			if (pp.exists(oss.str()))
 			{
 				pp.pushScope(oss.str());
+
 				if (pp.exists("WRITE_SOLUTION_LAST_UNIT"))
 				{
-					const bool _writeLastStateUnit = pp.getBool("WRITE_SOLUTION_LAST_UNIT");
-					if (_writeLastStateUnit)
+					const bool writeLastStateUnit = pp.getBool("WRITE_SOLUTION_LAST_UNIT");
+					if (writeLastStateUnit)
 						_writeLastStateUnitId.push_back(i);
 				}
+
 				pp.popScope();
 			}
 		}
-		
+
 		if (pp.exists("WRITE_SENS_LAST"))
 			_writeLastStateSens = pp.getBool("WRITE_SENS_LAST");
 		else
 			_writeLastStateSens = false;
-		
+
 		pp.popScope(); // scope return
 
 		if (applyInSimulator)
@@ -550,32 +554,31 @@ public:
 			double const* const lastYdot = _sim->getLastSolutionDerivative(len);
 
 			writer.vector("LAST_STATE_Y", len, lastY);
-			writer.vector("LAST_STATE_YDOT", len, lastYdot); 
+			writer.vector("LAST_STATE_YDOT", len, lastYdot);
 		}
 
-		/*Implementatoin of writing last state Y and YDot for each unit operation*/
 		std::ostringstream oss;
 		for (int i = 0; i < _writeLastStateUnitId.size(); ++i)
 		{
-			unsigned int dofOffset_start, dofOffset_end;
-			std::tie(dofOffset_start, dofOffset_end) = _sim->model()->getModelStateOffsets(_writeLastStateUnitId[i]);
+			unsigned int sliceStart;
+			unsigned int sliceEnd;
+			std::tie(sliceStart, sliceEnd) = _sim->model()->getModelStateOffsets(_writeLastStateUnitId[i]);
 
 			oss.str("");
 			oss << "unit_" << std::setfill('0') << std::setw(3) << std::setprecision(0) << _writeLastStateUnitId[i];
 			writer.pushGroup("solution");
 			writer.pushGroup(oss.str());
-			
+
 			unsigned int len = 0;
 			double const* const lastY = _sim->getLastSolution(len);
 			double const* const lastYdot = _sim->getLastSolutionDerivative(len);
-			//const unsigned int* modelOffsets = _sim->model()->getModelStateOffsets();
 
-			writer.template vector<double>("LAST_STATE_Y", dofOffset_end - dofOffset_start, lastY + dofOffset_start);
-			writer.template vector<double>("LAST_STATE_YDOT", dofOffset_end - dofOffset_start, lastYdot + dofOffset_start);
-			
+			writer.template vector<double>("LAST_STATE_Y", sliceEnd - sliceStart, lastY + sliceStart);
+			writer.template vector<double>("LAST_STATE_YDOT", sliceEnd - sliceStart, lastYdot + sliceStart);
+
 			writer.popGroup();
 			writer.popGroup();
-		}	
+		}
 
 		if (_writeLastStateSens)
 		{
@@ -639,26 +642,28 @@ public:
 	inline cadet::IModelBuilder* modelBuilder() const CADET_NOEXCEPT { return _builder; }
 	inline cadet::IModelSystem* model() const { return _sim->model(); }
 
-	inline void setWriteLastState(bool writeLastState) CADET_NOEXCEPT { _writeLastState = writeLastState; }
-	inline void setWriteLastStateOfUnit(UnitOpIdx uid, bool writeLastStateUnit) CADET_NOEXCEPT
+	inline void setWriteLastStateOfUnit(UnitOpIdx uid, bool writeLastStateUnit)
 	{
-		std::vector<unsigned int>::iterator it = std::find(_writeLastStateUnitId.begin(), _writeLastStateUnitId.end(), uid);
+		const std::vector<unsigned int>::iterator it = std::find(_writeLastStateUnitId.begin(), _writeLastStateUnitId.end(), uid);
 		if (writeLastStateUnit)
 		{
 			if (it == _writeLastStateUnitId.end())
 			{
+				// Unit not in list, so add it
 				_writeLastStateUnitId.push_back(uid);
 			}
 		}
-		else 
+		else
 		{
 			if (it != _writeLastStateUnitId.end())
 			{
-				const unsigned index = std::distance(_writeLastStateUnitId.begin(), it);
-				_writeLastStateUnitId.erase(_writeLastStateUnitId.begin() + index);
+				// Unit is listed, so remove it
+				_writeLastStateUnitId.erase(it);
 			}
 		}
 	}
+
+	inline void setWriteLastState(bool writeLastState) CADET_NOEXCEPT { _writeLastState = writeLastState; }
 	inline void setWriteLastStateSens(bool writeLastState) CADET_NOEXCEPT { _writeLastStateSens = writeLastState; }
 	inline void setWriteSolutionTimes(bool solTimes) CADET_NOEXCEPT
 	{
@@ -675,7 +680,7 @@ protected:
 	cadet::InternalStorageSystemRecorder* _storage; //!< Storage for results
 
 	bool _writeLastState;
-	std::vector<unsigned int> _writeLastStateUnitId;
+	std::vector<UnitOpIdx> _writeLastStateUnitId;
 	bool _writeLastStateSens;
 
 	/**
