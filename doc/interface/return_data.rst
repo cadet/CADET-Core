@@ -290,4 +290,11 @@ Group /input/return/unit_XXX
    **Type:** int  **Range:** :math:`\{0,1\}`
    =============  ==========================
    
+``WRITE_SOLUTION_LAST_UNIT``
+
+   Write solution state vector of this unit at last time point
+   
+   =============  ==========================
+   **Type:** int  **Range:** :math:`\{0,1\}`
+   =============  ==========================
 

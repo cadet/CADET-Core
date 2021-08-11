@@ -76,6 +76,9 @@ public:
 
 	virtual unsigned int numDofs() const CADET_NOEXCEPT;
 	virtual unsigned int numPureDofs() const CADET_NOEXCEPT;
+
+	virtual std::tuple<unsigned int, unsigned int> getModelStateOffsets(UnitOpIdx unitOp) const CADET_NOEXCEPT;
+
 	virtual bool usesAD() const CADET_NOEXCEPT;
 	virtual unsigned int requiredADdirs() const CADET_NOEXCEPT;
 

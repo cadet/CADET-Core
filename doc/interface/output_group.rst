@@ -285,6 +285,20 @@ Group /output/solution/unit_XXX
    
    **Type:** double
    
+``LAST_STATE_Y``
+
+   State vector of this unit at the last time point of the time integrator if :math:`\texttt{WRITE_SOLUTION_LAST_UNIT}` in :math:`\texttt{/input/return/unit_XXX}` is enabled.
+   Note that the vector includes the dedicated inlet DOFs at the beginning (length: :math:`\texttt{NCOMP} \cdot \texttt{NPORT}`).
+   
+   **Type:** double
+   
+``LAST_STATE_YDOT``
+
+   Time derivative state vector of this unit at the last time point of the time integrator if :math:`\texttt{WRITE_SOLUTION_LAST_UNIT}` in :math:`\texttt{/input/return/unit_XXX}` is enabled.
+   Note that the vector includes the dedicated inlet DOFs at the beginning (length: :math:`\texttt{NCOMP} \cdot \texttt{NPORT}`).
+   
+   **Type:** double
+
 
 Group /output/sensitivity/param_XXX/unit_YYY
 --------------------------------------------
