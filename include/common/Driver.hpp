@@ -644,7 +644,7 @@ public:
 
 	inline void setWriteLastStateOfUnit(UnitOpIdx uid, bool writeLastStateUnit)
 	{
-		const std::vector<unsigned int>::iterator it = std::find(_writeLastStateUnitId.begin(), _writeLastStateUnitId.end(), uid);
+		const std::vector<UnitOpIdx>::iterator it = std::find(_writeLastStateUnitId.begin(), _writeLastStateUnitId.end(), uid);
 		if (writeLastStateUnit)
 		{
 			if (it == _writeLastStateUnitId.end())
