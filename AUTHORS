@@ -5,3 +5,6 @@ Andreas Püttmann (Forschungszentrum Juelich GmbH, IBG-1: Biotechnology, Juelich
 Samuel Leweke (Forschungszentrum Juelich GmbH, IBG-1: Biotechnology, Juelich, Germany): Complete rewrite of v3.0 from scratch, build system, code & framework design and architecture, Matlab interface, file format, frontends (MEX, CLI), domain decomposition (multi-unit systems), reactions, 2D general rate model (paid by GE Healthcare), multiple particle types (paid by GE Healthcare)
 William Heymann (Forschungszentrum Juelich GmbH, IBG-1: Biotechnology, Juelich, Germany): Networks of unit operations, compiler flag optimization
 Salah Azzouzi (Forschungszentrum Juelich GmbH, IBG-1: Biotechnology, Juelich, Germany): Core-shell particles (paid by GE Healthcare)
+Johannes Schmölder (Forschungszentrum Juelich GmbH, IBG-1: Biotechnology, Juelich, Germany)
+Jayghosh Rao (Forschungszentrum Juelich GmbH, IBG-1: Biotechnology, Juelich, Germany)
+Jazib Hassan (Forschungszentrum Juelich GmbH, IBG-1: Biotechnology, Juelich, Germany)
