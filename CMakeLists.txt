@@ -549,6 +549,9 @@ endif()
 
 if (ENABLE_TESTS)
 	add_subdirectory(test)
+    include(ProcessorCount)
+    ProcessorCount(NPROC)
+    add_custom_target(check COMMAND test/testRunner -d yes --tbbthreads ${NPROC})
 endif()
 
 
