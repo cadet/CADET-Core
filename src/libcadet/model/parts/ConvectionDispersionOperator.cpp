@@ -103,6 +103,7 @@ bool ConvectionDispersionOperatorBase::configure(UnitOpIdx unitOpIdx, IParameter
 	{
 		readScalarParameterOrArray(_velocity, paramProvider, "VELOCITY", 1);
 	}
+	_dir = 1;
 
 	readScalarParameterOrArray(_colDispersion, paramProvider, "COL_DISPERSION", 1);
 	if (paramProvider.exists("COL_DISPERSION_MULTIPLEX"))
@@ -185,29 +186,21 @@ bool ConvectionDispersionOperatorBase::configure(UnitOpIdx unitOpIdx, IParameter
  */
 bool ConvectionDispersionOperatorBase::notifyDiscontinuousSectionTransition(double t, unsigned int secIdx)
 {
-	double prevVelocity = static_cast<double>(_curVelocity);
-
 	// If we don't have cross section area, velocity is given by parameter
+	double _dir_old = _dir;
 	if (_crossSection <= 0.0)
-		_curVelocity = getSectionDependentScalar(_velocity, secIdx);
+		_dir = static_cast<double>(getSectionDependentScalar(_velocity, secIdx));
 	else if (!_velocity.empty())
 	{
-		if (secIdx > 0)
-		{
-			const double dir = static_cast<double>(getSectionDependentScalar(_velocity, secIdx - 1));
-			if (dir < 0.0)
-				prevVelocity *= -1.0;
-		}
-
 		// We have both cross section area and interstitial flow rate
 		// _curVelocity has already been set to the network flow rate in setFlowRates()
 		// the direction of the flow (i.e., sign of _curVelocity) is given by _velocity
-		const double dir = static_cast<double>(getSectionDependentScalar(_velocity, secIdx));
-		if (dir < 0.0)
+		_dir = static_cast<double>(getSectionDependentScalar(_velocity, secIdx));
+		if (_dir_old * static_cast<double>(_dir) < 0.0)
 			_curVelocity *= -1.0;
 	}
 
-	return (prevVelocity * static_cast<double>(_curVelocity) < 0.0);
+	return (_dir_old * static_cast<double>(_dir) < 0.0);
 }
 
 /**
@@ -221,7 +214,7 @@ void ConvectionDispersionOperatorBase::setFlowRates(const active& in, const acti
 {
 	// If we have cross section area, interstitial velocity is given by network flow rates
 	if (_crossSection > 0.0)
-		_curVelocity = in / (_crossSection * colPorosity);
+		_curVelocity = _dir * in / (_crossSection * colPorosity);
 }
 
 /**
