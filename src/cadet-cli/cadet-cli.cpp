@@ -20,6 +20,7 @@
 #include <tclap/CmdLine.h>
 #include "common/TclapUtils.hpp"
 #include "ProgressBar.hpp"
+#include "SignalHandler.hpp"
 
 #include "Logging.hpp"
 
@@ -116,6 +117,7 @@ namespace TCLAP
 	}
 } // namespace TCLAP
 
+
 class ProgressBarNotifier : public cadet::INotificationCallback
 {
 public:
@@ -138,20 +140,43 @@ public:
 	{
 		snprintf(_secStrBuffer.data(), _secStrBuffer.size(), "Init Sec %3u", section);
 		_progBar.update(progress, _secStrBuffer.data());
-		return true;
+		return !cadet::stopExecutionRequested();
 	}
 
 	virtual bool timeIntegrationStep(unsigned int section, double time, double const* state, double const* stateDot, double progress)
 	{
 		snprintf(_secStrBuffer.data(), _secStrBuffer.size(), "Section %3u", section);
 		_progBar.update(progress, _secStrBuffer.data());
-		return true;
+		return !cadet::stopExecutionRequested();
 	}
 
 protected:
 	cadet::ProgressBar _progBar;
 	std::vector<char> _secStrBuffer;
 };
+
+
+class SignalHandlingNotifier : public cadet::INotificationCallback
+{
+public:
+	SignalHandlingNotifier() { }
+	virtual ~SignalHandlingNotifier() CADET_NOEXCEPT { }
+
+	virtual void timeIntegrationStart() { }
+	virtual void timeIntegrationEnd() { }
+	virtual void timeIntegrationError(char const* message, unsigned int section, double time, double progress) { }
+
+	virtual bool timeIntegrationSection(unsigned int section, double time, double const* state, double const* stateDot, double progress)
+	{
+		return !cadet::stopExecutionRequested();
+	}
+
+	virtual bool timeIntegrationStep(unsigned int section, double time, double const* state, double const* stateDot, double progress)
+	{
+		return !cadet::stopExecutionRequested();
+	}
+};
+
 
 template <class Reader_t>
 class FileReaderDriverConfigurator
@@ -171,6 +196,7 @@ public:
 	}
 };
 
+
 class JsonDriverConfigurator
 {
 public:
@@ -188,6 +214,7 @@ public:
 	}
 };
 
+
 template <class DriverConfigurator_t, class Writer_t>
 int run(const std::string& inFileName, const std::string& outFileName, bool showProgressBar)
 {
@@ -199,14 +226,29 @@ int run(const std::string& inFileName, const std::string& outFileName, bool show
 		dc.configure(drv, inFileName);
 	}
 
-	std::unique_ptr<ProgressBarNotifier> pb = nullptr;
+	std::unique_ptr<SignalHandlingNotifier> shn = nullptr;
 
 #ifndef CADET_BENCHMARK_MODE
+	// Select between progress bar or signal handling only
+
+	std::unique_ptr<ProgressBarNotifier> pb = nullptr;
+
 	if (showProgressBar)
+	{
 		pb = std::make_unique<ProgressBarNotifier>();
+		drv.simulator()->setNotificationCallback(pb.get());
+	}
+	else
+	{
+		shn = std::make_unique<SignalHandlingNotifier>();
+		drv.simulator()->setNotificationCallback(shn.get());
+	}
+#else
+	// Always handle signals in benchmark mode (no progress bar overhead)
+	shn = std::make_unique<SignalHandlingNotifier>();
+	drv.simulator()->setNotificationCallback(shn.get());
 #endif
 
-	drv.simulator()->setNotificationCallback(pb.get());
 	
 	try
 	{
@@ -271,6 +313,9 @@ int main(int argc, char** argv)
 	// Benchmark the whole program from start to finish
 	BenchScope bsTotalTime;
 #endif
+
+	// Install signal handler
+	cadet::installSignalHandler();
 
 	// Program options
 	std::string inFileName = "";

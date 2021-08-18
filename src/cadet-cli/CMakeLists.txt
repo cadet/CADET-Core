@@ -19,6 +19,7 @@ add_executable(cadet-cli
 	${CMAKE_SOURCE_DIR}/src/cadet-cli/cadet-cli.cpp
 	${CMAKE_SOURCE_DIR}/src/io/JsonParameterProvider.cpp
 	${CMAKE_SOURCE_DIR}/src/cadet-cli/ProgressBar.cpp
+	${CMAKE_SOURCE_DIR}/src/cadet-cli/SignalHandler.cpp
 )
 
 # ---------------------------------------------------
