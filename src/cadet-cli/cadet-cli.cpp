@@ -189,8 +189,9 @@ public:
 };
 
 template <class DriverConfigurator_t, class Writer_t>
-void run(const std::string& inFileName, const std::string& outFileName, bool showProgressBar)
+int run(const std::string& inFileName, const std::string& outFileName, bool showProgressBar)
 {
+	int returnCode = 0;
 	cadet::Driver drv;
 	
 	{
@@ -206,7 +207,16 @@ void run(const std::string& inFileName, const std::string& outFileName, bool sho
 #endif
 
 	drv.simulator()->setNotificationCallback(pb.get());
-	drv.run();
+	
+	try
+	{
+		drv.run();
+	}
+	catch (const cadet::IntegrationException& e)
+	{
+		std::cerr << "SOLVER ERROR: " << e.what() << std::endl;
+		returnCode = 3;
+	}
 
 	Writer_t writer;
 	if (inFileName == outFileName)
@@ -250,6 +260,8 @@ void run(const std::string& inFileName, const std::string& outFileName, bool sho
 	}
 	std::cout << "\n}" << std::endl;
 #endif
+
+	return returnCode;
 }
 
 
@@ -314,6 +326,7 @@ int main(int argc, char** argv)
 
 	const std::string fileExtIn = inFileName.substr(dotPosIn+1);
 	const std::string fileExtOut = outFileName.substr(dotPosOut+1);
+	int returnCode = 0;
 
 	try
 	{
@@ -321,11 +334,11 @@ int main(int argc, char** argv)
 		{
 			if (cadet::util::caseInsensitiveEquals(fileExtOut, "h5"))
 			{
-				run<FileReaderDriverConfigurator<cadet::io::HDF5Reader>, cadet::io::HDF5Writer>(inFileName, outFileName, showProgressBar);
+				returnCode = run<FileReaderDriverConfigurator<cadet::io::HDF5Reader>, cadet::io::HDF5Writer>(inFileName, outFileName, showProgressBar);
 			}
 			else if (cadet::util::caseInsensitiveEquals(fileExtOut, "xml"))
 			{
-				run<FileReaderDriverConfigurator<cadet::io::HDF5Reader>, cadet::io::XMLWriter>(inFileName, outFileName, showProgressBar);
+				returnCode = run<FileReaderDriverConfigurator<cadet::io::HDF5Reader>, cadet::io::XMLWriter>(inFileName, outFileName, showProgressBar);
 			}
 			else
 			{
@@ -337,11 +350,11 @@ int main(int argc, char** argv)
 		{
 			if (cadet::util::caseInsensitiveEquals(fileExtOut, "xml"))
 			{
-				run<FileReaderDriverConfigurator<cadet::io::XMLReader>, cadet::io::XMLWriter>(inFileName, outFileName, showProgressBar);
+				returnCode = run<FileReaderDriverConfigurator<cadet::io::XMLReader>, cadet::io::XMLWriter>(inFileName, outFileName, showProgressBar);
 			}
 			else if (cadet::util::caseInsensitiveEquals(fileExtOut, "h5"))
 			{
-				run<FileReaderDriverConfigurator<cadet::io::XMLReader>, cadet::io::HDF5Writer>(inFileName, outFileName, showProgressBar);
+				returnCode = run<FileReaderDriverConfigurator<cadet::io::XMLReader>, cadet::io::HDF5Writer>(inFileName, outFileName, showProgressBar);
 			}
 			else
 			{
@@ -353,11 +366,11 @@ int main(int argc, char** argv)
 		{
 			if (cadet::util::caseInsensitiveEquals(fileExtOut, "xml"))
 			{
-				run<JsonDriverConfigurator, cadet::io::XMLWriter>(inFileName, outFileName, showProgressBar);
+				returnCode = run<JsonDriverConfigurator, cadet::io::XMLWriter>(inFileName, outFileName, showProgressBar);
 			}
 			else if (cadet::util::caseInsensitiveEquals(fileExtOut, "h5"))
 			{
-				run<JsonDriverConfigurator, cadet::io::HDF5Writer>(inFileName, outFileName, showProgressBar);
+				returnCode = run<JsonDriverConfigurator, cadet::io::HDF5Writer>(inFileName, outFileName, showProgressBar);
 			}
 			else
 			{
@@ -387,5 +400,5 @@ int main(int argc, char** argv)
 		return 1;
 	}
 
-	return 0;
+	return returnCode;
 }
