@@ -883,11 +883,11 @@ bool TwoDimensionalConvectionDispersionOperator::notifyDiscontinuousSectionTrans
 
 		for (unsigned int i = 0; i < _nRad; ++i)
 		{
-			const int newDir = (dirNew[i] >= 0.0) ? 1 : -1;
+			const int newDir = (dirNew[i] >= 0) ? 1 : -1;
 			if (_dir[i] * newDir < 0)
 			{
 				hasChanged = true;
-				_curVelocity[i] *= -1.0;
+				_curVelocity[i] *= -1;
 			}
 			_dir[i] = newDir;
 		}
