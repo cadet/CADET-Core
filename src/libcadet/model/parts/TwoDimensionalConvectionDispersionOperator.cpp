@@ -850,7 +850,7 @@ bool TwoDimensionalConvectionDispersionOperator::configure(UnitOpIdx unitOpIdx, 
 	else
 		registerParam2DArray(parameters, _velocity, [=](bool multi, unsigned int sec, unsigned int compartment) { return makeParamId(hashString("VELOCITY"), unitOpIdx, CompIndep, compartment, BoundStateIndep, ReactionIndep, multi ? sec : SectionIndep); }, _nRad);
 
-	std::vector<int> _dir(_nRad, 1);
+	_dir = std::vector<int>(_nRad, 1);
 
 	_axialDispersionMode = readAndRegisterMultiplexParam(paramProvider, parameters, _axialDispersion, "COL_DISPERSION", _nComp, _nRad, unitOpIdx);
 	_radialDispersionMode = readAndRegisterMultiplexParam(paramProvider, parameters, _radialDispersion, "COL_DISPERSION_RADIAL", _nComp, _nRad, unitOpIdx);
@@ -874,22 +874,22 @@ bool TwoDimensionalConvectionDispersionOperator::configure(UnitOpIdx unitOpIdx, 
 bool TwoDimensionalConvectionDispersionOperator::notifyDiscontinuousSectionTransition(double t, unsigned int secIdx)
 {
 	bool hasChanged = false;
-	std::vector<int> dir_old = _dir;
 
 	if (!_velocity.empty())
 	{
 		// _curVelocity has already been set to the network flow rate in setFlowRates()
 		// the direction of the flow (i.e., sign of _curVelocity) is given by _velocity
-		active const* const dir_new = getSectionDependentSlice(_velocity, _nRad, secIdx);
+		active const* const dirNew = getSectionDependentSlice(_velocity, _nRad, secIdx);
 
 		for (unsigned int i = 0; i < _nRad; ++i)
 		{
-			_dir[i] = (dir_new[i] > 0);
-			if (_dir[i] * dir_old[i] < 0.0)
+			const int newDir = (dirNew[i] >= 0.0) ? 1 : -1;
+			if (_dir[i] * newDir < 0)
 			{
 				hasChanged = true;
 				_curVelocity[i] *= -1.0;
 			}
+			_dir[i] = newDir;
 		}
 	}
 

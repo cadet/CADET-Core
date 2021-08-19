@@ -187,24 +187,24 @@ bool ConvectionDispersionOperatorBase::configure(UnitOpIdx unitOpIdx, IParameter
 bool ConvectionDispersionOperatorBase::notifyDiscontinuousSectionTransition(double t, unsigned int secIdx)
 {
 	// If we don't have cross section area, velocity is given by parameter
-	double dir_old = _dir;
+	const int dirOld = _dir;
 	if (_crossSection <= 0.0)
 	{
-		double dir_new = static_cast<double>(getSectionDependentScalar(_velocity, secIdx));
-		_dir = (dir_new >= 0);
+		const double dirNew = static_cast<double>(getSectionDependentScalar(_velocity, secIdx));
+		_dir = (dirNew >= 0.0) ? 1 : -1;
 	}
 	else if (!_velocity.empty())
 	{
 		// We have both cross section area and interstitial flow rate
 		// _curVelocity has already been set to the network flow rate in setFlowRates()
 		// the direction of the flow (i.e., sign of _curVelocity) is given by _velocity
-		double dir_new = static_cast<double>(getSectionDependentScalar(_velocity, secIdx));
-		_dir = (dir_new >= 0);
+		const double dirNew = static_cast<double>(getSectionDependentScalar(_velocity, secIdx));
+		_dir = (dirNew >= 0.0) ? 1 : -1;
 	}
-	if (dir_old * _dir < 0.0)
+	if (dirOld * _dir < 0.0)
 		_curVelocity *= -1.0;
 
-	return (dir_old * _dir < 0.0);
+	return (dirOld * _dir < 0.0);
 }
 
 /**
