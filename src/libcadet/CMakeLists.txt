@@ -222,7 +222,7 @@ if (LAPACK_FOUND)
 	set(LIB_LAPACK_DEFINE "CADET_LAPACK_TRAILING_UNDERSCORE")
 
 	# Add the build target for the static nonlinalg library
-	add_library(libcadet_nonlinalg_static STATIC ${LIBCADET_NONLINALG_SOURCES} ${LIBCADET_NONLINALG_SPARSE_SOURCES} "model/binding/MachineLearningBinding.cpp" "model/binding/SplineBinding.cpp" "model/binding/EFunctionBinding.cpp")
+	add_library(libcadet_nonlinalg_static STATIC ${LIBCADET_NONLINALG_SOURCES} ${LIBCADET_NONLINALG_SPARSE_SOURCES} "model/binding/MachineLearningBinding.cpp" "model/binding/SplineBinding.cpp" "model/binding/EFunctionBinding.cpp"  )
 	set_target_properties(libcadet_nonlinalg_static PROPERTIES OUTPUT_NAME cadet_nonlinalg_static)
 	target_compile_definitions(libcadet_nonlinalg_static PRIVATE libcadet_nonlinalg_static_EXPORTS ${LIB_LAPACK_DEFINE})
 	target_link_libraries(libcadet_nonlinalg_static PUBLIC CADET::CompileOptions PRIVATE SUNDIALS::sundials_idas ${SUNDIALS_NVEC_TARGET} ${LAPACK_LIBRARIES})
@@ -238,7 +238,7 @@ if (LAPACK_FOUND)
 
 
 	# Add the build target for CADET object library
-	add_library(libcadet_object OBJECT ${LIBCADET_SOURCES} "model/binding/MachineLearningBinding.cpp" "model/binding/SplineBinding.cpp" "model/binding/EFunctionBinding.cpp")
+	add_library(libcadet_object OBJECT ${LIBCADET_SOURCES} "model/binding/MachineLearningBinding.cpp" "model/binding/SplineBinding.cpp" "model/binding/EFunctionBinding.cpp"  )
 	target_compile_definitions(libcadet_object PRIVATE libcadet_EXPORTS ${LIB_LAPACK_DEFINE})
 	target_link_libraries(libcadet_object PUBLIC CADET::CompileOptions CADET::LibOptions PRIVATE CADET::AD libcadet_nonlinalg_static SUNDIALS::sundials_idas ${SUNDIALS_NVEC_TARGET} ${TBB_TARGET})
 
@@ -284,7 +284,7 @@ if (ENABLE_CADET_MEX)
 	endif()
 
 	# Add the build target for the mex nonlinalg library
-	add_library(libcadet_nonlinalg_mex STATIC ${LIBCADET_NONLINALG_SOURCES} ${LIBCADET_NONLINALG_MEX_SOURCES} "model/binding/MachineLearningBinding.cpp" "model/binding/SplineBinding.cpp" "model/binding/EFunctionBinding.cpp")
+	add_library(libcadet_nonlinalg_mex STATIC ${LIBCADET_NONLINALG_SOURCES} ${LIBCADET_NONLINALG_MEX_SOURCES} "model/binding/MachineLearningBinding.cpp" "model/binding/SplineBinding.cpp" "model/binding/EFunctionBinding.cpp"  )
 	set_target_properties(libcadet_nonlinalg_mex PROPERTIES 
 		OUTPUT_NAME cadet_nonlinalg_mex
 		LINK_SEARCH_START_STATIC ON
@@ -313,7 +313,7 @@ if (ENABLE_CADET_MEX)
 	endif()
 
 	# Add the build target for the mex CADET library
-	add_library(libcadet_mex STATIC ${LIBCADET_SOURCES} "model/binding/MachineLearningBinding.cpp" "model/binding/SplineBinding.cpp" "model/binding/EFunctionBinding.cpp")
+	add_library(libcadet_mex STATIC ${LIBCADET_SOURCES} "model/binding/MachineLearningBinding.cpp" "model/binding/SplineBinding.cpp" "model/binding/EFunctionBinding.cpp"  )
 	set_target_properties(libcadet_mex PROPERTIES 
 		OUTPUT_NAME cadet_mex
 		LINK_SEARCH_START_STATIC ON
