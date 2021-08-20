@@ -653,7 +653,7 @@ protected:
 /**
  * @brief Creates a TwoDimensionalConvectionDispersionOperator
  */
-TwoDimensionalConvectionDispersionOperator::TwoDimensionalConvectionDispersionOperator() : _colPorosities(0), _stencilMemory(sizeof(active) * Weno::maxStencilSize()), 
+TwoDimensionalConvectionDispersionOperator::TwoDimensionalConvectionDispersionOperator() : _colPorosities(0), _dir(0), _stencilMemory(sizeof(active) * Weno::maxStencilSize()), 
 	_wenoDerivatives(new double[Weno::maxStencilSize()]), _weno(), _linearSolver(nullptr)
 {
 }
@@ -729,6 +729,7 @@ bool TwoDimensionalConvectionDispersionOperator::configureModelDiscretization(IP
 //	_radialCentroids.resize(nRad);
 	_crossSections.resize(nRad);
 	_curVelocity.resize(nRad);
+	_dir.resize(nRad);
 
 	setSparsityPattern();
 
