@@ -186,20 +186,31 @@ bool ConvectionDispersionOperatorBase::configure(UnitOpIdx unitOpIdx, IParameter
  */
 bool ConvectionDispersionOperatorBase::notifyDiscontinuousSectionTransition(double t, unsigned int secIdx)
 {
+	// setFlowRates() was called before, so _curVelocity has direction dirOld
 	const int dirOld = _dir;
-	// If we don't have cross section area, velocity is given by parameter
-	// We have both cross section area and interstitial flow rate
-	// _curVelocity has already been set to the network flow rate in setFlowRates()
-	// the direction of the flow (i.e., sign of _curVelocity) is given by _velocity
-if (_crossSection <= 0.0 || !_velocity.empty())
-	{
-		const double dirNew = static_cast<double>(getSectionDependentScalar(_velocity, secIdx));
-		_dir = (dirNew >= 0) ? 1 : -1;
 
+	if (_crossSection <= 0.0)
+	{
+		// Use the provided _velocity (direction is also set), only update _dir
+		_curVelocity = getSectionDependentScalar(_velocity, secIdx);
+		_dir = (_curVelocity >= 0.0) ? 1 : -1;
+	}
+	else if (!_velocity.empty())
+	{
+		// Use network flow rate but take direction from _velocity
+		_dir = (getSectionDependentScalar(_velocity, secIdx) >= 0.0) ? 1 : -1;
+
+		// _curVelocity has correct magnitude but previous direction, so flip it if necessary
 		if (dirOld * _dir < 0)
-			_curVelocity *= -1;
+			_curVelocity *= -1.0;
 	}
 
+	// Remaining case: _velocity is empty and _crossSection <= 0.0
+	// _curVelocity is goverend by network flow rate provided in setFlowRates().
+	// Direction never changes (always forward, that is, _dir = 1)-
+	// No action required.
+
+	// Detect change in flow direction
 	return (dirOld * _dir < 0);
 }
 

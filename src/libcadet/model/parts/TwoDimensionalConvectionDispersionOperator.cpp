@@ -729,7 +729,6 @@ bool TwoDimensionalConvectionDispersionOperator::configureModelDiscretization(IP
 //	_radialCentroids.resize(nRad);
 	_crossSections.resize(nRad);
 	_curVelocity.resize(nRad);
-	_dir.resize(nRad);
 
 	setSparsityPattern();
 
