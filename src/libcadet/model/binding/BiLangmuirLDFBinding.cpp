@@ -341,7 +341,7 @@ namespace cadet
 								continue;
 
 							// dres_i / dc_j
-							jac[j - site - offsetCp - nSites * bndIdx] = -static_cast<double>(localKeq[j])*kkin * keq * static_cast<double>(localQmax[i]) *yCp[i]/ (qSum*qSum);
+							jac[j - site - offsetCp - nSites * bndIdx] += static_cast<double>(localKeq[j])*kkin * keq * static_cast<double>(localQmax[i]) *yCp[i]/ (qSum*qSum);
 							// Getting to c_{p,j}: -nSites * bndIdx takes us to q_{0,site}, another -site to q_{0,0}. From there, we
 							//                     take a -offsetCp to reach c_{p,0} and a +j to arrive at c_{p,j}.
 							//                     This means jac[j - site - offsetCp - nSites * bndIdx] corresponds to c_{p,j}.
