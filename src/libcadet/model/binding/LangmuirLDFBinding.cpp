@@ -156,7 +156,7 @@ protected:
 	{
 		typename ParamHandler_t::ParamsHandle const p = _paramHandler.update(t, secIdx, colPos, _nComp, _nBoundStates, workSpace);
 
-		// Protein fluxes: -k_{a,i} * c_{p,i} * q_{max,i} * (1 - \sum_j q_j / q_{max,j}) + k_{d,i} * q_i
+		// Protein fluxes: k_{kin,i}q_i - k_{kin,i} \frac{q_{m,i}k_{eq,i}c_i}{1+\sum_{j=1}^{n_{comp}} k_{eq,j}c_j}
 		ResidualType qSum = 1.0;
 		unsigned int bndIdx = 0;
 		for (int i = 0; i < _nComp; ++i)
@@ -193,7 +193,7 @@ protected:
 	{
 		typename ParamHandler_t::ParamsHandle const p = _paramHandler.update(t, secIdx, colPos, _nComp, _nBoundStates, workSpace);
 
-		// Protein fluxes: -k_{a,i} * c_{p,i} * q_{max,i} * (1 - \sum_j q_j / q_{max,j}) + k_{d,i} * q_i
+		// Protein fluxes: k_{kin,i}q_i - k_{kin,i} \frac{q_{m,i}k_{eq,i}c_i}{1+\sum_{j=1}^{n_{comp}} k_{eq,j}c_j}
 		double qSum = 1.0;
 		int bndIdx = 0;
 		for (int i = 0; i < _nComp; ++i)
