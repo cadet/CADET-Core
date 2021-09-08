@@ -217,9 +217,9 @@ protected:
 
 			const double keq = static_cast<double>(p->keq[i]);
 			const double kkin = static_cast<double>(p->kkin[i]);
-
+			//(keq *keq *static_cast<double>(p->qMax[i]) * yCp[i] / (qSum*qSum))
 			// dres_i / dc_{p,i}
-			jac[i - bndIdx - offsetCp] = kkin*( (keq *keq *static_cast<double>(p->qMax[i]) * yCp[i] / (qSum*qSum)) - (keq* static_cast<double>(p->qMax[i]) /qSum)  );
+			jac[i - bndIdx - offsetCp] = -kkin*( (keq* static_cast<double>(p->qMax[i]) /qSum)  );
 			// Getting to c_{p,i}: -bndIdx takes us to q_0, another -offsetCp to c_{p,0} and a +i to c_{p,i}.
 			//                     This means jac[i - bndIdx - offsetCp] corresponds to c_{p,i}.
 
@@ -232,11 +232,10 @@ protected:
 					continue;
 
 				// dres_i / dc_j
-				//jac[bndIdx2 - bndIdx] = ka * yCp[i] * static_cast<double>(p->qMax[i]) / static_cast<double>(p->qMax[j]);
-				jac[j - bndIdx - offsetCp] = static_cast<double>(p->keq[j])*keq * kkin * static_cast<double>(p->qMax[i])* yCp[i] / (qSum*qSum);
+				jac[j - bndIdx - offsetCp] += static_cast<double>(p->keq[j])*keq * kkin * static_cast<double>(p->qMax[i])* yCp[i] / (qSum*qSum);
 				// Getting to c_{p,j}: -bndIdx takes us to q_0, another -offsetCp to c_{p,0} and a +j to c_{p,j}.
 				//                     This means jac[j - bndIdx - offsetCp] corresponds to c_{p,j}.
-				// Getting to q_j: -bndIdx takes us to q_0, another +bndIdx2 to q_j. This means jac[bndIdx2 - bndIdx] corresponds to q_j.
+				
 
 				++bndIdx2;
 			}
