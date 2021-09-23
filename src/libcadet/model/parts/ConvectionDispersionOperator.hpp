@@ -121,6 +121,7 @@ protected:
 	std::vector<active> _colDispersion; //!< Column dispersion (may be section dependent) \f$ D_{\text{ax}} \f$
 	std::vector<active> _velocity; //!< Interstitial velocity (may be section dependent) \f$ u \f$
 	active _curVelocity; //!< Current interstitial velocity \f$ u \f$ in this time section
+	int _dir; //!< Current flow direction in this time section
 
 	ArrayPool _stencilMemory; //!< Provides memory for the stencil
 	double* _wenoDerivatives; //!< Holds derivatives of the WENO scheme
