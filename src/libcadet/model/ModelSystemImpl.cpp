@@ -22,6 +22,7 @@
 
 #include <sstream>
 #include <iomanip>
+#include <iterator>
 
 #include "LoggingUtils.hpp"
 #include "Logging.hpp"
