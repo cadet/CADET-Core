@@ -46,7 +46,7 @@ namespace
 	class ConvOpResidual
 	{
 	public:
-		static inline void call(cadet::model::parts::ConvectionDispersionOperatorBase& op, double t, unsigned int secIdx, StateType const* const y, double const* const yDot, ResidualType* const res, cadet::linalg::BandMatrix& jac)
+		static inline void call(cadet::model::parts::AxialConvectionDispersionOperatorBase& op, double t, unsigned int secIdx, StateType const* const y, double const* const yDot, ResidualType* const res, cadet::linalg::BandMatrix& jac)
 		{
 			// This should not be reached
 			cadet_assert(false);
@@ -57,7 +57,7 @@ namespace
 	class ConvOpResidual<double, ResidualType, ParamType, true>
 	{
 	public:
-		static inline void call(cadet::model::parts::ConvectionDispersionOperatorBase& op, double t, unsigned int secIdx, double const* const y, double const* const yDot, ResidualType* const res, cadet::linalg::BandMatrix& jac)
+		static inline void call(cadet::model::parts::AxialConvectionDispersionOperatorBase& op, double t, unsigned int secIdx, double const* const y, double const* const yDot, ResidualType* const res, cadet::linalg::BandMatrix& jac)
 		{
 			op.residual(t, secIdx, y, yDot, res, jac);
 		}
@@ -67,7 +67,7 @@ namespace
 	class ConvOpResidual<double, ResidualType, ParamType, false>
 	{
 	public:
-		static inline void call(cadet::model::parts::ConvectionDispersionOperatorBase& op, double t, unsigned int secIdx, double const* const y, double const* const yDot, ResidualType* const res, cadet::linalg::BandMatrix& jac)
+		static inline void call(cadet::model::parts::AxialConvectionDispersionOperatorBase& op, double t, unsigned int secIdx, double const* const y, double const* const yDot, ResidualType* const res, cadet::linalg::BandMatrix& jac)
 		{
 			op.residual(t, secIdx, y, yDot, res, typename cadet::ParamSens<ParamType>::enabled());
 		}
@@ -77,7 +77,7 @@ namespace
 	class ConvOpResidual<cadet::active, ResidualType, ParamType, false>
 	{
 	public:
-		static inline void call(cadet::model::parts::ConvectionDispersionOperatorBase& op, double t, unsigned int secIdx, cadet::active const* const y, double const* const yDot, ResidualType* const res, cadet::linalg::BandMatrix& jac)
+		static inline void call(cadet::model::parts::AxialConvectionDispersionOperatorBase& op, double t, unsigned int secIdx, cadet::active const* const y, double const* const yDot, ResidualType* const res, cadet::linalg::BandMatrix& jac)
 		{
 			op.residual(t, secIdx, y, yDot, res, typename cadet::ParamSens<ParamType>::enabled());
 		}
@@ -355,7 +355,7 @@ void LumpedRateModelWithoutPores::notifyDiscontinuousSectionTransition(double t,
 {
 	Indexer idxr(_disc);
 
-	// ConvectionDispersionOperator tells us whether flow direction has changed
+	// AxialConvectionDispersionOperator tells us whether flow direction has changed
 	if (!_convDispOp.notifyDiscontinuousSectionTransition(t, secIdx) && (secIdx != 0))
 		return;
 

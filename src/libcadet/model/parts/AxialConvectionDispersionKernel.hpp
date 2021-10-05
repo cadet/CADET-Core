@@ -12,11 +12,11 @@
 
 /**
  * @file 
- * Implements the kernel of the convection dispersion transport operator.
+ * Implements the kernel of the axial convection dispersion transport operator.
  */
 
-#ifndef LIBCADET_CONVECTIONDISPERSIONKERNEL_HPP_
-#define LIBCADET_CONVECTIONDISPERSIONKERNEL_HPP_
+#ifndef LIBCADET_AXIALCONVECTIONDISPERSIONKERNEL_HPP_
+#define LIBCADET_AXIALCONVECTIONDISPERSIONKERNEL_HPP_
 
 #include "AutoDiff.hpp"
 #include "Memory.hpp"
@@ -38,7 +38,7 @@ namespace convdisp
 {
 
 template <typename T>
-struct FlowParameters
+struct AxialFlowParameters
 {
 	T u;
 	active const* d_ax;
@@ -58,7 +58,7 @@ struct FlowParameters
 namespace impl
 {
 	template <typename StateType, typename ResidualType, typename ParamType, typename RowIteratorType, bool wantJac>
-	int residualForwardsFlow(const SimulationTime& simTime, StateType const* y, double const* yDot, ResidualType* res, RowIteratorType jacBegin, const FlowParameters<ParamType>& p)
+	int residualForwardsAxialFlow(const SimulationTime& simTime, StateType const* y, double const* yDot, ResidualType* res, RowIteratorType jacBegin, const AxialFlowParameters<ParamType>& p)
 	{
 		const ParamType h2 = p.h * p.h;
 
@@ -200,7 +200,7 @@ namespace impl
 	}
 
 	template <typename StateType, typename ResidualType, typename ParamType, typename RowIteratorType, bool wantJac>
-	int residualBackwardsFlow(const SimulationTime& simTime, StateType const* y, double const* yDot, ResidualType* res, RowIteratorType jacBegin, const FlowParameters<ParamType>& p)
+	int residualBackwardsAxialFlow(const SimulationTime& simTime, StateType const* y, double const* yDot, ResidualType* res, RowIteratorType jacBegin, const AxialFlowParameters<ParamType>& p)
 	{
 		const ParamType h2 = p.h * p.h;
 
@@ -346,19 +346,19 @@ namespace impl
 
 
 template <typename StateType, typename ResidualType, typename ParamType, typename RowIteratorType, bool wantJac>
-int residualKernel(const SimulationTime& simTime, StateType const* y, double const* yDot, ResidualType* res, RowIteratorType jacBegin, const FlowParameters<ParamType>& p)
+int residualKernelAxial(const SimulationTime& simTime, StateType const* y, double const* yDot, ResidualType* res, RowIteratorType jacBegin, const AxialFlowParameters<ParamType>& p)
 {
 	if (p.u >= 0.0)
-		return impl::residualForwardsFlow<StateType, ResidualType, ParamType, RowIteratorType, wantJac>(simTime, y, yDot, res, jacBegin, p);
+		return impl::residualForwardsAxialFlow<StateType, ResidualType, ParamType, RowIteratorType, wantJac>(simTime, y, yDot, res, jacBegin, p);
 	else
-		return impl::residualBackwardsFlow<StateType, ResidualType, ParamType, RowIteratorType, wantJac>(simTime, y, yDot, res, jacBegin, p);
+		return impl::residualBackwardsAxialFlow<StateType, ResidualType, ParamType, RowIteratorType, wantJac>(simTime, y, yDot, res, jacBegin, p);
 }
 
-void sparsityPattern(linalg::SparsityPatternRowIterator itBegin, unsigned int nComp, unsigned int nCol, int strideCell, double u, Weno& weno);
+void sparsityPatternAxial(linalg::SparsityPatternRowIterator itBegin, unsigned int nComp, unsigned int nCol, int strideCell, double u, Weno& weno);
 
 } // namespace convdisp
 } // namespace parts
 } // namespace model
 } // namespace cadet
 
-#endif  // LIBCADET_CONVECTIONDISPERSIONKERNEL_HPP_
+#endif  // LIBCADET_AXIALCONVECTIONDISPERSIONKERNEL_HPP_

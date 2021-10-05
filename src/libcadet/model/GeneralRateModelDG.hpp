@@ -951,7 +951,7 @@ protected:
 	std::vector<bool> _hasSurfaceDiffusion; //!< Determines whether surface diffusion is present in each particle type
 //	IExternalFunction* _extFun; //!< External function (owned by library user)
 
-	parts::ConvectionDispersionOperatorBase _convDispOpB; //!< Convection dispersion operator base for interstitial volume transport
+	parts::AxialConvectionDispersionOperatorBase _convDispOpB; //!< Convection dispersion operator base for interstitial volume transport
 	IDynamicReactionModel* _dynReactionBulk; //!< Dynamic reactions in the bulk volume
 
 	Eigen::SparseLU<Eigen::SparseMatrix<double>> _globalSolver; //!< linear solver

@@ -204,7 +204,7 @@ protected:
 	Discretization _disc; //!< Discretization info
 //	IExternalFunction* _extFun; //!< External function (owned by library user)
 
-	parts::ConvectionDispersionOperatorBase _convDispOp; //!< Convection dispersion operator for interstitial volume transport
+	parts::AxialConvectionDispersionOperatorBase _convDispOp; //!< Convection dispersion operator for interstitial volume transport
 
 	linalg::BandMatrix _jac; //!< Jacobian
 	linalg::FactorizableBandMatrix _jacDisc; //!< Jacobian with time derivatives from BDF method
