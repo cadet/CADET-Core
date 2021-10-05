@@ -670,7 +670,7 @@ namespace cadet
 		//	IExternalFunction* _extFun; //!< External function (owned by library user)
 
 			// used as auxiliary supplier 
-			parts::ConvectionDispersionOperatorBase _convDispOp; //!< Convection dispersion operator for interstitial volume transport
+			parts::AxialConvectionDispersionOperatorBase _convDispOp; //!< Convection dispersion operator for interstitial volume transport
 
 			// linear solver (Eigen lib)
 			Eigen::SparseLU<Eigen::SparseMatrix<double>> _linSolver;

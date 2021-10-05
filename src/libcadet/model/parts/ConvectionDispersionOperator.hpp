@@ -61,12 +61,12 @@ u c_{\text{in},i}(t) &= u c_i(t,0) - D_{\text{ax},i} \frac{\partial c_i}{\partia
  * It assumes that there is no offset to the inlet in the local state vector and that the firsts cell is placed
  * directly after the inlet DOFs.
  */
-class ConvectionDispersionOperatorBase
+class AxialConvectionDispersionOperatorBase
 {
 public:
 
-	ConvectionDispersionOperatorBase();
-	~ConvectionDispersionOperatorBase() CADET_NOEXCEPT;
+	AxialConvectionDispersionOperatorBase();
+	~AxialConvectionDispersionOperatorBase() CADET_NOEXCEPT;
 
 	void setFlowRates(const active& in, const active& out, const active& colPorosity) CADET_NOEXCEPT;
 
@@ -164,12 +164,12 @@ u c_{\text{in},i}(t) &= u c_i(t,0) - D_{\text{ax},i} \frac{\partial c_i}{\partia
  * 
  * This class assumes that the first cell is offset by the number of components (inlet DOFs) in the global state vector.
  */
-class ConvectionDispersionOperator
+class AxialConvectionDispersionOperator
 {
 public:
 
-	ConvectionDispersionOperator();
-	~ConvectionDispersionOperator() CADET_NOEXCEPT;
+	AxialConvectionDispersionOperator();
+	~AxialConvectionDispersionOperator() CADET_NOEXCEPT;
 
 	int requiredADdirs() const CADET_NOEXCEPT;
 
@@ -225,7 +225,7 @@ protected:
 	void addTimeDerivativeToJacobian(double alpha);
 	void assembleDiscretizedJacobian(double alpha);
 
-	ConvectionDispersionOperatorBase _baseOp;
+	AxialConvectionDispersionOperatorBase _baseOp;
 
 	linalg::BandMatrix _jacC; //!< Jacobian
 	linalg::FactorizableBandMatrix _jacCdisc; //!< Jacobian with time derivatives from BDF method

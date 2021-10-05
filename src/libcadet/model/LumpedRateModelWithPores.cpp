@@ -650,7 +650,7 @@ void LumpedRateModelWithPores::notifyDiscontinuousSectionTransition(double t, un
 
 	Indexer idxr(_disc);
 
-	// ConvectionDispersionOperator tells us whether flow direction has changed
+	// AxialConvectionDispersionOperator tells us whether flow direction has changed
 	if (!_convDispOp.notifyDiscontinuousSectionTransition(t, secIdx, adJac))
 		return;
 

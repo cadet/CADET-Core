@@ -19,7 +19,7 @@
 #include "SensParamUtil.hpp"
 #include "SimulationTypes.hpp"
 #include "linalg/CompressedSparseMatrix.hpp"
-#include "model/parts/ConvectionDispersionKernel.hpp"
+#include "model/parts/AxialConvectionDispersionKernel.hpp"
 
 #ifdef SUPERLU_FOUND
 	#include "linalg/SuperLUSparseMatrix.hpp"
@@ -991,7 +991,7 @@ int TwoDimensionalConvectionDispersionOperator::residualImpl(double t, unsigned 
 	{
 		active const* const d_c = getSectionDependentSlice(_axialDispersion, _nRad * _nComp, secIdx) + i * _nComp;
 
-		convdisp::FlowParameters<ParamType> fp{
+		convdisp::AxialFlowParameters<ParamType> fp{
 			static_cast<ParamType>(_curVelocity[i]),
 			d_c,
 			h,
@@ -1007,9 +1007,9 @@ int TwoDimensionalConvectionDispersionOperator::residualImpl(double t, unsigned 
 		};
 
 		if (wantJac)
-			convdisp::residualKernel<StateType, ResidualType, ParamType, linalg::BandedSparseRowIterator, true>(SimulationTime{t, secIdx}, y, yDot, res, _jacC.row(i * _nComp), fp);
+			convdisp::residualKernelAxial<StateType, ResidualType, ParamType, linalg::BandedSparseRowIterator, true>(SimulationTime{t, secIdx}, y, yDot, res, _jacC.row(i * _nComp), fp);
 		else
-			convdisp::residualKernel<StateType, ResidualType, ParamType, linalg::BandedSparseRowIterator, false>(SimulationTime{t, secIdx}, y, yDot, res, _jacC.row(i * _nComp), fp);
+			convdisp::residualKernelAxial<StateType, ResidualType, ParamType, linalg::BandedSparseRowIterator, false>(SimulationTime{t, secIdx}, y, yDot, res, _jacC.row(i * _nComp), fp);
 	}
 
 	// Handle radial dispersion
@@ -1112,7 +1112,7 @@ void TwoDimensionalConvectionDispersionOperator::setSparsityPattern()
 
 	// Handle convection, axial dispersion (WENO)
 	for (unsigned int i = 0; i < _nRad; ++i)
-		cadet::model::parts::convdisp::sparsityPattern(pattern.row(i * _nComp), _nComp, _nCol, _nComp * _nRad, static_cast<double>(_curVelocity[i]), _weno);
+		cadet::model::parts::convdisp::sparsityPatternAxial(pattern.row(i * _nComp), _nComp, _nCol, _nComp * _nRad, static_cast<double>(_curVelocity[i]), _weno);
 
 	// Handle radial dispersion
 	if (_nRad > 1)

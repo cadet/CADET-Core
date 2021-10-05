@@ -31,6 +31,23 @@ endif()
 add_executable(testLogging testLogging.cpp)
 target_link_libraries(testLogging PRIVATE CADET::CompileOptions)
 
+add_executable(testRadialKernel testRadialKernel.cpp TimeIntegrator.cpp ${CMAKE_SOURCE_DIR}/src/libcadet/Logging.cpp ${CMAKE_SOURCE_DIR}/src/libcadet/AutoDiff.cpp)
+target_link_libraries(testRadialKernel PRIVATE CADET::CompileOptions CADET::AD SUNDIALS::sundials_idas ${SUNDIALS_NVEC_TARGET} )
+target_include_directories(testRadialKernel PRIVATE ${CMAKE_SOURCE_DIR}/test)
+
+if (ENABLE_GRM_2D)
+	target_include_directories(testRadialKernel PRIVATE ${CMAKE_BINARY_DIR}/src/libcadet)
+	if (SUPERLU_FOUND)
+		target_link_libraries(testRadialKernel PRIVATE SuperLU::SuperLU)
+	endif()
+	if (UMFPACK_FOUND)
+		target_link_libraries(testRadialKernel PRIVATE UMFPACK::UMFPACK)
+	endif()
+endif()
+
+list(APPEND TEST_NONLINALG_TARGETS testRadialKernel)
+list(APPEND TEST_HDF5_TARGETS testRadialKernel)
+
 
 # CATCH unit tests
 set(LIBCADET_SHARED_LIBFILE "$<TARGET_FILE:libcadet_shared>")
