@@ -54,12 +54,12 @@ u c_{\text{in},i}(t) &= u c_i(t,0) - D_{\text{ax},i} \frac{\partial c_i}{\partia
 \end{align} @f]
  * Methods are described in @cite VonLieres2010a (WENO, linear solver), @cite Puttmann2013 @cite Puttmann2016 (forward sensitivities, AD, band compression)
  */
-class LumpedRateModelWithoutPores : public UnitOperationBase
+class LumpedRateModelWithoutPoresDG : public UnitOperationBase
 {
 public:
 
-	LumpedRateModelWithoutPores(UnitOpIdx unitOpIdx);
-	virtual ~LumpedRateModelWithoutPores() CADET_NOEXCEPT;
+	LumpedRateModelWithoutPoresDG(UnitOpIdx unitOpIdx);
+	virtual ~LumpedRateModelWithoutPoresDG() CADET_NOEXCEPT;
 
 	virtual unsigned int numDofs() const CADET_NOEXCEPT;
 	virtual unsigned int numPureDofs() const CADET_NOEXCEPT;
@@ -73,7 +73,7 @@ public:
 	virtual unsigned int numOutletPorts() const CADET_NOEXCEPT { return 1; }
 	virtual bool canAccumulate() const CADET_NOEXCEPT { return false; }
 
-	static const char* identifier() { return "LUMPED_RATE_MODEL_WITHOUT_PORES"; }
+	static const char* identifier() { return "LUMPED_RATE_MODEL_WITHOUT_PORES_DG"; }
 	virtual const char* unitOperationName() const CADET_NOEXCEPT { return identifier(); }
 
 	virtual bool configureModelDiscretization(IParameterProvider& paramProvider, IConfigHelper& helper);
