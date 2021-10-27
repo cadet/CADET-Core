@@ -93,7 +93,7 @@ public:
 	virtual bool canAccumulate() const CADET_NOEXCEPT { return false; }
 
 	static const char* identifier() { return "GENERAL_RATE_MODEL"; }
-	virtual const char* unitOperationName() const CADET_NOEXCEPT { return "GENERAL_RATE_MODEL"; }
+	virtual const char* unitOperationName() const CADET_NOEXCEPT { return identifier(); }
 
 	virtual bool configureModelDiscretization(IParameterProvider& paramProvider, IConfigHelper& helper);
 	virtual bool configure(IParameterProvider& paramProvider);
