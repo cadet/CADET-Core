@@ -32,7 +32,7 @@ Optionally, use `mamba <https://github.com/mamba-org/mamba>`_ which uses a faste
 
 ``mamba install -c conda-forge cadet``
 
-`Additional information <https://cadet.github.io/getting_started/installation>`_ and a `tutorial <https://cadet.github.io/getting_started/tutorials/breakthrough>`_ are available to guide you through the installation and the first steps of using CADET.
+`Additional information <https://cadet.github.io/master/getting_started/installation>`_ and a `tutorial <https://cadet.github.io/master/getting_started/tutorials/breakthrough>`_ are available to guide you through the installation and the first steps of using CADET.
 
 
 Ongoing Development
