@@ -818,15 +818,15 @@ void ModelSystem::configureSwitches(IParameterProvider& paramProvider)
 
 			// TODO: Add heuristic for number and complexity of unit operations
 			
-			// Simple heuristic: At least 6 models (regardless of complexity) => Parallelize
-			if (_models.size() >= 6)
+			// Simple heuristic: At least 25 models (regardless of complexity) => Parallelize
+			if (_models.size() >= 25)
 			{
 				_linearModelOrdering.pushBackSlice(0);
-				LOG(Debug) << "Select parallel solution method for switch " << i << " (at least 6 models)";
+				LOG(Debug) << "Select parallel solution method for switch " << i << " (at least 25 models)";
 			}
 			else
 			{
-				// Less than 6 models => Select depending on existence of cycles
+				// Less than 25 models => Select depending on existence of cycles
 				const util::SlicedVector<int> adjList = graph::adjacencyListFromConnectionList(conn.data(), _models.size(), conn.size() / 6);
 				std::vector<int> topoOrder;
 				const bool hasCycles = graph::topologicalSort(adjList, topoOrder);
