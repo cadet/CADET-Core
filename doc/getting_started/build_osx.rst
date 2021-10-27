@@ -146,3 +146,11 @@ Build CADET
 -  Execute ``make``
 
 -  Execute ``make install``
+
+Before running cadet, make sure to
+
+-  add ``<ROOT>/cadet/bin`` to your ``PATH``, by executing 
+   ``export PATH=<ROOT>/cadet/bin:$PATH``, and
+
+-  add ``<ROOT>/cadet/lib`` to your ``LD_LIBRARY_PATH``, by executing 
+   ``export LD_LIBRARY_PATH=<ROOT>/cadet/lib:$LD_LIBRARY_PATH``.
