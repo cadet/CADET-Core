@@ -19,7 +19,7 @@
 #include "LocalVector.hpp"
 #include "SimulationTypes.hpp"
 #include "AdUtils.hpp"
-#include "C:\Users\hassan\Desktop\Spline Implementation\spline-master\src\spline.h"
+#include "model/binding/Class_ANN.h"
 #include<iostream>
 #include <functional>
 #include <unordered_map>
@@ -70,17 +70,8 @@ namespace cadet
 		{
 		public:
 
-			MachineLearningBindingBase() : bias_vector_1(number_of_input, std::vector<double>(number_of_nodes_W1)),
-				first_hidden_layer_W1(number_of_input, std::vector<double>(number_of_nodes_W1)),
-				bias_vector_2(number_of_input, std::vector<double>(number_of_nodes_W2)),
-				second_hidden_layer_W2(number_of_nodes_W1, std::vector<double>(number_of_nodes_W2)),
-				bias_vector_3(number_of_outputs, std::vector<double>(number_of_input)),
-				last_layer(number_of_nodes_W2, std::vector<double>(number_of_outputs)),
-				Affine_layer_1(number_of_input, std::vector<double>(number_of_nodes_W1, 0.0)),
-				Affine_layer1_Jacobian(number_of_input, std::vector<double>(number_of_nodes_W1, 0.0)),
-				Affine_layer_2(number_of_input, std::vector<double>(number_of_nodes_W2, 0.0)),
-				Affine_layer_2_Jacobian(number_of_input, std::vector<double>(number_of_nodes_W2, 0.0)),
-				Affine_layer_3(number_of_input, std::vector<double>(number_of_outputs, 0.0)){}
+			MachineLearningBindingBase() : bias0(),kernel0(),
+			bias1(), kernel1(), bias2(), kernel2(), offset(), normalization_factor(), porosity_factor() {}
 
 			virtual ~MachineLearningBindingBase() CADET_NOEXCEPT { }
 
@@ -109,213 +100,24 @@ namespace cadet
 			using ParamHandlerBindingModelBase<ParamHandler_t>::_nBoundStates;
 
 
-			const int number_of_input{ 1 };
-			const int number_of_hidden_layers{ 2 };
-			const int number_of_outputs{ 1 };
+			unsigned int number_of_layers;
+			unsigned int number_of_nodes; //It is asssumed that number of nodes remains same in each hidden layer
+			unsigned int dimension;
+			const unsigned int number_of_input{ 1 };
+			const unsigned int number_of_output{ 1 };
 
-			const int number_of_nodes_W1{ 75 };
-			const int number_of_nodes_W2{ 75 };
-			/*******************************************************/
-			/* Defining 2D vectors to copy the 1D format input data*/
-			/*******************************************************/
-			std::vector< std::vector<double> > bias_vector_1;
-			std::vector< std::vector<double> > first_hidden_layer_W1;
-			std::vector< std::vector<double> > bias_vector_2;
-			std::vector< std::vector<double> > second_hidden_layer_W2;
-			std::vector< std::vector<double> > bias_vector_3;
-			std::vector< std::vector<double> > last_layer;
-			/***************************************************************************************************/
-			/***Defining the vectors that will be used in the calculation of predicted value of isotherm*******/
-			/***************************************************************************************************/
-			mutable std::vector< std::vector<double> > Affine_layer_1;
-			mutable std::vector< std::vector<double> > Affine_layer1_Jacobian;
-			mutable std::vector< std::vector<double> > Affine_layer_2;
-			mutable std::vector< std::vector<double> > Affine_layer_2_Jacobian;
-			mutable std::vector< std::vector<double> > Affine_layer_3;
+			std::vector<double> bias0;
+			std::vector<double> kernel0;
 
-			/***************************************************************************************************/
+			std::vector<double> bias1;
+			std::vector<double> kernel1;
 
-		/* @breif: Converting 1D vectors read from HDF5 file to 2D vectors
-			to facilitate in matrix multiplication for NN process */
-			template<class T>
-			void oneD_to_twoD(const std::vector<T>(&Matrix1D), std::vector<std::vector<T>>(&Matrix2D))
-			{
-				int rows = Matrix2D.size();
-				int cols = Matrix2D[0].size();
+			std::vector<double> bias2;
+			std::vector<double> kernel2;
 
-				for (int i = 0; i < rows; i++)
-					for (int j = 0; j < cols; j++)
-						Matrix2D[i][j] = Matrix1D[j + i * cols];
-			}
-
-			// JAZIB: Add ML model parameters here
-			// @brief: Initialising matrices fucntion with all zero
-			template<class T>
-			void Intialisation(T(&matrix)) const
-			{
-				int rows = matrix.size();
-				int cols = matrix[0].size();
-
-				static int count = 1;
-				//cout << "Initialising Layer to zeros " << endl;
-				for (int i = 0; i < rows; i++)
-				{
-					for (int j = 0; j < cols; j++)
-					{
-						matrix[i][j] = 0.0;
-						//cout << matrix[i][j] << "\t";
-					}
-					//cout << endl;
-				}
-			}
-
-			// @brief: creating a diagonal matrices of all 1's
-			template<class t>
-			void diagonal_one(t(&matrix)) const
-			{
-				static int count = 1;
-				int rows = matrix.size();
-				int cols = matrix[0].size();
-
-				//cout << "diagonal matrix: " << endl;
-				for (int i = 0; i < rows; i++)
-				{
-					for (int j = 0; j < cols; j++)
-					{
-						if (i == j)
-							matrix[i][j] = 1.0;
-						else
-							matrix[i][j] = 0.0;
-					}
-				}
-
-			}
-
-			/* @Brief: Propagating the input layer to the first hidden layer and also using activation function right after
-			Out: void function
-			In params :
-			Affine_layer1 contains the results of a* x + b
-			Input layer : input values 1x1 is used for this case
-			first_hidden_layer_W1: Trained weight matrix of first hidden layer
-			bias_vector_1 : trained bias vector for 1st hidden layer*/
-			template <class T>
-			void Matrix_mul(T(&output), const T(&matrix_1), const T(&matrix_2), const T(&bias)) const
-			{
-				int rows_1 = matrix_1.size();
-				int cols_1 = matrix_1[0].size();
-				int rows_2 = matrix_2.size();
-				int cols_2 = matrix_2[0].size();
-
-
-				for (int i = 0; i < rows_1; ++i)
-					for (int j = 0; j < cols_2; ++j)
-						for (int k = 0; k < cols_1; ++k)
-						{
-							output[i][j] += matrix_1[i][k] * matrix_2[k][j];
-						}
-				//Adding bias vector
-				for (int i = 0; i < rows_1; i++)
-					for (int j = 0; j < cols_2; j++)
-						output[i][j] = output[i][j] + bias[i][j];
-			}
-
-
-			// @brief: Activation fucntion: ReLu
-
-			void ReLu(std::vector< std::vector<double>>(&Affine)) const
-			{
-				int rows = Affine.size();
-				int cols = Affine[0].size();
-				const int one = 1;
-
-				for (int i = 0; i < rows; i++)
-					for (int j = 0; j < cols; j++)
-					{
-						if (Affine[i][j] > 0)
-							Affine[i][j] = one * Affine[i][j];
-						else
-							Affine[i][j] = (exp(Affine[i][j])) - 1;
-					}
-			}
-
-			void ReLu_New(std::vector< std::vector<double>>(&Affine)) const
-			{
-				int rows = Affine.size();
-				int cols = Affine[0].size();
-				const int one = 1;
-
-				for (int i = 0; i < rows; i++)
-					for (int j = 0; j < cols; j++)
-					{
-						if (Affine[i][j] > 0)
-							Affine[i][j] = one * Affine[i][j];
-						else
-							Affine[i][j] = 0.0;
-					}
-			}
-
-			//template<class T>
-			void Affine_Backward(std::vector< std::vector<double> >(&output), const std::vector< std::vector<double> >(&matrix_1), const std::vector< std::vector<double> >(&matrix_2)) const
-			{
-				int rows_1 = matrix_1.size();
-				int cols_1 = matrix_1[0].size();
-				int rows_2 = matrix_2.size();
-				int cols_2 = matrix_2[0].size();
-
-
-				std::vector< std::vector<double> > transpose(cols_2, std::vector<double>(rows_2, 0.0));
-				/*Add try catch exception over here*/
-
-
-				/*Taking transpose of the Matrix_1 to allow multiplication of Argument 1 and Argument 2*/
-				for (int i = 0; i < rows_2; ++i)
-					for (int j = 0; j < cols_2; ++j) {
-						transpose[j][i] = matrix_2[i][j];
-					}
-
-				/*Copying dout into another matrix*/
-				std::vector< std::vector<double> > dout_temp(rows_1, std::vector<double>(cols_1, 0.0));
-
-
-				for (int i = 0; i < rows_1; i++)
-					for (int j = 0; j < cols_1; j++)
-						dout_temp[i][j] = output[i][j];
-
-				/*Carrying out the dot product*/
-				for (int i = 0; i < rows_1; ++i)
-				{
-					for (int j = 0; j < rows_2; ++j)
-						for (int k = 0; k < cols_1; ++k)
-						{
-							output[i][j] += matrix_1[i][k] * transpose[k][j];
-						}
-				}
-
-			}
-
-			/*@breif: Backward pass of ReLU
-		   : param output : Upstream Jacobian
-		   : param matrix_1 : the cached input for this layer
-		   : return : the jacobian matrix containing derivatives of the O neural network outputs with respect to
-		   this layer's inputs, evaluated at x.
-		   */
-		   //template<class T>
-			void relu_backward(std::vector< std::vector<double> >(&output), const std::vector< std::vector<double> >(&matrix_1)) const
-			{
-				int rows_1 = matrix_1.size();
-				int cols_1 = matrix_1[0].size();
-				const int one = 1;
-
-				for (int i = 0; i < rows_1; i++)
-					for (int j = 0; j < cols_1; j++)
-					{
-						if (matrix_1[i][j] > 0)
-							output[i][j] = one * output[i][j];
-						else
-							output[i][j] = (exp(matrix_1[i][j])) * output[i][j];
-					}
-			}
-
+			std::vector<double> offset;
+			std::vector<double> normalization_factor;
+			std::vector<double> porosity_factor;
 			/*Question: One of the */
 			virtual bool configureImpl(IParameterProvider& paramProvider, UnitOpIdx unitOpIdx, ParticleTypeIdx parTypeIdx)
 			{
@@ -325,46 +127,90 @@ namespace cadet
 				// Register parameters
 				_paramHandler.registerParameters(_parameters, unitOpIdx, parTypeIdx, _nComp, _nBoundStates);
 
-				//Input parameters
+				number_of_layers = paramProvider.getInt("LAYERS");
+				number_of_nodes = paramProvider.getInt("NODES"); 
+				dimension = paramProvider.getInt("NDIM");
+				normalization_factor = paramProvider.getDoubleArray("NORM_FACTOR");
+				porosity_factor = paramProvider.getDoubleArray("POROS_FACTOR");
 
-
-
+				double* offset_temp = new double[dimension * number_of_output];
+				double val = 0.0 ;
+				std::vector<double> input_temp = { val * normalization_factor[0] };
+				std::vector<double> offset_1(dimension, 0.0);
 				// Read some ML parameters
-				paramProvider.pushScope("model_weights");
-				paramProvider.pushScope("layer_0");
 
-				const std::vector<double> bias0 = paramProvider.getDoubleArray("bias"); //Reading the biad vector from input file
-				oneD_to_twoD(bias0, bias_vector_1); // Copying 1D bias vector into 2D vector format
+				if (number_of_layers == 2 )
+				{
+					paramProvider.pushScope("model_weights");
+					paramProvider.pushScope("layer_0");
 
-				const std::vector<double> kernel0 = paramProvider.getDoubleArray("kernel");
-				oneD_to_twoD(kernel0, first_hidden_layer_W1); // Copying 1D kernel vector into 2D vector format
+					bias0 = paramProvider.getDoubleArray("BIAS"); //Reading the biad vector from input file
+					kernel0 = paramProvider.getDoubleArray("KERNEL");
+					
 
-				paramProvider.popScope(); // model_weights
-
-
-				paramProvider.pushScope("layer_1");
-
-				const std::vector<double> bias1 = paramProvider.getDoubleArray("bias");
-				oneD_to_twoD(bias1, bias_vector_2); // Copying 1D bias vector into 2D vector format
+					paramProvider.popScope(); // model_weights
 
 
+					paramProvider.pushScope("layer_1");
 
-				const std::vector<double> kernel1 = paramProvider.getDoubleArray("kernel");
-				oneD_to_twoD(kernel1, second_hidden_layer_W2);
+					bias1 = paramProvider.getDoubleArray("BIAS");
+					kernel1 = paramProvider.getDoubleArray("KERNEL");
+					
 
-				paramProvider.popScope(); // model_weights
+					paramProvider.popScope(); // model_weights
 
-				paramProvider.pushScope("layer_2");
+					paramProvider.pushScope("layer_2");
 
-				const std::vector<double> bias2 = paramProvider.getDoubleArray("bias");
-				oneD_to_twoD(bias2, bias_vector_3); // Copying 1D bias vector into 2D vector format
+					bias2 = paramProvider.getDoubleArray("BIAS");
+					kernel2 = paramProvider.getDoubleArray("KERNEL");
+					
+					paramProvider.popScope(); // model_weights
+					paramProvider.popScope(); // adsorption
 
-				const std::vector<double> kernel2 = paramProvider.getDoubleArray("kernel");
-				oneD_to_twoD(kernel2, last_layer);
+					for (unsigned int i = 0; i < dimension * number_of_output; i++)
+						offset_temp[i] = bias2[i];
 
-				paramProvider.popScope(); // model_weights
-				paramProvider.popScope(); // adsorption
+					Class_ANN ANN(number_of_layers, number_of_nodes, dimension, number_of_input, number_of_output);
+					ANN.prediction_two_layers(input_temp.data(), kernel0, kernel1, kernel2,
+						bias0, bias1, bias2, offset_temp);
+					for (int i = 0; i < dimension; i++)
+						offset_1[i] = offset_temp[i];
+					offset = offset_1;
+					std::cout << "Test: " << offset[0] << "\n";
+				}
+				/*else if (number_of_layers == 1)
+				{ 
+					paramProvider.pushScope("model_weights");
+					paramProvider.pushScope("layer_0");
 
+					bias0 = paramProvider.getDoubleArray("BIAS"); //Reading the biad vector from input file
+					kernel0 = paramProvider.getDoubleArray("KERNEL");
+
+
+					paramProvider.popScope(); // model_weights
+
+
+					paramProvider.pushScope("layer_1");
+
+					bias1 = paramProvider.getDoubleArray("BIAS");
+					kernel1 = paramProvider.getDoubleArray("KERNEL");
+
+					paramProvider.popScope(); // model_weights
+					paramProvider.popScope(); // adsorption
+
+					for (unsigned int i = 0; i < dimension * number_of_output; i++)
+						offset_temp[i] = bias1[i];
+
+					Class_ANN ANN(number_of_layers, number_of_nodes, dimension, number_of_input, number_of_output);
+					ANN.prediction_single_layer(input_temp.data(), kernel0.data(), kernel1.data(), bias0, bias1, offset_temp);
+
+					for (int i = 0; i < dimension; i++)
+						offset.push_back(offset_temp[i]);
+					
+				}*/
+				else
+					throw InvalidParameterException("Number of layers: " + std::to_string(number_of_layers) + " is not supported. Select 1 or 2.");
+				delete offset_temp;
 				/**
 				 * JAZIB: Read ML parameters and model data here (Done)
 				 */
@@ -417,39 +263,39 @@ namespace cadet
 				/* ***************************************************
 				****Forward propagation of the neural network********
 				******************************************************/
-				const double factor = 1 / (1 - 0.69);
-				const double epsilon_e = 0.399;
-				double h = 0.0;
-				double keq = 355.962;
-				/*double qq = 155.01962744;*/
-				double a = 1.3724461e-13;
-				double b = 5.5858426e4;
-				double epsil = 8.48484848e-4;
+				
+				double* prediction = new double[dimension * number_of_output];
+				
 
-				double input_temp = cp[0] * keq;
+				std::vector<double> matCp(_nComp,0.0);
+				for (unsigned int i = 0; i < _nComp; i++)
+				{
+					matCp[i]=cp[i] * normalization_factor[i];
+				}
+				Class_ANN ANN(number_of_layers, number_of_nodes, dimension, number_of_input, number_of_output);
+				if (number_of_layers==2)
+				{ 
+					for (unsigned int i = 0; i < dimension * number_of_output; i++)
+						prediction[i] = bias2[i];
 
-				std::vector<std::vector<double>> matCp = { {input_temp} };
+					ANN.prediction_two_layers(matCp.data(), kernel0, kernel1, kernel2,
+						bias0, bias1, bias2, prediction);
+				}
+				else if (number_of_layers == 1)
+				{ 
+					for (unsigned int i = 0; i < dimension * number_of_output; i++)
+						prediction[i] = bias1[i];
 
-				Matrix_mul(Affine_layer_1, matCp, first_hidden_layer_W1, bias_vector_1);
-				ReLu(Affine_layer_1);
-
-				/* @Brief: Propagating the first hidden layer to the second hidden layer and also using activation function right after*/
-
-				Matrix_mul(Affine_layer_2, Affine_layer_1, second_hidden_layer_W2, bias_vector_2);
-				ReLu(Affine_layer_2);
-
-				/* @Brief: Propagating the input layer to the first hidden layer */
-				Matrix_mul(Affine_layer_3, Affine_layer_2, last_layer, bias_vector_3);
-
-				q[0] = (Affine_layer_3[0][0] - 0.68329354) * factor - 9.1749014070917696e-09;// 
-						
-
-				//std::cout << "checking :" << q[0] <<  "\n";
-
-				Intialisation(Affine_layer_1);
-				Intialisation(Affine_layer_2);
-				Intialisation(Affine_layer_3);
-
+					ANN.prediction_single_layer(matCp.data(), kernel0, kernel1,
+						bias0, bias1, prediction);
+				}
+				
+				for (unsigned int i = 0; i < _nComp; i++)
+				{
+						q[i] = (prediction[i] - offset[0]) * porosity_factor[0];
+				}
+				
+				delete prediction;
 			}
 
 			void mlModel(double* q, active const* cp, LinearBufferAllocator workSpace) const
@@ -475,7 +321,29 @@ namespace cadet
 				// y points to q
 				// yCp points to c_p
 				// Use workSpace to obtain scratch memory
+				double* jacobian = new double[dimension * number_of_output];
+				std::vector<double> matCp;
+				for (int i = 0; i < _nComp; ++i)
+				{ 
+					matCp.push_back(yCp[i] * normalization_factor[0]);
+				}
 
+				Class_ANN ANN(number_of_layers, number_of_nodes, dimension, number_of_input, number_of_output);
+				
+				if (number_of_layers==2)
+				{ 
+					for (unsigned int i = 0; i < dimension * number_of_output; i++)
+						jacobian[i] = 0.0;
+					ANN.jacobian_two_layers(matCp.data(), kernel0, kernel1, kernel2, bias0, bias1, bias2, jacobian);
+				}
+				else if (number_of_layers==1)
+				{ 
+					for (unsigned int i = 0; i < dimension * number_of_output; i++)
+						jacobian[i] = 0.0;
+					ANN.jacobian_single_layer(matCp.data(), kernel0, kernel1, bias0, bias1, jacobian);
+				}
+				
+				
 				unsigned int bndIdx = 0;
 				for (int i = 0; i < _nComp; ++i)
 				{
@@ -487,84 +355,20 @@ namespace cadet
 
 					for (int j = 0; j < _nComp; ++j)
 					{
-						const double factor = 1 / (1 - 0.69);
-						const double epsilon_e = 0.399;
-						double h = 0.0;
-						double keq = 355.962;
-						double a = 1.3724461e-13;
-						double b = 5.5858426e4;
-						double epsil = 1e-4;
-
-						double input_temp = yCp[0] * keq;
-
-						std::vector<std::vector<double>> matCp = { {input_temp} };
-						////std::cout << "Input is: " << matCp[0][0] << "\n";
-
-						//h = input_temp / epsil;
-
-						//// JAZIB: Compute Jacobian of ML model
-						///* ***************************************************
-						//**************Jacobian of the neural network**********
-						//******************************************************/
-
-						std::vector<std::vector<double>>Ax_a(number_of_input, std::vector<double>(number_of_nodes_W1, 0.0));
-						std::vector<std::vector<double>>HB_b(number_of_input, std::vector<double>(number_of_nodes_W2, 0.0));
-						//*******************************************************
-						// Computing H*B + b 
-
-						Matrix_mul(Ax_a, matCp, first_hidden_layer_W1, bias_vector_1);
-						ReLu(Ax_a);
-
-
-						Matrix_mul(HB_b, Ax_a, second_hidden_layer_W2, bias_vector_2);
-						ReLu(HB_b);
-
-						//*****************************************************
-
-						std::vector< std::vector<double> >dout(number_of_outputs, std::vector<double>(number_of_input));
-						diagonal_one(dout);
-
-						Affine_Backward(Affine_layer_2_Jacobian, dout, last_layer);
-
-						relu_backward(Affine_layer_2_Jacobian, HB_b);
-
-						Affine_Backward(Affine_layer1_Jacobian, Affine_layer_2_Jacobian, second_hidden_layer_W2);
-
-						//********Again computing Ax+a for taking the elu derivative**********
-						std::vector<std::vector<double>>Ax_a_second(number_of_input, std::vector<double>(number_of_nodes_W1, 0.0));
-						Matrix_mul(Ax_a_second, matCp, first_hidden_layer_W1, bias_vector_1);
-						//********************************************************************
-
-						relu_backward(Affine_layer1_Jacobian, Ax_a_second);
-
-						Intialisation(dout);
-						Affine_Backward(dout, Affine_layer1_Jacobian, first_hidden_layer_W1);
-
-						dout[0][0] =  factor * dout[0][0]; //*keq
-						// dres_i / dc_{p,j} = -kkin[i] * df_i / dc_{p,j}
-						//dout[0][0] = keq * 148.422 / (1 + keq * yCp[0] * yCp[0]);
-						jac[j - bndIdx - offsetCp] = -1 * (dout[0][0]);
-
-						/*if (t > 3449.1)
-						{
-							std::cout << "time: " << t <<  "\n";
-						}*/
-
-						// Getting to c_{p,j}: -bndIdx takes us to q_0, another -offsetCp to c_{p,0} and a +j to c_{p,j}.
-						//                     This means jac[j - bndIdx - offsetCp] corresponds to c_{p,j}.
-						//std::cout << "Time " << t << " Jac is : " << jac[j - bndIdx - offsetCp]<<"\n";
-
-						Intialisation(Affine_layer_2_Jacobian);
-						Intialisation(Affine_layer1_Jacobian);
+						jac[j - bndIdx - offsetCp] = -kkin * (jacobian[j]*porosity_factor[0]);
+						
+						//if (t< 10.0)
+							//std::cout << "Time is :" << t  << "\n";
 					}
-
+					
 					// dres_i / dq_i
-					jac[0] = 1;
+					jac[0] = kkin;
 
 					// Advance to next flux and Jacobian row
 					++bndIdx;
 					++jac;
 				}
+				delete jacobian;
 			}
 		};
 

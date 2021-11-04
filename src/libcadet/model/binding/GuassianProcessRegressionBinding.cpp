@@ -19,8 +19,7 @@
 #include "LocalVector.hpp"
 #include "SimulationTypes.hpp"
 #include "AdUtils.hpp"
-#include "model/binding/spline.h"
-//#include <iostream>
+#include "model/binding/GPR_Class.h"
 #include <functional>
 #include <unordered_map>
 #include <string>
@@ -29,11 +28,11 @@
 
 /*<codegen>
 {
-	"name": "SplineParamHandler",
-	"externalName": "ExtSplineParamHandler",
+	"name": "GPRParamHandler",
+	"externalName": "ExtGPRParamHandler",
 	"parameters":
 		[
-			{ "type": "ScalarComponentDependentParameter", "varName": "kKin", "confName": "ML_KKIN"}
+			{ "type": "ScalarComponentDependentParameter", "varName": "kKin", "confName": "GPR_KKIN"}
 		]
 }
 </codegen>*/
@@ -44,9 +43,9 @@ namespace cadet
 	namespace model
 	{
 
-		inline const char* SplineParamHandler::identifier() CADET_NOEXCEPT { return "SPLINE"; }
+		inline const char* GPRParamHandler::identifier() CADET_NOEXCEPT { return "GPR"; }
 
-		inline bool SplineParamHandler::validateConfig(unsigned int nComp, unsigned int const* nBoundStates)
+		inline bool GPRParamHandler::validateConfig(unsigned int nComp, unsigned int const* nBoundStates)
 		{
 			if (_kKin.size() < nComp)
 				throw InvalidParameterException("ML_KKIN has to have NCOMP entries");
@@ -54,9 +53,9 @@ namespace cadet
 			return true;
 		}
 
-		inline const char* ExtSplineParamHandler::identifier() CADET_NOEXCEPT { return "EXT_SPLINE"; }
+		inline const char* ExtGPRParamHandler::identifier() CADET_NOEXCEPT { return "EXT_GPR"; }
 
-		inline bool ExtSplineParamHandler::validateConfig(unsigned int nComp, unsigned int const* nBoundStates)
+		inline bool ExtGPRParamHandler::validateConfig(unsigned int nComp, unsigned int const* nBoundStates)
 		{
 			if (_kKin.size() < nComp)
 				throw InvalidParameterException("ML_KKIN has to have NCOMP entries");
@@ -66,15 +65,15 @@ namespace cadet
 
 
 		template <class ParamHandler_t>
-		class SplineBindingBase : public ParamHandlerBindingModelBase<ParamHandler_t>
+		class GPRBindingBase : public ParamHandlerBindingModelBase<ParamHandler_t>
 		{
 		public:
 
-			SplineBindingBase() :pore_phase_concentration(),
-				Spline_parameters(),
-				solid_phase_concentration() {}
+			GPRBindingBase() :pore_phase_concentration(),
+				GPR_parameters(),
+				solid_phase_concentration(){}
 
-			virtual ~SplineBindingBase() CADET_NOEXCEPT { }
+			virtual ~GPRBindingBase() CADET_NOEXCEPT { }
 
 			static const char* identifier() { return ParamHandler_t::identifier(); }
 
@@ -94,39 +93,58 @@ namespace cadet
 			using ParamHandlerBindingModelBase<ParamHandler_t>::_nComp;
 			using ParamHandlerBindingModelBase<ParamHandler_t>::_nBoundStates;
 
-			std::vector<double> pore_phase_concentration; //Defining these vectors to store trained ANN curve for spline fitting
-			std::vector<double> Spline_parameters;  //Defining these vectors to store trained ANN curve for spline fitting
+			std::vector<double> pore_phase_concentration; //Defining these vectors to store trained ANN curve for GPR fitting
+			std::vector<double> GPR_parameters;  //Defining these vectors to store trained ANN curve for GPR fitting
 			std::vector<double> solid_phase_concentration;
-
+			std::vector<double> Kernel_Mat;
+			std::vector<double> K_inv_y;
+			double* offset;
+			std::string kernel_name ;
+			unsigned int ndim;
 			/***************************************************************************************************/
-			size_t find_closest(double x, const std::vector<double>& m_x) const
-			{
-				const std::vector<double>::const_iterator it = std::upper_bound(m_x.begin(), m_x.end(), x);
-				return std::max(int(it - m_x.begin()) - 1, 0);
-			}
 
 			virtual bool configureImpl(IParameterProvider& paramProvider, UnitOpIdx unitOpIdx, ParticleTypeIdx parTypeIdx)
 			{
 				const bool result = ParamHandlerBindingModelBase<ParamHandler_t>::configureImpl(paramProvider, unitOpIdx, parTypeIdx);
 
 				//Input parameters
-
+				
 				// Read some ML parameters
-				paramProvider.pushScope("model_weights");
-				paramProvider.pushScope("spline_input_parameters");
+				paramProvider.pushScope("training_data");
+				
 
 				solid_phase_concentration = paramProvider.getDoubleArray("Q_VALS");
 				pore_phase_concentration = paramProvider.getDoubleArray("C_VALS");
+				GPR_parameters = paramProvider.getDoubleArray("TRAINED_PARAMS");
+				int kernel_name1 = paramProvider.getInt("KERNAL");
+				ndim = paramProvider.getInt("NDIM");
 
-				tk::spline s;
-				s.set_boundary(tk::spline::second_deriv, 0.0,
-					tk::spline::first_deriv, 0.0);
-				s.set_points(pore_phase_concentration, solid_phase_concentration, tk::spline::cspline);
-				s.make_monotonic();
-				Spline_parameters = s.coeff();
+				paramProvider.popScope(); // training_data
 
-				paramProvider.popScope(); // model_weights
-				paramProvider.popScope(); // adsorption
+				std::vector<double> kernel_m(solid_phase_concentration.size() * solid_phase_concentration.size(), 0.0);
+				std::vector<double> K_inv_y_temp(solid_phase_concentration.size(), 0.0);
+				if (kernel_name1 == 1)
+					kernel_name = "MLP";
+
+				std::vector<double> test_pt = { 0.0 };
+
+				GP::GPR_Class gp(solid_phase_concentration.size(), solid_phase_concentration.size(), ndim,
+					GPR_parameters[0], GPR_parameters[1], GPR_parameters[2], GPR_parameters[3], GPR_parameters[4],
+					GPR_parameters[5], GPR_parameters[6],
+					kernel_name);
+				if (kernel_name == "MLP")
+				{
+					gp.MLP_kernel(pore_phase_concentration.size(), pore_phase_concentration.size(), ndim,
+						pore_phase_concentration.data(), pore_phase_concentration.data(), kernel_m.data());
+				}
+
+				gp.kernel_inv_y(pore_phase_concentration.data(), solid_phase_concentration.data(), kernel_m.data(), K_inv_y_temp.data());
+
+				offset = gp.prediction(pore_phase_concentration.data(), solid_phase_concentration.data(),
+					test_pt.data(), kernel_m.data(), K_inv_y_temp.data(), kernel_name);
+				
+				K_inv_y = K_inv_y_temp;
+				Kernel_Mat = kernel_m;
 
 				return result;
 			}
@@ -145,11 +163,11 @@ namespace cadet
 				// Use workSpace to obtain scratch memory
 
 				// Get a vector of doubles for the result of the ML model
-				BufferedArray<CpStateType> qMLarray = workSpace.array<CpStateType>(_nComp);
-				CpStateType* const qML = static_cast<CpStateType*>(qMLarray); //double const* qML
+				BufferedArray<double> qMLarray = workSpace.array<double>(_nComp);
+				double* qML = static_cast<double*>(qMLarray); //double const* qML
 
 				// Run the ML model on the c_p
-				mlModel<CpStateType>(qML, yCp, workSpace);
+				mlModel(qML, yCp, workSpace);
 
 				// Compute res = kKin * (q - f(c_p))
 				unsigned int bndIdx = 0;
@@ -170,35 +188,36 @@ namespace cadet
 			}
 
 			template <typename StateType>
-			void mlModel(StateType* q, StateType const* cp, LinearBufferAllocator workSpace) const
+			void mlModel(double* q, StateType const* cp, LinearBufferAllocator workSpace) const
 			{
 				// JAZIB: Here goes the ML model
 				// Fill q array (output) using cp array (input)
 				/* ***************************************************
 				****Forward propagation of the neural network********
 				******************************************************/
-				//				const double factor = 1 / (1 - 0.69);
-				const size_t n = pore_phase_concentration.size();
+				const double* prediction;
 				
-				const size_t n_param = Spline_parameters.size();
+				std::vector<double> matCp(_nComp, 0.0);
+
+				for (unsigned int i = 0; i < _nComp; i++)
+				{
+					matCp[i]  = static_cast<double>(cp[0]);
+				}
+				GP::GPR_Class gp(solid_phase_concentration.size(), solid_phase_concentration.size(), ndim,
+					GPR_parameters[0], GPR_parameters[1], GPR_parameters[2], GPR_parameters[3], GPR_parameters[4],
+					GPR_parameters[5], GPR_parameters[6],
+					kernel_name);
+
+								
+				prediction = gp.prediction(pore_phase_concentration.data(), solid_phase_concentration.data(),
+					matCp.data(), Kernel_Mat.data(), K_inv_y.data(), kernel_name);
+
+
+				for (unsigned int i = 0; i < _nComp; i++)
+				{
+					q[i] = prediction[i] - offset[0];
+				}
 				
-				const size_t idx = find_closest(static_cast<double>(cp[0]), pore_phase_concentration);
-
-				const StateType h = cp[0] - pore_phase_concentration[idx];
-
-				if (cp[0] < pore_phase_concentration[0]) {
-					// extrapolation to the left
-					q[0] = (Spline_parameters[1] * h + Spline_parameters[2]) * h + Spline_parameters[3];
-				}
-				else if (cp[0] >= pore_phase_concentration[n - 1]) {
-					// extrapolatwdwyvd ion to the right
-					q[0] = (Spline_parameters[n_param - 3] * h + Spline_parameters[n_param - 2]) * h + Spline_parameters[n_param - 1];
-				}
-				else {
-					// interpolation
-					q[0] = ((Spline_parameters[4 * idx] * h + Spline_parameters[4 * idx + 1]) * h + Spline_parameters[4 * idx + 2]) * h + Spline_parameters[4 * idx + 3];
-					//First_derivative = (3.0 * layer_0_kernel0[4 * idx] * h + 2.0 * layer_0_kernel0[4 * idx + 1]) * h + layer_0_kernel0[4 * idx + 2];
-				}
 			}
 
 			template <typename RowIterator>
@@ -213,6 +232,22 @@ namespace cadet
 				// yCp points to c_p
 				// Use workSpace to obtain scratch memory
 
+				
+				std::vector<double> jacobian(_nComp, 0.0);
+				std::vector<double> matCp(_nComp, 0.0);
+
+				for (unsigned int i = 0; i < _nComp; i++)
+				{
+					matCp[i] = yCp[i];
+				}
+
+				GP::GPR_Class gp(solid_phase_concentration.size(), solid_phase_concentration.size(), ndim,
+					GPR_parameters[0], GPR_parameters[1], GPR_parameters[2], GPR_parameters[3], GPR_parameters[4],
+					GPR_parameters[5], GPR_parameters[6],
+					kernel_name);
+
+				gp.MLP_derivative(pore_phase_concentration.data(), matCp.data(), K_inv_y.data(), jacobian.data());
+
 				unsigned int bndIdx = 0;
 				for (int i = 0; i < _nComp; ++i)
 				{
@@ -221,27 +256,12 @@ namespace cadet
 						continue;
 
 					const double kkin = static_cast<double>(p->kKin[i]);
+					
 
 					for (int j = 0; j < _nComp; ++j)
 					{
-						//						const double factor = 1 / (1 - 0.69);
-						const double pore_val = yCp[0];
-
-						const size_t n = pore_phase_concentration.size();
-
-						const size_t idx = find_closest(pore_val, pore_phase_concentration);
-
-						const double h = yCp[0] - pore_phase_concentration[idx];
-
-						//						std::vector< std::vector<double> >dout(1, std::vector<double>(1));
-						//						dout[0][0] = 0.0;
-
-						const double First_derivative = (3.0 * Spline_parameters[4 * idx] * h + 2.0 * Spline_parameters[4 * idx + 1]) * h + Spline_parameters[4 * idx + 2];
-
-						//						dout[0][0] =  factor * First_derivative; //*keq
-												// dres_i / dc_{p,j} = -kkin[i] * df_i / dc_{p,j}
-												//dout[0][0] = keq * 148.422 / (1 + keq * yCp[0] * yCp[0]);
-						jac[j - bndIdx - offsetCp] = -kkin * First_derivative;
+						
+						jac[j - bndIdx - offsetCp] = -kkin * jacobian[j];
 
 					}
 
@@ -255,15 +275,15 @@ namespace cadet
 			}
 		};
 
-		typedef SplineBindingBase<SplineParamHandler> SplineBinding;
-		typedef SplineBindingBase<ExtSplineParamHandler> ExternalSplineBinding;
+		typedef GPRBindingBase<GPRParamHandler> GPRBinding;
+		typedef GPRBindingBase<ExtGPRParamHandler> ExternalGPRBinding;
 
 		namespace binding
 		{
-			void registerSplineModel(std::unordered_map<std::string, std::function<model::IBindingModel* ()>>& bindings)
+			void registerGPRModel(std::unordered_map<std::string, std::function<model::IBindingModel* ()>>& bindings)
 			{
-				bindings[SplineBinding::identifier()] = []() { return new SplineBinding(); };
-				bindings[ExternalSplineBinding::identifier()] = []() { return new ExternalSplineBinding(); };
+				bindings[GPRBinding::identifier()] = []() { return new GPRBinding(); };
+				bindings[ExternalGPRBinding::identifier()] = []() { return new ExternalGPRBinding(); };
 			}
 		}  // namespace binding
 
