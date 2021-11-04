@@ -2,22 +2,24 @@
   // See https://go.microsoft.com//fwlink//?linkid=834763 for more information about this file.
   "environments": [
     {
-      "TBB_DIR": "C:/Program Files (x86)/IntelSWTools/compilers_and_libraries/windows/tbb",
-      "BLAS_DIR": "C:/Program Files (x86)/IntelSWTools/compilers_and_libraries/windows/mkl/lib/intel64_win",
-      "SUNDIALS_DIR": "${projectDir}/../../libs/sundials",
-      "HDF5_DIR": "${projectDir}/../../libs/hdf5",
-      "ZLIB": "${projectDir}/../../libs/hdf5/lib/zlib.lib",
-      "SZLIB": "${projectDir}/../../libs/hdf5/lib/szip.lib",
+      "TBB_DIR": "C:/Users/hassan/Desktop/Libs/tbb",
+      "BLAS_DIR": "C:/Program Files (x86)/IntelSWTools/compilers_and_libraries_2020/windows/mkl/lib/intel64_win",
+      "SUNDIALS_DIR": "C:/Users/hassan/Desktop/CADET_All/CADET_Jazib/Libs/sundials",
+      "HDF5_DIR": "C:/Users/hassan/Desktop/CADET_All/CADET_Jazib/Libs/hdf5_src/build/_CPack_Packages/win64/ZIP/HDF5-1.12.0-win64",
+      "ZLIB": "C:/Users/hassan/Desktop/CADET_All/CADET_Jazib/Libs/hdf5_src/build/_CPack_Packages/win64/ZIP/HDF5-1.12.0-win64/lib/zlib.lib",
+      "SZLIB": "C:/Users/hassan/Desktop/CADET_All/CADET_Jazib/Libs/hdf5_src/build/_CPack_Packages/win64/ZIP/HDF5-1.12.0-win64/lib/szip.lib",
       "INSTALL_DIR": "${projectDir}/../cadet/${name}",
       "BLAS_DEBUG": "Intel10_64lp_seq",
       "BLAS_RELEASE": "Intel10_64lp_seq",
       "BUILDROOT": "${env.USERPROFILE}\\CMakeBuild\\${workspaceHash}\\build\\${name}"
     }
   ],
+
+
   "configurations": [
     {
       "name": "MS_MKL_DEBUG",
-      "generator": "Visual Studio 15 2017 Win64",
+      "generator": "Visual Studio 16 2019 Win64",
       "configurationType": "Debug",
       "buildRoot": "${env.BUILDROOT}",
       "cmakeCommandArgs": "",
@@ -64,7 +66,7 @@
           "value": "${env.BLAS_DEBUG}"
         },
         {
-          "name": "CMAKE_INSTALL_PREFIX",
+          "name": "remoteInstallRoot",
           "value": "${env.INSTALL_DIR}"
         },
         {
@@ -76,7 +78,7 @@
     },
     {
       "name": "MS_MKL_RELEASE",
-      "generator": "Visual Studio 15 2017 Win64",
+      "generator": "Visual Studio 16 2019 Win64",
       "configurationType": "Release",
       "buildRoot": "${env.BUILDROOT}",
       "cmakeCommandArgs": "",
@@ -127,7 +129,7 @@
           "value": "${env.BLAS_RELEASE}"
         },
         {
-          "name": "CMAKE_INSTALL_PREFIX",
+          "name": "remoteInstallRoot",
           "value": "${env.INSTALL_DIR}"
         },
         {
@@ -138,7 +140,7 @@
     },
     {
       "name": "MS_MKL_RELDEBINFO",
-      "generator": "Visual Studio 15 2017 Win64",
+      "generator": "Visual Studio 16 2019",
       "configurationType": "RelWithDebInfo",
       "buildRoot": "${env.BUILDROOT}",
       "cmakeCommandArgs": "",
@@ -189,7 +191,7 @@
           "value": "${env.BLAS_RELEASE}"
         },
         {
-          "name": "CMAKE_INSTALL_PREFIX",
+          "name": "remoteInstallRoot",
           "value": "${env.INSTALL_DIR}"
         },
         {
@@ -200,7 +202,7 @@
     },
     {
       "name": "MS_SMKL_DEBUG",
-      "generator": "Visual Studio 15 2017 Win64",
+      "generator": "Visual Studio 16 2019",
       "configurationType": "Debug",
       "buildRoot": "${env.BUILDROOT}",
       "cmakeCommandArgs": "",
@@ -247,7 +249,7 @@
           "value": "${env.BLAS_DEBUG}"
         },
         {
-          "name": "CMAKE_INSTALL_PREFIX",
+          "name": "remoteInstallRoot",
           "value": "${env.INSTALL_DIR}"
         },
         {
@@ -257,13 +259,18 @@
         {
           "name": "BLA_STATIC",
           "value": "1"
+        },
+        {
+          "name": "BUILD_CADET_MEX",
+          "value": "False",
+          "type": "BOOL"
         }
       ]
 
     },
     {
       "name": "MS_SMKL_RELEASE",
-      "generator": "Visual Studio 15 2017 Win64",
+      "generator": "Visual Studio 16 2019",
       "configurationType": "Release",
       "buildRoot": "${env.BUILDROOT}",
       "cmakeCommandArgs": "",
@@ -314,7 +321,7 @@
           "value": "${env.BLAS_RELEASE}"
         },
         {
-          "name": "CMAKE_INSTALL_PREFIX",
+          "name": "remoteInstallRoot",
           "value": "${env.INSTALL_DIR}"
         },
         {
@@ -329,7 +336,7 @@
     },
     {
       "name": "MS_SMKL_RELDEBINFO",
-      "generator": "Visual Studio 15 2017 Win64",
+      "generator": "Visual Studio 16 2019",
       "configurationType": "RelWithDebInfo",
       "buildRoot": "${env.BUILDROOT}",
       "cmakeCommandArgs": "",
@@ -380,7 +387,7 @@
           "value": "${env.BLAS_RELEASE}"
         },
         {
-          "name": "CMAKE_INSTALL_PREFIX",
+          "name": "remoteInstallRoot",
           "value": "${env.INSTALL_DIR}"
         },
         {
