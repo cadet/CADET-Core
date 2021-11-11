@@ -224,7 +224,7 @@ Two dimensional general rate model
    
 ``PAR_CORERADIUS``
 
-   Particle core radius of all particle types or for each particle type (optional, defaults to :math:`\SI{0}{\metre}`)
+   Particle core radius of all particle types or for each particle type (optional, defaults to :math:`0~m`)
 
    **Unit:** :math:`\mathrm{m}`
    
@@ -279,7 +279,7 @@ Two dimensional general rate model
    
 ``PAR_SURFDIFFUSION``
 
-   Particle surface diffusion coefficients of each bound state of each component in each particle type (optional, defaults to all \SI{0}{\square\metre\of{SP}\per\second})
+   Particle surface diffusion coefficients of each bound state of each component in each particle type (optional, defaults to all :math:`0~m_{SP}^2 s^{-1}`)
 
    **Unit:** :math:`\mathrm{m}_{\mathrm{SP}}^{2}\,\mathrm{s}^{-1}`
    
@@ -342,6 +342,9 @@ Two dimensional general rate model
    **Type:** int  **Range:** :math:`\{0, \dots, 3 \}`  **Length:** 1
    =============  ===================================  =============
    
+
+Group /input/model/unit_XXX/discretization - UNIT_TYPE - GENERAL_RATE_MODEL_2D
+------------------------------------------------------------------------------
 
 ``NCOL``
 
@@ -493,4 +496,4 @@ Two dimensional general rate model
    **Type:** double  **Range:** :math:`\geq 0`  **Length:** 1
    ================  =========================  =============
 
-
+For further discretization parameters, see also :ref:`flux_restruction_methods`, and :ref:`non_consistency_solver_parameters`.
