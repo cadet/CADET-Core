@@ -263,7 +263,6 @@ Group /input/model/unit_XXX - UNIT_TYPE - GENERAL_RATE_MODEL
    =============  ===================================  =============
    
 ``VELOCITY``
-
    Interstitial velocity of the mobile phase (optional if :math:`\texttt{CROSS_SECTION_AREA}` is present, see Section :ref:`MUOPGRMflow`)
 
    **Unit:** :math:`\mathrm{m}\,\mathrm{s}^{-1}`
@@ -274,7 +273,7 @@ Group /input/model/unit_XXX - UNIT_TYPE - GENERAL_RATE_MODEL
    
 ``CROSS_SECTION_AREA``
 
-   Cross section area of the column (optional if :math:`\texttt{VELOCITY}` is present, see Section~:ref:`MUOPGRMflow`)
+   Cross section area of the column (optional if :math:`\texttt{VELOCITY}` is present, see Section :ref:`MUOPGRMflow`)
 
    **Unit:** :math:`\mathrm{m}^{2}`
    
