@@ -23,9 +23,9 @@ Group /input/model/unit_XXX/discretization/weno - WENO Parameters
 
    WENO :math:`\varepsilon`
 
-   ================  ==========================  =============
-   **Type:** double  **Range:** :math:`\qeq 0\`  **Length:** 1
-   ================  ==========================  =============
+   ================  =========================  =============
+   **Type:** double  **Range:** :math:`\qe 0\`  **Length:** 1
+   ================  =========================  =============
 
 ``WENO_ORDER``
 
