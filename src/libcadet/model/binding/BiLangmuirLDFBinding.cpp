@@ -59,7 +59,7 @@ namespace cadet
 			return true;
 		}
 
-		inline const char* ExtBiLangmuirLDFParamHandler::identifier() CADET_NOEXCEPT { return "EXT_MULTI_COMPONENT_BILANGMUIR"; }
+		inline const char* ExtBiLangmuirLDFParamHandler::identifier() CADET_NOEXCEPT { return "EXT_MULTI_COMPONENT_BILANGMUIR_LDF"; }
 
 		inline bool ExtBiLangmuirLDFParamHandler::validateConfig(unsigned int nComp, unsigned int const* nBoundStates)
 		{
@@ -222,7 +222,8 @@ namespace cadet
 			{
 				typename ParamHandler_t::ParamsHandle const p = _paramHandler.update(t, secIdx, colPos, _nComp, _nBoundStates, workSpace);
 
-				// Protein flux: -k_{a,i}^j * c_{p,i} * (1 - \sum q_i^j / q_{max,i}^j) + k_{d,i}^j * q_i^j
+				// Protein flux: \frac{dq_{i,j}}{dt} = k_{kin,i,j}(q_{i,j}^*-q_{i,j}) with
+				//q_{i,j}^*=\frac{q_{m,i,j} k_{eq,i,j} c_i}{1 + \sum_{k=1}^{n_{comp}}{k_{eq,k,j} c_k}}
 
 				const unsigned int nSites = p->keq.slices();
 
@@ -285,7 +286,8 @@ namespace cadet
 			{
 				typename ParamHandler_t::ParamsHandle const p = _paramHandler.update(t, secIdx, colPos, _nComp, _nBoundStates, workSpace);
 
-				// Protein flux: -k_{a,i}^j * c_{p,i} * (1 - \sum q_i^j / q_{max,i}^j) + k_{d,i}^j * q_i^j
+				// Protein flux: \frac{dq_{i,j}}{dt} = k_{kin,i,j}(q_{i,j}^*-q_{i,j}) with
+				//q_{i,j}^*=\frac{q_{m,i,j} k_{eq,i,j} c_i}{1 + \sum_{k=1}^{n_{comp}}{k_{eq,k,j} c_k}}
 
 				// Ordering of the states is (q_{comp,state}, example uses 2 components, 3 binding sites)
 				// q_{0,0}, q{0,1}, q_{0,2}, q_{1,0}, q_{1,1}, q_{1,2}, ...
@@ -345,10 +347,7 @@ namespace cadet
 							// Getting to c_{p,j}: -nSites * bndIdx takes us to q_{0,site}, another -site to q_{0,0}. From there, we
 							//                     take a -offsetCp to reach c_{p,0} and a +j to arrive at c_{p,j}.
 							//                     This means jac[j - site - offsetCp - nSites * bndIdx] corresponds to c_{p,j}.
-							//jac[(bndIdx2 - bndIdx) * nSites] = ka * yCp[i] * static_cast<double>(localQmax[i]) / static_cast<double>(localQmax[j]);
-							// Getting to q_j: -bndIdx * nSites takes us to q_{0,site}, another +bndIdx2 to q_{j,site}.
-							// This means jac[(bndIdx2 - bndIdx) * nSites] corresponds to q_{j,site}.
-
+							
 							++bndIdx2;
 						}
 
