@@ -177,6 +177,11 @@ The models also differ in whether a mobile phase modifier (e.g., salt) is suppor
      - ×
      - ✓
      - ×
+   * - :ref:`multi_component_langmuir_model_ldf`
+     - ✓
+     - ×
+     - ✓
+     - ×
    * - :ref:`multi_component_anti_langmuir_model`
      - ✓
      - ×
@@ -213,6 +218,11 @@ The models also differ in whether a mobile phase modifier (e.g., salt) is suppor
      - ✓
      - ×
    * - :ref:`multi_component_bi_langmuir_model`
+     - ✓
+     - ×
+     - ✓
+     - ✓
+   * - :ref:`multi_component_bi_langmuir_model_ldf`
      - ✓
      - ×
      - ✓
