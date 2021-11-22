@@ -584,36 +584,9 @@ public:
 		}
 	}
 
-	virtual bool preConsistentInitialState(double t, unsigned int secIdx, const ColumnPosition& colPos, double* y, double const* yCp, LinearBufferAllocator workSpace) const
-	{
-		// The linear algebraic equations are easily solved, that is, we don't require a full nonlinear solver
-		
-		typename ParamHandler_t::ParamsHandle const p = _paramHandler.update(t, secIdx, colPos, _nComp, _nBoundStates, workSpace);
-
-		unsigned int bndIdx = 0;
-		for (int i = 0; i < _nComp; ++i)
-		{
-			// Skip components without bound states (bound state index bndIdx is not advanced)
-			if (_nBoundStates[i] == 0)
-				continue;
-
-			// Skip dynamic binding reactions
-			if (!_reactionQuasistationarity[i])
-			{
-				// Next bound component
-				++bndIdx;
-				continue;
-			}
-
-			// q = k_a / k_d * c_p
-			y[bndIdx] = static_cast<double>(p->kA[i]) / static_cast<double>(p->kD[i]) * yCp[i];
-
-			// Next bound component
-			++bndIdx;
-		}
-
-		// Consistent initialization is complete, don't call a nonlinear solver
-		return false;
+	virtual bool preConsistentInitialState(double t, unsigned int secIdx, const ColumnPosition& colPos, double* y, double const* yCp, LinearBufferAllocator workSpace) const { return true; }
+	{ 
+		// For a proper consistent initial state which conserves mass, nonlinear solver needs to be called.
 	}
 
 	virtual void postConsistentInitialState(double t, unsigned int secIdx, const ColumnPosition& colPos, double* y, double const* yCp, LinearBufferAllocator workSpace) const
