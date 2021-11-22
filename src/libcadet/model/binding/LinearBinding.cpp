@@ -584,9 +584,10 @@ public:
 		}
 	}
 
-	virtual bool preConsistentInitialState(double t, unsigned int secIdx, const ColumnPosition& colPos, double* y, double const* yCp, LinearBufferAllocator workSpace) const { return true; }
-	{ 
-		// For a proper consistent initial state which conserves mass, nonlinear solver needs to be called.
+	virtual bool preConsistentInitialState(double t, unsigned int secIdx, const ColumnPosition& colPos, double* y, double const* yCp, LinearBufferAllocator workSpace) const
+	{
+		// Due to mass conservation, we need to run a nonlinear solver (although the model is simple).
+		return true;
 	}
 
 	virtual void postConsistentInitialState(double t, unsigned int secIdx, const ColumnPosition& colPos, double* y, double const* yCp, LinearBufferAllocator workSpace) const
