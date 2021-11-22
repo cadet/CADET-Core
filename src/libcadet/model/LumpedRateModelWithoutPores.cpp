@@ -1359,7 +1359,7 @@ void LumpedRateModelWithoutPores::consistentInitialTimeDerivative(const Simulati
 
 		// Get iterators to beginning of solid phase
 		linalg::BandMatrix::RowIterator jacSolidOrig = _jac.row(idxr.strideColCell() * col + idxr.strideColLiquid());
-		linalg::FactorizableBandMatrix::RowIterator jacSolid = jac - idxr.strideColLiquid();
+		linalg::FactorizableBandMatrix::RowIterator jacSolid = jac - idxr.strideColBound();
 
 		int const* const mask = _binding[0]->reactionQuasiStationarity();
 		double* const qShellDot = vecStateYdot + idxr.offsetC() + col * idxr.strideColCell() + idxr.strideColLiquid();
@@ -1648,7 +1648,7 @@ void LumpedRateModelWithoutPores::consistentInitialSensitivity(const SimulationT
 			{
 				// Get iterators to beginning of solid phase
 				linalg::BandMatrix::RowIterator jacSolidOrig = _jac.row(idxr.strideColCell() * col + idxr.strideColLiquid());
-				linalg::FactorizableBandMatrix::RowIterator jacSolid = jac - idxr.strideColLiquid();
+				linalg::FactorizableBandMatrix::RowIterator jacSolid = jac - idxr.strideColBound();
 
 				int const* const mask = _binding[0]->reactionQuasiStationarity();
 				double* const qShellDot = sensYdot + idxr.offsetC() + idxr.strideColCell() * col + idxr.strideColLiquid();
