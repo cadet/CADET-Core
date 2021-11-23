@@ -64,7 +64,7 @@ public:
 	virtual bool canAccumulate() const CADET_NOEXCEPT { return true; }
 
 	static const char* identifier() { return "CSTR"; }
-	virtual const char* unitOperationName() const CADET_NOEXCEPT { return "CSTR"; }
+	virtual const char* unitOperationName() const CADET_NOEXCEPT { return identifier(); }
 
 	virtual bool configureModelDiscretization(IParameterProvider& paramProvider, IConfigHelper& helper);
 	virtual bool configure(IParameterProvider& paramProvider);

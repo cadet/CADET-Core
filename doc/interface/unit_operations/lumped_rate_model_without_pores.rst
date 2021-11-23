@@ -166,7 +166,5 @@ Group /input/model/unit_XXX/discretization - UNIT_TYPE = LUMPED_RATE_MODEL_WITHO
    **Type:** string  **Range:** :math:`\texttt{WENO}`  **Length:** 1
    ================  ================================  =============
    
-
-
-
+For further discretization parameters, see also :ref:`flux_restruction_methods`, and :ref:`non_consistency_solver_parameters`.
 

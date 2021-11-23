@@ -20,6 +20,8 @@
 #include "cadet/cadetCompilerInfo.hpp"
 #include "common/CompilerSpecific.hpp"
 
+#include <type_traits>
+
 #if defined(ACTIVE_SFAD) || defined(ACTIVE_SETFAD)
 
 	#define SFAD_DEFAULT_DIR 80
@@ -84,19 +86,27 @@ namespace cadet
 	 * @tparam B Type B
 	 */
 	template <typename A, typename B>
-	struct DoubleActivePromoter { };
+	struct DoubleActivePromoterImpl { };
 
 	template <>
-	struct DoubleActivePromoter<cadet::active, cadet::active> { typedef cadet::active type; };
+	struct DoubleActivePromoterImpl<cadet::active, cadet::active> { typedef cadet::active type; };
 
 	template <>
-	struct DoubleActivePromoter<cadet::active, double> { typedef cadet::active type; };
+	struct DoubleActivePromoterImpl<cadet::active, double> { typedef cadet::active type; };
 
 	template <>
-	struct DoubleActivePromoter<double, cadet::active> { typedef cadet::active type; };
+	struct DoubleActivePromoterImpl<double, cadet::active> { typedef cadet::active type; };
 
 	template <>
-	struct DoubleActivePromoter<double, double> { typedef double type; };
+	struct DoubleActivePromoterImpl<double, double> { typedef double type; };
+
+	/**
+	 * @brief Selects the @c active type between @c double and @c active
+	 * @tparam A Type A
+	 * @tparam B Type B
+	 */
+	template <typename A, typename B>
+	struct DoubleActivePromoter { typedef typename DoubleActivePromoterImpl<std::decay_t<A>, std::decay_t<B>>::type type; };
 
 	template <typename A>
 	using ActivePromoter = DoubleActivePromoter<A, double>;
@@ -107,22 +117,49 @@ namespace cadet
 	 * @tparam B Type B
 	 */
 	template <typename A, typename B>
-	struct DoubleActiveDemoter { };
+	struct DoubleActiveDemoterImpl { };
 
 	template <>
-	struct DoubleActiveDemoter<cadet::active, cadet::active> { typedef cadet::active type; };
+	struct DoubleActiveDemoterImpl<cadet::active, cadet::active> { typedef cadet::active type; };
 
 	template <>
-	struct DoubleActiveDemoter<cadet::active, double> { typedef double type; };
+	struct DoubleActiveDemoterImpl<cadet::active, double> { typedef double type; };
 
 	template <>
-	struct DoubleActiveDemoter<double, cadet::active> { typedef double type; };
+	struct DoubleActiveDemoterImpl<double, cadet::active> { typedef double type; };
 
 	template <>
-	struct DoubleActiveDemoter<double, double> { typedef double type; };
+	struct DoubleActiveDemoterImpl<double, double> { typedef double type; };
+
+	/**
+	 * @brief Selects the @c double type between @c double and @c active
+	 * @tparam A Type A
+	 * @tparam B Type B
+	 */
+	template <typename A, typename B>
+	struct DoubleActiveDemoter { typedef typename DoubleActiveDemoterImpl<std::decay_t<A>, std::decay_t<B>>::type type; };
 
 	template <typename A>
 	using DoubleDemoter = DoubleActiveDemoter<A, cadet::active>;
+
+	/**
+	 * @brief Selects value type @c double or reference type @c active&
+	 * @tparam A Base type (i.e., @c double or @c active)
+	 */
+	template <typename A>
+	struct ActiveRefOrDouble { };
+
+	template <>
+	struct ActiveRefOrDouble<cadet::active> { typedef cadet::active& type; };
+
+	template <>
+	struct ActiveRefOrDouble<const cadet::active> { typedef const cadet::active& type; };
+
+	template <>
+	struct ActiveRefOrDouble<double> { typedef double type; };
+
+	template <>
+	struct ActiveRefOrDouble<const double> { typedef const double type; };
 }
 
 #endif  // LIBCADET_AUTODIFF_HPP_

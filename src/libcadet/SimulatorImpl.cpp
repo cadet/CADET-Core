@@ -1199,7 +1199,10 @@ namespace cadet
 			{
 				const double progress = (curT - static_cast<double>(_sectionTimes[0])) / (tEnd - static_cast<double>(_sectionTimes[0]));
 				if (!_notification->timeIntegrationSection(_curSec, curT, NVEC_DATA(_vecStateY), NVEC_DATA(_vecStateYdot), progress))
+				{
+					_lastIntTime = _timerIntegration.stop();
 					return;
+				}
 			}
 
 			// IDAS Step 5.2: Re-initialization of the solver

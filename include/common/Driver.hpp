@@ -27,7 +27,6 @@
 
 #include "common/SolutionRecorderImpl.hpp"
 
-
 namespace cadet
 {
 
@@ -273,16 +272,26 @@ public:
 		_sim->setSectionTimes(secTimes, secCont);
 
 		// Specify initial values
-		if (pp.exists("INIT_STATE_Y") && pp.exists("INIT_STATE_YDOT"))
+		if (pp.exists("INIT_STATE_Y"))
 		{
 			const std::vector<double> initY = pp.getDoubleArray("INIT_STATE_Y");
-			const std::vector<double> initYdot = pp.getDoubleArray("INIT_STATE_YDOT");
-			if (initY.size() >= _sim->numDofs())
+			if (initY.size() != _sim->numDofs())
 			{
-				if (initYdot.size() >= _sim->numDofs())
-					_sim->applyInitialCondition(initY.data(), initYdot.data());
-				else
-					_sim->applyInitialCondition(initY.data());
+				throw InvalidParameterException("Length of INIT_STATE_Y should be equal to NDOF");
+			}
+
+			if (pp.exists("INIT_STATE_YDOT"))
+			{
+				const std::vector<double> initYdot = pp.getDoubleArray("INIT_STATE_YDOT");
+				if (initYdot.size() != _sim->numDofs())
+				{
+					throw InvalidParameterException("Length of INIT_STATE_YDOT should be equal to NDOF");
+				}
+				_sim->applyInitialCondition(initY.data(), initYdot.data());
+			}
+			else
+			{
+				_sim->applyInitialCondition(initY.data());
 			}
 		}
 		else
@@ -458,11 +467,32 @@ public:
 		else
 			_writeLastState = false;
 
+		// Adding a new output variable
+		std::ostringstream oss;
+		for (int i = 0; i <= _sim->model()->maxUnitOperationId(); ++i)
+		{
+			oss.str("");
+			oss << "unit_" << std::setfill('0') << std::setw(3) << std::setprecision(0) << i;
+			if (pp.exists(oss.str()))
+			{
+				pp.pushScope(oss.str());
+
+				if (pp.exists("WRITE_SOLUTION_LAST_UNIT"))
+				{
+					const bool writeLastStateUnit = pp.getBool("WRITE_SOLUTION_LAST_UNIT");
+					if (writeLastStateUnit)
+						_writeLastStateUnitId.push_back(i);
+				}
+
+				pp.popScope();
+			}
+		}
+
 		if (pp.exists("WRITE_SENS_LAST"))
 			_writeLastStateSens = pp.getBool("WRITE_SENS_LAST");
 		else
 			_writeLastStateSens = false;
-		
+
 		pp.popScope(); // scope return
 
 		if (applyInSimulator)
@@ -527,6 +557,29 @@ public:
 			writer.vector("LAST_STATE_YDOT", len, lastYdot);
 		}
 
+		std::ostringstream oss;
+		for (int i = 0; i < _writeLastStateUnitId.size(); ++i)
+		{
+			unsigned int sliceStart;
+			unsigned int sliceEnd;
+			std::tie(sliceStart, sliceEnd) = _sim->model()->getModelStateOffsets(_writeLastStateUnitId[i]);
+
+			oss.str("");
+			oss << "unit_" << std::setfill('0') << std::setw(3) << std::setprecision(0) << _writeLastStateUnitId[i];
+			writer.pushGroup("solution");
+			writer.pushGroup(oss.str());
+
+			unsigned int len = 0;
+			double const* const lastY = _sim->getLastSolution(len);
+			double const* const lastYdot = _sim->getLastSolutionDerivative(len);
+
+			writer.template vector<double>("LAST_STATE_Y", sliceEnd - sliceStart, lastY + sliceStart);
+			writer.template vector<double>("LAST_STATE_YDOT", sliceEnd - sliceStart, lastYdot + sliceStart);
+
+			writer.popGroup();
+			writer.popGroup();
+		}
+
 		if (_writeLastStateSens)
 		{
 
@@ -589,6 +642,27 @@ public:
 	inline cadet::IModelBuilder* modelBuilder() const CADET_NOEXCEPT { return _builder; }
 	inline cadet::IModelSystem* model() const { return _sim->model(); }
 
+	inline void setWriteLastStateOfUnit(UnitOpIdx uid, bool writeLastStateUnit)
+	{
+		const std::vector<UnitOpIdx>::iterator it = std::find(_writeLastStateUnitId.begin(), _writeLastStateUnitId.end(), uid);
+		if (writeLastStateUnit)
+		{
+			if (it == _writeLastStateUnitId.end())
+			{
+				// Unit not in list, so add it
+				_writeLastStateUnitId.push_back(uid);
+			}
+		}
+		else
+		{
+			if (it != _writeLastStateUnitId.end())
+			{
+				// Unit is listed, so remove it
+				_writeLastStateUnitId.erase(it);
+			}
+		}
+	}
+
 	inline void setWriteLastState(bool writeLastState) CADET_NOEXCEPT { _writeLastState = writeLastState; }
 	inline void setWriteLastStateSens(bool writeLastState) CADET_NOEXCEPT { _writeLastStateSens = writeLastState; }
 	inline void setWriteSolutionTimes(bool solTimes) CADET_NOEXCEPT
@@ -606,6 +680,7 @@ protected:
 	cadet::InternalStorageSystemRecorder* _storage; //!< Storage for results
 
 	bool _writeLastState;
+	std::vector<UnitOpIdx> _writeLastStateUnitId;
 	bool _writeLastStateSens;
 
 	/**

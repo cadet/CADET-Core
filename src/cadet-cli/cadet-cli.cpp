@@ -20,6 +20,7 @@
 #include <tclap/CmdLine.h>
 #include "common/TclapUtils.hpp"
 #include "ProgressBar.hpp"
+#include "SignalHandler.hpp"
 
 #include "Logging.hpp"
 
@@ -116,6 +117,7 @@ namespace TCLAP
 	}
 } // namespace TCLAP
 
+
 class ProgressBarNotifier : public cadet::INotificationCallback
 {
 public:
@@ -138,20 +140,43 @@ public:
 	{
 		snprintf(_secStrBuffer.data(), _secStrBuffer.size(), "Init Sec %3u", section);
 		_progBar.update(progress, _secStrBuffer.data());
-		return true;
+		return !cadet::stopExecutionRequested();
 	}
 
 	virtual bool timeIntegrationStep(unsigned int section, double time, double const* state, double const* stateDot, double progress)
 	{
 		snprintf(_secStrBuffer.data(), _secStrBuffer.size(), "Section %3u", section);
 		_progBar.update(progress, _secStrBuffer.data());
-		return true;
+		return !cadet::stopExecutionRequested();
 	}
 
 protected:
 	cadet::ProgressBar _progBar;
 	std::vector<char> _secStrBuffer;
 };
+
+
+class SignalHandlingNotifier : public cadet::INotificationCallback
+{
+public:
+	SignalHandlingNotifier() { }
+	virtual ~SignalHandlingNotifier() CADET_NOEXCEPT { }
+
+	virtual void timeIntegrationStart() { }
+	virtual void timeIntegrationEnd() { }
+	virtual void timeIntegrationError(char const* message, unsigned int section, double time, double progress) { }
+
+	virtual bool timeIntegrationSection(unsigned int section, double time, double const* state, double const* stateDot, double progress)
+	{
+		return !cadet::stopExecutionRequested();
+	}
+
+	virtual bool timeIntegrationStep(unsigned int section, double time, double const* state, double const* stateDot, double progress)
+	{
+		return !cadet::stopExecutionRequested();
+	}
+};
+
 
 template <class Reader_t>
 class FileReaderDriverConfigurator
@@ -171,6 +196,7 @@ public:
 	}
 };
 
+
 class JsonDriverConfigurator
 {
 public:
@@ -188,9 +214,11 @@ public:
 	}
 };
 
+
 template <class DriverConfigurator_t, class Writer_t>
-void run(const std::string& inFileName, const std::string& outFileName, bool showProgressBar)
+int run(const std::string& inFileName, const std::string& outFileName, bool showProgressBar)
 {
+	int returnCode = 0;
 	cadet::Driver drv;
 	
 	{
@@ -198,15 +226,39 @@ void run(const std::string& inFileName, const std::string& outFileName, bool sho
 		dc.configure(drv, inFileName);
 	}
 
-	std::unique_ptr<ProgressBarNotifier> pb = nullptr;
+	std::unique_ptr<SignalHandlingNotifier> shn = nullptr;
 
 #ifndef CADET_BENCHMARK_MODE
+	// Select between progress bar or signal handling only
+
+	std::unique_ptr<ProgressBarNotifier> pb = nullptr;
+
 	if (showProgressBar)
+	{
 		pb = std::make_unique<ProgressBarNotifier>();
+		drv.simulator()->setNotificationCallback(pb.get());
+	}
+	else
+	{
+		shn = std::make_unique<SignalHandlingNotifier>();
+		drv.simulator()->setNotificationCallback(shn.get());
+	}
+#else
+	// Always handle signals in benchmark mode (no progress bar overhead)
+	shn = std::make_unique<SignalHandlingNotifier>();
+	drv.simulator()->setNotificationCallback(shn.get());
 #endif
 
-	drv.simulator()->setNotificationCallback(pb.get());
-	drv.run();
+	
+	try
+	{
+		drv.run();
+	}
+	catch (const cadet::IntegrationException& e)
+	{
+		std::cerr << "SOLVER ERROR: " << e.what() << std::endl;
+		returnCode = 3;
+	}
 
 	Writer_t writer;
 	if (inFileName == outFileName)
@@ -250,6 +302,8 @@ void run(const std::string& inFileName, const std::string& outFileName, bool sho
 	}
 	std::cout << "\n}" << std::endl;
 #endif
+
+	return returnCode;
 }
 
 
@@ -259,6 +313,9 @@ int main(int argc, char** argv)
 	// Benchmark the whole program from start to finish
 	BenchScope bsTotalTime;
 #endif
+
+	// Install signal handler
+	cadet::installSignalHandler();
 
 	// Program options
 	std::string inFileName = "";
@@ -314,6 +371,7 @@ int main(int argc, char** argv)
 
 	const std::string fileExtIn = inFileName.substr(dotPosIn+1);
 	const std::string fileExtOut = outFileName.substr(dotPosOut+1);
+	int returnCode = 0;
 
 	try
 	{
@@ -321,11 +379,11 @@ int main(int argc, char** argv)
 		{
 			if (cadet::util::caseInsensitiveEquals(fileExtOut, "h5"))
 			{
-				run<FileReaderDriverConfigurator<cadet::io::HDF5Reader>, cadet::io::HDF5Writer>(inFileName, outFileName, showProgressBar);
+				returnCode = run<FileReaderDriverConfigurator<cadet::io::HDF5Reader>, cadet::io::HDF5Writer>(inFileName, outFileName, showProgressBar);
 			}
 			else if (cadet::util::caseInsensitiveEquals(fileExtOut, "xml"))
 			{
-				run<FileReaderDriverConfigurator<cadet::io::HDF5Reader>, cadet::io::XMLWriter>(inFileName, outFileName, showProgressBar);
+				returnCode = run<FileReaderDriverConfigurator<cadet::io::HDF5Reader>, cadet::io::XMLWriter>(inFileName, outFileName, showProgressBar);
 			}
 			else
 			{
@@ -337,11 +395,11 @@ int main(int argc, char** argv)
 		{
 			if (cadet::util::caseInsensitiveEquals(fileExtOut, "xml"))
 			{
-				run<FileReaderDriverConfigurator<cadet::io::XMLReader>, cadet::io::XMLWriter>(inFileName, outFileName, showProgressBar);
+				returnCode = run<FileReaderDriverConfigurator<cadet::io::XMLReader>, cadet::io::XMLWriter>(inFileName, outFileName, showProgressBar);
 			}
 			else if (cadet::util::caseInsensitiveEquals(fileExtOut, "h5"))
 			{
-				run<FileReaderDriverConfigurator<cadet::io::XMLReader>, cadet::io::HDF5Writer>(inFileName, outFileName, showProgressBar);
+				returnCode = run<FileReaderDriverConfigurator<cadet::io::XMLReader>, cadet::io::HDF5Writer>(inFileName, outFileName, showProgressBar);
 			}
 			else
 			{
@@ -353,11 +411,11 @@ int main(int argc, char** argv)
 		{
 			if (cadet::util::caseInsensitiveEquals(fileExtOut, "xml"))
 			{
-				run<JsonDriverConfigurator, cadet::io::XMLWriter>(inFileName, outFileName, showProgressBar);
+				returnCode = run<JsonDriverConfigurator, cadet::io::XMLWriter>(inFileName, outFileName, showProgressBar);
 			}
 			else if (cadet::util::caseInsensitiveEquals(fileExtOut, "h5"))
 			{
-				run<JsonDriverConfigurator, cadet::io::HDF5Writer>(inFileName, outFileName, showProgressBar);
+				returnCode = run<JsonDriverConfigurator, cadet::io::HDF5Writer>(inFileName, outFileName, showProgressBar);
 			}
 			else
 			{
@@ -387,5 +445,5 @@ int main(int argc, char** argv)
 		return 1;
 	}
 
-	return 0;
+	return returnCode;
 }

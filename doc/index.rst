@@ -43,6 +43,20 @@ Features
 * Works on Windows, Linux, and Mac OS X
 
 
+Installation
+------------
+CADET can be installed via conda from the ``conda-forge`` channel.
+
+``conda install -c conda-forge cadet``
+
+This requires a working `conda installation <https://docs.anaconda.com/anaconda/install/index.html>`_.
+
+Optionally, use `mamba <https://github.com/mamba-org/mamba>`_ which uses a faster dependency solver than ``conda``.
+
+``mamba install -c conda-forge cadet``
+
+For more information on how to install and build CADET, see :ref:`here <installation>`.
+
 Ongoing Development
 -------------------
 

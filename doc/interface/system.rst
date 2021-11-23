@@ -269,7 +269,7 @@ Group /input/model/solver
    
 ``LINEAR_SOLUTION_MODE``
 
-   Determines whether the system of models is solved in parallel (1) or sequentially (2). A sequential solution is only possible for systems without cyclic connections. The setting can be chosen automatically (0) based on a heuristic (less than 6 unit operations and acyclic network selects sequential mode). Optional, defaults to automatic (0).
+   Determines whether the system of models is solved in parallel (1) or sequentially (2). A sequential solution is only possible for systems without cyclic connections. The setting can be chosen automatically (0) based on a heuristic (less than 25 unit operations and acyclic network selects sequential mode). Optional, defaults to automatic (0).
    
    =============  ==============================  =============
    **Type:** int  **Range:** :math:`\{ 0,1,2 \}`  **Length:** 1
