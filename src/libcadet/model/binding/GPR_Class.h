@@ -380,8 +380,7 @@ namespace
 				}
 				cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans,
 					K, K, M, -rbf_lengthscale, X_tilda_star.data(), M, kernel_alpha.data(), K, 0.0, pred_derivative, K);
-				std::cout << "\nDerivative is: \n";
-				std::cout << pred_derivative[0] << "\n";
+				
 			}
 
 			//Method to compute the derivative of GPR based on RBF+Linear kernel

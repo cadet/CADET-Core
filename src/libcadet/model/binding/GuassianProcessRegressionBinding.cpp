@@ -116,15 +116,15 @@ namespace cadet
 				solid_phase_concentration = paramProvider.getDoubleArray("Q_VALS");
 				pore_phase_concentration = paramProvider.getDoubleArray("C_VALS");
 				GPR_parameters = paramProvider.getDoubleArray("TRAINED_PARAMS");
-				int kernel_name1 = paramProvider.getInt("KERNAL");
+				kernel_name = paramProvider.getString("KERNAL");
 				ndim = paramProvider.getInt("NDIM");
 
 				paramProvider.popScope(); // training_data
 
 				std::vector<double> kernel_m(solid_phase_concentration.size() * solid_phase_concentration.size(), 0.0);
 				std::vector<double> K_inv_y_temp(solid_phase_concentration.size(), 0.0);
-				if (kernel_name1 == 1)
-					kernel_name = "MLP";
+				//if (kernel_name1 == 1)
+					//kernel_name = "MLP";
 
 				std::vector<double> test_pt = { 0.0 };
 
@@ -137,7 +137,17 @@ namespace cadet
 					gp.MLP_kernel(pore_phase_concentration.size(), pore_phase_concentration.size(), ndim,
 						pore_phase_concentration.data(), pore_phase_concentration.data(), kernel_m.data());
 				}
-
+				else if (kernel_name == "RBF")
+				{
+					gp.RBF_kernel(pore_phase_concentration.data(), pore_phase_concentration.data(),
+						kernel_m.data(), pore_phase_concentration.size());
+				}
+				else if (kernel_name == "RBF_Linear")
+				{
+					gp.RBF_Linear_Kernel(pore_phase_concentration.data(), pore_phase_concentration.data(), kernel_m.data(),
+						pore_phase_concentration.size());
+				}
+				
 				gp.kernel_inv_y(pore_phase_concentration.data(), solid_phase_concentration.data(), kernel_m.data(), K_inv_y_temp.data());
 
 				offset = gp.prediction(pore_phase_concentration.data(), solid_phase_concentration.data(),
@@ -245,8 +255,12 @@ namespace cadet
 					GPR_parameters[0], GPR_parameters[1], GPR_parameters[2], GPR_parameters[3], GPR_parameters[4],
 					GPR_parameters[5], GPR_parameters[6],
 					kernel_name);
-
-				gp.MLP_derivative(pore_phase_concentration.data(), matCp.data(), K_inv_y.data(), jacobian.data());
+				if (kernel_name == "MLP")
+					gp.MLP_derivative(pore_phase_concentration.data(), matCp.data(), K_inv_y.data(), jacobian.data());
+				else if (kernel_name == "RBF")
+					gp.RBF_derivative(pore_phase_concentration.data(), matCp.data(), K_inv_y.data(), jacobian.data(), _nComp);
+				else if (kernel_name == "RBF_Linear")
+					gp.RBF_Linear_derivative(pore_phase_concentration.data(), matCp.data(), K_inv_y.data(), jacobian.data(),_nComp);
 
 				unsigned int bndIdx = 0;
 				for (int i = 0; i < _nComp; ++i)
