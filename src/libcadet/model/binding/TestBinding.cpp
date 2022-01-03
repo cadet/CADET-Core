@@ -1,7 +1,7 @@
 // =============================================================================
 //  CADET
 //  
-//  Copyright © 2008-2021: The CADET Authors
+//  Copyright Â© 2008-2021: The CADET Authors
 //            Please see the AUTHORS and CONTRIBUTORS file.
 //  
 //  All rights reserved. This program and the accompanying materials
@@ -22,6 +22,10 @@
 #include <unordered_map>
 #include <string>
 #include <vector>
+
+/* In the following lines of code the interface to the binding model is defined.
+ In the interface the binding model specific parameters are defined. Please modify configuration name and 
+ parameter names according to the naming convection explained in the tutorial.*/
 
 /*<codegen>
 {
@@ -101,6 +105,8 @@ namespace cadet
 			using ParamHandlerBindingModelBase<ParamHandler_t>::_nComp;
 			using ParamHandlerBindingModelBase<ParamHandler_t>::_nBoundStates;
 
+			// In the follwing the class method the binding model mass transfer behavior is implemented. 
+			// Apart from the mentioned places in the tutorial, do not modify anything in this function. 
 			template <typename StateType, typename CpStateType, typename ResidualType, typename ParamType>
 			int fluxImpl(double t, unsigned int secIdx, const ColumnPosition& colPos, StateType const* y,
 				CpStateType const* yCp, ResidualType* res, LinearBufferAllocator workSpace) const
@@ -138,7 +144,9 @@ namespace cadet
 
 				return 0;
 			}
-
+			
+			// In the follwing the class method the anlytical Jacobian of the binding model should be implemented.
+			// Apart from the mentioned places in the tutorial, do not modify anything in this function. 
 			template <typename RowIterator>
 			void jacobianImpl(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, double const* yCp, int offsetCp, RowIterator jac, LinearBufferAllocator workSpace) const
 			{
