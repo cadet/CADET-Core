@@ -207,6 +207,7 @@ namespace cadet
 			}
 		};
 
+		// Do not forget to make changes in the following lines of code according to the guidelines given in the tutorial.
 		typedef LangmuirBindingBase<LangmuirParamHandler> LangmuirBinding;
 		typedef LangmuirBindingBase<ExtLangmuirParamHandler> ExternalLangmuirBinding;
 
