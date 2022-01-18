@@ -420,7 +420,7 @@ void CSTRModel::notifyDiscontinuousSectionTransition(double t, unsigned int secI
 {
 	if (_flowRateFilter.size() > 1)
 	{
-		_curFlowRateFilter = _flowRateFilter[secIdx];
+		_curFlowRateFilter = getSectionDependentScalar(_flowRateFilter, secIdx);
 	}
 	else if (_flowRateFilter.size() == 1)
 	{
