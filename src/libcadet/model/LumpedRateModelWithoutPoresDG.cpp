@@ -38,6 +38,9 @@
 	#include <tbb/parallel_for.h>
 #endif
 
+#include "C:\Users\jmbr\Cadet\code\eigen-3.4.0\Eigen\Dense.hpp" // use LA lib Eigen for Matrix operations
+using namespace Eigen;
+
 namespace cadet
 {
 
@@ -53,29 +56,31 @@ LumpedRateModelWithoutPoresDG::LumpedRateModelWithoutPoresDG(UnitOpIdx unitOpIdx
 	_singleDynReaction = true;
 }
 
-LumpedRateModelWithoutPores::~LumpedRateModelWithoutPores() CADET_NOEXCEPT
+LumpedRateModelWithoutPoresDG::~LumpedRateModelWithoutPoresDG() CADET_NOEXCEPT
 {
 	delete[] _tempState;
 
 	delete[] _disc.nBound;
 	delete[] _disc.boundOffset;
+	// Dg specific _disc parameters dont need to be deleted,
+	// as they remain constant for a given polynomial degree
 }
 
-unsigned int LumpedRateModelWithoutPores::numDofs() const CADET_NOEXCEPT
+unsigned int LumpedRateModelWithoutPoresDG::numDofs() const CADET_NOEXCEPT
 {
-	// Column bulk DOFs: nCol * nComp mobile phase and nCol * (sum boundStates) solid phase
+	// Column bulk DOFs: nCol * nNodes * nComp mobile phase and nCol * nNodes * (sum boundStates) solid phase
 	// Inlet DOFs: nComp
-	return 0 + _disc.nComp;
+	return _disc.nCol * _disc.nNodes * (_disc.nComp + _disc.strideBound) + _disc.nComp;
 }
 
-unsigned int LumpedRateModelWithoutPores::numPureDofs() const CADET_NOEXCEPT
+unsigned int LumpedRateModelWithoutPoresDG::numPureDofs() const CADET_NOEXCEPT
 {
-	// Column bulk DOFs: nCol * nComp mobile phase and nCol * (sum boundStates) solid phase
-	return 0;
+	// Column bulk DOFs: nCol * nNodes * nComp mobile phase and nCol * nNodes * (sum boundStates) solid phase
+	return _disc.nCol * _disc.nNodes * (_disc.nComp + _disc.strideBound);
 }
 
 
-bool LumpedRateModelWithoutPores::usesAD() const CADET_NOEXCEPT
+bool LumpedRateModelWithoutPoresDG::usesAD() const CADET_NOEXCEPT
 {
 #ifdef CADET_CHECK_ANALYTIC_JACOBIAN
 	// We always need AD if we want to check the analytical Jacobian
@@ -86,16 +91,20 @@ bool LumpedRateModelWithoutPores::usesAD() const CADET_NOEXCEPT
 #endif
 }
 
-bool LumpedRateModelWithoutPores::configureModelDiscretization(IParameterProvider& paramProvider, IConfigHelper& helper)
+bool LumpedRateModelWithoutPoresDG::configureModelDiscretization(IParameterProvider& paramProvider, IConfigHelper& helper)
 {
 	// ==== Read discretization
 	_disc.nComp = paramProvider.getInt("NCOMP");
 
 	paramProvider.pushScope("discretization");
 
-	// TODO: Read polynomial degrees, penalty factor, DG stuff
-
 	_disc.nCol = paramProvider.getInt("NCOL");
+	// DG specific parameters
+	_disc.polyDeg = paramProvider.getInt("POLYDEG"); // TODO: wo wird der parameter provider beschrieben ?!
+
+	_disc.nNodes = _disc.polyDeg + 1;
+	
+	initializeDG(_disc); // initializes polynomial derivative matrix and weights/mass matrix
 
 	const std::vector<int> nBound = paramProvider.getIntArray("NBOUND");
 	if (nBound.size() < _disc.nComp)
@@ -122,15 +131,19 @@ bool LumpedRateModelWithoutPores::configureModelDiscretization(IParameterProvide
 #endif
 
 	// Allocate space for initial conditions
-	_initC.resize(_disc.nComp);
-	_initQ.resize(_disc.strideBound);
+	_initC.resize(_disc.nNodes * _disc.nComp);
+	_initQ.resize(_disc.nNodes * _disc.strideBound);
 
 	// Create nonlinear solver for consistent initialization
 	configureNonlinearSolver(paramProvider);
 
 	paramProvider.popScope();
 
-	const unsigned int strideCell = _disc.nComp + _disc.strideBound;
+	const unsigned int strideCell = _disc.nNodes * (_disc.nComp + _disc.strideBound);
+
+	// TODO: Hier wurde vorher der convections dispersions operator ausgelagert aufgerufen für die FV semidiskretisierung die ja immer 
+	// gleich ist für alle Modelle die convection und dispersion beinhalten. Statt diese Operation auszulagern,
+	// behalte dies erstmal an dieser Stelle
 
 	// Allocate memory
 	Indexer idxr(_disc);
@@ -138,6 +151,8 @@ bool LumpedRateModelWithoutPores::configureModelDiscretization(IParameterProvide
 	_jacInlet.resize(_disc.nComp);
 
 	// TODO: Allocate matrices (maybe set sparsity pattern)
+	// jacobian
+
 
 	// Set whether analytic Jacobian is used
 	useAnalyticJacobian(analyticJac);
@@ -189,11 +204,11 @@ bool LumpedRateModelWithoutPores::configureModelDiscretization(IParameterProvide
 	return bindingConfSuccess && reactionConfSuccess;
 }
 
-bool LumpedRateModelWithoutPores::configure(IParameterProvider& paramProvider)
+bool LumpedRateModelWithoutPoresDG::configure(IParameterProvider& paramProvider)
 {
 	_parameters.clear();
 
-	// TODO: Read flow parameters (velocity, dispersion)
+	// TODO: Read flow parameters (velocity, dispersion) [vorher _convDispOp.configure(_unitOpIdx, paramProvider, _parameters); ]
 
 	// Read geometry parameters
 	_totalPorosity = paramProvider.getDouble("TOTAL_POROSITY");
@@ -235,7 +250,7 @@ bool LumpedRateModelWithoutPores::configure(IParameterProvider& paramProvider)
 	return bindingConfSuccess && reactionConfSuccess;
 }
 
-unsigned int LumpedRateModelWithoutPores::threadLocalMemorySize() const CADET_NOEXCEPT
+unsigned int LumpedRateModelWithoutPoresDG::threadLocalMemorySize() const CADET_NOEXCEPT
 {
 	LinearMemorySizer lms;
 
@@ -274,7 +289,7 @@ unsigned int LumpedRateModelWithoutPores::threadLocalMemorySize() const CADET_NO
 	return lms.bufferSize();
 }
 
-void LumpedRateModelWithoutPores::useAnalyticJacobian(const bool analyticJac)
+void LumpedRateModelWithoutPoresDG::useAnalyticJacobian(const bool analyticJac)
 {
 #ifndef CADET_CHECK_ANALYTIC_JACOBIAN
 	_analyticJac = analyticJac;
@@ -288,7 +303,7 @@ void LumpedRateModelWithoutPores::useAnalyticJacobian(const bool analyticJac)
 #endif
 }
 
-void LumpedRateModelWithoutPores::notifyDiscontinuousSectionTransition(double t, unsigned int secIdx, const ConstSimulationState& simState, const AdJacobianParams& adJac)
+void LumpedRateModelWithoutPoresDG::notifyDiscontinuousSectionTransition(double t, unsigned int secIdx, const ConstSimulationState& simState, const AdJacobianParams& adJac)
 {
 	Indexer idxr(_disc);
 
@@ -328,26 +343,26 @@ void LumpedRateModelWithoutPores::notifyDiscontinuousSectionTransition(double t,
 	prepareADvectors(adJac);
 }
 
-void LumpedRateModelWithoutPores::setFlowRates(active const* in, active const* out) CADET_NOEXCEPT
+void LumpedRateModelWithoutPoresDG::setFlowRates(active const* in, active const* out) CADET_NOEXCEPT
 {
 	// _convDispOp.setFlowRates(in[0], out[0], _totalPorosity);
 }
 
-void LumpedRateModelWithoutPores::reportSolution(ISolutionRecorder& recorder, double const* const solution) const
+void LumpedRateModelWithoutPoresDG::reportSolution(ISolutionRecorder& recorder, double const* const solution) const
 {
 	Exporter expr(_disc, *this, solution);
 	recorder.beginUnitOperation(_unitOpIdx, *this, expr);
 	recorder.endUnitOperation();
 }
 
-void LumpedRateModelWithoutPores::reportSolutionStructure(ISolutionRecorder& recorder) const
+void LumpedRateModelWithoutPoresDG::reportSolutionStructure(ISolutionRecorder& recorder) const
 {
 	Exporter expr(_disc, *this, nullptr);
 	recorder.unitOperationStructure(_unitOpIdx, *this, expr);
 }
 
 
-unsigned int LumpedRateModelWithoutPores::requiredADdirs() const CADET_NOEXCEPT
+unsigned int LumpedRateModelWithoutPoresDG::requiredADdirs() const CADET_NOEXCEPT
 {
 #ifndef CADET_CHECK_ANALYTIC_JACOBIAN
 	return _jacobianAdDirs;
@@ -357,7 +372,7 @@ unsigned int LumpedRateModelWithoutPores::requiredADdirs() const CADET_NOEXCEPT
 #endif
 }
 
-void LumpedRateModelWithoutPores::prepareADvectors(const AdJacobianParams& adJac) const
+void LumpedRateModelWithoutPoresDG::prepareADvectors(const AdJacobianParams& adJac) const
 {
 	// Early out if AD is disabled
 	if (!adJac.adY)
@@ -373,7 +388,7 @@ void LumpedRateModelWithoutPores::prepareADvectors(const AdJacobianParams& adJac
  * @param [in] adRes Residual vector of AD datatypes with band compressed seed vectors
  * @param [in] adDirOffset Number of AD directions used for non-Jacobian purposes (e.g., parameter sensitivities)
  */
-void LumpedRateModelWithoutPores::extractJacobianFromAD(active const* const adRes, unsigned int adDirOffset)
+void LumpedRateModelWithoutPoresDG::extractJacobianFromAD(active const* const adRes, unsigned int adDirOffset)
 {
 	Indexer idxr(_disc);
 }
@@ -386,7 +401,7 @@ void LumpedRateModelWithoutPores::extractJacobianFromAD(active const* const adRe
  * @param [in] adRes Residual vector of AD datatypes with band compressed seed vectors
  * @param [in] adDirOffset Number of AD directions used for non-Jacobian purposes (e.g., parameter sensitivities)
  */
-void LumpedRateModelWithoutPores::checkAnalyticJacobianAgainstAd(active const* const adRes, unsigned int adDirOffset) const
+void LumpedRateModelWithoutPoresDG::checkAnalyticJacobianAgainstAd(active const* const adRes, unsigned int adDirOffset) const
 {
 	Indexer idxr(_disc);
 
@@ -396,7 +411,7 @@ void LumpedRateModelWithoutPores::checkAnalyticJacobianAgainstAd(active const* c
 
 #endif
 
-int LumpedRateModelWithoutPores::residual(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res, util::ThreadLocalStorage& threadLocalMem)
+int LumpedRateModelWithoutPoresDG::residual(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res, util::ThreadLocalStorage& threadLocalMem)
 {
 	BENCH_SCOPE(_timerResidual);
 
@@ -404,7 +419,7 @@ int LumpedRateModelWithoutPores::residual(const SimulationTime& simTime, const C
 	return residualImpl<double, double, double, false>(simTime.t, simTime.secIdx, simState.vecStateY, simState.vecStateYdot, res, threadLocalMem);
 }
 
-int LumpedRateModelWithoutPores::residualWithJacobian(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res, const AdJacobianParams& adJac, util::ThreadLocalStorage& threadLocalMem)
+int LumpedRateModelWithoutPoresDG::residualWithJacobian(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res, const AdJacobianParams& adJac, util::ThreadLocalStorage& threadLocalMem)
 {
 	BENCH_SCOPE(_timerResidual);
 
@@ -412,7 +427,7 @@ int LumpedRateModelWithoutPores::residualWithJacobian(const SimulationTime& simT
 	return residual(simTime, simState, res, adJac, threadLocalMem, true, false);
 }
 
-int LumpedRateModelWithoutPores::residual(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res,
+int LumpedRateModelWithoutPoresDG::residual(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res,
 	const AdJacobianParams& adJac, util::ThreadLocalStorage& threadLocalMem, bool updateJacobian, bool paramSensitivity)
 {
 	if (updateJacobian)
@@ -515,7 +530,7 @@ int LumpedRateModelWithoutPores::residual(const SimulationTime& simTime, const C
 }
 
 template <typename StateType, typename ResidualType, typename ParamType, bool wantJac>
-int LumpedRateModelWithoutPores::residualImpl(double t, unsigned int secIdx, StateType const* const y, double const* const yDot, ResidualType* const res, util::ThreadLocalStorage& threadLocalMem)
+int LumpedRateModelWithoutPoresDG::residualImpl(double t, unsigned int secIdx, StateType const* const y, double const* const yDot, ResidualType* const res, util::ThreadLocalStorage& threadLocalMem)
 {
 	Indexer idxr(_disc);
 
@@ -564,7 +579,7 @@ int LumpedRateModelWithoutPores::residualImpl(double t, unsigned int secIdx, Sta
 	return 0;
 }
 
-int LumpedRateModelWithoutPores::residualSensFwdWithJacobian(const SimulationTime& simTime, const ConstSimulationState& simState, const AdJacobianParams& adJac, util::ThreadLocalStorage& threadLocalMem)
+int LumpedRateModelWithoutPoresDG::residualSensFwdWithJacobian(const SimulationTime& simTime, const ConstSimulationState& simState, const AdJacobianParams& adJac, util::ThreadLocalStorage& threadLocalMem)
 {
 	BENCH_SCOPE(_timerResidualSens);
 
@@ -573,7 +588,7 @@ int LumpedRateModelWithoutPores::residualSensFwdWithJacobian(const SimulationTim
 	return residual(simTime, simState, nullptr, adJac, threadLocalMem, true, true);
 }
 
-int LumpedRateModelWithoutPores::residualSensFwdAdOnly(const SimulationTime& simTime, const ConstSimulationState& simState, active* const adRes, util::ThreadLocalStorage& threadLocalMem)
+int LumpedRateModelWithoutPoresDG::residualSensFwdAdOnly(const SimulationTime& simTime, const ConstSimulationState& simState, active* const adRes, util::ThreadLocalStorage& threadLocalMem)
 {
 	BENCH_SCOPE(_timerResidualSens);
 
@@ -581,7 +596,7 @@ int LumpedRateModelWithoutPores::residualSensFwdAdOnly(const SimulationTime& sim
 	return residualImpl<double, active, active, false>(simTime.t, simTime.secIdx, simState.vecStateY, simState.vecStateYdot, adRes, threadLocalMem);
 }
 
-int LumpedRateModelWithoutPores::residualSensFwdCombine(const SimulationTime& simTime, const ConstSimulationState& simState,
+int LumpedRateModelWithoutPoresDG::residualSensFwdCombine(const SimulationTime& simTime, const ConstSimulationState& simState,
 	const std::vector<const double*>& yS, const std::vector<const double*>& ySdot, const std::vector<double*>& resS, active const* adRes,
 	double* const tmp1, double* const tmp2, double* const tmp3)
 {
@@ -632,7 +647,7 @@ int LumpedRateModelWithoutPores::residualSensFwdCombine(const SimulationTime& si
  * @param [in] beta Factor @f$ \beta @f$ in front of @f$ z @f$
  * @param [in,out] ret Vector @f$ z @f$ which stores the result of the operation
  */
-void LumpedRateModelWithoutPores::multiplyWithJacobian(const SimulationTime& simTime, const ConstSimulationState& simState, double const* yS, double alpha, double beta, double* ret)
+void LumpedRateModelWithoutPoresDG::multiplyWithJacobian(const SimulationTime& simTime, const ConstSimulationState& simState, double const* yS, double alpha, double beta, double* ret)
 {
 	Indexer idxr(_disc);
 
@@ -658,7 +673,7 @@ void LumpedRateModelWithoutPores::multiplyWithJacobian(const SimulationTime& sim
  * @param [in] sDot Vector @f$ x @f$ that is transformed by the Jacobian @f$ \frac{\partial F}{\partial \dot{y}} @f$
  * @param [out] ret Vector @f$ z @f$ which stores the result of the operation
  */
-void LumpedRateModelWithoutPores::multiplyWithDerivativeJacobian(const SimulationTime& simTime, const ConstSimulationState& simState, double const* sDot, double* ret)
+void LumpedRateModelWithoutPoresDG::multiplyWithDerivativeJacobian(const SimulationTime& simTime, const ConstSimulationState& simState, double const* sDot, double* ret)
 {
 	Indexer idxr(_disc);
 	const double invBeta = (1.0 / static_cast<double>(_totalPorosity) - 1.0);
@@ -677,13 +692,13 @@ void LumpedRateModelWithoutPores::multiplyWithDerivativeJacobian(const Simulatio
 	std::fill_n(ret, _disc.nComp, 0.0);
 }
 
-void LumpedRateModelWithoutPores::setExternalFunctions(IExternalFunction** extFuns, unsigned int size)
+void LumpedRateModelWithoutPoresDG::setExternalFunctions(IExternalFunction** extFuns, unsigned int size)
 {
 	if (_binding[0])
 		_binding[0]->setExternalFunctions(extFuns, size);
 }
 
-unsigned int LumpedRateModelWithoutPores::localOutletComponentIndex(unsigned int port) const CADET_NOEXCEPT
+unsigned int LumpedRateModelWithoutPoresDG::localOutletComponentIndex(unsigned int port) const CADET_NOEXCEPT
 {
 	// Inlets are duplicated so need to be accounted for
 	if (static_cast<double>(_convDispOp.currentVelocity()) >= 0.0)
@@ -696,24 +711,24 @@ unsigned int LumpedRateModelWithoutPores::localOutletComponentIndex(unsigned int
 		return _disc.nComp;
 }
 
-unsigned int LumpedRateModelWithoutPores::localInletComponentIndex(unsigned int port) const CADET_NOEXCEPT
+unsigned int LumpedRateModelWithoutPoresDG::localInletComponentIndex(unsigned int port) const CADET_NOEXCEPT
 {
 	return 0;
 }
 
-unsigned int LumpedRateModelWithoutPores::localOutletComponentStride(unsigned int port) const CADET_NOEXCEPT
+unsigned int LumpedRateModelWithoutPoresDG::localOutletComponentStride(unsigned int port) const CADET_NOEXCEPT
 {
 	// TODO: Adapt to DG
 	return 1;
 }
 
-unsigned int LumpedRateModelWithoutPores::localInletComponentStride(unsigned int port) const CADET_NOEXCEPT
+unsigned int LumpedRateModelWithoutPoresDG::localInletComponentStride(unsigned int port) const CADET_NOEXCEPT
 {
 	// TODO: Adapt to DG
 	return 1;
 }
 
-void LumpedRateModelWithoutPores::expandErrorTol(double const* errorSpec, unsigned int errorSpecSize, double* expandOut)
+void LumpedRateModelWithoutPoresDG::expandErrorTol(double const* errorSpec, unsigned int errorSpecSize, double* expandOut)
 {
 	// @todo Write this function
 }
@@ -733,7 +748,7 @@ void LumpedRateModelWithoutPores::expandErrorTol(double const* errorSpec, unsign
  * @param [in] simState State of the simulation (state vector and its time derivatives) at which the Jacobian is evaluated
  * @return @c 0 on success, @c -1 on non-recoverable error, and @c +1 on recoverable error
  */
-int LumpedRateModelWithoutPores::linearSolve(double t, double alpha, double outerTol, double* const rhs, double const* const weight,
+int LumpedRateModelWithoutPoresDG::linearSolve(double t, double alpha, double outerTol, double* const rhs, double const* const weight,
 	const ConstSimulationState& simState)
 {
 	BENCH_SCOPE(_timerLinearSolve);
@@ -789,7 +804,7 @@ int LumpedRateModelWithoutPores::linearSolve(double t, double alpha, double oute
  * @param [in] alpha Value of \f$ \alpha \f$ (arises from BDF time discretization)
  * @param [in] idxr Indexer
  */
-void LumpedRateModelWithoutPores::assembleDiscretizedJacobian(double alpha, const Indexer& idxr)
+void LumpedRateModelWithoutPoresDG::assembleDiscretizedJacobian(double alpha, const Indexer& idxr)
 {
 	// TODO: Adapt to DG setting
 
@@ -818,7 +833,7 @@ void LumpedRateModelWithoutPores::assembleDiscretizedJacobian(double alpha, cons
  * @param [in] alpha Value of \f$ \alpha \f$ (arises from BDF time discretization)
  * @param [in] invBeta Inverse porosity term @f$\frac{1}{\beta}@f$
  */
-void LumpedRateModelWithoutPores::addTimeDerivativeToJacobianCell(linalg::FactorizableBandMatrix::RowIterator& jac, const Indexer& idxr, double alpha, double invBeta) const
+void LumpedRateModelWithoutPoresDG::addTimeDerivativeToJacobianCell(linalg::FactorizableBandMatrix::RowIterator& jac, const Indexer& idxr, double alpha, double invBeta) const
 {
 	// TODO: Adapt to DG setting
 
@@ -852,7 +867,7 @@ void LumpedRateModelWithoutPores::addTimeDerivativeToJacobianCell(linalg::Factor
 	}
 }
 
-void LumpedRateModelWithoutPores::applyInitialCondition(const SimulationState& simState) const
+void LumpedRateModelWithoutPoresDG::applyInitialCondition(const SimulationState& simState) const
 {
 	Indexer idxr(_disc);
 
@@ -892,7 +907,7 @@ void LumpedRateModelWithoutPores::applyInitialCondition(const SimulationState& s
 	}
 }
 
-void LumpedRateModelWithoutPores::readInitialCondition(IParameterProvider& paramProvider)
+void LumpedRateModelWithoutPoresDG::readInitialCondition(IParameterProvider& paramProvider)
 {
 	_initState.clear();
 	_initStateDot.clear();
@@ -956,7 +971,7 @@ void LumpedRateModelWithoutPores::readInitialCondition(IParameterProvider& param
  * @param [in] errorTol Error tolerance for algebraic equations
  * @todo Decrease amount of allocated memory by partially using temporary vectors (state and Schur complement)
  */
-void LumpedRateModelWithoutPores::consistentInitialState(const SimulationTime& simTime, double* const vecStateY, const AdJacobianParams& adJac, double errorTol, util::ThreadLocalStorage& threadLocalMem)
+void LumpedRateModelWithoutPoresDG::consistentInitialState(const SimulationTime& simTime, double* const vecStateY, const AdJacobianParams& adJac, double errorTol, util::ThreadLocalStorage& threadLocalMem)
 {
 	BENCH_SCOPE(_timerConsistentInit);
 
@@ -1271,7 +1286,7 @@ void LumpedRateModelWithoutPores::consistentInitialState(const SimulationTime& s
  * @param [in] vecStateY Consistently initialized state vector
  * @param [in,out] vecStateYdot On entry, residual without taking time derivatives into account. On exit, consistent state time derivatives.
  */
-void LumpedRateModelWithoutPores::consistentInitialTimeDerivative(const SimulationTime& simTime, double const* vecStateY, double* const vecStateYdot, util::ThreadLocalStorage& threadLocalMem)
+void LumpedRateModelWithoutPoresDG::consistentInitialTimeDerivative(const SimulationTime& simTime, double const* vecStateY, double* const vecStateYdot, util::ThreadLocalStorage& threadLocalMem)
 {
 	BENCH_SCOPE(_timerConsistentInit);
 
@@ -1377,7 +1392,7 @@ void LumpedRateModelWithoutPores::consistentInitialTimeDerivative(const Simulati
  * @param [in,out] adJac Jacobian information for AD (AD vectors for residual and state, direction offset)
  * @param [in] errorTol Error tolerance for algebraic equations
  */
-void LumpedRateModelWithoutPores::leanConsistentInitialState(const SimulationTime& simTime, double* const vecStateY, const AdJacobianParams& adJac, double errorTol, util::ThreadLocalStorage& threadLocalMem)
+void LumpedRateModelWithoutPoresDG::leanConsistentInitialState(const SimulationTime& simTime, double* const vecStateY, const AdJacobianParams& adJac, double errorTol, util::ThreadLocalStorage& threadLocalMem)
 {
 }
 
@@ -1407,7 +1422,7 @@ void LumpedRateModelWithoutPores::leanConsistentInitialState(const SimulationTim
  * @param [in,out] vecStateYdot On entry, inconsistent state time derivatives. On exit, partially consistent state time derivatives.
  * @param [in] res On entry, residual without taking time derivatives into account. The data is overwritten during execution of the function.
  */
-void LumpedRateModelWithoutPores::leanConsistentInitialTimeDerivative(double t, double const* const vecStateY, double* const vecStateYdot, double* const res, util::ThreadLocalStorage& threadLocalMem)
+void LumpedRateModelWithoutPoresDG::leanConsistentInitialTimeDerivative(double t, double const* const vecStateY, double* const vecStateYdot, double* const res, util::ThreadLocalStorage& threadLocalMem)
 {
 	BENCH_SCOPE(_timerConsistentInit);
 
@@ -1435,7 +1450,7 @@ void LumpedRateModelWithoutPores::leanConsistentInitialTimeDerivative(double t, 
 	}
 }
 
-void LumpedRateModelWithoutPores::initializeSensitivityStates(const std::vector<double*>& vecSensY) const
+void LumpedRateModelWithoutPoresDG::initializeSensitivityStates(const std::vector<double*>& vecSensY) const
 {
 	Indexer idxr(_disc);
 	for (std::size_t param = 0; param < vecSensY.size(); ++param)
@@ -1492,7 +1507,7 @@ void LumpedRateModelWithoutPores::initializeSensitivityStates(const std::vector<
  * @param [in] adRes Pointer to residual vector of AD datatypes with parameter sensitivities
  * @todo Decrease amount of allocated memory by partially using temporary vectors (state and Schur complement)
  */
-void LumpedRateModelWithoutPores::consistentInitialSensitivity(const SimulationTime& simTime, const ConstSimulationState& simState,
+void LumpedRateModelWithoutPoresDG::consistentInitialSensitivity(const SimulationTime& simTime, const ConstSimulationState& simState,
 	std::vector<double*>& vecSensY, std::vector<double*>& vecSensYdot, active const* const adRes, util::ThreadLocalStorage& threadLocalMem)
 {
 	BENCH_SCOPE(_timerConsistentInit);
@@ -1664,7 +1679,7 @@ void LumpedRateModelWithoutPores::consistentInitialSensitivity(const SimulationT
  * @param [in] adRes Pointer to residual vector of AD datatypes with parameter sensitivities
  * @todo Decrease amount of allocated memory by partially using temporary vectors (state and Schur complement)
  */
-void LumpedRateModelWithoutPores::leanConsistentInitialSensitivity(const SimulationTime& simTime, const ConstSimulationState& simState,
+void LumpedRateModelWithoutPoresDG::leanConsistentInitialSensitivity(const SimulationTime& simTime, const ConstSimulationState& simState,
 	std::vector<double*>& vecSensY, std::vector<double*>& vecSensYdot, active const* const adRes, util::ThreadLocalStorage& threadLocalMem)
 {
 	BENCH_SCOPE(_timerConsistentInit);
@@ -1712,7 +1727,7 @@ void LumpedRateModelWithoutPores::leanConsistentInitialSensitivity(const Simulat
 	}
 }
 
-bool LumpedRateModelWithoutPores::setParameter(const ParameterId& pId, double value)
+bool LumpedRateModelWithoutPoresDG::setParameter(const ParameterId& pId, double value)
 {
 	if (_convDispOp.setParameter(pId, value))
 		return true;
@@ -1720,7 +1735,7 @@ bool LumpedRateModelWithoutPores::setParameter(const ParameterId& pId, double va
 	return UnitOperationBase::setParameter(pId, value);
 }
 
-void LumpedRateModelWithoutPores::setSensitiveParameterValue(const ParameterId& pId, double value)
+void LumpedRateModelWithoutPoresDG::setSensitiveParameterValue(const ParameterId& pId, double value)
 {
 	if (_convDispOp.setSensitiveParameterValue(_sensParams, pId, value))
 		return;
@@ -1728,7 +1743,7 @@ void LumpedRateModelWithoutPores::setSensitiveParameterValue(const ParameterId& 
 	UnitOperationBase::setSensitiveParameterValue(pId, value);
 }
 
-bool LumpedRateModelWithoutPores::setSensitiveParameter(const ParameterId& pId, unsigned int adDirection, double adValue)
+bool LumpedRateModelWithoutPoresDG::setSensitiveParameter(const ParameterId& pId, unsigned int adDirection, double adValue)
 {
 	if (_convDispOp.setSensitiveParameter(_sensParams, pId, adDirection, adValue))
 	{

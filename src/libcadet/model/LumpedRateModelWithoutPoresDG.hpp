@@ -12,11 +12,11 @@
 
 /**
  * @file 
- * Defines the lumped rate model without pores (LRM).
+ * Defines the lumped rate model without pores (LRM) for DG approach.
  */
 
-#ifndef LIBCADET_LUMPEDRATEMODELWITHOUTPORES_HPP_
-#define LIBCADET_LUMPEDRATEMODELWITHOUTPORES_HPP_
+#ifndef LIBCADET_LUMPEDRATEMODELWITHOUTPORESDG_HPP_
+#define LIBCADET_LUMPEDRATEMODELWITHOUTPORESDG_HPP_
 
 #include "UnitOperationBase.hpp"
 #include "cadet/SolutionExporter.hpp"
@@ -32,6 +32,14 @@
 #include <vector>
 
 #include "Benchmark.hpp"
+#include <numbers>
+//#include "DGspecific.hpp" TODO: source out DG specifics
+#include "C:\Users\jmbr\Cadet\libs\eigen-3.4.0\Eigen\Dense.hpp"	// use LA lib Eigen for Matrix operations
+#ifndef _USE_MATH_DEFINES
+#define _USE_MATH_DEFINES
+#include <math.h>
+#endif
+using namespace Eigen;
 
 namespace cadet
 {
@@ -196,9 +204,148 @@ protected:
 	{
 		unsigned int nComp; //!< Number of components
 		unsigned int nCol; //!< Number of column cells
+		unsigned int polyDeg; //!< polynomial degree
+		unsigned int nNodes; //!< Number of nodes in each cell = polynomial degree - 1
+		Eigen::VectorXd nodes;		//!< Array with positions of nodes in reference element
+		Eigen::VectorXd weights; //!< Array with weights for numerical quadrature of size nNodes
+		Eigen::MatrixXd polyDerM; //!< Array with polynomial derivative Matrix of size nNodes^2
+		Eigen::MatrixXd polyDerMtranspose; //!< Array with D^T
 		unsigned int* nBound; //!< Array with number of bound states for each component
 		unsigned int* boundOffset; //!< Array with offset to the first bound state of each component in the solid phase
 		unsigned int strideBound; //!< Total number of bound states
+
+		/**
+		 * @brief sets DG specific coefficients
+		 */
+		void initializeDG(cadet::model::LumpedRateModelWithoutPoresDG::Discretization _disc) {
+			 lglNodesWeights(_disc.polyDeg, _disc.nodes, _disc.weights);
+			 polynomialDerivativeMatrix(_disc.polyDeg, _disc.nodes, _disc.polyDerM, _disc.polyDerMTrans);
+		 }
+
+		/**
+		 * @brief computes the Legendre polynomial L_N and q = L_N+1 - L_N-2 and q' at point x
+		 * @param [in] polyDeg polynomial degree of spatial Discretization
+		 * @param [in] x evaluation point
+		 * @param [in] L pointer for allocated memory of L(x)
+		 * @param [in] q pointer for allocated memory of q(x)
+		 * @param [in] qder pointer for allocated memory of q'(x)
+		 */
+		void qAndL(int polyDeg, double x, double* L, double* q, double* qder) {
+			// auxiliary variables (Legendre polynomials)
+			double L_2 = 1.0;
+			double L_1 = x;
+			double Lder_2 = 0.0;
+			double Lder_1 = 1.0;
+			double Lder = 0.0;
+			for (double k = 2; k <= polyDeg; k++) {
+				*L = ((2 * k - 1) * x * L_1 - (k - 1) * L_2) / k;
+				Lder = Lder_2 + (2 * k - 1) * L_1;
+				L_2 = L_1;
+				L_1 = *L;
+				Lder_2 = Lder_1;
+				Lder_1 = Lder;
+			}
+			*q = ((2.0 * polyDeg + 1) * x * *L - polyDeg * L_2) / (polyDeg + 1.0) - L_2;
+			*qder = Lder_1 + (2.0 * polyDeg + 1) * L_1 - Lder_2;
+		}
+
+		/**
+		 * @brief computes and assigns the Legendre-Gauss nodes and weights
+		 * @param [in] polyDeg polynomial degree of spatial Discretization
+		 * @param [in] pre-initialized nodes array
+		 * @param [in] pre-initialized weights array
+		 */
+		void lglNodesWeights(int polyDeg, VectorXd& nodes, VectorXd& weights) {
+			// tolerance and max #iterations for Newton iteration
+			int nIterations = 10;
+			double tolerance = 1e-15;
+			// Legendre polynomial and derivative
+			double L = 0;
+			double q = 0;
+			double qder = 0;
+			switch (polyDeg) {
+			case 0:
+				throw std::invalid_argument("Polynomial degree must be at least 1 !");
+				break;
+			case 1:
+				nodes[0] = -1;
+				weights[0] = 1;
+				nodes[1] = 1;
+				weights[1] = 1;
+				break;
+			default:
+				nodes[0] = -1;
+				nodes[polyDeg] = 1;
+				weights[0] = 2.0 / (polyDeg * (polyDeg + 1.0));
+				weights[polyDeg] = weights[0];
+				// use symmetrie, only compute half of points and weights
+				for (int j = 1; j <= floor((polyDeg + 1) / 2) - 1; j++) {
+					//  first guess for Newton iteration
+					nodes[j] = -cos(M_PI * (j + 0.25) / polyDeg - 3 / (8.0 * polyDeg * M_PI * (j + 0.25)));
+					// Newton iteration to find zero points of Legendre Polynomial
+					for (int k = 0; k <= nIterations; k++) {
+						qAndL(polyDeg, nodes[j], &L, &q, &qder);
+						nodes[j] = nodes[j] - q / qder;
+						if (abs(q / qder) <= tolerance * abs(nodes[j])) {
+							break;
+						}
+					}
+					// calculate weights
+					qAndL(polyDeg, nodes[j], &L, &q, &qder);
+					weights[j] = 2 / (polyDeg * (polyDeg + 1.0) * pow(L, 2));
+					nodes[polyDeg - j] = -nodes[j]; // copy to second half of points and weights
+					weights[polyDeg - j] = weights[j];
+				}
+			}
+			if (polyDeg % 2 == 0) { // for even polyDeg we have an odd number of points which include 0.0
+				qAndL(polyDeg, 0.0, &L, &q, &qder);
+				nodes[polyDeg / 2] = 0;
+				weights[polyDeg / 2] = 2 / (polyDeg * (polyDeg + 1.0) * pow(L, 2));
+			}
+		}
+
+		/**
+		 * @brief computation of barycentric weights for fast polynomial evaluation
+		 * @param [in] polyDeg polynomial degree of spatial Discretization
+		 * @param [in] nodes node vector
+		 * @param [in] weights pre-allocated vector for barycentric weights. Must be set to ones!
+		 */
+		void barycentricWeights(int polyDeg, VectorXd& nodes, VectorXd& baryWeights) {
+			for (int j = 1; j <= polyDeg; j++) {
+				for (int k = 0; k <= j - 1; k++) {
+					baryWeights[k] = baryWeights[k] * (nodes[k] - nodes[j]) * 1.0;
+					baryWeights[j] = baryWeights[j] * (nodes[j] - nodes[k]) * 1.0;
+				}
+			}
+			for (int j = 0; j <= polyDeg; j++) {
+				baryWeights[j] = 1 / baryWeights[j];
+			}
+		}
+
+		/**
+		 * @brief initialization of polynomial derivative matrix D and D^T
+		 * @param [in] polyDeg polynomial degree of spatial Discretization
+		 * @param [in] nodes LGL node vector
+		 * @param [in] D pre-allocated derivative matrix
+		 * @param [in] DT pre-allocated transposed derivative matrix
+		 */
+		void polynomialDerivativeMatrix(int polyDeg, VectorXd& nodes, MatrixXd& D, MatrixXd& DT) {
+			VectorXd baryWeights = VectorXd::Ones(polyDeg + 1);
+			barycentricWeights(polyDeg, nodes, baryWeights);
+			for (int i = 0; i <= polyDeg; i++) {
+				for (int j = 0; j <= polyDeg; j++) {
+					if (i != j) {
+						D(i, j) = baryWeights[j] / (baryWeights[i] * (nodes[i] - nodes[j]));
+						D(i, i) += -D(i, j);
+					}
+				}
+			}
+			DT = D.transpose();
+		}
+
+		/** TODO add polynomial evaluation function with baryw?
+		* @brief fast polynomial evaluation
+		*/
 	};
 
 	Discretization _disc; //!< Discretization info
@@ -238,7 +385,8 @@ protected:
 		Indexer(const Discretization& disc) : _disc(disc) { }
 
 		// Strides
-		inline int strideColCell() const CADET_NOEXCEPT { return static_cast<int>(_disc.nComp + _disc.strideBound); }
+		inline int strideColCell() const CADET_NOEXCEPT { return static_cast<int>((_disc.nComp + _disc.strideBound) * _disc.nNodes); }
+		inline int strideColNode() const CADET_NOEXCEPT { return static_cast<int>(_disc.nComp + _disc.strideBound); }
 		inline int strideColComp() const CADET_NOEXCEPT { return 1; }
 
 		inline int strideColLiquid() const CADET_NOEXCEPT { return static_cast<int>(_disc.nComp); }
@@ -267,8 +415,8 @@ protected:
 	{
 	public:
 
-		Exporter(const Discretization& disc, const LumpedRateModelWithoutPores& model, double const* data) : _disc(disc), _idx(disc), _model(model), _data(data) { }
-		Exporter(const Discretization&& disc, const LumpedRateModelWithoutPores& model, double const* data) = delete;
+		Exporter(const Discretization& disc, const LumpedRateModelWithoutPoresDG& model, double const* data) : _disc(disc), _idx(disc), _model(model), _data(data) { }
+		Exporter(const Discretization&& disc, const LumpedRateModelWithoutPoresDG& model, double const* data) = delete;
 
 		virtual bool hasParticleFlux() const CADET_NOEXCEPT { return false; }
 		virtual bool hasParticleMobilePhase() const CADET_NOEXCEPT { return false; }
@@ -348,7 +496,7 @@ protected:
 	protected:
 		const Discretization& _disc;
 		const Indexer _idx;
-		const LumpedRateModelWithoutPores& _model;
+		const LumpedRateModelWithoutPoresDG& _model;
 		double const* const _data;
 
 		const std::array<StateOrdering, 2> _concentrationOrdering = { { StateOrdering::AxialCell, StateOrdering::Component } };
@@ -359,4 +507,4 @@ protected:
 } // namespace model
 } // namespace cadet
 
-#endif  // LIBCADET_LUMPEDRATEMODELWITHOUTPORES_HPP_
+#endif  // LIBCADET_LUMPEDRATEMODELWITHOUTPORESDG_HPP_
