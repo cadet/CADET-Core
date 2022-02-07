@@ -16,8 +16,8 @@ Multi Component Bi-Langmuir LDF
 **Type:** int        **Range:** {0,1}  		**Length:** 1/NTOTALBND
 ===================  =========================  =========================================
 
-``MCBLDF_KEQ``
-   Adsorption rate constants in state-major ordering
+``MCBLLDF_KEQ``
+   Equillibrium loading constants in state-major ordering
 
 **Unit:** :math:`m_{MP}^3~mol^{-1}`
 
@@ -25,8 +25,8 @@ Multi Component Bi-Langmuir LDF
 **Type:** double     **Range:** :math:`\ge 0`   **Length:** NCOMP
 ===================  =========================  =========================================
 
-``MCBLDF_KKIN``
-   Desorption rate constants in state-major ordering
+``MCBLLDF_KKIN``
+   Linear driving force coefficients in state-major ordering
 
 **Unit:** :math:`s^{-1}`
 
@@ -34,7 +34,7 @@ Multi Component Bi-Langmuir LDF
 **Type:** double     **Range:** :math:`\ge 0`   **Length:** NCOMP
 ===================  =========================  =========================================
 
-``MCBLDF_QMAX``
+``MCBLLDF_QMAX``
    Maximum adsorption capacities in state-major ordering
 
 **Unit:** :math:`mol~m_{SP}^{-3}`

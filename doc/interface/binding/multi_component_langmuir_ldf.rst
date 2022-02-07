@@ -16,8 +16,8 @@ Multi Component Langmuir LDF
 **Type:** int        **Range:** {0,1}  		    **Length:** 1/NTOTALBND
 ===================  =========================  =========================================
 
-``MCLDF_KEQ``
-   Adsorption rate constants
+``MCLLDF_KEQ``
+   Equillibrium loading constants
 
 **Unit:** :math:`m_{MP}^3~mol^{-1}`
 
@@ -25,8 +25,8 @@ Multi Component Langmuir LDF
 **Type:** double     **Range:** :math:`\ge 0`   **Length:** NCOMP
 ===================  =========================  =========================================
 
-``MCLDF_KKIN``
-   Desorption rate constants
+``MCLLDF_KKIN``
+   Linear driving force coefficients
 
 **Unit:** :math:`s^{-1}`
 
@@ -34,7 +34,7 @@ Multi Component Langmuir LDF
 **Type:** double     **Range:** :math:`\ge 0`   **Length:** NCOMP
 ===================  =========================  ================================== 
 
-``MCLDF_QMAX``
+``MCLLDF_QMAX``
    Maximum adsorption capacities
 
 **Unit:** :math:`mol~m_{SP}^{-3}`
