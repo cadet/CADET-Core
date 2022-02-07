@@ -29,9 +29,9 @@
 	"externalName": "ExtBiLangmuirLDFParamHandler",
 	"parameters":
 		[
-			{ "type": "ComponentBoundStateMajorDependentParameter", "varName": "keq", "confName": "MCBLDF_KEQ"},
-			{ "type": "ComponentBoundStateMajorDependentParameter", "varName": "kkin", "confName": "MCBLDF_KKIN"},
-			{ "type": "ComponentBoundStateMajorDependentParameter", "varName": "qMax", "confName": "MCBLDF_QMAX"}
+			{ "type": "ComponentBoundStateMajorDependentParameter", "varName": "keq", "confName": "MCBLLDF_KEQ"},
+			{ "type": "ComponentBoundStateMajorDependentParameter", "varName": "kkin", "confName": "MCBLLDF_KKIN"},
+			{ "type": "ComponentBoundStateMajorDependentParameter", "varName": "qMax", "confName": "MCBLLDF_QMAX"}
 		]
 }
 </codegen>*/
@@ -54,7 +54,7 @@ namespace cadet
 		inline bool BiLangmuirLDFParamHandler::validateConfig(unsigned int nComp, unsigned int const* nBoundStates)
 		{
 			if ((_keq.size() != _kkin.size()) || (_keq.size() != _qMax.size()) || (_keq.size() < nComp))
-				throw InvalidParameterException("MCBLDF_KEQ, MCBLDF_KKIN, and MCBLDF_QMAX have to have the same size");
+				throw InvalidParameterException("MCBLLDF_KEQ, MCBLLDF_KKIN, and MCBLLDF_QMAX have to have the same size");
 
 			return true;
 		}
@@ -64,7 +64,7 @@ namespace cadet
 		inline bool ExtBiLangmuirLDFParamHandler::validateConfig(unsigned int nComp, unsigned int const* nBoundStates)
 		{
 			if ((_keq.size() != _kkin.size()) || (_keq.size() != _qMax.size()) || (_keq.size() < nComp))
-				throw InvalidParameterException("EXT_MCBLDF_KEQ, EXT_MCBLDF_KKIN, and EXT_MCBLDF_QMAX have to have the same size");
+				throw InvalidParameterException("EXT_MCBLLDF_KEQ, EXT_MCBLLDF_KKIN, and EXT_MCBLLDF_QMAX have to have the same size");
 
 			return true;
 		}
