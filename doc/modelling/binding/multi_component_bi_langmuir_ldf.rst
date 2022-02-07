@@ -3,8 +3,8 @@
 Multi Component Bi-Langmuir LDF
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-This model is a :ref:`ldf_model` approximation of  multi component Bi-Langmuir model :cite:`Guiochon2006`, that adds :math:`M - 1` *additional* types of binding sites :math:`q_{i,j}` (:math:`0 \leq j \leq M - 1`) to the LDF based Langmuir model (see Section :ref:`multi_component_langmuir_model_ldf`) without allowing an exchange between the different sites :math:`q_{i,j}` and :math:`q_{i,k}` (:math:`k \neq j`).
-Therefore, there are no competitivity effects between the different types of binding sites and they have independent capacities.
+This model is a :ref:`ldf_model` approximation of  multi component Bi-Langmuir model :cite:`Guiochon2006`, that adds :math:`M - 1` *additional* types of binding sites :math:`q_{i,j}` (:math:`0 \leq j \leq M - 1`) to the LDF based Langmuir model (see Section :ref:`multi_component_langmuir_model_ldf`). The implementation follows the same principle as followed in :ref:`multi_component_bi_langmuir_model`.
+Adsorbed phase concnetration averaged over the entire bulk volume is given as:
 
 .. math::
     \begin{aligned}

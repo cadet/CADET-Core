@@ -7,7 +7,7 @@ A Freundlich LDF isotherm model is based on the linear driving force approximati
 
 .. math::
 	\begin{aligned} 
-		q^*_i= k_{F,i}c_{p,i}^{\frac{1}{n}}  && i = 0, \dots, N_{\text{comp}} - 1.
+		q^*_i= k_{F,i}c_{p,i}^{\frac{1}{n_{i}}}  && i = 0, \dots, N_{\text{comp}} - 1.
 	\end{aligned}
 
 No interaction between the components is considered when the model has multiple components. 
