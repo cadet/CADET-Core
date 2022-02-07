@@ -29,9 +29,9 @@
 	"externalName": "ExtLangmuirLDFParamHandler",
 	"parameters":
 		[
-			{ "type": "ScalarComponentDependentParameter", "varName": "keq", "confName": "MCLDF_KEQ"},
-			{ "type": "ScalarComponentDependentParameter", "varName": "kkin", "confName": "MCLDF_KKIN"},
-			{ "type": "ScalarComponentDependentParameter", "varName": "qMax", "confName": "MCLDF_QMAX"}
+			{ "type": "ScalarComponentDependentParameter", "varName": "keq", "confName": "MCLLDF_KEQ"},
+			{ "type": "ScalarComponentDependentParameter", "varName": "kkin", "confName": "MCLLDF_KKIN"},
+			{ "type": "ScalarComponentDependentParameter", "varName": "qMax", "confName": "MCLLDF_QMAX"}
 		]
 }
 </codegen>*/
@@ -54,7 +54,7 @@ inline const char* LangmuirLDFParamHandler::identifier() CADET_NOEXCEPT { return
 inline bool LangmuirLDFParamHandler::validateConfig(unsigned int nComp, unsigned int const* nBoundStates)
 {
 	if ((_keq.size() != _kkin.size()) || (_keq.size() != _qMax.size()) || (_keq.size() < nComp))
-		throw InvalidParameterException("MCLDF_KEQ, MCLDF_KKIN, and MCLDF_QMAX have to have the same size");
+		throw InvalidParameterException("MCLLDF_KEQ, MCLLDF_KKIN, and MCLLDF_QMAX have to have the same size");
 
 	return true;
 }
@@ -64,7 +64,7 @@ inline const char* ExtLangmuirLDFParamHandler::identifier() CADET_NOEXCEPT { ret
 inline bool ExtLangmuirLDFParamHandler::validateConfig(unsigned int nComp, unsigned int const* nBoundStates)
 {
 	if ((_keq.size() != _kkin.size()) || (_keq.size() != _qMax.size()) || (_keq.size() < nComp))
-		throw InvalidParameterException("EXT_MCLDF_KEQ, EXT_MCLDF_KKIN, and EXT_MCLDF_QMAX have to have the same size");
+		throw InvalidParameterException("EXT_MCLLDF_KEQ, EXT_MCLLDF_KKIN, and EXT_MCLLDF_QMAX have to have the same size");
 
 	return true;
 }
@@ -106,7 +106,7 @@ public:
 		typename ParamHandler_t::ParamsHandle dpDt;
 		std::tie(p, dpDt) = _paramHandler.updateTimeDerivative(t, secIdx, colPos, _nComp, _nBoundStates, workSpace);
 
-		// Protein fluxes: -k_{a,i} * c_{p,i} * q_{max,i} * (1 - \sum_j q_j / q_{max,j}) + k_{d,i} * q_i
+		// Protein fluxes: k_{kin,i}q_i - k_{kin,i} \frac{q_{m,i}k_{eq,i}c_i}{1+\sum_{j=1}^{n_{comp}} k_{eq,j}c_j}
 		double qSum = 1.0;
 		double qSumT = 0.0;
 		unsigned int bndIdx = 0;
