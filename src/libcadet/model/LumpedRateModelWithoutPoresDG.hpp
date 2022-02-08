@@ -200,37 +200,36 @@ protected:
 	void checkAnalyticJacobianAgainstAd(active const* const adRes, unsigned int adDirOffset) const;
 #endif
 
-	struct Discretization
-	{
+	class Discretization
+	{ 	// NOTE: no different Riemann solvers, BC, BF compared to external implementation
+	public:
 		unsigned int nComp; //!< Number of components
 		unsigned int nCol; //!< Number of column cells
 		unsigned int polyDeg; //!< polynomial degree
-		unsigned int nNodes; //!< Number of nodes in each cell = polynomial degree - 1
-		Eigen::VectorXd nodes;		//!< Array with positions of nodes in reference element
-		Eigen::VectorXd weights; //!< Array with weights for numerical quadrature of size nNodes
-		Eigen::MatrixXd polyDerM; //!< Array with polynomial derivative Matrix of size nNodes^2
-		Eigen::MatrixXd polyDerMtranspose; //!< Array with D^T
+		unsigned int nNodes; //!< Number of nodes per cell
+		bool modal;	//!< bool switch: 1 for modal basis, 0 for nodal basis
+		Eigen::VectorXd nodes; //!< Array with positions of nodes in reference element
+		Eigen::MatrixXd polyDerM; //!< Array with polynomial derivative Matrix
+		Eigen::VectorXd invWeights; //!< Array with weights for numerical quadrature of size nNodes
+		Eigen::MatrixXd invMM; //!< dense !INVERSE! mass matrix for modal (exact) integration
+
 		unsigned int* nBound; //!< Array with number of bound states for each component
 		unsigned int* boundOffset; //!< Array with offset to the first bound state of each component in the solid phase
 		unsigned int strideBound; //!< Total number of bound states
+	
+		/* ===================================================================================
+		*   Lagrange Basis operators and auxiliary functions
+		* =================================================================================== */
 
 		/**
-		 * @brief sets DG specific coefficients
-		 */
-		void initializeDG(cadet::model::LumpedRateModelWithoutPoresDG::Discretization _disc) {
-			 lglNodesWeights(_disc.polyDeg, _disc.nodes, _disc.weights);
-			 polynomialDerivativeMatrix(_disc.polyDeg, _disc.nodes, _disc.polyDerM, _disc.polyDerMTrans);
-		 }
-
-		/**
-		 * @brief computes the Legendre polynomial L_N and q = L_N+1 - L_N-2 and q' at point x
-		 * @param [in] polyDeg polynomial degree of spatial Discretization
-		 * @param [in] x evaluation point
-		 * @param [in] L pointer for allocated memory of L(x)
-		 * @param [in] q pointer for allocated memory of q(x)
-		 * @param [in] qder pointer for allocated memory of q'(x)
-		 */
-		void qAndL(int polyDeg, double x, double* L, double* q, double* qder) {
+		* @brief computes the Legendre polynomial L_N and q = L_N+1 - L_N-2 and q' at point x
+		* @param [in] polyDeg polynomial degree of spatial Discretization
+		* @param [in] x evaluation point
+		* @param [in] L pre-allocated L(x)
+		* @param [in] q pre-allocated q(x)
+		* @param [in] qder pre-allocated q'(x)
+		*/
+		void qAndL(const double x, double& L, double& q, double& qder) {
 			// auxiliary variables (Legendre polynomials)
 			double L_2 = 1.0;
 			double L_1 = x;
@@ -238,24 +237,21 @@ protected:
 			double Lder_1 = 1.0;
 			double Lder = 0.0;
 			for (double k = 2; k <= polyDeg; k++) {
-				*L = ((2 * k - 1) * x * L_1 - (k - 1) * L_2) / k;
+				L = ((2 * k - 1) * x * L_1 - (k - 1) * L_2) / k;
 				Lder = Lder_2 + (2 * k - 1) * L_1;
 				L_2 = L_1;
-				L_1 = *L;
+				L_1 = L;
 				Lder_2 = Lder_1;
 				Lder_1 = Lder;
 			}
-			*q = ((2.0 * polyDeg + 1) * x * *L - polyDeg * L_2) / (polyDeg + 1.0) - L_2;
-			*qder = Lder_1 + (2.0 * polyDeg + 1) * L_1 - Lder_2;
+			q = ((2.0 * polyDeg + 1) * x * L - polyDeg * L_2) / (polyDeg + 1.0) - L_2;
+			qder = Lder_1 + (2.0 * polyDeg + 1) * L_1 - Lder_2;
 		}
 
 		/**
-		 * @brief computes and assigns the Legendre-Gauss nodes and weights
-		 * @param [in] polyDeg polynomial degree of spatial Discretization
-		 * @param [in] pre-initialized nodes array
-		 * @param [in] pre-initialized weights array
+		 * @brief computes and assigns the Legendre-Gauss nodes and (inverse) weights
 		 */
-		void lglNodesWeights(int polyDeg, VectorXd& nodes, VectorXd& weights) {
+		void lglNodesWeights() {
 			// tolerance and max #iterations for Newton iteration
 			int nIterations = 10;
 			double tolerance = 1e-15;
@@ -269,48 +265,48 @@ protected:
 				break;
 			case 1:
 				nodes[0] = -1;
-				weights[0] = 1;
+				invWeights[0] = 1;
 				nodes[1] = 1;
-				weights[1] = 1;
+				invWeights[1] = 1;
 				break;
 			default:
 				nodes[0] = -1;
 				nodes[polyDeg] = 1;
-				weights[0] = 2.0 / (polyDeg * (polyDeg + 1.0));
-				weights[polyDeg] = weights[0];
+				invWeights[0] = 2.0 / (polyDeg * (polyDeg + 1.0));
+				invWeights[polyDeg] = invWeights[0];
 				// use symmetrie, only compute half of points and weights
 				for (int j = 1; j <= floor((polyDeg + 1) / 2) - 1; j++) {
 					//  first guess for Newton iteration
 					nodes[j] = -cos(M_PI * (j + 0.25) / polyDeg - 3 / (8.0 * polyDeg * M_PI * (j + 0.25)));
-					// Newton iteration to find zero points of Legendre Polynomial
+					// Newton iteration to find roots of Legendre Polynomial
 					for (int k = 0; k <= nIterations; k++) {
-						qAndL(polyDeg, nodes[j], &L, &q, &qder);
+						qAndL(nodes[j], L, q, qder);
 						nodes[j] = nodes[j] - q / qder;
 						if (abs(q / qder) <= tolerance * abs(nodes[j])) {
 							break;
 						}
 					}
 					// calculate weights
-					qAndL(polyDeg, nodes[j], &L, &q, &qder);
-					weights[j] = 2 / (polyDeg * (polyDeg + 1.0) * pow(L, 2));
+					qAndL(nodes[j], L, q, qder);
+					invWeights[j] = 2 / (polyDeg * (polyDeg + 1.0) * pow(L, 2));
 					nodes[polyDeg - j] = -nodes[j]; // copy to second half of points and weights
-					weights[polyDeg - j] = weights[j];
+					invWeights[polyDeg - j] = invWeights[j];
 				}
 			}
 			if (polyDeg % 2 == 0) { // for even polyDeg we have an odd number of points which include 0.0
-				qAndL(polyDeg, 0.0, &L, &q, &qder);
+				qAndL(0.0, L, q, qder);
 				nodes[polyDeg / 2] = 0;
-				weights[polyDeg / 2] = 2 / (polyDeg * (polyDeg + 1.0) * pow(L, 2));
+				invWeights[polyDeg / 2] = 2 / (polyDeg * (polyDeg + 1.0) * pow(L, 2));
 			}
+			// inverse the weights
+			invWeights = invWeights.cwiseInverse();
 		}
 
 		/**
 		 * @brief computation of barycentric weights for fast polynomial evaluation
-		 * @param [in] polyDeg polynomial degree of spatial Discretization
-		 * @param [in] nodes node vector
 		 * @param [in] weights pre-allocated vector for barycentric weights. Must be set to ones!
 		 */
-		void barycentricWeights(int polyDeg, VectorXd& nodes, VectorXd& baryWeights) {
+		void barycentricWeights(VectorXd& baryWeights) {
 			for (int j = 1; j <= polyDeg; j++) {
 				for (int k = 0; k <= j - 1; k++) {
 					baryWeights[k] = baryWeights[k] * (nodes[k] - nodes[j]) * 1.0;
@@ -323,33 +319,159 @@ protected:
 		}
 
 		/**
-		 * @brief initialization of polynomial derivative matrix D and D^T
-		 * @param [in] polyDeg polynomial degree of spatial Discretization
-		 * @param [in] nodes LGL node vector
-		 * @param [in] D pre-allocated derivative matrix
-		 * @param [in] DT pre-allocated transposed derivative matrix
+		 * @brief computation of LAGRANGE polynomial derivative matrix
 		 */
-		void polynomialDerivativeMatrix(int polyDeg, VectorXd& nodes, MatrixXd& D, MatrixXd& DT) {
+		void derivativeMatrix_LAGRANGE() {
 			VectorXd baryWeights = VectorXd::Ones(polyDeg + 1);
-			barycentricWeights(polyDeg, nodes, baryWeights);
+			barycentricWeights(baryWeights);
 			for (int i = 0; i <= polyDeg; i++) {
 				for (int j = 0; j <= polyDeg; j++) {
 					if (i != j) {
-						D(i, j) = baryWeights[j] / (baryWeights[i] * (nodes[i] - nodes[j]));
-						D(i, i) += -D(i, j);
+						polyDerM(i, j) = baryWeights[j] / (baryWeights[i] * (nodes[i] - nodes[j]));
+						polyDerM(i, i) += -polyDerM(i, j);
 					}
 				}
 			}
-			DT = D.transpose();
 		}
 
-		/** TODO add polynomial evaluation function with baryw?
-		* @brief fast polynomial evaluation
+		/* ===================================================================================
+		*   Jacobi Basis operators and auxiliary functions
+		* =================================================================================== */
+
+		/*
+		* @brief computation of normalized Jacobi polynomial P of order N at nodes x
 		*/
+		void jacobiPolynomial(const double alpha, const double beta, const int N, MatrixXd& P, int index) {
+			// factor needed to normalize the Jacobi polynomial using the gamma function
+			double gamma0 = std::pow(2.0, alpha + beta + 1.0) / (alpha + beta + 1.0) * std::tgamma(alpha + 1.0) * std::tgamma(beta + 1) / std::tgamma(alpha + beta + 1);
+			MatrixXd PL(N + 1, nodes.size());
+			for (int i = 0; i < nodes.size(); ++i) {
+				PL(0, i) = 1.0 / std::sqrt(gamma0);
+			}
+			if (N == 0) {
+				for (int i = 0; i < nodes.size(); ++i) {
+					P(i, index) = PL(0, i);
+				}
+				return;
+			}
+			double gamma1 = (alpha + 1) * (beta + 1) / (alpha + beta + 3) * gamma0;
+			for (int i = 0; i < nodes.size(); ++i) {
+				PL(1, i) = ((alpha + beta + 2) * nodes(i) / 2 + (alpha - beta) / 2) / std::sqrt(gamma1);
+			}
+			if (N == 1) {
+				for (int i = 0; i < nodes.size(); ++i) {
+					P(i, index) = PL(1, i);
+				}
+				return;
+			}
+			double a = 2.0 / (2.0 + alpha + beta) * std::sqrt((alpha + 1) * (beta + 1) / (alpha + beta + 3));
+			for (int i = 0; i < N - 1; ++i) {
+				double j = i + 1.0;
+				double h1 = 2.0 * (i + 1.0) + alpha + beta;
+				double a_aux = 2.0 / (h1 + 2.0) * std::sqrt((j + 1.0) * (j + 1.0 + alpha + beta) * (j + 1.0 + alpha) * (j + 1.0 + beta) / (h1 + 1) / (h1 + 3));
+				double b = -(std::pow(alpha, 2) - std::pow(beta, 2)) / h1 / (h1 + 2);
+
+				for (int k = 0; k < nodes.size(); ++k) {
+					PL(i + 2, k) = 1 / a_aux * (-a * PL(i, k) + (nodes(k) - b) * PL(i + 1, k));
+				}
+				a = a_aux;
+			}
+			for (int i = 0; i < nodes.size(); ++i) {
+				P(i, index) = PL(N, i);
+			}
+		}
+
+		/**
+		* @brief returns generalized Jacobi Vandermonde matrix
+		* @detail normalized Legendre Vandermonde matrix
+		*/
+		MatrixXd getVandermonde_JACOBI() {
+
+			MatrixXd V(nodes.size(), nodes.size());
+
+			for (int j = 0; j < V.cols(); ++j) {
+				// legendre polynomial: alpha = beta = 0.0
+				jacobiPolynomial(0.0, 0.0, j, V, j);
+			}
+			return V;
+		}
+
+		/*
+		* @brief computes the gradient vandermonde matrix of orthonormal Legendre polynomials
+		* @V_x [in] pre-allocated gradient Vandermonde matrix
+		*/
+		void GradVandermonde(MatrixXd& V_x) {
+			// Legendre polynomial
+			double alpha = 0.0;
+			double beta = 0.0;
+
+			for (int order = 1; order < nodes.size(); order++) {
+				jacobiPolynomial(alpha + 1, beta + 1, order - 1, V_x, order);
+				V_x.block(0, order, V_x.rows(), 1) *= std::sqrt(order * (order + alpha + beta + 1));
+			}
+		}
+
+		//@TODO?: Not needed? as the D matrix is (approx) the same as for the nodal approach ! (and computed without matrix inversion or linear solve)
+		//        D_nod is approx D_mod to 1e-14 but not up to std::numeric_limits<double>::epsilon()... relevant ?
+		/**
+		 * @brief computes the Jacobi polynomial derivative matrix D
+		 * @detail computes the normalized Legendre polynomial derivative matrix D
+		 */
+		void derivativeMatrix_JACOBI() {
+
+			// Compute the gradient Vandermonde matrix and transpose
+			const int Np = nodes.size();
+			GradVandermonde(polyDerM);
+			MatrixXd V_xT = polyDerM.transpose();
+
+			// Instead of using matrix inversion, solve the linear systems to obtain D using SVD decomposition (slow but accurate)
+			for (int i = 0; i < Np; ++i) {
+				polyDerM.block(i, 0, 1, Np) = (getVandermonde_JACOBI().transpose().jacobiSvd(Eigen::ComputeFullU |
+					Eigen::ComputeFullV).solve(V_xT.block(0, i, Np, 1))).transpose();
+			}
+		}
+
+		/**
+		* @brief returns Jacobi polynomial induced mass matrix
+		* @detail returns normalized Legendre polynomial induced mass matrix
+		* @param [in] nodes (LGL)
+		*/
+		void invMMatrix_JACOBI() {
+			invMM = (getVandermonde_JACOBI() * (getVandermonde_JACOBI().transpose()));
+		}
+
+		/**
+		* @brief computes LGL nodes, integration weights, polynomial derivative matrix
+		*/
+		void initializeDG() {
+
+			nNodes = polyDeg + 1;
+			// Allocate space for DG disc
+			nodes.resize(nNodes);
+			nodes.setZero();
+			invWeights.resize(nNodes);
+			invWeights.setZero();
+			polyDerM.resize(nNodes, nNodes);
+			polyDerM.setZero();
+			invMM.resize(nNodes, nNodes);;
+			invMM.setZero();
+
+			lglNodesWeights();
+
+			if (modal) {
+				derivativeMatrix_JACOBI();
+				invMMatrix_JACOBI();
+			}
+			else {
+				derivativeMatrix_LAGRANGE();
+			}
+		}
+
 	};
 
 	Discretization _disc; //!< Discretization info
-//	IExternalFunction* _extFun; //!< External function (owned by library user)
+
+//	IExternalFunction* _extFun; //!< External function (owned by library user) @TODO: what for, inlet?
 
 	parts::ConvectionDispersionOperatorBase _convDispOp; //!< Convection dispersion operator for interstitial volume transport
 

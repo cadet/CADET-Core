@@ -9,6 +9,8 @@
 //  your option, any later version) which accompanies this distribution, and
 //  is available at http://www.gnu.org/licenses/gpl.html
 // =============================================================================
+// @TODO: delete inlcude iostream
+#include <iostream>
 
 #include "model/LumpedRateModelWithoutPoresDG.hpp"
 #include "BindingModelFactory.hpp"
@@ -38,7 +40,7 @@
 	#include <tbb/parallel_for.h>
 #endif
 
-#include "C:\Users\jmbr\Cadet\code\eigen-3.4.0\Eigen\Dense.hpp" // use LA lib Eigen for Matrix operations
+#include "C:\Users\jmbr\Cadet\libs\eigen-3.4.0\Eigen\Dense.hpp" // use LA lib Eigen for Matrix operations
 using namespace Eigen;
 
 namespace cadet
@@ -62,7 +64,7 @@ LumpedRateModelWithoutPoresDG::~LumpedRateModelWithoutPoresDG() CADET_NOEXCEPT
 
 	delete[] _disc.nBound;
 	delete[] _disc.boundOffset;
-	// Dg specific _disc parameters dont need to be deleted,
+	// DG specific _disc parameters dont need to be deleted,
 	// as they remain constant for a given polynomial degree
 }
 
@@ -93,18 +95,29 @@ bool LumpedRateModelWithoutPoresDG::usesAD() const CADET_NOEXCEPT
 
 bool LumpedRateModelWithoutPoresDG::configureModelDiscretization(IParameterProvider& paramProvider, IConfigHelper& helper)
 {
-	// ==== Read discretization
+
+	// Read discretization
 	_disc.nComp = paramProvider.getInt("NCOMP");
 
 	paramProvider.pushScope("discretization");
 
 	_disc.nCol = paramProvider.getInt("NCOL");
-	// DG specific parameters
-	_disc.polyDeg = paramProvider.getInt("POLYDEG"); // TODO: wo wird der parameter provider beschrieben ?!
 
-	_disc.nNodes = _disc.polyDeg + 1;
+	_disc.polyDeg = paramProvider.getInt("POLYDEG");
+	if (_disc.polyDeg < 1)
+		throw InvalidParameterException("Polynomial degree must be at least 1!");
+
+	if (paramProvider.getString("POLYNOMIAL_BASIS") == "LAGRANGE") {
+		_disc.modal = false;
+	}
+	else if (paramProvider.getString("POLYNOMIAL_BASIS") == "JACOBI") {
+		_disc.modal = true;
+	}
+	else
+		throw InvalidParameterException("Polynomial basis must be either LAGRANGE or JACOBI");
 	
-	initializeDG(_disc); // initializes polynomial derivative matrix and weights/mass matrix
+	// Compute discretization
+	_disc.initializeDG();
 
 	const std::vector<int> nBound = paramProvider.getIntArray("NBOUND");
 	if (nBound.size() < _disc.nComp)
@@ -131,15 +144,17 @@ bool LumpedRateModelWithoutPoresDG::configureModelDiscretization(IParameterProvi
 #endif
 
 	// Allocate space for initial conditions
-	_initC.resize(_disc.nNodes * _disc.nComp);
-	_initQ.resize(_disc.nNodes * _disc.strideBound);
+	_initC.resize(_disc.nCol * _disc.nNodes * _disc.nComp);
+	_initQ.resize(_disc.nCol * _disc.nNodes * _disc.strideBound);
 
 	// Create nonlinear solver for consistent initialization
+	//@TODO: what exactly happens here, whats the DG adaption ?
 	configureNonlinearSolver(paramProvider);
 
 	paramProvider.popScope();
 
-	const unsigned int strideCell = _disc.nNodes * (_disc.nComp + _disc.strideBound);
+	// @TODO: better safe strideComp, strideMobPhase
+	const unsigned int strideCell = _disc.nNodes;
 
 	// TODO: Hier wurde vorher der convections dispersions operator ausgelagert aufgerufen für die FV semidiskretisierung die ja immer 
 	// gleich ist für alle Modelle die convection und dispersion beinhalten. Statt diese Operation auszulagern,
@@ -148,6 +163,7 @@ bool LumpedRateModelWithoutPoresDG::configureModelDiscretization(IParameterProvi
 	// Allocate memory
 	Indexer idxr(_disc);
 
+	// TODO: there is no inlet block for the DG component major storage but one inlet DOF at the beginning of every component
 	_jacInlet.resize(_disc.nComp);
 
 	// TODO: Allocate matrices (maybe set sparsity pattern)
