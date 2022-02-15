@@ -112,7 +112,7 @@ namespace cadet
 						numSlices = nBound[i];
 
 					if (nBound[i] != numSlices)
-						throw InvalidParameterException("Bi-Langmuir binding model requires exactly the same bound states for all components");
+						throw InvalidParameterException("Bi-Langmuir LDF binding model requires all components to have the same number of bound states or zero");
 				}
 
 				_numBindingComp = numBindingComponents(_nBoundStates, _nComp);
