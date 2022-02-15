@@ -17,12 +17,12 @@ Multi Component Bi-Langmuir LDF
 ===================  =========================  =========================================
 
 ``MCBLLDF_KEQ``
-   Equillibrium loading constants in state-major ordering
+   Equillibrium loading constants in state-major ordering (see :ref:`ordering_multi_dimensional_data`)
 
 **Unit:** :math:`m_{MP}^3~mol^{-1}`
 
 ===================  =========================  =========================================
-**Type:** double     **Range:** :math:`\ge 0`   **Length:** NCOMP
+**Type:** double     **Range:** :math:`\ge 0`   **Length:** NCOMP x NSTATES
 ===================  =========================  =========================================
 
 ``MCBLLDF_KKIN``
@@ -31,7 +31,7 @@ Multi Component Bi-Langmuir LDF
 **Unit:** :math:`s^{-1}`
 
 ===================  =========================  =========================================
-**Type:** double     **Range:** :math:`\ge 0`   **Length:** NCOMP
+**Type:** double     **Range:** :math:`\ge 0`   **Length:** NCOMP x NSTATES
 ===================  =========================  =========================================
 
 ``MCBLLDF_QMAX``
@@ -40,5 +40,5 @@ Multi Component Bi-Langmuir LDF
 **Unit:** :math:`mol~m_{SP}^{-3}`
 
 ===================  =========================  =========================================
-**Type:** double     **Range:** :math:`\gt 0`   **Length:** NCOMP
+**Type:** double     **Range:** :math:`\gt 0`   **Length:** NCOMP x NSTATES
 ===================  =========================  =========================================

@@ -77,9 +77,10 @@ Common notation and identifiers that are used in the subsequent description are 
    * - PARAM_VALUE
      - Value of a generic unspecified parameter
 
+.. _ordering_multi_dimensional_data:
 
 Ordering of multi dimensional data
-----------------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Some model parameters, especially in certain binding models, require multi dimensional data.
 Since CADET only reads one dimensional arrays, the layout of the data has to be specified (i.e., the way how the data is linearized in memory).
@@ -91,6 +92,13 @@ Then, the requested matrix is stored in memory such that all bound states are li
 ::
 
      comp0bnd0, comp0bnd1, comp0bnd2, comp1bnd0, comp1bnd1, comp1bnd2.
+
+Similarly, suppose a model with :math:`3` components and :math:`2` bound states has a "state-major" dataset. Then, the requested matrix is stored in memory such that all the components are listed for each bound states (i.e., the bound state index changes the slowest and the component index the fatest):
+
+
+::
+
+     comp0bnd0, comp1bnd0, comp2bnd0, comp0bnd1, comp1bnd1, comp2bnd1.
 
 This linear array can be represented as a :math:`2 \times 3` matrix in “row-major” storage format, or a :math:`3 \times 2` matrix in “column-major” ordering.
 

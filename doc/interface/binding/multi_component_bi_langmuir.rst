@@ -17,12 +17,12 @@ Multi Component Bi-Langmuir
 ===================  =========================  =========================================
 
 ``MCBL_KA``
-   Adsorption rate constants in state-major ordering
+   Adsorption rate constants in state-major ordering (see :ref:`ordering_multi_dimensional_data`)
 
 **Unit:** :math:`m_{MP}^3~mol^{-1}~s^{-1}`
 
 ===================  =========================  =========================================
-**Type:** double     **Range:** :math:`\ge 0`   **Length:** NCOMP
+**Type:** double     **Range:** :math:`\ge 0`   **Length:** NCOMP x NSTATES
 ===================  =========================  =========================================
 
 ``MCBL_KD``
@@ -31,7 +31,7 @@ Multi Component Bi-Langmuir
 **Unit:** :math:`s^{-1}`
 
 ===================  =========================  =========================================
-**Type:** double     **Range:** :math:`\ge 0`   **Length:** NCOMP
+**Type:** double     **Range:** :math:`\ge 0`   **Length:** NCOMP x NSTATES
 ===================  =========================  =========================================
 
 ``MCBL_QMAX``
@@ -40,5 +40,5 @@ Multi Component Bi-Langmuir
 **Unit:** :math:`mol~m_{SP}^{-3}`
 
 ===================  =========================  =========================================
-**Type:** double     **Range:** :math:`\gt 0`   **Length:** NCOMP
+**Type:** double     **Range:** :math:`\gt 0`   **Length:** NCOMP x NSTATES
 ===================  =========================  =========================================
