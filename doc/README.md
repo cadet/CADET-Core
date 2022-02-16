@@ -18,5 +18,4 @@ To build the documentation for all releases and the master branch, run:
 
 `sphinx-multiversion ./ ./build/`. 
 
-This documentation is published under https://cadet.github.io
 Any changes to the documentation will automatically be pushed to the github-pages repository (https://github.com/cadet/cadet.github.io) using github actions.
