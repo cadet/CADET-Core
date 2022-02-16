@@ -12,9 +12,9 @@ Bi Steric Mass Action
    bound states. Otherwise, the adsorption mode is set for each bound
    state separately.
 
-===================  =========================  =========================================
-**Type:** int        **Range:** {0,1}  		**Length:** 1/NTOTALBND
-===================  =========================  =========================================
+===================  =========================  =======================
+**Type:** int        **Range:** {0,1}           **Length:** 1/NTOTALBND
+===================  =========================  =======================
 
 ``BISMA_KA``
    Adsorption rate constants in state-major ordering
