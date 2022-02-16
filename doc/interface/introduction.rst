@@ -86,21 +86,21 @@ Some model parameters, especially in certain binding models, require multi dimen
 Since CADET only reads one dimensional arrays, the layout of the data has to be specified (i.e., the way how the data is linearized in memory).
 The term “*xyz*-major” means that the index corresponding to *xyz* changes the slowest.
 
-For instance, suppose a model with :math:`2` components and :math:`3` bound states has a “component-major” dataset.
-Then, the requested matrix is stored in memory such that all bound states are listed for each component (i.e., the component index changes the slowest and the bound state index the fastest):
+For instance, suppose a model with :math:`2` components and :math:`3` bound states has a “state-major” dataset.
+Then, the requested matrix is stored in memory such that all components are listed for each bound state (i.e., the bound state index changes the slowest and the component index the fastest):
 
 ::
 
-     comp0bnd0, comp0bnd1, comp0bnd2, comp1bnd0, comp1bnd1, comp1bnd2.
+     comp0bnd0, comp1bnd0, comp0bnd1, comp1bnd1, comp0bnd2, comp1bnd2
 
-Similarly, suppose a model with :math:`3` components and :math:`2` bound states has a "state-major" dataset. Then, the requested matrix is stored in memory such that all the components are listed for each bound states (i.e., the bound state index changes the slowest and the component index the fatest):
 
+This linear array can also be represented as a :math:`3 \times 2` matrix in “row-major” storage format:
 
 ::
 
-     comp0bnd0, comp1bnd0, comp2bnd0, comp0bnd1, comp1bnd1, comp2bnd1.
-
-This linear array can be represented as a :math:`2 \times 3` matrix in “row-major” storage format, or a :math:`3 \times 2` matrix in “column-major” ordering.
+     comp0bnd0, comp1bnd0
+     comp0bnd1, comp1bnd1
+     comp0bnd2, comp1bnd2
 
 
 .. _section_dependent_parameters:
