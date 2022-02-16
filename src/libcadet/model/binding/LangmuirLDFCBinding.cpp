@@ -49,22 +49,22 @@ namespace cadet
 namespace model
 {
 
-inline const char* LangmuirLDFCParamHandler::identifier() CADET_NOEXCEPT { return "MULTI_COMPONENT_LANGMUIR_LDF_C"; }
+inline const char* LangmuirLDFCParamHandler::identifier() CADET_NOEXCEPT { return "MULTI_COMPONENT_LANGMUIR_LDF_LIQUID_PHASE"; }
 
 inline bool LangmuirLDFCParamHandler::validateConfig(unsigned int nComp, unsigned int const* nBoundStates)
 {
 	if ((_keq.size() != _kkin.size()) || (_keq.size() != _qMax.size()) || (_keq.size() < nComp))
-		throw InvalidParameterException("MCLDFC_KEQ, MCLDFC_KKIN, and MCLDFC_QMAX have to have the same size");
+		throw InvalidParameterException("MCLLDFC_KEQ, MCLLDFC_KKIN, and MCLLDFC_QMAX have to have the same size");
 
 	return true;
 }
 
-inline const char* ExtLangmuirLDFCParamHandler::identifier() CADET_NOEXCEPT { return "EXT_MULTI_COMPONENT_LANGMUIR_LDF_C"; }
+inline const char* ExtLangmuirLDFCParamHandler::identifier() CADET_NOEXCEPT { return "EXT_MULTI_COMPONENT_LANGMUIR_LDF_LIQUID_PHASE"; }
 
 inline bool ExtLangmuirLDFCParamHandler::validateConfig(unsigned int nComp, unsigned int const* nBoundStates)
 {
 	if ((_keq.size() != _kkin.size()) || (_keq.size() != _qMax.size()) || (_keq.size() < nComp))
-		throw InvalidParameterException("EXT_MCLDFC_KEQ, EXT_MCLDFC_KKIN, and EXT_MCLDFC_QMAX have to have the same size");
+		throw InvalidParameterException("EXT_MCLLDFC_KEQ, EXT_MCLLDFC_KKIN, and EXT_MCLLDFC_QMAX have to have the same size");
 
 	return true;
 }
