@@ -182,6 +182,11 @@ The models also differ in whether a mobile phase modifier (e.g., salt) is suppor
      - ×
      - ✓
      - ×
+   * - :ref:`multi_component_langmuir_model_ldf_liquid_phase`
+     - ✓
+     - ×
+     - ✓
+     - ×
    * - :ref:`multi_component_anti_langmuir_model`
      - ✓
      - ×
