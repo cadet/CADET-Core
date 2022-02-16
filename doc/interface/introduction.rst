@@ -80,7 +80,7 @@ Common notation and identifiers that are used in the subsequent description are 
 .. _ordering_multi_dimensional_data:
 
 Ordering of multi dimensional data
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+----------------------------------
 
 Some model parameters, especially in certain binding models, require multi dimensional data.
 Since CADET only reads one dimensional arrays, the layout of the data has to be specified (i.e., the way how the data is linearized in memory).
