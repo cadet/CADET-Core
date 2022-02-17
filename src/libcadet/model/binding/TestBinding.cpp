@@ -144,7 +144,11 @@ namespace cadet
 
 				return 0;
 			}
+<<<<<<< Updated upstream
 			
+=======
+
+>>>>>>> Stashed changes
 			// In the follwing the class method the anlytical Jacobian of the binding model should be implemented.
 			// Apart from the mentioned places in the tutorial, do not modify anything in this function. 
 			template <typename RowIterator>

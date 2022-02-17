@@ -150,7 +150,7 @@ public:
 	void prediction_single_layer(const double* input, const double* weights_hidden_layer_1,
 		const double* weights_output_layer, const double* bias_hidden_layer_1, const double* bias_output_layer, double* prediction)
 	{
-		/*double* first_Affine_layer = new double[number_of_nodes];
+		double* first_Affine_layer = new double[number_of_nodes];
 
 		for (unsigned int i = 0; i < number_of_nodes; ++i)
 		{
@@ -166,7 +166,7 @@ public:
 		cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans,
 			dimension, number_of_output, number_of_nodes, 1.0, first_Affine_layer, number_of_nodes, weights_output_layer, number_of_output, 1.0, prediction, number_of_output);
 		
-		delete[] first_Affine_layer;*/
+		delete[] first_Affine_layer;
 	}
 
 	void jacobian_two_layers(const double* input, const double* weights_hidden_layer_1, const double* weights_hidden_layer_2,
@@ -212,93 +212,13 @@ public:
 				
 	}
 
-	void jacobian_two_layers_native(const double* input, const double* weights_hidden_layer_1, const double* weights_hidden_layer_2,
-		const double* weights_output_layer, const double* bias_hidden_layer_1, const double* bias_hidden_layer_2,
-		const double* bias_output_layer, double* jacobian)
-	{
-		double* func_vec = new double[number_of_nodes * number_of_input];
-		double* func_vec_temp = new double[number_of_nodes * number_of_input];
-
-		double* func_vec_second = new double[number_of_nodes * number_of_input];
-
-		//std::vector<double> func_vec(number_of_nodes * number_of_input, 0.0);
-		//std::vector<double> func_vec_temp(number_of_nodes * number_of_input, 0.0);
-
-		//std::vector<double> func_vec_second(number_of_nodes * number_of_input, 0.0);
-		double* Jacobian_1 = new double[number_of_nodes * number_of_input];
-		double* Jacobian_2 = new double[number_of_nodes];
-		
-		//std::vector<double> Jacobian_1(number_of_input * number_of_nodes, 0.0);
-		//std::vector<double> Jacobian_2(number_of_nodes, 0.0);
-
-
-		for (unsigned int i = 0; i < number_of_input * number_of_nodes; ++i)
-			Jacobian_1[i] = weights_output_layer[i];
-		
-		double sum = 0.0;
-		//X = Ax + a
-
-		// From input to first hidden layer
-		for (unsigned int i = 0; i < number_of_nodes; ++i)
-		{
-			sum = 0.0;
-			for (unsigned int j = 0; j < number_of_input; ++j)
-				sum += weights_hidden_layer_1[i + j * number_of_nodes] * input[j];
-			func_vec[i] = sum + bias_hidden_layer_1[i];
-			func_vec_temp[i] = func_vec[i];
-			if (func_vec[i] < 0) // Applying Elu activation function
-				func_vec[i] = exp(func_vec[i]) - 1;
-		}
-
-		
-		// Y = X'*B + b
-		// From first hidden layer to second hidden layer
-		for (unsigned int i = 0; i < number_of_nodes; ++i)
-		{
-			sum = 0;
-			for (unsigned int j = 0; j < number_of_nodes; ++j)
-				sum += weights_hidden_layer_2[i + j * number_of_nodes] * func_vec[j];
-			func_vec_second[i] = sum + bias_hidden_layer_2[i];
-			// Y' = C*Y
-			if (func_vec_second[i]<0)
-				Jacobian_1[i] = exp(func_vec_second[i]) * Jacobian_1[i];
-		}
-
-				
-		//Z = Y'*B^T
-		for (unsigned int i = 0; i < number_of_nodes; ++i)
-		{
-			sum = 0;
-			for (unsigned int j = 0; j < number_of_nodes; ++j)
-				sum += weights_hidden_layer_2[j + i * number_of_nodes] * Jacobian_1[j];
-			Jacobian_2[i] = sum;
-			// Z' = Z*Elu'(X)
-			if (func_vec_temp[i] < 0) 
-				Jacobian_2[i] = exp(func_vec_temp[i]) * Jacobian_2[i];
-		}
-		
-		
-		// dNN/dx = XX*A^T
-		for (unsigned int i = 0; i < number_of_output; ++i)
-		{
-			sum = 0.0;
-			for (unsigned int j = 0; j < number_of_nodes; ++j)
-				sum += weights_hidden_layer_1[j + i * number_of_output] * Jacobian_2[j];
-			jacobian[i] = sum;
-		}
-		
-		delete [] func_vec;
-		delete [] func_vec_temp;
-		delete [] func_vec_second;
-		delete [] Jacobian_1;
-		delete [] Jacobian_2;
-	}
+	
 
 	void jacobian_single_layer(const double* input, const double* weights_hidden_layer_1,
 		const double* weights_output_layer, const double* bias_hidden_layer_1, const double* bias_output_layer, double* dout)
 	{
 
-		/*double* first_Affine_layer = new double[number_of_nodes];
+		double* first_Affine_layer = new double[number_of_nodes];
 		double* Jacobian_1 = new double[number_of_nodes];
 
 		for (unsigned int i = 0; i < number_of_nodes; ++i)
@@ -320,7 +240,7 @@ public:
 			dimension, number_of_input, number_of_nodes, 1.0, Jacobian_1, number_of_nodes, weights_hidden_layer_1, number_of_input, 0.0, dout, number_of_input);
 
 		delete[] first_Affine_layer;
-		delete[] Jacobian_1;*/
+		delete[] Jacobian_1;
 	}
 
 };

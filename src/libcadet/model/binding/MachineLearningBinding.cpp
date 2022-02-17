@@ -208,17 +208,16 @@ namespace cadet
 					paramProvider.popScope(); // model_weights
 					paramProvider.popScope(); // adsorption
 
-					/*for (unsigned int i = 0; i < dimension * number_of_output; i++)
+					for (unsigned int i = 0; i < dimension * number_of_output; i++)
 						offset_temp[i] = bias1[i];
 
 					Class_ANN ANN(number_of_layers, number_of_nodes, dimension, number_of_input, number_of_output);
 
-					ANN.prediction_single_layer(input_temp.data(), kernel0.data(), kernel1.data(), bias0.data(), bias1.data(), offset_temp);
+					ANN.prediction_single_layer(input_temp.data(), kernel0.data(), kernel1.data(), bias0.data(),
+						bias1.data(), offset_temp.data());
 
-					for (int i = 0; i < dimension; i++)
-						offset_1[i] = offset_temp[i];
-					offset = offset_1;
-					std::cout << "Test: " << offset[0] << "\n";*/
+					offset = offset_temp;
+					std::cout << "Test: " << offset[0] << "\n";
 
 				}
 				else
@@ -389,11 +388,32 @@ namespace cadet
 				}
 				else if (number_of_layers == 1)
 				{
-					//for (unsigned int i = 0; i < dimension * number_of_output; i++)
-						//prediction[i] = bias1[i];
+					first_Affine_layer_pred = bias0;
+					if (Implementation == "Native")
+					{
+						Matrix_vector_bias(kernel0.data(), _nComp, number_of_nodes, matCp, bias0.data(), first_Affine_layer_pred.data(), true);
 
-					//ANN.prediction_single_layer(matCp.data(), kernel0.data(), kernel1.data(),
-						//bias0.data(), bias1.data(), prediction);
+						Matrix_vector_bias(kernel1.data(), number_of_nodes, _nComp, first_Affine_layer_pred.data(), bias1.data(), prediction, false);
+					}
+					else if (Implementation == "Lapack")
+					{
+						for (unsigned int i = 0; i < dimension * number_of_output; i++)
+							prediction[i] = bias1[i];
+
+						cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans,
+							dimension, number_of_nodes, number_of_input, 1.0, matCp, number_of_input,
+							kernel0.data(), number_of_nodes, 1.0, first_Affine_layer_pred.data(), number_of_nodes);
+
+						ReLu_vec(first_Affine_layer_pred.data(), number_of_nodes);
+
+						cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans,
+							dimension, number_of_output, number_of_nodes, 1.0,
+							first_Affine_layer_pred.data(), number_of_nodes, kernel1.data(),
+							number_of_output, 1.0, prediction, number_of_output);
+						//ANN.prediction_single_layer(matCp.data(), kernel0.data(), kernel1.data(),
+							//bias0.data(), bias1.data(), prediction);
+					}
+					
 				}
 
 				for (unsigned int i = 0; i < _nComp; i++)
@@ -519,9 +539,38 @@ namespace cadet
 				}
 				else if (number_of_layers == 1)
 				{
+					first_Affine_layer = bias0;
+					Jacobian_1 = kernel1;
+					
+					if (Implementation == "Lapack")
+					{
+						cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans,
+							dimension, number_of_nodes, number_of_input, 1.0, matCp, number_of_input, kernel0.data(),
+							number_of_nodes, 1.0, first_Affine_layer.data(), number_of_nodes);
+
+						// XX = B*Elu'(X)
+						Elu_backward(Jacobian_1.data(), first_Affine_layer.data(), dimension * number_of_nodes);
+
+						// dNN/dx = XX*A^T
+						cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans,
+							dimension, number_of_input, number_of_nodes, 1.0, Jacobian_1.data(), number_of_nodes,
+							kernel0.data(), number_of_input, 0.0, jacobian, number_of_input);
+					}
+					else if (Implementation == "Native")
+					{
+						//X = Ax + a
+						Matrix_vector_bias(kernel0.data(), number_of_input, number_of_nodes, matCp, bias0.data(), first_Affine_layer.data(), false);
+
+						// XX = B*Elu'(X)
+						Elu_backward(Jacobian_1.data(), first_Affine_layer.data(), dimension * number_of_nodes);
+
+						// dNN/dx = XX*A^T
+						Matrix_vector_bias_backward(kernel0.data(), number_of_input, number_of_nodes, Jacobian_1.data(), jacobian);
+					}
 					//for (unsigned int i = 0; i < dimension * number_of_output; i++)
 						//jacobian[i] = 0.0;
 					//ANN.jacobian_single_layer(matCp.data(), kernel0.data(), kernel1.data(), bias0.data(), bias1.data(), jacobian);
+
 				}
 
 
@@ -537,7 +586,7 @@ namespace cadet
 					for (int j = 0; j < _nComp; ++j)
 					{
 						jac[j - bndIdx - offsetCp] = -kkin * (jacobian[j] * porosity_factor[0]);
-
+						//std::cout << "jac is :" << jac[j - bndIdx - offsetCp] << "\n";
 						//if (t< 10.0)
 							//std::cout << "Time is :" << t  << "\n";
 					}
