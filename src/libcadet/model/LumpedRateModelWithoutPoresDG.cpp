@@ -592,9 +592,6 @@ namespace cadet
 		{
 			Indexer idxr(_disc);
 
-
-			// TODO: DG discretization
-			//ConvDisp(t, secIdx, y, yDot, res, threadLocalMem);
 			if (wantJac) {
 				std::cout << "calculate static Jacobian" << std::endl;
 				calcStaticAnaJacobian(secIdx);
@@ -863,8 +860,20 @@ namespace cadet
 
 			// solve J x = rhs
 			Eigen::Map<VectorXd> r(rhs, _disc.nComp * (1 + 2 * _disc.nPoints));
-			r = _jacDisc.colPivHouseholderQr().solve(r);
 
+			SparseLU < SparseMatrix<double> > solver;
+
+			// Compute the ordering permutation vector from the structural pattern of A
+			solver.analyzePattern(_jacDisc);
+
+			// Compute the numerical factorization
+			solver.factorize(_jacDisc);
+
+			//Use the factors to solve the linear system 
+			r = solver.solve(r);
+
+			// Dense
+			//r = _jacDisc.colPivHouseholderQr().solve(r);
 
 
 		//		// Factorize
@@ -908,32 +917,38 @@ namespace cadet
  * @param [in] alpha Value of \f$ \alpha \f$ (arises from BDF time discretization)
  * @param [in] idxr Indexer
  */
-void LumpedRateModelWithoutPoresDG::assembleDiscretizedJacobian(double alpha, const Indexer& idxr)
-{
+		void LumpedRateModelWithoutPoresDG::assembleDiscretizedJacobian(double alpha, const Indexer& idxr)
+		{
 
+			// Reset
+			_jacDisc.setZero();
 
-		// add static Jacobian, that also includes inlet
-		_jacDisc = _jac;
+			// triplet to fill Sparse matrix
+			std::vector<T> tripletList;
+			tripletList.reserve(3 * _disc.nComp * _disc.nPoints);
 
-		// add time derivative Jacobian
-		calcStatederJacobian(alpha);
+			// add time derivative Jacobian to tripletlist
+			calcStatederJacobian(alpha, tripletList);
 
+			_jacDisc.setFromTriplets(tripletList.begin(), tripletList.end());
 
+			// add static Jacobian, that also includes inlet
+			_jacDisc += _jac;
 
-	// //Copy normal matrix over to factorizable matrix
-	//_jacDisc.copyOver(_jac);
+			// //Copy normal matrix over to factorizable matrix
+			//_jacDisc.copyOver(_jac);
 
-	//// Handle transport equations (dc_i / dt terms)
-	//_convDispOp.addTimeDerivativeToJacobian(alpha, _jacDisc);
+			//// Handle transport equations (dc_i / dt terms)
+			//_convDispOp.addTimeDerivativeToJacobian(alpha, _jacDisc);
 
-	//// Add time derivatives to cells
-	//const double invBeta = 1.0 / static_cast<double>(_totalPorosity) - 1.0;
-	//linalg::FactorizableBandMatrix::RowIterator jac = _jacDisc.row(0);
-	//for (unsigned int j = 0; j < _disc.nCol; ++j)
-	//{
-	//	addTimeDerivativeToJacobianCell(jac, idxr, alpha, invBeta);
-	//}
-}
+			//// Add time derivatives to cells
+			//const double invBeta = 1.0 / static_cast<double>(_totalPorosity) - 1.0;
+			//linalg::FactorizableBandMatrix::RowIterator jac = _jacDisc.row(0);
+			//for (unsigned int j = 0; j < _disc.nCol; ++j)
+			//{
+			//	addTimeDerivativeToJacobianCell(jac, idxr, alpha, invBeta);
+			//}
+		}
 
 /**
  * @brief Adds Jacobian @f$ \frac{\partial F}{\partial \dot{y}} @f$ to cell of system Jacobian
