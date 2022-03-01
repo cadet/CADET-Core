@@ -192,11 +192,21 @@ namespace cadet
 			if (_disc.isotherm != "LINEAR" && _disc.isotherm != "LANGMUIR")
 				throw InvalidParameterException("binding model " + paramProvider.getString("ADSORPTION_MODEL") + "not implemented yet (for DG)");
 			paramProvider.pushScope("adsorption");
-			readScalarParameterOrArray(_disc.adsorption, paramProvider, "LIN_KA", 1);
-			readScalarParameterOrArray(_disc.desorption, paramProvider, "LIN_KD", 1);
+			readScalarParameterOrArray(_disc.adsorption, paramProvider, "LIN_KA", _disc.nComp);
+			readScalarParameterOrArray(_disc.desorption, paramProvider, "LIN_KD", _disc.nComp);
 			if (_disc.adsorption.size() != _disc.nComp || _disc.desorption.size() != _disc.nComp)
 				throw InvalidParameterException("Number of adsorption or desorption parameter doesnt match number of components !");
-			_disc.isKinetic = paramProvider.getBoolArray("IS_KINETIC");
+			readScalarParameterOrArray(_disc.isKinetic, paramProvider, "IS_KINETIC", _disc.nComp);
+
+			// store equilibrium constant in adsorption, if binding is not kinetic
+			for (int comp = 0; comp < _disc.nComp; comp++) {
+				if (!_disc.isKinetic[comp]) {
+					_disc.adsorption[comp] /= _disc.desorption[comp];
+					_disc.desorption[comp] = 1.0;
+				}
+			}
+
+			//_disc.isKinetic = paramProvider.getBoolArray("IS_KINETIC");
 			paramProvider.popScope();
 			//
 
@@ -363,7 +373,7 @@ namespace cadet
 			if (u >= 0.0)
 			{
 				// Forwards flow
-				_jacInlet = MatrixXd::Identity(_disc.nComp, _disc.nComp);
+				//_jacInlet = MatrixXd::Identity(_disc.nComp, _disc.nComp);
 
 				// Place entries for inlet DOF to first column cell conversion
 				//for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
@@ -588,16 +598,19 @@ namespace cadet
 		}
 
 		template <typename StateType, typename ResidualType, typename ParamType, bool wantJac>
-		int LumpedRateModelWithoutPoresDG::residualImpl(double t, unsigned int secIdx, StateType const* const y_, double const* const yDot_, ResidualType* const res_, util::ThreadLocalStorage & threadLocalMem)
+		int LumpedRateModelWithoutPoresDG::residualImpl(double t, unsigned int secIdx, StateType const* const y_, double const* const yDot_, ResidualType* const res_, util::ThreadLocalStorage& threadLocalMem)
 		{
 			Indexer idxr(_disc);
 
+			// TODO: section dependent velocity, dispersion ! -> maybe use convdispOperator?
+			secIdx = 0;
+
 			if (wantJac) {
-				std::cout << "calculate static Jacobian" << std::endl;
+				//std::cout << "calculate static Jacobian" << std::endl;
 				calcStaticAnaJacobian(secIdx);
 			}
 			else {
-				std::cout << "no Jacobian calculation" << std::endl;
+				//std::cout << "no Jacobian calculation" << std::endl;
 			}
 
 			//// Eigen acces to data pointers
@@ -606,17 +619,22 @@ namespace cadet
 			double* const resPtr = reinterpret_cast<double* const>(res_);
 
 			Eigen::Map<const Eigen::VectorXd> y(yPtr, numDofs());
-			Eigen::Map<const Eigen::VectorXd> c(yPtr + _disc.nComp, _disc.nComp * (1 + _disc.nNodes * _disc.nCol));
+			Eigen::Map<const Eigen::VectorXd> yp(ypPtr, numDofs());
 			Eigen::Map<Eigen::VectorXd> res(resPtr, numDofs());
 
+			//if (ypPtr) {
+			//	std::cout << "IN: yp   y   res \n" << std::endl;
+			//	for (int i = 0; i < numDofs(); i++) {
+			//		std::cout << yp[i] << "	" << y[i] << "	" << res[i] << std::endl;
+			//	}
+			//}
 			// ==================================//
 			// Estimate isotherm RHS			 //
 			// ==================================//
 			calcRHSq_DG(yPtr, resPtr, _disc);
 
 			// ==================================================//
-			//	Estimate Convection Dispersion right hand side,	//
-			//  Diffusion Operator RHS						   //
+			//	Estimate Convection Dispersion right hand side	//
 			// ===============================================//
 
 			int DOFs = _disc.nComp * _disc.nPoints;
@@ -627,23 +645,23 @@ namespace cadet
 				_disc.boundary[0] = yPtr[comp]; // copy inlet DOFs to ghost node
 				ConvDisp_DG(yPtr + _disc.nComp + comp * _disc.nPoints, resPtr + _disc.nComp + comp * _disc.nPoints, _disc, t, comp, secIdx);
 
-				if (t > 55) {
-					std::cout << "STOP";
-				}
-
-				std::cout << "Inlet + State_c:\n" << y.segment(0, 1+_disc.nPoints) << std::endl;
-				std::cout << "ConvDispRHS_c:\n" << res.segment(_disc.nComp, _disc.nPoints) << std::endl;
-
+				//if (t > 12) {
+				//	std::cout << "STOP" << std::endl;
+				//}
+				//if (ypPtr) {
+				//	std::cout << "RHS: yp   y   res \n" << std::endl;
+				//	for (int i = 0; i < numDofs(); i++) {
+				//		std::cout << yp[i] << "	" << y[i] << "	" << res[i] << std::endl;
+				//	}
+				//}
 
 				// ==================================================//
 				//	Estimate Residual								//
 				// ================================================//
 
-				res(comp) = y(comp); // simply copy the inlet DOFs to the residual (handled in inlet unit operation)
-				/* - inStream(t, _disc, comp, secIdx);*/ // inlet DOF residual
+				res[comp] = y[comp]; // simply copy the inlet DOFs to the residual (handled in inlet unit operation)
 
 				if (ypPtr) { // NULLpointer for consistent initialization
-					Eigen::Map<const Eigen::VectorXd> yp(ypPtr, numDofs());
 
 					res.segment(_disc.nComp + comp * compDOFs, compDOFs) = yp.segment(_disc.nComp + comp * compDOFs, compDOFs)
 						+ yp.segment(_disc.nComp + DOFs + comp * compDOFs, compDOFs) * ((1 - _disc.porosity) / _disc.porosity)
@@ -654,11 +672,16 @@ namespace cadet
 					}
 					else {
 						res.segment(_disc.nComp + DOFs + comp * compDOFs, compDOFs) = yp.segment(_disc.nComp + DOFs + comp * compDOFs, compDOFs)
-							- -res.segment(_disc.nComp + DOFs + comp * compDOFs, compDOFs);
+							- res.segment(_disc.nComp + DOFs + comp * compDOFs, compDOFs);
 					}
 				}
 			}
-
+			//if (ypPtr) {
+			//	std::cout << "RES: yp   y   res \n t = " << t << std::endl;
+			//	for (int i = 0; i < numDofs(); i++) {
+			//		std::cout << yp[i] << "	" << y[i] << "	" << res[i] << std::endl;
+			//	}
+			//}
 			return 0;
 		}
 
@@ -751,7 +774,6 @@ namespace cadet
 			////// Main Jacobian
 			////_jac.multiplyVector(yS + idxr.offsetC(), alpha, beta, ret + idxr.offsetC());
 
-			////// Map inlet DOFs to the column inlet (first bulk cells)
 			////_jacInlet.multiplyAdd(yS, ret + idxr.offsetC(), alpha);
 		}
 
@@ -853,14 +875,13 @@ namespace cadet
 			//if (_factorizeJacobian)
 			//{
 			 
-			
+
 			// Assemble Jacobian
 			assembleDiscretizedJacobian(alpha, idxr);
 
-
 			// solve J x = rhs
 			Eigen::Map<VectorXd> r(rhs, _disc.nComp * (1 + 2 * _disc.nPoints));
-
+			//std::cout << "linSol z:\n" << r << std::endl;
 			SparseLU < SparseMatrix<double> > solver;
 
 			// Compute the ordering permutation vector from the structural pattern of A
@@ -872,9 +893,7 @@ namespace cadet
 			//Use the factors to solve the linear system 
 			r = solver.solve(r);
 
-			// Dense
-			//r = _jacDisc.colPivHouseholderQr().solve(r);
-
+			//std::cout << "linSol x:\n" << r << std::endl;
 
 		//		// Factorize
 		//		success = _jacDisc.factorize();
@@ -920,7 +939,7 @@ namespace cadet
 		void LumpedRateModelWithoutPoresDG::assembleDiscretizedJacobian(double alpha, const Indexer& idxr)
 		{
 
-			// Reset
+			// Reset ( not necessary )
 			_jacDisc.setZero();
 
 			// triplet to fill Sparse matrix
@@ -935,19 +954,6 @@ namespace cadet
 			// add static Jacobian, that also includes inlet
 			_jacDisc += _jac;
 
-			// //Copy normal matrix over to factorizable matrix
-			//_jacDisc.copyOver(_jac);
-
-			//// Handle transport equations (dc_i / dt terms)
-			//_convDispOp.addTimeDerivativeToJacobian(alpha, _jacDisc);
-
-			//// Add time derivatives to cells
-			//const double invBeta = 1.0 / static_cast<double>(_totalPorosity) - 1.0;
-			//linalg::FactorizableBandMatrix::RowIterator jac = _jacDisc.row(0);
-			//for (unsigned int j = 0; j < _disc.nCol; ++j)
-			//{
-			//	addTimeDerivativeToJacobianCell(jac, idxr, alpha, invBeta);
-			//}
 		}
 
 /**
@@ -962,7 +968,6 @@ namespace cadet
  */
 void LumpedRateModelWithoutPoresDG::addTimeDerivativeToJacobianCell(linalg::FactorizableBandMatrix::RowIterator& jac, const Indexer& idxr, double alpha, double invBeta) const
 {
-	// TODO: Adapt to DG setting
 
 	// Mobile phase
 	for (int comp = 0; comp < static_cast<int>(_disc.nComp); ++comp, ++jac)
@@ -1016,7 +1021,7 @@ void LumpedRateModelWithoutPoresDG::applyInitialCondition(const SimulationState&
 	}
 
 	double* const stateYbulk = simState.vecStateY + idxr.offsetC();
-	//std::cout << static_cast<double>(_initC[0]) << std::endl;
+
 	// Loop over column cells
 	for (unsigned int point = 0; point < _disc.nPoints; ++point)
 	{
@@ -1106,7 +1111,7 @@ void LumpedRateModelWithoutPoresDG::consistentInitialState(const SimulationTime&
 		return;
 
 	Eigen::Map<const VectorXd> test(vecStateY, _disc.nComp * (1 + 2 * _disc.nPoints));
-	std::cout << "CONSISTENT INITIAL STATE\ninitial state:\n" << test << std::endl;
+	//std::cout << "CONSISTENT INITIAL STATE\ninitial state:\n" << test << std::endl;
 
 	// @TODO: solve nonlinear equations for mass conservation. currently mass is "changed" in the sense that
 	// the initial conditions fullfill equilibrium by computing q from c
@@ -1114,7 +1119,7 @@ void LumpedRateModelWithoutPoresDG::consistentInitialState(const SimulationTime&
 	// Calculate solid phase RHS
 	calcRHSq_DG(vecStateY, vecStateY, _disc);
 
-	std::cout << "Consistent initial state:\n" << test << std::endl;
+	//std::cout << "Consistent initial state:\n" << test << std::endl;
 
 }
 
@@ -1158,35 +1163,26 @@ void LumpedRateModelWithoutPoresDG::consistentInitialTimeDerivative(const Simula
 	unsigned int DOFs = _disc.nPoints * _disc.nComp;
 	unsigned int nPoints = _disc.nPoints;
 
-	const double* const cPtr = vecStateY + _disc.nComp;
-
 	Eigen::Map<Eigen::VectorXd> yp(vecStateYdot, _disc.nComp + (2 * DOFs));
 
 	//yp.segment(0, _disc.nComp).setZero(); // TODO: check if inlet time derivative is set correctly
 
 	for (int comp = 0; comp < _disc.nComp; comp++) {
 
-		// q RHS already in yp
+		// isotherm RHS and Convection dispersion RHS call already done in residualImpl (with res=yDot and  yDot=NULLPTR) and stored in yDot
+
 		if (!_disc.isKinetic[comp]) {
 			yp.segment(_disc.nComp + DOFs + comp * nPoints, nPoints).setZero();
 		}
 		else {
-			// q RHS already in yp at q, NO sign change
+			// already stored in yp at q
 		}
 
-		// Convection dispersion RHS for one component already done in residualImpl and stored in yDot
-		//ConvDisp_DG(cPtr + comp * nPoints, vecStateYdot + _disc.nComp + comp * nPoints, _disc, simTime.t, comp, simTime.secIdx);
-
-		// c, q RHS already in yp. Estimate residual times -1
-		yp.segment(_disc.nComp + comp * nPoints, nPoints) = (-1)*( // @TODO: check why times -1 !
-			-yp.segment(_disc.nComp + comp * nPoints, nPoints)
-			- yp.segment(_disc.nComp * (1 + nPoints) + comp * nPoints, nPoints) * ((1 - _disc.porosity) / _disc.porosity)
-			);
+		// dc/dt + F* dq/dt
+		yp.segment(_disc.nComp + comp * nPoints, nPoints) = -yp.segment(_disc.nComp + comp * nPoints, nPoints)
+			- yp.segment(_disc.nComp * (1 + nPoints) + comp * nPoints, nPoints) * ((1 - _disc.porosity) / _disc.porosity);
 
 	}
-
-	Eigen::Map<const VectorXd> test(vecStateYdot, _disc.nComp * (1 + 2 * _disc.nPoints));
-	std::cout << "Consistent initial state derivative:\n" << test << std::endl;
 
 }
 
