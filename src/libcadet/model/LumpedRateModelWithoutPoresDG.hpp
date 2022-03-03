@@ -18,6 +18,9 @@
 #ifndef LIBCADET_LUMPEDRATEMODELWITHOUTPORESDG_HPP_
 #define LIBCADET_LUMPEDRATEMODELWITHOUTPORESDG_HPP_
 
+#include "BindingModel.hpp"
+#include "ParallelSupport.hpp"
+
 #include "UnitOperationBase.hpp"
 #include "cadet/SolutionExporter.hpp"
 #include "model/parts/ConvectionDispersionOperator.hpp"
@@ -40,6 +43,7 @@
 #define _USE_MATH_DEFINES
 #include <math.h>
 #endif
+
 using namespace Eigen;
 
 namespace cadet
@@ -833,6 +837,45 @@ u c_{\text{in},i}(t) &= u c_i(t,0) - D_{\text{ax},i} \frac{\partial c_i}{\partia
 			disc.h = disc.velocity[secIdx] * C - std::sqrt(disc.dispersion[secIdx]) * disc.g;
 		}
 
+		void calcRHSq_DG_new(double t, unsigned int secIdx, const double* yPtr, double* const resPtr, Discretization& disc, util::ThreadLocalStorage& threadLocalMem) {
+
+			Indexer idxr(disc);
+
+			for (unsigned int point = 0; point < disc.nPoints; point++) {
+
+				// get discontinous block of components at the current discrete point
+				Eigen::Map<const Eigen::VectorXd, 0, InnerStride<Dynamic> > localC(yPtr + disc.nComp + point * idxr.strideColNode(),
+					disc.nComp, InnerStride<>(idxr.strideColComp()));
+				// for q and res this only works because nBound is either 0 or 1. For the other models, we have to copy the local values.
+				Eigen::Map<const Eigen::VectorXd, 0, InnerStride<Dynamic> > localQ(yPtr + disc.nComp * (1 + disc.nPoints) + point * idxr.strideColNode(),
+					*disc.nBound, InnerStride<>(idxr.strideColComp()));
+				Eigen::Map<Eigen::VectorXd, 0, InnerStride<Dynamic> > localRes(resPtr + disc.nComp * (1 + disc.nPoints) + point * idxr.strideColNode(),
+					*disc.nBound, InnerStride<>(idxr.strideColComp()));
+				// @TODO: why is that necessary ?
+				Eigen::VectorXd localC_ = localC;
+				const double* localCPtr = &localC_[0];
+				Eigen::VectorXd localQ_ = localQ;
+				const double* localQPtr = &localQ_[0];
+
+				//std::cout << "Point: " << point << std::endl;
+				//std::cout << "localC: " << localC << std::endl;
+				//std::cout << "localQ: " << localQ << std::endl;
+				//std::cout << "localRes: " << localRes << std::endl;
+
+				double z = _disc.deltaZ * std::floor(point / _disc.nNodes)
+					+ 0.5 * _disc.deltaZ * (1 + _disc.nodes[point % _disc.nNodes]);
+
+				_binding[0]->flux(t, secIdx, ColumnPosition{ z, 0.0, 0.0 }, localQPtr, localCPtr, &(localRes[0]), threadLocalMem.get());
+
+				//localRes[0] *= -1.0;
+
+				//std::cout << "localC: " << localC << std::endl;
+				//std::cout << "localQ: " << localQ << std::endl;
+				//std::cout << "localRes: " << localRes << std::endl;
+
+			}
+		}
+
 		/*
 		* calculates isotherm RHS
 		*/
@@ -847,17 +890,13 @@ u c_{\text{in},i}(t) &= u c_i(t,0) - D_{\text{ax},i} \frac{\partial c_i}{\partia
 			int strideComp = idxr.strideColComp();
 			int strideNode = idxr.strideColNode();
 
-			// reset cache
+			// reset cache (not needed)
 			qRes.setZero();
 
 			for (unsigned int comp = 0; comp < disc.nComp; comp++) {
-				if (disc.isotherm == "LINEAR" && disc.isKinetic[comp]) {
-					qRes.segment(comp * strideComp, strideComp) = disc.adsorption[comp] * C.segment(comp * strideComp, strideComp)
-						- disc.desorption[comp] * q.segment(comp * strideComp, strideComp);
-				}
-				else if (disc.isotherm == "LINEAR" && !disc.isKinetic[comp]) { // NOTE: equilibrium constant stored in adsorption
-					qRes.segment(comp * strideComp, strideComp) = disc.adsorption[comp] * C.segment(comp * strideComp, strideComp)
-						- q.segment(comp * strideComp, strideComp);
+				if (disc.isotherm == "LINEAR") { // NOTE: equilibrium constant stored in adsorption
+					qRes.segment(comp * strideComp, strideComp) = -disc.adsorption[comp] * C.segment(comp * strideComp, strideComp)
+						+ disc.desorption[comp] * q.segment(comp * strideComp, strideComp);
 				}
 				else if (disc.isotherm == "LANGMUIR" && !disc.isKinetic[comp]) {
 					double factor;
@@ -870,8 +909,8 @@ u c_{\text{in},i}(t) &= u c_i(t,0) - D_{\text{ax},i} \frac{\partial c_i}{\partia
 								factor += disc.ADratio[comp] * C[point * strideNode + comp * strideComp];
 							}
 							qRes[point * strideNode + nComp * strideComp]
-								= (disc.adsorption[nComp] * C[point * strideNode + nComp * strideComp]) / factor
-								- q[point * strideNode + nComp * strideComp];
+								= (-1.0)* ( (disc.adsorption[nComp] * C[point * strideNode + nComp * strideComp]) / factor
+								- q[point * strideNode + nComp * strideComp] );
 						}
 					}
 				}
@@ -965,11 +1004,11 @@ u c_{\text{in},i}(t) &= u c_i(t,0) - D_{\text{ax},i} \frac{\partial c_i}{\partia
 			// solve main equation w_t = dh/dx   //
 			// =================================//
 
-			// calculate the substitute h(S(c), c) = sqrt(D_ax) S(c) - v c
+			// calculate the substitute h(S(c), c) = sqrt(D_ax) g(c) - v c
 			calcH(cPtr, disc, secIdx);
 			// DG volumne and surface integral in strong form
 			volumeIntegral(disc, &(disc.h[0]), resPtrC);
-			// update boundary values ( with S)
+			// update boundary values ( with g)
 			calcBoundaryValues(disc, cPtr, secIdx);
 			surfaceIntegral(cPtr, disc, &(disc.h[0]), resPtrC, 0, secIdx);
 
@@ -988,7 +1027,7 @@ u c_{\text{in},i}(t) &= u c_i(t,0) - D_{\text{ax},i} \frac{\partial c_i}{\partia
 			//cache.boundary[0] = boundFunc(t, comp, para); // c_in -> inlet DOF idas suggestion
 			disc.boundary[1] = c[disc.nCol * strideCell - strideNode]; // c_r outlet
 			disc.boundary[2] = -disc.g[0]; // S_l inlet
-			disc.boundary[3] = -disc.g[disc.nCol * strideCell - strideNode]; // S_r outlet
+			disc.boundary[3] = -disc.g[disc.nCol * strideCell - strideNode]; // g_r outlet
 		}
 
 		void consistentInitialization(Discretization& disc, double t, double* const yPtr, double* const ypPtr, unsigned int secIdx) {
@@ -1439,10 +1478,10 @@ u c_{\text{in},i}(t) &= u c_i(t,0) - D_{\text{ax},i} \frac{\partial c_i}{\partia
 			unsigned int DGBlock = compBlock * nComp;
 
 			for (unsigned int comp = 0; comp < nComp; comp++) {
-				if (_disc.isotherm == "LINEAR") {
+				if (_disc.isotherm == "LINEAR") { // no differentiation for non-kinetic as we computed the equilibrium constant
 					for (unsigned int i = 0; i < _disc.nPoints; i++) {
-						tripletList.push_back(T(nComp + DGBlock + comp * compBlock + i, nComp + comp * compBlock + i, -1.0));
-						tripletList.push_back(T(nComp + DGBlock + comp * compBlock + i, nComp + DGBlock + comp * compBlock + i, 1.0));
+						tripletList.push_back(T(nComp + DGBlock + comp * compBlock + i, nComp + comp * compBlock + i, -_disc.adsorption[comp]));
+						tripletList.push_back(T(nComp + DGBlock + comp * compBlock + i, nComp + DGBlock + comp * compBlock + i, _disc.desorption[comp]));
 					}
 				}
 				else {

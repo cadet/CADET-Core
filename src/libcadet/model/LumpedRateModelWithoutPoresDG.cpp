@@ -612,9 +612,9 @@ namespace cadet
 			else {
 				//std::cout << "no Jacobian calculation" << std::endl;
 			}
-
+			
 			//// Eigen acces to data pointers
-			const double* const yPtr = reinterpret_cast<const double* const>(y_);
+			const double* yPtr = reinterpret_cast<const double*>(y_);
 			const double* const ypPtr = reinterpret_cast<const double* const>(yDot_);
 			double* const resPtr = reinterpret_cast<double* const>(res_);
 
@@ -631,7 +631,8 @@ namespace cadet
 			// ==================================//
 			// Estimate isotherm RHS			 //
 			// ==================================//
-			calcRHSq_DG(yPtr, resPtr, _disc);
+			calcRHSq_DG_new(t, secIdx, yPtr, resPtr, _disc, threadLocalMem);
+			//calcRHSq_DG(yPtr, resPtr, _disc);
 
 			// ==================================================//
 			//	Estimate Convection Dispersion right hand side	//
@@ -667,12 +668,12 @@ namespace cadet
 						+ yp.segment(_disc.nComp + DOFs + comp * compDOFs, compDOFs) * ((1 - _disc.porosity) / _disc.porosity)
 						- res.segment(_disc.nComp + comp * compDOFs, compDOFs);
 
-					if (!_disc.isKinetic[comp]) {
-						res.segment(_disc.nComp + DOFs + comp * compDOFs, compDOFs) = -res.segment(_disc.nComp + DOFs + comp * compDOFs, compDOFs);
+					if (!_disc.isKinetic[comp]) { // -RHS_q stored in res_q
+						res.segment(_disc.nComp + DOFs + comp * compDOFs, compDOFs) = res.segment(_disc.nComp + DOFs + comp * compDOFs, compDOFs);
 					}
-					else {
+					else { // -RHS_q stored in res_q
 						res.segment(_disc.nComp + DOFs + comp * compDOFs, compDOFs) = yp.segment(_disc.nComp + DOFs + comp * compDOFs, compDOFs)
-							- res.segment(_disc.nComp + DOFs + comp * compDOFs, compDOFs);
+							+ res.segment(_disc.nComp + DOFs + comp * compDOFs, compDOFs);
 					}
 				}
 			}
@@ -1110,16 +1111,34 @@ void LumpedRateModelWithoutPoresDG::consistentInitialState(const SimulationTime&
 	if (!_binding[0]->hasQuasiStationaryReactions())
 		return;
 
-	Eigen::Map<const VectorXd> test(vecStateY, _disc.nComp * (1 + 2 * _disc.nPoints));
-	//std::cout << "CONSISTENT INITIAL STATE\ninitial state:\n" << test << std::endl;
+	Eigen::Map<VectorXd> y(vecStateY, _disc.nComp * (1 + 2 * _disc.nPoints));
+	//std::cout << "CONSISTENT INITIAL STATE\ninitial state:\n" << y << std::endl;
 
 	// @TODO: solve nonlinear equations for mass conservation. currently mass is "changed" in the sense that
 	// the initial conditions fullfill equilibrium by computing q from c
 
 	// Calculate solid phase RHS
+	//calcRHSq_DG_new(simTime.t, secIdx, yPtr, resPtr, _disc, threadLocalMem);
 	calcRHSq_DG(vecStateY, vecStateY, _disc);
+	y.segment(_disc.nComp * (1 + _disc.nPoints), _disc.strideBound * _disc.nPoints) *= -1.0;
 
 	//std::cout << "Consistent initial state:\n" << test << std::endl;
+
+	//@TODO !
+	//////// correct implementation
+	//////
+	//////// Step 1: Solve algebraic equations
+	//////if (!_binding[0]->hasQuasiStationaryReactions())
+	//////	return;
+
+	//////for (int comp = 0; comp < _disc.nComp; comp++) {
+
+	//////	if (_binding[0]->reactionQuasiStationarity()[comp]) {
+
+	//////	}
+
+	//////}
+
 
 }
 
@@ -1175,12 +1194,12 @@ void LumpedRateModelWithoutPoresDG::consistentInitialTimeDerivative(const Simula
 			yp.segment(_disc.nComp + DOFs + comp * nPoints, nPoints).setZero();
 		}
 		else {
-			// already stored in yp at q
+			yp.segment(_disc.nComp + DOFs + comp * nPoints, nPoints) *= -1.0; // already stored -RHS_q at yp_q
 		}
 
-		// dc/dt + F* dq/dt
+		// dc/dt + F* dq/dt (already stored -RHS_q at yp_q)
 		yp.segment(_disc.nComp + comp * nPoints, nPoints) = -yp.segment(_disc.nComp + comp * nPoints, nPoints)
-			- yp.segment(_disc.nComp * (1 + nPoints) + comp * nPoints, nPoints) * ((1 - _disc.porosity) / _disc.porosity);
+			+ yp.segment(_disc.nComp * (1 + nPoints) + comp * nPoints, nPoints) * ((1 - _disc.porosity) / _disc.porosity);
 
 	}
 
