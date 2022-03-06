@@ -628,23 +628,47 @@ namespace cadet
 			//		std::cout << yp[i] << "	" << y[i] << "	" << res[i] << std::endl;
 			//	}
 			//}
+			
 			// ==================================//
-			// Estimate isotherm RHS			 //
+			// Estimate isotherm Residual		 //
 			// ==================================//
+			// isotherm RHS
 			calcRHSq_DG_new(t, secIdx, yPtr, resPtr, _disc, threadLocalMem);
 			//calcRHSq_DG(yPtr, resPtr, _disc);
 
+			unsigned int idxBound = 0;
+			for (unsigned int comp = 0; comp < _disc.nComp; comp++) {
+				if (_disc.nBound) { // either one or null
+					Eigen::Map<const VectorXd, 0, InnerStride<Dynamic>> qp_comp(ypPtr + _disc.nComp + _disc.nComp * _disc.nPoints + idxBound, _disc.nPoints, InnerStride<Dynamic>(_disc.strideBound));
+					Eigen::Map<VectorXd, 0, InnerStride<Dynamic>> resQ_comp(resPtr + _disc.nComp + _disc.nComp * _disc.nPoints + idxBound, _disc.nPoints, InnerStride<Dynamic>(_disc.strideBound));
+					if (!_disc.isKinetic[comp]) {
+						// -RHS_q already stored in res_q
+					}
+					else { // -RHS_q stored in res_q
+						resQ_comp += qp_comp;
+					}
+					idxBound++;
+				}
+			}
+
 			// ==================================================//
-			//	Estimate Convection Dispersion right hand side	//
-			// ===============================================//
+			//	Estimate Convection Dispersion residual			//
+			// ================================================//
 
 			int DOFs = _disc.nComp * _disc.nPoints;
-			int compDOFs = _disc.nPoints;
+			idxBound = 0;
 
 			for (unsigned int comp = 0; comp < _disc.nComp; comp++) {
 
+				// extract current component mobile phase, mobile phase residual, mobile phase derivative (discontinous memory blocks)
+				Eigen::Map<const VectorXd, 0, InnerStride<Dynamic>> C_comp(yPtr + _disc.nComp + comp, _disc.nPoints, InnerStride<Dynamic>(_disc.nComp));
+				Eigen::Map<VectorXd, 0, InnerStride<Dynamic>> ResC_comp(resPtr + _disc.nComp + comp, _disc.nPoints, InnerStride<Dynamic>(_disc.nComp));
+				Eigen::Map<const VectorXd, 0, InnerStride<Dynamic>> cp_comp(ypPtr + _disc.nComp + comp, _disc.nPoints, InnerStride<Dynamic>(_disc.nComp));
+
+				/*	convection dispersion RHS	*/
+
 				_disc.boundary[0] = yPtr[comp]; // copy inlet DOFs to ghost node
-				ConvDisp_DG(yPtr + _disc.nComp + comp * _disc.nPoints, resPtr + _disc.nComp + comp * _disc.nPoints, _disc, t, comp, secIdx);
+				ConvDisp_DG(C_comp, ResC_comp, _disc, t, comp, secIdx);
 
 				//if (t > 12) {
 				//	std::cout << "STOP" << std::endl;
@@ -656,25 +680,18 @@ namespace cadet
 				//	}
 				//}
 
-				// ==================================================//
-				//	Estimate Residual								//
-				// ================================================//
+				/*	residual	*/
 
 				res[comp] = y[comp]; // simply copy the inlet DOFs to the residual (handled in inlet unit operation)
 
 				if (ypPtr) { // NULLpointer for consistent initialization
-
-					res.segment(_disc.nComp + comp * compDOFs, compDOFs) = yp.segment(_disc.nComp + comp * compDOFs, compDOFs)
-						+ yp.segment(_disc.nComp + DOFs + comp * compDOFs, compDOFs) * ((1 - _disc.porosity) / _disc.porosity)
-						- res.segment(_disc.nComp + comp * compDOFs, compDOFs);
-
-					if (!_disc.isKinetic[comp]) { // -RHS_q stored in res_q
-						res.segment(_disc.nComp + DOFs + comp * compDOFs, compDOFs) = res.segment(_disc.nComp + DOFs + comp * compDOFs, compDOFs);
+					if (_disc.nBound[comp]) { // either one or null
+						Eigen::Map<const VectorXd, 0, InnerStride<Dynamic>> qp_comp(ypPtr + _disc.nComp * (1 + _disc.nPoints) + idxBound, _disc.nPoints, InnerStride<Dynamic>(_disc.strideBound));
+						ResC_comp = cp_comp + qp_comp * ((1 - _disc.porosity) / _disc.porosity) - ResC_comp;
+						idxBound++;
 					}
-					else { // -RHS_q stored in res_q
-						res.segment(_disc.nComp + DOFs + comp * compDOFs, compDOFs) = yp.segment(_disc.nComp + DOFs + comp * compDOFs, compDOFs)
-							+ res.segment(_disc.nComp + DOFs + comp * compDOFs, compDOFs);
-					}
+					else
+						ResC_comp = cp_comp - ResC_comp;
 				}
 			}
 			//if (ypPtr) {
@@ -1122,10 +1139,10 @@ void LumpedRateModelWithoutPoresDG::consistentInitialState(const SimulationTime&
 	calcRHSq_DG(vecStateY, vecStateY, _disc);
 	y.segment(_disc.nComp * (1 + _disc.nPoints), _disc.strideBound * _disc.nPoints) *= -1.0;
 
-	//std::cout << "Consistent initial state:\n" << test << std::endl;
+	//std::cout << "Consistent initial state:\n" << y << std::endl;
 
 	//@TODO !
-	//////// correct implementation
+	//////// mass conservative implementation
 	//////
 	//////// Step 1: Solve algebraic equations
 	//////if (!_binding[0]->hasQuasiStationaryReactions())
@@ -1179,29 +1196,38 @@ void LumpedRateModelWithoutPoresDG::consistentInitialTimeDerivative(const Simula
 
 	 //Step 2: Compute the correct time derivative of the state vector
 
-	unsigned int DOFs = _disc.nPoints * _disc.nComp;
+	unsigned int nComp = _disc.nComp;
 	unsigned int nPoints = _disc.nPoints;
-
-	Eigen::Map<Eigen::VectorXd> yp(vecStateYdot, _disc.nComp + (2 * DOFs));
-
-	//yp.segment(0, _disc.nComp).setZero(); // TODO: check if inlet time derivative is set correctly
+	unsigned int idxBound = 0;
 
 	for (int comp = 0; comp < _disc.nComp; comp++) {
 
+		// extract one component
+		Eigen::Map<const VectorXd, 0, InnerStride<Dynamic>> C_comp(vecStateY + nComp + comp, nPoints, InnerStride<Dynamic>(nComp));
+		Eigen::Map<VectorXd, 0, InnerStride<Dynamic>> Cp_comp(vecStateYdot + nComp + comp, nPoints, InnerStride<Dynamic>(nComp));
+
+		if (_disc.nBound) { // either one or null
+
+			Eigen::Map<VectorXd, 0, InnerStride<Dynamic>> Qp_comp(vecStateYdot + nComp * (1 + nPoints) + comp, nPoints, InnerStride<Dynamic>(_disc.strideBound));
+
 		// isotherm RHS and Convection dispersion RHS call already done in residualImpl (with res=yDot and  yDot=NULLPTR) and stored in yDot
+			if (!_disc.isKinetic[comp]) {
+				Qp_comp.setZero();
+			}
+			else {
+				Qp_comp *= -1.0; // already stored -RHS_q at yp_q
+			}
 
-		if (!_disc.isKinetic[comp]) {
-			yp.segment(_disc.nComp + DOFs + comp * nPoints, nPoints).setZero();
-		}
-		else {
-			yp.segment(_disc.nComp + DOFs + comp * nPoints, nPoints) *= -1.0; // already stored -RHS_q at yp_q
-		}
+			// dc/dt + F* dq/dt (already stored -RHS_q at yp_q)
+			Cp_comp = -Cp_comp + Qp_comp * ((1 - _disc.porosity) / _disc.porosity);
 
-		// dc/dt + F* dq/dt (already stored -RHS_q at yp_q)
-		yp.segment(_disc.nComp + comp * nPoints, nPoints) = -yp.segment(_disc.nComp + comp * nPoints, nPoints)
-			+ yp.segment(_disc.nComp * (1 + nPoints) + comp * nPoints, nPoints) * ((1 - _disc.porosity) / _disc.porosity);
-
+			idxBound++;
+		} 
+		else 
+			Cp_comp *= -1.0; // (already stored -RHS_q at yp_q)
 	}
+
+	//std::cout << "hm\n" << Eigen::Map<VectorXd> (vecStateYdot, nComp+2*nPoints) << std::endl;
 
 }
 
