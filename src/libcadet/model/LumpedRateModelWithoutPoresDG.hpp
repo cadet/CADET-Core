@@ -77,14 +77,14 @@ u c_{\text{in},i}(t) &= u c_i(t,0) - D_{\text{ax},i} \frac{\partial c_i}{\partia
 		virtual unsigned int numDofs() const CADET_NOEXCEPT;
 		virtual unsigned int numPureDofs() const CADET_NOEXCEPT;
 		virtual bool usesAD() const CADET_NOEXCEPT;
-		virtual unsigned int requiredADdirs() const CADET_NOEXCEPT; // ?
+		virtual unsigned int requiredADdirs() const CADET_NOEXCEPT;
 
 		virtual UnitOpIdx unitOperationId() const CADET_NOEXCEPT { return _unitOpIdx; }
 		virtual unsigned int numComponents() const CADET_NOEXCEPT { return _disc.nComp; }
-		virtual void setFlowRates(active const* in, active const* out) CADET_NOEXCEPT; // ?
+		virtual void setFlowRates(active const* in, active const* out) CADET_NOEXCEPT;
 		virtual unsigned int numInletPorts() const CADET_NOEXCEPT { return 1; }
 		virtual unsigned int numOutletPorts() const CADET_NOEXCEPT { return 1; }
-		virtual bool canAccumulate() const CADET_NOEXCEPT { return false; } // ?
+		virtual bool canAccumulate() const CADET_NOEXCEPT { return false; }
 
 		static const char* identifier() { return "LUMPED_RATE_MODEL_WITHOUT_PORES_DG"; }
 		virtual const char* unitOperationName() const CADET_NOEXCEPT { return identifier(); }
@@ -122,7 +122,7 @@ u c_{\text{in},i}(t) &= u c_i(t,0) - D_{\text{ax},i} \frac{\partial c_i}{\partia
 		virtual void initializeSensitivityStates(const std::vector<double*>& vecSensY) const;
 		virtual void consistentInitialSensitivity(const SimulationTime& simTime, const ConstSimulationState& simState,
 			std::vector<double*>& vecSensY, std::vector<double*>& vecSensYdot, active const* const adRes, util::ThreadLocalStorage& threadLocalMem);
-		// lean ?
+
 		virtual void leanConsistentInitialState(const SimulationTime& simTime, double* const vecStateY, const AdJacobianParams& adJac, double errorTol, util::ThreadLocalStorage& threadLocalMem);
 		virtual void leanConsistentInitialTimeDerivative(double t, double const* const vecStateY, double* const vecStateYdot, double* const res, util::ThreadLocalStorage& threadLocalMem);
 
@@ -141,7 +141,7 @@ u c_{\text{in},i}(t) &= u c_i(t,0) - D_{\text{ax},i} \frac{\partial c_i}{\partia
 		virtual void setSectionTimes(double const* secTimes, bool const* secContinuity, unsigned int nSections) { }
 
 		virtual void expandErrorTol(double const* errorSpec, unsigned int errorSpecSize, double* expandOut);
-		// modify ?
+
 		virtual void multiplyWithJacobian(const SimulationTime& simTime, const ConstSimulationState& simState, double const* yS, double alpha, double beta, double* ret);
 		virtual void multiplyWithDerivativeJacobian(const SimulationTime& simTime, const ConstSimulationState& simState, double const* sDot, double* ret);
 
@@ -153,7 +153,7 @@ u c_{\text{in},i}(t) &= u c_i(t,0) - D_{\text{ax},i} \frac{\partial c_i}{\partia
 		virtual bool setParameter(const ParameterId& pId, double value);
 		virtual bool setSensitiveParameter(const ParameterId& pId, unsigned int adDirection, double adValue);
 		virtual void setSensitiveParameterValue(const ParameterId& id, double value);
-		// modify ?
+
 		virtual unsigned int threadLocalMemorySize() const CADET_NOEXCEPT;
 
 
@@ -191,7 +191,7 @@ u c_{\text{in},i}(t) &= u c_i(t,0) - D_{\text{ax},i} \frac{\partial c_i}{\partia
 	protected:
 
 		class Indexer;
-		// modify !
+
 		int residual(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res, const AdJacobianParams& adJac, util::ThreadLocalStorage& threadLocalMem, bool updateJacobian, bool paramSensitivity);
 
 		template <typename StateType, typename ResidualType, typename ParamType, bool wantJac>
@@ -207,7 +207,7 @@ u c_{\text{in},i}(t) &= u c_i(t,0) - D_{\text{ax},i} \frac{\partial c_i}{\partia
 #endif
 
 		class Discretization // @TODO: separate convDisp DGoperator class
-		{ 	// NOTE: no different Riemann solvers, BC, BF compared to external implementation
+		{ 	// NOTE: no different Riemann solvers or boundary conditions
 		public:
 			unsigned int nComp; //!< Number of components
 			unsigned int nCol; //!< Number of column cells
@@ -232,11 +232,6 @@ u c_{\text{in},i}(t) &= u c_i(t,0) - D_{\text{ax},i} \frac{\partial c_i}{\partia
 			double deltaZ;
 			double porosity;
 
-			//
-			std::vector<Eigen::MatrixXd> coefs;
-			//unsigned int nSec;
-
-			//@TODO ConvDisp  DG operator, cache
 			Eigen::VectorXd g;
 			Eigen::VectorXd h;
 			Eigen::VectorXd surfaceFlux; //!< stores the surface flux values
@@ -248,9 +243,6 @@ u c_{\text{in},i}(t) &= u c_i(t,0) - D_{\text{ax},i} \frac{\partial c_i}{\partia
 			std::vector<double> ADratio;
 			std::vector<bool> isKinetic;
 			std::string isotherm;
-
-			//Eigen::SparseMatrix<double> _JacC; //!< Static Convection Dispersion Jacobian
-			Eigen::MatrixXd _JacC;
 
 			/**
 			* @brief computes LGL nodes, integration weights, polynomial derivative matrix
@@ -269,7 +261,6 @@ u c_{\text{in},i}(t) &= u c_i(t,0) - D_{\text{ax},i} \frac{\partial c_i}{\partia
 				invMM.resize(nNodes, nNodes);
 				invMM.setZero();
 
-				//@TODO ConvDisp DG Operator
 				g.resize(nPoints);
 				g.setZero();
 				h.resize(nPoints);
@@ -277,9 +268,6 @@ u c_{\text{in},i}(t) &= u c_i(t,0) - D_{\text{ax},i} \frac{\partial c_i}{\partia
 				boundary.setZero();
 				surfaceFlux.resize(nCol + 1);
 				surfaceFlux.setZero();
-				// copy scalar values to all sections
-				
-
 
 				// @TODO: binding model!
 				isKinetic.resize(nComp);
@@ -296,7 +284,6 @@ u c_{\text{in},i}(t) &= u c_i(t,0) - D_{\text{ax},i} \frac{\partial c_i}{\partia
 				}
 				else {
 					derivativeMatrix_LAGRANGE();
-					//derivativeMatrix_JACOBI(); // D matrix is approximately the same
 					invMMatrix_JACOBI(); // modal/nodal switch
 				}
 			}
@@ -566,8 +553,8 @@ u c_{\text{in},i}(t) &= u c_i(t,0) - D_{\text{ax},i} \frac{\partial c_i}{\partia
 			Indexer(const Discretization& disc) : _disc(disc) { }
 
 			// Strides
-			inline int strideColCell() const CADET_NOEXCEPT { return static_cast<int>(_disc.nNodes); }
 			inline int strideColNode() const CADET_NOEXCEPT { return static_cast<int>(_disc.nComp); }
+			inline int strideColCell() const CADET_NOEXCEPT { return static_cast<int>(_disc.nNodes * strideColNode()); }
 			inline int strideColComp() const CADET_NOEXCEPT { return 1; }
 
 			inline int strideColLiquid() const CADET_NOEXCEPT { return static_cast<int>(_disc.nComp * _disc.nPoints); }
@@ -1038,12 +1025,12 @@ u c_{\text{in},i}(t) &= u c_i(t,0) - D_{\text{ax},i} \frac{\partial c_i}{\partia
 		typedef Eigen::Triplet<double> T;
 
 		// @TODO: for sparse jacobian
-		int calcNNZ() {
-			if (_disc.modal)
-				return 0;
-			else
-				return 0;
-		}
+		//int calcNNZ() {
+		//	if (_disc.modal)
+		//		return 0;
+		//	else
+		//		return 0;
+		//}
 
 		int calcStaticAnaJacobian(unsigned int secIdx) {
 
@@ -1085,11 +1072,17 @@ u c_{\text{in},i}(t) &= u c_i(t,0) - D_{\text{ax},i} \frac{\partial c_i}{\partia
 
 		int calcStaticAnaNodalJacobian(unsigned int secIdx, std::vector<T>& tripletList) {
 
+			Indexer idx(_disc);
+
+			int sNode = idx.strideColNode();
+			int sCell = idx.strideColCell();
+			int sComp = idx.strideColComp();
+			int offC = idx.offsetC();
+
 			unsigned int nNodes = _disc.nNodes;
-			unsigned int nCells = _disc.nCol;
 			unsigned int polyDeg = _disc.polyDeg;
+			unsigned int nCells = _disc.nCol;
 			unsigned int nComp = _disc.nComp;
-			unsigned int DOFs = nNodes * nCells;
 
 			// @TODO: special cases?
 			if (nCells < 3)
@@ -1099,7 +1092,7 @@ u c_{\text{in},i}(t) &= u c_i(t,0) - D_{\text{ax},i} \frac{\partial c_i}{\partia
 			/*			Define Convection Jacobian Block			*/
 			/*======================================================*/
 
-			// Convection block [ d RHS_conv / d c ], depends only on first entry of previous cell
+			// Convection block [ d RHS_conv / d c ], also depends on first entry of previous cell
 			MatrixXd convBlock = MatrixXd::Zero(nNodes, nNodes + 1);
 			convBlock.block(0, 1, nNodes, nNodes) -= _disc.polyDerM;
 			convBlock(0, 0) += _disc.invWeights[0];
@@ -1109,11 +1102,11 @@ u c_{\text{in},i}(t) &= u c_i(t,0) - D_{\text{ax},i} \frac{\partial c_i}{\partia
 			// special inlet DOF treatment for first cell
 			for (unsigned int comp = 0; comp < nComp; comp++) {
 				for (unsigned int i = 0; i < convBlock.rows(); i++) {
-					tripletList.push_back(T(nComp + comp + i * nComp, comp, -convBlock(i, 0)));
+					tripletList.push_back(T(offC + comp * sComp + i * sNode, comp * sComp, -convBlock(i, 0)));
 					for (unsigned int j = 1; j < convBlock.cols(); j++) {
-						tripletList.push_back(T(nComp + comp + i * nComp,
-							nComp + comp + (j - 1) * nComp,
-							-convBlock(i, j)));
+						tripletList.push_back(T(offC + comp * sComp + i * sNode,
+												offC + comp * sComp + (j - 1) * sNode,
+												-convBlock(i, j)));
 					}
 				}
 			}
@@ -1123,9 +1116,9 @@ u c_{\text{in},i}(t) &= u c_i(t,0) - D_{\text{ax},i} \frac{\partial c_i}{\partia
 						for (unsigned int j = 0; j < convBlock.cols(); j++) {
 							// row: jump over inlet DOFs and previous cells, add component offset and go node strides from there for each convection block entry
 							// col: jump over inlet DOFs and previous cells, go back one node, add component offset and go node strides from there for each convection block entry
-							tripletList.push_back(T(nComp + cell * nNodes * nComp + comp + i * nComp,
-								nComp + cell * nNodes * nComp - nComp + comp + j * nComp,
-								-convBlock(i, j)));
+							tripletList.push_back(T(offC + cell * sCell + comp * sComp + i * sNode,
+													offC + cell * sCell - sNode + comp * sComp + j * sNode,
+													-convBlock(i, j)));
 						}
 					}
 				}
@@ -1169,9 +1162,9 @@ u c_{\text{in},i}(t) &= u c_i(t,0) - D_{\text{ax},i} \frac{\partial c_i}{\partia
 						for (unsigned int j = 0; j < dispBlock.cols(); j++) {
 							// row: jump over inlet DOFs and previous cells, add component offset and go node strides from there for each dispersion block entry
 							// col: jump over inlet DOFs and previous cells, go back one cell, add component offset and go node strides from there for each dispersion block entry
-							tripletList.push_back(T(nComp + cell * nNodes * nComp + comp + i * nComp,
-								nComp + (cell - 1) * nNodes * nComp + comp + j * nComp,
-								-dispBlock(i, j)));
+							tripletList.push_back(T(offC + cell * sCell + comp * sComp + i * sNode,
+													offC + (cell - 1) * sCell + comp * sComp + j * sNode,
+													-dispBlock(i, j)));
 						}
 					}
 				}
@@ -1197,9 +1190,9 @@ u c_{\text{in},i}(t) &= u c_i(t,0) - D_{\text{ax},i} \frac{\partial c_i}{\partia
 			for (unsigned int comp = 0; comp < nComp; comp++) {
 				for (unsigned int i = 0; i < dispBlock.rows(); i++) {
 					for (unsigned int j = nNodes; j < dispBlock.cols(); j++) {
-						tripletList.push_back(T(nComp + comp + i * nComp,
-							nComp + comp + (j - nNodes) * nComp,
-							-dispBlock(i, j)));
+						tripletList.push_back(T(offC + comp * sComp + i * sNode,
+												offC + comp * sComp + (j - nNodes) * sNode,
+												-dispBlock(i, j)));
 					}
 				}
 			}
@@ -1221,25 +1214,28 @@ u c_{\text{in},i}(t) &= u c_i(t,0) - D_{\text{ax},i} \frac{\partial c_i}{\partia
 			for (unsigned int comp = 0; comp < nComp; comp++) {
 				for (unsigned int i = 0; i < dispBlock.rows(); i++) {
 					for (unsigned int j = 0; j < 2 * nNodes; j++) {
-						tripletList.push_back(T(nComp + (nCells - 1) * nNodes * nComp + comp + i * nComp,
-							nComp + (nCells - 1 - 1) * nNodes * nComp + comp + j * nComp,
-							-dispBlock(i, j)));
+						tripletList.push_back(T(offC + (nCells - 1) * sCell + comp * sComp + i * sNode,
+												offC + (nCells - 1 - 1) * sCell + comp * sComp + j * sNode,
+												-dispBlock(i, j)));
 					}
 				}
 			}
-
-			_jac.setFromTriplets(tripletList.begin(), tripletList.end());
 
 			return 0;
 		}
 
 		int calcStaticAnaModalJacobian(unsigned int secIdx, std::vector<T>& tripletList) {
+			
+			Indexer idx(_disc);
+
+			int sNode = idx.strideColNode();
+			int sCell = idx.strideColCell();
+			int sComp = idx.strideColComp();
+			int offC = idx.offsetC();
 
 			unsigned int nNodes = _disc.nNodes;
 			unsigned int nCells = _disc.nCol;
-			unsigned int polyDeg = _disc.polyDeg;
 			unsigned int nComp = _disc.nComp;
-			unsigned int DOFs = nNodes * nCells;
 
 			// @TODO: special cases?
 			if (nCells < 5)
@@ -1260,11 +1256,11 @@ u c_{\text{in},i}(t) &= u c_i(t,0) - D_{\text{ax},i} \frac{\partial c_i}{\partia
 			// special inlet DOF treatment for first cell
 			for (unsigned int comp = 0; comp < nComp; comp++) {
 				for (unsigned int i = 0; i < convBlock.rows(); i++) {
-					tripletList.push_back(T(nComp + comp + i * nComp, comp, -convBlock(i, 0)));
+					tripletList.push_back(T(offC + comp * sComp + i * sNode, comp * sComp, -convBlock(i, 0)));
 					for (unsigned int j = 1; j < convBlock.cols(); j++) {
-						tripletList.push_back(T(nComp + comp + i * nComp,
-							nComp + comp + (j - 1) * nComp,
-							-convBlock(i, j)));
+						tripletList.push_back(T(offC + comp * sComp + i * sNode,
+												offC + comp * sComp + (j - 1) * sNode,
+												-convBlock(i, j)));
 					}
 				}
 			}
@@ -1274,9 +1270,9 @@ u c_{\text{in},i}(t) &= u c_i(t,0) - D_{\text{ax},i} \frac{\partial c_i}{\partia
 						for (unsigned int j = 0; j < convBlock.cols(); j++) {
 							// row: jump over inlet DOFs and previous cells, add component offset and go node strides from there for each convection block entry
 							// col: jump over inlet DOFs and previous cells, go back one node, add component offset and go node strides from there for each convection block entry
-							tripletList.push_back(T(nComp + cell * nNodes * nComp + comp + i * nComp,
-								nComp + cell * nNodes * nComp - nComp + comp + j * nComp,
-								-convBlock(i, j)));
+							tripletList.push_back(T(offC + cell * sCell + comp * sComp + i * sNode,
+													offC + cell * sCell - sNode + comp * sComp + j * sNode,
+													-convBlock(i, j)));
 						}
 					}
 				}
@@ -1328,9 +1324,9 @@ u c_{\text{in},i}(t) &= u c_i(t,0) - D_{\text{ax},i} \frac{\partial c_i}{\partia
 						for (int j = 0; j < dispBlock.cols(); j++) {
 							// row: jump over inlet DOFs and previous cells, add component offset and go node strides from there for each dispersion block entry
 							// col: jump over inlet DOFs and previous cells, go back one cell and one node, add component offset and go node strides from there for each dispersion block entry
-							tripletList.push_back(T(nComp + cell * nNodes * nComp + comp + i * nComp,
-								nComp + cell * nNodes * nComp - (nNodes + 1) * nComp + comp + j * nComp,
-								-dispBlock(i, j)));
+							tripletList.push_back(T(offC + cell * sCell + comp * sComp + i * sNode,
+													offC + cell * sCell - (nNodes + 1) * sNode + comp * sComp + j * sNode,
+													-dispBlock(i, j)));
 						}
 					}
 				}
@@ -1363,9 +1359,9 @@ u c_{\text{in},i}(t) &= u c_i(t,0) - D_{\text{ax},i} \frac{\partial c_i}{\partia
 					for (unsigned int j = 1; j < dispBlock.cols(); j++) {
 						// row: jump over inlet DOFs and previous cell, add component offset and go node strides from there for each dispersion block entry
 						// col: jump over inlet DOFs, add component offset and go node strides from there for each dispersion block entry. Also adjust for iterator j (-1)
-						tripletList.push_back(T(nComp + nNodes * nComp + comp + i * nComp,
-							nComp + comp + (j - 1) * nComp,
-							-dispBlock(i, j)));
+						tripletList.push_back(T(offC + nNodes * sNode + comp * sComp + i * sNode,
+												offC + comp * sComp + (j - 1) * sNode,
+												-dispBlock(i, j)));
 					}
 				}
 			}
@@ -1395,9 +1391,9 @@ u c_{\text{in},i}(t) &= u c_i(t,0) - D_{\text{ax},i} \frac{\partial c_i}{\partia
 					for (unsigned int j = 0; j < dispBlock.cols(); j++) {
 						// row: jump over inlet DOFs and previous cells, add component offset and go node strides from there for each dispersion block entry
 						// col: jump over inlet DOFs and previous cells, go back one cell and one node, add component offset and go node strides from there for each dispersion block entry.
-						tripletList.push_back(T(nComp + (nCells - 2) * nNodes * nComp + comp + i * nComp,
-							nComp + (nCells - 2) * nNodes * nComp - (nNodes + 1) * nComp + comp + j * nComp,
-							-dispBlock(i, j)));
+						tripletList.push_back(T(offC + (nCells - 2) * sCell + comp * sComp + i * sNode,
+												offC + (nCells - 2) * sCell - (nNodes + 1) * sNode + comp * sComp + j * sNode,
+												-dispBlock(i, j)));
 					}
 				}
 			}
@@ -1419,9 +1415,9 @@ u c_{\text{in},i}(t) &= u c_i(t,0) - D_{\text{ax},i} \frac{\partial c_i}{\partia
 					for (int j = nNodes + 1; j < dispBlock.cols(); j++) {
 						// row: jump over inlet DOFs, add component offset and go node strides from there for each dispersion block entry
 						// col: jump over inlet DOFs and previous cells, add component offset, adjust for iterator j (-Nnodes-1) and go node strides from there for each dispersion block entry.
-						tripletList.push_back(T(nComp + comp + i * nComp,
-							nComp + comp + (j - (nNodes + 1)) * nComp,
-							-dispBlock(i, j)));
+						tripletList.push_back(T(offC + comp * sComp + i * sNode,
+												offC + comp * sComp + (j - (nNodes + 1)) * sNode,
+												-dispBlock(i, j)));
 					}
 				}
 			}
@@ -1441,21 +1437,25 @@ u c_{\text{in},i}(t) &= u c_i(t,0) - D_{\text{ax},i} \frac{\partial c_i}{\partia
 					for (int j = 0; j < 2 * nNodes + 1; j++) {
 						// row: jump over inlet DOFs and previous cells, add component offset and go node strides from there for each dispersion block entry
 						// col: jump over inlet DOFs and previous cells, go back one cell and one node, add component offset and go node strides from there for each dispersion block entry.
-						tripletList.push_back(T(nComp + (nCells - 1) * nNodes * nComp + comp + i * nComp,
-							nComp + (nCells - 1) * nNodes * nComp - (nNodes + 1) * nComp + comp + j * nComp,
-							-dispBlock(i, j)));
+						tripletList.push_back(T(offC + (nCells - 1) * sCell + comp * sComp + i * sNode,
+												offC + (nCells - 1) * sCell - (nNodes + 1) * sNode + comp * sComp + j * sNode,
+												-dispBlock(i, j)));
 					}
 				}
 			}
 
-			_jac.setFromTriplets(tripletList.begin(), tripletList.end());
-
 			return 0;
-
 		}
 
 		/* TODO: add to binding model implementation ? // no access to binding model ka, kd */
 		int calcIsothermJacobian(std::vector<T>& tripletList) {
+
+			Indexer idx(_disc);
+
+			int sNode = idx.strideColNode();
+			int sCell = idx.strideColCell();
+			int sComp = idx.strideColComp();
+			int offC = idx.offsetC();
 
 			unsigned int compBlock = _disc.nPoints;
 			unsigned int nComp = _disc.nComp;
@@ -1464,8 +1464,8 @@ u c_{\text{in},i}(t) &= u c_i(t,0) - D_{\text{ax},i} \frac{\partial c_i}{\partia
 			for (unsigned int comp = 0; comp < nComp; comp++) {
 				if (_disc.isotherm == "LINEAR") { // no differentiation for non-kinetic as we computed the equilibrium constant
 					for (unsigned int i = 0; i < _disc.nPoints; i++) {
-						tripletList.push_back(T(nComp + DGBlock + comp + i * nComp, nComp + comp + i * nComp, -_disc.adsorption[comp]));
-						tripletList.push_back(T(nComp + DGBlock + comp + i * nComp, nComp + DGBlock + comp + i * nComp, _disc.desorption[comp]));
+						tripletList.push_back(T(offC + DGBlock + comp + i * nComp, nComp + comp + i * nComp, -_disc.adsorption[comp]));
+						tripletList.push_back(T(offC + DGBlock + comp + i * nComp, nComp + DGBlock + comp + i * nComp, _disc.desorption[comp]));
 					}
 				}
 				else {
