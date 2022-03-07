@@ -11,7 +11,7 @@
 // =============================================================================
 
 /**
- * @file 
+ * @file
  * Defines the lumped rate model without pores (LRM) for DG approach.
  */
 
@@ -36,7 +36,7 @@
 
 #include "Benchmark.hpp"
 #include <numbers>
-//#include "DGspecific.hpp" TODO: source out DG specifics
+ //#include "DGspecific.hpp" TODO: source out DG specifics
 #include "C:\Users\jmbr\Cadet\libs\eigen-3.4.0\Eigen\Dense.hpp"	// use LA lib Eigen for Matrix operations
 #include "C:\Users\jmbr\Cadet\libs\eigen-3.4.0\Eigen\Sparse.hpp"
 #ifndef _USE_MATH_DEFINES
@@ -49,1480 +49,1488 @@ using namespace Eigen;
 namespace cadet
 {
 
-namespace model
-{
-
-/**
- * @brief Lumped rate model of liquid column chromatography without pores
- * @details See @cite Guiochon2006, @cite Gu1995, @cite Felinger2004
- * 
- * @f[\begin{align}
-	\frac{\partial c_i}{\partial t} + \frac{1 - \varepsilon_t}{\varepsilon_t} \frac{\partial q_{i}}{\partial t} &= - u \frac{\partial c_i}{\partial z} + D_{\text{ax},i} \frac{\partial^2 c_i}{\partial z^2} \\
-	a \frac{\partial q_i}{\partial t} &= f_{\text{iso}}(c, q)
-\end{align} @f]
- * Danckwerts boundary conditions (see @cite Danckwerts1953)
-@f[ \begin{align}
-u c_{\text{in},i}(t) &= u c_i(t,0) - D_{\text{ax},i} \frac{\partial c_i}{\partial z}(t,0) \\
-\frac{\partial c_i}{\partial z}(t,L) &= 0
-\end{align} @f]
- * Methods are described in @cite VonLieres2010a (WENO, linear solver), @cite Puttmann2013 @cite Puttmann2016 (forward sensitivities, AD, band compression)
- */
-	class LumpedRateModelWithoutPoresDG : public UnitOperationBase
+	namespace model
 	{
-	public:
 
-		LumpedRateModelWithoutPoresDG(UnitOpIdx unitOpIdx);
-		virtual ~LumpedRateModelWithoutPoresDG() CADET_NOEXCEPT;
-
-		virtual unsigned int numDofs() const CADET_NOEXCEPT;
-		virtual unsigned int numPureDofs() const CADET_NOEXCEPT;
-		virtual bool usesAD() const CADET_NOEXCEPT;
-		virtual unsigned int requiredADdirs() const CADET_NOEXCEPT;
-
-		virtual UnitOpIdx unitOperationId() const CADET_NOEXCEPT { return _unitOpIdx; }
-		virtual unsigned int numComponents() const CADET_NOEXCEPT { return _disc.nComp; }
-		virtual void setFlowRates(active const* in, active const* out) CADET_NOEXCEPT;
-		virtual unsigned int numInletPorts() const CADET_NOEXCEPT { return 1; }
-		virtual unsigned int numOutletPorts() const CADET_NOEXCEPT { return 1; }
-		virtual bool canAccumulate() const CADET_NOEXCEPT { return false; }
-
-		static const char* identifier() { return "LUMPED_RATE_MODEL_WITHOUT_PORES_DG"; }
-		virtual const char* unitOperationName() const CADET_NOEXCEPT { return identifier(); }
-
-		virtual bool configureModelDiscretization(IParameterProvider& paramProvider, IConfigHelper& helper);
-		virtual bool configure(IParameterProvider& paramProvider);
-		virtual void notifyDiscontinuousSectionTransition(double t, unsigned int secIdx, const ConstSimulationState& simState, const AdJacobianParams& adJac);
-
-		virtual void useAnalyticJacobian(const bool analyticJac);
-
-		virtual void reportSolution(ISolutionRecorder& recorder, double const* const solution) const;
-		virtual void reportSolutionStructure(ISolutionRecorder& recorder) const;
-
-		virtual int residual(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res, util::ThreadLocalStorage& threadLocalMem);
-
-		virtual int residualWithJacobian(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res, const AdJacobianParams& adJac, util::ThreadLocalStorage& threadLocalMem);
-		virtual int residualSensFwdAdOnly(const SimulationTime& simTime, const ConstSimulationState& simState, active* const adRes, util::ThreadLocalStorage& threadLocalMem);
-		virtual int residualSensFwdWithJacobian(const SimulationTime& simTime, const ConstSimulationState& simState, const AdJacobianParams& adJac, util::ThreadLocalStorage& threadLocalMem);
-
-		virtual int residualSensFwdCombine(const SimulationTime& simTime, const ConstSimulationState& simState,
-			const std::vector<const double*>& yS, const std::vector<const double*>& ySdot, const std::vector<double*>& resS, active const* adRes,
-			double* const tmp1, double* const tmp2, double* const tmp3);
-
-		virtual int linearSolve(double t, double alpha, double tol, double* const rhs, double const* const weight,
-			const ConstSimulationState& simState);
-
-		virtual void prepareADvectors(const AdJacobianParams& adJac) const;
-
-		virtual void applyInitialCondition(const SimulationState& simState) const;
-		virtual void readInitialCondition(IParameterProvider& paramProvider);
-
-		virtual void consistentInitialState(const SimulationTime& simTime, double* const vecStateY, const AdJacobianParams& adJac, double errorTol, util::ThreadLocalStorage& threadLocalMem);
-		virtual void consistentInitialTimeDerivative(const SimulationTime& simTime, double const* vecStateY, double* const vecStateYdot, util::ThreadLocalStorage& threadLocalMem);
-
-		virtual void initializeSensitivityStates(const std::vector<double*>& vecSensY) const;
-		virtual void consistentInitialSensitivity(const SimulationTime& simTime, const ConstSimulationState& simState,
-			std::vector<double*>& vecSensY, std::vector<double*>& vecSensYdot, active const* const adRes, util::ThreadLocalStorage& threadLocalMem);
-
-		virtual void leanConsistentInitialState(const SimulationTime& simTime, double* const vecStateY, const AdJacobianParams& adJac, double errorTol, util::ThreadLocalStorage& threadLocalMem);
-		virtual void leanConsistentInitialTimeDerivative(double t, double const* const vecStateY, double* const vecStateYdot, double* const res, util::ThreadLocalStorage& threadLocalMem);
-
-		virtual void leanConsistentInitialSensitivity(const SimulationTime& simTime, const ConstSimulationState& simState,
-			std::vector<double*>& vecSensY, std::vector<double*>& vecSensYdot, active const* const adRes, util::ThreadLocalStorage& threadLocalMem);
-
-		virtual bool hasInlet() const CADET_NOEXCEPT { return true; }
-		virtual bool hasOutlet() const CADET_NOEXCEPT { return true; }
-
-		virtual unsigned int localOutletComponentIndex(unsigned int port) const CADET_NOEXCEPT;
-		virtual unsigned int localOutletComponentStride(unsigned int port) const CADET_NOEXCEPT;
-		virtual unsigned int localInletComponentIndex(unsigned int port) const CADET_NOEXCEPT;
-		virtual unsigned int localInletComponentStride(unsigned int port) const CADET_NOEXCEPT;
-
-		virtual void setExternalFunctions(IExternalFunction** extFuns, unsigned int size);
-		virtual void setSectionTimes(double const* secTimes, bool const* secContinuity, unsigned int nSections) { }
-
-		virtual void expandErrorTol(double const* errorSpec, unsigned int errorSpecSize, double* expandOut);
-
-		virtual void multiplyWithJacobian(const SimulationTime& simTime, const ConstSimulationState& simState, double const* yS, double alpha, double beta, double* ret);
-		virtual void multiplyWithDerivativeJacobian(const SimulationTime& simTime, const ConstSimulationState& simState, double const* sDot, double* ret);
-
-		inline void multiplyWithJacobian(const SimulationTime& simTime, const ConstSimulationState& simState, double const* yS, double* ret)
+		/**
+		 * @brief Lumped rate model of liquid column chromatography without pores
+		 * @details See @cite Guiochon2006, @cite Gu1995, @cite Felinger2004
+		 *
+		 * @f[\begin{align}
+			\frac{\partial c_i}{\partial t} + \frac{1 - \varepsilon_t}{\varepsilon_t} \frac{\partial q_{i}}{\partial t} &= - u \frac{\partial c_i}{\partial z} + D_{\text{ax},i} \frac{\partial^2 c_i}{\partial z^2} \\
+			a \frac{\partial q_i}{\partial t} &= f_{\text{iso}}(c, q)
+		\end{align} @f]
+		 * Danckwerts boundary conditions (see @cite Danckwerts1953)
+		@f[ \begin{align}
+		u c_{\text{in},i}(t) &= u c_i(t,0) - D_{\text{ax},i} \frac{\partial c_i}{\partial z}(t,0) \\
+		\frac{\partial c_i}{\partial z}(t,L) &= 0
+		\end{align} @f]
+		 * Methods are described in @cite VonLieres2010a (WENO, linear solver), @cite Puttmann2013 @cite Puttmann2016 (forward sensitivities, AD, band compression)
+		 */
+		class LumpedRateModelWithoutPoresDG : public UnitOperationBase
 		{
-			multiplyWithJacobian(simTime, simState, yS, 1.0, 0.0, ret);
-		}
+		public:
 
-		virtual bool setParameter(const ParameterId& pId, double value);
-		virtual bool setSensitiveParameter(const ParameterId& pId, unsigned int adDirection, double adValue);
-		virtual void setSensitiveParameterValue(const ParameterId& id, double value);
+			LumpedRateModelWithoutPoresDG(UnitOpIdx unitOpIdx);
+			virtual ~LumpedRateModelWithoutPoresDG() CADET_NOEXCEPT;
 
-		virtual unsigned int threadLocalMemorySize() const CADET_NOEXCEPT;
+			virtual unsigned int numDofs() const CADET_NOEXCEPT;
+			virtual unsigned int numPureDofs() const CADET_NOEXCEPT;
+			virtual bool usesAD() const CADET_NOEXCEPT;
+			virtual unsigned int requiredADdirs() const CADET_NOEXCEPT;
+
+			virtual UnitOpIdx unitOperationId() const CADET_NOEXCEPT { return _unitOpIdx; }
+			virtual unsigned int numComponents() const CADET_NOEXCEPT { return _disc.nComp; }
+			virtual void setFlowRates(active const* in, active const* out) CADET_NOEXCEPT;
+			virtual unsigned int numInletPorts() const CADET_NOEXCEPT { return 1; }
+			virtual unsigned int numOutletPorts() const CADET_NOEXCEPT { return 1; }
+			virtual bool canAccumulate() const CADET_NOEXCEPT { return false; }
+
+			static const char* identifier() { return "LUMPED_RATE_MODEL_WITHOUT_PORES_DG"; }
+			virtual const char* unitOperationName() const CADET_NOEXCEPT { return identifier(); }
+
+			virtual bool configureModelDiscretization(IParameterProvider& paramProvider, IConfigHelper& helper);
+			virtual bool configure(IParameterProvider& paramProvider);
+			virtual void notifyDiscontinuousSectionTransition(double t, unsigned int secIdx, const ConstSimulationState& simState, const AdJacobianParams& adJac);
+
+			virtual void useAnalyticJacobian(const bool analyticJac);
+
+			virtual void reportSolution(ISolutionRecorder& recorder, double const* const solution) const;
+			virtual void reportSolutionStructure(ISolutionRecorder& recorder) const;
+
+			virtual int residual(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res, util::ThreadLocalStorage& threadLocalMem);
+
+			virtual int residualWithJacobian(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res, const AdJacobianParams& adJac, util::ThreadLocalStorage& threadLocalMem);
+			virtual int residualSensFwdAdOnly(const SimulationTime& simTime, const ConstSimulationState& simState, active* const adRes, util::ThreadLocalStorage& threadLocalMem);
+			virtual int residualSensFwdWithJacobian(const SimulationTime& simTime, const ConstSimulationState& simState, const AdJacobianParams& adJac, util::ThreadLocalStorage& threadLocalMem);
+
+			virtual int residualSensFwdCombine(const SimulationTime& simTime, const ConstSimulationState& simState,
+				const std::vector<const double*>& yS, const std::vector<const double*>& ySdot, const std::vector<double*>& resS, active const* adRes,
+				double* const tmp1, double* const tmp2, double* const tmp3);
+
+			virtual int linearSolve(double t, double alpha, double tol, double* const rhs, double const* const weight,
+				const ConstSimulationState& simState);
+
+			virtual void prepareADvectors(const AdJacobianParams& adJac) const;
+
+			virtual void applyInitialCondition(const SimulationState& simState) const;
+			virtual void readInitialCondition(IParameterProvider& paramProvider);
+
+			virtual void consistentInitialState(const SimulationTime& simTime, double* const vecStateY, const AdJacobianParams& adJac, double errorTol, util::ThreadLocalStorage& threadLocalMem);
+			virtual void consistentInitialTimeDerivative(const SimulationTime& simTime, double const* vecStateY, double* const vecStateYdot, util::ThreadLocalStorage& threadLocalMem);
+
+			virtual void initializeSensitivityStates(const std::vector<double*>& vecSensY) const;
+			virtual void consistentInitialSensitivity(const SimulationTime& simTime, const ConstSimulationState& simState,
+				std::vector<double*>& vecSensY, std::vector<double*>& vecSensYdot, active const* const adRes, util::ThreadLocalStorage& threadLocalMem);
+
+			virtual void leanConsistentInitialState(const SimulationTime& simTime, double* const vecStateY, const AdJacobianParams& adJac, double errorTol, util::ThreadLocalStorage& threadLocalMem);
+			virtual void leanConsistentInitialTimeDerivative(double t, double const* const vecStateY, double* const vecStateYdot, double* const res, util::ThreadLocalStorage& threadLocalMem);
+
+			virtual void leanConsistentInitialSensitivity(const SimulationTime& simTime, const ConstSimulationState& simState,
+				std::vector<double*>& vecSensY, std::vector<double*>& vecSensYdot, active const* const adRes, util::ThreadLocalStorage& threadLocalMem);
+
+			virtual bool hasInlet() const CADET_NOEXCEPT { return true; }
+			virtual bool hasOutlet() const CADET_NOEXCEPT { return true; }
+
+			virtual unsigned int localOutletComponentIndex(unsigned int port) const CADET_NOEXCEPT;
+			virtual unsigned int localOutletComponentStride(unsigned int port) const CADET_NOEXCEPT;
+			virtual unsigned int localInletComponentIndex(unsigned int port) const CADET_NOEXCEPT;
+			virtual unsigned int localInletComponentStride(unsigned int port) const CADET_NOEXCEPT;
+
+			virtual void setExternalFunctions(IExternalFunction** extFuns, unsigned int size);
+			virtual void setSectionTimes(double const* secTimes, bool const* secContinuity, unsigned int nSections) { }
+
+			virtual void expandErrorTol(double const* errorSpec, unsigned int errorSpecSize, double* expandOut);
+
+			virtual void multiplyWithJacobian(const SimulationTime& simTime, const ConstSimulationState& simState, double const* yS, double alpha, double beta, double* ret);
+			virtual void multiplyWithDerivativeJacobian(const SimulationTime& simTime, const ConstSimulationState& simState, double const* sDot, double* ret);
+
+			inline void multiplyWithJacobian(const SimulationTime& simTime, const ConstSimulationState& simState, double const* yS, double* ret)
+			{
+				multiplyWithJacobian(simTime, simState, yS, 1.0, 0.0, ret);
+			}
+
+			virtual bool setParameter(const ParameterId& pId, double value);
+			virtual bool setSensitiveParameter(const ParameterId& pId, unsigned int adDirection, double adValue);
+			virtual void setSensitiveParameterValue(const ParameterId& id, double value);
+
+			virtual unsigned int threadLocalMemorySize() const CADET_NOEXCEPT;
 
 
 #ifdef CADET_BENCHMARK_MODE
-		virtual std::vector<double> benchmarkTimings() const
-		{
-			return std::vector<double>({
-				static_cast<double>(numDofs()),
-				_timerResidual.totalElapsedTime(),
-				_timerResidualPar.totalElapsedTime(),
-				_timerResidualSens.totalElapsedTime(),
-				_timerResidualSensPar.totalElapsedTime(),
-				_timerConsistentInit.totalElapsedTime(),
-				_timerConsistentInitPar.totalElapsedTime(),
-				_timerLinearSolve.totalElapsedTime()
-				});
-		}
+			virtual std::vector<double> benchmarkTimings() const
+			{
+				return std::vector<double>({
+					static_cast<double>(numDofs()),
+					_timerResidual.totalElapsedTime(),
+					_timerResidualPar.totalElapsedTime(),
+					_timerResidualSens.totalElapsedTime(),
+					_timerResidualSensPar.totalElapsedTime(),
+					_timerConsistentInit.totalElapsedTime(),
+					_timerConsistentInitPar.totalElapsedTime(),
+					_timerLinearSolve.totalElapsedTime()
+					});
+			}
 
-		virtual char const* const* benchmarkDescriptions() const
-		{
-			static const char* const desc[] = {
-				"DOFs",
-				"Residual",
-				"ResidualPar",
-				"ResidualSens",
-				"ResidualSensPar",
-				"ConsistentInit",
-				"ConsistentInitPar",
-				"LinearSolve"
-			};
-			return desc;
-		}
+			virtual char const* const* benchmarkDescriptions() const
+			{
+				static const char* const desc[] = {
+					"DOFs",
+					"Residual",
+					"ResidualPar",
+					"ResidualSens",
+					"ResidualSensPar",
+					"ConsistentInit",
+					"ConsistentInitPar",
+					"LinearSolve"
+				};
+				return desc;
+			}
 #endif
 
-	protected:
+		protected:
 
-		class Indexer;
+			class Indexer;
 
-		int residual(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res, const AdJacobianParams& adJac, util::ThreadLocalStorage& threadLocalMem, bool updateJacobian, bool paramSensitivity);
+			int residual(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res, const AdJacobianParams& adJac, util::ThreadLocalStorage& threadLocalMem, bool updateJacobian, bool paramSensitivity);
 
-		template <typename StateType, typename ResidualType, typename ParamType, bool wantJac>
-		int residualImpl(double t, unsigned int secIdx, StateType const* const y, double const* const yDot, ResidualType* const res, util::ThreadLocalStorage& threadLocalMem);
+			template <typename StateType, typename ResidualType, typename ParamType, bool wantJac>
+			int residualImpl(double t, unsigned int secIdx, StateType const* const y, double const* const yDot, ResidualType* const res, util::ThreadLocalStorage& threadLocalMem);
 
-		void extractJacobianFromAD(active const* const adRes, unsigned int adDirOffset);
+			void extractJacobianFromAD(active const* const adRes, unsigned int adDirOffset);
 
-		void assembleDiscretizedJacobian(double alpha, const Indexer& idxr);
-		void addTimeDerivativeToJacobianCell(linalg::FactorizableBandMatrix::RowIterator& jac, const Indexer& idxr, double alpha, double invBetaP) const;
+			void assembleDiscretizedJacobian(double alpha, const Indexer& idxr);
+			void addTimeDerivativeToJacobianCell(linalg::FactorizableBandMatrix::RowIterator& jac, const Indexer& idxr, double alpha, double invBetaP) const;
 
 #ifdef CADET_CHECK_ANALYTIC_JACOBIAN
-		void checkAnalyticJacobianAgainstAd(active const* const adRes, unsigned int adDirOffset) const;
+			void checkAnalyticJacobianAgainstAd(active const* const adRes, unsigned int adDirOffset) const;
 #endif
 
-		class Discretization // @TODO: separate convDisp DGoperator class
-		{ 	// NOTE: no different Riemann solvers or boundary conditions
-		public:
-			unsigned int nComp; //!< Number of components
-			unsigned int nCol; //!< Number of column cells
-			unsigned int polyDeg; //!< polynomial degree
-			unsigned int nNodes; //!< Number of nodes per cell
-			unsigned int nPoints; //!< Number of discrete Points
-			bool modal;	//!< bool switch: 1 for modal basis, 0 for nodal basis
-			Eigen::VectorXd nodes; //!< Array with positions of nodes in reference element
-			Eigen::MatrixXd polyDerM; //!< Array with polynomial derivative Matrix
-			Eigen::VectorXd invWeights; //!< Array with weights for numerical quadrature of size nNodes
-			Eigen::MatrixXd invMM; //!< dense !INVERSE! mass matrix for modal (exact) integration
+			class Discretization // @TODO: separate convDisp DGoperator class
+			{ 	// NOTE: no different Riemann solvers or boundary conditions
+			public:
+				unsigned int nComp; //!< Number of components
+				unsigned int nCol; //!< Number of column cells
+				unsigned int polyDeg; //!< polynomial degree
+				unsigned int nNodes; //!< Number of nodes per cell
+				unsigned int nPoints; //!< Number of discrete Points
+				bool modal;	//!< bool switch: 1 for modal basis, 0 for nodal basis
+				Eigen::VectorXd nodes; //!< Array with positions of nodes in reference element
+				Eigen::MatrixXd polyDerM; //!< Array with polynomial derivative Matrix
+				Eigen::VectorXd invWeights; //!< Array with weights for numerical quadrature of size nNodes
+				Eigen::MatrixXd invMM; //!< dense !INVERSE! mass matrix for modal (exact) integration
 
-			unsigned int* nBound; //!< Array with number of bound states for each component
-			unsigned int* boundOffset; //!< Array with offset to the first bound state of each component in the solid phase
-			unsigned int strideBound; //!< Total number of bound states
+				unsigned int* nBound; //!< Array with number of bound states for each component
+				unsigned int* boundOffset; //!< Array with offset to the first bound state of each component in the solid phase
+				unsigned int strideBound; //!< Total number of bound states
 
-			// vgl. convDispOperator
-			std::vector<double> dispersion; //!< Column dispersion (may be section dependent) \f$ D_{\text{ax}} \f$
-			std::vector<double> velocity; //!< Interstitial velocity (may be section dependent) \f$ u \f$
-			double crossSection; //!< Cross section area 
-			double length_;
-			double deltaZ;
-			double porosity;
+				// vgl. convDispOperator
+				std::vector<double> dispersion; //!< Column dispersion (may be section dependent) \f$ D_{\text{ax}} \f$
+				std::vector<double> velocity; //!< Interstitial velocity (may be section dependent) \f$ u \f$
+				double crossSection; //!< Cross section area 
+				double length_;
+				double deltaZ;
+				double porosity;
 
-			Eigen::VectorXd g;
-			Eigen::VectorXd h;
-			Eigen::VectorXd surfaceFlux; //!< stores the surface flux values
-			Eigen::Vector4d boundary; //!< stores the boundary values from Danckwert boundary conditions
+				Eigen::VectorXd g;
+				Eigen::VectorXd h;
+				Eigen::VectorXd surfaceFlux; //!< stores the surface flux values
+				Eigen::Vector4d boundary; //!< stores the boundary values from Danckwert boundary conditions
 
-			//@TODO: unnecessary when binding model implementation is used
-			std::vector<double> adsorption;
-			std::vector<double> desorption;
-			std::vector<double> ADratio;
-			std::vector<bool> isKinetic;
-			std::string isotherm;
+				//@TODO: unnecessary when binding model implementation is used
+				std::vector<double> adsorption;
+				std::vector<double> desorption;
+				std::vector<double> ADratio;
+				std::vector<bool> isKinetic;
+				std::string isotherm;
 
-			/**
-			* @brief computes LGL nodes, integration weights, polynomial derivative matrix
-			*/
-			void initializeDG() {
+				/**
+				* @brief computes LGL nodes, integration weights, polynomial derivative matrix
+				*/
+				void initializeDG() {
 
-				nNodes = polyDeg + 1;
-				nPoints = nNodes * nCol;
-				// Allocate space for DG discretization
-				nodes.resize(nNodes);
-				nodes.setZero();
-				invWeights.resize(nNodes);
-				invWeights.setZero();
-				polyDerM.resize(nNodes, nNodes);
-				polyDerM.setZero();
-				invMM.resize(nNodes, nNodes);
-				invMM.setZero();
+					nNodes = polyDeg + 1;
+					nPoints = nNodes * nCol;
+					// Allocate space for DG discretization
+					nodes.resize(nNodes);
+					nodes.setZero();
+					invWeights.resize(nNodes);
+					invWeights.setZero();
+					polyDerM.resize(nNodes, nNodes);
+					polyDerM.setZero();
+					invMM.resize(nNodes, nNodes);
+					invMM.setZero();
 
-				g.resize(nPoints);
-				g.setZero();
-				h.resize(nPoints);
-				h.setZero();
-				boundary.setZero();
-				surfaceFlux.resize(nCol + 1);
-				surfaceFlux.setZero();
+					g.resize(nPoints);
+					g.setZero();
+					h.resize(nPoints);
+					h.setZero();
+					boundary.setZero();
+					surfaceFlux.resize(nCol + 1);
+					surfaceFlux.setZero();
 
-				// @TODO: binding model!
-				isKinetic.resize(nComp);
-				for (unsigned int comp = 0; comp < nComp; comp++) {
-					//coefs[comp] = MatrixXd::Zero(nSec, 4);
-					isKinetic[comp] = false;
+					// @TODO: binding model!
+					isKinetic.resize(nComp);
+					for (unsigned int comp = 0; comp < nComp; comp++) {
+						//coefs[comp] = MatrixXd::Zero(nSec, 4);
+						isKinetic[comp] = false;
+					}
+
+					lglNodesWeights();
+					// @TODO: make modal/nodal switch during calculation possible?
+					if (modal) {
+						derivativeMatrix_JACOBI();
+						invMMatrix_JACOBI();
+					}
+					else {
+						derivativeMatrix_LAGRANGE();
+						invMMatrix_JACOBI(); // modal/nodal switch
+					}
 				}
 
-				lglNodesWeights();
-				// @TODO: make modal/nodal switch during calculation possible?
-				if (modal) {
-					derivativeMatrix_JACOBI();
-					invMMatrix_JACOBI();
+			private:
+
+				/* ===================================================================================
+				*   Lagrange Basis operators and auxiliary functions
+				* =================================================================================== */
+
+				/**
+				* @brief computes the Legendre polynomial L_N and q = L_N+1 - L_N-2 and q' at point x
+				* @param [in] polyDeg polynomial degree of spatial Discretization
+				* @param [in] x evaluation point
+				* @param [in] L pre-allocated L(x)
+				* @param [in] q pre-allocated q(x)
+				* @param [in] qder pre-allocated q'(x)
+				*/
+				void qAndL(const double x, double& L, double& q, double& qder) {
+					// auxiliary variables (Legendre polynomials)
+					double L_2 = 1.0;
+					double L_1 = x;
+					double Lder_2 = 0.0;
+					double Lder_1 = 1.0;
+					double Lder = 0.0;
+					for (double k = 2; k <= polyDeg; k++) {
+						L = ((2 * k - 1) * x * L_1 - (k - 1) * L_2) / k;
+						Lder = Lder_2 + (2 * k - 1) * L_1;
+						L_2 = L_1;
+						L_1 = L;
+						Lder_2 = Lder_1;
+						Lder_1 = Lder;
+					}
+					q = ((2.0 * polyDeg + 1) * x * L - polyDeg * L_2) / (polyDeg + 1.0) - L_2;
+					qder = Lder_1 + (2.0 * polyDeg + 1) * L_1 - Lder_2;
 				}
-				else {
-					derivativeMatrix_LAGRANGE();
-					invMMatrix_JACOBI(); // modal/nodal switch
-				}
-			}
 
-		private:
-
-			/* ===================================================================================
-			*   Lagrange Basis operators and auxiliary functions
-			* =================================================================================== */
-
-			/**
-			* @brief computes the Legendre polynomial L_N and q = L_N+1 - L_N-2 and q' at point x
-			* @param [in] polyDeg polynomial degree of spatial Discretization
-			* @param [in] x evaluation point
-			* @param [in] L pre-allocated L(x)
-			* @param [in] q pre-allocated q(x)
-			* @param [in] qder pre-allocated q'(x)
-			*/
-			void qAndL(const double x, double& L, double& q, double& qder) {
-				// auxiliary variables (Legendre polynomials)
-				double L_2 = 1.0;
-				double L_1 = x;
-				double Lder_2 = 0.0;
-				double Lder_1 = 1.0;
-				double Lder = 0.0;
-				for (double k = 2; k <= polyDeg; k++) {
-					L = ((2 * k - 1) * x * L_1 - (k - 1) * L_2) / k;
-					Lder = Lder_2 + (2 * k - 1) * L_1;
-					L_2 = L_1;
-					L_1 = L;
-					Lder_2 = Lder_1;
-					Lder_1 = Lder;
-				}
-				q = ((2.0 * polyDeg + 1) * x * L - polyDeg * L_2) / (polyDeg + 1.0) - L_2;
-				qder = Lder_1 + (2.0 * polyDeg + 1) * L_1 - Lder_2;
-			}
-
-			/**
-			 * @brief computes and assigns the Legendre-Gauss nodes and (inverse) weights
-			 */
-			void lglNodesWeights() {
-				// tolerance and max #iterations for Newton iteration
-				int nIterations = 10;
-				double tolerance = 1e-15;
-				// Legendre polynomial and derivative
-				double L = 0;
-				double q = 0;
-				double qder = 0;
-				switch (polyDeg) {
-				case 0:
-					throw std::invalid_argument("Polynomial degree must be at least 1 !");
-					break;
-				case 1:
-					nodes[0] = -1;
-					invWeights[0] = 1;
-					nodes[1] = 1;
-					invWeights[1] = 1;
-					break;
-				default:
-					nodes[0] = -1;
-					nodes[polyDeg] = 1;
-					invWeights[0] = 2.0 / (polyDeg * (polyDeg + 1.0));
-					invWeights[polyDeg] = invWeights[0];
-					// use symmetrie, only compute half of points and weights
-					for (unsigned int j = 1; j <= floor((polyDeg + 1) / 2) - 1; j++) {
-						//  first guess for Newton iteration
-						nodes[j] = -cos(M_PI * (j + 0.25) / polyDeg - 3 / (8.0 * polyDeg * M_PI * (j + 0.25)));
-						// Newton iteration to find roots of Legendre Polynomial
-						for (unsigned int k = 0; k <= nIterations; k++) {
+				/**
+				 * @brief computes and assigns the Legendre-Gauss nodes and (inverse) weights
+				 */
+				void lglNodesWeights() {
+					// tolerance and max #iterations for Newton iteration
+					int nIterations = 10;
+					double tolerance = 1e-15;
+					// Legendre polynomial and derivative
+					double L = 0;
+					double q = 0;
+					double qder = 0;
+					switch (polyDeg) {
+					case 0:
+						throw std::invalid_argument("Polynomial degree must be at least 1 !");
+						break;
+					case 1:
+						nodes[0] = -1;
+						invWeights[0] = 1;
+						nodes[1] = 1;
+						invWeights[1] = 1;
+						break;
+					default:
+						nodes[0] = -1;
+						nodes[polyDeg] = 1;
+						invWeights[0] = 2.0 / (polyDeg * (polyDeg + 1.0));
+						invWeights[polyDeg] = invWeights[0];
+						// use symmetrie, only compute half of points and weights
+						for (unsigned int j = 1; j <= floor((polyDeg + 1) / 2) - 1; j++) {
+							//  first guess for Newton iteration
+							nodes[j] = -cos(M_PI * (j + 0.25) / polyDeg - 3 / (8.0 * polyDeg * M_PI * (j + 0.25)));
+							// Newton iteration to find roots of Legendre Polynomial
+							for (unsigned int k = 0; k <= nIterations; k++) {
+								qAndL(nodes[j], L, q, qder);
+								nodes[j] = nodes[j] - q / qder;
+								if (abs(q / qder) <= tolerance * abs(nodes[j])) {
+									break;
+								}
+							}
+							// calculate weights
 							qAndL(nodes[j], L, q, qder);
-							nodes[j] = nodes[j] - q / qder;
-							if (abs(q / qder) <= tolerance * abs(nodes[j])) {
-								break;
+							invWeights[j] = 2.0 / (polyDeg * (polyDeg + 1.0) * pow(L, 2.0));
+							nodes[polyDeg - j] = -nodes[j]; // copy to second half of points and weights
+							invWeights[polyDeg - j] = invWeights[j];
+						}
+					}
+					if (polyDeg % 2 == 0) { // for even polyDeg we have an odd number of points which include 0.0
+						qAndL(0.0, L, q, qder);
+						nodes[polyDeg / 2] = 0;
+						invWeights[polyDeg / 2] = 2.0 / (polyDeg * (polyDeg + 1.0) * pow(L, 2.0));
+					}
+					// inverse the weights
+					invWeights = invWeights.cwiseInverse();
+				}
+
+				/**
+				 * @brief computation of barycentric weights for fast polynomial evaluation
+				 * @param [in] weights pre-allocated vector for barycentric weights. Must be set to ones!
+				 */
+				void barycentricWeights(VectorXd& baryWeights) {
+					for (unsigned int j = 1; j <= polyDeg; j++) {
+						for (unsigned int k = 0; k <= j - 1; k++) {
+							baryWeights[k] = baryWeights[k] * (nodes[k] - nodes[j]) * 1.0;
+							baryWeights[j] = baryWeights[j] * (nodes[j] - nodes[k]) * 1.0;
+						}
+					}
+					for (unsigned int j = 0; j <= polyDeg; j++) {
+						baryWeights[j] = 1 / baryWeights[j];
+					}
+				}
+
+				/**
+				 * @brief computation of LAGRANGE polynomial derivative matrix
+				 */
+				void derivativeMatrix_LAGRANGE() {
+					VectorXd baryWeights = VectorXd::Ones(polyDeg + 1u);
+					barycentricWeights(baryWeights);
+					for (unsigned int i = 0; i <= polyDeg; i++) {
+						for (unsigned int j = 0; j <= polyDeg; j++) {
+							if (i != j) {
+								polyDerM(i, j) = baryWeights[j] / (baryWeights[i] * (nodes[i] - nodes[j]));
+								polyDerM(i, i) += -polyDerM(i, j);
 							}
 						}
-						// calculate weights
-						qAndL(nodes[j], L, q, qder);
-						invWeights[j] = 2.0 / (polyDeg * (polyDeg + 1.0) * pow(L, 2.0));
-						nodes[polyDeg - j] = -nodes[j]; // copy to second half of points and weights
-						invWeights[polyDeg - j] = invWeights[j];
 					}
 				}
-				if (polyDeg % 2 == 0) { // for even polyDeg we have an odd number of points which include 0.0
-					qAndL(0.0, L, q, qder);
-					nodes[polyDeg / 2] = 0;
-					invWeights[polyDeg / 2] = 2.0 / (polyDeg * (polyDeg + 1.0) * pow(L, 2.0));
-				}
-				// inverse the weights
-				invWeights = invWeights.cwiseInverse();
-			}
 
-			/**
-			 * @brief computation of barycentric weights for fast polynomial evaluation
-			 * @param [in] weights pre-allocated vector for barycentric weights. Must be set to ones!
-			 */
-			void barycentricWeights(VectorXd& baryWeights) {
-				for (unsigned int j = 1; j <= polyDeg; j++) {
-					for (unsigned int k = 0; k <= j - 1; k++) {
-						baryWeights[k] = baryWeights[k] * (nodes[k] - nodes[j]) * 1.0;
-						baryWeights[j] = baryWeights[j] * (nodes[j] - nodes[k]) * 1.0;
+				/* ===================================================================================
+				*   Jacobi Basis operators and auxiliary functions
+				* =================================================================================== */
+
+				/*
+				* @brief computation of normalized Jacobi polynomial P of order N at nodes x
+				*/
+				void jacobiPolynomial(const double alpha, const double beta, const int N, MatrixXd& P, int index) {
+					// factor needed to normalize the Jacobi polynomial using the gamma function
+					double gamma0 = std::pow(2.0, alpha + beta + 1.0) / (alpha + beta + 1.0) * std::tgamma(alpha + 1.0) * std::tgamma(beta + 1) / std::tgamma(alpha + beta + 1);
+					MatrixXd PL(N + 1, nodes.size());
+					for (unsigned int i = 0; i < nodes.size(); ++i) {
+						PL(0, i) = 1.0 / std::sqrt(gamma0);
+					}
+					if (N == 0) {
+						for (unsigned int i = 0; i < nodes.size(); ++i) {
+							P(i, index) = PL(0, i);
+						}
+						return;
+					}
+					double gamma1 = (alpha + 1) * (beta + 1) / (alpha + beta + 3) * gamma0;
+					for (unsigned int i = 0; i < nodes.size(); ++i) {
+						PL(1, i) = ((alpha + beta + 2) * nodes(i) / 2 + (alpha - beta) / 2) / std::sqrt(gamma1);
+					}
+					if (N == 1) {
+						for (unsigned int i = 0; i < nodes.size(); ++i) {
+							P(i, index) = PL(1, i);
+						}
+						return;
+					}
+					double a = 2.0 / (2.0 + alpha + beta) * std::sqrt((alpha + 1) * (beta + 1) / (alpha + beta + 3));
+					for (unsigned int i = 0; i < N - 1; ++i) {
+						double j = i + 1.0;
+						double h1 = 2.0 * (i + 1.0) + alpha + beta;
+						double a_aux = 2.0 / (h1 + 2.0) * std::sqrt((j + 1.0) * (j + 1.0 + alpha + beta) * (j + 1.0 + alpha) * (j + 1.0 + beta) / (h1 + 1) / (h1 + 3));
+						double b = -(std::pow(alpha, 2) - std::pow(beta, 2)) / h1 / (h1 + 2);
+
+						for (unsigned int k = 0; k < nodes.size(); ++k) {
+							PL(i + 2, k) = 1 / a_aux * (-a * PL(i, k) + (nodes(k) - b) * PL(i + 1, k));
+						}
+						a = a_aux;
+					}
+					for (unsigned int i = 0; i < nodes.size(); ++i) {
+						P(i, index) = PL(N, i);
 					}
 				}
-				for (unsigned int j = 0; j <= polyDeg; j++) {
-					baryWeights[j] = 1 / baryWeights[j];
-				}
-			}
 
-			/**
-			 * @brief computation of LAGRANGE polynomial derivative matrix
-			 */
-			void derivativeMatrix_LAGRANGE() {
-				VectorXd baryWeights = VectorXd::Ones(polyDeg + 1u);
-				barycentricWeights(baryWeights);
-				for (unsigned int i = 0; i <= polyDeg; i++) {
-					for (unsigned int j = 0; j <= polyDeg; j++) {
-						if (i != j) {
-							polyDerM(i, j) = baryWeights[j] / (baryWeights[i] * (nodes[i] - nodes[j]));
-							polyDerM(i, i) += -polyDerM(i, j);
+				/**
+				* @brief returns generalized Jacobi Vandermonde matrix
+				* @detail normalized Legendre Vandermonde matrix
+				*/
+				MatrixXd getVandermonde_JACOBI() {
+
+					MatrixXd V(nodes.size(), nodes.size());
+
+					for (unsigned int j = 0; j < V.cols(); ++j) {
+						// legendre polynomial: alpha = beta = 0.0
+						jacobiPolynomial(0.0, 0.0, j, V, j);
+					}
+					return V;
+				}
+
+				/*
+				* @brief computes the gradient vandermonde matrix of orthonormal Legendre polynomials
+				* @V_x [in] pre-allocated gradient Vandermonde matrix
+				*/
+				void GradVandermonde(MatrixXd& V_x) {
+					// Legendre polynomial
+					double alpha = 0.0;
+					double beta = 0.0;
+
+					for (unsigned int order = 1; order < nodes.size(); order++) {
+						jacobiPolynomial(alpha + 1, beta + 1, order - 1, V_x, order);
+						V_x.block(0, order, V_x.rows(), 1) *= std::sqrt(order * (order + alpha + beta + 1));
+					}
+				}
+
+				//@TODO?: Not needed? as the D matrix is (approx) the same as for the nodal approach ! (and computed without matrix inversion or linear solve)
+				//        D_nod is approx D_mod to 1e-14 but not up to std::numeric_limits<double>::epsilon()... relevant ?
+				/**
+				 * @brief computes the Jacobi polynomial derivative matrix D
+				 * @detail computes the normalized Legendre polynomial derivative matrix D
+				 */
+				void derivativeMatrix_JACOBI() {
+
+					// Compute the gradient Vandermonde matrix and transpose
+					const int Np = nodes.size();
+					GradVandermonde(polyDerM);
+					MatrixXd V_xT = polyDerM.transpose();
+
+					// Instead of using matrix inversion, solve the linear systems to obtain D using SVD decomposition (slow but accurate)
+					for (unsigned int i = 0; i < Np; ++i) {
+						polyDerM.block(i, 0, 1, Np) = (getVandermonde_JACOBI().transpose().jacobiSvd(Eigen::ComputeFullU |
+							Eigen::ComputeFullV).solve(V_xT.block(0, i, Np, 1))).transpose();
+					}
+				}
+
+				/**
+				* @brief returns Jacobi polynomial induced mass matrix
+				* @detail returns normalized Legendre polynomial induced mass matrix
+				* @param [in] nodes (LGL)
+				*/
+				void invMMatrix_JACOBI() {
+					invMM = (getVandermonde_JACOBI() * (getVandermonde_JACOBI().transpose()));
+				}
+
+			};
+
+			Discretization _disc; //!< Discretization info
+
+		//	IExternalFunction* _extFun; //!< External function (owned by library user) @TODO: what for, inlet?
+
+			// TODO: DG ConvDisp implementation
+			parts::ConvectionDispersionOperatorBase _convDispOp; //!< Convection dispersion operator for interstitial volume transport
+
+			Eigen::SparseMatrix<double> _jac; //!< Jacobian
+			Eigen::SparseMatrix<double> _jacDisc; //!< Jacobian with time derivatives from BDF method
+			Eigen::MatrixXd _jacInlet; //!< Jacobian inlet DOF block matrix connects inlet DOFs to first bulk cells
+
+			active _totalPorosity; //!< Total porosity \f$ \varepsilon_t \f$
+
+			bool _analyticJac; //!< Determines whether AD or analytic Jacobians are used
+			unsigned int _jacobianAdDirs; //!< Number of AD seed vectors required for Jacobian computation
+			// TODO: factorization for DG jacobian?
+			bool _factorizeJacobian; //!< Determines whether the Jacobian needs to be factorized
+			double* _tempState; //!< Temporary storage with the size of the state vector or larger if binding models require it
+
+			std::vector<active> _initC; //!< Liquid phase initial conditions
+			std::vector<active> _initQ; //!< Solid phase initial conditions
+			std::vector<double> _initState; //!< Initial conditions for state vector if given
+			std::vector<double> _initStateDot; //!< Initial conditions for time derivative
+
+			BENCH_TIMER(_timerResidual)
+				BENCH_TIMER(_timerResidualPar)
+				BENCH_TIMER(_timerResidualSens)
+				BENCH_TIMER(_timerResidualSensPar)
+				BENCH_TIMER(_timerConsistentInit)
+				BENCH_TIMER(_timerConsistentInitPar)
+				BENCH_TIMER(_timerLinearSolve)
+
+				class Indexer
+			{
+			public:
+				Indexer(const Discretization& disc) : _disc(disc) { }
+
+				// Strides
+				inline int strideColNode() const CADET_NOEXCEPT { return static_cast<int>(_disc.nComp + _disc.strideBound); }
+				inline int strideColCell() const CADET_NOEXCEPT { return static_cast<int>(_disc.nNodes * strideColNode()); }
+				inline int strideColComp() const CADET_NOEXCEPT { return 1; }
+
+				inline int strideColLiquid() const CADET_NOEXCEPT { return static_cast<int>(_disc.nComp); }
+				inline int strideColBound() const CADET_NOEXCEPT { return static_cast<int>(_disc.strideBound); }
+
+				// Offsets
+				inline int offsetC() const CADET_NOEXCEPT { return _disc.nComp; }
+				inline int offsetBoundComp(unsigned int comp) const CADET_NOEXCEPT { return _disc.boundOffset[comp]; }
+
+				// Return pointer to first element of state variable in state vector
+				template <typename real_t> inline real_t* c(real_t* const data) const { return data + offsetC(); }
+				template <typename real_t> inline real_t const* c(real_t const* const data) const { return data + offsetC(); }
+
+				template <typename real_t> inline real_t* q(real_t* const data) const { return data + offsetC() + strideColLiquid(); }
+				template <typename real_t> inline real_t const* q(real_t const* const data) const { return data + offsetC() + strideColLiquid(); }
+
+				// Return specific variable in state vector
+				template <typename real_t> inline real_t& c(real_t* const data, unsigned int node, unsigned int comp) const { return data[offsetC() + comp * strideColComp() + node * strideColNode()]; }
+				template <typename real_t> inline const real_t& c(real_t const* const data, unsigned int node, unsigned int comp) const { return data[offsetC() + comp * strideColComp() + node * strideColNode()]; }
+
+			protected:
+				const Discretization& _disc;
+			};
+
+			class Exporter : public ISolutionExporter
+			{
+			public:
+
+				Exporter(const Discretization& disc, const LumpedRateModelWithoutPoresDG& model, double const* data) : _disc(disc), _idx(disc), _model(model), _data(data) { }
+				Exporter(const Discretization&& disc, const LumpedRateModelWithoutPoresDG& model, double const* data) = delete;
+
+				virtual bool hasParticleFlux() const CADET_NOEXCEPT { return false; }
+				virtual bool hasParticleMobilePhase() const CADET_NOEXCEPT { return false; }
+				virtual bool hasSolidPhase() const CADET_NOEXCEPT { return _disc.strideBound > 0; }
+				virtual bool hasVolume() const CADET_NOEXCEPT { return false; }
+
+				virtual unsigned int numComponents() const CADET_NOEXCEPT { return _disc.nComp; }
+				// @TODO?? actually we need number of axial discrete points here, not number of axial cells !
+				virtual unsigned int numAxialCells() const CADET_NOEXCEPT { return _disc.nCol * _disc.nNodes; }
+				virtual unsigned int numRadialCells() const CADET_NOEXCEPT { return 0; }
+				virtual unsigned int numInletPorts() const CADET_NOEXCEPT { return 1; }
+				virtual unsigned int numOutletPorts() const CADET_NOEXCEPT { return 1; }
+				virtual unsigned int numParticleTypes() const CADET_NOEXCEPT { return 1u; }
+				virtual unsigned int numParticleShells(unsigned int parType) const CADET_NOEXCEPT { return 0u; }
+				virtual unsigned int numBoundStates(unsigned int parType) const CADET_NOEXCEPT { return _disc.strideBound; }
+				virtual unsigned int numBulkDofs() const CADET_NOEXCEPT { return _disc.nComp * _disc.nPoints; }
+				virtual unsigned int numParticleMobilePhaseDofs(unsigned int parType) const CADET_NOEXCEPT { return 0u; }
+				virtual unsigned int numSolidPhaseDofs(unsigned int parType) const CADET_NOEXCEPT { return _disc.strideBound * _disc.nPoints; }
+				virtual unsigned int numFluxDofs() const CADET_NOEXCEPT { return 0u; }
+				virtual unsigned int numVolumeDofs() const CADET_NOEXCEPT { return 0u; }
+
+				virtual double const* concentration() const { return _idx.c(_data); }
+				virtual double const* flux() const { return nullptr; }
+				virtual double const* particleMobilePhase(unsigned int parType) const { return nullptr; }
+				virtual double const* solidPhase(unsigned int parType) const { return _idx.q(_data); }
+				virtual double const* volume() const { return nullptr; }
+				virtual double const* inlet(unsigned int port, unsigned int& stride) const
+				{
+					stride = _idx.strideColComp();
+					return _data;
+				}
+				virtual double const* outlet(unsigned int port, unsigned int& stride) const
+				{
+					stride = _idx.strideColComp();
+					if (_model._convDispOp.currentVelocity() >= 0)
+						return &_idx.c(_data, _disc.nPoints - 1, 0);
+					else
+						return &_idx.c(_data, 0, 0);
+				}
+
+				virtual StateOrdering const* concentrationOrdering(unsigned int& len) const
+				{
+					len = _concentrationOrdering.size();
+					return _concentrationOrdering.data();
+				}
+
+				virtual StateOrdering const* fluxOrdering(unsigned int& len) const
+				{
+					len = 0;
+					return nullptr;
+				}
+
+				virtual StateOrdering const* mobilePhaseOrdering(unsigned int& len) const
+				{
+					len = 0;
+					return nullptr;
+				}
+
+				virtual StateOrdering const* solidPhaseOrdering(unsigned int& len) const
+				{
+					len = _solidOrdering.size();
+					return _solidOrdering.data();
+				}
+
+				virtual unsigned int bulkMobilePhaseStride() const { return _idx.strideColNode(); }
+				virtual unsigned int particleMobilePhaseStride(unsigned int parType) const { return 0; }
+				virtual unsigned int solidPhaseStride(unsigned int parType) const { return _idx.strideColNode(); }
+
+				/**
+				*@brief calculates the physical node coordinates of DG discretization with double! interface nodes
+				*/
+				virtual void axialCoordinates(double* coords) const {
+					VectorXd x_l = VectorXd::LinSpaced(_disc.nCol + 1u, 0.0, _disc.length_);
+					for (unsigned int i = 0; i < _disc.nCol; i++) {
+						for (unsigned int j = 0; j < _disc.nNodes; j++) {
+							// mapping 
+							coords[i * _disc.nNodes + j] = x_l[i] + 0.5 * (_disc.length_ / static_cast<double>(_disc.nCol)) * (1.0 + _disc.nodes[j]);
 						}
 					}
 				}
-			}
 
-			/* ===================================================================================
-			*   Jacobi Basis operators and auxiliary functions
-			* =================================================================================== */
+				virtual void radialCoordinates(double* coords) const { }
+				virtual void particleCoordinates(unsigned int parType, double* coords) const { }
 
-			/*
-			* @brief computation of normalized Jacobi polynomial P of order N at nodes x
-			*/
-			void jacobiPolynomial(const double alpha, const double beta, const int N, MatrixXd& P, int index) {
-				// factor needed to normalize the Jacobi polynomial using the gamma function
-				double gamma0 = std::pow(2.0, alpha + beta + 1.0) / (alpha + beta + 1.0) * std::tgamma(alpha + 1.0) * std::tgamma(beta + 1) / std::tgamma(alpha + beta + 1);
-				MatrixXd PL(N + 1, nodes.size());
-				for (unsigned int i = 0; i < nodes.size(); ++i) {
-					PL(0, i) = 1.0 / std::sqrt(gamma0);
-				}
-				if (N == 0) {
-					for (unsigned int i = 0; i < nodes.size(); ++i) {
-						P(i, index) = PL(0, i);
-					}
-					return;
-				}
-				double gamma1 = (alpha + 1) * (beta + 1) / (alpha + beta + 3) * gamma0;
-				for (unsigned int i = 0; i < nodes.size(); ++i) {
-					PL(1, i) = ((alpha + beta + 2) * nodes(i) / 2 + (alpha - beta) / 2) / std::sqrt(gamma1);
-				}
-				if (N == 1) {
-					for (unsigned int i = 0; i < nodes.size(); ++i) {
-						P(i, index) = PL(1, i);
-					}
-					return;
-				}
-				double a = 2.0 / (2.0 + alpha + beta) * std::sqrt((alpha + 1) * (beta + 1) / (alpha + beta + 3));
-				for (unsigned int i = 0; i < N - 1; ++i) {
-					double j = i + 1.0;
-					double h1 = 2.0 * (i + 1.0) + alpha + beta;
-					double a_aux = 2.0 / (h1 + 2.0) * std::sqrt((j + 1.0) * (j + 1.0 + alpha + beta) * (j + 1.0 + alpha) * (j + 1.0 + beta) / (h1 + 1) / (h1 + 3));
-					double b = -(std::pow(alpha, 2) - std::pow(beta, 2)) / h1 / (h1 + 2);
+			protected:
+				const Discretization& _disc;
+				const Indexer _idx;
+				const LumpedRateModelWithoutPoresDG& _model;
+				double const* const _data;
 
-					for (unsigned int k = 0; k < nodes.size(); ++k) {
-						PL(i + 2, k) = 1 / a_aux * (-a * PL(i, k) + (nodes(k) - b) * PL(i + 1, k));
-					}
-					a = a_aux;
-				}
-				for (unsigned int i = 0; i < nodes.size(); ++i) {
-					P(i, index) = PL(N, i);
-				}
-			}
+				const std::array<StateOrdering, 2> _concentrationOrdering = { { StateOrdering::AxialCell, StateOrdering::Component } };
+				const std::array<StateOrdering, 3> _solidOrdering = { { StateOrdering::AxialCell, StateOrdering::Component, StateOrdering::BoundState } };
+			};
+
+
+
+			// ==========================================================================================================================================================  //
+			// ==========================================================================================================================================================  //
+			// ========================================						DG Residual, RHS						======================================================  //
+			// ==========================================================================================================================================================  //
+			// ==========================================================================================================================================================  //
 
 			/**
-			* @brief returns generalized Jacobi Vandermonde matrix
-			* @detail normalized Legendre Vandermonde matrix
+			* @brief calculates the volume Integral of the auxiliary equation
+			* @param [in] current state vector
+			* @param [in] stateDer vector to be changed
+			* @param [in] aux true if auxiliary, else main equation
 			*/
-			MatrixXd getVandermonde_JACOBI() {
-
-				MatrixXd V(nodes.size(), nodes.size());
-
-				for (unsigned int j = 0; j < V.cols(); ++j) {
-					// legendre polynomial: alpha = beta = 0.0
-					jacobiPolynomial(0.0, 0.0, j, V, j);
+			void volumeIntegral(Discretization& disc, Eigen::Map<const VectorXd, 0, InnerStride<Dynamic>>& state, Eigen::Map<VectorXd, 0, InnerStride<Dynamic>>& stateDer) {
+				// comp-cell-node state vector: use of Eigen lib performance
+				for (unsigned int Cell = 0; Cell < disc.nCol; Cell++) {
+					stateDer.segment(Cell * disc.nNodes, disc.nNodes)
+						-= disc.polyDerM * state.segment(Cell * disc.nNodes, disc.nNodes);
 				}
-				return V;
 			}
 
 			/*
-			* @brief computes the gradient vandermonde matrix of orthonormal Legendre polynomials
-			* @V_x [in] pre-allocated gradient Vandermonde matrix
+			* @brief calculates the interface fluxes h* of Convection Dispersion equation
 			*/
-			void GradVandermonde(MatrixXd& V_x) {
-				// Legendre polynomial
-				double alpha = 0.0;
-				double beta = 0.0;
+			void InterfaceFlux(Eigen::Map<const VectorXd, 0, InnerStride<Dynamic>>& C, const VectorXd& g, Discretization& disc, unsigned int secIdx) {
 
-				for (unsigned int order = 1; order < nodes.size(); order++) {
-					jacobiPolynomial(alpha + 1, beta + 1, order - 1, V_x, order);
-					V_x.block(0, order, V_x.rows(), 1) *= std::sqrt(order * (order + alpha + beta + 1));
+				// component-wise strides
+				unsigned int strideCell = _disc.nNodes;
+				unsigned int strideNode = 1u;
+
+				// Conv.Disp. flux: h* = h*_conv + h*_disp = numFlux(v c_l, v c_r) + 0.5 sqrt(D_ax) (S_l + S_r)
+
+				// calculate inner interface fluxes
+				for (unsigned int Cell = 1; Cell < disc.nCol; Cell++) {
+					// h* = h*_conv + h*_disp
+					disc.surfaceFlux[Cell] // inner interfaces
+						= disc.velocity[secIdx] * (C[Cell * strideCell - strideNode])
+						- 0.5 * std::sqrt(disc.dispersion[secIdx]) * (g[Cell * strideCell - strideNode] // left cell
+							+ g[Cell * strideCell]);
 				}
+
+				// boundary fluxes
+					// left boundary interface
+				disc.surfaceFlux[0]
+					= disc.velocity[secIdx] * disc.boundary[0];
+
+				// right boundary interface
+				disc.surfaceFlux[disc.nCol]
+					= disc.velocity[secIdx] * (C[disc.nCol * strideCell - strideNode])
+					- std::sqrt(disc.dispersion[secIdx]) * 0.5 * (g[disc.nCol * strideCell - strideNode] // last cell last node
+						+ disc.boundary[3]); // right boundary value S
 			}
 
-			//@TODO?: Not needed? as the D matrix is (approx) the same as for the nodal approach ! (and computed without matrix inversion or linear solve)
-			//        D_nod is approx D_mod to 1e-14 but not up to std::numeric_limits<double>::epsilon()... relevant ?
 			/**
-			 * @brief computes the Jacobi polynomial derivative matrix D
-			 * @detail computes the normalized Legendre polynomial derivative matrix D
-			 */
-			void derivativeMatrix_JACOBI() {
+			* @brief calculates and fills the surface flux values for auxiliary equation
+			* @param [in] aux true if auxiliary, else main equation
+			*/
+			void InterfaceFluxAuxiliary(Eigen::Map<const VectorXd, 0, InnerStride<Dynamic>>& C, Discretization& disc) {
 
-				// Compute the gradient Vandermonde matrix and transpose
-				const int Np = nodes.size();
-				GradVandermonde(polyDerM);
-				MatrixXd V_xT = polyDerM.transpose();
+				// component-wise strides
+				unsigned int strideCell = _disc.nNodes;
+				unsigned int strideNode = 1u;
 
-				// Instead of using matrix inversion, solve the linear systems to obtain D using SVD decomposition (slow but accurate)
-				for (unsigned int i = 0; i < Np; ++i) {
-					polyDerM.block(i, 0, 1, Np) = (getVandermonde_JACOBI().transpose().jacobiSvd(Eigen::ComputeFullU |
-						Eigen::ComputeFullV).solve(V_xT.block(0, i, Np, 1))).transpose();
+				// Auxiliary flux: c* = 0.5 (c_l + c_r)
+
+				// calculate inner interface fluxes
+				for (unsigned int Cell = 1; Cell < disc.nCol; Cell++) {
+					disc.surfaceFlux[Cell] // left interfaces
+						= 0.5 * (C[Cell * strideCell - strideNode] + // left node
+							C[Cell * strideCell]); // right node
 				}
+				// calculate boundary interface fluxes
+
+				disc.surfaceFlux[0] // left boundary interface
+					= 0.5 * (C[0] + // boundary value
+						C[0]); // first cell first node
+
+				disc.surfaceFlux[(disc.nCol)] // right boundary interface
+					= 0.5 * (C[disc.nCol * strideCell - strideNode] + // last cell last node
+						C[disc.nCol * strideCell - strideNode]);// // boundary value
 			}
 
 			/**
-			* @brief returns Jacobi polynomial induced mass matrix
-			* @detail returns normalized Legendre polynomial induced mass matrix
-			* @param [in] nodes (LGL)
-			*/
-			void invMMatrix_JACOBI() {
-				invMM = (getVandermonde_JACOBI() * (getVandermonde_JACOBI().transpose()));
-			}
+			* @brief calculates the surface Integral, depending on the approach (modal/nodal)
+			* @param [in] state relevant state vector
+			* @param [in] stateDer state derivative vector the solution is added to
+			* @param [in] aux true for auxiliary, false for main equation
+				surfaceIntegral(cPtr, &(disc.g[0]), disc,&(disc.h[0]), resPtrC, 0, secIdx);
+			*/ // 
+			void surfaceIntegral(Eigen::Map<const VectorXd, 0, InnerStride<Dynamic>>& C, Discretization& disc, Eigen::Map<const VectorXd, 0, InnerStride<Dynamic>>& state, Eigen::Map<VectorXd, 0, InnerStride<Dynamic>>& stateDer, bool aux, unsigned int secIdx) {
 
-		};
+				// component-wise strides
+				unsigned int strideCell = _disc.nNodes;
+				unsigned int strideNode = 1u;
 
-		Discretization _disc; //!< Discretization info
-
-	//	IExternalFunction* _extFun; //!< External function (owned by library user) @TODO: what for, inlet?
-
-		// TODO: DG ConvDisp implementation
-		parts::ConvectionDispersionOperatorBase _convDispOp; //!< Convection dispersion operator for interstitial volume transport
-
-		Eigen::SparseMatrix<double> _jac; //!< Jacobian
-		Eigen::SparseMatrix<double> _jacDisc; //!< Jacobian with time derivatives from BDF method
-		Eigen::MatrixXd _jacInlet; //!< Jacobian inlet DOF block matrix connects inlet DOFs to first bulk cells
-
-		active _totalPorosity; //!< Total porosity \f$ \varepsilon_t \f$
-
-		bool _analyticJac; //!< Determines whether AD or analytic Jacobians are used
-		unsigned int _jacobianAdDirs; //!< Number of AD seed vectors required for Jacobian computation
-		// TODO: factorization for DG jacobian?
-		bool _factorizeJacobian; //!< Determines whether the Jacobian needs to be factorized
-		double* _tempState; //!< Temporary storage with the size of the state vector or larger if binding models require it
-
-		std::vector<active> _initC; //!< Liquid phase initial conditions
-		std::vector<active> _initQ; //!< Solid phase initial conditions
-		std::vector<double> _initState; //!< Initial conditions for state vector if given
-		std::vector<double> _initStateDot; //!< Initial conditions for time derivative
-
-		BENCH_TIMER(_timerResidual)
-			BENCH_TIMER(_timerResidualPar)
-			BENCH_TIMER(_timerResidualSens)
-			BENCH_TIMER(_timerResidualSensPar)
-			BENCH_TIMER(_timerConsistentInit)
-			BENCH_TIMER(_timerConsistentInitPar)
-			BENCH_TIMER(_timerLinearSolve)
-
-			class Indexer
-		{
-		public:
-			Indexer(const Discretization& disc) : _disc(disc) { }
-
-			// Strides
-			inline int strideColNode() const CADET_NOEXCEPT { return static_cast<int>(_disc.nComp); }
-			inline int strideColCell() const CADET_NOEXCEPT { return static_cast<int>(_disc.nNodes * strideColNode()); }
-			inline int strideColComp() const CADET_NOEXCEPT { return 1; }
-
-			inline int strideColLiquid() const CADET_NOEXCEPT { return static_cast<int>(_disc.nComp * _disc.nPoints); }
-			inline int strideColBound() const CADET_NOEXCEPT { return 1; }
-
-			// Offsets
-			inline int offsetC() const CADET_NOEXCEPT { return _disc.nComp; }
-			inline int offsetBoundComp(unsigned int comp) const CADET_NOEXCEPT { return _disc.boundOffset[comp]; }
-
-			// Return pointer to first element of state variable in state vector
-			template <typename real_t> inline real_t* c(real_t* const data) const { return data + offsetC(); }
-			template <typename real_t> inline real_t const* c(real_t const* const data) const { return data + offsetC(); }
-
-			template <typename real_t> inline real_t* q(real_t* const data) const { return data + offsetC() + strideColLiquid(); }
-			template <typename real_t> inline real_t const* q(real_t const* const data) const { return data + offsetC() + strideColLiquid(); }
-
-			// Return specific variable in state vector
-			template <typename real_t> inline real_t& c(real_t* const data, unsigned int node, unsigned int comp) const { return data[offsetC() + comp * strideColComp() + node * strideColNode()]; }
-			template <typename real_t> inline const real_t& c(real_t const* const data, unsigned int node, unsigned int comp) const { return data[offsetC() + comp * strideColComp() + node * strideColNode()]; }
-
-		protected:
-			const Discretization& _disc;
-		};
-
-		class Exporter : public ISolutionExporter
-		{
-		public:
-
-			Exporter(const Discretization& disc, const LumpedRateModelWithoutPoresDG& model, double const* data) : _disc(disc), _idx(disc), _model(model), _data(data) { }
-			Exporter(const Discretization&& disc, const LumpedRateModelWithoutPoresDG& model, double const* data) = delete;
-
-			virtual bool hasParticleFlux() const CADET_NOEXCEPT { return false; }
-			virtual bool hasParticleMobilePhase() const CADET_NOEXCEPT { return false; }
-			virtual bool hasSolidPhase() const CADET_NOEXCEPT { return _disc.strideBound > 0; }
-			virtual bool hasVolume() const CADET_NOEXCEPT { return false; }
-
-			virtual unsigned int numComponents() const CADET_NOEXCEPT { return _disc.nComp; }
-			// @TODO?? actually we need number of axial discrete points here, not number of axial cells !
-			virtual unsigned int numAxialCells() const CADET_NOEXCEPT { return _disc.nCol * _disc.nNodes; }
-			virtual unsigned int numRadialCells() const CADET_NOEXCEPT { return 0; }
-			virtual unsigned int numInletPorts() const CADET_NOEXCEPT { return 1; }
-			virtual unsigned int numOutletPorts() const CADET_NOEXCEPT { return 1; }
-			virtual unsigned int numParticleTypes() const CADET_NOEXCEPT { return 1u; }
-			virtual unsigned int numParticleShells(unsigned int parType) const CADET_NOEXCEPT { return 0u; }
-			virtual unsigned int numBoundStates(unsigned int parType) const CADET_NOEXCEPT { return _disc.strideBound; }
-			virtual unsigned int numBulkDofs() const CADET_NOEXCEPT { return _disc.nComp * _disc.nCol * _disc.nNodes; }
-			virtual unsigned int numParticleMobilePhaseDofs(unsigned int parType) const CADET_NOEXCEPT { return 0u; }
-			virtual unsigned int numSolidPhaseDofs(unsigned int parType) const CADET_NOEXCEPT { return _disc.strideBound * _disc.nCol * _disc.nNodes; }
-			virtual unsigned int numFluxDofs() const CADET_NOEXCEPT { return 0u; }
-			virtual unsigned int numVolumeDofs() const CADET_NOEXCEPT { return 0u; }
-
-			virtual double const* concentration() const { return _idx.c(_data); }
-			virtual double const* flux() const { return nullptr; }
-			virtual double const* particleMobilePhase(unsigned int parType) const { return nullptr; }
-			virtual double const* solidPhase(unsigned int parType) const { return _idx.q(_data); }
-			virtual double const* volume() const { return nullptr; }
-			virtual double const* inlet(unsigned int port, unsigned int& stride) const
-			{
-				stride = _idx.strideColComp();
-				return _data;
-			}
-			virtual double const* outlet(unsigned int port, unsigned int& stride) const
-			{
-				stride = _idx.strideColComp();
-				if (_model._convDispOp.currentVelocity() >= 0)
-					return &_idx.c(_data, _disc.nPoints - 1, 0);
-				else
-					return &_idx.c(_data, 0, 0);
-			}
-
-			virtual StateOrdering const* concentrationOrdering(unsigned int& len) const
-			{
-				len = _concentrationOrdering.size();
-				return _concentrationOrdering.data();
-			}
-
-			virtual StateOrdering const* fluxOrdering(unsigned int& len) const
-			{
-				len = 0;
-				return nullptr;
-			}
-
-			virtual StateOrdering const* mobilePhaseOrdering(unsigned int& len) const
-			{
-				len = 0;
-				return nullptr;
-			}
-
-			virtual StateOrdering const* solidPhaseOrdering(unsigned int& len) const
-			{
-				len = _solidOrdering.size();
-				return _solidOrdering.data();
-			}
-
-			virtual unsigned int bulkMobilePhaseStride() const { return _idx.strideColNode(); }
-			virtual unsigned int particleMobilePhaseStride(unsigned int parType) const { return 0; }
-			virtual unsigned int solidPhaseStride(unsigned int parType) const { return _idx.strideColNode(); }
-
-			/**
-			*@brief calculates the physical node coordinates of DG discretization with double! interface nodes
-			*/
-			virtual void axialCoordinates(double* coords) const {
-				VectorXd x_l = VectorXd::LinSpaced(_disc.nCol + 1u, 0.0, _disc.length_);
-				for (unsigned int i = 0; i < _disc.nCol; i++) {
-					for (unsigned int j = 0; j < _disc.nNodes; j++) {
-						// mapping 
-						coords[i * _disc.nNodes + j] = x_l[i] + 0.5 * (_disc.length_ / static_cast<double>(_disc.nCol)) * (1.0 + _disc.nodes[j]);
+				// calc numerical flux values c* or h* depending on equation switch aux
+				(aux == 1) ? InterfaceFluxAuxiliary(C, disc) : InterfaceFlux(C, _disc.g, disc, secIdx);
+				if (disc.modal) { // modal approach -> dense mass matrix
+					for (unsigned int Cell = 0; Cell < disc.nCol; Cell++) {
+						// strong surface integral -> M^-1 B [state - state*]
+						for (unsigned int Node = 0; Node < disc.nNodes; Node++) {
+							stateDer[Cell * strideCell + Node * strideNode]
+								-= disc.invMM(Node, 0) * (state[Cell * strideCell]
+									- disc.surfaceFlux[Cell])
+								- disc.invMM(Node, disc.polyDeg) * (state[Cell * strideCell + disc.polyDeg * strideNode]
+									- disc.surfaceFlux[(Cell + 1)]);
+						}
+					}
+				}
+				else { // nodal approach -> diagonal mass matrix
+					for (unsigned int Cell = 0; Cell < disc.nCol; Cell++) {
+						// strong surface integral -> M^-1 B [state - state*]
+						stateDer[Cell * strideCell] // first cell node
+							-= disc.invWeights[0] * (state[Cell * strideCell] // first node
+								- disc.surfaceFlux(Cell));
+						stateDer[Cell * strideCell + disc.polyDeg * strideNode] // last cell node
+							+= disc.invWeights[disc.polyDeg] * (state[Cell * strideCell + disc.polyDeg * strideNode]
+								- disc.surfaceFlux(Cell + 1));
 					}
 				}
 			}
 
-			virtual void radialCoordinates(double* coords) const { }
-			virtual void particleCoordinates(unsigned int parType, double* coords) const { }
-
-		protected:
-			const Discretization& _disc;
-			const Indexer _idx;
-			const LumpedRateModelWithoutPoresDG& _model;
-			double const* const _data;
-
-			const std::array<StateOrdering, 2> _concentrationOrdering = { { StateOrdering::AxialCell, StateOrdering::Component } };
-			const std::array<StateOrdering, 3> _solidOrdering = { { StateOrdering::AxialCell, StateOrdering::Component, StateOrdering::BoundState } };
-		};
-
-
-
-		// ==========================================================================================================================================================  //
-		// ==========================================================================================================================================================  //
-		// ========================================						DG Residual, RHS						======================================================  //
-		// ==========================================================================================================================================================  //
-		// ==========================================================================================================================================================  //
-
-		/**
-* @brief calculates the volume Integral of the auxiliary equation
-* @param [in] current state vector
-* @param [in] stateDer vector to be changed
-* @param [in] aux true if auxiliary, else main equation
-*/
-		void volumeIntegral(Discretization& disc, Eigen::Map<const VectorXd, 0, InnerStride<Dynamic>>& state, Eigen::Map<VectorXd, 0, InnerStride<Dynamic>>& stateDer) {
-			// comp-cell-node state vector: use of Eigen lib performance
-			for (unsigned int Cell = 0; Cell < disc.nCol; Cell++) {
-				stateDer.segment(Cell * disc.nNodes, disc.nNodes)
-					-= disc.polyDerM * state.segment(Cell * disc.nNodes, disc.nNodes);
+			/**
+			* @brief calculates the substitute h = vc - sqrt(D_ax) S(c)
+			*/
+			void calcH(Eigen::Map<const VectorXd, 0, InnerStride<>>& C, Discretization& disc, unsigned int secIdx) {
+				disc.h = disc.velocity[secIdx] * C - std::sqrt(disc.dispersion[secIdx]) * disc.g;
 			}
-		}
 
-		/*
-		* @brief calculates the interface fluxes h* of Convection Dispersion equation
-		*/
-		void InterfaceFlux(Eigen::Map<const VectorXd, 0, InnerStride<Dynamic>>& C, const VectorXd& g, Discretization& disc, unsigned int secIdx) {
-
-			// component-wise strides
-			unsigned int strideCell = _disc.nNodes;
-			unsigned int strideNode = 1u;
-
-			// Conv.Disp. flux: h* = h*_conv + h*_disp = numFlux(v c_l, v c_r) + 0.5 sqrt(D_ax) (S_l + S_r)
+			void calcRHSq_DG_new(double t, unsigned int secIdx, const double* yPtr, double* const resPtr, Discretization& disc, util::ThreadLocalStorage& threadLocalMem) {
 			
-			// calculate inner interface fluxes
-			for (unsigned int Cell = 1; Cell < disc.nCol; Cell++) {
-				// h* = h*_conv + h*_disp
-				disc.surfaceFlux[Cell] // inner interfaces
-					= disc.velocity[secIdx] * (C[Cell * strideCell - strideNode])
-					- 0.5 * std::sqrt(disc.dispersion[secIdx]) * (g[Cell * strideCell - strideNode] // left cell
-						                                          + g[Cell * strideCell]);
+				Indexer idx(_disc);
+
+				const double* localC = yPtr + idx.offsetC();
+				const double* localQ = yPtr + idx.offsetC() + idx.strideColLiquid() + idx.offsetBoundComp(0);
+				double* localQRes = resPtr + idx.offsetC() + idx.strideColLiquid() + idx.offsetBoundComp(0);
+
+				for (unsigned int point = 0; point < disc.nPoints; point++) {
+
+					//std::cout << "Point: " << point << std::endl;
+					//std::cout << "localC: " << localC << std::endl;
+					//std::cout << "localQ: " << localQ << std::endl;
+					//std::cout << "localRes: " << localRes << std::endl;
+
+					double z = _disc.deltaZ * std::floor(point / _disc.nNodes)
+							 + 0.5 * _disc.deltaZ * (1 + _disc.nodes[point % _disc.nNodes]);
+
+					_binding[0]->flux(t, secIdx, ColumnPosition{ z, 0.0, 0.0 }, localQ, localC, localQRes, threadLocalMem.get());
+
+					//std::cout << "after" << std::endl;
+					//std::cout << "localRes: " << localRes << std::endl;
+
+					localC += idx.strideColNode(); // next solid concentration
+					localQ += idx.strideColNode(); // next liquid concentration
+					localQRes += idx.strideColNode(); // next liquid concentration
+
+				}
 			}
 
-			// boundary fluxes
-				// left boundary interface
-			disc.surfaceFlux[0]
-				= disc.velocity[secIdx] * disc.boundary[0];
+			/*
+			* calculates isotherm RHS *(-1)
+			*/
+			void calcRHSq_DG(const double* const yPtr, double* const resPtr, Discretization& disc) {
 
-			// right boundary interface
-			disc.surfaceFlux[disc.nCol]
-				= disc.velocity[secIdx] * (C[disc.nCol * strideCell - strideNode])
-				- std::sqrt(disc.dispersion[secIdx]) * 0.5 * (g[disc.nCol * strideCell - strideNode] // last cell last node
-					+ disc.boundary[3]); // right boundary value S
-		}
+				Indexer idxr(_disc);
 
-		/**
-		* @brief calculates and fills the surface flux values for auxiliary equation
-		* @param [in] aux true if auxiliary, else main equation
-		*/
-		void InterfaceFluxAuxiliary(Eigen::Map<const VectorXd, 0, InnerStride<Dynamic>>& C, Discretization& disc) {
+				for (int comp = 0; comp < _disc.nComp; comp++) {
+					// Map pointer to Eigen Objects for each component
+					Eigen::Map<const VectorXd, 0, InnerStride<Dynamic>> C_comp(   yPtr   + idxr.offsetC() + comp, _disc.nPoints, InnerStride<Dynamic>(idxr.strideColNode()));
+					Eigen::Map<const VectorXd, 0, InnerStride<Dynamic>> q_comp(   yPtr   + idxr.offsetC() + idxr.strideColLiquid() + idxr.offsetBoundComp(comp), _disc.nPoints, InnerStride<Dynamic>(idxr.strideColNode()));
+					Eigen::Map<VectorXd, 0, InnerStride<Dynamic>>		qRes_comp(resPtr + idxr.offsetC() + idxr.strideColLiquid() + idxr.offsetBoundComp(comp), _disc.nPoints, InnerStride<Dynamic>(idxr.strideColNode()));
 
-			// component-wise strides
-			unsigned int strideCell = _disc.nNodes;
-			unsigned int strideNode = 1u;
+					// reset cache
+					qRes_comp.setZero();
 
-			// Auxiliary flux: c* = 0.5 (c_l + c_r)
+					if (_disc.isotherm == "LINEAR") { // equilibrium constant calculated for non-kinetic irotherm
+						qRes_comp = -_disc.adsorption[comp] * C_comp + _disc.desorption[comp] * q_comp;
+					}
 
-			// calculate inner interface fluxes
-			for (unsigned int Cell = 1; Cell < disc.nCol; Cell++) {
-				disc.surfaceFlux[Cell] // left interfaces
-					= 0.5 * (C[Cell * strideCell - strideNode] + // left node
-						C[Cell * strideCell]); // right node
-			}
-			// calculate boundary interface fluxes
-
-			disc.surfaceFlux[0] // left boundary interface
-				= 0.5 * (C[0] + // boundary value
-					C[0]); // first cell first node
-
-			disc.surfaceFlux[(disc.nCol)] // right boundary interface
-				= 0.5 * (C[disc.nCol * strideCell - strideNode] + // last cell last node
-					C[disc.nCol * strideCell - strideNode]);// // boundary value
-		}
-
-		/**
-		* @brief calculates the surface Integral, depending on the approach (modal/nodal)
-		* @param [in] state relevant state vector
-		* @param [in] stateDer state derivative vector the solution is added to
-		* @param [in] aux true for auxiliary, false for main equation
-			surfaceIntegral(cPtr, &(disc.g[0]), disc,&(disc.h[0]), resPtrC, 0, secIdx);
-		*/ // 
-		void surfaceIntegral(Eigen::Map<const VectorXd, 0, InnerStride<Dynamic>>& C, Discretization& disc, Eigen::Map<const VectorXd, 0, InnerStride<Dynamic>>& state, Eigen::Map<VectorXd, 0, InnerStride<Dynamic>>& stateDer, bool aux, unsigned int secIdx) {
-
-			// component-wise strides
-			unsigned int strideCell = _disc.nNodes;
-			unsigned int strideNode = 1u;
-
-			// calc numerical flux values c* or h* depending on equation switch aux
-			(aux == 1) ? InterfaceFluxAuxiliary(C, disc) : InterfaceFlux(C, _disc.g, disc, secIdx);
-			if (disc.modal) { // modal approach -> dense mass matrix
-				for (unsigned int Cell = 0; Cell < disc.nCol; Cell++) {
-					// strong surface integral -> M^-1 B [state - state*]
-					for (unsigned int Node = 0; Node < disc.nNodes; Node++) {
-						stateDer[Cell * strideCell + Node * strideNode]
-							-= disc.invMM(Node, 0) * (state[Cell * strideCell]
-								- disc.surfaceFlux[Cell])
-							- disc.invMM(Node, disc.polyDeg) * (state[Cell * strideCell + disc.polyDeg * strideNode]
-								- disc.surfaceFlux[(Cell + 1)]);
+					else {
+						throw std::invalid_argument("spelling error or this isotherm is not implemented yet");
 					}
 				}
 			}
-			else { // nodal approach -> diagonal mass matrix
-				for (unsigned int Cell = 0; Cell < disc.nCol; Cell++) {
-					// strong surface integral -> M^-1 B [state - state*]
-					stateDer[Cell * strideCell] // first cell node
-						-= disc.invWeights[0] * (state[Cell * strideCell] // first node
-							- disc.surfaceFlux(Cell));
-					stateDer[Cell * strideCell + disc.polyDeg * strideNode] // last cell node
-						+= disc.invWeights[disc.polyDeg] * (state[Cell * strideCell + disc.polyDeg * strideNode]
-							- disc.surfaceFlux(Cell + 1));
-				}
+
+			/**
+			* @brief applies the inverse Jacobian of the mapping
+			*/
+			void applyMapping(const Discretization& disc, Eigen::Map<VectorXd, 0, InnerStride<>>& state) {
+				state *= (2.0 / disc.deltaZ);
 			}
-		}
-
-		/**
-		* @brief calculates the substitute h = vc - sqrt(D_ax) S(c)
-		*/
-		void calcH(Eigen::Map<const VectorXd, 0, InnerStride<>>& C, Discretization& disc, unsigned int secIdx) {
-			disc.h = disc.velocity[secIdx] * C - std::sqrt(disc.dispersion[secIdx]) * disc.g;
-		}
-
-		void calcRHSq_DG_new(double t, unsigned int secIdx, const double* yPtr, double* const resPtr, Discretization& disc, util::ThreadLocalStorage& threadLocalMem) {
-
-			const double* localC = yPtr + _disc.nComp;
-			const double* localQ = yPtr + _disc.nComp * (1 + _disc.nPoints);
-			double* localQRes = resPtr + _disc.nComp * (1 + _disc.nPoints);
-
-			for (unsigned int point = 0; point < disc.nPoints; point++) {
-
-				//std::cout << "Point: " << point << std::endl;
-				//std::cout << "localC: " << localC << std::endl;
-				//std::cout << "localQ: " << localQ << std::endl;
-				//std::cout << "localRes: " << localRes << std::endl;
-
-				double z = _disc.deltaZ * std::floor(point / _disc.nNodes)
-					+ 0.5 * _disc.deltaZ * (1 + _disc.nodes[point % _disc.nNodes]);
-
-				_binding[0]->flux(t, secIdx, ColumnPosition{ z, 0.0, 0.0 }, localQ, localC, localQRes, threadLocalMem.get());
-
-				//std::cout << "after" << std::endl;
-				//std::cout << "localRes: " << localRes << std::endl;
-
-				localC += _disc.nComp; // stridecolNode
-				localQ += _disc.strideBound; // strideSolidNode
-				localQRes += _disc.strideBound; // strideSolidNode
-
+			/**
+			* @brief applies the inverse Jacobian of the mapping and Auxiliary factor
+			*/
+			void applyMapping_Aux(const Discretization& disc, Eigen::Map<VectorXd, 0, InnerStride<>>& state, unsigned int secIdx) {
+				state *= (-2.0 / disc.deltaZ) * ((disc.dispersion[secIdx] == 0.0) ? 1.0 : std::sqrt(disc.dispersion[secIdx]));
 			}
-		}
+			/**
+			* @brief calculates q from c (equilibrium ! )
+			* @param nPoints number of discrete points -> state.size()
+			*/
+			void calcQ(const VectorXd& state, VectorXd& q, const Discretization& disc, unsigned int secIdx) {
 
-		/*
-		* calculates isotherm RHS *(-1)
-		*/
-		void calcRHSq_DG(const double* const yPtr, double* const resPtr, Discretization& disc) {
+				Indexer idxr(disc);
+				int strideComp = idxr.strideColComp();
+				int strideNode = idxr.strideColNode();
 
-			for (int comp = 0; comp < _disc.nComp; comp++) {
-				// Map pointer to Eigen Objects for each component
-				Eigen::Map<const VectorXd, 0, InnerStride<Dynamic>> C_comp(yPtr + _disc.nComp + comp, _disc.nPoints, InnerStride<Dynamic>(_disc.nComp));
-				Eigen::Map<const VectorXd, 0, InnerStride<Dynamic>> q_comp(yPtr + _disc.nComp * (1 + _disc.nPoints) + comp, _disc.nPoints, InnerStride<Dynamic>(_disc.strideBound));
-				Eigen::Map<VectorXd, 0, InnerStride<Dynamic>> qRes_comp(resPtr + _disc.nComp * (1 + _disc.nPoints) + comp, _disc.nPoints, InnerStride<Dynamic>(_disc.strideBound));
-
-				// reset cache
-				qRes_comp.setZero();
-
-				if (_disc.isotherm == "LINEAR") { // equilibrium constant calculated for non-kinetic irotherm
-					qRes_comp = -_disc.adsorption[comp] * C_comp + _disc.desorption[comp] * q_comp;
+				if (disc.isotherm == "LINEAR" && !disc.isKinetic[secIdx]) {
+					for (unsigned int nComp = 0; nComp < disc.nComp; nComp++) {
+						q.segment(nComp * strideComp, strideComp) = disc.adsorption[nComp] *
+							state.segment(nComp * strideComp, strideComp);
+					}
 				}
-
+				else if (disc.isotherm == "LANGMUIR" && !disc.isKinetic[secIdx]) {
+					double factor;
+					for (unsigned int point = 0; point < disc.nPoints; point++) {
+						factor = 1.0;
+						for (unsigned int nComp = 0; nComp < disc.nComp; nComp++) {
+							// calc(1 + sum(b_i * c_i))
+							for (unsigned int comp = 0; comp < disc.nComp; comp++) {
+								factor += disc.ADratio[comp] * state[point * strideNode + comp * strideComp];
+							}
+							q[point * strideNode + nComp * strideComp]
+								= (disc.adsorption[nComp] * state[point * strideNode + nComp * strideComp]) / factor;
+						}
+					}
+				}
+				else if (disc.isotherm == "LINEAR" && disc.isKinetic[secIdx]) {
+					for (unsigned int nComp = 0; nComp < disc.nComp; nComp++) {
+						q.segment(nComp * strideComp, strideComp) = disc.adsorption[nComp] * state.segment(nComp * strideComp, strideComp)
+							- disc.desorption[nComp] * q.segment(nComp * strideComp, strideComp);
+					}
+				}
 				else {
 					throw std::invalid_argument("spelling error or this isotherm is not implemented yet");
 				}
 			}
-		}
 
-		/**
-		* @brief applies the inverse Jacobian of the mapping
-		*/
-		void applyMapping(const Discretization& disc, Eigen::Map<VectorXd, 0, InnerStride<>>& state) {
-			state *= (2.0 / disc.deltaZ);
-		}
-		/**
-		* @brief applies the inverse Jacobian of the mapping and Auxiliary factor
-		*/
-		void applyMapping_Aux(const Discretization& disc, Eigen::Map<VectorXd, 0, InnerStride<>>& state, unsigned int secIdx) {
-			state *= (-2.0 / disc.deltaZ) * ((disc.dispersion[secIdx] == 0.0) ? 1.0 : std::sqrt(disc.dispersion[secIdx]));
-		}
-		/**
-		* @brief calculates q from c (equilibrium ! )
-		* @param nPoints number of discrete points -> state.size()
-		*/
-		void calcQ(const VectorXd& state, VectorXd& q, const Discretization& disc, unsigned int secIdx) {
+			void ConvDisp_DG(Eigen::Map<const VectorXd, 0, InnerStride<Dynamic>>& C, Eigen::Map<VectorXd, 0, InnerStride<Dynamic>>& resC, Discretization& disc, double t, unsigned int Comp, unsigned int secIdx) {
 
-			Indexer idxr(disc);
-			int strideComp = idxr.strideColComp();
-			int strideNode = idxr.strideColNode();
+				// ===================================//
+				// reset cache                       //
+				// =================================//
 
-			if (disc.isotherm == "LINEAR" && !disc.isKinetic[secIdx]) {
-				for (unsigned int nComp = 0; nComp < disc.nComp; nComp++) {
-					q.segment(nComp * strideComp, strideComp) = disc.adsorption[nComp] *
-						state.segment(nComp * strideComp, strideComp);
-				}
+				resC.setZero();
+				disc.h.setZero();
+				disc.g.setZero();
+				disc.surfaceFlux.setZero();
+				// get Map objects of auxiliary variable memory
+				Eigen::Map<VectorXd, 0, InnerStride<>> g(&_disc.g[0], _disc.nPoints, InnerStride<>(1));
+				Eigen::Map<const VectorXd, 0, InnerStride<>> h(&_disc.h[0], _disc.nPoints, InnerStride<>(1));
+
+				// ==================================//
+				// solve auxiliary system g = dc/dx  //
+				// ==================================//
+
+				// DG volumne and surface integral in strong form
+				volumeIntegral(disc, C, g);
+				// surface integral in strong form
+				surfaceIntegral(C, disc, C, g, 1, secIdx);
+				// inverse mapping from reference space and auxiliary factor
+				applyMapping_Aux(disc, g, secIdx);
+				// reset surface flux storage as it is used twice
+				disc.surfaceFlux.setZero();
+
+				// ===================================//
+				// solve main equation w_t = dh/dx   //
+				// =================================//
+
+				// calculate the substitute h(S(c), c) = sqrt(D_ax) g(c) - v c
+				calcH(C, disc, secIdx);
+				// DG volumne and surface integral in strong form
+				volumeIntegral(disc, h, resC);
+				// update boundary values ( with g)
+				calcBoundaryValues(disc, C, secIdx);
+				surfaceIntegral(C, disc, h, resC, 0, secIdx);
+
+				// inverse mapping from reference space
+				applyMapping(disc, resC);
+
 			}
-			else if (disc.isotherm == "LANGMUIR" && !disc.isKinetic[secIdx]) {
-				double factor;
-				for (unsigned int point = 0; point < disc.nPoints; point++) {
-					factor = 1.0;
-					for (unsigned int nComp = 0; nComp < disc.nComp; nComp++) {
-						// calc(1 + sum(b_i * c_i))
-						for (unsigned int comp = 0; comp < disc.nComp; comp++) {
-							factor += disc.ADratio[comp] * state[point * strideNode + comp * strideComp];
+
+			void calcBoundaryValues(Discretization& disc, Eigen::Map<const VectorXd, 0, InnerStride<>>& C, unsigned int secIdx) {
+
+				// Danckwert boundary condition ghost nodes
+				//cache.boundary[0] = c_in -> inlet DOF idas suggestion
+				disc.boundary[1] = C[disc.nPoints - 1]; // c_r outlet
+				disc.boundary[2] = -disc.g[0]; // S_l inlet
+				disc.boundary[3] = -disc.g[disc.nPoints - 1]; // g_r outlet
+			}
+
+			void consistentInitialization(double t, double* const yPtr, double* const ypPtr, unsigned int secIdx) {
+
+				unsigned int nPoints = _disc.nPoints;
+
+				Indexer idx(_disc);
+
+				Eigen::Map<Eigen::VectorXd> yp(ypPtr, _disc.nComp + nPoints * (_disc.strideBound + _disc.nComp));
+
+				// Calculate solid phase RHS
+				calcRHSq_DG(yPtr, ypPtr, _disc);
+
+				for (unsigned int comp = 0; comp < _disc.nComp; comp++) {
+					if (_disc.nBound[comp]) { // either one or null
+
+						Eigen::Map<VectorXd, 0, InnerStride<Dynamic>> Qp_comp(ypPtr + idx.offsetC() + idx.strideColLiquid() + _disc.boundOffset[comp],
+							nPoints, InnerStride<Dynamic>(idx.strideColNode()));
+
+						if (!_disc.isKinetic[comp]) {
+							Qp_comp.setZero();
 						}
-						q[point * strideNode + nComp * strideComp]
-							= (disc.adsorption[nComp] * state[point * strideNode + nComp * strideComp]) / factor;
+						else {
+							// residual already stored in yp_q
+						}
 					}
 				}
-			}
-			else if (disc.isotherm == "LINEAR" && disc.isKinetic[secIdx]) {
-				for (unsigned int nComp = 0; nComp < disc.nComp; nComp++) {
-					q.segment(nComp * strideComp, strideComp) = disc.adsorption[nComp] * state.segment(nComp * strideComp, strideComp)
-														      - disc.desorption[nComp] * q.segment(nComp * strideComp, strideComp);
-				}
-			}
-			else {
-				throw std::invalid_argument("spelling error or this isotherm is not implemented yet");
-			}
-		}
 
-		void ConvDisp_DG(Eigen::Map<const VectorXd, 0, InnerStride<Dynamic>>& C, Eigen::Map<VectorXd, 0, InnerStride<Dynamic>>& resC, Discretization& disc, double t, unsigned int Comp, unsigned int secIdx) {
+				yp.segment(0, _disc.nComp).setZero(); // TODO: get time derivative of inlet function from inlet unit
 
-			// ===================================//
-			// reset cache                       //
-			// =================================//
+				for (unsigned int comp = 0; comp < _disc.nComp; comp++) {
+					// extract one component mobile phase, mobile and solid phase derivative
+					Eigen::Map<const VectorXd, 0, InnerStride<Dynamic>> C_comp( yPtr  + idx.offsetC() + comp, nPoints, InnerStride<Dynamic>(idx.strideColNode()));
+					Eigen::Map<	     VectorXd, 0, InnerStride<Dynamic>> Cp_comp(ypPtr + idx.offsetC() + comp, nPoints, InnerStride<Dynamic>(idx.strideColNode()));
 
-			resC.setZero();
-			disc.h.setZero();
-			disc.g.setZero();
-			disc.surfaceFlux.setZero();
-			// get Map objects of auxiliary variable memory
-			Eigen::Map<VectorXd, 0, InnerStride<>> g(&_disc.g[0], _disc.nPoints, InnerStride<>(1));
-			Eigen::Map<const VectorXd, 0, InnerStride<>> h(&_disc.h[0], _disc.nPoints, InnerStride<>(1));
+					_disc.boundary[0] = yPtr[comp];
 
-			// ==================================//
-			// solve auxiliary system g = dc/dx  //
-			// ==================================//
+					// Convection dispersion RHS for one component
+					ConvDisp_DG(C_comp, Cp_comp, _disc, t, comp, secIdx);
 
-			// DG volumne and surface integral in strong form
-			volumeIntegral(disc, C, g);
-			// surface integral in strong form
-			surfaceIntegral(C, disc, C, g, 1, secIdx);
-			// inverse mapping from reference space and auxiliary factor
-			applyMapping_Aux(disc, g, secIdx);
-			// reset surface flux storage as it is used twice
-			disc.surfaceFlux.setZero();
+					// Residual plugged into yp_c
+					if (_disc.nBound[comp]) { // either one or null
+						Eigen::Map<VectorXd, 0, InnerStride<Dynamic>> Qp_comp(ypPtr + idx.offsetC() + idx.strideColLiquid() + idx.offsetBoundComp(comp),
+							nPoints, InnerStride<Dynamic>(idx.strideColNode()));
 
-			// ===================================//
-			// solve main equation w_t = dh/dx   //
-			// =================================//
-
-			// calculate the substitute h(S(c), c) = sqrt(D_ax) g(c) - v c
-			calcH(C, disc, secIdx);
-			// DG volumne and surface integral in strong form
-			volumeIntegral(disc, h, resC);
-			// update boundary values ( with g)
-			calcBoundaryValues(disc, C, secIdx);
-			surfaceIntegral(C, disc, h, resC, 0, secIdx);
-
-			// inverse mapping from reference space
-			applyMapping(disc, resC);
-
-		}
-
-		void calcBoundaryValues(Discretization& disc, Eigen::Map<const VectorXd, 0, InnerStride<>>& C, unsigned int secIdx) {
-
-			// Danckwert boundary condition ghost nodes
-			//cache.boundary[0] = boundFunc(t, comp, para); // c_in -> inlet DOF idas suggestion
-			disc.boundary[1] = C[disc.nPoints - 1]; // c_r outlet
-			disc.boundary[2] = -disc.g[0]; // S_l inlet
-			disc.boundary[3] = -disc.g[disc.nPoints - 1]; // g_r outlet
-		}
-
-		void consistentInitialization(Discretization& disc, double t, double* const yPtr, double* const ypPtr, unsigned int secIdx) {
-
-			unsigned int DOFs = disc.nPoints * disc.nComp;
-			unsigned int nPoints = disc.nPoints;
-
-			Eigen::Map<Eigen::VectorXd> yp(ypPtr, disc.nComp + (2 * DOFs));
-
-			// Calculate solid phase RHS
-			calcRHSq_DG(yPtr, ypPtr, disc);
-			unsigned int idxBound = 0;
-			for (unsigned int comp = 0; comp < disc.nComp; comp++) {
-				if (disc.nBound[comp]) { // either one or null
-					Eigen::Map<VectorXd, 0, InnerStride<Dynamic>> Qp_comp(ypPtr + _disc.nComp * (1 + nPoints) + idxBound, nPoints, InnerStride<Dynamic>(_disc.nComp));
-				// Residual plugged into yp_q
-					if (!disc.isKinetic[comp]) {
-						yp.segment(disc.nComp + DOFs + comp * disc.nPoints, disc.nPoints).setZero();
+						Cp_comp = -Cp_comp - Qp_comp * ((1 - _disc.porosity) / _disc.porosity);
 					}
-					else {
-						// residual already stored in yp at q
-					}
-					idxBound++;
+					else
+						Cp_comp *= -1.0;
 				}
+
 			}
 
-			yp.segment(0, disc.nComp).setZero(); // TODO: time derivative of inlet function, 0.0 for inlet pulse for now
+			// ==========================================================================================================================================================  //
+			// ==========================================================================================================================================================  //
+			// ========================================						DG Jacobian							=========================================================  //
+			// ==========================================================================================================================================================  //
+			// ==========================================================================================================================================================  //
 
-			idxBound = 0;
-			for (unsigned int comp = 0; comp < disc.nComp; comp++) {
-				// extract one component mobile phase, mobile and solid phase derivative
-				Eigen::Map<const VectorXd, 0, InnerStride<Dynamic>> C_comp(yPtr + _disc.nComp + comp, nPoints, InnerStride<Dynamic>(_disc.nComp));
-				Eigen::Map<VectorXd, 0, InnerStride<Dynamic>> Cp_comp(ypPtr + _disc.nComp + comp, nPoints, InnerStride<Dynamic>(_disc.nComp));
+			typedef Eigen::Triplet<double> T;
 
-				_disc.boundary[0] = yPtr[comp];
+			// @TODO: for sparse jacobian
+			//int calcNNZ() {
+			//	if (_disc.modal)
+			//		return 0;
+			//	else
+			//		return 0;
+			//}
 
-				// Convection dispersion RHS for one component
-				ConvDisp_DG(C_comp, Cp_comp, disc, t, comp, secIdx);
+			int calcStaticAnaJacobian(unsigned int secIdx) {
 
-				// Residual plugged into yp_c
-				if (_disc.nBound[comp]) { // either one or null
-					Eigen::Map<VectorXd, 0, InnerStride<Dynamic>> Qp_comp(ypPtr + _disc.nComp * (1 + nPoints) + idxBound, nPoints, InnerStride<Dynamic>(_disc.nComp));
-					Cp_comp = -Cp_comp - Qp_comp * ((1 - _disc.porosity) / _disc.porosity);
-					idxBound++;
-				}
+				// reset
+				_jac.setZero();
+
+				// triplet to fill Sparse matrix
+				std::vector<T> tripletList;
+				tripletList.reserve(2u * calcConvDispNNZ(_disc) + 2u * _disc.nComp * _disc.nPoints + _disc.nComp);// TODO: add double entries. Times 2 for now
+
+				// DG convection dispersion Jacobian
+				if (_disc.modal)
+					calcStaticAnaModalJacobian(secIdx, tripletList);
 				else
-					Cp_comp *= -1.0;
-			}
+					calcStaticAnaNodalJacobian(secIdx, tripletList);
 
-		}
-
-		// ==========================================================================================================================================================  //
-		// ==========================================================================================================================================================  //
-		// ========================================						DG Jacobian							=========================================================  //
-		// ==========================================================================================================================================================  //
-		// ==========================================================================================================================================================  //
-
-		typedef Eigen::Triplet<double> T;
-
-		// @TODO: for sparse jacobian
-		//int calcNNZ() {
-		//	if (_disc.modal)
-		//		return 0;
-		//	else
-		//		return 0;
-		//}
-
-		int calcStaticAnaJacobian(unsigned int secIdx) {
-
-			// reset
-			_jac.setZero();
-
-			// triplet to fill Sparse matrix
-			std::vector<T> tripletList;
-			tripletList.reserve(2u * calcConvDispNNZ(_disc) + 2u * _disc.nComp * _disc.nPoints + _disc.nComp);// TODO: add double entries. Times 2 for now
-
-			// DG convection dispersion Jacobian
-			if (_disc.modal)
-				calcStaticAnaModalJacobian(secIdx, tripletList);
-			else
-				calcStaticAnaNodalJacobian(secIdx, tripletList);
-
-			// inlet DOFs Jacobian ( forward flow! ) //_jacInlet;
+				// inlet DOFs Jacobian ( forward flow! ) //_jacInlet;
 				for (unsigned int i = 0; i < _disc.nComp; i++) {
 					tripletList.push_back(T(i, i, 1.0));
 				}
 
-			// isotherm Jacobian
-			calcIsothermJacobian(tripletList);
+				// isotherm Jacobian
+				calcIsothermJacobian(tripletList);
 
-			_jac.setFromTriplets(tripletList.begin(), tripletList.end());
+				_jac.setFromTriplets(tripletList.begin(), tripletList.end());
 
-			return 0;
-		}
+				//std::cout << std::fixed << std::setprecision(4) <<"hm\n" << _jac.toDense() << std::endl;
 
-		unsigned int calcConvDispNNZ(Discretization disc) {
-
-			if (disc.modal) {
-				return disc.nComp * ((3u * disc.nCol - 2u) * disc.nNodes * disc.nNodes + (2u * disc.nCol - 3u) * disc.nNodes);
+				return 0;
 			}
-			else {
-				return disc.nComp * (disc.nCol * disc.nNodes * disc.nNodes + 8u * disc.nNodes);
-			}
-		}
 
-		int calcStaticAnaNodalJacobian(unsigned int secIdx, std::vector<T>& tripletList) {
+			unsigned int calcConvDispNNZ(Discretization disc) {
 
-			Indexer idx(_disc);
-
-			int sNode = idx.strideColNode();
-			int sCell = idx.strideColCell();
-			int sComp = idx.strideColComp();
-			int offC = idx.offsetC();
-
-			unsigned int nNodes = _disc.nNodes;
-			unsigned int polyDeg = _disc.polyDeg;
-			unsigned int nCells = _disc.nCol;
-			unsigned int nComp = _disc.nComp;
-
-			// @TODO: special cases?
-			if (nCells < 3)
-				throw std::invalid_argument("Nodal Jacobian special case for nCells < 3 not implemented (yet?)");
-
-			/*======================================================*/
-			/*			Define Convection Jacobian Block			*/
-			/*======================================================*/
-
-			// Convection block [ d RHS_conv / d c ], also depends on first entry of previous cell
-			MatrixXd convBlock = MatrixXd::Zero(nNodes, nNodes + 1);
-			convBlock.block(0, 1, nNodes, nNodes) -= _disc.polyDerM;
-			convBlock(0, 0) += _disc.invWeights[0];
-			convBlock(0, 1) -= _disc.invWeights[0];
-			convBlock *= 2 * _disc.velocity[secIdx] / _disc.deltaZ;
-
-			// special inlet DOF treatment for first cell
-			for (unsigned int comp = 0; comp < nComp; comp++) {
-				for (unsigned int i = 0; i < convBlock.rows(); i++) {
-					tripletList.push_back(T(offC + comp * sComp + i * sNode, comp * sComp, -convBlock(i, 0)));
-					for (unsigned int j = 1; j < convBlock.cols(); j++) {
-						tripletList.push_back(T(offC + comp * sComp + i * sNode,
-												offC + comp * sComp + (j - 1) * sNode,
-												-convBlock(i, j)));
-					}
+				if (disc.modal) {
+					return disc.nComp * ((3u * disc.nCol - 2u) * disc.nNodes * disc.nNodes + (2u * disc.nCol - 3u) * disc.nNodes);
+				}
+				else {
+					return disc.nComp * (disc.nCol * disc.nNodes * disc.nNodes + 8u * disc.nNodes);
 				}
 			}
-			for (unsigned int cell = 1; cell < nCells; cell++) {
+
+			int calcStaticAnaNodalJacobian(unsigned int secIdx, std::vector<T>& tripletList) {
+
+				Indexer idx(_disc);
+
+				int sNode = idx.strideColNode();
+				int sCell = idx.strideColCell();
+				int sComp = idx.strideColComp();
+				int offC = idx.offsetC();
+
+				unsigned int nNodes = _disc.nNodes;
+				unsigned int polyDeg = _disc.polyDeg;
+				unsigned int nCells = _disc.nCol;
+				unsigned int nComp = _disc.nComp;
+
+				// @TODO: special cases?
+				if (nCells < 3)
+					throw std::invalid_argument("Nodal Jacobian special case for nCells < 3 not implemented (yet?)");
+
+				/*======================================================*/
+				/*			Define Convection Jacobian Block			*/
+				/*======================================================*/
+
+				// Convection block [ d RHS_conv / d c ], also depends on first entry of previous cell
+				MatrixXd convBlock = MatrixXd::Zero(nNodes, nNodes + 1);
+				convBlock.block(0, 1, nNodes, nNodes) -= _disc.polyDerM;
+				convBlock(0, 0) += _disc.invWeights[0];
+				convBlock(0, 1) -= _disc.invWeights[0];
+				convBlock *= 2 * _disc.velocity[secIdx] / _disc.deltaZ;
+
+				// special inlet DOF treatment for first cell
 				for (unsigned int comp = 0; comp < nComp; comp++) {
 					for (unsigned int i = 0; i < convBlock.rows(); i++) {
-						for (unsigned int j = 0; j < convBlock.cols(); j++) {
-							// row: jump over inlet DOFs and previous cells, add component offset and go node strides from there for each convection block entry
-							// col: jump over inlet DOFs and previous cells, go back one node, add component offset and go node strides from there for each convection block entry
-							tripletList.push_back(T(offC + cell * sCell + comp * sComp + i * sNode,
-													offC + cell * sCell - sNode + comp * sComp + j * sNode,
+						tripletList.push_back(T(offC + comp * sComp + i * sNode, comp * sComp, -convBlock(i, 0)));
+						for (unsigned int j = 1; j < convBlock.cols(); j++) {
+							tripletList.push_back(T(offC + comp * sComp + i * sNode,
+													offC + comp * sComp + (j - 1) * sNode,
 													-convBlock(i, j)));
 						}
 					}
 				}
+				for (unsigned int cell = 1; cell < nCells; cell++) {
+					for (unsigned int comp = 0; comp < nComp; comp++) {
+						for (unsigned int i = 0; i < convBlock.rows(); i++) {
+							for (unsigned int j = 0; j < convBlock.cols(); j++) {
+								// row: jump over inlet DOFs and previous cells, add component offset and go node strides from there for each convection block entry
+								// col: jump over inlet DOFs and previous cells, go back one node, add component offset and go node strides from there for each convection block entry
+								tripletList.push_back(T(offC + cell * sCell + comp * sComp + i * sNode,
+														offC + cell * sCell - sNode + comp * sComp + j * sNode,
+														-convBlock(i, j)));
+							}
+						}
+					}
+				}
+
+				/*======================================================*/
+				/*			Define Dispersion Jacobian Block			*/
+				/*======================================================*/
+
+				/*		Inner cell dispersion blocks		*/
+
+				// auxiliary Block for [ d g(c) / d c ], needed in Dispersion block
+				MatrixXd GBlock = MatrixXd::Zero(nNodes, nNodes + 2);
+				GBlock.block(0, 1, nNodes, nNodes) = _disc.polyDerM;
+				GBlock(0, 0) -= 0.5 * _disc.invWeights[0];
+				GBlock(0, 1) += 0.5 * _disc.invWeights[0];
+				GBlock(nNodes - 1, nNodes) -= 0.5 * _disc.invWeights[polyDeg];
+				GBlock(nNodes - 1, nNodes + 1) += 0.5 * _disc.invWeights[polyDeg];
+				GBlock *= 2 * std::sqrt(_disc.dispersion[secIdx]) / _disc.deltaZ;
+
+				// Dispersion block [ d RHS_disp / d c ], depends on whole previous and subsequent cell
+				MatrixXd dispBlock = MatrixXd::Zero(nNodes, 3 * nNodes); //
+				// NOTE: N = polyDeg
+				//cell indices : 0	 , ..., nNodes - 1;	nNodes, ..., 2 * nNodes - 1;	2 * nNodes, ..., 3 * nNodes - 1
+				//			j  : -N-1, ..., -1		  ; 0     , ..., N			   ;	N + 1, ..., 2N + 1
+				dispBlock.block(0, nNodes - 1, nNodes, nNodes + 2) = _disc.polyDerM * GBlock;
+				dispBlock(0, nNodes - 1) += -_disc.invWeights[0] * (-0.5 * GBlock(0, 0) + 0.5 * GBlock(nNodes - 1, nNodes)); // G_N,N		i=0, j=-1
+				dispBlock(0, nNodes) += -_disc.invWeights[0] * (-0.5 * GBlock(0, 1) + 0.5 * GBlock(nNodes - 1, nNodes + 1)); // G_N,N+1	i=0, j=0
+				dispBlock.block(0, nNodes + 1, 1, nNodes) += -_disc.invWeights[0] * (-0.5 * GBlock.block(0, 2, 1, nNodes)); // G_i,j		i=0, j=1,...,N+1
+				dispBlock.block(0, 0, 1, nNodes - 1) += -_disc.invWeights[0] * (0.5 * GBlock.block(nNodes - 1, 1, 1, nNodes - 1)); // G_N,j+N+1		i=0, j=-N-1,...,-2
+				dispBlock.block(nNodes - 1, nNodes - 1, 1, nNodes) += _disc.invWeights[nNodes - 1] * (-0.5 * GBlock.block(nNodes - 1, 0, 1, nNodes)); // G_i,j+N+1		i=N, j=--1,...,N-1
+				dispBlock(nNodes - 1, 2 * nNodes - 1) += _disc.invWeights[nNodes - 1] * (-0.5 * GBlock(nNodes - 1, nNodes) + 0.5 * GBlock(0, 0)); // G_i,j		i=N, j=N
+				dispBlock(nNodes - 1, 2 * nNodes) += _disc.invWeights[nNodes - 1] * (-0.5 * GBlock(nNodes - 1, nNodes + 1) + 0.5 * GBlock(0, 1)); // G_i,j		i=N, j=N+1
+				dispBlock.block(nNodes - 1, 2 * nNodes + 1, 1, nNodes - 1) += _disc.invWeights[nNodes - 1] * (0.5 * GBlock.block(0, 2, 1, nNodes - 1)); // G_0,j-N-1		i=N, j=N+2,...,2N+1
+				dispBlock *= 2 * std::sqrt(_disc.dispersion[secIdx]) / _disc.deltaZ;
+
+				// insert Blocks to Jacobian inner cells
+				for (unsigned int cell = 1; cell < nCells - 1; cell++) {
+					for (unsigned int comp = 0; comp < nComp; comp++) {
+						for (unsigned int i = 0; i < dispBlock.rows(); i++) {
+							for (unsigned int j = 0; j < dispBlock.cols(); j++) {
+								// row: jump over inlet DOFs and previous cells, add component offset and go node strides from there for each dispersion block entry
+								// col: jump over inlet DOFs and previous cells, go back one cell, add component offset and go node strides from there for each dispersion block entry
+								tripletList.push_back(T(offC + cell * sCell + comp * sComp + i * sNode,
+														offC + (cell - 1) * sCell + comp * sComp + j * sNode,
+														-dispBlock(i, j)));
+							}
+						}
+					}
+				}
+
+				/*				Boundary cell Dispersion blocks			*/
+
+				/* left cell */
+				// adjust auxiliary Block [ d g(c) / d c ] for left boundary cell
+				MatrixXd GBlockBound = GBlock;
+				GBlockBound(0, 1) -= 0.5 * _disc.invWeights[0] * 2 * std::sqrt(_disc.dispersion[secIdx]) / _disc.deltaZ;
+
+				// estimate dispersion block ( j < 0 not needed)
+				dispBlock.setZero();
+				dispBlock.block(0, nNodes - 1, nNodes, nNodes + 2) = _disc.polyDerM * GBlockBound;
+				dispBlock.block(0, nNodes - 1, 1, nNodes + 2) += -_disc.invWeights[0] * (-GBlockBound.block(0, 0, 1, nNodes + 2)); // G_N,N		i=0, j=-1,...,N+1
+				dispBlock.block(nNodes - 1, nNodes - 1, 1, nNodes) += _disc.invWeights[nNodes - 1] * (-0.5 * GBlockBound.block(nNodes - 1, 0, 1, nNodes)); // G_i,j+N+1		i=N, j=--1,...,N-1
+				dispBlock(nNodes - 1, 2 * nNodes - 1) += _disc.invWeights[nNodes - 1] * (-0.5 * GBlockBound(nNodes - 1, nNodes) + 0.5 * GBlockBound(0, 0)); // G_i,j		i=N, j=N
+				dispBlock(nNodes - 1, 2 * nNodes) += _disc.invWeights[nNodes - 1] * (-0.5 * GBlockBound(nNodes - 1, nNodes + 1) + 0.5 * GBlock(0, 1)); // G_i,j		i=N, j=N+1
+				dispBlock.block(nNodes - 1, 2 * nNodes + 1, 1, nNodes - 1) += _disc.invWeights[nNodes - 1] * (0.5 * GBlock.block(0, 2, 1, nNodes - 1)); // G_0,j-N-1		i=N, j=N+2,...,2N+1
+				dispBlock *= 2 * std::sqrt(_disc.dispersion[secIdx]) / _disc.deltaZ;
+				// copy *-1 to Jacobian
+				for (unsigned int comp = 0; comp < nComp; comp++) {
+					for (unsigned int i = 0; i < dispBlock.rows(); i++) {
+						for (unsigned int j = nNodes; j < dispBlock.cols(); j++) {
+							tripletList.push_back(T(offC + comp * sComp + i * sNode,
+													offC + comp * sComp + (j - nNodes) * sNode,
+													-dispBlock(i, j)));
+						}
+					}
+				}
+
+				/* right cell */
+			   // adjust auxiliary Block [ d g(c) / d c ] for left boundary cell
+				GBlockBound(0, 1) += 0.5 * _disc.invWeights[0] * 2 * std::sqrt(_disc.dispersion[secIdx]) / _disc.deltaZ; 	// reverse change from left boundary
+				GBlockBound(nNodes - 1, nNodes) += 0.5 * _disc.invWeights[polyDeg] * 2 * std::sqrt(_disc.dispersion[secIdx]) / _disc.deltaZ;
+
+				// estimate dispersion block (only estimation differences to inner cell at N = 0 and j > N not needed)
+				dispBlock.block(0, nNodes - 1, nNodes, nNodes + 2) = _disc.polyDerM * GBlockBound;
+				dispBlock(0, nNodes - 1) += -_disc.invWeights[0] * (-0.5 * GBlockBound(0, 0) + 0.5 * GBlock(nNodes - 1, nNodes)); // G_N,N		i=0, j=-1
+				dispBlock(0, nNodes) += -_disc.invWeights[0] * (-0.5 * GBlockBound(0, 1) + 0.5 * GBlock(nNodes - 1, nNodes + 1)); // G_N,N+1	i=0, j=0
+				dispBlock.block(0, nNodes + 1, 1, nNodes) += -_disc.invWeights[0] * (-0.5 * GBlockBound.block(0, 2, 1, nNodes)); // G_i,j		i=0, j=1,...,N+1
+				dispBlock.block(0, 0, 1, nNodes - 1) += -_disc.invWeights[0] * (0.5 * GBlock.block(nNodes - 1, 1, 1, nNodes - 1)); // G_N,j+N+1		i=0, j=-N-1,...,-2
+				dispBlock.block(nNodes - 1, nNodes - 1, 1, nNodes + 2) += _disc.invWeights[nNodes - 1] * (-GBlockBound.block(nNodes - 1, 0, 1, nNodes + 2)); // G_i,j+N+1		i=N, j=--1,...,N+1
+				dispBlock *= 2 * std::sqrt(_disc.dispersion[secIdx]) / _disc.deltaZ;
+				// copy *-1 to Jacobian
+				for (unsigned int comp = 0; comp < nComp; comp++) {
+					for (unsigned int i = 0; i < dispBlock.rows(); i++) {
+						for (unsigned int j = 0; j < 2 * nNodes; j++) {
+							tripletList.push_back(T(offC + (nCells - 1) * sCell + comp * sComp + i * sNode,
+													offC + (nCells - 1 - 1) * sCell + comp * sComp + j * sNode,
+													-dispBlock(i, j)));
+						}
+					}
+				}
+
+				return 0;
 			}
 
-			/*======================================================*/
-			/*			Define Dispersion Jacobian Block			*/
-			/*======================================================*/
+			int calcStaticAnaModalJacobian(unsigned int secIdx, std::vector<T>& tripletList) {
 
-			/*		Inner cell dispersion blocks		*/
+				Indexer idx(_disc);
 
-			// auxiliary Block for [ d g(c) / d c ], needed in Dispersion block
-			MatrixXd GBlock = MatrixXd::Zero(nNodes, nNodes + 2);
-			GBlock.block(0, 1, nNodes, nNodes) = _disc.polyDerM;
-			GBlock(0, 0) -= 0.5 * _disc.invWeights[0];
-			GBlock(0, 1) += 0.5 * _disc.invWeights[0];
-			GBlock(nNodes - 1, nNodes) -= 0.5 * _disc.invWeights[polyDeg];
-			GBlock(nNodes - 1, nNodes + 1) += 0.5 * _disc.invWeights[polyDeg];
-			GBlock *= 2 * std::sqrt(_disc.dispersion[secIdx]) / _disc.deltaZ;
+				int sNode = idx.strideColNode();
+				int sCell = idx.strideColCell();
+				int sComp = idx.strideColComp();
+				int offC = idx.offsetC();
 
-			// Dispersion block [ d RHS_disp / d c ], depends on whole previous and subsequent cell
-			MatrixXd dispBlock = MatrixXd::Zero(nNodes, 3 * nNodes); //
-			// NOTE: N = polyDeg
-			//cell indices : 0	 , ..., nNodes - 1;	nNodes, ..., 2 * nNodes - 1;	2 * nNodes, ..., 3 * nNodes - 1
-			//			j  : -N-1, ..., -1		  ; 0     , ..., N			   ;	N + 1, ..., 2N + 1
-			dispBlock.block(0, nNodes - 1, nNodes, nNodes + 2) = _disc.polyDerM * GBlock;
-			dispBlock(0, nNodes - 1) += -_disc.invWeights[0] * (-0.5 * GBlock(0, 0) + 0.5 * GBlock(nNodes - 1, nNodes)); // G_N,N		i=0, j=-1
-			dispBlock(0, nNodes) += -_disc.invWeights[0] * (-0.5 * GBlock(0, 1) + 0.5 * GBlock(nNodes - 1, nNodes + 1)); // G_N,N+1	i=0, j=0
-			dispBlock.block(0, nNodes + 1, 1, nNodes) += -_disc.invWeights[0] * (-0.5 * GBlock.block(0, 2, 1, nNodes)); // G_i,j		i=0, j=1,...,N+1
-			dispBlock.block(0, 0, 1, nNodes - 1) += -_disc.invWeights[0] * (0.5 * GBlock.block(nNodes - 1, 1, 1, nNodes - 1)); // G_N,j+N+1		i=0, j=-N-1,...,-2
-			dispBlock.block(nNodes - 1, nNodes - 1, 1, nNodes) += _disc.invWeights[nNodes - 1] * (-0.5 * GBlock.block(nNodes - 1, 0, 1, nNodes)); // G_i,j+N+1		i=N, j=--1,...,N-1
-			dispBlock(nNodes - 1, 2 * nNodes - 1) += _disc.invWeights[nNodes - 1] * (-0.5 * GBlock(nNodes - 1, nNodes) + 0.5 * GBlock(0, 0)); // G_i,j		i=N, j=N
-			dispBlock(nNodes - 1, 2 * nNodes) += _disc.invWeights[nNodes - 1] * (-0.5 * GBlock(nNodes - 1, nNodes + 1) + 0.5 * GBlock(0, 1)); // G_i,j		i=N, j=N+1
-			dispBlock.block(nNodes - 1, 2 * nNodes + 1, 1, nNodes - 1) += _disc.invWeights[nNodes - 1] * (0.5 * GBlock.block(0, 2, 1, nNodes - 1)); // G_0,j-N-1		i=N, j=N+2,...,2N+1
-			dispBlock *= 2 * std::sqrt(_disc.dispersion[secIdx]) / _disc.deltaZ;
+				unsigned int nNodes = _disc.nNodes;
+				unsigned int nCells = _disc.nCol;
+				unsigned int nComp = _disc.nComp;
 
-			// insert Blocks to Jacobian inner cells
-			for (unsigned int cell = 1; cell < nCells - 1; cell++) {
+				// @TODO: special cases?
+				if (nCells < 5)
+					throw std::invalid_argument("Modal Jacobian special case for nCells < 5 not implemented (yet?)");
+
+				/*======================================================*/
+				/*			Define Convection Jacobian Block			*/
+				/*======================================================*/
+
+				// Convection block [ d RHS_conv / d c ], additionally depends on first entry of previous cell
+
+				MatrixXd convBlock = MatrixXd::Zero(nNodes, nNodes + 1);
+				convBlock.block(0, 0, nNodes, 1) += _disc.invMM.block(0, 0, nNodes, 1);
+				convBlock.block(0, 1, nNodes, nNodes) -= _disc.polyDerM;
+				convBlock.block(0, 1, nNodes, 1) -= _disc.invMM.block(0, 0, nNodes, 1);
+				convBlock *= 2 * _disc.velocity[secIdx] / _disc.deltaZ;
+
+				// special inlet DOF treatment for first cell
+				for (unsigned int comp = 0; comp < nComp; comp++) {
+					for (unsigned int i = 0; i < convBlock.rows(); i++) {
+						tripletList.push_back(T(offC + comp * sComp + i * sNode, comp * sComp, -convBlock(i, 0)));
+						for (unsigned int j = 1; j < convBlock.cols(); j++) {
+							tripletList.push_back(T(offC + comp * sComp + i * sNode,
+													offC + comp * sComp + (j - 1) * sNode,
+													-convBlock(i, j)));
+						}
+					}
+				}
+				for (unsigned int cell = 1; cell < nCells; cell++) {
+					for (unsigned int comp = 0; comp < nComp; comp++) {
+						for (unsigned int i = 0; i < convBlock.rows(); i++) {
+							for (unsigned int j = 0; j < convBlock.cols(); j++) {
+								// row: jump over inlet DOFs and previous cells, add component offset and go node strides from there for each convection block entry
+								// col: jump over inlet DOFs and previous cells, go back one node, add component offset and go node strides from there for each convection block entry
+								tripletList.push_back(T(offC + cell * sCell + comp * sComp + i * sNode,
+														offC + cell * sCell - sNode + comp * sComp + j * sNode,
+														-convBlock(i, j)));
+							}
+						}
+					}
+				}
+
+				/*======================================================*/
+				/*			Define Dispersion Jacobian Block			*/
+				/*======================================================*/
+
+				/* Inner cells */
+
+				// Auxiliary Block [ d g(c) / d c ], additionally depends on boundary entries of neighbouring cells
+				MatrixXd gBlock = MatrixXd::Zero(nNodes, nNodes + 2);
+				gBlock.block(0, 1, nNodes, nNodes) = _disc.polyDerM;
+				gBlock.block(0, 0, nNodes, 1) -= 0.5 * _disc.invMM.block(0, 0, nNodes, 1);
+				gBlock.block(0, 1, nNodes, 1) += 0.5 * _disc.invMM.block(0, 0, nNodes, 1);
+				gBlock.block(0, nNodes, nNodes, 1) -= 0.5 * _disc.invMM.block(0, nNodes - 1, nNodes, 1);
+				gBlock.block(0, nNodes + 1, nNodes, 1) += 0.5 * _disc.invMM.block(0, nNodes - 1, nNodes, 1);
+				gBlock *= 2 * std::sqrt(_disc.dispersion[secIdx]) / _disc.deltaZ;
+
+				// B matrix from DG scheme
+				MatrixXd B = MatrixXd::Zero(nNodes, nNodes);
+				B(0, 0) = -1.0;
+				B(nNodes - 1, nNodes - 1) = 1.0;
+
+				// Inner dispersion block [ d RHS_disp / d c ], depends on whole previous and subsequent cell plus first entries of subsubsequent cells
+				MatrixXd dispBlock = MatrixXd::Zero(nNodes, 3 * nNodes + 2); //
+				// auxiliary block [ d g^* / d c ], depends on whole previous and subsequent cell plus first entries of subsubsequent cells
+				MatrixXd gStarDC = MatrixXd::Zero(nNodes, 3 * nNodes + 2);
+				// NOTE: N = polyDeg
+				//  indices  gStarDC    :     0   ,   1   , ..., nNodes; nNodes+1, ..., 2 * nNodes;	2*nNodes+1, ..., 3 * nNodes; 3*nNodes+1
+				//	derivative index j  : -(N+1)-1, -(N+1),... ,  -1   ;   0     , ...,		N	 ;	  N + 1	  , ..., 2N + 2    ; 2(N+1) +1
+				// compute d g^* / d c
+				gStarDC.block(0, nNodes, 1, nNodes + 2) += gBlock.block(0, 0, 1, nNodes + 2);
+				gStarDC.block(0, 0, 1, nNodes + 2) += gBlock.block(/*0*/nNodes - 1, 0, 1, nNodes + 2);
+				gStarDC.block(nNodes - 1, nNodes, 1, nNodes + 2) += gBlock.block(nNodes - 1, 0, 1, nNodes + 2);
+				gStarDC.block(nNodes - 1, 2 * nNodes, 1, nNodes + 2) += gBlock.block(0, 0, 1, nNodes + 2);
+				gStarDC *= 0.5;
+
+				//  indices  dispBlock :   0	 ,   1   , ..., nNodes;	nNodes+1, ..., 2 * nNodes;	2*nNodes+1, ..., 3 * nNodes; 3*nNodes+1
+				//	derivative index j  : -(N+1)-1, -(N+1),...,	 -1	  ;   0     , ...,		N	 ;	  N + 1	  , ..., 2N + 2    ; 2(N+1) +1
+				dispBlock.block(0, nNodes, nNodes, nNodes + 2) += _disc.polyDerM * gBlock - _disc.invMM * B * gBlock;
+				dispBlock += _disc.invMM * B * gStarDC;
+				dispBlock *= 2 * std::sqrt(_disc.dispersion[secIdx]) / _disc.deltaZ;
+
+				for (unsigned int cell = 2; cell < nCells - 2; cell++) {
+					for (int comp = 0; comp < nComp; comp++) {
+						for (int i = 0; i < dispBlock.rows(); i++) {
+							for (int j = 0; j < dispBlock.cols(); j++) {
+								// row: jump over inlet DOFs and previous cells, add component offset and go node strides from there for each dispersion block entry
+								// col: jump over inlet DOFs and previous cells, go back one cell and one node, add component offset and go node strides from there for each dispersion block entry
+								tripletList.push_back(T(offC + cell * sCell + comp * sComp + i * sNode,
+														offC + cell * sCell - (nNodes + 1) * sNode + comp * sComp + j * sNode,
+														-dispBlock(i, j)));
+							}
+						}
+					}
+				}
+
+				/*		boundary cell neighbours		*/
+
+				// left boundary cell neighbour
+				// boundary auxiliary block [ d g(c) / d c ]
+				MatrixXd GBlockBound_l = MatrixXd::Zero(nNodes, nNodes + 2);
+				GBlockBound_l.block(0, 1, nNodes, nNodes) += _disc.polyDerM;
+				GBlockBound_l.block(0, nNodes, nNodes, 1) -= 0.5 * _disc.invMM.block(0, nNodes - 1, nNodes, 1);
+				GBlockBound_l.block(0, nNodes + 1, nNodes, 1) += 0.5 * _disc.invMM.block(0, nNodes - 1, nNodes, 1);
+				GBlockBound_l *= 2 * std::sqrt(_disc.dispersion[secIdx]) / _disc.deltaZ;
+
+				gStarDC.setZero();
+				gStarDC.block(0, nNodes, 1, nNodes + 2) += gBlock.block(0, 0, 1, nNodes + 2);
+				gStarDC.block(0, 0, 1, nNodes + 2) += GBlockBound_l.block(nNodes - 1, 0, 1, nNodes + 2);
+				gStarDC.block(nNodes - 1, nNodes, 1, nNodes + 2) += gBlock.block(nNodes - 1, 0, 1, nNodes + 2);
+				gStarDC.block(nNodes - 1, 2 * nNodes, 1, nNodes + 2) += gBlock.block(0, 0, 1, nNodes + 2);
+				gStarDC *= 0.5;
+
+				dispBlock.setZero();
+				dispBlock.block(0, nNodes, nNodes, nNodes + 2) += _disc.polyDerM * gBlock - _disc.invMM * B * gBlock;
+				dispBlock += _disc.invMM * B * gStarDC;
+				dispBlock *= 2 * std::sqrt(_disc.dispersion[secIdx]) / _disc.deltaZ;
+
+				for (unsigned int comp = 0; comp < nComp; comp++) {
+					for (unsigned int i = 0; i < dispBlock.rows(); i++) {
+						for (unsigned int j = 1; j < dispBlock.cols(); j++) {
+							// row: jump over inlet DOFs and previous cell, add component offset and go node strides from there for each dispersion block entry
+							// col: jump over inlet DOFs, add component offset and go node strides from there for each dispersion block entry. Also adjust for iterator j (-1)
+							tripletList.push_back(T(offC + nNodes * sNode + comp * sComp + i * sNode,
+													offC + comp * sComp + (j - 1) * sNode,
+													-dispBlock(i, j)));
+						}
+					}
+				}
+
+				// right boundary cell neighbour
+				// boundary auxiliary block [ d g(c) / d c ]
+				MatrixXd GBlockBound_r = MatrixXd::Zero(nNodes, nNodes + 2);
+				GBlockBound_r.block(0, 1, nNodes, nNodes) += _disc.polyDerM;
+				GBlockBound_r.block(0, 0, nNodes, 1) -= 0.5 * _disc.invMM.block(0, 0, nNodes, 1);
+				GBlockBound_r.block(0, 1, nNodes, 1) += 0.5 * _disc.invMM.block(0, 0, nNodes, 1);
+				GBlockBound_r *= 2 * std::sqrt(_disc.dispersion[secIdx]) / _disc.deltaZ;
+
+				gStarDC.setZero();
+				gStarDC.block(0, nNodes, 1, nNodes + 2) += gBlock.block(0, 0, 1, nNodes + 2);
+				gStarDC.block(0, 0, 1, nNodes + 2) += gBlock.block(nNodes - 1, 0, 1, nNodes + 2);
+				gStarDC.block(nNodes - 1, nNodes, 1, nNodes + 2) += gBlock.block(nNodes - 1, 0, 1, nNodes + 2);
+				gStarDC.block(nNodes - 1, 2 * nNodes, 1, nNodes + 2) += GBlockBound_r.block(0, 0, 1, nNodes + 2);
+				gStarDC *= 0.5;
+
+				dispBlock.setZero();
+				dispBlock.block(0, nNodes, nNodes, nNodes + 2) += _disc.polyDerM * gBlock - _disc.invMM * B * gBlock;
+				dispBlock += _disc.invMM * B * gStarDC;
+				dispBlock *= 2 * std::sqrt(_disc.dispersion[secIdx]) / _disc.deltaZ;
+
 				for (unsigned int comp = 0; comp < nComp; comp++) {
 					for (unsigned int i = 0; i < dispBlock.rows(); i++) {
 						for (unsigned int j = 0; j < dispBlock.cols(); j++) {
 							// row: jump over inlet DOFs and previous cells, add component offset and go node strides from there for each dispersion block entry
-							// col: jump over inlet DOFs and previous cells, go back one cell, add component offset and go node strides from there for each dispersion block entry
-							tripletList.push_back(T(offC + cell * sCell + comp * sComp + i * sNode,
-													offC + (cell - 1) * sCell + comp * sComp + j * sNode,
+							// col: jump over inlet DOFs and previous cells, go back one cell and one node, add component offset and go node strides from there for each dispersion block entry.
+							tripletList.push_back(T(offC + (nCells - 2) * sCell + comp * sComp + i * sNode,
+													offC + (nCells - 2) * sCell - (nNodes + 1) * sNode + comp * sComp + j * sNode,
 													-dispBlock(i, j)));
 						}
 					}
 				}
-			}
 
-			/*				Boundary cell Dispersion blocks			*/
+				/*			boundary cells			*/
 
-			/* left cell */
-			// adjust auxiliary Block [ d g(c) / d c ] for left boundary cell
-			MatrixXd GBlockBound = GBlock;
-			GBlockBound(0, 1) -= 0.5 * _disc.invWeights[0] * 2 * std::sqrt(_disc.dispersion[secIdx]) / _disc.deltaZ;
+				// left boundary cell
+				dispBlock.setZero();
+				gStarDC.setZero();
+				gStarDC.block(nNodes - 1, nNodes, 1, nNodes + 2) += GBlockBound_l.block(nNodes - 1, 0, 1, nNodes + 2);
+				gStarDC.block(nNodes - 1, 2 * nNodes, 1, nNodes + 2) += gBlock.block(0, 0, 1, nNodes + 2);
+				gStarDC *= 0.5;
+				dispBlock.block(0, nNodes, nNodes, nNodes + 2) += _disc.polyDerM * GBlockBound_l - _disc.invMM * B * GBlockBound_l;
+				dispBlock.block(0, nNodes + 1, nNodes, 2 * nNodes + 1) += _disc.invMM * B * gStarDC.block(0, nNodes + 1, nNodes, 2 * nNodes + 1);
+				dispBlock *= 2 * std::sqrt(_disc.dispersion[secIdx]) / _disc.deltaZ;
 
-			// estimate dispersion block ( j < 0 not needed)
-			dispBlock.setZero();
-			dispBlock.block(0, nNodes - 1, nNodes, nNodes + 2) = _disc.polyDerM * GBlockBound;
-			dispBlock.block(0, nNodes - 1, 1, nNodes + 2) += -_disc.invWeights[0] * (-GBlockBound.block(0, 0, 1, nNodes + 2)); // G_N,N		i=0, j=-1,...,N+1
-			dispBlock.block(nNodes - 1, nNodes - 1, 1, nNodes) += _disc.invWeights[nNodes - 1] * (-0.5 * GBlockBound.block(nNodes - 1, 0, 1, nNodes)); // G_i,j+N+1		i=N, j=--1,...,N-1
-			dispBlock(nNodes - 1, 2 * nNodes - 1) += _disc.invWeights[nNodes - 1] * (-0.5 * GBlockBound(nNodes - 1, nNodes) + 0.5 * GBlockBound(0, 0)); // G_i,j		i=N, j=N
-			dispBlock(nNodes - 1, 2 * nNodes) += _disc.invWeights[nNodes - 1] * (-0.5 * GBlockBound(nNodes - 1, nNodes + 1) + 0.5 * GBlock(0, 1)); // G_i,j		i=N, j=N+1
-			dispBlock.block(nNodes - 1, 2 * nNodes + 1, 1, nNodes - 1) += _disc.invWeights[nNodes - 1] * (0.5 * GBlock.block(0, 2, 1, nNodes - 1)); // G_0,j-N-1		i=N, j=N+2,...,2N+1
-			dispBlock *= 2 * std::sqrt(_disc.dispersion[secIdx]) / _disc.deltaZ;
-			// copy *-1 to Jacobian
-			for (unsigned int comp = 0; comp < nComp; comp++) {
-				for (unsigned int i = 0; i < dispBlock.rows(); i++) {
-					for (unsigned int j = nNodes; j < dispBlock.cols(); j++) {
-						tripletList.push_back(T(offC + comp * sComp + i * sNode,
-												offC + comp * sComp + (j - nNodes) * sNode,
-												-dispBlock(i, j)));
-					}
-				}
-			}
-
-			/* right cell */
-		   // adjust auxiliary Block [ d g(c) / d c ] for left boundary cell
-			GBlockBound(0, 1) += 0.5 * _disc.invWeights[0] * 2 * std::sqrt(_disc.dispersion[secIdx]) / _disc.deltaZ; 	// reverse change from left boundary
-			GBlockBound(nNodes - 1, nNodes) += 0.5 * _disc.invWeights[polyDeg] * 2 * std::sqrt(_disc.dispersion[secIdx]) / _disc.deltaZ;
-
-			// estimate dispersion block (only estimation differences to inner cell at N = 0 and j > N not needed)
-			dispBlock.block(0, nNodes - 1, nNodes, nNodes + 2) = _disc.polyDerM * GBlockBound;
-			dispBlock(0, nNodes - 1) += -_disc.invWeights[0] * (-0.5 * GBlockBound(0, 0) + 0.5 * GBlock(nNodes - 1, nNodes)); // G_N,N		i=0, j=-1
-			dispBlock(0, nNodes) += -_disc.invWeights[0] * (-0.5 * GBlockBound(0, 1) + 0.5 * GBlock(nNodes - 1, nNodes + 1)); // G_N,N+1	i=0, j=0
-			dispBlock.block(0, nNodes + 1, 1, nNodes) += -_disc.invWeights[0] * (-0.5 * GBlockBound.block(0, 2, 1, nNodes)); // G_i,j		i=0, j=1,...,N+1
-			dispBlock.block(0, 0, 1, nNodes - 1) += -_disc.invWeights[0] * (0.5 * GBlock.block(nNodes - 1, 1, 1, nNodes - 1)); // G_N,j+N+1		i=0, j=-N-1,...,-2
-			dispBlock.block(nNodes - 1, nNodes - 1, 1, nNodes + 2) += _disc.invWeights[nNodes - 1] * (-GBlockBound.block(nNodes - 1, 0, 1, nNodes + 2)); // G_i,j+N+1		i=N, j=--1,...,N+1
-			dispBlock *= 2 * std::sqrt(_disc.dispersion[secIdx]) / _disc.deltaZ;
-			// copy *-1 to Jacobian
-			for (unsigned int comp = 0; comp < nComp; comp++) {
-				for (unsigned int i = 0; i < dispBlock.rows(); i++) {
-					for (unsigned int j = 0; j < 2 * nNodes; j++) {
-						tripletList.push_back(T(offC + (nCells - 1) * sCell + comp * sComp + i * sNode,
-												offC + (nCells - 1 - 1) * sCell + comp * sComp + j * sNode,
-												-dispBlock(i, j)));
-					}
-				}
-			}
-
-			return 0;
-		}
-
-		int calcStaticAnaModalJacobian(unsigned int secIdx, std::vector<T>& tripletList) {
-			
-			Indexer idx(_disc);
-
-			int sNode = idx.strideColNode();
-			int sCell = idx.strideColCell();
-			int sComp = idx.strideColComp();
-			int offC = idx.offsetC();
-
-			unsigned int nNodes = _disc.nNodes;
-			unsigned int nCells = _disc.nCol;
-			unsigned int nComp = _disc.nComp;
-
-			// @TODO: special cases?
-			if (nCells < 5)
-				throw std::invalid_argument("Modal Jacobian special case for nCells < 5 not implemented (yet?)");
-
-			/*======================================================*/
-			/*			Define Convection Jacobian Block			*/
-			/*======================================================*/
-
-			// Convection block [ d RHS_conv / d c ], additionally depends on first entry of previous cell
-
-			MatrixXd convBlock = MatrixXd::Zero(nNodes, nNodes + 1);
-			convBlock.block(0, 0, nNodes, 1) += _disc.invMM.block(0, 0, nNodes, 1);
-			convBlock.block(0, 1, nNodes, nNodes) -= _disc.polyDerM;
-			convBlock.block(0, 1, nNodes, 1) -= _disc.invMM.block(0, 0, nNodes, 1);
-			convBlock *= 2 * _disc.velocity[secIdx] / _disc.deltaZ;
-
-			// special inlet DOF treatment for first cell
-			for (unsigned int comp = 0; comp < nComp; comp++) {
-				for (unsigned int i = 0; i < convBlock.rows(); i++) {
-					tripletList.push_back(T(offC + comp * sComp + i * sNode, comp * sComp, -convBlock(i, 0)));
-					for (unsigned int j = 1; j < convBlock.cols(); j++) {
-						tripletList.push_back(T(offC + comp * sComp + i * sNode,
-												offC + comp * sComp + (j - 1) * sNode,
-												-convBlock(i, j)));
-					}
-				}
-			}
-			for (unsigned int cell = 1; cell < nCells; cell++) {
-				for (unsigned int comp = 0; comp < nComp; comp++) {
-					for (unsigned int i = 0; i < convBlock.rows(); i++) {
-						for (unsigned int j = 0; j < convBlock.cols(); j++) {
-							// row: jump over inlet DOFs and previous cells, add component offset and go node strides from there for each convection block entry
-							// col: jump over inlet DOFs and previous cells, go back one node, add component offset and go node strides from there for each convection block entry
-							tripletList.push_back(T(offC + cell * sCell + comp * sComp + i * sNode,
-													offC + cell * sCell - sNode + comp * sComp + j * sNode,
-													-convBlock(i, j)));
-						}
-					}
-				}
-			}
-
-			/*======================================================*/
-			/*			Define Dispersion Jacobian Block			*/
-			/*======================================================*/
-
-			/* Inner cells */
-
-			// Auxiliary Block [ d g(c) / d c ], additionally depends on boundary entries of neighbouring cells
-			MatrixXd gBlock = MatrixXd::Zero(nNodes, nNodes + 2);
-			gBlock.block(0, 1, nNodes, nNodes) = _disc.polyDerM;
-			gBlock.block(0, 0, nNodes, 1) -= 0.5 * _disc.invMM.block(0, 0, nNodes, 1);
-			gBlock.block(0, 1, nNodes, 1) += 0.5 * _disc.invMM.block(0, 0, nNodes, 1);
-			gBlock.block(0, nNodes, nNodes, 1) -= 0.5 * _disc.invMM.block(0, nNodes - 1, nNodes, 1);
-			gBlock.block(0, nNodes + 1, nNodes, 1) += 0.5 * _disc.invMM.block(0, nNodes - 1, nNodes, 1);
-			gBlock *= 2 * std::sqrt(_disc.dispersion[secIdx]) / _disc.deltaZ;
-
-			// B matrix from DG scheme
-			MatrixXd B = MatrixXd::Zero(nNodes, nNodes);
-			B(0, 0) = -1.0;
-			B(nNodes - 1, nNodes - 1) = 1.0;
-
-			// Inner dispersion block [ d RHS_disp / d c ], depends on whole previous and subsequent cell plus first entries of subsubsequent cells
-			MatrixXd dispBlock = MatrixXd::Zero(nNodes, 3 * nNodes + 2); //
-			// auxiliary block [ d g^* / d c ], depends on whole previous and subsequent cell plus first entries of subsubsequent cells
-			MatrixXd gStarDC = MatrixXd::Zero(nNodes, 3 * nNodes + 2);
-			// NOTE: N = polyDeg
-			//  indices  gStarDC    :     0   ,   1   , ..., nNodes; nNodes+1, ..., 2 * nNodes;	2*nNodes+1, ..., 3 * nNodes; 3*nNodes+1
-			//	derivative index j  : -(N+1)-1, -(N+1),... ,  -1   ;   0     , ...,		N	 ;	  N + 1	  , ..., 2N + 2    ; 2(N+1) +1
-			// compute d g^* / d c
-			gStarDC.block(0, nNodes, 1, nNodes + 2) += gBlock.block(0, 0, 1, nNodes + 2);
-			gStarDC.block(0, 0, 1, nNodes + 2) += gBlock.block(/*0*/nNodes - 1, 0, 1, nNodes + 2);
-			gStarDC.block(nNodes - 1, nNodes, 1, nNodes + 2) += gBlock.block(nNodes - 1, 0, 1, nNodes + 2);
-			gStarDC.block(nNodes - 1, 2 * nNodes, 1, nNodes + 2) += gBlock.block(0, 0, 1, nNodes + 2);
-			gStarDC *= 0.5;
-
-			//  indices  dispBlock :   0	 ,   1   , ..., nNodes;	nNodes+1, ..., 2 * nNodes;	2*nNodes+1, ..., 3 * nNodes; 3*nNodes+1
-			//	derivative index j  : -(N+1)-1, -(N+1),...,	 -1	  ;   0     , ...,		N	 ;	  N + 1	  , ..., 2N + 2    ; 2(N+1) +1
-			dispBlock.block(0, nNodes, nNodes, nNodes + 2) += _disc.polyDerM * gBlock - _disc.invMM * B * gBlock;
-			dispBlock += _disc.invMM * B * gStarDC;
-			dispBlock *= 2 * std::sqrt(_disc.dispersion[secIdx]) / _disc.deltaZ;
-
-			for (unsigned int cell = 2; cell < nCells - 2; cell++) {
 				for (int comp = 0; comp < nComp; comp++) {
 					for (int i = 0; i < dispBlock.rows(); i++) {
-						for (int j = 0; j < dispBlock.cols(); j++) {
-							// row: jump over inlet DOFs and previous cells, add component offset and go node strides from there for each dispersion block entry
-							// col: jump over inlet DOFs and previous cells, go back one cell and one node, add component offset and go node strides from there for each dispersion block entry
-							tripletList.push_back(T(offC + cell * sCell + comp * sComp + i * sNode,
-													offC + cell * sCell - (nNodes + 1) * sNode + comp * sComp + j * sNode,
+						for (int j = nNodes + 1; j < dispBlock.cols(); j++) {
+							// row: jump over inlet DOFs, add component offset and go node strides from there for each dispersion block entry
+							// col: jump over inlet DOFs and previous cells, add component offset, adjust for iterator j (-Nnodes-1) and go node strides from there for each dispersion block entry.
+							tripletList.push_back(T(offC + comp * sComp + i * sNode,
+													offC + comp * sComp + (j - (nNodes + 1)) * sNode,
 													-dispBlock(i, j)));
+						}
+					}
+				}
+
+				// right boundary cell
+				dispBlock.setZero();
+				gStarDC.setZero();
+				gStarDC.block(0, nNodes, 1, nNodes + 2) += GBlockBound_r.block(0, 0, 1, nNodes + 2);
+				gStarDC.block(0, 0, 1, nNodes + 2) += gBlock.block(nNodes - 1, 0, 1, nNodes + 2);
+				gStarDC *= 0.5;
+				dispBlock.block(0, nNodes, nNodes, nNodes + 2) += _disc.polyDerM * GBlockBound_r - _disc.invMM * B * GBlockBound_r;
+				dispBlock += _disc.invMM * B * gStarDC;
+				dispBlock *= 2 * std::sqrt(_disc.dispersion[secIdx]) / _disc.deltaZ;
+
+				for (int comp = 0; comp < nComp; comp++) {
+					for (int i = 0; i < dispBlock.rows(); i++) {
+						for (int j = 0; j < 2 * nNodes + 1; j++) {
+							// row: jump over inlet DOFs and previous cells, add component offset and go node strides from there for each dispersion block entry
+							// col: jump over inlet DOFs and previous cells, go back one cell and one node, add component offset and go node strides from there for each dispersion block entry.
+							tripletList.push_back(T(offC + (nCells - 1) * sCell + comp * sComp + i * sNode,
+													offC + (nCells - 1) * sCell - (nNodes + 1) * sNode + comp * sComp + j * sNode,
+													-dispBlock(i, j)));
+						}
+					}
+				}
+
+				return 0;
+			}
+
+			/* TODO: add to binding model implementation ? // no access to binding model ka, kd */
+			int calcIsothermJacobian(std::vector<T>& tripletList) {
+
+				Indexer idx(_disc);
+
+				int sNode = idx.strideColNode();
+				int sCell = idx.strideColCell();
+				int sComp = idx.strideColComp();
+				int offC = idx.offsetC();
+				unsigned int nComp = _disc.nComp;
+
+				for (unsigned int comp = 0; comp < nComp; comp++) {
+					if (_disc.nBound[comp]) { // either one or null
+						if (_disc.isotherm == "LINEAR") { // no differentiation for non-kinetic as we computed the equilibrium constant
+							for (unsigned int i = 0; i < _disc.nPoints; i++) {
+								tripletList.push_back(T(offC + idx.strideColLiquid() + idx.offsetBoundComp(comp) + i * sNode,
+														offC + comp + i * sNode, -_disc.adsorption[comp]));
+								tripletList.push_back(T(offC + idx.strideColLiquid() + idx.offsetBoundComp(comp) + i * sNode,
+														offC + idx.strideColLiquid() + idx.offsetBoundComp(comp) + i * sNode,
+														_disc.desorption[comp]));
+							}
+						}
+						else {
+							throw std::invalid_argument("isotherm not implemented yet!");
+						}
+					}
+				}
+
+				return 0;
+			}
+
+
+			/* State derivative Jacobian*/
+
+			void calcStatederJacobian(double c_j, std::vector<T>& tripletList) {
+
+				Indexer idx(_disc);
+
+				int sNode = idx.strideColNode();
+				int sCell = idx.strideColCell();
+				int sComp = idx.strideColComp();
+				int offC = idx.offsetC();
+
+				// =================================================================================================== //
+				//	 State derivative Jacobian: d Residual / d y_dot												   //
+				// =================================================================================================== //
+				// state derivative Jacobian -> identity matrix blocks only !
+
+				for (unsigned int comp = 0; comp < _disc.nComp; comp++) {
+					//cell block of d rhs/ d c_t
+					for (unsigned int i = 0; i < _disc.nPoints; i++) {
+						tripletList.push_back(T(offC + comp + i * sNode, offC + comp + i * sNode, c_j));
+					}
+
+					// cell block of d rhs/ d q_t
+					for (unsigned int i = 0; i < _disc.nPoints; i++) {
+						tripletList.push_back(T(offC + comp + i * sNode,
+												offC + idx.strideColLiquid() + idx.offsetBoundComp(comp) + i * sNode,
+												c_j * ((1 - _disc.porosity) / _disc.porosity)));
+					}
+
+					// cell block of d isotherm / d q_t
+					if (_disc.isKinetic[comp]) {
+						for (unsigned int i = 0; i < _disc.nPoints; i++) {
+							tripletList.push_back(T(offC + idx.strideColLiquid() + idx.offsetBoundComp(comp) + i * sNode,
+													offC + idx.strideColLiquid() + idx.offsetBoundComp(comp) + i * sNode,
+													c_j));
 						}
 					}
 				}
 			}
 
-			/*		boundary cell neighbours		*/
 
-			// left boundary cell neighbour
-			// boundary auxiliary block [ d g(c) / d c ]
-			MatrixXd GBlockBound_l = MatrixXd::Zero(nNodes, nNodes + 2);
-			GBlockBound_l.block(0, 1, nNodes, nNodes) += _disc.polyDerM;
-			GBlockBound_l.block(0, nNodes, nNodes, 1) -= 0.5 * _disc.invMM.block(0, nNodes - 1, nNodes, 1);
-			GBlockBound_l.block(0, nNodes + 1, nNodes, 1) += 0.5 * _disc.invMM.block(0, nNodes - 1, nNodes, 1);
-			GBlockBound_l *= 2 * std::sqrt(_disc.dispersion[secIdx]) / _disc.deltaZ;
+		};
 
-			gStarDC.setZero();
-			gStarDC.block(0, nNodes, 1, nNodes + 2) += gBlock.block(0, 0, 1, nNodes + 2);
-			gStarDC.block(0, 0, 1, nNodes + 2) += GBlockBound_l.block(nNodes - 1, 0, 1, nNodes + 2);
-			gStarDC.block(nNodes - 1, nNodes, 1, nNodes + 2) += gBlock.block(nNodes - 1, 0, 1, nNodes + 2);
-			gStarDC.block(nNodes - 1, 2 * nNodes, 1, nNodes + 2) += gBlock.block(0, 0, 1, nNodes + 2);
-			gStarDC *= 0.5;
-
-			dispBlock.setZero();
-			dispBlock.block(0, nNodes, nNodes, nNodes + 2) += _disc.polyDerM * gBlock - _disc.invMM * B * gBlock;
-			dispBlock += _disc.invMM * B * gStarDC;
-			dispBlock *= 2 * std::sqrt(_disc.dispersion[secIdx]) / _disc.deltaZ;
-
-			for (unsigned int comp = 0; comp < nComp; comp++) {
-				for (unsigned int i = 0; i < dispBlock.rows(); i++) {
-					for (unsigned int j = 1; j < dispBlock.cols(); j++) {
-						// row: jump over inlet DOFs and previous cell, add component offset and go node strides from there for each dispersion block entry
-						// col: jump over inlet DOFs, add component offset and go node strides from there for each dispersion block entry. Also adjust for iterator j (-1)
-						tripletList.push_back(T(offC + nNodes * sNode + comp * sComp + i * sNode,
-												offC + comp * sComp + (j - 1) * sNode,
-												-dispBlock(i, j)));
-					}
-				}
-			}
-
-			// right boundary cell neighbour
-			// boundary auxiliary block [ d g(c) / d c ]
-			MatrixXd GBlockBound_r = MatrixXd::Zero(nNodes, nNodes + 2);
-			GBlockBound_r.block(0, 1, nNodes, nNodes) += _disc.polyDerM;
-			GBlockBound_r.block(0, 0, nNodes, 1) -= 0.5 * _disc.invMM.block(0, 0, nNodes, 1);
-			GBlockBound_r.block(0, 1, nNodes, 1) += 0.5 * _disc.invMM.block(0, 0, nNodes, 1);
-			GBlockBound_r *= 2 * std::sqrt(_disc.dispersion[secIdx]) / _disc.deltaZ;
-
-			gStarDC.setZero();
-			gStarDC.block(0, nNodes, 1, nNodes + 2) += gBlock.block(0, 0, 1, nNodes + 2);
-			gStarDC.block(0, 0, 1, nNodes + 2) += gBlock.block(nNodes - 1, 0, 1, nNodes + 2);
-			gStarDC.block(nNodes - 1, nNodes, 1, nNodes + 2) += gBlock.block(nNodes - 1, 0, 1, nNodes + 2);
-			gStarDC.block(nNodes - 1, 2 * nNodes, 1, nNodes + 2) += GBlockBound_r.block(0, 0, 1, nNodes + 2);
-			gStarDC *= 0.5;
-
-			dispBlock.setZero();
-			dispBlock.block(0, nNodes, nNodes, nNodes + 2) += _disc.polyDerM * gBlock - _disc.invMM * B * gBlock;
-			dispBlock += _disc.invMM * B * gStarDC;
-			dispBlock *= 2 * std::sqrt(_disc.dispersion[secIdx]) / _disc.deltaZ;
-
-			for (unsigned int comp = 0; comp < nComp; comp++) {
-				for (unsigned int i = 0; i < dispBlock.rows(); i++) {
-					for (unsigned int j = 0; j < dispBlock.cols(); j++) {
-						// row: jump over inlet DOFs and previous cells, add component offset and go node strides from there for each dispersion block entry
-						// col: jump over inlet DOFs and previous cells, go back one cell and one node, add component offset and go node strides from there for each dispersion block entry.
-						tripletList.push_back(T(offC + (nCells - 2) * sCell + comp * sComp + i * sNode,
-												offC + (nCells - 2) * sCell - (nNodes + 1) * sNode + comp * sComp + j * sNode,
-												-dispBlock(i, j)));
-					}
-				}
-			}
-
-			/*			boundary cells			*/
-
-			// left boundary cell
-			dispBlock.setZero();
-			gStarDC.setZero();
-			gStarDC.block(nNodes - 1, nNodes, 1, nNodes + 2) += GBlockBound_l.block(nNodes - 1, 0, 1, nNodes + 2);
-			gStarDC.block(nNodes - 1, 2 * nNodes, 1, nNodes + 2) += gBlock.block(0, 0, 1, nNodes + 2);
-			gStarDC *= 0.5;
-			dispBlock.block(0, nNodes, nNodes, nNodes + 2) += _disc.polyDerM * GBlockBound_l - _disc.invMM * B * GBlockBound_l;
-			dispBlock.block(0, nNodes + 1, nNodes, 2 * nNodes + 1) += _disc.invMM * B * gStarDC.block(0, nNodes + 1, nNodes, 2 * nNodes + 1);
-			dispBlock *= 2 * std::sqrt(_disc.dispersion[secIdx]) / _disc.deltaZ;
-
-			for (int comp = 0; comp < nComp; comp++) {
-				for (int i = 0; i < dispBlock.rows(); i++) {
-					for (int j = nNodes + 1; j < dispBlock.cols(); j++) {
-						// row: jump over inlet DOFs, add component offset and go node strides from there for each dispersion block entry
-						// col: jump over inlet DOFs and previous cells, add component offset, adjust for iterator j (-Nnodes-1) and go node strides from there for each dispersion block entry.
-						tripletList.push_back(T(offC + comp * sComp + i * sNode,
-												offC + comp * sComp + (j - (nNodes + 1)) * sNode,
-												-dispBlock(i, j)));
-					}
-				}
-			}
-
-			// right boundary cell
-			dispBlock.setZero();
-			gStarDC.setZero();
-			gStarDC.block(0, nNodes, 1, nNodes + 2) += GBlockBound_r.block(0, 0, 1, nNodes + 2);
-			gStarDC.block(0, 0, 1, nNodes + 2) += gBlock.block(nNodes - 1, 0, 1, nNodes + 2);
-			gStarDC *= 0.5;
-			dispBlock.block(0, nNodes, nNodes, nNodes + 2) += _disc.polyDerM * GBlockBound_r - _disc.invMM * B * GBlockBound_r;
-			dispBlock += _disc.invMM * B * gStarDC;
-			dispBlock *= 2 * std::sqrt(_disc.dispersion[secIdx]) / _disc.deltaZ;
-
-			for (int comp = 0; comp < nComp; comp++) {
-				for (int i = 0; i < dispBlock.rows(); i++) {
-					for (int j = 0; j < 2 * nNodes + 1; j++) {
-						// row: jump over inlet DOFs and previous cells, add component offset and go node strides from there for each dispersion block entry
-						// col: jump over inlet DOFs and previous cells, go back one cell and one node, add component offset and go node strides from there for each dispersion block entry.
-						tripletList.push_back(T(offC + (nCells - 1) * sCell + comp * sComp + i * sNode,
-												offC + (nCells - 1) * sCell - (nNodes + 1) * sNode + comp * sComp + j * sNode,
-												-dispBlock(i, j)));
-					}
-				}
-			}
-
-			return 0;
-		}
-
-		/* TODO: add to binding model implementation ? // no access to binding model ka, kd */
-		int calcIsothermJacobian(std::vector<T>& tripletList) {
-
-			Indexer idx(_disc);
-
-			int sNode = idx.strideColNode();
-			int sCell = idx.strideColCell();
-			int sComp = idx.strideColComp();
-			int offC = idx.offsetC();
-
-			unsigned int compBlock = _disc.nPoints;
-			unsigned int nComp = _disc.nComp;
-			unsigned int DGBlock = compBlock * nComp;
-
-			for (unsigned int comp = 0; comp < nComp; comp++) {
-				if (_disc.isotherm == "LINEAR") { // no differentiation for non-kinetic as we computed the equilibrium constant
-					for (unsigned int i = 0; i < _disc.nPoints; i++) {
-						tripletList.push_back(T(offC + DGBlock + comp + i * nComp, nComp + comp + i * nComp, -_disc.adsorption[comp]));
-						tripletList.push_back(T(offC + DGBlock + comp + i * nComp, nComp + DGBlock + comp + i * nComp, _disc.desorption[comp]));
-					}
-				}
-				else {
-					throw std::invalid_argument("isotherm not implemented yet!");
-				}
-			}
-
-			return 0;
-		}
-
-
-		/* State derivative Jacobian*/
-
-		void calcStatederJacobian(double c_j, std::vector<T>& tripletList) {
-
-			int nNodes = _disc.nNodes;
-			int nComp = _disc.nComp;
-			int nCells = _disc.nCol;
-			int polyDeg = _disc.polyDeg;
-			int DOFs = nNodes * nComp * nCells;
-
-			// =================================================================================================== //
-			//	 State derivative Jacobian: d Residual / d y_dot												   //
-			// =================================================================================================== //
-			// state derivative Jacobian -> identity matrix blocks only !
-			int DGBlock = nComp * nCells * nNodes;
-			for (unsigned int comp = 0; comp < nComp; comp++) {
-				int strideComp = comp * (nCells * nNodes);
-				//cell block of d rhs/ d c_t
-				//_jacDisc.block(nComp + strideComp, nComp + strideComp, nNodes * nCells, nNodes * nCells)
-				//	+= c_j * MatrixXd::Identity(nNodes * nCells, nNodes * nCells);
-				for (unsigned int i = 0; i < _disc.nPoints; i++) {
-					tripletList.push_back(T(nComp + strideComp + i, nComp + strideComp + i, c_j));
-				}
-
-				// cell block of d rhs/ d q_t
-				//_jacDisc.block(nComp + strideComp, nComp + DGBlock + strideComp, nNodes * nCells, nNodes * nCells)
-				//	+= c_j * ((1 - _disc.porosity) / _disc.porosity) * MatrixXd::Identity(nNodes * nCells, nNodes * nCells);
-				for (unsigned int i = 0; i < _disc.nPoints; i++) {
-					tripletList.push_back(T(nComp + strideComp + i, nComp + DGBlock + strideComp + i, c_j * ((1 - _disc.porosity) / _disc.porosity)) );
-				}
-
-				// cell block of d isotherm / d q_t
-				if (_disc.isKinetic[comp]) {
-					//_jacDisc.block(nComp + DGBlock + strideComp, nComp + DGBlock + strideComp, nNodes * nCells, nNodes * nCells)
-					//	+= c_j * MatrixXd::Identity(nNodes * nCells, nNodes * nCells);
-					for (unsigned int i = 0; i < _disc.nPoints; i++) {
-						tripletList.push_back(T(nComp + DGBlock + strideComp + i, nComp + DGBlock + strideComp + i, c_j));
-					}
-				}
-			}
-		}
-
-
-};
-
-} // namespace model
+	} // namespace model
 } // namespace cadet
 
 #endif  // LIBCADET_LUMPEDRATEMODELWITHOUTPORESDG_HPP_

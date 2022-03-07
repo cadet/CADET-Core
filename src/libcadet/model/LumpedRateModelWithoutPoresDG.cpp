@@ -636,18 +636,18 @@ namespace cadet
 			calcRHSq_DG_new(t, secIdx, yPtr, resPtr, _disc, threadLocalMem);
 			//calcRHSq_DG(yPtr, resPtr, _disc);
 
-			unsigned int idxBound = 0;
 			for (unsigned int comp = 0; comp < _disc.nComp; comp++) {
 				if (_disc.nBound) { // either one or null
-					Eigen::Map<const VectorXd, 0, InnerStride<Dynamic>> qp_comp(ypPtr + _disc.nComp + _disc.nComp * _disc.nPoints + idxBound, _disc.nPoints, InnerStride<Dynamic>(_disc.strideBound));
-					Eigen::Map<VectorXd, 0, InnerStride<Dynamic>> resQ_comp(resPtr + _disc.nComp + _disc.nComp * _disc.nPoints + idxBound, _disc.nPoints, InnerStride<Dynamic>(_disc.strideBound));
+
+					Eigen::Map<const VectorXd, 0, InnerStride<Dynamic>> qDot_comp(ypPtr  + idxr.offsetC() + idxr.strideColLiquid() + idxr.offsetBoundComp(comp), _disc.nPoints, InnerStride<Dynamic>(idxr.strideColNode()));
+					Eigen::Map<VectorXd, 0, InnerStride<Dynamic>>		qRes_comp(resPtr + idxr.offsetC() + idxr.strideColLiquid() + idxr.offsetBoundComp(comp), _disc.nPoints, InnerStride<Dynamic>(idxr.strideColNode()));
+					
 					if (!_disc.isKinetic[comp]) {
 						// -RHS_q already stored in res_q
 					}
 					else { // -RHS_q stored in res_q
-						resQ_comp += qp_comp;
+						qRes_comp += qDot_comp;
 					}
-					idxBound++;
 				}
 			}
 
@@ -655,20 +655,17 @@ namespace cadet
 			//	Estimate Convection Dispersion residual			//
 			// ================================================//
 
-			int DOFs = _disc.nComp * _disc.nPoints;
-			idxBound = 0;
-
 			for (unsigned int comp = 0; comp < _disc.nComp; comp++) {
 
 				// extract current component mobile phase, mobile phase residual, mobile phase derivative (discontinous memory blocks)
-				Eigen::Map<const VectorXd, 0, InnerStride<Dynamic>> C_comp(yPtr + _disc.nComp + comp, _disc.nPoints, InnerStride<Dynamic>(_disc.nComp));
-				Eigen::Map<VectorXd, 0, InnerStride<Dynamic>> ResC_comp(resPtr + _disc.nComp + comp, _disc.nPoints, InnerStride<Dynamic>(_disc.nComp));
-				Eigen::Map<const VectorXd, 0, InnerStride<Dynamic>> cp_comp(ypPtr + _disc.nComp + comp, _disc.nPoints, InnerStride<Dynamic>(_disc.nComp));
+				Eigen::Map<const VectorXd, 0, InnerStride<Dynamic>> C_comp(   yPtr   + idxr.offsetC() + comp, _disc.nPoints, InnerStride<Dynamic>(idxr.strideColNode()));
+				Eigen::Map<VectorXd, 0, InnerStride<Dynamic>>		cRes_comp(resPtr + idxr.offsetC() + comp, _disc.nPoints, InnerStride<Dynamic>(idxr.strideColNode()));
+				Eigen::Map<const VectorXd, 0, InnerStride<Dynamic>> cDot_comp(ypPtr  + idxr.offsetC() + comp, _disc.nPoints, InnerStride<Dynamic>(idxr.strideColNode()));
 
 				/*	convection dispersion RHS	*/
 
 				_disc.boundary[0] = yPtr[comp]; // copy inlet DOFs to ghost node
-				ConvDisp_DG(C_comp, ResC_comp, _disc, t, comp, secIdx);
+				ConvDisp_DG(C_comp, cRes_comp, _disc, t, comp, secIdx);
 
 				//if (t > 12) {
 				//	std::cout << "STOP" << std::endl;
@@ -686,12 +683,11 @@ namespace cadet
 
 				if (ypPtr) { // NULLpointer for consistent initialization
 					if (_disc.nBound[comp]) { // either one or null
-						Eigen::Map<const VectorXd, 0, InnerStride<Dynamic>> qp_comp(ypPtr + _disc.nComp * (1 + _disc.nPoints) + idxBound, _disc.nPoints, InnerStride<Dynamic>(_disc.strideBound));
-						ResC_comp = cp_comp + qp_comp * ((1 - _disc.porosity) / _disc.porosity) - ResC_comp;
-						idxBound++;
+						Eigen::Map<const VectorXd, 0, InnerStride<Dynamic>> qDot_comp(ypPtr + idxr.offsetC() + idxr.strideColLiquid() + idxr.offsetBoundComp(comp), _disc.nPoints, InnerStride<Dynamic>(idxr.strideColNode()));
+						cRes_comp = cDot_comp + qDot_comp * ((1 - _disc.porosity) / _disc.porosity) - cRes_comp;
 					}
 					else
-						ResC_comp = cp_comp - ResC_comp;
+						cRes_comp = cDot_comp - cRes_comp;
 				}
 			}
 			//if (ypPtr) {
@@ -888,30 +884,32 @@ namespace cadet
 
 			bool success = true;
 			bool result = true;
-			// @TODO !
-			//// Factorize Jacobian only if required
-			//if (_factorizeJacobian)
-			//{
 			 
-
-			// Assemble Jacobian
-			assembleDiscretizedJacobian(alpha, idxr);
-
 			// solve J x = rhs
 			Eigen::Map<VectorXd> r(rhs, _disc.nComp * (1 + 2 * _disc.nPoints));
 			//std::cout << "linSol z:\n" << r << std::endl;
 			SparseLU < SparseMatrix<double> > solver;
 
-			// Compute the ordering permutation vector from the structural pattern of A
-			solver.analyzePattern(_jacDisc);
+			// Factorize Jacobian only if required
+			if (_factorizeJacobian)
+			{
+				// Assemble Jacobian
+				assembleDiscretizedJacobian(alpha, idxr);
 
-			// Compute the numerical factorization
-			solver.factorize(_jacDisc);
+				// Compute the ordering permutation vector from the structural pattern of A
+				solver.analyzePattern(_jacDisc);
+
+				// Compute the numerical factorization
+				solver.factorize(_jacDisc);
+			}
 
 			//Use the factors to solve the linear system 
 			r = solver.solve(r);
 
 			//std::cout << "linSol x:\n" << r << std::endl;
+
+
+
 
 		//		// Factorize
 		//		success = _jacDisc.factorize();
@@ -1128,7 +1126,7 @@ void LumpedRateModelWithoutPoresDG::consistentInitialState(const SimulationTime&
 	if (!_binding[0]->hasQuasiStationaryReactions())
 		return;
 
-	Eigen::Map<VectorXd> y(vecStateY, _disc.nComp * (1 + 2 * _disc.nPoints));
+	//Eigen::Map<VectorXd> y(vecStateY, _disc.nComp +  (_disc.nComp + _disc.strideBound) *_disc.nPoints);
 	//std::cout << "CONSISTENT INITIAL STATE\ninitial state:\n" << y << std::endl;
 
 	// @TODO: solve nonlinear equations for mass conservation. currently mass is "changed" in the sense that
@@ -1137,7 +1135,13 @@ void LumpedRateModelWithoutPoresDG::consistentInitialState(const SimulationTime&
 	// Calculate solid phase RHS
 	//calcRHSq_DG_new(simTime.t, secIdx, yPtr, resPtr, _disc, threadLocalMem);
 	calcRHSq_DG(vecStateY, vecStateY, _disc);
-	y.segment(_disc.nComp * (1 + _disc.nPoints), _disc.strideBound * _disc.nPoints) *= -1.0;
+
+	for (unsigned int comp = 0; comp < _disc.nComp; comp++) {
+		if (_disc.nBound) { // either one or null
+			Eigen::Map<VectorXd, 0, InnerStride<Dynamic>> q_comp(vecStateY + idxr.offsetC() + idxr.strideColLiquid() + idxr.offsetBoundComp(comp), _disc.nPoints, InnerStride<Dynamic>(idxr.strideColNode()));
+			q_comp *= -1.0;
+		}
+	}
 
 	//std::cout << "Consistent initial state:\n" << y << std::endl;
 
@@ -1148,7 +1152,7 @@ void LumpedRateModelWithoutPoresDG::consistentInitialState(const SimulationTime&
 	//////if (!_binding[0]->hasQuasiStationaryReactions())
 	//////	return;
 
-	//////for (int comp = 0; comp < _disc.nComp; comp++) {
+	//////for (int comp = 0; comp < _disc.nComp; comp++) { // @TODO: only strideBound instead of nComp?
 
 	//////	if (_binding[0]->reactionQuasiStationarity()[comp]) {
 
@@ -1198,17 +1202,18 @@ void LumpedRateModelWithoutPoresDG::consistentInitialTimeDerivative(const Simula
 
 	unsigned int nComp = _disc.nComp;
 	unsigned int nPoints = _disc.nPoints;
-	unsigned int idxBound = 0;
+
+	//std::cout << "hm\n" << Eigen::Map<VectorXd>(vecStateYdot, nComp + 2 * nPoints) << std::endl;
 
 	for (int comp = 0; comp < _disc.nComp; comp++) {
 
 		// extract one component
-		Eigen::Map<const VectorXd, 0, InnerStride<Dynamic>> C_comp(vecStateY + nComp + comp, nPoints, InnerStride<Dynamic>(nComp));
-		Eigen::Map<VectorXd, 0, InnerStride<Dynamic>> Cp_comp(vecStateYdot + nComp + comp, nPoints, InnerStride<Dynamic>(nComp));
+		Eigen::Map<const VectorXd, 0, InnerStride<Dynamic>> C_comp( vecStateY    + idxr.offsetC() + comp, nPoints, InnerStride<Dynamic>(idxr.strideColNode()));
+		Eigen::Map<VectorXd, 0, InnerStride<Dynamic>>		Cp_comp(vecStateYdot + idxr.offsetC() + comp, nPoints, InnerStride<Dynamic>(idxr.strideColNode()));
 
-		if (_disc.nBound) { // either one or null
+		if (_disc.nBound[comp]) { // either one or null
 
-			Eigen::Map<VectorXd, 0, InnerStride<Dynamic>> Qp_comp(vecStateYdot + nComp * (1 + nPoints) + comp, nPoints, InnerStride<Dynamic>(_disc.strideBound));
+			Eigen::Map<VectorXd, 0, InnerStride<Dynamic>> Qp_comp(vecStateYdot + idxr.offsetC() + idxr.strideColLiquid() + idxr.offsetBoundComp(comp), nPoints, InnerStride<Dynamic>(idxr.strideColNode()));
 
 		// isotherm RHS and Convection dispersion RHS call already done in residualImpl (with res=yDot and  yDot=NULLPTR) and stored in yDot
 			if (!_disc.isKinetic[comp]) {
@@ -1221,7 +1226,6 @@ void LumpedRateModelWithoutPoresDG::consistentInitialTimeDerivative(const Simula
 			// dc/dt + F* dq/dt (already stored -RHS_q at yp_q)
 			Cp_comp = -Cp_comp + Qp_comp * ((1 - _disc.porosity) / _disc.porosity);
 
-			idxBound++;
 		} 
 		else 
 			Cp_comp *= -1.0; // (already stored -RHS_q at yp_q)
