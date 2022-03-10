@@ -4,7 +4,7 @@ classdef ExtFunAntiLangmuirBinding < KineticQuasiStationaryBindingModel
 	%
 	% See also BINDINGMODEL, ANTILANGMUIRBINDING, KINETICQUASISTATIONARYBINDINGMODEL
 
-	% Copyright: (C) 2008-2021 The CADET Authors
+	% Copyright: (C) 2008-2022 The CADET Authors
 	%            See the license note at the end of the file.
 
 	properties(Constant)
@@ -441,7 +441,7 @@ end
 % =============================================================================
 %  CADET
 %  
-%  Copyright (C) 2008-2021: The CADET Authors
+%  Copyright (C) 2008-2022: The CADET Authors
 %            Please see the AUTHORS and CONTRIBUTORS file.
 %  
 %  All rights reserved. obj program and the accompanying materials

@@ -1,7 +1,7 @@
 // =============================================================================
 //  CADET
 //  
-//  Copyright © 2008-2021: The CADET Authors
+//  Copyright © 2008-2022: The CADET Authors
 //            Please see the AUTHORS and CONTRIBUTORS file.
 //  
 //  All rights reserved. This program and the accompanying materials
@@ -16,7 +16,7 @@
  * 
  * @authors    Eric von Lieres, Joel Andersson, Andreas Puettmann, Sebastian Schnittert, Samuel Leweke, William Heymann
  * @version    4.3.0
- * @date       2008-2021
+ * @date       2008-2022
  * @copyright  GNU General Public License v3.0 (or, at your option, any later version).
  */
 

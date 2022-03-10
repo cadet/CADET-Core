@@ -14,7 +14,7 @@ function singleExpMultipleParamTransform()
 %   See also LOADWASHELUTIONSMASINGLE, SINGLEEXPSEPARATECOMPONENTS, SINGLEEXPSINGLEPARAMTRANSFORM,
 %      SINGLEEXPCUSTOMPARAMTRANSFORM
 
-% Copyright: (C) 2008-2021 The CADET Authors
+% Copyright: (C) 2008-2022 The CADET Authors
 %            See the license note at the end of the file.
 
 	% Create simulation and obtain artificial data
@@ -186,7 +186,7 @@ end
 % =============================================================================
 %  CADET
 %  
-%  Copyright (C) 2008-2021: The CADET Authors
+%  Copyright (C) 2008-2022: The CADET Authors
 %            Please see the AUTHORS and CONTRIBUTORS file.
 %  
 %  All rights reserved. This program and the accompanying materials
