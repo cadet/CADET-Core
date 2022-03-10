@@ -24,6 +24,7 @@
 #include "cadet/ParameterId.hpp"
 #include "linalg/DenseMatrix.hpp"
 #include "linalg/BandMatrix.hpp"
+#include "linalg/BandedEigenSparseRowIterator.hpp"
 #include "AutoDiff.hpp"
 #include "SimulationTypes.hpp"
 #include "Memory.hpp"
@@ -292,6 +293,7 @@ public:
 	 */
 	virtual void analyticJacobian(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, int offsetCp, linalg::BandMatrix::RowIterator jac, LinearBufferAllocator workSpace) const = 0;
 	virtual void analyticJacobian(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, int offsetCp, linalg::DenseBandedRowIterator jac, LinearBufferAllocator workSpace) const = 0;
+	virtual void analyticJacobian(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, int offsetCp, linalg::BandedEigenSparseRowIterator jac, LinearBufferAllocator workSpace) const = 0;
 
 	/**
 	 * @brief Calculates the time derivative of the quasi-stationary bound state equations
