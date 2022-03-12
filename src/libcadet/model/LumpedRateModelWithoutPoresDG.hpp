@@ -687,18 +687,18 @@ namespace cadet
 			* @param [in] stateDer vector to be changed
 			* @param [in] aux true if auxiliary, else main equation
 			*/
-			void volumeIntegral(Discretization& disc, Eigen::Map<const VectorXd, 0, InnerStride<Dynamic>>& state, Eigen::Map<VectorXd, 0, InnerStride<Dynamic>>& stateDer) {
+			void volumeIntegral(Eigen::Map<const VectorXd, 0, InnerStride<Dynamic>>& state, Eigen::Map<VectorXd, 0, InnerStride<Dynamic>>& stateDer) {
 				// comp-cell-node state vector: use of Eigen lib performance
-				for (unsigned int Cell = 0; Cell < disc.nCol; Cell++) {
-					stateDer.segment(Cell * disc.nNodes, disc.nNodes)
-						-= disc.polyDerM * state.segment(Cell * disc.nNodes, disc.nNodes);
+				for (unsigned int Cell = 0; Cell < _disc.nCol; Cell++) {
+					stateDer.segment(Cell * _disc.nNodes, _disc.nNodes)
+						-= _disc.polyDerM * state.segment(Cell * _disc.nNodes, _disc.nNodes);
 				}
 			}
 
 			/*
 			* @brief calculates the interface fluxes h* of Convection Dispersion equation
 			*/
-			void InterfaceFlux(Eigen::Map<const VectorXd, 0, InnerStride<Dynamic>>& C, const VectorXd& g, Discretization& disc, unsigned int secIdx) {
+			void InterfaceFlux(Eigen::Map<const VectorXd, 0, InnerStride<Dynamic>>& C, const VectorXd& g, unsigned int secIdx) {
 
 				// component-wise strides
 				unsigned int strideCell = _disc.nNodes;
@@ -707,31 +707,31 @@ namespace cadet
 				// Conv.Disp. flux: h* = h*_conv + h*_disp = numFlux(v c_l, v c_r) + 0.5 sqrt(D_ax) (S_l + S_r)
 
 				// calculate inner interface fluxes
-				for (unsigned int Cell = 1; Cell < disc.nCol; Cell++) {
+				for (unsigned int Cell = 1; Cell < _disc.nCol; Cell++) {
 					// h* = h*_conv + h*_disp
-					disc.surfaceFlux[Cell] // inner interfaces
-						= disc.velocity[secIdx] * (C[Cell * strideCell - strideNode])
-						- 0.5 * std::sqrt(disc.dispersion[secIdx]) * (g[Cell * strideCell - strideNode] // left cell
+					_disc.surfaceFlux[Cell] // inner interfaces
+						= _disc.velocity[secIdx] * (C[Cell * strideCell - strideNode])
+						- 0.5 * std::sqrt(_disc.dispersion[secIdx]) * (g[Cell * strideCell - strideNode] // left cell
 							+ g[Cell * strideCell]);
 				}
 
 				// boundary fluxes
 					// left boundary interface
-				disc.surfaceFlux[0]
-					= disc.velocity[secIdx] * disc.boundary[0];
+				_disc.surfaceFlux[0]
+					= _disc.velocity[secIdx] * _disc.boundary[0];
 
 				// right boundary interface
-				disc.surfaceFlux[disc.nCol]
-					= disc.velocity[secIdx] * (C[disc.nCol * strideCell - strideNode])
-					- std::sqrt(disc.dispersion[secIdx]) * 0.5 * (g[disc.nCol * strideCell - strideNode] // last cell last node
-						+ disc.boundary[3]); // right boundary value S
+				_disc.surfaceFlux[_disc.nCol]
+					= _disc.velocity[secIdx] * (C[_disc.nCol * strideCell - strideNode])
+					- std::sqrt(_disc.dispersion[secIdx]) * 0.5 * (g[_disc.nCol * strideCell - strideNode] // last cell last node
+						+ _disc.boundary[3]); // right boundary value S
 			}
 
 			/**
 			* @brief calculates and fills the surface flux values for auxiliary equation
 			* @param [in] aux true if auxiliary, else main equation
 			*/
-			void InterfaceFluxAuxiliary(Eigen::Map<const VectorXd, 0, InnerStride<Dynamic>>& C, Discretization& disc) {
+			void InterfaceFluxAuxiliary(Eigen::Map<const VectorXd, 0, InnerStride<Dynamic>>& C) {
 
 				// component-wise strides
 				unsigned int strideCell = _disc.nNodes;
@@ -740,20 +740,20 @@ namespace cadet
 				// Auxiliary flux: c* = 0.5 (c_l + c_r)
 
 				// calculate inner interface fluxes
-				for (unsigned int Cell = 1; Cell < disc.nCol; Cell++) {
-					disc.surfaceFlux[Cell] // left interfaces
+				for (unsigned int Cell = 1; Cell < _disc.nCol; Cell++) {
+					_disc.surfaceFlux[Cell] // left interfaces
 						= 0.5 * (C[Cell * strideCell - strideNode] + // left node
 							C[Cell * strideCell]); // right node
 				}
 				// calculate boundary interface fluxes
 
-				disc.surfaceFlux[0] // left boundary interface
+				_disc.surfaceFlux[0] // left boundary interface
 					= 0.5 * (C[0] + // boundary value
 						C[0]); // first cell first node
 
-				disc.surfaceFlux[(disc.nCol)] // right boundary interface
-					= 0.5 * (C[disc.nCol * strideCell - strideNode] + // last cell last node
-						C[disc.nCol * strideCell - strideNode]);// // boundary value
+				_disc.surfaceFlux[(_disc.nCol)] // right boundary interface
+					= 0.5 * (C[_disc.nCol * strideCell - strideNode] + // last cell last node
+						C[_disc.nCol * strideCell - strideNode]);// // boundary value
 			}
 
 			/**
@@ -763,35 +763,35 @@ namespace cadet
 			* @param [in] aux true for auxiliary, false for main equation
 				surfaceIntegral(cPtr, &(disc.g[0]), disc,&(disc.h[0]), resPtrC, 0, secIdx);
 			*/ // 
-			void surfaceIntegral(Eigen::Map<const VectorXd, 0, InnerStride<Dynamic>>& C, Discretization& disc, Eigen::Map<const VectorXd, 0, InnerStride<Dynamic>>& state, Eigen::Map<VectorXd, 0, InnerStride<Dynamic>>& stateDer, bool aux, unsigned int secIdx) {
+			void surfaceIntegral(Eigen::Map<const VectorXd, 0, InnerStride<Dynamic>>& C, Eigen::Map<const VectorXd, 0, InnerStride<Dynamic>>& state, Eigen::Map<VectorXd, 0, InnerStride<Dynamic>>& stateDer, bool aux, unsigned int secIdx) {
 
 				// component-wise strides
 				unsigned int strideCell = _disc.nNodes;
 				unsigned int strideNode = 1u;
 
 				// calc numerical flux values c* or h* depending on equation switch aux
-				(aux == 1) ? InterfaceFluxAuxiliary(C, disc) : InterfaceFlux(C, _disc.g, disc, secIdx);
-				if (disc.modal) { // modal approach -> dense mass matrix
-					for (unsigned int Cell = 0; Cell < disc.nCol; Cell++) {
+				(aux == 1) ? InterfaceFluxAuxiliary(C) : InterfaceFlux(C, _disc.g, secIdx);
+				if (_disc.modal) { // modal approach -> dense mass matrix
+					for (unsigned int Cell = 0; Cell < _disc.nCol; Cell++) {
 						// strong surface integral -> M^-1 B [state - state*]
-						for (unsigned int Node = 0; Node < disc.nNodes; Node++) {
+						for (unsigned int Node = 0; Node < _disc.nNodes; Node++) {
 							stateDer[Cell * strideCell + Node * strideNode]
-								-= disc.invMM(Node, 0) * (state[Cell * strideCell]
-									- disc.surfaceFlux[Cell])
-								- disc.invMM(Node, disc.polyDeg) * (state[Cell * strideCell + disc.polyDeg * strideNode]
-									- disc.surfaceFlux[(Cell + 1)]);
+								-= _disc.invMM(Node, 0) * (state[Cell * strideCell]
+									- _disc.surfaceFlux[Cell])
+								- _disc.invMM(Node, _disc.polyDeg) * (state[Cell * strideCell + _disc.polyDeg * strideNode]
+									- _disc.surfaceFlux[(Cell + 1)]);
 						}
 					}
 				}
 				else { // nodal approach -> diagonal mass matrix
-					for (unsigned int Cell = 0; Cell < disc.nCol; Cell++) {
+					for (unsigned int Cell = 0; Cell < _disc.nCol; Cell++) {
 						// strong surface integral -> M^-1 B [state - state*]
 						stateDer[Cell * strideCell] // first cell node
-							-= disc.invWeights[0] * (state[Cell * strideCell] // first node
-								- disc.surfaceFlux(Cell));
-						stateDer[Cell * strideCell + disc.polyDeg * strideNode] // last cell node
-							+= disc.invWeights[disc.polyDeg] * (state[Cell * strideCell + disc.polyDeg * strideNode]
-								- disc.surfaceFlux(Cell + 1));
+							-= _disc.invWeights[0] * (state[Cell * strideCell] // first node
+								- _disc.surfaceFlux(Cell));
+						stateDer[Cell * strideCell + _disc.polyDeg * strideNode] // last cell node
+							+= _disc.invWeights[_disc.polyDeg] * (state[Cell * strideCell + _disc.polyDeg * strideNode]
+								- _disc.surfaceFlux(Cell + 1));
 					}
 				}
 			}
@@ -799,8 +799,8 @@ namespace cadet
 			/**
 			* @brief calculates the substitute h = vc - sqrt(D_ax) S(c)
 			*/
-			void calcH(Eigen::Map<const VectorXd, 0, InnerStride<>>& C, Discretization& disc, unsigned int secIdx) {
-				disc.h = disc.velocity[secIdx] * C - std::sqrt(disc.dispersion[secIdx]) * disc.g;
+			void calcH(Eigen::Map<const VectorXd, 0, InnerStride<>>& C, unsigned int secIdx) {
+				_disc.h = _disc.velocity[secIdx] * C - std::sqrt(_disc.dispersion[secIdx]) * _disc.g;
 			}
 
 			void calcRHSq_DG(double t, unsigned int secIdx, const double* yPtr, double* const resPtr, util::ThreadLocalStorage& threadLocalMem) {
@@ -836,26 +836,26 @@ namespace cadet
 			/**
 			* @brief applies the inverse Jacobian of the mapping
 			*/
-			void applyMapping(const Discretization& disc, Eigen::Map<VectorXd, 0, InnerStride<>>& state) {
-				state *= (2.0 / disc.deltaZ);
+			void applyMapping(Eigen::Map<VectorXd, 0, InnerStride<>>& state) {
+				state *= (2.0 / _disc.deltaZ);
 			}
 			/**
 			* @brief applies the inverse Jacobian of the mapping and Auxiliary factor
 			*/
-			void applyMapping_Aux(const Discretization& disc, Eigen::Map<VectorXd, 0, InnerStride<>>& state, unsigned int secIdx) {
-				state *= (-2.0 / disc.deltaZ) * ((disc.dispersion[secIdx] == 0.0) ? 1.0 : std::sqrt(disc.dispersion[secIdx]));
+			void applyMapping_Aux(Eigen::Map<VectorXd, 0, InnerStride<>>& state, unsigned int secIdx) {
+				state *= (-2.0 / _disc.deltaZ) * ((_disc.dispersion[secIdx] == 0.0) ? 1.0 : std::sqrt(_disc.dispersion[secIdx]));
 			}
 
-			void ConvDisp_DG(Eigen::Map<const VectorXd, 0, InnerStride<Dynamic>>& C, Eigen::Map<VectorXd, 0, InnerStride<Dynamic>>& resC, Discretization& disc, double t, unsigned int Comp, unsigned int secIdx) {
+			void ConvDisp_DG(Eigen::Map<const VectorXd, 0, InnerStride<Dynamic>>& C, Eigen::Map<VectorXd, 0, InnerStride<Dynamic>>& resC, double t, unsigned int Comp, unsigned int secIdx) {
 
 				// ===================================//
 				// reset cache                       //
 				// =================================//
 
 				resC.setZero();
-				disc.h.setZero();
-				disc.g.setZero();
-				disc.surfaceFlux.setZero();
+				_disc.h.setZero();
+				_disc.g.setZero();
+				_disc.surfaceFlux.setZero();
 				// get Map objects of auxiliary variable memory
 				Eigen::Map<VectorXd, 0, InnerStride<>> g(&_disc.g[0], _disc.nPoints, InnerStride<>(1));
 				Eigen::Map<const VectorXd, 0, InnerStride<>> h(&_disc.h[0], _disc.nPoints, InnerStride<>(1));
@@ -865,38 +865,38 @@ namespace cadet
 				// ==================================//
 
 				// DG volumne and surface integral in strong form
-				volumeIntegral(disc, C, g);
+				volumeIntegral(C, g);
 				// surface integral in strong form
-				surfaceIntegral(C, disc, C, g, 1, secIdx);
+				surfaceIntegral(C, C, g, 1, secIdx);
 				// inverse mapping from reference space and auxiliary factor
-				applyMapping_Aux(disc, g, secIdx);
+				applyMapping_Aux(g, secIdx);
 				// reset surface flux storage as it is used twice
-				disc.surfaceFlux.setZero();
+				_disc.surfaceFlux.setZero();
 
 				// ===================================//
 				// solve main equation w_t = dh/dx   //
 				// =================================//
 
 				// calculate the substitute h(S(c), c) = sqrt(D_ax) g(c) - v c
-				calcH(C, disc, secIdx);
+				calcH(C, secIdx);
 				// DG volumne and surface integral in strong form
-				volumeIntegral(disc, h, resC);
+				volumeIntegral(h, resC);
 				// update boundary values ( with g)
-				calcBoundaryValues(disc, C, secIdx);
-				surfaceIntegral(C, disc, h, resC, 0, secIdx);
+				calcBoundaryValues(C, secIdx);
+				surfaceIntegral(C, h, resC, 0, secIdx);
 
 				// inverse mapping from reference space
-				applyMapping(disc, resC);
+				applyMapping(resC);
 
 			}
 
-			void calcBoundaryValues(Discretization& disc, Eigen::Map<const VectorXd, 0, InnerStride<>>& C, unsigned int secIdx) {
+			void calcBoundaryValues(Eigen::Map<const VectorXd, 0, InnerStride<>>& C, unsigned int secIdx) {
 
 				// Danckwert boundary condition ghost nodes
 				//cache.boundary[0] = c_in -> inlet DOF idas suggestion
-				disc.boundary[1] = C[disc.nPoints - 1]; // c_r outlet
-				disc.boundary[2] = -disc.g[0]; // S_l inlet
-				disc.boundary[3] = -disc.g[disc.nPoints - 1]; // g_r outlet
+				_disc.boundary[1] = C[_disc.nPoints - 1]; // c_r outlet
+				_disc.boundary[2] = -_disc.g[0]; // S_l inlet
+				_disc.boundary[3] = -_disc.g[_disc.nPoints - 1]; // g_r outlet
 			}
 
 			void consistentInitialization(double t, double* const yPtr, double* const ypPtr, unsigned int secIdx, util::ThreadLocalStorage& threadLocalMem) {
@@ -935,7 +935,7 @@ namespace cadet
 					_disc.boundary[0] = yPtr[comp];
 
 					// Convection dispersion RHS for one component
-					ConvDisp_DG(C_comp, Cp_comp, _disc, t, comp, secIdx);
+					ConvDisp_DG(C_comp, Cp_comp, t, comp, secIdx);
 
 					// Residual plugged into yp_c
 					if (_disc.nBound[comp]) { // either one or null
@@ -1487,7 +1487,7 @@ namespace cadet
 				// NOTE: N = polyDeg
 				//  indices  gStarDC    :     0   ,   1   , ..., nNodes; nNodes+1, ..., 2 * nNodes;	2*nNodes+1, ..., 3 * nNodes; 3*nNodes+1
 				//	derivative index j  : -(N+1)-1, -(N+1),... ,  -1   ;   0     , ...,		N	 ;	  N + 1	  , ..., 2N + 2    ; 2(N+1) +1
-				// compute d g^* / d c
+				// auxiliary block [d g^* / d c]
 				gStarDC.block(0, nNodes, 1, nNodes + 2) += gBlock.block(0, 0, 1, nNodes + 2);
 				gStarDC.block(0, 0, 1, nNodes + 2) += gBlock.block(nNodes - 1, 0, 1, nNodes + 2);
 				gStarDC.block(nNodes - 1, nNodes, 1, nNodes + 2) += gBlock.block(nNodes - 1, 0, 1, nNodes + 2);
@@ -1507,7 +1507,8 @@ namespace cadet
 								// row: jump over inlet DOFs and previous cells, add component offset and go node strides from there for each dispersion block entry
 								// col: jump over inlet DOFs and previous cells, go back one cell and one node, add component offset and go node strides from there for each dispersion block entry
 								_jac.coeffRef(offC + cell * sCell + comp * sComp + i * sNode,
-											  offC + cell * sCell - (nNodes + 1) * sNode + comp * sComp + j * sNode) = -dispBlock(i, j);
+											  offC + cell * sCell - (nNodes + 1) * sNode + comp * sComp + j * sNode)
+											  = -dispBlock(i, j);
 							}
 						}
 					}
@@ -1516,13 +1517,14 @@ namespace cadet
 				/*		boundary cell neighbours		*/
 
 				// left boundary cell neighbour
+				
 				// boundary auxiliary block [ d g(c) / d c ]
 				MatrixXd GBlockBound_l = MatrixXd::Zero(nNodes, nNodes + 2);
 				GBlockBound_l.block(0, 1, nNodes, nNodes) += _disc.polyDerM;
 				GBlockBound_l.block(0, nNodes, nNodes, 1) -= 0.5 * _disc.invMM.block(0, nNodes - 1, nNodes, 1);
 				GBlockBound_l.block(0, nNodes + 1, nNodes, 1) += 0.5 * _disc.invMM.block(0, nNodes - 1, nNodes, 1);
 				GBlockBound_l *= 2 * std::sqrt(_disc.dispersion[secIdx]) / _disc.deltaZ;
-
+				// auxiliary block [d g^* / d c]
 				gStarDC.setZero();
 				gStarDC.block(0, nNodes, 1, nNodes + 2) += gBlock.block(0, 0, 1, nNodes + 2);
 				gStarDC.block(0, 0, 1, nNodes + 2) += GBlockBound_l.block(nNodes - 1, 0, 1, nNodes + 2);
@@ -1540,7 +1542,9 @@ namespace cadet
 						for (unsigned int j = 1; j < dispBlock.cols(); j++) {
 							// row: jump over inlet DOFs and previous cell, add component offset and go node strides from there for each dispersion block entry
 							// col: jump over inlet DOFs, add component offset and go node strides from there for each dispersion block entry. Also adjust for iterator j (-1)
-							_jac.coeffRef(offC + nNodes * sNode + comp * sComp + i * sNode, offC + comp * sComp + (j - 1) * sNode) = -dispBlock(i, j);
+							_jac.coeffRef(offC + nNodes * sNode + comp * sComp + i * sNode,
+										  offC + comp * sComp + (j - 1) * sNode)
+										  = -dispBlock(i, j);
 						}
 					}
 				}
@@ -1552,7 +1556,7 @@ namespace cadet
 				GBlockBound_r.block(0, 0, nNodes, 1) -= 0.5 * _disc.invMM.block(0, 0, nNodes, 1);
 				GBlockBound_r.block(0, 1, nNodes, 1) += 0.5 * _disc.invMM.block(0, 0, nNodes, 1);
 				GBlockBound_r *= 2 * std::sqrt(_disc.dispersion[secIdx]) / _disc.deltaZ;
-
+				// auxiliary block [d g^* / d c]
 				gStarDC.setZero();
 				gStarDC.block(0, nNodes, 1, nNodes + 2) += gBlock.block(0, 0, 1, nNodes + 2);
 				gStarDC.block(0, 0, 1, nNodes + 2) += gBlock.block(nNodes - 1, 0, 1, nNodes + 2);
@@ -1571,7 +1575,8 @@ namespace cadet
 							// row: jump over inlet DOFs and previous cells, add component offset and go node strides from there for each dispersion block entry
 							// col: jump over inlet DOFs and previous cells, go back one cell and one node, add component offset and go node strides from there for each dispersion block entry.
 							_jac.coeffRef(offC + (nCells - 2) * sCell + comp * sComp + i * sNode,
-										  offC + (nCells - 2) * sCell - (nNodes + 1) * sNode + comp * sComp + j * sNode) = -dispBlock(i, j);
+										  offC + (nCells - 2) * sCell - (nNodes + 1) * sNode + comp * sComp + j * sNode)
+										  = -dispBlock(i, j);
 						}
 					}
 				}
@@ -1593,7 +1598,9 @@ namespace cadet
 						for (int j = nNodes + 1; j < dispBlock.cols(); j++) {
 							// row: jump over inlet DOFs, add component offset and go node strides from there for each dispersion block entry
 							// col: jump over inlet DOFs and previous cells, add component offset, adjust for iterator j (-Nnodes-1) and go node strides from there for each dispersion block entry.
-							_jac.coeffRef(offC + comp * sComp + i * sNode, offC + comp * sComp + (j - (nNodes + 1)) * sNode) = -dispBlock(i, j);
+							_jac.coeffRef(offC + comp * sComp + i * sNode,
+										  offC + comp * sComp + (j - (nNodes + 1)) * sNode)
+										  = -dispBlock(i, j);
 						}
 					}
 				}
@@ -1614,7 +1621,8 @@ namespace cadet
 							// row: jump over inlet DOFs and previous cells, add component offset and go node strides from there for each dispersion block entry
 							// col: jump over inlet DOFs and previous cells, go back one cell and one node, add component offset and go node strides from there for each dispersion block entry.
 							_jac.coeffRef(offC + (nCells - 1) * sCell + comp * sComp + i * sNode,
-										  offC + (nCells - 1) * sCell - (nNodes + 1) * sNode + comp * sComp + j * sNode) = -dispBlock(i, j);
+										  offC + (nCells - 1) * sCell - (nNodes + 1) * sNode + comp * sComp + j * sNode)
+										  = -dispBlock(i, j);
 						}
 					}
 				}
@@ -1624,7 +1632,6 @@ namespace cadet
 				/*======================================================*/
 
 				// Convection block [ d RHS_conv / d c ], additionally depends on first entry of previous cell
-
 				MatrixXd convBlock = MatrixXd::Zero(nNodes, nNodes + 1);
 				convBlock.block(0, 0, nNodes, 1) += _disc.invMM.block(0, 0, nNodes, 1);
 				convBlock.block(0, 1, nNodes, nNodes) -= _disc.polyDerM;
@@ -1636,7 +1643,9 @@ namespace cadet
 					for (unsigned int i = 0; i < convBlock.rows(); i++) {
 						_jac.coeffRef(offC + comp * sComp + i * sNode, comp * sComp) = -convBlock(i, 0);
 						for (unsigned int j = 1; j < convBlock.cols(); j++) {
-							_jac.coeffRef(offC + comp * sComp + i * sNode, offC + comp * sComp + (j - 1) * sNode) += -convBlock(i, j);
+							_jac.coeffRef(offC + comp * sComp + i * sNode,
+										  offC + comp * sComp + (j - 1) * sNode)
+										  -= convBlock(i, j);
 						}
 					}
 				}
@@ -1646,7 +1655,9 @@ namespace cadet
 							for (unsigned int j = 0; j < convBlock.cols(); j++) {
 								// row: jump over inlet DOFs and previous cells, add component offset and go node strides from there for each convection block entry
 								// col: jump over inlet DOFs and previous cells, go back one node, add component offset and go node strides from there for each convection block entry
-								_jac.coeffRef(offC + cell * sCell + comp * sComp + i * sNode, offC + cell * sCell - sNode + comp * sComp + j * sNode) += -convBlock(i, j);
+								_jac.coeffRef(offC + cell * sCell + comp * sComp + i * sNode,
+											  offC + cell * sCell - sNode + comp * sComp + j * sNode)
+											  -= convBlock(i, j);
 							}
 						}
 					}
