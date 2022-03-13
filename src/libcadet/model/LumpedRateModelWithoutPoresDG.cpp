@@ -183,8 +183,8 @@ namespace cadet
 			_jacInlet.resize(_disc.nComp, _disc.nComp);
 			_jac.resize(_disc.nComp + (_disc.nComp + _disc.strideBound) * _disc.nPoints, _disc.nComp + (_disc.nComp + _disc.strideBound) * _disc.nPoints);
 			_jacDisc.resize(_disc.nComp + (_disc.nComp + _disc.strideBound) * _disc.nPoints, _disc.nComp + (_disc.nComp + _disc.strideBound) * _disc.nPoints);
-			setPattern(_jac);
-			setPattern(_jacDisc);
+			setPattern(_jac, false);
+			setPattern(_jacDisc, true);
 
 			// Set whether analytic Jacobian is used
 			useAnalyticJacobian(analyticJac);
@@ -465,9 +465,6 @@ namespace cadet
 		{
 			BENCH_SCOPE(_timerResidual);
 
-			//Eigen::Map<const VectorXd> C(simState.vecStateY + _disc.nComp, _disc.nComp * (1 + 1 * _disc.nPoints));
-			//std::cout << "ResWithJac\nsimState_C:\n" << C << std::endl;
-
 			// Evaluate residual do not compute Jacobian or parameter sensitivities
 			return residualImpl<double, double, double, false>(simTime.t, simTime.secIdx, simState.vecStateY, simState.vecStateYdot, res, threadLocalMem);
 		}
@@ -602,7 +599,7 @@ namespace cadet
 			auto start = std::chrono::high_resolution_clock::now();
 
 			if (wantJac && _disc.newJac) {
-				//std::cout << "calculate static Jacobian" << std::endl;
+
 				success = calcStaticAnaJacobian(t, secIdx, yPtr, threadLocalMem);
 
 				if (cadet_unlikely(!success))
@@ -978,9 +975,11 @@ namespace cadet
 		 */
 		void LumpedRateModelWithoutPoresDG::assembleDiscretizedJacobian(double alpha, const Indexer& idxr)
 		{
-
-			// Reset ( not necessary )
-			//_jacDisc.setZero();
+			// reset _jacDisc
+			double* vPtr = _jacDisc.valuePtr();
+			for (int k = 0; k < _jacDisc.nonZeros(); k++) {
+				vPtr[k] = 0.0;
+			}
 
 			// triplet to fill Sparse matrix
 			std::vector<T> tripletList;
@@ -989,7 +988,7 @@ namespace cadet
 			// add time derivative Jacobian to tripletlist
 			calcStatederJacobian(alpha, tripletList);
 
-			_jacDisc.setFromTriplets(tripletList.begin(), tripletList.end());
+			//_jacDisc.setFromTriplets(tripletList.begin(), tripletList.end());
 
 			// add static Jacobian, that also includes inlet
 			_jacDisc += _jac;
@@ -1264,13 +1263,9 @@ namespace cadet
 					linalg::applyVectorSubset(x, mask, fullX);
 
 					// Call residual function
-
-					// check what is passed
-					std::cout << fullJacobianMatrix << std::endl;
-
 					parts::cell::residualKernel<double, double, double, parts::cell::CellParameters, linalg::DenseBandedRowIterator, true, true>(
 						simTime.t, simTime.secIdx, colPos, fullX, nullptr, fullResidual, fullJacobianMatrix.row(0), cellResParams, tlmAlloc
-						);
+					);
 
 					// Extract Jacobian from full Jacobian
 					mat.setAll(0.0);
@@ -1362,10 +1357,7 @@ namespace cadet
 			} CADET_PARFOR_END;
 
 			// reset _jacDisc
-			double* vPtr = _jacDisc.valuePtr();
-			for (int k = 0; k < _jacDisc.nonZeros(); k++) {
-				vPtr[k] = 0.0;
-			}
+			setPattern(_jacDisc, true);
 
 		}
 
