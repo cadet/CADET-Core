@@ -813,18 +813,10 @@ namespace cadet
 
 				for (unsigned int point = 0; point < _disc.nPoints; point++) {
 
-					//std::cout << "Point: " << point << std::endl;
-					//std::cout << "localC: " << localC << std::endl;
-					//std::cout << "localQ: " << localQ << std::endl;
-					//std::cout << "localRes: " << localRes << std::endl;
-
 					double z = _disc.deltaZ * std::floor(point / _disc.nNodes)
 							 + 0.5 * _disc.deltaZ * (1 + _disc.nodes[point % _disc.nNodes]);
 
 					_binding[0]->flux(t, secIdx, ColumnPosition{ z, 0.0, 0.0 }, localQ, localC, localQRes, threadLocalMem.get());
-
-					//std::cout << "after" << std::endl;
-					//std::cout << "localRes: " << localRes << std::endl;
 
 					localC += idx.strideColNode(); // next solid concentration
 					localQ += idx.strideColNode(); // next liquid concentration
@@ -962,8 +954,9 @@ namespace cadet
 			*@brief sets the sparsity pattern of the static Jacobian
 			* @detail inlet DOFs plus ConvDisp pattern DG and isotherm pattern. Independent of the isotherm,
 				all liquid and solid entries at a discrete point are set.
+			*@param [in] stateDer bool if state derivative pattern should be added (for _jacDisc)
 			*/
-			void setPattern(Eigen::SparseMatrix<double, RowMajor>& mat) {
+			void setPattern(Eigen::SparseMatrix<double, RowMajor>& mat, bool stateDer) {
 
 				std::vector<T> tripletList;
 				// TODO: ConvDisp double entries. Times 2 for now. And isotherm dependent reservation ?
@@ -982,7 +975,31 @@ namespace cadet
 
 				isothermPattern(tripletList);
 
+				if (stateDer)
+					stateDerPattern(tripletList); // only adds [ d convDisp / d q_t ] because main diagonal is already included !
+
 				mat.setFromTriplets(tripletList.begin(), tripletList.end());
+
+			}
+
+			/*
+			*@brief computes the convection dispersion part of the state derivative pattern of the jacobian.
+			*/
+			void stateDerPattern(std::vector<T>& tripletList) {
+
+				Indexer idxr(_disc);
+				unsigned int offC = idxr.offsetC();
+
+				for (unsigned int point = 0; point < _disc.nPoints; point++) {
+					for (unsigned int comp = 0; comp < _disc.nComp; comp++) {
+						if(_disc.nBound[comp]) // either one or null
+							// row:    jump over inlet, go node and comp strides to find all liquid states
+							// column: jump over inlet and liquid states, add component offset and go node strides to find corresponding solid states
+							tripletList.push_back(T(offC + point * idxr.strideColNode() + comp * idxr.strideColComp(),
+													offC + idxr.strideColLiquid() + idxr.offsetBoundComp(comp) + point * idxr.strideColNode(),
+													2.0));
+					}
+				}
 
 			}
 
@@ -1009,28 +1026,27 @@ namespace cadet
 				/*======================================================*/
 
 				// Convection block [ d RHS_conv / d c ], also depends on first entry of previous cell
-				MatrixXd convBlock = MatrixXd::Zero(nNodes, nNodes + 1);
 
 				// special inlet DOF treatment for first cell
 				for (unsigned int comp = 0; comp < nComp; comp++) {
-					for (unsigned int i = 0; i < convBlock.rows(); i++) {
-						tripletList.push_back(T(offC + comp * sComp + i * sNode, comp * sComp, -convBlock(i, 0)));
-						for (unsigned int j = 1; j < convBlock.cols(); j++) {
+					for (unsigned int i = 0; i < nNodes; i++) {
+						tripletList.push_back(T(offC + comp * sComp + i * sNode, comp * sComp, 0.0));
+						for (unsigned int j = 1; j < nNodes + 1; j++) {
 							tripletList.push_back(T(offC + comp * sComp + i * sNode,
 													offC + comp * sComp + (j - 1) * sNode,
-													-convBlock(i, j)));
+													0.0));
 						}
 					}
 				}
 				for (unsigned int cell = 1; cell < nCells; cell++) {
 					for (unsigned int comp = 0; comp < nComp; comp++) {
-						for (unsigned int i = 0; i < convBlock.rows(); i++) {
-							for (unsigned int j = 0; j < convBlock.cols(); j++) {
+						for (unsigned int i = 0; i < nNodes; i++) {
+							for (unsigned int j = 0; j < nNodes + 1; j++) {
 								// row: jump over inlet DOFs and previous cells, add component offset and go node strides from there for each convection block entry
 								// col: jump over inlet DOFs and previous cells, go back one node, add component offset and go node strides from there for each convection block entry
 								tripletList.push_back(T(offC + cell * sCell + comp * sComp + i * sNode,
 														offC + cell * sCell - sNode + comp * sComp + j * sNode,
-														-convBlock(i, j)));
+														0.0));
 							}
 						}
 					}
@@ -1044,18 +1060,17 @@ namespace cadet
 
 
 				// Dispersion block [ d RHS_disp / d c ], depends on whole previous and subsequent cell
-				MatrixXd dispBlock = MatrixXd::Zero(nNodes, 3 * nNodes); //
 
 				// insert Blocks to Jacobian inner cells
 				for (unsigned int cell = 1; cell < nCells - 1; cell++) {
 					for (unsigned int comp = 0; comp < nComp; comp++) {
-						for (unsigned int i = 0; i < dispBlock.rows(); i++) {
-							for (unsigned int j = 0; j < dispBlock.cols(); j++) {
+						for (unsigned int i = 0; i < nNodes; i++) {
+							for (unsigned int j = 0; j < 3 * nNodes; j++) {
 								// row: jump over inlet DOFs and previous cells, add component offset and go node strides from there for each dispersion block entry
 								// col: jump over inlet DOFs and previous cells, go back one cell, add component offset and go node strides from there for each dispersion block entry
 								tripletList.push_back(T(offC + cell * sCell + comp * sComp + i * sNode,
 														offC + (cell - 1) * sCell + comp * sComp + j * sNode,
-														-dispBlock(i, j)));
+														0.0));
 							}
 						}
 					}
@@ -1064,21 +1079,21 @@ namespace cadet
 				/*				Boundary cell Dispersion blocks			*/
 
 				for (unsigned int comp = 0; comp < nComp; comp++) {
-					for (unsigned int i = 0; i < dispBlock.rows(); i++) {
-						for (unsigned int j = nNodes; j < dispBlock.cols(); j++) {
+					for (unsigned int i = 0; i < nNodes; i++) {
+						for (unsigned int j = nNodes; j < 3 * nNodes; j++) {
 							tripletList.push_back(T(offC + comp * sComp + i * sNode,
 													offC + comp * sComp + (j - nNodes) * sNode,
-													-dispBlock(i, j)));
+													0.0));
 						}
 					}
 				}
 
 				for (unsigned int comp = 0; comp < nComp; comp++) {
-					for (unsigned int i = 0; i < dispBlock.rows(); i++) {
+					for (unsigned int i = 0; i < nNodes; i++) {
 						for (unsigned int j = 0; j < 2 * nNodes; j++) {
 							tripletList.push_back(T(offC + (nCells - 1) * sCell + comp * sComp + i * sNode,
 													offC + (nCells - 1 - 1) * sCell + comp * sComp + j * sNode,
-													-dispBlock(i, j)));
+													0.0));
 						}
 					}
 				}
@@ -1108,27 +1123,27 @@ namespace cadet
 				/*======================================================*/
 
 				// Convection block [ d RHS_conv / d c ], additionally depends on first entry of previous cell
-				MatrixXd convBlock = MatrixXd::Zero(nNodes, nNodes + 1);
+				//MatrixXd convBlock = MatrixXd::Zero(nNodes, nNodes + 1);
 				// special inlet DOF treatment for first cell
 				for (unsigned int comp = 0; comp < nComp; comp++) {
-					for (unsigned int i = 0; i < convBlock.rows(); i++) {
-						tripletList.push_back(T(offC + comp * sComp + i * sNode, comp * sComp, -convBlock(i, 0)));
-						for (unsigned int j = 1; j < convBlock.cols(); j++) {
+					for (unsigned int i = 0; i < nNodes; i++) {
+						tripletList.push_back(T(offC + comp * sComp + i * sNode, comp * sComp, 0.0));
+						for (unsigned int j = 1; j < nNodes + 1; j++) {
 							tripletList.push_back(T(offC + comp * sComp + i * sNode,
 													offC + comp * sComp + (j - 1) * sNode,
-													-convBlock(i, j)));
+													0.0));
 						}
 					}
 				}
 				for (unsigned int cell = 1; cell < nCells; cell++) {
 					for (unsigned int comp = 0; comp < nComp; comp++) {
-						for (unsigned int i = 0; i < convBlock.rows(); i++) {
-							for (unsigned int j = 0; j < convBlock.cols(); j++) {
+						for (unsigned int i = 0; i < nNodes; i++) {
+							for (unsigned int j = 0; j < nNodes + 1; j++) {
 								// row: jump over inlet DOFs and previous cells, add component offset and go node strides from there for each convection block entry
 								// col: jump over inlet DOFs and previous cells, go back one node, add component offset and go node strides from there for each convection block entry
 								tripletList.push_back(T(offC + cell * sCell + comp * sComp + i * sNode,
 														offC + cell * sCell - sNode + comp * sComp + j * sNode,
-														-convBlock(i, j)));
+														0.0));
 							}
 						}
 					}
@@ -1141,16 +1156,16 @@ namespace cadet
 				/* Inner cells */
 
 				// Inner dispersion block [ d RHS_disp / d c ], depends on whole previous and subsequent cell plus first entries of subsubsequent cells
-				MatrixXd dispBlock = MatrixXd::Zero(nNodes, 3 * nNodes + 2); //
+				//MatrixXd dispBlock = MatrixXd::Zero(nNodes, 3 * nNodes + 2);
 				for (unsigned int cell = 2; cell < nCells - 2; cell++) {
 					for (unsigned int comp = 0; comp < nComp; comp++) {
-						for (unsigned int i = 0; i < dispBlock.rows(); i++) {
-							for (unsigned int j = 0; j < dispBlock.cols(); j++) {
+						for (unsigned int i = 0; i < nNodes; i++) {
+							for (unsigned int j = 0; j < 3 * nNodes + 2; j++) {
 								// row: jump over inlet DOFs and previous cells, add component offset and go node strides from there for each dispersion block entry
 								// col: jump over inlet DOFs and previous cells, go back one cell and one node, add component offset and go node strides from there for each dispersion block entry
 								tripletList.push_back(T(offC + cell * sCell + comp * sComp + i * sNode,
 														offC + cell * sCell - (nNodes + 1) * sNode + comp * sComp + j * sNode,
-														-dispBlock(i, j)));
+														0.0));
 							}
 						}
 					}
@@ -1160,25 +1175,25 @@ namespace cadet
 
 				// left boundary cell neighbour
 				for (unsigned int comp = 0; comp < nComp; comp++) {
-					for (unsigned int i = 0; i < dispBlock.rows(); i++) {
-						for (unsigned int j = 1; j < dispBlock.cols(); j++) {
+					for (unsigned int i = 0; i < nNodes; i++) {
+						for (unsigned int j = 1; j < 3 * nNodes + 2; j++) {
 							// row: jump over inlet DOFs and previous cell, add component offset and go node strides from there for each dispersion block entry
 							// col: jump over inlet DOFs, add component offset and go node strides from there for each dispersion block entry. Also adjust for iterator j (-1)
 							tripletList.push_back(T(offC + nNodes * sNode + comp * sComp + i * sNode,
 													offC + comp * sComp + (j - 1) * sNode,
-													-dispBlock(i, j)));
+													0.0));
 						}
 					}
 				}
 				// right boundary cell neighbour
 				for (unsigned int comp = 0; comp < nComp; comp++) {
-					for (unsigned int i = 0; i < dispBlock.rows(); i++) {
-						for (unsigned int j = 0; j < dispBlock.cols() - 1; j++) {
+					for (unsigned int i = 0; i < nNodes; i++) {
+						for (unsigned int j = 0; j < 3 * nNodes + 2 - 1; j++) {
 							// row: jump over inlet DOFs and previous cells, add component offset and go node strides from there for each dispersion block entry
 							// col: jump over inlet DOFs and previous cells, go back one cell and one node, add component offset and go node strides from there for each dispersion block entry.
 							tripletList.push_back(T(offC + (nCells - 2) * sCell + comp * sComp + i * sNode,
 													offC + (nCells - 2) * sCell - (nNodes + 1) * sNode + comp * sComp + j * sNode,
-													-dispBlock(i, j)));
+													0.0));
 						}
 					}
 				}
@@ -1187,25 +1202,25 @@ namespace cadet
 
 				// left boundary cell
 				for (unsigned int comp = 0; comp < nComp; comp++) {
-					for (unsigned int i = 0; i < dispBlock.rows(); i++) {
-						for (unsigned int j = nNodes + 1; j < dispBlock.cols(); j++) {
+					for (unsigned int i = 0; i < nNodes; i++) {
+						for (unsigned int j = nNodes + 1; j < 3 * nNodes + 2; j++) {
 							// row: jump over inlet DOFs, add component offset and go node strides from there for each dispersion block entry
 							// col: jump over inlet DOFs and previous cells, add component offset, adjust for iterator j (-Nnodes-1) and go node strides from there for each dispersion block entry.
 							tripletList.push_back(T(offC + comp * sComp + i * sNode,
 													offC + comp * sComp + (j - (nNodes + 1)) * sNode,
-													-dispBlock(i, j)));
+													0.0));
 						}
 					}
 				}
 				// right boundary cell
 				for (unsigned int comp = 0; comp < nComp; comp++) {
-					for (unsigned int i = 0; i < dispBlock.rows(); i++) {
+					for (unsigned int i = 0; i < nNodes; i++) {
 						for (unsigned int j = 0; j < 2 * nNodes + 1; j++) {
 							// row: jump over inlet DOFs and previous cells, add component offset and go node strides from there for each dispersion block entry
 							// col: jump over inlet DOFs and previous cells, go back one cell and one node, add component offset and go node strides from there for each dispersion block entry.
 							tripletList.push_back(T(offC + (nCells - 1) * sCell + comp * sComp + i * sNode,
 													offC + (nCells - 1) * sCell - (nNodes + 1) * sNode + comp * sComp + j * sNode,
-													-dispBlock(i, j)));
+													0.0));
 						}
 					}
 				}
@@ -1225,9 +1240,9 @@ namespace cadet
 				for (unsigned int point = 0; point < _disc.nPoints; point++) {
 					for (unsigned int solid = 0; solid < _disc.strideBound; solid++) {
 						for (unsigned int conc = 0; conc < _disc.nComp + _disc.strideBound; conc++) {
-							// jump over inlet, previous discrete points, liquid concentration and add the offset of the current bound state
+							// column: jump over inlet, previous discrete points, liquid concentration and add the offset of the current bound state
+							// row:    jump over inlet and previous discrete points. add entries for all liquid and bound concentrations (conc)
 							tripletList.push_back(T(idxr.offsetC() + idxr.strideColNode() * point + idxr.strideColLiquid() + solid * idxr.offsetBoundComp(solid),
-								// jump over inlet and previous discrete points. add entries for all liquid and bound concentrations (conc)
 													idxr.offsetC() + idxr.strideColNode() * point + conc,
 													0.0));
 						}
@@ -1679,9 +1694,6 @@ namespace cadet
 
 				for (unsigned int point = 0; point < _disc.nPoints; point++) {
 
-					//std::cout << "Point: " << point << std::endl;
-					//std::cout << "rowIterator current row: " << rowIterator.row()<< std::endl;
-
 					double z = _disc.deltaZ * std::floor(point / _disc.nNodes)
 						+ 0.5 * _disc.deltaZ * (1 + _disc.nodes[point % _disc.nNodes]);
 
@@ -1697,43 +1709,43 @@ namespace cadet
 
 			/* State derivative Jacobian*/
 
-			void calcStatederJacobian(double c_j, std::vector<T>& tripletList) {
+			void calcStatederJacobian(double alpha, std::vector<T>& tripletList) {
 
-				Indexer idx(_disc);
+				Indexer idxr(_disc);
 
-				int sNode = idx.strideColNode();
-				int sCell = idx.strideColCell();
-				int sComp = idx.strideColComp();
-				int offC = idx.offsetC();
+				int sNode = idxr.strideColNode();
+				int offC = idxr.offsetC();
 
 				// =================================================================================================== //
 				//	 State derivative Jacobian: d Residual / d y_dot												   //
 				// =================================================================================================== //
-				// state derivative Jacobian -> identity matrix blocks only !
+				
+				linalg::BandedEigenSparseRowIterator jac(_jacDisc, idxr.offsetC());
 
-				for (unsigned int comp = 0; comp < _disc.nComp; comp++) {
-					//cell block of d rhs/ d c_t
-					for (unsigned int i = 0; i < _disc.nPoints; i++) {
-						tripletList.push_back(T(offC + comp + i * sNode, offC + comp + i * sNode, c_j));
-					}
-					if (_disc.nBound[comp]) { // either one or null
-						// cell block of d rhs/ d q_t
-						for (unsigned int i = 0; i < _disc.nPoints; i++) {
-							tripletList.push_back(T(offC + comp + i * sNode,
-													offC + idx.strideColLiquid() + idx.offsetBoundComp(comp) + i * sNode,
-													c_j * ((1 - _disc.porosity) / _disc.porosity)));
+				double Beta = (1.0 - _disc.porosity) / _disc.porosity;
+
+				for (unsigned int point = 0; point < _disc.nPoints; point++) {
+					for (unsigned int comp = 0; comp < _disc.nComp; comp++) {
+						// d convDispRHS / d c_t
+						jac[0] += alpha;
+
+						if (_disc.nBound[comp]) { // either one or null; no loop necessary
+							// d convDispRHS / d q_t
+							jac[idxr.strideColLiquid() - comp + idxr.offsetBoundComp(comp)] += alpha* Beta;
 						}
-
-						// cell block of d isotherm / d q_t
-						if (_disc.isKinetic[comp]) {
-							for (unsigned int i = 0; i < _disc.nPoints; i++) {
-								tripletList.push_back(T(offC + idx.strideColLiquid() + idx.offsetBoundComp(comp) + i * sNode,
-														offC + idx.strideColLiquid() + idx.offsetBoundComp(comp) + i * sNode,
-														c_j));
+						++jac;
+					}
+					for (unsigned int comp = 0; comp < _disc.nComp; comp++) {
+						if (_disc.nBound[comp]) { // either one or null; no loop over bound states necessary
+							if (_disc.isKinetic[comp]) {
+								// d isotherm / d q_t
+								jac[0] += alpha;
 							}
+							++jac;
 						}
 					}
 				}
+
 			}
 
 
