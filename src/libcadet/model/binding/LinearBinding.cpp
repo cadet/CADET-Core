@@ -562,11 +562,6 @@ public:
 		jacobianImpl(t, secIdx, colPos, y, offsetCp, jac, workSpace);
 	}
 
-	//virtual void analyticJacobian(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, int offsetCp, double const* jac_rowIterator, LinearBufferAllocator workSpace) const
-	//{
-	//	jacobianImpl(t, secIdx, colPos, y, offsetCp, jac, workSpace);
-	//}
-
 	virtual void timeDerivativeQuasiStationaryFluxes(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* yCp, double const* y, double* dResDt, LinearBufferAllocator workSpace) const
 	{
 		if (!hasQuasiStationaryReactions())
