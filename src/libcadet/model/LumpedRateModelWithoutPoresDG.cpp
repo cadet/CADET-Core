@@ -42,7 +42,8 @@
 #include <tbb/parallel_for.h>
 #endif
 
-#include "C:\Users\jmbr\Cadet\libs\eigen-3.4.0\Eigen\Dense.hpp" // use LA lib Eigen for Matrix operations
+#include <C:\Users\jmbr\Cadet\libs\eigen-3.4.0\Eigen\Dense.hpp> // use LA lib Eigen for Matrix operations
+#include <C:\Users\jmbr\Cadet\libs\eigen-3.4.0\Eigen\IterativeLinearSolvers>	
 using namespace Eigen;
 
 namespace cadet
@@ -884,84 +885,77 @@ namespace cadet
 			const ConstSimulationState& simState)
 		{
 			BENCH_SCOPE(_timerLinearSolve);
-			auto start = std::chrono::high_resolution_clock::now();
+			//auto start = std::chrono::high_resolution_clock::now();
 
 			Indexer idxr(_disc);
 
 			bool success = true;
 			bool result = true;
 
+			// Assemble Jacobian
+			auto start2 = std::chrono::high_resolution_clock::now();
+			assembleDiscretizedJacobian(alpha, idxr);
+			auto stop2 = std::chrono::high_resolution_clock::now();
+			auto duration2 = std::chrono::duration_cast<std::chrono::microseconds>(stop2 - start2);
+			std::cout << "assemble jac duration: " << duration2.count() << std::endl;
+
 			// solve J x = rhs
-			Eigen::Map<VectorXd> r(rhs, _disc.nComp + (_disc.nComp + _disc.strideBound) * _disc.nPoints);
+			Eigen::Map<VectorXd> r(rhs, numDofs());
 
 			//std::cout << "t= " << t << "  rhs_in = [" << r[0] << ", " << r[1] << "]" << std::endl;
 			//std::cout << "linSol z:\n" << r << std::endl;
+			//std::cout << "jacDisc z:\n" << _jacDisc.toDense() << std::endl;
 
-			SparseLU < SparseMatrix<double> > solver;
-			//SparseQR < SparseMatrix<double>, COLAMDOrdering<int> > solver;
+			Eigen::BiCGSTAB<Eigen::SparseMatrix<double, RowMajor>, Eigen::DiagonalPreconditioner<double>> solver;
+			//Eigen::SparseLU<Eigen::SparseMatrix<double>> solver;
 
 			// Factorize Jacobian only if required
 			if (_factorizeJacobian)
 			{
-				// Assemble Jacobian
-				auto start2 = std::chrono::high_resolution_clock::now();
-				assembleDiscretizedJacobian(alpha, idxr);
-				auto stop2 = std::chrono::high_resolution_clock::now();
-				auto duration2 = std::chrono::duration_cast<std::chrono::microseconds>(stop2 - start2);
-				std::cout << "assemble jac duration: " << duration2.count() << std::endl;
-
-				// Compute the ordering permutation vector from the structural pattern of A
 				auto start3 = std::chrono::high_resolution_clock::now();
-				solver.analyzePattern(_jacDisc);
+				solver.compute(_jacDisc.block(_disc.nComp, _disc.nComp, numPureDofs(), numPureDofs()));
 				auto stop3 = std::chrono::high_resolution_clock::now();
 				auto duration3 = std::chrono::duration_cast<std::chrono::microseconds>(stop3 - start3);
-				std::cout << "analyze pattern duration: " << duration3.count() << std::endl;
-				// Compute the numerical factorization
-				auto start4 = std::chrono::high_resolution_clock::now();
-				solver.factorize(_jacDisc);
-				auto stop4 = std::chrono::high_resolution_clock::now();
-				auto duration4 = std::chrono::duration_cast<std::chrono::microseconds>(stop4 - start4);
-				std::cout << "factorize duration: " << duration4.count() << std::endl;
+				std::cout << "factorize duration: " << duration3.count() << std::endl;
+				if (solver.info() != Success) {
+					LOG(Error) << "factorization failed";
+					success = false;
+				}
+
 			}
 
-			//Use the factors to solve the linear system 
+			// tmpstate needed for (faster) iterative solver
 			auto start5 = std::chrono::high_resolution_clock::now();
-			r = solver.solve(r);
+			_tempState = new double[numDofs()];
+			Eigen::Map<VectorXd> tmpstate(_tempState, numDofs());
+			tmpstate = r;
 			auto stop5 = std::chrono::high_resolution_clock::now();
 			auto duration5 = std::chrono::duration_cast<std::chrono::microseconds>(stop5 - start5);
-			std::cout << "solve duration: " << duration5.count() << std::endl;
+			std::cout << "tmpstate duration: " << duration5.count() << std::endl;
 
-			auto stop = std::chrono::high_resolution_clock::now();
-			auto duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
-			std::cout << "linear solve duration: " << duration.count() << std::endl;
+			// Use the factors to solve the linear system 
+			auto start6 = std::chrono::high_resolution_clock::now();
+			r.segment(_disc.nComp, numPureDofs()) = solver.solve(tmpstate.segment(_disc.nComp, numPureDofs()));
+			// handle inlet DOFs: nothing todo as _jacInlet is identity matrix
+
+			auto stop6 = std::chrono::high_resolution_clock::now();
+			auto duration6 = std::chrono::duration_cast<std::chrono::microseconds>(stop6 - start6);
+			std::cout << "solve duration: " << duration6.count() << std::endl;
+
+			if (solver.info() != Success) {
+				LOG(Error) << "solve() failed";
+				result = false;
+			}
+
+			//auto stop = std::chrono::high_resolution_clock::now();
+			//auto duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
+			//std::cout << "linear solve duration: " << duration.count() << std::endl;
+
+			//std::cout << "#iterations:     " << solver.iterations() << std::endl;
+			//std::cout << "estimated error: " << solver.error() << std::endl;
 
 			//std::cout << "t= " << t << "  x_in = [" << r[0] << ", " << r[1] << "]" << std::endl;
 			//std::cout << "linSol x:\n" << r << std::endl;
-
-
-
-
-		//		// Factorize
-		//		success = _jacDisc.factorize();
-		//	if (cadet_unlikely(!success))
-		//	{
-		//		LOG(Error) << "Factorize() failed for par block";
-		//	}
-
-		//	// Do not factorize again at next call without changed Jacobians
-		//	_factorizeJacobian = false;
-		//}
-
-		//// Handle inlet DOFs
-		//_jacInlet.multiplySubtract(rhs, rhs + idxr.offsetC());
-
-		//// Solve
-		//// TODO: Solve with sparse matrix
-		//const bool result = _jacDisc.solve(rhs + idxr.offsetC());
-		//if (cadet_unlikely(!result))
-		//{
-		//	LOG(Error) << "Solve() failed for bulk block";
-		//}
 
 			return (success && result) ? 0 : 1;
 		}
@@ -1366,6 +1360,13 @@ namespace cadet
 				// Refine / correct solution
 				_binding[0]->postConsistentInitialState(simTime.t, simTime.secIdx, colPos, qShell, qShell - idxr.strideColLiquid(), tlmAlloc);
 			} CADET_PARFOR_END;
+
+			// reset _jacDisc
+			double* vPtr = _jacDisc.valuePtr();
+			for (int k = 0; k < _jacDisc.nonZeros(); k++) {
+				vPtr[k] = 0.0;
+			}
+
 		}
 
 		/**
