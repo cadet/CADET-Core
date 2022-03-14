@@ -24,6 +24,7 @@
 #include "Memory.hpp"
 #include "Weno.hpp"
 #include "SimulationTypes.hpp"
+#include <ParamReaderHelper.hpp>
 
 #include <unordered_map>
 #include <unordered_set>
@@ -86,6 +87,8 @@ public:
 	inline const active& columnLength() const CADET_NOEXCEPT { return _colLength; }
 	inline const active& crossSectionArea() const CADET_NOEXCEPT { return _crossSection; }
 	inline const active& currentVelocity() const CADET_NOEXCEPT { return _curVelocity; }
+	inline const active* currentDispersion(const int secIdx) const CADET_NOEXCEPT { return getSectionDependentSlice(_colDispersion, _nComp, secIdx); }
+	inline const bool dispersionCompIndep() const CADET_NOEXCEPT { return _dispersionCompIndep; }
 
 	inline unsigned int nComp() const CADET_NOEXCEPT { return _nComp; }
 	inline unsigned int nCol() const CADET_NOEXCEPT { return _nCol; }

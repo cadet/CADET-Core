@@ -42,6 +42,7 @@
 #include <tbb/parallel_for.h>
 #endif
 
+#define EIGEN_USE_MKL_ALL
 #include <C:\Users\jmbr\Cadet\libs\eigen-3.4.0\Eigen\Dense.hpp> // use LA lib Eigen for Matrix operations
 #include <C:\Users\jmbr\Cadet\libs\eigen-3.4.0\Eigen\IterativeLinearSolvers>	
 using namespace Eigen;
@@ -154,12 +155,16 @@ namespace cadet
 
 			paramProvider.popScope();
 
-			// @TODO: better safe strideComp, strideMobPhase ?
 			const unsigned int strideCell = _disc.nNodes;
 
 			// @TODO: die KONFIGURATION für den convections dispersions operator und die _disc beschreibung überschneiden sich teilweise noch.. 
 			// entweder wird ein eigener ConvDisp geschrieben oder alles in Disc geschmissen..?
 			const bool transportSuccess = _convDispOp.configureModelDiscretization(paramProvider, _disc.nComp, _disc.nCol, strideCell);
+			
+			_disc.dispersion = Eigen::VectorXd::Zero(_disc.nComp); // fill later on with convDispOp (section and component dependent)
+
+			_disc.velocity = static_cast<double>(_convDispOp.currentVelocity()); // updated later on with cnvDispOp (section dependent)
+			_disc.curSection = -1;
 
 			_disc.length_ = paramProvider.getDouble("COL_LENGTH");
 			_disc.crossSection = -1.0;
@@ -167,20 +172,12 @@ namespace cadet
 			{
 				_disc.crossSection = paramProvider.getDouble("CROSS_SECTION_AREA");
 			}
-			_disc.velocity.clear();
-			if (paramProvider.exists("VELOCITY"))
-			{
-				readScalarParameterOrArray(_disc.velocity, paramProvider, "VELOCITY", 1);
-			}
-			readScalarParameterOrArray(_disc.dispersion, paramProvider, "COL_DISPERSION", 1);
 
 			_disc.deltaZ = _disc.length_ / _disc.nCol;
 
 			// Allocate memory
 			Indexer idxr(_disc);
 
-			//if (true) and estimate (static) analytical convection dispersion Jacobian ?
-			_jacInlet.resize(_disc.nComp, _disc.nComp);
 			_jac.resize(_disc.nComp + (_disc.nComp + _disc.strideBound) * _disc.nPoints, _disc.nComp + (_disc.nComp + _disc.strideBound) * _disc.nPoints);
 			_jacDisc.resize(_disc.nComp + (_disc.nComp + _disc.strideBound) * _disc.nPoints, _disc.nComp + (_disc.nComp + _disc.strideBound) * _disc.nPoints);
 			setPattern(_jac, false);
@@ -591,10 +588,10 @@ namespace cadet
 			Eigen::Map<const Eigen::VectorXd> y(yPtr, numDofs());
 			Eigen::Map<const Eigen::VectorXd> yp(ypPtr, numDofs());
 			Eigen::Map<Eigen::VectorXd> res(resPtr, numDofs());
-
-			// TODO: section dependent velocity, dispersion ! -> maybe use convdispOperator?
-			secIdx = 0;
+			
 			bool success = 1;
+
+			updateSection(secIdx); // determines if we have a section switch, sets velocity, dispersion, newJac
 
 			auto start = std::chrono::high_resolution_clock::now();
 
@@ -607,7 +604,7 @@ namespace cadet
 					LOG(Error) << "Jacobian pattern did not fit the Jacobian estimation";
 				}
 
-				//_disc.newJac = false; // @TODO: set true at every section
+				_disc.newJac = false;
 			}
 
 			auto stop = std::chrono::high_resolution_clock::now();
@@ -661,7 +658,7 @@ namespace cadet
 				/*	convection dispersion RHS	*/
 
 				_disc.boundary[0] = yPtr[comp]; // copy inlet DOFs to ghost node
-				ConvDisp_DG(C_comp, cRes_comp, t, comp, secIdx);
+				ConvDisp_DG(C_comp, cRes_comp, t, comp);
 
 				//if (t > 12) {
 				//	std::cout << "STOP" << std::endl;
@@ -782,16 +779,6 @@ namespace cadet
 
 			_ret = alpha * _jac * _yS + beta * _ret; // NOTE: inlet DOFs are included in DG jacobian
 
-			////// Handle identity matrix of inlet DOFs
-			////for (unsigned int i = 0; i < _disc.nComp; ++i)
-			////{
-			////	ret[i] = alpha * yS[i] + beta * ret[i];
-			////}
-
-			////// Main Jacobian
-			////_jac.multiplyVector(yS + idxr.offsetC(), alpha, beta, ret + idxr.offsetC());
-
-			////_jacInlet.multiplyAdd(yS, ret + idxr.offsetC(), alpha);
 		}
 
 		/**
@@ -890,11 +877,7 @@ namespace cadet
 			bool result = true;
 
 			// Assemble Jacobian
-			auto start2 = std::chrono::high_resolution_clock::now();
 			assembleDiscretizedJacobian(alpha, idxr);
-			auto stop2 = std::chrono::high_resolution_clock::now();
-			auto duration2 = std::chrono::duration_cast<std::chrono::microseconds>(stop2 - start2);
-			std::cout << "assemble jac duration: " << duration2.count() << std::endl;
 
 			// solve J x = rhs
 			Eigen::Map<VectorXd> r(rhs, numDofs());
@@ -903,8 +886,8 @@ namespace cadet
 			//std::cout << "linSol z:\n" << r << std::endl;
 			//std::cout << "jacDisc z:\n" << _jacDisc.toDense() << std::endl;
 
-			Eigen::BiCGSTAB<Eigen::SparseMatrix<double, RowMajor>, Eigen::DiagonalPreconditioner<double>> solver;
-			//Eigen::SparseLU<Eigen::SparseMatrix<double>> solver;
+			//Eigen::BiCGSTAB<Eigen::SparseMatrix<double, RowMajor>, Eigen::DiagonalPreconditioner<double>> solver;
+			Eigen::SparseLU<Eigen::SparseMatrix<double>> solver;
 
 			// Factorize Jacobian only if required
 			if (_factorizeJacobian)
@@ -921,18 +904,19 @@ namespace cadet
 
 			}
 
-			// tmpstate needed for (faster) iterative solver
-			auto start5 = std::chrono::high_resolution_clock::now();
-			_tempState = new double[numDofs()];
-			Eigen::Map<VectorXd> tmpstate(_tempState, numDofs());
-			tmpstate = r;
-			auto stop5 = std::chrono::high_resolution_clock::now();
-			auto duration5 = std::chrono::duration_cast<std::chrono::microseconds>(stop5 - start5);
-			std::cout << "tmpstate duration: " << duration5.count() << std::endl;
+			// tmpstate needed for (slightly faster?) iterative solver
+			//auto start5 = std::chrono::high_resolution_clock::now();
+			//_tempState = new double[numDofs()];
+			//Eigen::Map<VectorXd> tmpstate(_tempState, numDofs());
+			//tmpstate = r;
+			//auto stop5 = std::chrono::high_resolution_clock::now();
+			//auto duration5 = std::chrono::duration_cast<std::chrono::microseconds>(stop5 - start5);
+			//std::cout << "tmpstate duration: " << duration5.count() << std::endl;
 
 			// Use the factors to solve the linear system 
 			auto start6 = std::chrono::high_resolution_clock::now();
-			r.segment(_disc.nComp, numPureDofs()) = solver.solve(tmpstate.segment(_disc.nComp, numPureDofs()));
+			//r.segment(_disc.nComp, numPureDofs()) = solver.solve(tmpstate.segment(_disc.nComp, numPureDofs()));
+			r.segment(_disc.nComp, numPureDofs()) = solver.solve(r.segment(_disc.nComp, numPureDofs()));
 			// handle inlet DOFs: nothing todo as _jacInlet is identity matrix
 
 			auto stop6 = std::chrono::high_resolution_clock::now();
@@ -975,23 +959,31 @@ namespace cadet
 		 */
 		void LumpedRateModelWithoutPoresDG::assembleDiscretizedJacobian(double alpha, const Indexer& idxr)
 		{
-			// reset _jacDisc
+			//auto start1 = std::chrono::high_resolution_clock::now();
+			// reset _jacDisc without loosing pattern
 			double* vPtr = _jacDisc.valuePtr();
 			for (int k = 0; k < _jacDisc.nonZeros(); k++) {
-				vPtr[k] = 0.0;
+				*vPtr = 0.0;
+				vPtr++;
 			}
+			//auto stop1 = std::chrono::high_resolution_clock::now(); // DEBUG: ~28
+			//auto duration1 = std::chrono::duration_cast<std::chrono::microseconds>(stop1 - start1);
+			//std::cout << "assemble jac reset duration: " << duration1.count() << std::endl;
 
-			// triplet to fill Sparse matrix
-			std::vector<T> tripletList;
-			tripletList.reserve(3 * _disc.nComp * _disc.nPoints);
+			//auto start2 = std::chrono::high_resolution_clock::now(); // DEBUG: ~28
+			// add time derivative Jacobian
+			addTimederJacobian(alpha);
+			//auto stop2 = std::chrono::high_resolution_clock::now();
+			//auto duration2 = std::chrono::duration_cast<std::chrono::microseconds>(stop2 - start2);
+			//std::cout << "assemble jac timeDer duration: " << duration2.count() << std::endl;
 
-			// add time derivative Jacobian to tripletlist
-			calcStatederJacobian(alpha, tripletList);
-
-			//_jacDisc.setFromTriplets(tripletList.begin(), tripletList.end());
-
-			// add static Jacobian, that also includes inlet
+			//auto start3 = std::chrono::high_resolution_clock::now(); // DEBUG: ~100
+			// add static Jacobian
 			_jacDisc += _jac;
+			//auto stop3 = std::chrono::high_resolution_clock::now();
+			//auto duration3 = std::chrono::duration_cast<std::chrono::microseconds>(stop3 - start3);
+			//std::cout << "assemble jac staticJac duration: " << duration3.count() << std::endl;
+
 
 			//MatrixXd mat = _jacDisc.toDense();
 			//for (int i = 0; i < mat.rows(); i++) {
@@ -1188,7 +1180,7 @@ namespace cadet
 			//Problem capturing variables here
 #ifdef CADET_PARALLELIZE
 			BENCH_SCOPE(_timerConsistentInitPar);
-			tbb::parallel_for(std::size_t(0), static_cast<std::size_t>(_disc.nCol), [&](std::size_t col)
+			tbb::parallel_for(std::size_t(0), static_cast<std::size_t>(_disc.nPoints), [&](std::size_t point)
 #else
 			for (unsigned int point = 0; point < _disc.nPoints; point++)
 #endif
