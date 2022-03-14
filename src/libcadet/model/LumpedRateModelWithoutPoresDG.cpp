@@ -581,30 +581,36 @@ namespace cadet
 		{
 			Indexer idxr(_disc);
 
-			//// Eigen acces to data pointers
+			// Eigen access to data pointers
 			const double* yPtr = reinterpret_cast<const double*>(y_);
 			const double* const ypPtr = reinterpret_cast<const double* const>(yDot_);
 			double* const resPtr = reinterpret_cast<double* const>(res_);
 			Eigen::Map<const Eigen::VectorXd> y(yPtr, numDofs());
 			Eigen::Map<const Eigen::VectorXd> yp(ypPtr, numDofs());
 			Eigen::Map<Eigen::VectorXd> res(resPtr, numDofs());
-			
+
 			bool success = 1;
 
-			updateSection(secIdx); // determines if we have a section switch, sets velocity, dispersion, newJac
+			// determine wether we have a section switch. If so, set velocity, dispersion, newStaticJac
+			updateSection(secIdx);
 
 			auto start = std::chrono::high_resolution_clock::now();
 
-			if (wantJac && _disc.newJac) {
+			if (wantJac) {
 
-				success = calcStaticAnaJacobian(t, secIdx, yPtr, threadLocalMem);
+				if (_disc.newStaticJac) { // static part of jacobian only needs to be updated at new sections
 
-				if (cadet_unlikely(!success))
-				{
-					LOG(Error) << "Jacobian pattern did not fit the Jacobian estimation";
+					success = calcStaticAnaJacobian(t, secIdx, yPtr, threadLocalMem);
+
+					_disc.newStaticJac = false;
+				}
+				else if (_disc.strideBound > 0) { // isotherm Jacobian is not always static
+					success += calcIsothermJacobian(t, secIdx, yPtr, threadLocalMem);
 				}
 
-				_disc.newJac = false;
+				if (cadet_unlikely(!success))
+					LOG(Error) << "Jacobian pattern did not fit the Jacobian estimation";
+				
 			}
 
 			auto stop = std::chrono::high_resolution_clock::now();

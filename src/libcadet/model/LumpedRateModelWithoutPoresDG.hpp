@@ -246,7 +246,7 @@ protected:
 
 		std::vector<bool> isKinetic;
 
-		bool newJac; //!< determines wether static analytical jacobian needs to be computed (every section)
+		bool newStaticJac; //!< determines wether static analytical jacobian needs to be computed (every section)
 
 		/**
 		* @brief computes LGL nodes, integration weights, polynomial derivative matrix
@@ -273,7 +273,7 @@ protected:
 			surfaceFlux.resize(nCol + 1);
 			surfaceFlux.setZero();
 
-			newJac = true;
+			newStaticJac = true;
 
 			lglNodesWeights();
 			// @TODO: make modal/nodal switch during calculation possible?
@@ -685,7 +685,7 @@ protected:
 		if (_disc.curSection != secIdx) {
 
 			_disc.curSection = secIdx;
-			_disc.newJac = true;
+			_disc.newStaticJac = true;
 
 			// update velocity and dispersion
 			_disc.velocity = static_cast<double>(_convDispOp.currentVelocity());
@@ -1246,25 +1246,18 @@ protected:
 		//	vPtr[k] = 0.0;
 		//}
 
-		if (_disc.newJac) {
-
 			// DG convection dispersion Jacobian
-			if (_disc.modal)
-				calcConvDispModalJacobian();
-			else
-				calcConvDispNodalJacobian();
+		if (_disc.modal)
+			calcConvDispModalJacobian();
+		else
+			calcConvDispNodalJacobian();
 
-			// inlet DOFs Jacobian
-			double* valPtr = _jac.valuePtr();
-			for (unsigned int i = 0; i < _disc.nComp; i++) {
-				valPtr[i] = 1.0;
-			}
-
-			// isotherm Jacobian
-			if (_disc.strideBound > 0)
-				calcIsothermJacobian(t, secIdx, y, threadLocalMem);
-
+		// inlet Jacobian (forward flow)
+		double* valPtr = _jac.valuePtr();
+		for (unsigned int i = 0; i < _disc.nComp; i++) {
+			valPtr[i] = 1.0;
 		}
+
 
 		if (!_jac.isCompressed()) // if matrix lost its compressed storage, the pattern did not fit.
 			return 0;
@@ -1684,8 +1677,9 @@ protected:
 
 	/**
 	* @brief analytically calculates the isotherm jacobian
+	* @return 1 if jacobain estimation fits the predefined pattern of the jacobian, 0 if not.
 	*/
-	void calcIsothermJacobian(double t, unsigned int secIdx, const double* const y, util::ThreadLocalStorage& threadLocalMem) {
+	int calcIsothermJacobian(double t, unsigned int secIdx, const double* const y, util::ThreadLocalStorage& threadLocalMem) {
 
 		Indexer idxr(_disc);
 
@@ -1708,6 +1702,11 @@ protected:
 			yLocal += idxr.strideColNode();
 
 		}
+
+		if (!_jac.isCompressed()) // if matrix lost its compressed storage, the pattern did not fit.
+			return 0;
+
+		return 1;
 	}
 
 	/**
