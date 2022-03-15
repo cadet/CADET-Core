@@ -12,14 +12,21 @@
 
 #include <catch.hpp>
 #include "Approx.hpp"
-
 #include "cadet/cadet.hpp"
-#include "UnitOperationTests.hpp"
-#include "JsonTestModels.hpp"
+#include "Logging.hpp"
+#include "ColumnTests.hpp"
 #include "Utils.hpp"
+#include "SimHelper.hpp"
+#include "ModelBuilderImpl.hpp"
+#include "common/Driver.hpp"
+#include "Weno.hpp"
 #include "linalg/Norms.hpp"
 #include "SimulationTypes.hpp"
 #include "ParallelSupport.hpp"
+
+#include "JsonTestModels.hpp"
+#include "JacobianHelper.hpp"
+#include "UnitOperationTests.hpp"
 
 #include <cmath>
 #include <functional>
@@ -28,7 +35,7 @@
 
 namespace
 {
-	void setParameters(cadet::JsonParameterProvider& jpp, unsigned int nCol, unsigned int nNodes)
+	void setParameters(cadet::JsonParameterProvider& jpp, unsigned int nCol, unsigned int nNodes, std::string basis)
 	{
 		int level = 0;
 
@@ -43,30 +50,33 @@ namespace
 			++level;
 		}
 
-		// Set model parameters
-		// jpp.set("PARAM", value);
-
 		jpp.pushScope("discretization");
 
 		// Set discretization parameters
 		jpp.set("NCOL", static_cast<int>(nCol));
 		jpp.set("NNODES", static_cast<int>(nNodes));
+		jpp.set("POLYNOMIAL_BASIS", basis);
 
 		jpp.popScope();
 	
 		for (int l = 0; l < level; ++l)
 			jpp.popScope();
 	}
+
+
+
 }
 
-TEST_CASE("LRM_DG test", "[LRM_DG],[UnitOp]")
+TEST_CASE("LRM_DG linear pulse vs analytic solution", "[LRM],[Simulation],[Analytic]")
 {
 	cadet::IModelBuilder* const mb = cadet::createModelBuilder();
 	REQUIRE(nullptr != mb);
 
-	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding(uoType);
-	setParameters(jpp, 10, 2);
-	cadet::IUnitOperation* const unit = unitoperation::createAndConfigureUnit(jpp, *mb);
+	// Setup simulation
+	bool dynamicBinding = true;
+	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding("LUMPED_RATE_MODEL_WITHOUT_PORES_DG");
+	setParameters(jpp, 10, 2, "LAGRANGE");
+	cadet::IUnitOperation* const unit = cadet::test::unitoperation::createAndConfigureUnit(jpp, *mb);
 
 	// Disable AD
 	unit->useAnalyticJacobian(true);
@@ -77,15 +87,14 @@ TEST_CASE("LRM_DG test", "[LRM_DG],[UnitOp]")
 	std::vector<double> res(unit->numDofs(), 0.0);
 
 	// Fill state vector with some values
-	util::populate(y.data(), [](unsigned int idx) { return std::abs(std::sin(idx * 0.13)) + 1e-4; }, unit->numDofs());
-	util::populate(yDot.data(), [](unsigned int idx) { return std::abs(std::sin(idx * 0.11)) + 2e-4; }, unit->numDofs());
+	cadet::test::util::populate(y.data(), [](unsigned int idx) { return std::abs(std::sin(idx * 0.13)) + 1e-4; }, unit->numDofs());
+	cadet::test::util::populate(yDot.data(), [](unsigned int idx) { return std::abs(std::sin(idx * 0.11)) + 2e-4; }, unit->numDofs());
 
-	const AdJacobianParams noAdParams{nullptr, nullptr, 0u};
-	const ConstSimulationState simState{y.data(), yDot.data()};
-	unit->notifyDiscontinuousSectionTransition(0.0, 0u, simState, noAdParams);
+	const cadet::AdJacobianParams noAdParams{nullptr, nullptr, 0u};
+	const cadet::ConstSimulationState simState{y.data(), yDot.data()};
 
 	// Evaluate residual
-	const SimulationTime simTime{0.0, 0u};
+	const cadet::SimulationTime simTime{0.0, 0u};
 	cadet::util::ThreadLocalStorage tls;
 	tls.resize(unit->threadLocalMemorySize());
 
@@ -95,3 +104,9 @@ TEST_CASE("LRM_DG test", "[LRM_DG],[UnitOp]")
 	destroyModelBuilder(mb);
 }
 
+TEST_CASE("LRM_DG test", "[LRM_DG],[UnitOp]")
+{
+
+	cadet::test::column::testAnalyticBenchmark_DG("LUMPED_RATE_MODEL_WITHOUT_PORES_DG", "/data/lrm-pulseBenchmark.data", true, true, "LAGRANGE", 3, 50, 2e-5, 1e-7);
+
+}
