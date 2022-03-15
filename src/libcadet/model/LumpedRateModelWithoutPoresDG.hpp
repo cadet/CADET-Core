@@ -678,7 +678,7 @@ protected:
 	};
 
 	/**
-	* @brief sets the current section index and section switch
+	* @brief sets the current section index and section dependend velocity, dispersion
 	*/
 	void updateSection(int secIdx) {
 
@@ -1740,7 +1740,7 @@ protected:
 			}
 			for (unsigned int comp = 0; comp < _disc.nComp; comp++) {
 				if (_disc.nBound[comp]) { // either one or null; no loop over bound states necessary
-					if (_disc.isKinetic[comp]) {
+					if (_disc.isKinetic[idxr.offsetBoundComp(comp)]) {
 						// d isotherm / d q_t
 						jac[0] += alpha;
 					}

@@ -157,13 +157,11 @@ namespace cadet
 
 			const unsigned int strideCell = _disc.nNodes;
 
-			// @TODO: die KONFIGURATION für den convections dispersions operator und die _disc beschreibung überschneiden sich teilweise noch.. 
-			// entweder wird ein eigener ConvDisp geschrieben oder alles in Disc geschmissen..?
 			const bool transportSuccess = _convDispOp.configureModelDiscretization(paramProvider, _disc.nComp, _disc.nCol, strideCell);
 			
 			_disc.dispersion = Eigen::VectorXd::Zero(_disc.nComp); // fill later on with convDispOp (section and component dependent)
 
-			_disc.velocity = static_cast<double>(_convDispOp.currentVelocity()); // updated later on with cnvDispOp (section dependent)
+			_disc.velocity = static_cast<double>(_convDispOp.currentVelocity()); // updated later on with convDispOp (section dependent)
 			_disc.curSection = -1;
 
 			_disc.length_ = paramProvider.getDouble("COL_LENGTH");
@@ -189,7 +187,7 @@ namespace cadet
 			// ==== Construct and configure binding model
 
 			paramProvider.pushScope("adsorption");
-			readScalarParameterOrArray(_disc.isKinetic, paramProvider, "IS_KINETIC", _disc.nComp);
+			readScalarParameterOrArray(_disc.isKinetic, paramProvider, "IS_KINETIC", _disc.strideBound);
 			paramProvider.popScope();
 
 			clearBindingModels();
@@ -287,7 +285,7 @@ namespace cadet
 		}
 
 		unsigned int LumpedRateModelWithoutPoresDG::threadLocalMemorySize() const CADET_NOEXCEPT
-		{// @TODO: adjust for DG residual workspace !
+		{
 			LinearMemorySizer lms;
 
 			// Memory for parts::cell::residualKernel = residualImpl()
@@ -641,7 +639,7 @@ namespace cadet
 					Eigen::Map<const VectorXd, 0, InnerStride<Dynamic>> qDot_comp(ypPtr + idxr.offsetC() + idxr.strideColLiquid() + idxr.offsetBoundComp(comp), _disc.nPoints, InnerStride<Dynamic>(idxr.strideColNode()));
 					Eigen::Map<VectorXd, 0, InnerStride<Dynamic>>		qRes_comp(resPtr + idxr.offsetC() + idxr.strideColLiquid() + idxr.offsetBoundComp(comp), _disc.nPoints, InnerStride<Dynamic>(idxr.strideColNode()));
 
-					if (!_disc.isKinetic[comp]) {
+					if (!_disc.isKinetic[idxr.offsetBoundComp(comp)]) {
 						// -RHS_q already stored in res_q
 					}
 					else { // -RHS_q stored in res_q
@@ -775,13 +773,9 @@ namespace cadet
 		 */
 		void LumpedRateModelWithoutPoresDG::multiplyWithJacobian(const SimulationTime& simTime, const ConstSimulationState& simState, double const* yS, double alpha, double beta, double* ret)
 		{
-			// @SAM? nur für den convdisp part oder auch für q? welches ordering hat der state,
-			//		kann ich einfach alles component major machen und einfach am ende der simulation einmal umsortieren ? 
 
-			Indexer idxr(_disc);
-
-			Eigen::Map<Eigen::VectorXd> _ret(ret, (1 + idxr.strideColComp()) * _disc.nComp); // (inlet + discrete points) times nComp TODO: + q?
-			Eigen::Map<const Eigen::VectorXd> _yS(yS, (1 + idxr.strideColComp()) * _disc.nComp); // (inlet + discrete points) times nComp TODO: + q?
+			Eigen::Map<Eigen::VectorXd> _ret(ret, numDofs());
+			Eigen::Map<const Eigen::VectorXd> _yS(yS, numDofs());
 
 			_ret = alpha * _jac * _yS + beta * _ret; // NOTE: inlet DOFs are included in DG jacobian
 
@@ -1410,7 +1404,7 @@ namespace cadet
 					Eigen::Map<VectorXd, 0, InnerStride<Dynamic>> Qp_comp(vecStateYdot + idxr.offsetC() + idxr.strideColLiquid() + idxr.offsetBoundComp(comp), nPoints, InnerStride<Dynamic>(idxr.strideColNode()));
 
 					// isotherm RHS and Convection dispersion RHS call already done in residualImpl (with res=yDot and  yDot=NULLPTR) and stored in yDot
-					if (!_disc.isKinetic[comp]) {
+					if (!_disc.isKinetic[idxr.offsetBoundComp(comp)]) {
 						Qp_comp.setZero();
 					}
 					else {
