@@ -52,11 +52,12 @@ constexpr double SurfVolRatioSphere = 3.0;
 constexpr double SurfVolRatioCylinder = 2.0;
 constexpr double SurfVolRatioSlab = 1.0;
 
-int schurComplementMultiplierLRMPores(void* userData, double const* x, double* z)
-{
-	LumpedRateModelWithPoresDG* const lrm = static_cast<LumpedRateModelWithPoresDG*>(userData);
-	return lrm->schurComplementMatrixVector(x, z);
-}
+// already defined in LRMP FV
+//int schurComplementMultiplierLRMPores(void* userData, double const* x, double* z)
+//{
+//	LumpedRateModelWithPoresDG* const lrm = static_cast<LumpedRateModelWithPoresDG*>(userData);
+//	return lrm->schurComplementMatrixVector(x, z);
+//}
 
 
 LumpedRateModelWithPoresDG::LumpedRateModelWithPoresDG(UnitOpIdx unitOpIdx) : UnitOperationBase(unitOpIdx),
@@ -1516,7 +1517,7 @@ bool LumpedRateModelWithPoresDG::setSensitiveParameter(const ParameterId& pId, u
 void registerLumpedRateModelWithPoresDG(std::unordered_map<std::string, std::function<IUnitOperation* (UnitOpIdx)>>& models)
 {
 	models[LumpedRateModelWithPoresDG::identifier()] = [](UnitOpIdx uoId) { return new LumpedRateModelWithPoresDG(uoId); };
-	models["LRMP"] = [](UnitOpIdx uoId) { return new LumpedRateModelWithPoresDG(uoId); };
+	models["LRMPDG"] = [](UnitOpIdx uoId) { return new LumpedRateModelWithPoresDG(uoId); };
 }
 
 }  // namespace model
