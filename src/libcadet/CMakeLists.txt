@@ -127,6 +127,7 @@ set(LIBCADET_SOURCES
 	${CMAKE_SOURCE_DIR}/src/libcadet/model/LumpedRateModelWithoutPores.cpp
 	${CMAKE_SOURCE_DIR}/src/libcadet/model/LumpedRateModelWithoutPoresDG.cpp
 	${CMAKE_SOURCE_DIR}/src/libcadet/model/LumpedRateModelWithPores.cpp
+	${CMAKE_SOURCE_DIR}/src/libcadet/model/LumpedRateModelWithPoresDG.cpp
 	${CMAKE_SOURCE_DIR}/src/libcadet/model/LumpedRateModelWithPores-LinearSolver.cpp
 	${CMAKE_SOURCE_DIR}/src/libcadet/model/LumpedRateModelWithPores-InitialConditions.cpp
 	${CMAKE_SOURCE_DIR}/src/libcadet/model/GeneralRateModel.cpp
