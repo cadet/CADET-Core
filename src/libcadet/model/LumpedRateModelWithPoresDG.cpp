@@ -52,12 +52,12 @@ constexpr double SurfVolRatioSphere = 3.0;
 constexpr double SurfVolRatioCylinder = 2.0;
 constexpr double SurfVolRatioSlab = 1.0;
 
-// already defined in LRMP FV
-//int schurComplementMultiplierLRMPores(void* userData, double const* x, double* z)
-//{
-//	LumpedRateModelWithPoresDG* const lrm = static_cast<LumpedRateModelWithPoresDG*>(userData);
-//	return lrm->schurComplementMatrixVector(x, z);
-//}
+
+int schurComplementMultiplierLRMPoresDG(void* userData, double const* x, double* z)
+{
+	LumpedRateModelWithPoresDG* const lrm = static_cast<LumpedRateModelWithPoresDG*>(userData);
+	return lrm->schurComplementMatrixVector(x, z);
+}
 
 
 LumpedRateModelWithPoresDG::LumpedRateModelWithPoresDG(UnitOpIdx unitOpIdx) : UnitOperationBase(unitOpIdx),
@@ -117,6 +117,22 @@ bool LumpedRateModelWithPoresDG::configureModelDiscretization(IParameterProvider
 	paramProvider.pushScope("discretization");
 
 	_disc.nCol = paramProvider.getInt("NCOL");
+
+	_disc.polyDeg = paramProvider.getInt("POLYDEG");
+	if (_disc.polyDeg < 1)
+		throw InvalidParameterException("Polynomial degree must be at least 1!");
+
+	if (paramProvider.getString("POLYNOMIAL_BASIS") == "LAGRANGE") {
+		_disc.modal = false;
+	}
+	else if (paramProvider.getString("POLYNOMIAL_BASIS") == "JACOBI") {
+		_disc.modal = true;
+	}
+	else
+		throw InvalidParameterException("Polynomial basis must be either LAGRANGE or JACOBI");
+
+	// Compute discretization
+	_disc.initializeDG();
 
 	const std::vector<int> nBound = paramProvider.getIntArray("NBOUND");
 	if (nBound.size() < _disc.nComp)
@@ -189,7 +205,7 @@ bool LumpedRateModelWithPoresDG::configureModelDiscretization(IParameterProvider
 
 	// Initialize and configure GMRES for solving the Schur-complement
 	_gmres.initialize(_disc.nCol * _disc.nComp * _disc.nParType, paramProvider.getInt("MAX_KRYLOV"), linalg::toOrthogonalization(paramProvider.getInt("GS_TYPE")), paramProvider.getInt("MAX_RESTARTS"));
-	_gmres.matrixVectorMultiplier(&schurComplementMultiplierLRMPores, this);
+	_gmres.matrixVectorMultiplier(&schurComplementMultiplierLRMPoresDG, this);
 	_schurSafety = paramProvider.getDouble("SCHUR_SAFETY");
 
 	// Allocate space for initial conditions
@@ -230,6 +246,14 @@ bool LumpedRateModelWithPoresDG::configureModelDiscretization(IParameterProvider
 
 	const bool transportSuccess = _convDispOp.configureModelDiscretization(paramProvider, _disc.nComp, _disc.nCol);
 
+	_disc.dispersion = Eigen::VectorXd::Zero(_disc.nComp); // fill later on with convDispOp (section and component dependent)
+
+	_disc.velocity = static_cast<double>(_convDispOp.currentVelocity()); // updated later on with convDispOp (section dependent)
+	_disc.curSection = -1;
+
+	_disc.length_ = paramProvider.getDouble("COL_LENGTH");
+	_disc.deltaZ = _disc.length_ / _disc.nCol;
+
 	// Allocate memory
 	Indexer idxr(_disc);
 
@@ -258,6 +282,11 @@ bool LumpedRateModelWithPoresDG::configureModelDiscretization(IParameterProvider
 	useAnalyticJacobian(analyticJac);
 
 	// ==== Construct and configure binding model
+
+	paramProvider.pushScope("adsorption");
+	readScalarParameterOrArray(_disc.isKinetic, paramProvider, "IS_KINETIC", *_disc.strideBound);
+	paramProvider.popScope();
+
 	clearBindingModels();
 	_binding = std::vector<IBindingModel*>(_disc.nParType, nullptr);
 

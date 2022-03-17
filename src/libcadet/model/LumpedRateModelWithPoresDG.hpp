@@ -30,8 +30,14 @@
 #include "model/ModelUtils.hpp"
 #include "ParameterMultiplexing.hpp"
 
+#include "C:\Users\jmbr\Cadet\libs\eigen-3.4.0\Eigen\Dense.hpp"	// use LA lib Eigen for Matrix operations
+#include "C:\Users\jmbr\Cadet\libs\eigen-3.4.0\Eigen\Sparse.hpp"
 #include <array>
 #include <vector>
+#ifndef _USE_MATH_DEFINES
+#define _USE_MATH_DEFINES
+#include <math.h>
+#endif
 
 #include "Benchmark.hpp"
 
@@ -228,16 +234,317 @@ protected:
 	void checkAnalyticJacobianAgainstAd(active const* const adRes, unsigned int adDirOffset) const;
 #endif
 
-	struct Discretization
+	class Discretization // @TODO: separate convDisp DGoperator class
 	{
+	public:
 		unsigned int nComp; //!< Number of components
 		unsigned int nCol; //!< Number of column cells
+		unsigned int polyDeg; //!< polynomial degree
+		unsigned int nNodes; //!< Number of nodes per cell
+		unsigned int nPoints; //!< Number of discrete Points
 		unsigned int nParType; //!< Number of particle types
 		unsigned int* parTypeOffset; //!< Array with offsets (in particle block) to particle type, additional last element contains total number of particle DOFs
 		unsigned int* nBound; //!< Array with number of bound states for each component and particle type (particle type major ordering)
 		unsigned int* boundOffset; //!< Array with offset to the first bound state of each component in the solid phase (particle type major ordering)
 		unsigned int* strideBound; //!< Total number of bound states for each particle type, additional last element contains total number of bound states for all types
 		unsigned int* nBoundBeforeType; //!< Array with number of bound states before a particle type (cumulative sum of strideBound)
+
+		//////////////////////		DG specifics		////////////////////////////////////////////////////#
+		//
+		//// NOTE: no different Riemann solvers or boundary conditions
+
+		double deltaZ;
+		unsigned int modal;	//!< bool switch: 1 for modal basis, 0 for nodal basis
+		Eigen::VectorXd nodes; //!< Array with positions of nodes in reference element
+		Eigen::MatrixXd polyDerM; //!< Array with polynomial derivative Matrix
+		Eigen::VectorXd invWeights; //!< Array with weights for numerical quadrature of size nNodes
+		Eigen::MatrixXd invMM; //!< dense !INVERSE! mass matrix for modal (exact) integration
+
+		// vgl. convDispOperator
+		Eigen::VectorXd dispersion; //!< Column dispersion (may be section and component dependent)
+		bool _dispersionCompIndep; //!< Determines whether dispersion is component independent
+		double velocity; //!< Interstitial velocity (may be section dependent) \f$ u \f$
+		double curVelocity;
+		double crossSection; //!< Cross section area 
+		int curSection; //!< current section index
+
+		double length_;
+		double porosity;
+		// Section dependent parameters
+
+		Eigen::VectorXd g;
+		Eigen::VectorXd h;
+		Eigen::VectorXd surfaceFlux; //!< stores the surface flux values
+		Eigen::Vector4d boundary; //!< stores the boundary values from Danckwert boundary conditions
+
+		std::vector<bool> isKinetic;
+
+		bool newStaticJac; //!< determines wether static analytical jacobian needs to be computed (every section)
+
+		/**
+		* @brief computes LGL nodes, integration weights, polynomial derivative matrix
+		*/
+		void initializeDG() {
+
+			nNodes = polyDeg + 1;
+			nPoints = nNodes * nCol;
+			// Allocate space for DG discretization
+			nodes.resize(nNodes);
+			nodes.setZero();
+			invWeights.resize(nNodes);
+			invWeights.setZero();
+			polyDerM.resize(nNodes, nNodes);
+			polyDerM.setZero();
+			invMM.resize(nNodes, nNodes);
+			invMM.setZero();
+
+			g.resize(nPoints);
+			g.setZero();
+			h.resize(nPoints);
+			h.setZero();
+			boundary.setZero();
+			surfaceFlux.resize(nCol + 1);
+			surfaceFlux.setZero();
+
+			newStaticJac = true;
+
+			lglNodesWeights();
+			// @TODO: make modal/nodal switch during calculation possible?
+			if (modal) {
+				derivativeMatrix_JACOBI();
+				invMMatrix_JACOBI();
+			}
+			else {
+				derivativeMatrix_LAGRANGE();
+				invMMatrix_JACOBI(); // modal/nodal switch
+			}
+		}
+
+	private:
+
+		/* ===================================================================================
+		*   Lagrange Basis operators and auxiliary functions
+		* =================================================================================== */
+
+		/**
+		* @brief computes the Legendre polynomial L_N and q = L_N+1 - L_N-2 and q' at point x
+		* @param [in] polyDeg polynomial degree of spatial Discretization
+		* @param [in] x evaluation point
+		* @param [in] L pre-allocated L(x)
+		* @param [in] q pre-allocated q(x)
+		* @param [in] qder pre-allocated q'(x)
+		*/
+		void qAndL(const double x, double& L, double& q, double& qder) {
+			// auxiliary variables (Legendre polynomials)
+			double L_2 = 1.0;
+			double L_1 = x;
+			double Lder_2 = 0.0;
+			double Lder_1 = 1.0;
+			double Lder = 0.0;
+			for (double k = 2; k <= polyDeg; k++) {
+				L = ((2 * k - 1) * x * L_1 - (k - 1) * L_2) / k;
+				Lder = Lder_2 + (2 * k - 1) * L_1;
+				L_2 = L_1;
+				L_1 = L;
+				Lder_2 = Lder_1;
+				Lder_1 = Lder;
+			}
+			q = ((2.0 * polyDeg + 1) * x * L - polyDeg * L_2) / (polyDeg + 1.0) - L_2;
+			qder = Lder_1 + (2.0 * polyDeg + 1) * L_1 - Lder_2;
+		}
+
+		/**
+		 * @brief computes and assigns the Legendre-Gauss nodes and (inverse) weights
+		 */
+		void lglNodesWeights() {
+			// tolerance and max #iterations for Newton iteration
+			int nIterations = 10;
+			double tolerance = 1e-15;
+			// Legendre polynomial and derivative
+			double L = 0;
+			double q = 0;
+			double qder = 0;
+			switch (polyDeg) {
+			case 0:
+				throw std::invalid_argument("Polynomial degree must be at least 1 !");
+				break;
+			case 1:
+				nodes[0] = -1;
+				invWeights[0] = 1;
+				nodes[1] = 1;
+				invWeights[1] = 1;
+				break;
+			default:
+				nodes[0] = -1;
+				nodes[polyDeg] = 1;
+				invWeights[0] = 2.0 / (polyDeg * (polyDeg + 1.0));
+				invWeights[polyDeg] = invWeights[0];
+				// use symmetrie, only compute half of points and weights
+				for (unsigned int j = 1; j <= floor((polyDeg + 1) / 2) - 1; j++) {
+					//  first guess for Newton iteration
+					nodes[j] = -cos(M_PI * (j + 0.25) / polyDeg - 3 / (8.0 * polyDeg * M_PI * (j + 0.25)));
+					// Newton iteration to find roots of Legendre Polynomial
+					for (unsigned int k = 0; k <= nIterations; k++) {
+						qAndL(nodes[j], L, q, qder);
+						nodes[j] = nodes[j] - q / qder;
+						if (abs(q / qder) <= tolerance * abs(nodes[j])) {
+							break;
+						}
+					}
+					// calculate weights
+					qAndL(nodes[j], L, q, qder);
+					invWeights[j] = 2.0 / (polyDeg * (polyDeg + 1.0) * pow(L, 2.0));
+					nodes[polyDeg - j] = -nodes[j]; // copy to second half of points and weights
+					invWeights[polyDeg - j] = invWeights[j];
+				}
+			}
+			if (polyDeg % 2 == 0) { // for even polyDeg we have an odd number of points which include 0.0
+				qAndL(0.0, L, q, qder);
+				nodes[polyDeg / 2] = 0;
+				invWeights[polyDeg / 2] = 2.0 / (polyDeg * (polyDeg + 1.0) * pow(L, 2.0));
+			}
+			// inverse the weights
+			invWeights = invWeights.cwiseInverse();
+		}
+
+		/**
+		 * @brief computation of barycentric weights for fast polynomial evaluation
+		 * @param [in] weights pre-allocated vector for barycentric weights. Must be set to ones!
+		 */
+		void barycentricWeights(Eigen::VectorXd& baryWeights) {
+			for (unsigned int j = 1; j <= polyDeg; j++) {
+				for (unsigned int k = 0; k <= j - 1; k++) {
+					baryWeights[k] = baryWeights[k] * (nodes[k] - nodes[j]) * 1.0;
+					baryWeights[j] = baryWeights[j] * (nodes[j] - nodes[k]) * 1.0;
+				}
+			}
+			for (unsigned int j = 0; j <= polyDeg; j++) {
+				baryWeights[j] = 1 / baryWeights[j];
+			}
+		}
+
+		/**
+		 * @brief computation of LAGRANGE polynomial derivative matrix
+		 */
+		void derivativeMatrix_LAGRANGE() {
+			Eigen::VectorXd baryWeights = Eigen::VectorXd::Ones(polyDeg + 1u);
+			barycentricWeights(baryWeights);
+			for (unsigned int i = 0; i <= polyDeg; i++) {
+				for (unsigned int j = 0; j <= polyDeg; j++) {
+					if (i != j) {
+						polyDerM(i, j) = baryWeights[j] / (baryWeights[i] * (nodes[i] - nodes[j]));
+						polyDerM(i, i) += -polyDerM(i, j);
+					}
+				}
+			}
+		}
+
+		/* ===================================================================================
+		*   Jacobi Basis operators and auxiliary functions
+		* =================================================================================== */
+
+		/*
+		* @brief computation of normalized Jacobi polynomial P of order N at nodes x
+		*/
+		void jacobiPolynomial(const double alpha, const double beta, const int N, Eigen::MatrixXd& P, int index) {
+			// factor needed to normalize the Jacobi polynomial using the gamma function
+			double gamma0 = std::pow(2.0, alpha + beta + 1.0) / (alpha + beta + 1.0) * std::tgamma(alpha + 1.0) * std::tgamma(beta + 1) / std::tgamma(alpha + beta + 1);
+			Eigen::MatrixXd PL(N + 1, nodes.size());
+			for (unsigned int i = 0; i < nodes.size(); ++i) {
+				PL(0, i) = 1.0 / std::sqrt(gamma0);
+			}
+			if (N == 0) {
+				for (unsigned int i = 0; i < nodes.size(); ++i) {
+					P(i, index) = PL(0, i);
+				}
+				return;
+			}
+			double gamma1 = (alpha + 1) * (beta + 1) / (alpha + beta + 3) * gamma0;
+			for (unsigned int i = 0; i < nodes.size(); ++i) {
+				PL(1, i) = ((alpha + beta + 2) * nodes(i) / 2 + (alpha - beta) / 2) / std::sqrt(gamma1);
+			}
+			if (N == 1) {
+				for (unsigned int i = 0; i < nodes.size(); ++i) {
+					P(i, index) = PL(1, i);
+				}
+				return;
+			}
+			double a = 2.0 / (2.0 + alpha + beta) * std::sqrt((alpha + 1) * (beta + 1) / (alpha + beta + 3));
+			for (unsigned int i = 0; i < N - 1; ++i) {
+				double j = i + 1.0;
+				double h1 = 2.0 * (i + 1.0) + alpha + beta;
+				double a_aux = 2.0 / (h1 + 2.0) * std::sqrt((j + 1.0) * (j + 1.0 + alpha + beta) * (j + 1.0 + alpha) * (j + 1.0 + beta) / (h1 + 1) / (h1 + 3));
+				double b = -(std::pow(alpha, 2) - std::pow(beta, 2)) / h1 / (h1 + 2);
+
+				for (unsigned int k = 0; k < nodes.size(); ++k) {
+					PL(i + 2, k) = 1 / a_aux * (-a * PL(i, k) + (nodes(k) - b) * PL(i + 1, k));
+				}
+				a = a_aux;
+			}
+			for (unsigned int i = 0; i < nodes.size(); ++i) {
+				P(i, index) = PL(N, i);
+			}
+		}
+
+		/**
+		* @brief returns generalized Jacobi Vandermonde matrix
+		* @detail normalized Legendre Vandermonde matrix
+		*/
+		Eigen::MatrixXd getVandermonde_JACOBI() {
+
+			Eigen::MatrixXd V(nodes.size(), nodes.size());
+
+			for (unsigned int j = 0; j < V.cols(); ++j) {
+				// legendre polynomial: alpha = beta = 0.0
+				jacobiPolynomial(0.0, 0.0, j, V, j);
+			}
+			return V;
+		}
+
+		/*
+		* @brief computes the gradient vandermonde matrix of orthonormal Legendre polynomials
+		* @V_x [in] pre-allocated gradient Vandermonde matrix
+		*/
+		void GradVandermonde(Eigen::MatrixXd& V_x) {
+			// Legendre polynomial
+			double alpha = 0.0;
+			double beta = 0.0;
+
+			for (unsigned int order = 1; order < nodes.size(); order++) {
+				jacobiPolynomial(alpha + 1, beta + 1, order - 1, V_x, order);
+				V_x.block(0, order, V_x.rows(), 1) *= std::sqrt(order * (order + alpha + beta + 1));
+			}
+		}
+
+		//@TODO?: Not needed? as the D matrix is (approx) the same as for the nodal approach ! (and computed without matrix inversion or linear solve)
+		//        D_nod is approx D_mod to 1e-14 but not up to std::numeric_limits<double>::epsilon()... relevant ?
+		/**
+		 * @brief computes the Jacobi polynomial derivative matrix D
+		 * @detail computes the normalized Legendre polynomial derivative matrix D
+		 */
+		void derivativeMatrix_JACOBI() {
+
+			// Compute the gradient Vandermonde matrix and transpose
+			const int Np = nodes.size();
+			GradVandermonde(polyDerM);
+			Eigen::MatrixXd V_xT = polyDerM.transpose();
+
+			// Instead of using matrix inversion, solve the linear systems to obtain D using SVD decomposition (slow but accurate)
+			for (unsigned int i = 0; i < Np; ++i) {
+				polyDerM.block(i, 0, 1, Np) = (getVandermonde_JACOBI().transpose().jacobiSvd(Eigen::ComputeFullU |
+					Eigen::ComputeFullV).solve(V_xT.block(0, i, Np, 1))).transpose();
+			}
+		}
+
+		/**
+		* @brief returns Jacobi polynomial induced mass matrix
+		* @detail returns normalized Legendre polynomial induced mass matrix
+		* @param [in] nodes (LGL)
+		*/
+		void invMMatrix_JACOBI() {
+			invMM = (getVandermonde_JACOBI() * (getVandermonde_JACOBI().transpose()));
+		}
+
 	};
 
 	Discretization _disc; //!< Discretization info
@@ -299,7 +606,7 @@ protected:
 		BENCH_TIMER(_timerGmres)
 
 		// Wrapper for calling the corresponding function in GeneralRateModel class
-		friend int schurComplementMultiplierLRMPores(void* userData, double const* x, double* z);
+		friend int schurComplementMultiplierLRMPoresDG(void* userData, double const* x, double* z);
 
 	class Indexer
 	{
