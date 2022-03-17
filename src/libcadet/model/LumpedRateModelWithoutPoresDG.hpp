@@ -232,7 +232,6 @@ protected:
 		bool _dispersionCompIndep; //!< Determines whether dispersion is component independent
 		double velocity; //!< Interstitial velocity (may be section dependent) \f$ u \f$
 		double curVelocity;
-		double crossSection; //!< Cross section area 
 		int curSection; //!< current section index
 
 		double length_;

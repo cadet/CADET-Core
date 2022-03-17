@@ -165,11 +165,6 @@ namespace cadet
 			_disc.curSection = -1;
 
 			_disc.length_ = paramProvider.getDouble("COL_LENGTH");
-			_disc.crossSection = -1.0;
-			if (paramProvider.exists("CROSS_SECTION_AREA"))
-			{
-				_disc.crossSection = paramProvider.getDouble("CROSS_SECTION_AREA");
-			}
 
 			_disc.deltaZ = _disc.length_ / _disc.nCol;
 
