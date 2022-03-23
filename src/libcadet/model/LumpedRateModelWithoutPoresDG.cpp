@@ -888,7 +888,7 @@ namespace cadet
 			if (_factorizeJacobian)
 			{
 				auto start3 = std::chrono::high_resolution_clock::now();
-				solver.compute(_jacDisc.block(_disc.nComp, _disc.nComp, numPureDofs(), numPureDofs()));
+				solver.compute(_jacDisc);
 				auto stop3 = std::chrono::high_resolution_clock::now();
 				auto duration3 = std::chrono::duration_cast<std::chrono::microseconds>(stop3 - start3);
 				std::cout << "factorize duration: " << duration3.count() << std::endl;
@@ -911,7 +911,7 @@ namespace cadet
 			// Use the factors to solve the linear system 
 			auto start6 = std::chrono::high_resolution_clock::now();
 			//r.segment(_disc.nComp, numPureDofs()) = solver.solve(tmpstate.segment(_disc.nComp, numPureDofs()));
-			r.segment(_disc.nComp, numPureDofs()) = solver.solve(r.segment(_disc.nComp, numPureDofs()));
+			r = solver.solve(r);
 			// handle inlet DOFs: nothing todo as _jacInlet is identity matrix
 
 			auto stop6 = std::chrono::high_resolution_clock::now();
