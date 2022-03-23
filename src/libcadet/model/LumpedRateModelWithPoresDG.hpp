@@ -18,13 +18,14 @@
 #ifndef LIBCADET_LUMPEDRATEMODELWITHPORESDG_HPP_
 #define LIBCADET_LUMPEDRATEMODELWITHPORESDG_HPP_
 
+#include "BindingModel.hpp"
+
 #include "UnitOperationBase.hpp"
 #include "cadet/StrongTypes.hpp"
 #include "cadet/SolutionExporter.hpp"
 #include "model/parts/ConvectionDispersionOperator.hpp"
 #include "AutoDiff.hpp"
-#include "linalg/SparseMatrix.hpp"
-#include "linalg/BandMatrix.hpp"
+#include "linalg/BandedEigenSparseRowIterator.hpp"
 #include "linalg/Gmres.hpp"
 #include "Memory.hpp"
 #include "model/ModelUtils.hpp"
@@ -40,6 +41,8 @@
 #endif
 
 #include "Benchmark.hpp"
+
+using namespace Eigen;
 
 namespace cadet
 {
@@ -218,6 +221,8 @@ protected:
 
 	void assembleOffdiagJac(double t, unsigned int secIdx);
 	void extractJacobianFromAD(active const* const adRes, unsigned int adDirOffset);
+
+	void assembleDiscretizedBulkJacobian(double alpha);
 
 	int schurComplementMatrixVector(double const* x, double* z) const;
 	void assembleDiscretizedJacobianParticleBlock(unsigned int type, double alpha, const Indexer& idxr);
@@ -550,18 +555,22 @@ protected:
 	Discretization _disc; //!< Discretization info
 //	IExternalFunction* _extFun; //!< External function (owned by library user)
 
-	parts::ConvectionDispersionOperator _convDispOp; //!< Convection dispersion operator for interstitial volume transport
+	parts::ConvectionDispersionOperatorBase _convDispOp; //!< Convection dispersion operator for interstitial volume transport
 	IDynamicReactionModel* _dynReactionBulk; //!< Dynamic reactions in the bulk volume
 
-	std::vector<linalg::BandMatrix> _jacP; //!< Particle jacobian diagonal blocks (all of them for each particle type)
-	std::vector<linalg::FactorizableBandMatrix> _jacPdisc; //!< Particle jacobian diagonal blocks (all of them for each particle type) with time derivatives from BDF method
+	std::vector<Eigen::SparseMatrix<double, RowMajor>> _jacP; //!< Particle jacobian diagonal blocks (all of them for each particle type)
+	std::vector<Eigen::SparseMatrix<double>> _jacPdisc; //!< Particle jacobian diagonal blocks (all of them for each particle type) with time derivatives from BDF method
 
-	linalg::DoubleSparseMatrix _jacCF; //!< Jacobian block connecting interstitial states and fluxes (interstitial transport equation)
-	linalg::DoubleSparseMatrix _jacFC; //!< Jacobian block connecting fluxes and interstitial states (flux equation)
-	std::vector<linalg::DoubleSparseMatrix> _jacPF; //!< Jacobian blocks connecting particle states and fluxes (particle transport boundary condition)
-	std::vector<linalg::DoubleSparseMatrix> _jacFP; //!< Jacobian blocks connecting fluxes and particle states (flux equation)
+	Eigen::SparseMatrix<double, RowMajor> _jacCF; //!< Jacobian block connecting interstitial states and fluxes (interstitial transport equation)
+	Eigen::SparseMatrix<double, RowMajor> _jacFC; //!< Jacobian block connecting fluxes and interstitial states (flux equation)
+	std::vector<Eigen::SparseMatrix<double, RowMajor>> _jacPF; //!< Jacobian blocks connecting particle states and fluxes (particle transport boundary condition)
+	std::vector<Eigen::SparseMatrix<double, RowMajor>> _jacFP; //!< Jacobian blocks connecting fluxes and particle states (flux equation)
 
-	linalg::DoubleSparseMatrix _jacInlet; //!< Jacobian inlet DOF block matrix connects inlet DOFs to first bulk cells
+	Eigen::SparseMatrix<double, RowMajor> _jacInlet; //!< Jacobian inlet DOF block matrix connects inlet DOFs to first bulk cells
+
+	// for FV the bulk jacobians are defined in the ConvDisp operator.
+	Eigen::SparseMatrix<double, RowMajor> _jacC; //!< Bulk Jacobian (DG)
+	Eigen::SparseMatrix<double, RowMajor> _jacCdisc; //!< Bulk Jacobian (DG) with time derivatove from BDF method
 
 	active _colPorosity; //!< Column porosity (external porosity) \f$ \varepsilon_c \f$
 	std::vector<double> _parGeomSurfToVol; //!< Particle surface to volume ratio factor (i.e., 3.0 for spherical, 2.0 for cylindrical, 1.0 for hexahedral)
@@ -762,6 +771,1061 @@ protected:
 		const std::array<StateOrdering, 4> _solidOrdering = { { StateOrdering::ParticleType, StateOrdering::AxialCell, StateOrdering::Component, StateOrdering::BoundState } };
 		const std::array<StateOrdering, 3> _fluxOrdering = { { StateOrdering::ParticleType, StateOrdering::AxialCell, StateOrdering::Component } };
 	};
+
+	/**
+	* @brief sets the current section index and section dependend velocity, dispersion
+	*/
+	void updateSection(int secIdx) {
+
+		if (_disc.curSection != secIdx) {
+
+			_disc.curSection = secIdx;
+			_disc.newStaticJac = true;
+
+			// update velocity and dispersion
+			_disc.velocity = static_cast<double>(_convDispOp.currentVelocity());
+			if (_convDispOp.dispersionCompIndep())
+				for (int comp = 0; comp < _disc.nComp; comp++) {
+					_disc.dispersion[comp] = static_cast<double>(_convDispOp.currentDispersion(secIdx)[0]);
+				}
+			else {
+				for (int comp = 0; comp < _disc.nComp; comp++) {
+					_disc.dispersion[comp] = static_cast<double>(_convDispOp.currentDispersion(secIdx)[comp]);
+				}
+			}
+
+			//std::cout << "NEW SECTION: " << _disc.curSection << std::endl;
+			//std::cout << "v: " << _disc.velocity << std::endl;
+			//std::cout << "D_ax: " << _disc.dispersion << std::endl;
+		}
+	}
+
+	// ==========================================================================================================================================================  //
+	// ========================================						DG RHS						======================================================  //
+	// ==========================================================================================================================================================  //
+
+	/**
+	* @brief calculates the volume Integral of the auxiliary equation
+	* @param [in] current state vector
+	* @param [in] stateDer vector to be changed
+	* @param [in] aux true if auxiliary, else main equation
+	*/
+	void volumeIntegral(Eigen::Map<const VectorXd, 0, InnerStride<Dynamic>>& state, Eigen::Map<VectorXd, 0, InnerStride<Dynamic>>& stateDer) {
+		// comp-cell-node state vector: use of Eigen lib performance
+		for (unsigned int Cell = 0; Cell < _disc.nCol; Cell++) {
+			stateDer.segment(Cell * _disc.nNodes, _disc.nNodes)
+				-= _disc.polyDerM * state.segment(Cell * _disc.nNodes, _disc.nNodes);
+		}
+	}
+
+	/*
+	* @brief calculates the interface fluxes h* of Convection Dispersion equation
+	*/
+	void InterfaceFlux(Eigen::Map<const VectorXd, 0, InnerStride<Dynamic>>& C, const VectorXd& g, unsigned int comp) {
+
+		// component-wise strides
+		unsigned int strideCell = _disc.nNodes;
+		unsigned int strideNode = 1u;
+
+		// Conv.Disp. flux: h* = h*_conv + h*_disp = numFlux(v c_l, v c_r) + 0.5 sqrt(D_ax) (S_l + S_r)
+
+		// calculate inner interface fluxes
+		for (unsigned int Cell = 1; Cell < _disc.nCol; Cell++) {
+			// h* = h*_conv + h*_disp
+			_disc.surfaceFlux[Cell] // inner interfaces
+				= _disc.velocity * (C[Cell * strideCell - strideNode])
+				- 0.5 * std::sqrt(_disc.dispersion[comp]) * (g[Cell * strideCell - strideNode] // left cell
+					+ g[Cell * strideCell]);
+		}
+
+		// boundary fluxes
+			// left boundary interface
+		_disc.surfaceFlux[0]
+			= _disc.velocity * _disc.boundary[0];
+
+		// right boundary interface
+		_disc.surfaceFlux[_disc.nCol]
+			= _disc.velocity * (C[_disc.nCol * strideCell - strideNode])
+			- std::sqrt(_disc.dispersion[comp]) * 0.5 * (g[_disc.nCol * strideCell - strideNode] // last cell last node
+				+ _disc.boundary[3]); // right boundary value S
+	}
+
+	/**
+	* @brief calculates and fills the surface flux values for auxiliary equation
+	*/
+	void InterfaceFluxAuxiliary(Eigen::Map<const VectorXd, 0, InnerStride<Dynamic>>& C) {
+
+		// component-wise strides
+		unsigned int strideCell = _disc.nNodes;
+		unsigned int strideNode = 1u;
+
+		// Auxiliary flux: c* = 0.5 (c_l + c_r)
+
+		// calculate inner interface fluxes
+		for (unsigned int Cell = 1; Cell < _disc.nCol; Cell++) {
+			_disc.surfaceFlux[Cell] // left interfaces
+				= 0.5 * (C[Cell * strideCell - strideNode] + // left node
+					C[Cell * strideCell]); // right node
+		}
+		// calculate boundary interface fluxes
+
+		_disc.surfaceFlux[0] // left boundary interface
+			= 0.5 * (C[0] + // boundary value
+				C[0]); // first cell first node
+
+		_disc.surfaceFlux[(_disc.nCol)] // right boundary interface
+			= 0.5 * (C[_disc.nCol * strideCell - strideNode] + // last cell last node
+				C[_disc.nCol * strideCell - strideNode]);// // boundary value
+	}
+
+	/**
+	* @brief calculates the surface Integral, depending on the approach (modal/nodal)
+	* @param [in] state relevant state vector
+	* @param [in] stateDer state derivative vector the solution is added to
+	* @param [in] aux true for auxiliary equation, false for main equation
+		surfaceIntegral(cPtr, &(disc.g[0]), disc,&(disc.h[0]), resPtrC, 0, secIdx);
+	*/
+	void surfaceIntegral(Eigen::Map<const VectorXd, 0, InnerStride<Dynamic>>& C, Eigen::Map<const VectorXd, 0, InnerStride<Dynamic>>& state, Eigen::Map<VectorXd, 0, InnerStride<Dynamic>>& stateDer, bool aux, unsigned int Comp) {
+
+		// component-wise strides
+		unsigned int strideCell = _disc.nNodes;
+		unsigned int strideNode = 1u;
+
+		// calc numerical flux values c* or h* depending on equation switch aux
+		(aux == 1) ? InterfaceFluxAuxiliary(C) : InterfaceFlux(C, _disc.g, Comp);
+		if (_disc.modal) { // modal approach -> dense mass matrix
+			for (unsigned int Cell = 0; Cell < _disc.nCol; Cell++) {
+				// strong surface integral -> M^-1 B [state - state*]
+				for (unsigned int Node = 0; Node < _disc.nNodes; Node++) {
+					stateDer[Cell * strideCell + Node * strideNode]
+						-= _disc.invMM(Node, 0) * (state[Cell * strideCell]
+							- _disc.surfaceFlux[Cell])
+						- _disc.invMM(Node, _disc.polyDeg) * (state[Cell * strideCell + _disc.polyDeg * strideNode]
+							- _disc.surfaceFlux[(Cell + 1u)]);
+				}
+			}
+		}
+		else { // nodal approach -> diagonal mass matrix
+			for (unsigned int Cell = 0; Cell < _disc.nCol; Cell++) {
+				// strong surface integral -> M^-1 B [state - state*]
+				stateDer[Cell * strideCell] // first cell node
+					-= _disc.invWeights[0] * (state[Cell * strideCell] // first node
+						- _disc.surfaceFlux(Cell));
+				stateDer[Cell * strideCell + _disc.polyDeg * strideNode] // last cell node
+					+= _disc.invWeights[_disc.polyDeg] * (state[Cell * strideCell + _disc.polyDeg * strideNode]
+						- _disc.surfaceFlux(Cell + 1u));
+			}
+		}
+	}
+
+	/**
+	* @brief calculates the substitute h = vc - sqrt(D_ax) g(c)
+	*/
+	void calcH(Eigen::Map<const VectorXd, 0, InnerStride<>>& C, unsigned int Comp) {
+		_disc.h = _disc.velocity * C - std::sqrt(_disc.dispersion[Comp]) * _disc.g;
+	}
+
+	/**
+	* @brief calculates the isotherm right hand side
+	*/
+	void calcRHSq_DG(double t, unsigned int secIdx, const int particleType, const double* yPtr, double* const resPtr, util::ThreadLocalStorage& threadLocalMem) {
+
+		Indexer idx(_disc);
+
+		ParticleTypeIndex pti{ particleType };
+
+		const double* localC = yPtr + idx.offsetCp(); // particle liquid
+		const double* localQ = yPtr + idx.offsetCp() + idx.strideParLiquid() + idx.offsetBoundComp(pti, ComponentIndex{ 0 });// particle solid
+		double* localQRes = resPtr + idx.offsetCp() + idx.strideParLiquid() + idx.offsetBoundComp(pti, ComponentIndex{ 0 });
+
+		for (unsigned int point = 0; point < _disc.nPoints; point++) {
+
+			double z = _disc.deltaZ * std::floor(point / _disc.nNodes)
+				+ 0.5 * _disc.deltaZ * (1 + _disc.nodes[point % _disc.nNodes]);
+
+			_binding[0]->flux(t, secIdx, ColumnPosition{ z, 0.0, 0.0 }, localQ, localC, localQRes, threadLocalMem.get());
+
+			localC += idx.strideParBlock(particleType); // next solid concentration
+			localQ += idx.strideParBlock(particleType); // next liquid concentration
+			localQRes += idx.strideParBlock(particleType); // next liquid concentration
+
+		}
+	}
+
+	/**
+	* @brief applies the inverse Jacobian of the mapping
+	*/
+	void applyMapping(Eigen::Map<VectorXd, 0, InnerStride<>>& state) {
+		state *= (2.0 / _disc.deltaZ);
+	}
+	/**
+	* @brief applies the inverse Jacobian of the mapping and auxiliary factor -1
+	*/
+	void applyMapping_Aux(Eigen::Map<VectorXd, 0, InnerStride<>>& state, unsigned int Comp) {
+		state *= (-2.0 / _disc.deltaZ) * ((_disc.dispersion[Comp] == 0.0) ? 1.0 : std::sqrt(_disc.dispersion[Comp]));
+	}
+
+	void ConvDisp_DG(Eigen::Map<const VectorXd, 0, InnerStride<Dynamic>>& C, Eigen::Map<VectorXd, 0, InnerStride<Dynamic>>& resC, double t, unsigned int Comp) {
+
+		// ===================================//
+		// reset cache                        //
+		// ===================================//
+
+		resC.setZero();
+		_disc.h.setZero();
+		_disc.g.setZero();
+		_disc.surfaceFlux.setZero();
+		// get Map objects of auxiliary variable memory
+		Eigen::Map<VectorXd, 0, InnerStride<>> g(&_disc.g[0], _disc.nPoints, InnerStride<>(1));
+		Eigen::Map<const VectorXd, 0, InnerStride<>> h(&_disc.h[0], _disc.nPoints, InnerStride<>(1));
+
+		// ======================================//
+		// solve auxiliary system g = d c / d x  //
+		// ======================================//
+
+		volumeIntegral(C, g); // DG volumne integral in strong form
+
+		surfaceIntegral(C, C, g, 1, Comp); // surface integral in strong form
+
+		applyMapping_Aux(g, Comp); // inverse mapping from reference space and auxiliary factor
+
+		_disc.surfaceFlux.setZero(); // reset surface flux storage as it is used twice
+
+		// ======================================//
+		// solve main equation w_t = d h / d x   //
+		// ======================================//
+
+		calcH(C, Comp); // calculate the substitute h(S(c), c) = sqrt(D_ax) g(c) - v c
+
+		volumeIntegral(h, resC); // DG volumne integral in strong form
+
+		calcBoundaryValues(C);// update boundary values including auxiliary variable g
+
+		surfaceIntegral(C, h, resC, 0, Comp); // DG surface integral in strong form
+
+		applyMapping(resC); // inverse mapping to reference space
+
+	}
+
+	/**
+	* @brief computes ghost nodes used to implement Danckwerts boundary conditions
+	*/
+	void calcBoundaryValues(Eigen::Map<const VectorXd, 0, InnerStride<>>& C) {
+
+		//cache.boundary[0] = c_in -> inlet DOF idas suggestion
+		_disc.boundary[1] = C[_disc.nPoints - 1]; // c_r outlet
+		_disc.boundary[2] = -_disc.g[0]; // S_l inlet
+		_disc.boundary[3] = -_disc.g[_disc.nPoints - 1]; // g_r outlet
+	}
+
+	// ==========================================================================================================================================================  //
+	// ========================================						DG Jacobian							=========================================================  //
+	// ==========================================================================================================================================================  //
+
+	typedef Eigen::Triplet<double> T;
+
+	///**
+	//* @brief sets the sparsity pattern of the static Jacobian
+	//* @detail inlet DOFs plus ConvDisp pattern DG and isotherm pattern. Independent of the isotherm,
+	//	all liquid and solid entries at a discrete point are set.
+	//* @param [in] stateDer bool if state derivative pattern should be added (for _jacDisc)
+	//*/
+	//void setPattern(Eigen::SparseMatrix<double, RowMajor>& mat, bool stateDer) {
+
+	//	std::vector<T> tripletList;
+	//	// TODO?: convDisp NNZ times two for now, but Convection NNZ < Dispersion NNZ
+	//	// inlet + ConvDispDG + isotherm
+	//	tripletList.reserve(_disc.nComp + 2u * calcConvDispNNZ(_disc) + (_disc.strideBound + _disc.nComp) * _disc.nPoints);
+
+	//	// inlet DOFs Jacobian ( forward flow! ) //_jacInlet;
+	//	for (unsigned int i = 0; i < _disc.nComp; i++) {
+	//		tripletList.push_back(T(i, i, 0.0));
+	//	}
+
+	//	if (_disc.modal)
+	//		ConvDispModalPattern(tripletList);
+	//	else
+	//		ConvDispNodalPattern(tripletList);
+
+	//	isothermPattern(tripletList);
+
+	//	if (stateDer)
+	//		stateDerPattern(tripletList); // only adds [ d convDisp / d q_t ] because main diagonal is already included !
+
+	//	mat.setFromTriplets(tripletList.begin(), tripletList.end());
+
+	//}
+
+	///**
+	//* @brief computes the convection dispersion part of the state derivative pattern of the jacobian.
+	//* @detail the main also diagonal belongs to the state derivative pattern but is not set here, so it should be set previously.
+	//*/
+	//void stateDerPattern(std::vector<T>& tripletList) {
+
+	//	Indexer idxr(_disc);
+	//	unsigned int offC = idxr.offsetC();
+
+	//	for (unsigned int point = 0; point < _disc.nPoints; point++) {
+	//		for (unsigned int comp = 0; comp < _disc.nComp; comp++) {
+	//			if (_disc.nBound[comp]) // either one or null
+	//				// row:    jump over inlet, go node and comp strides to find all liquid states
+	//				// column: jump over inlet and liquid states, add component offset and go node strides to find corresponding solid states
+	//				tripletList.push_back(T(offC + point * idxr.strideColNode() + comp * idxr.strideColComp(),
+	//					offC + idxr.strideColLiquid() + idxr.offsetBoundComp(comp) + point * idxr.strideColNode(),
+	//					0.0));
+	//		}
+	//	}
+
+	//}
+
+	/**
+	* @brief sets the sparsity pattern of the convection dispersion Jacobian for the nodal DG scheme
+	*/
+	int ConvDispNodalPattern(std::vector<T>& tripletList) {
+
+		Indexer idx(_disc);
+
+		int sNode = idx.strideColNode();
+		int sCell = idx.strideColCell();
+		int sComp = idx.strideColComp();
+		int offC = idx.offsetC();
+
+		unsigned int nNodes = _disc.nNodes;
+		unsigned int polyDeg = _disc.polyDeg;
+		unsigned int nCells = _disc.nCol;
+		unsigned int nComp = _disc.nComp;
+
+		// @TODO: special cases?
+		if (nCells < 3)
+			throw std::invalid_argument("Nodal Jacobian special case for nCells < 3 not implemented (yet?)");
+
+		/*======================================================*/
+		/*			Define Convection Jacobian Block			*/
+		/*======================================================*/
+
+		// Convection block [ d RHS_conv / d c ], also depends on first entry of previous cell
+
+		// special inlet DOF treatment for first cell
+		for (unsigned int comp = 0; comp < nComp; comp++) {
+			for (unsigned int i = 0; i < nNodes; i++) {
+				tripletList.push_back(T(offC + comp * sComp + i * sNode, comp * sComp, 0.0));
+				for (unsigned int j = 1; j < nNodes + 1; j++) {
+					tripletList.push_back(T(offC + comp * sComp + i * sNode,
+											offC + comp * sComp + (j - 1) * sNode,
+											0.0));
+				}
+			}
+		}
+		for (unsigned int cell = 1; cell < nCells; cell++) {
+			for (unsigned int comp = 0; comp < nComp; comp++) {
+				for (unsigned int i = 0; i < nNodes; i++) {
+					for (unsigned int j = 0; j < nNodes + 1; j++) {
+						// row: jump over inlet DOFs and previous cells, add component offset and go node strides from there for each convection block entry
+						// col: jump over inlet DOFs and previous cells, go back one node, add component offset and go node strides from there for each convection block entry
+						tripletList.push_back(T(offC + cell * sCell + comp * sComp + i * sNode,
+												offC + cell * sCell - sNode + comp * sComp + j * sNode,
+												0.0));
+					}
+				}
+			}
+		}
+
+		/*======================================================*/
+		/*			Define Dispersion Jacobian Block			*/
+		/*======================================================*/
+
+		/*		Inner cell dispersion blocks		*/
+
+
+		// Dispersion block [ d RHS_disp / d c ], depends on whole previous and subsequent cell
+
+		// insert Blocks to Jacobian inner cells
+		for (unsigned int cell = 1; cell < nCells - 1; cell++) {
+			for (unsigned int comp = 0; comp < nComp; comp++) {
+				for (unsigned int i = 0; i < nNodes; i++) {
+					for (unsigned int j = 0; j < 3 * nNodes; j++) {
+						// row: jump over inlet DOFs and previous cells, add component offset and go node strides from there for each dispersion block entry
+						// col: jump over inlet DOFs and previous cells, go back one cell, add component offset and go node strides from there for each dispersion block entry
+						tripletList.push_back(T(offC + cell * sCell + comp * sComp + i * sNode,
+												offC + (cell - 1) * sCell + comp * sComp + j * sNode,
+												0.0));
+					}
+				}
+			}
+		}
+
+		/*				Boundary cell Dispersion blocks			*/
+
+		for (unsigned int comp = 0; comp < nComp; comp++) {
+			for (unsigned int i = 0; i < nNodes; i++) {
+				for (unsigned int j = nNodes; j < 3 * nNodes; j++) {
+					tripletList.push_back(T(offC + comp * sComp + i * sNode,
+											offC + comp * sComp + (j - nNodes) * sNode,
+											0.0));
+				}
+			}
+		}
+
+		for (unsigned int comp = 0; comp < nComp; comp++) {
+			for (unsigned int i = 0; i < nNodes; i++) {
+				for (unsigned int j = 0; j < 2 * nNodes; j++) {
+					tripletList.push_back(T(offC + (nCells - 1) * sCell + comp * sComp + i * sNode,
+											offC + (nCells - 1 - 1) * sCell + comp * sComp + j * sNode,
+											0.0));
+				}
+			}
+		}
+
+		return 0;
+	}
+
+	/**
+	* @brief sets the sparsity pattern of the convection dispersion Jacobian for the modal DG scheme
+	*/
+	int ConvDispModalPattern(std::vector<T>& tripletList) {
+
+		Indexer idx(_disc);
+
+		int sNode = idx.strideColNode();
+		int sCell = idx.strideColCell();
+		int sComp = idx.strideColComp();
+		int offC = idx.offsetC();
+
+		unsigned int nNodes = _disc.nNodes;
+		unsigned int nCells = _disc.nCol;
+		unsigned int nComp = _disc.nComp;
+
+		// @TODO: special cases?
+		if (nCells < 5)
+			throw std::invalid_argument("Modal Jacobian special case for nCells < 5 not implemented (yet?)");
+
+		/*======================================================*/
+		/*			Define Convection Jacobian Block			*/
+		/*======================================================*/
+
+		// Convection block [ d RHS_conv / d c ], additionally depends on first entry of previous cell
+		//MatrixXd convBlock = MatrixXd::Zero(nNodes, nNodes + 1);
+		// special inlet DOF treatment for first cell
+		for (unsigned int comp = 0; comp < nComp; comp++) {
+			for (unsigned int i = 0; i < nNodes; i++) {
+				tripletList.push_back(T(offC + comp * sComp + i * sNode, comp * sComp, 0.0));
+				for (unsigned int j = 1; j < nNodes + 1; j++) {
+					tripletList.push_back(T(offC + comp * sComp + i * sNode,
+											offC + comp * sComp + (j - 1) * sNode,
+											0.0));
+				}
+			}
+		}
+		for (unsigned int cell = 1; cell < nCells; cell++) {
+			for (unsigned int comp = 0; comp < nComp; comp++) {
+				for (unsigned int i = 0; i < nNodes; i++) {
+					for (unsigned int j = 0; j < nNodes + 1; j++) {
+						// row: jump over inlet DOFs and previous cells, add component offset and go node strides from there for each convection block entry
+						// col: jump over inlet DOFs and previous cells, go back one node, add component offset and go node strides from there for each convection block entry
+						tripletList.push_back(T(offC + cell * sCell + comp * sComp + i * sNode,
+												offC + cell * sCell - sNode + comp * sComp + j * sNode,
+												0.0));
+					}
+				}
+			}
+		}
+
+		/*======================================================*/
+		/*			Define Dispersion Jacobian Block			*/
+		/*======================================================*/
+
+		/* Inner cells */
+
+		// Inner dispersion block [ d RHS_disp / d c ], depends on whole previous and subsequent cell plus first entries of subsubsequent cells
+		//MatrixXd dispBlock = MatrixXd::Zero(nNodes, 3 * nNodes + 2);
+		for (unsigned int cell = 2; cell < nCells - 2; cell++) {
+			for (unsigned int comp = 0; comp < nComp; comp++) {
+				for (unsigned int i = 0; i < nNodes; i++) {
+					for (unsigned int j = 0; j < 3 * nNodes + 2; j++) {
+						// row: jump over inlet DOFs and previous cells, add component offset and go node strides from there for each dispersion block entry
+						// col: jump over inlet DOFs and previous cells, go back one cell and one node, add component offset and go node strides from there for each dispersion block entry
+						tripletList.push_back(T(offC + cell * sCell + comp * sComp + i * sNode,
+												offC + cell * sCell - (nNodes + 1) * sNode + comp * sComp + j * sNode,
+												0.0));
+					}
+				}
+			}
+		}
+
+		/*		boundary cell neighbours		*/
+
+		// left boundary cell neighbour
+		for (unsigned int comp = 0; comp < nComp; comp++) {
+			for (unsigned int i = 0; i < nNodes; i++) {
+				for (unsigned int j = 1; j < 3 * nNodes + 2; j++) {
+					// row: jump over inlet DOFs and previous cell, add component offset and go node strides from there for each dispersion block entry
+					// col: jump over inlet DOFs, add component offset and go node strides from there for each dispersion block entry. Also adjust for iterator j (-1)
+					tripletList.push_back(T(offC + nNodes * sNode + comp * sComp + i * sNode,
+											offC + comp * sComp + (j - 1) * sNode,
+											0.0));
+				}
+			}
+		}
+		// right boundary cell neighbour
+		for (unsigned int comp = 0; comp < nComp; comp++) {
+			for (unsigned int i = 0; i < nNodes; i++) {
+				for (unsigned int j = 0; j < 3 * nNodes + 2 - 1; j++) {
+					// row: jump over inlet DOFs and previous cells, add component offset and go node strides from there for each dispersion block entry
+					// col: jump over inlet DOFs and previous cells, go back one cell and one node, add component offset and go node strides from there for each dispersion block entry.
+					tripletList.push_back(T(offC + (nCells - 2) * sCell + comp * sComp + i * sNode,
+											offC + (nCells - 2) * sCell - (nNodes + 1) * sNode + comp * sComp + j * sNode,
+											0.0));
+				}
+			}
+		}
+
+		/*			boundary cells			*/
+
+		// left boundary cell
+		for (unsigned int comp = 0; comp < nComp; comp++) {
+			for (unsigned int i = 0; i < nNodes; i++) {
+				for (unsigned int j = nNodes + 1; j < 3 * nNodes + 2; j++) {
+					// row: jump over inlet DOFs, add component offset and go node strides from there for each dispersion block entry
+					// col: jump over inlet DOFs and previous cells, add component offset, adjust for iterator j (-Nnodes-1) and go node strides from there for each dispersion block entry.
+					tripletList.push_back(T(offC + comp * sComp + i * sNode,
+											offC + comp * sComp + (j - (nNodes + 1)) * sNode,
+											0.0));
+				}
+			}
+		}
+		// right boundary cell
+		for (unsigned int comp = 0; comp < nComp; comp++) {
+			for (unsigned int i = 0; i < nNodes; i++) {
+				for (unsigned int j = 0; j < 2 * nNodes + 1; j++) {
+					// row: jump over inlet DOFs and previous cells, add component offset and go node strides from there for each dispersion block entry
+					// col: jump over inlet DOFs and previous cells, go back one cell and one node, add component offset and go node strides from there for each dispersion block entry.
+					tripletList.push_back(T(offC + (nCells - 1) * sCell + comp * sComp + i * sNode,
+											offC + (nCells - 1) * sCell - (nNodes + 1) * sNode + comp * sComp + j * sNode,
+											0.0));
+				}
+			}
+		}
+
+		return 0;
+	}
+
+	///**
+	//* @brief sets the sparsity pattern of the isotherm Jacobian
+	//* @detail Independent of the isotherm, all liquid and solid entries (so all entries, the isotherm could theoretically depend on) at a discrete point are set.
+	//*/
+	//void isothermPattern(std::vector<T>& tripletList) {
+
+	//	Indexer idxr(_disc);
+	//	// loop over all discrete points and solid states and add all liquid plus solid entries at that solid state at that discrete point
+	//	for (unsigned int point = 0; point < _disc.nPoints; point++) {
+	//		for (unsigned int solid = 0; solid < _disc.strideBound; solid++) {
+	//			for (unsigned int conc = 0; conc < _disc.nComp + _disc.strideBound; conc++) {
+	//				// column: jump over inlet, previous discrete points, liquid concentration and add the offset of the current bound state
+	//				// row:    jump over inlet and previous discrete points. add entries for all liquid and bound concentrations (conc)
+	//				tripletList.push_back(T(idxr.offsetC() + idxr.strideColNode() * point + idxr.strideColLiquid() + solid * idxr.offsetBoundComp(solid),
+	//					idxr.offsetC() + idxr.strideColNode() * point + conc,
+	//					0.0));
+	//			}
+	//		}
+	//	}
+
+	//}
+
+	/**
+	* @brief analytically calculates the static (per section) bulk jacobian
+	* @return 1 if jacobain estimation fits the predefined pattern of the jacobian, 0 if not.
+	*/
+	int calcStaticAnaBulkJacobian(double t, unsigned int secIdx, const double* const y, util::ThreadLocalStorage& threadLocalMem) {
+
+		// not necessary: set _jac to zero but keep pattern ! (.setZero() deletes pattern)
+		//double* vPtr = _jac.valuePtr();
+		//for (int k = 0; k < _jac.nonZeros(); k++) {
+		//	vPtr[k] = 0.0;
+		//}
+
+			// DG convection dispersion Jacobian
+		if (_disc.modal)
+			calcConvDispModalJacobian(_jacC);
+		else
+			calcConvDispNodalJacobian(_jacC);
+
+		// inlet Jacobian (forward flow)
+		double* valPtr = _jacC.valuePtr();
+		for (unsigned int i = 0; i < _disc.nComp; i++) {
+			valPtr[i] = 1.0;
+		}
+
+
+		if (!_jacC.isCompressed()) // if matrix lost its compressed storage, the pattern did not fit.
+			return 0;
+
+		//MatrixXd mat = _jacC.toDense()*10;
+		//for (int i = 0; i < mat.rows(); i++) {
+		//	for (int j = 0; j < mat.cols(); j++) {
+		//		if (mat(i, j) != 0) {
+		//			mat(i, j) = 1.0;
+		//		}
+		//	}
+		//}
+		//std::cout << std::fixed << std::setprecision(0) << "JAC_Bulk\n" << mat << std::endl; // #include <iomanip>
+
+		return 1;
+	}
+
+	/**
+	* @brief calculates the number of non zeros for the DG convection dispersion jacobian
+	* @detail only dispersion entries are relevant as the convection entries are a subset of these
+	*/
+	unsigned int calcConvDispNNZ(Discretization disc) {
+
+		if (disc.modal) {
+			return disc.nComp * ((3u * disc.nCol - 2u) * disc.nNodes * disc.nNodes + (2u * disc.nCol - 3u) * disc.nNodes);
+		}
+		else {
+			return disc.nComp * (disc.nCol * disc.nNodes * disc.nNodes + 8u * disc.nNodes);
+		}
+	}
+
+	/**
+	* @brief analytically calculates the convection dispersion jacobian for the nodal DG scheme
+	*/
+	int calcConvDispNodalJacobian(Eigen::SparseMatrix<double, RowMajor>& jac) {
+
+		Indexer idx(_disc);
+
+		int sNode = idx.strideColNode();
+		int sCell = idx.strideColCell();
+		int sComp = idx.strideColComp();
+		int offC = idx.offsetC();
+
+		unsigned int nNodes = _disc.nNodes;
+		unsigned int polyDeg = _disc.polyDeg;
+		unsigned int nCells = _disc.nCol;
+		unsigned int nComp = _disc.nComp;
+
+		// @TODO: special cases?
+		if (nCells < 3)
+			throw std::invalid_argument("Nodal Jacobian special case for nCells < 3 not implemented (yet?)");
+
+		/*======================================================*/
+		/*			Compute Dispersion Jacobian Block			*/
+		/*======================================================*/
+
+		/*		Inner cell dispersion blocks		*/
+
+		// auxiliary Block for [ d g(c) / d c ], needed in Dispersion block
+		MatrixXd GBlock = MatrixXd::Zero(nNodes, nNodes + 2);
+		GBlock.block(0, 1, nNodes, nNodes) = _disc.polyDerM;
+		GBlock(0, 0) -= 0.5 * _disc.invWeights[0];
+		GBlock(0, 1) += 0.5 * _disc.invWeights[0];
+		GBlock(nNodes - 1, nNodes) -= 0.5 * _disc.invWeights[polyDeg];
+		GBlock(nNodes - 1, nNodes + 1) += 0.5 * _disc.invWeights[polyDeg];
+		GBlock *= 2 / _disc.deltaZ;
+
+		// Dispersion block [ d RHS_disp / d c ], depends on whole previous and subsequent cell
+		MatrixXd dispBlock = MatrixXd::Zero(nNodes, 3 * nNodes); //
+		// NOTE: N = polyDeg
+		//cell indices : 0	 , ..., nNodes - 1;	nNodes, ..., 2 * nNodes - 1;	2 * nNodes, ..., 3 * nNodes - 1
+		//			j  : -N-1, ..., -1		  ; 0     , ..., N			   ;	N + 1, ..., 2N + 1
+		dispBlock.block(0, nNodes - 1, nNodes, nNodes + 2) = _disc.polyDerM * GBlock;
+		dispBlock(0, nNodes - 1) += -_disc.invWeights[0] * (-0.5 * GBlock(0, 0) + 0.5 * GBlock(nNodes - 1, nNodes)); // G_N,N		i=0, j=-1
+		dispBlock(0, nNodes) += -_disc.invWeights[0] * (-0.5 * GBlock(0, 1) + 0.5 * GBlock(nNodes - 1, nNodes + 1)); // G_N,N+1	i=0, j=0
+		dispBlock.block(0, nNodes + 1, 1, nNodes) += -_disc.invWeights[0] * (-0.5 * GBlock.block(0, 2, 1, nNodes)); // G_i,j		i=0, j=1,...,N+1
+		dispBlock.block(0, 0, 1, nNodes - 1) += -_disc.invWeights[0] * (0.5 * GBlock.block(nNodes - 1, 1, 1, nNodes - 1)); // G_N,j+N+1		i=0, j=-N-1,...,-2
+		dispBlock.block(nNodes - 1, nNodes - 1, 1, nNodes) += _disc.invWeights[nNodes - 1] * (-0.5 * GBlock.block(nNodes - 1, 0, 1, nNodes)); // G_i,j+N+1		i=N, j=--1,...,N-1
+		dispBlock(nNodes - 1, 2 * nNodes - 1) += _disc.invWeights[nNodes - 1] * (-0.5 * GBlock(nNodes - 1, nNodes) + 0.5 * GBlock(0, 0)); // G_i,j		i=N, j=N
+		dispBlock(nNodes - 1, 2 * nNodes) += _disc.invWeights[nNodes - 1] * (-0.5 * GBlock(nNodes - 1, nNodes + 1) + 0.5 * GBlock(0, 1)); // G_i,j		i=N, j=N+1
+		dispBlock.block(nNodes - 1, 2 * nNodes + 1, 1, nNodes - 1) += _disc.invWeights[nNodes - 1] * (0.5 * GBlock.block(0, 2, 1, nNodes - 1)); // G_0,j-N-1		i=N, j=N+2,...,2N+1
+		dispBlock *= 2 / _disc.deltaZ;
+
+		// insert Blocks to Jacobian inner cells
+		for (unsigned int cell = 1; cell < nCells - 1; cell++) {
+			for (unsigned int comp = 0; comp < nComp; comp++) {
+				for (unsigned int i = 0; i < dispBlock.rows(); i++) {
+					for (unsigned int j = 0; j < dispBlock.cols(); j++) {
+						// row: jump over inlet DOFs and previous cells, add component offset and go node strides from there for each dispersion block entry
+						// col: jump over inlet DOFs and previous cells, go back one cell, add component offset and go node strides from there for each dispersion block entry
+						jac.coeffRef(offC + cell * sCell + comp * sComp + i * sNode,
+									 offC + (cell - 1) * sCell + comp * sComp + j * sNode)
+									 = -dispBlock(i, j) * _disc.dispersion[comp];
+					}
+				}
+			}
+		}
+
+		/*				Boundary cell Dispersion blocks			*/
+
+		/* left cell */
+		// adjust auxiliary Block [ d g(c) / d c ] for left boundary cell
+		MatrixXd GBlockBound = GBlock;
+		GBlockBound(0, 1) -= 0.5 * _disc.invWeights[0] * 2 / _disc.deltaZ;
+
+		// estimate dispersion block ( j < 0 not needed)
+		dispBlock.setZero();
+		dispBlock.block(0, nNodes - 1, nNodes, nNodes + 2) = _disc.polyDerM * GBlockBound;
+		dispBlock.block(0, nNodes - 1, 1, nNodes + 2) += -_disc.invWeights[0] * (-GBlockBound.block(0, 0, 1, nNodes + 2)); // G_N,N		i=0, j=-1,...,N+1
+		dispBlock.block(nNodes - 1, nNodes - 1, 1, nNodes) += _disc.invWeights[nNodes - 1] * (-0.5 * GBlockBound.block(nNodes - 1, 0, 1, nNodes)); // G_i,j+N+1		i=N, j=--1,...,N-1
+		dispBlock(nNodes - 1, 2 * nNodes - 1) += _disc.invWeights[nNodes - 1] * (-0.5 * GBlockBound(nNodes - 1, nNodes) + 0.5 * GBlockBound(0, 0)); // G_i,j		i=N, j=N
+		dispBlock(nNodes - 1, 2 * nNodes) += _disc.invWeights[nNodes - 1] * (-0.5 * GBlockBound(nNodes - 1, nNodes + 1) + 0.5 * GBlock(0, 1)); // G_i,j		i=N, j=N+1
+		dispBlock.block(nNodes - 1, 2 * nNodes + 1, 1, nNodes - 1) += _disc.invWeights[nNodes - 1] * (0.5 * GBlock.block(0, 2, 1, nNodes - 1)); // G_0,j-N-1		i=N, j=N+2,...,2N+1
+		dispBlock *= 2 / _disc.deltaZ;
+		// copy *-1 to Jacobian
+		for (unsigned int comp = 0; comp < nComp; comp++) {
+			for (unsigned int i = 0; i < dispBlock.rows(); i++) {
+				for (unsigned int j = nNodes; j < dispBlock.cols(); j++) {
+					jac.coeffRef(offC + comp * sComp + i * sNode,
+								 offC + comp * sComp + (j - nNodes) * sNode)
+								 = -dispBlock(i, j) * _disc.dispersion[comp];
+				}
+			}
+		}
+
+		/* right cell */
+	   // adjust auxiliary Block [ d g(c) / d c ] for left boundary cell
+		GBlockBound(0, 1) += 0.5 * _disc.invWeights[0] * 2 / _disc.deltaZ; 	// reverse change from left boundary
+		GBlockBound(nNodes - 1, nNodes) += 0.5 * _disc.invWeights[polyDeg] * 2 / _disc.deltaZ;
+
+		// estimate dispersion block (only estimation differences to inner cell at N = 0 and j > N not needed)
+		dispBlock.block(0, nNodes - 1, nNodes, nNodes + 2) = _disc.polyDerM * GBlockBound;
+		dispBlock(0, nNodes - 1) += -_disc.invWeights[0] * (-0.5 * GBlockBound(0, 0) + 0.5 * GBlock(nNodes - 1, nNodes)); // G_N,N		i=0, j=-1
+		dispBlock(0, nNodes) += -_disc.invWeights[0] * (-0.5 * GBlockBound(0, 1) + 0.5 * GBlock(nNodes - 1, nNodes + 1)); // G_N,N+1	i=0, j=0
+		dispBlock.block(0, nNodes + 1, 1, nNodes) += -_disc.invWeights[0] * (-0.5 * GBlockBound.block(0, 2, 1, nNodes)); // G_i,j		i=0, j=1,...,N+1
+		dispBlock.block(0, 0, 1, nNodes - 1) += -_disc.invWeights[0] * (0.5 * GBlock.block(nNodes - 1, 1, 1, nNodes - 1)); // G_N,j+N+1		i=0, j=-N-1,...,-2
+		dispBlock.block(nNodes - 1, nNodes - 1, 1, nNodes + 2) += _disc.invWeights[nNodes - 1] * (-GBlockBound.block(nNodes - 1, 0, 1, nNodes + 2)); // G_i,j+N+1		i=N, j=--1,...,N+1
+		dispBlock *= 2 / _disc.deltaZ;
+		// copy *-1 to Jacobian
+		for (unsigned int comp = 0; comp < nComp; comp++) {
+			for (unsigned int i = 0; i < dispBlock.rows(); i++) {
+				for (unsigned int j = 0; j < 2 * nNodes; j++) {
+					jac.coeffRef(offC + (nCells - 1) * sCell + comp * sComp + i * sNode,
+								 offC + (nCells - 1 - 1) * sCell + comp * sComp + j * sNode)
+								 = -dispBlock(i, j) * _disc.dispersion[comp];
+				}
+			}
+		}
+
+		/*======================================================*/
+		/*			Compute Convection Jacobian Block			*/
+		/*======================================================*/
+
+		// Convection block [ d RHS_conv / d c ], also depends on first entry of previous cell
+		MatrixXd convBlock = MatrixXd::Zero(nNodes, nNodes + 1);
+		convBlock.block(0, 1, nNodes, nNodes) -= _disc.polyDerM;
+		convBlock(0, 0) += _disc.invWeights[0];
+		convBlock(0, 1) -= _disc.invWeights[0];
+		convBlock *= 2 * _disc.velocity / _disc.deltaZ;
+
+		// special inlet DOF treatment for first cell
+		for (unsigned int comp = 0; comp < nComp; comp++) {
+			for (unsigned int i = 0; i < convBlock.rows(); i++) {
+				jac.coeffRef(offC + comp * sComp + i * sNode, comp * sComp) = -convBlock(i, 0);
+				for (unsigned int j = 1; j < convBlock.cols(); j++) {
+					jac.coeffRef(offC + comp * sComp + i * sNode,
+								 offC + comp * sComp + (j - 1) * sNode)
+								 += -convBlock(i, j);
+				}
+			}
+		}
+		for (unsigned int cell = 1; cell < nCells; cell++) {
+			for (unsigned int comp = 0; comp < nComp; comp++) {
+				for (unsigned int i = 0; i < convBlock.rows(); i++) {
+					//Eigen::SparseMatrix<double, RowMajor>::InnerIterator it(_jac, offC + cell * sCell + comp * sComp + i * sNode);
+					//it += _disc.polyDeg; // jump over dispersion block entries
+					for (unsigned int j = 0; j < convBlock.cols(); j++) {
+						// row: jump over inlet DOFs and previous cells, add component offset and go node strides from there for each convection block entry
+						// col: jump over inlet DOFs and previous cells, go back one node, add component offset and go node strides from there for each convection block entry
+						jac.coeffRef(offC + cell * sCell + comp * sComp + i * sNode,
+									 offC + cell * sCell - sNode + comp * sComp + j * sNode)
+									 += -convBlock(i, j);
+						//it.valueRef() += -convBlock(i, j);
+						//++it;
+					}
+				}
+			}
+		}
+
+		return 0;
+	}
+	/**
+	* @brief analytically calculates the convection dispersion jacobian for the modal DG scheme
+	*/
+	int calcConvDispModalJacobian(Eigen::SparseMatrix<double, RowMajor>& jac) {
+
+		Indexer idx(_disc);
+
+		int sNode = idx.strideColNode();
+		int sCell = idx.strideColCell();
+		int sComp = idx.strideColComp();
+		int offC = idx.offsetC();
+
+		unsigned int nNodes = _disc.nNodes;
+		unsigned int nCells = _disc.nCol;
+		unsigned int nComp = _disc.nComp;
+
+		// @TODO: special cases?
+		if (nCells < 5)
+			throw std::invalid_argument("Modal Jacobian special case for nCells < 5 not implemented (yet?)");
+
+		/*======================================================*/
+		/*			Compute Dispersion Jacobian Block			*/
+		/*======================================================*/
+
+		/* Inner cells */
+
+		// Auxiliary Block [ d g(c) / d c ], additionally depends on boundary entries of neighbouring cells
+		MatrixXd gBlock = MatrixXd::Zero(nNodes, nNodes + 2);
+		gBlock.block(0, 1, nNodes, nNodes) = _disc.polyDerM;
+		gBlock.block(0, 0, nNodes, 1) -= 0.5 * _disc.invMM.block(0, 0, nNodes, 1);
+		gBlock.block(0, 1, nNodes, 1) += 0.5 * _disc.invMM.block(0, 0, nNodes, 1);
+		gBlock.block(0, nNodes, nNodes, 1) -= 0.5 * _disc.invMM.block(0, nNodes - 1, nNodes, 1);
+		gBlock.block(0, nNodes + 1, nNodes, 1) += 0.5 * _disc.invMM.block(0, nNodes - 1, nNodes, 1);
+		gBlock *= 2 / _disc.deltaZ;
+
+		// B matrix from DG scheme
+		MatrixXd B = MatrixXd::Zero(nNodes, nNodes);
+		B(0, 0) = -1.0;
+		B(nNodes - 1, nNodes - 1) = 1.0;
+
+		// Inner dispersion block [ d RHS_disp / d c ], depends on whole previous and subsequent cell plus first entries of subsubsequent cells
+		MatrixXd dispBlock = MatrixXd::Zero(nNodes, 3 * nNodes + 2); //
+		// auxiliary block [ d g^* / d c ], depends on whole previous and subsequent cell plus first entries of subsubsequent cells
+		MatrixXd gStarDC = MatrixXd::Zero(nNodes, 3 * nNodes + 2);
+		// NOTE: N = polyDeg
+		//  indices  gStarDC    :     0   ,   1   , ..., nNodes; nNodes+1, ..., 2 * nNodes;	2*nNodes+1, ..., 3 * nNodes; 3*nNodes+1
+		//	derivative index j  : -(N+1)-1, -(N+1),... ,  -1   ;   0     , ...,		N	 ;	  N + 1	  , ..., 2N + 2    ; 2(N+1) +1
+		// auxiliary block [d g^* / d c]
+		gStarDC.block(0, nNodes, 1, nNodes + 2) += gBlock.block(0, 0, 1, nNodes + 2);
+		gStarDC.block(0, 0, 1, nNodes + 2) += gBlock.block(nNodes - 1, 0, 1, nNodes + 2);
+		gStarDC.block(nNodes - 1, nNodes, 1, nNodes + 2) += gBlock.block(nNodes - 1, 0, 1, nNodes + 2);
+		gStarDC.block(nNodes - 1, 2 * nNodes, 1, nNodes + 2) += gBlock.block(0, 0, 1, nNodes + 2);
+		gStarDC *= 0.5;
+
+		//  indices  dispBlock :   0	 ,   1   , ..., nNodes;	nNodes+1, ..., 2 * nNodes;	2*nNodes+1, ..., 3 * nNodes; 3*nNodes+1
+		//	derivative index j  : -(N+1)-1, -(N+1),...,	 -1	  ;   0     , ...,		N	 ;	  N + 1	  , ..., 2N + 2    ; 2(N+1) +1
+		dispBlock.block(0, nNodes, nNodes, nNodes + 2) += _disc.polyDerM * gBlock - _disc.invMM * B * gBlock;
+		dispBlock += _disc.invMM * B * gStarDC;
+		dispBlock *= 2 / _disc.deltaZ;
+
+		for (unsigned int cell = 2; cell < nCells - 2; cell++) {
+			for (unsigned int comp = 0; comp < nComp; comp++) {
+				for (unsigned int i = 0; i < dispBlock.rows(); i++) {
+					for (unsigned int j = 0; j < dispBlock.cols(); j++) {
+						// row: jump over inlet DOFs and previous cells, add component offset and go node strides from there for each dispersion block entry
+						// col: jump over inlet DOFs and previous cells, go back one cell and one node, add component offset and go node strides from there for each dispersion block entry
+						jac.coeffRef(offC + cell * sCell + comp * sComp + i * sNode,
+									 offC + cell * sCell - (nNodes + 1) * sNode + comp * sComp + j * sNode)
+									 = -dispBlock(i, j) * _disc.dispersion[comp];
+					}
+				}
+			}
+		}
+
+		/*		boundary cell neighbours		*/
+
+		// left boundary cell neighbour
+
+		// boundary auxiliary block [ d g(c) / d c ]
+		MatrixXd GBlockBound_l = MatrixXd::Zero(nNodes, nNodes + 2);
+		GBlockBound_l.block(0, 1, nNodes, nNodes) += _disc.polyDerM;
+		GBlockBound_l.block(0, nNodes, nNodes, 1) -= 0.5 * _disc.invMM.block(0, nNodes - 1, nNodes, 1);
+		GBlockBound_l.block(0, nNodes + 1, nNodes, 1) += 0.5 * _disc.invMM.block(0, nNodes - 1, nNodes, 1);
+		GBlockBound_l *= 2 / _disc.deltaZ;
+		// auxiliary block [d g^* / d c]
+		gStarDC.setZero();
+		gStarDC.block(0, nNodes, 1, nNodes + 2) += gBlock.block(0, 0, 1, nNodes + 2);
+		gStarDC.block(0, 0, 1, nNodes + 2) += GBlockBound_l.block(nNodes - 1, 0, 1, nNodes + 2);
+		gStarDC.block(nNodes - 1, nNodes, 1, nNodes + 2) += gBlock.block(nNodes - 1, 0, 1, nNodes + 2);
+		gStarDC.block(nNodes - 1, 2 * nNodes, 1, nNodes + 2) += gBlock.block(0, 0, 1, nNodes + 2);
+		gStarDC *= 0.5;
+
+		dispBlock.setZero();
+		dispBlock.block(0, nNodes, nNodes, nNodes + 2) += _disc.polyDerM * gBlock - _disc.invMM * B * gBlock;
+		dispBlock += _disc.invMM * B * gStarDC;
+		dispBlock *= 2 / _disc.deltaZ;
+
+		for (unsigned int comp = 0; comp < nComp; comp++) {
+			for (unsigned int i = 0; i < dispBlock.rows(); i++) {
+				for (unsigned int j = 1; j < dispBlock.cols(); j++) {
+					// row: jump over inlet DOFs and previous cell, add component offset and go node strides from there for each dispersion block entry
+					// col: jump over inlet DOFs, add component offset and go node strides from there for each dispersion block entry. Also adjust for iterator j (-1)
+					jac.coeffRef(offC + nNodes * sNode + comp * sComp + i * sNode,
+								 offC + comp * sComp + (j - 1) * sNode)
+								 = -dispBlock(i, j) * _disc.dispersion[comp];
+				}
+			}
+		}
+
+		// right boundary cell neighbour
+		// boundary auxiliary block [ d g(c) / d c ]
+		MatrixXd GBlockBound_r = MatrixXd::Zero(nNodes, nNodes + 2);
+		GBlockBound_r.block(0, 1, nNodes, nNodes) += _disc.polyDerM;
+		GBlockBound_r.block(0, 0, nNodes, 1) -= 0.5 * _disc.invMM.block(0, 0, nNodes, 1);
+		GBlockBound_r.block(0, 1, nNodes, 1) += 0.5 * _disc.invMM.block(0, 0, nNodes, 1);
+		GBlockBound_r *= 2 / _disc.deltaZ;
+		// auxiliary block [d g^* / d c]
+		gStarDC.setZero();
+		gStarDC.block(0, nNodes, 1, nNodes + 2) += gBlock.block(0, 0, 1, nNodes + 2);
+		gStarDC.block(0, 0, 1, nNodes + 2) += gBlock.block(nNodes - 1, 0, 1, nNodes + 2);
+		gStarDC.block(nNodes - 1, nNodes, 1, nNodes + 2) += gBlock.block(nNodes - 1, 0, 1, nNodes + 2);
+		gStarDC.block(nNodes - 1, 2 * nNodes, 1, nNodes + 2) += GBlockBound_r.block(0, 0, 1, nNodes + 2);
+		gStarDC *= 0.5;
+
+		dispBlock.setZero();
+		dispBlock.block(0, nNodes, nNodes, nNodes + 2) += _disc.polyDerM * gBlock - _disc.invMM * B * gBlock;
+		dispBlock += _disc.invMM * B * gStarDC;
+		dispBlock *= 2 / _disc.deltaZ;
+
+		for (unsigned int comp = 0; comp < nComp; comp++) {
+			for (unsigned int i = 0; i < dispBlock.rows(); i++) {
+				for (unsigned int j = 0; j < dispBlock.cols() - 1; j++) {
+					// row: jump over inlet DOFs and previous cells, add component offset and go node strides from there for each dispersion block entry
+					// col: jump over inlet DOFs and previous cells, go back one cell and one node, add component offset and go node strides from there for each dispersion block entry.
+					jac.coeffRef(offC + (nCells - 2) * sCell + comp * sComp + i * sNode,
+								 offC + (nCells - 2) * sCell - (nNodes + 1) * sNode + comp * sComp + j * sNode)
+								 = -dispBlock(i, j) * _disc.dispersion[comp];
+				}
+			}
+		}
+
+		/*			boundary cells			*/
+
+		// left boundary cell
+		dispBlock.setZero();
+		gStarDC.setZero();
+		gStarDC.block(nNodes - 1, nNodes, 1, nNodes + 2) += GBlockBound_l.block(nNodes - 1, 0, 1, nNodes + 2);
+		gStarDC.block(nNodes - 1, 2 * nNodes, 1, nNodes + 2) += gBlock.block(0, 0, 1, nNodes + 2);
+		gStarDC *= 0.5;
+		dispBlock.block(0, nNodes, nNodes, nNodes + 2) += _disc.polyDerM * GBlockBound_l - _disc.invMM * B * GBlockBound_l;
+		dispBlock.block(0, nNodes + 1, nNodes, 2 * nNodes + 1) += _disc.invMM * B * gStarDC.block(0, nNodes + 1, nNodes, 2 * nNodes + 1);
+		dispBlock *= 2 / _disc.deltaZ;
+
+		for (int comp = 0; comp < nComp; comp++) {
+			for (int i = 0; i < dispBlock.rows(); i++) {
+				for (int j = nNodes + 1; j < dispBlock.cols(); j++) {
+					// row: jump over inlet DOFs, add component offset and go node strides from there for each dispersion block entry
+					// col: jump over inlet DOFs and previous cells, add component offset, adjust for iterator j (-Nnodes-1) and go node strides from there for each dispersion block entry.
+					jac.coeffRef(offC + comp * sComp + i * sNode,
+						 		 offC + comp * sComp + (j - (nNodes + 1)) * sNode)
+								 = -dispBlock(i, j) * _disc.dispersion[comp];
+				}
+			}
+		}
+
+		// right boundary cell
+		dispBlock.setZero();
+		gStarDC.setZero();
+		gStarDC.block(0, nNodes, 1, nNodes + 2) += GBlockBound_r.block(0, 0, 1, nNodes + 2);
+		gStarDC.block(0, 0, 1, nNodes + 2) += gBlock.block(nNodes - 1, 0, 1, nNodes + 2);
+		gStarDC *= 0.5;
+		dispBlock.block(0, nNodes, nNodes, nNodes + 2) += _disc.polyDerM * GBlockBound_r - _disc.invMM * B * GBlockBound_r;
+		dispBlock += _disc.invMM * B * gStarDC;
+		dispBlock *= 2 / _disc.deltaZ;
+
+		for (int comp = 0; comp < nComp; comp++) {
+			for (int i = 0; i < dispBlock.rows(); i++) {
+				for (int j = 0; j < 2 * nNodes + 1; j++) {
+					// row: jump over inlet DOFs and previous cells, add component offset and go node strides from there for each dispersion block entry
+					// col: jump over inlet DOFs and previous cells, go back one cell and one node, add component offset and go node strides from there for each dispersion block entry.
+					jac.coeffRef(offC + (nCells - 1) * sCell + comp * sComp + i * sNode,
+								 offC + (nCells - 1) * sCell - (nNodes + 1) * sNode + comp * sComp + j * sNode)
+								 = -dispBlock(i, j) * _disc.dispersion[comp];
+				}
+			}
+		}
+
+		/*======================================================*/
+		/*			Compute Convection Jacobian Block			*/
+		/*======================================================*/
+
+		// Convection block [ d RHS_conv / d c ], additionally depends on first entry of previous cell
+		MatrixXd convBlock = MatrixXd::Zero(nNodes, nNodes + 1);
+		convBlock.block(0, 0, nNodes, 1) += _disc.invMM.block(0, 0, nNodes, 1);
+		convBlock.block(0, 1, nNodes, nNodes) -= _disc.polyDerM;
+		convBlock.block(0, 1, nNodes, 1) -= _disc.invMM.block(0, 0, nNodes, 1);
+		convBlock *= 2 * _disc.velocity / _disc.deltaZ;
+
+		// special inlet DOF treatment for first cell
+		for (unsigned int comp = 0; comp < nComp; comp++) {
+			for (unsigned int i = 0; i < convBlock.rows(); i++) {
+				jac.coeffRef(offC + comp * sComp + i * sNode, comp * sComp) = -convBlock(i, 0);
+				for (unsigned int j = 1; j < convBlock.cols(); j++) {
+					jac.coeffRef(offC + comp * sComp + i * sNode,
+								 offC + comp * sComp + (j - 1) * sNode)
+								 -= convBlock(i, j);
+				}
+			}
+		}
+		for (unsigned int cell = 1; cell < nCells; cell++) {
+			for (unsigned int comp = 0; comp < nComp; comp++) {
+				for (unsigned int i = 0; i < convBlock.rows(); i++) {
+					for (unsigned int j = 0; j < convBlock.cols(); j++) {
+						// row: jump over inlet DOFs and previous cells, add component offset and go node strides from there for each convection block entry
+						// col: jump over inlet DOFs and previous cells, go back one node, add component offset and go node strides from there for each convection block entry
+						jac.coeffRef(offC + cell * sCell + comp * sComp + i * sNode,
+									 offC + cell * sCell - sNode + comp * sComp + j * sNode)
+									 -= convBlock(i, j);
+					}
+				}
+			}
+		}
+
+		return 0;
+	}
+
+	///**
+	//* @brief analytically calculates the isotherm jacobian
+	//* @return 1 if jacobain estimation fits the predefined pattern of the jacobian, 0 if not.
+	//*/
+	//int calcIsothermJacobian(double t, unsigned int secIdx, const double* const y, util::ThreadLocalStorage& threadLocalMem) {
+
+	//	Indexer idxr(_disc);
+
+	//	// set rowIterator and local state pointer to first solid concentration
+	//	linalg::BandedEigenSparseRowIterator rowIterator(_jac, idxr.offsetC() + idxr.strideColLiquid());
+	//	const double* yLocal = y + idxr.offsetC() + idxr.strideColLiquid();
+
+	//	// Offset from the first component of the mobile phase to the first bound state
+	//	unsigned int offSetCp = _disc.nComp;
+
+	//	for (unsigned int point = 0; point < _disc.nPoints; point++) {
+
+	//		double z = _disc.deltaZ * std::floor(point / _disc.nNodes)
+	//			+ 0.5 * _disc.deltaZ * (1 + _disc.nodes[point % _disc.nNodes]);
+
+	//		_binding[0]->analyticJacobian(t, secIdx, ColumnPosition{ z, 0.0, 0.0 }, yLocal, offSetCp, rowIterator, threadLocalMem.get());
+
+	//		// set rowIterator and y to first bound concentration of next discrete point
+	//		rowIterator += idxr.strideColNode();
+	//		yLocal += idxr.strideColNode();
+
+	//	}
+
+	//	if (!_jac.isCompressed()) // if matrix lost its compressed storage, the pattern did not fit.
+	//		return 0;
+
+	//	return 1;
+	//}
+
+	/**
+	* @brief adds time derivative to the bulk jacobian
+	* @detail d Bulk_Residual / d c_t = alpha * I is added to the bulk jacobian
+	*/
+	void addTimeDerJacobian(double alpha) {
+
+		Indexer idxr(_disc);
+
+		linalg::BandedEigenSparseRowIterator jac(_jacCdisc, idxr.offsetC());
+
+		for (unsigned int point = 0; point < _disc.nPoints; point++) {
+			for (unsigned int comp = 0; comp < _disc.nComp; comp++) {
+				// alpha * I
+				jac[0] += alpha; // index 0 points to concentration corresponding to the current row
+				++jac;
+			}
+		}
+
+	}
+
 };
 
 } // namespace model
