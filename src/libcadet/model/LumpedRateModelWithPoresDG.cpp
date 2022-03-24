@@ -82,19 +82,19 @@ LumpedRateModelWithPoresDG::~LumpedRateModelWithPoresDG() CADET_NOEXCEPT
 
 unsigned int LumpedRateModelWithPoresDG::numDofs() const CADET_NOEXCEPT
 {
-	// Column bulk DOFs: nCol * nComp
-	// Particle DOFs: nCol * nParType particles each having nComp (liquid phase) + sum boundStates (solid phase) DOFs
-	// Flux DOFs: nCol * nComp * nParType
+	// Column bulk DOFs: nPoints * nComp
+	// Particle DOFs: nPoints * nParType particles each having nComp (liquid phase) + sum boundStates (solid phase) DOFs
+	// Flux DOFs: nPoints * nComp * nParType
 	// Inlet DOFs: nComp
-	return _disc.nComp + _disc.nComp * _disc.nCol * (1 + _disc.nParType) + _disc.parTypeOffset[_disc.nParType];
+	return _disc.nComp + _disc.nComp * _disc.nPoints * (1 + _disc.nParType) + _disc.parTypeOffset[_disc.nParType];
 }
 
 unsigned int LumpedRateModelWithPoresDG::numPureDofs() const CADET_NOEXCEPT
 {
-	// Column bulk DOFs: nCol * nComp
-	// Particle DOFs: nCol * nParType particles each having nComp (liquid phase) + sum boundStates (solid phase) DOFs
-	// Flux DOFs: nCol * nComp * nParType
-	return _disc.nComp * _disc.nCol * (1 + _disc.nParType) + _disc.parTypeOffset[_disc.nParType];
+	// Column bulk DOFs: nPoints * nComp
+	// Particle DOFs: nPoints * nParType particles each having nComp (liquid phase) + sum boundStates (solid phase) DOFs
+	// Flux DOFs: nPoints * nComp * nParType
+	return _disc.nComp * _disc.nPoints * (1 + _disc.nParType) + _disc.parTypeOffset[_disc.nParType];
 }
 
 
@@ -157,7 +157,7 @@ bool LumpedRateModelWithPoresDG::configureModelDiscretization(IParameterProvider
 	else
 	{
 		// Infer number of particle types
-		_disc.nParType = nBound.size() / _disc.nComp;
+		_disc.nParType = *new unsigned int[nBound.size() / _disc.nComp];
 		_disc.nBound = new unsigned int[_disc.nComp * _disc.nParType];
 		std::copy_n(nBound.begin(), _disc.nComp * _disc.nParType, _disc.nBound);
 	}
@@ -192,7 +192,7 @@ bool LumpedRateModelWithPoresDG::configureModelDiscretization(IParameterProvider
 	_disc.parTypeOffset[0] = 0;
 	for (unsigned int j = 1; j < _disc.nParType + 1; ++j)
 	{
-		_disc.parTypeOffset[j] = _disc.parTypeOffset[j - 1] + (_disc.nComp + _disc.strideBound[j - 1]) * _disc.nCol;
+		_disc.parTypeOffset[j] = _disc.parTypeOffset[j - 1] + (_disc.nComp + _disc.strideBound[j - 1]) * _disc.nPoints;
 	}
 
 	// Determine whether analytic Jacobian should be used but don't set it right now.
@@ -204,7 +204,7 @@ bool LumpedRateModelWithPoresDG::configureModelDiscretization(IParameterProvider
 #endif
 
 	// Initialize and configure GMRES for solving the Schur-complement
-	_gmres.initialize(_disc.nCol * _disc.nComp * _disc.nParType, paramProvider.getInt("MAX_KRYLOV"), linalg::toOrthogonalization(paramProvider.getInt("GS_TYPE")), paramProvider.getInt("MAX_RESTARTS"));
+	_gmres.initialize(_disc.nPoints * _disc.nComp * _disc.nParType, paramProvider.getInt("MAX_KRYLOV"), linalg::toOrthogonalization(paramProvider.getInt("GS_TYPE")), paramProvider.getInt("MAX_RESTARTS"));
 	_gmres.matrixVectorMultiplier(&schurComplementMultiplierLRMPoresDG, this);
 	_schurSafety = paramProvider.getDouble("SCHUR_SAFETY");
 
@@ -244,7 +244,7 @@ bool LumpedRateModelWithPoresDG::configureModelDiscretization(IParameterProvider
 
 	paramProvider.popScope();
 
-	const bool transportSuccess = _convDispOp.configureModelDiscretization(paramProvider, _disc.nComp, _disc.nCol);
+	const bool transportSuccess = _convDispOp.configureModelDiscretization(paramProvider, _disc.nComp, _disc.nPoints, 0); // strideCell not needed for DG, so just set to zero
 
 	_disc.dispersion = Eigen::VectorXd::Zero(_disc.nComp); // fill later on with convDispOp (section and component dependent)
 
@@ -257,26 +257,31 @@ bool LumpedRateModelWithPoresDG::configureModelDiscretization(IParameterProvider
 	// Allocate memory
 	Indexer idxr(_disc);
 
-	_jacInlet.resize(_disc.nComp);
+	_jacInlet.resize(_disc.nComp, _disc.nComp); // included in JacC!
+
+	_jacC.resize(_disc.nComp* (1 + _disc.nPoints), _disc.nComp * (1 + _disc.nPoints));
+	_jacCdisc.resize(_disc.nComp* (1 + _disc.nPoints), _disc.nComp * (1 + _disc.nPoints));
+	setConvDispJacPattern(_jacC);
+	setConvDispJacPattern(_jacCdisc);
 
 	_jacP.resize(_disc.nParType);
 	_jacPdisc.resize(_disc.nParType);
 	for (unsigned int i = 0; i < _disc.nParType; ++i)
 	{
-		_jacPdisc[i].resize(_disc.nCol * (_disc.nComp + _disc.strideBound[i]), _disc.nComp + _disc.strideBound[i] - 1, _disc.nComp + _disc.strideBound[i] - 1);
-		_jacP[i].resize(_disc.nCol * (_disc.nComp + _disc.strideBound[i]), _disc.nComp + _disc.strideBound[i] - 1, _disc.nComp + _disc.strideBound[i] - 1);
+		_jacPdisc[i].resize(_disc.nPoints * (_disc.nComp + _disc.strideBound[i]), _disc.nComp + _disc.strideBound[i] - 1, _disc.nComp + _disc.strideBound[i] - 1);
+		_jacP[i].resize(_disc.nPoints * (_disc.nComp + _disc.strideBound[i]), _disc.nComp + _disc.strideBound[i] - 1, _disc.nComp + _disc.strideBound[i] - 1);
 	}
 
 	_jacPF.resize(_disc.nParType);
 	_jacFP.resize(_disc.nParType);
 	for (unsigned int i = 0; i < _disc.nParType; ++i)
 	{
-		_jacPF[i].resize(_disc.nComp * _disc.nCol);
-		_jacFP[i].resize(_disc.nComp * _disc.nCol);
+		_jacPF[i].resize(_disc.nComp * _disc.nPoints);
+		_jacFP[i].resize(_disc.nComp * _disc.nPoints);
 	}
 
-	_jacCF.resize(_disc.nComp * _disc.nCol * _disc.nParType);
-	_jacFC.resize(_disc.nComp * _disc.nCol * _disc.nParType);
+	_jacCF.resize(_disc.nComp * _disc.nPoints* _disc.nParType);
+	_jacFC.resize(_disc.nComp * _disc.nPoints* _disc.nParType);
 
 	// Set whether analytic Jacobian is used
 	useAnalyticJacobian(analyticJac);
@@ -426,8 +431,8 @@ bool LumpedRateModelWithPoresDG::configure(IParameterProvider& paramProvider)
 			_axiallyConstantParTypeVolFrac = true;
 
 			// Expand to all axial cells
-			_parTypeVolFrac.resize(_disc.nCol * _disc.nParType, 1.0);
-			for (unsigned int i = 1; i < _disc.nCol; ++i)
+			_parTypeVolFrac.resize(_disc.nPoints * _disc.nParType, 1.0);
+			for (unsigned int i = 1; i < _disc.nPoints; ++i)
 				std::copy(_parTypeVolFrac.begin(), _parTypeVolFrac.begin() + _disc.nParType, _parTypeVolFrac.begin() + _disc.nParType * i);
 		}
 		else
@@ -435,14 +440,14 @@ bool LumpedRateModelWithPoresDG::configure(IParameterProvider& paramProvider)
 	}
 	else
 	{
-		_parTypeVolFrac.resize(_disc.nCol, 1.0);
+		_parTypeVolFrac.resize(_disc.nPoints, 1.0);
 		_axiallyConstantParTypeVolFrac = false;
 	}
 
 	// Check whether all sizes are matched
 	if (_disc.nParType != _parRadius.size())
 		throw InvalidParameterException("Number of elements in field PAR_RADIUS does not match number of particle types");
-	if (_disc.nParType * _disc.nCol != _parTypeVolFrac.size())
+	if (_disc.nParType * _disc.nPoints != _parTypeVolFrac.size())
 		throw InvalidParameterException("Number of elements in field PAR_TYPE_VOLFRAC does not match number of particle types");
 	if (_disc.nParType != _parPorosity.size())
 		throw InvalidParameterException("Number of elements in field PAR_POROSITY does not match number of particle types");
@@ -453,7 +458,7 @@ bool LumpedRateModelWithPoresDG::configure(IParameterProvider& paramProvider)
 		throw InvalidParameterException("Number of elements in field PORE_ACCESSIBILITY differs from NCOMP * NPARTYPE (" + std::to_string(_disc.nComp * _disc.nParType) + ")");
 
 	// Check that particle volume fractions sum to 1.0
-	for (unsigned int i = 0; i < _disc.nCol; ++i)
+	for (unsigned int i = 0; i < _disc.nPoints; ++i)
 	{
 		const double volFracSum = std::accumulate(_parTypeVolFrac.begin() + i * _disc.nParType, _parTypeVolFrac.begin() + (i + 1) * _disc.nParType, 0.0,
 			[](double a, const active& b) -> double { return a + static_cast<double>(b); });
@@ -614,6 +619,7 @@ unsigned int LumpedRateModelWithPoresDG::threadLocalMemorySize() const CADET_NOE
 	return lms.bufferSize();
 }
 
+//@TODO for Eigen::SparseMatrix
 unsigned int LumpedRateModelWithPoresDG::numAdDirsForJacobian() const CADET_NOEXCEPT
 {
 	// We need as many directions as the highest bandwidth of the diagonal blocks:
@@ -621,13 +627,13 @@ unsigned int LumpedRateModelWithPoresDG::numAdDirsForJacobian() const CADET_NOEX
 	// the bandwidth of the particle blocks are given by the number of components and bound states.
 
 	// Get maximum stride of particle type blocks
-	int maxStride = 0;
-	for (unsigned int type = 0; type < _disc.nParType; ++type)
-	{
-		maxStride = std::max(maxStride, _jacP[type].stride());
-	}
+	//int maxStride = 0;
+	//for (unsigned int type = 0; type < _disc.nParType; ++type)
+	//{
+	//	maxStride = std::max(maxStride, _jacP[type].stride());
+	//}
 
-	return std::max(_convDispOp.requiredADdirs(), maxStride);
+	return 1; // std::max(_convDispOp.requiredADdirs(), maxStride);
 }
 
 void LumpedRateModelWithPoresDG::useAnalyticJacobian(const bool analyticJac)
@@ -635,7 +641,7 @@ void LumpedRateModelWithPoresDG::useAnalyticJacobian(const bool analyticJac)
 #ifndef CADET_CHECK_ANALYTIC_JACOBIAN
 	_analyticJac = analyticJac;
 	if (!_analyticJac)
-		_jacobianAdDirs = numAdDirsForJacobian();
+		_jacobianAdDirs = 0; // numAdDirsForJacobian(); @TODO for Eigen::SparseMatrix
 	else
 		_jacobianAdDirs = 0;
 #else
@@ -645,6 +651,7 @@ void LumpedRateModelWithPoresDG::useAnalyticJacobian(const bool analyticJac)
 #endif
 }
 
+// @TODO: backwards flow
 void LumpedRateModelWithPoresDG::notifyDiscontinuousSectionTransition(double t, unsigned int secIdx, const ConstSimulationState& simState, const AdJacobianParams& adJac)
 {
 	// Setup flux Jacobian blocks at the beginning of the simulation or in case of
@@ -655,31 +662,31 @@ void LumpedRateModelWithPoresDG::notifyDiscontinuousSectionTransition(double t, 
 	Indexer idxr(_disc);
 
 	// ConvectionDispersionOperator tells us whether flow direction has changed
-	if (!_convDispOp.notifyDiscontinuousSectionTransition(t, secIdx, adJac))
+	if (!_convDispOp.notifyDiscontinuousSectionTransition(t, secIdx))
 		return;
 
-	// Setup the matrix connecting inlet DOFs to first column cells
-	_jacInlet.clear();
-	const double h = static_cast<double>(_convDispOp.columnLength()) / static_cast<double>(_disc.nCol);
-	const double u = static_cast<double>(_convDispOp.currentVelocity());
+	//// Setup the matrix connecting inlet DOFs to first column cells
+	//_jacInlet.clear();
+	//const double h = static_cast<double>(_convDispOp.columnLength()) / static_cast<double>(_disc.nCol);
+	//const double u = static_cast<double>(_convDispOp.currentVelocity());
 
-	if (u >= 0.0)
-	{
-		// Forwards flow
+	//if (u >= 0.0)
+	//{
+	//	// Forwards flow
 
-		// Place entries for inlet DOF to first column cell conversion
-		for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
-			_jacInlet.addElement(comp * idxr.strideColComp(), comp, -u / h);
-	}
-	else
-	{
-		// Backwards flow
+	//	// Place entries for inlet DOF to first column cell conversion
+	//	for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
+	//		_jacInlet.addElement(comp * idxr.strideColComp(), comp, -u / h);
+	//}
+	//else
+	//{
+	//	// Backwards flow
 
-		// Place entries for inlet DOF to last column cell conversion
-		const unsigned int offset = (_disc.nCol - 1) * idxr.strideColCell();
-		for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
-			_jacInlet.addElement(offset + comp * idxr.strideColComp(), comp, u / h);
-	}
+	//	// Place entries for inlet DOF to last column cell conversion
+	//	const unsigned int offset = (_disc.nPoints - 1) * idxr.strideColNode();
+	//	for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
+	//		_jacInlet.addElement(offset + comp * idxr.strideColComp(), comp, u / h);
+	//}
 }
 
 void LumpedRateModelWithPoresDG::setFlowRates(active const* in, active const* out) CADET_NOEXCEPT
@@ -710,7 +717,7 @@ unsigned int LumpedRateModelWithPoresDG::requiredADdirs() const CADET_NOEXCEPT
 	return numAdDirsForJacobian();
 #endif
 }
-
+// @TODO: AD
 void LumpedRateModelWithPoresDG::prepareADvectors(const AdJacobianParams& adJac) const
 {
 	// Early out if AD is disabled
@@ -719,17 +726,17 @@ void LumpedRateModelWithPoresDG::prepareADvectors(const AdJacobianParams& adJac)
 
 	Indexer idxr(_disc);
 
-	// Column block
-	_convDispOp.prepareADvectors(adJac);
+	//// Column block
+	//_convDispOp.prepareADvectors(adJac);
 
-	// Particle block
-	for (unsigned int type = 0; type < _disc.nParType; ++type)
-	{
-		const unsigned int lowerParBandwidth = _jacP[type].lowerBandwidth();
-		const unsigned int upperParBandwidth = _jacP[type].upperBandwidth();
+	//// Particle block
+	//for (unsigned int type = 0; type < _disc.nParType; ++type)
+	//{
+	//	const unsigned int lowerParBandwidth = _jacP[type].lowerBandwidth();
+	//	const unsigned int upperParBandwidth = _jacP[type].upperBandwidth();
 
-		ad::prepareAdVectorSeedsForBandMatrix(adJac.adY + idxr.offsetCp(ParticleTypeIndex{ type }), adJac.adDirOffset, idxr.strideParBlock(type) * _disc.nCol, lowerParBandwidth, upperParBandwidth, lowerParBandwidth);
-	}
+	//	ad::prepareAdVectorSeedsForBandMatrix(adJac.adY + idxr.offsetCp(ParticleTypeIndex{ type }), adJac.adDirOffset, idxr.strideParBlock(type) * _disc.nPoints, lowerParBandwidth, upperParBandwidth, lowerParBandwidth);
+	//}
 }
 
 /**
@@ -737,19 +744,20 @@ void LumpedRateModelWithPoresDG::prepareADvectors(const AdJacobianParams& adJac)
  * @param [in] adRes Residual vector of AD datatypes with band compressed seed vectors
  * @param [in] adDirOffset Number of AD directions used for non-Jacobian purposes (e.g., parameter sensitivities)
  */
+ // @TODO: AD
 void LumpedRateModelWithPoresDG::extractJacobianFromAD(active const* const adRes, unsigned int adDirOffset)
 {
 	Indexer idxr(_disc);
 
-	// Column
-	_convDispOp.extractJacobianFromAD(adRes, adDirOffset);
+	//// Column
+	//_convDispOp.extractJacobianFromAD(adRes, adDirOffset);
 
-	// Particles
-	for (unsigned int type = 0; type < _disc.nParType; ++type)
-	{
-		linalg::BandMatrix& jacMat = _jacP[type];
-		ad::extractBandedJacobianFromAd(adRes + idxr.offsetCp(ParticleTypeIndex{ type }), adDirOffset, jacMat.lowerBandwidth(), jacMat);
-	}
+	//// Particles
+	//for (unsigned int type = 0; type < _disc.nParType; ++type)
+	//{
+	//	linalg::BandMatrix& jacMat = _jacP[type];
+	//	ad::extractBandedJacobianFromAd(adRes + idxr.offsetCp(ParticleTypeIndex{ type }), adDirOffset, jacMat.lowerBandwidth(), jacMat);
+	//}
 }
 
 #ifdef CADET_CHECK_ANALYTIC_JACOBIAN
@@ -903,29 +911,39 @@ int LumpedRateModelWithPoresDG::residual(const SimulationTime& simTime, const Co
 template <typename StateType, typename ResidualType, typename ParamType, bool wantJac>
 int LumpedRateModelWithPoresDG::residualImpl(double t, unsigned int secIdx, StateType const* const y, double const* const yDot, ResidualType* const res, util::ThreadLocalStorage& threadLocalMem)
 {
-	// Reset Jacobian
+	// determine wether we have a section switch. If so, set velocity, dispersion, newStaticJac(bulk)
+	updateSection(secIdx);
+	bool success = 1;
+	
 	if (wantJac)
 	{
 		for (unsigned int type = 0; type < _disc.nParType; ++type)
-			_jacP[type].setAll(0.0);
+			_jacP[type].setAll(0.0);// Reset particle Jacobian
+
+		if (_disc.newStaticJac) { // ConvDisp static (per section) jacobian
+
+			success = calcStaticAnaBulkJacobian(t, secIdx, reinterpret_cast<const double*>(y), threadLocalMem);
+			_disc.newStaticJac = false;
+			if (cadet_unlikely(!success))
+				LOG(Error) << "Jacobian pattern did not fit the Jacobian estimation";
+		}
+
 	}
 
 	BENCH_START(_timerResidualPar);
 
+	residualBulk<StateType, ResidualType, ParamType, wantJac>(t, secIdx, y, yDot, res, threadLocalMem);
+
 #ifdef CADET_PARALLELIZE
-	tbb::parallel_for(std::size_t(0), static_cast<std::size_t>(_disc.nCol * _disc.nParType + 1), [&](std::size_t pblk)
+	tbb::parallel_for(std::size_t(1), static_cast<std::size_t>(_disc.nPoints * _disc.nParType + 1), [&](std::size_t pblk)
 #else
-	for (unsigned int pblk = 0; pblk < _disc.nCol * _disc.nParType + 1; ++pblk)
+	for (unsigned int pblk = 0; pblk < _disc.nPoints * _disc.nParType; ++pblk)
 #endif
 	{
-		if (cadet_unlikely(pblk == 0))
-			residualBulk<StateType, ResidualType, ParamType, wantJac>(t, secIdx, y, yDot, res, threadLocalMem);
-		else
-		{
-			const unsigned int type = (pblk - 1) / _disc.nCol;
-			const unsigned int par = (pblk - 1) % _disc.nCol;
+			const unsigned int type = (pblk) / _disc.nPoints;
+			const unsigned int par = (pblk) % _disc.nPoints;
 			residualParticle<StateType, ResidualType, ParamType, wantJac>(t, type, par, secIdx, y, yDot, res, threadLocalMem);
-		}
+
 	} CADET_PARFOR_END;
 
 	BENCH_STOP(_timerResidualPar);
@@ -944,46 +962,76 @@ int LumpedRateModelWithPoresDG::residualImpl(double t, unsigned int secIdx, Stat
 template <typename StateType, typename ResidualType, typename ParamType, bool wantJac>
 int LumpedRateModelWithPoresDG::residualBulk(double t, unsigned int secIdx, StateType const* yBase, double const* yDotBase, ResidualType* resBase, util::ThreadLocalStorage& threadLocalMem)
 {
-	_convDispOp.residual(t, secIdx, yBase, yDotBase, resBase, wantJac, typename ParamSens<ParamType>::enabled());
+	Indexer idxr(_disc);
+
+	// Eigen access to data pointers
+	const double* yPtr = reinterpret_cast<const double*>(yBase);
+	const double* const ypPtr = reinterpret_cast<const double* const>(yDotBase);
+	double* const resPtr = reinterpret_cast<double* const>(resBase);
+	Eigen::Map<const Eigen::VectorXd> y(yPtr, numDofs());
+	Eigen::Map<const Eigen::VectorXd> yp(ypPtr, numDofs());
+	Eigen::Map<Eigen::VectorXd> res(resPtr, numDofs());
+
+	for (unsigned int comp = 0; comp < _disc.nComp; comp++) {
+
+		// extract current component mobile phase, mobile phase residual, mobile phase derivative (discontinous memory blocks)
+		Eigen::Map<const VectorXd, 0, InnerStride<Dynamic>> C_comp(yPtr + idxr.offsetC() + comp, _disc.nPoints, InnerStride<Dynamic>(idxr.strideColNode()));
+		Eigen::Map<VectorXd, 0, InnerStride<Dynamic>>		cRes_comp(resPtr + idxr.offsetC() + comp, _disc.nPoints, InnerStride<Dynamic>(idxr.strideColNode()));
+		Eigen::Map<const VectorXd, 0, InnerStride<Dynamic>> cDot_comp(ypPtr + idxr.offsetC() + comp, _disc.nPoints, InnerStride<Dynamic>(idxr.strideColNode()));
+
+		/*	convection dispersion RHS	*/
+
+		_disc.boundary[0] = yPtr[comp]; // copy inlet DOFs to ghost node
+		ConvDisp_DG(C_comp, cRes_comp, t, comp);
+
+		/*	residual	*/
+
+		if (ypPtr) // NULLpointer for consistent initialization
+			cRes_comp = cDot_comp - cRes_comp;
+	}
+
 	if (!_dynReactionBulk || (_dynReactionBulk->numReactionsLiquid() == 0))
 		return 0;
 
-	// Get offsets
-	Indexer idxr(_disc);
-	StateType const* y = yBase + idxr.offsetC();
-	ResidualType* res = resBase + idxr.offsetC();
-	LinearBufferAllocator tlmAlloc = threadLocalMem.get();
+	// @TODO: dynamic reactions
 
-	for (unsigned int col = 0; col < _disc.nCol; ++col, y += idxr.strideColCell(), res += idxr.strideColCell())
-	{
-		const ColumnPosition colPos{ (0.5 + static_cast<double>(col)) / static_cast<double>(_disc.nCol), 0.0, 0.0 };
-		_dynReactionBulk->residualLiquidAdd(t, secIdx, colPos, y, res, -1.0, tlmAlloc);
+	//// Get offsets
+	//Indexer idxr(_disc);
+	//StateType const* y = yBase + idxr.offsetC();
+	//ResidualType* res = resBase + idxr.offsetC();
+	//LinearBufferAllocator tlmAlloc = threadLocalMem.get();
 
-		if (wantJac)
-		{
-			// static_cast should be sufficient here, but this statement is also analyzed when wantJac = false
-			_dynReactionBulk->analyticJacobianLiquidAdd(t, secIdx, colPos, reinterpret_cast<double const*>(y), -1.0, _convDispOp.jacobian().row(col * idxr.strideColCell()), tlmAlloc);
-		}
-	}
+	//for (unsigned int col = 0; col < _disc.nPoints; ++col, y += idxr.strideColNode(), res += idxr.strideColNode())
+	//{
+	//	const ColumnPosition colPos{ (0.5 + static_cast<double>(col)) / static_cast<double>(_disc.nCol), 0.0, 0.0 };
+	//	_dynReactionBulk->residualLiquidAdd(t, secIdx, colPos, y, res, -1.0, tlmAlloc);
+
+	//	if (wantJac)
+	//	{
+	//		// static_cast should be sufficient here, but this statement is also analyzed when wantJac = false
+	//		_dynReactionBulk->analyticJacobianLiquidAdd(t, secIdx, colPos, reinterpret_cast<double const*>(y), -1.0, _convDispOp.jacobian().row(col * idxr.strideColNode()), tlmAlloc);
+	//	}
+	//}
 
 	return 0;
 }
 
 template <typename StateType, typename ResidualType, typename ParamType, bool wantJac>
-int LumpedRateModelWithPoresDG::residualParticle(double t, unsigned int parType, unsigned int colCell, unsigned int secIdx, StateType const* yBase, double const* yDotBase, ResidualType* resBase, util::ThreadLocalStorage& threadLocalMem)
+int LumpedRateModelWithPoresDG::residualParticle(double t, unsigned int parType, unsigned int colNode, unsigned int secIdx, StateType const* yBase, double const* yDotBase, ResidualType* resBase, util::ThreadLocalStorage& threadLocalMem)
 {
 	Indexer idxr(_disc);
 
 	// Go to the particle block of the given type and column cell
-	StateType const* y = yBase + idxr.offsetCp(ParticleTypeIndex{ parType }, ParticleIndex{ colCell });
-	double const* yDot = yDotBase + idxr.offsetCp(ParticleTypeIndex{ parType }, ParticleIndex{ colCell });
-	ResidualType* res = resBase + idxr.offsetCp(ParticleTypeIndex{ parType }, ParticleIndex{ colCell });
+	StateType const* y = yBase + idxr.offsetCp(ParticleTypeIndex{ parType }, ParticleIndex{ colNode });
+	double const* yDot = yDotBase + idxr.offsetCp(ParticleTypeIndex{ parType }, ParticleIndex{ colNode });
+	ResidualType* res = resBase + idxr.offsetCp(ParticleTypeIndex{ parType }, ParticleIndex{ colNode });
 
 	// Prepare parameters
 	const ParamType radius = static_cast<ParamType>(_parRadius[parType]);
 
-	// Midpoint of current column cell (z coordinate) - needed in externally dependent adsorption kinetic
-	const double z = (0.5 + colCell) / static_cast<double>(_disc.nCol);
+	// z coordinate of current node - needed in externally dependent adsorption kinetic
+	const double z = _disc.deltaZ * std::floor(colNode / _disc.nNodes)
+		+ 0.5 * _disc.deltaZ * (1 + _disc.nodes[colNode % _disc.nNodes]);
 
 	const parts::cell::CellParameters cellResParams
 	{
@@ -1001,7 +1049,7 @@ int LumpedRateModelWithPoresDG::residualParticle(double t, unsigned int parType,
 	// Handle time derivatives, binding, dynamic reactions
 	parts::cell::residualKernel<StateType, ResidualType, ParamType, parts::cell::CellParameters, linalg::BandMatrix::RowIterator, wantJac, true>(
 		t, secIdx, ColumnPosition{ z, 0.0, static_cast<double>(radius) * 0.5 }, y, yDotBase ? yDot : nullptr, res,
-		_jacP[parType].row(colCell * idxr.strideParBlock(parType)), cellResParams, threadLocalMem.get()
+		_jacP[parType].row(colNode * idxr.strideParBlock(parType)), cellResParams, threadLocalMem.get()
 		);
 
 	return 0;
@@ -1022,7 +1070,7 @@ int LumpedRateModelWithPoresDG::residualFlux(double t, unsigned int secIdx, Stat
 	StateType const* const yFlux = yBase + idxr.offsetJf();
 
 	// J_f block (identity matrix), adds flux state to flux equation
-	for (unsigned int i = 0; i < _disc.nComp * _disc.nCol * _disc.nParType; ++i)
+	for (unsigned int i = 0; i < _disc.nComp * _disc.nPoints * _disc.nParType; ++i)
 		resFlux[i] = yFlux[i];
 
 	for (unsigned int type = 0; type < _disc.nParType; ++type)
@@ -1042,7 +1090,7 @@ int LumpedRateModelWithPoresDG::residualFlux(double t, unsigned int secIdx, Stat
 		const ParamType jacPF_val = -_parGeomSurfToVol[type] / (epsP * radius);
 
 		// J_{0,f} block, adds flux to column void / bulk volume equations
-		for (unsigned int i = 0; i < _disc.nCol * _disc.nComp; ++i)
+		for (unsigned int i = 0; i < _disc.nPoints * _disc.nComp; ++i)
 		{
 			const unsigned int colCell = i / _disc.nComp;
 			const unsigned int comp = i % _disc.nComp;
@@ -1050,31 +1098,31 @@ int LumpedRateModelWithPoresDG::residualFlux(double t, unsigned int secIdx, Stat
 		}
 
 		// J_{f,0} block, adds bulk volume state c_i to flux equation
-		for (unsigned int bnd = 0; bnd < _disc.nCol; ++bnd)
+		for (unsigned int bnd = 0; bnd < _disc.nPoints; ++bnd)
 		{
 			for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
 			{
-				const unsigned int eq = bnd * idxr.strideColCell() + comp * idxr.strideColComp();
+				const unsigned int eq = bnd * idxr.strideColNode() + comp * idxr.strideColComp();
 				resFluxType[eq] -= yCol[eq];
 			}
 		}
 
 		// J_{p,f} block, adds flux to particle / bead volume equations
-		for (unsigned int pblk = 0; pblk < _disc.nCol; ++pblk)
+		for (unsigned int pblk = 0; pblk < _disc.nPoints; ++pblk)
 		{
 			for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
 			{
-				const unsigned int eq = pblk * idxr.strideColCell() + comp * idxr.strideColComp();
+				const unsigned int eq = pblk * idxr.strideColNode() + comp * idxr.strideColComp();
 				resParType[pblk * idxr.strideParBlock(type) + comp] += jacPF_val / static_cast<ParamType>(poreAccFactor[comp]) * static_cast<ParamType>(filmDiff[comp]) * yFluxType[eq];
 			}
 		}
 
 		// J_{f,p} block, adds outer bead shell state c_{p,i} to flux equation
-		for (unsigned int pblk = 0; pblk < _disc.nCol; ++pblk)
+		for (unsigned int pblk = 0; pblk < _disc.nPoints; ++pblk)
 		{
 			for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
 			{
-				const unsigned int eq = pblk * idxr.strideColCell() + comp * idxr.strideColComp();
+				const unsigned int eq = pblk * idxr.strideColNode() + comp * idxr.strideColComp();
 				resFluxType[eq] += yParType[comp + pblk * idxr.strideParBlock(type)];
 			}
 		}
@@ -1107,7 +1155,7 @@ void LumpedRateModelWithPoresDG::assembleOffdiagJac(double t, unsigned int secId
 
 	for (unsigned int type = 0; type < _disc.nParType; ++type)
 	{
-		const unsigned int typeOffset = type * _disc.nCol * _disc.nComp;
+		const unsigned int typeOffset = type * _disc.nPoints * _disc.nComp;
 
 		const double epsP = static_cast<double>(_parPorosity[type]);
 		const double radius = static_cast<double>(_parRadius[type]);
@@ -1120,7 +1168,7 @@ void LumpedRateModelWithPoresDG::assembleOffdiagJac(double t, unsigned int secId
 		// Note that the J_f block, which is the identity matrix, is treated in the linear solver
 
 		// J_{0,f} block, adds flux to column void / bulk volume equations
-		for (unsigned int eq = 0; eq < _disc.nCol * _disc.nComp; ++eq)
+		for (unsigned int eq = 0; eq < _disc.nPoints * _disc.nComp; ++eq)
 		{
 			const unsigned int colCell = eq / _disc.nComp;
 			const unsigned int comp = eq % _disc.nComp;
@@ -1130,28 +1178,28 @@ void LumpedRateModelWithPoresDG::assembleOffdiagJac(double t, unsigned int secId
 		}
 
 		// J_{f,0} block, adds bulk volume state c_i to flux equation
-		for (unsigned int eq = 0; eq < _disc.nCol * _disc.nComp; ++eq)
+		for (unsigned int eq = 0; eq < _disc.nPoints * _disc.nComp; ++eq)
 		{
 			_jacFC.addElement(eq + typeOffset, eq, -1.0);
 		}
 
 		// J_{p,f} block, implements bead boundary condition in outer bead shell equation
-		for (unsigned int pblk = 0; pblk < _disc.nCol; ++pblk)
+		for (unsigned int pblk = 0; pblk < _disc.nPoints; ++pblk)
 		{
 			for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
 			{
-				const unsigned int eq = typeOffset + pblk * idxr.strideColCell() + comp * idxr.strideColComp();
+				const unsigned int eq = typeOffset + pblk * idxr.strideColNode() + comp * idxr.strideColComp();
 				const unsigned int col = pblk * idxr.strideParBlock(type) + comp;
 				_jacPF[type].addElement(col, eq, jacPF_val / static_cast<double>(poreAccFactor[comp]) * static_cast<double>(filmDiff[comp]));
 			}
 		}
 
 		// J_{f,p} block, adds outer bead shell state c_{p,i} to flux equation
-		for (unsigned int pblk = 0; pblk < _disc.nCol; ++pblk)
+		for (unsigned int pblk = 0; pblk < _disc.nPoints; ++pblk)
 		{
 			for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
 			{
-				const unsigned int eq = typeOffset + pblk * idxr.strideColCell() + comp * idxr.strideColComp();
+				const unsigned int eq = typeOffset + pblk * idxr.strideColNode() + comp * idxr.strideColComp();
 				const unsigned int col = pblk * idxr.strideParBlock(type) + comp;
 				_jacFP[type].addElement(eq, col, 1.0);
 			}
@@ -1232,50 +1280,50 @@ void LumpedRateModelWithPoresDG::multiplyWithJacobian(const SimulationTime& simT
 {
 	Indexer idxr(_disc);
 
-	// Handle identity matrix of inlet DOFs
-	for (unsigned int i = 0; i < _disc.nComp; ++i)
-	{
-		ret[i] = alpha * yS[i] + beta * ret[i];
-	}
-
-#ifdef CADET_PARALLELIZE
-	tbb::parallel_for(std::size_t(0), static_cast<std::size_t>(_disc.nParType + 1), [&](std::size_t idx)
-#else
-	for (unsigned int idx = 0; idx < _disc.nParType + 1; ++idx)
-#endif
-	{
-		if (cadet_unlikely(idx == 0))
-		{
-			// Interstitial block
-			_convDispOp.jacobian().multiplyVector(yS + idxr.offsetC(), alpha, beta, ret + idxr.offsetC());
-			_jacCF.multiplyVector(yS + idxr.offsetJf(), alpha, 1.0, ret + idxr.offsetC());
-		}
-		else
-		{
-			// Particle blocks
-			const unsigned int type = idx - 1;
-			const int localOffset = idxr.offsetCp(ParticleTypeIndex{ type });
-			_jacP[type].multiplyVector(yS + localOffset, alpha, beta, ret + localOffset);
-			_jacPF[type].multiplyVector(yS + idxr.offsetJf(), alpha, 1.0, ret + localOffset);
-		}
-	} CADET_PARFOR_END;
-
-	// Handle flux equation
-
-	// Set fluxes(ret) = fluxes(yS)
-	// This applies the identity matrix in the bottom right corner of the Jaocbian (flux equation)
-	for (unsigned int i = idxr.offsetJf(); i < numDofs(); ++i)
-		ret[i] = alpha * yS[i] + beta * ret[i];
-
-	double* const retJf = ret + idxr.offsetJf();
-	_jacFC.multiplyVector(yS + idxr.offsetC(), alpha, 1.0, retJf);
-	for (unsigned int type = 0; type < _disc.nParType; ++type)
-	{
-		_jacFP[type].multiplyVector(yS + idxr.offsetCp(ParticleTypeIndex{ type }), alpha, 1.0, retJf);
-	}
-
-	// Map inlet DOFs to the column inlet (first bulk cells)
-	_jacInlet.multiplyAdd(yS, ret + idxr.offsetC(), alpha);
+//	// Handle identity matrix of inlet DOFs
+//	for (unsigned int i = 0; i < _disc.nComp; ++i)
+//	{
+//		ret[i] = alpha * yS[i] + beta * ret[i];
+//	}
+//
+//#ifdef CADET_PARALLELIZE
+//	tbb::parallel_for(std::size_t(0), static_cast<std::size_t>(_disc.nParType + 1), [&](std::size_t idx)
+//#else
+//	for (unsigned int idx = 0; idx < _disc.nParType + 1; ++idx)
+//#endif
+//	{
+//		if (cadet_unlikely(idx == 0))
+//		{
+//			// Interstitial block
+//			_convDispOp.jacobian().multiplyVector(yS + idxr.offsetC(), alpha, beta, ret + idxr.offsetC());
+//			_jacCF.multiplyVector(yS + idxr.offsetJf(), alpha, 1.0, ret + idxr.offsetC());
+//		}
+//		else
+//		{
+//			// Particle blocks
+//			const unsigned int type = idx - 1;
+//			const int localOffset = idxr.offsetCp(ParticleTypeIndex{ type });
+//			_jacP[type].multiplyVector(yS + localOffset, alpha, beta, ret + localOffset);
+//			_jacPF[type].multiplyVector(yS + idxr.offsetJf(), alpha, 1.0, ret + localOffset);
+//		}
+//	} CADET_PARFOR_END;
+//
+//	// Handle flux equation
+//
+//	// Set fluxes(ret) = fluxes(yS)
+//	// This applies the identity matrix in the bottom right corner of the Jaocbian (flux equation)
+//	for (unsigned int i = idxr.offsetJf(); i < numDofs(); ++i)
+//		ret[i] = alpha * yS[i] + beta * ret[i];
+//
+//	double* const retJf = ret + idxr.offsetJf();
+//	_jacFC.multiplyVector(yS + idxr.offsetC(), alpha, 1.0, retJf);
+//	for (unsigned int type = 0; type < _disc.nParType; ++type)
+//	{
+//		_jacFP[type].multiplyVector(yS + idxr.offsetCp(ParticleTypeIndex{ type }), alpha, 1.0, retJf);
+//	}
+//
+//	// Map inlet DOFs to the column inlet (first bulk cells)
+//	_jacInlet.multiplyAdd(yS, ret + idxr.offsetC(), alpha);
 }
 
 /**
@@ -1292,9 +1340,9 @@ void LumpedRateModelWithPoresDG::multiplyWithDerivativeJacobian(const Simulation
 	Indexer idxr(_disc);
 
 #ifdef CADET_PARALLELIZE
-	tbb::parallel_for(std::size_t(0), static_cast<std::size_t>(_disc.nCol * _disc.nParType + 1), [&](std::size_t idx)
+	tbb::parallel_for(std::size_t(0), static_cast<std::size_t>(_disc.nPoints * _disc.nParType + 1), [&](std::size_t idx)
 #else
-	for (unsigned int idx = 0; idx < _disc.nCol * _disc.nParType + 1; ++idx)
+	for (unsigned int idx = 0; idx < _disc.nPoints * _disc.nParType + 1; ++idx)
 #endif
 	{
 		if (cadet_unlikely(idx == 0))
@@ -1304,8 +1352,8 @@ void LumpedRateModelWithPoresDG::multiplyWithDerivativeJacobian(const Simulation
 		else
 		{
 			const unsigned int idxParLoop = idx - 1;
-			const unsigned int pblk = idxParLoop % _disc.nCol;
-			const unsigned int type = idxParLoop / _disc.nCol;
+			const unsigned int pblk = idxParLoop % _disc.nPoints;
+			const unsigned int type = idxParLoop / _disc.nPoints;
 
 			// Particle
 			double const* const localSdot = sDot + idxr.offsetCp(ParticleTypeIndex{ type }, ParticleIndex{ pblk });
@@ -1351,7 +1399,7 @@ void LumpedRateModelWithPoresDG::multiplyWithDerivativeJacobian(const Simulation
 
 	// Handle fluxes (all algebraic)
 	double* const dFdyDot = ret + idxr.offsetJf();
-	std::fill(dFdyDot, dFdyDot + _disc.nCol * _disc.nComp * _disc.nParType, 0.0);
+	std::fill(dFdyDot, dFdyDot + _disc.nPoints * _disc.nComp * _disc.nParType, 0.0);
 
 	// Handle inlet DOFs (all algebraic)
 	std::fill_n(ret, _disc.nComp, 0.0);
@@ -1371,7 +1419,7 @@ unsigned int LumpedRateModelWithPoresDG::localOutletComponentIndex(unsigned int 
 	// Inlets are duplicated so need to be accounted for
 	if (static_cast<double>(_convDispOp.currentVelocity()) >= 0.0)
 		// Forward Flow: outlet is last cell
-		return _disc.nComp + (_disc.nCol - 1) * _disc.nComp;
+		return _disc.nComp + (_disc.nPoints - 1) * _disc.nComp;
 	else
 		// Backward flow: Outlet is first cell
 		return _disc.nComp;
@@ -1409,7 +1457,7 @@ bool LumpedRateModelWithPoresDG::setParameter(const ParameterId& pId, double val
 			if (pId.particleType >= _disc.nParType)
 				return false;
 
-			for (unsigned int i = 0; i < _disc.nCol; ++i)
+			for (unsigned int i = 0; i < _disc.nPoints; ++i)
 				_parTypeVolFrac[i * _disc.nParType + pId.particleType].setValue(value);
 
 			return true;
@@ -1453,7 +1501,7 @@ void LumpedRateModelWithPoresDG::setSensitiveParameterValue(const ParameterId& p
 			if (!contains(_sensParams, &_parTypeVolFrac[pId.particleType]))
 				return;
 
-			for (unsigned int i = 0; i < _disc.nCol; ++i)
+			for (unsigned int i = 0; i < _disc.nPoints; ++i)
 				_parTypeVolFrac[i * _disc.nParType + pId.particleType].setValue(value);
 
 			return;
@@ -1494,7 +1542,7 @@ bool LumpedRateModelWithPoresDG::setSensitiveParameter(const ParameterId& pId, u
 
 			// Register parameter and set AD seed / direction
 			_sensParams.insert(&_parTypeVolFrac[pId.particleType]);
-			for (unsigned int i = 0; i < _disc.nCol; ++i)
+			for (unsigned int i = 0; i < _disc.nPoints; ++i)
 				_parTypeVolFrac[i * _disc.nParType + pId.particleType].setADValue(adDirection, adValue);
 
 			return true;

@@ -9,6 +9,10 @@
 //  your option, any later version) which accompanies this distribution, and
 //  is available at http://www.gnu.org/licenses/gpl.html
 // =============================================================================
+ // @TODO: delete inlcude iostream and iomanip
+#include <iostream>
+#include <iomanip>
+#include <chrono>
 
 #include "model/LumpedRateModelWithPores.hpp"
 #include "model/LumpedRateModelWithPoresDG.hpp"
@@ -630,7 +634,7 @@ int LumpedRateModelWithPoresDG::linearSolve(double t, double alpha, double outer
 		{
 			// Assemble
 			assembleDiscretizedJacobianParticleBlock(type, alpha, idxr);
-
+			
 			// Factorize
 			const bool result = _jacPdisc[type].factorize();
 			if (cadet_unlikely(!result))
@@ -734,7 +738,7 @@ int LumpedRateModelWithPoresDG::linearSolve(double t, double alpha, double outer
 	}
 
 	// Compute rhs_0 = y_0 - J_0^{-1} * J_{0,f} * y_f = y_0 - tempState_0
-	for (unsigned int i = 0; i < _disc.nCol * _disc.nComp; ++i)
+	for (unsigned int i = 0; i < _disc.nPoints * _disc.nComp; ++i)
 		rhsCol[i] -= localCol[i];
 
 	for (unsigned int type = 0; type < _disc.nParType; ++type)
@@ -752,7 +756,7 @@ int LumpedRateModelWithPoresDG::linearSolve(double t, double alpha, double outer
 		}
 
 		// Compute rhs_i = y_i - J_i^{-1} * J_{i,f} * y_f = y_i - tempState_i
-		for (unsigned int i = 0; i < idxr.strideParBlock(type) * _disc.nCol; ++i)
+		for (unsigned int i = 0; i < idxr.strideParBlock(type) * _disc.nPoints; ++i)
 			rhsPar[i] -= localPar[i];
 	}
 
@@ -783,7 +787,7 @@ int LumpedRateModelWithPoresDG::schurComplementMatrixVector(double const* x, dou
 	BENCH_SCOPE(_timerMatVec);
 
 	// Copy x over to result z, which corresponds to the application of the identity matrix
-	std::copy(x, x + _disc.nCol * _disc.nComp * _disc.nParType, z);
+	std::copy(x, x + _disc.nPoints * _disc.nComp * _disc.nParType, z);
 
 	Indexer idxr(_disc);
 	std::fill(_tempState + idxr.offsetC(), _tempState + idxr.offsetJf(), 0.0);
@@ -874,7 +878,7 @@ void LumpedRateModelWithPoresDG::assembleDiscretizedBulkJacobian(double alpha, I
 	}
 
 	// add time derivative to bulk jacobian
-	addTimeDerJacobian(alpha, idxr);
+	addTimeDerBulkJacobian(alpha, idxr);
 	// add static (per section) jacobian
 	_jacCdisc += _jacC;
 
@@ -907,7 +911,7 @@ void LumpedRateModelWithPoresDG::assembleDiscretizedJacobianParticleBlock(unsign
 
 	// Add time derivatives to particle shells
 	linalg::FactorizableBandMatrix::RowIterator jac = fbm.row(0);
-	for (unsigned int j = 0; j < _disc.nCol; ++j)
+	for (unsigned int j = 0; j < _disc.nPoints; ++j)
 	{
 		// Mobile and solid phase (advances jac accordingly)
 		addTimeDerivativeToJacobianParticleBlock(jac, idxr, alpha, parType);
