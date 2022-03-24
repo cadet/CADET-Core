@@ -18,7 +18,13 @@
 #ifndef LIBCADET_LUMPEDRATEMODELWITHPORESDG_HPP_
 #define LIBCADET_LUMPEDRATEMODELWITHPORESDG_HPP_
 
+ // @TODO: delete inlcude iostream and iomanip
+#include <iostream>
+#include <iomanip>
+#include <chrono>
+
 #include "BindingModel.hpp"
+#include "ParallelSupport.hpp"
 
 #include "UnitOperationBase.hpp"
 #include "cadet/StrongTypes.hpp"
@@ -26,6 +32,8 @@
 #include "model/parts/ConvectionDispersionOperator.hpp"
 #include "AutoDiff.hpp"
 #include "linalg/BandedEigenSparseRowIterator.hpp"
+#include "linalg/SparseMatrix.hpp"
+#include "linalg/BandMatrix.hpp"
 #include "linalg/Gmres.hpp"
 #include "Memory.hpp"
 #include "model/ModelUtils.hpp"
@@ -222,7 +230,7 @@ protected:
 	void assembleOffdiagJac(double t, unsigned int secIdx);
 	void extractJacobianFromAD(active const* const adRes, unsigned int adDirOffset);
 
-	void assembleDiscretizedBulkJacobian(double alpha);
+	void assembleDiscretizedBulkJacobian(double alpha, Indexer idxr);
 
 	int schurComplementMatrixVector(double const* x, double* z) const;
 	void assembleDiscretizedJacobianParticleBlock(unsigned int type, double alpha, const Indexer& idxr);
@@ -558,13 +566,13 @@ protected:
 	parts::ConvectionDispersionOperatorBase _convDispOp; //!< Convection dispersion operator for interstitial volume transport
 	IDynamicReactionModel* _dynReactionBulk; //!< Dynamic reactions in the bulk volume
 
-	std::vector<Eigen::SparseMatrix<double, RowMajor>> _jacP; //!< Particle jacobian diagonal blocks (all of them for each particle type)
-	std::vector<Eigen::SparseMatrix<double>> _jacPdisc; //!< Particle jacobian diagonal blocks (all of them for each particle type) with time derivatives from BDF method
+	std::vector<linalg::BandMatrix> _jacP; //!< Particle jacobian diagonal blocks (all of them for each particle type)
+	std::vector<linalg::FactorizableBandMatrix> _jacPdisc; //!< Particle jacobian diagonal blocks (all of them for each particle type) with time derivatives from BDF method
 
-	Eigen::SparseMatrix<double, RowMajor> _jacCF; //!< Jacobian block connecting interstitial states and fluxes (interstitial transport equation)
-	Eigen::SparseMatrix<double, RowMajor> _jacFC; //!< Jacobian block connecting fluxes and interstitial states (flux equation)
-	std::vector<Eigen::SparseMatrix<double, RowMajor>> _jacPF; //!< Jacobian blocks connecting particle states and fluxes (particle transport boundary condition)
-	std::vector<Eigen::SparseMatrix<double, RowMajor>> _jacFP; //!< Jacobian blocks connecting fluxes and particle states (flux equation)
+	linalg::DoubleSparseMatrix _jacCF; //!< Jacobian block connecting interstitial states and fluxes (interstitial transport equation)
+	linalg::DoubleSparseMatrix _jacFC; //!< Jacobian block connecting fluxes and interstitial states (flux equation)
+	std::vector<linalg::DoubleSparseMatrix> _jacPF; //!< Jacobian blocks connecting particle states and fluxes (particle transport boundary condition)
+	std::vector<linalg::DoubleSparseMatrix> _jacFP; //!< Jacobian blocks connecting fluxes and particle states (flux equation)
 
 	Eigen::SparseMatrix<double, RowMajor> _jacInlet; //!< Jacobian inlet DOF block matrix connects inlet DOFs to first bulk cells
 
@@ -777,7 +785,7 @@ protected:
 	*/
 	void updateSection(int secIdx) {
 
-		if (_disc.curSection != secIdx) {
+		if (cadet_unlikely(_disc.curSection != secIdx)) {
 
 			_disc.curSection = secIdx;
 			_disc.newStaticJac = true;
@@ -1024,37 +1032,29 @@ protected:
 
 	typedef Eigen::Triplet<double> T;
 
-	///**
-	//* @brief sets the sparsity pattern of the static Jacobian
-	//* @detail inlet DOFs plus ConvDisp pattern DG and isotherm pattern. Independent of the isotherm,
-	//	all liquid and solid entries at a discrete point are set.
-	//* @param [in] stateDer bool if state derivative pattern should be added (for _jacDisc)
-	//*/
-	//void setPattern(Eigen::SparseMatrix<double, RowMajor>& mat, bool stateDer) {
+	/**
+	* @brief sets the sparsity pattern of the convection dispersion Jacobian
+	*/
+	void setConvDispJacPattern(Eigen::SparseMatrix<double, RowMajor>& mat) {
 
-	//	std::vector<T> tripletList;
-	//	// TODO?: convDisp NNZ times two for now, but Convection NNZ < Dispersion NNZ
-	//	// inlet + ConvDispDG + isotherm
-	//	tripletList.reserve(_disc.nComp + 2u * calcConvDispNNZ(_disc) + (_disc.strideBound + _disc.nComp) * _disc.nPoints);
+		std::vector<T> tripletList;
+		// TODO?: convDisp NNZ times two for now, but Convection NNZ < Dispersion NNZ
+		// inlet + ConvDispDG
+		tripletList.reserve(_disc.nComp + 2u * calcConvDispNNZ(_disc));
 
-	//	// inlet DOFs Jacobian ( forward flow! ) //_jacInlet;
-	//	for (unsigned int i = 0; i < _disc.nComp; i++) {
-	//		tripletList.push_back(T(i, i, 0.0));
-	//	}
+		// inlet DOFs Jacobian ( forward flow! ) //_jacInlet;
+		for (unsigned int i = 0; i < _disc.nComp; i++) {
+			tripletList.push_back(T(i, i, 0.0));
+		}
 
-	//	if (_disc.modal)
-	//		ConvDispModalPattern(tripletList);
-	//	else
-	//		ConvDispNodalPattern(tripletList);
+		if (_disc.modal)
+			ConvDispModalPattern(tripletList);
+		else
+			ConvDispNodalPattern(tripletList);
 
-	//	isothermPattern(tripletList);
+		mat.setFromTriplets(tripletList.begin(), tripletList.end());
 
-	//	if (stateDer)
-	//		stateDerPattern(tripletList); // only adds [ d convDisp / d q_t ] because main diagonal is already included !
-
-	//	mat.setFromTriplets(tripletList.begin(), tripletList.end());
-
-	//}
+	}
 
 	///**
 	//* @brief computes the convection dispersion part of the state derivative pattern of the jacobian.
@@ -1332,7 +1332,7 @@ protected:
 	//}
 
 	/**
-	* @brief analytically calculates the static (per section) bulk jacobian
+	* @brief analytically calculates the static (per section) bulk jacobian (inlet DOFs included!)
 	* @return 1 if jacobain estimation fits the predefined pattern of the jacobian, 0 if not.
 	*/
 	int calcStaticAnaBulkJacobian(double t, unsigned int secIdx, const double* const y, util::ThreadLocalStorage& threadLocalMem) {
@@ -1359,15 +1359,15 @@ protected:
 		if (!_jacC.isCompressed()) // if matrix lost its compressed storage, the pattern did not fit.
 			return 0;
 
-		//MatrixXd mat = _jacC.toDense()*10;
+		//MatrixXd mat = _jacC.toDense();
 		//for (int i = 0; i < mat.rows(); i++) {
 		//	for (int j = 0; j < mat.cols(); j++) {
-		//		if (mat(i, j) != 0) {
-		//			mat(i, j) = 1.0;
-		//		}
+		//		//if (mat(i, j) != 0) {
+		//		//	mat(i, j) = 1.0;
+		//		//}
 		//	}
 		//}
-		//std::cout << std::fixed << std::setprecision(0) << "JAC_Bulk\n" << mat << std::endl; // #include <iomanip>
+		//std::cout << std::fixed << std::setprecision(4) << "JAC_Bulk\n" << mat << std::endl; // #include <iomanip>
 
 		return 1;
 	}
@@ -1810,9 +1810,7 @@ protected:
 	* @brief adds time derivative to the bulk jacobian
 	* @detail d Bulk_Residual / d c_t = alpha * I is added to the bulk jacobian
 	*/
-	void addTimeDerJacobian(double alpha) {
-
-		Indexer idxr(_disc);
+	void addTimeDerBulkJacobian(double alpha, Indexer idxr) {
 
 		linalg::BandedEigenSparseRowIterator jac(_jacCdisc, idxr.offsetC());
 
