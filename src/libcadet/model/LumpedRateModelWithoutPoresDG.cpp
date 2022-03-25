@@ -171,8 +171,12 @@ namespace cadet
 			// Allocate memory
 			Indexer idxr(_disc);
 
-			_jac.resize(_disc.nComp + (_disc.nComp + _disc.strideBound) * _disc.nPoints, _disc.nComp + (_disc.nComp + _disc.strideBound) * _disc.nPoints);
-			_jacDisc.resize(_disc.nComp + (_disc.nComp + _disc.strideBound) * _disc.nPoints, _disc.nComp + (_disc.nComp + _disc.strideBound) * _disc.nPoints);
+			if (_disc.modal)
+				_jacInlet.resize(_disc.nNodes, 1); // first cell depends on inlet concentration (same for every component)
+			else
+				_jacInlet.resize(1, 1); // first cell depends on inlet concentration (same for every component)
+			_jac.resize((_disc.nComp + _disc.strideBound) * _disc.nPoints, (_disc.nComp + _disc.strideBound) * _disc.nPoints);
+			_jacDisc.resize((_disc.nComp + _disc.strideBound) * _disc.nPoints, (_disc.nComp + _disc.strideBound) * _disc.nPoints);
 			setPattern(_jac, false);
 			setPattern(_jacDisc, true);
 
@@ -889,6 +893,7 @@ namespace cadet
 			{
 				auto start3 = std::chrono::high_resolution_clock::now();
 				solver.compute(_jacDisc);
+				//solver.compute(_jacDisc);
 				auto stop3 = std::chrono::high_resolution_clock::now();
 				auto duration3 = std::chrono::duration_cast<std::chrono::microseconds>(stop3 - start3);
 				std::cout << "factorize duration: " << duration3.count() << std::endl;
@@ -911,7 +916,8 @@ namespace cadet
 			// Use the factors to solve the linear system 
 			auto start6 = std::chrono::high_resolution_clock::now();
 			//r.segment(_disc.nComp, numPureDofs()) = solver.solve(tmpstate.segment(_disc.nComp, numPureDofs()));
-			r = solver.solve(r);
+			r.segment(idxr.offsetC(), numPureDofs()) = solver.solve(r.segment(idxr.offsetC(), numPureDofs()));
+
 			// handle inlet DOFs: nothing todo as _jacInlet is identity matrix
 
 			auto stop6 = std::chrono::high_resolution_clock::now();
@@ -921,6 +927,13 @@ namespace cadet
 			if (solver.info() != Success) {
 				LOG(Error) << "solve() failed";
 				result = false;
+			}
+
+			// handle inlet DOFs
+			for (int comp = 0; comp < _disc.nComp; comp++) {
+				for (int node = 0; node < (_disc.modal ? _disc.nNodes : 1); node++) {
+					r[idxr.offsetC() + comp * idxr.strideColComp() + node * idxr.strideColNode()] += _jacInlet(node, 0) * r[comp];
+				}
 			}
 
 			//auto stop = std::chrono::high_resolution_clock::now();
@@ -1185,7 +1198,7 @@ namespace cadet
 				linalg::DenseMatrixView fullJacobianMatrix(_jacDisc.valuePtr() + point * _disc.strideBound * _disc.strideBound, nullptr, mask.len, mask.len);
 
 				// z coordinate of current discrete point - needed in externally dependent adsorption kinetic
-				const double z = _disc.deltaZ * std::floor(point / _disc.nNodes) + 0.5 * _disc.deltaZ * (1 + _disc.nodes[point % _disc.nNodes]);;
+				const double z = _disc.deltaZ * std::floor(point / _disc.nNodes) + 0.5 * _disc.deltaZ * (1 + _disc.nodes[point % _disc.nNodes]);
 
 				// Get workspace memory
 				BufferedArray<double> nonlinMemBuffer = tlmAlloc.array<double>(_nonlinearSolver->workspaceSize(probSize));
