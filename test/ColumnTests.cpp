@@ -98,14 +98,14 @@ namespace
 
 		virtual void unitOperationStructure(cadet::UnitOpIdx idx, const cadet::IModel& model, const cadet::ISolutionExporter& exporter)
 		{
-			_fluxOffset = exporter.numComponents() * exporter.numInletPorts() + exporter.numBulkDofs();
+			_fluxOffset = exporter.numComponents() * exporter.numInletPorts() + exporter.numMobilePhaseDofs();
 
 			const unsigned int nParType = exporter.numParticleTypes();
 			for (unsigned int i = 0; i < nParType; ++i)
 				_fluxOffset += exporter.numParticleMobilePhaseDofs(i) + exporter.numSolidPhaseDofs(i);
 
 			// Make sure this is correct
-			const unsigned int nFluxes = exporter.numComponents() * exporter.numAxialCells() * nParType * std::max(exporter.numRadialCells(), 1u);
+			const unsigned int nFluxes = exporter.numComponents() * exporter.numPrimaryCoordinates() * nParType * std::max(exporter.numSecondaryCoordinates(), 1u);
 			REQUIRE(reinterpret_cast<cadet::IUnitOperation const*>(&model)->numDofs() - nFluxes == _fluxOffset);
 		}
 

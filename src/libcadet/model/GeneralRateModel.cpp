@@ -2983,6 +2983,124 @@ bool GeneralRateModel::hasParameter(const ParameterId& pId) const
 	return UnitOperationBase::hasParameter(pId);
 }
 
+
+int GeneralRateModel::Exporter::writeMobilePhase(double* buffer) const
+{
+	const int blockSize = numMobilePhaseDofs();
+	std::copy_n(_idx.c(_data), blockSize, buffer);
+	return blockSize;
+}
+
+int GeneralRateModel::Exporter::writeSolidPhase(double* buffer) const
+{
+	int numWritten = 0;
+	for (unsigned int i = 0; i < _disc.nParType; ++i)
+	{
+		const int n = writeParticleMobilePhase(i, buffer);
+		buffer += n;
+		numWritten += n;
+	}
+	return numWritten;
+}
+
+int GeneralRateModel::Exporter::writeParticleMobilePhase(double* buffer) const
+{
+	int numWritten = 0;
+	for (unsigned int i = 0; i < _disc.nParType; ++i)
+	{
+		const int n = writeParticleMobilePhase(i, buffer);
+		buffer += n;
+		numWritten += n;
+	}
+	return numWritten;
+}
+
+int GeneralRateModel::Exporter::writeSolidPhase(unsigned int parType, double* buffer) const
+{
+	cadet_assert(parType < _disc.nParType);
+
+	const unsigned int stride = _disc.nComp + _disc.strideBound[parType];
+	double const* ptr = _data + _idx.offsetCp(ParticleTypeIndex{parType}) + _disc.nComp;
+	for (unsigned int i = 0; i < _disc.nCol; ++i)
+	{
+		for (unsigned int j = 0; j < _disc.nParCell[parType]; ++j)
+		{
+			std::copy_n(ptr, _disc.strideBound[parType], buffer);
+			buffer += _disc.strideBound[parType];
+			ptr += stride;
+		}
+	}
+	return _disc.nCol * _disc.nParCell[parType] * _disc.strideBound[parType];
+}
+
+int GeneralRateModel::Exporter::writeParticleMobilePhase(unsigned int parType, double* buffer) const
+{
+	cadet_assert(parType < _disc.nParType);
+
+	const unsigned int stride = _disc.nComp + _disc.strideBound[parType];
+	double const* ptr = _data + _idx.offsetCp(ParticleTypeIndex{parType});
+	for (unsigned int i = 0; i < _disc.nCol; ++i)
+	{
+		for (unsigned int j = 0; j < _disc.nParCell[parType]; ++j)
+		{
+			std::copy_n(ptr, _disc.nComp, buffer);
+			buffer += _disc.nComp;
+			ptr += stride;
+		}
+	}
+	return _disc.nCol * _disc.nParCell[parType] * _disc.nComp;
+}
+
+int GeneralRateModel::Exporter::writeParticleFlux(double* buffer) const
+{
+	const int blockSize = numParticleFluxDofs();
+	std::copy_n(_idx.jf(_data), blockSize, buffer);
+	return blockSize;
+}
+
+int GeneralRateModel::Exporter::writeParticleFlux(unsigned int parType, double* buffer) const
+{
+	const unsigned int blockSize = _disc.nComp * _disc.nCol;
+	std::copy_n(_idx.jf(_data) + blockSize * parType, blockSize, buffer);
+	return blockSize;
+}
+
+int GeneralRateModel::Exporter::writeInlet(unsigned int port, double* buffer) const
+{
+	cadet_assert(port == 0);
+	std::copy_n(_data, _disc.nComp, buffer);
+	return _disc.nComp;
+}
+
+int GeneralRateModel::Exporter::writeInlet(double* buffer) const
+{
+	std::copy_n(_data, _disc.nComp, buffer);
+	return _disc.nComp;
+}
+
+int GeneralRateModel::Exporter::writeOutlet(unsigned int port, double* buffer) const
+{
+	cadet_assert(port == 0);
+
+	if (_model._convDispOp.currentVelocity() >= 0)
+		std::copy_n(&_idx.c(_data, _disc.nCol - 1, 0), _disc.nComp, buffer);
+	else
+		std::copy_n(&_idx.c(_data, 0, 0), _disc.nComp, buffer);
+
+	return _disc.nComp;
+}
+
+int GeneralRateModel::Exporter::writeOutlet(double* buffer) const
+{
+	if (_model._convDispOp.currentVelocity() >= 0)
+		std::copy_n(&_idx.c(_data, _disc.nCol - 1, 0), _disc.nComp, buffer);
+	else
+		std::copy_n(&_idx.c(_data, 0, 0), _disc.nComp, buffer);
+
+	return _disc.nComp;
+}
+
+
 void registerGeneralRateModel(std::unordered_map<std::string, std::function<IUnitOperation*(UnitOpIdx)>>& models)
 {
 	models[GeneralRateModel::identifier()] = [](UnitOpIdx uoId) { return new GeneralRateModel(uoId); };

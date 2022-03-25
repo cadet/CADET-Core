@@ -416,6 +416,34 @@ void InletModel::multiplyWithDerivativeJacobian(const SimulationTime& simTime, c
 	std::fill_n(ret, numDofs(), 0.0);
 }
 
+
+int InletModel::Exporter::writeInlet(unsigned int port, double* buffer) const
+{
+	cadet_assert(port == 0);
+	std::copy_n(_data, _nComp, buffer);
+	return _nComp;
+}
+
+int InletModel::Exporter::writeInlet(double* buffer) const
+{
+	std::copy_n(_data, _nComp, buffer);
+	return _nComp;
+}
+
+int InletModel::Exporter::writeOutlet(unsigned int port, double* buffer) const
+{
+	cadet_assert(port == 0);
+	std::copy_n(_data, _nComp, buffer);
+	return _nComp;
+}
+
+int InletModel::Exporter::writeOutlet(double* buffer) const
+{
+	std::copy_n(_data, _nComp, buffer);
+	return _nComp;
+}
+
+
 void registerInletModel(std::unordered_map<std::string, std::function<IUnitOperation*(UnitOpIdx)>>& models)
 {
 	models[InletModel::identifier()] = [](UnitOpIdx uoId) { return new InletModel(uoId); };

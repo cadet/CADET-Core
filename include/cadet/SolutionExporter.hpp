@@ -27,19 +27,6 @@ namespace cadet
 {
 
 /**
- * @brief Elements of state vector ordering
- */
-enum class StateOrdering : uint8_t
-{
-	Component,
-	AxialCell,
-	RadialCell,
-	ParticleType,
-	ParticleShell,
-	BoundState
-};
-
-/**
  * @brief Interface providing functionality for exporting the solution to the user space
  */
 class CADET_API ISolutionExporter
@@ -78,16 +65,18 @@ public:
 	virtual unsigned int numComponents() const CADET_NOEXCEPT = 0;
 
 	/**
-	 * @brief Returns the number of axial column cells
-	 * @return Number of axial column cells
+	 * @brief Returns the number of primary coordinates / points
+	 * @details For axial flow columns, this is the number of axial points
+	 * @return Number of primary coordinates / points
 	 */
-	virtual unsigned int numAxialCells() const CADET_NOEXCEPT = 0;
+	virtual unsigned int numPrimaryCoordinates() const CADET_NOEXCEPT = 0;
 
 	/**
-	 * @brief Returns the number of radial column cells
-	 * @return Number of radial column cells
+	 * @brief Returns the number of secondary coordinates / points
+	 * @details For axial flow columns, this is the number of radial points
+	 * @return Number of secondary coordinates / points
 	 */
-	virtual unsigned int numRadialCells() const CADET_NOEXCEPT = 0;
+	virtual unsigned int numSecondaryCoordinates() const CADET_NOEXCEPT = 0;
 
 	/**
 	 * @brief Returns the number of inlet ports
@@ -122,186 +111,224 @@ public:
 	virtual unsigned int numBoundStates(unsigned int parType) const CADET_NOEXCEPT = 0;
 
 	/**
-	 * @brief Returns the total number of DOFs in the interstitial bulk volume
-	 * @return Number of main / bulk DOFs
+	 * @brief Returns the total number of DOFs in the main mobile phase (e.g., bulk volume)
+	 * @return Total number of mobile phase DOFs
 	 */
-	virtual unsigned int numBulkDofs() const CADET_NOEXCEPT = 0;
+	virtual unsigned int numMobilePhaseDofs() const CADET_NOEXCEPT = 0;
 
 	/**
-	 * @brief Returns the total number of mobile phase DOFs in the particles, if particles are supported
-	 * @details The total number of DOFs is returned, i.e., the sum of all particle cells' mobile phase DOFs.
-	 *          This includes all particle types.
-	 * 
+	 * @brief Returns the total number of mobile phase DOFs in the particles of the given type if particles are supported
 	 * @param [in] parType Particle type index
 	 * @return Total number of particle mobile phase DOFs
 	 */
 	virtual unsigned int numParticleMobilePhaseDofs(unsigned int parType) const CADET_NOEXCEPT = 0;
 
 	/**
-	 * @brief Returns the total number of solid phase DOFs
-	 * @details The total number of DOFs is returned, i.e., the sum of all column and particle cells' solid phase DOFs.
-	 *          This includes all particle types.
-	 * 
+	 * @brief Returns the total number of mobile phase DOFs in the particles of the given type if particles are supported
+	 * @details This includes all particle types.
+	 * @return Total number of particle mobile phase DOFs
+	 */
+	virtual unsigned int numParticleMobilePhaseDofs() const CADET_NOEXCEPT = 0;
+
+	/**
+	 * @brief Returns the total number of solid phase DOFs for the given particle type
 	 * @param [in] parType Particle type index
 	 * @return Total number of solid phase DOFs
 	 */
 	virtual unsigned int numSolidPhaseDofs(unsigned int parType) const CADET_NOEXCEPT = 0;
 
 	/**
-	 * @brief Returns the number of bulk-bead flux DOFs, if particle fluxes are supported
-	 * @return Total number of particle flux DOFs
+	 * @brief Returns the total number of solid phase DOFs
+	 * @details This includes all particle types.
+	 * @return Total number of solid phase DOFs
 	 */
-	virtual unsigned int numFluxDofs() const CADET_NOEXCEPT = 0;
+	virtual unsigned int numSolidPhaseDofs() const CADET_NOEXCEPT = 0;
 
 	/**
-	 * @brief Returns the number of volume DOFs, if volume DOFs are supported
+	 * @brief Returns the number of bulk-bead flux DOFs if particle fluxes are supported
+	 * @return Total number of particle flux DOFs
+	 */
+	virtual unsigned int numParticleFluxDofs() const CADET_NOEXCEPT = 0;
+
+	/**
+	 * @brief Returns the number of volume DOFs if volume DOFs are supported
 	 * @return Number of volume DOFs
 	 */
 	virtual unsigned int numVolumeDofs() const CADET_NOEXCEPT = 0;
 
 
 	/**
-	 * @brief Provides direct access to the underlying main mobile phase state vector
-	 * @details The ordering of the data inside the state vector is provided by concentrationOrdering()
-	 * @return Pointer to the first element of the state vector
+	 * @brief Writes the solution of the (bulk) mobile phase to the given buffer
+	 * @details The data is written in the order primary-secondary-component,
+	 *          where the last index changes the fastest.
+	 * 
+	 *          For a system with 3 primary coordinates, 2 secondary coordinates,
+	 *          and 4 components, the data is written as
+	 *          p0s0c0, p0s0c1, p0s0c2, p0s0c3,
+	 *          p0s1c0, p0s1c1, p0s1c2, p0s1c3, 
+	 *          p1s0c0, p1s0c1, p1s0c2, p1s0c3,
+	 *          p1s1c0, p1s1c1, p1s1c2, p1s1c3, ...
+	 * 
+	 * @param [out] buffer Pointer to buffer that receives the data
+	 * @return Number of written items
 	 */
-	virtual double const* concentration() const = 0;
+	virtual int writeMobilePhase(double* buffer) const = 0;
 
 	/**
-	 * @brief Provides direct access to the underlying flux state vector
-	 * @details The ordering of the data inside the state vector is provided by fluxOrdering()
-	 * @return Pointer to the first element of the state vector or @c NULL if the model does not support it
+	 * @brief Writes the solution of the solid phase to the given buffer
+	 * @details The data is written in the order particletype-primary-secondary-particle-component-boundstate,
+	 *          where the last index changes the fastest.
+	 *          The solution is written for all particle types.
+	 * 
+	 * @param [out] buffer Pointer to buffer that receives the data
+	 * @return Number of written items
 	 */
-	virtual double const* flux() const = 0;
+	virtual int writeSolidPhase(double* buffer) const = 0;
 
 	/**
-	 * @brief Provides direct access to the underlying particle mobile phase state vector part of the given particle type
-	 * @details The ordering of the (full) data inside the state vector is provided by mobilePhaseOrdering()
-	 * @param [in] parType Particle type index
-	 * @return Pointer to the first element of the state vector or @c NULL if the model does not support it
+	 * @brief Writes the solution of the particle mobile phase to the given buffer
+	 * @details The data is written in the order particletype-primary-secondary-particle-component,
+	 *          where the last index changes the fastest.
+	 *          The solution is written for all particle types.
+	 * 
+	 * @param [out] buffer Pointer to buffer that receives the data
+	 * @return Number of written items
 	 */
-	virtual double const* particleMobilePhase(unsigned int parType) const = 0;
+	virtual int writeParticleMobilePhase(double* buffer) const = 0;
 
 	/**
-	 * @brief Provides direct access to the underlying solid phase state vector part of the given particle type
-	 * @details The ordering of the (full) data inside the state vector is provided by solidPhaseOrdering()
-	 * @param [in] parType Particle type index
-	 * @return Pointer to the first element of the state vector or @c NULL if the model does not support it
+	 * @brief Writes the solution of the solid phase to the given buffer
+	 * @details The data is written in the order primary-secondary-particle-component-boundstate,
+	 *          where the last index changes the fastest.
+	 *          The solution is written for the given particle type only.
+	 * 
+	 *          For a system with 2 primary coordinates, 2 secondary coordinates, 2 particle
+	 *          coordinates, 2 components, and 2 bound states per component, the data is written as
+	 *          p0s0p0c0s0, p0s0p0c0s1, p0s0p0c1s0, p0s0p0c1s1,
+	 *          p0s0p1c0s0, p0s0p1c0s1, p0s0p1c1s0, p0s0p1c1s1,
+	 *          p0s1p0c0s0, p0s1p0c0s1, p0s1p0c1s0, p0s1p0c1s1,
+	 *          p0s1p1c0s0, p0s1p1c0s1, p0s1p1c1s0, p0s1p1c1s1,
+	 *          p1s0p0c0s0, p1s0p0c0s1, p1s0p0c1s0, p1s0p0c1s1,
+	 *          p1s0p1c0s0, p1s0p1c0s1, p1s0p1c1s0, p1s0p1c1s1,
+	 *          p1s1p0c0s0, p1s1p0c0s1, p1s1p0c1s0, p1s1p0c1s1,
+	 *          p1s1p1c0s0, p1s1p1c0s1, p1s1p1c1s0, p1s1p1c1s1, ...
+	 * 
+	 * @param [in] parType Index of the particle type to be written
+	 * @param [out] buffer Pointer to buffer that receives the data
+	 * @return Number of written items
 	 */
-	virtual double const* solidPhase(unsigned int parType) const = 0;
+	virtual int writeSolidPhase(unsigned int parType, double* buffer) const = 0;
 
 	/**
-	 * @brief Provides direct access to the underlying volume slice of the state vector
-	 * @return Pointer to the first element of the volume slice or @c NULL if the model does not support volume DOFs
+	 * @brief Writes the solution of the particle mobile phase to the given buffer
+	 * @details The data is written in the order primary-secondary-particle-component,
+	 *          where the last index changes the fastest.
+	 *          The solution is written for the given particle type only.
+	 * 
+	 *          For a system with 2 primary coordinates, 2 secondary coordinates, 2 particle
+	 *          coordinates, 2 components, and 2 bound states per component, the data is written as
+	 *          p0s0p0c0s0, p0s0p0c0s1, p0s0p0c1s0, p0s0p0c1s1,
+	 *          p0s0p1c0s0, p0s0p1c0s1, p0s0p1c1s0, p0s0p1c1s1,
+	 *          p0s1p0c0s0, p0s1p0c0s1, p0s1p0c1s0, p0s1p0c1s1,
+	 *          p0s1p1c0s0, p0s1p1c0s1, p0s1p1c1s0, p0s1p1c1s1,
+	 *          p1s0p0c0s0, p1s0p0c0s1, p1s0p0c1s0, p1s0p0c1s1,
+	 *          p1s0p1c0s0, p1s0p1c0s1, p1s0p1c1s0, p1s0p1c1s1,
+	 *          p1s1p0c0s0, p1s1p0c0s1, p1s1p0c1s0, p1s1p0c1s1,
+	 *          p1s1p1c0s0, p1s1p1c0s1, p1s1p1c1s0, p1s1p1c1s1, ...
+	 * 
+	 * @param [in] parType Index of the particle type to be written
+	 * @param [out] buffer Pointer to buffer that receives the data
+	 * @return Number of written items
 	 */
-	virtual double const* volume() const = 0;
+	virtual int writeParticleMobilePhase(unsigned int parType, double* buffer) const = 0;
 
 	/**
-	 * @brief Provides direct access to the inlet state vector
-	 * @details The inlet state vector only contains one value for each main mobile phase component (see numComponents()).
-	 *          The stride required for the access is returned in @p stride.
+	 * @brief Writes the solution of the flux between primary mobile phase and particle mobile phase to the given buffer
+	 * @details The data is written in the order particletype-primary-secondary-component,
+	 *          where the last index changes the fastest.
+	 *          The solution is written for all particle types.
+	 * 
+	 * @param [out] buffer Pointer to buffer that receives the data
+	 * @return Number of written items
+	 */
+	virtual int writeParticleFlux(double* buffer) const = 0;
+
+	/**
+	 * @brief Writes the solution of the flux between primary mobile phase and particle mobile phase of the selected particle type to the given buffer
+	 * @details The data is written in the order particletype-primary-secondary-component,
+	 *          where the last index changes the fastest.
+	 * 
+	 * @param [in] parType Index of the particle type to be written
+	 * @param [out] buffer Pointer to buffer that receives the data
+	 * @return Number of written items
+	 */
+	virtual int writeParticleFlux(unsigned int parType, double* buffer) const = 0;
+
+	/**
+	 * @brief Writes the solution of the volume to the given buffer
+	 * @param [out] buffer Pointer to buffer that receives the data
+	 * @return Number of written items
+	 */
+	virtual int writeVolume(double* buffer) const = 0;
+
+	/**
+	 * @brief Writes the solution of the inlet at the given port into the provided buffer
+	 * @details Writes all components of the selected port to the provided buffer.
+	 * 
 	 * @param [in] port Index of the port
-	 * @param [out] stride Stride of the vector access
-	 * @return Pointer to the first element of the inlet state vector
+	 * @param [out] buffer Pointer to buffer that receives the data
+	 * @return Number of written items
 	 */
-	virtual double const* inlet(unsigned int port, unsigned int& stride) const = 0;
+	virtual int writeInlet(unsigned int port, double* buffer) const = 0;
 
 	/**
-	 * @brief Provides direct access to the outlet state vector
-	 * @details The outlet state vector only contains one value for each main mobile phase component (see numComponents()).
-	 *          The stride required for the access is returned in @p stride.
+	 * @brief Writes the solution of the inlet at all ports into the provided buffer
+	 * @details Writes all components of all ports to the provided buffer in port-component order.
+	 * @param [out] buffer Pointer to buffer that receives the data
+	 * @return Number of written items
+	 */
+	virtual int writeInlet(double* buffer) const = 0;
+
+	/**
+	 * @brief Writes the solution of the outlet at the given port into the provided buffer
+	 * @details Writes all components of the selected port to the provided buffer.
+	 * 
 	 * @param [in] port Index of the port
-	 * @param [out] stride Stride of the vector access
-	 * @return Pointer to the first element of the outlet state vector
+	 * @param [out] buffer Pointer to buffer that receives the data
+	 * @return Number of written items
 	 */
-	virtual double const* outlet(unsigned int port, unsigned int& stride) const = 0;
+	virtual int writeOutlet(unsigned int port, double* buffer) const = 0;
+
+	/**
+	 * @brief Writes the solution of the outlet at all ports into the provided buffer
+	 * @details Writes all components of all ports to the provided buffer in port-component order.
+	 * @param [out] buffer Pointer to buffer that receives the data
+	 * @return Number of written items
+	 */
+	virtual int writeOutlet(double* buffer) const = 0;
 
 
 	/**
-	 * @brief Returns an array describing the ordering of the main mobile phase state vector
-	 * @details A pointer to the first element of the state vector ordering array is returned. The length
-	 *          of the array is returned in the parameter @p len. The elements of the array indicate the
-	 *          order of loops required to extract the data.
-	 * 
-	 * @param [out] len Length of the returned ordering vector
-	 * @return Pointer to first element of the ordering vector
+	 * @brief Returns primary coordinates (e.g., axial for axial flow columns)
+	 * @param [out] coords Pointer to array that is filled with primary coordinates
+	 * @return Number of written items
 	 */
-	virtual StateOrdering const* concentrationOrdering(unsigned int& len) const = 0;
+	virtual int writePrimaryCoordinates(double* coords) const = 0;
 
 	/**
-	 * @brief Returns an array describing the ordering of the flux state vector
-	 * @details A pointer to the first element of the state vector ordering array is returned. The length
-	 *          of the array is returned in the parameter @p len. The elements of the array indicate the
-	 *          order of loops required to extract the data.
-	 * 
-	 * @param [out] len Length of the returned ordering vector
-	 * @return Pointer to first element of the ordering vector or @c NULL if fluxes are not supported
+	 * @brief Returns secondary coordinates (e.g., radial for axial flow columns)
+	 * @param [out] coords Pointer to array that is filled with secondary coordinates
+	 * @return Number of written items
 	 */
-	virtual StateOrdering const* fluxOrdering(unsigned int& len) const = 0;
+	virtual int writeSecondaryCoordinates(double* coords) const = 0;
 
 	/**
-	 * @brief Returns an array describing the ordering of the mobile phase state vector
-	 * @details A pointer to the first element of the state vector ordering array is returned. The length
-	 *          of the array is returned in the parameter @p len. The elements of the array indicate the
-	 *          order of loops required to extract the data.
-	 * 
-	 * @param [out] len Length of the returned ordering vector
-	 * @return Pointer to first element of the ordering vector or @c NULL if mobile phases are not supported
-	 */
-	virtual StateOrdering const* mobilePhaseOrdering(unsigned int& len) const = 0;
-
-	/**
-	 * @brief Returns an array describing the ordering of the solid phase state vector
-	 * @details A pointer to the first element of the state vector ordering array is returned. The length
-	 *          of the array is returned in the parameter @p len. The elements of the array indicate the
-	 *          order of loops required to extract the data.
-	 * 
-	 * @param [out] len Length of the returned ordering vector
-	 * @return Pointer to first element of the ordering vector or @c NULL if solid phases are not supported
-	 */
-	virtual StateOrdering const* solidPhaseOrdering(unsigned int& len) const = 0;
-
-	/**
-	 * @brief Returns the number of elements between two bulk mobile phase DOF blocks
-	 * @details Stride between two bulk mobile phase DOF blocks.
-	 * @return Number of elements between two bulk mobile phase DOF blocks
-	 */
-	virtual unsigned int bulkMobilePhaseStride() const = 0;
-
-	/**
-	 * @brief Returns the number of elements between two particle mobile phase DOF blocks
-	 * @details Stride between two particle mobile phase DOF blocks of the given particle type.
+	 * @brief Returns particle coordinates of the selected particle type
 	 * @param [in] parType Particle type index
-	 * @return Number of elements between two particle mobile phase DOF blocks
+	 * @param [out] coords Pointer to array that is filled with particle coordinates of DOFs
+	 * @return Number of written items
 	 */
-	virtual unsigned int particleMobilePhaseStride(unsigned int parType) const = 0;
-
-	/**
-	 * @brief Returns the number of elements between two solid phase DOF blocks
-	 * @details Stride between two solid phase DOF blocks of the given particle type.
-	 * @param [in] parType Particle type index
-	 * @return Number of elements between two solid phase DOF blocks
-	 */
-	virtual unsigned int solidPhaseStride(unsigned int parType) const = 0;
-
-	/**
-	 * @brief Returns axial coordinates of the DOFs
-	 * @param [out] Pointer to array that is filled with axial coordinates of DOFs
-	 */
-	virtual void axialCoordinates(double* coords) const = 0;
-
-	/**
-	 * @brief Returns radial coordinates of the DOFs
-	 * @param [out] Pointer to array that is filled with radial coordinates of DOFs
-	 */
-	virtual void radialCoordinates(double* coords) const = 0;
-
-	/**
-	 * @brief Returns particle coordinates of the DOFs
-	 * @param [in] parType Particle type index
-	 * @param [out] Pointer to array that is filled with particle coordinates of DOFs
-	 */
-	virtual void particleCoordinates(unsigned int parType, double* coords) const = 0;
+	virtual int writeParticleCoordinates(unsigned int parType, double* coords) const = 0;
 };
 
 } // namespace cadet

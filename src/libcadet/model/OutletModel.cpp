@@ -228,6 +228,34 @@ void OutletModel::multiplyWithDerivativeJacobian(const SimulationTime& simTime, 
 	std::fill_n(ret, numDofs(), 0.0);
 }
 
+
+int OutletModel::Exporter::writeInlet(unsigned int port, double* buffer) const
+{
+	cadet_assert(port == 0);
+	std::copy_n(_data, _nComp, buffer);
+	return _nComp;
+}
+
+int OutletModel::Exporter::writeInlet(double* buffer) const
+{
+	std::copy_n(_data, _nComp, buffer);
+	return _nComp;
+}
+
+int OutletModel::Exporter::writeOutlet(unsigned int port, double* buffer) const
+{
+	cadet_assert(port == 0);
+	std::copy_n(_data, _nComp, buffer);
+	return _nComp;
+}
+
+int OutletModel::Exporter::writeOutlet(double* buffer) const
+{
+	std::copy_n(_data, _nComp, buffer);
+	return _nComp;
+}
+
+
 void registerOutletModel(std::unordered_map<std::string, std::function<IUnitOperation*(UnitOpIdx)>>& models)
 {
 	models[OutletModel::identifier()] = [](UnitOpIdx uoId) { return new OutletModel(uoId); };

@@ -1953,6 +1953,76 @@ void CSTRModel::checkAnalyticJacobianAgainstAd(active const* const adRes, unsign
 
 #endif
 
+
+unsigned int CSTRModel::Exporter::numSolidPhaseDofs() const CADET_NOEXCEPT
+{
+	return _totalBound;
+}
+
+int CSTRModel::Exporter::writeMobilePhase(double* buffer) const
+{
+	std::copy_n(_data + _nComp, _nComp, buffer);
+	return _nComp;
+}
+
+int CSTRModel::Exporter::writeSolidPhase(double* buffer) const
+{
+	if (_totalBound == 0)
+		return 0;
+
+	std::copy_n(_data + 2 * _nComp, _totalBound, buffer);
+	return _totalBound;
+}
+
+int CSTRModel::Exporter::writeSolidPhase(unsigned int parType, double* buffer) const
+{
+	if (_totalBound == 0)
+		return 0;
+
+	cadet_assert(parType < _nParType);
+
+	unsigned int offset = 0;
+	for (int i = 0; i < parType; ++i)
+		offset += _strideBound[i];
+
+	std::copy_n(_data + 2 * _nComp + offset, _strideBound[parType], buffer);
+	return _strideBound[parType];
+}
+
+int CSTRModel::Exporter::writeVolume(double* buffer) const
+{
+	*buffer = _data[2 * _nComp + _totalBound];
+	return 1;
+}
+
+int CSTRModel::Exporter::writeInlet(unsigned int port, double* buffer) const
+{
+	cadet_assert(port == 0);
+	std::copy_n(_data, _nComp, buffer);
+	return _nComp;
+}
+
+int CSTRModel::Exporter::writeInlet(double* buffer) const
+{
+	std::copy_n(_data, _nComp, buffer);
+	return _nComp;
+}
+
+int CSTRModel::Exporter::writeOutlet(unsigned int port, double* buffer) const
+{
+	cadet_assert(port == 0);
+	std::copy_n(_data + _nComp, _nComp, buffer);
+	return _nComp;
+}
+
+int CSTRModel::Exporter::writeOutlet(double* buffer) const
+{
+	std::copy_n(_data + _nComp, _nComp, buffer);
+	return _nComp;
+}
+
+
+
 void registerCSTRModel(std::unordered_map<std::string, std::function<IUnitOperation*(UnitOpIdx)>>& models)
 {
 	models[CSTRModel::identifier()] = [](UnitOpIdx uoId) { return new CSTRModel(uoId); };

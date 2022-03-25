@@ -1790,6 +1790,75 @@ bool LumpedRateModelWithoutPores::setSensitiveParameter(const ParameterId& pId, 
 	return UnitOperationBase::setSensitiveParameter(pId, adDirection, adValue);
 }
 
+
+int LumpedRateModelWithoutPores::Exporter::writeMobilePhase(double* buffer) const
+{
+	const int stride = _idx.strideColCell();
+	double const* ptr = _data + _idx.offsetC();
+	for (unsigned int i = 0; i < _disc.nCol; ++i)
+	{
+		std::copy_n(ptr, _disc.nComp, buffer);
+		buffer += _disc.nComp;
+		ptr += stride;
+	}
+	return _disc.nCol * _disc.nComp;
+}
+
+int LumpedRateModelWithoutPores::Exporter::writeSolidPhase(double* buffer) const
+{
+	const int stride = _idx.strideColCell();
+	double const* ptr = _data + _idx.offsetC() + _idx.strideColLiquid();
+	for (unsigned int i = 0; i < _disc.nCol; ++i)
+	{
+		std::copy_n(ptr, _disc.strideBound, buffer);
+		buffer += _disc.strideBound;
+		ptr += stride;
+	}
+	return _disc.nCol * _disc.strideBound;
+}
+
+int LumpedRateModelWithoutPores::Exporter::writeSolidPhase(unsigned int parType, double* buffer) const
+{
+	cadet_assert(parType == 0);
+	return writeSolidPhase(buffer);
+}
+
+int LumpedRateModelWithoutPores::Exporter::writeInlet(unsigned int port, double* buffer) const
+{
+	cadet_assert(port == 0);
+	std::copy_n(_data, _disc.nComp, buffer);
+	return _disc.nComp;
+}
+
+int LumpedRateModelWithoutPores::Exporter::writeInlet(double* buffer) const
+{
+	std::copy_n(_data, _disc.nComp, buffer);
+	return _disc.nComp;
+}
+
+int LumpedRateModelWithoutPores::Exporter::writeOutlet(unsigned int port, double* buffer) const
+{
+	cadet_assert(port == 0);
+
+	if (_model._convDispOp.currentVelocity() >= 0)
+		std::copy_n(&_idx.c(_data, _disc.nCol - 1, 0), _disc.nComp, buffer);
+	else
+		std::copy_n(&_idx.c(_data, 0, 0), _disc.nComp, buffer);
+
+	return _disc.nComp;
+}
+
+int LumpedRateModelWithoutPores::Exporter::writeOutlet(double* buffer) const
+{
+	if (_model._convDispOp.currentVelocity() >= 0)
+		std::copy_n(&_idx.c(_data, _disc.nCol - 1, 0), _disc.nComp, buffer);
+	else
+		std::copy_n(&_idx.c(_data, 0, 0), _disc.nComp, buffer);
+
+	return _disc.nComp;
+}
+
+
 void registerLumpedRateModelWithoutPores(std::unordered_map<std::string, std::function<IUnitOperation*(UnitOpIdx)>>& models)
 {
 	models[LumpedRateModelWithoutPores::identifier()] = [](UnitOpIdx uoId) { return new LumpedRateModelWithoutPores(uoId); };
