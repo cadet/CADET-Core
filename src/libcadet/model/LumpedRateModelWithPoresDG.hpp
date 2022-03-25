@@ -574,7 +574,7 @@ protected:
 	std::vector<linalg::DoubleSparseMatrix> _jacPF; //!< Jacobian blocks connecting particle states and fluxes (particle transport boundary condition)
 	std::vector<linalg::DoubleSparseMatrix> _jacFP; //!< Jacobian blocks connecting fluxes and particle states (flux equation)
 
-	Eigen::SparseMatrix<double, RowMajor> _jacInlet; //!< Jacobian inlet DOF block matrix connects inlet DOFs to first bulk cells
+	Eigen::MatrixXd _jacInlet; //!< Jacobian inlet DOF block matrix connects inlet DOFs to first bulk cells
 
 	// for FV the bulk jacobians are defined in the ConvDisp operator.
 	Eigen::SparseMatrix<double, RowMajor> _jacC; //!< Bulk Jacobian (DG)
@@ -1039,13 +1039,7 @@ protected:
 
 		std::vector<T> tripletList;
 		// TODO?: convDisp NNZ times two for now, but Convection NNZ < Dispersion NNZ
-		// inlet + ConvDispDG
-		tripletList.reserve(_disc.nComp + 2u * calcConvDispNNZ(_disc));
-
-		// inlet DOFs Jacobian ( forward flow! ) //_jacInlet;
-		for (unsigned int i = 0; i < _disc.nComp; i++) {
-			tripletList.push_back(T(i, i, 0.0));
-		}
+		tripletList.reserve(2u * calcConvDispNNZ(_disc));
 
 		if (_disc.modal)
 			ConvDispModalPattern(tripletList);
@@ -1088,7 +1082,7 @@ protected:
 		int sNode = idx.strideColNode();
 		int sCell = idx.strideColCell();
 		int sComp = idx.strideColComp();
-		int offC = idx.offsetC();
+		int offC = 0; // inlet DOFs not included in Jacobian
 
 		unsigned int nNodes = _disc.nNodes;
 		unsigned int polyDeg = _disc.polyDeg;
@@ -1108,7 +1102,7 @@ protected:
 		// special inlet DOF treatment for first cell
 		for (unsigned int comp = 0; comp < nComp; comp++) {
 			for (unsigned int i = 0; i < nNodes; i++) {
-				tripletList.push_back(T(offC + comp * sComp + i * sNode, comp * sComp, 0.0));
+				//tripletList.push_back(T(offC + comp * sComp + i * sNode, comp * sComp, 0.0)); // inlet DOFs not included in jacobian
 				for (unsigned int j = 1; j < nNodes + 1; j++) {
 					tripletList.push_back(T(offC + comp * sComp + i * sNode,
 											offC + comp * sComp + (j - 1) * sNode,
@@ -1189,7 +1183,7 @@ protected:
 		int sNode = idx.strideColNode();
 		int sCell = idx.strideColCell();
 		int sComp = idx.strideColComp();
-		int offC = idx.offsetC();
+		int offC = 0; // inlet DOFs not included in Jacobian
 
 		unsigned int nNodes = _disc.nNodes;
 		unsigned int nCells = _disc.nCol;
@@ -1208,7 +1202,7 @@ protected:
 		// special inlet DOF treatment for first cell
 		for (unsigned int comp = 0; comp < nComp; comp++) {
 			for (unsigned int i = 0; i < nNodes; i++) {
-				tripletList.push_back(T(offC + comp * sComp + i * sNode, comp * sComp, 0.0));
+				//tripletList.push_back(T(offC + comp * sComp + i * sNode, comp * sComp, 0.0)); // inlet DOFs noot included in jacobian
 				for (unsigned int j = 1; j < nNodes + 1; j++) {
 					tripletList.push_back(T(offC + comp * sComp + i * sNode,
 											offC + comp * sComp + (j - 1) * sNode,
@@ -1349,13 +1343,6 @@ protected:
 		else
 			calcConvDispNodalJacobian(_jacC);
 
-		// inlet Jacobian (forward flow)
-		double* valPtr = _jacC.valuePtr();
-		for (unsigned int i = 0; i < _disc.nComp; i++) {
-			valPtr[i] = 1.0;
-		}
-
-
 		if (!_jacC.isCompressed()) // if matrix lost its compressed storage, the pattern did not fit.
 			return 0;
 
@@ -1396,7 +1383,7 @@ protected:
 		int sNode = idx.strideColNode();
 		int sCell = idx.strideColCell();
 		int sComp = idx.strideColComp();
-		int offC = idx.offsetC();
+		int offC = 0; // inlet DOFs not included in Jacobian
 
 		unsigned int nNodes = _disc.nNodes;
 		unsigned int polyDeg = _disc.polyDeg;
@@ -1516,9 +1503,10 @@ protected:
 		convBlock *= 2 * _disc.velocity / _disc.deltaZ;
 
 		// special inlet DOF treatment for first cell
+		_jacInlet(0, 0) = -convBlock(0, 0); // only first node depends on inlet concentration
 		for (unsigned int comp = 0; comp < nComp; comp++) {
 			for (unsigned int i = 0; i < convBlock.rows(); i++) {
-				jac.coeffRef(offC + comp * sComp + i * sNode, comp * sComp) = -convBlock(i, 0);
+				//jac.coeffRef(offC + comp * sComp + i * sNode, comp * sComp) = -convBlock(i, 0); // dependency on inlet DOFs is handled in _jacInlet
 				for (unsigned int j = 1; j < convBlock.cols(); j++) {
 					jac.coeffRef(offC + comp * sComp + i * sNode,
 								 offC + comp * sComp + (j - 1) * sNode)
@@ -1556,7 +1544,7 @@ protected:
 		int sNode = idx.strideColNode();
 		int sCell = idx.strideColCell();
 		int sComp = idx.strideColComp();
-		int offC = idx.offsetC();
+		int offC = 0; // inlet DOFs not included in Jacobian
 
 		unsigned int nNodes = _disc.nNodes;
 		unsigned int nCells = _disc.nCol;
@@ -1745,9 +1733,10 @@ protected:
 		convBlock *= 2 * _disc.velocity / _disc.deltaZ;
 
 		// special inlet DOF treatment for first cell
+		_jacInlet = -convBlock.col(0); // only first cell depends on inlet concentration
 		for (unsigned int comp = 0; comp < nComp; comp++) {
 			for (unsigned int i = 0; i < convBlock.rows(); i++) {
-				jac.coeffRef(offC + comp * sComp + i * sNode, comp * sComp) = -convBlock(i, 0);
+				//jac.coeffRef(offC + comp * sComp + i * sNode, comp * sComp) = -convBlock(i, 0); // dependency on inlet DOFs is handled in _jacInlet
 				for (unsigned int j = 1; j < convBlock.cols(); j++) {
 					jac.coeffRef(offC + comp * sComp + i * sNode,
 								 offC + comp * sComp + (j - 1) * sNode)
@@ -1812,7 +1801,9 @@ protected:
 	*/
 	void addTimeDerBulkJacobian(double alpha, Indexer idxr) {
 
-		linalg::BandedEigenSparseRowIterator jac(_jacCdisc, idxr.offsetC());
+		unsigned int offC = 0; // inlet DOFs not included in Jacobian
+
+		linalg::BandedEigenSparseRowIterator jac(_jacCdisc, offC);
 
 		for (unsigned int point = 0; point < _disc.nPoints; point++) {
 			for (unsigned int comp = 0; comp < _disc.nComp; comp++) {

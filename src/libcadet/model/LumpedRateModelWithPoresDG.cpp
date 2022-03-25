@@ -257,10 +257,12 @@ bool LumpedRateModelWithPoresDG::configureModelDiscretization(IParameterProvider
 	// Allocate memory
 	Indexer idxr(_disc);
 
-	_jacInlet.resize(_disc.nComp, _disc.nComp); // included in JacC!
-
-	_jacC.resize(_disc.nComp* (1 + _disc.nPoints), _disc.nComp * (1 + _disc.nPoints));
-	_jacCdisc.resize(_disc.nComp* (1 + _disc.nPoints), _disc.nComp * (1 + _disc.nPoints));
+	if (_disc.modal)
+		_jacInlet.resize(_disc.nNodes, 1); // first cell depends on inlet concentration (same for every component)
+	else
+		_jacInlet.resize(1, 1); // first cell depends on inlet concentration (same for every component)
+	_jacC.resize(_disc.nComp * _disc.nPoints, _disc.nComp *  _disc.nPoints);
+	_jacCdisc.resize(_disc.nComp * _disc.nPoints, _disc.nComp * _disc.nPoints);
 	setConvDispJacPattern(_jacC);
 	setConvDispJacPattern(_jacCdisc);
 

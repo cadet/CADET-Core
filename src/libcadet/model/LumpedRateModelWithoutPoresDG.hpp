@@ -1005,7 +1005,7 @@ protected:
 		// special inlet DOF treatment for first cell
 		for (unsigned int comp = 0; comp < nComp; comp++) {
 			for (unsigned int i = 0; i < nNodes; i++) {
-				tripletList.push_back(T(offC + comp * sComp + i * sNode, comp * sComp, 0.0));
+				//tripletList.push_back(T(offC + comp * sComp + i * sNode, comp * sComp, 0.0)); // inlet DOFs not included in Jacobian
 				for (unsigned int j = 1; j < nNodes + 1; j++) {
 					tripletList.push_back(T(offC + comp * sComp + i * sNode,
 											offC + comp * sComp + (j - 1) * sNode,
@@ -1105,7 +1105,7 @@ protected:
 		// special inlet DOF treatment for first cell
 		for (unsigned int comp = 0; comp < nComp; comp++) {
 			for (unsigned int i = 0; i < nNodes; i++) {
-				tripletList.push_back(T(offC + comp * sComp + i * sNode, comp * sComp, 0.0));
+				//tripletList.push_back(T(offC + comp * sComp + i * sNode, comp * sComp, 0.0)); // inlet DOFs not included in Jacobian
 				for (unsigned int j = 1; j < nNodes + 1; j++) {
 					tripletList.push_back(T(offC + comp * sComp + i * sNode,
 											offC + comp * sComp + (j - 1) * sNode,
