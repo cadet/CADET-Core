@@ -3,7 +3,8 @@
 Multi Component Langmuir LDF Liquid Phase
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The liquid phase based variation of the Langmuir :ref:`ldf_model` binding model is given as:
+This a linear driving force model variant of the :ref:`multi_component_langmuir_model` model.
+It is based on the equilibrium concentration :math:`c^*` for a given solid phase concentration :math:`q` (see also :ref:`ldf_model`).
 
 .. math::
 

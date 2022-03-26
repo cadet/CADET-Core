@@ -51,23 +51,28 @@ This can be achieved by a (nonlinear) parameter transform
 
 Linear Driving Force (LDF)
 ---------------------------
+Some authors use the linear driving force (LDF) approximation instead of the native kinetic form of an isotherm.
+All three approaches are equivalent in rapid equilibrium (``IS_KINETIC = 0``) but not equivalent when binding kinetics are considered (``IS_KINETIC = 1``).
 
-A quantitative description of an actual separation process requires the simultaneous solution of the diffusion equation and the bulk material balances, for which no analytical solutions exist. It is therefore computationally convenient to approximate adsorption rate by a time-independent expression given as:
+1. In the native approach, :math:`\frac{dq}{dt}` is an explicit funtion of :math:`c` and :math:`q`. For example :math:`\frac{dq}{dt}=k_a c (q_m - q)-k_d q` in the Langmuir model.
 
-.. math::
-    \begin{aligned}
-        \frac{\mathrm{d} q_i}{\mathrm{d} t} = k_{kin,i}\left(q^*_i - q_i\right) && i = 0, \dots, N_{\text{comp}} - 1.
-    \end{aligned}
+2. A linear driving force approximation is based on the equilibrium concentration :math:`q^*` for given :math:`c`.
+For example :math:`q^*= \frac{q_m k_{eq} c}{1 + k_{eq} c}` in the Langmuir model.
+Here, :math:`\frac{dq}{dt}` is proportional to the actual difference from equilibrium, i.e. :math:`\frac{dq}{dt} = k_{kin}(q^*-q)`.
+Note that, the sign of :math:`\frac{dq}{dt}` causes the resulting flux to act towards the equilibrium.
+In CADET, this approach is denoted by ``LDF``, for example in ``MULTI_COMPONENT_LANGMUIR_LDF``.
 
-where :math:`q` and :math:`q^*` are the adsorbed-phase concentration in equilibrium with the bulk phase concentration and adsorbed-phase concentration averaged over the entire bulk volume respectively. While, :math:`k_{kin}` is the linear driving force coefficient :cite:`Alpay1992`. 
+3. An alterniative linear driving force approximation is based on the equilibrium concentration :math:`c^*` for given :math:`q`.
+For example :math:`c^*=\frac{q}{k_{eq} \left(q_{m}-q\right)}` in the Langmuir model.
+Here, :math:`\frac{dq}{dt}` is proportional to the actual difference from equilibrium concentrations, i.e. :math:`\frac{dq}{dt} = k_{kin}(c-c^*)`.
+Note that, the sign of :math:`\frac{dq}{dt}` causes the resulting flux to act towards the equilibrium.
+In CADET, this approach is denoted by ``LDF_LIQUID_PHASE``, for example in ``MULTI_COMPONENT_LANGMUIR_LDF_LIQUID_PHASE``.
 
-In case of rapid equllibrium :math:`\left(\frac{dq}{dt}=0\right)`, following relationship holds:
+In both LDF examples, the original rate constants :math:`k_a` and :math:`k_d` are replaced by the equilibrium contant :math:`k_{eq}=\frac{k_a}{k_d}`.
+The linear driving force approximations are based on a new kinetic constant, :math:`k_{kin}`.
 
-.. math::
-    \begin{aligned}
-        q = q^*
-    \end{aligned} 
-
+Note that some isotherms, such as the Freundlich model, don't have a native representation in the above sense.
+LDF versions are availabe for some but not all binding models implemented in CADET.
 
 .. _reference_concentrations:
 
