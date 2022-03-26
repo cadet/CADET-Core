@@ -3,7 +3,7 @@
 Multi Component Bi-Langmuir
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The multi component Bi-Langmuir model :cite:`Guiochon2006` adds :math:`M - 1` *additional* types of binding sites :math:`q_{i,j}` (:math:`0 \leq j \leq M - 1`) to the Langmuir model (see Section :ref:`multi_component_langmuir_model`) without allowing an exchange between the different sites :math:`q_{i,j}` and :math:`q_{i,k}` (:math:`k \neq j`).
+The multi component Bi-Langmuir model :cite:`Guiochon2006` adds :math:`M - 1` additional types of binding sites :math:`q_{i,j}` (:math:`0 \leq j \leq M - 1`) to the Langmuir model (see Section :ref:`multi_component_langmuir_model`) without allowing an exchange between the different sites :math:`q_{i,j}` and :math:`q_{i,k}` (:math:`k \neq j`).
 Therefore, there are no competitivity effects between the different types of binding sites and they have independent capacities.
 
 .. math::
@@ -17,6 +17,5 @@ See the Section :ref:`multi_component_langmuir_model`.
 
 Originally, the Bi-Langmuir model is limited to two different binding site types.
 Here, the model has been extended to arbitrary many binding site types.
-
 
 For more information on model parameters required to define in CADET file format, see :ref:`multi_component_bi_langmuir_config`.

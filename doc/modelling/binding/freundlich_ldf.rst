@@ -3,7 +3,7 @@
 Freundlich LDF
 ~~~~~~~~~~~~~~~
 
-The Freundlich isotherm model is an empirical model that considers changes in the equilibrium constant of the binding process due to the heterogeneity of the surface and the variation of the interaction strength cite:`Benedikt2019,Singh2016`.
+The Freundlich isotherm model is an empirical model that considers changes in the equilibrium constant of the binding process due to the heterogeneity of the surface and the variation of the interaction strength :cite:`Benedikt2019,Singh2016`.
 This variant of the model is based on the linear driving force approximation (see section :ref:`ldf_model`) and is given as
 
 .. math::
@@ -41,7 +41,4 @@ where :math:`\alpha_0=0` and :math:`\alpha_1` and :math:`\alpha_2` are determine
 This approximation can be used for any pore phase cocentration :math:`c_p < \epsilon` given :math:`n>1`.
 For the case, when :math:`n \le 1` no special treament near the origin is required.
 For more information on model parameters required to define in CADET file format, see :ref:`freundlich_ldf_config`.
-
-
-
 
