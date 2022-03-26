@@ -117,6 +117,43 @@ CADET_BINDINGTEST("MULTI_COMPONENT_LANGMUIR", "EXT_MULTI_COMPONENT_LANGMUIR", (1
 	)json", \
 		1e-10, 1e-10, CADET_NONBINDING_LIQUIDPHASE_COMP_UNUSED, CADET_COMPARE_BINDING_VS_NONBINDING)
 
+  CADET_BINDINGTEST("MULTI_COMPONENT_LANGMUIR_LDF_LIQUID_PHASE", "EXT_MULTI_COMPONENT_LANGMUIR_LDF_LIQUID_PHASE", (1, 1), (1, 0, 1), (1.0, 2.0, 0.0, 0.0), (1.0, 3.0, 2.0, 0.0, 0.0), \
+		R"json( "MCLLDFC_KEQ": [1.14, 2.0],
+	        "MCLLDFC_KKIN": [0.004, 0.008],
+	        "MCLLDFC_QMAX": [4.88, 3.5]
+	)json", \
+		R"json( "MCLLDFC_KEQ": [1.14, 1.0, 2.0],
+	        "MCLLDFC_KKIN": [0.004, 2.0, 0.008],
+	        "MCLLDFC_QMAX": [4.88, 3.0, 3.5]
+	)json", \
+		R"json( "EXT_MCLLDFC_KEQ": [0.0, 0.0],
+	        "EXT_MCLLDFC_KEQ_T": [1.14, 2.0],
+	        "EXT_MCLLDFC_KEQ_TT": [0.0, 0.0],
+	        "EXT_MCLLDFC_KEQ_TTT": [0.0, 0.0],
+	        "EXT_MCLLDFC_KKIN": [0.0, 0.0],
+	        "EXT_MCLLDFC_KKIN_T": [0.004, 0.008],
+	        "EXT_MCLLDFC_KKIN_TT": [0.0, 0.0],
+	        "EXT_MCLLDFC_KKIN_TTT": [0.0, 0.0],
+	        "EXT_MCLLDFC_QMAX": [0.0, 0.0],
+	        "EXT_MCLLDFC_QMAX_T": [4.88, 3.5],
+	        "EXT_MCLLDFC_QMAX_TT": [0.0, 0.0],
+	        "EXT_MCLLDFC_QMAX_TTT": [0.0, 0.0]
+	)json", \
+		R"json( "EXT_MCLLDFC_KEQ": [0.0, 0.0, 0.0],
+	        "EXT_MCLLDFC_KEQ_T": [1.14, 1.0, 2.0],
+	        "EXT_MCLLDFC_KEQ_TT": [0.0, 0.0, 0.0],
+	        "EXT_MCLLDFC_KEQ_TTT": [0.0, 0.0, 0.0],
+	        "EXT_MCLLDFC_KKIN": [0.0, 0.0, 0.0],
+	        "EXT_MCLLDFC_KKIN_T": [0.004, 2.0, 0.008],
+	        "EXT_MCLLDFC_KKIN_TT": [0.0, 0.0, 0.0],
+	        "EXT_MCLLDFC_KKIN_TTT": [0.0, 0.0, 0.0],
+	        "EXT_MCLLDFC_QMAX": [0.0, 0.0, 0.0],
+	        "EXT_MCLLDFC_QMAX_T": [4.88, 3.0, 3.5],
+	        "EXT_MCLLDFC_QMAX_TT": [0.0, 0.0, 0.0],
+	        "EXT_MCLLDFC_QMAX_TTT": [0.0, 0.0, 0.0]
+	)json", \
+		1e-10, 1e-10, CADET_NONBINDING_LIQUIDPHASE_COMP_UNUSED, CADET_COMPARE_BINDING_VS_NONBINDING)
+
 CADET_BINDINGTEST("MULTI_COMPONENT_ANTILANGMUIR", "EXT_MULTI_COMPONENT_ANTILANGMUIR", (1,1), (1,0,1), (1.0, 2.0, 0.0, 0.0), (1.0, 3.0, 2.0, 0.0, 0.0), \
 	R"json( "MCAL_KA": [1.14, 2.0],
 	        "MCAL_KD": [0.004, 0.008],
