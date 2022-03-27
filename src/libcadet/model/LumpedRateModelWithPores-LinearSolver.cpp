@@ -652,20 +652,23 @@ int LumpedRateModelWithPoresDG::linearSolve(double t, double alpha, double outer
 
 	// rhs is passed twice but due to the values in jacA the writes happen to a different area of the rhs than the reads.
 
-	//inlet not treated separately
-
 	//_jacInlet.multiplySubtract(rhs, rhs + idxr.offsetC());
-
+	// handle inlet DOFs
+	// map rhs to Eigen object
+	Eigen::Map<VectorXd> r(rhs, numDofs());
+	for (int comp = 0; comp < _disc.nComp; comp++) {
+		for (int node = 0; node < (_disc.modal ? _disc.nNodes : 1); node++) {
+			r[idxr.offsetC() + comp * idxr.strideColComp() + node * idxr.strideColNode()] += _jacInlet(node, 0) * r[comp];
+		}
+	}
 
 	// ==== Step 2: Solve diagonal Jacobian blocks J_i to get y_i = J_i^{-1} b_i
 	// The result is stored in rhs (in-place solution)
-	// map rhs to Eigen object
-	Eigen::Map<VectorXd> r(rhs, numDofs());
 
 	// Threads that are done with solving the bulk column blocks can proceed
 	// to solving the particle blocks
 
-	r.segment(0, idxr.offsetCp()) = bulkSolver.solve(r.segment(0, idxr.offsetCp()));
+	r.segment(idxr.offsetC(), _disc.nComp * _disc.nPoints) = bulkSolver.solve(r.segment(idxr.offsetC(), _disc.nComp * _disc.nPoints));
 	if (cadet_unlikely(bulkSolver.info() != Eigen::Success))
 	{
 		LOG(Error) << "Solve() failed for bulk block";
@@ -730,7 +733,7 @@ int LumpedRateModelWithPoresDG::linearSolve(double t, double alpha, double outer
 	double* const rhsCol = rhs + idxr.offsetC();
 
 	// Apply J_0^{-1} to tempState_0
-	_tmpState.segment(idxr.offsetC(), _disc.nComp* _disc.nPoints) = bulkSolver.solve(_tmpState.segment(idxr.offsetC(), _disc.nComp* _disc.nPoints));
+	_tmpState.segment(idxr.offsetC(), _disc.nComp * _disc.nPoints) = bulkSolver.solve(_tmpState.segment(0, _disc.nComp * _disc.nPoints));
 	//const bool result = _convDispOp.solveDiscretizedJacobian(localCol);
 	if (cadet_unlikely(bulkSolver.info() != Eigen::Success))
 	{
@@ -802,8 +805,6 @@ int LumpedRateModelWithPoresDG::schurComplementMatrixVector(double const* x, dou
 
 
 	// Apply J_0^{-1}
-
-	//const bool result = _convDispOp.solveDiscretizedJacobian(_tempState + idxr.offsetC());
 	Eigen::SparseLU<Eigen::SparseMatrix<double>> bulkSolver;
 	bulkSolver.compute(_jacCdisc);
 	_tmpState.segment(idxr.offsetC(), _disc.nComp * _disc.nPoints) = bulkSolver.solve(_tmpState.segment(idxr.offsetC(), _disc.nComp * _disc.nPoints));
@@ -826,14 +827,9 @@ int LumpedRateModelWithPoresDG::schurComplementMatrixVector(double const* x, dou
 		// Apply J_{i,f}
 		_jacPF[type].multiplyAdd(x, tmp);
 		// Apply J_{i}^{-1}
-		//const bool result = _jacPdisc[type].solve(tmp);
-		Eigen::SparseLU<Eigen::SparseMatrix<double>> particleSolver;
-		particleSolver.compute(_jacCdisc);
-		_tmpState.segment(idxr.offsetCp(ParticleTypeIndex{ static_cast<unsigned int>(type) }), (_disc.nComp + _disc.strideBound[type]) * _disc.nPoints)
-			= particleSolver.solve(
-		_tmpState.segment(idxr.offsetCp(ParticleTypeIndex{ static_cast<unsigned int>(type) }), (_disc.nComp + _disc.strideBound[type]) * _disc.nPoints));
+		const bool result = _jacPdisc[type].solve(tmp);
 
-		if (cadet_unlikely(particleSolver.info() != Eigen::Success))
+		if (cadet_unlikely(!result))
 		{
 			LOG(Error) << "Solve() failed for par type block " << type;
 		}

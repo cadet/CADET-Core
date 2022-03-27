@@ -1895,7 +1895,7 @@ void LumpedRateModelWithPoresDG::consistentInitialTimeDerivative(const Simulatio
 
 	// Factorize
 	Eigen::SparseLU<Eigen::SparseMatrix<double>> bulkSolver;
-	bulkSolver.compute(_jacCdisc.block(idxr.offsetC(), idxr.offsetC(), _disc.nComp * _disc.nPoints, _disc.nComp * _disc.nPoints));
+	bulkSolver.compute(_jacCdisc);
 	//const bool result = _jacCdisc.factorize();
 
 	// Solve
