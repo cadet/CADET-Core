@@ -591,7 +591,7 @@ namespace cadet
 			// determine wether we have a section switch. If so, set velocity, dispersion, newStaticJac
 			updateSection(secIdx);
 
-			auto start = std::chrono::high_resolution_clock::now();
+			//auto start = std::chrono::high_resolution_clock::now();
 
 			if (wantJac) {
 
@@ -610,9 +610,9 @@ namespace cadet
 				
 			}
 
-			auto stop = std::chrono::high_resolution_clock::now();
-			auto duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
-			std::cout << "Jac duration: " << duration.count() << std::endl;
+			//auto stop = std::chrono::high_resolution_clock::now();
+			//auto duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
+			//std::cout << "Jac duration: " << duration.count() << std::endl;
 
 			//if (ypPtr) {
 			//	std::cout << "IN: yp   y   res \n" << std::endl;
@@ -637,12 +637,16 @@ namespace cadet
 
 					Eigen::Map<const VectorXd, 0, InnerStride<Dynamic>> qDot_comp(ypPtr + idxr.offsetC() + idxr.strideColLiquid() + idxr.offsetBoundComp(comp), _disc.nPoints, InnerStride<Dynamic>(idxr.strideColNode()));
 					Eigen::Map<VectorXd, 0, InnerStride<Dynamic>>		qRes_comp(resPtr + idxr.offsetC() + idxr.strideColLiquid() + idxr.offsetBoundComp(comp), _disc.nPoints, InnerStride<Dynamic>(idxr.strideColNode()));
-
+					//if (ypPtr)
+					//	std::cout << "yDot is NULLPTR !" << std::endl;
+					//std::cout << "qRes:\n" << qRes_comp << std::endl;
+					//std::cout << "qDot:\n" << qDot_comp << std::endl;
 					if (!_disc.isKinetic[idxr.offsetBoundComp(comp)]) {
 						// -RHS_q already stored in res_q
 					}
 					else { // -RHS_q stored in res_q
-						qRes_comp += qDot_comp;
+						if(ypPtr)
+							qRes_comp += qDot_comp;
 					}
 				}
 			}
@@ -891,12 +895,12 @@ namespace cadet
 			// Factorize Jacobian only if required
 			if (_factorizeJacobian)
 			{
-				auto start3 = std::chrono::high_resolution_clock::now();
+				//auto start3 = std::chrono::high_resolution_clock::now();
 				solver.compute(_jacDisc);
 				//solver.compute(_jacDisc);
-				auto stop3 = std::chrono::high_resolution_clock::now();
-				auto duration3 = std::chrono::duration_cast<std::chrono::microseconds>(stop3 - start3);
-				std::cout << "factorize duration: " << duration3.count() << std::endl;
+				//auto stop3 = std::chrono::high_resolution_clock::now();
+				//auto duration3 = std::chrono::duration_cast<std::chrono::microseconds>(stop3 - start3);
+				//std::cout << "factorize duration: " << duration3.count() << std::endl;
 				if (solver.info() != Success) {
 					LOG(Error) << "factorization failed";
 					success = false;
@@ -914,15 +918,15 @@ namespace cadet
 			//std::cout << "tmpstate duration: " << duration5.count() << std::endl;
 
 			// Use the factors to solve the linear system 
-			auto start6 = std::chrono::high_resolution_clock::now();
+			//auto start6 = std::chrono::high_resolution_clock::now();
 			//r.segment(_disc.nComp, numPureDofs()) = solver.solve(tmpstate.segment(_disc.nComp, numPureDofs()));
 			r.segment(idxr.offsetC(), numPureDofs()) = solver.solve(r.segment(idxr.offsetC(), numPureDofs()));
 
 			// handle inlet DOFs: nothing todo as _jacInlet is identity matrix
 
-			auto stop6 = std::chrono::high_resolution_clock::now();
-			auto duration6 = std::chrono::duration_cast<std::chrono::microseconds>(stop6 - start6);
-			std::cout << "solve duration: " << duration6.count() << std::endl;
+			//auto stop6 = std::chrono::high_resolution_clock::now();
+			//auto duration6 = std::chrono::duration_cast<std::chrono::microseconds>(stop6 - start6);
+			//std::cout << "solve duration: " << duration6.count() << std::endl;
 
 			if (solver.info() != Success) {
 				LOG(Error) << "solve() failed";
