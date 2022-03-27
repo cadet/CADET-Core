@@ -1219,9 +1219,9 @@ protected:
 		for (unsigned int point = 0; point < _disc.nPoints; point++) {
 			for (unsigned int solid = 0; solid < _disc.strideBound; solid++) {
 				for (unsigned int conc = 0; conc < _disc.nComp + _disc.strideBound; conc++) {
-					// column: jump over inlet, previous discrete points, liquid concentration and add the offset of the current bound state
-					// row:    jump over inlet and previous discrete points. add entries for all liquid and bound concentrations (conc)
-					tripletList.push_back(T(offC + idxr.strideColNode() * point + idxr.strideColLiquid() + solid * idxr.offsetBoundComp(solid),
+					// row:		  jump over inlet and previous discrete points, liquid concentration and add the offset of the current bound state
+					// column:    jump over inlet and previous discrete points. add entries for all liquid and bound concentrations (conc)
+					tripletList.push_back(T(offC + idxr.strideColNode() * point + idxr.strideColLiquid() + idxr.offsetBoundComp(solid),
 											offC + idxr.strideColNode() * point + conc,
 											0.0));
 				}
