@@ -934,33 +934,6 @@ protected:
 	}
 
 	/**
-	* @brief calculates the isotherm right hand side
-	*/
-	void calcRHSq_DG(double t, unsigned int secIdx, const int particleType, const double* yPtr, double* const resPtr, util::ThreadLocalStorage& threadLocalMem) {
-
-		Indexer idx(_disc);
-
-		ParticleTypeIndex pti{ particleType };
-
-		const double* localC = yPtr + idx.offsetCp(); // particle liquid
-		const double* localQ = yPtr + idx.offsetCp() + idx.strideParLiquid() + idx.offsetBoundComp(pti, ComponentIndex{ 0 });// particle solid
-		double* localQRes = resPtr + idx.offsetCp() + idx.strideParLiquid() + idx.offsetBoundComp(pti, ComponentIndex{ 0 });
-
-		for (unsigned int point = 0; point < _disc.nPoints; point++) {
-
-			double z = _disc.deltaZ * std::floor(point / _disc.nNodes)
-				+ 0.5 * _disc.deltaZ * (1 + _disc.nodes[point % _disc.nNodes]);
-
-			_binding[0]->flux(t, secIdx, ColumnPosition{ z, 0.0, 0.0 }, localQ, localC, localQRes, threadLocalMem.get());
-
-			localC += idx.strideParBlock(particleType); // next solid concentration
-			localQ += idx.strideParBlock(particleType); // next liquid concentration
-			localQRes += idx.strideParBlock(particleType); // next liquid concentration
-
-		}
-	}
-
-	/**
 	* @brief applies the inverse Jacobian of the mapping
 	*/
 	void applyMapping(Eigen::Map<VectorXd, 0, InnerStride<>>& state) {
