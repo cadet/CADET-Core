@@ -822,11 +822,9 @@ namespace cadet
 		{
 			// Inlets are duplicated so need to be accounted for
 			if (static_cast<double>(_convDispOp.currentVelocity()) >= 0.0)
-				// TODO: Find index of last node in last cell
 				// Forward Flow: outlet is last cell
-				return _disc.nComp + (_disc.nCol - 1) * (_disc.nComp + _disc.strideBound);
+				return _disc.nComp + (_disc.nPoints - 1) * (_disc.nComp + _disc.strideBound);
 			else
-				// TODO: Find index of first node in first cell
 				// Backward flow: Outlet is first cell
 				return _disc.nComp;
 		}
@@ -838,13 +836,11 @@ namespace cadet
 
 		unsigned int LumpedRateModelWithoutPoresDG::localOutletComponentStride(unsigned int port) const CADET_NOEXCEPT
 		{
-			// TODO: Adapt to DG
 			return 1;
 		}
 
 		unsigned int LumpedRateModelWithoutPoresDG::localInletComponentStride(unsigned int port) const CADET_NOEXCEPT
 		{
-			// TODO: Adapt to DG
 			return 1;
 		}
 
