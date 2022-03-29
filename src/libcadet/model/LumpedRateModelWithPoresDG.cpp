@@ -936,17 +936,13 @@ int LumpedRateModelWithPoresDG::residualImpl(double t, unsigned int secIdx, Stat
 
 	residualBulk<StateType, ResidualType, ParamType, wantJac>(t, secIdx, y, yDot, res, threadLocalMem);
 
-#ifdef CADET_PARALLELIZE
-	tbb::parallel_for(std::size_t(1), static_cast<std::size_t>(_disc.nPoints * _disc.nParType + 1), [&](std::size_t pblk)
-#else
 	for (unsigned int pblk = 0; pblk < _disc.nPoints * _disc.nParType; ++pblk)
-#endif
 	{
 			const unsigned int type = (pblk) / _disc.nPoints;
 			const unsigned int par = (pblk) % _disc.nPoints;
 			residualParticle<StateType, ResidualType, ParamType, wantJac>(t, type, par, secIdx, y, yDot, res, threadLocalMem);
 
-	} CADET_PARFOR_END;
+	}
 
 	BENCH_STOP(_timerResidualPar);
 
