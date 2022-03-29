@@ -1814,7 +1814,7 @@ void LumpedRateModelWithPoresDG::consistentInitialState(const SimulationTime& si
 
 	// Reset j_f to 0.0
 	double* const jf = vecStateY + idxr.offsetJf();
-	std::fill(jf, jf + _disc.nComp * _disc.nCol * _disc.nParType, 0.0);
+	std::fill(jf, jf + _disc.nComp * _disc.nPoints * _disc.nParType, 0.0);
 
 	solveForFluxes(vecStateY, idxr);
 }
@@ -1981,7 +1981,7 @@ void LumpedRateModelWithPoresDG::consistentInitialTimeDerivative(const Simulatio
 
 	// Reset \dot{j}_f to 0.0
 	double* const jfDot = vecStateYdot + idxr.offsetJf();
-	std::fill(jfDot, jfDot + _disc.nComp * _disc.nCol * _disc.nParType, 0.0);
+	std::fill(jfDot, jfDot + _disc.nComp * _disc.nPoints * _disc.nParType, 0.0);
 
 	solveForFluxes(vecStateYdot, idxr);
 }
@@ -2040,7 +2040,7 @@ void LumpedRateModelWithPoresDG::leanConsistentInitialState(const SimulationTime
 
 	// Reset j_f to 0.0
 	double* const jf = vecStateY + idxr.offsetJf();
-	std::fill(jf, jf + _disc.nComp * _disc.nCol * _disc.nParType, 0.0);
+	std::fill(jf, jf + _disc.nComp * _disc.nPoints * _disc.nParType, 0.0);
 
 	solveForFluxes(vecStateY, idxr);
 }
@@ -2128,7 +2128,7 @@ void LumpedRateModelWithPoresDG::initializeSensitivityStates(const std::vector<d
 		double* const stateYbulk = vecSensY[param] + idxr.offsetC();
 
 		// Loop over column cells
-		for (unsigned int col = 0; col < _disc.nCol; ++col)
+		for (unsigned int col = 0; col < _disc.nPoints; ++col)
 		{
 			// Loop over components in cell
 			for (unsigned comp = 0; comp < _disc.nComp; ++comp)
@@ -2138,7 +2138,7 @@ void LumpedRateModelWithPoresDG::initializeSensitivityStates(const std::vector<d
 		// Loop over particles
 		for (unsigned int type = 0; type < _disc.nParType; ++type)
 		{
-			for (unsigned int col = 0; col < _disc.nCol; ++col)
+			for (unsigned int col = 0; col < _disc.nPoints; ++col)
 			{
 				const unsigned int offset = idxr.offsetCp(ParticleTypeIndex{ type }, ParticleIndex{ col });
 				double* const stateYparticle = vecSensY[param] + offset;
