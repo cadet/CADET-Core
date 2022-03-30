@@ -180,6 +180,10 @@ namespace cadet
 			setPattern(_jac, false);
 			setPattern(_jacDisc, true);
 
+			// the solver repetitively solves the linear system with a static pattern of the jacobian (set above). 
+			// The goal of analyzePattern() is to reorder the nonzero elements of the matrix, such that the factorization step creates less fill-in
+			_linSolver.analyzePattern(_jacDisc);
+
 			// Set whether analytic Jacobian is used
 			useAnalyticJacobian(analyticJac);
 
@@ -886,18 +890,18 @@ namespace cadet
 			//std::cout << "jacDisc z:\n" << _jacDisc.toDense() << std::endl;
 
 			//Eigen::BiCGSTAB<Eigen::SparseMatrix<double, RowMajor>, Eigen::DiagonalPreconditioner<double>> solver;
-			Eigen::SparseLU<Eigen::SparseMatrix<double>> solver;
+			//Eigen::SparseLU<Eigen::SparseMatrix<double>> solver;
 
 			// Factorize Jacobian only if required
 			if (_factorizeJacobian)
 			{
 				//auto start3 = std::chrono::high_resolution_clock::now();
-				solver.compute(_jacDisc);
-				//solver.compute(_jacDisc);
+				//_linSolver.compute(_jacDisc);
+				_linSolver.factorize(_jacDisc);
 				//auto stop3 = std::chrono::high_resolution_clock::now();
 				//auto duration3 = std::chrono::duration_cast<std::chrono::microseconds>(stop3 - start3);
 				//std::cout << "factorize duration: " << duration3.count() << std::endl;
-				if (solver.info() != Success) {
+				if (_linSolver.info() != Success) {
 					LOG(Error) << "factorization failed";
 					success = false;
 				}
@@ -916,7 +920,7 @@ namespace cadet
 			// Use the factors to solve the linear system 
 			//auto start6 = std::chrono::high_resolution_clock::now();
 			//r.segment(_disc.nComp, numPureDofs()) = solver.solve(tmpstate.segment(_disc.nComp, numPureDofs()));
-			r.segment(idxr.offsetC(), numPureDofs()) = solver.solve(r.segment(idxr.offsetC(), numPureDofs()));
+			r.segment(idxr.offsetC(), numPureDofs()) = _linSolver.solve(r.segment(idxr.offsetC(), numPureDofs()));
 
 			// handle inlet DOFs: nothing todo as _jacInlet is identity matrix
 
@@ -924,7 +928,7 @@ namespace cadet
 			//auto duration6 = std::chrono::duration_cast<std::chrono::microseconds>(stop6 - start6);
 			//std::cout << "solve duration: " << duration6.count() << std::endl;
 
-			if (solver.info() != Success) {
+			if (_linSolver.info() != Success) {
 				LOG(Error) << "solve() failed";
 				result = false;
 			}

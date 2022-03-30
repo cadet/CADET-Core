@@ -520,6 +520,10 @@ protected:
 	// used as auxiliary supplier 
 	parts::ConvectionDispersionOperatorBase _convDispOp; //!< Convection dispersion operator for interstitial volume transport
 
+	// linear solver (Eigen lib)
+	Eigen::SparseLU<Eigen::SparseMatrix<double>> _linSolver;
+	//Eigen::BiCGSTAB<Eigen::SparseMatrix<double, RowMajor>, Eigen::DiagonalPreconditioner<double>> solver; (needs _tempState, cant solve inplace)
+
 	Eigen::SparseMatrix<double, RowMajor> _jac; //!< Jacobian
 	Eigen::SparseMatrix<double, RowMajor> _jacDisc; //!< Jacobian with time derivatives from BDF method
 	Eigen::MatrixXd _jacInlet; //!< Jacobian inlet DOF block matrix connects inlet DOFs to first bulk cells
