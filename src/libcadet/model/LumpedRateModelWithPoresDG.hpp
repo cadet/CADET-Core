@@ -566,6 +566,9 @@ protected:
 	parts::ConvectionDispersionOperatorBase _convDispOp; //!< Convection dispersion operator for interstitial volume transport
 	IDynamicReactionModel* _dynReactionBulk; //!< Dynamic reactions in the bulk volume
 
+	Eigen::SparseLU<Eigen::SparseMatrix<double>> _bulkSolver; //!< linear solver for the bulk concentration
+	//Eigen::BiCGSTAB<Eigen::SparseMatrix<double, RowMajor>, Eigen::DiagonalPreconditioner<double>> _bulkSolver;
+
 	std::vector<linalg::BandMatrix> _jacP; //!< Particle jacobian diagonal blocks (all of them for each particle type)
 	std::vector<linalg::FactorizableBandMatrix> _jacPdisc; //!< Particle jacobian diagonal blocks (all of them for each particle type) with time derivatives from BDF method
 

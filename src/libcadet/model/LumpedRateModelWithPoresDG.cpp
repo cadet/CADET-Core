@@ -266,6 +266,10 @@ bool LumpedRateModelWithPoresDG::configureModelDiscretization(IParameterProvider
 	setConvDispJacPattern(_jacC);
 	setConvDispJacPattern(_jacCdisc);
 
+	// the solver repetitively solves the linear system with a static pattern of the jacobian (set above). 
+	// The goal of analyzePattern() is to reorder the nonzero elements of the matrix, such that the factorization step creates less fill-in
+	_bulkSolver.analyzePattern(_jacCdisc);
+
 	_jacP.resize(_disc.nParType);
 	_jacPdisc.resize(_disc.nParType);
 	for (unsigned int i = 0; i < _disc.nParType; ++i)
@@ -953,6 +957,25 @@ int LumpedRateModelWithPoresDG::residualImpl(double t, unsigned int secIdx, Stat
 	{
 		res[i] = y[i];
 	}
+
+//Eigen::Map<const VectorXd> y_(reinterpret_cast<const double*>(y), numDofs());
+//Eigen::Map<VectorXd> res_(reinterpret_cast<double*>(res), numDofs());
+//Indexer idxr(_disc);
+//if(!yDot)
+//	std::cout << "consistent initialization" << std::endl;
+//std::cout << "y,  res" << std::endl;
+//std::cout << "inlet + bulk" << std::endl;
+//for (int i = 0; i < _disc.nComp * (1+_disc.nPoints); i++) {
+//	std::cout << y_[i] << ",  " << res_[i] << std::endl;
+//}
+//std::cout << "particle" << std::endl;
+//for (int i = idxr.offsetCp(); i < idxr.offsetJf(); i++) {
+//	std::cout << y_[i] << ",  " << res_[i] << std::endl;
+//}
+//std::cout << "flux" << std::endl;
+//for (int i = idxr.offsetJf(); i < numDofs(); i++) {
+//	std::cout << y_[i] << ",  " << res_[i] << std::endl;
+//}
 
 	return 0;
 }

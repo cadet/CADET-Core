@@ -1894,12 +1894,11 @@ void LumpedRateModelWithPoresDG::consistentInitialTimeDerivative(const Simulatio
 	addTimeDerBulkJacobian(1.0, idxr);
 
 	// Factorize
-	Eigen::SparseLU<Eigen::SparseMatrix<double>> bulkSolver;
-	bulkSolver.compute(_jacCdisc);
-	//const bool result = _jacCdisc.factorize();
+	_bulkSolver.factorize(_jacCdisc);
+	//bulkSolver.compute(_jacCdisc);
 
 	// Solve
-	yDot.segment(idxr.offsetC(), _disc.nComp * _disc.nPoints) = bulkSolver.solve(yDot.segment(idxr.offsetC(), _disc.nComp *_disc.nPoints));
+	yDot.segment(idxr.offsetC(), _disc.nComp * _disc.nPoints) = _bulkSolver.solve(yDot.segment(idxr.offsetC(), _disc.nComp *_disc.nPoints));
 
 	// Process the particle blocks
 #ifdef CADET_PARALLELIZE
