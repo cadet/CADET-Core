@@ -599,6 +599,9 @@ int GeneralRateModelDG::linearSolve(double t, double alpha, double outerTol, dou
 
 	Indexer idxr(_disc);
 
+	Eigen::Map<VectorXd> r(rhs, numDofs()); // map rhs to Eigen object
+	Eigen::Map<VectorXd> _tmpState(_tempState, numDofs()); // map temporary storage to Eigen object
+
 	// ==== Step 1: Factorize diagonal Jacobian blocks
 
 	// Factorize partial Jacobians only if required
@@ -615,8 +618,10 @@ int GeneralRateModelDG::linearSolve(double t, double alpha, double outerTol, dou
 #endif
 			{
 				// Assemble and factorize discretized bulk Jacobian
-				const bool result = _convDispOp.assembleAndFactorizeDiscretizedJacobian(alpha);
-				if (cadet_unlikely(!result))
+				assembleDiscretizedBulkJacobian(alpha, idxr);
+				_bulkSolver.factorize(_jacCdisc);
+
+				if (cadet_unlikely(_bulkSolver.info() != Eigen::Success))
 				{
 					LOG(Error) << "Factorize() failed for bulk block";
 				}
@@ -628,13 +633,13 @@ int GeneralRateModelDG::linearSolve(double t, double alpha, double outerTol, dou
 #endif
 			{
 #ifdef CADET_PARALLELIZE
-				tbb::parallel_for(std::size_t(0), static_cast<std::size_t>(_disc.nCol * _disc.nParType), [&](std::size_t pblk)
+				tbb::parallel_for(std::size_t(0), static_cast<std::size_t>(_disc.nPoints * _disc.nParType), [&](std::size_t pblk)
 #else
-				for (unsigned int pblk = 0; pblk < _disc.nCol * _disc.nParType; ++pblk)
+				for (unsigned int pblk = 0; pblk < _disc.nPoints * _disc.nParType; ++pblk)
 #endif
 				{
-					const unsigned int type = pblk / _disc.nCol;
-					const unsigned int par = pblk % _disc.nCol;
+					const unsigned int type = pblk / _disc.nPoints;
+					const unsigned int par = pblk % _disc.nPoints;
 
 					// Assemble
 					assembleDiscretizedJacobianParticleBlock(type, par, alpha, idxr);
@@ -663,12 +668,16 @@ int GeneralRateModelDG::linearSolve(double t, double alpha, double outerTol, dou
 	node_t C(g, [&](msg_t)
 #endif
 		{
-			_jacInlet.multiplySubtract(rhs, rhs + idxr.offsetC());
+			// handle inlet DOFs
+			for (int comp = 0; comp < _disc.nComp; comp++) {
+				for (int node = 0; node < (_disc.modal ? _disc.nNodes : 1); node++) {
+					r[idxr.offsetC() + comp * idxr.strideColComp() + node * idxr.strideColNode()] += _jacInlet(node, 0) * r[comp];
+				}
+			}
 		} CADET_PARNODE_END;
 
 	// ==== Step 2: Solve diagonal Jacobian blocks J_i to get y_i = J_i^{-1} b_i
 	// The result is stored in rhs (in-place solution)
-
 
 	// Threads that are done with solving the bulk column blocks can proceed
 	// to solving the particle blocks
@@ -676,8 +685,9 @@ int GeneralRateModelDG::linearSolve(double t, double alpha, double outerTol, dou
 	node_t D(g, [&](msg_t)
 #endif
 		{
-			const bool result = _convDispOp.solveDiscretizedJacobian(rhs + idxr.offsetC());
-			if (cadet_unlikely(!result))
+			r.segment(idxr.offsetC(), _disc.nComp * _disc.nPoints) = _bulkSolver.solve(r.segment(idxr.offsetC(), _disc.nComp * _disc.nPoints));
+
+			if (cadet_unlikely(_bulkSolver.info() != Eigen::Success))
 			{
 				LOG(Error) << "Solve() failed for bulk block";
 			}
@@ -688,13 +698,13 @@ int GeneralRateModelDG::linearSolve(double t, double alpha, double outerTol, dou
 #endif
 		{
 #ifdef CADET_PARALLELIZE
-			tbb::parallel_for(std::size_t(0), static_cast<std::size_t>(_disc.nCol * _disc.nParType), [&](std::size_t pblk)
+			tbb::parallel_for(std::size_t(0), static_cast<std::size_t>(_disc.nPoints * _disc.nParType), [&](std::size_t pblk)
 #else
-			for (unsigned int pblk = 0; pblk < _disc.nCol * _disc.nParType; ++pblk)
+			for (unsigned int pblk = 0; pblk < _disc.nPoints * _disc.nParType; ++pblk)
 #endif
 			{
-				const unsigned int type = pblk / _disc.nCol;
-				const unsigned int par = pblk % _disc.nCol;
+				const unsigned int type = pblk / _disc.nPoints;
+				const unsigned int par = pblk % _disc.nPoints;
 				const bool result = _jacPdisc[pblk].solve(rhs + idxr.offsetCp(ParticleTypeIndex{ type }, ParticleIndex{ par }));
 				if (cadet_unlikely(!result))
 				{
@@ -715,9 +725,9 @@ int GeneralRateModelDG::linearSolve(double t, double alpha, double outerTol, dou
 
 			for (unsigned int type = 0; type < _disc.nParType; ++type)
 			{
-				for (unsigned int par = 0; par < _disc.nCol; ++par)
+				for (unsigned int par = 0; par < _disc.nPoints; ++par)
 				{
-					_jacFP[type * _disc.nCol + par].multiplySubtract(rhs + idxr.offsetCp(ParticleTypeIndex{ type }, ParticleIndex{ par }), rhs + idxr.offsetJf());
+					_jacFP[type * _disc.nPoints + par].multiplySubtract(rhs + idxr.offsetCp(ParticleTypeIndex{ type }, ParticleIndex{ par }), rhs + idxr.offsetJf());
 				}
 			}
 
@@ -763,14 +773,15 @@ int GeneralRateModelDG::linearSolve(double t, double alpha, double outerTol, dou
 			double* const rhsCol = rhs + idxr.offsetC();
 
 			// Apply J_0^{-1} to tempState_0
-			const bool result = _convDispOp.solveDiscretizedJacobian(localCol);
-			if (cadet_unlikely(!result))
+			_tmpState.segment(idxr.offsetC(), _disc.nComp* _disc.nPoints) = _bulkSolver.solve(_tmpState.segment(idxr.offsetC(), _disc.nComp * _disc.nPoints));
+
+			if (cadet_unlikely(_bulkSolver.info() != Eigen::Success))
 			{
 				LOG(Error) << "Solve() failed for bulk block";
 			}
 
 			// Compute rhs_0 = y_0 - J_0^{-1} * J_{0,f} * y_f = y_0 - tempState_0
-			for (unsigned int i = 0; i < _disc.nCol * _disc.nComp; ++i)
+			for (unsigned int i = 0; i < _disc.nPoints * _disc.nComp; ++i)
 				rhsCol[i] -= localCol[i];
 		} CADET_PARNODE_END;
 
@@ -779,13 +790,13 @@ int GeneralRateModelDG::linearSolve(double t, double alpha, double outerTol, dou
 #endif
 		{
 #ifdef CADET_PARALLELIZE
-			tbb::parallel_for(std::size_t(0), static_cast<std::size_t>(_disc.nCol * _disc.nParType), [&](std::size_t pblk)
+			tbb::parallel_for(std::size_t(0), static_cast<std::size_t>(_disc.nPoints* _disc.nParType), [&](std::size_t pblk)
 #else
-			for (unsigned int pblk = 0; pblk < _disc.nCol * _disc.nParType; ++pblk)
+			for (unsigned int pblk = 0; pblk < _disc.nPoints * _disc.nParType; ++pblk)
 #endif
 			{
-				const unsigned int type = pblk / _disc.nCol;
-				const unsigned int par = pblk % _disc.nCol;
+				const unsigned int type = pblk / _disc.nPoints;
+				const unsigned int par = pblk % _disc.nPoints;
 
 				double* const localPar = _tempState + idxr.offsetCp(ParticleTypeIndex{ type }, ParticleIndex{ par });
 				double* const rhsPar = rhs + idxr.offsetCp(ParticleTypeIndex{ type }, ParticleIndex{ par });
@@ -863,10 +874,11 @@ int GeneralRateModelDG::schurComplementMatrixVector(double const* x, double* z) 
 	BENCH_SCOPE(_timerMatVec);
 
 	// Copy x over to result z, which corresponds to the application of the identity matrix
-	std::copy(x, x + _disc.nCol * _disc.nComp * _disc.nParType, z);
+	std::copy(x, x + _disc.nPoints * _disc.nComp * _disc.nParType, z);
 
 	Indexer idxr(_disc);
 	std::fill(_tempState + idxr.offsetC(), _tempState + idxr.offsetJf(), 0.0);
+	Eigen::Map<VectorXd> _tmpState(_tempState, numDofs());
 
 #ifdef CADET_PARALLELIZE
 	tbb::flow::graph g;
@@ -882,8 +894,9 @@ int GeneralRateModelDG::schurComplementMatrixVector(double const* x, double* z) 
 #endif
 		{
 			// Apply J_0^{-1}
-			const bool result = _convDispOp.solveDiscretizedJacobian(_tempState + idxr.offsetC());
-			if (cadet_unlikely(!result))
+			_tmpState.segment(idxr.offsetC(), _disc.nComp * _disc.nPoints) = _bulkSolver.solve(_tmpState.segment(idxr.offsetC(), _disc.nComp * _disc.nPoints));
+
+			if (cadet_unlikely(_bulkSolver.info() != Eigen::Success))
 			{
 				LOG(Error) << "Solve() failed for bulk block";
 			}
@@ -895,13 +908,13 @@ int GeneralRateModelDG::schurComplementMatrixVector(double const* x, double* z) 
 		{
 			// Handle particle blocks
 #ifdef CADET_PARALLELIZE
-			tbb::parallel_for(std::size_t(0), static_cast<std::size_t>(_disc.nCol * _disc.nParType), [&](std::size_t pblk)
+			tbb::parallel_for(std::size_t(0), static_cast<std::size_t>(_disc.nPoints * _disc.nParType), [&](std::size_t pblk)
 #else
-			for (unsigned int pblk = 0; pblk < _disc.nCol * _disc.nParType; ++pblk)
+			for (unsigned int pblk = 0; pblk < _disc.nPoints * _disc.nParType; ++pblk)
 #endif
 			{
-				const unsigned int type = pblk / _disc.nCol;
-				const unsigned int par = pblk % _disc.nCol;
+				const unsigned int type = pblk / _disc.nPoints;
+				const unsigned int par = pblk % _disc.nPoints;
 
 				// Get this thread's temporary memory block
 				double* const tmp = _tempState + idxr.offsetCp(ParticleTypeIndex{ type }, ParticleIndex{ par });
@@ -926,10 +939,10 @@ int GeneralRateModelDG::schurComplementMatrixVector(double const* x, double* z) 
 
 			for (unsigned int type = 0; type < _disc.nParType; ++type)
 			{
-				for (unsigned int par = 0; par < _disc.nCol; ++par)
+				for (unsigned int par = 0; par < _disc.nPoints; ++par)
 				{
 					// Apply J_{f,i} and subtract results from z
-					_jacFP[type * _disc.nCol + par].multiplySubtract(_tempState + idxr.offsetCp(ParticleTypeIndex{ type }, ParticleIndex{ par }), z);
+					_jacFP[type * _disc.nPoints + par].multiplySubtract(_tempState + idxr.offsetCp(ParticleTypeIndex{ type }, ParticleIndex{ par }), z);
 				}
 			}
 		} CADET_PARNODE_END;
@@ -947,6 +960,37 @@ int GeneralRateModelDG::schurComplementMatrixVector(double const* x, double* z) 
 #endif
 
 	return 0;
+}
+
+/**
+ * @brief Assembles bulk Jacobian @f$ J_i @f$ (@f$ i > 0 @f$) of the time-discretized equations
+ * @details The system \f[ \left( \frac{\partial F}{\partial y} + \alpha \frac{\partial F}{\partial \dot{y}} \right) x = b \f]
+ *          has to be solved. The system Jacobian of the original equations,
+ *          \f[ \frac{\partial F}{\partial y}, \f]
+ *          is already computed (by AD or manually in residualImpl() with @c wantJac = true). This function is responsible
+ *          for adding
+ *          \f[ \alpha \frac{\partial F}{\partial \dot{y}} \f]
+ *          to the system Jacobian, which yields the Jacobian of the time-discretized equations
+ *          \f[ F\left(t, y_0, \sum_{k=0}^N \alpha_k y_k \right) = 0 \f]
+ *          when a BDF method is used. The time integrator needs to solve this equation for @f$ y_0 @f$, which requires
+ *          the solution of the linear system mentioned above (@f$ \alpha_0 = \alpha @f$ given in @p alpha).
+ *
+ * @param [in] alpha Value of \f$ \alpha \f$ (arises from BDF time discretization)
+ */
+void GeneralRateModelDG::assembleDiscretizedBulkJacobian(double alpha, Indexer idxr) {
+
+	double* vPtr = _jacCdisc.valuePtr();
+	for (int k = 0; k < _jacCdisc.nonZeros(); k++) {
+		*vPtr = 0.0;
+		vPtr++;
+	}
+
+	// add time derivative to bulk jacobian
+	addTimeDerBulkJacobian(alpha, idxr);
+
+	// add static (per section) jacobian
+	_jacCdisc += _jacC;
+
 }
 
 /**
@@ -969,8 +1013,8 @@ int GeneralRateModelDG::schurComplementMatrixVector(double const* x, double* z) 
  */
 void GeneralRateModelDG::assembleDiscretizedJacobianParticleBlock(unsigned int parType, unsigned int pblk, double alpha, const Indexer& idxr)
 {
-	linalg::FactorizableBandMatrix& fbm = _jacPdisc[_disc.nCol * parType + pblk];
-	const linalg::BandMatrix& bm = _jacP[_disc.nCol * parType + pblk];
+	linalg::FactorizableBandMatrix& fbm = _jacPdisc[_disc.nPoints * parType + pblk];
+	const linalg::BandMatrix& bm = _jacP[_disc.nPoints * parType + pblk];
 
 	// Copy normal matrix over to factorizable matrix
 	fbm.copyOver(bm);
