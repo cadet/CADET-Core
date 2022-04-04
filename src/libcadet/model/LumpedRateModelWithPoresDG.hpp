@@ -691,9 +691,8 @@ protected:
 		virtual bool hasVolume() const CADET_NOEXCEPT { return false; }
 
 		virtual unsigned int numComponents() const CADET_NOEXCEPT { return _disc.nComp; }
-		// @TODO ? actually we need number of axial discrete points here, not number of axial cells !
+		// @TODO ? actually we need number of axial discrete points here, not number of axial cells, so change name !
 		virtual unsigned int numAxialCells() const CADET_NOEXCEPT { return _disc.nPoints; }
-		// @TODO ? one radial node/point for DG
 		virtual unsigned int numRadialCells() const CADET_NOEXCEPT { return 1u; }
 		virtual unsigned int numInletPorts() const CADET_NOEXCEPT { return 1; }
 		virtual unsigned int numOutletPorts() const CADET_NOEXCEPT { return 1; }
@@ -1279,28 +1278,6 @@ protected:
 		return 0;
 	}
 
-	///**
-	//* @brief sets the sparsity pattern of the isotherm Jacobian
-	//* @detail Independent of the isotherm, all liquid and solid entries (so all entries, the isotherm could theoretically depend on) at a discrete point are set.
-	//*/
-	//void isothermPattern(std::vector<T>& tripletList) {
-
-	//	Indexer idxr(_disc);
-	//	// loop over all discrete points and solid states and add all liquid plus solid entries at that solid state at that discrete point
-	//	for (unsigned int point = 0; point < _disc.nPoints; point++) {
-	//		for (unsigned int solid = 0; solid < _disc.strideBound; solid++) {
-	//			for (unsigned int conc = 0; conc < _disc.nComp + _disc.strideBound; conc++) {
-	//				// column: jump over inlet, previous discrete points, liquid concentration and add the offset of the current bound state
-	//				// row:    jump over inlet and previous discrete points. add entries for all liquid and bound concentrations (conc)
-	//				tripletList.push_back(T(idxr.offsetC() + idxr.strideColNode() * point + idxr.strideColLiquid() + solid * idxr.offsetBoundComp(solid),
-	//					idxr.offsetC() + idxr.strideColNode() * point + conc,
-	//					0.0));
-	//			}
-	//		}
-	//	}
-
-	//}
-
 	/**
 	* @brief analytically calculates the static (per section) bulk jacobian (inlet DOFs included!)
 	* @return 1 if jacobain estimation fits the predefined pattern of the jacobian, 0 if not.
@@ -1510,6 +1487,7 @@ protected:
 
 		return 0;
 	}
+
 	/**
 	* @brief analytically calculates the convection dispersion jacobian for the modal DG scheme
 	*/
@@ -1737,58 +1715,19 @@ protected:
 		return 0;
 	}
 
-	///**
-	//* @brief analytically calculates the isotherm jacobian
-	//* @return 1 if jacobain estimation fits the predefined pattern of the jacobian, 0 if not.
-	//*/
-	//int calcIsothermJacobian(double t, unsigned int secIdx, const double* const y, util::ThreadLocalStorage& threadLocalMem) {
-
-	//	Indexer idxr(_disc);
-
-	//	// set rowIterator and local state pointer to first solid concentration
-	//	linalg::BandedEigenSparseRowIterator rowIterator(_jac, idxr.offsetC() + idxr.strideColLiquid());
-	//	const double* yLocal = y + idxr.offsetC() + idxr.strideColLiquid();
-
-	//	// Offset from the first component of the mobile phase to the first bound state
-	//	unsigned int offSetCp = _disc.nComp;
-
-	//	for (unsigned int point = 0; point < _disc.nPoints; point++) {
-
-	//		double z = _disc.deltaZ * std::floor(point / _disc.nNodes)
-	//			+ 0.5 * _disc.deltaZ * (1 + _disc.nodes[point % _disc.nNodes]);
-
-	//		_binding[0]->analyticJacobian(t, secIdx, ColumnPosition{ z, 0.0, 0.0 }, yLocal, offSetCp, rowIterator, threadLocalMem.get());
-
-	//		// set rowIterator and y to first bound concentration of next discrete point
-	//		rowIterator += idxr.strideColNode();
-	//		yLocal += idxr.strideColNode();
-
-	//	}
-
-	//	if (!_jac.isCompressed()) // if matrix lost its compressed storage, the pattern did not fit.
-	//		return 0;
-
-	//	return 1;
-	//}
-
 	/**
 	* @brief adds time derivative to the bulk jacobian
-	* @detail d Bulk_Residual / d c_t = alpha * I is added to the bulk jacobian
+	* @detail alpha * d Bulk_Residual / d c_t = alpha * I is added to the bulk jacobian
 	*/
 	void addTimeDerBulkJacobian(double alpha, Indexer idxr) {
 
 		unsigned int offC = 0; // inlet DOFs not included in Jacobian
 
-		linalg::BandedEigenSparseRowIterator jac(_jacCdisc, offC);
+		for (linalg::BandedEigenSparseRowIterator jac(_jacCdisc, offC); jac.row() < _disc.nComp * _disc.nPoints; ++jac) {
 
-		for (unsigned int point = 0; point < _disc.nPoints; point++) {
-			for (unsigned int comp = 0; comp < _disc.nComp; comp++) {
-				// alpha * I
-				jac[0] += alpha; // index 0 points to concentration corresponding to the current row
-				++jac;
-			}
+				jac[0] += alpha; // main diagonal
+		
 		}
-
 	}
 
 };
