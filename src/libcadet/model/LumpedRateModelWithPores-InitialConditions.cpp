@@ -1895,7 +1895,6 @@ void LumpedRateModelWithPoresDG::consistentInitialTimeDerivative(const Simulatio
 
 	// Factorize
 	_bulkSolver.factorize(_jacCdisc);
-	//bulkSolver.compute(_jacCdisc);
 
 	// Solve
 	yDot.segment(idxr.offsetC(), _disc.nComp * _disc.nPoints) = _bulkSolver.solve(yDot.segment(idxr.offsetC(), _disc.nComp *_disc.nPoints));
@@ -1914,8 +1913,8 @@ void LumpedRateModelWithPoresDG::consistentInitialTimeDerivative(const Simulatio
 		_jacPdisc[type].setAll(0.0);
 		for (unsigned int pblk = 0; pblk < _disc.nPoints; ++pblk)
 		{
-			// Midpoint of current column cell (z coordinate) - needed in externally dependent adsorption kinetic
-			const double z = 1.0 / static_cast<double>(_disc.nCol) * (0.5 + pblk);
+			// z coordinate of current discrete point - needed in externally dependent adsorption kinetic
+			const double z = _disc.deltaZ * std::floor(pblk / _disc.nNodes) + 0.5 * _disc.deltaZ * (1 + _disc.nodes[pblk % _disc.nNodes]);
 
 			// Assemble
 			linalg::FactorizableBandMatrix::RowIterator jac = _jacPdisc[type].row(idxr.strideParBlock(type) * pblk);
@@ -2088,6 +2087,8 @@ void LumpedRateModelWithPoresDG::leanConsistentInitialState(const SimulationTime
  */
 void LumpedRateModelWithPoresDG::leanConsistentInitialTimeDerivative(double t, double const* const vecStateY, double* const vecStateYdot, double* const res, util::ThreadLocalStorage& threadLocalMem)
 {
+	// @TODO?
+
 	//BENCH_SCOPE(_timerConsistentInit);
 
 	//Indexer idxr(_disc);
@@ -2127,19 +2128,19 @@ void LumpedRateModelWithPoresDG::initializeSensitivityStates(const std::vector<d
 		double* const stateYbulk = vecSensY[param] + idxr.offsetC();
 
 		// Loop over column cells
-		for (unsigned int col = 0; col < _disc.nPoints; ++col)
+		for (unsigned int point = 0; point < _disc.nPoints; ++point)
 		{
 			// Loop over components in cell
 			for (unsigned comp = 0; comp < _disc.nComp; ++comp)
-				stateYbulk[col * idxr.strideColCell() + comp * idxr.strideColComp()] = _initC[comp].getADValue(param);
+				stateYbulk[point * idxr.strideColCell() + comp * idxr.strideColComp()] = _initC[comp].getADValue(param);
 		}
 
 		// Loop over particles
 		for (unsigned int type = 0; type < _disc.nParType; ++type)
 		{
-			for (unsigned int col = 0; col < _disc.nPoints; ++col)
+			for (unsigned int point = 0; point < _disc.nPoints; ++point)
 			{
-				const unsigned int offset = idxr.offsetCp(ParticleTypeIndex{ type }, ParticleIndex{ col });
+				const unsigned int offset = idxr.offsetCp(ParticleTypeIndex{ type }, ParticleIndex{ point });
 				double* const stateYparticle = vecSensY[param] + offset;
 				double* const stateYparticleSolid = stateYparticle + idxr.strideParLiquid();
 
@@ -2211,6 +2212,7 @@ void LumpedRateModelWithPoresDG::initializeSensitivityStates(const std::vector<d
 void LumpedRateModelWithPoresDG::consistentInitialSensitivity(const SimulationTime& simTime, const ConstSimulationState& simState,
 	std::vector<double*>& vecSensY, std::vector<double*>& vecSensYdot, active const* const adRes, util::ThreadLocalStorage& threadLocalMem)
 {
+	// @TODO?
 //	BENCH_SCOPE(_timerConsistentInit);
 //
 //	Indexer idxr(_disc);
