@@ -1383,7 +1383,7 @@ void LumpedRateModelWithPoresDG::applyInitialCondition(const SimulationState& si
 	{
 		// Loop over components in cell
 		for (unsigned comp = 0; comp < _disc.nComp; ++comp)
-			stateYbulk[point * idxr.strideColCell() + comp * idxr.strideColComp()] = static_cast<double>(_initC[comp]);
+			stateYbulk[point * idxr.strideColNode() + comp * idxr.strideColComp()] = static_cast<double>(_initC[comp]);
 	}
 
 	// Loop over particles
