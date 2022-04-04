@@ -693,11 +693,11 @@ protected:
 			// update velocity and dispersion
 			_disc.velocity = static_cast<double>(_convDispOp.currentVelocity());
 			if (_convDispOp.dispersionCompIndep())
-				for (int comp = 0; comp < _disc.nComp; comp++) {
+				for (unsigned int comp = 0; comp < _disc.nComp; comp++) {
 					_disc.dispersion[comp] = static_cast<double>(_convDispOp.currentDispersion(secIdx)[0]);
 				}
 			else {
-				for (int comp = 0; comp < _disc.nComp; comp++) {
+				for (unsigned int comp = 0; comp < _disc.nComp; comp++) {
 					_disc.dispersion[comp] = static_cast<double>(_convDispOp.currentDispersion(secIdx)[comp]);
 				}
 			}
@@ -1596,9 +1596,9 @@ protected:
 		dispBlock.block(0, nNodes + 1, nNodes, 2 * nNodes + 1) += _disc.invMM * B * gStarDC.block(0, nNodes + 1, nNodes, 2 * nNodes + 1);
 		dispBlock *= 2 / _disc.deltaZ;
 
-		for (int comp = 0; comp < nComp; comp++) {
-			for (int i = 0; i < dispBlock.rows(); i++) {
-				for (int j = nNodes + 1; j < dispBlock.cols(); j++) {
+		for (unsigned int comp = 0; comp < nComp; comp++) {
+			for (unsigned int i = 0; i < dispBlock.rows(); i++) {
+				for (unsigned int j = nNodes + 1; j < dispBlock.cols(); j++) {
 					// row: jump over inlet DOFs, add component offset and go node strides from there for each dispersion block entry
 					// col: jump over inlet DOFs and previous cells, add component offset, adjust for iterator j (-Nnodes-1) and go node strides from there for each dispersion block entry.
 					_jac.coeffRef(offC + comp * sComp + i * sNode,
@@ -1618,9 +1618,9 @@ protected:
 		dispBlock += _disc.invMM * B * gStarDC;
 		dispBlock *= 2 / _disc.deltaZ;
 
-		for (int comp = 0; comp < nComp; comp++) {
-			for (int i = 0; i < dispBlock.rows(); i++) {
-				for (int j = 0; j < 2 * nNodes + 1; j++) {
+		for (unsigned int comp = 0; comp < nComp; comp++) {
+			for (unsigned int i = 0; i < dispBlock.rows(); i++) {
+				for (unsigned int j = 0; j < 2 * nNodes + 1; j++) {
 					// row: jump over inlet DOFs and previous cells, add component offset and go node strides from there for each dispersion block entry
 					// col: jump over inlet DOFs and previous cells, go back one cell and one node, add component offset and go node strides from there for each dispersion block entry.
 					_jac.coeffRef(offC + (nCells - 1) * sCell + comp * sComp + i * sNode,

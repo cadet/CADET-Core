@@ -934,8 +934,8 @@ namespace cadet
 			}
 
 			// handle inlet DOFs
-			for (int comp = 0; comp < _disc.nComp; comp++) {
-				for (int node = 0; node < (_disc.modal ? _disc.nNodes : 1); node++) {
+			for (unsigned int comp = 0; comp < _disc.nComp; comp++) {
+				for (unsigned int node = 0; node < (_disc.modal ? _disc.nNodes : 1); node++) {
 					r[idxr.offsetC() + comp * idxr.strideColComp() + node * idxr.strideColNode()] += _jacInlet(node, 0) * r[comp];
 				}
 			}
@@ -1405,7 +1405,7 @@ namespace cadet
 			unsigned int nComp = _disc.nComp;
 			unsigned int nPoints = _disc.nPoints;
 
-			for (int comp = 0; comp < _disc.nComp; comp++) {
+			for (unsigned int comp = 0; comp < _disc.nComp; comp++) {
 
 				// extract one component
 				Eigen::Map<const VectorXd, 0, InnerStride<Dynamic>> C_comp(vecStateY + idxr.offsetC() + comp, nPoints, InnerStride<Dynamic>(idxr.strideColNode()));
