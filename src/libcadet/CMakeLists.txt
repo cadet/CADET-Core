@@ -132,6 +132,7 @@ set(LIBCADET_SOURCES
 	${CMAKE_SOURCE_DIR}/src/libcadet/model/LumpedRateModelWithPores-InitialConditions.cpp
 	${CMAKE_SOURCE_DIR}/src/libcadet/model/GeneralRateModel.cpp
 	${CMAKE_SOURCE_DIR}/src/libcadet/model/GeneralRateModelDG.cpp
+	${CMAKE_SOURCE_DIR}/src/libcadet/model/GeneralRateModelDGFV.cpp
 	${CMAKE_SOURCE_DIR}/src/libcadet/model/GeneralRateModel-LinearSolver.cpp
 	${CMAKE_SOURCE_DIR}/src/libcadet/model/GeneralRateModel-InitialConditions.cpp
 	${CMAKE_SOURCE_DIR}/src/libcadet/model/ParameterMultiplexing.cpp
