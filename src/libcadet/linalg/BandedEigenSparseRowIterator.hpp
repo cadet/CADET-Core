@@ -9,8 +9,8 @@
 #include <vector>
 #include <ostream>
 #include <algorithm>
-#include "C:\Users\jmbr\Cadet\libs\eigen-3.4.0\Eigen\Sparse.hpp"// @TODO: third party #include <Eigen>
-#include "C:\Users\jmbr\Cadet\libs\eigen-3.4.0\Eigen\Dense.hpp"
+#include <Eigen/Sparse>// @TODO: third party #include <Eigen>
+#include <Eigen/Dense>
 
 #include "SparseSolverInterface.hpp"
 #include "cadet/cadetCompilerInfo.hpp"

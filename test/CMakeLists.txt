@@ -54,7 +54,7 @@ add_executable(testRunner testRunner.cpp JsonTestModels.cpp ColumnTests.cpp Unit
 	${TEST_ADDITIONAL_SOURCES}
 	$<TARGET_OBJECTS:libcadet_object>)
 
-target_link_libraries(testRunner PRIVATE CADET::CompileOptions CADET::AD SUNDIALS::sundials_idas ${SUNDIALS_NVEC_TARGET} ${TBB_TARGET})
+target_link_libraries(testRunner PRIVATE CADET::CompileOptions CADET::AD SUNDIALS::sundials_idas ${SUNDIALS_NVEC_TARGET} ${TBB_TARGET} ${EIGEN_TARGET})
 if (ENABLE_GRM_2D)
 	target_include_directories(testRunner PRIVATE ${CMAKE_BINARY_DIR}/src/libcadet)
 	if (SUPERLU_FOUND)

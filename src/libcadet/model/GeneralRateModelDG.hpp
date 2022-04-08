@@ -31,8 +31,8 @@
 #include "model/ModelUtils.hpp"
 #include "ParameterMultiplexing.hpp"
 
-#include "C:\Users\jmbr\Cadet\libs\eigen-3.4.0\Eigen\Dense.hpp"	// use LA lib Eigen for Matrix operations
-#include "C:\Users\jmbr\Cadet\libs\eigen-3.4.0\Eigen\Sparse.hpp"
+#include <Eigen/Dense> // use LA lib Eigen for Matrix operations
+#include <Eigen/Sparse>
 #include <array>
 #include <vector>
 #ifndef _USE_MATH_DEFINES

@@ -38,8 +38,8 @@
 #include "Benchmark.hpp"
 #include <numbers>
 
-#include "C:\Users\jmbr\Cadet\libs\eigen-3.4.0\Eigen\Dense.hpp"	// use LA lib Eigen for Matrix operations
-#include "C:\Users\jmbr\Cadet\libs\eigen-3.4.0\Eigen\Sparse.hpp"
+#include <Eigen/Dense> // use LA lib Eigen for Matrix operations
+#include <Eigen/Sparse>
 
 #ifndef _USE_MATH_DEFINES
 #define _USE_MATH_DEFINES

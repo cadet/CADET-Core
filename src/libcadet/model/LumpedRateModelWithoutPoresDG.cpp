@@ -43,8 +43,8 @@
 #endif
 
 #define EIGEN_USE_MKL_ALL
-#include <C:\Users\jmbr\Cadet\libs\eigen-3.4.0\Eigen\Dense.hpp> // use LA lib Eigen for Matrix operations
-#include <C:\Users\jmbr\Cadet\libs\eigen-3.4.0\Eigen\IterativeLinearSolvers>	
+#include <Eigen/Dense> // use LA lib Eigen for Matrix operations
+#include <Eigen/Sparse>
 using namespace Eigen;
 
 namespace cadet

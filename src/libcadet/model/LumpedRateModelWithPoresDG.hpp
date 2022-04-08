@@ -1,7 +1,7 @@
 // =============================================================================
 //  CADET
 //  
-//  Copyright © 2008-2021: The CADET Authors
+//  Copyright ï¿½ 2008-2021: The CADET Authors
 //            Please see the AUTHORS and CONTRIBUTORS file.
 //  
 //  All rights reserved. This program and the accompanying materials
@@ -39,8 +39,8 @@
 #include "model/ModelUtils.hpp"
 #include "ParameterMultiplexing.hpp"
 
-#include "C:\Users\jmbr\Cadet\libs\eigen-3.4.0\Eigen\Dense.hpp"	// use LA lib Eigen for Matrix operations
-#include "C:\Users\jmbr\Cadet\libs\eigen-3.4.0\Eigen\Sparse.hpp"
+#include <Eigen/Dense> // use LA lib Eigen for Matrix operations
+#include <Eigen/Sparse>
 #include <array>
 #include <vector>
 #ifndef _USE_MATH_DEFINES
