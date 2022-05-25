@@ -56,8 +56,10 @@ namespace binding
 ConfiguredBindingModel::~ConfiguredBindingModel()
 {
 	delete _binding;
-	delete[] _extFuns;
 	delete[] _boundOffset;
+
+	for (cadet::IExternalFunction*& ef : _extFuns)
+		delete ef;
 
 	::operator delete(_bufferMemory);
 }
@@ -86,8 +88,11 @@ ConfiguredBindingModel ConfiguredBindingModel::create(const char* name, unsigned
 	}
 
 	// Assign external functions
-	cadet::IExternalFunction* extFuns = new LinearExternalFunction[50];
-	bm->setExternalFunctions(&extFuns, 50);
+	std::vector<cadet::IExternalFunction*> extFuns(50, nullptr);
+	for (int i = 0; i < 50; ++i)
+		extFuns[i] = new LinearExternalFunction();
+
+	bm->setExternalFunctions(extFuns.data(), 50);
 
 	// Allocate memory buffer
 	unsigned int requiredMem = 0;
@@ -103,7 +108,7 @@ ConfiguredBindingModel ConfiguredBindingModel::create(const char* name, unsigned
 		std::memset(buffer, 0, requiredMem);
 	}
 
-	return ConfiguredBindingModel(bm, nComp, nBound, boundOffset, buffer, bufferEnd, extFuns);
+	return ConfiguredBindingModel(bm, nComp, nBound, boundOffset, buffer, bufferEnd, std::move(extFuns));
 }
 
 ConfiguredBindingModel ConfiguredBindingModel::create(const char* name, unsigned int nComp, unsigned int const* nBound, int const* isKinetic, const char* config)
@@ -130,8 +135,11 @@ ConfiguredBindingModel ConfiguredBindingModel::create(const char* name, unsigned
 	}
 
 	// Assign external functions
-	cadet::IExternalFunction* extFuns = new LinearExternalFunction[50];
-	bm->setExternalFunctions(&extFuns, 50);
+	std::vector<cadet::IExternalFunction*> extFuns(50, nullptr);
+	for (int i = 0; i < 50; ++i)
+		extFuns[i] = new LinearExternalFunction();
+
+	bm->setExternalFunctions(extFuns.data(), 50);
 
 	// Allocate memory buffer
 	unsigned int requiredMem = 0;
@@ -147,7 +155,7 @@ ConfiguredBindingModel ConfiguredBindingModel::create(const char* name, unsigned
 		std::memset(buffer, 0, requiredMem);
 	}
 
-	return ConfiguredBindingModel(bm, nComp, nBound, boundOffset, buffer, bufferEnd, extFuns);
+	return ConfiguredBindingModel(bm, nComp, nBound, boundOffset, buffer, bufferEnd, std::move(extFuns));
 }
 
 void ConfiguredBindingModel::increaseBufferSize(int inc)

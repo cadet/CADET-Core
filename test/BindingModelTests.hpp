@@ -61,13 +61,12 @@ namespace binding
 	public:
 
 		ConfiguredBindingModel(ConfiguredBindingModel&& cpy) CADET_NOEXCEPT 
-			: _binding(cpy._binding), _nComp(cpy._nComp), _nBound(cpy._nBound), _boundOffset(cpy._boundOffset), _buffer(std::move(cpy._buffer)), _bufferMemory(cpy._bufferMemory), _extFuns(cpy._extFuns)
+			: _binding(cpy._binding), _nComp(cpy._nComp), _nBound(cpy._nBound), _boundOffset(cpy._boundOffset), _buffer(std::move(cpy._buffer)), _bufferMemory(cpy._bufferMemory), _extFuns(std::move(cpy._extFuns))
 		{
 			cpy._binding = nullptr;
 			cpy._nBound = nullptr;
 			cpy._boundOffset = nullptr;
 			cpy._bufferMemory = nullptr;
-			cpy._extFuns = nullptr;
 		}
 
 		~ConfiguredBindingModel();
@@ -80,13 +79,12 @@ namespace binding
 			_boundOffset = cpy._boundOffset;
 			_buffer = std::move(cpy._buffer);
 			_bufferMemory = cpy._bufferMemory;
-			_extFuns = cpy._extFuns;
+			_extFuns = std::move(cpy._extFuns);
 
 			cpy._binding = nullptr;
 			cpy._nBound = nullptr;
 			cpy._boundOffset = nullptr;
 			cpy._bufferMemory = nullptr;
-			cpy._extFuns = nullptr;
 
 			return *this;
 		}
@@ -109,8 +107,8 @@ namespace binding
 
 	private:
 
-		ConfiguredBindingModel(cadet::model::IBindingModel* binding, unsigned int nComp, unsigned int const* nBound, unsigned int const* boundOffset, void* bufferStart, void* bufferEnd, cadet::IExternalFunction* extFuns) 
-			: _binding(binding), _nComp(nComp), _nBound(nBound), _boundOffset(boundOffset), _buffer(bufferStart, bufferEnd), _bufferMemory(bufferStart), _extFuns(extFuns)
+		ConfiguredBindingModel(cadet::model::IBindingModel* binding, unsigned int nComp, unsigned int const* nBound, unsigned int const* boundOffset, void* bufferStart, void* bufferEnd, std::vector<cadet::IExternalFunction*>&& extFuns) 
+			: _binding(binding), _nComp(nComp), _nBound(nBound), _boundOffset(boundOffset), _buffer(bufferStart, bufferEnd), _bufferMemory(bufferStart), _extFuns(std::move(extFuns))
 		{
 		}
 
@@ -120,7 +118,7 @@ namespace binding
 		unsigned int const* _boundOffset;
 		cadet::LinearBufferAllocator _buffer;
 		void* _bufferMemory;
-		cadet::IExternalFunction* _extFuns;
+		std::vector<cadet::IExternalFunction*> _extFuns;
 	};
 
 	/**
