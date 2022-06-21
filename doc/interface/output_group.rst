@@ -73,7 +73,7 @@ Group /output/solution/unit_XXX
 
    Solid phase solution inside the particles as :math:`n_{\text{Time}} \times \texttt{UNITOPORDERING}` tensor in row-major storage. Only present if just one particle type is defined.
 
-   **Unit:** :math:`\mathrm{mol}\,\mathrm{m}_{\mathrm{MP}}^{-3}`
+   **Unit:** :math:`\mathrm{mol}\,\mathrm{m}_{\mathrm{SP}}^{-3}`
    
    **Type:** double
    

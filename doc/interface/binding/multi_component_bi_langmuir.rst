@@ -22,7 +22,7 @@ Multi Component Bi-Langmuir
 **Unit:** :math:`m_{MP}^3~mol^{-1}~s^{-1}`
 
 ===================  =========================  =========================================
-**Type:** double     **Range:** :math:`\ge 0`   **Length:** NCOMP
+**Type:** double     **Range:** :math:`\ge 0`   **Length:** NSTATES :math:`\cdot` NCOMP
 ===================  =========================  =========================================
 
 ``MCBL_KD``
@@ -31,7 +31,7 @@ Multi Component Bi-Langmuir
 **Unit:** :math:`s^{-1}`
 
 ===================  =========================  =========================================
-**Type:** double     **Range:** :math:`\ge 0`   **Length:** NCOMP
+**Type:** double     **Range:** :math:`\ge 0`   **Length:** NSTATES :math:`\cdot` NCOMP
 ===================  =========================  =========================================
 
 ``MCBL_QMAX``
@@ -40,5 +40,6 @@ Multi Component Bi-Langmuir
 **Unit:** :math:`mol~m_{SP}^{-3}`
 
 ===================  =========================  =========================================
-**Type:** double     **Range:** :math:`\gt 0`   **Length:** NCOMP
+**Type:** double     **Range:** :math:`\ge 0`   **Length:** NSTATES :math:`\cdot` NCOMP
 ===================  =========================  =========================================
+
