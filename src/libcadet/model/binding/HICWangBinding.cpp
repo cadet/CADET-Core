@@ -51,11 +51,10 @@ namespace cadet
 				readParameterMatrix(kEQ, paramProvider, "KEQ", nComp, 1);
 				readParameterMatrix(nu, paramProvider, "NU", nComp, 1);
 				readParameterMatrix(qMax, paramProvider, "QMAX", nComp, 1);
-				readParameterMatrix(qRef, paramProvider, "QREF", nComp, 1);
 
 				// Check parameters
-				if ((kKin.size() != kEQ.size()) || (kKin.size() != nu.size()) || (kKin.size() != qRef.size()) || (kKin.size() != qMax.size()))
-					throw InvalidParameterException("NU, KKIN, KEQ, QMAX, and QREF must have the same size");
+				if ((kKin.size() != kEQ.size()) || (kKin.size() != nu.size()) || (kKin.size() != qMax.size()))
+					throw InvalidParameterException("NU, KKIN, KEQ, and QMAX must have the same size");
 
 				return true;
 			}
@@ -73,7 +72,6 @@ namespace cadet
 				registerComponentBoundStateDependentParam(hashString("KEQ"), parameters, kEQ, unitOpIdx);
 				registerComponentBoundStateDependentParam(hashString("NU"), parameters, nu, unitOpIdx);
 				registerComponentBoundStateDependentParam(hashString("QMAX"), parameters, qMax, unitOpIdx);
-				registerComponentBoundStateDependentParam(hashString("QREF"), parameters, qRef, unitOpIdx);
 
 				parameters[makeParamId(hashString("BETA0"), unitOpIdx, CompIndep, BoundPhaseIndep, ReactionIndep, SectionIndep)] = &beta0;
 				parameters[makeParamId(hashString("BETA1"), unitOpIdx, CompIndep, BoundPhaseIndep, ReactionIndep, SectionIndep)] = &beta1;
@@ -82,7 +80,6 @@ namespace cadet
 			std::vector<active> nu; //!< NU
 			std::vector<active> kEQ; //!< KEQ
 			std::vector<active> qMax; //!< qMax
-			std::vector<active> qRef; //!< qRef
 			std::vector<active> kKin; //!< kKIn
 
 			active beta0;
@@ -110,7 +107,6 @@ namespace cadet
 				CADET_READPAR_MATRIX(kEQ, paramProvider, "KEQ", nComp, 1);
 				CADET_READPAR_MATRIX(nu, paramProvider, "NU", nComp, 1);
 				CADET_READPAR_MATRIX(qMax, paramProvider, "QMAX", nComp, 1);
-				CADET_READPAR_MATRIX(qRef, paramProvider, "QREF", nComp, 1);
 
 				CADET_READPAR_SCALAR(beta0, paramProvider, "BETA0");
 				CADET_READPAR_SCALAR(beta1, paramProvider, "BETA1");
@@ -131,7 +127,6 @@ namespace cadet
 				CADET_REGPAR_COMPBND_VEC("KEQ", parameters, kEQ, unitOpIdx);
 				CADET_REGPAR_COMPBND_VEC("NU", parameters, nu, unitOpIdx);
 				CADET_REGPAR_COMPBND_VEC("QMAX", parameters, qMax, unitOpIdx);
-				CADET_REGPAR_COMPBND_VEC("QREF", parameters, qRef, unitOpIdx);
 
 				parameters[makeParamId(hashString("EXT_BETA0"), unitOpIdx, CompIndep, BoundPhaseIndep, ReactionIndep, SectionIndep)] = &beta0;
 				parameters[makeParamId(hashString("EXT_BETA1"), unitOpIdx, CompIndep, BoundPhaseIndep, ReactionIndep, SectionIndep)] = &beta1;
@@ -157,7 +152,6 @@ namespace cadet
 					CADET_UPDATE_EXTDEP_VARIABLE_BRACES(kEQ, i, _extFunBuffer[1]);
 					CADET_UPDATE_EXTDEP_VARIABLE_BRACES(nu, i, _extFunBuffer[2]);
 					CADET_UPDATE_EXTDEP_VARIABLE_BRACES(qMax, i, _extFunBuffer[3]);
-					CADET_UPDATE_EXTDEP_VARIABLE_BRACES(qRef, i, _extFunBuffer[4]);
 				}
 				CADET_UPDATE_EXTDEP_VARIABLE(beta0, _extFunBuffer[5]);
 				CADET_UPDATE_EXTDEP_VARIABLE(beta1, _extFunBuffer[6]);
@@ -167,7 +161,6 @@ namespace cadet
 				CADET_DEFINE_EXTDEP_VARIABLE(std::vector<active>, kEQ)
 				CADET_DEFINE_EXTDEP_VARIABLE(std::vector<active>, nu)
 				CADET_DEFINE_EXTDEP_VARIABLE(std::vector<active>, qMax)
-				CADET_DEFINE_EXTDEP_VARIABLE(std::vector<active>, qRef)
 
 				CADET_DEFINE_EXTDEP_VARIABLE(active, beta0)
 				CADET_DEFINE_EXTDEP_VARIABLE(active, beta1)
@@ -241,7 +234,6 @@ namespace cadet
 					if (_nBoundStates[i] == 0)
 						continue;
 
-					auto qRef = static_cast<ParamType>(_p.qRef[i]);
 					auto q = static_cast<ParamType>(y[bndIdx]);
 					qSum -= y[bndIdx] / static_cast<ParamType>(_p.qMax[i]);
 					//LOG(Debug) << "y[bndIdx]\t" << y[bndIdx];
@@ -252,7 +244,7 @@ namespace cadet
 					}
 					else
 					{
-						qProd += pow(q/qRef, static_cast<ParamType>(_p.nu[i])*beta);
+						qProd += pow(q, static_cast<ParamType>(_p.nu[i])*beta);
 					}
 					// Next bound component
 					++bndIdx;
