@@ -406,6 +406,32 @@ namespace v1
 		return cdtOK;
 	}
 
+	cdtResult getNParTypes(cdtDriver* drv, int unitOpId, int* nParTypes)
+	{
+		Driver* const realDrv = drv->driver;
+		if (!realDrv)
+			return cdtErrorInvalidInputs;
+
+		InternalStorageSystemRecorder* const sysRec = realDrv->solution();
+		if (!sysRec)
+		{
+			LOG(Error) << "System solution recorder not available";
+			return cdtError;
+		}
+
+		InternalStorageUnitOpRecorder* const unitRec = sysRec->unitOperation(unitOpId);
+		if (!unitRec)
+		{
+			LOG(Error) << "Solution recorder for unit ID " << unitOpId << " not found";
+			return cdtErrorInvalidInputs;
+		}
+
+		if (nParTypes)
+			*nParTypes = unitRec->numParticleTypes();
+
+		return cdtOK;
+	}
+
 	cdtResult getSolutionInlet(cdtDriver* drv, int unitOpId, double const** time, double const** data, int* nTime, int* nPort, int* nComp)
 	{
 		Driver* const realDrv = drv->driver;
@@ -506,6 +532,7 @@ extern "C"
 		ptr->createDriver = &cadet::api::v1::createDriver;
 		ptr->deleteDriver = &cadet::api::v1::deleteDriver;
 		ptr->runSimulation = &cadet::api::v1::runSimulation;
+		ptr->getNParTypes = &cadet::api::v1::getNParTypes;
 		ptr->getSolutionInlet = &cadet::api::v1::getSolutionInlet;
 		ptr->getSolutionOutlet = &cadet::api::v1::getSolutionOutlet;
 		return cdtOK;
