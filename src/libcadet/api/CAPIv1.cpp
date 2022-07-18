@@ -559,6 +559,51 @@ namespace v1
 		return cdtOK;
 	}
 
+	cdtResult getSolutionParticle(cdtDriver* drv, int unitOpId, int parType, double const** time, double const** data, int* nTime, int* nParShells, int* nAxialCells, int* nRadialCells, int* nComp)
+	{
+		Driver* const realDrv = drv->driver;
+		if (!realDrv)
+			return cdtErrorInvalidInputs;
+
+		InternalStorageSystemRecorder* const sysRec = realDrv->solution();
+		if (!sysRec)
+		{
+			LOG(Error) << "System solution recorder not available";
+			return cdtError;
+		}
+
+		if (nTime)
+			*nTime = sysRec->numDataPoints();
+		if (time)
+			*time = sysRec->time();
+
+		InternalStorageUnitOpRecorder* const unitRec = sysRec->unitOperation(unitOpId);
+		if (!unitRec)
+		{
+			LOG(Error) << "Solution recorder for unit ID " << unitOpId << " not found";
+			return cdtErrorInvalidInputs;
+		}
+
+		if (!unitRec->solutionConfig().storeParticle)
+		{
+			LOG(Error) << "Particle of unit " << unitOpId << " not recorded";
+			return cdtError;
+		}
+
+		if (nParShells)
+			*nParShells = unitRec->numParticleShells(parType);
+		if (nAxialCells)
+			*nAxialCells = unitRec->numAxialCells();
+		if (nRadialCells)
+			*nRadialCells = unitRec->numRadialCells();
+		if (nComp)
+			*nComp = unitRec->numComponents();
+		if (data)
+			*data = unitRec->particle(parType);
+
+		return cdtOK;
+	}
+
 }  // namespace v1
 
 }  // namespace api
@@ -581,6 +626,7 @@ extern "C"
 		ptr->getSolutionInlet = &cadet::api::v1::getSolutionInlet;
 		ptr->getSolutionOutlet = &cadet::api::v1::getSolutionOutlet;
 		ptr->getSolutionBulk = &cadet::api::v1::getSolutionBulk;
+		ptr->getSolutionParticle = &cadet::api::v1::getSolutionParticle;
 		return cdtOK;
 	}
 
