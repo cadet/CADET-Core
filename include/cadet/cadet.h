@@ -469,6 +469,21 @@ extern "C"
 		 */
 		cdtResult (*getSolutionSolid)(cdtDriver* drv, int unitOpId, int parType, double const** time, double const** data, int* nTime, int* nParShells, int* nAxialCells, int* nRadialCells, int* nBound);
 
+		/**
+		 * @brief Returns the solution of the last simulation of the column particle flux
+		 * @details Before this function is called, a simulation has to be run successfully.
+		 *          The array pointers are only valid until a new simulation is started.
+		 * @param [in] drv Driver handle
+		 * @param [in] unitOpId ID of the unit operation whose solution is returned
+		 * @param [out] time Time array pointer
+		 * @param [out] data Data array pointer
+		 * @param [out] nTime Number of time points
+		 * @param [out] nAxialCells Number of axial cells
+		 * @param [out] nRadialCells Number of ports
+		 * @param [out] nComp Number of components
+		 */
+		cdtResult (*getSolutionFlux)(cdtDriver* drv, int unitOpId, double const** time, double const** data, int* nTime, int* nAxialCells, int* nRadialCells, int* nComp);
+
 	} cdtAPIv010000;
 
 	/**
