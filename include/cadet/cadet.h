@@ -383,6 +383,16 @@ extern "C"
 		cdtResult (*runSimulation)(cdtDriver* drv, cdtParameterProvider const* paramProvider);
 
 		/**
+		 * @brief Returns the number of particle types
+		 * @details Before this function is called, a simulation has to be run successfully.
+		 *          The array pointers are only valid until a new simulation is started.
+		 * @param [in] drv Driver handle
+		 * @param [in] unitOpId ID of the unit operation whose solution is returned
+		 * @param [out] nParTypes Number of particle types
+		 */
+		cdtResult (*getNParTypes)(cdtDriver* drv, int unitOpId, int* nParTypes);
+
+		/**
 		 * @brief Returns the solution of the last simulation at unit inlet
 		 * @details Before this function is called, a simulation has to be run successfully.
 		 *          The array pointers are only valid until a new simulation is started.

@@ -452,6 +452,11 @@ public:
 	inline unsigned int numComponents() const CADET_NOEXCEPT { return _nComp; }
 	inline unsigned int numInletPorts() const CADET_NOEXCEPT { return _nInletPorts; }
 	inline unsigned int numOutletPorts() const CADET_NOEXCEPT { return _nOutletPorts; }
+	inline unsigned int numAxialCells() const CADET_NOEXCEPT { return _nAxialCells; }
+	inline unsigned int numRadialCells() const CADET_NOEXCEPT { return _nRadialCells; }
+	inline unsigned int numParticleTypes() const CADET_NOEXCEPT { return _nParShells.size(); }
+	inline unsigned int numParticleShells(unsigned int parType = 0) const CADET_NOEXCEPT { return _nParShells[parType]; }
+	inline unsigned int numBoundStates(unsigned int parType = 0) const CADET_NOEXCEPT { return _nBoundStates[parType]; }
 
 	inline double const* time() const CADET_NOEXCEPT { return _time.data(); }
 	inline double const* inlet() const CADET_NOEXCEPT { return _data.inlet.data(); }
