@@ -388,6 +388,7 @@ extern "C"
 		 *          The array pointers are only valid until a new simulation is started.
 		 * @param [in] drv Driver handle
 		 * @param [in] unitOpId ID of the unit operation whose solution is returned
+		 * @param [in] idx Sensitivity ID
 		 * @param [out] nParTypes Number of particle types
 		 */
 		cdtResult (*getNParTypes)(cdtDriver* drv, int unitOpId, int* nParTypes);
@@ -597,6 +598,225 @@ extern "C"
 		 * @param [out] data Data array pointer
 		 */
 		cdtResult (*getSolutionDerivativeVolume)(cdtDriver* drv, int unitOpId, double const** time, double const** data, int* nTime);
+
+		/**
+		 * @brief Returns the parameter sensitivity of the last simulation at unit inlet
+		 * @details Before this function is called, a simulation has to be run successfully.
+		 *          The array pointers are only valid until a new simulation is started.
+		 * @param [in] drv Driver handle
+		 * @param [in] unitOpId ID of the unit operation whose solution is returned
+		 * @param [out] time Time array pointer
+		 * @param [out] data Data array pointer
+		 * @param [out] nTime Number of time points
+		 * @param [out] nPort Number of ports
+		 * @param [out] nComp Number of components
+		 */
+		cdtResult (*getSensitivityInlet)(cdtDriver* drv, int unitOpId, int idx, double const** time, double const** data, int* nTime, int* nPort, int* nComp);
+
+		/**
+		 * @brief Returns the parameter sensitivity of the last simulation at unit outlet
+		 * @details Before this function is called, a simulation has to be run successfully.
+		 *          The array pointers are only valid until a new simulation is started.
+		 * @param [in] drv Driver handle
+		 * @param [in] unitOpId ID of the unit operation whose solution is returned
+		 * @param [in] idx Sensitivity ID
+		 * @param [out] time Time array pointer
+		 * @param [out] data Data array pointer
+		 * @param [out] nTime Number of time points
+		 * @param [out] nPort Number of ports
+		 * @param [out] nComp Number of components
+		 */
+		cdtResult (*getSensitivityOutlet)(cdtDriver* drv, int unitOpId, int idx, double const** time, double const** data, int* nTime, int* nPort, int* nComp);
+
+		/**
+		 * @brief Returns the parameter sensitivity of the last simulation of the column bulk phase
+		 * @details Before this function is called, a simulation has to be run successfully.
+		 *          The array pointers are only valid until a new simulation is started.
+		 * @param [in] drv Driver handle
+		 * @param [in] unitOpId ID of the unit operation whose solution is returned
+		 * @param [in] idx Sensitivity ID
+		 * @param [out] time Time array pointer
+		 * @param [out] data Data array pointer
+		 * @param [out] nTime Number of time points
+		 * @param [out] nAxialCells Number of axial cells
+		 * @param [out] nRadialCells Number of radial cells
+		 * @param [out] nComp Number of components
+		 */
+		cdtResult (*getSensitivityBulk)(cdtDriver* drv, int unitOpId, int idx, double const** time, double const** data, int* nTime, int* nAxialCells, int* nRadialCells, int* nComp);
+
+		/**
+		 * @brief Returns the parameter sensitivity of the last simulation of the column particle liquid phase
+		 * @details Before this function is called, a simulation has to be run successfully.
+		 *          The array pointers are only valid until a new simulation is started.
+		 * @param [in] drv Driver handle
+		 * @param [in] unitOpId ID of the unit operation whose solution is returned
+		 * @param [in] idx Sensitivity ID
+		 * @param [out] parType Particle type index
+		 * @param [out] time Time array pointer
+		 * @param [out] data Data array pointer
+		 * @param [out] nTime Number of time points
+		 * @param [out] nParShells Number of particle shells
+		 * @param [out] nAxialCells Number of axial cells
+		 * @param [out] nRadialCells Number of ports
+		 * @param [out] nComp Number of components
+		 */
+		cdtResult (*getSensitivityParticle)(cdtDriver* drv, int unitOpId, int idx, int parType, double const** time, double const** data, int* nTime, int* nParShells, int* nAxialCells, int* nRadialCells, int* nComp);
+
+		/**
+		 * @brief Returns the parameter sensitivity of the last simulation of the column particle solid phase
+		 * @details Before this function is called, a simulation has to be run successfully.
+		 *          The array pointers are only valid until a new simulation is started.
+		 * @param [in] drv Driver handle
+		 * @param [in] unitOpId ID of the unit operation whose solution is returned
+		 * @param [in] idx Sensitivity ID
+		 * @param [out] parType Particle type index
+		 * @param [out] time Time array pointer
+		 * @param [out] data Data array pointer
+		 * @param [out] nTime Number of time points
+		 * @param [out] nParShells Number of particle shells
+		 * @param [out] nAxialCells Number of axial cells
+		 * @param [out] nRadialCells Number of ports
+		 * @param [out] nComp Number of components
+		 */
+		cdtResult (*getSensitivitySolid)(cdtDriver* drv, int unitOpId, int idx, int parType, double const** time, double const** data, int* nTime, int* nParShells, int* nAxialCells, int* nRadialCells, int* nBound);
+
+		/**
+		 * @brief Returns the parameter sensitivity of the last simulation of the column particle flux
+		 * @details Before this function is called, a simulation has to be run successfully.
+		 *          The array pointers are only valid until a new simulation is started.
+		 * @param [in] drv Driver handle
+		 * @param [in] unitOpId ID of the unit operation whose solution is returned
+		 * @param [in] idx Sensitivity ID
+		 * @param [out] time Time array pointer
+		 * @param [out] data Data array pointer
+		 * @param [out] nTime Number of time points
+		 * @param [out] nAxialCells Number of axial cells
+		 * @param [out] nRadialCells Number of ports
+		 * @param [out] nComp Number of components
+		 */
+		cdtResult (*getSensitivityFlux)(cdtDriver* drv, int unitOpId, int idx, double const** time, double const** data, int* nTime, int* nAxialCells, int* nRadialCells, int* nComp);
+
+		/**
+		 * @brief Returns the parameter sensitivity of the last simulation of the unit volume
+		 * @details Before this function is called, a simulation has to be run successfully.
+		 *          The array pointers are only valid until a new simulation is started.
+		 * @param [in] drv Driver handle
+		 * @param [in] unitOpId ID of the unit operation whose solution is returned
+		 * @param [in] idx Sensitivity ID
+		 * @param [out] time Time array pointer
+		 * @param [out] data Data array pointer
+		 */
+		cdtResult (*getSensitivityVolume)(cdtDriver* drv, int unitOpId, int idx, double const** time, double const** data, int* nTime);
+
+		/**
+		 * @brief Returns the parameter sensitivity derivative of the last simulation at unit inlet
+		 * @details Before this function is called, a simulation has to be run successfully.
+		 *          The array pointers are only valid until a new simulation is started.
+		 * @param [in] drv Driver handle
+		 * @param [in] unitOpId ID of the unit operation whose solution is returned
+		 * @param [in] idx Sensitivity ID
+		 * @param [out] time Time array pointer
+		 * @param [out] data Data array pointer
+		 * @param [out] nTime Number of time points
+		 * @param [out] nPort Number of ports
+		 * @param [out] nComp Number of components
+		 */
+		cdtResult (*getSensitivityDerivativeInlet)(cdtDriver* drv, int unitOpId, int idx, double const** time, double const** data, int* nTime, int* nPort, int* nComp);
+
+		/**
+		 * @brief Returns the parameter sensitivity derivative of the last simulation at unit outlet
+		 * @details Before this function is called, a simulation has to be run successfully.
+		 *          The array pointers are only valid until a new simulation is started.
+		 * @param [in] drv Driver handle
+		 * @param [in] unitOpId ID of the unit operation whose solution is returned
+		 * @param [in] idx Sensitivity ID
+		 * @param [out] time Time array pointer
+		 * @param [out] data Data array pointer
+		 * @param [out] nTime Number of time points
+		 * @param [out] nPort Number of ports
+		 * @param [out] nComp Number of components
+		 */
+		cdtResult (*getSensitivityDerivativeOutlet)(cdtDriver* drv, int unitOpId, int idx, double const** time, double const** data, int* nTime, int* nPort, int* nComp);
+
+		/**
+		 * @brief Returns the parameter sensitivity derivative of the last simulation of the column bulk phase
+		 * @details Before this function is called, a simulation has to be run successfully.
+		 *          The array pointers are only valid until a new simulation is started.
+		 * @param [in] drv Driver handle
+		 * @param [in] unitOpId ID of the unit operation whose solution is returned
+		 * @param [in] idx Sensitivity ID
+		 * @param [out] time Time array pointer
+		 * @param [out] data Data array pointer
+		 * @param [out] nTime Number of time points
+		 * @param [out] nAxialCells Number of axial cells
+		 * @param [out] nRadialCells Number of radial cells
+		 * @param [out] nComp Number of components
+		 */
+		cdtResult (*getSensitivityDerivativeBulk)(cdtDriver* drv, int unitOpId, int idx, double const** time, double const** data, int* nTime, int* nAxialCells, int* nRadialCells, int* nComp);
+
+		/**
+		 * @brief Returns the parameter sensitivity derivative of the last simulation of the column particle liquid phase
+		 * @details Before this function is called, a simulation has to be run successfully.
+		 *          The array pointers are only valid until a new simulation is started.
+		 * @param [in] drv Driver handle
+		 * @param [in] unitOpId ID of the unit operation whose solution is returned
+		 * @param [in] idx Sensitivity ID
+		 * @param [out] parType Particle type index
+		 * @param [out] time Time array pointer
+		 * @param [out] data Data array pointer
+		 * @param [out] nTime Number of time points
+		 * @param [out] nParShells Number of particle shells
+		 * @param [out] nAxialCells Number of axial cells
+		 * @param [out] nRadialCells Number of ports
+		 * @param [out] nComp Number of components
+		 */
+		cdtResult (*getSensitivityDerivativeParticle)(cdtDriver* drv, int unitOpId, int idx, int parType, double const** time, double const** data, int* nTime, int* nParShells, int* nAxialCells, int* nRadialCells, int* nComp);
+
+		/**
+		 * @brief Returns the parameter sensitivity derivative of the last simulation of the column particle solid phase
+		 * @details Before this function is called, a simulation has to be run successfully.
+		 *          The array pointers are only valid until a new simulation is started.
+		 * @param [in] drv Driver handle
+		 * @param [in] unitOpId ID of the unit operation whose solution is returned
+		 * @param [in] idx Sensitivity ID
+		 * @param [out] parType Particle type index
+		 * @param [out] time Time array pointer
+		 * @param [out] data Data array pointer
+		 * @param [out] nTime Number of time points
+		 * @param [out] nParShells Number of particle shells
+		 * @param [out] nAxialCells Number of axial cells
+		 * @param [out] nRadialCells Number of ports
+		 * @param [out] nComp Number of components
+		 */
+		cdtResult (*getSensitivityDerivativeSolid)(cdtDriver* drv, int unitOpId, int idx, int parType, double const** time, double const** data, int* nTime, int* nParShells, int* nAxialCells, int* nRadialCells, int* nBound);
+
+		/**
+		 * @brief Returns the parameter sensitivity derivative of the last simulation of the column particle flux
+		 * @details Before this function is called, a simulation has to be run successfully.
+		 *          The array pointers are only valid until a new simulation is started.
+		 * @param [in] drv Driver handle
+		 * @param [in] unitOpId ID of the unit operation whose solution is returned
+		 * @param [in] idx Sensitivity ID
+		 * @param [out] time Time array pointer
+		 * @param [out] data Data array pointer
+		 * @param [out] nTime Number of time points
+		 * @param [out] nAxialCells Number of axial cells
+		 * @param [out] nRadialCells Number of ports
+		 * @param [out] nComp Number of components
+		 */
+		cdtResult (*getSensitivityDerivativeFlux)(cdtDriver* drv, int unitOpId, int idx, double const** time, double const** data, int* nTime, int* nAxialCells, int* nRadialCells, int* nComp);
+
+		/**
+		 * @brief Returns the parameter sensitivity derivative of the last simulation of the unit volume
+		 * @details Before this function is called, a simulation has to be run successfully.
+		 *          The array pointers are only valid until a new simulation is started.
+		 * @param [in] drv Driver handle
+		 * @param [in] unitOpId ID of the unit operation whose solution is returned
+		 * @param [in] idx Sensitivity ID
+		 * @param [out] time Time array pointer
+		 * @param [out] data Data array pointer
+		 */
+		cdtResult (*getSensitivityDerivativeVolume)(cdtDriver* drv, int unitOpId, int idx, double const** time, double const** data, int* nTime);
 
 	} cdtAPIv010000;
 
