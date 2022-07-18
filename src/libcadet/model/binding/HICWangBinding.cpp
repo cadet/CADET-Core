@@ -1,7 +1,7 @@
 // =============================================================================
-//  CADET - The Chromatography Analysis and Design Toolkit
+//  CADET
 //
-//  Copyright © 2008-2016: The CADET Authors
+//  Copyright © 2008-2021: The CADET Authors
 //            Please see the AUTHORS and CONTRIBUTORS file.
 //
 //  All rights reserved. This program and the accompanying materials
@@ -11,15 +11,45 @@
 // =============================================================================
 
 #include "model/binding/BindingModelBase.hpp"
-#include "model/binding/ExternalFunctionSupport.hpp"
+#include "model/ExternalFunctionSupport.hpp"
+#include "model/binding/BindingModelMacros.hpp"
+#include "model/binding/RefConcentrationSupport.hpp"
 #include "model/ModelUtils.hpp"
 #include "cadet/Exceptions.hpp"
-#include "ParamReaderHelper.hpp"
+#include "model/Parameters.hpp"
+#include "LocalVector.hpp"
+#include "SimulationTypes.hpp"
 
 #include <functional>
 #include <unordered_map>
 #include <string>
 #include <vector>
+
+/*<codegen>
+{
+	"name": "HICWANGParamHandler",
+	"externalName": "ExtHICWANGParamHandler",
+	"parameters":
+		[
+			{ "type": "ScalarParameter", "varName": "beta0", "confName": "BETA0"},
+			{ "type": "ScalarParameter", "varName": "beta1", "confName": "BETA1"},
+			{ "type": "ScalarComponentDependentParameter", "varName": "kEq", "confName": "KEQ"},
+			{ "type": "ScalarComponentDependentParameter", "varName": "kKin", "confName": "KKIN"},
+			{ "type": "ScalarComponentDependentParameter", "varName": "nu", "confName": "NU"},
+			{ "type": "ScalarComponentDependentParameter", "varName": "qMax", "confName": "QMAX"}
+		]
+}
+</codegen>*/
+
+/* Parameter description
+ ------------------------
+ beta0 = bulk-like ordered water molecules at infinitely diluted salt concentration
+ beta1 = influence of salt concentration on bulk-like ordered water molecules
+ kEq = Equilibrium constant
+ kKin = Kinetic constant
+ nu = Number of binding sites
+ qMax = Maximum binding capacity
+*/
 
 namespace cadet
 {
@@ -27,203 +57,100 @@ namespace cadet
 	namespace model
 	{
 
-		/**
-		* @brief Handles HICWANG binding model parameters that do not depend on external functions
-		*/
-		struct HICWANGParamHandler : public BindingParamHandlerBase
+		inline const char* HICWANGParamHandler::identifier() CADET_NOEXCEPT { return "HICWANG"; }
+
+		inline bool HICWANGParamHandler::validateConfig(unsigned int nComp, unsigned int const* nBoundStates)
 		{
-			static const char* identifier() { return "HICWANG"; }
+			if ((_kEq.size() != _kKin.size()) || (_kEq.size() != _nu.size()) || (_kEq.size() != _qMax.size()) || (_kEq.size() < nComp))
+				throw InvalidParameterException("KEQ, KKIN, NU, and QMAX have to have the same size");
 
-			/**
-			* @brief Reads parameters and verifies them
-			* @details See IBindingModel::configure() for details.
-			* @param [in] paramProvider IParameterProvider used for reading parameters
-			* @param [in] nComp Number of components
-			* @param [in] nBoundStates Array with number of bound states for each component
-			* @return @c true if the parameters were read and validated successfully, otherwise @c false
-			*/
-			inline bool configure(IParameterProvider& paramProvider, unsigned int nComp, unsigned int const* nBoundStates)
-			{
-				beta0 = paramProvider.getDouble("BETA0");
-				beta1 = paramProvider.getDouble("BETA1");
+			return true;
+		}
 
-				readParameterMatrix(kKin, paramProvider, "KKIN", nComp, 1);
-				readParameterMatrix(kEQ, paramProvider, "KEQ", nComp, 1);
-				readParameterMatrix(nu, paramProvider, "NU", nComp, 1);
-				readParameterMatrix(qMax, paramProvider, "QMAX", nComp, 1);
+		inline const char* ExtHICWANGParamHandler::identifier() CADET_NOEXCEPT { return "EXT_HICWANG"; }
 
-				// Check parameters
-				if ((kKin.size() != kEQ.size()) || (kKin.size() != nu.size()) || (kKin.size() != qMax.size()))
-					throw InvalidParameterException("NU, KKIN, KEQ, and QMAX must have the same size");
-
-				return true;
-			}
-
-			/**
-			* @brief Registers all local parameters in a map for further use
-			* @param [in,out] parameters Map in which the parameters are stored
-			* @param [in] unitOpIdx Index of the unit operation used for registering the parameters
-			* @param [in] nComp Number of components
-			* @param [in] nBoundStates Array with number of bound states for each component
-			*/
-			inline void registerParameters(std::unordered_map<ParameterId, active*>& parameters, unsigned int unitOpIdx, unsigned int nComp, unsigned int const* nBoundStates)
-			{
-				registerComponentBoundStateDependentParam(hashString("KKIN"), parameters, kKin, unitOpIdx);
-				registerComponentBoundStateDependentParam(hashString("KEQ"), parameters, kEQ, unitOpIdx);
-				registerComponentBoundStateDependentParam(hashString("NU"), parameters, nu, unitOpIdx);
-				registerComponentBoundStateDependentParam(hashString("QMAX"), parameters, qMax, unitOpIdx);
-
-				parameters[makeParamId(hashString("BETA0"), unitOpIdx, CompIndep, BoundPhaseIndep, ReactionIndep, SectionIndep)] = &beta0;
-				parameters[makeParamId(hashString("BETA1"), unitOpIdx, CompIndep, BoundPhaseIndep, ReactionIndep, SectionIndep)] = &beta1;
-			}
-
-			std::vector<active> nu; //!< NU
-			std::vector<active> kEQ; //!< KEQ
-			std::vector<active> qMax; //!< qMax
-			std::vector<active> kKin; //!< kKIn
-
-			active beta0;
-			active beta1;
-		};
-
-		/**
-		* @brief Handles HICWANG binding model parameters that depend on an external function
-		*/
-		struct ExtHICWANGParamHandler : public ExternalBindingParamHandlerBase
+		inline bool ExtHICWANGParamHandler::validateConfig(unsigned int nComp, unsigned int const* nBoundStates)
 		{
-			static const char* identifier() { return "EXT_HICWANG"; }
+			if ((_kEq.size() != _kKin.size()) || (_kEq.size() != _nu.size()) || (_kEq.size() != _qMax.size()) || (_kEq.size() < nComp))
+				throw InvalidParameterException("KEQ, KKIN, NU, and QMAX have to have the same size");
 
-			/**
-			* @brief Reads parameters and verifies them
-			* @details See IBindingModel::configure() for details.
-			* @param [in] paramProvider IParameterProvider used for reading parameters
-			* @param [in] nComp Number of components
-			* @param [in] nBoundStates Array with number of bound states for each component
-			* @return @c true if the parameters were read and validated successfully, otherwise @c false
-			*/
-			inline bool configure(IParameterProvider& paramProvider, unsigned int nComp, unsigned int const* nBoundStates)
-			{
-				CADET_READPAR_MATRIX(kKin, paramProvider, "KKIN", nComp, 1);
-				CADET_READPAR_MATRIX(kEQ, paramProvider, "KEQ", nComp, 1);
-				CADET_READPAR_MATRIX(nu, paramProvider, "NU", nComp, 1);
-				CADET_READPAR_MATRIX(qMax, paramProvider, "QMAX", nComp, 1);
-
-				CADET_READPAR_SCALAR(beta0, paramProvider, "BETA0");
-				CADET_READPAR_SCALAR(beta1, paramProvider, "BETA1");
-
-				return ExternalBindingParamHandlerBase::configure(paramProvider, 3);
-			}
-
-			/**
-			* @brief Registers all local parameters in a map for further use
-			* @param [in,out] parameters Map in which the parameters are stored
-			* @param [in] unitOpIdx Index of the unit operation used for registering the parameters
-			* @param [in] nComp Number of components
-			* @param [in] nBoundStates Array with number of bound states for each component
-			*/
-			inline void registerParameters(std::unordered_map<ParameterId, active*>& parameters, unsigned int unitOpIdx, unsigned int nComp, unsigned int const* nBoundStates)
-			{
-				CADET_REGPAR_COMPBND_VEC("KKIN", parameters, kKin, unitOpIdx);
-				CADET_REGPAR_COMPBND_VEC("KEQ", parameters, kEQ, unitOpIdx);
-				CADET_REGPAR_COMPBND_VEC("NU", parameters, nu, unitOpIdx);
-				CADET_REGPAR_COMPBND_VEC("QMAX", parameters, qMax, unitOpIdx);
-
-				parameters[makeParamId(hashString("EXT_BETA0"), unitOpIdx, CompIndep, BoundPhaseIndep, ReactionIndep, SectionIndep)] = &beta0;
-				parameters[makeParamId(hashString("EXT_BETA1"), unitOpIdx, CompIndep, BoundPhaseIndep, ReactionIndep, SectionIndep)] = &beta1;
-			}
-
-			/**
-			* @brief Updates local parameter cache in order to take the external profile into account
-			* @details This function is declared const since the actual parameters are left unchanged by the method.
-			*         The cache is marked as mutable in order to make it writable.
-			* @param [in] t Current time
-			* @param [in] z Axial coordinate in the column
-			* @param [in] r Radial coordinate in the bead
-			* @param [in] secIdx Index of the current section
-			* @param [in] nComp Number of components
-			* @param [in] nBoundStates Array with number of bound states for each component
-			*/
-			inline void update(double t, double z, double r, unsigned int secIdx, unsigned int nComp, unsigned int const* nBoundStates) const
-			{
-				evaluateExternalFunctions(t, z, r, secIdx);
-				for (unsigned int i = 0; i < nComp; ++i)
-				{
-					CADET_UPDATE_EXTDEP_VARIABLE_BRACES(kKin, i, _extFunBuffer[0]);
-					CADET_UPDATE_EXTDEP_VARIABLE_BRACES(kEQ, i, _extFunBuffer[1]);
-					CADET_UPDATE_EXTDEP_VARIABLE_BRACES(nu, i, _extFunBuffer[2]);
-					CADET_UPDATE_EXTDEP_VARIABLE_BRACES(qMax, i, _extFunBuffer[3]);
-				}
-				CADET_UPDATE_EXTDEP_VARIABLE(beta0, _extFunBuffer[5]);
-				CADET_UPDATE_EXTDEP_VARIABLE(beta1, _extFunBuffer[6]);
-			}
-
-			CADET_DEFINE_EXTDEP_VARIABLE(std::vector<active>, kKin)
-				CADET_DEFINE_EXTDEP_VARIABLE(std::vector<active>, kEQ)
-				CADET_DEFINE_EXTDEP_VARIABLE(std::vector<active>, nu)
-				CADET_DEFINE_EXTDEP_VARIABLE(std::vector<active>, qMax)
-
-				CADET_DEFINE_EXTDEP_VARIABLE(active, beta0)
-				CADET_DEFINE_EXTDEP_VARIABLE(active, beta1)
-		};
+			return true;
+		}
 
 
 		/**
-		* @brief Defines the multi component HICWANG binding model
-		* @details Implements the HICWANG adsorption model: \f[ \begin{align}
-		*              \frac{\mathrm{d}q_i}{\mathrm{d}t} &= k_{a,i} c_{p,i} q_{\text{max},i} \left( 1 - \sum_j \frac{q_j}{q_{\text{max},j}} \right) - k_{d,i} q_i
-		*          \end{align} \f]
-		*          Multiple bound states are not supported.
-		*          Components without bound state (i.e., non-binding components) are supported.
-		*
-		*          See @cite HICWANG1916.
-		* @tparam ParamHandler_t Type that can add support for external function dependence
-		*/
+		 * @brief Defines the HIC Isotherm as described by Wang et al 2016
+		 * @details Implements the "water on hydrophobic surfaces" model: \f[ \begin{align}
+		 *				\beta&=\beta_0 e^{c_{p,0}\beta_1}\\
+ 		 *				\frac{\mathrm{d}q_i}{\mathrm{d}t} &= k_{eq,i} c_{p,i} \left( 1 - \sum_j \frac{q_j}{q_{max,j}} \right)^{\nu_i} - k_{kin,i} q_i^{1+\nu_i \beta}
+ 		 *			\end{align}  \f]
+		 *          Component @c 0 is assumed to be salt without a bound state. Multiple bound states are not supported.
+		 *          Components without bound state (i.e., salt and non-binding components) are supported.
+		 *
+		 *          See @cite Wang2016.
+		 * @tparam ParamHandler_t Type that can add support for external function dependence
+		 */
 		template <class ParamHandler_t>
-		class HICWANGBindingBase : public PureBindingModelBase
+		class HICWangBase : public ParamHandlerBindingModelBase<ParamHandler_t>
 		{
 		public:
 
-			HICWANGBindingBase() { }
-			virtual ~HICWANGBindingBase() CADET_NOEXCEPT { }
+			HICWangBase() { }
+			virtual ~HICWangBase() CADET_NOEXCEPT { }
 
 			static const char* identifier() { return ParamHandler_t::identifier(); }
-			virtual const char* name() const CADET_NOEXCEPT { return ParamHandler_t::identifier(); }
 
-			virtual void setExternalFunctions(IExternalFunction** extFuns, unsigned int size) { _p.setExternalFunctions(extFuns, size); }
+			virtual bool configureModelDiscretization(IParameterProvider& paramProvider, unsigned int nComp, unsigned int const* nBound, unsigned int const* boundOffset)
+			{
+				const bool res = BindingModelBase::configureModelDiscretization(paramProvider, nComp, nBound, boundOffset);
+
+				// Guarantee that salt has no bound state
+				if (nBound[0] != 0)
+					throw InvalidParameterException("HICWANG binding model requires exactly zero bound states for salt component");
+
+				return res;
+			}
 
 			virtual bool hasSalt() const CADET_NOEXCEPT { return true; }
 			virtual bool supportsMultistate() const CADET_NOEXCEPT { return false; }
 			virtual bool supportsNonBinding() const CADET_NOEXCEPT { return true; }
-			virtual bool hasAlgebraicEquations() const CADET_NOEXCEPT { return !_kineticBinding; }
-			virtual bool dependsOnTime() const CADET_NOEXCEPT { return ParamHandler_t::dependsOnTime(); }
+			virtual bool hasQuasiStationaryReactions() const CADET_NOEXCEPT { return false; }
+			virtual bool implementsAnalyticJacobian() const CADET_NOEXCEPT { return false; }
 
-		CADET_PUREBINDINGMODELBASE_BOILERPLATE
-
-		protected:
-			ParamHandler_t _p; //!< Handles parameters and their dependence on external functions
-
-			virtual bool configureImpl(bool reconfigure, IParameterProvider& paramProvider, unsigned int unitOpIdx)
+			virtual bool preConsistentInitialState(double t, unsigned int secIdx, const ColumnPosition& colPos, double* y, double const* yCp, LinearBufferAllocator workSpace) const
 			{
-				// Read parameters
-				_p.configure(paramProvider, _nComp, _nBoundStates);
-
-				// Register parameters
-				_p.registerParameters(_parameters, unitOpIdx, _nComp, _nBoundStates);
-
+				typename ParamHandler_t::ParamsHandle const p = _paramHandler.update(t, secIdx, colPos, _nComp, _nBoundStates, workSpace);
 				return true;
 			}
 
-			template <typename StateType, typename CpStateType, typename ResidualType, typename ParamType>
-			int residualImpl(const ParamType& t, double z, double r, unsigned int secIdx, const ParamType& timeFactor,
-				StateType const* y, CpStateType const* yCp, double const* yDot, ResidualType* res) const
+			virtual void postConsistentInitialState(double t, unsigned int secIdx, const ColumnPosition& colPos, double* y, double const* yCp, LinearBufferAllocator workSpace) const
 			{
-				_p.update(static_cast<double>(t), z, r, secIdx, _nComp, _nBoundStates);
+				preConsistentInitialState(t, secIdx, colPos, y, yCp, workSpace);
+			}
 
-				auto beta0 = static_cast<ParamType>(_p.beta0);
-				auto beta1 = static_cast<ParamType>(_p.beta1);
+
+			CADET_BINDINGMODELBASE_BOILERPLATE
+
+		protected:
+			using ParamHandlerBindingModelBase<ParamHandler_t>::_paramHandler;
+			using ParamHandlerBindingModelBase<ParamHandler_t>::_reactionQuasistationarity;
+			using ParamHandlerBindingModelBase<ParamHandler_t>::_nComp;
+			using ParamHandlerBindingModelBase<ParamHandler_t>::_nBoundStates;
+
+			template <typename StateType, typename CpStateType, typename ResidualType, typename ParamType>
+			int fluxImpl(double t, unsigned int secIdx, const ColumnPosition& colPos, StateType const* y,
+				CpStateType const* yCp, ResidualType* res, LinearBufferAllocator workSpace) const
+			{
+				using CpStateParamTypeParamType = typename DoubleActivePromoter<CpStateType, ParamType>::type;
+				using StateParamType = typename DoubleActivePromoter<StateType, ParamType>::type;
+
+				typename ParamHandler_t::ParamsHandle const _p = _paramHandler.update(t, secIdx, colPos, _nComp, _nBoundStates, workSpace);
+
+
+				auto beta0 = static_cast<ParamType>(_p->beta0);
+				auto beta1 = static_cast<ParamType>(_p->beta1);
 
 				auto beta = static_cast<ParamType>(beta0 * exp(beta1 * yCp[0]));
-				//LOG(Debug) << "beta\t" << beta;
 
 				ResidualType qSum = 1.0;
 				ResidualType qProd = 0.0;
@@ -235,8 +162,7 @@ namespace cadet
 						continue;
 
 					auto q = static_cast<ParamType>(y[bndIdx]);
-					qSum -= y[bndIdx] / static_cast<ParamType>(_p.qMax[i]);
-					//LOG(Debug) << "y[bndIdx]\t" << y[bndIdx];
+					qSum -= y[bndIdx] / static_cast<ParamType>(_p->qMax[i]);
 
 					if (q < 0)
 					{
@@ -244,14 +170,11 @@ namespace cadet
 					}
 					else
 					{
-						qProd += pow(q, static_cast<ParamType>(_p.nu[i])*beta);
+						qProd += pow(q, static_cast<ParamType>(_p->nu[i]) * beta);
 					}
 					// Next bound component
 					++bndIdx;
 				}
-
-				//LOG(Debug) << "qSum\t" << qSum;
-				//LOG(Debug) << "qProd\t" << qProd;
 
 				bndIdx = 0;
 
@@ -260,24 +183,18 @@ namespace cadet
 					// Skip components without bound states (bound state index bndIdx is not advanced)
 					if (_nBoundStates[i] == 0)
 						continue;
-					auto qMax = static_cast<ParamType>(_p.qMax[i]);
-					auto kKin = static_cast<ParamType>(_p.kKin[i]);
-					auto kEQ = static_cast<ParamType>(_p.kEQ[i]);
-					auto nu = static_cast<ParamType>(_p.nu[i]);
+					auto qMax = static_cast<ParamType>(_p->qMax[i]);
+					auto kKin = static_cast<ParamType>(_p->kKin[i]);
+					auto kEq = static_cast<ParamType>(_p->kEq[i]);
+					auto nu = static_cast<ParamType>(_p->nu[i]);
 
 					if (y[bndIdx] < 0 || yCp[i] < 0)
 					{
-						res[bndIdx] = kKin * kEQ * yCp[i] * (nu*y[bndIdx]/qMax-1);
+						res[bndIdx] = kKin * kEq * yCp[i] * (nu * y[bndIdx] / qMax - 1);
 					}
 					else
 					{
-						res[bndIdx] = kKin * (y[bndIdx] * static_cast<ParamType>(qProd) - kEQ * static_cast<ParamType>(pow(qSum, nu)) * yCp[i]);
-					}
-
-					// Add time derivative if necessary
-					if (_kineticBinding && yDot)
-					{
-						res[bndIdx] += timeFactor * yDot[bndIdx];
+						res[bndIdx] = kKin * (y[bndIdx] * static_cast<ParamType>(qProd) - kEq * static_cast<ParamType>(pow(qSum, nu)) * yCp[i]);
 					}
 
 					// Next bound component
@@ -288,21 +205,22 @@ namespace cadet
 			}
 
 			template <typename RowIterator>
-			void jacobianImpl(double t, double z, double r, unsigned int secIdx, double const* y, double const* yCp, RowIterator jac) const
+			void jacobianImpl(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, double const* yCp, int offsetCp, RowIterator jac, LinearBufferAllocator workSpace) const
 			{
 
 			}
 		};
 
-		typedef HICWANGBindingBase<HICWANGParamHandler> HICWANGBinding;
-		typedef HICWANGBindingBase<ExtHICWANGParamHandler> ExternalHICWANGBinding;
+
+		typedef HICWangBase<HICWANGParamHandler> HICWang;
+		typedef HICWangBase<ExtHICWANGParamHandler> ExternalHICWang;
 
 		namespace binding
 		{
-			void registerHICWANGModel(std::unordered_map<std::string, std::function<model::IBindingModel*()>>& bindings)
+			void registerHICWangModel(std::unordered_map<std::string, std::function<model::IBindingModel* ()>>& bindings)
 			{
-				bindings[HICWANGBinding::identifier()] = []() { return new HICWANGBinding(); };
-				bindings[ExternalHICWANGBinding::identifier()] = []() { return new ExternalHICWANGBinding(); };
+				bindings[HICWang::identifier()] = []() { return new HICWang(); };
+				bindings[ExternalHICWang::identifier()] = []() { return new ExternalHICWang(); };
 			}
 		}  // namespace binding
 
