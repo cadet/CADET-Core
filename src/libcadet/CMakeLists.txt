@@ -284,7 +284,7 @@ if (ENABLE_CADET_MEX)
 	endif()
 
 	# Add the build target for the mex nonlinalg library
-	add_library(libcadet_nonlinalg_mex STATIC ${LIBCADET_NONLINALG_SOURCES} ${LIBCADET_NONLINALG_MEX_SOURCES} "model/binding/LangmuirLDFCBinding.cpp")
+	add_library(libcadet_nonlinalg_mex STATIC ${LIBCADET_NONLINALG_SOURCES} ${LIBCADET_NONLINALG_MEX_SOURCES})
 	set_target_properties(libcadet_nonlinalg_mex PROPERTIES 
 		OUTPUT_NAME cadet_nonlinalg_mex
 		LINK_SEARCH_START_STATIC ON
@@ -313,7 +313,7 @@ if (ENABLE_CADET_MEX)
 	endif()
 
 	# Add the build target for the mex CADET library
-	add_library(libcadet_mex STATIC ${LIBCADET_SOURCES} "model/binding/LangmuirLDFCBinding.cpp")
+	add_library(libcadet_mex STATIC ${LIBCADET_SOURCES})
 	set_target_properties(libcadet_mex PROPERTIES 
 		OUTPUT_NAME cadet_mex
 		LINK_SEARCH_START_STATIC ON
