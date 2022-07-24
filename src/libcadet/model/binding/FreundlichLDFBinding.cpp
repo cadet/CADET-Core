@@ -97,7 +97,7 @@ namespace cadet
 			using ParamHandlerBindingModelBase<ParamHandler_t>::_nComp;
 			using ParamHandlerBindingModelBase<ParamHandler_t>::_nBoundStates;
 
-			active const threshold = 1e-14;
+			const double threshold = 1e-14;
 			
 			template <typename StateType, typename CpStateType, typename ResidualType, typename ParamType>
 			int fluxImpl(double t, unsigned int secIdx, const ColumnPosition& colPos, StateType const* y,
@@ -159,8 +159,8 @@ namespace cadet
 					const double kF = static_cast<double>(p->kF[i]);
 					const double kkin = static_cast<double>(p->kkin[i]);
 
-					double const alpha_1 = ((2 * n_param - 1) / n_param) * kF * pow((double)threshold, (1 - n_param) / (n_param));
-					double const alpha_2 = ((1 - n_param) / n_param) * kF * pow((double)threshold, (1 - 2 * n_param) / (n_param));
+					double const alpha_1 = ((2 * n_param - 1) / n_param) * kF * pow(threshold, (1 - n_param) / (n_param));
+					double const alpha_2 = ((1 - n_param) / n_param) * kF * pow(threshold, (1 - 2 * n_param) / (n_param));
 
 					jac[0] = static_cast<double>(p->kkin[i]);
 					// dres / dc_{p,i}
@@ -170,7 +170,7 @@ namespace cadet
 						if (abs((double)yCp[i]) < threshold)
 							jac[i - bndIdx - offsetCp] = -alpha_1 - 2 * alpha_2 * yCp[i];
 						else
-							jac[i - bndIdx - offsetCp] = -(1.0 / n_param) * kkin * kF * pow(std::abs((double)yCp[i]), (1.0 - n_param) / n_param);
+							jac[i - bndIdx - offsetCp] = -(1.0 / n_param) * kkin * kF * pow(abs((double)yCp[i]), (1.0 - n_param) / n_param);
 					}
 					else
 					{
