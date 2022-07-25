@@ -1,0 +1,137 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+
+jobs:
+  Ubuntu-latest:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: true
+    defaults:
+      run:
+        shell: bash -l {0}
+    env:
+      SRC_DIR: ${{ github.workspace }}/src
+      BUILD_DIR: ${{ github.workspace }}/build
+      INSTALL_PREFIX: ${{ github.workspace }}/install
+      BUILD_TYPE: Release
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: true
+          path: src
+      - name: Install Dependencies
+        run: |
+          sudo apt -y install \
+            build-essential \
+            libhdf5-dev \
+            liblapack-dev \
+            libblas-dev \
+            libtbb-dev \
+            libsuperlu-dev \
+            libeigen3-dev;
+      - name: Build and Install
+        run: |
+          cmake -E make_directory "${BUILD_DIR}"
+          cmake -E make_directory "${INSTALL_PREFIX}"
+          cd "${BUILD_DIR}"
+          cmake -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" -DCMAKE_BUILD_TYPE="${BUILD_TYPE}" "${SRC_DIR}"
+          make install -j 1
+      - name: Check if it runs
+        run: |
+          ${INSTALL_PREFIX}/bin/cadet-cli --version || true
+          ${INSTALL_PREFIX}/bin/createLWE
+          ${INSTALL_PREFIX}/bin/cadet-cli LWE.h5 || true
+  Win64:
+    runs-on: windows-latest
+    strategy:
+      fail-fast: true
+    defaults:
+      run:
+        shell: msys2 {0}
+    env:
+      SRC_DIR: ${{ github.workspace }}/src
+      BUILD_DIR: ${{ github.workspace }}/build
+      INSTALL_PREFIX: ${{ github.workspace }}/install
+      BUILD_TYPE: Release
+      CC: "cl"
+      CXX: "cl"
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: true
+          path: src
+      - name: Install Dependencies
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: mingw64
+          install: >-
+            base-devel
+            git
+          pacboy: >-
+            cmake:p
+            hdf5:p
+            openblas:p
+            lapack:p
+            tbb:p
+            suitesparse:p
+            eigen3:p
+          update: true
+      - uses: ilammy/msvc-dev-cmd@v1
+      - name: Build and Install
+        run: |
+          cmake -E make_directory "${BUILD_DIR}"
+          cmake -E make_directory "${INSTALL_PREFIX}"
+          cd "${BUILD_DIR}"
+          cmake -G "NMake Makefiles" -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" -DCMAKE_BUILD_TYPE="${BUILD_TYPE}" -DENABLE_CADET_MEX=OFF "${SRC_DIR}"
+          nmake
+          nmake install
+      - name: Check if it runs
+        run: |
+          ${INSTALL_PREFIX}/bin/cadet-cli.exe --version || true
+          ${INSTALL_PREFIX}/bin/createLWE.exe
+          ${INSTALL_PREFIX}/bin/cadet-cli.exe LWE.h5 || true
+  macOS:
+    runs-on: macos-latest
+    strategy:
+      fail-fast: true
+    defaults:
+      run:
+        shell: bash -l {0}
+    env:
+      SRC_DIR: ${{ github.workspace }}/src
+      BUILD_DIR: ${{ github.workspace }}/build
+      INSTALL_PREFIX: ${{ github.workspace }}/install
+      BUILD_TYPE: Release
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: true
+          path: src
+      - name: Install Dependencies
+        run: |
+          brew update > /dev/null || true
+          brew install cmake --without-docs
+          brew install openblas
+          brew install hdf5
+          brew install tbb
+          brew install eigen
+      - name: Build and Install
+        run: |
+          cmake -E make_directory "${BUILD_DIR}"
+          cmake -E make_directory "${INSTALL_PREFIX}"
+          cd "${BUILD_DIR}"
+          cmake -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" -DCMAKE_BUILD_TYPE="${BUILD_TYPE}" "${SRC_DIR}"
+          make install -j 1
+      - name: Check if it runs
+        run: |
+          ${INSTALL_PREFIX}/bin/cadet-cli --version || true
+          ${INSTALL_PREFIX}/bin/createLWE
+          ${INSTALL_PREFIX}/bin/cadet-cli LWE.h5 || true
+
