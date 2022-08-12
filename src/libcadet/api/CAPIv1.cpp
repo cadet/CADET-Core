@@ -15,7 +15,6 @@
 #include "common/CompilerSpecific.hpp"
 #include "cadet/ParameterProvider.hpp"
 #include "cadet/Exceptions.hpp"
-
 #include "LoggingUtils.hpp"
 #include "Logging.hpp"
 
