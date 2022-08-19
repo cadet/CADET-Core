@@ -45,8 +45,8 @@
  ------------------------
  beta0 = bulk-like ordered water molecules at infinitely diluted salt concentration
  beta1 = influence of salt concentration on bulk-like ordered water molecules
- kA = Equilibrium constant
- kD = Kinetic constant
+ kA = Adsorption constant
+ kD = Desorption constant
  nu = Number of binding sites
  qMax = Maximum binding capacity
 */
@@ -79,15 +79,15 @@ namespace cadet
 
 
 		/**
-		 * @brief Defines the XXXXXX
-		 * @details Implements the steric mass action adsorption model: \f[ \begin{align}
-		 *              q_0 &= \Lambda - \sum_{j} \nu_j q_j \\
-		 *              \frac{\mathrm{d}q_i}{\mathrm{d}t} &= k_{a,i} c_{p,i} \left( \Lambda - \sum_j\left( \nu_j + \sigma_j \right) q_j \right)^{\nu_i} - k_{d,i} q_i c_{p,0}^{\nu_i}
-		 *          \end{align} \f]
-		 *          Component @c 0 is assumed to be salt. Multiple bound states are not supported.
-		 *          Components without bound state (i.e., non-binding components) are supported.
+		 * @brief Defines the HIC Isotherm assuming a constant water activity as described by Jäpel and Buyel 2022
+		 * @details Implements the the HIC Isotherm assuming a constant water activity: \f[ \begin{align}
+		 *				\beta&=\beta_0 e^{c_{p,0}\beta_1}\\
+		 *				\frac{\mathrm{d}q_i}{\mathrm{d}t} &= k_{a,i} c_{p,i} \left( 1 - \sum_j \frac{q_j}{q_{max,j}} \right)^{\nu_i} - k_{d,i} q_i 0.1^{\nu_i \beta}
+		 *			\end{align}  \f]
+		 *          Component @c 0 is assumed to be salt without a bound state. Multiple bound states are not supported.
+		 *          Components without bound state (i.e., salt and non-binding components) are supported.
 		 *
-		 *          See @cite Brooks1992.
+		 *          See @cite Jäpel and Buyel 2022.
 		 * @tparam ParamHandler_t Type that can add support for external function dependence
 		 */
 		template <class ParamHandler_t>
