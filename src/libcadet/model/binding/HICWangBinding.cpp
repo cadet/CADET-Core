@@ -31,12 +31,12 @@
 	"externalName": "ExtHICWANGParamHandler",
 	"parameters":
 		[
-			{ "type": "ScalarParameter", "varName": "beta0", "confName": "BETA0"},
-			{ "type": "ScalarParameter", "varName": "beta1", "confName": "BETA1"},
-			{ "type": "ScalarComponentDependentParameter", "varName": "kEq", "confName": "KEQ"},
-			{ "type": "ScalarComponentDependentParameter", "varName": "kKin", "confName": "KKIN"},
-			{ "type": "ScalarComponentDependentParameter", "varName": "nu", "confName": "NU"},
-			{ "type": "ScalarComponentDependentParameter", "varName": "qMax", "confName": "QMAX"}
+			{ "type": "ScalarParameter", "varName": "beta0", "confName": "WANG_BETA0"},
+			{ "type": "ScalarParameter", "varName": "beta1", "confName": "WANG_BETA1"},
+			{ "type": "ScalarComponentDependentParameter", "varName": "kA", "confName": "WANG_KA"},
+			{ "type": "ScalarComponentDependentParameter", "varName": "kD", "confName": "WANG_KD"},
+			{ "type": "ScalarComponentDependentParameter", "varName": "nu", "confName": "WANG_NU"},
+			{ "type": "ScalarComponentDependentParameter", "varName": "qMax", "confName": "WANG_QMAX"}
 		]
 }
 </codegen>*/
@@ -45,8 +45,8 @@
  ------------------------
  beta0 = bulk-like ordered water molecules at infinitely diluted salt concentration
  beta1 = influence of salt concentration on bulk-like ordered water molecules
- kEq = Equilibrium constant
- kKin = Kinetic constant
+ kA = Adsorption constant
+ kD = Desorption constant
  nu = Number of binding sites
  qMax = Maximum binding capacity
 */
@@ -61,8 +61,8 @@ namespace cadet
 
 		inline bool HICWANGParamHandler::validateConfig(unsigned int nComp, unsigned int const* nBoundStates)
 		{
-			if ((_kEq.size() != _kKin.size()) || (_kEq.size() != _nu.size()) || (_kEq.size() != _qMax.size()) || (_kEq.size() < nComp))
-				throw InvalidParameterException("KEQ, KKIN, NU, and QMAX have to have the same size");
+			if ((_kA.size() != _kD.size()) || (_kA.size() != _nu.size()) || (_kA.size() != _qMax.size()) || (_kA.size() < nComp))
+				throw InvalidParameterException("WANG_KA, WANG_KD, WANG_NU, and WANG_QMAX have to have the same size");
 
 			return true;
 		}
@@ -71,8 +71,8 @@ namespace cadet
 
 		inline bool ExtHICWANGParamHandler::validateConfig(unsigned int nComp, unsigned int const* nBoundStates)
 		{
-			if ((_kEq.size() != _kKin.size()) || (_kEq.size() != _nu.size()) || (_kEq.size() != _qMax.size()) || (_kEq.size() < nComp))
-				throw InvalidParameterException("KEQ, KKIN, NU, and QMAX have to have the same size");
+			if ((_kA.size() != _kD.size()) || (_kA.size() != _nu.size()) || (_kA.size() != _qMax.size()) || (_kA.size() < nComp))
+				throw InvalidParameterException("WANG_KA, WANG_KD, WANG_NU, and WANG_QMAX have to have the same size");
 
 			return true;
 		}
@@ -82,8 +82,8 @@ namespace cadet
 		 * @brief Defines the HIC Isotherm as described by Wang et al 2016
 		 * @details Implements the "water on hydrophobic surfaces" model: \f[ \begin{align}
 		 *				\beta&=\beta_0 e^{c_{p,0}\beta_1}\\
- 		 *				\frac{\mathrm{d}q_i}{\mathrm{d}t} &= k_{eq,i} c_{p,i} \left( 1 - \sum_j \frac{q_j}{q_{max,j}} \right)^{\nu_i} - k_{kin,i} q_i^{1+\nu_i \beta}
- 		 *			\end{align}  \f]
+		 *				\frac{\mathrm{d}q_i}{\mathrm{d}t} &= k_{a,i} c_{p,i} \left( 1 - \sum_j \frac{q_j}{q_{max,j}} \right)^{\nu_i} - k_{d,i} q_i^{1+\nu_i \beta}
+		 *			\end{align}  \f]
 		 *          Component @c 0 is assumed to be salt without a bound state. Multiple bound states are not supported.
 		 *          Components without bound state (i.e., salt and non-binding components) are supported.
 		 *
@@ -115,7 +115,7 @@ namespace cadet
 			virtual bool supportsMultistate() const CADET_NOEXCEPT { return false; }
 			virtual bool supportsNonBinding() const CADET_NOEXCEPT { return true; }
 			virtual bool hasQuasiStationaryReactions() const CADET_NOEXCEPT { return false; }
-			virtual bool implementsAnalyticJacobian() const CADET_NOEXCEPT { return false; }
+			virtual bool implementsAnalyticJacobian() const CADET_NOEXCEPT { return true; }
 
 			virtual bool preConsistentInitialState(double t, unsigned int secIdx, const ColumnPosition& colPos, double* y, double const* yCp, LinearBufferAllocator workSpace) const
 			{
@@ -162,15 +162,11 @@ namespace cadet
 						continue;
 
 					auto q = static_cast<ParamType>(y[bndIdx]);
-					qSum -= y[bndIdx] / static_cast<ParamType>(_p->qMax[i]);
 
-					if (q < 0)
-					{
-						q = 0.0;
-					}
-					else
+					if (q > 0)
 					{
 						qProd += pow(q, static_cast<ParamType>(_p->nu[i]) * beta);
+						qSum -= y[bndIdx] / static_cast<ParamType>(_p->qMax[i]);
 					}
 					// Next bound component
 					++bndIdx;
@@ -184,17 +180,18 @@ namespace cadet
 					if (_nBoundStates[i] == 0)
 						continue;
 					auto qMax = static_cast<ParamType>(_p->qMax[i]);
-					auto kKin = static_cast<ParamType>(_p->kKin[i]);
-					auto kEq = static_cast<ParamType>(_p->kEq[i]);
+					auto kD = static_cast<ParamType>(_p->kD[i]);
+					auto kA = static_cast<ParamType>(_p->kA[i]);
 					auto nu = static_cast<ParamType>(_p->nu[i]);
 
+					// If q or c go below zero use Taylor series approximation
 					if (y[bndIdx] < 0 || yCp[i] < 0)
 					{
-						res[bndIdx] = kKin * kEq * yCp[i] * (nu * y[bndIdx] / qMax - 1);
+						res[bndIdx] = kA * yCp[i] * (nu * y[bndIdx] / qMax - 1);
 					}
 					else
 					{
-						res[bndIdx] = kKin * (y[bndIdx] * static_cast<ParamType>(qProd) - kEq * static_cast<ParamType>(pow(qSum, nu)) * yCp[i]);
+						res[bndIdx] = kD * y[bndIdx] * static_cast<ParamType>(qProd) - kA * static_cast<ParamType>(pow(qSum, nu)) * yCp[i];
 					}
 
 					// Next bound component
@@ -208,9 +205,115 @@ namespace cadet
 			void jacobianImpl(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, double const* yCp, int offsetCp, RowIterator jac, LinearBufferAllocator workSpace) const
 			{
 
-			}
-		};
+				typename ParamHandler_t::ParamsHandle const _p = _paramHandler.update(t, secIdx, colPos, _nComp, _nBoundStates, workSpace);
 
+				auto beta0 = static_cast<double>(_p->beta0);
+				auto beta1 = static_cast<double>(_p->beta1);
+
+				auto beta = static_cast<double>(beta0 * exp(beta1 * yCp[0]));
+
+				double qSum = 1.0;
+				double qProd = 0.0;
+				double qProd_deriv = 0.0;
+
+				unsigned int bndIdx = 0;
+				for (int i = 0; i < _nComp; ++i)
+				{
+					// Skip components without bound states (bound state index bndIdx is not advanced)
+					if (_nBoundStates[i] == 0)
+						continue;
+
+					auto q_i = static_cast<double>(y[bndIdx]);
+
+					if (q_i > 0)
+					{
+						double nu_i = static_cast<double>(_p->nu[i]);
+						qProd += pow(q_i, nu_i * beta);
+						qProd_deriv += pow(q_i, nu_i * beta) * std::log(q_i) * nu_i * beta * beta1;
+
+						qSum -= q_i / static_cast<double>(_p->qMax[i]);
+					}
+
+					// Next bound component
+					++bndIdx;
+				}
+
+
+				bndIdx = 0;
+				for (int i = 0; i < _nComp; ++i)
+				{
+
+					// Skip components without bound states (bound state index bndIdx is not advanced)
+					if (_nBoundStates[i] == 0)
+						continue;
+
+					const double kA = static_cast<double>(_p->kA[i]);
+					const double kD = static_cast<double>(_p->kD[i]);
+					const double nu = static_cast<double>(_p->nu[i]);
+					const double qMax = static_cast<double>(_p->qMax[i]);
+
+					// dres_i / dc_{p,0}					
+					if (y[bndIdx] < 0 || yCp[i] < 0)
+					{
+					    // if c or q are below zero the jacobian is computed for the Taylor series defined above
+						jac[-bndIdx - offsetCp] = 0;
+					}
+					else
+					{
+						jac[-bndIdx - offsetCp] = kD * y[bndIdx] * qProd_deriv;
+					}
+
+					// dres_i / dc_{p,i}
+					if (y[bndIdx] < 0 || yCp[i] < 0)
+					{
+					    // if c or q are below zero the jacobian is computed for the Taylor series defined above
+						jac[i - bndIdx - offsetCp] = kA * (nu * y[bndIdx] / qMax - 1);
+					}
+					else
+					{
+						jac[i - bndIdx - offsetCp] = -kA * static_cast<double>(pow(qSum, nu));
+					}
+
+					// Getting to c_{p,i}: -bndIdx takes us to q_0, another -offsetCp to c_{p,0} and a +i to c_{p,i}.
+					//                     This means jac[i - bndIdx - offsetCp] corresponds to c_{p,i}.
+
+					// Fill dres_i / dq_j
+					int bndIdx2 = 0;
+					for (int j = 1; j < _nComp; ++j)
+					{
+						// Skip components without bound states (bound state index bndIdx is not advanced)
+						if (_nBoundStates[j] == 0)
+							continue;
+
+						// Skip calculating dres_i / dq_i, which is calculated below
+						if (bndIdx == bndIdx2)
+							++bndIdx2;
+						continue;
+
+						// dres_i / dq_j
+						jac[bndIdx2 - bndIdx] = -kA * yCp[i] * nu * static_cast<double>(pow(qSum, nu - 1)) / (-static_cast<double>(_p->qMax[j]));
+						// Getting to q_j: -bndIdx takes us to q_0, another +bndIdx2 to q_j. This means jac[bndIdx2 - bndIdx] corresponds to q_j.
+
+						++bndIdx2;
+					}
+
+					// Add to dres_i / dq_i
+					if (y[bndIdx] < 0 || yCp[i] < 0)
+					{
+					    // if c or q are below zero the jacobian is computed for the Taylor series defined above
+						jac[0] += kA * yCp[i] * nu / qMax;
+					}
+					else
+					{
+						jac[0] += kD * qProd * (1 + nu * beta);
+					}
+
+					// Advance to next flux and Jacobian row
+					++bndIdx;
+					++jac;
+				}
+			};
+		};
 
 		typedef HICWangBase<HICWANGParamHandler> HICWang;
 		typedef HICWangBase<ExtHICWANGParamHandler> ExternalHICWang;
