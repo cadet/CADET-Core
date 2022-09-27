@@ -8,10 +8,10 @@ Input Group
 
     system
     unit_operations/index
-    flux_reconstruction
-    consistent_initialization
     binding/index
     reactions
+    flux_reconstruction
+    consistent_initialization
     return_data
     sensitivities
     solver
