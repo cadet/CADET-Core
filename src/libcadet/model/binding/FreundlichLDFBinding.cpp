@@ -103,6 +103,7 @@ namespace cadet
 			int fluxImpl(double t, unsigned int secIdx, const ColumnPosition& colPos, StateType const* y,
 				CpStateType const* yCp, ResidualType* res, LinearBufferAllocator workSpace) const
 			{
+				using std::abs;
 				typename ParamHandler_t::ParamsHandle const p = _paramHandler.update(t, secIdx, colPos, _nComp, _nBoundStates, workSpace);
 
 				/* Protein Flux: dq/dt = k_kin * (q* – q) with
@@ -115,24 +116,24 @@ namespace cadet
 					// Skip components without bound states (bound state index bndIdx is not advanced)
 					if (_nBoundStates[i] == 0)
 						continue;
-					const ParamType& n_param = static_cast<ParamType>(p->n[i]);
-					const ParamType& kF = static_cast<ParamType>(p->kF[i]);
-					const ParamType& kkin = static_cast<ParamType>(p->kkin[i]);
+					const ParamType n_param = static_cast<ParamType>(p->n[i]);
+					const ParamType kF = static_cast<ParamType>(p->kF[i]);
+					const ParamType kkin = static_cast<ParamType>(p->kkin[i]);
 					
-					const double alpha_1 = (double)(((2 * n_param - 1) / n_param) * kF * pow(threshold, (1 - n_param) / n_param));
-					const double alpha_2 = (double)(((1 - n_param) / n_param) * kF * pow(threshold, (1 - 2 * n_param) / n_param));
+					const ParamType alpha_1 = (((2 * n_param - 1) / n_param) * kF * pow(threshold, (1 - n_param) / n_param));
+					const ParamType alpha_2 = (((1 - n_param) / n_param) * kF * pow(threshold, (1 - 2 * n_param) / n_param));
 
 					// Residual
 					if (n_param > 1)
 					{
 						if (abs(yCp[i]) < threshold)
-							res[bndIdx] = kkin * (y[bndIdx] - kkin* alpha_1 * yCp[i] - alpha_2 * pow((double)yCp[i], 2));
+							res[bndIdx] = kkin * (y[bndIdx] - kkin* alpha_1 * yCp[i] - alpha_2 * yCp[i] * yCp[i]);
 						else
-							res[bndIdx] = kkin * (y[bndIdx] -  kF * pow(abs((double)yCp[i]), 1.0 / n_param));
+							res[bndIdx] = kkin * (y[bndIdx] -  kF * pow(abs(yCp[i]), 1.0 / n_param));
 					}
 					else
 					{
-						res[bndIdx] = kkin * (y[bndIdx] -  kF * pow(abs((double)yCp[i]), 1.0 / n_param));
+						res[bndIdx] = kkin * (y[bndIdx] -  kF * pow(abs(yCp[i]), 1.0 / n_param));
 					}
 
 
@@ -147,6 +148,7 @@ namespace cadet
 			void jacobianImpl(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, double const* yCp, int offsetCp, RowIterator jac, LinearBufferAllocator workSpace) const
 			{
 				typename ParamHandler_t::ParamsHandle const p = _paramHandler.update(t, secIdx, colPos, _nComp, _nBoundStates, workSpace);
+				using std::abs;
 
 				int bndIdx = 0;
 				for (int i = 0; i < _nComp; ++i)
@@ -167,14 +169,14 @@ namespace cadet
 					// This isotherm is non-differentiable at yCp = 0 so following segment of code deals with mitigating this issue.
 					if (n_param > 1)
 					{
-						if (abs((double)yCp[i]) < threshold)
+						if (abs(yCp[i]) < threshold)
 							jac[i - bndIdx - offsetCp] = -alpha_1 - 2 * alpha_2 * yCp[i];
 						else
-							jac[i - bndIdx - offsetCp] = -(1.0 / n_param) * kkin * kF * pow(abs((double)yCp[i]), (1.0 - n_param) / n_param);
+							jac[i - bndIdx - offsetCp] = -(1.0 / n_param) * kkin * kF * pow(abs(yCp[i]), (1.0 - n_param) / n_param);
 					}
 					else
 					{
-						jac[i - bndIdx - offsetCp] = -(1.0 / n_param) * kkin * kF * pow(abs((double)yCp[i]), (1.0 - n_param) / n_param);
+						jac[i - bndIdx - offsetCp] = -(1.0 / n_param) * kkin * kF * pow(abs(yCp[i]), (1.0 - n_param) / n_param);
 					}
 
 					// The distance from liquid phase to solid phase is reduced for each non-binding component

@@ -179,7 +179,7 @@ protected:
 				continue;
 
 			// Residual
-			res[bndIdx] = -static_cast<ParamType>(p->kkin[i]) * (yCp[bndIdx] - ( y[bndIdx] / (static_cast<ParamType>(p->keq[i]) * static_cast<ParamType>(p->qMax[i]) * qSum) ));
+			res[bndIdx] = -static_cast<ParamType>(p->kkin[i]) * (yCp[bndIdx] - ( y[bndIdx] / (static_cast<ParamType>(p->keq[i]) * static_cast<ParamType>(p->qMax[i]) - qSum) ));
 
 			// Next bound component
 			++bndIdx;
