@@ -318,10 +318,10 @@ void HDF5Writer::writeWork(const std::string& dataSetName, hid_t memType, hid_t 
 	{
 		// Create strided memory data space
 		const hsize_t clampedStride = (stride < 1) ? 1 : stride;
-		const hsize_t numElem = H5Sget_simple_extent_npoints(dataSpace);
+		const hsize_t numElem = H5Sget_simple_extent_npoints(dataSpace) / blockSize;
 
 		// We need the actual array size (not just the number of elements to be written)
-		const hsize_t spaceExtent = numElem * clampedStride;
+		const hsize_t spaceExtent = numElem * (clampedStride + blockSize);
 		const hid_t memSpace = H5Screate_simple(1, &spaceExtent, nullptr);
 
 		const hsize_t start = 0;
