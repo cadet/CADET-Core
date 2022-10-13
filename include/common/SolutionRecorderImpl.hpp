@@ -591,7 +591,7 @@ protected:
 						else
 							oss << prefix << "_OUTLET_PORT_" << std::setfill('0') << std::setw(3) << std::setprecision(0) << port;
 
-						writer.template matrix<double>(oss.str(), _numTimesteps, _nComp, _curStorage->outlet.data() + port * _nComp, _nOutletPorts, _nComp);
+						writer.template matrix<double>(oss.str(), _numTimesteps, _nComp, _curStorage->outlet.data() + port * _nComp, _nOutletPorts * _nComp, _nComp);
 					}
 				}
 			}
@@ -664,7 +664,7 @@ protected:
 						else
 							oss << prefix << "_INLET_PORT_" << std::setfill('0') << std::setw(3) << std::setprecision(0) << port;
 
-						writer.template matrix<double>(oss.str(), _numTimesteps, _nComp, _curStorage->inlet.data() + port * _nComp, _nInletPorts, _nComp);
+						writer.template matrix<double>(oss.str(), _numTimesteps, _nComp, _curStorage->inlet.data() + port * _nComp, _nInletPorts * _nComp, _nComp);
 					}
 				}
 			}
