@@ -15,10 +15,11 @@
 #include "common/CompilerSpecific.hpp"
 #include "cadet/ParameterProvider.hpp"
 #include "cadet/Exceptions.hpp"
-#include "common/Driver.hpp"
 
 #include "LoggingUtils.hpp"
 #include "Logging.hpp"
+
+#include "common/Driver.hpp"
 
 extern "C"
 {
@@ -341,7 +342,7 @@ namespace v1
 					throw InvalidParameterException("Retrieving bool parameter " + paramName + " failed");
 
 				v[i] = temp;
-				LOG(Debug) << "GET array (" << i << ") [bool] " << paramName << ": " << v[i];
+				LOG(Debug) << "GET array (" << i << ") [bool] " << paramName << ": " << static_cast<bool>(v[i]);
 			}
 
 			return v;
