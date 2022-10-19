@@ -1,7 +1,7 @@
 // =============================================================================
 //  CADET
 //  
-//  Copyright © 2008-2021: The CADET Authors
+//  Copyright Â© 2008-2022: The CADET Authors
 //            Please see the AUTHORS and CONTRIBUTORS file.
 //  
 //  All rights reserved. This program and the accompanying materials
@@ -97,18 +97,18 @@ namespace cadet
 			using ParamHandlerBindingModelBase<ParamHandler_t>::_nComp;
 			using ParamHandlerBindingModelBase<ParamHandler_t>::_nBoundStates;
 
-			const double threshold = 1e-14;
+			const double _threshold = 1e-14;
 			
 			template <typename StateType, typename CpStateType, typename ResidualType, typename ParamType>
 			int fluxImpl(double t, unsigned int secIdx, const ColumnPosition& colPos, StateType const* y,
 				CpStateType const* yCp, ResidualType* res, LinearBufferAllocator workSpace) const
 			{
 				using std::abs;
+				using std::pow;
+
 				typename ParamHandler_t::ParamsHandle const p = _paramHandler.update(t, secIdx, colPos, _nComp, _nBoundStates, workSpace);
 
-				/* Protein Flux: dq/dt = k_kin * (q* – q) with
-				q* = k_F * c^(1/n)
-				*/
+				// Protein Flux: dq/dt = k_kin * (q* - q) with q* = k_F * c^(1/n)
 				unsigned int bndIdx = 0;
 				
 				for (int i = 0; i < _nComp; ++i)
@@ -116,26 +116,22 @@ namespace cadet
 					// Skip components without bound states (bound state index bndIdx is not advanced)
 					if (_nBoundStates[i] == 0)
 						continue;
+
 					const ParamType n_param = static_cast<ParamType>(p->n[i]);
 					const ParamType kF = static_cast<ParamType>(p->kF[i]);
 					const ParamType kkin = static_cast<ParamType>(p->kkin[i]);
-					
-					const ParamType alpha_1 = (((2 * n_param - 1) / n_param) * kF * pow(threshold, (1 - n_param) / n_param));
-					const ParamType alpha_2 = (((1 - n_param) / n_param) * kF * pow(threshold, (1 - 2 * n_param) / n_param));
 
 					// Residual
-					if (n_param > 1)
+					if ((n_param > 1) && (abs(yCp[i]) < _threshold))
 					{
-						if (abs(yCp[i]) < threshold)
-							res[bndIdx] = kkin * (y[bndIdx] - kkin* alpha_1 * yCp[i] - alpha_2 * yCp[i] * yCp[i]);
-						else
-							res[bndIdx] = kkin * (y[bndIdx] -  kF * pow(abs(yCp[i]), 1.0 / n_param));
+						const ParamType alpha_1 = ((2.0 * n_param - 1.0) / n_param) * kF * pow(_threshold, (1.0 - n_param) / n_param);
+						const ParamType alpha_2 = ((1.0 - n_param) / n_param) * kF * pow(_threshold, (1.0 - 2.0 * n_param) / n_param);
+						res[bndIdx] = kkin * (y[bndIdx] - yCp[i] * (alpha_1 + alpha_2 * yCp[i]));
 					}
 					else
 					{
-						res[bndIdx] = kkin * (y[bndIdx] -  kF * pow(abs(yCp[i]), 1.0 / n_param));
+						res[bndIdx] = kkin * (y[bndIdx] - kF * pow(abs(yCp[i]), 1.0 / n_param));
 					}
-
 
 					// Next bound component
 					++bndIdx;
@@ -147,8 +143,10 @@ namespace cadet
 			template <typename RowIterator>
 			void jacobianImpl(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, double const* yCp, int offsetCp, RowIterator jac, LinearBufferAllocator workSpace) const
 			{
-				typename ParamHandler_t::ParamsHandle const p = _paramHandler.update(t, secIdx, colPos, _nComp, _nBoundStates, workSpace);
 				using std::abs;
+				using std::pow;
+
+				typename ParamHandler_t::ParamsHandle const p = _paramHandler.update(t, secIdx, colPos, _nComp, _nBoundStates, workSpace);
 
 				int bndIdx = 0;
 				for (int i = 0; i < _nComp; ++i)
@@ -156,33 +154,25 @@ namespace cadet
 					// Skip components without bound states (bound state index bndIdx is not advanced)
 					if (_nBoundStates[i] == 0)
 						continue;
-					// dres / dq_i
+
 					const double n_param = static_cast<double>(p->n[i]);
 					const double kF = static_cast<double>(p->kF[i]);
 					const double kkin = static_cast<double>(p->kkin[i]);
 
-					double const alpha_1 = ((2 * n_param - 1) / n_param) * kF * pow(threshold, (1 - n_param) / (n_param));
-					double const alpha_2 = ((1 - n_param) / n_param) * kF * pow(threshold, (1 - 2 * n_param) / (n_param));
+					// dres / dq_i
+					jac[0] = kkin;
 
-					jac[0] = static_cast<double>(p->kkin[i]);
 					// dres / dc_{p,i}
-					// This isotherm is non-differentiable at yCp = 0 so following segment of code deals with mitigating this issue.
-					if (n_param > 1)
+					if ((n_param > 1) && (abs(yCp[i]) < _threshold))
 					{
-						if (abs(yCp[i]) < threshold)
-							jac[i - bndIdx - offsetCp] = -alpha_1 - 2 * alpha_2 * yCp[i];
-						else
-							jac[i - bndIdx - offsetCp] = -(1.0 / n_param) * kkin * kF * pow(abs(yCp[i]), (1.0 - n_param) / n_param);
+						double const alpha_1 = ((2.0 * n_param - 1.0) / n_param) * kF * pow(_threshold, (1.0 - n_param) / n_param);
+						double const alpha_2 = ((1.0 - n_param) / n_param) * kF * pow(_threshold, (1.0 - 2.0 * n_param) / n_param);
+						jac[i - bndIdx - offsetCp] = -kkin * (alpha_1 + 2.0 * alpha_2 * yCp[i]);
 					}
 					else
 					{
 						jac[i - bndIdx - offsetCp] = -(1.0 / n_param) * kkin * kF * pow(abs(yCp[i]), (1.0 - n_param) / n_param);
 					}
-
-					// The distance from liquid phase to solid phase is reduced for each non-binding component
-					// since a bound state is neglected. The number of neglected bound states so far is i - bndIdx.
-					// Thus, by going back offsetCp - (i - bndIdx) = -[ i - bndIdx - offsetCp ] we get to the corresponding
-					// liquid phase component.
 
 					++bndIdx;
 					++jac;

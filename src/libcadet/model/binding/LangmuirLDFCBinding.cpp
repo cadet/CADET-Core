@@ -1,7 +1,7 @@
 // =============================================================================
 //  CADET
 //  
-//  Copyright © 2008-2021: The CADET Authors
+//  Copyright © 2008-2022: The CADET Authors
 //            Please see the AUTHORS and CONTRIBUTORS file.
 //  
 //  All rights reserved. This program and the accompanying materials
@@ -165,7 +165,7 @@ protected:
 			if (_nBoundStates[i] == 0)
 				continue;
 
-			qSum -= y[bndIdx]/ static_cast<ParamType>(p->qMax[i]); 
+			qSum -= y[bndIdx] / static_cast<ParamType>(p->qMax[i]); 
 
 			// Next bound component
 			++bndIdx;
@@ -179,7 +179,7 @@ protected:
 				continue;
 
 			// Residual
-			res[bndIdx] = -static_cast<ParamType>(p->kkin[i]) * (yCp[bndIdx] - ( y[bndIdx] / (static_cast<ParamType>(p->keq[i]) * static_cast<ParamType>(p->qMax[i]) - qSum) ));
+			res[bndIdx] = -static_cast<ParamType>(p->kkin[i]) * (yCp[i] - y[bndIdx] / (static_cast<ParamType>(p->keq[i]) * static_cast<ParamType>(p->qMax[i]) * qSum));
 
 			// Next bound component
 			++bndIdx;
@@ -218,13 +218,13 @@ protected:
 			const double keq = static_cast<double>(p->keq[i]);
 			const double kkin = static_cast<double>(p->kkin[i]);
 			const double qMax = static_cast<double>(p->qMax[i]);
-			//(keq *keq *static_cast<double>(p->qMax[i]) * yCp[i] / (qSum*qSum))
+
 			// dres_i / dc_{p,i}
-			jac[i - bndIdx - offsetCp] = -kkin;//*( (keq* static_cast<double>(p->qMax[i]) /qSum)  );
+			jac[i - bndIdx - offsetCp] = -kkin;
 			// Getting to c_{p,i}: -bndIdx takes us to q_0, another -offsetCp to c_{p,0} and a +i to c_{p,i}.
 			//                     This means jac[i - bndIdx - offsetCp] corresponds to c_{p,i}.
 
-			// Fill dres_i / dc_j
+			// Fill dres_i / dq_j
 			int bndIdx2 = 0;
 			for (int j = 0; j < _nComp; ++j)
 			{
@@ -233,16 +233,15 @@ protected:
 					continue;
 
 				// dres_i / dq_j 
-				jac[bndIdx2 - bndIdx] += -y[i] * kkin / (keq * qMax * static_cast<double>(p->qMax[j]) * (1 - qSum) * (1 - qSum));
+				jac[bndIdx2 - bndIdx] += y[bndIdx] * kkin / (keq * qMax * static_cast<double>(p->qMax[j]) * qSum * qSum);
 				// Getting to q_j: -bndIdx takes us to q_{0}, another +bndIdx2 to q_{j}.
-					// This means jac[bndIdx2 - bndIdx] corresponds to q_{j}.
-				
+				// This means jac[bndIdx2 - bndIdx] corresponds to q_{j}.
 
 				++bndIdx2;
 			}
 
 			// Add to dres_i / dq_i
-			jac[0] += kkin / (keq * qMax  * (1 - qSum));
+			jac[0] += kkin / (keq * qMax * qSum);
 
 			// Advance to next flux and Jacobian row
 			++bndIdx;

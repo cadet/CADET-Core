@@ -1,7 +1,7 @@
 // =============================================================================
 //  CADET
 //  
-//  Copyright © 2008-2021: The CADET Authors
+//  Copyright © 2008-2022: The CADET Authors
 //            Please see the AUTHORS and CONTRIBUTORS file.
 //  
 //  All rights reserved. This program and the accompanying materials
@@ -245,7 +245,7 @@ namespace cadet
 					active const* const localKkin = p->kkin[site];
 					active const* const localQmax = p->qMax[site];
 
-					ResidualType qSum = 1.0;
+					ResidualType cpSum = 1.0;
 					unsigned int bndIdx = 0;
 
 					// bndIdx is used as a counter inside one binding site type
@@ -257,7 +257,7 @@ namespace cadet
 						if (_nBoundStates[i] == 0)
 							continue;
 
-						qSum += yCp[i]* static_cast<ParamType>(localKeq[i]);
+						cpSum += yCp[i] * static_cast<ParamType>(localKeq[i]);
 
 						// Next bound component
 						++bndIdx;
@@ -271,7 +271,7 @@ namespace cadet
 							continue;
 
 						// Residual
-						res[bndIdx * nSites] = static_cast<ParamType>(localKkin[i]) * y[bndIdx * nSites] - (static_cast<ParamType>(localKkin[i])*static_cast<ParamType>(localKeq[i]) * yCp[i] * static_cast<ParamType>(localQmax[i]) / qSum);
+						res[bndIdx * nSites] = static_cast<ParamType>(localKkin[i]) * (y[bndIdx * nSites] - static_cast<ParamType>(localKeq[i]) * yCp[i] * static_cast<ParamType>(localQmax[i]) / cpSum);
 
 						// Next bound component
 						++bndIdx;
@@ -304,7 +304,7 @@ namespace cadet
 					active const* const localKkin = p->kkin[site];
 					active const* const localQmax = p->qMax[site];
 
-					double qSum = 1.0;
+					double cpSum = 1.0;
 					int bndIdx = 0;
 					for (int i = 0; i < _nComp; ++i)
 					{
@@ -312,7 +312,7 @@ namespace cadet
 						if (_nBoundStates[i] == 0)
 							continue;
 
-						qSum += yCp[i] * static_cast<double>(localKeq[i]);
+						cpSum += yCp[i] * static_cast<double>(localKeq[i]);
 
 						// Next bound component
 						++bndIdx;
@@ -329,12 +329,13 @@ namespace cadet
 						const double kkin = static_cast<double>(localKkin[i]);
 
 						// dres_i / dc_{p,i}
-						jac[i - site - offsetCp - nSites * bndIdx] = -kkin*keq * static_cast<double>(localQmax[i]) / qSum;
+						jac[i - site - offsetCp - nSites * bndIdx] = -kkin * keq * static_cast<double>(localQmax[i]) / cpSum;
 						// Getting to c_{p,i}: -nSites * bndIdx takes us to q_{0,site}, another -site to q_{0,0}. From there, we
 						//                     take a -offsetCp to reach c_{p,0} and a +i to arrive at c_{p,i}.
 						//                     This means jac[i - site - offsetCp - nSites * bndIdx] corresponds to c_{p,i}.
 
 						// Fill dres_i / dc_j
+						const double commonFactor = kkin * keq * static_cast<double>(localQmax[i]) * yCp[i] / (cpSum * cpSum);
 						int bndIdx2 = 0;
 						for (int j = 0; j < _nComp; ++j)
 						{
@@ -343,7 +344,7 @@ namespace cadet
 								continue;
 
 							// dres_i / dc_j
-							jac[j - site - offsetCp - nSites * bndIdx] += static_cast<double>(localKeq[j])*kkin * keq * static_cast<double>(localQmax[i]) *yCp[i]/ (qSum*qSum);
+							jac[j - site - offsetCp - nSites * bndIdx] += static_cast<double>(localKeq[j]) * commonFactor;
 							// Getting to c_{p,j}: -nSites * bndIdx takes us to q_{0,site}, another -site to q_{0,0}. From there, we
 							//                     take a -offsetCp to reach c_{p,0} and a +j to arrive at c_{p,j}.
 							//                     This means jac[j - site - offsetCp - nSites * bndIdx] corresponds to c_{p,j}.

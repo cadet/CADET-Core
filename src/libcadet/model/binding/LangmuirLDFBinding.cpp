@@ -1,7 +1,7 @@
 // =============================================================================
 //  CADET
 //  
-//  Copyright © 2008-2021: The CADET Authors
+//  Copyright © 2008-2022: The CADET Authors
 //            Please see the AUTHORS and CONTRIBUTORS file.
 //  
 //  All rights reserved. This program and the accompanying materials
@@ -107,8 +107,8 @@ public:
 		std::tie(p, dpDt) = _paramHandler.updateTimeDerivative(t, secIdx, colPos, _nComp, _nBoundStates, workSpace);
 
 		// Protein fluxes: k_{kin,i}q_i - k_{kin,i} \frac{q_{m,i}k_{eq,i}c_i}{1+\sum_{j=1}^{n_{comp}} k_{eq,j}c_j}
-		double qSum = 1.0;
-		double qSumT = 0.0;
+		double cpSum = 1.0;
+		double cpSumT = 0.0;
 		unsigned int bndIdx = 0;
 		for (int i = 0; i < _nComp; ++i)
 		{
@@ -117,8 +117,8 @@ public:
 				continue;
 
 			const double summand = y[bndIdx] / static_cast<double>(p->qMax[i]);
-			qSum -= summand;
-			qSumT += summand / static_cast<double>(p->qMax[i]) * static_cast<double>(dpDt->qMax[i]);
+			cpSum -= summand;
+			cpSumT += summand / static_cast<double>(p->qMax[i]) * static_cast<double>(dpDt->qMax[i]);
 
 			// Next bound component
 			++bndIdx;
@@ -133,9 +133,9 @@ public:
 
 			// Residual
 			dResDt[bndIdx] = static_cast<double>(dpDt->kD[i]) * y[bndIdx] 
-				- yCp[i] * (static_cast<double>(dpDt->kA[i]) * static_cast<double>(p->qMax[i]) * qSum
-				           + static_cast<double>(p->kA[i]) * static_cast<double>(dpDt->qMax[i]) * qSum
-				           + static_cast<double>(p->kA[i]) * static_cast<double>(p->qMax[i]) * qSumT);
+				- yCp[i] * (static_cast<double>(dpDt->kA[i]) * static_cast<double>(p->qMax[i]) * cpSum
+				           + static_cast<double>(p->kA[i]) * static_cast<double>(dpDt->qMax[i]) * cpSum
+				           + static_cast<double>(p->kA[i]) * static_cast<double>(p->qMax[i]) * cpSumT);
 
 			// Next bound component
 			++bndIdx;
@@ -157,7 +157,7 @@ protected:
 		typename ParamHandler_t::ParamsHandle const p = _paramHandler.update(t, secIdx, colPos, _nComp, _nBoundStates, workSpace);
 
 		// Protein fluxes: k_{kin,i}q_i - k_{kin,i} \frac{q_{m,i}k_{eq,i}c_i}{1+\sum_{j=1}^{n_{comp}} k_{eq,j}c_j}
-		ResidualType qSum = 1.0;
+		ResidualType cpSum = 1.0;
 		unsigned int bndIdx = 0;
 		for (int i = 0; i < _nComp; ++i)
 		{
@@ -165,7 +165,7 @@ protected:
 			if (_nBoundStates[i] == 0)
 				continue;
 
-			qSum += yCp[i]* static_cast<ParamType>(p->keq[i]); //\sum b_j*c_j
+			cpSum += yCp[i] * static_cast<ParamType>(p->keq[i]);
 
 			// Next bound component
 			++bndIdx;
@@ -179,7 +179,7 @@ protected:
 				continue;
 
 			// Residual
-			res[bndIdx] = static_cast<ParamType>(p->kkin[i]) * (y[bndIdx] - (static_cast<ParamType>(p->keq[i]) * yCp[i] * static_cast<ParamType>(p->qMax[i]) / qSum));
+			res[bndIdx] = static_cast<ParamType>(p->kkin[i]) * (y[bndIdx] - static_cast<ParamType>(p->keq[i]) * yCp[i] * static_cast<ParamType>(p->qMax[i]) / cpSum);
 
 			// Next bound component
 			++bndIdx;
@@ -194,7 +194,7 @@ protected:
 		typename ParamHandler_t::ParamsHandle const p = _paramHandler.update(t, secIdx, colPos, _nComp, _nBoundStates, workSpace);
 
 		// Protein fluxes: k_{kin,i}q_i - k_{kin,i} \frac{q_{m,i}k_{eq,i}c_i}{1+\sum_{j=1}^{n_{comp}} k_{eq,j}c_j}
-		double qSum = 1.0;
+		double cpSum = 1.0;
 		int bndIdx = 0;
 		for (int i = 0; i < _nComp; ++i)
 		{
@@ -202,7 +202,7 @@ protected:
 			if (_nBoundStates[i] == 0)
 				continue;
 
-			qSum += yCp[i] * static_cast<double>(p->keq[i]);
+			cpSum += yCp[i] * static_cast<double>(p->keq[i]);
 
 			// Next bound component
 			++bndIdx;
@@ -217,13 +217,14 @@ protected:
 
 			const double keq = static_cast<double>(p->keq[i]);
 			const double kkin = static_cast<double>(p->kkin[i]);
-			//(keq *keq *static_cast<double>(p->qMax[i]) * yCp[i] / (qSum*qSum))
+			//(keq *keq *static_cast<double>(p->qMax[i]) * yCp[i] / (cpSum*cpSum))
 			// dres_i / dc_{p,i}
-			jac[i - bndIdx - offsetCp] = -kkin*( (keq* static_cast<double>(p->qMax[i]) /qSum)  );
+			jac[i - bndIdx - offsetCp] = -kkin * keq * static_cast<double>(p->qMax[i]) / cpSum;
 			// Getting to c_{p,i}: -bndIdx takes us to q_0, another -offsetCp to c_{p,0} and a +i to c_{p,i}.
 			//                     This means jac[i - bndIdx - offsetCp] corresponds to c_{p,i}.
 
 			// Fill dres_i / dc_j
+			const double commonFactor = keq * kkin * static_cast<double>(p->qMax[i]) * yCp[i] / (cpSum * cpSum);
 			int bndIdx2 = 0;
 			for (int j = 0; j < _nComp; ++j)
 			{
@@ -232,7 +233,7 @@ protected:
 					continue;
 
 				// dres_i / dc_j
-				jac[j - bndIdx - offsetCp] += static_cast<double>(p->keq[j])*keq * kkin * static_cast<double>(p->qMax[i])* yCp[i] / (qSum*qSum);
+				jac[j - bndIdx - offsetCp] += static_cast<double>(p->keq[j]) * commonFactor;
 				// Getting to c_{p,j}: -bndIdx takes us to q_0, another -offsetCp to c_{p,0} and a +j to c_{p,j}.
 				//                     This means jac[j - bndIdx - offsetCp] corresponds to c_{p,j}.
 				
