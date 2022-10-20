@@ -171,6 +171,12 @@ namespace cadet
 					// Next bound component
 					++bndIdx;
 				}
+				
+				if (qSum < 0)
+				{
+					qSum = 0;
+				}
+
 
 				bndIdx = 0;
 
@@ -237,7 +243,11 @@ namespace cadet
 					// Next bound component
 					++bndIdx;
 				}
-
+				
+				if (qSum < 0)
+				{
+					qSum = 0;
+				}
 
 				bndIdx = 0;
 				for (int i = 0; i < _nComp; ++i)
