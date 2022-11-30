@@ -179,11 +179,6 @@ The models also differ in whether a mobile phase modifier (e.g., salt) is suppor
      - ✓
      - ✓
      - ×
-   * - :ref:`kumar_langmuir_model`
-     - ✓
-     - ✓
-     - ✓
-     - ×
    * - :ref:`saska_model`
      - ×
      - ×
