@@ -11,6 +11,7 @@
 // =============================================================================
 
 #include <json.hpp>
+#include <string>
 
 #include "common/JsonParameterProvider.hpp"
 
@@ -21,7 +22,6 @@ json createColumnWithSMAJson(const std::string& uoType)
 	json config;
 	config["UNIT_TYPE"] = uoType;
 	config["NCOMP"] = 4;
-	config["VELOCITY"] = 5.75e-4;
 	config["COL_DISPERSION"] = 5.75e-8;
 	config["COL_DISPERSION_RADIAL"] = 1e-6;
 	config["FILM_DIFFUSION"] = {6.9e-6, 6.9e-6, 6.9e-6, 6.9e-6};
@@ -29,8 +29,18 @@ json createColumnWithSMAJson(const std::string& uoType)
 	config["PAR_SURFDIFFUSION"] = {0.0, 0.0, 0.0, 0.0};
 
 	// Geometry
-	config["COL_LENGTH"] = 0.014;
 	config["COL_RADIUS"] = 0.01;
+	if (uoType.substr(0, 6) == "RADIAL")
+	{
+		config["COL_RADIUS_INNER"] = 0.001;
+		config["COL_RADIUS_OUTER"] = 0.004;
+		config["VELOCITY_COEFF"] = 5.75e-4;
+	}
+	else
+		config["COL_LENGTH"] = 0.014;
+		config["COL_RADIUS"] = 0.01;
+		config["VELOCITY"] = 5.75e-4;
+	}
 	config["PAR_RADIUS"] = 4.5e-5;
 	config["COL_POROSITY"] = 0.37;
 	config["PAR_POROSITY"] = 0.75;
@@ -149,7 +159,6 @@ json createColumnWithTwoCompLinearJson(const std::string& uoType)
 	json config;
 	config["UNIT_TYPE"] = uoType;
 	config["NCOMP"] = 2;
-	config["VELOCITY"] = 5.75e-4;
 	config["COL_DISPERSION"] = 5.75e-8;
 	config["COL_DISPERSION_RADIAL"] = 1e-6;
 	config["FILM_DIFFUSION"] = {6.9e-6, 6.9e-6};
@@ -157,8 +166,18 @@ json createColumnWithTwoCompLinearJson(const std::string& uoType)
 	config["PAR_SURFDIFFUSION"] = {1e-10, 1e-10};
 
 	// Geometry
-	config["COL_LENGTH"] = 0.014;
-	config["COL_RADIUS"] = 0.01;
+	if (uoType.substr(0, 6) == "RADIAL")
+	{
+		config["COL_RADIUS_INNER"] = 0.001;
+		config["COL_RADIUS_OUTER"] = 0.004;
+		config["VELOCITY_COEFF"] = 5.75e-4;
+	}
+	else
+	{
+		config["COL_LENGTH"] = 0.014;
+		config["COL_RADIUS"] = 0.01;
+		config["VELOCITY"] = 5.75e-4;
+	}
 	config["PAR_RADIUS"] = 4.5e-5;
 	config["COL_POROSITY"] = 0.37;
 	config["PAR_POROSITY"] = 0.75;
@@ -433,7 +452,6 @@ cadet::JsonParameterProvider createPulseInjectionColumn(const std::string& uoTyp
 			json grm;
 			grm["UNIT_TYPE"] = uoType;
 			grm["NCOMP"] = 1;
-			grm["VELOCITY"] = 5.75e-4;
 			grm["COL_DISPERSION"] = 5.75e-8;
 			grm["COL_DISPERSION_MULTIPLEX"] = 0;
 			grm["COL_DISPERSION_RADIAL"] = 1e-6;
@@ -442,8 +460,18 @@ cadet::JsonParameterProvider createPulseInjectionColumn(const std::string& uoTyp
 			grm["PAR_SURFDIFFUSION"] = {0.0};
 
 			// Geometry
-			grm["COL_LENGTH"] = 0.014;
-			grm["COL_RADIUS"] = 0.01;
+			if (uoType.substr(0, 6) == "RADIAL")
+			{
+				grm["COL_RADIUS_INNER"] = 0.001;
+				grm["COL_RADIUS_OUTER"] = 0.004;
+				grm["VELOCITY_COEFF"] = 5.75e-4;
+			}
+			else
+			{
+				grm["COL_LENGTH"] = 0.014;
+				grm["COL_RADIUS"] = 0.01;
+				grm["VELOCITY"] = 5.75e-4;
+			}
 			grm["PAR_RADIUS"] = 4.5e-5;
 			grm["PAR_CORERADIUS"] = 0.0;
 			grm["COL_POROSITY"] = 0.37;
@@ -665,7 +693,6 @@ json createLinearBenchmarkColumnJson(bool dynamicBinding, bool nonBinding, const
 	json grm;
 	grm["UNIT_TYPE"] = uoType;
 	grm["NCOMP"] = 1;
-	grm["VELOCITY"] = 0.5 / (100.0 * 60.0);
 	grm["COL_DISPERSION"] = 0.002 / (100.0 * 100.0 * 60.0);
 	grm["COL_DISPERSION_MULTIPLEX"] = 0;
 	grm["COL_DISPERSION_RADIAL"] = 1e-6;
@@ -674,8 +701,18 @@ json createLinearBenchmarkColumnJson(bool dynamicBinding, bool nonBinding, const
 	grm["PAR_SURFDIFFUSION"] = {0.0};
 
 	// Geometry
-	grm["COL_LENGTH"] = 0.017;
-	grm["COL_RADIUS"] = 0.01;
+	if (uoType.substr(0, 6) == "RADIAL")
+	{
+		grm["COL_RADIUS_INNER"] = 0.001;
+		grm["COL_RADIUS_OUTER"] = 0.004;
+		grm["VELOCITY_COEFF"] = 5.75e-4;
+	}
+	else
+	{
+		grm["COL_LENGTH"] = 0.017;
+		grm["COL_RADIUS"] = 0.01;
+		grm["VELOCITY"] = 0.5 / (100.0 * 60.0);
+	}
 	grm["PAR_RADIUS"] = 4e-5;
 	grm["COL_POROSITY"] = 0.4;
 	grm["PAR_POROSITY"] = 0.333;

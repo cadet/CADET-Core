@@ -52,21 +52,25 @@ constexpr double SurfVolRatioSphere = 3.0;
 constexpr double SurfVolRatioCylinder = 2.0;
 constexpr double SurfVolRatioSlab = 1.0;
 
+template <typename Operator>
 int schurComplementMultiplierLRMPores(void* userData, double const* x, double* z)
 {
-	LumpedRateModelWithPores* const lrm = static_cast<LumpedRateModelWithPores*>(userData);
+	typedef LumpedRateModelWithPores<Operator> LRMP;
+	LRMP* const lrm = static_cast<LRMP*>(userData);
 	return lrm->schurComplementMatrixVector(x, z);
 }
 
 
-LumpedRateModelWithPores::LumpedRateModelWithPores(UnitOpIdx unitOpIdx) : UnitOperationBase(unitOpIdx),
+template <typename ConvDispOperator>
+LumpedRateModelWithPores<ConvDispOperator>::LumpedRateModelWithPores(UnitOpIdx unitOpIdx) : UnitOperationBase(unitOpIdx),
 	_dynReactionBulk(nullptr), _jacP(0), _jacPdisc(0), _jacPF(0), _jacFP(0), _jacInlet(), _analyticJac(true),
 	_jacobianAdDirs(0), _factorizeJacobian(false), _tempState(nullptr), _initC(0), _initCp(0), _initQ(0),
 	_initState(0), _initStateDot(0)
 {
 }
 
-LumpedRateModelWithPores::~LumpedRateModelWithPores() CADET_NOEXCEPT
+template <typename ConvDispOperator>
+LumpedRateModelWithPores<ConvDispOperator>::~LumpedRateModelWithPores() CADET_NOEXCEPT
 {
 	delete[] _tempState;
 
@@ -79,7 +83,8 @@ LumpedRateModelWithPores::~LumpedRateModelWithPores() CADET_NOEXCEPT
 	delete[] _disc.nBoundBeforeType;
 }
 
-unsigned int LumpedRateModelWithPores::numDofs() const CADET_NOEXCEPT
+template <typename ConvDispOperator>
+unsigned int LumpedRateModelWithPores<ConvDispOperator>::numDofs() const CADET_NOEXCEPT
 {
 	// Column bulk DOFs: nCol * nComp
 	// Particle DOFs: nCol * nParType particles each having nComp (liquid phase) + sum boundStates (solid phase) DOFs
@@ -88,7 +93,8 @@ unsigned int LumpedRateModelWithPores::numDofs() const CADET_NOEXCEPT
 	return _disc.nComp + _disc.nComp * _disc.nCol * (1 + _disc.nParType) + _disc.parTypeOffset[_disc.nParType];
 }
 
-unsigned int LumpedRateModelWithPores::numPureDofs() const CADET_NOEXCEPT
+template <typename ConvDispOperator>
+unsigned int LumpedRateModelWithPores<ConvDispOperator>::numPureDofs() const CADET_NOEXCEPT
 {
 	// Column bulk DOFs: nCol * nComp
 	// Particle DOFs: nCol * nParType particles each having nComp (liquid phase) + sum boundStates (solid phase) DOFs
@@ -97,7 +103,8 @@ unsigned int LumpedRateModelWithPores::numPureDofs() const CADET_NOEXCEPT
 }
 
 
-bool LumpedRateModelWithPores::usesAD() const CADET_NOEXCEPT
+template <typename ConvDispOperator>
+bool LumpedRateModelWithPores<ConvDispOperator>::usesAD() const CADET_NOEXCEPT
 {
 #ifdef CADET_CHECK_ANALYTIC_JACOBIAN
 	// We always need AD if we want to check the analytical Jacobian
@@ -108,7 +115,8 @@ bool LumpedRateModelWithPores::usesAD() const CADET_NOEXCEPT
 #endif
 }
 
-bool LumpedRateModelWithPores::configureModelDiscretization(IParameterProvider& paramProvider, IConfigHelper& helper)
+template <typename ConvDispOperator>
+bool LumpedRateModelWithPores<ConvDispOperator>::configureModelDiscretization(IParameterProvider& paramProvider, IConfigHelper& helper)
 {
 	// ==== Read discretization
 	_disc.nComp = paramProvider.getInt("NCOMP");
@@ -214,7 +222,7 @@ bool LumpedRateModelWithPores::configureModelDiscretization(IParameterProvider& 
 
 	// Initialize and configure GMRES for solving the Schur-complement
 	_gmres.initialize(_disc.nCol * _disc.nComp * _disc.nParType, paramProvider.getInt("MAX_KRYLOV"), linalg::toOrthogonalization(paramProvider.getInt("GS_TYPE")), paramProvider.getInt("MAX_RESTARTS"));
-	_gmres.matrixVectorMultiplier(&schurComplementMultiplierLRMPores, this);
+	_gmres.matrixVectorMultiplier(&schurComplementMultiplierLRMPores<ConvDispOperator>, this);
 	_schurSafety = paramProvider.getDouble("SCHUR_SAFETY");
 
 	// Allocate space for initial conditions
@@ -387,7 +395,8 @@ bool LumpedRateModelWithPores::configureModelDiscretization(IParameterProvider& 
 	return transportSuccess && bindingConfSuccess && reactionConfSuccess;
 }
 
-bool LumpedRateModelWithPores::configure(IParameterProvider& paramProvider)
+template <typename ConvDispOperator>
+bool LumpedRateModelWithPores<ConvDispOperator>::configure(IParameterProvider& paramProvider)
 {
 	_parameters.clear();
 
@@ -567,7 +576,8 @@ bool LumpedRateModelWithPores::configure(IParameterProvider& paramProvider)
 	return transportSuccess && bindingConfSuccess && dynReactionConfSuccess;
 }
 
-unsigned int LumpedRateModelWithPores::threadLocalMemorySize() const CADET_NOEXCEPT
+template <typename ConvDispOperator>
+unsigned int LumpedRateModelWithPores<ConvDispOperator>::threadLocalMemorySize() const CADET_NOEXCEPT
 {
 	LinearMemorySizer lms;
 
@@ -610,7 +620,8 @@ unsigned int LumpedRateModelWithPores::threadLocalMemorySize() const CADET_NOEXC
 	return lms.bufferSize();
 }
 
-unsigned int LumpedRateModelWithPores::numAdDirsForJacobian() const CADET_NOEXCEPT
+template <typename ConvDispOperator>
+unsigned int LumpedRateModelWithPores<ConvDispOperator>::numAdDirsForJacobian() const CADET_NOEXCEPT
 {
 	// We need as many directions as the highest bandwidth of the diagonal blocks:
 	// The bandwidth of the column block depends on the size of the WENO stencil, whereas
@@ -626,7 +637,8 @@ unsigned int LumpedRateModelWithPores::numAdDirsForJacobian() const CADET_NOEXCE
 	return std::max(_convDispOp.requiredADdirs(), maxStride);
 }
 
-void LumpedRateModelWithPores::useAnalyticJacobian(const bool analyticJac)
+template <typename ConvDispOperator>
+void LumpedRateModelWithPores<ConvDispOperator>::useAnalyticJacobian(const bool analyticJac)
 {
 #ifndef CADET_CHECK_ANALYTIC_JACOBIAN
 	_analyticJac = analyticJac;
@@ -641,7 +653,8 @@ void LumpedRateModelWithPores::useAnalyticJacobian(const bool analyticJac)
 #endif
 }
 
-void LumpedRateModelWithPores::notifyDiscontinuousSectionTransition(double t, unsigned int secIdx, const ConstSimulationState& simState, const AdJacobianParams& adJac)
+template <typename ConvDispOperator>
+void LumpedRateModelWithPores<ConvDispOperator>::notifyDiscontinuousSectionTransition(double t, unsigned int secIdx, const ConstSimulationState& simState, const AdJacobianParams& adJac)
 {
 	// Setup flux Jacobian blocks at the beginning of the simulation or in case of
 	// section dependent film or particle diffusion coefficients
@@ -656,16 +669,15 @@ void LumpedRateModelWithPores::notifyDiscontinuousSectionTransition(double t, un
 
 	// Setup the matrix connecting inlet DOFs to first column cells
 	_jacInlet.clear();
-	const double h = static_cast<double>(_convDispOp.columnLength()) / static_cast<double>(_disc.nCol);
-	const double u = static_cast<double>(_convDispOp.currentVelocity());
+	const double v = _convDispOp.inletJacobianFactor();
 
-	if (u >= 0.0)
+	if (_convDispOp.forwardFlow())
 	{
 		// Forwards flow
 
 		// Place entries for inlet DOF to first column cell conversion
 		for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
-			_jacInlet.addElement(comp * idxr.strideColComp(), comp, -u / h);
+			_jacInlet.addElement(comp * idxr.strideColComp(), comp, -v);
 	}
 	else
 	{
@@ -674,30 +686,34 @@ void LumpedRateModelWithPores::notifyDiscontinuousSectionTransition(double t, un
 		// Place entries for inlet DOF to last column cell conversion
 		const unsigned int offset = (_disc.nCol - 1) * idxr.strideColCell();
 		for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
-			_jacInlet.addElement(offset + comp * idxr.strideColComp(), comp, u / h);
+			_jacInlet.addElement(offset + comp * idxr.strideColComp(), comp, v);
 	}
 }
 
-void LumpedRateModelWithPores::setFlowRates(active const* in, active const* out) CADET_NOEXCEPT
+template <typename ConvDispOperator>
+void LumpedRateModelWithPores<ConvDispOperator>::setFlowRates(active const* in, active const* out) CADET_NOEXCEPT
 {
 	_convDispOp.setFlowRates(in[0], out[0], _colPorosity);
 }
 
-void LumpedRateModelWithPores::reportSolution(ISolutionRecorder& recorder, double const* const solution) const
+template <typename ConvDispOperator>
+void LumpedRateModelWithPores<ConvDispOperator>::reportSolution(ISolutionRecorder& recorder, double const* const solution) const
 {
 	Exporter expr(_disc, *this, solution);
 	recorder.beginUnitOperation(_unitOpIdx, *this, expr);
 	recorder.endUnitOperation();
 }
 
-void LumpedRateModelWithPores::reportSolutionStructure(ISolutionRecorder& recorder) const
+template <typename ConvDispOperator>
+void LumpedRateModelWithPores<ConvDispOperator>::reportSolutionStructure(ISolutionRecorder& recorder) const
 {
 	Exporter expr(_disc, *this, nullptr);
 	recorder.unitOperationStructure(_unitOpIdx, *this, expr);
 }
 
 
-unsigned int LumpedRateModelWithPores::requiredADdirs() const CADET_NOEXCEPT
+template <typename ConvDispOperator>
+unsigned int LumpedRateModelWithPores<ConvDispOperator>::requiredADdirs() const CADET_NOEXCEPT
 {
 #ifndef CADET_CHECK_ANALYTIC_JACOBIAN
 	return _jacobianAdDirs;
@@ -707,7 +723,8 @@ unsigned int LumpedRateModelWithPores::requiredADdirs() const CADET_NOEXCEPT
 #endif
 }
 
-void LumpedRateModelWithPores::prepareADvectors(const AdJacobianParams& adJac) const
+template <typename ConvDispOperator>
+void LumpedRateModelWithPores<ConvDispOperator>::prepareADvectors(const AdJacobianParams& adJac) const
 {
 	// Early out if AD is disabled
 	if (!adJac.adY)
@@ -733,7 +750,8 @@ void LumpedRateModelWithPores::prepareADvectors(const AdJacobianParams& adJac) c
  * @param [in] adRes Residual vector of AD datatypes with band compressed seed vectors
  * @param [in] adDirOffset Number of AD directions used for non-Jacobian purposes (e.g., parameter sensitivities)
  */
-void LumpedRateModelWithPores::extractJacobianFromAD(active const* const adRes, unsigned int adDirOffset)
+template <typename ConvDispOperator>
+void LumpedRateModelWithPores<ConvDispOperator>::extractJacobianFromAD(active const* const adRes, unsigned int adDirOffset)
 {
 	Indexer idxr(_disc);
 
@@ -756,7 +774,8 @@ void LumpedRateModelWithPores::extractJacobianFromAD(active const* const adRes, 
  * @param [in] adRes Residual vector of AD datatypes with band compressed seed vectors
  * @param [in] adDirOffset Number of AD directions used for non-Jacobian purposes (e.g., parameter sensitivities)
  */
-void LumpedRateModelWithPores::checkAnalyticJacobianAgainstAd(active const* const adRes, unsigned int adDirOffset) const
+template <typename ConvDispOperator>
+void LumpedRateModelWithPores<ConvDispOperator>::checkAnalyticJacobianAgainstAd(active const* const adRes, unsigned int adDirOffset) const
 {
 	Indexer idxr(_disc);
 
@@ -778,7 +797,8 @@ void LumpedRateModelWithPores::checkAnalyticJacobianAgainstAd(active const* cons
 
 #endif
 
-int LumpedRateModelWithPores::residual(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res, util::ThreadLocalStorage& threadLocalMem)
+template <typename ConvDispOperator>
+int LumpedRateModelWithPores<ConvDispOperator>::residual(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res, util::ThreadLocalStorage& threadLocalMem)
 {
 	BENCH_SCOPE(_timerResidual);
 
@@ -786,7 +806,8 @@ int LumpedRateModelWithPores::residual(const SimulationTime& simTime, const Cons
 	return residualImpl<double, double, double, false>(simTime.t, simTime.secIdx, simState.vecStateY, simState.vecStateYdot, res, threadLocalMem);
 }
 
-int LumpedRateModelWithPores::residualWithJacobian(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res, const AdJacobianParams& adJac, util::ThreadLocalStorage& threadLocalMem)
+template <typename ConvDispOperator>
+int LumpedRateModelWithPores<ConvDispOperator>::residualWithJacobian(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res, const AdJacobianParams& adJac, util::ThreadLocalStorage& threadLocalMem)
 {
 	BENCH_SCOPE(_timerResidual);
 
@@ -794,7 +815,8 @@ int LumpedRateModelWithPores::residualWithJacobian(const SimulationTime& simTime
 	return residual(simTime, simState, res, adJac, threadLocalMem, true, false);
 }
 
-int LumpedRateModelWithPores::residual(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res,
+template <typename ConvDispOperator>
+int LumpedRateModelWithPores<ConvDispOperator>::residual(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res,
 	const AdJacobianParams& adJac, util::ThreadLocalStorage& threadLocalMem, bool updateJacobian, bool paramSensitivity)
 {
 	if (updateJacobian)
@@ -896,8 +918,9 @@ int LumpedRateModelWithPores::residual(const SimulationTime& simTime, const Cons
 	}
 }
 
+template <typename ConvDispOperator>
 template <typename StateType, typename ResidualType, typename ParamType, bool wantJac>
-int LumpedRateModelWithPores::residualImpl(double t, unsigned int secIdx, StateType const* const y, double const* const yDot, ResidualType* const res, util::ThreadLocalStorage& threadLocalMem)
+int LumpedRateModelWithPores<ConvDispOperator>::residualImpl(double t, unsigned int secIdx, StateType const* const y, double const* const yDot, ResidualType* const res, util::ThreadLocalStorage& threadLocalMem)
 {
 	// Reset Jacobian
 	if (wantJac)
@@ -937,8 +960,9 @@ int LumpedRateModelWithPores::residualImpl(double t, unsigned int secIdx, StateT
 	return 0;
 }
 
+template <typename ConvDispOperator>
 template <typename StateType, typename ResidualType, typename ParamType, bool wantJac>
-int LumpedRateModelWithPores::residualBulk(double t, unsigned int secIdx, StateType const* yBase, double const* yDotBase, ResidualType* resBase, util::ThreadLocalStorage& threadLocalMem)
+int LumpedRateModelWithPores<ConvDispOperator>::residualBulk(double t, unsigned int secIdx, StateType const* yBase, double const* yDotBase, ResidualType* resBase, util::ThreadLocalStorage& threadLocalMem)
 {
 	_convDispOp.residual(t, secIdx, yBase, yDotBase, resBase, wantJac, typename ParamSens<ParamType>::enabled());
 	if (!_dynReactionBulk || (_dynReactionBulk->numReactionsLiquid() == 0))
@@ -965,8 +989,9 @@ int LumpedRateModelWithPores::residualBulk(double t, unsigned int secIdx, StateT
 	return 0;
 }
 
+template <typename ConvDispOperator>
 template <typename StateType, typename ResidualType, typename ParamType, bool wantJac>
-int LumpedRateModelWithPores::residualParticle(double t, unsigned int parType, unsigned int colCell, unsigned int secIdx, StateType const* yBase, double const* yDotBase, ResidualType* resBase, util::ThreadLocalStorage& threadLocalMem)
+int LumpedRateModelWithPores<ConvDispOperator>::residualParticle(double t, unsigned int parType, unsigned int colCell, unsigned int secIdx, StateType const* yBase, double const* yDotBase, ResidualType* resBase, util::ThreadLocalStorage& threadLocalMem)
 {
 	Indexer idxr(_disc);
 
@@ -979,7 +1004,7 @@ int LumpedRateModelWithPores::residualParticle(double t, unsigned int parType, u
 	const ParamType radius = static_cast<ParamType>(_parRadius[parType]);
 
 	// Midpoint of current column cell (z coordinate) - needed in externally dependent adsorption kinetic
-	const double z = (0.5 + colCell) / static_cast<double>(_disc.nCol);
+	const double z = _convDispOp.relativeCoordinate(colCell);
 
 	const parts::cell::CellParameters cellResParams
 		{
@@ -1003,8 +1028,9 @@ int LumpedRateModelWithPores::residualParticle(double t, unsigned int parType, u
 	return 0;
 }
 
+template <typename ConvDispOperator>
 template <typename StateType, typename ResidualType, typename ParamType>
-int LumpedRateModelWithPores::residualFlux(double t, unsigned int secIdx, StateType const* yBase, double const* yDotBase, ResidualType* resBase)
+int LumpedRateModelWithPores<ConvDispOperator>::residualFlux(double t, unsigned int secIdx, StateType const* yBase, double const* yDotBase, ResidualType* resBase)
 {
 	Indexer idxr(_disc);
 
@@ -1086,7 +1112,8 @@ int LumpedRateModelWithPores::residualFlux(double t, unsigned int secIdx, StateT
  * @param [in] t Current time
  * @param [in] secIdx Index of the current section
  */
-void LumpedRateModelWithPores::assembleOffdiagJac(double t, unsigned int secIdx)
+template <typename ConvDispOperator>
+void LumpedRateModelWithPores<ConvDispOperator>::assembleOffdiagJac(double t, unsigned int secIdx)
 {
 	// Clear matrices for new assembly
 	_jacCF.clear();
@@ -1155,7 +1182,8 @@ void LumpedRateModelWithPores::assembleOffdiagJac(double t, unsigned int secIdx)
 	}
 }
 
-int LumpedRateModelWithPores::residualSensFwdWithJacobian(const SimulationTime& simTime, const ConstSimulationState& simState,
+template <typename ConvDispOperator>
+int LumpedRateModelWithPores<ConvDispOperator>::residualSensFwdWithJacobian(const SimulationTime& simTime, const ConstSimulationState& simState,
 	const AdJacobianParams& adJac, util::ThreadLocalStorage& threadLocalMem)
 {
 	BENCH_SCOPE(_timerResidualSens);
@@ -1165,7 +1193,8 @@ int LumpedRateModelWithPores::residualSensFwdWithJacobian(const SimulationTime& 
 	return residual(simTime, simState, nullptr, adJac, threadLocalMem, true, true);
 }
 
-int LumpedRateModelWithPores::residualSensFwdAdOnly(const SimulationTime& simTime, const ConstSimulationState& simState, active* const adRes, util::ThreadLocalStorage& threadLocalMem)
+template <typename ConvDispOperator>
+int LumpedRateModelWithPores<ConvDispOperator>::residualSensFwdAdOnly(const SimulationTime& simTime, const ConstSimulationState& simState, active* const adRes, util::ThreadLocalStorage& threadLocalMem)
 {
 	BENCH_SCOPE(_timerResidualSens);
 
@@ -1173,7 +1202,8 @@ int LumpedRateModelWithPores::residualSensFwdAdOnly(const SimulationTime& simTim
 	return residualImpl<double, active, active, false>(simTime.t, simTime.secIdx, simState.vecStateY, simState.vecStateYdot, adRes, threadLocalMem);
 }
 
-int LumpedRateModelWithPores::residualSensFwdCombine(const SimulationTime& simTime, const ConstSimulationState& simState,
+template <typename ConvDispOperator>
+int LumpedRateModelWithPores<ConvDispOperator>::residualSensFwdCombine(const SimulationTime& simTime, const ConstSimulationState& simState,
 	const std::vector<const double*>& yS, const std::vector<const double*>& ySdot, const std::vector<double*>& resS, active const* adRes,
 	double* const tmp1, double* const tmp2, double* const tmp3)
 {
@@ -1224,7 +1254,8 @@ int LumpedRateModelWithPores::residualSensFwdCombine(const SimulationTime& simTi
  * @param [in] beta Factor @f$ \beta @f$ in front of @f$ z @f$
  * @param [in,out] ret Vector @f$ z @f$ which stores the result of the operation
  */
-void LumpedRateModelWithPores::multiplyWithJacobian(const SimulationTime& simTime, const ConstSimulationState& simState, double const* yS, double alpha, double beta, double* ret)
+template <typename ConvDispOperator>
+void LumpedRateModelWithPores<ConvDispOperator>::multiplyWithJacobian(const SimulationTime& simTime, const ConstSimulationState& simState, double const* yS, double alpha, double beta, double* ret)
 {
 	Indexer idxr(_disc);
 
@@ -1283,7 +1314,8 @@ void LumpedRateModelWithPores::multiplyWithJacobian(const SimulationTime& simTim
  * @param [in] sDot Vector @f$ x @f$ that is transformed by the Jacobian @f$ \frac{\partial F}{\partial \dot{y}} @f$
  * @param [out] ret Vector @f$ z @f$ which stores the result of the operation
  */
-void LumpedRateModelWithPores::multiplyWithDerivativeJacobian(const SimulationTime& simTime, const ConstSimulationState& simState, double const* sDot, double* ret)
+template <typename ConvDispOperator>
+void LumpedRateModelWithPores<ConvDispOperator>::multiplyWithDerivativeJacobian(const SimulationTime& simTime, const ConstSimulationState& simState, double const* sDot, double* ret)
 {
 	Indexer idxr(_disc);
 
@@ -1353,7 +1385,8 @@ void LumpedRateModelWithPores::multiplyWithDerivativeJacobian(const SimulationTi
 	std::fill_n(ret, _disc.nComp, 0.0);
 }
 
-void LumpedRateModelWithPores::setExternalFunctions(IExternalFunction** extFuns, unsigned int size)
+template <typename ConvDispOperator>
+void LumpedRateModelWithPores<ConvDispOperator>::setExternalFunctions(IExternalFunction** extFuns, unsigned int size)
 {
 	for (IBindingModel* bm : _binding)
 	{
@@ -1362,10 +1395,11 @@ void LumpedRateModelWithPores::setExternalFunctions(IExternalFunction** extFuns,
 	}
 }
 
-unsigned int LumpedRateModelWithPores::localOutletComponentIndex(unsigned int port) const CADET_NOEXCEPT
+template <typename ConvDispOperator>
+unsigned int LumpedRateModelWithPores<ConvDispOperator>::localOutletComponentIndex(unsigned int port) const CADET_NOEXCEPT
 {
 	// Inlets are duplicated so need to be accounted for
-	if (static_cast<double>(_convDispOp.currentVelocity()) >= 0.0)
+	if (_convDispOp.forwardFlow())
 		// Forward Flow: outlet is last cell
 		return _disc.nComp + (_disc.nCol - 1) * _disc.nComp;
 	else
@@ -1373,27 +1407,32 @@ unsigned int LumpedRateModelWithPores::localOutletComponentIndex(unsigned int po
 		return _disc.nComp;
 }
 
-unsigned int LumpedRateModelWithPores::localInletComponentIndex(unsigned int port) const CADET_NOEXCEPT
+template <typename ConvDispOperator>
+unsigned int LumpedRateModelWithPores<ConvDispOperator>::localInletComponentIndex(unsigned int port) const CADET_NOEXCEPT
 {
 	return 0;
 }
 
-unsigned int LumpedRateModelWithPores::localOutletComponentStride(unsigned int port) const CADET_NOEXCEPT
+template <typename ConvDispOperator>
+unsigned int LumpedRateModelWithPores<ConvDispOperator>::localOutletComponentStride(unsigned int port) const CADET_NOEXCEPT
 {
 	return 1;
 }
 
-unsigned int LumpedRateModelWithPores::localInletComponentStride(unsigned int port) const CADET_NOEXCEPT
+template <typename ConvDispOperator>
+unsigned int LumpedRateModelWithPores<ConvDispOperator>::localInletComponentStride(unsigned int port) const CADET_NOEXCEPT
 {
 	return 1;
 }
 
-void LumpedRateModelWithPores::expandErrorTol(double const* errorSpec, unsigned int errorSpecSize, double* expandOut)
+template <typename ConvDispOperator>
+void LumpedRateModelWithPores<ConvDispOperator>::expandErrorTol(double const* errorSpec, unsigned int errorSpecSize, double* expandOut)
 {
 	// @todo Write this function
 }
 
-bool LumpedRateModelWithPores::setParameter(const ParameterId& pId, double value)
+template <typename ConvDispOperator>
+bool LumpedRateModelWithPores<ConvDispOperator>::setParameter(const ParameterId& pId, double value)
 {
 	if (pId.unitOperation == _unitOpIdx)
 	{
@@ -1434,7 +1473,8 @@ bool LumpedRateModelWithPores::setParameter(const ParameterId& pId, double value
 	return UnitOperationBase::setParameter(pId, value);
 }
 
-void LumpedRateModelWithPores::setSensitiveParameterValue(const ParameterId& pId, double value)
+template <typename ConvDispOperator>
+void LumpedRateModelWithPores<ConvDispOperator>::setSensitiveParameterValue(const ParameterId& pId, double value)
 {
 	if (pId.unitOperation == _unitOpIdx)
 	{
@@ -1474,7 +1514,8 @@ void LumpedRateModelWithPores::setSensitiveParameterValue(const ParameterId& pId
 	UnitOperationBase::setSensitiveParameterValue(pId, value);
 }
 
-bool LumpedRateModelWithPores::setSensitiveParameter(const ParameterId& pId, unsigned int adDirection, double adValue)
+template <typename ConvDispOperator>
+bool LumpedRateModelWithPores<ConvDispOperator>::setSensitiveParameter(const ParameterId& pId, unsigned int adDirection, double adValue)
 {
 	if (pId.unitOperation == _unitOpIdx)
 	{
@@ -1540,14 +1581,16 @@ bool LumpedRateModelWithPores::setSensitiveParameter(const ParameterId& pId, uns
 }
 
 
-int LumpedRateModelWithPores::Exporter::writeMobilePhase(double* buffer) const
+template <typename ConvDispOperator>
+int LumpedRateModelWithPores<ConvDispOperator>::Exporter::writeMobilePhase(double* buffer) const
 {
 	const int blockSize = _disc.nComp * _disc.nCol;
 	std::copy_n(_idx.c(_data), blockSize, buffer);
 	return blockSize;
 }
 
-int LumpedRateModelWithPores::Exporter::writeSolidPhase(double* buffer) const
+template <typename ConvDispOperator>
+int LumpedRateModelWithPores<ConvDispOperator>::Exporter::writeSolidPhase(double* buffer) const
 {
 	int numWritten = 0;
 	for (unsigned int i = 0; i < _disc.nParType; ++i)
@@ -1559,7 +1602,8 @@ int LumpedRateModelWithPores::Exporter::writeSolidPhase(double* buffer) const
 	return numWritten;
 }
 
-int LumpedRateModelWithPores::Exporter::writeParticleMobilePhase(double* buffer) const
+template <typename ConvDispOperator>
+int LumpedRateModelWithPores<ConvDispOperator>::Exporter::writeParticleMobilePhase(double* buffer) const
 {
 	int numWritten = 0;
 	for (unsigned int i = 0; i < _disc.nParType; ++i)
@@ -1571,7 +1615,8 @@ int LumpedRateModelWithPores::Exporter::writeParticleMobilePhase(double* buffer)
 	return numWritten;
 }
 
-int LumpedRateModelWithPores::Exporter::writeSolidPhase(unsigned int parType, double* buffer) const
+template <typename ConvDispOperator>
+int LumpedRateModelWithPores<ConvDispOperator>::Exporter::writeSolidPhase(unsigned int parType, double* buffer) const
 {
 	cadet_assert(parType < _disc.nParType);
 
@@ -1586,7 +1631,8 @@ int LumpedRateModelWithPores::Exporter::writeSolidPhase(unsigned int parType, do
 	return _disc.nCol * _disc.strideBound[parType];
 }
 
-int LumpedRateModelWithPores::Exporter::writeParticleMobilePhase(unsigned int parType, double* buffer) const
+template <typename ConvDispOperator>
+int LumpedRateModelWithPores<ConvDispOperator>::Exporter::writeParticleMobilePhase(unsigned int parType, double* buffer) const
 {
 	cadet_assert(parType < _disc.nParType);
 
@@ -1601,38 +1647,43 @@ int LumpedRateModelWithPores::Exporter::writeParticleMobilePhase(unsigned int pa
 	return _disc.nCol * _disc.nComp;
 }
 
-int LumpedRateModelWithPores::Exporter::writeParticleFlux(double* buffer) const
+template <typename ConvDispOperator>
+int LumpedRateModelWithPores<ConvDispOperator>::Exporter::writeParticleFlux(double* buffer) const
 {
 	const int blockSize = numParticleFluxDofs();
 	std::copy_n(_idx.jf(_data), blockSize, buffer);
 	return blockSize;
 }
 
-int LumpedRateModelWithPores::Exporter::writeParticleFlux(unsigned int parType, double* buffer) const
+template <typename ConvDispOperator>
+int LumpedRateModelWithPores<ConvDispOperator>::Exporter::writeParticleFlux(unsigned int parType, double* buffer) const
 {
 	const unsigned int blockSize = _disc.nComp * _disc.nCol;
 	std::copy_n(_idx.jf(_data) + blockSize * parType, blockSize, buffer);
 	return blockSize;
 }
 
-int LumpedRateModelWithPores::Exporter::writeInlet(unsigned int port, double* buffer) const
+template <typename ConvDispOperator>
+int LumpedRateModelWithPores<ConvDispOperator>::Exporter::writeInlet(unsigned int port, double* buffer) const
 {
 	cadet_assert(port == 0);
 	std::copy_n(_data, _disc.nComp, buffer);
 	return _disc.nComp;
 }
 
-int LumpedRateModelWithPores::Exporter::writeInlet(double* buffer) const
+template <typename ConvDispOperator>
+int LumpedRateModelWithPores<ConvDispOperator>::Exporter::writeInlet(double* buffer) const
 {
 	std::copy_n(_data, _disc.nComp, buffer);
 	return _disc.nComp;
 }
 
-int LumpedRateModelWithPores::Exporter::writeOutlet(unsigned int port, double* buffer) const
+template <typename ConvDispOperator>
+int LumpedRateModelWithPores<ConvDispOperator>::Exporter::writeOutlet(unsigned int port, double* buffer) const
 {
 	cadet_assert(port == 0);
 
-	if (_model._convDispOp.currentVelocity() >= 0)
+	if (_model._convDispOp.forwardFlow())
 		std::copy_n(&_idx.c(_data, _disc.nCol - 1, 0), _disc.nComp, buffer);
 	else
 		std::copy_n(&_idx.c(_data, 0, 0), _disc.nComp, buffer);
@@ -1640,9 +1691,10 @@ int LumpedRateModelWithPores::Exporter::writeOutlet(unsigned int port, double* b
 	return _disc.nComp;
 }
 
-int LumpedRateModelWithPores::Exporter::writeOutlet(double* buffer) const
+template <typename ConvDispOperator>
+int LumpedRateModelWithPores<ConvDispOperator>::Exporter::writeOutlet(double* buffer) const
 {
-	if (_model._convDispOp.currentVelocity() >= 0)
+	if (_model._convDispOp.forwardFlow())
 		std::copy_n(&_idx.c(_data, _disc.nCol - 1, 0), _disc.nComp, buffer);
 	else
 		std::copy_n(&_idx.c(_data, 0, 0), _disc.nComp, buffer);
@@ -1650,11 +1702,33 @@ int LumpedRateModelWithPores::Exporter::writeOutlet(double* buffer) const
 	return _disc.nComp;
 }
 
+}  // namespace model
+
+}  // namespace cadet
+
+#include "model/LumpedRateModelWithPores-InitialConditions.cpp"
+#include "model/LumpedRateModelWithPores-LinearSolver.cpp"
+
+namespace cadet
+{
+
+namespace model
+{
+
+// Template instantiations
+template class LumpedRateModelWithPores<parts::AxialConvectionDispersionOperator>;
+template class LumpedRateModelWithPores<parts::RadialConvectionDispersionOperator>;
 
 void registerLumpedRateModelWithPores(std::unordered_map<std::string, std::function<IUnitOperation*(UnitOpIdx)>>& models)
 {
-	models[LumpedRateModelWithPores::identifier()] = [](UnitOpIdx uoId) { return new LumpedRateModelWithPores(uoId); };
-	models["LRMP"] = [](UnitOpIdx uoId) { return new LumpedRateModelWithPores(uoId); };
+	typedef LumpedRateModelWithPores<parts::AxialConvectionDispersionOperator> AxialLRMP;
+	typedef LumpedRateModelWithPores<parts::RadialConvectionDispersionOperator> RadialLRMP;
+
+	models[AxialLRMP::identifier()] = [](UnitOpIdx uoId) { return new AxialLRMP(uoId); };
+	models["LRMP"] = [](UnitOpIdx uoId) { return new AxialLRMP(uoId); };
+
+	models[RadialLRMP::identifier()] = [](UnitOpIdx uoId) { return new RadialLRMP(uoId); };
+	models["RLRMP"] = [](UnitOpIdx uoId) { return new RadialLRMP(uoId); };
 }
 
 }  // namespace model

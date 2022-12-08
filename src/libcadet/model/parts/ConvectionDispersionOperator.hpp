@@ -86,7 +86,11 @@ public:
 
 	inline const active& columnLength() const CADET_NOEXCEPT { return _colLength; }
 	inline const active& crossSectionArea() const CADET_NOEXCEPT { return _crossSection; }
+	inline const active& currentVelocity(double pos) const CADET_NOEXCEPT { return _curVelocity; }
+	inline bool forwardFlow() const CADET_NOEXCEPT { return _curVelocity >= 0.0; }
 
+	inline double cellCenter(unsigned int idx) const CADET_NOEXCEPT { return static_cast<double>(_colLength) / _nCol * (idx + 0.5); }
+	inline double relativeCoordinate(unsigned int idx) const CADET_NOEXCEPT { return (0.5 + idx) / _nCol; }
 	inline const active& currentVelocity() const CADET_NOEXCEPT { return _curVelocity; }
 	inline const active* currentDispersion(const int secIdx) const CADET_NOEXCEPT { return getSectionDependentSlice(_colDispersion, _nComp, secIdx); } // todo delete once DG has its own operator
 	inline const bool dispersionCompIndep() const CADET_NOEXCEPT { return _dispersionCompIndep; } // todo delete once DG has its own operator
@@ -98,6 +102,7 @@ public:
 	unsigned int jacobianLowerBandwidth() const CADET_NOEXCEPT;
 	unsigned int jacobianUpperBandwidth() const CADET_NOEXCEPT;
 	unsigned int jacobianDiscretizedBandwidth() const CADET_NOEXCEPT;
+	double inletJacobianFactor() const CADET_NOEXCEPT;
 
 	bool setParameter(const ParameterId& pId, double value);
 	bool setSensitiveParameter(std::unordered_set<active*>& sensParams, const ParameterId& pId, unsigned int adDirection, double adValue);
@@ -159,17 +164,120 @@ u c_{\text{in},i}(t) &= u c_i(t,0) - D_{\text{ax},i} \frac{\partial c_i}{\partia
 \end{align} @f]
  * Methods are described in @cite VonLieres2010a (WENO, linear solver), and @cite Puttmann2013, @cite Puttmann2016 (forward sensitivities, AD, band compression)
  * 
- * This class wraps ConvectionDispersionOperatorBase and provides all the functionality it does. In addition,
- * the Jacobian is stored and corresponding functions are provided (assembly, factorization, solution, retrieval).
- * 
- * This class assumes that the first cell is offset by the number of components (inlet DOFs) in the global state vector.
+ * This class does not store the Jacobian. It only fills existing matrices given to its residual() functions.
+ * It assumes that there is no offset to the inlet in the local state vector and that the firsts cell is placed
+ * directly after the inlet DOFs.
  */
-class AxialConvectionDispersionOperator
+class RadialConvectionDispersionOperatorBase
 {
 public:
 
-	AxialConvectionDispersionOperator();
-	~AxialConvectionDispersionOperator() CADET_NOEXCEPT;
+	RadialConvectionDispersionOperatorBase();
+	~RadialConvectionDispersionOperatorBase() CADET_NOEXCEPT;
+
+	void setFlowRates(const active& in, const active& out, const active& colPorosity) CADET_NOEXCEPT;
+
+	bool configureModelDiscretization(IParameterProvider& paramProvider, unsigned int nComp, unsigned int nCol, unsigned int strideCell);
+	bool configure(UnitOpIdx unitOpIdx, IParameterProvider& paramProvider, std::unordered_map<ParameterId, active*>& parameters);
+	bool notifyDiscontinuousSectionTransition(double t, unsigned int secIdx);
+
+	int residual(double t, unsigned int secIdx, double const* y, double const* yDot, double* res, linalg::BandMatrix& jac);
+	int residual(double t, unsigned int secIdx, double const* y, double const* yDot, active* res, linalg::BandMatrix& jac);
+	int residual(double t, unsigned int secIdx, double const* y, double const* yDot, double* res, WithoutParamSensitivity);
+	int residual(double t, unsigned int secIdx, double const* y, double const* yDot, active* res, WithParamSensitivity);
+	int residual(double t, unsigned int secIdx, active const* y, double const* yDot, active* res, WithParamSensitivity);
+	int residual(double t, unsigned int secIdx, active const* y, double const* yDot, active* res, WithoutParamSensitivity);
+
+	void multiplyWithDerivativeJacobian(const SimulationTime& simTime, double const* sDot, double* ret) const;
+	void addTimeDerivativeToJacobian(double alpha, linalg::FactorizableBandMatrix& jacDisc);
+
+	inline const active& columnLength() const CADET_NOEXCEPT { return _colLength; }
+	inline const active& innerRadius() const CADET_NOEXCEPT { return _innerRadius; }
+	inline const active& outerRadius() const CADET_NOEXCEPT { return _outerRadius; }
+	inline const active& currentVelocity() const CADET_NOEXCEPT { return _curVelocity; }
+	inline bool forwardFlow() const CADET_NOEXCEPT { return _curVelocity >= 0.0; }
+
+	inline double cellCenter(unsigned int idx) const CADET_NOEXCEPT { return static_cast<double>(_cellCenters[idx]); }
+	inline double relativeCoordinate(unsigned int idx) const CADET_NOEXCEPT { return (0.5 + idx) / _nCol; }
+
+	inline unsigned int nComp() const CADET_NOEXCEPT { return _nComp; }
+	inline unsigned int nCol() const CADET_NOEXCEPT { return _nCol; }
+//	inline const Weno& weno() const CADET_NOEXCEPT { return _weno; }
+
+	unsigned int jacobianLowerBandwidth() const CADET_NOEXCEPT;
+	unsigned int jacobianUpperBandwidth() const CADET_NOEXCEPT;
+	unsigned int jacobianDiscretizedBandwidth() const CADET_NOEXCEPT;
+	double inletJacobianFactor() const CADET_NOEXCEPT;
+
+	bool setParameter(const ParameterId& pId, double value);
+	bool setSensitiveParameter(std::unordered_set<active*>& sensParams, const ParameterId& pId, unsigned int adDirection, double adValue);
+	bool setSensitiveParameterValue(const std::unordered_set<active*>& sensParams, const ParameterId& id, double value);
+
+protected:
+
+	template <typename StateType, typename ResidualType, typename ParamType, typename RowIteratorType, bool wantJac>
+	int residualImpl(double t, unsigned int secIdx, StateType const* y, double const* yDot, ResidualType* res, RowIteratorType jacBegin);
+
+	template <typename StateType, typename ResidualType, typename ParamType, typename RowIteratorType, bool wantJac>
+	int residualForwardsFlow(double t, unsigned int secIdx, StateType const* y, double const* yDot, ResidualType* res, RowIteratorType jacBegin);
+
+	template <typename StateType, typename ResidualType, typename ParamType, typename RowIteratorType, bool wantJac>
+	int residualBackwardsFlow(double t, unsigned int secIdx, StateType const* y, double const* yDot, ResidualType* res, RowIteratorType jacBegin);
+
+	void equidistantCells();
+
+	unsigned int _nComp; //!< Number of components
+	unsigned int _nCol; //!< Number of axial cells
+	unsigned int _strideCell; //!< Number of elements between the same item in two adjacent cells
+
+	active _colLength; //!< Column length \f$ L \f$
+	active _innerRadius; //!< Inner radius
+	active _outerRadius; //!< Outer radius
+
+	// Section dependent parameters
+	std::vector<active> _colDispersion; //!< Column dispersion (may be section dependent) \f$ D_{\text{rad}} \f$
+	std::vector<active> _velocity; //!< Radial velocity (may be section dependent) \f$ v \f$
+	active _curVelocity; //!< Current interstitial velocity \f$ u \f$ in this time section
+	int _dir; //!< Current flow direction in this time section
+
+	ArrayPool _stencilMemory; //!< Provides memory for the stencil
+//	double* _wenoDerivatives; //!< Holds derivatives of the WENO scheme
+//	Weno _weno; //!< The WENO scheme implementation
+//	double _wenoEpsilon; //!< The @f$ \varepsilon @f$ of the WENO scheme (prevents division by zero)
+
+	bool _dispersionCompIndep; //!< Determines whether dispersion is component independent
+
+	// Grid info
+	std::vector<active> _cellCenters;
+	std::vector<active> _cellSizes;
+	std::vector<active> _cellBounds;
+
+	// Indexer functionality
+
+	// Strides
+	inline int strideColCell() const CADET_NOEXCEPT { return static_cast<int>(_strideCell); }
+	inline int strideColComp() const CADET_NOEXCEPT { return 1; }
+
+	// Offsets
+	inline int offsetC() const CADET_NOEXCEPT { return _nComp; }
+};
+
+
+/**
+ * @brief Convection dispersion transport operator
+ * @details This class wraps AxialConvectionDispersionOperatorBase or RadialConvectionDispersionOperatorBase
+ * and provides all the functionality it does. In addition, the Jacobian is stored and corresponding functions
+ * are provided (assembly, factorization, solution, retrieval).
+ * 
+ * This class assumes that the first cell is offset by the number of components (inlet DOFs) in the global state vector.
+ */
+template <typename BaseOperator>
+class ConvectionDispersionOperator
+{
+public:
+
+	ConvectionDispersionOperator();
+	~ConvectionDispersionOperator() CADET_NOEXCEPT;
 
 	int requiredADdirs() const CADET_NOEXCEPT;
 
@@ -198,8 +306,12 @@ public:
 #endif
 
 	inline const active& columnLength() const CADET_NOEXCEPT { return _baseOp.columnLength(); }
-	inline const active& crossSectionArea() const CADET_NOEXCEPT { return _baseOp.crossSectionArea(); }
 	inline const active& currentVelocity() const CADET_NOEXCEPT { return _baseOp.currentVelocity(); }
+	inline bool forwardFlow() const CADET_NOEXCEPT { return _baseOp.currentVelocity() >= 0.0; }
+	inline double inletJacobianFactor() const CADET_NOEXCEPT { return _baseOp.inletJacobianFactor(); }
+
+	inline double cellCenter(unsigned int idx) const CADET_NOEXCEPT { return _baseOp.cellCenter(idx); }
+	inline double relativeCoordinate(unsigned int idx) const CADET_NOEXCEPT { return _baseOp.relativeCoordinate(idx); }
 
 	inline linalg::BandMatrix& jacobian() CADET_NOEXCEPT { return _jacC; }
 	inline const linalg::BandMatrix& jacobian() const CADET_NOEXCEPT { return _jacC; }
@@ -225,7 +337,7 @@ protected:
 	void addTimeDerivativeToJacobian(double alpha);
 	void assembleDiscretizedJacobian(double alpha);
 
-	AxialConvectionDispersionOperatorBase _baseOp;
+	BaseOperator _baseOp;
 
 	linalg::BandMatrix _jacC; //!< Jacobian
 	linalg::FactorizableBandMatrix _jacCdisc; //!< Jacobian with time derivatives from BDF method
@@ -235,6 +347,12 @@ protected:
 	// Offsets
 	inline int offsetC() const CADET_NOEXCEPT { return _baseOp.nComp(); }
 };
+
+extern template class ConvectionDispersionOperator<AxialConvectionDispersionOperatorBase>;
+extern template class ConvectionDispersionOperator<RadialConvectionDispersionOperatorBase>;
+
+typedef ConvectionDispersionOperator<AxialConvectionDispersionOperatorBase> AxialConvectionDispersionOperator;
+typedef ConvectionDispersionOperator<RadialConvectionDispersionOperatorBase> RadialConvectionDispersionOperator;
 
 } // namespace parts
 } // namespace model

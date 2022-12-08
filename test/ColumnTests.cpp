@@ -301,7 +301,8 @@ namespace column
 		pp.pushScope("discretization");
 		nlohmann::json discretization = setupJson["model"]["unit_" + unitID]["discretization"];
 		discretization["NBOUND"] = pp.getIntArray("NBOUND"); // note: in the future this might be included somewhere else in the setup as its part of the model
-		discretization["RECONSTRUCTION"] = pp.getString("RECONSTRUCTION");
+		if (pp.exists("RECONSTRUCTION"))
+			discretization["RECONSTRUCTION"] = pp.getString("RECONSTRUCTION");
 		discretization["USE_ANALYTIC_JACOBIAN"] = pp.getInt("USE_ANALYTIC_JACOBIAN");
 		if (pp.exists("GS_TYPE"))
 			discretization["GS_TYPE"] = pp.getInt("GS_TYPE");
@@ -315,13 +316,16 @@ namespace column
 			discretization["PAR_DISC_TYPE"] = pp.getStringArray("PAR_DISC_TYPE");
 		if (pp.exists("PAR_GEOM")) // note: in the future this might be included somewhere else in the setup as its part of the model
 			discretization["PAR_GEOM"] = pp.getStringArray("PAR_GEOM");
-		pp.pushScope("weno");
-		nlohmann::json weno;
-		weno["WENO_ORDER"] = pp.getInt("WENO_ORDER");
-		weno["WENO_EPS"] = pp.getDouble("WENO_EPS");
-		weno["BOUNDARY_MODEL"] = pp.getInt("BOUNDARY_MODEL");
-		discretization["weno"] = weno;
-		pp.popScope();
+		if (pp.exists("weno"))
+		{
+			pp.pushScope("weno");
+			nlohmann::json weno;
+			weno["WENO_ORDER"] = pp.getInt("WENO_ORDER");
+			weno["WENO_EPS"] = pp.getDouble("WENO_EPS");
+			weno["BOUNDARY_MODEL"] = pp.getInt("BOUNDARY_MODEL");
+			discretization["weno"] = weno;
+			pp.popScope();
+		}
 		setupJson["model"]["unit_" + unitID]["discretization"] = discretization;
 		pp.popScope();
 		pp.popScope();
@@ -686,7 +690,7 @@ namespace column
 		}
 	}
 
-	void testJacobianAD(cadet::JsonParameterProvider& jpp)
+	void testJacobianAD(cadet::JsonParameterProvider& jpp, const double absTolFDpattern)
 	{
 		cadet::IModelBuilder* const mb = cadet::createModelBuilder();
 		REQUIRE(nullptr != mb);
@@ -730,8 +734,8 @@ namespace column
 		std::fill(jacDir.begin(), jacDir.end(), 0.0);
 
 		// Compare Jacobians
-		cadet::test::checkJacobianPatternFD(unitAna, unitAD, y.data(), nullptr, jacDir.data(), jacCol1.data(), jacCol2.data(), tls);
-		cadet::test::checkJacobianPatternFD(unitAna, unitAna, y.data(), nullptr, jacDir.data(), jacCol1.data(), jacCol2.data(), tls);
+		cadet::test::checkJacobianPatternFD(unitAna, unitAD, y.data(), nullptr, jacDir.data(), jacCol1.data(), jacCol2.data(), tls, absTolFDpattern);
+		cadet::test::checkJacobianPatternFD(unitAna, unitAna, y.data(), nullptr, jacDir.data(), jacCol1.data(), jacCol2.data(), tls, absTolFDpattern);
 		cadet::test::compareJacobian(unitAna, unitAD, nullptr, nullptr, jacDir.data(), jacCol1.data(), jacCol2.data());
 //				cadet::test::compareJacobianFD(unitAna, unitAD, y.data(), nullptr, jacDir.data(), jacCol1.data(), jacCol2.data());
 
@@ -799,12 +803,24 @@ namespace column
 				cadet::test::compareJacobian(unitAna, unitAD, nullptr, nullptr, jacDir.data(), jacCol1.data(), jacCol2.data());
 //				cadet::test::compareJacobianFD(unitAna, unitAD, y.data(), nullptr, jacDir.data(), jacCol1.data(), jacCol2.data());
 
-				// Reverse flow
-				const bool paramSet = unitAna->setParameter(cadet::makeParamId(cadet::hashString("VELOCITY"), 0, cadet::CompIndep, cadet::ParTypeIndep, cadet::BoundStateIndep, cadet::ReactionIndep, cadet::SectionIndep), -jpp.getDouble("VELOCITY"));
-				REQUIRE(paramSet);
-				// Reverse flow
-				const bool paramSet2 = unitAD->setParameter(cadet::makeParamId(cadet::hashString("VELOCITY"), 0, cadet::CompIndep, cadet::ParTypeIndep, cadet::BoundStateIndep, cadet::ReactionIndep, cadet::SectionIndep), -jpp.getDouble("VELOCITY"));
-				REQUIRE(paramSet2);
+				if (uoType.substr(0, 6) == "RADIAL")
+				{
+					// Reverse flow
+					const bool paramSet = unitAna->setParameter(cadet::makeParamId(cadet::hashString("VELOCITY_COEFF"), 0, cadet::CompIndep, cadet::ParTypeIndep, cadet::BoundStateIndep, cadet::ReactionIndep, cadet::SectionIndep), -jpp.getDouble("VELOCITY_COEFF"));
+					REQUIRE(paramSet);
+					// Reverse flow
+					const bool paramSet2 = unitAD->setParameter(cadet::makeParamId(cadet::hashString("VELOCITY_COEFF"), 0, cadet::CompIndep, cadet::ParTypeIndep, cadet::BoundStateIndep, cadet::ReactionIndep, cadet::SectionIndep), -jpp.getDouble("VELOCITY_COEFF"));
+					REQUIRE(paramSet2);
+				}
+				else
+				{
+					// Reverse flow
+					const bool paramSet = unitAna->setParameter(cadet::makeParamId(cadet::hashString("VELOCITY"), 0, cadet::CompIndep, cadet::ParTypeIndep, cadet::BoundStateIndep, cadet::ReactionIndep, cadet::SectionIndep), -jpp.getDouble("VELOCITY"));
+					REQUIRE(paramSet);
+					// Reverse flow
+					const bool paramSet2 = unitAD->setParameter(cadet::makeParamId(cadet::hashString("VELOCITY"), 0, cadet::CompIndep, cadet::ParTypeIndep, cadet::BoundStateIndep, cadet::ReactionIndep, cadet::SectionIndep), -jpp.getDouble("VELOCITY"));
+					REQUIRE(paramSet2);
+				}
 
 				// Setup
 				unitAna->notifyDiscontinuousSectionTransition(0.0, 0u, {y.data(), nullptr}, noAdParams);

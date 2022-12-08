@@ -50,6 +50,7 @@ is given in :numref:`table_features_unit_operations`.
 
 
 Moreover, the pseudo unit operations :ref:`inlet_model`, and :ref:`outlet_model` act as sources and sinks for the system. 
+We further note that radial flow model variants are available for the LRM, LRMP and GRM.
 
 
 .. toctree::
