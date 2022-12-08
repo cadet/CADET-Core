@@ -10,12 +10,6 @@
 //  is available at http://www.gnu.org/licenses/gpl.html
 // =============================================================================
 
-// we have the following tests:
-// fixGRM: test that does not work and is not based on FD
-// CI: test that works and is not based on FD
-// FDtestGRM: Test based on FD that works on my machine
-// failedFDtestGRM: Test based on FD that does not work on my machine
-
 #include <catch.hpp>
 
 #include "ColumnTests.hpp"

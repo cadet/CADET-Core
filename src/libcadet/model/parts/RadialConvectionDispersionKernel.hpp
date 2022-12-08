@@ -119,7 +119,7 @@ namespace impl
 				// Right side, leave out if we're in the last cell (boundary condition)
 				if (cadet_likely(col < p.nCol - 1))
 				{
-					resBulkComp[col * p.strideCell] -= d_rad * static_cast<ParamType>(p.cellBounds[col+1]) / denom * (stencil[1] - stencil[0]) / (static_cast<ParamType>(p.cellCenters[col+1]) - static_cast<ParamType>(p.cellCenters[col]));
+					resBulkComp[col * p.strideCell] -= d_rad * static_cast<ParamType>(p.cellBounds[col + 1]) / denom * (stencil[1] - stencil[0]) / (static_cast<ParamType>(p.cellCenters[col + 1]) - static_cast<ParamType>(p.cellCenters[col]));
 					// Jacobian entries
 					if (wantJac)
 					{
@@ -132,11 +132,11 @@ namespace impl
 				// Left side, leave out if we're in the first cell (boundary condition)
 				if (cadet_likely(col > 0))
 				{
-					resBulkComp[col * p.strideCell] -= d_rad * static_cast<ParamType>(p.cellBounds[col]) / denom * (stencil[-1] - stencil[0]) / (static_cast<ParamType>(p.cellCenters[col-1]) - static_cast<ParamType>(p.cellCenters[col]));
+					resBulkComp[col * p.strideCell] -= d_rad * static_cast<ParamType>(p.cellBounds[col]) / denom * (stencil[-1] - stencil[0]) / (static_cast<ParamType>(p.cellCenters[col - 1]) - static_cast<ParamType>(p.cellCenters[col]));
 					// Jacobian entries
 					if (wantJac)
 					{
-						const double val = static_cast<double>(d_rad) * static_cast<double>(p.cellBounds[col]) / static_cast<double>(denom) / (static_cast<double>(p.cellCenters[col-1]) - static_cast<double>(p.cellCenters[col]));
+						const double val = static_cast<double>(d_rad) * static_cast<double>(p.cellBounds[col]) / static_cast<double>(denom) / (static_cast<double>(p.cellCenters[col - 1]) - static_cast<double>(p.cellCenters[col]));
 						jac[0] += val;
 						jac[-p.strideCell] -= val;
 					}

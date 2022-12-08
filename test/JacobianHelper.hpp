@@ -366,9 +366,10 @@ inline void compareJacobianFD(cadet::IUnitOperation* modelA, cadet::IUnitOperati
  * @param [in] colB Memory for Jacobian column
  * @param [in] n Number of DOFs in the model
  * @param [in] m Number of equations in the model
+ * @param [in] absTol absolute tolerance when comparing the sign in the pattern
  */
 inline void checkJacobianPatternFD(const std::function<void(double const*, double*)>& residual, const std::function<void(double const*, double*)>& multiplyJacobian, double const* y, double* dir,
-	double* colA, double* colB, unsigned int n, unsigned int m)
+	double* colA, double* colB, unsigned int n, unsigned int m, const double absTol = 0.0)
 {
 	const double h = 1e-5;
 	for (unsigned int col = 0; col < n; ++col)
@@ -405,14 +406,12 @@ inline void checkJacobianPatternFD(const std::function<void(double const*, doubl
 		{
 			CAPTURE(row);
 			CAPTURE(col);
-			if (colA[row] == 0.0)
-				CHECK(colB[row] == 0.0);
-			else if (colA[row] > 0.0)
-				CHECK(colB[row] > 0.0);
-			else if (colA[row] < 0.0)
-				CHECK(colB[row] < 0.0);
+			if (std::abs(colA[row]) <= absTol)
+				CHECK(std::abs(colA[row]) <= absTol);
 			else if (std::isnan(colA[row]))
 				CHECK(std::isnan(colB[row]));
+			else
+				CHECK(std::signbit(colA[row]) == std::signbit(colB[row]));
 		}
 	}
 }
@@ -428,11 +427,12 @@ inline void checkJacobianPatternFD(const std::function<void(double const*, doubl
  * @param [in] colA Memory for Jacobian column
  * @param [in] colB Memory for Jacobian column
  * @param [in] n Number of DOFs in the model
+ * @param [in] absTol absolute tolerance when comparing the sign in the pattern
  */
 inline void checkJacobianPatternFD(const std::function<void(double const*, double*)>& residual, const std::function<void(double const*, double*)>& multiplyJacobian, double const* y,
-	double* dir, double* colA, double* colB, unsigned int n)
+	double* dir, double* colA, double* colB, unsigned int n, const double absTol = 0.0)
 {
-	checkJacobianPatternFD(residual, multiplyJacobian, y, dir, colA, colB, n, n);
+	checkJacobianPatternFD(residual, multiplyJacobian, y, dir, colA, colB, n, n, absTol);
 }
 
 /**
@@ -448,13 +448,15 @@ inline void checkJacobianPatternFD(const std::function<void(double const*, doubl
  * @param [in] colA Memory for Jacobian column of @p modelA
  * @param [in] colB Memory for Jacobian column of @p modelB
  * @param [in] tls Thread local storage for @p modelA
+ * @param [in] absTol absolute tolerance when comparing the sign in the pattern
  */
-inline void checkJacobianPatternFD(cadet::IUnitOperation* modelA, cadet::IUnitOperation* modelB, double const* y, double const* yDot, double* dir, double* colA, double* colB, cadet::util::ThreadLocalStorage& tls)
+inline void checkJacobianPatternFD(cadet::IUnitOperation* modelA, cadet::IUnitOperation* modelB, double const* y, double const* yDot, double* dir, double* colA, double* colB, cadet::util::ThreadLocalStorage& tls, const double absTol=0.0)
 {
 	checkJacobianPatternFD(
 		[=, &tls](double const* lDir, double* res) -> void { modelA->residual(SimulationTime{0.0, 0u}, ConstSimulationState{lDir, yDot}, res, tls); },
 		[=](double const* lDir, double* res) -> void { modelB->multiplyWithJacobian(SimulationTime{0.0, 0u}, ConstSimulationState{y, yDot}, lDir, 1.0, 0.0, res); },
-		y, dir, colA, colB, modelA->numDofs(), modelA->numDofs());
+		y, dir, colA, colB, modelA->numDofs(), modelA->numDofs(),
+		absTol);
 }
 
 /**

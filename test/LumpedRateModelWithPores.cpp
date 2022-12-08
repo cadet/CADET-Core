@@ -85,12 +85,12 @@ TEST_CASE("LRMP numerical EOC Benchmark with parameter sensitivities for SMA LWE
 	cadet::test::column::testEOCReferenceBenchmark(modelFilePath, refFilePath, convFilePath, "000", absTol, relTol, 2, 8, 0, true);
 }
 
-TEST_CASE("LRMP time derivative Jacobian vs FD", "[LRMP],[UnitOp],[Residual],[Jacobian],[CI],[CI]")
+TEST_CASE("LRMP time derivative Jacobian vs FD", "[LRMP],[UnitOp],[Residual],[Jacobian],[CI]")
 {
 	cadet::test::column::testTimeDerivativeJacobianFD("LUMPED_RATE_MODEL_WITH_PORES");
 }
 
-TEST_CASE("LRMP flux Jacobian vs FD", "[LRMP],[UnitOp],[Residual],[Jacobian],[CI],[CI]")
+TEST_CASE("LRMP flux Jacobian vs FD", "[LRMP],[UnitOp],[Residual],[Jacobian],[CI]")
 {
 	cadet::test::column::testArrowHeadJacobianFD("LUMPED_RATE_MODEL_WITH_PORES");
 }

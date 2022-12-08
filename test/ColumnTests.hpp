@@ -125,8 +125,9 @@ namespace column
 	 * @brief Checks the full Jacobian against AD and FD pattern switching
 	 * @details Checks the analytic Jacobian against the AD Jacobian and checks both against the FD pattern.
 	 * @param [in] jpp Configured column model
+	 * @param [in] absTolFDpattern absolute tolerance when comparing the sign in the FD Jacobian pattern
 	 */
-	void testJacobianAD(cadet::JsonParameterProvider& jpp);
+	void testJacobianAD(cadet::JsonParameterProvider& jpp, const double absTolFDpattern = 0.0);
 
 	/**
 	 * @brief Checks the full Jacobian against AD and FD pattern switching in case of variable surface diffusion coefficient

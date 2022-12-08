@@ -10,7 +10,7 @@ The main assumptions are:
 - The cross sections of the column are homogenous in terms of interstitial volume, fluid flow, and distribution of components.
   Thus, only one spatial coordinate in axial direction is needed and radial transport is neglected in the column bulk volume.
 
-- The bead radii :math:`r_{p}` are much smaller than the column radius :math:`r_c` and the column length :math:`L`.
+- The bead radii :math:`r_{p}` are much smaller than the column radius :math:`\mathrm{P}` and the column length :math:`L`.
   Therefore, the beads can be seen as continuously distributed inside the column (i.e., at each point there is interstitial and bead volume).
 
 .. _table_features:
@@ -276,7 +276,7 @@ The direction of flow inside the unit operation is governed by the sign of the i
 A positive sign results in (standard) forward flow, whereas a negative sign reverses the flow direction.
 Note that in case of reversed flow, the chromatogram is returned at the unit operation’s `INLET`, which may not be returned from simulation by default.
 
-The final behavior is controlled by the interplay of cross section area and interstitial velocity:
+The final behavior for axial flow models is controlled by the interplay of cross section area and interstitial velocity:
 
 - If cross section area :math:`A` is given and :math:`u` is not, :math:`u` is inferred from the volumetric flow rate.
 
@@ -284,4 +284,64 @@ The final behavior is controlled by the interplay of cross section area and inte
 
 - If both cross section area :math:`A` and interstitial velocity :math:`u` are given, the magnitude of the actual interstitial velocity :math:`u` is inferred from the volumetric flow rate and the flow direction is given by the sign of the provided :math:`u`.
 
+The final behavior for radial flow models is controlled by the interplay of column length/height and interstitial velocity coefficient:
+
+- If :math:`L` is given, the interstitial velocity field is inferred from the volumetric flow rate.
+
+- If :math:`u` is given and :math:`L` is not, the provided interstitial velocity coefficient is used to calculate the interstitial velocity field.
+
+
 For information on model parameters see :ref:`general_rate_model_config`.
+
+.. _MUOPGRMradialFlow:
+
+Radial flow GRM
+^^^^^^^^^^^^^^^
+
+The radial flow GRM describes transport of solute molecules through the interstitial column volume by radial convective flow, band broadening caused by radial dispersion, mass transfer resistance through a stagnant film around the beads, pore (and surface) diffusion in the porous beads :cite:`Ma1996,Schneider1968a,Miyabe2007`, and adsorption to the inner bead surfaces.
+
+The main assumptions are:
+
+- The shells of the column are homogenous in terms of interstitial volume, fluid flow, and distribution of components.
+  Thus, only one spatial coordinate in radial direction :math:`\rho` is needed and axial transport is neglected in the column bulk volume.
+
+- The bead radii :math:`r_{p}` are much smaller than the column radius :math:`\mathrm{P}-\mathrm{P}_c`, with :math:`\mathrm{P}` and :math:`\mathrm{P}_c` being the inner and outer column radius respectively, and the column length :math:`L`.
+  Therefore, the beads can be seen as continuously distributed inside the column (i.e., at each point there is interstitial and bead volume).
+
+- The fluids are incompressible, i.e. the velocity field :math:`\mathrm{V} \colon \mathbb{R}^3 \to \mathbb{R}^3` submits to :math:`\operatorname{div}\left( \mathrm{V} \right) \equiv 0`.
+  That is, the volumetric flow rate at the inner and outer column radius are the same.
+
+Consider a hollow (double walled) column with inner column diameter :math:`\mathrm{P}_c>0` and outer diameter :math:`\mathrm{P}>\mathrm{P}_c`, filled with spherical beads of (possibly) multiple types with radius :math:`r_{p,j} \ll L` (see :numref:`ModelGRMColumn`), where :math:`j` is the particle type index. The mass balance in the interstitial column volume is described by
+
+.. math::
+    :label: ModelRadialColumn
+
+    \begin{aligned}
+        \frac{\partial c^l_i}{\partial t} = -\frac{u}{\rho} \frac{\partial c^l_i}{\partial \rho} + D_{\text{rad},i} \frac{1}{\rho} \frac{\partial}{\partial \rho} \left(\rho \frac{\partial c^l_i}{\partial \rho} \right) &- \frac{1}{\beta_c} \sum_j d_j \frac{3}{r_{p,j}} k_{f,j,i} \left[ c^l_i - c^p_{j,i}(\cdot, \cdot, r_{p,j}) \right] \\
+        &+ f_{\text{react},i}^l\left(c^l\right). 
+    \end{aligned}
+
+Here, :math:`c^l_i\colon \left[0, T_{\text{end}}\right] \times [\mathrm{P}_c, \mathrm{P}] \rightarrow \mathbb{R}^{\geq 0}` denotes the concentration in the interstitial column volume, :math:`c^p_{j,i}\colon \left[0, T_{\text{end}}\right] \times [P_c, P] \times [r_{c,j}, r_{p,j}] \rightarrow \mathbb{R}^{\geq 0}` the liquid phase concentration in the beads, :math:`k_{f,j,i}` the film diffusion coefficient, :math:`D_{\text{rad},i}` the dispersion coefficient, :math:`u` the interstitial velocity, :math:`d_j` the volume fraction of particle type :math:`j`, and :math:`\beta_c = \varepsilon_c / (1 - \varepsilon_c)` the column phase ratio, where :math:`\varepsilon_c` is the column porosity (ratio of interstitial volume to total column volume).
+If reactions are considered, the term :math:`f_{\text{react},i}^l\left(c^l\right)` represents the net change of concentration :math:`c_i` due to reactions involving component :math:`i`.
+
+Danckwerts boundary conditions :cite:`Danckwerts1953` are applied to inlet and outlet of the column:
+
+.. math::
+    :label: BCOutlet
+
+    \begin{aligned}
+        u c_{\text{in},i}(t) &= u c^l_i(t,0) - D_{\text{rad},i} \frac{\partial c^l_i}{\partial \rho}(t, 0) & \forall t > 0,
+    \end{aligned}
+
+.. math::
+    :label: BCInlet
+
+    \begin{aligned}
+        \frac{\partial c^l_i}{\partial \rho}(t, \mathrm{P}) &= 0 & \forall t > 0. 
+    \end{aligned}
+
+Note that the outlet boundary condition Eq. :eq:`BCOutlet` is also known as “do nothing” or natural outflow condition.
+
+The complementing mass transport and binding equations for the liquid and solid phases of the porous beads are described by the same equations as for the axial GRM.
+
+For information on model parameters see :ref:`radial_flow_models_config` in addition to :ref:`general_rate_model_config`.
