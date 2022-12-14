@@ -18,6 +18,8 @@
 #include "linalg/BandMatrix.hpp"
 #include "Memory.hpp"
 #include "AutoDiff.hpp"
+#include "model/paramdep/DummyParameterDependence.cpp"
+#include "Dummies.hpp"
 
 #include "io/hdf5/HDF5Writer.hpp"
 
@@ -30,7 +32,7 @@
 #define TEST_MANUFACTURED_TEXPT 1
 
 // Uncomment the next line to enable logging output of CADET in unit tests
-#define CADETTEST_ENABLE_LOG
+//#define CADETTEST_ENABLE_LOG
 
 #ifdef CADETTEST_ENABLE_LOG
 	#include "cadet/Logging.hpp"
@@ -51,7 +53,9 @@
 class RadialFlowModel : public cadet::test::IDiffEqModel
 {
 public:
-	RadialFlowModel(int nComp, int nCol) : _nComp(nComp), _nCol(nCol), _stencilMemory(sizeof(cadet::active) * 5)
+	RadialFlowModel(int nComp, int nCol) : _nComp(nComp), _nCol(nCol),
+		_params{0.0, nullptr, nullptr, nullptr, nullptr, nullptr, 0, 0, 0, 0, 0, nullptr, _dummyModel},
+		_stencilMemory(sizeof(cadet::active) * 5)
 	{
 		const int nPureDof = _nCol * _nComp;
 		_jacDisc.resize(nPureDof, 2 * nComp, 2 * nComp);
@@ -75,8 +79,14 @@ public:
 		_params.nComp = _nComp;
 		_params.offsetToInlet = 0;
 		_params.strideCell = _nComp;
+		_params.parDep = new cadet::model::DummyParameterParameterDependence();
 	}
-	virtual ~RadialFlowModel() CADET_NOEXCEPT { }
+
+	virtual ~RadialFlowModel() CADET_NOEXCEPT
+	{
+		if (_params.parDep)
+			delete _params.parDep;
+	}
 
 	int numPureDofs() const CADET_NOEXCEPT { return _nComp * _nCol; }
 	virtual int numDofs() const CADET_NOEXCEPT { return _nComp * (_nCol + 1); }
@@ -387,7 +397,6 @@ public:
 		}
 #endif
 
-
 		return _trueSolution;
 	}
 
@@ -427,6 +436,7 @@ protected:
 	int _nComp;
 	int _nCol;
 
+	DummyModel _dummyModel;
 	cadet::model::parts::convdisp::RadialFlowParameters<double> _params;
 	cadet::linalg::BandMatrix _jac;
 	cadet::linalg::FactorizableBandMatrix _jacDisc;

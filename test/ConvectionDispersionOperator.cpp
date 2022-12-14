@@ -20,6 +20,7 @@
 #include "Weno.hpp"
 #include "AdUtils.hpp"
 #include "SimulationTypes.hpp"
+#include "ModelBuilderImpl.hpp"
 
 #include "JsonTestModels.hpp"
 #include "ColumnTests.hpp"
@@ -127,7 +128,8 @@ namespace
 		// Configure the operator
 		typedef std::unordered_map<cadet::ParameterId, cadet::active*> ParameterMap;
 		ParameterMap parameters;
-		REQUIRE(convDispOp.configureModelDiscretization(jpp, nComp, nCol));
+		cadet::ModelBuilder builder;
+		REQUIRE(convDispOp.configureModelDiscretization(jpp, builder, nComp, nCol));
 		REQUIRE(convDispOp.configure(0, jpp, parameters));
 
 		// Make sure that VELOCITY parameter is present

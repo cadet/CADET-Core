@@ -116,7 +116,7 @@ bool LumpedRateModelWithPores<ConvDispOperator>::usesAD() const CADET_NOEXCEPT
 }
 
 template <typename ConvDispOperator>
-bool LumpedRateModelWithPores<ConvDispOperator>::configureModelDiscretization(IParameterProvider& paramProvider, IConfigHelper& helper)
+bool LumpedRateModelWithPores<ConvDispOperator>::configureModelDiscretization(IParameterProvider& paramProvider, const IConfigHelper& helper)
 {
 	// ==== Read discretization
 	_disc.nComp = paramProvider.getInt("NCOMP");
@@ -233,8 +233,6 @@ bool LumpedRateModelWithPores<ConvDispOperator>::configureModelDiscretization(IP
 	// Create nonlinear solver for consistent initialization
 	configureNonlinearSolver(paramProvider);
 
-	paramProvider.popScope();
-
 	// Read particle geometry and default to "SPHERICAL"
 	_parGeomSurfToVol = std::vector<double>(_disc.nParType, SurfVolRatioSphere);
 	if (paramProvider.exists("PAR_GEOM"))
@@ -261,7 +259,9 @@ bool LumpedRateModelWithPores<ConvDispOperator>::configureModelDiscretization(IP
 		}
 	}
 
-	const bool transportSuccess = _convDispOp.configureModelDiscretization(paramProvider, _disc.nComp, _disc.nCol);
+	paramProvider.popScope();
+
+	const bool transportSuccess = _convDispOp.configureModelDiscretization(paramProvider, helper, _disc.nComp, _disc.nCol);
 
 	// Allocate memory
 	Indexer idxr(_disc);

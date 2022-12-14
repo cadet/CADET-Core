@@ -390,7 +390,7 @@ bool GeneralRateModel2D::usesAD() const CADET_NOEXCEPT
 #endif
 }
 
-bool GeneralRateModel2D::configureModelDiscretization(IParameterProvider& paramProvider, IConfigHelper& helper)
+bool GeneralRateModel2D::configureModelDiscretization(IParameterProvider& paramProvider, const IConfigHelper& helper)
 {
 	// ==== Read discretization
 	_disc.nComp = paramProvider.getInt("NCOMP");
