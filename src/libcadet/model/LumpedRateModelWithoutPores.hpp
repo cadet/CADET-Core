@@ -95,7 +95,7 @@ public:
 	static const char* identifier() CADET_NOEXCEPT { return LumpedRateModelWithoutPoresName<ConvDispOperator>::identifier(); }
 	virtual const char* unitOperationName() const CADET_NOEXCEPT { return identifier(); }
 
-	virtual bool configureModelDiscretization(IParameterProvider& paramProvider, IConfigHelper& helper);
+	virtual bool configureModelDiscretization(IParameterProvider& paramProvider, const IConfigHelper& helper);
 	virtual bool configure(IParameterProvider& paramProvider);
 	virtual void notifyDiscontinuousSectionTransition(double t, unsigned int secIdx, const ConstSimulationState& simState, const AdJacobianParams& adJac);
 
@@ -325,24 +325,6 @@ protected:
 		virtual int writeOutlet(unsigned int port, double* buffer) const;
 		virtual int writeOutlet(double* buffer) const;
 
-		virtual double const* concentration() const { return _idx.c(_data); }
-		virtual double const* flux() const { return nullptr; }
-		virtual double const* particleMobilePhase(unsigned int parType) const { return nullptr; }
-		virtual double const* solidPhase(unsigned int parType) const { return _idx.q(_data); }
-		virtual double const* volume() const { return nullptr; }
-		virtual double const* inlet(unsigned int port, unsigned int& stride) const
-		{
-			stride = _idx.strideColComp();
-			return _data;
-		}
-		virtual double const* outlet(unsigned int port, unsigned int& stride) const
-		{
-			stride = _idx.strideColComp();
-			if (_model._convDispOp.forwardFlow())
-				return &_idx.c(_data, _disc.nCol - 1, 0);
-			else
-				return &_idx.c(_data, 0, 0);
-		}
 
 		virtual int writePrimaryCoordinates(double* coords) const
 		{

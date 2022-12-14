@@ -20,6 +20,7 @@
 #include "model/parts/AxialConvectionDispersionKernel.hpp"
 #include "model/parts/RadialConvectionDispersionKernel.hpp"
 #include "SensParamUtil.hpp"
+#include "ConfigurationHelper.hpp"
 
 #include "LoggingUtils.hpp"
 #include "Logging.hpp"
@@ -57,7 +58,7 @@ AxialConvectionDispersionOperatorBase::~AxialConvectionDispersionOperatorBase() 
  * @param [in] nCol Number of axial cells
  * @return @c true if configuration went fine, @c false otherwise
  */
-bool AxialConvectionDispersionOperatorBase::configureModelDiscretization(IParameterProvider& paramProvider, unsigned int nComp, unsigned int nCol, unsigned int strideCell)
+bool AxialConvectionDispersionOperatorBase::configureModelDiscretization(IParameterProvider& paramProvider, const IConfigHelper& helper, unsigned int nComp, unsigned int nCol, unsigned int strideCell)
 {
 	_nComp = nComp;
 	_nCol = nCol;
@@ -501,7 +502,7 @@ RadialConvectionDispersionOperatorBase::~RadialConvectionDispersionOperatorBase(
  * @param [in] nCol Number of axial cells
  * @return @c true if configuration went fine, @c false otherwise
  */
-bool RadialConvectionDispersionOperatorBase::configureModelDiscretization(IParameterProvider& paramProvider, unsigned int nComp, unsigned int nCol, unsigned int strideCell)
+bool RadialConvectionDispersionOperatorBase::configureModelDiscretization(IParameterProvider& paramProvider, const IConfigHelper& helper, unsigned int nComp, unsigned int nCol, unsigned int strideCell)
 {
 	_nComp = nComp;
 	_nCol = nCol;
@@ -1026,9 +1027,9 @@ int ConvectionDispersionOperator<Operator>::requiredADdirs() const CADET_NOEXCEP
  * @return @c true if configuration went fine, @c false otherwise
  */
 template <typename Operator>
-bool ConvectionDispersionOperator<Operator>::configureModelDiscretization(IParameterProvider& paramProvider, unsigned int nComp, unsigned int nCol)
+bool ConvectionDispersionOperator<Operator>::configureModelDiscretization(IParameterProvider& paramProvider, const IConfigHelper& helper, unsigned int nComp, unsigned int nCol)
 {
-	const bool retVal = _baseOp.configureModelDiscretization(paramProvider, nComp, nCol, nComp);
+	const bool retVal = _baseOp.configureModelDiscretization(paramProvider, helper, nComp, nCol, nComp);
 
 	// Allocate memory
 	const unsigned int lb = _baseOp.jacobianLowerBandwidth();

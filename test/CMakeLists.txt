@@ -31,22 +31,24 @@ endif()
 add_executable(testLogging testLogging.cpp)
 target_link_libraries(testLogging PRIVATE CADET::CompileOptions)
 
-add_executable(testRadialKernel testRadialKernel.cpp TimeIntegrator.cpp ${CMAKE_SOURCE_DIR}/src/libcadet/Logging.cpp ${CMAKE_SOURCE_DIR}/src/libcadet/AutoDiff.cpp)
-target_link_libraries(testRadialKernel PRIVATE CADET::CompileOptions CADET::AD SUNDIALS::sundials_idas ${SUNDIALS_NVEC_TARGET} )
-target_include_directories(testRadialKernel PRIVATE ${CMAKE_SOURCE_DIR}/test)
+if (NOT WIN32)
+	add_executable(testRadialKernel testRadialKernel.cpp TimeIntegrator.cpp ${CMAKE_SOURCE_DIR}/src/libcadet/Logging.cpp ${CMAKE_SOURCE_DIR}/src/libcadet/AutoDiff.cpp ${CMAKE_SOURCE_DIR}/src/libcadet/model/paramdep/ParameterDependenceBase.cpp)
+	target_link_libraries(testRadialKernel PRIVATE CADET::CompileOptions CADET::AD SUNDIALS::sundials_idas ${SUNDIALS_NVEC_TARGET} )
+	target_include_directories(testRadialKernel PRIVATE ${CMAKE_SOURCE_DIR}/test ${CMAKE_BINARY_DIR}/src/libcadet)
 
-if (ENABLE_GRM_2D)
-	target_include_directories(testRadialKernel PRIVATE ${CMAKE_BINARY_DIR}/src/libcadet)
-	if (SUPERLU_FOUND)
-		target_link_libraries(testRadialKernel PRIVATE SuperLU::SuperLU)
+	if (ENABLE_GRM_2D)
+		target_include_directories(testRadialKernel PRIVATE ${CMAKE_BINARY_DIR}/src/libcadet)
+		if (SUPERLU_FOUND)
+			target_link_libraries(testRadialKernel PRIVATE SuperLU::SuperLU)
+		endif()
+		if (UMFPACK_FOUND)
+			target_link_libraries(testRadialKernel PRIVATE UMFPACK::UMFPACK)
+		endif()
 	endif()
-	if (UMFPACK_FOUND)
-		target_link_libraries(testRadialKernel PRIVATE UMFPACK::UMFPACK)
-	endif()
+
+	list(APPEND TEST_NONLINALG_TARGETS testRadialKernel)
+	list(APPEND TEST_HDF5_TARGETS testRadialKernel)
 endif()
-
-list(APPEND TEST_NONLINALG_TARGETS testRadialKernel)
-list(APPEND TEST_HDF5_TARGETS testRadialKernel)
 
 
 # CATCH unit tests
@@ -115,8 +117,7 @@ endforeach()
 
 # ---------------------------------------------------
 
-
-if(WIN32)
+if (WIN32)
 	add_executable(testCAPIv1 "${CMAKE_CURRENT_BINARY_DIR}/Paths_$<CONFIG>.cpp" testCAPIv1.cpp)
 	target_include_directories(testCAPIv1 PRIVATE ${CMAKE_SOURCE_DIR}/include ${CMAKE_SOURCE_DIR}/ThirdParty/json)
 endif()

@@ -29,15 +29,15 @@ namespace model
 /**
  * @brief Defines a dummy parameter dependence
  */
-class DummyParameterDependence : public ParameterDependenceBase
+class DummyParameterStateDependence : public ParameterStateDependenceBase
 {
 public:
 
-	DummyParameterDependence() { }
-	virtual ~DummyParameterDependence() CADET_NOEXCEPT { }
+	DummyParameterStateDependence() { }
+	virtual ~DummyParameterStateDependence() CADET_NOEXCEPT { }
 
 	static const char* identifier() { return "DUMMY"; }
-	virtual const char* name() const CADET_NOEXCEPT { return DummyParameterDependence::identifier(); }
+	virtual const char* name() const CADET_NOEXCEPT { return DummyParameterStateDependence::identifier(); }
 
 	virtual int jacobianElementsPerRowLiquid() const CADET_NOEXCEPT { return 0; }
 	virtual int jacobianElementsPerRowCombined() const CADET_NOEXCEPT { return 0; }
@@ -46,7 +46,7 @@ public:
 	virtual void analyticJacobianCombinedAddLiquid(const ColumnPosition& colPos, double param, double const* yLiquid, double const* ySolid, int comp, double factor, int offset, int row, linalg::DoubleSparseMatrix& jac) const { }
 	virtual void analyticJacobianCombinedAddSolid(const ColumnPosition& colPos, double param, double const* yLiquid, double const* ySolid, int bnd, double factor, int offset, int row, linalg::DoubleSparseMatrix& jac) const { }
 
-	CADET_PARAMETERDEPENDENCE_BOILERPLATE
+	CADET_PARAMETERSTATEDEPENDENCE_BOILERPLATE
 
 protected:
 
@@ -84,14 +84,57 @@ protected:
 };
 
 
+/**
+ * @brief Defines a dummy parameter dependence
+ */
+class DummyParameterParameterDependence : public ParameterParameterDependenceBase
+{
+public:
+
+	DummyParameterParameterDependence() { }
+	virtual ~DummyParameterParameterDependence() CADET_NOEXCEPT { }
+
+	static const char* identifier() { return "DUMMY"; }
+	virtual const char* name() const CADET_NOEXCEPT { return DummyParameterParameterDependence::identifier(); }
+
+	CADET_PARAMETERPARAMETERDEPENDENCE_BOILERPLATE
+
+protected:
+
+	virtual bool configureImpl(IParameterProvider& paramProvider, UnitOpIdx unitOpIdx, ParticleTypeIdx parTypeIdx, BoundStateIdx bndIdx, const std::string& name)
+	{
+		return true;
+	}
+
+	template <typename ParamType>
+	ParamType getValueImpl(UnitOpIdx unitOpIdx, const std::unordered_map<ParameterId, active*>& params, const ColumnPosition& colPos, int comp, int parType, int bnd) const
+	{
+		return 0.0;
+	}
+
+	template <typename ParamType>
+	ParamType getValueImpl(UnitOpIdx unitOpIdx, const std::unordered_map<ParameterId, active*>& params, const ColumnPosition& colPos, int comp, int parType, int bnd, const ParamType& val) const
+	{
+		return 0.0;
+	}
+
+};
+
+
 namespace paramdep
 {
-	void registerDummyParamDependence(std::unordered_map<std::string, std::function<model::IParameterDependence*()>>& paramDeps)
+	void registerDummyParamDependence(std::unordered_map<std::string, std::function<model::IParameterStateDependence*()>>& paramDeps)
 	{
-		paramDeps[DummyParameterDependence::identifier()] = []() { return new DummyParameterDependence(); };
-		paramDeps["NONE"] = []() { return new DummyParameterDependence(); };
+		paramDeps[DummyParameterStateDependence::identifier()] = []() { return new DummyParameterStateDependence(); };
+		paramDeps["NONE"] = []() { return new DummyParameterStateDependence(); };
 	}
-}  // namespace reaction
+
+	void registerDummyParamDependence(std::unordered_map<std::string, std::function<model::IParameterParameterDependence*()>>& paramDeps)
+	{
+		paramDeps[DummyParameterParameterDependence::identifier()] = []() { return new DummyParameterParameterDependence(); };
+		paramDeps["NONE"] = []() { return new DummyParameterParameterDependence(); };
+	}
+}  // namespace paramdep
 
 }  // namespace model
 

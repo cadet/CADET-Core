@@ -68,7 +68,7 @@ namespace parts
 }
 
 class IDynamicReactionModel;
-class IParameterDependence;
+class IParameterStateDependence;
 
 /**
  * @brief General rate model of liquid column chromatography
@@ -114,7 +114,7 @@ public:
 	static const char* identifier() { return GeneralRateModelName<ConvDispOperator>::identifier(); }
 	virtual const char* unitOperationName() const CADET_NOEXCEPT { return identifier(); }
 
-	virtual bool configureModelDiscretization(IParameterProvider& paramProvider, IConfigHelper& helper);
+	virtual bool configureModelDiscretization(IParameterProvider& paramProvider, const IConfigHelper& helper);
 	virtual bool configure(IParameterProvider& paramProvider);
 	virtual void notifyDiscontinuousSectionTransition(double t, unsigned int secIdx, const ConstSimulationState& simState, const AdJacobianParams& adJac);
 
@@ -346,7 +346,7 @@ protected:
 	MultiplexMode _parSurfDiffusionMode;
 	std::vector<active> _poreAccessFactor; //!< Pore accessibility factor \f$ F_{\text{acc}} \f$
 	MultiplexMode _poreAccessFactorMode;
-	std::vector<IParameterDependence*> _parDepSurfDiffusion; //!< Parameter dependencies for particle surface diffusion
+	std::vector<IParameterStateDependence*> _parDepSurfDiffusion; //!< Parameter dependencies for particle surface diffusion
 	bool _singleParDepSurfDiffusion; //!< Determines whether a single parameter dependence for particle surface diffusion is used
 	bool _hasParDepSurfDiffusion; //!< Determines whether particle surface diffusion parameter dependencies are present
 
