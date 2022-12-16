@@ -46,6 +46,34 @@ This can be achieved by a (nonlinear) parameter transform
         F\left( k_{\text{eq},i}, k_{d,i} \right) = \begin{pmatrix} k_{\text{eq},i} k_{d,i} \\ k_{d,i} \end{pmatrix} \text{ with Jacobian } J_F\left( k_{\text{eq},i}, k_{d,i} \right) = \begin{pmatrix} k_{d,i} & k_{\text{eq},i} \\ 0 & 1 \end{pmatrix}.
     \end{aligned}
 
+
+.. _ldf_model:
+
+Linear Driving Force (LDF)
+---------------------------
+Some authors use the linear driving force (LDF) approximation instead of the native kinetic form of an isotherm.
+All three approaches are equivalent in rapid equilibrium (``IS_KINETIC = 0``) but not equivalent when binding kinetics are considered (``IS_KINETIC = 1``).
+
+1. In the native approach, :math:`\frac{dq}{dt}` is an explicit funtion of :math:`c` and :math:`q`. For example :math:`\frac{dq}{dt}=k_a c (q_m - q)-k_d q` in the Langmuir model.
+
+2. A linear driving force approximation is based on the equilibrium concentration :math:`q^*` for given :math:`c`.
+For example :math:`q^*= \frac{q_m k_{eq} c}{1 + k_{eq} c}` in the Langmuir model.
+Here, :math:`\frac{dq}{dt}` is proportional to the actual difference from equilibrium, i.e. :math:`\frac{dq}{dt} = k_{kin}(q^*-q)`.
+Note that, the sign of :math:`\frac{dq}{dt}` causes the resulting flux to act towards the equilibrium.
+In CADET, this approach is denoted by ``LDF``, for example in ``MULTI_COMPONENT_LANGMUIR_LDF``.
+
+3. An alterniative linear driving force approximation is based on the equilibrium concentration :math:`c^*` for given :math:`q`.
+For example :math:`c^*=\frac{q}{k_{eq} \left(q_{m}-q\right)}` in the Langmuir model.
+Here, :math:`\frac{dq}{dt}` is proportional to the actual difference from equilibrium concentrations, i.e. :math:`\frac{dq}{dt} = k_{kin}(c-c^*)`.
+Note that, the sign of :math:`\frac{dq}{dt}` causes the resulting flux to act towards the equilibrium.
+In CADET, this approach is denoted by ``LDF_LIQUID_PHASE``, for example in ``MULTI_COMPONENT_LANGMUIR_LDF_LIQUID_PHASE``.
+
+In both LDF examples, the original rate constants :math:`k_a` and :math:`k_d` are replaced by the equilibrium contant :math:`k_{eq}=\frac{k_a}{k_d}`.
+The linear driving force approximations are based on a new kinetic constant, :math:`k_{kin}`.
+
+Note that some isotherms, such as the Freundlich model, don't have a native representation in the above sense.
+LDF versions are availabe for some but not all binding models implemented in CADET.
+
 .. _reference_concentrations:
 
 Reference concentrations
@@ -144,7 +172,22 @@ The models also differ in whether a mobile phase modifier (e.g., salt) is suppor
      - ×
      - ✓
      - ×
+   * - :ref:`freundlich_ldf_model`
+     - ×
+     - ×
+     - ✓
+     - ×
    * - :ref:`multi_component_langmuir_model`
+     - ✓
+     - ×
+     - ✓
+     - ×
+   * - :ref:`multi_component_langmuir_model_ldf`
+     - ✓
+     - ×
+     - ✓
+     - ×
+   * - :ref:`multi_component_langmuir_model_ldf_liquid_phase`
      - ✓
      - ×
      - ✓
@@ -185,6 +228,11 @@ The models also differ in whether a mobile phase modifier (e.g., salt) is suppor
      - ✓
      - ×
    * - :ref:`multi_component_bi_langmuir_model`
+     - ✓
+     - ×
+     - ✓
+     - ✓
+   * - :ref:`multi_component_bi_langmuir_model_ldf`
      - ✓
      - ×
      - ✓

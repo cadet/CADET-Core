@@ -42,6 +42,42 @@ CADET_BINDINGTEST("LINEAR", "EXT_LINEAR", (1,1), (1,0,1), (1.0, 2.0, 0.0, 0.0), 
 	)json", \
 	1e-10, 1e-10, CADET_NONBINDING_LIQUIDPHASE_COMP_UNUSED, CADET_COMPARE_BINDING_VS_NONBINDING)
 
+	CADET_BINDINGTEST("FREUNDLICH_LDF", "EXT_FREUNDLICH_LDF", (1, 1), (1, 0, 1), (1.0, 2.0, 0.0, 0.0), (1.0, 3.0, 2.0, 0.0, 0.0), \
+		R"json( "FLDF_KKIN": [1.0, 2.0],
+	        "FLDF_KF": [0.1, 0.2],
+			"FLDF_N": [0.5, 1.2]
+	)json", \
+		R"json( "FLDF_KKIN": [1.0, 0.5, 2.0],
+	        "FLDF_KF": [0.1, 0.3, 0.2],
+			"FLDF_N": [0.5, 2.2, 1.2]
+	)json", \
+		R"json( "EXT_FLDF_KKIN": [0.0, 0.0],
+	        "EXT_FLDF_KKIN_T": [1.0, 2.0],
+	        "EXT_FLDF_KKIN_TT": [0.0, 0.0],
+	        "EXT_FLDF_KKIN_TTT": [0.0, 0.0],
+	        "EXT_FLDF_KF": [0.0, 0.0],
+	        "EXT_FLDF_KF_T": [0.1, 0.2],
+	        "EXT_FLDF_KF_TT": [0.0, 0.0],
+	        "EXT_FLDF_KF_TTT": [0.0, 0.0],
+			"EXT_FLDF_N": [0.0, 0.0],
+	        "EXT_FLDF_N_T": [0.5, 1.2],
+	        "EXT_FLDF_N_TT": [0.0, 0.0],
+	        "EXT_FLDF_N_TTT": [0.0, 0.0]
+	)json", \
+		R"json( "EXT_FLDF_KKIN": [0.0, 0.0, 0.0],
+	        "EXT_FLDF_KKIN_T": [1.0, 0.5, 2.0],
+	        "EXT_FLDF_KKIN_TT": [0.0, 0.0, 0.0],
+	        "EXT_FLDF_KKIN_TTT": [0.0, 0.0, 0.0],
+	        "EXT_FLDF_KF": [0.0, 0.0, 0.0],
+	        "EXT_FLDF_KF_T": [0.1, 0.3, 0.2],
+	        "EXT_FLDF_KF_TT": [0.0, 0.0, 0.0],
+	        "EXT_FLDF_KF_TTT": [0.0, 0.0, 0.0],
+			"EXT_FLDF_N": [0.0, 0.0, 0.0],
+	        "EXT_FLDF_N_T": [0.5, 2.0, 1.2],
+	        "EXT_FLDF_N_TT": [0.0, 0.0, 0.0],
+	        "EXT_FLDF_N_TTT": [0.0, 0.0, 0.0]
+	)json", \
+	1e-10, 1e-10, CADET_NONBINDING_LIQUIDPHASE_COMP_UNUSED, CADET_COMPARE_BINDING_VS_NONBINDING)
 
 CADET_BINDINGTEST("MULTI_COMPONENT_LANGMUIR", "EXT_MULTI_COMPONENT_LANGMUIR", (1,1), (1,0,1), (1.0, 2.0, 0.0, 0.0), (1.0, 3.0, 2.0, 0.0, 0.0), \
 	R"json( "MCL_KA": [1.14, 2.0],
@@ -80,6 +116,79 @@ CADET_BINDINGTEST("MULTI_COMPONENT_LANGMUIR", "EXT_MULTI_COMPONENT_LANGMUIR", (1
 	)json", \
 	1e-10, 1e-10, CADET_NONBINDING_LIQUIDPHASE_COMP_UNUSED, CADET_COMPARE_BINDING_VS_NONBINDING)
 
+  CADET_BINDINGTEST("MULTI_COMPONENT_LANGMUIR_LDF", "EXT_MULTI_COMPONENT_LANGMUIR_LDF", (1, 1), (1, 0, 1), (1.0, 2.0, 0.0, 0.0), (1.0, 3.0, 2.0, 0.0, 0.0), \
+		R"json( "MCLLDF_KEQ": [1.14, 2.0],
+	        "MCLLDF_KKIN": [0.004, 0.008],
+	        "MCLLDF_QMAX": [4.88, 3.5]
+	)json", \
+		R"json( "MCLLDF_KEQ": [1.14, 1.0, 2.0],
+	        "MCLLDF_KKIN": [0.004, 2.0, 0.008],
+	        "MCLLDF_QMAX": [4.88, 3.0, 3.5]
+	)json", \
+		R"json( "EXT_MCLLDF_KEQ": [0.0, 0.0],
+	        "EXT_MCLLDF_KEQ_T": [1.14, 2.0],
+	        "EXT_MCLLDF_KEQ_TT": [0.0, 0.0],
+	        "EXT_MCLLDF_KEQ_TTT": [0.0, 0.0],
+	        "EXT_MCLLDF_KKIN": [0.0, 0.0],
+	        "EXT_MCLLDF_KKIN_T": [0.004, 0.008],
+	        "EXT_MCLLDF_KKIN_TT": [0.0, 0.0],
+	        "EXT_MCLLDF_KKIN_TTT": [0.0, 0.0],
+	        "EXT_MCLLDF_QMAX": [0.0, 0.0],
+	        "EXT_MCLLDF_QMAX_T": [4.88, 3.5],
+	        "EXT_MCLLDF_QMAX_TT": [0.0, 0.0],
+	        "EXT_MCLLDF_QMAX_TTT": [0.0, 0.0]
+	)json", \
+		R"json( "EXT_MCLLDF_KEQ": [0.0, 0.0, 0.0],
+	        "EXT_MCLLDF_KEQ_T": [1.14, 1.0, 2.0],
+	        "EXT_MCLLDF_KEQ_TT": [0.0, 0.0, 0.0],
+	        "EXT_MCLLDF_KEQ_TTT": [0.0, 0.0, 0.0],
+	        "EXT_MCLLDF_KKIN": [0.0, 0.0, 0.0],
+	        "EXT_MCLLDF_KKIN_T": [0.004, 2.0, 0.008],
+	        "EXT_MCLLDF_KKIN_TT": [0.0, 0.0, 0.0],
+	        "EXT_MCLLDF_KKIN_TTT": [0.0, 0.0, 0.0],
+	        "EXT_MCLLDF_QMAX": [0.0, 0.0, 0.0],
+	        "EXT_MCLLDF_QMAX_T": [4.88, 3.0, 3.5],
+	        "EXT_MCLLDF_QMAX_TT": [0.0, 0.0, 0.0],
+	        "EXT_MCLLDF_QMAX_TTT": [0.0, 0.0, 0.0]
+	)json", \
+		1e-10, 1e-10, CADET_NONBINDING_LIQUIDPHASE_COMP_UNUSED, CADET_COMPARE_BINDING_VS_NONBINDING)
+
+  CADET_BINDINGTEST("MULTI_COMPONENT_LANGMUIR_LDF_LIQUID_PHASE", "EXT_MULTI_COMPONENT_LANGMUIR_LDF_LIQUID_PHASE", (1, 1), (1, 0, 1), (1.0, 2.0, 0.0, 0.0), (1.0, 3.0, 2.0, 0.0, 0.0), \
+		R"json( "MCLLDFC_KEQ": [1.14, 2.0],
+	        "MCLLDFC_KKIN": [0.004, 0.008],
+	        "MCLLDFC_QMAX": [4.88, 3.5]
+	)json", \
+		R"json( "MCLLDFC_KEQ": [1.14, 1.0, 2.0],
+	        "MCLLDFC_KKIN": [0.004, 2.0, 0.008],
+	        "MCLLDFC_QMAX": [4.88, 3.0, 3.5]
+	)json", \
+		R"json( "EXT_MCLLDFC_KEQ": [0.0, 0.0],
+	        "EXT_MCLLDFC_KEQ_T": [1.14, 2.0],
+	        "EXT_MCLLDFC_KEQ_TT": [0.0, 0.0],
+	        "EXT_MCLLDFC_KEQ_TTT": [0.0, 0.0],
+	        "EXT_MCLLDFC_KKIN": [0.0, 0.0],
+	        "EXT_MCLLDFC_KKIN_T": [0.004, 0.008],
+	        "EXT_MCLLDFC_KKIN_TT": [0.0, 0.0],
+	        "EXT_MCLLDFC_KKIN_TTT": [0.0, 0.0],
+	        "EXT_MCLLDFC_QMAX": [0.0, 0.0],
+	        "EXT_MCLLDFC_QMAX_T": [4.88, 3.5],
+	        "EXT_MCLLDFC_QMAX_TT": [0.0, 0.0],
+	        "EXT_MCLLDFC_QMAX_TTT": [0.0, 0.0]
+	)json", \
+		R"json( "EXT_MCLLDFC_KEQ": [0.0, 0.0, 0.0],
+	        "EXT_MCLLDFC_KEQ_T": [1.14, 1.0, 2.0],
+	        "EXT_MCLLDFC_KEQ_TT": [0.0, 0.0, 0.0],
+	        "EXT_MCLLDFC_KEQ_TTT": [0.0, 0.0, 0.0],
+	        "EXT_MCLLDFC_KKIN": [0.0, 0.0, 0.0],
+	        "EXT_MCLLDFC_KKIN_T": [0.004, 2.0, 0.008],
+	        "EXT_MCLLDFC_KKIN_TT": [0.0, 0.0, 0.0],
+	        "EXT_MCLLDFC_KKIN_TTT": [0.0, 0.0, 0.0],
+	        "EXT_MCLLDFC_QMAX": [0.0, 0.0, 0.0],
+	        "EXT_MCLLDFC_QMAX_T": [4.88, 3.0, 3.5],
+	        "EXT_MCLLDFC_QMAX_TT": [0.0, 0.0, 0.0],
+	        "EXT_MCLLDFC_QMAX_TTT": [0.0, 0.0, 0.0]
+	)json", \
+		1e-10, 1e-10, CADET_NONBINDING_LIQUIDPHASE_COMP_UNUSED, CADET_COMPARE_BINDING_VS_NONBINDING)
 
 CADET_BINDINGTEST("MULTI_COMPONENT_ANTILANGMUIR", "EXT_MULTI_COMPONENT_ANTILANGMUIR", (1,1), (1,0,1), (1.0, 2.0, 0.0, 0.0), (1.0, 3.0, 2.0, 0.0, 0.0), \
 	R"json( "MCAL_KA": [1.14, 2.0],
@@ -586,7 +695,25 @@ CADET_BINDINGTEST_ALLBINDING("MULTI_COMPONENT_BILANGMUIR", "EXT_MULTI_COMPONENT_
 	        "EXT_MCBL_QMAX_TTT": [0.0, 0.0, 0.0, 0.0]
 	)json", \
 	1e-10, 1e-10)
-
+CADET_BINDINGTEST_ALLBINDING("MULTI_COMPONENT_BILANGMUIR_LDF", "EXT_MULTI_COMPONENT_BILANGMUIR_LDF", (2, 2), (1.0, 2.0, 0.0, 0.0, 0.0, 0.0), \
+		R"json( "MCBLLDF_KEQ": [1.14, 2.0, 2.28, 4.0],
+	        "MCBLLDF_KKIN": [0.004, 0.008, 0.002, 0.003],
+	        "MCBLLDF_QMAX": [4.88, 3.5, 3.88, 2.5]
+	)json", \
+		R"json( "EXT_MCBLLDF_KEQ": [0.0, 0.0, 0.0, 0.0],
+	        "EXT_MCBLLDF_KEQ_T": [1.14, 2.0, 2.28, 4.0],
+	        "EXT_MCBLLDF_KEQ_TT": [0.0, 0.0, 0.0, 0.0],
+	        "EXT_MCBLLDF_KEQ_TTT": [0.0, 0.0, 0.0, 0.0],
+	        "EXT_MCBLLDF_KKIN": [0.0, 0.0, 0.0, 0.0],
+	        "EXT_MCBLLDF_KKIN_T": [0.004, 0.008, 0.002, 0.003],
+	        "EXT_MCBLLDF_KKIN_TT": [0.0, 0.0, 0.0, 0.0],
+	        "EXT_MCBLLDF_KKIN_TTT": [0.0, 0.0, 0.0, 0.0],
+	        "EXT_MCBLLDF_QMAX": [0.0, 0.0, 0.0, 0.0],
+	        "EXT_MCBLLDF_QMAX_T": [4.88, 3.5, 3.88, 2.5],
+	        "EXT_MCBLLDF_QMAX_TT": [0.0, 0.0, 0.0, 0.0],
+	        "EXT_MCBLLDF_QMAX_TTT": [0.0, 0.0, 0.0, 0.0]
+	)json", \
+		1e-10, 1e-10)
 
 CADET_BINDINGTEST("STERIC_MASS_ACTION", "EXT_STERIC_MASS_ACTION", (1,1,1), (1,1,0,1), (1.2, 2.0, 1.5, 80.0, 3.5, 2.7), (1.2, 2.0, 3.0, 1.5, 80.0, 3.5, 2.7), \
 	R"json( "SMA_KA": [0.0, 3.55, 1.59],

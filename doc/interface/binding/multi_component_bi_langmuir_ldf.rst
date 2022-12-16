@@ -1,9 +1,9 @@
-.. _multi_component_bi_langmuir_config:
+.. _multi_component_bi_langmuir_ldf_config:
 
-Multi Component Bi-Langmuir
-~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Multi Component Bi-Langmuir LDF
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-**Group /input/model/unit_XXX/adsorption – ADSORPTION_MODEL = MULTI_COMPONENT_BILANGMUIR**
+**Group /input/model/unit_XXX/adsorption – ADSORPTION_MODEL = MULTI_COMPONENT_BILANGMUIR_LDF**
 
 
 ``IS_KINETIC``
@@ -16,30 +16,29 @@ Multi Component Bi-Langmuir
 **Type:** int        **Range:** {0,1}           **Length:** 1/NTOTALBND
 ===================  =========================  =========================================
 
-``MCBL_KA``
-   Adsorption rate constants in state-major ordering (see :ref:`ordering_multi_dimensional_data`)
+``MCBLLDF_KEQ``
+   Equillibrium loading constants in state-major ordering (see :ref:`ordering_multi_dimensional_data`)
 
-**Unit:** :math:`m_{MP}^3~mol^{-1}~s^{-1}`
+**Unit:** :math:`m_{MP}^3~mol^{-1}`
 
 ===================  =========================  =========================================
-**Type:** double     **Range:** :math:`\ge 0`   **Length:** NSTATES :math:`\cdot` NCOMP
+**Type:** double     **Range:** :math:`\ge 0`   **Length:** NCOMP :math:`\cdot` NSTATES
 ===================  =========================  =========================================
 
-``MCBL_KD``
-   Desorption rate constants in state-major ordering
+``MCBLLDF_KKIN``
+   Linear driving force coefficients in state-major ordering
 
 **Unit:** :math:`s^{-1}`
 
 ===================  =========================  =========================================
-**Type:** double     **Range:** :math:`\ge 0`   **Length:** NSTATES :math:`\cdot` NCOMP
+**Type:** double     **Range:** :math:`\ge 0`   **Length:** NCOMP :math:`\cdot` NSTATES
 ===================  =========================  =========================================
 
-``MCBL_QMAX``
+``MCBLLDF_QMAX``
    Maximum adsorption capacities in state-major ordering
 
 **Unit:** :math:`mol~m_{SP}^{-3}`
 
 ===================  =========================  =========================================
-**Type:** double     **Range:** :math:`\ge 0`   **Length:** NSTATES :math:`\cdot` NCOMP
+**Type:** double     **Range:** :math:`\gt 0`   **Length:** NCOMP :math:`\cdot` NSTATES
 ===================  =========================  =========================================
-
