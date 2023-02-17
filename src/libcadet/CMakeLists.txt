@@ -239,7 +239,7 @@ if (LAPACK_FOUND)
 
 
 	# Add the build target for CADET object library
-	add_library(libcadet_object OBJECT ${LIBCADET_SOURCES} "model/binding/LangmuirLDFCBinding.cpp")
+	add_library(libcadet_object OBJECT ${LIBCADET_SOURCES})
 	target_compile_definitions(libcadet_object PRIVATE libcadet_EXPORTS ${LIB_LAPACK_DEFINE})
 	target_link_libraries(libcadet_object PUBLIC CADET::CompileOptions CADET::LibOptions PRIVATE CADET::AD libcadet_nonlinalg_static SUNDIALS::sundials_idas ${SUNDIALS_NVEC_TARGET} ${TBB_TARGET})
 
