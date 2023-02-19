@@ -176,31 +176,43 @@ void residualKernel(double t, unsigned int secIdx, const ColumnPosition& colPos,
 			}
 		}
 
-		if (wantJac && (params.nTotalBound > 0))
+		if (wantJac)
 		{
-			BufferedArray<double> fluxSolidJacobian = buffer.template array<double>(params.nTotalBound * (params.nTotalBound + params.nComp));
-			linalg::DenseMatrixView dmv(static_cast<double*>(fluxSolidJacobian), nullptr, params.nTotalBound, params.nTotalBound + params.nComp);
-			dmv.setAll(0.0);
-
-			// static_cast should be sufficient here, but this statement is also analyzed when wantJac = false
-			params.dynReaction->analyticJacobianCombinedAdd(t, secIdx, colPos, reinterpret_cast<double const*>(y - params.nComp), reinterpret_cast<double const*>(y), -1.0, jacBase, dmv.row(0, params.nComp), buffer);
-
-			idx = 0;
-			for (unsigned int comp = 0; comp < params.nComp; ++comp)
+			if (params.nTotalBound > 0)
 			{
-				const double invBetaP = (1.0 - static_cast<double>(params.porosity)) / (params.poreAccessFactor ? static_cast<double>(params.poreAccessFactor[comp]) * static_cast<double>(params.porosity) : static_cast<double>(params.porosity));
+				BufferedArray<double> fluxSolidJacobian = buffer.template array<double>(params.nTotalBound * (params.nTotalBound + params.nComp));
+				linalg::DenseMatrixView dmv(static_cast<double*>(fluxSolidJacobian), nullptr, params.nTotalBound, params.nTotalBound + params.nComp);
+				dmv.setAll(0.0);
 
-				for (unsigned int bnd = 0; bnd < params.nBound[comp]; ++bnd, ++idx)
+				// static_cast should be sufficient here, but this statement is also analyzed when wantJac = false
+				params.dynReaction->analyticJacobianCombinedAdd(t, secIdx, colPos, reinterpret_cast<double const*>(y - params.nComp), reinterpret_cast<double const*>(y), -1.0, jacBase, dmv.row(0, params.nComp), buffer);
+
+				idx = 0;
+				for (unsigned int comp = 0; comp < params.nComp; ++comp)
 				{
-					// Add Jacobian row to mobile phase
-					(jacBase + comp).addArray(dmv.rowPtr(idx), -static_cast<int>(comp), dmv.columns(), invBetaP);
+					const double invBetaP = (1.0 - static_cast<double>(params.porosity)) / (params.poreAccessFactor ? static_cast<double>(params.poreAccessFactor[comp]) * static_cast<double>(params.porosity) : static_cast<double>(params.porosity));
 
-					if (!params.qsReaction[idx])
+					for (unsigned int bnd = 0; bnd < params.nBound[comp]; ++bnd, ++idx)
 					{
-						// Add Jacobian row to solid phase
-						(jacBase + params.nComp + idx).addArray(dmv.rowPtr(idx), -static_cast<int>(params.nComp + idx), dmv.columns(), 1.0);
+						// Add Jacobian row to mobile phase
+						(jacBase + comp).addArray(dmv.rowPtr(idx), -static_cast<int>(comp), dmv.columns(), invBetaP);
+
+						if (!params.qsReaction[idx])
+						{
+							// Add Jacobian row to solid phase
+							(jacBase + params.nComp + idx).addArray(dmv.rowPtr(idx), -static_cast<int>(params.nComp + idx), dmv.columns(), 1.0);
+						}
 					}
 				}
+			}
+			else
+			{
+				// We do not have bound states, but still need to obtain the Jacobian for the liquid phase.
+				// So we pass a row iterator for the solid phase that does not point anywhere and hope that the
+				// reaction model does not interact with it.
+
+				// static_cast should be sufficient here, but this statement is also analyzed when wantJac = false
+				params.dynReaction->analyticJacobianCombinedAdd(t, secIdx, colPos, reinterpret_cast<double const*>(y - params.nComp), reinterpret_cast<double const*>(y), -1.0, jacBase, linalg::DenseBandedRowIterator(), buffer);
 			}
 		}
 	}
