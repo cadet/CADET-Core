@@ -136,6 +136,7 @@ set(LIBCADET_SOURCES
 	${CMAKE_SOURCE_DIR}/src/libcadet/model/GeneralRateModel.cpp
 	${CMAKE_SOURCE_DIR}/src/libcadet/model/ParameterMultiplexing.cpp
 	${CMAKE_SOURCE_DIR}/src/libcadet/model/parts/ConvectionDispersionOperator.cpp
+	${CMAKE_SOURCE_DIR}/src/libcadet/model/parts/ConvectionDispersionOperatorDG.cpp
 	${CMAKE_SOURCE_DIR}/src/libcadet/model/parts/AxialConvectionDispersionKernel.cpp
 	${CMAKE_SOURCE_DIR}/src/libcadet/model/parts/RadialConvectionDispersionKernel.cpp
 	${CMAKE_SOURCE_DIR}/src/libcadet/model/reaction/ReactionModelBase.cpp
@@ -238,7 +239,7 @@ if (LAPACK_FOUND)
 	add_library(libcadet_nonlinalg_static STATIC ${LIBCADET_NONLINALG_SOURCES} ${LIBCADET_NONLINALG_SPARSE_SOURCES})
 	set_target_properties(libcadet_nonlinalg_static PROPERTIES OUTPUT_NAME cadet_nonlinalg_static)
 	target_compile_definitions(libcadet_nonlinalg_static PRIVATE libcadet_nonlinalg_static_EXPORTS ${LIB_LAPACK_DEFINE})
-	target_link_libraries(libcadet_nonlinalg_static PUBLIC CADET::CompileOptions PRIVATE SUNDIALS::sundials_idas ${SUNDIALS_NVEC_TARGET} ${LAPACK_LIBRARIES})
+	target_link_libraries(libcadet_nonlinalg_static PUBLIC CADET::CompileOptions PRIVATE SUNDIALS::sundials_idas ${SUNDIALS_NVEC_TARGET} ${LAPACK_LIBRARIES} ${EIGEN_TARGET})
 
 	if (ENABLE_GRM_2D)
 		if (SUPERLU_FOUND)
@@ -261,7 +262,7 @@ if (LAPACK_FOUND)
 	add_library(libcadet_static STATIC $<TARGET_OBJECTS:libcadet_object>)
 	set_target_properties(libcadet_static PROPERTIES OUTPUT_NAME cadet_static)
 	target_link_libraries(libcadet_static PUBLIC CADET::CompileOptions CADET::LibOptions PRIVATE CADET::AD libcadet_nonlinalg_static SUNDIALS::sundials_idas ${SUNDIALS_NVEC_TARGET} ${TBB_TARGET} ${EIGEN_TARGET})
-
+	
 	# ---------------------------------------------------
 	#   Build the shared library
 	# ---------------------------------------------------
@@ -269,7 +270,7 @@ if (LAPACK_FOUND)
 	add_library(libcadet_shared SHARED $<TARGET_OBJECTS:libcadet_object>)
 	set_target_properties(libcadet_shared PROPERTIES OUTPUT_NAME cadet)
 	target_link_libraries (libcadet_shared PUBLIC CADET::CompileOptions CADET::LibOptions PRIVATE CADET::AD libcadet_nonlinalg_static SUNDIALS::sundials_idas ${SUNDIALS_NVEC_TARGET} ${TBB_TARGET} ${EIGEN_TARGET})
-
+	
 	list(APPEND LIBCADET_TARGETS libcadet_nonlinalg_static libcadet_object libcadet_static libcadet_shared)
 
 	unset(LIB_LAPACK_DEFINE)

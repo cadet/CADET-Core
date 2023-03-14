@@ -12,8 +12,6 @@
 
 #include "model/LumpedRateModelWithPoresDG.hpp"
 #include "model/BindingModel.hpp"
-#include "linalg/DenseMatrix.hpp"
-#include "linalg/BandMatrix.hpp"
 #include "AdUtils.hpp"
 
 #include <algorithm>
@@ -115,7 +113,6 @@ int LumpedRateModelWithPoresDG::linearSolve(double t, double alpha, double outer
 		assembleDiscretizedGlobalJacobian(alpha, idxr);
 
 		_globalSolver.factorize(_globalJacDisc);
-		//_bulkSolver.compute(_jacCdisc);
 
 		if (cadet_unlikely(_globalSolver.info() != Eigen::Success)) {
 			LOG(Error) << "Factorize() failed";
@@ -131,7 +128,7 @@ int LumpedRateModelWithPoresDG::linearSolve(double t, double alpha, double outer
 
 	// Handle inlet DOFs:
 	// Inlet at z = 0 for forward flow, at z = L for backward flow.
-	unsigned int offInlet = (_disc.velocity >= 0.0) ? 0 : (_disc.nCol - 1u) * idxr.strideColCell();
+	unsigned int offInlet = (_convDispOp.forwardFlow()) ? 0 : (_disc.nCol - 1u) * idxr.strideColCell();
 
 	for (int comp = 0; comp < _disc.nComp; comp++) {
 		for (int node = 0; node < (_disc.exactInt ? _disc.nNodes : 1); node++) {
@@ -170,14 +167,11 @@ int LumpedRateModelWithPoresDG::linearSolve(double t, double alpha, double outer
  */
 void LumpedRateModelWithPoresDG::assembleDiscretizedGlobalJacobian(double alpha, Indexer idxr) {
 
-	double* vPtr = _globalJacDisc.valuePtr();
-	for (int k = 0; k < _globalJacDisc.nonZeros(); k++) {
-		*vPtr = 0.0;
-		vPtr++;
-	}
+	// set to static (per section) jacobian
+	_globalJacDisc = _globalJac;
 
 	// add time derivative to bulk jacobian
-	addTimeDerBulkJacobian(alpha, idxr);
+	_convDispOp.addTimeDerivativeToJacobian(alpha, _globalJacDisc);
 
 	// Add time derivatives to particle shells
 	for (unsigned int parType = 0; parType < _disc.nParType; parType++) {
@@ -188,10 +182,6 @@ void LumpedRateModelWithPoresDG::assembleDiscretizedGlobalJacobian(double alpha,
 			addTimeDerivativeToJacobianParticleBlock(jac, idxr, alpha, parType);
 		}
 	}
-
-	// add static (per section) jacobian
-	_globalJacDisc += _globalJac;
-
 }
 
 /**
