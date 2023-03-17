@@ -723,7 +723,7 @@ bool GeneralRateModel2D::configureModelDiscretization(IParameterProvider& paramP
 		}
 	}
 
-	const bool transportSuccess = _convDispOp.configureModelDiscretization(paramProvider, _disc.nComp, _disc.nCol, _disc.nRad, _dynReactionBulk);
+	const bool transportSuccess = _convDispOp.configureModelDiscretization(paramProvider, helper, _disc.nComp, _disc.nCol, _disc.nRad, _dynReactionBulk);
 
 	// Setup the memory for tempState based on state vector
 	_tempState = new double[numDofs()];
@@ -1336,7 +1336,7 @@ int GeneralRateModel2D::residualImpl(double t, unsigned int secIdx, StateType co
 template <typename StateType, typename ResidualType, typename ParamType, bool wantJac>
 int GeneralRateModel2D::residualBulk(double t, unsigned int secIdx, StateType const* yBase, double const* yDotBase, ResidualType* resBase, util::ThreadLocalStorage& threadLocalMem)
 {
-	_convDispOp.residual(t, secIdx, yBase, yDotBase, resBase, wantJac, typename ParamSens<ParamType>::enabled());
+	_convDispOp.residual(*this, t, secIdx, yBase, yDotBase, resBase, wantJac, typename ParamSens<ParamType>::enabled());
 	if (!_dynReactionBulk || (_dynReactionBulk->numReactionsLiquid() == 0))
 		return 0;
 

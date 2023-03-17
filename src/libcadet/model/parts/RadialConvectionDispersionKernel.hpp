@@ -24,9 +24,13 @@
 #include "Stencil.hpp"
 #include "linalg/CompressedSparseMatrix.hpp"
 #include "SimulationTypes.hpp"
+#include "model/ParameterDependence.hpp"
+#include "model/UnitOperation.hpp"
 
 namespace cadet
 {
+
+class IModel;
 
 namespace model
 {
@@ -51,6 +55,8 @@ struct RadialFlowParameters
 	unsigned int nCol;
 	unsigned int offsetToInlet; //!< Offset to the first component of the inlet DOFs in the local state vector
 	unsigned int offsetToBulk; //!< Offset to the first component of the first bulk cell in the local state vector
+	IParameterParameterDependence* parDep;
+	const IModel& model;
 };
 
 
@@ -119,11 +125,13 @@ namespace impl
 				// Right side, leave out if we're in the last cell (boundary condition)
 				if (cadet_likely(col < p.nCol - 1))
 				{
-					resBulkComp[col * p.strideCell] -= d_rad * static_cast<ParamType>(p.cellBounds[col + 1]) / denom * (stencil[1] - stencil[0]) / (static_cast<ParamType>(p.cellCenters[col + 1]) - static_cast<ParamType>(p.cellCenters[col]));
+					const double relCoord = (static_cast<double>(p.cellBounds[col+1]) - static_cast<double>(p.cellBounds[0])) / (static_cast<double>(p.cellBounds[p.nCol - 1]) - static_cast<double>(p.cellBounds[0]));
+					const ParamType d_rad_right = d_rad * p.parDep->getValue(p.model, ColumnPosition{relCoord, 0.0, 0.0}, comp, ParTypeIndep, BoundStateIndep, static_cast<ParamType>(p.u) / static_cast<ParamType>(p.cellBounds[col+1]));
+					resBulkComp[col * p.strideCell] -= d_rad_right * static_cast<ParamType>(p.cellBounds[col+1]) / denom * (stencil[1] - stencil[0]) / (static_cast<ParamType>(p.cellCenters[col+1]) - static_cast<ParamType>(p.cellCenters[col]));
 					// Jacobian entries
 					if (wantJac)
 					{
-						const double val = static_cast<double>(d_rad) * static_cast<double>(p.cellBounds[col+1]) / static_cast<double>(denom) / (static_cast<double>(p.cellCenters[col+1]) - static_cast<double>(p.cellCenters[col]));
+						const double val = static_cast<double>(d_rad_right) * static_cast<double>(p.cellBounds[col+1]) / static_cast<double>(denom) / (static_cast<double>(p.cellCenters[col+1]) - static_cast<double>(p.cellCenters[col]));
 						jac[0] += val;
 						jac[p.strideCell] -= val;
 					}
@@ -132,11 +140,13 @@ namespace impl
 				// Left side, leave out if we're in the first cell (boundary condition)
 				if (cadet_likely(col > 0))
 				{
-					resBulkComp[col * p.strideCell] -= d_rad * static_cast<ParamType>(p.cellBounds[col]) / denom * (stencil[-1] - stencil[0]) / (static_cast<ParamType>(p.cellCenters[col - 1]) - static_cast<ParamType>(p.cellCenters[col]));
+					const double relCoord = (static_cast<double>(p.cellBounds[col]) - static_cast<double>(p.cellBounds[0])) / (static_cast<double>(p.cellBounds[p.nCol - 1]) - static_cast<double>(p.cellBounds[0]));
+					const ParamType d_rad_left = d_rad * p.parDep->getValue(p.model, ColumnPosition{ relCoord, 0.0, 0.0 }, comp, ParTypeIndep, BoundStateIndep, static_cast<ParamType>(p.u) / static_cast<ParamType>(p.cellBounds[col]));
+					resBulkComp[col * p.strideCell] -= d_rad_left * static_cast<ParamType>(p.cellBounds[col]) / denom * (stencil[-1] - stencil[0]) / (static_cast<ParamType>(p.cellCenters[col]) - static_cast<ParamType>(p.cellCenters[col-1]));
 					// Jacobian entries
 					if (wantJac)
 					{
-						const double val = static_cast<double>(d_rad) * static_cast<double>(p.cellBounds[col]) / static_cast<double>(denom) / (static_cast<double>(p.cellCenters[col - 1]) - static_cast<double>(p.cellCenters[col]));
+						const double val = static_cast<double>(d_rad_left) * static_cast<double>(p.cellBounds[col]) / static_cast<double>(denom) / (static_cast<double>(p.cellCenters[col]) - static_cast<double>(p.cellCenters[col-1]));
 						jac[0] += val;
 						jac[-p.strideCell] -= val;
 					}
@@ -273,11 +283,13 @@ namespace impl
 				// Right side, leave out if we're in the first cell (boundary condition)
 				if (cadet_likely(col < p.nCol - 1))
 				{
-					resBulkComp[col * p.strideCell] -= d_rad * static_cast<ParamType>(p.cellBounds[col+1]) / denom * (stencil[-1] - stencil[0]) / (static_cast<ParamType>(p.cellCenters[col+1]) - static_cast<ParamType>(p.cellCenters[col]));
+					const double relCoord = (static_cast<double>(p.cellBounds[col+1]) - static_cast<double>(p.cellBounds[0])) / (static_cast<double>(p.cellBounds[p.nCol - 1]) - static_cast<double>(p.cellBounds[0]));
+					const ParamType d_rad_right = d_rad * p.parDep->getValue(p.model, ColumnPosition{relCoord, 0.0, 0.0}, comp, ParTypeIndep, BoundStateIndep, static_cast<ParamType>(p.u) / static_cast<ParamType>(p.cellBounds[col+1]));
+					resBulkComp[col * p.strideCell] -= d_rad_right * static_cast<ParamType>(p.cellBounds[col+1]) / denom * (stencil[-1] - stencil[0]) / (static_cast<ParamType>(p.cellCenters[col+1]) - static_cast<ParamType>(p.cellCenters[col]));
 					// Jacobian entries
 					if (wantJac)
 					{
-						const double val = static_cast<double>(d_rad) * static_cast<double>(p.cellBounds[col+1]) / static_cast<double>(denom) / (static_cast<double>(p.cellCenters[col+1]) - static_cast<double>(p.cellCenters[col]));
+						const double val = static_cast<double>(d_rad_right) * static_cast<double>(p.cellBounds[col+1]) / static_cast<double>(denom) / (static_cast<double>(p.cellCenters[col+1]) - static_cast<double>(p.cellCenters[col]));
 						jac[0] += val;
 						jac[p.strideCell] -= val;
 					}
@@ -286,11 +298,13 @@ namespace impl
 				// Left side, leave out if we're in the last cell (boundary condition)
 				if (cadet_likely(col > 0))
 				{
-					resBulkComp[col * p.strideCell] -= d_rad * static_cast<ParamType>(p.cellBounds[col]) / denom * (stencil[1] - stencil[0]) / (static_cast<ParamType>(p.cellCenters[col-1]) - static_cast<ParamType>(p.cellCenters[col]));
+					const double relCoord = (static_cast<double>(p.cellBounds[col]) - static_cast<double>(p.cellBounds[0])) / (static_cast<double>(p.cellBounds[p.nCol - 1]) - static_cast<double>(p.cellBounds[0]));
+					const ParamType d_rad_left = d_rad * p.parDep->getValue(p.model, ColumnPosition{relCoord, 0.0, 0.0}, comp, ParTypeIndep, BoundStateIndep, static_cast<ParamType>(p.u) / static_cast<ParamType>(p.cellBounds[col]));
+					resBulkComp[col * p.strideCell] -= d_rad_left * static_cast<ParamType>(p.cellBounds[col]) / denom * (stencil[1] - stencil[0]) / (static_cast<ParamType>(p.cellCenters[col-1]) - static_cast<ParamType>(p.cellCenters[col]));
 					// Jacobian entries
 					if (wantJac)
 					{
-						const double val = static_cast<double>(d_rad) * static_cast<double>(p.cellBounds[col]) / static_cast<double>(denom) / (static_cast<double>(p.cellCenters[col-1]) - static_cast<double>(p.cellCenters[col]));
+						const double val = static_cast<double>(d_rad_left) * static_cast<double>(p.cellBounds[col]) / static_cast<double>(denom) / (static_cast<double>(p.cellCenters[col-1]) - static_cast<double>(p.cellCenters[col]));
 						jac[0] += val;
 						jac[-p.strideCell] -= val;
 					}

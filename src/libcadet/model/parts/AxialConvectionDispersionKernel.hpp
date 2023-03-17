@@ -24,6 +24,8 @@
 #include "Stencil.hpp"
 #include "linalg/CompressedSparseMatrix.hpp"
 #include "SimulationTypes.hpp"
+#include "model/ParameterDependence.hpp"
+#include "model/UnitOperation.hpp"
 
 namespace cadet
 {
@@ -52,6 +54,8 @@ struct AxialFlowParameters
 	unsigned int nCol;
 	unsigned int offsetToInlet; //!< Offset to the first component of the inlet DOFs in the local state vector
 	unsigned int offsetToBulk; //!< Offset to the first component of the first bulk cell in the local state vector
+	IParameterParameterDependence* parDep;
+	const IModel& model;
 };
 
 
@@ -119,24 +123,28 @@ namespace impl
 				// Right side, leave out if we're in the last cell (boundary condition)
 				if (cadet_likely(col < p.nCol - 1))
 				{
-					resBulkComp[col * p.strideCell] -= d_ax / h2 * (stencil[1] - stencil[0]);
+					const double relCoord = static_cast<double>(col+1) / p.nCol;
+					const ParamType d_ax_right = d_ax * p.parDep->getValue(p.model, ColumnPosition{relCoord, 0.0, 0.0}, comp, ParTypeIndep, BoundStateIndep, static_cast<ParamType>(p.u));
+					resBulkComp[col * p.strideCell] -= d_ax_right / h2 * (stencil[1] - stencil[0]);
 					// Jacobian entries
 					if (wantJac)
 					{
-						jac[0] += static_cast<double>(d_ax) / static_cast<double>(h2);
-						jac[p.strideCell] -= static_cast<double>(d_ax) / static_cast<double>(h2);
+						jac[0] += static_cast<double>(d_ax_right) / static_cast<double>(h2);
+						jac[p.strideCell] -= static_cast<double>(d_ax_right) / static_cast<double>(h2);
 					}
 				}
 
 				// Left side, leave out if we're in the first cell (boundary condition)
 				if (cadet_likely(col > 0))
 				{
-					resBulkComp[col * p.strideCell] -= d_ax / h2 * (stencil[-1] - stencil[0]);
+					const double relCoord = static_cast<double>(col) / p.nCol;
+					const ParamType d_ax_left = d_ax * p.parDep->getValue(p.model, ColumnPosition{relCoord, 0.0, 0.0}, comp, ParTypeIndep, BoundStateIndep, static_cast<ParamType>(p.u));
+					resBulkComp[col * p.strideCell] -= d_ax_left / h2 * (stencil[-1] - stencil[0]);
 					// Jacobian entries
 					if (wantJac)
 					{
-						jac[0] += static_cast<double>(d_ax) / static_cast<double>(h2);
-						jac[-p.strideCell] -= static_cast<double>(d_ax) / static_cast<double>(h2);
+						jac[0] += static_cast<double>(d_ax_left) / static_cast<double>(h2);
+						jac[-p.strideCell] -= static_cast<double>(d_ax_left) / static_cast<double>(h2);
 					}
 				}
 
@@ -262,24 +270,28 @@ namespace impl
 				// Right side, leave out if we're in the first cell (boundary condition)
 				if (cadet_likely(col < p.nCol - 1))
 				{
-					resBulkComp[col * p.strideCell] -= d_ax / h2 * (stencil[-1] - stencil[0]);
+					const double relCoord = static_cast<double>(col+1) / p.nCol;
+					const ParamType d_ax_right = d_ax * p.parDep->getValue(p.model, ColumnPosition{relCoord, 0.0, 0.0}, comp, ParTypeIndep, BoundStateIndep, static_cast<ParamType>(p.u));
+					resBulkComp[col * p.strideCell] -= d_ax_right / h2 * (stencil[-1] - stencil[0]);
 					// Jacobian entries
 					if (wantJac)
 					{
-						jac[0] += static_cast<double>(d_ax) / static_cast<double>(h2);
-						jac[p.strideCell] -= static_cast<double>(d_ax) / static_cast<double>(h2);
+						jac[0] += static_cast<double>(d_ax_right) / static_cast<double>(h2);
+						jac[p.strideCell] -= static_cast<double>(d_ax_right) / static_cast<double>(h2);
 					}
 				}
 
 				// Left side, leave out if we're in the last cell (boundary condition)
 				if (cadet_likely(col > 0))
 				{
-					resBulkComp[col * p.strideCell] -= d_ax / h2 * (stencil[1] - stencil[0]);
+					const double relCoord = static_cast<double>(col) / p.nCol;
+					const ParamType d_ax_left = d_ax * p.parDep->getValue(p.model, ColumnPosition{relCoord, 0.0, 0.0}, comp, ParTypeIndep, BoundStateIndep, static_cast<ParamType>(p.u));
+					resBulkComp[col * p.strideCell] -= d_ax_left / h2 * (stencil[1] - stencil[0]);
 					// Jacobian entries
 					if (wantJac)
 					{
-						jac[0] += static_cast<double>(d_ax) / static_cast<double>(h2);
-						jac[-p.strideCell] -= static_cast<double>(d_ax) / static_cast<double>(h2);
+						jac[0] += static_cast<double>(d_ax_left) / static_cast<double>(h2);
+						jac[-p.strideCell] -= static_cast<double>(d_ax_left) / static_cast<double>(h2);
 					}
 				}
 

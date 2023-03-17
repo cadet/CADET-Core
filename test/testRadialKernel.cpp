@@ -79,7 +79,7 @@ public:
 		_params.nComp = _nComp;
 		_params.offsetToInlet = 0;
 		_params.strideCell = _nComp;
-		_params.parDep = new cadet::model::DummyParameterParameterDependence();
+		_params.parDep = new cadet::model::ConstantOneParameterParameterDependence();
 	}
 
 	virtual ~RadialFlowModel() CADET_NOEXCEPT

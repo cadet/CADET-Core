@@ -241,25 +241,25 @@ protected:
  *          
  *          The implementation is inserted inline in the class declaration.
  */
-#define CADET_PARAMETERPARAMETERDEPENDENCE_BOILERPLATE                                                                                                                                          \
-	virtual double getValue(UnitOpIdx unitOpIdx, const std::unordered_map<ParameterId, active*>& params, const ColumnPosition& colPos, int comp, int parType, int bnd, double val) const        \
-	{                                                                                                                                                                                           \
-		return getValueImpl<double>(unitOpIdx, params, colPos, comp, parType, bnd, val);                                                                                                        \
-	}                                                                                                                                                                                           \
-                                                                                                                                                                                                \
-	virtual active getValue(UnitOpIdx unitOpIdx, const std::unordered_map<ParameterId, active*>& params, const ColumnPosition& colPos, int comp, int parType, int bnd, const active& val) const \
-	{                                                                                                                                                                                           \
-		return getValueImpl<active>(unitOpIdx, params, colPos, comp, parType, bnd, val);                                                                                                        \
-	}                                                                                                                                                                                           \
-                                                                                                                                                                                                \
-	virtual double getValue(UnitOpIdx unitOpIdx, const std::unordered_map<ParameterId, active*>& params, const ColumnPosition& colPos, int comp, int parType, int bnd) const                    \
-	{                                                                                                                                                                                           \
-		return getValueImpl<double>(unitOpIdx, params, colPos, comp, parType, bnd);                                                                                                             \
-	}                                                                                                                                                                                           \
-                                                                                                                                                                                                \
-	virtual active getValueActive(UnitOpIdx unitOpIdx, const std::unordered_map<ParameterId, active*>& params, const ColumnPosition& colPos, int comp, int parType, int bnd) const              \
-	{                                                                                                                                                                                           \
-		return getValueImpl<active>(unitOpIdx, params, colPos, comp, parType, bnd);                                                                                                             \
+#define CADET_PARAMETERPARAMETERDEPENDENCE_BOILERPLATE                                                                                  \
+	virtual double getValue(const IModel& model, const ColumnPosition& colPos, int comp, int parType, int bnd, double val) const        \
+	{                                                                                                                                   \
+		return getValueImpl<double>(model, colPos, comp, parType, bnd, val);                                                            \
+	}                                                                                                                                   \
+                                                                                                                                        \
+	virtual active getValue(const IModel& model, const ColumnPosition& colPos, int comp, int parType, int bnd, const active& val) const \
+	{                                                                                                                                   \
+		return getValueImpl<active>(model, colPos, comp, parType, bnd, val);                                                            \
+	}                                                                                                                                   \
+                                                                                                                                        \
+	virtual double getValue(const IModel& model, const ColumnPosition& colPos, int comp, int parType, int bnd) const                    \
+	{                                                                                                                                   \
+		return getValueImpl<double>(model, colPos, comp, parType, bnd);                                                                 \
+	}                                                                                                                                   \
+                                                                                                                                        \
+	virtual active getValueActive(const IModel& model, const ColumnPosition& colPos, int comp, int parType, int bnd) const              \
+	{                                                                                                                                   \
+		return getValueImpl<active>(model, colPos, comp, parType, bnd);                                                                 \
 	}
 
 
