@@ -34,7 +34,9 @@ For information on model equations, refer to :ref:`lumped_rate_model_without_por
    **Type:** double  **Range:** :math:`\geq 0`  **Length:** see :math:`\texttt{COL_DISPERSION_MULTIPLEX}`
    ================  =========================  =========================================================
 
-	For multiplex specifications, e.g. for component dependency, see :ref:`general_rate_model_model`.
+	In addition to the multiplex specification (e.g. component dependency, see :ref:`general_rate_model_model`), the dispersion coefficient for radial flow model usually depends on other parameters.
+	Parameter dependencies are described here :ref:`parameter_dependencies`.
+
 
 ``COL_RADIUS_INNER``
 

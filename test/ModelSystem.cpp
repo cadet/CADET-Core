@@ -24,6 +24,7 @@
 #include "JacobianHelper.hpp"
 #include "ColumnTests.hpp"
 #include "Utils.hpp"
+#include "Dummies.hpp"
 #include "model/UnitOperation.hpp"
 
 #include <limits>
@@ -32,23 +33,6 @@
 
 namespace
 {
-	class DummyConfigHelper : public cadet::IConfigHelper
-	{
-	public:
-
-		DummyConfigHelper() { }
-
-		virtual cadet::IInletProfile* createInletProfile(const std::string& type) const { return nullptr; }
-		virtual cadet::model::IBindingModel* createBindingModel(const std::string& name) const { return nullptr; }
-		virtual bool isValidBindingModel(const std::string& name) const { return false; }
-		virtual cadet::IExternalFunction* createExternalFunction(const std::string& type) const { return nullptr; }
-		virtual cadet::model::IDynamicReactionModel* createDynamicReactionModel(const std::string& name) const { return nullptr; }
-		virtual bool isValidDynamicReactionModel(const std::string& name) const { return false; }
-		virtual cadet::model::IParameterStateDependence* createParameterStateDependence(const std::string& name) const { return nullptr; }
-		virtual bool isValidParameterStateDependence(const std::string& name) const { return false; }
-		virtual cadet::model::IParameterParameterDependence* createParameterParameterDependence(const std::string& name) const { return nullptr; }
-		virtual bool isValidParameterParameterDependence(const std::string& name) const { return false; }
-	};
 
 	class DummyUnitOperation : public cadet::IUnitOperation
 	{

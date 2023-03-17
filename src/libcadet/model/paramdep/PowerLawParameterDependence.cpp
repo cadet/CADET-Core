@@ -44,13 +44,25 @@ public:
 protected:
 	active _base;
 	active _exponent;
+	bool _useAbs;
 
 	virtual bool configureImpl(IParameterProvider& paramProvider, UnitOpIdx unitOpIdx, ParticleTypeIdx parTypeIdx, BoundStateIdx bndIdx, const std::string& name)
 	{
 		const std::string baseName = name + "_BASE";
 		const std::string expName = name + "_EXPONENT";
-		_base = paramProvider.getDouble(baseName);
+		const std::string flagName = name + "_ABS";
+
+		if (paramProvider.exists(baseName))
+			_base = paramProvider.getDouble(baseName);
+		else
+			_base = 1.0;
+
 		_exponent = paramProvider.getDouble(expName);
+
+		if (paramProvider.exists(flagName))
+			_useAbs = paramProvider.getBool(flagName);
+		else
+			_useAbs = true;
 
 		_parameters[makeParamId(hashStringRuntime(baseName), unitOpIdx, CompIndep, parTypeIdx, bndIdx, ReactionIndep, SectionIndep)] = &_base;
 		_parameters[makeParamId(hashStringRuntime(expName), unitOpIdx, CompIndep, parTypeIdx, bndIdx, ReactionIndep, SectionIndep)] = &_exponent;
@@ -59,16 +71,21 @@ protected:
 	}
 
 	template <typename ParamType>
-	ParamType getValueImpl(UnitOpIdx unitOpIdx, const std::unordered_map<ParameterId, active*>& params, const ColumnPosition& colPos, int comp, int parType, int bnd) const
+	ParamType getValueImpl(const IModel& model, const ColumnPosition& colPos, int comp, int parType, int bnd) const
 	{
 		return 0.0;
 	}
 
 	template <typename ParamType>
-	ParamType getValueImpl(UnitOpIdx unitOpIdx, const std::unordered_map<ParameterId, active*>& params, const ColumnPosition& colPos, int comp, int parType, int bnd, ParamType val) const
+	ParamType getValueImpl(const IModel& model, const ColumnPosition& colPos, int comp, int parType, int bnd, ParamType val) const
 	{
 		using std::pow;
-		return static_cast<ParamType>(_base) * pow(val, static_cast<ParamType>(_exponent));
+		using std::abs;
+
+		if (_useAbs)
+			return static_cast<ParamType>(_base) * pow(abs(val), static_cast<ParamType>(_exponent));
+		else
+			return static_cast<ParamType>(_base) * pow(val, static_cast<ParamType>(_exponent));
 	}
 
 };

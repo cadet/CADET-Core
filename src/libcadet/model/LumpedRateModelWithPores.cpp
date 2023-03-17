@@ -21,6 +21,7 @@
 #include "model/BindingModel.hpp"
 #include "model/ReactionModel.hpp"
 #include "model/parts/BindingCellKernel.hpp"
+#include "model/ParameterDependence.hpp"
 #include "SimulationTypes.hpp"
 #include "linalg/DenseMatrix.hpp"
 #include "linalg/BandMatrix.hpp"
@@ -63,7 +64,7 @@ int schurComplementMultiplierLRMPores(void* userData, double const* x, double* z
 
 template <typename ConvDispOperator>
 LumpedRateModelWithPores<ConvDispOperator>::LumpedRateModelWithPores(UnitOpIdx unitOpIdx) : UnitOperationBase(unitOpIdx),
-	_dynReactionBulk(nullptr), _jacP(0), _jacPdisc(0), _jacPF(0), _jacFP(0), _jacInlet(), _analyticJac(true),
+	_dynReactionBulk(nullptr), _filmDiffDep(nullptr), _jacP(0), _jacPdisc(0), _jacPF(0), _jacFP(0), _jacInlet(), _analyticJac(true),
 	_jacobianAdDirs(0), _factorizeJacobian(false), _tempState(nullptr), _initC(0), _initCp(0), _initQ(0),
 	_initState(0), _initStateDot(0)
 {
@@ -75,6 +76,7 @@ LumpedRateModelWithPores<ConvDispOperator>::~LumpedRateModelWithPores() CADET_NO
 	delete[] _tempState;
 
 	delete _dynReactionBulk;
+	delete _filmDiffDep;
 
 	delete[] _disc.parTypeOffset;
 	delete[] _disc.nBound;
@@ -263,6 +265,18 @@ bool LumpedRateModelWithPores<ConvDispOperator>::configureModelDiscretization(IP
 
 	const bool transportSuccess = _convDispOp.configureModelDiscretization(paramProvider, helper, _disc.nComp, _disc.nCol);
 
+	if (paramProvider.exists("FILM_DIFFUSION_DEP"))
+	{
+		const std::string paramDepName = paramProvider.getString("FILM_DIFFUSION_DEP");
+		_filmDiffDep = helper.createParameterParameterDependence(paramDepName);
+		if (!_filmDiffDep)
+			throw InvalidParameterException("Unknown parameter dependence " + paramDepName + " in FILM_DIFFUSION_DEP");
+
+		_filmDiffDep->configureModelDiscretization(paramProvider);
+	}
+	else
+		_filmDiffDep = helper.createParameterParameterDependence("CONSTANT_ONE");
+
 	// Allocate memory
 	Indexer idxr(_disc);
 
@@ -401,6 +415,12 @@ bool LumpedRateModelWithPores<ConvDispOperator>::configure(IParameterProvider& p
 	_parameters.clear();
 
 	const bool transportSuccess = _convDispOp.configure(_unitOpIdx, paramProvider, _parameters);
+
+	if (_filmDiffDep)
+	{
+		if (!_filmDiffDep->configure(paramProvider, _unitOpIdx, ParTypeIndep, BoundStateIndep, "FILM_DIFFUSION_DEP"))
+			throw InvalidParameterException("Failed to configure film diffusion parameter dependency (FILM_DIFFUSION_DEP)");
+	}
 
 	// Read geometry parameters
 	_colPorosity = paramProvider.getDouble("COL_POROSITY");
@@ -964,7 +984,7 @@ template <typename ConvDispOperator>
 template <typename StateType, typename ResidualType, typename ParamType, bool wantJac>
 int LumpedRateModelWithPores<ConvDispOperator>::residualBulk(double t, unsigned int secIdx, StateType const* yBase, double const* yDotBase, ResidualType* resBase, util::ThreadLocalStorage& threadLocalMem)
 {
-	_convDispOp.residual(t, secIdx, yBase, yDotBase, resBase, wantJac, typename ParamSens<ParamType>::enabled());
+	_convDispOp.residual(*this, t, secIdx, yBase, yDotBase, resBase, wantJac, typename ParamSens<ParamType>::enabled());
 	if (!_dynReactionBulk || (_dynReactionBulk->numReactionsLiquid() == 0))
 		return 0;
 
@@ -1068,7 +1088,12 @@ int LumpedRateModelWithPores<ConvDispOperator>::residualFlux(double t, unsigned 
 		{
 			const unsigned int colCell = i / _disc.nComp;
 			const unsigned int comp = i % _disc.nComp;
-			resCol[i] += jacCF_val * static_cast<ParamType>(filmDiff[comp]) * static_cast<ParamType>(_parTypeVolFrac[type + _disc.nParType * colCell]) * yFluxType[i];
+
+			const double relPos = _convDispOp.relativeCoordinate(colCell);
+			const active curVelocity = _convDispOp.currentVelocity(relPos);
+			const active modifier = _filmDiffDep->getValue(*this, ColumnPosition{relPos, 0.0, 0.0}, comp, ParTypeIndep, BoundStateIndep, curVelocity);
+
+			resCol[i] += jacCF_val * static_cast<ParamType>(filmDiff[comp]) * static_cast<ParamType>(modifier) * static_cast<ParamType>(_parTypeVolFrac[type + _disc.nParType * colCell]) * yFluxType[i];
 		}
 
 		// J_{f,0} block, adds bulk volume state c_i to flux equation
@@ -1084,10 +1109,15 @@ int LumpedRateModelWithPores<ConvDispOperator>::residualFlux(double t, unsigned 
 		// J_{p,f} block, adds flux to particle / bead volume equations
 		for (unsigned int pblk = 0; pblk < _disc.nCol; ++pblk)
 		{
+			const double relPos = _convDispOp.relativeCoordinate(pblk);
+			const active curVelocity = _convDispOp.currentVelocity(relPos);
+
 			for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
 			{
+				const active modifier = _filmDiffDep->getValue(*this, ColumnPosition{relPos, 0.0, 0.0}, comp, ParTypeIndep, BoundStateIndep, curVelocity);
+
 				const unsigned int eq = pblk * idxr.strideColCell() + comp * idxr.strideColComp();
-				resParType[pblk * idxr.strideParBlock(type) + comp] += jacPF_val / static_cast<ParamType>(poreAccFactor[comp]) * static_cast<ParamType>(filmDiff[comp]) * yFluxType[eq];
+				resParType[pblk * idxr.strideParBlock(type) + comp] += jacPF_val / static_cast<ParamType>(poreAccFactor[comp]) * static_cast<ParamType>(filmDiff[comp]) * static_cast<ParamType>(modifier) * yFluxType[eq];
 			}
 		}
 
@@ -1148,8 +1178,12 @@ void LumpedRateModelWithPores<ConvDispOperator>::assembleOffdiagJac(double t, un
 			const unsigned int colCell = eq / _disc.nComp;
 			const unsigned int comp = eq % _disc.nComp;
 
+			const double relPos = _convDispOp.relativeCoordinate(colCell);
+			const double curVelocity = static_cast<double>(_convDispOp.currentVelocity(relPos));
+			const double modifier = _filmDiffDep->getValue(*this, ColumnPosition{relPos, 0.0, 0.0}, comp, ParTypeIndep, BoundStateIndep, curVelocity);
+
 			// Main diagonal corresponds to j_{f,i} (flux) state variable
-			_jacCF.addElement(eq, eq + typeOffset, jacCF_val * static_cast<double>(filmDiff[comp]) * static_cast<double>(_parTypeVolFrac[type + _disc.nParType * colCell]));
+			_jacCF.addElement(eq, eq + typeOffset, jacCF_val * static_cast<double>(filmDiff[comp]) * modifier * static_cast<double>(_parTypeVolFrac[type + _disc.nParType * colCell]));
 		}
 
 		// J_{f,0} block, adds bulk volume state c_i to flux equation
@@ -1161,11 +1195,16 @@ void LumpedRateModelWithPores<ConvDispOperator>::assembleOffdiagJac(double t, un
 		// J_{p,f} block, implements bead boundary condition in outer bead shell equation
 		for (unsigned int pblk = 0; pblk < _disc.nCol; ++pblk)
 		{
+			const double relPos = _convDispOp.relativeCoordinate(pblk);
+			const double curVelocity = static_cast<double>(_convDispOp.currentVelocity(relPos));
+
 			for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
 			{
 				const unsigned int eq = typeOffset + pblk * idxr.strideColCell() + comp * idxr.strideColComp();
 				const unsigned int col = pblk * idxr.strideParBlock(type) + comp;
-				_jacPF[type].addElement(col, eq, jacPF_val / static_cast<double>(poreAccFactor[comp]) * static_cast<double>(filmDiff[comp]));
+
+				const double modifier = _filmDiffDep->getValue(*this, ColumnPosition{relPos, 0.0, 0.0}, comp, ParTypeIndep, BoundStateIndep, curVelocity);
+				_jacPF[type].addElement(col, eq, jacPF_val / static_cast<double>(poreAccFactor[comp]) * static_cast<double>(filmDiff[comp]) * modifier);
 			}
 		}
 
@@ -1468,6 +1507,15 @@ bool LumpedRateModelWithPores<ConvDispOperator>::setParameter(const ParameterId&
 
 		if (_convDispOp.setParameter(pId, value))
 			return true;
+
+		if (_filmDiffDep)
+		{
+			if (_filmDiffDep->hasParameter(pId))
+			{
+				_filmDiffDep->setParameter(pId, value);
+				return true;
+			}
+		}
 	}
 
 	return UnitOperationBase::setParameter(pId, value);
@@ -1509,6 +1557,16 @@ void LumpedRateModelWithPores<ConvDispOperator>::setSensitiveParameterValue(cons
 
 		if (_convDispOp.setSensitiveParameterValue(_sensParams, pId, value))
 			return;
+
+		if (_filmDiffDep)
+		{
+			active* const param = _filmDiffDep->getParameter(pId);
+			if (param)
+			{
+				param->setValue(value);
+				return;
+			}
+		}
 	}
 
 	UnitOperationBase::setSensitiveParameterValue(pId, value);
@@ -1574,6 +1632,17 @@ bool LumpedRateModelWithPores<ConvDispOperator>::setSensitiveParameter(const Par
 		{
 			LOG(Debug) << "Found parameter " << pId << ": Dir " << adDirection << " is set to " << adValue;
 			return true;
+		}
+
+		if (_filmDiffDep)
+		{
+			active* const param = _filmDiffDep->getParameter(pId);
+			if (param)
+			{
+				LOG(Debug) << "Found parameter " << pId << ": Dir " << adDirection << " is set to " << adValue;
+				param->setADValue(adDirection, adValue);
+				return true;
+			}
 		}
 	}
 

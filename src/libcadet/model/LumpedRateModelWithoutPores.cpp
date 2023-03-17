@@ -46,7 +46,7 @@ namespace
 	class ConvOpResidual
 	{
 	public:
-		static inline void call(ConvDispOperator& op, double t, unsigned int secIdx, StateType const* const y, double const* const yDot, ResidualType* const res, cadet::linalg::BandMatrix& jac)
+		static inline void call(cadet::IModel* const model, ConvDispOperator& op, double t, unsigned int secIdx, StateType const* const y, double const* const yDot, ResidualType* const res, cadet::linalg::BandMatrix& jac)
 		{
 			// This should not be reached
 			cadet_assert(false);
@@ -57,9 +57,9 @@ namespace
 	class ConvOpResidual<ConvDispOperator, double, ResidualType, ParamType, true>
 	{
 	public:
-		static inline void call(ConvDispOperator& op, double t, unsigned int secIdx, double const* const y, double const* const yDot, ResidualType* const res, cadet::linalg::BandMatrix& jac)
+		static inline void call(cadet::IModel* const model, ConvDispOperator& op, double t, unsigned int secIdx, double const* const y, double const* const yDot, ResidualType* const res, cadet::linalg::BandMatrix& jac)
 		{
-			op.residual(t, secIdx, y, yDot, res, jac);
+			op.residual(*model, t, secIdx, y, yDot, res, jac);
 		}
 	};
 
@@ -67,9 +67,9 @@ namespace
 	class ConvOpResidual<ConvDispOperator, double, ResidualType, ParamType, false>
 	{
 	public:
-		static inline void call(ConvDispOperator& op, double t, unsigned int secIdx, double const* const y, double const* const yDot, ResidualType* const res, cadet::linalg::BandMatrix& jac)
+		static inline void call(cadet::IModel* const model, ConvDispOperator& op, double t, unsigned int secIdx, double const* const y, double const* const yDot, ResidualType* const res, cadet::linalg::BandMatrix& jac)
 		{
-			op.residual(t, secIdx, y, yDot, res, typename cadet::ParamSens<ParamType>::enabled());
+			op.residual(*model, t, secIdx, y, yDot, res, typename cadet::ParamSens<ParamType>::enabled());
 		}
 	};
 
@@ -77,9 +77,9 @@ namespace
 	class ConvOpResidual<ConvDispOperator, cadet::active, ResidualType, ParamType, false>
 	{
 	public:
-		static inline void call(ConvDispOperator& op, double t, unsigned int secIdx, cadet::active const* const y, double const* const yDot, ResidualType* const res, cadet::linalg::BandMatrix& jac)
+		static inline void call(cadet::IModel* const model, ConvDispOperator& op, double t, unsigned int secIdx, cadet::active const* const y, double const* const yDot, ResidualType* const res, cadet::linalg::BandMatrix& jac)
 		{
-			op.residual(t, secIdx, y, yDot, res, typename cadet::ParamSens<ParamType>::enabled());
+			op.residual(*model, t, secIdx, y, yDot, res, typename cadet::ParamSens<ParamType>::enabled());
 		}
 	};
 }
@@ -609,7 +609,7 @@ template <typename ConvDispOperator>
 template <typename StateType, typename ResidualType, typename ParamType, bool wantJac>
 int LumpedRateModelWithoutPores<ConvDispOperator>::residualImpl(double t, unsigned int secIdx, StateType const* const y, double const* const yDot, ResidualType* const res, util::ThreadLocalStorage& threadLocalMem)
 {
-	ConvOpResidual<ConvDispOperator, StateType, ResidualType, ParamType, wantJac>::call(_convDispOp, t, secIdx, y, yDot, res, _jac);
+	ConvOpResidual<ConvDispOperator, StateType, ResidualType, ParamType, wantJac>::call(this, _convDispOp, t, secIdx, y, yDot, res, _jac);
 
 	Indexer idxr(_disc);
 
@@ -785,7 +785,7 @@ template <typename ConvDispOperator>
 unsigned int LumpedRateModelWithoutPores<ConvDispOperator>::localOutletComponentIndex(unsigned int port) const CADET_NOEXCEPT
 {
 	// Inlets are duplicated so need to be accounted for
-	if (static_cast<double>(_convDispOp.currentVelocity()) >= 0.0)
+	if (_convDispOp.forwardFlow())
 		// Forward Flow: outlet is last cell
 		return _disc.nComp + (_disc.nCol - 1) * (_disc.nComp + _disc.strideBound);
 	else

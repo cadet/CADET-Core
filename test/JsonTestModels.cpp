@@ -29,7 +29,6 @@ json createColumnWithSMAJson(const std::string& uoType)
 	config["PAR_SURFDIFFUSION"] = {0.0, 0.0, 0.0, 0.0};
 
 	// Geometry
-	config["COL_RADIUS"] = 0.01;
 	if (uoType.substr(0, 6) == "RADIAL")
 	{
 		config["COL_RADIUS_INNER"] = 0.001;
@@ -37,6 +36,7 @@ json createColumnWithSMAJson(const std::string& uoType)
 		config["VELOCITY_COEFF"] = 5.75e-4;
 	}
 	else
+	{
 		config["COL_LENGTH"] = 0.014;
 		config["COL_RADIUS"] = 0.01;
 		config["VELOCITY"] = 5.75e-4;
@@ -323,12 +323,12 @@ json createLWEJson(const std::string& uoType)
 				{
 					// Connection list is 1x7 since we have 1 connection between
 					// the two unit operations (and we need to have 7 columns)
-					sw["CONNECTIONS"] = {1.0, 0.0, -1.0, -1.0, -1.0, -1.0, 1.0};
+					sw["CONNECTIONS"] = {1.0, 0.0, -1.0, -1.0, -1.0, -1.0, 6.683738370512285e-8};
 					// Connections: From unit operation 1 port -1 (i.e., all ports)
 					//              to unit operation 0 port -1 (i.e., all ports),
 					//              connect component -1 (i.e., all components)
 					//              to component -1 (i.e., all components) with
-					//              volumetric flow rate 1.0 m^3/s
+					//              volumetric flow rate 6.683738370512285e-8 m^3/s
 				}
 
 				con["switch_000"] = sw;
