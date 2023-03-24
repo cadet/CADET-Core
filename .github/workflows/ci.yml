@@ -111,6 +111,7 @@ jobs:
           path: src
       - name: Install Dependencies
         run: |
+          sudo apt-get update
           sudo apt -y install \
             build-essential \
             libhdf5-dev \
