@@ -17,11 +17,11 @@
 #include "model/Parameters.hpp"
 #include "LocalVector.hpp"
 #include "SimulationTypes.hpp"
-#include<cmath>
+#include <cmath>
 #include <vector>
 #include <unordered_map>
 #include <functional>
-#include<iostream>
+
 /*<codegen>
 {
 	"name": "FreundlichLDFParamHandler",
