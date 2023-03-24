@@ -1,7 +1,7 @@
 .. _hic_constant_water_activity_config:
 
-Constant Water Activity
-~~~~~~~~~~~~~~~~~~~~~~~
+HIC Constant Water Activity
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 **Group /input/model/unit_XXX/adsorption – ADSORPTION_MODEL = HIC_CONSTANT_WATER_ACTIVITY**
 
