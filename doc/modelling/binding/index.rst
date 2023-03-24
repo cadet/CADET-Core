@@ -257,6 +257,16 @@ The models also differ in whether a mobile phase modifier (e.g., salt) is suppor
      - ✓
      - ✓
      - ✓
+   * - :ref:`hic_water_on_hydrophobic_surfaces_model`
+     - ✓
+     - x
+     - ✓
+     - x
+   * - :ref:`hic_constant_water_activity_model`
+     - ✓
+     - x
+     - ✓
+     - x
 
 
 .. toctree::

@@ -65,4 +65,6 @@ This group also takes precedence over a possibly existing ``/input/model/unit_XX
     saska
     self_association
     kumar_langmuir
+    hic_water_on_hydrophobic_surfaces
+    hic_constant_water_activity
 
