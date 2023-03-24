@@ -133,6 +133,24 @@ public:
 	}
 
 	/**
+	 * @brief Reads parameters and verifies them
+	 * @details See IBindingModel::configure() for details.
+	 * @param [in] varName Name of the parameter
+	 * @param [in] paramProvider IParameterProvider used for reading parameters
+	 * @param [in] nComp Number of components
+	 * @param [in] nBoundStates Array with number of bound states for each component
+	 * @param [in] defaultVal Default value if parameter is not available in @p paramProvider
+	 * @return @c true if the parameters were read and validated successfully, otherwise @c false
+	 */
+	inline void configure(const std::string& varName, IParameterProvider& paramProvider, unsigned int nComp, unsigned int const* nBoundStates, double defaultVal)
+	{
+		if (paramProvider.exists(varName))
+			*_p = paramProvider.getDouble(varName);
+		else
+			*_p = defaultVal;
+	}
+
+	/**
 	 * @brief Registers the parameters in a map for further use
 	 * @param [in] varName Name of the parameter
 	 * @param [in,out] parameters Map in which the parameters are stored
