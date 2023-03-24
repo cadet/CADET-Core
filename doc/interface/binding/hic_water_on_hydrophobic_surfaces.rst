@@ -1,7 +1,7 @@
 .. _hic_water_on_hydrophobic_surfaces_config:
 
-Water on Hydrophobic Surfaces
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+HIC Water on Hydrophobic Surfaces
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 **Group /input/model/unit_XXX/adsorption – ADSORPTION_MODEL = HIC_WATER_ON_HYDROPHOBIC_SURFACES**
 

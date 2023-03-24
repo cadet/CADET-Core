@@ -1,12 +1,12 @@
 .. _hic_constant_water_activity_model:
 
-Constant Water Activity
-~~~~~~~~~~~~~~~~~~~~~~~
-This model implemments the HIC Isotherm assuming a constant water activity as described by Jäpel and Buyel :cite:j 2022
+HIC Constant Water Activity
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+This model implemments the HIC isotherm assuming a constant water activity as described by Jäpel and Buyel :cite:`Jaepel2022`.
 
 .. math::
     \begin{align}
-        \beta&=\beta_0 e^{c_{p,0}\beta_1}\\
+        \beta &= \beta_0 e^{c_{p,0}\beta_1} \\
         \frac{\mathrm{d}q_i}{\mathrm{d}t} &= k_{a,i} c_{p,i} \left( 1 - \sum_j \frac{q_j}{q_{max,j}} \right)^{\nu_i} - k_{d,i} q_i 0.1^{\nu_i \beta}
     \end{align}
 
