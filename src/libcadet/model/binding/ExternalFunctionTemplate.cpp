@@ -94,9 +94,17 @@ public:
 	{% for p in constantParameters %}
 		{% if not existsIn(p, "skipConfig") %}
 			{% if length(p/varName) > 1 %}
-				_{{ p/objName }}.configure("{{ p/confPrefix }}", paramProvider, nComp, nBoundStates);
+				{% if existsIn(p, "default") %}
+					_{{ p/objName }}.configure("{{ p/confPrefix }}", paramProvider, nComp, nBoundStates, {{ p/default }});
+				{% else %}
+					_{{ p/objName }}.configure("{{ p/confPrefix }}", paramProvider, nComp, nBoundStates);
+				{% endif %}
 			{% else %}
-				_{{ p/varName }}.configure("{{ p/confName }}", paramProvider, nComp, nBoundStates);
+				{% if existsIn(p, "default") %}
+					_{{ p/varName }}.configure("{{ p/confName }}", paramProvider, nComp, nBoundStates, {{ p/default }});
+				{% else %}
+					_{{ p/varName }}.configure("{{ p/confName }}", paramProvider, nComp, nBoundStates);
+				{% endif %}
 			{% endif %}
 		{% endif %}
 	{% endfor %}
@@ -265,9 +273,17 @@ public:
 	{% for p in constantParameters %}
 		{% if not existsIn(p, "skipConfig") %}
 			{% if length(p/varName) > 1 %}
-				_{{ p/objName }}.configure("{{ p/confPrefix }}", paramProvider, nComp, nBoundStates);
+				{% if existsIn(p, "default") %}
+					_{{ p/objName }}.configure("{{ p/confPrefix }}", paramProvider, nComp, nBoundStates, {{ p/default }});
+				{% else %}
+					_{{ p/objName }}.configure("{{ p/confPrefix }}", paramProvider, nComp, nBoundStates);
+				{% endif %}
 			{% else %}
-				_{{ p/varName }}.configure("{{ p/confName }}", paramProvider, nComp, nBoundStates);
+				{% if existsIn(p, "default") %}
+					_{{ p/varName }}.configure("{{ p/confName }}", paramProvider, nComp, nBoundStates, {{ p/default }});
+				{% else %}
+					_{{ p/varName }}.configure("{{ p/confName }}", paramProvider, nComp, nBoundStates);
+				{% endif %}
 			{% endif %}
 		{% endif %}
 	{% endfor %}
