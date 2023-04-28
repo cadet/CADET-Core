@@ -251,7 +251,7 @@ public:
 				std::vector<double>& cp = _curStorage->particle[parType];
 
 				cp.resize(cp.size() + sliceSize);
-				exporter.writeMobilePhase(cp.data() + cp.size() - sliceSize);
+				exporter.writeParticleMobilePhase(parType, cp.data() + cp.size() - sliceSize);
 			}
 		}
 
@@ -263,7 +263,7 @@ public:
 				std::vector<double>& cs = _curStorage->solid[parType];
 
 				cs.resize(cs.size() + sliceSize);
-				exporter.writeSolidPhase(cs.data() + cs.size() - sliceSize);
+				exporter.writeSolidPhase(parType, cs.data() + cs.size() - sliceSize);
 			}
 		}
 

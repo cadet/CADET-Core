@@ -2463,7 +2463,7 @@ int GeneralRateModel2D::Exporter::writeSolidPhase(double* buffer) const
 	int numWritten = 0;
 	for (unsigned int i = 0; i < _disc.nParType; ++i)
 	{
-		const int n = writeParticleMobilePhase(i, buffer);
+		const int n = writeSolidPhase(i, buffer);
 		buffer += n;
 		numWritten += n;
 	}
