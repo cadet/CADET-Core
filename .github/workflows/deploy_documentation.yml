@@ -5,10 +5,9 @@ jobs:
   dispatch_docs:
     runs-on: ubuntu-latest
     steps:
-      - name: Emit repository_dispatch
-        uses: mvasigh/dispatch-action@main
+      - name: Repository Dispatch
+        uses: peter-evans/repository-dispatch@v2
         with:
           token: ${{ secrets.DISPATCH_DOCS }}
-          repo: CADET-Website
-          owner: modsim
-          event_type: build_docs
+          repository: modsim/CADET-Website
+          event-type: build_docs
