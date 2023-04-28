@@ -1,5 +1,8 @@
 name: "Trigger for dispatching CADET-Website"
-on: push
+on:
+  push:
+    branches:
+      - 'master'
 
 jobs:
   dispatch_docs:
