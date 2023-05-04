@@ -47,6 +47,7 @@ namespace cadet
 			void registerHICConstantWaterActivityModel(std::unordered_map<std::string, std::function<model::IBindingModel*()>>& bindings);
 			void registerSipsModel(std::unordered_map<std::string, std::function<model::IBindingModel*()>>& bindings);
 			void registerMultiComponentLDFFreundlichModel(std::unordered_map<std::string, std::function<model::IBindingModel*()>>& bindings);
+			void registerHICUnifiedModel(std::unordered_map<std::string, std::function<model::IBindingModel*()>>& bindings);
 		}
 	}
 
@@ -79,6 +80,7 @@ namespace cadet
 		model::binding::registerHICConstantWaterActivityModel(_bindingModels);
 		model::binding::registerSipsModel(_bindingModels);
 		model::binding::registerMultiComponentLDFFreundlichModel(_bindingModels);
+		model::binding::registerHICUnifiedModel(_bindingModels);
 		registerModel<model::SimplifiedMultiStateStericMassActionBinding>();
 	}
 
