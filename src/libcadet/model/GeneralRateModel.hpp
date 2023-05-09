@@ -314,6 +314,7 @@ protected:
 
 	ConvDispOperator _convDispOp; //!< Convection dispersion operator for interstitial volume transport
 	IDynamicReactionModel* _dynReactionBulk; //!< Dynamic reactions in the bulk volume
+	IParameterParameterDependence* _filmDiffDep; //!< Film diffusion dependency on local velocity
 
 	linalg::BandMatrix* _jacP; //!< Particle jacobian diagonal blocks (all of them)
 	linalg::FactorizableBandMatrix* _jacPdisc; //!< Particle jacobian diagonal blocks (all of them) with time derivatives from BDF method
