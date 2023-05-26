@@ -241,27 +241,16 @@ protected:
  *          
  *          The implementation is inserted inline in the class declaration.
  */
-#define CADET_PARAMETERPARAMETERDEPENDENCE_BOILERPLATE                                                                                  \
-	virtual double getValue(const IModel& model, const ColumnPosition& colPos, int comp, int parType, int bnd, double val) const        \
-	{                                                                                                                                   \
-		return getValueImpl<double>(model, colPos, comp, parType, bnd, val);                                                            \
-	}                                                                                                                                   \
-                                                                                                                                        \
-	virtual active getValue(const IModel& model, const ColumnPosition& colPos, int comp, int parType, int bnd, const active& val) const \
-	{                                                                                                                                   \
-		return getValueImpl<active>(model, colPos, comp, parType, bnd, val);                                                            \
-	}                                                                                                                                   \
-                                                                                                                                        \
-	virtual double getValue(const IModel& model, const ColumnPosition& colPos, int comp, int parType, int bnd) const                    \
-	{                                                                                                                                   \
-		return getValueImpl<double>(model, colPos, comp, parType, bnd);                                                                 \
-	}                                                                                                                                   \
-                                                                                                                                        \
-	virtual active getValueActive(const IModel& model, const ColumnPosition& colPos, int comp, int parType, int bnd) const              \
-	{                                                                                                                                   \
-		return getValueImpl<active>(model, colPos, comp, parType, bnd);                                                                 \
-	}
-
+#define CADET_PARAMETERPARAMETERDEPENDENCE_BOILERPLATE																												\
+	virtual double getValue(const IModel& model, const ColumnPosition& colPos, int comp, int parType, int bnd, double depVal, double indepVal) const				\
+	{																																								\
+		return getValueImpl<double>(model, colPos, comp, parType, bnd, depVal, indepVal);																			\
+	}																																								\
+																																									\
+	virtual active getValue(const IModel& model, const ColumnPosition& colPos, int comp, int parType, int bnd, const active& depVal, const active& indepVal) const	\
+	{																																								\
+		return getValueImpl<active>(model, colPos, comp, parType, bnd, depVal, indepVal);																			\
+	}																																								\
 
 } // namespace model
 } // namespace cadet

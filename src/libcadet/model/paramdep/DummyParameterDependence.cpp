@@ -27,6 +27,36 @@ namespace model
 {
 
 /**
+ * @brief Defines a dummy parameter dependence that outputs the (independent) parameter itself
+ */
+class IdentityParameterParameterDependence : public ParameterParameterDependenceBase
+{
+public:
+
+	IdentityParameterParameterDependence() { }
+	virtual ~IdentityParameterParameterDependence() CADET_NOEXCEPT { }
+
+	static const char* identifier() { return "IDENTITY"; }
+	virtual const char* name() const CADET_NOEXCEPT { return IdentityParameterParameterDependence::identifier(); }
+
+	CADET_PARAMETERPARAMETERDEPENDENCE_BOILERPLATE
+
+protected:
+
+	virtual bool configureImpl(IParameterProvider& paramProvider, UnitOpIdx unitOpIdx, ParticleTypeIdx parTypeIdx, BoundStateIdx bndIdx, const std::string& name)
+	{
+		return true;
+	}
+
+	template <typename ParamType>
+	ParamType getValueImpl(const IModel& model, const ColumnPosition& colPos, int comp, int parType, int bnd, const ParamType& depVal, const ParamType& indepVal) const
+	{
+		return depVal;
+	}
+
+};
+
+/**
  * @brief Defines a parameter dependence that outputs constant 0.0
  */
 class ConstantZeroParameterStateDependence : public ParameterStateDependenceBase
@@ -82,7 +112,6 @@ protected:
 	template <typename RowIterator>
 	void analyticJacobianCombinedAddSolidImpl(const ColumnPosition& colPos, double param, double const* yLiquid, double const* ySolid, int bnd, double factor, int offset, RowIterator jac) const { }
 };
-
 
 /**
  * @brief Defines a parameter dependence that outputs constant 1.0
@@ -141,81 +170,6 @@ protected:
 	void analyticJacobianCombinedAddSolidImpl(const ColumnPosition& colPos, double param, double const* yLiquid, double const* ySolid, int bnd, double factor, int offset, RowIterator jac) const { }
 };
 
-
-/**
- * @brief Defines a parameter dependence that outputs constant 0.0
- */
-class ConstantZeroParameterParameterDependence : public ParameterParameterDependenceBase
-{
-public:
-
-	ConstantZeroParameterParameterDependence() { }
-	virtual ~ConstantZeroParameterParameterDependence() CADET_NOEXCEPT { }
-
-	static const char* identifier() { return "CONSTANT_ZERO"; }
-	virtual const char* name() const CADET_NOEXCEPT { return ConstantZeroParameterParameterDependence::identifier(); }
-
-	CADET_PARAMETERPARAMETERDEPENDENCE_BOILERPLATE
-
-protected:
-
-	virtual bool configureImpl(IParameterProvider& paramProvider, UnitOpIdx unitOpIdx, ParticleTypeIdx parTypeIdx, BoundStateIdx bndIdx, const std::string& name)
-	{
-		return true;
-	}
-
-	template <typename ParamType>
-	ParamType getValueImpl(const IModel& model, const ColumnPosition& colPos, int comp, int parType, int bnd) const
-	{
-		return 0.0;
-	}
-
-	template <typename ParamType>
-	ParamType getValueImpl(const IModel& model, const ColumnPosition& colPos, int comp, int parType, int bnd, const ParamType& val) const
-	{
-		return 0.0;
-	}
-
-};
-
-
-/**
- * @brief Defines a parameter dependence that outputs constant 1.0
- */
-class ConstantOneParameterParameterDependence : public ParameterParameterDependenceBase
-{
-public:
-
-	ConstantOneParameterParameterDependence() { }
-	virtual ~ConstantOneParameterParameterDependence() CADET_NOEXCEPT { }
-
-	static const char* identifier() { return "CONSTANT_ONE"; }
-	virtual const char* name() const CADET_NOEXCEPT { return ConstantOneParameterParameterDependence::identifier(); }
-
-	CADET_PARAMETERPARAMETERDEPENDENCE_BOILERPLATE
-
-protected:
-
-	virtual bool configureImpl(IParameterProvider& paramProvider, UnitOpIdx unitOpIdx, ParticleTypeIdx parTypeIdx, BoundStateIdx bndIdx, const std::string& name)
-	{
-		return true;
-	}
-
-	template <typename ParamType>
-	ParamType getValueImpl(const IModel& model, const ColumnPosition& colPos, int comp, int parType, int bnd) const
-	{
-		return 1.0;
-	}
-
-	template <typename ParamType>
-	ParamType getValueImpl(const IModel& model, const ColumnPosition& colPos, int comp, int parType, int bnd, const ParamType& val) const
-	{
-		return 1.0;
-	}
-
-};
-
-
 namespace paramdep
 {
 	void registerDummyParamDependence(std::unordered_map<std::string, std::function<model::IParameterStateDependence*()>>& paramDeps)
@@ -227,9 +181,8 @@ namespace paramdep
 
 	void registerDummyParamDependence(std::unordered_map<std::string, std::function<model::IParameterParameterDependence*()>>& paramDeps)
 	{
-		paramDeps[ConstantOneParameterParameterDependence::identifier()] = []() { return new ConstantOneParameterParameterDependence(); };
-		paramDeps[ConstantZeroParameterParameterDependence::identifier()] = []() { return new ConstantZeroParameterParameterDependence(); };
-		paramDeps["NONE"] = []() { return new ConstantOneParameterParameterDependence(); };
+		paramDeps[IdentityParameterParameterDependence::identifier()] = []() { return new IdentityParameterParameterDependence(); };
+		paramDeps["NONE"] = []() { return new IdentityParameterParameterDependence(); };
 	}
 }  // namespace paramdep
 

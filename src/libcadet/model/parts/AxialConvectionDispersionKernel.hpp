@@ -124,7 +124,7 @@ namespace impl
 				if (cadet_likely(col < p.nCol - 1))
 				{
 					const double relCoord = static_cast<double>(col+1) / p.nCol;
-					const ParamType d_ax_right = d_ax * p.parDep->getValue(p.model, ColumnPosition{relCoord, 0.0, 0.0}, comp, ParTypeIndep, BoundStateIndep, static_cast<ParamType>(p.u));
+					const ParamType d_ax_right = p.parDep->getValue(p.model, ColumnPosition{relCoord, 0.0, 0.0}, comp, ParTypeIndep, BoundStateIndep, d_ax, static_cast<ParamType>(p.u));
 					resBulkComp[col * p.strideCell] -= d_ax_right / h2 * (stencil[1] - stencil[0]);
 					// Jacobian entries
 					if (wantJac)
@@ -138,7 +138,7 @@ namespace impl
 				if (cadet_likely(col > 0))
 				{
 					const double relCoord = static_cast<double>(col) / p.nCol;
-					const ParamType d_ax_left = d_ax * p.parDep->getValue(p.model, ColumnPosition{relCoord, 0.0, 0.0}, comp, ParTypeIndep, BoundStateIndep, static_cast<ParamType>(p.u));
+					const ParamType d_ax_left = p.parDep->getValue(p.model, ColumnPosition{relCoord, 0.0, 0.0}, comp, ParTypeIndep, BoundStateIndep, d_ax, static_cast<ParamType>(p.u));
 					resBulkComp[col * p.strideCell] -= d_ax_left / h2 * (stencil[-1] - stencil[0]);
 					// Jacobian entries
 					if (wantJac)
@@ -271,7 +271,7 @@ namespace impl
 				if (cadet_likely(col < p.nCol - 1))
 				{
 					const double relCoord = static_cast<double>(col+1) / p.nCol;
-					const ParamType d_ax_right = d_ax * p.parDep->getValue(p.model, ColumnPosition{relCoord, 0.0, 0.0}, comp, ParTypeIndep, BoundStateIndep, static_cast<ParamType>(p.u));
+					const ParamType d_ax_right = p.parDep->getValue(p.model, ColumnPosition{relCoord, 0.0, 0.0}, comp, ParTypeIndep, BoundStateIndep, d_ax, static_cast<ParamType>(p.u));
 					resBulkComp[col * p.strideCell] -= d_ax_right / h2 * (stencil[-1] - stencil[0]);
 					// Jacobian entries
 					if (wantJac)
@@ -285,7 +285,7 @@ namespace impl
 				if (cadet_likely(col > 0))
 				{
 					const double relCoord = static_cast<double>(col) / p.nCol;
-					const ParamType d_ax_left = d_ax * p.parDep->getValue(p.model, ColumnPosition{relCoord, 0.0, 0.0}, comp, ParTypeIndep, BoundStateIndep, static_cast<ParamType>(p.u));
+					const ParamType d_ax_left = p.parDep->getValue(p.model, ColumnPosition{relCoord, 0.0, 0.0}, comp, ParTypeIndep, BoundStateIndep, d_ax, static_cast<ParamType>(p.u));
 					resBulkComp[col * p.strideCell] -= d_ax_left / h2 * (stencil[1] - stencil[0]);
 					// Jacobian entries
 					if (wantJac)

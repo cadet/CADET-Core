@@ -459,7 +459,7 @@ bool GeneralRateModel<ConvDispOperator>::configureModelDiscretization(IParameter
 		_filmDiffDep->configureModelDiscretization(paramProvider);
 	}
 	else
-		_filmDiffDep = helper.createParameterParameterDependence("CONSTANT_ONE");
+		_filmDiffDep = helper.createParameterParameterDependence("IDENTITY");
 
 	// ==== Construct and configure binding model
 	clearBindingModels();
@@ -1926,11 +1926,11 @@ int GeneralRateModel<ConvDispOperator>::residualFlux(double t, unsigned int secI
 
 				const double relPos = _convDispOp.relativeCoordinate(colCell);
 				const active curVelocity = _convDispOp.currentVelocity(relPos);
-				const active modifier = _filmDiffDep->getValue(*this, ColumnPosition{ relPos, 0.0, 0.0 }, comp, ParTypeIndep, BoundStateIndep, curVelocity);
+				const ParamType filmDiffDep = static_cast<ParamType>(_filmDiffDep->getValue(*this, ColumnPosition{ relPos, 0.0, 0.0 }, comp, ParTypeIndep, BoundStateIndep, filmDiff[comp], curVelocity));
 				if (cadet_likely(_colParBoundaryOrder == 2))
-					kf_FV[comp] = 1.0 / (absOuterShellHalfRadius / epsP / static_cast<ParamType>(_poreAccessFactor[type * _disc.nComp + comp]) / static_cast<ParamType>(parDiff[comp]) + 1.0 / (static_cast<ParamType>(filmDiff[comp]) * static_cast<ParamType>(modifier)));
+					kf_FV[comp] = 1.0 / (absOuterShellHalfRadius / epsP / static_cast<ParamType>(_poreAccessFactor[type * _disc.nComp + comp]) / static_cast<ParamType>(parDiff[comp]) + 1.0 / filmDiffDep);
 				else
-					kf_FV[comp] = static_cast<ParamType>(filmDiff[comp]) * static_cast<ParamType>(modifier);
+					kf_FV[comp] = filmDiffDep;
 			}
 
 			// J_{0,f} block, adds flux to column void / bulk volume equations
@@ -1974,9 +1974,9 @@ int GeneralRateModel<ConvDispOperator>::residualFlux(double t, unsigned int secI
 
 					const double relPos = _convDispOp.relativeCoordinate(pblk);
 					const active curVelocity = _convDispOp.currentVelocity(relPos);
-					const active modifier = _filmDiffDep->getValue(*this, ColumnPosition{ relPos, 0.0, 0.0 }, comp, ParTypeIndep, BoundStateIndep, curVelocity);
+					const ParamType filmDiffDep = static_cast<ParamType>(_filmDiffDep->getValue(*this, ColumnPosition{ relPos, 0.0, 0.0 }, comp, ParTypeIndep, BoundStateIndep, filmDiff[comp], curVelocity));
 
-					kf_FV[comp] = (1.0 - static_cast<ParamType>(_parPorosity[type])) / (1.0 + epsP * static_cast<ParamType>(_poreAccessFactor[type * _disc.nComp + comp]) * static_cast<ParamType>(parDiff[comp]) / (absOuterShellHalfRadius * static_cast<ParamType>(filmDiff[comp]) * static_cast<ParamType>(modifier)));
+					kf_FV[comp] = (1.0 - static_cast<ParamType>(_parPorosity[type])) / (1.0 + epsP * static_cast<ParamType>(_poreAccessFactor[type * _disc.nComp + comp]) * static_cast<ParamType>(parDiff[comp]) / (absOuterShellHalfRadius * filmDiffDep));
 				}
 
 				const ColumnPosition colPos{(0.5 + static_cast<double>(pblk)) / static_cast<double>(_disc.nCol), 0.0, static_cast<double>(parCenterRadius[0]) / static_cast<double>(_parRadius[type])};
@@ -2089,12 +2089,12 @@ void GeneralRateModel<ConvDispOperator>::assembleOffdiagJac(double t, unsigned i
 
 				const double relPos = _convDispOp.relativeCoordinate(pblk);
 				const double curVelocity = static_cast<double>(_convDispOp.currentVelocity(relPos));
-				const double modifier = _filmDiffDep->getValue(*this, ColumnPosition{ relPos, 0.0, 0.0 }, comp, ParTypeIndep, BoundStateIndep, curVelocity);
+				const double filmDiffDep = static_cast<double>(_filmDiffDep->getValue(*this, ColumnPosition{ relPos, 0.0, 0.0 }, comp, ParTypeIndep, BoundStateIndep, filmDiff[comp], curVelocity));
 
 				if (cadet_likely(_colParBoundaryOrder == 2))
-					kf_FV[comp] = 1.0 / (absOuterShellHalfRadius / epsP / static_cast<double>(_poreAccessFactor[type * _disc.nComp + comp]) / static_cast<double>(parDiff[comp]) + 1.0 / (static_cast<double>(filmDiff[comp]) * modifier));
+					kf_FV[comp] = 1.0 / (absOuterShellHalfRadius / epsP / static_cast<double>(_poreAccessFactor[type * _disc.nComp + comp]) / static_cast<double>(parDiff[comp]) + 1.0 / filmDiffDep);
 				else
-					kf_FV[comp] = static_cast<double>(filmDiff[comp]) * modifier;
+					kf_FV[comp] = filmDiffDep;
 			}
 
 			// J_{0,f} block, adds flux to column void / bulk volume equations
@@ -2148,9 +2148,9 @@ void GeneralRateModel<ConvDispOperator>::assembleOffdiagJac(double t, unsigned i
 				{
 					const double relPos = _convDispOp.relativeCoordinate(pblk);
 					const double curVelocity = static_cast<double>(_convDispOp.currentVelocity(relPos));
-					const double modifier = _filmDiffDep->getValue(*this, ColumnPosition{ relPos, 0.0, 0.0 }, comp, ParTypeIndep, BoundStateIndep, curVelocity);
+					const double filmDiffDep = static_cast<double>(_filmDiffDep->getValue(*this, ColumnPosition{ relPos, 0.0, 0.0 }, comp, ParTypeIndep, BoundStateIndep, filmDiff[comp], curVelocity));
 
-					kf_FV[comp] = (1.0 - static_cast<double>(_parPorosity[type])) / (1.0 + epsP * static_cast<double>(_poreAccessFactor[type * _disc.nComp + comp]) * static_cast<double>(parDiff[comp]) / (absOuterShellHalfRadius * static_cast<double>(filmDiff[comp]) * modifier));
+					kf_FV[comp] = (1.0 - static_cast<double>(_parPorosity[type])) / (1.0 + epsP * static_cast<double>(_poreAccessFactor[type * _disc.nComp + comp]) * static_cast<double>(parDiff[comp]) / (absOuterShellHalfRadius * filmDiffDep));
 				}
 
 				const ColumnPosition colPos{ (0.5 + static_cast<double>(pblk)) / static_cast<double>(_disc.nCol), 0.0, static_cast<double>(parCenterRadius[0]) / static_cast<double>(_parRadius[type]) };

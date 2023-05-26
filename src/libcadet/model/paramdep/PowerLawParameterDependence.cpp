@@ -71,21 +71,15 @@ protected:
 	}
 
 	template <typename ParamType>
-	ParamType getValueImpl(const IModel& model, const ColumnPosition& colPos, int comp, int parType, int bnd) const
-	{
-		return 0.0;
-	}
-
-	template <typename ParamType>
-	ParamType getValueImpl(const IModel& model, const ColumnPosition& colPos, int comp, int parType, int bnd, ParamType val) const
+	ParamType getValueImpl(const IModel& model, const ColumnPosition& colPos, int comp, int parType, int bnd, const ParamType& depVal, const ParamType& indepVal) const
 	{
 		using std::pow;
 		using std::abs;
 
 		if (_useAbs)
-			return static_cast<ParamType>(_base) * pow(abs(val), static_cast<ParamType>(_exponent));
+			return depVal * static_cast<ParamType>(_base) * pow(abs(indepVal), static_cast<ParamType>(_exponent));
 		else
-			return static_cast<ParamType>(_base) * pow(val, static_cast<ParamType>(_exponent));
+			return depVal * static_cast<ParamType>(_base) * pow(indepVal, static_cast<ParamType>(_exponent));
 	}
 
 };
