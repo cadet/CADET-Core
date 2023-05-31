@@ -21,7 +21,7 @@
 #include "ParamIdUtil.hpp"
 #include "AutoDiff.hpp"
 #include "Memory.hpp"
-//#include "Weno.hpp" // todo weno DG
+#include "Weno_DG.hpp"
 #include "SimulationTypes.hpp"
 #include <ParamReaderHelper.hpp>
 #include "linalg/BandedEigenSparseRowIterator.hpp"
@@ -119,11 +119,21 @@ namespace cadet
 				inline const active* currentDispersion(const int secIdx) const CADET_NOEXCEPT { return getSectionDependentSlice(_colDispersion, _nComp, secIdx); }
 				inline const bool dispersionCompIndep() const CADET_NOEXCEPT { return _dispersionCompIndep; }
 
-	inline unsigned int nComp() const CADET_NOEXCEPT { return _nComp; }
-	inline unsigned int nCells() const CADET_NOEXCEPT { return _nCells; }
-	inline unsigned int nNodes() const CADET_NOEXCEPT { return _nNodes; }
-	inline unsigned int nPoints() const CADET_NOEXCEPT { return _nPoints; }
-	inline bool exactInt() const CADET_NOEXCEPT { return _exactInt; }
+				inline unsigned int nComp() const CADET_NOEXCEPT { return _nComp; }
+				inline unsigned int nCells() const CADET_NOEXCEPT { return _nCells; }
+				inline unsigned int nNodes() const CADET_NOEXCEPT { return _nNodes; }
+				inline unsigned int nPoints() const CADET_NOEXCEPT { return _nPoints; }
+				inline bool exactInt() const CADET_NOEXCEPT { return _exactInt; }
+				inline bool hasSmoothnessIndicator() const CADET_NOEXCEPT { return static_cast<bool>(_OSmode); } // only zero if no oscillation suppression
+				inline double* smoothnessIndicator() const CADET_NOEXCEPT
+				{
+					if (_OSmode == 1)
+						return _weno.troubledCells();
+					//else if (_OSmode == 2) // todo subcell limiting
+					//	return _subcell.troubledCells();
+					else
+						return nullptr;
+				}
 
 				// Indexer functionality:
 				// Strides
@@ -179,6 +189,11 @@ namespace cadet
 				Eigen::Vector<active, Eigen::Dynamic> _surfaceFlux; //!< stores the surface flux values
 				Eigen::Vector<active, 4> _boundary; //!< stores the boundary values from Danckwert boundary conditions
 
+				// non-linear oscillation prevention mechanism
+				int _OSmode; //!< oscillation suppression mode; 0 : none, 1 : WENO, 2 : Subcell limiting
+				WenoDG _weno; //!< WENO operator
+				//SucellLimiter _subcellLimiter; // todo
+
 				// Simulation parameters
 				active _colLength; //!< Column length \f$ L \f$
 				active _crossSection; //!< Cross section area 
@@ -193,7 +208,14 @@ namespace cadet
 				int _curSection; //!< current section index
 				bool _newStaticJac; //!< determines wether static analytical jacobian needs to be computed (every section)
 
+				// todo weno
+				//ArrayPool _stencilMemory; //!< Provides memory for the stencil
+				//double* _wenoDerivatives; //!< Holds derivatives of the WENO scheme
+				//Weno _weno; //!< The WENO scheme implementation
+				//double _wenoEpsilon; //!< The @f$ \varepsilon @f$ of the WENO scheme (prevents division by zero)
+
 				bool _dispersionCompIndep; //!< Determines whether dispersion is component independent
+
 				IParameterParameterDependence* _dispersionDep;
 
 				/* ===================================================================================
@@ -279,6 +301,41 @@ namespace cadet
 					}
 					// inverse the weights
 					_invWeights = _invWeights.cwiseInverse();
+				}
+
+				/**
+				 * @brief computes the Legendre polynomial and its derivative
+				 * @param [in, out] leg Legendre polynomial
+				 * @param [in, out] leg Legendre polynomial derivative
+				 * @param [in] N polynomial degree
+				 * @param [in] x evaluation point
+				 */
+				void legendrePolynomialAndDerivative(double& leg, double& legDer, const int N, const double x) {
+
+					switch (N) {
+					case 0:
+						leg = 1.0;
+						legDer = 0.0;
+						break;
+					case 1:
+						leg = x;
+						legDer = 1.0;
+						break;
+					default:
+						double leg_2 = 1.0;
+						double leg_1 = x;
+						double legDer_2 = 0.0;
+						double legDer_1 = 1.0;
+
+						for (int k = 2; k <= N; k++) {
+							leg = (2.0 * k - 1.0) / k * x * leg_1 - (k - 1.0) / k * leg_2;
+							legDer = legDer_2 + (2.0 * k - 1.0) * leg_1;
+							leg_2 = leg_1;
+							leg_1 = leg;
+							legDer_2 = legDer_1;
+							legDer_1 = legDer;
+						}
+					}
 				}
 
 				/**

@@ -218,7 +218,7 @@ protected:
 	template <typename StateType, typename ResidualType, typename ParamType>
 	int residualFlux(double t, unsigned int secIdx, StateType const* y, double const* yDot, ResidualType* res);
 
-	void assembleFluxJacobian(double t, unsigned int secIdx);
+	void assembleFluxJacobian(unsigned int secIdx);
 	void extractJacobianFromAD(active const* const adRes, unsigned int adDirOffset);
 
 	void assembleDiscretizedGlobalJacobian(double alpha, Indexer idxr);
@@ -252,8 +252,8 @@ protected:
 		unsigned int nPoints; //!< Number of discrete Points
 
 		bool curSection; //!< current section index
-		bool newStaticJac; //!< determines wether static analytical jacobian needs to be computed (every section)
 
+		bool newStaticJac;
 	};
 
 	Discretization _disc; //!< Discretization info
@@ -363,7 +363,11 @@ protected:
 		virtual bool hasSolidPhase() const CADET_NOEXCEPT { return _disc.strideBound[_disc.nParType] > 0; }
 		virtual bool hasVolume() const CADET_NOEXCEPT { return false; }
 		virtual bool isParticleLumped() const CADET_NOEXCEPT { return true; }
+		virtual bool hasSmoothnessIndicator() const CADET_NOEXCEPT { return _model._convDispOp.hasSmoothnessIndicator(); }
 
+		virtual unsigned int primaryPolynomialDegree() const CADET_NOEXCEPT { return _disc.polyDeg; }
+		virtual unsigned int secondaryPolynomialDegree() const CADET_NOEXCEPT { return 0; }
+		virtual unsigned int particlePolynomialDegree(unsigned int parType) const CADET_NOEXCEPT { return 0; }
 		virtual unsigned int numComponents() const CADET_NOEXCEPT { return _disc.nComp; }
 		virtual unsigned int numPrimaryCoordinates() const CADET_NOEXCEPT { return _disc.nPoints; }
 		virtual unsigned int numSecondaryCoordinates() const CADET_NOEXCEPT { return 0; }
@@ -397,6 +401,8 @@ protected:
 		virtual int writeInlet(double* buffer) const;
 		virtual int writeOutlet(unsigned int port, double* buffer) const;
 		virtual int writeOutlet(double* buffer) const;
+
+		virtual int writeSmoothnessIndicator(double* indicator) const { return 0; }
 		/**
 		* @brief calculates and writes the physical node coordinates of the DG discretization with double! interface nodes
 		*/
@@ -423,17 +429,6 @@ protected:
 		const LumpedRateModelWithPoresDG& _model;
 		double const* const _data;
 	};
-
-	/**
-	* @brief sets the current section index and section dependend velocity, dispersion
-	*/
-	void updateSection(int secIdx) {
-
-		if (cadet_unlikely(_disc.curSection != secIdx)) {
-			_disc.curSection = secIdx;
-			_disc.newStaticJac = true;
-		}
-	}
 
 	// ==========================================================================================================================================================  //
 	// ========================================						DG Jacobian							=========================================================  //
@@ -539,7 +534,7 @@ protected:
 		return success;
 	}
 
-	int calcFluxJacobians(unsigned int secIdx) {
+	int calcFluxJacobians(unsigned int secIdx, bool ADjac = false) {
 
 		Indexer idxr(_disc);
 
@@ -568,7 +563,9 @@ protected:
 					// add Cl on Cl entries (added since already set in bulk jacobian)
 					// row: already at bulk phase. already at current node and component.
 					// col: already at bulk phase. already at current node and component.
-					jacC[0] += jacCF_val * static_cast<double>(filmDiff[comp]) * static_cast<double>(_parTypeVolFrac[type + _disc.nParType * colNode]);
+					if (!ADjac) // entry already filled for AD
+						jacC[0] += jacCF_val * static_cast<double>(filmDiff[comp]) * static_cast<double>(_parTypeVolFrac[type + _disc.nParType * colNode]);
+
 					// add Cl on Cp entries
 					// row: already at bulk phase. already at current node and component.
 					// col: already at bulk phase. already at current node and component.
@@ -577,8 +574,9 @@ protected:
 					// add Cp on Cp entries
 					// row: already at particle. already at current node and liquid state.
 					// col: go to flux of current parType and adjust for offsetC. jump over previous colNodes and add component offset
-					jacP[0]
-						= -jacPF_val / static_cast<double>(poreAccFactor[comp]) * static_cast<double>(filmDiff[comp]);
+					if (!ADjac) // entry already filled for AD
+						jacP[0] += -jacPF_val / static_cast<double>(poreAccFactor[comp]) * static_cast<double>(filmDiff[comp]);
+
 					// add Cp on Cl entries
 					// row: already at particle. already at current node and liquid state.
 					// col: go to flux of current parType and adjust for offsetC. jump over previous colNodes and add component offset

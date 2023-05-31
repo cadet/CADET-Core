@@ -303,11 +303,16 @@ namespace cadet
 				virtual bool hasSolidPhase() const CADET_NOEXCEPT { return _disc.strideBound > 0; }
 				virtual bool hasVolume() const CADET_NOEXCEPT { return false; }
 				virtual bool isParticleLumped() const CADET_NOEXCEPT { return false; }
+				virtual bool hasSmoothnessIndicator() const CADET_NOEXCEPT { return _model._convDispOp.hasSmoothnessIndicator(); }
 
+				virtual unsigned int primaryPolynomialDegree() const CADET_NOEXCEPT { return _disc.polyDeg; }
+				virtual unsigned int secondaryPolynomialDegree() const CADET_NOEXCEPT { return 0; }
+				virtual unsigned int particlePolynomialDegree(unsigned int parType) const CADET_NOEXCEPT { return 0; }
 				virtual unsigned int numComponents() const CADET_NOEXCEPT { return _disc.nComp; }
-				// @TODO?? actually we need number of axial discrete points here, not number of axial cells !
 				virtual unsigned int numPrimaryCoordinates() const CADET_NOEXCEPT { return _disc.nPoints; }
 				virtual unsigned int numSecondaryCoordinates() const CADET_NOEXCEPT { return 0; }
+				virtual unsigned int numPrimaryPolynomialDegree() const CADET_NOEXCEPT { return _disc.polyDeg; }
+				virtual unsigned int numSecondaryPolynomialDegree() const CADET_NOEXCEPT { return 0; }
 				virtual unsigned int numInletPorts() const CADET_NOEXCEPT { return 1; }
 				virtual unsigned int numOutletPorts() const CADET_NOEXCEPT { return 1; }
 				virtual unsigned int numParticleTypes() const CADET_NOEXCEPT { return 1; }
@@ -333,6 +338,9 @@ namespace cadet
 				virtual int writeInlet(double* buffer) const;
 				virtual int writeOutlet(unsigned int port, double* buffer) const;
 				virtual int writeOutlet(double* buffer) const;
+
+				virtual int writeSmoothnessIndicator(double* indicator) const;
+				
 				/**
 				 * @brief calculates the physical node coordinates of the DG discretization with double! interface nodes
 				 */

@@ -696,8 +696,12 @@ protected:
 		virtual bool hasParticleMobilePhase() const CADET_NOEXCEPT { return true; }
 		virtual bool hasSolidPhase() const CADET_NOEXCEPT { return _disc.strideBound[_disc.nParType] > 0; }
 		virtual bool hasVolume() const CADET_NOEXCEPT { return false; }
+		virtual bool hasSmoothnessIndicator() const CADET_NOEXCEPT { return false; }
 		virtual bool isParticleLumped() const CADET_NOEXCEPT { return false; }
 
+		virtual unsigned int primaryPolynomialDegree() const CADET_NOEXCEPT { return _disc.polyDeg; }
+		virtual unsigned int secondaryPolynomialDegree() const CADET_NOEXCEPT { return 0; }
+		virtual unsigned int particlePolynomialDegree(unsigned int parType) const CADET_NOEXCEPT { return 0; }
 		virtual unsigned int numComponents() const CADET_NOEXCEPT { return _disc.nComp; }
 		virtual unsigned int numPrimaryCoordinates() const CADET_NOEXCEPT { return _disc.nPoints; }
 		virtual unsigned int numSecondaryCoordinates() const CADET_NOEXCEPT { return 0; }
@@ -757,6 +761,9 @@ protected:
 		virtual int writeInlet(double* buffer) const;
 		virtual int writeOutlet(unsigned int port, double* buffer) const;
 		virtual int writeOutlet(double* buffer) const;
+
+		virtual int writeSmoothnessIndicator(double* indicator) const { return 0; }
+
 		virtual int writePrimaryCoordinates(double* coords) const {
 			Eigen::VectorXd x_l = Eigen::VectorXd::LinSpaced(static_cast<int>(_disc.nCol + 1), 0.0, _disc.length_);
 			for (unsigned int i = 0; i < _disc.nCol; i++) {

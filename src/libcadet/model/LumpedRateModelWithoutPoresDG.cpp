@@ -1875,6 +1875,18 @@ namespace cadet
 			return _disc.nComp;
 		}
 
+		int LumpedRateModelWithoutPoresDG::Exporter::writeSmoothnessIndicator(double* indicator) const
+		{
+			if (_model._convDispOp.hasSmoothnessIndicator())
+			{
+				std::copy_n(_model._convDispOp.smoothnessIndicator(), _disc.nCol * _disc.nComp, indicator);
+				return _disc.nCol * _disc.nComp;
+			}
+
+			return 0;
+		}
+
+
 		void registerLumpedRateModelWithoutPoresDG(std::unordered_map<std::string, std::function<IUnitOperation*(UnitOpIdx)>>& models)
 		{
 			models[LumpedRateModelWithoutPoresDG::identifier()] = [](UnitOpIdx uoId) { return new LumpedRateModelWithoutPoresDG(uoId); };
