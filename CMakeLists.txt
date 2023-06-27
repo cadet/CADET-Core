@@ -148,7 +148,7 @@ add_feature_info(CMAKE_INSTALL_RPATH_USE_LINK_PATH CMAKE_INSTALL_RPATH_USE_LINK_
 # Hande RPATH on OSX when not installing to a system directory, see
 # https://groups.google.com/d/msg/fenics-dev/KSCrob4M_1M/zsJwdN-SCAAJ
 # and https://cmake.org/Wiki/CMake_RPATH_handling#Always_full_RPATH
-if (APPLE)
+if (UNIX)
 	# The RPATH to be used when installing, but only if it's not a system directory
 	set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib")
 	list(FIND CMAKE_PLATFORM_IMPLICIT_LINK_DIRECTORIES "${CMAKE_INSTALL_PREFIX}/lib" isSystemDir)
