@@ -38,6 +38,7 @@ struct ProgramOptions
 	int nPar;
 	int nCol;
 	int nRad;
+	int nParType;
 	int nThreads;
 	std::vector<std::string> sensitivities;
 	std::string outSol;
@@ -64,6 +65,7 @@ int main(int argc, char** argv)
 		cmd >> (new TCLAP::ValueArg<double>("s", "stddevAlg", "Perturb algebraic variables with normal variates", false, nanVal, "Value"))->storeIn(&opts.stddevAlg);
 		cmd >> (new TCLAP::SwitchArg("", "reverseFlow", "Reverse the flow for column"))->storeIn(&opts.reverseFlow);
 		cmd >> (new TCLAP::ValueArg<int>("", "rad", "Number of radial cells (default: 3)", false, 3, "Value"))->storeIn(&opts.nRad);
+		cmd >> (new TCLAP::ValueArg<int>("", "parTypes", "Number of particle types (default: 1)", false, 1, "Value"))->storeIn(&opts.nParType);
 		addMiscToCmdLine(cmd, opts);
 		addUnitTypeToCmdLine(cmd, opts.unitType);
 		addSensitivitiyParserToCmdLine(cmd, opts.sensitivities);
@@ -203,13 +205,28 @@ int main(int argc, char** argv)
 				Scope<cadet::io::HDF5Writer> s2(writer, "discretization");
 
 				writer.scalar<int>("NCOL", opts.nCol); // 64
-				writer.scalar<int>("NPAR", opts.nPar); // 16
+				if (opts.nParType > 1)
+				{
+					const std::vector<int> nPar(opts.nParType, opts.nPar);
+					writer.vector<int>("NPAR", nPar.size(), nPar.data()); // 16
+				}
+				else
+					writer.scalar<int>("NPAR", opts.nPar);
+
 				writer.scalar<int>("NRAD", opts.nRad);
-				const int nBound[] = {1, 1, 1, 1};
-				writer.vector<int>("NBOUND", 4, nBound);
+				writer.scalar<int>("NPARTYPE", opts.nParType);
+
+				const std::vector<int> nBound(4 * opts.nParType, 1);
+				writer.vector<int>("NBOUND", nBound.size(), nBound.data());
 
 				writer.scalar("RADIAL_DISC_TYPE", std::string("EQUIDISTANT"));
-				writer.scalar("PAR_DISC_TYPE", std::string("EQUIDISTANT_PAR"));
+				if (opts.nParType > 1)
+				{
+					std::vector<std::string> parDiscType(opts.nParType, std::string("EQUIDISTANT_PAR"));
+					writer.vector<std::string>("PAR_DISC_TYPE", parDiscType.size(), parDiscType.data());
+				}
+				else
+					writer.scalar("PAR_DISC_TYPE", std::string("EQUIDISTANT_PAR"));
 
 				writer.scalar<int>("USE_ANALYTIC_JACOBIAN", !opts.adJacobian);
 				writer.scalar<int>("MAX_KRYLOV", 0);
