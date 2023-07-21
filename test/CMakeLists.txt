@@ -58,7 +58,6 @@ add_executable(testRunner testRunner.cpp JsonTestModels.cpp ColumnTests.cpp Unit
 
 target_link_libraries(testRunner PRIVATE CADET::CompileOptions CADET::AD SUNDIALS::sundials_idas ${SUNDIALS_NVEC_TARGET} ${TBB_TARGET})
 if (ENABLE_GRM_2D)
-	target_include_directories(testRunner PRIVATE ${CMAKE_BINARY_DIR}/src/libcadet)
 	if (SUPERLU_FOUND)
 		target_link_libraries(testRunner PRIVATE SuperLU::SuperLU)
 	endif()
@@ -74,7 +73,7 @@ list(APPEND TEST_TARGETS ${TEST_NONLINALG_TARGETS} ${TEST_LIBCADET_TARGETS} ${TE
 
 foreach(_TARGET IN LISTS TEST_TARGETS)
 	# Add include directories for access to exported LIBCADET header files.
-	target_include_directories(${_TARGET} PRIVATE ${CMAKE_SOURCE_DIR}/include ${CMAKE_SOURCE_DIR}/src/libcadet ${CMAKE_BINARY_DIR})
+	target_include_directories(${_TARGET} PRIVATE ${CMAKE_SOURCE_DIR}/include ${CMAKE_SOURCE_DIR}/src/libcadet ${CMAKE_BINARY_DIR} ${CMAKE_BINARY_DIR}/src/libcadet)
 	# Add include directories for third party components
 	target_include_directories(${_TARGET} PRIVATE ${CMAKE_SOURCE_DIR}/ThirdParty/Catch ${CMAKE_SOURCE_DIR}/ThirdParty/json ${CMAKE_SOURCE_DIR}/ThirdParty/pugixml ${CMAKE_SOURCE_DIR}/ThirdParty/tclap/include)
 endforeach()
