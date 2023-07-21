@@ -58,8 +58,8 @@ public:
 	InternalStorageUnitOpRecorder(UnitOpIdx idx) : _cfgSolution({false, false, false, true, false, false, false}),
 		_cfgSolutionDot({false, false, false, false, false, false, false}), _cfgSensitivity({false, false, false, true, false, false, false}),
 		_cfgSensitivityDot({false, false, false, true, false, false, false}), _storeTime(false), _storeCoordinates(false), _splitComponents(true), _splitPorts(true),
-		_singleAsMultiPortUnitOps(false), _curCfg(nullptr), _nComp(0), _nVolumeDof(0), _nAxialCells(0), _nRadialCells(0), _nInletPorts(0), _nOutletPorts(0),
-		_numTimesteps(0), _numSens(0), _unitOp(idx), _needsReAlloc(false), _axialCoords(0), _radialCoords(0), _particleCoords(0)
+		_singleAsMultiPortUnitOps(false), _keepParticleSingletonDim(true), _curCfg(nullptr), _nComp(0), _nVolumeDof(0), _nAxialCells(0), _nRadialCells(0),
+		_nInletPorts(0), _nOutletPorts(0), _numTimesteps(0), _numSens(0), _unitOp(idx), _needsReAlloc(false), _axialCoords(0), _radialCoords(0), _particleCoords(0)
 	{
 	}
 
@@ -123,6 +123,8 @@ public:
 		_nVolumeDof = exporter.numVolumeDofs();
 		_nInletPorts = exporter.numInletPorts();
 		_nOutletPorts = exporter.numOutletPorts();
+
+		_keepParticleSingletonDim = !exporter.isParticleLumped();
 
 		_nAxialCells = exporter.numPrimaryCoordinates();
 		_nRadialCells = exporter.numSecondaryCoordinates();
@@ -445,6 +447,9 @@ public:
 	inline bool treatSingleAsMultiPortUnitOps() const CADET_NOEXCEPT { return _singleAsMultiPortUnitOps; }
 	inline void treatSingleAsMultiPortUnitOps(bool smp) CADET_NOEXCEPT { _singleAsMultiPortUnitOps = smp; }
 
+	inline bool keepParticleSingletonDim() const CADET_NOEXCEPT { return _keepParticleSingletonDim; }
+	inline void keepParticleSingletonDim(bool keepSingleton) CADET_NOEXCEPT { _keepParticleSingletonDim = keepSingleton; }
+
 	inline UnitOpIdx unitOperation() const CADET_NOEXCEPT { return _unitOp; }
 	inline void unitOperation(UnitOpIdx idx) CADET_NOEXCEPT { _unitOp = idx; }
 
@@ -736,7 +741,12 @@ protected:
 			if (_nParShells.size() <= 1)
 			{
 				if (_nParShells[0] >= 1)
-					layout.push_back(_nParShells[0]);
+				{
+					if ((_nParShells[0] == 1) && _keepParticleSingletonDim)
+						layout.push_back(_nParShells[0]);
+					else if (_nParShells[0] > 1)
+						layout.push_back(_nParShells[0]);
+				}
 				layout.push_back(_nComp);
 
 				debugCheckTensorLayout(layout, _curStorage->particle[0].size());
@@ -754,14 +764,25 @@ protected:
 
 				for (std::size_t parType = 0; parType < _nParShells.size(); ++parType)
 				{
+					std::size_t layoutSize = layout.size();
 					if (hasParticleShells)
-						layout[layout.size() - 2] = _nParShells[parType];
+					{
+						if ((_nParShells[parType] == 1) && !_keepParticleSingletonDim)
+						{
+							layout[layoutSize - 2] = _nComp;
+							--layoutSize;
+						}
+						else if ((_nParShells[parType] == 1) && _keepParticleSingletonDim)
+							layout[layout.size() - 2] = _nParShells[parType];
+						else if (_nParShells[parType] > 1)
+							layout[layout.size() - 2] = _nParShells[parType];
+					}
 
-					debugCheckTensorLayout(layout, _curStorage->particle[parType].size());
+					debugCheckTensorLayout(layout, layoutSize, _curStorage->particle[parType].size());
 
 					oss.str("");
 					oss << prefix << "_PARTICLE_PARTYPE_" << std::setfill('0') << std::setw(3) << std::setprecision(0) << parType;
-					writer.template tensor<double>(oss.str(), layout.size(), layout.data(), _curStorage->particle[parType].data());
+					writer.template tensor<double>(oss.str(), layoutSize, layout.data(), _curStorage->particle[parType].data());
 				}
 			}
 		}
@@ -780,7 +801,12 @@ protected:
 			if (_nParShells.size() <= 1)
 			{
 				if (_nParShells[0] >= 1)
-					layout.push_back(_nParShells[0]);
+				{
+					if ((_nParShells[0] == 1) && _keepParticleSingletonDim)
+						layout.push_back(_nParShells[0]);
+					else if (_nParShells[0] > 1)
+						layout.push_back(_nParShells[0]);
+				}
 				layout.push_back(_nBoundStates[0]);
 
 				debugCheckTensorLayout(layout, _curStorage->solid[0].size());
@@ -798,15 +824,24 @@ protected:
 
 				for (std::size_t parType = 0; parType < _nParShells.size(); ++parType)
 				{
+					std::size_t layoutSize = layout.size();
 					if (hasParticleShells)
-						layout[layout.size() - 2] = _nParShells[parType];
-					layout[layout.size() - 1] = _nBoundStates[parType];
+					{
+						if ((_nParShells[parType] == 1) && !_keepParticleSingletonDim)
+							--layoutSize;
+						else if ((_nParShells[parType] == 1) && _keepParticleSingletonDim)
+							layout[layout.size() - 2] = _nParShells[parType];
+						else if (_nParShells[parType] > 1)
+							layout[layout.size() - 2] = _nParShells[parType];
+					}
 
-					debugCheckTensorLayout(layout, _curStorage->solid[parType].size());
+					layout[layoutSize - 1] = _nBoundStates[parType];
+
+					debugCheckTensorLayout(layout, layoutSize, _curStorage->solid[parType].size());
 
 					oss.str("");
 					oss << prefix << "_SOLID_PARTYPE_" << std::setfill('0') << std::setw(3) << std::setprecision(0) << parType;
-					writer.template tensor<double>(oss.str(), layout.size(), layout.data(), _curStorage->solid[parType].data());
+					writer.template tensor<double>(oss.str(), layoutSize, layout.data(), _curStorage->solid[parType].data());
 				}
 			}
 		}
@@ -856,14 +891,22 @@ protected:
 	}
 
 	template <typename T>
-	void debugCheckTensorLayout(const std::vector<T>& layout, std::size_t numElems)
+	void debugCheckTensorLayout(const std::vector<T>& layout, std::size_t layoutSize, std::size_t numElems)
 	{
 #ifdef CADET_DEBUG
 		std::size_t layoutElems = 1;
-		for (T item : layout)
-			layoutElems *= item;
+		for (std::size_t i = 0; i < layoutSize; ++i)
+			layoutElems *= layout[i];
 		
 		cadet_assert(numElems == layoutElems);
+#endif
+	}
+
+	template <typename T>
+	void debugCheckTensorLayout(const std::vector<T>& layout, std::size_t numElems)
+	{
+#ifdef CADET_DEBUG
+		debugCheckTensorLayout(layout, layout.size(), numElems);
 #endif
 	}
 
@@ -876,6 +919,7 @@ protected:
 	bool _splitComponents;
 	bool _splitPorts;
 	bool _singleAsMultiPortUnitOps;
+	bool _keepParticleSingletonDim;
 
 	StorageConfig const* _curCfg;
 	Storage* _curStorage;

@@ -59,6 +59,13 @@ public:
 	virtual bool hasVolume() const CADET_NOEXCEPT = 0;
 
 	/**
+	 * @brief Returns whether the particle is always lumped to a single element
+	 * @details If particles are lumped to a single element, the singleton particle shell dimension can be removed.
+	 * @return @c true if particles are always represented by a single element, otherwise @c false
+	 */
+	virtual bool isParticleLumped() const CADET_NOEXCEPT = 0;
+
+	/**
 	 * @brief Returns the number of components
 	 * @return Number of components
 	 */
