@@ -5,6 +5,8 @@ Self Association
 
 **Group /input/model/unit_XXX/adsorption – ADSORPTION_MODEL = SELF_ASSOCIATION**
 
+For information on model equations, refer to :ref:`self_association_model`.
+
 
 ``IS_KINETIC``
    Selects kinetic or quasi-stationary adsorption mode: 1 = kinetic, 0 =

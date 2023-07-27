@@ -5,6 +5,8 @@ HIC Water on Hydrophobic Surfaces
 
 **Group /input/model/unit_XXX/adsorption – ADSORPTION_MODEL = HIC_WATER_ON_HYDROPHOBIC_SURFACES**
 
+For information on model equations, refer to :ref:`hic_water_on_hydrophobic_surfaces_model`.
+
 
 ``IS_KINETIC``
    Selects kinetic or quasi-stationary adsorption mode: 1 = kinetic, 0 =

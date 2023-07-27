@@ -5,6 +5,8 @@ Linear
 
 **Group /input/model/unit_XXX/adsorption – ADSORPTION_MODEL = LINEAR**
 
+For information on model equations, refer to :ref:`linear_model`.
+
 
 ``IS_KINETIC``
    Selects kinetic or quasi-stationary adsorption mode: 1 = kinetic, 0 =

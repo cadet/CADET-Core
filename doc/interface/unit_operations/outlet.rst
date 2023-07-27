@@ -1,11 +1,18 @@
 .. _outlet_config:
 
 Outlet
-~~~~~~
+======
+
+Group /input/model/unit_XXX - UNIT-TYPE = OUTLET
+------------------------------------------------
+
+For information on model equations, refer to :ref:`outlet_model`.
+
 
 ``UNIT_TYPE``
 
    Specifies the type of unit operation model
+
    
    ================  ==================================  =============
    **Type:** string  **Range:** :math:`\texttt{OUTLET}`  **Length:** 1

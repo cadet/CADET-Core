@@ -5,6 +5,8 @@ Extended Mobile Phase Modulator Langmuir
 
 **Group /input/model/unit_XXX/adsorption – ADSORPTION_MODEL = EXTENDED_MOBILE_PHASE_MODULATOR**
 
+For information on model equations, refer to :ref:`extended_mobile_phase_modulator_langmuir_model`.
+
 
 ``IS_KINETIC``
    Selects kinetic or quasi-stationary adsorption mode: 1 = kinetic, 0 =

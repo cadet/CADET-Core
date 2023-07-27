@@ -1,7 +1,13 @@
 .. _2d_general_rate_model_config:
 
 Two dimensional general rate model
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+==================================
+
+Group /input/model/unit_XXX - UNIT_TYPE = GENERAL_RATE_MODEL_2D
+---------------------------------------------------------------
+
+For information on model equations, refer to :ref:`2d_general_rate_model_model`.
+
 
 ``UNIT_TYPE``
 

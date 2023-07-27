@@ -5,6 +5,8 @@ Multi Component Langmuir
 
 **Group /input/model/unit_XXX/adsorption – ADSORPTION_MODEL = MULTI_COMPONENT_LANGMUIR**
 
+For information on model equations, refer to :ref:`multi_component_langmuir_model`.
+
 
 ``IS_KINETIC``
    Selects kinetic or quasi-stationary adsorption mode: 1 = kinetic, 0 =
