@@ -5,6 +5,7 @@ Nonlinear solver for consistent initialization
 
 Group /input/model/unit_XXX/discretization/consistency_solver - Nonlinear consistency solver paramters
 ------------------------------------------------------------------------------------------------------
+
 ``SOLVER_NAME``
 
 Name of the solver. Available solvers are ``LEVMAR``, ``ATRN_RES``, ``ATRN_ERR``, and ``COMPOSITE``.
