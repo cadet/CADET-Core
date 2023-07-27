@@ -5,6 +5,8 @@ Freundlich LDF
 
 **Group /input/model/unit_XXX/adsorption – ADSORPTION_MODEL = FREUNDLICH_LDF**
 
+For information on model equations, refer to :ref:`freundlich_ldf_model`.
+
 
 ``IS_KINETIC``
    Selects kinetic or quasi-stationary adsorption mode: 1 = kinetic, 0 =

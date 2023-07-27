@@ -5,6 +5,8 @@ Multi-State Steric Mass Action
 
 **Group /input/model/unit_XXX/adsorption – ADSORPTION_MODEL = MULTISTATE_STERIC_MASS_ACTION**
 
+For information on model equations, refer to :ref:`multi_state_steric_mass_action_model`.
+
 
 ``IS_KINETIC``
    Selects kinetic or quasi-stationary adsorption mode: 1 = kinetic, 0 =

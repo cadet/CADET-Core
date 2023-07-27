@@ -3,9 +3,11 @@
 Lumped rate model with pores
 ============================
 
-
 Group /input/model/unit_XXX - UNIT_TYPE = LUMPED_RATE_MODEL_WITH_PORES
 ----------------------------------------------------------------------
+
+For information on model equations, refer to :ref:`lumpded_rate_model_with_pores_model`.
+
 
 ``UNIT_TYPE``
    Specifies the type of unit operation model

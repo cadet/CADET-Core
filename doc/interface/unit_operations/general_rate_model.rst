@@ -6,6 +6,9 @@ General Rate Model
 Group /input/model/unit_XXX - UNIT_TYPE - GENERAL_RATE_MODEL
 ------------------------------------------------------------
 
+For information on model equations, refer to :ref:`general_rate_model_model`.
+
+
 ``UNIT_TYPE``
 
    Specifies the type of unit operation model

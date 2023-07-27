@@ -1,11 +1,12 @@
 .. _inlet_config:
 
-
 Inlet
 =====
 
 Group /input/model/unit_XXX - UNIT-TYPE = INLET
 -----------------------------------------------
+
+For information on model equations, refer to :ref:`inlet_model`.
 
 
 ``UNIT_TYPE``

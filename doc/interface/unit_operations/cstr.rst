@@ -6,6 +6,9 @@ Continuous stirred tank reactor model
 Group /input/model/unit_XXX - UNIT_TYPE = CSTR
 ----------------------------------------------
 
+
+For information on model equations, refer to :ref:`cstr_model`.
+
 ``UNIT_TYPE``
 
    Specifies the type of unit operation model
