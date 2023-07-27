@@ -7,14 +7,14 @@
 .. image:: https://img.shields.io/github/release/modsim/cadet.svg
    :target: https://github.com/modsim/CADET/releases
 
-.. image:: https://img.shields.io/github/downloads/modsim/cadet/latest/total.svg
-   :target: https://github.com/modsim/CADET/releases
+.. image:: https://github.com/modsim/CADET/actions/workflows/ci.yml/badge.svg
+   :target: https://github.com/modsim/CADET/actions/workflows/ci.yml
 
-.. image:: https://img.shields.io/travis/modsim/CADET/master.svg?logo=travis&maxAge=3600)
-   :target: https://travis-ci.org/modsim/CADET
+.. image:: https://anaconda.org/conda-forge/cadet/badges/downloads.svg
+   :target: https://anaconda.org/conda-forge/cadet
 
-.. image:: https://img.shields.io/appveyor/ci/sleweke/cadet/master.svg?logo=appveyor&maxAge=3600svg=true
-   :target: https://ci.appveyor.com/project/sleweke/cadet
+.. image:: https://zenodo.org/badge/DOI/10.5281/zenodo.8179015.svg
+   :target: https://doi.org/10.5281/zenodo.8179015
 
 |
 
