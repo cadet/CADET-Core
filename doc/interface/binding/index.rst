@@ -52,10 +52,13 @@ This group also takes precedence over a possibly existing ``/input/model/unit_XX
 
     linear
     multi_component_langmuir
-    multi_component_bi_langmuir
-    multi_component_anti_langmuir
+    multi_component_langmuir_ldf
+    multi_component_langmuir_ldf_liquid_phase
     mobile_phase_modulator_langmuir
     extended_mobile_phase_modulator_langmuir
+    multi_component_bi_langmuir
+    multi_component_bi_langmuir_ldf
+    multi_component_anti_langmuir
     multi_component_spreading
     steric_mass_action
     multi_state_steric_mass_action
@@ -64,7 +67,7 @@ This group also takes precedence over a possibly existing ``/input/model/unit_XX
     generalized_ion_exchange
     saska
     self_association
-    kumar_langmuir
+    freundlich_ldf
     hic_water_on_hydrophobic_surfaces
     hic_constant_water_activity
 
