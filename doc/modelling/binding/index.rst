@@ -172,11 +172,6 @@ The models also differ in whether a mobile phase modifier (e.g., salt) is suppor
      - ×
      - ✓
      - ×
-   * - :ref:`freundlich_ldf_model`
-     - ×
-     - ×
-     - ✓
-     - ×
    * - :ref:`multi_component_langmuir_model`
      - ✓
      - ×
@@ -192,26 +187,6 @@ The models also differ in whether a mobile phase modifier (e.g., salt) is suppor
      - ×
      - ✓
      - ×
-   * - :ref:`multi_component_anti_langmuir_model`
-     - ✓
-     - ×
-     - ✓
-     - ×
-   * - :ref:`steric_mass_action_model`
-     - ✓
-     - ✓
-     - ✓
-     - ×
-   * - :ref:`generalized_ion_exchange_model`
-     - ✓
-     - ✓
-     - ✓
-     - ×
-   * - :ref:`self_association_model`
-     - ✓
-     - ✓
-     - ✓
-     - ×
    * - :ref:`mobile_phase_modulator_langmuir_model`
      - ✓
      - ✓
@@ -220,11 +195,6 @@ The models also differ in whether a mobile phase modifier (e.g., salt) is suppor
    * - :ref:`extended_mobile_phase_modulator_langmuir_model`
      - ✓
      - ✓
-     - ✓
-     - ×
-   * - :ref:`saska_model`
-     - ×
-     - ×
      - ✓
      - ×
    * - :ref:`multi_component_bi_langmuir_model`
@@ -237,11 +207,21 @@ The models also differ in whether a mobile phase modifier (e.g., salt) is suppor
      - ×
      - ✓
      - ✓
+   * - :ref:`multi_component_anti_langmuir_model`
+     - ✓
+     - ×
+     - ✓
+     - ×
    * - :ref:`multi_component_spreading_model`
      - ✓
      - ×
      - ✓
      - ✓
+   * - :ref:`steric_mass_action_model`
+     - ✓
+     - ✓
+     - ✓
+     - ×
    * - :ref:`multi_state_steric_mass_action_model`
      - ✓
      - ✓
@@ -257,6 +237,26 @@ The models also differ in whether a mobile phase modifier (e.g., salt) is suppor
      - ✓
      - ✓
      - ✓
+   * - :ref:`generalized_ion_exchange_model`
+     - ✓
+     - ✓
+     - ✓
+     - ×
+   * - :ref:`saska_model`
+     - ×
+     - ×
+     - ✓
+     - ×
+   * - :ref:`self_association_model`
+     - ✓
+     - ✓
+     - ✓
+     - ×
+   * - :ref:`freundlich_ldf_model`
+     - ×
+     - ×
+     - ✓
+     - ×
    * - :ref:`hic_water_on_hydrophobic_surfaces_model`
      - ✓
      - x
