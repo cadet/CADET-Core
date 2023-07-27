@@ -1,4 +1,4 @@
-.. _multi_component_langmuir_model_ldf_liquid_phase:
+.. _multi_component_langmuir_ldf_liquid_phase_model:
 
 Multi Component Langmuir LDF Liquid Phase
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
