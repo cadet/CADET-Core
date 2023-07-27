@@ -51,4 +51,4 @@ By default, the following initial conditions are applied for all :math:`z \in [0
 This model can also be used to simulate :ref:`MUOPGRMSizeExclusion`.
 For the specification of flow rate and direction, the same holds as for the general rate model (see Section :ref:`MUOPGRMflow`).
 
-For information on model parameters see :ref:`lumpded_rate_model_with_pores_config`.
+For information on model parameters see :ref:`lumped_rate_model_with_pores_config`.

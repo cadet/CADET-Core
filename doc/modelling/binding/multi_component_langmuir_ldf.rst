@@ -1,4 +1,4 @@
-.. _multi_component_langmuir_model_ldf:
+.. _multi_component_langmuir_ldf_model:
 
 Multi Component Langmuir LDF
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~

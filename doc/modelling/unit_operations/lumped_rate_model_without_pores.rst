@@ -52,4 +52,4 @@ By default, the following initial conditions are applied for all :math:`z \in [0
 Note that by setting :math:`\varepsilon_t = 1`, removing all bound states by setting :math:`N_{\text{bnd},i} = 0` for all components :math:`i`, and applying no binding model, a dispersive plug flow reactor (DPFR) is obtained.
 For the specification of flow rate and direction, the same holds as for the general rate model (see Section :ref:`MUOPGRMflow`).
 
-For information on model parameters see :ref:`lumpded_rate_model_without_pores_config`.
+For information on model parameters see :ref:`lumped_rate_model_without_pores_config`.
