@@ -83,7 +83,7 @@ namespace cadet
 
 				void setFlowRates(const active& in, const active& out, const active& colPorosity) CADET_NOEXCEPT;
 
-				bool configureModelDiscretization(IParameterProvider& paramProvider, const IConfigHelper& helper, unsigned int nComp, bool exact_integration, unsigned int nCells, unsigned int polyDeg, unsigned int strideNode);
+				bool configureModelDiscretization(IParameterProvider& paramProvider, const IConfigHelper& helper, unsigned int nComp, int polynomial_integration_mode, unsigned int nCells, unsigned int polyDeg, unsigned int strideNode);
 				bool configure(UnitOpIdx unitOpIdx, IParameterProvider& paramProvider, std::unordered_map<ParameterId, active*>& parameters);
 				bool notifyDiscontinuousSectionTransition(double t, unsigned int secIdx, Eigen::MatrixXd& jacInlet);
 
@@ -215,7 +215,6 @@ namespace cadet
 				//double _wenoEpsilon; //!< The @f$ \varepsilon @f$ of the WENO scheme (prevents division by zero)
 
 				bool _dispersionCompIndep; //!< Determines whether dispersion is component independent
-
 				IParameterParameterDependence* _dispersionDep;
 
 				/* ===================================================================================
@@ -250,7 +249,6 @@ namespace cadet
 
 				/**
 				 * @brief computes the Legendre-Gauss-Lobatto nodes and (inverse) quadrature weights
-				 * @detail inexact LGL-quadrature leads to a diagonal mass matrix (mass lumping), defined by the quadrature weights
 				 */
 				void lglNodesWeights() {
 					// tolerance and max #iterations for Newton iteration
@@ -339,6 +337,137 @@ namespace cadet
 				}
 
 				/**
+				 * @brief computes the Legendre-Gauss nodes and quadrature weights
+				 * @param [in, out] nodes Legendre Gauss nodes
+				 * @param [in, out] weights Legendre Gauss quadrature weights
+				 * @param [in] N polynomial degree
+				 */
+				void lgNodesWeights(Eigen::VectorXd& nodes, Eigen::VectorXd& weights, const int N) {
+					// tolerance and max #iterations for Newton iteration
+					int nIterations = 10;
+					double tolerance = 1e-15;
+
+					switch (N) {
+					case 0:
+						nodes[0] = 0.0;
+						weights[0] = 2.0;
+						break;
+					case 1:
+						nodes[0] = -std::sqrt(1.0 / 3.0);
+						weights[0] = 1;
+						nodes[1] = -nodes[0];
+						weights[1] = weights[0];
+						break;
+					default:
+
+						double leg = 0.0;
+						double legDer = 0.0;
+						double delta = 0.0;
+
+						for (int j = 0; j <= std::floor((N + 1) / 2) - 1; j++)
+						{
+							nodes[j] = -std::cos((2.0 * j + 1.0) / (2.0 * N + 2.0) * M_PI);
+							for (int k = 0; k <= nIterations; k++)
+							{
+								legendrePolynomialAndDerivative(leg, legDer, N + 1, nodes[j]);
+								delta = -leg / legDer;
+								nodes[j] = nodes[j] + delta;
+								if (std::abs(delta) <= tolerance * std::abs(nodes[j]))
+									break;
+							}
+							legendrePolynomialAndDerivative(leg, legDer, N + 1, nodes[j]);
+							nodes[N - j] = -nodes[j];
+							weights[j] = 2.0 / ((1.0 - std::pow(nodes[j], 2.0)) * std::pow(legDer, 2.0));
+							weights[N - j] = weights[j];
+						}
+
+						if (N % 2 == 0)
+						{
+							legendrePolynomialAndDerivative(leg, legDer, N + 1, 0.0);
+							nodes[N / 2] = 0.0;
+							weights[N / 2] = 2.0 / std::pow(legDer, 2.0);
+						}
+					}
+				}
+
+				/**
+				* @brief evaluates a Lagrange polynomial built on input nodes at a set of points
+				* @detail can be used to establish quadrature rules
+				* @param [in] j index of Lagrange basis function
+				* @param [in] intNodes interpolation nodes the Lagrange basis is constructed with
+				* @param [in] evalNodes nodes the Lagrange basis is evaluated at
+				*/
+				Eigen::VectorXd evalLagrangeBasis(const int j, const Eigen::VectorXd intNodes, const Eigen::VectorXd evalNodes) {
+
+					const int nIntNodes = intNodes.size();
+					const int nEvalNodes = evalNodes.size();
+					VectorXd evalEll = VectorXd::Zero(nEvalNodes);
+
+					double nominator = 1.0;
+					double denominator = 1.0;
+
+					for (int i = 0; i < nIntNodes; i++)
+						if (i != j)
+							denominator *= (intNodes[j] - intNodes[i]);
+
+					for (int k = 0; k < nEvalNodes; k++)
+					{
+						for (int i = 0; i < nIntNodes; i++)
+						{
+							if (i != j)
+							{
+								if (std::abs(evalNodes[k] - intNodes[i]) < std::numeric_limits<double>::epsilon())
+								{
+									nominator = denominator;
+									break;
+								}
+								else
+									nominator *= (evalNodes[k] - intNodes[i]);
+							}
+						}
+						evalEll[k] = nominator / denominator;
+						nominator = 1.0;
+					}
+
+					return evalEll;
+				}
+
+				/**
+				* @brief calculates the Gauss quadrature mass matrix for LGL interpolation polynomial on LG points
+				* @detail exact integration of polynomials up to order 2N - 1
+				* @param [in] LGLnodes Lagrange Gauss Lobatto nodes
+				* @param [in] nGaussNodes number of Gauss quadrature nodes
+				*/
+				Eigen::MatrixXd gaussQuadratureMMatrix(const Eigen::VectorXd LGLnodes, const int nLGNodes) {
+
+					const int Ldegree = nLGNodes - 1; // Legendre polynomial degree
+					const int nLGLnodes = LGLnodes.size();
+
+					MatrixXd evalEll = MatrixXd::Zero(nLGNodes, nLGNodes);
+					MatrixXd massMatrix = MatrixXd::Zero(nLGNodes, nLGNodes);
+
+					VectorXd LGnodes = VectorXd::Zero(nLGNodes);
+					VectorXd LGweigths = VectorXd::Zero(nLGNodes);
+					lgNodesWeights(LGnodes, LGweigths, Ldegree);
+
+					for (int i = 0; i < nLGLnodes; i++)
+						evalEll.row(i) = evalLagrangeBasis(i, LGLnodes, LGnodes);
+
+					VectorXd aux = VectorXd::Zero(nLGNodes);
+
+					for (int i = 0; i < nLGLnodes; i++)
+					{
+						for (int j = 0; j < nLGLnodes; j++)
+						{
+							aux = evalEll.row(i).array() * evalEll.row(j).array();
+							massMatrix(i, j) = (aux.array() * LGweigths.array()).sum();
+						}
+					}
+					
+					return massMatrix;
+				}
+
+				/**
 				 * @brief computation of barycentric weights for fast polynomial evaluation
 				 * @param [in] baryWeights vector to store barycentric weights. Must already be initialized with ones!
 				 */
@@ -419,8 +548,8 @@ namespace cadet
 					return V;
 				}
 				/**
-				* @brief calculates mass matrix for exact polynomial integration
-				* @detail exact polynomial integration leads to a full mass matrix
+				* @brief calculates mass matrix via transformation to orthonormal Legendre (modal) basis
+				* @detail exact integration for integrals of the form \int_E \ell_i \ell_j d\xi
 				*/
 				void invMMatrix() {
 					_invMM = (getVandermonde_LEGENDRE() * (getVandermonde_LEGENDRE().transpose()));
@@ -1449,7 +1578,7 @@ namespace cadet
 
 				void setFlowRates(const active& in, const active& out, const active& colPorosity) CADET_NOEXCEPT;
 
-				bool configureModelDiscretization(IParameterProvider& paramProvider, const IConfigHelper& helper, unsigned int nComp, bool exact_integration, unsigned int nCells, unsigned int polyDeg, unsigned int strideNode);
+				bool configureModelDiscretization(IParameterProvider& paramProvider, const IConfigHelper& helper, unsigned int nComp, int polynomial_integration_mode, unsigned int nCells, unsigned int polyDeg, unsigned int strideNode);
 				bool configure(UnitOpIdx unitOpIdx, IParameterProvider& paramProvider, std::unordered_map<ParameterId, active*>& parameters);
 				bool notifyDiscontinuousSectionTransition(double t, unsigned int secIdx, const AdJacobianParams& adJac);
 
