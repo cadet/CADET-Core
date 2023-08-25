@@ -31,6 +31,7 @@ extensions = [
     'sphinx_sitemap',
     'sphinxcontrib.bibtex',
     'sphinx_multiversion',
+    'm2r',
 ]
 
 # Bibliography

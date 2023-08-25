@@ -1,4 +1,4 @@
-# Prerequisites
+## Prerequisites
 
 * CMake (>= 3.12.0)
 * GCC >= 7.0, Clang >= 3.9, or Intel C++ 18.0
@@ -21,9 +21,9 @@ Assumed directory structure:
 
 Note that the version numbers of the files and packages below are subject to change and will not always reflect the most recent version.
 
-# Build dependencies
+## Build dependencies
 
-## HDF5
+### HDF5
 
 You can either build HDF5 yourself or rely on the packages provided by your Linux distribution.
 
@@ -38,7 +38,7 @@ Build HDF5 yourself:
 * Execute `ctest -S HDF5config.cmake,BUILD_GENERATOR=Unix,INSTALLDIR="<ROOT>/Libs/hdf5" -C Release -V`
 * Extract the created `HDF5-1.10.0-patch1-Linux.tar.gz` file to `<ROOT>/Libs/hdf5` such that you have `<ROOT>/Libs/hdf5/lib`
 
-## SUNDIALS (Optional)
+### SUNDIALS (Optional)
 
 * Download SUNDIALS source from http://computation.llnl.gov/projects/sundials/sundials-software (version <= 3.2.1)
 * Unzip
@@ -48,14 +48,14 @@ Build HDF5 yourself:
 * Execute `make install`
 * Delete the folder `sundialsbuild` (e.g., execute `rm -rf sundialsbuild` in the parent directory of `sundialsbuild`)
 
-## LAPACK
+### LAPACK
 
 You can either use a LAPACK implementation provided by your distribution or install the freely available [Intel MKL](https://software.intel.com/sites/campaigns/nest/) which is very fast and probably faster than your distribution's implementation.
 
 Obtain LAPACK from your distribution:
 * Install the packages (LAPACK and BLAS) of your distribution (e.g., `liblapack3`, `liblapack-dev`, `libblas3`, `libblas-dev` for Ubuntu and Debian). Note that some packages only provide reference (i.e., slow) implementations and others (e.g., ATLAS, GOTO) perform much faster.
 
-## SuperLU (Optional)
+### SuperLU (Optional)
 
 * Download SuperLU source from https://github.com/xiaoyeli/superlu
 * Unzip
@@ -65,14 +65,14 @@ Obtain LAPACK from your distribution:
 * Execute `make install`
 * Delete the folder `superlubuild` (e.g., execute `rm -rf superlubuild` in the parent directory of `superlubuild`)
 
-## UMFPACK (Optional)
+### UMFPACK (Optional)
 
 * Download SuiteSparse source from http://faculty.cse.tamu.edu/davis/suitesparse.html
 * Unzip
 * Open a terminal and change to the unzipped directory
 * Execute `make install INSTALL="<ROOT>/Libs/suitesparse" CHOLMOD_CONFIG=-DNPARTITION` or `make install INSTALL="<ROOT>/Libs/suitesparse" CHOLMOD_CONFIG=-DNPARTITION AUTOCC=no CC=<COMPILER> CXX=<C++COMPILER>` if you want to manually select the compiler
 
-# Build CADET
+## Build CADET
 
 * Download release of CADET or checkout from git
 * Place the source in `<ROOT>/code` and create the directory `<ROOT>/build`

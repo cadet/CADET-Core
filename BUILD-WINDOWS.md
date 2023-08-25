@@ -1,4 +1,4 @@
-# Prerequisites
+## Prerequisites
 
 * CMake (>= 3.12.0)
 * Microsoft Visual Studio 2017 (Community Edition, or better) or Intel C++ 18.0
@@ -26,9 +26,9 @@ Note that the version numbers of the files and packages below are subject to cha
 In the following, we will use Visual Studio 2019 and CMake 3.17.0.
 We also assume that Intel MKL is installed.
 
-# Build dependencies
+## Build dependencies
 
-## HDF5
+### HDF5
 
 * Make sure that no HDF5 libraries are installed (remove already existing HDF5 installations)
 * Download CMake-enabled source from https://www.hdfgroup.org/downloads/hdf5/source-code/
@@ -37,7 +37,7 @@ We also assume that Intel MKL is installed.
 * Execute `ctest -S HDF5config.cmake,BUILD_GENERATOR=VS201964,INSTALLDIR="<ROOT>\Libs\hdf5" -C Release -V`
 * Extract the created `HDF5-1.12.0-win64.zip` file to `<ROOT>/Libs/hdf5` such that you have `<ROOT>/Libs/hdf5/lib`
 
-## SUNDIALS (Optional)
+### SUNDIALS (Optional)
 
 * Download SUNDIALS source from http://computation.llnl.gov/projects/sundials/sundials-software (version <= 3.2.1)
 * Unzip
@@ -46,7 +46,7 @@ We also assume that Intel MKL is installed.
 * Execute `cmake -DCMAKE_INSTALL_PREFIX="<ROOT>\Libs\sundials" -DEXAMPLES_ENABLE=OFF -DOPENMP_ENABLE=ON -DBUILD_SHARED_LIBS=OFF -G "Visual Studio 16 2019" -A x64 -DCMAKE_C_FLAGS="/GL" -DCMAKE_STATIC_LINKER_FLAGS="/LTCG" -DCMAKE_BUILD_TYPE=Release ..\sundials-3.2.1\`
 * Execute `msbuild.exe INSTALL.vcxproj /p:Configuration=Release;Platform=x64`
 
-## LAPACK
+### LAPACK
 
 In the following, CLAPACK is built and used.
 You can also install the freely available [Intel MKL](https://software.intel.com/sites/campaigns/nest/) which is very fast and certainly much faster than CLAPACK.
@@ -60,12 +60,12 @@ If MKL is used, skip this step.
 * Execute `msbuild.exe INSTALL.vcxproj /p:Configuration=Release;Platform=x64`
 * Rename `<ROOT>\Libs\clapack\lib\libf2c.lib` to `<ROOT>\Libs\clapack\lib\f2c.lib`
 
-## TBB
+### TBB
 
 * Download a release from https://github.com/oneapi-src/oneTBB/releases
 * Unzip to `<ROOT>/Libs/tbb` such that you have `<ROOT>/Libs/tbb/README`
 
-## UMFPACK (Optional)
+### UMFPACK (Optional)
 
 * Download SuiteSparse source from http://faculty.cse.tamu.edu/davis/suitesparse.html
 * Download CMake build system source from https://github.com/jlblancoc/suitesparse-metis-for-windows
@@ -80,7 +80,7 @@ If MKL is used, skip this step.
     Using MKL (sequential): Execute `cmake -DCMAKE_INSTALL_PREFIX="<ROOT>\Libs\suitesparse" -DBLA_VENDOR=Intel10_64lp_seq -DBLA_STATIC=ON -G "Visual Studio 16 2019" -A x64 -DCMAKE_C_FLAGS="/GL" -DCMAKE_STATIC_LINKER_FLAGS="/LTCG" -DCMAKE_BUILD_TYPE=Release -DBUILD_METIS=OFF ..\suitesparse-metis-for-windows-master\`
 * Execute `msbuild.exe INSTALL.vcxproj /p:Configuration=Release;Platform=x64`
 
-# Build CADET
+## Build CADET
 
 * Download release of CADET or checkout from git
 * Place the source in `<ROOT>\code` and create the directory `<ROOT>\build`

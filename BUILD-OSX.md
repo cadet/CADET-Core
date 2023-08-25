@@ -1,4 +1,4 @@
-# Prerequisites
+## Prerequisites
 
 * CMake (>= 3.12.0)
 * GCC >= 7.0, Clang >= 3.9, or Intel C++ 18.0
@@ -23,9 +23,9 @@ Note that the version numbers of the files and packages below are subject to cha
 
 Also note that you have to use the same compiler for all packages. This is especially important if some of the packages are installed via a package manager such as [Homebrew](http://brew.sh/) which uses the system compiler (Clang).
 
-# Build dependencies
+## Build dependencies
 
-## HDF5
+### HDF5
 
 You can either build HDF5 yourself or rely on the `hdf5` package of [Homebrew](http://brew.sh/).
 
@@ -40,7 +40,7 @@ Build HDF5 yourself:
 * Execute `ctest -S HDF5config.cmake,BUILD_GENERATOR=Unix,INSTALLDIR="<ROOT>/Libs/hdf5" -C Release -V`
 * Extract the created `HDF5-1.10.0-patch1-Darwin.tar.gz` file to `<ROOT>/Libs/hdf5` such that you have `<ROOT>/Libs/hdf5/lib`
 
-## SUNDIALS (Optional)
+### SUNDIALS (Optional)
 
 You can either build SUNDIALS yourself or rely on the `sundials` package of [Homebrew](http://brew.sh/).
 Note that a version <= 3.2.1 is required whereas the current version provided by Homebrew is >= 5.1.0.
@@ -58,11 +58,11 @@ Build SUNDIALS yourself:
 * Execute `make install`
 * Delete the folder `sundialsbuild` (e.g., execute `rm -rf sundialsbuild` in the parent directory of `sundialsbuild`)
 
-## LAPACK
+### LAPACK
 
 You can either use the native LAPACK implementation provided by Mac OS X (vecLib, Accelerate) or install the freely available [Intel MKL](https://software.intel.com/sites/campaigns/nest/) which is very fast and probably faster than Accelerate.
 
-## SuperLU (Optional)
+### SuperLU (Optional)
 
 * Download SuperLU source from https://github.com/xiaoyeli/superlu
 * Unzip
@@ -72,14 +72,14 @@ You can either use the native LAPACK implementation provided by Mac OS X (vecLib
 * Execute `make install`
 * Delete the folder `superlubuild` (e.g., execute `rm -rf superlubuild` in the parent directory of `superlubuild`)
 
-## UMFPACK (Optional)
+### UMFPACK (Optional)
 
 * Download SuiteSparse source from http://faculty.cse.tamu.edu/davis/suitesparse.html
 * Unzip
 * Open a terminal and change to the unzipped directory
 * Execute `make install INSTALL="<ROOT>/Libs/suitesparse" CHOLMOD_CONFIG=-DNPARTITION` or `make install INSTALL="<ROOT>/Libs/suitesparse" CHOLMOD_CONFIG=-DNPARTITION AUTOCC=no CC=<COMPILER> CXX=<C++COMPILER>` if you want to manually select the compiler
 
-# Build CADET
+## Build CADET
 
 * Download release of CADET or checkout from git
 * Place the source in `<ROOT>/code` and create the directory `<ROOT>/build`
