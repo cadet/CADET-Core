@@ -49,7 +49,7 @@ For information on model equations, refer to :ref:`cstr_model`.
    **Type:** string  **Range:** See Section :ref:`FFAdsorption`  **Length:** :math:`\texttt{NPARTYPE}`
    ================  ==========================================  =====================================
    
-``REACTION_MODEL_BULK``
+``REACTION_MODEL``
 
    Specifies the type of reaction model of the bulk volume. The model is configured in the subgroup :math:`\texttt{reaction_bulk}`.
    
