@@ -58,7 +58,7 @@ public:
 	InternalStorageUnitOpRecorder(UnitOpIdx idx) : _cfgSolution({false, false, false, true, false, false, false}),
 		_cfgSolutionDot({false, false, false, false, false, false, false}), _cfgSensitivity({false, false, false, true, false, false, false}),
 		_cfgSensitivityDot({false, false, false, true, false, false, false}), _storeTime(false), _storeCoordinates(false), _splitComponents(true), _splitPorts(true),
-		_singleAsMultiPortUnitOps(false), _keepParticleSingletonDim(true), _curCfg(nullptr), _nComp(0), _nVolumeDof(0), _nAxialCells(0), _nRadialCells(0),
+		_singleAsMultiPortUnitOps(false), _keepBulkSingletonDim(true), _keepParticleSingletonDim(true), _curCfg(nullptr), _nComp(0), _nVolumeDof(0), _nAxialCells(0), _nRadialCells(0),
 		_nInletPorts(0), _nOutletPorts(0), _numTimesteps(0), _numSens(0), _unitOp(idx), _needsReAlloc(false), _axialCoords(0), _radialCoords(0), _particleCoords(0)
 	{
 	}
@@ -124,6 +124,7 @@ public:
 		_nInletPorts = exporter.numInletPorts();
 		_nOutletPorts = exporter.numOutletPorts();
 
+		_keepBulkSingletonDim = exporter.hasPrimaryExtent();
 		_keepParticleSingletonDim = !exporter.isParticleLumped();
 
 		_nAxialCells = exporter.numPrimaryCoordinates();
@@ -447,6 +448,9 @@ public:
 	inline bool treatSingleAsMultiPortUnitOps() const CADET_NOEXCEPT { return _singleAsMultiPortUnitOps; }
 	inline void treatSingleAsMultiPortUnitOps(bool smp) CADET_NOEXCEPT { _singleAsMultiPortUnitOps = smp; }
 
+	inline bool keepBulkSingletonDim() const CADET_NOEXCEPT { return _keepBulkSingletonDim; }
+	inline void keepBulkSingletonDim(bool keepSingleton) CADET_NOEXCEPT { _keepBulkSingletonDim = keepSingleton; }
+
 	inline bool keepParticleSingletonDim() const CADET_NOEXCEPT { return _keepParticleSingletonDim; }
 	inline void keepParticleSingletonDim(bool keepSingleton) CADET_NOEXCEPT { _keepParticleSingletonDim = keepSingleton; }
 
@@ -716,7 +720,7 @@ protected:
 			layout.reserve(4);
 			layout.push_back(_numTimesteps);
 
-			if (_nAxialCells > 0)
+			if ((_keepBulkSingletonDim && (_nAxialCells == 1)) || (_nAxialCells > 1))
 				layout.push_back(_nAxialCells);
 			if (_nRadialCells > 0)
 				layout.push_back(_nRadialCells);
@@ -733,7 +737,7 @@ protected:
 			layout.reserve(5);
 			layout.push_back(_numTimesteps);
 
-			if (_nAxialCells > 0)
+			if ((_keepBulkSingletonDim && (_nAxialCells == 1)) || (_nAxialCells > 1))
 				layout.push_back(_nAxialCells);
 			if (_nRadialCells > 0)
 				layout.push_back(_nRadialCells);
@@ -793,7 +797,7 @@ protected:
 			layout.reserve(5);
 			layout.push_back(_numTimesteps);
 
-			if (_nAxialCells > 0)
+			if ((_keepBulkSingletonDim && (_nAxialCells == 1)) || (_nAxialCells > 1))
 				layout.push_back(_nAxialCells);
 			if (_nRadialCells > 0)
 				layout.push_back(_nRadialCells);
@@ -853,7 +857,7 @@ protected:
 
 			layout.push_back(_numTimesteps);
 			layout.push_back(_nParShells.size());
-			if (_nAxialCells > 0)
+			if ((_keepBulkSingletonDim && (_nAxialCells == 1)) || (_nAxialCells > 1))
 				layout.push_back(_nAxialCells);
 			if (_nRadialCells > 0)
 				layout.push_back(_nRadialCells);
@@ -919,6 +923,7 @@ protected:
 	bool _splitComponents;
 	bool _splitPorts;
 	bool _singleAsMultiPortUnitOps;
+	bool _keepBulkSingletonDim;
 	bool _keepParticleSingletonDim;
 
 	StorageConfig const* _curCfg;

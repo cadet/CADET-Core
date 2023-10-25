@@ -182,9 +182,10 @@ protected:
 		virtual bool hasSolidPhase() const CADET_NOEXCEPT { return _totalBound > 0; }
 		virtual bool hasVolume() const CADET_NOEXCEPT { return true; }
 		virtual bool isParticleLumped() const CADET_NOEXCEPT { return true; }
+		virtual bool hasPrimaryExtent() const CADET_NOEXCEPT { return false; }
 
 		virtual unsigned int numComponents() const CADET_NOEXCEPT { return _nComp; }
-		virtual unsigned int numPrimaryCoordinates() const CADET_NOEXCEPT { return 0; }
+		virtual unsigned int numPrimaryCoordinates() const CADET_NOEXCEPT { return 1; }
 		virtual unsigned int numSecondaryCoordinates() const CADET_NOEXCEPT { return 0; }
 		virtual unsigned int numInletPorts() const CADET_NOEXCEPT { return 1; }
 		virtual unsigned int numOutletPorts() const CADET_NOEXCEPT { return 1; }
@@ -214,7 +215,11 @@ protected:
 
 		virtual double const* solidPhase(unsigned int parType) const { return _data + 2 * _nComp; }
 
-		virtual int writePrimaryCoordinates(double* coords) const { return 0; }
+		virtual int writePrimaryCoordinates(double* coords) const
+		{
+			coords[0] = 0.0;
+			return 1;
+		}
 		virtual int writeSecondaryCoordinates(double* coords) const { return 0; }
 		virtual int writeParticleCoordinates(unsigned int parType, double* coords) const { return 0; }
 
