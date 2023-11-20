@@ -8,10 +8,12 @@
 Assumed directory structure:
 
 <pre>
-&lt;ROOT&gt;
-   |-code
-   |-cadet
-   |-build
+|- CADET
+|    - src
+|    - include
+|    - [...]
+|    - build
+|    - install
 </pre>
 
 Note that the version numbers of the files and packages below are subject to change and will not always reflect the most recent version.
@@ -35,16 +37,15 @@ or install the freely available [Intel MKL](https://software.intel.com/sites/cam
 
 ## Build CADET
 
-* Download release of CADET or checkout from git
-* Place the source in `<ROOT>/code` and create the directory `<ROOT>/build`
-* Open a terminal and change to `<ROOT>/build`
+- Clone the CADET source code `git clone https://github.com/modsim/CADET.git CADET`
+- Create the directories `CADET/build` and `CADET/install`
 
 * If using Intel MKL, execute `export MKLROOT=/opt/intel/mkl`
-* Using standard LAPACK: Execute `cmake -DCMAKE_INSTALL_PREFIX="<ROOT>/cadet" ../code/`
+* Using standard LAPACK: Execute `cmake -DCMAKE_INSTALL_PREFIX="<ROOT>/install" ../`
  
-    Using MKL (sequential): Execute `cmake -DCMAKE_INSTALL_PREFIX="<ROOT>/cadet" -DBLA_VENDOR=Intel10_64lp_seq ../code/`
+    Using MKL (sequential): Execute `cmake -DCMAKE_INSTALL_PREFIX="<ROOT>/install" -DBLA_VENDOR=Intel10_64lp_seq ../`
  
-    Using MKL (parallel): Execute `cmake -DCMAKE_INSTALL_PREFIX="<ROOT>/cadet" -DBLA_VENDOR=Intel10_64lp ../code/`
+    Using MKL (parallel): Execute `cmake -DCMAKE_INSTALL_PREFIX="<ROOT>/install" -DBLA_VENDOR=Intel10_64lp ../`
 * Execute `make`
 * Execute `make install`
 

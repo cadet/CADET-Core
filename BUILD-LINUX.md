@@ -7,45 +7,54 @@
 Assumed directory structure:
 
 <pre>
-&lt;ROOT&gt;
-   |-code
-   |-cadet
-   |-build
+|- CADET
+|    - src
+|    - include
+|    - [...]
+|    - build
+|    - install
 </pre>
 
 Note that the version numbers of the files and packages below are subject to change and will not always reflect the most
 recent version.
 
 ## Install dependencies
+
 ```
 sudo apt-get update
-sudo apt -y install build-essential libhdf5-dev liblapack-dev libblas-dev libtbb-dev libsuperlu-dev libeigen3-dev
+sudo apt -y install build-essential cmake libhdf5-dev libtbb-dev libsuperlu-dev libeigen3-dev
 ```
+
+sudo apt -y install build-essential libhdf5-dev libsuperlu-dev libeigen3-dev intel-mkl
 
 ### LAPACK
 
-You can either use a LAPACK implementation provided by your distribution or install the freely available 
-[Intel MKL](https://www.intel.com/content/www/us/en/developer/tools/oneapi/base-toolkit-download.html?operatingsystem=linux&distributions=online) which is very fast and probably faster than your 
-distribution's implementation.
+You can either use a LAPACK implementation provided by your distribution or install the freely available Intel MKL
 
-Obtain LAPACK from your distribution:
-* Install the packages (LAPACK and BLAS) of your distribution (e.g., `liblapack3`, `liblapack-dev`, `libblas3`, `libblas-dev` for Ubuntu and Debian). Note that some packages only provide reference (i.e., slow) implementations and others (e.g., ATLAS, GOTO) perform much faster.
+for Intel run
 
+```
+sudo apt -y install intel-mkl
+```
+
+for distro defaults run
+
+```
+sudo apt -y install liblapack3 liblapack-dev libblas3 libblas-dev`
+```
 
 ## Build CADET
 
-- Download or git clone the CADET source code
-- Place the source in `<ROOT>\code`
-- Create the directories `<ROOT>\build` and `<ROOT>\cadet`
+- Clone the CADET source code `git clone https://github.com/modsim/CADET.git CADET`
+- Create the directories `CADET/build` and `CADET/install`
 
-
-- Open a terminal and change to `<ROOT>/build`
+- Open a terminal and change to `CADET/build`
 - If using MKL, execute `export MKLROOT=/opt/intel/mkl`
-- Using standard LAPACK: Execute `cmake -DCMAKE_INSTALL_PREFIX="../cadet" ../code/`
- 
-   - Using MKL (sequential): Execute `cmake -DCMAKE_INSTALL_PREFIX="../cadet" -DBLA_VENDOR=Intel10_64lp_seq ../code/`
- 
-   - Using MKL (parallel): Execute `cmake -DCMAKE_INSTALL_PREFIX="../cadet" -DBLA_VENDOR=Intel10_64lp ../code/`
+- Using standard LAPACK: Execute `cmake -DCMAKE_INSTALL_PREFIX="../install" ../`
+
+    - Using MKL (sequential): Execute `cmake -DCMAKE_INSTALL_PREFIX="../install" -DBLA_VENDOR=Intel10_64lp_seq ../`
+
+    - Using MKL (parallel): Execute `cmake -DCMAKE_INSTALL_PREFIX="../install" -DBLA_VENDOR=Intel10_64lp ../`
 
 - Execute `make`
 - Execute `make install`

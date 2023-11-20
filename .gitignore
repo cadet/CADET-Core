@@ -79,3 +79,8 @@ doc/tex/docs/*.aux
 *.kdev4
 .kdev4/
 compile_commands.json
+
+# Ignore build and install directories
+build
+install
+vcpkg_installed
