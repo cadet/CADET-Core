@@ -96,7 +96,7 @@ add_feature_info(ENABLE_BENCHMARK ENABLE_BENCHMARK "Enables benchmark mode (fine
 option(ENABLE_PLATFORM_TIMER "Use a platform-dependent timer" OFF)
 add_feature_info(ENABLE_PLATFORM_TIMER ENABLE_PLATFORM_TIMER "Use a platform-dependent timer")
 
-option(ENABLE_THREADING "Use multi-threading" ON)
+option(ENABLE_THREADING "Use multi-threading" OFF)
 add_feature_info(ENABLE_THREADING ENABLE_THREADING "Use multi-threading")
 
 option(ENABLE_DEBUG_THREADING "Use multi-threading in debug builds" OFF)
@@ -417,7 +417,7 @@ if (ENABLE_CADET_MEX)
 	option(MATLAB_FORCE_UMFPACK "Forcefully use MATLAB's UMFPACK as sole sparse solver in MEX interface" OFF)
 	add_feature_info(MATLAB_FORCE_UMFPACK MATLAB_FORCE_UMFPACK "Forcefully use MATLAB's UMFPACK as sole sparse solver in MEX interface")
 
-	option(MATLAB_ENABLE_THREADING "Enable multi-threading in MATLAB" ON)
+	option(MATLAB_ENABLE_THREADING "Enable multi-threading in MATLAB" OFF)
 	add_feature_info(MATLAB_ENABLE_THREADING MATLAB_ENABLE_THREADING "Enable multi-threading in MATLAB")
 
 	# Check TBB <-> Matlab compatibility

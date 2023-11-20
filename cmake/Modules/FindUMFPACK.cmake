@@ -244,6 +244,30 @@ if (METIS_LIBRARY)
     list(APPEND UMFPACK_LIBRARIES ${METIS_LIBRARY})
 endif()
 
+
+find_library(GK_LIBRARY
+    NAMES
+        GKlib
+        libGKlib
+    PATHS
+        ${UMFPACK_INCLUDE_DIR}
+        ${UMFPACK_INCLUDE_DIR}/..
+        ${UMFPACK_ROOT}
+        ${UMFPACK_ROOT_DIR}
+    ENV
+        UMFPACK_ROOT
+        UMFPACK_ROOT_DIR
+    PATH_SUFFIXES 
+        lib
+        lib64
+        Lib
+        Lib64
+)
+
+if (GK_LIBRARY)
+    list(APPEND UMFPACK_LIBRARIES ${GK_LIBRARY})
+endif()
+
 include(FindPackageHandleStandardArgs)
 find_package_handle_standard_args(UMFPACK
     REQUIRED_VARS BLAS_FOUND UMFPACK_LIBRARIES UMFPACK_INCLUDE_DIRS
@@ -329,5 +353,15 @@ if (UMFPACK_FOUND AND NOT TARGET UMFPACK::UMFPACK)
         )
         target_link_libraries(UMFPACK::UMFPACK INTERFACE UMFPACK::METIS)
     endif()
+
+    if (GK_LIBRARY)
+        add_library(UMFPACK::GK UNKNOWN IMPORTED)
+        set_target_properties(UMFPACK::GK PROPERTIES
+            INTERFACE_INCLUDE_DIRECTORIES "${UMFPACK_INCLUDE_DIRS}"
+            IMPORTED_LOCATION ${GK_LIBRARY}
+        )
+        target_link_libraries(UMFPACK::UMFPACK INTERFACE UMFPACK::GK)
+    endif()
+
 
 endif()

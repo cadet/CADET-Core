@@ -1,0 +1,6 @@
+{
+  "dependencies": [
+    "hdf5",
+    "suitesparse"
+  ]
+}
