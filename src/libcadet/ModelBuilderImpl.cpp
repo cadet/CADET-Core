@@ -40,6 +40,11 @@ namespace cadet
 #ifdef ENABLE_GRM_2D
 		void registerGeneralRateModel2D(std::unordered_map<std::string, std::function<IUnitOperation*(UnitOpIdx)>>& models);
 #endif
+#ifdef ENABLE_DG
+		void registerGeneralRateModelDG(std::unordered_map<std::string, std::function<IUnitOperation* (UnitOpIdx)>>& models);
+		void registerLumpedRateModelWithPoresDG(std::unordered_map<std::string, std::function<IUnitOperation* (UnitOpIdx)>>& models);
+		void registerLumpedRateModelWithoutPoresDG(std::unordered_map<std::string, std::function<IUnitOperation* (UnitOpIdx)>>& models);
+#endif
 
 		namespace inlet
 		{
@@ -66,7 +71,11 @@ namespace cadet
 #ifdef ENABLE_GRM_2D
 		model::registerGeneralRateModel2D(_modelCreators);
 #endif
-
+#ifdef ENABLE_DG
+		model::registerGeneralRateModelDG(_modelCreators);
+		model::registerLumpedRateModelWithPoresDG(_modelCreators);
+		model::registerLumpedRateModelWithoutPoresDG(_modelCreators);
+#endif
 		// Register all available inlet profiles
 		model::inlet::registerPiecewiseCubicPoly(_inletCreators);
 

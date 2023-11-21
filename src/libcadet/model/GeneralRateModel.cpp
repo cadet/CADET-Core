@@ -100,7 +100,7 @@ unsigned int GeneralRateModel::numDofs() const CADET_NOEXCEPT
 	// Column bulk DOFs: nCol * nComp
 	// Particle DOFs: nCol * nParType particles each having nComp (liquid phase) + sum boundStates (solid phase) DOFs
 	//                in each shell; there are nParCell shells for each particle type
-	// Flux DOFs: nCol * nComp * nParType (as many as column bulk DOFs)
+	// Flux DOFs: nCol * nComp * nParType (column bulk DOFs times particle types)
 	// Inlet DOFs: nComp
 	return _disc.nCol * (_disc.nComp * (1 + _disc.nParType)) + _disc.parTypeOffset[_disc.nParType] + _disc.nComp;
 }
@@ -110,7 +110,7 @@ unsigned int GeneralRateModel::numPureDofs() const CADET_NOEXCEPT
 	// Column bulk DOFs: nCol * nComp
 	// Particle DOFs: nCol particles each having nComp (liquid phase) + sum boundStates (solid phase) DOFs
 	//                in each shell; there are nPar shells
-	// Flux DOFs: nCol * nComp (as many as column bulk DOFs)
+	// Flux DOFs: nCol * nComp * nParType (column bulk DOFs times particle types)
 	return _disc.nCol * (_disc.nComp * (1 + _disc.nParType)) + _disc.parTypeOffset[_disc.nParType];
 }
 
