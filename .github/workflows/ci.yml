@@ -35,7 +35,8 @@ jobs:
           path: |
             ${{ github.workspace }}/hdf5
             ${{ github.workspace }}/suitesparse/install
-          key: ${{ runner.os }}-deps-${{ steps.get-msvc.outputs.version }}
+            ${{ github.workspace }}/eigen/install
+          key: ${{ runner.os }}-deps-${{ steps.get-msvc.outputs.version }}-1
       - name: Download MKL and TBB
         run: |
           cd "${env:BASE_DIR}"
@@ -44,7 +45,7 @@ jobs:
           nuget install intelmkl.static.win-x64 -Version 2023.0.0.25930
           Invoke-WebRequest -Uri "https://gitlab.com/libeigen/eigen/-/archive/master/eigen-master.zip" -OutFile eigen.zip
           7z x eigen.zip
-      - name: Build UMFPACK and HDF5
+      - name: Build UMFPACK and HDF5 and Eigen3
         if: steps.cache.outputs.cache-hit != 'true'
         run: |
           $base_dir = $($env:BASE_DIR.Replace('\', '/'))
@@ -69,6 +70,14 @@ jobs:
           $ENV:MKLROOT="${env:BASE_DIR}/intelmkl.static.win-x64.2023.0.0.25930/lib/native/win-x64".Replace('\', '/')
           cmake -DCMAKE_INSTALL_PREFIX="${base_dir}\suitesparse\install" -DBLA_VENDOR=Intel10_64lp_seq -DBLA_STATIC=ON -G "Ninja" -DCMAKE_C_FLAGS="/GL" -DCMAKE_STATIC_LINKER_FLAGS="/LTCG" -DCMAKE_BUILD_TYPE=Release -DBUILD_METIS=OFF ..\suitesparse-metis-for-windows-e8d953dffb8a99aa8b65ff3ff03e12a3ed72f90c\
           ninja install
+          cd "${env:BASE_DIR}"
+          Invoke-WebRequest -Uri "https://gitlab.com/libeigen/eigen/-/archive/3.4.0/eigen-3.4.0.zip" -OutFile eigen.zip
+          7z x eigen.zip -oeigen\code -y
+          cd eigen
+          mkdir build
+          cd build
+          cmake ../code/eigen-3.4.0 -DCMAKE_INSTALL_PREFIX="../install"
+          cmake --build . --target install
       - name: Build and Install
         run: |
           cd "${env:BASE_DIR}"
@@ -78,6 +87,7 @@ jobs:
           $ENV:MKLROOT="${env:BASE_DIR}/intelmkl.static.win-x64.2023.0.0.25930/lib/native/win-x64".Replace('\', '/')
           $ENV:TBB_ROOT="${env:BASE_DIR}/inteltbb.devel.win.2021.8.0.25874/lib/native".Replace('\', '/')
           $ENV:UMFPACK_ROOT="${env:BASE_DIR}/suitesparse/install".Replace('\', '/')
+          $ENV:Eigen3_DIR="${env:BASE_DIR}/eigen/install".Replace('\', '/')
           $install_prefix = $($env:INSTALL_PREFIX.Replace('\', '/'))
           $src_dir = $($env:SRC_DIR.Replace('\', '/'))
           $base_dir = $($env:BASE_DIR.Replace('\', '/'))
