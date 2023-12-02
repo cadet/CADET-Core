@@ -11,13 +11,13 @@
       "INSTALL_DIR": "${projectDir}/../cadet/${name}",
       "BLAS_DEBUG": "Intel10_64lp_seq",
       "BLAS_RELEASE": "Intel10_64lp_seq",
-      "BUILDROOT": "${env.USERPROFILE}\\CMakeBuild\\${workspaceHash}\\build\\${name}"
+      "BUILDROOT": "${projectDir}/../build"
     }
   ],
   "configurations": [
     {
       "name": "MS_MKL_DEBUG",
-      "generator": "Visual Studio 15 2017 Win64",
+      "generator": "Visual Studio 17 2022 Win64",
       "configurationType": "Debug",
       "buildRoot": "${env.BUILDROOT}",
       "cmakeCommandArgs": "",
@@ -76,7 +76,7 @@
     },
     {
       "name": "MS_MKL_RELEASE",
-      "generator": "Visual Studio 15 2017 Win64",
+      "generator": "Visual Studio 17 2022 Win64",
       "configurationType": "Release",
       "buildRoot": "${env.BUILDROOT}",
       "cmakeCommandArgs": "",
@@ -138,7 +138,7 @@
     },
     {
       "name": "MS_MKL_RELDEBINFO",
-      "generator": "Visual Studio 15 2017 Win64",
+      "generator": "Visual Studio 17 2022 Win64",
       "configurationType": "RelWithDebInfo",
       "buildRoot": "${env.BUILDROOT}",
       "cmakeCommandArgs": "",
@@ -200,7 +200,7 @@
     },
     {
       "name": "MS_SMKL_DEBUG",
-      "generator": "Visual Studio 15 2017 Win64",
+      "generator": "Visual Studio 17 2022 Win64",
       "configurationType": "Debug",
       "buildRoot": "${env.BUILDROOT}",
       "cmakeCommandArgs": "",
@@ -263,7 +263,7 @@
     },
     {
       "name": "MS_SMKL_RELEASE",
-      "generator": "Visual Studio 15 2017 Win64",
+      "generator": "Visual Studio 17 2022 Win64",
       "configurationType": "Release",
       "buildRoot": "${env.BUILDROOT}",
       "cmakeCommandArgs": "",
@@ -329,7 +329,7 @@
     },
     {
       "name": "MS_SMKL_RELDEBINFO",
-      "generator": "Visual Studio 15 2017 Win64",
+      "generator": "Visual Studio 17 2022 Win64",
       "configurationType": "RelWithDebInfo",
       "buildRoot": "${env.BUILDROOT}",
       "cmakeCommandArgs": "",

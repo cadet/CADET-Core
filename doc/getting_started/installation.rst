@@ -26,12 +26,9 @@ Optionally, use `mamba <https://github.com/mamba-org/mamba>`_ which uses a faste
 Install from source
 ^^^^^^^^^^^^^^^^^^^
 
-.. toctree::
-    :maxdepth: 1
-
-    build_linux
-    build_windows
-    build_osx
+- :ref:`build_linux`
+- :ref:`build_windows`
+- :ref:`build_osx`
 
 .. _cadet_python:
 

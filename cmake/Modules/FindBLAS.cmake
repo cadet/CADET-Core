@@ -402,6 +402,9 @@ if(BLA_VENDOR MATCHES "Intel" OR BLA_VENDOR STREQUAL "All")
             # mkl >= 10.3
             list(APPEND BLAS_SEARCH_LIBS_WIN_THREAD
               "libiomp5md mkl_intel_thread${BLAS_mkl_DLL_SUFFIX}")
+            # mkl >= 2022.1.0
+            list(APPEND BLAS_SEARCH_LIBS_WIN_THREAD
+              "mkl_intel_thread${BLAS_mkl_DLL_SUFFIX}")
           endif()
           if(BLA_VENDOR MATCHES "^Intel10_64i?lp_seq$" OR BLA_VENDOR STREQUAL "All")
             list(APPEND BLAS_SEARCH_LIBS_WIN_THREAD
@@ -472,6 +475,8 @@ if(BLA_VENDOR MATCHES "Intel" OR BLA_VENDOR STREQUAL "All")
       endif()
       if(DEFINED ENV{MKLROOT})
         set(BLAS_mkl_MKLROOT "$ENV{MKLROOT}")
+        string(REPLACE "\\" "/" BLAS_mkl_MKLROOT "${BLAS_mkl_MKLROOT}")
+        string(REPLACE "\"" "" BLAS_mkl_MKLROOT "${BLAS_mkl_MKLROOT}")
         # If MKLROOT points to the subdirectory 'mkl', use the parent directory instead
         # so we can better detect other relevant libraries in 'compiler' or 'tbb':
         get_filename_component(BLAS_mkl_MKLROOT_LAST_DIR "${BLAS_mkl_MKLROOT}" NAME)
@@ -482,7 +487,7 @@ if(BLA_VENDOR MATCHES "Intel" OR BLA_VENDOR STREQUAL "All")
       set(BLAS_mkl_LIB_PATH_SUFFIXES
           "compiler/lib" "compiler/lib/${BLAS_mkl_ARCH_NAME}_${BLAS_mkl_OS_NAME}"
           "mkl/lib" "mkl/lib/${BLAS_mkl_ARCH_NAME}_${BLAS_mkl_OS_NAME}"
-          "lib/${BLAS_mkl_ARCH_NAME}_${BLAS_mkl_OS_NAME}" "lib" "lib64")
+          "lib/${BLAS_mkl_ARCH_NAME}_${BLAS_mkl_OS_NAME}" "lib/${BLAS_mkl_ARCH_NAME}" "lib" "lib64")
 
       foreach(IT ${BLAS_SEARCH_LIBS})
         string(REPLACE " " ";" SEARCH_LIBS ${IT})
