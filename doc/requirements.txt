@@ -2,4 +2,4 @@ Sphinx
 sphinx-sitemap
 sphinxcontrib-bibtex
 sphinx_multiversion
-
+m2r
