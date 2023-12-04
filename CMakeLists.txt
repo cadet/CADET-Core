@@ -118,7 +118,7 @@ string(TOLOWER ${ADLIB} ADLIB)
 option(ENABLE_CADET_CLI "Build CADET command line interface" ON)
 add_feature_info(ENABLE_CADET_CLI ENABLE_CADET_CLI "Build CADET command line interface")
 
-option(ENABLE_CADET_MEX "Build CADET Matlab MEX interface" ON)
+option(ENABLE_CADET_MEX "Build CADET Matlab MEX interface" OFF)
 add_feature_info(ENABLE_CADET_MEX ENABLE_CADET_MEX "Build CADET Matlab MEX interface")
 
 option(ENABLE_CADET_TOOLS "Build CADET tools" ON)
