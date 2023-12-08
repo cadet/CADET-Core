@@ -362,7 +362,7 @@ namespace cadet
 					double* const fullX = static_cast<double*>(fullXBuffer);
 
 					BufferedArray<double> jacobianMemBuffer = tlmAlloc.array<double>(probSize * probSize);
-					linalg::DenseMatrixView jacobianMatrix(static_cast<double*>(jacobianMemBuffer), _globalJacDisc.outerIndexPtr() + pblk * probSize, probSize, probSize);
+					linalg::DenseMatrixView jacobianMatrix(static_cast<double*>(jacobianMemBuffer), /*_globalJacDisc.outerIndexPtr() + pblk * probSize*/nullptr, probSize, probSize);
 
 					BufferedArray<double> conservedQuantsBuffer = tlmAlloc.array<double>(numActiveComp);
 					double* const conservedQuants = static_cast<double*>(conservedQuantsBuffer);
