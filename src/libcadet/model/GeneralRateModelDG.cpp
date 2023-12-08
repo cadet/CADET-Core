@@ -2408,18 +2408,3 @@ int GeneralRateModelDG::Exporter::writeOutlet(double* buffer) const
 #include "model/GeneralRateModelDG-InitialConditions.cpp"
 #include "model/GeneralRateModelDG-LinearSolver.cpp"
 
-namespace cadet
-{
-
-namespace model
-{
-
-void registerGeneralRateModelDG(std::unordered_map<std::string, std::function<IUnitOperation*(UnitOpIdx)>>& models)
-{
-	models[GeneralRateModelDG::identifier()] = [](UnitOpIdx uoId) { return new GeneralRateModelDG(uoId); };
-	models["GRM_DG"] = [](UnitOpIdx uoId) { return new GeneralRateModelDG(uoId); };
-}
-
-}  // namespace model
-
-}  // namespace cadet

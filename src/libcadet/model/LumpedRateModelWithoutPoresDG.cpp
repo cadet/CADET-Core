@@ -1888,13 +1888,6 @@ namespace cadet
 		}
 
 
-		void registerLumpedRateModelWithoutPoresDG(std::unordered_map<std::string, std::function<IUnitOperation*(UnitOpIdx)>>& models)
-		{
-			models[LumpedRateModelWithoutPoresDG::identifier()] = [](UnitOpIdx uoId) { return new LumpedRateModelWithoutPoresDG(uoId); };
-			models["LRM_DG"] = [](UnitOpIdx uoId) { return new LumpedRateModelWithoutPoresDG(uoId); };
-			models["DPFR_DG"] = [](UnitOpIdx uoId) { return new LumpedRateModelWithoutPoresDG(uoId); };
-		}
-
 	}  // namespace model
 
 }  // namespace cadet
