@@ -1,0 +1,192 @@
+{
+    "model": {
+        "NUNITS": 2,
+        "connections": {
+            "CONNECTIONS_INCLUDE_PORTS": 1,
+            "NSWITCHES": 1,
+            "switch_000": {
+                "CONNECTIONS": [
+                    1.0,
+                    0.0,
+                    -1.0,
+                    -1.0,
+                    -1.0,
+                    -1.0,
+                    1.0
+                ],
+                "SECTION": 0
+            }
+        },
+        "unit_000": {
+            "ADSORPTION_MODEL": "STERIC_MASS_ACTION",
+            "COL_DISPERSION": 5.75e-08,
+            "COL_DISPERSION_RADIAL": 1e-06,
+            "COL_LENGTH": 0.014,
+            "COL_POROSITY": 0.37,
+            "COL_RADIUS": 0.01,
+            "FILM_DIFFUSION": [
+                6.9e-06,
+                6.9e-06,
+                6.9e-06,
+                6.9e-06
+            ],
+            "INIT_C": [
+                50.0,
+                0.0,
+                0.0,
+                0.0
+            ],
+            "INIT_Q": [
+                1200.0,
+                0.0,
+                0.0,
+                0.0
+            ],
+            "NCOMP": 4,
+            "PAR_CORERADIUS": 0.0,
+            "PAR_DIFFUSION": [
+                7e-10,
+                6.07e-11,
+                6.07e-11,
+                6.07e-11
+            ],
+            "PAR_POROSITY": 0.75,
+            "PAR_RADIUS": 4.5e-05,
+            "PAR_SURFDIFFUSION": [
+                0.0,
+                0.0,
+                0.0,
+                0.0
+            ],
+            "TOTAL_POROSITY": 0.8425,
+            "UNIT_TYPE": "GENERAL_RATE_MODEL",
+            "VELOCITY": 0.000575,
+            "adsorption": {
+                "IS_KINETIC": 0,
+                "SMA_KA": [
+                    0.0,
+                    35.5,
+                    1.59,
+                    7.7
+                ],
+                "SMA_KD": [
+                    0.0,
+                    1000.0,
+                    1000.0,
+                    1000.0
+                ],
+                "SMA_LAMBDA": 1200.0,
+                "SMA_NU": [
+                    0.0,
+                    4.7,
+                    5.29,
+                    3.7
+                ],
+                "SMA_SIGMA": [
+                    0.0,
+                    11.83,
+                    10.6,
+                    10.0
+                ]
+            }
+        },
+        "unit_001": {
+            "INLET_TYPE": "PIECEWISE_CUBIC_POLY",
+            "NCOMP": 4,
+            "UNIT_TYPE": "INLET",
+            "sec_000": {
+                "CONST_COEFF": [
+                    50.0,
+                    1.0,
+                    1.0,
+                    1.0
+                ],
+                "CUBE_COEFF": [
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0
+                ],
+                "LIN_COEFF": [
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0
+                ],
+                "QUAD_COEFF": [
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0
+                ]
+            },
+            "sec_001": {
+                "CONST_COEFF": [
+                    50.0,
+                    0.0,
+                    0.0,
+                    0.0
+                ],
+                "CUBE_COEFF": [
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0
+                ],
+                "LIN_COEFF": [
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0
+                ],
+                "QUAD_COEFF": [
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0
+                ]
+            },
+            "sec_002": {
+                "CONST_COEFF": [
+                    100.0,
+                    0.0,
+                    0.0,
+                    0.0
+                ],
+                "CUBE_COEFF": [
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0
+                ],
+                "LIN_COEFF": [
+                    0.2,
+                    0.0,
+                    0.0,
+                    0.0
+                ],
+                "QUAD_COEFF": [
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0
+                ]
+            }
+        }
+    },
+    "solver": {
+        "sections": {
+            "NSEC": 3,
+            "SECTION_CONTINUITY": [
+                0,
+                0
+            ],
+            "SECTION_TIMES": [
+                0.0,
+                10.0,
+                90.0,
+                1500.0
+            ]
+        }
+    }
+}

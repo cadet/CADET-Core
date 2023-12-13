@@ -660,6 +660,92 @@ cadet::JsonParameterProvider createPulseInjectionColumn(const std::string& uoTyp
 	return cadet::JsonParameterProvider(config);
 }
 
+json createLinearBenchmarkColumnJson(bool dynamicBinding, bool nonBinding, const std::string& uoType)
+{
+	json grm;
+	grm["UNIT_TYPE"] = uoType;
+	grm["NCOMP"] = 1;
+	grm["VELOCITY"] = 0.5 / (100.0 * 60.0);
+	grm["COL_DISPERSION"] = 0.002 / (100.0 * 100.0 * 60.0);
+	grm["COL_DISPERSION_MULTIPLEX"] = 0;
+	grm["COL_DISPERSION_RADIAL"] = 1e-6;
+	grm["FILM_DIFFUSION"] = {0.01 / (100.0 * 60.0)};
+	grm["PAR_DIFFUSION"] = {3.003e-6};
+	grm["PAR_SURFDIFFUSION"] = {0.0};
+
+	// Geometry
+	grm["COL_LENGTH"] = 0.017;
+	grm["COL_RADIUS"] = 0.01;
+	grm["PAR_RADIUS"] = 4e-5;
+	grm["COL_POROSITY"] = 0.4;
+	grm["PAR_POROSITY"] = 0.333;
+	grm["TOTAL_POROSITY"] = 0.4 + (1.0 - 0.4) * 0.333;
+
+	// Initial conditions
+	grm["INIT_C"] = {0.0};
+	grm["INIT_Q"] = {0.0};
+
+	// Adsorption
+	if (nonBinding)
+	{
+		grm["ADSORPTION_MODEL"] = std::string("NONE");
+	}
+	else
+	{
+		grm["ADSORPTION_MODEL"] = std::string("LINEAR");
+
+		json ads;
+		ads["IS_KINETIC"] = (dynamicBinding ? 1 : 0);
+		ads["LIN_KA"] = {2.5};
+		ads["LIN_KD"] = {1.0};
+		grm["adsorption"] = ads;
+	}
+
+	// Discretization
+	{
+		json disc;
+
+		disc["NCOL"] = 512;
+		disc["NPAR"] = 4;
+		if (nonBinding)
+			disc["NBOUND"] = {0};
+		else
+			disc["NBOUND"] = {1};
+
+		if (uoType == "GENERAL_RATE_MODEL_2D")
+		{
+			disc["NRAD"] = 3;
+			disc["RADIAL_DISC_TYPE"] = "EQUIDISTANT";
+		}
+
+		disc["PAR_DISC_TYPE"] = std::string("EQUIDISTANT_PAR");
+
+		disc["USE_ANALYTIC_JACOBIAN"] = true;
+		disc["MAX_KRYLOV"] = 0;
+		disc["GS_TYPE"] = 1;
+		disc["MAX_RESTARTS"] = 10;
+		disc["SCHUR_SAFETY"] = 1e-8;
+
+		// WENO
+		{
+			json weno;
+
+			weno["WENO_ORDER"] = 3;
+			weno["BOUNDARY_MODEL"] = 0;
+			weno["WENO_EPS"] = 1e-10;
+			disc["weno"] = weno;
+		}
+		grm["discretization"] = disc;
+	}
+
+	return grm;
+}
+
+cadet::JsonParameterProvider createColumnLinearBenchmark(bool dynamicBinding, bool nonBinding, const std::string& uoType)
+{
+	return cadet::JsonParameterProvider(createLinearBenchmarkColumnJson(dynamicBinding, nonBinding, uoType));
+}
+
 cadet::JsonParameterProvider createLinearBenchmark(bool dynamicBinding, bool nonBinding, const std::string& uoType)
 {
 	json config;
@@ -669,85 +755,7 @@ cadet::JsonParameterProvider createLinearBenchmark(bool dynamicBinding, bool non
 		model["NUNITS"] = 2;
 
 		// GRM - unit 000
-		{
-			json grm;
-			grm["UNIT_TYPE"] = uoType;
-			grm["NCOMP"] = 1;
-			grm["VELOCITY"] = 0.5 / (100.0 * 60.0);
-			grm["COL_DISPERSION"] = 0.002 / (100.0 * 100.0 * 60.0);
-			grm["COL_DISPERSION_MULTIPLEX"] = 0;
-			grm["COL_DISPERSION_RADIAL"] = 1e-6;
-			grm["FILM_DIFFUSION"] = {0.01 / (100.0 * 60.0)};
-			grm["PAR_DIFFUSION"] = {3.003e-6};
-			grm["PAR_SURFDIFFUSION"] = {0.0};
-
-			// Geometry
-			grm["COL_LENGTH"] = 0.017;
-			grm["COL_RADIUS"] = 0.01;
-			grm["PAR_RADIUS"] = 4e-5;
-			grm["COL_POROSITY"] = 0.4;
-			grm["PAR_POROSITY"] = 0.333;
-			grm["TOTAL_POROSITY"] = 0.4 + (1.0 - 0.4) * 0.333;
-
-			// Initial conditions
-			grm["INIT_C"] = {0.0};
-			grm["INIT_Q"] = {0.0};
-
-			// Adsorption
-			if (nonBinding)
-			{
-				grm["ADSORPTION_MODEL"] = std::string("NONE");
-			}
-			else
-			{
-				grm["ADSORPTION_MODEL"] = std::string("LINEAR");
-
-				json ads;
-				ads["IS_KINETIC"] = (dynamicBinding ? 1 : 0);
-				ads["LIN_KA"] = {2.5};
-				ads["LIN_KD"] = {1.0};
-				grm["adsorption"] = ads;
-			}
-
-			// Discretization
-			{
-				json disc;
-
-				disc["NCOL"] = 512;
-				disc["NPAR"] = 4;
-				if (nonBinding)
-					disc["NBOUND"] = {0};
-				else
-					disc["NBOUND"] = {1};
-
-				if (uoType == "GENERAL_RATE_MODEL_2D")
-				{
-					disc["NRAD"] = 3;
-					disc["RADIAL_DISC_TYPE"] = "EQUIDISTANT";
-				}
-
-				disc["PAR_DISC_TYPE"] = std::string("EQUIDISTANT_PAR");
-
-				disc["USE_ANALYTIC_JACOBIAN"] = true;
-				disc["MAX_KRYLOV"] = 0;
-				disc["GS_TYPE"] = 1;
-				disc["MAX_RESTARTS"] = 10;
-				disc["SCHUR_SAFETY"] = 1e-8;
-
-				// WENO
-				{
-					json weno;
-
-					weno["WENO_ORDER"] = 3;
-					weno["BOUNDARY_MODEL"] = 0;
-					weno["WENO_EPS"] = 1e-10;
-					disc["weno"] = weno;
-				}
-				grm["discretization"] = disc;
-			}
-
-			model["unit_000"] = grm;
-		}
+		model["unit_000"] = createLinearBenchmarkColumnJson(dynamicBinding, nonBinding, uoType);
 
 		// Inlet - unit 001
 		{
