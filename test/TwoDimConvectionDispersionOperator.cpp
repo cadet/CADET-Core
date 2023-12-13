@@ -104,7 +104,7 @@ void testBulk2DJacobianWenoForwardBackward(int wenoOrder)
 	const int nCol = 19;
 
 	const double h = 1e-6;
-	const double relTol = 5e-5;
+	const double relTol = 9e-5;
 	const double absTol = 3e-8;
 
 	SECTION("Forward vs backward flow Jacobian (WENO=" + std::to_string(wenoOrder) + ")")

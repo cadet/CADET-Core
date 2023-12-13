@@ -30,6 +30,9 @@
 #include "JsonTestModels.hpp"
 #include "JacobianHelper.hpp"
 #include "UnitOperationTests.hpp"
+#include "LoggingUtils.hpp"
+#include "../include/io/hdf5/HDF5Reader.hpp"
+#include "common/ParameterProviderImpl.hpp"
 
 #include <cmath>
 #include <functional>
@@ -175,7 +178,7 @@ namespace column
 		uint32_t _numElements;
 	};
 
-	void setNumAxialCells(cadet::JsonParameterProvider& jpp, unsigned int nCol)
+	void setNumAxialCells(cadet::JsonParameterProvider& jpp, unsigned int nCol, std::string unitID)
 	{
 		int level = 0;
 
@@ -184,9 +187,9 @@ namespace column
 			jpp.pushScope("model");
 			++level;
 		}
-		if (jpp.exists("unit_000"))
+		if (jpp.exists("unit_"+ unitID))
 		{
-			jpp.pushScope("unit_000");
+			jpp.pushScope("unit_" + unitID);
 			++level;
 		}
 
@@ -196,6 +199,31 @@ namespace column
 
 		jpp.popScope();
 	
+		for (int l = 0; l < level; ++l)
+			jpp.popScope();
+	}
+
+	void setNumParCells(cadet::JsonParameterProvider& jpp, unsigned int nPar, std::string unitID)
+	{
+		int level = 0;
+
+		if (jpp.exists("model"))
+		{
+			jpp.pushScope("model");
+			++level;
+		}
+		if (jpp.exists("unit_" + unitID))
+		{
+			jpp.pushScope("unit_" + unitID);
+			++level;
+		}
+
+		jpp.pushScope("discretization");
+
+		jpp.set("NPAR", static_cast<int>(nPar));
+
+		jpp.popScope();
+
 		for (int l = 0; l < level; ++l)
 			jpp.popScope();
 	}
@@ -225,6 +253,189 @@ namespace column
 	
 		for (int l = 0; l < level; ++l)
 			jpp.popScope();
+	}
+
+	// todo make copy optional for all variables
+	void setNumericalMethod(cadet::IParameterProvider& pp, nlohmann::json& setupJson, const std::string unitID, const bool copy = false)
+	{
+		// copy over numerical methods from reference file. Note that we leave out spatial and time step resolution parameters
+		pp.pushScope("model");
+		pp.pushScope("solver");
+		nlohmann::json solver = setupJson["model"]["solver"];
+		solver["GS_TYPE"] = pp.getInt("GS_TYPE");
+		solver["MAX_KRYLOV"] = pp.getInt("MAX_KRYLOV");
+		solver["MAX_RESTARTS"] = pp.getInt("MAX_RESTARTS");
+		solver["SCHUR_SAFETY"] = pp.getDouble("SCHUR_SAFETY");
+		setupJson["model"]["solver"] = solver;
+		pp.popScope();
+
+		pp.pushScope("unit_" + unitID);
+		pp.pushScope("discretization");
+		nlohmann::json discretization = setupJson["model"]["unit_" + unitID]["discretization"];
+		discretization["NBOUND"] = pp.getIntArray("NBOUND"); // note: in the future this might be included somewhere else in the setup as its part of the model
+		discretization["RECONSTRUCTION"] = pp.getString("RECONSTRUCTION");
+		discretization["USE_ANALYTIC_JACOBIAN"] = pp.getInt("USE_ANALYTIC_JACOBIAN");
+		if (pp.exists("GS_TYPE"))
+			discretization["GS_TYPE"] = pp.getInt("GS_TYPE");
+		if (pp.exists("MAX_KRYLOV"))
+			discretization["MAX_KRYLOV"] = pp.getInt("MAX_KRYLOV");
+		if (pp.exists("MAX_RESTARTS"))
+			discretization["MAX_RESTARTS"] = pp.getInt("MAX_RESTARTS");
+		if (pp.exists("SCHUR_SAFETY"))
+			discretization["SCHUR_SAFETY"] = pp.getDouble("SCHUR_SAFETY");
+		if (pp.exists("PAR_DISC_TYPE"))
+			discretization["PAR_DISC_TYPE"] = pp.getStringArray("PAR_DISC_TYPE");
+		if (pp.exists("PAR_GEOM")) // note: in the future this might be included somewhere else in the setup as its part of the model
+			discretization["PAR_GEOM"] = pp.getStringArray("PAR_GEOM");
+		pp.pushScope("weno");
+		nlohmann::json weno;
+		weno["WENO_ORDER"] = pp.getInt("WENO_ORDER");
+		weno["WENO_EPS"] = pp.getDouble("WENO_EPS");
+		weno["BOUNDARY_MODEL"] = pp.getInt("BOUNDARY_MODEL");
+		discretization["weno"] = weno;
+		pp.popScope();
+		setupJson["model"]["unit_" + unitID]["discretization"] = discretization;
+		pp.popScope();
+		pp.popScope();
+		pp.popScope();
+
+		pp.pushScope("solver");
+		if (pp.exists("CONSISTENT_INIT_MODE"))
+			setupJson["solver"]["CONSISTENT_INIT_MODE"] = pp.getInt("CONSISTENT_INIT_MODE");
+		if (pp.exists("CONSISTENT_INIT_MODE_SENS"))
+			setupJson["solver"]["CONSISTENT_INIT_MODE_SENS"] = pp.getInt("CONSISTENT_INIT_MODE_SENS");
+		setupJson["solver"]["NTHREADS"] = pp.getInt("NTHREADS");
+		nlohmann::json timeIntegrator;
+		pp.pushScope("time_integrator");
+		timeIntegrator["ABSTOL"] = copy ? pp.getDouble("ABSTOL") : 1e-8;
+		timeIntegrator["ALGTOL"] = copy ? pp.getDouble("ALGTOL") : 1e-8;
+		timeIntegrator["RELTOL"] = copy ? pp.getDouble("RELTOL") : 1e-6;
+		timeIntegrator["INIT_STEP_SIZE"] = copy ? pp.getDouble("INIT_STEP_SIZE") : 1e-10;
+		timeIntegrator["MAX_STEPS"] = copy ? pp.getInt("MAX_STEPS") : 1000000;
+		pp.popScope();
+		setupJson["solver"]["time_integrator"] = timeIntegrator;
+		pp.popScope();
+	}
+
+	void copySensitivities(cadet::IParameterProvider& pp, nlohmann::json& setupJson, const std::string unitID)
+	{
+		// copy over sensitivity settings
+		if (!pp.exists("sensitivity"))
+			return;
+
+		pp.pushScope("sensitivity");
+		nlohmann::json sens;
+		sens["NSENS"] = pp.getInt("NSENS");
+		sens["SENS_METHOD"] = pp.getString("SENS_METHOD");
+
+		for (int sensID = 0; true; sensID++)
+		{
+			std::string sensParam = std::to_string(sensID);
+			sensParam = "param_" + std::string(3 - sensParam.length(), '0') + sensParam;
+			if (!pp.exists(sensParam))
+				break;
+			pp.pushScope(sensParam);
+			nlohmann::json sens_param;
+			sens_param["SENS_NAME"] = pp.getString("SENS_NAME");
+			sens_param["SENS_COMP"] = pp.getInt("SENS_COMP");
+			sens_param["SENS_BOUNDPHASE"] = pp.getInt("SENS_BOUNDPHASE");
+			sens_param["SENS_PARTYPE"] = pp.getInt("SENS_PARTYPE");
+			sens_param["SENS_REACTION"] = pp.getInt("SENS_REACTION");
+			sens_param["SENS_SECTION"] = pp.getInt("SENS_SECTION");
+			sens_param["SENS_UNIT"] = pp.getInt("SENS_UNIT");
+			sens[sensParam] = sens_param;
+			pp.popScope();
+		}
+
+		pp.popScope();
+		setupJson["sensitivity"] = sens;
+	}
+
+	void copyMultiplexData(cadet::IParameterProvider& pp, nlohmann::json& setupJson, const std::string unitID)
+	{
+		pp.pushScope("model");
+		pp.pushScope("unit_"+unitID);
+
+		if (pp.exists("FILM_DIFFUSION_MULTIPLEX"))
+			setupJson["model"]["unit_" + unitID]["FILM_DIFFUSION_MULTIPLEX"] = pp.getInt("FILM_DIFFUSION_MULTIPLEX");
+
+		if (pp.exists("ADSORPTION_MODEL_MULTIPLEX"))
+			setupJson["model"]["unit_" + unitID]["ADSORPTION_MODEL_MULTIPLEX"] = pp.getInt("ADSORPTION_MODEL_MULTIPLEX");
+
+		if (pp.exists("COL_DISPERSION_MULTIPLEX"))
+			setupJson["model"]["unit_" + unitID]["COL_DISPERSION_MULTIPLEX"] = pp.getInt("COL_DISPERSION_MULTIPLEX");
+
+		if (pp.exists("PAR_DIFFUSION_MULTIPLEX"))
+			setupJson["model"]["unit_" + unitID]["PAR_DIFFUSION_MULTIPLEX"] = pp.getInt("PAR_DIFFUSION_MULTIPLEX");
+
+		if (pp.exists("PAR_SURFDIFFUSION_MULTIPLEX"))
+			setupJson["model"]["unit_" + unitID]["PAR_SURFDIFFUSION_MULTIPLEX"] = pp.getInt("PAR_SURFDIFFUSION_MULTIPLEX");
+
+		if (pp.exists("PORE_ACCESSIBILITY_MULTIPLEX"))
+			setupJson["model"]["unit_" + unitID]["PORE_ACCESSIBILITY_MULTIPLEX"] = pp.getInt("PORE_ACCESSIBILITY_MULTIPLEX");
+
+		if (pp.exists("REACTION_MODEL_PARTICLES_MULTIPLEX"))
+			setupJson["model"]["unit_" + unitID]["REACTION_MODEL_PARTICLES_MULTIPLEX"] = pp.getInt("REACTION_MODEL_PARTICLES_MULTIPLEX");
+
+		pp.popScope();
+		pp.popScope();
+	}
+
+	void copyReturnData(cadet::IParameterProvider& pp, nlohmann::json& setupJson, const std::string unitID)
+	{
+		// copy over return settings
+		pp.pushScope("return");
+
+		nlohmann::json ret;
+		{
+			pp.pushScope("unit_" + unitID);
+			nlohmann::json ret_unit;
+
+			if (pp.exists("WRITE_COORDINATES"))
+				ret_unit["WRITE_COORDINATES"] = pp.getInt("WRITE_COORDINATES");
+
+			if (pp.exists("WRITE_SOLUTION_BULK"))
+				ret_unit["WRITE_SOLUTION_BULK"] = pp.getInt("WRITE_SOLUTION_BULK");
+
+			if (pp.exists("WRITE_SOLUTION_OUTLET"))
+				ret_unit["WRITE_SOLUTION_OUTLET"] = pp.getInt("WRITE_SOLUTION_OUTLET");
+
+			if (pp.exists("WRITE_SOLUTION_LAST"))
+				ret_unit["WRITE_SOLUTION_LAST"] = pp.getInt("WRITE_SOLUTION_LAST");
+
+			if (pp.exists("WRITE_SENS_BULK"))
+				ret_unit["WRITE_SENS_BULK"] = pp.getInt("WRITE_SENS_BULK");
+
+			if (pp.exists("WRITE_SENS_OUTLET"))
+				ret_unit["WRITE_SENS_OUTLET"] = pp.getInt("WRITE_SENS_OUTLET");
+
+			if (pp.exists("WRITE_SENS_LAST"))
+				ret_unit["WRITE_SENS_LAST"] = pp.getInt("WRITE_SENS_LAST");
+
+			if (pp.exists("WRITE_SOLUTION_FLUX"))
+				ret_unit["WRITE_SOLUTION_FLUX"] = pp.getInt("WRITE_SOLUTION_FLUX");
+
+			if (pp.exists("WRITE_SOLUTION_INLET"))
+				ret_unit["WRITE_SOLUTION_INLET"] = pp.getInt("WRITE_SOLUTION_INLET");
+
+			if (pp.exists("WRITE_SOLUTION_PARTICLE"))
+				ret_unit["WRITE_SOLUTION_PARTICLE"] = pp.getInt("WRITE_SOLUTION_PARTICLE");
+
+			if (pp.exists("WRITE_SOLUTION_SOLID"))
+				ret_unit["WRITE_SOLUTION_SOLID"] = pp.getInt("WRITE_SOLUTION_SOLID");
+
+			ret["unit_" + unitID] = ret_unit;
+			pp.popScope();
+		}
+
+		if (pp.exists("SPLIT_COMPONENTS_DATA"))
+			ret["SPLIT_COMPONENTS_DATA"] = pp.getInt("SPLIT_COMPONENTS_DATA");
+		if (pp.exists("SPLIT_PORTS_DATA"))
+			ret["SPLIT_PORTS_DATA"] = pp.getInt("SPLIT_PORTS_DATA");
+		if (pp.exists("WRITE_SOLUTION_TIMES"))
+			ret["WRITE_SOLUTION_TIMES"] = pp.getInt("WRITE_SOLUTION_TIMES");
+		pp.popScope();
+		setupJson["return"] = ret;
 	}
 
 	void reverseFlow(cadet::JsonParameterProvider& jpp)
@@ -327,11 +538,11 @@ namespace column
 			{
 				// Forward flow inlet = backward flow outlet
 				CAPTURE(i);
-				CHECK((*fwdInlet) == makeApprox(*bwdOutlet, relTol, absTol));
+				CHECK((*fwdInlet) == makeApprox(*bwdInlet, relTol, absTol));
 
 				// Forward flow outlet = backward flow inlet
 				CAPTURE(i);
-				CHECK((*fwdOutlet) == makeApprox(*bwdInlet, relTol, absTol));
+				CHECK((*fwdOutlet) == makeApprox(*bwdOutlet, relTol, absTol));
 			}
 		}
 	}
@@ -360,7 +571,7 @@ namespace column
 
 			// Get data from simulation
 			cadet::InternalStorageUnitOpRecorder const* const simData = drv.solution()->unitOperation(0);
-			double const* outlet = (forwardFlow ? simData->outlet() : simData->inlet());
+			double const* outlet = simData->outlet();
 
 			// Compare
 			for (unsigned int i = 0; i < simData->numDataPoints() * simData->numComponents() * simData->numInletPorts(); ++i, ++outlet)
@@ -398,7 +609,7 @@ namespace column
 
 			// Get data from simulation
 			cadet::InternalStorageUnitOpRecorder const* const simData = drv.solution()->unitOperation(0);
-			double const* outlet = (forwardFlow ? simData->outlet() : simData->inlet());
+			double const* outlet = simData->outlet();
 
 			// Compare
 			for (unsigned int i = 0; i < simData->numDataPoints() * simData->numComponents() * simData->numInletPorts(); ++i, ++outlet)
@@ -994,20 +1205,20 @@ namespace column
 					const unsigned int nDataPoints = fwdData->numDataPoints() * nComp * nPorts;
 					double const* const time = drvFwd.solution()->time();
 					double const* fwdOutlet = fwdData->sensOutlet(0);
-					double const* bwdInlet = bwdData->sensInlet(0);
+					double const* bwdOutlet = bwdData->sensOutlet(0);
 
 					// Compare
 					unsigned int numPassed = 0;
-					for (unsigned int i = 0; i < nDataPoints; ++i, ++fwdOutlet, ++bwdInlet)
+					for (unsigned int i = 0; i < nDataPoints; ++i, ++fwdOutlet, ++bwdOutlet)
 					{
 						const unsigned int comp = (i % (nComp * nPorts)) % nComp;
 						const unsigned int port = (i % (nComp * nPorts)) / nComp;
 						const unsigned int timeIdx = i / (nComp * nPorts);
 
 						INFO("Time " << time[timeIdx] << " Port " << port << " Component " << comp << " time point idx " << timeIdx);
-						CHECK(*bwdInlet == makeApprox(*fwdOutlet, relTol, absTol));
+						CHECK(*bwdOutlet == makeApprox(*fwdOutlet, relTol, absTol));
 
-						const bool relativeOK = std::abs(*bwdInlet - *fwdOutlet) <= relTol * std::abs(*fwdOutlet);
+						const bool relativeOK = std::abs(*bwdOutlet - *fwdOutlet) <= relTol * std::abs(*fwdOutlet);
 						if (relativeOK)
 							++numPassed;
 					}
@@ -1137,6 +1348,286 @@ namespace column
 			}
 		}
 		destroyModelBuilder(mb);
+	}
+
+	void testReferenceBenchmark(const std::string& modelFileRelPath, const std::string& refFileRelPath, const std::string& unitID, const std::vector<double> absTol, const std::vector<double> relTol, const unsigned int nCol, const unsigned int nPar, const bool compare_sens)
+	{
+		const int unitOpID = std::stoi(unitID);
+
+		// read json model setup file
+		const std::string setupFile = std::string(getTestDirectory()) + modelFileRelPath;
+		JsonParameterProvider pp_setup(JsonParameterProvider::fromFile(setupFile));
+
+		// adjust numerical parameters
+		nlohmann::json* setupJson = pp_setup.data();
+
+		// copy over some numerical parameters from reference file, e.g. consistent initialization
+		cadet::io::HDF5Reader rd;
+		const std::string refFile = std::string(getTestDirectory()) + refFileRelPath;
+		rd.openFile(refFile, "r");
+		ParameterProviderImpl<cadet::io::HDF5Reader> pp_ref(rd);
+		setNumericalMethod(pp_ref, *setupJson, unitID, true);
+		pp_ref.popScope();
+
+		// copy solution times
+		pp_ref.pushScope("input");
+		pp_ref.pushScope("solver");
+		setupJson[0]["solver"]["USER_SOLUTION_TIMES"] = pp_ref.getDoubleArray("USER_SOLUTION_TIMES");
+		pp_ref.popScope();
+
+		// copy multiplex data
+		copyMultiplexData(pp_ref, *setupJson, unitID);
+
+		// copy return data
+		copyReturnData(pp_ref, *setupJson, unitID);
+
+		// copy sensitivity setup
+		if (pp_ref.exists("sensitivity") && compare_sens)
+			copySensitivities(pp_ref, *setupJson, unitID);
+		
+		pp_ref.popScope();
+		rd.closeFile();
+
+		// set remaining spatial numerical parameters
+		setNumAxialCells(pp_setup, nCol, unitID);
+		if (nPar > 0)
+			setNumParCells(pp_setup, nPar, unitID);
+
+		// run simulation
+		Driver drv;
+		drv.configure(pp_setup);
+		drv.run();
+
+		// get simulation result
+		InternalStorageUnitOpRecorder const* const simData = drv.solution()->unitOperation(unitOpID);
+		double const* sim_outlet = simData->outlet();
+
+		// read h5 reference data
+		rd.openFile(refFile, "r");
+
+		// get outlet and sensitivity reference
+		pp_ref.pushScope("output");
+		pp_ref.pushScope("solution");
+		pp_ref.pushScope("unit_" + unitID);
+		const std::vector<double> ref_outlet = pp_ref.getDoubleArray("SOLUTION_OUTLET");
+		pp_ref.popScope();
+		pp_ref.popScope();
+
+		// compare the simulation results with the reference data
+		for (unsigned int i = 0; i < ref_outlet.size(); ++i)
+			CHECK((sim_outlet[i]) == cadet::test::makeApprox(ref_outlet[i], relTol[0], absTol[0]));
+
+		if (pp_ref.exists("sensitivity") && compare_sens)
+		{
+			pp_ref.pushScope("sensitivity");
+
+			unsigned int sensID = 0;
+			std::string sensParam = std::to_string(sensID);
+			sensParam = "param_" + std::string(3 - sensParam.length(), '0') + sensParam;
+			CAPTURE(sensParam);
+
+			while (pp_ref.exists(sensParam))
+			{
+				pp_ref.pushScope(sensParam);
+				pp_ref.pushScope("unit_" + unitID);
+				const std::vector<double> ref_sens = pp_ref.getDoubleArray("SENS_OUTLET");
+				pp_ref.popScope();
+				pp_ref.popScope();
+
+				double const* sim_sens = simData->sensOutlet(sensID);
+
+				for (unsigned int i = 0; i < ref_sens.size(); ++i)
+					CHECK((sim_sens[i]) == cadet::test::makeApprox(ref_sens[i], relTol[sensID + 1], absTol[sensID + 1]));
+
+				sensID++;
+				sensParam = std::to_string(sensID);
+				sensParam = "param_" + std::string(3 - sensParam.length(), '0') + sensParam;
+			}
+		}
+		rd.closeFile();
+	}
+
+	// todo ? include L1 errors or parameterize error choice ?
+	void testEOCReferenceBenchmark(const std::string& modelFileRelPath, const std::string& refFileRelPath, const std::string& convFileRelPath, const std::string& unitID, const std::vector<double> absTol, const std::vector<double> relTol, const unsigned int nDisc, const unsigned int startNCol, const unsigned int startNPar, const bool compare_sens)
+	{
+		const int unitOpID = std::stoi(unitID);
+
+		// read model setup file
+		const std::string setupFile = std::string(getTestDirectory()) + modelFileRelPath;
+		JsonParameterProvider pp_setup(JsonParameterProvider::fromFile(setupFile));
+
+		// adjust numerical parameters
+		nlohmann::json* setupJson = pp_setup.data();
+
+		// copy over some numerical parameters from reference file, e.g. consistent initialization
+		cadet::io::HDF5Reader rd;
+		const std::string refFile = std::string(getTestDirectory()) + refFileRelPath;
+		rd.openFile(refFile, "r");
+		ParameterProviderImpl<cadet::io::HDF5Reader> pp_ref(rd);
+		setNumericalMethod(pp_ref, *setupJson, unitID);
+		pp_ref.popScope();
+
+		// copy solution times
+		pp_ref.pushScope("input");
+		pp_ref.pushScope("solver");
+		setupJson[0]["solver"]["USER_SOLUTION_TIMES"] = pp_ref.getDoubleArray("USER_SOLUTION_TIMES");
+		pp_ref.popScope();
+
+		// copy multiplex data
+		copyMultiplexData(pp_ref, *setupJson, unitID);
+
+		// copy sensitivity setup
+		int nSens = 0;
+		if (pp_ref.exists("sensitivity"))
+		{
+			pp_ref.pushScope("sensitivity");
+			nSens = pp_ref.getInt("NSENS");
+			pp_ref.popScope();
+		}
+
+		// copy return data
+		copyReturnData(pp_ref, *setupJson, unitID);
+
+		// configure sensitivities
+		if (nSens && compare_sens)
+			copySensitivities(pp_ref, *setupJson, unitID);
+
+		pp_ref.popScope();
+
+		// read h5 reference data
+		pp_ref.pushScope("output");
+		pp_ref.pushScope("solution");
+		pp_ref.pushScope("unit_" + unitID);
+		const std::vector<double> ref_outlet = pp_ref.getDoubleArray("SOLUTION_OUTLET");
+		pp_ref.popScope();
+		pp_ref.popScope();
+		pp_ref.popScope();
+
+		// read convergence file
+		const std::string convFile = std::string(getTestDirectory()) + convFileRelPath;
+		JsonParameterProvider pp_conv(JsonParameterProvider::fromFile(convFile));
+
+		pp_conv.pushScope("convergence");
+		pp_conv.pushScope("outlet");
+		std::vector<double> discZ = pp_conv.getDoubleArray("$N_e^z$");
+		std::vector<double> discP;
+		if (startNPar > 0)
+			discP = pp_conv.getDoubleArray("$N_e^p$");
+		pp_conv.popScope();
+
+		int discIdx = 0;
+		auto it = std::find(discZ.begin(), discZ.end(), static_cast<double>(startNCol));
+		if (it != discZ.end())
+			discIdx = std::distance(discZ.begin(), it);
+		else
+			throw std::out_of_range("discretization N_e^z = " + std::to_string(startNCol) + " not found in convergence reference data");
+		if (startNPar > 0 && discP[discIdx] != static_cast<double>(startNPar))
+			throw std::out_of_range("discretization N_e^p = " + std::to_string(startNPar) + " not found in convergence reference data at the same index as N_e^z");
+
+		// run the simulations and compute EOC
+		std::vector<double> absErrors(ref_outlet.size());
+		std::vector<std::vector<double>> L1Errors(1 + nSens, std::vector<double>(nDisc, 0.0));
+		std::vector<std::vector<double>> LinfErrors(1 + nSens, std::vector<double>(nDisc, 0.0));
+		std::vector<std::vector<double>> L1EOC(1 + nSens, std::vector<double>(nDisc, 0.0));
+		std::vector<std::vector<double>> LinfEOC(1 + nSens, std::vector<double>(nDisc, 0.0));
+
+		for (int disc = 1; disc <= nDisc; disc++)
+		{
+			const int nAxCells = startNCol * std::pow(2, disc - 1);
+			const int nParCells = startNPar * std::pow(2, disc - 1);
+			setNumAxialCells(pp_setup, nAxCells, unitID);
+			if (startNPar > 0)
+				setNumParCells(pp_setup, nParCells, unitID);
+
+			// run simulation
+			Driver drv;
+			drv.configure(pp_setup);
+			drv.run();
+
+			// compute errors and EOC
+			InternalStorageUnitOpRecorder const* const simData = drv.solution()->unitOperation(unitOpID);
+			double const* approximation = simData->outlet();
+
+			std::transform(approximation, approximation + ref_outlet.size(), ref_outlet.begin(), absErrors.begin(),
+				[](double a, double b) { return std::abs(a - b); });
+
+			L1Errors[0][disc - 1] = std::accumulate(absErrors.begin(), absErrors.end(), 0.0) / ref_outlet.size();
+			LinfErrors[0][disc - 1] = *std::max_element(absErrors.begin(), absErrors.end());
+
+			pp_conv.pushScope("outlet");
+			std::vector<double> LinfErrors_ref = pp_conv.getDoubleArray("Max. error");
+			std::vector<double> LinfEOC_ref = pp_conv.getDoubleArray("Max. EOC");
+			pp_conv.popScope();
+
+			CAPTURE(nAxCells);
+			CAPTURE(LinfErrors[0][disc - 1]);
+			CAPTURE(LinfErrors_ref[discIdx + disc - 1]);
+			CHECK((LinfErrors[0][disc - 1]) == cadet::test::makeApprox(LinfErrors_ref[discIdx + disc - 1], relTol[0], absTol[0]));
+
+			if (disc > 1)
+			{
+				L1EOC[0][disc - 1] = std::log(L1Errors[0][disc - 1] / L1Errors[0][disc - 2]) / std::log(std::pow(2, disc - 1) / std::pow(2, disc));
+				LinfEOC[0][disc - 1] = std::log(LinfErrors[0][disc - 1] / LinfErrors[0][disc - 2]) / std::log(std::pow(2, disc - 1) / std::pow(2, disc));
+				CAPTURE(LinfEOC[0][disc - 1]);
+				CAPTURE(LinfEOC_ref[discIdx + disc - 1]);
+				CHECK((LinfEOC[0][disc - 1]) == cadet::test::makeApprox(LinfEOC_ref[discIdx + disc - 1], relTol[0], absTol[0]));
+			}
+
+			// compare sensitivity EOC
+			if (nSens && compare_sens)
+			{
+				for (int sensID = 0; sensID < nSens; sensID++)
+				{
+					// get reference errors and EOC (to this end get sensitivity name to push convergence scope to reference solution)
+					pp_ref.pushScope("input");
+					pp_ref.pushScope("sensitivity");
+					std::string sensParam = std::to_string(sensID);
+					sensParam = "param_" + std::string(3 - sensParam.length(), '0') + sensParam;
+					pp_ref.pushScope(sensParam);
+					std::string sens_name = pp_ref.getString("SENS_NAME");
+					pp_conv.pushScope("sens_" + sens_name);
+					LinfErrors_ref = pp_conv.getDoubleArray("Max. error");
+					LinfEOC_ref = pp_conv.getDoubleArray("Max. EOC");
+					pp_conv.popScope();
+					pp_ref.popScope();
+					pp_ref.popScope();
+					pp_ref.popScope();
+
+					// compute error and EOC
+					pp_ref.pushScope("output");
+					pp_ref.pushScope("sensitivity");
+					pp_ref.pushScope(sensParam);
+					pp_ref.pushScope("unit_" + unitID);
+					const std::vector<double> ref_sens = pp_ref.getDoubleArray("SENS_OUTLET");
+
+					approximation = simData->sensOutlet(sensID);
+
+					std::transform(approximation, approximation + ref_sens.size(), ref_sens.begin(), absErrors.begin(),
+						[](double a, double b) { return std::abs(a - b); });
+					L1Errors[sensID+1][disc - 1] = std::accumulate(absErrors.begin(), absErrors.end(), 0.0) / ref_sens.size();
+					LinfErrors[sensID + 1][disc - 1] = *std::max_element(absErrors.begin(), absErrors.end());
+
+					CAPTURE(sensID, sens_name);
+					CAPTURE(LinfErrors[sensID + 1][disc - 1]);
+					CAPTURE(LinfErrors_ref[discIdx + disc - 1]);
+					CHECK((LinfErrors[sensID + 1][disc - 1]) == cadet::test::makeApprox(LinfErrors_ref[discIdx + disc - 1], relTol[1 + sensID], absTol[1 + sensID]));
+					
+					if (disc > 1)
+					{
+						L1EOC[sensID + 1][disc - 1] = std::log(L1Errors[sensID + 1][disc - 1] / L1Errors[sensID + 1][disc - 2]) / std::log(std::pow(2, disc - 1) / std::pow(2, disc));
+						LinfEOC[sensID + 1][disc - 1] = std::log(LinfErrors[sensID + 1][disc - 1] / LinfErrors[sensID + 1][disc - 2]) / std::log(std::pow(2, disc - 1) / std::pow(2, disc));
+						CAPTURE(LinfEOC[sensID + 1][disc - 1]);
+						CAPTURE(LinfEOC_ref[discIdx + disc - 1]);
+						CHECK((LinfEOC[sensID + 1][disc - 1]) == cadet::test::makeApprox(LinfEOC_ref[discIdx + disc - 1], relTol[1 + sensID], absTol[1 + sensID]));
+					}
+					pp_ref.popScope();
+					pp_ref.popScope();
+					pp_ref.popScope();
+					pp_ref.popScope();
+				}
+			}
+		}
+		rd.closeFile();
 	}
 
 } // namespace column

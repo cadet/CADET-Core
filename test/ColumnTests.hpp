@@ -38,8 +38,9 @@ namespace column
 	 * @details Overwrites the NCOL field in the discretization group of the given ParameterProvider.
 	 * @param [in,out] jpp ParameterProvider to change the number of axial cells in
 	 * @param [in] nCol Number of axial cells
+	 * @param [in] unitID unit operation ID
 	 */
-	void setNumAxialCells(cadet::JsonParameterProvider& jpp, unsigned int nCol);
+	void setNumAxialCells(cadet::JsonParameterProvider& jpp, unsigned int nCol, std::string unitID="000");
 
 	/**
 	 * @brief Sets the WENO order in a configuration of a column-like unit operation
@@ -278,6 +279,34 @@ namespace column
 	 * @param [in] uoType Unit operation type
 	 */
 	void testInletDofJacobian(const std::string& uoType);
+
+	/**
+	 * @brief Runs a simulation test comparing against numerical reference data (outlet data)
+	 * @param [in] setupFileRelPath Path to the setup data file from the directory of this file
+	 * @param [in] refFileRelPath Path to the reference data file from the directory of this file
+	 * @param [in] unitID ID of the unit of interest
+	 * @param [in] absTol Absolute error tolerance
+	 * @param [in] relTol Relative error tolerance
+	 * @param [in] nCol Number of axial cells
+	 * @param [in] nPar Number of particle cells (if required)
+	 * @param [in] compare_sens Specifies whether sensitivities are included
+	 */
+	void testReferenceBenchmark(const std::string& modelFileRelPath, const std::string& refFileRelPath, const std::string& unitID, const std::vector<double> absTol, const std::vector<double> relTol, const unsigned int nCol, const unsigned int nPar = 0, const bool compare_sens = false);
+
+	/**
+	 * @brief Runs an EOC test comparing against numerical reference data (outlet data)
+	 * @param [in] setupFileRelPath Path to the setup data file from the directory of this file
+	 * @param [in] refFileRelPath Path to the reference data file from the directory of this file
+	 * @param [in] convFileRelPath Path to the convergence reference data file from the directory of this file
+	 * @param [in] unitID ID of the unit of interest
+	 * @param [in] absTol Absolute error tolerance
+	 * @param [in] relTol Relative error tolerance
+	 * @param [in] nDisc number of discretizations to be computed for EOC
+	 * @param [in] startNCol starting number of axial cells
+	 * @param [in] startNPar starting number of particle cells (if required)
+	 * @param [in] compare_sens Specifies whether sensitivities are included
+	 */
+	void testEOCReferenceBenchmark(const std::string& modelFileRelPath, const std::string& refFileRelPath, const std::string& convFileRelPath, const std::string& unitID, const std::vector<double> absTol, const std::vector<double> relTol, const unsigned int nDisc, const unsigned int startNCol, const unsigned int startNPar = 0, const bool compare_sens = false);
 
 } // namespace column
 } // namespace test

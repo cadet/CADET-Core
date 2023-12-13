@@ -22,6 +22,7 @@
 
 cadet::JsonParameterProvider createColumnWithSMA(const std::string& uoType);
 cadet::JsonParameterProvider createColumnWithTwoCompLinearBinding(const std::string& uoType);
+cadet::JsonParameterProvider createColumnLinearBenchmark(bool dynamicBinding, bool nonBinding, const std::string& uoType);
 cadet::JsonParameterProvider createLWE(const std::string& uoType);
 cadet::JsonParameterProvider createPulseInjectionColumn(const std::string& uoType, bool dynamicBinding);
 cadet::JsonParameterProvider createLinearBenchmark(bool dynamicBinding, bool nonBinding, const std::string& uoType);
