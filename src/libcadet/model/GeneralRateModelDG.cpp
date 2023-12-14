@@ -174,7 +174,7 @@ bool GeneralRateModelDG::configureModelDiscretization(IParameterProvider& paramP
 		_disc.nParType = nBound.size() / _disc.nComp;
 
 	std::vector<int> parPolyDeg(_disc.nParType);
-	std::vector<int> nParElem(_disc.nParType);
+	std::vector<int> ParNelem(_disc.nParType);
 	std::vector<bool> parExactInt(_disc.nParType);
 
 	if (paramProvider.exists("PAR_POLYDEG"))
@@ -182,8 +182,8 @@ bool GeneralRateModelDG::configureModelDiscretization(IParameterProvider& paramP
 		parPolyDeg = paramProvider.getIntArray("PAR_POLYDEG");
 		if ((std::any_of(parPolyDeg.begin(), parPolyDeg.end(), [](int value) { return value < 1; })))
 			throw InvalidParameterException("Particle polynomial degrees must be at least 1!");
-		nParElem = paramProvider.getIntArray("NPARELEM");
-		if ((std::any_of(nParElem.begin(), nParElem.end(), [](int value) { return value < 1; })))
+		ParNelem = paramProvider.getIntArray("PAR_NELEM");
+		if ((std::any_of(ParNelem.begin(), ParNelem.end(), [](int value) { return value < 1; })))
 			throw InvalidParameterException("Particle number of elements must be at least 1!");
 		parExactInt = paramProvider.getBoolArray("PAR_EXACT_INTEGRATION");
 		if ((std::any_of(parExactInt.begin(), parExactInt.end(), [](bool value) { return !value; })))
@@ -199,16 +199,16 @@ bool GeneralRateModelDG::configureModelDiscretization(IParameterProvider& paramP
 			throw InvalidParameterException("Field PARPOLYDEG must have 1 or NPARTYPE (" + std::to_string(_disc.nParType) + ") entries");
 		else
 			std::copy_n(parPolyDeg.begin(), _disc.nParType, _disc.parPolyDeg);
-		if (nParElem.size() == 1)
+		if (ParNelem.size() == 1)
 		{
 			// Multiplex number of particle shells to all particle types
 			for (unsigned int i = 0; i < _disc.nParType; ++i)
-				std::fill(_disc.nParCell, _disc.nParCell + _disc.nParType, nParElem[0]);
+				std::fill(_disc.nParCell, _disc.nParCell + _disc.nParType, ParNelem[0]);
 		}
-		else if (nParElem.size() < _disc.nParType)
-			throw InvalidParameterException("Field NPARELEM must have 1 or NPARTYPE (" + std::to_string(_disc.nParType) + ") entries");
+		else if (ParNelem.size() < _disc.nParType)
+			throw InvalidParameterException("Field PAR_NELEM must have 1 or NPARTYPE (" + std::to_string(_disc.nParType) + ") entries");
 		else
-			std::copy_n(nParElem.begin(), _disc.nParType, _disc.nParCell);
+			std::copy_n(ParNelem.begin(), _disc.nParType, _disc.nParCell);
 		if (parExactInt.size() == 1)
 		{
 			// Multiplex number of particle shells to all particle types

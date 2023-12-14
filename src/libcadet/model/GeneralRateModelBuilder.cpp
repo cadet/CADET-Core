@@ -16,9 +16,9 @@ namespace cadet
 
 			paramProvider.pushScope("discretization");
 
-			if (paramProvider.exists("spatial_scheme")) {
+			if (paramProvider.exists("SPATIAL_METHOD")) {
 
-				const std::string discName = paramProvider.getString("spatial_scheme");
+				const std::string discName = paramProvider.getString("SPATIAL_METHOD");
 
 				if (discName == "DG")
 					model = new GeneralRateModelDG(uoId);
@@ -44,9 +44,9 @@ namespace cadet
 
 			paramProvider.pushScope("discretization");
 
-			if (paramProvider.exists("spatial_scheme")) {
+			if (paramProvider.exists("SPATIAL_METHOD")) {
 
-				const std::string discName = paramProvider.getString("spatial_scheme");
+				const std::string discName = paramProvider.getString("SPATIAL_METHOD");
 
 				if (discName == "DG")
 				{
