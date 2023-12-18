@@ -30,20 +30,15 @@ namespace cadet
 {
 	namespace model
 	{
-		void registerInletModel(std::unordered_map<std::string, std::function<IUnitOperation*(UnitOpIdx)>>& models);
-		void registerOutletModel(std::unordered_map<std::string, std::function<IUnitOperation*(UnitOpIdx)>>& models);
+		void registerInletModel(std::unordered_map<std::string, std::function<IUnitOperation*(UnitOpIdx, IParameterProvider&)>>& models);
+		void registerOutletModel(std::unordered_map<std::string, std::function<IUnitOperation*(UnitOpIdx, IParameterProvider&)>>& models);
 
-		void registerGeneralRateModel(std::unordered_map<std::string, std::function<IUnitOperation*(UnitOpIdx)>>& models);
-		void registerLumpedRateModelWithPores(std::unordered_map<std::string, std::function<IUnitOperation*(UnitOpIdx)>>& models);
-		void registerLumpedRateModelWithoutPores(std::unordered_map<std::string, std::function<IUnitOperation*(UnitOpIdx)>>& models);
-		void registerCSTRModel(std::unordered_map<std::string, std::function<IUnitOperation*(UnitOpIdx)>>& models);
+		void registerGeneralRateModel(std::unordered_map<std::string, std::function<IUnitOperation*(UnitOpIdx, IParameterProvider&)>>& models);
+		void registerLumpedRateModelWithPores(std::unordered_map<std::string, std::function<IUnitOperation*(UnitOpIdx, IParameterProvider&)>>& models);
+		void registerLumpedRateModelWithoutPores(std::unordered_map<std::string, std::function<IUnitOperation*(UnitOpIdx, IParameterProvider&)>>& models);
+		void registerCSTRModel(std::unordered_map<std::string, std::function<IUnitOperation*(UnitOpIdx, IParameterProvider&)>>& models);
 #ifdef ENABLE_GRM_2D
-		void registerGeneralRateModel2D(std::unordered_map<std::string, std::function<IUnitOperation*(UnitOpIdx)>>& models);
-#endif
-#ifdef ENABLE_DG
-		void registerGeneralRateModelDG(std::unordered_map<std::string, std::function<IUnitOperation* (UnitOpIdx)>>& models);
-		void registerLumpedRateModelWithPoresDG(std::unordered_map<std::string, std::function<IUnitOperation* (UnitOpIdx)>>& models);
-		void registerLumpedRateModelWithoutPoresDG(std::unordered_map<std::string, std::function<IUnitOperation* (UnitOpIdx)>>& models);
+		void registerGeneralRateModel2D(std::unordered_map<std::string, std::function<IUnitOperation*(UnitOpIdx, IParameterProvider&)>>& models);
 #endif
 
 		namespace inlet
@@ -71,11 +66,6 @@ namespace cadet
 #ifdef ENABLE_GRM_2D
 		model::registerGeneralRateModel2D(_modelCreators);
 #endif
-#ifdef ENABLE_DG
-		model::registerGeneralRateModelDG(_modelCreators);
-		model::registerLumpedRateModelWithPoresDG(_modelCreators);
-		model::registerLumpedRateModelWithoutPoresDG(_modelCreators);
-#endif
 		// Register all available inlet profiles
 		model::inlet::registerPiecewiseCubicPoly(_inletCreators);
 
@@ -93,7 +83,7 @@ namespace cadet
 	template <class UnitOpModel_t>
 	void ModelBuilder::registerModel(const std::string& name)
 	{
-		_modelCreators[name] = [](UnitOpIdx uoId) { return new UnitOpModel_t(uoId); };
+		_modelCreators[name] = [](UnitOpIdx uoId, IParameterProvider&) { return new UnitOpModel_t(uoId); };
 	}
 
 	template <class UnitOpModel_t>
@@ -189,7 +179,11 @@ namespace cadet
 
 		// Call factory function (thanks to type erasure of std::function we can store 
 		// all factory functions in one container)
-		IUnitOperation* const model = it->second(uoId);
+		IUnitOperation* const model = it->second(uoId, paramProvider);
+		if (!model) {
+			LOG(Error) << "Failed to create unit type " << uoType << " for unit " << uoId;
+			return nullptr;
+		}
 
 		if (!model->configureModelDiscretization(paramProvider, *this) || !model->configure(paramProvider))
 		{
@@ -201,19 +195,19 @@ namespace cadet
 		return model;
 	}
 
-	IModel* ModelBuilder::createUnitOperation(const std::string& uoType, UnitOpIdx uoId)
-	{
-		const auto it = _modelCreators.find(uoType);
-		if (it == _modelCreators.end())
-		{
-			// Model was not found
-			LOG(Error) << "Unknown unit type " << uoType << " for unit " << uoId;
-			return nullptr;
-		}
+	//IModel* ModelBuilder::createUnitOperation(const std::string& uoType, UnitOpIdx uoId)
+	//{
+	//	const auto it = _modelCreators.find(uoType);
+	//	if (it == _modelCreators.end())
+	//	{
+	//		// Model was not found
+	//		LOG(Error) << "Unknown unit type " << uoType << " for unit " << uoId;
+	//		return nullptr;
+	//	}
 
-		IUnitOperation* const model = it->second(uoId);
-		return model;
-	}
+	//	IUnitOperation* const model = it->second(uoId);
+	//	return model;
+	//}
 
 	void ModelBuilder::destroyUnitOperation(IModel* unitOp)
 	{
