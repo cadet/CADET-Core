@@ -342,6 +342,9 @@ protected:
 	};
 };
 
+IUnitOperation* createAxialFVLRM(UnitOpIdx uoId);
+IUnitOperation* createRadialFVLRM(UnitOpIdx uoId);
+
 } // namespace model
 } // namespace cadet
 
