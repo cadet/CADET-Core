@@ -12,6 +12,7 @@ Generally, FV can be more performant for small problem sizes and solutions with 
 
 In the following, we give a brief introduction to the numerical theory that is most relevant for the computational performance of the methods.
 Based on that theory and our experience, we give advice on which method to use in which scenario, how to identify the more performant method, and how to specify the discretization parameters.
+For a comprehensive description on the FV and DG methods as they are implemented in CADET, we refer to our publications on `CADET-FV <https://doi.org/10.1016/j.compchemeng.2010.03.008>`_  and `CADET-DG <https://doi.org/10.1016/j.compchemeng.2023.108340>`_.
 
 Discrete system size
 --------------------
@@ -122,6 +123,3 @@ Note on DG solution vector
 Any liquid or solid concentration within the column or particles is reported on the discrete points that are employed by the method.
 That is, DG yields a piece-wise polynomial approximation on Lagrange-Gauss-Lobatto nodes.
 If the solution is desired on a different grid, element-wise polynomial interpolation should be applied, and element interface values must be averaged.
-
-For more information on the numerical methods implemented in CADET, we refer to our publications on `CADET-FV <https://doi.org/10.1016/j.compchemeng.2010.03.008>`_  and `CADET-DG <https://doi.org/10.1016/j.compchemeng.2023.108340>`_.
------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
