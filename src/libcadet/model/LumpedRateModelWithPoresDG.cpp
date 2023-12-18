@@ -101,28 +101,89 @@ bool LumpedRateModelWithPoresDG::configureModelDiscretization(IParameterProvider
 	// ==== Read discretization
 	_disc.nComp = paramProvider.getInt("NCOMP");
 
+	std::vector<int> nBound;
+	const bool newNBoundInterface = paramProvider.exists("NBOUND");
+	const bool newNPartypeInterface = paramProvider.exists("NPARTYPE");
+
 	paramProvider.pushScope("discretization");
 
-	if (paramProvider.getInt("NCOL") < 1)
-		throw InvalidParameterException("Number of column cells must be at least 1!");
-	_disc.nCol = paramProvider.getInt("NCOL");
-
-	if (paramProvider.getInt("POLYDEG") < 1)
-		throw InvalidParameterException("Polynomial degree must be at least 1!");
+	if (!newNBoundInterface && paramProvider.exists("NBOUND")) // done here and in this order for backwards compatibility
+		nBound = paramProvider.getIntArray("NBOUND");
 	else
-		_disc.polyDeg = paramProvider.getInt("POLYDEG");
-	_disc.nNodes = _disc.polyDeg + 1;
-	_disc.nPoints = _disc.nNodes * _disc.nCol;
-
-	const int polynomial_integration_mode = paramProvider.getInt("EXACT_INTEGRATION");
-	_disc.exactInt = static_cast<bool>(polynomial_integration_mode); // only integration mode 0 applies the inexact collocated diagonal LGL mass matrix
-
-	const std::vector<int> nBound = paramProvider.getIntArray("NBOUND");
+	{
+		paramProvider.popScope();
+		nBound = paramProvider.getIntArray("NBOUND");
+		paramProvider.pushScope("discretization");
+	}
 	if (nBound.size() < _disc.nComp)
 		throw InvalidParameterException("Field NBOUND contains too few elements (NCOMP = " + std::to_string(_disc.nComp) + " required)");
 
 	if (nBound.size() % _disc.nComp != 0)
 		throw InvalidParameterException("Field NBOUND must have a size divisible by NCOMP (" + std::to_string(_disc.nComp) + ")");
+
+	if (!newNPartypeInterface && paramProvider.exists("NPARTYPE")) // done here and in this order for backwards compatibility
+	{
+		_disc.nParType = paramProvider.getInt("NPARTYPE");
+		_disc.nBound = new unsigned int[_disc.nComp * _disc.nParType];
+		if (nBound.size() < _disc.nComp * _disc.nParType)
+		{
+			// Multiplex number of bound states to all particle types
+			for (unsigned int i = 0; i < _disc.nParType; ++i)
+				std::copy_n(nBound.begin(), _disc.nComp, _disc.nBound + i * _disc.nComp);
+		}
+		else
+			std::copy_n(nBound.begin(), _disc.nComp * _disc.nParType, _disc.nBound);
+	}
+	else if (newNPartypeInterface)
+	{
+		paramProvider.popScope();
+		_disc.nParType = paramProvider.getInt("NPARTYPE");
+		_disc.nBound = new unsigned int[_disc.nComp * _disc.nParType];
+		if (nBound.size() < _disc.nComp * _disc.nParType)
+		{
+			// Multiplex number of bound states to all particle types
+			for (unsigned int i = 0; i < _disc.nParType; ++i)
+				std::copy_n(nBound.begin(), _disc.nComp, _disc.nBound + i * _disc.nComp);
+		}
+		else
+			std::copy_n(nBound.begin(), _disc.nComp * _disc.nParType, _disc.nBound);
+		paramProvider.pushScope("discretization");
+	}
+	else
+	{
+		// Infer number of particle types
+		_disc.nParType = nBound.size() / _disc.nComp;
+		_disc.nBound = new unsigned int[_disc.nComp * _disc.nParType];
+		std::copy_n(nBound.begin(), _disc.nComp * _disc.nParType, _disc.nBound);
+	}
+
+	if (paramProvider.exists("POLYDEG"))
+		_disc.polyDeg = paramProvider.getInt("POLYDEG");
+	else
+		_disc.polyDeg = 4u; // default value
+	if (paramProvider.getInt("POLYDEG") < 1)
+		throw InvalidParameterException("Polynomial degree must be at least 1!");
+	else if (_disc.polyDeg < 3)
+		LOG(Warning) << "Polynomial degree > 2 in bulk discretization (cf. POLYDEG) is always recommended for performance reasons.";
+
+	_disc.nNodes = _disc.polyDeg + 1;
+
+	if (paramProvider.exists("NELEM"))
+		_disc.nCol = paramProvider.getInt("NELEM");
+	else if (paramProvider.exists("NCOL"))
+		_disc.nCol = std::max(1u, paramProvider.getInt("NCOL") / _disc.nNodes); // number of elements is rounded down
+	else
+		throw InvalidParameterException("Specify field NELEM (or NCOL)");
+
+	if (_disc.nCol < 1)
+		throw InvalidParameterException("Number of column elements must be at least 1!");
+
+	_disc.nPoints = _disc.nNodes * _disc.nCol;
+
+	int polynomial_integration_mode = 0;
+	if(paramProvider.exists("EXACT_INTEGRATION"))
+		polynomial_integration_mode = paramProvider.getInt("EXACT_INTEGRATION");
+	_disc.exactInt = static_cast<bool>(polynomial_integration_mode); // only integration mode 0 applies the inexact collocated diagonal LGL mass matrix
 
 	if (paramProvider.exists("NPARTYPE"))
 	{
@@ -1508,22 +1569,5 @@ int LumpedRateModelWithPoresDG::Exporter::writeOutlet(double* buffer) const
 
 }  // namespace cadet
 
-
 #include "model/LumpedRateModelWithPoresDG-InitialConditions.cpp"
 #include "model/LumpedRateModelWithPoresDG-LinearSolver.cpp"
-
-namespace cadet
-{
-
-namespace model
-{
-
-void registerLumpedRateModelWithPoresDG(std::unordered_map<std::string, std::function<IUnitOperation* (UnitOpIdx)>>& models)
-{
-	models[LumpedRateModelWithPoresDG::identifier()] = [](UnitOpIdx uoId) { return new LumpedRateModelWithPoresDG(uoId); };
-	models["LRMPDG"] = [](UnitOpIdx uoId) { return new LumpedRateModelWithPoresDG(uoId); };
-}
-
-}  // namespace model
-
-}  // namespace cadet
