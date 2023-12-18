@@ -141,11 +141,6 @@ For information on model equations, refer to :ref:`lumped_rate_model_without_por
    ================  =====================  =============
    
 
-Discretization Methods
-----------------------
-
-CADET has two discretization frameworks available, Finite Volumes (FV) and Discontinuous Galerkin (DG), only one needs to be specified. Both methods approximate the same solution to the same underlying model but can differ regarding computational performance.
-
 Group /input/model/unit_XXX/discretization - UNIT_TYPE = LUMPED_RATE_MODEL_WITHOUT_PORES
 ----------------------------------------------------------------------------------------
    
@@ -156,6 +151,23 @@ Group /input/model/unit_XXX/discretization - UNIT_TYPE = LUMPED_RATE_MODEL_WITHO
    =============  ===========================  =============
    **Type:** int  **Range:** :math:`\{0, 1\}`  **Length:** 1
    =============  ===========================  =============
+
+Spatial discretization - Numerical Methods
+------------------------------------------
+
+CADET offers two spatial discretization methods: Finite Volumes (FV) and Discontinuous Galerkin (DG). Only the input fields for the chosen method need to be specified.
+While both methods approximate the same solution to the same underlying model, they may differ in terms of computational performance.
+Generally, FV is more performant for solutions with steep gradients or discontinuities, while DG excels for rather smooth solutions.
+We note that DG is only faster in the sense that less spatial discrete points are required to achieve the same accuracy as FV. For the same number of discrete points, DG will be slower, but more accurate.
+For further information on the choice of discretization methods and their parameters, see :ref:`spatial_discretization_methods`.
+
+``SPATIAL_METHOD``
+
+   Spatial discretization method. Optional, defaults to :math:`\texttt{FV}`
+
+   ================  ===============================================  =============
+   **Type:** string  **Range:** :math:`\{\texttt{FV}, \texttt{DG}\}`  **Length:** 1
+   ================  ===============================================  =============
 
 Finite Volumes (Default)
 ------------------------
@@ -176,16 +188,23 @@ Finite Volumes (Default)
    **Type:** string  **Range:** :math:`\texttt{WENO}`  **Length:** 1
    ================  ================================  =============
    
-For further Finite Volume discretization parameters, see also :ref:`flux_restruction_methods`, and :ref:`non_consistency_solver_parameters`.
+For further discretization parameters, see also :ref:`flux_restruction_methods` (FV specific)), and :ref:`non_consistency_solver_parameters`.
 
-Group /input/model/unit_XXX/discretization - UNIT_TYPE = LUMPED_RATE_MODEL_WITHOUT_PORES_DG
--------------------------------------------------------------------------------------------
+
 Discontinuous Galerkin
 ----------------------
 
 ``POLYDEG``
 
-   DG polynomial degree. Optional, defaults to 4. The total number of axial discrete points is given by (``POLYDEG`` + 1 ) * ``NCOL``.
+   DG polynomial degree. Optional, defaults to 4 and :math:`N_d \in \{3, 4, 5\}` is recommended. The total number of axial discrete points is given by (``POLYDEG`` + 1 ) * ``NELEM``
+   
+   =============  =========================  =============
+   **Type:** int  **Range:** :math:`\geq 1`  **Length:** 1
+   =============  =========================  =============
+
+``NELEM``
+
+   Number of axial column discretization DG cells\elements. The total number of axial discrete points is given by (``POLYDEG`` + 1 ) * ``NELEM``
    
    =============  =========================  =============
    **Type:** int  **Range:** :math:`\geq 1`  **Length:** 1
@@ -193,7 +212,7 @@ Discontinuous Galerkin
 
 ``NCOL``
 
-   Number of axial column discretization DG cells\elements. The total number of axial discrete points is given by (``POLYDEG`` + 1 ) * ``NCOL``.
+   Number of axial discrete points. Optional and ignored if ``NELEM`` is defined. Otherwise, used to calculate ``NELEM`` = :math:`\lfloor` ``NCOL`` / (``POLYDEG`` + 1 ) :math:`\rfloor`
    
    =============  =========================  =============
    **Type:** int  **Range:** :math:`\geq 1`  **Length:** 1
@@ -201,8 +220,10 @@ Discontinuous Galerkin
 
 ``EXACT_INTEGRATION``
 
-   Specifies the DG integration method. Optional, defaults to 0: Choose 1 for exact integration (more accurate but slower), 0 for LGL quadrature (less accurate but faster, typically more performant).
+   Specifies the DG integration variant. Optional, defaults to 0
    
    =============  ===========================  =============
    **Type:** int  **Range:** :math:`\{0, 1\}`  **Length:** 1
    =============  ===========================  =============
+   
+   For further discretization parameters, see also :ref:`non_consistency_solver_parameters`.
