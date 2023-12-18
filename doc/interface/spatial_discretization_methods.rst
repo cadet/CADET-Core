@@ -7,7 +7,7 @@ Group /input/model/unit_XXX/discretization/SPATIAL_METHOD - Details on the metho
 ----------------------------------------------------------------------------------
 
 CADET offers two spatial discretization methods: Finite Volumes (FV) and Discontinuous Galerkin (DG).
-While both methods approximate the same solution to the same underlying model, they may differ in terms of computational performance.
+While both methods approximate the same solution to the underlying models, they may differ in terms of computational performance.
 Generally, FV can be more performant for small problem sizes and solutions with steep gradients, while DG excels for large problem sizes and smooth solutions.
 
 In the following, we give a brief introduction to the numerical theory that is most relevant for the computational performance of the methods.
@@ -24,8 +24,8 @@ Conversely, the numerical solution is more accurate with more discrete points.
 Thus, we trade computation time for approximation accuracy by specifying the parameters that determine the number of discrete points.
 For the FV scheme, the number of axial discrete points in the column is given by the number of volume cells ``NCOL``.
 For the DG scheme, the number of axial discrete points in the column is given by the number of polynomial interpolation nodes (= ``POLYDEG`` + 1) times the number of DG elements ``NELEM``.
-At each axial discrete point, the LRMP and GRM additionally employ a particle.
-These particles are also discretized, which increases the total number of DOF per axial discrete point, especially for the GRM where particles are fully resolved.
+The LRMP and GRM additionally consider particle equations that are also discretized.
+In the spatially discretized equations, a single particle is incorporated at each axial discrete point, which increases the total number of DOF per axial point, especially for the GRM where particles are fully resolved.
 The parameters for the GRM particle discretization are given for FV in ``NPAR`` and for DG in ``PAR_POLYDEG`` and ``PAR_NELEM``.
 
 Order of convergence
@@ -50,15 +50,15 @@ Having the exact solution, we can compute an experimental order of convergence (
     \end{aligned}
 
 with :math:`\varepsilon_{k}` and :math:`n_{k}` denoting some error norm and the degrees of freedom of the kth approximation.
-The EOC approaches the theoretical order of convergence for :math:`k \rightarrow \infty` but is typically lower-for underresolved problems.
-High-order methods typically suffer from start-off problems and won't exhibit their high order until the grid is fine enough and a certain accuracy is already reached.
+The EOC approaches the theoretical order of convergence for :math:`k \rightarrow \infty` but is typically lower for underresolved problems.
+High-order methods typically suffer from start-off problems, i.e. they typically won't exhibit their high order until the grid is fine enough and a certain accuracy is already reached.
 That is, increasing the number of discrete points from, e.g., 2 to 4 typically does not improve the solution according to the theoretical order of convergence but by a much smaller EOC.
 The EOC is highly problem-dependent, and it is generally unknown when a high-order method will actually be faster than a lower-order method.
 Experience shows that higher-order methods work well for smooth solutions.
 
 The theoretical order of convergence for the CADET-FV scheme is fixed at 2.
-For the CADET-DG scheme, it is :math:`N_d + 1` with :math:`N_d` denoting the polynomial degree, and it can thus be user-defined by specifying the field ``POLYDEG`` (and ``PAR_POLYDEG`` for the GRM).
-As a convergence order of > 6 is hardly realized within the approximation error of engineering tolerance, we recommend a maximum polynomial order of 5.
+For the CADET-DG scheme, it is :math:`N_d + 1` with :math:`N_d` denoting the polynomial degree, and can thus be user-defined by specifying the field ``POLYDEG`` (and ``PAR_POLYDEG`` for the GRM).
+As a convergence order of :math:`\gt 6` is hardly realized within the approximation error of engineering tolerance (due to start-off problems), we recommend a maximum polynomial order of 5.
 As the FV scheme oftentimes yields an EOC of around 2.5 and is computationally more enhanced (less arithmetic operations per DOF and customized factorization) than the DG code, we recommend a polynomial degree of at least 3 to top this.
 
 Smooth solutions
@@ -69,7 +69,7 @@ In numerical simulation, smoothness indicators are often based on derivatives or
 That is, strong gradients and high frequencies are used to identify non-smooth parts of the solution.
 Godunov's order barrier theorem shows why the concept of smoothness plays a crucial role in the deployment of numerical methods.
 It states that linear high-order methods that are monotonous are at most first-order accurate.
-Linear higher-order (:math:`> 1`) methods thus suffer from artificial oscillations at non-smooth parts of the solution, specifically at discontinuities and strong gradients.
+Linear higher-order (:math:`\gt 1`) methods thus suffer from artificial oscillations at non-smooth parts of the solution, specifically at discontinuities and strong gradients.
 Some higher-order methods, such as CADET-FV (2nd order), contain a non-linear mechanism to suppress these oscillations.
 The non-linear WENO mechanism employed in CADET-FV can be fine-tuned via the fields specified here :ref:`flux_restruction_methods`.
 Unfortunately, non-linear higher-order methods (order :math:`\geq 3`) are either not applicable (e.g., undefined boundary treatment) or have other shortcomings, such as more highly problem-dependent parameters.
@@ -83,8 +83,8 @@ Thus, the use of a lower polynomial degree and more elements is recommended for 
 
 In Chromatography, mathematical discontinuities never happen, as there are always some dispersive effects in reality.
 Chromatography models, however, allow for discontinuities if dispersion parameters are set to zero.
-Moreover, steep and self-sharpening concentration fronts might appear due to binding and steep injection profiles.
-Binding models that might cause self-sharpening concentration fronts are often associated with convex upward isotherm functions.
+Moreover, steep and self-sharpening concentration fronts might appear due to binding.
+Binding models that might cause self-sharpening concentration fronts are often associated with competitive Langmuir type isotherms for components with differently strong binding properties.
 Nonetheless, a lot of chromatography settings yield rather smooth concentration profiles, for which DG is the better choice in terms of computational performance.
 
 Recommendations on the choice of spatial discretization methods
