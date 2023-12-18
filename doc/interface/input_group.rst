@@ -10,6 +10,7 @@ Input Group
     unit_operations/index
     binding/index
     reactions
+    spatial_discretization_methods
     flux_reconstruction
     consistent_initialization
     return_data
