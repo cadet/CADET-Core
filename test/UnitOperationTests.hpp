@@ -52,8 +52,9 @@ namespace unitoperation
 	/**
 	 * @brief Checks the full analytic Jacobian against AD for a given model
 	 * @param [in] jpp Unit operation configuration
+	 * @param [in] absTolFDpattern absolute tolerance when comparing the sign in the FD Jacobian pattern
 	 */
-	void testJacobianAD(cadet::JsonParameterProvider& jpp);
+	void testJacobianAD(cadet::JsonParameterProvider& jpp, const double absTolFDpattern=0.0);
 
 	/**
 	 * @brief Checks the (analytic) time derivative Jacobian against FD for a given model

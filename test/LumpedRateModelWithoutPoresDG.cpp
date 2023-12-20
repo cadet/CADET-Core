@@ -1,7 +1,7 @@
 // =============================================================================
 //  CADET
 //  
-//  Copyright © 2008-2021: The CADET Authors
+//  Copyright © 2008-2023: The CADET Authors
 //            Please see the AUTHORS and CONTRIBUTORS file.
 //  
 //  All rights reserved. This program and the accompanying materials
@@ -11,95 +11,185 @@
 // =============================================================================
 
 #include <catch.hpp>
-#include "Approx.hpp"
-#include "cadet/cadet.hpp"
-#include "Logging.hpp"
+
 #include "ColumnTests.hpp"
+#include "ReactionModelTests.hpp"
 #include "Utils.hpp"
-#include "SimHelper.hpp"
-#include "ModelBuilderImpl.hpp"
-#include "common/Driver.hpp"
-#include "Weno.hpp"
-#include "linalg/Norms.hpp"
-#include "SimulationTypes.hpp"
-#include "ParallelSupport.hpp"
-
 #include "JsonTestModels.hpp"
-#include "JacobianHelper.hpp"
-#include "UnitOperationTests.hpp"
 
-#include <cmath>
-#include <functional>
-#include <cstdint>
-
-
-namespace
+TEST_CASE("LRM_DG LWE forward vs backward flow", "[LRM],[DG],[Simulation],[CI]")
 {
-	void setParameters(cadet::JsonParameterProvider& jpp, unsigned int nCol, unsigned int nNodes, std::string basis)
+	cadet::test::column::DGparams disc;
+
+	// Test all integration modes
+	for (int i = 0; i <= 1; i++)
 	{
-		int level = 0;
-
-		if (jpp.exists("model"))
-		{
-			jpp.pushScope("model");
-			++level;
-		}
-		if (jpp.exists("unit_000"))
-		{
-			jpp.pushScope("unit_000");
-			++level;
-		}
-
-		jpp.pushScope("discretization");
-
-		// Set discretization parameters
-		jpp.set("NCOL", static_cast<int>(nCol));
-		jpp.set("NNODES", static_cast<int>(nNodes));
-		jpp.set("POLYNOMIAL_BASIS", basis);
-
-		jpp.popScope();
-	
-		for (int l = 0; l < level; ++l)
-			jpp.popScope();
+		disc.setIntegrationMode(i);
+		cadet::test::column::testForwardBackward("LUMPED_RATE_MODEL_WITHOUT_PORES", disc, 6e-9, 6e-2);
 	}
-
-
-
 }
 
-TEST_CASE("LRM_DG linear pulse vs analytic solution", "[LRM],[Simulation],[Analytic]")
+TEST_CASE("LRM_DG linear pulse vs analytic solution", "[LRM],[DG],[Simulation],[Analytic],[CI]")
 {
-	cadet::IModelBuilder* const mb = cadet::createModelBuilder();
-	REQUIRE(nullptr != mb);
+	cadet::test::column::DGparams disc;
+	cadet::test::column::testAnalyticBenchmark("LUMPED_RATE_MODEL_WITHOUT_PORES", "/data/lrm-pulseBenchmark.data", true, true, disc, 2e-5, 1e-7);
+	cadet::test::column::testAnalyticBenchmark("LUMPED_RATE_MODEL_WITHOUT_PORES", "/data/lrm-pulseBenchmark.data", true, false, disc, 2e-5, 1e-7);
+	cadet::test::column::testAnalyticBenchmark("LUMPED_RATE_MODEL_WITHOUT_PORES", "/data/lrm-pulseBenchmark.data", false, true, disc, 2e-5, 1e-7);
+	cadet::test::column::testAnalyticBenchmark("LUMPED_RATE_MODEL_WITHOUT_PORES", "/data/lrm-pulseBenchmark.data", false, false, disc, 2e-5, 1e-7);
+}
 
-	// Setup simulation
-	bool dynamicBinding = true;
+TEST_CASE("LRM_DG non-binding linear pulse vs analytic solution", "[LRM],[DG],[Simulation],[Analytic],[NonBinding],[CI]")
+{
+	cadet::test::column::DGparams disc;
+	cadet::test::column::testAnalyticNonBindingBenchmark("LUMPED_RATE_MODEL_WITHOUT_PORES", "/data/lrm-nonBinding.data", true, disc, 2e-5, 1e-7);
+	cadet::test::column::testAnalyticNonBindingBenchmark("LUMPED_RATE_MODEL_WITHOUT_PORES", "/data/lrm-nonBinding.data", false, disc, 2e-5, 1e-7);
+}
+
+//TEST_CASE("LRM_DG Jacobian forward vs backward flow", "[LRM],[DG],[UnitOp],[Residual],[Jacobian],[AD],[fix]")
+//{
+//	cadet::test::column::DGparams disc;
+//
+//	// Test all integration modes
+//	for (int i = 0; i < 2; i++)
+//	{
+//		disc.setIntegrationMode(i);
+//		cadet::test::column::testJacobianForwardBackward("LUMPED_RATE_MODEL_WITHOUT_PORES", disc, std::numeric_limits<float>::epsilon() * 100.0);
+//	}
+//}
+
+TEST_CASE("LRM_DG numerical Benchmark with parameter sensitivities for linear case", "[LRM],[DG],[Simulation],[Reference],[Sensitivity],[CI]")
+{
+	const std::string& modelFilePath = std::string("/data/model_LRM_dynLin_1comp_benchmark1.json");
+	const std::string& refFilePath = std::string("/data/ref_LRM_dynLin_1comp_sensbenchmark1_DG_P3Z8.h5");
+	const std::vector<double> absTol = { 1e-12, 1e-12, 1e-12, 1e-12 };
+	const std::vector<double> relTol = { 1.0, 1.0, 1.0, 1.0 };
+
+	cadet::test::column::DGparams disc(0, 3, 8);
+	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "001", absTol, relTol, disc, true);
+}
+
+TEST_CASE("LRM_DG numerical Benchmark with parameter sensitivities for SMA LWE case", "[LRM],[DG],[Simulation],[Reference],[Sensitivity]") // todo CI flag: currently only runs locally but fails on server
+{
+	const std::string& modelFilePath = std::string("/data/model_LRM_reqSMA_4comp_benchmark1.json");
+	const std::string& refFilePath = std::string("/data/ref_LRM_reqSMA_4comp_sensbenchmark1_DG_P3Z8.h5");
+	const std::vector<double> absTol = { 1e-12, 1e-12, 1e-12, 1e-12 };
+	const std::vector<double> relTol = { 1.0, 1.0, 1.0, 1.0 };
+
+	cadet::test::column::DGparams disc(0, 3, 8);
+	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "000", absTol, relTol, disc, true);
+}
+
+TEST_CASE("LRM_DG time derivative Jacobian vs FD", "[LRM],[DG],[UnitOp],[Residual],[Jacobian],[CI]")
+{
+	cadet::test::column::testTimeDerivativeJacobianFD("LUMPED_RATE_MODEL_WITHOUT_PORES", "DG");
+}
+
+TEST_CASE("LRM_DG sensitivity Jacobians", "[LRM],[DG],[UnitOp],[Sensitivity],[CI]")
+{
+	cadet::test::column::testFwdSensJacobians("LUMPED_RATE_MODEL_WITHOUT_PORES", "DG", 1e-4, 3e-7, 5e-4);
+}
+
+//TEST_CASE("LRM_DG forward sensitivity vs FD", "[LRM],[DG],[Sensitivity],[Simulation]") // todo fix tolerances (also for FV)
+//{
+//	// Relative error is checked first, we use high absolute error for letting
+//	// some points that are far off pass the error test, too. This is required
+//	// due to errors in finite differences.
+//	const double fdStepSize[] = { 5e-3, 5e-3, 5e-3, 1e-3 };
+//	const double absTols[] = { 2e8, 8e-3, 2e-2, 3e-1 };
+//	const double relTols[] = { 1e-1, 5e-1, 5e-2, 1e-2 };
+//	const double passRatio[] = { 0.88, 0.84, 0.73, 0.87 };
+//	cadet::test::column::testFwdSensSolutionFD("LUMPED_RATE_MODEL_WITHOUT_PORES", "DG", false, fdStepSize, absTols, relTols, passRatio);
+//}
+
+//TEST_CASE("LRM_DG forward sensitivity forward vs backward flow", "[LRM],[DG],[Sensitivity],[Simulation]") // todo fix  (also for FV) tolerances? why is there a pass ratio here, shouldnt this be precise?
+//{
+//	const double absTols[] = { 500.0, 8e-7, 9e-7, 2e-3 };
+//	const double relTols[] = { 7e-3, 5e-5, 5e-5, 9e-4 };
+//	const double passRatio[] = { 0.99, 0.97, 0.97, 0.98 };
+//	cadet::test::column::testFwdSensSolutionForwardBackward("LUMPED_RATE_MODEL_WITHOUT_PORES", "DG", absTols, relTols, passRatio);
+//}
+
+TEST_CASE("LRM_DG consistent initialization with linear binding", "[LRM],[DG],[ConsistentInit],[CI]")
+{
+	cadet::test::column::testConsistentInitializationLinearBinding("LUMPED_RATE_MODEL_WITHOUT_PORES", "DG", 1e-12, 1e-12);
+}
+
+//TEST_CASE("LRM_DG consistent initialization with SMA binding", "[LRM],[DG],[ConsistentInit]") // todo fix (also for FV)
+//{
+//	std::vector<double> y(4 + 16 * (4 + 4), 0.0);
+//	// Optimal values:
+//	//	const double bindingCell[] = {1.2, 2.0, 1.0, 1.5, 858.034, 66.7896, 3.53273, 2.53153, 
+//	//		1.0, 1.8, 1.5, 1.6, 856.173, 64.457, 5.73227, 2.85286};
+//	const double bindingCell[] = { 1.2, 2.0, 1.0, 1.5, 840.0, 63.0, 3.0, 3.0,
+//		1.0, 1.8, 1.5, 1.6, 840.0, 63.0, 6.0, 3.0 };
+//	cadet::test::util::populate(y.data(), [](unsigned int idx) { return std::abs(std::sin(idx * 0.13)) + 1e-4; }, 4);
+//	cadet::test::util::repeat(y.data() + 4, bindingCell, 16, 8);
+//
+//	cadet::test::column::testConsistentInitializationSMABinding("LUMPED_RATE_MODEL_WITHOUT_PORES", "DG", y.data(), 1e-14, 1e-5);
+//}
+
+TEST_CASE("LRM_DG consistent sensitivity initialization with linear binding", "[LRM],[DG],[ConsistentInit],[Sensitivity],[CI]")
+{
+	// Fill state vector with given initial values
+	const unsigned int numDofs = 4 + 10 * (4 + 4);
+	std::vector<double> y(numDofs, 0.0);
+	std::vector<double> yDot(numDofs, 0.0);
+	cadet::test::util::populate(y.data(), [](unsigned int idx) { return std::abs(std::sin(idx * 0.13)) + 1e-4; }, numDofs);
+	cadet::test::util::populate(yDot.data(), [](unsigned int idx) { return std::abs(std::sin(idx * 0.9)) + 1e-4; }, numDofs);
+
+	cadet::test::column::testConsistentInitializationSensitivity("LUMPED_RATE_MODEL_WITHOUT_PORES", "DG", y.data(), yDot.data(), true, 1e-14);
+}
+
+//// todo fix: sigsev read access violation when allocating _tempState = new double[numDofs()] in configure model discretization
+//TEST_CASE("LRM_DG consistent sensitivity initialization with SMA binding", "[LRM],[DG],[ConsistentInit],[Sensitivity],[todo]")
+//{
+//	// Fill state vector with given initial values
+//	const unsigned int numDofs = 4 + 10 * (4 + 4);
+//	std::vector<double> y(numDofs, 0.0);
+//	std::vector<double> yDot(numDofs, 0.0);
+//
+//	const double bindingCell[] = { 1.0, 1.8, 1.5, 1.6, 840.0, 63.0, 6.0, 3.0 };
+//	cadet::test::util::populate(y.data(), [](unsigned int idx) { return std::abs(std::sin(idx * 0.13)) + 1e-4; }, 4);
+//	cadet::test::util::repeat(y.data() + 4, bindingCell, 8, 16);
+//
+//	cadet::test::util::populate(yDot.data(), [](unsigned int idx) { return std::abs(std::sin(idx * 0.9)) + 1e-4; }, numDofs);
+//
+//	cadet::test::column::testConsistentInitializationSensitivity("LUMPED_RATE_MODEL_WITHOUT_PORES", "DG", y.data(), yDot.data(), false, 1e-10);
+//}
+
+TEST_CASE("LRM_DG inlet DOF Jacobian", "[LRM],[DG],[UnitOp],[Jacobian],[Inlet],[CI]")
+{
+	cadet::test::column::testInletDofJacobian("LUMPED_RATE_MODEL_WITHOUT_PORES", "DG");
+}
+
+TEST_CASE("LRM_DG transport Jacobian", "[LRM],[FV],[UnitOp],[Jacobian],[CI]")
+{
+	cadet::JsonParameterProvider jpp = createColumnLinearBenchmark(false, true, "LUMPED_RATE_MODEL_WITHOUT_PORES", "DG");
+	cadet::test::column::testJacobianAD(jpp, std::numeric_limits<float>::epsilon() * 100.0);
+}
+
+TEST_CASE("LRM_DG with two component linear binding Jacobian", "[LRM],[FV],[UnitOp],[Jacobian],[CI]")
+{
 	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding("LUMPED_RATE_MODEL_WITHOUT_PORES", "DG");
-	setParameters(jpp, 10, 2, "LAGRANGE");
-	cadet::IUnitOperation* const unit = cadet::test::unitoperation::createAndConfigureUnit(jpp, *mb);
+	cadet::test::column::testJacobianAD(jpp, std::numeric_limits<float>::epsilon() * 100.0);
+}
 
-	// Disable AD
-	unit->useAnalyticJacobian(true);
+TEST_CASE("LRM_DG dynamic reactions Jacobian vs AD bulk", "[LRM],[DG],[Jacobian],[AD],[ReactionModel],[CI]")
+{
+	cadet::test::reaction::testUnitJacobianDynamicReactionsAD("LUMPED_RATE_MODEL_WITHOUT_PORES", "DG", true, false, false, std::numeric_limits<float>::epsilon() * 100.0);
+}
 
-	// Obtain memory for state, etc.
-	std::vector<double> y(unit->numDofs(), 0.0);
-	std::vector<double> yDot(unit->numDofs(), 0.0);
-	std::vector<double> res(unit->numDofs(), 0.0);
+TEST_CASE("LRM_DG dynamic reactions Jacobian vs AD modified bulk", "[LRM],[DG],[Jacobian],[AD],[ReactionModel],[CI]")
+{
+	cadet::test::reaction::testUnitJacobianDynamicReactionsAD("LUMPED_RATE_MODEL_WITHOUT_PORES", "DG", true, false, true, std::numeric_limits<float>::epsilon() * 100.0);
+}
 
-	// Fill state vector with some values
-	cadet::test::util::populate(y.data(), [](unsigned int idx) { return std::abs(std::sin(idx * 0.13)) + 1e-4; }, unit->numDofs());
-	cadet::test::util::populate(yDot.data(), [](unsigned int idx) { return std::abs(std::sin(idx * 0.11)) + 2e-4; }, unit->numDofs());
+TEST_CASE("LRM_DG dynamic reactions time derivative Jacobian vs FD bulk", "[LRM],[DG],[Jacobian],[Residual],[ReactionModel],[CI]")
+{
+	cadet::test::reaction::testTimeDerivativeJacobianDynamicReactionsFD("LUMPED_RATE_MODEL_WITHOUT_PORES", "DG", true, false, false, 1e-6, 1e-14, 8e-4);
+}
 
-	const cadet::AdJacobianParams noAdParams{nullptr, nullptr, 0u};
-	const cadet::ConstSimulationState simState{y.data(), yDot.data()};
-
-	// Evaluate residual
-	const cadet::SimulationTime simTime{0.0, 0u};
-	cadet::util::ThreadLocalStorage tls;
-	tls.resize(unit->threadLocalMemorySize());
-
-	unit->residualWithJacobian(simTime, simState, res.data(), noAdParams, tls);
-
-	mb->destroyUnitOperation(unit);
-	destroyModelBuilder(mb);
+TEST_CASE("LRM_DG dynamic reactions time derivative Jacobian vs FD modified bulk", "[LRM],[DG],[Jacobian],[Residual],[ReactionModel],[CI]")
+{
+	cadet::test::reaction::testTimeDerivativeJacobianDynamicReactionsFD("LUMPED_RATE_MODEL_WITHOUT_PORES", "DG", true, false, true, 1e-6, 1e-14, 8e-4);
 }

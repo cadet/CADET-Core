@@ -411,16 +411,16 @@ namespace reaction
 		}
 	}
 
-	void testUnitJacobianDynamicReactionsAD(cadet::JsonParameterProvider& jpp, bool bulk, bool particle, bool particleModifiers)
+	void testUnitJacobianDynamicReactionsAD(cadet::JsonParameterProvider& jpp, bool bulk, bool particle, bool particleModifiers, const double absTolFDpattern)
 	{
 		extendModelWithDynamicReactions(jpp, 0, bulk, particle, particleModifiers);
-		unitoperation::testJacobianAD(jpp);
+		unitoperation::testJacobianAD(jpp, absTolFDpattern);
 	}
 
-	void testUnitJacobianDynamicReactionsAD(const std::string& uoType, const std::string& spatialMethod, bool bulk, bool particle, bool particleModifiers)
+	void testUnitJacobianDynamicReactionsAD(const std::string& uoType, const std::string& spatialMethod, bool bulk, bool particle, bool particleModifiers, const double absTolFDpattern)
 	{
 		cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding(uoType, spatialMethod);
-		testUnitJacobianDynamicReactionsAD(jpp, bulk, particle, particleModifiers);
+		testUnitJacobianDynamicReactionsAD(jpp, bulk, particle, particleModifiers, absTolFDpattern);
 	}
 
 	void testTimeDerivativeJacobianDynamicReactionsFD(cadet::JsonParameterProvider& jpp, bool bulk, bool particle, bool particleModifiers, double h, double absTol, double relTol)
