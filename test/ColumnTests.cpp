@@ -48,24 +48,20 @@ const char* getTestDirectory();
 namespace
 {
 	/**
-	 * @brief Creates a runnable column model with given WENO order
+	 * @brief Creates a runnable column model
 	 * @details Creates a column model and configures it using the given IParameterProvider @p jpp.
 	 * @param [in] uoType Unit operation type
 	 * @param [in] mb ModelBuilder
 	 * @param [in] jpp Configuration of the model
-	 * @param [in] wenoOrder WENO order
 	 * @return Runnable column model
 	 */
-	inline cadet::IUnitOperation* createAndConfigureUnit(const std::string& uoType, cadet::IModelBuilder& mb, cadet::JsonParameterProvider& jpp, int wenoOrder)
+	inline cadet::IUnitOperation* createAndConfigureUnit(const std::string& uoType, cadet::IModelBuilder& mb, cadet::JsonParameterProvider& jpp)
 	{
 		// Create a unit
 		cadet::IModel* const iUnit = mb.createUnitOperation(jpp, 0);
 		REQUIRE(nullptr != iUnit);
 
 		cadet::IUnitOperation* const unit = reinterpret_cast<cadet::IUnitOperation*>(iUnit);
-
-		// Set WENO order
-		cadet::test::column::setWenoOrder(jpp, wenoOrder);
 
 		// Configure
 		cadet::ModelBuilder& temp = *reinterpret_cast<cadet::ModelBuilder*>(&mb);
@@ -77,6 +73,21 @@ namespace
 		REQUIRE(unit->numComponents() == nComp);
 
 		return unit;
+	}
+	/**
+	 * @brief Creates a runnable column model with given discretization parameters
+	 * @details Creates a column model and configures it using the given IParameterProvider @p jpp.
+	 * @param [in] uoType Unit operation type
+	 * @param [in] mb ModelBuilder
+	 * @param [in] jpp Configuration of the model
+	 * @param [in] disc discretization parameters
+	 * @return Runnable column model
+	 */
+	inline cadet::IUnitOperation* createAndConfigureUnit(const std::string& uoType, cadet::IModelBuilder& mb, cadet::JsonParameterProvider& jpp, cadet::test::column::DiscParams& disc)
+	{
+		// Set discretization parameters
+		disc.setDisc(jpp);
+		return createAndConfigureUnit(uoType, mb, jpp);
 	}
 
 	class FluxOffsetExtractionRecorder : public cadet::ISolutionRecorder
@@ -126,6 +137,75 @@ namespace test
 
 namespace column
 {
+
+	void FVparams::setDisc(JsonParameterProvider& jpp) const {
+
+		int level = 0;
+
+		if (jpp.exists("model"))
+		{
+			jpp.pushScope("model");
+			++level;
+		}
+		if (jpp.exists("unit_000"))
+		{
+			jpp.pushScope("unit_000");
+			++level;
+		}
+
+		jpp.pushScope("discretization");
+
+		if (nCol)
+			jpp.set("NCOL", nCol);
+
+		if (nPar)
+			jpp.set("NPAR", nPar);
+
+		jpp.pushScope("weno");
+
+		if (wenoOrder)
+			jpp.set("WENO_ORDER", wenoOrder);
+
+		jpp.popScope();
+		jpp.popScope();
+
+		for (int l = 0; l < level; ++l)
+			jpp.popScope();
+	}
+
+	void DGparams::setDisc(JsonParameterProvider& jpp) const {
+
+		int level = 0;
+
+		if (jpp.exists("model"))
+		{
+			jpp.pushScope("model");
+			++level;
+		}
+		if (jpp.exists("unit_000"))
+		{
+			jpp.pushScope("unit_000");
+			++level;
+		}
+
+		jpp.pushScope("discretization");
+
+		if (exactIntegration > -1)
+			jpp.set("EXACT_INTEGRATION", exactIntegration);
+		if (polyDeg)
+			jpp.set("POLYDEG", polyDeg);
+		if (nElem)
+			jpp.set("NELEM", nElem);
+		if (parNelem)
+			jpp.set("NELEM", parNelem);
+		if (parPolyDeg)
+			jpp.set("POLYDEG", parPolyDeg);
+
+		jpp.popScope();
+
+		for (int l = 0; l < level; ++l)
+			jpp.popScope();
+	}
 
 	/**
 	 * @brief Reads reference chromatograms from a test data file
@@ -278,7 +358,7 @@ namespace column
 
 		jpp.popScope();
 		jpp.popScope();
-	
+
 		for (int l = 0; l < level; ++l)
 			jpp.popScope();
 	}
@@ -538,131 +618,127 @@ namespace column
 		return foer.fluxOffset();
 	}
 
-	void testWenoForwardBackward(const char* uoType, int wenoOrder, double absTol, double relTol)
+	void testForwardBackward(cadet::JsonParameterProvider jpp, double absTol, double relTol)
 	{
-		SECTION("Forward vs backward flow (WENO=" + std::to_string(wenoOrder) + ")")
+		// Forward flow
+		cadet::Driver drvFwd;
+		drvFwd.configure(jpp);
+		drvFwd.run();
+
+		// Backward flow
+		reverseFlow(jpp);
+		cadet::Driver drvBwd;
+		drvBwd.configure(jpp);
+		drvBwd.run();
+
+		cadet::InternalStorageUnitOpRecorder const* const fwdData = drvFwd.solution()->unitOperation(0);
+		cadet::InternalStorageUnitOpRecorder const* const bwdData = drvBwd.solution()->unitOperation(0);
+
+		double const* fwdInlet = fwdData->inlet();
+		double const* fwdOutlet = fwdData->outlet();
+		double const* bwdInlet = bwdData->inlet();
+		double const* bwdOutlet = bwdData->outlet();
+
+		const unsigned int nComp = fwdData->numComponents();
+		for (unsigned int i = 0; i < fwdData->numDataPoints() * fwdData->numInletPorts() * nComp; ++i, ++fwdInlet, ++fwdOutlet, ++bwdInlet, ++bwdOutlet)
+		{
+			// Forward flow inlet = backward flow outlet
+			CAPTURE(i);
+			CHECK((*fwdInlet) == makeApprox(*bwdInlet, relTol, absTol));
+
+			// Forward flow outlet = backward flow inlet
+			CAPTURE(i);
+			CHECK((*fwdOutlet) == makeApprox(*bwdOutlet, relTol, absTol));
+		}
+	}
+
+	void testForwardBackward(const char* uoType, FVparams disc, double absTol, double relTol)
+	{
+		SECTION("Forward vs backward flow (WENO=" + std::to_string(disc.getWenoOrder()) + ")")
 		{
 			// Use Load-Wash-Elution test case
-			cadet::JsonParameterProvider jpp = createLWE(uoType);
-			setWenoOrder(jpp, wenoOrder);
+			cadet::JsonParameterProvider jpp = createLWE(uoType, "FV");
+			disc.setDisc(jpp);
 
-			// Forward flow
-			cadet::Driver drvFwd;
-			drvFwd.configure(jpp);
-			drvFwd.run();
+			testForwardBackward(jpp, absTol, relTol);
+		}
+	}
 
-			// Backward flow
+	void testForwardBackward(const char* uoType, DGparams disc, double absTol, double relTol)
+	{
+		SECTION("Forward vs backward flow (DG integration mode " + std::to_string(disc.getIntegrationMode()) + ")")
+		{
+			// Use Load-Wash-Elution test case
+			cadet::JsonParameterProvider jpp = createLWE(uoType, "DG");
+			disc.setDisc(jpp);
+
+			testForwardBackward(jpp, absTol, relTol);
+		}
+	}
+
+	void testAnalyticBenchmark(cadet::JsonParameterProvider jpp, const char* refFileRelPath, bool forwardFlow, bool dynamicBinding, double absTol, double relTol)
+	{
+		if (!forwardFlow)
 			reverseFlow(jpp);
-			cadet::Driver drvBwd;
-			drvBwd.configure(jpp);
-			drvBwd.run();
 
-			cadet::InternalStorageUnitOpRecorder const* const fwdData = drvFwd.solution()->unitOperation(0);
-			cadet::InternalStorageUnitOpRecorder const* const bwdData = drvBwd.solution()->unitOperation(0);
+		// Run simulation
+		cadet::Driver drv;
+		drv.configure(jpp);
+		drv.run();
 
-			double const* fwdInlet = fwdData->inlet();
-			double const* fwdOutlet = fwdData->outlet();
-			double const* bwdInlet = bwdData->inlet();
-			double const* bwdOutlet = bwdData->outlet();
+		// Read reference data from test file
+		const std::string refFile = std::string(getTestDirectory()) + std::string(refFileRelPath);
+		ReferenceDataReader rd(refFile.c_str());
+		const std::vector<double> time = rd.time();
+		const std::vector<double> ref = (dynamicBinding ? rd.analyticDynamic() : rd.analyticQuasiStationary());
 
-			const unsigned int nComp = fwdData->numComponents();
-			for (unsigned int i = 0; i < fwdData->numDataPoints() * fwdData->numInletPorts() * nComp; ++i, ++fwdInlet, ++fwdOutlet, ++bwdInlet, ++bwdOutlet)
-			{
-				// Forward flow inlet = backward flow outlet
-				CAPTURE(i);
-				CHECK((*fwdInlet) == makeApprox(*bwdInlet, relTol, absTol));
+		// Get data from simulation
+		cadet::InternalStorageUnitOpRecorder const* const simData = drv.solution()->unitOperation(0);
+		double const* outlet = simData->outlet();
 
-				// Forward flow outlet = backward flow inlet
-				CAPTURE(i);
-				CHECK((*fwdOutlet) == makeApprox(*bwdOutlet, relTol, absTol));
-			}
+		// Compare
+		for (unsigned int i = 0; i < simData->numDataPoints() * simData->numComponents() * simData->numInletPorts(); ++i, ++outlet)
+		{
+			// Note that the simulation only saves the chromatogram at multiples of 2 (i.e., 0s, 2s, 4s, ...)
+			// whereas the reference solution is given at every second (0s, 1s, 2s, 3s, ...)
+			// Thus, we only take the even indices of the reference array
+			CAPTURE(time[2 * i]);
+			CHECK((*outlet) == makeApprox(ref[2 * i], relTol, absTol));
 		}
 	}
 
-	void testAnalyticBenchmark(const char* uoType, const char* refFileRelPath, bool forwardFlow, bool dynamicBinding, unsigned int nCol, double absTol, double relTol)
+	void testAnalyticBenchmark(const char* uoType, const char* refFileRelPath, bool forwardFlow, bool dynamicBinding, DiscParams& disc, const std::string method, double absTol, double relTol)
 	{
 		const std::string fwdStr = (forwardFlow ? "forward" : "backward");
-		SECTION("Analytic " + fwdStr + " flow with " + (dynamicBinding ? "dynamic" : "quasi-stationary") + " binding")
+		SECTION(method + ": Analytic " + fwdStr + " flow with " + (dynamicBinding ? "dynamic" : "quasi-stationary") + " binding")
 		{
 			// Setup simulation
-			cadet::JsonParameterProvider jpp = createLinearBenchmark(dynamicBinding, false, uoType);
-			setNumAxialCells(jpp, nCol);
-			if (!forwardFlow)
-				reverseFlow(jpp);
+			cadet::JsonParameterProvider jpp = createLinearBenchmark(dynamicBinding, false, uoType, method);
+			disc.setDisc(jpp);
 
-			// Run simulation
-			cadet::Driver drv;
-			drv.configure(jpp);
-			drv.run();
-
-			// Read reference data from test file
-			const std::string refFile = std::string(getTestDirectory()) + std::string(refFileRelPath);
-			ReferenceDataReader rd(refFile.c_str());
-			const std::vector<double> time = rd.time();
-			const std::vector<double> ref = (dynamicBinding ? rd.analyticDynamic() : rd.analyticQuasiStationary());
-
-			// Get data from simulation
-			cadet::InternalStorageUnitOpRecorder const* const simData = drv.solution()->unitOperation(0);
-			double const* outlet = simData->outlet();
-
-			// Compare
-			for (unsigned int i = 0; i < simData->numDataPoints() * simData->numComponents() * simData->numInletPorts(); ++i, ++outlet)
-			{
-				// Note that the simulation only saves the chromatogram at multiples of 2 (i.e., 0s, 2s, 4s, ...)
-				// whereas the reference solution is given at every second (0s, 1s, 2s, 3s, ...)
-				// Thus, we only take the even indices of the reference array
-				CAPTURE(time[2 * i]);
-				CHECK((*outlet) == makeApprox(ref[2 * i], relTol, absTol));
-			}
+			testAnalyticBenchmark(jpp, refFileRelPath, forwardFlow, dynamicBinding, absTol, relTol);
 		}
 	}
 
-	void testAnalyticBenchmark_DG(const char* uoType, const char* refFileRelPath, bool forwardFlow, bool dynamicBinding, std::string basis, unsigned int polyDeg, unsigned int nCol, double absTol, double relTol)
+	void testAnalyticBenchmark(const char* uoType, const char* refFileRelPath, bool forwardFlow, bool dynamicBinding, FVparams& disc, double absTol, double relTol)
 	{
-		const std::string fwdStr = (forwardFlow ? "forward" : "backward");
-		SECTION("Analytic " + fwdStr + " flow with " + (dynamicBinding ? "dynamic" : "quasi-stationary") + " binding")
-		{
-			// Setup simulation
-			cadet::JsonParameterProvider jpp = createLinearBenchmark(dynamicBinding, false, uoType);
-			setDG(jpp, basis, polyDeg, nCol);
-			if (!forwardFlow)
-				reverseFlow(jpp);
-
-			// Run simulation
-			cadet::Driver drv;
-			drv.configure(jpp);
-			drv.run();
-
-			// Read reference data from test file
-			const std::string refFile = std::string(getTestDirectory()) + std::string(refFileRelPath);
-			ReferenceDataReader rd(refFile.c_str());
-			const std::vector<double> time = rd.time();
-			const std::vector<double> ref = (dynamicBinding ? rd.analyticDynamic() : rd.analyticQuasiStationary());
-
-			// Get data from simulation
-			cadet::InternalStorageUnitOpRecorder const* const simData = drv.solution()->unitOperation(0);
-			double const* outlet = (forwardFlow ? simData->outlet() : simData->inlet());
-
-			// Compare
-			for (unsigned int i = 0; i < simData->numDataPoints() * simData->numComponents() * simData->numInletPorts(); ++i, ++outlet)
-			{
-				// Note that the simulation only saves the chromatogram at multiples of 2 (i.e., 0s, 2s, 4s, ...)
-				// whereas the reference solution is given at every second (0s, 1s, 2s, 3s, ...)
-				// Thus, we only take the even indices of the reference array
-				CAPTURE(time[2 * i]);
-				CHECK((*outlet) == makeApprox(ref[2 * i], relTol, absTol));
-			}
-		}
+		testAnalyticBenchmark(uoType, refFileRelPath, forwardFlow, dynamicBinding, disc, "FV", absTol, relTol);
 	}
 
-	void testAnalyticNonBindingBenchmark(const char* uoType, const char* refFileRelPath, bool forwardFlow, unsigned int nCol, double absTol, double relTol)
+	void testAnalyticBenchmark(const char* uoType, const char* refFileRelPath, bool forwardFlow, bool dynamicBinding, DGparams& disc, double absTol, double relTol)
+	{
+		testAnalyticBenchmark(uoType, refFileRelPath, forwardFlow, dynamicBinding, disc, "DG", absTol, relTol);
+	}
+
+	void testAnalyticNonBindingBenchmark(const char* uoType, const char* refFileRelPath, bool forwardFlow, DiscParams& disc, const std::string method, double absTol, double relTol)
 	{
 		const std::string fwdStr = (forwardFlow ? "forward" : "backward");
-		SECTION("Analytic " + fwdStr + " flow")
+		SECTION(method + ": Analytic " + fwdStr + " flow")
 		{
 			// Setup simulation
-			cadet::JsonParameterProvider jpp = createLinearBenchmark(true, true, uoType);
-			setNumAxialCells(jpp, nCol);
+			cadet::JsonParameterProvider jpp = createLinearBenchmark(true, true, uoType, method);
+			disc.setDisc(jpp);
+
 			if (!forwardFlow)
 				reverseFlow(jpp);
 
@@ -689,6 +765,17 @@ namespace column
 			}
 		}
 	}
+
+	void testAnalyticNonBindingBenchmark(const char* uoType, const char* refFileRelPath, bool forwardFlow, FVparams& disc, double absTol, double relTol)
+	{
+		testAnalyticNonBindingBenchmark(uoType, refFileRelPath, forwardFlow, disc, "FV", absTol, relTol);
+	}
+
+	void testAnalyticNonBindingBenchmark(const char* uoType, const char* refFileRelPath, bool forwardFlow, DGparams& disc, double absTol, double relTol)
+	{
+		testAnalyticNonBindingBenchmark(uoType, refFileRelPath, forwardFlow, disc, "DG", absTol, relTol);
+	}
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 	void testJacobianAD(cadet::JsonParameterProvider& jpp, const double absTolFDpattern)
 	{
@@ -746,64 +833,61 @@ namespace column
 		destroyModelBuilder(mb);
 	}
 
-	void testJacobianWenoForwardBackward(const std::string& uoType, int wenoOrder)
+	void testJacobianForwardBackward(cadet::JsonParameterProvider& jpp)
 	{
 		cadet::IModelBuilder* const mb = cadet::createModelBuilder();
 		REQUIRE(nullptr != mb);
 
-		SECTION("Forward vs backward flow Jacobian (WENO=" + std::to_string(wenoOrder) + ")")
-		{
-			// Use some test case parameters
-			cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding(uoType);
-			const unsigned int nComp = jpp.getInt("NCOMP");
+		// Use some test case parameters
+		const unsigned int nComp = jpp.getInt("NCOMP");
 
-			cadet::IUnitOperation* const unitAna = createAndConfigureUnit(uoType, *mb, jpp, wenoOrder);
-			cadet::IUnitOperation* const unitAD = createAndConfigureUnit(uoType, *mb, jpp, wenoOrder);
+		cadet::IUnitOperation* const unitAna = unitoperation::createAndConfigureUnit(jpp, *mb);
+		cadet::IUnitOperation* const unitAD = unitoperation::createAndConfigureUnit(jpp, *mb);
 
-			// Enable AD
-			cadet::ad::setDirections(cadet::ad::getMaxDirections());
-			unitAD->useAnalyticJacobian(false);
+		// Enable AD
+		cadet::ad::setDirections(cadet::ad::getMaxDirections());
+		unitAD->useAnalyticJacobian(false);
 
-			cadet::active* adRes = new cadet::active[unitAD->numDofs()];
-			cadet::active* adY = new cadet::active[unitAD->numDofs()];
+		cadet::active* adRes = new cadet::active[unitAD->numDofs()];
+		cadet::active* adY = new cadet::active[unitAD->numDofs()];
 
-			// Obtain memory for state, Jacobian multiply direction, Jacobian column
-			std::vector<double> y(unitAD->numDofs(), 0.0);
-			std::vector<double> jacDir(unitAD->numDofs(), 0.0);
-			std::vector<double> jacCol1(unitAD->numDofs(), 0.0);
-			std::vector<double> jacCol2(unitAD->numDofs(), 0.0);
+		// Obtain memory for state, Jacobian multiply direction, Jacobian column
+		std::vector<double> y(unitAD->numDofs(), 0.0);
+		std::vector<double> jacDir(unitAD->numDofs(), 0.0);
+		std::vector<double> jacCol1(unitAD->numDofs(), 0.0);
+		std::vector<double> jacCol2(unitAD->numDofs(), 0.0);
 
-			// Fill state vector with some values
-			util::populate(y.data(), [](unsigned int idx) { return std::abs(std::sin(idx * 0.13)) + 1e-4; }, unitAna->numDofs());
+		// Fill state vector with some values
+		util::populate(y.data(), [](unsigned int idx) { return std::abs(std::sin(idx * 0.13)) + 1e-4; }, unitAna->numDofs());
 //			util::populate(y.data(), [](unsigned int idx) { return 1.0; }, unitAna->numDofs());
 
-			// Setup matrices
-			const AdJacobianParams noAdParams{nullptr, nullptr, 0u};
-			const AdJacobianParams adParams{adRes, adY, 0u};
-			unitAD->prepareADvectors(adParams);
+		// Setup matrices
+		const AdJacobianParams noAdParams{nullptr, nullptr, 0u};
+		const AdJacobianParams adParams{adRes, adY, 0u};
+		unitAD->prepareADvectors(adParams);
 
-			unitAna->notifyDiscontinuousSectionTransition(0.0, 0u, {y.data(), nullptr}, noAdParams);
-			unitAD->notifyDiscontinuousSectionTransition(0.0, 0u, {y.data(), nullptr}, adParams);
+		unitAna->notifyDiscontinuousSectionTransition(0.0, 0u, {y.data(), nullptr}, noAdParams);
+		unitAD->notifyDiscontinuousSectionTransition(0.0, 0u, {y.data(), nullptr}, adParams);
 
-			SECTION("Forward then backward flow (nonzero state)")
-			{
-				// Compute state Jacobian
-				const SimulationTime simTime{0.0, 0u};
-				const ConstSimulationState simState{y.data(), nullptr};
-				cadet::util::ThreadLocalStorage tls;
-				tls.resize(unitAna->threadLocalMemorySize());
+		SECTION("Forward then backward flow (nonzero state)")
+		{
+			// Compute state Jacobian
+			const SimulationTime simTime{0.0, 0u};
+			const ConstSimulationState simState{y.data(), nullptr};
+			cadet::util::ThreadLocalStorage tls;
+			tls.resize(unitAna->threadLocalMemorySize());
 
-				unitAna->residualWithJacobian(simTime, simState, jacDir.data(), noAdParams, tls);
-				unitAD->residualWithJacobian(simTime, simState, jacDir.data(), adParams, tls);
-				std::fill(jacDir.begin(), jacDir.end(), 0.0);
+			unitAna->residualWithJacobian(simTime, simState, jacDir.data(), noAdParams, tls);
+			unitAD->residualWithJacobian(simTime, simState, jacDir.data(), adParams, tls);
+			std::fill(jacDir.begin(), jacDir.end(), 0.0);
 
-				// Compare Jacobians
-				cadet::test::checkJacobianPatternFD(unitAna, unitAD, y.data(), nullptr, jacDir.data(), jacCol1.data(), jacCol2.data(), tls);
-				cadet::test::checkJacobianPatternFD(unitAna, unitAna, y.data(), nullptr, jacDir.data(), jacCol1.data(), jacCol2.data(), tls);
-				cadet::test::compareJacobian(unitAna, unitAD, nullptr, nullptr, jacDir.data(), jacCol1.data(), jacCol2.data());
+			// Compare Jacobians
+			cadet::test::checkJacobianPatternFD(unitAna, unitAD, y.data(), nullptr, jacDir.data(), jacCol1.data(), jacCol2.data(), tls);
+			cadet::test::checkJacobianPatternFD(unitAna, unitAna, y.data(), nullptr, jacDir.data(), jacCol1.data(), jacCol2.data(), tls);
+			cadet::test::compareJacobian(unitAna, unitAD, nullptr, nullptr, jacDir.data(), jacCol1.data(), jacCol2.data());
 //				cadet::test::compareJacobianFD(unitAna, unitAD, y.data(), nullptr, jacDir.data(), jacCol1.data(), jacCol2.data());
 
-				if (uoType.substr(0, 6) == "RADIAL")
+			if (jpp.getString("UNIT_TYPE").substr(0, 6) == "RADIAL")
 				{
 					// Reverse flow
 					const bool paramSet = unitAna->setParameter(cadet::makeParamId(cadet::hashString("VELOCITY_COEFF"), 0, cadet::CompIndep, cadet::ParTypeIndep, cadet::BoundStateIndep, cadet::ReactionIndep, cadet::SectionIndep), -jpp.getDouble("VELOCITY_COEFF"));
@@ -822,32 +906,56 @@ namespace column
 					REQUIRE(paramSet2);
 				}
 
-				// Setup
-				unitAna->notifyDiscontinuousSectionTransition(0.0, 0u, {y.data(), nullptr}, noAdParams);
-				unitAD->notifyDiscontinuousSectionTransition(0.0, 0u, {y.data(), nullptr}, adParams);
+			// Setup
+			unitAna->notifyDiscontinuousSectionTransition(0.0, 0u, {y.data(), nullptr}, noAdParams);
+			unitAD->notifyDiscontinuousSectionTransition(0.0, 0u, {y.data(), nullptr}, adParams);
 
-				// Compute state Jacobian
-				unitAna->residualWithJacobian(simTime, simState, jacDir.data(), noAdParams, tls);
-				unitAD->residualWithJacobian(simTime, simState, jacDir.data(), adParams, tls);
-				std::fill(jacDir.begin(), jacDir.end(), 0.0);
+			// Compute state Jacobian
+			unitAna->residualWithJacobian(simTime, simState, jacDir.data(), noAdParams, tls);
+			unitAD->residualWithJacobian(simTime, simState, jacDir.data(), adParams, tls);
+			std::fill(jacDir.begin(), jacDir.end(), 0.0);
 
-				// Compare Jacobians
-				cadet::test::checkJacobianPatternFD(unitAna, unitAD, y.data(), nullptr, jacDir.data(), jacCol1.data(), jacCol2.data(), tls);
-				cadet::test::checkJacobianPatternFD(unitAna, unitAna, y.data(), nullptr, jacDir.data(), jacCol1.data(), jacCol2.data(), tls);
+			// Compare Jacobians
+			cadet::test::checkJacobianPatternFD(unitAna, unitAD, y.data(), nullptr, jacDir.data(), jacCol1.data(), jacCol2.data(), tls);
+			cadet::test::checkJacobianPatternFD(unitAna, unitAna, y.data(), nullptr, jacDir.data(), jacCol1.data(), jacCol2.data(), tls);
 //				cadet::test::compareJacobianFD(unitAD, unitAna, y.data(), jacDir.data(), nullptr, jacCol1.data(), jacCol2.data());
 //				cadet::test::compareJacobianFD(unitAna, unitAD, y.data(), jacDir.data(), nullptr, jacCol1.data(), jacCol2.data());
-				cadet::test::compareJacobian(unitAna, unitAD, nullptr, nullptr, jacDir.data(), jacCol1.data(), jacCol2.data());
-			}
-
-			delete[] adRes;
-			delete[] adY;
-			mb->destroyUnitOperation(unitAna);
-			mb->destroyUnitOperation(unitAD);
+			cadet::test::compareJacobian(unitAna, unitAD, nullptr, nullptr, jacDir.data(), jacCol1.data(), jacCol2.data());
 		}
+
+		delete[] adRes;
+		delete[] adY;
+		mb->destroyUnitOperation(unitAna);
+		mb->destroyUnitOperation(unitAD);
+		
 		destroyModelBuilder(mb);
 	}
 
-	void testJacobianWenoForwardBackwardFD(const std::string& uoType, int wenoOrder, double h, double absTol, double relTol)
+	void testJacobianForwardBackward(const char* uoType, FVparams disc)
+	{
+		SECTION("Forward vs backward flow Jacobian (WENO=" + std::to_string(disc.getWenoOrder()) + ")")
+		{
+			// Use Load-Wash-Elution test case
+			cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding(uoType, "FV");
+			disc.setDisc(jpp);
+
+			testJacobianForwardBackward(jpp);
+		}
+	}
+
+	void testJacobianForwardBackward(const char* uoType, DGparams disc)
+	{
+		SECTION("Forward vs backward flow Jacobian (DG integration mode " + std::to_string(disc.getIntegrationMode()) + ")")
+		{
+			// Use Load-Wash-Elution test case
+			cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding(uoType, "DG");
+			disc.setDisc(jpp);
+
+			testJacobianForwardBackward(jpp);
+		}
+	}
+
+	void testJacobianWenoForwardBackwardFD(const std::string& uoType, const std::string& spatialMethod, int wenoOrder, double h, double absTol, double relTol)
 	{
 		cadet::IModelBuilder* const mb = cadet::createModelBuilder();
 		REQUIRE(nullptr != mb);
@@ -855,10 +963,12 @@ namespace column
 		SECTION("Forward vs backward flow Jacobian (WENO=" + std::to_string(wenoOrder) + ")")
 		{
 			// Use some test case parameters
-			cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding(uoType);
+			cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding(uoType, spatialMethod);
 			const unsigned int nComp = jpp.getInt("NCOMP");
 
-			cadet::IUnitOperation* const unit = createAndConfigureUnit(uoType, *mb, jpp, wenoOrder);
+			FVparams disc;
+			disc.setWenoOrder(wenoOrder);
+			cadet::IUnitOperation* const unit = createAndConfigureUnit(uoType, *mb, jpp, disc);
 
 			// Obtain memory for state, Jacobian multiply direction, Jacobian column
 			std::vector<double> y(unit->numDofs(), 0.0);
@@ -910,13 +1020,13 @@ namespace column
 		destroyModelBuilder(mb);
 	}
 
-	void testTimeDerivativeJacobianFD(const std::string& uoType, double h, double absTol, double relTol)
+	void testTimeDerivativeJacobianFD(const std::string& uoType, const std::string& spatialMethod, double h, double absTol, double relTol)
 	{
 		cadet::IModelBuilder* const mb = cadet::createModelBuilder();
 		REQUIRE(nullptr != mb);
 
 		// Use some test case parameters
-		cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding(uoType);
+		cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding(uoType, spatialMethod);
 
 		for (int bindMode = 0; bindMode < 2; ++bindMode)
 		{
@@ -925,7 +1035,7 @@ namespace column
 			{
 				cadet::test::setBindingMode(jpp, isKinetic);
 
-				cadet::IUnitOperation* const unit = createAndConfigureUnit(uoType, *mb, jpp, cadet::Weno::maxOrder());
+				cadet::IUnitOperation* const unit = createAndConfigureUnit(uoType, *mb, jpp);
 
 				cadet::util::ThreadLocalStorage tls;
 				tls.resize(unit->threadLocalMemorySize());
@@ -959,20 +1069,20 @@ namespace column
 
 	void testArrowHeadJacobianFD(const std::string& uoType, double h, double absTol, double relTol)
 	{
-		cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding(uoType);
+		cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding(uoType, "FV");
 		testArrowHeadJacobianFD(jpp, h, absTol, relTol);
 	}
 
 	void testArrowHeadJacobianFD(const std::string& uoType, bool dynamicBinding, double h, double absTol, double relTol)
 	{
-		cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding(uoType);
+		cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding(uoType, "FV");
 		setBindingMode(jpp, dynamicBinding);
 		testArrowHeadJacobianFD(jpp, h, absTol, relTol);
 	}
 
 	void testArrowHeadJacobianFDVariableParSurfDiff(const std::string& uoType, double h, double absTol, double relTol)
 	{
-		cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding(uoType);
+		cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding(uoType, "FV");
 		setBindingMode(jpp, false);
 		{
 			auto ms = util::makeOptionalGroupScope(jpp, "model");
@@ -986,9 +1096,9 @@ namespace column
 		testArrowHeadJacobianFD(jpp, h, absTol, relTol);
 	}
 
-	void testJacobianADVariableParSurfDiff(const std::string& uoType, bool dynamicBinding)
+	void testJacobianADVariableParSurfDiff(const std::string& uoType, const std::string& spatialMethod, bool dynamicBinding)
 	{
-		cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding(uoType);
+		cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding(uoType, spatialMethod);
 		setBindingMode(jpp, dynamicBinding);
 		{
 			auto ms = util::makeOptionalGroupScope(jpp, "model");
@@ -1047,13 +1157,13 @@ namespace column
 		destroyModelBuilder(mb);
 	}
 
-	void testFwdSensJacobians(const std::string& uoType, double h, double absTol, double relTol)
+	void testFwdSensJacobians(const std::string& uoType, const std::string& spatialMethod, double h, double absTol, double relTol)
 	{
 		cadet::IModelBuilder* const mb = cadet::createModelBuilder();
 		REQUIRE(nullptr != mb);
 
 		// Use some test case parameters
-		cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding(uoType);
+		cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding(uoType, spatialMethod);
 
 		for (int bindMode = 0; bindMode < 2; ++bindMode)
 		{
@@ -1061,7 +1171,7 @@ namespace column
 			SECTION(isKinetic ? "Kinetic binding" : "Quasi-stationary binding")
 			{
 				cadet::test::setBindingMode(jpp, isKinetic);
-				cadet::IUnitOperation* const unit = createAndConfigureUnit(uoType, *mb, jpp, cadet::Weno::maxOrder());
+				cadet::IUnitOperation* const unit = createAndConfigureUnit(uoType, *mb, jpp);
 
 				// Enable AD
 				cadet::ad::setDirections(cadet::ad::getMaxDirections());
@@ -1137,7 +1247,7 @@ namespace column
 		destroyModelBuilder(mb);
 	}
 
-	void testFwdSensSolutionFD(const std::string& uoType, bool disableSensErrorTest, double const* fdStepSize, double const* absTols, double const* relTols, double const* passRates)
+	void testFwdSensSolutionFD(const std::string& uoType, const std::string& spatialMethod, bool disableSensErrorTest, double const* fdStepSize, double const* absTols, double const* relTols, double const* passRates)
 	{
 		const std::vector<cadet::ParameterId> params = {
 			cadet::makeParamId("COL_DISPERSION", 0, cadet::CompIndep, cadet::ParTypeIndep, cadet::BoundStateIndep, cadet::ReactionIndep, cadet::SectionIndep),
@@ -1162,7 +1272,7 @@ namespace column
 					const double h = fdStepSize[n];
 
 					// Setup simulation including forward sensitivities
-					cadet::JsonParameterProvider jppAna = createLWE(uoType);
+					cadet::JsonParameterProvider jppAna = createLWE(uoType, spatialMethod);
 					cadet::test::setBindingMode(jppAna, isKinetic);
 					cadet::test::column::setCrossSectionArea(jppAna, uoType == "LUMPED_RATE_MODEL_WITHOUT_PORES", 0);
 					cadet::test::addSensitivity(jppAna, paramNames[n], curParam, absTolSens[n]);
@@ -1177,7 +1287,7 @@ namespace column
 					drv.run();
 
 					// Setup FD simulation
-					cadet::JsonParameterProvider jppFD = createLWE(uoType);
+					cadet::JsonParameterProvider jppFD = createLWE(uoType, spatialMethod);
 					cadet::test::setBindingMode(jppFD, isKinetic);
 					cadet::test::column::setCrossSectionArea(jppFD, uoType == "LUMPED_RATE_MODEL_WITHOUT_PORES", 0);
 
@@ -1236,7 +1346,7 @@ namespace column
 		}
 	}
 
-	void testFwdSensSolutionForwardBackward(const std::string& uoType, double const* absTols, double const* relTols, double const* passRates)
+	void testFwdSensSolutionForwardBackward(const std::string& uoType, const std::string& spatialMethod, double const* absTols, double const* relTols, double const* passRates)
 	{
 		const std::vector<cadet::ParameterId> params = {
 			cadet::makeParamId("COL_DISPERSION", 0, cadet::CompIndep, cadet::ParTypeIndep, cadet::BoundStateIndep, cadet::ReactionIndep, cadet::SectionIndep),
@@ -1260,7 +1370,7 @@ namespace column
 					const cadet::ParameterId& curParam = params[n];
 
 					// Setup simulation including forward sensitivities
-					cadet::JsonParameterProvider jpp = createLWE(uoType);
+					cadet::JsonParameterProvider jpp = createLWE(uoType, spatialMethod);
 					cadet::test::setBindingMode(jpp, isKinetic);
 					cadet::test::column::setCrossSectionArea(jpp, uoType == "LUMPED_RATE_MODEL_WITHOUT_PORES", 1);
 					cadet::test::addSensitivity(jpp, paramNames[n], curParam, absTolSens[n]);
@@ -1313,7 +1423,7 @@ namespace column
 		}
 	}
 
-	void testConsistentInitializationLinearBinding(const std::string& uoType, double consTol, double absTol)
+	void testConsistentInitializationLinearBinding(const std::string& uoType, const std::string& spatialMethod, double consTol, double absTol)
 	{
 		cadet::IModelBuilder* const mb = cadet::createModelBuilder();
 		REQUIRE(nullptr != mb);
@@ -1327,9 +1437,9 @@ namespace column
 				SECTION(std::string(isKinetic ? " Kinetic binding" : " Quasi-stationary binding") + " with AD " + (adEnabled ? "enabled" : "disabled"))
 				{
 					// Use some test case parameters
-					cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding(uoType);
+					cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding(uoType, spatialMethod);
 					cadet::test::setBindingMode(jpp, isKinetic);
-					cadet::IUnitOperation* const unit = createAndConfigureUnit(uoType, *mb, jpp, cadet::Weno::maxOrder());
+					cadet::IUnitOperation* const unit = createAndConfigureUnit(uoType, *mb, jpp);
 
 					// Fill state vector with given initial values
 					std::vector<double> y(unit->numDofs(), 0.0);
@@ -1344,7 +1454,7 @@ namespace column
 		destroyModelBuilder(mb);
 	}
 
-	void testConsistentInitializationSMABinding(const std::string& uoType, double const* const initState, double consTol, double absTol)
+	void testConsistentInitializationSMABinding(const std::string& uoType, const std::string& spatialMethod, double const* const initState, double consTol, double absTol)
 	{
 		cadet::IModelBuilder* const mb = cadet::createModelBuilder();
 		REQUIRE(nullptr != mb);
@@ -1358,9 +1468,9 @@ namespace column
 				SECTION(std::string(isKinetic ? " Kinetic binding" : " Quasi-stationary binding") + " with AD " + (adEnabled ? "enabled" : "disabled"))
 				{
 					// Use some test case parameters
-					cadet::JsonParameterProvider jpp = createColumnWithSMA(uoType);
+					cadet::JsonParameterProvider jpp = createColumnWithSMA(uoType, spatialMethod);
 					cadet::test::setBindingMode(jpp, isKinetic);
-					cadet::IUnitOperation* const unit = createAndConfigureUnit(uoType, *mb, jpp, cadet::Weno::maxOrder());
+					cadet::IUnitOperation* const unit = createAndConfigureUnit(uoType, *mb, jpp);
 
 					// Fill state vector with given initial values
 					std::vector<double> y(initState, initState + unit->numDofs());
@@ -1374,7 +1484,7 @@ namespace column
 		destroyModelBuilder(mb);
 	}
 
-	void testConsistentInitializationSensitivity(const std::string& uoType, double const* const y, double const* const yDot, bool linearBinding, double absTol)
+	void testConsistentInitializationSensitivity(const std::string& uoType, const std::string& spatialMethod, double const* const y, double const* const yDot, bool linearBinding, double absTol)
 	{
 		cadet::IModelBuilder* const mb = cadet::createModelBuilder();
 		REQUIRE(nullptr != mb);
@@ -1388,9 +1498,9 @@ namespace column
 				SECTION(std::string(isKinetic ? " Kinetic binding" : " Quasi-stationary binding") + " with AD " + (adEnabled ? "enabled" : "disabled"))
 				{
 					// Use some test case parameters
-					cadet::JsonParameterProvider jpp = linearBinding ? createColumnWithTwoCompLinearBinding(uoType) : createColumnWithSMA(uoType);
+					cadet::JsonParameterProvider jpp = linearBinding ? createColumnWithTwoCompLinearBinding(uoType, spatialMethod) : createColumnWithSMA(uoType, spatialMethod);
 					cadet::test::setBindingMode(jpp, isKinetic);
-					cadet::IUnitOperation* const unit = createAndConfigureUnit(uoType, *mb, jpp, cadet::Weno::maxOrder());
+					cadet::IUnitOperation* const unit = createAndConfigureUnit(uoType, *mb, jpp);
 
 					unit->setSensitiveParameter(cadet::makeParamId("INIT_C", 0, 0, cadet::ParTypeIndep, cadet::BoundStateIndep, cadet::ReactionIndep, cadet::SectionIndep), 0, 1.0);
 					if (linearBinding)
@@ -1410,7 +1520,7 @@ namespace column
 		destroyModelBuilder(mb);
 	}
 
-	void testInletDofJacobian(const std::string& uoType)
+	void testInletDofJacobian(const std::string& uoType, const std::string& spatialMethod)
 	{
 		cadet::IModelBuilder* const mb = cadet::createModelBuilder();
 		REQUIRE(nullptr != mb);
@@ -1421,8 +1531,8 @@ namespace column
 			SECTION(std::string("AD ") + (adEnabled ? "enabled" : "disabled"))
 			{
 				// Use some test case parameters
-				cadet::JsonParameterProvider jpp = createColumnWithSMA(uoType);
-				cadet::IUnitOperation* const unit = createAndConfigureUnit(uoType, *mb, jpp, cadet::Weno::maxOrder());
+				cadet::JsonParameterProvider jpp = createColumnWithSMA(uoType, spatialMethod);
+				cadet::IUnitOperation* const unit = createAndConfigureUnit(uoType, *mb, jpp);
 
 				unitoperation::testInletDofJacobian(unit, adEnabled);
 

@@ -37,7 +37,7 @@ TEST_CASE("Radial GRM numerical Benchmark with parameter sensitivities for linea
 
 TEST_CASE("Radial GRM transport Jacobian", "[RadGRM],[UnitOp],[Jacobian],[CI]")
 {
-	cadet::JsonParameterProvider jpp = createColumnLinearBenchmark(false, true, "RADIAL_GENERAL_RATE_MODEL");
+	cadet::JsonParameterProvider jpp = createColumnLinearBenchmark(false, true, "RADIAL_GENERAL_RATE_MODEL", "FV");
 	cadet::test::column::testJacobianAD(jpp, std::numeric_limits<float>::epsilon() * 100.0);
 }
 
@@ -45,12 +45,13 @@ TEST_CASE("Radial GRM transport Jacobian", "[RadGRM],[UnitOp],[Jacobian],[CI]")
 
 TEST_CASE("Radial GRM Jacobian forward vs backward flow", "[RadGRM],[UnitOp],[Residual],[Jacobian],[AD],[ReleaseCI]")
 {
-	cadet::test::column::testJacobianWenoForwardBackward("RADIAL_GENERAL_RATE_MODEL", 0); // note: no weno for radial flow models atm
+	cadet::test::column::FVparams disc(16);
+	cadet::test::column::testJacobianForwardBackward("RADIAL_GENERAL_RATE_MODEL", disc);
 }
 
 TEST_CASE("Radial GRM time derivative Jacobian vs FD", "[RadGRM],[UnitOp],[Residual],[Jacobian],[ReleaseCI],[FD]")
 {
-	cadet::test::column::testTimeDerivativeJacobianFD("RADIAL_GENERAL_RATE_MODEL", 1e-6, 0.0, 9e-4);
+	cadet::test::column::testTimeDerivativeJacobianFD("RADIAL_GENERAL_RATE_MODEL", "FV", 1e-6, 0.0, 9e-4);
 }
 
 TEST_CASE("Radial GRM rapid-equilibrium binding flux Jacobian vs FD", "[RadGRM],[UnitOp],[Residual],[Jacobian],[ReleaseCI],[FD]")
@@ -65,12 +66,12 @@ TEST_CASE("Radial GRM rapid-equilibrium binding with surf diff par dep flux Jaco
 
 TEST_CASE("Radial GRM dynamic binding with surf diff par dep Jacobian vs AD", "[RadGRM],[UnitOp],[Residual],[Jacobian],[ParameterDependence],[ReleaseCI]")
 {
-	cadet::test::column::testJacobianADVariableParSurfDiff("RADIAL_GENERAL_RATE_MODEL", true);
+	cadet::test::column::testJacobianADVariableParSurfDiff("RADIAL_GENERAL_RATE_MODEL", "FV", true);
 }
 
 TEST_CASE("Radial GRM rapid-equilibrium binding with surf diff par dep Jacobian vs AD", "[RadGRM],[UnitOp],[Residual],[Jacobian],[ParameterDependence],[ReleaseCI]")
 {
-	cadet::test::column::testJacobianADVariableParSurfDiff("RADIAL_GENERAL_RATE_MODEL", false);
+	cadet::test::column::testJacobianADVariableParSurfDiff("RADIAL_GENERAL_RATE_MODEL", "FV", false);
 }
 
 TEST_CASE("Radial GRM dynamic binding flux Jacobian vs FD", "[RadGRM],[UnitOp],[Residual],[Jacobian],[ReleaseCI],[FD]")
@@ -80,7 +81,7 @@ TEST_CASE("Radial GRM dynamic binding flux Jacobian vs FD", "[RadGRM],[UnitOp],[
 
 TEST_CASE("Radial GRM sensitivity Jacobians", "[RadGRM],[UnitOp],[Sensitivity],[ReleaseCI]")
 {
-	cadet::test::column::testFwdSensJacobians("RADIAL_GENERAL_RATE_MODEL", 1e-4, 6e-7);
+	cadet::test::column::testFwdSensJacobians("RADIAL_GENERAL_RATE_MODEL", "FV", 1e-4, 6e-7);
 }
 
 //TEST_CASE("Radial GRM forward sensitivity vs FD", "[RadGRM],[Sensitivity],[Simulation],[failedFDtestGRM]") // todo fix. fails for SMA_KA for both binding modes
@@ -106,7 +107,7 @@ TEST_CASE("Radial GRM sensitivity Jacobians", "[RadGRM],[UnitOp],[Sensitivity],[
 
 TEST_CASE("Radial GRM consistent initialization with linear binding", "[RadGRM],[ConsistentInit],[ReleaseCI]")
 {
-	cadet::test::column::testConsistentInitializationLinearBinding("RADIAL_GENERAL_RATE_MODEL", 1e-12, 1e-12);
+	cadet::test::column::testConsistentInitializationLinearBinding("RADIAL_GENERAL_RATE_MODEL", "FV", 1e-12, 1e-12);
 }
 
 //TEST_CASE("Radial GRM consistent initialization with SMA binding", "[RadGRM],[ConsistentInit],[fixGRM]") // todo fix
@@ -133,7 +134,7 @@ TEST_CASE("Radial GRM consistent sensitivity initialization with linear binding"
 	cadet::test::util::populate(y.data(), [](unsigned int idx) { return std::abs(std::sin(idx * 0.13)) + 1e-4; }, numDofs);
 	cadet::test::util::populate(yDot.data(), [](unsigned int idx) { return std::abs(std::sin(idx * 0.9)) + 1e-4; }, numDofs);
 
-	cadet::test::column::testConsistentInitializationSensitivity("RADIAL_GENERAL_RATE_MODEL", y.data(), yDot.data(), true, 1e-14);
+	cadet::test::column::testConsistentInitializationSensitivity("RADIAL_GENERAL_RATE_MODEL", "FV", y.data(), yDot.data(), true, 1e-14);
 }
 
 TEST_CASE("Radial GRM consistent sensitivity initialization with SMA binding", "[RadGRM],[ConsistentInit],[Sensitivity],[ReleaseCI]")
@@ -150,53 +151,53 @@ TEST_CASE("Radial GRM consistent sensitivity initialization with SMA binding", "
 
 	cadet::test::util::populate(yDot.data(), [](unsigned int idx) { return std::abs(std::sin(idx * 0.9)) + 1e-4; }, numDofs);
 
-	cadet::test::column::testConsistentInitializationSensitivity("RADIAL_GENERAL_RATE_MODEL", y.data(), yDot.data(), false, 1e-9);
+	cadet::test::column::testConsistentInitializationSensitivity("RADIAL_GENERAL_RATE_MODEL", "FV", y.data(), yDot.data(), false, 1e-9);
 }
 
 TEST_CASE("Radial GRM inlet DOF Jacobian", "[RadGRM],[UnitOp],[Jacobian],[Inlet],[ReleaseCI]")
 {
-	cadet::test::column::testInletDofJacobian("RADIAL_GENERAL_RATE_MODEL");
+	cadet::test::column::testInletDofJacobian("RADIAL_GENERAL_RATE_MODEL", "FV");
 }
 
 TEST_CASE("Radial GRM with two component linear binding Jacobian", "[RadGRM],[UnitOp],[Jacobian],[ReleaseCI]")
 {
-	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding("RADIAL_GENERAL_RATE_MODEL");
+	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding("RADIAL_GENERAL_RATE_MODEL", "FV");
 	cadet::test::column::testJacobianAD(jpp);
 }
 
 TEST_CASE("Radial GRM LWE one vs two identical particle types match", "[RadGRM],[Simulation],[ParticleType],[ReleaseCI]")
 {
-	cadet::test::particle::testOneVsTwoIdenticalParticleTypes("RADIAL_GENERAL_RATE_MODEL", 2e-8, 5e-5);
+	cadet::test::particle::testOneVsTwoIdenticalParticleTypes("RADIAL_GENERAL_RATE_MODEL", "FV", 2e-8, 5e-5);
 }
 
 TEST_CASE("Radial GRM LWE separate identical particle types match", "[RadGRM],[Simulation],[ParticleType],[ReleaseCI]")
 {
-	cadet::test::particle::testSeparateIdenticalParticleTypes("RADIAL_GENERAL_RATE_MODEL", 1e-15, 1e-15);
+	cadet::test::particle::testSeparateIdenticalParticleTypes("RADIAL_GENERAL_RATE_MODEL", "FV", 1e-15, 1e-15);
 }
 
 TEST_CASE("Radial GRM linear binding single particle matches particle distribution", "[RadGRM],[Simulation],[ParticleType],[ReleaseCI]")
 {
-	cadet::test::particle::testLinearMixedParticleTypes("RADIAL_GENERAL_RATE_MODEL", 5e-8, 5e-5);
+	cadet::test::particle::testLinearMixedParticleTypes("RADIAL_GENERAL_RATE_MODEL", "FV", 5e-8, 5e-5);
 }
 
 TEST_CASE("Radial GRM multiple particle types Jacobian analytic vs AD", "[RadGRM],[Jacobian],[AD],[ParticleType],[ReleaseCI]")
 {
-	cadet::test::particle::testJacobianMixedParticleTypes("RADIAL_GENERAL_RATE_MODEL");
+	cadet::test::particle::testJacobianMixedParticleTypes("RADIAL_GENERAL_RATE_MODEL", "FV");
 }
 
 TEST_CASE("Radial GRM multiple particle types time derivative Jacobian vs FD", "[RadGRM],[UnitOp],[Residual],[Jacobian],[ParticleType],[ReleaseCI]")
 {
-	cadet::test::particle::testTimeDerivativeJacobianMixedParticleTypesFD("RADIAL_GENERAL_RATE_MODEL", 1e-6, 0.0, 9e-4);
+	cadet::test::particle::testTimeDerivativeJacobianMixedParticleTypesFD("RADIAL_GENERAL_RATE_MODEL", "FV", 1e-6, 0.0, 9e-4);
 }
 
 TEST_CASE("Radial GRM multiple spatially dependent particle types Jacobian analytic vs AD", "[RadGRM],[Jacobian],[AD],[ParticleType],[ReleaseCI]")
 {
-	cadet::test::particle::testJacobianSpatiallyMixedParticleTypes("RADIAL_GENERAL_RATE_MODEL");
+	cadet::test::particle::testJacobianSpatiallyMixedParticleTypes("RADIAL_GENERAL_RATE_MODEL", "FV");
 }
 
 TEST_CASE("Radial GRM linear binding single particle matches spatially dependent particle distribution", "[RadGRM],[Simulation],[ParticleType],[ReleaseCI]")
 {
-	cadet::test::particle::testLinearSpatiallyMixedParticleTypes("RADIAL_GENERAL_RATE_MODEL", 5e-8, 5e-5);
+	cadet::test::particle::testLinearSpatiallyMixedParticleTypes("RADIAL_GENERAL_RATE_MODEL", "FV", 5e-8, 5e-5);
 }
 
 TEST_CASE("Radial GRM multiple spatially dependent particle types flux Jacobian vs FD", "[RadGRM],[UnitOp],[Residual],[Jacobian],[ParticleType],[ReleaseCI],[FD]")
@@ -206,57 +207,57 @@ TEST_CASE("Radial GRM multiple spatially dependent particle types flux Jacobian 
 
 TEST_CASE("Radial GRM dynamic reactions Jacobian vs AD bulk", "[RadGRM],[Jacobian],[AD],[ReactionModel],[ReleaseCI]")
 {
-	cadet::test::reaction::testUnitJacobianDynamicReactionsAD("RADIAL_GENERAL_RATE_MODEL", true, false, false);
+	cadet::test::reaction::testUnitJacobianDynamicReactionsAD("RADIAL_GENERAL_RATE_MODEL", "FV", true, false, false);
 }
 
 TEST_CASE("Radial GRM dynamic reactions Jacobian vs AD particle", "[RadGRM],[Jacobian],[AD],[ReactionModel],[ReleaseCI]")
 {
-	cadet::test::reaction::testUnitJacobianDynamicReactionsAD("RADIAL_GENERAL_RATE_MODEL", false, true, false);
+	cadet::test::reaction::testUnitJacobianDynamicReactionsAD("RADIAL_GENERAL_RATE_MODEL", "FV", false, true, false);
 }
 
 TEST_CASE("Radial GRM dynamic reactions Jacobian vs AD modified particle", "[RadGRM],[Jacobian],[AD],[ReactionModel],[ReleaseCI]")
 {
-	cadet::test::reaction::testUnitJacobianDynamicReactionsAD("RADIAL_GENERAL_RATE_MODEL", false, true, true);
+	cadet::test::reaction::testUnitJacobianDynamicReactionsAD("RADIAL_GENERAL_RATE_MODEL", "FV", false, true, true);
 }
 
 TEST_CASE("Radial GRM dynamic reactions Jacobian vs AD bulk and particle", "[RadGRM],[Jacobian],[AD],[ReactionModel],[ReleaseCI]")
 {
-	cadet::test::reaction::testUnitJacobianDynamicReactionsAD("RADIAL_GENERAL_RATE_MODEL", true, true, false);
+	cadet::test::reaction::testUnitJacobianDynamicReactionsAD("RADIAL_GENERAL_RATE_MODEL", "FV", true, true, false);
 }
 
 TEST_CASE("Radial GRM dynamic reactions Jacobian vs AD bulk and modified particle", "[RadGRM],[Jacobian],[AD],[ReactionModel],[ReleaseCI]")
 {
-	cadet::test::reaction::testUnitJacobianDynamicReactionsAD("RADIAL_GENERAL_RATE_MODEL", true, true, true);
+	cadet::test::reaction::testUnitJacobianDynamicReactionsAD("RADIAL_GENERAL_RATE_MODEL", "FV", true, true, true);
 }
 
 TEST_CASE("Radial GRM dynamic reactions time derivative Jacobian vs FD bulk", "[RadGRM],[Jacobian],[Residual],[ReactionModel],[ReleaseCI],[FD]")
 {
-	cadet::test::reaction::testTimeDerivativeJacobianDynamicReactionsFD("RADIAL_GENERAL_RATE_MODEL", true, false, false, 1e-6, 1e-14, 9e-4);
+	cadet::test::reaction::testTimeDerivativeJacobianDynamicReactionsFD("RADIAL_GENERAL_RATE_MODEL", "FV", true, false, false, 1e-6, 1e-14, 9e-4);
 }
 
 TEST_CASE("Radial GRM dynamic reactions time derivative Jacobian vs FD particle", "[RadGRM],[Jacobian],[Residual],[ReactionModel],[ReleaseCI],[FD]")
 {
-	cadet::test::reaction::testTimeDerivativeJacobianDynamicReactionsFD("RADIAL_GENERAL_RATE_MODEL", false, true, false, 1e-6, 1e-14, 9e-4);
+	cadet::test::reaction::testTimeDerivativeJacobianDynamicReactionsFD("RADIAL_GENERAL_RATE_MODEL", "FV", false, true, false, 1e-6, 1e-14, 9e-4);
 }
 
 TEST_CASE("Radial GRM dynamic reactions time derivative Jacobian vs FD modified particle", "[RadGRM],[Jacobian],[Residual],[ReactionModel],[ReleaseCI],[FD]")
 {
-	cadet::test::reaction::testTimeDerivativeJacobianDynamicReactionsFD("RADIAL_GENERAL_RATE_MODEL", false, true, true, 1e-6, 1e-14, 9e-4);
+	cadet::test::reaction::testTimeDerivativeJacobianDynamicReactionsFD("RADIAL_GENERAL_RATE_MODEL", "FV", false, true, true, 1e-6, 1e-14, 9e-4);
 }
 
 TEST_CASE("Radial GRM dynamic reactions time derivative Jacobian vs FD bulk and particle", "[RadGRM],[Jacobian],[Residual],[ReactionModel],[ReleaseCI],[FD]")
 {
-	cadet::test::reaction::testTimeDerivativeJacobianDynamicReactionsFD("RADIAL_GENERAL_RATE_MODEL", true, true, false, 1e-6, 1e-14, 9e-4);
+	cadet::test::reaction::testTimeDerivativeJacobianDynamicReactionsFD("RADIAL_GENERAL_RATE_MODEL", "FV", true, true, false, 1e-6, 1e-14, 9e-4);
 }
 
 TEST_CASE("Radial GRM dynamic reactions time derivative Jacobian vs FD bulk and modified particle", "[RadGRM],[Jacobian],[Residual],[ReactionModel],[ReleaseCI],[FD]")
 {
-	cadet::test::reaction::testTimeDerivativeJacobianDynamicReactionsFD("RADIAL_GENERAL_RATE_MODEL", true, true, true, 1e-6, 1e-14, 9e-4);
+	cadet::test::reaction::testTimeDerivativeJacobianDynamicReactionsFD("RADIAL_GENERAL_RATE_MODEL", "FV", true, true, true, 1e-6, 1e-14, 9e-4);
 }
 
 inline cadet::JsonParameterProvider createColumnWithTwoCompLinearBindingThreeParticleTypes()
 {
-	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding("RADIAL_GENERAL_RATE_MODEL");
+	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding("RADIAL_GENERAL_RATE_MODEL", "FV");
 
 	const double parVolFrac[] = {0.3, 0.6, 0.1};
 	const double parFactor[] = {0.9, 0.8};

@@ -74,7 +74,7 @@ TEST_CASE("LRM_DG linear pulse vs analytic solution", "[LRM],[Simulation],[Analy
 
 	// Setup simulation
 	bool dynamicBinding = true;
-	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding("LUMPED_RATE_MODEL_WITHOUT_PORES_DG");
+	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding("LUMPED_RATE_MODEL_WITHOUT_PORES", "DG");
 	setParameters(jpp, 10, 2, "LAGRANGE");
 	cadet::IUnitOperation* const unit = cadet::test::unitoperation::createAndConfigureUnit(jpp, *mb);
 
@@ -102,11 +102,4 @@ TEST_CASE("LRM_DG linear pulse vs analytic solution", "[LRM],[Simulation],[Analy
 
 	mb->destroyUnitOperation(unit);
 	destroyModelBuilder(mb);
-}
-
-TEST_CASE("LRM_DG test", "[LRM_DG],[UnitOp]")
-{
-
-	cadet::test::column::testAnalyticBenchmark_DG("LUMPED_RATE_MODEL_WITHOUT_PORES_DG", "/data/lrm-pulseBenchmark.data", true, true, "LAGRANGE", 3, 50, 2e-5, 1e-7);
-
 }

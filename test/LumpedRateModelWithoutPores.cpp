@@ -18,35 +18,47 @@
 #include "Utils.hpp"
 #include "JsonTestModels.hpp"
 
-TEST_CASE("LRM LWE forward vs backward flow", "[LRM],[Simulation],[CI]")
+TEST_CASE("LRM LWE forward vs backward flow", "[LRM],[FV],[Simulation],[CI]")
 {
+	cadet::test::column::FVparams disc;
+
 	// Test all WENO orders
 	for (unsigned int i = 1; i <= cadet::Weno::maxOrder(); ++i)
-		cadet::test::column::testWenoForwardBackward("LUMPED_RATE_MODEL_WITHOUT_PORES", i, 6e-9, 6e-4);
+	{
+		disc.setWenoOrder(i);
+		cadet::test::column::testForwardBackward("LUMPED_RATE_MODEL_WITHOUT_PORES", disc, 6e-9, 6e-4);
+	}
 }
 
-TEST_CASE("LRM linear pulse vs analytic solution", "[LRM],[Simulation],[Reference],[Analytic],[CI]")
+TEST_CASE("LRM linear pulse vs analytic solution", "[LRM],[FV],[Simulation],[Reference],[Analytic],[CI]")
 {
-	cadet::test::column::testAnalyticBenchmark("LUMPED_RATE_MODEL_WITHOUT_PORES", "/data/lrm-pulseBenchmark.data", true, true, 1024, 2e-5, 1e-7);
-	cadet::test::column::testAnalyticBenchmark("LUMPED_RATE_MODEL_WITHOUT_PORES", "/data/lrm-pulseBenchmark.data", true, false, 1024, 2e-5, 1e-7);
-	cadet::test::column::testAnalyticBenchmark("LUMPED_RATE_MODEL_WITHOUT_PORES", "/data/lrm-pulseBenchmark.data", false, true, 1024, 2e-5, 1e-7);
-	cadet::test::column::testAnalyticBenchmark("LUMPED_RATE_MODEL_WITHOUT_PORES", "/data/lrm-pulseBenchmark.data", false, false, 1024, 2e-5, 1e-7);
+	cadet::test::column::FVparams disc(1024);
+	cadet::test::column::testAnalyticBenchmark("LUMPED_RATE_MODEL_WITHOUT_PORES", "/data/lrm-pulseBenchmark.data", true, true, disc, 2e-5, 1e-7);
+	cadet::test::column::testAnalyticBenchmark("LUMPED_RATE_MODEL_WITHOUT_PORES", "/data/lrm-pulseBenchmark.data", true, false, disc, 2e-5, 1e-7);
+	cadet::test::column::testAnalyticBenchmark("LUMPED_RATE_MODEL_WITHOUT_PORES", "/data/lrm-pulseBenchmark.data", false, true, disc, 2e-5, 1e-7);
+	cadet::test::column::testAnalyticBenchmark("LUMPED_RATE_MODEL_WITHOUT_PORES", "/data/lrm-pulseBenchmark.data", false, false, disc, 2e-5, 1e-7);
 }
 
-TEST_CASE("LRM non-binding linear pulse vs analytic solution", "[LRM],[Simulation],[Reference],[Analytic],[NonBinding],[CI]")
+TEST_CASE("LRM non-binding linear pulse vs analytic solution", "[LRM],[FV],[Simulation],[Reference],[Analytic],[NonBinding],[CI]")
 {
-	cadet::test::column::testAnalyticNonBindingBenchmark("LUMPED_RATE_MODEL_WITHOUT_PORES", "/data/lrm-nonBinding.data", true, 1024, 2e-5, 1e-7);
-	cadet::test::column::testAnalyticNonBindingBenchmark("LUMPED_RATE_MODEL_WITHOUT_PORES", "/data/lrm-nonBinding.data", false, 1024, 2e-5, 1e-7);
+	cadet::test::column::FVparams disc(1024);
+	cadet::test::column::testAnalyticNonBindingBenchmark("LUMPED_RATE_MODEL_WITHOUT_PORES", "/data/lrm-nonBinding.data", true, disc, 2e-5, 1e-7);
+	cadet::test::column::testAnalyticNonBindingBenchmark("LUMPED_RATE_MODEL_WITHOUT_PORES", "/data/lrm-nonBinding.data", false, disc, 2e-5, 1e-7);
 }
 
-TEST_CASE("LRM Jacobian forward vs backward flow", "[LRM],[UnitOp],[Residual],[Jacobian],[AD],[CI]")
+TEST_CASE("LRM Jacobian forward vs backward flow", "[LRM],[FV],[UnitOp],[Residual],[Jacobian],[AD],[CI]")
 {
+	cadet::test::column::FVparams disc;
+
 	// Test all WENO orders
 	for (unsigned int i = 1; i <= cadet::Weno::maxOrder(); ++i)
-		cadet::test::column::testJacobianWenoForwardBackward("LUMPED_RATE_MODEL_WITHOUT_PORES", i);
+	{
+		disc.setWenoOrder(i);
+		cadet::test::column::testJacobianForwardBackward("LUMPED_RATE_MODEL_WITHOUT_PORES", disc);
+	}
 }
 
-TEST_CASE("LRM numerical Benchmark with parameter sensitivities for linear case", "[LRM],[Simulation],[Reference],[Sensitivity]") // todo CI flag: currently only runs locally but fails on server
+TEST_CASE("LRM numerical Benchmark with parameter sensitivities for linear case", "[LRM],[FV],[Simulation],[Reference],[Sensitivity]") // todo CI flag: currently only runs locally but fails on server
 {
 	const std::string& modelFilePath = std::string("/data/model_LRM_dynLin_1comp_benchmark1.json");
 	const std::string& refFilePath = std::string("/data/ref_LRM_dynLin_1comp_sensbenchmark1_FV_Z32.h5");
@@ -55,7 +67,7 @@ TEST_CASE("LRM numerical Benchmark with parameter sensitivities for linear case"
 	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "001", absTol, relTol, 32, 0, false);
 }
 
-TEST_CASE("LRM numerical Benchmark with parameter sensitivities for SMA LWE case", "[LRM],[Simulation],[Reference],[Sensitivity]") // todo CI flag: currently only runs locally but fails on server
+TEST_CASE("LRM numerical Benchmark with parameter sensitivities for SMA LWE case", "[LRM],[FV],[Simulation],[Reference],[Sensitivity]") // todo CI flag: currently only runs locally but fails on server
 {
 	const std::string& modelFilePath = std::string("/data/model_LRM_reqSMA_4comp_benchmark1.json");
 	const std::string& refFilePath = std::string("/data/ref_LRM_reqSMA_4comp_sensbenchmark1_FV_Z32.h5");
@@ -84,17 +96,17 @@ TEST_CASE("LRM numerical EOC Benchmark with parameter sensitivities for SMA LWE 
 	cadet::test::column::testEOCReferenceBenchmark(modelFilePath, refFilePath, convFilePath, "000", absTol, relTol, 2, 8, 0, true);
 }
 
-TEST_CASE("LRM time derivative Jacobian vs FD", "[LRM],[UnitOp],[Residual],[Jacobian],[CI],[FD]")
+TEST_CASE("LRM time derivative Jacobian vs FD", "[LRM],[FV],[UnitOp],[Residual],[Jacobian],[CI],[FD]")
 {
-	cadet::test::column::testTimeDerivativeJacobianFD("LUMPED_RATE_MODEL_WITHOUT_PORES");
+	cadet::test::column::testTimeDerivativeJacobianFD("LUMPED_RATE_MODEL_WITHOUT_PORES", "FV");
 }
 
-TEST_CASE("LRM sensitivity Jacobians", "[LRM],[UnitOp],[Sensitivity],[CI]")
+TEST_CASE("LRM sensitivity Jacobians", "[LRM],[FV],[UnitOp],[Sensitivity],[CI]")
 {
-	cadet::test::column::testFwdSensJacobians("LUMPED_RATE_MODEL_WITHOUT_PORES", 1e-4, 3e-7, 5e-5);
+	cadet::test::column::testFwdSensJacobians("LUMPED_RATE_MODEL_WITHOUT_PORES", "FV", 1e-4, 3e-7, 5e-5);
 }
 
-//TEST_CASE("LRM forward sensitivity vs FD", "[LRM],[Sensitivity],[Simulation],[failedFDtestLRM],[FD]") // todo fix tolerances
+//TEST_CASE("LRM forward sensitivity vs FD", "[LRM],[FV],[Sensitivity],[Simulation],[failedFDtestLRM],[FD]") // todo fix tolerances
 //{
 //	// Relative error is checked first, we use high absolute error for letting
 //	// some points that are far off pass the error test, too. This is required
@@ -106,7 +118,7 @@ TEST_CASE("LRM sensitivity Jacobians", "[LRM],[UnitOp],[Sensitivity],[CI]")
 //	cadet::test::column::testFwdSensSolutionFD("LUMPED_RATE_MODEL_WITHOUT_PORES", false, fdStepSize, absTols, relTols, passRatio);
 //}
 //
-//TEST_CASE("LRM forward sensitivity forward vs backward flow", "[LRM],[Sensitivity],[Simulation],[fixLRM]") // todo fix tolerances? why is there a pass ratio here, shouldnt this be precise?
+//TEST_CASE("LRM forward sensitivity forward vs backward flow", "[LRM],[FV],[Sensitivity],[Simulation],[fixLRM]") // todo fix tolerances? why is there a pass ratio here, shouldnt this be precise?
 //{
 //	const double absTols[] = {500.0, 8e-7, 9e-7, 2e-3};
 //	const double relTols[] = {7e-3, 5e-5, 5e-5, 9e-4};
@@ -114,12 +126,12 @@ TEST_CASE("LRM sensitivity Jacobians", "[LRM],[UnitOp],[Sensitivity],[CI]")
 //	cadet::test::column::testFwdSensSolutionForwardBackward("LUMPED_RATE_MODEL_WITHOUT_PORES", absTols, relTols, passRatio);
 //}
 
-TEST_CASE("LRM consistent initialization with linear binding", "[LRM],[ConsistentInit],[CI]")
+TEST_CASE("LRM consistent initialization with linear binding", "[LRM],[FV],[ConsistentInit],[CI]")
 {
-	cadet::test::column::testConsistentInitializationLinearBinding("LUMPED_RATE_MODEL_WITHOUT_PORES", 1e-12, 1e-12);
+	cadet::test::column::testConsistentInitializationLinearBinding("LUMPED_RATE_MODEL_WITHOUT_PORES", "FV", 1e-12, 1e-12);
 }
 
-//TEST_CASE("LRM consistent initialization with SMA binding", "[LRM],[ConsistentInit],[fixLRM]") // todo fix
+//TEST_CASE("LRM consistent initialization with SMA binding", "[LRM],[FV],[ConsistentInit],[fixLRM]") // todo fix
 //{
 //	std::vector<double> y(4 + 16 * (4 + 4), 0.0);
 //	// Optimal values:
@@ -133,7 +145,7 @@ TEST_CASE("LRM consistent initialization with linear binding", "[LRM],[Consisten
 //	cadet::test::column::testConsistentInitializationSMABinding("LUMPED_RATE_MODEL_WITHOUT_PORES", y.data(), 1e-14, 1e-5);
 //}
 
-TEST_CASE("LRM consistent sensitivity initialization with linear binding", "[LRM],[ConsistentInit],[Sensitivity],[CI]")
+TEST_CASE("LRM consistent sensitivity initialization with linear binding", "[LRM],[FV],[ConsistentInit],[Sensitivity],[CI]")
 {
 	// Fill state vector with given initial values
 	const unsigned int numDofs = 4 + 16 * (4 + 4);
@@ -142,10 +154,10 @@ TEST_CASE("LRM consistent sensitivity initialization with linear binding", "[LRM
 	cadet::test::util::populate(y.data(), [](unsigned int idx) { return std::abs(std::sin(idx * 0.13)) + 1e-4; }, numDofs);
 	cadet::test::util::populate(yDot.data(), [](unsigned int idx) { return std::abs(std::sin(idx * 0.9)) + 1e-4; }, numDofs);
 
-	cadet::test::column::testConsistentInitializationSensitivity("LUMPED_RATE_MODEL_WITHOUT_PORES", y.data(), yDot.data(), true, 1e-14);
+	cadet::test::column::testConsistentInitializationSensitivity("LUMPED_RATE_MODEL_WITHOUT_PORES", "FV", y.data(), yDot.data(), true, 1e-14);
 }
 
-TEST_CASE("LRM consistent sensitivity initialization with SMA binding", "[LRM],[ConsistentInit],[Sensitivity],[CI]")
+TEST_CASE("LRM consistent sensitivity initialization with SMA binding", "[LRM],[FV],[ConsistentInit],[Sensitivity],[CI]")
 {
 	// Fill state vector with given initial values
 	const unsigned int numDofs = 4 + 16 * (4 + 4);
@@ -158,42 +170,42 @@ TEST_CASE("LRM consistent sensitivity initialization with SMA binding", "[LRM],[
 
 	cadet::test::util::populate(yDot.data(), [](unsigned int idx) { return std::abs(std::sin(idx * 0.9)) + 1e-4; }, numDofs);
 
-	cadet::test::column::testConsistentInitializationSensitivity("LUMPED_RATE_MODEL_WITHOUT_PORES", y.data(), yDot.data(), false, 1e-9);
+	cadet::test::column::testConsistentInitializationSensitivity("LUMPED_RATE_MODEL_WITHOUT_PORES", "FV", y.data(), yDot.data(), false, 1e-9);
 }
 
-TEST_CASE("LRM inlet DOF Jacobian", "[LRM],[UnitOp],[Jacobian],[Inlet],[CI]")
+TEST_CASE("LRM inlet DOF Jacobian", "[LRM],[FV],[UnitOp],[Jacobian],[Inlet],[CI]")
 {
-	cadet::test::column::testInletDofJacobian("LUMPED_RATE_MODEL_WITHOUT_PORES");
+	cadet::test::column::testInletDofJacobian("LUMPED_RATE_MODEL_WITHOUT_PORES", "FV");
 }
 
-TEST_CASE("LRM transport Jacobian", "[LRM],[UnitOp],[Jacobian],[CI]")
+TEST_CASE("LRM transport Jacobian", "[LRM],[FV],[UnitOp],[Jacobian],[CI]")
 {
-	cadet::JsonParameterProvider jpp = createColumnLinearBenchmark(false, true, "LUMPED_RATE_MODEL_WITHOUT_PORES");
+	cadet::JsonParameterProvider jpp = createColumnLinearBenchmark(false, true, "LUMPED_RATE_MODEL_WITHOUT_PORES", "FV");
 	cadet::test::column::testJacobianAD(jpp);
 }
 
-TEST_CASE("LRM with two component linear binding Jacobian", "[LRM],[UnitOp],[Jacobian],[CI]")
+TEST_CASE("LRM with two component linear binding Jacobian", "[LRM],[FV],[UnitOp],[Jacobian],[CI]")
 {
-	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding("LUMPED_RATE_MODEL_WITHOUT_PORES");
+	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding("LUMPED_RATE_MODEL_WITHOUT_PORES", "FV");
 	cadet::test::column::testJacobianAD(jpp);
 }
 
-TEST_CASE("LRM dynamic reactions Jacobian vs AD bulk", "[LRM],[Jacobian],[AD],[ReactionModel],[CI]")
+TEST_CASE("LRM dynamic reactions Jacobian vs AD bulk", "[LRM],[FV],[Jacobian],[AD],[ReactionModel],[CI]")
 {
-	cadet::test::reaction::testUnitJacobianDynamicReactionsAD("LUMPED_RATE_MODEL_WITHOUT_PORES", true, false, false);
+	cadet::test::reaction::testUnitJacobianDynamicReactionsAD("LUMPED_RATE_MODEL_WITHOUT_PORES", "FV", true, false, false);
 }
 
-TEST_CASE("LRM dynamic reactions Jacobian vs AD modified bulk", "[LRM],[Jacobian],[AD],[ReactionModel],[CI]")
+TEST_CASE("LRM dynamic reactions Jacobian vs AD modified bulk", "[LRM],[FV],[Jacobian],[AD],[ReactionModel],[CI]")
 {
-	cadet::test::reaction::testUnitJacobianDynamicReactionsAD("LUMPED_RATE_MODEL_WITHOUT_PORES", true, false, true);
+	cadet::test::reaction::testUnitJacobianDynamicReactionsAD("LUMPED_RATE_MODEL_WITHOUT_PORES", "FV", true, false, true);
 }
 
-TEST_CASE("LRM dynamic reactions time derivative Jacobian vs FD bulk", "[LRM],[Jacobian],[Residual],[ReactionModel],[CI],[FD]")
+TEST_CASE("LRM dynamic reactions time derivative Jacobian vs FD bulk", "[LRM],[FV],[Jacobian],[Residual],[ReactionModel],[CI],[FD]")
 {
-	cadet::test::reaction::testTimeDerivativeJacobianDynamicReactionsFD("LUMPED_RATE_MODEL_WITHOUT_PORES", true, false, false, 1e-6, 1e-14, 8e-4);
+	cadet::test::reaction::testTimeDerivativeJacobianDynamicReactionsFD("LUMPED_RATE_MODEL_WITHOUT_PORES", "FV", true, false, false, 1e-6, 1e-14, 8e-4);
 }
 
-TEST_CASE("LRM dynamic reactions time derivative Jacobian vs FD modified bulk", "[LRM],[Jacobian],[Residual],[ReactionModel],[CI],[FD]")
+TEST_CASE("LRM dynamic reactions time derivative Jacobian vs FD modified bulk", "[LRM],[FV],[Jacobian],[Residual],[ReactionModel],[CI],[FD]")
 {
-	cadet::test::reaction::testTimeDerivativeJacobianDynamicReactionsFD("LUMPED_RATE_MODEL_WITHOUT_PORES", true, false, true, 1e-6, 1e-14, 8e-4);
+	cadet::test::reaction::testTimeDerivativeJacobianDynamicReactionsFD("LUMPED_RATE_MODEL_WITHOUT_PORES", "FV", true, false, true, 1e-6, 1e-14, 8e-4);
 }
