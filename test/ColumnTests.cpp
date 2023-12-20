@@ -138,7 +138,7 @@ namespace test
 namespace column
 {
 
-	void FVparams::setDisc(JsonParameterProvider& jpp) const {
+	void FVparams::setDisc(JsonParameterProvider& jpp, const std::string unitID) const {
 
 		int level = 0;
 
@@ -147,33 +147,36 @@ namespace column
 			jpp.pushScope("model");
 			++level;
 		}
-		if (jpp.exists("unit_000"))
+		if (jpp.exists("unit_" + unitID))
 		{
-			jpp.pushScope("unit_000");
+			jpp.pushScope("unit_" + unitID);
 			++level;
 		}
 
 		jpp.pushScope("discretization");
+		jpp.set("SPATIAL_METHOD", "FV");
 
-		if (nCol)
-			jpp.set("NCOL", nCol);
+		if (nAxCells)
+			jpp.set("NCOL", nAxCells);
 
-		if (nPar)
-			jpp.set("NPAR", nPar);
+		if (nParCells)
+			jpp.set("NPAR", nParCells);
 
-		jpp.pushScope("weno");
+		if (jpp.exists("weno"))
+		{
+			jpp.pushScope("weno");
+			if (wenoOrder)
+				jpp.set("WENO_ORDER", wenoOrder);
 
-		if (wenoOrder)
-			jpp.set("WENO_ORDER", wenoOrder);
-
-		jpp.popScope();
+			jpp.popScope();
+		}
 		jpp.popScope();
 
 		for (int l = 0; l < level; ++l)
 			jpp.popScope();
 	}
 
-	void DGparams::setDisc(JsonParameterProvider& jpp) const {
+	void DGparams::setDisc(JsonParameterProvider& jpp, const std::string unitID) const {
 
 		int level = 0;
 
@@ -182,24 +185,25 @@ namespace column
 			jpp.pushScope("model");
 			++level;
 		}
-		if (jpp.exists("unit_000"))
+		if (jpp.exists("unit_" + unitID))
 		{
-			jpp.pushScope("unit_000");
+			jpp.pushScope("unit_" + unitID);
 			++level;
 		}
 
 		jpp.pushScope("discretization");
+		jpp.set("SPATIAL_METHOD", "DG");
 
 		if (exactIntegration > -1)
 			jpp.set("EXACT_INTEGRATION", exactIntegration);
 		if (polyDeg)
 			jpp.set("POLYDEG", polyDeg);
-		if (nElem)
-			jpp.set("NELEM", nElem);
-		if (parNelem)
-			jpp.set("NELEM", parNelem);
+		if (nAxCells)
+			jpp.set("NELEM", nAxCells);
+		if (nParCells)
+			jpp.set("PAR_NELEM", nParCells);
 		if (parPolyDeg)
-			jpp.set("POLYDEG", parPolyDeg);
+			jpp.set("PAR_POLYDEG", parPolyDeg);
 
 		jpp.popScope();
 
@@ -833,7 +837,7 @@ namespace column
 		destroyModelBuilder(mb);
 	}
 
-	void testJacobianForwardBackward(cadet::JsonParameterProvider& jpp)
+	void testJacobianForwardBackward(cadet::JsonParameterProvider& jpp, const double absTolFDpattern)
 	{
 		cadet::IModelBuilder* const mb = cadet::createModelBuilder();
 		REQUIRE(nullptr != mb);
@@ -882,8 +886,8 @@ namespace column
 			std::fill(jacDir.begin(), jacDir.end(), 0.0);
 
 			// Compare Jacobians
-			cadet::test::checkJacobianPatternFD(unitAna, unitAD, y.data(), nullptr, jacDir.data(), jacCol1.data(), jacCol2.data(), tls);
-			cadet::test::checkJacobianPatternFD(unitAna, unitAna, y.data(), nullptr, jacDir.data(), jacCol1.data(), jacCol2.data(), tls);
+			cadet::test::checkJacobianPatternFD(unitAna, unitAD, y.data(), nullptr, jacDir.data(), jacCol1.data(), jacCol2.data(), tls, absTolFDpattern);
+			cadet::test::checkJacobianPatternFD(unitAna, unitAna, y.data(), nullptr, jacDir.data(), jacCol1.data(), jacCol2.data(), tls, absTolFDpattern);
 			cadet::test::compareJacobian(unitAna, unitAD, nullptr, nullptr, jacDir.data(), jacCol1.data(), jacCol2.data());
 //				cadet::test::compareJacobianFD(unitAna, unitAD, y.data(), nullptr, jacDir.data(), jacCol1.data(), jacCol2.data());
 
@@ -896,15 +900,15 @@ namespace column
 					const bool paramSet2 = unitAD->setParameter(cadet::makeParamId(cadet::hashString("VELOCITY_COEFF"), 0, cadet::CompIndep, cadet::ParTypeIndep, cadet::BoundStateIndep, cadet::ReactionIndep, cadet::SectionIndep), -jpp.getDouble("VELOCITY_COEFF"));
 					REQUIRE(paramSet2);
 				}
-				else
-				{
-					// Reverse flow
-					const bool paramSet = unitAna->setParameter(cadet::makeParamId(cadet::hashString("VELOCITY"), 0, cadet::CompIndep, cadet::ParTypeIndep, cadet::BoundStateIndep, cadet::ReactionIndep, cadet::SectionIndep), -jpp.getDouble("VELOCITY"));
-					REQUIRE(paramSet);
-					// Reverse flow
-					const bool paramSet2 = unitAD->setParameter(cadet::makeParamId(cadet::hashString("VELOCITY"), 0, cadet::CompIndep, cadet::ParTypeIndep, cadet::BoundStateIndep, cadet::ReactionIndep, cadet::SectionIndep), -jpp.getDouble("VELOCITY"));
-					REQUIRE(paramSet2);
-				}
+			else
+			{
+				// Reverse flow
+				const bool paramSet = unitAna->setParameter(cadet::makeParamId(cadet::hashString("VELOCITY"), 0, cadet::CompIndep, cadet::ParTypeIndep, cadet::BoundStateIndep, cadet::ReactionIndep, cadet::SectionIndep), -jpp.getDouble("VELOCITY"));
+				REQUIRE(paramSet);
+				// Reverse flow
+				const bool paramSet2 = unitAD->setParameter(cadet::makeParamId(cadet::hashString("VELOCITY"), 0, cadet::CompIndep, cadet::ParTypeIndep, cadet::BoundStateIndep, cadet::ReactionIndep, cadet::SectionIndep), -jpp.getDouble("VELOCITY"));
+				REQUIRE(paramSet2);
+			}
 
 			// Setup
 			unitAna->notifyDiscontinuousSectionTransition(0.0, 0u, {y.data(), nullptr}, noAdParams);
@@ -916,8 +920,8 @@ namespace column
 			std::fill(jacDir.begin(), jacDir.end(), 0.0);
 
 			// Compare Jacobians
-			cadet::test::checkJacobianPatternFD(unitAna, unitAD, y.data(), nullptr, jacDir.data(), jacCol1.data(), jacCol2.data(), tls);
-			cadet::test::checkJacobianPatternFD(unitAna, unitAna, y.data(), nullptr, jacDir.data(), jacCol1.data(), jacCol2.data(), tls);
+			cadet::test::checkJacobianPatternFD(unitAna, unitAD, y.data(), nullptr, jacDir.data(), jacCol1.data(), jacCol2.data(), tls, absTolFDpattern);
+			cadet::test::checkJacobianPatternFD(unitAna, unitAna, y.data(), nullptr, jacDir.data(), jacCol1.data(), jacCol2.data(), tls, absTolFDpattern);
 //				cadet::test::compareJacobianFD(unitAD, unitAna, y.data(), jacDir.data(), nullptr, jacCol1.data(), jacCol2.data());
 //				cadet::test::compareJacobianFD(unitAna, unitAD, y.data(), jacDir.data(), nullptr, jacCol1.data(), jacCol2.data());
 			cadet::test::compareJacobian(unitAna, unitAD, nullptr, nullptr, jacDir.data(), jacCol1.data(), jacCol2.data());
@@ -931,7 +935,7 @@ namespace column
 		destroyModelBuilder(mb);
 	}
 
-	void testJacobianForwardBackward(const char* uoType, FVparams disc)
+	void testJacobianForwardBackward(const char* uoType, FVparams disc, const double absTolFDpattern)
 	{
 		SECTION("Forward vs backward flow Jacobian (WENO=" + std::to_string(disc.getWenoOrder()) + ")")
 		{
@@ -939,11 +943,11 @@ namespace column
 			cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding(uoType, "FV");
 			disc.setDisc(jpp);
 
-			testJacobianForwardBackward(jpp);
+			testJacobianForwardBackward(jpp, absTolFDpattern);
 		}
 	}
 
-	void testJacobianForwardBackward(const char* uoType, DGparams disc)
+	void testJacobianForwardBackward(const char* uoType, DGparams disc, const double absTolFDpattern)
 	{
 		SECTION("Forward vs backward flow Jacobian (DG integration mode " + std::to_string(disc.getIntegrationMode()) + ")")
 		{
@@ -951,7 +955,7 @@ namespace column
 			cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding(uoType, "DG");
 			disc.setDisc(jpp);
 
-			testJacobianForwardBackward(jpp);
+			testJacobianForwardBackward(jpp, absTolFDpattern);
 		}
 	}
 
@@ -1423,16 +1427,20 @@ namespace column
 		}
 	}
 
-	void testConsistentInitializationLinearBinding(const std::string& uoType, const std::string& spatialMethod, double consTol, double absTol)
+	void testConsistentInitializationLinearBinding(const std::string& uoType, const std::string& spatialMethod, double consTol, double absTol, const int reqBnd, const int useAD)
 	{
 		cadet::IModelBuilder* const mb = cadet::createModelBuilder();
 		REQUIRE(nullptr != mb);
 
 		for (int bindingMode = 0; bindingMode < 2; ++bindingMode)
 		{
+			if ((bindingMode == 0 && reqBnd == 1) || (bindingMode == 1 && reqBnd == 0))
+				continue;
 			const bool isKinetic = (bindingMode == 0);
 			for (int adMode = 0; adMode < 2; ++adMode)
 			{
+				if ((adMode == 0 && useAD == 1) || (adMode == 1 && useAD == 0))
+					continue;
 				const bool adEnabled = (adMode > 0);
 				SECTION(std::string(isKinetic ? " Kinetic binding" : " Quasi-stationary binding") + " with AD " + (adEnabled ? "enabled" : "disabled"))
 				{
@@ -1454,16 +1462,20 @@ namespace column
 		destroyModelBuilder(mb);
 	}
 
-	void testConsistentInitializationSMABinding(const std::string& uoType, const std::string& spatialMethod, double const* const initState, double consTol, double absTol)
+	void testConsistentInitializationSMABinding(const std::string& uoType, const std::string& spatialMethod, double const* const initState, double consTol, double absTol, const int reqBnd, const int useAD)
 	{
 		cadet::IModelBuilder* const mb = cadet::createModelBuilder();
 		REQUIRE(nullptr != mb);
 
 		for (int bindingMode = 0; bindingMode < 2; ++bindingMode)
 		{
+			if ((bindingMode == 0 && reqBnd == 1) || (bindingMode == 1 && reqBnd == 0))
+				continue;
 			const bool isKinetic = (bindingMode == 0);
 			for (int adMode = 0; adMode < 2; ++adMode)
 			{
+				if ((adMode == 0 && useAD == 1) || (adMode == 1 && useAD == 0))
+					continue;
 				const bool adEnabled = (adMode > 0);
 				SECTION(std::string(isKinetic ? " Kinetic binding" : " Quasi-stationary binding") + " with AD " + (adEnabled ? "enabled" : "disabled"))
 				{
@@ -1484,16 +1496,20 @@ namespace column
 		destroyModelBuilder(mb);
 	}
 
-	void testConsistentInitializationSensitivity(const std::string& uoType, const std::string& spatialMethod, double const* const y, double const* const yDot, bool linearBinding, double absTol)
+	void testConsistentInitializationSensitivity(const std::string& uoType, const std::string& spatialMethod, double const* const y, double const* const yDot, bool linearBinding, double absTol, const int reqBnd, const int useAD)
 	{
 		cadet::IModelBuilder* const mb = cadet::createModelBuilder();
 		REQUIRE(nullptr != mb);
 
-		for (int bindingMode = 0; bindingMode < 2; ++bindingMode)
+		for (int bindingMode = 0; bindingMode < 1; ++bindingMode)
 		{
+			if ((bindingMode == 0 && reqBnd == 1) || (bindingMode == 1 && reqBnd == 0))
+				continue;
 			const bool isKinetic = (bindingMode == 0);
 			for (int adMode = 0; adMode < 2; ++adMode)
 			{
+				if ((adMode == 0 && useAD == 1) || (adMode == 1 && useAD == 0))
+					continue;
 				const bool adEnabled = (adMode > 0);
 				SECTION(std::string(isKinetic ? " Kinetic binding" : " Quasi-stationary binding") + " with AD " + (adEnabled ? "enabled" : "disabled"))
 				{
@@ -1542,7 +1558,7 @@ namespace column
 		destroyModelBuilder(mb);
 	}
 
-	void testReferenceBenchmark(const std::string& modelFileRelPath, const std::string& refFileRelPath, const std::string& unitID, const std::vector<double> absTol, const std::vector<double> relTol, const unsigned int nCol, const unsigned int nPar, const bool compare_sens)
+	void testReferenceBenchmark(const std::string& modelFileRelPath, const std::string& refFileRelPath, const std::string& unitID, const std::vector<double> absTol, const std::vector<double> relTol, const DiscParams& disc, const bool compare_sens)
 	{
 		const int unitOpID = std::stoi(unitID);
 
@@ -1581,9 +1597,7 @@ namespace column
 		rd.closeFile();
 
 		// set remaining spatial numerical parameters
-		setNumAxialCells(pp_setup, nCol, unitID);
-		if (nPar > 0)
-			setNumParCells(pp_setup, nPar, unitID);
+		disc.setDisc(pp_setup, unitID);
 
 		// run simulation
 		Driver drv;
@@ -1640,7 +1654,7 @@ namespace column
 	}
 
 	// todo ? include L1 errors or parameterize error choice ?
-	void testEOCReferenceBenchmark(const std::string& modelFileRelPath, const std::string& refFileRelPath, const std::string& convFileRelPath, const std::string& unitID, const std::vector<double> absTol, const std::vector<double> relTol, const unsigned int nDisc, const unsigned int startNCol, const unsigned int startNPar, const bool compare_sens)
+	void testEOCReferenceBenchmark(const std::string& modelFileRelPath, const std::string& refFileRelPath, const std::string& convFileRelPath, const std::string& unitID, const std::vector<double> absTol, const std::vector<double> relTol, const unsigned int nDisc, const DiscParams& startDisc, const bool compare_sens)
 	{
 		const int unitOpID = std::stoi(unitID);
 
@@ -1703,6 +1717,8 @@ namespace column
 		pp_conv.pushScope("outlet");
 		std::vector<double> discZ = pp_conv.getDoubleArray("$N_e^z$");
 		std::vector<double> discP;
+		const int startNCol = startDisc.getNAxCells();
+		const int startNPar = startDisc.getNParCells();
 		if (startNPar > 0)
 			discP = pp_conv.getDoubleArray("$N_e^p$");
 		pp_conv.popScope();

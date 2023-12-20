@@ -133,8 +133,9 @@ namespace reaction
 	 * @param [in] bulk Determines whether reactions are added to bulk volume
 	 * @param [in] particle Determines whether reactions are added to each particle type
 	 * @param [in] particleModifiers Determines whether reaction rates in particles are modified by the respective other phase
+	 * @param [in] absTolFDpattern absolute tolerance when comparing the sign in the FD Jacobian pattern
 	 */
-	void testUnitJacobianDynamicReactionsAD(cadet::JsonParameterProvider& jpp, bool bulk, bool particle, bool particleModifiers);
+	void testUnitJacobianDynamicReactionsAD(cadet::JsonParameterProvider& jpp, bool bulk, bool particle, bool particleModifiers, const double absTolFDpattern=0.0);
 
 	/**
 	 * @brief Checks the full analytic Jacobian of a unit operation model with dynamic reactions against AD
@@ -143,8 +144,9 @@ namespace reaction
 	 * @param [in] bulk Determines whether reactions are added to bulk volume
 	 * @param [in] particle Determines whether reactions are added to each particle type
 	 * @param [in] particleModifiers Determines whether reaction rates in particles are modified by the respective other phase
+	 * @param [in] absTolFDpattern absolute tolerance when comparing the sign in the FD Jacobian pattern
 	 */
-	void testUnitJacobianDynamicReactionsAD(const std::string& uoType, const std::string& spatialMethod, bool bulk, bool particle, bool particleModifiers);
+	void testUnitJacobianDynamicReactionsAD(const std::string& uoType, const std::string& spatialMethod, bool bulk, bool particle, bool particleModifiers, const double absTolFDpattern = 0.0);
 
 	/**
 	 * @brief Checks the (analytic) time derivative Jacobian against FD for a model with dynamic reactions

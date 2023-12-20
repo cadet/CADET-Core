@@ -170,8 +170,9 @@ namespace particle
 	/**
 	 * @brief Checks the full analytic Jacobian against AD for a model with multiple particle types
 	 * @param [in] jpp Unit operation configuration
+	 * @param [in] absTolFDpattern absolute tolerance when comparing the sign in the FD Jacobian pattern
 	 */
-	void testJacobianMixedParticleTypes(cadet::JsonParameterProvider& jpp);
+	void testJacobianMixedParticleTypes(cadet::JsonParameterProvider& jpp, const double absTolFDpattern = 0.0);
 
 	/**
 	 * @brief Checks whether a linear binding model with multiple identical particle types produces the same as result as a single type model
@@ -190,14 +191,16 @@ namespace particle
 	/**
 	 * @brief Checks the full analytic Jacobian against AD for a model with multiple particle types
 	 * @param [in] uoType Unit operation type
+	 * @param [in] absTolFDpattern absolute tolerance when comparing the sign in the FD Jacobian pattern
 	 */
-	void testJacobianMixedParticleTypes(const std::string& uoType, const std::string& spatialMethod);
+	void testJacobianMixedParticleTypes(const std::string& uoType, const std::string& spatialMethod, const double absTolFDpattern = 0.0);
 
 	/**
 	 * @brief Checks the full analytic Jacobian against AD for a model with multiple particle types and spatial dependence of volume fractions
 	 * @param [in] uoType Unit operation type
+	 * @param [in] absTolFDpattern absolute tolerance when comparing the sign in the FD Jacobian pattern
 	 */
-	void testJacobianSpatiallyMixedParticleTypes(const std::string& uoType, const std::string& spatialMethod);
+	void testJacobianSpatiallyMixedParticleTypes(const std::string& uoType, const std::string& spatialMethod, const double absTolFDpattern = 0.0);
 
 	/**
 	 * @brief Checks the (analytic) time derivative Jacobian against FD for a model with multiple particle types

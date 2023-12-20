@@ -33,44 +33,57 @@ namespace test
 namespace column
 {
 	struct DiscParams {
+		int nAxCells;
+		int nParCells;
+
 		virtual ~DiscParams() = default;
-		virtual void setDisc(JsonParameterProvider& jpp) const = 0;
+
+		virtual int getNAxCells() const = 0;
+		virtual int getNParCells() const = 0;
+
+		virtual void setDisc(JsonParameterProvider& jpp, const std::string unitID = "000") const = 0;
 	};
 
 	struct FVparams : public DiscParams {
-		int nCol;
+		int nAxCells;
+		int nParCells;
 		int wenoOrder;
-		int nPar;
 
-		FVparams() : nCol(0), wenoOrder(0), nPar(0) {}
+		FVparams() : nAxCells(0), nParCells(0), wenoOrder(0) {}
 		FVparams(int nCol)
-			: nCol(nCol), wenoOrder(0), nPar(0) {}
-		FVparams(int nCol, int wenoOrder)
-			: nCol(nCol), wenoOrder(wenoOrder), nPar(0) {}
-		FVparams(int nCol, int wenoOrder, int nPar)
-			: nCol(nCol), wenoOrder(wenoOrder), nPar(nPar) {}
+			: nAxCells(nCol), nParCells(0), wenoOrder(0) {}
+		FVparams(int nCol, int nPar)
+			: nAxCells(nCol), nParCells(nPar), wenoOrder(0) {}
+		FVparams(int nCol, int nPar, int wenoOrder)
+			: nAxCells(nCol), nParCells(nPar), wenoOrder(wenoOrder) {}
 
+		int getNAxCells() const override { return nAxCells; }
+		int getNParCells() const override { return nParCells; }
 		void setWenoOrder(int order) { wenoOrder = order; }
 		int getWenoOrder() { return wenoOrder; }
-		void setDisc(JsonParameterProvider& jpp) const override;
+		void setDisc(JsonParameterProvider& jpp, const std::string unitID = "000") const override;
 	};
 
 	struct DGparams : public DiscParams {
+		int nAxCells;
+		int nParCells;
 		int exactIntegration;
 		int polyDeg;
 		int nElem;
 		int parPolyDeg;
 		int parNelem;
 
-		DGparams() : exactIntegration(-1), polyDeg(0), nElem(0), parPolyDeg(0), parNelem(0) {}
+		DGparams() : exactIntegration(-1), polyDeg(0), nAxCells(0), parPolyDeg(0), nParCells(0) {}
 		DGparams(int exact, int poly, int elem)
-			: exactIntegration(exact), polyDeg(poly), nElem(elem), parPolyDeg(0), parNelem(0) {}
+			: exactIntegration(exact), polyDeg(poly), nAxCells(elem), parPolyDeg(0), nParCells(0) {}
 		DGparams(int exact, int poly, int elem, int parPolyDeg, int parNelem)
-			: exactIntegration(exact), polyDeg(poly), nElem(elem), parPolyDeg(parPolyDeg), parNelem(parNelem) {}
+			: exactIntegration(exact), polyDeg(poly), nAxCells(elem), parPolyDeg(parPolyDeg), nParCells(parNelem) {}
 
+		int getNAxCells() const override { return nAxCells; }
+		int getNParCells() const override { return nParCells; }
 		void setIntegrationMode(int integrationMode) { exactIntegration = integrationMode; }
 		int getIntegrationMode() { return exactIntegration; }
-		void setDisc(JsonParameterProvider& jpp) const override;
+		void setDisc(JsonParameterProvider& jpp, const std::string unitID = "000") const override;
 	};
 
 	/**
@@ -182,10 +195,11 @@ namespace column
 	 * 
 	 * @param [in] uoType Unit operation type
 	 * @param [in] disc spatial discretization parameters
+	 * @param [in] absTolFDpattern absolute tolerance when comparing the sign in the FD Jacobian pattern
 	 */
-	void testJacobianForwardBackward(const char* uoType, FVparams disc);
-	void testJacobianForwardBackward(const char* uoType, DGparams disc);
-	void testJacobianForwardBackward(cadet::JsonParameterProvider& jpp);
+	void testJacobianForwardBackward(const char* uoType, FVparams disc, const double absTolFDpattern = 0.0);
+	void testJacobianForwardBackward(const char* uoType, DGparams disc, const double absTolFDpattern = 0.0);
+	void testJacobianForwardBackward(cadet::JsonParameterProvider& jpp, const double absTolFDpattern = 0.0);
 
 	/**
 	 * @brief Checks the full Jacobian against FD switching from forward to backward flow and back
@@ -299,8 +313,10 @@ namespace column
 	 * @param [in] uoType Unit operation type
 	 * @param [in] consTol Error tolerance for consistent initialization solver
 	 * @param [in] absTol Error tolerance for checking whether algebraic residual is 0
+	 * @param [in] reqBnd specifies binding mode, defaults to using both kinetic and equilibrium
+	 * @param [in] useAD specifies Jacobian mode, defaults to using both analytical and AD
 	 */
-	void testConsistentInitializationLinearBinding(const std::string& uoType, const std::string& spatialMethod, double consTol, double absTol);
+	void testConsistentInitializationLinearBinding(const std::string& uoType, const std::string& spatialMethod, double consTol, double absTol, const int reqBnd = -1, const int useAD = -1);
 
 	/**
 	 * @brief Checks consistent initialization using a model with SMA binding
@@ -310,8 +326,10 @@ namespace column
 	 * @param [in] initState Initial state vector to start process from
 	 * @param [in] consTol Error tolerance for consistent initialization solver
 	 * @param [in] absTol Error tolerance for checking whether algebraic residual is 0
+	 * @param [in] reqBnd specifies binding mode, defaults to using both kinetic and equilibrium
+	 * @param [in] useAD specifies Jacobian mode, defaults to using both analytical and AD
 	 */
-	void testConsistentInitializationSMABinding(const std::string& uoType, const std::string& spatialMethod, double const* const initState, double consTol, double absTol);
+	void testConsistentInitializationSMABinding(const std::string& uoType, const std::string& spatialMethod, double const* const initState, double consTol, double absTol, const int reqBnd = -1, const int useAD = -1);
 
 	/**
 	 * @brief Checks consistent initialization of sensitivities in a column-like model
@@ -322,8 +340,10 @@ namespace column
 	 * @param [in] yDot Time derivative of state vector of original system
 	 * @param [in] linearBinding Determines whether linear binding or SMA binding model is used
 	 * @param [in] absTol Error tolerance for checking whether sensitivity residual is 0
+	 * @param [in] reqBnd specifies binding mode, defaults to using both kinetic and equilibrium
+	 * @param [in] useAD specifies Jacobian mode, defaults to using both analytical and AD
 	 */
-	void testConsistentInitializationSensitivity(const std::string& uoType, const std::string& spatialMethod, double const* const y, double const* const yDot, bool linearBinding, double absTol);
+	void testConsistentInitializationSensitivity(const std::string& uoType, const std::string& spatialMethod, double const* const y, double const* const yDot, bool linearBinding, double absTol, const int reqBnd = -1, const int useAD = -1);
 
 	/**
 	 * @brief Checks whether the inlet DOFs produce the identity matrix in the Jacobian of the unit operation
@@ -339,11 +359,10 @@ namespace column
 	 * @param [in] unitID ID of the unit of interest
 	 * @param [in] absTol Absolute error tolerance
 	 * @param [in] relTol Relative error tolerance
-	 * @param [in] nCol Number of axial cells
-	 * @param [in] nPar Number of particle cells (if required)
+	 * @param [in] disc Numerical discretization parameters
 	 * @param [in] compare_sens Specifies whether sensitivities are included
 	 */
-	void testReferenceBenchmark(const std::string& modelFileRelPath, const std::string& refFileRelPath, const std::string& unitID, const std::vector<double> absTol, const std::vector<double> relTol, const unsigned int nCol, const unsigned int nPar = 0, const bool compare_sens = false);
+	void testReferenceBenchmark(const std::string& modelFileRelPath, const std::string& refFileRelPath, const std::string& unitID, const std::vector<double> absTol, const std::vector<double> relTol, const cadet::test::column::DiscParams& disc, const bool compare_sens = false);
 
 	/**
 	 * @brief Runs an EOC test comparing against numerical reference data (outlet data)
@@ -354,11 +373,10 @@ namespace column
 	 * @param [in] absTol Absolute error tolerance
 	 * @param [in] relTol Relative error tolerance
 	 * @param [in] nDisc number of discretizations to be computed for EOC
-	 * @param [in] startNCol starting number of axial cells
-	 * @param [in] startNPar starting number of particle cells (if required)
+	 * @param [in] disc Numerical discretization parameters with starting resolution
 	 * @param [in] compare_sens Specifies whether sensitivities are included
 	 */
-	void testEOCReferenceBenchmark(const std::string& modelFileRelPath, const std::string& refFileRelPath, const std::string& convFileRelPath, const std::string& unitID, const std::vector<double> absTol, const std::vector<double> relTol, const unsigned int nDisc, const unsigned int startNCol, const unsigned int startNPar = 0, const bool compare_sens = false);
+	void testEOCReferenceBenchmark(const std::string& modelFileRelPath, const std::string& refFileRelPath, const std::string& convFileRelPath, const std::string& unitID, const std::vector<double> absTol, const std::vector<double> relTol, const unsigned int nDisc, const cadet::test::column::DiscParams& disc, const bool compare_sens = false);
 
 } // namespace column
 } // namespace test
