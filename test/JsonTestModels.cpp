@@ -17,7 +17,7 @@
 
 using json = nlohmann::json;
 
-json createColumnWithSMAJson(const std::string& uoType)
+json createColumnWithSMAJson(const std::string& uoType, const std::string& spatialMethod)
 {
 	json config;
 	config["UNIT_TYPE"] = uoType;
@@ -67,9 +67,33 @@ json createColumnWithSMAJson(const std::string& uoType)
 	// Discretization
 	{
 		json disc;
+		disc["SPATIAL_METHOD"] = spatialMethod;
 
-		disc["NCOL"] = 16;
-		disc["NPAR"] = 4;
+		if (spatialMethod == "FV")
+		{
+			disc["NCOL"] = 16;
+			disc["NPAR"] = 4;
+			disc["MAX_KRYLOV"] = 0;
+			disc["GS_TYPE"] = 1;
+			disc["MAX_RESTARTS"] = 10;
+			disc["SCHUR_SAFETY"] = 1e-8;
+			{
+				json weno;
+				weno["WENO_ORDER"] = 3;
+				weno["BOUNDARY_MODEL"] = 0;
+				weno["WENO_EPS"] = 1e-10;
+				disc["weno"] = weno;
+			}
+		}
+		else if (spatialMethod == "DG")
+		{
+			disc["EXACT_INTEGRATION"] = 0;
+			disc["POLYDEG"] = 4;
+			disc["NELEM"] = 2;
+			disc["PAR_EXACT_INTEGRATION"] = 1;
+			disc["PAR_POLYDEG"] = 3;
+			disc["PAR_NELEM"] = 1;
+		}
 
 		if (uoType == "GENERAL_RATE_MODEL_2D")
 		{
@@ -82,20 +106,7 @@ json createColumnWithSMAJson(const std::string& uoType)
 		disc["PAR_DISC_TYPE"] = std::string("EQUIDISTANT_PAR");
 
 		disc["USE_ANALYTIC_JACOBIAN"] = true;
-		disc["MAX_KRYLOV"] = 0;
-		disc["GS_TYPE"] = 1;
-		disc["MAX_RESTARTS"] = 10;
-		disc["SCHUR_SAFETY"] = 1e-8;
 
-		// WENO
-		{
-			json weno;
-
-			weno["WENO_ORDER"] = 3;
-			weno["BOUNDARY_MODEL"] = 0;
-			weno["WENO_EPS"] = 1e-10;
-			disc["weno"] = weno;
-		}
 		config["discretization"] = disc;
 	}
 
@@ -149,12 +160,12 @@ json createColumnWithSMAJson(const std::string& uoType)
 */
 }
 
-cadet::JsonParameterProvider createColumnWithSMA(const std::string& uoType)
+cadet::JsonParameterProvider createColumnWithSMA(const std::string& uoType, const std::string& spatialMethod)
 {
-	return cadet::JsonParameterProvider(createColumnWithSMAJson(uoType));
+	return cadet::JsonParameterProvider(createColumnWithSMAJson(uoType, spatialMethod));
 }
 
-json createColumnWithTwoCompLinearJson(const std::string& uoType)
+json createColumnWithTwoCompLinearJson(const std::string& uoType, const std::string& spatialMethod)
 {
 	json config;
 	config["UNIT_TYPE"] = uoType;
@@ -201,9 +212,34 @@ json createColumnWithTwoCompLinearJson(const std::string& uoType)
 	// Discretization
 	{
 		json disc;
+		disc["SPATIAL_METHOD"] = spatialMethod;
 
-		disc["NCOL"] = 15;
-		disc["NPAR"] = 5;
+		if (spatialMethod == "FV")
+		{
+			disc["NCOL"] = 15;
+			disc["NPAR"] = 5;
+
+			disc["MAX_KRYLOV"] = 0;
+			disc["GS_TYPE"] = 1;
+			disc["MAX_RESTARTS"] = 10;
+			disc["SCHUR_SAFETY"] = 1e-8;
+			{
+				json weno;
+				weno["WENO_ORDER"] = 3;
+				weno["BOUNDARY_MODEL"] = 0;
+				weno["WENO_EPS"] = 1e-10;
+				disc["weno"] = weno;
+			}
+		}
+		else if (spatialMethod == "DG")
+		{
+			disc["EXACT_INTEGRATION"] = 0;
+			disc["POLYDEG"] = 4;
+			disc["NELEM"] = 2;
+			disc["PAR_EXACT_INTEGRATION"] = 1;
+			disc["PAR_POLYDEG"] = 3;
+			disc["PAR_NELEM"] = 1;
+		}
 
 		if (uoType == "GENERAL_RATE_MODEL_2D")
 		{
@@ -216,39 +252,26 @@ json createColumnWithTwoCompLinearJson(const std::string& uoType)
 		disc["PAR_DISC_TYPE"] = std::string("EQUIDISTANT_PAR");
 
 		disc["USE_ANALYTIC_JACOBIAN"] = true;
-		disc["MAX_KRYLOV"] = 0;
-		disc["GS_TYPE"] = 1;
-		disc["MAX_RESTARTS"] = 10;
-		disc["SCHUR_SAFETY"] = 1e-8;
 
-		// WENO
-		{
-			json weno;
-
-			weno["WENO_ORDER"] = 3;
-			weno["BOUNDARY_MODEL"] = 0;
-			weno["WENO_EPS"] = 1e-10;
-			disc["weno"] = weno;
-		}
 		config["discretization"] = disc;
 	}
 
 	return config;
 }
 
-cadet::JsonParameterProvider createColumnWithTwoCompLinearBinding(const std::string& uoType)
+cadet::JsonParameterProvider createColumnWithTwoCompLinearBinding(const std::string& uoType, const std::string& spatialMethod)
 {
-	return cadet::JsonParameterProvider(createColumnWithTwoCompLinearJson(uoType));
+	return cadet::JsonParameterProvider(createColumnWithTwoCompLinearJson(uoType, spatialMethod));
 }
 
-json createLWEJson(const std::string& uoType)
+json createLWEJson(const std::string& uoType, const std::string& spatialMethod)
 {
 	json config;
 	// Model
 	{
 		json model;
 		model["NUNITS"] = 2;
-		model["unit_000"] = createColumnWithSMAJson(uoType);
+		model["unit_000"] = createColumnWithSMAJson(uoType, spatialMethod);
 
 		// Inlet - unit 001
 		{
@@ -434,12 +457,12 @@ json createLWEJson(const std::string& uoType)
 	return config;
 }
 
-cadet::JsonParameterProvider createLWE(const std::string& uoType)
+cadet::JsonParameterProvider createLWE(const std::string& uoType, const std::string& spatialMethod)
 {
-	return cadet::JsonParameterProvider(createLWEJson(uoType));
+	return cadet::JsonParameterProvider(createLWEJson(uoType, spatialMethod));
 }
 
-cadet::JsonParameterProvider createPulseInjectionColumn(const std::string& uoType, bool dynamicBinding)
+cadet::JsonParameterProvider createPulseInjectionColumn(const std::string& uoType, const std::string& spatialMethod, bool dynamicBinding)
 {
 	json config;
 	// Model
@@ -497,9 +520,34 @@ cadet::JsonParameterProvider createPulseInjectionColumn(const std::string& uoTyp
 			// Discretization
 			{
 				json disc;
+				disc["SPATIAL_METHOD"] = spatialMethod;
 
-				disc["NCOL"] = 10;
-				disc["NPAR"] = 4;
+				if (spatialMethod == "FV")
+				{
+					disc["NCOL"] = 10;
+					disc["NPAR"] = 4;
+
+					disc["MAX_KRYLOV"] = 0;
+					disc["GS_TYPE"] = 1;
+					disc["MAX_RESTARTS"] = 10;
+					disc["SCHUR_SAFETY"] = 1e-8;
+					{
+						json weno;
+						weno["WENO_ORDER"] = 3;
+						weno["BOUNDARY_MODEL"] = 0;
+						weno["WENO_EPS"] = 1e-10;
+						disc["weno"] = weno;
+					}
+				}
+				else if (spatialMethod == "DG")
+				{
+					disc["EXACT_INTEGRATION"] = 0;
+					disc["POLYDEG"] = 3;
+					disc["NELEM"] = 2;
+					disc["PAR_EXACT_INTEGRATION"] = 1;
+					disc["PAR_POLYDEG"] = 3;
+					disc["PAR_NELEM"] = 1;
+				}
 
 				if (uoType == "GENERAL_RATE_MODEL_2D")
 				{
@@ -510,20 +558,7 @@ cadet::JsonParameterProvider createPulseInjectionColumn(const std::string& uoTyp
 				disc["PAR_DISC_TYPE"] = std::string("EQUIDISTANT_PAR");
 
 				disc["USE_ANALYTIC_JACOBIAN"] = true;
-				disc["MAX_KRYLOV"] = 0;
-				disc["GS_TYPE"] = 1;
-				disc["MAX_RESTARTS"] = 10;
-				disc["SCHUR_SAFETY"] = 1e-8;
 
-				// WENO
-				{
-					json weno;
-
-					weno["WENO_ORDER"] = 3;
-					weno["BOUNDARY_MODEL"] = 0;
-					weno["WENO_EPS"] = 1e-10;
-					disc["weno"] = weno;
-				}
 				grm["discretization"] = disc;
 			}
 
@@ -688,7 +723,7 @@ cadet::JsonParameterProvider createPulseInjectionColumn(const std::string& uoTyp
 	return cadet::JsonParameterProvider(config);
 }
 
-json createLinearBenchmarkColumnJson(bool dynamicBinding, bool nonBinding, const std::string& uoType)
+json createLinearBenchmarkColumnJson(bool dynamicBinding, bool nonBinding, const std::string& uoType, const std::string& spatialMethod)
 {
 	json grm;
 	grm["UNIT_TYPE"] = uoType;
@@ -740,12 +775,37 @@ json createLinearBenchmarkColumnJson(bool dynamicBinding, bool nonBinding, const
 		grm["adsorption"] = ads;
 	}
 
-	// Discretization
-	{
-		json disc;
+			// Discretization
+			{
+				json disc;
+				disc["SPATIAL_METHOD"] = spatialMethod;
 
-				disc["NCOL"] = 512;
-				disc["NPAR"] = 4;
+				if (spatialMethod == "FV")
+				{
+					disc["NCOL"] = 512;
+					disc["NPAR"] = 4;
+
+					disc["MAX_KRYLOV"] = 0;
+					disc["GS_TYPE"] = 1;
+					disc["MAX_RESTARTS"] = 10;
+					disc["SCHUR_SAFETY"] = 1e-8;
+					{
+						json weno;
+						weno["WENO_ORDER"] = 3;
+						weno["BOUNDARY_MODEL"] = 0;
+						weno["WENO_EPS"] = 1e-10;
+						disc["weno"] = weno;
+					}
+				}
+				else if (spatialMethod == "DG")
+				{
+					disc["EXACT_INTEGRATION"] = 0;
+					disc["POLYDEG"] = 5;
+					disc["NELEM"] = 15;
+					disc["PAR_EXACT_INTEGRATION"] = 1;
+					disc["PAR_POLYDEG"] = 3;
+					disc["PAR_NELEM"] = 1;
+				}
 
 		if (uoType == "GENERAL_RATE_MODEL_2D")
 		{
@@ -755,33 +815,20 @@ json createLinearBenchmarkColumnJson(bool dynamicBinding, bool nonBinding, const
 
 		disc["PAR_DISC_TYPE"] = std::string("EQUIDISTANT_PAR");
 
-		disc["USE_ANALYTIC_JACOBIAN"] = true;
-		disc["MAX_KRYLOV"] = 0;
-		disc["GS_TYPE"] = 1;
-		disc["MAX_RESTARTS"] = 10;
-		disc["SCHUR_SAFETY"] = 1e-8;
+				disc["USE_ANALYTIC_JACOBIAN"] = true;
 
-		// WENO
-		{
-			json weno;
-
-			weno["WENO_ORDER"] = 3;
-			weno["BOUNDARY_MODEL"] = 0;
-			weno["WENO_EPS"] = 1e-10;
-			disc["weno"] = weno;
-		}
-		grm["discretization"] = disc;
-	}
+				grm["discretization"] = disc;
+			}
 
 	return grm;
 }
 
-cadet::JsonParameterProvider createColumnLinearBenchmark(bool dynamicBinding, bool nonBinding, const std::string& uoType)
+cadet::JsonParameterProvider createColumnLinearBenchmark(bool dynamicBinding, bool nonBinding, const std::string& uoType, const std::string& spatialMethod)
 {
-	return cadet::JsonParameterProvider(createLinearBenchmarkColumnJson(dynamicBinding, nonBinding, uoType));
+	return cadet::JsonParameterProvider(createLinearBenchmarkColumnJson(dynamicBinding, nonBinding, uoType, spatialMethod));
 }
 
-cadet::JsonParameterProvider createLinearBenchmark(bool dynamicBinding, bool nonBinding, const std::string& uoType)
+cadet::JsonParameterProvider createLinearBenchmark(bool dynamicBinding, bool nonBinding, const std::string& uoType, const std::string& spatialMethod)
 {
 	json config;
 	// Model
@@ -790,7 +837,7 @@ cadet::JsonParameterProvider createLinearBenchmark(bool dynamicBinding, bool non
 		model["NUNITS"] = 2;
 
 		// GRM - unit 000
-		model["unit_000"] = createLinearBenchmarkColumnJson(dynamicBinding, nonBinding, uoType);
+		model["unit_000"] = createLinearBenchmarkColumnJson(dynamicBinding, nonBinding, uoType, spatialMethod);
 
 		// Inlet - unit 001
 		{
