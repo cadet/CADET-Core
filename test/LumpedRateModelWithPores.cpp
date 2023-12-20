@@ -64,8 +64,10 @@ TEST_CASE("LRMP numerical Benchmark with parameter sensitivities for linear case
 	const std::string& modelFilePath = std::string("/data/model_LRMP_dynLin_1comp_benchmark1.json");
 	const std::string& refFilePath = std::string("/data/ref_LRMP_dynLin_1comp_sensbenchmark1_FV_Z32.h5");
 	const std::vector<double> absTol = { 1e-12, 1e-12, 1e-12, 1e-12 };
-	const std::vector<double> relTol = { 1.0, 1.0, 1.0, 1.0 };
-	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "001", absTol, relTol, 32, 0, true);
+	const std::vector<double> relTol = { 1e-4, 1e-4, 1e-4, 1e-4 };
+
+	cadet::test::column::FVparams disc(32);
+	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "001", absTol, relTol, disc, true);
 }
 
 TEST_CASE("LRMP numerical Benchmark with parameter sensitivities for SMA LWE case", "[LRMP],[FV],[Simulation],[Reference],[Sensitivity]") // todo CI flag: currently only runs locally but fails on server
@@ -73,8 +75,10 @@ TEST_CASE("LRMP numerical Benchmark with parameter sensitivities for SMA LWE cas
 	const std::string& modelFilePath = std::string("/data/model_LRMP_reqSMA_4comp_benchmark1.json");
 	const std::string& refFilePath = std::string("/data/ref_LRMP_reqSMA_4comp_sensbenchmark1_FV_Z32.h5");
 	const std::vector<double> absTol = { 1e-12, 1e-12, 1e-12, 1e-12 };
-	const std::vector<double> relTol = { 1.0, 1.0, 1.0, 1.0 };
-	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "000", absTol, relTol, 32, 0, true);
+	const std::vector<double> relTol = { 1e-4, 1e-4, 1e-4, 1e-4 };
+
+	cadet::test::column::FVparams disc(32);
+	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "000", absTol, relTol, disc, true);
 }
 
 TEST_CASE("LRMP numerical EOC Benchmark with parameter sensitivities for linear case", "[releaseCI],[EOC],[EOC_LRMP_FV]")
@@ -83,8 +87,10 @@ TEST_CASE("LRMP numerical EOC Benchmark with parameter sensitivities for linear 
 	const std::string& refFilePath = std::string("/data/ref_LRMP_dynLin_1comp_sensbenchmark1_FV_Z32768.h5");
 	const std::string& convFilePath = std::string("/data/convergence_LRMP_dynLin_1comp_sensbenchmark1.json");
 	const std::vector<double> absTol = { 1e-12, 1e-12, 1e-12, 1e-12 };
-	const std::vector<double> relTol = { 1.0, 1.0, 1.0, 1.0 };
-	cadet::test::column::testEOCReferenceBenchmark(modelFilePath, refFilePath, convFilePath, "001", absTol, relTol, 4, 16, 0, true);
+	const std::vector<double> relTol = { 1e-4, 1e-4, 1e-4, 1e-4 };
+
+	cadet::test::column::FVparams disc(16);
+	cadet::test::column::testEOCReferenceBenchmark(modelFilePath, refFilePath, convFilePath, "001", absTol, relTol, 4, disc, true);
 }
 
 TEST_CASE("LRMP numerical EOC Benchmark with parameter sensitivities for SMA LWE case", "[releaseCI],[EOC],[EOC_LRMP_FV]")
@@ -93,8 +99,10 @@ TEST_CASE("LRMP numerical EOC Benchmark with parameter sensitivities for SMA LWE
 	const std::string& refFilePath = std::string("/data/ref_LRMP_reqSMA_4comp_sensbenchmark1_FV_Z2048.h5");
 	const std::string& convFilePath = std::string("/data/convergence_LRMP_reqSMA_4comp_sensbenchmark1.json");
 	const std::vector<double> absTol = { 1e-12, 1e-12, 1e-12, 1e-12 };
-	const std::vector<double> relTol = { 1.0, 1.0, 1.0, 1.0 };
-	cadet::test::column::testEOCReferenceBenchmark(modelFilePath, refFilePath, convFilePath, "000", absTol, relTol, 2, 8, 0, true);
+	const std::vector<double> relTol = { 1e-4, 1e-4, 1e-4, 1e-4 };
+
+	cadet::test::column::FVparams disc(8);
+	cadet::test::column::testEOCReferenceBenchmark(modelFilePath, refFilePath, convFilePath, "000", absTol, relTol, 2, disc, true);
 }
 
 TEST_CASE("LRMP time derivative Jacobian vs FD", "[LRMP],[UnitOp],[Residual],[Jacobian],[CI]")

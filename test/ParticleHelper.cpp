@@ -97,7 +97,17 @@ namespace
 		{
 			auto ds = cadet::test::util::makeOptionalGroupScope(jpp, "discretization");
 
-			replicateFieldDataInt(jpp, "NPAR", nTypes);
+			if(jpp.exists("SPATIAL_METHOD"))
+				if (jpp.getString("SPATIAL_METHOD") == "DG")
+				{
+					replicateFieldDataInt(jpp, "PAR_POLYDEG", nTypes);
+					replicateFieldDataInt(jpp, "PAR_NELEM", nTypes);
+				}
+				else
+					replicateFieldDataInt(jpp, "NPAR", nTypes);
+			else
+				replicateFieldDataInt(jpp, "NPAR", nTypes);
+
 			replicateFieldDataString(jpp, "PAR_DISC_TYPE", nTypes);
 			replicateFieldDataDouble(jpp, "PAR_DISC_VECTOR", nTypes);
 		}
@@ -105,6 +115,7 @@ namespace
 		replicateFieldDataDouble(jpp, "FILM_DIFFUSION", factors);
 		replicateFieldDataDouble(jpp, "PAR_DIFFUSION", factors);
 		replicateFieldDataDouble(jpp, "PAR_SURFDIFFUSION", factors);
+		replicateFieldDataDouble(jpp, "PAR_GEOM", factors);
 		replicateFieldDataDouble(jpp, "PAR_RADIUS", factors);
 		replicateFieldDataDouble(jpp, "PAR_CORERADIUS", factors);
 		replicateFieldDataDouble(jpp, "PAR_POROSITY", factors);
@@ -191,7 +202,10 @@ namespace particle
 		unsigned int nRad = 1;
 		{
 			auto ds = cadet::test::util::makeOptionalGroupScope(jpp, "discretization");
-			nCol = jpp.getInt("NCOL");
+			if (jpp.exists("SPATIAL_METHOD"))
+				nCol = jpp.getString("SPATIAL_METHOD") == "DG" ? (jpp.getInt("POLYDEG") + 1) * jpp.getInt("NELEM") : jpp.getInt("NCOL");
+			else
+				nCol = jpp.getInt("NCOL");
 
 			if (jpp.exists("NRAD"))
 				nRad = jpp.getInt("NRAD");
@@ -368,22 +382,22 @@ namespace particle
 		testLinearMixedParticleTypesImpl(jpp, absTol, relTol, [](cadet::JsonParameterProvider& jpp) { scrambleParticleTypeFractionsSpatially(jpp, 3); });
 	}
 
-	void testJacobianMixedParticleTypes(const std::string& uoType, const std::string& spatialMethod)
+	void testJacobianMixedParticleTypes(const std::string& uoType, const std::string& spatialMethod, const double absTolFDpattern)
 	{
 		cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding(uoType, spatialMethod);
-		testJacobianMixedParticleTypes(jpp);
+		testJacobianMixedParticleTypes(jpp, absTolFDpattern);
 	}
 
-	void testJacobianMixedParticleTypes(cadet::JsonParameterProvider& jpp)
+	void testJacobianMixedParticleTypes(cadet::JsonParameterProvider& jpp, const double absTolFDpattern)
 	{
 		// Add more particle types (such that we have a total of 3 types)
 		const double volFrac[] = {0.3, 0.6, 0.1};
 		extendModelToManyParticleTypes(jpp, {0.9, 0.8}, volFrac);
 
-		unitoperation::testJacobianAD(jpp);
+		unitoperation::testJacobianAD(jpp, absTolFDpattern);
 	}
 
-	void testJacobianSpatiallyMixedParticleTypes(const std::string& uoType, const std::string& spatialMethod)
+	void testJacobianSpatiallyMixedParticleTypes(const std::string& uoType, const std::string& spatialMethod, const double absTolFDpattern)
 	{
 		cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding(uoType, spatialMethod);
 
@@ -393,7 +407,7 @@ namespace particle
 		// Spatially inhomogeneous
 		scrambleParticleTypeFractionsSpatially(jpp, 3);
 
-		unitoperation::testJacobianAD(jpp);
+		unitoperation::testJacobianAD(jpp, absTolFDpattern);
 	}
 
 	void testTimeDerivativeJacobianMixedParticleTypesFD(const std::string& uoType, const std::string& spatialMethod, double h, double absTol, double relTol)

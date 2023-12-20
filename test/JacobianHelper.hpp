@@ -406,6 +406,8 @@ inline void checkJacobianPatternFD(const std::function<void(double const*, doubl
 		{
 			CAPTURE(row);
 			CAPTURE(col);
+			CAPTURE(colA[row]);
+			CAPTURE(colB[row]);
 			if (std::abs(colA[row]) <= absTol)
 				CHECK(std::abs(colA[row]) <= absTol);
 			else if (std::isnan(colA[row]))
@@ -430,7 +432,7 @@ inline void checkJacobianPatternFD(const std::function<void(double const*, doubl
  * @param [in] absTol absolute tolerance when comparing the sign in the pattern
  */
 inline void checkJacobianPatternFD(const std::function<void(double const*, double*)>& residual, const std::function<void(double const*, double*)>& multiplyJacobian, double const* y,
-	double* dir, double* colA, double* colB, unsigned int n, const double absTol = 0.0)
+	double* dir, double* colA, double* colB, unsigned int n, const double absTol=0.0)
 {
 	checkJacobianPatternFD(residual, multiplyJacobian, y, dir, colA, colB, n, n, absTol);
 }
