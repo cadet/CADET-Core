@@ -176,6 +176,9 @@ bool GeneralRateModelDG::configureModelDiscretization(IParameterProvider& paramP
 	std::vector<int> parPolyDeg(_disc.nParType);
 	std::vector<int> ParNelem(_disc.nParType);
 	std::vector<bool> parExactInt(_disc.nParType);
+	_disc.parPolyDeg = new unsigned int[_disc.nParType];
+	_disc.nParCell = new unsigned int[_disc.nParType];
+	_disc.parExactInt = new bool[_disc.nParType];
 
 	if (paramProvider.exists("PAR_POLYDEG"))
 	{
@@ -196,7 +199,7 @@ bool GeneralRateModelDG::configureModelDiscretization(IParameterProvider& paramP
 				std::fill(_disc.parPolyDeg, _disc.parPolyDeg + _disc.nParType, parPolyDeg[0]);
 		}
 		else if (parPolyDeg.size() < _disc.nParType)
-			throw InvalidParameterException("Field PARPOLYDEG must have 1 or NPARTYPE (" + std::to_string(_disc.nParType) + ") entries");
+			throw InvalidParameterException("Field PAR_POLYDEG must have 1 or NPARTYPE (" + std::to_string(_disc.nParType) + ") entries");
 		else
 			std::copy_n(parPolyDeg.begin(), _disc.nParType, _disc.parPolyDeg);
 		if (ParNelem.size() == 1)
@@ -230,7 +233,7 @@ bool GeneralRateModelDG::configureModelDiscretization(IParameterProvider& paramP
 			parPolyDeg[par] = std::max(1, std::min(nParPoints[par] - 1, 4));
 	}
 	else
-		throw InvalidParameterException("Specify field PARPOLYDEG (or NPAR)");
+		throw InvalidParameterException("Specify field PAR_POLYDEG (or NPAR)");
 
 	// Compute discretization operators and initialize containers
 	_disc.initializeDG();
