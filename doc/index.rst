@@ -86,6 +86,12 @@ To cite CADET please use the following publication:
 * Püttmann, A.; Schnittert, S.; Naumann, U.; von Lieres, E.: `Fast and accurate parameter sensitivities for the general rate model of column liquid chromatography <http://doi.org/10.1016/j.compchemeng.2013.04.021>`_, Computers and Chemical Engineering 56,13 (2013), 46-57.
 * von Lieres, E.; Andersson, J.: `A fast and accurate solver for the general rate model of column liquid chromatography <http://doi.org/10.1016/j.compchemeng.2010.03.008>`_, Computers and Chemical Engineering 34,8 (2010), 1180–1191.
 
+Acknowledgments
+---------------
+
+Please refer to the `list of contributors <https://github.com/modsim/CADET/blob/master/CONTRIBUTORS.md>`_ who helped building and funding this project.
+
+
 .. toctree::
     :maxdepth: 3
     :hidden:
