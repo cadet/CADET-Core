@@ -49,8 +49,13 @@ Donations
 
 
 License
-----------
+-------
 
 Released under GPL v3. License (see `LICENSE.txt <https://github.com/modsim/CADET/blob/master/LICENSE.txt>`_)::
 
-   Copyright (C) 2004-2022 CADET Authors 
+Acknowledgments
+---------------
+
+Please refer to the `list of contributors <https://github.com/modsim/CADET/blob/master/CONTRIBUTORS.md>`_ who helped building and funding this project.
+
+   Copyright (C) 2004-2024 CADET Authors
