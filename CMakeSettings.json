@@ -1,395 +1,78 @@
 {
-  // See https://go.microsoft.com//fwlink//?linkid=834763 for more information about this file.
   "environments": [
     {
-      "TBB_DIR": "C:/Program Files (x86)/IntelSWTools/compilers_and_libraries/windows/tbb",
-      "BLAS_DIR": "C:/Program Files (x86)/IntelSWTools/compilers_and_libraries/windows/mkl/lib/intel64_win",
-      "SUNDIALS_DIR": "${projectDir}/../../libs/sundials",
-      "HDF5_DIR": "${projectDir}/../../libs/hdf5",
-      "ZLIB": "${projectDir}/../../libs/hdf5/lib/zlib.lib",
-      "SZLIB": "${projectDir}/../../libs/hdf5/lib/szip.lib",
-      "INSTALL_DIR": "${projectDir}/../cadet/${name}",
       "BLAS_DEBUG": "Intel10_64lp_seq",
+      "BLAS_DIR": "C:/Program Files (x86)/Intel/oneAPI/mkl/latest",
       "BLAS_RELEASE": "Intel10_64lp_seq",
-      "BUILDROOT": "${projectDir}/../build"
+      "BUILDROOT": "${projectDir}/build",
+      "INSTALL_DIR": "${projectDir}/install/${name}"
     }
   ],
   "configurations": [
     {
-      "name": "MS_MKL_DEBUG",
+      "name": "DEBUG",
       "generator": "Visual Studio 17 2022 Win64",
       "configurationType": "Debug",
+      "inheritEnvironments": [ "msvc_x64_x64" ],
       "buildRoot": "${env.BUILDROOT}",
-      "cmakeCommandArgs": "",
+      "cmakeCommandArgs": "-DVCPKG_TARGET_TRIPLET=x64-windows-static -DCMAKE_INSTALL_PREFIX=${env.INSTALL_DIR}",
       "buildCommandArgs": "-m -v:minimal",
       "variables": [
         {
-          "name": "TBB_ROOT_DIR:PATH",
-          "value": "${env.TBB_DIR}"
-        },
-        {
           "name": "CMAKE_LIBRARY_PATH:PATH",
-          "value": "${env.BLAS_DIR}"
-        },
-        {
-          "name": "SUNDIALS_ROOT:PATH",
-          "value": "${env.SUNDIALS_DIR}"
-        },
-        {
-          "name": "HDF5_ROOT:PATH",
-          "value": "${env.HDF5_DIR}"
-        },
-        {
-          "name": "HDF5_ZLIB",
-          "value": "${env.ZLIB}"
-        },
-        {
-          "name": "HDF5_SZLIB",
-          "value": "${env.SZLIB}"
+          "value": "${env.BLAS_DIR}",
+          "type": "STRING"
         },
         {
           "name": "BUILD_SHARED_LIBS",
-          "value": "1"
-        },
-        {
-          "name": "BUILD_STATIC_LIBS",
-          "value": "0"
-        },
-        {
-          "name": "BUILD_TESTS",
-          "value": "0"
+          "value": "1",
+          "type": "STRING"
         },
         {
           "name": "BLA_VENDOR",
-          "value": "${env.BLAS_DEBUG}"
-        },
-        {
-          "name": "CMAKE_INSTALL_PREFIX",
-          "value": "${env.INSTALL_DIR}"
+          "value": "${env.BLAS_DEBUG}",
+          "type": "STRING"
         },
         {
           "name": "CMAKE_BUILD_TYPE",
-          "value": "Debug"
+          "value": "Debug",
+          "type": "STRING"
         }
       ]
-
     },
     {
-      "name": "MS_MKL_RELEASE",
+      "name": "RELEASE",
       "generator": "Visual Studio 17 2022 Win64",
       "configurationType": "Release",
+      "inheritEnvironments": [ "msvc_x64_x64" ],
       "buildRoot": "${env.BUILDROOT}",
-      "cmakeCommandArgs": "",
+      "cmakeCommandArgs": "-DVCPKG_TARGET_TRIPLET=x64-windows-static -DENABLE_STATIC_LINK_LAPACK=ON -DENABLE_STATIC_LINK_DEPS=ON -DCMAKE_INSTALL_PREFIX=${env.INSTALL_DIR}",
       "buildCommandArgs": "-m -v:minimal",
       "variables": [
         {
-          "name": "TBB_ROOT_DIR:PATH",
-          "value": "${env.TBB_DIR}"
-        },
-        {
           "name": "CMAKE_LIBRARY_PATH:PATH",
-          "value": "${env.BLAS_DIR}"
-        },
-        {
-          "name": "SUNDIALS_ROOT:PATH",
-          "value": "${env.SUNDIALS_DIR}"
-        },
-        {
-          "name": "HDF5_ROOT:PATH",
-          "value": "${env.HDF5_DIR}"
-        },
-        {
-          "name": "HDF5_ZLIB",
-          "value": "${env.ZLIB}"
-        },
-        {
-          "name": "HDF5_SZLIB",
-          "value": "${env.SZLIB}"
+          "value": "${env.BLAS_DIR}",
+          "type": "STRING"
         },
         {
           "name": "HDF5_USE_STATIC_LIBRARIES",
-          "value": "1"
+          "value": "1",
+          "type": "STRING"
         },
         {
           "name": "BUILD_SHARED_LIBS",
-          "value": "1"
-        },
-        {
-          "name": "BUILD_STATIC_LIBS",
-          "value": "0"
-        },
-        {
-          "name": "BUILD_TESTS",
-          "value": "0"
+          "value": "0",
+          "type": "STRING"
         },
         {
           "name": "BLA_VENDOR",
-          "value": "${env.BLAS_RELEASE}"
-        },
-        {
-          "name": "CMAKE_INSTALL_PREFIX",
-          "value": "${env.INSTALL_DIR}"
+          "value": "${env.BLAS_RELEASE}",
+          "type": "STRING"
         },
         {
           "name": "CMAKE_BUILD_TYPE",
-          "value": "Release"
-        }
-      ]
-    },
-    {
-      "name": "MS_MKL_RELDEBINFO",
-      "generator": "Visual Studio 17 2022 Win64",
-      "configurationType": "RelWithDebInfo",
-      "buildRoot": "${env.BUILDROOT}",
-      "cmakeCommandArgs": "",
-      "buildCommandArgs": "-m -v:minimal",
-      "variables": [
-        {
-          "name": "TBB_ROOT_DIR:PATH",
-          "value": "${env.TBB_DIR}"
-        },
-        {
-          "name": "CMAKE_LIBRARY_PATH:PATH",
-          "value": "${env.BLAS_DIR}"
-        },
-        {
-          "name": "SUNDIALS_ROOT:PATH",
-          "value": "${env.SUNDIALS_DIR}"
-        },
-        {
-          "name": "HDF5_ROOT:PATH",
-          "value": "${env.HDF5_DIR}"
-        },
-        {
-          "name": "HDF5_ZLIB",
-          "value": "${env.ZLIB}"
-        },
-        {
-          "name": "HDF5_SZLIB",
-          "value": "${env.SZLIB}"
-        },
-        {
-          "name": "HDF5_USE_STATIC_LIBRARIES",
-          "value": "1"
-        },
-        {
-          "name": "BUILD_SHARED_LIBS",
-          "value": "1"
-        },
-        {
-          "name": "BUILD_STATIC_LIBS",
-          "value": "0"
-        },
-        {
-          "name": "BUILD_TESTS",
-          "value": "0"
-        },
-        {
-          "name": "BLA_VENDOR",
-          "value": "${env.BLAS_RELEASE}"
-        },
-        {
-          "name": "CMAKE_INSTALL_PREFIX",
-          "value": "${env.INSTALL_DIR}"
-        },
-        {
-          "name": "CMAKE_BUILD_TYPE",
-          "value": "Release"
-        }
-      ]
-    },
-    {
-      "name": "MS_SMKL_DEBUG",
-      "generator": "Visual Studio 17 2022 Win64",
-      "configurationType": "Debug",
-      "buildRoot": "${env.BUILDROOT}",
-      "cmakeCommandArgs": "",
-      "buildCommandArgs": "-m -v:minimal",
-      "variables": [
-        {
-          "name": "TBB_ROOT_DIR:PATH",
-          "value": "${env.TBB_DIR}"
-        },
-        {
-          "name": "CMAKE_LIBRARY_PATH:PATH",
-          "value": "${env.BLAS_DIR}"
-        },
-        {
-          "name": "SUNDIALS_ROOT:PATH",
-          "value": "${env.SUNDIALS_DIR}"
-        },
-        {
-          "name": "HDF5_ROOT:PATH",
-          "value": "${env.HDF5_DIR}"
-        },
-        {
-          "name": "HDF5_ZLIB",
-          "value": "${env.ZLIB}"
-        },
-        {
-          "name": "HDF5_SZLIB",
-          "value": "${env.SZLIB}"
-        },
-        {
-          "name": "BUILD_SHARED_LIBS",
-          "value": "1"
-        },
-        {
-          "name": "BUILD_STATIC_LIBS",
-          "value": "0"
-        },
-        {
-          "name": "BUILD_TESTS",
-          "value": "0"
-        },
-        {
-          "name": "BLA_VENDOR",
-          "value": "${env.BLAS_DEBUG}"
-        },
-        {
-          "name": "CMAKE_INSTALL_PREFIX",
-          "value": "${env.INSTALL_DIR}"
-        },
-        {
-          "name": "CMAKE_BUILD_TYPE",
-          "value": "Debug"
-        },
-        {
-          "name": "BLA_STATIC",
-          "value": "1"
-        }
-      ]
-
-    },
-    {
-      "name": "MS_SMKL_RELEASE",
-      "generator": "Visual Studio 17 2022 Win64",
-      "configurationType": "Release",
-      "buildRoot": "${env.BUILDROOT}",
-      "cmakeCommandArgs": "",
-      "buildCommandArgs": "-m -v:minimal",
-      "variables": [
-        {
-          "name": "TBB_ROOT_DIR:PATH",
-          "value": "${env.TBB_DIR}"
-        },
-        {
-          "name": "CMAKE_LIBRARY_PATH:PATH",
-          "value": "${env.BLAS_DIR}"
-        },
-        {
-          "name": "SUNDIALS_ROOT:PATH",
-          "value": "${env.SUNDIALS_DIR}"
-        },
-        {
-          "name": "HDF5_ROOT:PATH",
-          "value": "${env.HDF5_DIR}"
-        },
-        {
-          "name": "HDF5_ZLIB",
-          "value": "${env.ZLIB}"
-        },
-        {
-          "name": "HDF5_SZLIB",
-          "value": "${env.SZLIB}"
-        },
-        {
-          "name": "HDF5_USE_STATIC_LIBRARIES",
-          "value": "1"
-        },
-        {
-          "name": "BUILD_SHARED_LIBS",
-          "value": "1"
-        },
-        {
-          "name": "BUILD_STATIC_LIBS",
-          "value": "0"
-        },
-        {
-          "name": "BUILD_TESTS",
-          "value": "0"
-        },
-        {
-          "name": "BLA_VENDOR",
-          "value": "${env.BLAS_RELEASE}"
-        },
-        {
-          "name": "CMAKE_INSTALL_PREFIX",
-          "value": "${env.INSTALL_DIR}"
-        },
-        {
-          "name": "CMAKE_BUILD_TYPE",
-          "value": "Release"
-        },
-        {
-          "name": "BLA_STATIC",
-          "value": "1"
-        }
-      ]
-    },
-    {
-      "name": "MS_SMKL_RELDEBINFO",
-      "generator": "Visual Studio 17 2022 Win64",
-      "configurationType": "RelWithDebInfo",
-      "buildRoot": "${env.BUILDROOT}",
-      "cmakeCommandArgs": "",
-      "buildCommandArgs": "-m -v:minimal",
-      "variables": [
-        {
-          "name": "TBB_ROOT_DIR:PATH",
-          "value": "${env.TBB_DIR}"
-        },
-        {
-          "name": "CMAKE_LIBRARY_PATH:PATH",
-          "value": "${env.BLAS_DIR}"
-        },
-        {
-          "name": "SUNDIALS_ROOT:PATH",
-          "value": "${env.SUNDIALS_DIR}"
-        },
-        {
-          "name": "HDF5_ROOT:PATH",
-          "value": "${env.HDF5_DIR}"
-        },
-        {
-          "name": "HDF5_ZLIB",
-          "value": "${env.ZLIB}"
-        },
-        {
-          "name": "HDF5_SZLIB",
-          "value": "${env.SZLIB}"
-        },
-        {
-          "name": "HDF5_USE_STATIC_LIBRARIES",
-          "value": "1"
-        },
-        {
-          "name": "BUILD_SHARED_LIBS",
-          "value": "1"
-        },
-        {
-          "name": "BUILD_STATIC_LIBS",
-          "value": "0"
-        },
-        {
-          "name": "BUILD_TESTS",
-          "value": "0"
-        },
-        {
-          "name": "BLA_VENDOR",
-          "value": "${env.BLAS_RELEASE}"
-        },
-        {
-          "name": "CMAKE_INSTALL_PREFIX",
-          "value": "${env.INSTALL_DIR}"
-        },
-        {
-          "name": "CMAKE_BUILD_TYPE",
-          "value": "Release"
-        },
-        {
-          "name": "BLA_STATIC",
-          "value": "1"
+          "value": "Release",
+          "type": "STRING"
         }
       ]
     }

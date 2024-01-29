@@ -1,6 +1,6 @@
 ## Prerequisites
 
-* Microsoft Visual Studio 2022 (Community Edition, or better)
+* Microsoft Visual Studio **2022** (Community Edition, or better)
 * Intel OneAPI MKL
 * Optional: Git
 * Optional but not generally recommended*: Intel OneAPI TBB
@@ -43,7 +43,7 @@ We are using Visual Studio because it is the easiest way to install all required
 ## Optional:  clink
 
 - Clink provides text completion, history, and line-editing to Windows Command Prompt
-- Download the [clink installer exe](https://mridgers.github.io/clink/) and install clink.
+- Download the [clink installer exe](https://github.com/chrisant996/clink) and install clink.
 
 ## Prepare CADET code
 
@@ -51,7 +51,18 @@ We are using Visual Studio because it is the easiest way to install all required
   - `git clone https://github.com/modsim/CADET.git CADET`
 - Create the directories `CADET\build` and `CADET\install`
 
-## Build CADET
+## Build CADET in Visual Studio
+
+- Open Visual Studio and open the `CADET` folder
+- At the top, where it says `DEBUG`, select `RELEASE` instead
+- Wait for `vcpkg` to install all the dependencies. The first time this is done on your PC it can take ~15-30 minutes
+- Wait for `cmake generation` to finish (see `output` window)
+- From the status bar at the top select `Build`, `Build all`
+- Once that finishes, select `Build`, `Install CadetFramework`
+- The binaries will be located in `CADET\install\RELEASE\bin`
+
+
+## Build CADET from the command line
 
 - Open Visual Studio and select "continue without code"
 - Navigate to "Tools" - "Command Line" and open either a "Developer Command Prompt" or "Developer PowerShell"
