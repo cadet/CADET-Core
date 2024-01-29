@@ -22,10 +22,8 @@ recent version.
 
 ```
 sudo apt-get update
-sudo apt -y install build-essential cmake libhdf5-dev libtbb-dev libsuperlu-dev libeigen3-dev
+sudo apt -y install build-essential cmake libhdf5-dev libsuperlu-dev libeigen3-dev
 ```
-
-sudo apt -y install build-essential libhdf5-dev libsuperlu-dev libeigen3-dev intel-mkl
 
 ### LAPACK
 
@@ -40,7 +38,7 @@ sudo apt -y install intel-mkl
 for distro defaults run
 
 ```
-sudo apt -y install liblapack3 liblapack-dev libblas3 libblas-dev`
+sudo apt -y install liblapack3 liblapack-dev libblas3 libblas-dev
 ```
 
 ## Build CADET
