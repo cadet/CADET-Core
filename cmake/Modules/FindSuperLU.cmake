@@ -66,10 +66,15 @@ if (SUPERLU_INCLUDE_DIRS)
     string(REGEX REPLACE ".*#define SUPERLU_MINOR_VERSION [ \t\r\n]* ([0-9]+).*" "\\1" SUPERLU_VERSION_MINOR "${_SUPERLU_VERSION_FILE}")
     string(REGEX REPLACE ".*#define SUPERLU_PATCH_VERSION [ \t\r\n]* ([0-9]+).*" "\\1" SUPERLU_VERSION_PATCH "${_SUPERLU_VERSION_FILE}")
     set(SUPERLU_VERSION "${SUPERLU_VERSION_MAJOR}.${SUPERLU_VERSION_MINOR}.${SUPERLU_VERSION_PATCH}")
-
+    
     # extract int type
-    file(READ "${SUPERLU_INCLUDE_DIRS}/slu_sdefs.h" _SUPERLU_INTTYPE_FILE)
-    string(REGEX REPLACE ".*typedef (.*) int_t;.*.*" "\\1" SUPERLU_INT_TYPE "${_SUPERLU_INTTYPE_FILE}")
+    if (SUPERLU_VERSION_MAJOR GREATER_EQUAL 6)
+        file(READ "${SUPERLU_INCLUDE_DIRS}/superlu_config.h" _SUPERLU_INTTYPE_FILE)
+        string(REGEX REPLACE ".*typedef (.*) int_t; .* default .*.*" "\\1" SUPERLU_INT_TYPE "${_SUPERLU_INTTYPE_FILE}")
+    else()
+        file(READ "${SUPERLU_INCLUDE_DIRS}/slu_sdefs.h" _SUPERLU_INTTYPE_FILE)
+        string(REGEX REPLACE ".*typedef (.*) int_t;.*.*" "\\1" SUPERLU_INT_TYPE "${_SUPERLU_INTTYPE_FILE}")
+    endif()
 endif()
 
 # prefer static libs by prioritizing .lib and .a suffixes in CMAKE_FIND_LIBRARY_SUFFIXES
