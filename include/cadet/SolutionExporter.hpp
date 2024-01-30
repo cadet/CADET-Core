@@ -66,6 +66,13 @@ public:
 	virtual bool isParticleLumped() const CADET_NOEXCEPT = 0;
 
 	/**
+	 * @brief Returns whether the primary coordinate is always a single element
+	 * @details If the primary coordinate is always a single element, the singleton dimension can be removed.
+	 * @return @c true if the state in the primary coordinate direction is always represented by a single element, otherwise @c false
+	 */
+	virtual bool hasPrimaryExtent() const CADET_NOEXCEPT = 0;
+
+	/**
 	 * @brief Returns the number of components
 	 * @return Number of components
 	 */
