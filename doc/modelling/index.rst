@@ -10,3 +10,4 @@ This section gives complete information about the supported unit operations, bin
     binding/index
     reaction/index
     networks
+    crystallization
