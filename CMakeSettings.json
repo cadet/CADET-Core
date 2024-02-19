@@ -4,8 +4,7 @@
       "BLAS_DEBUG": "Intel10_64lp_seq",
       "BLAS_DIR": "C:/Program Files (x86)/Intel/oneAPI/mkl/latest",
       "BLAS_RELEASE": "Intel10_64lp_seq",
-      "BUILDROOT": "${projectDir}/build",
-      "INSTALL_DIR": "${projectDir}/install/${name}"
+      "BUILDROOT": "${projectDir}/build"
     }
   ],
   "configurations": [
