@@ -4,8 +4,7 @@
       "BLAS_DEBUG": "Intel10_64lp_seq",
       "BLAS_DIR": "C:/Program Files (x86)/Intel/oneAPI/mkl/latest",
       "BLAS_RELEASE": "Intel10_64lp_seq",
-      "BUILDROOT": "${projectDir}/build",
-      "INSTALL_DIR": "${projectDir}/install/${name}"
+      "BUILDROOT": "${projectDir}/build"
     }
   ],
   "configurations": [
@@ -15,7 +14,7 @@
       "configurationType": "Debug",
       "inheritEnvironments": [ "msvc_x64_x64" ],
       "buildRoot": "${env.BUILDROOT}",
-      "cmakeCommandArgs": "-DVCPKG_TARGET_TRIPLET=x64-windows-static -DCMAKE_INSTALL_PREFIX=${env.INSTALL_DIR}",
+      "cmakeCommandArgs": "-DVCPKG_TARGET_TRIPLET=x64-windows-static -DENABLE_TESTS=OFF -DENABLE_ANALYTIC_JACOBIAN_CHECK=OFF --fresh",
       "buildCommandArgs": "-m -v:minimal",
       "variables": [
         {
@@ -41,12 +40,48 @@
       ]
     },
     {
-      "name": "RELEASE",
+      "name": "aRELEASE",
       "generator": "Visual Studio 17 2022 Win64",
       "configurationType": "Release",
       "inheritEnvironments": [ "msvc_x64_x64" ],
       "buildRoot": "${env.BUILDROOT}",
-      "cmakeCommandArgs": "-DVCPKG_TARGET_TRIPLET=x64-windows-static -DENABLE_STATIC_LINK_LAPACK=ON -DENABLE_STATIC_LINK_DEPS=ON -DCMAKE_INSTALL_PREFIX=${env.INSTALL_DIR}",
+      "cmakeCommandArgs": "-DVCPKG_TARGET_TRIPLET=x64-windows-static -DENABLE_STATIC_LINK_LAPACK=ON -DENABLE_STATIC_LINK_DEPS=ON -DENABLE_TESTS=OFF -DENABLE_ANALYTIC_JACOBIAN_CHECK=OFF --fresh",
+      "buildCommandArgs": "-m -v:minimal",
+      "variables": [
+        {
+          "name": "CMAKE_LIBRARY_PATH:PATH",
+          "value": "${env.BLAS_DIR}",
+          "type": "STRING"
+        },
+        {
+          "name": "HDF5_USE_STATIC_LIBRARIES",
+          "value": "1",
+          "type": "STRING"
+        },
+        {
+          "name": "BUILD_SHARED_LIBS",
+          "value": "0",
+          "type": "STRING"
+        },
+        {
+          "name": "BLA_VENDOR",
+          "value": "${env.BLAS_RELEASE}",
+          "type": "STRING"
+        },
+        {
+          "name": "CMAKE_BUILD_TYPE",
+          "value": "Release",
+          "type": "STRING"
+        }
+      ]
+    },
+    {
+      "name": "RELEASE_with_Debug_Info",
+      "generator": "Visual Studio 17 2022 Win64",
+      "configurationType": "RelWithDebInfo",
+      "inheritEnvironments": [ "msvc_x64_x64" ],
+      "buildRoot": "${env.BUILDROOT}",
+      "cmakeCommandArgs": "-DVCPKG_TARGET_TRIPLET=x64-windows-static -DENABLE_STATIC_LINK_LAPACK=ON -DENABLE_STATIC_LINK_DEPS=ON -DENABLE_TESTS=OFF -DENABLE_ANALYTIC_JACOBIAN_CHECK=OFF --fresh",
       "buildCommandArgs": "-m -v:minimal",
       "variables": [
         {
