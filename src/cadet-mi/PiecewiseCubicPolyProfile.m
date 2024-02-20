@@ -5,7 +5,7 @@ classdef PiecewiseCubicPolyProfile < handle
 	%   conditions are met at the interfaces of two adjacent pieces), but can also represent
 	%   discontinuous data (such as step profiles).
 	
-	% Copyright: (C) 2008-2022 The CADET Authors
+	% Copyright: (C) 2008-2024 The CADET Authors
 	%            See the license note at the end of the file.
 	
 	properties (Transient)
@@ -500,7 +500,7 @@ end
 % =============================================================================
 %  CADET
 %  
-%  Copyright (C) 2008-2022: The CADET Authors
+%  Copyright (C) 2008-2024: The CADET Authors
 %            Please see the AUTHORS and CONTRIBUTORS file.
 %  
 %  All rights reserved. This program and the accompanying materials

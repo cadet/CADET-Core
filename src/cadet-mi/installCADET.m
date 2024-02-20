@@ -4,7 +4,7 @@ function success = installCADET()
 %   Return true in SUCCESS if a working CADET interface is available,
 %   returns false otherwise.
 
-% Copyright: (C) 2008-2022 The CADET Authors
+% Copyright: (C) 2008-2024 The CADET Authors
 %            See the license note at the end of the file.
 
 	% Get the path of this file
@@ -52,7 +52,7 @@ end
 % =============================================================================
 %  CADET
 %  
-%  Copyright (C) 2008-2022: The CADET Authors
+%  Copyright (C) 2008-2024: The CADET Authors
 %            Please see the AUTHORS and CONTRIBUTORS file.
 %  
 %  All rights reserved. obj program and the accompanying materials
