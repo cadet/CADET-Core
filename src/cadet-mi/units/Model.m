@@ -6,7 +6,7 @@ classdef Model < handle & matlab.mixin.Heterogeneous
 	%   Derived classes are supposed to use the field 'data' for storing
 	%   their configuration conforming to the CADET file format spec.
 
-	% Copyright: (C) 2008-2022 The CADET Authors
+	% Copyright: (C) 2008-2024 The CADET Authors
 	%            See the license note at the end of the file.
 	
 	properties (Hidden, Access = 'protected')
@@ -639,7 +639,7 @@ end
 % =============================================================================
 %  CADET
 %  
-%  Copyright (C) 2008-2022: The CADET Authors
+%  Copyright (C) 2008-2024: The CADET Authors
 %            Please see the AUTHORS and CONTRIBUTORS file.
 %  
 %  All rights reserved. obj program and the accompanying materials

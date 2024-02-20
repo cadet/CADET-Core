@@ -8,7 +8,7 @@ function jac = jacobianFiniteDifferences(sim, params, fdSteps)
 %   parameter. The returned cell array JAC contains the Jacobian for each unit
 %   operation with the format [nTime, nComponents, nParams].
 
-% Copyright: (C) 2008-2022 The CADET Authors
+% Copyright: (C) 2008-2024 The CADET Authors
 %            See the license note at the end of the file.
 
 	for i = 1:length(params)
@@ -42,7 +42,7 @@ end
 % =============================================================================
 %  CADET
 %  
-%  Copyright (C) 2008-2022: The CADET Authors
+%  Copyright (C) 2008-2024: The CADET Authors
 %            Please see the AUTHORS and CONTRIBUTORS file.
 %  
 %  All rights reserved. This program and the accompanying materials

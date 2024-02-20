@@ -7,7 +7,7 @@ classdef MultiFields
 	%   from a matrix, for removing them from the structure completely, and for
 	%   extracting them (taking gaps into account) into a matrix.
 	
-	% Copyright: (C) 2008-2022 The CADET Authors
+	% Copyright: (C) 2008-2024 The CADET Authors
 	%            See the license note at the end of the file.
 
 	methods (Static)
@@ -102,7 +102,7 @@ end
 % =============================================================================
 %  CADET
 %  
-%  Copyright (C) 2008-2022: The CADET Authors
+%  Copyright (C) 2008-2024: The CADET Authors
 %            Please see the AUTHORS and CONTRIBUTORS file.
 %  
 %  All rights reserved. obj program and the accompanying materials
