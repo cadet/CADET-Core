@@ -14,7 +14,7 @@
       "configurationType": "Debug",
       "inheritEnvironments": [ "msvc_x64_x64" ],
       "buildRoot": "${env.BUILDROOT}",
-      "cmakeCommandArgs": "-DVCPKG_TARGET_TRIPLET=x64-windows-static -DENABLE_TESTS=OFF -DENABLE_ANALYTIC_JACOBIAN_CHECK=OFF --fresh",
+      "cmakeCommandArgs": "-DVCPKG_TARGET_TRIPLET=x64-windows-static -DENABLE_STATIC_LINK_LAPACK=ON -DENABLE_STATIC_LINK_DEPS=ON -DENABLE_TESTS=OFF -DENABLE_ANALYTIC_JACOBIAN_CHECK=OFF --fresh",
       "buildCommandArgs": "-m -v:minimal",
       "variables": [
         {
@@ -23,8 +23,13 @@
           "type": "STRING"
         },
         {
-          "name": "BUILD_SHARED_LIBS",
+          "name": "HDF5_USE_STATIC_LIBRARIES",
           "value": "1",
+          "type": "STRING"
+        },
+        {
+          "name": "BUILD_SHARED_LIBS",
+          "value": "0",
           "type": "STRING"
         },
         {
