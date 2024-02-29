@@ -24,13 +24,18 @@ jobs:
           submodules: true
           path: src
       - uses: ilammy/msvc-dev-cmd@v1
+      - name: Get MSVC version
+        id: get-msvc
+        run: |
+          $MSVC_VERSION = cl 2>&1 | Select-String -Pattern 'Version (\d\d\.\d\d)' | % { $_.matches.groups[1].Value }
+          echo "version=$MSVC_VERSION" >> $Env:GITHUB_OUTPUT
       - uses: actions/cache@v3
         id: cache
         with:
           path: |
             ${{ github.workspace }}/hdf5
             ${{ github.workspace }}/suitesparse/install
-          key: ${{ runner.os }}-deps
+          key: ${{ runner.os }}-deps-${{ steps.get-msvc.outputs.version }}
       - name: Download MKL and TBB
         run: |
           cd "${env:BASE_DIR}"
