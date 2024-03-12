@@ -42,6 +42,7 @@ json createColumnWithSMAJson(const std::string& uoType)
 
 	// Adsorption
 	config["ADSORPTION_MODEL"] = std::string("STERIC_MASS_ACTION");
+	config["NBOUND"] = { 1, 1, 1, 1 };
 	{
 		json ads;
 		ads["IS_KINETIC"] = 1;
@@ -59,7 +60,6 @@ json createColumnWithSMAJson(const std::string& uoType)
 
 		disc["NCOL"] = 16;
 		disc["NPAR"] = 4;
-		disc["NBOUND"] = {1, 1, 1, 1};
 
 		if (uoType == "GENERAL_RATE_MODEL_2D")
 		{
@@ -108,6 +108,7 @@ json createColumnWithSMAJson(const std::string& uoType)
 	"INIT_C": [50.0, 0.0, 0.0, 0.0],
 	"INIT_Q": [1.2e3, 0.0, 0.0, 0.0],
 	"ADSORPTION_MODEL": "STERIC_MASS_ACTION",
+	"NBOUND": [1, 1, 1, 1],
 	"adsorption":
 	{
 		"IS_KINETIC": 1,
@@ -121,7 +122,6 @@ json createColumnWithSMAJson(const std::string& uoType)
 	{
 		"NCOL": 16,
 		"NPAR": 4,
-		"NBOUND": [1, 1, 1, 1],
 		"PAR_DISC_TYPE": "EQUIDISTANT_PAR",
 		"USE_ANALYTIC_JACOBIAN": true,
 		"MAX_KRYLOV": 0,
@@ -170,6 +170,7 @@ json createColumnWithTwoCompLinearJson(const std::string& uoType)
 
 	// Adsorption
 	config["ADSORPTION_MODEL"] = std::string("LINEAR");
+	config["NBOUND"] = { 1, 1 };
 	{
 		json ads;
 		ads["IS_KINETIC"] = 1;
@@ -184,7 +185,6 @@ json createColumnWithTwoCompLinearJson(const std::string& uoType)
 
 		disc["NCOL"] = 15;
 		disc["NPAR"] = 5;
-		disc["NBOUND"] = {1, 1};
 
 		if (uoType == "GENERAL_RATE_MODEL_2D")
 		{
@@ -457,6 +457,7 @@ cadet::JsonParameterProvider createPulseInjectionColumn(const std::string& uoTyp
 			// Adsorption
 			{
 				grm["ADSORPTION_MODEL"] = std::string("LINEAR");
+				grm["NBOUND"] = { 1 };
 
 				json ads;
 				ads["IS_KINETIC"] = (dynamicBinding ? 1 : 0);
@@ -471,7 +472,6 @@ cadet::JsonParameterProvider createPulseInjectionColumn(const std::string& uoTyp
 
 				disc["NCOL"] = 10;
 				disc["NPAR"] = 4;
-				disc["NBOUND"] = {1};
 
 				if (uoType == "GENERAL_RATE_MODEL_2D")
 				{
@@ -685,14 +685,16 @@ json createLinearBenchmarkColumnJson(bool dynamicBinding, bool nonBinding, const
 	grm["INIT_C"] = {0.0};
 	grm["INIT_Q"] = {0.0};
 
-	// Adsorption
-	if (nonBinding)
-	{
-		grm["ADSORPTION_MODEL"] = std::string("NONE");
-	}
-	else
-	{
-		grm["ADSORPTION_MODEL"] = std::string("LINEAR");
+			// Adsorption
+			if (nonBinding)
+			{
+				grm["ADSORPTION_MODEL"] = std::string("NONE");
+				grm["NBOUND"] = { 0 };
+			}
+			else
+			{
+				grm["ADSORPTION_MODEL"] = std::string("LINEAR");
+				grm["NBOUND"] = { 1 };
 
 		json ads;
 		ads["IS_KINETIC"] = (dynamicBinding ? 1 : 0);
@@ -705,12 +707,8 @@ json createLinearBenchmarkColumnJson(bool dynamicBinding, bool nonBinding, const
 	{
 		json disc;
 
-		disc["NCOL"] = 512;
-		disc["NPAR"] = 4;
-		if (nonBinding)
-			disc["NBOUND"] = {0};
-		else
-			disc["NBOUND"] = {1};
+				disc["NCOL"] = 512;
+				disc["NPAR"] = 4;
 
 		if (uoType == "GENERAL_RATE_MODEL_2D")
 		{

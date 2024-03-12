@@ -62,9 +62,9 @@ Common notation and identifiers that are used in the subsequent description are 
      - Total number of components in the system (sum of all unit operation components)
    * - NPARTYPE
      - Number of particles types of a unit operation
-   * - NBND\ :sub:`i` \
+   * - NBOUND\ :sub:`i` \
      - Number of bound states of component i of the current particle type
-   * - NTOTALBND
+   * - NTOTALBOUND
      - Total number of bound states of the current particle type (sum of all bound states of all components)
    * - NSTATES
      - Maximum of the number of bound states for each component of a particle type

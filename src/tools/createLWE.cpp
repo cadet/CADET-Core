@@ -142,6 +142,8 @@ int main(int argc, char** argv)
 			const double par_radius = 4.5e-5;
 			const double par_coreradius = 0.0;
 			const double par_porosity = 0.75;
+
+			writer.scalar<int>("NPARTYPE", opts.nParType);
 			if (opts.nParType > 1)
 			{
 				std::vector<std::string> par_geom;
@@ -247,6 +249,9 @@ int main(int argc, char** argv)
 */
 
 			// Adsorption
+			const std::vector<int> nBound(4 * opts.nParType, 1);
+			writer.vector<int>("NBOUND", nBound.size(), nBound.data());
+
 			if (opts.nParType > 1)
 			{
 				std::vector<std::string> adsorption_models;
@@ -311,10 +316,6 @@ int main(int argc, char** argv)
 					writer.scalar<int>("NPAR", opts.nPar);
 
 				writer.scalar<int>("NRAD", opts.nRad);
-				writer.scalar<int>("NPARTYPE", opts.nParType);
-
-				const std::vector<int> nBound(4 * opts.nParType, 1);
-				writer.vector<int>("NBOUND", nBound.size(), nBound.data());
 
 				writer.scalar("RADIAL_DISC_TYPE", std::string("EQUIDISTANT"));
 				if (opts.nParType > 1)

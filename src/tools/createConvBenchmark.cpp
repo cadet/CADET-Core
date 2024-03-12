@@ -104,6 +104,17 @@ int main(int argc, char** argv)
 
 			// Adsorption
 			if (opts.nonBinding)
+			{
+				const int nBound[] = { 0 };
+				writer.vector<int>("NBOUND", 1, nBound);
+			}
+			else
+			{
+				const int nBound[] = { 1 };
+				writer.vector<int>("NBOUND", 1, nBound);
+			}
+
+			if (opts.nonBinding)
 				writer.scalar("ADSORPTION_MODEL", std::string("NONE"));
 			else
 				writer.scalar("ADSORPTION_MODEL", std::string("LINEAR"));
@@ -146,17 +157,6 @@ int main(int argc, char** argv)
 					writer.scalar<int>("NPAR", 4);
 					writer.scalar<int>("NRAD", 3);
 					writer.scalar<std::string>("RADIAL_DISC_TYPE", "EQUIDISTANT");
-				}
-
-				if (opts.nonBinding)
-				{
-					const int nBound[] = {0};
-					writer.vector<int>("NBOUND", 1, nBound);
-				}
-				else
-				{
-					const int nBound[] = {1};
-					writer.vector<int>("NBOUND", 1, nBound);
 				}
 
 				writer.scalar("PAR_DISC_TYPE", std::string("EQUIDISTANT_PAR"));

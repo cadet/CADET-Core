@@ -94,6 +94,8 @@ int main(int argc, char** argv)
 			writer.vector<double>("INIT_Q", 1, initQ);
 
 			// Adsorption
+			const int nBound[] = { 1 };
+			writer.vector<int>("NBOUND", 1, nBound);
 			writer.scalar("ADSORPTION_MODEL", std::string("LINEAR"));
 			{
 				Scope<cadet::io::HDF5Writer> s2(writer, "adsorption");
@@ -115,8 +117,6 @@ int main(int argc, char** argv)
 
 				writer.scalar<int>("NCOL", 10); // 64
 				writer.scalar<int>("NPAR", 4); // 16
-				const int nBound[] = {1};
-				writer.vector<int>("NBOUND", 1, nBound);
 
 				writer.scalar("PAR_DISC_TYPE", std::string("EQUIDISTANT_PAR"));
 

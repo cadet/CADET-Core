@@ -97,7 +97,6 @@ namespace
 		{
 			auto ds = cadet::test::util::makeOptionalGroupScope(jpp, "discretization");
 
-			replicateFieldDataInt(jpp, "NBOUND", nTypes);
 			replicateFieldDataInt(jpp, "NPAR", nTypes);
 			replicateFieldDataString(jpp, "PAR_DISC_TYPE", nTypes);
 			replicateFieldDataDouble(jpp, "PAR_DISC_VECTOR", nTypes);
@@ -115,6 +114,7 @@ namespace
 		replicateFieldDataDouble(jpp, "INIT_Q", nTypes);
 
 		replicateFieldDataString(jpp, "ADSORPTION_MODEL", nTypes);
+		replicateFieldDataInt(jpp, "NBOUND", nTypes);
 
 		// Move group "adsorption" to "adsorption_000"
 		if (jpp.exists("adsorption"))

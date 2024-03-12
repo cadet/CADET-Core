@@ -82,6 +82,7 @@ json createColumnWithSMAJson(const std::string& uoType)
 
 	// Adsorption
 	config["ADSORPTION_MODEL"] = std::string("STERIC_MASS_ACTION");
+	config["NBOUND"] = { 1, 1, 1, 1 };
 	{
 		json ads;
 		ads["IS_KINETIC"] = 1;
@@ -99,7 +100,6 @@ json createColumnWithSMAJson(const std::string& uoType)
 
 		disc["NCOL"] = 16;
 		disc["NPAR"] = 4;
-		disc["NBOUND"] = {1, 1, 1, 1};
 
 		if (uoType == "GENERAL_RATE_MODEL_2D")
 		{
