@@ -23,6 +23,7 @@
 #include "UnitOperationTests.hpp"
 #include "JsonTestModels.hpp"
 #include "Utils.hpp"
+#include "common/Driver.hpp"
 
 #include "common/JsonParameterProvider.hpp"
 
@@ -37,6 +38,13 @@
 #include <algorithm>
 #include <numeric>
 #include <cstring>
+
+/**
+ * @brief Returns the absolute path to the test/ folder of the project
+ * @details Absolute path to the test/ folder of the project without trailing slash
+ * @return Absolute path to the test/ folder
+ */
+const char* getTestDirectory();
 
 namespace
 {
@@ -287,6 +295,42 @@ namespace reaction
 		}
 	}
 
+	void testMichaelisMentenToSMAMicroKinetic(const std::string configFilePathMM, const std::string configFilePathSMA, const double absTol, const double relTol)
+	{
+		// read json model setup file
+		const std::string setupFileMM = std::string(getTestDirectory()) + configFilePathMM;
+		const std::string setupFileSMA = std::string(getTestDirectory()) + configFilePathSMA;
+		JsonParameterProvider pp_setup_MM(JsonParameterProvider::fromFile(setupFileMM));
+		JsonParameterProvider pp_setup_SMA(JsonParameterProvider::fromFile(setupFileSMA));
+
+		nlohmann::json* setupJsonMM = pp_setup_MM.data();
+		nlohmann::json* setupJsonSMA = pp_setup_SMA.data();
+
+		// MM simulation
+		cadet::Driver drvMM;
+		drvMM.configure(pp_setup_MM);
+		drvMM.run();
+
+		// SMA micro-kinetics simulation
+		cadet::Driver drvSMA;
+		drvSMA.configure(pp_setup_SMA);
+		drvSMA.run();
+
+		cadet::InternalStorageUnitOpRecorder const* const MMData = drvMM.solution()->unitOperation(0);
+		cadet::InternalStorageUnitOpRecorder const* const SMAData = drvSMA.solution()->unitOperation(0);
+
+		double const* outletMM = MMData->outlet();
+		double const* outletSMA = SMAData->outlet();
+
+		const unsigned int nCompMM = MMData->numComponents();
+		const unsigned int nCompSMA = SMAData->numComponents();
+		for (unsigned int i = 0; i < SMAData->numDataPoints(); ++i, outletMM += nCompMM, outletSMA += nCompSMA)
+		{
+			CAPTURE(i);
+			CHECK((outletMM[0]) == cadet::test::makeApprox(outletSMA[1], relTol, absTol));
+			CHECK((outletMM[1]) == cadet::test::makeApprox(outletSMA[3], relTol, absTol));
+		}
+	}
 
 	void testDynamicJacobianAD(const char* modelName, unsigned int nComp, unsigned int const* nBound, const char* config, double const* point, double absTol, double relTol)
 	{

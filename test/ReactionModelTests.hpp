@@ -106,6 +106,15 @@ namespace reaction
 	};
 
 	/**
+	 * @brief Compares two simulations (SMA and MM) wrt specific components
+	 * @param [in] configFilePathMM relative file path to Michaelis Menten configuration file
+	 * @param [in] configFilePathSMA relative file path to SMA micro-kinetic configuration file
+	 * @param [in] absTol Absolute error tolerance
+	 * @param [in] relTol Relative error tolerance
+	 */
+	void testMichaelisMentenToSMAMicroKinetic(const std::string configFilePathMM, const std::string configFilePathSMA, const double absTol, const double relTol);
+
+	/**
 	 * @brief Checks the analytic Jacobians of the dynamic reaction model against AD
 	 * @param [in] modelName Name of the reaction model
 	 * @param [in] nComp Number of components
