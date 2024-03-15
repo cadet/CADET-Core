@@ -396,8 +396,6 @@ namespace v1
 
 			realDrv->run();
 
-//			cadet::mex::MatlabReaderWriter writer(&output);
-//			drv.write(writer);
 		}
 		catch(const std::exception& e)
 		{

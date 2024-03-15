@@ -13,77 +13,12 @@
 #include "linalg/UMFPackSparseMatrix.hpp"
 #include <algorithm>
 
-#if !defined(CADET_FORCE_MATLAB_UMFPACK) || !defined(CADET_MATLABMEX)
-
-	#include "umfpack.h"
-
-#else
-
-/*
-	According to UMFPACK headers, SuiteSparse_long should be defined as follows:
-
-	#ifdef _WIN64
-		#define SuiteSparse_long __int64
-	#else
-		#define SuiteSparse_long long
-	#endif
-
-	That is, SuiteSparse_long is a signed type. However, Matlab uses an unsigned
-	type (mwIndex = size_t) for indexing sparse matrices. Hence, it is suspected
-	that Matlab also uses a custom built UMFPACK with unsigned indexing. This
-	is the reason why we take size_t for SuiteSparse_long.
-*/
-
-	#define SuiteSparse_long size_t
-
-	#define UMFPACK_INFO 90
-	#define UMFPACK_CONTROL 20
-
-	#define UMFPACK_ORDERING 10
-	#define UMFPACK_ORDERING_AMD 1
-
-	#define UMFPACK_IRSTEP 7
-
-	#define UMFPACK_Aat	(2)
-
-	#define UMFPACK_OK (0)
-
-	extern "C"
-	{
-		void umfpack_dl_defaults(double* Control);
-		void umfpack_dl_free_symbolic(void**);
-		void umfpack_dl_free_numeric(void**);
-		SuiteSparse_long umfpack_dl_symbolic(SuiteSparse_long n_row, SuiteSparse_long n_col, const SuiteSparse_long Ap[], const SuiteSparse_long Ai[], const double Ax[], void **Symbolic, const double Control[], double Info[]);
-		SuiteSparse_long umfpack_dl_numeric(const SuiteSparse_long Ap[], const SuiteSparse_long Ai[], const double Ax[], void *Symbolic, void **Numeric, const double Control[], double Info[]);
-		SuiteSparse_long umfpack_dl_wsolve(SuiteSparse_long sys, const SuiteSparse_long Ap[], const SuiteSparse_long Ai[], const double Ax[], double X[], const double B[], void *Numeric, const double* Control, double* Info, SuiteSparse_long Wi[], double W[]);
-	}
-
-#endif
-
+#include "umfpack.h"
 
 namespace 
 {
 	template <typename int_t>
 	class UMFPackInterface {};
-
-#if defined(CADET_FORCE_MATLAB_UMFPACK) && defined(CADET_MATLABMEX)
-
-	template <>
-	class UMFPackInterface<size_t>
-	{
-	public:
-		static inline void defaults(double* opts) { umfpack_dl_defaults(opts); }
-		static inline void free_symbolic(void** sym) { umfpack_dl_free_symbolic(sym); }
-		static inline void free_numeric(void** sym) { umfpack_dl_free_numeric(sym); }
-		static inline size_t symbolic(size_t n_row, size_t n_col, size_t const* Ap, size_t const* Ai, double const* Ax, void** sym, double const* control, double* info) { return umfpack_dl_symbolic(n_row, n_col, Ap, Ai, Ax, sym, control, info); }
-		static inline size_t numeric(size_t const* Ap, size_t const* Ai, double const* Ax, void* sym, void** num, double const* control, double* info) { return umfpack_dl_numeric(Ap, Ai, Ax, sym, num, control, info); }
-		static inline size_t wsolve(size_t sys, size_t const* Ap, size_t const* Ai, double const* Ax, double* x, double const* b, void* num, double const* control, double* info, size_t* wi, double* w)
-		{
-			return umfpack_dl_wsolve(sys, Ap, Ai, Ax, x, b, num, control, info, wi, w);
-		}
-	};
-
-#else
 
 	template <>
 	class UMFPackInterface<int>
@@ -99,8 +34,6 @@ namespace
 			return umfpack_di_wsolve(sys, Ap, Ai, Ax, x, b, num, control, info, wi, w);
 		}
 	};
-
-#endif
 
 	typedef UMFPackInterface<cadet::linalg::sparse_int_t> UMFPack;
 }

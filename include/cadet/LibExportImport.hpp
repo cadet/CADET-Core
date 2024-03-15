@@ -22,16 +22,10 @@
 // Export and import classes when using MS Visual Studio compiler
 #ifndef CADET_API
 	#ifdef _MSC_VER
-		#ifndef CADET_MATLABMEX
-			// If we are not building static libs for Matlab, we need to import / export symbols
-			#if defined(libcadet_shared_EXPORTS) || defined(libcadet_static_EXPORTS) || defined(libcadet_EXPORTS)
-				#define CADET_API _declspec(dllexport)
-			#else
-				#define CADET_API _declspec(dllimport)
-			#endif
+		#if defined(libcadet_shared_EXPORTS) || defined(libcadet_static_EXPORTS) || defined(libcadet_EXPORTS)
+			#define CADET_API _declspec(dllexport)
 		#else
-			// We don't need to import / export symbols when building static libs for Matlab
-			#define CADET_API
+			#define CADET_API _declspec(dllimport)
 		#endif
 	#else
 		#define CADET_API __attribute__((visibility("default")))

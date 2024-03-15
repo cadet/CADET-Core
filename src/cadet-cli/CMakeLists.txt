@@ -62,11 +62,6 @@ endif()
 install(CODE "MESSAGE(\"\nInstall CADET-CLI\n\")")
 install(TARGETS cadet-cli RUNTIME)
 
-if (BUILD_CADET_MEX)
-	# Also install into matlab/bin
-	install(TARGETS cadet-cli RUNTIME DESTINATION matlab/bin)
-endif()
-
 # ---------------------------------------------------
 
 # Info message

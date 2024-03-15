@@ -266,76 +266,6 @@ if (LAPACK_FOUND)
 	unset(LIB_LAPACK_DEFINE)
 endif ()
 
-# ---------------------------------------------------
-#   Build the Matlab library
-# ---------------------------------------------------
-if (ENABLE_CADET_MEX)
-
-	# Determine #defines for LAPACK implementation
-	set(MATLAB_LAPACK_DEFINE)
-	if ((NOT MATLAB_USE_SYSTEM_LAPACK) AND Matlab_LAPACK_LIBRARY_FOUND)
-		if (Matlab_LAPACK_TRAILING_UNDERSCORE)
-			set(MATLAB_LAPACK_DEFINE "CADET_LAPACK_TRAILING_UNDERSCORE")
-		endif()
-	else()
-		set(MATLAB_LAPACK_DEFINE "CADET_LAPACK_TRAILING_UNDERSCORE")
-	endif()
-
-	set(LIBCADET_NONLINALG_MEX_SOURCES ${LIBCADET_NONLINALG_SPARSE_SOURCES})
-	if (MATLAB_FORCE_UMFPACK)
-		set(LIBCADET_NONLINALG_MEX_SOURCES ${CMAKE_SOURCE_DIR}/src/libcadet/linalg/UMFPackSparseMatrix.cpp)
-	endif()
-
-	# Add the build target for the mex nonlinalg library
-	add_library(libcadet_nonlinalg_mex STATIC ${LIBCADET_NONLINALG_SOURCES} ${LIBCADET_NONLINALG_MEX_SOURCES})
-	set_target_properties(libcadet_nonlinalg_mex PROPERTIES 
-		OUTPUT_NAME cadet_nonlinalg_mex
-		LINK_SEARCH_START_STATIC ON
-		LINK_SEARCH_END_STATIC ON
-	)
-	target_compile_definitions(libcadet_nonlinalg_mex PRIVATE CADET_MATLABMEX MATLAB_MEX_FILE ${MATLAB_LAPACK_DEFINE} libcadet_mex_EXPORTS)
-	target_link_libraries(libcadet_nonlinalg_mex PUBLIC CADET::CompileOptions PRIVATE SUNDIALS::sundials_idas ${SUNDIALS_NVEC_TARGET})
-	
-	# Link against Matlab's or system's LAPACK
-	if ((NOT MATLAB_USE_SYSTEM_LAPACK) AND Matlab_LAPACK_LIBRARY_FOUND)
-		target_link_libraries(libcadet_nonlinalg_mex PUBLIC CADET::CompileOptions PRIVATE ${Matlab_LAPACK_LIBRARY} ${Matlab_BLAS_LIBRARY})
-	else()
-		target_link_libraries(libcadet_nonlinalg_mex PUBLIC CADET::CompileOptions PRIVATE ${LAPACK_LIBRARIES})
-	endif()
-
-	if (ENABLE_GRM_2D AND NOT MATLAB_FORCE_UMFPACK)
-		if (UMFPACK_FOUND)
-			target_link_libraries(libcadet_nonlinalg_mex PRIVATE UMFPACK::UMFPACK)
-		endif()
-		if (SUPERLU_FOUND)
-			target_link_libraries(libcadet_nonlinalg_mex PRIVATE SuperLU::SuperLU)
-		endif()
-	elseif (ENABLE_GRM_2D AND MATLAB_FORCE_UMFPACK)
-		target_compile_definitions(libcadet_nonlinalg_mex PUBLIC CADET_FORCE_MATLAB_UMFPACK)
-		target_link_libraries(libcadet_nonlinalg_mex PRIVATE ${Matlab_UMFPACK_LIBRARY})
-	endif()
-
-	# Add the build target for the mex CADET library
-	add_library(libcadet_mex STATIC ${LIBCADET_SOURCES})
-	set_target_properties(libcadet_mex PROPERTIES 
-		OUTPUT_NAME cadet_mex
-		LINK_SEARCH_START_STATIC ON
-		LINK_SEARCH_END_STATIC ON
-	)
-	target_compile_definitions(libcadet_mex PRIVATE CADET_MATLABMEX MATLAB_MEX_FILE ${MATLAB_LAPACK_DEFINE} libcadet_mex_EXPORTS)
-	target_link_libraries(libcadet_mex PUBLIC CADET::CompileOptions CADET::LibOptions PRIVATE CADET::AD libcadet_nonlinalg_mex SUNDIALS::sundials_idas ${SUNDIALS_NVEC_TARGET} ${Matlab_TBB_TARGET})
-
-	# Enable usage of Matlab's LAPACK libs
-	if ((NOT MATLAB_USE_SYSTEM_LAPACK) AND Matlab_LAPACK_LIBRARY_FOUND)
-		target_compile_definitions(libcadet_nonlinalg_mex PRIVATE CADET_MATLAB_LAPACK)
-		target_compile_definitions(libcadet_mex PRIVATE CADET_MATLAB_LAPACK)
-	endif()
-
-	list(APPEND LIBCADET_TARGETS libcadet_mex libcadet_nonlinalg_mex)
-
-	unset(MATLAB_LAPACK_DEFINE)
-endif()
-
 foreach(_TARGET IN LISTS LIBCADET_TARGETS)
 	target_include_directories(${_TARGET}
 		PUBLIC $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/include> $<INSTALL_INTERFACE:include> 
@@ -354,9 +284,6 @@ unset(LIBCADET_SOURCES)
 # ---------------------------------------------------
 
 list(REMOVE_ITEM LIBCADET_TARGETS libcadet_object)
-if (ENABLE_CADET_MEX)
-	list(REMOVE_ITEM LIBCADET_TARGETS libcadet_mex libcadet_nonlinalg_mex)
-endif()
 
 install(CODE "MESSAGE(\"\nInstall LIBCADET\n\")")
 install(TARGETS ${LIBCADET_TARGETS} EXPORT libcadet-targets)
