@@ -51,7 +51,7 @@ jobs:
           Invoke-WebRequest -Uri "https://www.hdfgroup.org/package/cmake-hdf5-1-14-0-zip/?wpdmdl=17553" -OutFile hdf5.zip
           7z x hdf5.zip
           cd CMake-hdf5-1.14.0
-          cmake -DCMAKE_BUILD_TYPE:STRING=Release -DBUILD_SHARED_LIBS:BOOL=ON -DHDF5_BUILD_FORTRAN:BOOL=OFF -DHDF5_ENABLE_F2003:BOOL=OFF -DHDF5_BUILD_JAVA:BOOL=OFF -DCMAKE_INSTALL_PREFIX:PATH="${base_dir}/hdf5" -DCTEST_CONFIGURATION_TYPE:STRING=Release -DBUILD_TESTING=OFF -DHDF5_BUILD_TOOLS=OFF -DHDF5_BUILD_EXAMPLES=OFF -DHDF5_BUILD_HL_LIB=OFF -DHDF5_BUILD_CPP_LIB=OFF -DHDF5_ALLOW_EXTERNAL_SUPPORT:STRING=TGZ -DTGZPATH:PATH="${base_dir}/CMake-hdf5-1.14.0" -DHDF5_PACKAGE_EXTLIBS:BOOL=ON -DSITE:STRING=WIN10VS202264.XXXX -DBUILDNAME:STRING=Windows-WIN10-vs2022-STATIC -G "Ninja"  hdf5-1.14.0
+          cmake -DCMAKE_BUILD_TYPE:STRING=Release -DBUILD_SHARED_LIBS:BOOL=ON -DHDF5_BUILD_FORTRAN:BOOL=OFF -DHDF5_ENABLE_F2003:BOOL=OFF -DHDF5_BUILD_JAVA:BOOL=OFF -DCMAKE_INSTALL_PREFIX:PATH="${base_dir}/hdf5" -DCTEST_CONFIGURATION_TYPE:STRING=Release -DBUILD_TESTING=ON -DHDF5_BUILD_TOOLS=OFF -DHDF5_BUILD_EXAMPLES=OFF -DHDF5_BUILD_HL_LIB=OFF -DHDF5_BUILD_CPP_LIB=OFF -DHDF5_ALLOW_EXTERNAL_SUPPORT:STRING=TGZ -DTGZPATH:PATH="${base_dir}/CMake-hdf5-1.14.0" -DHDF5_PACKAGE_EXTLIBS:BOOL=ON -DSITE:STRING=WIN10VS202264.XXXX -DBUILDNAME:STRING=Windows-WIN10-vs2022-STATIC -G "Ninja"  hdf5-1.14.0
           ninja install
           cd "${env:BASE_DIR}"
           Invoke-WebRequest -Uri "https://github.com/DrTimothyAldenDavis/SuiteSparse/archive/v5.7.2.zip" -OutFile suitesparse.zip
@@ -144,6 +144,9 @@ jobs:
           ${INSTALL_PREFIX}/bin/cadet-cli --version || true
           ${INSTALL_PREFIX}/bin/createLWE
           ${INSTALL_PREFIX}/bin/cadet-cli LWE.h5 || true
+      - name: Run tests
+        run: |
+          ${BUILD_DIR}/test/testRunner [CI]
   MacOS:
     runs-on: macos-latest
     strategy:
