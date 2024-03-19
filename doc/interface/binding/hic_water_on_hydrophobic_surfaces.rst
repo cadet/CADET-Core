@@ -39,7 +39,7 @@ For information on model equations, refer to :ref:`hic_water_on_hydrophobic_surf
 ``HICWHS_NU``
    Number of ligands per ligand-protein interaction
 
-**Unit: [-]**
+**Unit:** [-]
 
 ===================  =========================  =========================================
 **Type:** double     **Range:** :math:`\ge 0`   **Length:** NCOMP
@@ -61,7 +61,7 @@ For information on model equations, refer to :ref:`hic_water_on_hydrophobic_surf
    that stabilize the hydrophobic surfaces at infinitely diluted 
    salt concentration
 
-**Unit: [-]**
+**Unit:** [-]
 
 ===================  =========================  =========================================
 **Type:** double     **Range:** :math:`\ge 0`   **Length:** 1
