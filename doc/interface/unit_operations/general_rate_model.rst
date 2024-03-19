@@ -216,7 +216,8 @@ For information on model equations, refer to :ref:`general_rate_model_model`.
 
 ``PORE_ACCESSIBILITY_MULTIPLEX``
 
-   Multiplexing mode of :math:`\texttt{PORE_ACCESSIBILITY}`. Determines whether :math:`\texttt{PORE_ACCESSIBILITY}` is treated as component-, type-, and/or section-independent. This field is optional. When left out, multiplexing behavior is inferred from the length of :math:`\texttt{PORE_ACCESSIBILITY}`. Valid modes are: 
+   Multiplexing mode of :math:`\texttt{PORE_ACCESSIBILITY}`. Determines whether :math:`\texttt{PORE_ACCESSIBILITY}` is treated as component-, type-, and/or section-independent. This field is optional. When left out, multiplexing behavior is inferred from the length of :math:`\texttt{PORE_ACCESSIBILITY}`. Valid modes are:
+
    0. Component-dependent, type-independent, section-independent; length of :math:`\texttt{PORE_ACCESSIBILITY}` is :math:`\texttt{NCOMP}` 
    1. Component-dependent, type-independent, section-dependent; length of :math:`\texttt{PORE_ACCESSIBILITY}` is :math:`\texttt{NCOMP} \cdot \texttt{NSEC}`; ordering is section-major 
    2. Component-dependent, type-dependent, section-independent; length of :math:`\texttt{PORE_ACCESSIBILITY}` is :math:`\texttt{NCOMP} \cdot \texttt{NPARTYPE}`; ordering is type-major 
@@ -268,7 +269,6 @@ For information on model equations, refer to :ref:`general_rate_model_model`.
    2. Component-dependent, type-dependent, section-independent; length of :math:`\texttt{PAR_SURFDIFFUSION}` is :math:`\texttt{NTOTALBND}`; ordering is type-component-major 
    3. Component-dependent, type-dependent, section-dependent; length of :math:`\texttt{PAR_SURFDIFFUSION}` is :math:`\texttt{NTOTALBND} \cdot \texttt{NSEC}`; ordering is section-type-component-major 
    
-``PAR_SURFDIFFUSION_MULTIPLEX``
    =============  ====================================  =============
    **Type:** int  **Range:** :math:`\{ 0, \dots, 3 \}`  **Length:** 1
    =============  ====================================  =============
