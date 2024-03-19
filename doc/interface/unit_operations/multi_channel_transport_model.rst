@@ -66,14 +66,14 @@ For information on model equations, refer to :ref:`multi_channel_transport_model
 
    Multiplexing mode of :math:`\texttt{COL_DISPERSION}`. Determines whether :math:`\texttt{COL_DISPERSION}` is treated as component-, channel-, and/or section-independent.  This field is optional. When left out, multiplexing behavior is inferred from the length of :math:`\texttt{COL_DISPERSION}`.  Valid modes are: 
 
-  1. Component-independent, channel-independent, section-independent; length of :math:`\texttt{COL_DISPERSION}` is 1 
-  2. Component-independent, channel-dependent, section-independent; length of :math:`\texttt{COL_DISPERSION}` is :math:`\texttt{NCHANNEL}` 
-  3. Component-dependent, channel-independent, section-independent; length of :math:`\texttt{COL_DISPERSION}` is :math:`\texttt{NCOMP}` 
-  4. Component-dependent, channel-dependent, section-independent; length of :math:`\texttt{COL_DISPERSION}` is :math:`\texttt{NCOMP} \cdot \texttt{NCHANNEL}`; ordering is channel-major 
-  5. Component-independent, channel-independent, section-dependent; length of :math:`\texttt{COL_DISPERSION}` is :math:`\texttt{NSEC}` 
-  6. Component-independent, channel-dependent, section-dependent; length of :math:`\texttt{COL_DISPERSION}` is :math:`\texttt{NCHANNEL} \cdot \texttt{NSEC}`; ordering is section-major 
-  7. Component-dependent, channel-independent, section-independent; length of :math:`\texttt{COL_DISPERSION}` is :math:`\texttt{NCOMP} \cdot \texttt{NSEC}`; ordering is section-major 
-  8. Component-dependent, channel-dependent, section-dependent; length of :math:`\texttt{COL_DISPERSION}` is :math:`\texttt{NCOMP} \cdot \texttt{NCHANNEL} \cdot \texttt{NSEC}`; ordering is section-channel-major 
+  0. Component-independent, channel-independent, section-independent; length of :math:`\texttt{COL_DISPERSION}` is 1 
+  1. Component-independent, channel-dependent, section-independent; length of :math:`\texttt{COL_DISPERSION}` is :math:`\texttt{NCHANNEL}` 
+  2. Component-dependent, channel-independent, section-independent; length of :math:`\texttt{COL_DISPERSION}` is :math:`\texttt{NCOMP}` 
+  3. Component-dependent, channel-dependent, section-independent; length of :math:`\texttt{COL_DISPERSION}` is :math:`\texttt{NCOMP} \cdot \texttt{NCHANNEL}`; ordering is channel-major 
+  4. Component-independent, channel-independent, section-dependent; length of :math:`\texttt{COL_DISPERSION}` is :math:`\texttt{NSEC}` 
+  5. Component-independent, channel-dependent, section-dependent; length of :math:`\texttt{COL_DISPERSION}` is :math:`\texttt{NCHANNEL} \cdot \texttt{NSEC}`; ordering is section-major 
+  6. Component-dependent, channel-independent, section-independent; length of :math:`\texttt{COL_DISPERSION}` is :math:`\texttt{NCOMP} \cdot \texttt{NSEC}`; ordering is section-major 
+  7. Component-dependent, channel-dependent, section-dependent; length of :math:`\texttt{COL_DISPERSION}` is :math:`\texttt{NCOMP} \cdot \texttt{NCHANNEL} \cdot \texttt{NSEC}`; ordering is section-channel-major 
    
    =============  ===================================  =============
    **Type:** int  **Range:** :math:`\{0, \dots, 7 \}`  **Length:** 1
@@ -105,10 +105,10 @@ For information on model equations, refer to :ref:`multi_channel_transport_model
 
    Multiplexing mode of :math:`\texttt{VELOCITY}`. Determines whether :math:`\texttt{VELOCITY}` is treated as channel- and/or section-independent.  This field is optional. When left out, multiplexing behavior is inferred from the length of :math:`\texttt{VELOCITY}`.  Valid modes are: 
 
-  1. Channel-independent, section-independent; length of :math:`\texttt{VELOCITY}` is 1 
-  2. Channel-dependent, section-independent; length of :math:`\texttt{VELOCITY}` is :math:`\texttt{NCHANNEL}` 
-  3. Section-dependent; length of :math:`\texttt{VELOCITY}` is :math:`\texttt{NSEC}` 
-  4. Channel-dependent, section-dependent; length of :math:`\texttt{VELOCITY}` is :math:`\texttt{NCHANNEL} \cdot \texttt{NSEC}`; ordering is section-major 
+  0. Channel-independent, section-independent; length of :math:`\texttt{VELOCITY}` is 1 
+  1. Channel-dependent, section-independent; length of :math:`\texttt{VELOCITY}` is :math:`\texttt{NCHANNEL}` 
+  2. Section-dependent; length of :math:`\texttt{VELOCITY}` is :math:`\texttt{NSEC}` 
+  3. Channel-dependent, section-dependent; length of :math:`\texttt{VELOCITY}` is :math:`\texttt{NCHANNEL} \cdot \texttt{NSEC}`; ordering is section-major 
    
    =============  ===================================  =============
    **Type:** int  **Range:** :math:`\{0, \dots, 3 \}`  **Length:** 1
