@@ -30,9 +30,9 @@ Group /input/model/unit_XXX
 
    The crystallization code is implemented as a reaction module, which is why crystallization needs to be specified here
    
-   ================  ========================================  =============
-   **Type:** String  **Range:** :math:`\{ CRYSTALLIZATION \}`  **Length:** 1
-   ================  ========================================  =============
+   ================  ==============================================  =============
+   **Type:** String  **Range:** :math:`\texttt{ CRYSTALLIZATION \}`  **Length:** 1
+   ================  ==============================================  =============
 
 Group /input/model/unit_XXX/reaction_bulk - REACTION_MODEL = CRYSTALLIZATION - UNIT_TYPE = CSTR
 -----------------------------------------------------------------------------------------------
@@ -153,7 +153,13 @@ Group /input/model/unit_XXX/reaction_bulk - REACTION_MODEL = CRYSTALLIZATION - U
    
 ``CRY_GROWTH_SCHEME_ORDER``
 
-   Defines the growth flux FV reconstruction scheme. It can only be :math:`1`: upwind scheme; :math:`2`: HR Koren scheme; :math:`3`: WENO23 scheme; :math:`4`: WENO35 scheme.
+   Defines the growth flux FV reconstruction scheme. It can only be
+
+   - :math:`1`: upwind scheme
+   - :math:`2`: HR Koren scheme
+   - :math:`3`: WENO23 scheme
+   - :math:`4`: WENO35 scheme.
+
    We recommend using the HR Koren scheme, which showed to be the most performant in our benchmarks.
    
    =============  ================================  =============
