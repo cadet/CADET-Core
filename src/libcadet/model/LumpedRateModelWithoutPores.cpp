@@ -137,16 +137,26 @@ bool LumpedRateModelWithoutPores::configureModelDiscretization(IParameterProvide
 	// ==== Read discretization
 	_disc.nComp = paramProvider.getInt("NCOMP");
 
+	std::vector<int> nBound;
+	const bool newNBoundInterface = paramProvider.exists("NBOUND");
+
 	paramProvider.pushScope("discretization");
 
-	_disc.nCol = paramProvider.getInt("NCOL");
-
-	const std::vector<int> nBound = paramProvider.getIntArray("NBOUND");
+	if (!newNBoundInterface && paramProvider.exists("NBOUND")) // done here and in this order for backwards compatibility
+		nBound = paramProvider.getIntArray("NBOUND");
+	else
+	{
+		paramProvider.popScope();
+		nBound = paramProvider.getIntArray("NBOUND");
+		paramProvider.pushScope("discretization");
+	}
 	if (nBound.size() < _disc.nComp)
 		throw InvalidParameterException("Field NBOUND contains too few elements (NCOMP = " + std::to_string(_disc.nComp) + " required)");
 
 	_disc.nBound = new unsigned int[_disc.nComp];
 	std::copy_n(nBound.begin(), _disc.nComp, _disc.nBound);
+
+	_disc.nCol = paramProvider.getInt("NCOL");
 
 	// Precompute offsets and total number of bound states (DOFs in solid phase)
 	_disc.boundOffset = new unsigned int[_disc.nComp];

@@ -113,18 +113,29 @@ bool LumpedRateModelWithPores::configureModelDiscretization(IParameterProvider& 
 	// ==== Read discretization
 	_disc.nComp = paramProvider.getInt("NCOMP");
 
+	std::vector<int> nBound;
+	const bool newNBoundInterface = paramProvider.exists("NBOUND");
+	const bool newNPartypeInterface = paramProvider.exists("NPARTYPE");
+
 	paramProvider.pushScope("discretization");
 
 	_disc.nCol = paramProvider.getInt("NCOL");
 
-	const std::vector<int> nBound = paramProvider.getIntArray("NBOUND");
+	if (!newNBoundInterface && paramProvider.exists("NBOUND")) // done here and in this order for backwards compatibility
+		nBound = paramProvider.getIntArray("NBOUND");
+	else
+	{
+		paramProvider.popScope();
+		nBound = paramProvider.getIntArray("NBOUND");
+		paramProvider.pushScope("discretization");
+	}
 	if (nBound.size() < _disc.nComp)
 		throw InvalidParameterException("Field NBOUND contains too few elements (NCOMP = " + std::to_string(_disc.nComp) + " required)");
 
 	if (nBound.size() % _disc.nComp != 0)
 		throw InvalidParameterException("Field NBOUND must have a size divisible by NCOMP (" + std::to_string(_disc.nComp) + ")");
 
-	if (paramProvider.exists("NPARTYPE"))
+	if (!newNPartypeInterface && paramProvider.exists("NPARTYPE")) // done here and in this order for backwards compatibility
 	{
 		_disc.nParType = paramProvider.getInt("NPARTYPE");
 		_disc.nBound = new unsigned int[_disc.nComp * _disc.nParType];
@@ -136,6 +147,21 @@ bool LumpedRateModelWithPores::configureModelDiscretization(IParameterProvider& 
 		}
 		else
 			std::copy_n(nBound.begin(), _disc.nComp * _disc.nParType, _disc.nBound);
+	}
+	else if (newNPartypeInterface)
+	{
+		paramProvider.popScope();
+		_disc.nParType = paramProvider.getInt("NPARTYPE");
+		_disc.nBound = new unsigned int[_disc.nComp * _disc.nParType];
+		if (nBound.size() < _disc.nComp * _disc.nParType)
+		{
+			// Multiplex number of bound states to all particle types
+			for (unsigned int i = 0; i < _disc.nParType; ++i)
+				std::copy_n(nBound.begin(), _disc.nComp, _disc.nBound + i * _disc.nComp);
+		}
+		else
+			std::copy_n(nBound.begin(), _disc.nComp * _disc.nParType, _disc.nBound);
+		paramProvider.pushScope("discretization");
 	}
 	else
 	{
@@ -199,6 +225,8 @@ bool LumpedRateModelWithPores::configureModelDiscretization(IParameterProvider& 
 	// Create nonlinear solver for consistent initialization
 	configureNonlinearSolver(paramProvider);
 
+	paramProvider.popScope();
+
 	// Read particle geometry and default to "SPHERICAL"
 	_parGeomSurfToVol = std::vector<double>(_disc.nParType, SurfVolRatioSphere);
 	if (paramProvider.exists("PAR_GEOM"))
@@ -224,8 +252,6 @@ bool LumpedRateModelWithPores::configureModelDiscretization(IParameterProvider& 
 				throw InvalidParameterException("Unknown particle geometry type \"" + pg[i] + "\" at index " + std::to_string(i) + " of field PAR_GEOM");
 		}
 	}
-
-	paramProvider.popScope();
 
 	const bool transportSuccess = _convDispOp.configureModelDiscretization(paramProvider, _disc.nComp, _disc.nCol);
 

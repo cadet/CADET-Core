@@ -164,9 +164,11 @@ namespace reaction
 	{
 		auto gs = util::makeModelGroupScope(jpp, unit);
 		const int nComp = jpp.getInt("NCOMP");
+		std::vector<int> nBound(0);
+		if (jpp.exists("NBOUND"))
+			nBound = jpp.getIntArray("NBOUND");
 
 		int nParType = 0;
-		std::vector<int> nBound(0);
 		{
 			auto ds = cadet::test::util::makeOptionalGroupScope(jpp, "discretization");
 
@@ -174,13 +176,12 @@ namespace reaction
 			if (jpp.exists("NPAR"))
 				nParType = jpp.numElements("NPAR");
 			
-			if (jpp.exists("NBOUND"))
+			if (jpp.exists("NPARTYPE"))
 			{
-				nBound = jpp.getIntArray("NBOUND");
-
-				if (nParType == 0)
-					nParType = nBound.size() / nComp;
+				nParType = jpp.getInt("NPARTYPE");
 			}
+			else
+				nParType = nBound.size() / nComp;
 		}
 
 		const std::string uoType = jpp.getString("UNIT_TYPE");

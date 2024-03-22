@@ -41,6 +41,14 @@ For information on model equations, refer to :ref:`2d_general_rate_model_model`.
    **Type:** int  **Range:** :math:`\{0, 1\}`  **Length:** 1
    =============  ===========================  =============
    
+``NBOUND``
+
+   Number of bound states for each component in each particle type in type-major ordering
+   
+   =============  =========================  ==========================================================================
+   **Type:** int  **Range:** :math:`\geq 0`  **Length:** :math:`\texttt{NCOMP} / \texttt{NPARTYPE} \cdot \texttt{NCOMP}`
+   =============  =========================  ==========================================================================
+   
 ``REACTION_MODEL_BULK``
 
    Specifies the type of reaction model of the bulk volume. The model is configured in the subgroup :math:`\texttt{reaction_bulk}`.
@@ -327,6 +335,22 @@ For information on model equations, refer to :ref:`2d_general_rate_model_model`.
    **Type:** int  **Range:** :math:`\{0, \dots, 3 \}`  **Length:** 1
    =============  ===================================  =============
    
+``NPARTYPE``
+
+   Number of particle types. Optional, inferred from the length of :math:`\texttt{NPAR}` or :math:`\texttt{NBOUND}` if left out.
+   
+   =============  =========================  =============
+   **Type:** int  **Range:** :math:`\geq 1`  **Length:** 1
+   =============  =========================  =============
+   
+``PAR_GEOM``
+
+   Specifies the particle geometry for all or each particle type. Valid values are :math:`\texttt{SPHERE}`, :math:`\texttt{CYLINDER}`, :math:`\texttt{SLAB}`. Optional, defaults to :math:`\texttt{SPHERE}`.
+   
+   ================  =================================================
+   **Type:** string  **Length:** :math:`1` / :math:`\texttt{NPARTYPE}`
+   ================  =================================================
+   
 ``PAR_TYPE_VOLFRAC``
 
    Volume fractions of the particle types. The volume fractions can be set homogeneous or individually along both axes. For each cell, the volume fractions have to sum to 1.  In case of a spatially inhomogeneous setting, the :math:`\texttt{SENS_SECTION}` field is used for indexing the axial cell and the :math:`\texttt{SENS_REACTION}` field is used for indexing the radial cell when specifying parameter sensitivities.  This field is optional in case of only one particle type.
@@ -368,14 +392,6 @@ Group /input/model/unit_XXX/discretization - UNIT_TYPE - GENERAL_RATE_MODEL_2D
    **Type:** int  **Range:** :math:`\geq 1`  **Length:** 1
    =============  =========================  =============
    
-``NPARTYPE``
-
-   Number of particle types. Optional, inferred from the length of :math:`\texttt{NPAR}` or :math:`\texttt{NBOUND}` if left out.
-   
-   =============  =========================  =============
-   **Type:** int  **Range:** :math:`\geq 1`  **Length:** 1
-   =============  =========================  =============
-   
 ``NPAR``
 
    Number of particle (radial) discretization cells for each particle type
@@ -383,22 +399,6 @@ Group /input/model/unit_XXX/discretization - UNIT_TYPE - GENERAL_RATE_MODEL_2D
    =============  =========================  =========================================
    **Type:** int  **Range:** :math:`\geq 1`  **Length:** :math:`1 / \texttt{NPARTYPE}`
    =============  =========================  =========================================
-   
-``NBOUND``
-
-   Number of bound states for each component in each particle type in type-major ordering
-   
-   =============  =========================  ==========================================================================
-   **Type:** int  **Range:** :math:`\geq 0`  **Length:** :math:`\texttt{NCOMP} / \texttt{NPARTYPE} \cdot \texttt{NCOMP}`
-   =============  =========================  ==========================================================================
-   
-``PAR_GEOM``
-
-   Specifies the particle geometry for all or each particle type. Valid values are :math:`\texttt{SPHERE}`, :math:`\texttt{CYLINDER}`, :math:`\texttt{SLAB}`. Optional, defaults to :math:`\texttt{SPHERE}`.
-   
-   ================  =================================================
-   **Type:** string  **Length:** :math:`1` / :math:`\texttt{NPARTYPE}`
-   ================  =================================================
    
 ``RADIAL_DISC_TYPE``
 

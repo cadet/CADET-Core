@@ -395,19 +395,37 @@ bool GeneralRateModel2D::configureModelDiscretization(IParameterProvider& paramP
 	// ==== Read discretization
 	_disc.nComp = paramProvider.getInt("NCOMP");
 
+	std::vector<int> nBound;
+	const bool newNBoundInterface = paramProvider.exists("NBOUND");
+	const bool newNPartypeInterface = paramProvider.exists("NPARTYPE");
+
 	paramProvider.pushScope("discretization");
+
+	if (!newNBoundInterface && paramProvider.exists("NBOUND")) // done here and in this order for backwards compatibility
+		nBound = paramProvider.getIntArray("NBOUND");
+	else
+	{
+		paramProvider.popScope();
+		nBound = paramProvider.getIntArray("NBOUND");
+		paramProvider.pushScope("discretization");
+	}
+	if (nBound.size() < _disc.nComp)
+		throw InvalidParameterException("Field NBOUND contains too few elements (NCOMP = " + std::to_string(_disc.nComp) + " required)");
 
 	_disc.nCol = paramProvider.getInt("NCOL");
 	_disc.nRad = paramProvider.getInt("NRAD");
 
 	const std::vector<int> nParCell = paramProvider.getIntArray("NPAR");
+	
 
-	const std::vector<int> nBound = paramProvider.getIntArray("NBOUND");
-	if (nBound.size() < _disc.nComp)
-		throw InvalidParameterException("Field NBOUND contains too few elements (NCOMP = " + std::to_string(_disc.nComp) + " required)");
-
-	if (paramProvider.exists("NPARTYPE"))
+	if (!newNPartypeInterface && paramProvider.exists("NPARTYPE")) // done here and in this order for backwards compatibility
 		_disc.nParType = paramProvider.getInt("NPARTYPE");
+	else if (newNPartypeInterface)
+	{
+		paramProvider.popScope();
+		_disc.nParType = paramProvider.getInt("NPARTYPE");
+		paramProvider.pushScope("discretization");
+	}
 	else
 	{
 		// Infer number of particle types
@@ -505,6 +523,7 @@ bool GeneralRateModel2D::configureModelDiscretization(IParameterProvider& paramP
 
 	// Read particle geometry and default to "SPHERICAL"
 	_parGeomSurfToVol = std::vector<double>(_disc.nParType, SurfVolRatioSphere);
+	paramProvider.popScope();
 	if (paramProvider.exists("PAR_GEOM"))
 	{
 		std::vector<std::string> pg = paramProvider.getStringArray("PAR_GEOM");
@@ -528,6 +547,7 @@ bool GeneralRateModel2D::configureModelDiscretization(IParameterProvider& paramP
 				throw InvalidParameterException("Unknown particle geometry type \"" + pg[i] + "\" at index " + std::to_string(i) + " of field PAR_GEOM");
 		}
 	}
+	paramProvider.pushScope("discretization");
 
 	if (paramProvider.exists("PAR_DISC_VECTOR"))
 	{

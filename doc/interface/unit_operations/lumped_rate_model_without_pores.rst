@@ -33,6 +33,14 @@ For information on model equations, refer to :ref:`lumped_rate_model_without_por
    **Type:** string  **Range:** See Section :ref:`FFAdsorption`  **Length:** 1
    ================  ==========================================  =============
    
+``NBOUND``
+
+   Number of bound states for each component
+   
+   =============  =========================  ==================================
+   **Type:** int  **Range:** :math:`\geq 0`  **Length:** :math:`\texttt{NCOMP}`
+   =============  =========================  ==================================
+   
 ``REACTION_MODEL``
 
    Specifies the type of reaction model of the combined bulk and particle volume. The model is configured in the subgroup :math:`\texttt{reaction}`.
@@ -144,14 +152,6 @@ Group /input/model/unit_XXX/discretization - UNIT_TYPE = LUMPED_RATE_MODEL_WITHO
    =============  =========================  =============
    **Type:** int  **Range:** :math:`\geq 1`  **Length:** 1
    =============  =========================  =============
-   
-``NBOUND``
-
-   Number of bound states for each component
-   
-   =============  =========================  ==================================
-   **Type:** int  **Range:** :math:`\geq 0`  **Length:** :math:`\texttt{NCOMP}`
-   =============  =========================  ==================================
    
 ``USE_ANALYTIC_JACOBIAN``
 

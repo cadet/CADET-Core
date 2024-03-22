@@ -37,6 +37,14 @@ For information on model equations, refer to :ref:`lumped_rate_model_with_pores_
    **Type:** int  **Range:** :math:`\{0, 1\}`  **Length:** 1
    =============  ===========================  =============
    
+``NBOUND``
+
+   Number of bound states for each component in each particle type in type-major ordering
+   
+   =============  =========================  ===========================================================================
+   **Type:** int  **Range:** :math:`\geq 0`  **Length:** :math:`\texttt{NCOMP} / \texttt{NPARTYPE} \cdot \texttt{NCOMP}`
+   =============  =========================  ===========================================================================
+   
 ``REACTION_MODEL_BULK``
    Specifies the type of reaction model of the bulk volume. The model is configured in the subgroup :math:`\texttt{reaction_bulk}`.
    
@@ -214,6 +222,22 @@ For information on model equations, refer to :ref:`lumped_rate_model_with_pores_
    **Type:** double  **Range:** :math:`>0`  **Length:** 1
    ================  =====================  =============
    
+``NPARTYPE``
+
+   Number of particle types. Optional, inferred from the length of :math:`\texttt{NBOUND}` if left out.
+   
+   =============  =========================  =============
+   **Type:** int  **Range:** :math:`\geq 1`  **Length:** 1
+   =============  =========================  =============
+   
+``PAR_GEOM``
+
+   Specifies the particle geometry for all or each particle type. Valid values are :math:`\texttt{SPHERE}`, :math:`\texttt{CYLINDER}`, :math:`\texttt{SLAB}`. Optional, defaults to :math:`\texttt{SPHERE}`.
+   
+   ================  =================================================
+   **Type:** string  **Length:** :math:`1` / :math:`\texttt{NPARTYPE}`
+   ================  =================================================
+   
 ``PAR_TYPE_VOLFRAC``
 
    Volume fractions of the particle types. The volume fractions can be set for all axial cells together or for each individual axial cell. For each cell, the volume fractions have to sum to :math:`1`. In case of a spatially inhomogeneous setting, the data is expected in cell-major ordering and the :math:`\texttt{SENS_SECTION}` field is used for indexing the axial cell when specifying parameter sensitivities.  This field is optional in case of only one particle type.
@@ -234,30 +258,6 @@ Group /input/model/unit_XXX/discretization - UNIT_TYPE = LUMPED_RATE_MODEL_WITH_
    =============  =========================  =============
    **Type:** int  **Range:** :math:`\geq 1`  **Length:** 1
    =============  =========================  =============
-   
-``NPARTYPE``
-
-   Number of particle types. Optional, inferred from the length of :math:`\texttt{NBOUND}` if left out.
-   
-   =============  =========================  =============
-   **Type:** int  **Range:** :math:`\geq 1`  **Length:** 1
-   =============  =========================  =============
-   
-``NBOUND``
-
-   Number of bound states for each component in each particle type in type-major ordering
-   
-   =============  =========================  ===========================================================================
-   **Type:** int  **Range:** :math:`\geq 0`  **Length:** :math:`\texttt{NCOMP} / \texttt{NPARTYPE} \cdot \texttt{NCOMP}`
-   =============  =========================  ===========================================================================
-   
-``PAR_GEOM``
-
-   Specifies the particle geometry for all or each particle type. Valid values are :math:`\texttt{SPHERE}`, :math:`\texttt{CYLINDER}`, :math:`\texttt{SLAB}`. Optional, defaults to :math:`\texttt{SPHERE}`.
-   
-   ================  =================================================
-   **Type:** string  **Length:** :math:`1` / :math:`\texttt{NPARTYPE}`
-   ================  =================================================
    
 ``USE_ANALYTIC_JACOBIAN``
 
