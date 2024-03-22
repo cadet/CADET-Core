@@ -37,7 +37,7 @@ Features
 * Fast and accurate solution of strongly coupled partial differential algebraic equations (PDAE)
 * Computation of parameter sensitivities with algorithmic differentiation (AD)
 * Shared memory parallelization using Intel TBB
-* Python interface (recommended) and native MATLAB interface (deprecated)
+* Python interface
 * Support of HDF5 and XML data formats
 * Flexible and extensible through modular design
 * Works on Windows, Linux, and Mac OS X

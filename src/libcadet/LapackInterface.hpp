@@ -10,23 +10,16 @@
 //  is available at http://www.gnu.org/licenses/gpl.html
 // =============================================================================
 
-#if (defined(CADET_MATLABMEX) && defined(CADET_MATLAB_LAPACK)) || defined(CADET_LAPACK_64BIT_INT)
+#ifdef CADET_LAPACK_64BIT_INT
 	#include <cstdint>
 #endif
 
 namespace cadet
 {
-
-	#ifdef CADET_MATLAB_LAPACK
-		// The Intel MKL shipped with Matlab uses 64 bit integers (ILP64 variant)
-		// See http://www.mathworks.com/help/matlab/matlab_external/calling-lapack-and-blas-functions-from-mex-files.html
+	#ifdef CADET_LAPACK_64BIT_INT
 		typedef int64_t lapackInt_t;
 	#else
-		#ifdef CADET_LAPACK_64BIT_INT
-			typedef int64_t lapackInt_t;
-		#else
-			typedef int lapackInt_t;
-		#endif
+		typedef int lapackInt_t;
 	#endif
 
 	// Determine LAPACK function names

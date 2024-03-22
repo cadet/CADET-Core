@@ -118,9 +118,6 @@ string(TOLOWER ${ADLIB} ADLIB)
 option(ENABLE_CADET_CLI "Build CADET command line interface" ON)
 add_feature_info(ENABLE_CADET_CLI ENABLE_CADET_CLI "Build CADET command line interface")
 
-option(ENABLE_CADET_MEX "Build CADET Matlab MEX interface" OFF)
-add_feature_info(ENABLE_CADET_MEX ENABLE_CADET_MEX "Build CADET Matlab MEX interface")
-
 option(ENABLE_CADET_TOOLS "Build CADET tools" ON)
 add_feature_info(ENABLE_CADET_TOOLS ENABLE_CADET_TOOLS "Build CADET tools")
 
@@ -397,75 +394,6 @@ if (ENABLE_GRM_2D)
 	)
 endif()
 
-if (ENABLE_CADET_MEX)
-
-	# Set Matlab_ROOT_DIR from MATLAB_ROOT environment variable
-	if (DEFINED ENV{MATLAB_ROOT})
-		set(Matlab_ROOT_DIR $ENV{MATLAB_ROOT})
-	endif()
-	find_package(Matlab COMPONENTS MX_LIBRARY LAPACK_LIBRARY OPTIONAL_COMPONENTS TBB_LIBRARY UMFPACK_LIBRARY)
-	set_package_properties(Matlab PROPERTIES
-	    URL "https://www.mathworks.com/products/matlab.html"
-	    DESCRIPTION "MATLAB Scientific Computing Environment"
-		TYPE RECOMMENDED
-		PURPOSE "Native MATLAB interface"
-	)
-
-	option(MATLAB_USE_SYSTEM_LAPACK "Forcefully enables usage of system's LAPACK instead of MATLAB's one" ON)
-	add_feature_info(MATLAB_USE_SYSTEM_LAPACK MATLAB_USE_SYSTEM_LAPACK "Forcefully enables usage of system's LAPACK instead of MATLAB's one")
-
-	option(MATLAB_FORCE_UMFPACK "Forcefully use MATLAB's UMFPACK as sole sparse solver in MEX interface" OFF)
-	add_feature_info(MATLAB_FORCE_UMFPACK MATLAB_FORCE_UMFPACK "Forcefully use MATLAB's UMFPACK as sole sparse solver in MEX interface")
-
-	option(MATLAB_ENABLE_THREADING "Enable multi-threading in MATLAB" OFF)
-	add_feature_info(MATLAB_ENABLE_THREADING MATLAB_ENABLE_THREADING "Enable multi-threading in MATLAB")
-
-	# Check TBB <-> Matlab compatibility
-	option(MATLAB_FORCE_ENABLE_TBB "Forcefully enable usage of MATLAB's TBB library in case system TBB is not compatible and not enforced" OFF)
-	add_feature_info(MATLAB_FORCE_ENABLE_TBB MATLAB_FORCE_ENABLE_TBB "Forcefully enable usage of MATLAB's TBB library in case system TBB is not compatible and not enforced")
-
-	option(MATLAB_USE_SYSTEM_TBB "Forcefully enables usage of system's TBB instead of MATLAB's one" ON)
-	add_feature_info(MATLAB_USE_SYSTEM_TBB MATLAB_USE_SYSTEM_TBB "Forcefully enables usage of system TBB instead of MATLAB's one")
-
-	if (Matlab_FOUND)
-
-		if (Matlab_TBB_LIBRARY_FOUND)
-			# Combine system TBB headers with MATLAB TBB binary (dangerous as versions certainly don't match)
-			add_library(MATLAB::TBB UNKNOWN IMPORTED)
-			set_target_properties(MATLAB::TBB PROPERTIES 
-				INTERFACE_COMPILE_DEFINITIONS "__TBB_NO_IMPLICIT_LINKAGE=1;${CADET_PARALLEL_FLAG}"
-				IMPORTED_LOCATION             "${Matlab_TBB_LIBRARY}"
-				INTERFACE_INCLUDE_DIRECTORIES "${TBB_INCLUDE_DIRS}"
-			)
-		endif()
-
-		set(Matlab_TBB_TARGET "")
-		if (MATLAB_ENABLE_THREADING)
-			if (TBB_tbb_preview_FOUND OR (TBB_FOUND AND MATLAB_USE_SYSTEM_TBB))
-				# Linking to tbb_preview usually works
-				set(Matlab_TBB_TARGET ${TBB_TARGET})
-			else()
-				if (Matlab_TBB_LIBRARY_FOUND AND TBB_FOUND)
-					if (TBB_INTERFACE_VERSION LESS_EQUAL Matlab_TBB_INTERFACE_VERSION)
-						# System TBB is older than or same age as Matlab's TBB
-						set(Matlab_TBB_TARGET "MATLAB::TBB")
-					else()
-						if (MATLAB_FORCE_ENABLE_TBB)
-							set(Matlab_TBB_TARGET "MATLAB::TBB")
-						else()
-							message(WARNING "Matlab's TBB version is older (${Matlab_TBB_INTERFACE_VERSION}) than the system headers (${TBB_INTERFACE_VERSION}). TBB parallelization is disabled in MEX interface. Set -DMATLAB_FORCE_ENABLE_TBB=ON to enforce TBB support.")
-						endif()
-					endif()
-				endif()
-			endif()
-		endif()
-	else()
-		message(STATUS "Matlab not found, disabling ENABLE_CADET_MEX")
-		set(ENABLE_CADET_MEX OFF)
-	endif()
-
-endif()
-
 set(IPO_AVAILABLE OFF)
 if (ENABLE_IPO)
 	include(CheckIPOSupported)
@@ -539,10 +467,6 @@ if (ENABLE_CADET_CLI)
 	add_subdirectory(src/cadet-cli)
 endif()
 
-if (ENABLE_CADET_MEX)
-	add_subdirectory(src/cadet-mex)
-endif()
-
 if (ENABLE_CADET_TOOLS)
 	add_subdirectory(src/tools)
 endif()
@@ -607,7 +531,6 @@ message("C++ Flags: ${CMAKE_CXX_FLAGS}")
 message("IPO enabled: ${IPO_AVAILABLE}")
 message("------------------------------- Modules -------------------------------")
 message("CADET-CLI: ${ENABLE_CADET_CLI}")
-message("CADET-MEX: ${ENABLE_CADET_MEX}")
 message("Tools: ${ENABLE_CADET_TOOLS}")
 message("Tests: ${ENABLE_TESTS}")
 message("------------------------------- Options -------------------------------")
@@ -677,21 +600,5 @@ if (HDF5_FOUND)
 	message("  Defs ${HDF5_C_DEFINITIONS}")
 endif()
 
-if (ENABLE_CADET_MEX)
-	message("Found Matlab: ${Matlab_FOUND}")
-	if (Matlab_FOUND)
-		message("  Version ${Matlab_VERSION_STRING}")
-		message("  In ${Matlab_ROOT_DIR}")
-		message("  Includes ${Matlab_INCLUDE_DIRS}")
-		message("  Libs ${Matlab_LIBRARIES}")
-		message("  MKL ${Matlab_LAPACK_LIBRARY} ${Matlab_BLAS_LIBRARY}")
-		message("  LAPACK functions have trailing underscore: ${Matlab_LAPACK_TRAILING_UNDERSCORE}")
-		message("  Declares mxCreateUninitNumericMatrix: ${Matlab_DECLARES_CREATEUNINITNUMERICMATRIX}")
-		message("  Declares mxCreateUninitNumericArray: ${Matlab_DECLARES_CREATEUNINITNUMERICARRAY}")
-		message("  TBB ${Matlab_TBB_LIBRARY} (interface version ${Matlab_TBB_INTERFACE_VERSION})")
-		message("  Parallelization (TBB compatibility): ${Matlab_TBB_COMPATIBLE}")
-		message("  UMFPACK ${Matlab_UMFPACK_LIBRARY} (enforced ${MATLAB_FORCE_UMFPACK})")
-	endif()
-endif()
 message("-----------------------------------------------------------------------")
 message("")

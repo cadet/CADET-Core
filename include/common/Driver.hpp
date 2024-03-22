@@ -100,18 +100,6 @@ void readDataOutputConfig(ParamProvider_t& pp, StorageConfig_t& cfg, const std::
 template <class ParamProvider_t>
 void configureSystemRecorder(cadet::InternalStorageSystemRecorder& recorder, ParamProvider_t& pp, unsigned int maxUnitOperationId)
 {
-
-#ifdef MATLAB_MEX_FILE
-
-	// Do not split components into multiple datasets when using MEX interface
-	const bool splitComponents = false;
-	// Do not split ports into multiple datasets when using MEX interface
-	const bool splitPorts = false;
-	// Treat single port unit operations as multi port unit operations when using MEX interface
-	const bool singleAsMultiPort = true;
-
-#else
-
 	bool splitComponents = true;
 	if (pp.exists("SPLIT_COMPONENTS_DATA"))
 		splitComponents = pp.getBool("SPLIT_COMPONENTS_DATA");
@@ -123,8 +111,6 @@ void configureSystemRecorder(cadet::InternalStorageSystemRecorder& recorder, Par
 	bool singleAsMultiPort = false;
 	if (pp.exists("SINGLE_AS_MULTI_PORT"))
 		singleAsMultiPort = pp.getBool("SINGLE_AS_MULTI_PORT");
-
-#endif
 
 	recorder.deleteRecorders();
 
