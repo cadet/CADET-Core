@@ -864,11 +864,11 @@ protected:
 			layout.reserve(5);
 
 			layout.push_back(_numTimesteps);
-			layout.push_back(_nParShells.size());
 			if ((_keepBulkSingletonDim && (_nAxialCells == 1)) || (_nAxialCells > 1))
 				layout.push_back(_nAxialCells);
 			if (_nRadialCells > 0)
 				layout.push_back(_nRadialCells);
+			layout.push_back(_nParShells.size());
 			layout.push_back(_nComp);
 
 			debugCheckTensorLayout(layout, _curStorage->flux.size());
