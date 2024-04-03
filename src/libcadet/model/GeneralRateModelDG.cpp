@@ -210,7 +210,7 @@ bool GeneralRateModelDG::configureModelDiscretization(IParameterProvider& paramP
 
 	std::vector<int> parPolyDeg(_disc.nParType);
 	std::vector<int> ParNelem(_disc.nParType);
-	std::vector<bool> parExactInt(_disc.nParType);
+	std::vector<bool> parExactInt(_disc.nParType, true);
 	_disc.parPolyDeg = new unsigned int[_disc.nParType];
 	_disc.nParCell = new unsigned int[_disc.nParType];
 	_disc.parExactInt = new bool[_disc.nParType];
@@ -219,12 +219,17 @@ bool GeneralRateModelDG::configureModelDiscretization(IParameterProvider& paramP
 	if (paramProvider.exists("PAR_POLYDEG"))
 	{
 		parPolyDeg = paramProvider.getIntArray("PAR_POLYDEG");
+
 		if ((std::any_of(parPolyDeg.begin(), parPolyDeg.end(), [](int value) { return value < 1; })))
 			throw InvalidParameterException("Particle polynomial degrees must be at least 1!");
 		ParNelem = paramProvider.getIntArray("PAR_NELEM");
+
 		if ((std::any_of(ParNelem.begin(), ParNelem.end(), [](int value) { return value < 1; })))
 			throw InvalidParameterException("Particle number of elements must be at least 1!");
-		parExactInt = paramProvider.getBoolArray("PAR_EXACT_INTEGRATION");
+
+		if(paramProvider.exists("PAR_EXACT_INTEGRATION"))
+			parExactInt = paramProvider.getBoolArray("PAR_EXACT_INTEGRATION");
+
 		if ((std::any_of(parExactInt.begin(), parExactInt.end(), [](bool value) { return !value; })))
 			LOG(Warning) << "Inexact integration method (cf. PAR_EXACT_INTEGRATION) in particles might add severe! stiffness to the system and disables consistent initialization!";
 
@@ -766,6 +771,7 @@ bool GeneralRateModelDG::configure(IParameterProvider& paramProvider)
 		registerParam2DArray(_parameters, _parTypeVolFrac, [=](bool multi, unsigned cell, unsigned int type) { return makeParamId(hashString("PAR_TYPE_VOLFRAC"), _unitOpIdx, CompIndep, type, BoundStateIndep, ReactionIndep, cell); }, _disc.nParType);
 
 	// Calculate the particle radial discretization variables (_parCellSize, _parCenterRadius, etc.)
+	_disc.deltaR = new active[_disc.offsetMetric[_disc.nParType]];
 	updateRadialDisc();
 
 	// Register initial conditions parameters
@@ -954,18 +960,10 @@ void GeneralRateModelDG::notifyDiscontinuousSectionTransition(double t, unsigned
  	setJacobianPattern_GRM(_globalJac, 0, _dynReactionBulk);
 	_globalJacDisc = _globalJac;
 
-	// ConvectionDispersionOperator tells us whether flow direction has changed
-	if (!_convDispOp.notifyDiscontinuousSectionTransition(t, secIdx, _jacInlet)) {
-		// (re)compute DG particle Jacobian blocks (can only be done after notify)
-		updateSection(secIdx);
-		_disc.initializeDGjac(_parGeomSurfToVol);
-		return;
-	}
-	else {
-		// (re)compute DG particle Jacobian blocks
-		updateSection(secIdx);
-		_disc.initializeDGjac(_parGeomSurfToVol);
-	}
+	_convDispOp.notifyDiscontinuousSectionTransition(t, secIdx, _jacInlet);
+
+	updateSection(secIdx);
+	_disc.initializeDGjac(_parGeomSurfToVol);
 }
 
 void GeneralRateModelDG::setFlowRates(active const* in, active const* out) CADET_NOEXCEPT
@@ -2087,7 +2085,6 @@ void GeneralRateModelDG::setUserdefinedRadialDisc(unsigned int parType)
 // This approach should only be used when necessary, i.e. solely when particle radius parameter sensitivity is required.
 void GeneralRateModelDG::updateRadialDisc()
 {
-	_disc.deltaR = new active[_disc.offsetMetric[_disc.nParType]];
 
 	for (unsigned int parType = 0; parType < _disc.nParType; ++parType)
 	{

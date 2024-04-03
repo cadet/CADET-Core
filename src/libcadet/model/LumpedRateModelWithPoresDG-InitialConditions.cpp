@@ -343,7 +343,7 @@ namespace cadet
 					LinearBufferAllocator tlmAlloc = threadLocalMem.get();
 
 					// Reuse memory of band matrix for dense matrix
-					linalg::DenseMatrixView fullJacobianMatrix(_globalJacDisc.valuePtr() + _globalJacDisc.outerIndexPtr()[idxr.offsetCp(ParticleTypeIndex{ type }) - idxr.offsetC() + pblk], nullptr, mask.len, mask.len);
+					linalg::DenseMatrixView fullJacobianMatrix(_globalJacDisc.valuePtr() + _globalJacDisc.outerIndexPtr()[idxr.offsetCp(ParticleTypeIndex{ type }, ParticleIndex{ pblk }) - idxr.offsetC()], nullptr, mask.len, mask.len);
 
 					// z coordinate (column length normed to 1) of current node - needed in externally dependent adsorption kinetic
 					const double z = _convDispOp.relativeCoordinate(pblk);
@@ -402,7 +402,7 @@ namespace cadet
 					linalg::conservedMoietiesFromPartitionedMask(mask, _disc.nBound + type * _disc.nComp, _disc.nComp, qShell - _disc.nComp, conservedQuants, static_cast<double>(_parPorosity[type]), epsQ);
 
 					std::function<bool(double const* const, linalg::detail::DenseMatrixBase&)> jacFunc;
-					if (localAdY && localAdRes)
+					if (localAdY && localAdRes) // todo fix AD consistent initialization with req. binding
 					{
 						jacFunc = [&](double const* const x, linalg::detail::DenseMatrixBase& mat)
 						{
@@ -420,7 +420,7 @@ namespace cadet
 								simTime.t, simTime.secIdx, colPos, localAdY, nullptr, localAdRes, fullJacobianMatrix.row(0), cellResParams, tlmAlloc
 								);
 
-							// todo ? check analytical jacobian?
+//							// todo check analytical jacobian
 //#ifdef CADET_CHECK_ANALYTIC_JACOBIAN
 //							std::copy_n(qShell - _disc.nComp, mask.len, fullX);
 //							linalg::applyVectorSubset(x, mask, fullX);
@@ -447,7 +447,7 @@ namespace cadet
 								for (unsigned int par = 0; par < _disc.nPoints; par++)
 								{
 									const int eqOffset_res = idxr.offsetCp(ParticleTypeIndex{ type }, ParticleIndex{ par });
-									const int eqOffset_mat = idxr.offsetCp(ParticleTypeIndex{ type }, ParticleIndex{ par });
+									const int eqOffset_mat = idxr.offsetCp(ParticleTypeIndex{ type }, ParticleIndex{ par }) - idxr.offsetC();
 									for (unsigned int phase = 0; phase < idxr.strideParBlock(type); phase++)
 									{
 										for (unsigned int phaseTo = 0; phaseTo < idxr.strideParBlock(type); phaseTo++)
@@ -912,7 +912,7 @@ namespace cadet
 				{
 					// Loop over components in cell
 					for (unsigned comp = 0; comp < _disc.nComp; ++comp)
-						stateYbulk[point * idxr.strideColCell() + comp * idxr.strideColComp()] = _initC[comp].getADValue(param);
+						stateYbulk[point * idxr.strideColNode() + comp * idxr.strideColComp()] = _initC[comp].getADValue(param);
 				}
 
 				// Loop over particles
@@ -1003,9 +1003,7 @@ namespace cadet
 				for (unsigned int i = _disc.nComp; i < numDofs(); ++i)
 					sensYdot[i] = -adRes[i].getADValue(param);
 		
-				// Step 1: Solve algebraic equations
-		
-				// Step 1a: Compute quasi-stationary binding model state
+				// Step 1: Compute quasi-stationary binding model state
 				for (unsigned int type = 0; type < _disc.nParType; ++type)
 				{
 					if (!_binding[type]->hasQuasiStationaryReactions())
@@ -1073,9 +1071,7 @@ namespace cadet
 					} CADET_PARFOR_END;
 				}
 		
-				// Step 1: Compute the correct time derivative of the state vector
-		
-				// Step 1a: Assemble, factorize, and solve diagonal blocks of linear system
+				// Step 2: Compute the correct time derivative of the state vector: Assemble, factorize, and solve diagonal blocks of linear system
 		
 				// Compute right hand side by adding -dF / dy * s = -J * s to -dF / dp which is already stored in sensYdot
 				multiplyWithJacobian(simTime, simState, sensY, -1.0, 1.0, sensYdot);

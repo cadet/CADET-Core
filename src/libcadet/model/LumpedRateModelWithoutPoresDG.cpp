@@ -191,13 +191,8 @@ namespace cadet
 			clearBindingModels();
 			_binding.push_back(nullptr);
 
-			if (paramProvider.exists("ADSORPTION_MODEL")) {
+			if (paramProvider.exists("ADSORPTION_MODEL"))
 				_binding[0] = helper.createBindingModel(paramProvider.getString("ADSORPTION_MODEL"));
-				if (paramProvider.getString("ADSORPTION_MODEL") != "NONE") {
-					paramProvider.pushScope("adsorption");
-					paramProvider.popScope();
-				}
-			}
 			else
 				_binding[0] = helper.createBindingModel("NONE");
 
@@ -235,7 +230,6 @@ namespace cadet
 
 			// Setup the memory for tempState based on state vector
 			_tempState = new double[numDofs()];
-
 
 			return bindingConfSuccess && reactionConfSuccess;
 		}
@@ -644,6 +638,10 @@ namespace cadet
 
 			} CADET_PARFOR_END;
 
+			// Handle inlet DOFs, which are simply copied to res
+			for (unsigned int i = 0; i < _disc.nComp; ++i)
+				res_[i] = y_[i];
+
 			return 0;
 		}
 
@@ -717,7 +715,6 @@ namespace cadet
 		 */
 		void LumpedRateModelWithoutPoresDG::multiplyWithJacobian(const SimulationTime& simTime, const ConstSimulationState& simState, double const* yS, double alpha, double beta, double* ret)
 		{
-
 			Indexer idxr(_disc);
 
 			// Handle identity matrix of inlet DOFs
@@ -1569,7 +1566,7 @@ namespace cadet
 		
 						// Extract subproblem Jacobian from full Jacobian
 						jacobianMatrix.setAll(0.0);
-						linalg::copyMatrixSubset(_jac, mask, mask, jacRowOffset, 0, jacobianMatrix);
+						linalg::copyMatrixSubset(_jac, mask, mask, jacRowOffset, jacRowOffset, jacobianMatrix);
 		
 						// Construct right hand side: rhs = -dF / dp |\mathcal{I}_a
 						linalg::selectVectorSubset(sensYdot + localQOffset, mask, rhs);
@@ -1582,7 +1579,7 @@ namespace cadet
 						Eigen::Map<VectorXd> maskedMultiplier_vec(maskedMultiplier, idxr.strideColNode());
 						Eigen::Map<VectorXd> rhsUnmasked_vec(rhsUnmasked, _disc.strideBound);
 
-						rhsUnmasked_vec=_jac.block(jacRowOffset, -static_cast<int>(_disc.nComp), _disc.strideBound, idxr.strideColNode()) * maskedMultiplier_vec;
+						rhsUnmasked_vec=_jac.block(jacRowOffset, jacRowOffset - static_cast<int>(_disc.nComp), _disc.strideBound, idxr.strideColNode()) * maskedMultiplier_vec;
 						linalg::vectorSubsetAdd(rhsUnmasked, mask, -1.0, 1.0, rhs);
 		
 						// Precondition
