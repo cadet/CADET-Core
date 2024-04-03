@@ -528,7 +528,7 @@ protected:
 	 * @brief analytically calculates the static (per section) bulk jacobian (inlet DOFs included!)
 	 * @return 1 if jacobain estimation fits the predefined pattern of the jacobian, 0 if not.
 	 */
-	int calcStaticAnaGlobalJacobian(unsigned int secIdx) {
+	int calcStaticAnaGlobalJacobian(const unsigned int secIdx) {
 		
 		bool success = _convDispOp.calcStaticAnaJacobian(_globalJac, _jacInlet);
 		success = success && calcFluxJacobians(secIdx);
@@ -536,7 +536,7 @@ protected:
 		return success;
 	}
 
-	int calcFluxJacobians(unsigned int secIdx) {
+	int calcFluxJacobians(const unsigned int secIdx, const bool crossDepsOnly = false) {
 
 		Indexer idxr(_disc);
 
@@ -565,7 +565,8 @@ protected:
 					// add Cl on Cl entries (added since already set in bulk jacobian)
 					// row: already at bulk phase. already at current node and component.
 					// col: already at bulk phase. already at current node and component.
-					jacC[0] += jacCF_val * static_cast<double>(filmDiff[comp]) * static_cast<double>(_parTypeVolFrac[type + _disc.nParType * colNode]);
+					if(!crossDepsOnly)
+						jacC[0] += jacCF_val * static_cast<double>(filmDiff[comp]) * static_cast<double>(_parTypeVolFrac[type + _disc.nParType * colNode]);
 					// add Cl on Cp entries
 					// row: already at bulk phase. already at current node and component.
 					// col: already at bulk phase. already at current node and component.
@@ -574,13 +575,12 @@ protected:
 					// add Cp on Cp entries
 					// row: already at particle. already at current node and liquid state.
 					// col: go to flux of current parType and adjust for offsetC. jump over previous colNodes and add component offset
-					jacP[0]
-						= -jacPF_val / static_cast<double>(poreAccFactor[comp]) * static_cast<double>(filmDiff[comp]);
+					if (!crossDepsOnly)
+						jacP[0] = -jacPF_val / static_cast<double>(poreAccFactor[comp]) * static_cast<double>(filmDiff[comp]);
 					// add Cp on Cl entries
 					// row: already at particle. already at current node and liquid state.
 					// col: go to flux of current parType and adjust for offsetC. jump over previous colNodes and add component offset
-					jacP[jacC.row() - jacP.row()]
-						= jacPF_val / static_cast<double>(poreAccFactor[comp]) * static_cast<double>(filmDiff[comp]);
+					jacP[jacC.row() - jacP.row()] = jacPF_val / static_cast<double>(poreAccFactor[comp]) * static_cast<double>(filmDiff[comp]);
 				}
 			}
 		}

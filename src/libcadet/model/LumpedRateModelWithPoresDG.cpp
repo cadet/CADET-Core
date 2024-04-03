@@ -181,7 +181,7 @@ bool LumpedRateModelWithPoresDG::configureModelDiscretization(IParameterProvider
 	_disc.nPoints = _disc.nNodes * _disc.nCol;
 
 	int polynomial_integration_mode = 0;
-	if(paramProvider.exists("EXACT_INTEGRATION"))
+	if (paramProvider.exists("EXACT_INTEGRATION"))
 		polynomial_integration_mode = paramProvider.getInt("EXACT_INTEGRATION");
 	_disc.exactInt = static_cast<bool>(polynomial_integration_mode); // only integration mode 0 applies the inexact collocated diagonal LGL mass matrix
 
@@ -667,11 +667,6 @@ void LumpedRateModelWithPoresDG::useAnalyticJacobian(const bool analyticJac)
 
 void LumpedRateModelWithPoresDG::notifyDiscontinuousSectionTransition(double t, unsigned int secIdx, const ConstSimulationState& simState, const AdJacobianParams& adJac)
 {
-	// Setup flux Jacobian blocks at the beginning of the simulation or in case of
-	// section dependent film or particle diffusion coefficients
-	if ((secIdx == 0) || isSectionDependent(_filmDiffusionMode))
-		assembleFluxJacobian(t, secIdx);
-
 	updateSection(secIdx);
 
 	_convDispOp.notifyDiscontinuousSectionTransition(t, secIdx, _jacInlet);
@@ -774,8 +769,6 @@ void LumpedRateModelWithPoresDG::extractJacobianFromAD(active const* const adRes
 	int eqOffset = 0;
 	ad::extractBandedBlockEigenJacobianFromAd(adVec, adDirOffset, diagDir, lowerBandwidth, upperBandwidth, eqOffset, bulkDoFs, _globalJac);
 	
-	/* Film diffusion flux entries are handled analytically (todo: point to where that happens) */
-
 	/* Handle particle liquid and solid phase equations entries */
 	// Read particle Jacobian enries from dedicated AD directions
 	int offsetParticleTypeDirs = adDirOffset + _convDispOp.requiredADdirs();
@@ -796,6 +789,10 @@ void LumpedRateModelWithPoresDG::extractJacobianFromAD(active const* const adRes
 		}
 		offsetParticleTypeDirs += idxr.strideParBlock(type);
 	}
+
+	/* Film diffusion flux entries are handled analytically (only cross dependent entries) */
+	calcFluxJacobians(_disc.curSection, true);
+
 }
 
 #ifdef CADET_CHECK_ANALYTIC_JACOBIAN
@@ -955,11 +952,11 @@ int LumpedRateModelWithPoresDG::residualImpl(double t, unsigned int secIdx, Stat
 	// check for section switch
 	updateSection(secIdx);
 	bool success = 1;
-	
+
 	if (wantJac)
 	{
-		if (_disc.newStaticJac) { // static (per section) transport Jacobian
-
+		if (_disc.newStaticJac) // static (per section) transport Jacobian
+		{
 			success = calcStaticAnaGlobalJacobian(secIdx);
 			_disc.newStaticJac = false;
 			if (cadet_unlikely(!success))

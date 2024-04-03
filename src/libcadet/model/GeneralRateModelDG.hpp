@@ -997,64 +997,6 @@ protected:
 	// ========================================						DG particle Jacobian							=============================================  //
 	// ==========================================================================================================================================================  //
 
-	/**
-	* @brief computes the jacobian via finite differences (testing purpose)
-	*/
-	MatrixXd calcFDJacobian(const double* y_, const double* yDot_, const SimulationTime simTime, util::ThreadLocalStorage& threadLocalMem, double alpha) {
-
-		// create solution vectors
-		Eigen::Map<const VectorXd> hmpf(y_, numDofs());
-		VectorXd y = hmpf;
-		VectorXd yDot;
-		if (yDot_) {
-			Eigen::Map<const VectorXd> hmpf2(yDot_, numDofs());
-			yDot = hmpf2;
-		}
-		else {
-			return MatrixXd::Zero(numDofs(), numDofs());
-		}
-		VectorXd res = VectorXd::Zero(numDofs());
-		const double* yPtr = &y[0];
-		const double* yDotPtr = &yDot[0];
-		double* resPtr = &res[0];
-		// create FD jacobian
-		MatrixXd Jacobian = MatrixXd::Zero(numDofs(), numDofs());
-		// set FD step
-		double epsilon = 0.01;
-
-		residualImpl<double, double, double, false>(simTime.t, simTime.secIdx, yPtr, yDotPtr, resPtr, threadLocalMem);
-
-		for (int col = 0; col < Jacobian.cols(); col++) {
-			Jacobian.col(col) = -(1.0 + alpha) * res;
-		}
-		/*	 Residual(y+h)	*/
-		// state DOFs
-		for (int dof = 0; dof < Jacobian.cols(); dof++) {
-			y[dof] += epsilon;
-			residualImpl<double, double, double, false>(simTime.t, simTime.secIdx, yPtr, yDotPtr, resPtr, threadLocalMem);
-			y[dof] -= epsilon;
-			Jacobian.col(dof) += res;
-		}
-
-		// state derivative Jacobian
-		for (int dof = 0; dof < Jacobian.cols(); dof++) {
-			yDot[dof] += epsilon;
-			residualImpl<double, double, double, false>(simTime.t, simTime.secIdx, yPtr, yDotPtr, resPtr, threadLocalMem);
-			yDot[dof] -= epsilon;
-			Jacobian.col(dof) += alpha * res;
-		}
-
-		///*	exterminate numerical noise	 */
-		//for (int i = 0; i < Jacobian.rows(); i++) {
-		//	for (int j = 0; j < Jacobian.cols(); j++) {
-		//		if (std::abs(Jacobian(i, j)) < 1e-10) Jacobian(i, j) = 0.0;
-		//	}
-		//}
-		Jacobian /= epsilon;
-
-		return Jacobian;
-	}
-
 	typedef Eigen::Triplet<double> T;
 	/**
 	 * @brief calculates the particle dispersion jacobian Pattern of the exact/inexact integration DG scheme for the given particle type and bead
@@ -2592,6 +2534,64 @@ protected:
 		calcFluxJacobians(secIdx);
 
 		return _globalJac.isCompressed(); // check if the jacobian estimation fits the pattern
+	}
+
+	/**
+	 * @brief computes the jacobian via finite differences (testing purpose)
+	 */
+	MatrixXd calcFDJacobian(const double* y_, const double* yDot_, const SimulationTime simTime, util::ThreadLocalStorage& threadLocalMem, double alpha) {
+
+		// create solution vectors
+		Eigen::Map<const VectorXd> hmpf(y_, numDofs());
+		VectorXd y = hmpf;
+		VectorXd yDot;
+		if (yDot_) {
+			Eigen::Map<const VectorXd> hmpf2(yDot_, numDofs());
+			yDot = hmpf2;
+		}
+		else {
+			return MatrixXd::Zero(numDofs(), numDofs());
+		}
+		VectorXd res = VectorXd::Zero(numDofs());
+		const double* yPtr = &y[0];
+		const double* yDotPtr = &yDot[0];
+		double* resPtr = &res[0];
+		// create FD jacobian
+		MatrixXd Jacobian = MatrixXd::Zero(numDofs(), numDofs());
+		// set FD step
+		double epsilon = 0.01;
+
+		residualImpl<double, double, double, false>(simTime.t, simTime.secIdx, yPtr, yDotPtr, resPtr, threadLocalMem);
+
+		for (int col = 0; col < Jacobian.cols(); col++) {
+			Jacobian.col(col) = -(1.0 + alpha) * res;
+		}
+		/*	 Residual(y+h)	*/
+		// state DOFs
+		for (int dof = 0; dof < Jacobian.cols(); dof++) {
+			y[dof] += epsilon;
+			residualImpl<double, double, double, false>(simTime.t, simTime.secIdx, yPtr, yDotPtr, resPtr, threadLocalMem);
+			y[dof] -= epsilon;
+			Jacobian.col(dof) += res;
+		}
+
+		// state derivative Jacobian
+		for (int dof = 0; dof < Jacobian.cols(); dof++) {
+			yDot[dof] += epsilon;
+			residualImpl<double, double, double, false>(simTime.t, simTime.secIdx, yPtr, yDotPtr, resPtr, threadLocalMem);
+			yDot[dof] -= epsilon;
+			Jacobian.col(dof) += alpha * res;
+		}
+
+		///*	exterminate numerical noise	 */
+		//for (int i = 0; i < Jacobian.rows(); i++) {
+		//	for (int j = 0; j < Jacobian.cols(); j++) {
+		//		if (std::abs(Jacobian(i, j)) < 1e-10) Jacobian(i, j) = 0.0;
+		//	}
+		//}
+		Jacobian /= epsilon;
+
+		return Jacobian;
 	}
 
 };
