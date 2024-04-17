@@ -1,4 +1,4 @@
-CADET
+CADET (my version)
 ======
 
 .. image:: https://img.shields.io/github/release/modsim/cadet.svg
