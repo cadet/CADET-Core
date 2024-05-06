@@ -3,4 +3,4 @@
 Build for Linux
 ===============
 
-.. mdinclude:: ../../BUILD-LINUX.md
+.. literalinclude:: ../../BUILD-LINUX.md

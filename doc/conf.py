@@ -31,11 +31,17 @@ extensions = [
     'sphinx_sitemap',
     'sphinxcontrib.bibtex',
     'sphinx_multiversion',
-    'm2r',
+    "myst_parser",
 ]
 
 # Bibliography
 bibtex_bibfiles = ['literature.bib']
+# Myst
+source_suffix = {
+    ".rst": "restructuredtext",
+    ".txt": "markdown",
+    ".md": "markdown",
+}
 
 # Multiversion
 smv_released_pattern = r'^refs/tags/.*$'    # Tags only

@@ -3,4 +3,4 @@
 Build for OSX
 =============
 
-.. mdinclude:: ../../BUILD-OSX.md
+.. literalinclude:: ../../BUILD-OSX.md
