@@ -29,13 +29,27 @@
 
 /*<codegen>
 {
-	"name": TestParamHandler",
+	"name": "TestParamHandler",
 	"externalName": "ExtTestParamHandler",
 	"parameters":
 		[
 			{ "type": "ScalarComponentDependentParameter", "varName": "kA", "confName": "MCL_KA"},
 			{ "type": "ScalarComponentDependentParameter", "varName": "kD", "confName": "MCL_KD"},
-			{ "type": "ScalarComponentDependentParameter", "varName": "qMax", "confName": "MCL_QMAX"}
+			{ "type": "ScalarComponentDependentParameter", "varName": "qMax", "confName": "MCL_QMAX"},
+			{ "type": "ScalarComponentDependentParameter", "varName": "p1", "confName": "ANN_P1"},
+			{ "type": "ScalarComponentDependentParameter", "varName": "p2", "confName": "ANN_P2"},
+			{ "type": "ScalarComponentDependentParameter", "varName": "p3", "confName": "ANN_P3"},
+			{ "type": "ScalarComponentDependentParameter", "varName": "p4", "confName": "ANN_P4"},
+			{ "type": "ScalarComponentDependentParameter", "varName": "p5", "confName": "ANN_P5"},
+			{ "type": "ScalarComponentDependentParameter", "varName": "p6", "confName": "ANN_P6"},
+			{ "type": "ScalarComponentDependentParameter", "varName": "p7", "confName": "ANN_P7"},
+			{ "type": "ScalarComponentDependentParameter", "varName": "p8", "confName": "ANN_P8"},
+			{ "type": "ScalarComponentDependentParameter", "varName": "p9", "confName": "ANN_P9"},
+			{ "type": "ScalarComponentDependentParameter", "varName": "p10", "confName": "ANN_P10"},
+			{ "type": "ScalarComponentDependentParameter", "varName": "p11", "confName": "ANN_P11"},
+			{ "type": "ScalarComponentDependentParameter", "varName": "P_norm", "confName": "ANN_P_NORM"},
+			{ "type": "ScalarComponentDependentParameter", "varName": "q_norm", "confName": "ANN_Q_NORM"},
+			{ "type": "ScalarComponentDependentParameter", "varName": "S_norm", "confName": "ANN_S_NORM"}
 		]
 }
 </codegen>*/
@@ -45,6 +59,20 @@
  kA = Adsorption rate
  kD = Desorption rate
  qMax = Capacity
+  p1 = ANN param 1
+ p2 = ANN param 2
+ p3 = ANN param 3
+ p4 = ANN param 4
+ p5 = ANN param 5
+ p6 = ANN param 6
+ p7 = ANN param 7
+ p8 = ANN param 8
+ p9 = ANN param 9
+ p10 = ANN param 10
+ p11 = ANN param 11
+ P_norm = Normative Vaule for Protien pore conc
+ q_norm = Normative Vaule for Protien adsorbed conc
+ S_norm = Normative Vaule for Salt pore conc
 */
 
 namespace cadet
@@ -57,7 +85,10 @@ namespace cadet
 
 		inline bool TestParamHandler::validateConfig(unsigned int nComp, unsigned int const* nBoundStates)
 		{
-			if ((_kA.size() != _kD.size()) || (_kA.size() != _qMax.size()) || (_kA.size() < nComp))
+			if ((_kA.size() != _kD.size()) || (_kA.size() != _qMax.size()) || (_kA.size() != _p1.size()) || (_kA.size() != _p2.size())
+				|| (_kA.size() != _p3.size()) || (_kA.size() != _p4.size()) || (_kA.size() != _p5.size()) || (_kA.size() != _p6.size())
+				|| (_kA.size() != _p7.size()) || (_kA.size() != _p8.size()) || (_kA.size() != _p9.size()) || (_kA.size() != _p10.size())
+				|| (_kA.size() != _p11.size()) || (_kA.size() != _P_norm.size()) || (_kA.size() != _q_norm.size()) || (_kA.size() != _S_norm.size()) || (_kA.size() < nComp))
 				throw InvalidParameterException("MCL_KA, MCL_KD, and MCL_QMAX have to have the same size");
 
 			return true;
@@ -67,7 +98,10 @@ namespace cadet
 
 		inline bool ExtTestParamHandler::validateConfig(unsigned int nComp, unsigned int const* nBoundStates)
 		{
-			if ((_kA.size() != _kD.size()) || (_kA.size() != _qMax.size()) || (_kA.size() < nComp))
+			if ((_kA.size() != _kD.size()) || (_kA.size() != _qMax.size()) || (_kA.size() != _p1.size()) || (_kA.size() != _p2.size())
+				|| (_kA.size() != _p3.size()) || (_kA.size() != _p4.size()) || (_kA.size() != _p5.size()) || (_kA.size() != _p6.size())
+				|| (_kA.size() != _p7.size()) || (_kA.size() != _p8.size()) || (_kA.size() != _p9.size()) || (_kA.size() != _p10.size())
+				|| (_kA.size() != _p11.size()) || (_kA.size() != _P_norm.size()) || (_kA.size() != _q_norm.size()) || (_kA.size() != _S_norm.size()) || (_kA.size() < nComp))
 				throw InvalidParameterException("EXT_MCL_KA, EXT_MCL_KD, and EXT_MCL_QMAX have to have the same size");
 
 			return true;
@@ -136,7 +170,28 @@ namespace cadet
 						continue;
 
 					// Residual
-					res[bndIdx] = static_cast<ParamType>(p->kD[i]) * y[bndIdx] - static_cast<ParamType>(p->kA[i]) * yCp[i] * static_cast<ParamType>(p->qMax[i]) * qSum;
+					const double p1 = static_cast<double>(p->p1[i]);
+					const double p2 = static_cast<double>(p->p2[i]);
+					const double p3 = static_cast<double>(p->p3[i]);
+					const double p4 = static_cast<double>(p->p4[i]);
+					const double p5 = static_cast<double>(p->p5[i]);
+					const double p6 = static_cast<double>(p->p6[i]);
+					const double p7 = static_cast<double>(p->p7[i]);
+					const double p8 = static_cast<double>(p->p8[i]);
+					const double p9 = static_cast<double>(p->p9[i]);
+					const double p10 = static_cast<double>(p->p10[i]);
+					const double p11 = static_cast<double>(p->p11[i]);
+					const double P_norm = static_cast<double>(p->P_norm[i]);
+					const double q_norm = static_cast<double>(p->q_norm[i]);
+					const double S_norm = static_cast<double>(p->S_norm[i]);
+
+					// const double CF1 = exp(-((p1 * yCp[i] / P_norm) + (p3 * y[bndIdx] / q_norm) + (p5 * yCp[0] / S_norm) + p7));
+					// const double CF2 = exp(-((p2 * yCp[i] / P_norm) + (p4 * y[bndIdx] / q_norm) + (p6 * yCp[0] / S_norm) + p8));
+
+					// double ANN = (p11 + (p9 / (1 + CF1)) + (p10 / (1 + CF2)));
+					// ANN = (p11 + (p9 / (1 + exp(-((p1 * yCp[i] / P_norm) + (p3 * y[bndIdx] / q_norm) + (p5 * yCp[0] / S_norm) + p7)))) + (p10 / (1 + exp(-((p2 * yCp[i] / P_norm) + (p4 * y[bndIdx] / q_norm) + (p6 * yCp[0] / S_norm) + p8)))));
+
+					res[bndIdx] = static_cast<ParamType>(p->kD[i]) * y[bndIdx] * abs((p11 + (p9 / (1 + exp(-((p1 * yCp[i] / P_norm) + (p3 * y[bndIdx] / q_norm) + (p5 * yCp[0] / S_norm) + p7)))) + (p10 / (1 + exp(-((p2 * yCp[i] / P_norm) + (p4 * y[bndIdx] / q_norm) + (p6 * yCp[0] / S_norm) + p8)))))) - static_cast<ParamType>(p->kA[i]) * yCp[i] * static_cast<ParamType>(p->qMax[i]) * qSum;
 
 					// Next bound component
 					++bndIdx;
@@ -175,11 +230,41 @@ namespace cadet
 
 					const double ka = static_cast<double>(p->kA[i]);
 					const double kd = static_cast<double>(p->kD[i]);
+					// ANN Params
+					const double p1 = static_cast<double>(p->p1[i]);
+					const double p2 = static_cast<double>(p->p2[i]);
+					const double p3 = static_cast<double>(p->p3[i]);
+					const double p4 = static_cast<double>(p->p4[i]);
+					const double p5 = static_cast<double>(p->p5[i]);
+					const double p6 = static_cast<double>(p->p6[i]);
+					const double p7 = static_cast<double>(p->p7[i]);
+					const double p8 = static_cast<double>(p->p8[i]);
+					const double p9 = static_cast<double>(p->p9[i]);
+					const double p10 = static_cast<double>(p->p10[i]);
+					const double p11 = static_cast<double>(p->p11[i]);
+					const double P_norm = static_cast<double>(p->P_norm[i]);
+					const double q_norm = static_cast<double>(p->q_norm[i]);
+					const double S_norm = static_cast<double>(p->S_norm[i]);
+					// CF = Common Factor
+					// const double CF1 = exp(-((p1 * yCp[i] / P_norm) + (p3 * y[bndIdx] / q_norm) + (p5 * yCp[0] / S_norm) + p7));
+					// const double CF2 = exp(-((p2 * yCp[i] / P_norm) + (p4 * y[bndIdx] / q_norm) + (p6 * yCp[0] / S_norm) + p8));
+					// const double ANN = (p11 + (p9 / (1 + CF1)) + (p10 / (1 + CF2)));
+					// const double ANN_CF = (ANN / abs(ANN));
 
 					// dres_i / dc_{p,i}
-					jac[i - bndIdx - offsetCp] = -static_cast<double>(p->kA[i]) * static_cast<double>(p->qMax[i]) * qSum;
+					// const double dc_pi_ANN = (((p10 * p2 * CF2) / (P_norm * pow(CF2 + 1, 2))) + ((p1 * p9 * CF1) / (P_norm * pow(CF1 + 1, 2)))) * ANN_CF;
+					
+					jac[i - bndIdx - offsetCp] = kd * y[bndIdx] * (((p10 * p2 * exp(-((p2 * yCp[i] / P_norm) + (p4 * y[bndIdx] / q_norm) + (p6 * yCp[0] / S_norm) + p8))) / (P_norm * pow(exp(-((p2 * yCp[i] / P_norm) + (p4 * y[bndIdx] / q_norm) + (p6 * yCp[0] / S_norm) + p8)) + 1, 2))) + ((p1 * p9 * exp(-((p1 * yCp[i] / P_norm) + (p3 * y[bndIdx] / q_norm) + (p5 * yCp[0] / S_norm) + p7))) / (P_norm * pow(exp(-((p1 * yCp[i] / P_norm) + (p3 * y[bndIdx] / q_norm) + (p5 * yCp[0] / S_norm) + p7)) + 1, 2)))) * ((p11 + (p9 / (1 + exp(-((p1 * yCp[i] / P_norm) + (p3 * y[bndIdx] / q_norm) + (p5 * yCp[0] / S_norm) + p7)))) + (p10 / (1 + exp(-((p2 * yCp[i] / P_norm) + (p4 * y[bndIdx] / q_norm) + (p6 * yCp[0] / S_norm) + p8))))) / abs((p11 + (p9 / (1 + exp(-((p1 * yCp[i] / P_norm) + (p3 * y[bndIdx] / q_norm) + (p5 * yCp[0] / S_norm) + p7)))) + (p10 / (1 + exp(-((p2 * yCp[i] / P_norm) + (p4 * y[bndIdx] / q_norm) + (p6 * yCp[0] / S_norm) + p8))))))) - ka * static_cast<double>(p->qMax[i]) * qSum;
 					// Getting to c_{p,i}: -bndIdx takes us to q_0, another -offsetCp to c_{p,0} and a +i to c_{p,i}.
 					//                     This means jac[i - bndIdx - offsetCp] corresponds to c_{p,i}.
+
+					// dres_i / dc_{p,0}
+					// const double dc_p0_ANN = (((p10 * p6 * CF2) / (S_norm * pow(CF2 + 1, 2))) + ((p5 * p9 * CF1) / (S_norm * pow(CF1 + 1, 2)))) * ANN_CF;
+
+					jac[-bndIdx - offsetCp] = kd * y[bndIdx] * (((p10 * p6 * exp(-((p2 * yCp[i] / P_norm) + (p4 * y[bndIdx] / q_norm) + (p6 * yCp[0] / S_norm) + p8))) / (S_norm * pow(exp(-((p2 * yCp[i] / P_norm) + (p4 * y[bndIdx] / q_norm) + (p6 * yCp[0] / S_norm) + p8)) + 1, 2))) + ((p5 * p9 * exp(-((p1 * yCp[i] / P_norm) + (p3 * y[bndIdx] / q_norm) + (p5 * yCp[0] / S_norm) + p7))) / (S_norm * pow(exp(-((p1 * yCp[i] / P_norm) + (p3 * y[bndIdx] / q_norm) + (p5 * yCp[0] / S_norm) + p7)) + 1, 2)))) * ((p11 + (p9 / (1 + exp(-((p1 * yCp[i] / P_norm) + (p3 * y[bndIdx] / q_norm) + (p5 * yCp[0] / S_norm) + p7)))) + (p10 / (1 + exp(-((p2 * yCp[i] / P_norm) + (p4 * y[bndIdx] / q_norm) + (p6 * yCp[0] / S_norm) + p8))))) / abs((p11 + (p9 / (1 + exp(-((p1 * yCp[i] / P_norm) + (p3 * y[bndIdx] / q_norm) + (p5 * yCp[0] / S_norm) + p7)))) + (p10 / (1 + exp(-((p2 * yCp[i] / P_norm) + (p4 * y[bndIdx] / q_norm) + (p6 * yCp[0] / S_norm) + p8)))))));
+					// Getting to c_{p,0}: -bndIdx takes us to q_0, another -offsetCp to c_{p,0}.
+					//                     This means jac[bndIdx - offsetCp] corresponds to c_{p,0}.
+
 
 					// Fill dres_i / dq_j
 					int bndIdx2 = 0;
@@ -197,7 +282,9 @@ namespace cadet
 					}
 
 					// Add to dres_i / dq_i
-					jac[0] += kd;
+					// const double dc_qi_ANN = (((p10 * p4 * CF2) / (q_norm * pow(CF2 + 1, 2))) + ((p3 * p9 * CF1) / (q_norm * pow(CF1 + 1, 2)))) * ANN_CF;
+
+					jac[0] += kd * abs((p11 + (p9 / (1 + exp(-((p1 * yCp[i] / P_norm) + (p3 * y[bndIdx] / q_norm) + (p5 * yCp[0] / S_norm) + p7)))) + (p10 / (1 + exp(-((p2 * yCp[i] / P_norm) + (p4 * y[bndIdx] / q_norm) + (p6 * yCp[0] / S_norm) + p8)))))) + kd * y[bndIdx] * (((p10 * p4 * exp(-((p2 * yCp[i] / P_norm) + (p4 * y[bndIdx] / q_norm) + (p6 * yCp[0] / S_norm) + p8))) / (q_norm * pow(exp(-((p2 * yCp[i] / P_norm) + (p4 * y[bndIdx] / q_norm) + (p6 * yCp[0] / S_norm) + p8)) + 1, 2))) + ((p3 * p9 * exp(-((p1 * yCp[i] / P_norm) + (p3 * y[bndIdx] / q_norm) + (p5 * yCp[0] / S_norm) + p7))) / (q_norm * pow(exp(-((p1 * yCp[i] / P_norm) + (p3 * y[bndIdx] / q_norm) + (p5 * yCp[0] / S_norm) + p7)) + 1, 2)))) * ((p11 + (p9 / (1 + exp(-((p1 * yCp[i] / P_norm) + (p3 * y[bndIdx] / q_norm) + (p5 * yCp[0] / S_norm) + p7)))) + (p10 / (1 + exp(-((p2 * yCp[i] / P_norm) + (p4 * y[bndIdx] / q_norm) + (p6 * yCp[0] / S_norm) + p8))))) / abs((p11 + (p9 / (1 + exp(-((p1 * yCp[i] / P_norm) + (p3 * y[bndIdx] / q_norm) + (p5 * yCp[0] / S_norm) + p7)))) + (p10 / (1 + exp(-((p2 * yCp[i] / P_norm) + (p4 * y[bndIdx] / q_norm) + (p6 * yCp[0] / S_norm) + p8)))))));
 
 					// Advance to next flux and Jacobian row
 					++bndIdx;
