@@ -216,6 +216,21 @@ namespace cadet
 
 		LOG(Trace) << "==> Residual at t = " << t << " sec = " << secIdx;
 
+		if (sim->_modifiedNewton)
+			return sim->_model->residual(cadet::SimulationTime{t, secIdx}, cadet::ConstSimulationState{NVEC_DATA(y), NVEC_DATA(yDot)}, NVEC_DATA(res));
+
+		return sim->_model->residualWithJacobian(cadet::SimulationTime{t, secIdx}, cadet::ConstSimulationState{NVEC_DATA(y), NVEC_DATA(yDot)}, NVEC_DATA(res),
+			cadet::AdJacobianParams{sim->_vecADres, sim->_vecADy, sim->numSensitivityAdDirections()});
+	}
+
+	int jacobianUpdateWrapper(IDAMem IDA_mem, N_Vector y, N_Vector yDot, N_Vector res, N_Vector tempv1, N_Vector tempv2, N_Vector tempv3)
+	{
+		cadet::Simulator* const sim = static_cast<cadet::Simulator*>(IDA_mem->ida_lmem);
+		const double t = IDA_mem->ida_tn;
+		const unsigned int secIdx = sim->getCurrentSection(t);
+
+		LOG(Trace) << "==> Jacobian at t = " << t;
+
 		return sim->_model->residualWithJacobian(cadet::SimulationTime{t, secIdx}, cadet::ConstSimulationState{NVEC_DATA(y), NVEC_DATA(yDot)}, NVEC_DATA(res),
 			cadet::AdJacobianParams{sim->_vecADres, sim->_vecADy, sim->numSensitivityAdDirections()});
 	}
@@ -336,6 +351,12 @@ namespace cadet
 			sensY, sensYdot, sensRes, sim->_vecADres, NVEC_DATA(tmp1), NVEC_DATA(tmp2), NVEC_DATA(tmp3));
 */
 
+		if (sim->_modifiedNewton)
+		{
+			return sim->_model->residualSensFwdWithJacobian(ns, cadet::SimulationTime{t, secIdx}, cadet::ConstSimulationState{NVEC_DATA(y), NVEC_DATA(yDot)}, NVEC_DATA(res),
+				sensY, sensYdot, sensRes, cadet::AdJacobianParams{sim->_vecADres, sim->_vecADy, sim->numSensitivityAdDirections()}, NVEC_DATA(tmp1), NVEC_DATA(tmp2), NVEC_DATA(tmp3));
+		}
+
 		return sim->_model->residualSensFwd(ns, cadet::SimulationTime{t, secIdx}, cadet::ConstSimulationState{NVEC_DATA(y), NVEC_DATA(yDot)}, NVEC_DATA(res),
 			sensY, sensYdot, sensRes, sim->_vecADres, NVEC_DATA(tmp1), NVEC_DATA(tmp2), NVEC_DATA(tmp3));
 	}
@@ -448,7 +469,7 @@ namespace cadet
 		IDA_mem->ida_lsolve         = &linearSolveWrapper;
 		IDA_mem->ida_lmem           = this;
 		IDA_mem->ida_linit          = nullptr;
-		IDA_mem->ida_lsetup         = nullptr;
+		IDA_mem->ida_lsetup         = _modifiedNewton ? &jacobianUpdateWrapper : nullptr;
 		IDA_mem->ida_lperf          = nullptr;
 		IDA_mem->ida_lfree          = nullptr;
 //		IDA_mem->ida_efun           = &weightWrapper;
@@ -1435,6 +1456,11 @@ namespace cadet
 	void Simulator::configure(IParameterProvider& paramProvider)
 	{
 		paramProvider.pushScope("time_integrator");
+
+		if (paramProvider.exists("USE_MODIFIED_NEWTON"))
+			_modifiedNewton = paramProvider.getBool("USE_MODIFIED_NEWTON");
+		else
+			_modifiedNewton = false;
 
 		_absTol.clear();
 		if (paramProvider.isArray("ABSTOL"))
