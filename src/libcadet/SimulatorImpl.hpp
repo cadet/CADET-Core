@@ -36,6 +36,8 @@ int residualDaeWrapper(double t, N_Vector y, N_Vector yDot, N_Vector res, void* 
 
 int linearSolveWrapper(IDAMem IDA_mem, N_Vector rhs, N_Vector weight, N_Vector yCur, N_Vector yDotCur, N_Vector resCur);
 
+int jacobianUpdateWrapper(IDAMem IDA_mem, N_Vector y, N_Vector yDot, N_Vector res, N_Vector tempv1, N_Vector tempv2, N_Vector tempv3);
+
 int residualSensWrapper(int ns, double t, N_Vector y, N_Vector yDot, N_Vector res, 
 		N_Vector* yS, N_Vector* ySDot, N_Vector* resS,
 		void *userData, N_Vector tmp1, N_Vector tmp2, N_Vector tmp3);
@@ -217,6 +219,8 @@ protected:
 
 	friend int ::cadet::linearSolveWrapper(IDAMem IDA_mem, N_Vector rhs, N_Vector weight, N_Vector yCur, N_Vector yDotCur, N_Vector resCur);
 
+	friend int ::cadet::jacobianUpdateWrapper(IDAMem IDA_mem, N_Vector y, N_Vector yDot, N_Vector res, N_Vector tempv1, N_Vector tempv2, N_Vector tempv3);
+
 //	friend int ::cadet::weightWrapper(N_Vector y, N_Vector ewt, void *user_data);
 
 	friend int ::cadet::residualSensWrapper(int ns, double t, N_Vector y, N_Vector yDot, N_Vector res, 
@@ -257,6 +261,8 @@ protected:
 	unsigned int _maxSteps; //!< Maximum number of time integration steps
 	double _maxStepSize; //!< Maximum time step size
 	unsigned int _nThreads; //!< Maximum number of threads CADET is allowed to use 0, disables maximum setting
+
+	bool _modifiedNewton; //!< Determines whether modified or full Newton method is used
 
 	bool _sensErrorTestEnabled; //!< Determines whether forward sensitivity systems participate in the local time integration error test
 	unsigned int _maxNewtonIter; //!< Maximum number of Newton iterations for original DAE system

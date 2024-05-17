@@ -63,6 +63,14 @@ Group /input/solver
 Group /solver/time_integrator
 -----------------------------
 
+``USE_MODIFIED_NEWTON``
+
+   Specifies whether modified or full Newton method should be used (optional, defaults to :math:`0`)
+   
+   =============  ===========================  =============
+   **Type:** int  **Range:** :math:`\{0, 1\}`  **Length:** 1
+   =============  ===========================  =============
+
 ``ABSTOL``
 
    Absolute tolerance in the solution of the original system
@@ -133,7 +141,7 @@ Group /solver/time_integrator
    
 ``MAX_NEWTON_ITER``
 
-   Maximum number of Newton iterations in time step (optional, defaults to 3)
+   Maximum number of Newton iterations in time step (optional, defaults to 4 (IDAS default))
    
    =============  =========================  =============
    **Type:** int  **Range:** :math:`\geq 0`  **Length:** 1
@@ -141,7 +149,7 @@ Group /solver/time_integrator
    
 ``MAX_ERRTEST_FAIL``
 
-   Maximum number of local error test failures in time step (optional, defaults to 7)
+   Maximum number of local error test failures in time step (optional, defaults to 10 (IDAS default))
    
    =============  =========================  =============
    **Type:** int  **Range:** :math:`\geq 0`  **Length:** 1
@@ -149,7 +157,7 @@ Group /solver/time_integrator
    
 ``MAX_CONVTEST_FAIL``
 
-   Maximum number of Newton convergence test failures (optional, defaults to 10)
+   Maximum number of Newton convergence test failures (optional, defaults to 10 (IDAS default))
    
    =============  =========================  =============
    **Type:** int  **Range:** :math:`\geq 0`  **Length:** 1
@@ -157,7 +165,7 @@ Group /solver/time_integrator
    
 ``MAX_NEWTON_ITER_SENS``
 
-   Maximum number of Newton iterations in forward sensitivity time step (optional, defaults to 3)
+   Maximum number of Newton iterations in forward sensitivity time step (optional, defaults to 4 (IDAS default))
    
    =============  =========================  =============
    **Type:** int  **Range:** :math:`\geq 0`  **Length:** 1

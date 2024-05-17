@@ -626,4 +626,5 @@ Discontinuous Galerkin
    **Type:** int  **Range:** :math:`\geq 1`  **Length:** :math:`1` / :math:`\texttt{NPARTYPE}`
    =============  =========================  =================================================
    
+   When using the DG method for the GRM, we recommend specifying ``USE_MODIFIED_NEWTON = 1`` in :ref:`FFSolverTime`, i.e. to use the modified Newton method to solve the linear system within the time integrator.
    For further discretization parameters, see also :ref:`non_consistency_solver_parameters`.
