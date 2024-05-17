@@ -187,7 +187,7 @@ namespace cadet
 						continue;
 
 					// Residual
-					res[bndIdx] = static_cast<ParamType>(p->kkin[i]) * (y[bndIdx] - static_cast<ParamType>(p->keq[i]) * exp(-static_cast<ParamType>(p->SolSA[i] * yCp[0])) * yCp[i] / cpSum);
+					res[bndIdx] = static_cast<ParamType>(p->kkin[i]) * (y[bndIdx] - static_cast<ParamType>(p->keq[i]) * exp(-static_cast<ParamType>(p->SolSA[i]) * yCp[0]) * yCp[i] / cpSum);
 
 					// Next bound component
 					++bndIdx;
