@@ -1180,6 +1180,16 @@ void GeneralRateModel2D::checkAnalyticJacobianAgainstAd(active const* const adRe
 
 #endif
 
+int GeneralRateModel2D::jacobian(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res, const AdJacobianParams& adJac, util::ThreadLocalStorage& threadLocalMem)
+{
+	BENCH_SCOPE(_timerResidual);
+	// todo residualimpl that only computes the jacobian
+	if (_analyticJac)
+		return residual(simTime, simState, res, adJac, threadLocalMem, true, false);
+	else
+		return residual(simTime, simState, res, adJac, threadLocalMem, true, false);
+}
+
 int GeneralRateModel2D::residual(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res, util::ThreadLocalStorage& threadLocalMem)
 {
 	BENCH_SCOPE(_timerResidual);

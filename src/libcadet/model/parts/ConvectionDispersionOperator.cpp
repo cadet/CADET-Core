@@ -300,7 +300,15 @@ int AxialConvectionDispersionOperatorBase::residual(const IModel& model, double 
 	return residualImpl<active, active, active, linalg::BandMatrix::RowIterator, false>(model, t, secIdx, y, yDot, res, linalg::BandMatrix::RowIterator());
 }
 
-template <typename StateType, typename ResidualType, typename ParamType, typename RowIteratorType, bool wantJac>
+int AxialConvectionDispersionOperatorBase::jacobian(const IModel& model, double t, unsigned int secIdx, double const* y, double const* yDot, double* res, linalg::BandMatrix& jac)
+{
+	// Reset Jacobian
+	jac.setAll(0.0);
+
+	return residualImpl<double, double, double, linalg::BandMatrix::RowIterator, true, false>(model, t, secIdx, y, nullptr, nullptr, jac.row(0));
+}
+
+template <typename StateType, typename ResidualType, typename ParamType, typename RowIteratorType, bool wantJac, bool wantRes>
 int AxialConvectionDispersionOperatorBase::residualImpl(const IModel& model, double t, unsigned int secIdx, StateType const* y, double const* yDot, ResidualType* res, RowIteratorType jacBegin)
 {
 	const ParamType u = static_cast<ParamType>(_curVelocity);
@@ -325,7 +333,7 @@ int AxialConvectionDispersionOperatorBase::residualImpl(const IModel& model, dou
 		model
 	};
 
-	return convdisp::residualKernelAxial<StateType, ResidualType, ParamType, RowIteratorType, wantJac>(SimulationTime{t, secIdx}, y, yDot, res, jacBegin, fp);
+	return convdisp::residualKernelAxial<StateType, ResidualType, ParamType, RowIteratorType, wantJac, wantRes>(SimulationTime{t, secIdx}, y, yDot, res, jacBegin, fp);
 }
 
 /**
@@ -810,7 +818,15 @@ int RadialConvectionDispersionOperatorBase::residual(const IModel& model, double
 	return residualImpl<active, active, active, linalg::BandMatrix::RowIterator, false>(model, t, secIdx, y, yDot, res, linalg::BandMatrix::RowIterator());
 }
 
-template <typename StateType, typename ResidualType, typename ParamType, typename RowIteratorType, bool wantJac>
+int RadialConvectionDispersionOperatorBase::jacobian(const IModel& model, double t, unsigned int secIdx, double const* y, double const* yDot, double* res, linalg::BandMatrix& jac)
+{
+	// Reset Jacobian
+	jac.setAll(0.0);
+
+	return residualImpl<double, double, double, linalg::BandMatrix::RowIterator, true, false>(model, t, secIdx, y, nullptr, nullptr, jac.row(0));
+}
+
+template <typename StateType, typename ResidualType, typename ParamType, typename RowIteratorType, bool wantJac, bool wantRes>
 int RadialConvectionDispersionOperatorBase::residualImpl(const IModel& model, double t, unsigned int secIdx, StateType const* y, double const* yDot, ResidualType* res, RowIteratorType jacBegin)
 {
 	const ParamType u = static_cast<ParamType>(_curVelocity);
@@ -832,7 +848,7 @@ int RadialConvectionDispersionOperatorBase::residualImpl(const IModel& model, do
 		model
 	};
 
-	return convdisp::residualKernelRadial<StateType, ResidualType, ParamType, RowIteratorType, wantJac>(SimulationTime{t, secIdx}, y, yDot, res, jacBegin, fp);
+	return convdisp::residualKernelRadial<StateType, ResidualType, ParamType, RowIteratorType, wantJac, wantRes>(SimulationTime{t, secIdx}, y, yDot, res, jacBegin, fp);
 }
 
 /**
@@ -1291,6 +1307,27 @@ int ConvectionDispersionOperator<Operator>::residual(const IModel& model, double
 		return _baseOp.residual(model, t, secIdx, y, yDot, res, _jacC);
 	else
 		return _baseOp.residual(model, t, secIdx, y, yDot, res, WithParamSensitivity());
+}
+
+/**
+ * @brief Computes the Jacobian of the transport equations
+ * @param [in] model Model that owns the operator
+ * @param [in] t Current time point
+ * @param [in] secIdx Index of the current section
+ * @param [in] y Pointer to unit operation's state vector
+ * @return @c 0 on success, @c -1 on non-recoverable error, and @c +1 on recoverable error
+ */
+template <typename Operator>
+int ConvectionDispersionOperator<Operator>::jacobian(const IModel& model, double t, unsigned int secIdx, double const* y, double const* yDot, double* res)
+{
+	return _baseOp.jacobian(model, t, secIdx, y, yDot, res, _jacC);
+}
+template <typename Operator>
+int ConvectionDispersionOperator<Operator>::jacobian(const IModel& model, double t, unsigned int secIdx, active const* y, double const* yDot, active* res)
+{
+	// This should not be reached
+	cadet_assert(false);
+	return 1;
 }
 
 /**

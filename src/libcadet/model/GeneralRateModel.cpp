@@ -1108,6 +1108,24 @@ int GeneralRateModel<ConvDispOperator>::residual(const SimulationTime& simTime, 
 }
 
 template <typename ConvDispOperator>
+int GeneralRateModel<typename ConvDispOperator>::jacobian(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res, const AdJacobianParams& adJac, util::ThreadLocalStorage& threadLocalMem)
+{
+	BENCH_SCOPE(_timerResidual);
+
+	//if (_analyticJac)
+	//	return residualImpl<double, double, double, true, false>(simTime.t, simTime.secIdx, simState.vecStateY, simState.vecStateYdot, res, threadLocalMem);
+	//else
+	//	return residualWithJacobian(simTime, ConstSimulationState{ simState.vecStateY, nullptr }, nullptr, adJac, threadLocalMem);
+
+	// todo residualimpl that only computes the jacobian
+	if (_analyticJac)
+		return residual(simTime, simState, res, adJac, threadLocalMem, true, false);
+	else
+		return residual(simTime, simState, res, adJac, threadLocalMem, true, false);
+
+}
+
+template <typename ConvDispOperator>
 int GeneralRateModel<ConvDispOperator>::residualWithJacobian(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res, const AdJacobianParams& adJac, util::ThreadLocalStorage& threadLocalMem)
 {
 	BENCH_SCOPE(_timerResidual);

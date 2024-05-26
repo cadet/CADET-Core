@@ -579,6 +579,18 @@ int MultiChannelTransportModel::residual(const SimulationTime& simTime, const Co
 	return residualImpl<double, double, double, false>(simTime.t, simTime.secIdx, simState.vecStateY, simState.vecStateYdot, res, threadLocalMem);
 }
 
+int MultiChannelTransportModel::jacobian(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res, const AdJacobianParams& adJac, util::ThreadLocalStorage& threadLocalMem)
+{
+	BENCH_SCOPE(_timerResidual);
+
+	_factorizeJacobian = true;
+
+	if (_analyticJac)
+		return residual(simTime, simState, res, adJac, threadLocalMem, true, false);
+	else
+		return residualWithJacobian(simTime, ConstSimulationState{ simState.vecStateY, nullptr }, nullptr, adJac, threadLocalMem);
+}
+
 int MultiChannelTransportModel::residualWithJacobian(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res, const AdJacobianParams& adJac, util::ThreadLocalStorage& threadLocalMem)
 {
 	BENCH_SCOPE(_timerResidual);

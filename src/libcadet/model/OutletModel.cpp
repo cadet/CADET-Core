@@ -156,6 +156,13 @@ void OutletModel::applyInitialCondition(const SimulationState& simState) const
 
 void OutletModel::readInitialCondition(IParameterProvider& paramProvider) { }
 
+int OutletModel::jacobian(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res, const AdJacobianParams& adJac, util::ThreadLocalStorage& threadLocalMem)
+{
+	// Jacobian is always identity
+	::residual(simState.vecStateY, _nComp, res);
+	return 0;
+}
+
 int OutletModel::residual(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res, util::ThreadLocalStorage& threadLocalMem)
 {
 	::residual(simState.vecStateY, _nComp, res);

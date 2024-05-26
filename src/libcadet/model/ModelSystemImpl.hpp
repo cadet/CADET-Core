@@ -105,6 +105,8 @@ public:
 
 	virtual int residual(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res);
 
+	virtual int jacobian(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res, const AdJacobianParams& adJac);
+
 	virtual int residualWithJacobian(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res, const AdJacobianParams& adJac);
 	virtual double residualNorm(const SimulationTime& simTime, const ConstSimulationState& simState);
 

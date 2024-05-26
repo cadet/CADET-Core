@@ -297,6 +297,17 @@ public:
 	virtual int residual(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res) = 0;
 
 	/**
+	 * @brief Updates the Jacobian
+	 *
+	 * @param [in] simTime Simulation time information (time point, section index, pre-factor of time derivatives)
+	 * @param [in] simState State of the simulation (state vector and its time derivative)
+	 * @param [in] res Pointer to global residual vector
+	 * @param [in,out] adJac Jacobian information for AD (AD vectors for residual and state, direction offset)
+	 * @return @c 0 on success, @c -1 on non-recoverable error, and @c +1 on recoverable error
+	 */
+	virtual int jacobian(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res, const AdJacobianParams& adJac) = 0;
+
+	/**
 	 * @brief Computes the residual and updates the Jacobian
 	 * 
 	 * @param [in] simTime Simulation time information (time point, section index, pre-factor of time derivatives)

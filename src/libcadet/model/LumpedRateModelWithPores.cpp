@@ -817,6 +817,17 @@ void LumpedRateModelWithPores<ConvDispOperator>::checkAnalyticJacobianAgainstAd(
 #endif
 
 template <typename ConvDispOperator>
+int LumpedRateModelWithPores<typename ConvDispOperator>::jacobian(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res, const AdJacobianParams& adJac, util::ThreadLocalStorage& threadLocalMem)
+{
+	BENCH_SCOPE(_timerResidual);
+	// todo residualimpl that only computes the jacobian
+	if (_analyticJac)
+		return residual(simTime, simState, res, adJac, threadLocalMem, true, false);
+	else
+		return residual(simTime, simState, res, adJac, threadLocalMem, true, false);
+}
+
+template <typename ConvDispOperator>
 int LumpedRateModelWithPores<ConvDispOperator>::residual(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res, util::ThreadLocalStorage& threadLocalMem)
 {
 	BENCH_SCOPE(_timerResidual);
