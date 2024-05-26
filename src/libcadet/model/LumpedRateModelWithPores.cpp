@@ -817,14 +817,16 @@ void LumpedRateModelWithPores<ConvDispOperator>::checkAnalyticJacobianAgainstAd(
 #endif
 
 template <typename ConvDispOperator>
-int LumpedRateModelWithPores<typename ConvDispOperator>::jacobian(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res, const AdJacobianParams& adJac, util::ThreadLocalStorage& threadLocalMem)
+int LumpedRateModelWithPores<ConvDispOperator>::jacobian(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res, const AdJacobianParams& adJac, util::ThreadLocalStorage& threadLocalMem)
 {
 	BENCH_SCOPE(_timerResidual);
-	// todo residualimpl that only computes the jacobian
+
+	_factorizeJacobian = true;
+
 	if (_analyticJac)
-		return residual(simTime, simState, res, adJac, threadLocalMem, true, false);
+		return residualImpl<double, double, double, true, false>(simTime.t, simTime.secIdx, simState.vecStateY, simState.vecStateYdot, res, threadLocalMem);
 	else
-		return residual(simTime, simState, res, adJac, threadLocalMem, true, false);
+		return residualWithJacobian(simTime, ConstSimulationState{ simState.vecStateY, nullptr }, nullptr, adJac, threadLocalMem);
 }
 
 template <typename ConvDispOperator>
@@ -949,7 +951,7 @@ int LumpedRateModelWithPores<ConvDispOperator>::residual(const SimulationTime& s
 }
 
 template <typename ConvDispOperator>
-template <typename StateType, typename ResidualType, typename ParamType, bool wantJac>
+template <typename StateType, typename ResidualType, typename ParamType, bool wantJac, bool wantRes>
 int LumpedRateModelWithPores<ConvDispOperator>::residualImpl(double t, unsigned int secIdx, StateType const* const y, double const* const yDot, ResidualType* const res, util::ThreadLocalStorage& threadLocalMem)
 {
 	// Reset Jacobian
@@ -968,16 +970,19 @@ int LumpedRateModelWithPores<ConvDispOperator>::residualImpl(double t, unsigned 
 #endif
 	{
 		if (cadet_unlikely(pblk == 0))
-			residualBulk<StateType, ResidualType, ParamType, wantJac>(t, secIdx, y, yDot, res, threadLocalMem);
+			residualBulk<StateType, ResidualType, ParamType, wantJac, wantRes>(t, secIdx, y, yDot, res, threadLocalMem);
 		else
 		{
 			const unsigned int type = (pblk - 1) / _disc.nCol;
 			const unsigned int par = (pblk - 1) % _disc.nCol;
-			residualParticle<StateType, ResidualType, ParamType, wantJac>(t, type, par, secIdx, y, yDot, res, threadLocalMem);
+			residualParticle<StateType, ResidualType, ParamType, wantJac, wantRes>(t, type, par, secIdx, y, yDot, res, threadLocalMem);
 		}
 	} CADET_PARFOR_END;
 
 	BENCH_STOP(_timerResidualPar);
+
+	if (!wantRes)
+		return 0;
 
 	residualFlux<StateType, ResidualType, ParamType>(t, secIdx, y, yDot, res);
 
@@ -991,23 +996,28 @@ int LumpedRateModelWithPores<ConvDispOperator>::residualImpl(double t, unsigned 
 }
 
 template <typename ConvDispOperator>
-template <typename StateType, typename ResidualType, typename ParamType, bool wantJac>
+template <typename StateType, typename ResidualType, typename ParamType, bool wantJac, bool wantRes>
 int LumpedRateModelWithPores<ConvDispOperator>::residualBulk(double t, unsigned int secIdx, StateType const* yBase, double const* yDotBase, ResidualType* resBase, util::ThreadLocalStorage& threadLocalMem)
 {
-	_convDispOp.residual(*this, t, secIdx, yBase, yDotBase, resBase, wantJac, typename ParamSens<ParamType>::enabled());
+	if (wantRes)
+		_convDispOp.residual(*this, t, secIdx, yBase, yDotBase, resBase, wantJac, typename ParamSens<ParamType>::enabled());
+	else
+		_convDispOp.jacobian(*this, t, secIdx, yBase, nullptr, nullptr);
+
 	if (!_dynReactionBulk || (_dynReactionBulk->numReactionsLiquid() == 0))
 		return 0;
 
 	// Get offsets
 	Indexer idxr(_disc);
 	StateType const* y = yBase + idxr.offsetC();
-	ResidualType* res = resBase + idxr.offsetC();
+	ResidualType* res = wantRes ? resBase + idxr.offsetC() : nullptr;
 	LinearBufferAllocator tlmAlloc = threadLocalMem.get();
 
 	for (unsigned int col = 0; col < _disc.nCol; ++col, y += idxr.strideColCell(), res += idxr.strideColCell())
 	{
 		const ColumnPosition colPos{(0.5 + static_cast<double>(col)) / static_cast<double>(_disc.nCol), 0.0, 0.0};
-		_dynReactionBulk->residualLiquidAdd(t, secIdx, colPos, y, res, -1.0, tlmAlloc);
+		if (wantRes)
+			_dynReactionBulk->residualLiquidAdd(t, secIdx, colPos, y, res, -1.0, tlmAlloc);
 
 		if (wantJac)
 		{
@@ -1020,15 +1030,15 @@ int LumpedRateModelWithPores<ConvDispOperator>::residualBulk(double t, unsigned 
 }
 
 template <typename ConvDispOperator>
-template <typename StateType, typename ResidualType, typename ParamType, bool wantJac>
+template <typename StateType, typename ResidualType, typename ParamType, bool wantJac, bool wantRes>
 int LumpedRateModelWithPores<ConvDispOperator>::residualParticle(double t, unsigned int parType, unsigned int colCell, unsigned int secIdx, StateType const* yBase, double const* yDotBase, ResidualType* resBase, util::ThreadLocalStorage& threadLocalMem)
 {
 	Indexer idxr(_disc);
 
 	// Go to the particle block of the given type and column cell
 	StateType const* y = yBase + idxr.offsetCp(ParticleTypeIndex{parType}, ParticleIndex{colCell});
-	double const* yDot = yDotBase + idxr.offsetCp(ParticleTypeIndex{parType}, ParticleIndex{colCell});
-	ResidualType* res = resBase + idxr.offsetCp(ParticleTypeIndex{parType}, ParticleIndex{colCell});
+	double const* yDot = yDotBase ? yDotBase + idxr.offsetCp(ParticleTypeIndex{parType}, ParticleIndex{colCell}) : nullptr;
+	ResidualType* res = wantRes ? resBase + idxr.offsetCp(ParticleTypeIndex{parType}, ParticleIndex{colCell}) : nullptr;
 
 	// Prepare parameters
 	const ParamType radius = static_cast<ParamType>(_parRadius[parType]);
@@ -1050,10 +1060,16 @@ int LumpedRateModelWithPores<ConvDispOperator>::residualParticle(double t, unsig
 		};
 
 	// Handle time derivatives, binding, dynamic reactions
-	parts::cell::residualKernel<StateType, ResidualType, ParamType, parts::cell::CellParameters, linalg::BandMatrix::RowIterator, wantJac, true>(
-		t, secIdx, ColumnPosition{z, 0.0, static_cast<double>(radius) * 0.5}, y, yDotBase ? yDot : nullptr, res,
-		_jacP[parType].row(colCell * idxr.strideParBlock(parType)), cellResParams, threadLocalMem.get()
-	);
+	if (wantRes)
+		parts::cell::residualKernel<StateType, ResidualType, ParamType, parts::cell::CellParameters, linalg::BandMatrix::RowIterator, wantJac, true>(
+			t, secIdx, ColumnPosition{ z, 0.0, static_cast<double>(radius) * 0.5 }, y, yDot, res,
+			_jacP[parType].row(colCell * idxr.strideParBlock(parType)), cellResParams, threadLocalMem.get()
+		);
+	else
+		parts::cell::residualKernel<StateType, ResidualType, ParamType, parts::cell::CellParameters, linalg::BandMatrix::RowIterator, wantJac, false, false>(
+			t, secIdx, ColumnPosition{ z, 0.0, static_cast<double>(radius) * 0.5 }, y, yDot, res,
+			_jacP[parType].row(colCell * idxr.strideParBlock(parType)), cellResParams, threadLocalMem.get()
+		);
 
 	return 0;
 }

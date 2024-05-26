@@ -221,13 +221,13 @@ protected:
 
 	int residual(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res, const AdJacobianParams& adJac, util::ThreadLocalStorage& threadLocalMem, bool updateJacobian, bool paramSensitivity);
 
-	template <typename StateType, typename ResidualType, typename ParamType, bool wantJac>
+	template <typename StateType, typename ResidualType, typename ParamType, bool wantJac, bool wantRes = true>
 	int residualImpl(double t, unsigned int secIdx, StateType const* const y, double const* const yDot, ResidualType* const res, util::ThreadLocalStorage& threadLocalMem);
 
-	template <typename StateType, typename ResidualType, typename ParamType, bool wantJac>
+	template <typename StateType, typename ResidualType, typename ParamType, bool wantJac, bool wantRes = true>
 	int residualBulk(double t, unsigned int secIdx, StateType const* y, double const* yDot, ResidualType* res, util::ThreadLocalStorage& threadLocalMem);
 
-	template <typename StateType, typename ResidualType, typename ParamType, bool wantJac>
+	template <typename StateType, typename ResidualType, typename ParamType, bool wantJac, bool wantRes = true>
 	int residualParticle(double t, unsigned int parType, unsigned int colCell, unsigned int secIdx, StateType const* y, double const* yDot, ResidualType* res, util::ThreadLocalStorage& threadLocalMem);
 
 	template <typename StateType, typename ResidualType, typename ParamType>
@@ -749,17 +749,6 @@ protected:
 		const GeneralRateModelDG& _model;
 		double const* const _data;
 	};
-
-	/**
-	* @brief sets the current section index and loads section dependend velocity, dispersion
-	*/
-	void updateSection(int secIdx) {
-
-		if (cadet_unlikely(_disc.curSection != secIdx)) {
-			_disc.curSection = secIdx;
-			_disc.newStaticJac = true;
-		}
-	}
 
 // ===========================================================================================================================================================  //
 // ========================================			DG functions to compute particle discretization			==================================================  //

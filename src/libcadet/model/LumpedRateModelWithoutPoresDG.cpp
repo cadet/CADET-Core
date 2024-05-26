@@ -347,6 +347,8 @@ namespace cadet
 
 		void LumpedRateModelWithoutPoresDG::notifyDiscontinuousSectionTransition(double t, unsigned int secIdx, const ConstSimulationState& simState, const AdJacobianParams& adJac)
 		{
+			// TODO: reset pattern every time section?
+
 			Indexer idxr(_disc);
 
 			// ConvectionDispersionOperator tells us whether flow direction has changed
@@ -461,11 +463,13 @@ namespace cadet
 		int LumpedRateModelWithoutPoresDG::jacobian(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res, const AdJacobianParams& adJac, util::ThreadLocalStorage& threadLocalMem)
 		{
 			BENCH_SCOPE(_timerResidual);
-			// todo residualimpl that only computes the jacobian
+
+			_factorizeJacobian = true;
+
 			if (_analyticJac)
-				return residual(simTime, simState, res, adJac, threadLocalMem, true, false);
+				return residualImpl<double, double, double, true, false>(simTime.t, simTime.secIdx, simState.vecStateY, simState.vecStateYdot, res, threadLocalMem);
 			else
-				return residual(simTime, simState, res, adJac, threadLocalMem, true, false);
+				return residualWithJacobian(simTime, ConstSimulationState{ simState.vecStateY, nullptr }, nullptr, adJac, threadLocalMem);
 		}
 
 		int LumpedRateModelWithoutPoresDG::residual(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res, util::ThreadLocalStorage& threadLocalMem)
@@ -588,7 +592,7 @@ namespace cadet
 			}
 		}
 
-		template <typename StateType, typename ResidualType, typename ParamType, bool wantJac>
+		template <typename StateType, typename ResidualType, typename ParamType, bool wantJac, bool wantRes>
 		int LumpedRateModelWithoutPoresDG::residualImpl(double t, unsigned int secIdx, StateType const* const y_, double const* const yDot_, ResidualType* const res_, util::ThreadLocalStorage& threadLocalMem)
 		{
 			Indexer idxr(_disc);
@@ -599,12 +603,8 @@ namespace cadet
 
 			if (wantJac) {
 
-				if (_disc.newStaticJac) { // static part of jacobian only needs to be updated at new sections
+				if (!wantRes || _disc.newStaticJac) {
 
-					// TODO: reset pattern every time section?
-					//setPattern(_jacDisc, true, _dynReaction[0] && (_dynReaction[0]->numReactionsCombined() > 0));
-					//setPattern(_jac, true, _dynReaction[0] && (_dynReaction[0]->numReactionsCombined() > 0));
-					//success = calcStaticAnaJacobian();
 					success = _convDispOp.calcStaticAnaJacobian(_jac, _jacInlet);
 
 					_disc.newStaticJac = false;
@@ -616,7 +616,8 @@ namespace cadet
 			}
 
 			/*	Compute bulk convection dispersion residual	*/
-			_convDispOp.residual(*this, t, secIdx, y_, yDot_, res_, typename cadet::ParamSens<ParamType>::enabled());
+			if (wantRes)
+				_convDispOp.residual(*this, t, secIdx, y_, yDot_, res_, typename cadet::ParamSens<ParamType>::enabled());
 
 			/* Compute binding, reaction residual */
 
@@ -628,8 +629,6 @@ namespace cadet
 			{
 				linalg::BandedEigenSparseRowIterator jacIt(_jac, blk * idxr.strideColNode());
 				StateType const* const localY = y_ + idxr.offsetC() + idxr.strideColNode() * blk;
-				ResidualType* const localRes = res_ + idxr.offsetC() + idxr.strideColNode() * blk;
-				double const* const localYdot = yDot_ ? yDot_ + idxr.offsetC() + idxr.strideColNode() * blk : nullptr;
 
 				const parts::cell::CellParameters cellResParams
 				{
@@ -646,11 +645,20 @@ namespace cadet
 
 				// position of current column node (z coordinate) - needed in externally dependent adsorption kinetic
 				double z = _convDispOp.relativeCoordinate(blk);
-
-				parts::cell::residualKernel<StateType, ResidualType, ParamType, parts::cell::CellParameters, linalg::BandedEigenSparseRowIterator, wantJac, false>(
-					t, secIdx, ColumnPosition{ z, 0.0, 0.0 }, localY, localYdot, localRes, jacIt, cellResParams, threadLocalMem.get()
+				if (wantRes)
+				{
+					ResidualType* const localRes = res_ + idxr.offsetC() + idxr.strideColNode() * blk;
+					double const* const localYdot = yDot_ ? yDot_ + idxr.offsetC() + idxr.strideColNode() * blk : nullptr;
+					parts::cell::residualKernel<StateType, ResidualType, ParamType, parts::cell::CellParameters, linalg::BandedEigenSparseRowIterator, wantJac, false>(
+						t, secIdx, ColumnPosition{ z, 0.0, 0.0 }, localY, localYdot, localRes, jacIt, cellResParams, threadLocalMem.get()
 					);
-
+				}
+				else
+				{
+					parts::cell::residualKernel<StateType, ResidualType, ParamType, parts::cell::CellParameters, linalg::BandedEigenSparseRowIterator, wantJac, false, false>(
+						t, secIdx, ColumnPosition{ z, 0.0, 0.0 }, localY, nullptr, nullptr, jacIt, cellResParams, threadLocalMem.get()
+					);
+				}
 			} CADET_PARFOR_END;
 
 			// Handle inlet DOFs, which are simply copied to res

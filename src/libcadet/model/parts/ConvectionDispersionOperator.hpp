@@ -86,6 +86,7 @@ public:
 	int residual(const IModel& model, double t, unsigned int secIdx, active const* y, double const* yDot, active* res, WithoutParamSensitivity);
 
 	int jacobian(const IModel& model, double t, unsigned int secIdx, double const* y, double const* yDot, double* res, linalg::BandMatrix& jac);
+	int jacobian(const IModel& model, double t, unsigned int secIdx, double const* y, double const* yDot, active* res, linalg::BandMatrix& jac);
 
 	void multiplyWithDerivativeJacobian(const SimulationTime& simTime, double const* sDot, double* ret) const;
 	void addTimeDerivativeToJacobian(double alpha, linalg::FactorizableBandMatrix& jacDisc);
@@ -191,6 +192,7 @@ public:
 	int residual(const IModel& model, double t, unsigned int secIdx, active const* y, double const* yDot, active* res, WithoutParamSensitivity);
 
 	int jacobian(const IModel& model, double t, unsigned int secIdx, double const* y, double const* yDot, double* res, linalg::BandMatrix& jac);
+	int jacobian(const IModel& model, double t, unsigned int secIdx, double const* y, double const* yDot, active* res, linalg::BandMatrix& jac);
 
 	void multiplyWithDerivativeJacobian(const SimulationTime& simTime, double const* sDot, double* ret) const;
 	void addTimeDerivativeToJacobian(double alpha, linalg::FactorizableBandMatrix& jacDisc);

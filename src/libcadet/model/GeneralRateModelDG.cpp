@@ -962,7 +962,9 @@ void GeneralRateModelDG::notifyDiscontinuousSectionTransition(double t, unsigned
 
 	_convDispOp.notifyDiscontinuousSectionTransition(t, secIdx, _jacInlet);
 
-	updateSection(secIdx);
+	_disc.curSection = secIdx;
+	_disc.newStaticJac = true;
+
 	_disc.initializeDGjac(_parGeomSurfToVol);
 }
 
@@ -1126,11 +1128,13 @@ void GeneralRateModelDG::checkAnalyticJacobianAgainstAd(active const* const adRe
 int GeneralRateModelDG::jacobian(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res, const AdJacobianParams& adJac, util::ThreadLocalStorage& threadLocalMem)
 {
 	BENCH_SCOPE(_timerResidual);
-	// todo residualimpl that only computes the jacobian
+
+	_factorizeJacobian = true;
+
 	if (_analyticJac)
-		return residual(simTime, simState, res, adJac, threadLocalMem, true, false);
+		return residualImpl<double, double, double, true, false>(simTime.t, simTime.secIdx, simState.vecStateY, simState.vecStateYdot, res, threadLocalMem);
 	else
-		return residual(simTime, simState, res, adJac, threadLocalMem, true, false);
+		return residualWithJacobian(simTime, ConstSimulationState{ simState.vecStateY, nullptr }, nullptr, adJac, threadLocalMem);
 }
 
 int GeneralRateModelDG::residual(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res, util::ThreadLocalStorage& threadLocalMem)
@@ -1249,31 +1253,32 @@ int GeneralRateModelDG::residual(const SimulationTime& simTime, const ConstSimul
 	}
 }
 
-template <typename StateType, typename ResidualType, typename ParamType, bool wantJac>
+template <typename StateType, typename ResidualType, typename ParamType, bool wantJac, bool wantRes>
 int GeneralRateModelDG::residualImpl(double t, unsigned int secIdx, StateType const* const y, double const* const yDot, ResidualType* const res, util::ThreadLocalStorage& threadLocalMem)
 {
-	
-	// determine wether we have a section switch. If so, set velocity, dispersion, newStaticJac
-	updateSection(secIdx);
+	if (wantRes)
+	{
+		double* const resPtr = reinterpret_cast<double* const>(res);
+		Eigen::Map<Eigen::VectorXd> resi(resPtr, numDofs());
+		resi.setZero();
+	}
 
-	double* const resPtr = reinterpret_cast<double* const>(res);
-	Eigen::Map<Eigen::VectorXd> resi(resPtr, numDofs());
-	resi.setZero();
+	if (wantJac)
+	{
+		if (!wantRes || _disc.newStaticJac)
+		{
+			// estimate new static (per section) jacobian
+			bool success = calcStaticAnaJacobian_GRM(secIdx);
 
+			_disc.newStaticJac = false;
 
-	if (wantJac && _disc.newStaticJac) {
-
-		// estimate new static (per section) jacobian
-		bool success = calcStaticAnaJacobian_GRM(secIdx);
-
-		_disc.newStaticJac = false;
-
-		if (cadet_unlikely(!success)) {
-			LOG(Error) << "Jacobian pattern did not fit the Jacobian estimation";
+			if (cadet_unlikely(!success)) {
+				LOG(Error) << "Jacobian pattern did not fit the Jacobian estimation";
+			}
 		}
 	}
 
-	residualBulk<StateType, ResidualType, ParamType, wantJac>(t, secIdx, y, yDot, res, threadLocalMem);
+	residualBulk<StateType, ResidualType, ParamType, wantJac, wantRes>(t, secIdx, y, yDot, res, threadLocalMem);
 
 	BENCH_START(_timerResidualPar);
 
@@ -1281,7 +1286,7 @@ int GeneralRateModelDG::residualImpl(double t, unsigned int secIdx, StateType co
 	{
 		const unsigned int parType = pblk / _disc.nPoints;
 		const unsigned int par = pblk % _disc.nPoints;
-		residualParticle<StateType, ResidualType, ParamType, wantJac>(t, parType, par, secIdx, y, yDot, res, threadLocalMem);
+		residualParticle<StateType, ResidualType, ParamType, wantJac, wantRes>(t, parType, par, secIdx, y, yDot, res, threadLocalMem);
 	}
 
 	// we need to add the DG discretized solid entries of the jacobian that get overwritten by the binding kernel.
@@ -1294,6 +1299,9 @@ int GeneralRateModelDG::residualImpl(double t, unsigned int secIdx, StateType co
 			}
 		}
 	}
+
+	if (!wantRes)
+		return 0;
 
 	BENCH_STOP(_timerResidualPar);
 
@@ -1308,22 +1316,38 @@ int GeneralRateModelDG::residualImpl(double t, unsigned int secIdx, StateType co
 	return 0;
 }
 
-template <typename StateType, typename ResidualType, typename ParamType, bool wantJac>
+template <typename StateType, typename ResidualType, typename ParamType, bool wantJac, bool wantRes>
 int GeneralRateModelDG::residualBulk(double t, unsigned int secIdx, StateType const* yBase, double const* yDotBase, ResidualType* resBase, util::ThreadLocalStorage& threadLocalMem)
 {
-	_convDispOp.residual(*this, t, secIdx, yBase, yDotBase, resBase, typename cadet::ParamSens<ParamType>::enabled());
+	if (wantRes)
+		_convDispOp.residual(*this, t, secIdx, yBase, yDotBase, resBase, typename cadet::ParamSens<ParamType>::enabled());
 
 	if (!_dynReactionBulk || (_dynReactionBulk->numReactionsLiquid() == 0))
 		return 0;
 
 	Indexer idxr(_disc);
+	LinearBufferAllocator tlmAlloc = threadLocalMem.get();
 
 	// Dynamic reactions
 	if (_dynReactionBulk) {
-		// Get offsets
+
 		StateType const* y = yBase + idxr.offsetC();
+
+		if (wantJac && !wantRes) // only compute Jacobian
+		{
+			for (unsigned int col = 0; col < _disc.nPoints; ++col, y += idxr.strideColNode())
+			{
+				const ColumnPosition colPos{ (0.5 + static_cast<double>(col)) / static_cast<double>(_disc.nPoints), 0.0, 0.0 };
+
+				linalg::BandedEigenSparseRowIterator jac(_globalJac, col * idxr.strideColNode());
+				// static_cast should be sufficient here, but this statement is also analyzed when wantJac = false
+				_dynReactionBulk->analyticJacobianLiquidAdd(t, secIdx, colPos, reinterpret_cast<double const*>(y), -1.0, jac, tlmAlloc);
+			}
+
+			return 0;
+		}
+
 		ResidualType* res = resBase + idxr.offsetC();
-		LinearBufferAllocator tlmAlloc = threadLocalMem.get();
 
 		for (unsigned int col = 0; col < _disc.nPoints; ++col, y += idxr.strideColNode(), res += idxr.strideColNode())
 		{
@@ -1332,7 +1356,7 @@ int GeneralRateModelDG::residualBulk(double t, unsigned int secIdx, StateType co
 
 			if (wantJac)
 			{
-				linalg::BandedEigenSparseRowIterator jac(_globalJacDisc, col * idxr.strideColNode());
+				linalg::BandedEigenSparseRowIterator jac(_globalJac, col * idxr.strideColNode());
 				// static_cast should be sufficient here, but this statement is also analyzed when wantJac = false
 				_dynReactionBulk->analyticJacobianLiquidAdd(t, secIdx, colPos, reinterpret_cast<double const*>(y), -1.0, jac, tlmAlloc);
 			}
@@ -1342,7 +1366,7 @@ int GeneralRateModelDG::residualBulk(double t, unsigned int secIdx, StateType co
 	return 0;
 }
 
-template <typename StateType, typename ResidualType, typename ParamType, bool wantJac>
+template <typename StateType, typename ResidualType, typename ParamType, bool wantJac, bool wantRes>
 int GeneralRateModelDG::residualParticle(double t, unsigned int parType, unsigned int colNode, unsigned int secIdx, StateType const* yBase,
 	double const* yDotBase, ResidualType* resBase, util::ThreadLocalStorage& threadLocalMem)
 {
@@ -1381,7 +1405,7 @@ int GeneralRateModelDG::residualParticle(double t, unsigned int parType, unsigne
 		// local Pointers to current particle node, needed in residualKernel
 		StateType const* local_y = yBase + idxr.offsetCp(ParticleTypeIndex{ parType }, ParticleIndex{ colNode }) + par * idxr.strideParNode(parType);
 		double const* local_yDot = yDotBase ? yDotBase + idxr.offsetCp(ParticleTypeIndex{ parType }, ParticleIndex{ colNode }) + par * idxr.strideParNode(parType) : nullptr;
-		ResidualType* local_res = resBase + idxr.offsetCp(ParticleTypeIndex{ parType }, ParticleIndex{ colNode }) + par * idxr.strideParNode(parType);
+		ResidualType* local_res = resBase ? resBase + idxr.offsetCp(ParticleTypeIndex{ parType }, ParticleIndex{ colNode }) + par * idxr.strideParNode(parType) : nullptr;
 
 		// r (particle) coordinate of current node (particle radius normed to 1) - needed in externally dependent adsorption kinetic
 		const double r = static_cast<double>(
@@ -1397,9 +1421,17 @@ int GeneralRateModelDG::residualParticle(double t, unsigned int parType, unsigne
 		// TODO Check Treatment of reactions (do we need yDot then?)
 		if (cadet_unlikely(par == 0 && specialCase))
 		{
-			parts::cell::residualKernel<StateType, ResidualType, ParamType, parts::cell::CellParameters, linalg::BandedEigenSparseRowIterator, wantJac, true>(
-				t, secIdx, colPos, local_y, nullptr, local_res, jac, cellResParams, tlmAlloc // TODO Check Treatment of reactions (do we need yDot then?)
+			if (wantRes)
+				parts::cell::residualKernel<StateType, ResidualType, ParamType, parts::cell::CellParameters, linalg::BandedEigenSparseRowIterator, wantJac, true>(
+					t, secIdx, colPos, local_y, nullptr, local_res, jac, cellResParams, tlmAlloc // TODO Check Treatment of reactions (do we need yDot then?)
 				);
+			else
+				parts::cell::residualKernel<StateType, ResidualType, ParamType, parts::cell::CellParameters, linalg::BandedEigenSparseRowIterator, wantJac, false, false>(
+					t, secIdx, colPos, local_y, nullptr, local_res, jac, cellResParams, tlmAlloc // TODO Check Treatment of reactions (do we need yDot then?)
+				);
+
+			if (!wantRes)
+				continue;
 
 			if (cellResParams.binding->hasDynamicReactions() && local_yDot)
 			{
@@ -1428,14 +1460,24 @@ int GeneralRateModelDG::residualParticle(double t, unsigned int parType, unsigne
 		}
 		else
 		{
-			parts::cell::residualKernel<StateType, ResidualType, ParamType, parts::cell::CellParameters, linalg::BandedEigenSparseRowIterator, wantJac, true>(
-				t, secIdx, colPos, local_y, local_yDot, local_res, jac, cellResParams, tlmAlloc
+			if (wantRes)
+				parts::cell::residualKernel<StateType, ResidualType, ParamType, parts::cell::CellParameters, linalg::BandedEigenSparseRowIterator, wantJac, true>(
+					t, secIdx, colPos, local_y, local_yDot, local_res, jac, cellResParams, tlmAlloc
 				);
+			else
+			{
+				parts::cell::residualKernel<StateType, ResidualType, ParamType, parts::cell::CellParameters, linalg::BandedEigenSparseRowIterator, wantJac, false, false>(
+					t, secIdx, colPos, local_y, local_yDot, local_res, jac, cellResParams, tlmAlloc
+				);
+			}
 		}
 
 		// Move rowiterator to next particle node
 		jac += idxr.strideParNode(parType);
 	}
+
+	if(!wantRes)
+		return 0;
 
 	// We still need to handle transport/diffusion
 
