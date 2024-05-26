@@ -78,16 +78,16 @@ struct CellParameters
 	IDynamicReactionModel* dynReaction;
 };
 
-template <typename StateType, typename ResidualType, typename ParamType, typename KernelParamsType, typename RowIteratorType, bool wantJac, bool handleMobilePhaseDerivative>
+template <typename StateType, typename ResidualType, typename ParamType, typename KernelParamsType, typename RowIteratorType, bool wantJac, bool handleMobilePhaseDerivative, bool wantRes = true>
 void residualKernel(double t, unsigned int secIdx, const ColumnPosition& colPos, StateType const* y,
 	double const* yDot, ResidualType* res, RowIteratorType jacBase, const KernelParamsType& params, LinearBufferAllocator buffer)
 {
 	// Mobile phase
-	if (handleMobilePhaseDerivative)
+	if (handleMobilePhaseDerivative && wantRes)
 		std::fill(res, res + params.nComp, 0.0);
 
 	// Add time derivatives
-	if (yDot)
+	if (yDot && wantRes)
 	{
 		for (unsigned int comp = 0; comp < params.nComp; ++comp, ++res, ++y)
 		{
@@ -118,21 +118,24 @@ void residualKernel(double t, unsigned int secIdx, const ColumnPosition& colPos,
 	else
 	{
 		// Move pointers to solid phase
-		res += params.nComp;
+		if (wantRes)
+			res += params.nComp;
 		y += params.nComp;
 	}
 
 	// Solid phase
 
 	// Binding
-	bindingFlux(t, secIdx, colPos, y, res, params, buffer, typename ParamSens<ParamType>::enabled());
+	if (wantRes)
+		bindingFlux(t, secIdx, colPos, y, res, params, buffer, typename ParamSens<ParamType>::enabled());
+
 	if (wantJac)
 	{
 		// static_cast should be sufficient here, but this statement is also analyzed when wantJac = false
 		params.binding->analyticJacobian(t, secIdx, colPos, reinterpret_cast<double const*>(y), params.nComp, jacBase + params.nComp, buffer);
 	}
 
-	if (params.binding->hasDynamicReactions() && yDot)
+	if (params.binding->hasDynamicReactions() && yDot && wantRes)
 	{
 		unsigned int idx = 0;
 		for (unsigned int comp = 0; comp < params.nComp; ++comp)
@@ -153,29 +156,31 @@ void residualKernel(double t, unsigned int secIdx, const ColumnPosition& colPos,
 
 	if (params.dynReaction)
 	{
-		BufferedArray<ResidualType> fluxSolid = buffer.template array<ResidualType>(params.nTotalBound);
-
-		std::fill_n(static_cast<ResidualType*>(fluxSolid), params.nTotalBound, 0.0);
-		params.dynReaction->residualCombinedAdd(t, secIdx, colPos, y - params.nComp, y, res - params.nComp, static_cast<ResidualType*>(fluxSolid), -1.0, buffer);
-
-		unsigned int idx = 0;
-		for (unsigned int comp = 0; comp < params.nComp; ++comp)
+		if (wantRes)
 		{
-			const ParamType invBetaP = (1.0 - static_cast<ParamType>(params.porosity)) / (params.poreAccessFactor ? static_cast<ParamType>(params.poreAccessFactor[comp]) * static_cast<ParamType>(params.porosity) : static_cast<ParamType>(params.porosity));
+			BufferedArray<ResidualType> fluxSolid = buffer.template array<ResidualType>(params.nTotalBound);
 
-			for (unsigned int bnd = 0; bnd < params.nBound[comp]; ++bnd, ++idx)
+			std::fill_n(static_cast<ResidualType*>(fluxSolid), params.nTotalBound, 0.0);
+			params.dynReaction->residualCombinedAdd(t, secIdx, colPos, y - params.nComp, y, res - params.nComp, static_cast<ResidualType*>(fluxSolid), -1.0, buffer);
+
+			unsigned int idx = 0;
+			for (unsigned int comp = 0; comp < params.nComp; ++comp)
 			{
-				// Add reaction term to mobile phase
-				res[-static_cast<int>(params.nComp) + static_cast<int>(comp)] += static_cast<typename DoubleActiveDemoter<ParamType, ResidualType>::type>(invBetaP) * fluxSolid[idx];
+				const ParamType invBetaP = (1.0 - static_cast<ParamType>(params.porosity)) / (params.poreAccessFactor ? static_cast<ParamType>(params.poreAccessFactor[comp]) * static_cast<ParamType>(params.porosity) : static_cast<ParamType>(params.porosity));
 
-				if (!params.qsReaction[idx])
+				for (unsigned int bnd = 0; bnd < params.nBound[comp]; ++bnd, ++idx)
 				{
-					// Add reaction term to solid phase
-					res[idx] += fluxSolid[idx];
+					// Add reaction term to mobile phase
+					res[-static_cast<int>(params.nComp) + static_cast<int>(comp)] += static_cast<typename DoubleActiveDemoter<ParamType, ResidualType>::type>(invBetaP)* fluxSolid[idx];
+
+					if (!params.qsReaction[idx])
+					{
+						// Add reaction term to solid phase
+						res[idx] += fluxSolid[idx];
+					}
 				}
 			}
 		}
-
 		if (wantJac)
 		{
 			if (params.nTotalBound > 0)
@@ -187,7 +192,7 @@ void residualKernel(double t, unsigned int secIdx, const ColumnPosition& colPos,
 				// static_cast should be sufficient here, but this statement is also analyzed when wantJac = false
 				params.dynReaction->analyticJacobianCombinedAdd(t, secIdx, colPos, reinterpret_cast<double const*>(y - params.nComp), reinterpret_cast<double const*>(y), -1.0, jacBase, dmv.row(0, params.nComp), buffer);
 
-				idx = 0;
+				unsigned int idx = 0;
 				for (unsigned int comp = 0; comp < params.nComp; ++comp)
 				{
 					const double invBetaP = (1.0 - static_cast<double>(params.porosity)) / (params.poreAccessFactor ? static_cast<double>(params.poreAccessFactor[comp]) * static_cast<double>(params.porosity) : static_cast<double>(params.porosity));

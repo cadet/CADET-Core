@@ -309,6 +309,11 @@ void InletModel::leanConsistentInitialTimeDerivative(double t, double const* con
 	std::copy_n(_inletDerivatives, _nComp, vecStateYdot);
 }
 
+int InletModel::jacobian(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res, const AdJacobianParams& adJac, util::ThreadLocalStorage& threadLocalMem)
+{
+	return residualImpl<double, double>(simTime.t, simTime.secIdx, simState, res, threadLocalMem);
+}
+
 int InletModel::residual(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res, util::ThreadLocalStorage& threadLocalMem)
 {
 	return residualImpl<double, double>(simTime.t, simTime.secIdx, simState, res, threadLocalMem);

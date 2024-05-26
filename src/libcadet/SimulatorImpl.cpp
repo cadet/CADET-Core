@@ -231,8 +231,8 @@ namespace cadet
 
 		LOG(Trace) << "==> Jacobian at t = " << t;
 
-		return sim->_model->residualWithJacobian(cadet::SimulationTime{t, secIdx}, cadet::ConstSimulationState{NVEC_DATA(y), NVEC_DATA(yDot)}, NVEC_DATA(res),
-			cadet::AdJacobianParams{sim->_vecADres, sim->_vecADy, sim->numSensitivityAdDirections()});
+		return sim->_model->jacobian(cadet::SimulationTime{ t, secIdx }, cadet::ConstSimulationState{ NVEC_DATA(y), NVEC_DATA(yDot) }, NVEC_DATA(tempv1),
+			cadet::AdJacobianParams{ sim->_vecADres, sim->_vecADy, sim->numSensitivityAdDirections() });
 	}
 
 	/**

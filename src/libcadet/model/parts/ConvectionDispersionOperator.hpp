@@ -85,6 +85,8 @@ public:
 	int residual(const IModel& model, double t, unsigned int secIdx, active const* y, double const* yDot, active* res, WithParamSensitivity);
 	int residual(const IModel& model, double t, unsigned int secIdx, active const* y, double const* yDot, active* res, WithoutParamSensitivity);
 
+	int jacobian(const IModel& model, double t, unsigned int secIdx, double const* y, double const* yDot, double* res, linalg::BandMatrix& jac);
+
 	void multiplyWithDerivativeJacobian(const SimulationTime& simTime, double const* sDot, double* ret) const;
 	void addTimeDerivativeToJacobian(double alpha, linalg::FactorizableBandMatrix& jacDisc);
 
@@ -114,7 +116,7 @@ public:
 
 protected:
 
-	template <typename StateType, typename ResidualType, typename ParamType, typename RowIteratorType, bool wantJac>
+	template <typename StateType, typename ResidualType, typename ParamType, typename RowIteratorType, bool wantJac, bool wantRes = true>
 	int residualImpl(const IModel& model, double t, unsigned int secIdx, StateType const* y, double const* yDot, ResidualType* res, RowIteratorType jacBegin);
 
 	unsigned int _nComp; //!< Number of components
@@ -188,6 +190,8 @@ public:
 	int residual(const IModel& model, double t, unsigned int secIdx, active const* y, double const* yDot, active* res, WithParamSensitivity);
 	int residual(const IModel& model, double t, unsigned int secIdx, active const* y, double const* yDot, active* res, WithoutParamSensitivity);
 
+	int jacobian(const IModel& model, double t, unsigned int secIdx, double const* y, double const* yDot, double* res, linalg::BandMatrix& jac);
+
 	void multiplyWithDerivativeJacobian(const SimulationTime& simTime, double const* sDot, double* ret) const;
 	void addTimeDerivativeToJacobian(double alpha, linalg::FactorizableBandMatrix& jacDisc);
 
@@ -215,7 +219,7 @@ public:
 
 protected:
 
-	template <typename StateType, typename ResidualType, typename ParamType, typename RowIteratorType, bool wantJac>
+	template <typename StateType, typename ResidualType, typename ParamType, typename RowIteratorType, bool wantJac, bool wantRes = true>
 	int residualImpl(const IModel& model, double t, unsigned int secIdx, StateType const* y, double const* yDot, ResidualType* res, RowIteratorType jacBegin);
 
 	void equidistantCells();
@@ -287,6 +291,9 @@ public:
 	int residual(const IModel& model, double t, unsigned int secIdx, active const* y, double const* yDot, active* res, bool wantJac, WithParamSensitivity);
 	int residual(const IModel& model, double t, unsigned int secIdx, active const* y, double const* yDot, active* res, bool wantJac, WithoutParamSensitivity);
 	int residual(const IModel& model, double t, unsigned int secIdx, double const* y, double const* yDot, active* res, bool wantJac, WithParamSensitivity);
+
+	int jacobian(const IModel& model, double t, unsigned int secIdx, double const* y, double const* yDot, double* res);
+	int jacobian(const IModel& model, double t, unsigned int secIdx, active const* y, double const* yDot, active* res);
 
 	void prepareADvectors(const AdJacobianParams& adJac) const;
 	void extractJacobianFromAD(active const* const adRes, unsigned int adDirOffset);

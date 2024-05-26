@@ -110,6 +110,13 @@ namespace
 			return 0;
 		}
 
+		virtual int jacobian(const cadet::SimulationTime& simTime, const cadet::ConstSimulationState& simState, double* const res,
+			const cadet::AdJacobianParams& adJac, cadet::util::ThreadLocalStorage& tls) 
+		{
+			std::copy(simState.vecStateY, simState.vecStateY + numDofs(), res);
+			return 0;
+		}
+
 		virtual int residualWithJacobian(const cadet::SimulationTime& simTime, const cadet::ConstSimulationState& simState, double* const res,
 			const cadet::AdJacobianParams& adJac, cadet::util::ThreadLocalStorage& tls)
 		{

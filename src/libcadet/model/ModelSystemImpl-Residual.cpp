@@ -87,6 +87,35 @@ namespace cadet
 namespace model
 {
 
+int ModelSystem::jacobian(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res, const AdJacobianParams& adJac)
+{
+
+#ifdef CADET_PARALLELIZE
+	tbb::parallel_for(std::size_t(0), _models.size(), [&](std::size_t i)
+#else
+	for (std::size_t i = 0; i < _models.size(); ++i)
+#endif
+	{
+		IUnitOperation* const m = _models[i];
+		const unsigned int offset = _dofOffset[i];
+
+		if (cadet_unlikely(_hasDynamicFlowRates))
+		{
+			updateDynamicModelFlowRates(simTime.t, i);
+			m->setFlowRates(_flowRateIn[i], _flowRateOut[i]);
+		}
+
+		_errorIndicator[i] = m->jacobian(simTime, applyOffset(simState, offset), res + offset, applyOffset(adJac, offset), _threadLocalStorage);
+
+	} CADET_PARFOR_END;
+
+	// Handle connections
+	if (cadet_unlikely(_hasDynamicFlowRates))
+		assembleBottomMacroRow(simTime.t);
+
+	return totalErrorIndicatorFromLocal(_errorIndicator);
+}
+
 void ModelSystem::notifyDiscontinuousSectionTransition(double t, unsigned int secIdx, const ConstSimulationState& simState, const AdJacobianParams& adJac)
 {
 	// Check if simulation is (re-)starting from the very beginning
@@ -146,12 +175,15 @@ void ModelSystem::notifyDiscontinuousSectionTransition(double t, unsigned int se
 		const int compSource = ptrConn[4];
 		const int compDest = ptrConn[5];
 
-		//Number of components was already verified so assume they are all correct
+		// Number of components was already verified so assume they are all correct
 
 		LOG(Debug) << "Unit op " << uoSource << " (" << _models[uoSource]->unitOperationName() << ") port " << portSource << " comp " << compSource << " => "
 		           << uoDest << " (" << _models[uoDest]->unitOperationName() << ") port " << portDest << " comp " << compDest;
 	}
 #endif
+
+	// Compute Jacobian not necessary since IDAS asks for a new Jacobian at restart
+	// jacobian(cadet::SimulationTime{t}, simState, adJac);
 }
 
 /**
