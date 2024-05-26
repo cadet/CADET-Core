@@ -61,7 +61,7 @@ struct AxialFlowParameters
 
 namespace impl
 {
-	template <typename StateType, typename ResidualType, typename ParamType, typename RowIteratorType, bool wantJac>
+	template <typename StateType, typename ResidualType, typename ParamType, typename RowIteratorType, bool wantJac, bool wantRes = true>
 	int residualForwardsAxialFlow(const SimulationTime& simTime, StateType const* y, double const* yDot, ResidualType* res, RowIteratorType jacBegin, const AxialFlowParameters<ParamType>& p)
 	{
 		const ParamType h2 = p.h * p.h;
@@ -77,7 +77,7 @@ namespace impl
 		// continuing to the last upper diagonal by using the native() method.
 		RowIteratorType jac;
 
-		ResidualType* const resBulk = res + p.offsetToBulk;
+		ResidualType* const resBulk = wantRes ? res + p.offsetToBulk : nullptr;
 		StateType const* const yBulk = y + p.offsetToBulk;
 
 		for (unsigned int comp = 0; comp < p.nComp; ++comp)
@@ -85,17 +85,17 @@ namespace impl
 			if (wantJac)
 				jac = jacBegin + comp;
 
-			ResidualType* const resBulkComp = resBulk + comp;
+			ResidualType* const resBulkComp = wantRes ? resBulk + comp : nullptr;
 			StateType const* const yBulkComp = yBulk + comp;
 
 			// Add time derivative to each cell
-			if (yDot)
+			if (yDot && wantRes)
 			{
 				double const* const yDotBulkComp = yDot + p.offsetToBulk + comp;
 				for (unsigned int col = 0; col < p.nCol; ++col)
 					resBulkComp[col * p.strideCell] = yDotBulkComp[col * p.strideCell];
 			}
-			else
+			else if (wantRes)
 			{
 				for (unsigned int col = 0; col < p.nCol; ++col)
 					resBulkComp[col * p.strideCell] = 0.0;
@@ -123,9 +123,10 @@ namespace impl
 				// Right side, leave out if we're in the last cell (boundary condition)
 				if (cadet_likely(col < p.nCol - 1))
 				{
-					const double relCoord = static_cast<double>(col+1) / p.nCol;
-					const ParamType d_ax_right = d_ax * p.parDep->getValue(p.model, ColumnPosition{relCoord, 0.0, 0.0}, comp, ParTypeIndep, BoundStateIndep, static_cast<ParamType>(p.u));
-					resBulkComp[col * p.strideCell] -= d_ax_right / h2 * (stencil[1] - stencil[0]);
+					const double relCoord = static_cast<double>(col + 1) / p.nCol;
+					const ParamType d_ax_right = d_ax * p.parDep->getValue(p.model, ColumnPosition{ relCoord, 0.0, 0.0 }, comp, ParTypeIndep, BoundStateIndep, static_cast<ParamType>(p.u));
+					if (wantRes)
+						resBulkComp[col * p.strideCell] -= d_ax_right / h2 * (stencil[1] - stencil[0]);
 					// Jacobian entries
 					if (wantJac)
 					{
@@ -138,8 +139,9 @@ namespace impl
 				if (cadet_likely(col > 0))
 				{
 					const double relCoord = static_cast<double>(col) / p.nCol;
-					const ParamType d_ax_left = d_ax * p.parDep->getValue(p.model, ColumnPosition{relCoord, 0.0, 0.0}, comp, ParTypeIndep, BoundStateIndep, static_cast<ParamType>(p.u));
-					resBulkComp[col * p.strideCell] -= d_ax_left / h2 * (stencil[-1] - stencil[0]);
+					const ParamType d_ax_left = d_ax * p.parDep->getValue(p.model, ColumnPosition{ relCoord, 0.0, 0.0 }, comp, ParTypeIndep, BoundStateIndep, static_cast<ParamType>(p.u));
+					if (wantRes)
+						resBulkComp[col * p.strideCell] -= d_ax_left / h2 * (stencil[-1] - stencil[0]);
 					// Jacobian entries
 					if (wantJac)
 					{
@@ -155,7 +157,8 @@ namespace impl
 				{
 					// Remember that vm still contains the reconstructed value of the previous 
 					// cell's *right* face, which is identical to this cell's *left* face!
-					resBulkComp[col * p.strideCell] -= p.u / p.h * vm;
+					if (wantRes)
+						resBulkComp[col * p.strideCell] -= p.u / p.h * vm;
 
 					// Jacobian entries
 					if (wantJac)
@@ -166,7 +169,7 @@ namespace impl
 							jac[(i - wenoOrder) * p.strideCell] -= static_cast<double>(p.u) / static_cast<double>(p.h) * p.wenoDerivatives[i];
 					}
 				}
-				else
+				else if (wantRes)
 				{
 					// In the first cell we need to apply the boundary condition: inflow concentration
 					resBulkComp[col * p.strideCell] -= p.u / p.h * y[p.offsetToInlet + comp];
@@ -179,7 +182,8 @@ namespace impl
 					wenoOrder = p.weno->template reconstruct<StateType, StencilType>(p.wenoEpsilon, col, p.nCol, stencil, vm);
 
 				// Right side
-				resBulkComp[col * p.strideCell] += p.u / p.h * vm;
+				if (wantRes)
+					resBulkComp[col * p.strideCell] += p.u / p.h * vm;
 				// Jacobian entries
 				if (wantJac)
 				{
@@ -207,7 +211,7 @@ namespace impl
 		return 0;
 	}
 
-	template <typename StateType, typename ResidualType, typename ParamType, typename RowIteratorType, bool wantJac>
+	template <typename StateType, typename ResidualType, typename ParamType, typename RowIteratorType, bool wantJac, bool wantRes = true>
 	int residualBackwardsAxialFlow(const SimulationTime& simTime, StateType const* y, double const* yDot, ResidualType* res, RowIteratorType jacBegin, const AxialFlowParameters<ParamType>& p)
 	{
 		const ParamType h2 = p.h * p.h;
@@ -223,7 +227,7 @@ namespace impl
 		// continuing to the last upper diagonal by using the native() method.
 		RowIteratorType jac;
 
-		ResidualType* const resBulk = res + p.offsetToBulk;
+		ResidualType* const resBulk = wantRes ? res + p.offsetToBulk : nullptr;
 		StateType const* const yBulk = y + p.offsetToBulk;
 
 		for (unsigned int comp = 0; comp < p.nComp; ++comp)
@@ -231,17 +235,17 @@ namespace impl
 			if (wantJac)
 				jac = jacBegin + p.strideCell * (p.nCol - 1) + comp;
 
-			ResidualType* const resBulkComp = resBulk + comp;
+			ResidualType* const resBulkComp = wantRes ? resBulk + comp : nullptr;
 			StateType const* const yBulkComp = yBulk + comp;
 
 			// Add time derivative to each cell
-			if (yDot)
+			if (yDot && wantRes)
 			{
 				double const* const yDotBulkComp = yDot + p.offsetToBulk + comp;
 				for (unsigned int col = 0; col < p.nCol; ++col)
 					resBulkComp[col * p.strideCell] = yDotBulkComp[col * p.strideCell];
 			}
-			else
+			else if (wantRes)
 			{
 				for (unsigned int col = 0; col < p.nCol; ++col)
 					resBulkComp[col * p.strideCell] = 0.0;
@@ -270,9 +274,10 @@ namespace impl
 				// Right side, leave out if we're in the first cell (boundary condition)
 				if (cadet_likely(col < p.nCol - 1))
 				{
-					const double relCoord = static_cast<double>(col+1) / p.nCol;
-					const ParamType d_ax_right = d_ax * p.parDep->getValue(p.model, ColumnPosition{relCoord, 0.0, 0.0}, comp, ParTypeIndep, BoundStateIndep, static_cast<ParamType>(p.u));
-					resBulkComp[col * p.strideCell] -= d_ax_right / h2 * (stencil[-1] - stencil[0]);
+					const double relCoord = static_cast<double>(col + 1) / p.nCol;
+					const ParamType d_ax_right = d_ax * p.parDep->getValue(p.model, ColumnPosition{ relCoord, 0.0, 0.0 }, comp, ParTypeIndep, BoundStateIndep, static_cast<ParamType>(p.u));
+					if (wantRes)
+						resBulkComp[col * p.strideCell] -= d_ax_right / h2 * (stencil[-1] - stencil[0]);
 					// Jacobian entries
 					if (wantJac)
 					{
@@ -285,8 +290,9 @@ namespace impl
 				if (cadet_likely(col > 0))
 				{
 					const double relCoord = static_cast<double>(col) / p.nCol;
-					const ParamType d_ax_left = d_ax * p.parDep->getValue(p.model, ColumnPosition{relCoord, 0.0, 0.0}, comp, ParTypeIndep, BoundStateIndep, static_cast<ParamType>(p.u));
-					resBulkComp[col * p.strideCell] -= d_ax_left / h2 * (stencil[1] - stencil[0]);
+					const ParamType d_ax_left = d_ax * p.parDep->getValue(p.model, ColumnPosition{ relCoord, 0.0, 0.0 }, comp, ParTypeIndep, BoundStateIndep, static_cast<ParamType>(p.u));
+					if (wantRes)
+						resBulkComp[col * p.strideCell] -= d_ax_left / h2 * (stencil[1] - stencil[0]);
 					// Jacobian entries
 					if (wantJac)
 					{
@@ -302,7 +308,8 @@ namespace impl
 				{
 					// Remember that vm still contains the reconstructed value of the previous 
 					// cell's *left* face, which is identical to this cell's *right* face!
-					resBulkComp[col * p.strideCell] += p.u / p.h * vm;
+					if (wantRes)
+						resBulkComp[col * p.strideCell] += p.u / p.h * vm;
 
 					// Jacobian entries
 					if (wantJac)
@@ -310,10 +317,10 @@ namespace impl
 						for (int i = 0; i < 2 * wenoOrder - 1; ++i)
 							// Note that we have an offset of +1 here (compared to the left cell face below), since
 							// the reconstructed value depends on the previous stencil (which has now been moved by one cell)
-							jac[(wenoOrder - i) * p.strideCell] += static_cast<double>(p.u) / static_cast<double>(p.h) * p.wenoDerivatives[i];					
+							jac[(wenoOrder - i) * p.strideCell] += static_cast<double>(p.u) / static_cast<double>(p.h) * p.wenoDerivatives[i];
 					}
 				}
-				else
+				else if (wantRes)
 				{
 					// In the last cell (z = L) we need to apply the boundary condition: inflow concentration
 					resBulkComp[col * p.strideCell] += p.u / p.h * y[p.offsetToInlet + comp];
@@ -326,12 +333,13 @@ namespace impl
 					wenoOrder = p.weno->template reconstruct<StateType, StencilType>(p.wenoEpsilon, col, p.nCol, stencil, vm);
 
 				// Left face
-				resBulkComp[col * p.strideCell] -= p.u / p.h * vm;
+				if (wantRes)
+					resBulkComp[col * p.strideCell] -= p.u / p.h * vm;
 				// Jacobian entries
 				if (wantJac)
 				{
 					for (int i = 0; i < 2 * wenoOrder - 1; ++i)
-						jac[(wenoOrder - i - 1) * p.strideCell] -= static_cast<double>(p.u) / static_cast<double>(p.h) * p.wenoDerivatives[i];				
+						jac[(wenoOrder - i - 1) * p.strideCell] -= static_cast<double>(p.u) / static_cast<double>(p.h) * p.wenoDerivatives[i];
 				}
 
 				// Update stencil (be careful because of wrap-around, might cause reading memory very far away [although never used])
@@ -357,13 +365,13 @@ namespace impl
 } // namespace impl
 
 
-template <typename StateType, typename ResidualType, typename ParamType, typename RowIteratorType, bool wantJac>
+template <typename StateType, typename ResidualType, typename ParamType, typename RowIteratorType, bool wantJac, bool wantRes = true>
 int residualKernelAxial(const SimulationTime& simTime, StateType const* y, double const* yDot, ResidualType* res, RowIteratorType jacBegin, const AxialFlowParameters<ParamType>& p)
 {
 	if (p.u >= 0.0)
-		return impl::residualForwardsAxialFlow<StateType, ResidualType, ParamType, RowIteratorType, wantJac>(simTime, y, yDot, res, jacBegin, p);
+		return impl::residualForwardsAxialFlow<StateType, ResidualType, ParamType, RowIteratorType, wantJac, wantRes>(simTime, y, yDot, res, jacBegin, p);
 	else
-		return impl::residualBackwardsAxialFlow<StateType, ResidualType, ParamType, RowIteratorType, wantJac>(simTime, y, yDot, res, jacBegin, p);
+		return impl::residualBackwardsAxialFlow<StateType, ResidualType, ParamType, RowIteratorType, wantJac, wantRes>(simTime, y, yDot, res, jacBegin, p);
 }
 
 void sparsityPatternAxial(linalg::SparsityPatternRowIterator itBegin, unsigned int nComp, unsigned int nCol, int strideCell, double u, Weno& weno);

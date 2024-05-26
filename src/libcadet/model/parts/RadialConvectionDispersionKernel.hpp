@@ -62,7 +62,7 @@ struct RadialFlowParameters
 
 namespace impl
 {
-	template <typename StateType, typename ResidualType, typename ParamType, typename RowIteratorType, bool wantJac>
+	template <typename StateType, typename ResidualType, typename ParamType, typename RowIteratorType, bool wantJac, bool wantRes = true>
 	int residualForwardsRadialFlow(const SimulationTime& simTime, StateType const* y, double const* yDot, ResidualType* res, RowIteratorType jacBegin, const RadialFlowParameters<ParamType>& p)
 	{
 		// The stencil caches parts of the state vector for better spatial coherence
@@ -77,7 +77,7 @@ namespace impl
 		// continuing to the last upper diagonal by using the native() method.
 		RowIteratorType jac;
 
-		ResidualType* const resBulk = res + p.offsetToBulk;
+		ResidualType* const resBulk = wantRes ? res + p.offsetToBulk : nullptr;
 		StateType const* const yBulk = y + p.offsetToBulk;
 
 		for (unsigned int comp = 0; comp < p.nComp; ++comp)
@@ -85,17 +85,17 @@ namespace impl
 			if (wantJac)
 				jac = jacBegin + comp;
 
-			ResidualType* const resBulkComp = resBulk + comp;
+			ResidualType* const resBulkComp = wantRes ? resBulk + comp : nullptr;
 			StateType const* const yBulkComp = yBulk + comp;
 
 			// Add time derivative to each cell
-			if (yDot)
+			if (yDot && wantRes)
 			{
 				double const* const yDotBulkComp = yDot + p.offsetToBulk + comp;
 				for (unsigned int col = 0; col < p.nCol; ++col)
 					resBulkComp[col * p.strideCell] = yDotBulkComp[col * p.strideCell];
 			}
-			else
+			else if (wantRes)
 			{
 				for (unsigned int col = 0; col < p.nCol; ++col)
 					resBulkComp[col * p.strideCell] = 0.0;
@@ -127,7 +127,8 @@ namespace impl
 				{
 					const double relCoord = (static_cast<double>(p.cellBounds[col+1]) - static_cast<double>(p.cellBounds[0])) / (static_cast<double>(p.cellBounds[p.nCol - 1]) - static_cast<double>(p.cellBounds[0]));
 					const ParamType d_rad_right = d_rad * p.parDep->getValue(p.model, ColumnPosition{relCoord, 0.0, 0.0}, comp, ParTypeIndep, BoundStateIndep, static_cast<ParamType>(p.u) / static_cast<ParamType>(p.cellBounds[col+1]));
-					resBulkComp[col * p.strideCell] -= d_rad_right * static_cast<ParamType>(p.cellBounds[col+1]) / denom * (stencil[1] - stencil[0]) / (static_cast<ParamType>(p.cellCenters[col+1]) - static_cast<ParamType>(p.cellCenters[col]));
+					if(wantRes)
+						resBulkComp[col * p.strideCell] -= d_rad_right * static_cast<ParamType>(p.cellBounds[col+1]) / denom * (stencil[1] - stencil[0]) / (static_cast<ParamType>(p.cellCenters[col+1]) - static_cast<ParamType>(p.cellCenters[col]));
 					// Jacobian entries
 					if (wantJac)
 					{
@@ -142,7 +143,8 @@ namespace impl
 				{
 					const double relCoord = (static_cast<double>(p.cellBounds[col]) - static_cast<double>(p.cellBounds[0])) / (static_cast<double>(p.cellBounds[p.nCol - 1]) - static_cast<double>(p.cellBounds[0]));
 					const ParamType d_rad_left = d_rad * p.parDep->getValue(p.model, ColumnPosition{ relCoord, 0.0, 0.0 }, comp, ParTypeIndep, BoundStateIndep, static_cast<ParamType>(p.u) / static_cast<ParamType>(p.cellBounds[col]));
-					resBulkComp[col * p.strideCell] -= d_rad_left * static_cast<ParamType>(p.cellBounds[col]) / denom * (stencil[-1] - stencil[0]) / (static_cast<ParamType>(p.cellCenters[col]) - static_cast<ParamType>(p.cellCenters[col-1]));
+					if(wantRes)
+						resBulkComp[col * p.strideCell] -= d_rad_left * static_cast<ParamType>(p.cellBounds[col]) / denom * (stencil[-1] - stencil[0]) / (static_cast<ParamType>(p.cellCenters[col]) - static_cast<ParamType>(p.cellCenters[col-1]));
 					// Jacobian entries
 					if (wantJac)
 					{
@@ -159,6 +161,7 @@ namespace impl
 				{
 					// Remember that vm still contains the reconstructed value of the previous 
 					// cell's *right* face, which is identical to this cell's *left* face!
+					if(wantRes)
 					resBulkComp[col * p.strideCell] -= p.u / denom * vm;
 
 					// Jacobian entries
@@ -170,7 +173,7 @@ namespace impl
 							jac[(i - wenoOrder) * p.strideCell] -= static_cast<double>(p.u) / static_cast<double>(denom);
 					}
 				}
-				else
+				else if (wantRes)
 				{
 					// In the first cell we need to apply the boundary condition: inflow concentration
 					resBulkComp[col * p.strideCell] -= p.u / denom * y[p.offsetToInlet + comp];
@@ -191,6 +194,7 @@ namespace impl
 				}
 
 				// Right side
+				if(wantRes)
 				resBulkComp[col * p.strideCell] += p.u / denom * vm;
 				// Jacobian entries
 				if (wantJac)
@@ -219,12 +223,12 @@ namespace impl
 		return 0;
 	}
 
-	template <typename StateType, typename ResidualType, typename ParamType, typename RowIteratorType, bool wantJac>
+	template <typename StateType, typename ResidualType, typename ParamType, typename RowIteratorType, bool wantJac, bool wantRes = true>
 	int residualBackwardsRadialFlow(const SimulationTime& simTime, StateType const* y, double const* yDot, ResidualType* res, RowIteratorType jacBegin, const RadialFlowParameters<ParamType>& p)
 	{
 		// The stencil caches parts of the state vector for better spatial coherence
 		typedef CachingStencil<StateType, ArrayPool> StencilType;
-//		StencilType stencil(std::max(p.weno->stencilSize(), 3u), *p.stencilMemory, std::max(p.weno->order() - 1, 1));
+		//		StencilType stencil(std::max(p.weno->stencilSize(), 3u), *p.stencilMemory, std::max(p.weno->order() - 1, 1));
 		StencilType stencil(std::max(1u, 3u), *p.stencilMemory, std::max(1 - 1, 1));
 
 		// The RowIterator is always centered on the main diagonal.
@@ -234,7 +238,7 @@ namespace impl
 		// continuing to the last upper diagonal by using the native() method.
 		RowIteratorType jac;
 
-		ResidualType* const resBulk = res + p.offsetToBulk;
+		ResidualType* const resBulk = wantRes ? res + p.offsetToBulk : nullptr;
 		StateType const* const yBulk = y + p.offsetToBulk;
 
 		for (unsigned int comp = 0; comp < p.nComp; ++comp)
@@ -242,17 +246,17 @@ namespace impl
 			if (wantJac)
 				jac = jacBegin + p.strideCell * (p.nCol - 1) + comp;
 
-			ResidualType* const resBulkComp = resBulk + comp;
+			ResidualType* const resBulkComp = wantRes ? resBulk + comp : nullptr;
 			StateType const* const yBulkComp = yBulk + comp;
 
 			// Add time derivative to each cell
-			if (yDot)
+			if (yDot && wantRes)
 			{
 				double const* const yDotBulkComp = yDot + p.offsetToBulk + comp;
 				for (unsigned int col = 0; col < p.nCol; ++col)
 					resBulkComp[col * p.strideCell] = yDotBulkComp[col * p.strideCell];
 			}
-			else
+			else if (wantRes)
 			{
 				for (unsigned int col = 0; col < p.nCol; ++col)
 					resBulkComp[col * p.strideCell] = 0.0;
@@ -266,8 +270,8 @@ namespace impl
 
 			// Reset WENO output
 			StateType vm(0.0); // reconstructed value
-//			if (wantJac)
-//				std::fill(p.wenoDerivatives, p.wenoDerivatives + p.weno->stencilSize(), 0.0);
+			//			if (wantJac)
+			//				std::fill(p.wenoDerivatives, p.wenoDerivatives + p.weno->stencilSize(), 0.0);
 
 			int wenoOrder = 1;
 			const ParamType d_rad = static_cast<ParamType>(p.d_rad[comp]);
@@ -283,13 +287,14 @@ namespace impl
 				// Right side, leave out if we're in the first cell (boundary condition)
 				if (cadet_likely(col < p.nCol - 1))
 				{
-					const double relCoord = (static_cast<double>(p.cellBounds[col+1]) - static_cast<double>(p.cellBounds[0])) / (static_cast<double>(p.cellBounds[p.nCol - 1]) - static_cast<double>(p.cellBounds[0]));
-					const ParamType d_rad_right = d_rad * p.parDep->getValue(p.model, ColumnPosition{relCoord, 0.0, 0.0}, comp, ParTypeIndep, BoundStateIndep, static_cast<ParamType>(p.u) / static_cast<ParamType>(p.cellBounds[col+1]));
-					resBulkComp[col * p.strideCell] -= d_rad_right * static_cast<ParamType>(p.cellBounds[col+1]) / denom * (stencil[-1] - stencil[0]) / (static_cast<ParamType>(p.cellCenters[col+1]) - static_cast<ParamType>(p.cellCenters[col]));
+					const double relCoord = (static_cast<double>(p.cellBounds[col + 1]) - static_cast<double>(p.cellBounds[0])) / (static_cast<double>(p.cellBounds[p.nCol - 1]) - static_cast<double>(p.cellBounds[0]));
+					const ParamType d_rad_right = d_rad * p.parDep->getValue(p.model, ColumnPosition{ relCoord, 0.0, 0.0 }, comp, ParTypeIndep, BoundStateIndep, static_cast<ParamType>(p.u) / static_cast<ParamType>(p.cellBounds[col + 1]));
+					if (wantRes)
+						resBulkComp[col * p.strideCell] -= d_rad_right * static_cast<ParamType>(p.cellBounds[col + 1]) / denom * (stencil[-1] - stencil[0]) / (static_cast<ParamType>(p.cellCenters[col + 1]) - static_cast<ParamType>(p.cellCenters[col]));
 					// Jacobian entries
 					if (wantJac)
 					{
-						const double val = static_cast<double>(d_rad_right) * static_cast<double>(p.cellBounds[col+1]) / static_cast<double>(denom) / (static_cast<double>(p.cellCenters[col+1]) - static_cast<double>(p.cellCenters[col]));
+						const double val = static_cast<double>(d_rad_right) * static_cast<double>(p.cellBounds[col + 1]) / static_cast<double>(denom) / (static_cast<double>(p.cellCenters[col + 1]) - static_cast<double>(p.cellCenters[col]));
 						jac[0] += val;
 						jac[p.strideCell] -= val;
 					}
@@ -299,12 +304,13 @@ namespace impl
 				if (cadet_likely(col > 0))
 				{
 					const double relCoord = (static_cast<double>(p.cellBounds[col]) - static_cast<double>(p.cellBounds[0])) / (static_cast<double>(p.cellBounds[p.nCol - 1]) - static_cast<double>(p.cellBounds[0]));
-					const ParamType d_rad_left = d_rad * p.parDep->getValue(p.model, ColumnPosition{relCoord, 0.0, 0.0}, comp, ParTypeIndep, BoundStateIndep, static_cast<ParamType>(p.u) / static_cast<ParamType>(p.cellBounds[col]));
-					resBulkComp[col * p.strideCell] -= d_rad_left * static_cast<ParamType>(p.cellBounds[col]) / denom * (stencil[1] - stencil[0]) / (static_cast<ParamType>(p.cellCenters[col-1]) - static_cast<ParamType>(p.cellCenters[col]));
+					const ParamType d_rad_left = d_rad * p.parDep->getValue(p.model, ColumnPosition{ relCoord, 0.0, 0.0 }, comp, ParTypeIndep, BoundStateIndep, static_cast<ParamType>(p.u) / static_cast<ParamType>(p.cellBounds[col]));
+					if (wantRes)
+						resBulkComp[col * p.strideCell] -= d_rad_left * static_cast<ParamType>(p.cellBounds[col]) / denom * (stencil[1] - stencil[0]) / (static_cast<ParamType>(p.cellCenters[col - 1]) - static_cast<ParamType>(p.cellCenters[col]));
 					// Jacobian entries
 					if (wantJac)
 					{
-						const double val = static_cast<double>(d_rad_left) * static_cast<double>(p.cellBounds[col]) / static_cast<double>(denom) / (static_cast<double>(p.cellCenters[col-1]) - static_cast<double>(p.cellCenters[col]));
+						const double val = static_cast<double>(d_rad_left) * static_cast<double>(p.cellBounds[col]) / static_cast<double>(denom) / (static_cast<double>(p.cellCenters[col - 1]) - static_cast<double>(p.cellCenters[col]));
 						jac[0] += val;
 						jac[-p.strideCell] -= val;
 					}
@@ -317,7 +323,8 @@ namespace impl
 				{
 					// Remember that vm still contains the reconstructed value of the previous 
 					// cell's *left* face, which is identical to this cell's *right* face!
-					resBulkComp[col * p.strideCell] += p.u / denom * vm;
+					if (wantRes)
+						resBulkComp[col * p.strideCell] += p.u / denom * vm;
 
 					// Jacobian entries
 					if (wantJac)
@@ -328,7 +335,7 @@ namespace impl
 							jac[(wenoOrder - i) * p.strideCell] += static_cast<double>(p.u) / static_cast<double>(denom);
 					}
 				}
-				else
+				else if (wantRes)
 				{
 					// In the last cell (z = L) we need to apply the boundary condition: inflow concentration
 					resBulkComp[col * p.strideCell] += p.u / denom * y[p.offsetToInlet + comp];
@@ -339,17 +346,18 @@ namespace impl
 				{
 					wenoOrder = 1;
 					vm = stencil[0];
-//					wenoOrder = p.weno->template reconstruct<StateType, StencilType>(p.wenoEpsilon, col, p.nCol, stencil, vm, p.wenoDerivatives);
+					//					wenoOrder = p.weno->template reconstruct<StateType, StencilType>(p.wenoEpsilon, col, p.nCol, stencil, vm, p.wenoDerivatives);
 				}
 				else
 				{
 					wenoOrder = 1;
 					vm = stencil[0];
-//					wenoOrder = p.weno->template reconstruct<StateType, StencilType>(p.wenoEpsilon, col, p.nCol, stencil, vm);
+					//					wenoOrder = p.weno->template reconstruct<StateType, StencilType>(p.wenoEpsilon, col, p.nCol, stencil, vm);
 				}
 
 				// Left face
-				resBulkComp[col * p.strideCell] -= p.u / denom * vm;
+				if (wantRes)
+					resBulkComp[col * p.strideCell] -= p.u / denom * vm;
 				// Jacobian entries
 				if (wantJac)
 				{
@@ -380,13 +388,13 @@ namespace impl
 } // namespace impl
 
 
-template <typename StateType, typename ResidualType, typename ParamType, typename RowIteratorType, bool wantJac>
+template <typename StateType, typename ResidualType, typename ParamType, typename RowIteratorType, bool wantJac, bool wantRes = true>
 int residualKernelRadial(const SimulationTime& simTime, StateType const* y, double const* yDot, ResidualType* res, RowIteratorType jacBegin, const RadialFlowParameters<ParamType>& p)
 {
 	if (p.u >= 0.0)
-		return impl::residualForwardsRadialFlow<StateType, ResidualType, ParamType, RowIteratorType, wantJac>(simTime, y, yDot, res, jacBegin, p);
+		return impl::residualForwardsRadialFlow<StateType, ResidualType, ParamType, RowIteratorType, wantJac, wantRes>(simTime, y, yDot, res, jacBegin, p);
 	else
-		return impl::residualBackwardsRadialFlow<StateType, ResidualType, ParamType, RowIteratorType, wantJac>(simTime, y, yDot, res, jacBegin, p);
+		return impl::residualBackwardsRadialFlow<StateType, ResidualType, ParamType, RowIteratorType, wantJac, wantRes>(simTime, y, yDot, res, jacBegin, p);
 }
 
 void sparsityPatternRadial(linalg::SparsityPatternRowIterator itBegin, unsigned int nComp, unsigned int nCol, int strideCell, double u, Weno& weno);
