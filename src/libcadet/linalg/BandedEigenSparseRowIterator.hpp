@@ -9,8 +9,8 @@
 #include <vector>
 #include <ostream>
 #include <algorithm>
-#include <eigen3/Eigen/Sparse>
-#include <eigen3/Eigen/Dense>
+#include <Eigen/Sparse>
+#include <Eigen/Dense>
 
 #include "SparseSolverInterface.hpp"
 #include "cadet/cadetCompilerInfo.hpp"
