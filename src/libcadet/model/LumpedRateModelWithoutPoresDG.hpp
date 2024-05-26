@@ -36,8 +36,8 @@
 #include <vector>
 
 #include "Benchmark.hpp"
-#include <eigen3/Eigen/Dense>
-#include <eigen3/Eigen/Sparse>
+#include <Eigen/Dense>
+#include <Eigen/Sparse>
 
 using namespace Eigen;
 

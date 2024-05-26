@@ -407,8 +407,6 @@ if (ENABLE_DG)
 		set(ENABLE_DG OFF)
 	else()
 		set(EIGEN_TARGET "Eigen3::Eigen")
-		get_target_property(Eigen3_INCLUDE_DIRS Eigen3::Eigen INTERFACE_INCLUDE_DIRECTORIES)
-		include_directories(${Eigen3_INCLUDE_DIRS} "${Eigen3_INCLUDE_DIRS}/..")
 	endif()
 endif()
 
