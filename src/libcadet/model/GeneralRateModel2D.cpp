@@ -27,7 +27,6 @@
 #include "linalg/Norms.hpp"
 
 #include "Stencil.hpp"
-#include "Weno.hpp"
 #include "AdUtils.hpp"
 #include "SensParamUtil.hpp"
 
