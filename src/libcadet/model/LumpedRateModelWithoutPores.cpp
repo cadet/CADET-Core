@@ -26,7 +26,6 @@
 #include "model/parts/BindingCellKernel.hpp"
 
 #include "Stencil.hpp"
-#include "Weno.hpp"
 #include "AdUtils.hpp"
 
 #include "LoggingUtils.hpp"

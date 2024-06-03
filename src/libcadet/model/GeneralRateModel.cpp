@@ -30,7 +30,6 @@
 #include "linalg/Subset.hpp"
 
 #include "Stencil.hpp"
-#include "Weno.hpp"
 #include "AdUtils.hpp"
 #include "SensParamUtil.hpp"
 
