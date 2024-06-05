@@ -1877,6 +1877,47 @@ namespace column
 		rd.closeFile();
 	}
 
+	void testForeignReferenceBenchmark(const std::string& configFileRelPath, const std::string& refFileRelPath, const std::string& unitID, const double absTol, const double relTol, const int compIdx)
+	{
+		const int unitOpID = std::stoi(unitID);
+
+		// read json model setup file
+		const std::string setupFile = std::string(getTestDirectory()) + configFileRelPath;
+		JsonParameterProvider pp_setup(JsonParameterProvider::fromFile(setupFile));
+
+		// adjust numerical parameters
+		nlohmann::json* setupJson = pp_setup.data();
+
+		// run simulation
+		Driver drv;
+		drv.configure(pp_setup);
+		drv.run();
+
+		// get simulation result
+		InternalStorageUnitOpRecorder const* const simData = drv.solution()->unitOperation(unitOpID);
+		double const* sim_outlet = simData->outlet();
+
+		// read h5 reference data
+		cadet::io::HDF5Reader rd;
+		const std::string refFile = std::string(getTestDirectory()) + refFileRelPath;
+		rd.openFile(refFile, "r");
+		ParameterProviderImpl<cadet::io::HDF5Reader> pp_ref(rd);
+		pp_ref.popScope();
+		pp_ref.pushScope("output");
+		pp_ref.pushScope("solution");
+		const std::vector<double> ref_outlet = pp_ref.getDoubleArray("SOLUTION_OUTLET");
+
+		// check if only one specific component is considered in the reference solution and set stride and offset accordingly
+		const unsigned int compStride = (compIdx == -1) ? 1 : simData->numComponents();
+		sim_outlet += (compIdx == -1) ? 0 : compIdx;
+
+		// compare the simulation results with the reference data
+		for (unsigned int i = 0, j = 0; j < ref_outlet.size(); i += compStride, j += 1)
+			CHECK((sim_outlet[i]) == cadet::test::makeApprox(ref_outlet[j], relTol, absTol));
+
+		rd.closeFile();
+	}
+
 } // namespace column
 } // namespace test
 } // namespace cadet
