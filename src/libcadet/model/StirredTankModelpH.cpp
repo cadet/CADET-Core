@@ -10,7 +10,7 @@
 //  is available at http://www.gnu.org/licenses/gpl.html
 // =============================================================================
 
-#include "model/StirredTankModel.hpp"
+#include "model/StirredTankModelpH.hpp"
 #include "ParamReaderHelper.hpp"
 #include "ParamReaderScopes.hpp"
 #include "cadet/Exceptions.hpp"
@@ -62,7 +62,7 @@ namespace
 }
 
 
-CSTRModel::CSTRModel(UnitOpIdx unitOpIdx) : UnitOperationBase(unitOpIdx), _nComp(0), _nParType(0), _nBound(nullptr), _boundOffset(nullptr), _strideBound(nullptr), _offsetParType(nullptr),
+CSTRpH::CSTRpH(UnitOpIdx unitOpIdx) : UnitOperationBase(unitOpIdx), _nComp(0), _nParType(0), _nBound(nullptr), _boundOffset(nullptr), _strideBound(nullptr), _offsetParType(nullptr),
     _totalBound(0), _analyticJac(true), _jac(), _jacFact(), _factorizeJac(false), _initConditions(0), _initConditionsDot(0)
 {
 	// Mutliplexed binding and reaction models make no sense in CSTR
@@ -70,7 +70,7 @@ CSTRModel::CSTRModel(UnitOpIdx unitOpIdx) : UnitOperationBase(unitOpIdx), _nComp
 	_singleDynReaction = false;
 }
 
-CSTRModel::~CSTRModel() CADET_NOEXCEPT
+CSTRpH::~CSTRpH() CADET_NOEXCEPT
 {
 	delete[] _boundOffset;
 	delete[] _nBound;
@@ -79,17 +79,17 @@ CSTRModel::~CSTRModel() CADET_NOEXCEPT
 
 }
 
-unsigned int CSTRModel::numDofs() const CADET_NOEXCEPT
+unsigned int CSTRpH::numDofs() const CADET_NOEXCEPT
 {
 	return 2 * _nComp + _totalBound + 1; 
 }
 
-unsigned int CSTRModel::numPureDofs() const CADET_NOEXCEPT
+unsigned int CSTRpH::numPureDofs() const CADET_NOEXCEPT
 {
 	return _nComp + _totalBound + 1;
 }
 
-bool CSTRModel::usesAD() const CADET_NOEXCEPT
+bool CSTRpH::usesAD() const CADET_NOEXCEPT
 {
 #ifdef CADET_CHECK_ANALYTIC_JACOBIAN
 	// We always need AD if we want to check the analytical Jacobian
@@ -100,13 +100,13 @@ bool CSTRModel::usesAD() const CADET_NOEXCEPT
 #endif
 }
 
-void CSTRModel::setFlowRates(active const* in, active const* out) CADET_NOEXCEPT
+void CSTRpH::setFlowRates(active const* in, active const* out) CADET_NOEXCEPT
 { 
 	_flowRateIn = in[0];
 	_flowRateOut = out[0];
 }
 
-bool CSTRModel::configureModelDiscretization(IParameterProvider& paramProvider, const IConfigHelper& helper)
+bool CSTRpH::configureModelDiscretization(IParameterProvider& paramProvider, const IConfigHelper& helper)
 {
 	_nComp = paramProvider.getInt("NCOMP");
 
@@ -300,7 +300,7 @@ bool CSTRModel::configureModelDiscretization(IParameterProvider& paramProvider, 
 	return bindingConfSuccess && reactionConfSuccess;
 }
 
-bool CSTRModel::configure(IParameterProvider& paramProvider)
+bool CSTRpH::configure(IParameterProvider& paramProvider)
 {
 	_curFlowRateFilter = 0.0;
 	_flowRateFilter.clear();
@@ -420,7 +420,7 @@ bool CSTRModel::configure(IParameterProvider& paramProvider)
 	return bindingConfSuccess && dynReactionConfSuccess;
 }
 
-unsigned int CSTRModel::threadLocalMemorySize() const CADET_NOEXCEPT
+unsigned int CSTRpH::threadLocalMemorySize() const CADET_NOEXCEPT
 {
 	LinearMemorySizer lms;
 
@@ -472,11 +472,11 @@ unsigned int CSTRModel::threadLocalMemorySize() const CADET_NOEXCEPT
 	return lms.bufferSize();
 }
 
-void CSTRModel::setSectionTimes(double const* secTimes, bool const* secContinuity, unsigned int nSections)
+void CSTRpH::setSectionTimes(double const* secTimes, bool const* secContinuity, unsigned int nSections)
 {
 }
 
-void CSTRModel::useAnalyticJacobian(const bool analyticJac)
+void CSTRpH::useAnalyticJacobian(const bool analyticJac)
 {
 #ifndef CADET_CHECK_ANALYTIC_JACOBIAN
 	_analyticJac = analyticJac;
@@ -486,7 +486,7 @@ void CSTRModel::useAnalyticJacobian(const bool analyticJac)
 #endif
 }
 
-void CSTRModel::notifyDiscontinuousSectionTransition(double t, unsigned int secIdx, const ConstSimulationState& simState, const AdJacobianParams& adJac)
+void CSTRpH::notifyDiscontinuousSectionTransition(double t, unsigned int secIdx, const ConstSimulationState& simState, const AdJacobianParams& adJac)
 {
 	if (_flowRateFilter.size() > 1)
 	{
@@ -498,20 +498,20 @@ void CSTRModel::notifyDiscontinuousSectionTransition(double t, unsigned int secI
 	}
 }
 
-void CSTRModel::reportSolution(ISolutionRecorder& recorder, double const* const solution) const
+void CSTRpH::reportSolution(ISolutionRecorder& recorder, double const* const solution) const
 {
 	Exporter expr(_nComp, _nParType, _nBound, _strideBound, _boundOffset, _totalBound, solution);
 	recorder.beginUnitOperation(_unitOpIdx, *this, expr);
 	recorder.endUnitOperation();
 }
 
-void CSTRModel::reportSolutionStructure(ISolutionRecorder& recorder) const
+void CSTRpH::reportSolutionStructure(ISolutionRecorder& recorder) const
 {
 	Exporter expr(_nComp, _nParType, _nBound, _strideBound, _boundOffset, _totalBound, nullptr);
 	recorder.unitOperationStructure(_unitOpIdx, *this, expr);
 }
 
-unsigned int CSTRModel::requiredADdirs() const CADET_NOEXCEPT
+unsigned int CSTRpH::requiredADdirs() const CADET_NOEXCEPT
 {
 #ifndef CADET_CHECK_ANALYTIC_JACOBIAN
 	if (_analyticJac)
@@ -523,7 +523,7 @@ unsigned int CSTRModel::requiredADdirs() const CADET_NOEXCEPT
 	return _nComp + _totalBound + 1;
 }
 
-void CSTRModel::prepareADvectors(const AdJacobianParams& adJac) const
+void CSTRpH::prepareADvectors(const AdJacobianParams& adJac) const
 {
 	// Early out if AD is disabled
 	if (!adJac.adY)
@@ -532,7 +532,7 @@ void CSTRModel::prepareADvectors(const AdJacobianParams& adJac) const
 	ad::prepareAdVectorSeedsForDenseMatrix(adJac.adY + _nComp, adJac.adDirOffset, _jac.columns());
 }
 
-void CSTRModel::applyInitialCondition(const SimulationState& simState) const
+void CSTRpH::applyInitialCondition(const SimulationState& simState) const
 {
 	// Inlet DOFs
 	std::fill(simState.vecStateY, simState.vecStateY + _nComp, 0.0);
@@ -544,7 +544,7 @@ void CSTRModel::applyInitialCondition(const SimulationState& simState) const
 	std::copy(_initConditionsDot.data(), _initConditionsDot.data() + nDof, simState.vecStateYdot + _nComp);
 }
 
-void CSTRModel::readInitialCondition(IParameterProvider& paramProvider)
+void CSTRpH::readInitialCondition(IParameterProvider& paramProvider)
 {
 	// Clear time derivative
 	std::fill(_initConditionsDot.begin(), _initConditionsDot.end(), 0.0);
@@ -587,7 +587,7 @@ void CSTRModel::readInitialCondition(IParameterProvider& paramProvider)
 		_initConditions[_nComp + _totalBound].setValue(0.0);
 }
 
-void CSTRModel::consistentInitialState(const SimulationTime& simTime, double* const vecStateY, const AdJacobianParams& adJac, double errorTol, util::ThreadLocalStorage& threadLocalMem)
+void CSTRpH::consistentInitialState(const SimulationTime& simTime, double* const vecStateY, const AdJacobianParams& adJac, double errorTol, util::ThreadLocalStorage& threadLocalMem)
 {
 	double* const c = vecStateY + _nComp;
 	const double vLiquid = c[_nComp + _totalBound];
@@ -948,7 +948,7 @@ void CSTRModel::consistentInitialState(const SimulationTime& simTime, double* co
 	}
 }
 
-void CSTRModel::consistentInitialTimeDerivative(const SimulationTime& simTime, double const* vecStateY, double* const vecStateYdot, util::ThreadLocalStorage& threadLocalMem)
+void CSTRpH::consistentInitialTimeDerivative(const SimulationTime& simTime, double const* vecStateY, double* const vecStateYdot, util::ThreadLocalStorage& threadLocalMem)
 {
 	double const* const c = vecStateY + _nComp;
 	double* const cDot = vecStateYdot + _nComp;
@@ -1090,7 +1090,7 @@ void CSTRModel::consistentInitialTimeDerivative(const SimulationTime& simTime, d
 	}
 }
 
-void CSTRModel::leanConsistentInitialState(const SimulationTime& simTime, double* const vecStateY, const AdJacobianParams& adJac, double errorTol, util::ThreadLocalStorage& threadLocalMem)
+void CSTRpH::leanConsistentInitialState(const SimulationTime& simTime, double* const vecStateY, const AdJacobianParams& adJac, double errorTol, util::ThreadLocalStorage& threadLocalMem)
 {
 	// It is assumed that the bound states are (approximately) correctly initialized.
 	// Thus, only the liquid phase has to be initialized
@@ -1157,7 +1157,7 @@ void CSTRModel::leanConsistentInitialState(const SimulationTime& simTime, double
 	}
 }
 
-void CSTRModel::leanConsistentInitialTimeDerivative(double t, double const* const vecStateY, double* const vecStateYdot, double* const res, util::ThreadLocalStorage& threadLocalMem)
+void CSTRpH::leanConsistentInitialTimeDerivative(double t, double const* const vecStateY, double* const vecStateYdot, double* const res, util::ThreadLocalStorage& threadLocalMem)
 {
 	// It is assumed that the bound states are (approximately) correctly initialized.
 	// Thus, only the liquid phase has to be initialized
@@ -1269,24 +1269,24 @@ void CSTRModel::leanConsistentInitialTimeDerivative(double t, double const* cons
 	}
 }
 
-void CSTRModel::leanConsistentInitialSensitivity(const SimulationTime& simTime, const ConstSimulationState& simState,
+void CSTRpH::leanConsistentInitialSensitivity(const SimulationTime& simTime, const ConstSimulationState& simState,
 	std::vector<double*>& vecSensY, std::vector<double*>& vecSensYdot, active const* const adRes, util::ThreadLocalStorage& threadLocalMem)
 {
 	consistentInitialSensitivity(simTime, simState, vecSensY, vecSensYdot, adRes, threadLocalMem);
 }
 
-int CSTRModel::jacobian(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res, const AdJacobianParams& adJac, util::ThreadLocalStorage& threadLocalMem)
+int CSTRpH::jacobian(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res, const AdJacobianParams& adJac, util::ThreadLocalStorage& threadLocalMem)
 {
 	return residual(simTime, simState, res, adJac, threadLocalMem, true, false);
 }
 
-int CSTRModel::residual(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res, util::ThreadLocalStorage& threadLocalMem)
+int CSTRpH::residual(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res, util::ThreadLocalStorage& threadLocalMem)
 {
 	return residualImpl<double, double, double, false>(simTime.t, simTime.secIdx, simState.vecStateY, simState.vecStateYdot, res, threadLocalMem.get());
 }
 
 template <typename StateType, typename ResidualType, typename ParamType, bool wantJac>
-int CSTRModel::residualImpl(double t, unsigned int secIdx, StateType const* const y, double const* const yDot, ResidualType* const res, LinearBufferAllocator tlmAlloc)
+int CSTRpH::residualImpl(double t, unsigned int secIdx, StateType const* const y, double const* const yDot, ResidualType* const res, LinearBufferAllocator tlmAlloc)
 {
 	StateType const* const cIn = y; 
 	StateType const* const c = y + _nComp;
@@ -1567,7 +1567,7 @@ int CSTRModel::residualImpl(double t, unsigned int secIdx, StateType const* cons
 	return 0;
 }
 
-int CSTRModel::residual(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res,
+int CSTRpH::residual(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res,
 	const AdJacobianParams& adJac, util::ThreadLocalStorage& threadLocalMem, bool updateJacobian, bool paramSensitivity)
 {
 	if (updateJacobian)
@@ -1669,25 +1669,25 @@ int CSTRModel::residual(const SimulationTime& simTime, const ConstSimulationStat
 	}
 }
 
-int CSTRModel::residualWithJacobian(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res, const AdJacobianParams& adJac, util::ThreadLocalStorage& threadLocalMem)
+int CSTRpH::residualWithJacobian(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res, const AdJacobianParams& adJac, util::ThreadLocalStorage& threadLocalMem)
 {
 	return residual(simTime, simState, res, adJac, threadLocalMem, true, false);
 }
 
-int CSTRModel::residualSensFwdAdOnly(const SimulationTime& simTime, const ConstSimulationState& simState, active* const adRes, util::ThreadLocalStorage& threadLocalMem)
+int CSTRpH::residualSensFwdAdOnly(const SimulationTime& simTime, const ConstSimulationState& simState, active* const adRes, util::ThreadLocalStorage& threadLocalMem)
 {
 	// Evaluate residual for all parameters using AD in vector mode
 	return residualImpl<double, active, active, false>(simTime.t, simTime.secIdx, simState.vecStateY, simState.vecStateYdot, adRes, threadLocalMem.get());
 }
 
-int CSTRModel::residualSensFwdWithJacobian(const SimulationTime& simTime, const ConstSimulationState& simState, const AdJacobianParams& adJac, util::ThreadLocalStorage& threadLocalMem)
+int CSTRpH::residualSensFwdWithJacobian(const SimulationTime& simTime, const ConstSimulationState& simState, const AdJacobianParams& adJac, util::ThreadLocalStorage& threadLocalMem)
 {
 	// Evaluate residual for all parameters using AD in vector mode and at the same time update the 
 	// Jacobian (in one AD run, if analytic Jacobians are disabled)
 	return residual(simTime, simState, nullptr, adJac, threadLocalMem, true, true);
 }
 
-void CSTRModel::initializeSensitivityStates(const std::vector<double*>& vecSensY) const
+void CSTRpH::initializeSensitivityStates(const std::vector<double*>& vecSensY) const
 {
 	const unsigned int nDof = numPureDofs();
 	for (std::size_t param = 0; param < vecSensY.size(); ++param)
@@ -1697,7 +1697,7 @@ void CSTRModel::initializeSensitivityStates(const std::vector<double*>& vecSensY
 	}
 }
 
-void CSTRModel::consistentInitialSensitivity(const SimulationTime& simTime, const ConstSimulationState& simState,
+void CSTRpH::consistentInitialSensitivity(const SimulationTime& simTime, const ConstSimulationState& simState,
 	std::vector<double*>& vecSensY, std::vector<double*>& vecSensYdot, active const* const adRes, util::ThreadLocalStorage& threadLocalMem)
 {
 	// TODO: Handle v = 0
@@ -1826,7 +1826,7 @@ void CSTRModel::consistentInitialSensitivity(const SimulationTime& simTime, cons
 	}
 }
 
-void CSTRModel::multiplyWithJacobian(const SimulationTime& simTime, const ConstSimulationState& simState, double const* yS, double alpha, double beta, double* ret)
+void CSTRpH::multiplyWithJacobian(const SimulationTime& simTime, const ConstSimulationState& simState, double const* yS, double alpha, double beta, double* ret)
 {
 	const double flowIn = static_cast<double>(_flowRateIn);
 	double* const resTank = ret + _nComp;
@@ -1847,7 +1847,7 @@ void CSTRModel::multiplyWithJacobian(const SimulationTime& simTime, const ConstS
 	}
 }
 
-void CSTRModel::multiplyWithDerivativeJacobian(const SimulationTime& simTime, const ConstSimulationState& simState, double const* sDot, double* ret)
+void CSTRpH::multiplyWithDerivativeJacobian(const SimulationTime& simTime, const ConstSimulationState& simState, double const* sDot, double* ret)
 {
 	// Handle inlet DOFs (all algebraic)
 	std::fill_n(ret, _nComp, 0.0);
@@ -1910,7 +1910,7 @@ void CSTRModel::multiplyWithDerivativeJacobian(const SimulationTime& simTime, co
 	r[_nComp + _totalBound] = s[_nComp + _totalBound];
 }
 
-int CSTRModel::linearSolve(double t, double alpha, double tol, double* const rhs, double const* const weight,
+int CSTRpH::linearSolve(double t, double alpha, double tol, double* const rhs, double const* const weight,
 	const ConstSimulationState& simState)
 {
 	const double flowIn = static_cast<double>(_flowRateIn);
@@ -1938,7 +1938,7 @@ int CSTRModel::linearSolve(double t, double alpha, double tol, double* const rhs
 }
 
 template <typename MatrixType>
-void CSTRModel::addTimeDerivativeJacobian(double t, double alpha, const ConstSimulationState& simState, MatrixType& mat)
+void CSTRpH::addTimeDerivativeJacobian(double t, double alpha, const ConstSimulationState& simState, MatrixType& mat)
 {	
 	double const* const c = simState.vecStateY + _nComp;
 	const double v = simState.vecStateY[2 * _nComp + _totalBound];
@@ -2002,7 +2002,7 @@ void CSTRModel::addTimeDerivativeJacobian(double t, double alpha, const ConstSim
 	* @param [in] adRes Residual vector of AD datatypes with band compressed seed vectors
 	* @param [in] adDirOffset Number of AD directions used for non-Jacobian purposes (e.g., parameter sensitivities)
 	*/
-void CSTRModel::extractJacobianFromAD(active const* const adRes, unsigned int adDirOffset)
+void CSTRpH::extractJacobianFromAD(active const* const adRes, unsigned int adDirOffset)
 {
 	ad::extractDenseJacobianFromAd(adRes + _nComp, adDirOffset, _jac);
 }
@@ -2015,7 +2015,7 @@ void CSTRModel::extractJacobianFromAD(active const* const adRes, unsigned int ad
 	* @param [in] adRes Residual vector of AD datatypes with band compressed seed vectors
 	* @param [in] adDirOffset Number of AD directions used for non-Jacobian purposes (e.g., parameter sensitivities)
 	*/
-void CSTRModel::checkAnalyticJacobianAgainstAd(active const* const adRes, unsigned int adDirOffset) const
+void CSTRpH::checkAnalyticJacobianAgainstAd(active const* const adRes, unsigned int adDirOffset) const
 {
 	const double diff = ad::compareDenseJacobianWithAd(adRes + _nComp, adDirOffset, _jac);
 	LOG(Debug) << "AD dir offset: " << adDirOffset << " diff: " << diff;
@@ -2023,7 +2023,7 @@ void CSTRModel::checkAnalyticJacobianAgainstAd(active const* const adRes, unsign
 
 #endif
 
-bool CSTRModel::setParameter(const ParameterId& pId, double value)
+bool CSTRpH::setParameter(const ParameterId& pId, double value)
 {
 	if (pId.unitOperation == _unitOpIdx)
 	{
@@ -2034,7 +2034,7 @@ bool CSTRModel::setParameter(const ParameterId& pId, double value)
 	return UnitOperationBase::setParameter(pId, value);
 }
 
-bool CSTRModel::setParameter(const ParameterId& pId, int value)
+bool CSTRpH::setParameter(const ParameterId& pId, int value)
 {
 	if (pId.unitOperation == _unitOpIdx)
 	{
@@ -2045,7 +2045,7 @@ bool CSTRModel::setParameter(const ParameterId& pId, int value)
 	return UnitOperationBase::setParameter(pId, value);
 }
 
-bool CSTRModel::setParameter(const ParameterId& pId, bool value)
+bool CSTRpH::setParameter(const ParameterId& pId, bool value)
 {
 	if (pId.unitOperation == _unitOpIdx)
 	{
@@ -2056,7 +2056,7 @@ bool CSTRModel::setParameter(const ParameterId& pId, bool value)
 	return UnitOperationBase::setParameter(pId, value);
 }
 
-void CSTRModel::setSensitiveParameterValue(const ParameterId& pId, double value)
+void CSTRpH::setSensitiveParameterValue(const ParameterId& pId, double value)
 {
 	if (pId.unitOperation == _unitOpIdx)
 	{
@@ -2067,7 +2067,7 @@ void CSTRModel::setSensitiveParameterValue(const ParameterId& pId, double value)
 	UnitOperationBase::setSensitiveParameterValue(pId, value);
 }
 
-bool CSTRModel::setSensitiveParameter(const ParameterId& pId, unsigned int adDirection, double adValue)
+bool CSTRpH::setSensitiveParameter(const ParameterId& pId, unsigned int adDirection, double adValue)
 {
 	if (model::setSensitiveParameter(pId, adDirection, adValue, _sensParams, _reactionSystemBulk.getDynReactionVector("liquid") , false))
 	{
@@ -2080,18 +2080,18 @@ bool CSTRModel::setSensitiveParameter(const ParameterId& pId, unsigned int adDir
 	return result;
 }
 
-unsigned int CSTRModel::Exporter::numSolidPhaseDofs() const CADET_NOEXCEPT
+unsigned int CSTRpH::Exporter::numSolidPhaseDofs() const CADET_NOEXCEPT
 {
 	return _totalBound;
 }
 
-int CSTRModel::Exporter::writeMobilePhase(double* buffer) const
+int CSTRpH::Exporter::writeMobilePhase(double* buffer) const
 {
 	std::copy_n(_data + _nComp, _nComp, buffer);
 	return _nComp;
 }
 
-int CSTRModel::Exporter::writeSolidPhase(double* buffer) const
+int CSTRpH::Exporter::writeSolidPhase(double* buffer) const
 {
 	if (_totalBound == 0)
 		return 0;
@@ -2100,7 +2100,7 @@ int CSTRModel::Exporter::writeSolidPhase(double* buffer) const
 	return _totalBound;
 }
 
-int CSTRModel::Exporter::writeSolidPhase(unsigned int parType, double* buffer) const
+int CSTRpH::Exporter::writeSolidPhase(unsigned int parType, double* buffer) const
 {
 	if (_totalBound == 0)
 		return 0;
@@ -2115,33 +2115,33 @@ int CSTRModel::Exporter::writeSolidPhase(unsigned int parType, double* buffer) c
 	return _strideBound[parType];
 }
 
-int CSTRModel::Exporter::writeVolume(double* buffer) const
+int CSTRpH::Exporter::writeVolume(double* buffer) const
 {
 	*buffer = _data[2 * _nComp + _totalBound];
 	return 1;
 }
 
-int CSTRModel::Exporter::writeInlet(unsigned int port, double* buffer) const
+int CSTRpH::Exporter::writeInlet(unsigned int port, double* buffer) const
 {
 	cadet_assert(port == 0);
 	std::copy_n(_data, _nComp, buffer);
 	return _nComp;
 }
 
-int CSTRModel::Exporter::writeInlet(double* buffer) const
+int CSTRpH::Exporter::writeInlet(double* buffer) const
 {
 	std::copy_n(_data, _nComp, buffer);
 	return _nComp;
 }
 
-int CSTRModel::Exporter::writeOutlet(unsigned int port, double* buffer) const
+int CSTRpH::Exporter::writeOutlet(unsigned int port, double* buffer) const
 {
 	cadet_assert(port == 0);
 	std::copy_n(_data + _nComp, _nComp, buffer);
 	return _nComp;
 }
 
-int CSTRModel::Exporter::writeOutlet(double* buffer) const
+int CSTRpH::Exporter::writeOutlet(double* buffer) const
 {
 	std::copy_n(_data + _nComp, _nComp, buffer);
 	return _nComp;
