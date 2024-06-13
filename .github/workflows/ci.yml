@@ -7,6 +7,12 @@ on:
       - dev
   pull_request:
   workflow_dispatch:
+    inputs:
+      ref:
+        description: 'Commit hash, branch name, or tag to run the CI pipeline for'
+        required: false
+        default: 'HEAD'
+        type: string
 
 
 jobs:
@@ -24,6 +30,7 @@ jobs:
         with:
           submodules: true
           path: src
+          ref: ${{ github.event.inputs.ref || github.ref }}
       - uses: ilammy/msvc-dev-cmd@v1
       - name: Get MSVC version
         id: get-msvc
@@ -131,6 +138,7 @@ jobs:
         with:
           submodules: true
           path: src
+          ref: ${{ github.event.inputs.ref || github.ref }}
       - name: Install Dependencies
         run: |
           sudo apt-get update
@@ -175,6 +183,7 @@ jobs:
         with:
           submodules: true
           path: src
+          ref: ${{ github.event.inputs.ref || github.ref }}
       - name: Install Dependencies
         run: |
           brew update > /dev/null || true
