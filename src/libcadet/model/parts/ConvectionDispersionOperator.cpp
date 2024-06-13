@@ -78,7 +78,7 @@ bool AxialConvectionDispersionOperatorBase::configureModelDiscretization(IParame
 		_dispersionDep->configureModelDiscretization(paramProvider);
 	}
 	else
-		_dispersionDep = helper.createParameterParameterDependence("CONSTANT_ONE");
+		_dispersionDep = helper.createParameterParameterDependence("IDENTITY");
 
 	paramProvider.pushScope("discretization");
 
@@ -577,7 +577,7 @@ bool RadialConvectionDispersionOperatorBase::configureModelDiscretization(IParam
 		_dispersionDep->configureModelDiscretization(paramProvider);
 	}
 	else
-		_dispersionDep = helper.createParameterParameterDependence("CONSTANT_ONE");
+		_dispersionDep = helper.createParameterParameterDependence("IDENTITY");
 
 	paramProvider.pushScope("discretization");
 

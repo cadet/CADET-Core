@@ -22,8 +22,6 @@ namespace cadet
 			void registerLiquidSaltSolidParamDependence(std::unordered_map<std::string, std::function<model::IParameterStateDependence*()>>& paramDeps);
 			void registerDummyParamDependence(std::unordered_map<std::string, std::function<model::IParameterStateDependence*()>>& paramDeps);
 			void registerDummyParamDependence(std::unordered_map<std::string, std::function<model::IParameterParameterDependence*()>>& paramDeps);
-			void registerIdentityParamDependence(std::unordered_map<std::string, std::function<model::IParameterStateDependence*()>>& paramDeps);
-			void registerIdentityParamDependence(std::unordered_map<std::string, std::function<model::IParameterParameterDependence*()>>& paramDeps);
 			void registerPowerLawParamDependence(std::unordered_map<std::string, std::function<model::IParameterParameterDependence*()>>& paramDeps);
 		}
 	}
@@ -33,11 +31,9 @@ namespace cadet
 		// Register all ParamState dependencies
 		model::paramdep::registerLiquidSaltSolidParamDependence(_paramStateDeps);
 		model::paramdep::registerDummyParamDependence(_paramStateDeps);
-		model::paramdep::registerIdentityParamDependence(_paramStateDeps);
 
 		// Register all ParamParam dependencies
 		model::paramdep::registerDummyParamDependence(_paramParamDeps);
-		model::paramdep::registerIdentityParamDependence(_paramParamDeps);
 		model::paramdep::registerPowerLawParamDependence(_paramParamDeps);
 	}
 

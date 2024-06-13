@@ -146,7 +146,6 @@ set(LIBCADET_SOURCES
 	${CMAKE_SOURCE_DIR}/src/libcadet/model/paramdep/ParameterDependenceBase.cpp
 	${CMAKE_SOURCE_DIR}/src/libcadet/model/paramdep/LiquidSaltSolidParameterDependence.cpp
 	${CMAKE_SOURCE_DIR}/src/libcadet/model/paramdep/DummyParameterDependence.cpp
-	${CMAKE_SOURCE_DIR}/src/libcadet/model/paramdep/IdentityParameterDependence.cpp
 	${CMAKE_SOURCE_DIR}/src/libcadet/model/paramdep/PowerLawParameterDependence.cpp
 )
 
