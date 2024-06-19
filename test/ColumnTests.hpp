@@ -48,39 +48,41 @@ namespace column
 		int nAxCells;
 		int nParCells;
 		int wenoOrder;
+		int nRadCells;
 
-		FVparams() : nAxCells(0), nParCells(0), wenoOrder(0) {}
+		FVparams() : nAxCells(0), nParCells(0), wenoOrder(0), nRadCells(0) {}
 		FVparams(int nCol)
-			: nAxCells(nCol), nParCells(0), wenoOrder(0) {}
+			: nAxCells(nCol), nParCells(0), wenoOrder(0), nRadCells(0) {}
 		FVparams(int nCol, int nPar)
-			: nAxCells(nCol), nParCells(nPar), wenoOrder(0) {}
+			: nAxCells(nCol), nParCells(nPar), wenoOrder(0), nRadCells(0) {}
 		FVparams(int nCol, int nPar, int wenoOrder)
-			: nAxCells(nCol), nParCells(nPar), wenoOrder(wenoOrder) {}
+			: nAxCells(nCol), nParCells(nPar), wenoOrder(wenoOrder), nRadCells(0) {}
+		FVparams(int nCol, int nPar, int wenoOrder, int nRad)
+			: nAxCells(nCol), nParCells(nPar), wenoOrder(wenoOrder), nRadCells(nRad) {}
 
 		int getNAxCells() const override { return nAxCells; }
 		int getNParCells() const override { return nParCells; }
 		void setWenoOrder(int order) { wenoOrder = order; }
 		int getWenoOrder() { return wenoOrder; }
+		void setNRad(int nRad) { nRadCells = nRad; }
 		void setDisc(JsonParameterProvider& jpp, const std::string unitID = "000") const override;
 	};
 
 	struct DGparams : public DiscParams {
-		int nAxCells;
-		int nParCells;
 		int exactIntegration;
 		int polyDeg;
 		int nElem;
 		int parPolyDeg;
 		int parNelem;
 
-		DGparams() : exactIntegration(-1), polyDeg(0), nAxCells(0), parPolyDeg(0), nParCells(0) {}
+		DGparams() : exactIntegration(-1), polyDeg(0), nElem(0), parPolyDeg(0), parNelem(0) {}
 		DGparams(int exact, int poly, int elem)
-			: exactIntegration(exact), polyDeg(poly), nAxCells(elem), parPolyDeg(0), nParCells(0) {}
+			: exactIntegration(exact), polyDeg(poly), nElem(elem), parPolyDeg(0), parNelem(0) {}
 		DGparams(int exact, int poly, int elem, int parPolyDeg, int parNelem)
-			: exactIntegration(exact), polyDeg(poly), nAxCells(elem), parPolyDeg(parPolyDeg), nParCells(parNelem) {}
+			: exactIntegration(exact), polyDeg(poly), nElem(elem), parPolyDeg(parPolyDeg), parNelem(parNelem) {}
 
-		int getNAxCells() const override { return nAxCells; }
-		int getNParCells() const override { return nParCells; }
+		int getNAxCells() const override { return nElem; }
+		int getNParCells() const override { return parNelem; }
 		void setIntegrationMode(int integrationMode) { exactIntegration = integrationMode; }
 		int getIntegrationMode() { return exactIntegration; }
 		void setDisc(JsonParameterProvider& jpp, const std::string unitID = "000") const override;
@@ -269,12 +271,12 @@ namespace column
 	/**
 	 * @brief Checks the forward sensitivity residual using analytic Jacobians
 	 * @details Uses centered finite differences.
-	 * @param [in] uoType Unit operation type
+	 * @param [in] jpp Configured unit model
 	 * @param [in] h Step size of centered finite differences
 	 * @param [in] absTol Absolute error tolerance
 	 * @param [in] relTol Relative error tolerance
 	 */
-	void testFwdSensJacobians(const std::string& uoType, const std::string& spatialMethod, double h = 1e-6, double absTol = 0.0, double relTol = std::numeric_limits<float>::epsilon() * 100.0);
+	void testFwdSensJacobians(cadet::JsonParameterProvider jpp, double h = 1e-6, double absTol = 0.0, double relTol = std::numeric_limits<float>::epsilon() * 100.0, const bool hasBinding=true);
 
 	/**
 	 * @brief Checks the forward sensitivity solution against finite differences

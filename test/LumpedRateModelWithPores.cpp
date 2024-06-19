@@ -117,7 +117,9 @@ TEST_CASE("LRMP flux Jacobian vs FD", "[LRMP],[UnitOp],[Residual],[Jacobian],[CI
 
 TEST_CASE("LRMP sensitivity Jacobians", "[LRMP],[FV],[UnitOp],[Sensitivity],[CI]")
 {
-	cadet::test::column::testFwdSensJacobians("LUMPED_RATE_MODEL_WITH_PORES", "FV", 1e-4, 6e-7);
+	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding("LUMPED_RATE_MODEL_WITH_PORES", "FV");
+
+	cadet::test::column::testFwdSensJacobians(jpp, 1e-4, 6e-7);
 }
 
 //TEST_CASE("LRMP forward sensitivity vs FD", "[LRMP],[FV],[Sensitivity],[Simulation],[failedFDtestLRMP]") // todo fix

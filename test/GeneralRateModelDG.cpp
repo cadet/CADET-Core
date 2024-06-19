@@ -145,7 +145,9 @@ TEST_CASE("GRM_DG rapid-equilibrium binding with surf diff par dep Jacobian vs A
 
 TEST_CASE("GRM_DG sensitivity Jacobians", "[GRM],[DG],[UnitOp],[Sensitivity]") // todo does not run on CI but locally on windows
 {
-	cadet::test::column::testFwdSensJacobians("GENERAL_RATE_MODEL", "DG", 1e-4, 6e-7);
+	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding("GENERAL_RATE_MODEL", "DG");
+
+	cadet::test::column::testFwdSensJacobians(jpp, 1e-4, 6e-7);
 }
 
 //// todo fix: not just adjust tolerances as in FV but theres an actual error here: access violation in densematrix

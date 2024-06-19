@@ -62,7 +62,9 @@ TEST_CASE("Radial LRMP flux Jacobian vs FD", "[RadLRMP],[UnitOp],[Residual],[Jac
 
 TEST_CASE("Radial LRMP sensitivity Jacobians", "[RadLRMP],[UnitOp],[Sensitivity],[ReleaseCI]")
 {
-	cadet::test::column::testFwdSensJacobians("RADIAL_LUMPED_RATE_MODEL_WITH_PORES", "FV", 1e-4, 6e-7);
+	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding("RADIAL_LUMPED_RATE_MODEL_WITH_PORES", "FV");
+
+	cadet::test::column::testFwdSensJacobians(jpp, 1e-4, 6e-7);
 }
 
 //TEST_CASE("Radial LRMP forward sensitivity vs FD", "[RadLRMP],[Sensitivity],[Simulation],[failedFDtestLRMP]") // todo fix

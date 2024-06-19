@@ -82,7 +82,9 @@ TEST_CASE("Radial GRM dynamic binding flux Jacobian vs FD", "[RadGRM],[UnitOp],[
 
 TEST_CASE("Radial GRM sensitivity Jacobians", "[RadGRM],[UnitOp],[Sensitivity],[ReleaseCI]")
 {
-	cadet::test::column::testFwdSensJacobians("RADIAL_GENERAL_RATE_MODEL", "FV", 1e-4, 6e-7);
+	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding("RADIAL_GENERAL_RATE_MODEL", "FV");
+
+	cadet::test::column::testFwdSensJacobians(jpp, 1e-4, 6e-7);
 }
 
 //TEST_CASE("Radial GRM forward sensitivity vs FD", "[RadGRM],[Sensitivity],[Simulation],[failedFDtestGRM]") // todo fix. fails for SMA_KA for both binding modes

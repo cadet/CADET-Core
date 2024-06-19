@@ -111,7 +111,9 @@ TEST_CASE("LRM time derivative Jacobian vs FD", "[LRM],[FV],[UnitOp],[Residual],
 
 TEST_CASE("LRM sensitivity Jacobians", "[LRM],[FV],[UnitOp],[Sensitivity],[CI]")
 {
-	cadet::test::column::testFwdSensJacobians("LUMPED_RATE_MODEL_WITHOUT_PORES", "FV", 1e-4, 3e-7, 5e-5);
+	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding("LUMPED_RATE_MODEL_WITHOUT_PORES", "FV");
+
+	cadet::test::column::testFwdSensJacobians(jpp, 1e-4, 3e-7, 5e-5);
 }
 
 //TEST_CASE("LRM forward sensitivity vs FD", "[LRM],[FV],[Sensitivity],[Simulation],[failedFDtestLRM],[FD]") // todo fix tolerances

@@ -46,6 +46,13 @@ json createColumnWithSMAJson(const std::string& uoType, const std::string& spati
 	config["PAR_POROSITY"] = 0.75;
 	config["TOTAL_POROSITY"] = 0.37 + (1.0 - 0.37) * 0.75;
 
+	if (uoType == "MULTI_CHANNEL_TRANSPORT")
+	{
+		config["CHANNEL_CROSS_SECTION_AREAS"] = { 1.0 };
+		// Channel exchange
+		config["EXCHANGE_MATRIX"] = { 0.0 };
+	}
+
 	// Initial conditions
 	config["INIT_C"] = {50.0, 0.0, 0.0, 0.0};
 	config["INIT_Q"] = {1.2e3, 0.0, 0.0, 0.0};
@@ -101,6 +108,12 @@ json createColumnWithSMAJson(const std::string& uoType, const std::string& spati
 			disc["NRAD"] = 3;
 			disc["NPAR"] = 3;
 			disc["RADIAL_DISC_TYPE"] = "EQUIDISTANT";
+		}
+
+		if (uoType == "MULTI_CHANNEL_TRANSPORT")
+		{
+			disc["NCOL"] = 16;
+			disc["NCHANNEL"] = 1;
 		}
 
 		disc["PAR_DISC_TYPE"] = std::string("EQUIDISTANT_PAR");
@@ -194,6 +207,13 @@ json createColumnWithTwoCompLinearJson(const std::string& uoType, const std::str
 	config["PAR_POROSITY"] = 0.75;
 	config["TOTAL_POROSITY"] = 0.37 + (1.0 - 0.37) * 0.75;
 
+	if (uoType == "MULTI_CHANNEL_TRANSPORT")
+	{
+		config["CHANNEL_CROSS_SECTION_AREAS"] = { 1.0, 1.0, 1.0 };
+		// Channel exchange
+		config["EXCHANGE_MATRIX"] = { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 };
+	}
+
 	// Initial conditions
 	config["INIT_C"] = {1.0, 2.0, 3.0};
 	config["INIT_Q"] = {5.0, 6.0, 7.0};
@@ -247,6 +267,12 @@ json createColumnWithTwoCompLinearJson(const std::string& uoType, const std::str
 			disc["NRAD"] = 3;
 			disc["NPAR"] = 3;
 			disc["RADIAL_DISC_TYPE"] = "EQUIDISTANT";
+		}
+
+		if (uoType == "MULTI_CHANNEL_TRANSPORT")
+		{
+			disc["NCOL"] = 8;
+			disc["NCHANNEL"] = 3;
 		}
 
 		disc["PAR_DISC_TYPE"] = std::string("EQUIDISTANT_PAR");
@@ -500,6 +526,12 @@ cadet::JsonParameterProvider createPulseInjectionColumn(const std::string& uoTyp
 			grm["COL_POROSITY"] = 0.37;
 			grm["PAR_POROSITY"] = 0.75;
 			grm["TOTAL_POROSITY"] = 0.37 + (1.0 - 0.37) * 0.75;
+			if (uoType == "MULTI_CHANNEL_TRANSPORT")
+			{
+				grm["CHANNEL_CROSS_SECTION_AREAS"] = { 1.0, 1.0, 1.0 };
+				// Channel exchange
+				grm["EXCHANGE_MATRIX"] = { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 };
+			}
 
 			// Initial conditions
 			grm["INIT_C"] = {0.0};
@@ -554,6 +586,9 @@ cadet::JsonParameterProvider createPulseInjectionColumn(const std::string& uoTyp
 					disc["NRAD"] = 3;
 					disc["RADIAL_DISC_TYPE"] = "EQUIDISTANT";
 				}
+
+				if (uoType == "MULTI_CHANNEL_TRANSPORT")
+					disc["NCHANNEL"] = 3;
 
 				disc["PAR_DISC_TYPE"] = std::string("EQUIDISTANT_PAR");
 
@@ -753,6 +788,13 @@ json createLinearBenchmarkColumnJson(bool dynamicBinding, bool nonBinding, const
 	grm["PAR_POROSITY"] = 0.333;
 	grm["TOTAL_POROSITY"] = 0.4 + (1.0 - 0.4) * 0.333;
 
+	if (uoType == "MULTI_CHANNEL_TRANSPORT")
+	{
+		grm["CHANNEL_CROSS_SECTION_AREAS"] = { 1.0, 1.0, 1.0 };
+		// Channel exchange
+		grm["EXCHANGE_MATRIX"] = { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 };
+	}
+
 	// Initial conditions
 	grm["INIT_C"] = {0.0};
 	grm["INIT_Q"] = {0.0};
@@ -812,6 +854,9 @@ json createLinearBenchmarkColumnJson(bool dynamicBinding, bool nonBinding, const
 			disc["NRAD"] = 3;
 			disc["RADIAL_DISC_TYPE"] = "EQUIDISTANT";
 		}
+
+		if (uoType == "MULTI_CHANNEL_TRANSPORT")
+			disc["NCHANNEL"] = 3;
 
 		disc["PAR_DISC_TYPE"] = std::string("EQUIDISTANT_PAR");
 

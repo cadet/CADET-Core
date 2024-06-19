@@ -50,12 +50,11 @@ namespace
 	/**
 	 * @brief Creates a runnable column model
 	 * @details Creates a column model and configures it using the given IParameterProvider @p jpp.
-	 * @param [in] uoType Unit operation type
 	 * @param [in] mb ModelBuilder
 	 * @param [in] jpp Configuration of the model
 	 * @return Runnable column model
 	 */
-	inline cadet::IUnitOperation* createAndConfigureUnit(const std::string& uoType, cadet::IModelBuilder& mb, cadet::JsonParameterProvider& jpp)
+	inline cadet::IUnitOperation* createAndConfigureUnit(cadet::IModelBuilder& mb, cadet::JsonParameterProvider& jpp)
 	{
 		// Create a unit
 		cadet::IModel* const iUnit = mb.createUnitOperation(jpp, 0);
@@ -77,17 +76,16 @@ namespace
 	/**
 	 * @brief Creates a runnable column model with given discretization parameters
 	 * @details Creates a column model and configures it using the given IParameterProvider @p jpp.
-	 * @param [in] uoType Unit operation type
 	 * @param [in] mb ModelBuilder
 	 * @param [in] jpp Configuration of the model
 	 * @param [in] disc discretization parameters
 	 * @return Runnable column model
 	 */
-	inline cadet::IUnitOperation* createAndConfigureUnit(const std::string& uoType, cadet::IModelBuilder& mb, cadet::JsonParameterProvider& jpp, cadet::test::column::DiscParams& disc)
+	inline cadet::IUnitOperation* createAndConfigureUnit(cadet::IModelBuilder& mb, cadet::JsonParameterProvider& jpp, cadet::test::column::DiscParams& disc)
 	{
 		// Set discretization parameters
 		disc.setDisc(jpp);
-		return createAndConfigureUnit(uoType, mb, jpp);
+		return createAndConfigureUnit(mb, jpp);
 	}
 
 	class FluxOffsetExtractionRecorder : public cadet::ISolutionRecorder
@@ -153,6 +151,8 @@ namespace column
 			++level;
 		}
 
+		std::string unitType = jpp.getString("UNIT_TYPE");
+
 		jpp.pushScope("discretization");
 		jpp.set("SPATIAL_METHOD", "FV");
 
@@ -161,6 +161,14 @@ namespace column
 
 		if (nParCells)
 			jpp.set("NPAR", nParCells);
+
+		if (nRadCells)
+		{
+			if(unitType == "MULTI_CHANNEL_TRANSPORT")
+				jpp.set("NCHANNEL", nRadCells);
+			else
+				jpp.set("NRAD", nRadCells);
+		}
 
 		if (jpp.exists("weno"))
 		{
@@ -198,10 +206,10 @@ namespace column
 			jpp.set("EXACT_INTEGRATION", exactIntegration);
 		if (polyDeg)
 			jpp.set("POLYDEG", polyDeg);
-		if (nAxCells)
-			jpp.set("NELEM", nAxCells);
-		if (nParCells)
-			jpp.set("PAR_NELEM", nParCells);
+		if (nElem)
+			jpp.set("NELEM", nElem);
+		if (parNelem)
+			jpp.set("PAR_NELEM", parNelem);
 		if (parPolyDeg)
 			jpp.set("PAR_POLYDEG", parPolyDeg);
 
@@ -340,6 +348,34 @@ namespace column
 			jpp.popScope();
 	}
 
+	void setNumRadCells(cadet::JsonParameterProvider& jpp, unsigned int nRad, std::string unitID, const bool mctModel = false)
+	{
+		int level = 0;
+
+		if (jpp.exists("model"))
+		{
+			jpp.pushScope("model");
+			++level;
+		}
+		if (jpp.exists("unit_" + unitID))
+		{
+			jpp.pushScope("unit_" + unitID);
+			++level;
+		}
+
+		jpp.pushScope("discretization");
+
+		if (!mctModel)
+			jpp.set("NCHANNEL", static_cast<int>(nRad));
+		else
+			jpp.set("NRAD", static_cast<int>(nRad));
+
+		jpp.popScope();
+
+		for (int l = 0; l < level; ++l)
+			jpp.popScope();
+	}
+
 	void setWenoOrder(cadet::JsonParameterProvider& jpp, int order)
 	{
 		int level = 0;
@@ -384,10 +420,12 @@ namespace column
 		pp.pushScope("unit_" + unitID);
 		pp.pushScope("discretization");
 		nlohmann::json discretization = setupJson["model"]["unit_" + unitID]["discretization"];
-		discretization["NBOUND"] = pp.getIntArray("NBOUND"); // note: in the future this might be included somewhere else in the setup as its part of the model
+		if (pp.exists("NBOUND"))
+			discretization["NBOUND"] = pp.getIntArray("NBOUND"); // note: in the future this might be included somewhere else in the setup as its part of the model
 		if (pp.exists("RECONSTRUCTION"))
 			discretization["RECONSTRUCTION"] = pp.getString("RECONSTRUCTION");
-		discretization["USE_ANALYTIC_JACOBIAN"] = pp.getInt("USE_ANALYTIC_JACOBIAN");
+		if (pp.exists("USE_ANALYTIC_JACOBIAN"))
+			discretization["USE_ANALYTIC_JACOBIAN"] = pp.getInt("USE_ANALYTIC_JACOBIAN");
 		if (pp.exists("GS_TYPE"))
 			discretization["GS_TYPE"] = pp.getInt("GS_TYPE");
 		if (pp.exists("MAX_KRYLOV"))
@@ -539,6 +577,9 @@ namespace column
 
 			if (pp.exists("WRITE_SOLUTION_SOLID"))
 				ret_unit["WRITE_SOLUTION_SOLID"] = pp.getInt("WRITE_SOLUTION_SOLID");
+
+			if (pp.exists("WRITE_SOLUTION_VOLUME"))
+				ret_unit["WRITE_SOLUTION_VOLUME"] = pp.getInt("WRITE_SOLUTION_VOLUME");
 
 			ret["unit_" + unitID] = ret_unit;
 			pp.popScope();
@@ -972,7 +1013,7 @@ namespace column
 
 			FVparams disc;
 			disc.setWenoOrder(wenoOrder);
-			cadet::IUnitOperation* const unit = createAndConfigureUnit(uoType, *mb, jpp, disc);
+			cadet::IUnitOperation* const unit = createAndConfigureUnit(*mb, jpp, disc);
 
 			// Obtain memory for state, Jacobian multiply direction, Jacobian column
 			std::vector<double> y(unit->numDofs(), 0.0);
@@ -1039,7 +1080,7 @@ namespace column
 			{
 				cadet::test::setBindingMode(jpp, isKinetic);
 
-				cadet::IUnitOperation* const unit = createAndConfigureUnit(uoType, *mb, jpp);
+				cadet::IUnitOperation* const unit = createAndConfigureUnit(*mb, jpp);
 
 				cadet::util::ThreadLocalStorage tls;
 				tls.resize(unit->threadLocalMemorySize());
@@ -1161,21 +1202,19 @@ namespace column
 		destroyModelBuilder(mb);
 	}
 
-	void testFwdSensJacobians(const std::string& uoType, const std::string& spatialMethod, double h, double absTol, double relTol)
+	void testFwdSensJacobians(cadet::JsonParameterProvider jpp, double h, double absTol, double relTol, const bool hasBinding)
 	{
 		cadet::IModelBuilder* const mb = cadet::createModelBuilder();
 		REQUIRE(nullptr != mb);
 
-		// Use some test case parameters
-		cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding(uoType, spatialMethod);
-
-		for (int bindMode = 0; bindMode < 2; ++bindMode)
+		for (int bindMode = 0; bindMode < static_cast<int>(hasBinding) + 1; ++bindMode)
 		{
 			const bool isKinetic = bindMode;
-			SECTION(isKinetic ? "Kinetic binding" : "Quasi-stationary binding")
+			SECTION(hasBinding ? "No binding" : (isKinetic ? "Kinetic binding" : "Quasi-stationary binding"))
 			{
-				cadet::test::setBindingMode(jpp, isKinetic);
-				cadet::IUnitOperation* const unit = createAndConfigureUnit(uoType, *mb, jpp);
+				if (hasBinding)
+					cadet::test::setBindingMode(jpp, isKinetic);
+				cadet::IUnitOperation* const unit = createAndConfigureUnit(*mb, jpp);
 
 				// Enable AD
 				cadet::ad::setDirections(cadet::ad::getMaxDirections());
@@ -1447,7 +1486,7 @@ namespace column
 					// Use some test case parameters
 					cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding(uoType, spatialMethod);
 					cadet::test::setBindingMode(jpp, isKinetic);
-					cadet::IUnitOperation* const unit = createAndConfigureUnit(uoType, *mb, jpp);
+					cadet::IUnitOperation* const unit = createAndConfigureUnit(*mb, jpp);
 
 					// Fill state vector with given initial values
 					std::vector<double> y(unit->numDofs(), 0.0);
@@ -1482,7 +1521,7 @@ namespace column
 					// Use some test case parameters
 					cadet::JsonParameterProvider jpp = createColumnWithSMA(uoType, spatialMethod);
 					cadet::test::setBindingMode(jpp, isKinetic);
-					cadet::IUnitOperation* const unit = createAndConfigureUnit(uoType, *mb, jpp);
+					cadet::IUnitOperation* const unit = createAndConfigureUnit(*mb, jpp);
 
 					// Fill state vector with given initial values
 					std::vector<double> y(initState, initState + unit->numDofs());
@@ -1516,7 +1555,7 @@ namespace column
 					// Use some test case parameters
 					cadet::JsonParameterProvider jpp = linearBinding ? createColumnWithTwoCompLinearBinding(uoType, spatialMethod) : createColumnWithSMA(uoType, spatialMethod);
 					cadet::test::setBindingMode(jpp, isKinetic);
-					cadet::IUnitOperation* const unit = createAndConfigureUnit(uoType, *mb, jpp);
+					cadet::IUnitOperation* const unit = createAndConfigureUnit(*mb, jpp);
 
 					unit->setSensitiveParameter(cadet::makeParamId("INIT_C", 0, 0, cadet::ParTypeIndep, cadet::BoundStateIndep, cadet::ReactionIndep, cadet::SectionIndep), 0, 1.0);
 					if (linearBinding)
@@ -1548,7 +1587,7 @@ namespace column
 			{
 				// Use some test case parameters
 				cadet::JsonParameterProvider jpp = createColumnWithSMA(uoType, spatialMethod);
-				cadet::IUnitOperation* const unit = createAndConfigureUnit(uoType, *mb, jpp);
+				cadet::IUnitOperation* const unit = createAndConfigureUnit(*mb, jpp);
 
 				unitoperation::testInletDofJacobian(unit, adEnabled);
 
