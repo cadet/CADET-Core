@@ -7,8 +7,8 @@
 .. image:: https://img.shields.io/github/release/modsim/cadet.svg
    :target: https://github.com/modsim/CADET/releases
 
-.. image:: https://github.com/modsim/CADET/actions/workflows/ci.yml/badge.svg
-   :target: https://github.com/modsim/CADET/actions/workflows/ci.yml
+.. image:: https://github.com/modsim/CADET/actions/workflows/ci.yml/badge.svg?branch=master
+   :target: https://github.com/modsim/CADET/actions/workflows/ci.yml?query=branch%3Amaster
 
 .. image:: https://anaconda.org/conda-forge/cadet/badges/downloads.svg
    :target: https://anaconda.org/conda-forge/cadet
