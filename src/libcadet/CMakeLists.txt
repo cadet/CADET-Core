@@ -169,7 +169,7 @@ if (ENABLE_DG)
 	list(APPEND LIBCADET_NONLINALG_SOURCES ${CMAKE_SOURCE_DIR}/src/libcadet/linalg/BandedEigenSparseRowIterator.hpp)
 endif()
 
-if (ENABLE_GRM_2D)
+if (ENABLE_2D_MODELS)
 	set(LIBCADET_NONLINALG_SPARSE_SOURCES)
 	if (SUPERLU_FOUND)
 		list(APPEND LIBCADET_NONLINALG_SPARSE_SOURCES ${CMAKE_SOURCE_DIR}/src/libcadet/linalg/SuperLUSparseMatrix.cpp)
@@ -183,6 +183,10 @@ if (ENABLE_GRM_2D)
 		${CMAKE_SOURCE_DIR}/src/libcadet/model/GeneralRateModel2D.cpp
 		${CMAKE_SOURCE_DIR}/src/libcadet/model/GeneralRateModel2D-LinearSolver.cpp
 		${CMAKE_SOURCE_DIR}/src/libcadet/model/GeneralRateModel2D-InitialConditions.cpp
+		${CMAKE_SOURCE_DIR}/src/libcadet/model/parts/MultiChannelConvectionDispersionOperator.cpp
+		${CMAKE_SOURCE_DIR}/src/libcadet/model/MultiChannelTransportModel.cpp
+		${CMAKE_SOURCE_DIR}/src/libcadet/model/MultiChannelTransportModel-LinearSolver.cpp
+		${CMAKE_SOURCE_DIR}/src/libcadet/model/MultiChannelTransportModel-InitialConditions.cpp
 	)
 
 	if (NOT SUPERLU_FOUND)
@@ -245,7 +249,7 @@ if (LAPACK_FOUND)
 	target_compile_definitions(libcadet_nonlinalg_static PRIVATE libcadet_nonlinalg_static_EXPORTS ${LIB_LAPACK_DEFINE})
 	target_link_libraries(libcadet_nonlinalg_static PUBLIC CADET::CompileOptions PRIVATE SUNDIALS::sundials_idas ${SUNDIALS_NVEC_TARGET} ${LAPACK_LIBRARIES} ${EIGEN_TARGET})
 
-	if (ENABLE_GRM_2D)
+	if (ENABLE_2D_MODELS)
 		if (SUPERLU_FOUND)
 			target_link_libraries(libcadet_nonlinalg_static PRIVATE SuperLU::SuperLU)
 		endif()
