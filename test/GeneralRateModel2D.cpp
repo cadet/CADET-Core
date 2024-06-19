@@ -67,7 +67,9 @@ TEST_CASE("GRM2D dynamic binding flux Jacobian vs FD", "[GRM2D],[UnitOp],[Residu
 
 TEST_CASE("GRM2D sensitivity Jacobians", "[GRM2D],[UnitOp],[Sensitivity],[CIgrm2d]")
 {
-	cadet::test::column::testFwdSensJacobians("GENERAL_RATE_MODEL_2D", "FV", 1e-4, 6e-7);
+	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding("GENERAL_RATE_MODEL_2D", "FV");
+
+	cadet::test::column::testFwdSensJacobians(jpp, 1e-4, 6e-7);
 }
 
 TEST_CASE("GRM2D forward sensitivity vs FD", "[GRM2D],[Sensitivity],[Simulation],[failedFDtestGRM2D]") // todo fix. off by a bigger tolerance

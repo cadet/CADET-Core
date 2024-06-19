@@ -137,7 +137,9 @@ TEST_CASE("GRM dynamic binding flux Jacobian vs FD", "[GRM],[FV],[UnitOp],[Resid
 
 TEST_CASE("GRM sensitivity Jacobians", "[GRM],[FV],[UnitOp],[Sensitivity],[CI]")
 {
-	cadet::test::column::testFwdSensJacobians("GENERAL_RATE_MODEL", "FV", 1e-4, 6e-7);
+	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding("GENERAL_RATE_MODEL", "FV");
+
+	cadet::test::column::testFwdSensJacobians(jpp, 1e-4, 6e-7);
 }
 
 //TEST_CASE("GRM forward sensitivity vs FD", "[GRM],[FV],[Sensitivity],[Simulation],[failedFDtestGRM]") // todo fix. fails for SMA_KA for both binding modes

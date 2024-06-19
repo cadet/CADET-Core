@@ -87,7 +87,9 @@ TEST_CASE("LRMP_DG time derivative Jacobian vs FD", "[LRMP],[DG],[UnitOp],[Resid
 
 TEST_CASE("LRMP_DG sensitivity Jacobians", "[LRMP],[DG],[UnitOp],[Sensitivity],[CI]")
 {
-	cadet::test::column::testFwdSensJacobians("LUMPED_RATE_MODEL_WITH_PORES", "DG", 1e-4, 6e-7);
+	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding("LUMPED_RATE_MODEL_WITH_PORES", "DG");
+
+	cadet::test::column::testFwdSensJacobians(jpp, 1e-4, 6e-7);
 }
  
 //// todo fix: not just adjust tolerances as in FV but theres an actual error here: access violation in densematrix
