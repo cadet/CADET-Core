@@ -5,10 +5,10 @@
     {
       "type": "default",
       "project": "CMakeLists.txt",
-      "projectTarget": "cadet-cli.exe (Install) (bin\\cadet-cli.exe)",
+      "projectTarget": "cadet-cli.exe (Install) (bin/cadet-cli.exe)",
       "name": "CoreDebug.txt",
       "args": [
-        "path_to_setup_file\\model.h5>"
+        "path_to_setup_file/model.h5>"
       ]
     }
   ]

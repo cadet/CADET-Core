@@ -33,8 +33,8 @@ To debug specific tests (with flag [testHere]) from the Visual Studio IDE, you c
     {
       "type": "default",
       "project": "CMakeLists.txt",
-      "projectTarget": "testRunner.exe (test\\Debug\\testRunner.exe)",
-      "name": "testRunner.exe (test\\Debug\\testRunner.exe)",
+      "projectTarget": "testRunner.exe (test/Debug/testRunner.exe)",
+      "name": "testRunner.exe (test/Debug/testRunner.exe)",
       "args": [
         "[testHere]"
       ]
