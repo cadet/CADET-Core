@@ -330,6 +330,34 @@ namespace binding
 	}
 }  // namespace binding
 
+class NoJacobianStericMassActionBinding : public model::StericMassActionBinding {
+
+public:
+
+	static const char* identity() { return "NO_JACOBIAN_STERIC_MASS_ACTION"; }
+
+	CADET_BINDINGMODELBASE_BOILERPLATE
+
+protected:
+
+	const char* name() const CADET_NOEXCEPT override { return identity(); }
+	bool implementsAnalyticJacobian() const CADET_NOEXCEPT override { return false; }
+
+	template <typename RowIterator>
+	void jacobianImpl(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, double const* yCp, int offsetCp, RowIterator jac, LinearBufferAllocator workSpace) const
+	{
+		BindingModelBase::jacobianImpl(t, secIdx, colPos, y, yCp, offsetCp, jac, workSpace);
+	}
+};
+
+namespace binding
+{
+	void registerNoJacobianStericMassActionModel(std::unordered_map<std::string, std::function<model::IBindingModel* ()>>& bindings)
+	{
+		bindings[NoJacobianStericMassActionBinding::identity()] = []() { return new NoJacobianStericMassActionBinding(); };
+	}
+}  // namespace binding
+
 }  // namespace model
 
 }  // namespace cadet

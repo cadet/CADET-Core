@@ -13,6 +13,8 @@
 #include <catch.hpp>
 #include "Approx.hpp"
 #include "cadet/cadet.hpp"
+#include "common/Driver.hpp"
+#include "common/JsonParameterProvider.hpp"
 
 #define CADET_LOGGING_DISABLE
 #include "Logging.hpp"
@@ -25,6 +27,7 @@
 #include "linalg/DenseMatrix.hpp"
 #include "AdUtils.hpp"
 #include "AutoDiff.hpp"
+#include "JsonTestModels.hpp"
 
 namespace cadet
 {
@@ -97,7 +100,7 @@ namespace cadet
 
 } // namespace cadet
 
-TEST_CASE("Automatic AD binding model Jacobian vs FD", "[BindingModel],[Jacobian]")
+TEST_CASE("Automatic AD binding model Jacobian vs FD", "[BindingModel],[Jacobian],[CI]")
 {
 	cadet::BindingWithoutJacobian bm;
 	const int nComp = 4;
@@ -138,7 +141,7 @@ TEST_CASE("Automatic AD binding model Jacobian vs FD", "[BindingModel],[Jacobian
 	);
 }
 
-TEST_CASE("Automatic AD disabled for binding model with Jacobian", "[BindingModel],[Jacobian]")
+TEST_CASE("Automatic AD disabled for binding model with Jacobian", "[BindingModel],[Jacobian],[CI]")
 {
 	cadet::BindingWithJacobian bm;
 	const int nComp = 4;
@@ -156,4 +159,37 @@ TEST_CASE("Automatic AD disabled for binding model with Jacobian", "[BindingMode
 	REQUIRE(bm.requiredADdirs() == 0);
 
 	REQUIRE(bm.workspaceSize(4, totalBoundStates, boundOffset) == 0);
+}
+
+TEST_CASE("Full analytic Jacobian vs AD only enabled for binding model for a LRMP with multi-state SMA", "[BindingModel],[Jacobian],[Simulation],[CI]")
+{
+	nlohmann::json jsonJpp = createLWEJson("LUMPED_RATE_MODEL_WITH_PORES", "FV");
+
+	// Binding AD Jacobian by calling a SMA implementation that has no Jacobian implementation provided
+	jsonJpp["model"]["unit_000"]["ADSORPTION_MODEL"] = "NO_JACOBIAN_STERIC_MASS_ACTION";
+	cadet::JsonParameterProvider jppBndADJac(jsonJpp);
+	cadet::Driver drvBndADJac;
+	drvBndADJac.configure(jppBndADJac);
+	drvBndADJac.run();
+
+	// Full analytical Jacobian by calling the full SMA implementation
+	jsonJpp["model"]["unit_000"]["ADSORPTION_MODEL"] = "STERIC_MASS_ACTION";
+	cadet::JsonParameterProvider jppFullAnaJac(jsonJpp);
+
+	cadet::Driver drvFullAnaJac;
+	drvFullAnaJac.configure(jppFullAnaJac);
+	drvFullAnaJac.run();
+
+	cadet::InternalStorageUnitOpRecorder const* const FullAnaJacData = drvFullAnaJac.solution()->unitOperation(0);
+	cadet::InternalStorageUnitOpRecorder const* const BndADJacData = drvBndADJac.solution()->unitOperation(0);
+
+	double const* FullAnaJacOutlet = FullAnaJacData->outlet();
+	double const* BndADJacOutlet = BndADJacData->outlet();
+
+	const unsigned int nComp = FullAnaJacData->numComponents();
+	for (unsigned int i = 0; i < FullAnaJacData->numDataPoints() * FullAnaJacData->numInletPorts() * nComp; ++i, ++FullAnaJacOutlet, ++BndADJacOutlet)
+	{
+		CAPTURE(i);
+		CHECK((*FullAnaJacOutlet) == cadet::test::makeApprox(*BndADJacOutlet, 1e-3, 5e-9)); // 1e-10, 1e-15 for DG
+	}
 }
