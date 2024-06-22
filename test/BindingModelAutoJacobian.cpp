@@ -13,17 +13,16 @@
 #include <catch.hpp>
 #include "Approx.hpp"
 #include "cadet/cadet.hpp"
-#include "common/Driver.hpp"
-#include "common/JsonParameterProvider.hpp"
 
 #define CADET_LOGGING_DISABLE
 #include "Logging.hpp"
+#include "LoggingUtils.hpp"
 
+#include "common/Driver.hpp"
+#include "common/JsonParameterProvider.hpp"
 #include "model/binding/BindingModelBase.hpp"
-
 #include "JacobianHelper.hpp"
 #include "Dummies.hpp"
-
 #include "linalg/DenseMatrix.hpp"
 #include "AdUtils.hpp"
 #include "AutoDiff.hpp"
