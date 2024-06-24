@@ -23,7 +23,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # The below token has repo scope for the project configured further below to store signatures.
           PERSONAL_ACCESS_TOKEN: ${{ secrets.CADET_CLA_SIGNATURES }}
-          PATH_TO_CLA: 'https://github.com/modsim/CADET/blob/main/CLA.md'
+          PATH_TO_CLA: 'https://github.com/modsim/CADET/blob/master/CLA.md'
         with:
           path-to-signatures: 'signatures/version1/signatures.json'
           path-to-document: $PATH_TO_CLA
