@@ -80,6 +80,7 @@ Bugs
 ----
 
 Please report any bugs that you find `here <https://github.com/modsim/cadet/issues>`_. Or, even better, fork the repository on `GitHub <https://github.com/modsim/cadet>`_ and create a pull request (PR) with the fix. 
+ᓚᘏᗢ
 
 Donations
 ---------
