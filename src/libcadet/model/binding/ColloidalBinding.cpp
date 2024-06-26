@@ -45,7 +45,7 @@
 			{ "type": "ScalarComponentDependentParameter", "varName": "bppSaltPowerFact", "confName": "COL_BPP_SALT_POWFACT"},
 			{ "type": "ScalarComponentDependentParameter", "varName": "bppSaltExpFact", "confName": "COL_BPP_SALT_EXPFACT"},
 			{ "type": "ScalarComponentDependentParameter", "varName": "bppSaltExpExp", "confName": "COL_BPP_SALT_EXPARGMULT"},
-			{ "type": "ScalarComponentDependentParameter", "varName": "radius", "confName": "COL_RADIUS"},
+			{ "type": "ScalarComponentDependentParameter", "varName": "radius", "confName": "COL_PROTEIN_RADIUS"},
 			{ "type": "ScalarComponentDependentParameter", "varName": "kKin", "confName": "COL_KKIN"}
 		],
 	"constantParameters":
@@ -81,7 +81,7 @@ inline bool ColloidalParamHandler::validateConfig(unsigned int nComp, unsigned i
 			|| (_kEqPhExp.size() != _kKin.size())
 			|| (_kEqPhExp.size() < nComp)
 		)
-		throw InvalidParameterException("COL_LOGKEQ_PH_EXP, COL_LOGKEQ_SALT_POWEXP, COL_LOGKEQ_SALT_POWFACT, COL_LOGKEQ_SALT_EXPFACT, COL_LOGKEQ_SALT_EXPMULT, COL_RADIUS, and COL_KKIN have to have the same size");
+		throw InvalidParameterException("COL_LOGKEQ_PH_EXP, COL_LOGKEQ_SALT_POWEXP, COL_LOGKEQ_SALT_POWFACT, COL_LOGKEQ_SALT_EXPFACT, COL_LOGKEQ_SALT_EXPMULT, COL_PROTEIN_RADIUS, and COL_KKIN have to have the same size");
 
 	if ((_kEqPhExp.size() != _bppPhExp.size())
 			|| (_kEqPhExp.size() != _bppSaltPowerExp.size())
@@ -107,7 +107,7 @@ inline bool ExtColloidalParamHandler::validateConfig(unsigned int nComp, unsigne
 			|| (_kEqPhExp.size() != _kKin.size())
 			|| (_kEqPhExp.size() < nComp)
 		)
-		throw InvalidParameterException("EXTCOL_LOGKEQ_PH_EXP, EXTCOL_LOGKEQ_SALT_POWEXP, EXTCOL_LOGKEQ_SALT_POWFACT, EXTCOL_LOGKEQ_SALT_EXPFACT, EXTCOL_LOGKEQ_SALT_EXPMULT, EXTCOL_RADIUS, and EXTCOL_KKIN have to have the same size");
+		throw InvalidParameterException("EXTCOL_LOGKEQ_PH_EXP, EXTCOL_LOGKEQ_SALT_POWEXP, EXTCOL_LOGKEQ_SALT_POWFACT, EXTCOL_LOGKEQ_SALT_EXPFACT, EXTCOL_LOGKEQ_SALT_EXPMULT, COL_PROTEIN_RADIUS, and EXTCOL_KKIN have to have the same size");
 
 	if ((_kEqPhExp.size() != _bppPhExp.size())
 			|| (_kEqPhExp.size() != _bppSaltPowerExp.size())
@@ -398,10 +398,10 @@ protected:
 				if (phEnabled)
 				{
 					const double pH = yCp[1];
+					logKeq_dPh = pow(pH, static_cast<double>(p->kEqPhExp[i]) - 1.0) * static_cast<double>(p->kEqPhExp[i]) * logKeq;
 					const double pHfactor = pow(pH, static_cast<double>(p->kEqPhExp[i]));
 					logKeq *= pHfactor;
 					logKeq_dSalt *= pHfactor;
-					logKeq_dPh = pow(pH, static_cast<double>(p->kEqPhExp[i]) - 1.0) * static_cast<double>(p->kEqPhExp[i]) * logKeq;
 				}
 
 				double bpp_i = pow(cpSalt, static_cast<double>(p->bppSaltPowerExp[i])) * static_cast<double>(p->bppSaltPowerFact[i]) + exp(cpSalt * static_cast<double>(p->bppSaltExpExp[i])) * static_cast<double>(p->bppSaltExpFact[i]);
