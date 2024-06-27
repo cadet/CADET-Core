@@ -1597,7 +1597,7 @@ namespace column
 		destroyModelBuilder(mb);
 	}
 
-	void testReferenceBenchmark(const std::string& modelFileRelPath, const std::string& refFileRelPath, const std::string& unitID, const std::vector<double> absTol, const std::vector<double> relTol, const DiscParams& disc, const bool compare_sens)
+	void testReferenceBenchmark(const std::string& modelFileRelPath, const std::string& refFileRelPath, const std::string& unitID, const std::vector<double> absTol, const std::vector<double> relTol, const DiscParams& disc, const bool compare_sens, const int simDataStride)
 	{
 		const int unitOpID = std::stoi(unitID);
 
@@ -1654,14 +1654,18 @@ namespace column
 		pp_ref.pushScope("output");
 		pp_ref.pushScope("solution");
 		pp_ref.pushScope("unit_" + unitID);
-		const std::vector<double> ref_outlet = pp_ref.getDoubleArray("SOLUTION_OUTLET");
+		std::vector<double> ref_outlet;
+		if (pp_ref.exists("SOLUTION_OUTLET"))
+			ref_outlet = pp_ref.getDoubleArray("SOLUTION_OUTLET");
+		else
+			ref_outlet = pp_ref.getDoubleArray("SOLUTION_OUTLET_PORT_000");
 		pp_ref.popScope();
 		pp_ref.popScope();
 
 		// compare the simulation results with the reference data
 		for (unsigned int i = 0; i < ref_outlet.size(); ++i)
-			CHECK((sim_outlet[i]) == cadet::test::makeApprox(ref_outlet[i], relTol[0], absTol[0]));
-
+			CHECK((sim_outlet[i * simDataStride]) == cadet::test::makeApprox(ref_outlet[i], relTol[0], absTol[0]));
+		
 		if (pp_ref.exists("sensitivity") && compare_sens)
 		{
 			pp_ref.pushScope("sensitivity");
