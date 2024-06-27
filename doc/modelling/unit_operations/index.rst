@@ -47,7 +47,7 @@ is given in :numref:`table_features_unit_operations`.
      - ×
      - ×
      - ✓
-   * - :ref:`multi_channel_transport_model`
+   * - :ref:`multi_channel_transport_model_model`
      - ×
      - ×
      - ×
