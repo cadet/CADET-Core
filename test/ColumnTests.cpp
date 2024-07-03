@@ -1665,7 +1665,6 @@ namespace column
 		// compare the simulation results with the reference data
 		for (unsigned int i = 0; i < ref_outlet.size(); ++i)
 			CHECK((sim_outlet[i * simDataStride]) == cadet::test::makeApprox(ref_outlet[i], relTol[0], absTol[0]));
-		
 		if (pp_ref.exists("sensitivity") && compare_sens)
 		{
 			pp_ref.pushScope("sensitivity");
