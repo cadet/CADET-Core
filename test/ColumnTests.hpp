@@ -364,7 +364,7 @@ namespace column
 	 * @param [in] disc Numerical discretization parameters
 	 * @param [in] compare_sens Specifies whether sensitivities are included
 	 */
-	void testReferenceBenchmark(const std::string& modelFileRelPath, const std::string& refFileRelPath, const std::string& unitID, const std::vector<double> absTol, const std::vector<double> relTol, const cadet::test::column::DiscParams& disc, const bool compare_sens = false);
+	void testReferenceBenchmark(const std::string& modelFileRelPath, const std::string& refFileRelPath, const std::string& unitID, const std::vector<double> absTol, const std::vector<double> relTol, const cadet::test::column::DiscParams& disc, const bool compare_sens = false, const int simDataStride = 1);
 
 	/**
 	 * @brief Runs an EOC test comparing against numerical reference data (outlet data)
