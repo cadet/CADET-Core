@@ -33,10 +33,9 @@ Implementation Details
 ^^^^^^^^^^^^^^^^^^^^^^
 
 Classes and realationships
-Include figure 3.4 and/or 3.6 from Sams Diss
 
 .. _LibcadetClasses: 
-.. figure:: architecture_libcadet_classes.png
+.. figure:: _images/architecture_libcadet_classes.png
 
 
    Selected relationships of classes in ``libcadet`` [1]_.

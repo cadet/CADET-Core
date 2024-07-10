@@ -14,6 +14,9 @@ Since some developers may be new to collaborative software development using Git
 
 
 .. toctree::
+   :maxdepth: 2
+
+   cadet_python
    cadet_core_architecture
    build_options
    model_expansion
