@@ -426,38 +426,42 @@ namespace column
 		pp.popScope();
 
 		pp.pushScope("unit_" + unitID);
-		pp.pushScope("discretization");
-		nlohmann::json discretization = setupJson["model"]["unit_" + unitID]["discretization"];
-		if (pp.exists("NBOUND"))
-			discretization["NBOUND"] = pp.getIntArray("NBOUND"); // note: in the future this might be included somewhere else in the setup as its part of the model
-		if (pp.exists("RECONSTRUCTION"))
-			discretization["RECONSTRUCTION"] = pp.getString("RECONSTRUCTION");
-		if (pp.exists("USE_ANALYTIC_JACOBIAN"))
-			discretization["USE_ANALYTIC_JACOBIAN"] = pp.getInt("USE_ANALYTIC_JACOBIAN");
-		if (pp.exists("GS_TYPE"))
-			discretization["GS_TYPE"] = pp.getInt("GS_TYPE");
-		if (pp.exists("MAX_KRYLOV"))
-			discretization["MAX_KRYLOV"] = pp.getInt("MAX_KRYLOV");
-		if (pp.exists("MAX_RESTARTS"))
-			discretization["MAX_RESTARTS"] = pp.getInt("MAX_RESTARTS");
-		if (pp.exists("SCHUR_SAFETY"))
-			discretization["SCHUR_SAFETY"] = pp.getDouble("SCHUR_SAFETY");
-		if (pp.exists("PAR_DISC_TYPE"))
-			discretization["PAR_DISC_TYPE"] = pp.getStringArray("PAR_DISC_TYPE");
-		if (pp.exists("PAR_GEOM")) // note: in the future this might be included somewhere else in the setup as its part of the model
-			discretization["PAR_GEOM"] = pp.getStringArray("PAR_GEOM");
-		if (pp.exists("weno"))
+
+		if (pp.getString("UNIT_TYPE") != "CSTR") // check for units that dont have a spatial discretization
 		{
-			pp.pushScope("weno");
-			nlohmann::json weno;
-			weno["WENO_ORDER"] = pp.getInt("WENO_ORDER");
-			weno["WENO_EPS"] = pp.getDouble("WENO_EPS");
-			weno["BOUNDARY_MODEL"] = pp.getInt("BOUNDARY_MODEL");
-			discretization["weno"] = weno;
+			pp.pushScope("discretization");
+			nlohmann::json discretization = setupJson["model"]["unit_" + unitID]["discretization"];
+			if (pp.exists("NBOUND"))
+				discretization["NBOUND"] = pp.getIntArray("NBOUND"); // note: in the future this might be included somewhere else in the setup as its part of the model
+			if (pp.exists("RECONSTRUCTION"))
+				discretization["RECONSTRUCTION"] = pp.getString("RECONSTRUCTION");
+			if (pp.exists("USE_ANALYTIC_JACOBIAN"))
+				discretization["USE_ANALYTIC_JACOBIAN"] = pp.getInt("USE_ANALYTIC_JACOBIAN");
+			if (pp.exists("GS_TYPE"))
+				discretization["GS_TYPE"] = pp.getInt("GS_TYPE");
+			if (pp.exists("MAX_KRYLOV"))
+				discretization["MAX_KRYLOV"] = pp.getInt("MAX_KRYLOV");
+			if (pp.exists("MAX_RESTARTS"))
+				discretization["MAX_RESTARTS"] = pp.getInt("MAX_RESTARTS");
+			if (pp.exists("SCHUR_SAFETY"))
+				discretization["SCHUR_SAFETY"] = pp.getDouble("SCHUR_SAFETY");
+			if (pp.exists("PAR_DISC_TYPE"))
+				discretization["PAR_DISC_TYPE"] = pp.getStringArray("PAR_DISC_TYPE");
+			if (pp.exists("PAR_GEOM")) // note: in the future this might be included somewhere else in the setup as its part of the model
+				discretization["PAR_GEOM"] = pp.getStringArray("PAR_GEOM");
+			if (pp.exists("weno"))
+			{
+				pp.pushScope("weno");
+				nlohmann::json weno;
+				weno["WENO_ORDER"] = pp.getInt("WENO_ORDER");
+				weno["WENO_EPS"] = pp.getDouble("WENO_EPS");
+				weno["BOUNDARY_MODEL"] = pp.getInt("BOUNDARY_MODEL");
+				discretization["weno"] = weno;
+				pp.popScope();
+			}
+			setupJson["model"]["unit_" + unitID]["discretization"] = discretization;
 			pp.popScope();
 		}
-		setupJson["model"]["unit_" + unitID]["discretization"] = discretization;
-		pp.popScope();
 		pp.popScope();
 		pp.popScope();
 
@@ -830,7 +834,7 @@ namespace column
 	}
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-	void testJacobianAD(cadet::JsonParameterProvider& jpp, const double absTolFDpattern)
+	void testJacobianAD(cadet::JsonParameterProvider& jpp, const double absTolFDpattern, const double absTolAD)
 	{
 		cadet::ad::setDirections(cadet::ad::getMaxDirections()); // AD directions needed in createAndConfigureUnit but requiredADdirs not know before configureModelDiscretization (which is called in configureUnit)
 
@@ -879,7 +883,7 @@ namespace column
 		// Compare Jacobians
 		cadet::test::checkJacobianPatternFD(unitAna, unitAD, y.data(), nullptr, jacDir.data(), jacCol1.data(), jacCol2.data(), tls, absTolFDpattern);
 		cadet::test::checkJacobianPatternFD(unitAna, unitAna, y.data(), nullptr, jacDir.data(), jacCol1.data(), jacCol2.data(), tls, absTolFDpattern);
-		cadet::test::compareJacobian(unitAna, unitAD, nullptr, nullptr, jacDir.data(), jacCol1.data(), jacCol2.data());
+		cadet::test::compareJacobian(unitAna, unitAD, nullptr, nullptr, jacDir.data(), jacCol1.data(), jacCol2.data(), absTolAD);
 //				cadet::test::compareJacobianFD(unitAna, unitAD, y.data(), nullptr, jacDir.data(), jacCol1.data(), jacCol2.data());
 
 		delete[] adRes;
@@ -1684,6 +1688,7 @@ namespace column
 		// compare the simulation results with the reference data
 		for (unsigned int i = 0; i < ref_outlet.size(); ++i)
 			CHECK((sim_outlet[i * simDataStride]) == cadet::test::makeApprox(ref_outlet[i], relTol[0], absTol[0]));
+
 		if (pp_ref.exists("sensitivity") && compare_sens)
 		{
 			pp_ref.pushScope("sensitivity");
