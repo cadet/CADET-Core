@@ -44,6 +44,17 @@ namespace column
 		virtual void setDisc(JsonParameterProvider& jpp, const std::string unitID = "000") const = 0;
 	};
 
+	struct Dummyparams : public DiscParams {
+
+		int getNAxCells() const override { return 0; }
+		int getNParCells() const override { return 0; }
+
+		void setDisc(JsonParameterProvider& jpp, const std::string unitID = "000") const
+		{
+			// No discretization to be set
+		}
+	};
+
 	struct FVparams : public DiscParams {
 		int nAxCells;
 		int nParCells;
@@ -179,8 +190,9 @@ namespace column
 	 * @details Checks the analytic Jacobian against the AD Jacobian and checks both against the FD pattern.
 	 * @param [in] jpp Configured column model
 	 * @param [in] absTolFDpattern absolute tolerance when comparing the sign in the FD Jacobian pattern
+	 * @param [in] absTolAD absolute tolerance when comparing the AD Jacobians. Deviation from default only advised when values are numerically challenging, i.e. are at least 1E+10
 	 */
-	void testJacobianAD(cadet::JsonParameterProvider& jpp, const double absTolFDpattern = 0.0);
+	void testJacobianAD(cadet::JsonParameterProvider& jpp, const double absTolFDpattern = 0.0, const double absTolAD = std::numeric_limits<float>::epsilon() * 100.0);
 
 	/**
 	 * @brief Checks the full Jacobian against AD and FD pattern switching in case of variable surface diffusion coefficient
