@@ -114,7 +114,7 @@ As for the particle phase, the solute mass concentration subjects to the Danckwe
 Constitutive equations
 ^^^^^^^^^^^^^^^^^^^^^^
 
-Constitutive equations describe the kinetic processes in the governing equations. The relative supersaturation :math:`s \geq 0` is:
+Constitutive equations describe the kinetic processes in the governing equations. The relative supersaturation :math:`s>0` is:
 
 .. math::
 
