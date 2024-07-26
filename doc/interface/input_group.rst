@@ -9,7 +9,7 @@ Input Group
     system
     unit_operations/index
     binding/index
-    reactions
+    reaction/index
     spatial_discretization_methods
     flux_reconstruction
     consistent_initialization
