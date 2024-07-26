@@ -9,6 +9,7 @@ If you find any gaps or have suggestions for improvement, your input is valuable
 Please feel free to open an `issue on GitHub <https://github.com/modsim/CADET/issues>`_ or, even better, write a draft and create a pull request.
 
 .. toctree::
+   build_options
    model_expansion
    debugging
    testing
