@@ -3,7 +3,7 @@
 Multi Component Sips
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
-The Sips binding model is a combination of the Freundlich and the :ref:`Langmuir adsorption model<multi_component_langmuir_model>`.
+The Sips binding model is a combination of the :ref:`Freundlich<freundlich_ldf_model>` and the :ref:`Langmuir adsorption model<multi_component_langmuir_model>`.
 
 .. math::
 
