@@ -34,6 +34,10 @@
 			{ "type": "ScalarComponentDependentParameter", "varName": "qMax", "confName": "MPM_QMAX"},
 			{ "type": "ScalarComponentDependentParameter", "varName": "gamma", "confName": "MPM_GAMMA"},
 			{ "type": "ScalarComponentDependentParameter", "varName": "beta", "confName": "MPM_BETA"}
+		],
+	"constantParameters":
+		[
+			{ "type": "ScalarParameter", "varName": "linearThreshold", "confName": "MPM_LINEAR_THRESHOLD"}
 		]
 }
 </codegen>*/
@@ -85,10 +89,10 @@ inline bool ExtMPMLangmuirParamHandler::validateConfig(unsigned int nComp, unsig
  *          While @f$ \gamma @f$ describes hydrophobicity, @f$ \beta @f$ accounts for ion-exchange characteristics.
  *          Multiple bound states are not supported. Component @c 0 is assumed to be salt, which is also assumed to be inert.
  *          Components without bound state (i.e., non-binding components) are supported.
- *          
+ *
  *          Note that the first flux is only used if salt (component @c 0) has a bound state.
  *          It is reasonable to set the number of bound states for salt to @c 0 in order to save time and memory.
- *          
+ *
  *          See @cite Melander1989 and @cite Karlsson2004.
  * @tparam ParamHandler_t Type that can add support for external function dependence
  */
@@ -131,6 +135,8 @@ protected:
 	{
 		typename ParamHandler_t::ParamsHandle const p = _paramHandler.update(t, secIdx, colPos, _nComp, _nBoundStates, workSpace);
 
+		const double linearThreshold = static_cast<double>(p->linearThreshold);
+
 		// Salt flux: 0
 		// Protein fluxes: -k_{a,i} * exp(\gamma_i * c_{p,0}) * c_{p,i} * q_{max,i} * (1 - \sum q_i / q_{max,i}) + k_{d,i} * c_{p,0}^\beta_i * q_i)
 		ResidualType qSum = 1.0;
@@ -166,8 +172,21 @@ protected:
 				continue;
 
 			// Residual
-			res[bndIdx] = static_cast<ParamType>(p->kD[i]) * pow(yCp[0], static_cast<ParamType>(p->beta[i])) * y[bndIdx] - static_cast<ParamType>(p->kA[i]) * exp(yCp[0] * static_cast<ParamType>(p->gamma[i])) * yCp[i] * static_cast<ParamType>(p->qMax[i]) * qSum;
+			if (yCp[0] <= linearThreshold)
+			{
+				ResidualType alpha = static_cast<ParamType>(p->kA[i]) * yCp[i] * static_cast<ParamType>(p->qMax[i]) * qSum;
 
+				// Linearize
+				ResidualType fThreshold = static_cast<ParamType>(p->kD[i]) * pow(linearThreshold, static_cast<ParamType>(p->beta[i])) * y[bndIdx] - alpha * exp(linearThreshold * static_cast<ParamType>(p->gamma[i]));  // f(threshold)
+				ResidualType fdThreshold = static_cast<ParamType>(p->kD[i]) * pow(linearThreshold, static_cast<ParamType>(p->beta[i]) - 1) * static_cast<ParamType>(p->beta[i]) * y[bndIdx] - alpha * exp(linearThreshold * static_cast<ParamType>(p->gamma[i])) * static_cast<ParamType>(p->gamma[i]);  // f'(threshold)
+
+				res[bndIdx] = fThreshold + fdThreshold * (yCp[0] - linearThreshold);
+			}
+			else
+			{
+				// Residual
+				res[bndIdx] = static_cast<ParamType>(p->kD[i]) * pow(yCp[0], static_cast<ParamType>(p->beta[i])) * y[bndIdx] - static_cast<ParamType>(p->kA[i]) * exp(yCp[0] * static_cast<ParamType>(p->gamma[i])) * yCp[i] * static_cast<ParamType>(p->qMax[i]) * qSum;
+			}
 			// Next bound component
 			++bndIdx;
 		}
@@ -179,6 +198,8 @@ protected:
 	void jacobianImpl(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, double const* yCp, int offsetCp, RowIterator jac, LinearBufferAllocator workSpace) const
 	{
 		typename ParamHandler_t::ParamsHandle const p = _paramHandler.update(t, secIdx, colPos, _nComp, _nBoundStates, workSpace);
+
+		const double linearThreshold = static_cast<double>(p->linearThreshold);
 
 		// Salt flux
 		int bndIdx = 0;
@@ -215,16 +236,31 @@ protected:
 			const double gamma = static_cast<double>(p->gamma[i]);
 			const double beta = static_cast<double>(p->beta[i]);
 			const double qMax = static_cast<double>(p->qMax[i]);
-			const double ka = static_cast<double>(p->kA[i]) * exp(gamma * yCp[0]);
+			const double ka = static_cast<double>(p->kA[i]);
+			double kaEGammaC0;
 			const double kdRaw = static_cast<double>(p->kD[i]);
 
-			// dres_i / dc_{p,0}
-			jac[-bndIdx - offsetCp] = -ka * yCp[i] * qMax * qSum * gamma + kdRaw * beta * y[bndIdx] * pow(yCp[0], beta - 1.0);
-			// Getting to c_{p,0}: -bndIdx takes us to q_0, another -offsetCp to c_{p,0}.
-			//                     This means jac[bndIdx - offsetCp] corresponds to c_{p,0}.
+			if (yCp[0] <= linearThreshold)
+			{
+				kaEGammaC0 = ka * exp(gamma * linearThreshold);
+
+				// dres_i / dc_{p,0}
+				jac[-bndIdx - offsetCp] = -kaEGammaC0 * yCp[i] * qMax * qSum * gamma + kdRaw * pow(linearThreshold, beta) * beta * y[bndIdx];
+				// Getting to c_{p,0}: -bndIdx takes us to q_0, another -offsetCp to c_{p,0}.
+				//                     This means jac[bndIdx - offsetCp] corresponds to c_{p,0}.
+			}
+			else
+			{
+				kaEGammaC0 = ka * exp(gamma * yCp[0]);
+
+				// dres_i / dc_{p,0}
+				jac[-bndIdx - offsetCp] = -kaEGammaC0 * yCp[i] * qMax * qSum * gamma + kdRaw * beta * y[bndIdx] * pow(yCp[0], beta - 1.0);
+				// Getting to c_{p,0}: -bndIdx takes us to q_0, another -offsetCp to c_{p,0}.
+				//                     This means jac[bndIdx - offsetCp] corresponds to c_{p,0}.
+			}
 
 			// dres_i / dc_{p,i}
-			jac[i - bndIdx - offsetCp] = -ka * qMax * qSum;
+			jac[i - bndIdx - offsetCp] = -kaEGammaC0 * qMax * qSum;
 			// Getting to c_{p,i}: -bndIdx takes us to q_0, another -offsetCp to c_{p,0} and a +i to c_{p,i}.
 			//                     This means jac[i - bndIdx - offsetCp] corresponds to c_{p,i}.
 
@@ -240,14 +276,22 @@ protected:
 					continue;
 
 				// dres_i / dq_j
-				jac[bndIdx2 - bndIdx] = ka * yCp[i] * qMax / static_cast<double>(p->qMax[j]);
+				jac[bndIdx2 - bndIdx] = kaEGammaC0 * yCp[i] * qMax / static_cast<double>(p->qMax[j]);
 				// Getting to q_j: -bndIdx takes us to q_0, another +bndIdx2 to q_j. This means jac[bndIdx2 - bndIdx] corresponds to q_j.
 
 				++bndIdx2;
 			}
 
-			// Add to dres_i / dq_i
-			jac[0] += kdRaw * pow(yCp[0], beta);
+			if (yCp[0] <= linearThreshold)
+			{
+				// Add to dres_i / dq_i
+				jac[0] += kdRaw * pow(linearThreshold, beta);
+			}
+			else
+			{
+				// Add to dres_i / dq_i
+				jac[0] += kdRaw * pow(yCp[0], beta);
+			}
 
 			// Advance to next flux and Jacobian row
 			++bndIdx;
