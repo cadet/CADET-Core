@@ -238,18 +238,20 @@ CADET_BINDINGTEST("MULTI_COMPONENT_ANTILANGMUIR", "EXT_MULTI_COMPONENT_ANTILANGM
 	1e-10, 1e-10, CADET_NONBINDING_LIQUIDPHASE_COMP_UNUSED, CADET_COMPARE_BINDING_VS_NONBINDING)
 
 
-CADET_BINDINGTEST("MOBILE_PHASE_MODULATOR", "EXT_MOBILE_PHASE_MODULATOR", (1,1,1), (1,1,0,1), (1.2, 1.5, 2.0, 0.5, 1.5, 1.8), (1.2, 1.5, 0.0, 2.0, 0.5, 1.5, 1.8), \
+CADET_BINDINGTEST("MOBILE_PHASE_MODULATOR", "EXT_MOBILE_PHASE_MODULATOR", (1,1,1), (1,1,0,1), (1.2, 1.5, 2.0, 0.5, 1.5, 1.8), (1.2, 1.5, 1.0, 2.0, 0.5, 1.5, 1.8), \
 	R"json( "MPM_KA": [0.0, 1.14, 2.0],
 	        "MPM_KD": [0.0, 0.004, 0.008],
 	        "MPM_QMAX": [0.0, 4.88, 3.5],
 	        "MPM_GAMMA": [0.0, 0.5, -1.0],
-	        "MPM_BETA": [0.0, 1.5, 2.0]
+	        "MPM_BETA": [0.0, 1.5, 2.0],
+			"MPM_LINEAR_THRESHOLD": 1e-10
 	)json", \
 	R"json( "MPM_KA": [0.0, 1.14, 1.0, 2.0],
 	        "MPM_KD": [0.0, 0.004, 2.0, 0.008],
 	        "MPM_QMAX": [0.0, 4.88, 3.0, 3.5],
 	        "MPM_GAMMA": [0.0, 0.5, 0.0, -1.0],
-	        "MPM_BETA": [0.0, 1.5, 0.0, 2.0]
+	        "MPM_BETA": [0.0, 1.5, 0.0, 2.0],
+			"MPM_LINEAR_THRESHOLD": 1e-10
 	)json", \
 	R"json( "EXT_MPM_KA": [0.0, 0.0, 0.0],
 	        "EXT_MPM_KA_T": [0.0, 1.14, 2.0],
@@ -270,7 +272,8 @@ CADET_BINDINGTEST("MOBILE_PHASE_MODULATOR", "EXT_MOBILE_PHASE_MODULATOR", (1,1,1
 	        "EXT_MPM_BETA": [0.0, 0.0, 0.0],
 	        "EXT_MPM_BETA_T": [0.0, 1.5, 2.0],
 	        "EXT_MPM_BETA_TT": [0.0, 0.0, 0.0],
-	        "EXT_MPM_BETA_TTT": [0.0, 0.0, 0.0]
+	        "EXT_MPM_BETA_TTT": [0.0, 0.0, 0.0],
+			"EXT_MPM_LINEAR_THRESHOLD": 1e-10
 	)json", \
 	R"json( "EXT_MPM_KA": [0.0, 0.0, 0.0, 0.0],
 	        "EXT_MPM_KA_T": [0.0, 1.14, 1.0, 2.0],
@@ -291,7 +294,69 @@ CADET_BINDINGTEST("MOBILE_PHASE_MODULATOR", "EXT_MOBILE_PHASE_MODULATOR", (1,1,1
 	        "EXT_MPM_BETA": [0.0, 0.0, 0.0, 0.0],
 	        "EXT_MPM_BETA_T": [0.0, 1.5, 0.0, 2.0],
 	        "EXT_MPM_BETA_TT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_MPM_BETA_TTT": [0.0, 0.0, 0.0, 0.0]
+	        "EXT_MPM_BETA_TTT": [0.0, 0.0, 0.0, 0.0],
+			"EXT_MPM_LINEAR_THRESHOLD": 1e-10
+	)json", \
+	1e-10, 1e-10, CADET_NONBINDING_LIQUIDPHASE_COMP_UNUSED, CADET_COMPARE_BINDING_VS_NONBINDING)
+	
+	CADET_BINDINGTEST_MULTI("MOBILE_PHASE_MODULATOR", "EXT_MOBILE_PHASE_MODULATOR", "_NEGATIVE", (1, 1, 1), (1, 1, 0, 1), (-1e-11, 1.5, 2.0, 0.5, 1.5, 1.8), (-1e-11, 1.5, 0.5, 2.0, 0.5, 1.5, 1.8), \
+	R"json( "MPM_KA": [0.0, 1.14, 2.0],
+	        "MPM_KD": [0.0, 0.004, 0.008],
+	        "MPM_QMAX": [0.0, 4.88, 3.5],
+	        "MPM_GAMMA": [0.0, 0.5, -1.0],
+	        "MPM_BETA": [0.0, 1.5, 2.0],
+			"MPM_LINEAR_THRESHOLD": 1e-10
+	)json", \
+	R"json( "MPM_KA": [0.0, 1.14, 1.0, 2.0],
+	        "MPM_KD": [0.0, 0.004, 2.0, 0.008],
+	        "MPM_QMAX": [0.0, 4.88, 3.0, 3.5],
+	        "MPM_GAMMA": [0.0, 0.5, 0.0, -1.0],
+	        "MPM_BETA": [0.0, 1.5, 0.0, 2.0],
+			"MPM_LINEAR_THRESHOLD": 1e-10
+	)json", \
+	R"json( "EXT_MPM_KA": [0.0, 0.0, 0.0],
+	        "EXT_MPM_KA_T": [0.0, 1.14, 2.0],
+	        "EXT_MPM_KA_TT": [0.0, 0.0, 0.0],
+	        "EXT_MPM_KA_TTT": [0.0, 0.0, 0.0],
+	        "EXT_MPM_KD": [0.0, 0.0, 0.0],
+	        "EXT_MPM_KD_T": [0.0, 0.004, 0.008],
+	        "EXT_MPM_KD_TT": [0.0, 0.0, 0.0],
+	        "EXT_MPM_KD_TTT": [0.0, 0.0, 0.0],
+	        "EXT_MPM_QMAX": [0.0, 0.0, 0.0],
+	        "EXT_MPM_QMAX_T": [0.0, 4.88, 3.5],
+	        "EXT_MPM_QMAX_TT": [0.0, 0.0, 0.0],
+	        "EXT_MPM_QMAX_TTT": [0.0, 0.0, 0.0],
+	        "EXT_MPM_GAMMA": [0.0, 0.0, 0.0],
+	        "EXT_MPM_GAMMA_T": [0.0, 0.5, -1.0],
+	        "EXT_MPM_GAMMA_TT": [0.0, 0.0, 0.0],
+	        "EXT_MPM_GAMMA_TTT": [0.0, 0.0, 0.0],
+	        "EXT_MPM_BETA": [0.0, 0.0, 0.0],
+	        "EXT_MPM_BETA_T": [0.0, 1.5, 2.0],
+	        "EXT_MPM_BETA_TT": [0.0, 0.0, 0.0],
+	        "EXT_MPM_BETA_TTT": [0.0, 0.0, 0.0],
+			"EXT_MPM_LINEAR_THRESHOLD": 1e-10
+	)json", \
+	R"json( "EXT_MPM_KA": [0.0, 0.0, 0.0, 0.0],
+	        "EXT_MPM_KA_T": [0.0, 1.14, 1.0, 2.0],
+	        "EXT_MPM_KA_TT": [0.0, 0.0, 0.0, 0.0],
+	        "EXT_MPM_KA_TTT": [0.0, 0.0, 0.0, 0.0],
+	        "EXT_MPM_KD": [0.0, 0.0, 0.0, 0.0],
+	        "EXT_MPM_KD_T": [0.0, 0.004, 2.0, 0.008],
+	        "EXT_MPM_KD_TT": [0.0, 0.0, 0.0, 0.0],
+	        "EXT_MPM_KD_TTT": [0.0, 0.0, 0.0, 0.0],
+	        "EXT_MPM_QMAX": [0.0, 0.0, 0.0, 0.0],
+	        "EXT_MPM_QMAX_T": [0.0, 4.88, 3.0, 3.5],
+	        "EXT_MPM_QMAX_TT": [0.0, 0.0, 0.0, 0.0],
+	        "EXT_MPM_QMAX_TTT": [0.0, 0.0, 0.0, 0.0],
+	        "EXT_MPM_GAMMA": [0.0, 0.0, 0.0, 0.0],
+	        "EXT_MPM_GAMMA_T": [0.0, 0.5, 0.0, -1.0],
+	        "EXT_MPM_GAMMA_TT": [0.0, 0.0, 0.0, 0.0],
+	        "EXT_MPM_GAMMA_TTT": [0.0, 0.0, 0.0, 0.0],
+	        "EXT_MPM_BETA": [0.0, 0.0, 0.0, 0.0],
+	        "EXT_MPM_BETA_T": [0.0, 1.5, 0.0, 2.0],
+	        "EXT_MPM_BETA_TT": [0.0, 0.0, 0.0, 0.0],
+	        "EXT_MPM_BETA_TTT": [0.0, 0.0, 0.0, 0.0],
+			"EXT_MPM_LINEAR_THRESHOLD": 1e-10
 	)json", \
 	1e-10, 1e-10, CADET_NONBINDING_LIQUIDPHASE_COMP_UNUSED, CADET_COMPARE_BINDING_VS_NONBINDING)
 
