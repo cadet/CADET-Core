@@ -1,6 +1,7 @@
 /** css/custom.css **/
 
 /* This line is theme specific - it includes the base theme CSS */
+@import '../basic.css';  /* to produce identical results as Alabaster v0.7.16 with Alabaster v1.0.0 */
 @import '../alabaster.css';  /* for Alabaster */
 /*@import 'theme.css';       /* for the Read the Docs theme */
 
