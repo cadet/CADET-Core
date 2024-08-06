@@ -237,7 +237,7 @@ protected:
 			const double beta = static_cast<double>(p->beta[i]);
 			const double qMax = static_cast<double>(p->qMax[i]);
 			const double ka = static_cast<double>(p->kA[i]);
-			double kaEGammaC0;
+			double kaEGammaC0 = 1.0;
 			const double kdRaw = static_cast<double>(p->kD[i]);
 
 			if (yCp[0] <= linearThreshold)
