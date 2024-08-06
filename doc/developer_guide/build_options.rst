@@ -11,13 +11,13 @@ cmakeSettings.json
 
 The cmakeSettings.json provides standard build configurations for a ``DEBUG`` build, a ``RELEASE`` build and a ``RELEASE_with_Debug_Info`` build.
 
-The ``DEBUG`` build compiles code suited for debuggin, i.e. the code is compiled such that every line of code is individually executed.
-This way, it is possible to go through the code line by line by setting breakpoints in an IDE such as MS Visual Studio.
+The ``DEBUG`` build compiles code suited for debugging, i.e. the code is compiled such that every line of code is individually executed.
+This way, it is possible to go through the code line by line and to set breakpoints in an IDE such as MS Visual Studio.
 Additionally, the ``DEBUG`` build will print additional information during the simulation, such as the current step size and time point of the simulation.
 
 The ``RELEASE`` build compiles optimized code and should be used to actually use CADET for simulations.
 
-The ``RELEASE_with_Debug_Info`` build compiles optimized code but the debug information will still be printed.
+The ``RELEASE_with_Debug_Info`` build compiles optimized code but some debug information will still be printed.
 
 The ``RELEASE_with_Tests`` and ``DEBUG_with_Test`` build options additionally build the ``testRunner``, which is required to run the integrated tests in ``CADET-Core``.
 
@@ -30,8 +30,8 @@ The following build arguments can be set in the cmakeSettings.json or from the c
 - ``DENABLE_STATIC_LINK_LAPACK`` Prefer static over dynamic linking of LAPACK and BLAS into the ``CADET-Core`` framework. Static linking incorporates all necessary libraries into the final executable at compile time, while dynamic linking loads libraries at runtime. Static linking produces larger executables that are less dependent on changes in the operating system. Dynamic linking allows for dynamic updates of underlying libraries and smaller compiled software.
 - ``DENABLE_STATIC_LINK_DEPS``: Prefer static over dynamic linking of dependencies into the ``CADET-Core`` framework.
 - ``DENABLE_STATIC_LINK_CLI``: Prefers static over dynamic linking for CADET CLI.
-- ``DENABLE_TESTS``: Build the ``restRunner`` to evaluate the integrated tests in ``CADET-Core``.
-- ``DENABLE_ANALYTIC_JACOBIAN_CHECK``: Enable verification of analytical Jacobian by AD.
+- ``DENABLE_TESTS``: Build the ``restRunner`` executable to evaluate the integrated tests in ``CADET-Core``.
+- ``DENABLE_ANALYTIC_JACOBIAN_CHECK``: Computes both the analytical and AD Jacobian and compares them for testing purpose.
 - ``DENABLE_THREADING``: Enables multi-threading capabilities. Parallelized code will be compiled, using the TBB library. Note that the non-parallelized code is faster compared to the parallelized code when only one thread is being used. The number of threads is specified in the filed ``N_THREADS``.
 - ``DBLA_VENDOR``: Vendor for the BLAS & LAPACK library. If unset, the system library will be used. By default on Windows we use the Intel OneApi library, specified with ``Intel10_64lp_seq``. If a parallelized build is generated, this should be set to ``Intel10_64lp``.
 - ``DENABLE_LOGGING``: Enables logging functionality.
