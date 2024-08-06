@@ -343,7 +343,7 @@ namespace cadet
 					LinearBufferAllocator tlmAlloc = threadLocalMem.get();
 
 					// Reuse memory of band matrix for dense matrix
-					linalg::DenseMatrixView fullJacobianMatrix(_globalJacDisc.valuePtr() + _globalJacDisc.outerIndexPtr()[idxr.offsetCp(ParticleTypeIndex{ type }, ParticleIndex{ pblk }) - idxr.offsetC()], nullptr, mask.len, mask.len);
+					linalg::DenseMatrixView fullJacobianMatrix(_globalJacDisc.valuePtr() + _globalJacDisc.outerIndexPtr()[idxr.offsetCp(ParticleTypeIndex{ type }, ParticleIndex{ static_cast<unsigned int>(pblk) }) - idxr.offsetC()], nullptr, mask.len, mask.len);
 
 					// z coordinate (column length normed to 1) of current node - needed in externally dependent adsorption kinetic
 					const double z = _convDispOp.relativeCoordinate(pblk);
