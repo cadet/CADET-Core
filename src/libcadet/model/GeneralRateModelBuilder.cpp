@@ -1,5 +1,8 @@
 #include "model/GeneralRateModel.hpp"
+#include "CompileTimeConfig.hpp"
+#ifdef ENABLE_DG
 #include "model/GeneralRateModelDG.hpp"
+#endif
 #include "LoggingUtils.hpp"
 #include "Logging.hpp"
 
@@ -18,10 +21,13 @@ namespace cadet
 			if (paramProvider.exists("SPATIAL_METHOD")) {
 
 				const std::string discName = paramProvider.getString("SPATIAL_METHOD");
-
+#ifdef ENABLE_DG
 				if (discName == "DG")
 					model = new GeneralRateModelDG(uoId);
 				else if (discName == "FV")
+#else
+				if (discName == "FV")
+#endif
 					model = createAxialFVGRM(uoId);
 				else
 				{
@@ -72,9 +78,10 @@ namespace cadet
 			typedef GeneralRateModel<parts::AxialConvectionDispersionOperator> AxialGRM;
 			typedef GeneralRateModel<parts::RadialConvectionDispersionOperator> RadialGRM;
 
+#ifdef ENABLE_DG
 			models[GeneralRateModelDG::identifier()] = selectAxialFlowDiscretizationGRM;
 			models["GRM_DG"] = selectAxialFlowDiscretizationGRM;
-
+#endif
 			models[AxialGRM::identifier()] = selectAxialFlowDiscretizationGRM;
 			models["GRM"] = selectAxialFlowDiscretizationGRM;
 

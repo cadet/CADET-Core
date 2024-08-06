@@ -25,7 +25,9 @@
 #include "cadet/ParameterId.hpp"
 #include "linalg/DenseMatrix.hpp"
 #include "linalg/BandMatrix.hpp"
-#include "linalg/BandedEigenSparseRowIterator.hpp"
+#ifdef ENABLE_DG
+	#include "linalg/BandedEigenSparseRowIterator.hpp"
+#endif
 #include "linalg/CompressedSparseMatrix.hpp"
 #include "AutoDiff.hpp"
 #include "Memory.hpp"

@@ -25,8 +25,10 @@
 #include "linalg/BandMatrix.hpp"
 
 #include <algorithm>
-#include <Eigen/Dense>
-#include <Eigen/Sparse>
+#ifdef ENABLE_DG
+	#include <Eigen/Dense>
+	#include <Eigen/Sparse>
+#endif
 
 namespace cadet
 {
@@ -515,6 +517,7 @@ namespace linalg
 		}
 	}
 
+#ifdef ENABLE_DG
 	/**
 	 * @brief Copies a subset of a given Eigen matrix into this matrix
 	 * @details Copies a submatrix indentified by row and column masks from a given source in banded
@@ -582,6 +585,7 @@ namespace linalg
 			ptrDest += dest.stride();
 		}
 	}
+#endif
 
 } // namespace linalg
 
