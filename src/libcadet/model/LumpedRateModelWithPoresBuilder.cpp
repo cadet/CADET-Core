@@ -1,5 +1,8 @@
 #include "model/LumpedRateModelWithPores.hpp"
+#include "CompileTimeConfig.hpp"
+#ifdef ENABLE_DG
 #include "model/LumpedRateModelWithPoresDG.hpp"
+#endif
 #include "LoggingUtils.hpp"
 #include "Logging.hpp"
 
@@ -19,9 +22,13 @@ namespace cadet
 
 				const std::string discName = paramProvider.getString("SPATIAL_METHOD");
 
+#ifdef ENABLE_DG
 				if (discName == "DG")
 					model = new LumpedRateModelWithPoresDG(uoId);
 				else if (discName == "FV")
+#else
+				if (discName == "FV")
+#endif
 					model = createAxialFVLRMP(uoId);
 				else
 				{
@@ -72,9 +79,10 @@ namespace cadet
 			typedef LumpedRateModelWithPores<parts::AxialConvectionDispersionOperator> AxialLRMP;
 			typedef LumpedRateModelWithPores<parts::RadialConvectionDispersionOperator> RadialLRMP;
 
+#ifdef ENABLE_DG
 			models[LumpedRateModelWithPoresDG::identifier()] = selectAxialFlowDiscretizationLRMP;
 			models["LRMP_DG"] = selectAxialFlowDiscretizationLRMP;
-
+#endif
 			models[AxialLRMP::identifier()] = selectAxialFlowDiscretizationLRMP;
 			models["LRMP"] = selectAxialFlowDiscretizationLRMP;
 

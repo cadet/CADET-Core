@@ -61,9 +61,12 @@ if (ENABLE_2D_MODELS)
 	list(APPEND TEST_ADDITIONAL_SOURCES SparseFactorizableMatrix.cpp TwoDimConvectionDispersionOperator.cpp)
 endif()
 
+if (ENABLE_DG)
+	list(APPEND TEST_ADDITIONAL_SOURCES GeneralRateModelDG.cpp LumpedRateModelWithPoresDG.cpp LumpedRateModelWithoutPoresDG.cpp)
+endif()
+
 add_executable(testRunner testRunner.cpp JsonTestModels.cpp ColumnTests.cpp UnitOperationTests.cpp SimHelper.cpp ParticleHelper.cpp
 	GeneralRateModel.cpp GeneralRateModel2D.cpp LumpedRateModelWithPores.cpp LumpedRateModelWithoutPores.cpp
-	GeneralRateModelDG.cpp LumpedRateModelWithPoresDG.cpp LumpedRateModelWithoutPoresDG.cpp
 	RadialGeneralRateModel.cpp RadialLumpedRateModelWithPores.cpp RadialLumpedRateModelWithoutPores.cpp
 	MultiChannelTransportModel.cpp
 	CSTR-Residual.cpp CSTR-Simulation.cpp
