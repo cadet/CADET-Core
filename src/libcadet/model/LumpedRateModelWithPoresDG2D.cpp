@@ -35,6 +35,7 @@
 #include <numeric>
 
 #include <iostream> // todo delete
+#include <iomanip> // todo delete
 
 #include "ParallelSupport.hpp"
 #ifdef CADET_PARALLELIZE
@@ -570,7 +571,7 @@ bool LumpedRateModelWithPoresDG2D::configureModelDiscretization(IParameterProvid
 
 	// todo handle the Jacobians
 	// Allocate Jacobian memory, set and analyze pattern
-	_jacInlet.resize(_disc.axNPoints * _disc.radNPoints, _disc.radNPoints); // first element depends on inlet concentrations
+	_jacInlet.resize(_convDispOp.axNNodes() * _disc.radNPoints, _disc.radNPoints); // first axial element depends on inlet concentrations
 	
 	_globalJac.resize(numPureDofs(), numPureDofs());
 	_globalJacDisc.resize(numPureDofs(), numPureDofs());
@@ -964,7 +965,7 @@ void LumpedRateModelWithPoresDG2D::extractJacobianFromAD(active const* const adR
 	// todo compressed AD
 
 	//_convDispOp.assembleConvDispJacobian(_globalJac, _jacInlet);
-	for (int i = 0; i < _disc.axNPoints * _disc.radNPoints; i++)
+	for (int i = 0; i < _convDispOp.axNNodes() * _disc.radNPoints; i++)
 	{
 		for (int j = 0; j < _disc.radNPoints; j++)
 		{
@@ -979,6 +980,10 @@ void LumpedRateModelWithPoresDG2D::extractJacobianFromAD(active const* const adR
 			_globalJac.coeffRef(i, j) = adResUnit[i].getADValue(j + idxr.offsetC() + adDirOffset);
 		}
 	}
+
+	//// todo delete
+	//std::cout << std::setprecision(2) << std::fixed << "AD globalJac:\n" << _globalJac.toDense().block(0, 0, numPureDofs() / 2, numPureDofs() / 2) << std::endl;
+	//std::cout << "AD inletJac:\n" << _jacInlet << std::endl;
 
 }
 
@@ -1156,8 +1161,13 @@ int LumpedRateModelWithPoresDG2D::residualImpl(double t, unsigned int secIdx, St
 	{
 		if (cadet_unlikely(pblk == 0))
 		{
-			if (wantJac && (!wantRes || _disc.newStaticJac)) // todo
+			if (wantJac && (!wantRes || _disc.newStaticJac))
+			{
+				_jacInlet.setZero(); // todo also set columnJacobian to zero?
 				_convDispOp.assembleConvDispJacobian(_globalJac, _jacInlet);
+				_disc.newStaticJac = false;
+			}
+
 			residualBulk<StateType, ResidualType, ParamType, wantJac>(t, secIdx, y, yDot, res, threadLocalMem);
 		}
 		else
@@ -1230,6 +1240,18 @@ int LumpedRateModelWithPoresDG2D::residualParticle(double t, unsigned int parTyp
 	
 	for (int par = 0; par < idxr.strideParBlock(parType); par++)
 		res[par] = y[par];
+
+	if (wantJac)
+	{
+		linalg::BandedEigenSparseRowIterator jac(_globalJac, idxr.offsetCp() - idxr.offsetC());
+		for (int par = 0; par < _disc.nBulkPoints; ++par, ++jac)
+			jac[0] = 1.0;
+
+		//// todo delete
+		//std::cout << std::setprecision(2) << std::fixed << "Ana globalJac:\n" << _globalJac.toDense().block(0, 0, numPureDofs() / 2, numPureDofs() / 2) << std::endl;
+		//std::cout << "Ana inletJac:\n" << _jacInlet << std::endl;
+	}
+
 
 	// todo
 	//LinearBufferAllocator tlmAlloc = threadLocalMem.get();
@@ -1506,16 +1528,14 @@ void LumpedRateModelWithPoresDG2D::multiplyWithJacobian(const SimulationTime& si
 	Eigen::Map<const Eigen::VectorXd> yS_vec(yS + idxr.offsetC(), numPureDofs());
 	ret_vec = alpha * _globalJac * yS_vec + beta * ret_vec;
 
-	// todo
-	//// Map inlet DOFs to the column inlet (first bulk cells)
-	//// Inlet at z = 0 for forward flow, at z = L for backward flow.
-	//unsigned int offInlet = _convDispOp.forwardFlow() ? 0 : (_disc.nCol - 1u) * idxr.strideColCell();
+	// Map inlet DOFs to the column inlet (first bulk nodes)
+	for (unsigned int comp = 0; comp < _disc.nComp; comp++)
+	{
+		Eigen::Map<const Eigen::VectorXd, 0, Eigen::InnerStride<Eigen::Dynamic>> yInlet(yS + idxr.offsetC() + comp, _disc.radNPoints , Eigen::InnerStride<Eigen::Dynamic>(idxr.strideColRadialNode()));
+		Eigen::Map<Eigen::VectorXd, 0, Eigen::InnerStride<Eigen::Dynamic>> retInlet(ret + idxr.offsetC() + comp, _convDispOp.axNNodes() * _disc.radNPoints, Eigen::InnerStride<Eigen::Dynamic>(idxr.strideColRadialNode()));
 
-	//for (unsigned int comp = 0; comp < _disc.nComp; comp++) {
-	//	for (unsigned int node = 0; node < (_disc.exactInt ? _disc.nNodes : 1); node++) {
-	//		ret[idxr.offsetC() + offInlet + comp * idxr.strideColComp() + node * idxr.strideColNode()] += alpha * _jacInlet(node, 0) * yS[comp];
-	//	}
-	//}
+		retInlet += _jacInlet * yInlet;
+	}
 }
 
 /**
