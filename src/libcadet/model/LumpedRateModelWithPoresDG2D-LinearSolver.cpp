@@ -148,7 +148,7 @@ int LumpedRateModelWithPoresDG2D::linearSolve(double t, double alpha, double out
 	for (int comp = 0; comp < _disc.nComp; comp++)
 	{
 		Eigen::Map<Eigen::Vector<double, Eigen::Dynamic>, 0, Eigen::InnerStride<Eigen::Dynamic>> rInlet(rhs + comp, _disc.radNPoints, Eigen::InnerStride<Eigen::Dynamic>(idxr.strideColRadialNode()));
-		Eigen::Map<Eigen::Vector<double, Eigen::Dynamic>, 0, Eigen::InnerStride<Eigen::Dynamic>> rInletDep(rhs + idxr.offsetC() + comp, _disc.axNPoints * _disc.radNPoints, Eigen::InnerStride<Eigen::Dynamic>(idxr.strideColRadialNode()));
+		Eigen::Map<Eigen::Vector<double, Eigen::Dynamic>, 0, Eigen::InnerStride<Eigen::Dynamic>> rInletDep(rhs + idxr.offsetC() + comp, _convDispOp.axNNodes() * _disc.radNPoints, Eigen::InnerStride<Eigen::Dynamic>(idxr.strideColRadialNode()));
 
 		rInletDep += _jacInlet * rInlet;
 	}

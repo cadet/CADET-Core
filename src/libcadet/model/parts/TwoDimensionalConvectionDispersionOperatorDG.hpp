@@ -83,6 +83,8 @@ public:
 	int residual(const IModel& model, double t, unsigned int secIdx, active const* y, double const* yDot, active* res, const bool wantJac, WithParamSensitivity);
 	int residual(const IModel& model, double t, unsigned int secIdx, double const* y, double const* yDot, active* res, const bool wantJac, WithParamSensitivity);
 
+	bool computeConvDispJacobianBlocks();
+	void addElemBlockToJac(Eigen::MatrixXd block, linalg::BandedEigenSparseRowIterator& jac, const int offColumn, const int depElem, const bool axialElemDep);
 	bool assembleConvDispJacobian(Eigen::SparseMatrix<double, Eigen::RowMajor>& jacobian, Eigen::MatrixXd& jacInlet, const int bulkOffset=0);
 
 	void multiplyWithDerivativeJacobian(const SimulationTime& simTime, double const* sDot, double* ret) const;
@@ -97,6 +99,13 @@ public:
 	inline const active& currentVelocity(int idx) const CADET_NOEXCEPT { return _curVelocity[idx]; }
 	inline const active& columnPorosity(int idx) const CADET_NOEXCEPT { return _colPorosities[idx]; }
 	//inline const active& crossSection(int idx) const CADET_NOEXCEPT { return _nodeCrossSections[idx]; } // todo needed?
+
+	inline const int axNNodes() const { return _axNNodes; }
+	inline const int axNElem() const { return _axNElem; }
+	inline const int radNNodes() const { return _radNNodes; }
+	inline const int radNElem() const { return _radNElem; }
+	inline const int elemNPoints() const { return _elemNPoints; }
+
 	double relativeAxialCoordinate(unsigned int idx) const
 	{
 		// const unsigned int cell = floor(idx / _nNodes);
@@ -171,6 +180,7 @@ protected:
 	};
 
 	unsigned int _nComp; //!< Number of components
+	unsigned int _strideBound; //!< Bulk stride over solid states (should be 0 for LRMP and GRM)
 	// grid parameters
 	unsigned int _axNPoints; //!< Number of axial discrete points
 	unsigned int _axNElem; //!< Number of axial elements
@@ -183,6 +193,7 @@ protected:
 	unsigned int _quadratureRule; //!< Numerical quadrature rule
 	unsigned int _quadratureOrder; //!< Order of the numerical quadrature
 	unsigned int _qNNodes; //!< Number of quadrature nodes
+	unsigned int _elemNPoints; //!< Number of discrete points per 2D element
 	// strides
 	unsigned int _axNodeStride; //!< Stride to next axial point in state vector
 	unsigned int _axElemStride; //!< Stride to next axial element in state vector
@@ -214,7 +225,12 @@ protected:
 	Eigen::MatrixXd* _transTildeMrDash; //!< Main eq. transposed mass matrix on quadrature nodes adjusted for cylindrical metrics and dispersion
 	Eigen::MatrixXd* _transTildeSrDash; //!< Main eq. transposed stiffness matrix on quadrature nodes adjusted for cylindrical metrics and dispersion
 	Eigen::MatrixXd* _SrCyl; //!< Main eq. stiffness matrix with cylindrical metrics
-	
+	// Jacobian blocks
+	Eigen::MatrixXd* _jacConvection; //!< Convection Jacobian blocks for each radial element
+	Eigen::MatrixXd* _jacAxDispersion; //!< Axial Dispersion Jacobian unique blocks
+	Eigen::MatrixXd* _jacRadDispersion; //!< Radial Dispersion Jacobian unique blocks
+
+
 	// todo add active operators. double types serve as cache for the base values, then parameters (e.g. diffusion) need to be added in every residual call
 	//Eigen::Matrix<active, Eigen::Dynamic, Eigen::Dynamic>* _AtildeMr; //!< Active type main eq. mass matrix adjusted for cylindrical metrics and dispersion
 
