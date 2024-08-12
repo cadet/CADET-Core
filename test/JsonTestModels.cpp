@@ -97,12 +97,24 @@ json createColumnWithSMAJson(const std::string& uoType, const std::string& spati
 		}
 		else if (spatialMethod == "DG")
 		{
-			disc["EXACT_INTEGRATION"] = 0;
-			disc["POLYDEG"] = 4;
-			disc["NELEM"] = 2;
 			disc["PAR_EXACT_INTEGRATION"] = 1;
 			disc["PAR_POLYDEG"] = 3;
 			disc["PAR_NELEM"] = 1;
+
+			if (uoType == "LUMPED_RATE_MODEL_WITH_PORES_2D")
+			{
+				disc["AX_POLYDEG"] = 4;
+				disc["AX_NELEM"] = 2;
+				disc["RAD_POLYDEG"] = 3;
+				disc["RAD_NELEM"] = 1;
+				disc["RADIAL_DISC_TYPE"] = "EQUIDISTANT";
+			}
+			else
+			{
+				disc["EXACT_INTEGRATION"] = 0;
+				disc["POLYDEG"] = 4;
+				disc["NELEM"] = 2;
+			}
 		}
 
 		if (uoType == "GENERAL_RATE_MODEL_2D")
