@@ -1176,7 +1176,7 @@ int TwoDimensionalConvectionDispersionOperatorDG::residualImpl(const IModel& mod
 				if (zEidx == 0) // Danckwerts inlet BC
 				{
 					_gStarDispTildeZ.row(0).setZero();
-					Eigen::Map<const Vector<StateType, Dynamic>, 0, InnerStride<Dynamic>> inlet(y + comp, _radNNodes, InnerStride<Dynamic>(_radNodeStride));
+					Eigen::Map<const Vector<StateType, Dynamic>, 0, InnerStride<Dynamic>> inlet(y + rEidx * _radElemStride + comp, _radNNodes, InnerStride<Dynamic>(_radNodeStride));
 
 					//VectorXd inlet = VectorXd::Ones(_radNNodes); // todo delete
 
