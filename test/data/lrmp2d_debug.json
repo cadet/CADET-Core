@@ -1,0 +1,274 @@
+{
+    "model": {
+        "NUNITS": 5,
+        "connections": {
+            "NSWITCHES": 1,
+            "switch_000": {
+                "CONNECTIONS": [
+                    0.0,
+                    2.0,
+                    0.0,
+                    0.0,
+                    -1.0,
+                    -1.0,
+                    2.2449297503777067e-09,
+                    1.0,
+                    2.0,
+                    0.0,
+                    1.0,
+                    -1.0,
+                    -1.0,
+                    6.734789251133119e-09,
+                    2.0,
+                    3.0,
+                    0.0,
+                    0.0,
+                    -1.0,
+                    -1.0,
+                    2.2449297503777067e-09,
+                    2.0,
+                    4.0,
+                    1.0,
+                    0.0,
+                    -1.0,
+                    -1.0,
+                    6.734789251133119e-09
+                ],
+                "SECTION": 0
+            }
+        },
+        "solver": {
+            "GS_TYPE": 1,
+            "MAX_KRYLOV": 0,
+            "MAX_RESTARTS": 10,
+            "SCHUR_SAFETY": 1e-08
+        },
+        "unit_000": {
+            "INLET_TYPE": "PIECEWISE_CUBIC_POLY",
+            "NCOMP": 1,
+            "PORTS": 1,
+            "UNIT_TYPE": "INLET",
+            "sec_000": {
+                "CONST_COEFF": 1.0
+            },
+            "sec_001": {
+                "CONST_COEFF": 0.0
+            }
+        },
+        "unit_001": {
+            "INLET_TYPE": "PIECEWISE_CUBIC_POLY",
+            "NCOMP": 1,
+            "PORTS": 1,
+            "UNIT_TYPE": "INLET",
+            "sec_000": {
+                "CONST_COEFF": 1.0
+            },
+            "sec_001": {
+                "CONST_COEFF": 0.0
+            }
+        },
+        "unit_002": {
+            "ADSORPTION_MODEL": [
+                "NONE"
+            ],
+            "COL_DISPERSION": 0.0,
+            "COL_DISPERSION_RADIAL": 0.0,
+            "COL_LENGTH": 0.014,
+            "COL_POROSITY": 1.0,
+            "COL_RADIUS": 0.0035,
+            "CROSS_SECTION_AREA": 3.848451000647497e-05,
+            "FILM_DIFFUSION": 0.0,
+            "INIT_C": [
+                0,
+                0
+            ],
+            "INIT_CP": [
+                0,
+                0
+            ],
+            "INIT_Q": [
+                0,
+                0
+            ],
+            "NBOUND": 0,
+            "NCOMP": 1,
+            "NPARTYPE": 1,
+            "PAR_POROSITY": 0.75,
+            "PAR_RADIUS": 4.5e-06,
+            "PORTS": 2,
+            "SPATIAL_METHOD": "DG",
+            "UNIT_TYPE": "LUMPED_RATE_MODEL_WITH_PORES_2D",
+            "VELOCITY": 1.0,
+            "discretization": {
+                "AX_NELEM": 3,
+                "AX_POLYDEG": 3,
+                "RADIAL_DISC_TYPE": "EQUIDISTANT",
+                "RAD_NELEM": 2,
+                "RAD_POLYDEG": 2,
+                "USE_ANALYTIC_JACOBIAN": 1
+            }
+        },
+        "unit_003": {
+            "NCOMP": 1,
+            "UNIT_TYPE": "OUTLET"
+        },
+        "unit_004": {
+            "NCOMP": 1,
+            "UNIT_TYPE": "OUTLET"
+        }
+    },
+    "return": {
+        "SPLIT_COMPONENTS_DATA": false,
+        "SPLIT_PORTS_DATA": 0,
+        "unit_000": {
+            "WRITE_COORDINATES": 1,
+            "WRITE_SENS_OUTLET": 0,
+            "WRITE_SOLUTION_BULK": 1,
+            "WRITE_SOLUTION_FLUX": 0,
+            "WRITE_SOLUTION_INLET": 0,
+            "WRITE_SOLUTION_OUTLET": 1,
+            "WRITE_SOLUTION_PARTICLE": 0,
+            "WRITE_SOLUTION_SOLID": 0,
+            "WRITE_SOLUTION_VOLUME": 0
+        },
+        "unit_001": {
+            "WRITE_COORDINATES": 1,
+            "WRITE_SENS_OUTLET": 0,
+            "WRITE_SOLUTION_BULK": 1,
+            "WRITE_SOLUTION_FLUX": 0,
+            "WRITE_SOLUTION_INLET": 0,
+            "WRITE_SOLUTION_OUTLET": 1,
+            "WRITE_SOLUTION_PARTICLE": 0,
+            "WRITE_SOLUTION_SOLID": 0,
+            "WRITE_SOLUTION_VOLUME": 0
+        },
+        "unit_002": {
+            "WRITE_COORDINATES": 1,
+            "WRITE_SENS_OUTLET": 0,
+            "WRITE_SOLUTION_BULK": 1,
+            "WRITE_SOLUTION_FLUX": 0,
+            "WRITE_SOLUTION_INLET": 0,
+            "WRITE_SOLUTION_OUTLET": 1,
+            "WRITE_SOLUTION_PARTICLE": 0,
+            "WRITE_SOLUTION_SOLID": 0,
+            "WRITE_SOLUTION_VOLUME": 0
+        },
+        "unit_003": {
+            "WRITE_COORDINATES": 1,
+            "WRITE_SENS_OUTLET": 0,
+            "WRITE_SOLUTION_BULK": 1,
+            "WRITE_SOLUTION_FLUX": 0,
+            "WRITE_SOLUTION_INLET": 0,
+            "WRITE_SOLUTION_OUTLET": 1,
+            "WRITE_SOLUTION_PARTICLE": 0,
+            "WRITE_SOLUTION_SOLID": 0,
+            "WRITE_SOLUTION_VOLUME": 0
+        },
+        "unit_004": {
+            "WRITE_COORDINATES": 1,
+            "WRITE_SENS_OUTLET": 0,
+            "WRITE_SOLUTION_BULK": 1,
+            "WRITE_SOLUTION_FLUX": 0,
+            "WRITE_SOLUTION_INLET": 0,
+            "WRITE_SOLUTION_OUTLET": 1,
+            "WRITE_SOLUTION_PARTICLE": 0,
+            "WRITE_SOLUTION_SOLID": 0,
+            "WRITE_SOLUTION_VOLUME": 0
+        },
+        "unit_005": {
+            "WRITE_COORDINATES": 1,
+            "WRITE_SENS_OUTLET": 0,
+            "WRITE_SOLUTION_BULK": 1,
+            "WRITE_SOLUTION_FLUX": 0,
+            "WRITE_SOLUTION_INLET": 0,
+            "WRITE_SOLUTION_OUTLET": 1,
+            "WRITE_SOLUTION_PARTICLE": 0,
+            "WRITE_SOLUTION_SOLID": 0,
+            "WRITE_SOLUTION_VOLUME": 0
+        }
+    },
+    "solver": {
+        "NTHREADS": -1,
+        "USER_SOLUTION_TIMES": [
+            0.0,
+            1.0,
+            2.0,
+            3.0,
+            4.0,
+            5.0,
+            6.0,
+            7.0,
+            8.0,
+            9.0,
+            10.0,
+            11.0,
+            12.0,
+            13.0,
+            14.0,
+            15.0,
+            16.0,
+            17.0,
+            18.0,
+            19.0,
+            20.0,
+            21.0,
+            22.0,
+            23.0,
+            24.0,
+            25.0,
+            26.0,
+            27.0,
+            28.0,
+            29.0,
+            30.0,
+            31.0,
+            32.0,
+            33.0,
+            34.0,
+            35.0,
+            36.0,
+            37.0,
+            38.0,
+            39.0,
+            40.0,
+            41.0,
+            42.0,
+            43.0,
+            44.0,
+            45.0,
+            46.0,
+            47.0,
+            48.0,
+            49.0,
+            50.0,
+            51.0,
+            52.0,
+            53.0,
+            54.0,
+            55.0,
+            56.0,
+            57.0,
+            58.0,
+            59.0,
+            60.0
+        ],
+        "sections": {
+            "NSEC": 2,
+            "SECTION_CONTINUITY": [
+                0
+            ],
+            "SECTION_TIMES": [
+                0,
+                10,
+                60
+            ]
+        },
+        "time_integrator": {
+            "ABSTOL": 1e-06,
+            "ALGTOL": 1e-10,
+            "INIT_STEP_SIZE": 1e-06,
+            "MAX_STEPS": 1000000,
+            "RELTOL": 1e-06
+        }
+    }
+}
