@@ -82,5 +82,10 @@ compile_commands.json
 
 # Ignore build and install directories
 build
+build_RELEASE
+build_RELEASE_with_Debug_Info
+build_RELEASE_with_Tests
+build_DEBUG
+build_DEBUG_with_Tests
 install
 vcpkg_installed
