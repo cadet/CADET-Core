@@ -463,13 +463,13 @@ if (CMAKE_BUILD_TYPE STREQUAL "Debug")
 	target_compile_options(CADET::CompileOptions INTERFACE $<$<OR:$<CXX_COMPILER_ID:Clang>,$<CXX_COMPILER_ID:AppleClang>,$<CXX_COMPILER_ID:GNU>>:
 		-Wall -pedantic-errors -Wextra -Wno-unused-parameter -Wno-unused-function> #-Wconversion -Wsign-conversion
 	$<$<CXX_COMPILER_ID:MSVC>:
-		/W4 /wd4100 /bigobj>
+		/W4 /wd4100 /bigobj /MP>
 )
 else()
 	target_compile_options(CADET::CompileOptions INTERFACE $<$<OR:$<CXX_COMPILER_ID:Clang>,$<CXX_COMPILER_ID:AppleClang>,$<CXX_COMPILER_ID:GNU>>:
 		-Wall -pedantic-errors -Wextra -Wno-unused-parameter -Wno-unused-function> #-Wconversion -Wsign-conversion
 	$<$<CXX_COMPILER_ID:MSVC>:
-		/W4 /wd4100>
+		/W4 /wd4100 /MP>
 )
 endif()
 
