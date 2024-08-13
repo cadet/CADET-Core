@@ -13,7 +13,7 @@
       "generator": "Visual Studio 17 2022 Win64",
       "configurationType": "Debug",
       "inheritEnvironments": [ "msvc_x64_x64" ],
-      "buildRoot": "${env.BUILDROOT}",
+      "buildRoot": "${env.BUILDROOT}_DEBUG",
       "cmakeCommandArgs": "-DVCPKG_TARGET_TRIPLET=x64-windows-static -DENABLE_STATIC_LINK_LAPACK=ON -DENABLE_STATIC_LINK_DEPS=ON -DENABLE_TESTS=OFF -DENABLE_ANALYTIC_JACOBIAN_CHECK=OFF --fresh",
       "buildCommandArgs": "-m -v:minimal",
       "variables": [
@@ -43,12 +43,13 @@
           "type": "STRING"
         }
       ]
-    },{
+    },
+    {
       "name": "DEBUG_with_Tests",
       "generator": "Visual Studio 17 2022 Win64",
       "configurationType": "Debug",
       "inheritEnvironments": [ "msvc_x64_x64" ],
-      "buildRoot": "${env.BUILDROOT}",
+      "buildRoot": "${env.BUILDROOT}_DEBUG_with_Tests",
       "cmakeCommandArgs": "-DVCPKG_TARGET_TRIPLET=x64-windows-static -DENABLE_STATIC_LINK_LAPACK=ON -DENABLE_STATIC_LINK_DEPS=ON -DENABLE_TESTS=ON -DENABLE_ANALYTIC_JACOBIAN_CHECK=OFF --fresh",
       "buildCommandArgs": "-m -v:minimal",
       "variables": [
@@ -84,7 +85,7 @@
       "generator": "Visual Studio 17 2022 Win64",
       "configurationType": "Release",
       "inheritEnvironments": [ "msvc_x64_x64" ],
-      "buildRoot": "${env.BUILDROOT}",
+      "buildRoot": "${env.BUILDROOT}_RELEASE",
       "cmakeCommandArgs": "-DVCPKG_TARGET_TRIPLET=x64-windows-static -DENABLE_STATIC_LINK_LAPACK=ON -DENABLE_STATIC_LINK_DEPS=ON -DENABLE_TESTS=OFF -DENABLE_ANALYTIC_JACOBIAN_CHECK=OFF --fresh",
       "buildCommandArgs": "-m -v:minimal",
       "variables": [
@@ -120,7 +121,7 @@
       "generator": "Visual Studio 17 2022 Win64",
       "configurationType": "RelWithDebInfo",
       "inheritEnvironments": [ "msvc_x64_x64" ],
-      "buildRoot": "${env.BUILDROOT}",
+      "buildRoot": "${env.BUILDROOT}_RELEASE_with_Debug_Info",
       "cmakeCommandArgs": "-DVCPKG_TARGET_TRIPLET=x64-windows-static -DENABLE_STATIC_LINK_LAPACK=ON -DENABLE_STATIC_LINK_DEPS=ON -DENABLE_TESTS=OFF -DENABLE_ANALYTIC_JACOBIAN_CHECK=OFF --fresh",
       "buildCommandArgs": "-m -v:minimal",
       "variables": [
@@ -156,7 +157,7 @@
       "generator": "Visual Studio 17 2022 Win64",
       "configurationType": "RelWithDebInfo",
       "inheritEnvironments": [ "msvc_x64_x64" ],
-      "buildRoot": "${env.BUILDROOT}",
+      "buildRoot": "${env.BUILDROOT}_RELEASE_with_Tests",
       "cmakeCommandArgs": "-DVCPKG_TARGET_TRIPLET=x64-windows-static -DENABLE_STATIC_LINK_LAPACK=ON -DENABLE_STATIC_LINK_DEPS=ON -DENABLE_TESTS=ON -DENABLE_ANALYTIC_JACOBIAN_CHECK=OFF --fresh",
       "buildCommandArgs": "-m -v:minimal",
       "variables": [
