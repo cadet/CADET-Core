@@ -19,7 +19,7 @@
                 500,
                 0
             ],
-            "INIT_VOLUME": 1000,
+            "INIT_LIQUID_VOLUME": 1000,
             "NCOMP": 2,
             "REACTION_MODEL": "MICHAELIS_MENTEN",
             "UNIT_TYPE": "CSTR",

@@ -33,7 +33,7 @@ namespace test
 		auto gs = util::makeModelGroupScope(jpp);
 
 		jpp.set("INIT_C", c);
-		jpp.set("INIT_VOLUME", v);
+		jpp.set("INIT_LIQUID_VOLUME", v);
 		if (!q.empty())
 			jpp.set("INIT_Q", q);
 	}
@@ -130,12 +130,12 @@ namespace test
 		jpp.popScope();
 	}
 
-	void addBoundStates(cadet::JsonParameterProvider& jpp, const std::vector<int>& nBound, double porosity)
+	void addBoundStates(cadet::JsonParameterProvider& jpp, const std::vector<int>& nBound, double vSolid)
 	{
 		auto gs = util::makeModelGroupScope(jpp);
 
 		jpp.set("NBOUND", nBound);
-		jpp.set("POROSITY", porosity);
+		jpp.set("CONST_SOLID_VOLUME", vSolid);
 	}
 
 	void addDummyBindingModel(cadet::JsonParameterProvider& jpp)

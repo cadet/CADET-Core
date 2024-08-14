@@ -33,15 +33,18 @@
 namespace
 {
 	template <typename T>
-	void replicateData(std::vector<T>& data, unsigned int nTimes)
-	{
+    void replicateData(std::vector<T>& data, unsigned int nTimes)
+    {
+        if (data.empty() || nTimes <= 1)
+            return;
+
 		data.reserve(data.size() * nTimes);
-		const typename std::vector<T>::iterator itEnd = data.end();
+		auto originalSize = data.size();
 		for (unsigned int i = 0; i < nTimes - 1; ++i)
 		{
-			data.insert(data.end(), data.begin(), itEnd);
+			data.insert(data.end(), data.begin(), data.begin() + originalSize);
 		}
-	}
+    }
 
 	void replicateFieldDataDouble(cadet::JsonParameterProvider& jpp, const std::string& field, const std::vector<double>& factors)
 	{
@@ -327,6 +330,7 @@ namespace particle
 
 				// Extend to multiple particle types (such that we have a total of 3 types)
 				const double volFrac[] = {0.3, 0.6, 0.1};
+
 				extendModelToManyParticleTypes(jpp, 0, 3, volFrac);
 
 				modify(jpp);
