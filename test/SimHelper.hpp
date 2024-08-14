@@ -100,12 +100,12 @@ namespace test
 	void setSectionTimes(cadet::JsonParameterProvider& jpp, const std::vector<double>& secTimes);
 
 	/**
-	 * @brief Adds bound states to a CSTR model
+	 * @brief Adds bound states to a CSTRVarPor model
 	 * @param [in,out] jpp ParameterProvider
 	 * @param [in] nBound Array with number of bound states for each component
-	 * @param [in] porosity Porosity
+	 * @param [in] vSolid Volume of the solid phase
 	 */
-	void addBoundStates(cadet::JsonParameterProvider& jpp, const std::vector<int>& nBound, double porosity);
+	void addBoundStates(cadet::JsonParameterProvider& jpp, const std::vector<int>& nBound, double vSolid);
 
 	/**
 	 * @brief Adds dummy binding model to a CSTR model

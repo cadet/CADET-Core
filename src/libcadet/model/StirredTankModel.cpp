@@ -61,7 +61,7 @@ namespace
 }
 
 
-CSTRModel::CSTRModel(UnitOpIdx unitOpIdx) : UnitOperationBase(unitOpIdx), _nComp(0), _nParType(0), _nBound(nullptr), _boundOffset(nullptr), _strideBound(nullptr), _offsetParType(nullptr), 
+CSTRModel::CSTRModel(UnitOpIdx unitOpIdx) : UnitOperationBase(unitOpIdx), _nComp(0), _nParType(0), _nBound(nullptr), _boundOffset(nullptr), _strideBound(nullptr), _offsetParType(nullptr),
 	_totalBound(0), _analyticJac(true), _jac(), _jacFact(), _factorizeJac(false), _initConditions(0), _initConditionsDot(0), _dynReactionBulk(nullptr)
 {
 	// Mutliplexed binding and reaction models make no sense in CSTR
@@ -81,7 +81,7 @@ CSTRModel::~CSTRModel() CADET_NOEXCEPT
 
 unsigned int CSTRModel::numDofs() const CADET_NOEXCEPT
 {
-	return 2 * _nComp + _totalBound + 1;
+	return 2 * _nComp + _totalBound + 1; 
 }
 
 unsigned int CSTRModel::numPureDofs() const CADET_NOEXCEPT
@@ -100,7 +100,7 @@ bool CSTRModel::usesAD() const CADET_NOEXCEPT
 #endif
 }
 
-void CSTRModel::setFlowRates(active const* in, active const* out) CADET_NOEXCEPT 
+void CSTRModel::setFlowRates(active const* in, active const* out) CADET_NOEXCEPT
 { 
 	_flowRateIn = in[0];
 	_flowRateOut = out[0];
@@ -267,9 +267,15 @@ bool CSTRModel::configure(IParameterProvider& paramProvider)
 	if (hasFlowrateFilter)
 		readScalarParameterOrArray(_flowRateFilter, paramProvider, "FLOWRATE_FILTER", 1);
 
-	_porosity = 1.0;
-	if (paramProvider.exists("POROSITY"))
-		_porosity = paramProvider.getDouble("POROSITY");
+	_constSolidVolume = 0.0;
+	if (paramProvider.exists("CONST_SOLID_VOLUME"))
+		_constSolidVolume = paramProvider.getDouble("CONST_SOLID_VOLUME");
+	else if (paramProvider.exists("POROSITY"))
+	{
+		LOG(Warning) << "Field POROSITY is only supported for backwards compatibility, but the implementation of the CSTR has changed, please refer to the documentation. The POROSITY will be used to compute the constant solid volume from the liquid volume.";
+		_constSolidVolume = *(_initConditions.data() + _nComp + _totalBound) * (1.0 - paramProvider.getDouble("POROSITY"));
+	}
+	_parameters[makeParamId(hashString("CONST_SOLID_VOLUME"), _unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_constSolidVolume;
 
 	if (_totalBound > 0)
 	{
@@ -292,7 +298,7 @@ bool CSTRModel::configure(IParameterProvider& paramProvider)
 	_parameters.clear();
 	if (hasFlowrateFilter)
 		registerScalarSectionDependentParam(hashString("FLOWRATE_FILTER"), _parameters, _flowRateFilter, _unitOpIdx, ParTypeIndep);
-	_parameters[makeParamId(hashString("POROSITY"), _unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_porosity;
+
 	if (_totalBound > 0)
 		registerParam1DArray(_parameters, _parTypeVolFrac, [=](bool multi, unsigned int type) { return makeParamId(hashString("PAR_TYPE_VOLFRAC"), _unitOpIdx, CompIndep, type, BoundStateIndep, ReactionIndep, SectionIndep); });
 
@@ -313,7 +319,7 @@ bool CSTRModel::configure(IParameterProvider& paramProvider)
 			_parameters[initParams[i]] = ic + i;
 	}
 
-	_parameters[makeParamId(hashString("INIT_VOLUME"), _unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = _initConditions.data() + _nComp + _totalBound;
+	_parameters[makeParamId(hashString("INIT_LIQUID_VOLUME"), _unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = _initConditions.data() + _nComp + _totalBound;
 
 	// Reconfigure binding model
 	bool bindingConfSuccess = true;
@@ -509,42 +515,45 @@ void CSTRModel::readInitialCondition(IParameterProvider& paramProvider)
 	else
 		ad::fillAd(_initConditions.data() + _nComp, _totalBound, 0.0);
 
-	if (paramProvider.exists("INIT_VOLUME"))
-		_initConditions[_nComp + _totalBound].setValue(paramProvider.getDouble("INIT_VOLUME"));
+	if (paramProvider.exists("INIT_LIQUID_VOLUME"))
+		_initConditions[_nComp + _totalBound].setValue(paramProvider.getDouble("INIT_LIQUID_VOLUME"));
 	else
 		_initConditions[_nComp + _totalBound].setValue(0.0);
 }
 
 void CSTRModel::consistentInitialState(const SimulationTime& simTime, double* const vecStateY, const AdJacobianParams& adJac, double errorTol, util::ThreadLocalStorage& threadLocalMem)
 {
-	double * const c = vecStateY + _nComp;
-	const double v = c[_nComp + _totalBound];
+	double* const c = vecStateY + _nComp;
+	const double vLiquid = c[_nComp + _totalBound];
+	const double vSolid = static_cast<double>(_constSolidVolume);
+	const double porosity = static_cast<const double>(vLiquid) / (vSolid + static_cast<const double>(vLiquid));
 
-	// Check if volume is 0
-	if (v == 0.0)
+
+	// Check if liquid volume is 0
+	if (vLiquid == 0.0)
 	{
 		const double flowIn = static_cast<double>(_flowRateIn);
 		const double flowOut = static_cast<double>(_flowRateOut);
 
-		// Volume: \dot{V} = F_{in} - F_{out} - F_{filter}
+		// Liquid Volume: \dot{V} = F_{in} - F_{out} - F_{filter}
 		const double vDot = flowIn - flowOut - static_cast<double>(_curFlowRateFilter);
 
 		// We have the equation
-		//    \dot{V} * (c_i + 1 / beta * [sum_j sum_m d_j q_{i,m}]) + V * (\dot{c}_i + 1 / beta * [sum_j sum_m d_j \dot{q}_{i,m}]) = c_{in,i} * F_in + c_i * F_out
-		// which is now algebraic wrt. c due to V = 0:
-		//    \dot{V} * (c_i + 1 / beta * [sum_j sum_m d_j q_{i,m}]) = c_{in,i} * F_in + c_i * F_out
+		//    \dot{V}^l * c_i + V^l \dot{c}_i + V^s * ([sum_j sum_m d_j \dot{q}_{i,m}]) = c_{in,i} * F_in + c_i * F_out
+		// which is now algebraic wrt. c due to V^l = 0:
+		//    \dot{V}^l * c_i + V^s * [sum_j sum_m d_j \dot{q}_{i,m}] = c_{in,i} * F_in + c_i * F_out
 		// Separating knowns from unknowns gives
-		//    (\dot{V} + F_out) * c + \dot{V} / beta * [sum_j sum_m d_j q_{i,m}] = c_in * F_in
+		//    (\dot{V}^l + F_out) * c_i + V^s [sum_j sum_m d_j q_{i,m}] = c_in * F_in
 
 		// We assume that all binding models are fully dynamic (i.e., they do not have
 		// algebraic equations). 
 		// TODO: Figure out what to do when at least one binding model has algebraic equations.
 
 		// If the binding models do not have algebraic equations, the
-		// bound states q_{i,j} are dynamic and, thus, already determined
-		//    (\dot{V} + F_out) * c = c_in * F_in - \dot{V} / beta * [sum_j sum_m d_j q_{j,i,m}]
+		// bound states q_{i,j} are dynamic and, thus, already determine
+		//    (\dot{V}^l + F_out) * c_i = c_in * F_in - V^s * [sum_j sum_m d_j q_{j,i,m}]
 		// This finally leads to
-		//    c = (c_in * F_in - \dot{V} / beta * [sum_j sum_m d_j q_{j,i,m}]) / (\dot{V} + F_out)
+		//    c_i = (c_in * F_in - V^s * [sum_j sum_m d_j q_{j,i,m}]) / (\dot{V}^l + F_out)
 
 		// Note that if the denominator (\dot{V} + F_out) were 0, we had
 		//    0 = \dot{V} + F_out = F_{in} - F_{filter}
@@ -566,9 +575,10 @@ void CSTRModel::consistentInitialState(const SimulationTime& simTime, double* co
 			return;
 
 		for (unsigned int i = 0; i < _nComp; ++i)
-			c[i] = vecStateY[i] * flowIn / denom;;
+			c[i] = vecStateY[i] * flowIn / denom;
 
-		const double qFactor = vDot * (1.0 / static_cast<double>(_porosity) - 1.0) / denom;
+
+		const double qFactor = static_cast<double>(_constSolidVolume) / denom;
 		for (unsigned int type = 0; type < _nParType; ++type)
 		{
 			unsigned int const* const bo = _boundOffset + type * _nComp;
@@ -600,7 +610,7 @@ void CSTRModel::consistentInitialState(const SimulationTime& simTime, double* co
 				continue;
 
 			// Determine whether nonlinear solver is required
-			const ColumnPosition colPos{0.0, 0.0, 0.0};
+			const ColumnPosition colPos{ 0.0, 0.0, 0.0 };
 			if (!_binding[type]->preConsistentInitialState(simTime.t, simTime.secIdx, colPos, c + _nComp + _offsetParType[type], c, tlmAlloc))
 				continue;
 
@@ -612,7 +622,7 @@ void CSTRModel::consistentInitialState(const SimulationTime& simTime, double* co
 
 			// Mark component for conserved moiety if it has a quasi-stationary bound state
 			unsigned int idx = 0;
-			for (unsigned int comp = 0; comp < _nComp; ++ comp)
+			for (unsigned int comp = 0; comp < _nComp; ++comp)
 			{
 				// Skip components that are already marked
 				if (qsMask[comp])
@@ -636,7 +646,7 @@ void CSTRModel::consistentInitialState(const SimulationTime& simTime, double* co
 		if (hasNoQSreactions)
 			return;
 
-		const linalg::ConstMaskArray mask{static_cast<int*>(qsMask), static_cast<int>(_nComp + _totalBound)};
+		const linalg::ConstMaskArray mask{ static_cast<int*>(qsMask), static_cast<int>(_nComp + _totalBound) };
 		const int probSize = linalg::numMaskActive(mask);
 
 		// Extract initial values from current state
@@ -646,14 +656,14 @@ void CSTRModel::consistentInitialState(const SimulationTime& simTime, double* co
 		// Save values of conserved moieties
 		const unsigned int numActiveComp = numMaskActive(mask, _nComp);
 		BufferedArray<double> conservedQuants = tlmAlloc.array<double>(numActiveComp);
-		const double epsQ = 1.0 - static_cast<double>(_porosity);
+		const double epsQ = 1.0 - porosity;
 		unsigned int idx = 0;
 		for (unsigned int comp = 0; comp < _nComp; ++comp)
 		{
 			if (!qsMask[comp])
 				continue;
 
-			conservedQuants[idx] = static_cast<double>(_porosity) * c[comp];
+			conservedQuants[idx] = porosity * c[comp];
 			for (unsigned int type = 0; type < _nParType; ++type)
 			{
 				const double factor = epsQ * static_cast<double>(_parTypeVolFrac[type]);
@@ -687,125 +697,125 @@ void CSTRModel::consistentInitialState(const SimulationTime& simTime, double* co
 			ad::copyToAd(vecStateY, adJac.adY, _nComp);
 
 			jacFunc = [&](double const* const x, linalg::detail::DenseMatrixBase& mat)
-			{
-				active* const localAdY = adJac.adY + _nComp;
-				active* const localAdRes = adJac.adRes + _nComp;
+				{
+					active* const localAdY = adJac.adY + _nComp;
+					active* const localAdRes = adJac.adRes + _nComp;
 
-				// Copy over state vector to AD state vector (without changing directional values to keep seed vectors)
-				// and initialize residuals with zero (also resetting directional values)
-				ad::copyToAd(c, localAdY, mask.len);
-				// @todo Check if this is necessary
-				ad::resetAd(localAdRes, mask.len);
+					// Copy over state vector to AD state vector (without changing directional values to keep seed vectors)
+					// and initialize residuals with zero (also resetting directional values)
+					ad::copyToAd(c, localAdY, mask.len);
+					// @todo Check if this is necessary
+					ad::resetAd(localAdRes, mask.len);
 
-				// Prepare input vector by overwriting masked items
-				linalg::applyVectorSubset(x, mask, localAdY);
+					// Prepare input vector by overwriting masked items
+					linalg::applyVectorSubset(x, mask, localAdY);
 
-				// Call residual function
-				residualImpl<active, active, double, false>(simTime.t, simTime.secIdx, adJac.adY, nullptr, adJac.adRes, tlmAlloc.manageRemainingMemory());
+					// Call residual function
+					residualImpl<active, active, double, false>(simTime.t, simTime.secIdx, adJac.adY, nullptr, adJac.adRes, tlmAlloc.manageRemainingMemory());
 
 #ifdef CADET_CHECK_ANALYTIC_JACOBIAN
-				std::copy_n(c, mask.len, fullX);
-				linalg::applyVectorSubset(x, mask, fullX);
+					std::copy_n(c, mask.len, fullX);
+					linalg::applyVectorSubset(x, mask, fullX);
 
-				// Compute analytic Jacobian
-				residualImpl<double, double, double, true>(simTime.t, simTime.secIdx, fullX, nullptr, fullResidual, tlmAlloc.manageRemainingMemory());
+					// Compute analytic Jacobian
+					residualImpl<double, double, double, true>(simTime.t, simTime.secIdx, fullX, nullptr, fullResidual, tlmAlloc.manageRemainingMemory());
 
-				// Compare
-				const double diff = ad::compareDenseJacobianWithAd(localAdRes, adJac.adDirOffset, _jac);
-				LOG(Debug) << "MaxDiff: " << diff;
+					// Compare
+					const double diff = ad::compareDenseJacobianWithAd(localAdRes, adJac.adDirOffset, _jac);
+					LOG(Debug) << "MaxDiff: " << diff;
 #endif
 
-				// Extract Jacobian from AD
-				ad::extractDenseJacobianFromAd(localAdRes, adJac.adDirOffset, _jac);
+					// Extract Jacobian from AD
+					ad::extractDenseJacobianFromAd(localAdRes, adJac.adDirOffset, _jac);
 
-				// Extract Jacobian from full Jacobian
-				mat.setAll(0.0);
-				linalg::copyMatrixSubset(_jac, mask, mask, mat);
+					// Extract Jacobian from full Jacobian
+					mat.setAll(0.0);
+					linalg::copyMatrixSubset(_jac, mask, mask, mat);
 
-				// Replace upper part with conservation relations
-				mat.submatrixSetAll(0.0, 0, 0, numActiveComp, probSize);
+					// Replace upper part with conservation relations
+					mat.submatrixSetAll(0.0, 0, 0, numActiveComp, probSize);
 
-				unsigned int rIdx = 0;
-				const double epsQ = 1.0 - static_cast<double>(_porosity);
+					unsigned int rIdx = 0;
+					const double epsQ = 1.0 - porosity;
 
-				for (unsigned int comp = 0; comp < _nComp; ++comp)
-				{
-					if (!mask.mask[comp])
-						continue;
-
-					mat.native(rIdx, rIdx) = static_cast<double>(_porosity);
-
-					for (unsigned int type = 0; type < _nParType; ++type)
+					for (unsigned int comp = 0; comp < _nComp; ++comp)
 					{
-						const double factor = epsQ * static_cast<double>(_parTypeVolFrac[type]);;
+						if (!mask.mask[comp])
+							continue;
 
-						const unsigned int offset = _nComp + _offsetParType[type] + _boundOffset[type * _nComp + comp];
-						unsigned int bIdx = numActiveComp + numMaskActive(mask, _nComp, _boundOffset[type * _nComp + comp]);
-						for (unsigned int state = 0; state < _nBound[type * _nComp + comp]; ++state)
+						mat.native(rIdx, rIdx) = porosity;
+
+						for (unsigned int type = 0; type < _nParType; ++type)
 						{
-							if (!mask.mask[offset + state])
-								continue;
+							const double factor = epsQ * static_cast<double>(_parTypeVolFrac[type]);
 
-							mat.native(rIdx, bIdx) = factor;
-							++bIdx;
+							const unsigned int offset = _nComp + _offsetParType[type] + _boundOffset[type * _nComp + comp];
+							unsigned int bIdx = numActiveComp + numMaskActive(mask, _nComp, _boundOffset[type * _nComp + comp]);
+							for (unsigned int state = 0; state < _nBound[type * _nComp + comp]; ++state)
+							{
+								if (!mask.mask[offset + state])
+									continue;
+
+								mat.native(rIdx, bIdx) = factor;
+								++bIdx;
+							}
 						}
+
+						++rIdx;
 					}
 
-					++rIdx;
-				}
-
-				return true;
-			};
+					return true;
+				};
 		}
 		else
 		{
 			jacFunc = [&](double const* const x, linalg::detail::DenseMatrixBase& mat)
-			{
-				// Prepare input vector by overwriting masked items
-				std::copy_n(c, mask.len, fullX + _nComp);
-				linalg::applyVectorSubset(x, mask, fullX + _nComp);
-
-				// Call residual function
-				residualImpl<double, double, double, true>(simTime.t, simTime.secIdx, fullX, nullptr, fullResidual, tlmAlloc.manageRemainingMemory());
-
-				// Extract Jacobian from full Jacobian
-				mat.setAll(0.0);
-				linalg::copyMatrixSubset(_jac, mask, mask, mat);
-
-				// Replace upper part with conservation relations
-				mat.submatrixSetAll(0.0, 0, 0, numActiveComp, probSize);
-
-				unsigned int rIdx = 0;
-				const double epsQ = 1.0 - static_cast<double>(_porosity);
-
-				for (unsigned int comp = 0; comp < _nComp; ++comp)
 				{
-					if (!mask.mask[comp])
-						continue;
+					// Prepare input vector by overwriting masked items
+					std::copy_n(c, mask.len, fullX + _nComp);
+					linalg::applyVectorSubset(x, mask, fullX + _nComp);
 
-					mat.native(rIdx, rIdx) = static_cast<double>(_porosity);
+					// Call residual function
+					residualImpl<double, double, double, true>(simTime.t, simTime.secIdx, fullX, nullptr, fullResidual, tlmAlloc.manageRemainingMemory());
 
-					for (unsigned int type = 0; type < _nParType; ++type)
+					// Extract Jacobian from full Jacobian
+					mat.setAll(0.0);
+					linalg::copyMatrixSubset(_jac, mask, mask, mat);
+
+					// Replace upper part with conservation relations
+					mat.submatrixSetAll(0.0, 0, 0, numActiveComp, probSize);
+
+					unsigned int rIdx = 0;
+					const double epsQ = 1.0 - porosity;
+
+					for (unsigned int comp = 0; comp < _nComp; ++comp)
 					{
-						const double factor = epsQ * static_cast<double>(_parTypeVolFrac[type]);;
+						if (!mask.mask[comp])
+							continue;
 
-						const unsigned int offset = _nComp + _offsetParType[type] + _boundOffset[type * _nComp + comp];
-						unsigned int bIdx = numActiveComp + numMaskActive(mask, _nComp, _boundOffset[type * _nComp + comp]);
-						for (unsigned int state = 0; state < _nBound[type * _nComp + comp]; ++state)
+						mat.native(rIdx, rIdx) = porosity;
+
+						for (unsigned int type = 0; type < _nParType; ++type)
 						{
-							if (!mask.mask[offset + state])
-								continue;
+							const double factor = epsQ * static_cast<double>(_parTypeVolFrac[type]);
 
-							mat.native(rIdx, bIdx) = factor;
-							++bIdx;
+							const unsigned int offset = _nComp + _offsetParType[type] + _boundOffset[type * _nComp + comp];
+							unsigned int bIdx = numActiveComp + numMaskActive(mask, _nComp, _boundOffset[type * _nComp + comp]);
+							for (unsigned int state = 0; state < _nBound[type * _nComp + comp]; ++state)
+							{
+								if (!mask.mask[offset + state])
+									continue;
+
+								mat.native(rIdx, bIdx) = factor;
+								++bIdx;
+							}
 						}
+
+						++rIdx;
 					}
 
-					++rIdx;
-				}
-
-				return true;
-			};
+					return true;
+				};
 		}
 
 		// Copy inlet values
@@ -828,18 +838,18 @@ void CSTRModel::consistentInitialState(const SimulationTime& simTime, double* co
 				// Calculate residual of conserved moieties
 				std::fill_n(r, numActiveComp, 0.0);
 				unsigned int rIdx = 0;
-				const double epsQ = 1.0 - static_cast<double>(_porosity);
+				const double epsQ = 1.0 - porosity;
 
 				for (unsigned int comp = 0; comp < _nComp; ++comp)
 				{
 					if (!mask.mask[comp])
 						continue;
 
-					r[rIdx] = static_cast<double>(_porosity) * x[rIdx] - conservedQuants[rIdx];
+					r[rIdx] = porosity * x[rIdx] - conservedQuants[rIdx];
 
 					for (unsigned int type = 0; type < _nParType; ++type)
 					{
-						const double factor = epsQ * static_cast<double>(_parTypeVolFrac[type]);;
+						const double factor = epsQ * static_cast<double>(_parTypeVolFrac[type]);
 
 						const unsigned int offset = _nComp + _offsetParType[type] + _boundOffset[type * _nComp + comp];
 						unsigned int bIdx = numActiveComp + numMaskActive(mask, _nComp, _boundOffset[type * _nComp + comp]);
@@ -866,17 +876,18 @@ void CSTRModel::consistentInitialState(const SimulationTime& simTime, double* co
 		// Refine / correct solution
 		for (unsigned int type = 0; type < _nParType; ++type)
 		{
-			const ColumnPosition colPos{0.0, 0.0, 0.0};
+			const ColumnPosition colPos{ 0.0, 0.0, 0.0 };
 			_binding[type]->postConsistentInitialState(simTime.t, simTime.secIdx, colPos, c + _nComp + _offsetParType[type], c, tlmAlloc);
 		}
 	}
 }
 
-void CSTRModel::consistentInitialTimeDerivative(const SimulationTime& simTime, double const* vecStateY, double* const vecStateYdot, util::ThreadLocalStorage& threadLocalMem) 
+void CSTRModel::consistentInitialTimeDerivative(const SimulationTime& simTime, double const* vecStateY, double* const vecStateYdot, util::ThreadLocalStorage& threadLocalMem)
 {
 	double const* const c = vecStateY + _nComp;
 	double* const cDot = vecStateYdot + _nComp;
-	const double v = c[_nComp + _totalBound];
+	const double vLiquid = c[_nComp + _totalBound];
+	const double vSolid = static_cast<double>(_constSolidVolume);
 
 	const double flowIn = static_cast<double>(_flowRateIn);
 	const double flowOut = static_cast<double>(_flowRateOut);
@@ -887,10 +898,10 @@ void CSTRModel::consistentInitialTimeDerivative(const SimulationTime& simTime, d
 
 	// Assemble time derivative Jacobian
 	_jacFact.setAll(0.0);
-	addTimeDerivativeJacobian(simTime.t, 1.0, ConstSimulationState{vecStateY, nullptr}, _jacFact);
+	addTimeDerivativeJacobian(simTime.t, 1.0, ConstSimulationState{ vecStateY, nullptr }, _jacFact);
 
 	// Check if volume is 0
-	if (v == 0.0)
+	if (vLiquid == 0.0)
 	{
 		// Volume: \dot{V} = F_{in} - F_{out} - F_{filter}
 		const double vDot = flowIn - flowOut - static_cast<double>(_curFlowRateFilter);
@@ -898,61 +909,43 @@ void CSTRModel::consistentInitialTimeDerivative(const SimulationTime& simTime, d
 		cDot[_nComp + _totalBound] = vDot;
 
 		// We have the equation
-		//    V * \dot{c_i + 1 / beta * [sum_j sum_m d_j q_{i,m}]} + \dot{V} * (c_i + 1 / beta * [sum_j sum_m d_j q_{i,m}]) = c_{in,i} * F_in - c_i * F_out
+		//    V^l * \dot{c}_i + \dot{V}^l * c_i + V^s * [sum_j sum_m d_j q_{i,m}]} = c_{in,i} * F_in - c_i * F_out
 		// which is now algebraic wrt. c due to V = 0:
-		//    \dot{V} * (c_i + 1 / beta * [sum_j sum_m d_j q_{i,m}]) = c_{in,i} * F_in - c_i * F_out
+		//    \dot{V}^l * c_i + V^s * [sum_j sum_m d_j q_{i,m}]) = c_{in,i} * F_in - c_i * F_out
 		// So we take the derivative wrt. to time t on both sides
-		//    2 * \dot{V} * \dot{c_i + 1 / beta * [sum_j sum_m d_j q_{i,m}]} + V * \ddot{c_i + 1 / beta * [sum_j sum_m d_j q_{i,m}]} + \ddot{V} * (c_i + 1 / beta * [sum_j sum_m d_j q_{i,m}]) = \dot{c}_{in,i} * F_in - \dot{c} * F_out
-		// and use the fact that \ddot{V} = 0 and V = 0 to arrive at
-		//    2 * \dot{V} * \dot{c_i + 1 / beta * [sum_j sum_m d_j q_{i,m}]} = \dot{c}_{in,i} * F_in - \dot{c} * F_out
+		//    \ddot{V}^l * c_i + \dot{V}^l * \dot{c}_i + V^s * [sum_j sum_m d_j \dot{q}_{i,m}]) = \dot{c}_{in,i} * F_in - \dot{c}_i * F_out
+		// and use the fact that \ddot{V}^l = 0 to arrive at
+		//    \dot{V}^l * \dot{c}_i + V^s * [sum_j sum_m d_j \dot{q}_{i,m}]) = \dot{c}_{in,i} * F_in - \dot{c}_i * F_out
 		// Separating knowns from unknowns gives
-		//    (2 * \dot{V} + F_out) * \dot{c_i + 1 / beta * [sum_j sum_m d_j q_{i,m}]} = \dot{c}_{in,i} * F_in
-		// which finally yields
-		//    \dot{c_i + 1 / beta * [sum_j sum_m d_j q_{i,m}]} = \dot{c}_{in,i} * F_in / (2 * \dot{V} + F_out)
+		// \dot{c}_i = [ \dot{c}_{in,i} * F_in - + V^s * [sum_j sum_m d_j \dot{q}_{i,m}]) ] / (F_out + \dot{V}^l)
 
-		// Note that if the denominator were 0, we had
-		//    0 = 2 * \dot{V} + F_out = 2 * F_in - 2 * F_filter - F_out
+		// Note that if the denominator was 0, we had
+		//    0 = \dot{V} + F_out = F_in - F_filter - F_out + F_out
 		// which leads to
-		//    F_out = 2 * F_in - 2 * F_filter                       (*)
-		// Plugging this back into the \dot{V} equation gives
-		//    \dot{V} = F_in - F_out - F_filter = -F_in + F_filter
-		// Since V = 0, a valid choice of parameters has to ensure
-		// \dot{V} >= 0. In this case, we obtain
-		//    F_in <= F_filter
-		// On the other hand, we infer from (*) that
-		//    0 <= F_out <= 0   =>   F_out = 0   =>   F_in = F_filter
-		// This, in turn, concludes \dot{V} = 0. In this situation, 
-		//    F_in = F_filter = 0
-		// has to hold as otherwise the liquid (solvent) is immediately
-		// and fully taken out, leaving only the pure dry components.
-		// We, hence, assume that this doesn't happen. Summarizing, we
-		// have
-		//    \dot{V} = 0, F_in = F_filter = F_out = 0
-		// and nothing can happen or change. Therefore, \dot{c} is set
-		// to 0.0.
+		//    F_in = F_filter
+		// Since F_out >= 0 and \dot{V} = -F_out, we get
+		//    \dot{V} <= 0
+		// Assuming a valid configuration, we obtain \dot{V} = 0
+		// as the tank would get a negative volume otherwise.
+		// Concluding, we arrive at \dot{V} = F_out = 0.
+		// In this situation, F_in = F_filter = 0 has to hold
+		// as otherwise the liquid (solvent) is immediately and
+		// fully taken out, leaving only the pure dry components.
+		// We, hence, assume that this doesn't happen and simply
+		// do nothing leaving the initial conditions in place.
 
 		typename linalg::DenseMatrix::RowIterator itRow = _jacFact.row(0);
 
-		const double denom = 2.0 * vDot + flowOut;
+		const double denom = vDot + flowOut;
 		if (denom == 0.0)
-		{
-			// Assume F_in = F_filter = 0, set cDot to 0
-			for (unsigned int i = 0; i < _nComp; ++i, ++itRow)
-			{
-				itRow.setAll(0.0);
-				itRow[0] = 1.0;
-			}
-			std::fill(cDot, cDot + _nComp, 0.0);
-		}
+			return;
 		else
 		{
-			const double factor = flowIn / denom;
-			const double invBeta = 1.0 / static_cast<double>(_porosity) - 1.0;
 			for (unsigned int i = 0; i < _nComp; ++i, ++itRow)
 			{
 				itRow.setAll(0.0);
 
-				// Jacobian of c_i + 1 / beta * [sum_j sum_m d_j q_{i,m}]
+				// Jacobian of c_i + vSolid * [sum_j sum_m d_j q_{i,m}]
 
 				// d/dc_i
 				itRow[0] = 1.0;
@@ -962,20 +955,20 @@ void CSTRModel::consistentInitialTimeDerivative(const SimulationTime& simTime, d
 				for (unsigned int type = 0; type < _nParType; ++type)
 				{
 					const int innerIdx = bndIdx + _offsetParType[type] + _boundOffset[type * _nComp + i];
-					const double innerFactor = static_cast<double>(_parTypeVolFrac[type]) * invBeta;
+					const double innerFactor = static_cast<double>(_parTypeVolFrac[type]) * vSolid;
 					for (unsigned int j = 0; j < _nBound[type * _nComp + i]; ++j)
 					{
 						itRow[innerIdx + j] = innerFactor;
 					}
 				}
 
+				// \dot{c}_i = [ \dot{c}_{in,i} * F_in - + V^s * [sum_j sum_m d_j \dot{q}_{i,m}]) ] / (F_out + \dot{V}^l)
 				// TODO: This is wrong as vecStateYdot does not contain \dot{c}_in (on entry)
 				// This scenario violates the assumption that every outlet DOF is dynamic
 				// which is key to the consistent initialization algorithm. Fixing this problem
 				// requires fundamental changes to the consistent initialization concept
 				// implemented so far.
-				vecStateYdot[i] = 0.0;
-				cDot[i] = vecStateYdot[i] * factor;
+				cDot[i] = 0.0;
 			}
 		}
 	}
@@ -1000,7 +993,7 @@ void CSTRModel::consistentInitialTimeDerivative(const SimulationTime& simTime, d
 		if (_binding[type]->dependsOnTime())
 		{
 			_binding[type]->timeDerivativeQuasiStationaryFluxes(simTime.t, simTime.secIdx,
-				ColumnPosition{0.0, 0.0, 0.0},
+				ColumnPosition{ 0.0, 0.0, 0.0 },
 				c, c + _nComp + _offsetParType[type], static_cast<double*>(dFluxDt), tlmAlloc);
 		}
 
@@ -1036,11 +1029,11 @@ void CSTRModel::leanConsistentInitialState(const SimulationTime& simTime, double
 	// It is assumed that the bound states are (approximately) correctly initialized.
 	// Thus, only the liquid phase has to be initialized
 
-	double * const c = vecStateY + _nComp;
-	const double v = c[_nComp];
-
+			double* const c = vecStateY + _nComp;
+			const double vLiquid = c[_nComp];
+			const double vSolid = static_cast<double>(_constSolidVolume);
 	// Check if volume is 0
-	if (v == 0.0)
+			if (vLiquid == 0.0)
 	{
 		const double flowIn = static_cast<double>(_flowRateIn);
 		const double flowOut = static_cast<double>(_flowRateOut);
@@ -1049,15 +1042,15 @@ void CSTRModel::leanConsistentInitialState(const SimulationTime& simTime, double
 		const double vDot = flowIn - flowOut - static_cast<double>(_curFlowRateFilter);
 
 		// We have the equation
-		//    \dot{V} * (c + 1 / beta * [sum_j q_j]) + V * (\dot{c} + 1 / beta * [sum_j \dot{q}_j]) = c_in * F_in + c * F_out
+		//    \dot{V}^l * c + \dot{c} * V^l + V^s * [sum_j q_j] = c_in * F_in - c * F_out
 		// which is now algebraic wrt. c due to V = 0:
-		//    \dot{V} * (c + 1 / beta * [sum_j q_j]) = c_in * F_in + c * F_out
+		//    (\dot{V}^l + F_out) * c = - V^s * [sum_j q_j] + c_in * F_in
 		// Separating knowns from unknowns gives
-		//    (\dot{V} + F_out) * c = c_in * F_in - \dot{V} / beta * [sum_j q_j]
+		//    (\dot{V} + F_out) * c = c_in * F_in - V^s * [sum_j q_j]
 		// Hence, we obtain
-		//    c = (c_in * F_in - \dot{V} / beta * [sum_j q_j]) / (\dot{V} + F_out)
+		//    c = (c_in * F_in - \dot{V} / V^s * [sum_j q_j]) / (\dot{V} + F_out)
 
-		// Note that if the denominator were 0, we had
+		// Note that if the denominator was 0, we had
 		//    0 = \dot{V} + F_out = F_in - F_filter
 		// which leads to
 		//    F_in = F_filter
@@ -1079,7 +1072,7 @@ void CSTRModel::leanConsistentInitialState(const SimulationTime& simTime, double
 		for (unsigned int i = 0; i < _nComp; ++i)
 			c[i] = vecStateY[i] * flowIn / denom;;
 
-		const double qFactor = vDot * (1.0 / static_cast<double>(_porosity) - 1.0) / denom;
+				const double qFactor = vSolid / denom;
 		for (unsigned int type = 0; type < _nParType; ++type)
 		{
 			unsigned int const* const bo = _boundOffset + type * _nComp;
@@ -1106,8 +1099,8 @@ void CSTRModel::leanConsistentInitialTimeDerivative(double t, double const* cons
 	double const* const c = vecStateY + _nComp;
 	double* const cDot = vecStateYdot + _nComp;
 	double* const resC = res + _nComp;
-	const double v = c[_nComp];
-
+	const double vLiquid = c[_nComp];
+	const double vSolid = static_cast<double>(_constSolidVolume);
 	const double flowIn = static_cast<double>(_flowRateIn);
 	const double flowOut = static_cast<double>(_flowRateOut);
 
@@ -1116,51 +1109,42 @@ void CSTRModel::leanConsistentInitialTimeDerivative(double t, double const* cons
 	cDot[_nComp] = vDot;
 
 	// Check if volume is 0
-	if (v == 0.0)
+	if (vLiquid == 0.0)
 	{
 		// We have the equation
-		//    V * \dot{c_i + 1 / beta * [sum_j sum_m d_j q_{i,m}]} + \dot{V} * (c_i + 1 / beta * [sum_j sum_m d_j q_{i,m}]) = c_{in,i} * F_in - c_i * F_out
+		//    V^l * \dot{c}_i + \dot{V}^l * c_i + V^s * [sum_j sum_m d_j q_{i,m}]} = c_{in,i} * F_in - c_i * F_out
 		// which is now algebraic wrt. c due to V = 0:
-		//    \dot{V} * (c_i + 1 / beta * [sum_j sum_m d_j q_{i,m}]) = c_{in,i} * F_in - c_i * F_out
+		//    \dot{V}^l * c_i + V^s * [sum_j sum_m d_j q_{i,m}]) = c_{in,i} * F_in - c_i * F_out
 		// So we take the derivative wrt. to time t on both sides
-		//    2 * \dot{V} * \dot{c_i + 1 / beta * [sum_j sum_m d_j q_{i,m}]} + V * \ddot{c_i + 1 / beta * [sum_j sum_m d_j q_{i,m}]} + \ddot{V} * (c_i + 1 / beta * [sum_j sum_m d_j q_{i,m}]) = \dot{c}_{in,i} * F_in - \dot{c} * F_out
-		// and use the fact that \ddot{V} = 0 and V = 0 to arrive at
-		//    2 * \dot{V} * \dot{c_i + 1 / beta * [sum_j sum_m d_j q_{i,m}]} = \dot{c}_{in,i} * F_in - \dot{c} * F_out
+		//    \ddot{V}^l * c_i + \dot{V}^l * \dot{c}_i + V^s * [sum_j sum_m d_j \dot{q}_{i,m}]) = \dot{c}_{in,i} * F_in - \dot{c}_i * F_out
+		// and use the fact that \ddot{V}^l = 0 to arrive at
+		//    \dot{V}^l * \dot{c}_i + V^s * [sum_j sum_m d_j \dot{q}_{i,m}]) = \dot{c}_{in,i} * F_in - \dot{c}_i * F_out
 		// Separating knowns from unknowns gives
-		//    (2 * \dot{V} + F_out) * \dot{c_i + 1 / beta * [sum_j sum_m d_j q_{i,m}]} = \dot{c}_{in,i} * F_in
-		// which finally yields
-		//    \dot{c_i + 1 / beta * [sum_j sum_m d_j q_{i,m}]} = \dot{c}_{in,i} * F_in / (2 * \dot{V} + F_out)
+		// \dot{c}_i = [ \dot{c}_{in,i} * F_in - + V^s * [sum_j sum_m d_j \dot{q}_{i,m}]) ] / (F_out + \dot{V}^l)
 
-		// Note that if the denominator were 0, we had
-		//    0 = 2 * \dot{V} + F_out = 2 * F_in - 2 * F_filter - F_out
+		// Note that if the denominator was 0, we had
+		//    0 = \dot{V} + F_out = F_in - F_filter - F_out + F_out
 		// which leads to
-		//    F_out = 2 * F_in - 2 * F_filter                       (*)
-		// Plugging this back into the \dot{V} equation gives
-		//    \dot{V} = F_in - F_out - F_filter = -F_in + F_filter
-		// Since V = 0, a valid choice of parameters has to ensure
-		// \dot{V} >= 0. In this case, we obtain
-		//    F_in <= F_filter
-		// On the other hand, we infer from (*) that
-		//    0 <= F_out <= 0   =>   F_out = 0   =>   F_in = F_filter
-		// This, in turn, concludes \dot{V} = 0. In this situation, 
-		//    F_in = F_filter = 0
-		// has to hold as otherwise the liquid (solvent) is immediately
-		// and fully taken out, leaving only the pure dry components.
-		// We, hence, assume that this doesn't happen. Summarizing, we
-		// have
-		//    \dot{V} = 0, F_in = F_filter = F_out = 0
-		// and nothing can happen or change. Therefore, \dot{c} is set
-		// to 0.0.
+		//    F_in = F_filter
+		// Since F_out >= 0 and \dot{V} = -F_out, we get
+		//    \dot{V} <= 0
+		// Assuming a valid configuration, we obtain \dot{V} = 0
+		// as the tank would get a negative volume otherwise.
+		// Concluding, we arrive at \dot{V} = F_out = 0.
+		// In this situation, F_in = F_filter = 0 has to hold
+		// as otherwise the liquid (solvent) is immediately and
+		// fully taken out, leaving only the pure dry components.
+		// We, hence, assume that this doesn't happen and simply
+		// do nothing leaving the initial conditions in place.
 
-		const double denom = 2.0 * vDot + flowOut;
+		typename linalg::DenseMatrix::RowIterator itRow = _jacFact.row(0);
+
+		const double denom = vDot + flowOut;
 		if (denom == 0.0)
-		{
-			// Assume F_in = F_filter = 0
-			std::fill(cDot, cDot + _nComp, 0.0);
-		}
+			return;
 		else
 		{
-			const double qFactor = 2.0 * vDot * (1.0 / static_cast<double>(_porosity) - 1.0) / denom;
+			const double qFactor = 2.0 * vSolid / denom;
 			const double factor = flowIn / denom;
 
 			for (unsigned int i = 0; i < _nComp; ++i)
@@ -1191,12 +1175,10 @@ void CSTRModel::leanConsistentInitialTimeDerivative(double t, double const* cons
 	}
 	else
 	{
-		const double invBeta = 1.0 / static_cast<double>(_porosity) - 1.0;
-
-		// Concentrations: V * (\dot{c} + 1 / beta * [sum_j sum_m d_j \dot{q}_{j,m}]) = c_in * F_in + c * F_out - \dot{V} * (c + 1 / beta * [sum_j sum_m d_j q_{j,m}])
-		//             <=> V * \dot{c} = c_in * F_in + c * F_out - \dot{V} * (c + 1 / beta * [sum_j sum_m d_j q_{j,m}]) - V / beta * [sum_j sum_m d_j \dot{q}_{j,m}]
-		//                             = -res - \dot{V} * (c + 1 / beta * [sum_j sum_m d_j q_{j,m}]) - V / beta * [sum_j sum_m d_j \dot{q}_{j,m}]
-		// => \dot{c} = (-res - \dot{V} * (c + 1 / beta * [sum_j sum_m d_j q_{j,m}]) - V / beta * [sum_j sum_m d_j \dot{q}_m]) / V
+		// Concentrations: V^l * \dot{c} + \dot{V}^l * c + V^s * [sum_j sum_m d_j \dot{q}_{j,m}] = c_in * F_in + c * F_out
+		//             <=> V^l * \dot{c} = c_in * F_in + c * F_out - V^s * [sum_j sum_m d_j \dot{q}_{j,m}] - \dot{V}^l * c 
+		//                               = -res - V^s * [sum_j sum_m d_j \dot{q}_{j,m}] - \dot{V}^l * c
+		// => \dot{c} = (-res - V^s * [sum_j sum_m d_j \dot{q}_{j,m}] - \dot{V}^l * c) / V^l
 		for (unsigned int i = 0; i < _nComp; ++i)
 		{
 			double qSum = 0.0;
@@ -1204,7 +1186,7 @@ void CSTRModel::leanConsistentInitialTimeDerivative(double t, double const* cons
 			for (unsigned int type = 0; type < _nParType; ++type)
 			{
 				double const* const localQ = c + _nComp + _offsetParType[type] + _boundOffset[type * _nComp + i];
-				double const* const localQdot = cDot + _nComp +  _offsetParType[type] +_boundOffset[type * _nComp + i];
+				double const* const localQdot = cDot + _nComp + _offsetParType[type] + _boundOffset[type * _nComp + i];
 				double qSumType = 0.0;
 				double qDotSumType = 0.0;
 				for (unsigned int j = 0; j < _nBound[type * _nComp + i]; ++j)
@@ -1216,7 +1198,7 @@ void CSTRModel::leanConsistentInitialTimeDerivative(double t, double const* cons
 				qDotSum += static_cast<double>(_parTypeVolFrac[type]) * qDotSumType;
 			}
 
-			cDot[i] = (-resC[i] - vDot * (c[i] + invBeta * qSum) - v * invBeta * qDotSum) / v;
+			cDot[i] = (-resC[i] - vSolid * qDotSum - vLiquid * c[i]) / vLiquid;
 		}
 	}
 }
@@ -1240,11 +1222,11 @@ int CSTRModel::residual(const SimulationTime& simTime, const ConstSimulationStat
 template <typename StateType, typename ResidualType, typename ParamType, bool wantJac>
 int CSTRModel::residualImpl(double t, unsigned int secIdx, StateType const* const y, double const* const yDot, ResidualType* const res, LinearBufferAllocator tlmAlloc)
 {
-	StateType const* const cIn = y;
+	StateType const* const cIn = y; 
 	StateType const* const c = y + _nComp;
-	const StateType& v = y[2 * _nComp + _totalBound];
+	const StateType& v = y[2 * _nComp + _totalBound]; 
 
-	double const* const cDot = yDot ? yDot + _nComp : nullptr;
+	double const* const cDot = yDot ? yDot + _nComp : nullptr; 
 	const double vDot = yDot ? yDot[2 * _nComp + _totalBound] : 0.0;
 
 	const ParamType flowIn = static_cast<ParamType>(_flowRateIn);
@@ -1256,8 +1238,8 @@ int CSTRModel::residualImpl(double t, unsigned int secIdx, StateType const* cons
 		res[i] = cIn[i];
 	}
 
-	// Concentrations: \dot{V} * (c + 1 / beta * [sum_j q_j]) + V * (\dot{c} + 1 / beta * [sum_j \dot{q}_j]) = c_in * F_in - c * F_out
-	const ParamType invBeta = 1.0 / static_cast<ParamType>(_porosity) - 1.0;
+	// Concentrations: \dot{V^l} * c + V^l * \dot{c} + V^s * sum_j sum_m \dot{q}_{j,m}] = c_in * F_in - c * F_out
+	const ParamType vsolid = static_cast<ParamType>(_constSolidVolume);
 	ResidualType* const resC = res + _nComp;
 	for (unsigned int i = 0; i < _nComp; ++i)
 	{
@@ -1266,34 +1248,27 @@ int CSTRModel::residualImpl(double t, unsigned int secIdx, StateType const* cons
 		// Add time derivatives
 		if (cadet_likely(yDot))
 		{
-			// Ultimately, we need (dc_{i} / dt + 1 / beta * [ sum_j sum_m d_j dq_{j,i,m} / dt ]) * V
-			// and (c_{i} + 1 / beta * [ sum_j sum_m d_j q_{i,m} ]) * dV / dt
+			// Ultimately, we need V^l dc_{i} / dt + dV^l / dt + V^s * [ sum_j sum_m d_j dq_{j,i,m} / dt ]
 			// Compute the sum in the brackets first, then divide by beta and add remaining term
 
-			// Sum q_{i,1} + q_{i,2} + ... + q_{i,N_i}
-			// and sum dq_{i,1} / dt + dq_{i,2} / dt + ... + dq_{i,N_i} / dt
-			typename DoubleActivePromoter<StateType, ResidualType>::type qSum = 0.0;
+			// sum dq_{i,1} / dt + dq_{i,2} / dt + ... + dq_{i,N_i} / dt
 			typename ActivePromoter<ParamType>::type qDotSum = 0.0;
 
 			for (unsigned int type = 0; type < _nParType; ++type)
 			{
-				StateType const* const q = c + _nComp + _offsetParType[type] + _boundOffset[type * _nComp + i];
 				double const* const qDot = cDot + _nComp + _offsetParType[type] + _boundOffset[type * _nComp + i];
 				
-				StateType qSumType = 0.0;
 				double qDotSumType = 0.0;
 				for (unsigned int j = 0; j < _nBound[type * _nComp + i]; ++j)
 				{
-					qSumType += q[j];
 					qDotSumType += qDot[j];
 				}
 
-				qSum += static_cast<ParamType>(_parTypeVolFrac[type]) * qSumType;
 				qDotSum += static_cast<ParamType>(_parTypeVolFrac[type]) * qDotSumType;
 			}
 
 			// Divide by beta and add c_i and dc_i / dt
-			resC[i] = ((cDot[i] + invBeta * qDotSum) * v + vDot * (c[i] + invBeta * qSum));
+			resC[i] = cDot[i] * v + vDot * c[i] + vsolid * qDotSum;
 		}
 
 		resC[i] += -flowIn * cIn[i] + flowOut * c[i];
@@ -1305,38 +1280,15 @@ int CSTRModel::residualImpl(double t, unsigned int secIdx, StateType const* cons
 
 		// Assemble Jacobian: Liquid phase
 
-		// Concentrations: \dot{V} * (c_i + 1 / beta * [sum_j sum_m d_j q_{j,i,m}]) + V * (\dot{c}_i + 1 / beta * [sum_j sum_m d_j \dot{q}_{j,i,m}]) - c_{in,i} * F_in + c_i * F_out == 0
+		// Concentrations: V^l * \dot{c}_i + \dot{V^l} * c_i + V^s * ([sum_j sum_m d_j \dot{q}_{j,i,m}]) - c_{in,i} * F_in + c_i * F_out == 0
 		const double vDotTimeFactor = static_cast<double>(vDot);
 		for (unsigned int i = 0; i < _nComp; ++i)
 		{
-			_jac.native(i, i) = vDotTimeFactor + static_cast<double>(flowOut);
+			_jac.native(i, i) = vDotTimeFactor + static_cast<double>(flowOut); // dF/dci = v_liquidDot + F_out
 
 			if (cadet_likely(yDot))
 			{
-				double qDotSum = 0.0;
-				const double vDotInvBeta = vDotTimeFactor * static_cast<double>(invBeta);
-				for (unsigned int type = 0; type < _nParType; ++type)
-				{
-					double const* const qiDot = cDot + _nComp + _offsetParType[type] + _boundOffset[type * _nComp + i];
-					const unsigned int localOffset = _nComp + _offsetParType[type] + _boundOffset[type * _nComp + i];
-
-					const double vDotInvBetaParVolFrac = vDotInvBeta * static_cast<double>(_parTypeVolFrac[type]);
-					double qDotSumType = 0.0;
-					for (unsigned int j = 0; j < _nBound[type * _nComp + i]; ++j)
-					{
-						_jac.native(i, localOffset + j) = vDotInvBetaParVolFrac;
-						// + _nComp: Moves over liquid phase components
-						// + _offsetParType[type]: Moves to particle type
-						// + _boundOffset[i]: Moves over bound states of previous components
-						// + j: Moves to current bound state j of component i
-
-						qDotSumType += qiDot[j];
-					}
-
-					qDotSum += static_cast<double>(_parTypeVolFrac[type]) * qDotSumType;
-				}
-
-				_jac.native(i, _nComp + _totalBound) = (cDot[i] + static_cast<double>(invBeta) * qDotSum);
+				_jac.native(i, _nComp + _totalBound) = cDot[i]; // dF/dvliquid = cDot 
 			}
 		}
 	}
@@ -1358,7 +1310,7 @@ int CSTRModel::residualImpl(double t, unsigned int secIdx, StateType const* cons
 		if (wantJac)
 		{
 			for (unsigned int comp = 0; comp < _nComp; ++comp)
-				_jac.native(comp, _nComp + _totalBound) += static_cast<double>(flux[comp]);
+				_jac.native(comp, _nComp + _totalBound) += static_cast<double>(flux[comp]); // dF/dvliquid = flux
 
 			_dynReactionBulk->analyticJacobianLiquidAdd(t, secIdx, colPos, reinterpret_cast<double const*>(c), -static_cast<double>(v), _jac.row(0), subAlloc);
 		}
@@ -1417,7 +1369,7 @@ int CSTRModel::residualImpl(double t, unsigned int secIdx, StateType const* cons
 				resC[comp] += v * fluxLiquid[comp];
 
 			typedef typename DoubleActivePromoter<StateType, ParamType>::type FactorType;
-			const FactorType liquidFactor = v * invBeta * static_cast<ParamType>(_parTypeVolFrac[type]);
+			const FactorType liquidFactor = vsolid * static_cast<ParamType>(_parTypeVolFrac[type]);
 			unsigned int idx = 0;
 			for (unsigned int comp = 0; comp < _nComp; ++comp)
 			{
@@ -1438,17 +1390,6 @@ int CSTRModel::residualImpl(double t, unsigned int secIdx, StateType const* cons
 			{
 				// Assemble Jacobian: Reaction
 
-				// dRes / dV
-				idx = 0;
-				for (unsigned int comp = 0; comp < _nComp; ++comp)
-				{
-					double sum = 0;
-					for (unsigned int bnd = 0; bnd < _nBound[type * _nComp + comp]; ++bnd, ++idx)
-						sum += static_cast<double>(fluxSolid[idx]);
-
-					_jac.native(comp, _nComp + _totalBound) += static_cast<double>(fluxLiquid[comp]) + static_cast<double>(invBeta) * static_cast<double>(_parTypeVolFrac[type]) * sum;
-				}
-
 				// dRes / dC and dRes / dQ
 				BufferedArray<double> fluxJacobianMem = subAlloc.array<double>((_strideBound[type] + _nComp) * (_strideBound[type] + _nComp));
 				linalg::DenseMatrixView jacFlux(static_cast<double*>(fluxJacobianMem), nullptr, _strideBound[type] + _nComp, _strideBound[type] + _nComp);
@@ -1456,7 +1397,7 @@ int CSTRModel::residualImpl(double t, unsigned int secIdx, StateType const* cons
 					-1.0, jacFlux.row(0), jacFlux.row(_nComp), subAlloc);
 
 				idx = 0;
-				const double liquidFactor = static_cast<double>(v) * static_cast<double>(invBeta) * static_cast<double>(_parTypeVolFrac[type]);
+				const double liquidFactor = static_cast<double>(vsolid) * static_cast<double>(_parTypeVolFrac[type]);
 				for (unsigned int comp = 0; comp < _nComp; ++comp)
 				{
 					// Add bulk part of reaction to mobile phase Jacobian
@@ -1776,27 +1717,26 @@ void CSTRModel::multiplyWithDerivativeJacobian(const SimulationTime& simTime, co
 	double const* const c = simState.vecStateY + _nComp;
 	double const* const q = simState.vecStateY + 2 * _nComp;
 	const double v = simState.vecStateY[2 * _nComp + _totalBound];
-	const double invBeta = 1.0 / static_cast<double>(_porosity) - 1.0;
 	const double timeV = v;
-	const double vInvBeta = timeV * invBeta;
+	const double vSolid = static_cast<double>(_constSolidVolume);
 	double* const r = ret + _nComp;
 	double const* const s = sDot + _nComp;
 
-	// Concentrations: \dot{V} * (c_i + 1 / beta * [sum_j sum_m d_j q_{j,i,m}]) + V * (\dot{c}_i + 1 / beta * [sum_j sum_m d_j \dot{q}_{j,i,m}]) - c_{in,i} * F_in + c_i * F_out == 0
+	// Concentrations: V^l * \dot{c}_i \dot{V^l} * c_i + V^s * ([sum_j sum_m d_j \dot{q}_{j,i,m}]) - c_{in,i} * F_in + c_i * F_out == 0
 	for (unsigned int i = 0; i < _nComp; ++i)
 	{
-		r[i] = timeV * s[i];
+		r[i] = timeV * s[i]; // dRes / dcDot
 
 		double qSum = 0.0;
 		for (unsigned int type = 0; type < _nParType; ++type)
 		{
 			double const* const qi = q + _offsetParType[type] + _boundOffset[type * _nComp + i];
 			const unsigned int localOffset = _nComp + _offsetParType[type] + _boundOffset[type * _nComp + i];
-			const double vInvBetaParVolFrac = vInvBeta * static_cast<double>(_parTypeVolFrac[type]);
+			const double vSolidParVolFrac = vSolid * static_cast<double>(_parTypeVolFrac[type]);
 			double qSumType = 0.0;
 			for (unsigned int j = 0; j < _nBound[type * _nComp + i]; ++j)
 			{
-				r[i] += vInvBetaParVolFrac * s[localOffset + j];
+				r[i] += vSolidParVolFrac * s[localOffset + j]; // dRes / d_qDot
 				// + _nComp: Moves over liquid phase components
 				// + _offsetParType[type]: Moves to particle type
 				// + _boundOffset[i]: Moves over bound states of previous components
@@ -1807,7 +1747,7 @@ void CSTRModel::multiplyWithDerivativeJacobian(const SimulationTime& simTime, co
 
 			qSum += static_cast<double>(_parTypeVolFrac[type]) * qSumType;
 		}
-		r[i] += (c[i] + invBeta * qSum) * s[_nComp + _totalBound];
+		r[i] += c[i] * s[_nComp + _totalBound]; // dRes / dvLiquidDot
 	}
 
 	// Bound states
@@ -1867,42 +1807,38 @@ int CSTRModel::linearSolve(double t, double alpha, double tol, double* const rhs
 
 template <typename MatrixType>
 void CSTRModel::addTimeDerivativeJacobian(double t, double alpha, const ConstSimulationState& simState, MatrixType& mat)
-{
+{	
 	double const* const c = simState.vecStateY + _nComp;
 	double const* const q = simState.vecStateY + 2 * _nComp;
 	const double v = simState.vecStateY[2 * _nComp + _totalBound];
-	const double invBeta = 1.0 / static_cast<double>(_porosity) - 1.0;
+	const double vsolid = static_cast<double>(_constSolidVolume);
 	const double timeV = v * alpha;
-	const double vInvBeta = timeV * invBeta;
 
 	// Assemble Jacobian: dRes / dyDot
-
-	// Concentrations: \dot{V} * (c_i + 1 / beta * [sum_j sum_m d_j q_{j,i,m}]) + V * (\dot{c}_i + 1 / beta * [sum_j sum_m d_j \dot{q}_{j,i,m}]) - c_{in,i} * F_in + c_i * F_out == 0
+	
+	// Concentrations: \dot{V^l} * c_i + V^l * \dot{c}_i + V^s * [sum_j sum_m d_j \dot{q}_{j,i,m}]) - c_{in,i} * F_in + c_i * F_out == 0
 	for (unsigned int i = 0; i < _nComp; ++i)
 	{
-		mat.native(i, i) += timeV;
+		mat.native(i, i) += timeV; // dRes / dcDot
 
 		double qSum = 0.0;
 		for (unsigned int type = 0; type < _nParType; ++type)
 		{
 			double const* const qi = q + _offsetParType[type] + _boundOffset[type * _nComp + i];
 			const unsigned int localOffset = _nComp + _offsetParType[type] + _boundOffset[type * _nComp + i];
-			const double vInvBetaParVolFrac = vInvBeta * static_cast<double>(_parTypeVolFrac[type]);
-			double qSumType = 0.0;
+			const double vSolidParVolFrac = vsolid * static_cast<double>(_parTypeVolFrac[type]);
 			for (unsigned int j = 0; j < _nBound[type * _nComp + i]; ++j)
 			{
-				mat.native(i, localOffset + j) += vInvBetaParVolFrac;
+				mat.native(i, localOffset + j) += vSolidParVolFrac; // dRes / dqDot
 				// + _nComp: Moves over liquid phase components
 				// + _offsetParType[type]: Moves to particle type
 				// + _boundOffset[i]: Moves over bound states of previous components
 				// + j: Moves to current bound state j of component i
 
-				qSumType += qi[j];
 			}
-
-			qSum += static_cast<double>(_parTypeVolFrac[type]) * qSumType;
 		}
-		mat.native(i, _nComp + _totalBound) += alpha * (c[i] + invBeta * qSum);
+
+		mat.native(i, _nComp + _totalBound) += alpha * c[i]; // dRes / dV
 	}
 
 	// Bound states
@@ -1933,10 +1869,10 @@ void CSTRModel::addTimeDerivativeJacobian(double t, double alpha, const ConstSim
 }
 
 /**
- * @brief Extracts the system Jacobian from AD seed vectors
- * @param [in] adRes Residual vector of AD datatypes with band compressed seed vectors
- * @param [in] adDirOffset Number of AD directions used for non-Jacobian purposes (e.g., parameter sensitivities)
- */
+	* @brief Extracts the system Jacobian from AD seed vectors
+	* @param [in] adRes Residual vector of AD datatypes with band compressed seed vectors
+	* @param [in] adDirOffset Number of AD directions used for non-Jacobian purposes (e.g., parameter sensitivities)
+	*/
 void CSTRModel::extractJacobianFromAD(active const* const adRes, unsigned int adDirOffset)
 {
 	ad::extractDenseJacobianFromAd(adRes + _nComp, adDirOffset, _jac);
@@ -1945,11 +1881,11 @@ void CSTRModel::extractJacobianFromAD(active const* const adRes, unsigned int ad
 #ifdef CADET_CHECK_ANALYTIC_JACOBIAN
 
 /**
- * @brief Compares the analytical Jacobian with a Jacobian derived by AD
- * @details The analytical Jacobian is assumed to be stored in the dense matrix.
- * @param [in] adRes Residual vector of AD datatypes with band compressed seed vectors
- * @param [in] adDirOffset Number of AD directions used for non-Jacobian purposes (e.g., parameter sensitivities)
- */
+	* @brief Compares the analytical Jacobian with a Jacobian derived by AD
+	* @details The analytical Jacobian is assumed to be stored in the dense matrix.
+	* @param [in] adRes Residual vector of AD datatypes with band compressed seed vectors
+	* @param [in] adDirOffset Number of AD directions used for non-Jacobian purposes (e.g., parameter sensitivities)
+	*/
 void CSTRModel::checkAnalyticJacobianAgainstAd(active const* const adRes, unsigned int adDirOffset) const
 {
 	const double diff = ad::compareDenseJacobianWithAd(adRes + _nComp, adDirOffset, _jac);

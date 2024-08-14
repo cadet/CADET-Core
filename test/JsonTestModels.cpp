@@ -1060,9 +1060,10 @@ json createCSTRJson(unsigned int nComp)
 	json config;
 	config["UNIT_TYPE"] = std::string("CSTR");
 	config["NCOMP"] = static_cast<int>(nComp);
-	config["INIT_VOLUME"] = 1.0;
+	config["INIT_LIQUID_VOLUME"] = 1.0;
 	config["INIT_C"] = std::vector<double>(nComp, 0.0);
-	config["FLOWRATE_FILTER"] = {0.0};
+	config["FLOWRATE_FILTER"] = { 0.0 };
+	config["CONST_SOLID_VOLUME"] = 0.0;
 	return config;
 }
 
@@ -1096,10 +1097,10 @@ cadet::JsonParameterProvider createCSTRBenchmark(unsigned int nSec, double endTi
 			{
 				json sec;
 
-				sec["CONST_COEFF"] = {0.0};
-				sec["LIN_COEFF"] = {0.0};
-				sec["QUAD_COEFF"] = {0.0};
-				sec["CUBE_COEFF"] = {0.0};
+				sec["CONST_COEFF"] = { 0.0 };
+				sec["LIN_COEFF"] = { 0.0 };
+				sec["QUAD_COEFF"] = { 0.0 };
+				sec["CUBE_COEFF"] = { 0.0 };
 
 				ss << "sec_" << std::setfill('0') << std::setw(3) << i;
 				inlet[ss.str()] = sec;
@@ -1133,8 +1134,8 @@ cadet::JsonParameterProvider createCSTRBenchmark(unsigned int nSec, double endTi
 
 				// Connection list is 2x7 since we have 2 connection between
 				// the three unit operations (and we need to have 7 columns)
-				sw["CONNECTIONS"] = {1.0, 0.0, -1.0, -1.0, -1.0, -1.0, 1.0,
-				                     0.0, 2.0, -1.0, -1.0, -1.0, -1.0, 1.0};
+				sw["CONNECTIONS"] = { 1.0, 0.0, -1.0, -1.0, -1.0, -1.0, 1.0,
+									 0.0, 2.0, -1.0, -1.0, -1.0, -1.0, 1.0 };
 				// Connections: From unit operation 1 port -1 (i.e., all ports)
 				//              to unit operation 0 port -1 (i.e., all ports),
 				//              connect component -1 (i.e., all components)
@@ -1213,8 +1214,8 @@ cadet::JsonParameterProvider createCSTRBenchmark(unsigned int nSec, double endTi
 		{
 			json ti;
 
-			ti["ABSTOL"] = 1e-8;
-			ti["RELTOL"] = 1e-6;
+			ti["ABSTOL"] = 1e-12;
+			ti["RELTOL"] = 1e-12;
 			ti["ALGTOL"] = 1e-12;
 			ti["INIT_STEP_SIZE"] = 1e-6;
 			ti["MAX_STEPS"] = 10000;

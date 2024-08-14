@@ -36,11 +36,11 @@ namespace model
 
 /**
  * @brief Continuous stirred tank (reactor) model
- * @details This is a simple CSTR model with variable volume using the ``well mixed assumption''.
+ * @details This is a simple CSTR with variable porosity model with variable volume using the ``well mixed assumption''.
  * @f[\begin{align}
-	\frac{\mathrm{d}}{\mathrm{d} t}\left( V \left[ c_i + \frac{1}{\beta} \sum_{j=1}^{N_{\text{bnd},i}} q_{i,j} \right] \right) &= F_{\text{in}} c_{\text{in},i} - F_{\text{out}} c_i \\
+	\frac{\mathrm{d}}{\mathrm{d} t}\left( V^l c_i \right) + V^s \sum_{j=1}^{N_{\text{bnd},i}} q_{i,j} &= F_{\text{in}} c_{\text{in},i} - F_{\text{out}} c_i \\
 	a \frac{\partial q_{i,j}}{\partial t} &= f_{\text{iso},i,j}(c, q) \\
-	\frac{\partial V}{\partial t} &= F_{\text{in}} - F_{\text{out}} - F_{\text{filter}}
+	\frac{\partial V^l}{\partial t} &= F_{\text{in}} - F_{\text{out}} - F_{\text{filter}}
 \end{align} @f]
  * The model can be used as a plain stir tank without any binding states.
  */
@@ -154,7 +154,7 @@ protected:
 	unsigned int* _offsetParType; //!< Offset to bound states of a particle type in solid phase
 	unsigned int _totalBound; //!< Total number of all bound states in all particle types
 
-	active _porosity; //!< Porosity \f$ \varepsilon \f$
+	active _constSolidVolume; //!< Solid volume \f$ V^s \f$
 	active _flowRateIn; //!< Volumetric flow rate of incoming stream
 	active _flowRateOut; //!< Volumetric flow rate of drawn outgoing stream
 	active _curFlowRateFilter; //!< Current volumetric flow rate of liquid outtake stream for this section
@@ -166,7 +166,7 @@ protected:
 	linalg::DenseMatrix _jacFact; //!< Factorized Jacobian
 	bool _factorizeJac; //!< Flag that tracks whether the Jacobian needs to be factorized
 
-	std::vector<active> _initConditions; //!< Initial conditions, ordering: Liquid phase concentration, solid phase concentration, volume
+	std::vector<active> _initConditions; //!< Initial conditions, ordering: Liquid phase concentration, solid phase concentration, liquid volume
 	std::vector<double> _initConditionsDot; //!< Initial conditions for time derivative
 
 	IDynamicReactionModel* _dynReactionBulk; //!< Dynamic reactions in the bulk volume
