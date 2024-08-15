@@ -11,6 +11,7 @@
 // =============================================================================
 
 #include "model/MultiChannelTransportModel.hpp"
+#include "ExchangeModelFactory.hpp"
 #include "ParamReaderHelper.hpp"
 #include "ParamReaderScopes.hpp"
 #include "cadet/Exceptions.hpp"
@@ -414,7 +415,10 @@ bool MultiChannelTransportModel::configureModelDiscretization(IParameterProvider
 
 	_exchange.push_back(nullptr);
 
-	_exchange[0] = helper.createExchangeModel("LINEAR_EX");
+	if (paramProvider.exists("EXCHANGE_MODEL"))
+		_exchange[0] = helper.createExchangeModel(paramProvider.getString("EXCHANGE_MODEL"));
+	else
+		_exchange[0] = helper.createExchangeModel("LANGMUIR_EX");
 
 	bool exchangeConfSuccess = true;
 	exchangeConfSuccess = _exchange[0]->configureModelDiscretization(paramProvider, _disc.nComp, _disc.nChannel, _disc.nCol);

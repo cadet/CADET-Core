@@ -59,6 +59,12 @@ public:
 	 */
 	virtual model::IBindingModel* createBindingModel(const std::string& name) const = 0;
 
+	/**
+	 * @brief Creates an IPhaseTransition object of the given @p name
+	 * @details The caller owns the returned IPhaseTransition object.
+	 * @param [in] name Name of the IPhaseTransition object
+	 * @return Object of the given IPhaseTransition @p name or @c nullptr if that name does not exist
+	 */
 	virtual model::IPhaseTransitionModel* createExchangeModel(const std::string& name) const = 0;
 
 

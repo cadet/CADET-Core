@@ -101,8 +101,9 @@ set(LIBCADET_BINDINGMODEL_SOURCES
 	${CMAKE_SOURCE_DIR}/src/libcadet/model/binding/HICWaterOnHydrophobicSurfacesBinding.cpp
 	${CMAKE_SOURCE_DIR}/src/libcadet/model/binding/HICConstantWaterActivityBinding.cpp
 )
-set(LIBCADET_PHASETRANSITIONMODELINTERFACE_HPP_
+set(LIBCADET_EXCHACHEMODEL_SOURCES
 	${CMAKE_SOURCE_DIR}/src/libcadet/model/exchange/LinearExchange.cpp
+	${CMAKE_SOURCE_DIR}/src/libcadet/model/exchange/LangumirExchange.cpp
 )
 
 
