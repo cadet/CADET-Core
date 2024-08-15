@@ -449,17 +449,8 @@ bool MultiChannelTransportModel::configure(IParameterProvider& paramProvider)
 		paramProvider.popScope();
 	}
 	
-	/* Zunkufscode
-	if (_exchange[0]){
-
-		std::vector<ParameterId> initParams(_disc.nChannel); //Q was macht initParams ? brauche ich maxBoundStates ?
-		_exchange[0]->fillChannelInitialParameters(initParams.data(), _unitOpIdx);
-	}
-		
-	*/
 	// Reconfigure exchange model
 	bool exchangeConfSuccess = true;
-	
 	exchangeConfSuccess = _exchange[0]->configure(paramProvider, _unitOpIdx);
 	
 
