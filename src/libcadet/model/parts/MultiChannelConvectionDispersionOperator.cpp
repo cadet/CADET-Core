@@ -1013,70 +1013,10 @@ int MultiChannelConvectionDispersionOperator::residualImpl(const IModel& model, 
 
 	
 
-	// Handle inter-channel transport
 	if (cadet_unlikely(_nChannel <= 1)) {
 		return 0;
 	}
-	/*
-	linalg::BandedSparseRowIterator jacBegin = _jacC.row(0);
-
-	const unsigned int offsetC = _nChannel * _nComp;
-	for (unsigned int col = 0; col < _nCol; ++col)
-	{
-		const unsigned int offsetColBlock = col * _nChannel * _nComp;
-		ResidualType* const resColBlock = res + offsetC + offsetColBlock;
-		StateType const* const yColBlock = y + offsetC + offsetColBlock;
-
-		for (unsigned int rad_orig = 0; rad_orig < _nChannel; ++rad_orig)
-		{
-			const unsigned int offsetToRadOrigBlock = rad_orig * _nComp;
-			const unsigned int offsetColRadOrigBlock = offsetColBlock + offsetToRadOrigBlock;
-			ResidualType* const resColRadOrigBlock = resColBlock + offsetToRadOrigBlock;
-			StateType const* const yColRadOrigBlock = yColBlock + offsetToRadOrigBlock;
-
-			for (unsigned int rad_dest = 0; rad_dest < _nChannel; ++rad_dest)
-			{
-				if (rad_orig == rad_dest)
-					continue;
-
-				const unsigned int offsetToRadDestBlock = rad_dest * _nComp;
-				const unsigned int offsetColRadDestBlock = offsetColBlock + offsetToRadDestBlock;
-				ResidualType* const resColRadDestBlock = resColBlock + offsetToRadDestBlock;
-				// StateType const* const yColRadDestBlock = yColBlock + offsetToRadDestBlock;
-
-				for (unsigned int comp = 0; comp < _nComp; ++comp)
-				{
-					const unsigned int offsetCur_orig = offsetColRadOrigBlock + comp;
-					const unsigned int offsetCur_dest = offsetColRadDestBlock + comp;
-					StateType const* const yCur_orig = yColRadOrigBlock + comp;
-					// StateType const* const yCur_dest = yColRadDestBlock + comp;
-					ResidualType* const resCur_orig = resColRadOrigBlock + comp;
-					ResidualType* const resCur_dest = resColRadDestBlock + comp;
-
-					const ParamType exchange_orig_dest_comp = static_cast<ParamType>(_exchangeMatrix[rad_orig * _nChannel * _nComp + rad_dest * _nComp + comp]);
-					if (cadet_likely(exchange_orig_dest_comp > 0.0))
-					{
-						*resCur_orig += exchange_orig_dest_comp * yCur_orig[0];
-						*resCur_dest -= exchange_orig_dest_comp * yCur_orig[0] * static_cast<ParamType>(_crossSections[rad_orig]) / static_cast<ParamType>(_crossSections[rad_dest]);
-
-						if (wantJac) {
-
-							linalg::BandedSparseRowIterator jacorig;
-							jacorig = jacBegin + offsetCur_orig;
-							jacorig[0] += static_cast<double>(exchange_orig_dest_comp);
-
-							linalg::BandedSparseRowIterator jacdest;
-							jacdest = jacBegin + offsetCur_dest;
-							jacdest[static_cast<int>(offsetCur_orig) - static_cast<int>(offsetCur_dest)] -= static_cast<double>(exchange_orig_dest_comp);
-						}
-					}
-
-				}
-
-			}
-		}
-	}
-	*/
+	
 	return 0;
 }
 

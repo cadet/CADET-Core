@@ -59,59 +59,10 @@ public:
 
 	virtual bool configure(IParameterProvider& paramProvider, UnitOpIdx unitOpIdx) = 0;
 
-	// virtual void fillBoundPhaseInitialParameters(ParameterId* params, UnitOpIdx unitOpIdx, ParticleTypeIdx parTypeIdx) const CADET_NOEXCEPT = 0;
-
-	//virtual void fillChannelInitialParameters(ParameterId* params, UnitOpIdx unitOpIdx) const CADET_NOEXCEPT = 0;
-
-
-	//virtual void setExternalFunctions(IExternalFunction** extFuns, unsigned int size) = 0; //X 
-
-	//virtual std::unordered_map<ParameterId, double> getAllParameterValues() const = 0;
-	
-	//static const char* identifier() CADET_NOEXCEPT { return "IPhaseTransitionModel"; }
-	
-	//virtual bool hasParameter(const ParameterId& pId) const = 0;
-	//virtual bool setParameter(const ParameterId& pId, int value) = 0;
-	//virtual bool setParameter(const ParameterId& pId, double value) = 0;
-	//virtual bool setParameter(const ParameterId& pId, bool value) = 0;
-
-	//virtual active* getParameter(const ParameterId& pId) = 0;
-
-	//virtual bool hasSalt() const CADET_NOEXCEPT = 0;
-
-	//virtual bool supportsMultistate() const CADET_NOEXCEPT = 0;l bool supportsNonExchange() const CADET_NOEXCEPT = 0;
-
-	
-	//virtual bool supportsNonBinding() const CADET_NOEXCEPT = 0;
-
-	//virtual bool hasQuasiStationaryReactions() const CADET_NOEXCEPT = 0;
-
-	//virtual bool hasDynamicReactions() const CADET_NOEXCEPT = 0;
-
-	//virtual bool dependsOnTime() const CADET_NOEXCEPT = 0;
-
-	//virtual bool requiresWorkspace() const CADET_NOEXCEPT = 0;
-
-	//virtual unsigned int workspaceSize(unsigned int nComp, unsigned int totalNumBoundStates, unsigned int const* nBoundStates) const CADET_NOEXCEPT = 0;
-
-	//virtual unsigned int requiredADdirs() const CADET_NOEXCEPT = 0;
-
 	virtual int residual(active const* y, active* res, WithParamSensitivity, bool wantJac, linalg::BandedSparseRowIterator jacBegin) const = 0;
 	virtual int residual(active const* y, active* res, WithoutParamSensitivity, bool wantJac, linalg::BandedSparseRowIterator jacBegin) const = 0;
 	virtual int residual(double const* y, active* res, WithParamSensitivity, bool wantJac, linalg::BandedSparseRowIterator jacBegin) const = 0;
 	virtual int residual(double const* y, double* res, WithoutParamSensitivity, bool wantJac, linalg::BandedSparseRowIterator jacBegin) const = 0;
-
-	//virtual void analyticJacobian(unsigned int nChannel, unsigned int nComp, unsigned int nCol, std::vector<active> _exchangeMatrix, double const* y, linalg::BandedSparseRowIterator jac) const = 0;
-#ifdef ENABLE_DG
-	//virtual void analyticJacobian(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, int offsetCp, linalg::BandedEigenSparseRowIterator jac, LinearBufferAllocator workSpace) const = 0;
-#endif
-	virtual void timeDerivativeQuasiStationaryFluxes(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* yCp, double const* y, double* dResDt, LinearBufferAllocator workSpace) const = 0;
-
-	virtual int const* reactionQuasiStationarity() const CADET_NOEXCEPT = 0;
-
-	virtual bool preConsistentInitialState(double t, unsigned int secIdx, const ColumnPosition& colPos, double* y, double const* yCp, LinearBufferAllocator workSpace) const = 0;
-
-	virtual void postConsistentInitialState(double t, unsigned int secIdx, const ColumnPosition& colPos, double* y, double const* yCp, LinearBufferAllocator workSpace) const = 0;
 
 protected:
 };
