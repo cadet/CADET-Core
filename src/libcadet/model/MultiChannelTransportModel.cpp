@@ -11,6 +11,7 @@
 // =============================================================================
 
 #include "model/MultiChannelTransportModel.hpp"
+#include "ExchangeModelFactory.hpp"
 #include "ParamReaderHelper.hpp"
 #include "ParamReaderScopes.hpp"
 #include "cadet/Exceptions.hpp"
