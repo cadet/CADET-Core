@@ -758,12 +758,15 @@ bool TwoDimensionalConvectionDispersionOperator::configure(UnitOpIdx unitOpIdx, 
     {
         _colRadius = paramProvider.getDouble("COL_RADIUS");
     }
-    else
+    else if(paramProvider.exists("CROSS_SECTION_AREA"))
     {
         const double cross_section_area = paramProvider.getDouble("CROSS_SECTION_AREA");
         const double pi = 3.1415926535897932384626434;
         _colRadius = std::sqrt(cross_section_area / pi);
     }
+	else
+		throw InvalidParameterException("Either COL_RADIUS or CROSS_SECTION_AREA must be provided");
+
 	readScalarParameterOrArray(_colPorosities, paramProvider, "COL_POROSITY", 1);
 
 	if ((_colPorosities.size() != 1) && (_colPorosities.size() != _nRad))
