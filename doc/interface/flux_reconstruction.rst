@@ -11,20 +11,19 @@ Group /input/model/unit_XXX/discretization/weno - WENO Parameters
     Boundary model type:
     0. Lower WENO order (stable)
     1. Zero weights (unstable for small :math:`D_{\mathrm{ax}}`)
-    2. Zero weights for :math:`p \neq 0` (stable?)
-    3. Large ghost points
+    2. Zero weights for :math:`p \neq 0` (less stable)
     
-    =============  ===========================  =============
-    **Type:** int  **Range:** :math:`\{0, 3\}`  **Length:** 1
-    =============  ===========================  =============
+    =============  ==============================  =============
+    **Type:** int  **Range:** :math:`\{0, 1, 2\}`  **Length:** 1
+    =============  ==============================  =============
 
 ``WENO_EPS``
 
     WENO :math:`\varepsilon`
     
-    =============  ===========================  =============
-    **Type:** int  **Range:** :math:`\{0, 3\}`  **Length:** 1
-    =============  ===========================  =============
+    ================  ==================================  =============
+    **Type:** double  **Range:** :math:`\mathbb{R}^{>0}`  **Length:** 1
+    ================  ==================================  =============
 
 ``WENO_ORDER``
 
@@ -34,7 +33,7 @@ Group /input/model/unit_XXX/discretization/weno - WENO Parameters
    2. WENO 2 (order 3)
    3. WENO 3 (order 5)
    
-   =============  ===========================  =============
-   **Type:** int  **Range:** :math:`\{1, 3\}`  **Length:** 1
-   =============  ===========================  =============
+   =============  ==============================  =============
+   **Type:** int  **Range:** :math:`\{1, 2, 3\}`  **Length:** 1
+   =============  ==============================  =============
 
