@@ -179,13 +179,23 @@ For information on model equations, refer to :ref:`2d_general_rate_model_model`.
    
 ``COL_RADIUS``
 
-   Column radius
+   Column radius. This parameter is optional if ``CROSS_SECTION_AREA`` is provided.
 
    **Unit:** :math:`\mathrm{m}`
-   
+
    ================  ======================  =============
    **Type:** double  **Range:** :math:`> 0`  **Length:** 1
    ================  ======================  =============
+
+``CROSS_SECTION_AREA``
+
+   Cross section area of the column. This parameter is optional and will be ignored if `COL_RADIUS` is provided.
+
+   **Unit:** :math:`\mathrm{m}^{2}`
+
+   ================  =====================  =============
+   **Type:** double  **Range:** :math:`>0`  **Length:** 1
+   ================  =====================  =============
    
 ``COL_POROSITY``
 
