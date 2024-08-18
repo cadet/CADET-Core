@@ -190,20 +190,20 @@ protected:
 	{	
 
 		const unsigned int offsetC = _nChannel * _nComp;
-		for (unsigned int col = 0; col < _nCol; ++col)
+		for (unsigned int col = 0; col < _nCol; ++col) // Collum
 		{
 			const unsigned int offsetColBlock = col * _nChannel * _nComp;
 			ResidualType* const resColBlock = res + offsetC + offsetColBlock;
 			StateType const* const yColBlock = y + offsetC + offsetColBlock;
 
-			for (unsigned int rad_orig = 0; rad_orig < _nChannel; ++rad_orig)
+			for (unsigned int rad_orig = 0; rad_orig < _nChannel; ++rad_orig)  // Channel orig
 			{
 				const unsigned int offsetToRadOrigBlock = rad_orig * _nComp;
 				const unsigned int offsetColRadOrigBlock = offsetColBlock + offsetToRadOrigBlock;
 				ResidualType* const resColRadOrigBlock = resColBlock + offsetToRadOrigBlock;
 				StateType const* const yColRadOrigBlock = yColBlock + offsetToRadOrigBlock;
 
-				for (unsigned int rad_dest = 0; rad_dest < _nChannel; ++rad_dest)
+				for (unsigned int rad_dest = 0; rad_dest < _nChannel; ++rad_dest) // Channel dest
 				{
 					if (rad_orig == rad_dest)
 						continue;
@@ -212,19 +212,37 @@ protected:
 					const unsigned int offsetColRadDestBlock = offsetColBlock + offsetToRadDestBlock;
 					ResidualType* const resColRadDestBlock = resColBlock + offsetToRadDestBlock;
 
-					for (unsigned int comp = 0; comp < _nComp; ++comp)
+					for (unsigned int comp = 0; comp < _nComp; ++comp) // Component
 					{
-						const unsigned int offsetCur_orig = offsetColRadOrigBlock + comp;
-						const unsigned int offsetCur_dest = offsetColRadDestBlock + comp;
-						StateType const* const yCur_orig = yColRadOrigBlock + comp;
-						ResidualType* const resCur_orig = resColRadOrigBlock + comp;
-						ResidualType* const resCur_dest = resColRadDestBlock + comp;
+						const unsigned int offsetCur_orig = offsetColRadOrigBlock + comp; // component in orig channel
+						const unsigned int offsetCur_dest = offsetColRadDestBlock + comp; // component in dest channel
+						StateType const* const yCur_orig = yColRadOrigBlock + comp; // state of component in orig channel
+						ResidualType* const resCur_orig = resColRadOrigBlock + comp; // residual of component in orig channel
+						ResidualType* const resCur_dest = resColRadDestBlock + comp; // residual of component in dest channel
 
 						const ParamType exchange_orig_dest_comp = static_cast<ParamType>(_exchangeMatrix[rad_orig * _nChannel * _nComp + rad_dest * _nComp + comp]);
 						if (cadet_likely(exchange_orig_dest_comp > 0.0))
 						{
-							*resCur_orig += exchange_orig_dest_comp * yCur_orig[0];
-							*resCur_dest -= exchange_orig_dest_comp * yCur_orig[0] * static_cast<ParamType>(_crossSections[rad_orig]) / static_cast<ParamType>(_crossSections[rad_dest]);
+							double compSum_orig = 0.0;
+							double compSum_dest = 0.0;
+							for (unsigned int component = 0; component < _nComp; component++) {
+
+								 double cMax_origComp = _channelCapacity[offsetColRadOrigBlock + component];
+								 double cMax_destComp = _channelCapacity[offsetColRadDestBlock + component];
+								
+								double chanSum_orig = 0.0;
+								double chanSum_dest = 0.0;
+								for (unsigned int channel = 0; channel < _nChannel; channel++) {
+									
+									chanSum_orig += static_cast<double>(yColBlock[component + channel * _nChannel]) / cMax_origComp;
+									chanSum_dest += static_cast<double>(yColBlock[component + channel * _nChannel]) / cMax_destComp;
+								}
+								compSum_orig += chanSum_orig;
+								compSum_dest += chanSum_dest;
+							}
+							
+							*resCur_orig += exchange_orig_dest_comp * yCur_orig[0] * _channelCapacity[offsetCur_dest] * (1 - compSum_dest);
+							*resCur_dest -= exchange_orig_dest_comp * yCur_orig[0] * static_cast<ParamType>(_crossSections[rad_orig]) / static_cast<ParamType>(_crossSections[rad_dest]) * _channelCapacity[offsetCur_orig] * (1 - compSum_orig);
 
 							if (wantJac) {
 
