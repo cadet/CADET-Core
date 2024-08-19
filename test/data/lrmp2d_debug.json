@@ -71,7 +71,7 @@
             "ADSORPTION_MODEL": [
                 "NONE"
             ],
-            "COL_DISPERSION": 0.0,
+            "COL_DISPERSION": 0.01,
             "COL_DISPERSION_RADIAL": 0.0,
             "COL_LENGTH": 0.014,
             "COL_POROSITY": 1.0,
@@ -100,10 +100,10 @@
             "UNIT_TYPE": "LUMPED_RATE_MODEL_WITH_PORES_2D",
             "VELOCITY": 1.0,
             "discretization": {
-                "AX_NELEM": 3,
+                "AX_NELEM": 5,
                 "AX_POLYDEG": 3,
                 "RADIAL_DISC_TYPE": "EQUIDISTANT",
-                "RAD_NELEM": 2,
+                "RAD_NELEM": 3,
                 "RAD_POLYDEG": 2,
                 "USE_ANALYTIC_JACOBIAN": 1
             }
