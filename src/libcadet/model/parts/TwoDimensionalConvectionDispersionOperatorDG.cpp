@@ -1337,7 +1337,7 @@ bool TwoDimensionalConvectionDispersionOperatorDG::computeConvDispJacobianBlocks
 	MzKronMrInv = MzKronMrInv.inverse();
 
 	MatrixXd BzKronMr = MatrixXd::Zero(Np, Np);
-	kroneckerProduct(_axLiftM, _radMM, BzKronMr);
+	kroneckerProduct(dgtoolbox::liftingMatrixQuadratic(_axNNodes), _radMM, BzKronMr);
 
 	MatrixXd SzTKronMr = MatrixXd::Zero(Np, Np);
 	kroneckerProduct(_axTransStiffM, _radMM, SzTKronMr);
@@ -1351,7 +1351,7 @@ bool TwoDimensionalConvectionDispersionOperatorDG::computeConvDispJacobianBlocks
 			fStarAux1.block(0, Np, _radNNodes, _radNNodes) = 0.5 * MatrixXd::Identity(_radNNodes, _radNNodes);
 			fStarAux1.block(0, Np - _radNNodes, _radNNodes, _radNNodes) = 0.5 * MatrixXd::Identity(_radNNodes, _radNNodes);
 		}
-		if (i == 2 || _axNElem == 1) // that is, in the special case of having one axial element, we store the auxiliary block in the first position
+		if (i == 2 || _axNElem == 1) // that is, in the special case of having one axial element, we store the auxiliary block at GzDer[0]
 			fStarAux1.block(Np - _radNNodes, 2 * Np - _radNNodes, _radNNodes, _radNNodes) = MatrixXd::Identity(_radNNodes, _radNNodes);
 		else
 		{
@@ -1394,32 +1394,30 @@ bool TwoDimensionalConvectionDispersionOperatorDG::computeConvDispJacobianBlocks
 			// first, we need to create numerical flux block gStarZ
 			// note: we have three unique auxiliary block indices and need to find the indices wrt the currently considered element
 			int auxIdx;
+			if (i == 0)
+				auxIdx = 0; // note that if _axNElem == 0, the corresponding auxiliary block is also stored at index 0
+			else
+				auxIdx = i == uAxElem - 1 ? 2 : 1;
 
 			if (i > 0) // left boundary condition -> zero
 			{
-				// if the left neighbour is the left boundary element, set index to 0, else to 1
-				auxIdx = (i == 1) ? 0 : 1;
-				gStarZ.block(0, 0, _radNNodes, 3 * Np) += GzDer[auxIdx].block(0, 0, _radNNodes, 3 * Np);
+				const int leftAuxIdx = (i == 1) ? 0 : 1; // if the left neighbour is the left boundary element, set index to 0, else to 1
+				gStarZ.block(0, 0, _radNNodes, 3 * Np) += GzDer[leftAuxIdx].block(Np - _radNNodes, 0, _radNNodes, 3 * Np);
 				gStarZ.block(0, Np, _radNNodes, 3 * Np) += GzDer[auxIdx].block(0, 0, _radNNodes, 3 * Np);
 			}
 
 			if (i != uAxElem - 1) // right boundary condition -> zero
 			{
 				// if the right neighbour is the right boundary element, set index to 2, else to 1
-				auxIdx = (i + 1 == uAxElem - 1) ? 2 : 1;
+				const int rightAuxIdx = (i + 1 == uAxElem - 1) ? 2 : 1;
 				gStarZ.block(Np - _radNNodes, Np, _radNNodes, 3 * Np) += GzDer[auxIdx].block(Np - _radNNodes, 0, _radNNodes, 3 * Np);
-				gStarZ.block(Np - _radNNodes, 2 * Np, _radNNodes, 3 * Np) += GzDer[auxIdx].block(Np - _radNNodes, 0, _radNNodes, 3 * Np);
+				gStarZ.block(Np - _radNNodes, 2 * Np, _radNNodes, 3 * Np) += GzDer[rightAuxIdx].block(0, 0, _radNNodes, 3 * Np);
 			}
 
 			gStarZ *= 0.5;
 
-			if (i == 0) // get auxiliary block index
-				auxIdx = 0; // note that if _axNElem == 0, the corresponding auxiliary block is also stored at index 0
-			else
-				auxIdx = i == uAxElem - 1 ? 2 : 1;
-
 			_jacAxDispersion[rElem * uAxElem + i] = MzKronMrCylInv * 2.0 / deltaZ * axDisp * (BzKronMrCyl * gStarZ);
-			_jacAxDispersion[rElem * uAxElem + i].block(0, Np, Np, 3 * Np) += MzKronMrCylInv * 2.0 / deltaZ * axDisp * (-SzTKronMrCyl * GzDer[auxIdx]);
+			_jacAxDispersion[rElem * uAxElem + i].block(0, Np, Np, 3 * Np) -= MzKronMrCylInv * 2.0 / deltaZ * axDisp * (SzTKronMrCyl * GzDer[auxIdx]);
 
 			gStarZ.setZero();
 		}
