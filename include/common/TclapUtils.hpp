@@ -36,6 +36,7 @@ namespace TCLAP
 		{
 			std::cout << "This is " << _progName << " version " << cadet::getLibraryVersion() << " (" << cadet::getLibraryBranchRefspec() << " branch)\n";
 			std::cout << "Built from commit " << cadet::getLibraryCommitHash() << "\n";
+			std::cout << "Build variant " << cadet::getLibraryBuildType() << "\n";
 		    std::cout << "CADET homepage: <https://cadet.github.io>\n";
 		    std::cout << "Fork CADET on GitHub: <https://github.com/cadet/CADET-Core>\n";
 		    std::cout << "Report bugs to the issue tracker on GitHub or <cadet@fz-juelich.de>\n";
