@@ -1,8 +1,8 @@
 // =============================================================================
 //  CADET - The Chromatography Analysis and Design Toolkit
 //
-//  Copyright © 2008-2020: The CADET Authors
-//            Please see the AUTHORS and CONTRIBUTORS file.
+//  Copyright © The CADET Authors
+//            Please see the CONTRIBUTORS.md file.
 //
 //  All rights reserved. This program and the accompanying materials
 //  are made available under the terms of the GNU Public License v3.0 (or, at
