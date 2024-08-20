@@ -36,8 +36,8 @@ namespace TCLAP
 		{
 			std::cout << "This is " << _progName << " version " << cadet::getLibraryVersion() << " (" << cadet::getLibraryBranchRefspec() << " branch)\n";
 			std::cout << "Built from commit " << cadet::getLibraryCommitHash() << "\n";
-		    std::cout << "CADET homepage: <http://www.cadet-web.de>\n";
-		    std::cout << "Fork CADET on GitHub: <https://github.com/modsim/CADET>\n";
+		    std::cout << "CADET homepage: <https://cadet.github.io>\n";
+		    std::cout << "Fork CADET on GitHub: <https://github.com/cadet/CADET-Core>\n";
 		    std::cout << "Report bugs to the issue tracker on GitHub or <cadet@fz-juelich.de>\n";
 			std::cout << "See the accompanying LICENSE.txt, AUTHORS, and CONTRIBUTORS files" << std::endl;
 		}
@@ -60,8 +60,8 @@ namespace TCLAP
 		virtual void version(CmdLineInterface& c)
 		{
 			std::cout << "This is " << _progName << "\n";
-		    std::cout << "CADET homepage: <http://www.cadet-web.de>\n";
-		    std::cout << "Fork CADET on GitHub: <https://github.com/modsim/CADET>\n";
+		    std::cout << "CADET homepage: <https://cadet.github.io>\n";
+		    std::cout << "Fork CADET on GitHub: <https://github.com/cadet/CADET-Core>\n";
 		    std::cout << "Report bugs to the issue tracker on GitHub or <cadet@fz-juelich.de>\n";
 			std::cout << "See the accompanying LICENSE.txt, AUTHORS, and CONTRIBUTORS files" << std::endl;
 		}
