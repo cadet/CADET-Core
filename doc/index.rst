@@ -79,12 +79,30 @@ Donations
 Citing
 ------
 
-To cite CADET please use the following publication:
+Citing
+------------
+The development of CADET has been a collaborative effort, with multiple dedicated individuals contributing their expertise to create a powerful and versatile open-source software tool.
+Countless hours of hard work have been invested to provide the scientific community with a valuable resource.
+As an open-source project, CADET relies on the support and recognition from users and researchers to thrive.
+Therefore, we kindly ask that any publications or projects leveraging the capabilities of CADET acknowledge its creators and their contributions by citing an adequate selection of our publications.
 
-* Leweke, S.; von Lieres, E.: `Chromatography Analysis and Design Toolkit (CADET) <http://doi.org/10.1016/j.compchemeng.2018.02.025>`_, Computers and Chemical Engineering 113 (2018), 274–294.
-* Püttmann, A.; Schnittert, S.; Leweke, S.; von Lieres, E.: `Utilizing algorithmic differentiation to efficiently compute chromatograms and parameter sensitivities <http://doi.org/10.1016/j.ces.2015.08.050>`_, Chemical Engineering Science, 139 (2016), 152–162.
-* Püttmann, A.; Schnittert, S.; Naumann, U.; von Lieres, E.: `Fast and accurate parameter sensitivities for the general rate model of column liquid chromatography <http://doi.org/10.1016/j.compchemeng.2013.04.021>`_, Computers and Chemical Engineering 56,13 (2013), 46-57.
-* von Lieres, E.; Andersson, J.: `A fast and accurate solver for the general rate model of column liquid chromatography <http://doi.org/10.1016/j.compchemeng.2010.03.008>`_, Computers and Chemical Engineering 34,8 (2010), 1180–1191.
+**General:**
+
+- Leweke, S.; von Lieres, E.: `Chromatography Analysis and Design Toolkit (CADET) <https://doi.org/10.1016/j.compchemeng.2018.02.025>`_, Computers and Chemical Engineering **113** (2018), 274–294.
+
+- von Lieres, E.; Andersson, J.: `A fast and accurate solver for the general rate model of column liquid chromatography <https://doi.org/10.1016/j.compchemeng.2010.03.008>`_, Computers and Chemical Engineering **34,8** (2010), 1180–1191.
+
+**Numerics:**
+
+- Breuer, J. M.; Leweke, S.; Schmölder, J.; Gassner, G.; von Lieres, E.: `Spatial discontinuous Galerkin spectral element method for a family of chromatography models in CADET <https://doi.org/10.1016/j.compchemeng.2023.108340>`_, Computers and Chemical Engineering **177** (2023), 108340.
+
+- Leweke, S.; von Lieres, E.: `Fast arbitrary order moments and arbitrary precision solution of the general rate model of column liquid chromatography with linear isotherm <http://dx.doi.org/10.1016/j.compchemeng.2015.09.009>`_, Computers and Chemical Engineering **84** (2016), 350–362.
+
+- Püttmann, A.; Schnittert, S.; Naumann, U.; von Lieres, E.: `Fast and accurate parameter sensitivities for the general rate model of column liquid chromatography <http://dx.doi.org/10.1016/j.compchemeng.2013.04.021>`_, Computers and Chemical Engineering **56** (2013), 46–57.
+
+Additionally, to ensure reproducibility of your work, we recommend citing the `zenodo doi <https://doi.org/10.5281/zenodo.8179015>`_ corresponding to the specific CADET release that you used.
+
+Selected applications that demonstrate the capabilities and use-cases of CADET are highlighted `here <https://github.com/cadet/CADET-Core/tree/master/doc/publications.md>`_.
 
 Acknowledgments
 ---------------
