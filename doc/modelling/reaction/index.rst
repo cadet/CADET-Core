@@ -9,6 +9,7 @@ reaction mechanism.
 CADET features one reaction type:
 
  - :ref:`mass_action_law_model` (most commonly used)
+ - :ref:`michaelis_menten_kinetics_model`
 
 
 .. _dependence-on-external-function_react:
