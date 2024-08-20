@@ -7,6 +7,7 @@ Reaction models
     :maxdepth: 2
 
     mass_action_law
+    michaelis_menten_kinetics
 
 Externally dependent reaction models
 ------------------------------------
