@@ -1,14 +1,14 @@
 ## CADET Documentation
 
 
-To build the documentation locally, install sphinx and other dependencies by running
+To build the documentation locally, in the `doc` folder, install sphinx and other dependencies by running
 
 ```
 pip install -r requirements.txt
 
 ```
 
-Then, in the `doc` folder run:
+Then, run:
 
 `sphinx-build -b html . build` 
 
