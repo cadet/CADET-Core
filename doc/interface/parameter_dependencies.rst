@@ -96,12 +96,22 @@ Group /input/model/unit_XXX
 ``PAR_SURFDIFFUSION_EXPFACTOR``
 
    Factor :math:`\texttt{p1}` in exponential law particle surface diffusion relation
-   :math:`D_{s, i, m} = \tilde{D}_{s, i, m} p_{1, i, m} exp \left(p_{2, i, m} c_{0}^{p} \right)`
-   where :math:`\tilde{D}_{s, i, m}` is the original surface diffusion coefficient. Only required if :math:`\texttt{PAR_SURFDIFFUSION_DEP}` is :math:`\texttt{LIQUID_SALT_EXPONENTIAL}`.
+   :math:`D_{s, i, m} = \tilde{D}_{s, i, m} p_{1, i, m} exp \left(p_{2, i, m} c_{0}^{p} \right)`, where :math:`\tilde{D}_{s, i, m}` is the original surface diffusion coefficient.
+   Only required if :math:`\texttt{PAR_SURFDIFFUSION_DEP}` is :math:`\texttt{LIQUID_SALT_EXPONENTIAL}`.
    
    ================  =========================  ===================================
    **Type:** double  **Range:** :math:`\geq 0`  **Length:** :math:`\texttt{NBOUND}`
    ================  =========================  ===================================
+
+   ``PAR_SURFDIFFUSION_EXPFACTOR``
+   :math:`D_{s, i, m} = \tilde{D}_{s, i, m} \left[  p_{4, i, m} \left( k_{i, m} \left( c_{0}^{p} \right) \right)^{p_{5, i, m}} p_{6, i, m} exp \left( p_{7, i, m} k_{i, m} \left( c_{0}^{p} \right) \right) \right]`
+   where :math:`\tilde{D}_{s, i, m}` is the original surface diffusion coefficient and 
+   :math:`k_{i, m} \left( c_{0}^{p} \right) = p_{1, i, m}\left( c_{0}^{p} \right)^{p_{2, i, m}} + p_{3, i, m}`.
+   Only required if :math:`\texttt{PAR_SURFDIFFUSION_DEP}` is :math:`\texttt{LIQUID_SALT_COLLOIDAL_AFFINITY}`.
+   
+   ================  =============================  ===================================
+   **Type:** double  **Range:** :math:`\mathbb{R}`  **Length:** :math:`\texttt{NBOUND}`
+   ================  =============================  ===================================
 
 ``PAR_SURFDIFFUSION_EXPARGMULT``
 
@@ -160,52 +170,6 @@ Group /input/model/unit_XXX
 ``PAR_SURFDIFFUSION_LOGKEQCONST``
 
    Factor :math:`\texttt{p3}` in colloidal affinity law particle surface diffusion relation
-   :math:`D_{s, i, m} = \tilde{D}_{s, i, m} \left[  p_{4, i, m} \left( k_{i, m} \left( c_{0}^{p} \right) \right)^{p_{5, i, m}} p_{6, i, m} exp \left( p_{7, i, m} k_{i, m} \left( c_{0}^{p} \right) \right) \right]`
-   where :math:`\tilde{D}_{s, i, m}` is the original surface diffusion coefficient and 
-   :math:`k_{i, m} \left( c_{0}^{p} \right) = p_{1, i, m}\left( c_{0}^{p} \right)^{p_{2, i, m}} + p_{3, i, m}`.
-   Only required if :math:`\texttt{PAR_SURFDIFFUSION_DEP}` is :math:`\texttt{LIQUID_SALT_COLLOIDAL_AFFINITY}`.
-   
-   ================  =============================  ===================================
-   **Type:** double  **Range:** :math:`\mathbb{R}`  **Length:** :math:`\texttt{NBOUND}`
-   ================  =============================  ===================================
-
-``PAR_SURFDIFFUSION_POWFACTOR``
-
-   Factor :math:`\texttt{p4}` in colloidal affinity law particle surface diffusion relation
-   :math:`D_{s, i, m} = \tilde{D}_{s, i, m} \left[  p_{4, i, m} \left( k_{i, m} \left( c_{0}^{p} \right) \right)^{p_{5, i, m}} p_{6, i, m} exp \left( p_{7, i, m} k_{i, m} \left( c_{0}^{p} \right) \right) \right]`
-   where :math:`\tilde{D}_{s, i, m}` is the original surface diffusion coefficient and 
-   :math:`k_{i, m} \left( c_{0}^{p} \right) = p_{1, i, m}\left( c_{0}^{p} \right)^{p_{2, i, m}} + p_{3, i, m}`.
-   Only required if :math:`\texttt{PAR_SURFDIFFUSION_DEP}` is :math:`\texttt{LIQUID_SALT_COLLOIDAL_AFFINITY}`.
-   
-   ================  =============================  ===================================
-   **Type:** double  **Range:** :math:`\mathbb{R}`  **Length:** :math:`\texttt{NBOUND}`
-   ================  =============================  ===================================
-
-``PAR_SURFDIFFUSION_POWEXP``
-
-   Factor :math:`\texttt{p5}` in colloidal affinity law particle surface diffusion relation
-   :math:`D_{s, i, m} = \tilde{D}_{s, i, m} \left[  p_{4, i, m} \left( k_{i, m} \left( c_{0}^{p} \right) \right)^{p_{5, i, m}} p_{6, i, m} exp \left( p_{7, i, m} k_{i, m} \left( c_{0}^{p} \right) \right) \right]`
-   where :math:`\tilde{D}_{s, i, m}` is the original surface diffusion coefficient and 
-   :math:`k_{i, m} \left( c_{0}^{p} \right) = p_{1, i, m}\left( c_{0}^{p} \right)^{p_{2, i, m}} + p_{3, i, m}`.
-   Only required if :math:`\texttt{PAR_SURFDIFFUSION_DEP}` is :math:`\texttt{LIQUID_SALT_COLLOIDAL_AFFINITY}`.
-   
-   ================  =============================  ===================================
-   **Type:** double  **Range:** :math:`\mathbb{R}`  **Length:** :math:`\texttt{NBOUND}`
-   ================  =============================  ===================================
-
-   ``PAR_SURFDIFFUSION_EXPFACTOR``
-   :math:`D_{s, i, m} = \tilde{D}_{s, i, m} \left[  p_{4, i, m} \left( k_{i, m} \left( c_{0}^{p} \right) \right)^{p_{5, i, m}} p_{6, i, m} exp \left( p_{7, i, m} k_{i, m} \left( c_{0}^{p} \right) \right) \right]`
-   where :math:`\tilde{D}_{s, i, m}` is the original surface diffusion coefficient and 
-   :math:`k_{i, m} \left( c_{0}^{p} \right) = p_{1, i, m}\left( c_{0}^{p} \right)^{p_{2, i, m}} + p_{3, i, m}`.
-   Only required if :math:`\texttt{PAR_SURFDIFFUSION_DEP}` is :math:`\texttt{LIQUID_SALT_COLLOIDAL_AFFINITY}`.
-   
-   ================  =============================  ===================================
-   **Type:** double  **Range:** :math:`\mathbb{R}`  **Length:** :math:`\texttt{NBOUND}`
-   ================  =============================  ===================================
-
-``PAR_SURFDIFFUSION_POWEXP``
-
-   Factor :math:`\texttt{p5}` in colloidal affinity law particle surface diffusion relation
    :math:`D_{s, i, m} = \tilde{D}_{s, i, m} \left[  p_{4, i, m} \left( k_{i, m} \left( c_{0}^{p} \right) \right)^{p_{5, i, m}} p_{6, i, m} exp \left( p_{7, i, m} k_{i, m} \left( c_{0}^{p} \right) \right) \right]`
    where :math:`\tilde{D}_{s, i, m}` is the original surface diffusion coefficient and 
    :math:`k_{i, m} \left( c_{0}^{p} \right) = p_{1, i, m}\left( c_{0}^{p} \right)^{p_{2, i, m}} + p_{3, i, m}`.
