@@ -302,7 +302,7 @@ The radial flow GRM describes transport of solute molecules through the intersti
 
 The main assumptions are:
 
-- The shells of the column are homogenous in terms of interstitial volume, fluid flow, and distribution of components.
+- The cylindrical shells of the column are homogenous in terms of interstitial volume, fluid flow, and distribution of components.
   Thus, only one spatial coordinate in radial direction :math:`\rho` is needed and axial transport is neglected in the column bulk volume.
 
 - The bead radii :math:`r_{p}` are much smaller than the column radius :math:`\mathrm{P}-\mathrm{P}_c`, with :math:`\mathrm{P}` and :math:`\mathrm{P}_c` being the inner and outer column radius respectively, and the column length :math:`L`.
