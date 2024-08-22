@@ -216,7 +216,9 @@ protected:
 					{
 						const unsigned int offsetCur_orig = offsetColRadOrigBlock + comp;
 						const unsigned int offsetCur_dest = offsetColRadDestBlock + comp;
+
 						StateType const* const yCur_orig = yColRadOrigBlock + comp;
+
 						ResidualType* const resCur_orig = resColRadOrigBlock + comp;
 						ResidualType* const resCur_dest = resColRadDestBlock + comp;
 
