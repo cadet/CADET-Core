@@ -45,7 +45,7 @@ By submitting your Contribution via the [Repository](https://github.com/modsim/C
 
 # Liability
 
-Except in cases of willful misconduct or physical damage directly caused to natural persons, the Parties will not be liable for any direct or indirect, material or moral, damages of any kind, arising out of the Licence or of the use of the Material, including, without limitation, damages for loss of goodwill, work stoppage, computer failure or malfunction, loss of data or any commercial damage.
+Except in cases of willful misconduct or physical damage directly caused to natural persons, the Parties will not be liable for any direct or indirect, material or moral, damages of any kind, arising out of the License or of the use of the Material, including, without limitation, damages for loss of goodwill, work stoppage, computer failure or malfunction, loss of data or any commercial damage.
 However, the Licensor will be liable under statutory product liability laws as far such laws apply to the Material.
 
 # Warranty
