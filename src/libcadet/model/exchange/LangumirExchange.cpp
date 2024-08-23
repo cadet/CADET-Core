@@ -68,9 +68,7 @@ public:
 		_parameters.clear();
 		readParameterMatrix(_exchangeMatrix, paramProvider, "EXCHANGE_MATRIX", _nChannel * _nChannel * _nComp, 1); // include parameterPeaderHelp in exchange modul
 		_crossSections = paramProvider.getDoubleArray("CHANNEL_CROSS_SECTION_AREAS");
-		readParameterMatrix(_capacityMatrix, paramProvider, "EXCHANGE_MATRIX", _nChannel * _nChannel * _nComp, 1); // include parameterPeaderHelp in exchange modul
-
-		//_capacityMatrix = paramProvider.getDoubleArray("CHANNEL_CAPACITY");
+		readParameterMatrix(_capacityMatrix, paramProvider, "CAPACITY_MATRIX", _nComp * _nChannel, 1); // include parameterPeaderHelp in exchange modul
 
 		return true;
 	}
@@ -223,14 +221,15 @@ protected:
 						ResidualType* const resCur_dest = resColRadDestBlock + comp; // residual of component in dest channel
 
 						const ParamType exchange_orig_dest_comp = static_cast<ParamType>(_exchangeMatrix[rad_orig * _nChannel * _nComp + rad_dest * _nComp + comp]);
-						const ParamType capacity_orig_dest_comp = static_cast<ParamType>(_capacityMatrix[rad_orig * _nChannel * _nComp + rad_dest * _nComp + comp]);
+						const ParamType capacity_orig_comp = static_cast<ParamType>(_capacityMatrix[rad_orig * _nComp + comp]);
+						//const ParamType capacity_dest_comp = static_cast<ParamType>(_capacityMatrix[rad_dest * _nComp + comp]);
 						if (cadet_likely(exchange_orig_dest_comp > 0.0))
 						{
 							double compSum_orig_dest = 0.0;
 							for (unsigned int component = 0; component < _nComp; component++) {
 
-								double cMax_orig_destComp  = static_cast<double>(_capacityMatrix[rad_orig * _nChannel * _nComp + rad_dest * _nComp + component]);
-								compSum_orig_dest += static_cast<double>(yCur_orig[0]) / cMax_orig_destComp;
+								double cMax_origtComp  = static_cast<double>(_capacityMatrix[rad_orig * _nComp + component]);
+								compSum_orig_dest += static_cast<double>(yCur_orig[0]) / cMax_origtComp;
 
 								//double chanSum_orig = 0.0;
 								//double chanSum_dest = 0.0;
@@ -243,18 +242,18 @@ protected:
 
 							 }
 							
-							*resCur_orig += exchange_orig_dest_comp * yCur_orig[0] * capacity_orig_dest_comp * (1 - compSum_orig_dest);
-							*resCur_dest -= exchange_orig_dest_comp * yCur_orig[0] * static_cast<ParamType>(_crossSections[rad_orig]) / static_cast<ParamType>(_crossSections[rad_dest]) * capacity_orig_dest_comp * (1 - compSum_orig_dest);
+							*resCur_orig += exchange_orig_dest_comp * yCur_orig[0];
+							*resCur_dest -= exchange_orig_dest_comp * yCur_orig[0] * static_cast<ParamType>(_crossSections[rad_orig]) / static_cast<ParamType>(_crossSections[rad_dest]) * capacity_orig_comp * (1 - compSum_orig_dest);
 
 							if (wantJac) {
 
 								linalg::BandedSparseRowIterator jacorig;
 								jacorig = jacBegin + offsetCur_orig;
-								jacorig[0] += static_cast<double>(exchange_orig_dest_comp) * static_cast<double>(capacity_orig_dest_comp) * (1 - compSum_orig_dest);
+								jacorig[0] += static_cast<double>(exchange_orig_dest_comp);
 
 								linalg::BandedSparseRowIterator jacdest;
 								jacdest = jacBegin + offsetCur_dest;
-								jacdest[static_cast<int>(offsetCur_orig) - static_cast<int>(offsetCur_dest)] -= static_cast<double>(exchange_orig_dest_comp) * static_cast<double>(capacity_orig_dest_comp) * (1 - compSum_orig_dest);
+								jacdest[static_cast<int>(offsetCur_orig) - static_cast<int>(offsetCur_dest)] -= static_cast<double>(exchange_orig_dest_comp) * static_cast<double>(capacity_orig_comp) * (1 - compSum_orig_dest);
 
 							}
 
