@@ -84,7 +84,7 @@ public:
 	int residual(const IModel& model, double t, unsigned int secIdx, double const* y, double const* yDot, active* res, const bool wantJac, WithParamSensitivity);
 
 	bool computeConvDispJacobianBlocks();
-	void addElemBlockToJac(Eigen::MatrixXd block, linalg::BandedEigenSparseRowIterator& jac, const int offColumn, const int depElem, const bool axialElemDep);
+	void addAxElemBlockToJac(Eigen::MatrixXd block, linalg::BandedEigenSparseRowIterator& jac, const int offColumn, const int depElem);
 	bool assembleConvDispJacobian(Eigen::SparseMatrix<double, Eigen::RowMajor>& jacobian, Eigen::MatrixXd& jacInlet, const int bulkOffset=0);
 
 	void multiplyWithDerivativeJacobian(const SimulationTime& simTime, double const* sDot, double* ret) const;
