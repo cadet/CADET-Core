@@ -604,7 +604,7 @@ void TwoDimensionalConvectionDispersionOperatorDG::initializeDG()
 		_jacConvection[rElem] = MatrixXd::Zero(_elemNPoints, 5 * _elemNPoints);
 		for (int i = 0; i < uAxElem; i++)
 			_jacAxDispersion[rElem * uAxElem + i] = MatrixXd::Zero(_elemNPoints, 5 * _elemNPoints);
-		_jacRadDispersion[rElem] = MatrixXd::Zero(_elemNPoints, _elemNPoints + 2 * _radNNodes);
+		_jacRadDispersion[rElem] = MatrixXd::Zero(_elemNPoints, 5 * _elemNPoints);
 	}
 }
 
@@ -1367,7 +1367,7 @@ bool TwoDimensionalConvectionDispersionOperatorDG::computeConvDispJacobianBlocks
 	/* auxiliary block radial dispersion */
 
 	MatrixXd* GrDer = new MatrixXd[3]; // we have three unique auxiliary blocks
-	MatrixXd fStarAux2 = MatrixXd::Zero(Np, Np + 2 * _radNNodes);
+	MatrixXd fStarAux2 = MatrixXd::Zero(Np, 3 * Np);
 
 	MatrixXd MzKronBr = MatrixXd::Zero(Np, Np);
 	MatrixXd _axMM = dgtoolbox::mMatrix(_axPolyDeg, _axNodes, 0.0, 0.0);
@@ -1376,73 +1376,46 @@ bool TwoDimensionalConvectionDispersionOperatorDG::computeConvDispJacobianBlocks
 	MatrixXd MzKronSrT = MatrixXd::Zero(Np, Np);
 	kroneckerProduct(_axMM, _radStiffM.transpose(), MzKronSrT);
 
+	{
+		MatrixXd auxCder = MatrixXd::Zero(Np, 3 * Np);
+		MatrixXd auxCderSubBlock = MatrixXd::Zero(_radNNodes, 3 * _radNNodes);
+		auxCderSubBlock.block(0, _radNNodes, _radNNodes, _radNNodes) = MatrixXd::Identity(_radNNodes, _radNNodes);
+		for (int j = 0; j < _axNNodes; j++)
+			auxCder.block(j * _radNNodes, j * 3 * _radNNodes, _radNNodes, 3 * _radNNodes) = auxCderSubBlock;
+
 	auto Yblock = [](const double a, const double b, const double c, const double d, const int size) {
 		
-		MatrixXd A = MatrixXd::Zero(size, size);
-		A(0, 0) = a;
-		A(0, size-1) = b;
-		A(size-1, 0) = c;
-		A(size-1, size-1) = d;
+			MatrixXd A = MatrixXd::Zero(size, 3 * size);
+			A(0, size - 1) = a;
+			A(0, size) = b;
+			A(size - 1, 2 * size - 1) = c;
+			A(size - 1, 2 * size) = d;
 
 		return A;
 		};
 
 	for (int i = 0; i < 3; i++) // we have three unique auxiliary blocks
 	{
-		MatrixXd Y1 = Yblock(0.0, 1.0, 0.0, 0.0, _radNNodes);
+			MatrixXd Y1 = Yblock(0.5, 0.5, 0.5, 0.5, _radNNodes);
 
 		if (_radNElem == 1)
-		{
-			fStarAux2.block(_radNNodes, 0, _radNNodes, _radNNodes) = Yblock(1.0, 0.0, 0.0, 1.0, _radNNodes);
-		}
-		else if (_radNElem == 2)
-		{
-			if (i == 0)
-				fStarAux2.block(_radNNodes, 0, _radNNodes, _radNNodes) = Yblock(1.0, 0.0, 0.0, 0.5, _radNNodes);
-			else 
-				fStarAux2.block(_radNNodes, 0, _radNNodes, _radNNodes) = Yblock(0.5, 0.0, 0.0, 1.0, _radNNodes);
-		}
-		else
-		{
-			for (int j = 0; j < _axNNodes + 2; j++)
-			{
-				if (j == 0) // radial element(s) before this block
-				{
-					if (i != 0) // otherwise zero (boundary block)
-						fStarAux2.block(j * _radNNodes, 0, _radNNodes, _radNNodes) = Yblock(0.0, 0.0, 0.0, 0.5, _radNNodes);
-				}
-				else if (j == 1)
-				{
-					const double fac = (i == 0) ? 1.0 : 0.5;
-					fStarAux2.block(j * _radNNodes, 0, _radNNodes, _radNNodes) = Yblock(fac, 0.0, 0.0, 0.5, _radNNodes);
-				}
-				else if (j == _axNNodes)
-				{
-					const double fac = (i == 2) ? 1.0 : 0.5;
-					fStarAux2.block(j * _radNNodes, 0, _radNNodes, _radNNodes) = fac * Yblock(0.5, 0.0, 0.0, fac, _radNNodes);
-				}
-				else if (j == _axNNodes + 1)
-				{
-					if (i != 2) // otherwise zero (boundary block)
-						fStarAux2.block(j * _radNNodes, 0, _radNNodes, _radNNodes) = Yblock(0.5, 0.0, 0.0, 0.0, _radNNodes);
-				}
-				else
-					fStarAux2.block(j * _radNNodes, 0, _radNNodes, _radNNodes) = Yblock(0.5, 0.0, 0.0, 0.5, _radNNodes);
-			}
-		}
+				Y1 = Yblock(0.0, 1.0, 1.0, 0.0, _radNNodes);
+			else if (i == 0)
+				Y1 = Yblock(0.0, 1.0, 0.5, 0.5, _radNNodes);
+			else if (i == 2)
+				Y1 = Yblock(0.5, 0.5, 1.0, 0.0, _radNNodes);
 
-		// copy over to remaining axial nodes
-		for (int axNode = 1; axNode < _axNNodes; axNode++)
-			fStarAux2.block(axNode * _radNNodes, 0, _radNNodes, Np + 2 * _radNNodes) = fStarAux2.block(0, 0, _radNNodes, Np + 2 * _radNNodes);
+			for (int j = 0; j < _axNNodes; j++)
+				fStarAux2.block(j * _radNNodes, j * 3 * _radNNodes, _radNNodes, 3 * _radNNodes) = Y1;
 
 		// note: without deltaR, which will be added in final Jacobian block, so that we only have three unique auxiliary blocks here
-		GrDer[i] = MzKronMrInv * MzKronBr * fStarAux2;
-		GrDer[i].block(0, _radNNodes, Np, Np) -= MzKronMrInv * MzKronSrT * cDer.block(0, 2 * Np, Np, Np);
+			GrDer[i] = MzKronMrInv * (MzKronBr * fStarAux2 - MzKronSrT * auxCder);
 		
 		// todo delete
 		//std::cout << std::setprecision(2) << "fStarAux2\n" << fStarAux2 << std::endl;
 
 		fStarAux2.setZero();
+	}
 	}
 
 		// todo delete
@@ -1515,42 +1488,24 @@ bool TwoDimensionalConvectionDispersionOperatorDG::computeConvDispJacobianBlocks
 		const active* const curRadialDispersion = getSectionDependentSlice(_radialDispersion, _radNPoints * _nComp, 0);
 		const double radDisp = static_cast<double>(curRadialDispersion[0]);
 
-		MatrixXd gStarR = MatrixXd::Zero(Np, Np);
+		MatrixXd gStarR = MatrixXd::Zero(Np, 5 * Np);
 
-		if (rElem == 0)
+		for (int i = 0; i < _axNNodes; i++)
 		{
-			MatrixXd Y1 = Yblock(0.0, 1.0, 0.0, 0.0, _radNNodes);
-			for (int axNode = 0; axNode < _axNNodes; axNode++)
+			if (rElem > 0) // else zero as per boundary condition
 			{
-				gStarR.block(axNode * _radNNodes, _radNNodes, _radNNodes, _radNNodes) = Y1;
+				const int ll = rElem == 1 ? 0 : 1;
+				const int lr = rElem == _axNElem - 1 ? 2 : 1;
+
+				gStarR.block(i * _radNNodes, i * 5 * _radNNodes, 1, 3 * _radNNodes) = 0.5 * GrDer[ll].block((i + 1) * _radNNodes - 1, i * 3 * _radNNodes, 1, 3 * _radNNodes);
+				gStarR.block(i * _radNNodes, i * 5 * _radNNodes + _radNNodes, 1, 3 * _radNNodes) += 0.5 * GrDer[lr].block(i * _radNNodes, i * 3 * _radNNodes, 1, 3 * _radNNodes);
 			}
-		}
-		else
+			if (rElem < _radNElem - 1) // else zero as per boundary condition
 		{
-			MatrixXd Y1 = Yblock(0.0, 0.5, 0.0, 0.0, _radNNodes);
-			MatrixXd Y2 = Yblock(0.5, 0.0, 0.0, 0.0, _radNNodes);
-			for (int axNode = 0; axNode < _axNNodes; axNode++)
-			{
-				gStarR.block(axNode * _radNNodes, 0, _radNNodes, _radNNodes) = Y1;
-				gStarR.block(axNode * _radNNodes, _radNNodes, _radNNodes, _radNNodes) = Y2;
-			}
-		}
-		if (rElem == 2 || _axNElem == 1) // that is, in the special case of having one axial element, we store the auxiliary block at GrDer[0]
-		{
-			MatrixXd Y1 = Yblock(0.0, 0.0, 1.0, 0.0, _radNNodes);
-			for (int axNode = 0; axNode < _axNNodes; axNode++)
-			{
-				gStarR.block(axNode * _radNNodes, _radNNodes, _radNNodes, _radNNodes) = Y1;
-			}
-		}
-		else
-		{
-			MatrixXd Y1 = Yblock(0.0, 0.0, 0.5, 0.0, _radNNodes);
-			MatrixXd Y2 = Yblock(0.0, 0.0, 0.0, 0.5, _radNNodes);
-			for (int axNode = 0; axNode < _axNNodes; axNode++)
-			{
-				gStarR.block(axNode * _radNNodes, _radNNodes, _radNNodes, _radNNodes) += Y2;
-				gStarR.block(axNode * _radNNodes, 2 * _radNNodes, _radNNodes, _radNNodes) = Y1;
+				const int rl = rElem == 0 ? 0 : 1;
+				const int rr = rElem + 1 == _axNElem - 1 ? 2 : 1;
+				gStarR.block(i * _radNNodes, i * 5 * _radNNodes + _radNNodes, 1, 3 * _radNNodes) = 0.5 * GrDer[rl].block((i + 1) * _radNNodes - 1, i * 3 * _radNNodes, 1, 3 * _radNNodes);
+				gStarR.block(i * _radNNodes, i * 5 * _radNNodes + 2 * _radNNodes, 1, 3 * _radNNodes) += 0.5 * GrDer[rr].block(i * _radNNodes, i * 3 * _radNNodes, 1, 3 * _radNNodes);
 			}
 		}
 
@@ -1561,8 +1516,8 @@ bool TwoDimensionalConvectionDispersionOperatorDG::computeConvDispJacobianBlocks
 		MatrixXd MzKronBrCyl = MatrixXd::Zero(Np, Np);
 		kroneckerProduct(_axMM, _BrCyl, MzKronBrCyl);
 
-		MatrixXd MzKronSrCyl = MatrixXd::Zero(Np, Np);
-		kroneckerProduct(_axMM, _SrCyl[rElem], MzKronSrCyl);
+		MatrixXd MzKronSrTCyl = MatrixXd::Zero(Np, Np);
+		kroneckerProduct(_axMM, _SrCyl[rElem].transpose(), MzKronSrTCyl);
 
 		int auxIdx;
 		if (rElem == 0)
@@ -1571,8 +1526,8 @@ bool TwoDimensionalConvectionDispersionOperatorDG::computeConvDispJacobianBlocks
 			auxIdx = rElem == _radNElem - 1 ? 2 : 1;
 
 		// note: accounted for deltaR twice since it was not included in auxiliary block
-		//_jacRadDispersion[rElem] = 2.0 / static_cast<double>(_radDelta[rElem]) * 2.0 / static_cast<double>(_radDelta[rElem]) * radDisp * MzKronMrCylInv * (MzKronBrCyl * gStarR - MzKronSrCyl * GrDer[auxIdx]);
-		_jacRadDispersion[rElem] = 2.0 / static_cast<double>(_radDelta[rElem]) * 2.0 / static_cast<double>(_radDelta[rElem]) * radDisp * MzKronMrCylInv * (/*MzKronBrCyl * gStarR */- MzKronSrCyl * GrDer[auxIdx]);
+		_jacRadDispersion[rElem] = 2.0 / static_cast<double>(_radDelta[rElem]) * 2.0 / static_cast<double>(_radDelta[rElem]) * radDisp * MzKronMrCylInv * (MzKronBrCyl * gStarR);
+		_jacRadDispersion[rElem].block(0, Np, Np, 3 * Np) -= 2.0 / static_cast<double>(_radDelta[rElem]) * 2.0 / static_cast<double>(_radDelta[rElem]) * radDisp * MzKronMrCylInv * (MzKronSrTCyl * GrDer[auxIdx]);
 
 		//// todo delete
 		//std::cout << std::setprecision(2) << "gStarR\n" << gStarR << std::endl;
@@ -1594,9 +1549,9 @@ bool TwoDimensionalConvectionDispersionOperatorDG::computeConvDispJacobianBlocks
  * @param [in] depElem number of elements the element block element depends on
  * @param [in] axialElemDep determines if axial or radial element strides should be performed between Jacobian blocks
  */
-void TwoDimensionalConvectionDispersionOperatorDG::addElemBlockToJac(Eigen::MatrixXd block, linalg::BandedEigenSparseRowIterator& jac, const int offColumn, const int depElem, const bool axialElemDep)
+void TwoDimensionalConvectionDispersionOperatorDG::addAxElemBlockToJac(Eigen::MatrixXd block, linalg::BandedEigenSparseRowIterator& jac, const int offColumn, const int depElem)
 {
-	const int depBlockStride = axialElemDep ? _axElemStride : _radElemStride;
+	const int depBlockStride = _axElemStride;
 
 	// @todo ? get rid of the comp loop by using nComp Rowiterators ?
 
@@ -1664,7 +1619,7 @@ bool TwoDimensionalConvectionDispersionOperatorDG::assembleConvDispJacobian(Eige
 			const int offSetColumnToRow = -nLeftAxElemDep * _axElemStride;
 			{
 				linalg::BandedEigenSparseRowIterator jac(jacobian, offSetRow);
-				addElemBlockToJac(-_jacConvection[rElem].block(0, Np * (2 - nLeftAxElemDep), Np, Np * (nLeftAxElemDep + 1 + nRightAxElemDep)), jac, offSetColumnToRow, nLeftAxElemDep + 1 + nRightAxElemDep, true);
+				addAxElemBlockToJac(-_jacConvection[rElem].block(0, Np * (2 - nLeftAxElemDep), Np, Np * (nLeftAxElemDep + 1 + nRightAxElemDep)), jac, offSetColumnToRow, nLeftAxElemDep + 1 + nRightAxElemDep);
 			}
 
 			/* handle axial dispersion Jacobian */
@@ -1681,15 +1636,17 @@ bool TwoDimensionalConvectionDispersionOperatorDG::assembleConvDispJacobian(Eige
 				}
 
 				linalg::BandedEigenSparseRowIterator jac(jacobian, offSetRow);
-				addElemBlockToJac(-_jacAxDispersion[rElem * uAxElem + uAxBlockIdx].block(0, Np * (2 - nLeftAxElemDep), Np, Np * (nLeftAxElemDep + 1 + nRightAxElemDep)), jac, offSetColumnToRow, nLeftAxElemDep + 1 + nRightAxElemDep, true);
+				addAxElemBlockToJac(-_jacAxDispersion[rElem * uAxElem + uAxBlockIdx].block(0, Np * (2 - nLeftAxElemDep), Np, Np * (nLeftAxElemDep + 1 + nRightAxElemDep)), jac, offSetColumnToRow, nLeftAxElemDep + 1 + nRightAxElemDep);
 			}
 
-			/* handle radial dispersion Jacobian */
-			// @todo ? we could also think about handling axial and radial Jacobian at the same time, which would also require a specific insertion function
-			{
-				linalg::BandedEigenSparseRowIterator jac(jacobian, offSetRow);
-				addElemBlockToJac(-_jacRadDispersion[rElem].block(0, 0, Np, Np), jac, 0, 1, false);
-			}
+			///* handle radial dispersion Jacobian */
+			//// @todo ? we could also think about handling axial and radial Jacobian at the same time, which would also require a specific insertion function
+			//{
+			//	bool leftRadElem = rElem > 0 && _radNElem > 1;
+			//	bool rightRadElem = rElem < _radNElem - 1;
+			//	linalg::BandedEigenSparseRowIterator jac(jacobian, offSetRow);
+			//	addRadElemBlockToJac(-_jacRadDispersion[rElem].block(0, 0, Np, Np), jac, 0, 1, false);
+			//}
 
 		}
 
