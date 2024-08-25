@@ -1527,7 +1527,8 @@ bool TwoDimensionalConvectionDispersionOperatorDG::computeConvDispJacobianBlocks
 
 		// note: accounted for deltaR twice since it was not included in auxiliary block
 		_jacRadDispersion[rElem] = 2.0 / static_cast<double>(_radDelta[rElem]) * 2.0 / static_cast<double>(_radDelta[rElem]) * radDisp * MzKronMrCylInv * (MzKronBrCyl * gStarR);
-		_jacRadDispersion[rElem].block(0, Np, Np, 3 * Np) -= 2.0 / static_cast<double>(_radDelta[rElem]) * 2.0 / static_cast<double>(_radDelta[rElem]) * radDisp * MzKronMrCylInv * (MzKronSrTCyl * GrDer[auxIdx]);
+		for (int zNode = 0; zNode < _axNNodes; zNode++) // todo can this be done more elegantly?
+			_jacRadDispersion[rElem].block(0, (5 * zNode + 1) * _radNNodes, Np, 3 * _radNNodes) -= 2.0 / static_cast<double>(_radDelta[rElem]) * 2.0 / static_cast<double>(_radDelta[rElem]) * radDisp * MzKronMrCylInv * (MzKronSrTCyl * GrDer[auxIdx].block(0, zNode * 3 * _radNNodes, Np, 3 * _radNNodes));
 
 		//// todo delete
 		//std::cout << std::setprecision(2) << "gStarR\n" << gStarR << std::endl;
@@ -1562,7 +1563,7 @@ void TwoDimensionalConvectionDispersionOperatorDG::addAxElemBlockToJac(Eigen::Ma
 			// inside the loop, the iterator is moved over all components
 			for (unsigned int comp = 0; comp < _nComp; comp++, ++jac) // insert the entries for all components
 			{
-				for (unsigned int depBlock = 0; depBlock < depElem; depBlock++) // iterate over all block dependencies (which can either be radially ar axially neighbouring blocks)
+				for (unsigned int depBlock = 0; depBlock < depElem; depBlock++) // iterate over all axial block dependencies
 				{
 					for (unsigned int i = 0; i < _axNNodes; i++) // iterate over all axial node dependencies
 					{
@@ -1571,6 +1572,37 @@ void TwoDimensionalConvectionDispersionOperatorDG::addAxElemBlockToJac(Eigen::Ma
 							// row: at current node and component
 							// col: add offset, go to current element, jump to current node (from [zNode rNode] to [i j])
 							jac[offColumn + depBlock * depBlockStride + (j - rNode) * _radNodeStride + (i - zNode) * _axNodeStride] += block(zNode * _radNNodes + rNode, depBlock * _elemNPoints +  i * _radNNodes + j);
+						}
+					}
+				}
+			}
+		}
+	}
+}
+void TwoDimensionalConvectionDispersionOperatorDG::addRadElemBlockToJac(Eigen::MatrixXd block, linalg::BandedEigenSparseRowIterator& jac, const int nLeftRadElemDep, const int depElem)
+{
+	const int depBlockStride = _radElemStride; // stride in Jacobian per dependence block
+	const int offColumn = -nLeftRadElemDep * _radElemStride; // offset in Jacobian due to left element neighbours dependence
+	const int offBlock = (2 - nLeftRadElemDep) * _radNNodes; // offset in block due to left element neighbours dependence
+
+	// @todo ? get rid of the comp loop by using nComp Rowiterators ?
+
+	for (unsigned int zNode = 0; zNode < _axNNodes; zNode++, jac += _axNodeStride - _radElemStride) // move the iterator to the next axial node, but account for row changes within the loop
+	{
+		for (unsigned int rNode = 0; rNode < _radNNodes; rNode++, jac += _strideBound) // move the iterator to the next radial node, but account for row changes within the loop
+		{
+			// inside the loop, the iterator is moved over all components
+			for (unsigned int comp = 0; comp < _nComp; comp++, ++jac) // insert the entries for all components
+			{
+				for (unsigned int i = 0; i < _axNNodes; i++) // iterate over all axial node dependencies
+				{
+					for (unsigned int depBlock = 0; depBlock < depElem; depBlock++) // iterate over all radial block dependencies
+					{
+						for (unsigned int j = 0; j < _radNNodes; j++) // iterate over all radial node dependencies
+						{
+							// row: at current node and component
+							// col: add offset, go to current element, jump to current node (from [zNode rNode] to [i j])
+							jac[offColumn + depBlock * depBlockStride + (j - rNode) * _radNodeStride + (i - zNode) * _axNodeStride] += block(zNode * _radNNodes + rNode, offBlock + i * 5 * _radNNodes + depBlock * _radNNodes + j);
 						}
 					}
 				}
@@ -1639,14 +1671,14 @@ bool TwoDimensionalConvectionDispersionOperatorDG::assembleConvDispJacobian(Eige
 				addAxElemBlockToJac(-_jacAxDispersion[rElem * uAxElem + uAxBlockIdx].block(0, Np * (2 - nLeftAxElemDep), Np, Np * (nLeftAxElemDep + 1 + nRightAxElemDep)), jac, offSetColumnToRow, nLeftAxElemDep + 1 + nRightAxElemDep);
 			}
 
-			///* handle radial dispersion Jacobian */
-			//// @todo ? we could also think about handling axial and radial Jacobian at the same time, which would also require a specific insertion function
-			//{
-			//	bool leftRadElem = rElem > 0 && _radNElem > 1;
-			//	bool rightRadElem = rElem < _radNElem - 1;
-			//	linalg::BandedEigenSparseRowIterator jac(jacobian, offSetRow);
-			//	addRadElemBlockToJac(-_jacRadDispersion[rElem].block(0, 0, Np, Np), jac, 0, 1, false);
-			//}
+			/* handle radial dispersion Jacobian */
+			// @todo ? we could also think about handling axial and radial Jacobian at the same time, which would also require a specific insertion function
+			{
+				const int nLeftRadElem = std::min(2, rElem);
+				const int nRightRadElem = std::min(2, static_cast<int>(_radNElem) - 1 - rElem);
+				linalg::BandedEigenSparseRowIterator jac(jacobian, offSetRow);
+				addRadElemBlockToJac(-_jacRadDispersion[rElem], jac, nLeftRadElem, nLeftRadElem + 1 + nRightRadElem);
+			}
 
 		}
 
