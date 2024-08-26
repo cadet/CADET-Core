@@ -1,4 +1,4 @@
-.. _build_options
+.. _build_options:
 
 CADET build options
 ===================

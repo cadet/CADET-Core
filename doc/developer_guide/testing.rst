@@ -1,4 +1,4 @@
-.. _testing
+.. _testing:
 
 CADET-Core testing
 ==================
