@@ -1,9 +1,9 @@
 // =============================================================================
 //  CADET
-//  
+//
 //  Copyright © The CADET Authors
 //            Please see the CONTRIBUTORS.md file.
-//  
+//
 //  All rights reserved. This program and the accompanying materials
 //  are made available under the terms of the GNU Public License v3.0 (or, at
 //  your option, any later version) which accompanies this distribution, and
@@ -11,7 +11,7 @@
 // =============================================================================
 
 /**
- * @file 
+ * @file
  * Template for external function support in reaction models.
  * This file serves as a template for generating parameter handler classes that
  * hold, configure, and update parameters, which may also depend on external
@@ -242,12 +242,12 @@ public:
 	{% endfor %}
 {% endif %}
 	};
-	
+
 	typedef VariableParams params_t;
 	typedef ConstBufferedScalar<params_t> ParamsHandle;
 
 	static inline const char* identifier() CADET_NOEXCEPT;
-	
+
 	{{ externalName }}() CADET_NOEXCEPT
 {% if exists("constantParameters") %}
 		:
