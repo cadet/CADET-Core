@@ -33,9 +33,9 @@ For information on model equations, refer to :ref:`generalized_ion_exchange_mode
 
 **Unit:** :math:`\text{[Mod]}^{-1}`
 
-===================  =========================  
+===================  =========================
 **Type:** double     **Length:** NCOMP
-===================  ========================= 
+===================  =========================
 
 ``GIEX_KA_QUAD``
    Coefficient of quadratic dependence of adsorption rate constant on
@@ -43,17 +43,17 @@ For information on model equations, refer to :ref:`generalized_ion_exchange_mode
 
 **Unit:** :math:`\text{[Mod]}^{-2}`
 
-===================  =========================  
+===================  =========================
 **Type:** double     **Length:** NCOMP
-===================  ========================= 
+===================  =========================
 
 ``GIEX_KA_SALT``
    Salt coefficient of adsorption rate constants; difference of
    water-protein and salt-protein interactions
 
-===================  =========================  
+===================  =========================
 **Type:** double     **Length:** NCOMP
-===================  ========================= 
+===================  =========================
 
 ``GIEX_KA_PROT``
    Protein coefficient of adsorption rate constants; difference of
@@ -61,9 +61,9 @@ For information on model equations, refer to :ref:`generalized_ion_exchange_mode
 
 **Unit:** :math:`m_{MP}^{3} mol^{-1}`
 
-===================  =========================  
+===================  =========================
 **Type:** double     **Length:** NCOMP
-===================  ========================= 
+===================  =========================
 
 ``GIEX_KD``
    Base value of desorption rate constant
@@ -80,9 +80,9 @@ For information on model equations, refer to :ref:`generalized_ion_exchange_mode
 
 **Unit:** :math:`\text{[Mod]}^{-1}`
 
-===================  =========================  
+===================  =========================
 **Type:** double     **Length:** NCOMP
-===================  ========================= 
+===================  =========================
 
 ``GIEX_KD_QUAD``
    Coefficient of quadratic dependence of desorption rate constant on
@@ -90,17 +90,17 @@ For information on model equations, refer to :ref:`generalized_ion_exchange_mode
 
 **Unit:** :math:`\text{[Mod]}^{-2}`
 
-===================  =========================  
+===================  =========================
 **Type:** double     **Length:** NCOMP
-===================  ========================= 
+===================  =========================
 
 ``GIEX_KD_SALT``
    Salt coefficient of desorption rate constants; difference of
    water-protein and salt-protein interactions
 
-===================  =========================  
+===================  =========================
 **Type:** double     **Length:** NCOMP
-===================  ========================= 
+===================  =========================
 
 ``GIEX_KD_PROT``
    Protein coefficient of desorption rate constants; difference of
@@ -108,18 +108,18 @@ For information on model equations, refer to :ref:`generalized_ion_exchange_mode
 
 **Unit:** :math:`m_{MP}^{3} mol^{-1}`
 
-===================  =========================  
+===================  =========================
 **Type:** double     **Length:** NCOMP
-===================  ========================= 
+===================  =========================
 
 ``GIEX_NU``
    Base value for characteristic charges of the protein; The number of
    sites :math:`\nu` that the protein interacts with on the resin
    surface
 
-===================  =========================  
+===================  =========================
 **Type:** double     **Length:** NCOMP
-===================  ========================= 
+===================  =========================
 
 ``GIEX_NU_LIN``
    Coefficient of linear dependence of characteristic charge on modifier
@@ -127,9 +127,9 @@ For information on model equations, refer to :ref:`generalized_ion_exchange_mode
 
 **Unit:** :math:`\text{[Mod]}^{-1}`
 
-===================  =========================  
+===================  =========================
 **Type:** double     **Length:** NCOMP
-===================  ========================= 
+===================  =========================
 
 ``GIEX_NU_QUAD``
    Coefficient of quadratic dependence of characteristic charge on
@@ -137,9 +137,9 @@ For information on model equations, refer to :ref:`generalized_ion_exchange_mode
 
 **Unit:** :math:`\text{[Mod]}^{-2}`
 
-===================  =========================  
+===================  =========================
 **Type:** double     **Length:** NCOMP
-===================  ========================= 
+===================  =========================
 
 ``GIEX_SIGMA``
    Steric factors of the protein; The number of sites :math:`\sigma` on

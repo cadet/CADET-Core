@@ -1,10 +1,10 @@
 CADET Introduction
 ==================
 
-Performing a forward simulation comprises several steps: 
+Performing a forward simulation comprises several steps:
   * Setting up the model including all parameters
   * Defining connectivity and dynamic events
-  * Setting up the simulator and actually running the simulation 
+  * Setting up the simulator and actually running the simulation
   * Evaluating results (e.g., plotting)
 
 In this tutorial, we will build a simple forward simulation with a breakthrough of one component using the following system:
@@ -12,7 +12,7 @@ In this tutorial, we will build a simple forward simulation with a breakthrough 
 .. figure:: _images/breakthrough_system.svg
 
 For this purpose, we use `CADET-Process <https://cadet-process.readthedocs.io/>`_, an object oriented Python frontend for CADET.
-CADET still must be downloaded (or built from source) as explained in the :ref:`installation guide <installation>`. 
+CADET still must be downloaded (or built from source) as explained in the :ref:`installation guide <installation>`.
 
 .. figure:: _images/cadet_architecture_overview.png
 

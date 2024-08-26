@@ -15,4 +15,3 @@ This model implemments the HIC isotherm assuming a constant water activity as de
 - Components without bound state (i.e., salt and non-binding components) are supported.
 
 For more information on model parameters required to define in CADET file format, see :ref:`hic_constant_water_activity_config`.
-

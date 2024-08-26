@@ -12,7 +12,7 @@ A naive multicomponent version was added that reduces to the original formulatio
 		\beta &= \beta_0 e^{c_{p,0}\beta_1} \\
 		\frac{\mathrm{d}q_i}{\mathrm{d}t} &= k_{a,i} c_{p,i} \left( 1 - \sum_j \frac{q_j}{q_{max,j}} \right)^{\nu_i} - k_{d,i} q_i  \left(\sum_j q_j \right)^{\nu_i \beta}
     \end{align}
-   
+
 - Component :math:`c_0` is assumed to be salt without a bound state.
 - Multiple bound states are not supported.
 - Components without bound state (i.e., salt and non-binding components) are supported.

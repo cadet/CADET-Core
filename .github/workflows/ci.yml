@@ -203,4 +203,3 @@ jobs:
           ${INSTALL_PREFIX}/bin/cadet-cli --version || true
           ${INSTALL_PREFIX}/bin/createLWE
           ${INSTALL_PREFIX}/bin/cadet-cli LWE.h5 || true
-

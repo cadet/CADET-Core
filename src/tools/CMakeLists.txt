@@ -1,9 +1,9 @@
 # =============================================================================
 #  CADET
-#  
+#
 #  Copyright © The CADET Authors
 #            Please see the CONTRIBUTORS.md file.
-#  
+#
 #  All rights reserved. This program and the accompanying materials
 #  are made available under the terms of the GNU Public License v3.0 (or, at
 #  your option, any later version) which accompanies this distribution, and
@@ -60,4 +60,3 @@ unset(TOOLS_TARGETS)
 
 # Info message
 message(STATUS "Added tools")
-

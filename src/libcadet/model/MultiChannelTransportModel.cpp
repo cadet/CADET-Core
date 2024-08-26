@@ -34,13 +34,16 @@
 
 #include "ParallelSupport.hpp"
 #ifdef CADET_PARALLELIZE
-	#include <tbb/parallel_for.h>
+#include <tbb/parallel_for.h>
 #endif
 
 namespace
 {
 
-cadet::model::MultiplexMode readAndRegisterMultiplexParam(cadet::IParameterProvider& paramProvider, std::unordered_map<cadet::ParameterId, cadet::active*>& parameters, std::vector<cadet::active>& values, const std::string& name, unsigned int nAxial, unsigned int nChannel, unsigned int nParType, cadet::UnitOpIdx uoi)
+cadet::model::MultiplexMode readAndRegisterMultiplexParam(
+	cadet::IParameterProvider& paramProvider, std::unordered_map<cadet::ParameterId, cadet::active*>& parameters,
+	std::vector<cadet::active>& values, const std::string& name, unsigned int nAxial, unsigned int nChannel,
+	unsigned int nParType, cadet::UnitOpIdx uoi)
 {
 	cadet::model::MultiplexMode mode = cadet::model::MultiplexMode::Independent;
 	readScalarParameterOrArray(values, paramProvider, name, 1);
@@ -51,25 +54,33 @@ cadet::model::MultiplexMode readAndRegisterMultiplexParam(cadet::IParameterProvi
 		{
 			mode = cadet::model::MultiplexMode::Independent;
 			if (values.size() != nParType)
-				throw cadet::InvalidParameterException("Number of elements in field " + name + " inconsistent with " + name + "_MULTIPLEX (should be " + std::to_string(nParType) + ")");
+				throw cadet::InvalidParameterException("Number of elements in field " + name + " inconsistent with " +
+													   name + "_MULTIPLEX (should be " + std::to_string(nParType) +
+													   ")");
 		}
 		else if (modeConfig == 1)
 		{
 			mode = cadet::model::MultiplexMode::Radial;
 			if (values.size() != nChannel * nParType)
-				throw cadet::InvalidParameterException("Number of elements in field " + name + " inconsistent with " + name + "_MULTIPLEX (should be " + std::to_string(nChannel * nParType) + ")");
+				throw cadet::InvalidParameterException("Number of elements in field " + name + " inconsistent with " +
+													   name + "_MULTIPLEX (should be " +
+													   std::to_string(nChannel * nParType) + ")");
 		}
 		else if (modeConfig == 2)
 		{
 			mode = cadet::model::MultiplexMode::Axial;
 			if (values.size() != nAxial * nParType)
-				throw cadet::InvalidParameterException("Number of elements in field " + name + " inconsistent with " + name + "_MULTIPLEX (should be " + std::to_string(nAxial * nParType) + ")");
+				throw cadet::InvalidParameterException("Number of elements in field " + name + " inconsistent with " +
+													   name + "_MULTIPLEX (should be " +
+													   std::to_string(nAxial * nParType) + ")");
 		}
 		else if (modeConfig == 3)
 		{
 			mode = cadet::model::MultiplexMode::AxialRadial;
 			if (values.size() != nAxial * nChannel * nParType)
-				throw cadet::InvalidParameterException("Number of elements in field " + name + " inconsistent with " + name + "_MULTIPLEX (should be " + std::to_string(nAxial * nChannel * nParType) + ")");
+				throw cadet::InvalidParameterException("Number of elements in field " + name + " inconsistent with " +
+													   name + "_MULTIPLEX (should be " +
+													   std::to_string(nAxial * nChannel * nParType) + ")");
 		}
 	}
 	else
@@ -83,230 +94,244 @@ cadet::model::MultiplexMode readAndRegisterMultiplexParam(cadet::IParameterProvi
 		else if (values.size() == nChannel * nAxial * nParType)
 			mode = cadet::model::MultiplexMode::AxialRadial;
 		else
-			throw cadet::InvalidParameterException("Could not infer multiplex mode of field " + name + ", set " + name + "_MULTIPLEX or change number of elements");
+			throw cadet::InvalidParameterException("Could not infer multiplex mode of field " + name + ", set " + name +
+												   "_MULTIPLEX or change number of elements");
 	}
 
 	const cadet::StringHash nameHash = cadet::hashStringRuntime(name);
 	switch (mode)
 	{
-		case cadet::model::MultiplexMode::Independent:
-			{
-				std::vector<cadet::active> p(nAxial * nChannel * nParType);
-				for (unsigned int s = 0; s < nAxial * nChannel; ++s)
-					std::copy(values.begin(), values.end(), p.begin() + s * nParType);
+	case cadet::model::MultiplexMode::Independent: {
+		std::vector<cadet::active> p(nAxial * nChannel * nParType);
+		for (unsigned int s = 0; s < nAxial * nChannel; ++s)
+			std::copy(values.begin(), values.end(), p.begin() + s * nParType);
 
-				values = std::move(p);
+		values = std::move(p);
 
-				for (unsigned int s = 0; s < nParType; ++s)
-					parameters[cadet::makeParamId(nameHash, uoi, cadet::CompIndep, s, cadet::BoundStateIndep, cadet::ReactionIndep, cadet::SectionIndep)] = &values[s];
-			}
-			break;
-		case cadet::model::MultiplexMode::Radial:
-			{
-				std::vector<cadet::active> p(nAxial * nChannel * nParType);
-				for (unsigned int s = 0; s < nAxial; ++s)
-					std::copy(values.begin(), values.end(), p.begin() + s * nParType * nChannel);
+		for (unsigned int s = 0; s < nParType; ++s)
+			parameters[cadet::makeParamId(nameHash, uoi, cadet::CompIndep, s, cadet::BoundStateIndep,
+										  cadet::ReactionIndep, cadet::SectionIndep)] = &values[s];
+	}
+	break;
+	case cadet::model::MultiplexMode::Radial: {
+		std::vector<cadet::active> p(nAxial * nChannel * nParType);
+		for (unsigned int s = 0; s < nAxial; ++s)
+			std::copy(values.begin(), values.end(), p.begin() + s * nParType * nChannel);
 
-				values = std::move(p);
+		values = std::move(p);
 
-				for (unsigned int s = 0; s < nChannel; ++s)
-				{
-					for (unsigned int i = 0; i < nParType; ++i)
-						parameters[cadet::makeParamId(nameHash, uoi, cadet::CompIndep, i, cadet::BoundStateIndep, s, cadet::SectionIndep)] = &values[s * nParType + i];
-				}
-			}
-			break;
-		case cadet::model::MultiplexMode::Axial:
-			{
-				std::vector<cadet::active> p(nAxial * nChannel * nParType);
-				for (unsigned int i = 0; i < nAxial; ++i)
-				{
-					for (unsigned int j = 0; j < nChannel; ++j)
-						std::copy(values.begin() + i * nParType, values.begin() + (i+1) * nParType, p.begin() + i * nChannel * nParType + j * nParType);
-				}
+		for (unsigned int s = 0; s < nChannel; ++s)
+		{
+			for (unsigned int i = 0; i < nParType; ++i)
+				parameters[cadet::makeParamId(nameHash, uoi, cadet::CompIndep, i, cadet::BoundStateIndep, s,
+											  cadet::SectionIndep)] = &values[s * nParType + i];
+		}
+	}
+	break;
+	case cadet::model::MultiplexMode::Axial: {
+		std::vector<cadet::active> p(nAxial * nChannel * nParType);
+		for (unsigned int i = 0; i < nAxial; ++i)
+		{
+			for (unsigned int j = 0; j < nChannel; ++j)
+				std::copy(values.begin() + i * nParType, values.begin() + (i + 1) * nParType,
+						  p.begin() + i * nChannel * nParType + j * nParType);
+		}
 
-				values = std::move(p);
+		values = std::move(p);
 
-				for (unsigned int s = 0; s < nAxial; ++s)
-				{
-					for (unsigned int i = 0; i < nParType; ++i)
-						parameters[cadet::makeParamId(nameHash, uoi, cadet::CompIndep, i, cadet::BoundStateIndep, cadet::ReactionIndep, s)] = &values[s * nParType * nChannel + i];
-				}
-			}
-			break;
-		case cadet::model::MultiplexMode::AxialRadial:
-			cadet::registerParam3DArray(parameters, values, [=](bool multi, unsigned int ax, unsigned int rad, unsigned int pt) { return cadet::makeParamId(nameHash, uoi, cadet::CompIndep, pt, cadet::BoundStateIndep, rad, ax); }, nParType, nChannel);
-			break;
-		case cadet::model::MultiplexMode::RadialSection:
-		case cadet::model::MultiplexMode::Component:
-		case cadet::model::MultiplexMode::ComponentRadial:
-		case cadet::model::MultiplexMode::ComponentRadialSection:
-		case cadet::model::MultiplexMode::ComponentSection:
-		case cadet::model::MultiplexMode::Section:
-		case cadet::model::MultiplexMode::Type:
-		case cadet::model::MultiplexMode::ComponentType:
-		case cadet::model::MultiplexMode::ComponentSectionType:
-			cadet_assert(false);
-			break;
+		for (unsigned int s = 0; s < nAxial; ++s)
+		{
+			for (unsigned int i = 0; i < nParType; ++i)
+				parameters[cadet::makeParamId(nameHash, uoi, cadet::CompIndep, i, cadet::BoundStateIndep,
+											  cadet::ReactionIndep, s)] = &values[s * nParType * nChannel + i];
+		}
+	}
+	break;
+	case cadet::model::MultiplexMode::AxialRadial:
+		cadet::registerParam3DArray(
+			parameters, values,
+			[=](bool multi, unsigned int ax, unsigned int rad, unsigned int pt) {
+				return cadet::makeParamId(nameHash, uoi, cadet::CompIndep, pt, cadet::BoundStateIndep, rad, ax);
+			},
+			nParType, nChannel);
+		break;
+	case cadet::model::MultiplexMode::RadialSection:
+	case cadet::model::MultiplexMode::Component:
+	case cadet::model::MultiplexMode::ComponentRadial:
+	case cadet::model::MultiplexMode::ComponentRadialSection:
+	case cadet::model::MultiplexMode::ComponentSection:
+	case cadet::model::MultiplexMode::Section:
+	case cadet::model::MultiplexMode::Type:
+	case cadet::model::MultiplexMode::ComponentType:
+	case cadet::model::MultiplexMode::ComponentSectionType:
+		cadet_assert(false);
+		break;
 	}
 
 	return mode;
 }
 
-bool multiplexParameterValue(const cadet::ParameterId& pId, cadet::StringHash nameHash, cadet::model::MultiplexMode mode, std::vector<cadet::active>& data, unsigned int nAxial, unsigned int nChannel, unsigned int nParType, double value, std::unordered_set<cadet::active*> const* sensParams)
+bool multiplexParameterValue(const cadet::ParameterId& pId, cadet::StringHash nameHash,
+							 cadet::model::MultiplexMode mode, std::vector<cadet::active>& data, unsigned int nAxial,
+							 unsigned int nChannel, unsigned int nParType, double value,
+							 std::unordered_set<cadet::active*> const* sensParams)
 {
 	if (pId.name != nameHash)
 		return false;
 
 	switch (mode)
 	{
-		case cadet::model::MultiplexMode::Independent:
-			{
-				if ((pId.component != cadet::CompIndep) || (pId.particleType == cadet::ParTypeIndep) || (pId.boundState != cadet::BoundStateIndep)
-					|| (pId.reaction != cadet::ReactionIndep) || (pId.section != cadet::SectionIndep))
-					return false;
+	case cadet::model::MultiplexMode::Independent: {
+		if ((pId.component != cadet::CompIndep) || (pId.particleType == cadet::ParTypeIndep) ||
+			(pId.boundState != cadet::BoundStateIndep) || (pId.reaction != cadet::ReactionIndep) ||
+			(pId.section != cadet::SectionIndep))
+			return false;
 
-				if (sensParams && !cadet::contains(*sensParams, &data[pId.particleType]))
-					return false;
+		if (sensParams && !cadet::contains(*sensParams, &data[pId.particleType]))
+			return false;
 
-				for (unsigned int i = 0; i < nAxial * nChannel; ++i)
-					data[i * nParType + pId.particleType].setValue(value);
+		for (unsigned int i = 0; i < nAxial * nChannel; ++i)
+			data[i * nParType + pId.particleType].setValue(value);
 
-				return true;
-			}
-		case cadet::model::MultiplexMode::Radial:
-			{
-				if ((pId.component != cadet::CompIndep) || (pId.particleType == cadet::ParTypeIndep) || (pId.boundState != cadet::BoundStateIndep)
-					|| (pId.reaction == cadet::ReactionIndep) || (pId.section != cadet::SectionIndep))
-					return false;
+		return true;
+	}
+	case cadet::model::MultiplexMode::Radial: {
+		if ((pId.component != cadet::CompIndep) || (pId.particleType == cadet::ParTypeIndep) ||
+			(pId.boundState != cadet::BoundStateIndep) || (pId.reaction == cadet::ReactionIndep) ||
+			(pId.section != cadet::SectionIndep))
+			return false;
 
-				if (sensParams && !cadet::contains(*sensParams, &data[pId.reaction * nParType + pId.particleType]))
-					return false;
+		if (sensParams && !cadet::contains(*sensParams, &data[pId.reaction * nParType + pId.particleType]))
+			return false;
 
-				for (unsigned int i = 0; i < nAxial; ++i)
-					data[i * nChannel * nParType + pId.reaction * nParType + pId.particleType].setValue(value);
+		for (unsigned int i = 0; i < nAxial; ++i)
+			data[i * nChannel * nParType + pId.reaction * nParType + pId.particleType].setValue(value);
 
-				return true;
-			}
-		case cadet::model::MultiplexMode::Axial:
-			{
-				if ((pId.component != cadet::CompIndep) || (pId.particleType == cadet::ParTypeIndep) || (pId.boundState != cadet::BoundStateIndep)
-					|| (pId.reaction != cadet::ReactionIndep) || (pId.section == cadet::SectionIndep))
-					return false;
+		return true;
+	}
+	case cadet::model::MultiplexMode::Axial: {
+		if ((pId.component != cadet::CompIndep) || (pId.particleType == cadet::ParTypeIndep) ||
+			(pId.boundState != cadet::BoundStateIndep) || (pId.reaction != cadet::ReactionIndep) ||
+			(pId.section == cadet::SectionIndep))
+			return false;
 
-				if (sensParams && !cadet::contains(*sensParams, &data[pId.section * nParType * nChannel + pId.particleType]))
-					return false;
+		if (sensParams && !cadet::contains(*sensParams, &data[pId.section * nParType * nChannel + pId.particleType]))
+			return false;
 
-				for (unsigned int i = 0; i < nChannel; ++i)
-					data[pId.section * nParType * nChannel + i * nParType + pId.particleType].setValue(value);
+		for (unsigned int i = 0; i < nChannel; ++i)
+			data[pId.section * nParType * nChannel + i * nParType + pId.particleType].setValue(value);
 
-				return true;
-			}
-		case cadet::model::MultiplexMode::AxialRadial:
-			{
-				if ((pId.component != cadet::CompIndep) || (pId.particleType == cadet::ParTypeIndep) || (pId.boundState != cadet::BoundStateIndep)
-					|| (pId.reaction == cadet::ReactionIndep) || (pId.section == cadet::SectionIndep))
-					return false;
+		return true;
+	}
+	case cadet::model::MultiplexMode::AxialRadial: {
+		if ((pId.component != cadet::CompIndep) || (pId.particleType == cadet::ParTypeIndep) ||
+			(pId.boundState != cadet::BoundStateIndep) || (pId.reaction == cadet::ReactionIndep) ||
+			(pId.section == cadet::SectionIndep))
+			return false;
 
-				if (sensParams && !cadet::contains(*sensParams, &data[pId.section * nParType * nChannel + pId.reaction * nParType + pId.particleType]))
-					return false;
+		if (sensParams &&
+			!cadet::contains(*sensParams,
+							 &data[pId.section * nParType * nChannel + pId.reaction * nParType + pId.particleType]))
+			return false;
 
-				data[pId.section * nParType * nChannel + pId.reaction * nParType + pId.particleType].setValue(value);
+		data[pId.section * nParType * nChannel + pId.reaction * nParType + pId.particleType].setValue(value);
 
-				return true;
-			}
-		case cadet::model::MultiplexMode::RadialSection:
-		case cadet::model::MultiplexMode::Component:
-		case cadet::model::MultiplexMode::ComponentRadial:
-		case cadet::model::MultiplexMode::ComponentRadialSection:
-		case cadet::model::MultiplexMode::ComponentSection:
-		case cadet::model::MultiplexMode::Section:
-		case cadet::model::MultiplexMode::Type:
-		case cadet::model::MultiplexMode::ComponentType:
-		case cadet::model::MultiplexMode::ComponentSectionType:
-			cadet_assert(false);
-			break;
+		return true;
+	}
+	case cadet::model::MultiplexMode::RadialSection:
+	case cadet::model::MultiplexMode::Component:
+	case cadet::model::MultiplexMode::ComponentRadial:
+	case cadet::model::MultiplexMode::ComponentRadialSection:
+	case cadet::model::MultiplexMode::ComponentSection:
+	case cadet::model::MultiplexMode::Section:
+	case cadet::model::MultiplexMode::Type:
+	case cadet::model::MultiplexMode::ComponentType:
+	case cadet::model::MultiplexMode::ComponentSectionType:
+		cadet_assert(false);
+		break;
 	}
 
 	return false;
 }
 
-bool multiplexParameterAD(const cadet::ParameterId& pId, cadet::StringHash nameHash, cadet::model::MultiplexMode mode, std::vector<cadet::active>& data, unsigned int nAxial, unsigned int nChannel, unsigned int nParType, unsigned int adDirection, double adValue, std::unordered_set<cadet::active*>& sensParams)
+bool multiplexParameterAD(const cadet::ParameterId& pId, cadet::StringHash nameHash, cadet::model::MultiplexMode mode,
+						  std::vector<cadet::active>& data, unsigned int nAxial, unsigned int nChannel,
+						  unsigned int nParType, unsigned int adDirection, double adValue,
+						  std::unordered_set<cadet::active*>& sensParams)
 {
 	if (pId.name != nameHash)
 		return false;
 
 	switch (mode)
 	{
-		case cadet::model::MultiplexMode::Independent:
-			{
-				if ((pId.component != cadet::CompIndep) || (pId.particleType == cadet::ParTypeIndep) || (pId.boundState != cadet::BoundStateIndep)
-					|| (pId.reaction != cadet::ReactionIndep) || (pId.section != cadet::SectionIndep))
-					return false;
+	case cadet::model::MultiplexMode::Independent: {
+		if ((pId.component != cadet::CompIndep) || (pId.particleType == cadet::ParTypeIndep) ||
+			(pId.boundState != cadet::BoundStateIndep) || (pId.reaction != cadet::ReactionIndep) ||
+			(pId.section != cadet::SectionIndep))
+			return false;
 
-				sensParams.insert(&data[pId.particleType]);
+		sensParams.insert(&data[pId.particleType]);
 
-				for (unsigned int i = 0; i < nAxial * nChannel; ++i)
-					data[i * nParType + pId.particleType].setADValue(adDirection, adValue);
+		for (unsigned int i = 0; i < nAxial * nChannel; ++i)
+			data[i * nParType + pId.particleType].setADValue(adDirection, adValue);
 
-				return true;
-			}
-		case cadet::model::MultiplexMode::Radial:
-			{
-				if ((pId.component != cadet::CompIndep) || (pId.particleType == cadet::ParTypeIndep) || (pId.boundState != cadet::BoundStateIndep)
-					|| (pId.reaction == cadet::ReactionIndep) || (pId.section != cadet::SectionIndep))
-					return false;
+		return true;
+	}
+	case cadet::model::MultiplexMode::Radial: {
+		if ((pId.component != cadet::CompIndep) || (pId.particleType == cadet::ParTypeIndep) ||
+			(pId.boundState != cadet::BoundStateIndep) || (pId.reaction == cadet::ReactionIndep) ||
+			(pId.section != cadet::SectionIndep))
+			return false;
 
-				sensParams.insert(&data[pId.reaction * nParType + pId.particleType]);
+		sensParams.insert(&data[pId.reaction * nParType + pId.particleType]);
 
-				for (unsigned int i = 0; i < nAxial; ++i)
-					data[i * nChannel * nParType + pId.reaction * nParType + pId.particleType].setADValue(adDirection, adValue);
+		for (unsigned int i = 0; i < nAxial; ++i)
+			data[i * nChannel * nParType + pId.reaction * nParType + pId.particleType].setADValue(adDirection, adValue);
 
-				return true;
-			}
-		case cadet::model::MultiplexMode::Axial:
-			{
-				if ((pId.component != cadet::CompIndep) || (pId.particleType == cadet::ParTypeIndep) || (pId.boundState != cadet::BoundStateIndep)
-					|| (pId.reaction != cadet::ReactionIndep) || (pId.section == cadet::SectionIndep))
-					return false;
+		return true;
+	}
+	case cadet::model::MultiplexMode::Axial: {
+		if ((pId.component != cadet::CompIndep) || (pId.particleType == cadet::ParTypeIndep) ||
+			(pId.boundState != cadet::BoundStateIndep) || (pId.reaction != cadet::ReactionIndep) ||
+			(pId.section == cadet::SectionIndep))
+			return false;
 
-				sensParams.insert(&data[pId.section * nParType * nChannel + pId.particleType]);
+		sensParams.insert(&data[pId.section * nParType * nChannel + pId.particleType]);
 
-				for (unsigned int i = 0; i < nChannel; ++i)
-					data[pId.section * nParType * nChannel + i * nParType + pId.particleType].setADValue(adDirection, adValue);
+		for (unsigned int i = 0; i < nChannel; ++i)
+			data[pId.section * nParType * nChannel + i * nParType + pId.particleType].setADValue(adDirection, adValue);
 
-				return true;
-			}
-		case cadet::model::MultiplexMode::AxialRadial:
-			{
-				if ((pId.component != cadet::CompIndep) || (pId.particleType == cadet::ParTypeIndep) || (pId.boundState != cadet::BoundStateIndep)
-					|| (pId.reaction == cadet::ReactionIndep) || (pId.section == cadet::SectionIndep))
-					return false;
+		return true;
+	}
+	case cadet::model::MultiplexMode::AxialRadial: {
+		if ((pId.component != cadet::CompIndep) || (pId.particleType == cadet::ParTypeIndep) ||
+			(pId.boundState != cadet::BoundStateIndep) || (pId.reaction == cadet::ReactionIndep) ||
+			(pId.section == cadet::SectionIndep))
+			return false;
 
-				sensParams.insert(&data[pId.section * nParType * nChannel + pId.reaction * nParType + pId.particleType]);
-				data[pId.section * nParType * nChannel + pId.reaction * nParType + pId.particleType].setADValue(adDirection, adValue);
+		sensParams.insert(&data[pId.section * nParType * nChannel + pId.reaction * nParType + pId.particleType]);
+		data[pId.section * nParType * nChannel + pId.reaction * nParType + pId.particleType].setADValue(adDirection,
+																										adValue);
 
-				return true;
-			}
-		case cadet::model::MultiplexMode::RadialSection:
-		case cadet::model::MultiplexMode::Component:
-		case cadet::model::MultiplexMode::ComponentRadial:
-		case cadet::model::MultiplexMode::ComponentRadialSection:
-		case cadet::model::MultiplexMode::ComponentSection:
-		case cadet::model::MultiplexMode::Section:
-		case cadet::model::MultiplexMode::Type:
-		case cadet::model::MultiplexMode::ComponentType:
-		case cadet::model::MultiplexMode::ComponentSectionType:
-			cadet_assert(false);
-			break;
+		return true;
+	}
+	case cadet::model::MultiplexMode::RadialSection:
+	case cadet::model::MultiplexMode::Component:
+	case cadet::model::MultiplexMode::ComponentRadial:
+	case cadet::model::MultiplexMode::ComponentRadialSection:
+	case cadet::model::MultiplexMode::ComponentSection:
+	case cadet::model::MultiplexMode::Section:
+	case cadet::model::MultiplexMode::Type:
+	case cadet::model::MultiplexMode::ComponentType:
+	case cadet::model::MultiplexMode::ComponentSectionType:
+		cadet_assert(false);
+		break;
 	}
 
 	return false;
 }
 
-
-}  // namespace
-
+} // namespace
 
 namespace cadet
 {
@@ -314,10 +339,10 @@ namespace cadet
 namespace model
 {
 
-MultiChannelTransportModel::MultiChannelTransportModel(UnitOpIdx unitOpIdx) : UnitOperationBase(unitOpIdx),
-	_dynReactionBulk(nullptr), _jacInlet(),
-	_analyticJac(true), _jacobianAdDirs(0), _factorizeJacobian(false), _tempState(nullptr),
-	_initC(0), _singleRadiusInitC(true), _initState(0), _initStateDot(0)
+MultiChannelTransportModel::MultiChannelTransportModel(UnitOpIdx unitOpIdx)
+	: UnitOperationBase(unitOpIdx), _dynReactionBulk(nullptr), _jacInlet(), _analyticJac(true), _jacobianAdDirs(0),
+	  _factorizeJacobian(false), _tempState(nullptr), _initC(0), _singleRadiusInitC(true), _initState(0),
+	  _initStateDot(0)
 {
 }
 
@@ -340,7 +365,6 @@ unsigned int MultiChannelTransportModel::numPureDofs() const CADET_NOEXCEPT
 	return _disc.nCol * _disc.nChannel * _disc.nComp;
 }
 
-
 bool MultiChannelTransportModel::usesAD() const CADET_NOEXCEPT
 {
 #ifdef CADET_CHECK_ANALYTIC_JACOBIAN
@@ -352,7 +376,8 @@ bool MultiChannelTransportModel::usesAD() const CADET_NOEXCEPT
 #endif
 }
 
-bool MultiChannelTransportModel::configureModelDiscretization(IParameterProvider& paramProvider, const IConfigHelper& helper)
+bool MultiChannelTransportModel::configureModelDiscretization(IParameterProvider& paramProvider,
+															  const IConfigHelper& helper)
 {
 	// ==== Read discretization
 	_disc.nComp = paramProvider.getInt("NCOMP");
@@ -361,11 +386,11 @@ bool MultiChannelTransportModel::configureModelDiscretization(IParameterProvider
 	paramProvider.pushScope("discretization");
 
 	_disc.nCol = paramProvider.getInt("NCOL");
-	if(_disc.nChannel < 1)
+	if (_disc.nChannel < 1)
 		throw InvalidParameterException("NCHANNEL must be > 0");
 
-	// Determine whether analytic Jacobian should be used but don't set it right now.
-	// We need to setup Jacobian matrices first.
+		// Determine whether analytic Jacobian should be used but don't set it right now.
+		// We need to setup Jacobian matrices first.
 #ifndef CADET_CHECK_ANALYTIC_JACOBIAN
 	const bool analyticJac = paramProvider.getBool("USE_ANALYTIC_JACOBIAN");
 #else
@@ -402,13 +427,15 @@ bool MultiChannelTransportModel::configureModelDiscretization(IParameterProvider
 		if (_dynReactionBulk->usesParamProviderInDiscretizationConfig())
 			paramProvider.pushScope("reaction_bulk");
 
-		reactionConfSuccess = _dynReactionBulk->configureModelDiscretization(paramProvider, _disc.nComp, nullptr, nullptr);
+		reactionConfSuccess =
+			_dynReactionBulk->configureModelDiscretization(paramProvider, _disc.nComp, nullptr, nullptr);
 
 		if (_dynReactionBulk->usesParamProviderInDiscretizationConfig())
 			paramProvider.popScope();
 	}
 
-	const bool transportSuccess = _convDispOp.configureModelDiscretization(paramProvider, helper, _disc.nComp, _disc.nCol, _disc.nChannel, _dynReactionBulk);
+	const bool transportSuccess = _convDispOp.configureModelDiscretization(
+		paramProvider, helper, _disc.nComp, _disc.nCol, _disc.nChannel, _dynReactionBulk);
 
 	// Setup the memory for tempState based on state vector
 	_tempState = new double[numDofs()];
@@ -425,9 +452,18 @@ bool MultiChannelTransportModel::configure(IParameterProvider& paramProvider)
 	// Add parameters to map
 
 	// Register initial conditions parameters
-	registerParam1DArray(_parameters, _initC, [=](bool multi, unsigned int comp) { return makeParamId(hashString("INIT_C"), _unitOpIdx, comp, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep); });
+	registerParam1DArray(_parameters, _initC, [=](bool multi, unsigned int comp) {
+		return makeParamId(hashString("INIT_C"), _unitOpIdx, comp, ParTypeIndep, BoundStateIndep, ReactionIndep,
+						   SectionIndep);
+	});
 	if (_disc.nChannel > 1)
-		registerParam2DArray(_parameters, _initC, [=](bool multi, unsigned int rad, unsigned int comp) { return makeParamId(hashString("INIT_C"), _unitOpIdx, comp, ParTypeIndep, BoundStateIndep, rad, SectionIndep); }, _disc.nComp);
+		registerParam2DArray(
+			_parameters, _initC,
+			[=](bool multi, unsigned int rad, unsigned int comp) {
+				return makeParamId(hashString("INIT_C"), _unitOpIdx, comp, ParTypeIndep, BoundStateIndep, rad,
+								   SectionIndep);
+			},
+			_disc.nComp);
 
 	// Reconfigure reaction model
 	bool dynReactionConfSuccess = true;
@@ -440,7 +476,6 @@ bool MultiChannelTransportModel::configure(IParameterProvider& paramProvider)
 
 	return transportSuccess && dynReactionConfSuccess;
 }
-
 
 unsigned int MultiChannelTransportModel::threadLocalMemorySize() const CADET_NOEXCEPT
 {
@@ -473,7 +508,9 @@ void MultiChannelTransportModel::useAnalyticJacobian(const bool analyticJac)
 #endif
 }
 
-void MultiChannelTransportModel::notifyDiscontinuousSectionTransition(double t, unsigned int secIdx, const ConstSimulationState& simState, const AdJacobianParams& adJac)
+void MultiChannelTransportModel::notifyDiscontinuousSectionTransition(double t, unsigned int secIdx,
+																	  const ConstSimulationState& simState,
+																	  const AdJacobianParams& adJac)
 {
 	Indexer idxr(_disc);
 
@@ -525,7 +562,6 @@ void MultiChannelTransportModel::reportSolutionStructure(ISolutionRecorder& reco
 	recorder.unitOperationStructure(_unitOpIdx, *this, expr);
 }
 
-
 unsigned int MultiChannelTransportModel::requiredADdirs() const CADET_NOEXCEPT
 {
 #ifndef CADET_CHECK_ANALYTIC_JACOBIAN
@@ -565,21 +601,26 @@ void MultiChannelTransportModel::extractJacobianFromAD(active const* const adRes
  * @param [in] adRes Residual vector of AD datatypes with band compressed seed vectors
  * @param [in] adDirOffset Number of AD directions used for non-Jacobian purposes (e.g., parameter sensitivities)
  */
-void MultiChannelTransportModel::checkAnalyticJacobianAgainstAd(active const* const adRes, unsigned int adDirOffset) const
+void MultiChannelTransportModel::checkAnalyticJacobianAgainstAd(active const* const adRes,
+																unsigned int adDirOffset) const
 {
 }
 
 #endif
 
-int MultiChannelTransportModel::residual(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res, util::ThreadLocalStorage& threadLocalMem)
+int MultiChannelTransportModel::residual(const SimulationTime& simTime, const ConstSimulationState& simState,
+										 double* const res, util::ThreadLocalStorage& threadLocalMem)
 {
 	BENCH_SCOPE(_timerResidual);
 
 	// Evaluate residual do not compute Jacobian or parameter sensitivities
-	return residualImpl<double, double, double, false>(simTime.t, simTime.secIdx, simState.vecStateY, simState.vecStateYdot, res, threadLocalMem);
+	return residualImpl<double, double, double, false>(simTime.t, simTime.secIdx, simState.vecStateY,
+													   simState.vecStateYdot, res, threadLocalMem);
 }
 
-int MultiChannelTransportModel::jacobian(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res, const AdJacobianParams& adJac, util::ThreadLocalStorage& threadLocalMem)
+int MultiChannelTransportModel::jacobian(const SimulationTime& simTime, const ConstSimulationState& simState,
+										 double* const res, const AdJacobianParams& adJac,
+										 util::ThreadLocalStorage& threadLocalMem)
 {
 	BENCH_SCOPE(_timerResidual);
 
@@ -588,10 +629,14 @@ int MultiChannelTransportModel::jacobian(const SimulationTime& simTime, const Co
 	if (_analyticJac)
 		return residual(simTime, simState, res, adJac, threadLocalMem, true, false);
 	else
-		return residualWithJacobian(simTime, ConstSimulationState{ simState.vecStateY, nullptr }, nullptr, adJac, threadLocalMem);
+		return residualWithJacobian(simTime, ConstSimulationState{simState.vecStateY, nullptr}, nullptr, adJac,
+									threadLocalMem);
 }
 
-int MultiChannelTransportModel::residualWithJacobian(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res, const AdJacobianParams& adJac, util::ThreadLocalStorage& threadLocalMem)
+int MultiChannelTransportModel::residualWithJacobian(const SimulationTime& simTime,
+													 const ConstSimulationState& simState, double* const res,
+													 const AdJacobianParams& adJac,
+													 util::ThreadLocalStorage& threadLocalMem)
 {
 	BENCH_SCOPE(_timerResidual);
 
@@ -599,8 +644,10 @@ int MultiChannelTransportModel::residualWithJacobian(const SimulationTime& simTi
 	return residual(simTime, simState, res, adJac, threadLocalMem, true, false);
 }
 
-int MultiChannelTransportModel::residual(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res,
-	const AdJacobianParams& adJac, util::ThreadLocalStorage& threadLocalMem, bool updateJacobian, bool paramSensitivity)
+int MultiChannelTransportModel::residual(const SimulationTime& simTime, const ConstSimulationState& simState,
+										 double* const res, const AdJacobianParams& adJac,
+										 util::ThreadLocalStorage& threadLocalMem, bool updateJacobian,
+										 bool paramSensitivity)
 {
 	if (updateJacobian)
 	{
@@ -611,7 +658,8 @@ int MultiChannelTransportModel::residual(const SimulationTime& simTime, const Co
 		{
 			if (paramSensitivity)
 			{
-				const int retCode = residualImpl<double, active, active, true>(simTime.t, simTime.secIdx, simState.vecStateY, simState.vecStateYdot, adJac.adRes, threadLocalMem);
+				const int retCode = residualImpl<double, active, active, true>(
+					simTime.t, simTime.secIdx, simState.vecStateY, simState.vecStateYdot, adJac.adRes, threadLocalMem);
 
 				// Copy AD residuals to original residuals vector
 				if (res)
@@ -620,7 +668,8 @@ int MultiChannelTransportModel::residual(const SimulationTime& simTime, const Co
 				return retCode;
 			}
 			else
-				return residualImpl<double, double, double, true>(simTime.t, simTime.secIdx, simState.vecStateY, simState.vecStateYdot, res, threadLocalMem);
+				return residualImpl<double, double, double, true>(simTime.t, simTime.secIdx, simState.vecStateY,
+																  simState.vecStateYdot, res, threadLocalMem);
 		}
 		else
 		{
@@ -635,9 +684,11 @@ int MultiChannelTransportModel::residual(const SimulationTime& simTime, const Co
 			// Evaluate with AD enabled
 			int retCode = 0;
 			if (paramSensitivity)
-				retCode = residualImpl<active, active, active, false>(simTime.t, simTime.secIdx, adJac.adY, simState.vecStateYdot, adJac.adRes, threadLocalMem);
+				retCode = residualImpl<active, active, active, false>(
+					simTime.t, simTime.secIdx, adJac.adY, simState.vecStateYdot, adJac.adRes, threadLocalMem);
 			else
-				retCode = residualImpl<active, active, double, false>(simTime.t, simTime.secIdx, adJac.adY, simState.vecStateYdot, adJac.adRes, threadLocalMem);
+				retCode = residualImpl<active, active, double, false>(
+					simTime.t, simTime.secIdx, adJac.adY, simState.vecStateYdot, adJac.adRes, threadLocalMem);
 
 			// Copy AD residuals to original residuals vector
 			if (res)
@@ -660,15 +711,18 @@ int MultiChannelTransportModel::residual(const SimulationTime& simTime, const Co
 		// Evaluate with AD enabled
 		int retCode = 0;
 		if (paramSensitivity)
-			retCode = residualImpl<active, active, active, false>(simTime.t, simTime.secIdx, adJac.adY, simState.vecStateYdot, adJac.adRes, threadLocalMem);
+			retCode = residualImpl<active, active, active, false>(simTime.t, simTime.secIdx, adJac.adY,
+																  simState.vecStateYdot, adJac.adRes, threadLocalMem);
 		else
-			retCode = residualImpl<active, active, double, false>(simTime.t, simTime.secIdx, adJac.adY, simState.vecStateYdot, adJac.adRes, threadLocalMem);
+			retCode = residualImpl<active, active, double, false>(simTime.t, simTime.secIdx, adJac.adY,
+																  simState.vecStateYdot, adJac.adRes, threadLocalMem);
 
 		// Only do comparison if we have a residuals vector (which is not always the case)
 		if (res)
 		{
 			// Evaluate with analytical Jacobian which is stored in the band matrices
-			retCode = residualImpl<double, double, double, true>(simTime.t, simTime.secIdx, simState.vecStateY, simState.vecStateYdot, res, threadLocalMem);
+			retCode = residualImpl<double, double, double, true>(simTime.t, simTime.secIdx, simState.vecStateY,
+																 simState.vecStateYdot, res, threadLocalMem);
 
 			// Compare AD with anaytic Jacobian
 			checkAnalyticJacobianAgainstAd(adJac.adRes, adJac.adDirOffset);
@@ -688,7 +742,8 @@ int MultiChannelTransportModel::residual(const SimulationTime& simTime, const Co
 			// @todo Check if this is necessary
 			ad::resetAd(adJac.adRes, numDofs());
 
-			const int retCode = residualImpl<double, active, active, false>(simTime.t, simTime.secIdx, simState.vecStateY, simState.vecStateYdot, adJac.adRes, threadLocalMem);
+			const int retCode = residualImpl<double, active, active, false>(
+				simTime.t, simTime.secIdx, simState.vecStateY, simState.vecStateYdot, adJac.adRes, threadLocalMem);
 
 			// Copy AD residuals to original residuals vector
 			if (res)
@@ -697,12 +752,15 @@ int MultiChannelTransportModel::residual(const SimulationTime& simTime, const Co
 			return retCode;
 		}
 		else
-			return residualImpl<double, double, double, false>(simTime.t, simTime.secIdx, simState.vecStateY, simState.vecStateYdot, res, threadLocalMem);
+			return residualImpl<double, double, double, false>(simTime.t, simTime.secIdx, simState.vecStateY,
+															   simState.vecStateYdot, res, threadLocalMem);
 	}
 }
 
 template <typename StateType, typename ResidualType, typename ParamType, bool wantJac>
-int MultiChannelTransportModel::residualImpl(double t, unsigned int secIdx, StateType const* const y, double const* const yDot, ResidualType* const res, util::ThreadLocalStorage& threadLocalMem)
+int MultiChannelTransportModel::residualImpl(double t, unsigned int secIdx, StateType const* const y,
+											 double const* const yDot, ResidualType* const res,
+											 util::ThreadLocalStorage& threadLocalMem)
 {
 	// Handle inlet DOFs, which are simply copied to res
 	for (unsigned int i = 0; i < _disc.nComp * _disc.nChannel; ++i)
@@ -721,7 +779,8 @@ int MultiChannelTransportModel::residualImpl(double t, unsigned int secIdx, Stat
 	ResidualType* resC = res + idxr.offsetC();
 	LinearBufferAllocator tlmAlloc = threadLocalMem.get();
 
-	for (unsigned int colCell = 0; colCell < _disc.nCol * _disc.nChannel; ++colCell, yC += idxr.strideChannelCell(), resC += idxr.strideChannelCell())
+	for (unsigned int colCell = 0; colCell < _disc.nCol * _disc.nChannel;
+		 ++colCell, yC += idxr.strideChannelCell(), resC += idxr.strideChannelCell())
 	{
 		const unsigned int axialCell = colCell / _disc.nChannel;
 		const unsigned int channelCell = colCell % _disc.nChannel;
@@ -733,14 +792,19 @@ int MultiChannelTransportModel::residualImpl(double t, unsigned int secIdx, Stat
 		if (wantJac)
 		{
 			// static_cast should be sufficient here, but this statement is also analyzed when wantJac = false
-			_dynReactionBulk->analyticJacobianLiquidAdd(t, secIdx, colPos, reinterpret_cast<double const*>(yC), -1.0, _convDispOp.jacobian().row(colCell * idxr.strideChannelCell()), tlmAlloc);
+			_dynReactionBulk->analyticJacobianLiquidAdd(t, secIdx, colPos, reinterpret_cast<double const*>(yC), -1.0,
+														_convDispOp.jacobian().row(colCell * idxr.strideChannelCell()),
+														tlmAlloc);
 		}
 	}
 
 	return 0;
 }
 
-int MultiChannelTransportModel::residualSensFwdWithJacobian(const SimulationTime& simTime, const ConstSimulationState& simState, const AdJacobianParams& adJac, util::ThreadLocalStorage& threadLocalMem)
+int MultiChannelTransportModel::residualSensFwdWithJacobian(const SimulationTime& simTime,
+															const ConstSimulationState& simState,
+															const AdJacobianParams& adJac,
+															util::ThreadLocalStorage& threadLocalMem)
 {
 	BENCH_SCOPE(_timerResidualSens);
 
@@ -749,17 +813,23 @@ int MultiChannelTransportModel::residualSensFwdWithJacobian(const SimulationTime
 	return residual(simTime, simState, nullptr, adJac, threadLocalMem, true, true);
 }
 
-int MultiChannelTransportModel::residualSensFwdAdOnly(const SimulationTime& simTime, const ConstSimulationState& simState, active* const adRes, util::ThreadLocalStorage& threadLocalMem)
+int MultiChannelTransportModel::residualSensFwdAdOnly(const SimulationTime& simTime,
+													  const ConstSimulationState& simState, active* const adRes,
+													  util::ThreadLocalStorage& threadLocalMem)
 {
 	BENCH_SCOPE(_timerResidualSens);
 
 	// Evaluate residual for all parameters using AD in vector mode
-	return residualImpl<double, active, active, false>(simTime.t, simTime.secIdx, simState.vecStateY, simState.vecStateYdot, adRes, threadLocalMem);
+	return residualImpl<double, active, active, false>(simTime.t, simTime.secIdx, simState.vecStateY,
+													   simState.vecStateYdot, adRes, threadLocalMem);
 }
 
-int MultiChannelTransportModel::residualSensFwdCombine(const SimulationTime& simTime, const ConstSimulationState& simState,
-	const std::vector<const double*>& yS, const std::vector<const double*>& ySdot, const std::vector<double*>& resS, active const* adRes,
-	double* const tmp1, double* const tmp2, double* const tmp3)
+int MultiChannelTransportModel::residualSensFwdCombine(const SimulationTime& simTime,
+													   const ConstSimulationState& simState,
+													   const std::vector<const double*>& yS,
+													   const std::vector<const double*>& ySdot,
+													   const std::vector<double*>& resS, active const* adRes,
+													   double* const tmp1, double* const tmp2, double* const tmp3)
 {
 	BENCH_SCOPE(_timerResidualSens);
 
@@ -799,11 +869,12 @@ int MultiChannelTransportModel::residualSensFwdCombine(const SimulationTime& sim
 }
 
 /**
- * @brief Multiplies the given vector with the system Jacobian (i.e., @f$ \frac{\partial F}{\partial y}\left(t, y, \dot{y}\right) @f$)
+ * @brief Multiplies the given vector with the system Jacobian (i.e., @f$ \frac{\partial F}{\partial y}\left(t, y,
+ * \dot{y}\right) @f$)
  * @details Actually, the operation @f$ z = \alpha \frac{\partial F}{\partial y} x + \beta z @f$ is performed.
  *
- *          Note that residual() or one of its cousins has to be called with the requested point @f$ (t, y, \dot{y}) @f$ once
- *          before calling multiplyWithJacobian() as this implementation ignores the given @f$ (t, y, \dot{y}) @f$.
+ *          Note that residual() or one of its cousins has to be called with the requested point @f$ (t, y, \dot{y}) @f$
+ * once before calling multiplyWithJacobian() as this implementation ignores the given @f$ (t, y, \dot{y}) @f$.
  * @param [in] simTime Current simulation time point
  * @param [in] simState Simulation state vectors
  * @param [in] yS Vector @f$ x @f$ that is transformed by the Jacobian @f$ \frac{\partial F}{\partial y} @f$
@@ -811,7 +882,9 @@ int MultiChannelTransportModel::residualSensFwdCombine(const SimulationTime& sim
  * @param [in] beta Factor @f$ \beta @f$ in front of @f$ z @f$
  * @param [in,out] ret Vector @f$ z @f$ which stores the result of the operation
  */
-void MultiChannelTransportModel::multiplyWithJacobian(const SimulationTime& simTime, const ConstSimulationState& simState, double const* yS, double alpha, double beta, double* ret)
+void MultiChannelTransportModel::multiplyWithJacobian(const SimulationTime& simTime,
+													  const ConstSimulationState& simState, double const* yS,
+													  double alpha, double beta, double* ret)
 {
 	Indexer idxr(_disc);
 
@@ -828,7 +901,8 @@ void MultiChannelTransportModel::multiplyWithJacobian(const SimulationTime& simT
 }
 
 /**
- * @brief Multiplies the time derivative Jacobian @f$ \frac{\partial F}{\partial \dot{y}}\left(t, y, \dot{y}\right) @f$ with a given vector
+ * @brief Multiplies the time derivative Jacobian @f$ \frac{\partial F}{\partial \dot{y}}\left(t, y, \dot{y}\right) @f$
+ * with a given vector
  * @details The operation @f$ z = \frac{\partial F}{\partial \dot{y}} x @f$ is performed.
  *          The matrix-vector multiplication is performed matrix-free (i.e., no matrix is explicitly formed).
  * @param [in] simTime Current simulation time point
@@ -836,7 +910,9 @@ void MultiChannelTransportModel::multiplyWithJacobian(const SimulationTime& simT
  * @param [in] sDot Vector @f$ x @f$ that is transformed by the Jacobian @f$ \frac{\partial F}{\partial \dot{y}} @f$
  * @param [out] ret Vector @f$ z @f$ which stores the result of the operation
  */
-void MultiChannelTransportModel::multiplyWithDerivativeJacobian(const SimulationTime& simTime, const ConstSimulationState& simState, double const* sDot, double* ret)
+void MultiChannelTransportModel::multiplyWithDerivativeJacobian(const SimulationTime& simTime,
+																const ConstSimulationState& simState,
+																double const* sDot, double* ret)
 {
 	_convDispOp.multiplyWithDerivativeJacobian(simTime, sDot, ret);
 
@@ -934,7 +1010,6 @@ bool MultiChannelTransportModel::setSensitiveParameter(const ParameterId& pId, u
 	return UnitOperationBase::setSensitiveParameter(pId, adDirection, adValue);
 }
 
-
 int MultiChannelTransportModel::Exporter::writeMobilePhase(double* buffer) const
 {
 	const int blockSize = numMobilePhaseDofs();
@@ -977,12 +1052,15 @@ int MultiChannelTransportModel::Exporter::writeOutlet(double* buffer) const
 	return _disc.nComp * _disc.nChannel;
 }
 
-void registerMultiChannelTransportModel(std::unordered_map<std::string, std::function<IUnitOperation* (UnitOpIdx, IParameterProvider&)>>& models)
+void registerMultiChannelTransportModel(
+	std::unordered_map<std::string, std::function<IUnitOperation*(UnitOpIdx, IParameterProvider&)>>& models)
 {
-	models[MultiChannelTransportModel::identifier()] = [](UnitOpIdx uoId, IParameterProvider&) { return new MultiChannelTransportModel(uoId); };
+	models[MultiChannelTransportModel::identifier()] = [](UnitOpIdx uoId, IParameterProvider&) {
+		return new MultiChannelTransportModel(uoId);
+	};
 	models["MCT"] = [](UnitOpIdx uoId, IParameterProvider&) { return new MultiChannelTransportModel(uoId); };
 }
 
-}  // namespace model
+} // namespace model
 
-}  // namespace cadet
+} // namespace cadet

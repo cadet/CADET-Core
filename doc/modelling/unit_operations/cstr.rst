@@ -39,5 +39,3 @@ The additional parameter :math:`F_{\text{filter}}`, which denotes the flow rate 
 Note that it is the user’s duty to make sure that the volume of the CSTR does not fall below 0. If it does, the simulation may fail to run or may produce unreasonable (e.g., unphysical) results.
 
 See :ref:`cstr_config`.
-
-

@@ -1,9 +1,9 @@
 // =============================================================================
 //  CADET
-//  
+//
 //  Copyright © The CADET Authors
 //            Please see the CONTRIBUTORS.md file.
-//  
+//
 //  All rights reserved. This program and the accompanying materials
 //  are made available under the terms of the GNU Public License v3.0 (or, at
 //  your option, any later version) which accompanies this distribution, and
@@ -11,7 +11,7 @@
 // =============================================================================
 
 /**
- * @file 
+ * @file
  * Defines tests for parameter dependencies.
  */
 
@@ -33,20 +33,23 @@
  * @param state Array with full state vector (liquid and solid phase) in parentheses
  * @param config Interior of a JSON object block with parameters (prefix "PD")
  */
-#define CADET_PARAMDEPTEST_IMPL(modelName, tagName, postFix, nBound, state, config) \
-	TEST_CASE(modelName " param dep liquid cell analytic Jacobian vs AD" postFix, "[Jacobian],[AD],[ParameterDependence]," tagName) \
-	{ \
-		const unsigned int nBound2[] = BRACED_INIT_LIST nBound; \
-		const double state2[] = BRACED_INIT_LIST state; \
-		cadet::test::paramdep::testLiquidJacobianAD(modelName, sizeof(nBound2) / sizeof(unsigned int), nBound2, "{" config "}", state2); \
-	} \
-	TEST_CASE(modelName " param dep combined cell analytic Jacobian vs AD" postFix, "[Jacobian],[AD],[ParameterDependence]," tagName) \
-	{ \
-		const unsigned int nBound2[] = BRACED_INIT_LIST nBound; \
-		const double state2[] = BRACED_INIT_LIST state; \
-		cadet::test::paramdep::testCombinedJacobianAD(modelName, sizeof(nBound2) / sizeof(unsigned int), nBound2, "{" config "}", state2); \
+#define CADET_PARAMDEPTEST_IMPL(modelName, tagName, postFix, nBound, state, config)                                    \
+	TEST_CASE(modelName " param dep liquid cell analytic Jacobian vs AD" postFix,                                      \
+			  "[Jacobian],[AD],[ParameterDependence]," tagName)                                                        \
+	{                                                                                                                  \
+		const unsigned int nBound2[] = BRACED_INIT_LIST nBound;                                                        \
+		const double state2[] = BRACED_INIT_LIST state;                                                                \
+		cadet::test::paramdep::testLiquidJacobianAD(modelName, sizeof(nBound2) / sizeof(unsigned int), nBound2,        \
+													"{" config "}", state2);                                           \
+	}                                                                                                                  \
+	TEST_CASE(modelName " param dep combined cell analytic Jacobian vs AD" postFix,                                    \
+			  "[Jacobian],[AD],[ParameterDependence]," tagName)                                                        \
+	{                                                                                                                  \
+		const unsigned int nBound2[] = BRACED_INIT_LIST nBound;                                                        \
+		const double state2[] = BRACED_INIT_LIST state;                                                                \
+		cadet::test::paramdep::testCombinedJacobianAD(modelName, sizeof(nBound2) / sizeof(unsigned int), nBound2,      \
+													  "{" config "}", state2);                                         \
 	}
-
 
 /**
  * @brief Emits tests for a parameter dependence
@@ -55,8 +58,7 @@
  * @param state Array with full state vector (liquid and solid phase) in parentheses
  * @param config Interior of a JSON object block with parameters (prefix "PD")
  */
-#define CADET_PARAMDEPTEST(modelName, nBound, state, config) \
+#define CADET_PARAMDEPTEST(modelName, nBound, state, config)                                                           \
 	CADET_PARAMDEPTEST_IMPL(modelName, "[" modelName "]", "", nBound, state, config)
 
-
-#endif  // CADETTEST_PARAMDEPENDENCIES_HPP_
+#endif // CADETTEST_PARAMDEPENDENCIES_HPP_

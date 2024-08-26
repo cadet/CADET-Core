@@ -4,7 +4,7 @@ Networks of unit operations
 ===========================
 
 Unit operation models can be composed into a network or graph, in which a node represents a unit operation and an edge denotes a connection between two unit operations.
-When utilized to full extent, this allows the simulation of complicated setups and processes (e.g., SMB, MCSGP). 
+When utilized to full extent, this allows the simulation of complicated setups and processes (e.g., SMB, MCSGP).
 A more simple use case is the addition of plug flows and stirred tanks up- and downstream of a column in order to account for dead volume and additional dispersion from the tubing.
 
 In a network, outlet ports of unit operations can be connected to any number of inlet ports of unit operations.
@@ -25,17 +25,17 @@ The inlet port variables :math:`c_{\text{in},n,k}` of unit operation :math:`n` a
     :label: NetworkInletConnection
 
     \begin{aligned}
-        c_{\text{in},n,k,i} &= c_{\text{con},n,k,i}, \qquad k = 1, \dots, N_{\text{port},\text{in},n},\quad i = 1, \dots, N_{\text{comp},n}. 
+        c_{\text{in},n,k,i} &= c_{\text{con},n,k,i}, \qquad k = 1, \dots, N_{\text{port},\text{in},n},\quad i = 1, \dots, N_{\text{comp},n}.
     \end{aligned}
 
 While :math:`N_{\text{port},\text{in},n}` denotes the number of inlet ports of unit operation :math:`n`, the number of outlet ports is given by :math:`N_{\text{port},\text{out},n}`.
-The connection variables :math:`c_{\text{con},n,k,i}` collect all inflows of component :math:`i` into port :math:`k` of unit operation :math:`n`: 
+The connection variables :math:`c_{\text{con},n,k,i}` collect all inflows of component :math:`i` into port :math:`k` of unit operation :math:`n`:
 
 .. math::
     :label: NetworkConnection
 
     \begin{aligned}
-        c_{\text{con},n,k,i} &= \frac{\sum_{m=1}^{N_{\text{units}}} \sum_{\ell = 1}^{N_{\text{port},\text{out},n}} \sum_{j = 1}^{N_{\text{comp},m}} S_{(n,k,i),(m,\ell,j)} Q_{m,\ell} c_{\text{out},m,\ell,j}}{\sum_{m=1}^{N_{\text{units}}} \sum_{\ell=1}^{N_{\text{port},\text{out},m}} \hat{S}_{(n,k),(m,\ell)} Q_{m,\ell} }, 
+        c_{\text{con},n,k,i} &= \frac{\sum_{m=1}^{N_{\text{units}}} \sum_{\ell = 1}^{N_{\text{port},\text{out},n}} \sum_{j = 1}^{N_{\text{comp},m}} S_{(n,k,i),(m,\ell,j)} Q_{m,\ell} c_{\text{out},m,\ell,j}}{\sum_{m=1}^{N_{\text{units}}} \sum_{\ell=1}^{N_{\text{port},\text{out},m}} \hat{S}_{(n,k),(m,\ell)} Q_{m,\ell} },
     \end{aligned}
 
 where :math:`F_{m,\ell}` denotes the volumetric flow rate from outlet port :math:`\ell` of unit operation :math:`m`, :math:`S_{(n,k,i),(m,\ell,j)} \in \{0, 1\}` is a connection matrix indicating whether component :math:`i` at outlet port :math:`k` of unit operation :math:`n` is connected to component :math:`j` at inlet port :math:`\ell` of unit operation :math:`m`, and :math:`\hat{S}_{(n,k),(m,\ell)} \in \{0, 1\}` is another connection matrix indicating whether outlet port :math:`k` of unit operation :math:`n` is connected to inlet port :math:`\ell` of unit operation :math:`m`, that is
@@ -83,7 +83,7 @@ The same setting (i.e., setting both port indices to :math:`-1`) can be used to 
 Note that in case of multiple rows for one connection between two unit operation ports (e.g., in case of separate component connections) the flow rate of the first row of that connection is used and all following flow rates are ignored.
 Consequently, there can only be one flow rate for a connection between two unit operations regardless of which components are connected.
 
-The connection table is expected in row-major storage format (i.e., the rows are appended to one long array). 
+The connection table is expected in row-major storage format (i.e., the rows are appended to one long array).
 
 .. _MUOPNetworkValveSwitches:
 
@@ -145,4 +145,3 @@ This default can be overridden by a flag (see Table :ref:`FFModelSolver`).
 
 The solution method is selected for each valve switch individually.
 If some network configurations contain cycles, the parallel method is chosen for them regardless of the method used for the other configurations.
-

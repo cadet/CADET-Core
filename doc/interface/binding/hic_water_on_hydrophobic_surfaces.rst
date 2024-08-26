@@ -57,8 +57,8 @@ For information on model equations, refer to :ref:`hic_water_on_hydrophobic_surf
 
 
 ``HICWHS_BETA0``
-   Parameters describing the number of highly ordered water molecules 
-   that stabilize the hydrophobic surfaces at infinitely diluted 
+   Parameters describing the number of highly ordered water molecules
+   that stabilize the hydrophobic surfaces at infinitely diluted
    salt concentration
 
 **Unit: [-]**
@@ -68,7 +68,7 @@ For information on model equations, refer to :ref:`hic_water_on_hydrophobic_surf
 ===================  =========================  =========================================
 
 ``HICWHS_BETA1``
-   Parameters describing the change in the number of highly ordered  
+   Parameters describing the change in the number of highly ordered
    water molecules that stabilize the hydrophobic surfaces with
    respect to changes in the salt concentration
 
@@ -77,4 +77,3 @@ For information on model equations, refer to :ref:`hic_water_on_hydrophobic_surf
 ===================  =========================  =========================================
 **Type:** double     **Range:** :math:`\ge 0`   **Length:** 1
 ===================  =========================  =========================================
-

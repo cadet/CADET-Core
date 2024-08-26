@@ -1,9 +1,9 @@
 // =============================================================================
 //  CADET
-//  
+//
 //  Copyright © The CADET Authors
 //            Please see the CONTRIBUTORS.md file.
-//  
+//
 //  All rights reserved. This program and the accompanying materials
 //  are made available under the terms of the GNU Public License v3.0 (or, at
 //  your option, any later version) which accompanies this distribution, and
@@ -13,7 +13,7 @@
 /**
  * @mainpage CADET
  * The library provides a fast and accurate forward simulator for the general rate model of column liquid chromatography
- * 
+ *
  * @authors    Eric von Lieres, Joel Andersson, Andreas Puettmann, Sebastian Schnittert, Samuel Leweke, William Heymann
  * @version    4.4.0
  * @date       2008-2023

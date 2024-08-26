@@ -30,8 +30,9 @@ namespace cadet
 namespace model
 {
 
-UnitOperationBase::UnitOperationBase(UnitOpIdx unitOpIdx) : _unitOpIdx(unitOpIdx), _binding(0, nullptr), _singleBinding(false),
-	_dynReaction(0, nullptr), _singleDynReaction(false), _nonlinearSolver(nullptr)
+UnitOperationBase::UnitOperationBase(UnitOpIdx unitOpIdx)
+	: _unitOpIdx(unitOpIdx), _binding(0, nullptr), _singleBinding(false), _dynReaction(0, nullptr),
+	  _singleDynReaction(false), _nonlinearSolver(nullptr)
 {
 }
 
@@ -95,7 +96,9 @@ std::unordered_map<ParameterId, double> UnitOperationBase::getAllParameterValues
 {
 	std::unordered_map<ParameterId, double> data;
 	std::transform(_parameters.begin(), _parameters.end(), std::inserter(data, data.end()),
-	               [](const std::pair<const ParameterId, active*>& p) { return std::make_pair(p.first, static_cast<double>(*p.second)); });
+				   [](const std::pair<const ParameterId, active*>& p) {
+					   return std::make_pair(p.first, static_cast<double>(*p.second));
+				   });
 
 	model::getAllParameterValues(data, _binding, _singleBinding);
 	model::getAllParameterValues(data, _dynReaction, _singleDynReaction);
@@ -129,7 +132,7 @@ bool UnitOperationBase::hasParameter(const ParameterId& pId) const
 		return true;
 	if (model::hasParameter(pId, _dynReaction, _singleDynReaction))
 		return true;
-	
+
 	return false;
 }
 
@@ -217,12 +220,14 @@ bool UnitOperationBase::setSensitiveParameter(const ParameterId& pId, unsigned i
 
 	if (model::setSensitiveParameter(pId, adDirection, adValue, _sensParams, _binding, _singleBinding))
 	{
-		LOG(Debug) << "Found parameter " << pId << " in AdsorptionModel: Dir " << adDirection << " is set to " << adValue;
+		LOG(Debug) << "Found parameter " << pId << " in AdsorptionModel: Dir " << adDirection << " is set to "
+				   << adValue;
 		return true;
 	}
 	if (model::setSensitiveParameter(pId, adDirection, adValue, _sensParams, _dynReaction, _singleDynReaction))
 	{
-		LOG(Debug) << "Found parameter " << pId << " in DynamicReactionModel: Dir " << adDirection << " is set to " << adValue;
+		LOG(Debug) << "Found parameter " << pId << " in DynamicReactionModel: Dir " << adDirection << " is set to "
+				   << adValue;
 		return true;
 	}
 
@@ -269,8 +274,10 @@ void UnitOperationBase::configureNonlinearSolver()
 }
 
 int UnitOperationBase::residualSensFwdCombine(const SimulationTime& simTime, const ConstSimulationState& simState,
-	const std::vector<const double*>& yS, const std::vector<const double*>& ySdot, const std::vector<double*>& resS, active const* adRes,
-	double* const tmp1, double* const tmp2, double* const tmp3)
+											  const std::vector<const double*>& yS,
+											  const std::vector<const double*>& ySdot, const std::vector<double*>& resS,
+											  active const* adRes, double* const tmp1, double* const tmp2,
+											  double* const tmp3)
 {
 	for (std::size_t param = 0; param < yS.size(); ++param)
 	{
@@ -293,6 +300,6 @@ int UnitOperationBase::residualSensFwdCombine(const SimulationTime& simTime, con
 	return 0;
 }
 
-}  // namespace model
+} // namespace model
 
-}  // namespace cadet
+} // namespace cadet

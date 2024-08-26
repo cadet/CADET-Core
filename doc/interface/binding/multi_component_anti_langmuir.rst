@@ -34,7 +34,7 @@ For information on model equations, refer to :ref:`multi_component_anti_langmuir
 
 ===================  =========================  ==================================
 **Type:** double     **Range:** :math:`\ge 0`   **Length:** NCOMP
-===================  =========================  ================================== 
+===================  =========================  ==================================
 
 ``MCAL_QMAX``
    Maximum adsorption capacities
@@ -43,7 +43,7 @@ For information on model equations, refer to :ref:`multi_component_anti_langmuir
 
 ===================  =========================  ==================================
 **Type:** double     **Range:** :math:`\gt 0`   **Length:** NCOMP
-===================  =========================  ================================== 
+===================  =========================  ==================================
 
 ``MCAL_ANTILANGMUIR``
    Anti-Langmuir coefficients (optional)
@@ -52,4 +52,4 @@ For information on model equations, refer to :ref:`multi_component_anti_langmuir
 
 ===================  =========================  ==================================
 **Type:** double     **Range:** {-1,1}          **Length:** NCOMP
-===================  =========================  ================================== 
+===================  =========================  ==================================

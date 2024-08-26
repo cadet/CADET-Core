@@ -138,6 +138,5 @@ Note that all components of component dependent datasets have to be section depe
      - ✓
      - ✓
    * - VELOCITY
-     - 
+     -
      - ✓
-

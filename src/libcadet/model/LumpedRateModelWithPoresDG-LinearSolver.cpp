@@ -23,11 +23,11 @@
 #include "ParallelSupport.hpp"
 
 #ifdef CADET_PARALLELIZE
-	#include <tbb/parallel_for.h>
-	#include <tbb/flow_graph.h>
+#include <tbb/parallel_for.h>
+#include <tbb/flow_graph.h>
 
-	typedef tbb::flow::continue_node< tbb::flow::continue_msg > node_t;
-	typedef const tbb::flow::continue_msg & msg_t;
+typedef tbb::flow::continue_node<tbb::flow::continue_msg> node_t;
+typedef const tbb::flow::continue_msg& msg_t;
 #endif
 
 namespace cadet
@@ -38,12 +38,16 @@ namespace model
 
 /**
  * @brief Computes the solution of the linear system involving the system Jacobian
- * @details The system \f[ \left( \frac{\partial F}{\partial y} + \alpha \frac{\partial F}{\partial \dot{y}} \right) x = b \f]
+ * @details The system \f[ \left( \frac{\partial F}{\partial y} + \alpha \frac{\partial F}{\partial \dot{y}} \right) x =
+ b \f]
  *          has to be solved. The right hand side \f$ b \f$ is given by @p rhs, the Jacobians are evaluated at the
- *          point \f$(y, \dot{y})\f$ given by @p y and @p yDot. The residual @p res at this point, \f$ F(t, y, \dot{y}) \f$,
- *          may help with this. Error weights (see IDAS guide) are given in @p weight. The solution is returned in @p rhs.
+ *          point \f$(y, \dot{y})\f$ given by @p y and @p yDot. The residual @p res at this point, \f$ F(t, y, \dot{y})
+ \f$,
+ *          may help with this. Error weights (see IDAS guide) are given in @p weight. The solution is returned in @p
+ rhs.
  *
- *          The full Jacobian @f$ J = \left( \frac{\partial F}{\partial y} + \alpha \frac{\partial F}{\partial \dot{y}} \right) @f$ is given by
+ *          The full Jacobian @f$ J = \left( \frac{\partial F}{\partial y} + \alpha \frac{\partial F}{\partial \dot{y}}
+ \right) @f$ is given by
  *          @f[ \begin{align}
 				J =
 				\left[\begin{array}{c|ccc|c}
@@ -91,11 +95,12 @@ namespace model
  * @param [in] outerTol Error tolerance for the solution of the linear system from outer Newton iteration
  * @param [in,out] rhs On entry the right hand side of the linear equation system, on exit the solution
  * @param [in] weight Vector with error weights
- * @param [in] simState State of the simulation (state vector and its time derivatives) at which the Jacobian is evaluated
+ * @param [in] simState State of the simulation (state vector and its time derivatives) at which the Jacobian is
+ evaluated
  * @return @c 0 on success, @c -1 on non-recoverable error, and @c +1 on recoverable error
  */
-int LumpedRateModelWithPoresDG::linearSolve(double t, double alpha, double outerTol, double* const rhs, double const* const weight,
-	const ConstSimulationState& simState)
+int LumpedRateModelWithPoresDG::linearSolve(double t, double alpha, double outerTol, double* const rhs,
+											double const* const weight, const ConstSimulationState& simState)
 {
 	BENCH_SCOPE(_timerLinearSolve);
 
@@ -114,7 +119,8 @@ int LumpedRateModelWithPoresDG::linearSolve(double t, double alpha, double outer
 
 		_linearSolver->factorize(_globalJacDisc);
 
-		if (cadet_unlikely(_linearSolver->info() != Eigen::Success)) {
+		if (cadet_unlikely(_linearSolver->info() != Eigen::Success))
+		{
 			LOG(Error) << "Factorize() failed";
 		}
 
@@ -124,15 +130,19 @@ int LumpedRateModelWithPoresDG::linearSolve(double t, double alpha, double outer
 
 	// ====== Step 1.5: Solve J c_uo = b_uo - A * c_in = b_uo - A*b_in
 
-	// rhs is passed twice but due to the values in jacA the writes happen to a different area of the rhs than the reads.
+	// rhs is passed twice but due to the values in jacA the writes happen to a different area of the rhs than the
+	// reads.
 
 	// Handle inlet DOFs:
 	// Inlet at z = 0 for forward flow, at z = L for backward flow.
 	unsigned int offInlet = (_convDispOp.forwardFlow()) ? 0 : (_disc.nCol - 1u) * idxr.strideColCell();
 
-	for (int comp = 0; comp < _disc.nComp; comp++) {
-		for (int node = 0; node < (_disc.exactInt ? _disc.nNodes : 1); node++) {
-			r[idxr.offsetC() + offInlet + comp * idxr.strideColComp() + node * idxr.strideColNode()] += _jacInlet(node, 0) * r[comp];
+	for (int comp = 0; comp < _disc.nComp; comp++)
+	{
+		for (int node = 0; node < (_disc.exactInt ? _disc.nNodes : 1); node++)
+		{
+			r[idxr.offsetC() + offInlet + comp * idxr.strideColComp() + node * idxr.strideColNode()] +=
+				_jacInlet(node, 0) * r[comp];
 		}
 	}
 
@@ -152,20 +162,18 @@ int LumpedRateModelWithPoresDG::linearSolve(double t, double alpha, double outer
 
 /**
  * @brief Assembles bulk Jacobian @f$ J_i @f$ (@f$ i > 0 @f$) of the time-discretized equations
- * @details The system \f[ \left( \frac{\partial F}{\partial y} + \alpha \frac{\partial F}{\partial \dot{y}} \right) x = b \f]
- *          has to be solved. The system Jacobian of the original equations,
- *          \f[ \frac{\partial F}{\partial y}, \f]
- *          is already computed (by AD or manually in residualImpl() with @c wantJac = true). This function is responsible
- *          for adding
- *          \f[ \alpha \frac{\partial F}{\partial \dot{y}} \f]
- *          to the system Jacobian, which yields the Jacobian of the time-discretized equations
- *          \f[ F\left(t, y_0, \sum_{k=0}^N \alpha_k y_k \right) = 0 \f]
- *          when a BDF method is used. The time integrator needs to solve this equation for @f$ y_0 @f$, which requires
- *          the solution of the linear system mentioned above (@f$ \alpha_0 = \alpha @f$ given in @p alpha).
+ * @details The system \f[ \left( \frac{\partial F}{\partial y} + \alpha \frac{\partial F}{\partial \dot{y}} \right) x =
+ * b \f] has to be solved. The system Jacobian of the original equations, \f[ \frac{\partial F}{\partial y}, \f] is
+ * already computed (by AD or manually in residualImpl() with @c wantJac = true). This function is responsible for
+ * adding \f[ \alpha \frac{\partial F}{\partial \dot{y}} \f] to the system Jacobian, which yields the Jacobian of the
+ * time-discretized equations \f[ F\left(t, y_0, \sum_{k=0}^N \alpha_k y_k \right) = 0 \f] when a BDF method is used.
+ * The time integrator needs to solve this equation for @f$ y_0 @f$, which requires the solution of the linear system
+ * mentioned above (@f$ \alpha_0 = \alpha @f$ given in @p alpha).
  *
  * @param [in] alpha Value of \f$ \alpha \f$ (arises from BDF time discretization)
  */
-void LumpedRateModelWithPoresDG::assembleDiscretizedGlobalJacobian(double alpha, Indexer idxr) {
+void LumpedRateModelWithPoresDG::assembleDiscretizedGlobalJacobian(double alpha, Indexer idxr)
+{
 
 	// set to static (per section) jacobian
 	_globalJacDisc = _globalJac;
@@ -174,8 +182,10 @@ void LumpedRateModelWithPoresDG::assembleDiscretizedGlobalJacobian(double alpha,
 	_convDispOp.addTimeDerivativeToJacobian(alpha, _globalJacDisc);
 
 	// Add time derivatives to particle shells
-	for (unsigned int parType = 0; parType < _disc.nParType; parType++) {
-		linalg::BandedEigenSparseRowIterator jac(_globalJacDisc, idxr.offsetCp(ParticleTypeIndex{ parType }) - idxr.offsetC());
+	for (unsigned int parType = 0; parType < _disc.nParType; parType++)
+	{
+		linalg::BandedEigenSparseRowIterator jac(_globalJacDisc,
+												 idxr.offsetCp(ParticleTypeIndex{parType}) - idxr.offsetC());
 		for (unsigned int j = 0; j < _disc.nPoints; ++j)
 		{
 			// Mobile and solid phase (advances jac accordingly)
@@ -194,7 +204,9 @@ void LumpedRateModelWithPoresDG::assembleDiscretizedGlobalJacobian(double alpha,
  * @param [in] alpha Value of \f$ \alpha \f$ (arises from BDF time discretization)
  * @param [in] parType Index of the particle type
  */
-void LumpedRateModelWithPoresDG::addTimeDerivativeToJacobianParticleBlock(linalg::BandedEigenSparseRowIterator& jac, const Indexer& idxr, double alpha, unsigned int parType)
+void LumpedRateModelWithPoresDG::addTimeDerivativeToJacobianParticleBlock(linalg::BandedEigenSparseRowIterator& jac,
+																		  const Indexer& idxr, double alpha,
+																		  unsigned int parType)
 {
 	// Mobile phase
 	for (int comp = 0; comp < static_cast<int>(_disc.nComp); ++comp, ++jac)
@@ -202,7 +214,9 @@ void LumpedRateModelWithPoresDG::addTimeDerivativeToJacobianParticleBlock(linalg
 		// Add derivative with respect to dc_p / dt to Jacobian
 		jac[0] += alpha;
 
-		const double invBetaP = (1.0 - static_cast<double>(_parPorosity[parType])) / (static_cast<double>(_poreAccessFactor[parType * _disc.nComp + comp]) * static_cast<double>(_parPorosity[parType]));
+		const double invBetaP = (1.0 - static_cast<double>(_parPorosity[parType])) /
+								(static_cast<double>(_poreAccessFactor[parType * _disc.nComp + comp]) *
+								 static_cast<double>(_parPorosity[parType]));
 
 		// Add derivative with respect to dq / dt to Jacobian
 		const int nBound = static_cast<int>(_disc.nBound[parType * _disc.nComp + comp]);
@@ -213,7 +227,9 @@ void LumpedRateModelWithPoresDG::addTimeDerivativeToJacobianParticleBlock(linalg
 			//   + strideParLiquid() skip to solid phase
 			//   + offsetBoundComp() jump to component (skips all bound states of previous components)
 			//   + i go to current bound state
-			jac[idxr.strideParLiquid() - comp + idxr.offsetBoundComp(ParticleTypeIndex{ parType }, ComponentIndex{ static_cast<unsigned int>(comp) }) + i] += alpha * invBetaP;
+			jac[idxr.strideParLiquid() - comp +
+				idxr.offsetBoundComp(ParticleTypeIndex{parType}, ComponentIndex{static_cast<unsigned int>(comp)}) +
+				i] += alpha * invBetaP;
 		}
 	}
 
@@ -230,6 +246,6 @@ void LumpedRateModelWithPoresDG::addTimeDerivativeToJacobianParticleBlock(linalg
 	}
 }
 
-}  // namespace model
+} // namespace model
 
-}  // namespace cadet
+} // namespace cadet

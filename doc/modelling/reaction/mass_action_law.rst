@@ -26,7 +26,7 @@ The matrices :math:`E^l_{\mathrm{fwd}} = (e^l_{\mathrm{fwd},\ell,j}) \in \mathbb
 
     \begin{aligned}
         e^l_{\mathrm{fwd},\ell,j} &= \max(0, -s^l_{\ell,j}), \\
-        e^l_{\mathrm{bwd},\ell,j} &= \max(0, s^l_{\ell,j}). 
+        e^l_{\mathrm{bwd},\ell,j} &= \max(0, s^l_{\ell,j}).
     \end{aligned}
 
 However, these defaults can be changed by providing those matrices.

@@ -1,9 +1,9 @@
 // =============================================================================
 //  CADET
-//  
+//
 //  Copyright © The CADET Authors
 //            Please see the CONTRIBUTORS.md file.
-//  
+//
 //  All rights reserved. This program and the accompanying materials
 //  are made available under the terms of the GNU Public License v3.0 (or, at
 //  your option, any later version) which accompanies this distribution, and
@@ -11,7 +11,7 @@
 // =============================================================================
 
 /**
- * @file 
+ * @file
  * Defines an IParameterStateDependence base class.
  */
 
@@ -37,15 +37,22 @@ namespace model
 class ParameterStateDependenceBase : public IParameterStateDependence
 {
 public:
-
 	ParameterStateDependenceBase();
 
 	virtual ~ParameterStateDependenceBase() CADET_NOEXCEPT;
 
-	virtual bool requiresConfiguration() const CADET_NOEXCEPT { return true; }
-	virtual bool usesParamProviderInDiscretizationConfig() const CADET_NOEXCEPT { return true; }
-	virtual bool configure(IParameterProvider& paramProvider, UnitOpIdx unitOpIdx, ParticleTypeIdx parTypeIdx, const std::string& name);
-	virtual bool configureModelDiscretization(IParameterProvider& paramProvider, unsigned int nComp, unsigned int const* nBound, unsigned int const* boundOffset);
+	virtual bool requiresConfiguration() const CADET_NOEXCEPT
+	{
+		return true;
+	}
+	virtual bool usesParamProviderInDiscretizationConfig() const CADET_NOEXCEPT
+	{
+		return true;
+	}
+	virtual bool configure(IParameterProvider& paramProvider, UnitOpIdx unitOpIdx, ParticleTypeIdx parTypeIdx,
+						   const std::string& name);
+	virtual bool configureModelDiscretization(IParameterProvider& paramProvider, unsigned int nComp,
+											  unsigned int const* nBound, unsigned int const* boundOffset);
 
 	virtual std::unordered_map<ParameterId, double> getAllParameterValues() const;
 	virtual bool hasParameter(const ParameterId& pId) const;
@@ -57,9 +64,9 @@ public:
 	virtual active* getParameter(const ParameterId& pId);
 
 protected:
-	int _nComp; //!< Number of components
+	int _nComp;                        //!< Number of components
 	unsigned int const* _nBoundStates; //!< Array with number of bound states for each component
-	unsigned int const* _boundOffset; //!< Array with offsets to the first bound state of each component
+	unsigned int const* _boundOffset;  //!< Array with offsets to the first bound state of each component
 	unsigned int _nTotalBoundStates;
 
 	std::unordered_map<ParameterId, active*> _parameters; //!< Map used to translate ParameterIds to actual variables
@@ -75,9 +82,9 @@ protected:
 	 * @param [in] name Name of the parameter
 	 * @return @c true if the configuration was successful, otherwise @c false
 	 */
-	virtual bool configureImpl(IParameterProvider& paramProvider, UnitOpIdx unitOpIdx, ParticleTypeIdx parTypeIdx, const std::string& name) = 0;
+	virtual bool configureImpl(IParameterProvider& paramProvider, UnitOpIdx unitOpIdx, ParticleTypeIdx parTypeIdx,
+							   const std::string& name) = 0;
 };
-
 
 /**
  * @brief Inserts implementations of all parameter() and analyticJacobian() method variants
@@ -88,101 +95,117 @@ protected:
  *          provides templatized liquidParameterImpl(), combinedParameterLiquidImpl(),
  *          combinedParameterSolidImpl(), analyticJacobianLiquidAddImpl(), analyticJacobianCombinedAddLiquidImpl(),
  *          and analyticJacobianCombinedAddSolidImpl() functions that realize all required variants.
- *          
+ *
  *          The implementation is inserted inline in the class declaration.
  */
-#define CADET_PARAMETERSTATEDEPENDENCE_BOILERPLATE                                                                                                                                                                               \
-	virtual active liquidParameter(const ColumnPosition& colPos, const active& param, active const* y, int comp) const                                                                                                      \
-	{                                                                                                                                                                                                                       \
-		return liquidParameterImpl<active, active>(colPos, param, y, comp);                                                                                                                                                 \
-	}                                                                                                                                                                                                                       \
-                                                                                                                                                                                                                            \
-	virtual active liquidParameter(const ColumnPosition& colPos, const active& param, double const* y, int comp) const                                                                                                      \
-	{                                                                                                                                                                                                                       \
-		return liquidParameterImpl<double, active>(colPos, param, y, comp);                                                                                                                                                 \
-	}                                                                                                                                                                                                                       \
-                                                                                                                                                                                                                            \
-	virtual active liquidParameter(const ColumnPosition& colPos, double param, active const* y, int comp) const                                                                                                             \
-	{                                                                                                                                                                                                                       \
-		return liquidParameterImpl<active, double>(colPos, param, y, comp);                                                                                                                                                 \
-	}                                                                                                                                                                                                                       \
-                                                                                                                                                                                                                            \
-	virtual double liquidParameter(const ColumnPosition& colPos, double param, double const* y, int comp) const                                                                                                             \
-	{                                                                                                                                                                                                                       \
-		return liquidParameterImpl<double, double>(colPos, param, y, comp);                                                                                                                                                 \
-	}                                                                                                                                                                                                                       \
-                                                                                                                                                                                                                            \
-	virtual void analyticJacobianLiquidAdd(const ColumnPosition& colPos, double param, double const* y, int comp, double factor, int offset, linalg::BandMatrix::RowIterator jac) const                                     \
-	{                                                                                                                                                                                                                       \
-		analyticJacobianLiquidAddImpl(colPos, param, y, comp, factor, offset, jac);                                                                                                                                         \
-	}                                                                                                                                                                                                                       \
-                                                                                                                                                                                                                            \
-	virtual void analyticJacobianLiquidAdd(const ColumnPosition& colPos, double param, double const* y, int comp, double factor, int offset, linalg::DenseBandedRowIterator jac) const                                      \
-	{                                                                                                                                                                                                                       \
-		analyticJacobianLiquidAddImpl(colPos, param, y, comp, factor, offset, jac);                                                                                                                                         \
-	}                                                                                                                                                                                                                       \
-                                                                                                                                                                                                                            \
-	virtual active combinedParameterLiquid(const ColumnPosition& colPos, const active& param, active const* yLiquid, active const* ySolid, int comp) const                                                                  \
-	{                                                                                                                                                                                                                       \
-		return combinedParameterLiquidImpl<active, active>(colPos, param, yLiquid, ySolid, comp);                                                                                                                           \
-	}                                                                                                                                                                                                                       \
-                                                                                                                                                                                                                            \
-	virtual active combinedParameterLiquid(const ColumnPosition& colPos, const active& param, double const* yLiquid, double const* ySolid, int comp) const                                                                  \
-	{                                                                                                                                                                                                                       \
-		return combinedParameterLiquidImpl<double, active>(colPos, param, yLiquid, ySolid, comp);                                                                                                                           \
-	}                                                                                                                                                                                                                       \
-                                                                                                                                                                                                                            \
-	virtual active combinedParameterLiquid(const ColumnPosition& colPos, double param, active const* yLiquid, active const* ySolid, int comp) const                                                                         \
-	{                                                                                                                                                                                                                       \
-		return combinedParameterLiquidImpl<active, double>(colPos, param, yLiquid, ySolid, comp);                                                                                                                           \
-	}                                                                                                                                                                                                                       \
-                                                                                                                                                                                                                            \
-	virtual double combinedParameterLiquid(const ColumnPosition& colPos, double param, double const* yLiquid, double const* ySolid, int comp) const                                                                         \
-	{                                                                                                                                                                                                                       \
-		return combinedParameterLiquidImpl<double, double>(colPos, param, yLiquid, ySolid, comp);                                                                                                                           \
-	}                                                                                                                                                                                                                       \
-                                                                                                                                                                                                                            \
-	virtual active combinedParameterSolid(const ColumnPosition& colPos, const active& param, active const* yLiquid, active const* ySolid, int bnd) const                                                                    \
-	{                                                                                                                                                                                                                       \
-		return combinedParameterSolidImpl<active, active>(colPos, param, yLiquid, ySolid, bnd);                                                                                                                             \
-	}                                                                                                                                                                                                                       \
-                                                                                                                                                                                                                            \
-	virtual active combinedParameterSolid(const ColumnPosition& colPos, const active& param, double const* yLiquid, double const* ySolid, int bnd) const                                                                    \
-	{                                                                                                                                                                                                                       \
-		return combinedParameterSolidImpl<double, active>(colPos, param, yLiquid, ySolid, bnd);                                                                                                                             \
-	}                                                                                                                                                                                                                       \
-                                                                                                                                                                                                                            \
-	virtual active combinedParameterSolid(const ColumnPosition& colPos, double param, active const* yLiquid, active const* ySolid, int bnd) const                                                                           \
-	{                                                                                                                                                                                                                       \
-		return combinedParameterSolidImpl<active, double>(colPos, param, yLiquid, ySolid, bnd);                                                                                                                             \
-	}                                                                                                                                                                                                                       \
-                                                                                                                                                                                                                            \
-	virtual double combinedParameterSolid(const ColumnPosition& colPos, double param, double const* yLiquid, double const* ySolid, int bnd) const                                                                           \
-	{                                                                                                                                                                                                                       \
-		return combinedParameterSolidImpl<double, double>(colPos, param, yLiquid, ySolid, bnd);                                                                                                                             \
-	}                                                                                                                                                                                                                       \
-                                                                                                                                                                                                                            \
-	virtual void analyticJacobianCombinedAddLiquid(const ColumnPosition& colPos, double param, double const* yLiquid, double const* ySolid, int comp, double factor, int offset, linalg::BandMatrix::RowIterator jac) const \
-	{                                                                                                                                                                                                                       \
-		analyticJacobianCombinedAddLiquidImpl(colPos, param, yLiquid, ySolid, comp, factor, offset, jac);                                                                                                                   \
-	}                                                                                                                                                                                                                       \
-                                                                                                                                                                                                                            \
-	virtual void analyticJacobianCombinedAddLiquid(const ColumnPosition& colPos, double param, double const* yLiquid, double const* ySolid, int comp, double factor, int offset, linalg::DenseBandedRowIterator jac) const  \
-	{                                                                                                                                                                                                                       \
-		analyticJacobianCombinedAddLiquidImpl(colPos, param, yLiquid, ySolid, comp, factor, offset, jac);                                                                                                                   \
-	}                                                                                                                                                                                                                       \
-                                                                                                                                                                                                                            \
-	virtual void analyticJacobianCombinedAddSolid(const ColumnPosition& colPos, double param, double const* yLiquid, double const* ySolid, int bnd, double factor, int offset, linalg::BandMatrix::RowIterator jac) const   \
-	{                                                                                                                                                                                                                       \
-		analyticJacobianCombinedAddSolidImpl(colPos, param, yLiquid, ySolid, bnd, factor, offset, jac);                                                                                                                     \
-	}                                                                                                                                                                                                                       \
-                                                                                                                                                                                                                            \
-	virtual void analyticJacobianCombinedAddSolid(const ColumnPosition& colPos, double param, double const* yLiquid, double const* ySolid, int bnd, double factor, int offset, linalg::DenseBandedRowIterator jac) const    \
-	{                                                                                                                                                                                                                       \
-		analyticJacobianCombinedAddSolidImpl(colPos, param, yLiquid, ySolid, bnd, factor, offset, jac);                                                                                                                     \
+#define CADET_PARAMETERSTATEDEPENDENCE_BOILERPLATE                                                                     \
+	virtual active liquidParameter(const ColumnPosition& colPos, const active& param, active const* y, int comp) const \
+	{                                                                                                                  \
+		return liquidParameterImpl<active, active>(colPos, param, y, comp);                                            \
+	}                                                                                                                  \
+                                                                                                                       \
+	virtual active liquidParameter(const ColumnPosition& colPos, const active& param, double const* y, int comp) const \
+	{                                                                                                                  \
+		return liquidParameterImpl<double, active>(colPos, param, y, comp);                                            \
+	}                                                                                                                  \
+                                                                                                                       \
+	virtual active liquidParameter(const ColumnPosition& colPos, double param, active const* y, int comp) const        \
+	{                                                                                                                  \
+		return liquidParameterImpl<active, double>(colPos, param, y, comp);                                            \
+	}                                                                                                                  \
+                                                                                                                       \
+	virtual double liquidParameter(const ColumnPosition& colPos, double param, double const* y, int comp) const        \
+	{                                                                                                                  \
+		return liquidParameterImpl<double, double>(colPos, param, y, comp);                                            \
+	}                                                                                                                  \
+                                                                                                                       \
+	virtual void analyticJacobianLiquidAdd(const ColumnPosition& colPos, double param, double const* y, int comp,      \
+										   double factor, int offset, linalg::BandMatrix::RowIterator jac) const       \
+	{                                                                                                                  \
+		analyticJacobianLiquidAddImpl(colPos, param, y, comp, factor, offset, jac);                                    \
+	}                                                                                                                  \
+                                                                                                                       \
+	virtual void analyticJacobianLiquidAdd(const ColumnPosition& colPos, double param, double const* y, int comp,      \
+										   double factor, int offset, linalg::DenseBandedRowIterator jac) const        \
+	{                                                                                                                  \
+		analyticJacobianLiquidAddImpl(colPos, param, y, comp, factor, offset, jac);                                    \
+	}                                                                                                                  \
+                                                                                                                       \
+	virtual active combinedParameterLiquid(const ColumnPosition& colPos, const active& param, active const* yLiquid,   \
+										   active const* ySolid, int comp) const                                       \
+	{                                                                                                                  \
+		return combinedParameterLiquidImpl<active, active>(colPos, param, yLiquid, ySolid, comp);                      \
+	}                                                                                                                  \
+                                                                                                                       \
+	virtual active combinedParameterLiquid(const ColumnPosition& colPos, const active& param, double const* yLiquid,   \
+										   double const* ySolid, int comp) const                                       \
+	{                                                                                                                  \
+		return combinedParameterLiquidImpl<double, active>(colPos, param, yLiquid, ySolid, comp);                      \
+	}                                                                                                                  \
+                                                                                                                       \
+	virtual active combinedParameterLiquid(const ColumnPosition& colPos, double param, active const* yLiquid,          \
+										   active const* ySolid, int comp) const                                       \
+	{                                                                                                                  \
+		return combinedParameterLiquidImpl<active, double>(colPos, param, yLiquid, ySolid, comp);                      \
+	}                                                                                                                  \
+                                                                                                                       \
+	virtual double combinedParameterLiquid(const ColumnPosition& colPos, double param, double const* yLiquid,          \
+										   double const* ySolid, int comp) const                                       \
+	{                                                                                                                  \
+		return combinedParameterLiquidImpl<double, double>(colPos, param, yLiquid, ySolid, comp);                      \
+	}                                                                                                                  \
+                                                                                                                       \
+	virtual active combinedParameterSolid(const ColumnPosition& colPos, const active& param, active const* yLiquid,    \
+										  active const* ySolid, int bnd) const                                         \
+	{                                                                                                                  \
+		return combinedParameterSolidImpl<active, active>(colPos, param, yLiquid, ySolid, bnd);                        \
+	}                                                                                                                  \
+                                                                                                                       \
+	virtual active combinedParameterSolid(const ColumnPosition& colPos, const active& param, double const* yLiquid,    \
+										  double const* ySolid, int bnd) const                                         \
+	{                                                                                                                  \
+		return combinedParameterSolidImpl<double, active>(colPos, param, yLiquid, ySolid, bnd);                        \
+	}                                                                                                                  \
+                                                                                                                       \
+	virtual active combinedParameterSolid(const ColumnPosition& colPos, double param, active const* yLiquid,           \
+										  active const* ySolid, int bnd) const                                         \
+	{                                                                                                                  \
+		return combinedParameterSolidImpl<active, double>(colPos, param, yLiquid, ySolid, bnd);                        \
+	}                                                                                                                  \
+                                                                                                                       \
+	virtual double combinedParameterSolid(const ColumnPosition& colPos, double param, double const* yLiquid,           \
+										  double const* ySolid, int bnd) const                                         \
+	{                                                                                                                  \
+		return combinedParameterSolidImpl<double, double>(colPos, param, yLiquid, ySolid, bnd);                        \
+	}                                                                                                                  \
+                                                                                                                       \
+	virtual void analyticJacobianCombinedAddLiquid(const ColumnPosition& colPos, double param, double const* yLiquid,  \
+												   double const* ySolid, int comp, double factor, int offset,          \
+												   linalg::BandMatrix::RowIterator jac) const                          \
+	{                                                                                                                  \
+		analyticJacobianCombinedAddLiquidImpl(colPos, param, yLiquid, ySolid, comp, factor, offset, jac);              \
+	}                                                                                                                  \
+                                                                                                                       \
+	virtual void analyticJacobianCombinedAddLiquid(const ColumnPosition& colPos, double param, double const* yLiquid,  \
+												   double const* ySolid, int comp, double factor, int offset,          \
+												   linalg::DenseBandedRowIterator jac) const                           \
+	{                                                                                                                  \
+		analyticJacobianCombinedAddLiquidImpl(colPos, param, yLiquid, ySolid, comp, factor, offset, jac);              \
+	}                                                                                                                  \
+                                                                                                                       \
+	virtual void analyticJacobianCombinedAddSolid(const ColumnPosition& colPos, double param, double const* yLiquid,   \
+												  double const* ySolid, int bnd, double factor, int offset,            \
+												  linalg::BandMatrix::RowIterator jac) const                           \
+	{                                                                                                                  \
+		analyticJacobianCombinedAddSolidImpl(colPos, param, yLiquid, ySolid, bnd, factor, offset, jac);                \
+	}                                                                                                                  \
+                                                                                                                       \
+	virtual void analyticJacobianCombinedAddSolid(const ColumnPosition& colPos, double param, double const* yLiquid,   \
+												  double const* ySolid, int bnd, double factor, int offset,            \
+												  linalg::DenseBandedRowIterator jac) const                            \
+	{                                                                                                                  \
+		analyticJacobianCombinedAddSolidImpl(colPos, param, yLiquid, ySolid, bnd, factor, offset, jac);                \
 	}
-
-
 
 /**
  * @brief Defines a ParameterParameterDependence base class that can be used to implement other parameter dependences
@@ -192,14 +215,20 @@ protected:
 class ParameterParameterDependenceBase : public IParameterParameterDependence
 {
 public:
-
 	ParameterParameterDependenceBase();
 
 	virtual ~ParameterParameterDependenceBase() CADET_NOEXCEPT;
 
-	virtual bool requiresConfiguration() const CADET_NOEXCEPT { return true; }
-	virtual bool usesParamProviderInDiscretizationConfig() const CADET_NOEXCEPT { return true; }
-	virtual bool configure(IParameterProvider& paramProvider, UnitOpIdx unitOpIdx, ParticleTypeIdx parTypeIdx, BoundStateIdx bndIdx, const std::string& name);
+	virtual bool requiresConfiguration() const CADET_NOEXCEPT
+	{
+		return true;
+	}
+	virtual bool usesParamProviderInDiscretizationConfig() const CADET_NOEXCEPT
+	{
+		return true;
+	}
+	virtual bool configure(IParameterProvider& paramProvider, UnitOpIdx unitOpIdx, ParticleTypeIdx parTypeIdx,
+						   BoundStateIdx bndIdx, const std::string& name);
 	virtual bool configureModelDiscretization(IParameterProvider& paramProvider);
 
 	virtual std::unordered_map<ParameterId, double> getAllParameterValues() const;
@@ -212,7 +241,6 @@ public:
 	virtual active* getParameter(const ParameterId& pId);
 
 protected:
-
 	std::unordered_map<ParameterId, active*> _parameters; //!< Map used to translate ParameterIds to actual variables
 
 	/**
@@ -227,10 +255,9 @@ protected:
 	 * @param [in] name Name of the parameter
 	 * @return @c true if the configuration was successful, otherwise @c false
 	 */
-	virtual bool configureImpl(IParameterProvider& paramProvider, UnitOpIdx unitOpIdx, ParticleTypeIdx parTypeIdx, BoundStateIdx bndIdx, const std::string& name) = 0;
+	virtual bool configureImpl(IParameterProvider& paramProvider, UnitOpIdx unitOpIdx, ParticleTypeIdx parTypeIdx,
+							   BoundStateIdx bndIdx, const std::string& name) = 0;
 };
-
-
 
 /**
  * @brief Inserts implementations of all getValue() method variants
@@ -238,32 +265,34 @@ protected:
  *          methods for different variants of state and parameter type.
  *          This macro saves some time by providing those implementations. It assumes that the implementation
  *          provides templatized getValue() functions that realize all required variants.
- *          
+ *
  *          The implementation is inserted inline in the class declaration.
  */
-#define CADET_PARAMETERPARAMETERDEPENDENCE_BOILERPLATE                                                                                  \
-	virtual double getValue(const IModel& model, const ColumnPosition& colPos, int comp, int parType, int bnd, double val) const        \
-	{                                                                                                                                   \
-		return getValueImpl<double>(model, colPos, comp, parType, bnd, val);                                                            \
-	}                                                                                                                                   \
-                                                                                                                                        \
-	virtual active getValue(const IModel& model, const ColumnPosition& colPos, int comp, int parType, int bnd, const active& val) const \
-	{                                                                                                                                   \
-		return getValueImpl<active>(model, colPos, comp, parType, bnd, val);                                                            \
-	}                                                                                                                                   \
-                                                                                                                                        \
-	virtual double getValue(const IModel& model, const ColumnPosition& colPos, int comp, int parType, int bnd) const                    \
-	{                                                                                                                                   \
-		return getValueImpl<double>(model, colPos, comp, parType, bnd);                                                                 \
-	}                                                                                                                                   \
-                                                                                                                                        \
-	virtual active getValueActive(const IModel& model, const ColumnPosition& colPos, int comp, int parType, int bnd) const              \
-	{                                                                                                                                   \
-		return getValueImpl<active>(model, colPos, comp, parType, bnd);                                                                 \
+#define CADET_PARAMETERPARAMETERDEPENDENCE_BOILERPLATE                                                                 \
+	virtual double getValue(const IModel& model, const ColumnPosition& colPos, int comp, int parType, int bnd,         \
+							double val) const                                                                          \
+	{                                                                                                                  \
+		return getValueImpl<double>(model, colPos, comp, parType, bnd, val);                                           \
+	}                                                                                                                  \
+                                                                                                                       \
+	virtual active getValue(const IModel& model, const ColumnPosition& colPos, int comp, int parType, int bnd,         \
+							const active& val) const                                                                   \
+	{                                                                                                                  \
+		return getValueImpl<active>(model, colPos, comp, parType, bnd, val);                                           \
+	}                                                                                                                  \
+                                                                                                                       \
+	virtual double getValue(const IModel& model, const ColumnPosition& colPos, int comp, int parType, int bnd) const   \
+	{                                                                                                                  \
+		return getValueImpl<double>(model, colPos, comp, parType, bnd);                                                \
+	}                                                                                                                  \
+                                                                                                                       \
+	virtual active getValueActive(const IModel& model, const ColumnPosition& colPos, int comp, int parType, int bnd)   \
+		const                                                                                                          \
+	{                                                                                                                  \
+		return getValueImpl<active>(model, colPos, comp, parType, bnd);                                                \
 	}
-
 
 } // namespace model
 } // namespace cadet
 
-#endif  // LIBCADET_PARAMETERDEPENDENCEBASE_HPP_
+#endif // LIBCADET_PARAMETERDEPENDENCEBASE_HPP_

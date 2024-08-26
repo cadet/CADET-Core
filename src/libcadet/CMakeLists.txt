@@ -1,9 +1,9 @@
 # =============================================================================
 #  CADET
-#  
+#
 #  Copyright © The CADET Authors
 #            Please see the CONTRIBUTORS.md file.
-#  
+#
 #  All rights reserved. This program and the accompanying materials
 #  are made available under the terms of the GNU Public License v3.0 (or, at
 #  your option, any later version) which accompanies this distribution, and
@@ -215,9 +215,9 @@ foreach(BM IN LISTS LIBCADET_BINDINGMODEL_SOURCES)
 	get_filename_component(BMFILEWE ${BM} NAME_WE)
 	get_filename_component(BMFILE ${BM} NAME)
 	add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${BMFILE}
-		COMMAND templateCodeGen ${CMAKE_SOURCE_DIR}/src/libcadet/model/binding/ExternalFunctionTemplate.cpp ${BM} ${CMAKE_CURRENT_BINARY_DIR}/${BMFILE} 
+		COMMAND templateCodeGen ${CMAKE_SOURCE_DIR}/src/libcadet/model/binding/ExternalFunctionTemplate.cpp.in ${BM} ${CMAKE_CURRENT_BINARY_DIR}/${BMFILE}
 		MAIN_DEPENDENCY ${BM}
-		DEPENDS ${CMAKE_SOURCE_DIR}/src/libcadet/model/binding/ExternalFunctionTemplate.cpp
+		DEPENDS ${CMAKE_SOURCE_DIR}/src/libcadet/model/binding/ExternalFunctionTemplate.cpp.in
 		COMMENT "Generating code for ${BMFILEWE}"
 	)
 	list (APPEND LIBCADET_SOURCES "${CMAKE_CURRENT_BINARY_DIR}/${BMFILE}")
@@ -227,9 +227,9 @@ foreach(RM IN LISTS LIBCADET_REACTIONMODEL_SOURCES)
 	get_filename_component(RMFILEWE ${RM} NAME_WE)
 	get_filename_component(RMFILE ${RM} NAME)
 	add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${RMFILE}
-		COMMAND templateCodeGen ${CMAKE_SOURCE_DIR}/src/libcadet/model/reaction/ExternalFunctionTemplate.cpp ${RM} ${CMAKE_CURRENT_BINARY_DIR}/${RMFILE} 
+		COMMAND templateCodeGen ${CMAKE_SOURCE_DIR}/src/libcadet/model/reaction/ExternalFunctionTemplate.cpp.in ${RM} ${CMAKE_CURRENT_BINARY_DIR}/${RMFILE}
 		MAIN_DEPENDENCY ${RM}
-		DEPENDS ${CMAKE_SOURCE_DIR}/src/libcadet/model/reaction/ExternalFunctionTemplate.cpp
+		DEPENDS ${CMAKE_SOURCE_DIR}/src/libcadet/model/reaction/ExternalFunctionTemplate.cpp.in
 		COMMENT "Generating code for ${RMFILEWE}"
 	)
 	list (APPEND LIBCADET_SOURCES "${CMAKE_CURRENT_BINARY_DIR}/${RMFILE}")
@@ -273,7 +273,7 @@ if (LAPACK_FOUND)
 	add_library(libcadet_static STATIC $<TARGET_OBJECTS:libcadet_object>)
 	set_target_properties(libcadet_static PROPERTIES OUTPUT_NAME cadet_static)
 	target_link_libraries(libcadet_static PUBLIC CADET::CompileOptions CADET::LibOptions PRIVATE CADET::AD libcadet_nonlinalg_static SUNDIALS::sundials_idas ${SUNDIALS_NVEC_TARGET} ${TBB_TARGET} ${EIGEN_TARGET})
-	
+
 	# ---------------------------------------------------
 	#   Build the shared library
 	# ---------------------------------------------------
@@ -281,7 +281,7 @@ if (LAPACK_FOUND)
 	add_library(libcadet_shared SHARED $<TARGET_OBJECTS:libcadet_object>)
 	set_target_properties(libcadet_shared PROPERTIES OUTPUT_NAME cadet)
 	target_link_libraries (libcadet_shared PUBLIC CADET::CompileOptions CADET::LibOptions PRIVATE CADET::AD libcadet_nonlinalg_static SUNDIALS::sundials_idas ${SUNDIALS_NVEC_TARGET} ${TBB_TARGET} ${EIGEN_TARGET})
-	
+
 	list(APPEND LIBCADET_TARGETS libcadet_nonlinalg_static libcadet_object libcadet_static libcadet_shared)
 
 	unset(LIB_LAPACK_DEFINE)
@@ -289,7 +289,7 @@ endif ()
 
 foreach(_TARGET IN LISTS LIBCADET_TARGETS)
 	target_include_directories(${_TARGET}
-		PUBLIC $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/include> $<INSTALL_INTERFACE:include> 
+		PUBLIC $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/include> $<INSTALL_INTERFACE:include>
 		PRIVATE ${CMAKE_SOURCE_DIR}/src/libcadet ${CMAKE_BINARY_DIR} ${CMAKE_CURRENT_BINARY_DIR}
 	)
 	set_target_properties(${_TARGET} PROPERTIES DEBUG_POSTFIX _d VERSION ${CADET_VERSION} SOVERSION "0")

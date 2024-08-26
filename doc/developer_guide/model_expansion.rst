@@ -92,8 +92,8 @@ Most important functionality to be implemented:
 3. residualImpl(): Implements the residual formulation (i.e. function :math:`F = 0`) of the equations. Triggers updates of the (possibly state dependent) system Jacobian.
 4. System Jacobian: Owned by the unit operation. Defined given by :math:`J := \frac{\partial F}{\partial y} + \alpha \frac{\partial F}{\partial \dot{y}}`, i.e. both the state and state derivative Jacobian need to be implemented.
 5. Linear solve: Solves the system :math:`J x = b` with given :math:`b`.
-6. Algorithmic differentiation (AD): 
-   a. Parameter sensitivities: Use ``ParamType`` for all parameters and ``ResidualType`` for the residual. 
+6. Algorithmic differentiation (AD):
+   a. Parameter sensitivities: Use ``ParamType`` for all parameters and ``ResidualType`` for the residual.
    b. Jacobian calculation via AD (can be used to verify the analytical implementation): Use ``StateType`` for the state and ``ResidualType`` for the residual. Additionally, you need to implement the following functions to enable the AD Jacobian: ``requiredADdirs()``, ``prepareADvectors``, ``extractJacobianFromAD()``, ``useAnalyticJacobian()``. For details please refer to `Püttmann et al. <https://doi.org/10.1016/j.compchemeng.2013.04.021>`_.
 
 Testing and Publication
@@ -118,6 +118,6 @@ Directions can either be the parameter(s) whose sensitivity we want to calculate
 
 To use AD for a new binding model, you only need to use the template types properly:
 Use ``ParamType`` and ``ResidualType`` for parameters and residual ``res`` to enable parameter sensitivities; that is, all parameters must be defined as actives in the binding model and used as ParamType in the residual function.
-Use ``StateType`` and ``ResidualType`` for the state ``y`` and residual ``res`` to enable the AD Jacobian. 
+Use ``StateType`` and ``ResidualType`` for the state ``y`` and residual ``res`` to enable the AD Jacobian.
 
-To use AD for a new unit operation, you can either apply dense AD or, in case of a model with many states or spatial resolution, you need to think of the shape of the Jacobian and apply sparse AD. 
+To use AD for a new unit operation, you can either apply dense AD or, in case of a model with many states or spatial resolution, you need to think of the shape of the Jacobian and apply sparse AD.

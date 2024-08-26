@@ -13,18 +13,15 @@ For information on model equations, refer to :ref:`outlet_model`.
 
    Specifies the type of unit operation model
 
-   
+
    ================  ==================================  =============
    **Type:** string  **Range:** :math:`\texttt{OUTLET}`  **Length:** 1
    ================  ==================================  =============
-   
+
 ``NCOMP``
 
    Number of chemical components in the chromatographic medium
-   
+
    =============  =========================  =============
    **Type:** int  **Range:** :math:`\geq 1`  **Length:** 1
    =============  =========================  =============
-
-
-

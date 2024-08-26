@@ -1,9 +1,9 @@
 // =============================================================================
 //  CADET
-//  
+//
 //  Copyright © The CADET Authors
 //            Please see the CONTRIBUTORS.md file.
-//  
+//
 //  All rights reserved. This program and the accompanying materials
 //  are made available under the terms of the GNU Public License v3.0 (or, at
 //  your option, any later version) which accompanies this distribution, and
@@ -57,38 +57,43 @@ namespace cadet
 namespace model
 {
 
-inline const char* MPMLangmuirParamHandler::identifier() CADET_NOEXCEPT { return "MOBILE_PHASE_MODULATOR"; }
+inline const char* MPMLangmuirParamHandler::identifier() CADET_NOEXCEPT
+{
+	return "MOBILE_PHASE_MODULATOR";
+}
 
 inline bool MPMLangmuirParamHandler::validateConfig(unsigned int nComp, unsigned int const* nBoundStates)
 {
-	if ((_kA.size() != _kD.size()) || (_kA.size() != _qMax.size()) || (_kA.size() != _gamma.size())
-		|| (_kA.size() != _beta.size()) || (_kA.size() < nComp))
+	if ((_kA.size() != _kD.size()) || (_kA.size() != _qMax.size()) || (_kA.size() != _gamma.size()) ||
+		(_kA.size() != _beta.size()) || (_kA.size() < nComp))
 		throw InvalidParameterException("MPM_KA, MPM_KD, MPM_QMAX, MPM_GAMMA, and MPM_BETA have to have the same size");
 
 	return true;
 }
 
-inline const char* ExtMPMLangmuirParamHandler::identifier() CADET_NOEXCEPT { return "EXT_MOBILE_PHASE_MODULATOR"; }
+inline const char* ExtMPMLangmuirParamHandler::identifier() CADET_NOEXCEPT
+{
+	return "EXT_MOBILE_PHASE_MODULATOR";
+}
 
 inline bool ExtMPMLangmuirParamHandler::validateConfig(unsigned int nComp, unsigned int const* nBoundStates)
 {
-	if ((_kA.size() != _kD.size()) || (_kA.size() != _qMax.size()) || (_kA.size() != _gamma.size())
-		|| (_kA.size() != _beta.size()) || (_kA.size() < nComp))
+	if ((_kA.size() != _kD.size()) || (_kA.size() != _qMax.size()) || (_kA.size() != _gamma.size()) ||
+		(_kA.size() != _beta.size()) || (_kA.size() < nComp))
 		throw InvalidParameterException("MPM_KA, MPM_KD, MPM_QMAX, MPM_GAMMA, and MPM_BETA have to have the same size");
 
 	return true;
 }
 
-
 /**
  * @brief Defines the mobile phase modulator Langmuir binding model
- * @details Implements the mobile phase modulator Langmuir adsorption model: \f[ \begin{align} 
+ * @details Implements the mobile phase modulator Langmuir adsorption model: \f[ \begin{align}
  *              \frac{\mathrm{d}q_0}{\mathrm{d}t} &= 0 \\
- *              \frac{\mathrm{d}q_i}{\mathrm{d}t} &= k_{a,i} c_{p,i} e^{\gamma_i c_{p,0}} q_{\text{max},i} \left( 1 - \sum_j \frac{q_j}{q_{\text{max},j}} \right) - k_{d,i} c_{p,0}^{\beta_i} q_i
- *          \end{align} \f]
- *          While @f$ \gamma @f$ describes hydrophobicity, @f$ \beta @f$ accounts for ion-exchange characteristics.
- *          Multiple bound states are not supported. Component @c 0 is assumed to be salt, which is also assumed to be inert.
- *          Components without bound state (i.e., non-binding components) are supported.
+ *              \frac{\mathrm{d}q_i}{\mathrm{d}t} &= k_{a,i} c_{p,i} e^{\gamma_i c_{p,0}} q_{\text{max},i} \left( 1 -
+ * \sum_j \frac{q_j}{q_{\text{max},j}} \right) - k_{d,i} c_{p,0}^{\beta_i} q_i \end{align} \f] While @f$ \gamma @f$
+ * describes hydrophobicity, @f$ \beta @f$ accounts for ion-exchange characteristics. Multiple bound states are not
+ * supported. Component @c 0 is assumed to be salt, which is also assumed to be inert. Components without bound state
+ * (i.e., non-binding components) are supported.
  *
  *          Note that the first flux is only used if salt (component @c 0) has a bound state.
  *          It is reasonable to set the number of bound states for salt to @c 0 in order to save time and memory.
@@ -100,15 +105,25 @@ template <class ParamHandler_t>
 class MobilePhaseModulatorLangmuirBindingBase : public ParamHandlerBindingModelBase<ParamHandler_t>
 {
 public:
+	MobilePhaseModulatorLangmuirBindingBase()
+	{
+	}
+	virtual ~MobilePhaseModulatorLangmuirBindingBase() CADET_NOEXCEPT
+	{
+	}
 
-	MobilePhaseModulatorLangmuirBindingBase() { }
-	virtual ~MobilePhaseModulatorLangmuirBindingBase() CADET_NOEXCEPT { }
+	static const char* identifier()
+	{
+		return ParamHandler_t::identifier();
+	}
 
-	static const char* identifier() { return ParamHandler_t::identifier(); }
+	virtual bool hasSalt() const CADET_NOEXCEPT
+	{
+		return true;
+	}
 
-	virtual bool hasSalt() const CADET_NOEXCEPT { return true; }
-
-	virtual bool configureModelDiscretization(IParameterProvider& paramProvider, unsigned int nComp, unsigned int const* nBound, unsigned int const* boundOffset)
+	virtual bool configureModelDiscretization(IParameterProvider& paramProvider, unsigned int nComp,
+											  unsigned int const* nBound, unsigned int const* boundOffset)
 	{
 		const bool res = BindingModelBase::configureModelDiscretization(paramProvider, nComp, nBound, boundOffset);
 
@@ -127,18 +142,23 @@ protected:
 	using ParamHandlerBindingModelBase<ParamHandler_t>::_nComp;
 	using ParamHandlerBindingModelBase<ParamHandler_t>::_nBoundStates;
 
-	virtual bool implementsAnalyticJacobian() const CADET_NOEXCEPT { return true; }
+	virtual bool implementsAnalyticJacobian() const CADET_NOEXCEPT
+	{
+		return true;
+	}
 
 	template <typename StateType, typename CpStateType, typename ResidualType, typename ParamType>
 	int fluxImpl(double t, unsigned int secIdx, const ColumnPosition& colPos, StateType const* y,
-		CpStateType const* yCp, ResidualType* res, LinearBufferAllocator workSpace) const
+				 CpStateType const* yCp, ResidualType* res, LinearBufferAllocator workSpace) const
 	{
-		typename ParamHandler_t::ParamsHandle const p = _paramHandler.update(t, secIdx, colPos, _nComp, _nBoundStates, workSpace);
+		typename ParamHandler_t::ParamsHandle const p =
+			_paramHandler.update(t, secIdx, colPos, _nComp, _nBoundStates, workSpace);
 
 		const double linearThreshold = static_cast<double>(p->linearThreshold);
 
 		// Salt flux: 0
-		// Protein fluxes: -k_{a,i} * exp(\gamma_i * c_{p,0}) * c_{p,i} * q_{max,i} * (1 - \sum q_i / q_{max,i}) + k_{d,i} * c_{p,0}^\beta_i * q_i)
+		// Protein fluxes: -k_{a,i} * exp(\gamma_i * c_{p,0}) * c_{p,i} * q_{max,i} * (1 - \sum q_i / q_{max,i}) +
+		// k_{d,i} * c_{p,0}^\beta_i * q_i)
 		ResidualType qSum = 1.0;
 		unsigned int bndIdx = 0;
 		if (_nBoundStates[0] == 1)
@@ -174,18 +194,29 @@ protected:
 			// Residual
 			if (yCp[0] <= linearThreshold)
 			{
-				ResidualType alpha = static_cast<ParamType>(p->kA[i]) * yCp[i] * static_cast<ParamType>(p->qMax[i]) * qSum;
+				ResidualType alpha =
+					static_cast<ParamType>(p->kA[i]) * yCp[i] * static_cast<ParamType>(p->qMax[i]) * qSum;
 
 				// Linearize
-				ResidualType fThreshold = static_cast<ParamType>(p->kD[i]) * pow(linearThreshold, static_cast<ParamType>(p->beta[i])) * y[bndIdx] - alpha * exp(linearThreshold * static_cast<ParamType>(p->gamma[i]));  // f(threshold)
-				ResidualType fdThreshold = static_cast<ParamType>(p->kD[i]) * pow(linearThreshold, static_cast<ParamType>(p->beta[i]) - 1) * static_cast<ParamType>(p->beta[i]) * y[bndIdx] - alpha * exp(linearThreshold * static_cast<ParamType>(p->gamma[i])) * static_cast<ParamType>(p->gamma[i]);  // f'(threshold)
+				ResidualType fThreshold =
+					static_cast<ParamType>(p->kD[i]) * pow(linearThreshold, static_cast<ParamType>(p->beta[i])) *
+						y[bndIdx] -
+					alpha * exp(linearThreshold * static_cast<ParamType>(p->gamma[i])); // f(threshold)
+				ResidualType fdThreshold = static_cast<ParamType>(p->kD[i]) *
+											   pow(linearThreshold, static_cast<ParamType>(p->beta[i]) - 1) *
+											   static_cast<ParamType>(p->beta[i]) * y[bndIdx] -
+										   alpha * exp(linearThreshold * static_cast<ParamType>(p->gamma[i])) *
+											   static_cast<ParamType>(p->gamma[i]); // f'(threshold)
 
 				res[bndIdx] = fThreshold + fdThreshold * (yCp[0] - linearThreshold);
 			}
 			else
 			{
 				// Residual
-				res[bndIdx] = static_cast<ParamType>(p->kD[i]) * pow(yCp[0], static_cast<ParamType>(p->beta[i])) * y[bndIdx] - static_cast<ParamType>(p->kA[i]) * exp(yCp[0] * static_cast<ParamType>(p->gamma[i])) * yCp[i] * static_cast<ParamType>(p->qMax[i]) * qSum;
+				res[bndIdx] =
+					static_cast<ParamType>(p->kD[i]) * pow(yCp[0], static_cast<ParamType>(p->beta[i])) * y[bndIdx] -
+					static_cast<ParamType>(p->kA[i]) * exp(yCp[0] * static_cast<ParamType>(p->gamma[i])) * yCp[i] *
+						static_cast<ParamType>(p->qMax[i]) * qSum;
 			}
 			// Next bound component
 			++bndIdx;
@@ -195,9 +226,11 @@ protected:
 	}
 
 	template <typename RowIterator>
-	void jacobianImpl(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, double const* yCp, int offsetCp, RowIterator jac, LinearBufferAllocator workSpace) const
+	void jacobianImpl(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, double const* yCp,
+					  int offsetCp, RowIterator jac, LinearBufferAllocator workSpace) const
 	{
-		typename ParamHandler_t::ParamsHandle const p = _paramHandler.update(t, secIdx, colPos, _nComp, _nBoundStates, workSpace);
+		typename ParamHandler_t::ParamsHandle const p =
+			_paramHandler.update(t, secIdx, colPos, _nComp, _nBoundStates, workSpace);
 
 		const double linearThreshold = static_cast<double>(p->linearThreshold);
 
@@ -222,7 +255,8 @@ protected:
 			++bndIdx;
 		}
 
-		// Protein fluxes: -k_{a,i} * exp(\gamma_i * c_{p,0}) * c_{p,i} * q_{max,i} * (1 - \sum q_i / q_{max,i}) + k_{d,i} * c_{p,0}^\beta_i * q_i)
+		// Protein fluxes: -k_{a,i} * exp(\gamma_i * c_{p,0}) * c_{p,i} * q_{max,i} * (1 - \sum q_i / q_{max,i}) +
+		// k_{d,i} * c_{p,0}^\beta_i * q_i)
 		bndIdx = 0;
 		if (_nBoundStates[0] == 1)
 			bndIdx = 1;
@@ -245,7 +279,8 @@ protected:
 				kaEGammaC0 = ka * exp(gamma * linearThreshold);
 
 				// dres_i / dc_{p,0}
-				jac[-bndIdx - offsetCp] = -kaEGammaC0 * yCp[i] * qMax * qSum * gamma + kdRaw * pow(linearThreshold, beta) * beta * y[bndIdx];
+				jac[-bndIdx - offsetCp] =
+					-kaEGammaC0 * yCp[i] * qMax * qSum * gamma + kdRaw * pow(linearThreshold, beta) * beta * y[bndIdx];
 				// Getting to c_{p,0}: -bndIdx takes us to q_0, another -offsetCp to c_{p,0}.
 				//                     This means jac[bndIdx - offsetCp] corresponds to c_{p,0}.
 			}
@@ -254,7 +289,8 @@ protected:
 				kaEGammaC0 = ka * exp(gamma * yCp[0]);
 
 				// dres_i / dc_{p,0}
-				jac[-bndIdx - offsetCp] = -kaEGammaC0 * yCp[i] * qMax * qSum * gamma + kdRaw * beta * y[bndIdx] * pow(yCp[0], beta - 1.0);
+				jac[-bndIdx - offsetCp] =
+					-kaEGammaC0 * yCp[i] * qMax * qSum * gamma + kdRaw * beta * y[bndIdx] * pow(yCp[0], beta - 1.0);
 				// Getting to c_{p,0}: -bndIdx takes us to q_0, another -offsetCp to c_{p,0}.
 				//                     This means jac[bndIdx - offsetCp] corresponds to c_{p,0}.
 			}
@@ -277,7 +313,8 @@ protected:
 
 				// dres_i / dq_j
 				jac[bndIdx2 - bndIdx] = kaEGammaC0 * yCp[i] * qMax / static_cast<double>(p->qMax[j]);
-				// Getting to q_j: -bndIdx takes us to q_0, another +bndIdx2 to q_j. This means jac[bndIdx2 - bndIdx] corresponds to q_j.
+				// Getting to q_j: -bndIdx takes us to q_0, another +bndIdx2 to q_j. This means jac[bndIdx2 - bndIdx]
+				// corresponds to q_j.
 
 				++bndIdx2;
 			}
@@ -300,19 +337,23 @@ protected:
 	}
 };
 
-
 typedef MobilePhaseModulatorLangmuirBindingBase<MPMLangmuirParamHandler> MobilePhaseModulatorLangmuirBinding;
 typedef MobilePhaseModulatorLangmuirBindingBase<ExtMPMLangmuirParamHandler> ExternalMobilePhaseModulatorLangmuirBinding;
 
 namespace binding
 {
-	void registerMobilePhaseModulatorLangmuirModel(std::unordered_map<std::string, std::function<model::IBindingModel*()>>& bindings)
-	{
-		bindings[MobilePhaseModulatorLangmuirBinding::identifier()] = []() { return new MobilePhaseModulatorLangmuirBinding(); };
-		bindings[ExternalMobilePhaseModulatorLangmuirBinding::identifier()] = []() { return new ExternalMobilePhaseModulatorLangmuirBinding(); };
-	}
-}  // namespace binding
+void registerMobilePhaseModulatorLangmuirModel(
+	std::unordered_map<std::string, std::function<model::IBindingModel*()>>& bindings)
+{
+	bindings[MobilePhaseModulatorLangmuirBinding::identifier()] = []() {
+		return new MobilePhaseModulatorLangmuirBinding();
+	};
+	bindings[ExternalMobilePhaseModulatorLangmuirBinding::identifier()] = []() {
+		return new ExternalMobilePhaseModulatorLangmuirBinding();
+	};
+}
+} // namespace binding
 
-}  // namespace model
+} // namespace model
 
-}  // namespace cadet
+} // namespace cadet

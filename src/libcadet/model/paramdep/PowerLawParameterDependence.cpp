@@ -1,9 +1,9 @@
 // =============================================================================
 //  CADET
-//  
+//
 //  Copyright © The CADET Authors
 //            Please see the CONTRIBUTORS.md file.
-//  
+//
 //  All rights reserved. This program and the accompanying materials
 //  are made available under the terms of the GNU Public License v3.0 (or, at
 //  your option, any later version) which accompanies this distribution, and
@@ -32,12 +32,21 @@ namespace model
 class PowerLawParameterParameterDependence : public ParameterParameterDependenceBase
 {
 public:
+	PowerLawParameterParameterDependence()
+	{
+	}
+	virtual ~PowerLawParameterParameterDependence() CADET_NOEXCEPT
+	{
+	}
 
-	PowerLawParameterParameterDependence() { }
-	virtual ~PowerLawParameterParameterDependence() CADET_NOEXCEPT { }
-
-	static const char* identifier() { return "POWER_LAW"; }
-	virtual const char* name() const CADET_NOEXCEPT { return PowerLawParameterParameterDependence::identifier(); }
+	static const char* identifier()
+	{
+		return "POWER_LAW";
+	}
+	virtual const char* name() const CADET_NOEXCEPT
+	{
+		return PowerLawParameterParameterDependence::identifier();
+	}
 
 	CADET_PARAMETERPARAMETERDEPENDENCE_BOILERPLATE
 
@@ -46,7 +55,8 @@ protected:
 	active _exponent;
 	bool _useAbs;
 
-	virtual bool configureImpl(IParameterProvider& paramProvider, UnitOpIdx unitOpIdx, ParticleTypeIdx parTypeIdx, BoundStateIdx bndIdx, const std::string& name)
+	virtual bool configureImpl(IParameterProvider& paramProvider, UnitOpIdx unitOpIdx, ParticleTypeIdx parTypeIdx,
+							   BoundStateIdx bndIdx, const std::string& name)
 	{
 		const std::string baseName = name + "_BASE";
 		const std::string expName = name + "_EXPONENT";
@@ -64,8 +74,10 @@ protected:
 		else
 			_useAbs = true;
 
-		_parameters[makeParamId(hashStringRuntime(baseName), unitOpIdx, CompIndep, parTypeIdx, bndIdx, ReactionIndep, SectionIndep)] = &_base;
-		_parameters[makeParamId(hashStringRuntime(expName), unitOpIdx, CompIndep, parTypeIdx, bndIdx, ReactionIndep, SectionIndep)] = &_exponent;
+		_parameters[makeParamId(hashStringRuntime(baseName), unitOpIdx, CompIndep, parTypeIdx, bndIdx, ReactionIndep,
+								SectionIndep)] = &_base;
+		_parameters[makeParamId(hashStringRuntime(expName), unitOpIdx, CompIndep, parTypeIdx, bndIdx, ReactionIndep,
+								SectionIndep)] = &_exponent;
 
 		return true;
 	}
@@ -77,28 +89,30 @@ protected:
 	}
 
 	template <typename ParamType>
-	ParamType getValueImpl(const IModel& model, const ColumnPosition& colPos, int comp, int parType, int bnd, ParamType val) const
+	ParamType getValueImpl(const IModel& model, const ColumnPosition& colPos, int comp, int parType, int bnd,
+						   ParamType val) const
 	{
-		using std::pow;
 		using std::abs;
+		using std::pow;
 
 		if (_useAbs)
 			return static_cast<ParamType>(_base) * pow(abs(val), static_cast<ParamType>(_exponent));
 		else
 			return static_cast<ParamType>(_base) * pow(val, static_cast<ParamType>(_exponent));
 	}
-
 };
-
 
 namespace paramdep
 {
-	void registerPowerLawParamDependence(std::unordered_map<std::string, std::function<model::IParameterParameterDependence*()>>& paramDeps)
-	{
-		paramDeps[PowerLawParameterParameterDependence::identifier()] = []() { return new PowerLawParameterParameterDependence(); };
-	}
-}  // namespace paramdep
+void registerPowerLawParamDependence(
+	std::unordered_map<std::string, std::function<model::IParameterParameterDependence*()>>& paramDeps)
+{
+	paramDeps[PowerLawParameterParameterDependence::identifier()] = []() {
+		return new PowerLawParameterParameterDependence();
+	};
+}
+} // namespace paramdep
 
-}  // namespace model
+} // namespace model
 
-}  // namespace cadet
+} // namespace cadet

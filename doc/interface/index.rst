@@ -23,6 +23,3 @@ In this section the general layout and structure of the file format is described
    input_group
    output_group
    meta_group
-
-
-

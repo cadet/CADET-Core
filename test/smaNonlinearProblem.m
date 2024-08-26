@@ -13,20 +13,20 @@ function smaNonlinearProblem()
         'TolFun', 1e-12, 'TolX', 0, 'Display', 'iter', ...
         'Algorithm', {'levenberg-marquardt',.001});
     [sol, res] = fsolve(@residual, qStart, opts);
-    
+
     function [res, J] = residual(x)
         res = zeros(size(x));
 
         q0bar = x(1) - sum(sigma .* x);
         res(1) = x(1) - lambda + sum(nu .* x);
-        
+
         c0powNu = (yCp(1)).^nu;
         q0barPowNu = q0bar.^nu;
-        
+
         res(2:end) = kD(2:end) .* x(2:end) .* c0powNu(2:end) - kA(2:end) .* yCp(2:end) .* q0barPowNu(2:end);
 
         q0barPowNuM1 = q0bar.^(nu - 1.0);
-        
+
         J = zeros(length(x));
         J(1,:) = [1.0, nu(2:end)];
         for i = 2:length(x)

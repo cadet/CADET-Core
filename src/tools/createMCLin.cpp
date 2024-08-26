@@ -1,9 +1,9 @@
 // =============================================================================
 //  CADET
-//  
+//
 //  Copyright © The CADET Authors
 //            Please see the CONTRIBUTORS.md file.
-//  
+//
 //  All rights reserved. This program and the accompanying materials
 //  are made available under the terms of the GNU Public License v3.0 (or, at
 //  your option, any later version) which accompanies this distribution, and
@@ -39,14 +39,17 @@ int main(int argc, char** argv)
 		TCLAP::CmdLine cmd("Create an HDF5 input file for a two component linear benchmark case", ' ', "1.0");
 		cmd.setOutput(&customOut);
 
-		cmd >> (new TCLAP::ValueArg<std::string>("o", "out", "Write output to file (default: MCLin.h5)", false, "MCLin.h5", "File"))->storeIn(&opts.fileName);
-		cmd >> (new TCLAP::SwitchArg("k", "kinetic", "Kinetic adsorption model used (default: quasi-stationary)"))->storeIn(&opts.isKinetic);
+		cmd >> (new TCLAP::ValueArg<std::string>("o", "out", "Write output to file (default: MCLin.h5)", false,
+												 "MCLin.h5", "File"))
+				   ->storeIn(&opts.fileName);
+		cmd >> (new TCLAP::SwitchArg("k", "kinetic", "Kinetic adsorption model used (default: quasi-stationary)"))
+				   ->storeIn(&opts.isKinetic);
 		addSensitivitiyParserToCmdLine(cmd, opts.sensitivities);
 		addOutputParserToCmdLine(cmd, opts.outSol, opts.outSens);
 
 		cmd.parse(argc, argv);
 	}
-	catch (const TCLAP::ArgException &e)
+	catch (const TCLAP::ArgException& e)
 	{
 		std::cerr << "ERROR: " << e.error() << " for argument " << e.argId() << std::endl;
 		return 1;
@@ -95,7 +98,7 @@ int main(int argc, char** argv)
 
 			// Adsorption
 			writer.scalar("ADSORPTION_MODEL", std::string("LINEAR"));
-			const int nBound[] = { 1, 1 };
+			const int nBound[] = {1, 1};
 			writer.vector<int>("NBOUND", 2, nBound);
 			{
 				Scope<cadet::io::HDF5Writer> s2(writer, "adsorption");
@@ -115,7 +118,7 @@ int main(int argc, char** argv)
 				Scope<cadet::io::HDF5Writer> s2(writer, "discretization");
 
 				writer.scalar<int>("NCOL", 10); // 64
-				writer.scalar<int>("NPAR", 4); // 16
+				writer.scalar<int>("NPAR", 4);  // 16
 
 				writer.scalar("PAR_DISC_TYPE", std::string("EQUIDISTANT_PAR"));
 
@@ -222,7 +225,7 @@ int main(int argc, char** argv)
 	{
 		Scope<cadet::io::HDF5Writer> s(writer, "return");
 		writer.template scalar<int>("WRITE_SOLUTION_TIMES", true);
-	
+
 		Scope<cadet::io::HDF5Writer> s2(writer, "unit_000");
 		parseAndWriteOutputFormatsFromCmdLine(writer, opts.outSol, opts.outSens);
 	}
@@ -234,9 +237,9 @@ int main(int argc, char** argv)
 		std::vector<double> solTimes;
 		solTimes.reserve(1501);
 		for (int t = 0; t <= 1500; t += 1)
-//		solTimes.reserve(101);
-//		for (int t = 0; t <= 100; t += 1)
-//		for (double t = 0; t <= 0.01; t += 0.001)
+			//		solTimes.reserve(101);
+			//		for (int t = 0; t <= 100; t += 1)
+			//		for (double t = 0; t <= 0.01; t += 0.001)
 			solTimes.push_back(t);
 
 		writer.vector<double>("USER_SOLUTION_TIMES", solTimes.size(), solTimes.data());

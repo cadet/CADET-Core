@@ -27,9 +27,11 @@ namespace cadet
 namespace model
 {
 
-int MultiChannelTransportModel::multiplexInitialConditions(const cadet::ParameterId& pId, unsigned int adDirection, double adValue)
+int MultiChannelTransportModel::multiplexInitialConditions(const cadet::ParameterId& pId, unsigned int adDirection,
+														   double adValue)
 {
-	if (pId.name == hashString("INIT_C") && (pId.section == SectionIndep) && (pId.boundState == BoundStateIndep) && (pId.particleType == ParTypeIndep) && (pId.component != CompIndep))
+	if (pId.name == hashString("INIT_C") && (pId.section == SectionIndep) && (pId.boundState == BoundStateIndep) &&
+		(pId.particleType == ParTypeIndep) && (pId.component != CompIndep))
 	{
 		if ((pId.reaction == ReactionIndep) && _singleRadiusInitC)
 		{
@@ -56,7 +58,8 @@ int MultiChannelTransportModel::multiplexInitialConditions(const cadet::Paramete
 
 int MultiChannelTransportModel::multiplexInitialConditions(const cadet::ParameterId& pId, double val, bool checkSens)
 {
-	if (pId.name == hashString("INIT_C") && (pId.section == SectionIndep) && (pId.boundState == BoundStateIndep) && (pId.particleType == ParTypeIndep) && (pId.component != CompIndep))
+	if (pId.name == hashString("INIT_C") && (pId.section == SectionIndep) && (pId.boundState == BoundStateIndep) &&
+		(pId.particleType == ParTypeIndep) && (pId.component != CompIndep))
 	{
 		if ((pId.reaction == ReactionIndep) && _singleRadiusInitC)
 		{
@@ -96,7 +99,8 @@ void MultiChannelTransportModel::applyInitialCondition(const SimulationState& si
 		if (!_initStateDot.empty())
 		{
 			std::fill(simState.vecStateYdot, simState.vecStateYdot + idxr.offsetC(), 0.0);
-			std::copy(_initStateDot.data(), _initStateDot.data() + numPureDofs(), simState.vecStateYdot + idxr.offsetC());
+			std::copy(_initStateDot.data(), _initStateDot.data() + numPureDofs(),
+					  simState.vecStateYdot + idxr.offsetC());
 		}
 		else
 			std::fill(simState.vecStateYdot, simState.vecStateYdot + numDofs(), 0.0);
@@ -114,7 +118,8 @@ void MultiChannelTransportModel::applyInitialCondition(const SimulationState& si
 		{
 			// Loop over components in cell
 			for (unsigned comp = 0; comp < _disc.nComp; ++comp)
-				stateYbulk[col * idxr.strideColAxialCell() + rad * idxr.strideChannelCell() + comp * idxr.strideColComp()] = static_cast<double>(_initC[comp + rad * _disc.nComp]);
+				stateYbulk[col * idxr.strideColAxialCell() + rad * idxr.strideChannelCell() +
+						   comp * idxr.strideColComp()] = static_cast<double>(_initC[comp + rad * _disc.nComp]);
 		}
 	}
 }
@@ -132,14 +137,16 @@ void MultiChannelTransportModel::readInitialCondition(IParameterProvider& paramP
 
 		// Check if INIT_STATE contains the full state and its time derivative
 		if (initState.size() >= 2 * numPureDofs())
-			_initStateDot = std::vector<double>(initState.begin() + numPureDofs(), initState.begin() + 2 * numPureDofs());
+			_initStateDot =
+				std::vector<double>(initState.begin() + numPureDofs(), initState.begin() + 2 * numPureDofs());
 		return;
 	}
 
 	const std::vector<double> initC = paramProvider.getDoubleArray("INIT_C");
 	_singleRadiusInitC = (initC.size() < _disc.nComp * _disc.nChannel);
 
-	if (((initC.size() < _disc.nComp) && _singleRadiusInitC) || ((initC.size() < _disc.nComp * _disc.nChannel) && !_singleRadiusInitC))
+	if (((initC.size() < _disc.nComp) && _singleRadiusInitC) ||
+		((initC.size() < _disc.nComp * _disc.nChannel) && !_singleRadiusInitC))
 		throw InvalidParameterException("INIT_C does not contain enough values for all components (and radial zones)");
 
 	if (!_singleRadiusInitC)
@@ -200,7 +207,9 @@ void MultiChannelTransportModel::readInitialCondition(IParameterProvider& paramP
  * @param [in] errorTol Error tolerance for algebraic equations
  * @todo Decrease amount of allocated memory by partially using temporary vectors (state and Schur complement)
  */
-void MultiChannelTransportModel::consistentInitialState(const SimulationTime& simTime, double* const vecStateY, const AdJacobianParams& adJac, double errorTol, util::ThreadLocalStorage& threadLocalMem)
+void MultiChannelTransportModel::consistentInitialState(const SimulationTime& simTime, double* const vecStateY,
+														const AdJacobianParams& adJac, double errorTol,
+														util::ThreadLocalStorage& threadLocalMem)
 {
 	BENCH_SCOPE(_timerConsistentInit);
 }
@@ -250,9 +259,12 @@ void MultiChannelTransportModel::consistentInitialState(const SimulationTime& si
  *
  * @param [in] simTime Simulation time information (time point, section index, pre-factor of time derivatives)
  * @param [in] vecStateY Consistently initialized state vector
- * @param [in,out] vecStateYdot On entry, residual without taking time derivatives into account. On exit, consistent state time derivatives.
+ * @param [in,out] vecStateYdot On entry, residual without taking time derivatives into account. On exit, consistent
+ * state time derivatives.
  */
-void MultiChannelTransportModel::consistentInitialTimeDerivative(const SimulationTime& simTime, double const* vecStateY, double* const vecStateYdot, util::ThreadLocalStorage& threadLocalMem)
+void MultiChannelTransportModel::consistentInitialTimeDerivative(const SimulationTime& simTime, double const* vecStateY,
+																 double* const vecStateYdot,
+																 util::ThreadLocalStorage& threadLocalMem)
 {
 	BENCH_SCOPE(_timerConsistentInit);
 
@@ -312,7 +324,9 @@ void MultiChannelTransportModel::consistentInitialTimeDerivative(const Simulatio
  * @param [in,out] adJac Jacobian information for AD (AD vectors for residual and state, direction offset)
  * @param [in] errorTol Error tolerance for algebraic equations
  */
-void MultiChannelTransportModel::leanConsistentInitialState(const SimulationTime& simTime, double* const vecStateY, const AdJacobianParams& adJac, double errorTol, util::ThreadLocalStorage& threadLocalMem)
+void MultiChannelTransportModel::leanConsistentInitialState(const SimulationTime& simTime, double* const vecStateY,
+															const AdJacobianParams& adJac, double errorTol,
+															util::ThreadLocalStorage& threadLocalMem)
 {
 	consistentInitialState(simTime, vecStateY, adJac, errorTol, threadLocalMem);
 }
@@ -356,10 +370,14 @@ void MultiChannelTransportModel::leanConsistentInitialState(const SimulationTime
  *
  * @param [in] t Current time point
  * @param [in] vecStateY (Lean) consistently initialized state vector
- * @param [in,out] vecStateYdot On entry, inconsistent state time derivatives. On exit, partially consistent state time derivatives.
- * @param [in] res On entry, residual without taking time derivatives into account. The data is overwritten during execution of the function.
+ * @param [in,out] vecStateYdot On entry, inconsistent state time derivatives. On exit, partially consistent state time
+ * derivatives.
+ * @param [in] res On entry, residual without taking time derivatives into account. The data is overwritten during
+ * execution of the function.
  */
-void MultiChannelTransportModel::leanConsistentInitialTimeDerivative(double t, double const* const vecStateY, double* const vecStateYdot, double* const res, util::ThreadLocalStorage& threadLocalMem)
+void MultiChannelTransportModel::leanConsistentInitialTimeDerivative(double t, double const* const vecStateY,
+																	 double* const vecStateYdot, double* const res,
+																	 util::ThreadLocalStorage& threadLocalMem)
 {
 	BENCH_SCOPE(_timerConsistentInit);
 
@@ -399,7 +417,8 @@ void MultiChannelTransportModel::initializeSensitivityStates(const std::vector<d
 			{
 				// Loop over components in cell
 				for (unsigned comp = 0; comp < _disc.nComp; ++comp)
-					stateYbulk[col * idxr.strideColAxialCell() + rad * idxr.strideChannelCell() + comp * idxr.strideColComp()] = _initC[comp + rad * _disc.nComp].getADValue(param);
+					stateYbulk[col * idxr.strideColAxialCell() + rad * idxr.strideChannelCell() +
+							   comp * idxr.strideColComp()] = _initC[comp + rad * _disc.nComp].getADValue(param);
 			}
 		}
 	}
@@ -409,25 +428,26 @@ void MultiChannelTransportModel::initializeSensitivityStates(const std::vector<d
  * @brief Computes consistent initial values and time derivatives of sensitivity subsystems
  * @details Given the DAE \f[ F(t, y, \dot{y}) = 0, \f] and initial values \f$ y_0 \f$ and \f$ \dot{y}_0 \f$,
  *          the sensitivity system for a parameter @f$ p @f$ reads
- *          \f[ \frac{\partial F}{\partial y}(t, y, \dot{y}) s + \frac{\partial F}{\partial \dot{y}}(t, y, \dot{y}) \dot{s} + \frac{\partial F}{\partial p}(t, y, \dot{y}) = 0. \f]
- *          The initial values of this linear DAE, @f$ s_0 = \frac{\partial y_0}{\partial p} @f$ and @f$ \dot{s}_0 = \frac{\partial \dot{y}_0}{\partial p} @f$
- *          have to be consistent with the sensitivity DAE. This functions updates the initial sensitivity\f$ s_0 \f$ and overwrites the time
- *          derivative \f$ \dot{s}_0 \f$ such that they are consistent.
+ *          \f[ \frac{\partial F}{\partial y}(t, y, \dot{y}) s + \frac{\partial F}{\partial \dot{y}}(t, y, \dot{y})
+ * \dot{s} + \frac{\partial F}{\partial p}(t, y, \dot{y}) = 0. \f] The initial values of this linear DAE, @f$ s_0 =
+ * \frac{\partial y_0}{\partial p} @f$ and @f$ \dot{s}_0 = \frac{\partial \dot{y}_0}{\partial p} @f$ have to be
+ * consistent with the sensitivity DAE. This functions updates the initial sensitivity\f$ s_0 \f$ and overwrites the
+ * time derivative \f$ \dot{s}_0 \f$ such that they are consistent.
  *
- *          The process follows closely the one of consistentInitialConditions() and, in fact, is a linearized version of it.
- *          This is necessary because the initial conditions of the sensitivity system \f$ s_0 \f$ and \f$ \dot{s}_0 \f$ are
- *          related to the initial conditions \f$ y_0 \f$ and \f$ \dot{y}_0 \f$ of the original DAE by differentiating them
- *          with respect to @f$ p @f$: @f$ s_0 = \frac{\partial y_0}{\partial p} @f$ and @f$ \dot{s}_0 = \frac{\partial \dot{y}_0}{\partial p}. @f$
- *          <ol>
- *              <li>Solve all algebraic equations in the model (e.g., quasi-stationary isotherms, reaction equilibria).
- *                 Once all @f$ c_i @f$, @f$ c_{p,i} @f$, and @f$ q_i^{(j)} @f$ have been computed, solve for the
- *                 fluxes @f$ j_{f,i} @f$. Let @f$ \mathcal{I}_a @f$ be the index set of algebraic equations, then, at this point, we have
- *                 \f[ \left( \frac{\partial F}{\partial y}(t, y_0, \dot{y}_0) s + \frac{\partial F}{\partial p}(t, y_0, \dot{y}_0) \right)_{\mathcal{I}_a} = 0. \f]</li>
- *              <li>Compute the time derivatives of the sensitivity @f$ \dot{s} @f$ such that the differential equations hold.
- *                 However, because of the algebraic equations, we need additional conditions to fully determine
+ *          The process follows closely the one of consistentInitialConditions() and, in fact, is a linearized version
+ * of it. This is necessary because the initial conditions of the sensitivity system \f$ s_0 \f$ and \f$ \dot{s}_0 \f$
+ * are related to the initial conditions \f$ y_0 \f$ and \f$ \dot{y}_0 \f$ of the original DAE by differentiating them
+ *          with respect to @f$ p @f$: @f$ s_0 = \frac{\partial y_0}{\partial p} @f$ and @f$ \dot{s}_0 = \frac{\partial
+ * \dot{y}_0}{\partial p}. @f$ <ol> <li>Solve all algebraic equations in the model (e.g., quasi-stationary isotherms,
+ * reaction equilibria). Once all @f$ c_i @f$, @f$ c_{p,i} @f$, and @f$ q_i^{(j)} @f$ have been computed, solve for the
+ *                 fluxes @f$ j_{f,i} @f$. Let @f$ \mathcal{I}_a @f$ be the index set of algebraic equations, then, at
+ * this point, we have \f[ \left( \frac{\partial F}{\partial y}(t, y_0, \dot{y}_0) s + \frac{\partial F}{\partial p}(t,
+ * y_0, \dot{y}_0) \right)_{\mathcal{I}_a} = 0. \f]</li> <li>Compute the time derivatives of the sensitivity @f$ \dot{s}
+ * @f$ such that the differential equations hold. However, because of the algebraic equations, we need additional
+ * conditions to fully determine
  *                 @f$ \dot{s}@f$. By differentiating the algebraic equations with respect to time, we get the
- *                 missing linear equations (recall that the sensitivity vector @f$ s @f$ is fixed). The resulting system
- *                 has a similar structure as the system Jacobian.
+ *                 missing linear equations (recall that the sensitivity vector @f$ s @f$ is fixed). The resulting
+ * system has a similar structure as the system Jacobian.
  *                 @f[ \begin{align}
  *                  \left[\begin{array}{c|ccc|c}
  *                     \dot{J}_0  &         &        &           &   \\
@@ -443,8 +463,9 @@ void MultiChannelTransportModel::initializeSensitivityStates(const std::vector<d
  *                 @f$ J_{i,f} @f$ matrices in the right column are missing.
  *
  *     Let @f$ \mathcal{I}_d @f$ denote the index set of differential equations.
- *     The right hand side of the linear system is given by @f[ -\frac{\partial F}{\partial y}(t, y, \dot{y}) s - \frac{\partial F}{\partial p}(t, y, \dot{y}), @f]
- *     which is 0 for algebraic equations (@f$ -\frac{\partial^2 F}{\partial t \partial p}@f$, to be more precise).
+ *     The right hand side of the linear system is given by @f[ -\frac{\partial F}{\partial y}(t, y, \dot{y}) s -
+ * \frac{\partial F}{\partial p}(t, y, \dot{y}), @f] which is 0 for algebraic equations (@f$ -\frac{\partial^2
+ * F}{\partial t \partial p}@f$, to be more precise).
  *
  *     The linear system is solved by backsubstitution. First, the diagonal blocks are solved in parallel.
  *     Then, the equations for the fluxes @f$ j_f @f$ are solved by substituting in the solution of the
@@ -458,8 +479,9 @@ void MultiChannelTransportModel::initializeSensitivityStates(const std::vector<d
  * @param [in] adRes Pointer to residual vector of AD datatypes with parameter sensitivities
  * @todo Decrease amount of allocated memory by partially using temporary vectors (state and Schur complement)
  */
-void MultiChannelTransportModel::consistentInitialSensitivity(const SimulationTime& simTime, const ConstSimulationState& simState,
-	std::vector<double*>& vecSensY, std::vector<double*>& vecSensYdot, active const* const adRes, util::ThreadLocalStorage& threadLocalMem)
+void MultiChannelTransportModel::consistentInitialSensitivity(
+	const SimulationTime& simTime, const ConstSimulationState& simState, std::vector<double*>& vecSensY,
+	std::vector<double*>& vecSensYdot, active const* const adRes, util::ThreadLocalStorage& threadLocalMem)
 {
 	BENCH_SCOPE(_timerConsistentInit);
 
@@ -494,20 +516,20 @@ void MultiChannelTransportModel::consistentInitialSensitivity(const SimulationTi
  * @brief Computes approximately / partially consistent initial values and time derivatives of sensitivity subsystems
  * @details Given the DAE \f[ F(t, y, \dot{y}) = 0, \f] and initial values \f$ y_0 \f$ and \f$ \dot{y}_0 \f$,
  *          the sensitivity system for a parameter @f$ p @f$ reads
- *          \f[ \frac{\partial F}{\partial y}(t, y, \dot{y}) s + \frac{\partial F}{\partial \dot{y}}(t, y, \dot{y}) \dot{s} + \frac{\partial F}{\partial p}(t, y, \dot{y}) = 0. \f]
- *          The initial values of this linear DAE, @f$ s_0 = \frac{\partial y_0}{\partial p} @f$ and @f$ \dot{s}_0 = \frac{\partial \dot{y}_0}{\partial p} @f$
- *          have to be consistent with the sensitivity DAE. This functions updates the initial sensitivity\f$ s_0 \f$ and overwrites the time
- *          derivative \f$ \dot{s}_0 \f$ such that they are consistent.
+ *          \f[ \frac{\partial F}{\partial y}(t, y, \dot{y}) s + \frac{\partial F}{\partial \dot{y}}(t, y, \dot{y})
+ * \dot{s} + \frac{\partial F}{\partial p}(t, y, \dot{y}) = 0. \f] The initial values of this linear DAE, @f$ s_0 =
+ * \frac{\partial y_0}{\partial p} @f$ and @f$ \dot{s}_0 = \frac{\partial \dot{y}_0}{\partial p} @f$ have to be
+ * consistent with the sensitivity DAE. This functions updates the initial sensitivity\f$ s_0 \f$ and overwrites the
+ * time derivative \f$ \dot{s}_0 \f$ such that they are consistent.
  *
- *          The process follows closely the one of leanConsistentInitialConditions() and, in fact, is a linearized version of it.
- *          This is necessary because the initial conditions of the sensitivity system \f$ s_0 \f$ and \f$ \dot{s}_0 \f$ are
- *          related to the initial conditions \f$ y_0 \f$ and \f$ \dot{y}_0 \f$ of the original DAE by differentiating them
- *          with respect to @f$ p @f$: @f$ s_0 = \frac{\partial y_0}{\partial p} @f$ and @f$ \dot{s}_0 = \frac{\partial \dot{y}_0}{\partial p}. @f$
- *          <ol>
- *              <li>Keep state and time derivative vectors as they are (i.e., do not solve algebraic equations).
- *                 Only solve for the fluxes @f$ j_{f,i} @f$ (only linear equations).</li>
- *              <li>Compute the time derivatives of the sensitivity @f$ \dot{s} @f$ such that the differential equations hold.
- *                 However, because of the algebraic equations, we need additional conditions to fully determine
+ *          The process follows closely the one of leanConsistentInitialConditions() and, in fact, is a linearized
+ * version of it. This is necessary because the initial conditions of the sensitivity system \f$ s_0 \f$ and \f$
+ * \dot{s}_0 \f$ are related to the initial conditions \f$ y_0 \f$ and \f$ \dot{y}_0 \f$ of the original DAE by
+ * differentiating them with respect to @f$ p @f$: @f$ s_0 = \frac{\partial y_0}{\partial p} @f$ and @f$ \dot{s}_0 =
+ * \frac{\partial \dot{y}_0}{\partial p}. @f$ <ol> <li>Keep state and time derivative vectors as they are (i.e., do not
+ * solve algebraic equations). Only solve for the fluxes @f$ j_{f,i} @f$ (only linear equations).</li> <li>Compute the
+ * time derivatives of the sensitivity @f$ \dot{s} @f$ such that the differential equations hold. However, because of
+ * the algebraic equations, we need additional conditions to fully determine
  *                 @f$ \dot{s}@f$. By differentiating the algebraic equations with respect to time, we get the
  *                 missing linear equations (recall that the sensitivity vector @f$ s @f$ is fixed). The resulting
  *                 equations are stated below:
@@ -521,8 +543,9 @@ void MultiChannelTransportModel::consistentInitialSensitivity(const SimulationTi
  *                 where @f$ \dot{J}_0 @f$ denotes the bulk block Jacobian with respect to @f$ \dot{y}@f$.
  *
  *     Let @f$ \mathcal{I}_d @f$ denote the index set of differential equations.
- *     The right hand side of the linear system is given by @f[ -\frac{\partial F}{\partial y}(t, y, \dot{y}) s - \frac{\partial F}{\partial p}(t, y, \dot{y}), @f]
- *     which is 0 for algebraic equations (@f$ -\frac{\partial^2 F}{\partial t \partial p}@f$, to be more precise).
+ *     The right hand side of the linear system is given by @f[ -\frac{\partial F}{\partial y}(t, y, \dot{y}) s -
+ * \frac{\partial F}{\partial p}(t, y, \dot{y}), @f] which is 0 for algebraic equations (@f$ -\frac{\partial^2
+ * F}{\partial t \partial p}@f$, to be more precise).
  *
  *     The linear system is solved by backsubstitution. First, the bulk block is solved.
  *     Then, the equations for the fluxes @f$ j_f @f$ are solved by substituting in the solution of the
@@ -536,8 +559,9 @@ void MultiChannelTransportModel::consistentInitialSensitivity(const SimulationTi
  * @param [in] adRes Pointer to residual vector of AD datatypes with parameter sensitivities
  * @todo Decrease amount of allocated memory by partially using temporary vectors (state and Schur complement)
  */
-void MultiChannelTransportModel::leanConsistentInitialSensitivity(const SimulationTime& simTime, const ConstSimulationState& simState,
-	std::vector<double*>& vecSensY, std::vector<double*>& vecSensYdot, active const* const adRes, util::ThreadLocalStorage& threadLocalMem)
+void MultiChannelTransportModel::leanConsistentInitialSensitivity(
+	const SimulationTime& simTime, const ConstSimulationState& simState, std::vector<double*>& vecSensY,
+	std::vector<double*>& vecSensYdot, active const* const adRes, util::ThreadLocalStorage& threadLocalMem)
 {
 	BENCH_SCOPE(_timerConsistentInit);
 
@@ -568,6 +592,6 @@ void MultiChannelTransportModel::leanConsistentInitialSensitivity(const Simulati
 	}
 }
 
-}  // namespace model
+} // namespace model
 
-}  // namespace cadet
+} // namespace cadet

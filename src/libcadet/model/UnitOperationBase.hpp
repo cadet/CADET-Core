@@ -1,9 +1,9 @@
 // =============================================================================
 //  CADET
-//  
+//
 //  Copyright © The CADET Authors
 //            Please see the CONTRIBUTORS.md file.
-//  
+//
 //  All rights reserved. This program and the accompanying materials
 //  are made available under the terms of the GNU Public License v3.0 (or, at
 //  your option, any later version) which accompanies this distribution, and
@@ -11,7 +11,7 @@
 // =============================================================================
 
 /**
- * @file 
+ * @file
  * Provides a base class for unit operation models.
  */
 
@@ -43,11 +43,13 @@ class IDynamicReactionModel;
 class UnitOperationBase : public IUnitOperation
 {
 public:
-
 	UnitOperationBase(UnitOpIdx unitOpIdx);
 	virtual ~UnitOperationBase() CADET_NOEXCEPT;
 
-	virtual UnitOpIdx unitOperationId() const CADET_NOEXCEPT { return _unitOpIdx; }
+	virtual UnitOpIdx unitOperationId() const CADET_NOEXCEPT
+	{
+		return _unitOpIdx;
+	}
 
 	virtual std::unordered_map<ParameterId, double> getAllParameterValues() const;
 	virtual double getParameterDouble(const ParameterId& pId) const;
@@ -64,11 +66,11 @@ public:
 	virtual unsigned int numSensParams() const;
 
 	virtual int residualSensFwdCombine(const SimulationTime& simTime, const ConstSimulationState& simState,
-		const std::vector<const double*>& yS, const std::vector<const double*>& ySdot, const std::vector<double*>& resS, active const* adRes,
-		double* const tmp1, double* const tmp2, double* const tmp3);
+									   const std::vector<const double*>& yS, const std::vector<const double*>& ySdot,
+									   const std::vector<double*>& resS, active const* adRes, double* const tmp1,
+									   double* const tmp2, double* const tmp3);
 
 protected:
-
 	void clearBindingModels() CADET_NOEXCEPT;
 	void clearDynamicReactionModels() CADET_NOEXCEPT;
 	void configureNonlinearSolver(IParameterProvider& paramProvider);
@@ -76,14 +78,14 @@ protected:
 
 	unsigned int maxBindingAdDirs() const CADET_NOEXCEPT;
 
-	UnitOpIdx _unitOpIdx; //!< Unit operation index
-	std::vector<IBindingModel*> _binding; //!< Binding model
-	bool _singleBinding; //!< Determines whether only a single binding model is present
+	UnitOpIdx _unitOpIdx;                             //!< Unit operation index
+	std::vector<IBindingModel*> _binding;             //!< Binding model
+	bool _singleBinding;                              //!< Determines whether only a single binding model is present
 	std::vector<IDynamicReactionModel*> _dynReaction; //!< Dynamic reaction model
 	bool _singleDynReaction; //!< Determines whether only a single dynamic reaction model is present
 
 	typedef std::unordered_map<ParameterId, active*> paramMap_t;
-	paramMap_t _parameters; //!< Provides access to all parameters
+	paramMap_t _parameters;                  //!< Provides access to all parameters
 	std::unordered_set<active*> _sensParams; //!< Holds all parameters with activated AD directions
 
 	nonlin::Solver* _nonlinearSolver; //!< Solver for nonlinear equations (consistent initialization)
@@ -92,4 +94,4 @@ protected:
 } // namespace model
 } // namespace cadet
 
-#endif  // LIBCADET_UNITOPERATIONBASE_HPP_
+#endif // LIBCADET_UNITOPERATIONBASE_HPP_

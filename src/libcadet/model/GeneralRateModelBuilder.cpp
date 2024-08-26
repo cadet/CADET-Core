@@ -6,89 +6,93 @@
 #include "LoggingUtils.hpp"
 #include "Logging.hpp"
 
-
 namespace cadet
 {
-	namespace model
+namespace model
+{
+
+IUnitOperation* selectAxialFlowDiscretizationGRM(UnitOpIdx uoId, IParameterProvider& paramProvider)
+{
+	IUnitOperation* model = nullptr;
+
+	paramProvider.pushScope("discretization");
+
+	if (paramProvider.exists("SPATIAL_METHOD"))
 	{
 
-		IUnitOperation* selectAxialFlowDiscretizationGRM(UnitOpIdx uoId, IParameterProvider& paramProvider)
-		{
-			IUnitOperation* model = nullptr;
-
-			paramProvider.pushScope("discretization");
-
-			if (paramProvider.exists("SPATIAL_METHOD")) {
-
-				const std::string discName = paramProvider.getString("SPATIAL_METHOD");
+		const std::string discName = paramProvider.getString("SPATIAL_METHOD");
 #ifdef ENABLE_DG
-				if (discName == "DG")
-					model = new GeneralRateModelDG(uoId);
-				else if (discName == "FV")
+		if (discName == "DG")
+			model = new GeneralRateModelDG(uoId);
+		else if (discName == "FV")
 #else
-				if (discName == "FV")
+		if (discName == "FV")
 #endif
-					model = createAxialFVGRM(uoId);
-				else
-				{
-					LOG(Error) << "Unknown discretization type " << discName << " for unit " << uoId;
-				}
-			}
-			else {
-				model = createAxialFVGRM(uoId);
-			}
-
-			paramProvider.popScope();
-
-			return model;
-		}
-
-		IUnitOperation* selectRadialFlowDiscretizationGRM(UnitOpIdx uoId, IParameterProvider& paramProvider)
+			model = createAxialFVGRM(uoId);
+		else
 		{
-			IUnitOperation* model = nullptr;
-
-			paramProvider.pushScope("discretization");
-
-			if (paramProvider.exists("SPATIAL_METHOD")) {
-
-				const std::string discName = paramProvider.getString("SPATIAL_METHOD");
-
-				if (discName == "DG")
-				{
-					LOG(Error) << "Radial flow not implemented for DG discretization yet, was called for unit " << uoId;
-				}
-				else if (discName == "FV")
-					model = createRadialFVGRM(uoId);
-				else
-				{
-					LOG(Error) << "Unknown discretization type " << discName << " for unit " << uoId;
-				}
-			}
-			else {
-				model = createRadialFVGRM(uoId);
-			}
-
-			paramProvider.popScope();
-
-			return model;
+			LOG(Error) << "Unknown discretization type " << discName << " for unit " << uoId;
 		}
+	}
+	else
+	{
+		model = createAxialFVGRM(uoId);
+	}
 
-		void registerGeneralRateModel(std::unordered_map<std::string, std::function<IUnitOperation* (UnitOpIdx, IParameterProvider&)>>& models)
+	paramProvider.popScope();
+
+	return model;
+}
+
+IUnitOperation* selectRadialFlowDiscretizationGRM(UnitOpIdx uoId, IParameterProvider& paramProvider)
+{
+	IUnitOperation* model = nullptr;
+
+	paramProvider.pushScope("discretization");
+
+	if (paramProvider.exists("SPATIAL_METHOD"))
+	{
+
+		const std::string discName = paramProvider.getString("SPATIAL_METHOD");
+
+		if (discName == "DG")
 		{
-			typedef GeneralRateModel<parts::AxialConvectionDispersionOperator> AxialGRM;
-			typedef GeneralRateModel<parts::RadialConvectionDispersionOperator> RadialGRM;
+			LOG(Error) << "Radial flow not implemented for DG discretization yet, was called for unit " << uoId;
+		}
+		else if (discName == "FV")
+			model = createRadialFVGRM(uoId);
+		else
+		{
+			LOG(Error) << "Unknown discretization type " << discName << " for unit " << uoId;
+		}
+	}
+	else
+	{
+		model = createRadialFVGRM(uoId);
+	}
+
+	paramProvider.popScope();
+
+	return model;
+}
+
+void registerGeneralRateModel(
+	std::unordered_map<std::string, std::function<IUnitOperation*(UnitOpIdx, IParameterProvider&)>>& models)
+{
+	typedef GeneralRateModel<parts::AxialConvectionDispersionOperator> AxialGRM;
+	typedef GeneralRateModel<parts::RadialConvectionDispersionOperator> RadialGRM;
 
 #ifdef ENABLE_DG
-			models[GeneralRateModelDG::identifier()] = selectAxialFlowDiscretizationGRM;
-			models["GRM_DG"] = selectAxialFlowDiscretizationGRM;
+	models[GeneralRateModelDG::identifier()] = selectAxialFlowDiscretizationGRM;
+	models["GRM_DG"] = selectAxialFlowDiscretizationGRM;
 #endif
-			models[AxialGRM::identifier()] = selectAxialFlowDiscretizationGRM;
-			models["GRM"] = selectAxialFlowDiscretizationGRM;
+	models[AxialGRM::identifier()] = selectAxialFlowDiscretizationGRM;
+	models["GRM"] = selectAxialFlowDiscretizationGRM;
 
-			models[RadialGRM::identifier()] = selectRadialFlowDiscretizationGRM;
-			models["RGRM"] = selectRadialFlowDiscretizationGRM;
-		}
+	models[RadialGRM::identifier()] = selectRadialFlowDiscretizationGRM;
+	models["RGRM"] = selectRadialFlowDiscretizationGRM;
+}
 
-	}  // namespace model
+} // namespace model
 
-}  // namespace cadet
+} // namespace cadet
