@@ -187,7 +187,7 @@ jobs:
       - name: Install Dependencies
         run: |
           brew update > /dev/null || true
-          brew install cmake --without-docs
+          brew install cmake
           brew install hdf5
           brew install tbb
           brew install eigen
