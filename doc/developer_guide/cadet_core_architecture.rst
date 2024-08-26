@@ -1,4 +1,4 @@
-.. _cadet_core_architecture
+.. _cadet_core_architecture:
 
 Software Architecture
 =====================

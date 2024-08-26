@@ -1,4 +1,4 @@
-.. _debugging
+.. _debugging:
 
 CADET-Core debugging
 ====================
