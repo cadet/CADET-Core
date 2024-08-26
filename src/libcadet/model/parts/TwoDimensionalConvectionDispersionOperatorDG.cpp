@@ -1219,30 +1219,9 @@ int TwoDimensionalConvectionDispersionOperatorDG::residualImpl(const IModel& mod
 				// reuse "right" radial flux as "left" radial flux in next iteration
 				_gStarDispR.col(0) = _gStarDispR.col(1);
 
-				////// todo delete
-
-				//std::cout << "zIdx rIdx: " << zEidx << ", " << rEidx << std::endl;
-
-				//std::cout << "deltaZ\n" << static_cast<double>(_axDelta) << std::endl;
-				//std::cout << "_axLiftM\n" << _axLiftM << std::endl;
-				//std::cout << "_axInvMM\n" << _axInvMM << std::endl;
-				//std::cout << "_gStarDispTildeZ\n" << _gStarDispTildeZ.template cast<double>() << std::endl;
-				//std::cout << "_axTransStiffM\n" << _axTransStiffM << std::endl;
-
-
 			}
 		}
 	}
-
-	//////// todo delete
-	//ConstMatrixMap<StateType> _C(y + offsetC, _axNPoints, _radNPoints, Stride<Dynamic, Dynamic>(_radNodeStride, _axNodeStride));
-	//ConstMatrixMap<StateType> _GzGlobal(reinterpret_cast<StateType*>(&_axAuxStateG[0]), _axNPoints, _radNPoints, Stride<Dynamic, Dynamic>(1, _radNPoints));
-	//ConstMatrixMap<StateType> _GrGlobal(reinterpret_cast<StateType*>(&_radAuxStateG[0]), _axNPoints, _radNPoints, Stride<Dynamic, Dynamic>(1, _radNPoints));
-	//MatrixMap<ResidualType> _Res(res + offsetC, _axNPoints, _radNPoints, Stride<Dynamic, Dynamic>(_radNodeStride, _axNodeStride));
-	//std::cout << "_C\n" << _C.template cast<double>() << std::endl;
-	//std::cout << "_GzGlobal\n" << _GzGlobal.template cast<double>() << std::endl;
-	//std::cout << "_GrGlobal\n" << _GrGlobal.template cast<double>() << std::endl;
-	//std::cout << "_Res\n" << _Res.template cast<double>() << std::endl;
 
 	return 0;
 }
@@ -1383,22 +1362,22 @@ bool TwoDimensionalConvectionDispersionOperatorDG::computeConvDispJacobianBlocks
 		for (int j = 0; j < _axNNodes; j++)
 			auxCder.block(j * _radNNodes, j * 3 * _radNNodes, _radNNodes, 3 * _radNNodes) = auxCderSubBlock;
 
-	auto Yblock = [](const double a, const double b, const double c, const double d, const int size) {
-		
+		auto Yblock = [](const double a, const double b, const double c, const double d, const int size) {
+
 			MatrixXd A = MatrixXd::Zero(size, 3 * size);
 			A(0, size - 1) = a;
 			A(0, size) = b;
 			A(size - 1, 2 * size - 1) = c;
 			A(size - 1, 2 * size) = d;
 
-		return A;
-		};
+			return A;
+			};
 
-	for (int i = 0; i < 3; i++) // we have three unique auxiliary blocks
-	{
+		for (int i = 0; i < 3; i++) // we have three unique auxiliary blocks
+		{
 			MatrixXd Y1 = Yblock(0.5, 0.5, 0.5, 0.5, _radNNodes);
 
-		if (_radNElem == 1)
+			if (_radNElem == 1)
 				Y1 = Yblock(0.0, 1.0, 1.0, 0.0, _radNNodes);
 			else if (i == 0)
 				Y1 = Yblock(0.0, 1.0, 0.5, 0.5, _radNNodes);
@@ -1408,21 +1387,13 @@ bool TwoDimensionalConvectionDispersionOperatorDG::computeConvDispJacobianBlocks
 			for (int j = 0; j < _axNNodes; j++)
 				fStarAux2.block(j * _radNNodes, j * 3 * _radNNodes, _radNNodes, 3 * _radNNodes) = Y1;
 
-		// note: without deltaR, which will be added in final Jacobian block, so that we only have three unique auxiliary blocks here
+			// note: without deltaR, which will be added in final Jacobian block, so that we only have three unique auxiliary blocks here
 			GrDer[i] = MzKronMrInv * (MzKronBr * fStarAux2 - MzKronSrT * auxCder);
-		
-		// todo delete
-		//std::cout << std::setprecision(2) << "fStarAux2\n" << fStarAux2 << std::endl;
 
-		fStarAux2.setZero();
+
+			fStarAux2.setZero();
+		}
 	}
-	}
-
-		// todo delete
-	//std::cout << "GrDer[0]\n" << GrDer[0] << std::endl;
-	//std::cout << "GrDer[1]\n" << GrDer[1] << std::endl;
-	//std::cout << "GrDer[2]\n" << GrDer[2] << std::endl;
-
 
 	const int uAxElem = std::min(5, static_cast<int>(_axNElem)); // number of unique axial Jacobian blocks (per radial element)
 
@@ -1495,23 +1466,23 @@ bool TwoDimensionalConvectionDispersionOperatorDG::computeConvDispJacobianBlocks
 			if (rElem > 0) // else zero as per boundary condition
 			{
 				const int ll = rElem == 1 ? 0 : 1;
-				const int lr = rElem == _axNElem - 1 ? 2 : 1;
+				const int lr = rElem == _radNElem - 1 ? 2 : 1;
 
 				gStarR.block(i * _radNNodes, i * 5 * _radNNodes, 1, 3 * _radNNodes) = 0.5 * GrDer[ll].block((i + 1) * _radNNodes - 1, i * 3 * _radNNodes, 1, 3 * _radNNodes);
 				gStarR.block(i * _radNNodes, i * 5 * _radNNodes + _radNNodes, 1, 3 * _radNNodes) += 0.5 * GrDer[lr].block(i * _radNNodes, i * 3 * _radNNodes, 1, 3 * _radNNodes);
 			}
 			if (rElem < _radNElem - 1) // else zero as per boundary condition
-		{
+			{
 				const int rl = rElem == 0 ? 0 : 1;
-				const int rr = rElem + 1 == _axNElem - 1 ? 2 : 1;
-				gStarR.block(i * _radNNodes, i * 5 * _radNNodes + _radNNodes, 1, 3 * _radNNodes) = 0.5 * GrDer[rl].block((i + 1) * _radNNodes - 1, i * 3 * _radNNodes, 1, 3 * _radNNodes);
-				gStarR.block(i * _radNNodes, i * 5 * _radNNodes + 2 * _radNNodes, 1, 3 * _radNNodes) += 0.5 * GrDer[rr].block(i * _radNNodes, i * 3 * _radNNodes, 1, 3 * _radNNodes);
+				const int rr = rElem + 1 == _radNElem - 1 ? 2 : 1;
+				gStarR.block(i * _radNNodes + _radPolyDeg, i * 5 * _radNNodes + _radNNodes, 1, 3 * _radNNodes) = 0.5 * GrDer[rl].block((i + 1) * _radNNodes - 1, i * 3 * _radNNodes, 1, 3 * _radNNodes);
+				gStarR.block(i * _radNNodes + _radPolyDeg, i * 5 * _radNNodes + 2 * _radNNodes, 1, 3 * _radNNodes) += 0.5 * GrDer[rr].block(i * _radNNodes, i * 3 * _radNNodes, 1, 3 * _radNNodes);
 			}
 		}
 
 		MatrixXd _BrCyl = dgtoolbox::liftingMatrixQuadratic(_radNNodes);
-		_BrCyl(0, 0) *= static_cast<double>(_radialElemInterfaces[rElem]);
-		_BrCyl(_radPolyDeg, _radPolyDeg) *= static_cast<double>(_radialElemInterfaces[rElem + 1]);
+		_BrCyl(0, 0) = -static_cast<double>(_radialElemInterfaces[rElem]);
+		_BrCyl(_radPolyDeg, _radPolyDeg) = static_cast<double>(_radialElemInterfaces[rElem + 1]);
 
 		MatrixXd MzKronBrCyl = MatrixXd::Zero(Np, Np);
 		kroneckerProduct(_axMM, _BrCyl, MzKronBrCyl);
@@ -1530,13 +1501,7 @@ bool TwoDimensionalConvectionDispersionOperatorDG::computeConvDispJacobianBlocks
 		for (int zNode = 0; zNode < _axNNodes; zNode++) // todo can this be done more elegantly?
 			_jacRadDispersion[rElem].block(0, (5 * zNode + 1) * _radNNodes, Np, 3 * _radNNodes) -= 2.0 / static_cast<double>(_radDelta[rElem]) * 2.0 / static_cast<double>(_radDelta[rElem]) * radDisp * MzKronMrCylInv * (MzKronSrTCyl * GrDer[auxIdx].block(0, zNode * 3 * _radNNodes, Np, 3 * _radNNodes));
 
-		//// todo delete
-		//std::cout << std::setprecision(2) << "gStarR\n" << gStarR << std::endl;
-		//std::cout << "_BrCyl\n" << _BrCyl << std::endl;
-		//std::cout << "_jacRadDispersion for rElem " << rElem << std::endl << _jacRadDispersion[rElem] << std::endl;
-
 		gStarR.setZero();
-
 	}
 
 	return 1;
@@ -1548,7 +1513,6 @@ bool TwoDimensionalConvectionDispersionOperatorDG::computeConvDispJacobianBlocks
  * @param [in] jac row iterator at first (i.e. upper left) entry
  * @param [in] offColumn column to row offset
  * @param [in] depElem number of elements the element block element depends on
- * @param [in] axialElemDep determines if axial or radial element strides should be performed between Jacobian blocks
  */
 void TwoDimensionalConvectionDispersionOperatorDG::addAxElemBlockToJac(Eigen::MatrixXd block, linalg::BandedEigenSparseRowIterator& jac, const int offColumn, const int depElem)
 {
