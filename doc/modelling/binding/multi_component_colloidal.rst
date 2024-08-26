@@ -3,7 +3,7 @@
 Multi Component Colloidal
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The colloidal isotherm assumes that adsorbed protein molecules are evenly distributed in a hexagonal arrangement at equilibrium, with the coverage varying via adjustment of the lattice size :cite:`Xu2009`. 
+The colloidal isotherm assumes that adsorbed protein molecules are evenly distributed in a hexagonal arrangement at equilibrium, with the coverage varying via adjustment of the lattice size :cite:`Xu2009`.
 Protein-surface interactions are captured in a parameter :math:`K_{e}`.
 The surface coverage is modulated at higher coverage, described by a Yukawa potential.
 The Yukawa constant :math:`b_{pp}` characterizes protein-protein interactions.
@@ -11,13 +11,13 @@ Since these are long-ranged, they are assumed to be primarily electrostatic for 
 
 .. math::
     \begin{aligned}
-        \frac{{dq}_{i}}{dt} = & k_{kin,i} \left( c_{p,i} -  c_{p,i}^\star \right) 
+        \frac{{dq}_{i}}{dt} = & k_{kin,i} \left( c_{p,i} -  c_{p,i}^\star \right)
          \quad
          i = 0, \dots, N_{comp} - 1,
          \\
         c_{p,i}^\star = & q_{i} \exp  \Biggl[ \frac{n\left( 3 + \kappa R \right)}{4 q_{tot}} \sum_{j=0}^{N_{bound}} {q_{j} \sqrt{b_{pp,i} b_{pp,j}}} \frac{r_{i} + r_{j}}{2R}
          \exp \bigl[ - \kappa \left( R - \left( r_{i} + r_{j} \right) \right) \bigr] \\
-         &\phantom{q_{i} \exp  \Biggl[} - ln \left(K_{e,i} \right) \Biggr], 
+         &\phantom{q_{i} \exp  \Biggl[} - ln \left(K_{e,i} \right) \Biggr],
     \end{aligned}
 
 where :math:`n` is the coordination number describing the two-dimensional lattice agreement of protein molecules on the resin surface (:math:`n=6` for hexagonal arrangement).
@@ -62,7 +62,7 @@ Optionally, they can also be varied as a function of the pH, then represented by
     ln \left( K_{e, i} \right) &= {c_{p,1}}^{k_{e,i}} \left( k_{a,i} {c_{p, 0}}^{-k_{b,i}} + k_{c,i} \exp \left( k_{d,i} c_{p,0} \right) \right) \\
     b_{pp,i} &= {c_{p,1}}^{b_{e,i}} \left( b_{a,i} {c_{p,0}}^{b_{b,i}} + b_{c,i} \exp \left( b_{d,i} c_{p,0} \right) \right),
 
-where :math:`k_{a-e}`, :math:`b_{a-e}` are fitting constants. 
+where :math:`k_{a-e}`, :math:`b_{a-e}` are fitting constants.
 
 
 Because the model becomes mathematically singular at zero concentration, the original equation is replaced by its mathematical limit below a threshold concentration :math:`c_\epsilon > 0`.
@@ -74,4 +74,3 @@ Because the model becomes mathematically singular at zero concentration, the ori
 
 
 For more information on model parameters required to define in CADET file format, see :ref:`multi_component_colloidal_config`.
-

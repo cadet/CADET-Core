@@ -43,50 +43,59 @@
  ------------------------
 */
 
-
 namespace cadet
 {
 
 namespace model
 {
 
-inline const char* MichaelisMentenParamHandler::identifier() CADET_NOEXCEPT { return "MICHAELIS_MENTEN"; }
+inline const char* MichaelisMentenParamHandler::identifier() CADET_NOEXCEPT
+{
+	return "MICHAELIS_MENTEN";
+}
 
-inline bool MichaelisMentenParamHandler::validateConfig(unsigned int nReactions, unsigned int nComp, unsigned int const* nBoundStates)
+inline bool MichaelisMentenParamHandler::validateConfig(unsigned int nReactions, unsigned int nComp,
+														unsigned int const* nBoundStates)
 {
 	return true;
 }
 
-inline const char* ExtMichaelisMentenParamHandler::identifier() CADET_NOEXCEPT { return "EXT_MICHAELIS_MENTEN"; }
+inline const char* ExtMichaelisMentenParamHandler::identifier() CADET_NOEXCEPT
+{
+	return "EXT_MICHAELIS_MENTEN";
+}
 
-inline bool ExtMichaelisMentenParamHandler::validateConfig(unsigned int nReactions, unsigned int nComp, unsigned int const* nBoundStates)
+inline bool ExtMichaelisMentenParamHandler::validateConfig(unsigned int nReactions, unsigned int nComp,
+														   unsigned int const* nBoundStates)
 {
 	return true;
 }
 
 namespace
 {
-	/**
-	 * @brief Registers a matrix-valued parameter (row-major storage) with components as rows
-	 * @details The matrix-valued parameter has as many rows as there are components in the system.
-	 * @param [in,out] parameters Parameter map
-	 * @param [in] unitOpIdx Unit operation id
-	 * @param [in] parTypeIdx Particle type index
-	 * @param [in] paramName Name of the parameter
-	 * @param [in] mat Matrix to register
-	 */
-	inline void registerCompRowMatrix(std::unordered_map<ParameterId, active*>& parameters, UnitOpIdx unitOpIdx, ParticleTypeIdx parTypeIdx, const std::string& paramName, cadet::linalg::ActiveDenseMatrix& mat)
-	{
-		const cadet::StringHash hashName = cadet::hashStringRuntime(paramName);
-		cadet::registerParam2DArray(parameters, mat.data(), mat.elements(), [=](bool multi, unsigned int row, unsigned int col)
-			{
-				return cadet::makeParamId(hashName, unitOpIdx, row, parTypeIdx, cadet::BoundStateIndep, col, cadet::SectionIndep);
-			},
-			mat.columns()
-		);
-	}
+/**
+ * @brief Registers a matrix-valued parameter (row-major storage) with components as rows
+ * @details The matrix-valued parameter has as many rows as there are components in the system.
+ * @param [in,out] parameters Parameter map
+ * @param [in] unitOpIdx Unit operation id
+ * @param [in] parTypeIdx Particle type index
+ * @param [in] paramName Name of the parameter
+ * @param [in] mat Matrix to register
+ */
+inline void registerCompRowMatrix(std::unordered_map<ParameterId, active*>& parameters, UnitOpIdx unitOpIdx,
+								  ParticleTypeIdx parTypeIdx, const std::string& paramName,
+								  cadet::linalg::ActiveDenseMatrix& mat)
+{
+	const cadet::StringHash hashName = cadet::hashStringRuntime(paramName);
+	cadet::registerParam2DArray(
+		parameters, mat.data(), mat.elements(),
+		[=](bool multi, unsigned int row, unsigned int col) {
+			return cadet::makeParamId(hashName, unitOpIdx, row, parTypeIdx, cadet::BoundStateIndep, col,
+									  cadet::SectionIndep);
+		},
+		mat.columns());
 }
-
+} // namespace
 
 /**
  * @brief Defines a Michaelis-Menten reaction kinetic with simple inhibition
@@ -103,35 +112,55 @@ namespace
  *          In addition, the reaction might be inhibited by other components. In this
  *          case, the flux has the form
  *          \f[ \begin{align}
- *              \nu_i = \frac{\mu_{\mathrm{max},i} c_S}{k_{\mathrm{MM},i} + c_S} \prod_j \frac{k_{\mathrm{I},i,j}}{k_{\mathrm{I},i,j} + c_{\mathrm{I},j}}.
- *          \end{align} \f]
- *          The value of \f$ k_{\mathrm{I},i,j} \f$ decides whether component \f$ j \f$
- *          inhibits reaction \f$ i \f$. If \f$ k_{\mathrm{I},i,j} \leq 0 \f$, the component
- *          does not inhibit the reaction.
+ *              \nu_i = \frac{\mu_{\mathrm{max},i} c_S}{k_{\mathrm{MM},i} + c_S} \prod_j
+ * \frac{k_{\mathrm{I},i,j}}{k_{\mathrm{I},i,j} + c_{\mathrm{I},j}}. \end{align} \f] The value of \f$ k_{\mathrm{I},i,j}
+ * \f$ decides whether component \f$ j \f$ inhibits reaction \f$ i \f$. If \f$ k_{\mathrm{I},i,j} \leq 0 \f$, the
+ * component does not inhibit the reaction.
  *
  *          Only reactions in liquid phase are supported (no solid phase or cross-phase reactions).
  * @tparam ParamHandler_t Type that can add support for external function dependence
  */
-template <class ParamHandler_t>
-class MichaelisMentenReactionBase : public DynamicReactionModelBase
+template <class ParamHandler_t> class MichaelisMentenReactionBase : public DynamicReactionModelBase
 {
 public:
-
-	MichaelisMentenReactionBase() : _idxSubstrate(0) { }
-	virtual ~MichaelisMentenReactionBase() CADET_NOEXCEPT { }
-
-	static const char* identifier() { return ParamHandler_t::identifier(); }
-	virtual const char* name() const CADET_NOEXCEPT { return ParamHandler_t::identifier(); }
-
-	virtual void setExternalFunctions(IExternalFunction** extFuns, unsigned int size) { _paramHandler.setExternalFunctions(extFuns, size); }
-	virtual bool dependsOnTime() const CADET_NOEXCEPT { return ParamHandler_t::dependsOnTime(); }
-	virtual bool requiresWorkspace() const CADET_NOEXCEPT { return true; }
-	virtual unsigned int workspaceSize(unsigned int nComp, unsigned int totalNumBoundStates, unsigned int const* nBoundStates) const CADET_NOEXCEPT
+	MichaelisMentenReactionBase() : _idxSubstrate(0)
 	{
-		return _paramHandler.cacheSize(_stoichiometryBulk.columns(), nComp, totalNumBoundStates) + std::max(_stoichiometryBulk.columns() * sizeof(active), 2 * (_nComp + totalNumBoundStates) * sizeof(double));
+	}
+	virtual ~MichaelisMentenReactionBase() CADET_NOEXCEPT
+	{
 	}
 
-	virtual bool configureModelDiscretization(IParameterProvider& paramProvider, unsigned int nComp, unsigned int const* nBound, unsigned int const* boundOffset)
+	static const char* identifier()
+	{
+		return ParamHandler_t::identifier();
+	}
+	virtual const char* name() const CADET_NOEXCEPT
+	{
+		return ParamHandler_t::identifier();
+	}
+
+	virtual void setExternalFunctions(IExternalFunction** extFuns, unsigned int size)
+	{
+		_paramHandler.setExternalFunctions(extFuns, size);
+	}
+	virtual bool dependsOnTime() const CADET_NOEXCEPT
+	{
+		return ParamHandler_t::dependsOnTime();
+	}
+	virtual bool requiresWorkspace() const CADET_NOEXCEPT
+	{
+		return true;
+	}
+	virtual unsigned int workspaceSize(unsigned int nComp, unsigned int totalNumBoundStates,
+									   unsigned int const* nBoundStates) const CADET_NOEXCEPT
+	{
+		return _paramHandler.cacheSize(_stoichiometryBulk.columns(), nComp, totalNumBoundStates) +
+			   std::max(_stoichiometryBulk.columns() * sizeof(active),
+						2 * (_nComp + totalNumBoundStates) * sizeof(double));
+	}
+
+	virtual bool configureModelDiscretization(IParameterProvider& paramProvider, unsigned int nComp,
+											  unsigned int const* nBound, unsigned int const* boundOffset)
 	{
 		DynamicReactionModelBase::configureModelDiscretization(paramProvider, nComp, nBound, boundOffset);
 
@@ -139,7 +168,9 @@ public:
 		{
 			const std::size_t numElements = paramProvider.numElements("MM_STOICHIOMETRY_BULK");
 			if (numElements % nComp != 0)
-				throw InvalidParameterException("Size of field MM_STOICHIOMETRY_BULK must be a positive multiple of NCOMP (" + std::to_string(nComp) + ")");
+				throw InvalidParameterException(
+					"Size of field MM_STOICHIOMETRY_BULK must be a positive multiple of NCOMP (" +
+					std::to_string(nComp) + ")");
 
 			const unsigned int nReactions = numElements / nComp;
 
@@ -150,8 +181,14 @@ public:
 		return true;
 	}
 
-	virtual unsigned int numReactionsLiquid() const CADET_NOEXCEPT { return _stoichiometryBulk.columns(); }
-	virtual unsigned int numReactionsCombined() const CADET_NOEXCEPT { return 0; }
+	virtual unsigned int numReactionsLiquid() const CADET_NOEXCEPT
+	{
+		return _stoichiometryBulk.columns();
+	}
+	virtual unsigned int numReactionsCombined() const CADET_NOEXCEPT
+	{
+		return 0;
+	}
 
 	CADET_DYNAMICREACTIONMODEL_BOILERPLATE
 
@@ -166,11 +203,14 @@ protected:
 		_paramHandler.configure(paramProvider, _stoichiometryBulk.columns(), _nComp, _nBoundStates);
 		_paramHandler.registerParameters(_parameters, unitOpIdx, parTypeIdx, _nComp, _nBoundStates);
 
-		if ((_stoichiometryBulk.columns() > 0) && ((_paramHandler.vMax().size() < _stoichiometryBulk.columns()) || (_paramHandler.kMM().size() < _stoichiometryBulk.columns())))
+		if ((_stoichiometryBulk.columns() > 0) && ((_paramHandler.vMax().size() < _stoichiometryBulk.columns()) ||
+												   (_paramHandler.kMM().size() < _stoichiometryBulk.columns())))
 			throw InvalidParameterException("MM_VMAX and MM_KMM have to have the same size (number of reactions)");
-		
-		if ((_stoichiometryBulk.columns() > 0) && (_paramHandler.kInhibit().size() < _stoichiometryBulk.columns() * _nComp))
-			throw InvalidParameterException("MM_KI have to have the size (number of reactions) x (number of components)");
+
+		if ((_stoichiometryBulk.columns() > 0) &&
+			(_paramHandler.kInhibit().size() < _stoichiometryBulk.columns() * _nComp))
+			throw InvalidParameterException(
+				"MM_KI have to have the size (number of reactions) x (number of components)");
 
 		if (paramProvider.exists("MM_STOICHIOMETRY_BULK"))
 		{
@@ -202,10 +242,11 @@ protected:
 	}
 
 	template <typename StateType, typename ResidualType, typename ParamType, typename FactorType>
-	int residualLiquidImpl(double t, unsigned int secIdx, const ColumnPosition& colPos,
-		StateType const* y, ResidualType* res, const FactorType& factor, LinearBufferAllocator workSpace) const
+	int residualLiquidImpl(double t, unsigned int secIdx, const ColumnPosition& colPos, StateType const* y,
+						   ResidualType* res, const FactorType& factor, LinearBufferAllocator workSpace) const
 	{
-		typename ParamHandler_t::ParamsHandle const p = _paramHandler.update(t, secIdx, colPos, _nComp, _nBoundStates, workSpace);
+		typename ParamHandler_t::ParamsHandle const p =
+			_paramHandler.update(t, secIdx, colPos, _nComp, _nBoundStates, workSpace);
 
 		// Calculate fluxes
 		typedef typename DoubleActivePromoter<StateType, ParamType>::type flux_t;
@@ -219,11 +260,13 @@ protected:
 				continue;
 			}
 
-			fluxes[r] = static_cast<typename DoubleActiveDemoter<flux_t, active>::type>(p->vMax[r]) * y[idxSubs] / (static_cast<typename DoubleActiveDemoter<flux_t, active>::type>(p->kMM[r]) + y[idxSubs]);
+			fluxes[r] = static_cast<typename DoubleActiveDemoter<flux_t, active>::type>(p->vMax[r]) * y[idxSubs] /
+						(static_cast<typename DoubleActiveDemoter<flux_t, active>::type>(p->kMM[r]) + y[idxSubs]);
 
 			for (int comp = 0; comp < _nComp; ++comp)
 			{
-				const flux_t kI = static_cast<typename DoubleActiveDemoter<flux_t, active>::type>(p->kInhibit[_nComp * r + comp]);
+				const flux_t kI =
+					static_cast<typename DoubleActiveDemoter<flux_t, active>::type>(p->kInhibit[_nComp * r + comp]);
 				if (kI <= 0.0)
 					continue;
 
@@ -238,8 +281,9 @@ protected:
 	}
 
 	template <typename StateType, typename ResidualType, typename ParamType>
-	int residualCombinedImpl(double t, unsigned int secIdx, const ColumnPosition& colPos,
-		StateType const* yLiquid, StateType const* ySolid, ResidualType* resLiquid, ResidualType* resSolid, double factor, LinearBufferAllocator workSpace) const
+	int residualCombinedImpl(double t, unsigned int secIdx, const ColumnPosition& colPos, StateType const* yLiquid,
+							 StateType const* ySolid, ResidualType* resLiquid, ResidualType* resSolid, double factor,
+							 LinearBufferAllocator workSpace) const
 	{
 		std::fill_n(resLiquid, _nComp, 0.0);
 
@@ -252,9 +296,11 @@ protected:
 	}
 
 	template <typename RowIterator>
-	void jacobianLiquidImpl(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, double factor, const RowIterator& jac, LinearBufferAllocator workSpace) const
+	void jacobianLiquidImpl(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, double factor,
+							const RowIterator& jac, LinearBufferAllocator workSpace) const
 	{
-		typename ParamHandler_t::ParamsHandle const p = _paramHandler.update(t, secIdx, colPos, _nComp, _nBoundStates, workSpace);
+		typename ParamHandler_t::ParamsHandle const p =
+			_paramHandler.update(t, secIdx, colPos, _nComp, _nBoundStates, workSpace);
 
 		for (int r = 0; r < _stoichiometryBulk.columns(); ++r)
 		{
@@ -303,7 +349,9 @@ protected:
 	}
 
 	template <typename RowIteratorLiquid, typename RowIteratorSolid>
-	void jacobianCombinedImpl(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* yLiquid, double const* ySolid, double factor, const RowIteratorLiquid& jacLiquid, const RowIteratorSolid& jacSolid, LinearBufferAllocator workSpace) const
+	void jacobianCombinedImpl(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* yLiquid,
+							  double const* ySolid, double factor, const RowIteratorLiquid& jacLiquid,
+							  const RowIteratorSolid& jacSolid, LinearBufferAllocator workSpace) const
 	{
 	}
 };
@@ -313,13 +361,14 @@ typedef MichaelisMentenReactionBase<ExtMichaelisMentenParamHandler> ExternalMich
 
 namespace reaction
 {
-	void registerMichaelisMentenReaction(std::unordered_map<std::string, std::function<model::IDynamicReactionModel*()>>& reactions)
-	{
-		reactions[MichaelisMentenReaction::identifier()] = []() { return new MichaelisMentenReaction(); };
-		reactions[ExternalMichaelisMentenReaction::identifier()] = []() { return new ExternalMichaelisMentenReaction(); };
-	}
-}  // namespace reaction
+void registerMichaelisMentenReaction(
+	std::unordered_map<std::string, std::function<model::IDynamicReactionModel*()>>& reactions)
+{
+	reactions[MichaelisMentenReaction::identifier()] = []() { return new MichaelisMentenReaction(); };
+	reactions[ExternalMichaelisMentenReaction::identifier()] = []() { return new ExternalMichaelisMentenReaction(); };
+}
+} // namespace reaction
 
-}  // namespace model
+} // namespace model
 
-}  // namespace cadet
+} // namespace cadet

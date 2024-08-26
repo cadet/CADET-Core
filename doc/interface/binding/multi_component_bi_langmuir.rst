@@ -44,4 +44,3 @@ For information on model equations, refer to :ref:`multi_component_bi_langmuir_m
 ===================  =========================  =========================================
 **Type:** double     **Range:** :math:`\ge 0`   **Length:** NSTATES :math:`\cdot` NCOMP
 ===================  =========================  =========================================
-

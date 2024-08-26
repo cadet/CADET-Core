@@ -4,13 +4,13 @@ Lumped rate model without pores (LRM)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The lumped rate model without pores :cite:`Guiochon2006,Felinger2004` deviates from the lumped rate model with pores (see Section :ref:`lumped_rate_model_with_pores_model`) by neglecting pores completely.
-The particle phase :math:`c^p` is removed and the porosity :math:`\varepsilon_t` is taken as total porosity 
+The particle phase :math:`c^p` is removed and the porosity :math:`\varepsilon_t` is taken as total porosity
 
 .. math::
     :label: TotalPorosity
 
     \begin{aligned}
-        \varepsilon_t = \varepsilon_c + \left( 1 - \varepsilon_c \right) \varepsilon_p. 
+        \varepsilon_t = \varepsilon_c + \left( 1 - \varepsilon_c \right) \varepsilon_p.
     \end{aligned}
 
 The phase ratio is denoted by :math:`\beta_t = \varepsilon_t / (1 - \varepsilon_t)` accordingly.

@@ -21,65 +21,73 @@
 
 #include "ParallelSupport.hpp"
 #ifdef CADET_PARALLELIZE
-	#include <tbb/parallel_for.h>
+#include <tbb/parallel_for.h>
 #endif
 
 #include "model/ModelSystemImpl-Helper.hpp"
 
 namespace
 {
-	/**
-	 * @brief Selects either double or active SparseMatrix based on template argument
-	 * @details Helper function that returns either @p a or @p b depending on the template argument.
-	 * @param [in] a SparseMatrix of double elements
-	 * @param [in] b SparseMatrix of active elements
-	 * @tparam selector_t One of @c double or @c active
-	 * @return Either @p a or @p b depending on the template argument
-	 */
-	template <class selector_t>
-	const cadet::linalg::SparseMatrix<selector_t>& select(const cadet::linalg::SparseMatrix<double>& a, const cadet::linalg::SparseMatrix<cadet::active>& b)
-	{
-		cadet_assert(false);
-	}
-
-	template <>
-	const cadet::linalg::SparseMatrix<double>& select<double>(const cadet::linalg::SparseMatrix<double>& a, const cadet::linalg::SparseMatrix<cadet::active>& b)
-	{
-		return a;
-	}
-
-	template <>
-	const cadet::linalg::SparseMatrix<cadet::active>& select<cadet::active>(const cadet::linalg::SparseMatrix<double>& a, const cadet::linalg::SparseMatrix<cadet::active>& b)
-	{
-		return b;
-	}
-
-	struct FullTag {};
-	struct LeanTag {};
-
-	template <bool evalJacobian>
-	struct ResidualSensCaller {};
-
-	template <>
-	struct ResidualSensCaller<true>
-	{
-		static inline int call(cadet::IUnitOperation* model, const cadet::SimulationTime& simTime,
-			const cadet::ConstSimulationState& simState, const cadet::AdJacobianParams& adJac, cadet::util::ThreadLocalStorage& threadLocalMem)
-		{
-			return model->residualSensFwdWithJacobian(simTime, simState, adJac, threadLocalMem);
-		}
-	};
-
-	template <>
-	struct ResidualSensCaller<false>
-	{
-		static inline int call(cadet::IUnitOperation* model, const cadet::SimulationTime& simTime,
-			const cadet::ConstSimulationState& simState, const cadet::AdJacobianParams& adJac, cadet::util::ThreadLocalStorage& threadLocalMem)
-		{
-			return model->residualSensFwdAdOnly(simTime, simState, adJac.adRes, threadLocalMem);
-		}
-	};
+/**
+ * @brief Selects either double or active SparseMatrix based on template argument
+ * @details Helper function that returns either @p a or @p b depending on the template argument.
+ * @param [in] a SparseMatrix of double elements
+ * @param [in] b SparseMatrix of active elements
+ * @tparam selector_t One of @c double or @c active
+ * @return Either @p a or @p b depending on the template argument
+ */
+template <class selector_t>
+const cadet::linalg::SparseMatrix<selector_t>& select(const cadet::linalg::SparseMatrix<double>& a,
+													  const cadet::linalg::SparseMatrix<cadet::active>& b)
+{
+	cadet_assert(false);
 }
+
+template <>
+const cadet::linalg::SparseMatrix<double>& select<double>(const cadet::linalg::SparseMatrix<double>& a,
+														  const cadet::linalg::SparseMatrix<cadet::active>& b)
+{
+	return a;
+}
+
+template <>
+const cadet::linalg::SparseMatrix<cadet::active>& select<cadet::active>(
+	const cadet::linalg::SparseMatrix<double>& a, const cadet::linalg::SparseMatrix<cadet::active>& b)
+{
+	return b;
+}
+
+struct FullTag
+{
+};
+struct LeanTag
+{
+};
+
+template <bool evalJacobian> struct ResidualSensCaller
+{
+};
+
+template <> struct ResidualSensCaller<true>
+{
+	static inline int call(cadet::IUnitOperation* model, const cadet::SimulationTime& simTime,
+						   const cadet::ConstSimulationState& simState, const cadet::AdJacobianParams& adJac,
+						   cadet::util::ThreadLocalStorage& threadLocalMem)
+	{
+		return model->residualSensFwdWithJacobian(simTime, simState, adJac, threadLocalMem);
+	}
+};
+
+template <> struct ResidualSensCaller<false>
+{
+	static inline int call(cadet::IUnitOperation* model, const cadet::SimulationTime& simTime,
+						   const cadet::ConstSimulationState& simState, const cadet::AdJacobianParams& adJac,
+						   cadet::util::ThreadLocalStorage& threadLocalMem)
+	{
+		return model->residualSensFwdAdOnly(simTime, simState, adJac.adRes, threadLocalMem);
+	}
+};
+} // namespace
 
 namespace cadet
 {
@@ -87,7 +95,8 @@ namespace cadet
 namespace model
 {
 
-int ModelSystem::jacobian(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res, const AdJacobianParams& adJac)
+int ModelSystem::jacobian(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res,
+						  const AdJacobianParams& adJac)
 {
 
 #ifdef CADET_PARALLELIZE
@@ -105,7 +114,8 @@ int ModelSystem::jacobian(const SimulationTime& simTime, const ConstSimulationSt
 			m->setFlowRates(_flowRateIn[i], _flowRateOut[i]);
 		}
 
-		_errorIndicator[i] = m->jacobian(simTime, applyOffset(simState, offset), res + offset, applyOffset(adJac, offset), _threadLocalStorage);
+		_errorIndicator[i] = m->jacobian(simTime, applyOffset(simState, offset), res + offset,
+										 applyOffset(adJac, offset), _threadLocalStorage);
 
 	} CADET_PARFOR_END;
 
@@ -116,7 +126,9 @@ int ModelSystem::jacobian(const SimulationTime& simTime, const ConstSimulationSt
 	return totalErrorIndicatorFromLocal(_errorIndicator);
 }
 
-void ModelSystem::notifyDiscontinuousSectionTransition(double t, unsigned int secIdx, const ConstSimulationState& simState, const AdJacobianParams& adJac)
+void ModelSystem::notifyDiscontinuousSectionTransition(double t, unsigned int secIdx,
+													   const ConstSimulationState& simState,
+													   const AdJacobianParams& adJac)
 {
 	// Check if simulation is (re-)starting from the very beginning
 	if (secIdx == 0)
@@ -157,14 +169,16 @@ void ModelSystem::notifyDiscontinuousSectionTransition(double t, unsigned int se
 
 	if (cadet_likely(switchOccurred && !_hasDynamicFlowRates))
 	{
-		// Update bottom macro row *after* models have changed their flow directions due to updating their internal velocities
+		// Update bottom macro row *after* models have changed their flow directions due to updating their internal
+		// velocities
 		assembleBottomMacroRow(t);
 	}
 
 #ifdef CADET_DEBUG
 	int const* ptrConn = _connections[_curSwitchIndex];
 
-	LOG(Debug) << "Switching from valve configuration " << prevSwitch << " to " << _curSwitchIndex << " (sec = " << secIdx << " wrapSec = " << wrapSec << ")";
+	LOG(Debug) << "Switching from valve configuration " << prevSwitch << " to " << _curSwitchIndex
+			   << " (sec = " << secIdx << " wrapSec = " << wrapSec << ")";
 	for (unsigned int i = 0; i < _connections.sliceSize(_curSwitchIndex) / 6; ++i, ptrConn += 6)
 	{
 		// Extract current connection
@@ -177,8 +191,9 @@ void ModelSystem::notifyDiscontinuousSectionTransition(double t, unsigned int se
 
 		// Number of components was already verified so assume they are all correct
 
-		LOG(Debug) << "Unit op " << uoSource << " (" << _models[uoSource]->unitOperationName() << ") port " << portSource << " comp " << compSource << " => "
-		           << uoDest << " (" << _models[uoDest]->unitOperationName() << ") port " << portDest << " comp " << compDest;
+		LOG(Debug) << "Unit op " << uoSource << " (" << _models[uoSource]->unitOperationName() << ") port "
+				   << portSource << " comp " << compSource << " => " << uoDest << " ("
+				   << _models[uoDest]->unitOperationName() << ") port " << portDest << " comp " << compDest;
 	}
 #endif
 
@@ -224,7 +239,6 @@ void ModelSystem::updateModelFlowRates(double t, unsigned int idxUnit)
 	}
 }
 
-
 /**
  * @brief Updates inlet and outlet flow rates of the given unit operation
  * @details Updates the corresponding slice of _flowRateIn and _flowRateOut.
@@ -260,8 +274,8 @@ void ModelSystem::updateDynamicModelFlowRates(double t, unsigned int idxUnit)
 }
 
 /**
-* @brief Calculate inlet and outlet flow rate coefficients for each unit operation in current section
-*/
+ * @brief Calculate inlet and outlet flow rate coefficients for each unit operation in current section
+ */
 void ModelSystem::calcUnitFlowRateCoefficients()
 {
 	// Calculate total flow rate for each inlet
@@ -286,16 +300,17 @@ void ModelSystem::calcUnitFlowRateCoefficients()
 	for (unsigned int i = 0; i < _connections.sliceSize(_curSwitchIndex) / 6; ++i)
 	{
 		// Extract current connection
-		const int uoSource = ptrConn[6*i];
-		const int uoDest = ptrConn[6*i + 1];
-		const int portSource = ptrConn[6*i + 2];
-		const int portDest = ptrConn[6*i + 3];
+		const int uoSource = ptrConn[6 * i];
+		const int uoDest = ptrConn[6 * i + 1];
+		const int portSource = ptrConn[6 * i + 2];
+		const int portDest = ptrConn[6 * i + 3];
 
 		// Check if the same connection has appeared before (with different components)
 		bool skip = false;
 		for (unsigned int j = 0; j < i; ++j)
 		{
-			if ((ptrConn[6*j] == uoSource) && (ptrConn[6*j + 1] == uoDest) && (ptrConn[6*j + 2] == portSource) && (ptrConn[6*j + 3] == portDest))
+			if ((ptrConn[6 * j] == uoSource) && (ptrConn[6 * j + 1] == uoDest) && (ptrConn[6 * j + 2] == portSource) &&
+				(ptrConn[6 * j + 3] == portDest))
 			{
 				skip = true;
 				break;
@@ -376,7 +391,8 @@ void ModelSystem::assembleRightMacroColumn()
 				const unsigned int localInletComponentStride = model->localInletComponentStride(port);
 				for (unsigned int comp = 0; comp < model->numComponents(); ++comp)
 				{
-					_jacNF[i].addElement(localInletComponentIndex + comp * localInletComponentStride, couplingIdx, -1.0);
+					_jacNF[i].addElement(localInletComponentIndex + comp * localInletComponentStride, couplingIdx,
+										 -1.0);
 					++couplingIdx;
 				}
 			}
@@ -409,18 +425,19 @@ void ModelSystem::assembleBottomMacroRow(double t)
 	for (unsigned int i = 0; i < _connections.sliceSize(_curSwitchIndex) / 6; ++i)
 	{
 		// Extract current connection
-		const int uoSource = ptrConn[6*i];
-		const int uoDest = ptrConn[6*i + 1];
-		const int portSource = ptrConn[6*i + 2];
-		const int portDest = ptrConn[6*i + 3];
-		const int compSource = ptrConn[6*i + 4];
-		const int compDest = ptrConn[6*i + 5];
+		const int uoSource = ptrConn[6 * i];
+		const int uoDest = ptrConn[6 * i + 1];
+		const int portSource = ptrConn[6 * i + 2];
+		const int portDest = ptrConn[6 * i + 3];
+		const int compSource = ptrConn[6 * i + 4];
+		const int compDest = ptrConn[6 * i + 5];
 
 		// Obtain index of first connection from uoSource to uoDest
 		unsigned int idx = i;
 		for (unsigned int j = 0; j < i; ++j)
 		{
-			if ((ptrConn[6*j] == uoSource) && (ptrConn[6*j + 1] == uoDest) && (ptrConn[6*j + 2] == portSource) && (ptrConn[6*j + 3] == portDest))
+			if ((ptrConn[6 * j] == uoSource) && (ptrConn[6 * j + 1] == uoDest) && (ptrConn[6 * j + 2] == portSource) &&
+				(ptrConn[6 * j + 3] == portDest))
 			{
 				idx = j;
 				break;
@@ -438,7 +455,9 @@ void ModelSystem::assembleBottomMacroRow(double t)
 		{
 			for (unsigned int j = 0; j < modelSource->numOutletPorts(); ++j)
 			{
-				const active totInFlow = cubicPoly<active>(_totalInletFlow(uoDest, j), _totalInletFlowLin(uoDest, j), _totalInletFlowQuad(uoDest, j), _totalInletFlowCub(uoDest, j), secT);
+				const active totInFlow =
+					cubicPoly<active>(_totalInletFlow(uoDest, j), _totalInletFlowLin(uoDest, j),
+									  _totalInletFlowQuad(uoDest, j), _totalInletFlowCub(uoDest, j), secT);
 
 				// Ignore ports with incoming flow rate 0
 				if (totInFlow <= 0.0)
@@ -447,7 +466,8 @@ void ModelSystem::assembleBottomMacroRow(double t)
 				const unsigned int outletIndex = modelSource->localOutletComponentIndex(j);
 				const unsigned int outletStride = modelSource->localOutletComponentStride(j);
 
-				const active inFlow = -cubicPoly<active>(ptrRate, ptrRateLin, ptrRateQuad, ptrRateCub, idx, secT) / totInFlow;
+				const active inFlow =
+					-cubicPoly<active>(ptrRate, ptrRateLin, ptrRateQuad, ptrRateCub, idx, secT) / totInFlow;
 
 				if (compSource == -1)
 				{
@@ -455,14 +475,16 @@ void ModelSystem::assembleBottomMacroRow(double t)
 					// Connect all components with the same flow rate
 					for (unsigned int comp = 0; comp < modelSource->numComponents(); ++comp)
 					{
-						const unsigned int row = _couplingIdxMap[std::make_tuple(uoDest, j, comp)];  // destination coupling DOF
+						const unsigned int row =
+							_couplingIdxMap[std::make_tuple(uoDest, j, comp)]; // destination coupling DOF
 						const unsigned int col = outletIndex + outletStride * comp;
 						_jacActiveFN[uoSource].addElement(row, col, inFlow);
 					}
 				}
 				else
 				{
-					const unsigned int row = _couplingIdxMap[std::make_tuple(uoDest, j, compDest)];  // destination coupling DOF
+					const unsigned int row =
+						_couplingIdxMap[std::make_tuple(uoDest, j, compDest)]; // destination coupling DOF
 					const unsigned int col = outletIndex + outletStride * compSource;
 					_jacActiveFN[uoSource].addElement(row, col, inFlow);
 				}
@@ -470,7 +492,9 @@ void ModelSystem::assembleBottomMacroRow(double t)
 		}
 		else
 		{
-			const active totInFlow = cubicPoly<active>(_totalInletFlow(uoDest, portDest), _totalInletFlowLin(uoDest, portDest), _totalInletFlowQuad(uoDest, portDest), _totalInletFlowCub(uoDest, portDest), secT);
+			const active totInFlow =
+				cubicPoly<active>(_totalInletFlow(uoDest, portDest), _totalInletFlowLin(uoDest, portDest),
+								  _totalInletFlowQuad(uoDest, portDest), _totalInletFlowCub(uoDest, portDest), secT);
 
 			// Ignore ports with incoming flow rate 0
 			if (totInFlow <= 0.0)
@@ -479,21 +503,24 @@ void ModelSystem::assembleBottomMacroRow(double t)
 			const unsigned int outletIndex = modelSource->localOutletComponentIndex(portSource);
 			const unsigned int outletStride = modelSource->localOutletComponentStride(portSource);
 
-			const active inFlow = -cubicPoly<active>(ptrRate, ptrRateLin, ptrRateQuad, ptrRateCub, idx, secT) / totInFlow;
+			const active inFlow =
+				-cubicPoly<active>(ptrRate, ptrRateLin, ptrRateQuad, ptrRateCub, idx, secT) / totInFlow;
 
 			if (compSource == -1)
 			{
 				// Connect all components with the same flow rate
 				for (unsigned int comp = 0; comp < modelSource->numComponents(); ++comp)
 				{
-					const unsigned int row = _couplingIdxMap[std::make_tuple(uoDest, portDest, comp)];  // destination coupling DOF
+					const unsigned int row =
+						_couplingIdxMap[std::make_tuple(uoDest, portDest, comp)]; // destination coupling DOF
 					const unsigned int col = outletIndex + outletStride * comp;
 					_jacActiveFN[uoSource].addElement(row, col, inFlow);
 				}
 			}
 			else
 			{
-				const unsigned int row = _couplingIdxMap[std::make_tuple(uoDest, portDest, compDest)];  // destination coupling DOF
+				const unsigned int row =
+					_couplingIdxMap[std::make_tuple(uoDest, portDest, compDest)]; // destination coupling DOF
 				const unsigned int col = outletIndex + outletStride * compSource;
 				_jacActiveFN[uoSource].addElement(row, col, inFlow);
 			}
@@ -545,7 +572,7 @@ int ModelSystem::residual(const SimulationTime& simTime, const ConstSimulationSt
 }
 
 int ModelSystem::residualWithJacobian(const SimulationTime& simTime, const ConstSimulationState& simState,
-	double* const res, const AdJacobianParams& adJac)
+									  double* const res, const AdJacobianParams& adJac)
 {
 	BENCH_START(_timerResidual);
 
@@ -564,8 +591,8 @@ int ModelSystem::residualWithJacobian(const SimulationTime& simTime, const Const
 			m->setFlowRates(_flowRateIn[i], _flowRateOut[i]);
 		}
 
-		_errorIndicator[i] = m->residualWithJacobian(simTime, applyOffset(simState, offset),
-			res + offset, applyOffset(adJac, offset), _threadLocalStorage);
+		_errorIndicator[i] = m->residualWithJacobian(simTime, applyOffset(simState, offset), res + offset,
+													 applyOffset(adJac, offset), _threadLocalStorage);
 
 	} CADET_PARFOR_END;
 
@@ -580,17 +607,18 @@ int ModelSystem::residualWithJacobian(const SimulationTime& simTime, const Const
 }
 
 /**
-* @brief Calculate coupling DOF residual
-* @param [in] secIdx  Section ID
-* @param [in] y State vector
-* @param [in] yDot Derivative state vector
-* @param [in,out] res Residual vector
-* @tparam StateType Type of the state vector
-* @tparam ResidualType Type of the residual vector
-* @tparam ParamType Type of the parameters
-*/
+ * @brief Calculate coupling DOF residual
+ * @param [in] secIdx  Section ID
+ * @param [in] y State vector
+ * @param [in] yDot Derivative state vector
+ * @param [in,out] res Residual vector
+ * @tparam StateType Type of the state vector
+ * @tparam ResidualType Type of the residual vector
+ * @tparam ParamType Type of the parameters
+ */
 template <typename StateType, typename ResidualType, typename ParamType>
-void ModelSystem::residualConnectUnitOps(unsigned int secIdx, StateType const* const y, double const* const yDot, ResidualType* const res) CADET_NOEXCEPT
+void ModelSystem::residualConnectUnitOps(unsigned int secIdx, StateType const* const y, double const* const yDot,
+										 ResidualType* const res) CADET_NOEXCEPT
 {
 	// Use connection matrices for the residual
 	const unsigned int finalOffset = _dofOffset.back();
@@ -620,12 +648,14 @@ void ModelSystem::residualConnectUnitOps(unsigned int secIdx, StateType const* c
 }
 
 int ModelSystem::residualSensFwd(unsigned int nSens, const SimulationTime& simTime,
-	const ConstSimulationState& simState, double const* const res,
-	const std::vector<const double*>& yS, const std::vector<const double*>& ySdot, const std::vector<double*>& resS,
-	active* const adRes, double* const tmp1, double* const tmp2, double* const tmp3)
+								 const ConstSimulationState& simState, double const* const res,
+								 const std::vector<const double*>& yS, const std::vector<const double*>& ySdot,
+								 const std::vector<double*>& resS, active* const adRes, double* const tmp1,
+								 double* const tmp2, double* const tmp3)
 {
 	BENCH_SCOPE(_timerResidualSens);
-	return residualSensFwdWithJacobianAlgorithm<false>(nSens, simTime, simState, res, yS, ySdot, resS, AdJacobianParams{adRes, nullptr, 0}, tmp1, tmp2, tmp3);
+	return residualSensFwdWithJacobianAlgorithm<false>(nSens, simTime, simState, res, yS, ySdot, resS,
+													   AdJacobianParams{adRes, nullptr, 0}, tmp1, tmp2, tmp3);
 }
 
 void ModelSystem::multiplyWithMacroJacobian(double const* yS, double alpha, double beta, double* ret)
@@ -656,9 +686,9 @@ void ModelSystem::multiplyWithMacroJacobian(double const* yS, double alpha, doub
 }
 
 void ModelSystem::residualSensFwdNorm(unsigned int nSens, const SimulationTime& simTime,
-		const ConstSimulationState& simState,
-		const std::vector<const double*>& yS, const std::vector<const double*>& ySdot, double* const norms,
-		active* const adRes, double* const tmp)
+									  const ConstSimulationState& simState, const std::vector<const double*>& yS,
+									  const std::vector<const double*>& ySdot, double* const norms, active* const adRes,
+									  double* const tmp)
 {
 	const unsigned int nDOFs = numDofs();
 
@@ -677,7 +707,8 @@ void ModelSystem::residualSensFwdNorm(unsigned int nSens, const SimulationTime& 
 	std::vector<double> tempMem(nDOFs * 2, 0.0);
 
 	// Evaluate all the sensitivity system residuals at once
-	residualSensFwd(nSens, simTime, simState, nullptr, yS, ySdot, resPtr, adRes, tmp, tempMem.data(), tempMem.data() + nDOFs);
+	residualSensFwd(nSens, simTime, simState, nullptr, yS, ySdot, resPtr, adRes, tmp, tempMem.data(),
+					tempMem.data() + nDOFs);
 
 	// Calculate norms
 	for (unsigned int i = 0; i < nSens; ++i)
@@ -685,24 +716,29 @@ void ModelSystem::residualSensFwdNorm(unsigned int nSens, const SimulationTime& 
 }
 
 int ModelSystem::residualSensFwdWithJacobian(unsigned int nSens, const SimulationTime& simTime,
-		const ConstSimulationState& simState, double const* const res,
-		const std::vector<const double*>& yS, const std::vector<const double*>& ySdot, const std::vector<double*>& resS,
-		const AdJacobianParams& adJac, double* const tmp1, double* const tmp2, double* const tmp3)
+											 const ConstSimulationState& simState, double const* const res,
+											 const std::vector<const double*>& yS,
+											 const std::vector<const double*>& ySdot, const std::vector<double*>& resS,
+											 const AdJacobianParams& adJac, double* const tmp1, double* const tmp2,
+											 double* const tmp3)
 {
-	return residualSensFwdWithJacobianAlgorithm<true>(nSens, simTime, simState, res, yS, ySdot, resS, adJac, tmp1, tmp2, tmp3);
+	return residualSensFwdWithJacobianAlgorithm<true>(nSens, simTime, simState, res, yS, ySdot, resS, adJac, tmp1, tmp2,
+													  tmp3);
 }
 
 template <bool evalJacobian>
 int ModelSystem::residualSensFwdWithJacobianAlgorithm(unsigned int nSens, const SimulationTime& simTime,
-	const ConstSimulationState& simState, double const* const res,
-	const std::vector<const double*>& yS, const std::vector<const double*>& ySdot, const std::vector<double*>& resS,
-	const AdJacobianParams& adJac, double* const tmp1, double* const tmp2, double* const tmp3)
+													  const ConstSimulationState& simState, double const* const res,
+													  const std::vector<const double*>& yS,
+													  const std::vector<const double*>& ySdot,
+													  const std::vector<double*>& resS, const AdJacobianParams& adJac,
+													  double* const tmp1, double* const tmp2, double* const tmp3)
 {
 	BENCH_START(_timerResidualSens);
 
 	const unsigned int nModels = _models.size();
 
-	//Resize yStemp and yStempDot (this should be a noop except for the first time)
+	// Resize yStemp and yStempDot (this should be a noop except for the first time)
 	_yStemp.resize(nModels);
 	_yStempDot.resize(nModels);
 	_resSTemp.resize(nModels);
@@ -731,7 +767,8 @@ int ModelSystem::residualSensFwdWithJacobianAlgorithm(unsigned int nSens, const 
 			m->setFlowRates(_flowRateIn[i], _flowRateOut[i]);
 		}
 
-		_errorIndicator[i] = ResidualSensCaller<evalJacobian>::call(m, simTime, applyOffset(simState, offset), applyOffset(adJac, offset), _threadLocalStorage);
+		_errorIndicator[i] = ResidualSensCaller<evalJacobian>::call(m, simTime, applyOffset(simState, offset),
+																	applyOffset(adJac, offset), _threadLocalStorage);
 	} CADET_PARFOR_END;
 
 	// Connect units
@@ -759,7 +796,9 @@ int ModelSystem::residualSensFwdWithJacobianAlgorithm(unsigned int nSens, const 
 			_resSTemp[i][j] = resS[j] + offset;
 		}
 
-		const int intermediateRes = m->residualSensFwdCombine(simTime, applyOffset(simState, offset), _yStemp[i], _yStempDot[i], _resSTemp[i], adJac.adRes + offset, tmp1 + offset, tmp2 + offset, tmp3 + offset);
+		const int intermediateRes =
+			m->residualSensFwdCombine(simTime, applyOffset(simState, offset), _yStemp[i], _yStempDot[i], _resSTemp[i],
+									  adJac.adRes + offset, tmp1 + offset, tmp2 + offset, tmp3 + offset);
 		_errorIndicator[i] = updateErrorIndicator(_errorIndicator[i], intermediateRes);
 	} CADET_PARFOR_END;
 
@@ -784,7 +823,7 @@ int ModelSystem::residualSensFwdWithJacobianAlgorithm(unsigned int nSens, const 
 
 		// Directional derivative (dF / dyDot) * sDot  (always zero so ignore it)
 
-		//The other adRes values have already been taken care of in the unit operations
+		// The other adRes values have already been taken care of in the unit operations
 		for (unsigned int i = finalOffset; i < numDofs(); ++i)
 		{
 			ptrResS[i] += adJac.adRes[i].getADValue(param);
@@ -795,6 +834,6 @@ int ModelSystem::residualSensFwdWithJacobianAlgorithm(unsigned int nSens, const 
 	return totalErrorIndicatorFromLocal(_errorIndicator);
 }
 
-}  // namespace model
+} // namespace model
 
-}  // namespace cadet
+} // namespace cadet

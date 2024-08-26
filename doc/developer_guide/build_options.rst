@@ -50,4 +50,3 @@ The following build arguments can be set in the cmakeSettings.json or from the c
 The following build arguments are exclusive to builds on MS windows:
 
 - ``DVCPKG_TARGET_TRIPLET``: We use ``vcpkg`` to manage our dependencies. This triplet specifies which version of the dependencies should be installed. It takes the form of ``architecture-os-linking``, so ``x64-windows-static`` for our use cases.
-

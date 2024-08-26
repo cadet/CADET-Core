@@ -22,11 +22,11 @@ The main assumptions are:
      - Domain
      - Description
    * - :math:`i`
-     - :math:`\left\{ 0, \dots, N_{\text{comp}} - 1 \right\}` 
+     - :math:`\left\{ 0, \dots, N_{\text{comp}} - 1 \right\}`
      - Component index
    * - :math:`j`
      - :math:`\left\{ 0, \dots, N_{\text{partype}} - 1 \right\}`
-     - Particle type index  
+     - Particle type index
    * - :math:`m_{j,i}`
      - :math:`\left\{ 0, \dots, N_{\text{bnd},j,i} - 1 \right\}`
      - Bound state index of :math:`i`\ th component in :math:`j`\ th particle type
@@ -35,13 +35,13 @@ The main assumptions are:
      - Total bound state index in particle type :math:`j`
    * - :math:`t`
      - :math:`\left[0, T_{\text{end}}\right]`
-     - Time coordinate 
+     - Time coordinate
    * - :math:`z`
      - :math:`\left[0, L\right]`
      - Axial coordinate
    * - :math:`r`
      - :math:`\left[r_{c,j}, r_{p,j}\right]`
-     - Generic bead radial coordinate 
+     - Generic bead radial coordinate
    * - :math:`c^\ell_{i}(t,z)`
      - :math:`\left[0, T_{\text{end}}\right] \times [0, L]`
      - Interstitial concentration of the :math:`i`\ th component
@@ -51,11 +51,11 @@ The main assumptions are:
    * - :math:`c^s_{j,i,m_{j,i}}(t, z, r)`
      - :math:`\left[0, T_{\text{end}}\right] \times [0,L] \times \left[r_{c,j}, r_{p,j}\right]`
      - Solid phase concentration of the :math:`i`\ th component's :math:`m_{j,i}`\th bound state in particles of type :math:`j`
-   * - :math:`j_{f,j,i}(t, z)` 
+   * - :math:`j_{f,j,i}(t, z)`
      - :math:`\left[0, T_{\text{end}}\right] \times [0, L]`
-     - Flux of the :math:`i`\ th component through stagnant film into the bead of type :math:`j` 
+     - Flux of the :math:`i`\ th component through stagnant film into the bead of type :math:`j`
 
-.. _ModelGRMColumn: 
+.. _ModelGRMColumn:
 .. figure:: column_bulk_model.png
 
     Column bulk model
@@ -69,7 +69,7 @@ Consider a column of length :math:`L>0` filled with spherical beads of (possibly
 
     \begin{aligned}
         \frac{\partial c^\ell_i}{\partial t} = -u \frac{\partial c^\ell_i}{\partial z} + D_{\text{ax},i} \frac{\partial^2 c^\ell_i}{\partial z^2} &- \frac{1}{\beta_c} \sum_j d_j \frac{3}{r_{p,j}} k_{f,j,i} \left[ c^\ell_i - c^p_{j,i}(\cdot, \cdot, r_{p,j}) \right] \\
-        &+ f_{\text{react},i}^\ell\left(c^\ell\right). 
+        &+ f_{\text{react},i}^\ell\left(c^\ell\right).
     \end{aligned}
 
 Here, :math:`c^\ell_i\colon \left[0, T_{\text{end}}\right] \times [0, L] \rightarrow \mathbb{R}^{\geq 0}` denotes the concentration in the interstitial column volume, :math:`c^p_{j,i}\colon \left[0, T_{\text{end}}\right] \times [0, L] \times [r_{c,j}, r_{p,j}] \rightarrow \mathbb{R}^{\geq 0}` the liquid phase concentration in the beads, :math:`k_{f,j,i}` the film diffusion coefficient, :math:`D_{\text{ax},i}` the dispersion coefficient, :math:`u` the interstitial velocity, :math:`d_j` the volume fraction of particle type :math:`j`, and :math:`\beta_c = \varepsilon_c / (1 - \varepsilon_c)` the column phase ratio, where :math:`\varepsilon_c` is the column porosity (ratio of interstitial volume to total column volume).
@@ -88,7 +88,7 @@ Danckwerts boundary conditions :cite:`Danckwerts1953` are applied to inlet and o
     :label: BCInlet
 
     \begin{aligned}
-        \frac{\partial c^\ell_i}{\partial z}(t, L) &= 0 & \forall t > 0. 
+        \frac{\partial c^\ell_i}{\partial z}(t, L) &= 0 & \forall t > 0.
     \end{aligned}
 
 Note that the outlet boundary condition Eq. :eq:`BCOutlet` is also known as “do nothing” or natural outflow condition.
@@ -124,7 +124,7 @@ The GRM is used with both quasi-stationary (Eq. :eq:`REqBinding`) and dynamic (E
 
     \begin{aligned}
         \text{dynamic: } \frac{\partial c^s_j}{\partial t} &= D_{s,j} \left[\frac{\partial^2}{\partial r^2} + \frac{2}{r} \frac{\partial }{\partial r} \right] c^s_{j} \\
-        &+ f_{\text{ads},j}\left( c^p_j, c^s_j\right) + f_{\text{react},j}^s\left( c_j^p, c_j^s \right). 
+        &+ f_{\text{ads},j}\left( c^p_j, c^s_j\right) + f_{\text{react},j}^s\left( c_j^p, c_j^s \right).
     \end{aligned}
 
 Note that :math:`c^p_j` and :math:`c^s_j` denote the vector of all :math:`c^p_{j,i}` and :math:`c^s_{j,i,m_{j,i}}`, respectively.
@@ -152,7 +152,7 @@ By default, the following initial conditions are applied for all :math:`z \in [0
     :label: InitialConditions
 
     \begin{aligned}
-        c^\ell_i(0, z) &= 0, & c^p_{j,i}(0, z, r) &= 0, & c^s_{j,i,m_{j,i}}(0,z,r) &= 0. 
+        c^\ell_i(0, z) &= 0, & c^p_{j,i}(0, z, r) &= 0, & c^s_{j,i,m_{j,i}}(0,z,r) &= 0.
     \end{aligned}
 
 .. _ModelGRMBead:
@@ -163,7 +163,7 @@ By default, the following initial conditions are applied for all :math:`z \in [0
 .. _ModelGRMStates:
 .. figure:: multiple_bound_states.png
     :scale: 50 %
-    
+
     Binding with multiple bound states
 
 
@@ -196,7 +196,7 @@ For cylinders, the factor :math:`3 / r_{p,j}` in Eq. (:eq:`ModelColumn`) changes
     \begin{aligned}
         \left[\frac{\partial^2}{\partial r^2} + \frac{2}{r} \frac{\partial }{\partial r} \right] \quad \rightarrow \quad \left[\frac{\partial^2}{\partial r^2} + \frac{1}{r} \frac{\partial }{\partial r} \right].
     \end{aligned}
-    
+
 For slabs, the factor :math:`3 / r_{p,j}` in (see Eq. (:eq:`ModelColumn`)) changes to :math:`1 / r_{p,j}` and the diffusion operator in Eq. (:eq:`ModelBead`) and Eq. (:eq:`DynBinding`) changes as
 
 .. math::
@@ -225,7 +225,7 @@ The distribution of the particle types is governed by their volume fractions :ma
 
 The particle type volume fractions can be spatially constant throughout the column, or depend on the position inside the column bulk volume.
 In the latter case, the user can specify a set of volume fractions for each discretized finite volume cell.
-This allows, for example, the placement of smaller particles near the frits.  
+This allows, for example, the placement of smaller particles near the frits.
 
 .. _MUOPGRMSizeExclusion:
 
@@ -233,7 +233,7 @@ Size exclusion chromatography
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 The general rate model can be used to simulate size exclusion chromatography (SEC) :cite:`Gu1995`.
-The particle porosity :math:`\varepsilon_{p,j}` on the mobile phase side of the transport equations is replaced by a component-dependent accessible porosity 
+The particle porosity :math:`\varepsilon_{p,j}` on the mobile phase side of the transport equations is replaced by a component-dependent accessible porosity
 
 .. math::
 
@@ -270,7 +270,7 @@ Since volumetric flow rates are specified for each network connection, the unit 
     \end{aligned}
 
 where :math:`F_{\text{in}}` denotes the volumetric flow rate and :math:`A` the cross section area.
-Note that without the bulk porosity :math:`\varepsilon_c`, the superficial velocity would be obtained.  
+Note that without the bulk porosity :math:`\varepsilon_c`, the superficial velocity would be obtained.
 
 The direction of flow inside the unit operation is governed by the sign of the interstitial velocity :math:`u`.
 A positive sign results in (standard) forward flow, whereas a negative sign reverses the flow direction.
@@ -318,7 +318,7 @@ Consider a hollow (double walled) column with inner column diameter :math:`\math
 
     \begin{aligned}
         \frac{\partial c^\ell_i}{\partial t} = -\frac{u}{\rho} \frac{\partial c^\ell_i}{\partial \rho} + D_{\text{rad},i} \frac{1}{\rho} \frac{\partial}{\partial \rho} \left(\rho \frac{\partial c^\ell_i}{\partial \rho} \right) &- \frac{1}{\beta_c} \sum_j d_j \frac{3}{r_{p,j}} k_{f,j,i} \left[ c^\ell_i - c^p_{j,i}(\cdot, \cdot, r_{p,j}) \right] \\
-        &+ f_{\text{react},i}^\ell\left(c^\ell\right). 
+        &+ f_{\text{react},i}^\ell\left(c^\ell\right).
     \end{aligned}
 
 Here, :math:`c^\ell_i\colon \left[0, T_{\text{end}}\right] \times [\mathrm{P}_c, \mathrm{P}] \rightarrow \mathbb{R}^{\geq 0}` denotes the concentration in the interstitial column volume, :math:`c^p_{j,i}\colon \left[0, T_{\text{end}}\right] \times [P_c, P] \times [r_{c,j}, r_{p,j}] \rightarrow \mathbb{R}^{\geq 0}` the liquid phase concentration in the beads, :math:`k_{f,j,i}` the film diffusion coefficient, :math:`D_{\text{rad},i}` the dispersion coefficient, :math:`u` the interstitial velocity, :math:`d_j` the volume fraction of particle type :math:`j`, and :math:`\beta_c = \varepsilon_c / (1 - \varepsilon_c)` the column phase ratio, where :math:`\varepsilon_c` is the column porosity (ratio of interstitial volume to total column volume).
@@ -337,7 +337,7 @@ Danckwerts boundary conditions :cite:`Danckwerts1953` are applied to inlet and o
     :label: BCInlet
 
     \begin{aligned}
-        \frac{\partial c^\ell_i}{\partial \rho}(t, \mathrm{P}) &= 0 & \forall t > 0. 
+        \frac{\partial c^\ell_i}{\partial \rho}(t, \mathrm{P}) &= 0 & \forall t > 0.
     \end{aligned}
 
 Note that the outlet boundary condition Eq. :eq:`BCOutlet` is also known as “do nothing” or natural outflow condition.

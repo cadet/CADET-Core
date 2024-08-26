@@ -17,7 +17,7 @@ CADET
 - **Forum:** https://forum.cadet-web.de
 - **Source:** https://github.com/modsim/cadet
 - **Bug reports:** https://github.com/modsim/cadet/issues
-- **Demo:** https://www.cadet-web.de 
+- **Demo:** https://www.cadet-web.de
 - **Newsletter:** https://cadet-web.de/newsletter/
 
 Installation
@@ -79,7 +79,7 @@ We do our best to provide you with a stable API. However, CADET is actively deve
 Bugs
 ----
 
-Please report any bugs that you find `here <https://github.com/modsim/cadet/issues>`_. Or, even better, fork the repository on `GitHub <https://github.com/modsim/cadet>`_ and create a pull request (PR) with the fix. 
+Please report any bugs that you find `here <https://github.com/modsim/cadet/issues>`_. Or, even better, fork the repository on `GitHub <https://github.com/modsim/cadet>`_ and create a pull request (PR) with the fix.
 
 Donations
 ---------

@@ -26,11 +26,11 @@ model.root.input.model.unit_001.cross_section_area = 0.01       # m
 model.root.input.model.unit_001.col_porosity = 0.37             # -
 model.root.input.model.unit_001.par_porosity = 0.33             # -
 model.root.input.model.unit_001.par_radius = 1e-6               # m
-                                                                
+
 ## Transport
 model.root.input.model.unit_001.col_dispersion = 1e-8           # m^2 / s (interstitial volume)
 model.root.input.model.unit_001.film_diffusion = [1e-5]         # m / s
-model.root.input.model.unit_001.par_diffusion = [1e-10,]        # m^2 / s (mobile phase)  
+model.root.input.model.unit_001.par_diffusion = [1e-10,]        # m^2 / s (mobile phase)
 model.root.input.model.unit_001.par_surfdiffusion = [0.0,]      # m^2 / s (solid phase)
 
 ## Adsorption
@@ -53,7 +53,7 @@ model.root.input.model.unit_001.discretization.npar = 5
 model.root.input.model.unit_001.discretization.nbound = [1]
 
 ### Other options
-model.root.input.model.unit_001.discretization.par_disc_type = 'EQUIDISTANT_PAR'    
+model.root.input.model.unit_001.discretization.par_disc_type = 'EQUIDISTANT_PAR'
 model.root.input.model.unit_001.discretization.use_analytic_jacobian = 1
 model.root.input.model.unit_001.discretization.reconstruction = 'WENO'
 model.root.input.model.unit_001.discretization.gs_type = 1
@@ -69,7 +69,7 @@ model.root.input.model.unit_001.discretization.weno.weno_order = 3
 model.root.input.model.unit_002.unit_type = 'OUTLET'
 model.root.input.model.unit_002.ncomp = 1
 
-# Sections 
+# Sections
 model.root.input.solver.sections.nsec = 1
 model.root.input.solver.sections.section_times = [0.0, 1200,]   # s
 model.root.input.solver.sections.section_continuity = []
@@ -84,8 +84,8 @@ model.root.input.model.unit_000.sec_000.cube_coeff = [0.0,]
 model.root.input.model.connections.nswitches = 1
 model.root.input.model.connections.switch_000.section = 0
 model.root.input.model.connections.switch_000.connections = [
-    0, 1, -1, -1, 60/1e6,  # [unit_000, unit_001, all components, all components, Q/ m^3*s^-1 
-    1, 2, -1, -1, 60/1e6]  # [unit_001, unit_002, all components, all components, Q/ m^3*s^-1 
+    0, 1, -1, -1, 60/1e6,  # [unit_000, unit_001, all components, all components, Q/ m^3*s^-1
+    1, 2, -1, -1, 60/1e6]  # [unit_001, unit_002, all components, all components, Q/ m^3*s^-1
 
 # Solver settings
 model.root.input.model.solver.gs_type = 1
@@ -125,7 +125,7 @@ data = model.run()
 
 if data.returncode == 0:
     print("Simulation completed successfully")
-    model.load()   
+    model.load()
 else:
     print(data)
     raise Exception("Simulation failed")

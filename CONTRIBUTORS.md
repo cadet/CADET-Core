@@ -22,4 +22,3 @@ Salah Azzouzi (Forschungszentrum Juelich GmbH, IBG-1: Biotechnology, Juelich, Ge
 * Johannes Schmölder has received support from the IMI2/ EU/EFPIA joint undertaking Inno4Vac (grant no. 101007799).
 
 Follow the lead, become a contributor by sending a pull request or a patch.
-

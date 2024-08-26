@@ -68,7 +68,7 @@ For non-developers, it is recommended to upgrade from release to release instead
 Bugs
 ----
 
-Please report any bugs that you find `here <https://github.com/modsim/cadet/issues>`_. Or, even better, fork the repository on `GitHub <https://github.com/modsim/cadet>`_ and create a pull request (PR) with the fix. 
+Please report any bugs that you find `here <https://github.com/modsim/cadet/issues>`_. Or, even better, fork the repository on `GitHub <https://github.com/modsim/cadet>`_ and create a pull request (PR) with the fix.
 
 Donations
 ---------
@@ -106,5 +106,3 @@ Please refer to the `list of contributors <https://github.com/modsim/CADET/blob/
     license
     zbibliography
     Legal notice <https://www.fz-juelich.de/portal/EN/Service/LegalNotice/_node.html>
-
-

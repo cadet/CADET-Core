@@ -1,9 +1,9 @@
 # =============================================================================
 #  CADET
-#  
+#
 #  Copyright © The CADET Authors
 #            Please see the CONTRIBUTORS.md file.
-#  
+#
 #  All rights reserved. This program and the accompanying materials
 #  are made available under the terms of the GNU Public License v3.0 (or, at
 #  your option, any later version) which accompanies this distribution, and
@@ -93,7 +93,7 @@ find_library(UMFPACK_LIBRARY
     ENV
         UMFPACK_ROOT
         UMFPACK_ROOT_DIR
-    PATH_SUFFIXES 
+    PATH_SUFFIXES
         lib
         lib64
         Lib
@@ -113,7 +113,7 @@ find_library(CHOLMOD_LIBRARY
     ENV
         UMFPACK_ROOT
         UMFPACK_ROOT_DIR
-    PATH_SUFFIXES 
+    PATH_SUFFIXES
         lib
         lib64
         Lib
@@ -132,7 +132,7 @@ find_library(COLAMD_LIBRARY
     ENV
         UMFPACK_ROOT
         UMFPACK_ROOT_DIR
-    PATH_SUFFIXES 
+    PATH_SUFFIXES
         lib
         lib64
         Lib
@@ -151,7 +151,7 @@ find_library(CCOLAMD_LIBRARY
     ENV
         UMFPACK_ROOT
         UMFPACK_ROOT_DIR
-    PATH_SUFFIXES 
+    PATH_SUFFIXES
         lib
         lib64
         Lib
@@ -170,7 +170,7 @@ find_library(CAMD_LIBRARY
     ENV
         UMFPACK_ROOT
         UMFPACK_ROOT_DIR
-    PATH_SUFFIXES 
+    PATH_SUFFIXES
         lib
         lib64
         Lib
@@ -189,7 +189,7 @@ find_library(AMD_LIBRARY
     ENV
         UMFPACK_ROOT
         UMFPACK_ROOT_DIR
-    PATH_SUFFIXES 
+    PATH_SUFFIXES
         lib
         lib64
         Lib
@@ -208,7 +208,7 @@ find_library(CONF_LIBRARY
     ENV
         UMFPACK_ROOT
         UMFPACK_ROOT_DIR
-    PATH_SUFFIXES 
+    PATH_SUFFIXES
         lib
         lib64
         Lib
@@ -233,7 +233,7 @@ find_library(METIS_LIBRARY
     ENV
         UMFPACK_ROOT
         UMFPACK_ROOT_DIR
-    PATH_SUFFIXES 
+    PATH_SUFFIXES
         lib
         lib64
         Lib
@@ -257,7 +257,7 @@ find_library(GK_LIBRARY
     ENV
         UMFPACK_ROOT
         UMFPACK_ROOT_DIR
-    PATH_SUFFIXES 
+    PATH_SUFFIXES
         lib
         lib64
         Lib
@@ -335,7 +335,7 @@ if (UMFPACK_FOUND AND NOT TARGET UMFPACK::UMFPACK)
         IMPORTED_LOCATION ${UMFPACK_LIBRARY}
     )
 
-    target_link_libraries(UMFPACK::UMFPACK INTERFACE 
+    target_link_libraries(UMFPACK::UMFPACK INTERFACE
         UMFPACK::COLAMD
         UMFPACK::CCOLAMD
         UMFPACK::AMD

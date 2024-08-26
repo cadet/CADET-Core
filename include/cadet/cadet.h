@@ -1,9 +1,9 @@
 // =============================================================================
 //  CADET - The Chromatography Analysis and Design Toolkit
-//  
+//
 //  Copyright © The CADET Authors
 //            Please see the CONTRIBUTORS.md file.
-//  
+//
 //  All rights reserved. This program and the accompanying materials
 //  are made available under the terms of the GNU Public License v3.0 (or, at
 //  your option, any later version) which accompanies this distribution, and
@@ -11,7 +11,7 @@
 // =============================================================================
 
 /**
- * @file 
+ * @file
  * Defines the C API of the library.
  */
 
@@ -78,9 +78,6 @@ extern "C"
 	 */
 	CADET_API const char* cdtGetLibraryBuildHost();
 
-
-
-
 	/**
 	 * @brief LogLevel represents the severity of log messages
 	 * @details The levels are nested, such that the highest level (Trace) includes all lower levels.
@@ -121,7 +118,6 @@ extern "C"
 		cdtLogLevelTrace = 7,
 	};
 
-
 	/**
 	 * @brief Callback for each log message
 	 * @param [in] file Name of the file
@@ -131,7 +127,8 @@ extern "C"
 	 * @param [in] lvlStr Name of the log level
 	 * @param [in] message Actual log message
 	 */
-	typedef void (*cdtLogHandler)(const char* file, const char* func, const unsigned int line, int lvl, const char* lvlStr, const char* message);
+	typedef void (*cdtLogHandler)(const char* file, const char* func, const unsigned int line, int lvl,
+								  const char* lvlStr, const char* message);
 
 	/**
 	 * @brief Sets the log receiver replacing any previously set receiver
@@ -152,8 +149,6 @@ extern "C"
 	 * @return Current log level
 	 */
 	CADET_API int cdtGetLogLevel();
-
-
 
 	/**
 	 * @brief Return and error codes
@@ -178,8 +173,6 @@ extern "C"
 	 * Result of operation (in general: < 0 indicates failure, >= 0 indicates success)
 	 */
 	typedef int cdtResult;
-
-
 
 	/**
 	 * @brief ParameterProvider interface is used for querying parameters and data
@@ -349,9 +342,6 @@ extern "C"
 
 	} cdtParameterProvider;
 
-
-
-
 	/**
 	 * Driver object
 	 */
@@ -394,7 +384,8 @@ extern "C"
 		 * @param [out] nPort Number of ports
 		 * @param [out] nComp Number of components
 		 */
-		cdtResult (*getSolutionOutlet)(cdtDriver* drv, int unitOpId, double const** time, double const** data, int* nTime, int* nPort, int* nComp);
+		cdtResult (*getSolutionOutlet)(cdtDriver* drv, int unitOpId, double const** time, double const** data,
+									   int* nTime, int* nPort, int* nComp);
 
 	} cdtAPIv010000;
 
@@ -404,7 +395,6 @@ extern "C"
 	 * @return     Success (>= 0) if the API is available, otherwise error (< 0)
 	 */
 	CADET_API cdtResult cdtGetAPIv010000(cdtAPIv010000* ptr);
-
 }
 
-#endif  // LIBCADET_CAPI_HPP_
+#endif // LIBCADET_CAPI_HPP_

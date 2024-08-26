@@ -1,9 +1,9 @@
 // =============================================================================
 //  CADET
-//  
+//
 //  Copyright © The CADET Authors
 //            Please see the CONTRIBUTORS.md file.
-//  
+//
 //  All rights reserved. This program and the accompanying materials
 //  are made available under the terms of the GNU Public License v3.0 (or, at
 //  your option, any later version) which accompanies this distribution, and
@@ -26,12 +26,16 @@ namespace cadet
 namespace model
 {
 
-ParameterStateDependenceBase::ParameterStateDependenceBase() : _nComp(0), _nBoundStates(nullptr) { }
+ParameterStateDependenceBase::ParameterStateDependenceBase() : _nComp(0), _nBoundStates(nullptr)
+{
+}
 ParameterStateDependenceBase::~ParameterStateDependenceBase() CADET_NOEXCEPT
 {
 }
 
-bool ParameterStateDependenceBase::configureModelDiscretization(IParameterProvider& paramProvider, unsigned int nComp, unsigned int const* nBound, unsigned int const* boundOffset)
+bool ParameterStateDependenceBase::configureModelDiscretization(IParameterProvider& paramProvider, unsigned int nComp,
+																unsigned int const* nBound,
+																unsigned int const* boundOffset)
 {
 	_nComp = nComp;
 	_nBoundStates = nBound;
@@ -45,7 +49,8 @@ bool ParameterStateDependenceBase::configureModelDiscretization(IParameterProvid
 	return true;
 }
 
-bool ParameterStateDependenceBase::configure(IParameterProvider& paramProvider, UnitOpIdx unitOpIdx, ParticleTypeIdx parTypeIdx, const std::string& name)
+bool ParameterStateDependenceBase::configure(IParameterProvider& paramProvider, UnitOpIdx unitOpIdx,
+											 ParticleTypeIdx parTypeIdx, const std::string& name)
 {
 	// Clear all parameters and reconfigure
 	_parameters.clear();
@@ -56,7 +61,9 @@ std::unordered_map<ParameterId, double> ParameterStateDependenceBase::getAllPara
 {
 	std::unordered_map<ParameterId, double> data;
 	std::transform(_parameters.begin(), _parameters.end(), std::inserter(data, data.end()),
-	               [](const std::pair<const ParameterId, active*>& p) { return std::make_pair(p.first, static_cast<double>(*p.second)); });
+				   [](const std::pair<const ParameterId, active*>& p) {
+					   return std::make_pair(p.first, static_cast<double>(*p.second));
+				   });
 	return data;
 }
 
@@ -98,8 +105,9 @@ active* ParameterStateDependenceBase::getParameter(const ParameterId& pId)
 	return nullptr;
 }
 
-
-ParameterParameterDependenceBase::ParameterParameterDependenceBase() { }
+ParameterParameterDependenceBase::ParameterParameterDependenceBase()
+{
+}
 ParameterParameterDependenceBase::~ParameterParameterDependenceBase() CADET_NOEXCEPT
 {
 }
@@ -109,7 +117,9 @@ bool ParameterParameterDependenceBase::configureModelDiscretization(IParameterPr
 	return true;
 }
 
-bool ParameterParameterDependenceBase::configure(IParameterProvider& paramProvider, UnitOpIdx unitOpIdx, ParticleTypeIdx parTypeIdx, BoundStateIdx bndIdx, const std::string& name)
+bool ParameterParameterDependenceBase::configure(IParameterProvider& paramProvider, UnitOpIdx unitOpIdx,
+												 ParticleTypeIdx parTypeIdx, BoundStateIdx bndIdx,
+												 const std::string& name)
 {
 	// Clear all parameters and reconfigure
 	_parameters.clear();
@@ -120,7 +130,9 @@ std::unordered_map<ParameterId, double> ParameterParameterDependenceBase::getAll
 {
 	std::unordered_map<ParameterId, double> data;
 	std::transform(_parameters.begin(), _parameters.end(), std::inserter(data, data.end()),
-	               [](const std::pair<const ParameterId, active*>& p) { return std::make_pair(p.first, static_cast<double>(*p.second)); });
+				   [](const std::pair<const ParameterId, active*>& p) {
+					   return std::make_pair(p.first, static_cast<double>(*p.second));
+				   });
 	return data;
 }
 
@@ -162,6 +174,6 @@ active* ParameterParameterDependenceBase::getParameter(const ParameterId& pId)
 	return nullptr;
 }
 
-}  // namespace model
+} // namespace model
 
-}  // namespace cadet
+} // namespace cadet

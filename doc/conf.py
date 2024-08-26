@@ -92,4 +92,3 @@ html_sidebars = {
 }
 
 html_style = 'css/custom.css'
-

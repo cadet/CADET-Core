@@ -31,7 +31,7 @@ brew install eigen
 
 ### LAPACK
 
-You can either use the native LAPACK implementation provided by Mac OS X (vecLib, Accelerate) 
+You can either use the native LAPACK implementation provided by Mac OS X (vecLib, Accelerate)
 or install the freely available [Intel MKL](https://software.intel.com/sites/campaigns/nest/) which is very fast and probably faster than Accelerate.
 
 ## Build CADET
@@ -41,10 +41,9 @@ or install the freely available [Intel MKL](https://software.intel.com/sites/cam
 
 * If using Intel MKL, execute `export MKLROOT=/opt/intel/mkl`
 * Using standard LAPACK: Execute `cmake -DCMAKE_INSTALL_PREFIX="<ROOT>/install" ../`
- 
+
     Using MKL (sequential): Execute `cmake -DCMAKE_INSTALL_PREFIX="<ROOT>/install" -DBLA_VENDOR=Intel10_64lp_seq ../`
- 
+
     Using MKL (parallel): Execute `cmake -DCMAKE_INSTALL_PREFIX="<ROOT>/install" -DBLA_VENDOR=Intel10_64lp ../`
 * Execute `make`
 * Execute `make install`
-

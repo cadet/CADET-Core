@@ -65,7 +65,7 @@ For information on model equations, refer to :ref:`bi_steric_mass_action_model`.
 **Unit:** :math:`mol~m_{SP}^{-3}`
 
 ===================  =========================  ===============================
-**Type:** double     **Range:** :math:`\ge 0`   **Length:** NSTATES 
+**Type:** double     **Range:** :math:`\ge 0`   **Length:** NSTATES
 ===================  =========================  ===============================
 
 ``BISMA_REFC0``
@@ -75,7 +75,7 @@ For information on model equations, refer to :ref:`bi_steric_mass_action_model`.
 **Unit:** :math:`mol~m_{MP}^{-3}`
 
 ===================  =========================  ===============================
-**Type:** double     **Range:** :math:`\gt 0`   **Length:** {1,NSTATES} 
+**Type:** double     **Range:** :math:`\gt 0`   **Length:** {1,NSTATES}
 ===================  =========================  ===============================
 
 ``BISMA_REFQ``
@@ -85,5 +85,5 @@ For information on model equations, refer to :ref:`bi_steric_mass_action_model`.
 **Unit:** :math:`mol~m_{SP}^{-3}`
 
 ===================  =========================  ===============================
-**Type:** double     **Range:** :math:`\gt 0`   **Length:** {1,NSTATES} 
+**Type:** double     **Range:** :math:`\gt 0`   **Length:** {1,NSTATES}
 ===================  =========================  ===============================

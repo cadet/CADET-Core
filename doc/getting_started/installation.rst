@@ -53,4 +53,4 @@ If you want to use ``CADET-Python``, open an `anaconda shell` or `mamba shell` a
 
 .. code-block:: bash
 
-    pip install CADET-Python 
+    pip install CADET-Python

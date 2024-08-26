@@ -15,7 +15,7 @@ Group /input/model/unit_XXX
 ``COL_DISPERSION_DEP``
 
    Parameter dependence of column dispersion on the interstitial velocity. Available for the LRM, LRMP and GRM units (with FV discretization only at the moment)
-   
+
    ================  =====================================  =============
    **Type:** string  **Range:** :math:`\texttt{POWER_LAW}`  **Length:** 1
    ================  =====================================  =============
@@ -23,7 +23,7 @@ Group /input/model/unit_XXX
 ``FILM_DIFFUSION_DEP``
 
    Parameter dependence of film diffusion on the interstitial velocity. Available for the LRMP unit (with FV discretization only at the moment)
-   
+
    ================  =====================================  =============
    **Type:** string  **Range:** :math:`\texttt{POWER_LAW}`  **Length:** 1
    ================  =====================================  =============
@@ -48,7 +48,7 @@ Here, :math:`p_{dep}` is the dependent parameter and :math:`p_{on}` is the param
 ``COL_DISPERSION_DEP_BASE``
 
    Base :math:`b` of the power law parameter dependence. Optional, defaults to :math:`1.0`
-   
+
    ================  =============================  =============
    **Type:** double  **Range:** :math:`\mathbb{R}`  **Length:** 1
    ================  =============================  =============
@@ -56,7 +56,7 @@ Here, :math:`p_{dep}` is the dependent parameter and :math:`p_{on}` is the param
 ``COL_DISPERSION_DEP_EXPONENT``
 
    Exponent :math:`x` of the power law parameter dependence
-   
+
    ================  =============================  =============
    **Type:** double  **Range:** :math:`\mathbb{R}`  **Length:** 1
    ================  =============================  =============
@@ -64,7 +64,7 @@ Here, :math:`p_{dep}` is the dependent parameter and :math:`p_{on}` is the param
 ``COL_DISPERSION_DEP_ABS``
 
    Specifies whether or not the absolute value should be computed. Optional, defaults to :math:`1`
-   
+
    =============  ===========================  =============
    **Type:** int  **Range:** :math:`\{0, 1\}`  **Length:** 1
    =============  ===========================  =============

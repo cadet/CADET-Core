@@ -5,10 +5,10 @@
 * Optional: Git
 * Optional but not generally recommended*: Intel OneAPI TBB
 
-*For most use-cases it is more efficient to parallelize by running multiple CADET simulations instead 
+*For most use-cases it is more efficient to parallelize by running multiple CADET simulations instead
 of parallelizing within one CADET simulation. Including the parallelization code in CADET can lead to performance
-losses, even if parallelization within CADET is not used. 
-Therefore, we recommend not including the parallelization library TBB 
+losses, even if parallelization within CADET is not used.
+Therefore, we recommend not including the parallelization library TBB
 unless you know your simulations are large enough to benefit from it.
 
 Assumed directory structure:
@@ -46,7 +46,7 @@ We are using Visual Studio because it is the easiest way to install all required
 
 ## Prepare CADET code
 
-- Clone the CADET source code into a `CADET` folder: 
+- Clone the CADET source code into a `CADET` folder:
   - `git clone https://github.com/modsim/CADET.git CADET`
 - Create the directories `CADET\build` and `CADET\install`
 
@@ -78,7 +78,7 @@ We are using Visual Studio because it is the easiest way to install all required
           execute `set TBBROOT="C:/Program Files (x86)/Intel/oneAPI/tbb/latest"` and
         - `cmake -DCMAKE_INSTALL_PREFIX=..\out\install\aRELEASE -G "Visual Studio 17 2022" -A x64 -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE="%VCPKG_ROOT%/scripts/buildsystems/vcpkg.cmake" -DVCPKG_TARGET_TRIPLET=x64-windows-static -DENABLE_STATIC_LINK_LAPACK=ON -DENABLE_STATIC_LINK_DEPS=ON -DBLA_VENDOR=Intel10_64lp --fresh ../`
     - `msbuild.exe INSTALL.vcxproj /p:Configuration=Release;Platform=x64`
-  
+
 - For PowerShell:
     - `cd CADET\build`
     - `vcpkg integrate install` (this only needs to be run _once_ and will require admin privileges)
@@ -86,7 +86,7 @@ We are using Visual Studio because it is the easiest way to install all required
     - `cmake -DCMAKE_INSTALL_PREFIX="..\out\install\aRELEASE" -G "Visual Studio 17 2022" -A x64 -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE="$ENV:VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" -DVCPKG_TARGET_TRIPLET=x64-windows-static -DENABLE_STATIC_LINK_LAPACK=ON -DENABLE_STATIC_LINK_DEPS=ON -DBLA_VENDOR=Intel10_64lp_seq "../" --fresh`
       - If you want to use parallelization and have installed TBB, instead
            execute `$ENV:TBBROOT = "C:\Program Files (x86)\Intel\oneAPI\tbb\latest"`
-      and 
+      and
       - `cmake -DCMAKE_INSTALL_PREFIX="..\out\install\aRELEASE" -G "Visual Studio 17 2022" -A x64 -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE="$ENV:VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" -DVCPKG_TARGET_TRIPLET=x64-windows-static -DENABLE_STATIC_LINK_LAPACK=ON -DENABLE_STATIC_LINK_DEPS=ON -DBLA_VENDOR=Intel10_64lp "../" --fresh`
     - `msbuild.exe INSTALL.vcxproj /p:Configuration="Release;Platform=x64"`
 - The binaries will be located in `CADET\out\install\aRELEASE\bin`

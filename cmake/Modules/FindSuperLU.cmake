@@ -1,9 +1,9 @@
 # =============================================================================
 #  CADET
-#  
+#
 #  Copyright © The CADET Authors
 #            Please see the CONTRIBUTORS.md file.
-#  
+#
 #  All rights reserved. This program and the accompanying materials
 #  are made available under the terms of the GNU Public License v3.0 (or, at
 #  your option, any later version) which accompanies this distribution, and
@@ -66,7 +66,7 @@ if (SUPERLU_INCLUDE_DIRS)
     string(REGEX REPLACE ".*#define SUPERLU_MINOR_VERSION [ \t\r\n]* ([0-9]+).*" "\\1" SUPERLU_VERSION_MINOR "${_SUPERLU_VERSION_FILE}")
     string(REGEX REPLACE ".*#define SUPERLU_PATCH_VERSION [ \t\r\n]* ([0-9]+).*" "\\1" SUPERLU_VERSION_PATCH "${_SUPERLU_VERSION_FILE}")
     set(SUPERLU_VERSION "${SUPERLU_VERSION_MAJOR}.${SUPERLU_VERSION_MINOR}.${SUPERLU_VERSION_PATCH}")
-    
+
     # extract int type
     if (SUPERLU_VERSION_MAJOR GREATER_EQUAL 6)
         file(READ "${SUPERLU_INCLUDE_DIRS}/superlu_config.h" _SUPERLU_INTTYPE_FILE)
@@ -108,7 +108,7 @@ find_library(SUPERLU_LIBRARY
     ENV
         SUPERLU_ROOT
         SUPERLU_ROOT_DIR
-    PATH_SUFFIXES 
+    PATH_SUFFIXES
         lib
         lib64
         Lib

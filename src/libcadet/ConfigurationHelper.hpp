@@ -1,9 +1,9 @@
 // =============================================================================
 //  CADET
-//  
+//
 //  Copyright © The CADET Authors
 //            Please see the CONTRIBUTORS.md file.
-//  
+//
 //  All rights reserved. This program and the accompanying materials
 //  are made available under the terms of the GNU Public License v3.0 (or, at
 //  your option, any later version) which accompanies this distribution, and
@@ -11,7 +11,7 @@
 // =============================================================================
 
 /**
- * @file 
+ * @file
  * Provides an interface to create different subentitites (e.g., IInletProfile) and provide
  * some aids for configuring models.
  */
@@ -27,13 +27,13 @@ namespace cadet
 class IInletProfile;
 class IExternalFunction;
 
-	namespace model
-	{
-		class IBindingModel;
-		class IDynamicReactionModel;
-		class IParameterStateDependence;
-		class IParameterParameterDependence;
-	}
+namespace model
+{
+class IBindingModel;
+class IDynamicReactionModel;
+class IParameterStateDependence;
+class IParameterParameterDependence;
+} // namespace model
 
 /**
  * @brief Provides means to create subentities (e.g., IInletProfile, IBindingModel)
@@ -41,7 +41,6 @@ class IExternalFunction;
 class IConfigHelper
 {
 public:
-
 	/**
 	 * @brief Creates an IInletProfile object of the given @p type
 	 * @details The caller owns the returned IInletProfile object.
@@ -121,4 +120,4 @@ public:
 
 } // namespace cadet
 
-#endif  // LIBCADET_CONFIGURATIONHELPER_HPP_
+#endif // LIBCADET_CONFIGURATIONHELPER_HPP_

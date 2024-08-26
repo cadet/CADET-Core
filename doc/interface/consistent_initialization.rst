@@ -11,7 +11,7 @@ Group /input/model/unit_XXX/discretization/consistency_solver - Nonlinear consis
 Name of the solver. Available solvers are ``LEVMAR``, ``ATRN_RES``, ``ATRN_ERR``, and ``COMPOSITE``.
 
   ================== =======================
-   **Type:** string  **Length:** :math:`1`     
+   **Type:** string  **Length:** :math:`1`
   ================== =======================
 
 ``INIT_DAMPING``
@@ -35,5 +35,5 @@ Minimal damping factor (default is :math:`0.0001`; ignored by ``LEVMAR``)
 Vector with names of solvers for the composite solver (only required for composite solver). See ``SOLVER_NAME`` for available solvers.
 
   ================== ==========================
-   **Type:** string  **Length:** :math:`\gt 1`     
+   **Type:** string  **Length:** :math:`\gt 1`
   ================== ==========================

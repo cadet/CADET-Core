@@ -1,9 +1,9 @@
 // =============================================================================
 //  CADET
-//  
+//
 //  Copyright © The CADET Authors
 //            Please see the CONTRIBUTORS.md file.
-//  
+//
 //  All rights reserved. This program and the accompanying materials
 //  are made available under the terms of the GNU Public License v3.0 (or, at
 //  your option, any later version) which accompanies this distribution, and
@@ -40,7 +40,8 @@ namespace dgtoolbox
  * @param [in, out] invWeights Legendre Gauss quadrature weights
  * @param [in] invertWeights specifies if weights should be inverted
  */
-void lglNodesWeights(const unsigned int polyDeg, Eigen::VectorXd& nodes, Eigen::VectorXd& invWeights, bool invertWeights = true);
+void lglNodesWeights(const unsigned int polyDeg, Eigen::VectorXd& nodes, Eigen::VectorXd& invWeights,
+					 bool invertWeights = true);
 /**
  * @brief computes the Legendre polynomial and its derivative
  * @param [in] polyDeg polynomial degree
@@ -70,31 +71,36 @@ Eigen::VectorXd barycentricWeights(const unsigned int polyDeg, const Eigen::Vect
 Eigen::MatrixXd derivativeMatrix(const unsigned int polyDeg, const Eigen::VectorXd nodes);
 /**
  * @brief calculates the inverse mass matrix via transformation to orthonormal Jacobi (modal) basis
- * @detail the mass matrix used to compute integrals of the form \int_E \ell_i(\xi) \ell_j(\xi) (1 - \xi)^\alpha (1 + \xi)^\beta d\xi
+ * @detail the mass matrix used to compute integrals of the form \int_E \ell_i(\xi) \ell_j(\xi) (1 - \xi)^\alpha (1 +
+ * \xi)^\beta d\xi
  * @param [in] polyDeg polynomial degree
  * @param [in] nodes polynomial interpolation nodes
  */
-Eigen::MatrixXd invMMatrix(const unsigned int polyDeg, const Eigen::VectorXd nodes, const double alpha = 0.0, const double beta = 0.0);
+Eigen::MatrixXd invMMatrix(const unsigned int polyDeg, const Eigen::VectorXd nodes, const double alpha = 0.0,
+						   const double beta = 0.0);
 /**
  * @brief calculates the mass matrix via transformation to orthonormal Jacobi (modal) basis
- * @detail mass matrix used to compute integrals of the form \int_E \ell_i(\xi) \ell_j(\xi) (1 - \xi)^\alpha (1 + \xi)^\beta d\xi
+ * @detail mass matrix used to compute integrals of the form \int_E \ell_i(\xi) \ell_j(\xi) (1 - \xi)^\alpha (1 +
+ * \xi)^\beta d\xi
  * @param [in] polyDeg polynomial degree
  * @param [in] nodes polynomial interpolation nodes
  */
 Eigen::MatrixXd mMatrix(const unsigned int polyDeg, const Eigen::VectorXd nodes, const double alpha, const double beta);
 /**
  * @brief calculates a specific second order nodal stiffness matrix
- * @detail for integrals including terms of the form (1 - \xi)^\alpha (1 + \xi)^\beta. Computation via transformation to the respective Jacobi polynomial
+ * @detail for integrals including terms of the form (1 - \xi)^\alpha (1 + \xi)^\beta. Computation via transformation to
+ * the respective Jacobi polynomial
  * @param [in] polyDeg polynomial degree
  * @param [in] a Jacobi polynomial parameter
  * @param [in] b Jacobi polynomial parameter
  * @param [in] nodes polynomial interpolation nodes
  */
-Eigen::MatrixXd secondOrderStiffnessMatrix(const unsigned int polyDeg, const double alpha, const double beta, const Eigen::VectorXd nodes);
+Eigen::MatrixXd secondOrderStiffnessMatrix(const unsigned int polyDeg, const double alpha, const double beta,
+										   const Eigen::VectorXd nodes);
 
 } // namespace dgtoolbox
 } // namespace parts
 } // namespace model
 } // namespace cadet
 
-#endif  // LIBCADET_DGTOOLBOX_HPP_
+#endif // LIBCADET_DGTOOLBOX_HPP_

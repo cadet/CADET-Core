@@ -1,9 +1,9 @@
 // =============================================================================
 //  CADET
-//  
+//
 //  Copyright © The CADET Authors
 //            Please see the CONTRIBUTORS.md file.
-//  
+//
 //  All rights reserved. This program and the accompanying materials
 //  are made available under the terms of the GNU Public License v3.0 (or, at
 //  your option, any later version) which accompanies this distribution, and
@@ -30,72 +30,120 @@
 
 namespace cadet
 {
-	class BindingWithoutJacobian : public model::BindingModelBase
+class BindingWithoutJacobian : public model::BindingModelBase
+{
+public:
+	BindingWithoutJacobian()
 	{
-	public:
-		BindingWithoutJacobian() { }
+	}
 
-		virtual const char* name() const CADET_NOEXCEPT { return "BindingWithoutJacobian"; }
-		virtual bool dependsOnTime() const CADET_NOEXCEPT { return false; }
+	virtual const char* name() const CADET_NOEXCEPT
+	{
+		return "BindingWithoutJacobian";
+	}
+	virtual bool dependsOnTime() const CADET_NOEXCEPT
+	{
+		return false;
+	}
 
-		virtual bool configureImpl(IParameterProvider& paramProvider, UnitOpIdx unitOpIdx, ParticleTypeIdx parTypeIdx) override { return true; }
-		virtual bool hasSalt() const CADET_NOEXCEPT { return false; }
-		virtual bool supportsMultistate() const CADET_NOEXCEPT { return true; }
-		virtual bool supportsNonBinding() const CADET_NOEXCEPT { return true; }
+	virtual bool configureImpl(IParameterProvider& paramProvider, UnitOpIdx unitOpIdx,
+							   ParticleTypeIdx parTypeIdx) override
+	{
+		return true;
+	}
+	virtual bool hasSalt() const CADET_NOEXCEPT
+	{
+		return false;
+	}
+	virtual bool supportsMultistate() const CADET_NOEXCEPT
+	{
+		return true;
+	}
+	virtual bool supportsNonBinding() const CADET_NOEXCEPT
+	{
+		return true;
+	}
 
-		CADET_BINDINGMODEL_RESIDUAL_BOILERPLATE
-	protected:
-		virtual bool implementsAnalyticJacobian() const CADET_NOEXCEPT { return false; }
+	CADET_BINDINGMODEL_RESIDUAL_BOILERPLATE
+protected:
+	virtual bool implementsAnalyticJacobian() const CADET_NOEXCEPT
+	{
+		return false;
+	}
 
-		template <typename StateType, typename CpStateType, typename ResidualType, typename ParamType>
-		int fluxImpl(double t, unsigned int secIdx, const ColumnPosition& colPos, StateType const* y,
-			CpStateType const* yCp, ResidualType* res, LinearBufferAllocator workSpace) const
+	template <typename StateType, typename CpStateType, typename ResidualType, typename ParamType>
+	int fluxImpl(double t, unsigned int secIdx, const ColumnPosition& colPos, StateType const* y,
+				 CpStateType const* yCp, ResidualType* res, LinearBufferAllocator workSpace) const
+	{
+		int bndIdx = 0;
+		for (int i = 0; i < _nComp; ++i)
 		{
-			int bndIdx = 0;
-			for (int i = 0; i < _nComp; ++i)
+			// Skip components without bound states (bound state index bndIdx is not advanced)
+			if (_nBoundStates[i] == 0)
+				continue;
+
+			// Residual
+			for (int j = 0; j < _nBoundStates[i]; ++j)
 			{
-				// Skip components without bound states (bound state index bndIdx is not advanced)
-				if (_nBoundStates[i] == 0)
-					continue;
+				res[bndIdx] = (i + 2 + j) * y[bndIdx] - (i + 1) * yCp[i];
 
-				// Residual
-				for (int j = 0; j < _nBoundStates[i]; ++j)
-				{
-					res[bndIdx] = (i+2+j) * y[bndIdx] - (i+1) * yCp[i];
-
-					// Next bound state
-					++bndIdx;
-				}
+				// Next bound state
+				++bndIdx;
 			}
-
-			return 0;
 		}
-	};
 
-	class BindingWithJacobian : public model::BindingModelBase
+		return 0;
+	}
+};
+
+class BindingWithJacobian : public model::BindingModelBase
+{
+public:
+	BindingWithJacobian()
 	{
-	public:
-		BindingWithJacobian() { }
+	}
 
-		virtual const char* name() const CADET_NOEXCEPT { return "BindingWithJacobian"; }
-		virtual bool dependsOnTime() const CADET_NOEXCEPT { return false; }
+	virtual const char* name() const CADET_NOEXCEPT
+	{
+		return "BindingWithJacobian";
+	}
+	virtual bool dependsOnTime() const CADET_NOEXCEPT
+	{
+		return false;
+	}
 
-		virtual bool configureImpl(IParameterProvider& paramProvider, UnitOpIdx unitOpIdx, ParticleTypeIdx parTypeIdx) override { return true; }
-		virtual bool hasSalt() const CADET_NOEXCEPT { return false; }
-		virtual bool supportsMultistate() const CADET_NOEXCEPT { return true; }
-		virtual bool supportsNonBinding() const CADET_NOEXCEPT { return true; }
+	virtual bool configureImpl(IParameterProvider& paramProvider, UnitOpIdx unitOpIdx,
+							   ParticleTypeIdx parTypeIdx) override
+	{
+		return true;
+	}
+	virtual bool hasSalt() const CADET_NOEXCEPT
+	{
+		return false;
+	}
+	virtual bool supportsMultistate() const CADET_NOEXCEPT
+	{
+		return true;
+	}
+	virtual bool supportsNonBinding() const CADET_NOEXCEPT
+	{
+		return true;
+	}
 
-		CADET_BINDINGMODEL_RESIDUAL_BOILERPLATE
-	protected:
-		virtual bool implementsAnalyticJacobian() const CADET_NOEXCEPT { return true; }
+	CADET_BINDINGMODEL_RESIDUAL_BOILERPLATE
+protected:
+	virtual bool implementsAnalyticJacobian() const CADET_NOEXCEPT
+	{
+		return true;
+	}
 
-		template <typename StateType, typename CpStateType, typename ResidualType, typename ParamType>
-		int fluxImpl(double t, unsigned int secIdx, const ColumnPosition& colPos, StateType const* y,
-			CpStateType const* yCp, ResidualType* res, LinearBufferAllocator workSpace) const
-		{
-			return 0;
-		}
-	};
+	template <typename StateType, typename CpStateType, typename ResidualType, typename ParamType>
+	int fluxImpl(double t, unsigned int secIdx, const ColumnPosition& colPos, StateType const* y,
+				 CpStateType const* yCp, ResidualType* res, LinearBufferAllocator workSpace) const
+	{
+		return 0;
+	}
+};
 
 } // namespace cadet
 
@@ -134,10 +182,12 @@ TEST_CASE("Automatic AD binding model Jacobian vs FD", "[BindingModel],[Jacobian
 
 	// Compare against FD: Since our flux() is linear, the Jacobian should be exact
 	cadet::test::compareJacobianFD(
-		[=](double const* y, double* r) { std::fill_n(r, totalBoundStates, 0.0); bm.flux(0.0, 0u, cadet::ColumnPosition{0.0, 0.0, 0.0}, y + nComp, y, r, workSpace); },
+		[=](double const* y, double* r) {
+			std::fill_n(r, totalBoundStates, 0.0);
+			bm.flux(0.0, 0u, cadet::ColumnPosition{0.0, 0.0, 0.0}, y + nComp, y, r, workSpace);
+		},
 		[&](double const* y, double* r) { jacAna.submatrixMultiplyVector(y, nComp, 0, totalBoundStates, numDofs, r); },
-		y.data(), dir.data(), colA.data(), colB.data(), numDofs, totalBoundStates, 1e-7, 0.0, 1e-15
-	);
+		y.data(), dir.data(), colA.data(), colB.data(), numDofs, totalBoundStates, 1e-7, 0.0, 1e-15);
 }
 
 TEST_CASE("Automatic AD disabled for binding model with Jacobian", "[BindingModel],[Jacobian],[CI]")
@@ -160,7 +210,8 @@ TEST_CASE("Automatic AD disabled for binding model with Jacobian", "[BindingMode
 	REQUIRE(bm.workspaceSize(4, totalBoundStates, boundOffset) == 0);
 }
 
-TEST_CASE("Full analytic Jacobian vs AD only enabled for binding model for a LRMP with multi-state SMA", "[BindingModel],[Jacobian],[Simulation],[CI]")
+TEST_CASE("Full analytic Jacobian vs AD only enabled for binding model for a LRMP with multi-state SMA",
+		  "[BindingModel],[Jacobian],[Simulation],[CI]")
 {
 	nlohmann::json jsonJpp = createLWEJson("LUMPED_RATE_MODEL_WITH_PORES", "FV");
 
@@ -186,7 +237,8 @@ TEST_CASE("Full analytic Jacobian vs AD only enabled for binding model for a LRM
 	double const* BndADJacOutlet = BndADJacData->outlet();
 
 	const unsigned int nComp = FullAnaJacData->numComponents();
-	for (unsigned int i = 0; i < FullAnaJacData->numDataPoints() * FullAnaJacData->numInletPorts() * nComp; ++i, ++FullAnaJacOutlet, ++BndADJacOutlet)
+	for (unsigned int i = 0; i < FullAnaJacData->numDataPoints() * FullAnaJacData->numInletPorts() * nComp;
+		 ++i, ++FullAnaJacOutlet, ++BndADJacOutlet)
 	{
 		CAPTURE(i);
 		CHECK((*FullAnaJacOutlet) == cadet::test::makeApprox(*BndADJacOutlet, 1e-3, 5e-9)); // 1e-10, 1e-15 for DG

@@ -1,9 +1,9 @@
 // =============================================================================
 //  CADET
-//  
+//
 //  Copyright © The CADET Authors
 //            Please see the CONTRIBUTORS.md file.
-//  
+//
 //  All rights reserved. This program and the accompanying materials
 //  are made available under the terms of the GNU Public License v3.0 (or, at
 //  your option, any later version) which accompanies this distribution, and
@@ -11,7 +11,7 @@
 // =============================================================================
 
 /**
- * @file 
+ * @file
  * Provides utilities for AD vectors and matrices
  */
 
@@ -22,7 +22,7 @@
 #include "CompileTimeConfig.hpp"
 
 #ifdef ENABLE_DG
-	#include <Eigen/Sparse>
+#include <Eigen/Sparse>
 #endif
 
 namespace cadet
@@ -30,15 +30,15 @@ namespace cadet
 
 namespace linalg
 {
-	class BandMatrix;
+class BandMatrix;
 
-	namespace detail
-	{
-		class DenseMatrixBase;
-	}
-
-	template <class real_t> class SparseMatrix;
+namespace detail
+{
+class DenseMatrixBase;
 }
+
+template <class real_t> class SparseMatrix;
+} // namespace linalg
 
 namespace ad
 {
@@ -55,8 +55,8 @@ namespace ad
  * @param [in] upperBandwidth Upper bandwidth (number of upper superdiagonals) of the banded Jacobian
  * @param [in] diagDir Diagonal direction index
  */
-void prepareAdVectorSeedsForBandMatrix(active* const adVec, int adDirOffset, int rows, 
-	int lowerBandwidth, int upperBandwidth, int diagDir);
+void prepareAdVectorSeedsForBandMatrix(active* const adVec, int adDirOffset, int rows, int lowerBandwidth,
+									   int upperBandwidth, int diagDir);
 
 /**
  * @brief Extracts a band matrix from band compressed AD seed vectors
@@ -70,54 +70,62 @@ void prepareAdVectorSeedsForBandMatrix(active* const adVec, int adDirOffset, int
 void extractBandedJacobianFromAd(active const* const adVec, int adDirOffset, int diagDir, linalg::BandMatrix& mat);
 
 #ifdef ENABLE_DG
-	/**
-	 * @brief Extracts a band (sub)matrix (Eigen lib) from band compressed AD seed vectors
-	 * @details Uses the results of an AD computation with seed vectors set by prepareAdVectorSeedsForBandMatrix() to
-				assemble the Jacobian block which is a band matrix. The block must be on the main diagonal.
-	* @param [in] adVec Vector of AD datatypes with band compressed seed vectors
-	* @param [in] adDirOffset Offset in the AD directions (can be used to move past parameter sensitivity directions)
-	* @param [in] diagDir Diagonal direction index
-	* @param [in] lowerBandwidth lower band width
-	* @param [in] upperBandwidth upper band width
-	* @param [in] blockOffset offset to diagonal block
-	* @param [in] nCols number of columns of the extracted block
-	* @param [out] mat Eigen matrix to be populated with the Jacobian block
-	*/
-	void extractBandedBlockEigenJacobianFromAd(active const* const adVec, int adDirOffset, int diagDir, const int lowerBandwidth, const int upperBandwidth,
-		const int blockOffset, const int nCols, Eigen::SparseMatrix<double, Eigen::RowMajor>& mat, const int matrixOffset = 0);
+/**
+ * @brief Extracts a band (sub)matrix (Eigen lib) from band compressed AD seed vectors
+ * @details Uses the results of an AD computation with seed vectors set by prepareAdVectorSeedsForBandMatrix() to
+			assemble the Jacobian block which is a band matrix. The block must be on the main diagonal.
+* @param [in] adVec Vector of AD datatypes with band compressed seed vectors
+* @param [in] adDirOffset Offset in the AD directions (can be used to move past parameter sensitivity directions)
+* @param [in] diagDir Diagonal direction index
+* @param [in] lowerBandwidth lower band width
+* @param [in] upperBandwidth upper band width
+* @param [in] blockOffset offset to diagonal block
+* @param [in] nCols number of columns of the extracted block
+* @param [out] mat Eigen matrix to be populated with the Jacobian block
+*/
+void extractBandedBlockEigenJacobianFromAd(active const* const adVec, int adDirOffset, int diagDir,
+										   const int lowerBandwidth, const int upperBandwidth, const int blockOffset,
+										   const int nCols, Eigen::SparseMatrix<double, Eigen::RowMajor>& mat,
+										   const int matrixOffset = 0);
 
-	/**
-	 * @brief Extracts a band matrix (Eigen lib) from band compressed AD seed vectors
-	 * @details Uses the results of an AD computation with seed vectors set by prepareAdVectorSeedsForBandMatrix() to
-				assemble the Jacobian block which is a band matrix. The block must be on the main diagonal.
-	 * @param [in] adVec Vector of AD datatypes with band compressed seed vectors
-	 * @param [in] adDirOffset Offset in the AD directions (can be used to move past parameter sensitivity directions)
-	 * @param [in] diagDir Diagonal direction index
-	 * @param [in] lowerBandwidth lower band width
-	 * @param [in] upperBandwidth upper band width
-	 * @param [out] mat Eigen matrix to be populated with the Jacobian block
-	 */
-	void extractBandedEigenJacobianFromAd(active const* const adVec, int adDirOffset, int diagDir, const int lowerBandwidth, const int upperBandwidth, Eigen::SparseMatrix<double, Eigen::RowMajor>& mat);
+/**
+ * @brief Extracts a band matrix (Eigen lib) from band compressed AD seed vectors
+ * @details Uses the results of an AD computation with seed vectors set by prepareAdVectorSeedsForBandMatrix() to
+			assemble the Jacobian block which is a band matrix. The block must be on the main diagonal.
+ * @param [in] adVec Vector of AD datatypes with band compressed seed vectors
+ * @param [in] adDirOffset Offset in the AD directions (can be used to move past parameter sensitivity directions)
+ * @param [in] diagDir Diagonal direction index
+ * @param [in] lowerBandwidth lower band width
+ * @param [in] upperBandwidth upper band width
+ * @param [out] mat Eigen matrix to be populated with the Jacobian block
+ */
+void extractBandedEigenJacobianFromAd(active const* const adVec, int adDirOffset, int diagDir, const int lowerBandwidth,
+									  const int upperBandwidth, Eigen::SparseMatrix<double, Eigen::RowMajor>& mat);
 
-	/**
-	 * @brief Compares a (block-) banded Jacobian in Eigen library row-major format with an AD version derived by band compressed AD seed vectors
-	 * @details Uses the results of an AD computation with seed vectors set by prepareAdVectorSeedsForBandMatrix() to
-				compare the results with a given banded Jacobian. The AD Jacobian is treated as base and the analytic
-				Jacobian is compared against it. The relative difference
-				@f[ \Delta_{ij} = \begin{cases} \left\lvert \frac{ J_{\text{ana},ij} - J_{\text{ad},ij} }{ J_{\text{ad},ij} }\right\rvert, & J_{\text{ad},ij} \neq 0 \\
-								   \left\lvert J_{\text{ana},ij} - J_{\text{ad},ij} \right\rvert, & J_{\text{ad},ij} = 0 \end{cases} @f]
-				is computed for each matrix entry. The maximum of all @f$ \Delta_{ij} @f$ is returned.
-	 * @param [in] adVec Vector of AD datatypes with band compressed seed vectors
-	 * @param [in] adDirOffset Offset in the AD directions (can be used to move past parameter sensitivity directions)
-	 * @param [in] diagDir Diagonal direction index
-	 * @param [in] lowerBandwidth of the block
-	 * @param [in] upperBandwidth of the block
-	 * @param [in] blockOffset of the currently considered block
-	 * @param [in] nRows of the matrix or number of equations to be compared
-	 * @param [in] mat BandMatrix populated with the analytic Jacobian
-	 * @return The maximum absolute relative difference between the matrix elements
-	 */
-	double compareBandedEigenJacobianWithAd(active const* const adVec, const int adDirOffset, const int diagDir, const int lowerBandwidth, const int upperBandwidth, const int blockOffset, const int nRows, const Eigen::SparseMatrix<double, Eigen::RowMajor>& mat, const int matrixOffset);
+/**
+ * @brief Compares a (block-) banded Jacobian in Eigen library row-major format with an AD version derived by band
+ compressed AD seed vectors
+ * @details Uses the results of an AD computation with seed vectors set by prepareAdVectorSeedsForBandMatrix() to
+			compare the results with a given banded Jacobian. The AD Jacobian is treated as base and the analytic
+			Jacobian is compared against it. The relative difference
+			@f[ \Delta_{ij} = \begin{cases} \left\lvert \frac{ J_{\text{ana},ij} - J_{\text{ad},ij} }{ J_{\text{ad},ij}
+ }\right\rvert, & J_{\text{ad},ij} \neq 0 \\ \left\lvert J_{\text{ana},ij} - J_{\text{ad},ij} \right\rvert, &
+ J_{\text{ad},ij} = 0 \end{cases} @f] is computed for each matrix entry. The maximum of all @f$ \Delta_{ij} @f$ is
+ returned.
+ * @param [in] adVec Vector of AD datatypes with band compressed seed vectors
+ * @param [in] adDirOffset Offset in the AD directions (can be used to move past parameter sensitivity directions)
+ * @param [in] diagDir Diagonal direction index
+ * @param [in] lowerBandwidth of the block
+ * @param [in] upperBandwidth of the block
+ * @param [in] blockOffset of the currently considered block
+ * @param [in] nRows of the matrix or number of equations to be compared
+ * @param [in] mat BandMatrix populated with the analytic Jacobian
+ * @return The maximum absolute relative difference between the matrix elements
+ */
+double compareBandedEigenJacobianWithAd(active const* const adVec, const int adDirOffset, const int diagDir,
+										const int lowerBandwidth, const int upperBandwidth, const int blockOffset,
+										const int nRows, const Eigen::SparseMatrix<double, Eigen::RowMajor>& mat,
+										const int matrixOffset);
 
 #endif
 
@@ -145,7 +153,8 @@ void extractDenseJacobianFromAd(active const* const adVec, int adDirOffset, lina
 			assemble a subset of the banded Jacobian into a dense matrix.
 			The subset is taken from the top left element of the band matrix (i.e., the first element on the
 			main diagonal).
- * @param [in] adVec Vector of AD datatypes with band compressed seed vectors pointing to the first row of the band matrix
+ * @param [in] adVec Vector of AD datatypes with band compressed seed vectors pointing to the first row of the band
+ matrix
  * @param [in] row Index of the first row to be extracted
  * @param [in] adDirOffset Offset in the AD directions (can be used to move past parameter sensitivity directions)
  * @param [in] diagDir Diagonal direction index
@@ -154,50 +163,55 @@ void extractDenseJacobianFromAd(active const* const adVec, int adDirOffset, lina
  * @param [out] mat Dense matrix to be populated with the Jacobian submatrix
  */
 void extractDenseJacobianFromBandedAd(active const* const adVec, int row, int adDirOffset, int diagDir,
-	int lowerBandwidth, int upperBandwidth, linalg::detail::DenseMatrixBase& mat);
+									  int lowerBandwidth, int upperBandwidth, linalg::detail::DenseMatrixBase& mat);
 
 /**
  * @brief Compares a banded Jacobian with an AD version derived by band compressed AD seed vectors
  * @details Uses the results of an AD computation with seed vectors set by prepareAdVectorSeedsForBandMatrix() to
 			compare the results with a given banded Jacobian. The AD Jacobian is treated as base and the analytic
 			Jacobian is compared against it. The relative difference
-			@f[ \Delta_{ij} = \begin{cases} \left\lvert \frac{ J_{\text{ana},ij} - J_{\text{ad},ij} }{ J_{\text{ad},ij} }\right\rvert, & J_{\text{ad},ij} \neq 0 \\ 
-							   \left\lvert J_{\text{ana},ij} - J_{\text{ad},ij} \right\rvert, & J_{\text{ad},ij} = 0 \end{cases} @f]
-			is computed for each matrix entry. The maximum of all @f$ \Delta_{ij} @f$ is returned.
+			@f[ \Delta_{ij} = \begin{cases} \left\lvert \frac{ J_{\text{ana},ij} - J_{\text{ad},ij} }{ J_{\text{ad},ij}
+ }\right\rvert, & J_{\text{ad},ij} \neq 0 \\ \left\lvert J_{\text{ana},ij} - J_{\text{ad},ij} \right\rvert, &
+ J_{\text{ad},ij} = 0 \end{cases} @f] is computed for each matrix entry. The maximum of all @f$ \Delta_{ij} @f$ is
+ returned.
  * @param [in] adVec Vector of AD datatypes with band compressed seed vectors
  * @param [in] adDirOffset Offset in the AD directions (can be used to move past parameter sensitivity directions)
  * @param [in] diagDir Diagonal direction index
  * @param [in] mat BandMatrix populated with the analytic Jacobian
  * @return The maximum absolute relative difference between the matrix elements
  */
-double compareBandedJacobianWithAd(active const* const adVec, int adDirOffset, int diagDir, const linalg::BandMatrix& mat);
+double compareBandedJacobianWithAd(active const* const adVec, int adDirOffset, int diagDir,
+								   const linalg::BandMatrix& mat);
 
 /**
  * @brief Compares a dense Jacobian with an AD version derived by AD seed vectors
  * @details Uses the results of an AD computation with seed vectors set by prepareAdVectorSeedsForDenseMatrix() to
 			compare the results with a given dense Jacobian. The AD Jacobian is treated as base and the analytic
 			Jacobian is compared against it. The relative difference
-			@f[ \Delta_{ij} = \begin{cases} \left\lvert \frac{ J_{\text{ana},ij} - J_{\text{ad},ij} }{ J_{\text{ad},ij} }\right\rvert, & J_{\text{ad},ij} \neq 0 \\ 
-							   \left\lvert J_{\text{ana},ij} - J_{\text{ad},ij} \right\rvert, & J_{\text{ad},ij} = 0 \end{cases} @f]
-			is computed for each matrix entry. The maximum of all @f$ \Delta_{ij} @f$ is returned.
+			@f[ \Delta_{ij} = \begin{cases} \left\lvert \frac{ J_{\text{ana},ij} - J_{\text{ad},ij} }{ J_{\text{ad},ij}
+ }\right\rvert, & J_{\text{ad},ij} \neq 0 \\ \left\lvert J_{\text{ana},ij} - J_{\text{ad},ij} \right\rvert, &
+ J_{\text{ad},ij} = 0 \end{cases} @f] is computed for each matrix entry. The maximum of all @f$ \Delta_{ij} @f$ is
+ returned.
  * @param [in] adVec Vector of AD datatypes with seed vectors
  * @param [in] adDirOffset Offset in the AD directions (can be used to move past parameter sensitivity directions)
  * @param [in] mat Dense matrix populated with the analytic Jacobian
  * @return The maximum absolute relative difference between the matrix elements
  */
-double compareDenseJacobianWithAd(active const* const adVec, int adDirOffset, const linalg::detail::DenseMatrixBase& mat);
+double compareDenseJacobianWithAd(active const* const adVec, int adDirOffset,
+								  const linalg::detail::DenseMatrixBase& mat);
 
 /**
  * @brief Compares a dense submatrix with a band compressed AD version
  * @details Uses the results of an AD computation with seed vectors set by prepareAdVectorSeedsForBandMatrix() to
 			compare the results with a given dense submatrix of the Jacobian. The AD Jacobian is treated as base
 			and the analytic Jacobian is compared against it. The relative difference
-			@f[ \Delta_{ij} = \begin{cases} \left\lvert \frac{ J_{\text{ana},ij} - J_{\text{ad},ij} }{ J_{\text{ad},ij} }\right\rvert, & J_{\text{ad},ij} \neq 0 \\ 
-							   \left\lvert J_{\text{ana},ij} - J_{\text{ad},ij} \right\rvert, & J_{\text{ad},ij} = 0 \end{cases} @f]
-			is computed for each matrix entry. The maximum of all @f$ \Delta_{ij} @f$ is returned.
-			The submatrix is taken from the top left element of the band matrix (i.e., the first element on the
-			main diagonal).
- * @param [in] adVec Vector of AD datatypes with band compressed seed vectors pointing to the first row of the band matrix
+			@f[ \Delta_{ij} = \begin{cases} \left\lvert \frac{ J_{\text{ana},ij} - J_{\text{ad},ij} }{ J_{\text{ad},ij}
+ }\right\rvert, & J_{\text{ad},ij} \neq 0 \\ \left\lvert J_{\text{ana},ij} - J_{\text{ad},ij} \right\rvert, &
+ J_{\text{ad},ij} = 0 \end{cases} @f] is computed for each matrix entry. The maximum of all @f$ \Delta_{ij} @f$ is
+ returned. The submatrix is taken from the top left element of the band matrix (i.e., the first element on the main
+ diagonal).
+ * @param [in] adVec Vector of AD datatypes with band compressed seed vectors pointing to the first row of the band
+ matrix
  * @param [in] row Index of the first row to be extracted
  * @param [in] adDirOffset Offset in the AD directions (can be used to move past parameter sensitivity directions)
  * @param [in] diagDir Diagonal direction index
@@ -207,7 +221,8 @@ double compareDenseJacobianWithAd(active const* const adVec, int adDirOffset, co
  * @return The maximum absolute relative difference between the matrix elements
  */
 double compareDenseJacobianWithBandedAd(active const* const adVec, int row, int adDirOffset, int diagDir,
-	int lowerBandwidth, int upperBandwidth, const linalg::detail::DenseMatrixBase& mat);
+										int lowerBandwidth, int upperBandwidth,
+										const linalg::detail::DenseMatrixBase& mat);
 
 /**
  * @brief Performs the operation @f$ y = \alpha A x + \beta y @f$ using the derivative matrix
@@ -222,7 +237,8 @@ double compareDenseJacobianWithBandedAd(active const* const adVec, int row, int 
  * @param [in] beta Factor @f$ \beta @f$ in front of @f$ y @f$
  * @param [in] adDir AD direction to use (selects the derivative matrix)
  */
-void adMatrixVectorMultiply(const linalg::SparseMatrix<active>& mat, double const* x, double* y, double alpha, double beta, int adDir);
+void adMatrixVectorMultiply(const linalg::SparseMatrix<active>& mat, double const* x, double* y, double alpha,
+							double beta, int adDir);
 
 /**
  * @brief Copies the results (0th derivative) of an AD vector to a double vector
@@ -236,7 +252,6 @@ inline void copyFromAd(active const* const adVec, double* const dest, int size)
 	for (int i = 0; i < size; ++i)
 		dest[i] = static_cast<double>(adVec[i]);
 }
-
 
 /**
  * @brief Copies an AD direction of an AD vector to a double vector
@@ -307,4 +322,4 @@ inline void resetAd(active* const adVec, int size)
 
 } // namespace cadet
 
-#endif  // LIBCADET_ADUTILS_HPP_
+#endif // LIBCADET_ADUTILS_HPP_
