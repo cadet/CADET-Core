@@ -15,8 +15,8 @@ CADET
 
 - **Website (including documentation):** https://cadet.github.io
 - **Forum:** https://forum.cadet-web.de
-- **Source:** https://github.com/modsim/cadet
-- **Bug reports:** https://github.com/modsim/cadet/issues
+- **Source:** https://github.com/cadet/cadet-core
+- **Bug reports:** https://github.com/cadet/cadet-core/issues
 - **Demo:** https://www.cadet-web.de 
 - **Newsletter:** https://cadet-web.de/newsletter/
 
@@ -55,21 +55,9 @@ Therefore, we kindly ask that any publications or projects leveraging the capabi
 
 - Püttmann, A.; Schnittert, S.; Naumann, U.; von Lieres, E.: `Fast and accurate parameter sensitivities for the general rate model of column liquid chromatography <http://dx.doi.org/10.1016/j.compchemeng.2013.04.021>`_, Computers and Chemical Engineering **56** (2013), 46–57.
 
-**Selected applications:**
-
-- Heymann, W.; Glaser, J.; Schlegel, F.; Johnson, W.; Rolandi, P.; von Lieres, E.: `Advanced score system and automated search strategies for parameter estimation in mechanistic chromatography modeling <https://doi.org/10.1016/j.chroma.2021.462693>`_, Journal of Chromatography A **1661** (2022): 462693.
-
-- He, Q.-L.; Leweke, S.; von Lieres, E.: `Efficient numerical simulation of simulated moving bed chromatography with a single-column solver <http://doi.org/10.1016/j.compchemeng.2017.12.022>`_, Computers and Chemical Engineering **111** (2018), 183–198.
-
-- Freier, L.; von Lieres, E.: `Robust multi-objective global optimization of stochastic processes with a case study in gradient elution chromatography <http://doi.org/10.1002/biot.201700257>`_, Biotechnology Journal **13,1** (2018), 1700257.
-
-- Freier, L.; von Lieres, E.: [Multi-objective global optimization (MOGO): `Algorithm and case study in gradient elution chromatography <http://dx.doi.org/10.1002/biot.201600613>`_, Biotechnology Journal **12,7** (2017), 1600613.
-
-- Diedrich, J.; Heymann, W.; Leweke, S.; Kunert, C.; Johnson, W.; Hunt, S.; Todd, B.; von Lieres, E.: `Multi-state steric mass-action model and case study on complex high loading behavior of mAb on ion exchange tentacle resin <https://doi.org/10.1016/j.chroma.2017.09.039>`_, Journal of Chromatography A **1525** (2017), 60–70.
-
-- Püttmann, A.; Schnittert, S.; Leweke, S.; von Lieres, E.: `Utilizing algorithmic differentiation to efficiently compute chromatograms and parameter sensitivities <https://doi.org/10.1016/j.ces.2015.08.050>`_, Chemical Engineering Science, **139** (2016), 152–162.
-
 Additionally, to ensure reproducibility of your work, we recommend citing the zenodo doi corresponding to the specific CADET release that you used.
+
+Selected applications that demonstrate the capabilities and use-cases of CADET are highlighted in the `documentation <https://cadet.github.io>`_.
 
 Ongoing Development
 -------------------
@@ -79,7 +67,7 @@ We do our best to provide you with a stable API. However, CADET is actively deve
 Bugs
 ----
 
-Please report any bugs that you find `here <https://github.com/modsim/cadet/issues>`_. Or, even better, fork the repository on `GitHub <https://github.com/modsim/cadet>`_ and create a pull request (PR) with the fix. 
+Please report any bugs that you find `here <https://github.com/cadet/cadet-core/issues>`_. Or, even better, fork the repository on `GitHub <https://github.com/cadet/cadet-core>`_ and create a pull request (PR) with the fix. 
 
 Donations
 ---------
@@ -90,11 +78,11 @@ Donations
 License
 -------
 
-Released under GPL v3. License (see `LICENSE.txt <https://github.com/modsim/CADET/blob/master/LICENSE.txt>`_)::
+Released under GPL v3. License (see `LICENSE.txt <https://github.com/cadet/cadet-core/blob/master/LICENSE.txt>`_)::
 
 Acknowledgments
 ---------------
 
-Please refer to the `list of contributors <https://github.com/modsim/CADET/blob/master/CONTRIBUTORS.md>`_ who helped building and funding this project.
+Please refer to the `list of contributors <https://github.com/cadet/cadet-core/blob/master/CONTRIBUTORS.md>`_ who helped building and funding this project.
 
    Copyright (C) 2004-2024 CADET Authors

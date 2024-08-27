@@ -302,7 +302,7 @@ The radial flow GRM describes transport of solute molecules through the intersti
 
 The main assumptions are:
 
-- The shells of the column are homogenous in terms of interstitial volume, fluid flow, and distribution of components.
+- The cylindrical shells of the column are homogenous in terms of interstitial volume, fluid flow, and distribution of components.
   Thus, only one spatial coordinate in radial direction :math:`\rho` is needed and axial transport is neglected in the column bulk volume.
 
 - The bead radii :math:`r_{p}` are much smaller than the column radius :math:`\mathrm{P}-\mathrm{P}_c`, with :math:`\mathrm{P}` and :math:`\mathrm{P}_c` being the inner and outer column radius respectively, and the column length :math:`L`.
@@ -314,7 +314,7 @@ The main assumptions are:
 Consider a hollow (double walled) column with inner column diameter :math:`\mathrm{P}_c>0` and outer diameter :math:`\mathrm{P}>\mathrm{P}_c`, filled with spherical beads of (possibly) multiple types with radius :math:`r_{p,j} \ll L` (see :numref:`ModelGRMColumn`), where :math:`j` is the particle type index. The mass balance in the interstitial column volume is described by
 
 .. math::
-    :label: ModelRadialColumn
+    :label: ModelRadialColumnGRM
 
     \begin{aligned}
         \frac{\partial c^\ell_i}{\partial t} = -\frac{u}{\rho} \frac{\partial c^\ell_i}{\partial \rho} + D_{\text{rad},i} \frac{1}{\rho} \frac{\partial}{\partial \rho} \left(\rho \frac{\partial c^\ell_i}{\partial \rho} \right) &- \frac{1}{\beta_c} \sum_j d_j \frac{3}{r_{p,j}} k_{f,j,i} \left[ c^\ell_i - c^p_{j,i}(\cdot, \cdot, r_{p,j}) \right] \\
@@ -327,20 +327,20 @@ If reactions are considered, the term :math:`f_{\text{react},i}^\ell\left(c^\ell
 Danckwerts boundary conditions :cite:`Danckwerts1953` are applied to inlet and outlet of the column:
 
 .. math::
-    :label: BCOutlet
+    :label: BCOutletRadial
 
     \begin{aligned}
         u c_{\text{in},i}(t) &= u c^\ell_i(t,0) - D_{\text{rad},i} \frac{\partial c^\ell_i}{\partial \rho}(t, 0) & \forall t > 0,
     \end{aligned}
 
 .. math::
-    :label: BCInlet
+    :label: BCInletRadial
 
     \begin{aligned}
         \frac{\partial c^\ell_i}{\partial \rho}(t, \mathrm{P}) &= 0 & \forall t > 0. 
     \end{aligned}
 
-Note that the outlet boundary condition Eq. :eq:`BCOutlet` is also known as “do nothing” or natural outflow condition.
+Note that the outlet boundary condition Eq. :eq:`BCOutletRadial` is also known as “do nothing” or natural outflow condition.
 
 The complementing mass transport and binding equations for the liquid and solid phases of the porous beads are described by the same equations as for the axial GRM.
 
