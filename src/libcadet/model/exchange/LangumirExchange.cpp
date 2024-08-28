@@ -267,7 +267,7 @@ protected:
 
 								linalg::BandedSparseRowIterator jacorig;
 								jacorig = jacBegin + offsetCur_orig;
-								jacorig[0] += static_cast<double>(exchange_orig_dest_comp);
+								jacorig[0] += static_cast<double>(exchange_orig_dest_comp) * static_cast<double>(capacity_orig_comp * (1 - compSum_orig_dest));
 								if (capacity_orig_comp < 1e-16) {
 									jacorig[0] -= static_cast<double>(exchange_orig_dest_comp);
 								}
