@@ -227,7 +227,7 @@ protected:
 
 								linalg::BandedSparseRowIterator jacdest;
 								jacdest = jacBegin + offsetCur_dest;
-								jacdest[static_cast<int>(offsetCur_orig) - static_cast<int>(offsetCur_dest)] -= static_cast<double>(exchange_orig_dest_comp);
+								jacdest[static_cast<int>(offsetCur_orig) - static_cast<int>(offsetCur_dest)] -= static_cast<double>(exchange_orig_dest_comp):  // * _crossSections[rad_orig]) / _crossSections[rad_dest]); // check if this is correct
 
 							}
 
