@@ -412,13 +412,13 @@ bool MultiChannelTransportModel::configureModelDiscretization(IParameterProvider
 
 	
 	clearExchangeModels();
-
 	_exchange.push_back(nullptr);
 
-	//if (paramProvider.exists("EXCHANGE_MODEL"))
-	//	_exchange[0] = helper.createExchangeModel(paramProvider.getString("EXCHANGE_MODEL"));
-	//else
-		_exchange[0] = helper.createExchangeModel("LANGMUIR_EX");
+	if (paramProvider.exists("EXCHANGE_MODEL"))
+		_exchange[0] = helper.createExchangeModel(paramProvider.getString("EXCHANGE_MODEL"));
+
+	if (!_exchange[0])
+		_exchange[0] = helper.createExchangeModel(paramProvider.getString("LINEAR_EX"));
 
 	bool exchangeConfSuccess = true;
 	exchangeConfSuccess = _exchange[0]->configureModelDiscretization(paramProvider, _disc.nComp, _disc.nChannel, _disc.nCol);
