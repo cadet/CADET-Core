@@ -412,7 +412,6 @@ bool MultiChannelTransportModel::configureModelDiscretization(IParameterProvider
 
 	
 	clearExchangeModels();
-
 	_exchange.push_back(nullptr);
 
 	if (paramProvider.exists("EXCHANGE_MODEL"))
