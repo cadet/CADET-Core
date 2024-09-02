@@ -81,6 +81,13 @@ namespace cadet
 	 * @return Git refspec
 	 */
 	CADET_API const char* getLibraryBuildHost() CADET_NOEXCEPT;
+
+	/**
+	 * @brief Returns the latest C-API version implemented by CADET
+	 * @sa cadetGetLatestCAPIVersion()
+	 * @return C-API Version number
+	 */
+	CADET_API const char* getLatestCAPIVersion() CADET_NOEXCEPT;
 } // namespace cadet
 
 #endif  // LIBCADET_LIBVERSIONINFO_HPP_
