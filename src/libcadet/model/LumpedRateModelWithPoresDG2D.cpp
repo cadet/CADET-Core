@@ -569,19 +569,11 @@ bool LumpedRateModelWithPoresDG2D::configureModelDiscretization(IParameterProvid
 	// Setup the memory for tempState based on state vector
 	_tempState = new double[numDofs()];
 
-	// todo handle the Jacobians
-	// Allocate Jacobian memory, set and analyze pattern
-	_jacInlet.resize(_convDispOp.axNNodes() * _disc.radNPoints, _disc.radNPoints); // first axial element depends on inlet concentrations
+	// Allocate Jacobian memory; pattern will be set and analyzed in configure()
+	_jacInlet.resize(_convDispOp.axNNodes() * _disc.radNPoints, _disc.radNPoints);
 	
 	_globalJac.resize(numPureDofs(), numPureDofs());
 	_globalJacDisc.resize(numPureDofs(), numPureDofs());
-
-	setGlobalJacPattern(_globalJac, _dynReactionBulk);
-	_globalJacDisc = _globalJac;
-	
-	// the solver repetitively solves the linear system with a static pattern of the jacobian (set above). 
-	// The goal of analyzePattern() is to reorder the nonzero elements of the matrix, such that the factorization step creates less fill-in
-	_globalSolver.analyzePattern(_globalJacDisc);
 
 	return transportSuccess && bindingConfSuccess && reactionConfSuccess;
 }
@@ -817,6 +809,14 @@ bool LumpedRateModelWithPoresDG2D::configure(IParameterProvider& paramProvider)
 			dynReactionConfSuccess = _dynReaction[type]->configure(paramProvider, _unitOpIdx, type) && dynReactionConfSuccess;
 		}
 	}
+
+	setGlobalJacPattern(_globalJac, _dynReactionBulk);
+	_globalJacDisc = _globalJac;
+
+	// the solver repetitively solves the linear system with a static pattern of the jacobian (set above). 
+	// The goal of analyzePattern() is to reorder the nonzero elements of the matrix, such that the factorization step creates less fill-in
+	_globalSolver.analyzePattern(_globalJacDisc);
+
 
 	return transportSuccess && bindingConfSuccess && dynReactionConfSuccess;
 }

@@ -83,9 +83,18 @@ public:
 	int residual(const IModel& model, double t, unsigned int secIdx, active const* y, double const* yDot, active* res, const bool wantJac, WithParamSensitivity);
 	int residual(const IModel& model, double t, unsigned int secIdx, double const* y, double const* yDot, active* res, const bool wantJac, WithParamSensitivity);
 
+	int nJacEntries();
+	typedef Eigen::Triplet<double> T;
+	void convDispJacPattern(std::vector<T>& tripletList, const int bulkOffset = 0);
 	bool computeConvDispJacobianBlocks();
-	void addAxElemBlockToJac(Eigen::MatrixXd block, linalg::BandedEigenSparseRowIterator& jac, const int offColumn, const int depElem);
-	void addRadElemBlockToJac(Eigen::MatrixXd block, linalg::BandedEigenSparseRowIterator& jac, const int offColumn, const int depElem);
+	template <typename Action>
+	void addAxElemBlockToJac(const Eigen::MatrixXd& block, const int offRow, const int offColumn, const int depElem, Action addEntry);
+	void addAxElemBlockToJac(const Eigen::MatrixXd& block, Eigen::SparseMatrix<double, Eigen::RowMajor>& jacobian, const int offRow, const int offColumn, const int depElem);
+	void addAxElemBlockToJac(const Eigen::MatrixXd& block, std::vector<T>& tripletList, const int offRow, const int offColumn, const int depElem);
+	template <typename Action>
+	void addRadElemBlockToJac(const Eigen::MatrixXd& block, const int offRow, const int nLeftRadElemDep, const int depElem, Action addEntry);
+	void addRadElemBlockToJac(const Eigen::MatrixXd& block, Eigen::SparseMatrix<double, Eigen::RowMajor>& jacobian, const int offRow, const int nLeftRadElemDep, const int depElem);
+	void addRadElemBlockToJac(const Eigen::MatrixXd& block, std::vector<T>& tripletList, const int offRow, const int nLeftRadElemDep, const int depElem);
 	bool assembleConvDispJacobian(Eigen::SparseMatrix<double, Eigen::RowMajor>& jacobian, Eigen::MatrixXd& jacInlet, const int bulkOffset=0);
 
 	void multiplyWithDerivativeJacobian(const SimulationTime& simTime, double const* sDot, double* ret) const;
@@ -153,8 +162,6 @@ protected:
 
 	template <typename StateType, typename ResidualType, typename ParamType>
 	int residualImpl(const IModel& model, double t, unsigned int secIdx, StateType const* y, double const* yDot, ResidualType* res);
-
-	void setJacobianSparsityPattern();
 
 	void setEquidistantRadialDisc();
 	void setEquivolumeRadialDisc();
@@ -247,10 +254,6 @@ protected:
 	std::vector<active> _gRStarDisp; //!< Numerical flux main equation radial dispersion
 
 	std::vector<active> _matrixProductCache; //!< Cache for intermediate matrix products
-
-	// DG Jacobian
-	//Eigen::MatrixXd _jacInlet; //!< Inlet Jacobian // todo delete?
-	Eigen::SparseMatrix<double, Eigen::RowMajor> _jac; //!< Unit Jacobian
 
 	bool _hasDynamicReactions; //!< Determines whether the model has dynamic reactions (only relevant for sparsity pattern)
 

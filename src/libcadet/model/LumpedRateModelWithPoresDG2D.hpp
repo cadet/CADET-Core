@@ -437,36 +437,51 @@ protected:
 
 	typedef Eigen::Triplet<double> T;
 
+	void setFilmDiffFluxPattern(std::vector<T>& tripletList)
+	{
+		// @todo
+	}
+
+	void setParticlePattern(std::vector<T>& tripletList, Indexer& idxr)
+	{
+		// @todo set actual pattern
+		for (unsigned int parType = 0; parType < _disc.nParType; parType++)
+		{
+			for (unsigned int par = 0; par < _disc.nBulkPoints; par++)
+			{
+				const int offPar = idxr.offsetCp(ParticleTypeIndex{ parType }, ParticleIndex{ par }) - idxr.offsetC();
+				for (unsigned int conc = 0; conc < _disc.nComp + _disc.nBound[parType]; conc++)
+				{
+					tripletList.push_back(T(offPar + conc, offPar + conc, 0.0));
+				}
+			}
+		}
+	}
+
 	/**
 	* @brief sets the sparsity pattern of the convection dispersion Jacobian
 	*/
-	void setGlobalJacPattern(Eigen::SparseMatrix<double, Eigen::RowMajor>& mat, const bool hasBulkReaction) {
-
+	void setGlobalJacPattern(Eigen::SparseMatrix<double, Eigen::RowMajor>& mat, const bool hasBulkReaction)
+	{
 		std::vector<T> tripletList;
 
 		Indexer idxr(_disc);
 
-		const int nJacEntries = numPureDofs() * numPureDofs();
+		int nJacEntries = _convDispOp.nJacEntries() + _disc.nBulkPoints * _disc.nComp + 2 * numPureDofs(); // bulkTransportPattern: convDispOp; bulkReactionPattern: nComp * nBulkPoints; flux pattern: 2*pDOF; particlePattern: nBulkPoints * (nComp+nBound)
+		for (int parType = 0; parType < _disc.nParType; parType++)
+			nJacEntries += _disc.nBulkPoints * (_disc.nComp + _disc.nBound[parType]);
 
 		tripletList.reserve(nJacEntries);
 
-		for (int i = 0; i < numPureDofs(); i++)
-			for (int j = 0; j < numPureDofs(); j++)
-				tripletList.push_back(T(i, j, 0.0));
+		_convDispOp.convDispJacPattern(tripletList);
 
-		// todo set sparisty pattern!
-		
-		//_convDispOp.convDispJacPattern(tripletList);
+		// note: bulk reaction pattern already set in convDispJacPattern
 
-		//if (hasBulkReaction)
-		//	bulkReactionPattern(tripletList);
+		setParticlePattern(tripletList, idxr);
 
-		//particlePattern(tripletList);
-
-		//fluxPattern(tripletList);
+		setFilmDiffFluxPattern(tripletList);
 
 		mat.setFromTriplets(tripletList.begin(), tripletList.end());
-
 	}
 };
 
