@@ -823,7 +823,7 @@ bool TwoDimensionalConvectionDispersionOperatorDG::configure(UnitOpIdx unitOpIdx
 
 	_dir = std::vector<int>(_radNPoints, 1);
 
-	_axialDispersionMode = readAndRegisterMultiplexParam(paramProvider, parameters, _axialDispersion, "COL_DISPERSION", _nComp, _radNPoints, unitOpIdx);
+	_axialDispersionMode = readAndRegisterMultiplexParam(paramProvider, parameters, _axialDispersion, "COL_DISPERSION_AXIAL", _nComp, _radNPoints, unitOpIdx);
 	_radialDispersionMode = readAndRegisterMultiplexParam(paramProvider, parameters, _radialDispersion, "COL_DISPERSION_RADIAL", _nComp, _radNPoints, unitOpIdx);
 
 	// Add parameters to map
@@ -1557,11 +1557,11 @@ void TwoDimensionalConvectionDispersionOperatorDG::addAxElemBlockToJac(const Eig
 					{
 						for (unsigned int j = 0; j < _radNNodes; j++) // iterate over all radial node dependencies
 						{
-							// row: at current node and component
-							// col: add offset, go to current element, jump to current node (from [zNode rNode] to [i j])
 							const double entry = block(zNode * _radNNodes + rNode, depBlock * _elemNPoints + i * _radNNodes + j);
 							if(std::abs(entry) > 1e-14)
-								addEntry(jac, jac + offColumn + depBlock * depBlockStride + (j - rNode) * _radNodeStride + (i - zNode) * _axNodeStride, entry);
+								// row: at current node and component
+								// col: add offset, go to current element, jump to current node
+								addEntry(jac, offRow + offColumn + depBlock * depBlockStride + j * _radNodeStride + i * _axNodeStride + comp, entry);
 						}
 					}
 				}
@@ -1634,11 +1634,11 @@ void TwoDimensionalConvectionDispersionOperatorDG::addRadElemBlockToJac(const Ei
 					{
 						for (unsigned int j = 0; j < _radNNodes; j++) // iterate over all radial node dependencies
 						{
-							// row: at current node and component
-							// col: add offset, go to current element, jump to current node (from [zNode rNode] to [i j])
 							const double entry = block(zNode * _radNNodes + rNode, offBlock + i * 5 * _radNNodes + depBlock * _radNNodes + j);
 							if (std::abs(entry) > 1e-14)
-								addEntry(jac, jac + offColumn + depBlock * depBlockStride + (j - rNode) * _radNodeStride + (i - zNode) * _axNodeStride, entry);
+								// row: at current node and component
+								// col: add offset, go to current element, jump to current node
+								addEntry(jac, offRow + offColumn + depBlock * depBlockStride + j * _radNodeStride + i * _axNodeStride + comp, entry);
 						}
 					}
 				}
@@ -1804,7 +1804,7 @@ bool TwoDimensionalConvectionDispersionOperatorDG::assembleConvDispJacobian(Eige
 			}
 
 			/* handle radial dispersion Jacobian */
-			// @todo ? we could also think about handling axial and radial Jacobian at the same time, which would also require a specific insertion function
+			// @todo ? we could also think about handling axial and radial Jacobian at the same time, which requires a different insertion function
 			const int nLeftRadElem = std::min(2, rElem);
 			const int nRightRadElem = std::min(2, static_cast<int>(_radNElem) - 1 - rElem);
 			addRadElemBlockToJac(-_jacRadDispersion[rElem], jacobian, offSetRow, nLeftRadElem, nLeftRadElem + 1 + nRightRadElem);
@@ -1937,7 +1937,7 @@ bool TwoDimensionalConvectionDispersionOperatorDG::setParameter(const ParameterI
 		}
 	}
 
-	const bool ad = multiplexParameterValue(pId, hashString("COL_DISPERSION"), _axialDispersionMode, _axialDispersion, _nComp, _radNPoints, value, nullptr);
+	const bool ad = multiplexParameterValue(pId, hashString("COL_DISPERSION_AXIAL"), _axialDispersionMode, _axialDispersion, _nComp, _radNPoints, value, nullptr);
 	if (ad)
 		return true;
 
@@ -1983,7 +1983,7 @@ bool TwoDimensionalConvectionDispersionOperatorDG::setSensitiveParameterValue(co
 		}
 	}
 
-	const bool ad = multiplexParameterValue(pId, hashString("COL_DISPERSION"), _axialDispersionMode, _axialDispersion, _nComp, _radNPoints, value, &sensParams);
+	const bool ad = multiplexParameterValue(pId, hashString("COL_DISPERSION_AXIAL"), _axialDispersionMode, _axialDispersion, _nComp, _radNPoints, value, &sensParams);
 	if (ad)
 		return true;
 
@@ -2030,7 +2030,7 @@ bool TwoDimensionalConvectionDispersionOperatorDG::setSensitiveParameter(std::un
 		}
 	}
 
-	const bool ad = multiplexParameterAD(pId, hashString("COL_DISPERSION"), _axialDispersionMode, _axialDispersion, _nComp, _radNPoints, adDirection, adValue, sensParams);
+	const bool ad = multiplexParameterAD(pId, hashString("COL_DISPERSION_AXIAL"), _axialDispersionMode, _axialDispersion, _nComp, _radNPoints, adDirection, adValue, sensParams);
 	if (ad)
 		return true;
 

@@ -34,9 +34,6 @@
 #include <functional>
 #include <numeric>
 
-#include <iostream> // todo delete
-#include <iomanip> // todo delete
-
 #include "ParallelSupport.hpp"
 #ifdef CADET_PARALLELIZE
 	#include <tbb/parallel_for.h>
@@ -896,7 +893,6 @@ void LumpedRateModelWithPoresDG2D::notifyDiscontinuousSectionTransition(double t
 	if (!_convDispOp.notifyDiscontinuousSectionTransition(t, secIdx))
 		return;
 
-	// todo Setup the matrix connecting inlet DOFs to first column cells
 	// todo backwards flow
 }
 
@@ -937,7 +933,7 @@ void LumpedRateModelWithPoresDG2D::prepareADvectors(const AdJacobianParams& adJa
 
 	Indexer idxr(_disc);
 
-	// todo compressed AD
+	// todo improve AD seed vectors
 
 	const int adDirOffset = adJac.adDirOffset;
 	active * adVec = adJac.adY;
@@ -952,8 +948,8 @@ void LumpedRateModelWithPoresDG2D::prepareADvectors(const AdJacobianParams& adJa
 }
 
 /**
- * @brief Extracts the system Jacobian from band compressed AD seed vectors
- * @param [in] adRes Residual vector of AD datatypes with band compressed seed vectors
+ * @brief Extracts the system Jacobian from AD seed vectors
+ * @param [in] adRes Residual vector of AD datatypes with AD seed vectors
  * @param [in] adDirOffset Number of AD directions used for non-Jacobian purposes (e.g., parameter sensitivities)
  */
 void LumpedRateModelWithPoresDG2D::extractJacobianFromAD(active const* const adRes, unsigned int adDirOffset)
@@ -962,9 +958,6 @@ void LumpedRateModelWithPoresDG2D::extractJacobianFromAD(active const* const adR
 
 	active const* const adResUnit = adRes + adDirOffset + idxr.offsetC();
 
-	// todo compressed AD
-
-	//_convDispOp.assembleConvDispJacobian(_globalJac, _jacInlet);
 	for (int i = 0; i < _convDispOp.axNNodes() * _disc.radNPoints; i++)
 	{
 		for (int j = 0; j < _disc.radNPoints; j++)
@@ -980,11 +973,6 @@ void LumpedRateModelWithPoresDG2D::extractJacobianFromAD(active const* const adR
 			_globalJac.coeffRef(i, j) = adResUnit[i].getADValue(j + idxr.offsetC() + adDirOffset);
 		}
 	}
-
-	//// todo delete
-	//std::cout << std::setprecision(2) << std::fixed << "AD globalJac:\n" << _globalJac.toDense().block(0, 0, numPureDofs() / 2, numPureDofs() / 2) << std::endl;
-	//std::cout << "AD inletJac:\n" << _jacInlet << std::endl;
-
 }
 
 #ifdef CADET_CHECK_ANALYTIC_JACOBIAN
@@ -1238,18 +1226,12 @@ int LumpedRateModelWithPoresDG2D::residualParticle(double t, unsigned int parTyp
 	double const* yDot = yDotBase + idxr.offsetCp(ParticleTypeIndex{parType}, ParticleIndex{ colNode });
 	ResidualType* res = resBase + idxr.offsetCp(ParticleTypeIndex{parType}, ParticleIndex{ colNode });
 	
-	for (int par = 0; par < idxr.strideParBlock(parType); par++)
-		res[par] = y[par];
+	res[0] = y[0];
 
 	if (wantJac)
 	{
-		linalg::BandedEigenSparseRowIterator jac(_globalJac, idxr.offsetCp() - idxr.offsetC());
-		for (int par = 0; par < _disc.nBulkPoints; ++par, ++jac)
-			jac[0] = 1.0;
-
-		//// todo delete
-		//std::cout << std::setprecision(2) << std::fixed << "Ana globalJac:\n" << _globalJac.toDense().block(0, 0, numPureDofs() / 2, numPureDofs() / 2) << std::endl;
-		//std::cout << "Ana inletJac:\n" << _jacInlet << std::endl;
+		linalg::BandedEigenSparseRowIterator jac(_globalJac, idxr.offsetCp(ParticleTypeIndex{ parType }, ParticleIndex{ colNode }) - idxr.offsetC());
+		jac[0] = 1.0;
 	}
 
 
