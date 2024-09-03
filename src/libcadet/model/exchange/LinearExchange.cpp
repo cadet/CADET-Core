@@ -21,7 +21,7 @@
 #include "LocalVector.hpp"
 #include "SimulationTypes.hpp"
 #include "Memory.hpp"
-#include "model/PhaseTransitionModel.hpp"
+#include "model/ExchangeModel.hpp"
 #include "ParamReaderHelper.hpp"
 #include "model/parts/MultiChannelConvectionDispersionOperator.hpp"
 
@@ -43,7 +43,7 @@ namespace model
  * The exchange is given by a matrix of exchange coefficients eij for each component i and j and the chross Ai section from channel i.
  * The exchange from channel i to all other channel j is given by \f$ \frac{\mathrm{d}ci}{\mathrm{d}t} = \sum_j eij cj Aj/Ai - eji ci \f$.
  */
-class LinearExchangeBase : public IPhaseTransitionModel
+class LinearExchangeBase : public IExchangeModel
 {
 public:
 
@@ -129,11 +129,6 @@ public:
 		return nullptr;
 	}
 
-	virtual unsigned int workspaceSize(unsigned int nComp, unsigned int totalNumBoundStates, unsigned int const* nChannel) const CADET_NOEXCEPT
-	{
-		// return _paramHandler.cacheSize(nComp, totalNumBoundStates, nChannel);
-		return 0;
-	}
 
 	virtual void configure(IExternalFunction** extFuns, unsigned int size) {}
 
@@ -256,7 +251,7 @@ typedef LinearExchangeBase LinearExchange;
 
 namespace exchange
 {
-	void registerLinearExModel(std::unordered_map<std::string, std::function<model::IPhaseTransitionModel*()>>& exchange)
+	void registerLinearExModel(std::unordered_map<std::string, std::function<model::IExchangeModel*()>>& exchange)
 	{
 		exchange[LinearExchange::identifier()] = []() { return new LinearExchange(); };
 	}

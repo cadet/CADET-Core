@@ -27,7 +27,7 @@ namespace cadet
 
 	namespace model
 	{
-		class IPhaseTransitionModel;
+		class IExchangeModel;
 	}
 
 	/**
@@ -49,14 +49,14 @@ namespace cadet
 		 * @param [in] name Name of the binding model
 		 * @return The binding model or @c NULL if a binding model with this name does not exist
 		 */
-		model::IPhaseTransitionModel* create(const std::string& name) const;
+		model::IExchangeModel* create(const std::string& name) const;
 
 		/**
 		 * @brief Registers the given binding model implementation
 		 * @param [in] name Name of the IBindingModel implementation
 		 * @param [in] factory Function that creates an object of the IBindingModel class
 		 */
-		void registerModel(const std::string& name, std::function<model::IPhaseTransitionModel*()> factory);
+		void registerModel(const std::string& name, std::function<model::IExchangeModel*()> factory);
 
 		/**
 		 * @brief Returns whether a binding model of the given name @p name exists
@@ -82,7 +82,7 @@ namespace cadet
 		template <class ExchangeModel_t>
 		void registerModel();
 
-		std::unordered_map<std::string, std::function<model::IPhaseTransitionModel* ()>> _exchangeModels; //!< Map with factory functions
+		std::unordered_map<std::string, std::function<model::IExchangeModel* ()>> _exchangeModels; //!< Map with factory functions
 	};
 
 } // namespace cadet
