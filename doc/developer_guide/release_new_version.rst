@@ -12,8 +12,12 @@ Release checklist
 
   - the release tests contain extensive testing that is not included in our CI, such as EOC tests. Running these tests might take a while and this should be done on the server
   - some tests are implemented in CADET-Core, and can be run with the [ReleaseCI] flag
-  - more tests are implemented in python, the code can be found on the `Core_tests branch of CADET-Reference <https://jugit.fz-juelich.de/IBG-1/ModSim/cadet/cadet-reference/-/tree/CADET-Core_tests>`_.
+  - more tests are implemented in python, the code can be found on the `Core_tests branch of CADET-Reference <https://jugit.fz-juelich.de/IBG-1/ModSim/cadet/cadet-reference/-/tree/CADET-Core_tests>`_
   Compare the results with the previous run. The release process can only be continued if the results are reasonable
+
+- Run performance benchmarks
+
+  - if numerical algorithms were refactored or if performance-critical infrastructure was changed, you should run performance benchmarks to compare the latest release with the planned new one. To this end, you can refer to the performance benchmark templates in CADET-Reference, e.g. the `benchmark for the modified Newton method <https://jugit.fz-juelich.de/IBG-1/ModSim/cadet/cadet-reference/-/tree/benchmark_modified_newton?ref_type=heads>`_
 
 - Create a version bump commit, which will be the target commit for the release.
   The bump commit contains:
@@ -31,7 +35,7 @@ Release checklist
     - Added: New features, enhancements, or functionalities introduced in this release
     - Fixed: Bug fixes and corrections made to resolve issues from previous versions
     - Changed: Modifications to existing features and breaking changes for major releases including changes in the interface
-    - Updated: Improvements to documentation, minor tweaks, or other updates that don’t fit into the other categories
+    - Updated: Improvements to documentation, minor tweaks, or other updates that donâ€™t fit into the other categories
 
   - attach the (zipped) source code
 
