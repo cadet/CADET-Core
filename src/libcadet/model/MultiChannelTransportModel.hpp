@@ -205,7 +205,7 @@ protected:
 	parts::MultiChannelConvectionDispersionOperator _convDispOp; //!< Convection dispersion operator for interstitial volume transport
 	IDynamicReactionModel* _dynReactionBulk; //!< Dynamic reactions in the bulk volume
 	
-	std::vector<IPhaseTransitionModel*> _exchange; //!< Exchange transition model
+	std::vector<IExchangeModel*> _exchange; //!< Exchange transition model
 
 
 	linalg::DoubleSparseMatrix _jacInlet; //!< Jacobian inlet DOF block matrix connects inlet DOFs to first bulk cells
