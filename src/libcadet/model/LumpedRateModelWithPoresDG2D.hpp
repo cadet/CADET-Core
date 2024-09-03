@@ -324,7 +324,7 @@ protected:
 		Indexer(const Discretization& disc) : _disc(disc) { }
 
 		// Strides
-		inline int strideColAxialNode() const CADET_NOEXCEPT { return static_cast<int>(_disc.nComp) * static_cast<int>(_disc.radNPoints); }
+		inline int strideColAxialNode() const CADET_NOEXCEPT { return strideColRadialNode() * static_cast<int>(_disc.radNPoints); }
 		inline int strideColRadialNode() const CADET_NOEXCEPT { return static_cast<int>(_disc.nComp); }
 		inline int strideColComp() const CADET_NOEXCEPT { return 1; }
 
@@ -335,7 +335,7 @@ protected:
 
 		// Offsets
 		inline int offsetC() const CADET_NOEXCEPT { return _disc.nComp * _disc.radNPoints; }
-		inline int offsetCp() const CADET_NOEXCEPT { return _disc.nComp * _disc.axNPoints * _disc.radNPoints + offsetC(); }
+		inline int offsetCp() const CADET_NOEXCEPT { return offsetC() + _disc.nComp * _disc.nBulkPoints; }
 		inline int offsetCp(ParticleTypeIndex pti) const CADET_NOEXCEPT { return offsetCp() + _disc.parTypeOffset[pti.value]; }
 		inline int offsetCp(ParticleTypeIndex pti, ParticleIndex pi) const CADET_NOEXCEPT { return offsetCp() + _disc.parTypeOffset[pti.value] + strideParBlock(pti.value) * pi.value; }
 		inline int offsetBoundComp(ParticleTypeIndex pti, ComponentIndex comp) const CADET_NOEXCEPT { return _disc.boundOffset[pti.value * _disc.nComp + comp.value]; }

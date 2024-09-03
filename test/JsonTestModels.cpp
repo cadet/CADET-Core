@@ -278,12 +278,25 @@ json createColumnWithTwoCompLinearJson(const std::string& uoType, const std::str
 			disc["PAR_NELEM"] = 1;
 		}
 
-		if (uoType == "GENERAL_RATE_MODEL_2D")
+		if (uoType.find("_2D") != std::string::npos || uoType.find("2D_") != std::string::npos)
 		{
-			disc["NCOL"] = 8;
-			disc["NRAD"] = 3;
-			disc["NPAR"] = 3;
 			disc["RADIAL_DISC_TYPE"] = "EQUIDISTANT";
+
+			if (spatialMethod == "DG")
+			{
+				disc["AX_POLYDEG"] = 4;
+				disc["AX_NELEM"] = 2;
+				disc["RAD_POLYDEG"] = 3;
+				disc["RAD_NELEM"] = 1;
+				disc["PAR_POLYDEG"] = 3;
+				disc["PAR_NELEM"] = 1;
+			}
+			else if (spatialMethod == "FV")
+			{
+				disc["NCOL"] = 8;
+				disc["NRAD"] = 3;
+				disc["NPAR"] = 3;
+			}
 		}
 
 		if (uoType == "MULTI_CHANNEL_TRANSPORT")
