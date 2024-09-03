@@ -30,7 +30,7 @@ class IExternalFunction;
 	namespace model
 	{
 		class IBindingModel;
-		class IPhaseTransitionModel;
+		class IExchangeModel;
 		class IDynamicReactionModel;
 		class IParameterStateDependence;
 		class IParameterParameterDependence;
@@ -59,7 +59,7 @@ public:
 	 */
 	virtual model::IBindingModel* createBindingModel(const std::string& name) const = 0;
 
-	virtual model::IPhaseTransitionModel* createExchangeModel(const std::string& name) const = 0;
+	virtual model::IExchangeModel* createExchangeModel(const std::string& name) const = 0;
 
 
 	/**

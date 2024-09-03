@@ -831,7 +831,7 @@ bool MultiChannelConvectionDispersionOperator::configure(UnitOpIdx unitOpIdx, IP
 
 	setSparsityPattern();
 
-	_phaseTransitionModel = new LinearExchangeBase();
+	_exchangeModel = new LinearExchangeBase();
 
 	return true;
 }
@@ -1035,7 +1035,6 @@ void MultiChannelConvectionDispersionOperator::setSparsityPattern()
 	for (unsigned int i = 0; i < _nChannel; ++i)
 		cadet::model::parts::convdisp::sparsityPatternAxial(pattern.row(i * _nComp), _nComp, _nCol, _nComp * _nChannel, static_cast<double>(_curVelocity[i]), _weno);
 
-	// auslagern zum exchange
 	if (_nChannel > 1)
 	{
 		for (unsigned int col = 0; col < _nCol; ++col)

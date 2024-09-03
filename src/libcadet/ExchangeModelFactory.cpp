@@ -13,7 +13,6 @@
 #include "ExchangeModelFactory.hpp"
 #include "cadet/Exceptions.hpp"
 
-#include "model/binding/SimplifiedMultiStateStericMassActionBinding.hpp"
 
 namespace cadet
 {
@@ -21,7 +20,7 @@ namespace cadet
 	{
 		namespace exchange
 		{
-			void registerLinearExModel(std::unordered_map<std::string, std::function<model::IPhaseTransitionModel* ()>>& exchange);
+			void registerLinearExModel(std::unordered_map<std::string, std::function<model::IExchangeModel* ()>>& exchange);
 		}
 	}
 
@@ -46,7 +45,7 @@ namespace cadet
 		registerModel<ExchangeModel_t>(ExchangeModel_t::identifier());
 	}
 
-	model::IPhaseTransitionModel* ExchangeModelFactory::create(const std::string& name) const
+	model::IExchangeModel* ExchangeModelFactory::create(const std::string& name) const
 	{
 		const auto it = _exchangeModels.find(name);
 		if (it == _exchangeModels.end())
@@ -60,7 +59,7 @@ namespace cadet
 		return it->second();
 	}
 
-	void ExchangeModelFactory::registerModel(const std::string& name, std::function<model::IPhaseTransitionModel*()> factory)
+	void ExchangeModelFactory::registerModel(const std::string& name, std::function<model::IExchangeModel*()> factory)
 	{
 		if (_exchangeModels.find(name) == _exchangeModels.end())
 			_exchangeModels[name] = factory;

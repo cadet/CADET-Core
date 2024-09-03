@@ -255,7 +255,7 @@ namespace cadet
 		return _bindingModels.create(name);
 	}
 
-	model::IPhaseTransitionModel* ModelBuilder::createExchangeModel(const std::string& name) const
+	model::IExchangeModel* ModelBuilder::createExchangeModel(const std::string& name) const
 	{
 		return _exchangeModels.create(name);
 	}

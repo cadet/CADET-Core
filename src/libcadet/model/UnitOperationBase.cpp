@@ -78,7 +78,7 @@ void UnitOperationBase::clearBindingModels() CADET_NOEXCEPT
 void UnitOperationBase::clearExchangeModels() CADET_NOEXCEPT
 {
 	
-	for (IPhaseTransitionModel* bm : _exchange){
+	for (IExchangeModel* bm : _exchange){
 			delete bm;
 	}
 

@@ -18,7 +18,7 @@
 #include "cadet/SolutionRecorder.hpp"
 #include "ConfigurationHelper.hpp"
 #include "model/ReactionModel.hpp"
-#include "model/PhaseTransitionModel.hpp"
+#include "model/ExchangeModel.hpp"
 #include "SimulationTypes.hpp"
 
 #include "Stencil.hpp"
@@ -414,7 +414,11 @@ bool MultiChannelTransportModel::configureModelDiscretization(IParameterProvider
 
 	_exchange.push_back(nullptr);
 
-	_exchange[0] = helper.createExchangeModel("LINEAR_EX");
+	if (paramProvider.exists("EXCHANGE_MODEL"))
+		_exchange[0] = helper.createExchangeModel(paramProvider.getString("EXCHANGE_MODEL"));
+
+	if (!_exchange[0])
+		_exchange[0] = helper.createExchangeModel("LINEAR_EX");
 
 	bool exchangeConfSuccess = true;
 	exchangeConfSuccess = _exchange[0]->configureModelDiscretization(paramProvider, _disc.nComp, _disc.nChannel, _disc.nCol);
@@ -462,8 +466,6 @@ bool MultiChannelTransportModel::configure(IParameterProvider& paramProvider)
 unsigned int MultiChannelTransportModel::threadLocalMemorySize() const CADET_NOEXCEPT
 {
 	LinearMemorySizer lms;
-
-	//Add exchange memory
 
 	// Memory for residualImpl()
 	if (_dynReactionBulk && _dynReactionBulk->requiresWorkspace())

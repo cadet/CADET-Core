@@ -1,9 +1,9 @@
 // =============================================================================
 //  CADET
-//  
+//
 //  Copyright © 2008-2024: The CADET Authors
 //            Please see the AUTHORS and CONTRIBUTORS file.
-//  
+//
 //  All rights reserved. This program and the accompanying materials
 //  are made available under the terms of the GNU Public License v3.0 (or, at
 //  your option, any later version) which accompanies this distribution, and
@@ -11,12 +11,12 @@
 // =============================================================================
 
 /**
- * @file 
- * Defines the BindingModel interface.
+ * @file
+ * Defines the ExchangeModel interface.
  */
 
-#ifndef LIBCADET_PHASETRANSITIONMODELINTERFACE_HPP_ 
-#define LIBCADET_PHASETRANSITIONMODELINTERFACE_HPP_
+#ifndef LIBCADET_EXCHANGEMODELINTERFACE_HPP_
+#define LIBCADET_EXCHANGEMODELINTERFACE_HPP_
 
 #include <unordered_map>
 
@@ -45,11 +45,11 @@ struct ColumnPosition;
 namespace model
 {
 
-class IPhaseTransitionModel
-{        
+class IExchangeModel
+{
 public:
 
-	virtual ~IPhaseTransitionModel() CADET_NOEXCEPT { }
+	virtual ~IExchangeModel() CADET_NOEXCEPT { }
 
 	virtual const char* name() const CADET_NOEXCEPT = 0;
 
