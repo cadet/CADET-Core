@@ -823,7 +823,7 @@ bool TwoDimensionalConvectionDispersionOperatorDG::configure(UnitOpIdx unitOpIdx
 
 	_dir = std::vector<int>(_radNPoints, 1);
 
-	_axialDispersionMode = readAndRegisterMultiplexParam(paramProvider, parameters, _axialDispersion, "COL_DISPERSION_AXIAL", _nComp, _radNPoints, unitOpIdx);
+	_axialDispersionMode = readAndRegisterMultiplexParam(paramProvider, parameters, _axialDispersion, "COL_DISPERSION", _nComp, _radNPoints, unitOpIdx);
 	_radialDispersionMode = readAndRegisterMultiplexParam(paramProvider, parameters, _radialDispersion, "COL_DISPERSION_RADIAL", _nComp, _radNPoints, unitOpIdx);
 
 	// Add parameters to map
@@ -1937,7 +1937,7 @@ bool TwoDimensionalConvectionDispersionOperatorDG::setParameter(const ParameterI
 		}
 	}
 
-	const bool ad = multiplexParameterValue(pId, hashString("COL_DISPERSION_AXIAL"), _axialDispersionMode, _axialDispersion, _nComp, _radNPoints, value, nullptr);
+	const bool ad = multiplexParameterValue(pId, hashString("COL_DISPERSION"), _axialDispersionMode, _axialDispersion, _nComp, _radNPoints, value, nullptr);
 	if (ad)
 		return true;
 
@@ -1983,7 +1983,7 @@ bool TwoDimensionalConvectionDispersionOperatorDG::setSensitiveParameterValue(co
 		}
 	}
 
-	const bool ad = multiplexParameterValue(pId, hashString("COL_DISPERSION_AXIAL"), _axialDispersionMode, _axialDispersion, _nComp, _radNPoints, value, &sensParams);
+	const bool ad = multiplexParameterValue(pId, hashString("COL_DISPERSION"), _axialDispersionMode, _axialDispersion, _nComp, _radNPoints, value, &sensParams);
 	if (ad)
 		return true;
 
@@ -2030,7 +2030,7 @@ bool TwoDimensionalConvectionDispersionOperatorDG::setSensitiveParameter(std::un
 		}
 	}
 
-	const bool ad = multiplexParameterAD(pId, hashString("COL_DISPERSION_AXIAL"), _axialDispersionMode, _axialDispersion, _nComp, _radNPoints, adDirection, adValue, sensParams);
+	const bool ad = multiplexParameterAD(pId, hashString("COL_DISPERSION"), _axialDispersionMode, _axialDispersion, _nComp, _radNPoints, adDirection, adValue, sensParams);
 	if (ad)
 		return true;
 

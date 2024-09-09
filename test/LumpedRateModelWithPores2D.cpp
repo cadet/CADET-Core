@@ -25,13 +25,13 @@
 //	cadet::test::column::testInletDofJacobian("LUMPED_RATE_MODEL_WITH_PORES_2D", "DG");
 //}
 
-//// @todo
-//TEST_CASE("LRMP2D time derivative Jacobian vs FD", "[LRMP2D],[DG],[DG2D],[UnitOp],[Residual],[Jacobian],[CI],[FD]")
-//{
-//	cadet::test::column::testTimeDerivativeJacobianFD("LUMPED_RATE_MODEL_WITH_PORES_2D", "DG", 1e-6, 0.0, 9e-4);
-//}
+// @todo
+TEST_CASE("LRMP2D time derivative Jacobian vs FD", "[LRMP2DtestHere],[DG],[DG2D],[UnitOp],[Residual],[Jacobian],[CI],[FD]")
+{
+	cadet::test::column::testTimeDerivativeJacobianFD("LUMPED_RATE_MODEL_WITH_PORES_2D", "DG", 1e-6, 0.0, 9e-4);
+}
 
-TEST_CASE("LRMP2D transport Jacobian", "[LRMP2DtestHere],[DG],[DG2D],[UnitOp],[Jacobian],[CI]")
+TEST_CASE("LRMP2D transport Jacobian", "[LRMP2D],[DG],[DG2D],[UnitOp],[Jacobian],[CI]")
 {
 	const std::string relModelFilePath = std::string("/data/lrmp2d_debug.json");
 	cadet::JsonParameterProvider jpp = cadet::test::column::getReferenceFile(relModelFilePath);
