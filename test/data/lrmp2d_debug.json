@@ -71,7 +71,7 @@
             "ADSORPTION_MODEL": [
                 "NONE"
             ],
-            "COL_DISPERSION_AXIAL": 0.02,
+            "COL_DISPERSION": 0.02,
             "COL_DISPERSION_RADIAL": 0.01,
             "COL_LENGTH": 0.014,
             "COL_POROSITY": 1.0,
