@@ -83,7 +83,7 @@ For information on model equations, refer to :ref:`cstr_model`.
    **Type:** double  **Range:** :math:`\geq 0`  **Length:** :math:`\texttt{NCOMP}`
    ================  =========================  ==================================
    
-``INIT_VOLUME``
+``INIT_LIQUID_VOLUME``
 
    Initial liquid volume
 

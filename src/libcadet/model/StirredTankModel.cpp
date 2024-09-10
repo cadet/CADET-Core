@@ -270,7 +270,7 @@ bool CSTRModel::configure(IParameterProvider& paramProvider)
 	_constSolidVolume = 0.0;
 	if (paramProvider.exists("CONST_SOLID_VOLUME"))
 		_constSolidVolume = paramProvider.getDouble("CONST_SOLID_VOLUME");
-	else if (paramProvider.exists("POROSITY"))
+	else if (paramProvider.exists("POROSITY")) // todo delete for breaking change with new interface version
 	{
 		LOG(Warning) << "Field POROSITY is only supported for backwards compatibility, but the implementation of the CSTR has changed, please refer to the documentation. The POROSITY will be used to compute the constant solid volume from the liquid volume.";
 		_constSolidVolume = *(_initConditions.data() + _nComp + _totalBound) * (1.0 - paramProvider.getDouble("POROSITY"));
@@ -517,6 +517,8 @@ void CSTRModel::readInitialCondition(IParameterProvider& paramProvider)
 
 	if (paramProvider.exists("INIT_LIQUID_VOLUME"))
 		_initConditions[_nComp + _totalBound].setValue(paramProvider.getDouble("INIT_LIQUID_VOLUME"));
+	else if (paramProvider.exists("INIT_VOLUME")) // todo delete for breaking change with new interface version
+		_initConditions[_nComp + _totalBound].setValue(paramProvider.getDouble("INIT_VOLUME"));
 	else
 		_initConditions[_nComp + _totalBound].setValue(0.0);
 }
