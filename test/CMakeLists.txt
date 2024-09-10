@@ -83,6 +83,7 @@ add_executable(testRunner testRunner.cpp JsonTestModels.cpp ColumnTests.cpp Unit
 
 target_include_directories(testRunner PRIVATE ${CMAKE_BINARY_DIR}/src/libcadet)
 target_link_libraries(testRunner PRIVATE CADET::CompileOptions CADET::AD SUNDIALS::sundials_idas ${SUNDIALS_NVEC_TARGET} ${TBB_TARGET} ${EIGEN_TARGET})
+target_compile_features(testRunner PRIVATE cxx_std_23)
 
 if (ENABLE_2D_MODELS)
 	if (SUPERLU_FOUND)
