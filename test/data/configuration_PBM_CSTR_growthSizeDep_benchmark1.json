@@ -554,9 +554,9 @@
                 4.6142787812816e-13,
                 1.2
             ],
-            "INIT_VOLUME": 0.0005,
+            "INIT_LIQUID_VOLUME": 0.0005,
             "NCOMP": 102,
-            "POROSITY": 1,
+            "CONST_SOLID_VOLUME": 0.0,
             "REACTION_MODEL": "CRYSTALLIZATION",
             "UNIT_TYPE": "CSTR",
             "USE_ANALYTIC_JACOBIAN": 1,
