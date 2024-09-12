@@ -842,6 +842,8 @@ namespace column
 		cadet::ad::setDirections(cadet::ad::getMaxDirections());
 		unitAD->useAnalyticJacobian(false);
 
+		REQUIRE(unitAD->requiredADdirs() < cadet::ad::getMaxDirections());
+
 		cadet::active* adRes = new cadet::active[unitAD->numDofs()];
 		cadet::active* adY = new cadet::active[unitAD->numDofs()];
 
