@@ -62,15 +62,9 @@ TEST_CASE("LRMP2D transport Jacobian", "[LRMP2D],[DG],[DG2D],[UnitOp],[Jacobian]
 			jpp.set("AX_NELEM", zElem);
 			jpp.set("RAD_NELEM", rElem);
 
-			if (rElem * (jpp.getInt("RAD_POLYDEG") + 1) + (zElem * (jpp.getInt("AX_POLYDEG") + 1) * rElem * (jpp.getInt("RAD_POLYDEG") + 1)) * 2 > 602)
-				std::cout << "not enough AD directions!" << std::endl;
+			jpp.popScope();
 
-			else
-			{
-				jpp.popScope();
-
-				cadet::test::column::testJacobianAD(jpp, 1e10, &flowRate[0]); // @todo figure out why FD Jacobian pattern comparison doesnt work but AD Jacobian comparison does
-			}
+			cadet::test::column::testJacobianAD(jpp, 1e10, &flowRate[0]); // @todo figure out why FD Jacobian pattern comparison doesnt work but AD Jacobian comparison does
 		}
 	}
 }
