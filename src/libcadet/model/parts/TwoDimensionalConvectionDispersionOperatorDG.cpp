@@ -672,6 +672,7 @@ bool TwoDimensionalConvectionDispersionOperatorDG::configureModelDiscretization(
 
 	_radNPoints = _radNNodes * _radNElem;
 	_elemNPoints = _axNNodes * _radNNodes;
+	_bulkNPoints = _axNPoints * _radNPoints;
 
 	if (paramProvider.exists("QUADRATURE_RULE"))
 	{
@@ -1730,7 +1731,7 @@ void TwoDimensionalConvectionDispersionOperatorDG::convDispJacPattern(std::vecto
 	// Also needs to be set no matter if we actually have reactions/bindings, so that we can assume the bulk pattern always be the same,
 	// which we assume in the addAxElemBlockToJac and addRadElemBlockToJac functions.
 
-	for (int bulk = 0; bulk < _axNElem * _axElemStride; bulk++)
+	for (int bulk = 0; bulk < _bulkNPoints; bulk++)
 	{
 		for (int conc = 0; conc < _radNodeStride; conc++)
 		{

@@ -17,16 +17,13 @@
 #include "Utils.hpp"
 #include "JsonTestModels.hpp"
 
-#include <iostream> // todo delete
 
-//// @todo
-//TEST_CASE("LRMP2D inlet DOF Jacobian", "[LRMP2D],[DG],[DG2D],[UnitOp],[Jacobian],[Inlet],[CI]")
-//{
-//	cadet::test::column::testInletDofJacobian("LUMPED_RATE_MODEL_WITH_PORES_2D", "DG");
-//}
+TEST_CASE("LRMP2D inlet DOF Jacobian", "[LRMP2D],[DG],[DG2D],[UnitOp],[Jacobian],[Inlet],[CI]")
+{
+	cadet::test::column::testInletDofJacobian("LUMPED_RATE_MODEL_WITH_PORES_2D", "DG");
+}
 
-// @todo
-TEST_CASE("LRMP2D time derivative Jacobian vs FD", "[LRMP2DtestHere],[DG],[DG2D],[UnitOp],[Residual],[Jacobian],[CI],[FD]")
+TEST_CASE("LRMP2D time derivative Jacobian vs FD", "[LRMP2D],[DG],[DG2D],[UnitOp],[Residual],[Jacobian],[CI],[FD]")
 {
 	cadet::test::column::testTimeDerivativeJacobianFD("LUMPED_RATE_MODEL_WITH_PORES_2D", "DG", 1e-6, 0.0, 9e-4);
 }

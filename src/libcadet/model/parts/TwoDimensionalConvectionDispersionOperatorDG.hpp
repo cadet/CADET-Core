@@ -202,6 +202,7 @@ protected:
 	unsigned int _quadratureOrder; //!< Order of the numerical quadrature
 	unsigned int _qNNodes; //!< Number of quadrature nodes
 	unsigned int _elemNPoints; //!< Number of discrete points per 2D element
+	unsigned int _bulkNPoints; //!< Number of total 2D grid points (bulk grid)
 	// strides
 	unsigned int _axNodeStride; //!< Stride to next axial point in state vector
 	unsigned int _axElemStride; //!< Stride to next axial element in state vector
