@@ -461,7 +461,7 @@ protected:
 	/**
 	* @brief sets the sparsity pattern of the convection dispersion Jacobian
 	*/
-	void setGlobalJacPattern(Eigen::SparseMatrix<double, Eigen::RowMajor>& mat, const bool hasBulkReaction)
+	void setGlobalJacPattern(Eigen::SparseMatrix<double, Eigen::RowMajor>& mat)
 	{
 		std::vector<T> tripletList;
 

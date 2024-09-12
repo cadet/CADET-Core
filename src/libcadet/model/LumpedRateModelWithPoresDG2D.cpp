@@ -567,7 +567,7 @@ bool LumpedRateModelWithPoresDG2D::configureModelDiscretization(IParameterProvid
 	_tempState = new double[numDofs()];
 
 	// Allocate Jacobian memory; pattern will be set and analyzed in configure()
-	_jacInlet.resize(_convDispOp.axNNodes() * _disc.radNPoints, _disc.radNPoints);
+	_jacInlet.resize(_convDispOp.axNNodes() * _disc.radNPoints * _disc.nComp, _disc.radNPoints * _disc.nComp);
 	
 	_globalJac.resize(numPureDofs(), numPureDofs());
 	_globalJacDisc.resize(numPureDofs(), numPureDofs());
@@ -807,7 +807,7 @@ bool LumpedRateModelWithPoresDG2D::configure(IParameterProvider& paramProvider)
 		}
 	}
 
-	setGlobalJacPattern(_globalJac, _dynReactionBulk);
+	setGlobalJacPattern(_globalJac);
 	_globalJacDisc = _globalJac;
 
 	// the solver repetitively solves the linear system with a static pattern of the jacobian (set above). 
@@ -1511,13 +1511,10 @@ void LumpedRateModelWithPoresDG2D::multiplyWithJacobian(const SimulationTime& si
 	ret_vec = alpha * _globalJac * yS_vec + beta * ret_vec;
 
 	// Map inlet DOFs to the column inlet (first bulk nodes)
-	for (unsigned int comp = 0; comp < _disc.nComp; comp++)
-	{
-		Eigen::Map<const Eigen::VectorXd, 0, Eigen::InnerStride<Eigen::Dynamic>> yInlet(yS + idxr.offsetC() + comp, _disc.radNPoints , Eigen::InnerStride<Eigen::Dynamic>(idxr.strideColRadialNode()));
-		Eigen::Map<Eigen::VectorXd, 0, Eigen::InnerStride<Eigen::Dynamic>> retInlet(ret + idxr.offsetC() + comp, _convDispOp.axNNodes() * _disc.radNPoints, Eigen::InnerStride<Eigen::Dynamic>(idxr.strideColRadialNode()));
+	Eigen::Map<const Eigen::VectorXd, 0, Eigen::InnerStride<Eigen::Dynamic>> yInlet(yS + idxr.offsetC(), _disc.radNPoints * _disc.nComp, Eigen::InnerStride<Eigen::Dynamic>(idxr.strideColRadialNode()));
+	Eigen::Map<Eigen::VectorXd, 0, Eigen::InnerStride<Eigen::Dynamic>> retInlet(ret + idxr.offsetC(), _convDispOp.axNNodes() * _disc.radNPoints * _disc.nComp, Eigen::InnerStride<Eigen::Dynamic>(idxr.strideColRadialNode()));
 
-		retInlet += _jacInlet * yInlet;
-	}
+	retInlet += _jacInlet * yInlet;
 }
 
 /**
@@ -1532,6 +1529,7 @@ void LumpedRateModelWithPoresDG2D::multiplyWithJacobian(const SimulationTime& si
 void LumpedRateModelWithPoresDG2D::multiplyWithDerivativeJacobian(const SimulationTime& simTime, const ConstSimulationState& simState, double const* sDot, double* ret)
 {
 	Indexer idxr(_disc);
+	std::fill_n(ret, numDofs(), 0.0); // @todo not needed after particles are handled again (see below) ?
 
 #ifdef CADET_PARALLELIZE
 	tbb::parallel_for(std::size_t(0), static_cast<std::size_t>(_disc.nBulkPoints * _disc.nParType + 1), [&](std::size_t idx)
@@ -1543,51 +1541,51 @@ void LumpedRateModelWithPoresDG2D::multiplyWithDerivativeJacobian(const Simulati
 		{
 			_convDispOp.multiplyWithDerivativeJacobian(simTime, sDot, ret);
 		}
-		else
+		else // @todo
 		{
-			const unsigned int idxParLoop = idx - 1;
-			const unsigned int pblk = idxParLoop % _disc.nBulkPoints;
-			const unsigned int type = idxParLoop / _disc.nBulkPoints;
+			//const unsigned int idxParLoop = idx - 1;
+			//const unsigned int pblk = idxParLoop % _disc.nBulkPoints;
+			//const unsigned int type = idxParLoop / _disc.nBulkPoints;
 
-			// Particle
-			double const* const localSdot = sDot + idxr.offsetCp(ParticleTypeIndex{ type }, ParticleIndex{ pblk });
-			double* const localRet = ret + idxr.offsetCp(ParticleTypeIndex{ type }, ParticleIndex{ pblk });
+			//// Particle
+			//double const* const localSdot = sDot + idxr.offsetCp(ParticleTypeIndex{ type }, ParticleIndex{ pblk });
+			//double* const localRet = ret + idxr.offsetCp(ParticleTypeIndex{ type }, ParticleIndex{ pblk });
 
-			unsigned int const* const nBound = _disc.nBound + type * _disc.nComp;
-			unsigned int const* const boundOffset = _disc.boundOffset + type * _disc.nComp;
+			//unsigned int const* const nBound = _disc.nBound + type * _disc.nComp;
+			//unsigned int const* const boundOffset = _disc.boundOffset + type * _disc.nComp;
 
-			// Mobile phase
-			for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
-			{
-				// Add derivative with respect to dc_p / dt to Jacobian
-				localRet[comp] = localSdot[comp];
+			//// Mobile phase
+			//for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
+			//{
+			//	// Add derivative with respect to dc_p / dt to Jacobian
+			//	localRet[comp] = localSdot[comp];
 
-				const double invBetaP = (1.0 - static_cast<double>(_parPorosity[type])) / (static_cast<double>(_poreAccessFactor[type * _disc.nComp + comp]) * static_cast<double>(_parPorosity[type]));
+			//	const double invBetaP = (1.0 - static_cast<double>(_parPorosity[type])) / (static_cast<double>(_poreAccessFactor[type * _disc.nComp + comp]) * static_cast<double>(_parPorosity[type]));
 
-				// Add derivative with respect to dq / dt to Jacobian (normal equations)
-				for (unsigned int i = 0; i < nBound[comp]; ++i)
-				{
-					// Index explanation:
-					//   nComp -> skip mobile phase
-					//   + boundOffset[comp] skip bound states of all previous components
-					//   + i go to current bound state
-					localRet[comp] += invBetaP * localSdot[_disc.nComp + boundOffset[comp] + i];
-				}
-			}
+			//	// Add derivative with respect to dq / dt to Jacobian (normal equations)
+			//	for (unsigned int i = 0; i < nBound[comp]; ++i)
+			//	{
+			//		// Index explanation:
+			//		//   nComp -> skip mobile phase
+			//		//   + boundOffset[comp] skip bound states of all previous components
+			//		//   + i go to current bound state
+			//		localRet[comp] += invBetaP * localSdot[_disc.nComp + boundOffset[comp] + i];
+			//	}
+			//}
 
-			// Solid phase
-			double const* const solidSdot = localSdot + _disc.nComp;
-			double* const solidRet = localRet + _disc.nComp;
-			int const* const qsReaction = _binding[type]->reactionQuasiStationarity();
+			//// Solid phase
+			//double const* const solidSdot = localSdot + _disc.nComp;
+			//double* const solidRet = localRet + _disc.nComp;
+			//int const* const qsReaction = _binding[type]->reactionQuasiStationarity();
 
-			for (unsigned int bnd = 0; bnd < _disc.strideBound[type]; ++bnd)
-			{
-				// Add derivative with respect to dynamic states to Jacobian
-				if (qsReaction[bnd])
-					solidRet[bnd] = 0.0;
-				else
-					solidRet[bnd] = solidSdot[bnd];
-			}
+			//for (unsigned int bnd = 0; bnd < _disc.strideBound[type]; ++bnd)
+			//{
+			//	// Add derivative with respect to dynamic states to Jacobian
+			//	if (qsReaction[bnd])
+			//		solidRet[bnd] = 0.0;
+			//	else
+			//		solidRet[bnd] = solidSdot[bnd];
+			//}
 		}
 	} CADET_PARFOR_END;
 
