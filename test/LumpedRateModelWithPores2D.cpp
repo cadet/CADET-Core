@@ -38,11 +38,10 @@ TEST_CASE("LRMP2D transport Jacobian", "[LRMP2D],[DG],[DG2D],[UnitOp],[Jacobian]
 
 	// get the number of radial ports
 	jpp.pushScope("model");
-	const int nUnits = jpp.getInt("NUNITS"); // there is one column and (nUnits-1)/2 inlet and outlet units
-	const int columnIdx = (nUnits - 1) / 2; // assumes the inlet units come first, followed by the column unit
-	const int nRad = columnIdx; // number of radial points or ports
-
-	const std::string unitID = std::format("{:03}", columnIdx);
+	const int nUnits = jpp.getInt("NUNITS"); // there is one column and (nUnits-1) inlets, one per radial port
+	const int columnIdx = 0;
+	const std::string unitID = "000";
+	const int nRad = nUnits - 1; // number of radial points or ports
 
 	// we need to set flowRates for 2D models for the JacobianAD test, since velocity is only set with a call to the setFlowRate function,
 	// which in turn is only called if we specify flow rates. We get the flow rates from the connections matrix
