@@ -1224,66 +1224,51 @@ int LumpedRateModelWithPoresDG2D::residualParticle(double t, unsigned int parTyp
 {
 	Indexer idxr(_disc);
 
+	// Go to the particle block of the given type and column cell
+	StateType const* y = yBase + idxr.offsetCp(ParticleTypeIndex{ parType }, ParticleIndex{ colNode });
+
+	// Prepare parameters
+	const ParamType radius = static_cast<ParamType>(_parRadius[parType]);
+
+	const int axNodeIdx = std::floor(colNode / _disc.radNPoints);
+	const int radNodeIdx = colNode % _disc.radNPoints;
+
+	const double z = _convDispOp.relativeAxialCoordinate(axNodeIdx);
+	const double r = _convDispOp.relativeRadialCoordinate(radNodeIdx);
+
+	const parts::cell::CellParameters cellResParams
+	{
+		_disc.nComp,
+		_disc.nBound + _disc.nComp * parType,
+		_disc.boundOffset + _disc.nComp * parType,
+		_disc.strideBound[parType],
+		_binding[parType]->reactionQuasiStationarity(),
+		_parPorosity[parType],
+		_poreAccessFactor.data() + _disc.nComp * parType,
+		_binding[parType],
+		(_dynReaction[parType] && (_dynReaction[parType]->numReactionsCombined() > 0)) ? _dynReaction[parType] : nullptr
+	};
+
+	linalg::BandedEigenSparseRowIterator jac(_globalJac, idxr.offsetCp(ParticleTypeIndex{ parType }, ParticleIndex{ colNode }) - idxr.offsetC());
+
+	// Handle time derivatives, binding, dynamic reactions
 	if (wantRes)
 	{
-		// Go to the particle block of the given column cell
-		StateType const* y = yBase + idxr.offsetCp(ParticleTypeIndex{ parType }, ParticleIndex{ colNode });
-		double const* yDot = yDotBase + idxr.offsetCp(ParticleTypeIndex{ parType }, ParticleIndex{ colNode });
+		double const* yDot = yDotBase ? yDotBase + idxr.offsetCp(ParticleTypeIndex{ parType }, ParticleIndex{ colNode }) : nullptr;
 		ResidualType* res = resBase + idxr.offsetCp(ParticleTypeIndex{ parType }, ParticleIndex{ colNode });
 
-		for (int conc = 0; conc < idxr.strideParBlock(parType); conc++)
-			res[conc] = y[conc];
+		parts::cell::residualKernel<StateType, ResidualType, ParamType, parts::cell::CellParameters, linalg::BandedEigenSparseRowIterator, wantJac, true>(
+			t, secIdx, ColumnPosition{ z, r, static_cast<double>(radius) * 0.5 }, y, yDot, res,
+			jac, cellResParams, threadLocalMem.get()
+		);
 	}
-
-	if (wantJac)
+	else
 	{
-		linalg::BandedEigenSparseRowIterator jac(_globalJac, idxr.offsetCp(ParticleTypeIndex{ parType }, ParticleIndex{ colNode }) - idxr.offsetC());
-		for (int conc = 0; conc < idxr.strideParBlock(parType); conc++, ++jac)
-			jac[0] = 1.0;
+		parts::cell::residualKernel<StateType, ResidualType, ParamType, parts::cell::CellParameters, linalg::BandedEigenSparseRowIterator, wantJac, false, false>(
+			t, secIdx, ColumnPosition{ z, r, static_cast<double>(radius) * 0.5 }, y, nullptr, nullptr,
+			jac, cellResParams, threadLocalMem.get()
+		);
 	}
-
-
-	// todo
-	//LinearBufferAllocator tlmAlloc = threadLocalMem.get();
-
-	//// Midpoint of current column cell (z, rho coordinate) - needed in externally dependent adsorption kinetic
-	//const unsigned int axialNode = colNode / _disc.radNPoints;
-	//const unsigned int radialNode = colNode % _disc.radNPoints;
-	//const double r = _convDispOp.relativeRadialCoordinate(radialNode);
-	//const double z = _convDispOp.relativeAxialCoordinate(axialNode);
-
-	//// Reset Jacobian
-	//if (wantJac)
-	//	int jo = 0; // todo
-
-	//// The RowIterator is always centered on the main diagonal.
-	//// This means that jac[0] is the main diagonal, jac[-1] is the first lower diagonal,
-	//// and jac[1] is the first upper diagonal. We can also access the rows from left to
-	//// right beginning with the last lower diagonal moving towards the main diagonal and
-	//// continuing to the last upper diagonal by using the native() method.
-	//linalg::BandedEigenSparseRowIterator jac(_globalJac, _disc.nBulkPoints * parType + colNode);
-
-	//int const* const qsReaction = _binding[parType]->reactionQuasiStationarity();
-
-	//const parts::cell::CellParameters cellResParams
-	//	{
-	//		_disc.nComp,
-	//		_disc.nBound + _disc.nComp * parType,
-	//		_disc.boundOffset + _disc.nComp * parType,
-	//		_disc.strideBound[parType],
-	//		qsReaction,
-	//		_parPorosity[parType],
-	//		_poreAccessFactor.data() + _disc.nComp * parType,
-	//		_binding[parType],
-	//		(_dynReaction[parType] && (_dynReaction[parType]->numReactionsCombined() > 0)) ? _dynReaction[parType] : nullptr
-	//	};
-
-	//	const ColumnPosition colPos{z, r, 0.5 * static_cast<double>(_parRadius[parType])};
-
-	//	// Handle time derivatives, binding, dynamic reactions
-	//	parts::cell::residualKernel<StateType, ResidualType, ParamType, parts::cell::CellParameters, linalg::BandedEigenSparseRowIterator, wantJac, true>(
-	//		t, secIdx, colPos, y, yDotBase ? yDot : nullptr, res, jac, cellResParams, tlmAlloc
-	//	);
 
 	return 0;
 }

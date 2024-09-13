@@ -1,430 +1,441 @@
 {
-    "model": {
-        "NUNITS": 9,
-        "connections": {
-            "NSWITCHES": 1,
-            "switch_000": {
-                "CONNECTIONS": [
-                    1.0,
-                    0.0,
-                    0.0,
-                    0.0,
-                    -1.0,
-                    -1.0,
-                    1.2726359129125318e-10,
-                    2.0,
-                    0.0,
-                    0.0,
-                    1.0,
-                    -1.0,
-                    -1.0,
-                    4.454225695193862e-09,
-                    3.0,
-                    0.0,
-                    0.0,
-                    2.0,
-                    -1.0,
-                    -1.0,
-                    1.0817405259756524e-08,
-                    4.0,
-                    0.0,
-                    0.0,
-                    3.0,
-                    -1.0,
-                    -1.0,
-                    2.927062599698823e-09,
-                    5.0,
-                    0.0,
-                    0.0,
-                    4.0,
-                    -1.0,
-                    -1.0,
-                    3.1815897822813304e-09,
-                    6.0,
-                    0.0,
-                    0.0,
-                    5.0,
-                    -1.0,
-                    -1.0,
-                    1.9725856650144243e-08,
-                    7.0,
-                    0.0,
-                    0.0,
-                    6.0,
-                    -1.0,
-                    -1.0,
-                    2.6089036214706895e-08,
-                    8.0,
-                    0.0,
-                    0.0,
-                    7.0,
-                    -1.0,
-                    -1.0,
-                    5.981388790688883e-09
-                ],
-                "SECTION": 0
-            }
-        },
-        "solver": {
-            "GS_TYPE": 1,
-            "MAX_KRYLOV": 0,
-            "MAX_RESTARTS": 10,
-            "SCHUR_SAFETY": 1e-08
-        },
-        "unit_000": {
-            "ADSORPTION_MODEL": [
-                "NONE"
-            ],
-            "COL_DISPERSION": [
-                1e-08,
-                1e-08
-            ],
-            "COL_DISPERSION_RADIAL": [
-                1e-08,
-                1e-08
-            ],
-            "COL_LENGTH": 0.014,
-            "COL_POROSITY": 0.7,
-            "COL_RADIUS": 0.01,
-            "CROSS_SECTION_AREA": 0.0003141592653589793,
-            "FILM_DIFFUSION": [
-                1.0,
-                2.0
-            ],
-            "INIT_C": [
-                0,
-                0
-            ],
-            "INIT_CP": [
-                0,
-                0
-            ],
-            "INIT_Q": [
-                0,
-                0
-            ],
-            "NBOUND": [
-                0,
-                0
-            ],
-            "NCOMP": 2,
-            "NPARTYPE": 1,
-            "PAR_POROSITY": 0.75,
-            "PAR_RADIUS": 4.5e-06,
-            "PORTS": 8,
-            "UNIT_TYPE": "LUMPED_RATE_MODEL_WITH_PORES_2D",
-            "VELOCITY": 0.00023333333333333333,
-            "discretization": {
-                "AX_NELEM": 1,
-                "AX_POLYDEG": 1,
-                "RADIAL_DISC_TYPE": "EQUIDISTANT",
-                "RAD_NELEM": 1,
-                "RAD_POLYDEG": 1,
-                "SPATIAL_METHOD": "DG",
-                "USE_ANALYTIC_JACOBIAN": true
-            }
-        },
-        "unit_001": {
-            "INLET_TYPE": "PIECEWISE_CUBIC_POLY",
-            "NCOMP": 2,
-            "PORTS": 1,
-            "UNIT_TYPE": "INLET",
-            "sec_000": {
-                "CONST_COEFF": [
-                    0.7071067811865476,
-                    0.7071067811865476
-                ]
-            },
-            "sec_001": {
-                "CONST_COEFF": [
-                    0.0,
-                    0.0
-                ]
-            }
-        },
-        "unit_002": {
-            "INLET_TYPE": "PIECEWISE_CUBIC_POLY",
-            "NCOMP": 2,
-            "PORTS": 1,
-            "UNIT_TYPE": "INLET",
-            "sec_000": {
-                "CONST_COEFF": [
-                    0.8428066645200675,
-                    0.8428066645200675
-                ]
-            },
-            "sec_001": {
-                "CONST_COEFF": [
-                    0.0,
-                    0.0
-                ]
-            }
-        },
-        "unit_003": {
-            "INLET_TYPE": "PIECEWISE_CUBIC_POLY",
-            "NCOMP": 2,
-            "PORTS": 1,
-            "UNIT_TYPE": "INLET",
-            "sec_000": {
-                "CONST_COEFF": [
-                    0.976530795582426,
-                    0.976530795582426
-                ]
-            },
-            "sec_001": {
-                "CONST_COEFF": [
-                    0.0,
-                    0.0
-                ]
-            }
-        },
-        "unit_004": {
-            "INLET_TYPE": "PIECEWISE_CUBIC_POLY",
-            "NCOMP": 2,
-            "PORTS": 1,
-            "UNIT_TYPE": "INLET",
-            "sec_000": {
-                "CONST_COEFF": [
-                    1.0,
-                    1.0
-                ]
-            },
-            "sec_001": {
-                "CONST_COEFF": [
-                    0.0,
-                    0.0
-                ]
-            }
-        },
-        "unit_005": {
-            "INLET_TYPE": "PIECEWISE_CUBIC_POLY",
-            "NCOMP": 2,
-            "PORTS": 1,
-            "UNIT_TYPE": "INLET",
-            "sec_000": {
-                "CONST_COEFF": [
-                    1.0,
-                    1.0
-                ]
-            },
-            "sec_001": {
-                "CONST_COEFF": [
-                    0.0,
-                    0.0
-                ]
-            }
-        },
-        "unit_006": {
-            "INLET_TYPE": "PIECEWISE_CUBIC_POLY",
-            "NCOMP": 2,
-            "PORTS": 1,
-            "UNIT_TYPE": "INLET",
-            "sec_000": {
-                "CONST_COEFF": [
-                    0.9765307955824261,
-                    0.9765307955824261
-                ]
-            },
-            "sec_001": {
-                "CONST_COEFF": [
-                    0.0,
-                    0.0
-                ]
-            }
-        },
-        "unit_007": {
-            "INLET_TYPE": "PIECEWISE_CUBIC_POLY",
-            "NCOMP": 2,
-            "PORTS": 1,
-            "UNIT_TYPE": "INLET",
-            "sec_000": {
-                "CONST_COEFF": [
-                    0.8428066645200674,
-                    0.8428066645200674
-                ]
-            },
-            "sec_001": {
-                "CONST_COEFF": [
-                    0.0,
-                    0.0
-                ]
-            }
-        },
-        "unit_008": {
-            "INLET_TYPE": "PIECEWISE_CUBIC_POLY",
-            "NCOMP": 2,
-            "PORTS": 1,
-            "UNIT_TYPE": "INLET",
-            "sec_000": {
-                "CONST_COEFF": [
-                    0.7071067811865476,
-                    0.7071067811865476
-                ]
-            },
-            "sec_001": {
-                "CONST_COEFF": [
-                    0.0,
-                    0.0
-                ]
-            }
-        }
-    },
-    "return": {
-        "SPLIT_COMPONENTS_DATA": 0,
-        "SPLIT_PORTS_DATA": 0,
-        "unit_000": {
-            "WRITE_COORDINATES": 1,
-            "WRITE_SENS_OUTLET": 0,
-            "WRITE_SOLUTION_BULK": 1,
-            "WRITE_SOLUTION_INLET": 0,
-            "WRITE_SOLUTION_OUTLET": 1,
-            "WRITE_SOLUTION_PARTICLE": 0,
-            "WRITE_SOLUTION_SOLID": 0
-        }
+  "model": {
+    "NUNITS": 9,
+    "connections": {
+      "NSWITCHES": 1,
+      "switch_000": {
+        "CONNECTIONS": [
+          1.0,
+          0.0,
+          0.0,
+          0.0,
+          -1.0,
+          -1.0,
+          1.2726359129125318e-10,
+          2.0,
+          0.0,
+          0.0,
+          1.0,
+          -1.0,
+          -1.0,
+          4.454225695193862e-09,
+          3.0,
+          0.0,
+          0.0,
+          2.0,
+          -1.0,
+          -1.0,
+          1.0817405259756524e-08,
+          4.0,
+          0.0,
+          0.0,
+          3.0,
+          -1.0,
+          -1.0,
+          2.927062599698823e-09,
+          5.0,
+          0.0,
+          0.0,
+          4.0,
+          -1.0,
+          -1.0,
+          3.1815897822813304e-09,
+          6.0,
+          0.0,
+          0.0,
+          5.0,
+          -1.0,
+          -1.0,
+          1.9725856650144243e-08,
+          7.0,
+          0.0,
+          0.0,
+          6.0,
+          -1.0,
+          -1.0,
+          2.6089036214706895e-08,
+          8.0,
+          0.0,
+          0.0,
+          7.0,
+          -1.0,
+          -1.0,
+          5.981388790688883e-09
+        ],
+        "SECTION": 0
+      }
     },
     "solver": {
-        "NTHREADS": -1,
-        "USER_SOLUTION_TIMES": [
-            0.0,
-            1.0,
-            2.0,
-            3.0,
-            4.0,
-            5.0,
-            6.0,
-            7.0,
-            8.0,
-            9.0,
-            10.0,
-            11.0,
-            12.0,
-            13.0,
-            14.0,
-            15.0,
-            16.0,
-            17.0,
-            18.0,
-            19.0,
-            20.0,
-            21.0,
-            22.0,
-            23.0,
-            24.0,
-            25.0,
-            26.0,
-            27.0,
-            28.0,
-            29.0,
-            30.0,
-            31.0,
-            32.0,
-            33.0,
-            34.0,
-            35.0,
-            36.0,
-            37.0,
-            38.0,
-            39.0,
-            40.0,
-            41.0,
-            42.0,
-            43.0,
-            44.0,
-            45.0,
-            46.0,
-            47.0,
-            48.0,
-            49.0,
-            50.0,
-            51.0,
-            52.0,
-            53.0,
-            54.0,
-            55.0,
-            56.0,
-            57.0,
-            58.0,
-            59.0,
-            60.0,
-            61.0,
-            62.0,
-            63.0,
-            64.0,
-            65.0,
-            66.0,
-            67.0,
-            68.0,
-            69.0,
-            70.0,
-            71.0,
-            72.0,
-            73.0,
-            74.0,
-            75.0,
-            76.0,
-            77.0,
-            78.0,
-            79.0,
-            80.0,
-            81.0,
-            82.0,
-            83.0,
-            84.0,
-            85.0,
-            86.0,
-            87.0,
-            88.0,
-            89.0,
-            90.0,
-            91.0,
-            92.0,
-            93.0,
-            94.0,
-            95.0,
-            96.0,
-            97.0,
-            98.0,
-            99.0,
-            100.0,
-            101.0,
-            102.0,
-            103.0,
-            104.0,
-            105.0,
-            106.0,
-            107.0,
-            108.0,
-            109.0,
-            110.0,
-            111.0,
-            112.0,
-            113.0,
-            114.0,
-            115.0,
-            116.0,
-            117.0,
-            118.0,
-            119.0,
-            120.0
+      "GS_TYPE": 1,
+      "MAX_KRYLOV": 0,
+      "MAX_RESTARTS": 10,
+      "SCHUR_SAFETY": 1e-08
+    },
+    "unit_000": {
+      "ADSORPTION_MODEL": [
+        "LINEAR"
+      ],
+      "adsorption": {
+        "IS_KINETIC" :  1,
+        "LIN_KA": [
+          0.1,
+          0.2
         ],
-        "sections": {
-            "NSEC": 2,
-            "SECTION_CONTINUITY": [
-                0
-            ],
-            "SECTION_TIMES": [
-                0,
-                10,
-                120
-            ]
-        },
-        "time_integrator": {
-            "ABSTOL": 1e-06,
-            "ALGTOL": 1e-10,
-            "INIT_STEP_SIZE": 1e-06,
-            "MAX_STEPS": 1000000,
-            "RELTOL": 1e-06,
-            "USE_MODIFIED_NEWTON": true
-        }
+        "LIN_KD": [
+          0.05,
+          0.1
+        ]
+      },
+      "COL_DISPERSION": [
+        1e-08,
+        1e-08
+      ],
+      "COL_DISPERSION_RADIAL": [
+        1e-08,
+        1e-08
+      ],
+      "COL_LENGTH": 0.014,
+      "COL_POROSITY": 0.7,
+      "COL_RADIUS": 0.01,
+      "CROSS_SECTION_AREA": 0.0003141592653589793,
+      "FILM_DIFFUSION": [
+        1.0,
+        2.0
+      ],
+      "INIT_C": [
+        0,
+        0
+      ],
+      "INIT_CP": [
+        0,
+        0
+      ],
+      "INIT_Q": [
+        0,
+        0
+      ],
+      "NBOUND": [
+        0,
+        0
+      ],
+      "NCOMP": 2,
+      "NPARTYPE": 1,
+      "PAR_POROSITY": 0.75,
+      "PAR_RADIUS": 4.5e-06,
+      "PORTS": 8,
+      "UNIT_TYPE": "LUMPED_RATE_MODEL_WITH_PORES_2D",
+      "VELOCITY": 0.00023333333333333333,
+      "discretization": {
+        "AX_NELEM": 1,
+        "AX_POLYDEG": 1,
+        "RADIAL_DISC_TYPE": "EQUIDISTANT",
+        "RAD_NELEM": 1,
+        "RAD_POLYDEG": 1,
+        "SPATIAL_METHOD": "DG",
+        "USE_ANALYTIC_JACOBIAN": true
+      }
+    },
+    "unit_001": {
+      "INLET_TYPE": "PIECEWISE_CUBIC_POLY",
+      "NCOMP": 2,
+      "PORTS": 1,
+      "UNIT_TYPE": "INLET",
+      "sec_000": {
+        "CONST_COEFF": [
+          0.7071067811865476,
+          0.7071067811865476
+        ]
+      },
+      "sec_001": {
+        "CONST_COEFF": [
+          0.0,
+          0.0
+        ]
+      }
+    },
+    "unit_002": {
+      "INLET_TYPE": "PIECEWISE_CUBIC_POLY",
+      "NCOMP": 2,
+      "PORTS": 1,
+      "UNIT_TYPE": "INLET",
+      "sec_000": {
+        "CONST_COEFF": [
+          0.8428066645200675,
+          0.8428066645200675
+        ]
+      },
+      "sec_001": {
+        "CONST_COEFF": [
+          0.0,
+          0.0
+        ]
+      }
+    },
+    "unit_003": {
+      "INLET_TYPE": "PIECEWISE_CUBIC_POLY",
+      "NCOMP": 2,
+      "PORTS": 1,
+      "UNIT_TYPE": "INLET",
+      "sec_000": {
+        "CONST_COEFF": [
+          0.976530795582426,
+          0.976530795582426
+        ]
+      },
+      "sec_001": {
+        "CONST_COEFF": [
+          0.0,
+          0.0
+        ]
+      }
+    },
+    "unit_004": {
+      "INLET_TYPE": "PIECEWISE_CUBIC_POLY",
+      "NCOMP": 2,
+      "PORTS": 1,
+      "UNIT_TYPE": "INLET",
+      "sec_000": {
+        "CONST_COEFF": [
+          1.0,
+          1.0
+        ]
+      },
+      "sec_001": {
+        "CONST_COEFF": [
+          0.0,
+          0.0
+        ]
+      }
+    },
+    "unit_005": {
+      "INLET_TYPE": "PIECEWISE_CUBIC_POLY",
+      "NCOMP": 2,
+      "PORTS": 1,
+      "UNIT_TYPE": "INLET",
+      "sec_000": {
+        "CONST_COEFF": [
+          1.0,
+          1.0
+        ]
+      },
+      "sec_001": {
+        "CONST_COEFF": [
+          0.0,
+          0.0
+        ]
+      }
+    },
+    "unit_006": {
+      "INLET_TYPE": "PIECEWISE_CUBIC_POLY",
+      "NCOMP": 2,
+      "PORTS": 1,
+      "UNIT_TYPE": "INLET",
+      "sec_000": {
+        "CONST_COEFF": [
+          0.9765307955824261,
+          0.9765307955824261
+        ]
+      },
+      "sec_001": {
+        "CONST_COEFF": [
+          0.0,
+          0.0
+        ]
+      }
+    },
+    "unit_007": {
+      "INLET_TYPE": "PIECEWISE_CUBIC_POLY",
+      "NCOMP": 2,
+      "PORTS": 1,
+      "UNIT_TYPE": "INLET",
+      "sec_000": {
+        "CONST_COEFF": [
+          0.8428066645200674,
+          0.8428066645200674
+        ]
+      },
+      "sec_001": {
+        "CONST_COEFF": [
+          0.0,
+          0.0
+        ]
+      }
+    },
+    "unit_008": {
+      "INLET_TYPE": "PIECEWISE_CUBIC_POLY",
+      "NCOMP": 2,
+      "PORTS": 1,
+      "UNIT_TYPE": "INLET",
+      "sec_000": {
+        "CONST_COEFF": [
+          0.7071067811865476,
+          0.7071067811865476
+        ]
+      },
+      "sec_001": {
+        "CONST_COEFF": [
+          0.0,
+          0.0
+        ]
+      }
     }
+  },
+  "return": {
+    "SPLIT_COMPONENTS_DATA": 0,
+    "SPLIT_PORTS_DATA": 0,
+    "unit_000": {
+      "WRITE_COORDINATES": 1,
+      "WRITE_SENS_OUTLET": 0,
+      "WRITE_SOLUTION_BULK": 1,
+      "WRITE_SOLUTION_INLET": 0,
+      "WRITE_SOLUTION_OUTLET": 1,
+      "WRITE_SOLUTION_PARTICLE": 0,
+      "WRITE_SOLUTION_SOLID": 0
+    }
+  },
+  "solver": {
+    "NTHREADS": -1,
+    "USER_SOLUTION_TIMES": [
+      0.0,
+      1.0,
+      2.0,
+      3.0,
+      4.0,
+      5.0,
+      6.0,
+      7.0,
+      8.0,
+      9.0,
+      10.0,
+      11.0,
+      12.0,
+      13.0,
+      14.0,
+      15.0,
+      16.0,
+      17.0,
+      18.0,
+      19.0,
+      20.0,
+      21.0,
+      22.0,
+      23.0,
+      24.0,
+      25.0,
+      26.0,
+      27.0,
+      28.0,
+      29.0,
+      30.0,
+      31.0,
+      32.0,
+      33.0,
+      34.0,
+      35.0,
+      36.0,
+      37.0,
+      38.0,
+      39.0,
+      40.0,
+      41.0,
+      42.0,
+      43.0,
+      44.0,
+      45.0,
+      46.0,
+      47.0,
+      48.0,
+      49.0,
+      50.0,
+      51.0,
+      52.0,
+      53.0,
+      54.0,
+      55.0,
+      56.0,
+      57.0,
+      58.0,
+      59.0,
+      60.0,
+      61.0,
+      62.0,
+      63.0,
+      64.0,
+      65.0,
+      66.0,
+      67.0,
+      68.0,
+      69.0,
+      70.0,
+      71.0,
+      72.0,
+      73.0,
+      74.0,
+      75.0,
+      76.0,
+      77.0,
+      78.0,
+      79.0,
+      80.0,
+      81.0,
+      82.0,
+      83.0,
+      84.0,
+      85.0,
+      86.0,
+      87.0,
+      88.0,
+      89.0,
+      90.0,
+      91.0,
+      92.0,
+      93.0,
+      94.0,
+      95.0,
+      96.0,
+      97.0,
+      98.0,
+      99.0,
+      100.0,
+      101.0,
+      102.0,
+      103.0,
+      104.0,
+      105.0,
+      106.0,
+      107.0,
+      108.0,
+      109.0,
+      110.0,
+      111.0,
+      112.0,
+      113.0,
+      114.0,
+      115.0,
+      116.0,
+      117.0,
+      118.0,
+      119.0,
+      120.0
+    ],
+    "sections": {
+      "NSEC": 2,
+      "SECTION_CONTINUITY": [
+        0
+      ],
+      "SECTION_TIMES": [
+        0,
+        10,
+        120
+      ]
+    },
+    "time_integrator": {
+      "ABSTOL": 1e-06,
+      "ALGTOL": 1e-10,
+      "INIT_STEP_SIZE": 1e-06,
+      "MAX_STEPS": 1000000,
+      "RELTOL": 1e-06,
+      "USE_MODIFIED_NEWTON": true
+    }
+  }
 }
