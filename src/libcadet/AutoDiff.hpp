@@ -29,7 +29,7 @@
 
 #if defined(ACTIVE_SFAD) || defined(ACTIVE_SETFAD)
 
-	#define SFAD_DEFAULT_DIR 602 // todo set back to 80
+	#define SFAD_DEFAULT_DIR 812 // todo set back to 80
 
 	#if defined(ACTIVE_SFAD)
 		#include "sfad.hpp"

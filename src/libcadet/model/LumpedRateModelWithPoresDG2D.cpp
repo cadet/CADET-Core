@@ -958,9 +958,9 @@ void LumpedRateModelWithPoresDG2D::extractJacobianFromAD(active const* const adR
 
 	active const* const adResUnit = adRes + adDirOffset + idxr.offsetC();
 
-	for (int i = 0; i < _convDispOp.axNNodes() * _disc.radNPoints; i++)
+	for (int i = 0; i < _convDispOp.axNNodes() * _disc.radNPoints * _disc.nComp; i++)
 	{
-		for (int j = 0; j < _disc.radNPoints; j++)
+		for (int j = 0; j < _disc.radNPoints * _disc.nComp; j++)
 		{
 			_jacInlet(i, j) = adResUnit[i].getADValue(j + adDirOffset);
 		}
@@ -1226,12 +1226,14 @@ int LumpedRateModelWithPoresDG2D::residualParticle(double t, unsigned int parTyp
 	double const* yDot = yDotBase + idxr.offsetCp(ParticleTypeIndex{parType}, ParticleIndex{ colNode });
 	ResidualType* res = resBase + idxr.offsetCp(ParticleTypeIndex{parType}, ParticleIndex{ colNode });
 	
-	res[0] = y[0];
+	for (int conc = 0; conc < idxr.strideParBlock(parType); conc++)
+		res[conc] = y[conc];
 
 	if (wantJac)
 	{
 		linalg::BandedEigenSparseRowIterator jac(_globalJac, idxr.offsetCp(ParticleTypeIndex{ parType }, ParticleIndex{ colNode }) - idxr.offsetC());
-		jac[0] = 1.0;
+		for (int conc = 0; conc < idxr.strideParBlock(parType); conc++, ++jac)
+			jac[0] = 1.0;
 	}
 
 
