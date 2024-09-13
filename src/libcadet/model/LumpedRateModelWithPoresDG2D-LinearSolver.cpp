@@ -138,20 +138,13 @@ int LumpedRateModelWithPoresDG2D::linearSolve(double t, double alpha, double out
 
 	// ====== Step 1.5: Solve J c_uo = b_uo - A * c_in = b_uo - A*b_in
 
-	//std::cout << std::setprecision(1);
-	//std::cout << "_jacInlet\n" << _jacInlet << std::endl; // todo delete
-	//std::cout << "_globalJacDisc\n" << _globalJacDisc.toDense() << std::endl;
-
 	// rhs is passed twice but due to the values in jacA the writes happen to a different area of the rhs than the reads.
 
 	// Handle inlet DOFs: // todo backward flow.
-	for (int comp = 0; comp < _disc.nComp; comp++)
-	{
-		Eigen::Map<Eigen::Vector<double, Eigen::Dynamic>, 0, Eigen::InnerStride<Eigen::Dynamic>> rInlet(rhs + comp, _disc.radNPoints, Eigen::InnerStride<Eigen::Dynamic>(idxr.strideColRadialNode()));
-		Eigen::Map<Eigen::Vector<double, Eigen::Dynamic>, 0, Eigen::InnerStride<Eigen::Dynamic>> rInletDep(rhs + idxr.offsetC() + comp, _convDispOp.axNNodes() * _disc.radNPoints, Eigen::InnerStride<Eigen::Dynamic>(idxr.strideColRadialNode()));
+	Eigen::Map<Eigen::Vector<double, Eigen::Dynamic>, 0, Eigen::InnerStride<Eigen::Dynamic>> rInlet(rhs, _disc.radNPoints * _disc.nComp, Eigen::InnerStride<Eigen::Dynamic>(idxr.strideColRadialNode()));
+	Eigen::Map<Eigen::Vector<double, Eigen::Dynamic>, 0, Eigen::InnerStride<Eigen::Dynamic>> rInletDep(rhs + idxr.offsetC(), _convDispOp.axNNodes() * _disc.radNPoints * _disc.nComp, Eigen::InnerStride<Eigen::Dynamic>(idxr.strideColRadialNode()));
 
-		rInletDep += _jacInlet * rInlet;
-	}
+	rInletDep += _jacInlet * rInlet;
 
 	// ==== Step 2: Solve system of pure DOFs
 	// The result is stored in rhs (in-place solution)
