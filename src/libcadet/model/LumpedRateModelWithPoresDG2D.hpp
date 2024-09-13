@@ -201,13 +201,13 @@ protected:
 	template <typename StateType, typename ResidualType, typename ParamType, bool wantJac, bool wantRes = true>
 	int residualImpl(double t, unsigned int secIdx, StateType const* const y, double const* const yDot, ResidualType* const res, util::ThreadLocalStorage& threadLocalMem);
 
-	template <typename StateType, typename ResidualType, typename ParamType, bool wantJac>
+	template <typename StateType, typename ResidualType, typename ParamType, bool wantJac, bool wantRes>
 	int residualBulk(double t, unsigned int secIdx, StateType const* y, double const* yDot, ResidualType* res, util::ThreadLocalStorage& threadLocalMem);
 
-	template <typename StateType, typename ResidualType, typename ParamType, bool wantJac>
+	template <typename StateType, typename ResidualType, typename ParamType, bool wantJac, bool wantRes>
 	int residualParticle(double t, unsigned int parType, unsigned int colCell, unsigned int secIdx, StateType const* y, double const* yDot, ResidualType* res, util::ThreadLocalStorage& threadLocalMem);
 
-	template <typename StateType, typename ResidualType, typename ParamType>
+	template <typename StateType, typename ResidualType, typename ParamType, bool wantJac, bool wantRes>
 	int residualFlux(double t, unsigned int secIdx, StateType const* y, double const* yDot, ResidualType* res);
 
 	void extractJacobianFromAD(active const* const adRes, unsigned int adDirOffset);
@@ -439,7 +439,23 @@ protected:
 
 	void setFilmDiffFluxPattern(std::vector<T>& tripletList)
 	{
-		// @todo
+		Indexer idxr(_disc);
+
+		for (unsigned int parType = 0; parType < _disc.nParType; parType++) {
+
+			int offC = 0; // inlet DOFs not included in Jacobian
+			int offP = idxr.offsetCp(ParticleTypeIndex{ parType }) - idxr.offsetC(); // inlet DOFs not included in Jacobian
+
+			// add dependency of c^b, c^p and flux on another
+			for (unsigned int nCol = 0; nCol < _disc.nBulkPoints; nCol++) {
+				for (unsigned int comp = 0; comp < _disc.nComp; comp++) {
+					// c^b on c^b entry already set
+					tripletList.push_back(T(offC + nCol * _disc.nComp + comp, offP + nCol * idxr.strideParBlock(parType) + comp, 0.0)); // c^b on c^p
+					// c^p on c^p entry already set
+					tripletList.push_back(T(offP + nCol * idxr.strideParBlock(parType) + comp, offC + nCol * _disc.nComp + comp, 0.0)); // c^p on c^b
+				}
+			}
+		}
 	}
 
 	void setParticlePattern(std::vector<T>& tripletList, Indexer& idxr)

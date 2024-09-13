@@ -84,12 +84,12 @@
                 1e-08
             ],
             "COL_LENGTH": 0.014,
-            "COL_POROSITY": 1.0,
+            "COL_POROSITY": 0.7,
             "COL_RADIUS": 0.01,
             "CROSS_SECTION_AREA": 0.0003141592653589793,
             "FILM_DIFFUSION": [
-                0.0,
-                0.0
+                1.0,
+                2.0
             ],
             "INIT_C": [
                 0,
