@@ -54,9 +54,9 @@ TEST_CASE("LRMP2D transport Jacobian", "[LRMP2D],[DG],[DG2D],[UnitOp],[Jacobian]
 	jpp.popScope();
 	jpp.pushScope("unit_" + unitID);
 
-	for (int zElem = 7; zElem < 8; zElem++) // to run this test for fine discretizations, change the number of allowed AD directions in the autodiff.hpp
+	for (int zElem = 1; zElem < 8; zElem++) // to run this test for fine discretizations, change the number of allowed AD directions in the autodiff.hpp
 	{
-		for (int rElem = 7; rElem < 8; rElem++)
+		for (int rElem = 1; rElem < 8; rElem++)
 		{
 			jpp.pushScope("discretization");
 			jpp.set("AX_NELEM", zElem);
