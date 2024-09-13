@@ -30,7 +30,7 @@ TEST_CASE("LRMP2D time derivative Jacobian vs FD", "[LRMP2D],[DG],[DG2D],[UnitOp
 
 TEST_CASE("LRMP2D transport Jacobian", "[LRMP2D],[DG],[DG2D],[UnitOp],[Jacobian],[CI]")
 {
-	const std::string relModelFilePath = std::string("/data/lrmp2d_debug.json");
+	const std::string relModelFilePath = std::string("/data/lrmp2d_2comp_debug.json");
 	cadet::JsonParameterProvider jpp = cadet::test::column::getReferenceFile(relModelFilePath);
 
 	// get the number of radial ports
@@ -54,7 +54,7 @@ TEST_CASE("LRMP2D transport Jacobian", "[LRMP2D],[DG],[DG2D],[UnitOp],[Jacobian]
 	jpp.popScope();
 	jpp.pushScope("unit_" + unitID);
 
-	for (int zElem = 7; zElem < 8; zElem++)
+	for (int zElem = 7; zElem < 8; zElem++) // to run this test for fine discretizations, change the number of allowed AD directions in the autodiff.hpp
 	{
 		for (int rElem = 7; rElem < 8; rElem++)
 		{
