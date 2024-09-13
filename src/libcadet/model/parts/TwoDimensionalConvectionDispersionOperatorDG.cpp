@@ -1775,7 +1775,7 @@ bool TwoDimensionalConvectionDispersionOperatorDG::assembleConvDispJacobian(Eige
 						for (int j = 0; j < _radNNodes; j++)
 						{
 							for (int comp = 0; comp < _nComp; comp++)
-								jacInlet(rElem * _radElemStride + rNode * _radNodeStride + zNode * _axNodeStride + comp, rElem * _radElemStride + j * _radNodeStride + comp) += -_jacConvection[rElem].block(0, Np + Np - _radNNodes, Np, _radNNodes)(rNode + zNode * _radNNodes, j);
+								jacInlet(rElem * _radElemStride + rNode * _radNodeStride + zNode * _axNodeStride + comp, rElem * _radElemStride + j * _radNodeStride + comp) = -_jacConvection[rElem].block(0, Np + Np - _radNNodes, Np, _radNNodes)(rNode + zNode * _radNNodes, j);
 						}
 					}
 				}

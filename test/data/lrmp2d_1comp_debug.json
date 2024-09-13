@@ -78,10 +78,10 @@
             "COL_DISPERSION": 0.1,
             "COL_DISPERSION_RADIAL": 0.2,
             "COL_LENGTH": 0.014,
-            "COL_POROSITY": 1.0,
+            "COL_POROSITY": 0.7,
             "COL_RADIUS": 0.01,
             "CROSS_SECTION_AREA": 0.0003141592653589793,
-            "FILM_DIFFUSION": 0.0,
+            "FILM_DIFFUSION": 1E-8,
             "INIT_C": [
                 0
             ],
