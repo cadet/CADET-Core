@@ -567,12 +567,12 @@ protected:
 						jacC[0] += jacCF_val * static_cast<double>(filmDiff[comp]) * static_cast<double>(_parTypeVolFrac[type + _disc.nParType * colNode]);
 					// add Cl on Cp entries
 					// row: already at bulk phase. already at current node and component.
-					// col: already at bulk phase. already at current node and component.
+					// col: jump to particle phase
 					jacC[jacP.row() - jacC.row()] = -jacCF_val * static_cast<double>(filmDiff[comp]) * static_cast<double>(_parTypeVolFrac[type + _disc.nParType * colNode]);
 
 					// add Cp on Cp entries
 					// row: already at particle. already at current node and liquid state.
-					// col: go to flux of current parType and adjust for offsetC. jump over previous colNodes and add component offset
+					// col: already at particle. already at current node and liquid state.
 					if (!crossDepsOnly)
 						jacP[0] = -jacPF_val / static_cast<double>(poreAccFactor[comp]) * static_cast<double>(filmDiff[comp]);
 					// add Cp on Cl entries
