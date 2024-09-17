@@ -101,10 +101,10 @@ TEST_CASE("LRMP2D multiple particle types time derivative Jacobian vs FD", "[LRM
 	cadet::test::particle::testTimeDerivativeJacobianMixedParticleTypesFD("LUMPED_RATE_MODEL_WITH_PORES_2D", "DG", 1e-6, 0.0, 5e-3);
 }
 
-//TEST_CASE("LRMP2D linear binding single particle matches spatially dependent particle distribution", "[LRMP2D],[Simulation],[ParticleType],[CILRMP2D]") // @todo
-//{
-//	cadet::test::particle::testLinearSpatiallyMixedParticleTypes("LUMPED_RATE_MODEL_WITH_PORES_2D", "DG", 5e-8, 5e-5);
-//}
+TEST_CASE("LRMP2D linear binding single particle matches spatially dependent particle distribution", "[LRMP2D],[Simulation],[ParticleType],[CI]")
+{
+	cadet::test::particle::testLinearSpatiallyMixedParticleTypes("LUMPED_RATE_MODEL_WITH_PORES_2D", "DG", 5e-8, 5e-5);
+}
 
 TEST_CASE("LRMP2D dynamic reactions time derivative Jacobian vs FD bulk", "[LRMP2D],[Jacobian],[Residual],[ReactionModel],[releaseCI]")
 {
