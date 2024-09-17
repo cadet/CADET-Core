@@ -97,15 +97,27 @@ json createColumnWithSMAJson(const std::string& uoType, const std::string& spati
 		}
 		else if (spatialMethod == "DG")
 		{
-			disc["EXACT_INTEGRATION"] = 0;
-			disc["POLYDEG"] = 4;
-			disc["NELEM"] = 2;
 			disc["PAR_EXACT_INTEGRATION"] = 1;
 			disc["PAR_POLYDEG"] = 3;
 			disc["PAR_NELEM"] = 1;
+
+			if (uoType.find("_2D") != std::string::npos || uoType.find("2D_") != std::string::npos)
+			{
+				disc["AX_POLYDEG"] = 1;
+				disc["AX_NELEM"] = 1;
+				disc["RAD_POLYDEG"] = 2;
+				disc["RAD_NELEM"] = 1;
+				disc["RADIAL_DISC_TYPE"] = "EQUIDISTANT";
+			}
+			else
+			{
+				disc["EXACT_INTEGRATION"] = 0;
+				disc["POLYDEG"] = 4;
+				disc["NELEM"] = 2;
+			}
 		}
 
-		if (uoType == "GENERAL_RATE_MODEL_2D")
+		if (uoType.find("_2D") != std::string::npos || uoType.find("2D_") != std::string::npos)
 		{
 			disc["NCOL"] = 8;
 			disc["NRAD"] = 3;
@@ -266,12 +278,25 @@ json createColumnWithTwoCompLinearJson(const std::string& uoType, const std::str
 			disc["PAR_NELEM"] = 1;
 		}
 
-		if (uoType == "GENERAL_RATE_MODEL_2D")
+		if (uoType.find("_2D") != std::string::npos || uoType.find("2D_") != std::string::npos)
 		{
-			disc["NCOL"] = 8;
-			disc["NRAD"] = 3;
-			disc["NPAR"] = 3;
 			disc["RADIAL_DISC_TYPE"] = "EQUIDISTANT";
+
+			if (spatialMethod == "DG")
+			{
+				disc["AX_POLYDEG"] = 4;
+				disc["AX_NELEM"] = 2;
+				disc["RAD_POLYDEG"] = 2;
+				disc["RAD_NELEM"] = 1;
+				disc["PAR_POLYDEG"] = 3;
+				disc["PAR_NELEM"] = 1;
+			}
+			else if (spatialMethod == "FV")
+			{
+				disc["NCOL"] = 8;
+				disc["NRAD"] = 3;
+				disc["NPAR"] = 3;
+			}
 		}
 
 		if (uoType == "MULTI_CHANNEL_TRANSPORT")
@@ -357,7 +382,7 @@ json createLWEJson(const std::string& uoType, const std::string& spatialMethod)
 				// This switch occurs at beginning of section 0 (initial configuration)
 				sw["SECTION"] = 0;
 
-				if (uoType == "GENERAL_RATE_MODEL_2D")
+				if (uoType.find("_2D") != std::string::npos || uoType.find("2D_") != std::string::npos)
 				{
 					// Connection list is 3x7 since we have 1 connection between
 					// the two unit operations with 3 ports (and we need to have 7 columns)
@@ -561,6 +586,12 @@ cadet::JsonParameterProvider createPulseInjectionColumn(const std::string& uoTyp
 
 				if (spatialMethod == "FV")
 				{
+					if (uoType.find("_2D") != std::string::npos || uoType.find("2D_") != std::string::npos)
+					{
+						disc["NRAD"] = 3;
+						disc["RADIAL_DISC_TYPE"] = "EQUIDISTANT";
+					}
+					
 					disc["NCOL"] = 10;
 					disc["NPAR"] = 4;
 
@@ -578,18 +609,23 @@ cadet::JsonParameterProvider createPulseInjectionColumn(const std::string& uoTyp
 				}
 				else if (spatialMethod == "DG")
 				{
-					disc["EXACT_INTEGRATION"] = 0;
-					disc["POLYDEG"] = 3;
-					disc["NELEM"] = 2;
-					disc["PAR_EXACT_INTEGRATION"] = 1;
+					if (uoType.find("_2D") != std::string::npos || uoType.find("2D_") != std::string::npos)
+					{
+						disc["RADIAL_DISC_TYPE"] = "EQUIDISTANT";
+						disc["AX_POLYDEG"] = 3;
+						disc["AX_NELEM"] = 2;
+						disc["RAD_POLYDEG"] = 2;
+						disc["RAD_NELEM"] = 1;
+					}
+					else
+					{
+						disc["EXACT_INTEGRATION"] = 0;
+						disc["POLYDEG"] = 3;
+						disc["NELEM"] = 2;
+					}
 					disc["PAR_POLYDEG"] = 3;
 					disc["PAR_NELEM"] = 1;
-				}
-
-				if (uoType == "GENERAL_RATE_MODEL_2D")
-				{
-					disc["NRAD"] = 3;
-					disc["RADIAL_DISC_TYPE"] = "EQUIDISTANT";
+					disc["PAR_EXACT_INTEGRATION"] = 1;
 				}
 
 				disc["PAR_DISC_TYPE"] = std::string("EQUIDISTANT_PAR");
@@ -647,7 +683,7 @@ cadet::JsonParameterProvider createPulseInjectionColumn(const std::string& uoTyp
 				// This switch occurs at beginning of section 0 (initial configuration)
 				sw["SECTION"] = 0;
 
-				if (uoType == "GENERAL_RATE_MODEL_2D")
+				if (uoType.find("_2D") != std::string::npos || uoType.find("2D_") != std::string::npos)
 				{
 					// Connection list is 3x7 since we have 1 connection between
 					// the two unit operations with 3 ports (and we need to have 7 columns)
@@ -768,9 +804,9 @@ json createLinearBenchmarkColumnJson(bool dynamicBinding, bool nonBinding, const
 	grm["COL_DISPERSION"] = 0.002 / (100.0 * 100.0 * 60.0);
 	grm["COL_DISPERSION_MULTIPLEX"] = 0;
 	grm["COL_DISPERSION_RADIAL"] = 1e-6;
-	grm["FILM_DIFFUSION"] = {0.01 / (100.0 * 60.0)};
-	grm["PAR_DIFFUSION"] = {3.003e-6};
-	grm["PAR_SURFDIFFUSION"] = {0.0};
+	grm["FILM_DIFFUSION"] = { 0.01 / (100.0 * 60.0) };
+	grm["PAR_DIFFUSION"] = { 3.003e-6 };
+	grm["PAR_SURFDIFFUSION"] = { 0.0 };
 	if (uoType == "MULTI_CHANNEL_TRANSPORT")
 		grm["NCHANNEL"] = 3;
 
@@ -800,71 +836,80 @@ json createLinearBenchmarkColumnJson(bool dynamicBinding, bool nonBinding, const
 	}
 
 	// Initial conditions
-	grm["INIT_C"] = {0.0};
-	grm["INIT_Q"] = {0.0};
+	grm["INIT_C"] = { 0.0 };
+	grm["INIT_Q"] = { 0.0 };
 
-			// Adsorption
-			if (nonBinding)
-			{
-				grm["ADSORPTION_MODEL"] = std::string("NONE");
-				grm["NBOUND"] = { 0 };
-			}
-			else
-			{
-				grm["ADSORPTION_MODEL"] = std::string("LINEAR");
-				grm["NBOUND"] = { 1 };
+	// Adsorption
+	if (nonBinding)
+	{
+		grm["ADSORPTION_MODEL"] = std::string("NONE");
+		grm["NBOUND"] = { 0 };
+	}
+	else
+	{
+		grm["ADSORPTION_MODEL"] = std::string("LINEAR");
+		grm["NBOUND"] = { 1 };
 
 		json ads;
 		ads["IS_KINETIC"] = (dynamicBinding ? 1 : 0);
-		ads["LIN_KA"] = {2.5};
-		ads["LIN_KD"] = {1.0};
+		ads["LIN_KA"] = { 2.5 };
+		ads["LIN_KD"] = { 1.0 };
 		grm["adsorption"] = ads;
 	}
 
-			// Discretization
-			{
-				json disc;
-				disc["SPATIAL_METHOD"] = spatialMethod;
-
-				if (spatialMethod == "FV")
-				{
-					disc["NCOL"] = 512;
-					disc["NPAR"] = 4;
-
-					disc["MAX_KRYLOV"] = 0;
-					disc["GS_TYPE"] = 1;
-					disc["MAX_RESTARTS"] = 10;
-					disc["SCHUR_SAFETY"] = 1e-8;
-					{
-						json weno;
-						weno["WENO_ORDER"] = 3;
-						weno["BOUNDARY_MODEL"] = 0;
-						weno["WENO_EPS"] = 1e-10;
-						disc["weno"] = weno;
-					}
-				}
-				else if (spatialMethod == "DG")
-				{
-					disc["EXACT_INTEGRATION"] = 0;
-					disc["POLYDEG"] = 5;
-					disc["NELEM"] = 15;
-					disc["PAR_EXACT_INTEGRATION"] = 1;
-					disc["PAR_POLYDEG"] = 3;
-					disc["PAR_NELEM"] = 1;
-				}
-
-		if (uoType == "GENERAL_RATE_MODEL_2D")
-		{
-			disc["NRAD"] = 3;
+	// Discretization
+	{
+		const bool model2D = uoType.find("_2D") != std::string::npos || uoType.find("2D_") != std::string::npos;
+		json disc;
+		disc["SPATIAL_METHOD"] = spatialMethod;
+		if (model2D)
 			disc["RADIAL_DISC_TYPE"] = "EQUIDISTANT";
+
+		if (spatialMethod == "FV")
+		{
+			disc["NCOL"] = 512;
+			disc["NPAR"] = 4;
+			if (model2D)
+				disc["NRAD"] = 3;
+				
+			disc["MAX_KRYLOV"] = 0;
+			disc["GS_TYPE"] = 1;
+			disc["MAX_RESTARTS"] = 10;
+			disc["SCHUR_SAFETY"] = 1e-8;
+			{
+				json weno;
+				weno["WENO_ORDER"] = 3;
+				weno["BOUNDARY_MODEL"] = 0;
+				weno["WENO_EPS"] = 1e-10;
+				disc["weno"] = weno;
+			}
+		}
+		else if (spatialMethod == "DG")
+		{
+			if (model2D)
+			{
+				disc["AX_POLYDEG"] = 1;
+				disc["AX_NELEM"] = 1;
+				disc["RAD_POLYDEG"] = 2;
+				disc["RAD_NELEM"] = 1;
+			}
+			else
+			{
+				disc["EXACT_INTEGRATION"] = 0;
+				disc["POLYDEG"] = 5;
+				disc["NELEM"] = 15;
+			}
+			disc["PAR_EXACT_INTEGRATION"] = 1;
+			disc["PAR_POLYDEG"] = 3;
+			disc["PAR_NELEM"] = 1;
 		}
 
 		disc["PAR_DISC_TYPE"] = std::string("EQUIDISTANT_PAR");
 
-				disc["USE_ANALYTIC_JACOBIAN"] = true;
+		disc["USE_ANALYTIC_JACOBIAN"] = true;
 
-				grm["discretization"] = disc;
-			}
+		grm["discretization"] = disc;
+	}
 
 	return grm;
 }
@@ -930,7 +975,7 @@ cadet::JsonParameterProvider createLinearBenchmark(bool dynamicBinding, bool non
 				// This switch occurs at beginning of section 0 (initial configuration)
 				sw["SECTION"] = 0;
 
-				if (uoType == "GENERAL_RATE_MODEL_2D")
+				if (uoType.find("_2D") != std::string::npos || uoType.find("2D_") != std::string::npos)
 				{
 					// Connection list is 3x7 since we have 1 connection between
 					// the two unit operations with 3 ports (and we need to have 7 columns)
