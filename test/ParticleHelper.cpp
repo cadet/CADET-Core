@@ -208,7 +208,7 @@ namespace particle
 
 			bool DGmethod = false;
 			if (jpp.exists("SPATIAL_METHOD"))
-				DGmethod = jpp.getInt("SPATIAL_METHOD");
+				DGmethod = jpp.getString("SPATIAL_METHOD") == "DG";
 
 			if (DGmethod)
 			{
