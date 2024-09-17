@@ -381,16 +381,16 @@ void LumpedRateModelWithPoresDG2D::applyInitialCondition(const SimulationState& 
 		for (unsigned int col = 0; col < _disc.axNPoints * _disc.radNPoints; ++col)
 		{
 			const unsigned int rad = col % _disc.radNPoints;
-			const unsigned int offset = idxr.offsetCp(ParticleTypeIndex{type}, ParticleIndex{col});
+			const unsigned int offset = idxr.offsetCp(ParticleTypeIndex{ type }, ParticleIndex{ col });
 
 			// Initialize c_p
 			for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
-				simState.vecStateY[comp] = static_cast<double>(_initCp[comp + _disc.nComp * type + rad * _disc.nComp * _disc.nParType]);
+				simState.vecStateY[offset + comp] = static_cast<double>(_initCp[comp + _disc.nComp * type + rad * _disc.nComp * _disc.nParType]);
 
 			// Initialize q
 			active const* const iq = _initQ.data() + rad * _disc.strideBound[_disc.nParType] + _disc.nBoundBeforeType[type];
 			for (unsigned int bnd = 0; bnd < _disc.strideBound[type]; ++bnd)
-				simState.vecStateY[idxr.strideParLiquid() + bnd] = static_cast<double>(iq[bnd]);
+				simState.vecStateY[offset + idxr.strideParLiquid() + bnd] = static_cast<double>(iq[bnd]);
 		}
 	}
 }
