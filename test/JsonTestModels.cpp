@@ -586,6 +586,12 @@ cadet::JsonParameterProvider createPulseInjectionColumn(const std::string& uoTyp
 
 				if (spatialMethod == "FV")
 				{
+					if (uoType.find("_2D") != std::string::npos || uoType.find("2D_") != std::string::npos)
+					{
+						disc["NRAD"] = 3;
+						disc["RADIAL_DISC_TYPE"] = "EQUIDISTANT";
+					}
+					
 					disc["NCOL"] = 10;
 					disc["NPAR"] = 4;
 
@@ -603,18 +609,23 @@ cadet::JsonParameterProvider createPulseInjectionColumn(const std::string& uoTyp
 				}
 				else if (spatialMethod == "DG")
 				{
-					disc["EXACT_INTEGRATION"] = 0;
-					disc["POLYDEG"] = 3;
-					disc["NELEM"] = 2;
-					disc["PAR_EXACT_INTEGRATION"] = 1;
+					if (uoType.find("_2D") != std::string::npos || uoType.find("2D_") != std::string::npos)
+					{
+						disc["RADIAL_DISC_TYPE"] = "EQUIDISTANT";
+						disc["AX_POLYDEG"] = 3;
+						disc["AX_NELEM"] = 2;
+						disc["RAD_POLYDEG"] = 2;
+						disc["RAD_NELEM"] = 1;
+					}
+					else
+					{
+						disc["EXACT_INTEGRATION"] = 0;
+						disc["POLYDEG"] = 3;
+						disc["NELEM"] = 2;
+					}
 					disc["PAR_POLYDEG"] = 3;
 					disc["PAR_NELEM"] = 1;
-				}
-
-				if (uoType == "GENERAL_RATE_MODEL_2D")
-				{
-					disc["NRAD"] = 3;
-					disc["RADIAL_DISC_TYPE"] = "EQUIDISTANT";
+					disc["PAR_EXACT_INTEGRATION"] = 1;
 				}
 
 				disc["PAR_DISC_TYPE"] = std::string("EQUIDISTANT_PAR");
