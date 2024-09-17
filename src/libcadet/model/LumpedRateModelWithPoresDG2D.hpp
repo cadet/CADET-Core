@@ -460,15 +460,16 @@ protected:
 
 	void setParticlePattern(std::vector<T>& tripletList, Indexer& idxr)
 	{
-		// @todo set actual pattern
 		for (unsigned int parType = 0; parType < _disc.nParType; parType++)
 		{
 			for (unsigned int par = 0; par < _disc.nBulkPoints; par++)
 			{
 				const int offPar = idxr.offsetCp(ParticleTypeIndex{ parType }, ParticleIndex{ par }) - idxr.offsetC();
-				for (unsigned int conc = 0; conc < _disc.nComp + _disc.nBound[parType]; conc++)
+
+				for (unsigned int conc = 0; conc < idxr.strideParLiquid() + idxr.strideParBound(parType); conc++)
 				{
-					tripletList.push_back(T(offPar + conc, offPar + conc, 0.0));
+					for (unsigned int concDep = 0; concDep < idxr.strideParLiquid() + idxr.strideParBound(parType); concDep++)
+						tripletList.push_back(T(offPar + conc, offPar + concDep, 0.0));
 				}
 			}
 		}
