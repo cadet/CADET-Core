@@ -205,13 +205,27 @@ namespace particle
 		unsigned int nRad = 1;
 		{
 			auto ds = cadet::test::util::makeOptionalGroupScope(jpp, "discretization");
-			if (jpp.exists("SPATIAL_METHOD"))
-				nCol = jpp.getString("SPATIAL_METHOD") == "DG" ? (jpp.getInt("POLYDEG") + 1) * jpp.getInt("NELEM") : jpp.getInt("NCOL");
-			else
-				nCol = jpp.getInt("NCOL");
 
-			if (jpp.exists("NRAD"))
-				nRad = jpp.getInt("NRAD");
+			bool DGmethod = false;
+			if (jpp.exists("SPATIAL_METHOD"))
+				DGmethod = jpp.getInt("SPATIAL_METHOD");
+
+			if (DGmethod)
+			{
+				if (jpp.exists("AX_POLYDEG"))
+				{
+					nCol = (jpp.getInt("AX_POLYDEG") + 1) * jpp.getInt("AX_NELEM");
+					nRad = (jpp.getInt("RAD_POLYDEG") + 1) * jpp.getInt("RAD_NELEM");
+				}
+				else
+					nCol = (jpp.getInt("POLYDEG") + 1) * jpp.getInt("NELEM");
+			}
+			else
+			{
+				nCol = jpp.getInt("NCOL");
+				if (jpp.exists("NRAD"))
+					nRad = jpp.getInt("NRAD");
+			}
 		}
 		
 		const double baseFrac[] = {0.2, 0.45, 0.35};
