@@ -143,10 +143,11 @@ inline void compareJacobian(cadet::IUnitOperation* modelA, cadet::IUnitOperation
  * @param [in] dir Memory for extracting a column
  * @param [in] colA Memory for Jacobian column of @p modelA
  * @param [in] colB Memory for Jacobian column of @p modelB
+ * @param [in] absTolAD absolute tolerance when comparing the AD Jacobians. Deviation from default only advised when values are numerically challenging, i.e. are at least 1E+10
  */
-inline void compareJacobian(cadet::IUnitOperation* modelA, cadet::IUnitOperation* modelB, double const* y, double const* yDot, double* dir, double* colA, double* colB)
+inline void compareJacobian(cadet::IUnitOperation* modelA, cadet::IUnitOperation* modelB, double const* y, double const* yDot, double* dir, double* colA, double* colB, const double absTolAD = RelApprox::defaultEpsilon())
 {
-	compareJacobian(modelA, modelB, y, yDot, dir, colA, colB, RelApprox::defaultEpsilon(), RelApprox::defaultMargin());
+	compareJacobian(modelA, modelB, y, yDot, dir, colA, colB, absTolAD, RelApprox::defaultMargin());
 }
 
 /**
