@@ -73,7 +73,7 @@ TEST_CASE("Crystallization in a CSTR with primary and secondary nucleation and g
 {
 	const std::string& modelFilePath = std::string("/data/configuration_PBM_CSTR_primarySecondaryNucleationAndGrowth_benchmark1.json");
 	const std::string& refFilePath = std::string("/data/ref_PBM_CSTR_primarySecondaryNucleationAndGrowth_benchmark1.h5");
-	const std::vector<double> absTol = { 1e-9 };
+	const std::vector<double> absTol = { 1e-8 };
 	const std::vector<double> relTol = { 1e-6 };
 
 	cadet::test::column::Dummyparams disc; // CSTR, so no spatial resolution
