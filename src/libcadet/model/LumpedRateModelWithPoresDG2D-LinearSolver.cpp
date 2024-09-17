@@ -20,21 +20,8 @@
 #include <algorithm>
 #include <functional>
 
-#include <iostream> // todo delete
-#include <iomanip>
-
 #include "LoggingUtils.hpp"
 #include "Logging.hpp"
-
-#include "ParallelSupport.hpp"
-
-#ifdef CADET_PARALLELIZE
-	#include <tbb/parallel_for.h>
-	#include <tbb/flow_graph.h>
-
-	typedef tbb::flow::continue_node< tbb::flow::continue_msg > node_t;
-	typedef const tbb::flow::continue_msg & msg_t;
-#endif
 
 namespace cadet
 {
@@ -184,13 +171,14 @@ void LumpedRateModelWithPoresDG2D::assembleDiscretizedGlobalJacobian(double alph
 	// add time derivative to bulk jacobian
 	_convDispOp.addTimeDerivativeToJacobian(alpha, _globalJacDisc);
 
-	// Add time derivatives to particle shells
-	for (unsigned int parType = 0; parType < _disc.nParType; parType++) {
+	// Add time derivatives to particles
+	for (unsigned int parType = 0; parType < _disc.nParType; parType++)
+	{
 		linalg::BandedEigenSparseRowIterator jac(_globalJacDisc, idxr.offsetCp(ParticleTypeIndex{ parType }) - idxr.offsetC());
+
 		for (unsigned int j = 0; j < _disc.nBulkPoints; ++j)
 		{
-			// Mobile and solid phase (advances jac accordingly)
-			addTimeDerivativeToJacobianParticleBlock(jac, idxr, alpha, parType);
+			addTimeDerivativeToJacobianParticleBlock(jac, idxr, alpha, parType); // Mobile and solid phase equations (advances jac accordingly)
 		}
 	}
 }
