@@ -91,8 +91,7 @@ TEST_CASE("Crystallization in a DPFR/LRM with primary and secondary nucleation a
 	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "001", absTol, relTol, disc, false);
 }
 
-// Note: two entries fail, given in (row,col): (204, 190), (204, 191)
-TEST_CASE("Crystallization Jacobian verification for a CSTR with initial distribution and growth", "[CrysToFix1]") // "[Crystallization],[UnitOp],[Jacobian],[CI]")
+TEST_CASE("Crystallization Jacobian verification for a CSTR with initial distribution and growth", "[Crystallization],[UnitOp],[Jacobian],[CI]")
 {
 	// read json model setup file
 	const std::string& modelFileRelPath = std::string("/data/configuration_PBM_CSTR_growth_benchmark1.json");
@@ -105,8 +104,7 @@ TEST_CASE("Crystallization Jacobian verification for a CSTR with initial distrib
 	cadet::test::column::testJacobianAD(pp_setup, std::numeric_limits<float>::epsilon() * 100.0);
 }
 
-// Note: two entries fail, given in (row,col): (204, 190), (204, 191)
-TEST_CASE("Crystallization Jacobian verification for a CSTR with initial distribution and size-dependent growth", "[CrysToFix2]") // "[Crystallization],[UnitOp],[Jacobian],[CI]")
+TEST_CASE("Crystallization Jacobian verification for a CSTR with initial distribution and size-dependent growth", "[Crystallization],[UnitOp],[Jacobian],[CI]")
 {
 	// read json model setup file
 	const std::string& modelFileRelPath = std::string("/data/configuration_PBM_CSTR_growthSizeDep_benchmark1.json");
@@ -119,8 +117,7 @@ TEST_CASE("Crystallization Jacobian verification for a CSTR with initial distrib
 	cadet::test::column::testJacobianAD(pp_setup, std::numeric_limits<float>::epsilon() * 100.0);
 }
 
-// Note: two entries fail, given in (row,col): (204, 190), (204, 191)
-TEST_CASE("Crystallization Jacobian verification for a CSTR with primary nucleation and growth", "[CrysToFix3]") // "[Crystallization],[UnitOp],[Jacobian],[CI]")
+TEST_CASE("Crystallization Jacobian verification for a CSTR with primary nucleation and growth", "[Crystallization],[UnitOp],[Jacobian],[CI]")
 {
 	// read json model setup file
 	const std::string& modelFileRelPath = std::string("/data/configuration_PBM_CSTR_primaryNucleationAndGrowth_benchmark1.json");
@@ -133,8 +130,7 @@ TEST_CASE("Crystallization Jacobian verification for a CSTR with primary nucleat
 	cadet::test::column::testJacobianAD(pp_setup, std::numeric_limits<float>::epsilon() * 100.0);
 }
 
-// Some more comparisons fail
-TEST_CASE("Crystallization Jacobian verification for a CSTR with primary nucleation, growth and growth rate dispersion", "[CrysToFix4]") // "[Crystallization],[UnitOp],[Jacobian],[CI]")
+TEST_CASE("Crystallization Jacobian verification for a CSTR with primary nucleation, growth and growth rate dispersion", "[Crystallization],[UnitOp],[Jacobian],[CI]")
 {
 	// read json model setup file
 	const std::string& modelFileRelPath = std::string("/data/configuration_PBM_CSTR_primaryNucleationGrowthGrowthRateDispersion_benchmark1.json");
@@ -147,8 +143,7 @@ TEST_CASE("Crystallization Jacobian verification for a CSTR with primary nucleat
 	cadet::test::column::testJacobianAD(pp_setup, std::numeric_limits<float>::epsilon() * 100.0);
 }
 
-// Note: two entries fail, given in (row,col): (204, 190), (204, 191)
-TEST_CASE("Crystallization Jacobian verification for a CSTR with primary and secondary nucleation and growth", "[CrysToFix5]") // "[Crystallization],[UnitOp],[Jacobian],[CI]")
+TEST_CASE("Crystallization Jacobian verification for a CSTR with primary and secondary nucleation and growth", "[Crystallization],[UnitOp],[Jacobian],[CI]")
 {
 	// read json model setup file
 	const std::string& modelFileRelPath = std::string("/data/configuration_PBM_CSTR_primarySecondaryNucleationAndGrowth_benchmark1.json");
@@ -161,9 +156,7 @@ TEST_CASE("Crystallization Jacobian verification for a CSTR with primary and sec
 	cadet::test::column::testJacobianAD(pp_setup, std::numeric_limits<float>::epsilon() * 100.0);
 }
 
-// FD pattern tests fail due to non-equal entries
-// AD tests fail: access violation
-TEST_CASE("Crystallization Jacobian verification for a DPFR/LRM with primary and secondary nucleation and growth", "[CrysToFix6]") // "[Crystallization],[UnitOp],[Jacobian],[CI]")
+TEST_CASE("Crystallization Jacobian verification for a DPFR/LRM with primary and secondary nucleation and growth", "[Crystallization1],[UnitOp],[Jacobian],[CI]")
 {
 	// read json model setup file
 	const std::string& modelFileRelPath = std::string("/data/configuration_PBM_DPFR_primarySecondaryNucleationGrowth_benchmark1.json");
@@ -173,5 +166,8 @@ TEST_CASE("Crystallization Jacobian verification for a DPFR/LRM with primary and
 	pp_setup.pushScope("model");
 	pp_setup.pushScope("unit_001");
 
-	cadet::test::column::testJacobianAD(pp_setup, std::numeric_limits<float>::epsilon() * 100.0);
+	// for this specific test, we need to define a (high) absolute tolerance as the values in this test are numerically very challenging (values of ca. 1E+24)
+	const double ADabsTol = 2e+7;
+
+	cadet::test::column::testJacobianAD(pp_setup, std::numeric_limits<float>::epsilon() * 100.0, ADabsTol);
 }
