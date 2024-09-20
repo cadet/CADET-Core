@@ -52,3 +52,7 @@ The following build arguments are exclusive to builds on MS windows:
 
 - ``DVCPKG_TARGET_TRIPLET``: We use ``vcpkg`` to manage our dependencies. This triplet specifies which version of the dependencies should be installed. It takes the form of ``architecture-os-linking``, so ``x64-windows-static`` for our use cases.
 
+The following build arguments can only be used with the Clang or GCC compilers:
+
+- ``DENABLE_ASAN``: enables the address sanitizer.
+- ``DENABLE_UBSAN``: enables the undefined behaviour sanitizer.
