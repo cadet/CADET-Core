@@ -11,3 +11,5 @@ To run a specific simulation with the Visual Studio debugguer, you can add the l
 
 .. literalinclude:: launch.vs.json
    :language: json
+
+To debug memory related issues, you can compile the code with the address sanitizer ASAN and the undefined behaviour sanitizer UBSAN by enabling the cmake arguments `DENABLE_ASAN` and `DENABLE_UBSAN`.

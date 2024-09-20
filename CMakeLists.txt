@@ -146,6 +146,12 @@ add_feature_info(ENABLE_PACKAGED_SUNDIALS ENABLE_PACKAGED_SUNDIALS "Use packaged
 option(ENABLE_IPO "Enable interprocedural optimization if compiler supports it" ${DEFAULT_IPO_ENABLED})
 add_feature_info(ENABLE_IPO ENABLE_IPO "Enable interprocedural optimization if compiler supports it")
 
+option(ENABLE_ASAN "Enable address sanitizer (clang and gcc)" OFF)
+add_feature_info(ENABLE_ASAN ENABLE_ASAN "Enable address sanitizer (clang and gcc)")
+
+option(ENABLE_UBSAN "Enable undefined behavior sanitizer (clang and gcc)" OFF)
+add_feature_info(ENABLE_UBSAN ENABLE_UBSAN "Enable undefined behavior sanitizer (clang and gcc)")
+
 option(ENABLE_STATIC_LINK_DEPS "Prefer static over dynamic linking of dependencies" OFF)
 add_feature_info(ENABLE_STATIC_LINK_DEPS ENABLE_STATIC_LINK_DEPS "Prefer static over dynamic linking of dependencies")
 
@@ -472,6 +478,16 @@ else()
 	$<$<CXX_COMPILER_ID:MSVC>:
 		/W4 /wd4100 /MP>
 )
+endif()
+
+if (ENABLE_ASAN)
+	target_compile_options(CADET::CompileOptions INTERFACE $<$<OR:$<CXX_COMPILER_ID:Clang>,$<CXX_COMPILER_ID:AppleClang>,$<CXX_COMPILER_ID:GNU>>:-fsanitize=address>)
+	target_link_options(CADET::CompileOptions INTERFACE $<$<OR:$<CXX_COMPILER_ID:Clang>,$<CXX_COMPILER_ID:AppleClang>,$<CXX_COMPILER_ID:GNU>>:-fsanitize=address>)
+endif()
+
+if (ENABLE_UBSAN)
+	target_compile_options(CADET::CompileOptions INTERFACE $<$<OR:$<CXX_COMPILER_ID:Clang>,$<CXX_COMPILER_ID:AppleClang>,$<CXX_COMPILER_ID:GNU>>:-fsanitize=undefined>)
+	target_link_options(CADET::CompileOptions INTERFACE $<$<OR:$<CXX_COMPILER_ID:Clang>,$<CXX_COMPILER_ID:AppleClang>,$<CXX_COMPILER_ID:GNU>>:-fsanitize=undefined>)
 endif()
 
 
