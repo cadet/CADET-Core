@@ -129,6 +129,7 @@ add_feature_info(ENABLE_ANALYTIC_JACOBIAN_CHECK ENABLE_ANALYTIC_JACOBIAN_CHECK "
 set(ADLIB "sfad" CACHE STRING "Selects the AD library, options are 'sfad', 'setfad'")
 string(TOLOWER ${ADLIB} ADLIB)
 
+set(NUM_MAX_AD_DIRS 80 CACHE STRING "Sets the maximum number of AutoDiff directions")
 
 option(ENABLE_CADET_CLI "Build CADET command line interface" ON)
 add_feature_info(ENABLE_CADET_CLI ENABLE_CADET_CLI "Build CADET command line interface")

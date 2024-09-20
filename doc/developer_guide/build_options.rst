@@ -46,6 +46,7 @@ The following build arguments can be set in the cmakeSettings.json or from the c
 - ``DENABLE_PACKAGED_SUNDIALS``: Uses packaged SUNDIALS code.
 - ``DENABLE_IPO``: Enables interprocedural optimization if the compiler supports it.
 - ``DCMAKE_INSTALL_RPATH_USE_LINK_PATH``: Adds paths to linker search and installed rpath.
+- ``DNUM_MAX_AD_DIRS``: Specifies the number of allowed AD directions (default value is 80). Increasing this value can decrease performance when AD is being used.
 
 The following build arguments are exclusive to builds on MS windows:
 

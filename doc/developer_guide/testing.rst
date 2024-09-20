@@ -53,7 +53,8 @@ Unit tests
 
 Unit tests are designed to verify the correctness of individual units or components of code in isolation.
 Unit tests in CADET-Core typically encompass tests for the Jacobian implementation and consistent initialization of the model, which can be adapted from corresponding existing tests.
-We generally recommend testing every of your model individually.
+Testing the Jacobian typically involves comparing the analytical Jacobian to the AD Jacobian to verify that the residual implementation is consistent to the analytical Jacobian.
+To this end, it might be necessary to increase the maximum number of AD directions for your test case, which can be done via the cmake argument `NUM_MAX_AD_DIRS`, as described in the :ref:`build_options`.
 
 Numerical reference tests
 ^^^^^^^^^^^^^^^^^^^^^^^^^

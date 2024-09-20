@@ -16,4 +16,6 @@
 #cmakedefine ENABLE_2D_MODELS
 #cmakedefine ENABLE_DG
 
+#define NUM_MAX_AD_DIRS @NUM_MAX_AD_DIRS@
+
 #endif  // LIBCADET_COMPILETIMECONFIG_HPP_

@@ -29,7 +29,9 @@
 
 #if defined(ACTIVE_SFAD) || defined(ACTIVE_SETFAD)
 
-	#define SFAD_DEFAULT_DIR 80
+	#if !defined(SFAD_DEFAULT_DIR) && defined(NUM_MAX_AD_DIRS)
+		#define SFAD_DEFAULT_DIR NUM_MAX_AD_DIRS
+	#endif
 
 	#if defined(ACTIVE_SFAD)
 		#include "sfad.hpp"
