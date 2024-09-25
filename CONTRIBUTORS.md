@@ -14,6 +14,8 @@
 * [Jazib Hassan](https://github.com/jazib-hassan-juelich) (Forschungszentrum Juelich GmbH, IBG-1: Biotechnology, Juelich, Germany)
 * [Jan Breuer](https://github.com/jbreue16) (Forschungszentrum Juelich GmbH, IBG-1: Biotechnology, Juelich, Germany): Spatial DG discretizations (LRM, LRMP, GRM)
 * [Ronald Jäpel](https://github.com/ronald-jaepel) (Forschungszentrum Juelich GmbH, IBG-1: Biotechnology, Juelich, Germany)
+* [Hannah Lanzrath](https://github.com/hannahlanzrath) (Forschungszentrum Juelich GmbH, IBG-1: Biotechnology, Juelich, Germany)
+* [Antonia Berger](https://github.com/AntoniaBerger) (Forschungszentrum Juelich GmbH, IBG-1: Biotechnology, Juelich, Germany)
 
 ## Funding Acknowledgement
 
