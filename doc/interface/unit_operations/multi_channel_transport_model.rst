@@ -131,6 +131,11 @@ For information on model equations, refer to :ref:`multi_channel_transport_model
     e^k_{N1} & \dots & e^k_{N(N-1)} & 0 
     \end{bmatrix}    
 
+   For addressing the exchange rates as a parameter senstivity, the mapping is as follows:
+
+  - :math:`\texttt{SENS_BOUNDPHASE}` *Channel from* 
+  - :math:`\texttt{SENS_PARTYPE}` *Channel to* 
+
    ================  ========================  ===============================================
    **Type:** double  **Range:** :math:`[0,1]`  **Length:** :math:`\texttt{NCHANNEL}*\texttt{NCHANNEL}*\texttt{NCOMP}`
    ================  ========================  ===============================================
