@@ -542,7 +542,7 @@ void TwoDimensionalConvectionDispersionOperatorDG::writeRadialCoordinates(double
 	double* leftElemBndries = new double[_radNElem];
 	for (int elem = 0; elem < _radNElem; elem++)
 		leftElemBndries[elem] = static_cast<double>(_radDelta[elem]) * elem;
-	dgtoolbox::writeDGCoordinates(coords, _radNElem, _radNNodes, static_cast<const double*>(&_radNodes[0]), static_cast<double>(_colLength), leftElemBndries);
+	dgtoolbox::writeDGCoordinates(coords, _radNElem, _radNNodes, static_cast<const double*>(&_radNodes[0]), static_cast<double>(_colRadius), leftElemBndries);
 	delete[] leftElemBndries;
 }
 
