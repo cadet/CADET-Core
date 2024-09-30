@@ -211,6 +211,7 @@ inline ParameterId makeParamId(const std::string& name, const UnitOpIdx unitOper
  * @param [in] name Hash of the parameter name
  * @param [in] unitOperation Index of the unit operation this parameter belongs to
  * @param [in] component Index of the component this parameter belongs to
+ * @param [in] parType Index of the particle type this parameter belongs to
  * @param [in] boundState Index of the bound state this parameter belongs to
  * @param [in] reaction Index of the reaction this parameter belongs to
  * @param [in] section Index of the section this parameter belongs to
