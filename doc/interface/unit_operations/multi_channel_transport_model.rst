@@ -120,7 +120,8 @@ For information on model equations, refer to :ref:`multi_channel_transport_model
 
    **Unit:** :math:`\mathrm{s}^{-1}`
 
-   Ordered list containing all exchange rates :math:`e^k_{ij}` for component :math:`k` from compartment :math:`i` to :math:`j` based on the exchange matrix :math:`E^k`. The vector ordering is source channel - destination channel - component (i.e. i-j-k) major.
+   Ordered list containing all exchange rates :math:`e^k_{ij}` for component :math:`k` from channel :math:`i` to :math:`j` based on the exchange matrix :math:`E^k`. The vector ordering is source channel - destination channel - component (i.e. i-j-k) major.
+   The :math:`\texttt{SENS_BOUNDPHASE}` and :math:`\texttt{SENS_PARTYPE}` fields are used for indexing the source and destination channel, respectively, when specifying parameter sensitivities.
 
    .. math::
     
@@ -129,16 +130,11 @@ For information on model equations, refer to :ref:`multi_channel_transport_model
     e^k_{21} & \ddots & & \vdots\\
     \vdots & & \ddots & e^k_{(N-1)N}\\
     e^k_{N1} & \dots & e^k_{N(N-1)} & 0 
-    \end{bmatrix}    
+    \end{bmatrix}
 
-   For addressing the exchange rates as a parameter senstivity, the mapping is as follows:
-
-  - :math:`\texttt{SENS_BOUNDPHASE}` *Channel from* 
-  - :math:`\texttt{SENS_PARTYPE}` *Channel to* 
-
-   ================  ========================  ===============================================
+   ================  ========================  ======================================================================
    **Type:** double  **Range:** :math:`[0,1]`  **Length:** :math:`\texttt{NCHANNEL}*\texttt{NCHANNEL}*\texttt{NCOMP}`
-   ================  ========================  ===============================================
+   ================  ========================  ======================================================================
    
 ``NCHANNEL``
 
