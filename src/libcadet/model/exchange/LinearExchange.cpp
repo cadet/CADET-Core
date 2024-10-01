@@ -12,7 +12,6 @@
 
 
 
-#include "model/BindingModel.hpp"
 #include "model/ExternalFunctionSupport.hpp"
 #include "ParamIdUtil.hpp"
 #include "model/ModelUtils.hpp"
@@ -40,8 +39,8 @@ namespace model
 /**
  * @brief Defines the linear exchange model
  * @details Implements the linear exchange model for the MCT model
- * The exchange is given by a matrix of exchange coefficients eij for each component i and j and the chross Ai section from channel i.
- * The exchange from channel i to all other channel j is given by \f$ \frac{\mathrm{d}ci}{\mathrm{d}t} = \sum_j eij cj Aj/Ai - eji ci \f$.
+ * The exchange is given by a matrix of exchange coefficients e_{ij} for each component i and j and the chross A_{i} section from channel i.
+ * The exchange from channel i to all other channel j is given by \f$ \frac{\mathrm{d}ci}{\mathrm{d}t} = \sum_j e_{ij} c_j A_j/A_i - e_{ji} c_i \f$.
  */
 class LinearExchangeBase : public IExchangeModel
 {
@@ -58,7 +57,7 @@ public:
 	virtual bool configureModelDiscretization(IParameterProvider& paramProvider, unsigned int nComp, unsigned int nChannel, unsigned int nCol)
 	{
 		_nComp = nComp;
-		_nChannel = nChannel; // nChannel realy int ? -> by not nBoundStates not ?
+		_nChannel = nChannel;
 		_nCol = nCol;
 
 		return true;
@@ -67,7 +66,7 @@ public:
 	virtual bool configure(IParameterProvider& paramProvider, UnitOpIdx unitOpIdx)
 	{
 		_parameters.clear();
-		readParameterMatrix(_exchangeMatrix, paramProvider, "EXCHANGE_MATRIX", _nChannel * _nChannel * _nComp, 1); // include parameterPeaderHelp in exchange modul
+		readParameterMatrix(_exchangeMatrix, paramProvider, "EXCHANGE_MATRIX", _nChannel * _nChannel * _nComp, 1); // TODO include parameterPeaderHelp in exchange modul
 		_crossSections = paramProvider.getDoubleArray("CHANNEL_CROSS_SECTION_AREAS");
 
 		return true;
@@ -173,7 +172,6 @@ protected:
 
 	std::vector<active> _exchangeMatrix; //!< Matrix of exchange coeffs for the linear inter-channel transport
 	std::vector<double> _crossSections; //!< Cross sections of the channels
-	parts::MultiChannelConvectionDispersionOperator _conDis; //!< Convection dispersion operator
 
 	std::unordered_map<ParameterId, active*> _parameters; //!< Map used to translate ParameterIds to actual variables
 

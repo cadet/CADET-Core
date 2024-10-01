@@ -162,7 +162,6 @@ protected:
 	bool _singleVelocity; //!< Determines whether only one velocity for all compartments is given
 
     std::vector<active> _exchangeMatrix; //!< Matrix of exchange coeffs for the inter-channel transport
-
 	IExchangeModel* _exchangeModel; //!< Phase transition model
 
 	IParameterParameterDependence* _dispersionDep;

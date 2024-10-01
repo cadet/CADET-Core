@@ -599,7 +599,6 @@ int MultiChannelTransportModel::residual(const SimulationTime& simTime, const Co
 	// Evaluate residual do not compute Jacobian or parameter sensitivities
 	return residualImpl<double, double, double, false>(simTime.t, simTime.secIdx, simState.vecStateY, simState.vecStateYdot, res, threadLocalMem);
 }
-//Q Do we need different types of residual calculation ?
 int MultiChannelTransportModel::jacobian(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res, const AdJacobianParams& adJac, util::ThreadLocalStorage& threadLocalMem)
 {
 	BENCH_SCOPE(_timerResidual);
@@ -875,7 +874,7 @@ void MultiChannelTransportModel::multiplyWithDerivativeJacobian(const Simulation
 
 void MultiChannelTransportModel::setExternalFunctions(IExternalFunction** extFuns, unsigned int size)
 {
-	// Add exchange here
+	// TODO: Add exchange here
 }
 
 unsigned int MultiChannelTransportModel::localOutletComponentIndex(unsigned int port) const CADET_NOEXCEPT
