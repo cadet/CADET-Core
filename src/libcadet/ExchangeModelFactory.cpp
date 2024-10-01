@@ -50,7 +50,7 @@ namespace cadet
 		const auto it = _exchangeModels.find(name);
 		if (it == _exchangeModels.end())
 		{
-			// BindingModel was not found
+			// ExchangeModel was not found
 			return nullptr;
 		}
 

@@ -31,53 +31,53 @@ namespace cadet
 	}
 
 	/**
-	 * @brief Creates binding models
+	 * @brief Creates Exchange models
 	 */
 	class ExchangeModelFactory
 	{
 	public:
 		/**
-		 * @brief Construct the BindingModelFactory
-		 * @details All internal binding models are registered here.
+		 * @brief Construct the ExchangeModelFactory
+		 * @details All internal exchange models are registered here.
 		 */
 		ExchangeModelFactory();
 
 		~ExchangeModelFactory();
 
 		/**
-		 * @brief Creates binding models with the given @p name
-		 * @param [in] name Name of the binding model
-		 * @return The binding model or @c NULL if a binding model with this name does not exist
+		 * @brief Creates exchange models with the given @p name
+		 * @param [in] name Name of the exchange model
+		 * @return The exchange model or @c NULL if a exchange model with this name does not exist
 		 */
 		model::IExchangeModel* create(const std::string& name) const;
 
 		/**
-		 * @brief Registers the given binding model implementation
-		 * @param [in] name Name of the IBindingModel implementation
-		 * @param [in] factory Function that creates an object of the IBindingModel class
+		 * @brief Registers the given exchange model implementation
+		 * @param [in] name Name of the IExchangeModel implementation
+		 * @param [in] factory Function that creates an object of the IExchangeModel class
 		 */
 		void registerModel(const std::string& name, std::function<model::IExchangeModel*()> factory);
 
 		/**
-		 * @brief Returns whether a binding model of the given name @p name exists
-		 * @param [in] name Name of the binding model
-		 * @return @c true if a binding model of this name exists, otherwise @c false
+		 * @brief Returns whether a exchange model of the given name @p name exists
+		 * @param [in] name Name of the exchange model
+		 * @return @c true if a exchange model of this name exists, otherwise @c false
 		 */
 		bool exists(const std::string& name) const;
 	protected:
 
 		/**
-		 * @brief Registers an IBindingModel
-		 * @param [in] name Name of the binding model
-		 * @tparam BindingModel_t Type of the binding model
+		 * @brief Registers an IExchangeModel
+		 * @param [in] name Name of the exchange model
+		 * @tparam ExchangeModel_t Type of the exchange model
 		 */
 		template <class ExchangeModel_t>
 		void registerModel(const std::string& name);
 
 		/**
-		 * @brief Registers an IBindingModel
-		 * @details The name of the binding model is inferred from the static function IBindingModel::identifier().
-		 * @tparam BindingModel_t Type of the binding model
+		 * @brief Registers an IExchangeModel
+		 * @details The name of the exchange model is inferred from the static function IExchangeModel::identifier().
+		 * @tparam ExchangeModel_t Type of the exchange model
 		 */
 		template <class ExchangeModel_t>
 		void registerModel();
@@ -87,4 +87,4 @@ namespace cadet
 
 } // namespace cadet
 
-#endif  // LIBCADET_BINDINGMODELFACTORY_HPP_
+#endif  // LIBCADET_EXCHANGEMODELFACTORY_HPP_

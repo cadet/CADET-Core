@@ -50,8 +50,8 @@ public:
 	LinearExchangeBase() : _nComp(0), _nChannel(0), _nCol(0) { }
 	virtual ~LinearExchangeBase() CADET_NOEXCEPT { }
 
-	static const char* identifier() { return "LINEAR_EX"; }
-	virtual const char* name() const CADET_NOEXCEPT { return "LINEAR_EX"; }
+	static const char* identifier() { return "LINEAR"; }
+	virtual const char* name() const CADET_NOEXCEPT { return "LINEAR"; }
 	virtual bool requiresConfiguration() const CADET_NOEXCEPT { return true; }
 	virtual bool usesParamProviderInDiscretizationConfig() const CADET_NOEXCEPT { return true; }
 

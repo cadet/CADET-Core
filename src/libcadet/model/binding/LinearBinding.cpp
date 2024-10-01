@@ -125,7 +125,8 @@ public:
 	 * @param [in] nComp Number of components
 	 * @param [in] nBoundStates Array with number of bound states for each component
 	 */
-	inline void reserve(unsigned int numElem, unsigned int numSlices, unsigned int nComp, unsigned int const* nBoundStates) {
+	inline void reserve(unsigned int numElem, unsigned int numSlices, unsigned int nComp, unsigned int const* nBoundStates)
+	{
 		_kA.reserve(numElem, numSlices, nComp, nBoundStates);
 		_kD.reserve(numElem, numSlices, nComp, nBoundStates);
 	}
@@ -387,7 +388,7 @@ protected:
  *          See @cite Guiochon2006
  * @tparam ParamHandler_t Type that can add support for external function dependence
  */
-template <class ParamHandler_t> // nicht fuer LinearExchange
+template <class ParamHandler_t>
 class LinearBindingBase : public IBindingModel
 {
 public:
@@ -525,7 +526,7 @@ public:
 	{
 		return fluxImpl<active, active, active>(t, secIdx, colPos, y, yCp, res, workSpace);
 	}
-	
+
 	virtual int flux(double t, unsigned int secIdx, const ColumnPosition& colPos,
 		active const* y, active const* yCp, active* res, LinearBufferAllocator workSpace, WithoutParamSensitivity) const
 	{
@@ -543,7 +544,7 @@ public:
 	{
 		return fluxImpl<double, double, double>(t, secIdx, colPos, y, yCp, res, workSpace);
 	}
-	
+
 	virtual void analyticJacobian(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, int offsetCp, linalg::BandMatrix::RowIterator jac, LinearBufferAllocator workSpace) const
 	{
 		jacobianImpl(t, secIdx, colPos, y, offsetCp, jac, workSpace);
