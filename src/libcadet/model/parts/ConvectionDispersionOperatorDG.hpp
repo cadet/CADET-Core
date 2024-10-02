@@ -575,9 +575,9 @@ namespace cadet
 				// ==========================================================================================================================================================  //
 
 				/**
-				 * @brief sets the sparsity pattern of the convection dispersion Jacobian for the nodal DG scheme
+				 * @brief sets the sparsity pattern of the convection dispersion Jacobian for the collocation DG scheme
 				 */
-				int ConvDispNodalPattern(std::vector<T>& tripletList, const int offC = 0) {
+				int ConvDispCollocationPattern(std::vector<T>& tripletList, const int offC = 0) {
 
 					/*======================================================*/
 					/*			Define Convection Jacobian Block			*/
@@ -703,9 +703,9 @@ namespace cadet
 				}
 
 				/**
-				* @brief sets the sparsity pattern of the convection dispersion Jacobian for the exact integration (her: modal) DG scheme
+				* @brief sets the sparsity pattern of the convection dispersion Jacobian for the exact integration DG scheme
 				*/
-				int ConvDispModalPattern(std::vector<T>& tripletList, const int offC = 0) {
+				int ConvDispExIntPattern(std::vector<T>& tripletList, const int offC = 0) {
 
 					/*======================================================*/
 					/*			Define Convection Jacobian Block			*/
@@ -878,7 +878,7 @@ namespace cadet
 					return 0;
 				}
 				/**
-				* @brief analytically calculates the convection dispersion jacobian for the nodal DG scheme
+				* @brief analytically calculates the convection dispersion jacobian for the collocation DG scheme
 				*/
 				int calcConvDispCollocationDGSEMJacobian(Eigen::SparseMatrix<double, Eigen::RowMajor>& jacobian, Eigen::MatrixXd& jacInlet, const int offC = 0) {
 
@@ -935,7 +935,7 @@ namespace cadet
 					}
 					else { // special case
 						linalg::BandedEigenSparseRowIterator jacIt(jacobian, offC); // row iterator starting at first cell and component
-						for (unsigned int i = 0; i < dispBlock.rows(); i++, jacIt += strideColBound) {
+						for (unsigned int i = 0; i < dispBlock.rows(); i++) {
 							for (unsigned int comp = 0; comp < _nComp; comp++, ++jacIt) {
 								for (unsigned int j = _nNodes; j < _nNodes * 2u; j++) {
 									// row: iterator is at current node i and current component comp
@@ -943,6 +943,8 @@ namespace cadet
 									jacIt[((j - _nNodes) - i) * strideColNode()] = dispBlock(i, j) * static_cast<double>(currentDispersion(_curSection)[comp]);
 								}
 							}
+							if (i < dispBlock.rows() - 1) // prevent iterator from exceeding matrix size (memory issues) in last loop iteration
+								jacIt += strideColBound;
 						}
 					}
 
@@ -951,7 +953,7 @@ namespace cadet
 						dispBlock = _DGjacAxDispBlocks[std::min(_nCells, 3u) - 1];
 						linalg::BandedEigenSparseRowIterator jacIt(jacobian, offC + (_nCells - 1) * strideColCell()); // row iterator starting at last cell
 
-						for (unsigned int i = 0; i < dispBlock.rows(); i++, jacIt += strideColBound) {
+						for (unsigned int i = 0; i < dispBlock.rows(); i++) {
 							for (unsigned int comp = 0; comp < _nComp; comp++, ++jacIt) {
 								for (unsigned int j = 0; j < 2 * _nNodes; j++) {
 									// pattern is more sparse than a nNodes x 2*nNodes block.
@@ -963,6 +965,8 @@ namespace cadet
 										jacIt[-strideColCell() + (j - i) * strideColNode()] = dispBlock(i, j) * static_cast<double>(currentDispersion(_curSection)[comp]);
 								}
 							}
+							if (i < dispBlock.rows() - 1) // prevent iterator from exceeding matrix size (memory issues) in last loop iteration
+								jacIt += strideColBound;
 						}
 					}
 
@@ -987,7 +991,7 @@ namespace cadet
 						}
 						// remaining cells
 						for (unsigned int cell = 1; cell < _nCells; cell++) {
-							for (unsigned int i = 0; i < convBlock.rows(); i++, jacIt += strideColBound) {
+							for (unsigned int i = 0; i < convBlock.rows(); i++) {
 								for (unsigned int comp = 0; comp < _nComp; comp++, ++jacIt) {
 									for (unsigned int j = 0; j < convBlock.cols(); j++) {
 										// row: iterator is at current cell and component
@@ -995,6 +999,8 @@ namespace cadet
 										jacIt[-strideColNode() + (j - i) * strideColNode()] += static_cast<double>(_curVelocity) * convBlock(i, j);
 									}
 								}
+								if (i < convBlock.rows() - 1) // prevent iterator from exceeding matrix size (memory issues) in last loop iteration
+									jacIt += strideColBound;
 							}
 						}
 					}
@@ -1013,12 +1019,14 @@ namespace cadet
 						}
 						// special inlet DOF treatment for last cell (inlet boundary cell)
 						jacInlet(0, 0) = static_cast<double>(_curVelocity) * convBlock(convBlock.rows() - 1, convBlock.cols() - 1); // only last node depends on inlet concentration
-						for (unsigned int i = 0; i < convBlock.rows(); i++, jacIt += strideColBound) {
+						for (unsigned int i = 0; i < convBlock.rows(); i++) {
 							for (unsigned int comp = 0; comp < _nComp; comp++, ++jacIt) {
 								for (unsigned int j = 0; j < convBlock.cols() - 1; j++) {
 									jacIt[(j - i) * strideColNode()] += static_cast<double>(_curVelocity) * convBlock(i, j);
 								}
 							}
+							if (i < convBlock.rows() - 1) // prevent iterator from exceeding matrix size (memory issues) in last loop iteration
+								jacIt += strideColBound;
 						}
 					}
 
@@ -1072,9 +1080,9 @@ namespace cadet
 					}
 				}
 				/**
-				 * @brief analytically calculates the convection dispersion jacobian for the exact integration (here: modal) DG scheme
+				 * @brief analytically calculates the convection dispersion jacobian for the exact integration DG scheme
 				 */
-				int calcConvDispDGSEMJacobian(Eigen::SparseMatrix<double, Eigen::RowMajor>& jacobian, Eigen::MatrixXd& jacInlet, const int offC = 0) {
+				int calcConvDispExIntDGSEMJacobian(Eigen::SparseMatrix<double, Eigen::RowMajor>& jacobian, Eigen::MatrixXd& jacInlet, const int offC = 0) {
 
 					/*======================================================*/
 					/*			Compute Dispersion Jacobian Block			*/
