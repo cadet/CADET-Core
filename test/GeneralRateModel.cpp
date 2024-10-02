@@ -59,7 +59,7 @@ TEST_CASE("GRM Jacobian forward vs backward flow", "[GRM],[FV],[UnitOp],[Residua
 	}
 }
 
-TEST_CASE("GRM numerical Benchmark with parameter sensitivities for linear case", "[GRM],[FV],[Simulation],[Reference],[Sensitivity],[dddff]") // todo CI flag: currently only runs locally but fails on server
+TEST_CASE("GRM numerical Benchmark with parameter sensitivities for linear case", "[GRM],[FV],[Simulation],[Reference],[Sensitivity]") // todo CI flag: currently only runs locally but fails on server
 {
 	const std::string& modelFilePath = std::string("/data/model_GRM_dynLin_1comp_benchmark1.json");
 	const std::string& refFilePath = std::string("/data/ref_GRM_dynLin_1comp_sensbenchmark1_FV_Z32parZ4.h5");
@@ -70,7 +70,7 @@ TEST_CASE("GRM numerical Benchmark with parameter sensitivities for linear case"
 	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "001", absTol, relTol, disc, true);
 }
 
-TEST_CASE("GRM numerical Benchmark with parameter sensitivities for SMA LWE case", "[GRM],[FV],[Simulation],[Reference],[Sensitivity],[dddff]") // todo CI flag: currently only runs locally but fails on server
+TEST_CASE("GRM numerical Benchmark with parameter sensitivities for SMA LWE case", "[GRM],[FV],[Simulation],[Reference],[Sensitivity]") // todo CI flag: currently only runs locally but fails on server
 {
 	const std::string& modelFilePath = std::string("/data/model_GRM_reqSMA_4comp_benchmark1.json");
 	const std::string& refFilePath = std::string("/data/ref_GRM_reqSMA_4comp_sensbenchmark1_FV_Z16parZ2.h5");
@@ -81,7 +81,7 @@ TEST_CASE("GRM numerical Benchmark with parameter sensitivities for SMA LWE case
 	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "000", absTol, relTol, disc, true);
 }
 
-TEST_CASE("GRM numerical EOC Benchmark with parameter sensitivities for linear case", "[GRM],[FV],[releaseCI],[EOC],[EOC_GRM_FV],[dddff]")
+TEST_CASE("GRM numerical EOC Benchmark with parameter sensitivities for linear case", "[GRM],[FV],[releaseCI],[EOC],[EOC_GRM_FV]")
 {
 	const std::string& modelFilePath = std::string("/data/model_GRM_dynLin_1comp_benchmark1.json");
 	const std::string& refFilePath = std::string("/data/ref_GRM_dynLin_1comp_sensbenchmark1_FV_Z1024parZ128.h5");
@@ -93,7 +93,7 @@ TEST_CASE("GRM numerical EOC Benchmark with parameter sensitivities for linear c
 	cadet::test::column::testEOCReferenceBenchmark(modelFilePath, refFilePath, convFilePath, "001", absTol, relTol, 3, disc, true);
 }
 
-TEST_CASE("GRM numerical EOC Benchmark with parameter sensitivities for SMA LWE case", "[GRM],[FV],[releaseCI],[EOC],[EOC_GRM_FV],[dddff]")
+TEST_CASE("GRM numerical EOC Benchmark with parameter sensitivities for SMA LWE case", "[GRM],[FV],[releaseCI],[EOC],[EOC_GRM_FV]")
 {
 	const std::string& modelFilePath = std::string("/data/model_GRM_reqSMA_4comp_benchmark1.json");
 	const std::string& refFilePath = std::string("/data/ref_GRM_reqSMA_4comp_sensbenchmark1_FV_Z512parZ64.h5");
