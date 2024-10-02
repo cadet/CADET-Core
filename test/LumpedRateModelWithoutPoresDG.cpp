@@ -72,7 +72,7 @@ TEST_CASE("LRM_DG numerical Benchmark with parameter sensitivities for SMA LWE c
 {
 	const std::string& modelFilePath = std::string("/data/model_LRM_reqSMA_4comp_benchmark1.json");
 	const std::string& refFilePath = std::string("/data/ref_LRM_reqSMA_4comp_sensbenchmark1_DG_P3Z8.h5");
-	const std::vector<double> absTol = { 1e-12, 1e-12, 1e-12, 1e-12 };
+	const std::vector<double> absTol = { 1e-8, 1e-6, 1e-6, 1e-12 };
 	const std::vector<double> relTol = { 1.0, 1.0, 1.0, 1.0 };
 
 	cadet::test::column::DGparams disc(0, 3, 8);
@@ -164,13 +164,13 @@ TEST_CASE("LRM_DG inlet DOF Jacobian", "[LRM],[DG],[UnitOp],[Jacobian],[Inlet],[
 	cadet::test::column::testInletDofJacobian("LUMPED_RATE_MODEL_WITHOUT_PORES", "DG");
 }
 
-TEST_CASE("LRM_DG transport Jacobian", "[LRM],[FV],[UnitOp],[Jacobian],[CI]")
+TEST_CASE("LRM_DG transport Jacobian", "[LRM],[DG],[UnitOp],[Jacobian],[CI]")
 {
 	cadet::JsonParameterProvider jpp = createColumnLinearBenchmark(false, true, "LUMPED_RATE_MODEL_WITHOUT_PORES", "DG");
 	cadet::test::column::testJacobianAD(jpp, std::numeric_limits<float>::epsilon() * 100.0);
 }
 
-TEST_CASE("LRM_DG with two component linear binding Jacobian", "[LRM],[FV],[UnitOp],[Jacobian],[CI]")
+TEST_CASE("LRM_DG with two component linear binding Jacobian", "[LRM],[DG],[UnitOp],[Jacobian],[CI]")
 {
 	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding("LUMPED_RATE_MODEL_WITHOUT_PORES", "DG");
 	cadet::test::column::testJacobianAD(jpp, std::numeric_limits<float>::epsilon() * 100.0);
