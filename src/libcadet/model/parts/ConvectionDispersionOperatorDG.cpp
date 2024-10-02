@@ -454,7 +454,7 @@ int AxialConvectionDispersionOperatorBaseDG::calcStaticAnaJacobian(Eigen::Sparse
 
 	// DG convection dispersion Jacobian
 	if (_exactInt)
-		calcConvDispDGSEMJacobian(jacobian, jacInlet, bulkOffset);
+		calcConvDispExIntDGSEMJacobian(jacobian, jacInlet, bulkOffset);
 	else
 		calcConvDispCollocationDGSEMJacobian(jacobian, jacInlet, bulkOffset);
 
@@ -487,9 +487,9 @@ unsigned int AxialConvectionDispersionOperatorBaseDG::nConvDispEntries(bool pure
 void model::parts::AxialConvectionDispersionOperatorBaseDG::convDispJacPattern(std::vector<T>& tripletList, const int bulkOffset)
 {
 	if (_exactInt)
-		ConvDispModalPattern(tripletList, bulkOffset);
+		ConvDispExIntPattern(tripletList, bulkOffset);
 	else
-		ConvDispNodalPattern(tripletList, bulkOffset);
+		ConvDispCollocationPattern(tripletList, bulkOffset);
 }
 /**
  * @brief Multiplies the time derivative Jacobian @f$ \frac{\partial F}{\partial \dot{y}}\left(t, y, \dot{y}\right) @f$ with a given vector
@@ -1069,7 +1069,6 @@ bool ConvectionDispersionOperatorDG<Operator>::solveTimeDerivativeSystem(const S
 
 // Template instantiations
 template class ConvectionDispersionOperatorDG<AxialConvectionDispersionOperatorBaseDG>;
-//template class ConvectionDispersionOperatorDG<RadialConvectionDispersionOperatorBaseDG>; // todo
 
 }  // namespace parts
 
