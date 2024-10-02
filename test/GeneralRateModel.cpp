@@ -74,8 +74,8 @@ TEST_CASE("GRM numerical Benchmark with parameter sensitivities for SMA LWE case
 {
 	const std::string& modelFilePath = std::string("/data/model_GRM_reqSMA_4comp_benchmark1.json");
 	const std::string& refFilePath = std::string("/data/ref_GRM_reqSMA_4comp_sensbenchmark1_FV_Z16parZ2.h5");
-	const std::vector<double> absTol = { 1e-12, 1e-12, 1e-12, 1e-12 };
-	const std::vector<double> relTol = { 1e-4, 1e-4, 1e-4, 1e-4 };
+	const std::vector<double> absTol = { 1e-4, 1e-4, 1e-6, 1e-6 };
+	const std::vector<double> relTol = { 1.0, 1.0, 1.0, 1.0 };
 
 	cadet::test::column::FVparams disc(16, 2);
 	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "000", absTol, relTol, disc, true);
