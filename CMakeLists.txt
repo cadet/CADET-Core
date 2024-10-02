@@ -137,7 +137,7 @@ add_feature_info(ENABLE_CADET_CLI ENABLE_CADET_CLI "Build CADET command line int
 option(ENABLE_CADET_TOOLS "Build CADET tools" ON)
 add_feature_info(ENABLE_CADET_TOOLS ENABLE_CADET_TOOLS "Build CADET tools")
 
-option(ENABLE_TESTS "Build CADET tests" ON)
+option(ENABLE_TESTS "Build CADET tests" OFF)
 add_feature_info(ENABLE_TESTS ENABLE_TESTS "Build CADET tests")
 
 option(ENABLE_PACKAGED_SUNDIALS "Use packaged SUNDIALS code" ON)

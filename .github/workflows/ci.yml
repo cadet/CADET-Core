@@ -99,7 +99,7 @@ jobs:
           $install_prefix = $($env:INSTALL_PREFIX.Replace('\', '/'))
           $src_dir = $($env:SRC_DIR.Replace('\', '/'))
           $base_dir = $($env:BASE_DIR.Replace('\', '/'))
-          cmake -G "Ninja" -DCMAKE_INSTALL_PREFIX="${install_prefix}" -DCMAKE_BUILD_TYPE=Release -DHDF5_ROOT="${base_dir}/hdf5" -DENABLE_STATIC_LINK_DEPS=ON -DENABLE_STATIC_LINK_LAPACK=ON -DBLA_VENDOR=Intel10_64lp_seq "${src_dir}"
+          cmake -G "Ninja" -DCMAKE_INSTALL_PREFIX="${install_prefix}" -DCMAKE_BUILD_TYPE=Release -DHDF5_ROOT="${base_dir}/hdf5" -DENABLE_STATIC_LINK_DEPS=ON -DENABLE_STATIC_LINK_LAPACK=ON -DBLA_VENDOR=Intel10_64lp_seq "${src_dir}" -DENABLE_TESTS=ON
           ninja
           ninja install
       - name: Include Deps and Package
@@ -155,7 +155,7 @@ jobs:
           cmake -E make_directory "${BUILD_DIR}"
           cmake -E make_directory "${INSTALL_PREFIX}"
           cd "${BUILD_DIR}"
-          cmake -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" -DCMAKE_BUILD_TYPE="${BUILD_TYPE}" "${SRC_DIR}"
+          cmake -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" -DCMAKE_BUILD_TYPE="${BUILD_TYPE}" "${SRC_DIR}" -DENABLE_TESTS=ON -DNUM_MAX_AD_DIRS=80
           make install -j$(nproc)
       - name: Check if it runs
         run: |
@@ -196,7 +196,7 @@ jobs:
           cmake -E make_directory "${BUILD_DIR}"
           cmake -E make_directory "${INSTALL_PREFIX}"
           cd "${BUILD_DIR}"
-          cmake -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" -DCMAKE_BUILD_TYPE="${BUILD_TYPE}" "${SRC_DIR}"
+          cmake -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" -DCMAKE_BUILD_TYPE="${BUILD_TYPE}" "${SRC_DIR}" -DENABLE_TESTS=ON
           make install -j$(sysctl -n hw.logicalcpu)
       - name: Check if it runs
         run: |
