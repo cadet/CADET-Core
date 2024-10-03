@@ -575,9 +575,9 @@ namespace cadet
 				// ==========================================================================================================================================================  //
 
 				/**
-				 * @brief sets the sparsity pattern of the convection dispersion Jacobian for the nodal DG scheme
+				 * @brief sets the sparsity pattern of the convection dispersion Jacobian for the collocation DG scheme
 				 */
-				int ConvDispNodalPattern(std::vector<T>& tripletList, const int offC = 0) {
+				int ConvDispCollocationPattern(std::vector<T>& tripletList, const int offC = 0) {
 
 					/*======================================================*/
 					/*			Define Convection Jacobian Block			*/
@@ -703,9 +703,9 @@ namespace cadet
 				}
 
 				/**
-				* @brief sets the sparsity pattern of the convection dispersion Jacobian for the exact integration (her: modal) DG scheme
+				* @brief sets the sparsity pattern of the convection dispersion Jacobian for the exact integration DG scheme
 				*/
-				int ConvDispModalPattern(std::vector<T>& tripletList, const int offC = 0) {
+				int ConvDispExIntPattern(std::vector<T>& tripletList, const int offC = 0) {
 
 					/*======================================================*/
 					/*			Define Convection Jacobian Block			*/
@@ -878,7 +878,7 @@ namespace cadet
 					return 0;
 				}
 				/**
-				* @brief analytically calculates the convection dispersion jacobian for the nodal DG scheme
+				* @brief analytically calculates the convection dispersion jacobian for the collocation DG scheme
 				*/
 				int calcConvDispCollocationDGSEMJacobian(Eigen::SparseMatrix<double, Eigen::RowMajor>& jacobian, Eigen::MatrixXd& jacInlet, const int offC = 0) {
 
@@ -1072,9 +1072,9 @@ namespace cadet
 					}
 				}
 				/**
-				 * @brief analytically calculates the convection dispersion jacobian for the exact integration (here: modal) DG scheme
+				 * @brief analytically calculates the convection dispersion jacobian for the exact integration DG scheme
 				 */
-				int calcConvDispDGSEMJacobian(Eigen::SparseMatrix<double, Eigen::RowMajor>& jacobian, Eigen::MatrixXd& jacInlet, const int offC = 0) {
+				int calcConvDispExIntDGSEMJacobian(Eigen::SparseMatrix<double, Eigen::RowMajor>& jacobian, Eigen::MatrixXd& jacInlet, const int offC = 0) {
 
 					/*======================================================*/
 					/*			Compute Dispersion Jacobian Block			*/
