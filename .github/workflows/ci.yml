@@ -118,7 +118,7 @@ jobs:
       - name: Run tests
         run: |
           cd "${env:BUILD_DIR}\test"
-          .\testRunner.exe [CI]
+          .\testRunner.exe [testHere]
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
