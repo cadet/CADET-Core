@@ -1328,17 +1328,18 @@ namespace cadet
 				entries[nz] = 0.0;
 
 			// Handle transport equations (dc_i / dt terms)
-			const int gapNode = idxr.strideColNode() - static_cast<int>(_disc.nComp) * idxr.strideColComp();
-			linalg::BandedEigenSparseRowIterator jac(_jacDisc, 0);
-			for (unsigned int i = 0; i < _disc.nPoints; ++i, jac += gapNode)
 			{
-				for (unsigned int j = 0; j < _disc.nComp; ++j, ++jac)
+				const int gapNode = idxr.strideColNode() - static_cast<int>(_disc.nComp) * idxr.strideColComp();
+				linalg::BandedEigenSparseRowIterator jac(_jacDisc, 0);
+				for (unsigned int i = 0; i < _disc.nPoints; ++i, jac += gapNode)
 				{
-					// Add time derivative to liquid states (on main diagonal)
-					jac[0] += 1.0;
+					for (unsigned int j = 0; j < _disc.nComp; ++j, ++jac)
+					{
+						// Add time derivative to liquid states (on main diagonal)
+						jac[0] += 1.0;
+					}
 				}
 			}
-
 			const double invBeta = 1.0 / static_cast<double>(_totalPorosity) - 1.0;
 			double* const dFluxDt = _tempState + idxr.offsetC();
 			LinearBufferAllocator tlmAlloc = threadLocalMem.get();
@@ -1359,7 +1360,7 @@ namespace cadet
 
 				// Get iterators to beginning of solid phase
 				linalg::BandedEigenSparseRowIterator jacSolidOrig(_jac, idxr.strideColNode() * col + idxr.strideColLiquid());
-				linalg::BandedEigenSparseRowIterator jacSolid = jac - idxr.strideColBound();
+				linalg::BandedEigenSparseRowIterator jacSolid(_jacDisc, idxr.strideColNode() * col + idxr.strideColLiquid());
 
 				int const* const mask = _binding[0]->reactionQuasiStationarity();
 				double* const qNodeDot = vecStateYdot + idxr.offsetC() + col * idxr.strideColNode() + idxr.strideColLiquid();
@@ -1634,17 +1635,18 @@ namespace cadet
 				//	_jacDisc.valuePtr()[entry] = 0.0;
 		
 				// Handle transport equations (dc_i / dt terms)
-				const int gapNode = idxr.strideColNode() - static_cast<int>(_disc.nComp) * idxr.strideColComp();
-				linalg::BandedEigenSparseRowIterator jac(_jacDisc, 0);
-				for (unsigned int i = 0; i < _disc.nPoints; ++i, jac += gapNode)
 				{
-					for (unsigned int j = 0; j < _disc.nComp; ++j, ++jac)
+					const int gapNode = idxr.strideColNode() - static_cast<int>(_disc.nComp) * idxr.strideColComp();
+					linalg::BandedEigenSparseRowIterator jac(_jacDisc, 0);
+					for (unsigned int i = 0; i < _disc.nPoints; ++i, jac += gapNode)
 					{
-						// Add time derivative to liquid states (on main diagonal)
-						jac[0] += 1.0;
+						for (unsigned int j = 0; j < _disc.nComp; ++j, ++jac)
+						{
+							// Add time derivative to liquid states (on main diagonal)
+							jac[0] += 1.0;
+						}
 					}
 				}
-		
 				const double invBeta = 1.0 / static_cast<double>(_totalPorosity) - 1.0;
 				for (unsigned int node = 0; node < _disc.nPoints; ++node)
 				{
@@ -1661,7 +1663,7 @@ namespace cadet
 					{
 						// Get iterators to beginning of solid phase
 						linalg::BandedEigenSparseRowIterator jacSolidOrig(_jac, idxr.strideColNode() * node + idxr.strideColLiquid());
-						linalg::BandedEigenSparseRowIterator jacSolid = jac - idxr.strideColLiquid();
+						linalg::BandedEigenSparseRowIterator jacSolid(_jacDisc, idxr.strideColNode() * node + idxr.strideColLiquid());
 		
 						int const* const mask = _binding[0]->reactionQuasiStationarity();
 						double* const qShellDot = sensYdot + idxr.offsetC() + idxr.strideColNode() * node + idxr.strideColLiquid();

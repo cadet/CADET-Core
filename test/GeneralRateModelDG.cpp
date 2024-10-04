@@ -242,7 +242,7 @@ TEST_CASE("GRM_DG transport Jacobian", "[GRM],[DG],[UnitOp],[Jacobian],[CI]")
 	cadet::test::column::testJacobianAD(jpp, std::numeric_limits<float>::epsilon() * 100.0);
 }
 
-TEST_CASE("GRM_DG with two component linear binding Jacobian", "[GRM],[DG],[UnitOp],[Jacobian],[CI]")
+TEST_CASE("GRM_DG with two component linear binding Jacobian", "[GRM],[DG],[UnitOp],[Jacobian],[CI],[testHere]")
 {
 	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding("GENERAL_RATE_MODEL", "DG");
 	cadet::test::column::testJacobianAD(jpp, std::numeric_limits<float>::epsilon() * 100.0);
