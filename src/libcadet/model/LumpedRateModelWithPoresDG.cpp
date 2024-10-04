@@ -796,7 +796,7 @@ void LumpedRateModelWithPoresDG::extractJacobianFromAD(active const* const adRes
 		offsetParticleTypeDirs += idxr.strideParBlock(type);
 	}
 
-	/* Film diffusion flux entries are handled analytically (only cross dependent entries) */
+	/* Film diffusion flux entries are handled analytically  */
 	calcFluxJacobians(_disc.curSection, true);
 
 }
@@ -1006,7 +1006,7 @@ int LumpedRateModelWithPoresDG::residualImpl(double t, unsigned int secIdx, Stat
 	{
 		if (!wantRes || _disc.newStaticJac) // static (per section) transport Jacobian
 		{
-			success = calcStaticAnaGlobalJacobian(secIdx);
+			bool success = calcStaticAnaGlobalJacobian(secIdx);
 			_disc.newStaticJac = false;
 			if (cadet_unlikely(!success))
 				LOG(Error) << "Jacobian pattern did not fit the Jacobian estimation";
@@ -1182,7 +1182,7 @@ int LumpedRateModelWithPoresDG::residualFlux(double t, unsigned int secIdx, Stat
 	return 0;
 }
 
-void LumpedRateModelWithPoresDG::assembleFluxJacobian(double t, unsigned int secIdx)
+void LumpedRateModelWithPoresDG::assembleFluxJacobian(unsigned int secIdx)
 {
 	calcFluxJacobians(secIdx);
 }
