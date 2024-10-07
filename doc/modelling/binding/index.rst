@@ -202,6 +202,11 @@ The models also differ in whether a mobile phase modifier (e.g., salt) is suppor
      - ×
      - ✓
      - ✓
+   * - :ref:`affinity_energy_distribution`
+     - ✓
+     - ×
+     - ✓
+     - ✓
    * - :ref:`multi_component_bi_langmuir_ldf_model`
      - ✓
      - ×
