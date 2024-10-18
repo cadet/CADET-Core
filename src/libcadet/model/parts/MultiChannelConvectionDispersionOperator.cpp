@@ -830,8 +830,6 @@ bool MultiChannelConvectionDispersionOperator::configure(UnitOpIdx unitOpIdx, IP
 
 	setSparsityPattern();
 
-	_exchangeModel = new LinearExchangeBase();
-
 	return true;
 }
 

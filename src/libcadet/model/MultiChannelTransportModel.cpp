@@ -724,13 +724,11 @@ int MultiChannelTransportModel::residual(const SimulationTime& simTime, const Co
 template <typename StateType, typename ResidualType, typename ParamType, bool wantJac>
 int MultiChannelTransportModel::residualImpl(double t, unsigned int secIdx, StateType const* const y, double const* const yDot, ResidualType* const res, util::ThreadLocalStorage& threadLocalMem)
 {
-
 	// Handle inlet DOFs, which are simply copied to res
 	for (unsigned int i = 0; i < _disc.nComp * _disc.nChannel; ++i)
 	{
 		res[i] = y[i];
 	}
-
 
 	_convDispOp.residual(*this, t, secIdx, y, yDot, res, wantJac, typename ParamSens<ParamType>::enabled());
 	

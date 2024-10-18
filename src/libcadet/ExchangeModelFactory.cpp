@@ -64,7 +64,7 @@ namespace cadet
 		if (_exchangeModels.find(name) == _exchangeModels.end())
 			_exchangeModels[name] = factory;
 		else
-			throw InvalidParameterException("IPhaseTransition implementation with the name " + name + " is already registered and cannot be overwritten");
+			throw InvalidParameterException("IExchange implementation with the name " + name + " is already registered and cannot be overwritten");
 	}
 
 	bool ExchangeModelFactory::exists(const std::string& name) const
