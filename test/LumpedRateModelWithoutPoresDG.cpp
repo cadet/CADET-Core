@@ -17,7 +17,7 @@
 #include "Utils.hpp"
 #include "JsonTestModels.hpp"
 
-TEST_CASE("LRM_DG LWE forward vs backward flow", "[LRM],[DG],[Simulation],[CI]")
+TEST_CASE("LRM_DG LWE forward vs backward flow", "[LRM],[DG],[Simulation],[CI_DG]")
 {
 	cadet::test::column::DGparams disc;
 
@@ -29,7 +29,7 @@ TEST_CASE("LRM_DG LWE forward vs backward flow", "[LRM],[DG],[Simulation],[CI]")
 	}
 }
 
-TEST_CASE("LRM_DG linear pulse vs analytic solution", "[LRM],[DG],[Simulation],[Analytic],[CI]")
+TEST_CASE("LRM_DG linear pulse vs analytic solution", "[LRM],[DG],[Simulation],[Analytic],[CI_DG]")
 {
 	cadet::test::column::DGparams disc;
 	cadet::test::column::testAnalyticBenchmark("LUMPED_RATE_MODEL_WITHOUT_PORES", "/data/lrm-pulseBenchmark.data", true, true, disc, 2e-5, 1e-7);
@@ -38,7 +38,7 @@ TEST_CASE("LRM_DG linear pulse vs analytic solution", "[LRM],[DG],[Simulation],[
 	cadet::test::column::testAnalyticBenchmark("LUMPED_RATE_MODEL_WITHOUT_PORES", "/data/lrm-pulseBenchmark.data", false, false, disc, 2e-5, 1e-7);
 }
 
-TEST_CASE("LRM_DG non-binding linear pulse vs analytic solution", "[LRM],[DG],[Simulation],[Analytic],[NonBinding],[CI]")
+TEST_CASE("LRM_DG non-binding linear pulse vs analytic solution", "[LRM],[DG],[Simulation],[Analytic],[NonBinding],[CI_DG]")
 {
 	cadet::test::column::DGparams disc;
 	cadet::test::column::testAnalyticNonBindingBenchmark("LUMPED_RATE_MODEL_WITHOUT_PORES", "/data/lrm-nonBinding.data", true, disc, 2e-5, 1e-7);
@@ -79,12 +79,12 @@ TEST_CASE("LRM_DG numerical Benchmark with parameter sensitivities for SMA LWE c
 	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "000", absTol, relTol, disc, true);
 }
 
-TEST_CASE("LRM_DG time derivative Jacobian vs FD", "[LRM],[DG],[UnitOp],[Residual],[Jacobian],[CI]")
+TEST_CASE("LRM_DG time derivative Jacobian vs FD", "[LRM],[DG],[UnitOp],[Residual],[Jacobian],[CI_DG]")
 {
 	cadet::test::column::testTimeDerivativeJacobianFD("LUMPED_RATE_MODEL_WITHOUT_PORES", "DG");
 }
 
-TEST_CASE("LRM_DG sensitivity Jacobians", "[LRM],[DG],[UnitOp],[Sensitivity],[CI]")
+TEST_CASE("LRM_DG sensitivity Jacobians", "[LRM],[DG],[UnitOp],[Sensitivity],[CI_DG]")
 {
 	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding("LUMPED_RATE_MODEL_WITHOUT_PORES", "DG");
 
@@ -111,7 +111,7 @@ TEST_CASE("LRM_DG sensitivity Jacobians", "[LRM],[DG],[UnitOp],[Sensitivity],[CI
 //	cadet::test::column::testFwdSensSolutionForwardBackward("LUMPED_RATE_MODEL_WITHOUT_PORES", "DG", absTols, relTols, passRatio);
 //}
 
-TEST_CASE("LRM_DG consistent initialization with linear binding", "[LRM],[DG],[ConsistentInit],[CI]")
+TEST_CASE("LRM_DG consistent initialization with linear binding", "[LRM],[DG],[ConsistentInit],[CI_DG]")
 {
 	cadet::test::column::testConsistentInitializationLinearBinding("LUMPED_RATE_MODEL_WITHOUT_PORES", "DG", 1e-12, 1e-12);
 }
@@ -130,7 +130,7 @@ TEST_CASE("LRM_DG consistent initialization with linear binding", "[LRM],[DG],[C
 //	cadet::test::column::testConsistentInitializationSMABinding("LUMPED_RATE_MODEL_WITHOUT_PORES", "DG", y.data(), 1e-14, 1e-5);
 //}
 
-TEST_CASE("LRM_DG consistent sensitivity initialization with linear binding", "[LRM],[DG],[ConsistentInit],[Sensitivity],[CI]")
+TEST_CASE("LRM_DG consistent sensitivity initialization with linear binding", "[LRM],[DG],[ConsistentInit],[Sensitivity],[CI_DG]")
 {
 	// Fill state vector with given initial values
 	const unsigned int numDofs = 4 + 10 * (4 + 4);
@@ -159,39 +159,39 @@ TEST_CASE("LRM_DG consistent sensitivity initialization with linear binding", "[
 //	cadet::test::column::testConsistentInitializationSensitivity("LUMPED_RATE_MODEL_WITHOUT_PORES", "DG", y.data(), yDot.data(), false, 1e-10);
 //}
 
-TEST_CASE("LRM_DG inlet DOF Jacobian", "[LRM],[DG],[UnitOp],[Jacobian],[Inlet],[CI]")
+TEST_CASE("LRM_DG inlet DOF Jacobian", "[LRM],[DG],[UnitOp],[Jacobian],[Inlet],[CI_DG]")
 {
 	cadet::test::column::testInletDofJacobian("LUMPED_RATE_MODEL_WITHOUT_PORES", "DG");
 }
 
-TEST_CASE("LRM_DG transport Jacobian", "[LRM],[DG],[UnitOp],[Jacobian],[CI]")
+TEST_CASE("LRM_DG transport Jacobian", "[LRM],[DG],[UnitOp],[Jacobian],[CI_DG]")
 {
 	cadet::JsonParameterProvider jpp = createColumnLinearBenchmark(false, true, "LUMPED_RATE_MODEL_WITHOUT_PORES", "DG");
 	cadet::test::column::testJacobianAD(jpp, std::numeric_limits<float>::epsilon() * 100.0);
 }
 
-TEST_CASE("LRM_DG with two component linear binding Jacobian", "[LRM],[DG],[UnitOp],[Jacobian],[CI]")
+TEST_CASE("LRM_DG with two component linear binding Jacobian", "[LRM],[DG],[UnitOp],[Jacobian],[CI_DG]")
 {
 	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding("LUMPED_RATE_MODEL_WITHOUT_PORES", "DG");
 	cadet::test::column::testJacobianAD(jpp, std::numeric_limits<float>::epsilon() * 100.0);
 }
 
-TEST_CASE("LRM_DG dynamic reactions Jacobian vs AD bulk", "[LRM],[DG],[Jacobian],[AD],[ReactionModel],[CI]")
+TEST_CASE("LRM_DG dynamic reactions Jacobian vs AD bulk", "[LRM],[DG],[Jacobian],[AD],[ReactionModel],[CI_DG]")
 {
 	cadet::test::reaction::testUnitJacobianDynamicReactionsAD("LUMPED_RATE_MODEL_WITHOUT_PORES", "DG", true, false, false, std::numeric_limits<float>::epsilon() * 100.0);
 }
 
-TEST_CASE("LRM_DG dynamic reactions Jacobian vs AD modified bulk", "[LRM],[DG],[Jacobian],[AD],[ReactionModel],[CI]")
+TEST_CASE("LRM_DG dynamic reactions Jacobian vs AD modified bulk", "[LRM],[DG],[Jacobian],[AD],[ReactionModel],[CI_DG]")
 {
 	cadet::test::reaction::testUnitJacobianDynamicReactionsAD("LUMPED_RATE_MODEL_WITHOUT_PORES", "DG", true, false, true, std::numeric_limits<float>::epsilon() * 100.0);
 }
 
-TEST_CASE("LRM_DG dynamic reactions time derivative Jacobian vs FD bulk", "[LRM],[DG],[Jacobian],[Residual],[ReactionModel],[CI]")
+TEST_CASE("LRM_DG dynamic reactions time derivative Jacobian vs FD bulk", "[LRM],[DG],[Jacobian],[Residual],[ReactionModel],[CI_DG]")
 {
 	cadet::test::reaction::testTimeDerivativeJacobianDynamicReactionsFD("LUMPED_RATE_MODEL_WITHOUT_PORES", "DG", true, false, false, 1e-6, 1e-14, 8e-4);
 }
 
-TEST_CASE("LRM_DG dynamic reactions time derivative Jacobian vs FD modified bulk", "[LRM],[DG],[Jacobian],[Residual],[ReactionModel],[CI]")
+TEST_CASE("LRM_DG dynamic reactions time derivative Jacobian vs FD modified bulk", "[LRM],[DG],[Jacobian],[Residual],[ReactionModel],[CI_DG]")
 {
 	cadet::test::reaction::testTimeDerivativeJacobianDynamicReactionsFD("LUMPED_RATE_MODEL_WITHOUT_PORES", "DG", true, false, true, 1e-6, 1e-14, 8e-4);
 }

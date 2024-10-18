@@ -165,7 +165,7 @@ jobs:
           ${INSTALL_PREFIX}/bin/cadet-cli LWE.h5 || true
       - name: Run tests
         run: |
-          ${BUILD_DIR}/test/testRunner [FV]
+          ${BUILD_DIR}/test/testRunner [CI]
   MacOS:
     runs-on: macos-latest
     strategy:
