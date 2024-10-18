@@ -70,4 +70,4 @@ protected:
 } // namespace model
 } // namespace cadet
 
-#endif  // LIBCADET_PHASETRANSITIONMODELINTERFACE_HPP_
+#endif  // LIBCADET_EXCHANGEMODELINTERFACE_HPP_

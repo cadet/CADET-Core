@@ -21,6 +21,7 @@
 #include "linalg/CompressedSparseMatrix.hpp"
 #include "model/parts/AxialConvectionDispersionKernel.hpp"
 #include "model/ParameterDependence.hpp"
+#include "model/exchange/LinearExchange.cpp"
 
 
 #ifdef SUPERLU_FOUND
