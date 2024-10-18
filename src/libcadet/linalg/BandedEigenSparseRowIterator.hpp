@@ -38,8 +38,9 @@ public:
 	 */
 	BandedEigenSparseRowIterator(Eigen::SparseMatrix<double, 0x1>& mat, int row)
 		: _matrix(&mat), _values(valuesOfRow(mat, row)), _colIdx(columnIndicesOfRow(mat, row)), _row(row),
-		_numNonZero(getInnerNumberOfNonZeros(mat, row)), _dummy(0.0), _size(mat.rows())
+		_dummy(0.0), _size(mat.rows())
 	{
+		_numNonZero = getInnerNumberOfNonZeros(mat, row);
 	}
 
 	~BandedEigenSparseRowIterator() CADET_NOEXCEPT { }
