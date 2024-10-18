@@ -87,14 +87,6 @@ GeneralRateModel<ConvDispOperator>::~GeneralRateModel() CADET_NOEXCEPT
 	delete _dynReactionBulk;
 
 	clearParDepSurfDiffusion();
-
-	delete[] _disc.nParCell;
-	delete[] _disc.parTypeOffset;
-	delete[] _disc.nParCellsBeforeType;
-	delete[] _disc.nBound;
-	delete[] _disc.boundOffset;
-	delete[] _disc.strideBound;
-	delete[] _disc.nBoundBeforeType;
 }
 
 template <typename ConvDispOperator>

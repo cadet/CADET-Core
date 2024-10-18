@@ -290,6 +290,17 @@ protected:
 		unsigned int* boundOffset; //!< Array with offset to the first bound state of each component in the solid phase (particle type major ordering)
 		unsigned int* strideBound; //!< Total number of bound states for each particle type, additional last element contains total number of bound states for all types
 		unsigned int* nBoundBeforeType; //!< Array with number of bound states before a particle type (cumulative sum of strideBound)
+	
+		~Discretization() // make sure this memory is freed correctly
+		{
+			delete[] nParCell;
+			delete[] parTypeOffset;
+			delete[] nParCellsBeforeType;
+			delete[] nBound;
+			delete[] boundOffset;
+			delete[] strideBound;
+			delete[] nBoundBeforeType;
+		}
 	};
 
 	enum class ParticleDiscretizationMode : int

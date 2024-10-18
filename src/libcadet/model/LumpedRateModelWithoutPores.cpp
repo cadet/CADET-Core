@@ -125,9 +125,6 @@ template <typename ConvDispOperator>
 LumpedRateModelWithoutPores<ConvDispOperator>::~LumpedRateModelWithoutPores() CADET_NOEXCEPT
 {
 	delete[] _tempState;
-
-	delete[] _disc.nBound;
-	delete[] _disc.boundOffset;
 }
 
 template <typename ConvDispOperator>

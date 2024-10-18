@@ -219,6 +219,12 @@ namespace cadet
 
 				int curSection; //!< current section index
 				bool newStaticJac; //!< determines wether static analytical jacobian needs to be computed (every section)
+			
+				~Discretization() // make sure this memory is freed correctly
+				{
+					delete[] nBound;
+					delete[] boundOffset;
+				}
 			};
 
 			Discretization _disc; //!< Discretization info
