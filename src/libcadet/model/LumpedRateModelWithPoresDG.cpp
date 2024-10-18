@@ -62,12 +62,6 @@ LumpedRateModelWithPoresDG::~LumpedRateModelWithPoresDG() CADET_NOEXCEPT
 
 	delete _dynReactionBulk;
 
-	delete[] _disc.parTypeOffset;
-	delete[] _disc.nBound;
-	delete[] _disc.boundOffset;
-	delete[] _disc.strideBound;
-	delete[] _disc.nBoundBeforeType;
-
 	delete _linearSolver;
 }
 

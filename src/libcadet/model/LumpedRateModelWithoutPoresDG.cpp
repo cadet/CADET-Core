@@ -60,8 +60,6 @@ namespace cadet
 		{
 			delete[] _tempState;
 
-			delete[] _disc.nBound;
-			delete[] _disc.boundOffset;
 			delete _linearSolver;
 		}
 

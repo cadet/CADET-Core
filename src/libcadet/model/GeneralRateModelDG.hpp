@@ -312,6 +312,40 @@ protected:
 		Eigen::Vector<active, Dynamic>* surfaceFluxParticle; //!< stores the surface flux values for each particle
 		active* localFlux; //!< stores the local (at respective particle) film diffusion flux
 
+		~Discretization() // make sure this memory is freed correctly
+		{
+			delete[] nParCell;
+			delete[] nParPointsBeforeType;
+			delete[] parPolyDeg;
+			delete[] nParNode;
+			delete[] nParPoints;
+			delete[] parExactInt;
+			delete[] parTypeOffset;
+			delete[] nBound;
+			delete[] boundOffset;
+			delete[] strideBound;
+			delete[] nBoundBeforeType;
+
+			delete[] offsetSurfDiff;
+
+			delete[] deltaR;
+			delete[] parNodes;
+			delete[] parPolyDerM;
+			delete[] minus_InvMM_ST;
+			delete[] parInvWeights;
+			delete[] parInvMM;
+			delete[] parInvMM_Leg;
+			delete[] Ir;
+			delete[] Dr;
+
+			delete[] DGjacParDispBlocks;
+
+			delete[] g_p;
+			delete[] g_pSum;
+			delete[] surfaceFluxParticle;
+			delete[] localFlux;
+		}
+
 		/**
 		* @brief allocates memory for DG operators and computes those that are metric independent. Also allocates required containers needed for the DG discretization.
 		*/
