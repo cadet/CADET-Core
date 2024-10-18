@@ -219,6 +219,12 @@ protected:
 		unsigned int* nBound; //!< Array with number of bound states for each component
 		unsigned int* boundOffset; //!< Array with offset to the first bound state of each component in the solid phase
 		unsigned int strideBound; //!< Total number of bound states
+
+		~Discretization() // make sure this memory is freed correctly
+		{
+			delete[] nBound;
+			delete[] boundOffset;
+		}
 	};
 
 	Discretization _disc; //!< Discretization info

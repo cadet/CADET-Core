@@ -76,12 +76,6 @@ LumpedRateModelWithPores<ConvDispOperator>::~LumpedRateModelWithPores() CADET_NO
 
 	delete _dynReactionBulk;
 	delete _filmDiffDep;
-
-	delete[] _disc.parTypeOffset;
-	delete[] _disc.nBound;
-	delete[] _disc.boundOffset;
-	delete[] _disc.strideBound;
-	delete[] _disc.nBoundBeforeType;
 }
 
 template <typename ConvDispOperator>
