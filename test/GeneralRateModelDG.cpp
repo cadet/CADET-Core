@@ -23,7 +23,7 @@
 #include "Utils.hpp"
 #include "common/Driver.hpp"
 
-TEST_CASE("GRM_DG LWE forward vs backward flow", "[GRM],[DG],[Simulation],[CI]")
+TEST_CASE("GRM_DG LWE forward vs backward flow", "[GRM],[DG],[Simulation],[CI_DG]")
 {
 	cadet::test::column::DGparams disc;
 
@@ -35,7 +35,7 @@ TEST_CASE("GRM_DG LWE forward vs backward flow", "[GRM],[DG],[Simulation],[CI]")
 	}
 }
 
-TEST_CASE("GRM_DG linear pulse vs analytic solution", "[GRM],[DG],[Simulation],[Analytic],[CI]")
+TEST_CASE("GRM_DG linear pulse vs analytic solution", "[GRM],[DG],[Simulation],[Analytic],[CI_DG]")
 {
 	cadet::test::column::DGparams disc;
 	cadet::test::column::testAnalyticBenchmark("GENERAL_RATE_MODEL", "/data/grm-pulseBenchmark.data", true, true, disc, 6e-5, 1e-7);
@@ -44,7 +44,7 @@ TEST_CASE("GRM_DG linear pulse vs analytic solution", "[GRM],[DG],[Simulation],[
 	cadet::test::column::testAnalyticBenchmark("GENERAL_RATE_MODEL", "/data/grm-pulseBenchmark.data", false, false, disc, 6e-5, 1e-7);
 }
 
-TEST_CASE("GRM_DG non-binding linear pulse vs analytic solution", "[GRM],[DG],[Simulation],[Analytic],[NonBinding],[CI]")
+TEST_CASE("GRM_DG non-binding linear pulse vs analytic solution", "[GRM],[DG],[Simulation],[Analytic],[NonBinding],[CI_DG]")
 {
 	cadet::test::column::DGparams disc;
 	cadet::test::column::testAnalyticNonBindingBenchmark("GENERAL_RATE_MODEL", "/data/grm-nonBinding.data", true, disc, 6e-5, 1e-7);
@@ -86,7 +86,7 @@ TEST_CASE("GRM_DG numerical Benchmark with parameter sensitivities for SMA LWE c
 	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "000", absTol, relTol, disc, true);
 }
 
-TEST_CASE("GRM_DG LWE DGSEM and GSM particle discretization yields similar accuracy", "[GRM],[DG],[Simulation],[CI]")
+TEST_CASE("GRM_DG LWE DGSEM and GSM particle discretization yields similar accuracy", "[GRM],[DG],[Simulation],[CI_DG]")
 {
 	cadet::JsonParameterProvider jpp = createLWE("GENERAL_RATE_MODEL", "DG");
 	cadet::test::column::DGparams disc(0, 4, 2, 3, 1); // Note that we want to employ only a single particle element
@@ -128,7 +128,7 @@ TEST_CASE("GRM_DG LWE DGSEM and GSM particle discretization yields similar accur
 	}
 }
 
-TEST_CASE("GRM_DG time derivative Jacobian vs FD", "[GRM],[DG],[UnitOp],[Residual],[Jacobian],[CI],[FD]")
+TEST_CASE("GRM_DG time derivative Jacobian vs FD", "[GRM],[DG],[UnitOp],[Residual],[Jacobian],[CI_DG],[FD]")
 {
 	cadet::test::column::testTimeDerivativeJacobianFD("GENERAL_RATE_MODEL", "DG", 1e-6, 0.0, 9e-4);
 }
@@ -173,7 +173,7 @@ TEST_CASE("GRM_DG sensitivity Jacobians", "[GRM],[DG],[UnitOp],[Sensitivity]") /
 //}
 
 // todo fix consistent initialization for AD with req binding
-TEST_CASE("GRM_DG consistent initialization with linear binding", "[GRM],[DG],[ConsistentInit],[CI]")
+TEST_CASE("GRM_DG consistent initialization with linear binding", "[GRM],[DG],[ConsistentInit],[CI_DG]")
 {
 	cadet::test::column::testConsistentInitializationLinearBinding("GENERAL_RATE_MODEL", "DG", 1e-12, 1e-14, 0, 0);
 	cadet::test::column::testConsistentInitializationLinearBinding("GENERAL_RATE_MODEL", "DG", 1e-12, 1e-12, 1, 0);
@@ -198,7 +198,7 @@ TEST_CASE("GRM_DG consistent initialization with linear binding", "[GRM],[DG],[C
 //}
 
 // todo fix kinetic binding sensitivity init
-TEST_CASE("GRM_DG consistent sensitivity initialization with linear binding", "[GRM],[DG],[ConsistentInit],[Sensitivity],[CI]")
+TEST_CASE("GRM_DG consistent sensitivity initialization with linear binding", "[GRM],[DG],[ConsistentInit],[Sensitivity],[CI_DG]")
 {
 	// Fill state vector with given initial values
 	const unsigned int numDofs = 4 + 4 * 16 + 16 * 4 * (4 + 4) + 4 * 16;
@@ -231,18 +231,18 @@ TEST_CASE("GRM_DG consistent sensitivity initialization with linear binding", "[
 //	cadet::test::column::testConsistentInitializationSensitivity("GENERAL_RATE_MODEL", "DG", y.data(), yDot.data(), false, 1e-9);
 //}
 
-TEST_CASE("GRM_DG inlet DOF Jacobian", "[GRM],[DG],[UnitOp],[Jacobian],[Inlet],[CI]")
+TEST_CASE("GRM_DG inlet DOF Jacobian", "[GRM],[DG],[UnitOp],[Jacobian],[Inlet],[CI_DG]")
 {
 	cadet::test::column::testInletDofJacobian("GENERAL_RATE_MODEL", "DG");
 }
 
-TEST_CASE("GRM_DG transport Jacobian", "[GRM],[DG],[UnitOp],[Jacobian],[CI]")
+TEST_CASE("GRM_DG transport Jacobian", "[GRM],[DG],[UnitOp],[Jacobian],[CI_DG]")
 {
 	cadet::JsonParameterProvider jpp = createColumnLinearBenchmark(false, true, "GENERAL_RATE_MODEL", "DG");
 	cadet::test::column::testJacobianAD(jpp, std::numeric_limits<float>::epsilon() * 100.0);
 }
 
-TEST_CASE("GRM_DG with two component linear binding Jacobian", "[GRM],[DG],[UnitOp],[Jacobian],[CI]")
+TEST_CASE("GRM_DG with two component linear binding Jacobian", "[GRM],[DG],[UnitOp],[Jacobian],[CI_DG]")
 {
 	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding("GENERAL_RATE_MODEL", "DG");
 	cadet::test::column::testJacobianAD(jpp, std::numeric_limits<float>::epsilon() * 100.0);
@@ -285,52 +285,52 @@ TEST_CASE("GRM_DG with two component linear binding Jacobian", "[GRM],[DG],[Unit
 //	cadet::test::particle::testLinearSpatiallyMixedParticleTypes("GENERAL_RATE_MODEL", "DG", 5e-8, 5e-5);
 //}
 
-TEST_CASE("GRM_DG dynamic reactions Jacobian vs AD bulk", "[GRM],[DG],[Jacobian],[AD],[ReactionModel],[CI]")
+TEST_CASE("GRM_DG dynamic reactions Jacobian vs AD bulk", "[GRM],[DG],[Jacobian],[AD],[ReactionModel],[CI_DG]")
 {
 	cadet::test::reaction::testUnitJacobianDynamicReactionsAD("GENERAL_RATE_MODEL", "DG", true, false, false);
 }
 
-TEST_CASE("GRM_DG dynamic reactions Jacobian vs AD particle", "[GRM],[DG],[Jacobian],[AD],[ReactionModel],[CI]")
+TEST_CASE("GRM_DG dynamic reactions Jacobian vs AD particle", "[GRM],[DG],[Jacobian],[AD],[ReactionModel],[CI_DG]")
 {
 	cadet::test::reaction::testUnitJacobianDynamicReactionsAD("GENERAL_RATE_MODEL", "DG", false, true, false);
 }
 
-TEST_CASE("GRM_DG dynamic reactions Jacobian vs AD modified particle", "[GRM],[DG],[Jacobian],[AD],[ReactionModel],[CI]")
+TEST_CASE("GRM_DG dynamic reactions Jacobian vs AD modified particle", "[GRM],[DG],[Jacobian],[AD],[ReactionModel],[CI_DG]")
 {
 	cadet::test::reaction::testUnitJacobianDynamicReactionsAD("GENERAL_RATE_MODEL", "DG", false, true, true);
 }
 
-TEST_CASE("GRM_DG dynamic reactions Jacobian vs AD bulk and particle", "[GRM],[DG],[Jacobian],[AD],[ReactionModel],[CI]")
+TEST_CASE("GRM_DG dynamic reactions Jacobian vs AD bulk and particle", "[GRM],[DG],[Jacobian],[AD],[ReactionModel],[CI_DG]")
 {
 	cadet::test::reaction::testUnitJacobianDynamicReactionsAD("GENERAL_RATE_MODEL", "DG", true, true, false);
 }
 
-TEST_CASE("GRM_DG dynamic reactions Jacobian vs AD bulk and modified particle", "[GRM],[DG],[Jacobian],[AD],[ReactionModel],[CI]")
+TEST_CASE("GRM_DG dynamic reactions Jacobian vs AD bulk and modified particle", "[GRM],[DG],[Jacobian],[AD],[ReactionModel],[CI_DG]")
 {
 	cadet::test::reaction::testUnitJacobianDynamicReactionsAD("GENERAL_RATE_MODEL", "DG", true, true, true);
 }
 
-TEST_CASE("GRM_DG dynamic reactions time derivative Jacobian vs FD bulk", "[GRM],[DG],[Jacobian],[Residual],[ReactionModel],[CI],[FD]")
+TEST_CASE("GRM_DG dynamic reactions time derivative Jacobian vs FD bulk", "[GRM],[DG],[Jacobian],[Residual],[ReactionModel],[CI_DG],[FD]")
 {
 	cadet::test::reaction::testTimeDerivativeJacobianDynamicReactionsFD("GENERAL_RATE_MODEL", "DG", true, false, false, 1e-6, 1e-14, 9e-4);
 }
 
-TEST_CASE("GRM_DG dynamic reactions time derivative Jacobian vs FD particle", "[GRM],[DG],[Jacobian],[Residual],[ReactionModel],[CI],[FD]")
+TEST_CASE("GRM_DG dynamic reactions time derivative Jacobian vs FD particle", "[GRM],[DG],[Jacobian],[Residual],[ReactionModel],[CI_DG],[FD]")
 {
 	cadet::test::reaction::testTimeDerivativeJacobianDynamicReactionsFD("GENERAL_RATE_MODEL", "DG", false, true, false, 1e-6, 1e-14, 9e-4);
 }
 
-TEST_CASE("GRM_DG dynamic reactions time derivative Jacobian vs FD modified particle", "[GRM],[DG],[Jacobian],[Residual],[ReactionModel],[CI],[FD]")
+TEST_CASE("GRM_DG dynamic reactions time derivative Jacobian vs FD modified particle", "[GRM],[DG],[Jacobian],[Residual],[ReactionModel],[CI_DG],[FD]")
 {
 	cadet::test::reaction::testTimeDerivativeJacobianDynamicReactionsFD("GENERAL_RATE_MODEL", "DG", false, true, true, 1e-6, 1e-14, 9e-4);
 }
 
-TEST_CASE("GRM_DG dynamic reactions time derivative Jacobian vs FD bulk and particle", "[GRM],[DG],[Jacobian],[Residual],[ReactionModel],[CI],[FD]")
+TEST_CASE("GRM_DG dynamic reactions time derivative Jacobian vs FD bulk and particle", "[GRM],[DG],[Jacobian],[Residual],[ReactionModel],[CI_DG],[FD]")
 {
 	cadet::test::reaction::testTimeDerivativeJacobianDynamicReactionsFD("GENERAL_RATE_MODEL", "DG", true, true, false, 1e-6, 1e-14, 9e-4);
 }
 
-TEST_CASE("GRM_DG dynamic reactions time derivative Jacobian vs FD bulk and modified particle", "[GRM],[DG],[Jacobian],[Residual],[ReactionModel],[CI],[FD]")
+TEST_CASE("GRM_DG dynamic reactions time derivative Jacobian vs FD bulk and modified particle", "[GRM],[DG],[Jacobian],[Residual],[ReactionModel],[CI_DG],[FD]")
 {
 	cadet::test::reaction::testTimeDerivativeJacobianDynamicReactionsFD("GENERAL_RATE_MODEL", "DG", true, true, true, 1e-6, 1e-14, 9e-4);
 }
@@ -346,61 +346,61 @@ inline cadet::JsonParameterProvider createColumnWithTwoCompLinearBindingThreePar
 	return jpp;
 }
 
-TEST_CASE("GRM_DG multi particle types dynamic reactions Jacobian vs AD bulk", "[GRM],[DG],[Jacobian],[AD],[ReactionModel],[ParticleType],[CI]")
+TEST_CASE("GRM_DG multi particle types dynamic reactions Jacobian vs AD bulk", "[GRM],[DG],[Jacobian],[AD],[ReactionModel],[ParticleType],[CI_DG]")
 {
 	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBindingThreeParticleTypes();
 	cadet::test::reaction::testUnitJacobianDynamicReactionsAD(jpp, true, false, false);
 }
 
-TEST_CASE("GRM_DG multi particle types dynamic reactions Jacobian vs AD particle", "[GRM],[DG],[Jacobian],[AD],[ReactionModel],[ParticleType],[CI]")
+TEST_CASE("GRM_DG multi particle types dynamic reactions Jacobian vs AD particle", "[GRM],[DG],[Jacobian],[AD],[ReactionModel],[ParticleType],[CI_DG]")
 {
 	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBindingThreeParticleTypes();
 	cadet::test::reaction::testUnitJacobianDynamicReactionsAD(jpp, false, true, false);
 }
 
-TEST_CASE("GRM_DG multi particle types dynamic reactions Jacobian vs AD modified particle", "[GRM],[DG],[Jacobian],[AD],[ReactionModel],[ParticleType],[CI]")
+TEST_CASE("GRM_DG multi particle types dynamic reactions Jacobian vs AD modified particle", "[GRM],[DG],[Jacobian],[AD],[ReactionModel],[ParticleType],[CI_DG]")
 {
 	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBindingThreeParticleTypes();
 	cadet::test::reaction::testUnitJacobianDynamicReactionsAD(jpp, false, true, true);
 }
 
-TEST_CASE("GRM_DG multi particle types dynamic reactions Jacobian vs AD bulk and particle", "[GRM],[DG],[Jacobian],[AD],[ReactionModel],[ParticleType],[CI]")
+TEST_CASE("GRM_DG multi particle types dynamic reactions Jacobian vs AD bulk and particle", "[GRM],[DG],[Jacobian],[AD],[ReactionModel],[ParticleType],[CI_DG]")
 {
 	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBindingThreeParticleTypes();
 	cadet::test::reaction::testUnitJacobianDynamicReactionsAD(jpp, true, true, false);
 }
 
-TEST_CASE("GRM_DG multi particle types dynamic reactions Jacobian vs AD bulk and modified particle", "[GRM],[DG],[Jacobian],[AD],[ReactionModel],[ParticleType],[CI]")
+TEST_CASE("GRM_DG multi particle types dynamic reactions Jacobian vs AD bulk and modified particle", "[GRM],[DG],[Jacobian],[AD],[ReactionModel],[ParticleType],[CI_DG]")
 {
 	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBindingThreeParticleTypes();
 	cadet::test::reaction::testUnitJacobianDynamicReactionsAD(jpp, true, true, true);
 }
 
-TEST_CASE("GRM_DG multi particle types dynamic reactions time derivative Jacobian vs FD bulk", "[GRM],[DG],[Jacobian],[Residual],[ReactionModel],[ParticleType],[CI]")
+TEST_CASE("GRM_DG multi particle types dynamic reactions time derivative Jacobian vs FD bulk", "[GRM],[DG],[Jacobian],[Residual],[ReactionModel],[ParticleType],[CI_DG]")
 {
 	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBindingThreeParticleTypes();
 	cadet::test::reaction::testTimeDerivativeJacobianDynamicReactionsFD(jpp, true, false, false, 1e-6, 1e-14, 9e-4);
 }
 
-TEST_CASE("GRM_DG multi particle types dynamic reactions time derivative Jacobian vs FD particle", "[GRM],[DG],[Jacobian],[Residual],[ReactionModel],[ParticleType],[CI]")
+TEST_CASE("GRM_DG multi particle types dynamic reactions time derivative Jacobian vs FD particle", "[GRM],[DG],[Jacobian],[Residual],[ReactionModel],[ParticleType],[CI_DG]")
 {
 	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBindingThreeParticleTypes();
 	cadet::test::reaction::testTimeDerivativeJacobianDynamicReactionsFD(jpp, false, true, false, 1e-6, 1e-14, 9e-4);
 }
 
-TEST_CASE("GRM_DG multi particle types dynamic reactions time derivative Jacobian vs FD modified particle", "[GRM],[DG],[Jacobian],[Residual],[ReactionModel],[ParticleType],[CI]")
+TEST_CASE("GRM_DG multi particle types dynamic reactions time derivative Jacobian vs FD modified particle", "[GRM],[DG],[Jacobian],[Residual],[ReactionModel],[ParticleType],[CI_DG]")
 {
 	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBindingThreeParticleTypes();
 	cadet::test::reaction::testTimeDerivativeJacobianDynamicReactionsFD(jpp, false, true, true, 1e-6, 1e-14, 9e-4);
 }
 
-TEST_CASE("GRM_DG multi particle types dynamic reactions time derivative Jacobian vs FD bulk and particle", "[GRM],[DG],[Jacobian],[Residual],[ReactionModel],[ParticleType],[CI]")
+TEST_CASE("GRM_DG multi particle types dynamic reactions time derivative Jacobian vs FD bulk and particle", "[GRM],[DG],[Jacobian],[Residual],[ReactionModel],[ParticleType],[CI_DG]")
 {
 	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBindingThreeParticleTypes();
 	cadet::test::reaction::testTimeDerivativeJacobianDynamicReactionsFD(jpp, true, true, false, 1e-6, 1e-14, 9e-4);
 }
 
-TEST_CASE("GRM_DG multi particle types dynamic reactions time derivative Jacobian vs FD bulk and modified particle", "[GRM],[DG],[Jacobian],[Residual],[ReactionModel],[ParticleType],[CI]")
+TEST_CASE("GRM_DG multi particle types dynamic reactions time derivative Jacobian vs FD bulk and modified particle", "[GRM],[DG],[Jacobian],[Residual],[ReactionModel],[ParticleType],[CI_DG]")
 {
 	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBindingThreeParticleTypes();
 	cadet::test::reaction::testTimeDerivativeJacobianDynamicReactionsFD(jpp, true, true, true, 1e-6, 1e-14, 9e-4);
