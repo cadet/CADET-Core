@@ -92,8 +92,10 @@ bool AxialConvectionDispersionOperatorBaseDG::configureModelDiscretization(IPara
 	_invMM.resize(_nNodes, _nNodes);
 	_invMM.setZero();
 
-	_auxState = new active[_nPoints];
-	_subsState = new active[_nPoints];
+	if (!_auxState)
+		_auxState = new active[_nPoints];
+	if (!_subsState)
+		_subsState = new active[_nPoints];
 	for (int i = 0; i < _nPoints; i++) {
 		_auxState[i] = 0.0;
 		_subsState[i] = 0.0;
