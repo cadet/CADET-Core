@@ -40,7 +40,10 @@ public:
 		: _matrix(&mat), _values(valuesOfRow(mat, row)), _colIdx(columnIndicesOfRow(mat, row)), _row(row),
 		_dummy(0.0), _size(mat.rows())
 	{
-		_numNonZero = getInnerNumberOfNonZeros(mat, row);
+		if (row < _size)
+			_numNonZero = getInnerNumberOfNonZeros(mat, row);
+		else
+			_numNonZero = 0;
 	}
 
 	~BandedEigenSparseRowIterator() CADET_NOEXCEPT { }
