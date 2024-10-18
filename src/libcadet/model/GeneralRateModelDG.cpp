@@ -129,7 +129,10 @@ bool GeneralRateModelDG::configureModelDiscretization(IParameterProvider& paramP
 
 	paramProvider.pushScope("discretization");
 
-	_linearSolver = cadet::linalg::setLinearSolver(paramProvider.exists("LINEAR_SOLVER") ? paramProvider.getString("LINEAR_SOLVER") : "SparseLU");
+	const bool firstConfigCall = _tempState == nullptr; // used to not multiply allocate memory
+
+	if (firstConfigCall)
+		_linearSolver = cadet::linalg::setLinearSolver(paramProvider.exists("LINEAR_SOLVER") ? paramProvider.getString("LINEAR_SOLVER") : "SparseLU");
 
 	if (!newNBoundInterface && paramProvider.exists("NBOUND")) // done here and in this order for backwards compatibility
 		nBound = paramProvider.getIntArray("NBOUND");
@@ -184,10 +187,13 @@ bool GeneralRateModelDG::configureModelDiscretization(IParameterProvider& paramP
 	std::vector<int> parPolyDeg(_disc.nParType);
 	std::vector<int> ParNelem(_disc.nParType);
 	std::vector<bool> parExactInt(_disc.nParType, true);
-	_disc.parPolyDeg = new unsigned int[_disc.nParType];
-	_disc.nParCell = new unsigned int[_disc.nParType];
-	_disc.parExactInt = new bool[_disc.nParType];
-	_disc.parGSM = new bool[_disc.nParType];
+	if (firstConfigCall)
+	{
+		_disc.parPolyDeg = new unsigned int[_disc.nParType];
+		_disc.nParCell = new unsigned int[_disc.nParType];
+		_disc.parExactInt = new bool[_disc.nParType];
+		_disc.parGSM = new bool[_disc.nParType];
+	}
 
 	if (paramProvider.exists("PAR_POLYDEG"))
 	{
@@ -269,7 +275,8 @@ bool GeneralRateModelDG::configureModelDiscretization(IParameterProvider& paramP
 	// Compute discretization operators and initialize containers
 	_disc.initializeDG();
 
-	_disc.nBound = new unsigned int[_disc.nComp * _disc.nParType];
+	if (firstConfigCall)
+		_disc.nBound = new unsigned int[_disc.nComp * _disc.nParType];
 	if (nBound.size() < _disc.nComp * _disc.nParType)
 	{
 		// Multiplex number of bound states to all particle types
@@ -282,9 +289,12 @@ bool GeneralRateModelDG::configureModelDiscretization(IParameterProvider& paramP
 	const unsigned int nTotalBound = std::accumulate(_disc.nBound, _disc.nBound + _disc.nComp * _disc.nParType, 0u);
 
 	// Precompute offsets and total number of bound states (DOFs in solid phase)
-	_disc.boundOffset = new unsigned int[_disc.nComp * _disc.nParType];
-	_disc.strideBound = new unsigned int[_disc.nParType + 1];
-	_disc.nBoundBeforeType = new unsigned int[_disc.nParType];
+	if (firstConfigCall)
+	{
+		_disc.boundOffset = new unsigned int[_disc.nComp * _disc.nParType];
+		_disc.strideBound = new unsigned int[_disc.nParType + 1];
+		_disc.nBoundBeforeType = new unsigned int[_disc.nParType];
+	}
 	_disc.strideBound[_disc.nParType] = nTotalBound;
 	_disc.nBoundBeforeType[0] = 0;
 	for (unsigned int j = 0; j < _disc.nParType; ++j)
@@ -304,8 +314,11 @@ bool GeneralRateModelDG::configureModelDiscretization(IParameterProvider& paramP
 	}
 
 	// Precompute offsets of particle type DOFs
-	_disc.parTypeOffset = new unsigned int[_disc.nParType + 1];
-	_disc.nParPointsBeforeType = new unsigned int[_disc.nParType + 1];
+	if (firstConfigCall)
+	{
+		_disc.parTypeOffset = new unsigned int[_disc.nParType + 1];
+		_disc.nParPointsBeforeType = new unsigned int[_disc.nParType + 1];
+	}
 	_disc.parTypeOffset[0] = 0;
 	_disc.nParPointsBeforeType[0] = 0;
 	unsigned int nTotalParPoints = 0;
@@ -598,7 +611,8 @@ bool GeneralRateModelDG::configureModelDiscretization(IParameterProvider& paramP
 	}
 
 	// Allocate memory
-	_tempState = new double[numDofs()];
+	if (firstConfigCall)
+		_tempState = new double[numDofs()];
 
 	if (_disc.exactInt)
 		_jacInlet.resize(_disc.nNodes, 1); // first cell depends on inlet concentration (same for every component)
@@ -619,6 +633,8 @@ bool GeneralRateModelDG::configureModelDiscretization(IParameterProvider& paramP
 bool GeneralRateModelDG::configure(IParameterProvider& paramProvider)
 {
 	_parameters.clear();
+
+	const bool firstConfigCall = _disc.offsetSurfDiff == nullptr; // used to not multiply allocate memory
 
 	const bool transportSuccess = _convDispOp.configure(_unitOpIdx, paramProvider, _parameters);
 
@@ -685,7 +701,8 @@ bool GeneralRateModelDG::configure(IParameterProvider& paramProvider)
 	_filmDiffusionMode = readAndRegisterMultiplexCompTypeSecParam(paramProvider, _parameters, _filmDiffusion, "FILM_DIFFUSION", _disc.nParType, _disc.nComp, _unitOpIdx);
 	_parDiffusionMode = readAndRegisterMultiplexCompTypeSecParam(paramProvider, _parameters, _parDiffusion, "PAR_DIFFUSION", _disc.nParType, _disc.nComp, _unitOpIdx);
 
-	_disc.offsetSurfDiff = new unsigned int[_disc.strideBound[_disc.nParType]];
+	if (firstConfigCall)
+		_disc.offsetSurfDiff = new unsigned int[_disc.strideBound[_disc.nParType]];
 	if (paramProvider.exists("PAR_SURFDIFFUSION"))
 		_parSurfDiffusionMode = readAndRegisterMultiplexBndCompTypeSecParam(paramProvider, _parameters, _parSurfDiffusion, "PAR_SURFDIFFUSION", _disc.nParType, _disc.nComp, _disc.strideBound, _disc.nBound, _unitOpIdx);
 	else
@@ -744,7 +761,8 @@ bool GeneralRateModelDG::configure(IParameterProvider& paramProvider)
 		registerParam2DArray(_parameters, _parTypeVolFrac, [=](bool multi, unsigned cell, unsigned int type) { return makeParamId(hashString("PAR_TYPE_VOLFRAC"), _unitOpIdx, CompIndep, type, BoundStateIndep, ReactionIndep, cell); }, _disc.nParType);
 
 	// Calculate the particle radial discretization variables (_parCellSize, _parCenterRadius, etc.)
-	_disc.deltaR = new active[_disc.offsetMetric[_disc.nParType]];
+	if (firstConfigCall)
+		_disc.deltaR = new active[_disc.offsetMetric[_disc.nParType]];
 	updateRadialDisc();
 
 	// Register initial conditions parameters
