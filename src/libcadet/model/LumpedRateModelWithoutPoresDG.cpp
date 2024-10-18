@@ -60,8 +60,6 @@ namespace cadet
 		{
 			delete[] _tempState;
 
-			delete[] _disc.nBound;
-			delete[] _disc.boundOffset;
 			delete _linearSolver;
 		}
 
@@ -92,6 +90,8 @@ namespace cadet
 
 		bool LumpedRateModelWithoutPoresDG::configureModelDiscretization(IParameterProvider& paramProvider, const IConfigHelper& helper)
 		{
+			const bool firstConfigCall = _tempState == nullptr; // used to not multiply allocate memory
+
 			// Read discretization
 			_disc.nComp = paramProvider.getInt("NCOMP");
 
@@ -100,7 +100,8 @@ namespace cadet
 
 			paramProvider.pushScope("discretization");
 
-			_linearSolver = cadet::linalg::setLinearSolver(paramProvider.exists("LINEAR_SOLVER") ? paramProvider.getString("LINEAR_SOLVER") : "SparseLU");
+			if (firstConfigCall)
+				_linearSolver = cadet::linalg::setLinearSolver(paramProvider.exists("LINEAR_SOLVER") ? paramProvider.getString("LINEAR_SOLVER") : "SparseLU");
 
 			if (!newNBoundInterface && paramProvider.exists("NBOUND")) // done here and in this order for backwards compatibility
 				nBound = paramProvider.getIntArray("NBOUND");
@@ -113,7 +114,8 @@ namespace cadet
 			if (nBound.size() < _disc.nComp)
 				throw InvalidParameterException("Field NBOUND contains too few elements (NCOMP = " + std::to_string(_disc.nComp) + " required)");
 
-			_disc.nBound = new unsigned int[_disc.nComp];
+			if (firstConfigCall)
+				_disc.nBound = new unsigned int[_disc.nComp];
 			std::copy_n(nBound.begin(), _disc.nComp, _disc.nBound);
 
 			if (paramProvider.exists("POLYDEG"))
@@ -145,7 +147,8 @@ namespace cadet
 			_disc.exactInt = static_cast<bool>(polynomial_integration_mode); // only integration mode 0 applies the inexact collocated diagonal LGL mass matrix
 
 			// Precompute offsets and total number of bound states (DOFs in solid phase)
-			_disc.boundOffset = new unsigned int[_disc.nComp];
+			if (firstConfigCall)
+				_disc.boundOffset = new unsigned int[_disc.nComp];
 			_disc.boundOffset[0] = 0;
 			for (unsigned int i = 1; i < _disc.nComp; ++i)
 			{
@@ -232,7 +235,8 @@ namespace cadet
 			}
 
 			// Setup the memory for tempState based on state vector
-			_tempState = new double[numDofs()];
+			if (firstConfigCall)
+				_tempState = new double[numDofs()];
 
 			return bindingConfSuccess && reactionConfSuccess;
 		}

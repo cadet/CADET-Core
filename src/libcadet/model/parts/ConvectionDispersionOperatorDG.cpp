@@ -44,7 +44,7 @@ namespace parts
  * @brief Creates an AxialConvectionDispersionOperatorBaseDG
  */
 AxialConvectionDispersionOperatorBaseDG::AxialConvectionDispersionOperatorBaseDG() :
-	_dispersionDep(nullptr), _DGjacAxDispBlocks(nullptr)
+	_dispersionDep(nullptr), _DGjacAxDispBlocks(nullptr), _auxState(nullptr), _subsState(nullptr)
 {
 }
 
@@ -72,6 +72,7 @@ AxialConvectionDispersionOperatorBaseDG::~AxialConvectionDispersionOperatorBaseD
  */
 bool AxialConvectionDispersionOperatorBaseDG::configureModelDiscretization(IParameterProvider& paramProvider, const IConfigHelper& helper, unsigned int nComp, int polynomial_integration_mode, unsigned int nCells, unsigned int polyDeg, unsigned int strideNode)
 {
+	const bool firstConfigCall = _auxState == nullptr; // used to not multiply allocate memory
 
 	_nComp = nComp;
 	_exactInt = static_cast<bool>(polynomial_integration_mode); // only integration mode 0 applies the inexact collocated diagonal LGL mass matrix
@@ -92,8 +93,10 @@ bool AxialConvectionDispersionOperatorBaseDG::configureModelDiscretization(IPara
 	_invMM.resize(_nNodes, _nNodes);
 	_invMM.setZero();
 
-	_auxState = new active[_nPoints];
-	_subsState = new active[_nPoints];
+	if (firstConfigCall)
+		_auxState = new active[_nPoints];
+	if (firstConfigCall)
+		_subsState = new active[_nPoints];
 	for (int i = 0; i < _nPoints; i++) {
 		_auxState[i] = 0.0;
 		_subsState[i] = 0.0;
@@ -136,13 +139,16 @@ bool AxialConvectionDispersionOperatorBaseDG::configureModelDiscretization(IPara
  */
 bool AxialConvectionDispersionOperatorBaseDG::configure(UnitOpIdx unitOpIdx, IParameterProvider& paramProvider, std::unordered_map<ParameterId, active*>& parameters)
 {
+	const bool firstConfigCall = _DGjacAxDispBlocks == nullptr; // used to not multiply allocate memory
+
 	// Read geometry parameters
 	_colLength = paramProvider.getDouble("COL_LENGTH");
 	_deltaZ = _colLength / _nCells;
 
 	/* compute dispersion jacobian blocks(without parameters except element spacing, i.e. static entries) */
 	// we only need unique dispersion blocks, which are given by cells 1, 2, nCol for inexact integration DG and by cells 1, 2, 3, nCol-1, nCol for eaxct integration DG
-	_DGjacAxDispBlocks = new Eigen::MatrixXd[(_exactInt ? std::min(_nCells, 5u) : std::min(_nCells, 3u))];
+	if (firstConfigCall)
+		_DGjacAxDispBlocks = new Eigen::MatrixXd[(_exactInt ? std::min(_nCells, 5u) : std::min(_nCells, 3u))];
 	_DGjacAxDispBlocks[0] = DGjacobianDispBlock(1);
 	if (_nCells > 1)
 		_DGjacAxDispBlocks[1] = DGjacobianDispBlock(2);
