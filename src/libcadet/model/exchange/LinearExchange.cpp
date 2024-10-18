@@ -10,8 +10,7 @@
 //  is available at http://www.gnu.org/licenses/gpl.html
 // =============================================================================
 
-
-
+#include "model/ExchangeModel.hpp"
 #include "model/ExternalFunctionSupport.hpp"
 #include "ParamIdUtil.hpp"
 #include "model/ModelUtils.hpp"
@@ -20,7 +19,6 @@
 #include "LocalVector.hpp"
 #include "SimulationTypes.hpp"
 #include "Memory.hpp"
-#include "model/ExchangeModel.hpp"
 #include "ParamReaderHelper.hpp"
 #include "model/parts/MultiChannelConvectionDispersionOperator.hpp"
 
