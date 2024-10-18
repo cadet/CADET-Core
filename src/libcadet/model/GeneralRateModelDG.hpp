@@ -312,6 +312,49 @@ protected:
 		Eigen::Vector<active, Dynamic>* surfaceFluxParticle; //!< stores the surface flux values for each particle
 		active* localFlux; //!< stores the local (at respective particle) film diffusion flux
 
+		Discretization() : nParCell(nullptr), nParPointsBeforeType(nullptr), parPolyDeg(nullptr), nParNode(nullptr),
+			nParPoints(nullptr), parExactInt(nullptr), parTypeOffset(nullptr), nBound(nullptr), boundOffset(nullptr),
+			strideBound(nullptr), nBoundBeforeType(nullptr), offsetSurfDiff(nullptr), deltaR(nullptr), parNodes(nullptr),
+			parPolyDerM(nullptr), minus_InvMM_ST(nullptr), parInvWeights(nullptr), parInvMM(nullptr), parInvMM_Leg(nullptr),
+			Ir(nullptr), Dr(nullptr), DGjacParDispBlocks(nullptr), g_p(nullptr), g_pSum(nullptr),
+			surfaceFluxParticle(nullptr), localFlux(nullptr)
+		{
+		}
+
+		~Discretization() // make sure this memory is freed correctly
+		{
+			delete[] nParCell;
+			delete[] nParPointsBeforeType;
+			delete[] parPolyDeg;
+			delete[] nParNode;
+			delete[] nParPoints;
+			delete[] parExactInt;
+			delete[] parTypeOffset;
+			delete[] nBound;
+			delete[] boundOffset;
+			delete[] strideBound;
+			delete[] nBoundBeforeType;
+
+			delete[] offsetSurfDiff;
+
+			delete[] deltaR;
+			delete[] parNodes;
+			delete[] parPolyDerM;
+			delete[] minus_InvMM_ST;
+			delete[] parInvWeights;
+			delete[] parInvMM;
+			delete[] parInvMM_Leg;
+			delete[] Ir;
+			delete[] Dr;
+
+			delete[] DGjacParDispBlocks;
+
+			delete[] g_p;
+			delete[] g_pSum;
+			delete[] surfaceFluxParticle;
+			delete[] localFlux;
+		}
+
 		/**
 		* @brief allocates memory for DG operators and computes those that are metric independent. Also allocates required containers needed for the DG discretization.
 		*/
@@ -321,17 +364,22 @@ protected:
 			
 			newStaticJac = true;
 
+			const bool firstConfigCall = nParNode == nullptr; // used to not multiply allocate memory
+
 			// particles
-			nParNode = new unsigned int [nParType];
-			nParPoints = new unsigned int [nParType];
-			g_p = new Vector<active, Dynamic>[nParType];
-			g_pSum = new Vector<active, Dynamic>[nParType];
-			surfaceFluxParticle = new Vector<active, Dynamic>[nParType];
-			parNodes = new VectorXd [nParType];
-			parInvWeights = new VectorXd [nParType];
-			parInvMM_Leg = new MatrixXd [nParType];
-			parPolyDerM = new MatrixXd[nParType];
-			localFlux = new active[nComp];
+			if (firstConfigCall)
+			{
+				nParNode = new unsigned int[nParType];
+				nParPoints = new unsigned int[nParType];
+				g_p = new Vector<active, Dynamic>[nParType];
+				g_pSum = new Vector<active, Dynamic>[nParType];
+				surfaceFluxParticle = new Vector<active, Dynamic>[nParType];
+				parNodes = new VectorXd[nParType];
+				parInvWeights = new VectorXd[nParType];
+				parInvMM_Leg = new MatrixXd[nParType];
+				parPolyDerM = new MatrixXd[nParType];
+				localFlux = new active[nComp];
+			}
 
 			for (int parType = 0; parType < nParType; parType++) 
 			{
@@ -357,13 +405,17 @@ protected:
 			for (int parType = 1; parType <= nParType; parType++) {
 				offsetMetric[parType] += nParCell[parType - 1];
 			}
-			Dr = new MatrixXd[offsetMetric[nParType]];
-			Ir = new Vector<active, Dynamic>[offsetMetric[nParType]];
-			minus_InvMM_ST = new MatrixXd[offsetMetric[nParType]];
-			parInvMM = new MatrixXd[offsetMetric[nParType]];
-			secondOrderStiffnessM = new MatrixXd[nParType];
-			minus_parInvMM_Ar = new MatrixXd[nParType];
-			
+
+			if (firstConfigCall)
+			{
+				Dr = new MatrixXd[offsetMetric[nParType]];
+				Ir = new Vector<active, Dynamic>[offsetMetric[nParType]];
+				minus_InvMM_ST = new MatrixXd[offsetMetric[nParType]];
+				parInvMM = new MatrixXd[offsetMetric[nParType]];
+				secondOrderStiffnessM = new MatrixXd[nParType];
+				minus_parInvMM_Ar = new MatrixXd[nParType];
+			}
+
 			/* compute metric independent DG operators for bulk and particles. Note that metric dependent DG operators are computet in updateRadialDisc(). */
 
 			for (int parType = 0; parType < nParType; parType++)

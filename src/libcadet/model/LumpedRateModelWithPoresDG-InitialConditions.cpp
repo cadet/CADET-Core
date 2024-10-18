@@ -700,7 +700,7 @@ namespace cadet
 
 					// Get iterators to beginning of solid phase
 					linalg::BandedEigenSparseRowIterator jacSolidOrig(_globalJac, idxr.offsetCp(ParticleTypeIndex{ static_cast<unsigned int>(type) }, ParticleIndex{ pblk }) - idxr.offsetC() + idxr.strideParLiquid());
-					linalg::BandedEigenSparseRowIterator jacSolid = jacPar - idxr.strideParBound(type);
+					linalg::BandedEigenSparseRowIterator jacSolid(_globalJacDisc, idxr.offsetCp(ParticleTypeIndex{ static_cast<unsigned int>(type) }, ParticleIndex{ pblk }) - idxr.offsetC() + idxr.strideParLiquid());
 
 					int const* const mask = _binding[type]->reactionQuasiStationarity();
 					double* const qShellDot = vecStateYdot + idxr.offsetCp(ParticleTypeIndex{ static_cast<unsigned int>(type) }, ParticleIndex{ pblk }) + idxr.strideParLiquid();
@@ -1107,7 +1107,7 @@ namespace cadet
 						{
 							// Get iterators to beginning of solid phase
 							linalg::BandedEigenSparseRowIterator jacSolidOrig(_globalJac, idxr.offsetCp(ParticleTypeIndex{ static_cast<unsigned int>(type) }, ParticleIndex{ pblk }) - idxr.offsetC() + idxr.strideParLiquid());
-							linalg::BandedEigenSparseRowIterator jacSolid = jacPar - idxr.strideParBound(type);
+							linalg::BandedEigenSparseRowIterator jacSolid(_globalJacDisc, idxr.offsetCp(ParticleTypeIndex{ static_cast<unsigned int>(type) }, ParticleIndex{ pblk }) - idxr.offsetC() + idxr.strideParLiquid());
 
 							int const* const mask = _binding[type]->reactionQuasiStationarity();
 							double* const qShellDot = sensYdot + idxr.offsetCp(ParticleTypeIndex{ static_cast<unsigned int>(type) }, ParticleIndex{ pblk }) + idxr.strideParLiquid();

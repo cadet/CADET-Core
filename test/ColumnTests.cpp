@@ -1681,10 +1681,10 @@ namespace column
 			unsigned int sensID = 0;
 			std::string sensParam = std::to_string(sensID);
 			sensParam = "param_" + std::string(3 - sensParam.length(), '0') + sensParam;
-			CAPTURE(sensParam);
 
 			while (pp_ref.exists(sensParam))
 			{
+				CAPTURE(sensParam);
 				pp_ref.pushScope(sensParam);
 				pp_ref.pushScope("unit_" + unitID);
 				const std::vector<double> ref_sens = pp_ref.getDoubleArray("SENS_OUTLET");
