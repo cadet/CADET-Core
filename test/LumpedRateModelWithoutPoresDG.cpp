@@ -164,13 +164,13 @@ TEST_CASE("LRM_DG inlet DOF Jacobian", "[LRM],[DG],[UnitOp],[Jacobian],[Inlet],[
 	cadet::test::column::testInletDofJacobian("LUMPED_RATE_MODEL_WITHOUT_PORES", "DG");
 }
 
-TEST_CASE("LRM_DG transport Jacobian", "[LRM],[FV],[UnitOp],[Jacobian],[CI]")
+TEST_CASE("LRM_DG transport Jacobian", "[LRM],[DG],[UnitOp],[Jacobian],[CI]")
 {
 	cadet::JsonParameterProvider jpp = createColumnLinearBenchmark(false, true, "LUMPED_RATE_MODEL_WITHOUT_PORES", "DG");
 	cadet::test::column::testJacobianAD(jpp, std::numeric_limits<float>::epsilon() * 100.0);
 }
 
-TEST_CASE("LRM_DG with two component linear binding Jacobian", "[LRM],[FV],[UnitOp],[Jacobian],[CI]")
+TEST_CASE("LRM_DG with two component linear binding Jacobian", "[LRM],[DG],[UnitOp],[Jacobian],[CI]")
 {
 	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding("LUMPED_RATE_MODEL_WITHOUT_PORES", "DG");
 	cadet::test::column::testJacobianAD(jpp, std::numeric_limits<float>::epsilon() * 100.0);
