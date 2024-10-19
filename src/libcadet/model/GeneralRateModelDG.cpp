@@ -55,7 +55,7 @@ constexpr double SurfVolRatioSlab = 1.0;
 
 
 GeneralRateModelDG::GeneralRateModelDG(UnitOpIdx unitOpIdx) : UnitOperationBase(unitOpIdx),
-	_hasSurfaceDiffusion(0, false), _dynReactionBulk(nullptr),
+	_hasSurfaceDiffusion(0, false), _singleParDepSurfDiffusion(false), _dynReactionBulk(nullptr),
 	_globalJac(), _globalJacDisc(), _jacInlet(), _hasParDepSurfDiffusion(false),
 	_analyticJac(true), _jacobianAdDirs(0), _factorizeJacobian(false), _tempState(nullptr),
 	_initC(0), _initCp(0), _initQ(0), _initState(0), _initStateDot(0)

@@ -341,11 +341,13 @@ protected:
 			delete[] parNodes;
 			delete[] parPolyDerM;
 			delete[] minus_InvMM_ST;
+			delete[] minus_parInvMM_Ar;
 			delete[] parInvWeights;
 			delete[] parInvMM;
 			delete[] parInvMM_Leg;
 			delete[] Ir;
 			delete[] Dr;
+			delete[] secondOrderStiffnessM;
 
 			delete[] DGjacParDispBlocks;
 
@@ -2547,16 +2549,19 @@ protected:
 		return 1;
 	}
 
-	int calcStaticAnaJacobian_GRM(unsigned int secIdx) {
-
+	int calcStaticAnaJacobian_GRM(unsigned int secIdx)
+	{
 		Indexer idxr(_disc);
 		// inlet and bulk jacobian
 		_convDispOp.calcStaticAnaJacobian(_globalJac, _jacInlet, idxr.offsetC());
 
-		// particle jacobian (without isotherm, which is handled in residualKernel)
-		for (int colNode = 0; colNode < _disc.nPoints; colNode++) {
-			for (int type = 0; type < _disc.nParType; type++) {
+		double* invBetaP = new double[_disc.nComp];
 
+		// particle jacobian (without isotherm, which is handled in residualKernel)
+		for (int colNode = 0; colNode < _disc.nPoints; colNode++)
+		{
+			for (int type = 0; type < _disc.nParType; type++)
+			{
 				// Prepare parameters
 				const active* const parDiff = getSectionDependentSlice(_parDiffusion, _disc.nComp * _disc.nParType, secIdx) + type * _disc.nComp;
 
@@ -2564,14 +2569,16 @@ protected:
 				// bnd0comp0, bnd0comp1, bnd0comp2, bnd1comp0, bnd1comp1, bnd1comp2
 				const active* const  parSurfDiff = getSectionDependentSlice(_parSurfDiffusion, _disc.strideBound[_disc.nParType], secIdx) + _disc.nBoundBeforeType[type];
 
-				double* invBetaP = new double[_disc.nComp];
-				for (int comp = 0; comp < _disc.nComp; comp++) {
+				for (int comp = 0; comp < _disc.nComp; comp++)
+				{
 					invBetaP[comp] = (1.0 - static_cast<double>(_parPorosity[type])) / (static_cast<double>(_poreAccessFactor[_disc.nComp * type + comp]) * static_cast<double>(_parPorosity[type]));
 				}
 
 				calcStaticAnaParticleDispJacobian(type, colNode, parDiff, parSurfDiff, invBetaP);
 			}
 		}
+
+		delete[] invBetaP;
 
 		calcFluxJacobians(secIdx);
 
