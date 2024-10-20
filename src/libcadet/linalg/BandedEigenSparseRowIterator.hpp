@@ -29,7 +29,7 @@ public:
 	/**
 	 * @brief Creates a ConstBandedSparseRowIterator pointing nowhere
 	 */
-	BandedEigenSparseRowIterator() : _matrix(nullptr), _values(nullptr), _colIdx(nullptr), _row(-1), _numNonZero(0), _dummy(0.0) { }
+	BandedEigenSparseRowIterator() : _matrix(nullptr), _values(nullptr), _colIdx(nullptr), _row(-1), _numNonZero(0), _dummy(0.0), _size(0) { }
 
 	/**
 	 * @brief Creates a BandedSparseRowIterator of the given matrix row
@@ -38,8 +38,12 @@ public:
 	 */
 	BandedEigenSparseRowIterator(Eigen::SparseMatrix<double, 0x1>& mat, int row)
 		: _matrix(&mat), _values(valuesOfRow(mat, row)), _colIdx(columnIndicesOfRow(mat, row)), _row(row),
-		_numNonZero(getInnerNumberOfNonZeros(mat, row)), _dummy(0.0)
+		_dummy(0.0), _size(mat.rows())
 	{
+		if (row < _size)
+			_numNonZero = getInnerNumberOfNonZeros(mat, row);
+		else
+			_numNonZero = 0;
 	}
 
 	~BandedEigenSparseRowIterator() CADET_NOEXCEPT { }
@@ -117,7 +121,7 @@ public:
 	 */
 	inline double& native(int col)
 	{
-		cadet_assert((col >= 0) && (col < _matrix->rows()));
+		cadet_assert((col >= 0) && (col < _size));
 
 		// Try to find the element
 		// TODO: Use binary search
@@ -156,29 +160,41 @@ public:
 
 	inline BandedEigenSparseRowIterator& operator++() CADET_NOEXCEPT
 	{
-		++_row;
-		updateOnRowChange();
+		if (_row + 1 < _size)
+		{
+			++_row;
+			updateOnRowChange();
+		}
 		return *this;
 	}
 
 	inline BandedEigenSparseRowIterator& operator--() CADET_NOEXCEPT
 	{
-		--_row;
-		updateOnRowChange();
+		if (_row - 1 > 0)
+		{
+			--_row;
+			updateOnRowChange();
+		}
 		return *this;
 	}
 
 	inline BandedEigenSparseRowIterator& operator+=(int idx) CADET_NOEXCEPT
 	{
-		_row += idx;
-		updateOnRowChange();
+		if (_row + idx < _size)
+		{
+			_row += idx;
+			updateOnRowChange();
+		}
 		return *this;
 	}
 
 	inline BandedEigenSparseRowIterator& operator-=(int idx) CADET_NOEXCEPT
 	{
-		_row -= idx;
-		updateOnRowChange();
+		if (_row - idx > 0)
+		{
+			_row -= idx;
+			updateOnRowChange();
+		}
 		return *this;
 	}
 
@@ -248,12 +264,13 @@ protected:
 		return mat.outerIndexPtr()[row + 1] - mat.outerIndexPtr()[row];
 	}
 
-	Eigen::SparseMatrix<double, 0x1>* _matrix;
-	double* _values;
-	int const* _colIdx;
-	int _row;
-	int _numNonZero;
-	double _dummy;
+	Eigen::SparseMatrix<double, 0x1>* _matrix; //<! Eigen library sparse matrix (should be square)
+	double* _values; //<! values of current row
+	int const* _colIdx; //<! column indices of entries in current row
+	int _row; //<! index of current row
+	int _numNonZero; //<! number of non-zeros in current row
+	double _dummy; //<! dummy value thats written to if entry is not found
+	int _size; //<! size (number of rows) of matrix
 };
 
 } // namespace linalg

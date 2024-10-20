@@ -62,12 +62,6 @@ LumpedRateModelWithPoresDG::~LumpedRateModelWithPoresDG() CADET_NOEXCEPT
 
 	delete _dynReactionBulk;
 
-	delete[] _disc.parTypeOffset;
-	delete[] _disc.nBound;
-	delete[] _disc.boundOffset;
-	delete[] _disc.strideBound;
-	delete[] _disc.nBoundBeforeType;
-
 	delete _linearSolver;
 }
 
@@ -100,6 +94,8 @@ bool LumpedRateModelWithPoresDG::usesAD() const CADET_NOEXCEPT
 
 bool LumpedRateModelWithPoresDG::configureModelDiscretization(IParameterProvider& paramProvider, const IConfigHelper& helper)
 {
+	const bool firstConfigCall = _tempState == nullptr; // used to not multiply allocate memory
+
 	// ==== Read discretization
 	_disc.nComp = paramProvider.getInt("NCOMP");
 
@@ -109,7 +105,10 @@ bool LumpedRateModelWithPoresDG::configureModelDiscretization(IParameterProvider
 
 	paramProvider.pushScope("discretization");
 
-	_linearSolver = cadet::linalg::setLinearSolver(paramProvider.exists("LINEAR_SOLVER") ? paramProvider.getString("LINEAR_SOLVER") : "SparseLU");
+	if (firstConfigCall)
+	{
+		_linearSolver = cadet::linalg::setLinearSolver(paramProvider.exists("LINEAR_SOLVER") ? paramProvider.getString("LINEAR_SOLVER") : "SparseLU");
+	}
 
 	if (!newNBoundInterface && paramProvider.exists("NBOUND")) // done here and in this order for backwards compatibility
 		nBound = paramProvider.getIntArray("NBOUND");
@@ -128,7 +127,8 @@ bool LumpedRateModelWithPoresDG::configureModelDiscretization(IParameterProvider
 	if (!newNPartypeInterface && paramProvider.exists("NPARTYPE")) // done here and in this order for backwards compatibility
 	{
 		_disc.nParType = paramProvider.getInt("NPARTYPE");
-		_disc.nBound = new unsigned int[_disc.nComp * _disc.nParType];
+		if (firstConfigCall)
+			_disc.nBound = new unsigned int[_disc.nComp * _disc.nParType];
 		if (nBound.size() < _disc.nComp * _disc.nParType)
 		{
 			// Multiplex number of bound states to all particle types
@@ -142,7 +142,8 @@ bool LumpedRateModelWithPoresDG::configureModelDiscretization(IParameterProvider
 	{
 		paramProvider.popScope();
 		_disc.nParType = paramProvider.getInt("NPARTYPE");
-		_disc.nBound = new unsigned int[_disc.nComp * _disc.nParType];
+		if (firstConfigCall)
+			_disc.nBound = new unsigned int[_disc.nComp * _disc.nParType];
 		if (nBound.size() < _disc.nComp * _disc.nParType)
 		{
 			// Multiplex number of bound states to all particle types
@@ -157,7 +158,8 @@ bool LumpedRateModelWithPoresDG::configureModelDiscretization(IParameterProvider
 	{
 		// Infer number of particle types
 		_disc.nParType = nBound.size() / _disc.nComp;
-		_disc.nBound = new unsigned int[_disc.nComp * _disc.nParType];
+		if (firstConfigCall)
+			_disc.nBound = new unsigned int[_disc.nComp * _disc.nParType];
 		std::copy_n(nBound.begin(), _disc.nComp * _disc.nParType, _disc.nBound);
 	}
 
@@ -192,7 +194,8 @@ bool LumpedRateModelWithPoresDG::configureModelDiscretization(IParameterProvider
 	if (paramProvider.exists("NPARTYPE"))
 	{
 		_disc.nParType = paramProvider.getInt("NPARTYPE");
-		_disc.nBound = new unsigned int[_disc.nComp * _disc.nParType];
+		if (firstConfigCall)
+			_disc.nBound = new unsigned int[_disc.nComp * _disc.nParType];
 		if (nBound.size() < _disc.nComp * _disc.nParType)
 		{
 			// Multiplex number of bound states to all particle types
@@ -206,7 +209,8 @@ bool LumpedRateModelWithPoresDG::configureModelDiscretization(IParameterProvider
 	{
 		// Infer number of particle types
 		_disc.nParType = nBound.size() / _disc.nComp;
-		_disc.nBound = new unsigned int[_disc.nComp * _disc.nParType];
+		if (firstConfigCall)
+			_disc.nBound = new unsigned int[_disc.nComp * _disc.nParType];
 		std::copy_n(nBound.begin(), _disc.nComp * _disc.nParType, _disc.nBound);
 	}
 
@@ -214,9 +218,12 @@ bool LumpedRateModelWithPoresDG::configureModelDiscretization(IParameterProvider
 	const unsigned int nTotalBound = std::accumulate(_disc.nBound, _disc.nBound + _disc.nComp * _disc.nParType, 0u);
 
 	// Precompute offsets and total number of bound states (DOFs in solid phase)
-	_disc.boundOffset = new unsigned int[_disc.nComp * _disc.nParType];
-	_disc.strideBound = new unsigned int[_disc.nParType + 1];
-	_disc.nBoundBeforeType = new unsigned int[_disc.nParType];
+	if (firstConfigCall)
+	{
+		_disc.boundOffset = new unsigned int[_disc.nComp * _disc.nParType];
+		_disc.strideBound = new unsigned int[_disc.nParType + 1];
+		_disc.nBoundBeforeType = new unsigned int[_disc.nParType];
+	}
 	_disc.strideBound[_disc.nParType] = nTotalBound;
 	_disc.nBoundBeforeType[0] = 0;
 	for (unsigned int j = 0; j < _disc.nParType; ++j)
@@ -236,7 +243,8 @@ bool LumpedRateModelWithPoresDG::configureModelDiscretization(IParameterProvider
 	}
 
 	// Precompute offsets of particle type DOFs
-	_disc.parTypeOffset = new unsigned int[_disc.nParType + 1];
+	if (firstConfigCall)
+		_disc.parTypeOffset = new unsigned int[_disc.nParType + 1];
 	_disc.parTypeOffset[0] = 0;
 	for (unsigned int j = 1; j < _disc.nParType + 1; ++j)
 	{
@@ -399,7 +407,8 @@ bool LumpedRateModelWithPoresDG::configureModelDiscretization(IParameterProvider
 	}
 
 	// Setup the memory for tempState based on state vector
-	_tempState = new double[numDofs()];
+	if (firstConfigCall)
+		_tempState = new double[numDofs()];
 
 	// Allocate Jacobian memory, set and analyze pattern
 	if (_disc.exactInt)

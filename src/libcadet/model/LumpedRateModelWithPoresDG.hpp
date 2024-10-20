@@ -252,6 +252,14 @@ protected:
 		bool curSection; //!< current section index
 		bool newStaticJac; //!< determines wether static analytical jacobian needs to be computed (every section)
 
+		~Discretization() // make sure this memory is freed correctly
+		{
+			delete[] parTypeOffset;
+			delete[] nBound;
+			delete[] boundOffset;
+			delete[] strideBound;
+			delete[] nBoundBeforeType;
+		}
 	};
 
 	Discretization _disc; //!< Discretization info
