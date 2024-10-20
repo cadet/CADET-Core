@@ -368,6 +368,8 @@ bool LumpedRateModelWithPoresDG2D::usesAD() const CADET_NOEXCEPT
 
 bool LumpedRateModelWithPoresDG2D::configureModelDiscretization(IParameterProvider& paramProvider, const IConfigHelper& helper)
 {
+	const bool firstConfig = _tempState == nullptr; // used to avoid multiply allocation
+
 	// ==== Read discretization
 	_disc.nComp = paramProvider.getInt("NCOMP");
 
@@ -382,6 +384,7 @@ bool LumpedRateModelWithPoresDG2D::configureModelDiscretization(IParameterProvid
 	if (paramProvider.exists("NPARTYPE"))
 	{
 		_disc.nParType = paramProvider.getInt("NPARTYPE");
+		if (firstConfig)
 		_disc.nBound = new unsigned int[_disc.nComp * _disc.nParType];
 		if (nBound.size() < _disc.nComp * _disc.nParType)
 		{
@@ -396,6 +399,7 @@ bool LumpedRateModelWithPoresDG2D::configureModelDiscretization(IParameterProvid
 	{
 		// Infer number of particle types
 		_disc.nParType = nBound.size() / _disc.nComp;
+		if (firstConfig)
 		_disc.nBound = new unsigned int[_disc.nComp * _disc.nParType];
 		std::copy_n(nBound.begin(), _disc.nComp * _disc.nParType, _disc.nBound);
 	}
@@ -404,9 +408,12 @@ bool LumpedRateModelWithPoresDG2D::configureModelDiscretization(IParameterProvid
 	const unsigned int nTotalBound = std::accumulate(_disc.nBound, _disc.nBound + _disc.nComp * _disc.nParType, 0u);
 
 	// Precompute offsets and total number of bound states (DOFs in solid phase)
+	if (firstConfig)
+	{
 	_disc.boundOffset = new unsigned int[_disc.nComp * _disc.nParType];
 	_disc.strideBound = new unsigned int[_disc.nParType + 1];
 	_disc.nBoundBeforeType = new unsigned int[_disc.nParType];
+	}
 	_disc.strideBound[_disc.nParType] = nTotalBound;
 	_disc.nBoundBeforeType[0] = 0;
 	for (unsigned int j = 0; j < _disc.nParType; ++j)
@@ -448,6 +455,7 @@ bool LumpedRateModelWithPoresDG2D::configureModelDiscretization(IParameterProvid
 	_disc.nBulkPoints = _disc.axNPoints * _disc.radNPoints;
 
 	// Precompute offsets of particle type DOFs
+	if (firstConfig)
 	_disc.parTypeOffset = new unsigned int[_disc.nParType + 1];
 	_disc.parTypeOffset[0] = 0;
 	for (unsigned int j = 1; j < _disc.nParType + 1; ++j)
@@ -564,6 +572,7 @@ bool LumpedRateModelWithPoresDG2D::configureModelDiscretization(IParameterProvid
 	}
 
 	// Setup the memory for tempState based on state vector
+	if (firstConfig)
 	_tempState = new double[numDofs()];
 
 	// Allocate Jacobian memory; pattern will be set and analyzed in configure()
