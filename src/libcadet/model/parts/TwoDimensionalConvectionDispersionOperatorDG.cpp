@@ -548,6 +548,8 @@ void TwoDimensionalConvectionDispersionOperatorDG::writeRadialCoordinates(double
 
 void TwoDimensionalConvectionDispersionOperatorDG::initializeDG()
 {
+	const bool firstConfig = _jacConvection == nullptr; // used to avoid multiply allocation
+
 	_axInvWeights = VectorXd::Zero(_axNNodes);
 	_axNodes = VectorXd::Zero(_axNNodes);
 	_radInvWeights = VectorXd::Zero(_radNNodes);
@@ -585,19 +587,22 @@ void TwoDimensionalConvectionDispersionOperatorDG::initializeDG()
 	VectorXd radBaryWeights = dgtoolbox::barycentricWeights(_quadratureOrder, _qNodes);
 	_radInterpolationM = dgtoolbox::polynomialInterpolationMatrix(_qNodes, _radNodes, radBaryWeights);
 
-	_transMrCyl = new MatrixXd[_radNElem];
-	_invTransMrCyl = new MatrixXd[_radNElem];
-	_transTildeMr = new MatrixXd[_radNElem];
-	_transTildeMrDash = new MatrixXd[_radNElem];
-	_transTildeSrDash = new MatrixXd[_radNElem];
-	_SrCyl = new MatrixXd[_radNElem];
-	_radLiftMCyl = new MatrixXd[_radNElem];
-
-	// Jacobian blocks
 	const int uAxElem = std::min(5, static_cast<int>(_axNElem)); // number of unique axial Jacobian blocks (per radial element)
-	_jacConvection = new MatrixXd[_radNElem];
-	_jacAxDispersion = new MatrixXd[_radNElem * uAxElem];
-	_jacRadDispersion = new MatrixXd[_radNElem];
+
+	if (firstConfig)
+	{
+		_transMrCyl = new MatrixXd[_radNElem];
+		_invTransMrCyl = new MatrixXd[_radNElem];
+		_transTildeMr = new MatrixXd[_radNElem];
+		_transTildeMrDash = new MatrixXd[_radNElem];
+		_transTildeSrDash = new MatrixXd[_radNElem];
+		_SrCyl = new MatrixXd[_radNElem];
+		_radLiftMCyl = new MatrixXd[_radNElem];
+		// Jacobian blocks
+		_jacConvection = new MatrixXd[_radNElem];
+		_jacAxDispersion = new MatrixXd[_radNElem * uAxElem];
+		_jacRadDispersion = new MatrixXd[_radNElem];
+	}
 
 	for (int rElem = 0; rElem < _radNElem; rElem++)
 	{
@@ -1524,6 +1529,9 @@ bool TwoDimensionalConvectionDispersionOperatorDG::computeConvDispJacobianBlocks
 
 		gStarR.setZero();
 	}
+
+	delete[] GrDer;
+	delete[] GzDer;
 
 	return 1;
 }
