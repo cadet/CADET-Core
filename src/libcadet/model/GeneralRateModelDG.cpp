@@ -2153,13 +2153,8 @@ void GeneralRateModelDG::updateRadialDisc()
 	{
 		for (int cell = 0; cell < _disc.nParCell[parType]; cell++)
 		{
-			_disc.Ir[_disc.offsetMetric[parType] + cell] = Vector<active, Dynamic>::Zero(_disc.nParNode[parType]);
-
 			for (int node = 0; node < _disc.nParNode[parType]; node++)
 				_disc.Ir[_disc.offsetMetric[parType] + cell][node] = _disc.deltaR[_disc.offsetMetric[parType] + cell] / 2.0 * (_disc.parNodes[parType][node] + 1.0);
-
-			_disc.Dr[_disc.offsetMetric[parType] + cell].resize(_disc.nParNode[parType], _disc.nParNode[parType]);
-			_disc.Dr[_disc.offsetMetric[parType] + cell].setZero();
 
 			active r_L = _parCoreRadius[parType] + cell * _disc.deltaR[_disc.offsetMetric[parType] + cell]; // left boundary of current cell
 
@@ -2168,7 +2163,7 @@ void GeneralRateModelDG::updateRadialDisc()
 			if (_parGeomSurfToVol[parType] == SurfVolRatioSphere)
 				_disc.Ir[_disc.offsetMetric[parType] + cell] = _disc.Ir[_disc.offsetMetric[parType] + cell].array().square();
 			else if (_parGeomSurfToVol[parType] == SurfVolRatioSlab)
-				_disc.Ir[_disc.offsetMetric[parType] + cell] = Vector<active, Dynamic>::Ones(_disc.nParNode[parType]); // no metrics for slab
+				_disc.Ir[_disc.offsetMetric[parType] + cell].setOnes(); // no metric terms for slab
 
 			// (D_r)_{i, j} = D_{i, j} * (r_j / r_i) [only needed for inexact integration]
 			_disc.Dr[_disc.offsetMetric[parType] + cell] = _disc.parPolyDerM[parType];

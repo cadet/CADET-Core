@@ -248,42 +248,40 @@ TEST_CASE("GRM_DG with two component linear binding Jacobian", "[GRM],[DG],[Unit
 	cadet::test::column::testJacobianAD(jpp, std::numeric_limits<float>::epsilon() * 100.0);
 }
 
-//// todo fix cant load library with debug info
-//TEST_CASE("GRM_DG LWE one vs two identical particle types match", "[GRM],[DG],[Simulation],[ParticleType],[todo]")
-//{
-//	cadet::test::particle::testOneVsTwoIdenticalParticleTypes("GENERAL_RATE_MODEL", "DG", 2e-8, 5e-5);
-//}
+TEST_CASE("GRM_DG LWE one vs two identical particle types match", "[GRM],[DG],[Simulation],[ParticleType],[CI]")
+{
+	cadet::test::particle::testOneVsTwoIdenticalParticleTypes("GENERAL_RATE_MODEL", "DG", 2e-8, 5e-5);
+}
 
-//// todo fix cant load library with debug info in all of the following tests
-//TEST_CASE("GRM_DG LWE separate identical particle types match", "[GRM],[DG],[Simulation],[ParticleType],[todo]")
-//{
-//	cadet::test::particle::testSeparateIdenticalParticleTypes("GENERAL_RATE_MODEL", "DG", 1e-15, 1e-15);
-//}
-//
-//TEST_CASE("GRM_DG linear binding single particle matches particle distribution", "[GRM],[DG],[Simulation],[ParticleType],[todo]")
-//{
-//	cadet::test::particle::testLinearMixedParticleTypes("GENERAL_RATE_MODEL", "DG", 5e-8, 5e-5);
-//}
-//
-//TEST_CASE("GRM_DG multiple particle types Jacobian analytic vs AD", "[GRM],[DG],[Jacobian],[AD],[ParticleType],[todo]")
-//{
-//	cadet::test::particle::testJacobianMixedParticleTypes("GENERAL_RATE_MODEL", "DG");
-//}
-//
-//TEST_CASE("GRM_DG multiple particle types time derivative Jacobian vs FD", "[GRM],[DG],[UnitOp],[Residual],[Jacobian],[ParticleType],[todo]")
-//{
-//	cadet::test::particle::testTimeDerivativeJacobianMixedParticleTypesFD("GENERAL_RATE_MODEL", "DG", 1e-6, 0.0, 9e-4);
-//}
-//
-//TEST_CASE("GRM_DG multiple spatially dependent particle types Jacobian analytic vs AD", "[GRM],[DG],[Jacobian],[AD],[ParticleType],[todo]")
-//{
-//	cadet::test::particle::testJacobianSpatiallyMixedParticleTypes("GENERAL_RATE_MODEL", "DG");
-//}
-//
-//TEST_CASE("GRM_DG linear binding single particle matches spatially dependent particle distribution", "[GRM],[DG],[Simulation],[ParticleType],[todo]")
-//{
-//	cadet::test::particle::testLinearSpatiallyMixedParticleTypes("GENERAL_RATE_MODEL", "DG", 5e-8, 5e-5);
-//}
+TEST_CASE("GRM_DG LWE separate identical particle types match", "[GRM],[DG],[Simulation],[ParticleType],[CI]")
+{
+	cadet::test::particle::testSeparateIdenticalParticleTypes("GENERAL_RATE_MODEL", "DG", 2e-8, 5e-5);
+}
+
+TEST_CASE("GRM_DG linear binding single particle matches particle distribution", "[GRM],[DG],[Simulation],[ParticleType],[CI]")
+{
+	cadet::test::particle::testLinearMixedParticleTypes("GENERAL_RATE_MODEL", "DG", 5e-8, 5e-5);
+}
+
+TEST_CASE("GRM_DG multiple particle types Jacobian analytic vs AD", "[GRM],[DG],[Jacobian],[AD],[ParticleType],[CI]")
+{
+	cadet::test::particle::testJacobianMixedParticleTypes("GENERAL_RATE_MODEL", "DG");
+}
+
+TEST_CASE("GRM_DG multiple particle types time derivative Jacobian vs FD", "[GRM],[DG],[UnitOp],[Residual],[Jacobian],[ParticleType],[CI]")
+{
+	cadet::test::particle::testTimeDerivativeJacobianMixedParticleTypesFD("GENERAL_RATE_MODEL", "DG", 1e-6, 0.0, 9e-4);
+}
+
+TEST_CASE("GRM_DG multiple spatially dependent particle types Jacobian analytic vs AD", "[GRM],[DG],[Jacobian],[AD],[ParticleType],[CI]")
+{
+	cadet::test::particle::testJacobianSpatiallyMixedParticleTypes("GENERAL_RATE_MODEL", "DG", 1e-11);
+}
+
+TEST_CASE("GRM_DG linear binding single particle matches spatially dependent particle distribution", "[GRM],[DG],[Simulation],[ParticleType],[CI]")
+{
+	cadet::test::particle::testLinearSpatiallyMixedParticleTypes("GENERAL_RATE_MODEL", "DG", 5e-8, 5e-5);
+}
 
 TEST_CASE("GRM_DG dynamic reactions Jacobian vs AD bulk", "[GRM],[DG],[Jacobian],[AD],[ReactionModel],[CI]")
 {
