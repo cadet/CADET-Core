@@ -405,13 +405,23 @@ protected:
 
 			offsetMetric = VectorXi::Zero(nParType + 1);
 			for (int parType = 1; parType <= nParType; parType++) {
-				offsetMetric[parType] += nParCell[parType - 1];
+				offsetMetric[parType] = offsetMetric[parType - 1] + nParCell[parType - 1];
 			}
 
 			if (firstConfigCall)
 			{
 				Dr = new MatrixXd[offsetMetric[nParType]];
 				Ir = new Vector<active, Dynamic>[offsetMetric[nParType]];
+				for (int parType = 0; parType < nParType; parType++)
+				{
+					for (int cell = 0; cell < nParCell[parType]; cell++)
+					{
+						Ir[offsetMetric[parType] + cell].resize(nParNode[parType]);
+						Ir[offsetMetric[parType] + cell].setZero();
+						Dr[offsetMetric[parType] + cell].resize(nParNode[parType], nParNode[parType]);
+						Dr[offsetMetric[parType] + cell].setZero();
+					}
+				}
 				minus_InvMM_ST = new MatrixXd[offsetMetric[nParType]];
 				parInvMM = new MatrixXd[offsetMetric[nParType]];
 				secondOrderStiffnessM = new MatrixXd[nParType];
