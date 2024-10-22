@@ -832,6 +832,8 @@ namespace column
 
 	void testJacobianAD(cadet::JsonParameterProvider& jpp, const double absTolFDpattern)
 	{
+		cadet::ad::setDirections(cadet::ad::getMaxDirections()); // AD directions needed in createAndConfigureUnit but requiredADdirs not know before configureModelDiscretization (which is called in configureUnit)
+
 		cadet::IModelBuilder* const mb = cadet::createModelBuilder();
 		REQUIRE(nullptr != mb);
 
@@ -889,6 +891,9 @@ namespace column
 
 	void testJacobianForwardBackward(cadet::JsonParameterProvider& jpp, const double absTolFDpattern)
 	{
+		// Enable AD
+		cadet::ad::setDirections(cadet::ad::getMaxDirections()); // AD directions needed in createAndConfigureUnit but requiredADdirs not know before configureModelDiscretization (which is called in configureUnit)
+
 		cadet::IModelBuilder* const mb = cadet::createModelBuilder();
 		REQUIRE(nullptr != mb);
 
@@ -897,9 +902,6 @@ namespace column
 
 		cadet::IUnitOperation* const unitAna = unitoperation::createAndConfigureUnit(jpp, *mb);
 		cadet::IUnitOperation* const unitAD = unitoperation::createAndConfigureUnit(jpp, *mb);
-
-		// Enable AD
-		cadet::ad::setDirections(cadet::ad::getMaxDirections());
 		unitAD->useAnalyticJacobian(false);
 
 		cadet::active* adRes = new cadet::active[unitAD->numDofs()];
@@ -1223,10 +1225,10 @@ namespace column
 			{
 				if (hasBinding)
 					cadet::test::setBindingMode(jpp, isKinetic);
+				cadet::ad::setDirections(cadet::ad::getMaxDirections()); // AD directions already needed in createAndConfigureUnit
 				cadet::IUnitOperation* const unit = createAndConfigureUnit(*mb, jpp);
 
 				// Enable AD
-				cadet::ad::setDirections(cadet::ad::getMaxDirections());
 				cadet::active* adRes = new cadet::active[unit->numDofs()];
 				const AdJacobianParams adParams{adRes, nullptr, 0};
 				unit->prepareADvectors(adParams);
@@ -1495,6 +1497,8 @@ namespace column
 					// Use some test case parameters
 					cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding(uoType, spatialMethod);
 					cadet::test::setBindingMode(jpp, isKinetic);
+					if (adEnabled)
+						cadet::ad::setDirections(cadet::ad::getMaxDirections());
 					cadet::IUnitOperation* const unit = createAndConfigureUnit(*mb, jpp);
 
 					// Fill state vector with given initial values
@@ -1530,6 +1534,8 @@ namespace column
 					// Use some test case parameters
 					cadet::JsonParameterProvider jpp = createColumnWithSMA(uoType, spatialMethod);
 					cadet::test::setBindingMode(jpp, isKinetic);
+					if (adEnabled)
+						cadet::ad::setDirections(cadet::ad::getMaxDirections());
 					cadet::IUnitOperation* const unit = createAndConfigureUnit(*mb, jpp);
 
 					// Fill state vector with given initial values
@@ -1564,6 +1570,8 @@ namespace column
 					// Use some test case parameters
 					cadet::JsonParameterProvider jpp = linearBinding ? createColumnWithTwoCompLinearBinding(uoType, spatialMethod) : createColumnWithSMA(uoType, spatialMethod);
 					cadet::test::setBindingMode(jpp, isKinetic);
+					if (adEnabled)
+						cadet::ad::setDirections(cadet::ad::getMaxDirections()); // needed in configure() of DG unit operations
 					cadet::IUnitOperation* const unit = createAndConfigureUnit(*mb, jpp);
 
 					unit->setSensitiveParameter(cadet::makeParamId("INIT_C", 0, 0, cadet::ParTypeIndep, cadet::BoundStateIndep, cadet::ReactionIndep, cadet::SectionIndep), 0, 1.0);
@@ -1596,6 +1604,8 @@ namespace column
 			{
 				// Use some test case parameters
 				cadet::JsonParameterProvider jpp = createColumnWithSMA(uoType, spatialMethod);
+				if (adEnabled)
+					cadet::ad::setDirections(cadet::ad::getMaxDirections());
 				cadet::IUnitOperation* const unit = createAndConfigureUnit(*mb, jpp);
 
 				unitoperation::testInletDofJacobian(unit, adEnabled);

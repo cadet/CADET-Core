@@ -582,6 +582,7 @@ namespace
 
 TEST_CASE("ModelSystem Jacobian AD vs analytic", "[ModelSystem],[Jacobian],[AD]")
 {
+	cadet::ad::setDirections(cadet::ad::getMaxDirections());
 	cadet::IModelBuilder* const mb = cadet::createModelBuilder();
 	REQUIRE(nullptr != mb);
 
@@ -625,7 +626,6 @@ TEST_CASE("ModelSystem Jacobian AD vs analytic", "[ModelSystem],[Jacobian],[AD]"
 			delete[] secContArray;
 
 			// Enable AD
-			cadet::ad::setDirections(cadet::ad::getMaxDirections());
 			for (unsigned int i = 0; i < sysAD->numModels(); ++i)
 				sysAD->getUnitOperationModel(i)->useAnalyticJacobian(false);
 
@@ -759,6 +759,8 @@ TEST_CASE("ModelSystem sensitivity Jacobians", "[ModelSystem],[Sensitivity]")
 	const double absTol = 5e-8;
 	const double relTol = 5e-6; // std::numeric_limits<float>::epsilon() * 100.0;
 
+	cadet::ad::setDirections(cadet::ad::getMaxDirections());
+
 	cadet::IModelBuilder* const mb = cadet::createModelBuilder();
 	REQUIRE(nullptr != mb);
 
@@ -796,7 +798,6 @@ TEST_CASE("ModelSystem sensitivity Jacobians", "[ModelSystem],[Sensitivity]")
 			delete[] secContArray;
 
 			// Enable AD
-			cadet::ad::setDirections(cadet::ad::getMaxDirections());
 			cadet::active* adRes = new cadet::active[sys->numDofs()];
 			sys->prepareADvectors(cadet::AdJacobianParams{adRes, nullptr, 0});
 
