@@ -64,14 +64,14 @@ namespace unitoperation
 
 	void testJacobianAD(cadet::JsonParameterProvider& jpp, const double absTolFDpattern)
 	{
+		// Enable AD
+		cadet::ad::setDirections(cadet::ad::getMaxDirections());
+
 		cadet::IModelBuilder* const mb = cadet::createModelBuilder();
 		REQUIRE(nullptr != mb);
 
 		cadet::IUnitOperation* const unitAna = createAndConfigureUnit(jpp, *mb);
 		cadet::IUnitOperation* const unitAD = createAndConfigureUnit(jpp, *mb);
-
-		// Enable AD
-		cadet::ad::setDirections(cadet::ad::getMaxDirections());
 		unitAD->useAnalyticJacobian(false);
 
 		cadet::active* adRes = new cadet::active[unitAD->numDofs()];
