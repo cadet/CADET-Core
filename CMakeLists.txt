@@ -67,7 +67,7 @@ message(STATUS "Current git HEAD: ${GIT_REFSPEC} SHA1 ${GIT_SHA1}")
 project(CadetFramework
 	VERSION ${CADET_VERSION}
 	DESCRIPTION "Liquid column chromatography simulator"
-	HOMEPAGE_URL "https://github.com/modsim/CADET"
+	HOMEPAGE_URL "https://github.com/cadet/cadet-core"
 	LANGUAGES CXX C)
 
 # Always use '-fPIC'/'-fPIE' option

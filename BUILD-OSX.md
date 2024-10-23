@@ -36,7 +36,7 @@ or install the freely available [Intel MKL](https://software.intel.com/sites/cam
 
 ## Build CADET
 
-- Clone the CADET source code `git clone https://github.com/modsim/CADET.git CADET`
+- Clone the CADET source code `git clone https://github.com/cadet/cadet-core.git CADET`
 - Create the directories `CADET/build` and `CADET/install`
 
 * If using Intel MKL, execute `export MKLROOT=/opt/intel/mkl`

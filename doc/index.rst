@@ -4,11 +4,11 @@
 
 |
 
-.. image:: https://img.shields.io/github/release/modsim/cadet.svg
-   :target: https://github.com/modsim/CADET/releases
+.. image:: https://img.shields.io/github/release/cadet/cadet-core.svg
+   :target: https://github.com/cadet/cadet-core/releases
 
-.. image:: https://github.com/modsim/CADET/actions/workflows/ci.yml/badge.svg?branch=master
-   :target: https://github.com/modsim/CADET/actions/workflows/ci.yml?query=branch%3Amaster
+.. image:: https://github.com/cadet/cadet-core/actions/workflows/ci.yml/badge.svg?branch=master
+   :target: https://github.com/cadet/cadet-core/actions/workflows/ci.yml?query=branch%3Amaster
 
 .. image:: https://anaconda.org/conda-forge/cadet/badges/downloads.svg
    :target: https://anaconda.org/conda-forge/cadet
@@ -27,7 +27,7 @@ CADET can handle arbitrary sequences and networks of unit operations, including 
 The resulting models are solved with state-of-the-art mathematical algorithms and scientific computing techniques.
 
 - **Forum:** https://forum.cadet-web.de
-- **Source:** https://github.com/modsim/cadet
+- **Source:** https://github.com/cadet/cadet-core
 - **Demo:** http://cadet-web.de
 - **Newsletter:** https://cadet-web.de/newsletter/
 
@@ -68,7 +68,7 @@ For non-developers, it is recommended to upgrade from release to release instead
 Bugs
 ----
 
-Please report any bugs that you find `here <https://github.com/modsim/cadet/issues>`_. Or, even better, fork the repository on `GitHub <https://github.com/modsim/cadet>`_ and create a pull request (PR) with the fix. 
+Please report any bugs that you find `here <https://github.com/cadet/cadet-core/issues>`_. Or, even better, fork the repository on `GitHub <https://github.com/cadet/cadet-core>`_ and create a pull request (PR) with the fix. 
 
 Donations
 ---------
@@ -79,8 +79,6 @@ Donations
 Citing
 ------
 
-Citing
-------------
 The development of CADET has been a collaborative effort, with multiple dedicated individuals contributing their expertise to create a powerful and versatile open-source software tool.
 Countless hours of hard work have been invested to provide the scientific community with a valuable resource.
 As an open-source project, CADET relies on the support and recognition from users and researchers to thrive.
@@ -107,7 +105,7 @@ Selected applications that demonstrate the capabilities and use-cases of CADET a
 Acknowledgments
 ---------------
 
-Please refer to the `list of contributors <https://github.com/modsim/CADET/blob/master/CONTRIBUTORS.md>`_ who helped building and funding this project.
+Please refer to the `list of contributors <https://github.com/cadet/cadet-core/blob/master/CONTRIBUTORS.md>`_ who helped building and funding this project.
 
 
 .. toctree::
