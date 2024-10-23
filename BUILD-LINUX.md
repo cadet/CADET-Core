@@ -43,7 +43,7 @@ sudo apt -y install liblapack3 liblapack-dev libblas3 libblas-dev
 
 ## Build CADET
 
-- Clone the CADET source code `git clone https://github.com/modsim/CADET.git CADET`
+- Clone the CADET source code `git clone https://github.com/cadet/cadet-core.git CADET`
 - Create the directories `CADET/build` and `CADET/install`
 
 - Open a terminal and change to `CADET/build`

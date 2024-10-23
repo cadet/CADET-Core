@@ -40,7 +40,7 @@ You warrant, that you are legitimated to license the Contribution to us.
 
 # Acceptance of the CLA
 
-By submitting your Contribution via the [Repository](https://github.com/modsim/CADET) you accept this agreement.
+By submitting your Contribution via the [Repository](https://github.com/cadet/cadet-core) you accept this agreement.
 
 
 # Liability

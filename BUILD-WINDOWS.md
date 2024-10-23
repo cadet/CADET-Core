@@ -47,7 +47,7 @@ We are using Visual Studio because it is the easiest way to install all required
 ## Prepare CADET code
 
 - Clone the CADET source code into a `CADET` folder: 
-  - `git clone https://github.com/modsim/CADET.git CADET`
+  - `git clone https://github.com/cadet/cadet-core.git CADET`
 - Create the directories `CADET\build` and `CADET\install`
 
 ## Build CADET in Visual Studio
