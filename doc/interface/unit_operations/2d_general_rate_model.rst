@@ -284,9 +284,9 @@ For information on model equations, refer to :ref:`2d_general_rate_model_model`.
 
    **Unit:** :math:`\mathrm{m}_{\mathrm{MP}}^{2}\,\mathrm{s}^{-1}`
 
-   ================  =========================  ========================================================
-   **Type:** double  **Range:** :math:`\geq 0`  **Length:** see :math:`\texttt{PAR_DIFFUSION_MULTIPLEX}`
-   ================  =========================  ========================================================
+   ================  ======================  ========================================================
+   **Type:** double  **Range:** :math:`> 0`  **Length:** see :math:`\texttt{PAR_DIFFUSION_MULTIPLEX}`
+   ================  ======================  ========================================================
    
 ``PAR_DIFFUSION_MULTIPLEX``
 
