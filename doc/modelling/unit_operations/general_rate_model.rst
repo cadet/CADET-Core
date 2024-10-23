@@ -72,7 +72,7 @@ Consider a column of length :math:`L>0` filled with spherical beads of (possibly
         &+ f_{\text{react},i}^\ell\left(c^\ell\right). 
     \end{aligned}
 
-Here, :math:`c^\ell_i\colon \left[0, T_{\text{end}}\right] \times [0, L] \rightarrow \mathbb{R}^{\geq 0}` denotes the concentration in the interstitial column volume, :math:`c^p_{j,i}\colon \left[0, T_{\text{end}}\right] \times [0, L] \times [r_{c,j}, r_{p,j}] \rightarrow \mathbb{R}^{\geq 0}` the liquid phase concentration in the beads, :math:`k_{f,j,i}` the film diffusion coefficient, :math:`D_{\text{ax},i}` the dispersion coefficient, :math:`u` the interstitial velocity, :math:`d_j` the volume fraction of particle type :math:`j`, and :math:`\beta_c = \varepsilon_c / (1 - \varepsilon_c)` the column phase ratio, where :math:`\varepsilon_c` is the column porosity (ratio of interstitial volume to total column volume).
+Here, :math:`c^\ell_i\colon \left[0, T_{\text{end}}\right] \times [0, L] \rightarrow \mathbb{R}^{\geq 0}` denotes the concentration in the interstitial column volume, :math:`c^p_{j,i}\colon \left[0, T_{\text{end}}\right] \times [0, L] \times [r_{c,j}, r_{p,j}] \rightarrow \mathbb{R}^{\geq 0}` the liquid phase concentration in the beads, :math:`k_{f,j,i}\geq 0` the film diffusion coefficient, :math:`D_{\text{ax},i}\geq 0` the dispersion coefficient, :math:`u\in\mathbb{R}` the interstitial velocity, :math:`d_j > 0` the volume fraction of particle type :math:`j`, and :math:`\frac{1}{\beta_c} = (1 - \varepsilon_c) / \varepsilon_c` the column phase ratio, where :math:`\varepsilon_c\in (0,1]` is the column porosity (ratio of interstitial volume to total column volume).
 If reactions are considered, the term :math:`f_{\text{react},i}^\ell\left(c^\ell\right)` represents the net change of concentration :math:`c_i` due to reactions involving component :math:`i`.
 
 Danckwerts boundary conditions :cite:`Danckwerts1953` are applied to inlet and outlet of the column:
@@ -106,7 +106,7 @@ In the liquid phase of the porous beads (see :numref:`ModelGRMColumn`) the mass 
     \end{aligned}
 
 
-where :math:`c^s_{j,i,m_{j,i}}\colon \left[0, T_{\text{end}}\right] \times [0,L] \times [r_{c,j}, r_{p,j}] \rightarrow \mathbb{R}^{\geq 0}` denotes the solid phase concentration of the :math:`i`\ th component’s :math:`m_{j,i}`\ th bound state in the beads of :math:`j`\ th type, :math:`D_{p,j,i}` the effective diffusion coefficient in the beads, :math:`D_{s,j,i}` the surface diffusion coefficient, :math:`F_{\text{acc},j,i} \in [0,1]` the pore accessibility factor, and :math:`\varepsilon_{p,j}` the particle porosity (ratio of pore volume to total bead volume).
+where :math:`c^s_{j,i,m_{j,i}}\colon \left[0, T_{\text{end}}\right] \times [0,L] \times [r_{c,j}, r_{p,j}] \rightarrow \mathbb{R}^{\geq 0}` denotes the solid phase concentration of the :math:`i`\ th component’s :math:`m_{j,i}`\ th bound state in the beads of :math:`j`\ th type, :math:`D_{p,j,i}>0` the effective diffusion coefficient in the beads, :math:`D_{s,j,i}\geq 0` the surface diffusion coefficient, :math:`F_{\text{acc},j,i}\geq 0 \in [0,1]` the pore accessibility factor, and :math:`\varepsilon_{p,j}\in (0,1]` the particle porosity (ratio of pore volume to total bead volume).
 The inner bead radius :math:`r_{c,j} \in [0, r_{p,j})` is assumed to be :math:`0` by default, but can be positive in order to account for core-shell particles that have an impermeable core.
 Reaction terms in liquid and solid phase are collected in :math:`f_{\text{react},j,i}^p( c_j^p, c_j^s)` and :math:`f_{\text{react},j,i}^s(c_j^p, c_j^s)`, respectively.
 
@@ -302,7 +302,7 @@ The radial flow GRM describes transport of solute molecules through the intersti
 
 The main assumptions are:
 
-- The shells of the column are homogenous in terms of interstitial volume, fluid flow, and distribution of components.
+- The cylindrical shells of the column are homogenous in terms of interstitial volume, fluid flow, and distribution of components.
   Thus, only one spatial coordinate in radial direction :math:`\rho` is needed and axial transport is neglected in the column bulk volume.
 
 - The bead radii :math:`r_{p}` are much smaller than the column radius :math:`\mathrm{P}-\mathrm{P}_c`, with :math:`\mathrm{P}` and :math:`\mathrm{P}_c` being the inner and outer column radius respectively, and the column length :math:`L`.
@@ -314,33 +314,33 @@ The main assumptions are:
 Consider a hollow (double walled) column with inner column diameter :math:`\mathrm{P}_c>0` and outer diameter :math:`\mathrm{P}>\mathrm{P}_c`, filled with spherical beads of (possibly) multiple types with radius :math:`r_{p,j} \ll L` (see :numref:`ModelGRMColumn`), where :math:`j` is the particle type index. The mass balance in the interstitial column volume is described by
 
 .. math::
-    :label: ModelRadialColumn
+    :label: ModelRadialColumnGRM
 
     \begin{aligned}
         \frac{\partial c^\ell_i}{\partial t} = -\frac{u}{\rho} \frac{\partial c^\ell_i}{\partial \rho} + D_{\text{rad},i} \frac{1}{\rho} \frac{\partial}{\partial \rho} \left(\rho \frac{\partial c^\ell_i}{\partial \rho} \right) &- \frac{1}{\beta_c} \sum_j d_j \frac{3}{r_{p,j}} k_{f,j,i} \left[ c^\ell_i - c^p_{j,i}(\cdot, \cdot, r_{p,j}) \right] \\
         &+ f_{\text{react},i}^\ell\left(c^\ell\right). 
     \end{aligned}
 
-Here, :math:`c^\ell_i\colon \left[0, T_{\text{end}}\right] \times [\mathrm{P}_c, \mathrm{P}] \rightarrow \mathbb{R}^{\geq 0}` denotes the concentration in the interstitial column volume, :math:`c^p_{j,i}\colon \left[0, T_{\text{end}}\right] \times [P_c, P] \times [r_{c,j}, r_{p,j}] \rightarrow \mathbb{R}^{\geq 0}` the liquid phase concentration in the beads, :math:`k_{f,j,i}` the film diffusion coefficient, :math:`D_{\text{rad},i}` the dispersion coefficient, :math:`u` the interstitial velocity, :math:`d_j` the volume fraction of particle type :math:`j`, and :math:`\beta_c = \varepsilon_c / (1 - \varepsilon_c)` the column phase ratio, where :math:`\varepsilon_c` is the column porosity (ratio of interstitial volume to total column volume).
+Here, :math:`c^\ell_i\colon \left[0, T_{\text{end}}\right] \times [\mathrm{P}_c, \mathrm{P}] \rightarrow \mathbb{R}^{\geq 0}` denotes the concentration in the interstitial column volume, :math:`c^p_{j,i}\colon \left[0, T_{\text{end}}\right] \times [P_c, P] \times [r_{c,j}, r_{p,j}] \rightarrow \mathbb{R}^{\geq 0}` the liquid phase concentration in the beads, :math:`k_{f,j,i}\geq 0` the film diffusion coefficient, :math:`D_{\text{rad},i}\geq 0` the dispersion coefficient, :math:`u>0` the interstitial velocity, :math:`d_j>0` the volume fraction of particle type :math:`j`, and :math:`\beta_c = \varepsilon_c / (1 - \varepsilon_c)` the column phase ratio, where :math:`\varepsilon_c\in(0,1)` is the column porosity (ratio of interstitial volume to total column volume).
 If reactions are considered, the term :math:`f_{\text{react},i}^\ell\left(c^\ell\right)` represents the net change of concentration :math:`c_i` due to reactions involving component :math:`i`.
 
 Danckwerts boundary conditions :cite:`Danckwerts1953` are applied to inlet and outlet of the column:
 
 .. math::
-    :label: BCOutlet
+    :label: BCOutletRadial
 
     \begin{aligned}
         u c_{\text{in},i}(t) &= u c^\ell_i(t,0) - D_{\text{rad},i} \frac{\partial c^\ell_i}{\partial \rho}(t, 0) & \forall t > 0,
     \end{aligned}
 
 .. math::
-    :label: BCInlet
+    :label: BCInletRadial
 
     \begin{aligned}
         \frac{\partial c^\ell_i}{\partial \rho}(t, \mathrm{P}) &= 0 & \forall t > 0. 
     \end{aligned}
 
-Note that the outlet boundary condition Eq. :eq:`BCOutlet` is also known as “do nothing” or natural outflow condition.
+Note that the outlet boundary condition Eq. :eq:`BCOutletRadial` is also known as “do nothing” or natural outflow condition.
 
 The complementing mass transport and binding equations for the liquid and solid phases of the porous beads are described by the same equations as for the axial GRM.
 
