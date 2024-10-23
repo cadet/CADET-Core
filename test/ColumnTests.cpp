@@ -830,7 +830,7 @@ namespace column
 	}
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-	void testJacobianAD(cadet::JsonParameterProvider& jpp, const double absTolFDpattern)
+	void testJacobianAD(cadet::JsonParameterProvider& jpp, const double absTolFDpattern, const active* flowRate)
 	{
 		cadet::ad::setDirections(cadet::ad::getMaxDirections()); // AD directions needed in createAndConfigureUnit but requiredADdirs not know before configureModelDiscretization (which is called in configureUnit)
 
@@ -863,6 +863,11 @@ namespace column
 		const AdJacobianParams adParams{adRes, adY, 0u};
 		unitAD->prepareADvectors(adParams);
 
+		if (flowRate) //  for 2D units, velocity needs to be determined from flow rates
+		{
+			unitAna->setFlowRates(flowRate, flowRate);
+			unitAD->setFlowRates(flowRate, flowRate);
+		}
 		const ConstSimulationState simState{y.data(), nullptr};
 		unitAna->notifyDiscontinuousSectionTransition(0.0, 0u, simState, noAdParams);
 		unitAD->notifyDiscontinuousSectionTransition(0.0, 0u, simState, adParams);
@@ -1614,6 +1619,13 @@ namespace column
 			}
 		}
 		destroyModelBuilder(mb);
+	}
+
+	JsonParameterProvider getReferenceFile(const std::string& modelFileRelPath)
+	{
+		const std::string setupFile = std::string(getTestDirectory()) + modelFileRelPath;
+		JsonParameterProvider pp_setup(JsonParameterProvider::fromFile(setupFile));
+		return pp_setup;
 	}
 
 	void testReferenceBenchmark(const std::string& modelFileRelPath, const std::string& refFileRelPath, const std::string& unitID, const std::vector<double> absTol, const std::vector<double> relTol, const DiscParams& disc, const bool compare_sens, const int simDataStride)

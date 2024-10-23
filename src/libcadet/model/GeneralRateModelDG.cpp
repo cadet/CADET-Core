@@ -1343,7 +1343,7 @@ int GeneralRateModelDG::residualBulk(double t, unsigned int secIdx, StateType co
 
 		for (unsigned int col = 0; col < _disc.nPoints; ++col, y += idxr.strideColNode(), res += idxr.strideColNode())
 		{
-			const ColumnPosition colPos{ (0.5 + static_cast<double>(col)) / static_cast<double>(_disc.nPoints), 0.0, 0.0 };
+			const ColumnPosition colPos{ _convDispOp.relativeCoordinate(col), 0.0, 0.0};
 			_dynReactionBulk->residualLiquidAdd(t, secIdx, colPos, y, res, -1.0, tlmAlloc);
 
 			if (wantJac)
@@ -1376,7 +1376,7 @@ int GeneralRateModelDG::residualParticle(double t, unsigned int parType, unsigne
 	// bnd0comp0, bnd0comp1, bnd0comp2, bnd1comp0, bnd1comp1, bnd1comp2
 	active const* const parSurfDiff = getSectionDependentSlice(_parSurfDiffusion, _disc.strideBound[_disc.nParType], secIdx) + _disc.nBoundBeforeType[parType];
 
-	// z coordinate (column length normed to 1) of current node - needed in externally dependent adsorption kinetic
+	// Relative position of current node - needed in externally dependent adsorption kinetic
 	const double z = _convDispOp.relativeCoordinate(colNode);
 
 	// The RowIterator is always centered on the main diagonal.
@@ -1674,7 +1674,6 @@ int GeneralRateModelDG::residualFlux(double t, unsigned int secIdx, StateType co
 		// sec0type0comp0, sec0type0comp1, sec0type0comp2, sec0type1comp0, sec0type1comp1, sec0type1comp2,
 		// sec1type0comp0, sec1type0comp1, sec1type0comp2, sec1type1comp0, sec1type1comp1, sec1type1comp2, ...
 		active const* const filmDiff = getSectionDependentSlice(_filmDiffusion, _disc.nComp * _disc.nParType, secIdx) + type * _disc.nComp;
-		active const* const parDiff = getSectionDependentSlice(_parDiffusion, _disc.nComp * _disc.nParType, secIdx) + type * _disc.nComp;
 
 		const ParamType surfaceToVolumeRatio = _parGeomSurfToVol[type] / static_cast<ParamType>(_parRadius[type]);
 
