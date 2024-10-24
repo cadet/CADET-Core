@@ -16,6 +16,8 @@
 .. image:: https://zenodo.org/badge/DOI/10.5281/zenodo.8179015.svg
    :target: https://doi.org/10.5281/zenodo.8179015
 
+.. image:: https://img.shields.io/badge/JuRSE_Code_Pick-Oct_2024-blue.svg
+   :target: https://www.fz-juelich.de/en/rse/community-initiatives/jurse-code-of-the-month/october-2024
 |
 
 CADET
