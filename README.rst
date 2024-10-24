@@ -83,6 +83,6 @@ Released under GPL v3. License (see `LICENSE.txt <https://github.com/cadet/cadet
 Acknowledgments
 ---------------
 
-Please refer to the `list of contributors <https://github.com/cadet/cadet-core/blob/master/CONTRIBUTORS.md>`_ who helped building and funding this project.
+Please refer to the `list of contributors <https://github.com/cadet/cadet-core/blob/master/CONTRIBUTING.md>`_ who helped building and funding this project.
 
    Copyright (C) 2004-2024 CADET Authors
