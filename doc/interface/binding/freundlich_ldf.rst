@@ -32,7 +32,7 @@ For information on model equations, refer to :ref:`freundlich_ldf_model`.
 ``FLDF_KF``
    Freundlich coefficient for each component
 
-**Unit:** :math:`m_{MP}^3~mol^{-1}`
+**Unit:** :math:`m_{MP}^{3/n}~m_{SP}^{-3}~mol^{1-1/n}`
 
 ===================  =========================  ==================================
 **Type:** double     **Range:** :math:`\ge 0`    **Length:** 1/NTOTALBND
@@ -41,7 +41,7 @@ For information on model equations, refer to :ref:`freundlich_ldf_model`.
 ``FLDF_N``
    Freundlich exponent for each component
 
-**Unit:** :[-]
+**Unit:** [-]
 
 ===================  =========================  ==================================
 **Type:** double     **Range:** :math:`> 0`      **Length:** 1/NTOTALBND
