@@ -5,6 +5,7 @@ Multi Component Sips
 
 **Group /input/model/unit_XXX/adsorption – ADSORPTION_MODEL = MULTI_COMPONENT_SIPS**
 
+For information on model equations, refer to :ref:`multi_component_sips_model`.
 
 ``IS_KINETIC``
    Selects kinetic or quasi-stationary adsorption mode: 1 = kinetic, 0 =
@@ -19,7 +20,7 @@ Multi Component Sips
 ``SIPS_KA``
    Adsorption rate constants
 
-**Unit:** :math:`s^{-1}`
+**Unit:** :math:`m_{MP}^3~mol^{-1}~s^{-1}`
 
 ===================  =========================  =========================================
 **Type:** double     **Range:** :math:`\ge 0`   **Length:** NCOMP
@@ -28,7 +29,7 @@ Multi Component Sips
 ``SIPS_KD``
    Desorption rate constants
 
-**Unit:** :math:`mol~m_{SP}^{-3}~s^{-1}`
+**Unit:** :math:`s^{-1}`
 
 ===================  =========================  ==================================
 **Type:** double     **Range:** :math:`\ge 0`   **Length:** NCOMP
