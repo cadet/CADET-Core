@@ -129,7 +129,7 @@ protected:
 			}
 
 			// Residual
-			res[bndIdx] = static_cast<ParamType>(p->kLDF[i]) * ( y[bndIdx] - static_cast<ParamType>(p->kF[i]) * yCp[i] * pow(sum, static_cast<ParamType>(p->n[i]) - 1.0) );
+			res[bndIdx] = static_cast<ParamType>(p->kLDF[i]) * ( y[bndIdx] - static_cast<ParamType>(p->kF[i]) * yCp[i] * pow(sum, 1 / static_cast<ParamType>(p->n[i]) - 1.0) );
 
 			// Next bound component
 			++bndIdx;
@@ -165,11 +165,11 @@ protected:
 			const double n = static_cast<double>(p->n[i]);
 
 			// dres_i / dc_{p,i}
-			jac[i - bndIdx - offsetCp] = -kf_ldf * pow(cpSum, n - 1.0);
+			jac[i - bndIdx - offsetCp] = -kf_ldf * pow(cpSum, 1 / n - 1.0);
 			// Getting to c_{p,i}: -bndIdx takes us to q_0, another -offsetCp to c_{p,0} and a +i to c_{p,i}.
 			//                     This means jac[i - bndIdx - offsetCp] corresponds to c_{p,i}.
 
-			const double factor = kf_ldf * yCp[i] * (n - 1.0) * pow(cpSum, n - 2.0);
+			const double factor = kf_ldf * yCp[i] * ( 1 / n - 1.0) * pow(cpSum, 1 / n - 2.0);
 
 			// Fill dres_i / dc_{p,j}
 			for (int j = 0; j < _nComp; ++j)

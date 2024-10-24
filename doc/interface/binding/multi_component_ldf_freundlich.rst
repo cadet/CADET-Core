@@ -5,6 +5,7 @@ Multi Component Linear Driving Force Freundlich
 
 **Group /input/model/unit_XXX/adsorption – ADSORPTION_MODEL = MULTI_COMPONENT_LDF_FREUNDLICH**
 
+For information on model equations, refer to :ref:`multi_component_ldf_freundlich_model`.
 
 ``IS_KINETIC``
    Selects kinetic or quasi-stationary adsorption mode: 1 = kinetic, 0 =
@@ -28,7 +29,7 @@ Multi Component Linear Driving Force Freundlich
 ``MCLDFFRL_KF``
    Proportionality constants
 
-**Unit:** :math:`m_{MP}^{3}~m_{SP}^{-3}`
+**Unit:** :math:`m_{MP}^{3/n}~m_{SP}^{-3}~mol^{1-1/n}`
 
 ===================  =========================  ==================================
 **Type:** double     **Range:** :math:`\ge 0`   **Length:** NCOMP
@@ -37,6 +38,8 @@ Multi Component Linear Driving Force Freundlich
 ``MCLDFFRL_EXP``
    Freundlich exponent
 
+**Unit:** [-]
+
 ===================  =========================  ==================================
 **Type:** double     **Range:** :math:`\gt 0`   **Length:** NCOMP
 ===================  =========================  ================================== 
@@ -44,7 +47,7 @@ Multi Component Linear Driving Force Freundlich
 ``MCLDFFRL_A``
    Component influences in row-major ordering
 
-**Unit:** :math:`m_{MP}^{3}~mol^{-1}`
+**Unit:** [-]
 
 ===================  =========================  ==================================
 **Type:** double     **Range:** :math:`\ge 0`   **Length:** :math:`\text{NCOMP}^2`
@@ -52,6 +55,8 @@ Multi Component Linear Driving Force Freundlich
 
 ``MCLDFFRL_TAU``
    Small constant that ensures numerical stability
+
+**Unit:** :math:`mol~m_{MP}^{-3}`
 
 ===================  =========================  =========================================
 **Type:** double     **Range:** :math:`\gt 0`   **Length:** 1
