@@ -121,6 +121,6 @@ Please refer to the `list of contributors <https://github.com/cadet/cadet-core/b
     CADET-Match <https://cadet.github.io/CADET-Match/master/index.html>
     license
     zbibliography
-    Legal notice <https://www.fz-juelich.de/portal/EN/Service/LegalNotice/_node.html>
+    Legal notice <https://www.fz-juelich.de/en/legal-notice>
 
 
