@@ -2,7 +2,7 @@
 //  CADET
 //  
 //  Copyright © The CADET Authors
-//            Please see the CONTRIBUTORS.md file.
+//            Please see the CONTRIBUTING.md file.
 //  
 //  All rights reserved. This program and the accompanying materials
 //  are made available under the terms of the GNU Public License v3.0 (or, at
