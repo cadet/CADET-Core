@@ -74,6 +74,7 @@ doc/tex/docs/*.aux
 
 ### Ignore IDE files ###
 .vs/
+.vscode/
 .idea/
 *.iws
 *.kdev4
