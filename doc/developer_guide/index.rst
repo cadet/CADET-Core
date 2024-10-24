@@ -22,3 +22,4 @@ Since some developers may be new to collaborative software development using Git
    model_expansion
    debugging
    testing
+   release_new_version
