@@ -49,3 +49,6 @@ Release checklist
 
 Release of binaries on conda-forge
 ----------------------------------
+
+To ensure CADET-Core is accessible to a broad community, it is available as a Python package on conda-forge.
+Other software, such as our Python interface, `CADET-Python`, and the frontend, `CADET-Process`, import this package.
