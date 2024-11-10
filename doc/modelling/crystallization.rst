@@ -13,6 +13,10 @@ Typical applications consider crystallization in a CSTR or, to model continuous 
 
 In the following, we give a brief overview on the modelling equations, for more information on the PBM as implemented in CADET, please refer to :cite:`zhang2024solving`.
 
+.. figure:: PBM_Part_I.png
+    
+   Nucleation, growth and growth rate dispersion in PBM. 
+
 Population Balance Model in a CSTR
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
