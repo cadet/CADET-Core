@@ -1814,7 +1814,7 @@ void CSTRModel::addTimeDerivativeJacobian(double t, double alpha, const ConstSim
 	double const* const q = simState.vecStateY + 2 * _nComp;
 	const double v = simState.vecStateY[2 * _nComp + _totalBound];
 	const double timeV = v * alpha;
-	const double vsolid = static_cast<double>(_constSolidVolume);
+	const double timeVSolid = static_cast<double>(_constSolidVolume) * alpha;
 
 	// Assemble Jacobian: dRes / dyDot
 	
@@ -1828,7 +1828,7 @@ void CSTRModel::addTimeDerivativeJacobian(double t, double alpha, const ConstSim
 		{
 			double const* const qi = q + _offsetParType[type] + _boundOffset[type * _nComp + i];
 			const unsigned int localOffset = _nComp + _offsetParType[type] + _boundOffset[type * _nComp + i];
-			const double vSolidParVolFrac = alpha * vsolid * static_cast<double>(_parTypeVolFrac[type]);
+			const double vSolidParVolFrac = timeVSolid * static_cast<double>(_parTypeVolFrac[type]);
 			for (unsigned int j = 0; j < _nBound[type * _nComp + i]; ++j)
 			{
 				mat.native(i, localOffset + j) += vSolidParVolFrac; // dRes / dqDot
