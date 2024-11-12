@@ -1,4 +1,4 @@
-CADET
+CADET-Core
 ======
 
 .. image:: https://img.shields.io/github/release/cadet/cadet-core.svg
@@ -25,7 +25,7 @@ CADET
 
 Installation
 ------------
-CADET can be installed via conda from the ``conda-forge`` channel.
+CADET-Core can be installed via conda from the ``conda-forge`` channel.
 
 ``conda install -c conda-forge cadet``
 
@@ -60,7 +60,7 @@ Therefore, we kindly ask that any publications or projects leveraging the capabi
 
 Additionally, to ensure reproducibility of your work, we recommend citing the zenodo doi corresponding to the specific CADET release that you used.
 
-Selected applications that demonstrate the capabilities and use-cases of CADET are highlighted in the `documentation <https://cadet.github.io>`_.
+Selected applications that demonstrate the capabilities and use-cases of CADET-Core are highlighted in the `documentation <https://cadet.github.io>`_.
 
 Ongoing Development
 -------------------
