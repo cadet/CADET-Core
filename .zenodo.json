@@ -1,0 +1,23 @@
+{
+  "title": "CADET-Core: Version 5.0.0",
+  "upload_type": "software",
+  "creators": [
+    { "name": "Leweke, Samuel", "orcid": "0000-0001-9471-4511", "affiliation": "Forschungszentrum Jülich, IBG-1: Biotechnology, Germany" },
+    { "name": "Breuer, Jan", "orcid": "0000-0002-1999-2439", "affiliation": "Forschungszentrum Jülich, IBG-1: Biotechnology, Germany" },
+    { "name": "Schmölder, Johannes", "orcid": "0000-0003-0446-7209", "affiliation": "Forschungszentrum Jülich, IBG-1: Biotechnology, Germany" },
+    { "name": "Jäpel, Ronald", "orcid": "0000-0002-4912-5176", "affiliation": "Forschungszentrum Jülich, IBG-1: Biotechnology, Germany" },
+    { "name": "Lanzrath, Hannah", "orcid": "0000-0002-2675-9002", "affiliation": "Forschungszentrum Jülich, IBG-1: Biotechnology, Germany" },
+    { "name": "Zhang, Wendi", "orcid": "0000-0002-6127-1408", "affiliation": "Rensselaer Polytechnic Institute, Department of Chemical and Biological Engineering, USA" },
+    { "name": "Berger, Antonia", "orcid": "0009-0002-0207-9042", "affiliation": "Forschungszentrum Jülich, IBG-1: Biotechnology, Germany" },
+    { "name": "von Lieres, Eric", "orcid": "0000-0002-0309-8408", "affiliation": "Forschungszentrum Jülich, IBG-1: Biotechnology, Germany"}
+  ],
+  "license": "GPL-3.0",
+  "keywords": [
+    "simulation", "biochemical", "process", "chromatography", "CADET", "general rate model"
+  ],
+  "version": "5.0.0",
+  "access_right": "open",
+  "communities": [
+    { "identifier": "open-source" }
+  ]
+}
