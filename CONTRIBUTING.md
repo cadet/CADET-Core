@@ -26,5 +26,8 @@ The following people have contributed to the CADET-Core software and are listed 
 * Bayer AG contributed to bugfixes, initial C API, initial Python frontend
 * Johannes Schmölder has received support from the IMI2/ EU/EFPIA joint undertaking Inno4Vac (grant no. 101007799).
 
-Follow the lead, become a contributor by sending a pull request or a patch.
+## Contributing
 
+We welcome contributions! Please refer to our [Developer Guide](https://cadet.github.io/master/developer_guide/index.html) for detailed information on how to contribute, including guidelines, coding standards, and best practices.
+
+Follow the lead, become a contributor by sending a pull request or a patch.
