@@ -11,6 +11,10 @@ Every particle size considered is treated as an individual component of the unit
 The two additional components account for the solute :math:`c` and solubility :math:`c_\text{eq}`.
 *That is, by setting the ``NCOMP`` field, you specify the number of FV cells for the internal coordinate.*
 
+Note that the first component must be solute :math:`c` and the last component must be the solubility :math:`c_\text{eq}`.
+
+Example code to configure the PBM can be found in `CADET-Verification <https://github.com/cadet/CADET-Verification/blob/main/src/test_cadet_core/crystallization.py>`_ .
+
 Group /input/model/unit_XXX
 ---------------------------
 
