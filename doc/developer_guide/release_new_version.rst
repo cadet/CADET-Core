@@ -25,8 +25,8 @@ Release checklist
 - Create a version bump commit, which will be the target commit for the release.
   The bump commit contains:
   
-  - Update of the version number in the `version.txt`
-  - Update of the contributors list
+  - Update of the version number in the `version.txt` and in the zenodo.json
+  - Update of the authors list if needed: CONTRIBUTING.md and zenodo.json
   - Update of the copyright (years)
   - Update of the file format if needed
 
