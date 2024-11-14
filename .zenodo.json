@@ -1,5 +1,5 @@
 {
-  "title": "CADET-Core: Version 5.0.0",
+  "title": "CADET-Core: Version 5.0.1",
   "upload_type": "software",
   "creators": [
     { "name": "Leweke, Samuel", "orcid": "0000-0001-9471-4511", "affiliation": "Forschungszentrum Jülich, IBG-1: Biotechnology, Germany" },
@@ -15,7 +15,7 @@
   "keywords": [
     "simulation", "biochemical", "process", "chromatography", "CADET", "general rate model"
   ],
-  "version": "5.0.0",
+  "version": "5.0.1",
   "access_right": "open",
   "communities": [
     { "identifier": "open-source" }
