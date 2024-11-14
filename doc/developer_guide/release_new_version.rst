@@ -25,7 +25,7 @@ Release checklist
 - Create a version bump commit, which will be the target commit for the release.
   The bump commit contains:
   
-  - Update of the version number in the `version.txt` and in the zenodo.json
+  - Update of the version number in the `version.txt`, `zenodo.json`, `cadet.hpp` and cadet.doxyfile, compare to last `bump version` commit
   - Update of the authors list if needed: CONTRIBUTING.md and zenodo.json
   - Update of the copyright (years)
   - Update of the file format if needed
@@ -40,8 +40,6 @@ Release checklist
     - Changed: Modifications to existing features and breaking changes for major releases including changes in the interface.
     - Updated: Improvements to documentation, minor tweaks, or other updates that don’t fit into the other categories.
 
-  - Attach the (zipped) source code.
-
 - Check success of zenodo archiving:
 
   - Upon release, Zenodo automatically archives the release, generating a version-specific DOI (Digital Object Identifier) for it and storing a copy of the source code, along with any associated files.
@@ -51,4 +49,24 @@ Release of binaries on conda-forge
 ----------------------------------
 
 To ensure CADET-Core is accessible to a broad community, it is available as a Python package on conda-forge.
-Other software, such as our Python interface, `CADET-Python`, and the frontend, `CADET-Process`, import this package.
+Other software, such as our frontend, `CADET-Process`, and our Python interface, `CADET-Python`, import this package.
+
+- go to github.com/conda-forge/cadet-feedstock
+- create a new branch and open a PR:
+- change the recipe/meta.yaml file:
+
+  - generate sha key via ``curl -sL https://github.com/cadet/{{ name }}/archive/refs/tags/v{{ version }}.tar.gz | openssl sha256``, which requires open ssl und curl
+  - update version number and sha key
+  - set build number to zero (build: number: 0)
+
+- Upon opening the PR, a todo checklist is automatically generated. After solving the todos, comment `@conda-forge-admin, please rerender` in the PR conversation. Automatic checks will be run and the bot will tell us the changes are fine. Then we can merge the PR, triggering the release on conda-forge.
+
+
+
+
+
+
+
+
+
+
