@@ -81,7 +81,7 @@ Donations
 License
 -------
 
-Released under GPL v3. License (see `LICENSE.txt <https://github.com/cadet/cadet-core/blob/master/LICENSE.txt>`_)::
+Released under GPL v3.0 License (see `LICENSE.txt <https://github.com/cadet/cadet-core/blob/master/LICENSE.txt>`_)::
 
 Acknowledgments
 ---------------
