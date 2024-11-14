@@ -53,10 +53,13 @@ Other software, such as our frontend, `CADET-Process`, and our Python interface,
 
 - go to github.com/conda-forge/cadet-feedstock
 - create a new branch and open a PR:
-change the recipe/meta.yaml file:
- - update version number and sha key. The key can be generated via `curl -sL https://github.com/cadet/{{ name }}/archive/refs/tags/v{{ version }}.tar.gz | openssl sha256`, which requires open ssl und curl
- - set build number to zero (build: number: 0)
- - Upon opening the PR, a todo checklist is automatically generated. After solving the todos, comment `@conda-forge-admin, please rerender` in the PR conversation. Automatic checks will be run and the bot will tell us the changes are fine. Then we can merge the PR, triggering the release on conda-forge.
+- change the recipe/meta.yaml file:
+
+  - generate sha key via ``curl -sL https://github.com/cadet/{{ name }}/archive/refs/tags/v{{ version }}.tar.gz | openssl sha256``, which requires open ssl und curl
+  - update version number and sha key
+  - set build number to zero (build: number: 0)
+
+- Upon opening the PR, a todo checklist is automatically generated. After solving the todos, comment `@conda-forge-admin, please rerender` in the PR conversation. Automatic checks will be run and the bot will tell us the changes are fine. Then we can merge the PR, triggering the release on conda-forge.
 
 
 
