@@ -11,6 +11,10 @@ CADET features one reaction type:
  - :ref:`mass_action_law_model` (most commonly used)
  - :ref:`michaelis_menten_kinetics_model`
 
+Historically, a chromatography system is modeled as a reaction system without considering any transport phenomenon. We also introduce some reaction-based models that can be solved in CADET:
+
+ - :ref:`thomas_model`
+ - :ref:`rate_constant_distribution_theory`
 
 .. _dependence-on-external-function_react:
 
