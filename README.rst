@@ -1,5 +1,5 @@
 CADET-Core
-======
+==========
 
 .. image:: https://img.shields.io/github/release/cadet/cadet-core.svg
    :target: https://github.com/cadet/cadet-core/releases
@@ -78,12 +78,26 @@ Donations
 `Donations <https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=FCQ2M89558ZAG>`_ for helping to host, maintain, and further develop the CADET project are highly appreciated.
 
 
-License
--------
+Copyright and License Notice
+----------------------------
 
-CADET-Core is licensed under the GPL v3.0 License (see `LICENSE.txt <https://github.com/cadet/cadet-core/blob/master/LICENSE.txt>`_).
+Copyright (C) 2008-present: The CADET-Core Authors (see `AUTHORS.md <https://github.com/cadet/cadet-core/blob/master/AUTHORS.md>`_).
 
-Copyright (C) 2004-present CADET-Core Authors (see `AUTHORS.md <https://github.com/cadet/cadet-core/blob/master/AUTHORS.md>`_).
+This program is free software: you can redistribute it and/or modify it under the terms of the
+GNU General Public License as published by the Free Software Foundation, either version 3 of
+the License, or (at your option) any later version (see `LICENSE.txt <https://github.com/cadet/cadet-core/blob/master/LICENSE.txt>`_).
+
+This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without
+even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with this program, see below.
+If not, see <https://www.gnu.org/licenses/>.
+
+Except as contained in this notice, the name of a copyright holder shall not be used in advertising
+or otherwise to promote the sale, use, or other dealings in this Software without prior written
+authorization of the copyright holder.
+
 
 Acknowledgments
 ---------------
