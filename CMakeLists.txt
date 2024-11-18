@@ -542,7 +542,7 @@ set(CPACK_PACKAGE_VERSION_MINOR ${PROJECT_VERSION_MINOR})
 set(CPACK_PACKAGE_VERSION_PATCH ${PROJECT_VERSION_PATCH})
 set(CPACK_STRIP_FILES ON)
 
-# Combine LICENSE.txt and LICENSE-ThirdParty.txt
+# Combine LICENSE.txt and ThirdParty-LICENSES.txt
 file(WRITE "${CMAKE_BINARY_DIR}/LICENSE.txt" "####################################################################################\n")
 file(APPEND "${CMAKE_BINARY_DIR}/LICENSE.txt" "##                                      CADET                                     ##\n")
 file(APPEND "${CMAKE_BINARY_DIR}/LICENSE.txt" "####################################################################################\n")
@@ -550,7 +550,7 @@ file(APPEND "${CMAKE_BINARY_DIR}/LICENSE.txt" "#################################
 file(READ "${CMAKE_SOURCE_DIR}/LICENSE.txt" LICENSE_TEXT)
 file(APPEND "${CMAKE_BINARY_DIR}/LICENSE.txt" "\n${LICENSE_TEXT}")
 
-file(READ "${CMAKE_SOURCE_DIR}/LICENSE-ThirdParty.txt" LICENSE_THIRDPARTY)
+file(READ "${CMAKE_SOURCE_DIR}/ThirdParty-LICENSES.txt" LICENSE_THIRDPARTY)
 file(APPEND "${CMAKE_BINARY_DIR}/LICENSE.txt" "\n\n${LICENSE_THIRDPARTY}")
 
 set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_BINARY_DIR}/LICENSE.txt")
