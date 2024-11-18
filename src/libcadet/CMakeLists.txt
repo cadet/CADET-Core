@@ -1,8 +1,8 @@
 # =============================================================================
 #  CADET
 #  
-#  Copyright © The CADET Authors
-#            Please see the CONTRIBUTING.md file.
+#  Copyright © 2008-present: The CADET-Core Authors
+#            Please see the AUTHORS.md file.
 #  
 #  All rights reserved. This program and the accompanying materials
 #  are made available under the terms of the GNU Public License v3.0 (or, at
@@ -28,8 +28,8 @@ write_compiler_detection_header(
 // =============================================================================\n\
 //  CADET\n\
 //  \n\
-//  Copyright © The CADET Authors\n\
-//            Please see the CONTRIBUTING.md file.\n\
+//  Copyright © 2008-present: The CADET-Core Authors\n\
+//            Please see the AUTHORS.md file.\n\
 //  \n\
 //  All rights reserved. This program and the accompanying materials\n\
 //  are made available under the terms of the GNU Public License v3.0 (or, at\n\

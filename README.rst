@@ -81,11 +81,12 @@ Donations
 License
 -------
 
-Released under GPL v3.0 License (see `LICENSE.txt <https://github.com/cadet/cadet-core/blob/master/LICENSE.txt>`_)::
+CADET-Core is licensed under the GPL v3.0 License (see `LICENSE.txt <https://github.com/cadet/cadet-core/blob/master/LICENSE.txt>`_).
+
+Copyright (C) 2004-present CADET-Core Authors (see `AUTHORS.md <https://github.com/cadet/cadet-core/blob/master/AUTHORS.md>`_).
 
 Acknowledgments
 ---------------
 
 Please refer to the `list of contributors <https://github.com/cadet/cadet-core/blob/master/CONTRIBUTING.md>`_ who helped building and funding this project.
 
-   Copyright (C) 2004-2024 CADET Authors

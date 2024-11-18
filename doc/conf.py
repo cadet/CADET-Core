@@ -16,9 +16,9 @@ sys.path.insert(0, os.path.abspath('.'))
 from datetime import date
 
 # -- Project information -----------------------------------------------------
-project = 'CADET'
+project = 'CADET-Core'
 copyright = f'2008-{date.today().year}'
-author = 'CADET Authors'
+author = 'CADET-Core Authors'
 
 # -- General configuration ---------------------------------------------------
 

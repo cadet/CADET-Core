@@ -1,8 +1,8 @@
 // =============================================================================
 //  CADET
 //  
-//  Copyright © The CADET Authors
-//            Please see the CONTRIBUTING.md file.
+//  Copyright © 2008-present: The CADET-Core Authors
+//            Please see the AUTHORS.md file.
 //  
 //  All rights reserved. This program and the accompanying materials
 //  are made available under the terms of the GNU Public License v3.0 (or, at
@@ -40,7 +40,7 @@ namespace TCLAP
 			std::cout << "CADET homepage: <https://cadet.github.io>\n";
 			std::cout << "Fork CADET on GitHub: <https://github.com/cadet/CADET-Core>\n";
 			std::cout << "Report bugs to the issue tracker on GitHub or <cadet@fz-juelich.de>\n";
-			std::cout << "See the accompanying LICENSE.txt, CONTRIBUTING.md files" << std::endl;
+			std::cout << "See the accompanying LICENSE.txt, AUTHORS.md files" << std::endl;
 		}
 
 	protected:
@@ -64,7 +64,7 @@ namespace TCLAP
 		    std::cout << "CADET homepage: <https://cadet.github.io>\n";
 		    std::cout << "Fork CADET on GitHub: <https://github.com/cadet/CADET-Core>\n";
 		    std::cout << "Report bugs to the issue tracker on GitHub or <cadet@fz-juelich.de>\n";
-			std::cout << "See the accompanying LICENSE.txt, CONTRIBUTING.md files" << std::endl;
+			std::cout << "See the accompanying LICENSE.txt, AUTHORS.md files" << std::endl;
 		}
 
 	protected:
