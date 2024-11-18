@@ -26,6 +26,9 @@
 #include <string>
 #include <vector>
 
+#include <Eigen/Dense>
+using namespace Eigen;
+
 /*<codegen>
 {
 	"name": "MassActionLawParamHandler",
@@ -312,6 +315,11 @@ public:
 	virtual void setExternalFunctions(IExternalFunction** extFuns, unsigned int size) { _paramHandler.setExternalFunctions(extFuns, size); }
 	virtual bool dependsOnTime() const CADET_NOEXCEPT { return ParamHandler_t::dependsOnTime(); }
 	virtual bool requiresWorkspace() const CADET_NOEXCEPT { return true; }
+
+	virtual bool hasQuasiStationaryReactions() const CADET_NOEXCEPT { return false; }
+	virtual bool hasDynamicReactions() const CADET_NOEXCEPT { return true; }
+	virtual int const* reactionQuasiStationarity() const CADET_NOEXCEPT { return _reactionQuasistationarity.data(); }
+
 	virtual unsigned int workspaceSize(unsigned int nComp, unsigned int totalNumBoundStates, unsigned int const* nBoundStates) const CADET_NOEXCEPT
 	{
 		return _paramHandler.cacheSize(maxNumReactions(), nComp, totalNumBoundStates) + std::max(maxNumReactions() * sizeof(active), 2 * (_nComp + totalNumBoundStates) * sizeof(double));
@@ -395,6 +403,8 @@ protected:
 	linalg::ActiveDenseMatrix _expSolidBwd;
 	linalg::ActiveDenseMatrix _expSolidFwdLiquid;
 	linalg::ActiveDenseMatrix _expSolidBwdLiquid;
+
+	std::vector<int> _reactionQuasistationarity; //!< Determines whether a reaction is quasi-stationary (@c true) or not (@c false)
 
 	inline int maxNumReactions() const CADET_NOEXCEPT { return std::max(std::max(_stoichiometryBulk.columns(), _stoichiometryLiquid.columns()), _stoichiometrySolid.columns()); }
 
@@ -821,6 +831,109 @@ protected:
 					curJac[col - static_cast<int>(_nComp) - static_cast<int>(row)] += colFactor * (fluxGradFwd[col] - fluxGradBwd[col]);
 			}
 		}
+	}
+
+    /**
+     * @brief Calculates the conserved moieties based on the stoichiometric matrix and reaction quasistationarity.
+     * @param S The stoichiometric matrix.
+     * @param _reactionQuasistationarity The reaction quasistationarity vector.
+     * @return The conserved moieties matrix.
+     */
+
+    Eigen::MatrixXd calculateConservedMoieties(Eigen::MatrixXd S, Eigen::VectorXi _reactionQuasistationarity)
+    {
+    
+		//1. get stoichmetic matrix with only reaction in quasi stationary
+		// S dim -> ncomp x nreac
+
+
+		// Count the number of entries with value 1 in _reactionQuasistationarity
+		int countQS = 0;
+		for (int i = 0; i < _reactionQuasistationarity.size(); ++i) {
+			if (_reactionQuasistationarity(i) == 1) {
+				++countQS;
+			}
+		}
+		if (countQS == 0) {
+			Eigen::MatrixXd I = Eigen::MatrixXd::Identity(S.rows(), S.rows());
+			return I;
+		}
+
+		Eigen::MatrixXd QSS(S.rows(), countQS); // dim -> ncomp x countQS
+
+		int colIndex = 0;
+		for (int i = 0; i < S.cols(); i++)
+		{
+			if (_reactionQuasistationarity(i) == 1) {
+				QSS.col(colIndex) = S.col(i);
+				++colIndex;
+			}
+		}
+
+		// 2. delete zero rows of QuasiStationarStoichmetricMatrix (QSS)
+
+		std::vector<Eigen::VectorXd> nonZeroRows;
+		std::vector<int> indZeroRow;
+
+		for (int i = 0; i < QSS.rows(); ++i)
+		{
+			if (!QSS.row(i).isZero(1e-10))
+				nonZeroRows.push_back(QSS.row(i));
+			else
+				indZeroRow.push_back(i);
+		}
+
+
+		Eigen::MatrixXd QSSWithoutZeroRows(nonZeroRows.size(), QSS.cols()); // dim -> ncomp - nc_kin x countQS
+
+		for (size_t i = 0; i < nonZeroRows.size(); ++i) {
+			QSSWithoutZeroRows.row(i) = nonZeroRows[i];
+		}
+
+
+		//3. Test if the matrix is full rank
+		int rang = QSSWithoutZeroRows.fullPivLu().rank();
+		if (rang != countQS)
+		{
+			throw std::runtime_error("The matrix is not full rank");
+		}
+
+		//3. Calculate the null space of the matrix
+		Eigen::MatrixXd QSSWithoutZeroRowsT = QSSWithoutZeroRows.transpose();
+
+		Eigen::MatrixXd M = QSSWithoutZeroRowsT.fullPivLu().kernel(); // dim -> nconvMoi x ncompsq (ncomvMoi = nC_eq- Req)
+
+		Eigen::MatrixXd MT = M.transpose();
+
+		M = MT;
+		if (indZeroRow.size() == 0)
+		{
+			return M;
+		}
+		//4. Refill nullSpace with zero colums and rows
+
+		Eigen::MatrixXd I = Eigen::MatrixXd::Identity(S.rows(), S.rows());
+		Eigen::MatrixXd newM = Eigen::MatrixXd::Zero(M.rows() + indZeroRow.size(), S.rows()); // dim -> nconvMoi + ncompkin x ncomp
+
+		int Iind = 0;
+		for (int i = 0; i < newM.rows(); ++i) {
+			if (i < M.rows()) {
+				Eigen::VectorXd Mrow = Eigen::VectorXd::Zero(S.rows());
+				int s = 0;
+				for (int k = 0; k < Mrow.rows(); ++k) {
+					if (std::find(indZeroRow.begin(), indZeroRow.end(), k) == indZeroRow.end()) {
+						Mrow(k) = M(i, s);
+						++s;
+					}
+				}
+				newM.row(i) = Mrow;
+			}
+			else {
+				newM.row(i) = I.col(indZeroRow[Iind]);
+				++Iind;
+			}
+		}
+		return newM;
 	}
 };
 
