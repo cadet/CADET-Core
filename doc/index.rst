@@ -94,22 +94,22 @@ Therefore, we kindly ask that any publications or projects leveraging the capabi
 
 - von Lieres, E.; Andersson, J.: `A fast and accurate solver for the general rate model of column liquid chromatography <https://doi.org/10.1016/j.compchemeng.2010.03.008>`_, Computers and Chemical Engineering **34,8** (2010), 1180–1191.
 
-**Numerics:**
+**Major extensions:**
 
 - Breuer, J. M.; Leweke, S.; Schmölder, J.; Gassner, G.; von Lieres, E.: `Spatial discontinuous Galerkin spectral element method for a family of chromatography models in CADET <https://doi.org/10.1016/j.compchemeng.2023.108340>`_, Computers and Chemical Engineering **177** (2023), 108340.
 
-- Leweke, S.; von Lieres, E.: `Fast arbitrary order moments and arbitrary precision solution of the general rate model of column liquid chromatography with linear isotherm <http://dx.doi.org/10.1016/j.compchemeng.2015.09.009>`_, Computers and Chemical Engineering **84** (2016), 350–362.
+- Zhang, W.; Przybycien T., Schmölder J. , Leweke S. , von Lieres E.: `Solving crystallization/precipitation population balance models in CADET, part I: Nucleation growth and growth rate dispersion in batch and continuous modes on nonuniform grids <https://doi.org/10.1016/j.compchemeng.2024.108612>`_, Computers and Chemical Engineering 183 (2024), 108612.
 
 - Püttmann, A.; Schnittert, S.; Naumann, U.; von Lieres, E.: `Fast and accurate parameter sensitivities for the general rate model of column liquid chromatography <http://dx.doi.org/10.1016/j.compchemeng.2013.04.021>`_, Computers and Chemical Engineering **56** (2013), 46–57.
 
 Additionally, to ensure reproducibility of your work, we recommend citing the `zenodo doi <https://doi.org/10.5281/zenodo.8179015>`_ corresponding to the specific CADET-Core release that you used.
 
-Selected applications that demonstrate the capabilities and use-cases of CADET-Core are highlighted `here <https://github.com/cadet/CADET-Core/tree/master/doc/publications.md>`_.
+For a comprehensive list and guidance on citing CADET-Core publications, please refer to the publications section of the `documentation <https://cadet.github.io/master/publications.html>`_.
 
 Acknowledgments
 ---------------
 
-Please refer to the `list of contributors <https://github.com/cadet/cadet-core/blob/master/CONTRIBUTORS.md>`_ who helped building and funding this project.
+Please refer to the `list of authors and contributors <https://github.com/cadet/cadet-core/blob/master/AUTHORS.md>`_ who helped building and funding this project.
 
 
 .. toctree::
@@ -123,6 +123,7 @@ Please refer to the `list of contributors <https://github.com/cadet/cadet-core/b
     developer_guide/index
     CADET-Match <https://cadet.github.io/CADET-Match/master/index.html>
     license
+    publications
     zbibliography
     Legal notice <https://www.fz-juelich.de/en/legal-notice>
 

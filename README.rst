@@ -39,10 +39,10 @@ Optionally, use `mamba <https://github.com/mamba-org/mamba>`_ which uses a faste
 
 Citing
 ------------
-The development of CADET has been a collaborative effort, with multiple dedicated individuals contributing their expertise to create a powerful and versatile open-source software tool.
+The development of CADET-Core has been a collaborative effort, with multiple dedicated individuals contributing their expertise to create a powerful and versatile open-source software tool.
 Countless hours of hard work have been invested to provide the scientific community with a valuable resource.
-As an open-source project, CADET relies on the support and recognition from users and researchers to thrive.
-Therefore, we kindly ask that any publications or projects leveraging the capabilities of CADET acknowledge its creators and their contributions by citing an adequate selection of our publications.
+As an open-source project, CADET-Core relies on the support and recognition from users and researchers to thrive.
+Therefore, we kindly ask that any publications or projects leveraging the capabilities of CADET-Core acknowledge its creators and their contributions by citing an adequate selection of our publications.
 
 **General:**
 
@@ -50,22 +50,22 @@ Therefore, we kindly ask that any publications or projects leveraging the capabi
 
 - von Lieres, E.; Andersson, J.: `A fast and accurate solver for the general rate model of column liquid chromatography <https://doi.org/10.1016/j.compchemeng.2010.03.008>`_, Computers and Chemical Engineering **34,8** (2010), 1180–1191.
 
-**Numerics and Modeling:**
+**Major extensions:**
 
 - Breuer, J. M.; Leweke, S.; Schmölder, J.; Gassner, G.; von Lieres, E.: `Spatial discontinuous Galerkin spectral element method for a family of chromatography models in CADET <https://doi.org/10.1016/j.compchemeng.2023.108340>`_, Computers and Chemical Engineering **177** (2023), 108340.
 
-- Zhang, W.; Przybycien T., Schmölder J. , Leweke S. , von Lieres E.: `Solving crystallization/precipitation population balance models in CADET, part I: Nucleation growth and growth rate dispersion in batch and continuous modes on nonuniform grids`_, Computers and Chemical Engineering **183** (2024), 108612.
+- Zhang, W.; Przybycien T., Schmölder J. , Leweke S. , von Lieres E.: `Solving crystallization/precipitation population balance models in CADET, part I: Nucleation growth and growth rate dispersion in batch and continuous modes on nonuniform grids <https://doi.org/10.1016/j.compchemeng.2024.108612>`_, Computers and Chemical Engineering **183** (2024), 108612.
 
 - Püttmann, A.; Schnittert, S.; Naumann, U.; von Lieres, E.: `Fast and accurate parameter sensitivities for the general rate model of column liquid chromatography <http://dx.doi.org/10.1016/j.compchemeng.2013.04.021>`_, Computers and Chemical Engineering **56** (2013), 46–57.
 
-Additionally, to ensure reproducibility of your work, we recommend citing the zenodo doi corresponding to the specific CADET release that you used.
+Additionally, to ensure reproducibility of your work, we recommend citing the zenodo doi corresponding to the specific CADET-Core release that you used.
 
-Selected applications that demonstrate the capabilities and use-cases of CADET-Core are highlighted in the `documentation <https://cadet.github.io>`_.
+For a comprehensive list and guidance on citing CADET-Core publications, please refer to the publications section of the `documentation <https://cadet.github.io/master/publications.html>`_.
 
 Ongoing Development
 -------------------
 
-We do our best to provide you with a stable API. However, CADET is actively developed and breaking changes can sometimes be unavoidable. For non-developers, it is recommended to upgrade from release to release instead of always working with the most recent commit.
+We do our best to provide you with a stable API. However, CADET-Core is actively developed and breaking changes can sometimes be unavoidable. For non-developers, it is recommended to upgrade from release to release instead of always working with the most recent commit.
 
 Bugs
 ----
@@ -75,7 +75,7 @@ Please report any bugs that you find `here <https://github.com/cadet/cadet-core/
 Donations
 ---------
 
-`Donations <https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=FCQ2M89558ZAG>`_ for helping to host, maintain, and further develop the CADET project are highly appreciated.
+`Donations <https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=FCQ2M89558ZAG>`_ for helping to host, maintain, and further develop the CADET-Core project are highly appreciated.
 
 
 Copyright and License Notice

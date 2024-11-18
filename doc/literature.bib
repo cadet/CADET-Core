@@ -1,3 +1,190 @@
+
+% GENERAL CADET-CORE REFERENCES
+
+@article{Leweke2018CADET,
+title = {Chromatography Analysis and Design Toolkit (CADET)},
+journal = {Computers & Chemical Engineering},
+volume = {113},
+pages = {274-294},
+year = {2018},
+issn = {0098-1354},
+doi = {10.1016/j.compchemeng.2018.02.025},
+author = {Leweke, Samuel and von Lieres, Eric},
+keywords = {Column liquid chromatography, General rate model, Modeling and simulation platform, Model calibration, Process analysis and design, Statistical analysis, Experimental design},
+abstract = {CADET is an open source modeling and simulation framework for column liquid chromatography. The software is freely distributed to both academia and industry under the GPL license (http://github.com/modsim/cadet). CADET is based on a core simulator that is written in object oriented C++ and applies modern mathematical algorithms for efficiently solving a variety of customary chromatography models. This simulation engine is interfaced to a suite of MATLAB tools for setting up and executing the most common scientific workflows, e.g., model calibration, process design, robustness analysis, statistical analysis, and experimental design. The model library and numerical methods are continuously extended and improved. For instance, binding models with multiple bound states, pH and/or temperature dependence of binding parameters, surface diffusion, and arbitrary spacing of the radial discretization have been recently added. Moreover, numerical accuracy and computational speed of the code are comprehensively benchmarked using high precision reference solutions and realistic model problems. Versatility of the CADET modeling platform is demonstrated with several examples that are also published as open source code and can be freely adapted to specific use cases. In one of several case studies, sequential and simultaneous optimization of elution gradient shape and cut times are compared for a three component separation. This process is designed to achieve Pareto optimal purity and yield of the central fraction. Moreover, the robustness of these designs with respect to typical process variations is systematically studied. The last case study illustrates the optimal design of experiments for estimating model parameters with maximal accuracy.}
+}
+
+@article{VonLieres2010a,
+author = {von Lieres, Eric and Andersson, Joel},
+doi = {10.1016/j.compchemeng.2010.03.008},
+issn = {00981354},
+journal = {Computers {\&} Chemical Engineering},
+month = aug,
+number = {8},
+pages = {1180--1191},
+title = {{A fast and accurate solver for the general rate model of column liquid chromatography}},
+volume = {34},
+year = {2010}
+}
+
+% CADET-CORE MAJOR EXTENSIONS
+
+@article{ZHANG2025solving,
+title = {Solving crystallization/precipitation population balance models in CADET, Part II: Size-based Smoluchowski coagulation and fragmentation equations in batch and continuous modes},
+journal = {Computers & Chemical Engineering},
+volume = {192},
+pages = {108860},
+year = {2025},
+issn = {0098-1354},
+doi = {10.1016/j.compchemeng.2024.108860},
+author = {Zhang, Wendi and Przybycien, Todd and Breuer, Jan Michael and von Lieres, Eric}
+}
+
+@article{zhang2024solving,
+  title = {Solving crystallization/precipitation population balance models in CADET, part I: Nucleation growth and growth rate dispersion in batch and continuous modes on nonuniform grids},
+  author = {Zhang, Wendi and Przybycien, Todd and Schmölder, Johannes and Leweke, Samuel and von Lieres, Eric},
+  journal = {Computers \& Chemical Engineering},
+  pages = {108612},
+  year = {2024},
+  publisher = {Elsevier},
+  doi = {10.1016/j.compchemeng.2024.108612}
+}
+
+@article{Breuer2023,
+title = {Spatial discontinuous Galerkin spectral element method for a family of chromatography models in CADET},
+journal = {Computers \& Chemical Engineering},
+volume = {177},
+pages = {108340},
+year = {2023},
+issn = {0098-1354},
+doi = {10.1016/j.compchemeng.2023.108340},
+author = {Jan Michael Breuer and Samuel Leweke and Johannes Schmölder and Gregor Gassner and Eric {von Lieres}},
+}
+
+@article{Puttmann2013,
+author = {Püttmann, Andreas and Schnittert, Sebastian and Naumann, Uwe and von Lieres, Eric},
+doi = {10.1016/j.compchemeng.2013.04.021},
+issn = {00981354},
+journal = {Computers {\&} Chemical Engineering},
+month = sep,
+pages = {46--57},
+title = {{Fast and accurate parameter sensitivities for the general rate model of column liquid chromatography}},
+volume = {56},
+year = {2013}
+}
+
+@article{Puttmann2016,
+author = {Püttmann, Andreas and Schnittert, Sebastian and Leweke, Samuel and von Lieres, Eric},
+doi = {10.1016/j.ces.2015.08.050},
+issn = {00092509},
+journal = {Chemical Engineering Science},
+month = jan,
+pages = {152--162},
+title = {{Utilizing algorithmic differentiation to efficiently compute chromatograms and parameter sensitivities}},
+volume = {139},
+year = {2016}
+}
+
+% CADET OTHER SOFTWARE
+
+@Article{Schmoelder2020,
+  author  = {Schmölder, Johannes and Kaspereit, Malte},
+  title   = {A {{Modular Framework}} for the {{Modelling}} and {{Optimization}} of {{Advanced Chromatographic Processes}}},
+  doi     = {10.3390/pr8010065},
+  number  = {1},
+  pages   = {65},
+  volume  = {8},
+  journal = {Processes},
+  year    = {2020},
+}
+
+@article{Heymann2022advanced,
+title = {Advanced score system and automated search strategies for parameter estimation in mechanistic chromatography modeling},
+journal = {Journal of Chromatography A},
+volume = {1661},
+pages = {462693},
+year = {2022},
+issn = {0021-9673},
+doi = {https://doi.org/10.1016/j.chroma.2021.462693},
+author = {William Heymann and Juliane Glaser and Fabrice Schlegel and Will Johnson and Pablo Rolandi and Eric {von Lieres}},
+}
+
+% CADET-CORE SELECTED USE-CASES
+
+@article{Jaepel2022,
+title = {Bayesian optimization using multiple directional objective functions allows the rapid inverse fitting of parameters for chromatography simulations},
+journal = {Journal of Chromatography A},
+volume = {1679},
+pages = {463408},
+year = {2022},
+issn = {0021-9673},
+doi = {10.1016/j.chroma.2022.463408},
+author = {Ronald Colin Jäpel and Johannes Felix Buyel},
+}
+
+@article{Diedrich2017,
+title = {Multi-state steric mass action model and case study on complex high loading behavior of mAb on ion exchange tentacle resin},
+journal = {Journal of Chromatography A},
+volume = {1525},
+pages = {60-70},
+year = {2017},
+issn = {0021-9673},
+doi = {10.1016/j.chroma.2017.09.039},
+author = {Juliane Diedrich and William Heymann and Samuel Leweke and Stephen Hunt and Robert Todd and Christian Kunert and Will Johnson and Eric {von Lieres}},
+}
+
+% BIBLIOGRAPHY OF FURTHER REFERENCES
+
+% CADET authors
+@article{Leweke2016a,
+author = {Leweke, Samuel and von Lieres, Eric},
+doi = {10.1016/j.compchemeng.2015.09.009},
+issn = {00981354},
+journal = {Computers {\&} Chemical Engineering},
+month = jan,
+pages = {350--362},
+title = {{Fast arbitrary order moments and arbitrary precision solution of the general rate model of column liquid chromatography with linear isotherm}},
+url = {http://linkinghub.elsevier.com/retrieve/pii/S009813541500304X},
+volume = {84},
+year = {2016}
+}
+
+@inproceedings{VonLieres2010b,
+author = {von Lieres, E},
+booktitle = {American Institute of Physics Conference Series},
+doi = {10.1063/1.3497788},
+month = sep,
+pages = {1004--1007},
+series = {American Institute of Physics Conference Series},
+title = {{Chromatography Models with Langmuir and Steric Mass Action Adsorption Isotherms are of Differential Index One}},
+volume = {1281},
+year = {2010}
+}
+
+@misc{Lanzrath2024,
+	address = {Rochester, NY},
+	type = {{SSRN} {Scholarly} {Paper}},
+	title = {Analyzing {Time} {Activity} {Curves} from {Spatio}-{Temporal} {Tracer} {Data} to {Determine} {Tracer} {Transport} {Velocity} in {Plants}},
+	doi = {10.2139/ssrn.4957804},
+	publisher = {Social Science Research Network},
+	author = {Lanzrath, Hannah and von Lieres, Eric and Metzner, Ralf and Huber, Gregor Johannes},
+	month = sep,
+	year = {2024},
+}
+
+@article{He2018,
+title = {Efficient numerical simulation of simulated moving bed chromatography with a single-column solver},
+journal = {Computers & Chemical Engineering},
+volume = {111},
+pages = {183-198},
+year = {2018},
+issn = {0098-1354},
+doi = {https://doi.org/10.1016/j.compchemeng.2017.12.022},
+author = {Qiao-Le He and Samuel Leweke and Eric {von Lieres}},
+}
+
+%Other authors
+
 @book{Deuflhard2011,
 address = {Berlin, Heidelberg},
 author = {Deuflhard, Peter},
@@ -10,31 +197,7 @@ url = {http://link.springer.com/10.1007/978-3-642-23899-4},
 volume = {35},
 year = {2011}
 }
-@inproceedings{VonLieres2010b,
-author = {von Lieres, E},
-booktitle = {American Institute of Physics Conference Series},
-doi = {10.1063/1.3497788},
-editor = {Simos, T.{\~{}}E. and Psihoyios, G and Tsitouras, C},
-month = sep,
-pages = {1004--1007},
-series = {American Institute of Physics Conference Series},
-title = {{Chromatography Models with Langmuir and Steric Mass Action Adsorption Isotherms are of Differential Index One}},
-volume = {1281},
-year = {2010}
-}
-@article{VonLieres2010a,
-author = {von Lieres, Eric and Andersson, Joel},
-doi = {10.1016/j.compchemeng.2010.03.008},
-issn = {00981354},
-journal = {Computers {\&} Chemical Engineering},
-month = aug,
-number = {8},
-pages = {1180--1191},
-title = {{A fast and accurate solver for the general rate model of column liquid chromatography}},
-url = {http://linkinghub.elsevier.com/retrieve/pii/S0098135410000992},
-volume = {34},
-year = {2010}
-}
+
 @book{Gu1995,
 address = {Berlin, Heidelberg},
 author = {Gu, Tingyue},
@@ -45,6 +208,7 @@ title = {{Mathematical Modeling and Scale-up of Liquid Chromatography}},
 url = {http://link.springer.com/10.1007/978-3-642-79541-1},
 year = {1995}
 }
+
 @book{Guiochon2006,
 address = {Amsterdam},
 author = {Guiochon, Georges and Felinger, Attila and Shirazi, Dean G. and Katti, Anita M.},
@@ -55,6 +219,7 @@ publisher = {Elsevier Academic Press},
 title = {{Fundamentals of Preparative and Nonlinear Chromatography}},
 year = {2006}
 }
+
 @article{Danckwerts1953,
 author = {Danckwerts, P.V.},
 doi = {10.1016/0009-2509(53)80001-1},
@@ -68,6 +233,7 @@ url = {http://linkinghub.elsevier.com/retrieve/pii/0009250953800011},
 volume = {2},
 year = {1953}
 }
+
 @article{Felinger2004,
 author = {Felinger, A. and Guiochon, G.},
 doi = {10.1365/s10337-004-0288-7},
@@ -82,30 +248,7 @@ url = {http://springerlink.metapress.com/openurl.asp?genre=article{\&}id=doi:10.
 volume = {60},
 year = {2004}
 }
-@article{Puttmann2013,
-author = {P{\"{u}}ttmann, Andreas and Schnittert, Sebastian and Naumann, Uwe and von Lieres, Eric},
-doi = {10.1016/j.compchemeng.2013.04.021},
-issn = {00981354},
-journal = {Computers {\&} Chemical Engineering},
-month = sep,
-pages = {46--57},
-title = {{Fast and accurate parameter sensitivities for the general rate model of column liquid chromatography}},
-url = {http://linkinghub.elsevier.com/retrieve/pii/S0098135413001440},
-volume = {56},
-year = {2013}
-}
-@article{Puttmann2016,
-author = {P{\"{u}}ttmann, Andreas and Schnittert, Sebastian and Leweke, Samuel and von Lieres, Eric},
-doi = {10.1016/j.ces.2015.08.050},
-issn = {00092509},
-journal = {Chemical Engineering Science},
-month = jan,
-pages = {152--162},
-title = {{Utilizing algorithmic differentiation to efficiently compute chromatograms and parameter sensitivities}},
-url = {http://linkinghub.elsevier.com/retrieve/pii/S0009250915006168},
-volume = {139},
-year = {2016}
-}
+
 @article{Jiang1996,
 title = "Efficient Implementation of Weighted \{ENO\} Schemes ",
 journal = "Journal of Computational Physics ",
@@ -119,6 +262,7 @@ doi = "http://dx.doi.org/10.1006/jcph.1996.0130",
 url = "http://www.sciencedirect.com/science/article/pii/S0021999196901308",
 author = "Guang-Shan Jiang and Chi-Wang Shu"
 }
+
 @article{Liu1994,
 title = "Weighted Essentially Non-oscillatory Schemes ",
 journal = "Journal of Computational Physics ",
@@ -132,6 +276,7 @@ doi = "http://dx.doi.org/10.1006/jcph.1994.1187",
 url = "http://www.sciencedirect.com/science/article/pii/S0021999184711879",
 author = "Xu-Dong Liu and Stanley Osher and Tony Chan"
 }
+
 @article{Langmuir1916,
 author = {Langmuir, Irving},
 doi = {10.1021/ja02268a002},
@@ -145,6 +290,7 @@ url = {http://pubs.acs.org/doi/abs/10.1021/ja02268a002},
 volume = {38},
 year = {1916}
 }
+
 @article{Clark2007,
 author = {Clark, Alison J. and Kotlicki, Andrzej and Haynes, Charles A. and Whitehead, Lorne A.},
 doi = {10.1021/la0635350},
@@ -158,6 +304,7 @@ url = {http://pubs.acs.org/doi/abs/10.1021/la0635350},
 volume = {23},
 year = {2007}
 }
+
 @article{Brooks1992,
 author = {Brooks, Clayton A. and Cramer, Steven M.},
 doi = {10.1002/aic.690381212},
@@ -171,6 +318,7 @@ url = {http://doi.wiley.com/10.1002/aic.690381212},
 volume = {38},
 year = {1992}
 }
+
 @article{Westerberg2012,
 author = {Westerberg, K. and {Broberg Hansen}, E. and Degerman, M. and {Budde Hansen}, T. and Nilsson, B.},
 doi = {10.1002/ceat.201000560},
@@ -184,6 +332,7 @@ url = {http://doi.wiley.com/10.1002/ceat.201000560},
 volume = {35},
 year = {2012}
 }
+
 @article{Mollerup2008,
 author = {Mollerup, J\o{}rgen M.},
 doi = {10.1002/ceat.200800082},
@@ -197,6 +346,7 @@ url = {http://doi.wiley.com/10.1002/ceat.200800082},
 volume = {31},
 year = {2008}
 }
+
 @article{Karlsson2004,
 author = {Karlsson, David and Jakobsson, Niklas and Axelsson, Anders and Nilsson, Bernt},
 doi = {10.1016/j.chroma.2004.08.151},
@@ -210,6 +360,7 @@ url = {http://linkinghub.elsevier.com/retrieve/pii/S0021967304014554},
 volume = {1055},
 year = {2004}
 }
+
 @article{Melander1989,
 author = {Melander, Wayne R. and {El Rassi}, Ziad and Horv\'{a}th, Csaba},
 doi = {10.1016/S0021-9673(01)96437-4},
@@ -222,6 +373,7 @@ url = {http://linkinghub.elsevier.com/retrieve/pii/S0021967301964374},
 volume = {469},
 year = {1989}
 }
+
 @article{Kumar2015,
 author = {Kumar, Vijesh and Leweke, Samuel and von Lieres, Eric and Rathore, Anurag S.},
 doi = {10.1016/j.chroma.2015.11.062},
@@ -234,6 +386,7 @@ url = {http://linkinghub.elsevier.com/retrieve/pii/S0021967315016908},
 volume = {1426},
 year = {2015}
 }
+
 @article{Hindmarsh2005,
 author = {Hindmarsh, Alan C. and Brown, Peter N. and Grant, Keith E. and Lee, Steven L. and Serban, Radu and Shumaker, Dan E. and Woodward, Carol S.},
 doi = {10.1145/1089014.1089020},
@@ -247,6 +400,7 @@ url = {http://portal.acm.org/citation.cfm?doid=1089014.1089020},
 volume = {31},
 year = {2005}
 }
+
 @book{Schmidt-Traub2012,
 address = {Weinheim, Germany},
 doi = {10.1002/9783527649280},
@@ -259,6 +413,7 @@ title = {{Preparative Chromatography}},
 url = {http://doi.wiley.com/10.1002/9783527649280},
 year = {2012}
 }
+
 @article{Schneider1968a,
 author = {Schneider, Petr and Smith, J. M.},
 doi = {10.1002/aic.690140613},
@@ -272,6 +427,7 @@ url = {http://doi.wiley.com/10.1002/aic.690140613},
 volume = {14},
 year = {1968}
 }
+
 @article{Ma1996,
 author = {Ma, Z. and Whitley, R. D. and Wang, N.-H. L.},
 doi = {10.1002/aic.690420507},
@@ -285,6 +441,7 @@ url = {http://doi.wiley.com/10.1002/aic.690420507},
 volume = {42},
 year = {1996}
 }
+
 @article{Miyabe2007,
 author = {Miyabe, Kanji},
 doi = {10.1016/j.chroma.2007.08.045},
@@ -299,6 +456,7 @@ url = {http://www.ncbi.nlm.nih.gov/pubmed/17825832},
 volume = {1167},
 year = {2007}
 }
+
 @article{Pearson1959,
 author = {Pearson, J.R.A.},
 doi = {10.1016/0009-2509(59)80063-4},
@@ -312,6 +470,7 @@ url = {http://linkinghub.elsevier.com/retrieve/pii/0009250959800634},
 volume = {10},
 year = {1959}
 }
+
 @article{Kucera1965,
 author = {Ku\v{c}era, Eugene},
 doi = {10.1016/S0021-9673(01)99457-9},
@@ -324,18 +483,7 @@ url = {http://linkinghub.elsevier.com/retrieve/pii/S0021967301994579},
 volume = {19},
 year = {1965}
 }
-@article{Leweke2016a,
-author = {Leweke, Samuel and von Lieres, Eric},
-doi = {10.1016/j.compchemeng.2015.09.009},
-issn = {00981354},
-journal = {Computers {\&} Chemical Engineering},
-month = jan,
-pages = {350--362},
-title = {{Fast arbitrary order moments and arbitrary precision solution of the general rate model of column liquid chromatography with linear isotherm}},
-url = {http://linkinghub.elsevier.com/retrieve/pii/S009813541500304X},
-volume = {84},
-year = {2016}
-}
+
 @article{Saska1992,
 author = {Saska, M. and Wu, Mei Di and Clarke, S. J. and Iqbal, K.},
 doi = {10.1080/01496399208019442},
@@ -349,6 +497,7 @@ url = {http://www.tandfonline.com/doi/abs/10.1080/01496399208019442},
 volume = {27},
 year = {1992}
 }
+
 @article{Feehery1997,
 author = {Feehery, William F. and Tolsma, John E. and Barton, Paul I.},
 doi = {10.1016/S0168-9274(97)00050-0},
@@ -362,6 +511,7 @@ url = {http://dl.acm.org/citation.cfm?id=264193.264573},
 volume = {25},
 year = {1997}
 }
+
 @article{Huuk2017,
 author = {Huuk, Thiemo C. and Hahn, Tobias and Doninger, Katharina and Griesbach, Jan and Hepbildikler, Stefan and Hubbuch, J{\"{u}}rgen},
 doi = {10.1002/biot.201600336},
@@ -375,6 +525,7 @@ url = {http://doi.wiley.com/10.1002/biot.201600336},
 volume = {12},
 year = {2017}
 }
+
 @article{Alpay1992,
 title = {The linear driving force model for fast-cycle adsorption and desorption in a spherical particle},
 journal = {Chemical Engineering Science},
@@ -387,6 +538,7 @@ doi = {https://doi.org/10.1016/0009-2509(92)80041-A},
 url = {https://www.sciencedirect.com/science/article/pii/000925099280041A},
 author = {E. Alpay and D.M. Scott}
 }
+
 @incollection{Singh2016,
 title = {Chapter 8 - Nanoparticle Ecotoxicology},
 editor = {Ashok K. Singh},
@@ -402,6 +554,7 @@ author = {Ashok K. Singh},
 keywords = {Anthropogenic sphere, Atmosphere, Biosphere, Climate, Environment, Fate of nanoparticles, Human activity, Hydrosphere, Lithosphere, Man made, Nanoparticles, Nanotoxicology, Natural},
 abstract = {Although the physicochemical and beneficial properties of nanoparticles have drawn widespread attention in recent years, their potential for causing environmental damage and ecological toxicity (ecotoxicity) is not fully understood. This chapter provides contemporary information regarding characteristics of the environment (atmosphere, hydrosphere, lithosphere, and biosphere), distribution of bulk and nanoparticles in different spheres, fate of nanoparticles (in air, water, and soil), and adverse effects of different groups of nanoparticles on various types of ecosystems. Although many nanoparticles have been shown to cause potent ecological damage, the results from studies often differ, possibly due to heterogeneity in the physical properties of nanoparticles and the environment, the species and habitat differences, nanoparticles' unique electronic and chemical properties, differences in biomarkers used, and presence of toxins and other contaminants associated with the nanoparticle that may modulate its toxicity. Elucidating these issues may represent a critical future research direction to establish the safe use of nanoparticles.}
 }
+
 @article{Benedikt2019,
 author = {Aumeier, Benedikt M. and Dang, Anh H. Q. and Ohs, Burkhard and Yüce, Süleyman and Wessling, Matthias},
 title = {Aqueous-Phase Temperature Swing Adsorption for Pesticide Removal},
@@ -414,6 +567,7 @@ doi = {10.1021/acs.est.8b05873},
 URL = { https://doi.org/10.1021/acs.est.8b05873},
 eprint = { https://doi.org/10.1021/acs.est.8b05873}
 }
+
 @article{Wang2016,
 title = {Water on hydrophobic surfaces: Mechanistic modeling of hydrophobic interaction chromatography},
 journal = {Journal of Chromatography A},
@@ -425,17 +579,7 @@ doi = {https://doi.org/10.1016/j.chroma.2016.07.085},
 url = {https://www.sciencedirect.com/science/article/pii/S0021967316310263},
 author = {Gang Wang and Tobias Hahn and Jürgen Hubbuch},
 }
-@article{Jaepel2022,
-title = {Bayesian optimization using multiple directional objective functions allows the rapid inverse fitting of parameters for chromatography simulations},
-journal = {Journal of Chromatography A},
-volume = {1679},
-pages = {463408},
-year = {2022},
-issn = {0021-9673},
-doi = {https://doi.org/10.1016/j.chroma.2022.463408},
-url = {https://www.sciencedirect.com/science/article/pii/S0021967322005830},
-author = {Ronald Colin Jäpel and Johannes Felix Buyel},
-}
+
 @book{Kopriva2009,
 address = {Dordrecht},
 author = {Kopriva, David A.},
@@ -449,17 +593,7 @@ publisher = {Springer Netherlands},
 year = {2009},
 doi = {https://doi.org/10.1007/978-90-481-2261-5},
 }
-@article{Breuer2023,
-title = {Spatial discontinuous Galerkin spectral element method for a family of chromatography models in CADET},
-journal = {Computers \& Chemical Engineering},
-volume = {177},
-pages = {108340},
-year = {2023},
-issn = {0098-1354},
-doi = {https://doi.org/10.1016/j.compchemeng.2023.108340},
-url = {https://www.sciencedirect.com/science/article/pii/S0098135423002107},
-author = {Jan Michael Breuer and Samuel Leweke and Johannes Schmölder and Gregor Gassner and Eric {von Lieres}},
-}
+
 @article{Buehler2014,
 title = {A class of compartmental models for long-distance tracer transport in plants},
 journal = {Journal of Theoretical Biology},
@@ -472,6 +606,7 @@ url = {https://www.sciencedirect.com/science/article/pii/S0022519313004530},
 author = {Jonas Bühler and Eric {von Lieres} and Gregor Huber},
 keywords = {Mechanistic modeling, Model filter, Model selection, Phloem transport, PET data analysis},
 }
+
 @article{Morley2020,
 title = {Operating mode and parameter selection in liquid–liquid chromatography},
 journal = {Journal of Chromatography A},
@@ -485,6 +620,7 @@ author = {Raena Morley and Mirjana Minceva},
 keywords = {Countercurrent chromatography, Centrifugal partition chromatography, Short-cut model, Continuous chromatography, Operating parameters, Dual mode},
 abstract = {The presence of a liquid stationary phase in liquid–liquid chromatography (LLC) allows for high versatility of operation as well as adaptability to different sample types and separation tasks. LLC, also known as countercurrent chromatography (CCC) or centrifugal partition chromatography (CPC), offers the user a variety of operating modes, many of which have no direct equivalent in conventional preparative liquid–solid chromatography. These operating modes have the potential to greatly improve LLC separation performance compared to the standard “classical” isocratic batch injection mode, and they often require minimal to no addition of equipment to the standard set-up. However, reports of the use of alternative LLC operating modes make up only a fraction of the literature. This is likely due, at least in part, to the lack of clear guidelines and methods for operating mode and parameter selection, leaving alternative process options to be avoided and underutilized. This review seeks to remedy this by providing a thorough overview of the available LLC operating modes, identifying the key characteristics, advantages and disadvantages, and areas of application of each. Additionally, the equations and short-cut models aiding in operating mode and parameter selection are presented and critiqued, and their notation is unified for clarity. By rendering LLC and its alternative operating modes more accessible to current and prospective users, it is hoped to help expand the application of this technology and support the achievement of its full potential.}
 }
+
 @article{Xu2009,
 	title = {Binary adsorption of globular proteins on ion-exchange media},
 	journal = {Journal of Chromatography A},
@@ -497,13 +633,4 @@ abstract = {The presence of a liquid stationary phase in liquid–liquid chromat
 	url = {https://www.sciencedirect.com/science/article/pii/S0021967309010103},
 	author = {Xuankuo Xu and Abraham M. Lenhoff},
 	keywords = {Protein adsorption isotherms, Competitive adsorption, Protein–surface interactions, Protein–protein interactions, Colloidal interactions, Ion-exchange chromatography},
-}
-@article{zhang2024solving,
-  title = {Solving crystallization/precipitation population balance models in CADET, part I: Nucleation growth and growth rate dispersion in batch and continuous modes on nonuniform grids},
-  author = {Zhang, Wendi and Przybycien, Todd and Schm{\"o}lder, Johannes and Leweke, Samuel and von Lieres, Eric},
-  journal = {Computers \& Chemical Engineering},
-  pages = {108612},
-  year = {2024},
-  publisher = {Elsevier},
-  doi = {https://doi.org/10.1016/j.compchemeng.2024.108612}
 }
