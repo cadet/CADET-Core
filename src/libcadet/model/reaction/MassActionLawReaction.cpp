@@ -840,7 +840,7 @@ protected:
      * @return The conserved moieties matrix.
      */
 
-    Eigen::MatrixXd calculateConservedMoieties(Eigen::MatrixXd S, Eigen::VectorXi _reactionQuasistationarity)
+    Eigen::MatrixXd calculateConservedMoieties(linalg::ActiveDenseMatrix &S, _reactionQuasistationarity)
     {
     
 		//1. get stoichmetic matrix with only reaction in quasi stationary
@@ -850,7 +850,7 @@ protected:
 		// Count the number of entries with value 1 in _reactionQuasistationarity
 		int countQS = 0;
 		for (int i = 0; i < _reactionQuasistationarity.size(); ++i) {
-			if (_reactionQuasistationarity(i) == 1) {
+			if (_reactionQuasistationarity[i] == 1) {
 				++countQS;
 			}
 		}
@@ -862,10 +862,10 @@ protected:
 		Eigen::MatrixXd QSS(S.rows(), countQS); // dim -> ncomp x countQS
 
 		int colIndex = 0;
-		for (int i = 0; i < S.cols(); i++)
+		for (int i = 0; i < S.columns(); i++)
 		{
-			if (_reactionQuasistationarity(i) == 1) {
-				QSS.col(colIndex) = S.col(i);
+			if (_reactionQuasistationarity[i] == 1) {
+				QSS.col(colIndex) = S.columns(i);
 				++colIndex;
 			}
 		}
@@ -901,11 +901,8 @@ protected:
 		//3. Calculate the null space of the matrix
 		Eigen::MatrixXd QSSWithoutZeroRowsT = QSSWithoutZeroRows.transpose();
 
-		Eigen::MatrixXd M = QSSWithoutZeroRowsT.fullPivLu().kernel(); // dim -> nconvMoi x ncompsq (ncomvMoi = nC_eq- Req)
+		Eigen::MatrixXd M = QSSWithoutZeroRowsT.fullPivLu().kernel().transpose(); // dim -> nconvMoi x ncompsq (ncomvMoi = nC_eq- Req)
 
-		Eigen::MatrixXd MT = M.transpose();
-
-		M = MT;
 		if (indZeroRow.size() == 0)
 		{
 			return M;
@@ -916,11 +913,14 @@ protected:
 		Eigen::MatrixXd newM = Eigen::MatrixXd::Zero(M.rows() + indZeroRow.size(), S.rows()); // dim -> nconvMoi + ncompkin x ncomp
 
 		int Iind = 0;
-		for (int i = 0; i < newM.rows(); ++i) {
-			if (i < M.rows()) {
+		for (int i = 0; i < newM.rows(); ++i) 
+		{
+			if (i < M.rows()) 
+			{
 				Eigen::VectorXd Mrow = Eigen::VectorXd::Zero(S.rows());
 				int s = 0;
-				for (int k = 0; k < Mrow.rows(); ++k) {
+				for (int k = 0; k < Mrow.rows(); ++k) 
+				{
 					if (std::find(indZeroRow.begin(), indZeroRow.end(), k) == indZeroRow.end()) {
 						Mrow(k) = M(i, s);
 						++s;
@@ -928,7 +928,8 @@ protected:
 				}
 				newM.row(i) = Mrow;
 			}
-			else {
+			else 
+			{
 				newM.row(i) = I.col(indZeroRow[Iind]);
 				++Iind;
 			}
