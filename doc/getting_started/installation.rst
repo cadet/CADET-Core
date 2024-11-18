@@ -3,17 +3,17 @@
 Installation
 ============
 
-A CADET installation consists of two parts: The CADET core simulator and a frontend.
+A CADET installation consists of two parts: The CADET-Core simulator and a frontend.
 
-Install CADET core simulator
+Install CADET-Core simulator
 ----------------------------
 
 The core simulator can be compiled from source, or you can download pre-built binaries.
-If you want to extend or modify CADET (e.g., add a custom binding model), you will need to build CADET from source.
+If you want to extend or modify CADET-Core (e.g., add a custom binding model), you will need to build CADET-Core from source.
 
 Install pre-built binaries
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
-CADET can be installed via `conda <https://docs.anaconda.com/free/miniconda/>`_ from the ``conda-forge channel``.
+CADET-Core can be installed via `conda <https://docs.anaconda.com/free/miniconda/>`_ from the ``conda-forge channel``.
 
 ``conda install -c conda-forge cadet``
 

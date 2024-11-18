@@ -20,12 +20,13 @@
    :target: https://www.fz-juelich.de/en/rse/community-initiatives/jurse-code-of-the-month/october-2024
 |
 
-CADET
-=====
-CADET is developed at the Institute of Bio- and Geosciences 1 (IBG-1) of Forschungszentrum Jülich (FZJ) under supervision of Dr. Eric von Lieres.
-The heart of the CADET software is a fast and accurate solver for a comprehensive model family.
+CADET-Core
+==========
+
+CADET is developed at the Institute of Bio- and Geosciences 1 (IBG-1) of Forschungszentrum Jülich (FZJ) under supervision of Prof. Eric von Lieres.
+The heart of the CADET software is CADET-Core, a fast and accurate solver for a comprehensive model family.
 Typical applications include (but are by far not limited to) chromatography, filtration, crystallization, and fermentation.
-CADET can handle arbitrary sequences and networks of unit operations, including reactors, tanks, tubes, pumps, valves, detectors, etc.
+CADET-Core can handle arbitrary sequences and networks of unit operations, including reactors, tanks, tubes, pumps, valves, detectors, etc.
 The resulting models are solved with state-of-the-art mathematical algorithms and scientific computing techniques.
 
 - **Forum:** https://forum.cadet-web.de
@@ -47,7 +48,8 @@ Features
 
 Installation
 ------------
-CADET can be installed via conda from the ``conda-forge`` channel.
+
+CADET-Core can be installed via conda from the ``conda-forge`` channel.
 
 ``conda install -c conda-forge cadet``
 
@@ -63,7 +65,7 @@ Ongoing Development
 -------------------
 
 We do our best to provide you with a stable API.
-However, CADET is actively developed and breaking changes can sometimes be unavoidable.
+However, CADET-Core is actively developed and breaking changes can sometimes be unavoidable.
 For non-developers, it is recommended to upgrade from release to release instead of always working with the most recent commit.
 
 
@@ -75,16 +77,16 @@ Please report any bugs that you find `here <https://github.com/cadet/cadet-core/
 Donations
 ---------
 
-`Donations <https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=FCQ2M89558ZAG>`_ for helping to host, maintain, and further develop the CADET project are highly appreciated.
+`Donations <https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=FCQ2M89558ZAG>`_ for helping to host, maintain, and further develop the CADET-Core project are highly appreciated.
 
 
 Citing
 ------
 
-The development of CADET has been a collaborative effort, with multiple dedicated individuals contributing their expertise to create a powerful and versatile open-source software tool.
+The development of CADET-Core has been a collaborative effort, with multiple dedicated individuals contributing their expertise to create a powerful and versatile open-source software tool.
 Countless hours of hard work have been invested to provide the scientific community with a valuable resource.
-As an open-source project, CADET relies on the support and recognition from users and researchers to thrive.
-Therefore, we kindly ask that any publications or projects leveraging the capabilities of CADET acknowledge its creators and their contributions by citing an adequate selection of our publications.
+As an open-source project, CADET-Core relies on the support and recognition from users and researchers to thrive.
+Therefore, we kindly ask that any publications or projects leveraging the capabilities of CADET-Core acknowledge its creators and their contributions by citing an adequate selection of our publications.
 
 **General:**
 
@@ -100,9 +102,9 @@ Therefore, we kindly ask that any publications or projects leveraging the capabi
 
 - Püttmann, A.; Schnittert, S.; Naumann, U.; von Lieres, E.: `Fast and accurate parameter sensitivities for the general rate model of column liquid chromatography <http://dx.doi.org/10.1016/j.compchemeng.2013.04.021>`_, Computers and Chemical Engineering **56** (2013), 46–57.
 
-Additionally, to ensure reproducibility of your work, we recommend citing the `zenodo doi <https://doi.org/10.5281/zenodo.8179015>`_ corresponding to the specific CADET release that you used.
+Additionally, to ensure reproducibility of your work, we recommend citing the `zenodo doi <https://doi.org/10.5281/zenodo.8179015>`_ corresponding to the specific CADET-Core release that you used.
 
-Selected applications that demonstrate the capabilities and use-cases of CADET are highlighted `here <https://github.com/cadet/CADET-Core/tree/master/doc/publications.md>`_.
+Selected applications that demonstrate the capabilities and use-cases of CADET-Core are highlighted `here <https://github.com/cadet/CADET-Core/tree/master/doc/publications.md>`_.
 
 Acknowledgments
 ---------------
@@ -119,7 +121,6 @@ Please refer to the `list of contributors <https://github.com/cadet/cadet-core/b
     simulation/index
     interface/index
     developer_guide/index
-    .. examples/index
     CADET-Match <https://cadet.github.io/CADET-Match/master/index.html>
     license
     zbibliography
