@@ -1,8 +1,8 @@
 // =============================================================================
 //  CADET
 //  
-//  Copyright © 2008-2024: The CADET Authors
-//            Please see the AUTHORS and CONTRIBUTORS file.
+//  Copyright © 2008-present: The CADET-Core Authors
+//            Please see the AUTHORS.md file.
 //  
 //  All rights reserved. This program and the accompanying materials
 //  are made available under the terms of the GNU Public License v3.0 (or, at
