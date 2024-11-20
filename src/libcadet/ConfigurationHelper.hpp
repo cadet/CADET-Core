@@ -30,6 +30,7 @@ class IExternalFunction;
 	namespace model
 	{
 		class IBindingModel;
+		class IExchangeModel;
 		class IDynamicReactionModel;
 		class IParameterStateDependence;
 		class IParameterParameterDependence;
@@ -57,6 +58,9 @@ public:
 	 * @return Object of the given IBindingModel @p name or @c nullptr if that name does not exist
 	 */
 	virtual model::IBindingModel* createBindingModel(const std::string& name) const = 0;
+
+	virtual model::IExchangeModel* createExchangeModel(const std::string& name) const = 0;
+
 
 	/**
 	 * @brief Checks if there is an IBindingModel of the given @p name

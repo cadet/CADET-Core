@@ -101,6 +101,11 @@ set(LIBCADET_BINDINGMODEL_SOURCES
 	${CMAKE_SOURCE_DIR}/src/libcadet/model/binding/HICWaterOnHydrophobicSurfacesBinding.cpp
 	${CMAKE_SOURCE_DIR}/src/libcadet/model/binding/HICConstantWaterActivityBinding.cpp
 )
+set(LIBCADET_EXCHANGEMODEL_SOURCES
+	${CMAKE_SOURCE_DIR}/src/libcadet/model/exchange/LinearExchange.cpp
+)
+
+
 
 # LIBCADET_REACTIONMODEL_SOURCES holds all source files of reaction models
 set(LIBCADET_REACTIONMODEL_SOURCES
@@ -123,6 +128,7 @@ set(LIBCADET_SOURCES
 	${CMAKE_SOURCE_DIR}/src/libcadet/AdUtils.cpp
 	${CMAKE_SOURCE_DIR}/src/libcadet/Weno.cpp
 	${CMAKE_SOURCE_DIR}/src/libcadet/BindingModelFactory.cpp
+	${CMAKE_SOURCE_DIR}/src/libcadet/ExchangeModelFactory.cpp
 	${CMAKE_SOURCE_DIR}/src/libcadet/ReactionModelFactory.cpp
 	${CMAKE_SOURCE_DIR}/src/libcadet/ParameterDependenceFactory.cpp
 	${CMAKE_SOURCE_DIR}/src/libcadet/graph/GraphAlgos.cpp

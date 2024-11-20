@@ -26,6 +26,7 @@
 #include "model/ParameterMultiplexing.hpp"
 #include "SimulationTypes.hpp"
 #include "ConfigurationHelper.hpp"
+#include "model/ExchangeModel.hpp"
 
 #include <unordered_map>
 #include <unordered_set>
@@ -70,6 +71,8 @@ public:
 	bool configureModelDiscretization(IParameterProvider& paramProvider, const IConfigHelper& helper, unsigned int nComp, unsigned int nCol, unsigned int nRad, bool dynamicReactions);
 	bool configure(UnitOpIdx unitOpIdx, IParameterProvider& paramProvider, std::unordered_map<ParameterId, active*>& parameters);
 	bool notifyDiscontinuousSectionTransition(double t, unsigned int secIdx);
+
+	linalg::BandedSparseRowIterator getJacRowIterator(const int rowIdx) { return  _jacC.row(rowIdx); }
 
 	int residual(const IModel& model, double t, unsigned int secIdx, double const* y, double const* yDot, double* res, bool wantJac, WithoutParamSensitivity);
 	int residual(const IModel& model, double t, unsigned int secIdx, active const* y, double const* yDot, active* res, bool wantJac, WithoutParamSensitivity);
@@ -158,7 +161,8 @@ protected:
 	std::vector<int> _dir; //!< Current flow direction 
 	bool _singleVelocity; //!< Determines whether only one velocity for all compartments is given
 
-    std::vector<active> _exchangeMatrix; //!< Matrix of exchange coeffs for the linear inter-channel transport
+    std::vector<active> _exchangeMatrix; //!< Matrix of exchange coeffs for the inter-channel transport
+	IExchangeModel* _exchangeModel; //!< Phase transition model
 
 	IParameterParameterDependence* _dispersionDep;
 
