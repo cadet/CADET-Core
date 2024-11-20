@@ -16,7 +16,7 @@
  * 
  * @authors    Please refer to CONTRIBUTING.md
  * @version    5.0.1
- * @date       2008-2024
+ * @date       2008-present
  * @copyright  GNU General Public License v3.0 (or, at your option, any later version).
  */
 
