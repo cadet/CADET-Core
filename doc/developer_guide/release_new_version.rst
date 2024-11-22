@@ -1,7 +1,7 @@
 .. _release_new_version:
 
-CADET-Core version release
-==========================
+CADET-Core release
+==================
 
 CADET-Core releases follow the semantic versioning system, which is documented `here <https://semver.org/>`_.
 
