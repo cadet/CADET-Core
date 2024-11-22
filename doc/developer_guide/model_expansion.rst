@@ -93,8 +93,8 @@ Most important functionality to be implemented:
 4. System Jacobian: Owned by the unit operation. Defined given by :math:`J := \frac{\partial F}{\partial y} + \alpha \frac{\partial F}{\partial \dot{y}}`, i.e. both the state and state derivative Jacobian need to be implemented.
 5. Linear solve: Solves the system :math:`J x = b` with given :math:`b`.
 6. Algorithmic differentiation (AD): 
-   a. Parameter sensitivities: Use ``ParamType`` for all parameters and ``ResidualType`` for the residual. 
-   b. Jacobian calculation via AD (can be used to verify the analytical implementation): Use ``StateType`` for the state and ``ResidualType`` for the residual. Additionally, you need to implement the following functions to enable the AD Jacobian: ``requiredADdirs()``, ``prepareADvectors``, ``extractJacobianFromAD()``, ``useAnalyticJacobian()``. For details please refer to `Püttmann et al. <https://doi.org/10.1016/j.compchemeng.2013.04.021>`_.
+   a. Parameter sensitivities: Use ``ParamType`` for all parameters and ``ResidualType`` for the residual. A more detailed guide on parameter sensitivities can be found in the corresponding section below.
+   b. Jacobian calculation via AD (can be used to verify the analytical implementation): Use ``StateType`` for the state and ``ResidualType`` for the residual. Additionally, you need to implement the following functions to enable the AD Jacobian: ``requiredADdirs()``, ``prepareADvectors``, ``extractJacobianFromAD()``, ``useAnalyticJacobian()``. For details please refer to `Püttmann et al. (2016) <https://doi.org/10.1016/j.ces.2015.08.050>`_.
 
 Testing and Publication
 ^^^^^^^^^^^^^^^^^^^^^^^
@@ -121,3 +121,22 @@ Use ``ParamType`` and ``ResidualType`` for parameters and residual ``res`` to en
 Use ``StateType`` and ``ResidualType`` for the state ``y`` and residual ``res`` to enable the AD Jacobian. 
 
 To use AD for a new unit operation, you can either apply dense AD or, in case of a model with many states or spatial resolution, you need to think of the shape of the Jacobian and apply sparse AD. 
+
+Parameter sensitivities
+^^^^^^^^^^^^^^^^^^^^^^^
+
+Parameter sensitivity estimation in CADET-Core leverages the capabilities provided by the time integrator module `IDAS <https://sundials.readthedocs.io/en/latest/idas/index.html>`_ to compute `forward sensitivities <https://sundials.readthedocs.io/en/latest/idas/Mathematics_link.html#forward-sensitivity-analysis>`_, combined with our custom implementation for algorithmic differentiation, as described in our publication `Püttmann et al. (2016) <https://doi.org/10.1016/j.ces.2015.08.050>`_.
+To enable a parameter sensitivity for you model, you only have to take care about calling and interfacing to the existing infrastructure, which is briefly described in the following steps:
+- The parameter must be defined as an `active` type
+- In the residual function, the parameter must be used as a `ParamType`
+- The parameter must be registered, i.e. added to the `_parameters` map, e.g.
+```
+	_parameters[makeParamId(hashString("TOTAL_POROSITY"), _unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_totalPorosity;
+```
+  which creates a unique parameter ID. ALso, the dependencies of the parameter need to be specified here, e.g. if it depends on a particle type or component etc. This map is called by the modelsystem to set up the sensitivity equations.
+- If the parameter is vector valued, the sensitivities for each entry of the 1D or 2D vector can be computed.
+  To this end, you need to call the corresponding registering function, e.g.
+```
+	registerParam1DArray(_parameters, _initC, [=](bool multi, unsigned int comp) { return makeParamId(hashString("INIT_C"), _unitOpIdx, comp, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep); });
+```
+- CADET-Core takes care of the rest

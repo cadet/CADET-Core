@@ -38,8 +38,8 @@ CADET-Core Numerics and Modeling
 .. bibliography:: literature.bib
    :filter: False
 
-   ZHANG2025solving
-   zhang2024solving
+   Zhang2025
+   Zhang2024
 
 **Publications on Parameter sensitivites and (compressed) algorithmic differentiation**
 
