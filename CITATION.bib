@@ -3,65 +3,79 @@
 
 % General:
 
-@article{Leweke:2018,
-author = {Leweke, S. and von Lieres, E.},
+@article{Leweke2018CADET,
 title = {Chromatography Analysis and Design Toolkit (CADET)},
-journal = {Computers and Chemical Engineering},
-volume = {113},
 year = {2018},
-pages = {274–294},
+author = {Leweke, Samuel and von Lieres, Eric},
 doi = {10.1016/j.compchemeng.2018.02.025},
-url = {https://doi.org/10.1016/j.compchemeng.2018.02.025}
+journal = {Computers & Chemical Engineering},
+volume = {113},
+pages = {274-294},
+issn = {0098-1354},
+keywords = {Column liquid chromatography, General rate model, Modeling and simulation platform, Model calibration, Process analysis and design, Statistical analysis, Experimental design},
+abstract = {CADET is an open source modeling and simulation framework for column liquid chromatography. The software is freely distributed to both academia and industry under the GPL license (http://github.com/modsim/cadet). CADET is based on a core simulator that is written in object oriented C++ and applies modern mathematical algorithms for efficiently solving a variety of customary chromatography models. This simulation engine is interfaced to a suite of MATLAB tools for setting up and executing the most common scientific workflows, e.g., model calibration, process design, robustness analysis, statistical analysis, and experimental design. The model library and numerical methods are continuously extended and improved. For instance, binding models with multiple bound states, pH and/or temperature dependence of binding parameters, surface diffusion, and arbitrary spacing of the radial discretization have been recently added. Moreover, numerical accuracy and computational speed of the code are comprehensively benchmarked using high precision reference solutions and realistic model problems. Versatility of the CADET modeling platform is demonstrated with several examples that are also published as open source code and can be freely adapted to specific use cases. In one of several case studies, sequential and simultaneous optimization of elution gradient shape and cut times are compared for a three component separation. This process is designed to achieve Pareto optimal purity and yield of the central fraction. Moreover, the robustness of these designs with respect to typical process variations is systematically studied. The last case study illustrates the optimal design of experiments for estimating model parameters with maximal accuracy.}
 }
 
-@article{vonLieres:2010,
-author = {von Lieres, E. and Andersson, J.},
-title = {A fast and accurate solver for the general rate model of column liquid chromatography},
-journal = {Computers and Chemical Engineering},
-volume = {34},
-number = {8},
+@article{VonLieres2010a,
+title = {{A fast and accurate solver for the general rate model of column liquid chromatography}},
 year = {2010},
-pages = {1180–1191},
+author = {von Lieres, Eric and Andersson, Joel},
 doi = {10.1016/j.compchemeng.2010.03.008},
-url = {https://doi.org/10.1016/j.compchemeng.2010.03.008}
+journal = {Computers {\&} Chemical Engineering},
+issn = {00981354},
+month = aug,
+number = {8},
+pages = {1180--1191},
+volume = {34},
 }
 
 % DG discretization of transport models:
 
-@article{Breuer:2023,
-author = {Breuer, J. and Leweke, S. and Schmölder, J. and Gassner, G. and von Lieres, E.},
+@article{Breuer2023,
 title = {Spatial discontinuous Galerkin spectral element method for a family of chromatography models in CADET},
-journal = {Computers and Chemical Engineering},
-volume = {177},
 year = {2023},
-pages = {108340},
+author = {Jan Michael Breuer and Samuel Leweke and Johannes SchmÃ¶lder and Gregor Gassner and Eric {von Lieres}},
 doi = {10.1016/j.compchemeng.2023.108340},
-url = {https://doi.org/10.1016/j.compchemeng.2023.108340}
+journal = {Computers \& Chemical Engineering},
+volume = {177},
+pages = {108340},
+issn = {0098-1354},
 }
 
 % Crystallization:
 
-@article{Zhang1:2024,
-author = {Zhang, Wendi and Przybycien, Todd and Schmölder, Johannes and Leweke, Samuel and von Lieres, Eric},
-title = {Solving crystallization/precipitation population balance models in {CADET}, part {I}: {Nucleation} growth and growth rate dispersion in batch and continuous modes on nonuniform grids},
-journal = {Computers and Chemical Engineering},
-volume = {183},
+@article{Zhang2024,
+title = {Solving crystallization/precipitation population balance models in CADET, part I: Nucleation growth and growth rate dispersion in batch and continuous modes on nonuniform grids},
 year = {2024},
-pages = {108612},
+author = {Zhang, Wendi and Przybycien, Todd and SchmÃ¶lder, Johannes and Leweke, Samuel and von Lieres, Eric},
 doi = {10.1016/j.compchemeng.2024.108612},
-url = {https://doi.org/10.1016/j.compchemeng.2024.108612}
+journal = {Computers \& Chemical Engineering},
+pages = {108612},
+publisher = {Elsevier},
 }
 
-% Parameter sensitivities
+% Parameter sensitivities and Algorithmic Differentiation
 
-@article{Puttmann:2013,
-title = {Fast and accurate parameter sensitivities for the general rate model of column liquid chromatography},
-journal = {Computers & Chemical Engineering},
-volume = {56},
-pages = {46-57},
+@article{Puttmann2013,
+title = {{Fast and accurate parameter sensitivities for the general rate model of column liquid chromatography}},
 year = {2013},
-issn = {0098-1354},
-doi = {https://doi.org/10.1016/j.compchemeng.2013.04.021},
-url = {https://www.sciencedirect.com/science/article/pii/S0098135413001440},
-author = {Andreas Püttmann and Sebastian Schnittert and Uwe Naumann and Eric {von Lieres}}
+author = {PÃ¼ttmann, Andreas and Schnittert, Sebastian and Naumann, Uwe and von Lieres, Eric},
+doi = {10.1016/j.compchemeng.2013.04.021},
+journal = {Computers {\&} Chemical Engineering},
+issn = {00981354},
+month = sep,
+pages = {46--57},
+volume = {56},
+}
+
+@article{Puttmann2016,
+title = {{Utilizing algorithmic differentiation to efficiently compute chromatograms and parameter sensitivities}},
+year = {2016},
+author = {PÃ¼ttmann, Andreas and Schnittert, Sebastian and Leweke, Samuel and von Lieres, Eric},
+doi = {10.1016/j.ces.2015.08.050},
+journal = {Chemical Engineering Science},
+issn = {00092509},
+month = jan,
+volume = {139},
+pages = {152--162},
 }

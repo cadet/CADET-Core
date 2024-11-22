@@ -39,7 +39,7 @@ Both quasi-stationary and dynamic binding models are supported:
 
     \begin{aligned}
         \text{quasi-stationary: }& & 0 &= f_{\text{ads}}\left( c^\ell, c^s\right), \\
-        \text{dynamic: }& & \frac{\partial q}{\partial t} &= f_{\text{ads}}\left( c^\ell, c^s\right) + f_{\text{react}}^s\left( c^\ell, c^s \right).
+        \text{dynamic: }& & \frac{\partial c^s}{\partial t} &= f_{\text{ads}}\left( c^\ell, c^s\right) + f_{\text{react}}^s\left( c^\ell, c^s \right).
     \end{aligned}
 
 By default, the following initial conditions are applied for all :math:`z \in [0,L]`:
