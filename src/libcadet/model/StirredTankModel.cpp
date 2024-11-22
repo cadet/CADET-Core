@@ -1723,72 +1723,17 @@ void CSTRModel::multiplyWithJacobian(const SimulationTime& simTime, const ConstS
 
 void CSTRModel::multiplyWithDerivativeJacobian(const SimulationTime& simTime, const ConstSimulationState& simState, double const* sDot, double* ret)
 {
-	// Handle inlet DOFs (all algebraic)
+	const double alpha = 1.0;
+	const double beta = 0.0;
+	double* const resTank = ret + _nComp;
+
+	// calculate time derivative Jacobian
+	_jacFact.setAll(0.0);
+	addTimeDerivativeJacobian(simTime.t, alpha, simState, _jacFact);
+
+	// calculate J * sDot (inlet set to zero)
 	std::fill_n(ret, _nComp, 0.0);
-
-	// Handle actual ODE DOFs
-	double const* const c = simState.vecStateY + _nComp;
-	double const* const q = simState.vecStateY + 2 * _nComp;
-	const double v = simState.vecStateY[2 * _nComp + _totalBound];
-	const double timeV = v;
-	const double vSolid = static_cast<double>(_constSolidVolume);
-	double* const r = ret + _nComp;
-	double const* const s = sDot + _nComp;
-
-	// Concentrations: V^l * \dot{c}_i \dot{V^l} * c_i + V^s * ([sum_j sum_m d_j \dot{q}_{j,i,m}]) - c_{in,i} * F_in + c_i * F_out == 0
-	for (unsigned int i = 0; i < _nComp; ++i)
-	{
-		r[i] = timeV * s[i]; // dRes / dcDot
-
-		double qSum = 0.0;
-		for (unsigned int type = 0; type < _nParType; ++type)
-		{
-			double const* const qi = q + _offsetParType[type] + _boundOffset[type * _nComp + i];
-			const unsigned int localOffset = _nComp + _offsetParType[type] + _boundOffset[type * _nComp + i];
-			const double vSolidParVolFrac = vSolid * static_cast<double>(_parTypeVolFrac[type]);
-			double qSumType = 0.0;
-			for (unsigned int j = 0; j < _nBound[type * _nComp + i]; ++j)
-			{
-				r[i] += vSolidParVolFrac * s[localOffset + j]; // dRes / d_qDot
-				// + _nComp: Moves over liquid phase components
-				// + _offsetParType[type]: Moves to particle type
-				// + _boundOffset[i]: Moves over bound states of previous components
-				// + j: Moves to current bound state j of component i
-
-				qSumType += qi[j];
-			}
-
-			qSum += static_cast<double>(_parTypeVolFrac[type]) * qSumType;
-		}
-		r[i] += c[i] * s[_nComp + _totalBound]; // dRes / dvLiquidDot
-	}
-
-	// Bound states
-	for (unsigned int type = 0; type < _nParType; ++type)
-	{
-		// Jump to solid phase of current particle type
-		double* const rQ = r + _nComp + _offsetParType[type];
-		double const* const sQ = s + _nComp + _offsetParType[type];
-		std::fill_n(rQ, _strideBound[type], 0.0);
-
-		// Skip binding models without dynamic binding fluxes
-		IBindingModel* const binding = _binding[type];
-		if (!binding->hasDynamicReactions())
-			continue;
-
-		int const* const qsReaction = binding->reactionQuasiStationarity();
-		for (unsigned int idx = 0; idx < _strideBound[type]; ++idx)
-		{
-			// Skip quasi-stationary fluxes
-			if (qsReaction[idx])
-				continue;
-
-			rQ[idx] = sQ[idx];
-		}
-	}
-
-	// Volume: \dot{V} - F_{in} + F_{out} + F_{filter} == 0
-	r[_nComp + _totalBound] = s[_nComp + _totalBound];
+	_jacFact.multiplyVector(sDot + _nComp, alpha, beta, resTank);
 }
 
 int CSTRModel::linearSolve(double t, double alpha, double tol, double* const rhs, double const* const weight,
