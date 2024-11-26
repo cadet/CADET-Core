@@ -427,7 +427,7 @@ public:
 			else
 			{
 				// Copy what we need (ignore excess values)
-				std::copy_n(vecKin.begin(), _reactionQuasistationarity.size(), _reactionQuasistationarity.begin());
+				std::transform(vecKin.begin(), vecKin.begin() + _reactionQuasistationarity.size(), _reactionQuasistationarity.begin(), [](int val) { return !static_cast<bool>(val); });
 			}
 		}
 		else
