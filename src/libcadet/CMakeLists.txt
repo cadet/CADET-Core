@@ -100,6 +100,7 @@ set(LIBCADET_BINDINGMODEL_SOURCES
 	${CMAKE_SOURCE_DIR}/src/libcadet/model/binding/BiLangmuirLDFBinding.cpp
 	${CMAKE_SOURCE_DIR}/src/libcadet/model/binding/HICWaterOnHydrophobicSurfacesBinding.cpp
 	${CMAKE_SOURCE_DIR}/src/libcadet/model/binding/HICConstantWaterActivityBinding.cpp
+	${CMAKE_SOURCE_DIR}/src/libcadet/model/binding/MMCNfor.cpp
 )
 set(LIBCADET_EXCHANGEMODEL_SOURCES
 	${CMAKE_SOURCE_DIR}/src/libcadet/model/exchange/LinearExchange.cpp
