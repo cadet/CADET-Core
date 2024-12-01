@@ -272,7 +272,9 @@ public:
 
 	virtual int residualCombinedAdd(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* yLiquid,
 		double const* ySolid, double* resLiquid, double* resSolid, double factor, LinearBufferAllocator workSpace) const = 0;
-
+	
+	
+	virtual void fillConservedMoietiesBulk(Eigen::MatrixXd M, std::vector<int> QSComponent) const = 0;
 	/**
 	 * @brief Adds the analytical Jacobian of the reaction terms for one combined phase cell
 	 * @details Adds the Jacobian of the dynamic reaction terms for the given combined phase
@@ -308,6 +310,12 @@ public:
 	 * @return Number of reactions
 	 */
 	virtual unsigned int numReactionsLiquid() const CADET_NOEXCEPT = 0;
+
+	virtual bool hasQuasiStationaryReactions() const CADET_NOEXCEPT = 0;
+
+	virtual bool hasQuasiStationaryReactionsLiquid() const CADET_NOEXCEPT = 0;
+
+	virtual unsigned int numQSReactionLiquid() const CADET_NOEXCEPT = 0;
 
 	/**
 	 * @brief Returns the number of reactions for a combined phase cell

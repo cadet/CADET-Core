@@ -20,6 +20,7 @@
 
 #include "model/ReactionModel.hpp"
 #include "ParamIdUtil.hpp"
+#include "linalg/ActiveDenseMatrix.hpp"
 
 #include <unordered_map>
 
@@ -63,6 +64,7 @@ protected:
 	unsigned int const* _nBoundStates; //!< Array with number of bound states for each component
 	unsigned int const* _boundOffset; //!< Array with offsets to the first bound state of each component
 	int _nTotalBoundStates;
+
 
 	std::unordered_map<ParameterId, active*> _parameters; //!< Map used to translate ParameterIds to actual variables
 
@@ -181,6 +183,10 @@ protected:
 	{                                                                                                                                                   \
 		jacobianCombinedImpl(t, secIdx, colPos, yLiquid, ySolid, factor, jacLiquid, jacSolid, workSpace);                                               \
 	}
+
+	void fillConservedMoietiesBulk(Eigen::MatrixXd M, std::vector<int> QSComponent)
+	{
+		calConservedMoietiesLiquid(M, QSComponent);
 #else
 #define CADET_DYNAMICREACTIONMODEL_BOILERPLATE                                                                                                          \
 	virtual int residualLiquidAdd(double t, unsigned int secIdx, const ColumnPosition& colPos, active const* y,                                         \

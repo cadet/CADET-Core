@@ -1306,8 +1306,41 @@ int CSTRModel::residualImpl(double t, unsigned int secIdx, StateType const* cons
 		std::fill_n(static_cast<ResidualType*>(flux), _nComp, 0.0);
 		_dynReactionBulk->residualLiquidAdd(t, secIdx, colPos, c, static_cast<ResidualType*>(flux), -1.0, subAlloc);
 
-		for (unsigned int comp = 0; comp < _nComp; ++comp)
-			resC[comp] += v * flux[comp];
+	
+		if (_dynReactionBulk->hasQuasiStationaryReactionsLiquid())
+		{
+			int nmoities = _nComp - _dynReactionBulk->numQSReactionLiquid();
+			Eigen::MatrixXd MconMoiBulk = Eigen::MatrixXd::Zero(nmoities, _nComp);
+			std::vector<int> qsComponent;
+			_dynReactionBulk->fillConservedMoietiesBulk(MconMoiBulk, qsComponent);
+
+			Eigen::VectorXd resCMoities = Eigen::VectorXd::Zero(_nComp);
+			resCMoities = Eigen::Map<Eigen::VectorXd>(resC, _nComp);
+			
+			
+			for (unsigned int comp = 0; comp < _nComp; ++comp)
+			{
+				if (qsComponent[comp])
+				{
+					resCMoities[comp] = MconMoiBulk.row(comp) * resC[comp];
+				}
+				if (comp < _nComp - nmoities)
+				{
+					resCMoities[comp] += v * flux[comp];
+				}
+				if(comp > _nComp - nmoities)
+				{
+					resCMoities[comp] = v * flux[comp];
+				}
+			}
+		}
+		else
+		{
+			for (unsigned int comp = 0; comp < _nComp; ++comp)
+				resC[comp] += v * flux[comp];
+		}
+
+		//AB resC = resCMoities;
 
 		if (wantJac)
 		{
@@ -1341,7 +1374,7 @@ int CSTRModel::residualImpl(double t, unsigned int secIdx, StateType const* cons
 						continue;
 
 					// Add time derivative to solid phase
-					resQ[idx] += qDot[idx];
+					resQ[idx] += qDot[idx]; //AB why here "+" ?
 				}
 			}
 		}
@@ -1365,11 +1398,10 @@ int CSTRModel::residualImpl(double t, unsigned int secIdx, StateType const* cons
 
 			std::fill_n(fluxLiquid, _nComp, 0.0);
 			std::fill_n(fluxSolid, _strideBound[type], 0.0);
-			dynReaction->residualCombinedAdd(t, secIdx, colPos, c, c + _nComp + _offsetParType[type], fluxLiquid, fluxSolid, -1.0, subAlloc);
-
+			dynReaction->residualCombinedAdd(t, secIdx, colPos, c, c + _nComp + _offsetParType[type], fluxLiquid, fluxSolid, -1.0, subAlloc); //AB M wird druch diese function gefuellt
 			for (unsigned int comp = 0; comp < _nComp; ++comp)
 				resC[comp] += v * fluxLiquid[comp];
-
+		
 			typedef typename DoubleActivePromoter<StateType, ParamType>::type FactorType;
 			const FactorType liquidFactor = vsolid * static_cast<ParamType>(_parTypeVolFrac[type]);
 			unsigned int idx = 0;
@@ -1404,6 +1436,8 @@ int CSTRModel::residualImpl(double t, unsigned int secIdx, StateType const* cons
 				{
 					// Add bulk part of reaction to mobile phase Jacobian
 					jacFlux.addSubmatrixTo(_jac, static_cast<double>(v), comp, 0, 1, _nComp, comp, 0);
+					//AB M * jacFlux[0:M.rows()]
+					
 					jacFlux.addSubmatrixTo(_jac, static_cast<double>(v), comp, _nComp, 1, _strideBound[type], comp, _nComp + _offsetParType[type]);
 
 					for (unsigned int bnd = 0; bnd < _nBound[type * _nComp + comp]; ++bnd, ++idx)
@@ -1426,6 +1460,9 @@ int CSTRModel::residualImpl(double t, unsigned int secIdx, StateType const* cons
 
 	// Volume: \dot{V} = F_{in} - F_{out} - F_{filter}
 	res[2 * _nComp + _totalBound] = vDot - flowIn + flowOut + static_cast<ParamType>(_curFlowRateFilter);
+
+
+
 
 	return 0;
 }

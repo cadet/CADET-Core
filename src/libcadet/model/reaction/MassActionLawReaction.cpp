@@ -397,6 +397,7 @@ protected:
 	linalg::ActiveDenseMatrix _expLiquidBwd;
 	linalg::ActiveDenseMatrix _expLiquidFwdSolid;
 	linalg::ActiveDenseMatrix _expLiquidBwdSolid;
+	std::vector<int> _reactionQuasistationarityLiquid;
 
 	linalg::ActiveDenseMatrix _stoichiometrySolid;
 	linalg::ActiveDenseMatrix _expSolidFwd;
@@ -833,108 +834,80 @@ protected:
 		}
 	}
 
-    /**
-     * @brief Calculates the conserved moieties based on the stoichiometric matrix and reaction quasistationarity.
-     * @param S The stoichiometric matrix.
-     * @param _reactionQuasistationarity The reaction quasistationarity vector.
-     * @return The conserved moieties matrix.
-     */
 
-    Eigen::MatrixXd calculateConservedMoieties(linalg::ActiveDenseMatrix &S, _reactionQuasistationarity)
-    {
-    
+	/*
+	 * @brief Calculates the conserved moieties based on the stoichiometric matrix and reaction quasistationarity.
+	 * @param S The stoichiometric matrix.
+	 * @param _reactionQuasistationarity The reaction quasistationarity vector.
+	 * @return The conserved moieties matrix.
+	 */
+	void calConservedMoietiesLiquid(Eigen::MatrixXd M, std::vector<int>QSComponent)
+	{
+
 		//1. get stoichmetic matrix with only reaction in quasi stationary
 		// S dim -> ncomp x nreac
 
-
+		int countQS = std::count(_reactionQuasistationarity.begin(), _reactionQuasistationarity.end(), 1);
 		// Count the number of entries with value 1 in _reactionQuasistationarity
-		int countQS = 0;
-		for (int i = 0; i < _reactionQuasistationarity.size(); ++i) {
-			if (_reactionQuasistationarity[i] == 1) {
-				++countQS;
-			}
-		}
+
 		if (countQS == 0) {
-			Eigen::MatrixXd I = Eigen::MatrixXd::Identity(S.rows(), S.rows());
+			Eigen::MatrixXd I = Eigen::MatrixXd::Identity(_stoichiometryLiquid.columns(), _stoichiometryLiquid.columns());
 			return I;
 		}
 
-		Eigen::MatrixXd QSS(S.rows(), countQS); // dim -> ncomp x countQS
-
+		Eigen::MatrixXd QSS(_stoichiometryLiquid.columns(), countQS);
 		int colIndex = 0;
-		for (int i = 0; i < S.columns(); i++)
+
+		// Fülle die Spalten basierend auf _reactionQuasistationarity
+		for (int i = 0; i < _stoichiometryLiquid.rows(); ++i)
 		{
-			if (_reactionQuasistationarity[i] == 1) {
-				QSS.col(colIndex) = S.columns(i);
-				++colIndex;
+			const double* rowData = reinterpret_cast<const double*>(_stoichiometryLiquid.data() + i * S.columns());
+			Eigen::Map<const Eigen::VectorXd> Srow(rowData, _stoichiometryLiquid.columns());
+			QSS.col(colIndex++) = Srow;
+		}
+
+		// Entferne Nullzeilen in-place
+		std::vector<int> nonZeroRowIndices;
+
+		for (Eigen::Index i = 0; i < QSS.rows(); ++i)
+		{
+			if (QSS.row(i).norm() > 1e-10) {
+				nonZeroRowIndices.push_back(i);
+			}
+			else
+			{
+				QSComponent.push_back(i);
 			}
 		}
 
-		// 2. delete zero rows of QuasiStationarStoichmetricMatrix (QSS)
-
-		std::vector<Eigen::VectorXd> nonZeroRows;
-		std::vector<int> indZeroRow;
-
-		for (int i = 0; i < QSS.rows(); ++i)
+		// Redimensioniere QSS und kopiere nur die nicht-null Zeilen
+		if (!nonZeroRowIndices.empty())
 		{
-			if (!QSS.row(i).isZero(1e-10))
-				nonZeroRows.push_back(QSS.row(i));
-			else
-				indZeroRow.push_back(i);
+			Eigen::MatrixXd QSSCompressed(nonZeroRowIndices.size(), QSS.cols());
+			for (std::size_t i = 0; i < nonZeroRowIndices.size(); ++i)
+			{
+				QSSCompressed.row(i) = QSS.row(nonZeroRowIndices[i]);
+			}
+			QSS.swap(QSSCompressed); // 
 		}
-
-
-		Eigen::MatrixXd QSSWithoutZeroRows(nonZeroRows.size(), QSS.cols()); // dim -> ncomp - nc_kin x countQS
-
-		for (size_t i = 0; i < nonZeroRows.size(); ++i) {
-			QSSWithoutZeroRows.row(i) = nonZeroRows[i];
+		else
+		{
+			QSS.resize(0, countQS); // Leere Matrix, falls alle Zeilen Null sind
 		}
 
 
 		//3. Test if the matrix is full rank
-		int rang = QSSWithoutZeroRows.fullPivLu().rank();
+		int rang = QSS.fullPivLu().rank();
 		if (rang != countQS)
 		{
 			throw std::runtime_error("The matrix is not full rank");
 		}
 
 		//3. Calculate the null space of the matrix
-		Eigen::MatrixXd QSSWithoutZeroRowsT = QSSWithoutZeroRows.transpose();
+		Eigen::MatrixXd leftZeroSpace = QSS.transpose().fullPivLu().kernel().transpose();
 
-		Eigen::MatrixXd M = QSSWithoutZeroRowsT.fullPivLu().kernel().transpose(); // dim -> nconvMoi x ncompsq (ncomvMoi = nC_eq- Req)
+		M = leftZeroSpace;
 
-		if (indZeroRow.size() == 0)
-		{
-			return M;
-		}
-		//4. Refill nullSpace with zero colums and rows
-
-		Eigen::MatrixXd I = Eigen::MatrixXd::Identity(S.rows(), S.rows());
-		Eigen::MatrixXd newM = Eigen::MatrixXd::Zero(M.rows() + indZeroRow.size(), S.rows()); // dim -> nconvMoi + ncompkin x ncomp
-
-		int Iind = 0;
-		for (int i = 0; i < newM.rows(); ++i) 
-		{
-			if (i < M.rows()) 
-			{
-				Eigen::VectorXd Mrow = Eigen::VectorXd::Zero(S.rows());
-				int s = 0;
-				for (int k = 0; k < Mrow.rows(); ++k) 
-				{
-					if (std::find(indZeroRow.begin(), indZeroRow.end(), k) == indZeroRow.end()) {
-						Mrow(k) = M(i, s);
-						++s;
-					}
-				}
-				newM.row(i) = Mrow;
-			}
-			else 
-			{
-				newM.row(i) = I.col(indZeroRow[Iind]);
-				++Iind;
-			}
-		}
-		return newM;
 	}
 };
 

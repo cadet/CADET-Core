@@ -187,6 +187,19 @@ public:
 		return _data[static_cast<int>(row * stride() + row) + diagonal];
 	}
 
+    /**
+    * @brief Accesses a row in the matrix
+    * @param [in] row Index of the row
+    * @return Reference to the row in the matrix
+    */
+
+    inline active* row(int row)
+    {
+        cadet_assert(row < _rows);
+        return _data + stride() * row;
+    }
+
+
 	inline const active& operator()(int row, int diagonal) const
 	{
 		cadet_assert(row < _rows);
@@ -453,6 +466,7 @@ protected:
 	{
 		std::copy(src, src + stride() * _rows, _data);
 	}
+
 };
 
 } // namespace linalg
