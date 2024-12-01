@@ -26,6 +26,9 @@
 #include <string>
 #include <vector>
 
+#include <Eigen/Dense>
+using namespace Eigen;
+
 /*<codegen>
 {
 	"name": "MassActionLawParamHandler",
@@ -312,6 +315,11 @@ public:
 	virtual void setExternalFunctions(IExternalFunction** extFuns, unsigned int size) { _paramHandler.setExternalFunctions(extFuns, size); }
 	virtual bool dependsOnTime() const CADET_NOEXCEPT { return ParamHandler_t::dependsOnTime(); }
 	virtual bool requiresWorkspace() const CADET_NOEXCEPT { return true; }
+
+	virtual bool hasQuasiStationaryReactions() const CADET_NOEXCEPT { return false; }
+	virtual bool hasDynamicReactions() const CADET_NOEXCEPT { return true; }
+	virtual int const* reactionQuasiStationarity() const CADET_NOEXCEPT { return _reactionQuasistationarity.data(); }
+
 	virtual unsigned int workspaceSize(unsigned int nComp, unsigned int totalNumBoundStates, unsigned int const* nBoundStates) const CADET_NOEXCEPT
 	{
 		return _paramHandler.cacheSize(maxNumReactions(), nComp, totalNumBoundStates) + std::max(maxNumReactions() * sizeof(active), 2 * (_nComp + totalNumBoundStates) * sizeof(double));
@@ -389,12 +397,15 @@ protected:
 	linalg::ActiveDenseMatrix _expLiquidBwd;
 	linalg::ActiveDenseMatrix _expLiquidFwdSolid;
 	linalg::ActiveDenseMatrix _expLiquidBwdSolid;
+	std::vector<int> _reactionQuasistationarityLiquid;
 
 	linalg::ActiveDenseMatrix _stoichiometrySolid;
 	linalg::ActiveDenseMatrix _expSolidFwd;
 	linalg::ActiveDenseMatrix _expSolidBwd;
 	linalg::ActiveDenseMatrix _expSolidFwdLiquid;
 	linalg::ActiveDenseMatrix _expSolidBwdLiquid;
+
+	std::vector<int> _reactionQuasistationarity; //!< Determines whether a reaction is quasi-stationary (@c true) or not (@c false)
 
 	inline int maxNumReactions() const CADET_NOEXCEPT { return std::max(std::max(_stoichiometryBulk.columns(), _stoichiometryLiquid.columns()), _stoichiometrySolid.columns()); }
 
@@ -821,6 +832,82 @@ protected:
 					curJac[col - static_cast<int>(_nComp) - static_cast<int>(row)] += colFactor * (fluxGradFwd[col] - fluxGradBwd[col]);
 			}
 		}
+	}
+
+
+	/*
+	 * @brief Calculates the conserved moieties based on the stoichiometric matrix and reaction quasistationarity.
+	 * @param S The stoichiometric matrix.
+	 * @param _reactionQuasistationarity The reaction quasistationarity vector.
+	 * @return The conserved moieties matrix.
+	 */
+	void calConservedMoietiesLiquid(Eigen::MatrixXd M, std::vector<int>QSComponent)
+	{
+
+		//1. get stoichmetic matrix with only reaction in quasi stationary
+		// S dim -> ncomp x nreac
+
+		int countQS = std::count(_reactionQuasistationarity.begin(), _reactionQuasistationarity.end(), 1);
+		// Count the number of entries with value 1 in _reactionQuasistationarity
+
+		if (countQS == 0) {
+			Eigen::MatrixXd I = Eigen::MatrixXd::Identity(_stoichiometryLiquid.columns(), _stoichiometryLiquid.columns());
+			return I;
+		}
+
+		Eigen::MatrixXd QSS(_stoichiometryLiquid.columns(), countQS);
+		int colIndex = 0;
+
+		// Fülle die Spalten basierend auf _reactionQuasistationarity
+		for (int i = 0; i < _stoichiometryLiquid.rows(); ++i)
+		{
+			const double* rowData = reinterpret_cast<const double*>(_stoichiometryLiquid.data() + i * S.columns());
+			Eigen::Map<const Eigen::VectorXd> Srow(rowData, _stoichiometryLiquid.columns());
+			QSS.col(colIndex++) = Srow;
+		}
+
+		// Entferne Nullzeilen in-place
+		std::vector<int> nonZeroRowIndices;
+
+		for (Eigen::Index i = 0; i < QSS.rows(); ++i)
+		{
+			if (QSS.row(i).norm() > 1e-10) {
+				nonZeroRowIndices.push_back(i);
+			}
+			else
+			{
+				QSComponent.push_back(i);
+			}
+		}
+
+		// Redimensioniere QSS und kopiere nur die nicht-null Zeilen
+		if (!nonZeroRowIndices.empty())
+		{
+			Eigen::MatrixXd QSSCompressed(nonZeroRowIndices.size(), QSS.cols());
+			for (std::size_t i = 0; i < nonZeroRowIndices.size(); ++i)
+			{
+				QSSCompressed.row(i) = QSS.row(nonZeroRowIndices[i]);
+			}
+			QSS.swap(QSSCompressed); // 
+		}
+		else
+		{
+			QSS.resize(0, countQS); // Leere Matrix, falls alle Zeilen Null sind
+		}
+
+
+		//3. Test if the matrix is full rank
+		int rang = QSS.fullPivLu().rank();
+		if (rang != countQS)
+		{
+			throw std::runtime_error("The matrix is not full rank");
+		}
+
+		//3. Calculate the null space of the matrix
+		Eigen::MatrixXd leftZeroSpace = QSS.transpose().fullPivLu().kernel().transpose();
+
+		M = leftZeroSpace;
+
 	}
 };
 
