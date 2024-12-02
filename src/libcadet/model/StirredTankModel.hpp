@@ -191,7 +191,7 @@ protected:
 		virtual unsigned int numInletPorts() const CADET_NOEXCEPT { return 1; }
 		virtual unsigned int numOutletPorts() const CADET_NOEXCEPT { return 1; }
 		virtual unsigned int numParticleTypes() const CADET_NOEXCEPT { return _nParType; }
-		virtual unsigned int numParticleShells(unsigned int parType) const CADET_NOEXCEPT { return 1; }
+		virtual unsigned int numParticleShells(unsigned int parType) const CADET_NOEXCEPT { return 0; }
 		virtual unsigned int numBoundStates(unsigned int parType) const CADET_NOEXCEPT { return _strideBound[parType]; }
 		virtual unsigned int numMobilePhaseDofs() const CADET_NOEXCEPT { return _nComp; }
 		virtual unsigned int numParticleMobilePhaseDofs() const CADET_NOEXCEPT { return 0; }

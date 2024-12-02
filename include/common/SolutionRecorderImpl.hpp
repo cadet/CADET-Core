@@ -339,7 +339,7 @@ public:
 		if (!_storeCoordinates)
 			return;
 
-		if (!_axialCoords.empty())
+		if (!_axialCoords.empty() && ((_keepBulkSingletonDim && (_nAxialCells == 1)) || (_nAxialCells > 1)))
 			writer.template vector<double>("AXIAL_COORDINATES", _axialCoords);
 		if (!_radialCoords.empty())
 			writer.template vector<double>("RADIAL_COORDINATES", _radialCoords);
@@ -350,7 +350,7 @@ public:
 			unsigned int offset = 0;
 			for (std::size_t pt = 0; pt < _nParShells.size(); ++pt)
 			{
-				if (_nParShells[pt] == 0)
+				if (_nParShells[pt] == 0 || (!_keepParticleSingletonDim && (_nParShells[pt] == 1)))
 					continue;
 
 				oss.str("");
@@ -882,7 +882,9 @@ protected:
 		{
 			oss.str("");
 			oss << prefix << "_VOLUME";
-			writer.template matrix<double>(oss.str(), _numTimesteps, _nVolumeDof, _curStorage->volume.data(), 1);
+			// Note: since the CSTR is currently the only unit operation that simulates volume, and _numVolumeDof is 1, we always write this as a vector.
+			// Once other unit operations are implemented with more than one volume, we should add the option here to write this as a matrix (singletonDimension filed etc, see other output).
+			writer.template vector<double>(oss.str(), _numTimesteps * _nVolumeDof, _curStorage->volume.data(), 1);
 		}
 	}
 
