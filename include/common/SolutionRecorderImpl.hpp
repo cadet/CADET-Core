@@ -344,13 +344,13 @@ public:
 		if (!_radialCoords.empty())
 			writer.template vector<double>("RADIAL_COORDINATES", _radialCoords);
 
-		if (!_particleCoords.empty() && ((_keepParticleSingletonDim && (_nParShells == 1)) || (_nParShells > 1)))
+		if (!_particleCoords.empty())
 		{
 			std::ostringstream oss;
 			unsigned int offset = 0;
 			for (std::size_t pt = 0; pt < _nParShells.size(); ++pt)
 			{
-				if (_nParShells[pt] == 0)
+				if (_nParShells[pt] == 0 || (!_keepParticleSingletonDim && (_nParShells[pt] == 1)))
 					continue;
 
 				oss.str("");
