@@ -339,12 +339,12 @@ public:
 		if (!_storeCoordinates)
 			return;
 
-		if (!_axialCoords.empty())
+		if (!_axialCoords.empty() && ((_keepBulkSingletonDim && (_nAxialCells == 1)) || (_nAxialCells > 1)))
 			writer.template vector<double>("AXIAL_COORDINATES", _axialCoords);
 		if (!_radialCoords.empty())
 			writer.template vector<double>("RADIAL_COORDINATES", _radialCoords);
 
-		if (!_particleCoords.empty())
+		if (!_particleCoords.empty() && ((_keepParticleSingletonDim && (_nParShells == 1)) || (_nParShells > 1)))
 		{
 			std::ostringstream oss;
 			unsigned int offset = 0;
