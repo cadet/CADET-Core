@@ -882,7 +882,7 @@ protected:
 		{
 			oss.str("");
 			oss << prefix << "_VOLUME";
-			writer.template matrix<double>(oss.str(), _numTimesteps, _nVolumeDof, _curStorage->volume.data(), 1);
+			writer.template vector<double>(oss.str(), _numTimesteps, _curStorage->volume.data(), 1);
 		}
 	}
 
