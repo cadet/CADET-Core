@@ -882,7 +882,9 @@ protected:
 		{
 			oss.str("");
 			oss << prefix << "_VOLUME";
-			writer.template vector<double>(oss.str(), _numTimesteps, _curStorage->volume.data(), 1);
+			// Note: since the CSTR is currently the only unit operation that simulates volume, and _numVolumeDof is 1, we always write this as a vector.
+			// Once other unit operations are implemented with more than one volume, we should add the option here to write this as a matrix (singletonDimension filed etc, see other output).
+			writer.template vector<double>(oss.str(), _numTimesteps * _nVolumeDof, _curStorage->volume.data(), 1);
 		}
 	}
 
