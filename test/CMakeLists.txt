@@ -63,6 +63,9 @@ endif()
 
 if (ENABLE_DG)
 	list(APPEND TEST_ADDITIONAL_SOURCES GeneralRateModelDG.cpp LumpedRateModelWithPoresDG.cpp LumpedRateModelWithoutPoresDG.cpp)
+	if (ENABLE_2D_MODELS)
+		list(APPEND TEST_ADDITIONAL_SOURCES LumpedRateModelWithPores2D.cpp)
+	endif()
 endif()
 
 add_executable(testRunner testRunner.cpp JsonTestModels.cpp ColumnTests.cpp UnitOperationTests.cpp SimHelper.cpp ParticleHelper.cpp
