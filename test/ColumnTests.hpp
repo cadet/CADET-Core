@@ -20,6 +20,7 @@
 
 #include <limits>
 #include <string>
+#include "AutoDiff.hpp"
 
 namespace cadet
 {
@@ -143,6 +144,12 @@ namespace column
 	unsigned int fluxOffsetOfColumnUnitOp(cadet::IUnitOperation* unit);
 
 	/**
+	 * @brief Runs a parameterProvider for a model setup provided by a json file
+	 * @param [in] modelFileRelPath relative path to model setup json file
+	 */
+	JsonParameterProvider getReferenceFile(const std::string& modelFileRelPath);
+
+	/**
 	 * @brief Runs a simulation test comparing against (semi-)analytic single component pulse injection reference data
 	 * @details Linear binding model is used in the column-like unit operation.
 	 * @param [in] uoType Unit operation type
@@ -191,8 +198,9 @@ namespace column
 	 * @param [in] jpp Configured column model
 	 * @param [in] absTolFDpattern absolute tolerance when comparing the sign in the FD Jacobian pattern
 	 * @param [in] absTolAD absolute tolerance when comparing the AD Jacobians. Deviation from default only advised when values are numerically challenging, i.e. are at least 1E+10
+	 * @param [in] flowRate flow rate, needs to be specified for 2D units, where velocity is derived from flow rates.
 	 */
-	void testJacobianAD(cadet::JsonParameterProvider& jpp, const double absTolFDpattern = 0.0, const double absTolAD = std::numeric_limits<float>::epsilon() * 100.0);
+	void testJacobianAD(cadet::JsonParameterProvider& jpp, const double absTolFDpattern = 0.0, const double absTolAD = std::numeric_limits<float>::epsilon() * 100.0, const cadet::active* flowRate = nullptr);
 
 	/**
 	 * @brief Checks the full Jacobian against AD and FD pattern switching in case of variable surface diffusion coefficient
