@@ -1,0 +1,59 @@
+name: CD tests
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: 'Commit hash, branch name, or tag to run the CD pipeline for'
+        required: false
+        default: 'HEAD'
+        type: string
+
+
+jobs:
+  Ubuntu-latest:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: true
+    defaults:
+      run:
+        shell: bash -l {0}
+    env:
+      SRC_DIR: ${{ github.workspace }}/src
+      BUILD_DIR: ${{ github.workspace }}/build
+      INSTALL_PREFIX: ${{ github.workspace }}/install
+      BUILD_TYPE: Release
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+          path: src
+          ref: ${{ github.event.inputs.ref || github.ref }}
+      - name: Install Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt -y install \
+            build-essential \
+            libhdf5-dev \
+            liblapack-dev \
+            libblas-dev \
+            libtbb-dev \
+            libsuperlu-dev \
+            libeigen3-dev;
+      - name: Build and Install
+        run: |
+          cmake -E make_directory "${BUILD_DIR}"
+          cmake -E make_directory "${INSTALL_PREFIX}"
+          cd "${BUILD_DIR}"
+          cmake -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" -DCMAKE_BUILD_TYPE="${BUILD_TYPE}" "${SRC_DIR}" -DENABLE_TESTS=ON -DNUM_MAX_AD_DIRS=1320
+          make install -j$(nproc)
+      - name: Check if it runs
+        run: |
+          export LD_LIBRARY_PATH=${INSTALL_PREFIX}/lib:$LD_LIBRARY_PATH
+          ${INSTALL_PREFIX}/bin/cadet-cli --version || true
+          ${INSTALL_PREFIX}/bin/createLWE
+          ${INSTALL_PREFIX}/bin/cadet-cli LWE.h5 || true
+      - name: Run tests
+        run: |
+          ${BUILD_DIR}/test/testRunner [ReleaseCI]
+
