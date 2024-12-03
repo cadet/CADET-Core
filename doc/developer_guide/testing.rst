@@ -91,7 +91,7 @@ This way, we make sure that ongoing CADET-Core development doesnt break the mode
 **4. Add EOC tests to CADET-Core (optional):**
 These tests should be part of the paper publication which introduces the new model implemented in CADET-Core and can also be included in the CADET-Core tests.
 Verifying the experimental order of convergence (EOC) is widely considered the most rigorous and best scientific practice in model and method validation, which is why we recommend including the EOC tables in your publication.
-The convergence tests should not be added to the standard CI but only be rerun on release, i.e. by adding the [releaseCI] flag.
+The convergence tests should not be added to the standard CI but only be rerun on release, i.e. by adding the [ReleaseCI] flag.
 Details on how to compute EOC tables can be found elsewhere, please also refer to the already implemented EOC tests in CADET-Verification.
 
 Manufactured solution
