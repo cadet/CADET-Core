@@ -12,7 +12,7 @@ Release checklist
 
   - The release tests contain extensive testing that is not included in our CI, such as EOC tests.
     Running these tests might take a while and this should be done on the server.
-  - Some tests are implemented in CADET-Core, and can be run with the [ReleaseCI] flag.
+  - Some tests are implemented in CADET-Core with a `ReleaseCI` flag, which should be run by executing the ci workflow.
   - More tests are implemented in Python, the code can be found in `CADET-Verification <https://github.com/cadet/CADET-Verification>`_
   Compare the results with the previous run.
   The release process can only be continued if the results are reasonable.

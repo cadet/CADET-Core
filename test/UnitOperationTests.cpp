@@ -74,6 +74,8 @@ namespace unitoperation
 		cadet::IUnitOperation* const unitAD = createAndConfigureUnit(jpp, *mb);
 		unitAD->useAnalyticJacobian(false);
 
+		REQUIRE(unitAD->requiredADdirs() <= cadet::ad::getMaxDirections()); // this explicit check is required in this test but is automatically performed in simulations
+
 		cadet::active* adRes = new cadet::active[unitAD->numDofs()];
 		cadet::active* adY = new cadet::active[unitAD->numDofs()];
 

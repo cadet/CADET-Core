@@ -81,7 +81,7 @@ TEST_CASE("LRMP numerical Benchmark with parameter sensitivities for SMA LWE cas
 	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "000", absTol, relTol, disc, true);
 }
 
-TEST_CASE("LRMP numerical EOC Benchmark with parameter sensitivities for linear case", "[releaseCI],[EOC],[EOC_LRMP_FV]")
+TEST_CASE("LRMP numerical EOC Benchmark with parameter sensitivities for linear case", "[LRMP],[FV],[EOC],[EOC_LRMP_FV]")
 {
 	const std::string& modelFilePath = std::string("/data/model_LRMP_dynLin_1comp_benchmark1.json");
 	const std::string& refFilePath = std::string("/data/ref_LRMP_dynLin_1comp_sensbenchmark1_FV_Z32768.h5");
@@ -93,7 +93,7 @@ TEST_CASE("LRMP numerical EOC Benchmark with parameter sensitivities for linear 
 	cadet::test::column::testEOCReferenceBenchmark(modelFilePath, refFilePath, convFilePath, "001", absTol, relTol, 4, disc, true);
 }
 
-TEST_CASE("LRMP numerical EOC Benchmark with parameter sensitivities for SMA LWE case", "[releaseCI],[EOC],[EOC_LRMP_FV]")
+TEST_CASE("LRMP numerical EOC Benchmark with parameter sensitivities for SMA LWE case", "[LRMP],[FV],[EOC],[EOC_LRMP_FV]")
 {
 	const std::string& modelFilePath = std::string("/data/model_LRMP_reqSMA_4comp_benchmark1.json");
 	const std::string& refFilePath = std::string("/data/ref_LRMP_reqSMA_4comp_sensbenchmark1_FV_Z2048.h5");
