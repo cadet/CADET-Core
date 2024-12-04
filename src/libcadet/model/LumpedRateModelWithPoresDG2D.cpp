@@ -449,6 +449,7 @@ bool LumpedRateModelWithPoresDG2D::configureModelDiscretization(IParameterProvid
 
 	_disc.axNPoints = _convDispOp.axNPoints();
 	_disc.radNPoints = _convDispOp.radNPoints();
+	_disc.radNElem = _convDispOp.radNElem();
 	_disc.nBulkPoints = _disc.axNPoints * _disc.radNPoints;
 
 	// Precompute offsets of particle type DOFs
@@ -626,11 +627,11 @@ bool LumpedRateModelWithPoresDG2D::configure(IParameterProvider& paramProvider)
 
 	// Let PAR_TYPE_VOLFRAC default to 1.0 for backwards compatibility
 	if (paramProvider.exists("PAR_TYPE_VOLFRAC"))
-		_parTypeVolFracMode = readAndRegisterMultiplexParam(paramProvider, _parameters, _parTypeVolFrac, "PAR_TYPE_VOLFRAC", _disc.axNPoints, _disc.radNPoints, _disc.nParType, _unitOpIdx);
+		_parTypeVolFracMode = readAndRegisterMultiplexParam(paramProvider, _parameters, _parTypeVolFrac, "PAR_TYPE_VOLFRAC", _disc.axNPoints, _disc.radNElem, _disc.nParType, _unitOpIdx);
 	else
 	{
 		// Only one particle type present
-		_parTypeVolFrac.resize(_disc.axNPoints * _disc.radNPoints, 1.0);
+		_parTypeVolFrac.resize(_disc.axNPoints * _disc.radNElem, 1.0);
 		_parTypeVolFracMode = MultiplexMode::Independent;
 	}
 
@@ -644,12 +645,12 @@ bool LumpedRateModelWithPoresDG2D::configure(IParameterProvider& paramProvider)
 		throw InvalidParameterException("Number of elements in field PAR_POROSITY does not match number of particle types");
 
 	// Check that particle volume fractions sum to 1.0
-	for (unsigned int i = 0; i < _disc.axNPoints * _disc.radNPoints; ++i)
+	for (unsigned int i = 0; i < _disc.axNPoints * _disc.radNElem; ++i)
 	{
 		const double volFracSum = std::accumulate(_parTypeVolFrac.begin() + i * _disc.nParType, _parTypeVolFrac.begin() + (i+1) * _disc.nParType, 0.0,
 			[](double a, const active& b) -> double { return a + static_cast<double>(b); });
 		if (std::abs(1.0 - volFracSum) > 1e-10)
-			throw InvalidParameterException("Sum of field PAR_TYPE_VOLFRAC differs from 1.0 (is " + std::to_string(volFracSum) + ") in axial cell " + std::to_string(i / _disc.radNPoints) + " radial cell " + std::to_string(i % _disc.radNPoints));
+			throw InvalidParameterException("Sum of field PAR_TYPE_VOLFRAC differs from 1.0 (is " + std::to_string(volFracSum) + ") in axial element " + std::to_string(i / _disc.radNElem) + " radial element " + std::to_string(i % _disc.radNElem));
 	}
 
 	// Read vectorial parameters (which may also be section dependent; transport)
@@ -671,7 +672,7 @@ bool LumpedRateModelWithPoresDG2D::configure(IParameterProvider& paramProvider)
 
 	// Register initial conditions parameters
 	registerParam1DArray(_parameters, _initC, [=](bool multi, unsigned int comp) { return makeParamId(hashString("INIT_C"), _unitOpIdx, comp, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep); });
-	if (_disc.radNPoints > 1)
+	if (_disc.radNElem > 1)
 		registerParam2DArray(_parameters, _initC, [=](bool multi, unsigned int rad, unsigned int comp) { return makeParamId(hashString("INIT_C"), _unitOpIdx, comp, ParTypeIndep, BoundStateIndep, rad, SectionIndep); }, _disc.nComp);
 
 	if (_singleBinding)
@@ -679,9 +680,9 @@ bool LumpedRateModelWithPoresDG2D::configure(IParameterProvider& paramProvider)
 		for (unsigned int c = 0; c < _disc.nComp; ++c)
 			_parameters[makeParamId(hashString("INIT_CP"), _unitOpIdx, c, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_initCp[c];
 
-		if (_disc.radNPoints > 1)
+		if (_disc.radNElem > 1)
 		{
-			for (unsigned int r = 0; r < _disc.radNPoints; ++r)
+			for (unsigned int r = 0; r < _disc.radNElem; ++r)
 			{
 				for (unsigned int c = 0; c < _disc.nComp; ++c)
 					_parameters[makeParamId(hashString("INIT_CP"), _unitOpIdx, c, ParTypeIndep, BoundStateIndep, r, SectionIndep)] = &_initCp[r * _disc.nComp * _disc.nParType + c];
@@ -691,7 +692,7 @@ bool LumpedRateModelWithPoresDG2D::configure(IParameterProvider& paramProvider)
 	else
 	{
 		registerParam2DArray(_parameters, _initCp, [=](bool multi, unsigned int type, unsigned int comp) { return makeParamId(hashString("INIT_CP"), _unitOpIdx, comp, type, BoundStateIndep, ReactionIndep, SectionIndep); }, _disc.nComp);
-		if (_disc.radNPoints > 1)
+		if (_disc.radNElem > 1)
 			registerParam3DArray(_parameters, _initCp, [=](bool multi, unsigned int rad, unsigned int type, unsigned int comp) { return makeParamId(hashString("INIT_CP"), _unitOpIdx, comp, type, BoundStateIndep, rad, SectionIndep); }, _disc.nComp, _disc.nParType);
 	}
 
@@ -722,13 +723,13 @@ bool LumpedRateModelWithPoresDG2D::configure(IParameterProvider& paramProvider)
 		}
 
 		// Register radially dependent
-		if (_disc.radNPoints > 1)
+		if (_disc.radNElem > 1)
 		{
 			if (_singleBinding)
 			{
 				_binding[0]->fillBoundPhaseInitialParameters(initParams.data(), _unitOpIdx, ParTypeIndep);
 
-				for (unsigned int r = 0; r < _disc.radNPoints; ++r)
+				for (unsigned int r = 0; r < _disc.radNElem; ++r)
 				{
 					for (ParameterId& pId : initParams)
 						pId.reaction = r;
@@ -740,7 +741,7 @@ bool LumpedRateModelWithPoresDG2D::configure(IParameterProvider& paramProvider)
 			}
 			else
 			{
-				for (unsigned int r = 0; r < _disc.radNPoints; ++r)
+				for (unsigned int r = 0; r < _disc.radNElem; ++r)
 				{
 					for (unsigned int type = 0; type < _disc.nParType; ++type)
 					{
@@ -1525,11 +1526,11 @@ void LumpedRateModelWithPoresDG2D::setExternalFunctions(IExternalFunction** extF
 unsigned int LumpedRateModelWithPoresDG2D::localOutletComponentIndex(unsigned int port) const CADET_NOEXCEPT
 {
 	// Inlets are duplicated so need to be accounted for
-	if (static_cast<double>(_convDispOp.currentVelocity(port)) >= 0.0)
-		// Forward Flow: outlet is last cell
+	if (static_cast<double>(_convDispOp.currentVelocity(std::floor(port / _disc.radNElem))) >= 0.0)
+		// Forward Flow: outlet is last node
 		return _disc.nComp * _disc.radNPoints + (_disc.axNPoints - 1) * _disc.nComp * _disc.radNPoints + port * _disc.nComp;
 	else
-		// Backward flow: Outlet is first cell
+		// Backward flow: Outlet is first node
 		return _disc.nComp * _disc.radNPoints + _disc.nComp * port;
 }
 
@@ -1558,7 +1559,7 @@ bool LumpedRateModelWithPoresDG2D::setParameter(const ParameterId& pId, double v
 {
 	if (pId.unitOperation == _unitOpIdx)
 	{
-		if (multiplexParameterValue(pId, hashString("PAR_TYPE_VOLFRAC"), _parTypeVolFracMode, _parTypeVolFrac, _disc.axNPoints, _disc.radNPoints, _disc.nParType, value, nullptr))
+		if (multiplexParameterValue(pId, hashString("PAR_TYPE_VOLFRAC"), _parTypeVolFracMode, _parTypeVolFrac, _disc.axNPoints, _disc.radNElem, _disc.nParType, value, nullptr))
 			return true;
 		if (multiplexCompTypeSecParameterValue(pId, hashString("PORE_ACCESSIBILITY"), _poreAccessFactorMode, _poreAccessFactor, _disc.nParType, _disc.nComp, value, nullptr))
 			return true;
@@ -1588,7 +1589,7 @@ void LumpedRateModelWithPoresDG2D::setSensitiveParameterValue(const ParameterId&
 {
 	if (pId.unitOperation == _unitOpIdx)
 	{
-		if (multiplexParameterValue(pId, hashString("PAR_TYPE_VOLFRAC"), _parTypeVolFracMode, _parTypeVolFrac, _disc.axNPoints, _disc.radNPoints, _disc.nParType, value, &_sensParams))
+		if (multiplexParameterValue(pId, hashString("PAR_TYPE_VOLFRAC"), _parTypeVolFracMode, _parTypeVolFrac, _disc.axNPoints, _disc.radNElem, _disc.nParType, value, &_sensParams))
 			return;
 		if (multiplexCompTypeSecParameterValue(pId, hashString("PORE_ACCESSIBILITY"), _poreAccessFactorMode, _poreAccessFactor, _disc.nParType, _disc.nComp, value, &_sensParams))
 			return;
@@ -1613,7 +1614,7 @@ bool LumpedRateModelWithPoresDG2D::setSensitiveParameter(const ParameterId& pId,
 {
 	if (pId.unitOperation == _unitOpIdx)
 	{
-		if (multiplexParameterAD(pId, hashString("PAR_TYPE_VOLFRAC"), _parTypeVolFracMode, _parTypeVolFrac, _disc.axNPoints, _disc.radNPoints, _disc.nParType, adDirection, adValue, _sensParams))
+		if (multiplexParameterAD(pId, hashString("PAR_TYPE_VOLFRAC"), _parTypeVolFracMode, _parTypeVolFrac, _disc.axNPoints, _disc.radNElem, _disc.nParType, adDirection, adValue, _sensParams))
 		{
 			LOG(Debug) << "Found parameter " << pId << ": Dir " << adDirection << " is set to " << adValue;
 			return true;
