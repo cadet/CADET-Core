@@ -22,15 +22,14 @@ Release checklist
   - If numerical algorithms were refactored or if performance-critical infrastructure was changed, you should run performance benchmarks to compare the latest release with the planned new one.
     To this end, you can refer to the performance benchmark templates in CADET-Reference, e.g. the `benchmark for the modified Newton method <https://jugit.fz-juelich.de/IBG-1/ModSim/cadet/cadet-reference/-/tree/benchmark_modified_newton?ref_type=heads>`_
 
-- Create a version bump commit, which will be the target commit for the release.
-  The bump commit contains:
+- Open a PR and create a version bump commit `Bump version to v?.?.?`:
   
   - Update of the version number in the `version.txt`, `zenodo.json`, `cadet.hpp` and cadet.doxyfile, compare to last `bump version` commit
   - Update of the authors list if needed: CONTRIBUTING.md and zenodo.json
   - Update of the copyright (years)
   - Update of the file format if needed
 
-- Create the release on github `here <https://github.com/cadet/CADET-Core/releases/new>`_.
+- Merge the PR into master. Then, create the release on github `here <https://github.com/cadet/CADET-Core/releases/new>`_:
 
   - Add the version number according to the semantic versioning system as the tag and set the master branch as target.
   - Add release notes with these categories:
