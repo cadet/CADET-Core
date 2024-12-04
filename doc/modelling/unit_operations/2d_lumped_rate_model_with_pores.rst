@@ -3,7 +3,7 @@
 Two Dimensional Lumped rate model with pores (LRMP2D)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The general rate model as introduced in Section :ref:`general_rate_model_model` assumes homogeneity in the cross sections of the column.
+The lumped rate model with pores as introduced in Section :ref:`lumped_rate_model_with_pores_model` assumes homogeneity in the cross sections of the column.
 This allows to consider transport along the axial dimension only.
 However, due to packing irregularity and inhomogeneous flow at the inlet (i.e., frits), this assumption may be a crude approximation.
 This model can be improved by introducing a radial coordinate :math:`\rho \in [0, R]`, where :math:`R` is the column radius, in the interstitial volume Eq. :eq:`ModelColumn`:
@@ -62,12 +62,12 @@ Conditions for the radial direction are added:
 
 While the inner condition Eq.\ :eq:`BCRadial2DInner` represents symmetry at the column center, the outer condition Eq. :eq:`BCRadial2DOuter` is a no-flux condition.
 
-Using the inlet boundary condition Eq. :eq:`BCInlet2D`, each radial zone is equipped with its own inlet and outlet port.
-That is, this unit operation has as many inlet and outlet ports as it has radial zones (parameter ``NRAD`` in the ``discretization`` group).
-This allows each radial zone to have its own inlet profile, which enables modeling of flow distribution in the frits by sending the feed through varying hold-up volumes before injecting it into a radial zone.
+Using the inlet boundary condition Eq. :eq:`BCInlet2D`, each radial zone (parameter ``RAD_NELEM`` in the ``discretization`` group), and each discrete node within, is equipped with its own inlet and outlet port.
+That is, this unit operation has as many inlet and outlet ports as it has radial discrete nodes (parameter ``NRAD``=(``RAD_POLYDEG``+1)``RAD_NELEM`` in the ``discretization`` group).
+This allows each radial node to have its own inlet profile, which enables modeling of flow distribution in the frits by sending the feed through varying hold-up volumes before injecting it into a radial zone.
+Note that while the inlet profile can be specified independently for each radial node, radially inhomogenous parameters can only be specified per radial zone.
 
-
-.. _MUOPGRMflow2D:
+.. _MUOPLRMPflow2D:
 
 Specification of flow rate / velocity and direction
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -86,7 +86,7 @@ The direction of flow inside the radial zone of the unit operation is governed b
 A positive sign results in (standard) forward flow, whereas a negative sign reverses the flow direction.
 Note that in case of reversed flow, the chromatogram is returned at the unit operation’s *inlet* port, which may not be returned from simulation by default.
 
-Note that, contrary to the standard general rate model as presented in Section :ref:`general_rate_model_model`, the interstitial flow rate is always given by the volumetric flow rate.
+Note that, contrary to the standard lumped rate model with pores as presented in Section :ref:`lumped_rate_model_with_pores_model`, the interstitial flow rate is always given by the volumetric flow rate.
 The velocity parameter only determines the flow direction.
 
-For information on model parameters see :ref:`2d_general_rate_model_config`.
+For information on model parameters see :ref:`2d_lumped_rate_model_with_pores_config`.
