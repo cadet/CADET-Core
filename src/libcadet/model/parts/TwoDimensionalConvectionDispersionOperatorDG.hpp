@@ -114,6 +114,8 @@ public:
 	inline const int radNNodes() const { return _radNNodes; }
 	inline const int radNElem() const { return _radNElem; }
 	inline const int elemNPoints() const { return _elemNPoints; }
+	inline const unsigned int axNPoints() const { return _axNPoints; }
+	inline const unsigned int radNPoints() const { return _radNPoints; }
 
 	double relativeAxialCoordinate(unsigned int idx) const
 	{
@@ -128,8 +130,6 @@ public:
 		return (elem * static_cast<double>(_radDelta[elem]) + 0.5 * static_cast<double>(_radDelta[elem]) * (1.0 + _radNodes[idx % _radNNodes])) / static_cast<double>(_colRadius);
 	}
 
-	inline const unsigned int axNPoints() const CADET_NOEXCEPT { return _axNPoints; }
-	inline const unsigned int radNPoints() const CADET_NOEXCEPT { return _radNPoints; }
 	inline bool isCurrentFlowForward(int idx) const CADET_NOEXCEPT { return _curVelocity[idx] >= 0.0; }
 	const active& axialDispersion(unsigned int idxSec, int idxRad, int idxComp) const CADET_NOEXCEPT;
 	const active& radialDispersion(unsigned int idxSec, int idxRad, int idxComp) const CADET_NOEXCEPT;
