@@ -11,7 +11,7 @@ In CADET, we chose particle size and axial coordinate as the internal and extern
 The PBM in CADET is implemented so that it can be used in any unit operation that supports reactions.
 Typical applications consider crystallization in a CSTR or, to model continuous processes, in a Dispersive Plug-Flow Reactor (DPFR), which is described by the LRM without solid phase.
 
-In the following, we give a brief overview on the modelling equations, for more information on the PBM as implemented in CADET, please refer to :cite:`zhang2024solving`.
+In the following, we give a brief overview on the modelling equations, for more information on the PBM as implemented in CADET, please refer to :cite:`Zhang2024`.
 
 .. figure:: PBM_Part_I.png
     
