@@ -917,8 +917,16 @@ namespace v1
 			return cdtDataNotStored;
 		}
 
+		bool keepAxialSingletonDimension = unitRec->keepBulkSingletonDim();
+
 		if (nCoords)
 			*nCoords = unitRec->numAxialCells();
+
+		if (nCoords && *nCoords == 1 && !keepAxialSingletonDimension)
+		{
+			return cdtDataNotStored;
+		}
+
 		if (data)
 			*data = unitRec->primaryCoordinates();
 		return cdtOK;
@@ -957,14 +965,23 @@ namespace v1
 			return cdtDataNotStored;
 		}
 
+		bool keepParticleSingletonDimension = unitRec->keepParticleSingletonDim();
+
+		if (nCoords)
+			*nCoords = unitRec->numParticleShells(parType);
+
+		if (nCoords && *nCoords == 1 && !keepParticleSingletonDimension)
+		{
+			return cdtDataNotStored;
+		}
+
 		int offset = 0;
 		for (int i = 0; i < parType; ++i)
 			offset += unitRec->numParticleShells(i);
 
-		if (nCoords)
-			*nCoords = unitRec->numParticleShells(parType);
 		if (data)
 			*data = unitRec->particleCoordinates() + offset;
+
 		return cdtOK;
 	}
 
