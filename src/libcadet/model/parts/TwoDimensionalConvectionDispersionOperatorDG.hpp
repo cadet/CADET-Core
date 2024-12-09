@@ -114,6 +114,8 @@ public:
 	inline const int radNNodes() const { return _radNNodes; }
 	inline const int radNElem() const { return _radNElem; }
 	inline const int elemNPoints() const { return _elemNPoints; }
+	inline const unsigned int axNPoints() const { return _axNPoints; }
+	inline const unsigned int radNPoints() const { return _radNPoints; }
 
 	double relativeAxialCoordinate(unsigned int idx) const
 	{
@@ -128,8 +130,6 @@ public:
 		return (elem * static_cast<double>(_radDelta[elem]) + 0.5 * static_cast<double>(_radDelta[elem]) * (1.0 + _radNodes[idx % _radNNodes])) / static_cast<double>(_colRadius);
 	}
 
-	inline const unsigned int axNPoints() const CADET_NOEXCEPT { return _axNPoints; }
-	inline const unsigned int radNPoints() const CADET_NOEXCEPT { return _radNPoints; }
 	inline bool isCurrentFlowForward(int idx) const CADET_NOEXCEPT { return _curVelocity[idx] >= 0.0; }
 	const active& axialDispersion(unsigned int idxSec, int idxRad, int idxComp) const CADET_NOEXCEPT;
 	const active& radialDispersion(unsigned int idxSec, int idxRad, int idxComp) const CADET_NOEXCEPT;
@@ -197,9 +197,9 @@ protected:
 	unsigned int _radNElem; //!< Number of radial elements
 	unsigned int _radPolyDeg; //!< Polynomial degree of radial discretization
 	unsigned int _radNNodes; //!< Number of radial discrete points
-	unsigned int _quadratureRule; //!< Numerical quadrature rule
-	unsigned int _quadratureOrder; //!< Order of the numerical quadrature
-	unsigned int _qNNodes; //!< Number of quadrature nodes
+	unsigned int _quadratureRule; //!< Numerical quadrature rule // todo needed?
+	unsigned int _quadratureOrder; //!< Order of the numerical quadrature // todo needed?
+	unsigned int _qNNodes; //!< Number of quadrature nodes // todo needed?
 	unsigned int _elemNPoints; //!< Number of discrete points per 2D element
 	unsigned int _bulkNPoints; //!< Number of total 2D grid points (bulk grid)
 	// strides
@@ -229,9 +229,6 @@ protected:
 	Eigen::MatrixXd* _transMrCyl; //!< Radial transposed mass matrix with cylinder metrics
 	Eigen::MatrixXd* _invTransMrCyl; //!< Radial inverted transposed mass matrix with cylinder metrics
 	Eigen::MatrixXd _radInterpolationM; //!< Polynomial interpolation matrix from (radial) LGL nodes to quadrature nodes
-	Eigen::MatrixXd* _transTildeMr; //!< Main eq. transposed mass matrix adjusted for cylindrical metrics and dispersion
-	Eigen::MatrixXd* _transTildeMrDash; //!< Main eq. transposed mass matrix on quadrature nodes adjusted for cylindrical metrics and dispersion
-	Eigen::MatrixXd* _transTildeSrDash; //!< Main eq. transposed stiffness matrix on quadrature nodes adjusted for cylindrical metrics and dispersion
 	Eigen::MatrixXd* _SrCyl; //!< Main eq. stiffness matrix with cylindrical metrics
 	// Jacobian blocks
 	Eigen::MatrixXd* _jacConvection; //!< Convection Jacobian blocks for each radial element
@@ -260,7 +257,7 @@ protected:
 	active _axDelta; //!< Axial equidistant element spacing
 	std::vector<active> _radDelta; //!< Radial element spacing
 	std::vector<active> _radialElemInterfaces; //!< Coordinates of the element interfaces
-	std::vector<active> _nodalCrossSections; //!< cross section area for each node
+	std::vector<active> _elementCrossSections; //!< cross section area for each radial element
 
 	RadialDiscretizationMode _radialDiscretizationMode;
 
@@ -270,8 +267,6 @@ protected:
 	std::vector<active> _axialDispersion; //!< Axial dispersion coefficient \f$ D_{\text{ax}} \f$
 	MultiplexMode _axialDispersionMode; //!< Multiplex mode of the axial dispersion
 	std::vector<active> _radialDispersion; //!< Radial dispersion coefficient \f$ D_{\rho} \f$ at interpolation nodes
-	std::vector<active> _curRadialDispersionTilde; //!< Radial dispersion coefficient \f$ D_{\rho} \f$ at radial quadrature nodes
-	std::vector<active> _curAxialDispersionTilde; //!< Axial dispersion coefficient \f$ D_{\rho} \f$ at radial quadrature nodes
 	MultiplexMode _radialDispersionMode; //!< Multiplex mode of the radial dispersion
 	std::vector<active> _velocity; //!< Interstitial velocity parameter
 	std::vector<active> _curVelocity; //!< Current interstitial velocity \f$ u \f$
