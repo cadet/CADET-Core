@@ -86,12 +86,17 @@ namespace column
 		int nElem;
 		int parPolyDeg;
 		int parNelem;
+		int radPolyDeg;
+		int radNelem;
 
-		DGparams() : exactIntegration(-1), polyDeg(0), nElem(0), parPolyDeg(0), parNelem(0) {}
+		DGparams() : exactIntegration(-1), polyDeg(0), nElem(0), parPolyDeg(0), parNelem(0), radPolyDeg(0), radNelem(0) {}
 		DGparams(int exact, int poly, int elem)
-			: exactIntegration(exact), polyDeg(poly), nElem(elem), parPolyDeg(0), parNelem(0) {}
+			: exactIntegration(exact), polyDeg(poly), nElem(elem), parPolyDeg(0), parNelem(0), radPolyDeg(0), radNelem(0) {}
 		DGparams(int exact, int poly, int elem, int parPolyDeg, int parNelem)
-			: exactIntegration(exact), polyDeg(poly), nElem(elem), parPolyDeg(parPolyDeg), parNelem(parNelem) {}
+			: exactIntegration(exact), polyDeg(poly), nElem(elem), parPolyDeg(parPolyDeg), parNelem(parNelem), radPolyDeg(0), radNelem(0) {}
+		DGparams(int exact, int poly, int elem, int parPolyDeg, int parNelem, int radPolyDeg, int radNelem)
+			: exactIntegration(exact), polyDeg(poly), nElem(elem), parPolyDeg(parPolyDeg), parNelem(parNelem), radPolyDeg(radPolyDeg), radNelem(radNelem) {
+		}
 
 		int getNAxCells() const override { return nElem; }
 		int getNParCells() const override { return parNelem; }

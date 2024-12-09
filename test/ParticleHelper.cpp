@@ -215,7 +215,7 @@ namespace particle
 				if (jpp.exists("AX_POLYDEG"))
 				{
 					nCol = (jpp.getInt("AX_POLYDEG") + 1) * jpp.getInt("AX_NELEM");
-					nRad = (jpp.getInt("RAD_POLYDEG") + 1) * jpp.getInt("RAD_NELEM");
+					nRad = (jpp.getInt("RAD_NELEM"));
 				}
 				else
 					nCol = (jpp.getInt("POLYDEG") + 1) * jpp.getInt("NELEM");

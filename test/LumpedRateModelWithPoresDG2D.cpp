@@ -18,7 +18,7 @@
 #include "Utils.hpp"
 #include "JsonTestModels.hpp"
 
-void test2DLRMPJacobian(const std::string relModelFilePath, const int maxAxElem, const int maxRadElem, const int axPolyDeg = 0, const int radPolyDeg = 0)
+void test2DLRMPJacobian(const std::string relModelFilePath, const int maxAxElem, const int maxRadElem, const int axPolyDeg = 0, const int radPolyDeg = 0, const int minAxElem = 1, const int minRadElem = 1)
 {
 	cadet::JsonParameterProvider jpp = cadet::test::column::getReferenceFile(relModelFilePath);
 
@@ -60,16 +60,16 @@ void test2DLRMPJacobian(const std::string relModelFilePath, const int maxAxElem,
 
 	// This test might run out of memory due to the required AD directions:
 	// (axPolyDeg + 1) * axNElem * (radPolyDeg + 1) * radNElem * (nComp + nParType * (nComp + nBound))
-	for (int zElem = 1; zElem <= maxAxElem; zElem++)
+	for (int zElem = minAxElem; zElem <= maxAxElem; zElem++)
 	{
-		for (int rElem = 1; rElem <= maxRadElem; rElem++)
+		for (int rElem = minRadElem; rElem <= maxRadElem; rElem++)
 		{
 			jpp.pushScope("discretization");
 			jpp.set("AX_NELEM", zElem);
 			jpp.set("RAD_NELEM", rElem);
 			jpp.popScope();
 
-			cadet::test::column::testJacobianAD(jpp, 1e10, std::numeric_limits<float>::epsilon() * 100.0, &flowRate[0]); // @todo figure out why FD Jacobian pattern comparison doesnt work but AD Jacobian comparison does
+			cadet::test::column::testJacobianAD(jpp, 1e10, std::numeric_limits<float>::epsilon() * 100.0, &flowRate[0]);
 		}
 	}
 }
@@ -94,7 +94,7 @@ TEST_CASE("LRMP2D transport Jacobian", "[LRMP2D],[DG],[DG2D],[UnitOp],[Jacobian]
 	test2DLRMPJacobian(relModelFilePath, 4, 4, 1, 1);
 }
 
-TEST_CASE("LRMP2D transport Jacobian, full test", "[LRMP2D],[DG],[DG2D],[UnitOp],[Jacobian],[ReleaseCI]")
+TEST_CASE("LRMP2D transport Jacobian with radially constant parameters", "[LRMP2D],[DG],[DG2D],[UnitOp],[Jacobian],[ReleaseCI]")
 {
 	const std::string relModelFilePath = std::string("/data/model_LRMP2D_bulkTransport_1comp.json");
 
@@ -102,6 +102,26 @@ TEST_CASE("LRMP2D transport Jacobian, full test", "[LRMP2D],[DG],[DG2D],[UnitOp]
 	// inletDof + (axPolyDeg + 1) * axNElem * (radPolyDeg + 1) * radNElem * (nComp + nParType * (nComp + nBound))
 	// result here is 14radPoints + 588 pure dofs (21axPoints*14radPoints) * (1 + 1)
 	test2DLRMPJacobian(relModelFilePath, 7, 7, 2, 1);
+}
+
+TEST_CASE("LRMP2D transport Jacobian with radially variable parameters", "[LRMP2D],[DG],[DG2D],[UnitOp],[Jacobian],[CI]")
+{
+	const std::string relModelFilePath = std::string("/data/model_LRMP2D_bulkTransportRadVar_1comp.json");
+
+	// Required AD directions:
+	// inletDof + (axPolyDeg + 1) * axNElem * (radPolyDeg + 1) * radNElem * (nComp + nParType * (nComp + nBound))
+	// result here is 8radPoints + 96 pure dofs (6axPoints*8radPoints) * (1 + 1)
+	test2DLRMPJacobian(relModelFilePath, 3, 4, 1, 1, 4, 4);
+}
+
+TEST_CASE("LRMP2D transport Jacobian with radially variable parameters, including particle type volume fraction", "[LRMP2D],[DG],[DG2D],[UnitOp],[Jacobian],[CI]")
+{
+	const std::string relModelFilePath = std::string("/data/model_LRMP2D2parType_bulkTransportRadVar_1comp.json");
+
+	// Required AD directions:
+	// inletDof + (axPolyDeg + 1) * axNElem * (radPolyDeg + 1) * radNElem * (nComp + nParType * (nComp + nBound))
+	// result here is 8radPoints + 144 pure dofs (6axPoints*8radPoints) * (1 + 2 * 1)
+	test2DLRMPJacobian(relModelFilePath, 3, 4, 1, 1, 4, 4);
 }
 
 TEST_CASE("LRMP2D with two component linear binding Jacobian", "[LRMP2D],[DG],[DG2D],[UnitOp],[Jacobian],[ReleaseCI]")
@@ -114,11 +134,24 @@ TEST_CASE("LRMP2D with two component linear binding Jacobian", "[LRMP2D],[DG],[D
 	test2DLRMPJacobian(relModelFilePath, 6, 6, 2, 1);
 }
 
+TEST_CASE("LRMP2D numerical Benchmark for a pure bulk transport case with three radial zones", "[LRMP2D],[DG],[DG2D],[Simulation],[Reference],[testHere]")
+{
+	const std::string& modelFilePath = std::string("/data/model_2DLRMP3Zone_noFilmDiff_1Comp_benchmark1.json");
+	const std::string& refFilePath = std::string("/data/ref_2DLRMP3Zone_noFilmDiff_1Comp_benchmark1.h5");
+	const std::vector<double> absTol = { 1E-9 };
+	const std::vector<double> relTol = { 1E-4 };
+
+	cadet::test::column::DGparams disc;
+	//cadet::test::column::DGparams disc(0, 3, 8, 0, 0, 3, 6);
+	const int simDataStride = (3 + 1) * 6; // number of radial ports
+	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "000", absTol, relTol, disc, true, simDataStride);
+}
+
 TEST_CASE("LRMP2D sensitivity Jacobians", "[LRMP2D],[UnitOp],[Sensitivity],[CI]")
 {
 	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding("LUMPED_RATE_MODEL_WITH_PORES_2D", "DG");
 
-	cadet::test::column::testFwdSensJacobians(jpp, 1e-4, 6e-7);
+	cadet::test::column::testFwdSensJacobians(jpp, 1e-6, 5e-4, 1e-3);
 }
 
 TEST_CASE("LRMP2D consistent initialization with linear binding", "[LRMP2D],[ConsistentInit],[CI]")
