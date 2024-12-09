@@ -284,7 +284,10 @@ bool CSTRModel::configure(IParameterProvider& paramProvider)
 		else
 			throw InvalidParameterException("Field CONST_SOLID_VOLUME or INIT_LIQUID_VOLUME required");
 
-		_constSolidVolume = init_liquid_volume / (1.0 - paramProvider.getDouble("POROSITY")) - init_liquid_volume; // V_s = V_l / (1 - epsilon) - V_l = (V_l + V_s) * (1 -epsilon)
+		const double epsilon = paramProvider.getDouble("POROSITY");
+
+		if (epsilon > 0.0) // else, constant solid volume is already set to zero
+			_constSolidVolume = init_liquid_volume * (1.0 - epsilon) / epsilon; // V_s = (V_l + V_s) * (1 - epsilon) -> V_s = V_l * (1 - \epsilon) / \epsilon
 	}
 	_parameters[makeParamId(hashString("CONST_SOLID_VOLUME"), _unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_constSolidVolume;
 
