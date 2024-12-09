@@ -1136,7 +1136,7 @@ int TwoDimensionalConvectionDispersionOperatorDG::residualImpl(const IModel& mod
 					_gStarDispTildeZ.row(0).setZero();
 					Eigen::Map<const Vector<StateType, Dynamic>, 0, InnerStride<Dynamic>> inlet(y + rEidx * _radElemStride + comp, _radNNodes, InnerStride<Dynamic>(_radNodeStride));
 
-					_fStarConvZ.row(0) = -static_cast<ParamType>(_curVelocity[0]) * inlet.template cast<StateType>(); // todo radially dependent velocity
+					_fStarConvZ.row(0) = -static_cast<ParamType>(_curVelocity[rEidx]) * inlet.template cast<StateType>();
 				}
 				else
 				{
@@ -1144,10 +1144,10 @@ int TwoDimensionalConvectionDispersionOperatorDG::residualImpl(const IModel& mod
 					_gStarDispTildeZ.row(0) = 0.5 * (_GzTilde.row(0) + GZTildePrevNode.transpose());
 
 					Eigen::Map<const Vector<StateType, Dynamic>, 0, InnerStride<Dynamic>> prevNodeZ(y + offsetC + comp + elemOffset - _axNodeStride, _radNNodes, InnerStride<Dynamic>(_radNodeStride));
-					_fStarConvZ.row(0) = -static_cast<ParamType>(_curVelocity[0]) * prevNodeZ; // todo radially dependent velocity
+					_fStarConvZ.row(0) = -static_cast<ParamType>(_curVelocity[rEidx]) * prevNodeZ;
 				}
 
-				_fStarConvZ.row(1) = -static_cast<ParamType>(_curVelocity[0]) * _C.block(_axPolyDeg, 0, 1, _radNNodes); // todo radially dependent velocity
+				_fStarConvZ.row(1) = -static_cast<ParamType>(_curVelocity[rEidx]) * _C.block(_axPolyDeg, 0, 1, _radNNodes);
 				if (zEidx != _axNElem - 1)
 				{
 					Eigen::Map<const Vector<StateType, Dynamic>, 0, InnerStride<Dynamic>> GZTildeNextNode(reinterpret_cast<StateType*>(&_axAuxStateGTilde[0]) + auxTildeElemOffset + auxTildeAxElemStride, _qNNodes, InnerStride<Dynamic>(1));
@@ -1165,7 +1165,7 @@ int TwoDimensionalConvectionDispersionOperatorDG::residualImpl(const IModel& mod
 					// axial surface integral
 					_axLiftM.template cast<ResidualType>() * _fStarConvZ
 					// axial volume integral
-					- _axTransStiffM.template cast<ResidualType>() * (-static_cast<ParamType>(_curVelocity[0]) * _C.template cast<ResidualType>())
+					- _axTransStiffM.template cast<ResidualType>() * (-static_cast<ParamType>(_curVelocity[rEidx]) * _C.template cast<ResidualType>())
 					);
 
 				// Axial dispersion
@@ -1390,7 +1390,7 @@ bool TwoDimensionalConvectionDispersionOperatorDG::computeConvDispJacobianBlocks
 		kroneckerProduct(_axTransStiffM, _transMrCyl[rElem].transpose(), SzTKronMrCyl);
 
 		/* convection block */
-		const double u = static_cast<double>(_curVelocity[0]); // @todo
+		const double u = static_cast<double>(_curVelocity[rElem]);
 
 		_jacConvection[rElem] = MzKronMrCylInv * 2.0 / deltaZ * u * (SzTKronMrCyl * cDer - BzKronMrCyl * cStarDer);
 
