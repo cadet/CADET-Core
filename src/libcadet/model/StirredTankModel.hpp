@@ -169,7 +169,11 @@ protected:
 	std::vector<active> _initConditions; //!< Initial conditions, ordering: Liquid phase concentration, solid phase concentration, liquid volume
 	std::vector<double> _initConditionsDot; //!< Initial conditions for time derivative
 
+	active* _tmp;
+
 	IDynamicReactionModel* _dynReactionBulk; //!< Dynamic reactions in the bulk volume
+	Eigen::MatrixXd _MconvMoityBulk; //!<  Matrix with conservation of moieties in the bulk volume
+	std::vector<int> _qsComponentsBulk; //!< Indices of components that are not conserved in the bulk volume
 
 	class Exporter : public ISolutionExporter
 	{
