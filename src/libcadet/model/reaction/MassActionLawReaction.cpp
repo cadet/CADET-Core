@@ -867,12 +867,12 @@ protected:
 		}
 
 		// Entferne Nullzeilen in-place
-		std::vector<int> nonZeroRowIndices;
+		std::vector<int> nonQSComponents;
 
 		for (Eigen::Index i = 0; i < QSS.rows(); ++i)
 		{
 			if (QSS.row(i).norm() > 1e-10) {
-				nonZeroRowIndices.push_back(i);
+				nonQSComponents.push_back(i);
 			}
 			else
 			{
@@ -881,20 +881,15 @@ protected:
 		}
 
 		// Redimensioniere QSS und kopiere nur die nicht-null Zeilen
-		if (!nonZeroRowIndices.empty())
+		if (!nonQSComponents.empty())
 		{
-			Eigen::MatrixXd QSSCompressed(nonZeroRowIndices.size(), QSS.cols());
-			for (std::size_t i = 0; i < nonZeroRowIndices.size(); ++i)
+			Eigen::MatrixXd QSSCompressed(nonQSComponents.size(), QSS.cols());
+			for (std::size_t i = 0; i < nonQSComponents.size(); ++i)
 			{
-				QSSCompressed.row(i) = QSS.row(nonZeroRowIndices[i]);
+				QSSCompressed.row(i) = QSS.row(nonQSComponents[i]);
 			}
-			QSS.swap(QSSCompressed); // 
+			QSS.swap(QSSCompressed); // Swap the compressed matrix back into QSS
 		}
-		else
-		{
-			QSS.resize(0, countQS); // Leere Matrix, falls alle Zeilen Null sind
-		}
-
 
 		//3. Test if the matrix is full rank
 		int rang = QSS.fullPivLu().rank();
@@ -906,8 +901,19 @@ protected:
 		//3. Calculate the null space of the matrix
 		Eigen::MatrixXd leftZeroSpace = QSS.transpose().fullPivLu().kernel().transpose();
 
+		if (!nonZeroRowIndices.empty())
+		{
+			M = leftZeroSpace;
+		}
+		else // add zero rows for each component that is not in the quasi stationary
+		{
+			for (int idx : nonQSComponents) {
+				leftZeroSpace.conservativeResize(NoChange, leftZeroSpace.cols() + 1);
+				leftZeroSpace.rightCols(leftZeroSpace.cols() - idx - 1) = leftZeroSpace.middleCols(idx, leftZeroSpace.cols() - idx - 1);
+				leftZeroSpace.col(idx).setZero();
+			}
+		}
 		M = leftZeroSpace;
-
 	}
 };
 

@@ -75,6 +75,7 @@ CSTRModel::~CSTRModel() CADET_NOEXCEPT
 	delete[] _nBound;
 	delete[] _strideBound;
 	delete[] _offsetParType;
+	delete[] _tmp;
 
 	delete _dynReactionBulk;
 }
@@ -149,6 +150,14 @@ bool CSTRModel::configureModelDiscretization(IParameterProvider& paramProvider, 
 		_boundOffset = nullptr;
 		_strideBound = nullptr;
 		_offsetParType = nullptr;
+	}
+
+	if (paramProvider.exists("QuaseStationaryReactions"))
+	{
+		_tmp = new active[_nComp]; // temp
+		int nMoities = _nComp - _dynReactionBulk->numQSReactionLiquid();
+		_MconvMoityBulk = Eigen::MatrixXd::Zero(nMoities, _nComp);
+		_dynReactionBulk->fillConservedMoietiesBulk(_MconvMoityBulk, _qsComponentsBulk);
 	}
 
 	if ((_nParType > 1) && (_totalBound == 0))
@@ -1309,38 +1318,35 @@ int CSTRModel::residualImpl(double t, unsigned int secIdx, StateType const* cons
 	
 		if (_dynReactionBulk->hasQuasiStationaryReactionsLiquid())
 		{
-			int nmoities = _nComp - _dynReactionBulk->numQSReactionLiquid();
-			Eigen::MatrixXd MconMoiBulk = Eigen::MatrixXd::Zero(nmoities, _nComp);
-			std::vector<int> qsComponent;
-			_dynReactionBulk->fillConservedMoietiesBulk(MconMoiBulk, qsComponent);
+			Eigen::Map<Vector<ResidualType, Dynamic>> resCMoities(_tmp, _nComp);
+			//Eigen::Map<Vector<double, Dynamic>> resCMoities(reinterpret_cast<double>(_tmp),_nComp);
+			resCMoities.setZero();
 
-			Eigen::VectorXd resCMoities = Eigen::VectorXd::Zero(_nComp);
-			resCMoities = Eigen::Map<Eigen::VectorXd>(resC, _nComp);
-			
-			
+			MoityIdx = 0
 			for (unsigned int comp = 0; comp < _nComp; ++comp)
 			{
-				if (qsComponent[comp])
+				if (_qsComponentsBulk[comp])
 				{
-					resCMoities[comp] = MconMoiBulk.row(comp) * resC[comp];
+					resCMoities[comp] = _MconvMoityBulk.row(MoityIdx) * resC[comp];
+					MoityIdx++;
 				}
-				if (comp < _nComp - nmoities)
+				else if (comp < _nComp - nmoities)
 				{
 					resCMoities[comp] += v * flux[comp];
 				}
-				if(comp > _nComp - nmoities)
+				else if(comp > _nComp - nmoities)
 				{
 					resCMoities[comp] = v * flux[comp];
 				}
 			}
+			Eigen::Map<Vector<ResidualType, Dynamic>> mapResC(resC, _nComp);
+			mapResC = resCMoities;
 		}
 		else
 		{
 			for (unsigned int comp = 0; comp < _nComp; ++comp)
 				resC[comp] += v * flux[comp];
 		}
-
-		//AB resC = resCMoities;
 
 		if (wantJac)
 		{
@@ -1374,7 +1380,7 @@ int CSTRModel::residualImpl(double t, unsigned int secIdx, StateType const* cons
 						continue;
 
 					// Add time derivative to solid phase
-					resQ[idx] += qDot[idx]; //AB why here "+" ?
+					resQ[idx] += qDot[idx];
 				}
 			}
 		}
