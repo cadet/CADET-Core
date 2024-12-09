@@ -929,6 +929,7 @@ namespace v1
 
 		if (data)
 			*data = unitRec->primaryCoordinates();
+
 		return cdtOK;
 	}
 
@@ -949,6 +950,7 @@ namespace v1
 			*nCoords = unitRec->numRadialCells();
 		if (data)
 			*data = unitRec->secondaryCoordinates();
+
 		return cdtOK;
 	}
 
@@ -1002,6 +1004,7 @@ namespace v1
 			*nTime = sysRec->numDataPoints();
 		if (time)
 			*time = sysRec->time();
+
 		return cdtOK;
 	}
 

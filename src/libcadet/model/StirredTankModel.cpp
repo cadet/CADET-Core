@@ -288,7 +288,6 @@ bool CSTRModel::configure(IParameterProvider& paramProvider)
 
 		if (epsilon > 0.0) // else, constant solid volume is already set to zero
 			_constSolidVolume = init_liquid_volume * (1.0 - epsilon) / epsilon; // V_s = (V_l + V_s) * (1 - epsilon) -> V_s = V_l * (1 - \epsilon) / \epsilon
-		
 	}
 	_parameters[makeParamId(hashString("CONST_SOLID_VOLUME"), _unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_constSolidVolume;
 
