@@ -35,17 +35,23 @@ is given in :numref:`table_features_unit_operations`.
      - ×
      - ×
      - ×
+   * - :ref:`cstr_model`
+     - ×
+     - ×
+     - ×
+     - ×
+     - ✓
    * - :ref:`2d_general_rate_model_model`
      - ✓
      - ✓
      - ✓
      - ✓
      - ✓
-   * - :ref:`cstr_model`
-     - ×
-     - ×
-     - ×
-     - ×
+   * - :ref:`2d_lumped_rate_model_with_pores_model`
+     - ✓
+     - ✓
+     - ✓
+     - ✓
      - ✓
    * - :ref:`multi_channel_transport_model_model`
      - ×
