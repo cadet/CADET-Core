@@ -13,7 +13,7 @@ If you want to extend or modify CADET-Core (e.g., add a custom binding model), y
 
 Install pre-built binaries
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
-CADET-Core can be installed via `conda <https://docs.anaconda.com/free/miniconda/>`_ from the ``conda-forge channel``.
+CADET-Core can be installed via `conda <https://github.com/conda-forge/miniforge>`_ from the ``conda-forge channel``.
 
 ``conda install -c conda-forge cadet``
 
