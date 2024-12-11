@@ -470,7 +470,7 @@ namespace column
 			setupJson["solver"]["CONSISTENT_INIT_MODE"] = pp.getInt("CONSISTENT_INIT_MODE");
 		if (pp.exists("CONSISTENT_INIT_MODE_SENS"))
 			setupJson["solver"]["CONSISTENT_INIT_MODE_SENS"] = pp.getInt("CONSISTENT_INIT_MODE_SENS");
-		setupJson["solver"]["NTHREADS"] = pp.getInt("NTHREADS");
+		//setupJson["solver"]["NTHREADS"] = pp.getInt("NTHREADS");
 		nlohmann::json timeIntegrator;
 		pp.pushScope("time_integrator");
 		timeIntegrator["ABSTOL"] = copy ? pp.getDouble("ABSTOL") : 1e-8;
