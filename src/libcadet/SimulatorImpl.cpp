@@ -1507,6 +1507,10 @@ namespace cadet
 		{
 			// Ensure numThreads >= 0
 			const int numThreads = paramProvider.getInt("NTHREADS");
+#ifndef CADET_PARALLELIZE
+			if (numThreads != 1)
+				throw InvalidParameterException("Non-Parallelized version of CADET-Core is used, but field NTHREADS demands " + std::to_string(numThreads) + " threads. Please set NTHREADS to 1 or use the multithreaded version of CADET-Core.");
+#endif // CADET_PARALLELIZE
 			_nThreads = std::max(numThreads, 0);
 		}
 		else
