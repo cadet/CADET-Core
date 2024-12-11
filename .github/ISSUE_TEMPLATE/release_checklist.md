@@ -1,3 +1,9 @@
+---
+name: Release checklist
+about: Make a release for this project
+
+---
+
 CADET-Core release
 ==================
 
