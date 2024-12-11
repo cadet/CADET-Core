@@ -17,10 +17,6 @@ CADET-Core can be installed via `conda <https://docs.anaconda.com/free/miniconda
 
 ``conda install -c conda-forge cadet``
 
-Optionally, use `mamba <https://github.com/mamba-org/mamba>`_ which uses a faster dependency solver than ``conda``.
-
-``mamba install -c conda-forge cadet``
-
 Install from source
 ^^^^^^^^^^^^^^^^^^^
 
@@ -43,13 +39,13 @@ It automatically checks validity of the parameter values and sets reasonable def
 Install CADET-Process
 ^^^^^^^^^^^^^^^^^^^^
 
-To install ``CADET-Process``, open an `anaconda shell` or `mamba shell` and execute:
+To install ``CADET-Process``, open an `conda shell` and execute:
 
 .. code-block:: bash
 
     pip install CADET-Process
 
-If you want to use ``CADET-Python``, open an `anaconda shell` or `mamba shell` and execute:
+If you want to use ``CADET-Python``, open an `conda shell` and execute:
 
 .. code-block:: bash
 
