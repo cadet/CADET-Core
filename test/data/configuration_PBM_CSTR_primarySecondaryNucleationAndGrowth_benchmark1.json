@@ -697,7 +697,7 @@
         }
     },
     "solver": {
-        "NTHREADS": 8,
+        "NTHREADS": 1,
         "USER_SOLUTION_TIMES": [
             0.0,
             181.8181818181818,
