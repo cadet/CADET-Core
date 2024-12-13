@@ -12,4 +12,6 @@ The Sips binding model is a combination of the :ref:`Freundlich<freundlich_ldf_m
     \end{aligned}
 
 
+Here, :math:`c_{\text{ref}}` is a :ref:`reference concentration <reference_concentrations>`, :math:`n_i` is the Freundlich exponent, :math:`k_{a,i}, k_{d,i}` are the adsorption and desorption rates, and :math:`q_{\text{max},j}` is the adsorption capacity.
 For more information on model parameters required to define in CADET file format, see :ref:`multi_component_sips_config`.
+For more information on the model and its origin, please refer to :cite:`sips1948`.
