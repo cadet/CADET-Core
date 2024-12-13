@@ -42,7 +42,7 @@ namespace model
  * The exchange is given by a matrix of exchange coefficients eij for each component i and j and the chross Ai section from channel i.
  * The exchange from channel i to all other channel j is given by \f$ \frac{\mathrm{d}ci}{\mathrm{d}t} = \sum_j eij cj Aj/Ai - eji ci \f$.
  */
-class LangumirLDFExchangeBase : public IPhaseTransitionModel
+class LangumirLDFExchangeBase : public IExchangeModel
 {
 public:
 
@@ -285,7 +285,7 @@ typedef LangumirLDFExchangeBase  LangumirExchange;
 
 namespace exchange
 {
-	void registerLangumirExModel(std::unordered_map<std::string, std::function<model::IPhaseTransitionModel*()>>& exchange)
+	void registerLangumirExModel(std::unordered_map<std::string, std::function<model::IExchangeModel*()>>& exchange)
 	{
 		exchange[LangumirExchange::identifier()] = []() { return new  LangumirExchange(); };
 	}
