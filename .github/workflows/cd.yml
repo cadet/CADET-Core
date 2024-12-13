@@ -6,7 +6,7 @@ on:
       ref:
         description: 'Commit hash, branch name, or tag to run the CD pipeline for'
         required: false
-        default: 'HEAD'
+        default: 'master'
         type: string
 
 
