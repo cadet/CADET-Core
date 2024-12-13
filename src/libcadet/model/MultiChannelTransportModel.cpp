@@ -11,6 +11,7 @@
 // =============================================================================
 
 #include "model/MultiChannelTransportModel.hpp"
+#include "ExchangeModelFactory.hpp"
 #include "ParamReaderHelper.hpp"
 #include "ParamReaderScopes.hpp"
 #include "cadet/Exceptions.hpp"
@@ -411,7 +412,6 @@ bool MultiChannelTransportModel::configureModelDiscretization(IParameterProvider
 
 	
 	clearExchangeModels();
-
 	_exchange.push_back(nullptr);
 
 	if (paramProvider.exists("EXCHANGE_MODEL"))
