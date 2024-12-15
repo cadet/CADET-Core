@@ -979,7 +979,7 @@ int TwoDimensionalConvectionDispersionOperatorDG::residualImpl(const IModel& mod
 
 				MatrixMap<ResidualType> _fStarConvZ(reinterpret_cast<ResidualType*>(&_fStarConv[0]), 2, _radNNodes, Stride<Dynamic, Dynamic>(1, _radNNodes));
 				MatrixMap<StateType> _gStarDispZ(reinterpret_cast<StateType*>(&_gZStarDisp[0]), 2, _radNNodes, Stride<Dynamic, Dynamic>(1, _radNNodes));
-				MatrixMap<StateType> _gStarDispR(reinterpret_cast<StateType*>(&_gRStarDisp[0]), _axNNodes, 2, Stride<Dynamic, Dynamic>(1, 2));
+				MatrixMap<ResidualType> _gStarDispR(reinterpret_cast<ResidualType*>(&_gRStarDisp[0]), _axNNodes, 2, Stride<Dynamic, Dynamic>(1, 2));
 				
 				/*	numerical fluxes	*/
 
@@ -995,7 +995,7 @@ int TwoDimensionalConvectionDispersionOperatorDG::residualImpl(const IModel& mod
 					else
 					{
 						Eigen::Map<const Vector<StateType, Dynamic>, 0, InnerStride<Dynamic>> GRnextNode(reinterpret_cast<StateType*>(&_radAuxStateG[0]) + auxElemOffset + auxRadElemStride, _axNNodes, InnerStride<Dynamic>(auxAxNodeStride));
-						_gStarDispR.col(1) = 0.5 * (_Gr.col(_radPolyDeg) + GRnextNode);
+						_gStarDispR.col(1) = 0.5 * static_cast<ParamType>(curRadialDispersion[rEidx * _nComp + comp]) * (_Gr.col(_radPolyDeg) + GRnextNode);
 					}
 
 				}
@@ -1047,9 +1047,9 @@ int TwoDimensionalConvectionDispersionOperatorDG::residualImpl(const IModel& mod
 						);
 
 				// Radial dispersion
-				_Res -= 2.0 / static_cast<ParamType>(_radDelta[rEidx]) * 2.0 / static_cast<ParamType>(_radDelta[rEidx]) * static_cast<ParamType>(curRadialDispersion[rEidx * _nComp + comp]) * (
-					_gStarDispR.template cast<ResidualType>() * _radLiftMCyl[rEidx].template cast<ResidualType>()
-					- _Gr.template cast<ResidualType>() * _SrCyl[rEidx].template cast<ResidualType>()
+				_Res -= 2.0 / static_cast<ParamType>(_radDelta[rEidx]) * 2.0 / static_cast<ParamType>(_radDelta[rEidx]) * (
+					_gStarDispR * _radLiftMCyl[rEidx].template cast<ResidualType>()
+					- static_cast<ParamType>(curRadialDispersion[rEidx * _nComp + comp]) * _Gr.template cast<ResidualType>() * _SrCyl[rEidx].template cast<ResidualType>()
 					) * _invTransMrCyl[rEidx].template cast<ResidualType>();
 
 				// reuse "right" radial flux as "left" radial flux in next iteration
