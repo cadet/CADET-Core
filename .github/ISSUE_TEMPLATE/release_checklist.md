@@ -55,7 +55,7 @@ Release of binaries on conda-forge
 To ensure CADET-Core is accessible to a broad community, it is available as a Python package on conda-forge.
 Other software, such as our frontend, `CADET-Process`, and our Python interface, `CADET-Python`, import this package.
 
-- [ ] Go to your fork of github.com/conda-forge/cadet-feedstock or create the fork
+- [ ] Go to your fork of https://github.com/conda-forge/cadet-feedstock or create the fork
 - [ ] Create a new branch on your fork and open a PR:
 - [ ] Change the recipe/meta.yaml file:
 
