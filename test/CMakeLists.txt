@@ -64,7 +64,7 @@ endif()
 if (ENABLE_DG)
 	list(APPEND TEST_ADDITIONAL_SOURCES GeneralRateModelDG.cpp LumpedRateModelWithPoresDG.cpp LumpedRateModelWithoutPoresDG.cpp)
 	if (ENABLE_2D_MODELS)
-		list(APPEND TEST_ADDITIONAL_SOURCES LumpedRateModelWithPores2D.cpp)
+		list(APPEND TEST_ADDITIONAL_SOURCES LumpedRateModelWithPoresDG2D.cpp)
 	endif()
 endif()
 
