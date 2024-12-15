@@ -913,21 +913,12 @@ int TwoDimensionalConvectionDispersionOperatorDG::residualImpl(const IModel& mod
 
 	for (unsigned int comp = 0; comp < _nComp; comp++)
 	{
-		// todo radial position dependent dispersion
-		//Eigen::Map<const Vector<ParamType, Dynamic>, 0, InnerStride<Dynamic>> D_ax(curAxialDispersion, _radNPoints, InnerStride<Dynamic>(_nComp));
-		const double D_ax = static_cast<double>(curAxialDispersion[0]);
-		const double D_rad = static_cast<double>(curRadialDispersion[0]);
-
 		/*	auxiliary equations	*/
 
 		for (unsigned int zEidx = 0; zEidx < _axNElem; zEidx++)
 		{
 			for (unsigned int rEidx = 0; rEidx < _radNElem; rEidx++)
 			{
-				// todo allow ParamType : performance should be improved by adding this only in the main equation, not the auxiliary already
-				const double DeltaZ = static_cast<double>(_axDelta);
-				const double DeltaR = static_cast<double>(_radDelta[rEidx]);
-
 				const int elemOffset = zEidx * _axElemStride + rEidx * _radElemStride;
 				const int auxElemOffset = zEidx * auxAxElemStride + rEidx * auxRadElemStride;
 
@@ -970,11 +961,11 @@ int TwoDimensionalConvectionDispersionOperatorDG::residualImpl(const IModel& mod
 
 				// auxiliary equation g^z // todo block of G as its global. Or make it all lokal?
 				// todo radial position dependent D_ax
-				_Gz = 2.0 / DeltaZ * D_ax * _axInvMM.template cast<StateType>() * (_axLiftM.template cast<StateType>() * _fAux1 - _axTransStiffM.template cast<StateType>() * _C);
+				_Gz = _axInvMM.template cast<StateType>() * (_axLiftM.template cast<StateType>() * _fAux1 - _axTransStiffM.template cast<StateType>() * _C);
 
 				// auxiliary equation g^r // todo block of G as its global. Or make it all lokal?
 				 // todo radial position dependent D_rad
-				_Gr = 2.0 / DeltaR * D_rad * (_fAux2 * _radLiftM.template cast<StateType>() - _C * _radStiffM.template cast<StateType>()) * _radInvTransMM.template cast<StateType>();
+				_Gr = (_fAux2 * _radLiftM.template cast<StateType>() - _C * _radStiffM.template cast<StateType>()) * _radInvTransMM.template cast<StateType>();
 
 				// reuse "right" radial flux as "left" radial flux in next iteration
 				_fAux2.col(0) = _fAux2.col(1);
@@ -1076,8 +1067,7 @@ int TwoDimensionalConvectionDispersionOperatorDG::residualImpl(const IModel& mod
 					);
 
 				// Axial dispersion
-
-				_Res -= 2.0 / static_cast<ParamType>(_axDelta) * _axInvMM.template cast<ResidualType>() * (
+				_Res -= 2.0 / static_cast<ParamType>(_axDelta) * 2.0 / static_cast<ParamType>(_axDelta) * static_cast<ParamType>(curAxialDispersion[rEidx * _nComp + comp]) * _axInvMM.template cast<ResidualType>() * (
 						// surface integral
 					    _axLiftM.template cast<ResidualType>() * (
 						_gStarDispZ.template cast<ResidualType>()
@@ -1089,7 +1079,7 @@ int TwoDimensionalConvectionDispersionOperatorDG::residualImpl(const IModel& mod
 						);
 
 				// Radial dispersion
-				_Res -= 2.0 / static_cast<ParamType>(_radDelta[rEidx]) * (
+				_Res -= 2.0 / static_cast<ParamType>(_radDelta[rEidx]) * 2.0 / static_cast<ParamType>(_radDelta[rEidx]) * static_cast<ParamType>(curRadialDispersion[rEidx * _nComp + comp]) * (
 					_gStarDispR.template cast<ResidualType>() * _radLiftMCyl[rEidx].template cast<ResidualType>()
 					- _Gr.template cast<ResidualType>() * _SrCyl[rEidx].template cast<ResidualType>()
 					) * _invTransMrCyl[rEidx].template cast<ResidualType>();
