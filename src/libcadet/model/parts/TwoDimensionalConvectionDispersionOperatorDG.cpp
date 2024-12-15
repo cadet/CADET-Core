@@ -610,24 +610,6 @@ bool TwoDimensionalConvectionDispersionOperatorDG::configureModelDiscretization(
 	_elemNPoints = _axNNodes * _radNNodes;
 	_bulkNPoints = _axNPoints * _radNPoints;
 
-	if (paramProvider.exists("QUADRATURE_RULE"))
-	{
-		const std::string quadratureRule = paramProvider.getString("QUADRATURE_RULE");
-		if (quadratureRule == "LOBATTO")
-			_quadratureRule = 0;
-		else if (quadratureRule == "GAUSS")
-			_quadratureRule = 1;
-		else
-			throw InvalidParameterException("Unknown quadrature rule " + quadratureRule);
-
-		_quadratureOrder = paramProvider.exists("QUADRATURE_ORDER") ? paramProvider.getInt("QUADRATURE_ORDER") : _radPolyDeg + 1; // todo or other default?
-	}
-	else
-	{
-		_quadratureRule = 0;
-		_quadratureOrder = paramProvider.exists("QUADRATURE_ORDER") ? paramProvider.getInt("QUADRATURE_ORDER") : _radPolyDeg; // todo or nNodes?
-	}
-	_radNNodes = _quadratureOrder + 1;
 	paramProvider.popScope();
 
 	_axNodeStride = radNodeStride * _radNPoints;
@@ -774,8 +756,6 @@ bool TwoDimensionalConvectionDispersionOperatorDG::configure(UnitOpIdx unitOpIdx
 	updateRadialDisc();
 
 	// compute DG operators that depend on radial geometry and dispersion after updateRadialDisc
-	const active* const d_rad = getSectionDependentSlice(_radialDispersion, _radNElem * _nComp, 0);
-	// todo component dependence of radial dispersion
 	const int comp = 0;
 	for (unsigned int rElem = 0; rElem < _radNElem; rElem++)
 	{
@@ -827,8 +807,6 @@ bool TwoDimensionalConvectionDispersionOperatorDG::notifyDiscontinuousSectionTra
 		}
 	}
 
-	// todo: recompute operators that involve section dependent parameters, if (secIdx > 0)
-	
 	computeConvDispJacobianBlocks();
 
 	//// todo backward flow
@@ -959,12 +937,10 @@ int TwoDimensionalConvectionDispersionOperatorDG::residualImpl(const IModel& mod
 					_fAux2.col(1) *= 0.5;
 				}
 
-				// auxiliary equation g^z // todo block of G as its global. Or make it all lokal?
-				// todo radial position dependent D_ax
+				// auxiliary equation g^z
 				_Gz = _axInvMM.template cast<StateType>() * (_axLiftM.template cast<StateType>() * _fAux1 - _axTransStiffM.template cast<StateType>() * _C);
 
-				// auxiliary equation g^r // todo block of G as its global. Or make it all lokal?
-				 // todo radial position dependent D_rad
+				// auxiliary equation g^r
 				_Gr = (_fAux2 * _radLiftM.template cast<StateType>() - _C * _radStiffM.template cast<StateType>()) * _radInvTransMM.template cast<StateType>();
 
 				// reuse "right" radial flux as "left" radial flux in next iteration
@@ -986,10 +962,6 @@ int TwoDimensionalConvectionDispersionOperatorDG::residualImpl(const IModel& mod
 			Eigen::Map<Vector<ResidualType, Dynamic>, 0, InnerStride<Dynamic>> _cRes(res + offsetC + comp, _axNPoints * _radNPoints, InnerStride<Dynamic>(_radNodeStride));
 			_cRes.setZero();
 		}
-
-		// note: auxiliary states have been computed without prefactor _delta[elem]
-
-		// todo: reuse memory of fStarAux for gStarDisp
 
 		for (unsigned int zEidx = 0; zEidx < _axNElem; zEidx++)
 		{
@@ -1053,10 +1025,6 @@ int TwoDimensionalConvectionDispersionOperatorDG::residualImpl(const IModel& mod
 				}
 				else // Danckwert outflow boundary condition
 					_gStarDispZ.row(1).setZero();
-
-				// todo velocity radial position dependence!
-
-				// transport residual (i.e. LHS - RHS)
 
 				// Axial convection
 				_Res -= 2.0 / static_cast<ParamType>(_axDelta) * _axInvMM.template cast<ResidualType>() * (
@@ -1165,7 +1133,6 @@ int TwoDimensionalConvectionDispersionOperatorDG::nJacEntries()
  */
 bool TwoDimensionalConvectionDispersionOperatorDG::computeConvDispJacobianBlocks()
 {
-	// todo : should we just allocate the auxiliary/intermediate matrices here since this function is only called every time section?
 	const int Np = _elemNPoints; //<! number of points per 2D element
 
 	MatrixXd cStarDer = MatrixXd::Zero(Np, 5 * Np);
