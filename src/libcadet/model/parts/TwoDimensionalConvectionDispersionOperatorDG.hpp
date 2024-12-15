@@ -154,11 +154,6 @@ protected:
 	template <typename StateType>
 	using ConstMatrixMap = Eigen::Map<const Eigen::Matrix<StateType, Eigen::Dynamic, Eigen::Dynamic>, Eigen::Unaligned, Eigen::Stride<Eigen::Dynamic, Eigen::Dynamic>>;
 
-	void calcLiftingMatricesDash();
-	Eigen::MatrixXd calcTildeSrDash(const unsigned int elemIdx, const active* const dispersion);
-	Eigen::MatrixXd calcTildeMrDash(const unsigned int elemIdx, const active* const dispersion);
-	Eigen::MatrixXd calcTildeMr(const unsigned int elemIdx, const active* const dispersion);
-
 	template <typename StateType, typename ResidualType, typename ParamType>
 	int residualImpl(const IModel& model, double t, unsigned int secIdx, StateType const* y, double const* yDot, ResidualType* res);
 
@@ -212,8 +207,6 @@ protected:
 	Eigen::VectorXd _axInvWeights; //!< axial LGL inverted weights on the reference element
 	Eigen::VectorXd _radNodes; //!< radial LGL nodes on the reference element
 	Eigen::VectorXd _radInvWeights; //!< radial LGL inverted weights on the reference element
-	Eigen::VectorXd _qNodes; //!< quadrature nodes on the reference element
-	Eigen::VectorXd _qWeights; //!< quadrature weights on the reference element
 	// operators
 	Eigen::MatrixXd _axStiffM; //!< Radial stiffness matrix
 	Eigen::MatrixXd _axTransStiffM; //!< Axial transposed stiffness matrix
@@ -228,7 +221,6 @@ protected:
 	Eigen::MatrixXd* _radLiftMCyl; //!< Radial lifting matrices with radial metrics for each radial element
 	Eigen::MatrixXd* _transMrCyl; //!< Radial transposed mass matrix with cylinder metrics
 	Eigen::MatrixXd* _invTransMrCyl; //!< Radial inverted transposed mass matrix with cylinder metrics
-	Eigen::MatrixXd _radInterpolationM; //!< Polynomial interpolation matrix from (radial) LGL nodes to quadrature nodes
 	Eigen::MatrixXd* _SrCyl; //!< Main eq. stiffness matrix with cylindrical metrics
 	// Jacobian blocks
 	Eigen::MatrixXd* _jacConvection; //!< Convection Jacobian blocks for each radial element
@@ -239,12 +231,10 @@ protected:
 	// DG residual cache
 	std::vector<active> _axAuxStateG; //!< Auxiliary variable axial direction
 	std::vector<active> _radAuxStateG; //!< Auxiliary variable radial direction
-	std::vector<active> _axAuxStateGTilde; //!< Auxiliary variable axial direction on quadrature nodes
-	std::vector<active> _radAuxStateGTilde; //!< Auxiliary variable radial direction on quadrature nodes
 	std::vector<active> _fStarAux1; //!< Numerical flux auxiliary equation g^z
 	std::vector<active> _fStarAux2; //!< Numerical flux auxiliary equation g^r
 	std::vector<active> _fStarConv; //!< Numerical flux main equation convection (axial)
-	std::vector<active> _gZStarDispTilde; //!< Numerical flux main equation axial dispersion on quadrature nodes
+	std::vector<active> _gZStarDisp; //!< Numerical flux main equation axial dispersion
 	std::vector<active> _gRStarDisp; //!< Numerical flux main equation radial dispersion
 
 	std::vector<active> _matrixProductCache; //!< Cache for intermediate matrix products

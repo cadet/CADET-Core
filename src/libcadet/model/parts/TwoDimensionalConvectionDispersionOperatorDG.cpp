@@ -471,72 +471,6 @@ TwoDimensionalConvectionDispersionOperatorDG::~TwoDimensionalConvectionDispersio
 	delete[] _jacRadDispersion;
 }
 
-MatrixXd TwoDimensionalConvectionDispersionOperatorDG::calcTildeMr(const unsigned int elemIdx, const active* const dispersion)
-{
-	MatrixXd tildeMr = MatrixXd::Zero(_radNNodes, _qNNodes);
-	MatrixXd ell = MatrixXd::Zero(_radNNodes, _qNNodes);
-
-	for (unsigned int j = 0; j < _radNNodes; j++)
-		ell.row(j) = dgtoolbox::evalLagrangeBasis(j, _radNodes, _qNodes);
-
-	for (unsigned int j = 0; j < _radNNodes; j++)
-	{
-		for (unsigned int k = 0; k < _qNNodes; k++)
-		{
-			tildeMr(j, k) = static_cast<double>(dgtoolbox::mapRefToPhys<active>(_radDelta, elemIdx, _qNodes[k])) * static_cast<double>(dispersion[elemIdx * _qNNodes + k]) * ell(j, k) * _qWeights[k];
-		}
-	}
-
-	return tildeMr;
-}
-
-MatrixXd TwoDimensionalConvectionDispersionOperatorDG::calcTildeMrDash(const unsigned int elemIdx, const active * const dispersion)
-{
-	MatrixXd ellEll = MatrixXd::Zero(_radNNodes, _qNNodes);
-	MatrixXd tildeMrDash = MatrixXd::Zero(_radNNodes, _radNNodes * _qNNodes);
-
-	for (unsigned int j = 0; j < _radNNodes; j++)
-		ellEll.row(j) = dgtoolbox::evalLagrangeBasis(j, _radNodes, _qNodes);
-
-	for (unsigned int j = 0; j < _radNNodes; j++)
-	{
-		for (unsigned int m = 0; m < _radNNodes; m++)
-		{
-			for (unsigned int k = 0; k < _qNNodes; k++)
-			{
-				tildeMrDash(j, m * _qNNodes + k) = static_cast<double>(dgtoolbox::mapRefToPhys<active>(_radDelta, elemIdx, _qNodes[k])) * static_cast<double>(dispersion[elemIdx * _qNNodes + k]) * ellEll(m, k) * ellEll(j, k) * _qWeights[k];
-			}
-		}
-	}
-
-	return tildeMrDash;
-}
-
-MatrixXd TwoDimensionalConvectionDispersionOperatorDG::calcTildeSrDash(const unsigned int elemIdx, const active* const dispersion)
-{
-	MatrixXd ellEll = MatrixXd::Zero(_radNNodes, _qNNodes);
-	MatrixXd tildeSrDash = MatrixXd::Zero(_radNNodes, _radNNodes * _qNNodes);
-
-	for (unsigned int j = 0; j < _radNNodes; j++)
-		ellEll.row(j) = dgtoolbox::evalLagrangeBasis(j, _radNodes, _qNodes);
-
-	MatrixXd tildeDr = dgtoolbox::derivativeMatrix(_quadratureOrder, _qNodes);
-	MatrixXd tildeSr = _qWeights.asDiagonal() * tildeDr;
-
-	for (unsigned int j = 0; j < _radNNodes; j++)
-	{
-		for (unsigned int m = 0; m < _radNNodes; m++)
-		{
-			for (unsigned int k = 0; k < _qNNodes; k++)
-			{
-				tildeSrDash(j, m * _qNNodes + k) = static_cast<double>(dgtoolbox::mapRefToPhys<active>(_radDelta, elemIdx, _qNodes[k])) * static_cast<double>(dispersion[elemIdx * _qNNodes + k]) * tildeSr(j, k) * ellEll(m, k);
-			}
-		}
-	}
-
-	return tildeSrDash;
-}
-
 void TwoDimensionalConvectionDispersionOperatorDG::writeAxialCoordinates(double* coords) const
 {
 	double* leftElemBndries = new double[_axNElem];
@@ -562,24 +496,19 @@ void TwoDimensionalConvectionDispersionOperatorDG::initializeDG()
 	_axNodes = VectorXd::Zero(_axNNodes);
 	_radInvWeights = VectorXd::Zero(_radNNodes);
 	_radNodes = VectorXd::Zero(_radNNodes);
-	_qNodes = VectorXd::Zero(_qNNodes);
-	_qWeights = VectorXd::Zero(_qNNodes);
 	// LGL nodes and weights for axial and radial reference element and radial quadrature
 	dgtoolbox::lglNodesWeights(_axPolyDeg, _axNodes, _axInvWeights, true);
 	dgtoolbox::lglNodesWeights(_radPolyDeg, _radNodes, _radInvWeights, true);
-	dgtoolbox::lglNodesWeights(_quadratureOrder, _qNodes, _qWeights, false);
 
 	// auxiliary variables
 	_axAuxStateG.resize(_axNPoints * _radNPoints);
 	_radAuxStateG.resize(_axNPoints * _radNPoints);
-	_axAuxStateGTilde.resize(_axNPoints * _radNElem * _qNNodes);
-	_radAuxStateGTilde.resize(_axNPoints * _radNElem * _qNNodes);
 
 	// numerical fluxes
 	_fStarAux1.resize(2 * _radNNodes);
 	_fStarAux2.resize(_axNNodes * 2);
 	_fStarConv.resize(2 * _radNNodes);
-	_gZStarDispTilde.resize(2 * _qNNodes);
+	_gZStarDisp.resize(2 * _radNNodes);
 	_gRStarDisp.resize(_axNNodes * 2);
 
 	// operators
@@ -591,9 +520,6 @@ void TwoDimensionalConvectionDispersionOperatorDG::initializeDG()
 	_axLiftM = dgtoolbox::liftingMatrix(_axNNodes);
 	_radLiftM = dgtoolbox::liftingMatrix(_radNNodes).transpose();
 	_matrixProductCache.resize(_axNNodes * _radNNodes); // operator matrix product cache
-
-	VectorXd radBaryWeights = dgtoolbox::barycentricWeights(_quadratureOrder, _qNodes);
-	_radInterpolationM = dgtoolbox::polynomialInterpolationMatrix(_qNodes, _radNodes, radBaryWeights);
 
 	const int uAxElem = std::min(5, static_cast<int>(_axNElem)); // number of unique axial Jacobian blocks (per radial element)
 
@@ -701,7 +627,7 @@ bool TwoDimensionalConvectionDispersionOperatorDG::configureModelDiscretization(
 		_quadratureRule = 0;
 		_quadratureOrder = paramProvider.exists("QUADRATURE_ORDER") ? paramProvider.getInt("QUADRATURE_ORDER") : _radPolyDeg; // todo or nNodes?
 	}
-	_qNNodes = _quadratureOrder + 1;
+	_radNNodes = _quadratureOrder + 1;
 	paramProvider.popScope();
 
 	_axNodeStride = radNodeStride * _radNPoints;
@@ -981,8 +907,6 @@ int TwoDimensionalConvectionDispersionOperatorDG::residualImpl(const IModel& mod
 	const int auxRadElemStride = _radNNodes;
 	const int auxAxNodeStride = _radNElem * auxRadElemStride;
 	const int auxAxElemStride = _axNNodes * auxAxNodeStride;
-	const int auxTildeAxNodeStride = _radNElem * _qNNodes;
-	const int auxTildeAxElemStride = _axNNodes * auxTildeAxNodeStride;
 
 	const active* const curAxialDispersion = getSectionDependentSlice(_axialDispersion, _radNElem * _nComp, secIdx);
 	const active* const curRadialDispersion = getSectionDependentSlice(_radialDispersion, _radNElem * _nComp, secIdx);
@@ -1076,39 +1000,22 @@ int TwoDimensionalConvectionDispersionOperatorDG::residualImpl(const IModel& mod
 
 		// todo: reuse memory of fStarAux for gStarDisp
 
-		// todo interpolate auxiliary variable and num. flux to quadrature nodes. For now, we assume these points to be collocated, ie LGL quadrature
-		{
-			ConstMatrixMap<StateType> _GzGlobal(reinterpret_cast<StateType*>(&_axAuxStateG[0]), _axNPoints, _radNPoints, Stride<Dynamic, Dynamic>(1, _radNPoints));
-			ConstMatrixMap<StateType> _GrGlobal(reinterpret_cast<StateType*>(&_radAuxStateG[0]), _axNPoints, _radNPoints, Stride<Dynamic, Dynamic>(1, _radNPoints));
-
-			MatrixMap<StateType> _GzInterpolatedGlobal(reinterpret_cast<StateType*>(&_axAuxStateGTilde[0]), _axNPoints, _qNNodes * _radNElem, Stride<Dynamic, Dynamic>(1, _qNNodes * _radNElem));
-			MatrixMap<StateType> _GrInterpolatedGlobal(reinterpret_cast<StateType*>(&_radAuxStateGTilde[0]), _axNPoints, _qNNodes * _radNElem, Stride<Dynamic, Dynamic>(1, _qNNodes * _radNElem));
-
-			_GzInterpolatedGlobal = _GzGlobal;
-			_GrInterpolatedGlobal = _GrGlobal;
-
-		}
-
 		for (unsigned int zEidx = 0; zEidx < _axNElem; zEidx++)
 		{
 			for (unsigned int rEidx = 0; rEidx < _radNElem; rEidx++)
 			{
 				const int elemOffset = zEidx * _axElemStride + rEidx * _radElemStride;
 				const int auxElemOffset = zEidx * auxAxElemStride + rEidx * _radNNodes;
-				const int auxTildeElemOffset = zEidx * auxTildeAxElemStride + rEidx * _qNNodes;
 
 				ConstMatrixMap<StateType> _C(y + offsetC + comp + elemOffset, _axNNodes, _radNNodes, Stride<Dynamic, Dynamic>(_radNodeStride, _axNodeStride));
 				MatrixMap<ResidualType> _Res(res + offsetC + comp + elemOffset, _axNNodes, _radNNodes, Stride<Dynamic, Dynamic>(_radNodeStride, _axNodeStride));
 
-				// Note: _GzTilde is actually just the first, non repeating block of _GzTilde from the manuscript. Thats why we perform the loop for the axial dispersion integral ( see axial dispersion step 1).
-				// Otherwise, we'd have to construct a matrix with repeating values
-				ConstMatrixMap<StateType> _GzTilde(reinterpret_cast<StateType*>(&_axAuxStateGTilde[0]) + auxTildeElemOffset, _axNNodes, _qNNodes, Stride<Dynamic, Dynamic>(1, _qNNodes * _radNElem));
+				ConstMatrixMap<StateType> _Gz(reinterpret_cast<StateType*>(&_axAuxStateG[0]) + auxElemOffset, _axNNodes, _radNNodes, Stride<Dynamic, Dynamic>(1, _radNNodes * _radNElem));
 				
-				// Note: Same as for _GzTilde
-				ConstMatrixMap<StateType> _GrTilde(reinterpret_cast<StateType*>(&_radAuxStateGTilde[0]) + auxTildeElemOffset, _axNNodes, _qNNodes, Stride<Dynamic, Dynamic>(1, _qNNodes * _radNElem));
+				ConstMatrixMap<StateType> _Gr(reinterpret_cast<StateType*>(&_radAuxStateG[0]) + auxElemOffset, _axNNodes, _radNNodes, Stride<Dynamic, Dynamic>(1, _radNNodes * _radNElem));
 
 				MatrixMap<ResidualType> _fStarConvZ(reinterpret_cast<ResidualType*>(&_fStarConv[0]), 2, _radNNodes, Stride<Dynamic, Dynamic>(1, _radNNodes));
-				MatrixMap<StateType> _gStarDispTildeZ(reinterpret_cast<StateType*>(&_gZStarDispTilde[0]), 2, _qNNodes, Stride<Dynamic, Dynamic>(1, _qNNodes));
+				MatrixMap<StateType> _gStarDispZ(reinterpret_cast<StateType*>(&_gZStarDisp[0]), 2, _radNNodes, Stride<Dynamic, Dynamic>(1, _radNNodes));
 				MatrixMap<StateType> _gStarDispR(reinterpret_cast<StateType*>(&_gRStarDisp[0]), _axNNodes, 2, Stride<Dynamic, Dynamic>(1, 2));
 				
 				/*	numerical fluxes	*/
@@ -1133,15 +1040,15 @@ int TwoDimensionalConvectionDispersionOperatorDG::residualImpl(const IModel& mod
 				// axial dispersion (central) flux and axial convection (upwind) flux
 				if (zEidx == 0) // Danckwerts inlet BC
 				{
-					_gStarDispTildeZ.row(0).setZero();
+					_gStarDispZ.row(0).setZero();
 					Eigen::Map<const Vector<StateType, Dynamic>, 0, InnerStride<Dynamic>> inlet(y + rEidx * _radElemStride + comp, _radNNodes, InnerStride<Dynamic>(_radNodeStride));
 
 					_fStarConvZ.row(0) = -static_cast<ParamType>(_curVelocity[rEidx]) * inlet.template cast<StateType>();
 				}
 				else
 				{
-					Eigen::Map<const Vector<StateType, Dynamic>, 0, InnerStride<Dynamic>> GZTildePrevNode(reinterpret_cast<StateType*>(&_axAuxStateGTilde[0]) + auxTildeElemOffset - auxTildeAxNodeStride, _qNNodes, InnerStride<Dynamic>(1));
-					_gStarDispTildeZ.row(0) = 0.5 * (_GzTilde.row(0) + GZTildePrevNode.transpose());
+					Eigen::Map<const Vector<StateType, Dynamic>, 0, InnerStride<Dynamic>> GZPrevNode(reinterpret_cast<StateType*>(&_axAuxStateG[0]) + auxElemOffset - auxAxNodeStride, _radNNodes, InnerStride<Dynamic>(1));
+					_gStarDispZ.row(0) = 0.5 * (_Gz.row(0) + GZPrevNode.transpose());
 
 					Eigen::Map<const Vector<StateType, Dynamic>, 0, InnerStride<Dynamic>> prevNodeZ(y + offsetC + comp + elemOffset - _axNodeStride, _radNNodes, InnerStride<Dynamic>(_radNodeStride));
 					_fStarConvZ.row(0) = -static_cast<ParamType>(_curVelocity[rEidx]) * prevNodeZ;
@@ -1150,11 +1057,11 @@ int TwoDimensionalConvectionDispersionOperatorDG::residualImpl(const IModel& mod
 				_fStarConvZ.row(1) = -static_cast<ParamType>(_curVelocity[rEidx]) * _C.block(_axPolyDeg, 0, 1, _radNNodes);
 				if (zEidx != _axNElem - 1)
 				{
-					Eigen::Map<const Vector<StateType, Dynamic>, 0, InnerStride<Dynamic>> GZTildeNextNode(reinterpret_cast<StateType*>(&_axAuxStateGTilde[0]) + auxTildeElemOffset + auxTildeAxElemStride, _qNNodes, InnerStride<Dynamic>(1));
-					_gStarDispTildeZ.row(1) = 0.5 * (_GzTilde.row(_axPolyDeg) + GZTildeNextNode.transpose());
+					Eigen::Map<const Vector<StateType, Dynamic>, 0, InnerStride<Dynamic>> GZNextNode(reinterpret_cast<StateType*>(&_axAuxStateG[0]) + auxElemOffset + auxAxElemStride, _radNNodes, InnerStride<Dynamic>(1));
+					_gStarDispZ.row(1) = 0.5 * (_Gz.row(_axPolyDeg) + GZNextNode.transpose());
 				}
 				else // Danckwert outflow boundary condition
-					_gStarDispTildeZ.row(1).setZero();
+					_gStarDispZ.row(1).setZero();
 
 				// todo velocity radial position dependence!
 
@@ -1173,18 +1080,18 @@ int TwoDimensionalConvectionDispersionOperatorDG::residualImpl(const IModel& mod
 				_Res -= 2.0 / static_cast<ParamType>(_axDelta) * _axInvMM.template cast<ResidualType>() * (
 						// surface integral
 					    _axLiftM.template cast<ResidualType>() * (
-						_gStarDispTildeZ.template cast<ResidualType>()
+						_gStarDispZ.template cast<ResidualType>()
 						)
 					    // volume integral
 						-_axTransStiffM.template cast<ResidualType>() * (
-							_GzTilde.template cast<ResidualType>()
+							_Gz.template cast<ResidualType>()
 							)
 						);
 
 				// Radial dispersion
 				_Res -= 2.0 / static_cast<ParamType>(_radDelta[rEidx]) * (
 					_gStarDispR.template cast<ResidualType>() * _radLiftMCyl[rEidx].template cast<ResidualType>()
-					- _GrTilde.template cast<ResidualType>() * _SrCyl[rEidx].template cast<ResidualType>()
+					- _Gr.template cast<ResidualType>() * _SrCyl[rEidx].template cast<ResidualType>()
 					) * _invTransMrCyl[rEidx].template cast<ResidualType>();
 
 				// reuse "right" radial flux as "left" radial flux in next iteration
