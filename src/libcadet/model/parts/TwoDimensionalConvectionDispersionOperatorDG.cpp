@@ -995,9 +995,8 @@ int TwoDimensionalConvectionDispersionOperatorDG::residualImpl(const IModel& mod
 					else
 					{
 						Eigen::Map<const Vector<StateType, Dynamic>, 0, InnerStride<Dynamic>> GRnextNode(reinterpret_cast<StateType*>(&_radAuxStateG[0]) + auxElemOffset + auxRadElemStride, _axNNodes, InnerStride<Dynamic>(auxAxNodeStride));
-						_gStarDispR.col(1) = 0.5 * static_cast<ParamType>(curRadialDispersion[rEidx * _nComp + comp]) * (_Gr.col(_radPolyDeg) + GRnextNode);
+						_gStarDispR.col(1) = 0.5 * (_Gr.col(_radPolyDeg) + GRnextNode) * 0.5 * (static_cast<ParamType>(curRadialDispersion[rEidx * _nComp + comp]) + static_cast<ParamType>(curRadialDispersion[(rEidx + 1) * _nComp + comp])) * 0.5 * (static_cast<ParamType>(_colPorosities[rEidx]) + static_cast<ParamType>(_colPorosities[rEidx + 1]));
 					}
-
 				}
 
 				// axial dispersion (central) flux and axial convection (upwind) flux
@@ -1046,9 +1045,11 @@ int TwoDimensionalConvectionDispersionOperatorDG::residualImpl(const IModel& mod
 							)
 						);
 
+				const ParamType porosityFluxFactor = 1.0 / static_cast<ParamType>(_colPorosities[rEidx]);
+
 				// Radial dispersion
 				_Res -= 2.0 / static_cast<ParamType>(_radDelta[rEidx]) * 2.0 / static_cast<ParamType>(_radDelta[rEidx]) * (
-					_gStarDispR * _radLiftMCyl[rEidx].template cast<ResidualType>()
+					_gStarDispR * porosityFluxFactor * _radLiftMCyl[rEidx].template cast<ResidualType>()
 					- static_cast<ParamType>(curRadialDispersion[rEidx * _nComp + comp]) * _Gr.template cast<ResidualType>() * _SrCyl[rEidx].template cast<ResidualType>()
 					) * _invTransMrCyl[rEidx].template cast<ResidualType>();
 
@@ -1265,7 +1266,7 @@ bool TwoDimensionalConvectionDispersionOperatorDG::computeConvDispJacobianBlocks
 
 		/* axial dispersion block */
 		const active* const curAxialDispersion = getSectionDependentSlice(_axialDispersion, _radNElem * _nComp, 0);
-		const double axDisp = static_cast<double>(curAxialDispersion[0]);
+		const double axDisp = static_cast<double>(curAxialDispersion[rElem * _nComp]);
 
 		MatrixXd gStarZ = MatrixXd::Zero(Np, 5 * Np);
 
@@ -1309,7 +1310,8 @@ bool TwoDimensionalConvectionDispersionOperatorDG::computeConvDispJacobianBlocks
 
 		/* radial dispersion block */
 		const active* const curRadialDispersion = getSectionDependentSlice(_radialDispersion, _radNElem * _nComp, 0);
-		const double radDisp = static_cast<double>(curRadialDispersion[0]);
+		const double radDisp = static_cast<double>(curRadialDispersion[rElem * _nComp]);
+		const double curPorosity = static_cast<double>(_colPorosities[rElem]);
 
 		MatrixXd gStarR = MatrixXd::Zero(Np, 5 * Np);
 
@@ -1320,15 +1322,22 @@ bool TwoDimensionalConvectionDispersionOperatorDG::computeConvDispJacobianBlocks
 				const int ll = rElem == 1 ? 0 : 1;
 				const int lr = rElem == _radNElem - 1 ? 2 : 1;
 
-				gStarR.block(i * _radNNodes, i * 5 * _radNNodes, 1, 3 * _radNNodes) = 0.5 * GrDer[ll].block((i + 1) * _radNNodes - 1, i * 3 * _radNNodes, 1, 3 * _radNNodes);
-				gStarR.block(i * _radNNodes, i * 5 * _radNNodes + _radNNodes, 1, 3 * _radNNodes) += 0.5 * GrDer[lr].block(i * _radNNodes, i * 3 * _radNNodes, 1, 3 * _radNNodes);
+				const double dispFactor = 0.5 * (static_cast<double>(curRadialDispersion[(rElem - 1) * _nComp]) + radDisp);
+				const double porosityFactor = 0.5 * (static_cast<double>(_colPorosities[rElem - 1]) + curPorosity) / curPorosity;
+
+				gStarR.block(i * _radNNodes, i * 5 * _radNNodes, 1, 3 * _radNNodes) = porosityFactor * dispFactor * 0.5 * GrDer[ll].block((i + 1) * _radNNodes - 1, i * 3 * _radNNodes, 1, 3 * _radNNodes);
+				gStarR.block(i * _radNNodes, i * 5 * _radNNodes + _radNNodes, 1, 3 * _radNNodes) += porosityFactor * dispFactor * 0.5 * GrDer[lr].block(i * _radNNodes, i * 3 * _radNNodes, 1, 3 * _radNNodes);
 			}
 			if (rElem < _radNElem - 1) // else zero as per boundary condition
 			{
 				const int rl = rElem == 0 ? 0 : 1;
 				const int rr = rElem + 1 == _radNElem - 1 ? 2 : 1;
-				gStarR.block(i * _radNNodes + _radPolyDeg, i * 5 * _radNNodes + _radNNodes, 1, 3 * _radNNodes) = 0.5 * GrDer[rl].block((i + 1) * _radNNodes - 1, i * 3 * _radNNodes, 1, 3 * _radNNodes);
-				gStarR.block(i * _radNNodes + _radPolyDeg, i * 5 * _radNNodes + 2 * _radNNodes, 1, 3 * _radNNodes) += 0.5 * GrDer[rr].block(i * _radNNodes, i * 3 * _radNNodes, 1, 3 * _radNNodes);
+
+				const double dispFactor = 0.5 * (radDisp + static_cast<double>(curRadialDispersion[(rElem + 1) * _nComp]));
+				const double porosityFactor = 0.5 * (curPorosity + static_cast<double>(_colPorosities[rElem + 1])) / curPorosity;
+
+				gStarR.block(i * _radNNodes + _radPolyDeg, i * 5 * _radNNodes + _radNNodes, 1, 3 * _radNNodes) = porosityFactor * dispFactor * 0.5 * GrDer[rl].block((i + 1) * _radNNodes - 1, i * 3 * _radNNodes, 1, 3 * _radNNodes);
+				gStarR.block(i * _radNNodes + _radPolyDeg, i * 5 * _radNNodes + 2 * _radNNodes, 1, 3 * _radNNodes) += porosityFactor * dispFactor * 0.5 * GrDer[rr].block(i * _radNNodes, i * 3 * _radNNodes, 1, 3 * _radNNodes);
 			}
 		}
 
@@ -1348,8 +1357,7 @@ bool TwoDimensionalConvectionDispersionOperatorDG::computeConvDispJacobianBlocks
 		else
 			auxIdx = rElem == _radNElem - 1 ? 2 : 1;
 
-		// note: accounted for deltaR twice since it was not included in auxiliary block
-		_jacRadDispersion[rElem] = 2.0 / static_cast<double>(_radDelta[rElem]) * 2.0 / static_cast<double>(_radDelta[rElem]) * radDisp * MzKronMrCylInv * (MzKronBrCyl * gStarR);
+		_jacRadDispersion[rElem] = 2.0 / static_cast<double>(_radDelta[rElem]) * 2.0 / static_cast<double>(_radDelta[rElem]) * MzKronMrCylInv * (MzKronBrCyl * gStarR);
 		for (int zNode = 0; zNode < _axNNodes; zNode++) // todo can this be done more elegantly?
 			_jacRadDispersion[rElem].block(0, (5 * zNode + 1) * _radNNodes, Np, 3 * _radNNodes) -= 2.0 / static_cast<double>(_radDelta[rElem]) * 2.0 / static_cast<double>(_radDelta[rElem]) * radDisp * MzKronMrCylInv * (MzKronSrTCyl * GrDer[auxIdx].block(0, zNode * 3 * _radNNodes, Np, 3 * _radNNodes));
 
