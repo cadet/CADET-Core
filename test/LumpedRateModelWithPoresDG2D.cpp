@@ -18,7 +18,7 @@
 #include "Utils.hpp"
 #include "JsonTestModels.hpp"
 
-void test2DLRMPJacobian(const std::string relModelFilePath, const int maxAxElem, const int maxRadElem, const int axPolyDeg = 0, const int radPolyDeg = 0)
+void test2DLRMPJacobian(const std::string relModelFilePath, const int maxAxElem, const int maxRadElem, const int axPolyDeg = 0, const int radPolyDeg = 0, const int minAxElem = 1, const int minRadElem = 1)
 {
 	cadet::JsonParameterProvider jpp = cadet::test::column::getReferenceFile(relModelFilePath);
 
@@ -60,9 +60,9 @@ void test2DLRMPJacobian(const std::string relModelFilePath, const int maxAxElem,
 
 	// This test might run out of memory due to the required AD directions:
 	// (axPolyDeg + 1) * axNElem * (radPolyDeg + 1) * radNElem * (nComp + nParType * (nComp + nBound))
-	for (int zElem = 1; zElem <= maxAxElem; zElem++)
+	for (int zElem = minAxElem; zElem <= maxAxElem; zElem++)
 	{
-		for (int rElem = 1; rElem <= maxRadElem; rElem++)
+		for (int rElem = minRadElem; rElem <= maxRadElem; rElem++)
 		{
 			jpp.pushScope("discretization");
 			jpp.set("AX_NELEM", zElem);
@@ -92,6 +92,16 @@ TEST_CASE("LRMP2D transport Jacobian", "[LRMP2D],[DG],[DG2D],[UnitOp],[Jacobian]
 	// inletDof + (axPolyDeg + 1) * axNElem * (radPolyDeg + 1) * radNElem * (nComp + nParType * (nComp + nBound))
 	// result here is 8radPoints + 128 pure dofs (8axPoints*8radPoints) * (1 + 1)
 	test2DLRMPJacobian(relModelFilePath, 4, 4, 1, 1);
+}
+
+TEST_CASE("LRMP2D radially variable transport Jacobian", "[LRMP2D],[DG],[DG2D],[UnitOp],[Jacobian],[CI],[testHere]")
+{
+	const std::string relModelFilePath = std::string("/data/model_LRMP2D_bulkTransportRadVar_1comp.json");
+
+	// This test might run out of memory due to the required AD directions:
+	// inletDof + (axPolyDeg + 1) * axNElem * (radPolyDeg + 1) * radNElem * (nComp + nParType * (nComp + nBound))
+	// result here is 8radPoints + 128 pure dofs (8axPoints*8radPoints) * (1 + 1)
+	test2DLRMPJacobian(relModelFilePath, 4, 7, 1, 1, 4, 7);
 }
 
 TEST_CASE("LRMP2D transport Jacobian, full test", "[LRMP2D],[DG],[DG2D],[UnitOp],[Jacobian],[ReleaseCI]")
