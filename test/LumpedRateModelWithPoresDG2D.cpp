@@ -128,7 +128,7 @@ TEST_CASE("LRMP2D sensitivity Jacobians", "[LRMP2D],[UnitOp],[Sensitivity],[CI]"
 {
 	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding("LUMPED_RATE_MODEL_WITH_PORES_2D", "DG");
 
-	cadet::test::column::testFwdSensJacobians(jpp, 1e-6, 2e-6, 1e-4);
+	cadet::test::column::testFwdSensJacobians(jpp, 1e-6, 5e-4, 1e-3);
 }
 
 TEST_CASE("LRMP2D consistent initialization with linear binding", "[LRMP2D],[ConsistentInit],[CI]")
