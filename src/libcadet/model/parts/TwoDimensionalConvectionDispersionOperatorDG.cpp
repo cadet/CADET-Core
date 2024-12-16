@@ -1271,8 +1271,6 @@ bool TwoDimensionalConvectionDispersionOperatorDG::computeConvDispJacobianBlocks
 
 		for (int i = 0; i < uAxElem; i++)
 		{
-			for (int comp = 0; comp < _nComp; comp++)
-			{
 				// first, we need to create numerical flux block gStarZ
 				// note: we have three unique auxiliary block indices and need to find the indices wrt the currently considered element
 				int auxIdx;
@@ -1308,7 +1306,6 @@ bool TwoDimensionalConvectionDispersionOperatorDG::computeConvDispJacobianBlocks
 
 				gStarZ.setZero();
 			}
-		}
 
 		/* radial dispersion block */
 		const active* const curRadialDispersion = getSectionDependentSlice(_radialDispersion, _radNElem * _nComp, 0);
