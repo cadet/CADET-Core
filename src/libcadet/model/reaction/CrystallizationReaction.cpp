@@ -40,15 +40,15 @@ namespace detail
 			for (unsigned int i = 0; i < binCenters.size(); ++i)
 			{
 				// source term, find lij in set A
-				for (unsigned short int j = 0; j < i; ++j)
+				for (int j = 0; j < i; ++j)
 				{
-					for (unsigned short int k = j; k < i + 1; ++k)
+					for (int k = j; k < i + 1; ++k)
 					{
 						sum_volume_cube_root = pow(binCenters[k] * binCenters[k] * binCenters[k] + binCenters[j] * binCenters[j] * binCenters[j], 1.0 / 3.0);
 						if ((sum_volume_cube_root > bins[i]) && (sum_volume_cube_root <= bins[i + 1]))
 						{
-							index.first.emplace_back(j);
-							index.second.emplace_back(k);
+							index.first.emplace_back(static_cast<short int>(j));
+							index.second.emplace_back(static_cast<short int>(k));
 							++count;
 						}
 					}
@@ -59,7 +59,7 @@ namespace detail
 				for (unsigned int j = 0; j < binCenters.size(); ++j)
 				{
 					sum_volume_cube_root = pow(binCenters[i] * binCenters[i] * binCenters[i] + binCenters[j] * binCenters[j] * binCenters[j], 1.0 / 3.0);
-					unsigned short int k = (i > j) ? i + 1 : j + 1;
+					int k = (i > j) ? i + 1 : j + 1;
 
 					i_index[i * binCenters.size() + j] = -1;        // -1 indicates there is no match
 					for (k; k < binCenters.size(); ++k)
@@ -233,7 +233,7 @@ protected:
 		StateParam aggregation_sink = 0.0;
 		ParamType agg_source_factor = 0.0;
 
-		const unsigned short int agg_idx = static_cast<int>(_aggregationIndex);
+		const int agg_idx = static_cast<int>(_aggregationIndex);
 
 		for (int i = 0; i < _nBins; ++i)
 		{
@@ -244,10 +244,10 @@ protected:
 			const ParamType x_i_cube = static_cast<ParamType>(_binCenters[i]) * static_cast<ParamType>(_binCenters[i]) * static_cast<ParamType>(_binCenters[i]);
 
 			// aggregation source terms
-			for (unsigned int p = static_cast<unsigned int>(_agg->index_tracker[i]); p < static_cast<unsigned int>(_agg->index_tracker[i + 1]); ++p)
+			for (int p = static_cast<int>(_agg->index_tracker[i]); p < static_cast<int>(_agg->index_tracker[i + 1]); ++p)
 			{
-				const unsigned short int j = static_cast<unsigned short int>(_agg->index.first[p]);
-				const unsigned short int k = static_cast<unsigned short int>(_agg->index.second[p]);
+				const int j = static_cast<int>(_agg->index.first[p]);
+				const int k = static_cast<int>(_agg->index.second[p]);
 
 				const ParamType x_j_cube_plus_x_k_cube = static_cast<ParamType>(_binCenters[j]) * static_cast<ParamType>(_binCenters[j]) * static_cast<ParamType>(_binCenters[j]) + static_cast<ParamType>(_binCenters[k]) * static_cast<ParamType>(_binCenters[k]) * static_cast<ParamType>(_binCenters[k]);
 
@@ -288,7 +288,7 @@ protected:
 			for (int j = 0; j < _nBins; ++j)
 			{
 				const ParamType sum_volume = pow(x_i_cube + static_cast<ParamType>(_binCenters[j]) * static_cast<ParamType>(_binCenters[j]) * static_cast<ParamType>(_binCenters[j]), 1.0 / 3.0);
-				const short int k = static_cast<short int>(_agg->i_index[i * _nBins + j]);
+				const int k = static_cast<int>(_agg->i_index[i * _nBins + j]);
 
 				ParamType ratio{};
 				ParamType sink_correction_factor = 1.0;
@@ -343,17 +343,17 @@ protected:
 		// Pointer to crystal bins
 		double const* const yCrystal = y;
 
-		const unsigned short int agg_idx = static_cast<int>(_aggregationIndex);
+		const int agg_idx = static_cast<int>(_aggregationIndex);
 		// jacobian, when adding to growth terms
 		for (int i = 0; i < _nBins; ++i)
 		{
 			// aggregation source term
 			const double x_i_cube = static_cast<double>(_binCenters[i]) * static_cast<double>(_binCenters[i]) * static_cast<double>(_binCenters[i]);
 
-			for (unsigned int p = static_cast<unsigned int>(_agg->index_tracker[i]); p < static_cast<unsigned int>(_agg->index_tracker[i + 1]); ++p)
+			for (int p = static_cast<int>(_agg->index_tracker[i]); p < static_cast<int>(_agg->index_tracker[i + 1]); ++p)
 			{
-				const unsigned short int j = static_cast<unsigned short int>(_agg->index.first[p]);
-				const unsigned short int k = static_cast<unsigned short int>(_agg->index.second[p]);
+				const int j = static_cast<int>(_agg->index.first[p]);
+				const int k = static_cast<int>(_agg->index.second[p]);
 
 				const double x_j_cube_plus_x_k_cube = static_cast<double>(_binCenters[j]) * static_cast<double>(_binCenters[j]) * static_cast<double>(_binCenters[j]) + static_cast<double>(_binCenters[k]) * static_cast<double>(_binCenters[k]) * static_cast<double>(_binCenters[k]);
 
@@ -397,7 +397,7 @@ protected:
 			for (int j = 0; j < _nBins; ++j)
 			{
 				const double sum_volume = pow(x_i_cube + static_cast<double>(_binCenters[j]) * static_cast<double>(_binCenters[j]) * static_cast<double>(_binCenters[j]), 1.0 / 3.0);
-				const short int k = static_cast<short int>(_agg->i_index[i * _nBins + j]);
+				const int k = static_cast<int>(_agg->i_index[i * _nBins + j]);
 				double ratio{};
 				double sink_correction_factor = 1.0;
 				if (k > 0)
