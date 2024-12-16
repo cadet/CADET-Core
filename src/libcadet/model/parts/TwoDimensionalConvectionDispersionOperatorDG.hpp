@@ -88,8 +88,8 @@ public:
 	void convDispJacPattern(std::vector<T>& tripletList, const int bulkOffset = 0);
 	bool computeConvDispJacobianBlocks();
 	template <typename Action>
-	void addAxElemBlockToJac(const Eigen::MatrixXd& block, const int offRow, const int offColumn, const int depElem, Action addEntry);
-	void addAxElemBlockToJac(const Eigen::MatrixXd& block, Eigen::SparseMatrix<double, Eigen::RowMajor>& jacobian, const int offRow, const int offColumn, const int depElem);
+	void addAxElemBlockToJac(const Eigen::MatrixXd& block, const int offRow, const int offColumn, const int depElem, Action addEntry, const active* const compFac = nullptr);
+	void addAxElemBlockToJac(const Eigen::MatrixXd& block, Eigen::SparseMatrix<double, Eigen::RowMajor>& jacobian, const int offRow, const int offColumn, const int depElem, const active* const compFac = nullptr);
 	void addAxElemBlockToJac(const Eigen::MatrixXd& block, std::vector<T>& tripletList, const int offRow, const int offColumn, const int depElem);
 	template <typename Action>
 	void addRadElemBlockToJac(const Eigen::MatrixXd& block, const int offRow, const int nLeftRadElemDep, const int depElem, Action addEntry);
@@ -224,7 +224,7 @@ protected:
 	Eigen::MatrixXd* _SrCyl; //!< Main eq. stiffness matrix with cylindrical metrics
 	// Jacobian blocks
 	Eigen::MatrixXd* _jacConvection; //!< Convection Jacobian blocks for each radial element
-	Eigen::MatrixXd* _jacAxDispersion; //!< Axial Dispersion Jacobian unique blocks
+	Eigen::MatrixXd* _jacAxDispersion; //!< Axial Dispersion Jacobian unique blocks (without axial dispersion)
 	Eigen::MatrixXd* _jacRadDispersion; //!< Radial Dispersion Jacobian unique blocks
 
 

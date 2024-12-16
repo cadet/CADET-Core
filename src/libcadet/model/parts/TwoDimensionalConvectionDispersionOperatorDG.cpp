@@ -1266,46 +1266,48 @@ bool TwoDimensionalConvectionDispersionOperatorDG::computeConvDispJacobianBlocks
 
 		/* axial dispersion block */
 		const active* const curAxialDispersion = getSectionDependentSlice(_axialDispersion, _radNElem * _nComp, 0);
-		const double axDisp = static_cast<double>(curAxialDispersion[rElem * _nComp]);
 
 		MatrixXd gStarZ = MatrixXd::Zero(Np, 5 * Np);
 
 		for (int i = 0; i < uAxElem; i++)
 		{
-			// first, we need to create numerical flux block gStarZ
-			// note: we have three unique auxiliary block indices and need to find the indices wrt the currently considered element
-			int auxIdx;
-			if (i == 0)
-				auxIdx = 0; // note that if _axNElem == 0, the corresponding auxiliary block is also stored at index 0
-			else
-				auxIdx = i == uAxElem - 1 ? 2 : 1;
-
-			if (i > 0) // left boundary condition -> zero
+			for (int comp = 0; comp < _nComp; comp++)
 			{
-				const int leftAuxIdx = (i == 1) ? 0 : 1; // if the left neighbour is the left boundary element, set index to 0, else to 1
-				gStarZ.block(0, 0, _radNNodes, 3 * Np) += GzDer[leftAuxIdx].block(Np - _radNNodes, 0, _radNNodes, 3 * Np);
-				gStarZ.block(0, Np, _radNNodes, 3 * Np) += GzDer[auxIdx].block(0, 0, _radNNodes, 3 * Np);
+				// first, we need to create numerical flux block gStarZ
+				// note: we have three unique auxiliary block indices and need to find the indices wrt the currently considered element
+				int auxIdx;
+				if (i == 0)
+					auxIdx = 0; // note that if _axNElem == 0, the corresponding auxiliary block is also stored at index 0
+				else
+					auxIdx = i == uAxElem - 1 ? 2 : 1;
+
+				if (i > 0) // left boundary condition -> zero
+				{
+					const int leftAuxIdx = (i == 1) ? 0 : 1; // if the left neighbour is the left boundary element, set index to 0, else to 1
+					gStarZ.block(0, 0, _radNNodes, 3 * Np) += GzDer[leftAuxIdx].block(Np - _radNNodes, 0, _radNNodes, 3 * Np);
+					gStarZ.block(0, Np, _radNNodes, 3 * Np) += GzDer[auxIdx].block(0, 0, _radNNodes, 3 * Np);
+				}
+
+				if (i != uAxElem - 1) // right boundary condition -> zero
+				{
+					// if the right neighbour is the right boundary element, set index to 2, else to 1
+					const int rightAuxIdx = (i + 1 == uAxElem - 1) ? 2 : 1;
+					gStarZ.block(Np - _radNNodes, Np, _radNNodes, 3 * Np) += GzDer[auxIdx].block(Np - _radNNodes, 0, _radNNodes, 3 * Np);
+					gStarZ.block(Np - _radNNodes, 2 * Np, _radNNodes, 3 * Np) += GzDer[rightAuxIdx].block(0, 0, _radNNodes, 3 * Np);
+				}
+
+				gStarZ *= 0.5;
+
+				_jacAxDispersion[rElem * uAxElem + i] = MzKronMrCylInv * 2.0 / deltaZ * (BzKronMrCyl * gStarZ);
+				_jacAxDispersion[rElem * uAxElem + i].block(0, Np, Np, 3 * Np) -= MzKronMrCylInv * 2.0 / deltaZ * (SzTKronMrCyl * GzDer[auxIdx]);
+
+				// filter numerical noise
+				_jacAxDispersion[rElem * uAxElem + i] = _jacAxDispersion[rElem * uAxElem + i].unaryExpr([](double val) {
+					return (std::abs(val) < 1e-14) ? 0.0 : val;
+					});
+
+				gStarZ.setZero();
 			}
-
-			if (i != uAxElem - 1) // right boundary condition -> zero
-			{
-				// if the right neighbour is the right boundary element, set index to 2, else to 1
-				const int rightAuxIdx = (i + 1 == uAxElem - 1) ? 2 : 1;
-				gStarZ.block(Np - _radNNodes, Np, _radNNodes, 3 * Np) += GzDer[auxIdx].block(Np - _radNNodes, 0, _radNNodes, 3 * Np);
-				gStarZ.block(Np - _radNNodes, 2 * Np, _radNNodes, 3 * Np) += GzDer[rightAuxIdx].block(0, 0, _radNNodes, 3 * Np);
-			}
-
-			gStarZ *= 0.5;
-
-			_jacAxDispersion[rElem * uAxElem + i] = MzKronMrCylInv * 2.0 / deltaZ * axDisp * (BzKronMrCyl * gStarZ);
-			_jacAxDispersion[rElem * uAxElem + i].block(0, Np, Np, 3 * Np) -= MzKronMrCylInv * 2.0 / deltaZ * axDisp * (SzTKronMrCyl * GzDer[auxIdx]);
-
-			// filter numerical noise
-			_jacAxDispersion[rElem * uAxElem + i] = _jacAxDispersion[rElem * uAxElem + i].unaryExpr([](double val) {
-				return (std::abs(val) < 1e-14) ? 0.0 : val;
-				});
-
-			gStarZ.setZero();
 		}
 
 		/* radial dispersion block */
@@ -1387,7 +1389,7 @@ typedef Eigen::Triplet<double> T;
  * @param [in] addEntry function to add entry to Jacobian or sparsity list
  */
 template <typename Action>
-void TwoDimensionalConvectionDispersionOperatorDG::addAxElemBlockToJac(const Eigen::MatrixXd& block, const int offRow, const int offColumn, const int depElem, Action addEntry)
+void TwoDimensionalConvectionDispersionOperatorDG::addAxElemBlockToJac(const Eigen::MatrixXd& block, const int offRow, const int offColumn, const int depElem, Action addEntry, const active* const compFac)
 {
 	const int depBlockStride = _axElemStride;
 	int jac = offRow;
@@ -1405,7 +1407,10 @@ void TwoDimensionalConvectionDispersionOperatorDG::addAxElemBlockToJac(const Eig
 					{
 						for (unsigned int j = 0; j < _radNNodes; j++) // iterate over all radial node dependencies
 						{
-							const double entry = block(zNode * _radNNodes + rNode, depBlock * _elemNPoints + i * _radNNodes + j);
+							double entry = block(zNode * _radNNodes + rNode, depBlock * _elemNPoints + i * _radNNodes + j);
+							if (compFac)
+								entry *= static_cast<double>(compFac[comp]);
+
 							if(std::abs(entry) > 1e-14)
 								// row: at current node and component
 								// col: add offset, go to current element, jump to current node
@@ -1426,13 +1431,13 @@ void TwoDimensionalConvectionDispersionOperatorDG::addAxElemBlockToJac(const Eig
  * @param [in] offColumn column to row offset
  * @param [in] depElem number of elements the element block element depends on
  */
-void TwoDimensionalConvectionDispersionOperatorDG::addAxElemBlockToJac(const Eigen::MatrixXd& block, Eigen::SparseMatrix<double, Eigen::RowMajor>& jacobian, const int offRow, const int offColumn, const int depElem)
+void TwoDimensionalConvectionDispersionOperatorDG::addAxElemBlockToJac(const Eigen::MatrixXd& block, Eigen::SparseMatrix<double, Eigen::RowMajor>& jacobian, const int offRow, const int offColumn, const int depElem, const active* const compFac)
 {
 	auto addEntry = [&jacobian](int row, int col, double value) {
 		jacobian.coeffRef(row, col) += value;
 		};
 
-	addAxElemBlockToJac(block, offRow, offColumn, depElem, addEntry);
+	addAxElemBlockToJac(block, offRow, offColumn, depElem, addEntry, compFac);
 }
 /**
  * @brief adds an element block for all components to the system Jacobian
@@ -1483,6 +1488,7 @@ void TwoDimensionalConvectionDispersionOperatorDG::addRadElemBlockToJac(const Ei
 						for (unsigned int j = 0; j < _radNNodes; j++) // iterate over all radial node dependencies
 						{
 							const double entry = block(zNode * _radNNodes + rNode, offBlock + i * 5 * _radNNodes + depBlock * _radNNodes + j);
+
 							if (std::abs(entry) > 1e-14)
 								// row: at current node and component
 								// col: add offset, go to current element, jump to current node
@@ -1608,11 +1614,17 @@ bool TwoDimensionalConvectionDispersionOperatorDG::assembleConvDispJacobian(Eige
 	const int Np = _elemNPoints; //<! number of points per 2D element
 	const int uAxElem = std::min(5, static_cast<int>(_axNElem)); // number of unique axial Jacobian blocks (per radial element)
 
+	const active* const Dax = getSectionDependentSlice(_axialDispersion, _radNElem * _nComp, 0);
+	const active* const Drad = getSectionDependentSlice(_radialDispersion, _radNElem * _nComp, 0);
+
 	for (int zElem = 0; zElem < _axNElem; zElem++)
 	{
+		const active* curDax = Dax;
+		const active* curDrad = Drad;
+
 		// Note: Jacobian blocks *-1 for residual
 
-		for (int rElem = 0; rElem < _radNElem; rElem++)
+		for (int rElem = 0; rElem < _radNElem; rElem++, curDax += _nComp, curDrad += _nComp)
 		{
 			/* handle axial convection Jacobian */
 
@@ -1652,7 +1664,7 @@ bool TwoDimensionalConvectionDispersionOperatorDG::assembleConvDispJacobian(Eige
 						uAxBlockIdx = 2;
 				}
 
-				addAxElemBlockToJac(-_jacAxDispersion[rElem * uAxElem + uAxBlockIdx].block(0, Np * (2 - nLeftAxElemDep), Np, Np * (nLeftAxElemDep + 1 + nRightAxElemDep)), jacobian, offSetRow, offSetColumnToRow, nLeftAxElemDep + 1 + nRightAxElemDep);
+				addAxElemBlockToJac(-_jacAxDispersion[rElem * uAxElem + uAxBlockIdx].block(0, Np * (2 - nLeftAxElemDep), Np, Np * (nLeftAxElemDep + 1 + nRightAxElemDep)), jacobian, offSetRow, offSetColumnToRow, nLeftAxElemDep + 1 + nRightAxElemDep, curDax);
 			}
 
 			/* handle radial dispersion Jacobian */
