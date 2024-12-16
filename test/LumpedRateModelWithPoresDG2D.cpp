@@ -94,14 +94,14 @@ TEST_CASE("LRMP2D transport Jacobian", "[LRMP2D],[DG],[DG2D],[UnitOp],[Jacobian]
 	test2DLRMPJacobian(relModelFilePath, 4, 4, 1, 1);
 }
 
-TEST_CASE("LRMP2D radially variable transport Jacobian", "[LRMP2D],[DG],[DG2D],[UnitOp],[Jacobian],[CI],[testHere]")
+TEST_CASE("LRMP2D radially variable transport Jacobian", "[LRMP2D],[DG],[DG2D],[UnitOp],[Jacobian],[CI]")
 {
 	const std::string relModelFilePath = std::string("/data/model_LRMP2D_bulkTransportRadVar_1comp.json");
 
 	// This test might run out of memory due to the required AD directions:
 	// inletDof + (axPolyDeg + 1) * axNElem * (radPolyDeg + 1) * radNElem * (nComp + nParType * (nComp + nBound))
 	// result here is 8radPoints + 128 pure dofs (8axPoints*8radPoints) * (1 + 1)
-	test2DLRMPJacobian(relModelFilePath, 4, 7, 1, 1, 4, 7);
+	test2DLRMPJacobian(relModelFilePath, 4, 4, 1, 1, 4, 4);
 }
 
 TEST_CASE("LRMP2D transport Jacobian, full test", "[LRMP2D],[DG],[DG2D],[UnitOp],[Jacobian],[ReleaseCI]")
