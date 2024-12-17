@@ -20,9 +20,46 @@ namespace model
 {
 namespace detail
 {
+	enum class CrystallizationMode : int
+	{
+		/**
+		 * Population mass balance equation
+		 */
+		PurePBM,
+
+		/**
+		 * Aggregation equation
+		 */
+		PureAggregation,
+
+		/**
+		 * Breakage equation
+		 */
+		PureBreakage,
+
+		/**
+		 * Combined aggregation and breakage equation
+		 */
+		AggregationBreakage
+	};
+
+	struct ModeFlags
+	{
+		bool hasMassBalance = false;
+		bool hasAggregation = false;
+		bool hasFragmentation = false;
+	};
+
+	std::unordered_map<CrystallizationMode, ModeFlags> modeFlagMap = {
+		{CrystallizationMode::PurePBM, {true, false, false}},
+		{CrystallizationMode::PureAggregation, {true, true, false}},
+		{CrystallizationMode::PureBreakage, {false, false, true}},
+		{CrystallizationMode::AggregationBreakage, {true, true, true}}
+	};
+
 	struct AggCoefficients
 	{
-		std::pair<std::vector<unsigned short int>, std::vector<unsigned short int>> index;  // a pair of vectors to store combo of j and k
+		std::pair<std::vector<unsigned short int>, std::vector<unsigned short int>> index;  // a pair of vectors to store combínation of j and k
 		std::vector<unsigned int> index_tracker;           // the idx can be a large number  
 		std::vector<short int> i_index;
 
@@ -74,16 +111,68 @@ namespace detail
 			}
 		}
 	};
+
+	struct FragCoefficients
+	{
+		// define breakage-related local parameters
+		std::vector<active> Upsilon_source;
+		std::vector<active> Upsilon_sink;
+
+		// constructor
+		FragCoefficients(const std::vector<active>& binCenters, const std::vector<active>& bins, const active& breakageKernelGamma)
+			: Upsilon_source(binCenters.size()), Upsilon_sink(binCenters.size())
+		{
+			const active N_j = breakageKernelGamma / (breakageKernelGamma - 1.0);
+
+			active Upsilon_birth_sum = 0.0;
+			active Upsilon_death_sum = 0.0;
+			active b_integral_birth = 0.0;
+
+			// calculate upsilon and store it
+			for (int i = 0; i < binCenters.size(); ++i)
+			{
+				// reset the sum for each i
+				Upsilon_birth_sum = 0.0;
+				Upsilon_death_sum = 0.0;
+				const active x_i_3 = binCenters[i] * binCenters[i] * binCenters[i];
+				for (int j = 0; j < i + 1; ++j)
+				{
+					const active x_j_3 = binCenters[j] * binCenters[j] * binCenters[j];
+					if (cadet_likely(i != j))
+					{
+						b_integral_birth = N_j * (pow(bins[j + 1], 3.0 * breakageKernelGamma - 3.0) - pow(bins[j], 3.0 * breakageKernelGamma - 3.0)) / pow(binCenters[i], 3.0 * breakageKernelGamma - 3.0);
+						Upsilon_birth_sum += b_integral_birth * (x_i_3 - x_j_3);
+						Upsilon_death_sum += b_integral_birth * x_j_3;
+					}
+					else
+					{
+						b_integral_birth = N_j * (pow(binCenters[j], 3.0 * breakageKernelGamma - 3.0) - pow(bins[j], 3.0 * breakageKernelGamma - 3.0)) / pow(binCenters[i], 3.0 * breakageKernelGamma - 3.0);
+						Upsilon_death_sum += b_integral_birth * x_j_3;
+					}
+				}
+				if (cadet_likely(i > 0))
+				{
+					Upsilon_source[i] = (N_j - 1.0) * x_i_3 / Upsilon_birth_sum;
+				}
+				else
+				{
+					Upsilon_source[i] = (N_j - 1.0) * x_i_3;
+				}
+				Upsilon_sink[i] = Upsilon_death_sum * Upsilon_source[i] / x_i_3;
+			}
+		}
+	};
+
 } // namespace detail
 
 /**
-	* @brief Defines the crystallization reaction model
-	*/
+* @brief Defines the crystallization reaction model
+*/
 class CrystallizationReaction : public IDynamicReactionModel
 {
 public:
 
-	CrystallizationReaction() : _nComp(0), _nBins(0), _bins(0), _binCenters(0), _binSizes(0), _agg(nullptr) { }
+	CrystallizationReaction() : _nComp(0), _nBins(0), _bins(0), _binCenters(0), _binSizes(0), _agg(nullptr), _frag(nullptr) { }
 	virtual ~CrystallizationReaction() CADET_NOEXCEPT
 	{
 		clearSchemeCoefficients();
@@ -99,6 +188,15 @@ public:
 	{
 		readScalarParameterOrArray(_bins, paramProvider, "CRY_BINS", 1);
 
+		if (paramProvider.exists("CRYSTALLIZATION_MODE"))
+			_mode = static_cast<detail::CrystallizationMode>(paramProvider.getInt("CRYSTALLIZATION_MODE"));
+		else
+			_mode = detail::CrystallizationMode::PurePBM; // For backwards compatibility
+
+		_usePBM = detail::modeFlagMap[_mode].hasMassBalance;
+		_useAgg = detail::modeFlagMap[_mode].hasAggregation;
+		_useFrag = detail::modeFlagMap[_mode].hasFragmentation;
+
 		if (_bins.size() != _nBins + 1)
 			throw InvalidParameterException("Expected CRY_BINS to have " + std::to_string(_nBins + 1) + " elements (got " + std::to_string(_bins.size()) + ")");
 
@@ -113,7 +211,21 @@ public:
 
 		_aggregationIndex = paramProvider.getInt("CRY_AGGREGATION_INDEX");
 
+		_breakageRateConstant = paramProvider.getDouble("CRY_BREAKAGE_RATE_CONSTANT");
+		_parameters[makeParamId(hashString("CRY_BREAKAGE_RATE_CONSTANT"), unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_breakageRateConstant;
+
+		_breakageKernelGamma = paramProvider.getDouble("CRY_BREAKAGE_KERNEL_GAMMA");
+		if (_breakageKernelGamma <= 1.0)
+			throw InvalidParameterException("CRY_BREAKAGE_KERNEL_GAMMA needs to be larger than 1.0");
+		_parameters[makeParamId(hashString("CRY_BREAKAGE_KERNEL_GAMMA"), unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_breakageKernelGamma;
+
+		_breakageSelectionFunctionAlpha = paramProvider.getDouble("CRY_BREAKAGE_SELECTION_FUNCTION_ALPHA");
+		_parameters[makeParamId(hashString("CRY_BREAKAGE_SELECTION_FUNCTION_ALPHA"), unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_breakageSelectionFunctionAlpha;
+
 		clearSchemeCoefficients();
+
+		if (_breakageRateConstant != 0.0)
+			_frag = new detail::FragCoefficients(_binCenters, _bins, _breakageKernelGamma);
 
 		if (_aggregationRateConstant != 0.0)
 			_agg = new detail::AggCoefficients(_binCenters, _bins, _binSizes);
@@ -189,12 +301,22 @@ public:
 protected:
 
 	std::unordered_map<ParameterId, active*> _parameters; //!< Map used to translate ParameterIds to actual variables
+	cadet::model::detail::CrystallizationMode _mode; //!< Crystallization mode, i.e. specification of considered effects
+	bool _usePBM; //!< Apply population mass balance
+	bool _useFrag; //!< Apply fragmentation term
+	bool _useAgg; //!< Apply aggregation term
 	int _nComp; //!< Number of components
 	int _nBins; //!< Number of crystal size bins
 
 	std::vector<active> _bins;
 	std::vector<active> _binCenters;
 	std::vector<active> _binSizes;
+
+	active _breakageRateConstant; // constant breakage rate constant
+	active _breakageKernelGamma; // gamma in the breakage kernel
+	active _breakageSelectionFunctionAlpha; // alpha in the selection function
+
+	detail::FragCoefficients* _frag;
 
 	int _aggregationIndex; // determines which kernel to use
 	active _aggregationRateConstant; // aggregation rate constant
@@ -217,6 +339,11 @@ protected:
 			delete _agg;
 			_agg = nullptr;
 		}
+		if (_frag)
+		{
+			delete _frag;
+			_frag = nullptr;
+		}
 	}
 
 	template <typename StateType, typename ResidualType, typename ParamType, typename FactorType>
@@ -229,103 +356,139 @@ protected:
 		ResidualType* const resCrystal = res;
 
 		// define aggregation-related local parameters
-		StateParam aggregation_source = 0.0;
-		StateParam aggregation_sink = 0.0;
-		ParamType agg_source_factor = 0.0;
-
-		const int agg_idx = static_cast<int>(_aggregationIndex);
+		StateParam source = 0.0;
+		StateParam sink = 0.0;
+		ParamType source_factor = 0.0;
 
 		for (int i = 0; i < _nBins; ++i)
 		{
-			// reset the source term for a new i
-			aggregation_source = 0.0;
-			aggregation_sink = 0.0;
-
-			const ParamType x_i_cube = static_cast<ParamType>(_binCenters[i]) * static_cast<ParamType>(_binCenters[i]) * static_cast<ParamType>(_binCenters[i]);
-
-			// aggregation source terms
-			for (int p = static_cast<int>(_agg->index_tracker[i]); p < static_cast<int>(_agg->index_tracker[i + 1]); ++p)
+			if (_useAgg)
 			{
-				const int j = static_cast<int>(_agg->index.first[p]);
-				const int k = static_cast<int>(_agg->index.second[p]);
+				// reset the source and sink terms
+				source = 0.0;
+				sink = 0.0;
 
-				const ParamType x_j_cube_plus_x_k_cube = static_cast<ParamType>(_binCenters[j]) * static_cast<ParamType>(_binCenters[j]) * static_cast<ParamType>(_binCenters[j]) + static_cast<ParamType>(_binCenters[k]) * static_cast<ParamType>(_binCenters[k]) * static_cast<ParamType>(_binCenters[k]);
+				const ParamType x_i_cube = static_cast<ParamType>(_binCenters[i]) * static_cast<ParamType>(_binCenters[i]) * static_cast<ParamType>(_binCenters[i]);
+
+				// aggregation source terms
+				for (int p = static_cast<int>(_agg->index_tracker[i]); p < static_cast<int>(_agg->index_tracker[i + 1]); ++p)
+				{
+					const int j = static_cast<int>(_agg->index.first[p]);
+					const int k = static_cast<int>(_agg->index.second[p]);
+
+					const ParamType x_j_cube_plus_x_k_cube = static_cast<ParamType>(_binCenters[j]) * static_cast<ParamType>(_binCenters[j]) * static_cast<ParamType>(_binCenters[j]) + static_cast<ParamType>(_binCenters[k]) * static_cast<ParamType>(_binCenters[k]) * static_cast<ParamType>(_binCenters[k]);
+
+					// source term
+					source_factor = static_cast<ParamType>(_aggregationRateConstant) * static_cast<ParamType>(_binSizes[j]) * static_cast<ParamType>(_binSizes[k]) / static_cast<ParamType>(_binSizes[i])
+						* 1.0 / (2.0 * x_i_cube / x_j_cube_plus_x_k_cube - 1.0);
+
+					if (cadet_unlikely(j == k)) { source_factor *= 0.5; }
+
+					// add different kernels
+					switch (_aggregationIndex)
+					{
+						//constant kernel 0
+					case 0:
+						break;
+						// brownian kernel 1
+					case 1:
+						source_factor *= (static_cast<ParamType>(_binCenters[k]) + static_cast<ParamType>(_binCenters[j])) * (static_cast<ParamType>(_binCenters[k]) + static_cast<ParamType>(_binCenters[j])) / static_cast<ParamType>(_binCenters[k]) / static_cast<ParamType>(_binCenters[j]);
+						break;
+						// smoluchowski kernel 2
+					case 2:
+						source_factor *= (static_cast<ParamType>(_binCenters[k]) + static_cast<ParamType>(_binCenters[j])) * (static_cast<ParamType>(_binCenters[k]) + static_cast<ParamType>(_binCenters[j])) * (static_cast<ParamType>(_binCenters[k]) + static_cast<ParamType>(_binCenters[j]));
+						break;
+						// golovin kernel 3
+					case 3:
+						source_factor *= static_cast<ParamType>(_binCenters[k]) * static_cast<ParamType>(_binCenters[k]) * static_cast<ParamType>(_binCenters[k]) + static_cast<ParamType>(_binCenters[j]) * static_cast<ParamType>(_binCenters[j]) * static_cast<ParamType>(_binCenters[j]);
+						break;
+						// differential force kernel 4
+					case 4:
+						source_factor *= (static_cast<ParamType>(_binCenters[k]) + static_cast<ParamType>(_binCenters[j])) * (static_cast<ParamType>(_binCenters[k]) + static_cast<ParamType>(_binCenters[j])) * (static_cast<ParamType>(_binCenters[k]) * static_cast<ParamType>(_binCenters[k]) - static_cast<ParamType>(_binCenters[j]) * static_cast<ParamType>(_binCenters[j]));
+						break;
+					}
+
+					source += yCrystal[j] * yCrystal[k] * source_factor;
+				}
+
+				// aggregation sink terms
+				for (int j = 0; j < _nBins; ++j)
+				{
+					const ParamType sum_volume = pow(x_i_cube + static_cast<ParamType>(_binCenters[j]) * static_cast<ParamType>(_binCenters[j]) * static_cast<ParamType>(_binCenters[j]), 1.0 / 3.0);
+					const int k = static_cast<int>(_agg->i_index[i * _nBins + j]);
+
+					ParamType ratio{};
+					ParamType sink_correction_factor = 1.0;
+					if (k > 0)
+					{
+						ratio = sum_volume / static_cast<ParamType>(_binCenters[k]);
+						sink_correction_factor = 1.0 / (2.0 - ratio * ratio * ratio);
+					}
+
+					switch (_aggregationIndex)
+					{
+						//constant kernel 0
+					case 0:
+						sink += yCrystal[j] * static_cast<ParamType>(_binSizes[j]) * sink_correction_factor;
+						break;
+						// brownian kernel 1
+					case 1:
+						sink += yCrystal[j] * static_cast<ParamType>(_binSizes[j]) * (static_cast<ParamType>(_binCenters[i]) + static_cast<ParamType>(_binCenters[j])) * (static_cast<ParamType>(_binCenters[i]) + static_cast<ParamType>(_binCenters[j])) / static_cast<ParamType>(_binCenters[i]) / static_cast<ParamType>(_binCenters[j]) * sink_correction_factor;
+						break;
+						// smoluchowski kernel 2
+					case 2:
+						sink += yCrystal[j] * static_cast<ParamType>(_binSizes[j]) * (static_cast<ParamType>(_binCenters[i]) + static_cast<ParamType>(_binCenters[j])) * (static_cast<ParamType>(_binCenters[i]) + static_cast<ParamType>(_binCenters[j])) * (static_cast<ParamType>(_binCenters[i]) + static_cast<ParamType>(_binCenters[j])) * sink_correction_factor;
+						break;
+						// golovin kernel 3
+					case 3:
+						sink += yCrystal[j] * static_cast<ParamType>(_binSizes[j]) * (static_cast<ParamType>(_binCenters[i]) * static_cast<ParamType>(_binCenters[i]) * static_cast<ParamType>(_binCenters[i]) + static_cast<ParamType>(_binCenters[j]) * static_cast<ParamType>(_binCenters[j]) * static_cast<ParamType>(_binCenters[j])) * sink_correction_factor;
+						break;
+						// differential force kernel 4
+					case 4:
+						sink += yCrystal[j] * static_cast<ParamType>(_binSizes[j]) * (static_cast<ParamType>(_binCenters[i]) + static_cast<ParamType>(_binCenters[j])) * (static_cast<ParamType>(_binCenters[i]) + static_cast<ParamType>(_binCenters[j])) * (static_cast<ParamType>(_binCenters[i]) * static_cast<ParamType>(_binCenters[i]) - static_cast<ParamType>(_binCenters[j]) * static_cast<ParamType>(_binCenters[j])) * sink_correction_factor;
+						break;
+					}
+				}
+				sink *= yCrystal[i] * static_cast<ParamType>(_aggregationRateConstant);
+
+				// add to residual
+				resCrystal[i] += factor * source - factor * sink;
+			}
+
+			if (_useFrag)
+			{
+				const ParamType N_j = static_cast<ParamType>(_breakageKernelGamma) / (static_cast<ParamType>(_breakageKernelGamma) - 1.0);
+
+				// ode input
+				ParamType b_integral = 0.0;
+				ParamType selection_function = 0.0;
+				StateParam breakage_source = 0.0;
+				StateParam breakage_sink = 0.0;
 
 				// source term
-				agg_source_factor = static_cast<ParamType>(_aggregationRateConstant) * static_cast<ParamType>(_binSizes[j]) * static_cast<ParamType>(_binSizes[k]) / static_cast<ParamType>(_binSizes[i])
-					* 1.0 / (2.0 * x_i_cube / x_j_cube_plus_x_k_cube - 1.0);
-
-				if (cadet_unlikely(j == k)) { agg_source_factor *= 0.5; }
-
-				// add different kernels
-				switch (agg_idx)
+				breakage_source = 0.0;
+				for (int j = i; j < _nBins; ++j)
 				{
-					//constant kernel 0
-				case 0:
-					break;
-					// brownian kernel 1
-				case 1:
-					agg_source_factor *= (static_cast<ParamType>(_binCenters[k]) + static_cast<ParamType>(_binCenters[j])) * (static_cast<ParamType>(_binCenters[k]) + static_cast<ParamType>(_binCenters[j])) / static_cast<ParamType>(_binCenters[k]) / static_cast<ParamType>(_binCenters[j]);
-					break;
-					// smoluchowski kernel 2
-				case 2:
-					agg_source_factor *= (static_cast<ParamType>(_binCenters[k]) + static_cast<ParamType>(_binCenters[j])) * (static_cast<ParamType>(_binCenters[k]) + static_cast<ParamType>(_binCenters[j])) * (static_cast<ParamType>(_binCenters[k]) + static_cast<ParamType>(_binCenters[j]));
-					break;
-					// golovin kernel 3
-				case 3:
-					agg_source_factor *= static_cast<ParamType>(_binCenters[k]) * static_cast<ParamType>(_binCenters[k]) * static_cast<ParamType>(_binCenters[k]) + static_cast<ParamType>(_binCenters[j]) * static_cast<ParamType>(_binCenters[j]) * static_cast<ParamType>(_binCenters[j]);
-					break;
-					// differential force kernel 4
-				case 4:
-					agg_source_factor *= (static_cast<ParamType>(_binCenters[k]) + static_cast<ParamType>(_binCenters[j])) * (static_cast<ParamType>(_binCenters[k]) + static_cast<ParamType>(_binCenters[j])) * (static_cast<ParamType>(_binCenters[k]) * static_cast<ParamType>(_binCenters[k]) - static_cast<ParamType>(_binCenters[j]) * static_cast<ParamType>(_binCenters[j]));
-					break;
+					// selection function
+					selection_function = static_cast<ParamType>(_breakageRateConstant) * pow(static_cast<ParamType>(_binCenters[j]), 3.0 * static_cast<ParamType>(_breakageSelectionFunctionAlpha));
+					if (cadet_likely(i != j))
+					{
+						b_integral = N_j * (pow(static_cast<ParamType>(_bins[i + 1]), 3.0 * static_cast<ParamType>(_breakageKernelGamma) - 3.0) - pow(static_cast<ParamType>(_bins[i]), 3.0 * static_cast<ParamType>(_breakageKernelGamma) - 3.0)) / pow(static_cast<ParamType>(_binCenters[j]), 3.0 * static_cast<ParamType>(_breakageKernelGamma) - 3.0);
+					}
+					else
+					{
+						b_integral = N_j * (pow(static_cast<ParamType>(_binCenters[i]), 3.0 * static_cast<ParamType>(_breakageKernelGamma) - 3.0) - pow(static_cast<ParamType>(_bins[i]), 3.0 * static_cast<ParamType>(_breakageKernelGamma) - 3.0)) / pow(static_cast<ParamType>(_binCenters[j]), 3.0 * static_cast<ParamType>(_breakageKernelGamma) - 3.0);
+					}
+					breakage_source += selection_function * yCrystal[j] * b_integral * static_cast<ParamType>(_frag->Upsilon_source[j]) * static_cast<ParamType>(_binSizes[j]) / static_cast<ParamType>(_binSizes[i]);
 				}
 
-				aggregation_source += yCrystal[j] * yCrystal[k] * agg_source_factor;
+				// sink term
+				selection_function = static_cast<ParamType>(_breakageRateConstant) * pow(static_cast<ParamType>(_binCenters[i]), 3.0 * static_cast<ParamType>(_breakageSelectionFunctionAlpha));
+				breakage_sink = yCrystal[i] * selection_function * static_cast<ParamType>(_frag->Upsilon_sink[i]);
+
+				// add to residual
+				resCrystal[i] += factor * breakage_source - factor * breakage_sink;
 			}
-
-			// aggregation sink terms
-			for (int j = 0; j < _nBins; ++j)
-			{
-				const ParamType sum_volume = pow(x_i_cube + static_cast<ParamType>(_binCenters[j]) * static_cast<ParamType>(_binCenters[j]) * static_cast<ParamType>(_binCenters[j]), 1.0 / 3.0);
-				const int k = static_cast<int>(_agg->i_index[i * _nBins + j]);
-
-				ParamType ratio{};
-				ParamType sink_correction_factor = 1.0;
-				if (k > 0)
-				{
-					ratio = sum_volume / static_cast<ParamType>(_binCenters[k]);
-					sink_correction_factor = 1.0 / (2.0 - ratio * ratio * ratio);
-				}
-
-				switch (agg_idx)
-				{
-					//constant kernel 0
-				case 0:
-					aggregation_sink += yCrystal[j] * static_cast<ParamType>(_binSizes[j]) * sink_correction_factor;
-					break;
-					// brownian kernel 1
-				case 1:
-					aggregation_sink += yCrystal[j] * static_cast<ParamType>(_binSizes[j]) * (static_cast<ParamType>(_binCenters[i]) + static_cast<ParamType>(_binCenters[j])) * (static_cast<ParamType>(_binCenters[i]) + static_cast<ParamType>(_binCenters[j])) / static_cast<ParamType>(_binCenters[i]) / static_cast<ParamType>(_binCenters[j]) * sink_correction_factor;
-					break;
-					// smoluchowski kernel 2
-				case 2:
-					aggregation_sink += yCrystal[j] * static_cast<ParamType>(_binSizes[j]) * (static_cast<ParamType>(_binCenters[i]) + static_cast<ParamType>(_binCenters[j])) * (static_cast<ParamType>(_binCenters[i]) + static_cast<ParamType>(_binCenters[j])) * (static_cast<ParamType>(_binCenters[i]) + static_cast<ParamType>(_binCenters[j])) * sink_correction_factor;
-					break;
-					// golovin kernel 3
-				case 3:
-					aggregation_sink += yCrystal[j] * static_cast<ParamType>(_binSizes[j]) * (static_cast<ParamType>(_binCenters[i]) * static_cast<ParamType>(_binCenters[i]) * static_cast<ParamType>(_binCenters[i]) + static_cast<ParamType>(_binCenters[j]) * static_cast<ParamType>(_binCenters[j]) * static_cast<ParamType>(_binCenters[j])) * sink_correction_factor;
-					break;
-					// differential force kernel 4
-				case 4:
-					aggregation_sink += yCrystal[j] * static_cast<ParamType>(_binSizes[j]) * (static_cast<ParamType>(_binCenters[i]) + static_cast<ParamType>(_binCenters[j])) * (static_cast<ParamType>(_binCenters[i]) + static_cast<ParamType>(_binCenters[j])) * (static_cast<ParamType>(_binCenters[i]) * static_cast<ParamType>(_binCenters[i]) - static_cast<ParamType>(_binCenters[j]) * static_cast<ParamType>(_binCenters[j])) * sink_correction_factor;
-					break;
-				}
-			}
-			aggregation_sink *= yCrystal[i] * static_cast<ParamType>(_aggregationRateConstant);
-
-			// residual implementation
-			resCrystal[i] += factor * aggregation_source - factor * aggregation_sink;
 		}
 		return 0;
 	}
@@ -343,97 +506,131 @@ protected:
 		// Pointer to crystal bins
 		double const* const yCrystal = y;
 
-		const int agg_idx = static_cast<int>(_aggregationIndex);
 		// jacobian, when adding to growth terms
 		for (int i = 0; i < _nBins; ++i)
 		{
-			// aggregation source term
-			const double x_i_cube = static_cast<double>(_binCenters[i]) * static_cast<double>(_binCenters[i]) * static_cast<double>(_binCenters[i]);
-
-			for (int p = static_cast<int>(_agg->index_tracker[i]); p < static_cast<int>(_agg->index_tracker[i + 1]); ++p)
+			if (_useAgg)
 			{
-				const int j = static_cast<int>(_agg->index.first[p]);
-				const int k = static_cast<int>(_agg->index.second[p]);
+				// aggregation source term
+				const double x_i_cube = static_cast<double>(_binCenters[i]) * static_cast<double>(_binCenters[i]) * static_cast<double>(_binCenters[i]);
 
-				const double x_j_cube_plus_x_k_cube = static_cast<double>(_binCenters[j]) * static_cast<double>(_binCenters[j]) * static_cast<double>(_binCenters[j]) + static_cast<double>(_binCenters[k]) * static_cast<double>(_binCenters[k]) * static_cast<double>(_binCenters[k]);
-
-				// source term
-				double agg_source_factor = static_cast<double>(_aggregationRateConstant) * static_cast<double>(_binSizes[j]) * static_cast<double>(_binSizes[k]) / static_cast<double>(_binSizes[i])
-					* 1.0 / (2.0 * x_i_cube / x_j_cube_plus_x_k_cube - 1.0);
-
-				if (cadet_unlikely(j == k)) { agg_source_factor *= 0.5; }
-
-				// add different kernels
-				switch (agg_idx)
+				for (int p = static_cast<int>(_agg->index_tracker[i]); p < static_cast<int>(_agg->index_tracker[i + 1]); ++p)
 				{
-					//constant kernel 0
-				case 0:
-					break;
-					// brownian kernel 1
-				case 1:
-					agg_source_factor *= (static_cast<double>(_binCenters[k]) + static_cast<double>(_binCenters[j])) * (static_cast<double>(_binCenters[k]) + static_cast<double>(_binCenters[j])) / static_cast<double>(_binCenters[k]) / static_cast<double>(_binCenters[j]);
-					break;
-					// smoluchowski kernel 2
-				case 2:
-					agg_source_factor *= (static_cast<double>(_binCenters[k]) + static_cast<double>(_binCenters[j])) * (static_cast<double>(_binCenters[k]) + static_cast<double>(_binCenters[j])) * (static_cast<double>(_binCenters[k]) + static_cast<double>(_binCenters[j]));
-					break;
-					// golovin kernel 3
-				case 3:
-					agg_source_factor *= static_cast<double>(_binCenters[k]) * static_cast<double>(_binCenters[k]) * static_cast<double>(_binCenters[k]) + static_cast<double>(_binCenters[j]) * static_cast<double>(_binCenters[j]) * static_cast<double>(_binCenters[j]);
-					break;
-					// differential force kernel 4
-				case 4:
-					agg_source_factor *= (static_cast<double>(_binCenters[k]) + static_cast<double>(_binCenters[j])) * (static_cast<double>(_binCenters[k]) + static_cast<double>(_binCenters[j])) * (static_cast<double>(_binCenters[k]) * static_cast<double>(_binCenters[k]) - static_cast<double>(_binCenters[j]) * static_cast<double>(_binCenters[j]));
-					break;
+					const int j = static_cast<int>(_agg->index.first[p]);
+					const int k = static_cast<int>(_agg->index.second[p]);
+
+					const double x_j_cube_plus_x_k_cube = static_cast<double>(_binCenters[j]) * static_cast<double>(_binCenters[j]) * static_cast<double>(_binCenters[j]) + static_cast<double>(_binCenters[k]) * static_cast<double>(_binCenters[k]) * static_cast<double>(_binCenters[k]);
+
+					// source term
+					double agg_source_factor = static_cast<double>(_aggregationRateConstant) * static_cast<double>(_binSizes[j]) * static_cast<double>(_binSizes[k]) / static_cast<double>(_binSizes[i])
+						* 1.0 / (2.0 * x_i_cube / x_j_cube_plus_x_k_cube - 1.0);
+
+					if (cadet_unlikely(j == k)) { agg_source_factor *= 0.5; }
+
+					// add different kernels
+					switch (_aggregationIndex)
+					{
+						//constant kernel 0
+					case 0:
+						break;
+						// brownian kernel 1
+					case 1:
+						agg_source_factor *= (static_cast<double>(_binCenters[k]) + static_cast<double>(_binCenters[j])) * (static_cast<double>(_binCenters[k]) + static_cast<double>(_binCenters[j])) / static_cast<double>(_binCenters[k]) / static_cast<double>(_binCenters[j]);
+						break;
+						// smoluchowski kernel 2
+					case 2:
+						agg_source_factor *= (static_cast<double>(_binCenters[k]) + static_cast<double>(_binCenters[j])) * (static_cast<double>(_binCenters[k]) + static_cast<double>(_binCenters[j])) * (static_cast<double>(_binCenters[k]) + static_cast<double>(_binCenters[j]));
+						break;
+						// golovin kernel 3
+					case 3:
+						agg_source_factor *= static_cast<double>(_binCenters[k]) * static_cast<double>(_binCenters[k]) * static_cast<double>(_binCenters[k]) + static_cast<double>(_binCenters[j]) * static_cast<double>(_binCenters[j]) * static_cast<double>(_binCenters[j]);
+						break;
+						// differential force kernel 4
+					case 4:
+						agg_source_factor *= (static_cast<double>(_binCenters[k]) + static_cast<double>(_binCenters[j])) * (static_cast<double>(_binCenters[k]) + static_cast<double>(_binCenters[j])) * (static_cast<double>(_binCenters[k]) * static_cast<double>(_binCenters[k]) - static_cast<double>(_binCenters[j]) * static_cast<double>(_binCenters[j]));
+						break;
+					}
+
+					// add to the jacobian
+					//j=k case is covered: source_factor is already multiplied by 0.5
+					jac[j - i] += factor * yCrystal[k] * agg_source_factor;
+					jac[k - i] += factor * yCrystal[j] * agg_source_factor;
 				}
 
-				// add to the jacobian
-				//j=k case is covered: source_factor is already multiplied by 0.5
-				jac[j - i] += factor * yCrystal[k] * agg_source_factor;
-				jac[k - i] += factor * yCrystal[j] * agg_source_factor;
+				// aggregation sink terms
+				for (int j = 0; j < _nBins; ++j)
+				{
+					const double sum_volume = pow(x_i_cube + static_cast<double>(_binCenters[j]) * static_cast<double>(_binCenters[j]) * static_cast<double>(_binCenters[j]), 1.0 / 3.0);
+					const int k = static_cast<int>(_agg->i_index[i * _nBins + j]);
+					double ratio{};
+					double sink_correction_factor = 1.0;
+					if (k > 0)
+					{
+						ratio = sum_volume / static_cast<double>(_binCenters[k]);
+						sink_correction_factor = 1.0 / (2.0 - ratio * ratio * ratio);
+					}
+
+					double aggregation_sink_factor = static_cast<double>(_aggregationRateConstant);
+
+					switch (_aggregationIndex)
+					{
+						//constant kernel 0
+					case 0:
+						aggregation_sink_factor *= static_cast<double>(_binSizes[j]) * sink_correction_factor;
+						break;
+						// brownian kernel 1
+					case 1:
+						aggregation_sink_factor *= static_cast<double>(_binSizes[j]) * (static_cast<double>(_binCenters[i]) + static_cast<double>(_binCenters[j])) * (static_cast<double>(_binCenters[i]) + static_cast<double>(_binCenters[j])) / static_cast<double>(_binCenters[i]) / static_cast<double>(_binCenters[j]) * sink_correction_factor;
+						break;
+						// smoluchowski kernel 2
+					case 2:
+						aggregation_sink_factor *= static_cast<double>(_binSizes[j]) * (static_cast<double>(_binCenters[i]) + static_cast<double>(_binCenters[j])) * (static_cast<double>(_binCenters[i]) + static_cast<double>(_binCenters[j])) * (static_cast<double>(_binCenters[i]) + static_cast<double>(_binCenters[j])) * sink_correction_factor;
+						break;
+						// golovin kernel 3
+					case 3:
+						aggregation_sink_factor *= static_cast<double>(_binSizes[j]) * (static_cast<double>(_binCenters[i]) * static_cast<double>(_binCenters[i]) * static_cast<double>(_binCenters[i]) + static_cast<double>(_binCenters[j]) * static_cast<double>(_binCenters[j]) * static_cast<double>(_binCenters[j])) * sink_correction_factor;
+						break;
+						// differential force kernel 4
+					case 4:
+						aggregation_sink_factor *= static_cast<double>(_binSizes[j]) * (static_cast<double>(_binCenters[i]) + static_cast<double>(_binCenters[j])) * (static_cast<double>(_binCenters[i]) + static_cast<double>(_binCenters[j])) * (static_cast<double>(_binCenters[i]) * static_cast<double>(_binCenters[i]) - static_cast<double>(_binCenters[j]) * static_cast<double>(_binCenters[j])) * sink_correction_factor;
+						break;
+					}
+
+					jac[j - i] -= factor * aggregation_sink_factor * yCrystal[i];  // wrt j
+					jac[0] -= factor * aggregation_sink_factor * yCrystal[j];  // wrt i
+				}
 			}
 
-			// aggregation sink terms
-			for (int j = 0; j < _nBins; ++j)
+			if (_useFrag)
 			{
-				const double sum_volume = pow(x_i_cube + static_cast<double>(_binCenters[j]) * static_cast<double>(_binCenters[j]) * static_cast<double>(_binCenters[j]), 1.0 / 3.0);
-				const int k = static_cast<int>(_agg->i_index[i * _nBins + j]);
-				double ratio{};
-				double sink_correction_factor = 1.0;
-				if (k > 0)
+				// jacobian, when adding to growth terms, remember to change the index to binIdx_i! Q_ceq is not considered.
+				double selection_function = 0.0;
+				double b_integral = 0.0;
+
+				const double N_j = static_cast<double>(_breakageKernelGamma) / (static_cast<double>(_breakageKernelGamma) - 1.0);
+
+				for (int i = 0; i < _nBins; ++i)
 				{
-					ratio = sum_volume / static_cast<double>(_binCenters[k]);
-					sink_correction_factor = 1.0 / (2.0 - ratio * ratio * ratio);
+					// add breakage source to jac
+					for (int j = i; j < _nBins; ++j)
+					{
+						// update selection function
+						selection_function = static_cast<double>(_breakageRateConstant) * pow(static_cast<double>(_binCenters[j]), 3.0 * static_cast<double>(_breakageSelectionFunctionAlpha));
+						if (cadet_likely(i != j))
+						{
+							b_integral = N_j * (pow(static_cast<double>(_bins[i + 1]), 3.0 * static_cast<double>(_breakageKernelGamma) - 3.0) - pow(static_cast<double>(_bins[i]), 3.0 * static_cast<double>(_breakageKernelGamma) - 3.0)) / pow(static_cast<double>(_binCenters[j]), 3.0 * static_cast<double>(_breakageKernelGamma) - 3.0);
+						}
+						else
+						{
+							b_integral = N_j * (pow(static_cast<double>(_binCenters[i]), 3.0 * static_cast<double>(_breakageKernelGamma) - 3.0) - pow(static_cast<double>(_bins[i]), 3.0 * static_cast<double>(_breakageKernelGamma) - 3.0)) / pow(static_cast<double>(_binCenters[j]), 3.0 * static_cast<double>(_breakageKernelGamma) - 3.0);
+						}
+						jac[-i + j] += factor * selection_function * b_integral * static_cast<double>(_frag->Upsilon_source[j]) * static_cast<double>(_binSizes[j]) / static_cast<double>(_binSizes[i]);
+					}
+
+					// add breakage sink to jac
+					selection_function = static_cast<double>(_breakageRateConstant) * pow(static_cast<double>(_binCenters[i]), 3.0 * static_cast<double>(_breakageSelectionFunctionAlpha));
+					jac[0] -= factor * selection_function * static_cast<double>(_frag->Upsilon_sink[i]);
 				}
-
-				double aggregation_sink_factor = static_cast<double>(_aggregationRateConstant);
-
-				switch (agg_idx)
-				{
-					//constant kernel 0
-				case 0:
-					aggregation_sink_factor *= static_cast<double>(_binSizes[j]) * sink_correction_factor;
-					break;
-					// brownian kernel 1
-				case 1:
-					aggregation_sink_factor *= static_cast<double>(_binSizes[j]) * (static_cast<double>(_binCenters[i]) + static_cast<double>(_binCenters[j])) * (static_cast<double>(_binCenters[i]) + static_cast<double>(_binCenters[j])) / static_cast<double>(_binCenters[i]) / static_cast<double>(_binCenters[j]) * sink_correction_factor;
-					break;
-					// smoluchowski kernel 2
-				case 2:
-					aggregation_sink_factor *= static_cast<double>(_binSizes[j]) * (static_cast<double>(_binCenters[i]) + static_cast<double>(_binCenters[j])) * (static_cast<double>(_binCenters[i]) + static_cast<double>(_binCenters[j])) * (static_cast<double>(_binCenters[i]) + static_cast<double>(_binCenters[j])) * sink_correction_factor;
-					break;
-					// golovin kernel 3
-				case 3:
-					aggregation_sink_factor *= static_cast<double>(_binSizes[j]) * (static_cast<double>(_binCenters[i]) * static_cast<double>(_binCenters[i]) * static_cast<double>(_binCenters[i]) + static_cast<double>(_binCenters[j]) * static_cast<double>(_binCenters[j]) * static_cast<double>(_binCenters[j])) * sink_correction_factor;
-					break;
-					// differential force kernel 4
-				case 4:
-					aggregation_sink_factor *= static_cast<double>(_binSizes[j]) * (static_cast<double>(_binCenters[i]) + static_cast<double>(_binCenters[j])) * (static_cast<double>(_binCenters[i]) + static_cast<double>(_binCenters[j])) * (static_cast<double>(_binCenters[i]) * static_cast<double>(_binCenters[i]) - static_cast<double>(_binCenters[j]) * static_cast<double>(_binCenters[j])) * sink_correction_factor;
-					break;
-				}
-
-				jac[j - i] -= factor * aggregation_sink_factor * yCrystal[i];  // wrt j
-				jac[0] -= factor * aggregation_sink_factor * yCrystal[j];  // wrt i
 			}
 
 			// go to the next row
@@ -442,8 +639,9 @@ protected:
 	}
 
 	template <typename RowIteratorLiquid, typename RowIteratorSolid>
-	void jacobianCombinedImpl(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* yLiquid, double const* ySolid, double factor, const RowIteratorLiquid& jacLiquid, const RowIteratorSolid& jacSolid, LinearBufferAllocator workSpace) const
+	void jacobianCombinedImpl(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* yLiquid, double const* ySolid, double factor, RowIteratorLiquid& jacLiquid, RowIteratorSolid& jacSolid, LinearBufferAllocator workSpace) const
 	{
+		jacobianLiquidImpl<RowIteratorLiquid>(t, secIdx, colPos, yLiquid, factor, jacLiquid, workSpace);
 	}
 };
 
