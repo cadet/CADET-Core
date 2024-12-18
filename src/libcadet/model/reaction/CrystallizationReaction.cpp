@@ -356,7 +356,31 @@ public:
 	CrystallizationReaction() : _nComp(0), _nBins(0), _bins(0), _binCenters(0), _binSizes(0), _agg(nullptr), _frag(nullptr), _HR(nullptr), _weno3(nullptr), _weno5(nullptr) { }
 	virtual ~CrystallizationReaction() CADET_NOEXCEPT
 	{
-		clearSchemeCoefficients();
+		if (_agg)
+		{
+			delete _agg;
+			_agg = nullptr;
+		}
+		if (_frag)
+		{
+			delete _frag;
+			_frag = nullptr;
+		}
+		if (_HR)
+		{
+			delete _HR;
+			_HR = nullptr;
+		}
+		if (_weno3)
+		{
+			delete _weno3;
+			_weno3 = nullptr;
+		}
+		if (_weno5)
+		{
+			delete _weno5;
+			_weno5 = nullptr;
+		}
 	}
 
 	static const char* identifier() { return "CRYSTALLIZATION"; }
@@ -634,19 +658,33 @@ protected:
 		}
 	}
 
-	void clearSchemeCoefficients() CADET_NOEXCEPT
-	{
-		if (_agg)
-		{
-			delete _agg;
-			_agg = nullptr;
-		}
-		if (_frag)
-		{
-			delete _frag;
-			_frag = nullptr;
-		}
-	}
+	//template <typename StateType, typename ResidualType, typename ParamType>
+	//void updwindKernel(StateType const* yCrystal, ResidualType* resCrystal, const int binIdx)
+	//{
+	//	// Flux through left face
+	//	if (cadet_likely((i > 0) && (i + 1 < _nBins)))
+	//	{
+	//		// flux through the left face
+	//		resCrystal[i] += factor / static_cast<ParamType>(_binSizes[i]) * (v_g * yCrystal[i - 1]) - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i] - yCrystal[i - 1]) / static_cast<ParamType>(_binCenterDists[i - 1]);
+	//		// flux through the right face
+	//		v_g = k_g_times_s_g * (static_cast<ParamType>(_a) + static_cast<ParamType>(_growthConstant) * pow(static_cast<ParamType>(_bins[i + 1]), static_cast<ParamType>(_p)));
+	//		resCrystal[i] -= factor / static_cast<ParamType>(_binSizes[i]) * (v_g * yCrystal[i]) - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i + 1] - yCrystal[i]) / static_cast<ParamType>(_binCenterDists[i]);
+	//	}
+	//	else if (i == 0)
+	//	{
+	//		// Left boundary condition
+	//		resCrystal[i] += factor / static_cast<ParamType>(_binSizes[i]) * B_0;
+	//		// upwind
+	//		v_g = k_g_times_s_g * (static_cast<ParamType>(_a) + static_cast<ParamType>(_growthConstant) * pow(static_cast<ParamType>(_bins[i + 1]), static_cast<ParamType>(_p)));
+	//		resCrystal[i] -= factor / static_cast<ParamType>(_binSizes[i]) * v_g * yCrystal[i] - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i + 1] - yCrystal[i]) / static_cast<ParamType>(_binCenterDists[i]);
+	//	}
+	//	else
+	//	{
+	//		// first order approximation
+	//		resCrystal[i] += factor / static_cast<ParamType>(_binSizes[i]) * v_g * yCrystal[i - 1] - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i] - yCrystal[i - 1]) / static_cast<ParamType>(_binCenterDists[i - 1]);
+	//		// no flux
+	//	}
+	//}
 
 	template <typename StateType, typename ResidualType, typename ParamType, typename FactorType>
 	int residualLiquidImpl(double t, unsigned int secIdx, const ColumnPosition& colPos,
@@ -682,8 +720,7 @@ protected:
 			StateParam v_g = 0.0;
 
 			// growth flux reconstruction
-			const int growth_order = static_cast<int>(_growthSchemeOrder);
-			switch (growth_order)
+			switch (_growthSchemeOrder)
 			{
 				// upwind scheme
 			case 1:
@@ -1136,10 +1173,9 @@ protected:
 
 			// the jacobian has a shape: (_nComp) x (_nComp), undefined ones are 0.0.
 			// the first loop i iterates over rows, the second loop j iterates over columns. The offset i is used to move the jac index to 0 at the beginning of iterating over j.
-			const int GrowthOrder = static_cast<int>(_growthSchemeOrder);
 			int binIdx_i = 0;
 			int binIdx_j = 0;
-			switch (GrowthOrder)
+			switch (_growthSchemeOrder)
 			{
 				// upwind
 			case 1:
