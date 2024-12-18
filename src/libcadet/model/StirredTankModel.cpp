@@ -1329,31 +1329,45 @@ int CSTRModel::residualImpl(double t, unsigned int secIdx, StateType const* cons
 				{
 					resCMoities[comp] = _MconvMoityBulk.row(MoityIdx) * resC[comp];
 					MoityIdx++;
+					
+					if (wantJac)
+						_jac.native(comp, _nComp + _totalBound) = 0; // dF_{Vliquid}/dci = 0 
+
 				}
 				else if (comp < _nComp - nmoities)
 				{
 					resCMoities[comp] += v * flux[comp];
+
+					if (wantJac)
+						_jac.native(comp, _nComp + _totalBound) = static_cast<double>(flux[comp]); // dF/dci = v_liquid
+
 				}
+				
 				else if(comp > _nComp - nmoities)
 				{
 					resCMoities[comp] = v * flux[comp];
+					
+					if (wantJac)
+						_dynReactionBulk->analyticJacobianLiquidAdd(t, secIdx, colPos, reinterpret_cast<double const*>(c), -static_cast<double>(v), _jac.row(0), subAlloc);
 				}
 			}
+
 			Eigen::Map<Vector<ResidualType, Dynamic>> mapResC(resC, _nComp);
 			mapResC = resCMoities;
+
 		}
 		else
 		{
 			for (unsigned int comp = 0; comp < _nComp; ++comp)
 				resC[comp] += v * flux[comp];
-		}
+			
+			if (wantJac)
+			{
+				for (unsigned int comp = 0; comp < _nComp; ++comp)
+					_jac.native(comp, _nComp + _totalBound) += static_cast<double>(flux[comp]); // dF/dvliquid = flux
 
-		if (wantJac)
-		{
-			for (unsigned int comp = 0; comp < _nComp; ++comp)
-				_jac.native(comp, _nComp + _totalBound) += static_cast<double>(flux[comp]); // dF/dvliquid = flux
-
-			_dynReactionBulk->analyticJacobianLiquidAdd(t, secIdx, colPos, reinterpret_cast<double const*>(c), -static_cast<double>(v), _jac.row(0), subAlloc);
+				_dynReactionBulk->analyticJacobianLiquidAdd(t, secIdx, colPos, reinterpret_cast<double const*>(c), -static_cast<double>(v), _jac.row(0), subAlloc);
+			}
 		}
 	}
 
