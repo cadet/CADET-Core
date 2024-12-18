@@ -690,8 +690,6 @@ protected:
 	int residualLiquidImpl(double t, unsigned int secIdx, const ColumnPosition& colPos,
 		StateType const* y, ResidualType* res, const FactorType& factor, LinearBufferAllocator workSpace) const
 	{
-		typedef typename DoubleActivePromoter<StateType, ParamType>::type StateParam;
-
 		if (_usePBM)
 		{
 			// If we solve the mass balance, then we have the solubility entry (which in the PBM case is the last state entry) and the solute entry (first position), which is why we advance the pointer.
@@ -700,7 +698,7 @@ protected:
 
 			const StateType s = (cadet_likely(y[0] / y[_nComp - 1] - 1.0 > 0)) ? y[0] / y[_nComp - 1] - 1.0 : 0.0; // s = (c_0 - c_eq) / c_eq = c_0 / c_eq - 1, rewrite it to zero if s drops below 0
 			const ParamType massDensityShapeFactor = static_cast<ParamType>(_nucleiMassDensity) * static_cast<ParamType>(_volShapeFactor);
-			const StateParam k_g_times_s_g = static_cast<ParamType>(_growthRateConstant) * pow(s, static_cast<ParamType>(_g));
+			const ResidualType k_g_times_s_g = static_cast<ParamType>(_growthRateConstant) * pow(s, static_cast<ParamType>(_g));
 
 			for (int i = 0; i < _nBins; ++i)
 			{
@@ -711,13 +709,13 @@ protected:
 			substrateConversion *= 3.0 * k_g_times_s_g;
 
 			// B_0 = primary + secondary nucleation rate
-			const StateParam B_0 = static_cast<ParamType>(_primaryNucleationRate) * pow(s, static_cast<ParamType>(_u)) + static_cast<ParamType>(_secondaryNucleationRate) * pow(s, static_cast<ParamType>(_b)) * pow(M, static_cast<ParamType>(_k));
+			const ResidualType B_0 = static_cast<ParamType>(_primaryNucleationRate) * pow(s, static_cast<ParamType>(_u)) + static_cast<ParamType>(_secondaryNucleationRate) * pow(s, static_cast<ParamType>(_b)) * pow(M, static_cast<ParamType>(_k));
 			const ParamType x_c_3 = static_cast<ParamType>(_bins[0]) * static_cast<ParamType>(_bins[0]) * static_cast<ParamType>(_bins[0]);
 
 			// mass balance
 			res[0] -= factor * massDensityShapeFactor * (B_0 * x_c_3 + substrateConversion);
 
-			StateParam v_g = 0.0;
+			ResidualType v_g = 0.0;
 
 			// growth flux reconstruction
 			switch (_growthSchemeOrder)
@@ -756,9 +754,9 @@ protected:
 			// HR scheme
 			case 2:
 			{
-				StateParam r_x_i = 0.0;
-				StateParam phi = 0.0;
-				StateParam F_i = 0.0;
+				ResidualType r_x_i = 0.0;
+				ResidualType phi = 0.0;
+				ResidualType F_i = 0.0;
 				for (int i = 0; i < _nBins; ++i)
 				{
 					if (cadet_likely((i > 1) && (i + 1 < _nBins)))
@@ -817,14 +815,14 @@ protected:
 			// weno 23
 			case 3:
 			{
-				StateParam IS_0 = 0.0;
-				StateParam IS_1 = 0.0;
-				StateParam alpha_0 = 0.0;
-				StateParam alpha_1 = 0.0;
-				StateParam W_0 = 0.0;
-				StateParam W_1 = 0.0;
-				StateParam q_0 = 0.0;
-				StateParam q_1 = 0.0;
+				ResidualType IS_0 = 0.0;
+				ResidualType IS_1 = 0.0;
+				ResidualType alpha_0 = 0.0;
+				ResidualType alpha_1 = 0.0;
+				ResidualType W_0 = 0.0;
+				ResidualType W_1 = 0.0;
+				ResidualType q_0 = 0.0;
+				ResidualType q_1 = 0.0;
 				for (int i = 0; i < _nBins; ++i)
 				{
 					if (cadet_likely((i > 1) && (i + 1 < _nBins)))
@@ -880,18 +878,18 @@ protected:
 			// WENO35
 			case 4:
 			{
-				StateParam IS_0 = 0.0;
-				StateParam IS_1 = 0.0;
-				StateParam IS_2 = 0.0;
-				StateParam alpha_0 = 0.0;
-				StateParam alpha_1 = 0.0;
-				StateParam alpha_2 = 0.0;
-				StateParam W_0 = 0.0;
-				StateParam W_1 = 0.0;
-				StateParam W_2 = 0.0;
-				StateParam q_0 = 0.0;
-				StateParam q_1 = 0.0;
-				StateParam q_2 = 0.0;
+				ResidualType IS_0 = 0.0;
+				ResidualType IS_1 = 0.0;
+				ResidualType IS_2 = 0.0;
+				ResidualType alpha_0 = 0.0;
+				ResidualType alpha_1 = 0.0;
+				ResidualType alpha_2 = 0.0;
+				ResidualType W_0 = 0.0;
+				ResidualType W_1 = 0.0;
+				ResidualType W_2 = 0.0;
+				ResidualType q_0 = 0.0;
+				ResidualType q_1 = 0.0;
+				ResidualType q_2 = 0.0;
 				for (int i = 0; i < _nBins; ++i)
 				{
 					if (cadet_likely((i > 2) && (i + 2 < _nBins)))
@@ -994,8 +992,8 @@ protected:
 		ResidualType* const resCrystal = res;
 
 		// define aggregation/fragmentation related local parameters
-		StateParam source = 0.0;
-		StateParam sink = 0.0;
+		ResidualType source = 0.0;
+		ResidualType sink = 0.0;
 		ParamType source_factor = 0.0;
 
 		for (int i = 0; i < _nBins; ++i)
@@ -1100,8 +1098,8 @@ protected:
 				// ode input
 				ParamType bIntegral = 0.0;
 				ParamType selectionFunction = 0.0;
-				StateParam fragSource = 0.0;
-				StateParam fragSink = 0.0;
+				ResidualType fragSource = 0.0;
+				ResidualType fragSink = 0.0;
 
 				// source term
 				fragSource = 0.0;
