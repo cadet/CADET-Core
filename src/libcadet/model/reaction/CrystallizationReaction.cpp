@@ -1,7 +1,7 @@
 // =============================================================================
 //  CADET
 //  
-//  Copyright © 2008-present: The CADET-Core Authors
+//  Copyright Â© 2008-present: The CADET-Core Authors
 //            Please see the AUTHORS.md file.
 //  
 //  All rights reserved. This program and the accompanying materials
