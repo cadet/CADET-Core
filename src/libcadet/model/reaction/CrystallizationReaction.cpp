@@ -479,8 +479,16 @@ public:
 		_useAgg = detail::modeFlagMap[_mode].hasAggregation;
 		_useFrag = detail::modeFlagMap[_mode].hasFragmentation;
 
+		if (_usePBM)
+		{
+			if (_bins.size() != _nBins + 2)
+				throw InvalidParameterException("Expected CRY_BINS to have " + std::to_string(_nBins + 2) + " elements (got " + std::to_string(_bins.size()) + ")");
+		}
+		else
+		{
 		if (_bins.size() != _nBins + 1)
 			throw InvalidParameterException("Expected CRY_BINS to have " + std::to_string(_nBins + 1) + " elements (got " + std::to_string(_bins.size()) + ")");
+		}
 
 		registerParam1DArray(_parameters, _bins, [=](bool multi, unsigned int idx) { return makeParamId(hashString("CRY_BINS"), unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, idx, SectionIndep); });
 
