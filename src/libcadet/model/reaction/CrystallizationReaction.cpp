@@ -137,6 +137,83 @@ namespace detail
 		}
 	};
 
+	template <typename ParamType>
+	struct HRParams
+	{
+		ParamType v_g;
+		const ParamType k_g_times_s_g;
+		const ParamType B_0;
+		ParamType r_x_i = 0.0;
+		ParamType phi = 0.0;
+		ParamType F_i = 0.0;
+
+		HRParams(ParamType v_g, ParamType k_g_times_s_g, ParamType B_0,
+			ParamType r_x_i = 0.0, ParamType phi = 0.0, ParamType F_i = 0.0)
+			: v_g(v_g), k_g_times_s_g(k_g_times_s_g), B_0(B_0),
+			r_x_i(r_x_i), phi(phi), F_i(F_i) {}
+	};
+
+	template <typename ParamType>
+	struct WENO3Params
+	{
+		ParamType v_g;
+		const ParamType k_g_times_s_g;
+		const ParamType B_0;
+		ParamType IS_0 = 0.0;
+		ParamType IS_1 = 0.0;
+		ParamType alpha_0 = 0.0;
+		ParamType alpha_1 = 0.0;
+		ParamType W_0 = 0.0;
+		ParamType W_1 = 0.0;
+		ParamType q_0 = 0.0;
+		ParamType q_1 = 0.0;
+
+		WENO3Params(ParamType v_g, ParamType k_g_times_s_g, ParamType B_0,
+			ParamType IS_0 = 0.0, ParamType IS_1 = 0.0,
+			ParamType alpha_0 = 0.0, ParamType alpha_1 = 0.0,
+			ParamType W_0 = 0.0, ParamType W_1 = 0.0,
+			ParamType q_0 = 0.0, ParamType q_1 = 0.0)
+			: v_g(v_g), k_g_times_s_g(k_g_times_s_g), B_0(B_0),
+			IS_0(IS_0), IS_1(IS_1),
+			alpha_0(alpha_0), alpha_1(alpha_1),
+			W_0(W_0), W_1(W_1),
+			q_0(q_0), q_1(q_1) {}
+	};
+
+
+	template <typename ParamType>
+	struct WENO5Params
+	{
+		ParamType v_g;
+		const ParamType k_g_times_s_g;
+		const ParamType B_0;
+		ParamType IS_0 = 0.0;
+		ParamType IS_1 = 0.0;
+		ParamType IS_2 = 0.0;
+		ParamType alpha_0 = 0.0;
+		ParamType alpha_1 = 0.0;
+		ParamType alpha_2 = 0.0;
+		ParamType W_0 = 0.0;
+		ParamType W_1 = 0.0;
+		ParamType W_2 = 0.0;
+		ParamType q_0 = 0.0;
+		ParamType q_1 = 0.0;
+		ParamType q_2 = 0.0;
+
+		WENO5Params(ParamType v_g, ParamType k_g_times_s_g, ParamType B_0,
+			ParamType IS_0 = 0.0, ParamType IS_1 = 0.0, ParamType IS_2 = 0.0,
+			ParamType alpha_0 = 0.0, ParamType alpha_1 = 0.0, ParamType alpha_2 = 0.0,
+			ParamType W_0 = 0.0, ParamType W_1 = 0.0, ParamType W_2 = 0.0,
+			ParamType q_0 = 0.0, ParamType q_1 = 0.0, ParamType q_2 = 0.0)
+			: v_g(v_g), k_g_times_s_g(k_g_times_s_g), B_0(B_0),
+			IS_0(IS_0), IS_1(IS_1), IS_2(IS_2),
+			alpha_0(alpha_0), alpha_1(alpha_1), alpha_2(alpha_2),
+			W_0(W_0), W_1(W_1), W_2(W_2),
+			q_0(q_0), q_1(q_1), q_2(q_2) {}
+	};
+
+
+
 	struct Weno5Coefficients
 	{
 		std::vector<active> q_2_coeff_1;
@@ -658,33 +735,254 @@ protected:
 		}
 	}
 
-	//template <typename StateType, typename ResidualType, typename ParamType>
-	//void updwindKernel(StateType const* yCrystal, ResidualType* resCrystal, const int binIdx)
-	//{
-	//	// Flux through left face
-	//	if (cadet_likely((i > 0) && (i + 1 < _nBins)))
-	//	{
-	//		// flux through the left face
-	//		resCrystal[i] += factor / static_cast<ParamType>(_binSizes[i]) * (v_g * yCrystal[i - 1]) - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i] - yCrystal[i - 1]) / static_cast<ParamType>(_binCenterDists[i - 1]);
-	//		// flux through the right face
-	//		v_g = k_g_times_s_g * (static_cast<ParamType>(_a) + static_cast<ParamType>(_growthConstant) * pow(static_cast<ParamType>(_bins[i + 1]), static_cast<ParamType>(_p)));
-	//		resCrystal[i] -= factor / static_cast<ParamType>(_binSizes[i]) * (v_g * yCrystal[i]) - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i + 1] - yCrystal[i]) / static_cast<ParamType>(_binCenterDists[i]);
-	//	}
-	//	else if (i == 0)
-	//	{
-	//		// Left boundary condition
-	//		resCrystal[i] += factor / static_cast<ParamType>(_binSizes[i]) * B_0;
-	//		// upwind
-	//		v_g = k_g_times_s_g * (static_cast<ParamType>(_a) + static_cast<ParamType>(_growthConstant) * pow(static_cast<ParamType>(_bins[i + 1]), static_cast<ParamType>(_p)));
-	//		resCrystal[i] -= factor / static_cast<ParamType>(_binSizes[i]) * v_g * yCrystal[i] - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i + 1] - yCrystal[i]) / static_cast<ParamType>(_binCenterDists[i]);
-	//	}
-	//	else
-	//	{
-	//		// first order approximation
-	//		resCrystal[i] += factor / static_cast<ParamType>(_binSizes[i]) * v_g * yCrystal[i - 1] - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i] - yCrystal[i - 1]) / static_cast<ParamType>(_binCenterDists[i - 1]);
-	//		// no flux
-	//	}
-	//}
+	template <typename StateType, typename ResidualType, typename ParamType, typename FactorType>
+	void updwindKernel(StateType const* yCrystal, ResidualType* resCrystal, const FactorType& factor, ResidualType& v_g, const ResidualType k_g_times_s_g, const ResidualType B_0, const int i) const
+	{
+		// Flux through left face
+		if (cadet_likely((i > 0) && (i + 1 < _nBins)))
+		{
+			// flux through the left face
+			resCrystal[i] += factor / static_cast<ParamType>(_binSizes[i]) * (v_g * yCrystal[i - 1]) - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i] - yCrystal[i - 1]) / static_cast<ParamType>(_binCenterDists[i - 1]);
+			// flux through the right face
+			v_g = k_g_times_s_g * (static_cast<ParamType>(_a) + static_cast<ParamType>(_growthConstant) * pow(static_cast<ParamType>(_bins[i + 1]), static_cast<ParamType>(_p)));
+			resCrystal[i] -= factor / static_cast<ParamType>(_binSizes[i]) * (v_g * yCrystal[i]) - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i + 1] - yCrystal[i]) / static_cast<ParamType>(_binCenterDists[i]);
+		}
+		else if (i == 0)
+		{
+			// Left boundary condition
+			resCrystal[i] += factor / static_cast<ParamType>(_binSizes[i]) * B_0;
+			// upwind
+			v_g = k_g_times_s_g * (static_cast<ParamType>(_a) + static_cast<ParamType>(_growthConstant) * pow(static_cast<ParamType>(_bins[i + 1]), static_cast<ParamType>(_p)));
+			resCrystal[i] -= factor / static_cast<ParamType>(_binSizes[i]) * v_g * yCrystal[i] - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i + 1] - yCrystal[i]) / static_cast<ParamType>(_binCenterDists[i]);
+		}
+		else
+		{
+			// first order approximation
+			resCrystal[i] += factor / static_cast<ParamType>(_binSizes[i]) * v_g * yCrystal[i - 1] - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i] - yCrystal[i - 1]) / static_cast<ParamType>(_binCenterDists[i - 1]);
+			// no flux
+		}
+	}
+
+	template <typename StateType, typename ResidualType, typename ParamType, typename FactorType>
+	void HRKorenKernel(StateType const* yCrystal, ResidualType* resCrystal, const FactorType& factor, detail::HRParams<ResidualType>& HRKorenParams, const int i) const
+	{
+		for (int i = 0; i < _nBins; ++i)
+		{
+			if (cadet_likely((i > 1) && (i + 1 < _nBins)))
+			{
+				// Flux through left face, modified van Leer flux limiter
+				resCrystal[i] += factor / static_cast<ParamType>(_binSizes[i]) * HRKorenParams.v_g * HRKorenParams.F_i - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i] - yCrystal[i - 1]) / static_cast<ParamType>(_binCenterDists[i - 1]);
+				// Flux through left face, modified van Leer flux limiter, update r_x_i, R_i, and growth rate
+				HRKorenParams.r_x_i = static_cast<ParamType>(_HR->A_coeff[i]) * (yCrystal[i] - yCrystal[i - 1] + 1e-10) / (yCrystal[i + 1] - yCrystal[i] + 1e-10);
+				if (cadet_likely(HRKorenParams.r_x_i > 0))
+				{
+					HRKorenParams.phi = HRKorenParams.r_x_i / (static_cast<ParamType>(_HR->R_coeff[i]) - 1.0 + HRKorenParams.r_x_i);
+				}
+				else
+				{
+					HRKorenParams.phi = 0.0;
+				}
+				HRKorenParams.F_i = yCrystal[i] + HRKorenParams.phi * (yCrystal[i + 1] - yCrystal[i]);
+				HRKorenParams.v_g = HRKorenParams.k_g_times_s_g * (static_cast<ParamType>(_a) + static_cast<ParamType>(_growthConstant) * pow(static_cast<ParamType>(_bins[i + 1]), static_cast<ParamType>(_p)));
+				resCrystal[i] -= factor / static_cast<ParamType>(_binSizes[i]) * HRKorenParams.v_g * HRKorenParams.F_i - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i + 1] - yCrystal[i]) / static_cast<ParamType>(_binCenterDists[i]);
+			}
+			else if (i == 1)
+			{
+				// upwind to F_{1/2} and the diffusion
+				resCrystal[i] += factor / static_cast<ParamType>(_binSizes[i]) * HRKorenParams.v_g * yCrystal[i - 1] - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i] - yCrystal[i - 1]) / static_cast<ParamType>(_binCenterDists[i - 1]);
+				// HR scheme applied to F_{1+1/2}
+				HRKorenParams.r_x_i = static_cast<ParamType>(_HR->A_coeff[i]) * (yCrystal[i] - yCrystal[i - 1] + 1e-10) / (yCrystal[i + 1] - yCrystal[i] + 1e-10);
+				if (cadet_likely(HRKorenParams.r_x_i > 0))
+				{
+					HRKorenParams.phi = HRKorenParams.r_x_i / (static_cast<ParamType>(_HR->R_coeff[i]) - 1.0 + HRKorenParams.r_x_i);
+				}
+				else
+				{
+					HRKorenParams.phi = 0.0;
+				}
+				HRKorenParams.F_i = yCrystal[i] + HRKorenParams.phi * (yCrystal[i + 1] - yCrystal[i]);
+				HRKorenParams.v_g = HRKorenParams.k_g_times_s_g * (static_cast<ParamType>(_a) + static_cast<ParamType>(_growthConstant) * pow(static_cast<ParamType>(_bins[i + 1]), static_cast<ParamType>(_p)));
+				resCrystal[i] -= factor / static_cast<ParamType>(_binSizes[i]) * HRKorenParams.v_g * HRKorenParams.F_i - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i + 1] - yCrystal[i]) / static_cast<ParamType>(_binCenterDists[i]);
+			}
+			else if (i + 1 == _nBins)
+			{
+				// HR scheme applied to the influx of the last bin 
+				resCrystal[i] += factor / static_cast<ParamType>(_binSizes[i]) * HRKorenParams.v_g * HRKorenParams.F_i - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i] - yCrystal[i - 1]) / static_cast<ParamType>(_binCenterDists[i - 1]);
+				// no flux
+			}
+			else
+			{
+				// left boundary condition
+				resCrystal[i] += factor / static_cast<ParamType>(_binSizes[i]) * HRKorenParams.B_0;
+				// upwind to F_1
+				HRKorenParams.v_g = HRKorenParams.k_g_times_s_g * (static_cast<ParamType>(_a) + static_cast<ParamType>(_growthConstant) * pow(static_cast<ParamType>(_bins[i + 1]), static_cast<ParamType>(_p)));
+				resCrystal[i] -= factor / static_cast<ParamType>(_binSizes[i]) * HRKorenParams.v_g * yCrystal[i] - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i + 1] - yCrystal[i]) / static_cast<ParamType>(_binCenterDists[i]);
+			}
+		}
+	}
+
+	template <typename StateType, typename ResidualType, typename ParamType, typename FactorType>
+	void WENO23Kernel(StateType const* yCrystal, ResidualType* resCrystal, const FactorType& factor, detail::WENO3Params<ResidualType>& WENO3Params, const int i) const
+	{
+		for (int i = 0; i < _nBins; ++i)
+		{
+			if (cadet_likely((i > 1) && (i + 1 < _nBins)))
+			{
+				// flux through left face. W_0, q_0, W_1 and q_1 are coming from the right face of bin (i-1).
+				resCrystal[i] += factor / static_cast<ParamType>(_binSizes[i]) * WENO3Params.v_g * (WENO3Params.W_0 * WENO3Params.q_0 + WENO3Params.W_1 * WENO3Params.q_1) - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i] - yCrystal[i - 1]) / static_cast<ParamType>(_binCenterDists[i - 1]);
+				// flux through right face, update IS, alpha, W, q and growth rate
+				WENO3Params.IS_0 = static_cast<ParamType>(_weno3->IS_0_coeff[i]) * (yCrystal[i + 1] - yCrystal[i]) * (yCrystal[i + 1] - yCrystal[i]);
+				WENO3Params.IS_1 = static_cast<ParamType>(_weno3->IS_1_coeff[i]) * (yCrystal[i] - yCrystal[i - 1]) * (yCrystal[i] - yCrystal[i - 1]);
+				WENO3Params.alpha_0 = static_cast<ParamType>(_weno3->C_right_coeff[i]) / (static_cast<ParamType>(_binSizes[i]) + WENO3Params.IS_0) / (static_cast<ParamType>(_binSizes[i]) + WENO3Params.IS_0);
+				WENO3Params.alpha_1 = (1.0 - static_cast<ParamType>(_weno3->C_right_coeff[i])) / (static_cast<ParamType>(_binSizes[i]) + WENO3Params.IS_1) / (static_cast<ParamType>(_binSizes[i]) + WENO3Params.IS_1);
+				WENO3Params.W_0 = WENO3Params.alpha_0 / (WENO3Params.alpha_0 + WENO3Params.alpha_1);
+				WENO3Params.W_1 = 1.0 - WENO3Params.W_0;
+				WENO3Params.q_0 = static_cast<ParamType>(_weno3->q_0_right_coeff[i]) * yCrystal[i] + (1.0 - static_cast<ParamType>(_weno3->q_0_right_coeff[i])) * yCrystal[i + 1];
+				WENO3Params.q_1 = static_cast<ParamType>(_weno3->q_1_right_coeff[i]) * yCrystal[i] + (1.0 - static_cast<ParamType>(_weno3->q_1_right_coeff[i])) * yCrystal[i - 1];
+				WENO3Params.v_g = WENO3Params.k_g_times_s_g * (static_cast<ParamType>(_a) + static_cast<ParamType>(_growthConstant) * pow(static_cast<ParamType>(_bins[i + 1]), static_cast<ParamType>(_p)));
+				resCrystal[i] -= factor / static_cast<ParamType>(_binSizes[i]) * WENO3Params.v_g * (WENO3Params.W_0 * WENO3Params.q_0 + WENO3Params.W_1 * WENO3Params.q_1) - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i + 1] - yCrystal[i]) / static_cast<ParamType>(_binCenterDists[i]);
+			}
+			// boundary condition
+			else if (i + 1 == _nBins)
+			{
+				// weno3 applied to the influx of the last bin
+				resCrystal[i] += factor / static_cast<ParamType>(_binSizes[i]) * WENO3Params.v_g * (WENO3Params.W_0 * WENO3Params.q_0 + WENO3Params.W_1 * WENO3Params.q_1) - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i] - yCrystal[i - 1]) / static_cast<ParamType>(_binCenterDists[i - 1]);
+				// no flux, regularity boundary condition
+			}
+			else if (i == 1)
+			{
+				// upwind applied to F_{1/2}
+				resCrystal[i] += factor / static_cast<ParamType>(_binSizes[i]) * WENO3Params.v_g * yCrystal[i - 1] - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i] - yCrystal[i - 1]) / static_cast<ParamType>(_binCenterDists[i - 1]);
+				// weno23 applied to F_{1+1/2}
+				WENO3Params.IS_0 = static_cast<ParamType>(_weno3->IS_0_coeff[i]) * (yCrystal[i + 1] - yCrystal[i]) * (yCrystal[i + 1] - yCrystal[i]);
+				WENO3Params.IS_1 = static_cast<ParamType>(_weno3->IS_1_coeff[i]) * (yCrystal[i] - yCrystal[i - 1]) * (yCrystal[i] - yCrystal[i - 1]);
+				WENO3Params.alpha_0 = static_cast<ParamType>(_weno3->C_right_coeff[i]) / (static_cast<ParamType>(_binSizes[i]) + WENO3Params.IS_0) / (static_cast<ParamType>(_binSizes[i]) + WENO3Params.IS_0);
+				WENO3Params.alpha_1 = (1.0 - static_cast<ParamType>(_weno3->C_right_coeff[i])) / (static_cast<ParamType>(_binSizes[i]) + WENO3Params.IS_1) / (static_cast<ParamType>(_binSizes[i]) + WENO3Params.IS_1);
+				WENO3Params.W_0 = WENO3Params.alpha_0 / (WENO3Params.alpha_0 + WENO3Params.alpha_1);
+				WENO3Params.W_1 = 1.0 - WENO3Params.W_0;
+				WENO3Params.q_0 = static_cast<ParamType>(_weno3->q_0_right_coeff[i]) * yCrystal[i] + (1.0 - static_cast<ParamType>(_weno3->q_0_right_coeff[i])) * yCrystal[i + 1];
+				WENO3Params.q_1 = static_cast<ParamType>(_weno3->q_1_right_coeff[i]) * yCrystal[i] + (1.0 - static_cast<ParamType>(_weno3->q_1_right_coeff[i])) * yCrystal[i - 1];
+				WENO3Params.v_g = WENO3Params.k_g_times_s_g * (static_cast<ParamType>(_a) + static_cast<ParamType>(_growthConstant) * pow(static_cast<ParamType>(_bins[i + 1]), static_cast<ParamType>(_p)));
+				resCrystal[i] -= factor / static_cast<ParamType>(_binSizes[i]) * WENO3Params.v_g * (WENO3Params.W_0 * WENO3Params.q_0 + WENO3Params.W_1 * WENO3Params.q_1) - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i + 1] - yCrystal[i]) / static_cast<ParamType>(_binCenterDists[i]);
+			}
+			else
+			{
+				// nucleation boundary condition
+				resCrystal[i] += factor / static_cast<ParamType>(_binSizes[i]) * WENO3Params.B_0;
+				// upwind
+				WENO3Params.v_g = WENO3Params.k_g_times_s_g * (static_cast<ParamType>(_a) + static_cast<ParamType>(_growthConstant) * pow(static_cast<ParamType>(_bins[i + 1]), static_cast<ParamType>(_p)));
+				resCrystal[i] -= factor / static_cast<ParamType>(_binSizes[i]) * WENO3Params.v_g * yCrystal[i] - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i + 1] - yCrystal[i]) / static_cast<ParamType>(_binCenterDists[i]);
+			}
+		}
+	}
+
+	template <typename StateType, typename ResidualType, typename ParamType, typename FactorType>
+	void WENO35Kernel(StateType const* yCrystal, ResidualType* resCrystal, const FactorType& factor, detail::WENO5Params<ResidualType>& WENO5Params, const int i) const
+	{
+		//ResidualType IS_0 = 0.0;
+		//ResidualType IS_1 = 0.0;
+		//ResidualType IS_2 = 0.0;
+		//ResidualType alpha_0 = 0.0;
+		//ResidualType alpha_1 = 0.0;
+		//ResidualType alpha_2 = 0.0;
+		//ResidualType W_0 = 0.0;
+		//ResidualType W_1 = 0.0;
+		//ResidualType W_2 = 0.0;
+		//ResidualType q_0 = 0.0;
+		//ResidualType q_1 = 0.0;
+		//ResidualType q_2 = 0.0;
+		
+		for (int i = 0; i < _nBins; ++i)
+		{
+			if (cadet_likely((i > 2) && (i + 2 < _nBins)))
+			{
+				// flux through the left face 
+				resCrystal[i] += factor / static_cast<ParamType>(_binSizes[i]) * v_g * (W_0 * q_0 + W_1 * q_1 + W_2 * q_2) - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i] - yCrystal[i - 1]) / static_cast<ParamType>(_binCenterDists[i - 1]);
+				// flux through the right face
+				WENO5Params.IS_0 = static_cast<ParamType>(_weno5->IS_0_coeff_1[i]) * (yCrystal[i + 2] - yCrystal[i + 1]) * (yCrystal[i + 2] - yCrystal[i + 1]) + static_cast<ParamType>(_weno5->IS_0_coeff_2[i]) * (yCrystal[i + 2] - yCrystal[i + 1]) * (yCrystal[i] - yCrystal[i + 1]) + static_cast<ParamType>(_weno5->IS_0_coeff_3[i]) * (yCrystal[i] - yCrystal[i + 1]) * (yCrystal[i] - yCrystal[i + 1]);
+				IS_1 = static_cast<ParamType>(_weno5->IS_1_coeff_1[i]) * (yCrystal[i - 1] - yCrystal[i]) * (yCrystal[i - 1] - yCrystal[i]) + static_cast<ParamType>(_weno5->IS_1_coeff_2[i]) * (yCrystal[i + 1] - yCrystal[i]) * (yCrystal[i - 1] - yCrystal[i]) + static_cast<ParamType>(_weno5->IS_1_coeff_3[i]) * (yCrystal[i + 1] - yCrystal[i]) * (yCrystal[i + 1] - yCrystal[i]);
+				IS_2 = static_cast<ParamType>(_weno5->IS_2_coeff_1[i]) * (yCrystal[i - 2] - yCrystal[i - 1]) * (yCrystal[i - 2] - yCrystal[i - 1]) + static_cast<ParamType>(_weno5->IS_2_coeff_2[i]) * (yCrystal[i] - yCrystal[i - 1]) * (yCrystal[i - 2] - yCrystal[i - 1]) + static_cast<ParamType>(_weno5->IS_2_coeff_3[i]) * (yCrystal[i] - yCrystal[i - 1]) * (yCrystal[i] - yCrystal[i - 1]);
+				alpha_0 = static_cast<ParamType>(_weno5->C_0[i]) / (static_cast<ParamType>(_binSizes[i]) + WENO5Params.IS_0) / (static_cast<ParamType>(_binSizes[i]) + WENO5Params.IS_0);
+				alpha_1 = static_cast<ParamType>(_weno5->C_1[i]) / (static_cast<ParamType>(_binSizes[i]) + IS_1) / (static_cast<ParamType>(_binSizes[i]) + IS_1);
+				alpha_2 = static_cast<ParamType>(_weno5->C_2[i]) / (static_cast<ParamType>(_binSizes[i]) + IS_2) / (static_cast<ParamType>(_binSizes[i]) + IS_2);
+				W_0 = alpha_0 / (alpha_0 + alpha_1 + alpha_2);
+				W_1 = alpha_1 / (alpha_0 + alpha_1 + alpha_2);
+				W_2 = 1.0 - W_0 - W_1;
+				q_0 = yCrystal[i + 1] + static_cast<ParamType>(_weno5->q_0_coeff_1[i]) * (yCrystal[i] - yCrystal[i + 1]) + static_cast<ParamType>(_weno5->q_0_coeff_2[i]) * (yCrystal[i + 1] - yCrystal[i + 2]);
+				q_1 = yCrystal[i] + static_cast<ParamType>(_weno5->q_1_coeff_1[i]) * (yCrystal[i + 1] - yCrystal[i]) + static_cast<ParamType>(_weno5->q_1_coeff_2[i]) * (yCrystal[i] - yCrystal[i - 1]);
+				q_2 = yCrystal[i - 1] + static_cast<ParamType>(_weno5->q_2_coeff_1[i]) * (yCrystal[i - 2] - yCrystal[i - 1]) + static_cast<ParamType>(_weno5->q_2_coeff_2[i]) * (yCrystal[i] - yCrystal[i - 1]);
+				v_g = k_g_times_s_g * (static_cast<ParamType>(_a) + static_cast<ParamType>(_growthConstant) * pow(static_cast<ParamType>(_bins[i + 1]), static_cast<ParamType>(_p)));
+				resCrystal[i] -= factor / static_cast<ParamType>(_binSizes[i]) * v_g * (W_0 * q_0 + W_1 * q_1 + W_2 * q_2) - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i + 1] - yCrystal[i]) / static_cast<ParamType>(_binCenterDists[i]);
+			}
+			else if (i == 2)
+			{
+				// weno23 applied to F_{2-1/2}
+				resCrystal[i] += factor / static_cast<ParamType>(_binSizes[i]) * v_g * (W_0 * q_0 + W_1 * q_1) - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i] - yCrystal[i - 1]) / static_cast<ParamType>(_binCenterDists[i - 1]);
+				// weno35 applied to F_{2+1/2}
+				WENO5Params.IS_0 = static_cast<ParamType>(_weno5->IS_0_coeff_1[i]) * (yCrystal[i + 2] - yCrystal[i + 1]) * (yCrystal[i + 2] - yCrystal[i + 1]) + static_cast<ParamType>(_weno5->IS_0_coeff_2[i]) * (yCrystal[i + 2] - yCrystal[i + 1]) * (yCrystal[i] - yCrystal[i + 1]) + static_cast<ParamType>(_weno5->IS_0_coeff_3[i]) * (yCrystal[i] - yCrystal[i + 1]) * (yCrystal[i] - yCrystal[i + 1]);
+				IS_1 = static_cast<ParamType>(_weno5->IS_1_coeff_1[i]) * (yCrystal[i - 1] - yCrystal[i]) * (yCrystal[i - 1] - yCrystal[i]) + static_cast<ParamType>(_weno5->IS_1_coeff_2[i]) * (yCrystal[i + 1] - yCrystal[i]) * (yCrystal[i - 1] - yCrystal[i]) + static_cast<ParamType>(_weno5->IS_1_coeff_3[i]) * (yCrystal[i + 1] - yCrystal[i]) * (yCrystal[i + 1] - yCrystal[i]);
+				IS_2 = static_cast<ParamType>(_weno5->IS_2_coeff_1[i]) * (yCrystal[i - 2] - yCrystal[i - 1]) * (yCrystal[i - 2] - yCrystal[i - 1]) + static_cast<ParamType>(_weno5->IS_2_coeff_2[i]) * (yCrystal[i] - yCrystal[i - 1]) * (yCrystal[i - 2] - yCrystal[i - 1]) + static_cast<ParamType>(_weno5->IS_2_coeff_3[i]) * (yCrystal[i] - yCrystal[i - 1]) * (yCrystal[i] - yCrystal[i - 1]);
+				alpha_0 = static_cast<ParamType>(_weno5->C_0[i]) / (static_cast<ParamType>(_binSizes[i]) + IS_0) / (static_cast<ParamType>(_binSizes[i]) + IS_0);
+				alpha_1 = static_cast<ParamType>(_weno5->C_1[i]) / (static_cast<ParamType>(_binSizes[i]) + IS_1) / (static_cast<ParamType>(_binSizes[i]) + IS_1);
+				alpha_2 = static_cast<ParamType>(_weno5->C_2[i]) / (static_cast<ParamType>(_binSizes[i]) + IS_2) / (static_cast<ParamType>(_binSizes[i]) + IS_2);
+				W_0 = alpha_0 / (alpha_0 + alpha_1 + alpha_2);
+				W_1 = alpha_1 / (alpha_0 + alpha_1 + alpha_2);
+				W_2 = 1.0 - W_0 - W_1;
+				q_0 = yCrystal[i + 1] + static_cast<ParamType>(_weno5->q_0_coeff_1[i]) * (yCrystal[i] - yCrystal[i + 1]) + static_cast<ParamType>(_weno5->q_0_coeff_2[i]) * (yCrystal[i + 1] - yCrystal[i + 2]);
+				q_1 = yCrystal[i] + static_cast<ParamType>(_weno5->q_1_coeff_1[i]) * (yCrystal[i + 1] - yCrystal[i]) + static_cast<ParamType>(_weno5->q_1_coeff_2[i]) * (yCrystal[i] - yCrystal[i - 1]);
+				q_2 = yCrystal[i - 1] + static_cast<ParamType>(_weno5->q_2_coeff_1[i]) * (yCrystal[i - 2] - yCrystal[i - 1]) + static_cast<ParamType>(_weno5->q_2_coeff_2[i]) * (yCrystal[i] - yCrystal[i - 1]);
+				v_g = k_g_times_s_g * (static_cast<ParamType>(_a) + static_cast<ParamType>(_growthConstant) * pow(static_cast<ParamType>(_bins[i + 1]), static_cast<ParamType>(_p)));
+				resCrystal[i] -= factor / static_cast<ParamType>(_binSizes[i]) * v_g * (W_0 * q_0 + W_1 * q_1 + W_2 * q_2) - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i + 1] - yCrystal[i]) / static_cast<ParamType>(_binCenterDists[i]);
+			}
+			else if (i == 1)
+			{
+				// upwind applied to F_{1-1/2}
+				resCrystal[i] += factor / static_cast<ParamType>(_binSizes[i]) * v_g * yCrystal[i - 1] - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i] - yCrystal[i - 1]) / static_cast<ParamType>(_binCenterDists[i - 1]);
+				// weno23 applied to F_{1+1/2}
+				IS_0 = static_cast<ParamType>(_weno5->IS_0_coeff_weno3) * (yCrystal[i + 1] - yCrystal[i]) * (yCrystal[i + 1] - yCrystal[i]);
+				IS_1 = static_cast<ParamType>(_weno5->IS_1_coeff_weno3) * (yCrystal[i] - yCrystal[i - 1]) * (yCrystal[i] - yCrystal[i - 1]);
+				alpha_0 = static_cast<ParamType>(_weno5->C_coeff1_weno3) / (static_cast<ParamType>(_binSizes[i]) + IS_0) / (static_cast<ParamType>(_binSizes[i]) + IS_0);
+				alpha_1 = static_cast<ParamType>(_weno5->C_coeff2_weno3) / (static_cast<ParamType>(_binSizes[i]) + IS_1) / (static_cast<ParamType>(_binSizes[i]) + IS_1);
+				W_0 = alpha_0 / (alpha_0 + alpha_1);
+				W_1 = 1.0 - W_0;
+				q_0 = static_cast<ParamType>(_weno5->q0_coeff1_weno3) * yCrystal[i] + static_cast<ParamType>(_weno5->q0_coeff2_weno3) * yCrystal[i + 1];
+				q_1 = static_cast<ParamType>(_weno5->q1_coeff1_weno3) * yCrystal[i] + static_cast<ParamType>(_weno5->q1_coeff2_weno3) * yCrystal[i - 1];
+				v_g = k_g_times_s_g * (static_cast<ParamType>(_a) + static_cast<ParamType>(_growthConstant) * pow(static_cast<ParamType>(_bins[i + 1]), static_cast<ParamType>(_p)));
+				resCrystal[i] -= factor / static_cast<ParamType>(_binSizes[i]) * v_g * (W_0 * q_0 + W_1 * q_1) - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i + 1] - yCrystal[i]) / static_cast<ParamType>(_binCenterDists[i]);
+			}
+			else if (i == 0)
+			{
+				// boundary condition
+				resCrystal[i] += factor / static_cast<ParamType>(_binSizes[i]) * B_0;
+				// upwind to F_{1/2}
+				v_g = k_g_times_s_g * (static_cast<ParamType>(_a) + static_cast<ParamType>(_growthConstant) * pow(static_cast<ParamType>(_bins[i + 1]), static_cast<ParamType>(_p)));
+				resCrystal[i] -= factor / static_cast<ParamType>(_binSizes[i]) * v_g * yCrystal[i] - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i + 1] - yCrystal[i]) / static_cast<ParamType>(_binCenterDists[i]);
+			}
+			else if (i + 2 == _nBins)
+			{
+				// weno35 applied to F_{nx-2-1/2}
+				resCrystal[i] += factor / static_cast<ParamType>(_binSizes[i]) * v_g * (W_0 * q_0 + W_1 * q_1 + W_2 * q_2) - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i] - yCrystal[i - 1]) / static_cast<ParamType>(_binCenterDists[i - 1]);
+				// weno23 applied to F_{nx-2+1/2}
+				IS_0 = static_cast<ParamType>(_weno5->IS_0_coeff_weno3_r) * (yCrystal[i + 1] - yCrystal[i]) * (yCrystal[i + 1] - yCrystal[i]);
+				IS_1 = static_cast<ParamType>(_weno5->IS_1_coeff_weno3_r) * (yCrystal[i] - yCrystal[i - 1]) * (yCrystal[i] - yCrystal[i - 1]);
+				alpha_0 = static_cast<ParamType>(_weno5->C_coeff1_weno3_r) / (static_cast<ParamType>(_binSizes[i]) + IS_0) / (static_cast<ParamType>(_binSizes[i]) + IS_0);
+				alpha_1 = static_cast<ParamType>(_weno5->C_coeff2_weno3_r) / (static_cast<ParamType>(_binSizes[i]) + IS_1) / (static_cast<ParamType>(_binSizes[i]) + IS_1);
+				W_0 = alpha_0 / (alpha_0 + alpha_1);
+				W_1 = 1.0 - W_0;
+				q_0 = static_cast<ParamType>(_weno5->q0_coeff1_weno3_r) * yCrystal[i] + static_cast<ParamType>(_weno5->q0_coeff2_weno3_r) * yCrystal[i + 1];
+				q_1 = static_cast<ParamType>(_weno5->q1_coeff1_weno3_r) * yCrystal[i] + static_cast<ParamType>(_weno5->q1_coeff2_weno3_r) * yCrystal[i - 1];
+				v_g = k_g_times_s_g * (static_cast<ParamType>(_a) + static_cast<ParamType>(_growthConstant) * pow(static_cast<ParamType>(_bins[i + 1]), static_cast<ParamType>(_p)));
+				resCrystal[i] -= factor / static_cast<ParamType>(_binSizes[i]) * v_g * (W_0 * q_0 + W_1 * q_1) - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i + 1] - yCrystal[i]) / static_cast<ParamType>(_binCenterDists[i]);
+			}
+			else
+			{
+				// weno23 to F_{nx-1-1/2}
+				resCrystal[i] += factor / static_cast<ParamType>(_binSizes[i]) * v_g * (W_0 * q_0 + W_1 * q_1) - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i] - yCrystal[i - 1]) / static_cast<ParamType>(_binCenterDists[i - 1]);
+				// no flux BC
+			}
+		}
+	}
+
 
 	template <typename StateType, typename ResidualType, typename ParamType, typename FactorType>
 	int residualLiquidImpl(double t, unsigned int secIdx, const ColumnPosition& colPos,
@@ -696,20 +994,23 @@ protected:
 			StateType const* const yCrystal = y + 1;
 			ResidualType* const resCrystal = res + 1;
 
-			const StateType s = (cadet_likely(y[0] / y[_nComp - 1] - 1.0 > 0)) ? y[0] / y[_nComp - 1] - 1.0 : 0.0; // s = (c_0 - c_eq) / c_eq = c_0 / c_eq - 1, rewrite it to zero if s drops below 0
+			const StateType sParam = (cadet_likely(y[0] / y[_nComp - 1] - 1.0 > 0)) ? y[0] / y[_nComp - 1] - 1.0 : 0.0; // s = (c_0 - c_eq) / c_eq = c_0 / c_eq - 1, rewrite it to zero if s drops below 0
 			const ParamType massDensityShapeFactor = static_cast<ParamType>(_nucleiMassDensity) * static_cast<ParamType>(_volShapeFactor);
-			const ResidualType k_g_times_s_g = static_cast<ParamType>(_growthRateConstant) * pow(s, static_cast<ParamType>(_g));
+			const ResidualType k_g_times_s_g = static_cast<ParamType>(_growthRateConstant) * pow(sParam, static_cast<ParamType>(_g));
+
+			ResidualType MParam = 0.0;
+			ResidualType substrateConversion = 0.0;
 
 			for (int i = 0; i < _nBins; ++i)
 			{
-				M += yCrystal[i] * static_cast<ParamType>(_binCenters[i]) * static_cast<ParamType>(_binCenters[i]) * static_cast<ParamType>(_binCenters[i]) * static_cast<ParamType>(_binSizes[i]);
+				MParam += yCrystal[i] * static_cast<ParamType>(_binCenters[i]) * static_cast<ParamType>(_binCenters[i]) * static_cast<ParamType>(_binCenters[i]) * static_cast<ParamType>(_binSizes[i]);
 				substrateConversion += yCrystal[i] * static_cast<ParamType>(_binCenters[i]) * static_cast<ParamType>(_binCenters[i]) * (static_cast<ParamType>(_a) + static_cast<ParamType>(_growthConstant) * pow(static_cast<ParamType>(_binCenters[i]), static_cast<ParamType>(_p))) * static_cast<ParamType>(_binSizes[i]);
 			}
-			M *= massDensityShapeFactor;
+			MParam *= massDensityShapeFactor;
 			substrateConversion *= 3.0 * k_g_times_s_g;
 
 			// B_0 = primary + secondary nucleation rate
-			const ResidualType B_0 = static_cast<ParamType>(_primaryNucleationRate) * pow(s, static_cast<ParamType>(_u)) + static_cast<ParamType>(_secondaryNucleationRate) * pow(s, static_cast<ParamType>(_b)) * pow(M, static_cast<ParamType>(_k));
+			const ResidualType B_0 = static_cast<ParamType>(_primaryNucleationRate) * pow(sParam, static_cast<ParamType>(_u)) + static_cast<ParamType>(_secondaryNucleationRate) * pow(sParam, static_cast<ParamType>(_b)) * pow(MParam, static_cast<ParamType>(_k));
 			const ParamType x_c_3 = static_cast<ParamType>(_bins[0]) * static_cast<ParamType>(_bins[0]) * static_cast<ParamType>(_bins[0]);
 
 			// mass balance
@@ -720,264 +1021,41 @@ protected:
 			// growth flux reconstruction
 			switch (_growthSchemeOrder)
 			{
-				// upwind scheme
-			case 1:
+			case 1: // upwind scheme
 			{
 				for (int i = 0; i < _nBins; ++i)
 				{
-					// Flux through left face
-					if (cadet_likely((i > 0) && (i + 1 < _nBins)))
-					{
-						// flux through the left face
-						resCrystal[i] += factor / static_cast<ParamType>(_binSizes[i]) * (v_g * yCrystal[i - 1]) - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i] - yCrystal[i - 1]) / static_cast<ParamType>(_binCenterDists[i - 1]);
-						// flux through the right face
-						v_g = k_g_times_s_g * (static_cast<ParamType>(_a) + static_cast<ParamType>(_growthConstant) * pow(static_cast<ParamType>(_bins[i + 1]), static_cast<ParamType>(_p)));
-						resCrystal[i] -= factor / static_cast<ParamType>(_binSizes[i]) * (v_g * yCrystal[i]) - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i + 1] - yCrystal[i]) / static_cast<ParamType>(_binCenterDists[i]);
-					}
-					else if (i == 0)
-					{
-						// Left boundary condition
-						resCrystal[i] += factor / static_cast<ParamType>(_binSizes[i]) * B_0;
-						// upwind
-						v_g = k_g_times_s_g * (static_cast<ParamType>(_a) + static_cast<ParamType>(_growthConstant) * pow(static_cast<ParamType>(_bins[i + 1]), static_cast<ParamType>(_p)));
-						resCrystal[i] -= factor / static_cast<ParamType>(_binSizes[i]) * v_g * yCrystal[i] - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i + 1] - yCrystal[i]) / static_cast<ParamType>(_binCenterDists[i]);
-					}
-					else
-					{
-						// first order approximation
-						resCrystal[i] += factor / static_cast<ParamType>(_binSizes[i]) * v_g * yCrystal[i - 1] - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i] - yCrystal[i - 1]) / static_cast<ParamType>(_binCenterDists[i - 1]);
-						// no flux
-					}
+					updwindKernel<StateType, ResidualType, ParamType, FactorType>(yCrystal, resCrystal, factor, v_g, k_g_times_s_g, B_0, i);
 				}
 			}
 			break;
-			// HR scheme
-			case 2:
+			case 2: // HR Koren scheme
 			{
-				ResidualType r_x_i = 0.0;
-				ResidualType phi = 0.0;
-				ResidualType F_i = 0.0;
+				detail::HRParams<ResidualType> HRKorenParams{ v_g, k_g_times_s_g, B_0, 0.0, 0.0, 0.0 };
+
 				for (int i = 0; i < _nBins; ++i)
 				{
-					if (cadet_likely((i > 1) && (i + 1 < _nBins)))
-					{
-						// Flux through left face, modified van Leer flux limiter
-						resCrystal[i] += factor / static_cast<ParamType>(_binSizes[i]) * v_g * F_i - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i] - yCrystal[i - 1]) / static_cast<ParamType>(_binCenterDists[i - 1]);
-						// Flux through left face, modified van Leer flux limiter, update r_x_i, R_i, and growth rate
-						r_x_i = static_cast<ParamType>(_HR->A_coeff[i]) * (yCrystal[i] - yCrystal[i - 1] + 1e-10) / (yCrystal[i + 1] - yCrystal[i] + 1e-10);
-						if (cadet_likely(r_x_i > 0))
-						{
-							phi = r_x_i / (static_cast<ParamType>(_HR->R_coeff[i]) - 1.0 + r_x_i);
-						}
-						else
-						{
-							phi = 0.0;
-						}
-						F_i = yCrystal[i] + phi * (yCrystal[i + 1] - yCrystal[i]);
-						v_g = k_g_times_s_g * (static_cast<ParamType>(_a) + static_cast<ParamType>(_growthConstant) * pow(static_cast<ParamType>(_bins[i + 1]), static_cast<ParamType>(_p)));
-						resCrystal[i] -= factor / static_cast<ParamType>(_binSizes[i]) * v_g * F_i - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i + 1] - yCrystal[i]) / static_cast<ParamType>(_binCenterDists[i]);
-					}
-					else if (i == 1)
-					{
-						// upwind to F_{1/2} and the diffusion
-						resCrystal[i] += factor / static_cast<ParamType>(_binSizes[i]) * v_g * yCrystal[i - 1] - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i] - yCrystal[i - 1]) / static_cast<ParamType>(_binCenterDists[i - 1]);
-						// HR scheme applied to F_{1+1/2}
-						r_x_i = static_cast<ParamType>(_HR->A_coeff[i]) * (yCrystal[i] - yCrystal[i - 1] + 1e-10) / (yCrystal[i + 1] - yCrystal[i] + 1e-10);
-						if (cadet_likely(r_x_i > 0))
-						{
-							phi = r_x_i / (static_cast<ParamType>(_HR->R_coeff[i]) - 1.0 + r_x_i);
-						}
-						else
-						{
-							phi = 0.0;
-						}
-						F_i = yCrystal[i] + phi * (yCrystal[i + 1] - yCrystal[i]);
-						v_g = k_g_times_s_g * (static_cast<ParamType>(_a) + static_cast<ParamType>(_growthConstant) * pow(static_cast<ParamType>(_bins[i + 1]), static_cast<ParamType>(_p)));
-						resCrystal[i] -= factor / static_cast<ParamType>(_binSizes[i]) * v_g * F_i - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i + 1] - yCrystal[i]) / static_cast<ParamType>(_binCenterDists[i]);
-					}
-					else if (i + 1 == _nBins)
-					{
-						// HR scheme applied to the influx of the last bin 
-						resCrystal[i] += factor / static_cast<ParamType>(_binSizes[i]) * v_g * F_i - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i] - yCrystal[i - 1]) / static_cast<ParamType>(_binCenterDists[i - 1]);
-						// no flux
-					}
-					else
-					{
-						// left boundary condition
-						resCrystal[i] += factor / static_cast<ParamType>(_binSizes[i]) * B_0;
-						// upwind to F_1
-						v_g = k_g_times_s_g * (static_cast<ParamType>(_a) + static_cast<ParamType>(_growthConstant) * pow(static_cast<ParamType>(_bins[i + 1]), static_cast<ParamType>(_p)));
-						resCrystal[i] -= factor / static_cast<ParamType>(_binSizes[i]) * v_g * yCrystal[i] - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i + 1] - yCrystal[i]) / static_cast<ParamType>(_binCenterDists[i]);
-					}
+					HRKorenKernel<StateType, ResidualType, ParamType, FactorType>(yCrystal, resCrystal, factor, HRKorenParams, i);
 				}
 			}
 			break;
-			// weno 23
-			case 3:
+			case 3: // WENO23
 			{
-				ResidualType IS_0 = 0.0;
-				ResidualType IS_1 = 0.0;
-				ResidualType alpha_0 = 0.0;
-				ResidualType alpha_1 = 0.0;
-				ResidualType W_0 = 0.0;
-				ResidualType W_1 = 0.0;
-				ResidualType q_0 = 0.0;
-				ResidualType q_1 = 0.0;
+				detail::WENO3Params<ResidualType> WENO3Params{ v_g, k_g_times_s_g, B_0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 };
+
 				for (int i = 0; i < _nBins; ++i)
 				{
-					if (cadet_likely((i > 1) && (i + 1 < _nBins)))
-					{
-						// flux through left face. W_0, q_0, W_1 and q_1 are coming from the right face of bin (i-1).
-						resCrystal[i] += factor / static_cast<ParamType>(_binSizes[i]) * v_g * (W_0 * q_0 + W_1 * q_1) - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i] - yCrystal[i - 1]) / static_cast<ParamType>(_binCenterDists[i - 1]);
-						// flux through right face, update IS, alpha, W, q and growth rate
-						IS_0 = static_cast<ParamType>(_weno3->IS_0_coeff[i]) * (yCrystal[i + 1] - yCrystal[i]) * (yCrystal[i + 1] - yCrystal[i]);
-						IS_1 = static_cast<ParamType>(_weno3->IS_1_coeff[i]) * (yCrystal[i] - yCrystal[i - 1]) * (yCrystal[i] - yCrystal[i - 1]);
-						alpha_0 = static_cast<ParamType>(_weno3->C_right_coeff[i]) / (static_cast<ParamType>(_binSizes[i]) + IS_0) / (static_cast<ParamType>(_binSizes[i]) + IS_0);
-						alpha_1 = (1.0 - static_cast<ParamType>(_weno3->C_right_coeff[i])) / (static_cast<ParamType>(_binSizes[i]) + IS_1) / (static_cast<ParamType>(_binSizes[i]) + IS_1);
-						W_0 = alpha_0 / (alpha_0 + alpha_1);
-						W_1 = 1.0 - W_0;
-						q_0 = static_cast<ParamType>(_weno3->q_0_right_coeff[i]) * yCrystal[i] + (1.0 - static_cast<ParamType>(_weno3->q_0_right_coeff[i])) * yCrystal[i + 1];
-						q_1 = static_cast<ParamType>(_weno3->q_1_right_coeff[i]) * yCrystal[i] + (1.0 - static_cast<ParamType>(_weno3->q_1_right_coeff[i])) * yCrystal[i - 1];
-						v_g = k_g_times_s_g * (static_cast<ParamType>(_a) + static_cast<ParamType>(_growthConstant) * pow(static_cast<ParamType>(_bins[i + 1]), static_cast<ParamType>(_p)));
-						resCrystal[i] -= factor / static_cast<ParamType>(_binSizes[i]) * v_g * (W_0 * q_0 + W_1 * q_1) - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i + 1] - yCrystal[i]) / static_cast<ParamType>(_binCenterDists[i]);
-					}
-					// boundary condition
-					else if (i + 1 == _nBins)
-					{
-						// weno3 applied to the influx of the last bin
-						resCrystal[i] += factor / static_cast<ParamType>(_binSizes[i]) * v_g * (W_0 * q_0 + W_1 * q_1) - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i] - yCrystal[i - 1]) / static_cast<ParamType>(_binCenterDists[i - 1]);
-						// no flux, regularity boundary condition
-					}
-					else if (i == 1)
-					{
-						// upwind applied to F_{1/2}
-						resCrystal[i] += factor / static_cast<ParamType>(_binSizes[i]) * v_g * yCrystal[i - 1] - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i] - yCrystal[i - 1]) / static_cast<ParamType>(_binCenterDists[i - 1]);
-						// weno23 applied to F_{1+1/2}
-						IS_0 = static_cast<ParamType>(_weno3->IS_0_coeff[i]) * (yCrystal[i + 1] - yCrystal[i]) * (yCrystal[i + 1] - yCrystal[i]);
-						IS_1 = static_cast<ParamType>(_weno3->IS_1_coeff[i]) * (yCrystal[i] - yCrystal[i - 1]) * (yCrystal[i] - yCrystal[i - 1]);
-						alpha_0 = static_cast<ParamType>(_weno3->C_right_coeff[i]) / (static_cast<ParamType>(_binSizes[i]) + IS_0) / (static_cast<ParamType>(_binSizes[i]) + IS_0);
-						alpha_1 = (1.0 - static_cast<ParamType>(_weno3->C_right_coeff[i])) / (static_cast<ParamType>(_binSizes[i]) + IS_1) / (static_cast<ParamType>(_binSizes[i]) + IS_1);
-						W_0 = alpha_0 / (alpha_0 + alpha_1);
-						W_1 = 1.0 - W_0;
-						q_0 = static_cast<ParamType>(_weno3->q_0_right_coeff[i]) * yCrystal[i] + (1.0 - static_cast<ParamType>(_weno3->q_0_right_coeff[i])) * yCrystal[i + 1];
-						q_1 = static_cast<ParamType>(_weno3->q_1_right_coeff[i]) * yCrystal[i] + (1.0 - static_cast<ParamType>(_weno3->q_1_right_coeff[i])) * yCrystal[i - 1];
-						v_g = k_g_times_s_g * (static_cast<ParamType>(_a) + static_cast<ParamType>(_growthConstant) * pow(static_cast<ParamType>(_bins[i + 1]), static_cast<ParamType>(_p)));
-						resCrystal[i] -= factor / static_cast<ParamType>(_binSizes[i]) * v_g * (W_0 * q_0 + W_1 * q_1) - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i + 1] - yCrystal[i]) / static_cast<ParamType>(_binCenterDists[i]);
-					}
-					else
-					{
-						// nucleation boundary condition
-						resCrystal[i] += factor / static_cast<ParamType>(_binSizes[i]) * B_0;
-						// upwind
-						v_g = k_g_times_s_g * (static_cast<ParamType>(_a) + static_cast<ParamType>(_growthConstant) * pow(static_cast<ParamType>(_bins[i + 1]), static_cast<ParamType>(_p)));
-						resCrystal[i] -= factor / static_cast<ParamType>(_binSizes[i]) * v_g * yCrystal[i] - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i + 1] - yCrystal[i]) / static_cast<ParamType>(_binCenterDists[i]);
-					}
+					WENO23Kernel<StateType, ResidualType, ParamType, FactorType>(yCrystal, resCrystal, factor, WENO3Params, i);
 				}
 			}
 			break;
-			// WENO35
-			case 4:
+			case 4: // WENO35
 			{
-				ResidualType IS_0 = 0.0;
-				ResidualType IS_1 = 0.0;
-				ResidualType IS_2 = 0.0;
-				ResidualType alpha_0 = 0.0;
-				ResidualType alpha_1 = 0.0;
-				ResidualType alpha_2 = 0.0;
-				ResidualType W_0 = 0.0;
-				ResidualType W_1 = 0.0;
-				ResidualType W_2 = 0.0;
-				ResidualType q_0 = 0.0;
-				ResidualType q_1 = 0.0;
-				ResidualType q_2 = 0.0;
+				detail::WENO5Params<ResidualType> WENO5Params{ v_g, k_g_times_s_g, B_0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 };
+
 				for (int i = 0; i < _nBins; ++i)
 				{
-					if (cadet_likely((i > 2) && (i + 2 < _nBins)))
-					{
-						// flux through the left face 
-						resCrystal[i] += factor / static_cast<ParamType>(_binSizes[i]) * v_g * (W_0 * q_0 + W_1 * q_1 + W_2 * q_2) - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i] - yCrystal[i - 1]) / static_cast<ParamType>(_binCenterDists[i - 1]);
-						// flux through the right face
-						IS_0 = static_cast<ParamType>(_weno5->IS_0_coeff_1[i]) * (yCrystal[i + 2] - yCrystal[i + 1]) * (yCrystal[i + 2] - yCrystal[i + 1]) + static_cast<ParamType>(_weno5->IS_0_coeff_2[i]) * (yCrystal[i + 2] - yCrystal[i + 1]) * (yCrystal[i] - yCrystal[i + 1]) + static_cast<ParamType>(_weno5->IS_0_coeff_3[i]) * (yCrystal[i] - yCrystal[i + 1]) * (yCrystal[i] - yCrystal[i + 1]);
-						IS_1 = static_cast<ParamType>(_weno5->IS_1_coeff_1[i]) * (yCrystal[i - 1] - yCrystal[i]) * (yCrystal[i - 1] - yCrystal[i]) + static_cast<ParamType>(_weno5->IS_1_coeff_2[i]) * (yCrystal[i + 1] - yCrystal[i]) * (yCrystal[i - 1] - yCrystal[i]) + static_cast<ParamType>(_weno5->IS_1_coeff_3[i]) * (yCrystal[i + 1] - yCrystal[i]) * (yCrystal[i + 1] - yCrystal[i]);
-						IS_2 = static_cast<ParamType>(_weno5->IS_2_coeff_1[i]) * (yCrystal[i - 2] - yCrystal[i - 1]) * (yCrystal[i - 2] - yCrystal[i - 1]) + static_cast<ParamType>(_weno5->IS_2_coeff_2[i]) * (yCrystal[i] - yCrystal[i - 1]) * (yCrystal[i - 2] - yCrystal[i - 1]) + static_cast<ParamType>(_weno5->IS_2_coeff_3[i]) * (yCrystal[i] - yCrystal[i - 1]) * (yCrystal[i] - yCrystal[i - 1]);
-						alpha_0 = static_cast<ParamType>(_weno5->C_0[i]) / (static_cast<ParamType>(_binSizes[i]) + IS_0) / (static_cast<ParamType>(_binSizes[i]) + IS_0);
-						alpha_1 = static_cast<ParamType>(_weno5->C_1[i]) / (static_cast<ParamType>(_binSizes[i]) + IS_1) / (static_cast<ParamType>(_binSizes[i]) + IS_1);
-						alpha_2 = static_cast<ParamType>(_weno5->C_2[i]) / (static_cast<ParamType>(_binSizes[i]) + IS_2) / (static_cast<ParamType>(_binSizes[i]) + IS_2);
-						W_0 = alpha_0 / (alpha_0 + alpha_1 + alpha_2);
-						W_1 = alpha_1 / (alpha_0 + alpha_1 + alpha_2);
-						W_2 = 1.0 - W_0 - W_1;
-						q_0 = yCrystal[i + 1] + static_cast<ParamType>(_weno5->q_0_coeff_1[i]) * (yCrystal[i] - yCrystal[i + 1]) + static_cast<ParamType>(_weno5->q_0_coeff_2[i]) * (yCrystal[i + 1] - yCrystal[i + 2]);
-						q_1 = yCrystal[i] + static_cast<ParamType>(_weno5->q_1_coeff_1[i]) * (yCrystal[i + 1] - yCrystal[i]) + static_cast<ParamType>(_weno5->q_1_coeff_2[i]) * (yCrystal[i] - yCrystal[i - 1]);
-						q_2 = yCrystal[i - 1] + static_cast<ParamType>(_weno5->q_2_coeff_1[i]) * (yCrystal[i - 2] - yCrystal[i - 1]) + static_cast<ParamType>(_weno5->q_2_coeff_2[i]) * (yCrystal[i] - yCrystal[i - 1]);
-						v_g = k_g_times_s_g * (static_cast<ParamType>(_a) + static_cast<ParamType>(_growthConstant) * pow(static_cast<ParamType>(_bins[i + 1]), static_cast<ParamType>(_p)));
-						resCrystal[i] -= factor / static_cast<ParamType>(_binSizes[i]) * v_g * (W_0 * q_0 + W_1 * q_1 + W_2 * q_2) - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i + 1] - yCrystal[i]) / static_cast<ParamType>(_binCenterDists[i]);
-					}
-					else if (i == 2)
-					{
-						// weno23 applied to F_{2-1/2}
-						resCrystal[i] += factor / static_cast<ParamType>(_binSizes[i]) * v_g * (W_0 * q_0 + W_1 * q_1) - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i] - yCrystal[i - 1]) / static_cast<ParamType>(_binCenterDists[i - 1]);
-						// weno35 applied to F_{2+1/2}
-						IS_0 = static_cast<ParamType>(_weno5->IS_0_coeff_1[i]) * (yCrystal[i + 2] - yCrystal[i + 1]) * (yCrystal[i + 2] - yCrystal[i + 1]) + static_cast<ParamType>(_weno5->IS_0_coeff_2[i]) * (yCrystal[i + 2] - yCrystal[i + 1]) * (yCrystal[i] - yCrystal[i + 1]) + static_cast<ParamType>(_weno5->IS_0_coeff_3[i]) * (yCrystal[i] - yCrystal[i + 1]) * (yCrystal[i] - yCrystal[i + 1]);
-						IS_1 = static_cast<ParamType>(_weno5->IS_1_coeff_1[i]) * (yCrystal[i - 1] - yCrystal[i]) * (yCrystal[i - 1] - yCrystal[i]) + static_cast<ParamType>(_weno5->IS_1_coeff_2[i]) * (yCrystal[i + 1] - yCrystal[i]) * (yCrystal[i - 1] - yCrystal[i]) + static_cast<ParamType>(_weno5->IS_1_coeff_3[i]) * (yCrystal[i + 1] - yCrystal[i]) * (yCrystal[i + 1] - yCrystal[i]);
-						IS_2 = static_cast<ParamType>(_weno5->IS_2_coeff_1[i]) * (yCrystal[i - 2] - yCrystal[i - 1]) * (yCrystal[i - 2] - yCrystal[i - 1]) + static_cast<ParamType>(_weno5->IS_2_coeff_2[i]) * (yCrystal[i] - yCrystal[i - 1]) * (yCrystal[i - 2] - yCrystal[i - 1]) + static_cast<ParamType>(_weno5->IS_2_coeff_3[i]) * (yCrystal[i] - yCrystal[i - 1]) * (yCrystal[i] - yCrystal[i - 1]);
-						alpha_0 = static_cast<ParamType>(_weno5->C_0[i]) / (static_cast<ParamType>(_binSizes[i]) + IS_0) / (static_cast<ParamType>(_binSizes[i]) + IS_0);
-						alpha_1 = static_cast<ParamType>(_weno5->C_1[i]) / (static_cast<ParamType>(_binSizes[i]) + IS_1) / (static_cast<ParamType>(_binSizes[i]) + IS_1);
-						alpha_2 = static_cast<ParamType>(_weno5->C_2[i]) / (static_cast<ParamType>(_binSizes[i]) + IS_2) / (static_cast<ParamType>(_binSizes[i]) + IS_2);
-						W_0 = alpha_0 / (alpha_0 + alpha_1 + alpha_2);
-						W_1 = alpha_1 / (alpha_0 + alpha_1 + alpha_2);
-						W_2 = 1.0 - W_0 - W_1;
-						q_0 = yCrystal[i + 1] + static_cast<ParamType>(_weno5->q_0_coeff_1[i]) * (yCrystal[i] - yCrystal[i + 1]) + static_cast<ParamType>(_weno5->q_0_coeff_2[i]) * (yCrystal[i + 1] - yCrystal[i + 2]);
-						q_1 = yCrystal[i] + static_cast<ParamType>(_weno5->q_1_coeff_1[i]) * (yCrystal[i + 1] - yCrystal[i]) + static_cast<ParamType>(_weno5->q_1_coeff_2[i]) * (yCrystal[i] - yCrystal[i - 1]);
-						q_2 = yCrystal[i - 1] + static_cast<ParamType>(_weno5->q_2_coeff_1[i]) * (yCrystal[i - 2] - yCrystal[i - 1]) + static_cast<ParamType>(_weno5->q_2_coeff_2[i]) * (yCrystal[i] - yCrystal[i - 1]);
-						v_g = k_g_times_s_g * (static_cast<ParamType>(_a) + static_cast<ParamType>(_growthConstant) * pow(static_cast<ParamType>(_bins[i + 1]), static_cast<ParamType>(_p)));
-						resCrystal[i] -= factor / static_cast<ParamType>(_binSizes[i]) * v_g * (W_0 * q_0 + W_1 * q_1 + W_2 * q_2) - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i + 1] - yCrystal[i]) / static_cast<ParamType>(_binCenterDists[i]);
-					}
-					else if (i == 1)
-					{
-						// upwind applied to F_{1-1/2}
-						resCrystal[i] += factor / static_cast<ParamType>(_binSizes[i]) * v_g * yCrystal[i - 1] - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i] - yCrystal[i - 1]) / static_cast<ParamType>(_binCenterDists[i - 1]);
-						// weno23 applied to F_{1+1/2}
-						IS_0 = static_cast<ParamType>(_weno5->IS_0_coeff_weno3) * (yCrystal[i + 1] - yCrystal[i]) * (yCrystal[i + 1] - yCrystal[i]);
-						IS_1 = static_cast<ParamType>(_weno5->IS_1_coeff_weno3) * (yCrystal[i] - yCrystal[i - 1]) * (yCrystal[i] - yCrystal[i - 1]);
-						alpha_0 = static_cast<ParamType>(_weno5->C_coeff1_weno3) / (static_cast<ParamType>(_binSizes[i]) + IS_0) / (static_cast<ParamType>(_binSizes[i]) + IS_0);
-						alpha_1 = static_cast<ParamType>(_weno5->C_coeff2_weno3) / (static_cast<ParamType>(_binSizes[i]) + IS_1) / (static_cast<ParamType>(_binSizes[i]) + IS_1);
-						W_0 = alpha_0 / (alpha_0 + alpha_1);
-						W_1 = 1.0 - W_0;
-						q_0 = static_cast<ParamType>(_weno5->q0_coeff1_weno3) * yCrystal[i] + static_cast<ParamType>(_weno5->q0_coeff2_weno3) * yCrystal[i + 1];
-						q_1 = static_cast<ParamType>(_weno5->q1_coeff1_weno3) * yCrystal[i] + static_cast<ParamType>(_weno5->q1_coeff2_weno3) * yCrystal[i - 1];
-						v_g = k_g_times_s_g * (static_cast<ParamType>(_a) + static_cast<ParamType>(_growthConstant) * pow(static_cast<ParamType>(_bins[i + 1]), static_cast<ParamType>(_p)));
-						resCrystal[i] -= factor / static_cast<ParamType>(_binSizes[i]) * v_g * (W_0 * q_0 + W_1 * q_1) - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i + 1] - yCrystal[i]) / static_cast<ParamType>(_binCenterDists[i]);
-					}
-					else if (i == 0)
-					{
-						// boundary condition
-						resCrystal[i] += factor / static_cast<ParamType>(_binSizes[i]) * B_0;
-						// upwind to F_{1/2}
-						v_g = k_g_times_s_g * (static_cast<ParamType>(_a) + static_cast<ParamType>(_growthConstant) * pow(static_cast<ParamType>(_bins[i + 1]), static_cast<ParamType>(_p)));
-						resCrystal[i] -= factor / static_cast<ParamType>(_binSizes[i]) * v_g * yCrystal[i] - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i + 1] - yCrystal[i]) / static_cast<ParamType>(_binCenterDists[i]);
-					}
-					else if (i + 2 == _nBins)
-					{
-						// weno35 applied to F_{nx-2-1/2}
-						resCrystal[i] += factor / static_cast<ParamType>(_binSizes[i]) * v_g * (W_0 * q_0 + W_1 * q_1 + W_2 * q_2) - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i] - yCrystal[i - 1]) / static_cast<ParamType>(_binCenterDists[i - 1]);
-						// weno23 applied to F_{nx-2+1/2}
-						IS_0 = static_cast<ParamType>(_weno5->IS_0_coeff_weno3_r) * (yCrystal[i + 1] - yCrystal[i]) * (yCrystal[i + 1] - yCrystal[i]);
-						IS_1 = static_cast<ParamType>(_weno5->IS_1_coeff_weno3_r) * (yCrystal[i] - yCrystal[i - 1]) * (yCrystal[i] - yCrystal[i - 1]);
-						alpha_0 = static_cast<ParamType>(_weno5->C_coeff1_weno3_r) / (static_cast<ParamType>(_binSizes[i]) + IS_0) / (static_cast<ParamType>(_binSizes[i]) + IS_0);
-						alpha_1 = static_cast<ParamType>(_weno5->C_coeff2_weno3_r) / (static_cast<ParamType>(_binSizes[i]) + IS_1) / (static_cast<ParamType>(_binSizes[i]) + IS_1);
-						W_0 = alpha_0 / (alpha_0 + alpha_1);
-						W_1 = 1.0 - W_0;
-						q_0 = static_cast<ParamType>(_weno5->q0_coeff1_weno3_r) * yCrystal[i] + static_cast<ParamType>(_weno5->q0_coeff2_weno3_r) * yCrystal[i + 1];
-						q_1 = static_cast<ParamType>(_weno5->q1_coeff1_weno3_r) * yCrystal[i] + static_cast<ParamType>(_weno5->q1_coeff2_weno3_r) * yCrystal[i - 1];
-						v_g = k_g_times_s_g * (static_cast<ParamType>(_a) + static_cast<ParamType>(_growthConstant) * pow(static_cast<ParamType>(_bins[i + 1]), static_cast<ParamType>(_p)));
-						resCrystal[i] -= factor / static_cast<ParamType>(_binSizes[i]) * v_g * (W_0 * q_0 + W_1 * q_1) - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i + 1] - yCrystal[i]) / static_cast<ParamType>(_binCenterDists[i]);
-					}
-					else
-					{
-						// weno23 to F_{nx-1-1/2}
-						resCrystal[i] += factor / static_cast<ParamType>(_binSizes[i]) * v_g * (W_0 * q_0 + W_1 * q_1) - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i] - yCrystal[i - 1]) / static_cast<ParamType>(_binCenterDists[i - 1]);
-						// no flux BC
-					}
+					WENO35Kernel<StateType, ResidualType, ParamType, FactorType>(yCrystal, resCrystal, factor, WENO5Params, i);
 				}
 			}
 			break;
