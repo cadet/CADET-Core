@@ -470,15 +470,6 @@ public:
 	{
 		readScalarParameterOrArray(_bins, paramProvider, "CRY_BINS", 1);
 
-		if (paramProvider.exists("CRYSTALLIZATION_MODE"))
-			_mode = static_cast<detail::CrystallizationMode>(paramProvider.getInt("CRYSTALLIZATION_MODE"));
-		else
-			_mode = detail::CrystallizationMode::PurePBM; // For backwards compatibility
-
-		_usePBM = detail::modeFlagMap[_mode].hasMassBalance;
-		_useAgg = detail::modeFlagMap[_mode].hasAggregation;
-		_useFrag = detail::modeFlagMap[_mode].hasFragmentation;
-
 		if (_usePBM)
 		{
 			if (_bins.size() != _nBins + 2)
@@ -614,6 +605,15 @@ public:
 	virtual bool configureModelDiscretization(IParameterProvider& paramProvider, unsigned int nComp, unsigned int const* nBound, unsigned int const* boundOffset)
 	{
 		_nComp = nComp;
+
+		if (paramProvider.exists("CRYSTALLIZATION_MODE"))
+			_mode = static_cast<detail::CrystallizationMode>(paramProvider.getInt("CRYSTALLIZATION_MODE"));
+		else
+			_mode = detail::CrystallizationMode::PurePBM; // For backwards compatibility
+
+		_usePBM = detail::modeFlagMap[_mode].hasMassBalance;
+		_useAgg = detail::modeFlagMap[_mode].hasAggregation;
+		_useFrag = detail::modeFlagMap[_mode].hasFragmentation;
 
 		if (_usePBM)
 		{
