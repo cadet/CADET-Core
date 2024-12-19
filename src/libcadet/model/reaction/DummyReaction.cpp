@@ -100,7 +100,13 @@ public:
 	virtual unsigned int numReactionsLiquid() const CADET_NOEXCEPT { return 0; }
 	virtual unsigned int numReactionsCombined() const CADET_NOEXCEPT { return 0; }
 
+	virtual bool hasQuasiStationaryReactions() const CADET_NOEXCEPT { return false; }
+	virtual bool hasDynamicReactions() const CADET_NOEXCEPT { return true; }
+	virtual int const* reactionQuasiStationarity() const CADET_NOEXCEPT { return _stateQuasistationarity.data(); }
+
+
 protected:
+	std::vector<int> _stateQuasistationarity; //!< Determines whether each bound state is quasi-stationary (@c true) or not (@c false)
 };
 
 
