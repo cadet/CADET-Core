@@ -317,7 +317,7 @@ namespace detail
 	*/
 	struct AggCoefficients
 	{
-		std::pair<std::vector<unsigned short int>, std::vector<unsigned short int>> index;  // a pair of vectors to store combínation of j and k
+		std::pair<std::vector<unsigned short int>, std::vector<unsigned short int>> index;  // a pair of vectors to store combination of j and k
 		std::vector<unsigned int> indexTracker;           // the idx can be a large number  
 		std::vector<short int> iIndex;
 
