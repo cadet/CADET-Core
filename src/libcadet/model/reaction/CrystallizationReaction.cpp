@@ -91,6 +91,90 @@ namespace detail
 	};
 
 	/**
+	 * Numerical reconstruction type for solving the PBM
+	*/
+	enum class PBMReconstruction : int
+	{
+		/**
+		 * Upwind scheme
+		*/
+		Upwind,
+
+		/**
+		 * High-resolution Koren-type reconstruction
+		*/
+		HRKoren,
+
+		/**
+		 * WENO23 reconstruction
+		*/
+		WENO23,
+
+		/**
+		 * WENO35 reconstruction
+		*/
+		WENO35
+	};
+
+	template <typename ParamType>
+	struct ReconstructionParams
+	{
+		ParamType v_g;
+		const ParamType k_g_times_s_g;
+		const ParamType B_0;
+
+		// WENO
+		ParamType IS_0 = 0.0;
+		ParamType IS_1 = 0.0;
+		ParamType IS_2 = 0.0;
+		ParamType alpha_0 = 0.0;
+		ParamType alpha_1 = 0.0;
+		ParamType alpha_2 = 0.0;
+		ParamType W_0 = 0.0;
+		ParamType W_1 = 0.0;
+		ParamType W_2 = 0.0;
+		ParamType q_0 = 0.0;
+		ParamType q_1 = 0.0;
+		ParamType q_2 = 0.0;
+
+		// HRKoren
+		ParamType r_x_i = 0.0;
+		ParamType phi = 0.0;
+		ParamType F_i = 0.0;
+
+		ReconstructionParams(ParamType v_g, ParamType k_g_times_s_g, ParamType B_0,
+			ParamType IS_0 = 0.0, ParamType IS_1 = 0.0, ParamType IS_2 = 0.0,
+			ParamType alpha_0 = 0.0, ParamType alpha_1 = 0.0, ParamType alpha_2 = 0.0,
+			ParamType W_0 = 0.0, ParamType W_1 = 0.0, ParamType W_2 = 0.0,
+			ParamType q_0 = 0.0, ParamType q_1 = 0.0, ParamType q_2 = 0.0,
+			ParamType r_x_i = 0.0, ParamType phi = 0.0, ParamType F_i = 0.0)
+			: v_g(v_g), k_g_times_s_g(k_g_times_s_g), B_0(B_0),
+			IS_0(IS_0), IS_1(IS_1), IS_2(IS_2),
+			alpha_0(alpha_0), alpha_1(alpha_1), alpha_2(alpha_2),
+			W_0(W_0), W_1(W_1), W_2(W_2),
+			q_0(q_0), q_1(q_1), q_2(q_2),
+			r_x_i(r_x_i), phi(phi), F_i(F_i) {}
+	};
+
+	struct HRKorenCoefficients
+	{
+		std::vector<active> A_coeff;
+		std::vector<active> R_coeff;
+
+		HRKorenCoefficients(const std::vector<active>& binSizes)
+			: A_coeff(binSizes.size() - 1), R_coeff(binSizes.size() - 1)
+		{
+			// calculate the coefficients
+			for (int i = 1; i + 1 < binSizes.size(); ++i)
+			{
+				const active delta_xi_xip1 = binSizes[i] + binSizes[i + 1];
+				A_coeff[i] = delta_xi_xip1 / (binSizes[i] + binSizes[i - 1]);
+				R_coeff[i] = delta_xi_xip1 / binSizes[i];
+			}
+		}
+	};
+
+	/**
 	 * Flux reconstruction scheme coefficients.For details see @cite Zhang2024
 	*/
 	struct Weno3Coefficients
@@ -118,101 +202,6 @@ namespace detail
 			}
 		}
 	};
-
-	struct HRCoefficients
-	{
-		std::vector<active> A_coeff;
-		std::vector<active> R_coeff;
-
-		HRCoefficients(const std::vector<active>& binSizes)
-			: A_coeff(binSizes.size() - 1), R_coeff(binSizes.size() - 1)
-		{
-			// calculate the coefficients
-			for (int i = 1; i + 1 < binSizes.size(); ++i)
-			{
-				const active delta_xi_xip1 = binSizes[i] + binSizes[i + 1];
-				A_coeff[i] = delta_xi_xip1 / (binSizes[i] + binSizes[i - 1]);
-				R_coeff[i] = delta_xi_xip1 / binSizes[i];
-			}
-		}
-	};
-
-	template <typename ParamType>
-	struct HRParams
-	{
-		ParamType v_g;
-		const ParamType k_g_times_s_g;
-		const ParamType B_0;
-		ParamType r_x_i = 0.0;
-		ParamType phi = 0.0;
-		ParamType F_i = 0.0;
-
-		HRParams(ParamType v_g, ParamType k_g_times_s_g, ParamType B_0,
-			ParamType r_x_i = 0.0, ParamType phi = 0.0, ParamType F_i = 0.0)
-			: v_g(v_g), k_g_times_s_g(k_g_times_s_g), B_0(B_0),
-			r_x_i(r_x_i), phi(phi), F_i(F_i) {}
-	};
-
-	template <typename ParamType>
-	struct WENO3Params
-	{
-		ParamType v_g;
-		const ParamType k_g_times_s_g;
-		const ParamType B_0;
-		ParamType IS_0 = 0.0;
-		ParamType IS_1 = 0.0;
-		ParamType alpha_0 = 0.0;
-		ParamType alpha_1 = 0.0;
-		ParamType W_0 = 0.0;
-		ParamType W_1 = 0.0;
-		ParamType q_0 = 0.0;
-		ParamType q_1 = 0.0;
-
-		WENO3Params(ParamType v_g, ParamType k_g_times_s_g, ParamType B_0,
-			ParamType IS_0 = 0.0, ParamType IS_1 = 0.0,
-			ParamType alpha_0 = 0.0, ParamType alpha_1 = 0.0,
-			ParamType W_0 = 0.0, ParamType W_1 = 0.0,
-			ParamType q_0 = 0.0, ParamType q_1 = 0.0)
-			: v_g(v_g), k_g_times_s_g(k_g_times_s_g), B_0(B_0),
-			IS_0(IS_0), IS_1(IS_1),
-			alpha_0(alpha_0), alpha_1(alpha_1),
-			W_0(W_0), W_1(W_1),
-			q_0(q_0), q_1(q_1) {}
-	};
-
-
-	template <typename ParamType>
-	struct WENO5Params
-	{
-		ParamType v_g;
-		const ParamType k_g_times_s_g;
-		const ParamType B_0;
-		ParamType IS_0 = 0.0;
-		ParamType IS_1 = 0.0;
-		ParamType IS_2 = 0.0;
-		ParamType alpha_0 = 0.0;
-		ParamType alpha_1 = 0.0;
-		ParamType alpha_2 = 0.0;
-		ParamType W_0 = 0.0;
-		ParamType W_1 = 0.0;
-		ParamType W_2 = 0.0;
-		ParamType q_0 = 0.0;
-		ParamType q_1 = 0.0;
-		ParamType q_2 = 0.0;
-
-		WENO5Params(ParamType v_g, ParamType k_g_times_s_g, ParamType B_0,
-			ParamType IS_0 = 0.0, ParamType IS_1 = 0.0, ParamType IS_2 = 0.0,
-			ParamType alpha_0 = 0.0, ParamType alpha_1 = 0.0, ParamType alpha_2 = 0.0,
-			ParamType W_0 = 0.0, ParamType W_1 = 0.0, ParamType W_2 = 0.0,
-			ParamType q_0 = 0.0, ParamType q_1 = 0.0, ParamType q_2 = 0.0)
-			: v_g(v_g), k_g_times_s_g(k_g_times_s_g), B_0(B_0),
-			IS_0(IS_0), IS_1(IS_1), IS_2(IS_2),
-			alpha_0(alpha_0), alpha_1(alpha_1), alpha_2(alpha_2),
-			W_0(W_0), W_1(W_1), W_2(W_2),
-			q_0(q_0), q_1(q_1), q_2(q_2) {}
-	};
-
-
 
 	struct Weno5Coefficients
 	{
@@ -503,10 +492,12 @@ public:
 			_growthDispersionRate = paramProvider.getDouble("CRY_GROWTH_DISPERSION_RATE");
 			_parameters[makeParamId(hashString("CRY_GROWTH_DISPERSION_RATE"), unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_growthDispersionRate;
 
-			_growthSchemeOrder = paramProvider.getInt("CRY_GROWTH_SCHEME_ORDER");
+			const int growthSchemeOrder = paramProvider.getInt("CRY_GROWTH_SCHEME_ORDER");
 
-			if (!(_growthSchemeOrder == 1 || _growthSchemeOrder == 2 || _growthSchemeOrder == 3 || _growthSchemeOrder == 4))
+			if (!(growthSchemeOrder == 1 || growthSchemeOrder == 2 || growthSchemeOrder == 3 || growthSchemeOrder == 4))
 				throw InvalidParameterException("CRY_GROWTH_SCHEME_ORDER needs to be an int between [1, 4]");
+
+			_growthSchemeOrder = static_cast<detail::PBMReconstruction>(growthSchemeOrder - 1);
 
 			_a = paramProvider.getDouble("CRY_A");
 			_parameters[makeParamId(hashString("CRY_A"), unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_a;
@@ -545,11 +536,11 @@ public:
 				_weno5 = nullptr;
 			}
 
-			if (_growthSchemeOrder == 2)
-				_HR = new detail::HRCoefficients(_binSizes);
-			else if (_growthSchemeOrder == 3)
+			if (_growthSchemeOrder == detail::PBMReconstruction::HRKoren)
+				_HR = new detail::HRKorenCoefficients(_binSizes);
+			else if (_growthSchemeOrder == detail::PBMReconstruction::WENO23)
 				_weno3 = new detail::Weno3Coefficients(_binSizes);
-			else if (_growthSchemeOrder == 4)
+			else if (_growthSchemeOrder == detail::PBMReconstruction::WENO35)
 				_weno5 = new detail::Weno5Coefficients(_binSizes);
 		}
 		if (_useAgg)
@@ -683,7 +674,7 @@ public:
 protected:
 
 	std::unordered_map<ParameterId, active*> _parameters; //!< Map used to translate ParameterIds to actual variables
-	cadet::model::detail::CrystallizationMode _mode; //!< Crystallization mode, i.e. specification of considered effects
+	detail::CrystallizationMode _mode; //!< Crystallization mode, i.e. specification of considered effects
 	bool _usePBM; //!< Apply population mass balance
 	bool _useFrag; //!< Apply fragmentation term
 	bool _useAgg; //!< Apply aggregation term
@@ -703,7 +694,7 @@ protected:
 	active _growthRateConstant; //!< k_g
 	active _growthConstant; //!< gamma
 	active _growthDispersionRate; //!< D_g
-	int _growthSchemeOrder; // can be 1, 2, 3 and 4
+	detail::PBMReconstruction _growthSchemeOrder; // reconstruction type for PBM aka order of the growth scheme
 	active _a; //!< System constant
 	active _b; //!< System constant
 	active _g; //!< System constant
@@ -711,7 +702,7 @@ protected:
 	active _k; //!< System constant
 	active _u; //!< System constant
 
-	detail::HRCoefficients* _HR;
+	detail::HRKorenCoefficients* _HR;
 	detail::Weno3Coefficients* _weno3;
 	detail::Weno5Coefficients* _weno5;
 
@@ -739,35 +730,35 @@ protected:
 	}
 
 	template <typename StateType, typename ResidualType, typename ParamType, typename FactorType>
-	void updwindKernel(StateType const* yCrystal, ResidualType* resCrystal, const FactorType& factor, ResidualType& v_g, const ResidualType k_g_times_s_g, const ResidualType B_0, const int i) const
+	void upwindKernel(StateType const* yCrystal, ResidualType* resCrystal, const FactorType& factor, detail::ReconstructionParams<ResidualType>& upwindParams, const int i) const
 	{
 		// Flux through left face
 		if (cadet_likely((i > 0) && (i + 1 < _nBins)))
 		{
 			// flux through the left face
-			resCrystal[i] += factor / static_cast<ParamType>(_binSizes[i]) * (v_g * yCrystal[i - 1]) - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i] - yCrystal[i - 1]) / static_cast<ParamType>(_binCenterDists[i - 1]);
+			resCrystal[i] += factor / static_cast<ParamType>(_binSizes[i]) * (upwindParams.v_g * yCrystal[i - 1]) - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i] - yCrystal[i - 1]) / static_cast<ParamType>(_binCenterDists[i - 1]);
 			// flux through the right face
-			v_g = k_g_times_s_g * (static_cast<ParamType>(_a) + static_cast<ParamType>(_growthConstant) * pow(static_cast<ParamType>(_bins[i + 1]), static_cast<ParamType>(_p)));
-			resCrystal[i] -= factor / static_cast<ParamType>(_binSizes[i]) * (v_g * yCrystal[i]) - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i + 1] - yCrystal[i]) / static_cast<ParamType>(_binCenterDists[i]);
+			upwindParams.v_g = upwindParams.k_g_times_s_g * (static_cast<ParamType>(_a) + static_cast<ParamType>(_growthConstant) * pow(static_cast<ParamType>(_bins[i + 1]), static_cast<ParamType>(_p)));
+			resCrystal[i] -= factor / static_cast<ParamType>(_binSizes[i]) * (upwindParams.v_g * yCrystal[i]) - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i + 1] - yCrystal[i]) / static_cast<ParamType>(_binCenterDists[i]);
 		}
 		else if (i == 0)
 		{
 			// Left boundary condition
-			resCrystal[i] += factor / static_cast<ParamType>(_binSizes[i]) * B_0;
+			resCrystal[i] += factor / static_cast<ParamType>(_binSizes[i]) * upwindParams.B_0;
 			// upwind
-			v_g = k_g_times_s_g * (static_cast<ParamType>(_a) + static_cast<ParamType>(_growthConstant) * pow(static_cast<ParamType>(_bins[i + 1]), static_cast<ParamType>(_p)));
-			resCrystal[i] -= factor / static_cast<ParamType>(_binSizes[i]) * v_g * yCrystal[i] - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i + 1] - yCrystal[i]) / static_cast<ParamType>(_binCenterDists[i]);
+			upwindParams.v_g = upwindParams.k_g_times_s_g * (static_cast<ParamType>(_a) + static_cast<ParamType>(_growthConstant) * pow(static_cast<ParamType>(_bins[i + 1]), static_cast<ParamType>(_p)));
+			resCrystal[i] -= factor / static_cast<ParamType>(_binSizes[i]) * upwindParams.v_g * yCrystal[i] - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i + 1] - yCrystal[i]) / static_cast<ParamType>(_binCenterDists[i]);
 		}
 		else
 		{
 			// first order approximation
-			resCrystal[i] += factor / static_cast<ParamType>(_binSizes[i]) * v_g * yCrystal[i - 1] - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i] - yCrystal[i - 1]) / static_cast<ParamType>(_binCenterDists[i - 1]);
+			resCrystal[i] += factor / static_cast<ParamType>(_binSizes[i]) * upwindParams.v_g * yCrystal[i - 1] - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i] - yCrystal[i - 1]) / static_cast<ParamType>(_binCenterDists[i - 1]);
 			// no flux
 		}
 	}
 
 	template <typename StateType, typename ResidualType, typename ParamType, typename FactorType>
-	void HRKorenKernel(StateType const* yCrystal, ResidualType* resCrystal, const FactorType& factor, detail::HRParams<ResidualType>& HRKorenParams, const int i) const
+	void HRKorenKernel(StateType const* yCrystal, ResidualType* resCrystal, const FactorType& factor, detail::ReconstructionParams<ResidualType>& HRKorenParams, const int i) const
 	{
 		for (int i = 0; i < _nBins; ++i)
 		{
@@ -825,7 +816,7 @@ protected:
 	}
 
 	template <typename StateType, typename ResidualType, typename ParamType, typename FactorType>
-	void WENO23Kernel(StateType const* yCrystal, ResidualType* resCrystal, const FactorType& factor, detail::WENO3Params<ResidualType>& WENO3Params, const int i) const
+	void WENO23Kernel(StateType const* yCrystal, ResidualType* resCrystal, const FactorType& factor, detail::ReconstructionParams<ResidualType>& WENO3Params, const int i) const
 	{
 		for (int i = 0; i < _nBins; ++i)
 		{
@@ -880,7 +871,7 @@ protected:
 	}
 
 	template <typename StateType, typename ResidualType, typename ParamType, typename FactorType>
-	void WENO35Kernel(StateType const* yCrystal, ResidualType* resCrystal, const FactorType& factor, detail::WENO5Params<ResidualType>& WENO5Params, const int i) const
+	void WENO35Kernel(StateType const* yCrystal, ResidualType* resCrystal, const FactorType& factor, detail::ReconstructionParams<ResidualType>& WENO5Params, const int i) const
 	{
 		for (int i = 0; i < _nBins; ++i)
 		{
@@ -974,6 +965,33 @@ protected:
 		}
 	}
 
+	template <typename StateType, typename ResidualType, typename ParamType, typename FactorType>
+	void PBMKernel(StateType const* yCrystal, ResidualType* resCrystal, const FactorType& factor, detail::ReconstructionParams<ResidualType>& recParams, const int i) const
+	{
+		switch (_growthSchemeOrder)
+		{
+		case detail::PBMReconstruction::Upwind:
+		{
+			upwindKernel<StateType, ResidualType, ParamType, FactorType>(yCrystal, resCrystal, factor, recParams, i);
+		}
+		break;
+		case detail::PBMReconstruction::HRKoren:
+		{
+			HRKorenKernel<StateType, ResidualType, ParamType, FactorType>(yCrystal, resCrystal, factor, recParams, i);
+		}
+		break;
+		case detail::PBMReconstruction::WENO23:
+		{
+			WENO23Kernel<StateType, ResidualType, ParamType, FactorType>(yCrystal, resCrystal, factor, recParams, i);
+		}
+		break;
+		case detail::PBMReconstruction::WENO35:
+		{
+			WENO35Kernel<StateType, ResidualType, ParamType, FactorType>(yCrystal, resCrystal, factor, recParams, i);
+		}
+		break;
+		}
+	}
 
 	template <typename StateType, typename ResidualType, typename ParamType, typename FactorType>
 	int residualLiquidImpl(double t, unsigned int secIdx, const ColumnPosition& colPos,
@@ -1010,46 +1028,11 @@ protected:
 			ResidualType v_g = 0.0;
 
 			// growth flux reconstruction
-			switch (_growthSchemeOrder)
-			{
-			case 1: // upwind scheme
-			{
-				for (int i = 0; i < _nBins; ++i)
-				{
-					updwindKernel<StateType, ResidualType, ParamType, FactorType>(yCrystal, resCrystal, factor, v_g, k_g_times_s_g, B_0, i);
-				}
-			}
-			break;
-			case 2: // HR Koren scheme
-			{
-				detail::HRParams<ResidualType> HRKorenParams{ v_g, k_g_times_s_g, B_0, 0.0, 0.0, 0.0 };
+			detail::ReconstructionParams<ResidualType> ReconstructionParams{ v_g, k_g_times_s_g, B_0 };
 
-				for (int i = 0; i < _nBins; ++i)
-				{
-					HRKorenKernel<StateType, ResidualType, ParamType, FactorType>(yCrystal, resCrystal, factor, HRKorenParams, i);
-				}
-			}
-			break;
-			case 3: // WENO23
+			for (int i = 0; i < _nBins; ++i)
 			{
-				detail::WENO3Params<ResidualType> WENO3Params{ v_g, k_g_times_s_g, B_0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 };
-
-				for (int i = 0; i < _nBins; ++i)
-				{
-					WENO23Kernel<StateType, ResidualType, ParamType, FactorType>(yCrystal, resCrystal, factor, WENO3Params, i);
-				}
-			}
-			break;
-			case 4: // WENO35
-			{
-				detail::WENO5Params<ResidualType> WENO5Params{ v_g, k_g_times_s_g, B_0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 };
-
-				for (int i = 0; i < _nBins; ++i)
-				{
-					WENO35Kernel<StateType, ResidualType, ParamType, FactorType>(yCrystal, resCrystal, factor, WENO5Params, i);
-				}
-			}
-			break;
+				PBMKernel<StateType, ResidualType, ParamType, FactorType>(yCrystal, resCrystal, factor, ReconstructionParams, i);
 			}
 
 			if (!_useAgg && !_useFrag)
@@ -1244,8 +1227,7 @@ protected:
 			int binIdx_j = 0;
 			switch (_growthSchemeOrder)
 			{
-				// upwind
-			case 1:
+			case detail::PBMReconstruction::Upwind:
 			{
 				for (int i = 0; i < _nComp; ++i)
 				{
@@ -1353,8 +1335,7 @@ protected:
 				}
 			}
 			break;
-			// HR
-			case 2:
+			case detail::PBMReconstruction::HRKoren:
 			{
 				// HR related coefficients
 				const double epsilon = 1e-10;
@@ -1595,8 +1576,7 @@ protected:
 				}
 			}
 			break;
-			// WENO23
-			case 3:
+			case detail::PBMReconstruction::WENO23:
 			{
 				// WENO23 related coefficients
 				double IS_0_right = 0.0;
@@ -1863,8 +1843,7 @@ protected:
 				}
 			}
 			break;
-			// WENO35
-			case 4:
+			case detail::PBMReconstruction::WENO35:
 			{
 				// WENO23 related coefficients, for bin N_x-2
 				const double IS_0_weno3_right = static_cast<double>(_weno5->IS_0_coeff_weno3_r) * (yCrystal[_nComp - 3] - yCrystal[_nComp - 4]) * (yCrystal[_nComp - 3] - yCrystal[_nComp - 4]);
