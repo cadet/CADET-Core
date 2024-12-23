@@ -475,13 +475,13 @@ public:
 
 		registerParam1DArray(_parameters, _bins, [=](bool multi, unsigned int idx) { return makeParamId(hashString("CRY_BINS"), unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, idx, SectionIndep); });
 
+		_binCenters.resize(_nBins);
+		_binSizes.resize(_nBins);
+		_binCenterDists.resize(_nBins - 1);
+		updateBinCoords();
+
 		if (_usePBM)
 		{
-			_binCenters.resize(_nBins);
-			_binSizes.resize(_nBins);
-			_binCenterDists.resize(_nBins - 1);
-			updateBinCoords();
-
 			_nucleiMassDensity = paramProvider.getDouble("CRY_NUCLEI_MASS_DENSITY");
 			_parameters[makeParamId(hashString("CRY_NUCLEI_MASS_DENSITY"), unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_nucleiMassDensity;
 
@@ -730,6 +730,9 @@ protected:
 	{
 		for (int i = 0; i < _nBins; ++i)
 		{
+			if (cadet_likely(i + 1 < _nBins))
+				_binCenterDists[i] = 0.5 * (_bins[i + 2] - _bins[i]);
+
 			_binCenters[i] = 0.5 * (_bins[i] + _bins[i + 1]);
 			_binSizes[i] = _bins[i + 1] - _bins[i];
 		}
