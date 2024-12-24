@@ -997,15 +997,18 @@ protected:
 	int residualLiquidImpl(double t, unsigned int secIdx, const ColumnPosition& colPos,
 		StateType const* y, ResidualType* res, const FactorType& factor, LinearBufferAllocator workSpace) const
 	{
+		ResidualType B_0 = 0.0;
+		ResidualType k_g_times_s_g = 0.0;
+
 		if (_usePBM)
 		{
-			// If we solve the mass balance, then we have the solubility entry (which in the PBM case is the last state entry) and the solute entry (first position), which is why we advance the pointer.
+			// if we solve the mass balance, then we have the solubility entry (last state entry) and the solute entry (first position), which is why we advance the pointer.
 			StateType const* const yCrystal = y + 1;
 			ResidualType* const resCrystal = res + 1;
 
 			const StateType sParam = (cadet_likely(y[0] / y[_nComp - 1] - 1.0 > 0)) ? y[0] / y[_nComp - 1] - 1.0 : 0.0; // s = (c_0 - c_eq) / c_eq = c_0 / c_eq - 1, rewrite it to zero if s drops below 0
 			const ParamType massDensityShapeFactor = static_cast<ParamType>(_nucleiMassDensity) * static_cast<ParamType>(_volShapeFactor);
-			const ResidualType k_g_times_s_g = static_cast<ParamType>(_growthRateConstant) * pow(sParam, static_cast<ParamType>(_g));
+			k_g_times_s_g = static_cast<ParamType>(_growthRateConstant) * pow(sParam, static_cast<ParamType>(_g));
 
 			ResidualType MParam = 0.0;
 			ResidualType substrateConversion = 0.0;
@@ -1019,29 +1022,24 @@ protected:
 			substrateConversion *= 3.0 * k_g_times_s_g;
 
 			// B_0 = primary + secondary nucleation rate
-			const ResidualType B_0 = static_cast<ParamType>(_primaryNucleationRate) * pow(sParam, static_cast<ParamType>(_u)) + static_cast<ParamType>(_secondaryNucleationRate) * pow(sParam, static_cast<ParamType>(_b)) * pow(MParam, static_cast<ParamType>(_k));
+			B_0 = static_cast<ParamType>(_primaryNucleationRate) * pow(sParam, static_cast<ParamType>(_u)) + static_cast<ParamType>(_secondaryNucleationRate) * pow(sParam, static_cast<ParamType>(_b)) * pow(MParam, static_cast<ParamType>(_k));
 			const ParamType x_c_3 = static_cast<ParamType>(_bins[0]) * static_cast<ParamType>(_bins[0]) * static_cast<ParamType>(_bins[0]);
 
 			// mass balance
 			res[0] -= factor * massDensityShapeFactor * (B_0 * x_c_3 + substrateConversion);
-
-			ResidualType v_g = 0.0;
-
-			// growth flux reconstruction
-			detail::ReconstructionParams<ResidualType> ReconstructionParams{ v_g, k_g_times_s_g, B_0 };
-
-			for (int i = 0; i < _nBins; ++i)
-			{
-				PBMKernel<StateType, ResidualType, ParamType, FactorType>(yCrystal, resCrystal, factor, ReconstructionParams, i);
-			}
-
-			if (!_useAgg && !_useFrag)
-				return 0;
 		}
 
-		// Get pointer to crystal bins
-		StateType const* const yCrystal = y;
-		ResidualType* const resCrystal = res;
+		// get pointer to crystal bins
+		StateType const* yCrystal = y;
+		ResidualType* resCrystal = res;
+		if (_usePBM) // if we solve the mass balance, then we have the solubility entry (last state entry) and the solute entry (first position), which is why we advance the pointer.
+		{
+			yCrystal++;
+			resCrystal++;
+		}
+
+		// initialize growth flux reconstruction parameters
+		detail::ReconstructionParams<ResidualType> ReconstructionParams{ 0.0, k_g_times_s_g, B_0 };
 
 		// define aggregation/fragmentation related local parameters
 		ResidualType source = 0.0;
@@ -1050,6 +1048,11 @@ protected:
 
 		for (int i = 0; i < _nBins; ++i)
 		{
+			if (_usePBM)
+			{
+				PBMKernel<StateType, ResidualType, ParamType, FactorType>(yCrystal, resCrystal, factor, ReconstructionParams, i);
+			}
+
 			if (_useAgg)
 			{
 				// reset the source and sink terms
