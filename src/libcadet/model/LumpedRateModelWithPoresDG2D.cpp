@@ -1175,7 +1175,7 @@ int LumpedRateModelWithPoresDG2D::residualImpl(double t, unsigned int secIdx, St
 			const unsigned int par = (pblk - 1) % (_disc.axNPoints * _disc.radNPoints);
 			residualParticle<StateType, ResidualType, ParamType, wantJac, wantRes>(t, type, par, secIdx, y, yDot, res, threadLocalMem);
 		}
-	} CADET_PARFOR_END;
+	}
 
 	residualFlux<StateType, ResidualType, ParamType, wantJac, wantRes>(t, secIdx, y, yDot, res);
 
@@ -1398,7 +1398,7 @@ int LumpedRateModelWithPoresDG2D::residualSensFwdCombine(const SimulationTime& s
 		for (unsigned int i = 0; i < numDofs(); ++i)
 		{
 			ptrResS[i] = tmp1[i] + tmp2[i] + adRes[i].getADValue(param);
-		} CADET_PARFOR_END;
+		}
 
 		BENCH_STOP(_timerResidualSensPar);
 	}
@@ -1507,7 +1507,7 @@ void LumpedRateModelWithPoresDG2D::multiplyWithDerivativeJacobian(const Simulati
 					solidRet[bnd] = solidSdot[bnd];
 			}
 		}
-	} CADET_PARFOR_END;
+	}
 
 	// Handle inlet DOFs (all algebraic)
 	std::fill_n(ret, _disc.nComp, 0.0);
