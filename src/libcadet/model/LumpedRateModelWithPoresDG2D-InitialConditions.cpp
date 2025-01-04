@@ -27,6 +27,9 @@
 #include "Logging.hpp"
 
 #include "ParallelSupport.hpp"
+#ifdef CADET_PARALLELIZE
+#include <tbb/parallel_for.h>
+#endif
 
 namespace cadet
 {
@@ -600,8 +603,11 @@ void LumpedRateModelWithPoresDG2D::consistentInitialState(const SimulationTime& 
 		const linalg::ConstMaskArray mask{ qsMask.data(), static_cast<int>(_disc.nComp + _disc.strideBound[type]) };
 		const int probSize = linalg::numMaskActive(mask);
 
-		//Problem capturing variables here
+#ifdef CADET_PARALLELIZE
+		tbb::parallel_for(std::size_t(0), static_cast<std::size_t>(_disc.nBulkPoints), [&](std::size_t pblk)
+#else
 		for (unsigned int pblk = 0; pblk < _disc.nBulkPoints; ++pblk)
+#endif
 		{
 			LinearBufferAllocator tlmAlloc = threadLocalMem.get();
 
@@ -906,7 +912,11 @@ void LumpedRateModelWithPoresDG2D::consistentInitialTimeDerivative(const Simulat
 	_convDispOp.addTimeDerivativeToJacobian(1.0, _globalJacDisc);
 
 	// Process the particle blocks
+#ifdef CADET_PARALLELIZE
+	tbb::parallel_for(std::size_t(0), static_cast<std::size_t>(_disc.nParType), [&](std::size_t type)
+#else
 	for (unsigned int type = 0; type < _disc.nParType; ++type)
+#endif
 	{
 		for (unsigned int blk = 0; blk < _disc.axNPoints * _disc.radNPoints; ++blk)
 		{
@@ -917,11 +927,11 @@ void LumpedRateModelWithPoresDG2D::consistentInitialTimeDerivative(const Simulat
 			const double z = static_cast<double>(_convDispOp.relativeAxialCoordinate(axialNode)) * static_cast<double>(_convDispOp.columnLength());
 			const double r = static_cast<double>(_convDispOp.relativeRadialCoordinate(radialNode)) * static_cast<double>(_convDispOp.columnRadius());
 
-			linalg::BandedEigenSparseRowIterator jac(_globalJacDisc, idxr.offsetCp(ParticleTypeIndex{ type }, ParticleIndex{ blk }) - idxr.offsetC());
+			linalg::BandedEigenSparseRowIterator jac(_globalJacDisc, idxr.offsetCp(ParticleTypeIndex{ static_cast<unsigned int>(type) }, ParticleIndex{ blk }) - idxr.offsetC());
 
 			LinearBufferAllocator tlmAlloc = threadLocalMem.get();
 
-			double* const dFluxDt = _tempState + idxr.offsetCp(ParticleTypeIndex{ type }, ParticleIndex{ blk });
+			double* const dFluxDt = _tempState + idxr.offsetCp(ParticleTypeIndex{ static_cast<unsigned int>(type) }, ParticleIndex{ blk });
 
 			addTimeDerivativeToJacobianParticleBlock(jac, idxr, 1.0, type); // Mobile and solid phase equations (advances jac accordingly)
 
@@ -931,11 +941,11 @@ void LumpedRateModelWithPoresDG2D::consistentInitialTimeDerivative(const Simulat
 				continue;
 
 			// Get iterators to beginning of solid phase
-			linalg::BandedEigenSparseRowIterator jacSolidOrig(_globalJac, idxr.offsetCp(ParticleTypeIndex{ type }, ParticleIndex{ blk }) - idxr.offsetC() + static_cast<unsigned int>(idxr.strideParLiquid()));
-			linalg::BandedEigenSparseRowIterator jacSolid(_globalJacDisc, idxr.offsetCp(ParticleTypeIndex{ type }, ParticleIndex{ blk }) - idxr.offsetC() + static_cast<unsigned int>(idxr.strideParLiquid()));
+			linalg::BandedEigenSparseRowIterator jacSolidOrig(_globalJac, idxr.offsetCp(ParticleTypeIndex{ static_cast<unsigned int>(type) }, ParticleIndex{ blk }) - idxr.offsetC() + static_cast<unsigned int>(idxr.strideParLiquid()));
+			linalg::BandedEigenSparseRowIterator jacSolid(_globalJacDisc, idxr.offsetCp(ParticleTypeIndex{ static_cast<unsigned int>(type) }, ParticleIndex{ blk }) - idxr.offsetC() + static_cast<unsigned int>(idxr.strideParLiquid()));
 
 			int const* const mask = _binding[type]->reactionQuasiStationarity();
-			double* const qShellDot = vecStateYdot + idxr.offsetCp(ParticleTypeIndex{ type }, ParticleIndex{ blk }) + idxr.strideParLiquid();
+			double* const qShellDot = vecStateYdot + idxr.offsetCp(ParticleTypeIndex{ static_cast<unsigned int>(type) }, ParticleIndex{ blk }) + idxr.strideParLiquid();
 
 			// Obtain derivative of fluxes wrt. time
 			std::fill_n(dFluxDt, _disc.strideBound[type], 0.0);
@@ -956,7 +966,8 @@ void LumpedRateModelWithPoresDG2D::consistentInitialTimeDerivative(const Simulat
 				qShellDot[i] = -dFluxDt[i];
 			}
 		}
-	}
+
+	} CADET_PARFOR_END;
 
 	_globalSolver.factorize(_globalJacDisc);
 
@@ -1250,7 +1261,11 @@ void LumpedRateModelWithPoresDG2D::consistentInitialSensitivity(const Simulation
 		_convDispOp.addTimeDerivativeToJacobian(1.0, _globalJacDisc);
 
 		// Process the particle blocks
+#ifdef CADET_PARALLELIZE
+		tbb::parallel_for(std::size_t(0), static_cast<std::size_t>(_disc.nParType), [&](std::size_t type)
+#else
 		for (unsigned int type = 0; type < _disc.nParType; ++type)
+#endif
 		{
 			for (unsigned int pblk = 0; pblk < _disc.nBulkPoints; ++pblk)
 			{
