@@ -35,6 +35,9 @@
 #include <numeric>
 
 #include "ParallelSupport.hpp"
+#ifdef CADET_PARALLELIZE
+#include <tbb/parallel_for.h>
+#endif
 
 namespace
 {
@@ -1157,7 +1160,11 @@ int LumpedRateModelWithPoresDG2D::residualImpl(double t, unsigned int secIdx, St
 		std::fill_n(_globalJac.valuePtr(), _globalJac.nonZeros(), 0.0);
 	}
 
+#ifdef CADET_PARALLELIZE
+	tbb::parallel_for(std::size_t(0), static_cast<std::size_t>(_disc.axNPoints * _disc.radNPoints * _disc.nParType + 1), [&](std::size_t pblk)
+#else
 	for (unsigned int pblk = 0; pblk < _disc.axNPoints * _disc.radNPoints * _disc.nParType + 1; ++pblk)
+#endif
 	{
 		if (cadet_unlikely(pblk == 0))
 		{
@@ -1175,7 +1182,7 @@ int LumpedRateModelWithPoresDG2D::residualImpl(double t, unsigned int secIdx, St
 			const unsigned int par = (pblk - 1) % (_disc.axNPoints * _disc.radNPoints);
 			residualParticle<StateType, ResidualType, ParamType, wantJac, wantRes>(t, type, par, secIdx, y, yDot, res, threadLocalMem);
 		}
-	}
+	} CADET_PARFOR_END;
 
 	residualFlux<StateType, ResidualType, ParamType, wantJac, wantRes>(t, secIdx, y, yDot, res);
 
@@ -1381,7 +1388,12 @@ int LumpedRateModelWithPoresDG2D::residualSensFwdCombine(const SimulationTime& s
 
 	const SimulationTime cst{simTime.t, simTime.secIdx};
 	const ConstSimulationState css{nullptr, nullptr};
+
+#ifdef CADET_PARALLELIZE
+	tbb::parallel_for(std::size_t(0), static_cast<std::size_t>(yS.size()), [&](std::size_t param)
+#else
 	for (std::size_t param = 0; param < yS.size(); ++param)
+#endif
 	{
 
 		// Directional derivative (dF / dy) * s
@@ -1401,7 +1413,7 @@ int LumpedRateModelWithPoresDG2D::residualSensFwdCombine(const SimulationTime& s
 		}
 
 		BENCH_STOP(_timerResidualSensPar);
-	}
+	} CADET_PARFOR_END;
 
 	return 0;
 }
@@ -1455,7 +1467,11 @@ void LumpedRateModelWithPoresDG2D::multiplyWithDerivativeJacobian(const Simulati
 	Indexer idxr(_disc);
 	std::fill_n(ret, numDofs(), 0.0);
 
+#ifdef CADET_PARALLELIZE
+	tbb::parallel_for(std::size_t(0), static_cast<std::size_t>(_disc.nBulkPoints * _disc.nParType + 1), [&](std::size_t idx)
+#else
 	for (unsigned int idx = 0; idx < _disc.nBulkPoints * _disc.nParType + 1; ++idx)
+#endif
 	{
 		if (cadet_unlikely(idx == 0))
 		{
@@ -1507,7 +1523,7 @@ void LumpedRateModelWithPoresDG2D::multiplyWithDerivativeJacobian(const Simulati
 					solidRet[bnd] = solidSdot[bnd];
 			}
 		}
-	}
+	} CADET_PARFOR_END;
 
 	// Handle inlet DOFs (all algebraic)
 	std::fill_n(ret, _disc.nComp, 0.0);
