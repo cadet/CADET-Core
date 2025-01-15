@@ -409,8 +409,9 @@ inline void checkJacobianPatternFD(const std::function<void(double const*, doubl
 			CAPTURE(col);
 			CAPTURE(colA[row]);
 			CAPTURE(colB[row]);
-			if (std::abs(colA[row]) <= absTol)
-				CHECK(std::abs(colA[row]) <= absTol);
+
+			if (std::abs(colA[row]) <= absTol) // allow different signs, if both entries are near zero
+				CHECK(std::abs(colB[row]) <= absTol);
 			else if (std::isnan(colA[row]))
 				CHECK(std::isnan(colB[row]));
 			else
