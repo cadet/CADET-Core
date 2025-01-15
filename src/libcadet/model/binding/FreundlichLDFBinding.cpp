@@ -122,7 +122,7 @@ namespace cadet
 					const ParamType kkin = static_cast<ParamType>(p->kkin[i]);
 
 					// Residual
-					if ((n_param > 1) && (abs(yCp[i]) < _threshold))
+					if (((n_param > 1) && (yCp[i] < _threshold)) || yCp[i] < 0)
 					{
 						const ParamType alpha_1 = ((2.0 * n_param - 1.0) / n_param) * kF * pow(_threshold, (1.0 - n_param) / n_param);
 						const ParamType alpha_2 = ((1.0 - n_param) / n_param) * kF * pow(_threshold, (1.0 - 2.0 * n_param) / n_param);
@@ -130,7 +130,7 @@ namespace cadet
 					}
 					else
 					{
-						res[bndIdx] = kkin * (y[bndIdx] - kF * pow(abs(yCp[i]), 1.0 / n_param));
+						res[bndIdx] = kkin * (y[bndIdx] - kF * pow(yCp[i], 1.0 / n_param));
 					}
 
 					// Next bound component
@@ -163,7 +163,7 @@ namespace cadet
 					jac[0] = kkin;
 
 					// dres / dc_{p,i}
-					if ((n_param > 1) && (abs(yCp[i]) < _threshold))
+					if (((n_param > 1) && (yCp[i] < _threshold)) || yCp[i] < 0)
 					{
 						double const alpha_1 = ((2.0 * n_param - 1.0) / n_param) * kF * pow(_threshold, (1.0 - n_param) / n_param);
 						double const alpha_2 = ((1.0 - n_param) / n_param) * kF * pow(_threshold, (1.0 - 2.0 * n_param) / n_param);
@@ -171,7 +171,7 @@ namespace cadet
 					}
 					else
 					{
-						jac[i - bndIdx - offsetCp] = -(1.0 / n_param) * kkin * kF * pow(abs(yCp[i]), (1.0 - n_param) / n_param);
+						jac[i - bndIdx - offsetCp] = -(1.0 / n_param) * kkin * kF * pow(yCp[i], (1.0 - n_param) / n_param);
 					}
 
 					++bndIdx;
