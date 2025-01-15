@@ -166,8 +166,9 @@ TEST_CASE("Crystallization Jacobian verification for a DPFR/LRM with primary and
 	pp_setup.pushScope("model");
 	pp_setup.pushScope("unit_001");
 
-	// for this specific test, we need to define a (high) absolute tolerance as the values in this test are numerically very challenging (values of ca. 1E+24)
+	// for this specific test, we need to define a (high) tolerances as the values in this test are numerically very challenging (values of ca. 1E+24)
 	const double ADabsTol = 2e+7;
+	const double FDabsTol = 5e+7;
 
-	cadet::test::column::testJacobianAD(pp_setup, std::numeric_limits<float>::epsilon() * 100.0, ADabsTol);
+	cadet::test::column::testJacobianAD(pp_setup, FDabsTol, ADabsTol);
 }
