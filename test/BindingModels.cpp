@@ -42,40 +42,40 @@ CADET_BINDINGTEST("LINEAR", "EXT_LINEAR", (1,1), (1,0,1), (1.0, 2.0, 0.0, 0.0), 
 	)json", \
 	1e-10, 1e-10, CADET_NONBINDING_LIQUIDPHASE_COMP_UNUSED, CADET_COMPARE_BINDING_VS_NONBINDING)
 
-	CADET_BINDINGTEST("FREUNDLICH_LDF", "EXT_FREUNDLICH_LDF", (1, 1), (1, 0, 1), (1.0, 2.0, 0.0, 0.0), (1.0, 3.0, 2.0, 0.0, 0.0), \
-		R"json( "FLDF_KKIN": [1.0, 2.0],
-	        "FLDF_KF": [0.1, 0.2],
-			"FLDF_N": [0.5, 1.2]
+	CADET_BINDINGTEST("FREUNDLICH_LDF", "EXT_FREUNDLICH_LDF", (1, 1, 1, 1), (1, 0, 1, 1, 1), (1.0, 0.0, 2.0, -1e-4, 0.0, 0.0, 0.0, 0.0), (1.0, 3.0, 0.0, 2.0, -1e-4, 0.0, 0.0, 0.0, 0.0), \
+		R"json( "FLDF_KKIN": [1.0, 1.0, 1.2, 2.0],
+	        "FLDF_KF": [0.1, 0.3, 0.3, 0.2],
+			"FLDF_N": [0.5, 1.0, 1.2, 0.8]
 	)json", \
-		R"json( "FLDF_KKIN": [1.0, 0.5, 2.0],
-	        "FLDF_KF": [0.1, 0.3, 0.2],
-			"FLDF_N": [0.5, 2.2, 1.2]
+		R"json( "FLDF_KKIN": [1.0, 0.5, 1.0, 1.2, 2.0],
+	        "FLDF_KF": [0.1, 0.3, 0.3, 0.3, 0.2],
+			"FLDF_N": [0.5, 2.2, 1.0, 1.2, 0.8]
 	)json", \
-		R"json( "EXT_FLDF_KKIN": [0.0, 0.0],
-	        "EXT_FLDF_KKIN_T": [1.0, 2.0],
-	        "EXT_FLDF_KKIN_TT": [0.0, 0.0],
-	        "EXT_FLDF_KKIN_TTT": [0.0, 0.0],
-	        "EXT_FLDF_KF": [0.0, 0.0],
-	        "EXT_FLDF_KF_T": [0.1, 0.2],
-	        "EXT_FLDF_KF_TT": [0.0, 0.0],
-	        "EXT_FLDF_KF_TTT": [0.0, 0.0],
-			"EXT_FLDF_N": [0.0, 0.0],
-	        "EXT_FLDF_N_T": [0.5, 1.2],
-	        "EXT_FLDF_N_TT": [0.0, 0.0],
-	        "EXT_FLDF_N_TTT": [0.0, 0.0]
+		R"json( "EXT_FLDF_KKIN": [0.0, 0.0, 0.0, 0.0],
+	        "EXT_FLDF_KKIN_T": [1.0, 1.0, 1.2, 2.0],
+	        "EXT_FLDF_KKIN_TT": [0.0, 0.0, 0.0, 0.0],
+	        "EXT_FLDF_KKIN_TTT": [0.0, 0.0, 0.0, 0.0],
+	        "EXT_FLDF_KF": [0.0, 0.0, 0.0, 0.0],
+	        "EXT_FLDF_KF_T": [0.1, 0.3, 0.3, 0.2],
+	        "EXT_FLDF_KF_TT": [0.0, 0.0, 0.0, 0.0],
+	        "EXT_FLDF_KF_TTT": [0.0, 0.0, 0.0, 0.0],
+			"EXT_FLDF_N": [0.0, 0.0, 0.0, 0.0],
+	        "EXT_FLDF_N_T": [0.5, 1.0, 1.2, 0.8],
+	        "EXT_FLDF_N_TT": [0.0, 0.0, 0.0, 0.0],
+	        "EXT_FLDF_N_TTT": [0.0, 0.0, 0.0, 0.0]
 	)json", \
-		R"json( "EXT_FLDF_KKIN": [0.0, 0.0, 0.0],
-	        "EXT_FLDF_KKIN_T": [1.0, 0.5, 2.0],
-	        "EXT_FLDF_KKIN_TT": [0.0, 0.0, 0.0],
-	        "EXT_FLDF_KKIN_TTT": [0.0, 0.0, 0.0],
-	        "EXT_FLDF_KF": [0.0, 0.0, 0.0],
-	        "EXT_FLDF_KF_T": [0.1, 0.3, 0.2],
-	        "EXT_FLDF_KF_TT": [0.0, 0.0, 0.0],
-	        "EXT_FLDF_KF_TTT": [0.0, 0.0, 0.0],
-			"EXT_FLDF_N": [0.0, 0.0, 0.0],
-	        "EXT_FLDF_N_T": [0.5, 2.0, 1.2],
-	        "EXT_FLDF_N_TT": [0.0, 0.0, 0.0],
-	        "EXT_FLDF_N_TTT": [0.0, 0.0, 0.0]
+		R"json( "EXT_FLDF_KKIN": [0.0, 0.0, 0.0, 0.0, 0.0],
+	        "EXT_FLDF_KKIN_T": [1.0, 0.5, 1.0, 1.2, 2.0],
+	        "EXT_FLDF_KKIN_TT": [0.0, 0.0, 0.0, 0.0, 0.0],
+	        "EXT_FLDF_KKIN_TTT": [0.0, 0.0, 0.0, 0.0, 0.0],
+	        "EXT_FLDF_KF": [0.0, 0.0, 0.0, 0.0, 0.0],
+	        "EXT_FLDF_KF_T": [0.1, 0.3, 0.3, 0.3, 0.2],
+	        "EXT_FLDF_KF_TT": [0.0, 0.0, 0.0, 0.0, 0.0],
+	        "EXT_FLDF_KF_TTT": [0.0, 0.0, 0.0, 0.0, 0.0],
+			"EXT_FLDF_N": [0.0, 0.0, 0.0, 0.0, 0.0],
+	        "EXT_FLDF_N_T": [0.5, 2.0, 1.0, 1.2, 0.8],
+	        "EXT_FLDF_N_TT": [0.0, 0.0, 0.0, 0.0, 0.0],
+	        "EXT_FLDF_N_TTT": [0.0, 0.0, 0.0, 0.0, 0.0]
 	)json", \
 	1e-10, 1e-10, CADET_NONBINDING_LIQUIDPHASE_COMP_UNUSED, CADET_COMPARE_BINDING_VS_NONBINDING)
 
