@@ -152,6 +152,9 @@ public:
 
 	virtual unsigned int numReactionsLiquid() const CADET_NOEXCEPT { return _stoichiometryBulk.columns(); }
 	virtual unsigned int numReactionsCombined() const CADET_NOEXCEPT { return 0; }
+	void fillConservedMoietiesBulk(Eigen::MatrixXd& M, std::vector<int>& QSReaction, std::vector<int>& QSComponent) {}
+	virtual int quasiStationaryFlux(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y,
+		active* fluxes, std::vector<int>& mapQSReac, LinearBufferAllocator workSpace) const { return 0; }
 
 	CADET_DYNAMICREACTIONMODEL_BOILERPLATE
 

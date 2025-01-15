@@ -31,6 +31,10 @@
 #include <algorithm>
 #include <functional>
 
+#include <Eigen/Dense>
+
+#include<iostream>
+
 namespace cadet
 {
 
@@ -76,7 +80,8 @@ CSTRModel::~CSTRModel() CADET_NOEXCEPT
 	delete[] _strideBound;
 	delete[] _offsetParType;
 
-	delete _dynReactionBulk;
+	delete[] _dynReactionBulk;
+	//delete[] _temp; -> Jan warum funktioniert das nicht?
 }
 
 unsigned int CSTRModel::numDofs() const CADET_NOEXCEPT
@@ -235,6 +240,26 @@ bool CSTRModel::configureModelDiscretization(IParameterProvider& paramProvider, 
 
 		if (_dynReactionBulk->usesParamProviderInDiscretizationConfig())
 			paramProvider.popScope();
+		
+		if (true) //paramProvider.exists("QUASI_STATIONARY_REACTION_BULK")
+		{
+			//_qsReacBulk = paramProvider.getIntArray("QUASI_STATIONARY_REACTION_BULK");
+			_qsReacBulk = {1};
+			_nQsReacBulk = _qsReacBulk.size();
+			//_temp = new active[_nComp];
+
+			_nMoitiesBulk = (_nComp + _totalBound) - _nQsReacBulk;
+			_MconvMoityBulk = Eigen::MatrixXd::Zero(_nMoitiesBulk, _nComp); // matrix for conserved moities
+		}
+		else
+		{
+			_QsCompBulk.clear();
+			_qsReacBulk.clear();
+			_nMoitiesBulk = 0;
+			_nQsReacBulk = 0;
+			_MconvMoityBulk = Eigen::MatrixXd::Zero(0, 0);
+
+		}
 	}
 
 	_dynReaction = std::vector<IDynamicReactionModel*>(_nParType, nullptr);
@@ -356,6 +381,12 @@ bool CSTRModel::configure(IParameterProvider& paramProvider)
 		paramProvider.pushScope("reaction_bulk");
 		dynReactionConfSuccess = _dynReactionBulk->configure(paramProvider, _unitOpIdx, ParTypeIndep);
 		paramProvider.popScope();
+
+		if (true) //paramProvider.exists("QUASI_STATIONARY_REACTION_BULK")
+		{
+			_dynReactionBulk->fillConservedMoietiesBulk(_MconvMoityBulk, _qsReacBulk, _QsCompBulk); // fill conserved moities matrix
+			int a = 0;
+		}
 	}
 
 	for (unsigned int type = 0; type < _nParType; ++type)
@@ -422,9 +453,7 @@ unsigned int CSTRModel::threadLocalMemorySize() const CADET_NOEXCEPT
 	return lms.bufferSize();
 }
 
-void CSTRModel::setSectionTimes(double const* secTimes, bool const* secContinuity, unsigned int nSections)
-{
-}
+void CSTRModel::setSectionTimes(double const* secTimes, bool const* secContinuity, unsigned int nSections){}
 
 void CSTRModel::useAnalyticJacobian(const bool analyticJac)
 {
@@ -1247,7 +1276,7 @@ int CSTRModel::residualImpl(double t, unsigned int secIdx, StateType const* cons
 
 	const ParamType flowIn = static_cast<ParamType>(_flowRateIn);
 	const ParamType flowOut = static_cast<ParamType>(_flowRateOut);
-
+	
 	// Inlet DOF
 	for (unsigned int i = 0; i < _nComp; ++i)
 	{
@@ -1256,7 +1285,7 @@ int CSTRModel::residualImpl(double t, unsigned int secIdx, StateType const* cons
 
 	// Concentrations: \dot{V^l} * c + V^l * \dot{c} + V^s * sum_j sum_m \dot{q}_{j,m}] = c_in * F_in - c * F_out
 	const ParamType vsolid = static_cast<ParamType>(_constSolidVolume);
-	ResidualType* const resC = res + _nComp;
+	ResidualType* resC = res + _nComp;
 	for (unsigned int i = 0; i < _nComp; ++i)
 	{
 		resC[i] = 0.0;
@@ -1312,14 +1341,73 @@ int CSTRModel::residualImpl(double t, unsigned int secIdx, StateType const* cons
 	// Reactions in liquid phase
 	const ColumnPosition colPos{0.0, 0.0, 0.0};
 
-	if (_dynReactionBulk && (_dynReactionBulk->numReactionsLiquid() > 0))
+	if (_dynReactionBulk && (_nQsReacBulk > 0))
 	{
-		LinearBufferAllocator subAlloc = tlmAlloc.manageRemainingMemory();
+		LinearBufferAllocator subAlloc = tlmAlloc.manageRemainingMemory(); // todo nachgucken ob das wirklich so geht
+
 		BufferedArray<ResidualType> flux = subAlloc.array<ResidualType>(_nComp);
-
 		std::fill_n(static_cast<ResidualType*>(flux), _nComp, 0.0);
-		_dynReactionBulk->residualLiquidAdd(t, secIdx, colPos, c, static_cast<ResidualType*>(flux), -1.0, subAlloc);
 
+		BufferedArray<ResidualType> qsflux = subAlloc.array<ResidualType>(_nQsReacBulk);
+		std::fill_n(static_cast<ResidualType*>(qsflux), _nQsReacBulk, 0.0);
+
+		BufferedArray<ResidualType> temp = subAlloc.array<ResidualType>(_nComp);
+		std::fill_n(static_cast<ResidualType*>(temp), _nComp, 0.0);
+
+		_dynReactionBulk->residualLiquidAdd(t, secIdx, colPos, c, static_cast<ResidualType*>(flux), -1.0, subAlloc);
+		_dynReactionBulk->quasiStationaryFlux(t, secIdx, colPos, c, static_cast<ResidualType*>(qsflux), _qsReacBulk, subAlloc);
+
+
+
+		Eigen::Map<Eigen::Vector<ResidualType, Eigen::Dynamic>> resCMoities(static_cast<ResidualType*>(temp), _nComp);
+		resCMoities.setZero();
+
+		Eigen::Map<Eigen::Vector<ResidualType, Eigen::Dynamic>> mapResC(resC, _nComp);
+		std::vector<int> visitedQSComp(_nComp, 0);
+
+		int  MoityIdx = 0;
+
+		for (unsigned int state = 0; state < (_nComp - _nQsReacBulk); ++state)
+		{
+			if (_QsCompBulk[state] == 1)
+			{
+				ResidualType dotProduct = 0.0;
+				for (unsigned int i; i < _MconvMoityBulk.cols(); i++) // hier Optimierung durch Vermeidung von 0 Zeilen in MconvMoityBulk
+				{
+					dotProduct += static_cast<ResidualType>(_MconvMoityBulk(MoityIdx, i)) * (mapResC[i]);
+					
+					if (wantJac)
+						_jac.native(i, state) = vDotTimeFactor + static_cast<double>(flowOut); // dF_{ci}/dcj = v_liquidDot + F_out  
+				}
+				resCMoities[state] = dotProduct;
+
+
+				MoityIdx++;
+			}
+			else if (_QsCompBulk[state] == 0)
+			{
+				resCMoities[state] += v * flux[state]; // hier sicher stellen, was in flux steht entweder res + flux oder nur flux
+				
+				if (wantJac)
+					_jac.native(state, _nComp + _totalBound) += static_cast<double>(flux[state]);  dF/dvliquid = flux
+					int a = 0; // add function that adds the jacobian for one state or change analyticJacobianLiquidAdd
+			}
+		}
+
+		int state = (_nComp - _nQsReacBulk);
+		for (unsigned int qsreac = 0; qsreac < _nQsReacBulk; ++qsreac)
+		{
+			resCMoities[state++] = v * qsflux[qsreac];
+
+			if(wantJac)
+				int a = 0; // add function that adds the jacobian for single reactions -> maybe der klammer 
+		}
+
+		mapResC = resCMoities;
+
+	}
+	else
+	{
 		for (unsigned int comp = 0; comp < _nComp; ++comp)
 			resC[comp] += v * flux[comp];
 
@@ -1331,7 +1419,7 @@ int CSTRModel::residualImpl(double t, unsigned int secIdx, StateType const* cons
 			_dynReactionBulk->analyticJacobianLiquidAdd(t, secIdx, colPos, reinterpret_cast<double const*>(c), -static_cast<double>(v), _jac.row(0), subAlloc);
 		}
 	}
-
+	
 	// Bound states
 	for (unsigned int type = 0; type < _nParType; ++type)
 	{
@@ -1401,7 +1489,6 @@ int CSTRModel::residualImpl(double t, unsigned int secIdx, StateType const* cons
 					}
 				}
 			}
-
 			if (wantJac)
 			{
 				// Assemble Jacobian: Reaction
@@ -1440,7 +1527,6 @@ int CSTRModel::residualImpl(double t, unsigned int secIdx, StateType const* cons
 
 	// Volume: \dot{V} = F_{in} - F_{out} - F_{filter}
 	res[2 * _nComp + _totalBound] = vDot - flowIn + flowOut + static_cast<ParamType>(_curFlowRateFilter);
-
 	return 0;
 }
 

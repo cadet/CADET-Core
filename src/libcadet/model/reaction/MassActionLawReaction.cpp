@@ -25,7 +25,9 @@
 #include <unordered_map>
 #include <string>
 #include <vector>
+#include <Eigen/Dense>
 
+using namespace Eigen;
 /*<codegen>
 {
 	"name": "MassActionLawParamHandler",
@@ -312,10 +314,16 @@ public:
 	virtual void setExternalFunctions(IExternalFunction** extFuns, unsigned int size) { _paramHandler.setExternalFunctions(extFuns, size); }
 	virtual bool dependsOnTime() const CADET_NOEXCEPT { return ParamHandler_t::dependsOnTime(); }
 	virtual bool requiresWorkspace() const CADET_NOEXCEPT { return true; }
+	bool hasQuasiStationaryReactionsLiquid() { return true; }
+	virtual bool hasDynamicReactions() const CADET_NOEXCEPT { return true; }
+	virtual int const* reactionQuasiStationarity() const CADET_NOEXCEPT { return _reactionQuasistationarity.data(); }
+	
 	virtual unsigned int workspaceSize(unsigned int nComp, unsigned int totalNumBoundStates, unsigned int const* nBoundStates) const CADET_NOEXCEPT
 	{
 		return _paramHandler.cacheSize(maxNumReactions(), nComp, totalNumBoundStates) + std::max(maxNumReactions() * sizeof(active), 2 * (_nComp + totalNumBoundStates) * sizeof(double));
 	}
+
+
 
 	virtual bool configureModelDiscretization(IParameterProvider& paramProvider, unsigned int nComp, unsigned int const* nBound, unsigned int const* boundOffset)
 	{
@@ -371,6 +379,93 @@ public:
 
 		return true;
 	}
+	
+	//void fillConservedMoietiesBulk(Eigen::MatrixXd M, std::vector<int>QSReaction, std::vector<int>QSComponent) {
+	//	ConservedMoietiesLiquid(M, QSReaction,QSComponent);
+	//}
+	/*
+	 * @brief Calculates the conserved moieties based on the stoichiometric matrix and reaction quasistationarity.
+	 * @param S The stoichiometric matrix.
+	 * @param _reactionQuasistationarity The reaction quasistationarity vector.
+	 * @return The conserved moieties matrix.
+	 */
+	virtual void fillConservedMoietiesBulk(Eigen::MatrixXd& M, std::vector<int>& mapQSReac, std::vector<int>& _QsCompBulk)
+	{
+
+		//1. get stoichmetic matrix with only reaction in quasi stationary
+		// S dim -> ncomp x nreac
+
+		int nQS = std::count(mapQSReac.begin(), mapQSReac.end(), 1);
+		// Count the number of entries with value 1 in _reactionQuasistationarity
+
+
+		Eigen::MatrixXd QSS(_stoichiometryBulk.rows(), nQS);
+		int rowIndex = 0;
+
+		// Fülle die Spalten basierend auf _reactionQuasistationarity
+		for (int i = 0; i < _stoichiometryBulk.columns(); ++i)
+		{
+			const double* rowData = reinterpret_cast<const double*>(_stoichiometryBulk.data() + i * _stoichiometryBulk.columns());
+			Eigen::Map<const Eigen::VectorXd> Srow(rowData, _stoichiometryBulk.columns());
+			QSS.row(rowIndex++) = Srow;
+		}
+
+		//Remove zero rows from QSS
+		int nQScomp = 0; // Number of quasi stationary active components
+		for (int i = 0; i < QSS.rows(); ++i)
+		{
+			if (QSS.row(i).norm() < 1e-10) {
+				_QsCompBulk.push_back(0);
+			}
+			else
+			{
+				_QsCompBulk.push_back(1);
+				nQScomp++;
+			}
+		}
+		// Redimensioniere QSS und kopiere nur die nicht-null Zeilen
+		if (_nComp - nQScomp  < 0.0 ) // if kinetic components exists we can resize QSS
+		{
+			Eigen::MatrixXd QSSCompressed(nQScomp, QSS.cols());
+			for (std::size_t i = 0; i < _QsCompBulk.size(); ++i)
+			{	
+				if (_QsCompBulk[i] == 1)
+				{
+					QSSCompressed.row(i) = QSS.row(_QsCompBulk[i]);
+				}
+			}
+			QSS.swap(QSSCompressed); // Swap the compressed matrix back into QSS
+		}
+
+		//3. Test if the matrix is full rank
+		int rang = QSS.fullPivLu().rank();
+		if (rang != nQS)
+		{
+			throw std::runtime_error("The matrix is not full rank");
+		}
+
+		//3. Calculate the null space of the matrix
+		Eigen::MatrixXd leftZeroSpace = QSS.transpose().fullPivLu().kernel().transpose();
+
+		if (_nComp - nQScomp < 1e-10) // if there are no kinetic components we can return the zero matrix
+		{
+			M = leftZeroSpace;
+		}
+		else // add zero rows for each component that is not in the quasi stationary
+		{
+			for (std::size_t i = 0; i < _QsCompBulk.size(); ++i)
+			{	
+				if (_QsCompBulk[i] == 0)
+				{
+					leftZeroSpace.conservativeResize(NoChange, leftZeroSpace.cols() + 1);
+					leftZeroSpace.rightCols(leftZeroSpace.cols() - i - 1) = leftZeroSpace.middleCols(i, leftZeroSpace.cols() - i - 1);
+					leftZeroSpace.col(i).setZero();
+				}
+			}
+			M = leftZeroSpace;
+		}
+		
+	}
 
 	virtual unsigned int numReactionsLiquid() const CADET_NOEXCEPT { return _stoichiometryBulk.columns(); }
 	virtual unsigned int numReactionsCombined() const CADET_NOEXCEPT { return _stoichiometryLiquid.columns() + _stoichiometrySolid.columns(); }
@@ -395,6 +490,8 @@ protected:
 	linalg::ActiveDenseMatrix _expSolidBwd;
 	linalg::ActiveDenseMatrix _expSolidFwdLiquid;
 	linalg::ActiveDenseMatrix _expSolidBwdLiquid;
+
+	std::vector<int> _reactionQuasistationarity; 
 
 	inline int maxNumReactions() const CADET_NOEXCEPT { return std::max(std::max(_stoichiometryBulk.columns(), _stoichiometryLiquid.columns()), _stoichiometrySolid.columns()); }
 
@@ -547,6 +644,67 @@ protected:
 		readAndRegisterExponents(paramProvider, _parameters, unitOpIdx, parTypeIdx, "MAL_EXPONENTS_SOLID_BWD_MODLIQUID", _expSolidBwdLiquid, _nComp, nullptr);
 
 		return true;
+	}
+
+	int singleFlux(int r, active const* y, typename DoubleActivePromoter<active, double>::type flow, typename ParamHandler_t::ParamsHandle const p)
+	{
+		typedef typename DoubleActivePromoter<active, double>::type flux_t;
+
+		flux_t fwd = rateConstantOrZero(static_cast<typename DoubleActiveDemoter<flux_t, active>::type>(p->kFwdBulk[r]), r, _expBulkFwd, _nComp);
+		for (int c = 0; c < _nComp; ++c)
+		{
+			if (_expBulkFwd.native(c, r) != 0.0)
+			{
+				if (static_cast<double>(y[c]) > 0.0)
+					fwd *= pow(static_cast<typename DoubleActiveDemoter<flux_t, active>::type>(y[c]),
+						static_cast<typename DoubleActiveDemoter<flux_t, active>::type>(_expBulkFwd.native(c, r)));
+				else
+				{
+					fwd *= 0.0;
+					break;
+				}
+			}
+		}
+
+		flux_t bwd = rateConstantOrZero(static_cast<typename DoubleActiveDemoter<flux_t, active>::type>(p->kBwdBulk[r]), r, _expBulkBwd, _nComp);
+		for (int c = 0; c < _nComp; ++c)
+		{
+			if (_expBulkBwd.native(c, r) != 0.0)
+			{
+				if (static_cast<double>(y[c]) > 0.0)
+					bwd *= pow(static_cast<typename DoubleActiveDemoter<flux_t, active>::type>(y[c]),
+						static_cast<typename DoubleActiveDemoter<flux_t, active>::type>(_expBulkBwd.native(c, r)));
+				else
+				{
+					bwd *= 0.0;
+					break;
+				}
+			}
+		}
+
+		flow = fwd - bwd;
+		return 0;
+	}
+
+
+	virtual int quasiStationaryFlux(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y,
+		active* fluxes, std::vector<int>& mapQSReac, LinearBufferAllocator workSpace) const
+	{
+		typedef typename DoubleActivePromoter<active, double>::type flux_t;
+		typename ParamHandler_t::ParamsHandle const p = _paramHandler.update(t, secIdx, colPos, _nComp, _nBoundStates, workSpace);
+
+		flux_t flow;
+
+		for (int r = 0; r < _stoichiometryBulk.columns(); ++r)
+		{
+			if (mapQSReac[r] == 1)
+			{	
+				//flow.clear()
+				singleFlux(r, y, flow, p);
+				fluxes[r] = flow;
+			}
+			return 0;
+		}
 	}
 
 	template <typename StateType, typename ResidualType, typename ParamType, typename FactorType>

@@ -171,6 +171,13 @@ protected:
 
 	IDynamicReactionModel* _dynReactionBulk; //!< Dynamic reactions in the bulk volume
 
+	// active* _temp;
+	Eigen::MatrixXd _MconvMoityBulk; //!<  Matrix with conservation of moieties in the bulk volume
+	std::vector<int> _qsReacBulk; //!< Indices of components that are not conserved in the bulk volume
+	std::vector<int> _QsCompBulk;
+	unsigned int _nQsReacBulk;
+	unsigned int _nMoitiesBulk;
+
 	class Exporter : public ISolutionExporter
 	{
 	public:

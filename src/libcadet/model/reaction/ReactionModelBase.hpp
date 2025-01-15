@@ -19,8 +19,8 @@
 #define LIBCADET_REACTIONMODELBASE_HPP_
 
 #include "model/ReactionModel.hpp"
+#include "linalg/ActiveDenseMatrix.hpp"
 #include "ParamIdUtil.hpp"
-
 #include <unordered_map>
 
 namespace cadet
@@ -56,13 +56,18 @@ public:
 
 	virtual active* getParameter(const ParameterId& pId);
 
-	virtual void setExternalFunctions(IExternalFunction** extFuns, unsigned int size) { }
+	virtual void setExternalFunctions(IExternalFunction** extFuns, unsigned int size) { };
+	virtual void fillConservedMoietiesBulk(Eigen::MatrixXd& M, std::vector<int>& QSReaction, std::vector<int>& _QsCompBulk) = 0;
 
+	virtual int quasiStationaryFlux(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y,
+		active* fluxes, std::vector<int>& mapQSReac, LinearBufferAllocator workSpace) const = 0;
+	
 protected:
 	int _nComp; //!< Number of components
 	unsigned int const* _nBoundStates; //!< Array with number of bound states for each component
 	unsigned int const* _boundOffset; //!< Array with offsets to the first bound state of each component
 	int _nTotalBoundStates;
+	
 
 	std::unordered_map<ParameterId, active*> _parameters; //!< Map used to translate ParameterIds to actual variables
 
@@ -91,7 +96,7 @@ protected:
  *          The implementation is inserted inline in the class declaration.
  */
 #ifdef ENABLE_DG
-#define CADET_DYNAMICREACTIONMODEL_BOILERPLATE                                                                                                          \
+#define CADET_DYNAMICREACTIONMODEL_BOILERPLATE                                                                                                         \
 	virtual int residualLiquidAdd(double t, unsigned int secIdx, const ColumnPosition& colPos, active const* y,                                         \
 		active* res, const active& factor, LinearBufferAllocator workSpace) const                                                                       \
 	{                                                                                                                                                   \
@@ -181,6 +186,7 @@ protected:
 	{                                                                                                                                                   \
 		jacobianCombinedImpl(t, secIdx, colPos, yLiquid, ySolid, factor, jacLiquid, jacSolid, workSpace);                                               \
 	}
+	
 #else
 #define CADET_DYNAMICREACTIONMODEL_BOILERPLATE                                                                                                          \
 	virtual int residualLiquidAdd(double t, unsigned int secIdx, const ColumnPosition& colPos, active const* y,                                         \
