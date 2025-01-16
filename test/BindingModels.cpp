@@ -273,7 +273,7 @@ CADET_BINDINGTEST("MOBILE_PHASE_MODULATOR", "EXT_MOBILE_PHASE_MODULATOR", (1,1,1
 	        "EXT_MPM_BETA_T": [0.0, 1.5, 2.0],
 	        "EXT_MPM_BETA_TT": [0.0, 0.0, 0.0],
 	        "EXT_MPM_BETA_TTT": [0.0, 0.0, 0.0],
-			"EXT_MPM_LINEAR_THRESHOLD": 1e-10
+			"MPM_LINEAR_THRESHOLD": 1e-10
 	)json", \
 	R"json( "EXT_MPM_KA": [0.0, 0.0, 0.0, 0.0],
 	        "EXT_MPM_KA_T": [0.0, 1.14, 1.0, 2.0],
@@ -295,7 +295,7 @@ CADET_BINDINGTEST("MOBILE_PHASE_MODULATOR", "EXT_MOBILE_PHASE_MODULATOR", (1,1,1
 	        "EXT_MPM_BETA_T": [0.0, 1.5, 0.0, 2.0],
 	        "EXT_MPM_BETA_TT": [0.0, 0.0, 0.0, 0.0],
 	        "EXT_MPM_BETA_TTT": [0.0, 0.0, 0.0, 0.0],
-			"EXT_MPM_LINEAR_THRESHOLD": 1e-10
+			"MPM_LINEAR_THRESHOLD": 1e-10
 	)json", \
 	1e-10, 1e-10, CADET_NONBINDING_LIQUIDPHASE_COMP_UNUSED, CADET_COMPARE_BINDING_VS_NONBINDING)
 	
@@ -334,7 +334,7 @@ CADET_BINDINGTEST("MOBILE_PHASE_MODULATOR", "EXT_MOBILE_PHASE_MODULATOR", (1,1,1
 	        "EXT_MPM_BETA_T": [0.0, 1.5, 2.0],
 	        "EXT_MPM_BETA_TT": [0.0, 0.0, 0.0],
 	        "EXT_MPM_BETA_TTT": [0.0, 0.0, 0.0],
-			"EXT_MPM_LINEAR_THRESHOLD": 1e-10
+			"MPM_LINEAR_THRESHOLD": 1e-10
 	)json", \
 	R"json( "EXT_MPM_KA": [0.0, 0.0, 0.0, 0.0],
 	        "EXT_MPM_KA_T": [0.0, 1.14, 1.0, 2.0],
@@ -356,7 +356,7 @@ CADET_BINDINGTEST("MOBILE_PHASE_MODULATOR", "EXT_MOBILE_PHASE_MODULATOR", (1,1,1
 	        "EXT_MPM_BETA_T": [0.0, 1.5, 0.0, 2.0],
 	        "EXT_MPM_BETA_TT": [0.0, 0.0, 0.0, 0.0],
 	        "EXT_MPM_BETA_TTT": [0.0, 0.0, 0.0, 0.0],
-			"EXT_MPM_LINEAR_THRESHOLD": 1e-10
+			"MPM_LINEAR_THRESHOLD": 1e-10
 	)json", \
 	1e-10, 1e-10, CADET_NONBINDING_LIQUIDPHASE_COMP_UNUSED, CADET_COMPARE_BINDING_VS_NONBINDING)
 
@@ -1002,7 +1002,7 @@ CADET_BINDINGTEST("MULTI_COMPONENT_LDF_FREUNDLICH", "EXT_MULTI_COMPONENT_LDF_FRE
 	        "EXT_MCLDFFRL_A_T": [3.0, 2.2, 1.5, 0.5],
 	        "EXT_MCLDFFRL_A_TT": [0.0, 0.0, 0.0, 0.0],
 	        "EXT_MCLDFFRL_A_TTT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_MCLDFFRL_TAU": 0.1
+	        "MCLDFFRL_TAU": 0.1
 	)json", \
 	R"json( "EXT_MCLDFFRL_KLDF": [0.0, 0.0, 0.0],
 	        "EXT_MCLDFFRL_KLDF_T": [1.14, 1.0, 2.0],
@@ -1020,7 +1020,7 @@ CADET_BINDINGTEST("MULTI_COMPONENT_LDF_FREUNDLICH", "EXT_MULTI_COMPONENT_LDF_FRE
 	        "EXT_MCLDFFRL_A_T": [2.2, 1.1, 0.4, 0.1, 0.94, 2.8, 0.5, 1.2, 2.4],
 	        "EXT_MCLDFFRL_A_TT": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
 	        "EXT_MCLDFFRL_A_TTT": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-	        "EXT_MCLDFFRL_TAU": 0.1
+	        "MCLDFFRL_TAU": 0.1
 	)json", \
 	1e-10, 1e-10, CADET_NONBINDING_LIQUIDPHASE_COMP_USED, CADET_DONT_COMPARE_BINDING_VS_NONBINDING)
 
@@ -1059,7 +1059,7 @@ CADET_BINDINGTEST("MULTI_COMPONENT_SIPS", "EXT_MULTI_COMPONENT_SIPS", (1, 1, 1, 
 	        "EXT_SIPS_EXP_TTT": [0.0, 0.0, 0.0, 0.0],
 	        "EXT_SIPS_REFC0": 2.0,
 	        "EXT_SIPS_REFQ": 1.1,
-	        "EXT_SIPS_LINEAR_THRESHOLD": 1e-10
+	        "SIPS_LINEAR_THRESHOLD": 1e-10
 	)json", \
 	R"json( "EXT_SIPS_KA": [0.0, 0.0, 0.0, 0.0, 0.0],
 	        "EXT_SIPS_KA_T": [1.14, 1.0, 2.0, 1.14, 2.0],
@@ -1079,7 +1079,7 @@ CADET_BINDINGTEST("MULTI_COMPONENT_SIPS", "EXT_MULTI_COMPONENT_SIPS", (1, 1, 1, 
 	        "EXT_SIPS_EXP_TTT": [0.0, 0.0, 0.0, 0.0, 0.0],
 	        "EXT_SIPS_REFC0": 2.0,
 	        "EXT_SIPS_REFQ": 1.1,
-	        "EXT_SIPS_LINEAR_THRESHOLD": 1e-10
+	        "SIPS_LINEAR_THRESHOLD": 1e-10
 	)json", \
 	1e-10, 1e-10, CADET_NONBINDING_LIQUIDPHASE_COMP_UNUSED, CADET_COMPARE_BINDING_VS_NONBINDING)
 
@@ -1461,6 +1461,7 @@ CADET_BINDINGTEST("GENERALIZED_ION_EXCHANGE", "EXT_GENERALIZED_ION_EXCHANGE", (1
 	{
 		const unsigned int nBound[] = { 0, 0, 1, 1, 1};
 		const double state[] = { 0.9, 1.1, 1.5e-2, 3.2e-3, 1.5e-5, 3.2e-5, 1.5e-5, 3.2e-5 };
+		double FDsignAbsTol = 1e-10; // specific tolerance for this test, non-default value
 		char const* const config = R"json({
 			"COL_PHI": 49232983.6522396,
 			"COL_KAPPA_EXP": 1.8,
@@ -1487,7 +1488,7 @@ CADET_BINDINGTEST("GENERALIZED_ION_EXCHANGE", "EXT_GENERALIZED_ION_EXCHANGE", (1
 			const bool isKinetic = bindMode;
 			SECTION(std::string("Binding mode ") + (isKinetic ? "dynamic" : "quasi-stationary"))
 			{
-				cadet::test::binding::testJacobianAD("MULTI_COMPONENT_COLLOIDAL", sizeof(nBound) / sizeof(unsigned int), nBound, isKinetic, config, state);
+				cadet::test::binding::testJacobianAD("MULTI_COMPONENT_COLLOIDAL", sizeof(nBound) / sizeof(unsigned int), nBound, isKinetic, config, state, FDsignAbsTol);
 			}
 		}
 	}
