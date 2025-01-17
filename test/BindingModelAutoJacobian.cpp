@@ -99,7 +99,7 @@ namespace cadet
 
 } // namespace cadet
 
-TEST_CASE("Automatic AD binding model Jacobian vs FD", "[BindingModel],[Jacobian],[CI]")
+TEST_CASE("Automatic AD binding model Jacobian vs FD", "[BindingModel],[jojojojo],[Jacobian],[CI]")
 {
 	cadet::BindingWithoutJacobian bm;
 	const int nComp = 4;
@@ -140,7 +140,7 @@ TEST_CASE("Automatic AD binding model Jacobian vs FD", "[BindingModel],[Jacobian
 	);
 }
 
-TEST_CASE("Automatic AD disabled for binding model with Jacobian", "[BindingModel],[Jacobian],[CI]")
+TEST_CASE("Automatic AD disabled for binding model with Jacobian", "[BindingModel],[jojojojo],[Jacobian],[CI]")
 {
 	cadet::BindingWithJacobian bm;
 	const int nComp = 4;
@@ -160,7 +160,7 @@ TEST_CASE("Automatic AD disabled for binding model with Jacobian", "[BindingMode
 	REQUIRE(bm.workspaceSize(4, totalBoundStates, boundOffset) == 0);
 }
 
-TEST_CASE("Full analytic Jacobian vs AD only enabled for binding model for a LRMP with multi-state SMA", "[BindingModel],[Jacobian],[Simulation],[CI]")
+TEST_CASE("Full analytic Jacobian vs AD only enabled for binding model for a LRMP with multi-state SMA", "[BindingModel],[jojojojo],[Jacobian],[Simulation],[CI]")
 {
 	nlohmann::json jsonJpp = createLWEJson("LUMPED_RATE_MODEL_WITH_PORES", "FV");
 
