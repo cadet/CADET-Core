@@ -77,6 +77,11 @@ public:
 	virtual void analyticJacobianLiquidAdd(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, double factor, linalg::BandMatrix::RowIterator jac, LinearBufferAllocator workSpace) const { }
 	virtual void analyticJacobianLiquidAdd(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, double factor, linalg::DenseBandedRowIterator jac, LinearBufferAllocator workSpace) const { }
 	virtual void analyticJacobianLiquidAdd(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, double factor, linalg::BandedSparseRowIterator jac, LinearBufferAllocator workSpace) const { }
+	
+	virtual void analyticQuasiSteadyJacobianLiquid(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, double factor, linalg::BandMatrix::RowIterator jac, LinearBufferAllocator workSpace) const { }
+	virtual void analyticQuasiSteadyJacobianLiquid(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, double factor, linalg::DenseBandedRowIterator jac, LinearBufferAllocator workSpace) const { }
+	virtual void analyticQuasiSteadyJacobianLiquid(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, double factor, linalg::BandedSparseRowIterator jac, LinearBufferAllocator workSpace) const { }
+	
 	#ifdef ENABLE_DG
 	virtual void analyticJacobianLiquidAdd(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, double factor, linalg::BandedEigenSparseRowIterator jac, LinearBufferAllocator workSpace) const { }
 	#endif
@@ -103,8 +108,11 @@ public:
 	void fillConservedMoietiesBulk(Eigen::MatrixXd& M, std::vector<int>& QSReaction, std::vector<int>& QSComponent) {}
 	bool hasQuasiStationaryReactionsLiquid() { return false;}
 	
+	virtual int quasiStationaryFlux(double t, unsigned int secIdx, const ColumnPosition& colPos, active const* y,
+		Eigen::Map<Eigen::VectorXd> fluxes, std::vector<int> mapQSReac, LinearBufferAllocator workSpace) { return 0; }
+
 	virtual int quasiStationaryFlux(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y,
-		active* fluxes, std::vector<int>& mapQSReac, LinearBufferAllocator workSpace) const {return 0;}
+		Eigen::Map<Eigen::VectorXd> fluxes, std::vector<int> mapQSReac, LinearBufferAllocator workSpace) { return 0; }
 
 protected:
 };

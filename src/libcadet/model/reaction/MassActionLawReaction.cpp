@@ -403,7 +403,7 @@ public:
 		int rowIndex = 0;
 
 		// Fülle die Spalten basierend auf _reactionQuasistationarity
-		for (int i = 0; i < _stoichiometryBulk.columns(); ++i)
+		for (int i = 0; i < _stoichiometryBulk.rows(); ++i)
 		{
 			const double* rowData = reinterpret_cast<const double*>(_stoichiometryBulk.data() + i * _stoichiometryBulk.columns());
 			Eigen::Map<const Eigen::VectorXd> Srow(rowData, _stoichiometryBulk.columns());
@@ -646,18 +646,15 @@ protected:
 		return true;
 	}
 
-	int singleFlux(int r, active const* y, typename DoubleActivePromoter<active, double>::type flow, typename ParamHandler_t::ParamsHandle const p)
+	double singleFlux(int r, double const* y, double kFwdBulk_r, double kBwdBulk_r)
 	{
-		typedef typename DoubleActivePromoter<active, double>::type flux_t;
-
-		flux_t fwd = rateConstantOrZero(static_cast<typename DoubleActiveDemoter<flux_t, active>::type>(p->kFwdBulk[r]), r, _expBulkFwd, _nComp);
+		double fwd = rateConstantOrZero(kFwdBulk_r, r, _expBulkFwd, _nComp);
 		for (int c = 0; c < _nComp; ++c)
 		{
 			if (_expBulkFwd.native(c, r) != 0.0)
 			{
 				if (static_cast<double>(y[c]) > 0.0)
-					fwd *= pow(static_cast<typename DoubleActiveDemoter<flux_t, active>::type>(y[c]),
-						static_cast<typename DoubleActiveDemoter<flux_t, active>::type>(_expBulkFwd.native(c, r)));
+					fwd *= pow(static_cast<double>(y[c]), static_cast<double>(_expBulkFwd.native(c, r)));
 				else
 				{
 					fwd *= 0.0;
@@ -666,14 +663,13 @@ protected:
 			}
 		}
 
-		flux_t bwd = rateConstantOrZero(static_cast<typename DoubleActiveDemoter<flux_t, active>::type>(p->kBwdBulk[r]), r, _expBulkBwd, _nComp);
+		double bwd = rateConstantOrZero(kBwdBulk_r, r, _expBulkBwd, _nComp);
 		for (int c = 0; c < _nComp; ++c)
 		{
 			if (_expBulkBwd.native(c, r) != 0.0)
 			{
 				if (static_cast<double>(y[c]) > 0.0)
-					bwd *= pow(static_cast<typename DoubleActiveDemoter<flux_t, active>::type>(y[c]),
-						static_cast<typename DoubleActiveDemoter<flux_t, active>::type>(_expBulkBwd.native(c, r)));
+					bwd *= pow(static_cast<double>(y[c]), static_cast<double>(_expBulkBwd.native(c, r)));
 				else
 				{
 					bwd *= 0.0;
@@ -681,26 +677,26 @@ protected:
 				}
 			}
 		}
-
-		flow = fwd - bwd;
-		return 0;
+		return fwd - bwd;
 	}
 
+	virtual int quasiStationaryFlux(double t, unsigned int secIdx, const ColumnPosition& colPos, active const* y,
+		Eigen::Map<Eigen::VectorXd> fluxes, std::vector<int> mapQSReac, LinearBufferAllocator workSpace) { return 0; }
 
 	virtual int quasiStationaryFlux(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y,
-		active* fluxes, std::vector<int>& mapQSReac, LinearBufferAllocator workSpace) const
+		Eigen::Map<Eigen::VectorXd> fluxes, std::vector<int> mapQSReac, LinearBufferAllocator workSpace)
 	{
-		typedef typename DoubleActivePromoter<active, double>::type flux_t;
 		typename ParamHandler_t::ParamsHandle const p = _paramHandler.update(t, secIdx, colPos, _nComp, _nBoundStates, workSpace);
-
-		flux_t flow;
+		
 
 		for (int r = 0; r < _stoichiometryBulk.columns(); ++r)
 		{
+			double kFwdBulk_r = static_cast<double>(p->kFwdBulk[r]);
+			double kBwdBulk_r = static_cast<double>(p->kBwdBulk[r]);
+			
 			if (mapQSReac[r] == 1)
 			{	
-				//flow.clear()
-				singleFlux(r, y, flow, p);
+				double flow = singleFlux(r, y, kFwdBulk_r, kBwdBulk_r);
 				fluxes[r] = flow;
 			}
 			return 0;
@@ -932,6 +928,31 @@ protected:
 				const double colFactor = static_cast<double>(_stoichiometryBulk.native(row, r)) * factor;
 				for (int col = 0; col < _nComp; ++col)
 					curJac[col - static_cast<int>(row)] += colFactor * (fluxGradFwd[col] - fluxGradBwd[col]);
+			}
+		}
+	}
+
+	template <typename RowIterator>
+	void jacobianQuasiSteadyLiquidImpl(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, double factor, const RowIterator& jac, LinearBufferAllocator workSpace) const
+	{
+		typename ParamHandler_t::ParamsHandle const p = _paramHandler.update(t, secIdx, colPos, _nComp, _nBoundStates, workSpace);
+
+		BufferedArray<double> fluxes = workSpace.array<double>(2 * _nComp);
+		double* const fluxGradFwd = static_cast<double*>(fluxes);
+		double* const fluxGradBwd = fluxGradFwd + _nComp;
+		for (int r = 0; r < _stoichiometryBulk.columns(); ++r)
+		{
+			// Calculate gradients of forward and backward fluxes
+			fluxGradLiquid(fluxGradFwd, r, _nComp, static_cast<double>(p->kFwdBulk[r]), _expBulkFwd, y);
+			fluxGradLiquid(fluxGradBwd, r, _nComp, static_cast<double>(p->kBwdBulk[r]), _expBulkBwd, y);
+
+			// Add gradients to Jacobian
+			RowIterator curJac = jac; // right row iterator
+			for (int row = 0; row < _nComp; ++row, ++curJac)
+			{
+				const double colFactor = static_cast<double>(_stoichiometryBulk.native(row, r)) * factor;
+				for (int col = 0; col < _nComp; ++col)
+					curJac[0] = colFactor * (fluxGradFwd[col] - fluxGradBwd[col]); 
 			}
 		}
 	}

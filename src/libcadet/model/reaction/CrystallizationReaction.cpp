@@ -199,8 +199,17 @@ namespace cadet
 			virtual bool usesParamProviderInDiscretizationConfig() const CADET_NOEXCEPT { return false; }
 			void fillConservedMoietiesBulk(Eigen::MatrixXd& M, std::vector<int>& QSReaction, std::vector<int>& QSComponent) { }
 			bool hasQuasiStationaryReactionsLiquid() { return false; }
+
+			template <typename RowIterator>
+			void jacobianQuasiSteadyLiquidImpl(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, double factor, const RowIterator& jac, LinearBufferAllocator workSpace) const { }
+			
+			virtual int quasiStationaryFlux(double t, unsigned int secIdx, const ColumnPosition& colPos, active const* y,
+				double* fluxes, std::vector<int> mapQSReac, LinearBufferAllocator workSpace) { return 0; }
+
 			virtual int quasiStationaryFlux(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y,
-				active* fluxes, std::vector<int>& mapQSReac, LinearBufferAllocator workSpace) const { return 0; }
+				double* fluxes, std::vector<int> mapQSReac, LinearBufferAllocator workSpace) { return 0; }
+
+			
 			virtual bool configure(IParameterProvider& paramProvider, UnitOpIdx unitOpIdx, ParticleTypeIdx parTypeIdx)
 			{
 				readScalarParameterOrArray(_bins, paramProvider, "CRY_BINS", 1);

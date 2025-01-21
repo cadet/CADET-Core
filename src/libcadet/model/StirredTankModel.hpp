@@ -171,7 +171,9 @@ protected:
 
 	IDynamicReactionModel* _dynReactionBulk; //!< Dynamic reactions in the bulk volume
 
-	// active* _temp;
+	active* _temp;
+	double* _temp2;
+
 	Eigen::MatrixXd _MconvMoityBulk; //!<  Matrix with conservation of moieties in the bulk volume
 	std::vector<int> _qsReacBulk; //!< Indices of components that are not conserved in the bulk volume
 	std::vector<int> _QsCompBulk;
