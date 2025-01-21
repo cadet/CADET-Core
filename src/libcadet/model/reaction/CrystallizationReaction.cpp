@@ -591,8 +591,8 @@ public:
 				throw InvalidParameterException("CRY_FRAGMENTATION_KERNEL_GAMMA needs to be <= 1.0");
 			_parameters[makeParamId(hashString("CRY_FRAGMENTATION_KERNEL_GAMMA"), unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_fragKernelGamma;
 
-			_fragSelectionFunctionAlpha = paramProvider.getDouble("CRY_FRAGMENTATION_selectionFunction_ALPHA");
-			_parameters[makeParamId(hashString("CRY_FRAGMENTATION_selectionFunction_ALPHA"), unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_fragSelectionFunctionAlpha;
+			_fragSelectionFunctionAlpha = paramProvider.getDouble("CRY_FRAGMENTATION_SELECTION_FUNCTION_ALPHA");
+			_parameters[makeParamId(hashString("CRY_FRAGMENTATION_SELECTION_FUNCTION_ALPHA"), unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_fragSelectionFunctionAlpha;
 
 			if (_frag) // clear scheme coefficients
 			{
