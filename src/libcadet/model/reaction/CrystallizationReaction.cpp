@@ -548,7 +548,7 @@ public:
 			_u = paramProvider.getDouble("CRY_U");
 			_parameters[makeParamId(hashString("CRY_U"), unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_u;
 
-			// clear scheme coefficients
+			// clear scheme coefficients // todo delete jacparams
 			if (_HR)
 			{
 				delete _HR;
@@ -568,11 +568,24 @@ public:
 			}
 
 			if (_growthSchemeOrder == detail::PBMReconstruction::HRKoren)
+			{
 				_HR = new detail::HRKorenCoefficients(_binSizes);
+				jacParams = new JacobianParamsHRKoren;
+			}
 			else if (_growthSchemeOrder == detail::PBMReconstruction::WENO23)
+			{
 				_weno3 = new detail::Weno3Coefficients(_binSizes);
+				jacParams = new JacobianParamsWENO23;
+			}
 			else if (_growthSchemeOrder == detail::PBMReconstruction::WENO35)
+			{
 				_weno5 = new detail::Weno5Coefficients(_binSizes);
+				jacParams = new JacobianParamsWENO35;
+			}
+			else
+			{
+				jacParams = new JacobianParamsBase;
+			}
 		}
 		if (_useAgg)
 		{
@@ -682,7 +695,276 @@ public:
 
 protected:
 
+	struct JacobianParamsBase
+	{
+		// Constant parameters used in upwind scheme. Also included in parameters for HRKoren and WENO23 and WENO35 schemes
+		double vG_factor;
+		double dBp_dc;
+		double dBp_dceq;
+		double dBs_dc;
+		double dBs_dceq;
+		double dvG_dc_factor;
+		double dvG_dceq_factor;
+		double dBs_dni_factor;
+	};
+
+	struct JacobianParamsHRKoren : public JacobianParamsBase
+	{
+		// HR Koren specific parameters
+		const double epsilon = 1e-10;
+		double r_x_i = 0.0;
+		double phi = 0.0;
+		double F_i = 0.0;
+		double dvG_dc_right = 0.0;
+		double dvG_dceq_right = 0.0;
+		double vg_right = 0.0;
+
+		double r_cluster = 0.0;
+		double r_square_cluster = 0.0;
+		double A_cluster = 0.0;
+		double Ar_cluster = 0.0;
+		double ni_difference = 0.0;
+
+		double dFi_wrt_nim1 = 0.0;
+		double dFi_wrt_ni = 0.0;
+		double dFi_wrt_nip1 = 0.0;
+	};
+
+	struct JacobianParamsWENO23 : public JacobianParamsBase
+	{
+		// WENO23 related coefficients
+		double dvG_dc_right = 0.0;
+		double dvG_dceq_right = 0.0;
+		double vg_right = 0.0;
+		double IS_0_right = 0.0;
+		double IS_1_right = 0.0;
+		double alpha_0_right = 0.0;
+		double alpha_1_right = 0.0;
+		double W_0_right = 0.0;
+		double W_1_right = 0.0;
+		double q_0_right = 0.0;
+		double q_1_right = 0.0;
+
+		// Jacobian related coefficients
+		double four_w1_B1_right = 0.0;
+		double four_w0_B0_right = 0.0;
+		double four_w0_w1_B1_right = 0.0;
+		double four_w0_w0_B0_right = 0.0;
+		double four_w1_w1_B1_right = 0.0;
+		double four_w0_w1_B0_right = 0.0;
+
+		double dw0_right_dni_m1 = 0.0;
+		double dw0_right_dni = 0.0;
+		double dw0_right_dni_p1 = 0.0;
+
+		double dw1_right_dni_m1 = 0.0;
+		double dw1_right_dni = 0.0;
+		double dw1_right_dni_p1 = 0.0;
+
+		double dq0_right_dni = 0.0;
+		double dq0_right_dni_p1 = 0.0;
+
+		double dq1_right_dni_m1 = 0.0;
+		double dq1_right_dni = 0.0;
+	};
+
+	struct JacobianParamsWENO35 : public JacobianParamsBase
+	{
+		void updateParams(double vG_factor, double dBp_dc, double dBp_dceq, double dBs_dc, double dBs_dceq, double dvG_dc_factor, double dvG_dceq_factor, double dBs_dni_factor, const double* yCrystal, const int nComp, const std::vector<active>& binSizes, detail::Weno5Coefficients* weno5)
+		{
+			// WENO23 related coefficients, for bin N_x-2
+			IS_0_weno3_right = static_cast<double>(weno5->IS_0_coeff_weno3_r) * (yCrystal[nComp - 3] - yCrystal[nComp - 4]) * (yCrystal[nComp - 3] - yCrystal[nComp - 4]);
+			IS_1_weno3_right = static_cast<double>(weno5->IS_1_coeff_weno3_r) * (yCrystal[nComp - 4] - yCrystal[nComp - 5]) * (yCrystal[nComp - 4] - yCrystal[nComp - 5]);
+			alpha_0_weno3_right = static_cast<double>(weno5->C_coeff1_weno3_r) / (static_cast<double>(binSizes[nComp - 4]) + IS_0_weno3_right) / (static_cast<double>(binSizes[nComp - 4]) + IS_0_weno3_right);
+			alpha_1_weno3_right = static_cast<double>(weno5->C_coeff2_weno3_r) / (static_cast<double>(binSizes[nComp - 4]) + IS_1_weno3_right) / (static_cast<double>(binSizes[nComp - 4]) + IS_1_weno3_right);
+			W_0_weno3_right = alpha_0_weno3_right / (alpha_0_weno3_right + alpha_1_weno3_right);
+			W_1_weno3_right = 1.0 - W_0_weno3_right;
+			q_0_weno3_right = static_cast<double>(weno5->q0_coeff1_weno3_r) * yCrystal[nComp - 4] + static_cast<double>(weno5->q0_coeff2_weno3_r) * yCrystal[nComp - 3];
+			q_1_weno3_right = static_cast<double>(weno5->q1_coeff1_weno3_r) * yCrystal[nComp - 4] + static_cast<double>(weno5->q1_coeff2_weno3_r) * yCrystal[nComp - 5];
+
+			// WENO23 jacobian related coefficients, for bin N_x-2
+			four_w0_B0_weno3_right = 4.0 * W_0_weno3_right * static_cast<double>(weno5->IS_0_coeff_weno3_r) * (yCrystal[nComp - 3] - yCrystal[nComp - 4]) / (static_cast<double>(binSizes[nComp - 4]) + IS_0_weno3_right);
+			four_w1_B1_weno3_right = 4.0 * W_1_weno3_right * static_cast<double>(weno5->IS_1_coeff_weno3_r) * (yCrystal[nComp - 4] - yCrystal[nComp - 5]) / (static_cast<double>(binSizes[nComp - 4]) + IS_1_weno3_right);
+			four_w0_w0_B0_weno3_right = four_w0_B0_weno3_right * W_0_weno3_right;
+			four_w0_w1_B1_weno3_right = four_w1_B1_weno3_right * W_0_weno3_right;
+			four_w0_w1_B0_weno3_right = four_w0_B0_weno3_right * W_1_weno3_right;
+			four_w1_w1_B1_weno3_right = four_w1_B1_weno3_right * W_1_weno3_right;
+
+			dw0_right_dni_m1_weno3_right = -four_w0_w1_B1_weno3_right;
+			dw0_right_dni_weno3_right = four_w0_B0_weno3_right - four_w0_w0_B0_weno3_right + four_w0_w1_B1_weno3_right;
+			dw0_right_dni_p1_weno3_right = four_w0_w0_B0_weno3_right - four_w0_B0_weno3_right;
+
+			dw1_right_dni_m1_weno3_right = four_w1_B1_weno3_right - four_w1_w1_B1_weno3_right;
+			dw1_right_dni_weno3_right = -four_w1_B1_weno3_right - four_w0_w1_B0_weno3_right + four_w1_w1_B1_weno3_right;
+			dw1_right_dni_p1_weno3_right = four_w0_w1_B0_weno3_right;
+
+			dq0_right_dni_weno3_right = static_cast<double>(weno5->q0_coeff1_weno3_r);
+			dq0_right_dni_p1_weno3_right = static_cast<double>(weno5->q0_coeff2_weno3_r);
+			dq1_right_dni_m1_weno3_right = static_cast<double>(weno5->q1_coeff2_weno3_r);
+			dq1_right_dni_weno3_right = static_cast<double>(weno5->q1_coeff1_weno3_r);
+
+			// WENO23 related coefficients, for bin 2
+			IS_0_weno3_left = static_cast<double>(weno5->IS_0_coeff_weno3) * (yCrystal[2] - yCrystal[1]) * (yCrystal[2] - yCrystal[1]);
+			const double IS_1_weno3_left = static_cast<double>(weno5->IS_1_coeff_weno3) * (yCrystal[1] - yCrystal[0]) * (yCrystal[1] - yCrystal[0]);
+			alpha_0_weno3_left = static_cast<double>(weno5->C_coeff1_weno3) / (static_cast<double>(binSizes[1]) + IS_0_weno3_left) / (static_cast<double>(binSizes[1]) + IS_0_weno3_left);
+			alpha_1_weno3_left = static_cast<double>(weno5->C_coeff2_weno3) / (static_cast<double>(binSizes[1]) + IS_1_weno3_left) / (static_cast<double>(binSizes[1]) + IS_1_weno3_left);
+			W_0_weno3_left = alpha_0_weno3_left / (alpha_0_weno3_left + alpha_1_weno3_left);
+			W_1_weno3_left = 1.0 - W_0_weno3_left;
+			q_0_weno3_left = static_cast<double>(weno5->q0_coeff1_weno3) * yCrystal[1] + static_cast<double>(weno5->q0_coeff2_weno3) * yCrystal[2];
+			q_1_weno3_left = static_cast<double>(weno5->q1_coeff1_weno3) * yCrystal[1] + static_cast<double>(weno5->q1_coeff2_weno3) * yCrystal[0];
+
+			// WENO23 Jacobian related coefficients, for bin 2
+			four_w0_B0_weno3_left = 4.0 * W_0_weno3_left * static_cast<double>(weno5->IS_0_coeff_weno3) * (yCrystal[2] - yCrystal[1]) / (static_cast<double>(binSizes[1]) + IS_0_weno3_left);
+			four_w1_B1_weno3_left = 4.0 * W_1_weno3_left * static_cast<double>(weno5->IS_1_coeff_weno3) * (yCrystal[1] - yCrystal[0]) / (static_cast<double>(binSizes[1]) + IS_1_weno3_left);
+			four_w0_w0_B0_weno3_left = four_w0_B0_weno3_left * W_0_weno3_left;
+			four_w0_w1_B1_weno3_left = four_w1_B1_weno3_left * W_0_weno3_left;
+			four_w0_w1_B0_weno3_left = four_w0_B0_weno3_left * W_1_weno3_left;
+			four_w1_w1_B1_weno3_left = four_w1_B1_weno3_left * W_1_weno3_left;
+
+			dw0_right_dni_m1_weno3_left = -four_w0_w1_B1_weno3_left;
+			dw0_right_dni_weno3_left = four_w0_B0_weno3_left - four_w0_w0_B0_weno3_left + four_w0_w1_B1_weno3_left;
+			dw0_right_dni_p1_weno3_left = four_w0_w0_B0_weno3_left - four_w0_B0_weno3_left;
+
+			dw1_right_dni_m1_weno3_left = four_w1_B1_weno3_left - four_w1_w1_B1_weno3_left;
+			dw1_right_dni_weno3_left = -four_w1_B1_weno3_left - four_w0_w1_B0_weno3_left + four_w1_w1_B1_weno3_left;
+			dw1_right_dni_p1_weno3_left = four_w0_w1_B0_weno3_left;
+
+			dq0_right_dni_weno3_left = static_cast<double>(weno5->q0_coeff1_weno3);
+			dq0_right_dni_p1_weno3_left = static_cast<double>(weno5->q0_coeff2_weno3);
+			dq1_right_dni_m1_weno3_left = static_cast<double>(weno5->q1_coeff2_weno3);
+			dq1_right_dni_weno3_left = static_cast<double>(weno5->q1_coeff1_weno3);
+		}
+
+		// WENO35 boundary WENO23 related coefficients, for bin N_x-2
+		double IS_0_weno3_right = 0.0;
+		double IS_1_weno3_right = 0.0;
+		double alpha_0_weno3_right = 0.0;
+		double alpha_1_weno3_right = 0.0;
+		double W_0_weno3_right = 0.0;
+		double W_1_weno3_right = 0.0;
+		double q_0_weno3_right = 0.0;
+		double q_1_weno3_right = 0.0;
+
+		// WENO35 boundary WENO23 jacobian related coefficients, for bin N_x-2
+		double four_w0_B0_weno3_right = 0.0;
+		double four_w1_B1_weno3_right = 0.0;
+		double four_w0_w0_B0_weno3_right = 0.0;
+		double four_w0_w1_B1_weno3_right = 0.0;
+		double four_w0_w1_B0_weno3_right = 0.0;
+		double four_w1_w1_B1_weno3_right = 0.0;
+
+		double dw0_right_dni_m1_weno3_right = 0.0;
+		double dw0_right_dni_weno3_right = 0.0;
+		double dw0_right_dni_p1_weno3_right = 0.0;
+
+		double dw1_right_dni_m1_weno3_right = 0.0;
+		double dw1_right_dni_weno3_right = 0.0;
+		double dw1_right_dni_p1_weno3_right = 0.0;
+
+		double dq0_right_dni_weno3_right = 0.0;
+		double dq0_right_dni_p1_weno3_right = 0.0;
+		double dq1_right_dni_m1_weno3_right = 0.0;
+		double dq1_right_dni_weno3_right = 0.0;
+
+		// WENO35 boundary WENO23 related coefficients, for bin 2
+		double IS_0_weno3_left = 0.0;
+		double IS_1_weno3_left = 0.0;
+		double alpha_0_weno3_left = 0.0;
+		double alpha_1_weno3_left = 0.0;
+		double W_0_weno3_left = 0.0;
+		double W_1_weno3_left = 0.0;
+		double q_0_weno3_left = 0.0;
+		double q_1_weno3_left = 0.0;
+
+		// WENO35 boundary WENO23 Jacobian related coefficients, for bin 2
+		double four_w0_B0_weno3_left;
+		double four_w1_B1_weno3_left;
+		double four_w0_w0_B0_weno3_left;
+		double four_w0_w1_B1_weno3_left;
+		double four_w0_w1_B0_weno3_left;
+		double four_w1_w1_B1_weno3_left;
+
+		double dw0_right_dni_m1_weno3_left;
+		double dw0_right_dni_weno3_left;
+		double dw0_right_dni_p1_weno3_left;
+
+		double dw1_right_dni_m1_weno3_left;
+		double dw1_right_dni_weno3_left;
+		double dw1_right_dni_p1_weno3_left;
+
+		double dq0_right_dni_weno3_left;
+		double dq0_right_dni_p1_weno3_left;
+		double dq1_right_dni_m1_weno3_left;
+		double dq1_right_dni_weno3_left;
+
+		// WENO35 related coefficients
+		double IS_0 = 0.0;
+		double IS_1 = 0.0;
+		double IS_2 = 0.0;
+		double alpha_0 = 0.0;
+		double alpha_1 = 0.0;
+		double alpha_2 = 0.0;
+		double W_0 = 0.0;
+		double W_1 = 0.0;
+		double W_2 = 0.0;
+		double q_0 = 0.0;
+		double q_1 = 0.0;
+		double q_2 = 0.0;
+
+		double dvG_dc_right = 0.0;
+		double dvG_dceq_right = 0.0;
+		double vg_right = 0.0;
+
+		// WENO35 Jacobian related coefficients
+		double dIS0_wrt_dni_p2 = 0.0;
+		double dIS0_wrt_dni_p1 = 0.0;
+		double dIS0_wrt_dni = 0.0;
+		double dIS1_wrt_dni_p1 = 0.0;
+		double dIS1_wrt_dni = 0.0;
+		double dIS1_wrt_dni_m1 = 0.0;
+		double dIS2_wrt_dni = 0.0;
+		double dIS2_wrt_dni_m1 = 0.0;
+		double dIS2_wrt_dni_m2 = 0.0;
+		double dq0_wrt_dni_p2 = 0.0;
+		double dq0_wrt_dni_p1 = 0.0;
+		double dq0_wrt_dni = 0.0;
+		double dq1_wrt_dni_p1 = 0.0;
+		double dq1_wrt_dni = 0.0;
+		double dq1_wrt_dni_m1 = 0.0;
+		double dq2_wrt_dni = 0.0;
+		double dq2_wrt_dni_m1 = 0.0;
+		double dq2_wrt_dni_m2 = 0.0;
+		double w0_w2_is2 = 0.0;
+		double w0_w1_is1 = 0.0;
+		double w0_w0_is0 = 0.0;
+		double w0_is0 = 0.0;
+		double dw0_wrt_dni_m2 = 0.0;
+		double dw0_wrt_dni_m1 = 0.0;
+		double dw0_wrt_dni = 0.0;
+		double dw0_wrt_dni_p1 = 0.0;
+		double dw0_wrt_dni_p2 = 0.0;
+		double w1_w2_is2 = 0.0;
+		double w1_w1_is1 = 0.0;
+		double w1_w0_is0 = 0.0;
+		double w1_is1 = 0.0;
+		double dw1_wrt_dni_m2 = 0.0;
+		double dw1_wrt_dni_m1 = 0.0;
+		double dw1_wrt_dni = 0.0;
+		double dw1_wrt_dni_p1 = 0.0;
+		double dw1_wrt_dni_p2 = 0.0;
+		double w2_is2 = 0.0;
+		double w2_w2_is2 = 0.0;
+		double w2_w1_is1 = 0.0;
+		double w2_w0_is0 = 0.0;
+		double dw2_wrt_dni_m2 = 0.0;
+		double dw2_wrt_dni_m1 = 0.0;
+		double dw2_wrt_dni = 0.0;
+		double dw2_wrt_dni_p1 = 0.0;
+		double dw2_wrt_dni_p2 = 0.0;
+	};
+
 	std::unordered_map<ParameterId, active*> _parameters; //!< Map used to translate ParameterIds to actual variables
+	JacobianParamsBase* jacParams; //!< Parameters used in Jacobian computation, dependent on the discretization scheme
 	detail::CrystallizationMode _mode; //!< Crystallization mode, i.e. specification of considered effects
 	bool _usePBM; //!< Apply population mass balance
 	bool _useFrag; //!< Apply fragmentation term
@@ -1200,272 +1482,8 @@ protected:
 		return residualLiquidImpl<StateType, ResidualType, ParamType, double>(t, secIdx, colPos, yLiquid, resLiquid, factor, workSpace);
 	}
 
-	struct JacobianParams
-	{
-		const double vG_factor;
-		const double dBp_dc;
-		const double dBp_dceq;
-		const double dBs_dc;
-		const double dBs_dceq;
-		const double dvG_dc_factor;
-		const double dvG_dceq_factor;
-		const double dBs_dni_factor;
-
-		// HR Koren specific parameters
-		const double epsilon = 1e-10;
-		double r_x_i = 0.0;
-		double phi = 0.0;
-		double F_i = 0.0;
-		double dvG_dc_right = 0.0; // also used in weno schemes
-		double dvG_dceq_right = 0.0;
-		double vg_right = 0.0;
-
-		double r_cluster = 0.0;
-		double r_square_cluster = 0.0;
-		double A_cluster = 0.0;
-		double Ar_cluster = 0.0;
-		double ni_difference = 0.0;
-
-		double dFi_wrt_nim1 = 0.0;
-		double dFi_wrt_ni = 0.0;
-		double dFi_wrt_nip1 = 0.0;
-
-		// WENO23 related coefficients
-		double IS_0_right = 0.0;
-		double IS_1_right = 0.0;
-		double alpha_0_right = 0.0;
-		double alpha_1_right = 0.0;
-		double W_0_right = 0.0;
-		double W_1_right = 0.0;
-		double q_0_right = 0.0;
-		double q_1_right = 0.0;
-
-		//double dvG_dc_right = 0.0; // also used in HRKoren and WENO35 schemes
-		//double dvG_dceq_right = 0.0;
-		//double vg_right = 0.0;
-
-		// Jacobian related coefficients
-		double four_w1_B1_right = 0.0;
-		double four_w0_B0_right = 0.0;
-		double four_w0_w1_B1_right = 0.0;
-		double four_w0_w0_B0_right = 0.0;
-		double four_w1_w1_B1_right = 0.0;
-		double four_w0_w1_B0_right = 0.0;
-
-		double dw0_right_dni_m1 = 0.0;
-		double dw0_right_dni = 0.0;
-		double dw0_right_dni_p1 = 0.0;
-
-		double dw1_right_dni_m1 = 0.0;
-		double dw1_right_dni = 0.0;
-		double dw1_right_dni_p1 = 0.0;
-
-		double dq0_right_dni = 0.0;
-		double dq0_right_dni_p1 = 0.0;
-
-		double dq1_right_dni_m1 = 0.0;
-		double dq1_right_dni = 0.0;
-
-		// WENO35 boundary WENO23 related coefficients, for bin N_x-2
-		double IS_0_weno3_right = 0.0;
-		double IS_1_weno3_right = 0.0;
-		double alpha_0_weno3_right = 0.0;
-		double alpha_1_weno3_right = 0.0;
-		double W_0_weno3_right = 0.0;
-		double W_1_weno3_right = 0.0;
-		double q_0_weno3_right = 0.0;
-		double q_1_weno3_right = 0.0;
-
-		// WENO35 boundary WENO23 jacobian related coefficients, for bin N_x-2
-		double four_w0_B0_weno3_right = 0.0;
-		double four_w1_B1_weno3_right = 0.0;
-		double four_w0_w0_B0_weno3_right = 0.0;
-		double four_w0_w1_B1_weno3_right = 0.0;
-		double four_w0_w1_B0_weno3_right = 0.0;
-		double four_w1_w1_B1_weno3_right = 0.0;
-
-		double dw0_right_dni_m1_weno3_right = 0.0;
-		double dw0_right_dni_weno3_right = 0.0;
-		double dw0_right_dni_p1_weno3_right = 0.0;
-
-		double dw1_right_dni_m1_weno3_right = 0.0;
-		double dw1_right_dni_weno3_right = 0.0;
-		double dw1_right_dni_p1_weno3_right = 0.0;
-
-		double dq0_right_dni_weno3_right = 0.0;
-		double dq0_right_dni_p1_weno3_right = 0.0;
-		double dq1_right_dni_m1_weno3_right = 0.0;
-		double dq1_right_dni_weno3_right = 0.0;
-
-		// WENO35 boundary WENO23 related coefficients, for bin 2
-		double IS_0_weno3_left = 0.0;
-		double IS_1_weno3_left = 0.0;
-		double alpha_0_weno3_left = 0.0;
-		double alpha_1_weno3_left = 0.0;
-		double W_0_weno3_left = 0.0;
-		double W_1_weno3_left = 0.0;
-		double q_0_weno3_left = 0.0;
-		double q_1_weno3_left = 0.0;
-
-		// WENO35 boundary WENO23 Jacobian related coefficients, for bin 2
-		double four_w0_B0_weno3_left;
-		double four_w1_B1_weno3_left;
-		double four_w0_w0_B0_weno3_left;
-		double four_w0_w1_B1_weno3_left;
-		double four_w0_w1_B0_weno3_left;
-		double four_w1_w1_B1_weno3_left;
-
-		double dw0_right_dni_m1_weno3_left;
-		double dw0_right_dni_weno3_left;
-		double dw0_right_dni_p1_weno3_left;
-
-		double dw1_right_dni_m1_weno3_left;
-		double dw1_right_dni_weno3_left;
-		double dw1_right_dni_p1_weno3_left;
-
-		double dq0_right_dni_weno3_left;
-		double dq0_right_dni_p1_weno3_left;
-		double dq1_right_dni_m1_weno3_left;
-		double dq1_right_dni_weno3_left;
-
-		// WENO35 related coefficients
-		double IS_0 = 0.0;
-		double IS_1 = 0.0;
-		double IS_2 = 0.0;
-		double alpha_0 = 0.0;
-		double alpha_1 = 0.0;
-		double alpha_2 = 0.0;
-		double W_0 = 0.0;
-		double W_1 = 0.0;
-		double W_2 = 0.0;
-		double q_0 = 0.0;
-		double q_1 = 0.0;
-		double q_2 = 0.0;
-
-		//double dvG_dc_right = 0.0; // also used in HRKoren and WENO23
-		//double dvG_dceq_right = 0.0;
-		//double vg_right = 0.0;
-
-		// WENO35 Jacobian related coefficients
-		double dIS0_wrt_dni_p2 = 0.0;
-		double dIS0_wrt_dni_p1 = 0.0;
-		double dIS0_wrt_dni = 0.0;
-		double dIS1_wrt_dni_p1 = 0.0;
-		double dIS1_wrt_dni = 0.0;
-		double dIS1_wrt_dni_m1 = 0.0;
-		double dIS2_wrt_dni = 0.0;
-		double dIS2_wrt_dni_m1 = 0.0;
-		double dIS2_wrt_dni_m2 = 0.0;
-		double dq0_wrt_dni_p2 = 0.0;
-		double dq0_wrt_dni_p1 = 0.0;
-		double dq0_wrt_dni = 0.0;
-		double dq1_wrt_dni_p1 = 0.0;
-		double dq1_wrt_dni = 0.0;
-		double dq1_wrt_dni_m1 = 0.0;
-		double dq2_wrt_dni = 0.0;
-		double dq2_wrt_dni_m1 = 0.0;
-		double dq2_wrt_dni_m2 = 0.0;
-		double w0_w2_is2 = 0.0;
-		double w0_w1_is1 = 0.0;
-		double w0_w0_is0 = 0.0;
-		double w0_is0 = 0.0;
-		double dw0_wrt_dni_m2 = 0.0;
-		double dw0_wrt_dni_m1 = 0.0;
-		double dw0_wrt_dni = 0.0;
-		double dw0_wrt_dni_p1 = 0.0;
-		double dw0_wrt_dni_p2 = 0.0;
-		double w1_w2_is2 = 0.0;
-		double w1_w1_is1 = 0.0;
-		double w1_w0_is0 = 0.0;
-		double w1_is1 = 0.0;
-		double dw1_wrt_dni_m2 = 0.0;
-		double dw1_wrt_dni_m1 = 0.0;
-		double dw1_wrt_dni = 0.0;
-		double dw1_wrt_dni_p1 = 0.0;
-		double dw1_wrt_dni_p2 = 0.0;
-		double w2_is2 = 0.0;
-		double w2_w2_is2 = 0.0;
-		double w2_w1_is1 = 0.0;
-		double w2_w0_is0 = 0.0;
-		double dw2_wrt_dni_m2 = 0.0;
-		double dw2_wrt_dni_m1 = 0.0;
-		double dw2_wrt_dni = 0.0;
-		double dw2_wrt_dni_p1 = 0.0;
-		double dw2_wrt_dni_p2 = 0.0;
-
-		JacobianParams(double vG_factor, double dBp_dc, double dBp_dceq, double dBs_dc, double dBs_dceq, double dvG_dc_factor, double dvG_dceq_factor, double dBs_dni_factor, const double* yCrystal, const int nComp, const std::vector<active>& binSizes, detail::Weno5Coefficients* weno5)
-			: vG_factor(vG_factor), dBp_dc(dBp_dc), dBp_dceq(dBp_dceq), dBs_dc(dBs_dc), dBs_dceq(dBs_dceq), dvG_dc_factor(dvG_dc_factor), dvG_dceq_factor(dvG_dceq_factor), dBs_dni_factor(dBs_dni_factor)
-		{
-			if (weno5)
-			{
-				// WENO23 related coefficients, for bin N_x-2
-				IS_0_weno3_right = static_cast<double>(weno5->IS_0_coeff_weno3_r) * (yCrystal[nComp - 3] - yCrystal[nComp - 4]) * (yCrystal[nComp - 3] - yCrystal[nComp - 4]);
-				IS_1_weno3_right = static_cast<double>(weno5->IS_1_coeff_weno3_r) * (yCrystal[nComp - 4] - yCrystal[nComp - 5]) * (yCrystal[nComp - 4] - yCrystal[nComp - 5]);
-				alpha_0_weno3_right = static_cast<double>(weno5->C_coeff1_weno3_r) / (static_cast<double>(binSizes[nComp - 4]) + IS_0_weno3_right) / (static_cast<double>(binSizes[nComp - 4]) + IS_0_weno3_right);
-				alpha_1_weno3_right = static_cast<double>(weno5->C_coeff2_weno3_r) / (static_cast<double>(binSizes[nComp - 4]) + IS_1_weno3_right) / (static_cast<double>(binSizes[nComp - 4]) + IS_1_weno3_right);
-				W_0_weno3_right = alpha_0_weno3_right / (alpha_0_weno3_right + alpha_1_weno3_right);
-				W_1_weno3_right = 1.0 - W_0_weno3_right;
-				q_0_weno3_right = static_cast<double>(weno5->q0_coeff1_weno3_r) * yCrystal[nComp - 4] + static_cast<double>(weno5->q0_coeff2_weno3_r) * yCrystal[nComp - 3];
-				q_1_weno3_right = static_cast<double>(weno5->q1_coeff1_weno3_r) * yCrystal[nComp - 4] + static_cast<double>(weno5->q1_coeff2_weno3_r) * yCrystal[nComp - 5];
-
-				// WENO23 jacobian related coefficients, for bin N_x-2
-				four_w0_B0_weno3_right = 4.0 * W_0_weno3_right * static_cast<double>(weno5->IS_0_coeff_weno3_r) * (yCrystal[nComp - 3] - yCrystal[nComp - 4]) / (static_cast<double>(binSizes[nComp - 4]) + IS_0_weno3_right);
-				four_w1_B1_weno3_right = 4.0 * W_1_weno3_right * static_cast<double>(weno5->IS_1_coeff_weno3_r) * (yCrystal[nComp - 4] - yCrystal[nComp - 5]) / (static_cast<double>(binSizes[nComp - 4]) + IS_1_weno3_right);
-				four_w0_w0_B0_weno3_right = four_w0_B0_weno3_right * W_0_weno3_right;
-				four_w0_w1_B1_weno3_right = four_w1_B1_weno3_right * W_0_weno3_right;
-				four_w0_w1_B0_weno3_right = four_w0_B0_weno3_right * W_1_weno3_right;
-				four_w1_w1_B1_weno3_right = four_w1_B1_weno3_right * W_1_weno3_right;
-
-				dw0_right_dni_m1_weno3_right = -four_w0_w1_B1_weno3_right;
-				dw0_right_dni_weno3_right = four_w0_B0_weno3_right - four_w0_w0_B0_weno3_right + four_w0_w1_B1_weno3_right;
-				dw0_right_dni_p1_weno3_right = four_w0_w0_B0_weno3_right - four_w0_B0_weno3_right;
-
-				dw1_right_dni_m1_weno3_right = four_w1_B1_weno3_right - four_w1_w1_B1_weno3_right;
-				dw1_right_dni_weno3_right = -four_w1_B1_weno3_right - four_w0_w1_B0_weno3_right + four_w1_w1_B1_weno3_right;
-				dw1_right_dni_p1_weno3_right = four_w0_w1_B0_weno3_right;
-
-				dq0_right_dni_weno3_right = static_cast<double>(weno5->q0_coeff1_weno3_r);
-				dq0_right_dni_p1_weno3_right = static_cast<double>(weno5->q0_coeff2_weno3_r);
-				dq1_right_dni_m1_weno3_right = static_cast<double>(weno5->q1_coeff2_weno3_r);
-				dq1_right_dni_weno3_right = static_cast<double>(weno5->q1_coeff1_weno3_r);
-
-				// WENO23 related coefficients, for bin 2
-				IS_0_weno3_left = static_cast<double>(weno5->IS_0_coeff_weno3) * (yCrystal[2] - yCrystal[1]) * (yCrystal[2] - yCrystal[1]);
-				const double IS_1_weno3_left = static_cast<double>(weno5->IS_1_coeff_weno3) * (yCrystal[1] - yCrystal[0]) * (yCrystal[1] - yCrystal[0]);
-				alpha_0_weno3_left = static_cast<double>(weno5->C_coeff1_weno3) / (static_cast<double>(binSizes[1]) + IS_0_weno3_left) / (static_cast<double>(binSizes[1]) + IS_0_weno3_left);
-				alpha_1_weno3_left = static_cast<double>(weno5->C_coeff2_weno3) / (static_cast<double>(binSizes[1]) + IS_1_weno3_left) / (static_cast<double>(binSizes[1]) + IS_1_weno3_left);
-				W_0_weno3_left = alpha_0_weno3_left / (alpha_0_weno3_left + alpha_1_weno3_left);
-				W_1_weno3_left = 1.0 - W_0_weno3_left;
-				q_0_weno3_left = static_cast<double>(weno5->q0_coeff1_weno3) * yCrystal[1] + static_cast<double>(weno5->q0_coeff2_weno3) * yCrystal[2];
-				q_1_weno3_left = static_cast<double>(weno5->q1_coeff1_weno3) * yCrystal[1] + static_cast<double>(weno5->q1_coeff2_weno3) * yCrystal[0];
-
-				// WENO23 Jacobian related coefficients, for bin 2
-				four_w0_B0_weno3_left = 4.0 * W_0_weno3_left * static_cast<double>(weno5->IS_0_coeff_weno3) * (yCrystal[2] - yCrystal[1]) / (static_cast<double>(binSizes[1]) + IS_0_weno3_left);
-				four_w1_B1_weno3_left = 4.0 * W_1_weno3_left * static_cast<double>(weno5->IS_1_coeff_weno3) * (yCrystal[1] - yCrystal[0]) / (static_cast<double>(binSizes[1]) + IS_1_weno3_left);
-				four_w0_w0_B0_weno3_left = four_w0_B0_weno3_left * W_0_weno3_left;
-				four_w0_w1_B1_weno3_left = four_w1_B1_weno3_left * W_0_weno3_left;
-				four_w0_w1_B0_weno3_left = four_w0_B0_weno3_left * W_1_weno3_left;
-				four_w1_w1_B1_weno3_left = four_w1_B1_weno3_left * W_1_weno3_left;
-
-				dw0_right_dni_m1_weno3_left = -four_w0_w1_B1_weno3_left;
-				dw0_right_dni_weno3_left = four_w0_B0_weno3_left - four_w0_w0_B0_weno3_left + four_w0_w1_B1_weno3_left;
-				dw0_right_dni_p1_weno3_left = four_w0_w0_B0_weno3_left - four_w0_B0_weno3_left;
-
-				dw1_right_dni_m1_weno3_left = four_w1_B1_weno3_left - four_w1_w1_B1_weno3_left;
-				dw1_right_dni_weno3_left = -four_w1_B1_weno3_left - four_w0_w1_B0_weno3_left + four_w1_w1_B1_weno3_left;
-				dw1_right_dni_p1_weno3_left = four_w0_w1_B0_weno3_left;
-
-				dq0_right_dni_weno3_left = static_cast<double>(weno5->q0_coeff1_weno3);
-				dq0_right_dni_p1_weno3_left = static_cast<double>(weno5->q0_coeff2_weno3);
-				dq1_right_dni_m1_weno3_left = static_cast<double>(weno5->q1_coeff2_weno3);
-				dq1_right_dni_weno3_left = static_cast<double>(weno5->q1_coeff1_weno3);
-			}
-		}
-
-	};
-
 	template <typename RowIterator>
-	void jacobianUpwindKernel(double const* yCrystal, double factor, RowIterator& jac, JacobianParams& jacParams, const int i) const
+	void jacobianUpwindKernel(double const* yCrystal, double factor, RowIterator& jac, JacobianParamsBase& jacParams, const int i) const
 	{
 		int binIdx_i = 0;
 		int binIdx_j = 0;
@@ -1543,7 +1561,7 @@ protected:
 	}
 
 	template <typename RowIterator>
-	void jacobianHRKorenKernel(double const* yCrystal, double factor, RowIterator& jac, JacobianParams& jacParams, const int i) const
+	void jacobianHRKorenKernel(double const* yCrystal, double factor, RowIterator& jac, JacobianParamsHRKoren& jacParams, const int i) const
 	{
 		int binIdx_i = 0;
 		int binIdx_j = 0;
@@ -1733,7 +1751,7 @@ protected:
 	}
 
 	template <typename RowIterator>
-	void jacobianWENO23Kernel(double const* yCrystal, double factor, RowIterator& jac, JacobianParams& jacParams, const int i) const
+	void jacobianWENO23Kernel(double const* yCrystal, double factor, RowIterator& jac, JacobianParamsWENO23& jacParams, const int i) const
 	{
 		int binIdx_i = 0;
 		int binIdx_j = 0; // note: binIdx_j is used only when B_s is involved.
@@ -1932,7 +1950,7 @@ protected:
 	}
 
 	template <typename RowIterator>
-	void jacobianWENO35Kernel(double const* yCrystal, double factor, RowIterator& jac, JacobianParams& jacParams, const int i) const
+	void jacobianWENO35Kernel(double const* yCrystal, double factor, RowIterator& jac, JacobianParamsWENO35& jacParams, const int i) const
 	{
 		int binIdx_i = 0;
 		int binIdx_j = 0; // note: binIdx_j is used only when B_s is involved.
@@ -2326,8 +2344,6 @@ protected:
 	template <typename RowIterator>
 	void jacobianLiquidImpl(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, double factor, RowIterator& jac, LinearBufferAllocator workSpace) const
 	{
-		JacobianParams* jacParams = nullptr;// = JacobianParams{ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, nullptr, 0, _binSizes, nullptr };
-
 		if (_usePBM)
 		{
 			double const* const yCrystal = y + 1; // pointer to crystal bins. Jump over the solute entry, which only exists if we solve the mass balance
@@ -2385,7 +2401,10 @@ protected:
 			}
 			++jac;
 
-			jacParams = new JacobianParams{ vG_factor, dBp_dc, dBp_dceq, dBs_dc, dBs_dceq, dvG_dc_factor, dvG_dceq_factor, dBs_dni_factor, yCrystal, _nComp, _binSizes, _weno5 };
+			if (_growthSchemeOrder == detail::PBMReconstruction::WENO35)
+			{
+				static_cast<JacobianParamsWENO35*>(jacParams)->updateParams(vG_factor, dBp_dc, dBp_dceq, dBs_dc, dBs_dceq, dvG_dc_factor, dvG_dceq_factor, dBs_dni_factor, yCrystal, _nComp, _binSizes, _weno5);
+			}
 		}
 
 		double const* const yCrystal = y; // pointer to crystal bins
@@ -2401,22 +2420,22 @@ protected:
 				{
 				case detail::PBMReconstruction::Upwind:
 				{
-					jacobianUpwindKernel<RowIterator>(yCrystal + 1, factor, jac, *jacParams, l);
+					jacobianUpwindKernel<RowIterator>(yCrystal + 1, factor, jac, *static_cast<JacobianParamsBase*>(jacParams), l);
 				}
 				break;
 				case detail::PBMReconstruction::HRKoren:
 				{
-					jacobianHRKorenKernel<RowIterator>(yCrystal + 1, factor, jac, *jacParams, l);
+					jacobianHRKorenKernel<RowIterator>(yCrystal + 1, factor, jac, *static_cast<JacobianParamsHRKoren*>(jacParams), l);
 				}
 				break;
 				case detail::PBMReconstruction::WENO23:
 				{
-					jacobianWENO23Kernel<RowIterator>(yCrystal + 1, factor, jac, *jacParams, l);
+					jacobianWENO23Kernel<RowIterator>(yCrystal + 1, factor, jac, *static_cast<JacobianParamsWENO23*>(jacParams), l);
 				}
 				break;
 				case detail::PBMReconstruction::WENO35:
 				{
-					jacobianWENO35Kernel<RowIterator>(yCrystal + 1, factor, jac, *jacParams, l);
+					jacobianWENO35Kernel<RowIterator>(yCrystal + 1, factor, jac, *static_cast<JacobianParamsWENO35*>(jacParams), l);
 				}
 				break;
 				}
