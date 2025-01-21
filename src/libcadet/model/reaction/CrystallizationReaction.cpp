@@ -468,6 +468,9 @@ public:
 
 		if (_usePBM)
 		{
+			if (!paramProvider.exists("CRY_NUCLEI_MASS_DENSITY"))
+				throw InvalidParameterException("Crystallization mode specified as " + std::to_string(static_cast<int>(_mode)) + ", i.e. crystallization including population mass balance, but field CRY_NUCLEI_MASS_DENSITY was not specified");
+
 			// Comp 0 is substrate, last comp is equilibrium
 			_nBins = _nComp - 2;
 
@@ -477,6 +480,12 @@ public:
 		else
 		{
 			_nBins = _nComp;
+
+			if (_useAgg && !paramProvider.exists("CRY_AGGREGATION_RATE_CONSTANT"))
+				throw InvalidParameterException("Crystallization mode specified as " + std::to_string(static_cast<int>(_mode)) + ", i.e. crystallization including aggregation, but field CRY_AGGREGATION_RATE_CONSTANT was not specified");
+
+			if (_useFrag && !paramProvider.exists("CRY_FRAGMENTATION_RATE_CONSTANT"))
+				throw InvalidParameterException("Crystallization mode specified as " + std::to_string(static_cast<int>(_mode)) + ", i.e. crystallization including fragmentation, but field CRY_FRAGMENTATION_RATE_CONSTANT was not specified");
 		}
 
 		readScalarParameterOrArray(_bins, paramProvider, "CRY_BINS", 1);
