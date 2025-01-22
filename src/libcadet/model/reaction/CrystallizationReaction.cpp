@@ -1277,6 +1277,9 @@ protected:
 
 			// mass balance
 			res[0] -= factor * massDensityShapeFactor * (B_0 * x_c_3 + substrateConversion);
+
+			// update growth flux reconstruction parameters
+			_reconstruction->updateParams(k_g_times_s_g, B_0);
 		}
 
 		// get pointer to crystal bins
@@ -1287,9 +1290,6 @@ protected:
 			yCrystal++;
 			resCrystal++;
 		}
-
-		// update growth flux reconstruction parameters
-		_reconstruction->updateParams(k_g_times_s_g, B_0);
 
 		// define aggregation/fragmentation related local parameters
 		ResidualType source = 0.0;
