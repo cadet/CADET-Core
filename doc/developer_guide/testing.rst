@@ -56,6 +56,52 @@ Unit tests in CADET-Core typically encompass tests for the Jacobian implementati
 Testing the Jacobian typically involves comparing the analytical Jacobian to the AD Jacobian to verify that the residual implementation is consistent to the analytical Jacobian.
 To this end, it might be necessary to increase the maximum number of AD directions for your test case, which can be done via the cmake argument `NUM_MAX_AD_DIRS`, as described in the :ref:`build_options`.
 
+Binding tests
+^^^^^^^^^^^^^
+
+Binding tests check the correct and consistent implementation of a binding model. 
+For binding tests, CADET-Core provides a set of tests that check the correct implementation of the residual and Jacobian functions of the binding model.
+These tests are located in the file `test\BindingModelTests.cpp`.
+To test the new binding model with the implemented tests, you need to add a new configuration setup to the `test\BindingModels.cpp` file.
+In the general framework, you test a configuration where all components have at least one binding side with a model configuration where an additional component has no binding side.
+These cases are tested against an external configuration. 
+An example configuration for two components would look like this 
+.. code-block:: JSON
+	{
+    CADET_BINDINGTEST("NAME_OF_YOUR_BINDING_MODEL", "EXT_NAME_OF_YOUR_BINDING_MODEL", (b1,b2) ,(b1,0,b2), (c1, c2, q1, q2), (c1, c2, c3, q1, q2) \
+        R"json("PARAMETER_NAME1": [p1,p2],
+               "PARAMETER_NAME2": [r1,r2])json", \ 
+        R"json("PARAMETER_NAME1": [p1,p2,p3],
+               "PARAMETER_NAME2": [r1,r2,r3])json", \ 
+        R"json("EXT_PARAMETER_NAME1": [p1,p2],
+              ("EXT_PARAMETER_NAME1_T": [p_T1,p_T2],
+               "EXT_PARAMETER_NAME1_TT": [p_TT1,p_TT2],
+               "EXT_PARAMETER_NAME1_TTT": [p_TTT1,p_TTT2],
+               "EXT_PARAMETER_NAME2": [r1,r2],
+               "EXT_PARAMETER_NAME2_T": [r_T1,r_T2],
+               "EXT_PARAMETER_NAME2_TT": [r_TT1,r_TT2],
+               "EXT_PARAMETER_NAME2_TTT": [r_TTT1,r_TTT2],)json", \ 
+        R"json("EXT_PARAMETER_NAME1": [p1,p2,p3],
+              ("EXT_PARAMETER_NAME1_T": [p_T1,p_T2,p_T3],
+               "EXT_PARAMETER_NAME1_TT": [p_TT1,p_TT2,p_TT3],
+               "EXT_PARAMETER_NAME1_TTT": [p_TTT1,p_TTT2,P_TTT3],
+               "EXT_PARAMETER_NAME2": [r1,r2,r3],
+               "EXT_PARAMETER_NAME2_T": [r_T1,r_T2,r_T3],
+               "EXT_PARAMETER_NAME2_TT": [r_TT1,r_TT2,r_TT3],
+               "EXT_PARAMETER_NAME2_TTT": [r_TTT1,r_TTT2,r_TTT3],)json", \ 
+        consistentInititalisationTol1, consistentInititalisationTol2, Flag1, Flag2)
+    }
+
+with
+- ``bi`` for the number of binding sites of component i
+- ``ci`` for the initial concentration of component i in the liquid phase
+- ``qi`` for the initial concentration of component i in the bound phase
+- ``pi, ri`` for the parameters of the binding model of component i, if your binding model has system parameters you can write ``"PARAMETER_NAME2" : g``
+- Flag1 and Flag2 determine what kind of test you want to run (see `test\BindingModelTests.hpp` for more information).
+
+If you want to test a binding model with different configurations, you can use ``CADET_BINDINGTEST_MULTI("NAME_OF_YOUR_BINDING_MODEL", "EXT_NAME_OF_YOUR_BINDING_MODEL", "name of the configuration",...``).
+For more implementations, you can look at the existing tests in the `test\BindingModels.cpp` file and you can find more documentation in the `test\BindingModelTests.hpp` file.
+
 Numerical reference tests
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 

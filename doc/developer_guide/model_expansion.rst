@@ -65,6 +65,8 @@ If you have trouble with deriving the Jacobian or if you want to test you model 
 function to return false.
 By doing so, CADET-Core defaults to computing the binding `Jacobian via Algorithmic differentiation (AD) <https://doi.org/10.1016/j.ces.2015.08.050>`_.
 
+4.
+To verify the correctness of the implementation, we recomend to test the correct implementation of the new binding model. Please refer to the :ref:`testing` section for more information on how to add tests for your binding model in CADET-Core.
 
 Unit Operation
 ^^^^^^^^^^^^^^
