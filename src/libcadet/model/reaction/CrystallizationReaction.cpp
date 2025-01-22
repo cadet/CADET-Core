@@ -25,6 +25,7 @@
 #include <string>
 #include <iterator>
 #include <vector>
+#include <bitset>
 
 namespace cadet
 {
@@ -32,62 +33,22 @@ namespace model
 {
 namespace detail
 {
-	/**
-	* Crystallization mode specification to define which terms are included
-	 */
-	enum class CrystallizationMode : int
-	{
-		/**
-		 * Population mass balance equation
-		*/
-		PurePBM,
+	class CrystallizationMode {
+	public:
+		bool hasPBM()    const { return state_[0]; };
+		bool hasAggregation()  const { return state_[1]; };
+		bool hasFragmentation()  const { return state_[2]; };
+		unsigned int getMode() const { return state_.to_ulong(); };
 
-		/**
-		 * Aggregation equation
-		*/
-		PureAggregation,
+		void SetMode(unsigned int mode)
+		{
+			if (mode > 7 || mode < 1)
+				throw InvalidParameterException("Crystallization mode specified as " + std::to_string(mode) + ", which is not defined.");
 
-		/**
-		 * Fragmentation equation
-		*/
-		PureFragmentation,
-
-		/**
-		 * Combined mass balance and aggregation equation
-		*/
-		PBMAggregation,
-
-		/**
-		 * Combined mass balance and fragmentation equation
-		*/
-		PBMFragmentation,
-
-		/**
-		 * Combined aggregation and fragmentation equation
-		*/
-		AggregationFragmentation,
-
-		/**
-		 * Combined mass balance and aggregation and fragmentation equation
-		*/
-		PBMAggregationFragmentation
-	};
-
-	struct ModeFlags
-	{
-		bool hasMassBalance = false;
-		bool hasAggregation = false;
-		bool hasFragmentation = false;
-	};
-
-	std::unordered_map<CrystallizationMode, ModeFlags> modeFlagMap = {
-		{CrystallizationMode::PurePBM, {true, false, false}},
-		{CrystallizationMode::PureAggregation, {false, true, false}},
-		{CrystallizationMode::PureFragmentation, {false, false, true}},
-		{CrystallizationMode::PBMAggregation, {true, true, false}},
-		{CrystallizationMode::PBMFragmentation, {true, false, true}},
-		{CrystallizationMode::AggregationFragmentation, {false, true, true}},
-		{CrystallizationMode::PBMAggregationFragmentation, {true, true, true}}
+			state_ = std::bitset<3>(mode);
+		}
+	private:
+		std::bitset<3> state_;
 	};
 
 	/**
@@ -263,18 +224,14 @@ public:
 	virtual bool configure(IParameterProvider& paramProvider, UnitOpIdx unitOpIdx, ParticleTypeIdx parTypeIdx)
 	{
 		if (paramProvider.exists("CRY_MODE"))
-			_mode = static_cast<detail::CrystallizationMode>(paramProvider.getInt("CRY_MODE"));
+			_mode.SetMode(paramProvider.getInt("CRY_MODE"));
 		else
-			_mode = detail::CrystallizationMode::PurePBM; // For backwards compatibility
+			_mode.SetMode(1); // For backwards compatibility
 
-		_usePBM = detail::modeFlagMap[_mode].hasMassBalance;
-		_useAgg = detail::modeFlagMap[_mode].hasAggregation;
-		_useFrag = detail::modeFlagMap[_mode].hasFragmentation;
-
-		if (_usePBM)
+		if (_mode.hasPBM())
 		{
 			if (!paramProvider.exists("CRY_NUCLEI_MASS_DENSITY"))
-				throw InvalidParameterException("Crystallization mode specified as " + std::to_string(static_cast<int>(_mode)) + ", i.e. crystallization including population mass balance, but field CRY_NUCLEI_MASS_DENSITY was not specified");
+				throw InvalidParameterException("Crystallization mode specified as " + std::to_string(_mode.getMode()) + ", i.e. crystallization including population mass balance, but field CRY_NUCLEI_MASS_DENSITY was not specified");
 
 			// Comp 0 is substrate, last comp is equilibrium
 			_nBins = _nComp - 2;
@@ -286,11 +243,11 @@ public:
 		{
 			_nBins = _nComp;
 
-			if (_useAgg && !paramProvider.exists("CRY_AGGREGATION_RATE_CONSTANT"))
-				throw InvalidParameterException("Crystallization mode specified as " + std::to_string(static_cast<int>(_mode)) + ", i.e. crystallization including aggregation, but field CRY_AGGREGATION_RATE_CONSTANT was not specified");
+			if (_mode.hasAggregation() && !paramProvider.exists("CRY_AGGREGATION_RATE_CONSTANT"))
+				throw InvalidParameterException("Crystallization mode specified as " + std::to_string(_mode.getMode()) + ", i.e. crystallization including aggregation, but field CRY_AGGREGATION_RATE_CONSTANT was not specified");
 
-			if (_useFrag && !paramProvider.exists("CRY_FRAGMENTATION_RATE_CONSTANT"))
-				throw InvalidParameterException("Crystallization mode specified as " + std::to_string(static_cast<int>(_mode)) + ", i.e. crystallization including fragmentation, but field CRY_FRAGMENTATION_RATE_CONSTANT was not specified");
+			if (_mode.hasFragmentation() && !paramProvider.exists("CRY_FRAGMENTATION_RATE_CONSTANT"))
+				throw InvalidParameterException("Crystallization mode specified as " + std::to_string(_mode.getMode()) + ", i.e. crystallization including fragmentation, but field CRY_FRAGMENTATION_RATE_CONSTANT was not specified");
 		}
 
 		readScalarParameterOrArray(_bins, paramProvider, "CRY_BINS", 1);
@@ -305,7 +262,7 @@ public:
 		_binCenterDists.resize(_nBins - 1);
 		updateBinCoords();
 
-		if (_usePBM)
+		if (_mode.hasPBM())
 		{
 			_nucleiMassDensity = paramProvider.getDouble("CRY_NUCLEI_MASS_DENSITY");
 			_parameters[makeParamId(hashString("CRY_NUCLEI_MASS_DENSITY"), unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_nucleiMassDensity;
@@ -382,7 +339,7 @@ public:
 				_jacParams = new JacobianParamsBase;
 			}
 		}
-		if (_useAgg)
+		if (_mode.hasAggregation())
 		{
 			_aggregationRateConstant = paramProvider.getDouble("CRY_AGGREGATION_RATE_CONSTANT");
 			_parameters[makeParamId(hashString("CRY_AGGREGATION_RATE_CONSTANT"), unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_aggregationRateConstant;
@@ -398,7 +355,7 @@ public:
 			if (_aggregationRateConstant != 0.0)
 				_agg = new detail::AggCoefficients(_binCenters, _bins, _binSizes);
 		}
-		if (_useFrag)
+		if (_mode.hasFragmentation())
 		{
 			_fragRateConstant = paramProvider.getDouble("CRY_FRAGMENTATION_RATE_CONSTANT");
 			_parameters[makeParamId(hashString("CRY_FRAGMENTATION_RATE_CONSTANT"), unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_fragRateConstant;
@@ -1001,9 +958,6 @@ protected:
 	std::unordered_map<ParameterId, active*> _parameters; //!< Map used to translate ParameterIds to actual variables
 	JacobianParamsBase* _jacParams; //!< Parameters used in Jacobian computation, dependent on the discretization scheme
 	detail::CrystallizationMode _mode; //!< Crystallization mode, i.e. specification of considered effects
-	bool _usePBM; //!< Apply population mass balance
-	bool _useFrag; //!< Apply fragmentation term
-	bool _useAgg; //!< Apply aggregation term
 	int _nComp; //!< Number of components
 	int _nBins; //!< Number of crystal size bins
 
@@ -1296,7 +1250,7 @@ protected:
 		ResidualType B_0 = 0.0;
 		ResidualType k_g_times_s_g = 0.0;
 
-		if (_usePBM)
+		if (_mode.hasPBM())
 		{
 			// if we solve the mass balance, then we have the solubility entry (last state entry) and the solute entry (first position), which is why we advance the pointer.
 			StateType const* const yCrystal = y + 1;
@@ -1328,7 +1282,7 @@ protected:
 		// get pointer to crystal bins
 		StateType const* yCrystal = y;
 		ResidualType* resCrystal = res;
-		if (_usePBM) // if we solve the mass balance, then we have the solubility entry (last state entry) and the solute entry (first position), which is why we advance the pointer.
+		if (_mode.hasPBM()) // if we solve the mass balance, then we have the solubility entry (last state entry) and the solute entry (first position), which is why we advance the pointer.
 		{
 			yCrystal++;
 			resCrystal++;
@@ -1344,7 +1298,7 @@ protected:
 
 		for (int i = 0; i < _nBins; ++i)
 		{
-			if (_usePBM)
+			if (_mode.hasPBM())
 			{
 				switch (_growthSchemeOrder)
 				{
@@ -1371,7 +1325,7 @@ protected:
 				}
 			}
 
-			if (_useAgg)
+			if (_mode.hasAggregation())
 			{
 				// reset the source and sink terms
 				source = 0.0;
@@ -1464,7 +1418,7 @@ protected:
 				resCrystal[i] += factor * source - factor * sink;
 			}
 
-			if (_useFrag)
+			if (_mode.hasFragmentation())
 			{
 				const ParamType N_j = static_cast<ParamType>(_fragKernelGamma) / (static_cast<ParamType>(_fragKernelGamma) - 1.0);
 
@@ -2371,7 +2325,7 @@ protected:
 	template <typename RowIterator>
 	void jacobianLiquidImpl(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, double factor, RowIterator& jac, LinearBufferAllocator workSpace) const
 	{
-		if (_usePBM)
+		if (_mode.hasPBM())
 		{
 			double const* const yCrystal = y + 1; // pointer to crystal bins. Jump over the solute entry, which only exists if we solve the mass balance
 			// supersaturation s, rewrite it to 0.0 if it drops below 0.0
@@ -2441,7 +2395,7 @@ protected:
 		{
 			const int i = l - 1; // index for fragmetation and aggregation
 
-			if (_usePBM)
+			if (_mode.hasPBM())
 			{
 				switch (_growthSchemeOrder)
 				{
@@ -2468,7 +2422,7 @@ protected:
 				}
 			}
 
-			if (_useAgg)
+			if (_mode.hasAggregation())
 			{
 				// aggregation source term
 				const double x_i_cube = static_cast<double>(_binCenters[i]) * static_cast<double>(_binCenters[i]) * static_cast<double>(_binCenters[i]);
@@ -2560,7 +2514,7 @@ protected:
 				}
 			}
 
-			if (_useFrag)
+			if (_mode.hasFragmentation())
 			{
 				// jacobian, when adding to growth terms, remember to change the index to binIdx_i! Q_ceq is not considered.
 				double selectionFunction = 0.0;
@@ -2593,7 +2547,7 @@ protected:
 			++jac;
 		}
 
-		if (_usePBM)
+		if (_mode.hasPBM())
 			++jac; // the last row corresponding to Q_{ceq} is zero, and the interface expects the iterator to be moved to the end.
 	}
 
