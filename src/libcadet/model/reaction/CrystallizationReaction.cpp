@@ -364,17 +364,17 @@ public:
 
 			if (_growthSchemeOrder == detail::PBMReconstruction::HRKoren)
 			{
-				_reconstruction = new HRKorenParams(_binSizes, 0.0, 0.0, 0.0);
+				_reconstruction = new HRKorenParams<active>(_binSizes, 0.0, 0.0, 0.0);
 				_jacParams = new JacobianParamsHRKoren;
 			}
 			else if (_growthSchemeOrder == detail::PBMReconstruction::WENO23)
 			{
-				_reconstruction = new WENO23Params(_binSizes);
+				_reconstruction = new WENO23Params<active>(_binSizes);
 				_jacParams = new JacobianParamsWENO23;
 			}
 			else if (_growthSchemeOrder == detail::PBMReconstruction::WENO35)
 			{
-				_reconstruction = new WENO35Params(_binSizes);
+				_reconstruction = new WENO35Params<active>(_binSizes);
 				_jacParams = new JacobianParamsWENO35;
 			}
 			else
@@ -490,22 +490,31 @@ public:
 
 protected:
 
+	template<typename ParamType>
 	struct ReconstructionParams
 	{
-		active v_g = 0.0;
-		active k_g_times_s_g = 0.0;
-		active B_0 = 0.0;
+		ParamType v_g = 0.0;
+		ParamType k_g_times_s_g = 0.0;
+		ParamType B_0 = 0.0;
 
-		ReconstructionParams(active v_g = 0.0, active k_g_times_s_g = 0.0, active B_0 = 0.0) : v_g(v_g), k_g_times_s_g(k_g_times_s_g), B_0(B_0) {};
+		ReconstructionParams(ParamType v_g = 0.0, ParamType k_g_times_s_g = 0.0, ParamType B_0 = 0.0) : v_g(v_g), k_g_times_s_g(k_g_times_s_g), B_0(B_0) {};
 
-		void updateParams(active k_g_times_s_g_, active B_0_)
+		void updateParams(ParamType k_g_times_s_g_, ParamType B_0_)
 		{
 			k_g_times_s_g = k_g_times_s_g_;
 			B_0 = B_0_;
 		}
+
+		// Create a double view of this struct
+		template <typename U>
+		ReconstructionParams<U>& as() const {
+			//static_assert(std::is_same_v<U, double>, "Only double views are supported");
+			return reinterpret_cast<ReconstructionParams<U>&>(*this);
+		}
 	};
 
-	struct HRKorenParams : public ReconstructionParams
+	template<typename ParamType>
+	struct HRKorenParams : public ReconstructionParams<ParamType>
 	{
 		active r_x_i = 0.0;
 		active phi = 0.0;
@@ -530,32 +539,33 @@ protected:
 	/**
 	 * Flux reconstruction scheme coefficients.For details see @cite Zhang2024
 	*/
-	struct WENO23Params : public ReconstructionParams
+	template<typename ParamType>
+	struct WENO23Params : public ReconstructionParams<ParamType>
 	{
-		std::vector<active> q_1_right_coeff;
-		std::vector<active> q_0_right_coeff;
-		std::vector<active> C_right_coeff;
-		std::vector<active> IS_0_coeff;
-		std::vector<active> IS_1_coeff;
+		std::vector<ParamType> q_1_right_coeff;
+		std::vector<ParamType> q_0_right_coeff;
+		std::vector<ParamType> C_right_coeff;
+		std::vector<ParamType> IS_0_coeff;
+		std::vector<ParamType> IS_1_coeff;
 
-		active IS_0 = 0.0;
-		active IS_1 = 0.0;
-		active alpha_0 = 0.0;
-		active alpha_1 = 0.0;
-		active W_0 = 0.0;
-		active W_1 = 0.0;
-		active q_0 = 0.0;
-		active q_1 = 0.0;
+		ParamType IS_0 = 0.0;
+		ParamType IS_1 = 0.0;
+		ParamType alpha_0 = 0.0;
+		ParamType alpha_1 = 0.0;
+		ParamType W_0 = 0.0;
+		ParamType W_1 = 0.0;
+		ParamType q_0 = 0.0;
+		ParamType q_1 = 0.0;
 
-		WENO23Params(const std::vector<active>& binSizes)
+		WENO23Params(const std::vector<ParamType>& binSizes)
 			: q_1_right_coeff(binSizes.size() - 1), q_0_right_coeff(binSizes.size() - 1), C_right_coeff(binSizes.size() - 1), IS_0_coeff(binSizes.size() - 1), IS_1_coeff(binSizes.size() - 1)
 		{
 			// calculate the coefficients and store them, the first element is empty
 			for (int i = 1; i + 1 < binSizes.size(); ++i)
 			{
-				const active delta_sum = binSizes[i] + binSizes[i - 1] + binSizes[i + 1];
-				const active delta_left_sum = binSizes[i] + binSizes[i - 1];
-				const active delta_right_sum = binSizes[i] + binSizes[i + 1];
+				const ParamType delta_sum = binSizes[i] + binSizes[i - 1] + binSizes[i + 1];
+				const ParamType delta_left_sum = binSizes[i] + binSizes[i - 1];
+				const ParamType delta_right_sum = binSizes[i] + binSizes[i + 1];
 				q_0_right_coeff[i] = binSizes[i + 1] / delta_right_sum;
 				q_1_right_coeff[i] = 1.0 + binSizes[i] / delta_left_sum;
 				C_right_coeff[i] = delta_left_sum / delta_sum;
@@ -565,60 +575,61 @@ protected:
 		}
 	};
 
-	struct WENO35Params : public ReconstructionParams
+	template<typename ParamType>
+	struct WENO35Params : public ReconstructionParams<ParamType>
 	{
-		std::vector<active> q_2_coeff_1;
-		std::vector<active> q_2_coeff_2;
-		std::vector<active> q_1_coeff_1;
-		std::vector<active> q_1_coeff_2;
-		std::vector<active> q_0_coeff_1;
-		std::vector<active> q_0_coeff_2;
-		std::vector<active> C_0;
-		std::vector<active> C_1;
-		std::vector<active> C_2;
-		std::vector<active> IS_0_coeff_1;
-		std::vector<active> IS_0_coeff_2;
-		std::vector<active> IS_0_coeff_3;
-		std::vector<active> IS_1_coeff_1;
-		std::vector<active> IS_1_coeff_2;
-		std::vector<active> IS_1_coeff_3;
-		std::vector<active> IS_2_coeff_1;
-		std::vector<active> IS_2_coeff_2;
-		std::vector<active> IS_2_coeff_3;
+		std::vector<ParamType> q_2_coeff_1;
+		std::vector<ParamType> q_2_coeff_2;
+		std::vector<ParamType> q_1_coeff_1;
+		std::vector<ParamType> q_1_coeff_2;
+		std::vector<ParamType> q_0_coeff_1;
+		std::vector<ParamType> q_0_coeff_2;
+		std::vector<ParamType> C_0;
+		std::vector<ParamType> C_1;
+		std::vector<ParamType> C_2;
+		std::vector<ParamType> IS_0_coeff_1;
+		std::vector<ParamType> IS_0_coeff_2;
+		std::vector<ParamType> IS_0_coeff_3;
+		std::vector<ParamType> IS_1_coeff_1;
+		std::vector<ParamType> IS_1_coeff_2;
+		std::vector<ParamType> IS_1_coeff_3;
+		std::vector<ParamType> IS_2_coeff_1;
+		std::vector<ParamType> IS_2_coeff_2;
+		std::vector<ParamType> IS_2_coeff_3;
 
-		active IS_0 = 0.0;
-		active IS_1 = 0.0;
-		active IS_2 = 0.0;
-		active alpha_0 = 0.0;
-		active alpha_1 = 0.0;
-		active alpha_2 = 0.0;
-		active W_0 = 0.0;
-		active W_1 = 0.0;
-		active W_2 = 0.0;
-		active q_0 = 0.0;
-		active q_1 = 0.0;
-		active q_2 = 0.0;
+		ParamType IS_0 = 0.0;
+		ParamType IS_1 = 0.0;
+		ParamType IS_2 = 0.0;
+		ParamType alpha_0 = 0.0;
+		ParamType alpha_1 = 0.0;
+		ParamType alpha_2 = 0.0;
+		ParamType W_0 = 0.0;
+		ParamType W_1 = 0.0;
+		ParamType W_2 = 0.0;
+		ParamType q_0 = 0.0;
+		ParamType q_1 = 0.0;
+		ParamType q_2 = 0.0;
 
 		// left side coefficients
-		active IS_0_coeff_weno3 = 0.0;
-		active IS_1_coeff_weno3 = 0.0;
-		active C_coeff1_weno3 = 0.0;
-		active C_coeff2_weno3 = 0.0;
-		active q0_coeff1_weno3 = 0.0;
-		active q0_coeff2_weno3 = 0.0;
-		active q1_coeff1_weno3 = 0.0;
-		active q1_coeff2_weno3 = 0.0;
+		ParamType IS_0_coeff_weno3 = 0.0;
+		ParamType IS_1_coeff_weno3 = 0.0;
+		ParamType C_coeff1_weno3 = 0.0;
+		ParamType C_coeff2_weno3 = 0.0;
+		ParamType q0_coeff1_weno3 = 0.0;
+		ParamType q0_coeff2_weno3 = 0.0;
+		ParamType q1_coeff1_weno3 = 0.0;
+		ParamType q1_coeff2_weno3 = 0.0;
 		// right side coefficients
-		active IS_0_coeff_weno3_r = 0.0;
-		active IS_1_coeff_weno3_r = 0.0;
-		active C_coeff1_weno3_r = 0.0;
-		active C_coeff2_weno3_r = 0.0;
-		active q0_coeff1_weno3_r = 0.0;
-		active q0_coeff2_weno3_r = 0.0;
-		active q1_coeff1_weno3_r = 0.0;
-		active q1_coeff2_weno3_r = 0.0;
+		ParamType IS_0_coeff_weno3_r = 0.0;
+		ParamType IS_1_coeff_weno3_r = 0.0;
+		ParamType C_coeff1_weno3_r = 0.0;
+		ParamType C_coeff2_weno3_r = 0.0;
+		ParamType q0_coeff1_weno3_r = 0.0;
+		ParamType q0_coeff2_weno3_r = 0.0;
+		ParamType q1_coeff1_weno3_r = 0.0;
+		ParamType q1_coeff2_weno3_r = 0.0;
 
-		WENO35Params(const std::vector<active>& binSizes)
+		WENO35Params(const std::vector<ParamType>& binSizes)
 			: q_2_coeff_1(binSizes.size() - 2), q_2_coeff_2(binSizes.size() - 2), q_1_coeff_1(binSizes.size() - 2),
 			q_1_coeff_2(binSizes.size() - 2), q_0_coeff_1(binSizes.size() - 2), q_0_coeff_2(binSizes.size() - 2),
 			C_0(binSizes.size() - 2), C_1(binSizes.size() - 2), C_2(binSizes.size() - 2),
@@ -629,10 +640,10 @@ protected:
 			// calculate the coefficients and store them, the first and second elements are empty
 			for (int i = 2; i + 2 < binSizes.size(); ++i)
 			{
-				const active delta_sum = binSizes[i - 2] + binSizes[i - 1] + binSizes[i] + binSizes[i + 1] + binSizes[i + 2];
-				const active delta_sum_I0 = binSizes[i - 2] + binSizes[i - 1] + binSizes[i];
-				const active delta_sum_I1 = binSizes[i - 1] + binSizes[i] + binSizes[i + 1];
-				const active delta_sum_I2 = binSizes[i] + binSizes[i + 1] + binSizes[i + 2];
+				const ParamType delta_sum = binSizes[i - 2] + binSizes[i - 1] + binSizes[i] + binSizes[i + 1] + binSizes[i + 2];
+				const ParamType delta_sum_I0 = binSizes[i - 2] + binSizes[i - 1] + binSizes[i];
+				const ParamType delta_sum_I1 = binSizes[i - 1] + binSizes[i] + binSizes[i + 1];
+				const ParamType delta_sum_I2 = binSizes[i] + binSizes[i + 1] + binSizes[i + 2];
 				q_0_coeff_1[i] = binSizes[i + 1] * (delta_sum_I2 - binSizes[i]) / (delta_sum_I2 - binSizes[i + 2]) / delta_sum_I2;
 				q_0_coeff_2[i] = binSizes[i + 1] * binSizes[i] / delta_sum_I2 / (delta_sum_I2 - binSizes[i]);
 				q_1_coeff_1[i] = binSizes[i] * (delta_sum_I1 - binSizes[i + 1]) / delta_sum_I1 / (delta_sum_I1 - binSizes[i - 1]);
@@ -642,15 +653,15 @@ protected:
 				C_0[i] = delta_sum_I0 * (delta_sum_I0 - binSizes[i - 2]) / delta_sum / (delta_sum - binSizes[i - 2]);
 				C_1[i] = delta_sum_I0 / delta_sum * (delta_sum_I2 - binSizes[i]) / (binSizes[i - 1] + delta_sum_I2) * (1.0 + (delta_sum - binSizes[i - 2]) / (delta_sum - binSizes[i + 2]));
 				C_2[i] = binSizes[i + 1] * (binSizes[i + 1] + binSizes[i + 2]) / delta_sum / (delta_sum - binSizes[i + 2]);
-				const active IS_0_pre = 4.0 * (binSizes[i] / delta_sum_I2) * (binSizes[i] / delta_sum_I2);
+				const ParamType IS_0_pre = 4.0 * (binSizes[i] / delta_sum_I2) * (binSizes[i] / delta_sum_I2);
 				IS_0_coeff_1[i] = IS_0_pre * (10.0 * binSizes[i] * binSizes[i] + binSizes[i + 1] * (binSizes[i] + binSizes[i + 1])) / (binSizes[i + 1] + binSizes[i + 2]) / (binSizes[i + 1] + binSizes[i + 2]);
 				IS_0_coeff_2[i] = IS_0_pre * (20.0 * binSizes[i] * binSizes[i] + 2.0 * binSizes[i + 1] * (binSizes[i] + binSizes[i + 1]) + (2.0 * binSizes[i + 1] + binSizes[i]) * delta_sum_I2) / (binSizes[i + 1] + binSizes[i + 2]) / (binSizes[i + 1] + binSizes[i]);
 				IS_0_coeff_3[i] = IS_0_pre * (10.0 * binSizes[i] * binSizes[i] + (2.0 * delta_sum_I2 - binSizes[i + 2]) * (delta_sum_I2 + binSizes[i + 1])) / (binSizes[i] + binSizes[i + 1]) / (binSizes[i] + binSizes[i + 1]);
-				const active IS_1_pre = 4.0 * (binSizes[i] / delta_sum_I1) * (binSizes[i] / delta_sum_I1);
+				const ParamType IS_1_pre = 4.0 * (binSizes[i] / delta_sum_I1) * (binSizes[i] / delta_sum_I1);
 				IS_1_coeff_1[i] = IS_1_pre * (10.0 * binSizes[i] * binSizes[i] + binSizes[i + 1] * (binSizes[i] + binSizes[i + 1])) / (binSizes[i - 1] + binSizes[i]) / (binSizes[i - 1] + binSizes[i]);
 				IS_1_coeff_2[i] = IS_1_pre * (20.0 * binSizes[i] * binSizes[i] - binSizes[i + 1] * binSizes[i - 1] - (binSizes[i] + binSizes[i + 1]) * (binSizes[i] + binSizes[i - 1])) / (binSizes[i] + binSizes[i + 1]) / (binSizes[i] + binSizes[i - 1]);
 				IS_1_coeff_3[i] = IS_1_pre * (10.0 * binSizes[i] * binSizes[i] + binSizes[i - 1] * (binSizes[i - 1] + binSizes[i])) / (binSizes[i] + binSizes[i + 1]) / (binSizes[i] + binSizes[i + 1]);
-				const active IS_2_pre = 4.0 * (binSizes[i] / delta_sum_I0) * (binSizes[i] / delta_sum_I0);
+				const ParamType IS_2_pre = 4.0 * (binSizes[i] / delta_sum_I0) * (binSizes[i] / delta_sum_I0);
 				IS_2_coeff_1[i] = IS_2_pre * (10.0 * binSizes[i] * binSizes[i] + binSizes[i - 1] * (binSizes[i - 1] + binSizes[i])) / (binSizes[i - 2] + binSizes[i - 1]) / (binSizes[i - 2] + binSizes[i - 1]);
 				IS_2_coeff_2[i] = IS_2_pre * (20.0 * binSizes[i] * binSizes[i] + 2.0 * binSizes[i - 1] * (binSizes[i - 1] + binSizes[i]) + delta_sum_I0 * (2.0 * binSizes[i - 1] + binSizes[i])) / (binSizes[i - 1] + binSizes[i]) / (binSizes[i - 2] + binSizes[i - 1]);
 				IS_2_coeff_3[i] = IS_2_pre * (10.0 * binSizes[i] * binSizes[i] + (2.0 * delta_sum_I0 - binSizes[i - 2]) * (delta_sum_I0 + binSizes[i - 1])) / (binSizes[i - 1] + binSizes[i]) / (binSizes[i - 1] + binSizes[i]);
@@ -751,7 +762,7 @@ protected:
 
 	struct JacobianParamsWENO35 : public JacobianParamsBase
 	{
-		void updateParams(double vG_factor, double dBp_dc, double dBp_dceq, double dBs_dc, double dBs_dceq, double dvG_dc_factor, double dvG_dceq_factor, double dBs_dni_factor, const double* yCrystal, const int nComp, const std::vector<active>& binSizes, WENO35Params& WENO5Params)
+		void updateParams(double vG_factor, double dBp_dc, double dBp_dceq, double dBs_dc, double dBs_dceq, double dvG_dc_factor, double dvG_dceq_factor, double dBs_dni_factor, const double* yCrystal, const int nComp, const std::vector<active>& binSizes, WENO35Params<active>& WENO5Params)
 		{
 			// WENO23 related coefficients, for bin N_x-2
 			IS_0_weno3_right = static_cast<double>(WENO5Params.IS_0_coeff_weno3_r) * (yCrystal[nComp - 3] - yCrystal[nComp - 4]) * (yCrystal[nComp - 3] - yCrystal[nComp - 4]);
@@ -974,7 +985,7 @@ protected:
 	active _k; //!< System constant
 	active _u; //!< System constant
 
-	ReconstructionParams* _reconstruction;
+	ReconstructionParams<active>* _reconstruction;
 
 	// Fragmentation parameters
 	active _fragRateConstant; // constant fragmentation rate constant
@@ -1000,7 +1011,7 @@ protected:
 	}
 
 	template <typename StateType, typename ResidualType, typename ParamType, typename FactorType>
-	void upwindKernel(StateType const* yCrystal, ResidualType* resCrystal, const FactorType& factor, ReconstructionParams& upwindParams, const int i) const
+	void upwindKernel(StateType const* yCrystal, ResidualType* resCrystal, const FactorType& factor, ReconstructionParams<active>& upwindParams, const int i) const
 	{
 		// Flux through left face
 		if (cadet_likely((i > 0) && (i + 1 < _nBins)))
@@ -1028,7 +1039,7 @@ protected:
 	}
 
 	template <typename StateType, typename ResidualType, typename ParamType, typename FactorType>
-	void HRKorenKernel(StateType const* yCrystal, ResidualType* resCrystal, const FactorType& factor, HRKorenParams& HRKoren, const int i) const
+	void HRKorenKernel(StateType const* yCrystal, ResidualType* resCrystal, const FactorType& factor, HRKorenParams<active>& HRKoren, const int i) const
 	{
 		for (int i = 0; i < _nBins; ++i)
 		{
@@ -1086,7 +1097,7 @@ protected:
 	}
 
 	template <typename StateType, typename ResidualType, typename ParamType, typename FactorType>
-	void WENO23Kernel(StateType const* yCrystal, ResidualType* resCrystal, const FactorType& factor, WENO23Params& WENO3Params, const int i) const
+	void WENO23Kernel(StateType const* yCrystal, ResidualType* resCrystal, const FactorType& factor, WENO23Params<active>& WENO3Params, const int i) const
 	{
 		for (int i = 0; i < _nBins; ++i)
 		{
@@ -1141,7 +1152,7 @@ protected:
 	}
 
 	template <typename StateType, typename ResidualType, typename ParamType, typename FactorType>
-	void WENO35Kernel(StateType const* yCrystal, ResidualType* resCrystal, const FactorType& factor, WENO35Params& WENO5Params, const int i) const
+	void WENO35Kernel(StateType const* yCrystal, ResidualType* resCrystal, const FactorType& factor, WENO35Params<active>& WENO5Params, const int i) const
 	{
 		for (int i = 0; i < _nBins; ++i)
 		{
@@ -1301,17 +1312,17 @@ protected:
 				break;
 				case detail::PBMReconstruction::HRKoren:
 				{
-					HRKorenKernel<StateType, ResidualType, ParamType, FactorType>(yCrystal, resCrystal, factor, *static_cast<HRKorenParams*>(_reconstruction), i);
+					HRKorenKernel<StateType, ResidualType, ParamType, FactorType>(yCrystal, resCrystal, factor, *static_cast<HRKorenParams<active>*>(_reconstruction), i);
 				}
 				break;
 				case detail::PBMReconstruction::WENO23:
 				{
-					WENO23Kernel<StateType, ResidualType, ParamType, FactorType>(yCrystal, resCrystal, factor, *static_cast<WENO23Params*>(_reconstruction), i);
+					WENO23Kernel<StateType, ResidualType, ParamType, FactorType>(yCrystal, resCrystal, factor, *static_cast<WENO23Params<active>*>(_reconstruction), i);
 				}
 				break;
 				case detail::PBMReconstruction::WENO35:
 				{
-					WENO35Kernel<StateType, ResidualType, ParamType, FactorType>(yCrystal, resCrystal, factor, *static_cast<WENO35Params*>(_reconstruction), i);
+					WENO35Kernel<StateType, ResidualType, ParamType, FactorType>(yCrystal, resCrystal, factor, *static_cast<WENO35Params<active>*>(_reconstruction), i);
 				}
 				break;
 				}
@@ -1534,7 +1545,7 @@ protected:
 	}
 
 	template <typename RowIterator>
-	void jacobianHRKorenKernel(double const* yCrystal, double factor, RowIterator& jac, JacobianParamsHRKoren& jacParams, HRKorenParams& HRKoren, const int i) const
+	void jacobianHRKorenKernel(double const* yCrystal, double factor, RowIterator& jac, JacobianParamsHRKoren& jacParams, HRKorenParams<active>& HRKoren, const int i) const
 	{
 		int binIdx_i = 0;
 		int binIdx_j = 0;
@@ -1724,7 +1735,7 @@ protected:
 	}
 
 	template <typename RowIterator>
-	void jacobianWENO23Kernel(double const* yCrystal, double factor, RowIterator& jac, JacobianParamsWENO23& jacParams, WENO23Params& WENO3Params, const int i) const
+	void jacobianWENO23Kernel(double const* yCrystal, double factor, RowIterator& jac, JacobianParamsWENO23& jacParams, WENO23Params<active>& WENO3Params, const int i) const
 	{
 		int binIdx_i = 0;
 		int binIdx_j = 0; // note: binIdx_j is used only when B_s is involved.
@@ -1923,7 +1934,7 @@ protected:
 	}
 
 	template <typename RowIterator>
-	void jacobianWENO35Kernel(double const* yCrystal, double factor, RowIterator& jac, JacobianParamsWENO35& jacParams, WENO35Params& WENO5Params, const int i) const
+	void jacobianWENO35Kernel(double const* yCrystal, double factor, RowIterator& jac, JacobianParamsWENO35& jacParams, WENO35Params<active>& WENO5Params, const int i) const
 	{
 		int binIdx_i = 0;
 		int binIdx_j = 0; // note: binIdx_j is used only when B_s is involved.
@@ -2376,7 +2387,7 @@ protected:
 
 			if (_growthSchemeOrder == detail::PBMReconstruction::WENO35)
 			{
-				static_cast<JacobianParamsWENO35*>(_jacParams)->updateParams(vG_factor, dBp_dc, dBp_dceq, dBs_dc, dBs_dceq, dvG_dc_factor, dvG_dceq_factor, dBs_dni_factor, yCrystal, _nComp, _binSizes, *static_cast<WENO35Params*>(_reconstruction));
+				static_cast<JacobianParamsWENO35*>(_jacParams)->updateParams(vG_factor, dBp_dc, dBp_dceq, dBs_dc, dBs_dceq, dvG_dc_factor, dvG_dceq_factor, dBs_dni_factor, yCrystal, _nComp, _binSizes, *static_cast<WENO35Params<active>*>(_reconstruction));
 			}
 		}
 
@@ -2398,17 +2409,17 @@ protected:
 				break;
 				case detail::PBMReconstruction::HRKoren:
 				{
-					jacobianHRKorenKernel<RowIterator>(yCrystal + 1, factor, jac, *static_cast<JacobianParamsHRKoren*>(_jacParams), *static_cast<HRKorenParams*>(_reconstruction), l);
+					jacobianHRKorenKernel<RowIterator>(yCrystal + 1, factor, jac, *static_cast<JacobianParamsHRKoren*>(_jacParams), *static_cast<HRKorenParams<active>*>(_reconstruction), l);
 				}
 				break;
 				case detail::PBMReconstruction::WENO23:
 				{
-					jacobianWENO23Kernel<RowIterator>(yCrystal + 1, factor, jac, *static_cast<JacobianParamsWENO23*>(_jacParams), *static_cast<WENO23Params*>(_reconstruction), l);
+					jacobianWENO23Kernel<RowIterator>(yCrystal + 1, factor, jac, *static_cast<JacobianParamsWENO23*>(_jacParams), *static_cast<WENO23Params<active>*>(_reconstruction), l);
 				}
 				break;
 				case detail::PBMReconstruction::WENO35:
 				{
-					jacobianWENO35Kernel<RowIterator>(yCrystal + 1, factor, jac, *static_cast<JacobianParamsWENO35*>(_jacParams), *static_cast<WENO35Params*>(_reconstruction), l);
+					jacobianWENO35Kernel<RowIterator>(yCrystal + 1, factor, jac, *static_cast<JacobianParamsWENO35*>(_jacParams), *static_cast<WENO35Params<active>*>(_reconstruction), l);
 				}
 				break;
 				}
