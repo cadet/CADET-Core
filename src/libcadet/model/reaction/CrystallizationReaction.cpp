@@ -197,19 +197,20 @@ namespace cadet
 
 			virtual bool requiresConfiguration() const CADET_NOEXCEPT { return true; }
 			virtual bool usesParamProviderInDiscretizationConfig() const CADET_NOEXCEPT { return false; }
-			void fillConservedMoietiesBulk(Eigen::MatrixXd& M, std::vector<int>& QSReaction, std::vector<int>& QSComponent) { }
-			bool hasQuasiStationaryReactionsLiquid() { return false; }
+			void fillConservedMoietiesBulk(Eigen::MatrixXd& M, std::vector<int>& QSReaction, std::vector<int>& QSComponent) {}
 
 			template <typename RowIterator>
-			void jacobianQuasiSteadyLiquidImpl(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, double factor, const RowIterator& jac, LinearBufferAllocator workSpace) const { }
-			
+			void jacobianQuasiSteadyLiquidImpl(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, int state, int reaction,  const RowIterator& jac, LinearBufferAllocator workSpace) const { }
+
 			virtual int quasiStationaryFlux(double t, unsigned int secIdx, const ColumnPosition& colPos, active const* y,
-				double* fluxes, std::vector<int> mapQSReac, LinearBufferAllocator workSpace) { return 0; }
-
+				Eigen::Map<Eigen::VectorXd> fluxes, std::vector<int> mapQSReac, LinearBufferAllocator workSpace) {
+				return 0;
+			}
 			virtual int quasiStationaryFlux(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y,
-				double* fluxes, std::vector<int> mapQSReac, LinearBufferAllocator workSpace) { return 0; }
-
-			
+				Eigen::Map<Eigen::VectorXd> fluxes, std::vector<int> mapQSReac, LinearBufferAllocator workSpace) {
+				return 0;
+			}
+			virtual void timeDerivativeQuasiStationaryReaction(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, double* dReacDt, LinearBufferAllocator workSpace){ }
 			virtual bool configure(IParameterProvider& paramProvider, UnitOpIdx unitOpIdx, ParticleTypeIdx parTypeIdx)
 			{
 				readScalarParameterOrArray(_bins, paramProvider, "CRY_BINS", 1);

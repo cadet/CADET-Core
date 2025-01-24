@@ -400,16 +400,31 @@ public:
 
 
 		Eigen::MatrixXd QSS(_stoichiometryBulk.rows(), nQS);
-		int rowIndex = 0;
+
 
 		// Fülle die Spalten basierend auf _reactionQuasistationarity
-		for (int i = 0; i < _stoichiometryBulk.rows(); ++i)
+		/*for (int i = 0; i < _stoichiometryBulk.rows(); ++i)
 		{
 			const double* rowData = reinterpret_cast<const double*>(_stoichiometryBulk.data() + i * _stoichiometryBulk.columns());
 			Eigen::Map<const Eigen::VectorXd> Srow(rowData, _stoichiometryBulk.columns());
 			QSS.row(rowIndex++) = Srow;
 		}
+		*/
 
+		for (int i = 0; i < _stoichiometryBulk.rows(); ++i)
+		{
+			for(int j = 0; j < _stoichiometryBulk.columns(); j++)
+			{
+				int rowIndex = 0;
+				for (int j = 0; j < _stoichiometryBulk.columns(); j++)
+				{
+					if (mapQSReac[j] == 0)
+						continue;
+					QSS(i, rowIndex) = static_cast<double>(_stoichiometryBulk.native(i, j));
+					rowIndex++;
+				}
+			}
+		}
 		//Remove zero rows from QSS
 		int nQScomp = 0; // Number of quasi stationary active components
 		for (int i = 0; i < QSS.rows(); ++i)
@@ -424,7 +439,7 @@ public:
 			}
 		}
 		// Redimensioniere QSS und kopiere nur die nicht-null Zeilen
-		if (_nComp - nQScomp  < 0.0 ) // if kinetic components exists we can resize QSS
+		if (_nComp - nQScomp  > 0 ) // if kinetic components exists we can resize QSS
 		{
 			Eigen::MatrixXd QSSCompressed(nQScomp, QSS.cols());
 			for (std::size_t i = 0; i < _QsCompBulk.size(); ++i)
@@ -441,13 +456,13 @@ public:
 		int rang = QSS.fullPivLu().rank();
 		if (rang != nQS)
 		{
-			throw std::runtime_error("The matrix is not full rank");
+			throw std::runtime_error("Calculation Conserved Moities Matrix: The Stoichemetric Matrix is sigular");
 		}
 
 		//3. Calculate the null space of the matrix
 		Eigen::MatrixXd leftZeroSpace = QSS.transpose().fullPivLu().kernel().transpose();
 
-		if (_nComp - nQScomp < 1e-10) // if there are no kinetic components we can return the zero matrix
+		if (_nComp - nQScomp < 0) // if there are no kinetic components we can return the zero matrix
 		{
 			M = leftZeroSpace;
 		}
@@ -933,28 +948,27 @@ protected:
 	}
 
 	template <typename RowIterator>
-	void jacobianQuasiSteadyLiquidImpl(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, double factor, const RowIterator& jac, LinearBufferAllocator workSpace) const
+	void jacobianQuasiSteadyLiquidImpl(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, int state, int reaction ,const RowIterator& jac, LinearBufferAllocator workSpace) const
 	{
 		typename ParamHandler_t::ParamsHandle const p = _paramHandler.update(t, secIdx, colPos, _nComp, _nBoundStates, workSpace);
 
 		BufferedArray<double> fluxes = workSpace.array<double>(2 * _nComp);
 		double* const fluxGradFwd = static_cast<double*>(fluxes);
 		double* const fluxGradBwd = fluxGradFwd + _nComp;
-		for (int r = 0; r < _stoichiometryBulk.columns(); ++r)
-		{
+
 			// Calculate gradients of forward and backward fluxes
-			fluxGradLiquid(fluxGradFwd, r, _nComp, static_cast<double>(p->kFwdBulk[r]), _expBulkFwd, y);
-			fluxGradLiquid(fluxGradBwd, r, _nComp, static_cast<double>(p->kBwdBulk[r]), _expBulkBwd, y);
+			fluxGradLiquid(fluxGradFwd, reaction, _nComp, static_cast<double>(p->kFwdBulk[reaction]), _expBulkFwd, y);
+			fluxGradLiquid(fluxGradBwd, reaction, _nComp, static_cast<double>(p->kBwdBulk[reaction]), _expBulkBwd, y);
 
 			// Add gradients to Jacobian
 			RowIterator curJac = jac; // right row iterator
-			for (int row = 0; row < _nComp; ++row, ++curJac)
+
+			const double colFactor = static_cast<double>(_stoichiometryBulk.native(state, reaction));
+			for (int col = 0; col < _nComp; ++col)
 			{
-				const double colFactor = static_cast<double>(_stoichiometryBulk.native(row, r)) * factor;
-				for (int col = 0; col < _nComp; ++col)
-					curJac[0] = colFactor * (fluxGradFwd[col] - fluxGradBwd[col]); 
+				curJac[col - state] = colFactor * (fluxGradFwd[col] - fluxGradBwd[col]);
 			}
-		}
+		
 	}
 
 	template <typename RowIteratorLiquid, typename RowIteratorSolid>
@@ -999,6 +1013,21 @@ protected:
 				for (int col = 0; col < _nComp + _nTotalBoundStates; ++col)
 					curJac[col - static_cast<int>(_nComp) - static_cast<int>(row)] += colFactor * (fluxGradFwd[col] - fluxGradBwd[col]);
 			}
+		}
+	}
+
+	virtual void timeDerivativeQuasiStationaryReaction(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, double* dY, LinearBufferAllocator workSpace) 
+	{
+		typename ParamHandler_t::ParamsHandle const p = _paramHandler.update(t, secIdx, colPos, _nComp, _nBoundStates, workSpace);
+
+		for (int r = 0; r < _stoichiometryBulk.columns(); ++r)
+		{
+			double kFwdBulk_r = static_cast<double>(p->kFwdBulk[r]);
+			double kBwdBulk_r = static_cast<double>(p->kBwdBulk[r]);
+
+			double flow = singleFlux(r, y, kFwdBulk_r, kBwdBulk_r);
+			for (int c = 0; c < _nComp; ++c)
+				dY[c] += static_cast<double>(_stoichiometryBulk.native(c, r)) * flow;
 		}
 	}
 };

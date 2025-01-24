@@ -99,8 +99,9 @@ public:
 		std::vector<double*>& vecSensY, std::vector<double*>& vecSensYdot, active const* const adRes, util::ThreadLocalStorage& threadLocalMem);
 
 	virtual void leanConsistentInitialState(const SimulationTime& simTime, double* const vecStateY, const AdJacobianParams& adJac, double errorTol, util::ThreadLocalStorage& threadLocalMem);
-	virtual void leanConsistentInitialTimeDerivative(double t, double const* const vecStateY, double* const vecStateYdot, double* const res, util::ThreadLocalStorage& threadLocalMem);
-	
+	virtual void leanConsistentInitialTimeDerivative(double time, double const* const vecStateY, double* const vecStateYdot, double* const res, util::ThreadLocalStorage& threadLocalMem);
+	virtual void leanConsistentInitialTimeDerivative(const SimulationTime& simTime, double const* const vecStateY, double* const vecStateYdot, double* const res, util::ThreadLocalStorage& threadLocalMem) {};
+
 	virtual void leanConsistentInitialSensitivity(const SimulationTime& simTime, const ConstSimulationState& simState,
 		std::vector<double*>& vecSensY, std::vector<double*>& vecSensYdot, active const* const adRes, util::ThreadLocalStorage& threadLocalMem);
 
@@ -158,6 +159,7 @@ protected:
 	active _flowRateIn; //!< Volumetric flow rate of incoming stream
 	active _flowRateOut; //!< Volumetric flow rate of drawn outgoing stream
 	active _curFlowRateFilter; //!< Current volumetric flow rate of liquid outtake stream for this section
+	unsigned int _curSecIdx; //!< Current section index
 	std::vector<active> _flowRateFilter; //!< Volumetric flow rate of liquid outtake stream
 	std::vector<active> _parTypeVolFrac; //!< Volume fraction of each particle type
 
@@ -178,7 +180,7 @@ protected:
 	std::vector<int> _qsReacBulk; //!< Indices of components that are not conserved in the bulk volume
 	std::vector<int> _QsCompBulk;
 	unsigned int _nQsReacBulk;
-	unsigned int _nMoitiesBulk;
+	int _nMoitiesBulk;
 
 	class Exporter : public ISolutionExporter
 	{
