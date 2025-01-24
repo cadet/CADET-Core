@@ -336,6 +336,7 @@ public:
 			}
 			else
 			{
+				_reconstruction = new ReconstructionParams<active>();
 				_jacParams = new JacobianParamsBase;
 			}
 		}
