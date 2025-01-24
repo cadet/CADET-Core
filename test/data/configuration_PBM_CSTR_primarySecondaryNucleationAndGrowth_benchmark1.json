@@ -558,6 +558,7 @@
         "NCOMP": 102,
         "CONST_SOLID_VOLUME": 0.0,
         "REACTION_MODEL": "CRYSTALLIZATION",
+        "CRYSTALLIZATION_MODE": 0,
         "UNIT_TYPE": "CSTR",
         "USE_ANALYTIC_JACOBIAN": 1,
         "reaction_bulk": {
