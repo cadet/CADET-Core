@@ -933,14 +933,14 @@ protected:
 	}
 
 	template <typename RowIterator>
-	void jacobianQuasiSteadyLiquidImpl(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, double factor, const RowIterator& jac, LinearBufferAllocator workSpace) const
+	void jacobianQuasiSteadyLiquidImpl(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, int state, const RowIterator& jac, LinearBufferAllocator workSpace) const
 	{
 		typename ParamHandler_t::ParamsHandle const p = _paramHandler.update(t, secIdx, colPos, _nComp, _nBoundStates, workSpace);
 
 		BufferedArray<double> fluxes = workSpace.array<double>(2 * _nComp);
 		double* const fluxGradFwd = static_cast<double*>(fluxes);
 		double* const fluxGradBwd = fluxGradFwd + _nComp;
-		for (int r = 0; r < _stoichiometryBulk.columns(); ++r)
+		for (int r = 0; r < _stoichiometryBulk.columns(); ++r) // reactions
 		{
 			// Calculate gradients of forward and backward fluxes
 			fluxGradLiquid(fluxGradFwd, r, _nComp, static_cast<double>(p->kFwdBulk[r]), _expBulkFwd, y);
@@ -948,11 +948,11 @@ protected:
 
 			// Add gradients to Jacobian
 			RowIterator curJac = jac; // right row iterator
-			for (int row = 0; row < _nComp; ++row, ++curJac)
+
+			const double colFactor = static_cast<double>(_stoichiometryBulk.native(state, r));
+			for (int col = 0; col < _nComp; ++col)
 			{
-				const double colFactor = static_cast<double>(_stoichiometryBulk.native(row, r)) * factor;
-				for (int col = 0; col < _nComp; ++col)
-					curJac[0] = colFactor * (fluxGradFwd[col] - fluxGradBwd[col]); 
+				curJac[col - state] = colFactor * (fluxGradFwd[col] - fluxGradBwd[col]);
 			}
 		}
 	}

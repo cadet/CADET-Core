@@ -178,7 +178,7 @@ protected:
 	std::vector<int> _qsReacBulk; //!< Indices of components that are not conserved in the bulk volume
 	std::vector<int> _QsCompBulk;
 	unsigned int _nQsReacBulk;
-	unsigned int _nMoitiesBulk;
+	int _nMoitiesBulk;
 
 	class Exporter : public ISolutionExporter
 	{
