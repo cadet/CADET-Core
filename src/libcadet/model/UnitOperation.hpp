@@ -498,6 +498,7 @@ public:
 	 * @param [in] res On entry, residual without taking time derivatives into account. The data is overwritten during execution of the function.
 	 */
 	virtual void leanConsistentInitialTimeDerivative(double t, double const* const vecStateY, double* const vecStateYdot, double* const res, util::ThreadLocalStorage& threadLocalMem) = 0;
+	virtual void leanConsistentInitialTimeDerivative(const SimulationTime& simTime, double const* const vecStateY, double* const vecStateYdot, double* const res, util::ThreadLocalStorage& threadLocalMem) = 0;
 
 	/**
 	 * @brief Computes consistent initial conditions for all sensitivity subsystems
