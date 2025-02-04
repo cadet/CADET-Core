@@ -26,6 +26,7 @@
 #include <string>
 #include <vector>
 #include <Eigen/Dense>
+#include <iostream>
 
 using namespace Eigen;
 /*<codegen>
@@ -341,6 +342,27 @@ public:
 			_expBulkFwd.resize(nComp, nReactions);
 			_expBulkBwd.resize(nComp, nReactions);
 		}
+		if (paramProvider.exists("IS_KINETIC"))
+		{
+			_reactionQuasistationarity.resize(_stoichiometryBulk.columns(), false);
+
+			const std::vector<int> vecKin = paramProvider.getIntArray("IS_KINETIC");
+			if (vecKin.size() == 1)
+			{
+				// Treat an array with a single element as scalar
+				std::fill(_reactionQuasistationarity.begin(), _reactionQuasistationarity.end(), !static_cast<bool>(vecKin[0]));
+			}
+			else if (vecKin.size() < _reactionQuasistationarity.size())
+			{
+				// Error on too few elements
+				throw InvalidParameterException("IS_KINETIC has to have at least " + std::to_string(_reactionQuasistationarity.size()) + " elements");
+			}
+			else
+			{
+				// Copy what we need (ignore excess values)
+				std::transform(vecKin.begin(), vecKin.begin() + _reactionQuasistationarity.size(), _reactionQuasistationarity.begin(), [](int val) { return !static_cast<bool>(val); });
+			}
+		}
 
 		if (!nBound || !boundOffset)
 			return true;
@@ -377,6 +399,7 @@ public:
 			_expSolidBwdLiquid.resize(nComp, nReactions);
 		}
 
+
 		return true;
 	}
 	
@@ -389,18 +412,18 @@ public:
 	 * @param _reactionQuasistationarity The reaction quasistationarity vector.
 	 * @return The conserved moieties matrix.
 	 */
-	virtual void fillConservedMoietiesBulk(Eigen::MatrixXd& M, std::vector<int>& mapQSReac, std::vector<int>& _QsCompBulk)
+	virtual void fillConservedMoietiesBulk(Eigen::MatrixXd& M, unsigned int& numQSReac, std::vector<int>& _QsCompBulk)
 	{
 
 		//1. get stoichmetic matrix with only reaction in quasi stationary
 		// S dim -> ncomp x nreac
-
-		int nQS = std::count(mapQSReac.begin(), mapQSReac.end(), 1);
+		//_reactionQuasistationarity = {1};
+		numQSReac = std::count(_reactionQuasistationarity.begin(), _reactionQuasistationarity.end(), true);
 		// Count the number of entries with value 1 in _reactionQuasistationarity
-
-
-		Eigen::MatrixXd QSS(_stoichiometryBulk.rows(), nQS);
-
+		
+		M.resize(numQSReac,_nComp);
+		Eigen::MatrixXd QSS(_stoichiometryBulk.rows(), numQSReac);
+		
 
 		// Fülle die Spalten basierend auf _reactionQuasistationarity
 		/*for (int i = 0; i < _stoichiometryBulk.rows(); ++i)
@@ -413,16 +436,13 @@ public:
 
 		for (int i = 0; i < _stoichiometryBulk.rows(); ++i)
 		{
+			int rowIndex = 0;
 			for(int j = 0; j < _stoichiometryBulk.columns(); j++)
 			{
-				int rowIndex = 0;
-				for (int j = 0; j < _stoichiometryBulk.columns(); j++)
-				{
-					if (mapQSReac[j] == 0)
+					if (_reactionQuasistationarity[j] == 0)
 						continue;
 					QSS(i, rowIndex) = static_cast<double>(_stoichiometryBulk.native(i, j));
 					rowIndex++;
-				}
 			}
 		}
 		//Remove zero rows from QSS
@@ -438,6 +458,8 @@ public:
 				nQScomp++;
 			}
 		}
+		if (nQScomp == 0)
+			return;
 		// Redimensioniere QSS und kopiere nur die nicht-null Zeilen
 		if (_nComp - nQScomp  > 0 ) // if kinetic components exists we can resize QSS
 		{
@@ -454,7 +476,7 @@ public:
 
 		//3. Test if the matrix is full rank
 		int rang = QSS.fullPivLu().rank();
-		if (rang != nQS)
+		if (rang != numQSReac)
 		{
 			throw std::runtime_error("Calculation Conserved Moities Matrix: The Stoichemetric Matrix is sigular");
 		}
@@ -507,6 +529,7 @@ protected:
 	linalg::ActiveDenseMatrix _expSolidBwdLiquid;
 
 	std::vector<int> _reactionQuasistationarity; 
+	int _nQuasiStationaryReactionsLiquid;
 
 	inline int maxNumReactions() const CADET_NOEXCEPT { return std::max(std::max(_stoichiometryBulk.columns(), _stoichiometryLiquid.columns()), _stoichiometrySolid.columns()); }
 
@@ -696,10 +719,10 @@ protected:
 	}
 
 	virtual int quasiStationaryFlux(double t, unsigned int secIdx, const ColumnPosition& colPos, active const* y,
-		Eigen::Map<Eigen::VectorXd> fluxes, std::vector<int> mapQSReac, LinearBufferAllocator workSpace) { return 0; }
+		Eigen::Map<Eigen::VectorXd> fluxes, int const* mapQSReac, LinearBufferAllocator workSpace) { return 0; }
 
 	virtual int quasiStationaryFlux(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y,
-		Eigen::Map<Eigen::VectorXd> fluxes, std::vector<int> mapQSReac, LinearBufferAllocator workSpace)
+		Eigen::Map<Eigen::VectorXd> fluxes, int const* mapQSReac, LinearBufferAllocator workSpace)
 	{
 		typename ParamHandler_t::ParamsHandle const p = _paramHandler.update(t, secIdx, colPos, _nComp, _nBoundStates, workSpace);
 		
@@ -709,10 +732,14 @@ protected:
 			double kFwdBulk_r = static_cast<double>(p->kFwdBulk[r]);
 			double kBwdBulk_r = static_cast<double>(p->kBwdBulk[r]);
 			
-			if (mapQSReac[r] == 1)
+			if (_reactionQuasistationarity[r] == 1)
 			{	
 				double flow = singleFlux(r, y, kFwdBulk_r, kBwdBulk_r);
 				fluxes[r] = flow;
+			}
+			else
+			{
+				fluxes[r] = 0.0;
 			}
 			return 0;
 		}
@@ -957,6 +984,8 @@ protected:
 		double* const fluxGradBwd = fluxGradFwd + _nComp;
 		for (int r = 0; r < _stoichiometryBulk.columns(); ++r)
 		{
+			if (_reactionQuasistationarity[r])
+				continue;
 			// Calculate gradients of forward and backward fluxes
 			fluxGradLiquid(fluxGradFwd, r, _nComp, static_cast<double>(p->kFwdBulk[r]), _expBulkFwd, y);
 			fluxGradLiquid(fluxGradBwd, r, _nComp, static_cast<double>(p->kBwdBulk[r]), _expBulkBwd, y);

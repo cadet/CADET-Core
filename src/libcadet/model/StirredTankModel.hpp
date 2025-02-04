@@ -176,9 +176,9 @@ protected:
 	double* _temp2;
 
 	Eigen::MatrixXd _MconvMoityBulk; //!<  Matrix with conservation of moieties in the bulk volume
-	std::vector<int> _qsReacBulk; //!< Indices of components that are not conserved in the bulk volume
-	std::vector<int> _QsCompBulk;
-	unsigned int _nQsReacBulk;
+	int const* _qsReactionBulk; //!< Indices of components that are not conserved in the bulk volume
+	std::vector<int> _QsCompBulk; //!< Indices of components that are conserved in the bulk volume
+	unsigned int _nqsReactionBulk;
 	int _nMoitiesBulk;
 
 	class Exporter : public ISolutionExporter
