@@ -1264,9 +1264,13 @@ void CSTRModel::leanConsistentInitialState(const SimulationTime& simTime, double
 					for (unsigned int MoityIdx = 0; MoityIdx < _nMoitiesBulk; ++MoityIdx)
 					{
 						double dotProduct = 0.0;
-						for (unsigned int i = 0; i < _MconvMoityBulk.cols(); ++i) // hier Optimierung durch Vermeidung von 0 Zeilen in MconvMoityBulk
-							mat.native(rIdx,i) = _MconvMoityBulk(MoityIdx, i);
-						rIdx++;
+						for (unsigned int i = 0; i < _MconvMoityBulk.cols(); ++i)
+						{// hier Optimierung durch Vermeidung von 0 Zeilen in MconvMoityBulk
+							if (!mask.mask[i])
+								continue;
+							mat.native(rIdx, i) = _MconvMoityBulk(MoityIdx, i);
+							rIdx++;
+						}
 					}
 					return true;
 				};
@@ -1293,9 +1297,13 @@ void CSTRModel::leanConsistentInitialState(const SimulationTime& simTime, double
 				{
 					double dotProduct = 0.0;
 					for (unsigned int j = 0; j < _MconvMoityBulk.cols(); ++j) // hier Optimierung durch Vermeidung von 0 Zeilen in MconvMoityBulk
+					{	
+						if(!mask.mask[j])
+							continue;
 						dotProduct += _MconvMoityBulk(MoityIdx, j) * x[j];
-					r[rIdx] = dotProduct  - conservedQuants[rIdx];
-					rIdx++;
+						r[rIdx] = dotProduct - conservedQuants[rIdx];
+						rIdx++;
+					}
 				}
 
 				std::cout << "Residual: " << std::endl;
@@ -1570,7 +1578,7 @@ int CSTRModel::residualImpl(double t, unsigned int secIdx, StateType const* cons
 		resC[i] += -flowIn * cIn[i] + flowOut * c[i];
 	}
 	
-	if (wantJac)
+	if (wantJac && _nQsReacBulk == 0)
 	{
 		_jac.setAll(0.0);
 
@@ -1599,6 +1607,7 @@ int CSTRModel::residualImpl(double t, unsigned int secIdx, StateType const* cons
 
 	if (_dynReactionBulk && (_nQsReacBulk > 0))
 	{
+		_jac.setAll(0.0);
 
 		Eigen::Map<Eigen::Vector<ResidualType, Eigen::Dynamic>> resCMoities(reinterpret_cast<ResidualType*>(_temp), _nComp);
 		resCMoities.setZero();
@@ -1624,15 +1633,15 @@ int CSTRModel::residualImpl(double t, unsigned int secIdx, StateType const* cons
 					
 					if (wantJac && i == state)
 					{
-						_jac.native(state, state) *= _MconvMoityBulk(MoityIdx, i); // dF_{ci}/dcj = v_liquidDot + F_out  
+						_jac.native(state, state) += _MconvMoityBulk(MoityIdx, i) * (static_cast<double>(vDot) + static_cast<double>(flowOut)); // dF_{ci}/dcj = v_liquidDot + F_out  
 						if (cadet_likely(yDot))
 						{
-							_jac.native(i, _nComp + _totalBound) *= _MconvMoityBulk(MoityIdx, i); // dF/dvliquid = cDot 
+							_jac.native(i, _nComp + _totalBound) += _MconvMoityBulk(MoityIdx, i) * cDot[i]; // dF/dvliquid = cDot 
 						}
 					}
 					if (wantJac && state != i) 
 					{
-						_jac.native(state, i) = _MconvMoityBulk(MoityIdx, i)*(static_cast<double>(vDot) + static_cast<double>(flowOut)); // dF_{ci}/dcj = v_liquidDot + F_out  
+						_jac.native(state, i) += _MconvMoityBulk(MoityIdx, i)*(static_cast<double>(vDot) + static_cast<double>(flowOut)); // dF_{ci}/dcj = v_liquidDot + F_out  
 						if (cadet_likely(yDot))
 							_jac.native(state, _nComp + _totalBound) += _MconvMoityBulk(MoityIdx, i) * cDot[i]; // dF_{ci}/dVl = sum_i M[i,-] * dcidt
 					}
@@ -1644,6 +1653,14 @@ int CSTRModel::residualImpl(double t, unsigned int secIdx, StateType const* cons
 			else if (_QsCompBulk[comp] == 0)
 			{
 				resCMoities[state] = v * flux[state];
+
+
+				if (wantJac)
+				{
+
+					_jac.native(state,comp) += (static_cast<double>(vDot) + static_cast<double>(flowOut)); // dF_{ci}/dcj = v_liquidDot + F_out
+					_dynReactionBulk->analyticJacobianLiquidSingleFluxAdd(t, secIdx, colPos, reinterpret_cast<double const*>(c), state, comp, _jac.row(state), subAlloc);
+				}
 				state++;
 			}
 		}
@@ -1785,13 +1802,13 @@ int CSTRModel::residualImpl(double t, unsigned int secIdx, StateType const* cons
 	res[2 * _nComp + _totalBound] = vDot - flowIn + flowOut + static_cast<ParamType>(_curFlowRateFilter);
 	
 
-	/*std::cout << "Jacobian: " << std::endl;
+	std::cout << "Jacobian: " << std::endl;
 	for (unsigned int i = 0; i < 4; ++i)
 	{
 		for (unsigned int j = 0; j < 4; ++j)
 			std::cout << _jac.native(i, j) << " ";
 		std::cout << std::endl;
-	}*/
+	}
 	return 0;
 }
 
@@ -2174,7 +2191,7 @@ int CSTRModel::linearSolve(double t, double alpha, double tol, double* const rhs
 
 template <typename MatrixType>
 void CSTRModel::addTimeDerivativeJacobian(double t, double alpha, const ConstSimulationState& simState, MatrixType& mat)
-{	
+{
 	double const* const c = simState.vecStateY + _nComp;
 	double const* const q = simState.vecStateY + 2 * _nComp;
 	const double v = simState.vecStateY[2 * _nComp + _totalBound];
@@ -2182,69 +2199,101 @@ void CSTRModel::addTimeDerivativeJacobian(double t, double alpha, const ConstSim
 	const double timeVSolid = static_cast<double>(_constSolidVolume) * alpha;
 
 	// Assemble Jacobian: dRes / dyDot
-	
+
 	// Concentrations: \dot{V^l} * c_i + V^l * \dot{c}_i + V^s * [sum_j sum_m d_j \dot{q}_{j,i,m}]) - c_{in,i} * F_in + c_i * F_out == 0
-	for (unsigned int i = 0; i < _nComp - _nQsReacBulk; ++i)
+
+	if (_nQsReacBulk > 0)
 	{
 
-		if (_nQsReacBulk > 0)
+		int  MoityIdx = 0;
+		int state = 0;
+		for (unsigned int i = 0; i < _nComp; i++)
 		{
-			mat.native(i, i) += timeV*static_cast<double>(_MconvMoityBulk(i, i)); // dRes / dcDot
-			for(unsigned int comp = 0; comp < _nComp; ++comp)
+			if (_QsCompBulk[i] == 1 && MoityIdx < _nMoitiesBulk)
 			{
-				if(_QsCompBulk[comp] == 1 && i!=comp)
-					mat.native(i, comp) += timeV * static_cast<double>(_MconvMoityBulk(i, comp)); // dRes / dcDot
+
+				mat.native(i, i) += timeV * (static_cast<double>(_MconvMoityBulk(MoityIdx, MoityIdx))); // dRes / dcDot
+				for (int comp = 0; comp < _nComp; comp++)
+				{
+					if (_QsCompBulk[comp] == 1 && i != comp)
+						mat.native(i, comp) += timeV * static_cast<double>(_MconvMoityBulk(MoityIdx, comp)); // dRes / dcDot
 					// todo this is wrong 
-					mat.native(i, _nComp + _totalBound) += alpha * static_cast<double>(_MconvMoityBulk(i, comp))* c[comp]; // dRes / dVlDot
+					mat.native(i, _nComp + _totalBound) += alpha * static_cast<double>(_MconvMoityBulk(MoityIdx, comp)) * c[comp]; // dRes / dVlDot
+				}
+
+				MoityIdx++;
+				state++;
+			}
+			else if (_QsCompBulk[i] == 0)
+			{
+				mat.native(state, i) += timeV; // dRes / dcDot
+				state++;
+			}
+		}
+	}	
+	else
+	{
+
+		for (unsigned int i = 0; i < _nComp; ++i)
+		{
+			mat.native(i, i) += timeV; // dRes / dcDot
+
+			double qSum = 0.0;
+			for (unsigned int type = 0; type < _nParType; ++type)
+			{
+				double const* const qi = q + _offsetParType[type] + _boundOffset[type * _nComp + i];
+				const unsigned int localOffset = _nComp + _offsetParType[type] + _boundOffset[type * _nComp + i];
+				const double vSolidParVolFrac = timeVSolid * static_cast<double>(_parTypeVolFrac[type]);
+				for (unsigned int j = 0; j < _nBound[type * _nComp + i]; ++j)
+				{
+					mat.native(i, localOffset + j) += vSolidParVolFrac; // dRes / dqDot
+					// + _nComp: Moves over liquid phase components
+					// + _offsetParType[type]: Moves to particle type
+					// + _boundOffset[i]: Moves over bound states of previous components
+					// + j: Moves to current bound state j of component i
+
+				}
 			}
 
-			if(i >= _nComp - _nQsReacBulk)
-				break;
+			mat.native(i, _nComp + _totalBound) += alpha * c[i]; // dRes / dVlDot
 		}
-		double qSum = 0.0;
+
+
+		// Bound states
+		unsigned int globalIdx = _nComp;
 		for (unsigned int type = 0; type < _nParType; ++type)
 		{
-			double const* const qi = q + _offsetParType[type] + _boundOffset[type * _nComp + i];
-			const unsigned int localOffset = _nComp + _offsetParType[type] + _boundOffset[type * _nComp + i];
-			const double vSolidParVolFrac = timeVSolid * static_cast<double>(_parTypeVolFrac[type]);
-			for (unsigned int j = 0; j < _nBound[type * _nComp + i]; ++j)
+			IBindingModel* const binding = _binding[type];
+			if (!binding->hasDynamicReactions())
 			{
-				mat.native(i, localOffset + j) += vSolidParVolFrac; // dRes / dqDot
-				// + _nComp: Moves over liquid phase components
-				// + _offsetParType[type]: Moves to particle type
-				// + _boundOffset[i]: Moves over bound states of previous components
-				// + j: Moves to current bound state j of component i
+				// Skip binding models without dynamic binding fluxes
+				globalIdx += _strideBound[type];
+				continue;
+			}
 
+			int const* const qsReaction = binding->reactionQuasiStationarity();
+			for (unsigned int idx = 0; idx < _strideBound[type]; ++idx, ++globalIdx)
+			{
+				// Skip quasi-stationary fluxes
+				if (qsReaction[idx])
+					continue;
+
+				mat.native(globalIdx, globalIdx) += alpha;
 			}
 		}
 	}
-
-	// Bound states
-	unsigned int globalIdx = _nComp;
-	for (unsigned int type = 0; type < _nParType; ++type)
-	{
-		IBindingModel* const binding = _binding[type];
-		if (!binding->hasDynamicReactions())
-		{
-			// Skip binding models without dynamic binding fluxes
-			globalIdx += _strideBound[type];
-			continue;
-		}
-
-		int const* const qsReaction = binding->reactionQuasiStationarity();
-		for (unsigned int idx = 0; idx < _strideBound[type]; ++idx, ++globalIdx)
-		{
-			// Skip quasi-stationary fluxes
-			if (qsReaction[idx])
-				continue;
-
-			mat.native(globalIdx, globalIdx) += alpha;
-		}
-	}
-
 	// Volume: \dot{V} - F_{in} + F_{out} + F_{filter} == 0
 	mat.native(_nComp + _totalBound, _nComp + _totalBound) += alpha;
+
+	std::cout << "Time derivative Jacobian: " << std::endl;
+	for (unsigned int i = 0; i < 4; ++i)
+	{
+		for (unsigned int j = 0; j < 4; ++j)
+			std::cout << mat.native(i, j) << " ";
+		std::cout << std::endl;
+	}
 }
+
 
 /**
 	* @brief Extracts the system Jacobian from AD seed vectors

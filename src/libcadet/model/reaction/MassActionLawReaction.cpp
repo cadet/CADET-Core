@@ -446,7 +446,7 @@ public:
 			{	
 				if (_QsCompBulk[i] == 1)
 				{
-					QSSCompressed.row(i) = QSS.row(_QsCompBulk[i]);
+					QSSCompressed.row(i) = QSS.row(i);
 				}
 			}
 			QSS.swap(QSSCompressed); // Swap the compressed matrix back into QSS
@@ -948,6 +948,29 @@ protected:
 	}
 
 	template <typename RowIterator>
+	void jacobianSingleFluxImpl(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, int state, int reaction, const RowIterator& jac, LinearBufferAllocator workSpace) const
+	{
+		typename ParamHandler_t::ParamsHandle const p = _paramHandler.update(t, secIdx, colPos, _nComp, _nBoundStates, workSpace);
+
+		BufferedArray<double> fluxes = workSpace.array<double>(2 * _nComp);
+		double* const fluxGradFwd = static_cast<double*>(fluxes);
+		double* const fluxGradBwd = fluxGradFwd + _nComp;
+		for (int r = 0; r < _stoichiometryBulk.columns(); ++r)
+		{
+			// Calculate gradients of forward and backward fluxes
+			fluxGradLiquid(fluxGradFwd, r, _nComp, static_cast<double>(p->kFwdBulk[r]), _expBulkFwd, y);
+			fluxGradLiquid(fluxGradBwd, r, _nComp, static_cast<double>(p->kBwdBulk[r]), _expBulkBwd, y);
+
+			// Add gradients to Jacobian
+			RowIterator curJac = jac;
+				const double colFactor = static_cast<double>(_stoichiometryBulk.native(state, r)) * 1.0;
+				for (int col = 0; col < _nComp; ++col)
+					curJac[col - static_cast<int>(state)] += colFactor * (fluxGradFwd[col] - fluxGradBwd[col]);
+
+		}
+	}
+
+	template <typename RowIterator>
 	void jacobianQuasiSteadyLiquidImpl(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, int state, int reaction ,const RowIterator& jac, LinearBufferAllocator workSpace) const
 	{
 		typename ParamHandler_t::ParamsHandle const p = _paramHandler.update(t, secIdx, colPos, _nComp, _nBoundStates, workSpace);
@@ -963,10 +986,10 @@ protected:
 			// Add gradients to Jacobian
 			RowIterator curJac = jac; // right row iterator
 
-			const double colFactor = static_cast<double>(_stoichiometryBulk.native(state, reaction));
+			//const double colFactor = static_cast<double>(_stoichiometryBulk.native(state, reaction));
 			for (int col = 0; col < _nComp; ++col)
 			{
-				curJac[col - state] = colFactor * (fluxGradFwd[col] - fluxGradBwd[col]);
+				curJac[col - state] =  (fluxGradFwd[col] - fluxGradBwd[col]);
 			}
 		
 	}
