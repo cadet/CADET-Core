@@ -242,26 +242,16 @@ bool CSTRModel::configureModelDiscretization(IParameterProvider& paramProvider, 
 		if (_dynReactionBulk->usesParamProviderInDiscretizationConfig())
 			paramProvider.popScope();
 		
-		if (true)//(paramProvider.exists("QUASI_STATIONARY_REACTION_BULK"))
-		{
-			//_qsReacBulk = paramProvider.getIntArray("QUASI_STATIONARY_REACTION_BULK");
-			_qsReacBulk = {1};
-			_nQsReacBulk = _qsReacBulk.size();
+
+
 			_temp = new active[_nComp];
-			_temp2 = new double[_nQsReacBulk];
+			_temp2 = new double[_nComp];
 
-			_nMoitiesBulk = 1; // Achtung nurs fuers debugging
-			_MconvMoityBulk = Eigen::MatrixXd::Zero(_nMoitiesBulk, _nComp); // matrix for conserved moities
-		}
-		else
-		{
+			_MconvMoityBulk = Eigen::MatrixXd::Zero(0,0); // matrix for conserved moities
 			_QsCompBulk.clear();	
-			_qsReacBulk.clear();
 			_nMoitiesBulk = 0;
-			_nQsReacBulk = 0;
-			_MconvMoityBulk = Eigen::MatrixXd::Zero(0, 0);
-
-		}
+			_nqsReactionBulk = 0;
+			_qsReactionBulk = nullptr;
 	}
 
 	_dynReaction = std::vector<IDynamicReactionModel*>(_nParType, nullptr);
@@ -384,9 +374,15 @@ bool CSTRModel::configure(IParameterProvider& paramProvider)
 		dynReactionConfSuccess = _dynReactionBulk->configure(paramProvider, _unitOpIdx, ParTypeIndep);
 		paramProvider.popScope();
 
-		if (true)//(paramProvider.exists("QUASI_STATIONARY_REACTION_BULK"))
-		{
-			_dynReactionBulk->fillConservedMoietiesBulk(_MconvMoityBulk, _qsReacBulk, _QsCompBulk); // fill conserved moities matrix
+		// Get quasi stationary reactions information vector
+		_qsReactionBulk = _dynReactionBulk->reactionQuasiStationarity();
+
+		if (_qsReactionBulk != nullptr)
+		{	
+			// resize  Conserved moities matrix
+			
+			_dynReactionBulk->fillConservedMoietiesBulk(_MconvMoityBulk, _nqsReactionBulk, _QsCompBulk); // fill conserved moities matrix
+			_nMoitiesBulk = _MconvMoityBulk.rows();
 		}
 	}
 
@@ -451,7 +447,7 @@ unsigned int CSTRModel::threadLocalMemorySize() const CADET_NOEXCEPT
 	lms.add<double>(_totalBound);
 	lms.commit();
 
-	if (_nQsReacBulk > 0)
+	if (_nqsReactionBulk > 0)
 	{
 		// Memory for leanConsistentInitialTimeDerivative()
 		lms.add<int>(_nComp + _totalBound);
@@ -1100,7 +1096,7 @@ void CSTRModel::leanConsistentInitialState(const SimulationTime& simTime, double
 	const double vLiquid = c[_nComp];
 	const double vSolid = static_cast<double>(_constSolidVolume);
 	
-	if(_nQsReacBulk == 0)
+	if(_nqsReactionBulk == 0)
 		return;
 	// Check if volume is 0
 	if (vLiquid == 0.0)
@@ -1159,7 +1155,7 @@ void CSTRModel::leanConsistentInitialState(const SimulationTime& simTime, double
 			}
 		}
 	}
-	if (_nQsReacBulk > 0)
+	if (_nqsReactionBulk > 0)
 	{	
 		//Todo check meomory -> something is wring with fullX
 		LinearBufferAllocator tlmAlloc = threadLocalMem.get();
@@ -1350,7 +1346,7 @@ void CSTRModel::leanConsistentInitialTimeDerivative(double t, double const* cons
 	
 	
 	// Check if volume is 0
-	if (vLiquid == 0.0 && _nQsReacBulk == 0)
+	if (vLiquid == 0.0 && _nqsReactionBulk == 0)
 	{
 		// We have the equation
 		//    V^l * \dot{c}_i + \dot{V}^l * c_i + V^s * [sum_j sum_m d_j q_{i,m}]} = c_{in,i} * F_in - c_i * F_out
@@ -1414,7 +1410,7 @@ void CSTRModel::leanConsistentInitialTimeDerivative(double t, double const* cons
 			}
 		}
 	}
-	if (_nQsReacBulk > 0)
+	if (_nqsReactionBulk > 0)
 	{
 		if (vLiquid == 0)
 			return; // todo not implmenteted yet
@@ -1578,7 +1574,7 @@ int CSTRModel::residualImpl(double t, unsigned int secIdx, StateType const* cons
 		resC[i] += -flowIn * cIn[i] + flowOut * c[i];
 	}
 	
-	if (wantJac && _nQsReacBulk == 0)
+	if (wantJac && _nqsReactionBulk == 0)
 	{
 		_jac.setAll(0.0);
 
@@ -1605,18 +1601,18 @@ int CSTRModel::residualImpl(double t, unsigned int secIdx, StateType const* cons
 	BufferedArray<ResidualType> flux = subAlloc.array<ResidualType>(_nComp);
 	std::fill_n(static_cast<ResidualType*>(flux), _nComp, 0.0);
 
-	if (_dynReactionBulk && (_nQsReacBulk > 0))
+	if (_dynReactionBulk && (_nqsReactionBulk > 0))
 	{
 		_jac.setAll(0.0);
 
 		Eigen::Map<Eigen::Vector<ResidualType, Eigen::Dynamic>> resCMoities(reinterpret_cast<ResidualType*>(_temp), _nComp);
 		resCMoities.setZero();
 
-		Eigen::Map<Eigen::Vector<double, Eigen::Dynamic>> qsflux(_temp2, _nQsReacBulk);
+		Eigen::Map<Eigen::Vector<double, Eigen::Dynamic>> qsflux(_temp2, _nqsReactionBulk);
 		qsflux.setZero();
 
 		_dynReactionBulk->residualLiquidAdd(t, secIdx, colPos, c, static_cast<ResidualType*>(flux), -1.0, subAlloc);
-		_dynReactionBulk->quasiStationaryFlux(t, secIdx, colPos, c, qsflux, _qsReacBulk, subAlloc);
+		_dynReactionBulk->quasiStationaryFlux(t, secIdx, colPos, c, qsflux, _qsReactionBulk, subAlloc);
 
 		Eigen::Map<Eigen::Vector<ResidualType, Eigen::Dynamic>> mapResC(resC, _nComp);
 
@@ -1665,8 +1661,8 @@ int CSTRModel::residualImpl(double t, unsigned int secIdx, StateType const* cons
 			}
 		}
 
-		state = (_nComp - _nQsReacBulk);
-		for (unsigned int qsreac = 0; qsreac < _nQsReacBulk; ++qsreac)
+		state = (_nComp - _nqsReactionBulk);
+		for (unsigned int qsreac = 0; qsreac < _nqsReactionBulk; ++qsreac)
 		{
 			resCMoities[state] = qsflux[qsreac];
 
@@ -1801,14 +1797,14 @@ int CSTRModel::residualImpl(double t, unsigned int secIdx, StateType const* cons
 	// Volume: \dot{V} = F_{in} - F_{out} - F_{filter}
 	res[2 * _nComp + _totalBound] = vDot - flowIn + flowOut + static_cast<ParamType>(_curFlowRateFilter);
 	
-
+	/*
 	std::cout << "Jacobian: " << std::endl;
 	for (unsigned int i = 0; i < 4; ++i)
 	{
 		for (unsigned int j = 0; j < 4; ++j)
 			std::cout << _jac.native(i, j) << " ";
 		std::cout << std::endl;
-	}
+	}*/
 	return 0;
 }
 
@@ -2202,7 +2198,7 @@ void CSTRModel::addTimeDerivativeJacobian(double t, double alpha, const ConstSim
 
 	// Concentrations: \dot{V^l} * c_i + V^l * \dot{c}_i + V^s * [sum_j sum_m d_j \dot{q}_{j,i,m}]) - c_{in,i} * F_in + c_i * F_out == 0
 
-	if (_nQsReacBulk > 0)
+	if (_nqsReactionBulk > 0)
 	{
 
 		int  MoityIdx = 0;
@@ -2284,14 +2280,14 @@ void CSTRModel::addTimeDerivativeJacobian(double t, double alpha, const ConstSim
 	}
 	// Volume: \dot{V} - F_{in} + F_{out} + F_{filter} == 0
 	mat.native(_nComp + _totalBound, _nComp + _totalBound) += alpha;
-
+	/*
 	std::cout << "Time derivative Jacobian: " << std::endl;
 	for (unsigned int i = 0; i < 4; ++i)
 	{
 		for (unsigned int j = 0; j < 4; ++j)
 			std::cout << mat.native(i, j) << " ";
 		std::cout << std::endl;
-	}
+	}*/
 }
 
 

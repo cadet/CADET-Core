@@ -57,14 +57,14 @@ public:
 	virtual active* getParameter(const ParameterId& pId);
 
 	virtual void setExternalFunctions(IExternalFunction** extFuns, unsigned int size) { };
-	virtual void fillConservedMoietiesBulk(Eigen::MatrixXd& M, std::vector<int>& QSReaction, std::vector<int>& _QsCompBulk) = 0;
-
+	virtual void fillConservedMoietiesBulk(Eigen::MatrixXd& M, unsigned int& QSReaction, std::vector<int>& _QsCompBulk) = 0;
+	virtual int const* reactionQuasiStationarity() const = 0;
 
 	virtual int quasiStationaryFlux(double t, unsigned int secIdx, const ColumnPosition& colPos, active const* y,
-		Eigen::Map<Eigen::VectorXd> fluxes, std::vector<int> mapQSReac, LinearBufferAllocator workSpace) = 0;
+		Eigen::Map<Eigen::VectorXd> fluxes, int const* mapQSReac, LinearBufferAllocator workSpace) = 0;
 	
 	virtual int quasiStationaryFlux(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y,
-		Eigen::Map<Eigen::VectorXd> fluxes, std::vector<int> mapQSReac, LinearBufferAllocator workSpace) = 0;
+		Eigen::Map<Eigen::VectorXd> fluxes, int const* mapQSReac, LinearBufferAllocator workSpace) = 0;
 
 	virtual void timeDerivativeQuasiStationaryReaction(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, double* dReacDt, LinearBufferAllocator workSpace) = 0;
 	
