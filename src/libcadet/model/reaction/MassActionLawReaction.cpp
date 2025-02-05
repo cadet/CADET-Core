@@ -26,6 +26,7 @@
 #include <string>
 #include <vector>
 #include <Eigen/Dense>
+#include <iostream>
 
 using namespace Eigen;
 /*<codegen>
@@ -362,11 +363,6 @@ public:
 				std::transform(vecKin.begin(), vecKin.begin() + _reactionQuasistationarity.size(), _reactionQuasistationarity.begin(), [](int val) { return !static_cast<bool>(val); });
 			}
 		}
-		else
-		{
-			const bool kineticBinding = paramProvider.getInt("IS_KINETIC");
-			std::fill(_reactionQuasistationarity.begin(), _reactionQuasistationarity.end(), !kineticBinding);
-		}
 
 		if (!nBound || !boundOffset)
 			return true;
@@ -421,13 +417,13 @@ public:
 
 		//1. get stoichmetic matrix with only reaction in quasi stationary
 		// S dim -> ncomp x nreac
-		_reactionQuasistationarity = {1};
-		numQSReac = std::count(_reactionQuasistationarity.begin(), _reactionQuasistationarity.end(), 1);
+		//_reactionQuasistationarity = {1};
+		numQSReac = std::count(_reactionQuasistationarity.begin(), _reactionQuasistationarity.end(), true);
 		// Count the number of entries with value 1 in _reactionQuasistationarity
 		
 		M.resize(numQSReac,_nComp);
 		Eigen::MatrixXd QSS(_stoichiometryBulk.rows(), numQSReac);
-
+		
 
 		// Fülle die Spalten basierend auf _reactionQuasistationarity
 		/*for (int i = 0; i < _stoichiometryBulk.rows(); ++i)
@@ -440,16 +436,13 @@ public:
 
 		for (int i = 0; i < _stoichiometryBulk.rows(); ++i)
 		{
+			int rowIndex = 0;
 			for(int j = 0; j < _stoichiometryBulk.columns(); j++)
 			{
-				int rowIndex = 0;
-				for (int j = 0; j < _stoichiometryBulk.columns(); j++)
-				{
 					if (_reactionQuasistationarity[j] == 0)
 						continue;
 					QSS(i, rowIndex) = static_cast<double>(_stoichiometryBulk.native(i, j));
 					rowIndex++;
-				}
 			}
 		}
 		//Remove zero rows from QSS
@@ -741,6 +734,10 @@ protected:
 			{	
 				double flow = singleFlux(r, y, kFwdBulk_r, kBwdBulk_r);
 				fluxes[r] = flow;
+			}
+			else
+			{
+				fluxes[r] = 0.0;
 			}
 			return 0;
 		}

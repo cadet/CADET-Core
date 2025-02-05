@@ -379,8 +379,6 @@ bool CSTRModel::configure(IParameterProvider& paramProvider)
 
 		if (_qsReactionBulk != nullptr)
 		{	
-			// resize  Conserved moities matrix
-			
 			_dynReactionBulk->fillConservedMoietiesBulk(_MconvMoityBulk, _nqsReactionBulk, _QsCompBulk); // fill conserved moities matrix
 			_nMoitiesBulk = _MconvMoityBulk.rows();
 		}
@@ -449,21 +447,23 @@ unsigned int CSTRModel::threadLocalMemorySize() const CADET_NOEXCEPT
 
 	if (_nqsReactionBulk > 0)
 	{
-		// Memory for leanConsistentInitialTimeDerivative()
-		lms.add<int>(_nComp + _totalBound);
-		lms.add<double>(_nComp + _totalBound);
-		lms.add<double>(_nComp);
-		lms.add<double>(_nComp + _totalBound);
-		lms.add<double>(numDofs());
-		lms.add<double>(_nonlinearSolver->workspaceSize(_nComp + _totalBound) * sizeof(double));
+		// Memory for leanConsistentInitialTimeDerivative() 
+		lms.add<int>(_nComp); // map of kinetic components 
+		lms.add<double>(_nComp); // solution 
+		lms.add<double>(_nComp); // conserved quantities
+		//lms.add<double>(_nComp + _totalBound);
+		lms.add<double>(numDofs()); // fullX 
+		lms.add<double>(numDofs()); // fullRes 
+		lms.add<double>(_nonlinearSolver->workspaceSize(_nComp + _totalBound) * sizeof(double)); //non linear solver workspace
 		lms.addBlock(resImplSize);
 		lms.commit();
 		
 		// Memory for leanConsistentInitialState()
-		lms.add<int>(_totalBound);
-		lms.add<double>(_nComp + 1);
-		lms.add<double>(_nComp );
-		lms.add<double>(_totalBound);
+		//lms.add<int>(_totalBound);
+		lms.add<double>(_nComp); // dReacDt
+		lms.add<double>(_nComp ); //map
+		lms.add<double>(_nComp); //additional puffer
+		//lms.add<double>(_totalBound);
 		lms.commit();
 	}
 	return lms.bufferSize();
@@ -1423,7 +1423,7 @@ void CSTRModel::leanConsistentInitialTimeDerivative(double t, double const* cons
 		_jacFact.setAll(0.0);
 		addTimeDerivativeJacobian(t, 1.0, ConstSimulationState{ vecStateY, nullptr }, _jacFact);
 
-		LinearBufferAllocator tlmAlloc = threadLocalMem.get(); // -> todo hier aufpassen ob ich den mem auch benutzen darf
+		//LinearBufferAllocator tlmAlloc = threadLocalMem.get(); // -> todo hier aufpassen ob ich den mem auch benutzen darf
 
 		// Overwrite rows corresponding to algebraic equations with the Jacobian and set right hand side to 0
 		BufferedArray<double> dReacDt = tlmAlloc.array<double>(_nComp + 1);
@@ -1642,14 +1642,13 @@ int CSTRModel::residualImpl(double t, unsigned int secIdx, StateType const* cons
 							_jac.native(state, _nComp + _totalBound) += _MconvMoityBulk(MoityIdx, i) * cDot[i]; // dF_{ci}/dVl = sum_i M[i,-] * dcidt
 					}
 				}
-				resCMoities[state] = dotProduct;
+				resCMoities[state] = dotProduct + v * flux[state];
 				MoityIdx++;
 				state++;
 			}
 			else if (_QsCompBulk[comp] == 0)
 			{
 				resCMoities[state] = v * flux[state];
-
 
 				if (wantJac)
 				{
@@ -1664,7 +1663,7 @@ int CSTRModel::residualImpl(double t, unsigned int secIdx, StateType const* cons
 		state = (_nComp - _nqsReactionBulk);
 		for (unsigned int qsreac = 0; qsreac < _nqsReactionBulk; ++qsreac)
 		{
-			resCMoities[state] = qsflux[qsreac];
+			resCMoities[state] += qsflux[qsreac];
 
 			if(wantJac)
 			{
@@ -1797,14 +1796,14 @@ int CSTRModel::residualImpl(double t, unsigned int secIdx, StateType const* cons
 	// Volume: \dot{V} = F_{in} - F_{out} - F_{filter}
 	res[2 * _nComp + _totalBound] = vDot - flowIn + flowOut + static_cast<ParamType>(_curFlowRateFilter);
 	
-	/*
+	
 	std::cout << "Jacobian: " << std::endl;
 	for (unsigned int i = 0; i < 4; ++i)
 	{
 		for (unsigned int j = 0; j < 4; ++j)
 			std::cout << _jac.native(i, j) << " ";
 		std::cout << std::endl;
-	}*/
+	}
 	return 0;
 }
 
