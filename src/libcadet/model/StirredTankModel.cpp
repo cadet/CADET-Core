@@ -1615,7 +1615,7 @@ int CSTRModel::residualImpl(double t, unsigned int secIdx, StateType const* cons
 
 	if (_nqsReactionBulk > 0)
 	{
-		_jac.setAll(0.0);
+		//_jac.setAll(0.0);
 
 		Eigen::Map<Eigen::Vector<ResidualType, Eigen::Dynamic>> resCMoities(reinterpret_cast<ResidualType*>(_temp), _nComp);
 		resCMoities.setZero();
@@ -1646,13 +1646,12 @@ int CSTRModel::residualImpl(double t, unsigned int secIdx, StateType const* cons
 				for (unsigned int i = 0 ; i < _MconvMoityBulk.cols(); ++i) // hier Optimierung durch Vermeidung von 0 Zeilen in MconvMoityBulk
 				{
 					dotProduct += static_cast<ResidualType>(_MconvMoityBulk(MoityIdx, i)) * (mapResC[i]);
-					
 					if (wantJac)
 					{
-						_jac.native(state, i) += _MconvMoityBulk(MoityIdx, i) * (static_cast<double>(vDot) + static_cast<double>(flowOut)); // dF_{ci}/dcj = v_liquidDot + F_out  
+						_jac.native(state, i) += (static_cast<double>(vDot) + static_cast<double>(flowOut)); // dF_{ci}/dcj = v_liquidDot + F_out  
+						_jac.native(state, i) *=   _MconvMoityBulk(MoityIdx, i) ; // dF_{ci}/dcj = v_liquidDot + F_out
 						if (cadet_likely(yDot))
 							_jac.native(i, _nComp + _totalBound) += _MconvMoityBulk(MoityIdx, i) * cDot[i]; // dF/dvliquid = cDot 
-						
 					}
 				}
 				resCMoities[state] = dotProduct;
@@ -1784,14 +1783,14 @@ int CSTRModel::residualImpl(double t, unsigned int secIdx, StateType const* cons
 	// Volume: \dot{V} = F_{in} - F_{out} - F_{filter}
 	res[2 * _nComp + _totalBound] = vDot - flowIn + flowOut + static_cast<ParamType>(_curFlowRateFilter);
 	
-	
+	/*
 	std::cout << "Jacobian: " << std::endl;
 	for (unsigned int i = 0; i < 4; ++i)
 	{
 		for (unsigned int j = 0; j < 4; ++j)
 			std::cout << _jac.native(i, j) << " ";
 		std::cout << std::endl;
-	}
+	}*/
 	return 0;
 }
 
