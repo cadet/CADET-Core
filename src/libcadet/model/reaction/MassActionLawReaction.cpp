@@ -458,6 +458,8 @@ public:
 				nQScomp++;
 			}
 		}
+		if (nQScomp == 0)
+			return;
 		// Redimensioniere QSS und kopiere nur die nicht-null Zeilen
 		if (_nComp - nQScomp  > 0 ) // if kinetic components exists we can resize QSS
 		{
@@ -982,6 +984,8 @@ protected:
 		double* const fluxGradBwd = fluxGradFwd + _nComp;
 		for (int r = 0; r < _stoichiometryBulk.columns(); ++r)
 		{
+			if (_reactionQuasistationarity[r])
+				continue;
 			// Calculate gradients of forward and backward fluxes
 			fluxGradLiquid(fluxGradFwd, r, _nComp, static_cast<double>(p->kFwdBulk[r]), _expBulkFwd, y);
 			fluxGradLiquid(fluxGradBwd, r, _nComp, static_cast<double>(p->kBwdBulk[r]), _expBulkBwd, y);

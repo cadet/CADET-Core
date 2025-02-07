@@ -1574,7 +1574,7 @@ int CSTRModel::residualImpl(double t, unsigned int secIdx, StateType const* cons
 		resC[i] += -flowIn * cIn[i] + flowOut * c[i];
 	}
 	
-	if (wantJac && _nqsReactionBulk == 0)
+	if (wantJac)
 	{
 		_jac.setAll(0.0);
 
@@ -1600,8 +1600,20 @@ int CSTRModel::residualImpl(double t, unsigned int secIdx, StateType const* cons
 
 	BufferedArray<ResidualType> flux = subAlloc.array<ResidualType>(_nComp);
 	std::fill_n(static_cast<ResidualType*>(flux), _nComp, 0.0);
+	_dynReactionBulk->residualLiquidAdd(t, secIdx, colPos, c, static_cast<ResidualType*>(flux), -1.0, subAlloc);
+	
+	for (unsigned int comp = 0; comp < _nComp; ++comp)
+		resC[comp] += v * flux[comp];
 
-	if (_dynReactionBulk && (_nqsReactionBulk > 0))
+	if (wantJac)
+	{
+		for (unsigned int comp = 0; comp < _nComp; ++comp)
+			_jac.native(comp, _nComp + _totalBound) += static_cast<double>(flux[comp]); // dF/dvliquid = flux
+
+		_dynReactionBulk->analyticJacobianLiquidAdd(t, secIdx, colPos, reinterpret_cast<double const*>(c), -static_cast<double>(v), _jac.row(0), subAlloc);
+	}
+
+	if (_nqsReactionBulk > 0)
 	{
 		_jac.setAll(0.0);
 
@@ -1611,15 +1623,23 @@ int CSTRModel::residualImpl(double t, unsigned int secIdx, StateType const* cons
 		Eigen::Map<Eigen::Vector<double, Eigen::Dynamic>> qsflux(_temp2, _nqsReactionBulk);
 		qsflux.setZero();
 
-		_dynReactionBulk->residualLiquidAdd(t, secIdx, colPos, c, static_cast<ResidualType*>(flux), -1.0, subAlloc);
 		_dynReactionBulk->quasiStationaryFlux(t, secIdx, colPos, c, qsflux, _qsReactionBulk, subAlloc);
-
 		Eigen::Map<Eigen::Vector<ResidualType, Eigen::Dynamic>> mapResC(resC, _nComp);
 
 		int  MoityIdx = 0;
 		int state = 0;
 		for (unsigned int comp = 0; comp < _nComp; comp++)
 		{
+			if (_QsCompBulk[comp] == 0)
+			{				
+				resCMoities[state] = resC[comp];
+				if (wantJac)
+				{
+					_jac.native(state, comp) += (static_cast<double>(vDot) + static_cast<double>(flowOut)); // dF_{ci}/dcj = v_liquidDot + F_out
+					_dynReactionBulk->analyticJacobianLiquidSingleFluxAdd(t, secIdx, colPos, reinterpret_cast<double const*>(c), state, comp, _jac.row(state), subAlloc);
+				}
+				state++;
+			}
 			if (_QsCompBulk[comp] == 1 && MoityIdx < _nMoitiesBulk)
 			{
 				ResidualType dotProduct = 0.0;
@@ -1627,35 +1647,16 @@ int CSTRModel::residualImpl(double t, unsigned int secIdx, StateType const* cons
 				{
 					dotProduct += static_cast<ResidualType>(_MconvMoityBulk(MoityIdx, i)) * (mapResC[i]);
 					
-					if (wantJac && i == state)
+					if (wantJac)
 					{
-						_jac.native(state, state) += _MconvMoityBulk(MoityIdx, i) * (static_cast<double>(vDot) + static_cast<double>(flowOut)); // dF_{ci}/dcj = v_liquidDot + F_out  
+						_jac.native(state, i) += _MconvMoityBulk(MoityIdx, i) * (static_cast<double>(vDot) + static_cast<double>(flowOut)); // dF_{ci}/dcj = v_liquidDot + F_out  
 						if (cadet_likely(yDot))
-						{
 							_jac.native(i, _nComp + _totalBound) += _MconvMoityBulk(MoityIdx, i) * cDot[i]; // dF/dvliquid = cDot 
-						}
-					}
-					if (wantJac && state != i) 
-					{
-						_jac.native(state, i) += _MconvMoityBulk(MoityIdx, i)*(static_cast<double>(vDot) + static_cast<double>(flowOut)); // dF_{ci}/dcj = v_liquidDot + F_out  
-						if (cadet_likely(yDot))
-							_jac.native(state, _nComp + _totalBound) += _MconvMoityBulk(MoityIdx, i) * cDot[i]; // dF_{ci}/dVl = sum_i M[i,-] * dcidt
+						
 					}
 				}
-				resCMoities[state] = dotProduct + v * flux[state];
+				resCMoities[state] = dotProduct;
 				MoityIdx++;
-				state++;
-			}
-			else if (_QsCompBulk[comp] == 0)
-			{
-				resCMoities[state] = v * flux[state];
-
-				if (wantJac)
-				{
-
-					_jac.native(state,comp) += (static_cast<double>(vDot) + static_cast<double>(flowOut)); // dF_{ci}/dcj = v_liquidDot + F_out
-					_dynReactionBulk->analyticJacobianLiquidSingleFluxAdd(t, secIdx, colPos, reinterpret_cast<double const*>(c), state, comp, _jac.row(state), subAlloc);
-				}
 				state++;
 			}
 		}
@@ -1673,19 +1674,6 @@ int CSTRModel::residualImpl(double t, unsigned int secIdx, StateType const* cons
 			state++;
 		}
 		mapResC = resCMoities;
-	}
-	else
-	{
-		for (unsigned int comp = 0; comp < _nComp; ++comp)
-			resC[comp] += v * flux[comp];
-
-		if (wantJac)
-		{
-			for (unsigned int comp = 0; comp < _nComp; ++comp)
-				_jac.native(comp, _nComp + _totalBound) += static_cast<double>(flux[comp]); // dF/dvliquid = flux
-
-			_dynReactionBulk->analyticJacobianLiquidAdd(t, secIdx, colPos, reinterpret_cast<double const*>(c), -static_cast<double>(v), _jac.row(0), subAlloc);
-		}
 	}
 	
 	// Bound states
