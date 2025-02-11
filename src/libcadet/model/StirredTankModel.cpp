@@ -1157,7 +1157,7 @@ void CSTRModel::leanConsistentInitialState(const SimulationTime& simTime, double
 	}
 	if (_nqsReactionBulk > 0)
 	{	
-		//Todo check meomory -> something is wring with fullX
+	
 		LinearBufferAllocator tlmAlloc = threadLocalMem.get();
 		BufferedArray<int> qsMask = tlmAlloc.array<int>(_nComp);
 		
@@ -1180,7 +1180,7 @@ void CSTRModel::leanConsistentInitialState(const SimulationTime& simTime, double
 		{
 			double dotProduct = 0.0;
 			for (unsigned int i = 0; i < _MconvMoityBulk.cols(); ++i) 
-				dotProduct += _MconvMoityBulk(MoityIdx, i) * (c[i]);
+				dotProduct += _MconvMoityBulk(MoityIdx, i) * c[i];
 			conservedQuants[MoityIdx] = dotProduct;
 		}
 	
@@ -1258,15 +1258,17 @@ void CSTRModel::leanConsistentInitialState(const SimulationTime& simTime, double
 					mat.submatrixSetAll(0.0, 0, 0, _nMoitiesBulk, probSize);
 					unsigned int rIdx = 0;
 					for (unsigned int MoityIdx = 0; MoityIdx < _nMoitiesBulk; ++MoityIdx)
-					{
+					{	
+
 						double dotProduct = 0.0;
-						for (unsigned int i = 0; i < _MconvMoityBulk.cols(); ++i)
-						{// hier Optimierung durch Vermeidung von 0 Zeilen in MconvMoityBulk
+						int j = 0;
+						for (unsigned int i = 0; i < _MconvMoityBulk.cols(); ++i) {
 							if (!mask.mask[i])
 								continue;
-							mat.native(rIdx, i) = _MconvMoityBulk(MoityIdx, i);
-							rIdx++;
+							mat.native(rIdx, j) += _MconvMoityBulk(MoityIdx, i);
+							j++;
 						}
+						rIdx++;
 					}
 					return true;
 				};
@@ -1279,7 +1281,7 @@ void CSTRModel::leanConsistentInitialState(const SimulationTime& simTime, double
 			{
 				// Prepare input vector by overwriting masked items
 				std::copy_n(c, mask.len, fullX + _nComp);
-				linalg::applyVectorSubset(x, mask, fullX + _nComp);
+				linalg::applyVectorSubset(x, mask, fullX + _nComp); //Todo hier ist ein Fehler ! mask genauer anschauen!
 
 				// Call residual function
 				residualImpl<double, double, double, false>(simTime.t, simTime.secIdx, fullX, nullptr, fullResidual, tlmAlloc.manageRemainingMemory());
@@ -1292,16 +1294,16 @@ void CSTRModel::leanConsistentInitialState(const SimulationTime& simTime, double
 				for (unsigned int MoityIdx = 0; MoityIdx < _nMoitiesBulk; ++MoityIdx)
 				{
 					double dotProduct = 0.0;
-					for (unsigned int j = 0; j < _MconvMoityBulk.cols(); ++j) // hier Optimierung durch Vermeidung von 0 Zeilen in MconvMoityBulk
+					for (unsigned int j = 0; j < _MconvMoityBulk.cols(); ++j)
 					{	
 						if(!mask.mask[j])
 							continue;
 						dotProduct += _MconvMoityBulk(MoityIdx, j) * x[j];
-						r[rIdx] = dotProduct - conservedQuants[rIdx];
-						rIdx++;
 					}
+					r[rIdx] = dotProduct - conservedQuants[rIdx];
+					rIdx++;
 				}
-
+				
 				std::cout << "Residual: " << std::endl;
 				for (unsigned int i = 0; i < probSize; ++i) {
 					std::cout << r[i] << std::endl;
@@ -1316,10 +1318,11 @@ void CSTRModel::leanConsistentInitialState(const SimulationTime& simTime, double
 
 		// Apply solution
 		linalg::applyVectorSubset(static_cast<double*>(solution), mask, c);
+		
 		std::cout << "Solution: " << std::endl;
 		for (unsigned int i = 0; i < _nComp; ++i)
 			std::cout << solution[i] << std::endl;
-
+		
 		// Refine / correct solution
 	}
 
@@ -1416,7 +1419,7 @@ void CSTRModel::leanConsistentInitialTimeDerivative(double t, double const* cons
 			return; // todo not implmenteted yet
 
 		for (unsigned int i = 0; i < numDofs(); ++i)
-			vecStateYdot[i] = -vecStateYdot[i] - res[i];
+			vecStateYdot[i] = -vecStateYdot[i]- res[i];
 
 
 		// Assemble time derivative Jacobian
@@ -1461,7 +1464,7 @@ void CSTRModel::leanConsistentInitialTimeDerivative(double t, double const* cons
 		{
 			LOG(Error) << "Solve() failed";
 		}
-
+		/*
 		for (int i = 0; i < _nComp + 1; i++)
 			std::cout << " resC" << i << ": " << resC[i] << std::endl;
 
@@ -1471,7 +1474,7 @@ void CSTRModel::leanConsistentInitialTimeDerivative(double t, double const* cons
 
 		for (int i = 0; i < _nComp + 1; i++)
 			std::cout << " Y" << i <<": " << c[i] << std::endl;
-
+		*/
 	}
 	else
 		{
