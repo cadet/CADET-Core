@@ -346,23 +346,32 @@ public:
 		{
 			_reactionQuasistationarity.resize(_stoichiometryBulk.columns(), false);
 
-			const std::vector<int> vecKin = paramProvider.getIntArray("IS_KINETIC");
-			if (vecKin.size() == 1)
-			{
-				// Treat an array with a single element as scalar
-				std::fill(_reactionQuasistationarity.begin(), _reactionQuasistationarity.end(), !static_cast<bool>(vecKin[0]));
-			}
-			else if (vecKin.size() < _reactionQuasistationarity.size())
-			{
-				// Error on too few elements
-				throw InvalidParameterException("IS_KINETIC has to have at least " + std::to_string(_reactionQuasistationarity.size()) + " elements");
+			if (paramProvider.isArray("IS_KINETIC")) {
+				const std::vector<int> vecKin = paramProvider.getIntArray("IS_KINETIC");
+				int numqsReaction = std::count(vecKin.begin(), vecKin.end(), 1);
+				if (vecKin.size() == 1)
+				{
+					// Treat an array with a single element as scalar
+					std::fill(_reactionQuasistationarity.begin(), _reactionQuasistationarity.end(), !static_cast<bool>(vecKin[0]));
+				}
+				else if (vecKin.size() < _reactionQuasistationarity.size())
+				{
+					// Error on too few elements
+					throw InvalidParameterException("IS_KINETIC has to have at least " + std::to_string(_reactionQuasistationarity.size()) + " elements");
+				}
+				else
+				{
+					// Copy what we need (ignore excess values)
+					std::transform(vecKin.begin(), vecKin.begin() + _reactionQuasistationarity.size(), _reactionQuasistationarity.begin(), [](int val) { return !static_cast<bool>(val); });
+				}
 			}
 			else
 			{
-				// Copy what we need (ignore excess values)
-				std::transform(vecKin.begin(), vecKin.begin() + _reactionQuasistationarity.size(), _reactionQuasistationarity.begin(), [](int val) { return !static_cast<bool>(val); });
+				const bool kineticBinding = paramProvider.getInt("IS_KINETIC");
+				std::fill(_reactionQuasistationarity.begin(), _reactionQuasistationarity.end(), !kineticBinding);
 			}
 		}
+		
 
 		if (!nBound || !boundOffset)
 			return true;
@@ -417,23 +426,19 @@ public:
 
 		//1. get stoichmetic matrix with only reaction in quasi stationary
 		// S dim -> ncomp x nreac
-		//_reactionQuasistationarity = {1};
-		numQSReac = std::count(_reactionQuasistationarity.begin(), _reactionQuasistationarity.end(), true);
+
 		// Count the number of entries with value 1 in _reactionQuasistationarity
+		numQSReac = std::count(_reactionQuasistationarity.begin(), _reactionQuasistationarity.end(), true);
 		
+		if (numQSReac == 0)
+			return;
+
 		M.resize(numQSReac,_nComp);
-		Eigen::MatrixXd QSS(_stoichiometryBulk.rows(), numQSReac);
+
+		// QSS quasistationary stoichiometry matrix contains only coloums with qs reactions
+		Eigen::MatrixXd QSS(_stoichiometryBulk.rows(), numQSReac); 
 		
-
-		// Fülle die Spalten basierend auf _reactionQuasistationarity
-		/*for (int i = 0; i < _stoichiometryBulk.rows(); ++i)
-		{
-			const double* rowData = reinterpret_cast<const double*>(_stoichiometryBulk.data() + i * _stoichiometryBulk.columns());
-			Eigen::Map<const Eigen::VectorXd> Srow(rowData, _stoichiometryBulk.columns());
-			QSS.row(rowIndex++) = Srow;
-		}
-		*/
-
+		// Fill QSS with the stoichiometry of the quasi stationary reactions
 		for (int i = 0; i < _stoichiometryBulk.rows(); ++i)
 		{
 			int rowIndex = 0;
@@ -445,11 +450,11 @@ public:
 					rowIndex++;
 			}
 		}
-		//Remove zero rows from QSS
+
 		int nQScomp = 0; // Number of quasi stationary active components
 		for (int i = 0; i < QSS.rows(); ++i)
 		{
-			if (QSS.row(i).norm() < 1e-10) {
+			if (QSS.row(i).norm() < 1e-15) {
 				_QsCompBulk.push_back(0);
 			}
 			else
@@ -458,30 +463,30 @@ public:
 				nQScomp++;
 			}
 		}
-		if (nQScomp == 0)
-			return;
-		// Redimensioniere QSS und kopiere nur die nicht-null Zeilen
+
+		// optional scip this step 
 		if (_nComp - nQScomp  > 0 ) // if kinetic components exists we can resize QSS
 		{
 			Eigen::MatrixXd QSSCompressed(nQScomp, QSS.cols());
+			int idx = 0;
 			for (std::size_t i = 0; i < _QsCompBulk.size(); ++i)
-			{	
-				if (_QsCompBulk[i] == 1)
-				{
-					QSSCompressed.row(i) = QSS.row(i);
-				}
+			{
+				if (_QsCompBulk[i] == 0)
+					continue;
+				QSSCompressed.row(idx) = QSS.row(i);
+				idx++;
 			}
-			QSS.swap(QSSCompressed); // Swap the compressed matrix back into QSS
+			QSS.swap(QSSCompressed);
 		}
 
-		//3. Test if the matrix is full rank
-		int rang = QSS.fullPivLu().rank();
-		if (rang != numQSReac)
+		//Test if the matrix is full rank
+		int rank = QSS.fullPivLu().rank();
+		if (rank != numQSReac)
 		{
 			throw std::runtime_error("Calculation Conserved Moities Matrix: The Stoichemetric Matrix is sigular");
 		}
 
-		//3. Calculate the null space of the matrix
+		//Calculate the null space of the matrix
 		Eigen::MatrixXd leftZeroSpace = QSS.transpose().fullPivLu().kernel().transpose();
 
 		if (_nComp - nQScomp < 0) // if there are no kinetic components we can return the zero matrix
@@ -501,7 +506,6 @@ public:
 			}
 			M = leftZeroSpace;
 		}
-		
 	}
 
 	virtual unsigned int numReactionsLiquid() const CADET_NOEXCEPT { return _stoichiometryBulk.columns(); }
@@ -727,22 +731,19 @@ protected:
 		typename ParamHandler_t::ParamsHandle const p = _paramHandler.update(t, secIdx, colPos, _nComp, _nBoundStates, workSpace);
 		
 
+		int fluxIdx = 0;
 		for (int r = 0; r < _stoichiometryBulk.columns(); ++r)
 		{
 			double kFwdBulk_r = static_cast<double>(p->kFwdBulk[r]);
 			double kBwdBulk_r = static_cast<double>(p->kBwdBulk[r]);
-			
-			if (_reactionQuasistationarity[r] == 1)
-			{	
-				double flow = singleFlux(r, y, kFwdBulk_r, kBwdBulk_r);
-				fluxes[r] = flow;
-			}
-			else
-			{
-				fluxes[r] = 0.0;
-			}
-			return 0;
+
+			if (_reactionQuasistationarity[r] == 0)
+				continue;
+
+			fluxes[fluxIdx] = singleFlux(r, y, kFwdBulk_r, kBwdBulk_r);
+			fluxIdx++;
 		}
+		return 0;
 	}
 
 	template <typename StateType, typename ResidualType, typename ParamType, typename FactorType>
@@ -1007,19 +1008,30 @@ protected:
 		BufferedArray<double> fluxes = workSpace.array<double>(2 * _nComp);
 		double* const fluxGradFwd = static_cast<double*>(fluxes);
 		double* const fluxGradBwd = fluxGradFwd + _nComp;
+		
+		int count = 0;
+		int r = 0;
+		for (size_t i = 0; i < _stoichiometryBulk.columns(); ++i) {
+			if (_reactionQuasistationarity[i] == 1) 
+			{
+				if (count == reaction) 
+					r = i;
+				++count;
+			}
+		}
 
-			// Calculate gradients of forward and backward fluxes
-			fluxGradLiquid(fluxGradFwd, reaction, _nComp, static_cast<double>(p->kFwdBulk[reaction]), _expBulkFwd, y);
-			fluxGradLiquid(fluxGradBwd, reaction, _nComp, static_cast<double>(p->kBwdBulk[reaction]), _expBulkBwd, y);
+		// Calculate gradients of forward and backward fluxes
+		fluxGradLiquid(fluxGradFwd, r, _nComp, static_cast<double>(p->kFwdBulk[r]), _expBulkFwd, y);
+		fluxGradLiquid(fluxGradBwd, r, _nComp, static_cast<double>(p->kBwdBulk[r]), _expBulkBwd, y);
 
 			// Add gradients to Jacobian
-			RowIterator curJac = jac; // right row iterator
+		RowIterator curJac = jac; // right row iterator
 
 			//const double colFactor = static_cast<double>(_stoichiometryBulk.native(state, reaction));
-			for (int col = 0; col < _nComp; ++col)
-			{
-				curJac[col - state] =  (fluxGradFwd[col] - fluxGradBwd[col]);
-			}
+		for (int col = 0; col < _nComp; ++col)
+		{
+			curJac[col - state] =  (fluxGradFwd[col] - fluxGradBwd[col]);
+		}
 		
 	}
 

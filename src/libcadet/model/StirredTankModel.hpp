@@ -24,7 +24,7 @@
 #include "linalg/DenseMatrix.hpp"
 #include "model/ModelUtils.hpp"
 #include "Memory.hpp"
-
+#include <bitset>
 #include <array>
 #include <vector>
 
@@ -180,6 +180,7 @@ protected:
 	std::vector<int> _QsCompBulk; //!< Indices of components that are conserved in the bulk volume
 	unsigned int _nqsReactionBulk;
 	int _nMoitiesBulk;
+	std::vector<std::bitset<3>> stateMap; // !< Bitset that tracks the properties of the state vector (dynamic, moities, algebraic)
 
 	class Exporter : public ISolutionExporter
 	{
