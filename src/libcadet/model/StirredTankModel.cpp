@@ -30,7 +30,7 @@
 
 #include <algorithm>
 #include <functional>
-
+#include <bitset>
 #include <Eigen/Dense>
 
 #include<iostream>
@@ -243,7 +243,6 @@ bool CSTRModel::configureModelDiscretization(IParameterProvider& paramProvider, 
 			paramProvider.popScope();
 		
 
-
 			_temp = new active[_nComp];
 			_temp2 = new double[_nComp];
 
@@ -377,10 +376,32 @@ bool CSTRModel::configure(IParameterProvider& paramProvider)
 		// Get quasi stationary reactions information vector
 		_qsReactionBulk = _dynReactionBulk->reactionQuasiStationarity();
 
-		if (_qsReactionBulk != nullptr)
+		if (false)
 		{	
 			_dynReactionBulk->fillConservedMoietiesBulk(_MconvMoityBulk, _nqsReactionBulk, _QsCompBulk); // fill conserved moities matrix
 			_nMoitiesBulk = _MconvMoityBulk.rows();
+			
+			int mIdx = 0;
+			for (int state = 0; state < _nComp; state++)
+			{
+				std::bitset<3> c;
+				if (_QsCompBulk[state] == 0) // state is dynamic 
+				{
+					c.set(0);
+					stateMap.push_back(c);
+				}
+				else if(mIdx < _nMoitiesBulk) // state is dynamic and calculated with conserved moities
+				{
+					c.set(1);
+					stateMap.push_back(c);
+					mIdx++;
+				}
+				else if(mIdx >= _nMoitiesBulk) // state algebraic 
+				{
+					c.set(2);
+					stateMap.push_back(c);
+				}
+			}
 		}
 	}
 
@@ -1161,8 +1182,16 @@ void CSTRModel::leanConsistentInitialState(const SimulationTime& simTime, double
 		LinearBufferAllocator tlmAlloc = threadLocalMem.get();
 		BufferedArray<int> qsMask = tlmAlloc.array<int>(_nComp);
 		
+		for(int state = 0 ; state < _nComp; state++)
+		{	
+			if(stateMap[state].test(1) || stateMap[state].test(2))
+				qsMask[state] = 1;
+			else
+				qsMask[state] = 0;
+		}
+		
 		// Mark components with quasi-stationary reactions partition
-		qsMask.copyFromVector(_QsCompBulk);
+		//qsMask.copyFromVector(_QsCompBulk);
 
 		const linalg::ConstMaskArray mask{ static_cast<int*>(qsMask), static_cast<int>(_nComp) };
 		const int probSize = linalg::numMaskActive(mask);
@@ -1179,8 +1208,9 @@ void CSTRModel::leanConsistentInitialState(const SimulationTime& simTime, double
 		for (unsigned int MoityIdx = 0; MoityIdx < _nMoitiesBulk; ++MoityIdx)
 		{
 			double dotProduct = 0.0;
-			for (unsigned int i = 0; i < _MconvMoityBulk.cols(); ++i) 
+			for (unsigned int i = 0; i < _MconvMoityBulk.cols(); ++i)
 				dotProduct += _MconvMoityBulk(MoityIdx, i) * c[i];
+			
 			conservedQuants[MoityIdx] = dotProduct;
 		}
 	
@@ -1255,25 +1285,27 @@ void CSTRModel::leanConsistentInitialState(const SimulationTime& simTime, double
 					mat.setAll(0.0);
 					linalg::copyMatrixSubset(_jac, mask, mask, mat);
 					// Replace upper part with conservation relations
-					mat.submatrixSetAll(0.0, 0, 0, _nMoitiesBulk, probSize);
+					//mat.submatrixSetAll(0.0, 0, 0, _nMoitiesBulk, probSize);
 					unsigned int rIdx = 0;
-					for (unsigned int MoityIdx = 0; MoityIdx < _nMoitiesBulk; ++MoityIdx)
+					unsigned int MoityIdx = 0;
+					for (unsigned int state = 0; state < _nComp; ++state)
 					{	
-
-						double dotProduct = 0.0;
-						int j = 0;
-						for (unsigned int i = 0; i < _MconvMoityBulk.cols(); ++i) {
-							if (!mask.mask[i])
-								continue;
-							mat.native(rIdx, j) += _MconvMoityBulk(MoityIdx, i);
-							j++;
+						if (stateMap[state].test(1))
+						{
+							double dotProduct = 0.0;
+							int j = 0;
+							for (unsigned int i = 0; i < _MconvMoityBulk.cols(); ++i) {
+								if (_QsCompBulk[i]==0)
+									continue;
+								mat.native(rIdx, j) = _MconvMoityBulk(MoityIdx, i);
+								j++;
+							}
+							rIdx++;
 						}
-						rIdx++;
 					}
 					return true;
 				};
 		}
-
 		std::copy_n(vecStateY, _nComp, fullX);
 		fullX[(2 * _nComp + _totalBound)] = c[(_nComp + _totalBound)];
 		_nonlinearSolver->solve(
@@ -1281,27 +1313,28 @@ void CSTRModel::leanConsistentInitialState(const SimulationTime& simTime, double
 			{
 				// Prepare input vector by overwriting masked items
 				std::copy_n(c, mask.len, fullX + _nComp);
-				linalg::applyVectorSubset(x, mask, fullX + _nComp); //Todo hier ist ein Fehler ! mask genauer anschauen!
+				linalg::applyVectorSubset(x, mask, fullX + _nComp);
 
 				// Call residual function
 				residualImpl<double, double, double, false>(simTime.t, simTime.secIdx, fullX, nullptr, fullResidual, tlmAlloc.manageRemainingMemory());
 
 				// Extract values from residual
 				linalg::selectVectorSubset(fullResidual + _nComp, mask, r);
-				std::fill_n(r, _nMoitiesBulk, 0.0);
+				//std::fill_n(r, _nMoitiesBulk, 0.0);
 
-				int rIdx = 0;
-				for (unsigned int MoityIdx = 0; MoityIdx < _nMoitiesBulk; ++MoityIdx)
+				int MoityIdx = 0;
+				int  rIdx = 0;
+				for (unsigned int state = 0; state < _nComp; ++state)
 				{
-					double dotProduct = 0.0;
-					for (unsigned int j = 0; j < _MconvMoityBulk.cols(); ++j)
-					{	
-						if(!mask.mask[j])
-							continue;
-						dotProduct += _MconvMoityBulk(MoityIdx, j) * x[j];
+					if (stateMap[state].test(1))
+					{
+						double dotProduct = 0.0;
+						for (unsigned int j = 0; j < _MconvMoityBulk.cols(); ++j)
+							dotProduct += _MconvMoityBulk(MoityIdx, j) * x[j];
+						r[rIdx] = dotProduct - conservedQuants[MoityIdx];
+						MoityIdx++;
+						rIdx++;
 					}
-					r[rIdx] = dotProduct - conservedQuants[rIdx];
-					rIdx++;
 				}
 				
 				std::cout << "Residual: " << std::endl;
@@ -1309,9 +1342,8 @@ void CSTRModel::leanConsistentInitialState(const SimulationTime& simTime, double
 					std::cout << r[i] << std::endl;
 				}
 				std::cout << "Solution: " << std::endl;
-				for (unsigned int i = 0; i < _nComp; ++i)
+				for (unsigned int i = 0; i < probSize; ++i)
 					std::cout << x[i] << std::endl;
-
 				return true;
 			},
 			jacFunc, errorTol, static_cast<double*>(solution), nonlinMem, jacobianMatrix, probSize);
@@ -1419,7 +1451,7 @@ void CSTRModel::leanConsistentInitialTimeDerivative(double t, double const* cons
 			return; // todo not implmenteted yet
 
 		for (unsigned int i = 0; i < numDofs(); ++i)
-			vecStateYdot[i] = -vecStateYdot[i]- res[i];
+			vecStateYdot[i] = -vecStateYdot[i];
 
 
 		// Assemble time derivative Jacobian
@@ -1464,17 +1496,7 @@ void CSTRModel::leanConsistentInitialTimeDerivative(double t, double const* cons
 		{
 			LOG(Error) << "Solve() failed";
 		}
-		/*
-		for (int i = 0; i < _nComp + 1; i++)
-			std::cout << " resC" << i << ": " << resC[i] << std::endl;
 
-		for (int i = 0; i < _nComp + 1; i++)
-			std::cout <<" Ydot" << i << ": " << cDot[i] << std::endl;
-		
-
-		for (int i = 0; i < _nComp + 1; i++)
-			std::cout << " Y" << i <<": " << c[i] << std::endl;
-		*/
 	}
 	else
 		{
@@ -1535,7 +1557,21 @@ int CSTRModel::residualImpl(double t, unsigned int secIdx, StateType const* cons
 
 	const ParamType flowIn = static_cast<ParamType>(_flowRateIn);
 	const ParamType flowOut = static_cast<ParamType>(_flowRateOut);
-	bool wantJac = true; // just for debugg reasion
+	//bool wantJac = true; // just for debugg reasion
+
+	/* testcase
+	std::bitset<3> c1;
+	std::bitset<3> c2;
+	std::bitset<3> c3;
+	
+	c1.set(0); // state 0 is dynamic
+	c2.set(1); // state 1 is conserved
+	c3.set(2); // state 2 is algebraic
+	
+	stateMap.push_back(c1);
+	stateMap.push_back(c2);
+	stateMap.push_back(c3); */
+
 	// Inlet DOF
 	for (unsigned int i = 0; i < _nComp; ++i)
 	{
@@ -1630,23 +1666,30 @@ int CSTRModel::residualImpl(double t, unsigned int secIdx, StateType const* cons
 		Eigen::Map<Eigen::Vector<ResidualType, Eigen::Dynamic>> mapResC(resC, _nComp);
 
 		int  MoityIdx = 0;
-		int state = 0;
-		for (unsigned int comp = 0; comp < _nComp; comp++)
+		int comp = 0;
+		int qsreac = 0;
+		for (unsigned int state = 0; state < _nComp; state++)
 		{
-			if (_QsCompBulk[comp] == 0)
-			{				
-				resCMoities[state] = resC[comp];
-				if (wantJac)
+			if (stateMap[state].test(0)) // dynamic
+			{	
+				for (comp = 0; comp < _nComp; comp++)
 				{
-					_jac.native(state, comp) += (static_cast<double>(vDot) + static_cast<double>(flowOut)); // dF_{ci}/dcj = v_liquidDot + F_out
-					_dynReactionBulk->analyticJacobianLiquidSingleFluxAdd(t, secIdx, colPos, reinterpret_cast<double const*>(c), state, comp, _jac.row(state), subAlloc);
+					if(_QsCompBulk[comp] == 1)
+						continue;
+					resCMoities[state] = resC[comp];
+					if (wantJac)
+					{
+						_jac.native(state, state) = 0.0;
+						_jac.native(state, comp) = (static_cast<double>(vDot) + static_cast<double>(flowOut)); // dF_{ci}/dcj = v_liquidDot + F_out
+						_dynReactionBulk->analyticJacobianLiquidSingleFluxAdd(t, secIdx, colPos, reinterpret_cast<double const*>(c), state, comp, _jac.row(state), subAlloc);
+					}
 				}
-				state++;
 			}
-			if (_QsCompBulk[comp] == 1 && MoityIdx < _nMoitiesBulk)
-			{
+			else if (stateMap[state].test(1)) // conserved
+			{	
+				// todo test of matrix times vector faster
 				ResidualType dotProduct = 0.0;
-				for (unsigned int i = 0 ; i < _MconvMoityBulk.cols(); ++i) // hier Optimierung durch Vermeidung von 0 Zeilen in MconvMoityBulk
+				for (unsigned int i = 0 ; i < _MconvMoityBulk.cols(); ++i)
 				{
 					dotProduct += static_cast<ResidualType>(_MconvMoityBulk(MoityIdx, i)) * (mapResC[i]);
 					if (wantJac)
@@ -1657,24 +1700,22 @@ int CSTRModel::residualImpl(double t, unsigned int secIdx, StateType const* cons
 							_jac.native(i, _nComp + _totalBound) += _MconvMoityBulk(MoityIdx, i) * cDot[i]; // dF/dvliquid = cDot 
 					}
 				}
+
 				resCMoities[state] = dotProduct;
 				MoityIdx++;
-				state++;
 			}
-		}
+			else if (stateMap[state].test(2)) // algebraic
+			{ 
+				resCMoities[state] = qsflux[qsreac];
 
-		state = (_nComp - _nqsReactionBulk);
-		for (unsigned int qsreac = 0; qsreac < _nqsReactionBulk; ++qsreac)
-		{
-			resCMoities[state] += qsflux[qsreac];
-
-			if(wantJac)
-			{
-				_dynReactionBulk->analyticQuasiSteadyJacobianLiquid(t, secIdx, colPos, reinterpret_cast<double const*>(c), state , qsreac, _jac.row(state), subAlloc);
-				_jac.native(state, _nComp + _totalBound) = 0.0; // dF_{ci}/dvliquid = 0
+				if (wantJac)
+				{
+					_dynReactionBulk->analyticQuasiSteadyJacobianLiquid(t, secIdx, colPos, reinterpret_cast<double const*>(c), state, qsreac, _jac.row(state), subAlloc);
+					_jac.native(state, _nComp + _totalBound) = 0.0; // dF_{ci}/dvliquid = 0
+				}
+				qsreac++;
 			}
-			state++;
-		}
+		}		
 		mapResC = resCMoities;
 	}
 	
@@ -2192,27 +2233,29 @@ void CSTRModel::addTimeDerivativeJacobian(double t, double alpha, const ConstSim
 
 		int  MoityIdx = 0;
 		int state = 0;
-		for (unsigned int i = 0; i < _nComp; i++)
+		for (unsigned int state = 0; state < _nComp; state++)
 		{
-			if (_QsCompBulk[i] == 1 && MoityIdx < _nMoitiesBulk)
+			if (stateMap[state].test(0))
 			{
-
-				mat.native(i, i) += timeV * (static_cast<double>(_MconvMoityBulk(MoityIdx, MoityIdx))); // dRes / dcDot
 				for (int comp = 0; comp < _nComp; comp++)
 				{
-					if (_QsCompBulk[comp] == 1 && i != comp)
-						mat.native(i, comp) += timeV * static_cast<double>(_MconvMoityBulk(MoityIdx, comp)); // dRes / dcDot
-					// todo this is wrong 
-					mat.native(i, _nComp + _totalBound) += alpha * static_cast<double>(_MconvMoityBulk(MoityIdx, comp)) * c[comp]; // dRes / dVlDot
+					if (_QsCompBulk[comp] == 1)
+						continue;
+					mat.native(state, comp) += timeV; // dRes / dcDot
+
+				}
+			}
+			if (stateMap[state].test(1))
+			{
+				mat.native(state, state) += timeV * (static_cast<double>(_MconvMoityBulk(MoityIdx, MoityIdx))); // dRes / dcDot
+				for (int comp = 0; comp < _nComp; comp++)
+				{
+					if (_QsCompBulk[comp] == 1 && state != comp)
+						mat.native(state, comp) += timeV * static_cast<double>(_MconvMoityBulk(MoityIdx, comp)); // dRes / dcDot
+					mat.native(state, _nComp + _totalBound) += alpha * static_cast<double>(_MconvMoityBulk(MoityIdx, comp)) * c[comp]; // dRes / dVlDot
 				}
 
 				MoityIdx++;
-				state++;
-			}
-			else if (_QsCompBulk[i] == 0)
-			{
-				mat.native(state, i) += timeV; // dRes / dcDot
-				state++;
 			}
 		}
 	}	
