@@ -346,29 +346,32 @@ public:
 		{
 			_reactionQuasistationarity.resize(_stoichiometryBulk.columns(), false);
 
-			const std::vector<int> vecKin = paramProvider.getIntArray("IS_KINETIC");
-			int numqsReaction = std::count(vecKin.begin(), vecKin.end(), 1);
-			if (numqsReaction == 0)
-			{
-				_reactionQuasistationarity = {};
+			if (paramProvider.isArray("IS_KINETIC")) {
+				const std::vector<int> vecKin = paramProvider.getIntArray("IS_KINETIC");
+				int numqsReaction = std::count(vecKin.begin(), vecKin.end(), 1);
+				if (vecKin.size() == 1)
+				{
+					// Treat an array with a single element as scalar
+					std::fill(_reactionQuasistationarity.begin(), _reactionQuasistationarity.end(), !static_cast<bool>(vecKin[0]));
+				}
+				else if (vecKin.size() < _reactionQuasistationarity.size())
+				{
+					// Error on too few elements
+					throw InvalidParameterException("IS_KINETIC has to have at least " + std::to_string(_reactionQuasistationarity.size()) + " elements");
+				}
+				else
+				{
+					// Copy what we need (ignore excess values)
+					std::transform(vecKin.begin(), vecKin.begin() + _reactionQuasistationarity.size(), _reactionQuasistationarity.begin(), [](int val) { return !static_cast<bool>(val); });
+				}
 			}
-			else if (vecKin.size() == 1)
-			{	
-				// Treat an array with a single element as scalar
-				std::fill(_reactionQuasistationarity.begin(), _reactionQuasistationarity.end(), !static_cast<bool>(vecKin[0]));
-			}
-			else if (vecKin.size() < _reactionQuasistationarity.size())
+			else
 			{
-				// Error on too few elements
-				throw InvalidParameterException("IS_KINETIC has to have at least " + std::to_string(_reactionQuasistationarity.size()) + " elements");
-			}
-			else if (numqsReaction != 0)
-			{
-				// Copy what we need (ignore excess values)
-				std::transform(vecKin.begin(), vecKin.begin() + _reactionQuasistationarity.size(), _reactionQuasistationarity.begin(), [](int val) { return !static_cast<bool>(val); });
-
+				const bool kineticBinding = paramProvider.getInt("IS_KINETIC");
+				std::fill(_reactionQuasistationarity.begin(), _reactionQuasistationarity.end(), !kineticBinding);
 			}
 		}
+		
 
 		if (!nBound || !boundOffset)
 			return true;
@@ -465,12 +468,15 @@ public:
 		if (_nComp - nQScomp  > 0 ) // if kinetic components exists we can resize QSS
 		{
 			Eigen::MatrixXd QSSCompressed(nQScomp, QSS.cols());
+			int idx = 0;
 			for (std::size_t i = 0; i < _QsCompBulk.size(); ++i)
-			{	
-				if (_QsCompBulk[i] == 1)
-					QSSCompressed.row(i) = QSS.row(i);
+			{
+				if (_QsCompBulk[i] == 0)
+					continue;
+				QSSCompressed.row(idx) = QSS.row(i);
+				idx++;
 			}
-			QSS.swap(QSSCompressed); // Swap the compressed matrix back into QSS
+			QSS.swap(QSSCompressed);
 		}
 
 		//Test if the matrix is full rank
@@ -725,17 +731,17 @@ protected:
 		typename ParamHandler_t::ParamsHandle const p = _paramHandler.update(t, secIdx, colPos, _nComp, _nBoundStates, workSpace);
 		
 
+		int fluxIdx = 0;
 		for (int r = 0; r < _stoichiometryBulk.columns(); ++r)
 		{
 			double kFwdBulk_r = static_cast<double>(p->kFwdBulk[r]);
 			double kBwdBulk_r = static_cast<double>(p->kBwdBulk[r]);
-			
-			if (_reactionQuasistationarity[r] == 1)
-			{	
-				double flow = singleFlux(r, y, kFwdBulk_r, kBwdBulk_r);
-				fluxes[r] = flow;
-			}
-			
+
+			if (_reactionQuasistationarity[r] == 0)
+				continue;
+
+			fluxes[fluxIdx] = singleFlux(r, y, kFwdBulk_r, kBwdBulk_r);
+			fluxIdx++;
 		}
 		return 0;
 	}
@@ -1002,19 +1008,30 @@ protected:
 		BufferedArray<double> fluxes = workSpace.array<double>(2 * _nComp);
 		double* const fluxGradFwd = static_cast<double*>(fluxes);
 		double* const fluxGradBwd = fluxGradFwd + _nComp;
+		
+		int count = 0;
+		int r = 0;
+		for (size_t i = 0; i < _stoichiometryBulk.columns(); ++i) {
+			if (_reactionQuasistationarity[i] == 1) 
+			{
+				if (count == reaction) 
+					r = i;
+				++count;
+			}
+		}
 
-			// Calculate gradients of forward and backward fluxes
-			fluxGradLiquid(fluxGradFwd, reaction, _nComp, static_cast<double>(p->kFwdBulk[reaction]), _expBulkFwd, y);
-			fluxGradLiquid(fluxGradBwd, reaction, _nComp, static_cast<double>(p->kBwdBulk[reaction]), _expBulkBwd, y);
+		// Calculate gradients of forward and backward fluxes
+		fluxGradLiquid(fluxGradFwd, r, _nComp, static_cast<double>(p->kFwdBulk[r]), _expBulkFwd, y);
+		fluxGradLiquid(fluxGradBwd, r, _nComp, static_cast<double>(p->kBwdBulk[r]), _expBulkBwd, y);
 
 			// Add gradients to Jacobian
-			RowIterator curJac = jac; // right row iterator
+		RowIterator curJac = jac; // right row iterator
 
 			//const double colFactor = static_cast<double>(_stoichiometryBulk.native(state, reaction));
-			for (int col = 0; col < _nComp; ++col)
-			{
-				curJac[col - state] =  (fluxGradFwd[col] - fluxGradBwd[col]);
-			}
+		for (int col = 0; col < _nComp; ++col)
+		{
+			curJac[col - state] =  (fluxGradFwd[col] - fluxGradBwd[col]);
+		}
 		
 	}
 

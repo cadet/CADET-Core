@@ -376,30 +376,32 @@ bool CSTRModel::configure(IParameterProvider& paramProvider)
 		// Get quasi stationary reactions information vector
 		_qsReactionBulk = _dynReactionBulk->reactionQuasiStationarity();
 
-		if (false)
+		if (_qsReactionBulk != nullptr)
 		{	
 			_dynReactionBulk->fillConservedMoietiesBulk(_MconvMoityBulk, _nqsReactionBulk, _QsCompBulk); // fill conserved moities matrix
 			_nMoitiesBulk = _MconvMoityBulk.rows();
-			
-			int mIdx = 0;
-			for (int state = 0; state < _nComp; state++)
+			if (_nMoitiesBulk != 0)
 			{
-				std::bitset<3> c;
-				if (_QsCompBulk[state] == 0) // state is dynamic 
+				int mIdx = 0;
+				for (int state = 0; state < _nComp; state++)
 				{
-					c.set(0);
-					stateMap.push_back(c);
-				}
-				else if(mIdx < _nMoitiesBulk) // state is dynamic and calculated with conserved moities
-				{
-					c.set(1);
-					stateMap.push_back(c);
-					mIdx++;
-				}
-				else if(mIdx >= _nMoitiesBulk) // state algebraic 
-				{
-					c.set(2);
-					stateMap.push_back(c);
+					std::bitset<3> c;
+					if (_QsCompBulk[state] == 0) // state is dynamic 
+					{
+						c.set(0);
+						stateMap.push_back(c);
+					}
+					else if (mIdx < _nMoitiesBulk) // state is dynamic and calculated with conserved moities
+					{
+						c.set(1);
+						stateMap.push_back(c);
+						mIdx++;
+					}
+					else if (mIdx >= _nMoitiesBulk) // state algebraic 
+					{
+						c.set(2);
+						stateMap.push_back(c);
+					}
 				}
 			}
 		}
@@ -1294,14 +1296,18 @@ void CSTRModel::leanConsistentInitialState(const SimulationTime& simTime, double
 						{
 							double dotProduct = 0.0;
 							int j = 0;
-							for (unsigned int i = 0; i < _MconvMoityBulk.cols(); ++i) {
+							for (unsigned int i = 0; i < _MconvMoityBulk.cols(); ++i) 
+							{
 								if (_QsCompBulk[i]==0)
 									continue;
 								mat.native(rIdx, j) = _MconvMoityBulk(MoityIdx, i);
 								j++;
 							}
 							rIdx++;
+							MoityIdx++;
 						}
+						else if (stateMap[state].test(2))
+							rIdx++;
 					}
 					return true;
 				};
@@ -1329,12 +1335,20 @@ void CSTRModel::leanConsistentInitialState(const SimulationTime& simTime, double
 					if (stateMap[state].test(1))
 					{
 						double dotProduct = 0.0;
+						int jIdx = 0;
 						for (unsigned int j = 0; j < _MconvMoityBulk.cols(); ++j)
-							dotProduct += _MconvMoityBulk(MoityIdx, j) * x[j];
+						{
+							if (_QsCompBulk[j] == 0)
+								continue;
+							dotProduct += _MconvMoityBulk(MoityIdx, j) * x[jIdx];
+							jIdx++;
+						}
 						r[rIdx] = dotProduct - conservedQuants[MoityIdx];
 						MoityIdx++;
 						rIdx++;
 					}
+					else if(stateMap[state].test(2))
+						rIdx++;
 				}
 				
 				std::cout << "Residual: " << std::endl;
@@ -1353,7 +1367,7 @@ void CSTRModel::leanConsistentInitialState(const SimulationTime& simTime, double
 		
 		std::cout << "Solution: " << std::endl;
 		for (unsigned int i = 0; i < _nComp; ++i)
-			std::cout << solution[i] << std::endl;
+			std::cout << c[i] << std::endl;
 		
 		// Refine / correct solution
 	}
@@ -1447,9 +1461,6 @@ void CSTRModel::leanConsistentInitialTimeDerivative(double t, double const* cons
 	}
 	if (_nqsReactionBulk > 0)
 	{
-		if (vLiquid == 0)
-			return; // todo not implmenteted yet
-
 		for (unsigned int i = 0; i < numDofs(); ++i)
 			vecStateYdot[i] = -vecStateYdot[i];
 
@@ -1475,14 +1486,14 @@ void CSTRModel::leanConsistentInitialTimeDerivative(double t, double const* cons
 
 		// Copy row from original Jacobian and set right hand side
 		double* const cShellDot = cDot + _nComp;
-		int idx = 0;
-		for (unsigned int i = 0; i < _nComp; ++i, ++idx)
+		for (unsigned int i = 0; i < _nComp; ++i)
 		{
-			if(i >= _nComp - _nMoitiesBulk)
-				_jacFact.copyRowFrom(_jac, idx, idx);
+			if (!stateMap[i].test(2))
+				continue;	
+			_jacFact.copyRowFrom(_jac, i, i);
 			cShellDot[i] = -dReacDt[i];
-		}
 
+		}
 		// Factorize
 		const bool result = _jacFact.robustFactorize(static_cast<double*>(dReacDt));
 		if (!result)
@@ -1499,7 +1510,7 @@ void CSTRModel::leanConsistentInitialTimeDerivative(double t, double const* cons
 
 	}
 	else
-		{
+	{
 			// Concentrations: V^l * \dot{c} + \dot{V}^l * c + V^s * [sum_j sum_m d_j \dot{q}_{j,m}] = c_in * F_in + c * F_out
 			//             <=> V^l * \dot{c} = c_in * F_in + c * F_out - V^s * [sum_j sum_m d_j \dot{q}_{j,m}] - \dot{V}^l * c 
 			//                               = -res - V^s * [sum_j sum_m d_j \dot{q}_{j,m}] - \dot{V}^l * c
@@ -1557,21 +1568,8 @@ int CSTRModel::residualImpl(double t, unsigned int secIdx, StateType const* cons
 
 	const ParamType flowIn = static_cast<ParamType>(_flowRateIn);
 	const ParamType flowOut = static_cast<ParamType>(_flowRateOut);
-	//bool wantJac = true; // just for debugg reasion
 
-	/* testcase
-	std::bitset<3> c1;
-	std::bitset<3> c2;
-	std::bitset<3> c3;
-	
-	c1.set(0); // state 0 is dynamic
-	c2.set(1); // state 1 is conserved
-	c3.set(2); // state 2 is algebraic
-	
-	stateMap.push_back(c1);
-	stateMap.push_back(c2);
-	stateMap.push_back(c3); */
-
+	bool wantJac = true;
 	// Inlet DOF
 	for (unsigned int i = 0; i < _nComp; ++i)
 	{
@@ -1603,7 +1601,6 @@ int CSTRModel::residualImpl(double t, unsigned int secIdx, StateType const* cons
 				{
 					qDotSumType += qDot[j];
 				}
-
 				qDotSum += static_cast<ParamType>(_parTypeVolFrac[type]) * qDotSumType;
 			}
 
@@ -1654,7 +1651,7 @@ int CSTRModel::residualImpl(double t, unsigned int secIdx, StateType const* cons
 
 	if (_nqsReactionBulk > 0)
 	{
-		//_jac.setAll(0.0);
+		_jac.setAll(0.0);
 
 		Eigen::Map<Eigen::Vector<ResidualType, Eigen::Dynamic>> resCMoities(reinterpret_cast<ResidualType*>(_temp), _nComp);
 		resCMoities.setZero();
@@ -1679,28 +1676,26 @@ int CSTRModel::residualImpl(double t, unsigned int secIdx, StateType const* cons
 					resCMoities[state] = resC[comp];
 					if (wantJac)
 					{
-						_jac.native(state, state) = 0.0;
-						_jac.native(state, comp) = (static_cast<double>(vDot) + static_cast<double>(flowOut)); // dF_{ci}/dcj = v_liquidDot + F_out
+						//_jac.native(state, state) = 0.0;
+						_jac.native(state, comp) += (static_cast<double>(vDot) + static_cast<double>(flowOut)); // dF_{ci}/dcj = v_liquidDot + F_out
 						_dynReactionBulk->analyticJacobianLiquidSingleFluxAdd(t, secIdx, colPos, reinterpret_cast<double const*>(c), state, comp, _jac.row(state), subAlloc);
 					}
 				}
 			}
 			else if (stateMap[state].test(1)) // conserved
 			{	
-				// todo test of matrix times vector faster
+				// todo test of matrix times vector isfaster
 				ResidualType dotProduct = 0.0;
 				for (unsigned int i = 0 ; i < _MconvMoityBulk.cols(); ++i)
 				{
 					dotProduct += static_cast<ResidualType>(_MconvMoityBulk(MoityIdx, i)) * (mapResC[i]);
 					if (wantJac)
-					{
-						_jac.native(state, i) += (static_cast<double>(vDot) + static_cast<double>(flowOut)); // dF_{ci}/dcj = v_liquidDot + F_out  
-						_jac.native(state, i) *=   _MconvMoityBulk(MoityIdx, i) ; // dF_{ci}/dcj = v_liquidDot + F_out
+					{	
+						_jac.native(state, i) += (static_cast<double>(vDot) + static_cast<double>(flowOut)) * _MconvMoityBulk(MoityIdx, i); // dF_{ci}/dcj = v_liquidDot + F_out  
 						if (cadet_likely(yDot))
-							_jac.native(i, _nComp + _totalBound) += _MconvMoityBulk(MoityIdx, i) * cDot[i]; // dF/dvliquid = cDot 
+							_jac.native(i, _nComp + _totalBound) += _MconvMoityBulk(MoityIdx, i) * cDot[i] * _MconvMoityBulk(MoityIdx, i); // dF/dvliquid = cDot 
 					}
 				}
-
 				resCMoities[state] = dotProduct;
 				MoityIdx++;
 			}
@@ -1717,6 +1712,7 @@ int CSTRModel::residualImpl(double t, unsigned int secIdx, StateType const* cons
 			}
 		}		
 		mapResC = resCMoities;
+		int a = 1;
 	}
 	
 	// Bound states
