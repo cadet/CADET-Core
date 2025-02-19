@@ -978,7 +978,7 @@ void CSTRModel::consistentInitialTimeDerivative(const SimulationTime& simTime, d
 	const double flowIn = static_cast<double>(_flowRateIn);
 	const double flowOut = static_cast<double>(_flowRateOut);
 
-	// Note that the residual has not been negated, yet. We will do that now.
+	// Note that the residual has not been negated, yet. We will do that now. (t0 is cDot = res(t0))
 	for (unsigned int i = 0; i < numDofs(); ++i)
 		vecStateYdot[i] = -vecStateYdot[i];
 
@@ -1485,13 +1485,11 @@ void CSTRModel::leanConsistentInitialTimeDerivative(double t, double const* cons
 		_dynReactionBulk->timeDerivativeQuasiStationaryReaction(t, _curSecIdx, ColumnPosition{ 0.0, 0.0, 0.0 }, c, static_cast<double*>(dReacDt), tlmAlloc);
 
 		// Copy row from original Jacobian and set right hand side
-		double* const cShellDot = cDot + _nComp;
 		for (unsigned int i = 0; i < _nComp; ++i)
 		{
 			if (!stateMap[i].test(2))
-				continue;	
+				continue;
 			_jacFact.copyRowFrom(_jac, i, i);
-			cShellDot[i] = -dReacDt[i];
 
 		}
 		// Factorize
@@ -1561,7 +1559,7 @@ int CSTRModel::residualImpl(double t, unsigned int secIdx, StateType const* cons
 {
 	StateType const* const cIn = y; 
 	StateType const* const c = y + _nComp;
-	const StateType& v = y[2 * _nComp + _totalBound]; 
+	const StateType& v = y[2 * _nComp + _totalBound];
 
 	double const* const cDot = yDot ? yDot + _nComp : nullptr; 
 	const double vDot = yDot ? yDot[2 * _nComp + _totalBound] : 0.0;
@@ -1656,10 +1654,10 @@ int CSTRModel::residualImpl(double t, unsigned int secIdx, StateType const* cons
 		Eigen::Map<Eigen::Vector<ResidualType, Eigen::Dynamic>> resCMoities(reinterpret_cast<ResidualType*>(_temp), _nComp);
 		resCMoities.setZero();
 
-		Eigen::Map<Eigen::Vector<double, Eigen::Dynamic>> qsflux(_temp2, _nqsReactionBulk);
+		Eigen::Map<Eigen::Vector<ResidualType, Eigen::Dynamic>> qsflux(reinterpret_cast<ResidualType*>(_temp2), _nqsReactionBulk);
 		qsflux.setZero();
 
-		_dynReactionBulk->quasiStationaryFlux(t, secIdx, colPos, c, qsflux, _qsReactionBulk, subAlloc);
+		_dynReactionBulk->quasiStationaryFluxAdd(t, secIdx, colPos, c, qsflux, _qsReactionBulk, subAlloc);
 		Eigen::Map<Eigen::Vector<ResidualType, Eigen::Dynamic>> mapResC(resC, _nComp);
 
 		int  MoityIdx = 0;
@@ -1668,7 +1666,7 @@ int CSTRModel::residualImpl(double t, unsigned int secIdx, StateType const* cons
 		for (unsigned int state = 0; state < _nComp; state++)
 		{
 			if (stateMap[state].test(0)) // dynamic
-			{	
+			{
 				for (comp = 0; comp < _nComp; comp++)
 				{
 					if(_QsCompBulk[comp] == 1)
@@ -1710,7 +1708,7 @@ int CSTRModel::residualImpl(double t, unsigned int secIdx, StateType const* cons
 				}
 				qsreac++;
 			}
-		}		
+		}
 		mapResC = resCMoities;
 		int a = 1;
 	}

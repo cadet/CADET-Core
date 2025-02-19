@@ -688,9 +688,10 @@ protected:
 		return true;
 	}
 
-	double singleFlux(int r, double const* y, double kFwdBulk_r, double kBwdBulk_r)
+	template <typename StateType, typename ResidualType>
+	ResidualType singleFlux(int r, StateType const* y, double kFwdBulk_r, double kBwdBulk_r)
 	{
-		double fwd = rateConstantOrZero(kFwdBulk_r, r, _expBulkFwd, _nComp);
+		ResidualType fwd = rateConstantOrZero(kFwdBulk_r, r, _expBulkFwd, _nComp);
 		for (int c = 0; c < _nComp; ++c)
 		{
 			if (_expBulkFwd.native(c, r) != 0.0)
@@ -705,7 +706,7 @@ protected:
 			}
 		}
 
-		double bwd = rateConstantOrZero(kBwdBulk_r, r, _expBulkBwd, _nComp);
+		ResidualType bwd = rateConstantOrZero(kBwdBulk_r, r, _expBulkBwd, _nComp);
 		for (int c = 0; c < _nComp; ++c)
 		{
 			if (_expBulkBwd.native(c, r) != 0.0)
@@ -722,11 +723,9 @@ protected:
 		return fwd - bwd;
 	}
 
-	virtual int quasiStationaryFlux(double t, unsigned int secIdx, const ColumnPosition& colPos, active const* y,
-		Eigen::Map<Eigen::VectorXd> fluxes, int const* mapQSReac, LinearBufferAllocator workSpace) { return 0; }
-
-	virtual int quasiStationaryFlux(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y,
-		Eigen::Map<Eigen::VectorXd> fluxes, int const* mapQSReac, LinearBufferAllocator workSpace)
+	template<typename StateType, typename ResidualType>
+	int quasiStationaryFlux(double t, unsigned int secIdx, const ColumnPosition& colPos, StateType const* y,
+		Eigen::Map<Eigen::Vector<ResidualType, Eigen::Dynamic>> fluxes, int const* mapQSReac, LinearBufferAllocator workSpace)
 	{
 		typename ParamHandler_t::ParamsHandle const p = _paramHandler.update(t, secIdx, colPos, _nComp, _nBoundStates, workSpace);
 		
@@ -740,7 +739,7 @@ protected:
 			if (_reactionQuasistationarity[r] == 0)
 				continue;
 
-			fluxes[fluxIdx] = singleFlux(r, y, kFwdBulk_r, kBwdBulk_r);
+			fluxes[fluxIdx] = singleFlux<StateType, ResidualType>(r, y, kFwdBulk_r, kBwdBulk_r);
 			fluxIdx++;
 		}
 		return 0;
@@ -1082,17 +1081,27 @@ protected:
 
 	virtual void timeDerivativeQuasiStationaryReaction(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, double* dY, LinearBufferAllocator workSpace) 
 	{
+		if (!this->hasQuasiStationaryReactionsLiquid())
+			return;
+
+		//if (!ParamHandler_t::dependsOnTime())
+		//	return;
+		
 		typename ParamHandler_t::ParamsHandle const p = _paramHandler.update(t, secIdx, colPos, _nComp, _nBoundStates, workSpace);
 
 		for (int r = 0; r < _stoichiometryBulk.columns(); ++r)
 		{
+			if (_reactionQuasistationarity[r] == 0)
+				continue;
+
 			double kFwdBulk_r = static_cast<double>(p->kFwdBulk[r]);
 			double kBwdBulk_r = static_cast<double>(p->kBwdBulk[r]);
 
-			double flow = singleFlux(r, y, kFwdBulk_r, kBwdBulk_r);
+			double flow = singleFlux<double, double>(r, y, kFwdBulk_r, kBwdBulk_r);
 			for (int c = 0; c < _nComp; ++c)
-				dY[c] += static_cast<double>(_stoichiometryBulk.native(c, r)) * flow;
+				dY[c] = -static_cast<double>(_stoichiometryBulk.native(c, r)) * flow;
 		}
+
 	}
 };
 
