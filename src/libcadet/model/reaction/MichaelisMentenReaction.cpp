@@ -152,7 +152,6 @@ public:
 	virtual int const* reactionQuasiStationarity() const CADET_NOEXCEPT { return nullptr; }
 	virtual unsigned int numReactionsLiquid() const CADET_NOEXCEPT { return _stoichiometryBulk.columns(); }
 	virtual unsigned int numReactionsCombined() const CADET_NOEXCEPT { return 0; }
-	void fillConservedMoietiesBulk(Eigen::MatrixXd& M, unsigned int& QSReaction, std::vector<int>& QSComponent) {}
 
 	template <typename RowIterator>
 	void jacobianQuasiSteadyLiquidImpl(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, int state, int reaction ,const RowIterator& jac, LinearBufferAllocator workSpace) const { }
@@ -161,14 +160,9 @@ public:
 	void jacobianSingleFluxImpl(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, int state, int reaction, const RowIterator& jac, LinearBufferAllocator workSpace) const { }
 	
 	virtual void timeDerivativeQuasiStationaryReaction(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, double* dReacDt, LinearBufferAllocator workSpace) { }
-	virtual int quasiStationaryFlux(double t, unsigned int secIdx, const ColumnPosition& colPos, active const* y,
-		Eigen::Map<Eigen::VectorXd> fluxes, int const* mapQSReac, LinearBufferAllocator workSpace) {
-		return 0;
-	}
-	virtual int quasiStationaryFlux(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y,
-		Eigen::Map<Eigen::VectorXd> fluxes, int const* mapQSReac, LinearBufferAllocator workSpace) {
-		return 0;
-	}
+	template<typename StateType, typename ResidualType>
+	int quasiStationaryFlux(double t, unsigned int secIdx, const ColumnPosition& colPos, StateType const* y,
+		Eigen::Map<Eigen::Vector<ResidualType, Eigen::Dynamic>> fluxes, int const* mapQSReac, LinearBufferAllocator workSpace) {return 0;}
 
 	CADET_DYNAMICREACTIONMODEL_BOILERPLATE
 

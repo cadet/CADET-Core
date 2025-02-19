@@ -214,12 +214,17 @@ public:
 		double* res, double factor, LinearBufferAllocator workSpace) const = 0;
 	
 
-	virtual int quasiStationaryFlux(double t, unsigned int secIdx, const ColumnPosition& colPos, active const* y,
-		Eigen::Map<Eigen::VectorXd> fluxes, int const* mapQSReac, LinearBufferAllocator workSpace) = 0;
+	virtual int computeQuasiStationaryReactionFlux(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y,
+		Eigen::Map<Eigen::Vector<active, Eigen::Dynamic>> fluxes, int const* mapQSReac, LinearBufferAllocator workSpace) = 0;
 
-	virtual int quasiStationaryFlux(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y,
-		Eigen::Map<Eigen::VectorXd> fluxes, int const* mapQSReac, LinearBufferAllocator workSpace) = 0;
+	virtual int computeQuasiStationaryReactionFlux(double t, unsigned int secIdx, const ColumnPosition& colPos, active const* y,
+		Eigen::Map<Eigen::Vector<double, Eigen::Dynamic>> fluxes, int const* mapQSReac, LinearBufferAllocator workSpace) = 0;
 
+	virtual int computeQuasiStationaryReactionFlux(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y,
+		Eigen::Map<Eigen::Vector<double, Eigen::Dynamic>> fluxes, int const* mapQSReac, LinearBufferAllocator workSpace) = 0;
+
+	virtual int computeQuasiStationaryReactionFlux(double t, unsigned int secIdx, const ColumnPosition& colPos, active const* y,
+		Eigen::Map<Eigen::Vector<active, Eigen::Dynamic>> fluxes, int const* mapQSReac, LinearBufferAllocator workSpace) = 0;
 
 	/**
 	 * @brief Adds the analytical Jacobian of the reaction terms for one liquid phase cell
@@ -246,15 +251,29 @@ public:
 	virtual void analyticJacobianLiquidAdd(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, double factor, linalg::DenseBandedRowIterator jac, LinearBufferAllocator workSpace) const = 0;
 	virtual void analyticJacobianLiquidAdd(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, double factor, linalg::BandedSparseRowIterator jac, LinearBufferAllocator workSpace) const = 0;
 	
-	virtual void analyticQuasiSteadyJacobianLiquid(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, int state, int reaction, linalg::BandMatrix::RowIterator jac, LinearBufferAllocator workSpace) const = 0;
-	virtual void analyticQuasiSteadyJacobianLiquid(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, int state, int reaction, linalg::DenseBandedRowIterator jac, LinearBufferAllocator workSpace) const = 0;
-	virtual void analyticQuasiSteadyJacobianLiquid(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, int state, int reaction, linalg::BandedSparseRowIterator jac, LinearBufferAllocator workSpace) const = 0;
+	virtual void analyticJacobianQuasiStationaryReaction(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, int state, int reaction, linalg::BandMatrix::RowIterator jac, LinearBufferAllocator workSpace) const = 0;
+	virtual void analyticJacobianQuasiStationaryReaction(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, int state, int reaction, linalg::DenseBandedRowIterator jac, LinearBufferAllocator workSpace) const = 0;
+	virtual void analyticJacobianQuasiStationaryReaction(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, int state, int reaction, linalg::BandedSparseRowIterator jac, LinearBufferAllocator workSpace) const = 0;
 
 	virtual void analyticJacobianLiquidSingleFluxAdd(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, int state, int reaction, linalg::BandMatrix::RowIterator jac, LinearBufferAllocator workSpace) const = 0;
 	virtual void analyticJacobianLiquidSingleFluxAdd(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, int state, int reaction, linalg::DenseBandedRowIterator jac, LinearBufferAllocator workSpace) const = 0;
 	virtual void analyticJacobianLiquidSingleFluxAdd(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, int state, int reaction, linalg::BandedSparseRowIterator jac, LinearBufferAllocator workSpace) const = 0;
 	
-	virtual void fillConservedMoietiesBulk(Eigen::MatrixXd& M, unsigned int & QSReaction, std::vector<int>& _QsCompBulk) = 0;
+	/**
+	* @brief fills the conserved moieties matrix and the vector of components involved in qs reactions
+	* @param [in,out] M Matrix to be filled with the conserved moieties
+	* @param [in,out] QsCompBulk Vector to be filled with the components involved in qs reactions
+	*/
+	virtual void fillConservedMoietiesBulk(Eigen::MatrixXd& M, std::vector<int>& QsCompBulk) {}
+
+	/**
+	 * @brief Returns whether this dynamic reaction model has quasi-stationary reactions
+	 * @details Quasi-stationary reactions are reactions that are in equilibrium and can be solved
+	 *          algebraically. This function is used to determine whether the model can be solved
+	 *          in quasi-stationary mode.
+	 * @return @c true if the model has quasi-stationary reactions, otherwise @c false
+	 */
+	virtual bool hasQuasiStationaryReactionsBulk() const CADET_NOEXCEPT { return false; }
 
 	virtual void timeDerivativeQuasiStationaryReaction(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, double* dReacDt, LinearBufferAllocator workSpace) = 0;
 
