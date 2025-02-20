@@ -6,7 +6,7 @@ Major additions or modifications to CADET-Core are explicitly stated.
 
 ## Special thanks to everyone who has helped with this project
 
-* [Eric von Lieres](https://github.com/lieres) (Forschungszentrum Juelich GmbH, IBG-1: Biotechnology, Juelich, - Germany): Supervision, concepts, first Matlab implementation, user interface design
+* [Eric von Lieres](https://github.com/lieres) (Forschungszentrum Juelich GmbH, IBG-1: Biotechnology, Juelich, - Germany): Supervision, concepts, first MATLAB implementation, user interface design
 * Joel Andersson (Forschungszentrum Juelich GmbH, IBG-1: Biotechnology, Juelich, Germany): Domain decomposition (GRM), linear solver (GRM), first C implementation
 * Sebastian Schnittert (Forschungszentrum Juelich GmbH, IBG-1: Biotechnology, Juelich, Germany): First C++ implementation, first Matlab interface, first file format
 * Andreas Püttmann (Forschungszentrum Juelich GmbH, IBG-1: Biotechnology, Juelich, Germany): Parameter sensitivities, Jacobians via AD, AD techniques (block- & band-compression)
