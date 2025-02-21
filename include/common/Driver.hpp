@@ -250,6 +250,16 @@ public:
 		std::vector<bool> secCont;
 		extractSectionTimes(pp, secTimes, secCont);
 
+		// Set timeout if provided, otherwise keep previously set timeout
+		if (pp.exists("TIMEOUT"))
+		{
+			const double timeoutSec = pp.getDouble("TIMEOUT");
+			if (timeoutSec > 0.0)
+				_timeout.setTimeout(timeoutSec);
+			else
+				_timeout.setTimeout(-1.0);
+		}
+
 		pp.popScope(); // solver scope
 
 		pp.pushScope("model");
