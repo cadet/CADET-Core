@@ -723,6 +723,7 @@ public:
 
 	/**
 	 * @brief Sets the receiver for notifications
+	 * @details The callback is not owned by the simulator.
 	 * @param[in] nc Object to receive notifications or @c nullptr to disable notifications
 	 */
 	virtual void setNotificationCallback(INotificationCallback* nc) CADET_NOEXCEPT = 0;

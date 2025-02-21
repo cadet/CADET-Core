@@ -150,6 +150,10 @@ public:
 		return !cadet::stopExecutionRequested();
 	}
 
+	virtual bool timeIntegrationLinearSolve(unsigned int section, double time, double const* state, double const* stateDot)
+	{
+		return !cadet::stopExecutionRequested();
+	}
 protected:
 	cadet::ProgressBar _progBar;
 	std::vector<char> _secStrBuffer;
@@ -172,6 +176,11 @@ public:
 	}
 
 	virtual bool timeIntegrationStep(unsigned int section, double time, double const* state, double const* stateDot, double progress)
+	{
+		return !cadet::stopExecutionRequested();
+	}
+
+	virtual bool timeIntegrationLinearSolve(unsigned int section, double time, double const* state, double const* stateDot)
 	{
 		return !cadet::stopExecutionRequested();
 	}

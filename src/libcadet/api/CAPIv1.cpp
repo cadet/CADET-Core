@@ -20,6 +20,7 @@
 #include "Logging.hpp"
 
 #include "common/Driver.hpp"
+#include "common/TimeoutCallback.hpp"
 
 
 #define CADET_XSTR(a) #a
@@ -33,6 +34,7 @@ extern "C"
 	struct cdtDriver
 	{
 		cadet::Driver* driver;
+		cadet::TimeoutCallback* timeout;
 	};
 }
 
@@ -47,7 +49,7 @@ namespace v1
 
 	cdtDriver* createDriver()
 	{
-		return new cdtDriver{ new cadet::Driver() };
+		return new cdtDriver{ new cadet::Driver(), new cadet::TimeoutCallback() };
 	}
 
 	void deleteDriver(cdtDriver* drv)
@@ -59,6 +61,9 @@ namespace v1
 
 		delete drv->driver;
 		drv->driver = nullptr;
+
+		delete drv->timeout;
+		drv->timeout = nullptr;
 	}
 
 	/**
@@ -994,8 +999,25 @@ namespace v1
 		if (!realDrv)
 			return cdtErrorInvalidInputs;
 
-        if (timeSim)
-            *timeSim = realDrv->simulator()->lastSimulationDuration();
+		if (timeSim)
+			*timeSim = realDrv->simulator()->lastSimulationDuration();
+
+		return cdtOK;
+	}
+
+	cdtResult setTimeout(cdtDriver* drv, double timeout)
+	{
+		Driver* const realDrv = drv->driver;
+		if (!realDrv)
+			return cdtErrorInvalidInputs;
+
+		cadet::ISimulator* const sim = realDrv->simulator();
+
+		drv->timeout->setTimeout(timeout);
+		if (timeout > 0.0)
+			sim->setNotificationCallback(drv->timeout);
+		else
+			sim->setNotificationCallback(nullptr);
 
 		return cdtOK;
 	}
@@ -1073,6 +1095,8 @@ extern "C"
 		ptr->getSolutionTimes = &cadet::api::v1::getSolutionTimes;
 
 		ptr->getTimeSim = &cadet::api::v1::getTimeSim;
+
+		ptr->setTimeout = &cadet::api::v1::setTimeout;
 
 		return cdtOK;
 	}

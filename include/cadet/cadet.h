@@ -1006,6 +1006,16 @@ extern "C"
 		 */
 		cdtResult (*getTimeSim)(cdtDriver* drv, double* timeSim);
 
+		/**
+		 * @brief Set a timeout on the current simulator
+		 * @details The timeout persists for the full lifetime of the simulator.
+		 * @param [in] drv Driver handle
+		 * @param [in] timeOut Timeout for a time integration process in seconds. A value
+		 *                     smaller or equal to @c 0.0 means no timeout (default).
+		 * @return @c cdtOK on success, a negative value indicating the error otherwise
+		 */
+		cdtResult (*setTimeout)(cdtDriver* drv, double timeOut);
+
 	} cdtAPIv010000;
 
 	/**
