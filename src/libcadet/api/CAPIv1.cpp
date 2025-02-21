@@ -34,7 +34,6 @@ extern "C"
 	struct cdtDriver
 	{
 		cadet::Driver* driver;
-		cadet::TimeoutCallback* timeout;
 	};
 }
 
@@ -49,7 +48,7 @@ namespace v1
 
 	cdtDriver* createDriver()
 	{
-		return new cdtDriver{ new cadet::Driver(), new cadet::TimeoutCallback() };
+		return new cdtDriver{ new cadet::Driver() };
 	}
 
 	void deleteDriver(cdtDriver* drv)
@@ -61,9 +60,6 @@ namespace v1
 
 		delete drv->driver;
 		drv->driver = nullptr;
-
-		delete drv->timeout;
-		drv->timeout = nullptr;
 	}
 
 	/**
@@ -1035,16 +1031,7 @@ namespace v1
 		if (!realDrv)
 			return cdtErrorInvalidInputs;
 
-		cadet::ISimulator* const sim = realDrv->simulator();
-		if (!sim)
-			return cdtSimulatorNotInitialized;
-
-		drv->timeout->setTimeout(timeout);
-		if (timeout > 0.0)
-			sim->setNotificationCallback(drv->timeout);
-		else
-			sim->setNotificationCallback(nullptr);
-
+		realDrv->setTimeout(timeout);
 		return cdtOK;
 	}
 

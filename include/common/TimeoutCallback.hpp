@@ -28,15 +28,16 @@ namespace cadet
 	class TimeoutCallback : public cadet::INotificationCallback
 	{
 	public:
-		TimeoutCallback() { }
+		TimeoutCallback() : _timeout(-1.0) { }
 		virtual ~TimeoutCallback() CADET_NOEXCEPT { }
 
-		void setTimeout(double timeout) { _timeout = timeout; }
+		void setTimeout(double seconds) { _timeout = seconds; }
 
 		virtual void timeIntegrationStart()
 		{
 			_timer.start();
 		}
+
 		virtual void timeIntegrationEnd()
 		{
 			_timer.reset();
@@ -61,7 +62,10 @@ namespace cadet
 	protected:
 		bool shouldStop()
 		{
-			_timer.stop();
+            if (_timeout <= 0.0)
+                return true;
+
+            _timer.stop();
 			const bool cont_sim = _timer.totalElapsedTime() <= _timeout;
 			_timer.start();
 			return cont_sim;
