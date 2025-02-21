@@ -429,82 +429,83 @@ public:
 
 		// Count the number of entries with value 1 in _reactionQuasistationarity
 		numQSReac = std::count(_reactionQuasistationarity.begin(), _reactionQuasistationarity.end(), true);
-		
+
 		if (numQSReac == 0)
 			return;
 
-		M.resize(numQSReac,_nComp);
+		// Clear and resize the output vector
+		_QsCompBulk.clear();
+		_QsCompBulk.reserve(_stoichiometryBulk.rows());
 
-		// QSS quasistationary stoichiometry matrix contains only coloums with qs reactions
-		Eigen::MatrixXd QSS(_stoichiometryBulk.rows(), numQSReac); 
-		
+		// Initialize QSS matrix with correct size
+		Eigen::MatrixXd QSS(_stoichiometryBulk.rows(), numQSReac);
+
 		// Fill QSS with the stoichiometry of the quasi stationary reactions
 		for (int i = 0; i < _stoichiometryBulk.rows(); ++i)
 		{
-			int rowIndex = 0;
-			for(int j = 0; j < _stoichiometryBulk.columns(); j++)
+			int colIndex = 0;
+			for (int j = 0; j < _stoichiometryBulk.columns(); j++)
 			{
-					if (_reactionQuasistationarity[j] == 0)
-						continue;
-					QSS(i, rowIndex) = static_cast<double>(_stoichiometryBulk.native(i, j));
-					rowIndex++;
+				if (_reactionQuasistationarity[j] == 0)
+					continue;
+				QSS(i, colIndex) = static_cast<double>(_stoichiometryBulk.native(i, j));
+				colIndex++;
 			}
 		}
 
-		int nQScomp = 0; // Number of quasi stationary active components
+		// Count quasi-stationary active components and mark them
+		int nQScomp = 0;
 		for (int i = 0; i < QSS.rows(); ++i)
 		{
-			if (QSS.row(i).norm() < 1e-15) {
-				_QsCompBulk.push_back(0);
-			}
-			else
+			bool isActive = (QSS.row(i).norm() >= 1e-15);
+			_QsCompBulk.push_back(isActive ? 1 : 0);
+			if (isActive)
 			{
-				_QsCompBulk.push_back(1);
 				nQScomp++;
 			}
 		}
 
-		// optional scip this step 
-		if (_nComp - nQScomp  > 0 ) // if kinetic components exists we can resize QSS
-		{
+		// Compress QSS matrix if needed
+		if (nQScomp < _nComp) {
 			Eigen::MatrixXd QSSCompressed(nQScomp, QSS.cols());
 			int idx = 0;
-			for (std::size_t i = 0; i < _QsCompBulk.size(); ++i)
+			for (int i = 0; i < QSS.rows(); ++i)
 			{
-				if (_QsCompBulk[i] == 0)
-					continue;
-				QSSCompressed.row(idx) = QSS.row(i);
-				idx++;
+				if (_QsCompBulk[i])
+				{
+					QSSCompressed.row(idx++) = QSS.row(i);
+				}
 			}
-			QSS.swap(QSSCompressed);
+			QSS = std::move(QSSCompressed);
 		}
 
-		//Test if the matrix is full rank
+		// Check matrix rank
 		int rank = QSS.fullPivLu().rank();
 		if (rank != numQSReac)
 		{
-			throw std::runtime_error("Calculation Conserved Moities Matrix: The Stoichemetric Matrix is sigular");
+			throw std::runtime_error("Calculation Conserved Moieties Matrix: The Stoichiometric Matrix is singular");
 		}
 
-		//Calculate the null space of the matrix
+		// Calculate null space
 		Eigen::MatrixXd leftZeroSpace = QSS.transpose().fullPivLu().kernel().transpose();
 
-		if (_nComp - nQScomp < 0) // if there are no kinetic components we can return the zero matrix
+		// Handle final matrix construction
+		if (nQScomp == _nComp)
 		{
-			M = leftZeroSpace;
+			M = std::move(leftZeroSpace);
 		}
-		else // add zero rows for each component that is not in the quasi stationary
+		else
 		{
-			for (std::size_t i = 0; i < _QsCompBulk.size(); ++i)
-			{	
-				if (_QsCompBulk[i] == 0)
+			// Resize M to final dimensions
+			M = Eigen::MatrixXd::Zero(leftZeroSpace.rows(), _nComp);
+			int col = 0;
+			for (size_t i = 0; i < _QsCompBulk.size(); ++i)
+			{
+				if (_QsCompBulk[i])
 				{
-					leftZeroSpace.conservativeResize(NoChange, leftZeroSpace.cols() + 1);
-					leftZeroSpace.rightCols(leftZeroSpace.cols() - i - 1) = leftZeroSpace.middleCols(i, leftZeroSpace.cols() - i - 1);
-					leftZeroSpace.col(i).setZero();
+					M.col(i) = leftZeroSpace.col(col++);
 				}
 			}
-			M = leftZeroSpace;
 		}
 	}
 
