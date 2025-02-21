@@ -140,20 +140,17 @@ public:
 	{
 		snprintf(_secStrBuffer.data(), _secStrBuffer.size(), "Init Sec %3u", section);
 		_progBar.update(progress, _secStrBuffer.data());
-		return !cadet::stopExecutionRequested();
+		return true;
 	}
 
 	virtual bool timeIntegrationStep(unsigned int section, double time, double const* state, double const* stateDot, double progress)
 	{
 		snprintf(_secStrBuffer.data(), _secStrBuffer.size(), "Section %3u", section);
 		_progBar.update(progress, _secStrBuffer.data());
-		return !cadet::stopExecutionRequested();
+		return true;
 	}
 
-	virtual bool timeIntegrationLinearSolve(unsigned int section, double time, double const* state, double const* stateDot)
-	{
-		return !cadet::stopExecutionRequested();
-	}
+	virtual bool timeIntegrationLinearSolve(unsigned int section, double time, double const* state, double const* stateDot) { return true; }
 protected:
 	cadet::ProgressBar _progBar;
 	std::vector<char> _secStrBuffer;
@@ -235,7 +232,7 @@ int run(const std::string& inFileName, const std::string& outFileName, bool show
 		dc.configure(drv, inFileName);
 	}
 
-	std::unique_ptr<SignalHandlingNotifier> shn = nullptr;
+	std::unique_ptr<SignalHandlingNotifier> shn = std::make_unique<SignalHandlingNotifier>();
 
 #ifndef CADET_BENCHMARK_MODE
 	// Select between progress bar or signal handling only
@@ -245,17 +242,16 @@ int run(const std::string& inFileName, const std::string& outFileName, bool show
 	if (showProgressBar)
 	{
 		pb = std::make_unique<ProgressBarNotifier>();
-		drv.simulator()->setNotificationCallback(pb.get());
+		drv.addCallback(pb.get());
+		drv.addCallback(shn.get());
 	}
 	else
 	{
-		shn = std::make_unique<SignalHandlingNotifier>();
-		drv.simulator()->setNotificationCallback(shn.get());
+		drv.addCallback(shn.get());
 	}
 #else
 	// Always handle signals in benchmark mode (no progress bar overhead)
-	shn = std::make_unique<SignalHandlingNotifier>();
-	drv.simulator()->setNotificationCallback(shn.get());
+	drv.addCallback(shn.get());
 #endif
 
 	
