@@ -165,6 +165,10 @@ extern "C"
 	enum cdtErrors
 	{
 		/**
+		 * @brief Simulator not initialized
+		 */
+		cdtSimulatorNotInitialized = -4,
+		/**
 		 * @brief Requested data has not been stored / is not available
 		 */
 		cdtDataNotStored = -3,
@@ -401,6 +405,7 @@ extern "C"
 		 * @details Before this function is called, a simulation has to be run successfully.
 		 * @param [in] drv Driver handle
 		 * @param [out] nUnits Number of unit operations
+		 * @return @c cdtOK on success, a negative value indicating the error otherwise
 		 */
 		cdtResult (*getNumUnitOp)(cdtDriver* drv, int* nUnits);
 
@@ -410,6 +415,7 @@ extern "C"
 		 * @param [in] drv Driver handle
 		 * @param [in] unitOpId ID of the unit operation whose solution is returned
 		 * @param [out] nParTypes Number of particle types
+		 * @return @c cdtOK on success, a negative value indicating the error otherwise
 		 */
 		cdtResult (*getNumParTypes)(cdtDriver* drv, int unitOpId, int* nParTypes);
 
@@ -418,6 +424,7 @@ extern "C"
 		 * @details Before this function is called, a simulation has to be run successfully.
 		 * @param [in] drv Driver handle
 		 * @param [out] nSens Number of parameter sensitivities
+		 * @return @c cdtOK on success, a negative value indicating the error otherwise
 		 */
 		cdtResult (*getNumSensitivities)(cdtDriver* drv, int* nSens);
 
@@ -432,6 +439,7 @@ extern "C"
 		 * @param [out] nTime Number of time points
 		 * @param [out] nPort Number of ports
 		 * @param [out] nComp Number of components
+		 * @return @c cdtOK on success, a negative value indicating the error otherwise
 		 */
 		cdtResult (*getSolutionInlet)(cdtDriver* drv, int unitOpId, double const** time, double const** data, int* nTime, int* nPort, int* nComp);
 
@@ -446,6 +454,7 @@ extern "C"
 		 * @param [out] nTime Number of time points
 		 * @param [out] nPort Number of ports
 		 * @param [out] nComp Number of components
+		 * @return @c cdtOK on success, a negative value indicating the error otherwise
 		 */
 		cdtResult (*getSolutionOutlet)(cdtDriver* drv, int unitOpId, double const** time, double const** data, int* nTime, int* nPort, int* nComp);
 
@@ -462,6 +471,7 @@ extern "C"
 		 * @param [out] nRadialCells Number of radial cells
 		 * @param [out] nComp Number of components
 		 * @param [out] keepAxialSingletonDimension Keep axial singleton dimension
+		 * @return @c cdtOK on success, a negative value indicating the error otherwise
 		 */
 		cdtResult (*getSolutionBulk)(cdtDriver* drv, int unitOpId, double const** time, double const** data, int* nTime, int* nAxialCells, int* nRadialCells, int* nComp, bool* keepAxialSingletonDimension);
 
@@ -481,6 +491,7 @@ extern "C"
 		 * @param [out] nComp Number of components
 		 * @param [out] keepAxialSingletonDimension Keep axial singleton dimension
 		 * @param [out] keepParticleSingletonDimension Keep particle singleton dimension
+		 * @return @c cdtOK on success, a negative value indicating the error otherwise
 		 */
 		cdtResult (*getSolutionParticle)(cdtDriver* drv, int unitOpId, int parType, double const** time, double const** data, int* nTime, int* nAxialCells, int* nRadialCells, int* nParShells, int* nComp, bool* keepAxialSingletonDimension, bool* keepParticleSingletonDimension);
 		/**
@@ -499,6 +510,7 @@ extern "C"
 		 * @param [out] nBound Number of bound states
 		 * @param [out] keepAxialSingletonDimension Keep axial singleton dimension
 		 * @param [out] keepParticleSingletonDimension Keep particle singleton dimension
+		 * @return @c cdtOK on success, a negative value indicating the error otherwise
 		 */
 		cdtResult (*getSolutionSolid)(cdtDriver* drv, int unitOpId, int parType, double const** time, double const** data, int* nTime, int* nAxialCells, int* nRadialCells, int* nParShells, int* nBound, bool* keepAxialSingletonDimension, bool* keepParticleSingletonDimension);
 
@@ -516,6 +528,7 @@ extern "C"
 		 * @param [out] nParticleTypes Number of particle types
 		 * @param [out] nComp Number of components
 		 * @param [out] keepAxialSingletonDimension Keep axial singleton dimension
+		 * @return @c cdtOK on success, a negative value indicating the error otherwise
 		 */
 		cdtResult (*getSolutionFlux)(cdtDriver* drv, int unitOpId, double const** time, double const** data, int* nTime, int* nAxialCells, int* nRadialCells, int* nParticleTypes, int* nComp, bool* keepAxialSingletonDimension);
 
@@ -527,6 +540,7 @@ extern "C"
 		 * @param [in] unitOpId ID of the unit operation whose solution is returned
 		 * @param [out] time Time array pointer
 		 * @param [out] data Data array pointer
+		 * @return @c cdtOK on success, a negative value indicating the error otherwise
 		 */
 		cdtResult (*getSolutionVolume)(cdtDriver* drv, int unitOpId, double const** time, double const** data, int* nTime);
 
@@ -541,6 +555,7 @@ extern "C"
 		 * @param [out] nTime Number of time points
 		 * @param [out] nPort Number of ports
 		 * @param [out] nComp Number of components
+		 * @return @c cdtOK on success, a negative value indicating the error otherwise
 		 */
 		cdtResult (*getSolutionDerivativeInlet)(cdtDriver* drv, int unitOpId, double const** time, double const** data, int* nTime, int* nPort, int* nComp);
 
@@ -555,6 +570,7 @@ extern "C"
 		 * @param [out] nTime Number of time points
 		 * @param [out] nPort Number of ports
 		 * @param [out] nComp Number of components
+		 * @return @c cdtOK on success, a negative value indicating the error otherwise
 		 */
 		cdtResult (*getSolutionDerivativeOutlet)(cdtDriver* drv, int unitOpId, double const** time, double const** data, int* nTime, int* nPort, int* nComp);
 
@@ -571,6 +587,7 @@ extern "C"
 		 * @param [out] nRadialCells Number of radial cells
 		 * @param [out] nComp Number of components
 		 * @param [out] keepAxialSingletonDimension Keep axial singleton dimension
+		 * @return @c cdtOK on success, a negative value indicating the error otherwise
 		 */
 		cdtResult (*getSolutionDerivativeBulk)(cdtDriver* drv, int unitOpId, double const** time, double const** data, int* nTime, int* nAxialCells, int* nRadialCells, int* nComp, bool* keepAxialSingletonDimension);
 
@@ -590,6 +607,7 @@ extern "C"
 		 * @param [out] nComp Number of components
 		 * @param [out] keepAxialSingletonDimension Keep axial singleton dimension
 		 * @param [out] keepParticleSingletonDimension Keep particle singleton dimension
+		 * @return @c cdtOK on success, a negative value indicating the error otherwise
 		 */
 		cdtResult (*getSolutionDerivativeParticle)(cdtDriver* drv, int unitOpId, int parType, double const** time, double const** data, int* nTime, int* nAxialCells, int* nRadialCells, int* nParShells, int* nComp, bool* keepAxialSingletonDimension, bool* keepParticleSingletonDimension);
 
@@ -609,6 +627,7 @@ extern "C"
 		 * @param [out] nBound Number of bound states
 		 * @param [out] keepAxialSingletonDimension Keep axial singleton dimension
 		 * @param [out] keepParticleSingletonDimension Keep particle singleton dimension
+		 * @return @c cdtOK on success, a negative value indicating the error otherwise
 		 */
 		cdtResult (*getSolutionDerivativeSolid)(cdtDriver* drv, int unitOpId, int parType, double const** time, double const** data, int* nTime, int* nAxialCells, int* nRadialCells, int* nParShells, int* nBound, bool* keepAxialSingletonDimension, bool* keepParticleSingletonDimension);
 
@@ -626,6 +645,7 @@ extern "C"
 		 * @param [out] nParticleTypes Number of particle types
 		 * @param [out] nComp Number of components
 		 * @param [out] keepAxialSingletonDimension Keep axial singleton dimension
+		 * @return @c cdtOK on success, a negative value indicating the error otherwise
 		 */
 		cdtResult (*getSolutionDerivativeFlux)(cdtDriver* drv, int unitOpId, double const** time, double const** data, int* nTime, int* nAxialCells, int* nRadialCells, int* nParticleTypes, int* nComp, bool* keepAxialSingletonDimension);
 
@@ -637,6 +657,7 @@ extern "C"
 		 * @param [in] unitOpId ID of the unit operation whose solution is returned
 		 * @param [out] time Time array pointer
 		 * @param [out] data Data array pointer
+		 * @return @c cdtOK on success, a negative value indicating the error otherwise
 		 */
 		cdtResult (*getSolutionDerivativeVolume)(cdtDriver* drv, int unitOpId, double const** time, double const** data, int* nTime);
 
@@ -651,6 +672,7 @@ extern "C"
 		 * @param [out] nTime Number of time points
 		 * @param [out] nPort Number of ports
 		 * @param [out] nComp Number of components
+		 * @return @c cdtOK on success, a negative value indicating the error otherwise
 		 */
 		cdtResult (*getSensitivityInlet)(cdtDriver* drv, int unitOpId, int sensIdx, double const** time, double const** data, int* nTime, int* nPort, int* nComp);
 
@@ -666,6 +688,7 @@ extern "C"
 		 * @param [out] nTime Number of time points
 		 * @param [out] nPort Number of ports
 		 * @param [out] nComp Number of components
+		 * @return @c cdtOK on success, a negative value indicating the error otherwise
 		 */
 		cdtResult (*getSensitivityOutlet)(cdtDriver* drv, int unitOpId, int sensIdx, double const** time, double const** data, int* nTime, int* nPort, int* nComp);
 
@@ -683,6 +706,7 @@ extern "C"
 		 * @param [out] nRadialCells Number of radial cells
 		 * @param [out] nComp Number of components
 		 * @param [out] keepAxialSingletonDimension Keep axial singleton dimension
+		 * @return @c cdtOK on success, a negative value indicating the error otherwise
 		 */
 		cdtResult (*getSensitivityBulk)(cdtDriver* drv, int unitOpId, int sensIdx, double const** time, double const** data, int* nTime, int* nAxialCells, int* nRadialCells, int* nComp, bool* keepAxialSingletonDimension);
 
@@ -703,6 +727,7 @@ extern "C"
 		 * @param [out] nComp Number of components
 		 * @param [out] keepAxialSingletonDimension Keep axial singleton dimension
 		 * @param [out] keepParticleSingletonDimension Keep particle singleton dimension
+		 * @return @c cdtOK on success, a negative value indicating the error otherwise
 		 */
 		cdtResult (*getSensitivityParticle)(cdtDriver* drv, int unitOpId, int sensIdx, int parType, double const** time, double const** data, int* nTime, int* nAxialCells, int* nRadialCells, int* nParShells, int* nComp, bool* keepAxialSingletonDimension, bool* keepParticleSingletonDimension);
 
@@ -723,6 +748,7 @@ extern "C"
 		 * @param [out] nBound Number of bound states
 		 * @param [out] keepAxialSingletonDimension Keep axial singleton dimension
 		 * @param [out] keepParticleSingletonDimension Keep particle singleton dimension
+		 * @return @c cdtOK on success, a negative value indicating the error otherwise
 		 */
 		cdtResult (*getSensitivitySolid)(cdtDriver* drv, int unitOpId, int sensIdx, int parType, double const** time, double const** data, int* nTime, int* nAxialCells, int* nRadialCells, int* nParShells, int* nBound, bool* keepAxialSingletonDimension, bool* keepParticleSingletonDimension);
 
@@ -741,6 +767,7 @@ extern "C"
 		 * @param [out] nParticleTypes Number of particle types
 		 * @param [out] nComp Number of components
 		 * @param [out] keepAxialSingletonDimension Keep axial singleton dimension
+		 * @return @c cdtOK on success, a negative value indicating the error otherwise
 		 */
 		cdtResult (*getSensitivityFlux)(cdtDriver* drv, int unitOpId, int sensIdx, double const** time, double const** data, int* nTime, int* nAxialCells, int* nRadialCells, int* nParticleTypes, int* nComp, bool* keepAxialSingletonDimension);
 
@@ -753,6 +780,7 @@ extern "C"
 		 * @param [in] sensIdx Sensitivity ID
 		 * @param [out] time Time array pointer
 		 * @param [out] data Data array pointer
+		 * @return @c cdtOK on success, a negative value indicating the error otherwise
 		 */
 		cdtResult (*getSensitivityVolume)(cdtDriver* drv, int unitOpId, int sensIdx, double const** time, double const** data, int* nTime);
 
@@ -768,6 +796,7 @@ extern "C"
 		 * @param [out] nTime Number of time points
 		 * @param [out] nPort Number of ports
 		 * @param [out] nComp Number of components
+		 * @return @c cdtOK on success, a negative value indicating the error otherwise
 		 */
 		cdtResult (*getSensitivityDerivativeInlet)(cdtDriver* drv, int unitOpId, int sensIdx, double const** time, double const** data, int* nTime, int* nPort, int* nComp);
 
@@ -783,6 +812,7 @@ extern "C"
 		 * @param [out] nTime Number of time points
 		 * @param [out] nPort Number of ports
 		 * @param [out] nComp Number of components
+		 * @return @c cdtOK on success, a negative value indicating the error otherwise
 		 */
 		cdtResult (*getSensitivityDerivativeOutlet)(cdtDriver* drv, int unitOpId, int sensIdx, double const** time, double const** data, int* nTime, int* nPort, int* nComp);
 
@@ -800,6 +830,7 @@ extern "C"
 		 * @param [out] nRadialCells Number of radial cells
 		 * @param [out] nComp Number of components
 		 * @param [out] keepAxialSingletonDimension Keep axial singleton dimension
+		 * @return @c cdtOK on success, a negative value indicating the error otherwise
 		 */
 		cdtResult (*getSensitivityDerivativeBulk)(cdtDriver* drv, int unitOpId, int sensIdx, double const** time, double const** data, int* nTime, int* nAxialCells, int* nRadialCells, int* nComp, bool* keepAxialSingletonDimension);
 
@@ -820,6 +851,7 @@ extern "C"
 		 * @param [out] nComp Number of components
 		 * @param [out] keepAxialSingletonDimension Keep axial singleton dimension
 		 * @param [out] keepParticleSingletonDimension Keep particle singleton dimension
+		 * @return @c cdtOK on success, a negative value indicating the error otherwise
 		 */
 		cdtResult (*getSensitivityDerivativeParticle)(cdtDriver* drv, int unitOpId, int sensIdx, int parType, double const** time, double const** data, int* nTime, int* nAxialCells, int* nRadialCells, int* nParShells, int* nComp, bool* keepAxialSingletonDimension, bool* keepParticleSingletonDimension);
 
@@ -840,6 +872,7 @@ extern "C"
 		 * @param [out] nBound Number of bound states
 		 * @param [out] keepAxialSingletonDimension Keep axial singleton dimension
 		 * @param [out] keepParticleSingletonDimension Keep particle singleton dimension
+		 * @return @c cdtOK on success, a negative value indicating the error otherwise
 		 */
 		cdtResult (*getSensitivityDerivativeSolid)(cdtDriver* drv, int unitOpId, int sensIdx, int parType, double const** time, double const** data, int* nTime, int* nAxialCells, int* nRadialCells, int* nParShells, int* nBound, bool* keepAxialSingletonDimension, bool* keepParticleSingletonDimension);
 
@@ -858,6 +891,7 @@ extern "C"
 		 * @param [out] nParticleTypes Number of particle types
 		 * @param [out] nComp Number of components
 		 * @param [out] keepAxialSingletonDimension Keep axial singleton dimension
+		 * @return @c cdtOK on success, a negative value indicating the error otherwise
 		 */
 		cdtResult (*getSensitivityDerivativeFlux)(cdtDriver* drv, int unitOpId, int sensIdx, double const** time, double const** data, int* nTime, int* nAxialCells, int* nRadialCells, int* nParticleTypes, int* nComp, bool* keepAxialSingletonDimension);
 
@@ -871,6 +905,7 @@ extern "C"
 		 * @param [out] time Time array pointer
 		 * @param [out] data Data array pointer
 		 * @param [out] nTime Number of time points
+		 * @return @c cdtOK on success, a negative value indicating the error otherwise
 		 */
 		cdtResult (*getSensitivityDerivativeVolume)(cdtDriver* drv, int unitOpId, int sensIdx, double const** time, double const** data, int* nTime);
 
@@ -880,6 +915,7 @@ extern "C"
 		 * @param [in] drv Driver handle
 		 * @param [out] state State vector pointer
 		 * @param [out] nStates Number of entries in the state vector
+		 * @return @c cdtOK on success, a negative value indicating the error otherwise
 		*/
 		cdtResult (*getLastState)(cdtDriver* drv, double const** state, int* nStates);
 
@@ -889,6 +925,7 @@ extern "C"
 		 * @param [in] drv Driver handle
 		 * @param [out] state State vector pointer
 		 * @param [out] nStates Number of entries in the state vector
+		 * @return @c cdtOK on success, a negative value indicating the error otherwise
 		*/
 		cdtResult (*getLastStateTimeDerivative)(cdtDriver* drv, double const** state, int* nStates);
 
@@ -899,6 +936,7 @@ extern "C"
 		 * @param [in] unitOpId ID of the unit operation whose solution is returned
 		 * @param [out] state State vector pointer
 		 * @param [out] nStates Number of entries in the state vector
+		 * @return @c cdtOK on success, a negative value indicating the error otherwise
 		*/
 		cdtResult (*getLastUnitState)(cdtDriver* drv, int unitOpId, double const** state, int* nStates);
 
@@ -909,6 +947,7 @@ extern "C"
 		 * @param [in] unitOpId ID of the unit operation whose solution is returned
 		 * @param [out] state State vector pointer
 		 * @param [out] nStates Number of entries in the state vector
+		 * @return @c cdtOK on success, a negative value indicating the error otherwise
 		*/
 		cdtResult (*getLastUnitStateTimeDerivative)(cdtDriver* drv, int unitOpId, double const** state, int* nStates);
 
@@ -919,6 +958,7 @@ extern "C"
 		 * @param [in] sensIdx Sensitivity ID
 		 * @param [out] state State vector pointer
 		 * @param [out] nStates Number of entries in the state vector
+		 * @return @c cdtOK on success, a negative value indicating the error otherwise
 		*/
 		cdtResult (*getLastSensitivityState)(cdtDriver* drv, int sensIdx, double const** state, int* nStates);
 
@@ -929,6 +969,7 @@ extern "C"
 		 * @param [in] sensIdx Sensitivity ID
 		 * @param [out] state State vector pointer
 		 * @param [out] nStates Number of entries in the state vector
+		 * @return @c cdtOK on success, a negative value indicating the error otherwise
 		*/
 		cdtResult (*getLastSensitivityStateTimeDerivative)(cdtDriver* drv, int sensIdx, double const** state, int* nStates);
 
@@ -940,6 +981,7 @@ extern "C"
 		 * @param [in] unitOpId ID of the unit operation whose solution is returned
 		 * @param [out] state State vector pointer
 		 * @param [out] nStates Number of entries in the state vector
+		 * @return @c cdtOK on success, a negative value indicating the error otherwise
 		*/
 		cdtResult (*getLastSensitivityUnitState)(cdtDriver* drv, int sensIdx, int unitOpId, double const** state, int* nStates);
 
@@ -951,6 +993,7 @@ extern "C"
 		 * @param [in] unitOpId ID of the unit operation whose solution is returned
 		 * @param [out] state State vector pointer
 		 * @param [out] nStates Number of entries in the state vector
+		 * @return @c cdtOK on success, a negative value indicating the error otherwise
 		*/
 		cdtResult (*getLastSensitivityUnitStateTimeDerivative)(cdtDriver* drv, int sensIdx, int unitOpId, double const** state, int* nStates);
 
@@ -962,6 +1005,7 @@ extern "C"
 		 * @param [in] unitOpId ID of the unit operation whose solution is returned
 		 * @param [out] data Data array pointer
 		 * @param [out] nCoords Number of coordinates
+		 * @return @c cdtOK on success, a negative value indicating the error otherwise
 		 */
 		cdtResult (*getPrimaryCoordinates)(cdtDriver* drv, int unitOpId, double const** data, int* nCoords);
 
@@ -973,6 +1017,7 @@ extern "C"
 		 * @param [in] unitOpId ID of the unit operation whose solution is returned
 		 * @param [out] data Data array pointer
 		 * @param [out] nCoords Number of coordinates
+		 * @return @c cdtOK on success, a negative value indicating the error otherwise
 		 */
 		cdtResult (*getSecondaryCoordinates)(cdtDriver* drv, int unitOpId, double const** data, int* nCoords);
 
@@ -985,6 +1030,7 @@ extern "C"
 		 * @param [in] parType Particle type index
 		 * @param [out] data Data array pointer
 		 * @param [out] nCoords Number of coordinates
+		 * @return @c cdtOK on success, a negative value indicating the error otherwise
 		 */
 		cdtResult (*getParticleCoordinates)(cdtDriver* drv, int unitOpId, int parType, double const** data, int* nCoords);
 
@@ -995,6 +1041,7 @@ extern "C"
 		 * @param [in] drv Driver handle
 		 * @param [out] time Time array pointer
 		 * @param [out] nTime Number of time points
+		 * @return @c cdtOK on success, a negative value indicating the error otherwise
 		 */
 		cdtResult (*getSolutionTimes)(cdtDriver* drv, double const** time, int* nTime);
 
@@ -1003,6 +1050,7 @@ extern "C"
 		 * @details Before this function is called, a simulation has to be run successfully.
 		 * @param [in] drv Driver handle
 		 * @param [out] timeSim Simulation run time pointer
+		 * @return @c cdtOK on success, a negative value indicating the error otherwise
 		 */
 		cdtResult (*getTimeSim)(cdtDriver* drv, double* timeSim);
 

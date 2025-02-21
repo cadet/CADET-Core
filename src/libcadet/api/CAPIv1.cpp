@@ -739,6 +739,9 @@ namespace v1
 			return cdtErrorInvalidInputs;
 
 		cadet::ISimulator* const sim = realDrv->simulator();
+		if (!sim)
+			return cdtSimulatorNotInitialized;
+
 		unsigned int len = 0;
 
 		if (state)
@@ -757,6 +760,9 @@ namespace v1
 			return cdtErrorInvalidInputs;
 
 		cadet::ISimulator* const sim = realDrv->simulator();
+		if (!sim)
+			return cdtSimulatorNotInitialized;
+
 		unsigned int len = 0;
 
 		if (state)
@@ -775,6 +781,9 @@ namespace v1
 			return cdtErrorInvalidInputs;
 
 		cadet::ISimulator* const sim = realDrv->simulator();
+		if (!sim)
+			return cdtSimulatorNotInitialized;
+
 		unsigned int len = 0;
 
 		unsigned int sliceStart;
@@ -797,6 +806,9 @@ namespace v1
 			return cdtErrorInvalidInputs;
 
 		cadet::ISimulator* const sim = realDrv->simulator();
+		if (!sim)
+			return cdtSimulatorNotInitialized;
+
 		unsigned int len = 0;
 
 		unsigned int sliceStart;
@@ -820,6 +832,9 @@ namespace v1
 			return cdtErrorInvalidInputs;
 
 		cadet::ISimulator* const sim = realDrv->simulator();
+		if (!sim)
+			return cdtSimulatorNotInitialized;
+
 		unsigned int len = 0;
 
 		const std::vector<double const*> lastY = sim->getLastSensitivities(len);
@@ -842,6 +857,9 @@ namespace v1
 			return cdtErrorInvalidInputs;
 
 		cadet::ISimulator* const sim = realDrv->simulator();
+		if (!sim)
+			return cdtSimulatorNotInitialized;
+
 		unsigned int len = 0;
 
 		const std::vector<double const*> lastY = sim->getLastSensitivityDerivatives(len);
@@ -864,6 +882,9 @@ namespace v1
 			return cdtErrorInvalidInputs;
 
 		cadet::ISimulator* const sim = realDrv->simulator();
+		if (!sim)
+			return cdtSimulatorNotInitialized;
+
 		unsigned int len = 0;
 
 		unsigned int sliceStart;
@@ -890,6 +911,9 @@ namespace v1
 			return cdtErrorInvalidInputs;
 
 		cadet::ISimulator* const sim = realDrv->simulator();
+		if (!sim)
+			return cdtSimulatorNotInitialized;
+
 		unsigned int len = 0;
 
 		unsigned int sliceStart;
@@ -1012,6 +1036,8 @@ namespace v1
 			return cdtErrorInvalidInputs;
 
 		cadet::ISimulator* const sim = realDrv->simulator();
+		if (!sim)
+			return cdtSimulatorNotInitialized;
 
 		drv->timeout->setTimeout(timeout);
 		if (timeout > 0.0)
