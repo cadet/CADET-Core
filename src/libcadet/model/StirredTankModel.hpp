@@ -24,7 +24,7 @@
 #include "linalg/DenseMatrix.hpp"
 #include "model/ModelUtils.hpp"
 #include "Memory.hpp"
-
+#include <bitset>
 #include <array>
 #include <vector>
 
@@ -99,8 +99,8 @@ public:
 		std::vector<double*>& vecSensY, std::vector<double*>& vecSensYdot, active const* const adRes, util::ThreadLocalStorage& threadLocalMem);
 
 	virtual void leanConsistentInitialState(const SimulationTime& simTime, double* const vecStateY, const AdJacobianParams& adJac, double errorTol, util::ThreadLocalStorage& threadLocalMem);
-	virtual void leanConsistentInitialTimeDerivative(double t, double const* const vecStateY, double* const vecStateYdot, double* const res, util::ThreadLocalStorage& threadLocalMem);
-	
+	virtual void leanConsistentInitialTimeDerivative(double time, double const* const vecStateY, double* const vecStateYdot, double* const res, util::ThreadLocalStorage& threadLocalMem);
+
 	virtual void leanConsistentInitialSensitivity(const SimulationTime& simTime, const ConstSimulationState& simState,
 		std::vector<double*>& vecSensY, std::vector<double*>& vecSensYdot, active const* const adRes, util::ThreadLocalStorage& threadLocalMem);
 
@@ -158,6 +158,7 @@ protected:
 	active _flowRateIn; //!< Volumetric flow rate of incoming stream
 	active _flowRateOut; //!< Volumetric flow rate of drawn outgoing stream
 	active _curFlowRateFilter; //!< Current volumetric flow rate of liquid outtake stream for this section
+	unsigned int _curSecIdx; //!< Current section index
 	std::vector<active> _flowRateFilter; //!< Volumetric flow rate of liquid outtake stream
 	std::vector<active> _parTypeVolFrac; //!< Volume fraction of each particle type
 
@@ -170,6 +171,16 @@ protected:
 	std::vector<double> _initConditionsDot; //!< Initial conditions for time derivative
 
 	IDynamicReactionModel* _dynReactionBulk; //!< Dynamic reactions in the bulk volume
+
+	active* _temp;
+	double* _temp2;
+
+	Eigen::MatrixXd _MconvMoityBulk; //!<  Matrix with conservation of moieties in the bulk volume
+	int const* _qsReactionBulk; //!< Indices of components that are not conserved in the bulk volume
+	std::vector<int> _QsCompBulk; //!< Indices of components that are conserved in the bulk volume
+	unsigned int _nqsReactionBulk;
+	int _nMoitiesBulk;
+	std::vector<std::bitset<3>> stateMap; // !< Bitset that tracks the properties of the state vector (dynamic, moities, algebraic)
 
 	class Exporter : public ISolutionExporter
 	{

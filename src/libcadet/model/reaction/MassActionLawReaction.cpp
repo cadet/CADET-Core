@@ -25,7 +25,10 @@
 #include <unordered_map>
 #include <string>
 #include <vector>
+#include <Eigen/Dense>
+#include <iostream>
 
+using namespace Eigen;
 /*<codegen>
 {
 	"name": "MassActionLawParamHandler",
@@ -312,10 +315,16 @@ public:
 	virtual void setExternalFunctions(IExternalFunction** extFuns, unsigned int size) { _paramHandler.setExternalFunctions(extFuns, size); }
 	virtual bool dependsOnTime() const CADET_NOEXCEPT { return ParamHandler_t::dependsOnTime(); }
 	virtual bool requiresWorkspace() const CADET_NOEXCEPT { return true; }
+	bool hasQuasiStationaryReactionsLiquid() { return true; }
+	virtual bool hasDynamicReactions() const CADET_NOEXCEPT { return true; }
+	virtual int const* reactionQuasiStationarity() const CADET_NOEXCEPT { return _reactionQuasistationarity.data(); }
+	
 	virtual unsigned int workspaceSize(unsigned int nComp, unsigned int totalNumBoundStates, unsigned int const* nBoundStates) const CADET_NOEXCEPT
 	{
 		return _paramHandler.cacheSize(maxNumReactions(), nComp, totalNumBoundStates) + std::max(maxNumReactions() * sizeof(active), 2 * (_nComp + totalNumBoundStates) * sizeof(double));
 	}
+
+
 
 	virtual bool configureModelDiscretization(IParameterProvider& paramProvider, unsigned int nComp, unsigned int const* nBound, unsigned int const* boundOffset)
 	{
@@ -333,6 +342,36 @@ public:
 			_expBulkFwd.resize(nComp, nReactions);
 			_expBulkBwd.resize(nComp, nReactions);
 		}
+		if (paramProvider.exists("IS_KINETIC"))
+		{
+			_reactionQuasistationarity.resize(_stoichiometryBulk.columns(), false);
+
+			if (paramProvider.isArray("IS_KINETIC")) {
+				const std::vector<int> vecKin = paramProvider.getIntArray("IS_KINETIC");
+				int numqsReaction = std::count(vecKin.begin(), vecKin.end(), 1);
+				if (vecKin.size() == 1)
+				{
+					// Treat an array with a single element as scalar
+					std::fill(_reactionQuasistationarity.begin(), _reactionQuasistationarity.end(), !static_cast<bool>(vecKin[0]));
+				}
+				else if (vecKin.size() < _reactionQuasistationarity.size())
+				{
+					// Error on too few elements
+					throw InvalidParameterException("IS_KINETIC has to have at least " + std::to_string(_reactionQuasistationarity.size()) + " elements");
+				}
+				else
+				{
+					// Copy what we need (ignore excess values)
+					std::transform(vecKin.begin(), vecKin.begin() + _reactionQuasistationarity.size(), _reactionQuasistationarity.begin(), [](int val) { return !static_cast<bool>(val); });
+				}
+			}
+			else
+			{
+				const bool kineticBinding = paramProvider.getInt("IS_KINETIC");
+				std::fill(_reactionQuasistationarity.begin(), _reactionQuasistationarity.end(), !kineticBinding);
+			}
+		}
+		
 
 		if (!nBound || !boundOffset)
 			return true;
@@ -369,7 +408,105 @@ public:
 			_expSolidBwdLiquid.resize(nComp, nReactions);
 		}
 
+
 		return true;
+	}
+	
+	//void fillConservedMoietiesBulk(Eigen::MatrixXd M, std::vector<int>QSReaction, std::vector<int>QSComponent) {
+	//	ConservedMoietiesLiquid(M, QSReaction,QSComponent);
+	//}
+	/*
+	 * @brief Calculates the conserved moieties based on the stoichiometric matrix and reaction quasistationarity.
+	 * @param S The stoichiometric matrix.
+	 * @param _reactionQuasistationarity The reaction quasistationarity vector.
+	 * @return The conserved moieties matrix.
+	 */
+	virtual void fillConservedMoietiesBulk(Eigen::MatrixXd& M, unsigned int& numQSReac, std::vector<int>& _QsCompBulk)
+	{
+
+		//1. get stoichmetic matrix with only reaction in quasi stationary
+		// S dim -> ncomp x nreac
+
+		// Count the number of entries with value 1 in _reactionQuasistationarity
+		numQSReac = std::count(_reactionQuasistationarity.begin(), _reactionQuasistationarity.end(), true);
+
+		if (numQSReac == 0)
+			return;
+
+		// Clear and resize the output vector
+		_QsCompBulk.clear();
+		_QsCompBulk.reserve(_stoichiometryBulk.rows());
+
+		// Initialize QSS matrix with correct size
+		Eigen::MatrixXd QSS(_stoichiometryBulk.rows(), numQSReac);
+
+		// Fill QSS with the stoichiometry of the quasi stationary reactions
+		for (int i = 0; i < _stoichiometryBulk.rows(); ++i)
+		{
+			int colIndex = 0;
+			for (int j = 0; j < _stoichiometryBulk.columns(); j++)
+			{
+				if (_reactionQuasistationarity[j] == 0)
+					continue;
+				QSS(i, colIndex) = static_cast<double>(_stoichiometryBulk.native(i, j));
+				colIndex++;
+			}
+		}
+
+		// Count quasi-stationary active components and mark them
+		int nQScomp = 0;
+		for (int i = 0; i < QSS.rows(); ++i)
+		{
+			bool isActive = (QSS.row(i).norm() >= 1e-15);
+			_QsCompBulk.push_back(isActive ? 1 : 0);
+			if (isActive)
+			{
+				nQScomp++;
+			}
+		}
+
+		// Compress QSS matrix if needed
+		if (nQScomp < _nComp) {
+			Eigen::MatrixXd QSSCompressed(nQScomp, QSS.cols());
+			int idx = 0;
+			for (int i = 0; i < QSS.rows(); ++i)
+			{
+				if (_QsCompBulk[i])
+				{
+					QSSCompressed.row(idx++) = QSS.row(i);
+				}
+			}
+			QSS = std::move(QSSCompressed);
+		}
+
+		// Check matrix rank
+		int rank = QSS.fullPivLu().rank();
+		if (rank != numQSReac)
+		{
+			throw std::runtime_error("Calculation Conserved Moieties Matrix: The Stoichiometric Matrix is singular");
+		}
+
+		// Calculate null space
+		Eigen::MatrixXd leftZeroSpace = QSS.transpose().fullPivLu().kernel().transpose();
+
+		// Handle final matrix construction
+		if (nQScomp == _nComp)
+		{
+			M = std::move(leftZeroSpace);
+		}
+		else
+		{
+			// Resize M to final dimensions
+			M = Eigen::MatrixXd::Zero(leftZeroSpace.rows(), _nComp);
+			int col = 0;
+			for (size_t i = 0; i < _QsCompBulk.size(); ++i)
+			{
+				if (_QsCompBulk[i])
+				{
+					M.col(i) = leftZeroSpace.col(col++);
+				}
+			}
+		}
 	}
 
 	virtual unsigned int numReactionsLiquid() const CADET_NOEXCEPT { return _stoichiometryBulk.columns(); }
@@ -395,6 +532,9 @@ protected:
 	linalg::ActiveDenseMatrix _expSolidBwd;
 	linalg::ActiveDenseMatrix _expSolidFwdLiquid;
 	linalg::ActiveDenseMatrix _expSolidBwdLiquid;
+
+	std::vector<int> _reactionQuasistationarity; 
+	int _nQuasiStationaryReactionsLiquid;
 
 	inline int maxNumReactions() const CADET_NOEXCEPT { return std::max(std::max(_stoichiometryBulk.columns(), _stoichiometryLiquid.columns()), _stoichiometrySolid.columns()); }
 
@@ -547,6 +687,63 @@ protected:
 		readAndRegisterExponents(paramProvider, _parameters, unitOpIdx, parTypeIdx, "MAL_EXPONENTS_SOLID_BWD_MODLIQUID", _expSolidBwdLiquid, _nComp, nullptr);
 
 		return true;
+	}
+
+	template <typename StateType, typename ResidualType>
+	ResidualType singleFlux(int r, StateType const* y, double kFwdBulk_r, double kBwdBulk_r)
+	{
+		ResidualType fwd = rateConstantOrZero(kFwdBulk_r, r, _expBulkFwd, _nComp);
+		for (int c = 0; c < _nComp; ++c)
+		{
+			if (_expBulkFwd.native(c, r) != 0.0)
+			{
+				if (static_cast<double>(y[c]) > 0.0)
+					fwd *= pow(static_cast<double>(y[c]), static_cast<double>(_expBulkFwd.native(c, r)));
+				else
+				{
+					fwd *= 0.0;
+					break;
+				}
+			}
+		}
+
+		ResidualType bwd = rateConstantOrZero(kBwdBulk_r, r, _expBulkBwd, _nComp);
+		for (int c = 0; c < _nComp; ++c)
+		{
+			if (_expBulkBwd.native(c, r) != 0.0)
+			{
+				if (static_cast<double>(y[c]) > 0.0)
+					bwd *= pow(static_cast<double>(y[c]), static_cast<double>(_expBulkBwd.native(c, r)));
+				else
+				{
+					bwd *= 0.0;
+					break;
+				}
+			}
+		}
+		return fwd - bwd;
+	}
+
+	template<typename StateType, typename ResidualType>
+	int quasiStationaryFlux(double t, unsigned int secIdx, const ColumnPosition& colPos, StateType const* y,
+		Eigen::Map<Eigen::Vector<ResidualType, Eigen::Dynamic>> fluxes, int const* mapQSReac, LinearBufferAllocator workSpace)
+	{
+		typename ParamHandler_t::ParamsHandle const p = _paramHandler.update(t, secIdx, colPos, _nComp, _nBoundStates, workSpace);
+		
+
+		int fluxIdx = 0;
+		for (int r = 0; r < _stoichiometryBulk.columns(); ++r)
+		{
+			double kFwdBulk_r = static_cast<double>(p->kFwdBulk[r]);
+			double kBwdBulk_r = static_cast<double>(p->kBwdBulk[r]);
+
+			if (_reactionQuasistationarity[r] == 0)
+				continue;
+
+			fluxes[fluxIdx] = singleFlux<StateType, ResidualType>(r, y, kFwdBulk_r, kBwdBulk_r);
+			fluxIdx++;
+		}
+		return 0;
 	}
 
 	template <typename StateType, typename ResidualType, typename ParamType, typename FactorType>
@@ -778,6 +975,66 @@ protected:
 		}
 	}
 
+	template <typename RowIterator>
+	void jacobianSingleFluxImpl(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, int state, int reaction, const RowIterator& jac, LinearBufferAllocator workSpace) const
+	{
+		typename ParamHandler_t::ParamsHandle const p = _paramHandler.update(t, secIdx, colPos, _nComp, _nBoundStates, workSpace);
+
+		BufferedArray<double> fluxes = workSpace.array<double>(2 * _nComp);
+		double* const fluxGradFwd = static_cast<double*>(fluxes);
+		double* const fluxGradBwd = fluxGradFwd + _nComp;
+		for (int r = 0; r < _stoichiometryBulk.columns(); ++r)
+		{
+			if (_reactionQuasistationarity[r])
+				continue;
+			// Calculate gradients of forward and backward fluxes
+			fluxGradLiquid(fluxGradFwd, r, _nComp, static_cast<double>(p->kFwdBulk[r]), _expBulkFwd, y);
+			fluxGradLiquid(fluxGradBwd, r, _nComp, static_cast<double>(p->kBwdBulk[r]), _expBulkBwd, y);
+
+			// Add gradients to Jacobian
+			RowIterator curJac = jac;
+				const double colFactor = static_cast<double>(_stoichiometryBulk.native(state, r)) * 1.0;
+				for (int col = 0; col < _nComp; ++col)
+					curJac[col - static_cast<int>(state)] += colFactor * (fluxGradFwd[col] - fluxGradBwd[col]);
+
+		}
+	}
+
+	template <typename RowIterator>
+	void jacobianQuasiSteadyLiquidImpl(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, int state, int reaction ,const RowIterator& jac, LinearBufferAllocator workSpace) const
+	{
+		typename ParamHandler_t::ParamsHandle const p = _paramHandler.update(t, secIdx, colPos, _nComp, _nBoundStates, workSpace);
+
+		BufferedArray<double> fluxes = workSpace.array<double>(2 * _nComp);
+		double* const fluxGradFwd = static_cast<double*>(fluxes);
+		double* const fluxGradBwd = fluxGradFwd + _nComp;
+		
+		int count = 0;
+		int r = 0;
+		for (size_t i = 0; i < _stoichiometryBulk.columns(); ++i) {
+			if (_reactionQuasistationarity[i] == 1) 
+			{
+				if (count == reaction) 
+					r = i;
+				++count;
+			}
+		}
+
+		// Calculate gradients of forward and backward fluxes
+		fluxGradLiquid(fluxGradFwd, r, _nComp, static_cast<double>(p->kFwdBulk[r]), _expBulkFwd, y);
+		fluxGradLiquid(fluxGradBwd, r, _nComp, static_cast<double>(p->kBwdBulk[r]), _expBulkBwd, y);
+
+			// Add gradients to Jacobian
+		RowIterator curJac = jac; // right row iterator
+
+			//const double colFactor = static_cast<double>(_stoichiometryBulk.native(state, reaction));
+		for (int col = 0; col < _nComp; ++col)
+		{
+			curJac[col - state] =  (fluxGradFwd[col] - fluxGradBwd[col]);
+		}
+		
+	}
+
 	template <typename RowIteratorLiquid, typename RowIteratorSolid>
 	void jacobianCombinedImpl(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* yLiquid, double const* ySolid, double factor, const RowIteratorLiquid& jacLiquid, const RowIteratorSolid& jacSolid, LinearBufferAllocator workSpace) const
 	{
@@ -821,6 +1078,31 @@ protected:
 					curJac[col - static_cast<int>(_nComp) - static_cast<int>(row)] += colFactor * (fluxGradFwd[col] - fluxGradBwd[col]);
 			}
 		}
+	}
+
+	virtual void timeDerivativeQuasiStationaryReaction(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, double* dY, LinearBufferAllocator workSpace) 
+	{
+		if (!this->hasQuasiStationaryReactionsLiquid())
+			return;
+
+		//if (!ParamHandler_t::dependsOnTime())
+		//	return;
+		
+		typename ParamHandler_t::ParamsHandle const p = _paramHandler.update(t, secIdx, colPos, _nComp, _nBoundStates, workSpace);
+
+		for (int r = 0; r < _stoichiometryBulk.columns(); ++r)
+		{
+			if (_reactionQuasistationarity[r] == 0)
+				continue;
+
+			double kFwdBulk_r = static_cast<double>(p->kFwdBulk[r]);
+			double kBwdBulk_r = static_cast<double>(p->kBwdBulk[r]);
+
+			double flow = singleFlux<double, double>(r, y, kFwdBulk_r, kBwdBulk_r);
+			for (int c = 0; c < _nComp; ++c)
+				dY[c] = -static_cast<double>(_stoichiometryBulk.native(c, r)) * flow;
+		}
+
 	}
 };
 

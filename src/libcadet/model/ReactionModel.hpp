@@ -212,6 +212,19 @@ public:
 
 	virtual int residualLiquidAdd(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y,
 		double* res, double factor, LinearBufferAllocator workSpace) const = 0;
+	
+
+	virtual int quasiStationaryFluxAdd(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y,
+		Eigen::Map<Eigen::Vector<active, Eigen::Dynamic>> fluxes, int const* mapQSReac, LinearBufferAllocator workSpace) = 0;
+
+	virtual int quasiStationaryFluxAdd(double t, unsigned int secIdx, const ColumnPosition& colPos, active const* y,
+		Eigen::Map<Eigen::Vector<double, Eigen::Dynamic>> fluxes, int const* mapQSReac, LinearBufferAllocator workSpace) = 0;
+
+	virtual int quasiStationaryFluxAdd(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y,
+		Eigen::Map<Eigen::Vector<double, Eigen::Dynamic>> fluxes, int const* mapQSReac, LinearBufferAllocator workSpace) = 0;
+
+	virtual int quasiStationaryFluxAdd(double t, unsigned int secIdx, const ColumnPosition& colPos, active const* y,
+		Eigen::Map<Eigen::Vector<active, Eigen::Dynamic>> fluxes, int const* mapQSReac, LinearBufferAllocator workSpace) = 0;
 
 	/**
 	 * @brief Adds the analytical Jacobian of the reaction terms for one liquid phase cell
@@ -237,9 +250,24 @@ public:
 	virtual void analyticJacobianLiquidAdd(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, double factor, linalg::BandMatrix::RowIterator jac, LinearBufferAllocator workSpace) const = 0;
 	virtual void analyticJacobianLiquidAdd(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, double factor, linalg::DenseBandedRowIterator jac, LinearBufferAllocator workSpace) const = 0;
 	virtual void analyticJacobianLiquidAdd(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, double factor, linalg::BandedSparseRowIterator jac, LinearBufferAllocator workSpace) const = 0;
-	#ifdef ENABLE_DG
+	
+	virtual void analyticQuasiSteadyJacobianLiquid(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, int state, int reaction, linalg::BandMatrix::RowIterator jac, LinearBufferAllocator workSpace) const = 0;
+	virtual void analyticQuasiSteadyJacobianLiquid(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, int state, int reaction, linalg::DenseBandedRowIterator jac, LinearBufferAllocator workSpace) const = 0;
+	virtual void analyticQuasiSteadyJacobianLiquid(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, int state, int reaction, linalg::BandedSparseRowIterator jac, LinearBufferAllocator workSpace) const = 0;
+
+	virtual void analyticJacobianLiquidSingleFluxAdd(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, int state, int reaction, linalg::BandMatrix::RowIterator jac, LinearBufferAllocator workSpace) const = 0;
+	virtual void analyticJacobianLiquidSingleFluxAdd(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, int state, int reaction, linalg::DenseBandedRowIterator jac, LinearBufferAllocator workSpace) const = 0;
+	virtual void analyticJacobianLiquidSingleFluxAdd(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, int state, int reaction, linalg::BandedSparseRowIterator jac, LinearBufferAllocator workSpace) const = 0;
+	
+	virtual void fillConservedMoietiesBulk(Eigen::MatrixXd& M, unsigned int & QSReaction, std::vector<int>& _QsCompBulk) = 0;
+
+	virtual void timeDerivativeQuasiStationaryReaction(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, double* dReacDt, LinearBufferAllocator workSpace) = 0;
+
+	virtual int const* reactionQuasiStationarity() const = 0;
+#ifdef ENABLE_DG
 	virtual void analyticJacobianLiquidAdd(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, double factor, linalg::BandedEigenSparseRowIterator jac, LinearBufferAllocator workSpace) const = 0;
-	#endif
+
+#endif
 
 	/**
 	 * @brief Evaluates the residual for one combined phase cell
@@ -314,6 +342,11 @@ public:
 	 * @return Number of reactions
 	 */
 	virtual unsigned int numReactionsCombined() const CADET_NOEXCEPT = 0;
+	
+	/**
+	 * @brief Returns wheather liquid reactions are in quasi-stationary state
+	 * @return boolean
+	 */
 
 protected:
 };
