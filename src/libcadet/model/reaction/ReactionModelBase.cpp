@@ -87,6 +87,7 @@ bool DynamicReactionModelBase::setParameter(const ParameterId& pId, bool value)
 	return false;
 }
 
+
 active* DynamicReactionModelBase::getParameter(const ParameterId& pId)
 {
 	auto paramHandle = _parameters.find(pId);

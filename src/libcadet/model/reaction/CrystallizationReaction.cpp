@@ -197,7 +197,18 @@ namespace cadet
 
 			virtual bool requiresConfiguration() const CADET_NOEXCEPT { return true; }
 			virtual bool usesParamProviderInDiscretizationConfig() const CADET_NOEXCEPT { return false; }
+			template <typename RowIterator>
+			void jacobianQuasiSteadyLiquidImpl(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, int state, int reaction,  const RowIterator& jac, LinearBufferAllocator workSpace) const { }
 
+			template <typename RowIterator>
+			void jacobianSingleFluxImpl(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, int state, int reaction, const RowIterator& jac, LinearBufferAllocator workSpace) const { }
+
+			template<typename StateType, typename ResidualType>
+			int quasiStationaryFlux(double t, unsigned int secIdx, const ColumnPosition& colPos, StateType const* y,
+				Eigen::Map<Eigen::Vector<ResidualType, Eigen::Dynamic>> fluxes, int const* mapQSReac, LinearBufferAllocator workSpace){return 0;}
+
+			virtual int const* reactionQuasiStationarity() const CADET_NOEXCEPT { return nullptr; }
+			virtual void timeDerivativeQuasiStationaryReaction(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, double* dReacDt, LinearBufferAllocator workSpace){ }
 			virtual bool configure(IParameterProvider& paramProvider, UnitOpIdx unitOpIdx, ParticleTypeIdx parTypeIdx)
 			{
 				readScalarParameterOrArray(_bins, paramProvider, "CRY_BINS", 1);
