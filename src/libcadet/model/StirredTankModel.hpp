@@ -81,6 +81,9 @@ public:
 	
 	template <typename StateType, typename ResidualType, typename ParamType, bool wantJac>
 	void applyConservedMoitiesBulk(double t, unsigned int secIdx, const ColumnPosition& colPos, StateType const* const y, double const* const yDot, ResidualType* const resC, LinearBufferAllocator tlmAlloc);
+	template <typename StateType, typename ResidualType, typename ParamType, bool wantJac>
+	void applyConservedMoitiesBulk2(double t, unsigned int secIdx, const ColumnPosition& colPos, StateType const* const y, double const* const yDot, ResidualType* const resC, LinearBufferAllocator tlmAlloc);
+
 	virtual int jacobian(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res, const AdJacobianParams& adJac, util::ThreadLocalStorage& threadLocalMem);
 	virtual int residualWithJacobian(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res, const AdJacobianParams& adJac, util::ThreadLocalStorage& threadLocalMem);
 	virtual int residualSensFwdAdOnly(const SimulationTime& simTime, const ConstSimulationState& simState, active* const adRes, util::ThreadLocalStorage& threadLocalMem);

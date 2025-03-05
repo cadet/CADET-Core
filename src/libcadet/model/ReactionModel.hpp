@@ -265,6 +265,9 @@ public:
 	* @param [in,out] QsCompBulk Vector to be filled with the components involved in qs reactions
 	*/
 	virtual void fillConservedMoietiesBulk(Eigen::MatrixXd& M, std::vector<int>& QsCompBulk) {}
+	virtual void fillConservedMoietiesBulk2(Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic>& M, std::vector<int>& QsCompBulk) {}
+	virtual void fillConservedMoietiesBulk2(Eigen::Matrix<active, Eigen::Dynamic, Eigen::Dynamic>& M, std::vector<int>& QsCompBulk) {}
+
 
 	/**
 	 * @brief Returns whether this dynamic reaction model has quasi-stationary reactions
@@ -358,9 +361,10 @@ public:
 	virtual unsigned int numReactionsCombined() const CADET_NOEXCEPT = 0;
 	
 	/**
-	 * @brief Returns wheather liquid reactions are in quasi-stationary state
-	 * @return boolean
+	 * @brief Returns the number of reactions in quasi stationary state
+	 * @return Number of reactions
 	 */
+	virtual unsigned int numReactionQuasiStationary() const CADET_NOEXCEPT = 0;
 
 protected:
 };

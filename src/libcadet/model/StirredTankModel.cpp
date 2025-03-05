@@ -32,6 +32,7 @@
 #include <functional>
 #include <bitset>
 #include <Eigen/Dense>
+#include <Eigen/Sparse>
 
 #include<iostream>
 
@@ -372,6 +373,7 @@ bool CSTRModel::configure(IParameterProvider& paramProvider)
 		if (_qsReactionBulk != nullptr)
 		{	
 			_dynReactionBulk->fillConservedMoietiesBulk(_MconvMoityBulk, _QsCompBulk); // fill conserved moities matrix
+
 			int nMoitiesBulk = _MconvMoityBulk.rows();
 			if (nMoitiesBulk != 0)
 			{
@@ -1656,6 +1658,110 @@ void CSTRModel::applyConservedMoitiesBulk(double t, unsigned int secIdx, const C
 }
 
 template <typename StateType, typename ResidualType, typename ParamType, bool wantJac>
+void CSTRModel::applyConservedMoitiesBulk2(double t, unsigned int secIdx, const ColumnPosition& colPos, StateType const* const c, double const* const yDot, ResidualType* const resC, LinearBufferAllocator tlmAlloc)
+{
+	// prepare memory
+	LinearBufferAllocator subAlloc = tlmAlloc.manageRemainingMemory();
+
+	// create map to residual vector of concentrations
+	Eigen::Map<Eigen::Vector<ResidualType, Eigen::Dynamic>> mapResC(resC, _nComp);
+
+	// calculate flux for quasi stationary reactions
+	BufferedArray<ResidualType> temp2 = subAlloc.array<ResidualType>(_nComp);
+	Eigen::Map<Eigen::Vector<ResidualType, Eigen::Dynamic>> qsFlux(static_cast<ResidualType*>(temp2), _dynReactionBulk->numReactionsLiquid());
+	qsFlux.setZero();
+
+	_dynReactionBulk->computeQuasiStationaryReactionFlux(t, secIdx, colPos, c, qsFlux, _qsReactionBulk, subAlloc);
+
+	// calculate conserved moities
+	Eigen::Matrix<ResidualType, Eigen::Dynamic, Eigen::Dynamic> M(_nComp, _nComp);
+	_dynReactionBulk->fillConservedMoietiesBulk2(M, _QsCompBulk); // fill conserved moities matrix (alternative method)
+
+
+	// buffer memory for transformed residual
+	BufferedArray<ResidualType> temp = subAlloc.array<ResidualType>(_nComp);
+	Eigen::Map<Eigen::Vector<ResidualType, Eigen::Dynamic>> resCWithMoities(static_cast<ResidualType*>(temp), _nComp);
+	resCWithMoities.setZero();
+
+
+	// multiply conserved moities matrix with residual
+	resCWithMoities = M * mapResC;
+
+	// add quasi stationary reaction to residium
+	const int nQsReac = _dynReactionBulk->numReactionQuasiStationary();
+	int state = M.rows() - 1 ;
+	for (int qsReac = 0; qsReac < nQsReac; qsReac++)
+	{
+		if (state < _nComp)
+		{
+			resCWithMoities[state] = qsFlux[qsReac];
+			state++;
+		}
+		else
+			throw InvalidParameterException(
+				"Residual implementation with conserved moities: Too many quasi stationary reactions detected. "
+				"Please check the implementation of the model."
+			);
+	}
+
+	mapResC = resCWithMoities;
+
+	// multiply conserved moities matrix with jacobian
+	if (wantJac)
+	{
+		// transform _jac into Eigen sparse matrix 
+		Eigen::SparseMatrix<double> jacSparse(_nComp, _nComp);
+
+		// Copy data from original Jacobian
+		for (int k = 0; k < _jac.stride(); ++k) {
+			for (typename Eigen::SparseMatrix<double>::InnerIterator it(jacSparse, k); it; ++it) {
+				it.valueRef() = _jac.native(it.row(), it.col());
+			}
+		}
+
+		// apply conserved moities to jacobian
+		Eigen::SparseMatrix<double> jacSparseMoities(_nComp, _nComp);
+		
+		Eigen::SparseMatrix<double> sparseMoieties(_nComp, _nComp);
+		sparseMoieties.reserve(M.nonZeros());
+		for (int i = 0; i < M.rows(); ++i) {
+			for (int j = 0; j < M.cols(); ++j) {
+				if (std::abs(static_cast<double>(M(i, j))) > 1e-15) {  // Only insert non-zero elements
+					sparseMoieties.insert(i, j) = static_cast<double>(M(i, j));
+				}
+			}
+		}
+		sparseMoieties.makeCompressed();
+
+		jacSparseMoities = sparseMoieties  * jacSparse;
+	
+		// Copy transformed Jacobian back
+		for (int k = 0; k < jacSparseMoities.outerSize(); ++k) {
+			for (typename Eigen::SparseMatrix<double>::InnerIterator it(jacSparseMoities, k); it; ++it) {
+				_jac.native(it.row(), it.col()) = it.value();
+			}
+		}
+
+		int state = M.rows() - 1;
+		for(int qsReac = 0; qsReac < nQsReac; ++qsReac) // todo this in a function
+		{
+			if (state < _nComp)
+			{
+				_dynReactionBulk->analyticJacobianQuasiStationaryReaction(t, secIdx, colPos, reinterpret_cast<double const*>(c), state, qsReac, _jac.row(state), subAlloc);
+				state++;
+			}
+			else
+			throw InvalidParameterException(
+				"Jacobian implementation with conserved moities: Too many quasi stationary reactions detected. "
+				"Please check the implementation of the model."
+			); 
+		}
+	}
+}
+
+
+
+template <typename StateType, typename ResidualType, typename ParamType, bool wantJac>
 int CSTRModel::residualImpl(double t, unsigned int secIdx, StateType const* const y, double const* const yDot, ResidualType* const res, LinearBufferAllocator tlmAlloc)
 {
 	StateType const* const cIn = y; 
@@ -1749,7 +1855,8 @@ int CSTRModel::residualImpl(double t, unsigned int secIdx, StateType const* cons
 
 		if (_hasQuasiStationaryReactionBulk)
 		{
-			applyConservedMoitiesBulk<StateType, ResidualType, ParamType, wantJac>(t, secIdx, colPos, c, yDot, resC, subAlloc);
+			applyConservedMoitiesBulk2<StateType, ResidualType, ParamType, wantJac>(t, secIdx, colPos, c, yDot, resC, subAlloc);
+			
 		}
 	}
 	// Bound states

@@ -57,8 +57,10 @@ public:
 	virtual active* getParameter(const ParameterId& pId);
 
 	virtual void setExternalFunctions(IExternalFunction** extFuns, unsigned int size) { }
-	virtual void fillConservedMoietiesBulk(Eigen::MatrixXd& M, std::vector<int>& QsCompBulk) { }
+	//void fillConservedMoietiesBulk2(Eigen::Matrix<active, Eigen::Dynamic, Eigen:: Dynamic>& M, std::vector<int>& QsCompBulk) {}
+	//void fillConservedMoietiesBulk2(Eigen::Matrix<double, Eigen::Dynamic, Eigen:: Dynamic>& M, std::vector<int>& QsCompBulk) {}
 	virtual bool hasQuasiStationaryReactionsBulk() const CADET_NOEXCEPT { return false;}
+	//virtual unsigned int numReactionQuasiStationary() const CADET_NOEXCEPT { return 0;}
 	virtual int const* reactionQuasiStationarity() const = 0;
 
 	virtual void timeDerivativeQuasiStationaryReaction(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, double* dReacDt, LinearBufferAllocator workSpace) = 0;
@@ -250,7 +252,13 @@ protected:
 		Eigen::Map<Eigen::Vector<active, Eigen::Dynamic>> fluxes, int const* mapQSReac, LinearBufferAllocator workSpace)								\
 	{                                                                                                                                                   \
 		return quasiStationaryFlux( t, secIdx,   colPos,  y, fluxes, mapQSReac, workSpace);																			\
-	}
+	}																																					\
+																																						\
+	virtual void fillConservedMoietiesBulk2(Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic>& M, std::vector<int>& QsCompBulk)\
+	{\
+		fillConservedMoietiesBulk21(M, QsCompBulk);\
+	}\
+
 #else
 #define CADET_DYNAMICREACTIONMODEL_BOILERPLATE                                                                                                          \
 	virtual int residualLiquidAdd(double t, unsigned int secIdx, const ColumnPosition& colPos, active const* y,                                         \

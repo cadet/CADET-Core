@@ -152,6 +152,9 @@ public:
 	virtual int const* reactionQuasiStationarity() const CADET_NOEXCEPT { return nullptr; }
 	virtual unsigned int numReactionsLiquid() const CADET_NOEXCEPT { return _stoichiometryBulk.columns(); }
 	virtual unsigned int numReactionsCombined() const CADET_NOEXCEPT { return 0; }
+	virtual unsigned int numReactionQuasiStationary() const CADET_NOEXCEPT { return 0; }
+	template <typename ResidualType>
+	void fillConservedMoietiesBulk21(Eigen::Matrix<ResidualType, Eigen::Dynamic, Eigen::Dynamic>& M, std::vector<int>& QsCompBulk) {}
 
 	template <typename RowIterator>
 	void jacobianQuasiSteadyLiquidImpl(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, int state, int reaction ,const RowIterator& jac, LinearBufferAllocator workSpace) const { }
