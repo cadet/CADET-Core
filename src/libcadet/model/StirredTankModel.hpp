@@ -27,6 +27,7 @@
 #include <bitset>
 #include <array>
 #include <vector>
+#include <Eigen/Dense>
 
 namespace cadet
 {
@@ -79,6 +80,9 @@ public:
 	virtual int residual(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res, util::ThreadLocalStorage& threadLocalMem);
 	virtual int residual(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res, const AdJacobianParams& adJac, util::ThreadLocalStorage& threadLocalMem, bool updateJacobian, bool paramSensitivity);
 	
+	template <typename ResidualType>
+	void EigenMatrixTimesDemseMatrix(Eigen::Matrix<ResidualType, Eigen::Dynamic, Eigen::Dynamic> A, linalg::DenseMatrix& B);
+
 	template <typename StateType, typename ResidualType, typename ParamType, bool wantJac>
 	void applyConservedMoitiesBulk(double t, unsigned int secIdx, const ColumnPosition& colPos, StateType const* const y, double const* const yDot, ResidualType* const resC, LinearBufferAllocator tlmAlloc);
 	template <typename StateType, typename ResidualType, typename ParamType, bool wantJac>
@@ -179,9 +183,11 @@ protected:
 	IDynamicReactionModel* _dynReactionBulk; //!< Dynamic reactions in the bulk volume
 
 	Eigen::MatrixXd _MconvMoityBulk; //!<  Matrix with conservation of moieties in the bulk volume
+	Eigen::MatrixXd _MconvMoityBulk2; //!<  Matrix with conservation of moieties in the bulk volume
 	int const* _qsReactionBulk; //!< Indices of reactions that are not conserved in the bulk volume
 	bool _hasQuasiStationaryReactionBulk; //!< Flag that determines whether there are quasi-stationary reactions in the bulk volume
 	std::vector<int> _QsCompBulk; //!< Indices of components that are conserved in the bulk volume
+	int _nConservedQuants;
 	std::vector<std::bitset<3>> _stateMap; // !< Bitset that tracks the properties of the state vector (dynamic, moities, algebraic)
 
 	class Exporter : public ISolutionExporter

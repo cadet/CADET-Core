@@ -254,7 +254,7 @@ protected:
 		return quasiStationaryFlux( t, secIdx,   colPos,  y, fluxes, mapQSReac, workSpace);																			\
 	}																																					\
 																																						\
-	virtual void fillConservedMoietiesBulk2(Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic>& M, std::vector<int>& QsCompBulk)\
+	virtual void fillConservedMoietiesBulk2(Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic>& M, int& QsCompBulk)\
 	{\
 		fillConservedMoietiesBulk21(M, QsCompBulk);\
 	}\

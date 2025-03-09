@@ -130,7 +130,7 @@ public:
 	virtual unsigned int numReactionsCombined() const CADET_NOEXCEPT { return 0; }
 	virtual unsigned int numReactionQuasiStationary() const CADET_NOEXCEPT { return 0; }
 	template <typename ResidualType>
-	void fillConservedMoietiesBulk21(Eigen::Matrix<ResidualType, Eigen::Dynamic, Eigen::Dynamic>& M, std::vector<int>& QsCompBulk) {}
+	void fillConservedMoietiesBulk21(Eigen::Matrix<ResidualType, Eigen::Dynamic, Eigen::Dynamic>& M, int& QsCompBulk) {}
 protected:
 };
 

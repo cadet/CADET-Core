@@ -504,7 +504,7 @@ public:
 	}
 
 	template<typename ResidualType>
-	void fillConservedMoietiesBulk21(Eigen::Matrix<ResidualType, Eigen::Dynamic, Eigen::Dynamic>& M, std::vector<int>& QsCompBulk)
+	void fillConservedMoietiesBulk21(Eigen::Matrix<ResidualType, Eigen::Dynamic, Eigen::Dynamic>& M, int& conservedState)
 	{		
 		// Count the number of quasi-stationary reactions
 		int numQSReac = std::count(_reactionQuasistationarity.begin(), _reactionQuasistationarity.end(), true);
@@ -513,8 +513,7 @@ public:
 			return;
 
 		// Clear and resize the output vector
-		QsCompBulk.clear();
-		QsCompBulk.resize(_stoichiometryBulk.rows(), 0);
+
 
 		// Create QSS matrix with stoichiometry of quasi-stationary reactions
 		Eigen::MatrixXd QSS(_stoichiometryBulk.rows(), numQSReac);
@@ -539,13 +538,17 @@ public:
 		std::vector<int> nonActiveComponentIndices;
 		nonActiveComponentIndices.reserve(_nComp);
 
+		std::vector<int> QsCompBulk(_nComp);
+
 		for (int i = 0; i < QSS.rows(); ++i)
 		{
 			bool isActive = (QSS.row(i).norm() >= 1e-15);
 			QsCompBulk[i] = isActive ? 1 : 0;
-
 			if (isActive)
+			{
 				activeComponentIndices.push_back(i);
+				//conservedState[i] = 1;
+			}
 			else
 				nonActiveComponentIndices.push_back(i);
 		}
@@ -579,27 +582,46 @@ public:
 
 		// Calculate null space of stoichiometry for conservation relations
 		Eigen::MatrixXd leftZeroSpace = QSSCompressed.transpose().fullPivLu().kernel().transpose();
-
+		conservedState = leftZeroSpace.rows();
 		// Create final matrix M with proper dimensions
-		int nConservedMoities = _nComp - numQSReac;
-		const int nNonActiveComponents = nonActiveComponentIndices.size();
-
+		// fill M acording to QsCompBulk: 0 -> not conserved 1-> conserved (either dynamic or not) 
 		M = Eigen::Matrix<ResidualType, Eigen::Dynamic, Eigen::Dynamic>::Zero(_nComp, _nComp); // todo here not quite right
 
-		for (int i = 0; i < nNonActiveComponents; ++i)
+		int idx = 0;
+		int nonActiveIdx = 0;
+		int activeIdx = 0;
+		for (int i = 0; i < _nComp; ++i)
 		{
-			M(i, nonActiveComponentIndices[i]) = static_cast<ResidualType>(1.0);
-		}
-
-		// Fill in conservation relations
-		int mRow = nNonActiveComponents;
-		for (int i = 0; i < leftZeroSpace.rows(); ++i) // _nComp - numQSReac = zeroleftspace.rows() = nConservedMoities
-		{
-			for (int j = 0; j < leftZeroSpace.cols(); ++j)
+			if (QsCompBulk[i] == 0) // dynamic but not active
 			{
-				M(mRow, activeComponentIndices[j]) = static_cast<ResidualType>(leftZeroSpace(i, j));
+				M(i, nonActiveComponentIndices[nonActiveIdx]) = static_cast<ResidualType>(1.0);
+				nonActiveIdx++;
+			}
+			else if (i < leftZeroSpace.rows())
+			{
+				for (int j = 0; j < leftZeroSpace.cols(); ++j)
+				{
+					M(i, activeComponentIndices[activeIdx]) = static_cast<ResidualType>(leftZeroSpace(idx, j));
+					activeIdx++;
+				}
+				idx++;
 			}
 		}
+
+		//for (int i = 0; i < nNonActiveComponents; ++i)
+		//{
+		//	M(i, nonActiveComponentIndices[i]) = static_cast<ResidualType>(1.0);
+		//}
+
+		//// Fill in conservation relations
+		//// TODO -> fill M acording to QSComp 0 -> dynamisch 1 -> conserved
+		//int mRow = nNonActiveComponents;
+		//for (int i = 0; i < leftZeroSpace.rows(); ++i) // _nComp - numQSReac = zeroleftspace.rows() = nConservedMoities
+		//{
+		//	
+		//	conservedState[mRow] = 1;
+		//	mRow++;
+		//}
 	}
 
 	virtual unsigned int numReactionsLiquid() const CADET_NOEXCEPT { return _stoichiometryBulk.columns(); }

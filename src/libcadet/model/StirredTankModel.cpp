@@ -373,7 +373,7 @@ bool CSTRModel::configure(IParameterProvider& paramProvider)
 		if (_qsReactionBulk != nullptr)
 		{	
 			_dynReactionBulk->fillConservedMoietiesBulk(_MconvMoityBulk, _QsCompBulk); // fill conserved moities matrix
-
+			_dynReactionBulk->fillConservedMoietiesBulk2(_MconvMoityBulk2, _nConservedQuants);
 			int nMoitiesBulk = _MconvMoityBulk.rows();
 			if (nMoitiesBulk != 0)
 			{
@@ -704,17 +704,11 @@ void CSTRModel::consistentInitialState(const SimulationTime& simTime, double* co
 
 		LinearBufferAllocator tlmAlloc = threadLocalMem.get();
 		BufferedArray<int> qsMask = tlmAlloc.array<int>(_nComp);
+	
+		// mark which concentrations need to be reacalculated
+		qsMask.copyFromVector(_QsCompBulk);
 
-		for (int state = 0; state < _nComp; state++)
-		{
-			if (_stateMap[state].test(1) || _stateMap[state].test(2))
-				qsMask[state] = 1;
-			else
-				qsMask[state] = 0;
-		}
-
-		// Mark components with quasi-stationary reactions partition
-		//qsMask.copyFromVector(_QsCompBulk);
+		int nActiveStates= std::count(_QsCompBulk.begin(), _QsCompBulk.end(), 1);
 
 		const linalg::ConstMaskArray mask{ static_cast<int*>(qsMask), static_cast<int>(_nComp) };
 		const int probSize = linalg::numMaskActive(mask);
@@ -725,16 +719,23 @@ void CSTRModel::consistentInitialState(const SimulationTime& simTime, double* co
 
 		// Save values of conserved moieties;
 		const unsigned int numActiveComp = numMaskActive(mask, _nComp);
-		BufferedArray<double> conservedQuants = tlmAlloc.array<double>(_MconvMoityBulk.rows());
+		BufferedArray<double> conservedQuants = tlmAlloc.array<double>(nActiveStates); // number of conserved quantities
 
 		// Calculate conserved quantities for the inital state 
-		for (unsigned int MoityIdx = 0; MoityIdx < _MconvMoityBulk.rows(); ++MoityIdx)
-		{
-			double dotProduct = 0.0;
-			for (unsigned int i = 0; i < _MconvMoityBulk.cols(); ++i)
-				dotProduct += _MconvMoityBulk(MoityIdx, i) * c[i];
 
-			conservedQuants[MoityIdx] = dotProduct;
+		int mIdx = 0;
+		for (unsigned int i = 0; i < _nComp; ++i)
+		{
+			if(_QsCompBulk[i] == 0)
+				continue;
+			if (mIdx >= _nConservedQuants)
+				continue;
+			double dotProduct = 0.0;
+			for (unsigned int j = 0; j < _MconvMoityBulk2.cols(); ++j)
+				dotProduct += _MconvMoityBulk2(i, j) * c[j];
+
+			conservedQuants[mIdx] = dotProduct;
+			mIdx++;
 		}
 
 		linalg::DenseMatrixView jacobianMatrix(_jacFact.data(), _jacFact.pivotData(), probSize, probSize);
@@ -788,29 +789,22 @@ void CSTRModel::consistentInitialState(const SimulationTime& simTime, double* co
 					// Extract Jacobian from full Jacobian
 					mat.setAll(0.0);
 					linalg::copyMatrixSubset(_jac, mask, mask, mat);
-
+					int numConservedMoities = _nComp - _dynReactionBulk->numReactionQuasiStationary();
 
 					// Replace upper part with conservation relations
-					unsigned int rIdx = 0;
-					unsigned int MoityIdx = 0;
-					for (unsigned int state = 0; state < _nComp; ++state)
+					int  mIdx = 0;
+					for (unsigned int i = 0; i < _nComp; ++i)
 					{
-						if (_stateMap[state].test(1))
+						if (_QsCompBulk[i]== 0)
+							continue;
+						if (mIdx >= _nConservedQuants)
+							continue;
+						for (unsigned int j = 0; j < _MconvMoityBulk2.cols(); ++i)
 						{
-							double dotProduct = 0.0;
-							int j = 0;
-							for (unsigned int i = 0; i < _MconvMoityBulk.cols(); ++i)
-							{
-								if (_QsCompBulk[i] == 0)
-									continue;
-								mat.native(rIdx, j) = _MconvMoityBulk(MoityIdx, i);
-								j++;
-							}
-							rIdx++;
-							MoityIdx++;
+							mat.native(mIdx, j) = _MconvMoityBulk2(i, j);
+							j++;
 						}
-						else if (_stateMap[state].test(2))
-							rIdx++;
+						mIdx++;
 					}
 					return true;
 				};
@@ -831,26 +825,25 @@ void CSTRModel::consistentInitialState(const SimulationTime& simTime, double* co
 					mat.setAll(0.0);
 					linalg::copyMatrixSubset(_jac, mask, mask, mat);
 					// Replace upper part with conservation relations
-					unsigned int rIdx = 0;
-					unsigned int MoityIdx = 0;
-					for (unsigned int state = 0; state < _nComp; ++state)
+					int  mIdx = 0;
+					int nConservedComps = _nComp - numActiveComp ; // _nComp - _dynReactionBulk->numReactionQuasiStationary();
+					for (unsigned int i = 0; i < _nComp; ++i)
 					{
-						if (_stateMap[state].test(1))
+						if (_QsCompBulk[i] == 0)
+							continue;
+						if (mIdx >= _nConservedQuants)
+							continue;
+
+						int jIdx = 0;
+						for (unsigned int j = 0; j < _MconvMoityBulk2.cols(); ++j)
 						{
-							double dotProduct = 0.0;
-							int j = 0;
-							for (unsigned int i = 0; i < _MconvMoityBulk.cols(); ++i)
-							{
-								if (_QsCompBulk[i] == 0)
-									continue;
-								mat.native(rIdx, j) = _MconvMoityBulk(MoityIdx, i);
-								j++;
-							}
-							rIdx++;
-							MoityIdx++;
+							if(_QsCompBulk[j] == 0)
+								continue;
+
+							mat.native(mIdx, jIdx) = _MconvMoityBulk2(i, j);
+							jIdx++;
 						}
-						else if (_stateMap[state].test(2))
-							rIdx++;
+						mIdx++;
 					}
 					return true;
 				};
@@ -869,29 +862,26 @@ void CSTRModel::consistentInitialState(const SimulationTime& simTime, double* co
 
 				// Extract values from residual
 				linalg::selectVectorSubset(fullResidual + _nComp, mask, r);
-				//std::fill_n(r, _nMoitiesBulk, 0.0);
 
-				int MoityIdx = 0;
-				int  rIdx = 0;
-				for (unsigned int state = 0; state < _nComp; ++state)
-				{
-					if (_stateMap[state].test(1))
+				int nConservedComps = _nComp - nActiveStates; // _nComp - _dynReactionBulk->numReactionQuasiStationary();
+				int  mIdx = 0;
+				for (unsigned int i = 0; i < _nComp; ++i)
+				{	
+					if(_QsCompBulk[i]==0) // 
+						continue;
+					if( mIdx >= _nConservedQuants)
+						continue;
+					int jIdx = 0;	
+					double dotProduct = 0.0;
+					for (unsigned int j = 0; j < _MconvMoityBulk2.cols(); ++j)
 					{
-						double dotProduct = 0.0;
-						int jIdx = 0;
-						for (unsigned int j = 0; j < _MconvMoityBulk.cols(); ++j)
-						{
-							if (_QsCompBulk[j] == 0)
-								continue;
-							dotProduct += _MconvMoityBulk(MoityIdx, j) * x[jIdx];
-							jIdx++;
-						}
-						r[rIdx] = dotProduct - conservedQuants[MoityIdx];
-						MoityIdx++;
-						rIdx++;
+						if (_QsCompBulk[j] == 0)
+							continue;
+						dotProduct += _MconvMoityBulk2(i, j) * x[jIdx];
+						jIdx++;
 					}
-					else if (_stateMap[state].test(2))
-						rIdx++;
+					r[mIdx] = dotProduct - conservedQuants[mIdx];
+					mIdx++;
 				}
 				
 				std::cout << "Residual: " << std::endl;
@@ -913,6 +903,7 @@ void CSTRModel::consistentInitialState(const SimulationTime& simTime, double* co
 		for (unsigned int i = 0; i < _nComp; ++i)
 			std::cout << c[i] << std::endl;
 		
+		int a = 0;
 		// Refine / correct solution
 	}
 	else
@@ -1307,16 +1298,25 @@ void CSTRModel::consistentInitialTimeDerivative(const SimulationTime& simTime, d
 
 		_dynReactionBulk->timeDerivativeQuasiStationaryReaction(simTime.t, _curSecIdx, ColumnPosition{ 0.0, 0.0, 0.0 }, c, static_cast<double*>(dReacDt), tlmAlloc);
 
-		// Copy row from original Jacobian and set right hand side
+		// Copy row assioated to algebraic equation from original Jacobian and set right hand side
 		double* const cDot = vecStateYdot + _nComp;
-
-		for (unsigned int i = 0; i < _nComp; ++i)
+		int test = _nComp - _dynReactionBulk->numReactionQuasiStationary();
+		for (int i = test; i < _nComp; ++i)
 		{
-			if (!_stateMap[i].test(2))
-				continue;
 			_jacFact.copyRowFrom(_jac, i, i);
 			cDot[i] = -dReacDt[i];
 		}
+		std::cout << " jacFact: " << std::endl;
+		for (int i = 0; i < _nComp +1 ; ++i)
+		{
+			for (int j = 0; j < _nComp +1 ; ++j)
+			{
+				std::cout << _jacFact.native(i, j) << " ";
+			}
+			std::cout << std::endl;
+		}
+
+
 		// Factorize
 		const bool result = _jacFact.robustFactorize(static_cast<double*>(dReacDt));
 		if (!result)
@@ -1632,7 +1632,7 @@ void CSTRModel::applyConservedMoitiesBulk(double t, unsigned int secIdx, const C
 				{
 					_jac.native(state, i) += (static_cast<double>(vDot) + static_cast<double>(flowOut)) * _MconvMoityBulk(MoityIdx, i); // dF_{ci}/dcj = v_liquidDot + F_out  
 					if (cadet_likely(yDot))
-						_jac.native(i, _nComp + _totalBound) += _MconvMoityBulk(MoityIdx, i) * cDot[i] * _MconvMoityBulk(MoityIdx, i); // dF/dvliquid = cDot 
+						_jac.native(i, _nComp + _totalBound) += _MconvMoityBulk(MoityIdx, i) * cDot[i] ; // dF/dvliquid = cDot 
 				}
 			}
 			if (wantJac)
@@ -1655,6 +1655,65 @@ void CSTRModel::applyConservedMoitiesBulk(double t, unsigned int secIdx, const C
 	}
 	mapResC = resCWithMoities;
 
+	std::cout << "Jacobian with conserved moities" << std::endl;
+	std::cout << "Jacobian after" << std::endl;
+	for (int i = 0; i < _nComp + 1; i++)
+	{
+		for (int j = 0; j < _nComp + 1; j++)
+		{
+			std::cout << _jac.native(i, j) << " ";
+		}
+		std::cout << std::endl;
+	}
+}
+template <typename ResidualType>
+void CSTRModel::EigenMatrixTimesDemseMatrix(Eigen::Matrix<ResidualType, Eigen::Dynamic, Eigen::Dynamic> A, linalg::DenseMatrix& B)
+{
+
+
+	Eigen::SparseMatrix<double> jacSparse(_nComp + 1, _nComp + 1);
+
+	// Reserve space for non-zeros (optional but recommended for performance)
+	jacSparse.reserve(Eigen::VectorXi::Constant(_nComp+1, _nComp+1)); // Assumes average of 5 entries per column
+
+	// Copy data from original Jacobian - use triplet list for initialization
+	std::vector<Eigen::Triplet<double>> tripletList;
+	for (int i = 0; i < _nComp + 1; ++i) {
+		for (int j = 0; j < _nComp + 1; ++j) {
+			double val = B.native(i, j);
+			if (std::abs(val) > 1e-15) { // Only insert non-zero elements
+				tripletList.push_back(Eigen::Triplet<double>(i, j, val));
+			}
+		}
+	}
+	jacSparse.setFromTriplets(tripletList.begin(), tripletList.end());
+	jacSparse.makeCompressed();
+
+	// apply conserved moities to jacobian
+	Eigen::SparseMatrix<double> sparseMoieties(_nComp + 1, _nComp + 1);
+	// Create sparseMoieties also using triplets
+	std::vector<Eigen::Triplet<double>> moietyTriplets;
+	for (int i = 0; i < A.rows(); ++i) {
+		for (int j = 0; j < A.cols(); ++j) {
+			if (std::abs(static_cast<double>(A(i, j))) > 1e-15) {
+				moietyTriplets.push_back(Eigen::Triplet<double>(i, j, static_cast<double>(A(i, j))));
+			}
+		}
+	}
+	sparseMoieties.setFromTriplets(moietyTriplets.begin(), moietyTriplets.end());
+	sparseMoieties.makeCompressed();
+
+	// Multiply matrices
+	Eigen::SparseMatrix<double> jacSparseMoities = sparseMoieties * jacSparse;
+
+	// Copy transformed Jacobian back
+	for (int k = 0; k < jacSparseMoities.outerSize(); ++k) {
+		for (typename Eigen::SparseMatrix<double>::InnerIterator it(jacSparseMoities, k); it; ++it) {
+			B.native(it.row(), it.col()) = it.value();
+		}
+	}
+
+
 }
 
 template <typename StateType, typename ResidualType, typename ParamType, bool wantJac>
@@ -1675,7 +1734,7 @@ void CSTRModel::applyConservedMoitiesBulk2(double t, unsigned int secIdx, const 
 
 	// calculate conserved moities
 	Eigen::Matrix<ResidualType, Eigen::Dynamic, Eigen::Dynamic> M(_nComp, _nComp);
-	_dynReactionBulk->fillConservedMoietiesBulk2(M, _QsCompBulk); // fill conserved moities matrix (alternative method)
+	_dynReactionBulk->fillConservedMoietiesBulk2(M, _nConservedQuants); // fill conserved moities matrix (alternative method)
 
 
 	// buffer memory for transformed residual
@@ -1689,74 +1748,87 @@ void CSTRModel::applyConservedMoitiesBulk2(double t, unsigned int secIdx, const 
 
 	// add quasi stationary reaction to residium
 	const int nQsReac = _dynReactionBulk->numReactionQuasiStationary();
-	int state = M.rows() - 1 ;
-	for (int qsReac = 0; qsReac < nQsReac; qsReac++)
+	int mIdx = 0;
+	int rIdx = 0;
+	for (int i = 0; i < _nComp; i++)
 	{
-		if (state < _nComp)
+		if (_QsCompBulk[i] == 0)
+			continue;
+		else if (mIdx < _nConservedQuants)
+			mIdx++;
+		else if (rIdx < nQsReac)
 		{
-			resCWithMoities[state] = qsFlux[qsReac];
-			state++;
+			resCWithMoities[i] = qsFlux[rIdx];
+			rIdx++;
 		}
-		else
-			throw InvalidParameterException(
-				"Residual implementation with conserved moities: Too many quasi stationary reactions detected. "
-				"Please check the implementation of the model."
-			);
+
 	}
 
 	mapResC = resCWithMoities;
 
-	// multiply conserved moities matrix with jacobian
 	if (wantJac)
 	{
-		// transform _jac into Eigen sparse matrix 
-		Eigen::SparseMatrix<double> jacSparse(_nComp, _nComp);
-
-		// Copy data from original Jacobian
-		for (int k = 0; k < _jac.stride(); ++k) {
-			for (typename Eigen::SparseMatrix<double>::InnerIterator it(jacSparse, k); it; ++it) {
-				it.valueRef() = _jac.native(it.row(), it.col());
-			}
-		}
-
-		// apply conserved moities to jacobian
-		Eigen::SparseMatrix<double> jacSparseMoities(_nComp, _nComp);
-		
-		Eigen::SparseMatrix<double> sparseMoieties(_nComp, _nComp);
-		sparseMoieties.reserve(M.nonZeros());
-		for (int i = 0; i < M.rows(); ++i) {
-			for (int j = 0; j < M.cols(); ++j) {
-				if (std::abs(static_cast<double>(M(i, j))) > 1e-15) {  // Only insert non-zero elements
-					sparseMoieties.insert(i, j) = static_cast<double>(M(i, j));
-				}
-			}
-		}
-		sparseMoieties.makeCompressed();
-
-		jacSparseMoities = sparseMoieties  * jacSparse;
-	
-		// Copy transformed Jacobian back
-		for (int k = 0; k < jacSparseMoities.outerSize(); ++k) {
-			for (typename Eigen::SparseMatrix<double>::InnerIterator it(jacSparseMoities, k); it; ++it) {
-				_jac.native(it.row(), it.col()) = it.value();
-			}
-		}
-
-		int state = M.rows() - 1;
-		for(int qsReac = 0; qsReac < nQsReac; ++qsReac) // todo this in a function
+		EigenMatrixTimesDemseMatrix(M, _jac);
+		int mIdx = 0;
+		int rIdx = 0;
+		for (int i = 0; i < _nComp; i++)
 		{
-			if (state < _nComp)
+			if (_QsCompBulk[i] == 0)
+				continue;
+			else if (mIdx < _nConservedQuants)
+				mIdx++;
+			else if (rIdx < nQsReac)
 			{
-				_dynReactionBulk->analyticJacobianQuasiStationaryReaction(t, secIdx, colPos, reinterpret_cast<double const*>(c), state, qsReac, _jac.row(state), subAlloc);
-				state++;
+				_dynReactionBulk->analyticJacobianQuasiStationaryReaction(t, secIdx, colPos, reinterpret_cast<double const*>(c), i, rIdx, _jac.row(i), subAlloc);
+				_jac.native(i, _nComp + _totalBound) = 0.0; // dF_{ci}/dvliquid = 0
 			}
-			else
-			throw InvalidParameterException(
-				"Jacobian implementation with conserved moities: Too many quasi stationary reactions detected. "
-				"Please check the implementation of the model."
-			); 
+
 		}
+
 	}
+
+	//std::cout << "Jacobian with conserved moities" << std::endl;
+	//std::cout << "Jacobian before" << std::endl;
+	//for (int i = 0; i < _nComp + 1; i++)
+	//{
+	//	for (int j = 0; j < _nComp+ 1; j++)
+	//	{
+	//		std::cout << _jac.native(i, j) << " ";
+	//	}
+	//	std::cout << std::endl;
+	//}
+	// multiply conserved moities matrix with jacobian
+	//if (wantJac)
+	//{
+	//	EigenMatrixTimesDemseMatrix(M, _jac);
+
+	//	int state = _nComp - _dynReactionBulk->numReactionQuasiStationary();
+	//	for (int qsReac = 0; qsReac < nQsReac; ++qsReac) // todo this in a function
+	//	{
+	//		if (state < _nComp)
+	//		{
+	//			_dynReactionBulk->analyticJacobianQuasiStationaryReaction(t, secIdx, colPos, reinterpret_cast<double const*>(c), state, qsReac, _jac.row(state), subAlloc);
+	//			_jac.native(state, _nComp + _totalBound) = 0.0; // dF_{ci}/dvliquid = 0
+	//			state++;
+	//		}
+	//		else
+	//			throw InvalidParameterException(
+	//				"Jacobian implementation with conserved moities: Too many quasi stationary reactions detected. "
+	//				"Please check the implementation of the model."
+	//			);
+	//	}
+
+		//std::cout << "Jacobian with conserved moities" << std::endl;
+		//std::cout << "Jacobian after" << std::endl;
+		//for (int i = 0; i < _nComp+ 1; i++)
+		//{
+		//	for (int j = 0; j < _nComp+1; j++)
+		//{
+		//		std::cout << _jac.native(i, j) << " ";
+		//	}
+		//std::cout << std::endl;
+		//}
+	
 }
 
 
@@ -2375,34 +2447,32 @@ void CSTRModel::addTimeDerivativeJacobian(double t, double alpha, const ConstSim
 
 	// Concentrations: \dot{V^l} * c_i + V^l * \dot{c}_i + V^s * [sum_j sum_m d_j \dot{q}_{j,i,m}]) - c_{in,i} * F_in + c_i * F_out == 0
 
-	if (_hasQuasiStationaryReactionBulk)
-	{
-
+	
+	if(_hasQuasiStationaryReactionBulk)
+	{ 
 		int  MoityIdx = 0;
-		int state = 0;
-		for (unsigned int state = 0; state < _nComp; state++)
+		for (unsigned int i = 0; i < _nComp; i++)
 		{
-			if (_stateMap[state].test(0))
+			if (_QsCompBulk[i] == 0)
 			{
-				mat.native(state, state) += timeV; // dRes / dcDot
+				mat.native(i, i) += timeV; // dRes / dcDot
 			}
-			else if (_stateMap[state].test(1))
+			else if( MoityIdx >= _nConservedQuants)
+				continue;
+			else
 			{
 				//mat.native(state, state) += timeV * (static_cast<double>(_MconvMoityBulk(MoityIdx, MoityIdx))); // dRes / dcDot
-				for (int comp = 0; comp < _nComp; comp++)
+				for (int j = 0; j < _nComp; j++)
 				{
-					if (_QsCompBulk[comp] == 1)
-						mat.native(state, comp) += timeV * static_cast<double>(_MconvMoityBulk(MoityIdx, comp)); // dRes / dcDot
-					mat.native(state, _nComp + _totalBound) += alpha * static_cast<double>(_MconvMoityBulk(MoityIdx, comp)) * c[comp]; // dRes / dVlDot
+					mat.native(i, j) += timeV * static_cast<double>(_MconvMoityBulk2(i, j)); // dRes / dcDot
+					mat.native(i, _nComp + _totalBound) += alpha * static_cast<double>(_MconvMoityBulk2(i, j)) * c[j]; // dRes / dVlDot
 				}
-
 				MoityIdx++;
 			}
 		}
-	}	
-	else
-	{
-
+	
+	}else
+	{ 
 		for (unsigned int i = 0; i < _nComp; ++i)
 		{
 			mat.native(i, i) += timeV; // dRes / dcDot
@@ -2426,7 +2496,7 @@ void CSTRModel::addTimeDerivativeJacobian(double t, double alpha, const ConstSim
 
 			mat.native(i, _nComp + _totalBound) += alpha * c[i]; // dRes / dVlDot
 		}
-
+	}
 
 		// Bound states
 		unsigned int globalIdx = _nComp;
@@ -2450,18 +2520,33 @@ void CSTRModel::addTimeDerivativeJacobian(double t, double alpha, const ConstSim
 				mat.native(globalIdx, globalIdx) += alpha;
 			}
 		}
-	}
+	
 	// Volume: \dot{V} - F_{in} + F_{out} + F_{filter} == 0
 	mat.native(_nComp + _totalBound, _nComp + _totalBound) += alpha;
-	/*
+
+	//std::cout << "Jacobian Derivative: " << std::endl;
+	//std::cout << "Before:" << std::endl;
+	//for (unsigned int i = 0; i < _nComp + 1; ++i)
+	//{
+	//	for (unsigned int j = 0; j < _nComp + 1; ++j)
+	//		std::cout << mat.native(i, j) << " ";
+	//	std::cout << std::endl;
+	//}
+
+	/*if (_hasQuasiStationaryReactionBulk)
+	{
+		EigenMatrixTimesDemseMatrix(_MconvMoityBulk2, mat);
+	}*/
+
 	std::cout << "Jacobian Derivative: " << std::endl;
+	//std::cout << "Old:" << std::endl;
 	for (unsigned int i = 0; i < _nComp + 1; ++i)
 	{
 		for (unsigned int j = 0; j < _nComp + 1; ++j)
 			std::cout << mat.native(i, j) << " ";
 		std::cout << std::endl;
 	}
-	*/
+	
 }
 
 

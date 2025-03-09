@@ -265,8 +265,8 @@ public:
 	* @param [in,out] QsCompBulk Vector to be filled with the components involved in qs reactions
 	*/
 	virtual void fillConservedMoietiesBulk(Eigen::MatrixXd& M, std::vector<int>& QsCompBulk) {}
-	virtual void fillConservedMoietiesBulk2(Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic>& M, std::vector<int>& QsCompBulk) {}
-	virtual void fillConservedMoietiesBulk2(Eigen::Matrix<active, Eigen::Dynamic, Eigen::Dynamic>& M, std::vector<int>& QsCompBulk) {}
+	virtual void fillConservedMoietiesBulk2(Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic>& M, int& QsCompBulk) {}
+	virtual void fillConservedMoietiesBulk2(Eigen::Matrix<active, Eigen::Dynamic, Eigen::Dynamic>& M, int& QsCompBulk) {}
 
 
 	/**
