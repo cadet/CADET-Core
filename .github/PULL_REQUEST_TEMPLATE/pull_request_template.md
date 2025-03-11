@@ -7,11 +7,11 @@ Fixes # (issue number) <!-- If this PR fixes an issue, reference it here. Exampl
 
 ## Type of Change
 
-Please mark the type of change that applies:
+Please select the type of change that applies:
 
-- [ ] Bug fix (non-breaking change that fixes an issue)
-- [ ] New feature (non-breaking change that adds functionality)
-- [ ] Documentation update (updates or changes to documentation)
+🔹 **Bug fix** – Fixes an issue without breaking anything  
+🔹 **New feature** – Adds new functionality without breaking anything  
+🔹 **Documentation update** – Updates documentation
 
 ## Checklist
 
