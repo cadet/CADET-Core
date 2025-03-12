@@ -59,7 +59,7 @@ Optionally, use `mamba <https://github.com/mamba-org/mamba>`_ which uses a faste
 
 ``mamba install -c conda-forge cadet``
 
-For more information on how to install and build CADET, see :ref:`here <installation>`.
+For more information on how to install and build CADET, see :ref:`here <getting_started>`.
 
 Ongoing Development
 -------------------
