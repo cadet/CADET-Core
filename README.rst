@@ -98,5 +98,5 @@ authorization of the copyright holder.
 Acknowledgments
 ---------------
 
-Please refer to the `list of contributors <https://github.com/cadet/cadet-core/blob/master/CONTRIBUTING.md>`_ who helped building and funding this project.
+Please refer to the `list of contributors <https://github.com/cadet/cadet-core/blob/master/AUTHORS.md>`_ who helped building and funding this project.
 
