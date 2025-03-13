@@ -40,7 +40,7 @@ namespace log
 
 		static inline void end(LogLevel lvl) { std::cout << std::endl; }
 
-		template <class T> 
+		template <class T>
 		static inline void writeObj(LogLevel lvl, const T& obj)
 		{
 			std::cout << obj;
@@ -57,7 +57,7 @@ namespace log
 
 		static inline void end(LogLevel lvl) { std::cerr << std::endl; }
 
-		template <class T> 
+		template <class T>
 		static inline void writeObj(LogLevel lvl, const T& obj)
 		{
 			std::cerr << obj;
@@ -82,13 +82,13 @@ namespace log
 				std::cout << std::endl;
 		}
 
-		template <class T> 
+		template <class T>
 		static inline void writeObj(LogLevel lvl, const T& obj)
 		{
 			if (lvl < switchLvl)
-				std::cerr << std::endl;
+				std::cerr << obj;
 			else
-				std::cout << std::endl;
+				std::cout << obj;
 		}
 	};
 
