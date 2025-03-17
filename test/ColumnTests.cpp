@@ -1636,6 +1636,8 @@ namespace column
 	{
 		const int unitOpID = std::stoi(unitID);
 
+		cadet::ad::setDirections(cadet::ad::getMaxDirections());// AD directions needed in configure but requiredADdirs not known before configureModelDiscretization (which is called in configure)
+
 		// read json model setup file
 		const std::string setupFile = std::string(getTestDirectory()) + modelFileRelPath;
 		JsonParameterProvider pp_setup(JsonParameterProvider::fromFile(setupFile));
