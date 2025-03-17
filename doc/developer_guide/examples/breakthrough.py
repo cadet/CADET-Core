@@ -3,7 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from cadet import Cadet
-Cadet.cadet_path = '/path/to/cadet-cli'
+Cadet.cadet_path = '/path/to/cadet-core/install/prefix' # (e.g., '/usr/local')
 
 # Create model object
 model = Cadet()
@@ -123,14 +123,14 @@ model.save()
 
 data = model.run()
 
-if data.returncode == 0:
+if data.return_code == 0:
     print("Simulation completed successfully")
     model.load()   
 else:
     print(data)
     raise Exception("Simulation failed")
 
-# Plot restuls
+# Plot results
 plt.figure()
 
 time = model.root.output.solution.solution_times
