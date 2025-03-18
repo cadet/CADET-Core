@@ -198,14 +198,14 @@ namespace cadet
 			virtual bool requiresConfiguration() const CADET_NOEXCEPT { return true; }
 			virtual bool usesParamProviderInDiscretizationConfig() const CADET_NOEXCEPT { return false; }
 			template <typename RowIterator>
-			void jacobianQuasiSteadyLiquidImpl(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, int state, int reaction,  const RowIterator& jac, LinearBufferAllocator workSpace) const { }
+			void jacobianQuasiStationaryBulkImpl(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, int state, int reaction,  const RowIterator& jac, LinearBufferAllocator workSpace) const { }
 
 			template <typename RowIterator>
 			void jacobianSingleFluxImpl(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, int state, int reaction, const RowIterator& jac, LinearBufferAllocator workSpace) const { }
 
 			template<typename StateType, typename ResidualType>
 			int quasiStationaryFlux(double t, unsigned int secIdx, const ColumnPosition& colPos, StateType const* y,
-				Eigen::Map<Eigen::Vector<ResidualType, Eigen::Dynamic>> fluxes, int const* mapQSReac, LinearBufferAllocator workSpace){return 0;}
+				Eigen::Map<Eigen::Vector<ResidualType, Eigen::Dynamic>> fluxes, LinearBufferAllocator workSpace){return 0;}
 
 			virtual int const* reactionQuasiStationarity() const CADET_NOEXCEPT { return nullptr; }
 			virtual void timeDerivativeQuasiStationaryReaction(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, double* dReacDt, LinearBufferAllocator workSpace){ }
@@ -347,8 +347,8 @@ namespace cadet
 			virtual unsigned int numReactionsLiquid() const CADET_NOEXCEPT { return 1; }
 			virtual unsigned int numReactionsCombined() const CADET_NOEXCEPT { return 1; }
 			virtual unsigned int numReactionQuasiStationary() const CADET_NOEXCEPT { return 0; }
-			template <typename ResidualType>
-			void fillConservedMoietiesBulk21(Eigen::Matrix<ResidualType, Eigen::Dynamic, Eigen::Dynamic>& M, int& QsCompBulk) {}
+			template<typename ResidualType>
+			void ConservedMoietiesBulk(Eigen::Matrix<ResidualType, Eigen::Dynamic, Eigen::Dynamic>& M, int& conservedState, std::vector<int>& QsCompBulk) {}
 
 			CADET_DYNAMICREACTIONMODEL_BOILERPLATE
 

@@ -31,7 +31,7 @@
 
 namespace cadet
 {
-	struct ColumnPosition;
+struct ColumnPosition;
 
 namespace model
 {
@@ -183,7 +183,7 @@ protected:
 	IDynamicReactionModel* _dynReactionBulk; //!< Dynamic reactions in the bulk volume
 
 	Eigen::MatrixXd _MconvMoityBulk; //!<  Matrix with conservation of moieties in the bulk volume
-	Eigen::MatrixXd _MconvMoityBulk2; //!<  Matrix with conservation of moieties in the bulk volume
+	Eigen::Matrix<active, Eigen::Dynamic, Eigen::Dynamic> _MconvMoityBulk2; //!<  Matrix with conservation of moieties in the bulk volume
 	int const* _qsReactionBulk; //!< Indices of reactions that are not conserved in the bulk volume
 	bool _hasQuasiStationaryReactionBulk; //!< Flag that determines whether there are quasi-stationary reactions in the bulk volume
 	std::vector<int> _QsCompBulk; //!< Indices of components that are conserved in the bulk volume

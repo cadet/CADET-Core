@@ -372,33 +372,10 @@ bool CSTRModel::configure(IParameterProvider& paramProvider)
 
 		if (_qsReactionBulk != nullptr)
 		{	
-			_dynReactionBulk->fillConservedMoietiesBulk(_MconvMoityBulk, _QsCompBulk); // fill conserved moities matrix
-			_dynReactionBulk->fillConservedMoietiesBulk2(_MconvMoityBulk2, _nConservedQuants);
-			int nMoitiesBulk = _MconvMoityBulk.rows();
-			if (nMoitiesBulk != 0)
-			{
-				int mIdx = 0;
-				for (int state = 0; state < _nComp; state++)
-				{
-					std::bitset<3> c;
-					if (_QsCompBulk[state] == 0) // state is dynamic 
-					{
-						c.set(0);
-						_stateMap.push_back(c);
-					}
-					else if (mIdx < nMoitiesBulk) // state is dynamic and calculated with conserved moities
-					{
-						c.set(1);
-						_stateMap.push_back(c);
-						mIdx++;
-					}
-					else if (mIdx >= nMoitiesBulk) // state algebraic 
-					{
-						c.set(2);
-						_stateMap.push_back(c);
-					}
-				}
-			}
+			//_dynReactionBulk->fillConservedMoietiesBulk(_MconvMoityBulk, _QsCompBulk); // fill conserved moities matrix
+			_QsCompBulk.resize(_nComp);
+			_dynReactionBulk->fillConservedMoietiesBulk2(_MconvMoityBulk2, _nConservedQuants, _QsCompBulk);
+		
 
 			bool hasQSBinding = false;
 			for (int i = 0; i < _nParType; i++)
@@ -732,7 +709,7 @@ void CSTRModel::consistentInitialState(const SimulationTime& simTime, double* co
 				continue;
 			double dotProduct = 0.0;
 			for (unsigned int j = 0; j < _MconvMoityBulk2.cols(); ++j)
-				dotProduct += _MconvMoityBulk2(i, j) * c[j];
+				dotProduct += static_cast<double>(_MconvMoityBulk2(i, j)) * c[j];
 
 			conservedQuants[mIdx] = dotProduct;
 			mIdx++;
@@ -795,14 +772,19 @@ void CSTRModel::consistentInitialState(const SimulationTime& simTime, double* co
 					int  mIdx = 0;
 					for (unsigned int i = 0; i < _nComp; ++i)
 					{
-						if (_QsCompBulk[i]== 0)
+						if (_QsCompBulk[i] == 0)
 							continue;
 						if (mIdx >= _nConservedQuants)
 							continue;
-						for (unsigned int j = 0; j < _MconvMoityBulk2.cols(); ++i)
+
+						int jIdx = 0;
+						for (unsigned int j = 0; j < _MconvMoityBulk2.cols(); ++j)
 						{
-							mat.native(mIdx, j) = _MconvMoityBulk2(i, j);
-							j++;
+							if (_QsCompBulk[j] == 0)
+								continue;
+
+							mat.native(mIdx, jIdx) = static_cast<double>(_MconvMoityBulk2(i, j));
+							jIdx++;
 						}
 						mIdx++;
 					}
@@ -840,7 +822,7 @@ void CSTRModel::consistentInitialState(const SimulationTime& simTime, double* co
 							if(_QsCompBulk[j] == 0)
 								continue;
 
-							mat.native(mIdx, jIdx) = _MconvMoityBulk2(i, j);
+							mat.native(mIdx, jIdx) = static_cast<double>(_MconvMoityBulk2(i, j));
 							jIdx++;
 						}
 						mIdx++;
@@ -877,7 +859,7 @@ void CSTRModel::consistentInitialState(const SimulationTime& simTime, double* co
 					{
 						if (_QsCompBulk[j] == 0)
 							continue;
-						dotProduct += _MconvMoityBulk2(i, j) * x[jIdx];
+						dotProduct += static_cast<double>(_MconvMoityBulk2(i, j)) * x[jIdx];
 						jIdx++;
 					}
 					r[mIdx] = dotProduct - conservedQuants[mIdx];
@@ -1734,7 +1716,7 @@ void CSTRModel::applyConservedMoitiesBulk2(double t, unsigned int secIdx, const 
 
 	// calculate conserved moities
 	Eigen::Matrix<ResidualType, Eigen::Dynamic, Eigen::Dynamic> M(_nComp, _nComp);
-	_dynReactionBulk->fillConservedMoietiesBulk2(M, _nConservedQuants); // fill conserved moities matrix (alternative method)
+	_dynReactionBulk->fillConservedMoietiesBulk2(M, _nConservedQuants, _QsCompBulk); // fill conserved moities matrix (alternative method)
 
 
 	// buffer memory for transformed residual
@@ -1742,9 +1724,10 @@ void CSTRModel::applyConservedMoitiesBulk2(double t, unsigned int secIdx, const 
 	Eigen::Map<Eigen::Vector<ResidualType, Eigen::Dynamic>> resCWithMoities(static_cast<ResidualType*>(temp), _nComp);
 	resCWithMoities.setZero();
 
+	Eigen::Matrix<ResidualType, Eigen::Dynamic, Eigen::Dynamic> MconvMoityBulk2Cast = _MconvMoityBulk2.template cast<ResidualType>();
 
 	// multiply conserved moities matrix with residual
-	resCWithMoities = M * mapResC;
+	resCWithMoities = MconvMoityBulk2Cast * mapResC;
 
 	// add quasi stationary reaction to residium
 	const int nQsReac = _dynReactionBulk->numReactionQuasiStationary();
@@ -1768,7 +1751,7 @@ void CSTRModel::applyConservedMoitiesBulk2(double t, unsigned int secIdx, const 
 
 	if (wantJac)
 	{
-		EigenMatrixTimesDemseMatrix(M, _jac);
+		EigenMatrixTimesDemseMatrix(MconvMoityBulk2Cast, _jac);
 		int mIdx = 0;
 		int rIdx = 0;
 		for (int i = 0; i < _nComp; i++)
@@ -1787,50 +1770,7 @@ void CSTRModel::applyConservedMoitiesBulk2(double t, unsigned int secIdx, const 
 
 	}
 
-	//std::cout << "Jacobian with conserved moities" << std::endl;
-	//std::cout << "Jacobian before" << std::endl;
-	//for (int i = 0; i < _nComp + 1; i++)
-	//{
-	//	for (int j = 0; j < _nComp+ 1; j++)
-	//	{
-	//		std::cout << _jac.native(i, j) << " ";
-	//	}
-	//	std::cout << std::endl;
-	//}
-	// multiply conserved moities matrix with jacobian
-	//if (wantJac)
-	//{
-	//	EigenMatrixTimesDemseMatrix(M, _jac);
-
-	//	int state = _nComp - _dynReactionBulk->numReactionQuasiStationary();
-	//	for (int qsReac = 0; qsReac < nQsReac; ++qsReac) // todo this in a function
-	//	{
-	//		if (state < _nComp)
-	//		{
-	//			_dynReactionBulk->analyticJacobianQuasiStationaryReaction(t, secIdx, colPos, reinterpret_cast<double const*>(c), state, qsReac, _jac.row(state), subAlloc);
-	//			_jac.native(state, _nComp + _totalBound) = 0.0; // dF_{ci}/dvliquid = 0
-	//			state++;
-	//		}
-	//		else
-	//			throw InvalidParameterException(
-	//				"Jacobian implementation with conserved moities: Too many quasi stationary reactions detected. "
-	//				"Please check the implementation of the model."
-	//			);
-	//	}
-
-		//std::cout << "Jacobian with conserved moities" << std::endl;
-		//std::cout << "Jacobian after" << std::endl;
-		//for (int i = 0; i < _nComp+ 1; i++)
-		//{
-		//	for (int j = 0; j < _nComp+1; j++)
-		//{
-		//		std::cout << _jac.native(i, j) << " ";
-		//	}
-		//std::cout << std::endl;
-		//}
-	
 }
-
 
 
 template <typename StateType, typename ResidualType, typename ParamType, bool wantJac>
