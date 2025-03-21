@@ -318,7 +318,7 @@ public:
 
 	virtual unsigned int workspaceSize(unsigned int nComp, unsigned int totalNumBoundStates, unsigned int const* nBoundStates) const CADET_NOEXCEPT
 	{
-		return _paramHandler.cacheSize(maxNumReactions(), nComp, totalNumBoundStates) + std::max(maxNumReactions() * sizeof(active), 2 * (_nComp + totalNumBoundStates) * sizeof(double));
+		return _paramHandler.cacheSize(maxNumReactions(), nComp, totalNumBoundStates) + std::max(maxNumReactions() * sizeof(active)* 2, 2 * (_nComp + totalNumBoundStates) * sizeof(double));
 	}
 	
 	virtual int const* reactionQuasiStationarity() const CADET_NOEXCEPT { return _reactionQuasiStationarity.data(); }
