@@ -27,3 +27,11 @@ To install ``CADET-Python``, open an `conda shell` and execute:
 .. code-block:: bash
 
     pip install CADET-Python 
+
+
+Additional Resources
+^^^^^^^^^^^^^^^^^^^^
+
+- `CADET-Process documentation <https://cadet-process.readthedocs.io/>`_
+- `CADET-Process Workshop <https://github.com/cadet/CADET-Workshop>`_
+- `CADET-Python Tutorial <https://github.com/cadet/CADET-Python-Tutorial>`_
