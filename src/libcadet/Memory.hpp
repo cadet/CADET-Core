@@ -353,6 +353,14 @@ namespace cadet
 
 		explicit operator T*() const { return _ptr; }
 
+		// method to copy elements from std::vector
+		void copyFromVector(const std::vector<T>& vec) {
+			if (vec.size() > _numElements) {
+				throw std::out_of_range("Vector size exceeds BufferedArray size");
+			}
+			std::copy(vec.begin(), vec.end(), _ptr);
+		}
+
 	private:
 		BufferedArray(T* ptr, unsigned int numElements) : _ptr(ptr), _numElements(numElements) { }
 
