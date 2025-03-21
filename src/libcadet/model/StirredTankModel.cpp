@@ -82,6 +82,7 @@ CSTRModel::~CSTRModel() CADET_NOEXCEPT
 	delete[] _offsetParType;
 
 	delete[] _dynReactionBulk;
+	delete[] _qsReactionBulk;
 
 }
 
@@ -435,6 +436,7 @@ unsigned int CSTRModel::threadLocalMemorySize() const CADET_NOEXCEPT
 	{
 		lms.add<active>(_nComp); // buffer for recalculation residual if conserved moities are needed
 		lms.add<active>(_nComp); // mem for flux from reactions in bulk that are quasi stationary
+		lms.add<double>(2 * _nComp); // buffer for recalculation jacobian of quasi stationary reactions
 	}
 
 	lms.commit();
@@ -457,15 +459,6 @@ unsigned int CSTRModel::threadLocalMemorySize() const CADET_NOEXCEPT
 	lms.add<double>(numDofs());
 	lms.add<double>(_nonlinearSolver->workspaceSize(_nComp + _totalBound) * sizeof(double));
 	lms.addBlock(resImplSize);
-	lms.commit();
-
-	// Memory for consistentInitialSensitivity
-	lms.add<int>(_totalBound);
-	lms.add<double>(_nComp + _totalBound + 1);
-	lms.add<double>(_nComp + _totalBound);
-	lms.add<double>(_totalBound);
-	lms.commit();
-
 	if (_hasQuasiStationaryReactionBulk)
 	{
 		// Additonally Memory for consistentInitialState() 
@@ -476,14 +469,22 @@ unsigned int CSTRModel::threadLocalMemorySize() const CADET_NOEXCEPT
 		lms.add<double>(numDofs()); // fullRes 
 		lms.add<double>(_nonlinearSolver->workspaceSize(_nComp + _totalBound) * sizeof(double)); //non linear solver workspace
 		lms.addBlock(resImplSize);
-		lms.commit();
-		
+	}
+	lms.commit();
+
+	// Memory for consistentInitialSensitivity
+	lms.add<int>(_totalBound);
+	lms.add<double>(_nComp + _totalBound + 1);
+	lms.add<double>(_nComp + _totalBound);
+	lms.add<double>(_totalBound);
+	if (_hasQuasiStationaryReactionBulk)
+	{
 		// Memory for ConsistentInitialTimeDerivative()
-		lms.add<double>(_nComp+1); // dReacDt
+		lms.add<double>(_nComp + 1); // dReacDt
 		lms.add<double>(_nComp); //map
 		lms.add<double>(_nComp); //additional puffer
-		lms.commit();
 	}
+	lms.commit();
 	return lms.bufferSize();
 }
 
@@ -1630,10 +1631,10 @@ void CSTRModel::applyConservedMoitiesBulk(double t, unsigned int secIdx, const C
 	Eigen::Map<Eigen::Vector<ResidualType, Eigen::Dynamic>> resCWithMoities(static_cast<ResidualType*>(temp), _nComp);
 	resCWithMoities.setZero();
 
-	Eigen::Matrix<ResidualType, Eigen::Dynamic, Eigen::Dynamic> MconvMoityBulk2Cast = _MconvMoityBulk.template cast<ResidualType>();
+	Eigen::Matrix<ResidualType, Eigen::Dynamic, Eigen::Dynamic> MconvMoityBulkCast = _MconvMoityBulk.template cast<ResidualType>();
 
 	// multiply conserved moities matrix with residual
-	resCWithMoities = MconvMoityBulk2Cast * mapResC;
+	resCWithMoities = MconvMoityBulkCast * mapResC;
 
 	// add quasi stationary reaction to residium
 	const int nQsReac = _dynReactionBulk->numReactionQuasiStationary();
@@ -1657,7 +1658,7 @@ void CSTRModel::applyConservedMoitiesBulk(double t, unsigned int secIdx, const C
 
 	if (wantJac)
 	{
-		EigenMatrixTimesDemseMatrix(MconvMoityBulk2Cast, _jac);
+		EigenMatrixTimesDemseMatrix(MconvMoityBulkCast, _jac);
 		int mIdx = 0;
 		int rIdx = 0;
 		for (int i = 0; i < _nComp; i++)
@@ -1673,7 +1674,6 @@ void CSTRModel::applyConservedMoitiesBulk(double t, unsigned int secIdx, const C
 			}
 
 		}
-
 	}
 
 }

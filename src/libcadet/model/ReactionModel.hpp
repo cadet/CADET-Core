@@ -255,10 +255,6 @@ public:
 	virtual void analyticJacobianQuasiStationaryReaction(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, int state, int reaction, linalg::DenseBandedRowIterator jac, LinearBufferAllocator workSpace) const = 0;
 	virtual void analyticJacobianQuasiStationaryReaction(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, int state, int reaction, linalg::BandedSparseRowIterator jac, LinearBufferAllocator workSpace) const = 0;
 
-	virtual void analyticJacobianLiquidSingleFluxAdd(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, int state, int reaction, linalg::BandMatrix::RowIterator jac, LinearBufferAllocator workSpace) const = 0;
-	virtual void analyticJacobianLiquidSingleFluxAdd(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, int state, int reaction, linalg::DenseBandedRowIterator jac, LinearBufferAllocator workSpace) const = 0;
-	virtual void analyticJacobianLiquidSingleFluxAdd(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, int state, int reaction, linalg::BandedSparseRowIterator jac, LinearBufferAllocator workSpace) const = 0;
-	
 	/**
 	* @brief fills the conserved moieties matrix and the vector of components involved in qs reactions
 	* @param [in,out] M Matrix to be filled with the conserved moieties

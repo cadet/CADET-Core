@@ -1052,37 +1052,7 @@ protected:
 			}
 		}
 	}
-	//todp: vielleicht kann die funktion weg
-	template <typename RowIterator>
-	void jacobianSingleFluxImpl(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, int state, int reaction, const RowIterator& jac, LinearBufferAllocator workSpace) const
-	{
-		
-		if(reaction >= _stoichiometryBulk.columns())
-			return;
 
-		typename ParamHandler_t::ParamsHandle const p = _paramHandler.update(t, secIdx, colPos, _nComp, _nBoundStates, workSpace);
-		
-		BufferedArray<double> fluxes = workSpace.array<double>(2 * _nComp);
-		double* const fluxGradFwd = static_cast<double*>(fluxes);
-		double* const fluxGradBwd = fluxGradFwd + _nComp;
-
-
-		for (int r = 0; r < _stoichiometryBulk.columns(); ++r)
-		{
-			if (_reactionQuasiStationarity[r])
-				continue;
-			// Calculate gradients of forward and backward fluxes
-			fluxGradLiquid(fluxGradFwd, r, _nComp, static_cast<double>(p->kFwdBulk[r]), _expBulkFwd, y);
-			fluxGradLiquid(fluxGradBwd, r, _nComp, static_cast<double>(p->kBwdBulk[r]), _expBulkBwd, y);
-
-			// Add gradients to Jacobian
-			RowIterator curJac = jac;
-				const double colFactor = static_cast<double>(_stoichiometryBulk.native(state, r)) * 1.0;
-				for (int col = 0; col < _nComp; ++col)
-					curJac[col - static_cast<int>(state)] += colFactor * (fluxGradFwd[col] - fluxGradBwd[col]);
-
-		}
-	}
 	/**
 	 * @brief Calculates the Jacobian contribution of a quasistatonary reaction 
 	 * @details Computes the derivatives of the flux with respect to each component for 
@@ -1092,8 +1062,8 @@ protected:
 	 * @param [in] secIdx Current section index
 	 * @param [in] colPos Column position information
 	 * @param [in] y Array of component concentrations
-	 * @param [in] stateIdx State (component) for which to calculate the Jacobian row
-	 * @param [in] reactionIdx Index of the reaction to consider
+	 * @param [in] state State (component) for which to calculate the Jacobian row
+	 * @param [in] reaction Index of the reaction to consider
 	 * @param [in,out] jac Iterator to the Jacobian row to be updated
 	 * @param [in] workSpace Workspace for temporary data
 	 * @tparam RowIterator Type of the Jacobian row iterator
