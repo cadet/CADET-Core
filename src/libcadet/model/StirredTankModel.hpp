@@ -85,8 +85,6 @@ public:
 
 	template <typename StateType, typename ResidualType, typename ParamType, bool wantJac>
 	void applyConservedMoitiesBulk(double t, unsigned int secIdx, const ColumnPosition& colPos, StateType const* const y, double const* const yDot, ResidualType* const resC, LinearBufferAllocator tlmAlloc);
-	template <typename StateType, typename ResidualType, typename ParamType, bool wantJac>
-	void applyConservedMoitiesBulk2(double t, unsigned int secIdx, const ColumnPosition& colPos, StateType const* const y, double const* const yDot, ResidualType* const resC, LinearBufferAllocator tlmAlloc);
 
 	virtual int jacobian(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res, const AdJacobianParams& adJac, util::ThreadLocalStorage& threadLocalMem);
 	virtual int residualWithJacobian(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res, const AdJacobianParams& adJac, util::ThreadLocalStorage& threadLocalMem);
@@ -103,7 +101,6 @@ public:
 
 	virtual void consistentInitialState(const SimulationTime& simTime, double* const vecStateY, const AdJacobianParams& adJac, double errorTol, util::ThreadLocalStorage& threadLocalMem);
 	virtual void consistentInitialTimeDerivative(const SimulationTime& simTime, double const* vecStateY, double* const vecStateYdot, util::ThreadLocalStorage& threadLocalMem);
-	
 	virtual void initializeSensitivityStates(const std::vector<double*>& vecSensY) const;
 	virtual void consistentInitialSensitivity(const SimulationTime& simTime, const ConstSimulationState& simState,
 		std::vector<double*>& vecSensY, std::vector<double*>& vecSensYdot, active const* const adRes, util::ThreadLocalStorage& threadLocalMem);
@@ -182,13 +179,11 @@ protected:
 
 	IDynamicReactionModel* _dynReactionBulk; //!< Dynamic reactions in the bulk volume
 
-	Eigen::MatrixXd _MconvMoityBulk; //!<  Matrix with conservation of moieties in the bulk volume
-	Eigen::Matrix<active, Eigen::Dynamic, Eigen::Dynamic> _MconvMoityBulk2; //!<  Matrix with conservation of moieties in the bulk volume
+	Eigen::Matrix<active, Eigen::Dynamic, Eigen::Dynamic> _MconvMoityBulk; //!<  Matrix with conservation of moieties in the bulk volume
 	int const* _qsReactionBulk; //!< Indices of reactions that are not conserved in the bulk volume
 	bool _hasQuasiStationaryReactionBulk; //!< Flag that determines whether there are quasi-stationary reactions in the bulk volume
 	std::vector<int> _QsCompBulk; //!< Indices of components that are conserved in the bulk volume
 	int _nConservedQuants;
-	std::vector<std::bitset<3>> _stateMap; // !< Bitset that tracks the properties of the state vector (dynamic, moities, algebraic)
 
 	class Exporter : public ISolutionExporter
 	{

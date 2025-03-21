@@ -34,7 +34,7 @@
 #include <Eigen/Dense>
 #include <Eigen/Sparse>
 
-#include<iostream>
+#include<iostream>//todo delete
 
 namespace cadet
 {
@@ -82,8 +82,7 @@ CSTRModel::~CSTRModel() CADET_NOEXCEPT
 	delete[] _offsetParType;
 
 	delete[] _dynReactionBulk;
-	//delete[] _temp;
-	//delete[] _temp2;
+
 }
 
 unsigned int CSTRModel::numDofs() const CADET_NOEXCEPT
@@ -372,9 +371,8 @@ bool CSTRModel::configure(IParameterProvider& paramProvider)
 
 		if (_qsReactionBulk != nullptr)
 		{	
-			//_dynReactionBulk->fillConservedMoietiesBulk(_MconvMoityBulk, _QsCompBulk); // fill conserved moities matrix
 			_QsCompBulk.resize(_nComp);
-			_dynReactionBulk->fillConservedMoietiesBulk2(_MconvMoityBulk2, _nConservedQuants, _QsCompBulk);
+			_dynReactionBulk->fillConservedMoietiesBulk(_MconvMoityBulk, _nConservedQuants, _QsCompBulk);
 		
 
 			bool hasQSBinding = false;
@@ -395,8 +393,10 @@ bool CSTRModel::configure(IParameterProvider& paramProvider)
 	}
 	else
 	{	
-		_MconvMoityBulk = Eigen::MatrixXd::Zero(0, 0); // matrix for conserved moities
+		_MconvMoityBulk = Eigen::Matrix<active, Eigen::Dynamic, Eigen::Dynamic>::Zero(0, 0); // matrix for conserved moities
 		_QsCompBulk.clear();
+		_qsReactionBulk = nullptr;
+		_nConservedQuants = 0;
 	}
 
 	for (unsigned int type = 0; type < _nParType; ++type)
@@ -708,8 +708,8 @@ void CSTRModel::consistentInitialState(const SimulationTime& simTime, double* co
 			if (mIdx >= _nConservedQuants)
 				continue;
 			double dotProduct = 0.0;
-			for (unsigned int j = 0; j < _MconvMoityBulk2.cols(); ++j)
-				dotProduct += static_cast<double>(_MconvMoityBulk2(i, j)) * c[j];
+			for (unsigned int j = 0; j < _MconvMoityBulk.cols(); ++j)
+				dotProduct += static_cast<double>(_MconvMoityBulk(i, j)) * c[j];
 
 			conservedQuants[mIdx] = dotProduct;
 			mIdx++;
@@ -778,12 +778,12 @@ void CSTRModel::consistentInitialState(const SimulationTime& simTime, double* co
 							continue;
 
 						int jIdx = 0;
-						for (unsigned int j = 0; j < _MconvMoityBulk2.cols(); ++j)
+						for (unsigned int j = 0; j < _MconvMoityBulk.cols(); ++j)
 						{
 							if (_QsCompBulk[j] == 0)
 								continue;
 
-							mat.native(mIdx, jIdx) = static_cast<double>(_MconvMoityBulk2(i, j));
+							mat.native(mIdx, jIdx) = static_cast<double>(_MconvMoityBulk(i, j));
 							jIdx++;
 						}
 						mIdx++;
@@ -817,12 +817,12 @@ void CSTRModel::consistentInitialState(const SimulationTime& simTime, double* co
 							continue;
 
 						int jIdx = 0;
-						for (unsigned int j = 0; j < _MconvMoityBulk2.cols(); ++j)
+						for (unsigned int j = 0; j < _MconvMoityBulk.cols(); ++j)
 						{
 							if(_QsCompBulk[j] == 0)
 								continue;
 
-							mat.native(mIdx, jIdx) = static_cast<double>(_MconvMoityBulk2(i, j));
+							mat.native(mIdx, jIdx) = static_cast<double>(_MconvMoityBulk(i, j));
 							jIdx++;
 						}
 						mIdx++;
@@ -855,24 +855,16 @@ void CSTRModel::consistentInitialState(const SimulationTime& simTime, double* co
 						continue;
 					int jIdx = 0;	
 					double dotProduct = 0.0;
-					for (unsigned int j = 0; j < _MconvMoityBulk2.cols(); ++j)
+					for (unsigned int j = 0; j < _MconvMoityBulk.cols(); ++j)
 					{
 						if (_QsCompBulk[j] == 0)
 							continue;
-						dotProduct += static_cast<double>(_MconvMoityBulk2(i, j)) * x[jIdx];
+						dotProduct += static_cast<double>(_MconvMoityBulk(i, j)) * x[jIdx];
 						jIdx++;
 					}
 					r[mIdx] = dotProduct - conservedQuants[mIdx];
 					mIdx++;
 				}
-				
-				std::cout << "Residual: " << std::endl;
-				for (unsigned int i = 0; i < probSize; ++i) {
-					std::cout << r[i] << std::endl;
-				}
-				std::cout << "Solution: " << std::endl;
-				for (unsigned int i = 0; i < probSize; ++i)
-					std::cout << x[i] << std::endl;
 				
 				return true;
 			},
@@ -1566,88 +1558,7 @@ int CSTRModel::residual(const SimulationTime& simTime, const ConstSimulationStat
 {
 	return residualImpl<double, double, double, false>(simTime.t, simTime.secIdx, simState.vecStateY, simState.vecStateYdot, res, threadLocalMem.get());
 }
-template <typename StateType, typename ResidualType, typename ParamType, bool wantJac>
-void CSTRModel::applyConservedMoitiesBulk(double t, unsigned int secIdx, const ColumnPosition& colPos, StateType const* const c, double const* const yDot, ResidualType* const resC,  LinearBufferAllocator tlmAlloc)
-{
-	const ParamType flowIn = static_cast<ParamType>(_flowRateIn);
-	const ParamType flowOut = static_cast<ParamType>(_flowRateOut);
-	double const* const cDot = yDot ? yDot + _nComp : nullptr;
-	const double vDot = yDot ? yDot[2 * _nComp + _totalBound] : 0.0;
-	
-	LinearBufferAllocator subAlloc = tlmAlloc.manageRemainingMemory();
 
-	BufferedArray<ResidualType> temp = subAlloc.array<ResidualType>(_nComp);
-	Eigen::Map<Eigen::Vector<ResidualType, Eigen::Dynamic>> resCWithMoities(static_cast<ResidualType*>(temp), _nComp);
-	resCWithMoities.setZero();
-
-	BufferedArray<ResidualType> temp2 = subAlloc.array<ResidualType>(_nComp);
-	Eigen::Map<Eigen::Vector<ResidualType, Eigen::Dynamic>> qsFlux(static_cast<ResidualType*>(temp2), _dynReactionBulk->numReactionsLiquid());
-	qsFlux.setZero();
-	
-	_dynReactionBulk->computeQuasiStationaryReactionFlux(t, secIdx, colPos, c, qsFlux, _qsReactionBulk, subAlloc);
-	Eigen::Map<Eigen::Vector<ResidualType, Eigen::Dynamic>> mapResC(resC, _nComp);
-
-	int  MoityIdx = 0;
-	int qsreac = 0;
-	int comp = 0;
-	
-	for (unsigned int state = 0; state < _nComp; state++)
-	{
-		if (_stateMap[state].test(0)) // dynamic
-		{
-			resCWithMoities[state] = resC[state];
-			if (wantJac)
-			{
-				_jac.native(state, state) += (static_cast<double>(vDot) + static_cast<double>(flowOut)); // dF_{ci}/dcj = v_liquidDot + F_out
-				_dynReactionBulk->analyticJacobianLiquidSingleFluxAdd(t, secIdx, colPos, reinterpret_cast<double const*>(c), state, 0, _jac.row(state), subAlloc);
-			}
-			comp++;
-		}
-		else if (_stateMap[state].test(1)) // conserved
-		{
-			// todo test of matrix times vector isfaster
-			ResidualType dotProduct = 0.0;
-			for (unsigned int i = 0; i < _MconvMoityBulk.cols(); ++i)
-			{
-				dotProduct += _MconvMoityBulk(MoityIdx, i) * (mapResC[i]);
-				if (wantJac)
-				{
-					_jac.native(state, i) += (static_cast<double>(vDot) + static_cast<double>(flowOut)) * _MconvMoityBulk(MoityIdx, i); // dF_{ci}/dcj = v_liquidDot + F_out  
-					if (cadet_likely(yDot))
-						_jac.native(i, _nComp + _totalBound) += _MconvMoityBulk(MoityIdx, i) * cDot[i] ; // dF/dvliquid = cDot 
-				}
-			}
-			if (wantJac)
-				_dynReactionBulk->analyticJacobianLiquidSingleFluxAdd(t, secIdx, colPos, reinterpret_cast<double const*>(c), state, 0, _jac.row(state), subAlloc);
-			resCWithMoities[state] = dotProduct;
-			MoityIdx++;
-			comp++;
-		}
-		else if (_stateMap[state].test(2)) // algebraic
-		{
-			resCWithMoities[state] = qsFlux[qsreac];
-
-			if (wantJac)
-			{
-				_dynReactionBulk->analyticJacobianQuasiStationaryReaction(t, secIdx, colPos, reinterpret_cast<double const*>(c), state, qsreac, _jac.row(state), subAlloc);
-				_jac.native(state, _nComp + _totalBound) = 0.0; // dF_{ci}/dvliquid = 0
-			}
-			qsreac++;
-		}
-	}
-	mapResC = resCWithMoities;
-
-	std::cout << "Jacobian with conserved moities" << std::endl;
-	std::cout << "Jacobian after" << std::endl;
-	for (int i = 0; i < _nComp + 1; i++)
-	{
-		for (int j = 0; j < _nComp + 1; j++)
-		{
-			std::cout << _jac.native(i, j) << " ";
-		}
-		std::cout << std::endl;
-	}
-}
 template <typename ResidualType>
 void CSTRModel::EigenMatrixTimesDemseMatrix(Eigen::Matrix<ResidualType, Eigen::Dynamic, Eigen::Dynamic> A, linalg::DenseMatrix& B)
 {
@@ -1699,7 +1610,7 @@ void CSTRModel::EigenMatrixTimesDemseMatrix(Eigen::Matrix<ResidualType, Eigen::D
 }
 
 template <typename StateType, typename ResidualType, typename ParamType, bool wantJac>
-void CSTRModel::applyConservedMoitiesBulk2(double t, unsigned int secIdx, const ColumnPosition& colPos, StateType const* const c, double const* const yDot, ResidualType* const resC, LinearBufferAllocator tlmAlloc)
+void CSTRModel::applyConservedMoitiesBulk(double t, unsigned int secIdx, const ColumnPosition& colPos, StateType const* const c, double const* const yDot, ResidualType* const resC, LinearBufferAllocator tlmAlloc)
 {
 	// prepare memory
 	LinearBufferAllocator subAlloc = tlmAlloc.manageRemainingMemory();
@@ -1714,17 +1625,12 @@ void CSTRModel::applyConservedMoitiesBulk2(double t, unsigned int secIdx, const 
 
 	_dynReactionBulk->computeQuasiStationaryReactionFlux(t, secIdx, colPos, c, qsFlux, _qsReactionBulk, subAlloc);
 
-	// calculate conserved moities
-	Eigen::Matrix<ResidualType, Eigen::Dynamic, Eigen::Dynamic> M(_nComp, _nComp);
-	_dynReactionBulk->fillConservedMoietiesBulk2(M, _nConservedQuants, _QsCompBulk); // fill conserved moities matrix (alternative method)
-
-
 	// buffer memory for transformed residual
 	BufferedArray<ResidualType> temp = subAlloc.array<ResidualType>(_nComp);
 	Eigen::Map<Eigen::Vector<ResidualType, Eigen::Dynamic>> resCWithMoities(static_cast<ResidualType*>(temp), _nComp);
 	resCWithMoities.setZero();
 
-	Eigen::Matrix<ResidualType, Eigen::Dynamic, Eigen::Dynamic> MconvMoityBulk2Cast = _MconvMoityBulk2.template cast<ResidualType>();
+	Eigen::Matrix<ResidualType, Eigen::Dynamic, Eigen::Dynamic> MconvMoityBulk2Cast = _MconvMoityBulk.template cast<ResidualType>();
 
 	// multiply conserved moities matrix with residual
 	resCWithMoities = MconvMoityBulk2Cast * mapResC;
@@ -1867,7 +1773,7 @@ int CSTRModel::residualImpl(double t, unsigned int secIdx, StateType const* cons
 
 		if (_hasQuasiStationaryReactionBulk)
 		{
-			applyConservedMoitiesBulk2<StateType, ResidualType, ParamType, wantJac>(t, secIdx, colPos, c, yDot, resC, subAlloc);
+			applyConservedMoitiesBulk<StateType, ResidualType, ParamType, wantJac>(t, secIdx, colPos, c, yDot, resC, subAlloc);
 			
 		}
 	}
@@ -2401,11 +2307,10 @@ void CSTRModel::addTimeDerivativeJacobian(double t, double alpha, const ConstSim
 				continue;
 			else
 			{
-				//mat.native(state, state) += timeV * (static_cast<double>(_MconvMoityBulk(MoityIdx, MoityIdx))); // dRes / dcDot
 				for (int j = 0; j < _nComp; j++)
 				{
-					mat.native(i, j) += timeV * static_cast<double>(_MconvMoityBulk2(i, j)); // dRes / dcDot
-					mat.native(i, _nComp + _totalBound) += alpha * static_cast<double>(_MconvMoityBulk2(i, j)) * c[j]; // dRes / dVlDot
+					mat.native(i, j) += timeV * static_cast<double>(_MconvMoityBulk(i, j)); // dRes / dcDot
+					mat.native(i, _nComp + _totalBound) += alpha * static_cast<double>(_MconvMoityBulk(i, j)) * c[j]; // dRes / dVlDot
 				}
 				MoityIdx++;
 			}
@@ -2475,7 +2380,7 @@ void CSTRModel::addTimeDerivativeJacobian(double t, double alpha, const ConstSim
 
 	/*if (_hasQuasiStationaryReactionBulk)
 	{
-		EigenMatrixTimesDemseMatrix(_MconvMoityBulk2, mat);
+		EigenMatrixTimesDemseMatrix(_MconvMoityBulk, mat);
 	}*/
 
 	std::cout << "Jacobian Derivative: " << std::endl;
