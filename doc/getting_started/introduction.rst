@@ -22,9 +22,3 @@ CADET-Core developers who might want to test their extensions of the simulator s
    :maxdepth: 1
 
    /../developer_guide/cadet_python
-
-
-.. figure:: tutorials/_images/cadet_architecture_overview.png
-
-
-   Relations between CADET-Core, CADET-Python, and CADET-Process.
