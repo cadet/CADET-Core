@@ -35,6 +35,7 @@ model.root.input.model.unit_001.par_surfdiffusion = [0.0,]      # m^2 / s (solid
 
 ## Adsorption
 model.root.input.model.unit_001.adsorption_model = 'MULTI_COMPONENT_LANGMUIR'
+model.root.input.model.unit_001.nbound = [1]
 model.root.input.model.unit_001.adsorption.is_kinetic = True    # Kinetic binding
 model.root.input.model.unit_001.adsorption.mcl_ka = [1.0,]      # m^3 / (mol * s)   (mobile phase)
 model.root.input.model.unit_001.adsorption.mcl_kd = [1.0,]      # 1 / s (desorption)
@@ -46,11 +47,9 @@ model.root.input.model.unit_001.init_q = [0.0,]
 
 ## Discretization
 ### Grid cells
+model.root.input.model.unit_001.discretization.spatial_method = "FV"
 model.root.input.model.unit_001.discretization.ncol = 20
 model.root.input.model.unit_001.discretization.npar = 5
-
-### Bound states
-model.root.input.model.unit_001.discretization.nbound = [1]
 
 ### Other options
 model.root.input.model.unit_001.discretization.par_disc_type = 'EQUIDISTANT_PAR'    

@@ -45,6 +45,18 @@ Features
 * Flexible and extensible through modular design
 * Works on Windows, Linux, and Mac OS X
 
+CADET Platform
+--------------
+
+CADET-Core is part of `CADET <https://github.com/cadet>`_, a collective platform of software repositories that provide tools for biotechnology process modeling.
+CADET-Core can be used as a standalone simulator by interfacing via HDF5 files. Alternatively, CADET-Python provides a wrapper around an HDF5 file reader and writer, simplifying model configuration. 
+Furthermore, it is the interface for CADET-Process, an universal and user-friendly tool for biotechnology process modeling and evaluation.
+
+For more information on the different packages of the CADET platform, see :ref:`here <getting_started>`.
+
+.. figure:: getting_started/tutorials/_images/cadet_architecture_overview.png
+
+   Relations between CADET-Core, CADET-Python, and CADET-Process.
 
 Installation
 ------------
@@ -59,7 +71,7 @@ Optionally, use `mamba <https://github.com/mamba-org/mamba>`_ which uses a faste
 
 ``mamba install -c conda-forge cadet``
 
-For more information on how to install and build CADET, see :ref:`here <installation>`.
+For more information on how to install and build CADET, see :ref:`here <getting_started>`.
 
 Ongoing Development
 -------------------
