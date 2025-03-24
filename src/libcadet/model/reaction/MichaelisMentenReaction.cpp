@@ -149,9 +149,23 @@ public:
 
 		return true;
 	}
-
+	virtual int const* reactionQuasiStationarity() const CADET_NOEXCEPT { return nullptr; }
 	virtual unsigned int numReactionsLiquid() const CADET_NOEXCEPT { return _stoichiometryBulk.columns(); }
 	virtual unsigned int numReactionsCombined() const CADET_NOEXCEPT { return 0; }
+	virtual unsigned int numReactionQuasiStationary() const CADET_NOEXCEPT { return 0; }
+	template<typename ResidualType>
+	void ConservedMoietiesBulk(Eigen::Matrix<ResidualType, Eigen::Dynamic, Eigen::Dynamic>& M, int& conservedState, std::vector<int>& QsCompBulk) {}
+
+	template <typename RowIterator>
+	void jacobianQuasiStationaryBulkImpl(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, int state, int reaction ,const RowIterator& jac, LinearBufferAllocator workSpace) const { }
+	
+	template <typename RowIterator>
+	void jacobianSingleFluxImpl(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, int state, int reaction, const RowIterator& jac, LinearBufferAllocator workSpace) const { }
+	
+	virtual void timeDerivativeQuasiStationaryReaction(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, double* dReacDt, LinearBufferAllocator workSpace) { }
+	template<typename StateType, typename ResidualType>
+	int quasiStationaryFlux(double t, unsigned int secIdx, const ColumnPosition& colPos, StateType const* y,
+		Eigen::Map<Eigen::Vector<ResidualType, Eigen::Dynamic>> fluxes, LinearBufferAllocator workSpace) {return 0;}
 
 	CADET_DYNAMICREACTIONMODEL_BOILERPLATE
 
@@ -168,7 +182,7 @@ protected:
 
 		if ((_stoichiometryBulk.columns() > 0) && ((_paramHandler.vMax().size() < _stoichiometryBulk.columns()) || (_paramHandler.kMM().size() < _stoichiometryBulk.columns())))
 			throw InvalidParameterException("MM_VMAX and MM_KMM have to have the same size (number of reactions)");
-		
+
 		if ((_stoichiometryBulk.columns() > 0) && (_paramHandler.kInhibit().size() < _stoichiometryBulk.columns() * _nComp))
 			throw InvalidParameterException("MM_KI have to have the size (number of reactions) x (number of components)");
 
@@ -219,7 +233,7 @@ protected:
 				continue;
 			}
 
-			fluxes[r] = static_cast<typename DoubleActiveDemoter<flux_t, active>::type>(p->vMax[r]) * y[idxSubs] / (static_cast<typename DoubleActiveDemoter<flux_t, active>::type>(p->kMM[r]) + y[idxSubs]);
+			fluxes[r] = static_cast<typename DoubleActiveDemoter<flux_t, active>::type>(p->vMax[r])* y[idxSubs] / (static_cast<typename DoubleActiveDemoter<flux_t, active>::type>(p->kMM[r]) + y[idxSubs]);
 
 			for (int comp = 0; comp < _nComp; ++comp)
 			{
@@ -303,9 +317,8 @@ protected:
 	}
 
 	template <typename RowIteratorLiquid, typename RowIteratorSolid>
-	void jacobianCombinedImpl(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* yLiquid, double const* ySolid, double factor, const RowIteratorLiquid& jacLiquid, const RowIteratorSolid& jacSolid, LinearBufferAllocator workSpace) const
-	{
-	}
+	void jacobianCombinedImpl(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* yLiquid, double const* ySolid, double factor, const RowIteratorLiquid& jacLiquid, const RowIteratorSolid& jacSolid, LinearBufferAllocator workSpace) const {}
+
 };
 
 typedef MichaelisMentenReactionBase<MichaelisMentenParamHandler> MichaelisMentenReaction;

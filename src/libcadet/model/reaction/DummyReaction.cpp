@@ -77,6 +77,13 @@ public:
 	virtual void analyticJacobianLiquidAdd(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, double factor, linalg::BandMatrix::RowIterator jac, LinearBufferAllocator workSpace) const { }
 	virtual void analyticJacobianLiquidAdd(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, double factor, linalg::DenseBandedRowIterator jac, LinearBufferAllocator workSpace) const { }
 	virtual void analyticJacobianLiquidAdd(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, double factor, linalg::BandedSparseRowIterator jac, LinearBufferAllocator workSpace) const { }
+	
+	virtual void analyticJacobianQuasiStationaryReaction(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, int state, int reaction, linalg::BandMatrix::RowIterator jac, LinearBufferAllocator workSpace) const { }
+	virtual void analyticJacobianQuasiStationaryReaction(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, int state, int reaction, linalg::DenseBandedRowIterator jac, LinearBufferAllocator workSpace) const { }
+	virtual void analyticJacobianQuasiStationaryReaction(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, int state, int reaction, linalg::BandedSparseRowIterator jac, LinearBufferAllocator workSpace) const { }
+	
+	virtual void timeDerivativeQuasiStationaryReaction(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, double* dReacDt, LinearBufferAllocator workSpace) { }
+	virtual int const* reactionQuasiStationarity() const CADET_NOEXCEPT { return nullptr; }
 	#ifdef ENABLE_DG
 	virtual void analyticJacobianLiquidAdd(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, double factor, linalg::BandedEigenSparseRowIterator jac, LinearBufferAllocator workSpace) const { }
 	#endif
@@ -96,10 +103,30 @@ public:
 	#ifdef ENABLE_DG
 	virtual void analyticJacobianCombinedAdd(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* yLiquid, double const* ySolid, double factor, linalg::BandedEigenSparseRowIterator jacLiquid, linalg::DenseBandedRowIterator jacSolid, LinearBufferAllocator workSpace) const { }
 	#endif
+	virtual int computeQuasiStationaryReactionFlux(double t, unsigned int secIdx, const ColumnPosition& colPos, active const* y,
+		Eigen::Map<Eigen::Vector<active, Eigen::Dynamic>> fluxes, LinearBufferAllocator workSpace) {
+		return 0;
+	}
+	virtual int computeQuasiStationaryReactionFlux(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y,
+		Eigen::Map<Eigen::Vector<active, Eigen::Dynamic>> fluxes,  LinearBufferAllocator workSpace) {
+		return 0;
+	}
+
+	virtual int computeQuasiStationaryReactionFlux(double t, unsigned int secIdx, const ColumnPosition& colPos, active const* y,
+		Eigen::Map<Eigen::Vector<double, Eigen::Dynamic>> fluxes, LinearBufferAllocator workSpace) {
+		return 0;
+	}
+
+	virtual int computeQuasiStationaryReactionFlux(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y,
+		Eigen::Map<Eigen::Vector<double, Eigen::Dynamic>> fluxes, LinearBufferAllocator workSpace) {
+		return 0;
+	}
 
 	virtual unsigned int numReactionsLiquid() const CADET_NOEXCEPT { return 0; }
 	virtual unsigned int numReactionsCombined() const CADET_NOEXCEPT { return 0; }
-
+	virtual unsigned int numReactionQuasiStationary() const CADET_NOEXCEPT { return 0; }
+	template<typename ResidualType>
+	void ConservedMoietiesBulk(Eigen::Matrix<ResidualType, Eigen::Dynamic, Eigen::Dynamic>& M, int& conservedState, std::vector<int>& QsCompBulk) {}
 protected:
 };
 

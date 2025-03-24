@@ -498,7 +498,6 @@ public:
 	 * @param [in] res On entry, residual without taking time derivatives into account. The data is overwritten during execution of the function.
 	 */
 	virtual void leanConsistentInitialTimeDerivative(double t, double const* const vecStateY, double* const vecStateYdot, double* const res, util::ThreadLocalStorage& threadLocalMem) = 0;
-
 	/**
 	 * @brief Computes consistent initial conditions for all sensitivity subsystems
 	 * @details Given the DAE \f[ F(t, y, \dot{y}, p) = 0, \f] the corresponding (linear) forward sensitivity
