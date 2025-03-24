@@ -30,6 +30,11 @@
 
 #include <algorithm>
 #include <functional>
+#include <bitset>
+#include <Eigen/Dense>
+#include <Eigen/Sparse>
+
+#include<iostream>//todo delete
 
 namespace cadet
 {
@@ -76,7 +81,8 @@ namespace cadet
 			delete[] _strideBound;
 			delete[] _offsetParType;
 
-			delete _dynReactionBulk;
+			delete[] _dynReactionBulk;
+
 		}
 
 		unsigned int CSTRModel::numDofs() const CADET_NOEXCEPT
@@ -351,11 +357,43 @@ namespace cadet
 
 			// Reconfigure reaction model
 			bool dynReactionConfSuccess = true;
+			_hasQuasiStationaryReactionBulk = false;
 			if (_dynReactionBulk && _dynReactionBulk->requiresConfiguration())
 			{
 				paramProvider.pushScope("reaction_bulk");
 				dynReactionConfSuccess = _dynReactionBulk->configure(paramProvider, _unitOpIdx, ParTypeIndep);
 				paramProvider.popScope();
+
+				// Get quasi stationary reactions information vector
+				_dynReactionBulk->hasQuasiStationaryReactionsBulk();
+
+				if (_dynReactionBulk->hasQuasiStationaryReactionsBulk())
+				{
+					_QsCompBulk.resize(_nComp);
+					_dynReactionBulk->fillConservedMoietiesBulk(_MconvMoityBulk, _nConservedQuants, _QsCompBulk);
+
+
+					bool hasQSBinding = false;
+					for (int i = 0; i < _nParType; i++)
+					{
+						if (_binding[i] && _binding[i]->hasQuasiStationaryReactions())
+						{
+							hasQSBinding = true;
+							break;
+						}
+					}
+					_hasQuasiStationaryReactionBulk = _dynReactionBulk->hasQuasiStationaryReactionsBulk();
+					if (hasQSBinding && _hasQuasiStationaryReactionBulk)
+					{
+						throw InvalidParameterException("Quasi stationary reactions in binding and bulk reaction model are not supported");
+					}
+				}
+			}
+			else
+			{
+				_MconvMoityBulk = Eigen::Matrix<active, Eigen::Dynamic, Eigen::Dynamic>::Zero(0, 0); // matrix for conserved moities
+				_QsCompBulk.clear();
+				_nConservedQuants = 0;
 			}
 
 			for (unsigned int type = 0; type < _nParType; ++type)
@@ -422,9 +460,7 @@ namespace cadet
 			return lms.bufferSize();
 		}
 
-		void CSTRModel::setSectionTimes(double const* secTimes, bool const* secContinuity, unsigned int nSections)
-		{
-		}
+		void CSTRModel::setSectionTimes(double const* secTimes, bool const* secContinuity, unsigned int nSections) {}
 
 		void CSTRModel::useAnalyticJacobian(const bool analyticJac)
 		{
@@ -446,6 +482,8 @@ namespace cadet
 			{
 				_curFlowRateFilter = _flowRateFilter[0];
 			}
+
+			_curSecIdx = secIdx;
 		}
 
 		void CSTRModel::reportSolution(ISolutionRecorder& recorder, double const* const solution) const
@@ -610,6 +648,206 @@ namespace cadet
 						c[i] -= qFactor * static_cast<double>(_parTypeVolFrac[type]) * qSum;
 					}
 				}
+			}
+			if (_hasQuasiStationaryReactionBulk)
+			{
+
+				LinearBufferAllocator tlmAlloc = threadLocalMem.get();
+				BufferedArray<int> qsMask = tlmAlloc.array<int>(_nComp);
+
+				// mark which concentrations need to be reacalculated
+				qsMask.copyFromVector(_QsCompBulk);
+
+				int nActiveStates = std::count(_QsCompBulk.begin(), _QsCompBulk.end(), 1);
+
+				const linalg::ConstMaskArray mask{ static_cast<int*>(qsMask), static_cast<int>(_nComp) };
+				const int probSize = linalg::numMaskActive(mask);
+
+				// Extract initial values from current state
+				BufferedArray<double> solution = tlmAlloc.array<double>(probSize);
+				linalg::selectVectorSubset(c, mask, static_cast<double*>(solution));
+
+				// Save values of conserved moieties;
+				const unsigned int numActiveComp = numMaskActive(mask, _nComp);
+				BufferedArray<double> conservedQuants = tlmAlloc.array<double>(nActiveStates); // number of conserved quantities
+
+				// Calculate conserved quantities for the inital state 
+
+				int mIdx = 0;
+				for (unsigned int i = 0; i < _nComp; ++i)
+				{
+					if (_QsCompBulk[i] == 0)
+						continue;
+					if (mIdx >= _nConservedQuants)
+						continue;
+					double dotProduct = 0.0;
+					for (unsigned int j = 0; j < _MconvMoityBulk.cols(); ++j)
+						dotProduct += static_cast<double>(_MconvMoityBulk(i, j)) * c[j];
+
+					conservedQuants[mIdx] = dotProduct;
+					mIdx++;
+				}
+
+				linalg::DenseMatrixView jacobianMatrix(_jacFact.data(), _jacFact.pivotData(), probSize, probSize);
+				BufferedArray<double> baFullX = tlmAlloc.array<double>(numDofs());
+				double* const fullX = static_cast<double*>(baFullX);
+
+				BufferedArray<double> baFullResidual = tlmAlloc.array<double>(numDofs());
+				double* const fullResidual = static_cast<double*>(baFullResidual);
+
+				BufferedArray<double> baNonlinMem = tlmAlloc.array<double>(_nonlinearSolver->workspaceSize(probSize));
+				double* const nonlinMem = static_cast<double*>(baNonlinMem);
+
+
+				std::function<bool(double const* const, linalg::detail::DenseMatrixBase&)> jacFunc;
+				if (adJac.adY && adJac.adRes)
+				{
+					ad::copyToAd(vecStateY, adJac.adY, _nComp);
+
+					jacFunc = [&](double const* const x, linalg::detail::DenseMatrixBase& mat)
+						{
+							active* const localAdY = adJac.adY + _nComp;
+							active* const localAdRes = adJac.adRes + _nComp;
+
+							// Copy over state vector to AD state vector (without changing directional values to keep seed vectors)
+							// and initialize residuals with zero (also resetting directional values)
+							ad::copyToAd(c, localAdY, mask.len);
+							// @todo Check if this is necessary
+							ad::resetAd(localAdRes, mask.len);
+
+							// Prepare input vector by overwriting masked items
+							linalg::applyVectorSubset(x, mask, localAdY);
+
+							// Call residual function
+							residualImpl<active, active, double, false>(simTime.t, simTime.secIdx, adJac.adY, nullptr, adJac.adRes, tlmAlloc.manageRemainingMemory());
+
+#ifdef CADET_CHECK_ANALYTIC_JACOBIAN
+							std::copy_n(c, mask.len, fullX);
+							linalg::applyVectorSubset(x, mask, fullX);
+
+							// Compute analytic Jacobian
+							residualImpl<double, double, double, true>(simTime.t, simTime.secIdx, fullX, nullptr, fullResidual, tlmAlloc.manageRemainingMemory());
+
+							// Compare
+							const double diff = ad::compareDenseJacobianWithAd(localAdRes, adJac.adDirOffset, _jac);
+							LOG(Debug) << "MaxDiff: " << diff;
+#endif
+
+							// Extract Jacobian from AD
+							ad::extractDenseJacobianFromAd(localAdRes, adJac.adDirOffset, _jac);
+
+							// Extract Jacobian from full Jacobian
+							mat.setAll(0.0);
+							linalg::copyMatrixSubset(_jac, mask, mask, mat);
+							int numConservedMoities = _nComp - _dynReactionBulk->numReactionQuasiStationary();
+
+							// Replace upper part with conservation relations
+							int  mIdx = 0;
+							for (unsigned int i = 0; i < _nComp; ++i)
+							{
+								if (_QsCompBulk[i] == 0)
+									continue;
+								if (mIdx >= _nConservedQuants)
+									continue;
+
+								int jIdx = 0;
+								for (unsigned int j = 0; j < _MconvMoityBulk.cols(); ++j)
+								{
+									if (_QsCompBulk[j] == 0)
+										continue;
+
+									mat.native(mIdx, jIdx) = static_cast<double>(_MconvMoityBulk(i, j));
+									jIdx++;
+								}
+								mIdx++;
+							}
+							return true;
+						};
+				}
+				else
+				{
+					jacFunc = [&](double const* const x, linalg::detail::DenseMatrixBase& mat)
+						{
+							// Prepare input vector by overwriting masked items
+							std::copy_n(c, mask.len, fullX + _nComp);
+
+							linalg::applyVectorSubset(x, mask, fullX + _nComp);
+
+							// Call residual function to initialize jacobian
+							residualImpl<double, double, double, true>(simTime.t, simTime.secIdx, fullX, nullptr, fullResidual, tlmAlloc.manageRemainingMemory());
+
+							// Extract Jacobian from full Jacobian
+							mat.setAll(0.0);
+							linalg::copyMatrixSubset(_jac, mask, mask, mat);
+							// Replace upper part with conservation relations
+							int  mIdx = 0;
+							int nConservedComps = _nComp - numActiveComp; // _nComp - _dynReactionBulk->numReactionQuasiStationary();
+							for (unsigned int i = 0; i < _nComp; ++i)
+							{
+								if (_QsCompBulk[i] == 0)
+									continue;
+								if (mIdx >= _nConservedQuants)
+									continue;
+
+								int jIdx = 0;
+								for (unsigned int j = 0; j < _MconvMoityBulk.cols(); ++j)
+								{
+									if (_QsCompBulk[j] == 0)
+										continue;
+
+									mat.native(mIdx, jIdx) = static_cast<double>(_MconvMoityBulk(i, j));
+									jIdx++;
+								}
+								mIdx++;
+							}
+							return true;
+						};
+				}
+				std::copy_n(vecStateY, _nComp, fullX);
+				fullX[(2 * _nComp + _totalBound)] = c[(_nComp + _totalBound)]; // volume
+				_nonlinearSolver->solve(
+					[&](double const* const x, double* const r)
+					{
+						// Prepare input vector by overwriting masked items
+						std::copy_n(c, mask.len, fullX + _nComp);
+						linalg::applyVectorSubset(x, mask, fullX + _nComp);
+
+						// Call residual function
+						residualImpl<double, double, double, false>(simTime.t, simTime.secIdx, fullX, nullptr, fullResidual, tlmAlloc.manageRemainingMemory());
+
+						// Extract values from residual
+						linalg::selectVectorSubset(fullResidual + _nComp, mask, r);
+
+						int nConservedComps = _nComp - nActiveStates; // _nComp - _dynReactionBulk->numReactionQuasiStationary();
+						int  mIdx = 0;
+						for (unsigned int i = 0; i < _nComp; ++i)
+						{
+							if (_QsCompBulk[i] == 0) // 
+								continue;
+							if (mIdx >= _nConservedQuants)
+								continue;
+							int jIdx = 0;
+							double dotProduct = 0.0;
+							for (unsigned int j = 0; j < _MconvMoityBulk.cols(); ++j)
+							{
+								if (_QsCompBulk[j] == 0)
+									continue;
+								dotProduct += static_cast<double>(_MconvMoityBulk(i, j)) * x[jIdx];
+								jIdx++;
+							}
+							r[mIdx] = dotProduct - conservedQuants[mIdx];
+							mIdx++;
+						}
+
+						return true;
+					},
+					jacFunc, errorTol, static_cast<double*>(solution), nonlinMem, jacobianMatrix, probSize);
+
+				// Apply solution
+				linalg::applyVectorSubset(static_cast<double*>(solution), mask, c);
+
+				int a = 0;
+				// Refine / correct solution
 			}
 			else
 			{
@@ -908,7 +1146,7 @@ namespace cadet
 			const double flowIn = static_cast<double>(_flowRateIn);
 			const double flowOut = static_cast<double>(_flowRateOut);
 
-			// Note that the residual has not been negated, yet. We will do that now.
+			// Note that the residual has not been negated, yet. We will do that now. (t0 is cDot = res(t0))
 			for (unsigned int i = 0; i < numDofs(); ++i)
 				vecStateYdot[i] = -vecStateYdot[i];
 
@@ -989,54 +1227,93 @@ namespace cadet
 				}
 			}
 
-			LinearBufferAllocator tlmAlloc = threadLocalMem.get();
-
-			// Overwrite rows corresponding to algebraic equations with the Jacobian and set right hand side to 0
-			BufferedArray<double> dFluxDt = tlmAlloc.array<double>(_nComp + _totalBound + 1);
-			unsigned int idx = _nComp;
-			for (unsigned int type = 0; type < _nParType; ++type)
+			if (_hasQuasiStationaryReactionBulk)
 			{
-				if (!_binding[type]->hasQuasiStationaryReactions())
-				{
-					idx += _strideBound[type];
-					continue;
-				}
 
-				int const* const mask = _binding[type]->reactionQuasiStationarity();
+				//LinearBufferAllocator tlmAlloc = threadLocalMem.get(); // -> todo hier aufpassen ob ich den mem auch benutzen darf
+				LinearBufferAllocator tlmAlloc = threadLocalMem.get();
+
+				// Overwrite rows corresponding to algebraic equations with the Jacobian and set right hand side to 0
+				BufferedArray<double> dReacDt = tlmAlloc.array<double>(_nComp + 1);
 
 				// Obtain derivative of fluxes wrt. time
-				std::fill_n(static_cast<double*>(dFluxDt), _strideBound[type], 0.0);
-				if (_binding[type]->dependsOnTime())
+				std::fill_n(static_cast<double*>(dReacDt), _nComp + 1, 0.0);
+
+				_dynReactionBulk->timeDerivativeQuasiStationaryReaction(simTime.t, _curSecIdx, ColumnPosition{ 0.0, 0.0, 0.0 }, c, static_cast<double*>(dReacDt), tlmAlloc);
+
+				// Copy row assioated to algebraic equation from original Jacobian and set right hand side
+				double* const cDot = vecStateYdot + _nComp;
+				int test = _nComp - _dynReactionBulk->numReactionQuasiStationary();
+				for (int i = test; i < _nComp; ++i)
 				{
-					_binding[type]->timeDerivativeQuasiStationaryFluxes(simTime.t, simTime.secIdx,
-						ColumnPosition{ 0.0, 0.0, 0.0 },
-						c, c + _nComp + _offsetParType[type], static_cast<double*>(dFluxDt), tlmAlloc);
+					_jacFact.copyRowFrom(_jac, i, i);
+					cDot[i] = -dReacDt[i];
 				}
 
-				// Copy row from original Jacobian and set right hand side
-				double* const qShellDot = cDot + _nComp + _offsetParType[type];
-				for (unsigned int i = 0; i < _strideBound[type]; ++i, ++idx)
+
+				// Factorize
+				const bool result = _jacFact.robustFactorize(static_cast<double*>(dReacDt));
+				if (!result)
 				{
-					if (!mask[i])
+					LOG(Error) << "Factorize() failed";
+				}
+
+				// Solve
+				const bool result2 = _jacFact.robustSolve(vecStateYdot + _nComp, static_cast<double*>(dReacDt));
+				if (!result2)
+				{
+					LOG(Error) << "Solve() failed";
+				}
+			}
+			else {
+				// Overwrite rows corresponding to algebraic equations with the Jacobian and set right hand side to 0
+				LinearBufferAllocator tlmAlloc = threadLocalMem.get();
+				BufferedArray<double> dFluxDt = tlmAlloc.array<double>(_nComp + _totalBound + 1);
+				unsigned int idx = _nComp;
+				for (unsigned int type = 0; type < _nParType; ++type)
+				{
+					if (!_binding[type]->hasQuasiStationaryReactions())
+					{
+						idx += _strideBound[type];
 						continue;
+					}
 
-					_jacFact.copyRowFrom(_jac, idx, idx);
-					qShellDot[i] = -dFluxDt[i];
+					int const* const mask = _binding[type]->reactionQuasiStationarity();
+
+					// Obtain derivative of fluxes wrt. time
+					std::fill_n(static_cast<double*>(dFluxDt), _strideBound[type], 0.0);
+					if (_binding[type]->dependsOnTime())
+					{
+						_binding[type]->timeDerivativeQuasiStationaryFluxes(simTime.t, simTime.secIdx,
+							ColumnPosition{ 0.0, 0.0, 0.0 },
+							c, c + _nComp + _offsetParType[type], static_cast<double*>(dFluxDt), tlmAlloc);
+					}
+
+					// Copy row from original Jacobian and set right hand side
+					double* const qShellDot = cDot + _nComp + _offsetParType[type];
+					for (unsigned int i = 0; i < _strideBound[type]; ++i, ++idx)
+					{
+						if (!mask[i])
+							continue;
+
+						_jacFact.copyRowFrom(_jac, idx, idx);
+						qShellDot[i] = -dFluxDt[i];
+					}
 				}
-			}
 
-			// Factorize
-			const bool result = _jacFact.robustFactorize(static_cast<double*>(dFluxDt));
-			if (!result)
-			{
-				LOG(Error) << "Factorize() failed";
-			}
+				// Factorize
+				const bool result = _jacFact.robustFactorize(static_cast<double*>(dFluxDt));
+				if (!result)
+				{
+					LOG(Error) << "Factorize() failed";
+				}
 
-			// Solve
-			const bool result2 = _jacFact.robustSolve(vecStateYdot + _nComp, static_cast<double*>(dFluxDt));
-			if (!result2)
-			{
-				LOG(Error) << "Solve() failed";
+				// Solve
+				const bool result2 = _jacFact.robustSolve(vecStateYdot + _nComp, static_cast<double*>(dFluxDt));
+				if (!result2)
+				{
+					LOG(Error) << "Solve() failed";
+				}
 			}
 		}
 
@@ -1048,6 +1325,9 @@ namespace cadet
 			double* const c = vecStateY + _nComp;
 			const double vLiquid = c[_nComp];
 			const double vSolid = static_cast<double>(_constSolidVolume);
+
+			if (!_hasQuasiStationaryReactionBulk)
+				return;
 			// Check if volume is 0
 			if (vLiquid == 0.0)
 			{
@@ -1120,12 +1400,15 @@ namespace cadet
 			const double flowIn = static_cast<double>(_flowRateIn);
 			const double flowOut = static_cast<double>(_flowRateOut);
 
+			LinearBufferAllocator tlmAlloc = threadLocalMem.get();
+
 			// Volume: \dot{V} = F_{in} - F_{out} - F_{filter}
 			const double vDot = flowIn - flowOut - static_cast<double>(_curFlowRateFilter);
 			cDot[_nComp] = vDot;
 
+
 			// Check if volume is 0
-			if (vLiquid == 0.0)
+			if (vLiquid == 0.0 && !_hasQuasiStationaryReactionBulk)
 			{
 				// We have the equation
 				//    V^l * \dot{c}_i + \dot{V}^l * c_i + V^s * [sum_j sum_m d_j q_{i,m}]} = c_{in,i} * F_in - c_i * F_out
@@ -1189,6 +1472,7 @@ namespace cadet
 					}
 				}
 			}
+
 			else
 			{
 				// Concentrations: V^l * \dot{c} + \dot{V}^l * c + V^s * [sum_j sum_m d_j \dot{q}_{j,m}] = c_in * F_in + c * F_out
@@ -1217,6 +1501,7 @@ namespace cadet
 					cDot[i] = (-resC[i] - vSolid * qDotSum - vLiquid * c[i]) / vLiquid;
 				}
 			}
+
 		}
 
 		void CSTRModel::leanConsistentInitialSensitivity(const SimulationTime& simTime, const ConstSimulationState& simState,
@@ -1235,6 +1520,124 @@ namespace cadet
 			return residualImpl<double, double, double, false>(simTime.t, simTime.secIdx, simState.vecStateY, simState.vecStateYdot, res, threadLocalMem.get());
 		}
 
+		template <typename ResidualType>
+		void CSTRModel::EigenMatrixTimesDenseMatrix(Eigen::Matrix<ResidualType, Eigen::Dynamic, Eigen::Dynamic> A, linalg::DenseMatrix& B)
+		{
+
+
+			Eigen::SparseMatrix<double> jacSparse(_nComp + 1, _nComp + 1);
+
+			// Reserve space for non-zeros (optional but recommended for performance)
+			jacSparse.reserve(Eigen::VectorXi::Constant(_nComp + 1, _nComp + 1)); // Assumes average of 5 entries per column
+
+			// Copy data from original Jacobian - use triplet list for initialization
+			std::vector<Eigen::Triplet<double>> tripletList;
+			for (int i = 0; i < _nComp + 1; ++i) {
+				for (int j = 0; j < _nComp + 1; ++j) {
+					double val = B.native(i, j);
+					if (std::abs(val) > 1e-15) { // Only insert non-zero elements
+						tripletList.push_back(Eigen::Triplet<double>(i, j, val));
+					}
+				}
+			}
+			jacSparse.setFromTriplets(tripletList.begin(), tripletList.end());
+			jacSparse.makeCompressed();
+
+			// apply conserved moities to jacobian
+			Eigen::SparseMatrix<double> sparseMoieties(_nComp + 1, _nComp + 1);
+			// Create sparseMoieties also using triplets
+			std::vector<Eigen::Triplet<double>> moietyTriplets;
+			for (int i = 0; i < A.rows(); ++i) {
+				for (int j = 0; j < A.cols(); ++j) {
+					if (std::abs(static_cast<double>(A(i, j))) > 1e-15) {
+						moietyTriplets.push_back(Eigen::Triplet<double>(i, j, static_cast<double>(A(i, j))));
+					}
+				}
+			}
+			sparseMoieties.setFromTriplets(moietyTriplets.begin(), moietyTriplets.end());
+			sparseMoieties.makeCompressed();
+
+			// Multiply matrices
+			Eigen::SparseMatrix<double> jacSparseMoities = sparseMoieties * jacSparse;
+
+			// Copy transformed Jacobian back
+			for (int k = 0; k < jacSparseMoities.outerSize(); ++k) {
+				for (typename Eigen::SparseMatrix<double>::InnerIterator it(jacSparseMoities, k); it; ++it) {
+					B.native(it.row(), it.col()) = it.value();
+				}
+			}
+
+
+		}
+
+		template <typename StateType, typename ResidualType, typename ParamType, bool wantJac>
+		void CSTRModel::applyConservedMoitiesBulk(double t, unsigned int secIdx, const ColumnPosition& colPos, StateType const* const c, double const* const yDot, ResidualType* const resC, LinearBufferAllocator tlmAlloc)
+		{
+			// prepare memory
+			LinearBufferAllocator subAlloc = tlmAlloc.manageRemainingMemory();
+
+			// create map to residual vector of concentrations
+			Eigen::Map<Eigen::Vector<ResidualType, Eigen::Dynamic>> mapResC(resC, _nComp);
+
+			// calculate flux for quasi stationary reactions
+			BufferedArray<ResidualType> temp2 = subAlloc.array<ResidualType>(_nComp);
+			Eigen::Map<Eigen::Vector<ResidualType, Eigen::Dynamic>> qsFlux(static_cast<ResidualType*>(temp2), _dynReactionBulk->numReactionsLiquid());
+			qsFlux.setZero();
+			_dynReactionBulk->computeQuasiStationaryReactionFlux(t, secIdx, colPos, c, qsFlux, subAlloc);
+
+			// buffer memory for transformed residual
+			BufferedArray<ResidualType> temp = subAlloc.array<ResidualType>(_nComp);
+			Eigen::Map<Eigen::Vector<ResidualType, Eigen::Dynamic>> resCWithMoities(static_cast<ResidualType*>(temp), _nComp);
+			resCWithMoities.setZero();
+
+			Eigen::Matrix<ResidualType, Eigen::Dynamic, Eigen::Dynamic> MconvMoityBulkCast = _MconvMoityBulk.template cast<ResidualType>();
+
+			// multiply conserved moities matrix with residual
+			resCWithMoities = MconvMoityBulkCast * mapResC;
+
+			// add quasi stationary reaction to residium
+			const int nQsReac = _dynReactionBulk->numReactionQuasiStationary();
+			int mIdx = 0;
+			int rIdx = 0;
+			for (int i = 0; i < _nComp; i++)
+			{
+				if (_QsCompBulk[i] == 0)
+					continue;
+				else if (mIdx < _nConservedQuants)
+					mIdx++;
+				else if (rIdx < nQsReac)
+				{
+					resCWithMoities[i] = qsFlux[rIdx];
+					rIdx++;
+				}
+
+			}
+
+			mapResC = resCWithMoities;
+
+			if (wantJac)
+			{
+				EigenMatrixTimesDenseMatrix(MconvMoityBulkCast, _jac);
+				int mIdx = 0;
+				int rIdx = 0;
+				for (int i = 0; i < _nComp; i++)
+				{
+					if (_QsCompBulk[i] == 0)
+						continue;
+					else if (mIdx < _nConservedQuants)
+						mIdx++;
+					else if (rIdx < nQsReac)
+					{
+						_dynReactionBulk->analyticJacobianQuasiStationaryReaction(t, secIdx, colPos, reinterpret_cast<double const*>(c), i, rIdx, _jac.row(i), subAlloc);
+						_jac.native(i, _nComp + _totalBound) = 0.0; // dF_{ci}/dvliquid = 0
+					}
+
+				}
+			}
+
+		}
+
+
 		template <typename StateType, typename ResidualType, typename ParamType, bool wantJac>
 		int CSTRModel::residualImpl(double t, unsigned int secIdx, StateType const* const y, double const* const yDot, ResidualType* const res, LinearBufferAllocator tlmAlloc)
 		{
@@ -1244,7 +1647,6 @@ namespace cadet
 
 			double const* const cDot = yDot ? yDot + _nComp : nullptr;
 			const double vDot = yDot ? yDot[2 * _nComp + _totalBound] : 0.0;
-
 			const ParamType flowIn = static_cast<ParamType>(_flowRateIn);
 			const ParamType flowOut = static_cast<ParamType>(_flowRateOut);
 
@@ -1256,7 +1658,7 @@ namespace cadet
 
 			// Concentrations: \dot{V^l} * c + V^l * \dot{c} + V^s * sum_j sum_m \dot{q}_{j,m}] = c_in * F_in - c * F_out
 			const ParamType vsolid = static_cast<ParamType>(_constSolidVolume);
-			ResidualType* const resC = res + _nComp;
+			ResidualType* resC = res + _nComp;
 			for (unsigned int i = 0; i < _nComp; ++i)
 			{
 				resC[i] = 0.0;
@@ -1279,14 +1681,12 @@ namespace cadet
 						{
 							qDotSumType += qDot[j];
 						}
-
 						qDotSum += static_cast<ParamType>(_parTypeVolFrac[type]) * qDotSumType;
 					}
 
 					// Divide by beta and add c_i and dc_i / dt
 					resC[i] = cDot[i] * v + vDot * c[i] + vsolid * qDotSum;
 				}
-
 				resC[i] += -flowIn * cIn[i] + flowOut * c[i];
 			}
 
@@ -1311,12 +1711,11 @@ namespace cadet
 
 			// Reactions in liquid phase
 			const ColumnPosition colPos{ 0.0, 0.0, 0.0 };
-
 			if (_dynReactionBulk && (_dynReactionBulk->numReactionsLiquid() > 0))
 			{
 				LinearBufferAllocator subAlloc = tlmAlloc.manageRemainingMemory();
-				BufferedArray<ResidualType> flux = subAlloc.array<ResidualType>(_nComp);
 
+				BufferedArray<ResidualType> flux = subAlloc.array<ResidualType>(_nComp);
 				std::fill_n(static_cast<ResidualType*>(flux), _nComp, 0.0);
 				_dynReactionBulk->residualLiquidAdd(t, secIdx, colPos, c, static_cast<ResidualType*>(flux), -1.0, subAlloc);
 
@@ -1330,8 +1729,13 @@ namespace cadet
 
 					_dynReactionBulk->analyticJacobianLiquidAdd(t, secIdx, colPos, reinterpret_cast<double const*>(c), -static_cast<double>(v), _jac.row(0), subAlloc);
 				}
-			}
 
+				if (_hasQuasiStationaryReactionBulk)
+				{
+					applyConservedMoitiesBulk<StateType, ResidualType, ParamType, wantJac>(t, secIdx, colPos, c, yDot, resC, subAlloc);
+
+				}
+			}
 			// Bound states
 			for (unsigned int type = 0; type < _nParType; ++type)
 			{
@@ -1401,7 +1805,6 @@ namespace cadet
 							}
 						}
 					}
-
 					if (wantJac)
 					{
 						// Assemble Jacobian: Reaction
@@ -1440,6 +1843,7 @@ namespace cadet
 
 			// Volume: \dot{V} = F_{in} - F_{out} - F_{filter}
 			res[2 * _nComp + _totalBound] = vDot - flowIn + flowOut + static_cast<ParamType>(_curFlowRateFilter);
+
 
 			return 0;
 		}
@@ -1490,7 +1894,14 @@ namespace cadet
 
 					// Extract Jacobian
 					extractJacobianFromAD(adJac.adRes, adJac.adDirOffset);
-
+					/*
+					std::cout << "Jacobian: " << std::endl;
+					for (unsigned int i = 0; i < _nComp + 1; ++i)
+					{
+						for (unsigned int j = 0; j < _nComp + 1; ++j)
+							std::cout << _jac.native(i, j) << " ";
+						std::cout << std::endl;
+					}*/
 					return retCode;
 				}
 #else
@@ -1833,28 +2244,56 @@ namespace cadet
 			// Assemble Jacobian: dRes / dyDot
 
 			// Concentrations: \dot{V^l} * c_i + V^l * \dot{c}_i + V^s * [sum_j sum_m d_j \dot{q}_{j,i,m}]) - c_{in,i} * F_in + c_i * F_out == 0
-			for (unsigned int i = 0; i < _nComp; ++i)
+
+
+			if (_hasQuasiStationaryReactionBulk)
 			{
-				mat.native(i, i) += timeV; // dRes / dcDot
-
-				double qSum = 0.0;
-				for (unsigned int type = 0; type < _nParType; ++type)
+				int  MoityIdx = 0;
+				for (unsigned int i = 0; i < _nComp; i++)
 				{
-					double const* const qi = q + _offsetParType[type] + _boundOffset[type * _nComp + i];
-					const unsigned int localOffset = _nComp + _offsetParType[type] + _boundOffset[type * _nComp + i];
-					const double vSolidParVolFrac = timeVSolid * static_cast<double>(_parTypeVolFrac[type]);
-					for (unsigned int j = 0; j < _nBound[type * _nComp + i]; ++j)
+					if (_QsCompBulk[i] == 0)
 					{
-						mat.native(i, localOffset + j) += vSolidParVolFrac; // dRes / dqDot
-						// + _nComp: Moves over liquid phase components
-						// + _offsetParType[type]: Moves to particle type
-						// + _boundOffset[i]: Moves over bound states of previous components
-						// + j: Moves to current bound state j of component i
-
+						mat.native(i, i) += timeV; // dRes / dcDot
+					}
+					else if (MoityIdx >= _nConservedQuants)
+						continue;
+					else
+					{
+						for (int j = 0; j < _nComp; j++)
+						{
+							mat.native(i, j) += timeV * static_cast<double>(_MconvMoityBulk(i, j)); // dRes / dcDot
+							mat.native(i, _nComp + _totalBound) += alpha * static_cast<double>(_MconvMoityBulk(i, j)) * c[j]; // dRes / dVlDot
+						}
+						MoityIdx++;
 					}
 				}
 
-				mat.native(i, _nComp + _totalBound) += alpha * c[i]; // dRes / dVlDot
+			}
+			else
+			{
+				for (unsigned int i = 0; i < _nComp; ++i)
+				{
+					mat.native(i, i) += timeV; // dRes / dcDot
+
+					double qSum = 0.0;
+					for (unsigned int type = 0; type < _nParType; ++type)
+					{
+						double const* const qi = q + _offsetParType[type] + _boundOffset[type * _nComp + i];
+						const unsigned int localOffset = _nComp + _offsetParType[type] + _boundOffset[type * _nComp + i];
+						const double vSolidParVolFrac = timeVSolid * static_cast<double>(_parTypeVolFrac[type]);
+						for (unsigned int j = 0; j < _nBound[type * _nComp + i]; ++j)
+						{
+							mat.native(i, localOffset + j) += vSolidParVolFrac; // dRes / dqDot
+							// + _nComp: Moves over liquid phase components
+							// + _offsetParType[type]: Moves to particle type
+							// + _boundOffset[i]: Moves over bound states of previous components
+							// + j: Moves to current bound state j of component i
+
+						}
+					}
+
+					mat.native(i, _nComp + _totalBound) += alpha * c[i]; // dRes / dVlDot
+				}
 			}
 
 			// Bound states
@@ -1882,13 +2321,29 @@ namespace cadet
 
 			// Volume: \dot{V} - F_{in} + F_{out} + F_{filter} == 0
 			mat.native(_nComp + _totalBound, _nComp + _totalBound) += alpha;
+
+			//std::cout << "Jacobian Derivative: " << std::endl;
+			//std::cout << "Before:" << std::endl;
+			//for (unsigned int i = 0; i < _nComp + 1; ++i)
+			//{
+			//	for (unsigned int j = 0; j < _nComp + 1; ++j)
+			//		std::cout << mat.native(i, j) << " ";
+			//	std::cout << std::endl;
+			//}
+
+			/*if (_hasQuasiStationaryReactionBulk)
+			{
+				EigenMatrixTimesDenseMatrix(_MconvMoityBulk, mat);
+			}*/
+
 		}
 
-		/**
-			* @brief Extracts the system Jacobian from AD seed vectors
-			* @param [in] adRes Residual vector of AD datatypes with band compressed seed vectors
-			* @param [in] adDirOffset Number of AD directions used for non-Jacobian purposes (e.g., parameter sensitivities)
-			*/
+
+		/*
+		* @brief Extracts the system Jacobian from AD seed vectors
+		* @param [in] adRes Residual vector of AD datatypes with band compressed seed vectors
+		* @param [in] adDirOffset Number of AD directions used for non-Jacobian purposes (e.g., parameter sensitivities)
+		*/
 		void CSTRModel::extractJacobianFromAD(active const* const adRes, unsigned int adDirOffset)
 		{
 			ad::extractDenseJacobianFromAd(adRes + _nComp, adDirOffset, _jac);

@@ -24,12 +24,14 @@
 #include "linalg/DenseMatrix.hpp"
 #include "model/ModelUtils.hpp"
 #include "Memory.hpp"
-
+#include <bitset>
 #include <array>
 #include <vector>
+#include <Eigen/Dense>
 
 namespace cadet
 {
+	struct ColumnPosition;
 
 	namespace model
 	{
@@ -78,6 +80,12 @@ namespace cadet
 			virtual int residual(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res, util::ThreadLocalStorage& threadLocalMem);
 			virtual int residual(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res, const AdJacobianParams& adJac, util::ThreadLocalStorage& threadLocalMem, bool updateJacobian, bool paramSensitivity);
 
+			template <typename ResidualType>
+			void EigenMatrixTimesDenseMatrix(Eigen::Matrix<ResidualType, Eigen::Dynamic, Eigen::Dynamic> A, linalg::DenseMatrix& B);
+
+			template <typename StateType, typename ResidualType, typename ParamType, bool wantJac>
+			void applyConservedMoitiesBulk(double t, unsigned int secIdx, const ColumnPosition& colPos, StateType const* const y, double const* const yDot, ResidualType* const resC, LinearBufferAllocator tlmAlloc);
+
 			virtual int jacobian(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res, const AdJacobianParams& adJac, util::ThreadLocalStorage& threadLocalMem);
 			virtual int residualWithJacobian(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res, const AdJacobianParams& adJac, util::ThreadLocalStorage& threadLocalMem);
 			virtual int residualSensFwdAdOnly(const SimulationTime& simTime, const ConstSimulationState& simState, active* const adRes, util::ThreadLocalStorage& threadLocalMem);
@@ -93,13 +101,12 @@ namespace cadet
 
 			virtual void consistentInitialState(const SimulationTime& simTime, double* const vecStateY, const AdJacobianParams& adJac, double errorTol, util::ThreadLocalStorage& threadLocalMem);
 			virtual void consistentInitialTimeDerivative(const SimulationTime& simTime, double const* vecStateY, double* const vecStateYdot, util::ThreadLocalStorage& threadLocalMem);
-
 			virtual void initializeSensitivityStates(const std::vector<double*>& vecSensY) const;
 			virtual void consistentInitialSensitivity(const SimulationTime& simTime, const ConstSimulationState& simState,
 				std::vector<double*>& vecSensY, std::vector<double*>& vecSensYdot, active const* const adRes, util::ThreadLocalStorage& threadLocalMem);
 
 			virtual void leanConsistentInitialState(const SimulationTime& simTime, double* const vecStateY, const AdJacobianParams& adJac, double errorTol, util::ThreadLocalStorage& threadLocalMem);
-			virtual void leanConsistentInitialTimeDerivative(double t, double const* const vecStateY, double* const vecStateYdot, double* const res, util::ThreadLocalStorage& threadLocalMem);
+			virtual void leanConsistentInitialTimeDerivative(double time, double const* const vecStateY, double* const vecStateYdot, double* const res, util::ThreadLocalStorage& threadLocalMem);
 
 			virtual void leanConsistentInitialSensitivity(const SimulationTime& simTime, const ConstSimulationState& simState,
 				std::vector<double*>& vecSensY, std::vector<double*>& vecSensYdot, active const* const adRes, util::ThreadLocalStorage& threadLocalMem);
@@ -158,6 +165,7 @@ namespace cadet
 			active _flowRateIn; //!< Volumetric flow rate of incoming stream
 			active _flowRateOut; //!< Volumetric flow rate of drawn outgoing stream
 			active _curFlowRateFilter; //!< Current volumetric flow rate of liquid outtake stream for this section
+			unsigned int _curSecIdx; //!< Current section index
 			std::vector<active> _flowRateFilter; //!< Volumetric flow rate of liquid outtake stream
 			std::vector<active> _parTypeVolFrac; //!< Volume fraction of each particle type
 
@@ -170,6 +178,11 @@ namespace cadet
 			std::vector<double> _initConditionsDot; //!< Initial conditions for time derivative
 
 			IDynamicReactionModel* _dynReactionBulk; //!< Dynamic reactions in the bulk volume
+
+			Eigen::Matrix<active, Eigen::Dynamic, Eigen::Dynamic> _MconvMoityBulk; //!<  Matrix with conservation of moieties in the bulk volume
+			bool _hasQuasiStationaryReactionBulk; //!< Flag that determines whether there are quasi-stationary reactions in the bulk volume
+			std::vector<int> _QsCompBulk; //!< Indices of components that are conserved in the bulk volume
+			int _nConservedQuants;
 
 			class Exporter : public ISolutionExporter
 			{
