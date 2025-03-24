@@ -358,6 +358,9 @@ namespace cadet
 			// Reconfigure reaction model
 			bool dynReactionConfSuccess = true;
 			_hasQuasiStationaryReactionBulk = false;
+			_MconvMoityBulk = Eigen::Matrix<active, Eigen::Dynamic, Eigen::Dynamic>::Zero(0, 0); // matrix for conserved moities
+			_QsCompBulk.clear();
+			_nConservedQuants = 0;
 			if (_dynReactionBulk && _dynReactionBulk->requiresConfiguration())
 			{
 				paramProvider.pushScope("reaction_bulk");
@@ -389,12 +392,7 @@ namespace cadet
 					}
 				}
 			}
-			else
-			{
-				_MconvMoityBulk = Eigen::Matrix<active, Eigen::Dynamic, Eigen::Dynamic>::Zero(0, 0); // matrix for conserved moities
-				_QsCompBulk.clear();
-				_nConservedQuants = 0;
-			}
+			
 
 			for (unsigned int type = 0; type < _nParType; ++type)
 			{
