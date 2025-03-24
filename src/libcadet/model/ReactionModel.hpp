@@ -215,16 +215,16 @@ public:
 	
 
 	virtual int computeQuasiStationaryReactionFlux(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y,
-		Eigen::Map<Eigen::Vector<active, Eigen::Dynamic>> fluxes, int const* mapQSReac, LinearBufferAllocator workSpace) = 0;
+		Eigen::Map<Eigen::Vector<active, Eigen::Dynamic>> fluxes,  LinearBufferAllocator workSpace) = 0;
 
 	virtual int computeQuasiStationaryReactionFlux(double t, unsigned int secIdx, const ColumnPosition& colPos, active const* y,
-		Eigen::Map<Eigen::Vector<double, Eigen::Dynamic>> fluxes, int const* mapQSReac, LinearBufferAllocator workSpace) = 0;
+		Eigen::Map<Eigen::Vector<double, Eigen::Dynamic>> fluxes, LinearBufferAllocator workSpace) = 0;
 
 	virtual int computeQuasiStationaryReactionFlux(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y,
-		Eigen::Map<Eigen::Vector<double, Eigen::Dynamic>> fluxes, int const* mapQSReac, LinearBufferAllocator workSpace) = 0;
+		Eigen::Map<Eigen::Vector<double, Eigen::Dynamic>> fluxes,  LinearBufferAllocator workSpace) = 0;
 
 	virtual int computeQuasiStationaryReactionFlux(double t, unsigned int secIdx, const ColumnPosition& colPos, active const* y,
-		Eigen::Map<Eigen::Vector<active, Eigen::Dynamic>> fluxes, int const* mapQSReac, LinearBufferAllocator workSpace) = 0;
+		Eigen::Map<Eigen::Vector<active, Eigen::Dynamic>> fluxes, LinearBufferAllocator workSpace) = 0;
 
 	/**
 	 * @brief Adds the analytical Jacobian of the reaction terms for one liquid phase cell
