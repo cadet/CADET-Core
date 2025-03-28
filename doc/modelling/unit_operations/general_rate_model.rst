@@ -264,6 +264,7 @@ Specification of flow rate / velocity and direction
 Since volumetric flow rates are specified for each network connection, the unit operation can infer its interstitial velocity via
 
 .. math::
+    :label: interstitialVelocity
 
     \begin{aligned}
         u = u_{\text{int}} = \frac{F_{\text{in}}}{A \varepsilon_c},
@@ -280,9 +281,9 @@ The final behavior for axial flow models is controlled by the interplay of cross
 
 - If cross section area :math:`A` is given and :math:`u` is not, :math:`u` is inferred from the volumetric flow rate.
 
-- If :math:`u` is given and :math:`A` is not, the provided interstitial velocity is used, i.e. a column radius with :math:`A` being consistent with the volumetric flow rate is assumed.
+- If :math:`u` is given and :math:`A` is not, the provided interstitial velocity is used, i.e. the column cross section is prescribed by the volumetric flow rate as per Eq. (:eq:`ModelColumn`).
 
-- If both cross section area :math:`A` and interstitial velocity :math:`u` are given, the sign of the provided interstitial velocity only determines the flow direction while the magnitude of the actual interstitial velocity :math:`u` is inferred from the volumetric flow rate.
+- If both cross section area :math:`A` and interstitial velocity :math:`u` are given, only the sign of the provided interstitial velocity determines the flow direction while the magnitude of the actual interstitial velocity :math:`u` is inferred from the volumetric flow rate.
 
 The final behavior for radial flow models is controlled by the interplay of column length/height and interstitial velocity coefficient:
 
