@@ -280,9 +280,9 @@ The final behavior for axial flow models is controlled by the interplay of cross
 
 - If cross section area :math:`A` is given and :math:`u` is not, :math:`u` is inferred from the volumetric flow rate.
 
-- If :math:`u` is given and :math:`A` is not, the volumetric flow rate is ignored and the provided interstitial velocity is used.
+- If :math:`u` is given and :math:`A` is not, the provided interstitial velocity is used, i.e. a column radius with :math:`A` being consistent with the volumetric flow rate is assumed.
 
-- If both cross section area :math:`A` and interstitial velocity :math:`u` are given, the magnitude of the actual interstitial velocity :math:`u` is inferred from the volumetric flow rate and the flow direction is given by the sign of the provided :math:`u`.
+- If both cross section area :math:`A` and interstitial velocity :math:`u` are given, the sign of the provided interstitial velocity only determines the flow direction while the magnitude of the actual interstitial velocity :math:`u` is inferred from the volumetric flow rate.
 
 The final behavior for radial flow models is controlled by the interplay of column length/height and interstitial velocity coefficient:
 
