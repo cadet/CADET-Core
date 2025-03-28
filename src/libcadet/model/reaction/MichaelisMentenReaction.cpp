@@ -102,7 +102,7 @@ namespace
  *			In addition, the reaction might be inhibited by other components. In this
  *          case, the flux has the form
  *          \f[ \begin{align}
- *              \nu_i = \frac{\mu_{\mathrm{max},i} c_S}{k_{\mathrm{MM},i} + c_S} * \frac{1}{\sum_i \frac{k_{\mathrm{I},i,j}}{k_{\mathrm{I},i,j} + c_{\mathrm{I},j}}}.
+ *              \nu_i = \frac{\mu_{\mathrm{max},i} c_S}{k_{\mathrm{MM},i} + c_S} \cdot \frac{1}{1 + \sum_i \frac{1+ k_{\mathrm{I},i,j}}{k_{\mathrm{I},i,j} + c_{\mathrm{I},j}}}.
  *          \end{align} \f]
  *          The value of \f$ k_{\mathrm{I},i,j} \f$ decides whether component \f$ j \f$
  *          inhibits reaction \f$ i \f$. If \f$ k_{\mathrm{I},i,j} \leq 0 \f$, the component
@@ -278,7 +278,7 @@ protected:
 					continue;
 
 				if (comp == idxSubs)
-					throw InvalidParameterException("Michaelis Menten: Inhibition of substrate is not supported yet");
+					throw InvalidParameterException("Michaelis Menten: Substrate-inhibition is not supported yet");
 				inhSum += y[comp] / kI;
 			}
 
@@ -291,7 +291,7 @@ protected:
 
 			// Add gradients to Jacobian
 			// for each substrate component
-			const double dvds = vMax / denom * (1.0 - y[idxSubs] / denom) * 1 / (1 + inhibit);
+			const double dvds = vMax / denom * (1.0 - y[idxSubs] / denom) * 1 / (1 + inhSum);
 			RowIterator curJac = jac;
 			for (int row = 0; row < _nComp; ++row, ++curJac)
 			{
