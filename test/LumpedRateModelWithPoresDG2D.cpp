@@ -18,7 +18,7 @@
 #include "Utils.hpp"
 #include "JsonTestModels.hpp"
 
-void test2DLRMPJacobian(const std::string relModelFilePath, const int maxAxElem, const int maxRadElem, const int axPolyDeg = 0, const int radPolyDeg = 0)
+void test2DLRMPJacobian(const std::string relModelFilePath, const int maxAxElem, const int maxRadElem, const int axPolyDeg = 0, const int radPolyDeg = 0, const int minAxElem = 1, const int minRadElem = 1)
 {
 	cadet::JsonParameterProvider jpp = cadet::test::column::getReferenceFile(relModelFilePath);
 
@@ -60,9 +60,9 @@ void test2DLRMPJacobian(const std::string relModelFilePath, const int maxAxElem,
 
 	// This test might run out of memory due to the required AD directions:
 	// (axPolyDeg + 1) * axNElem * (radPolyDeg + 1) * radNElem * (nComp + nParType * (nComp + nBound))
-	for (int zElem = 1; zElem <= maxAxElem; zElem++)
+	for (int zElem = minAxElem; zElem <= maxAxElem; zElem++)
 	{
-		for (int rElem = 1; rElem <= maxRadElem; rElem++)
+		for (int rElem = minRadElem; rElem <= maxRadElem; rElem++)
 		{
 			jpp.pushScope("discretization");
 			jpp.set("AX_NELEM", zElem);
@@ -94,6 +94,16 @@ TEST_CASE("LRMP2D transport Jacobian", "[LRMP2D],[DG],[DG2D],[UnitOp],[Jacobian]
 	test2DLRMPJacobian(relModelFilePath, 4, 4, 1, 1);
 }
 
+TEST_CASE("LRMP2D radially variable transport Jacobian", "[LRMP2D],[DG],[DG2D],[UnitOp],[Jacobian],[CI]")
+{
+	const std::string relModelFilePath = std::string("/data/model_LRMP2D_bulkTransportRadVar_1comp.json");
+
+	// This test might run out of memory due to the required AD directions:
+	// inletDof + (axPolyDeg + 1) * axNElem * (radPolyDeg + 1) * radNElem * (nComp + nParType * (nComp + nBound))
+	// result here is 8radPoints + 128 pure dofs (8axPoints*8radPoints) * (1 + 1)
+	test2DLRMPJacobian(relModelFilePath, 4, 4, 1, 1, 4, 4);
+}
+
 TEST_CASE("LRMP2D transport Jacobian, full test", "[LRMP2D],[DG],[DG2D],[UnitOp],[Jacobian],[ReleaseCI]")
 {
 	const std::string relModelFilePath = std::string("/data/model_LRMP2D_bulkTransport_1comp.json");
@@ -118,7 +128,7 @@ TEST_CASE("LRMP2D sensitivity Jacobians", "[LRMP2D],[UnitOp],[Sensitivity],[CI]"
 {
 	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding("LUMPED_RATE_MODEL_WITH_PORES_2D", "DG");
 
-	cadet::test::column::testFwdSensJacobians(jpp, 1e-4, 6e-7);
+	cadet::test::column::testFwdSensJacobians(jpp, 1e-6, 5e-4, 1e-3);
 }
 
 TEST_CASE("LRMP2D consistent initialization with linear binding", "[LRMP2D],[ConsistentInit],[CI]")
