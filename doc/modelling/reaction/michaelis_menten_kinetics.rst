@@ -33,7 +33,7 @@ In this case, the flux has the form
 .. math::
 
     \begin{aligned}
-        \nu_i = \frac{\mu_{\mathrm{max},i} c_S}{k_{\mathrm{MM},i} + c_S} \cdot \frac{1}{1 + \sum_j \frac{k_{\mathrm{I},i,j}}{k_{\mathrm{I},i,j} + c_{\mathrm{I},j}}}.
+        $$\nu_j = \frac{\mu_{\mathrm{max},j} c_S}{k_{\mathrm{MM},j} + c_S} \cdot \frac{1}{1 + \sum_i c_{Ii}/k_{I,j,i}}.$$
     \end{aligned}
 
 Here, :math:`k_{\mathrm{I},j,i}` is the inhibition constant w.r.t component :math:`i` and reaction :math:`j`.
