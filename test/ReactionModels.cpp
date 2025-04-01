@@ -89,6 +89,17 @@ TEST_CASE("MichaelisMenten kinetic and specific mass action law micro-kinetics y
 	cadet::test::reaction::testMichaelisMentenToSMAMicroKinetic(configFilePath1, configFilePath2, absTol, relTol);
 }
 
+TEST_CASE("MichaelisMenten kinetic with two inhibitors and specific mass action law micro-kinetics yield same result", "[MichaelisMenten],[ReactionModel],[Simulation],[Reference],[CI]")
+{
+	const std::string& configFilePath1 = std::string("/data/configuration_CSTR_MichaelisMenten_twoInhib_benchmark1.json");
+	const std::string& configFilePath2 = std::string("/data/configuration_CSTR_MicroKineticsSMA_twoInhib_benchmark1.json");
+
+	const double absTol = 1e-3;
+	const double relTol = 5e-4;
+
+	cadet::test::reaction::testMichaelisMentenToSMAInhibitionMicroKinetic(configFilePath1, configFilePath2, absTol, relTol);
+}
+
 TEST_CASE("MichaelisMenten kinetic and numerical reference with Crank-Nicolson yield same result", "[MichaelisMenten],[ReactionModel],[Simulation],[Reference],[CI]")
 {
 	const std::string& configFileRelPath = std::string("/data/configuration_CSTR_MichaelisMenten_benchmark2.json");
@@ -99,6 +110,7 @@ TEST_CASE("MichaelisMenten kinetic and numerical reference with Crank-Nicolson y
 
 	cadet::test::column::testForeignReferenceBenchmark(configFileRelPath, refFileRelPath, "000", absTol, relTol, 1);
 }
+
 
 TEST_CASE("MichaelisMenten kinetic analytic Jacobian vs AD without inhibition", "[MichaelisMenten],[ReactionModel],[Jacobian],[AD]")
 {
