@@ -99,16 +99,14 @@ namespace
  *          \end{align} \f]
  *          The substrate component \f$ c_S \f$ is identified by the index of the
  *          first negative entry in the stoichiometry of this reaction.
- *
- *          In addition, the reaction might be inhibited by other components. In this
+ *			In addition, the reaction might be inhibited by other components. In this
  *          case, the flux has the form
  *          \f[ \begin{align}
- *              \nu_i = \frac{\mu_{\mathrm{max},i} c_S}{k_{\mathrm{MM},i} + c_S} \prod_j \frac{k_{\mathrm{I},i,j}}{k_{\mathrm{I},i,j} + c_{\mathrm{I},j}}.
+ *              \nu_i = \frac{\mu_{\mathrm{max},i} c_S}{k_{\mathrm{MM},i} + c_S} \cdot \frac{1}{1 + \sum_i \frac{1+ k_{\mathrm{I},i,j}}{k_{\mathrm{I},i,j} + c_{\mathrm{I},j}}}.
  *          \end{align} \f]
  *          The value of \f$ k_{\mathrm{I},i,j} \f$ decides whether component \f$ j \f$
  *          inhibits reaction \f$ i \f$. If \f$ k_{\mathrm{I},i,j} \leq 0 \f$, the component
  *          does not inhibit the reaction.
- *
  *          Only reactions in liquid phase are supported (no solid phase or cross-phase reactions).
  * @tparam ParamHandler_t Type that can add support for external function dependence
  */
@@ -194,7 +192,10 @@ protected:
 						break;
 					}
 				}
+				if (_idxSubstrate[i] == -1)
+					throw InvalidParameterException("Michaelis Menten: No substrate found in reaction " + std::to_string(i));
 			}
+
 		}
 		registerCompRowMatrix(_parameters, unitOpIdx, parTypeIdx, "MM_STOICHIOMETRY_BULK", _stoichiometryBulk);
 
@@ -219,16 +220,23 @@ protected:
 				continue;
 			}
 
-			fluxes[r] = static_cast<typename DoubleActiveDemoter<flux_t, active>::type>(p->vMax[r]) * y[idxSubs] / (static_cast<typename DoubleActiveDemoter<flux_t, active>::type>(p->kMM[r]) + y[idxSubs]);
-
+			flux_t inhSum = 0.0;
 			for (int comp = 0; comp < _nComp; ++comp)
 			{
-				const flux_t kI = static_cast<typename DoubleActiveDemoter<flux_t, active>::type>(p->kInhibit[_nComp * r + comp]);
+				const flux_t kI = static_cast<typename DoubleActiveDemoter<flux_t, ParamType>::type>(p->kInhibit[_nComp * r + comp]);
 				if (kI <= 0.0)
 					continue;
 
-				fluxes[r] *= kI / (kI + y[comp]);
+				if(comp == idxSubs)
+					throw InvalidParameterException("Michaelis Menten: Inhibition of substrate is not supported yet");
+				inhSum += y[comp]/kI;
 			}
+
+			const flux_t vMax = static_cast<typename DoubleActiveDemoter<flux_t, active>::type>(p->vMax[r]);
+			const flux_t kMM = static_cast<typename DoubleActiveDemoter<flux_t, active>::type>(p->kMM[r]);
+
+			fluxes[r] = vMax * y[idxSubs] / ((kMM + y[idxSubs]) * (1 + inhSum));
+
 		}
 
 		// Add reaction terms to residual
@@ -262,30 +270,36 @@ protected:
 			if (idxSubs == -1)
 				continue;
 
-			double inhibit = 1.0;
+			double inhSum = 0.0;
 			for (int comp = 0; comp < _nComp; ++comp)
 			{
 				const double kI = static_cast<double>(p->kInhibit[_nComp * r + comp]);
 				if (kI <= 0.0)
 					continue;
 
-				inhibit *= kI / (kI + y[comp]);
+				if (comp == idxSubs)
+					throw InvalidParameterException("Michaelis Menten: Substrate-inhibition is not supported yet");
+				inhSum += y[comp] / kI;
 			}
+
 
 			const double vMax = static_cast<double>(p->vMax[r]);
 			const double kMM = static_cast<double>(p->kMM[r]);
-			const double denom = kMM + y[idxSubs];
-			const double fluxGrad = vMax / denom * (1.0 - y[idxSubs] / denom) * inhibit;
-			const double flux = vMax * y[idxSubs] / denom * inhibit;
+
+			const double nom = vMax * y[idxSubs];
+			const double denom = (kMM + y[idxSubs]);
 
 			// Add gradients to Jacobian
+			// for each substrate component
+			const double dvds = vMax / denom * (1.0 - y[idxSubs] / denom) * 1 / (1 + inhSum);
 			RowIterator curJac = jac;
 			for (int row = 0; row < _nComp; ++row, ++curJac)
 			{
 				const double colFactor = static_cast<double>(_stoichiometryBulk.native(row, r)) * factor;
-				curJac[idxSubs - static_cast<int>(row)] += colFactor * fluxGrad;
+				curJac[idxSubs - static_cast<int>(row)] += colFactor * dvds;
 			}
 
+			// for each inhibitor component
 			curJac = jac;
 			for (int row = 0; row < _nComp; ++row, ++curJac)
 			{
@@ -296,7 +310,8 @@ protected:
 					if (kI <= 0.0)
 						continue;
 
-					curJac[comp - static_cast<int>(row)] -= colFactor * flux / (kI + y[comp]);
+					double dvdi = - (vMax * y[idxSubs] * (kMM + y[idxSubs])) / (denom * denom * kI);
+					curJac[comp - static_cast<int>(row)] += colFactor * dvdi;
 				}
 			}
 		}
