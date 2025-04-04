@@ -217,7 +217,7 @@ protected:
 					for (int idxSubstrateReaction_r : idxSubstrateReaction_r)
 					{
 						if(std::find(idxInhibitorReaction_r.begin(), idxInhibitorReaction_r.end(), idxSubstrateReaction_r) != idxInhibitorReaction_r.end())
-							throw InvalidParameterException("Inhibitor is also substrate in reaction " + std::to_string(r) + "this is not supportet yet");
+							throw InvalidParameterException("Michaelis-Menten reaction: Inhibitor is also substrate in reaction " + std::to_string(r) + "this is not supported yet");
 					}
 				}
 
@@ -322,7 +322,7 @@ protected:
 
 				double sFlux = y[s] / ((kMM_rs + y[s]) * (1 + inhSum));
 				flux *= sFlux;
-				// save flux and inhibitor sum for each substrat
+				// save flux and inhibitor sum for each substrate
 				substratFlux[sIdx] = sFlux;
 				inhSumOfSub[sIdx] = inhSum;
 			}
@@ -360,13 +360,13 @@ protected:
 
 				double dvdy = 0.0;
 
-				// case 1: comp is a substrat and not an inhibitor
+				// case 1: comp is a substrate and not an inhibitor
 				// dvds = vmax * prod_i!=s (y[i]/(kMM_rs + y[i])*(1+inhSum)) * df/ds
 				// df/ds = ((kMM_rs + y[i])*(1+inhSum)) - y[i](1+inhSum) / ((kMM_rs + y[i])*(1+inhSum))^2
 				//       = (kMM_rs) / ((kMM_rs + y[i])*(1+inhSum)^2)
 				if (isSubstrate && !isInhibitor)
 				{
-					int s = comp; // comp is a substrat
+					int s = comp; // comp is a substrate
 					double kMM_rs = static_cast<double>(p->kMM[r]);
 					if (!_oldInterface)
 						kMM_rs = static_cast<double>(p->kMM[_nComp * r + s]);
@@ -381,7 +381,7 @@ protected:
 
 				}
 
-				//case 2: comp is a inhibitor and not a substrat
+				//case 2: comp is a inhibitor and not a substrate
 				// dvdI = vmax * sum_L(prod_!i=l (y[i]/(kMM_rs + y[i])*(1+inhSum)) * df/dI
 				// L is the set of all substrates which are inhibited by I
 				// df/dI =  - ((kMM_rs+y[s])/kI_ri)/((kMM_rs + y[s])*(1+inhSum))^2
@@ -396,8 +396,8 @@ protected:
 						int s = _idxSubstrate[r][sIdx];
 						double kMM_rs = static_cast<double>(p->kMM[r]);
 						if (!_oldInterface)
-							// kMM_rs = kMM[r][s]
 							kMM_rs = static_cast<double>(p->kMM[_nComp * r + s]);
+
 						double inhSum = inhSumOfSub[sIdx];
 
 						double denom = (kMM_rs + y[s])*(1+inhSum)* (1 + inhSum);
@@ -406,12 +406,11 @@ protected:
 
 						dvdy += factor * dinhFluxdi;
 					}
-
 				}
 
 				if (isInhibitor && isSubstrate)
 				{
-					throw(InvalidParameterException("Inhibitor and substrat in the same reaction is not supported yet"));
+					throw(InvalidParameterException("Michaelis-Menten reaction: Inhibitor and substrate in the same reaction is not supported yet"));
 				}
 
 				if (std::abs(dvdy) < 1e-18)
@@ -424,9 +423,7 @@ protected:
 					const double colFactor = static_cast<double>(_stoichiometryBulk.native(row, r)) * factor;
 					curJac[comp - static_cast<int>(row)] += colFactor * dvdy;
 				}
-
 			}
-
 		}
 	}
 
