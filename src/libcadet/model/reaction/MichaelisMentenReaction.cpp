@@ -142,7 +142,10 @@ public:
 			const unsigned int nReactions = numElements / nComp;
 
 			_stoichiometryBulk.resize(nComp, nReactions);
-			_idxSubstrate = std::vector<int>(nReactions, -1);
+			_idxInhibitor.resize(nReactions);
+			_idxSubstrate.resize(nReactions);
+			_oldInterface = false;
+
 		}
 
 		return true;
@@ -157,7 +160,9 @@ protected:
 	ParamHandler_t _paramHandler; //!< Handles parameters and their dependence on external functions
 
 	linalg::ActiveDenseMatrix _stoichiometryBulk;
-	std::vector<int> _idxSubstrate;
+	std::vector<std::vector<int>> _idxSubstrate;
+	std::vector<std::vector<int>> _idxInhibitor;
+	bool _oldInterface;
 
 	virtual bool configureImpl(IParameterProvider& paramProvider, UnitOpIdx unitOpIdx, ParticleTypeIdx parTypeIdx)
 	{
@@ -167,6 +172,11 @@ protected:
 		if ((_stoichiometryBulk.columns() > 0) && ((_paramHandler.vMax().size() < _stoichiometryBulk.columns()) || (_paramHandler.kMM().size() < _stoichiometryBulk.columns())))
 			throw InvalidParameterException("MM_VMAX and MM_KMM have to have the same size (number of reactions)");
 		
+		if (_stoichiometryBulk.rows() > 1 && (_paramHandler.kMM().size() == _stoichiometryBulk.columns() * _stoichiometryBulk.rows()))
+			_oldInterface = false;
+		else
+			_oldInterface = true;
+
 		if ((_stoichiometryBulk.columns() > 0) && (_paramHandler.kInhibit().size() < _stoichiometryBulk.columns() * _nComp))
 			throw InvalidParameterException("MM_KI have to have the size (number of reactions) x (number of components)");
 
@@ -180,25 +190,43 @@ protected:
 			std::copy(s.begin(), s.end(), _stoichiometryBulk.data());
 
 			// Find substrate index (first educt)
-			for (int i = 0; i < _stoichiometryBulk.columns(); ++i)
+			_idxSubstrate.clear();
+			_idxInhibitor.clear();
+			const std::vector<double> ki = paramProvider.getDoubleArray("MM_KI");
+			for (int r = 0; r < _stoichiometryBulk.columns(); ++r)
 			{
-				_idxSubstrate[i] = -1;
-
-				for (int j = 0; j < _nComp; ++j)
+				std::vector<int> idxSubstrateReaction_r;
+				std::vector<int> idxInhibitorReaction_r;
+				for (int c = 0; c < _nComp; ++c)
 				{
-					if (_stoichiometryBulk.native(j, i) < 0.0)
+					if (_stoichiometryBulk.native(c, r) < 0.0)
+						idxSubstrateReaction_r.push_back(c);
+
+					double kI = ki[_nComp * r + c];
+					if (kI > 0.0)
+						idxInhibitorReaction_r.push_back(c);
+
+				}
+				if(idxSubstrateReaction_r.empty())
+					throw InvalidParameterException("No substrate found in reaction " + std::to_string(r));
+
+				//throw error if inhibitor is substrate
+				if(!idxInhibitorReaction_r.empty())
+				{
+					// check if inhibitor is substrate
+					for (int idxSubstrateReaction_r : idxSubstrateReaction_r)
 					{
-						_idxSubstrate[i] = j;
-						break;
+						if(std::find(idxInhibitorReaction_r.begin(), idxInhibitorReaction_r.end(), idxSubstrateReaction_r) != idxInhibitorReaction_r.end())
+							throw InvalidParameterException("Inhibitor is also substrate in reaction " + std::to_string(r) + "this is not supportet yet");
 					}
 				}
-				if (_idxSubstrate[i] == -1)
-					throw InvalidParameterException("Michaelis Menten: No substrate found in reaction " + std::to_string(i));
+
+				_idxSubstrate.push_back(idxSubstrateReaction_r);
+				_idxInhibitor.push_back(idxInhibitorReaction_r);
 			}
 
 		}
 		registerCompRowMatrix(_parameters, unitOpIdx, parTypeIdx, "MM_STOICHIOMETRY_BULK", _stoichiometryBulk);
-
 		return true;
 	}
 
@@ -213,30 +241,31 @@ protected:
 		BufferedArray<flux_t> fluxes = workSpace.array<flux_t>(_stoichiometryBulk.columns());
 		for (int r = 0; r < _stoichiometryBulk.columns(); ++r)
 		{
-			const int idxSubs = _idxSubstrate[r];
-			if (idxSubs == -1)
+			int nSub = _idxSubstrate[r].size();
+			int nInh = _idxInhibitor[r].size();
+			flux_t vProd = 1.0;
+			for (int sIdx = 0; sIdx < nSub; sIdx++)
 			{
-				fluxes[r] = 0.0;
-				continue;
+				int s = _idxSubstrate[r][sIdx];
+				flux_t inhSum = 0;
+				for (int iIdx = 0; iIdx < nInh; iIdx++)
+				{
+					int i = _idxInhibitor[r][iIdx];
+					flux_t ki_rsi = static_cast<typename DoubleActiveDemoter<flux_t, active>::type>(p->kInhibit[_nComp * r + i]);
+					inhSum += y[i] / ki_rsi;
+				}
+
+				flux_t kMM_rs = static_cast<typename DoubleActiveDemoter<flux_t, active>::type>(p->kMM[r]);
+				if (!_oldInterface)
+					// kMM_rs = kMM[r][s]
+					 kMM_rs = static_cast<typename DoubleActiveDemoter<flux_t, active>::type>(p->kMM[_nComp * r + s]);
+
+				vProd *= y[s] / ((kMM_rs + y[s]) * (1+inhSum));
+
 			}
 
-			flux_t inhSum = 0.0;
-			for (int comp = 0; comp < _nComp; ++comp)
-			{
-				const flux_t kI = static_cast<typename DoubleActiveDemoter<flux_t, ParamType>::type>(p->kInhibit[_nComp * r + comp]);
-				if (kI <= 0.0)
-					continue;
-
-				if(comp == idxSubs)
-					throw InvalidParameterException("Michaelis Menten: Inhibition of substrate is not supported yet");
-				inhSum += y[comp]/kI;
-			}
-
-			const flux_t vMax = static_cast<typename DoubleActiveDemoter<flux_t, active>::type>(p->vMax[r]);
-			const flux_t kMM = static_cast<typename DoubleActiveDemoter<flux_t, active>::type>(p->kMM[r]);
-
-			fluxes[r] = vMax * y[idxSubs] / ((kMM + y[idxSubs]) * (1 + inhSum));
-
+			flux_t vmax_r = static_cast<typename DoubleActiveDemoter<flux_t, active>::type>(p->vMax[r]);
+			fluxes[r] = vmax_r * vProd;
 		}
 
 		// Add reaction terms to residual
@@ -266,54 +295,138 @@ protected:
 
 		for (int r = 0; r < _stoichiometryBulk.columns(); ++r)
 		{
-			const int idxSubs = _idxSubstrate[r];
-			if (idxSubs == -1)
-				continue;
+			// Calculate flux and inhibitor sum
+			int nSub = _idxSubstrate[r].size();
+			int nInh = _idxInhibitor[r].size();
 
-			double inhSum = 0.0;
+			double flux = 1.0;
+			std::vector<double> substratFlux(nSub, 0.0);
+			std::vector<double> inhSumOfSub(nSub, 0.0);
+
+			for (int sIdx = 0; sIdx < nSub; sIdx++)
+			{
+				int s = _idxSubstrate[r][sIdx];
+				double inhSum = 0.0;
+				for (int iIdx = 0; iIdx < nInh; iIdx++)
+				{
+					int i = _idxInhibitor[r][iIdx];
+					double kI_rsi = static_cast<double>(p->kInhibit[_nComp * r + i]);
+
+					inhSum += y[i] / kI_rsi;
+				}
+
+				double kMM_rs = static_cast<double>(p->kMM[r]);
+				if (!_oldInterface)
+					// kMM_rs = kMM[r][s]
+					 kMM_rs = static_cast<double>(p->kMM[_nComp * r + s]);
+
+				double sFlux = y[s] / ((kMM_rs + y[s]) * (1 + inhSum));
+				flux *= sFlux;
+				// save flux and inhibitor sum for each substrat
+				substratFlux[sIdx] = sFlux;
+				inhSumOfSub[sIdx] = inhSum;
+			}
+
+			double vmax_r = static_cast<double>(p->vMax[r]);
+			flux *= vmax_r;
+
+			// calculate derivative for every component jac_flux = dv/dy
 			for (int comp = 0; comp < _nComp; ++comp)
 			{
-				const double kI = static_cast<double>(p->kInhibit[_nComp * r + comp]);
-				if (kI <= 0.0)
+				// 1. Check if cIdx is substrate or inhibitor
+				bool isSubstrate = false;
+				int substrateIdx = -1;
+				for (int sIdx = 0; sIdx < nSub; sIdx++)
+				{
+					if (comp == _idxSubstrate[r][sIdx])
+					{
+						isSubstrate = true;
+						substrateIdx = sIdx;
+						break;
+					}
+				}
+
+				bool isInhibitor = false;
+				int inhibitorIdx = -1;
+				for (int iIdx = 0; iIdx < nInh; ++iIdx)
+				{
+					if (comp == _idxInhibitor[r][iIdx])
+					{
+						isInhibitor = true;
+						inhibitorIdx = iIdx;
+						break;
+					}
+				}
+
+				double dvdy = 0.0;
+
+				// case 1: comp is a substrat and not an inhibitor
+				// dvds = vmax * prod_i!=s (y[i]/(kMM_rs + y[i])*(1+inhSum)) * df/ds
+				// df/ds = ((kMM_rs + y[i])*(1+inhSum)) - y[i](1+inhSum) / ((kMM_rs + y[i])*(1+inhSum))^2
+				//       = (kMM_rs) / ((kMM_rs + y[i])*(1+inhSum)^2)
+				if (isSubstrate && !isInhibitor)
+				{
+					int s = comp; // comp is a substrat
+					double kMM_rs = static_cast<double>(p->kMM[r]);
+					if (!_oldInterface)
+						kMM_rs = static_cast<double>(p->kMM[_nComp * r + s]);
+
+					double inhSum = inhSumOfSub[substrateIdx];
+					double dnom = (kMM_rs + y[s])* (kMM_rs + y[s])*(1+inhSum);
+
+					double dsubFluxds = kMM_rs/dnom ;
+					double factor = flux / substratFlux[substrateIdx];
+
+					dvdy += factor * dsubFluxds;
+
+				}
+
+				//case 2: comp is a inhibitor and not a substrat
+				// dvdI = vmax * sum_L(prod_!i=l (y[i]/(kMM_rs + y[i])*(1+inhSum)) * df/dI
+				// L is the set of all substrates which are inhibited by I
+				// df/dI =  - ((kMM_rs+y[s])/kI_ri)/((kMM_rs + y[s])*(1+inhSum))^2
+				//		 =  - (y[s])/((kMM_rs + y[s])*(1+inhSum)^2 kI_ri)
+				if (isInhibitor && !isSubstrate)
+				{
+					int i = comp;
+					double kI_ri = static_cast<double>(p->kInhibit[_nComp * r + i]);
+
+					for (int sIdx = 0; sIdx < nSub; sIdx++)
+					{
+						int s = _idxSubstrate[r][sIdx];
+						double kMM_rs = static_cast<double>(p->kMM[r]);
+						if (!_oldInterface)
+							// kMM_rs = kMM[r][s]
+							kMM_rs = static_cast<double>(p->kMM[_nComp * r + s]);
+						double inhSum = inhSumOfSub[sIdx];
+
+						double denom = (kMM_rs + y[s])*(1+inhSum)* (1 + inhSum);
+						double dinhFluxdi = - (y[s])/ (denom * kI_ri);
+						double factor = flux / substratFlux[sIdx];
+
+						dvdy += factor * dinhFluxdi;
+					}
+
+				}
+
+				if (isInhibitor && isSubstrate)
+				{
+					throw(InvalidParameterException("Inhibitor and substrat in the same reaction is not supported yet"));
+				}
+
+				if (std::abs(dvdy) < 1e-18)
 					continue;
 
-				if (comp == idxSubs)
-					throw InvalidParameterException("Michaelis Menten: Substrate-inhibition is not supported yet");
-				inhSum += y[comp] / kI;
-			}
-
-
-			const double vMax = static_cast<double>(p->vMax[r]);
-			const double kMM = static_cast<double>(p->kMM[r]);
-
-			const double nom = vMax * y[idxSubs];
-			const double denom = (kMM + y[idxSubs]);
-
-			// Add gradients to Jacobian
-			// for each substrate component
-			const double dvds = vMax / denom * (1.0 - y[idxSubs] / denom) * 1 / (1 + inhSum);
-			RowIterator curJac = jac;
-			for (int row = 0; row < _nComp; ++row, ++curJac)
-			{
-				const double colFactor = static_cast<double>(_stoichiometryBulk.native(row, r)) * factor;
-				curJac[idxSubs - static_cast<int>(row)] += colFactor * dvds;
-			}
-
-			// for each inhibitor component
-			curJac = jac;
-			for (int row = 0; row < _nComp; ++row, ++curJac)
-			{
-				const double colFactor = static_cast<double>(_stoichiometryBulk.native(row, r)) * factor;
-				for (int comp = 0; comp < _nComp; ++comp)
+				// Add gradients to Jacobian
+				RowIterator curJac = jac;
+				for (int row = 0; row < _nComp; ++row, ++curJac)
 				{
-					const double kI = static_cast<double>(p->kInhibit[_nComp * r + comp]);
-					if (kI <= 0.0)
-						continue;
-
-					double dvdi = - (vMax * y[idxSubs] * (kMM + y[idxSubs])) / (denom * denom * kI);
-					curJac[comp - static_cast<int>(row)] += colFactor * dvdi;
+					const double colFactor = static_cast<double>(_stoichiometryBulk.native(row, r)) * factor;
+					curJac[comp - static_cast<int>(row)] += colFactor * dvdy;
 				}
+
 			}
+
 		}
 	}
 
