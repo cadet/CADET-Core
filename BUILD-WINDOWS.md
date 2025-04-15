@@ -43,11 +43,10 @@ We are using Visual Studio because it is the easiest way to install all required
 - Clink provides text completion, history, and line-editing to Windows Command Prompt
 - Download the [clink installer exe](https://github.com/chrisant996/clink) and install clink.
 
-## Prepare CADET code
+## Obtain CADET code
 
 - Clone the CADET source code into a `CADET` folder: 
   - `git clone https://github.com/cadet/cadet-core.git CADET`
-- Create the directory `CADET\install`
 
 ## Build CADET in Visual Studio
 
