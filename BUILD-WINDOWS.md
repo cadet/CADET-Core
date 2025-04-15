@@ -18,7 +18,6 @@ Assumed directory structure:
 |    - src
 |    - include
 |    - [...]
-|    - build
 </pre>
 
 Note that the version numbers of the files and packages below are subject to change and will not always reflect the most
@@ -44,11 +43,10 @@ We are using Visual Studio because it is the easiest way to install all required
 - Clink provides text completion, history, and line-editing to Windows Command Prompt
 - Download the [clink installer exe](https://github.com/chrisant996/clink) and install clink.
 
-## Prepare CADET code
+## Obtain CADET code
 
 - Clone the CADET source code into a `CADET` folder: 
   - `git clone https://github.com/cadet/cadet-core.git CADET`
-- Create the directories `CADET\build` and `CADET\install`
 
 ## Build CADET in Visual Studio
 
@@ -70,6 +68,7 @@ We are using Visual Studio because it is the easiest way to install all required
 - Navigate to "Tools" - "Command Line" and open either a "Developer Command Prompt" or "Developer PowerShell"
 - Execute the following commands:
 - For Command Prompt:
+    - `if not exist CADET\build mkdir CADET\build`
     - `cd CADET\build`
     - `vcpkg integrate install` (this only needs to be run _once_ and will require admin privileges)
     - `set MKLROOT="C:/Program Files (x86)/Intel/oneAPI/mkl/latest"`
@@ -80,6 +79,7 @@ We are using Visual Studio because it is the easiest way to install all required
     - `msbuild.exe INSTALL.vcxproj /p:Configuration=Release;Platform=x64`
   
 - For PowerShell:
+    - `if (-Not(Test-Path CADET\build)){mkdir CADET\build}`
     - `cd CADET\build`
     - `vcpkg integrate install` (this only needs to be run _once_ and will require admin privileges)
     - `$ENV:MKLROOT = "C:\Program Files (x86)\Intel\oneAPI\mkl\latest"`
