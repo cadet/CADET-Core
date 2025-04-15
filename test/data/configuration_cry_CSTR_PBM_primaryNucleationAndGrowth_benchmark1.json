@@ -558,6 +558,7 @@
         "NCOMP": 102,
         "CONST_SOLID_VOLUME": 0.0,
         "REACTION_MODEL": "CRYSTALLIZATION",
+        "CRYSTALLIZATION_MODE": 0,
         "UNIT_TYPE": "CSTR",
         "USE_ANALYTIC_JACOBIAN": 1,
         "reaction_bulk": {
@@ -668,7 +669,7 @@
           ],
           "CRY_G": 1.0,
           "CRY_GROWTH_CONSTANT": 0.0,
-          "CRY_GROWTH_DISPERSION_RATE": 2e-14,
+          "CRY_GROWTH_DISPERSION_RATE": 0.0,
           "CRY_GROWTH_RATE_CONSTANT": 2e-08,
           "CRY_GROWTH_SCHEME_ORDER": 1,
           "CRY_K": 1.0,
