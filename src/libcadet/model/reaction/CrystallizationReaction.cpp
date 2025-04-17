@@ -33,22 +33,22 @@ namespace model
 {
 namespace detail
 {
-			class CrystallizationMode {
-			public:
-				bool hasPBM()    const { return state_[0]; };
-				bool hasAggregation()  const { return state_[1]; };
-				bool hasFragmentation()  const { return state_[2]; };
-				unsigned int getMode() const { return state_.to_ulong(); };
+	class CrystallizationMode {
+	public:
+		bool hasPBM()    const { return state_[0]; };
+		bool hasAggregation()  const { return state_[1]; };
+		bool hasFragmentation()  const { return state_[2]; };
+		unsigned int getMode() const { return state_.to_ulong(); };
 
-				void SetMode(unsigned int mode)
-	{
-					if (mode > 7 || mode < 1)
-						throw InvalidParameterException("Crystallization mode specified as " + std::to_string(mode) + ", which is not defined.");
+		void SetMode(unsigned int mode)
+		{
+			if (mode > 7 || mode < 1)
+				throw InvalidParameterException("Crystallization mode specified as " + std::to_string(mode) + ", which is not defined.");
 
-					state_ = std::bitset<3>(mode);
-				}
-			private:
-				std::bitset<3> state_;
+			state_ = std::bitset<3>(mode);
+		}
+	private:
+		std::bitset<3> state_;
 	};
 
 	/**
@@ -117,154 +117,6 @@ namespace detail
 			r_x_i(r_x_i), phi(phi), F_i(F_i) {}
 	};
 
-	struct HRKorenCoefficients
-	{
-		std::vector<active> A_coeff;
-		std::vector<active> R_coeff;
-
-		HRKorenCoefficients(const std::vector<active>& binSizes)
-			: A_coeff(binSizes.size() - 1), R_coeff(binSizes.size() - 1)
-		{
-			// calculate the coefficients
-			for (int i = 1; i + 1 < binSizes.size(); ++i)
-			{
-				const active delta_xi_xip1 = binSizes[i] + binSizes[i + 1];
-				A_coeff[i] = delta_xi_xip1 / (binSizes[i] + binSizes[i - 1]);
-				R_coeff[i] = delta_xi_xip1 / binSizes[i];
-			}
-		}
-	};
-
-	/**
-	 * Flux reconstruction scheme coefficients.For details see @cite Zhang2024
-	*/
-	struct Weno3Coefficients
-	{
-		std::vector<active> q_1_right_coeff;
-		std::vector<active> q_0_right_coeff;
-		std::vector<active> C_right_coeff;
-		std::vector<active> IS_0_coeff;
-		std::vector<active> IS_1_coeff;
-
-		Weno3Coefficients(const std::vector<active>& binSizes)
-			: q_1_right_coeff(binSizes.size() - 1), q_0_right_coeff(binSizes.size() - 1), C_right_coeff(binSizes.size() - 1), IS_0_coeff(binSizes.size() - 1), IS_1_coeff(binSizes.size() - 1)
-		{
-			// calculate the coefficients and store them, the first element is empty
-			for (int i = 1; i + 1 < binSizes.size(); ++i)
-			{
-				const active delta_sum = binSizes[i] + binSizes[i - 1] + binSizes[i + 1];
-				const active delta_left_sum = binSizes[i] + binSizes[i - 1];
-				const active delta_right_sum = binSizes[i] + binSizes[i + 1];
-				q_0_right_coeff[i] = binSizes[i + 1] / delta_right_sum;
-				q_1_right_coeff[i] = 1.0 + binSizes[i] / delta_left_sum;
-				C_right_coeff[i] = delta_left_sum / delta_sum;
-				IS_0_coeff[i] = (2.0 * binSizes[i] / delta_right_sum) * (2.0 * binSizes[i] / delta_right_sum);
-				IS_1_coeff[i] = (2.0 * binSizes[i] / delta_left_sum) * (2.0 * binSizes[i] / delta_left_sum);
-			}
-		}
-	};
-
-	struct Weno5Coefficients
-	{
-		std::vector<active> q_2_coeff_1;
-		std::vector<active> q_2_coeff_2;
-		std::vector<active> q_1_coeff_1;
-		std::vector<active> q_1_coeff_2;
-		std::vector<active> q_0_coeff_1;
-		std::vector<active> q_0_coeff_2;
-		std::vector<active> C_0;
-		std::vector<active> C_1;
-		std::vector<active> C_2;
-		std::vector<active> IS_0_coeff_1;
-		std::vector<active> IS_0_coeff_2;
-		std::vector<active> IS_0_coeff_3;
-		std::vector<active> IS_1_coeff_1;
-		std::vector<active> IS_1_coeff_2;
-		std::vector<active> IS_1_coeff_3;
-		std::vector<active> IS_2_coeff_1;
-		std::vector<active> IS_2_coeff_2;
-		std::vector<active> IS_2_coeff_3;
-
-		// weno23 parameters, left
-		active IS_0_coeff_weno3;
-		active IS_1_coeff_weno3;
-		active C_coeff1_weno3;
-		active C_coeff2_weno3;
-		active q0_coeff1_weno3;
-		active q0_coeff2_weno3;
-		active q1_coeff1_weno3;
-		active q1_coeff2_weno3;
-		// weno23 parameters, right
-		active IS_0_coeff_weno3_r;
-		active IS_1_coeff_weno3_r;
-		active C_coeff1_weno3_r;
-		active C_coeff2_weno3_r;
-		active q0_coeff1_weno3_r;
-		active q0_coeff2_weno3_r;
-		active q1_coeff1_weno3_r;
-		active q1_coeff2_weno3_r;
-
-		Weno5Coefficients(const std::vector<active>& binSizes)
-			: q_2_coeff_1(binSizes.size() - 2), q_2_coeff_2(binSizes.size() - 2), q_1_coeff_1(binSizes.size() - 2),
-			q_1_coeff_2(binSizes.size() - 2), q_0_coeff_1(binSizes.size() - 2), q_0_coeff_2(binSizes.size() - 2),
-			C_0(binSizes.size() - 2), C_1(binSizes.size() - 2), C_2(binSizes.size() - 2),
-			IS_0_coeff_1(binSizes.size() - 2), IS_0_coeff_2(binSizes.size() - 2), IS_0_coeff_3(binSizes.size() - 2),
-			IS_1_coeff_1(binSizes.size() - 2), IS_1_coeff_2(binSizes.size() - 2), IS_1_coeff_3(binSizes.size() - 2),
-			IS_2_coeff_1(binSizes.size() - 2), IS_2_coeff_2(binSizes.size() - 2), IS_2_coeff_3(binSizes.size() - 2)
-		{
-			// calculate the coefficients and store them, the first and second elements are empty
-			for (int i = 2; i + 2 < binSizes.size(); ++i)
-			{
-				const active delta_sum = binSizes[i - 2] + binSizes[i - 1] + binSizes[i] + binSizes[i + 1] + binSizes[i + 2];
-				const active delta_sum_I0 = binSizes[i - 2] + binSizes[i - 1] + binSizes[i];
-				const active delta_sum_I1 = binSizes[i - 1] + binSizes[i] + binSizes[i + 1];
-				const active delta_sum_I2 = binSizes[i] + binSizes[i + 1] + binSizes[i + 2];
-				q_0_coeff_1[i] = binSizes[i + 1] * (delta_sum_I2 - binSizes[i]) / (delta_sum_I2 - binSizes[i + 2]) / delta_sum_I2;
-				q_0_coeff_2[i] = binSizes[i + 1] * binSizes[i] / delta_sum_I2 / (delta_sum_I2 - binSizes[i]);
-				q_1_coeff_1[i] = binSizes[i] * (delta_sum_I1 - binSizes[i + 1]) / delta_sum_I1 / (delta_sum_I1 - binSizes[i - 1]);
-				q_1_coeff_2[i] = binSizes[i] * binSizes[i + 1] / delta_sum_I1 / (delta_sum_I1 - binSizes[i + 1]);
-				q_2_coeff_1[i] = binSizes[i] * (delta_sum_I0 - binSizes[i - 2]) / delta_sum_I0 / (delta_sum_I0 - binSizes[i]);
-				q_2_coeff_2[i] = 1.0 + binSizes[i] / (binSizes[i - 1] + binSizes[i]) + binSizes[i] / delta_sum_I0;
-				C_0[i] = delta_sum_I0 * (delta_sum_I0 - binSizes[i - 2]) / delta_sum / (delta_sum - binSizes[i - 2]);
-				C_1[i] = delta_sum_I0 / delta_sum * (delta_sum_I2 - binSizes[i]) / (binSizes[i - 1] + delta_sum_I2) * (1.0 + (delta_sum - binSizes[i - 2]) / (delta_sum - binSizes[i + 2]));
-				C_2[i] = binSizes[i + 1] * (binSizes[i + 1] + binSizes[i + 2]) / delta_sum / (delta_sum - binSizes[i + 2]);
-				const active IS_0_pre = 4.0 * (binSizes[i] / delta_sum_I2) * (binSizes[i] / delta_sum_I2);
-				IS_0_coeff_1[i] = IS_0_pre * (10.0 * binSizes[i] * binSizes[i] + binSizes[i + 1] * (binSizes[i] + binSizes[i + 1])) / (binSizes[i + 1] + binSizes[i + 2]) / (binSizes[i + 1] + binSizes[i + 2]);
-				IS_0_coeff_2[i] = IS_0_pre * (20.0 * binSizes[i] * binSizes[i] + 2.0 * binSizes[i + 1] * (binSizes[i] + binSizes[i + 1]) + (2.0 * binSizes[i + 1] + binSizes[i]) * delta_sum_I2) / (binSizes[i + 1] + binSizes[i + 2]) / (binSizes[i + 1] + binSizes[i]);
-				IS_0_coeff_3[i] = IS_0_pre * (10.0 * binSizes[i] * binSizes[i] + (2.0 * delta_sum_I2 - binSizes[i + 2]) * (delta_sum_I2 + binSizes[i + 1])) / (binSizes[i] + binSizes[i + 1]) / (binSizes[i] + binSizes[i + 1]);
-				const active IS_1_pre = 4.0 * (binSizes[i] / delta_sum_I1) * (binSizes[i] / delta_sum_I1);
-				IS_1_coeff_1[i] = IS_1_pre * (10.0 * binSizes[i] * binSizes[i] + binSizes[i + 1] * (binSizes[i] + binSizes[i + 1])) / (binSizes[i - 1] + binSizes[i]) / (binSizes[i - 1] + binSizes[i]);
-				IS_1_coeff_2[i] = IS_1_pre * (20.0 * binSizes[i] * binSizes[i] - binSizes[i + 1] * binSizes[i - 1] - (binSizes[i] + binSizes[i + 1]) * (binSizes[i] + binSizes[i - 1])) / (binSizes[i] + binSizes[i + 1]) / (binSizes[i] + binSizes[i - 1]);
-				IS_1_coeff_3[i] = IS_1_pre * (10.0 * binSizes[i] * binSizes[i] + binSizes[i - 1] * (binSizes[i - 1] + binSizes[i])) / (binSizes[i] + binSizes[i + 1]) / (binSizes[i] + binSizes[i + 1]);
-				const active IS_2_pre = 4.0 * (binSizes[i] / delta_sum_I0) * (binSizes[i] / delta_sum_I0);
-				IS_2_coeff_1[i] = IS_2_pre * (10.0 * binSizes[i] * binSizes[i] + binSizes[i - 1] * (binSizes[i - 1] + binSizes[i])) / (binSizes[i - 2] + binSizes[i - 1]) / (binSizes[i - 2] + binSizes[i - 1]);
-				IS_2_coeff_2[i] = IS_2_pre * (20.0 * binSizes[i] * binSizes[i] + 2.0 * binSizes[i - 1] * (binSizes[i - 1] + binSizes[i]) + delta_sum_I0 * (2.0 * binSizes[i - 1] + binSizes[i])) / (binSizes[i - 1] + binSizes[i]) / (binSizes[i - 2] + binSizes[i - 1]);
-				IS_2_coeff_3[i] = IS_2_pre * (10.0 * binSizes[i] * binSizes[i] + (2.0 * delta_sum_I0 - binSizes[i - 2]) * (delta_sum_I0 + binSizes[i - 1])) / (binSizes[i - 1] + binSizes[i]) / (binSizes[i - 1] + binSizes[i]);
-			}
-
-			const int nBins = binSizes.size();
-			IS_0_coeff_weno3 = 4.0 * binSizes[1] * binSizes[1] / (binSizes[1] + binSizes[2]) / (binSizes[1] + binSizes[2]);
-			IS_1_coeff_weno3 = 4.0 * binSizes[1] * binSizes[1] / (binSizes[0] + binSizes[1]) / (binSizes[0] + binSizes[1]);
-			C_coeff1_weno3 = (binSizes[0] + binSizes[1]) / (binSizes[0] + binSizes[1] + binSizes[2]);
-			C_coeff2_weno3 = 1.0 - (C_coeff1_weno3);
-			q0_coeff1_weno3 = binSizes[2] / (binSizes[1] + binSizes[2]);
-			q0_coeff2_weno3 = 1.0 - (q0_coeff1_weno3);
-			q1_coeff1_weno3 = 1.0 + binSizes[1] / (binSizes[0] + binSizes[1]);
-			q1_coeff2_weno3 = 1.0 - (q1_coeff1_weno3);
-			IS_0_coeff_weno3_r = 4.0 * binSizes[nBins - 2] * binSizes[nBins - 2] / (binSizes[nBins - 2] + binSizes[nBins - 1]) / (binSizes[nBins - 2] + binSizes[nBins - 1]);
-			IS_1_coeff_weno3_r = 4.0 * binSizes[nBins - 2] * binSizes[nBins - 2] / (binSizes[nBins - 2] + binSizes[nBins - 3]) / (binSizes[nBins - 2] + binSizes[nBins - 3]);
-			C_coeff1_weno3_r = (binSizes[nBins - 2] + binSizes[nBins - 1]) / (binSizes[nBins - 3] + binSizes[nBins - 2] + binSizes[nBins - 1]);
-			C_coeff2_weno3_r = 1.0 - (C_coeff1_weno3_r);
-			q0_coeff1_weno3_r = binSizes[nBins - 1] / (binSizes[nBins - 2] + binSizes[nBins - 1]);
-			q0_coeff2_weno3_r = 1.0 - (q0_coeff1_weno3_r);
-			q1_coeff1_weno3_r = 1.0 + binSizes[nBins - 2] / (binSizes[nBins - 2] + binSizes[nBins - 3]);
-			q1_coeff2_weno3_r = 1.0 - (q1_coeff1_weno3_r);
-		}
-	};
-
-	/**
-	 * Aggregation and Fragmentation FV weights and coefficients. For details see @cite Zhang2025
-	*/
 	struct AggCoefficients
 	{
 		std::pair<std::vector<unsigned short int>, std::vector<unsigned short int>> index;  // a pair of vectors to store combination of j and k
@@ -374,13 +226,13 @@ namespace detail
 } // namespace detail
 
 /**
- * @brief Defines the crystallization reaction model
+ * @brief Defines crystallization models as a reaction module. Details on the models and methods can be found in @cite Zhang2024 and @cite Zhang2025
 */
 class CrystallizationReaction : public IDynamicReactionModel
 {
 public:
 
-	CrystallizationReaction() : _nComp(0), _nBins(0), _bins(0), _binCenters(0), _binSizes(0), _agg(nullptr), _frag(nullptr), _HR(nullptr), _weno3(nullptr), _weno5(nullptr) { }
+	CrystallizationReaction() : _nComp(0), _nBins(0), _bins(0), _binCenters(0), _binSizes(0), _agg(nullptr), _frag(nullptr), _reconstruction(nullptr), _jacParams(nullptr) { }
 	virtual ~CrystallizationReaction() CADET_NOEXCEPT
 	{
 		if (_agg)
@@ -393,20 +245,15 @@ public:
 			delete _frag;
 			_frag = nullptr;
 		}
-		if (_HR)
+		if (_reconstruction)
 		{
-			delete _HR;
-			_HR = nullptr;
+			delete _reconstruction;
+			_reconstruction = nullptr;
 		}
-		if (_weno3)
+		if (_jacParams)
 		{
-			delete _weno3;
-			_weno3 = nullptr;
-		}
-		if (_weno5)
-		{
-			delete _weno5;
-			_weno5 = nullptr;
+			delete _jacParams;
+			_jacParams = nullptr;
 		}
 	}
 
@@ -419,11 +266,11 @@ public:
 	virtual bool configure(IParameterProvider& paramProvider, UnitOpIdx unitOpIdx, ParticleTypeIdx parTypeIdx)
 	{
 		if (paramProvider.exists("CRY_MODE"))
-					_mode.SetMode(paramProvider.getInt("CRY_MODE"));
+			_mode.SetMode(paramProvider.getInt("CRY_MODE"));
 		else
-					_mode.SetMode(1); // For backwards compatibility: PBM as default
+			_mode.SetMode(1); // For backwards compatibility: PBM as default
 
-				if (_mode.hasPBM())
+		if (_mode.hasPBM())
 		{
 			if (!paramProvider.exists("CRY_NUCLEI_MASS_DENSITY"))
 						throw InvalidParameterException("Crystallization mode specified as " + std::to_string(_mode.getMode()) + ", i.e. crystallization including population mass balance, but field CRY_NUCLEI_MASS_DENSITY was not specified");
@@ -438,11 +285,11 @@ public:
 		{
 			_nBins = _nComp;
 
-					if (_mode.hasAggregation() && !paramProvider.exists("CRY_AGGREGATION_RATE_CONSTANT"))
-						throw InvalidParameterException("Crystallization mode specified as " + std::to_string(_mode.getMode()) + ", i.e. crystallization including aggregation, but field CRY_AGGREGATION_RATE_CONSTANT was not specified");
+			if (_mode.hasAggregation() && !paramProvider.exists("CRY_AGGREGATION_RATE_CONSTANT"))
+				throw InvalidParameterException("Crystallization mode specified as " + std::to_string(_mode.getMode()) + ", i.e. crystallization including aggregation, but field CRY_AGGREGATION_RATE_CONSTANT was not specified");
 
-					if (_mode.hasFragmentation() && !paramProvider.exists("CRY_FRAGMENTATION_RATE_CONSTANT"))
-						throw InvalidParameterException("Crystallization mode specified as " + std::to_string(_mode.getMode()) + ", i.e. crystallization including fragmentation, but field CRY_FRAGMENTATION_RATE_CONSTANT was not specified");
+			if (_mode.hasFragmentation() && !paramProvider.exists("CRY_FRAGMENTATION_RATE_CONSTANT"))
+				throw InvalidParameterException("Crystallization mode specified as " + std::to_string(_mode.getMode()) + ", i.e. crystallization including fragmentation, but field CRY_FRAGMENTATION_RATE_CONSTANT was not specified");
 		}
 
 		readScalarParameterOrArray(_bins, paramProvider, "CRY_BINS", 1);
@@ -457,7 +304,7 @@ public:
 		_binCenterDists.resize(_nBins - 1);
 		updateBinCoords();
 
-				if (_mode.hasPBM())
+		if (_mode.hasPBM())
 		{
 			_nucleiMassDensity = paramProvider.getDouble("CRY_NUCLEI_MASS_DENSITY");
 			_parameters[makeParamId(hashString("CRY_NUCLEI_MASS_DENSITY"), unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_nucleiMassDensity;
@@ -506,30 +353,34 @@ public:
 			_parameters[makeParamId(hashString("CRY_U"), unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_u;
 
 			// clear scheme coefficients
-			if (_HR)
+			if (_reconstruction)
 			{
-				delete _HR;
-				_HR = nullptr;
-			}
-
-			if (_weno3)
-			{
-				delete _weno3;
-				_weno3 = nullptr;
-			}
-
-			if (_weno5)
-			{
-				delete _weno5;
-				_weno5 = nullptr;
+				delete _reconstruction;
+				_reconstruction = nullptr;
+				delete _jacParams;
+				_jacParams = nullptr;
 			}
 
 			if (_growthSchemeOrder == detail::PBMReconstruction::HRKoren)
-				_HR = new detail::HRKorenCoefficients(_binSizes);
+			{
+				_reconstruction = new HRKorenParams<active>(_binSizes);
+				_jacParams = new JacobianParamsHRKoren;
+			}
 			else if (_growthSchemeOrder == detail::PBMReconstruction::WENO23)
-				_weno3 = new detail::Weno3Coefficients(_binSizes);
+			{
+				_reconstruction = new WENO23Params<active>(_binSizes);
+				_jacParams = new JacobianParamsWENO23;
+			}
 			else if (_growthSchemeOrder == detail::PBMReconstruction::WENO35)
-				_weno5 = new detail::Weno5Coefficients(_binSizes);
+			{
+				_reconstruction = new WENO35Params<active>(_binSizes);
+				_jacParams = new JacobianParamsWENO35;
+			}
+			else
+			{
+				_reconstruction = new ReconstructionParams<active>();
+				_jacParams = new JacobianParamsBase;
+			}
 		}
 		if (_mode.hasAggregation())
 		{
@@ -639,6 +490,532 @@ public:
 
 protected:
 
+	template<typename ParamType>
+	struct ReconstructionParams
+	{
+		ParamType v_g = 0.0;
+		ParamType k_g_times_s_g = 0.0;
+		ParamType B_0 = 0.0;
+
+		ReconstructionParams(ParamType v_g = 0.0, ParamType k_g_times_s_g = 0.0, ParamType B_0 = 0.0) : v_g(v_g), k_g_times_s_g(k_g_times_s_g), B_0(B_0) {};
+
+		void updateParams(ParamType k_g_times_s_g_, ParamType B_0_)
+		{
+			k_g_times_s_g = k_g_times_s_g_;
+			B_0 = B_0_;
+		}
+
+		// Create a double view of this struct
+		template <typename U>
+		ReconstructionParams<U>& as() {
+			//static_assert(std::is_same_v<U, double>, "Only double views are supported");
+			//return reinterpret_cast<ReconstructionParams<U>&>(*this);
+			return *ReconstructionParams<U>(
+				static_cast<U>(v_g),
+				static_cast<U>(k_g_times_s_g),
+				static_cast<U>(B_0)
+			);
+		}
+
+		// Overload for const objects
+		template <typename U>
+		const ReconstructionParams<U>& as() const {
+			//static_assert(std::is_same_v<U, double>, "Only double views are supported");
+			return reinterpret_cast<const ReconstructionParams<U>&>(*this);
+		}
+	};
+
+	template<typename ParamType>
+	struct HRKorenParams : public ReconstructionParams<ParamType>
+	{
+		ParamType r_x_i = 0.0;
+		ParamType phi = 0.0;
+		ParamType F_i = 0.0;
+
+		std::vector<ParamType> A_coeff;
+		std::vector<ParamType> R_coeff;
+
+		HRKorenParams(const std::vector<active>& binSizes)
+			: r_x_i(r_x_i), phi(phi), F_i(F_i), A_coeff(binSizes.size() - 1), R_coeff(binSizes.size() - 1)
+		{
+			// calculate the coefficients
+			for (int i = 1; i + 1 < binSizes.size(); ++i)
+			{
+				const ParamType delta_xi_xip1 = static_cast<ParamType>(binSizes[i] + binSizes[i + 1]);
+				A_coeff[i] = delta_xi_xip1 / (static_cast<ParamType>(binSizes[i] + binSizes[i - 1]));
+				R_coeff[i] = delta_xi_xip1 / static_cast<ParamType>(binSizes[i]);
+			}
+		}
+
+		// Create a double view of this struct
+		template <typename U>
+		HRKorenParams<U>& as() {
+			return reinterpret_cast<HRKorenParams<U>&>(*this);
+		}
+
+		// Overload for const objects
+		template <typename U>
+		const HRKorenParams<U>& as() const {
+			return reinterpret_cast<const HRKorenParams<U>&>(*this);
+		}
+	};
+
+	/**
+	 * Flux reconstruction scheme coefficients.For details see @cite Zhang2024
+	*/
+	template<typename ParamType>
+	struct WENO23Params : public ReconstructionParams<ParamType>
+	{
+		std::vector<ParamType> q_1_right_coeff;
+		std::vector<ParamType> q_0_right_coeff;
+		std::vector<ParamType> C_right_coeff;
+		std::vector<ParamType> IS_0_coeff;
+		std::vector<ParamType> IS_1_coeff;
+
+		ParamType IS_0 = 0.0;
+		ParamType IS_1 = 0.0;
+		ParamType alpha_0 = 0.0;
+		ParamType alpha_1 = 0.0;
+		ParamType W_0 = 0.0;
+		ParamType W_1 = 0.0;
+		ParamType q_0 = 0.0;
+		ParamType q_1 = 0.0;
+
+		WENO23Params(const std::vector<active>& binSizes)
+			: q_1_right_coeff(binSizes.size() - 1), q_0_right_coeff(binSizes.size() - 1), C_right_coeff(binSizes.size() - 1), IS_0_coeff(binSizes.size() - 1), IS_1_coeff(binSizes.size() - 1)
+		{
+			// calculate the coefficients and store them, the first element is empty
+			for (int i = 1; i + 1 < binSizes.size(); ++i)
+			{
+				const ParamType delta_sum = static_cast<ParamType>(binSizes[i] + binSizes[i - 1] + binSizes[i + 1]);
+				const ParamType delta_left_sum = static_cast<ParamType>(binSizes[i] + binSizes[i - 1]);
+				const ParamType delta_right_sum = static_cast<ParamType>(binSizes[i] + binSizes[i + 1]);
+				q_0_right_coeff[i] = static_cast<ParamType>(binSizes[i + 1]) / delta_right_sum;
+				q_1_right_coeff[i] = 1.0 + static_cast<ParamType>(binSizes[i]) / delta_left_sum;
+				C_right_coeff[i] = delta_left_sum / delta_sum;
+				IS_0_coeff[i] = (2.0 * static_cast<ParamType>(binSizes[i]) / delta_right_sum) * (2.0 * static_cast<ParamType>(binSizes[i]) / delta_right_sum);
+				IS_1_coeff[i] = (2.0 * static_cast<ParamType>(binSizes[i]) / delta_left_sum) * (2.0 * static_cast<ParamType>(binSizes[i]) / delta_left_sum);
+			}
+		}
+
+		// Create a double view of this struct
+		template <typename U>
+		WENO23Params<U>& as() {
+			return reinterpret_cast<WENO23Params<U>&>(*this);
+		}
+
+		// Overload for const objects
+		template <typename U>
+		const WENO23Params<U>& as() const {
+			return reinterpret_cast<const WENO23Params<U>&>(*this);
+		}
+	};
+
+	template<typename ParamType>
+	struct WENO35Params : public ReconstructionParams<ParamType>
+	{
+		std::vector<ParamType> q_2_coeff_1;
+		std::vector<ParamType> q_2_coeff_2;
+		std::vector<ParamType> q_1_coeff_1;
+		std::vector<ParamType> q_1_coeff_2;
+		std::vector<ParamType> q_0_coeff_1;
+		std::vector<ParamType> q_0_coeff_2;
+		std::vector<ParamType> C_0;
+		std::vector<ParamType> C_1;
+		std::vector<ParamType> C_2;
+		std::vector<ParamType> IS_0_coeff_1;
+		std::vector<ParamType> IS_0_coeff_2;
+		std::vector<ParamType> IS_0_coeff_3;
+		std::vector<ParamType> IS_1_coeff_1;
+		std::vector<ParamType> IS_1_coeff_2;
+		std::vector<ParamType> IS_1_coeff_3;
+		std::vector<ParamType> IS_2_coeff_1;
+		std::vector<ParamType> IS_2_coeff_2;
+		std::vector<ParamType> IS_2_coeff_3;
+
+		ParamType IS_0 = 0.0;
+		ParamType IS_1 = 0.0;
+		ParamType IS_2 = 0.0;
+		ParamType alpha_0 = 0.0;
+		ParamType alpha_1 = 0.0;
+		ParamType alpha_2 = 0.0;
+		ParamType W_0 = 0.0;
+		ParamType W_1 = 0.0;
+		ParamType W_2 = 0.0;
+		ParamType q_0 = 0.0;
+		ParamType q_1 = 0.0;
+		ParamType q_2 = 0.0;
+
+		// left side coefficients
+		ParamType IS_0_coeff_weno3 = 0.0;
+		ParamType IS_1_coeff_weno3 = 0.0;
+		ParamType C_coeff1_weno3 = 0.0;
+		ParamType C_coeff2_weno3 = 0.0;
+		ParamType q0_coeff1_weno3 = 0.0;
+		ParamType q0_coeff2_weno3 = 0.0;
+		ParamType q1_coeff1_weno3 = 0.0;
+		ParamType q1_coeff2_weno3 = 0.0;
+		// right side coefficients
+		ParamType IS_0_coeff_weno3_r = 0.0;
+		ParamType IS_1_coeff_weno3_r = 0.0;
+		ParamType C_coeff1_weno3_r = 0.0;
+		ParamType C_coeff2_weno3_r = 0.0;
+		ParamType q0_coeff1_weno3_r = 0.0;
+		ParamType q0_coeff2_weno3_r = 0.0;
+		ParamType q1_coeff1_weno3_r = 0.0;
+		ParamType q1_coeff2_weno3_r = 0.0;
+
+		WENO35Params(const std::vector<ParamType>& binSizes)
+			: q_2_coeff_1(binSizes.size() - 2), q_2_coeff_2(binSizes.size() - 2), q_1_coeff_1(binSizes.size() - 2),
+			q_1_coeff_2(binSizes.size() - 2), q_0_coeff_1(binSizes.size() - 2), q_0_coeff_2(binSizes.size() - 2),
+			C_0(binSizes.size() - 2), C_1(binSizes.size() - 2), C_2(binSizes.size() - 2),
+			IS_0_coeff_1(binSizes.size() - 2), IS_0_coeff_2(binSizes.size() - 2), IS_0_coeff_3(binSizes.size() - 2),
+			IS_1_coeff_1(binSizes.size() - 2), IS_1_coeff_2(binSizes.size() - 2), IS_1_coeff_3(binSizes.size() - 2),
+			IS_2_coeff_1(binSizes.size() - 2), IS_2_coeff_2(binSizes.size() - 2), IS_2_coeff_3(binSizes.size() - 2)
+		{
+			// calculate the coefficients and store them, the first and second elements are empty
+			for (int i = 2; i + 2 < binSizes.size(); ++i)
+			{
+				const ParamType delta_sum = binSizes[i - 2] + binSizes[i - 1] + binSizes[i] + binSizes[i + 1] + binSizes[i + 2];
+				const ParamType delta_sum_I0 = binSizes[i - 2] + binSizes[i - 1] + binSizes[i];
+				const ParamType delta_sum_I1 = binSizes[i - 1] + binSizes[i] + binSizes[i + 1];
+				const ParamType delta_sum_I2 = binSizes[i] + binSizes[i + 1] + binSizes[i + 2];
+				q_0_coeff_1[i] = binSizes[i + 1] * (delta_sum_I2 - binSizes[i]) / (delta_sum_I2 - binSizes[i + 2]) / delta_sum_I2;
+				q_0_coeff_2[i] = binSizes[i + 1] * binSizes[i] / delta_sum_I2 / (delta_sum_I2 - binSizes[i]);
+				q_1_coeff_1[i] = binSizes[i] * (delta_sum_I1 - binSizes[i + 1]) / delta_sum_I1 / (delta_sum_I1 - binSizes[i - 1]);
+				q_1_coeff_2[i] = binSizes[i] * binSizes[i + 1] / delta_sum_I1 / (delta_sum_I1 - binSizes[i + 1]);
+				q_2_coeff_1[i] = binSizes[i] * (delta_sum_I0 - binSizes[i - 2]) / delta_sum_I0 / (delta_sum_I0 - binSizes[i]);
+				q_2_coeff_2[i] = 1.0 + binSizes[i] / (binSizes[i - 1] + binSizes[i]) + binSizes[i] / delta_sum_I0;
+				C_0[i] = delta_sum_I0 * (delta_sum_I0 - binSizes[i - 2]) / delta_sum / (delta_sum - binSizes[i - 2]);
+				C_1[i] = delta_sum_I0 / delta_sum * (delta_sum_I2 - binSizes[i]) / (binSizes[i - 1] + delta_sum_I2) * (1.0 + (delta_sum - binSizes[i - 2]) / (delta_sum - binSizes[i + 2]));
+				C_2[i] = binSizes[i + 1] * (binSizes[i + 1] + binSizes[i + 2]) / delta_sum / (delta_sum - binSizes[i + 2]);
+				const ParamType IS_0_pre = 4.0 * (binSizes[i] / delta_sum_I2) * (binSizes[i] / delta_sum_I2);
+				IS_0_coeff_1[i] = IS_0_pre * (10.0 * binSizes[i] * binSizes[i] + binSizes[i + 1] * (binSizes[i] + binSizes[i + 1])) / (binSizes[i + 1] + binSizes[i + 2]) / (binSizes[i + 1] + binSizes[i + 2]);
+				IS_0_coeff_2[i] = IS_0_pre * (20.0 * binSizes[i] * binSizes[i] + 2.0 * binSizes[i + 1] * (binSizes[i] + binSizes[i + 1]) + (2.0 * binSizes[i + 1] + binSizes[i]) * delta_sum_I2) / (binSizes[i + 1] + binSizes[i + 2]) / (binSizes[i + 1] + binSizes[i]);
+				IS_0_coeff_3[i] = IS_0_pre * (10.0 * binSizes[i] * binSizes[i] + (2.0 * delta_sum_I2 - binSizes[i + 2]) * (delta_sum_I2 + binSizes[i + 1])) / (binSizes[i] + binSizes[i + 1]) / (binSizes[i] + binSizes[i + 1]);
+				const ParamType IS_1_pre = 4.0 * (binSizes[i] / delta_sum_I1) * (binSizes[i] / delta_sum_I1);
+				IS_1_coeff_1[i] = IS_1_pre * (10.0 * binSizes[i] * binSizes[i] + binSizes[i + 1] * (binSizes[i] + binSizes[i + 1])) / (binSizes[i - 1] + binSizes[i]) / (binSizes[i - 1] + binSizes[i]);
+				IS_1_coeff_2[i] = IS_1_pre * (20.0 * binSizes[i] * binSizes[i] - binSizes[i + 1] * binSizes[i - 1] - (binSizes[i] + binSizes[i + 1]) * (binSizes[i] + binSizes[i - 1])) / (binSizes[i] + binSizes[i + 1]) / (binSizes[i] + binSizes[i - 1]);
+				IS_1_coeff_3[i] = IS_1_pre * (10.0 * binSizes[i] * binSizes[i] + binSizes[i - 1] * (binSizes[i - 1] + binSizes[i])) / (binSizes[i] + binSizes[i + 1]) / (binSizes[i] + binSizes[i + 1]);
+				const ParamType IS_2_pre = 4.0 * (binSizes[i] / delta_sum_I0) * (binSizes[i] / delta_sum_I0);
+				IS_2_coeff_1[i] = IS_2_pre * (10.0 * binSizes[i] * binSizes[i] + binSizes[i - 1] * (binSizes[i - 1] + binSizes[i])) / (binSizes[i - 2] + binSizes[i - 1]) / (binSizes[i - 2] + binSizes[i - 1]);
+				IS_2_coeff_2[i] = IS_2_pre * (20.0 * binSizes[i] * binSizes[i] + 2.0 * binSizes[i - 1] * (binSizes[i - 1] + binSizes[i]) + delta_sum_I0 * (2.0 * binSizes[i - 1] + binSizes[i])) / (binSizes[i - 1] + binSizes[i]) / (binSizes[i - 2] + binSizes[i - 1]);
+				IS_2_coeff_3[i] = IS_2_pre * (10.0 * binSizes[i] * binSizes[i] + (2.0 * delta_sum_I0 - binSizes[i - 2]) * (delta_sum_I0 + binSizes[i - 1])) / (binSizes[i - 1] + binSizes[i]) / (binSizes[i - 1] + binSizes[i]);
+			}
+
+			const int nBins = binSizes.size();
+			IS_0_coeff_weno3 = 4.0 * binSizes[1] * binSizes[1] / (binSizes[1] + binSizes[2]) / (binSizes[1] + binSizes[2]);
+			IS_1_coeff_weno3 = 4.0 * binSizes[1] * binSizes[1] / (binSizes[0] + binSizes[1]) / (binSizes[0] + binSizes[1]);
+			C_coeff1_weno3 = (binSizes[0] + binSizes[1]) / (binSizes[0] + binSizes[1] + binSizes[2]);
+			C_coeff2_weno3 = 1.0 - (C_coeff1_weno3);
+			q0_coeff1_weno3 = binSizes[2] / (binSizes[1] + binSizes[2]);
+			q0_coeff2_weno3 = 1.0 - (q0_coeff1_weno3);
+			q1_coeff1_weno3 = 1.0 + binSizes[1] / (binSizes[0] + binSizes[1]);
+			q1_coeff2_weno3 = 1.0 - (q1_coeff1_weno3);
+			IS_0_coeff_weno3_r = 4.0 * binSizes[nBins - 2] * binSizes[nBins - 2] / (binSizes[nBins - 2] + binSizes[nBins - 1]) / (binSizes[nBins - 2] + binSizes[nBins - 1]);
+			IS_1_coeff_weno3_r = 4.0 * binSizes[nBins - 2] * binSizes[nBins - 2] / (binSizes[nBins - 2] + binSizes[nBins - 3]) / (binSizes[nBins - 2] + binSizes[nBins - 3]);
+			C_coeff1_weno3_r = (binSizes[nBins - 2] + binSizes[nBins - 1]) / (binSizes[nBins - 3] + binSizes[nBins - 2] + binSizes[nBins - 1]);
+			C_coeff2_weno3_r = 1.0 - (C_coeff1_weno3_r);
+			q0_coeff1_weno3_r = binSizes[nBins - 1] / (binSizes[nBins - 2] + binSizes[nBins - 1]);
+			q0_coeff2_weno3_r = 1.0 - (q0_coeff1_weno3_r);
+			q1_coeff1_weno3_r = 1.0 + binSizes[nBins - 2] / (binSizes[nBins - 2] + binSizes[nBins - 3]);
+			q1_coeff2_weno3_r = 1.0 - (q1_coeff1_weno3_r);
+		}
+
+		// Create a double view of this struct
+		template <typename U>
+		WENO35Params<U>& as() {
+			return reinterpret_cast<WENO35Params<U>&>(*this);
+		}
+
+		// Overload for const objects
+		template <typename U>
+		const WENO35Params<U>& as() const {
+			return reinterpret_cast<const WENO35Params<U>&>(*this);
+		}
+	};
+
+	struct JacobianParamsBase
+	{
+		// Constant parameters used in upwind scheme. Also included in parameters for HRKoren and WENO23 and WENO35 schemes
+		double vG_factor;
+		double dBp_dc;
+		double dBp_dceq;
+		double dBs_dc;
+		double dBs_dceq;
+		double dvG_dc_factor;
+		double dvG_dceq_factor;
+		double dBs_dni_factor;
+
+		void updateParams(double vG_factor_, double dBp_dc_, double dBp_dceq_, double dBs_dc_, double dBs_dceq_, double dvG_dc_factor_, double dvG_dceq_factor_, double dBs_dni_factor_)
+		{
+			vG_factor = vG_factor_;
+			dBp_dc = dBp_dc_;
+			dBp_dceq = dBp_dceq_;
+			dBs_dc = dBs_dc; dBs_dceq = dBs_dceq_;
+			dvG_dc_factor = dvG_dc_factor_;
+			dvG_dceq_factor = dvG_dceq_factor_;
+			dBs_dni_factor = dBs_dni_factor_;
+		}
+	};
+
+	struct JacobianParamsHRKoren : public JacobianParamsBase
+	{
+		// HR Koren specific parameters
+		const double epsilon = 1e-10;
+		double r_x_i = 0.0;
+		double phi = 0.0;
+		double F_i = 0.0;
+		double dvG_dc_right = 0.0;
+		double dvG_dceq_right = 0.0;
+		double vg_right = 0.0;
+
+		double r_cluster = 0.0;
+		double r_square_cluster = 0.0;
+		double A_cluster = 0.0;
+		double Ar_cluster = 0.0;
+		double ni_difference = 0.0;
+
+		double dFi_wrt_nim1 = 0.0;
+		double dFi_wrt_ni = 0.0;
+		double dFi_wrt_nip1 = 0.0;
+	};
+
+	struct JacobianParamsWENO23 : public JacobianParamsBase
+	{
+		// WENO23 related coefficients
+		double dvG_dc_right = 0.0;
+		double dvG_dceq_right = 0.0;
+		double vg_right = 0.0;
+		double IS_0_right = 0.0;
+		double IS_1_right = 0.0;
+		double alpha_0_right = 0.0;
+		double alpha_1_right = 0.0;
+		double W_0_right = 0.0;
+		double W_1_right = 0.0;
+		double q_0_right = 0.0;
+		double q_1_right = 0.0;
+
+		// Jacobian related coefficients
+		double four_w1_B1_right = 0.0;
+		double four_w0_B0_right = 0.0;
+		double four_w0_w1_B1_right = 0.0;
+		double four_w0_w0_B0_right = 0.0;
+		double four_w1_w1_B1_right = 0.0;
+		double four_w0_w1_B0_right = 0.0;
+
+		double dw0_right_dni_m1 = 0.0;
+		double dw0_right_dni = 0.0;
+		double dw0_right_dni_p1 = 0.0;
+
+		double dw1_right_dni_m1 = 0.0;
+		double dw1_right_dni = 0.0;
+		double dw1_right_dni_p1 = 0.0;
+
+		double dq0_right_dni = 0.0;
+		double dq0_right_dni_p1 = 0.0;
+
+		double dq1_right_dni_m1 = 0.0;
+		double dq1_right_dni = 0.0;
+	};
+
+	struct JacobianParamsWENO35 : public JacobianParamsBase
+	{
+		void updateParams(double vG_factor_, double dBp_dc_, double dBp_dceq_, double dBs_dc_, double dBs_dceq_, double dvG_dc_factor_, double dvG_dceq_factor_, double dBs_dni_factor_, const double* yCrystal, const int nComp, const std::vector<active>& binSizes, WENO35Params<active>& WENO5Params)
+		{
+			JacobianParamsBase::updateParams(vG_factor_, dBp_dc_, dBp_dceq_, dBs_dc_, dBs_dceq_, dvG_dc_factor_, dvG_dceq_factor_, dBs_dni_factor_);
+
+			// WENO3 related coefficients, for bin N_x-2
+			IS_0_weno3_right = static_cast<double>(WENO5Params.IS_0_coeff_weno3_r) * (yCrystal[nComp - 3] - yCrystal[nComp - 4]) * (yCrystal[nComp - 3] - yCrystal[nComp - 4]);
+			IS_1_weno3_right = static_cast<double>(WENO5Params.IS_1_coeff_weno3_r) * (yCrystal[nComp - 4] - yCrystal[nComp - 5]) * (yCrystal[nComp - 4] - yCrystal[nComp - 5]);
+			alpha_0_weno3_right = static_cast<double>(WENO5Params.C_coeff1_weno3_r) / (static_cast<double>(binSizes[nComp - 4]) + IS_0_weno3_right) / (static_cast<double>(binSizes[nComp - 4]) + IS_0_weno3_right);
+			alpha_1_weno3_right = static_cast<double>(WENO5Params.C_coeff2_weno3_r) / (static_cast<double>(binSizes[nComp - 4]) + IS_1_weno3_right) / (static_cast<double>(binSizes[nComp - 4]) + IS_1_weno3_right);
+			W_0_weno3_right = alpha_0_weno3_right / (alpha_0_weno3_right + alpha_1_weno3_right);
+			W_1_weno3_right = 1.0 - W_0_weno3_right;
+			q_0_weno3_right = static_cast<double>(WENO5Params.q0_coeff1_weno3_r) * yCrystal[nComp - 4] + static_cast<double>(WENO5Params.q0_coeff2_weno3_r) * yCrystal[nComp - 3];
+			q_1_weno3_right = static_cast<double>(WENO5Params.q1_coeff1_weno3_r) * yCrystal[nComp - 4] + static_cast<double>(WENO5Params.q1_coeff2_weno3_r) * yCrystal[nComp - 5];
+
+			// WENO3 jacobian related coefficients, for bin N_x-2
+			four_w0_B0_weno3_right = 4.0 * W_0_weno3_right * static_cast<double>(WENO5Params.IS_0_coeff_weno3_r) * (yCrystal[nComp - 3] - yCrystal[nComp - 4]) / (static_cast<double>(binSizes[nComp - 4]) + IS_0_weno3_right);
+			four_w1_B1_weno3_right = 4.0 * W_1_weno3_right * static_cast<double>(WENO5Params.IS_1_coeff_weno3_r) * (yCrystal[nComp - 4] - yCrystal[nComp - 5]) / (static_cast<double>(binSizes[nComp - 4]) + IS_1_weno3_right);
+			four_w0_w0_B0_weno3_right = four_w0_B0_weno3_right * W_0_weno3_right;
+			four_w0_w1_B1_weno3_right = four_w1_B1_weno3_right * W_0_weno3_right;
+			four_w0_w1_B0_weno3_right = four_w0_B0_weno3_right * W_1_weno3_right;
+			four_w1_w1_B1_weno3_right = four_w1_B1_weno3_right * W_1_weno3_right;
+
+			dw0_right_dni_m1_weno3_right = -four_w0_w1_B1_weno3_right;
+			dw0_right_dni_weno3_right = four_w0_B0_weno3_right - four_w0_w0_B0_weno3_right + four_w0_w1_B1_weno3_right;
+			dw0_right_dni_p1_weno3_right = four_w0_w0_B0_weno3_right - four_w0_B0_weno3_right;
+
+			dw1_right_dni_m1_weno3_right = four_w1_B1_weno3_right - four_w1_w1_B1_weno3_right;
+			dw1_right_dni_weno3_right = -four_w1_B1_weno3_right - four_w0_w1_B0_weno3_right + four_w1_w1_B1_weno3_right;
+			dw1_right_dni_p1_weno3_right = four_w0_w1_B0_weno3_right;
+
+			dq0_right_dni_weno3_right = static_cast<double>(WENO5Params.q0_coeff1_weno3_r);
+			dq0_right_dni_p1_weno3_right = static_cast<double>(WENO5Params.q0_coeff2_weno3_r);
+			dq1_right_dni_m1_weno3_right = static_cast<double>(WENO5Params.q1_coeff2_weno3_r);
+			dq1_right_dni_weno3_right = static_cast<double>(WENO5Params.q1_coeff1_weno3_r);
+
+			// WENO3 related coefficients, for bin 2
+			IS_0_weno3_left = static_cast<double>(WENO5Params.IS_0_coeff_weno3) * (yCrystal[2] - yCrystal[1]) * (yCrystal[2] - yCrystal[1]);
+			const double IS_1_weno3_left = static_cast<double>(WENO5Params.IS_1_coeff_weno3) * (yCrystal[1] - yCrystal[0]) * (yCrystal[1] - yCrystal[0]);
+			alpha_0_weno3_left = static_cast<double>(WENO5Params.C_coeff1_weno3) / (static_cast<double>(binSizes[1]) + IS_0_weno3_left) / (static_cast<double>(binSizes[1]) + IS_0_weno3_left);
+			alpha_1_weno3_left = static_cast<double>(WENO5Params.C_coeff2_weno3) / (static_cast<double>(binSizes[1]) + IS_1_weno3_left) / (static_cast<double>(binSizes[1]) + IS_1_weno3_left);
+			W_0_weno3_left = alpha_0_weno3_left / (alpha_0_weno3_left + alpha_1_weno3_left);
+			W_1_weno3_left = 1.0 - W_0_weno3_left;
+			q_0_weno3_left = static_cast<double>(WENO5Params.q0_coeff1_weno3) * yCrystal[1] + static_cast<double>(WENO5Params.q0_coeff2_weno3) * yCrystal[2];
+			q_1_weno3_left = static_cast<double>(WENO5Params.q1_coeff1_weno3) * yCrystal[1] + static_cast<double>(WENO5Params.q1_coeff2_weno3) * yCrystal[0];
+
+			// WENO3 Jacobian related coefficients, for bin 2
+			four_w0_B0_weno3_left = 4.0 * W_0_weno3_left * static_cast<double>(WENO5Params.IS_0_coeff_weno3) * (yCrystal[2] - yCrystal[1]) / (static_cast<double>(binSizes[1]) + IS_0_weno3_left);
+			four_w1_B1_weno3_left = 4.0 * W_1_weno3_left * static_cast<double>(WENO5Params.IS_1_coeff_weno3) * (yCrystal[1] - yCrystal[0]) / (static_cast<double>(binSizes[1]) + IS_1_weno3_left);
+			four_w0_w0_B0_weno3_left = four_w0_B0_weno3_left * W_0_weno3_left;
+			four_w0_w1_B1_weno3_left = four_w1_B1_weno3_left * W_0_weno3_left;
+			four_w0_w1_B0_weno3_left = four_w0_B0_weno3_left * W_1_weno3_left;
+			four_w1_w1_B1_weno3_left = four_w1_B1_weno3_left * W_1_weno3_left;
+
+			dw0_right_dni_m1_weno3_left = -four_w0_w1_B1_weno3_left;
+			dw0_right_dni_weno3_left = four_w0_B0_weno3_left - four_w0_w0_B0_weno3_left + four_w0_w1_B1_weno3_left;
+			dw0_right_dni_p1_weno3_left = four_w0_w0_B0_weno3_left - four_w0_B0_weno3_left;
+
+			dw1_right_dni_m1_weno3_left = four_w1_B1_weno3_left - four_w1_w1_B1_weno3_left;
+			dw1_right_dni_weno3_left = -four_w1_B1_weno3_left - four_w0_w1_B0_weno3_left + four_w1_w1_B1_weno3_left;
+			dw1_right_dni_p1_weno3_left = four_w0_w1_B0_weno3_left;
+
+			dq0_right_dni_weno3_left = static_cast<double>(WENO5Params.q0_coeff1_weno3);
+			dq0_right_dni_p1_weno3_left = static_cast<double>(WENO5Params.q0_coeff2_weno3);
+			dq1_right_dni_m1_weno3_left = static_cast<double>(WENO5Params.q1_coeff2_weno3);
+			dq1_right_dni_weno3_left = static_cast<double>(WENO5Params.q1_coeff1_weno3);
+		}
+
+		// WENO35 boundary WENO23 related coefficients, for bin N_x-2
+		double IS_0_weno3_right = 0.0;
+		double IS_1_weno3_right = 0.0;
+		double alpha_0_weno3_right = 0.0;
+		double alpha_1_weno3_right = 0.0;
+		double W_0_weno3_right = 0.0;
+		double W_1_weno3_right = 0.0;
+		double q_0_weno3_right = 0.0;
+		double q_1_weno3_right = 0.0;
+
+		// WENO35 boundary WENO23 jacobian related coefficients, for bin N_x-2
+		double four_w0_B0_weno3_right = 0.0;
+		double four_w1_B1_weno3_right = 0.0;
+		double four_w0_w0_B0_weno3_right = 0.0;
+		double four_w0_w1_B1_weno3_right = 0.0;
+		double four_w0_w1_B0_weno3_right = 0.0;
+		double four_w1_w1_B1_weno3_right = 0.0;
+
+		double dw0_right_dni_m1_weno3_right = 0.0;
+		double dw0_right_dni_weno3_right = 0.0;
+		double dw0_right_dni_p1_weno3_right = 0.0;
+
+		double dw1_right_dni_m1_weno3_right = 0.0;
+		double dw1_right_dni_weno3_right = 0.0;
+		double dw1_right_dni_p1_weno3_right = 0.0;
+
+		double dq0_right_dni_weno3_right = 0.0;
+		double dq0_right_dni_p1_weno3_right = 0.0;
+		double dq1_right_dni_m1_weno3_right = 0.0;
+		double dq1_right_dni_weno3_right = 0.0;
+
+		// WENO35 boundary WENO23 related coefficients, for bin 2
+		double IS_0_weno3_left = 0.0;
+		double IS_1_weno3_left = 0.0;
+		double alpha_0_weno3_left = 0.0;
+		double alpha_1_weno3_left = 0.0;
+		double W_0_weno3_left = 0.0;
+		double W_1_weno3_left = 0.0;
+		double q_0_weno3_left = 0.0;
+		double q_1_weno3_left = 0.0;
+
+		// WENO35 boundary WENO23 Jacobian related coefficients, for bin 2
+		double four_w0_B0_weno3_left;
+		double four_w1_B1_weno3_left;
+		double four_w0_w0_B0_weno3_left;
+		double four_w0_w1_B1_weno3_left;
+		double four_w0_w1_B0_weno3_left;
+		double four_w1_w1_B1_weno3_left;
+
+		double dw0_right_dni_m1_weno3_left;
+		double dw0_right_dni_weno3_left;
+		double dw0_right_dni_p1_weno3_left;
+
+		double dw1_right_dni_m1_weno3_left;
+		double dw1_right_dni_weno3_left;
+		double dw1_right_dni_p1_weno3_left;
+
+		double dq0_right_dni_weno3_left;
+		double dq0_right_dni_p1_weno3_left;
+		double dq1_right_dni_m1_weno3_left;
+		double dq1_right_dni_weno3_left;
+
+		// WENO35 related coefficients
+		double IS_0 = 0.0;
+		double IS_1 = 0.0;
+		double IS_2 = 0.0;
+		double alpha_0 = 0.0;
+		double alpha_1 = 0.0;
+		double alpha_2 = 0.0;
+		double W_0 = 0.0;
+		double W_1 = 0.0;
+		double W_2 = 0.0;
+		double q_0 = 0.0;
+		double q_1 = 0.0;
+		double q_2 = 0.0;
+
+		double dvG_dc_right = 0.0;
+		double dvG_dceq_right = 0.0;
+		double vg_right = 0.0;
+
+		// WENO35 Jacobian related coefficients
+		double dIS0_wrt_dni_p2 = 0.0;
+		double dIS0_wrt_dni_p1 = 0.0;
+		double dIS0_wrt_dni = 0.0;
+		double dIS1_wrt_dni_p1 = 0.0;
+		double dIS1_wrt_dni = 0.0;
+		double dIS1_wrt_dni_m1 = 0.0;
+		double dIS2_wrt_dni = 0.0;
+		double dIS2_wrt_dni_m1 = 0.0;
+		double dIS2_wrt_dni_m2 = 0.0;
+		double dq0_wrt_dni_p2 = 0.0;
+		double dq0_wrt_dni_p1 = 0.0;
+		double dq0_wrt_dni = 0.0;
+		double dq1_wrt_dni_p1 = 0.0;
+		double dq1_wrt_dni = 0.0;
+		double dq1_wrt_dni_m1 = 0.0;
+		double dq2_wrt_dni = 0.0;
+		double dq2_wrt_dni_m1 = 0.0;
+		double dq2_wrt_dni_m2 = 0.0;
+		double w0_w2_is2 = 0.0;
+		double w0_w1_is1 = 0.0;
+		double w0_w0_is0 = 0.0;
+		double w0_is0 = 0.0;
+		double dw0_wrt_dni_m2 = 0.0;
+		double dw0_wrt_dni_m1 = 0.0;
+		double dw0_wrt_dni = 0.0;
+		double dw0_wrt_dni_p1 = 0.0;
+		double dw0_wrt_dni_p2 = 0.0;
+		double w1_w2_is2 = 0.0;
+		double w1_w1_is1 = 0.0;
+		double w1_w0_is0 = 0.0;
+		double w1_is1 = 0.0;
+		double dw1_wrt_dni_m2 = 0.0;
+		double dw1_wrt_dni_m1 = 0.0;
+		double dw1_wrt_dni = 0.0;
+		double dw1_wrt_dni_p1 = 0.0;
+		double dw1_wrt_dni_p2 = 0.0;
+		double w2_is2 = 0.0;
+		double w2_w2_is2 = 0.0;
+		double w2_w1_is1 = 0.0;
+		double w2_w0_is0 = 0.0;
+		double dw2_wrt_dni_m2 = 0.0;
+		double dw2_wrt_dni_m1 = 0.0;
+		double dw2_wrt_dni = 0.0;
+		double dw2_wrt_dni_p1 = 0.0;
+		double dw2_wrt_dni_p2 = 0.0;
+	};
+
 	std::unordered_map<ParameterId, active*> _parameters; //!< Map used to translate ParameterIds to actual variables
 	detail::CrystallizationMode _mode; //!< Crystallization mode, i.e. specification of considered effects
 	int _nComp; //!< Number of components
@@ -665,9 +1042,8 @@ protected:
 	active _k; //!< System constant
 	active _u; //!< System constant
 
-	detail::HRKorenCoefficients* _HR;
-	detail::Weno3Coefficients* _weno3;
-	detail::Weno5Coefficients* _weno5;
+	JacobianParamsBase* _jacParams; //!< Parameters used in Jacobian computation, dependent on the discretization scheme
+	ReconstructionParams<active>* _reconstruction;
 
 	// Fragmentation parameters
 	active _fragRateConstant; // constant fragmentation rate constant
@@ -693,235 +1069,235 @@ protected:
 	}
 
 	template <typename StateType, typename ResidualType, typename ParamType, typename FactorType>
-	void upwindKernel(StateType const* yCrystal, ResidualType* resCrystal, const FactorType& factor, detail::ReconstructionParams<ResidualType>& upwindParams, const int i) const
+	void upwindKernel(StateType const* yCrystal, ResidualType* resCrystal, const FactorType& factor, ReconstructionParams<active>& upwindParams, const int i) const
 	{
 		// Flux through left face
 		if (cadet_likely((i > 0) && (i + 1 < _nBins)))
 		{
-			// flux through the left face
-			resCrystal[i] += factor / static_cast<ParamType>(_binSizes[i]) * (upwindParams.v_g * yCrystal[i - 1]) - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i] - yCrystal[i - 1]) / static_cast<ParamType>(_binCenterDists[i - 1]);
+			// flux through the left face, note that v_g is set from the last call
+			resCrystal[i] += factor / static_cast<ParamType>(_binSizes[i]) * (static_cast<ResidualType>(upwindParams.v_g) * yCrystal[i - 1]) - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i] - yCrystal[i - 1]) / static_cast<ParamType>(_binCenterDists[i - 1]);
 			// flux through the right face
-			upwindParams.v_g = upwindParams.k_g_times_s_g * (static_cast<ParamType>(_a) + static_cast<ParamType>(_growthConstant) * pow(static_cast<ParamType>(_bins[i + 1]), static_cast<ParamType>(_p)));
-			resCrystal[i] -= factor / static_cast<ParamType>(_binSizes[i]) * (upwindParams.v_g * yCrystal[i]) - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i + 1] - yCrystal[i]) / static_cast<ParamType>(_binCenterDists[i]);
+			upwindParams.v_g = static_cast<ResidualType>(upwindParams.k_g_times_s_g) * (static_cast<ParamType>(_a) + static_cast<ParamType>(_growthConstant) * pow(static_cast<ParamType>(_bins[i + 1]), static_cast<ParamType>(_p)));
+			resCrystal[i] -= factor / static_cast<ParamType>(_binSizes[i]) * (static_cast<ResidualType>(upwindParams.v_g) * yCrystal[i]) - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i + 1] - yCrystal[i]) / static_cast<ParamType>(_binCenterDists[i]);
 		}
 		else if (i == 0)
 		{
 			// Left boundary condition
-			resCrystal[i] += factor / static_cast<ParamType>(_binSizes[i]) * upwindParams.B_0;
+			resCrystal[i] += factor / static_cast<ParamType>(_binSizes[i]) * static_cast<ResidualType>(upwindParams.B_0);
 			// upwind
-			upwindParams.v_g = upwindParams.k_g_times_s_g * (static_cast<ParamType>(_a) + static_cast<ParamType>(_growthConstant) * pow(static_cast<ParamType>(_bins[i + 1]), static_cast<ParamType>(_p)));
-			resCrystal[i] -= factor / static_cast<ParamType>(_binSizes[i]) * upwindParams.v_g * yCrystal[i] - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i + 1] - yCrystal[i]) / static_cast<ParamType>(_binCenterDists[i]);
+			upwindParams.v_g = static_cast<ResidualType>(upwindParams.k_g_times_s_g) * (static_cast<ParamType>(_a) + static_cast<ParamType>(_growthConstant) * pow(static_cast<ParamType>(_bins[i + 1]), static_cast<ParamType>(_p)));
+			resCrystal[i] -= factor / static_cast<ParamType>(_binSizes[i]) * static_cast<ResidualType>(upwindParams.v_g) * yCrystal[i] - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i + 1] - yCrystal[i]) / static_cast<ParamType>(_binCenterDists[i]);
 		}
 		else
 		{
 			// first order approximation
-			resCrystal[i] += factor / static_cast<ParamType>(_binSizes[i]) * upwindParams.v_g * yCrystal[i - 1] - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i] - yCrystal[i - 1]) / static_cast<ParamType>(_binCenterDists[i - 1]);
+			resCrystal[i] += factor / static_cast<ParamType>(_binSizes[i]) * static_cast<ResidualType>(upwindParams.v_g) * yCrystal[i - 1] - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i] - yCrystal[i - 1]) / static_cast<ParamType>(_binCenterDists[i - 1]);
 			// no flux
 		}
 	}
 
 	template <typename StateType, typename ResidualType, typename ParamType, typename FactorType>
-	void HRKorenKernel(StateType const* yCrystal, ResidualType* resCrystal, const FactorType& factor, detail::ReconstructionParams<ResidualType>& HRKorenParams, const int i) const
+	void HRKorenKernel(StateType const* yCrystal, ResidualType* resCrystal, const FactorType& factor, HRKorenParams<active>& HRKoren, const int i) const
 	{
 		for (int i = 0; i < _nBins; ++i)
 		{
 			if (cadet_likely((i > 1) && (i + 1 < _nBins)))
 			{
 				// Flux through left face, modified van Leer flux limiter
-				resCrystal[i] += factor / static_cast<ParamType>(_binSizes[i]) * HRKorenParams.v_g * HRKorenParams.F_i - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i] - yCrystal[i - 1]) / static_cast<ParamType>(_binCenterDists[i - 1]);
+				resCrystal[i] += factor / static_cast<ParamType>(_binSizes[i]) * static_cast<ResidualType>(HRKoren.v_g) * static_cast<ResidualType>(HRKoren.F_i) - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i] - yCrystal[i - 1]) / static_cast<ParamType>(_binCenterDists[i - 1]);
 				// Flux through left face, modified van Leer flux limiter, update r_x_i, R_i, and growth rate
-				HRKorenParams.r_x_i = static_cast<ParamType>(_HR->A_coeff[i]) * (yCrystal[i] - yCrystal[i - 1] + 1e-10) / (yCrystal[i + 1] - yCrystal[i] + 1e-10);
-				if (cadet_likely(HRKorenParams.r_x_i > 0))
+				HRKoren.r_x_i = static_cast<ParamType>(HRKoren.A_coeff[i]) * (yCrystal[i] - yCrystal[i - 1] + 1e-10) / (yCrystal[i + 1] - yCrystal[i] + 1e-10);
+				if (cadet_likely(static_cast<ResidualType>(HRKoren.r_x_i) > 0))
 				{
-					HRKorenParams.phi = HRKorenParams.r_x_i / (static_cast<ParamType>(_HR->R_coeff[i]) - 1.0 + HRKorenParams.r_x_i);
+					HRKoren.phi = static_cast<ResidualType>(HRKoren.r_x_i) / (static_cast<ParamType>(HRKoren.R_coeff[i]) - 1.0 + static_cast<ResidualType>(HRKoren.r_x_i));
 				}
 				else
 				{
-					HRKorenParams.phi = 0.0;
+					HRKoren.phi = 0.0;
 				}
-				HRKorenParams.F_i = yCrystal[i] + HRKorenParams.phi * (yCrystal[i + 1] - yCrystal[i]);
-				HRKorenParams.v_g = HRKorenParams.k_g_times_s_g * (static_cast<ParamType>(_a) + static_cast<ParamType>(_growthConstant) * pow(static_cast<ParamType>(_bins[i + 1]), static_cast<ParamType>(_p)));
-				resCrystal[i] -= factor / static_cast<ParamType>(_binSizes[i]) * HRKorenParams.v_g * HRKorenParams.F_i - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i + 1] - yCrystal[i]) / static_cast<ParamType>(_binCenterDists[i]);
+				HRKoren.F_i = yCrystal[i] + static_cast<ResidualType>(HRKoren.phi) * (yCrystal[i + 1] - yCrystal[i]);
+				HRKoren.v_g = static_cast<ResidualType>(HRKoren.k_g_times_s_g) * (static_cast<ParamType>(_a) + static_cast<ParamType>(_growthConstant) * pow(static_cast<ParamType>(_bins[i + 1]), static_cast<ParamType>(_p)));
+				resCrystal[i] -= factor / static_cast<ParamType>(_binSizes[i]) * static_cast<ResidualType>(HRKoren.v_g) * static_cast<ResidualType>(HRKoren.F_i) - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i + 1] - yCrystal[i]) / static_cast<ParamType>(_binCenterDists[i]);
 			}
 			else if (i == 1)
 			{
 				// upwind to F_{1/2} and the diffusion
-				resCrystal[i] += factor / static_cast<ParamType>(_binSizes[i]) * HRKorenParams.v_g * yCrystal[i - 1] - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i] - yCrystal[i - 1]) / static_cast<ParamType>(_binCenterDists[i - 1]);
+				resCrystal[i] += factor / static_cast<ParamType>(_binSizes[i]) * static_cast<ResidualType>(HRKoren.v_g) * yCrystal[i - 1] - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i] - yCrystal[i - 1]) / static_cast<ParamType>(_binCenterDists[i - 1]);
 				// HR scheme applied to F_{1+1/2}
-				HRKorenParams.r_x_i = static_cast<ParamType>(_HR->A_coeff[i]) * (yCrystal[i] - yCrystal[i - 1] + 1e-10) / (yCrystal[i + 1] - yCrystal[i] + 1e-10);
-				if (cadet_likely(HRKorenParams.r_x_i > 0))
+				HRKoren.r_x_i = static_cast<ParamType>(HRKoren.A_coeff[i]) * (yCrystal[i] - yCrystal[i - 1] + 1e-10) / (yCrystal[i + 1] - yCrystal[i] + 1e-10);
+				if (cadet_likely(static_cast<ResidualType>(HRKoren.r_x_i) > 0))
 				{
-					HRKorenParams.phi = HRKorenParams.r_x_i / (static_cast<ParamType>(_HR->R_coeff[i]) - 1.0 + HRKorenParams.r_x_i);
+					HRKoren.phi = static_cast<ResidualType>(HRKoren.r_x_i) / (static_cast<ParamType>(HRKoren.R_coeff[i]) - 1.0 + static_cast<ResidualType>(HRKoren.r_x_i));
 				}
 				else
 				{
-					HRKorenParams.phi = 0.0;
+					HRKoren.phi = 0.0;
 				}
-				HRKorenParams.F_i = yCrystal[i] + HRKorenParams.phi * (yCrystal[i + 1] - yCrystal[i]);
-				HRKorenParams.v_g = HRKorenParams.k_g_times_s_g * (static_cast<ParamType>(_a) + static_cast<ParamType>(_growthConstant) * pow(static_cast<ParamType>(_bins[i + 1]), static_cast<ParamType>(_p)));
-				resCrystal[i] -= factor / static_cast<ParamType>(_binSizes[i]) * HRKorenParams.v_g * HRKorenParams.F_i - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i + 1] - yCrystal[i]) / static_cast<ParamType>(_binCenterDists[i]);
+				HRKoren.F_i = yCrystal[i] + static_cast<ResidualType>(HRKoren.phi) * (yCrystal[i + 1] - yCrystal[i]);
+				HRKoren.v_g = static_cast<ResidualType>(HRKoren.k_g_times_s_g) * (static_cast<ParamType>(_a) + static_cast<ParamType>(_growthConstant) * pow(static_cast<ParamType>(_bins[i + 1]), static_cast<ParamType>(_p)));
+				resCrystal[i] -= factor / static_cast<ParamType>(_binSizes[i]) * static_cast<ResidualType>(HRKoren.v_g) * static_cast<ResidualType>(HRKoren.F_i) - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i + 1] - yCrystal[i]) / static_cast<ParamType>(_binCenterDists[i]);
 			}
 			else if (i + 1 == _nBins)
 			{
 				// HR scheme applied to the influx of the last bin 
-				resCrystal[i] += factor / static_cast<ParamType>(_binSizes[i]) * HRKorenParams.v_g * HRKorenParams.F_i - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i] - yCrystal[i - 1]) / static_cast<ParamType>(_binCenterDists[i - 1]);
+				resCrystal[i] += factor / static_cast<ParamType>(_binSizes[i]) * static_cast<ResidualType>(HRKoren.v_g) * static_cast<ResidualType>(HRKoren.F_i) - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i] - yCrystal[i - 1]) / static_cast<ParamType>(_binCenterDists[i - 1]);
 				// no flux
 			}
 			else
 			{
 				// left boundary condition
-				resCrystal[i] += factor / static_cast<ParamType>(_binSizes[i]) * HRKorenParams.B_0;
+				resCrystal[i] += factor / static_cast<ParamType>(_binSizes[i]) * static_cast<ResidualType>(HRKoren.B_0);
 				// upwind to F_1
-				HRKorenParams.v_g = HRKorenParams.k_g_times_s_g * (static_cast<ParamType>(_a) + static_cast<ParamType>(_growthConstant) * pow(static_cast<ParamType>(_bins[i + 1]), static_cast<ParamType>(_p)));
-				resCrystal[i] -= factor / static_cast<ParamType>(_binSizes[i]) * HRKorenParams.v_g * yCrystal[i] - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i + 1] - yCrystal[i]) / static_cast<ParamType>(_binCenterDists[i]);
+				HRKoren.v_g = static_cast<ResidualType>(HRKoren.k_g_times_s_g) * (static_cast<ParamType>(_a) + static_cast<ParamType>(_growthConstant) * pow(static_cast<ParamType>(_bins[i + 1]), static_cast<ParamType>(_p)));
+				resCrystal[i] -= factor / static_cast<ParamType>(_binSizes[i]) * static_cast<ResidualType>(HRKoren.v_g) * yCrystal[i] - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i + 1] - yCrystal[i]) / static_cast<ParamType>(_binCenterDists[i]);
 			}
 		}
 	}
 
 	template <typename StateType, typename ResidualType, typename ParamType, typename FactorType>
-	void WENO23Kernel(StateType const* yCrystal, ResidualType* resCrystal, const FactorType& factor, detail::ReconstructionParams<ResidualType>& WENO3Params, const int i) const
+	void WENO23Kernel(StateType const* yCrystal, ResidualType* resCrystal, const FactorType& factor, WENO23Params<active>& WENO23Params, const int i) const
 	{
 		for (int i = 0; i < _nBins; ++i)
 		{
 			if (cadet_likely((i > 1) && (i + 1 < _nBins)))
 			{
 				// flux through left face. W_0, q_0, W_1 and q_1 are coming from the right face of bin (i-1).
-				resCrystal[i] += factor / static_cast<ParamType>(_binSizes[i]) * WENO3Params.v_g * (WENO3Params.W_0 * WENO3Params.q_0 + WENO3Params.W_1 * WENO3Params.q_1) - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i] - yCrystal[i - 1]) / static_cast<ParamType>(_binCenterDists[i - 1]);
+				resCrystal[i] += factor / static_cast<ParamType>(_binSizes[i]) * static_cast<ResidualType>(WENO23Params.v_g) * (static_cast<ResidualType>(WENO23Params.W_0) * static_cast<ResidualType>(WENO23Params.q_0) + static_cast<ResidualType>(WENO23Params.W_1) * static_cast<ResidualType>(WENO23Params.q_1)) - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i] - yCrystal[i - 1]) / static_cast<ParamType>(_binCenterDists[i - 1]);
 				// flux through right face, update IS, alpha, W, q and growth rate
-				WENO3Params.IS_0 = static_cast<ParamType>(_weno3->IS_0_coeff[i]) * (yCrystal[i + 1] - yCrystal[i]) * (yCrystal[i + 1] - yCrystal[i]);
-				WENO3Params.IS_1 = static_cast<ParamType>(_weno3->IS_1_coeff[i]) * (yCrystal[i] - yCrystal[i - 1]) * (yCrystal[i] - yCrystal[i - 1]);
-				WENO3Params.alpha_0 = static_cast<ParamType>(_weno3->C_right_coeff[i]) / (static_cast<ParamType>(_binSizes[i]) + WENO3Params.IS_0) / (static_cast<ParamType>(_binSizes[i]) + WENO3Params.IS_0);
-				WENO3Params.alpha_1 = (1.0 - static_cast<ParamType>(_weno3->C_right_coeff[i])) / (static_cast<ParamType>(_binSizes[i]) + WENO3Params.IS_1) / (static_cast<ParamType>(_binSizes[i]) + WENO3Params.IS_1);
-				WENO3Params.W_0 = WENO3Params.alpha_0 / (WENO3Params.alpha_0 + WENO3Params.alpha_1);
-				WENO3Params.W_1 = 1.0 - WENO3Params.W_0;
-				WENO3Params.q_0 = static_cast<ParamType>(_weno3->q_0_right_coeff[i]) * yCrystal[i] + (1.0 - static_cast<ParamType>(_weno3->q_0_right_coeff[i])) * yCrystal[i + 1];
-				WENO3Params.q_1 = static_cast<ParamType>(_weno3->q_1_right_coeff[i]) * yCrystal[i] + (1.0 - static_cast<ParamType>(_weno3->q_1_right_coeff[i])) * yCrystal[i - 1];
-				WENO3Params.v_g = WENO3Params.k_g_times_s_g * (static_cast<ParamType>(_a) + static_cast<ParamType>(_growthConstant) * pow(static_cast<ParamType>(_bins[i + 1]), static_cast<ParamType>(_p)));
-				resCrystal[i] -= factor / static_cast<ParamType>(_binSizes[i]) * WENO3Params.v_g * (WENO3Params.W_0 * WENO3Params.q_0 + WENO3Params.W_1 * WENO3Params.q_1) - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i + 1] - yCrystal[i]) / static_cast<ParamType>(_binCenterDists[i]);
+				WENO23Params.IS_0 = static_cast<ParamType>(WENO23Params.IS_0_coeff[i]) * (yCrystal[i + 1] - yCrystal[i]) * (yCrystal[i + 1] - yCrystal[i]);
+				WENO23Params.IS_1 = static_cast<ParamType>(WENO23Params.IS_1_coeff[i]) * (yCrystal[i] - yCrystal[i - 1]) * (yCrystal[i] - yCrystal[i - 1]);
+				WENO23Params.alpha_0 = static_cast<ParamType>(WENO23Params.C_right_coeff[i]) / (static_cast<ParamType>(_binSizes[i]) + static_cast<ResidualType>(WENO23Params.IS_0)) / (static_cast<ParamType>(_binSizes[i]) + static_cast<ResidualType>(WENO23Params.IS_0));
+				WENO23Params.alpha_1 = (1.0 - static_cast<ParamType>(WENO23Params.C_right_coeff[i])) / (static_cast<ParamType>(_binSizes[i]) + static_cast<ResidualType>(WENO23Params.IS_1)) / (static_cast<ParamType>(_binSizes[i]) + static_cast<ResidualType>(WENO23Params.IS_1));
+				WENO23Params.W_0 = static_cast<ResidualType>(WENO23Params.alpha_0) / (static_cast<ResidualType>(WENO23Params.alpha_0) + static_cast<ResidualType>(WENO23Params.alpha_1));
+				WENO23Params.W_1 = 1.0 - static_cast<ResidualType>(WENO23Params.W_0);
+				WENO23Params.q_0 = static_cast<ParamType>(WENO23Params.q_0_right_coeff[i]) * yCrystal[i] + (1.0 - static_cast<ParamType>(WENO23Params.q_0_right_coeff[i])) * yCrystal[i + 1];
+				WENO23Params.q_1 = static_cast<ParamType>(WENO23Params.q_1_right_coeff[i]) * yCrystal[i] + (1.0 - static_cast<ParamType>(WENO23Params.q_1_right_coeff[i])) * yCrystal[i - 1];
+				WENO23Params.v_g = static_cast<ResidualType>(WENO23Params.k_g_times_s_g) * (static_cast<ParamType>(_a) + static_cast<ParamType>(_growthConstant) * pow(static_cast<ParamType>(_bins[i + 1]), static_cast<ParamType>(_p)));
+				resCrystal[i] -= factor / static_cast<ParamType>(_binSizes[i]) * static_cast<ResidualType>(WENO23Params.v_g) * (static_cast<ResidualType>(WENO23Params.W_0) * static_cast<ResidualType>(WENO23Params.q_0) + static_cast<ResidualType>(WENO23Params.W_1) * static_cast<ResidualType>(WENO23Params.q_1)) - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i + 1] - yCrystal[i]) / static_cast<ParamType>(_binCenterDists[i]);
 			}
 			// boundary condition
 			else if (i + 1 == _nBins)
 			{
 				// weno3 applied to the influx of the last bin
-				resCrystal[i] += factor / static_cast<ParamType>(_binSizes[i]) * WENO3Params.v_g * (WENO3Params.W_0 * WENO3Params.q_0 + WENO3Params.W_1 * WENO3Params.q_1) - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i] - yCrystal[i - 1]) / static_cast<ParamType>(_binCenterDists[i - 1]);
+				resCrystal[i] += factor / static_cast<ParamType>(_binSizes[i]) * static_cast<ResidualType>(WENO23Params.v_g) * (static_cast<ResidualType>(WENO23Params.W_0) * static_cast<ResidualType>(WENO23Params.q_0) + static_cast<ResidualType>(WENO23Params.W_1) * static_cast<ResidualType>(WENO23Params.q_1)) - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i] - yCrystal[i - 1]) / static_cast<ParamType>(_binCenterDists[i - 1]);
 				// no flux, regularity boundary condition
 			}
 			else if (i == 1)
 			{
 				// upwind applied to F_{1/2}
-				resCrystal[i] += factor / static_cast<ParamType>(_binSizes[i]) * WENO3Params.v_g * yCrystal[i - 1] - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i] - yCrystal[i - 1]) / static_cast<ParamType>(_binCenterDists[i - 1]);
+				resCrystal[i] += factor / static_cast<ParamType>(_binSizes[i]) * static_cast<ResidualType>(WENO23Params.v_g) * yCrystal[i - 1] - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i] - yCrystal[i - 1]) / static_cast<ParamType>(_binCenterDists[i - 1]);
 				// weno23 applied to F_{1+1/2}
-				WENO3Params.IS_0 = static_cast<ParamType>(_weno3->IS_0_coeff[i]) * (yCrystal[i + 1] - yCrystal[i]) * (yCrystal[i + 1] - yCrystal[i]);
-				WENO3Params.IS_1 = static_cast<ParamType>(_weno3->IS_1_coeff[i]) * (yCrystal[i] - yCrystal[i - 1]) * (yCrystal[i] - yCrystal[i - 1]);
-				WENO3Params.alpha_0 = static_cast<ParamType>(_weno3->C_right_coeff[i]) / (static_cast<ParamType>(_binSizes[i]) + WENO3Params.IS_0) / (static_cast<ParamType>(_binSizes[i]) + WENO3Params.IS_0);
-				WENO3Params.alpha_1 = (1.0 - static_cast<ParamType>(_weno3->C_right_coeff[i])) / (static_cast<ParamType>(_binSizes[i]) + WENO3Params.IS_1) / (static_cast<ParamType>(_binSizes[i]) + WENO3Params.IS_1);
-				WENO3Params.W_0 = WENO3Params.alpha_0 / (WENO3Params.alpha_0 + WENO3Params.alpha_1);
-				WENO3Params.W_1 = 1.0 - WENO3Params.W_0;
-				WENO3Params.q_0 = static_cast<ParamType>(_weno3->q_0_right_coeff[i]) * yCrystal[i] + (1.0 - static_cast<ParamType>(_weno3->q_0_right_coeff[i])) * yCrystal[i + 1];
-				WENO3Params.q_1 = static_cast<ParamType>(_weno3->q_1_right_coeff[i]) * yCrystal[i] + (1.0 - static_cast<ParamType>(_weno3->q_1_right_coeff[i])) * yCrystal[i - 1];
-				WENO3Params.v_g = WENO3Params.k_g_times_s_g * (static_cast<ParamType>(_a) + static_cast<ParamType>(_growthConstant) * pow(static_cast<ParamType>(_bins[i + 1]), static_cast<ParamType>(_p)));
-				resCrystal[i] -= factor / static_cast<ParamType>(_binSizes[i]) * WENO3Params.v_g * (WENO3Params.W_0 * WENO3Params.q_0 + WENO3Params.W_1 * WENO3Params.q_1) - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i + 1] - yCrystal[i]) / static_cast<ParamType>(_binCenterDists[i]);
+				WENO23Params.IS_0 = static_cast<ParamType>(WENO23Params.IS_0_coeff[i]) * (yCrystal[i + 1] - yCrystal[i]) * (yCrystal[i + 1] - yCrystal[i]);
+				WENO23Params.IS_1 = static_cast<ParamType>(WENO23Params.IS_1_coeff[i]) * (yCrystal[i] - yCrystal[i - 1]) * (yCrystal[i] - yCrystal[i - 1]);
+				WENO23Params.alpha_0 = static_cast<ParamType>(WENO23Params.C_right_coeff[i]) / (static_cast<ParamType>(_binSizes[i]) + static_cast<ResidualType>(WENO23Params.IS_0)) / (static_cast<ParamType>(_binSizes[i]) + static_cast<ResidualType>(WENO23Params.IS_0));
+				WENO23Params.alpha_1 = (1.0 - static_cast<ParamType>(WENO23Params.C_right_coeff[i])) / (static_cast<ParamType>(_binSizes[i]) + static_cast<ResidualType>(WENO23Params.IS_1)) / (static_cast<ParamType>(_binSizes[i]) + static_cast<ResidualType>(WENO23Params.IS_1));
+				WENO23Params.W_0 = static_cast<ResidualType>(WENO23Params.alpha_0) / (static_cast<ResidualType>(WENO23Params.alpha_0) + static_cast<ResidualType>(WENO23Params.alpha_1));
+				WENO23Params.W_1 = 1.0 - static_cast<ResidualType>(WENO23Params.W_0);
+				WENO23Params.q_0 = static_cast<ParamType>(WENO23Params.q_0_right_coeff[i]) * yCrystal[i] + (1.0 - static_cast<ParamType>(WENO23Params.q_0_right_coeff[i])) * yCrystal[i + 1];
+				WENO23Params.q_1 = static_cast<ParamType>(WENO23Params.q_1_right_coeff[i]) * yCrystal[i] + (1.0 - static_cast<ParamType>(WENO23Params.q_1_right_coeff[i])) * yCrystal[i - 1];
+				WENO23Params.v_g = static_cast<ResidualType>(WENO23Params.k_g_times_s_g) * (static_cast<ParamType>(_a) + static_cast<ParamType>(_growthConstant) * pow(static_cast<ParamType>(_bins[i + 1]), static_cast<ParamType>(_p)));
+				resCrystal[i] -= factor / static_cast<ParamType>(_binSizes[i]) * static_cast<ResidualType>(WENO23Params.v_g) * (static_cast<ResidualType>(WENO23Params.W_0) * static_cast<ResidualType>(WENO23Params.q_0) + static_cast<ResidualType>(WENO23Params.W_1) * static_cast<ResidualType>(WENO23Params.q_1)) - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i + 1] - yCrystal[i]) / static_cast<ParamType>(_binCenterDists[i]);
 			}
 			else
 			{
 				// nucleation boundary condition
-				resCrystal[i] += factor / static_cast<ParamType>(_binSizes[i]) * WENO3Params.B_0;
+				resCrystal[i] += factor / static_cast<ParamType>(_binSizes[i]) * static_cast<ResidualType>(WENO23Params.B_0);
 				// upwind
-				WENO3Params.v_g = WENO3Params.k_g_times_s_g * (static_cast<ParamType>(_a) + static_cast<ParamType>(_growthConstant) * pow(static_cast<ParamType>(_bins[i + 1]), static_cast<ParamType>(_p)));
-				resCrystal[i] -= factor / static_cast<ParamType>(_binSizes[i]) * WENO3Params.v_g * yCrystal[i] - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i + 1] - yCrystal[i]) / static_cast<ParamType>(_binCenterDists[i]);
+				WENO23Params.v_g = static_cast<ResidualType>(WENO23Params.k_g_times_s_g) * (static_cast<ParamType>(_a) + static_cast<ParamType>(_growthConstant) * pow(static_cast<ParamType>(_bins[i + 1]), static_cast<ParamType>(_p)));
+				resCrystal[i] -= factor / static_cast<ParamType>(_binSizes[i]) * static_cast<ResidualType>(WENO23Params.v_g) * yCrystal[i] - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i + 1] - yCrystal[i]) / static_cast<ParamType>(_binCenterDists[i]);
 			}
 		}
 	}
 
 	template <typename StateType, typename ResidualType, typename ParamType, typename FactorType>
-	void WENO35Kernel(StateType const* yCrystal, ResidualType* resCrystal, const FactorType& factor, detail::ReconstructionParams<ResidualType>& WENO5Params, const int i) const
+	void WENO35Kernel(StateType const* yCrystal, ResidualType* resCrystal, const FactorType& factor, WENO35Params<active>& WENO35Params, const int i) const
 	{
 		for (int i = 0; i < _nBins; ++i)
 		{
 			if (cadet_likely((i > 2) && (i + 2 < _nBins)))
 			{
 				// flux through the left face 
-				resCrystal[i] += factor / static_cast<ParamType>(_binSizes[i]) * WENO5Params.v_g * (WENO5Params.W_0 * WENO5Params.q_0 + WENO5Params.W_1 * WENO5Params.q_1 + WENO5Params.W_2 * WENO5Params.q_2) - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i] - yCrystal[i - 1]) / static_cast<ParamType>(_binCenterDists[i - 1]);
+				resCrystal[i] += factor / static_cast<ParamType>(_binSizes[i]) * static_cast<ResidualType>(WENO35Params.v_g) * (static_cast<ResidualType>(WENO35Params.W_0) * static_cast<ResidualType>(WENO35Params.q_0) + static_cast<ResidualType>(WENO35Params.W_1) * static_cast<ResidualType>(WENO35Params.q_1) + static_cast<ResidualType>(WENO35Params.W_2) * static_cast<ResidualType>(WENO35Params.q_2)) - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i] - yCrystal[i - 1]) / static_cast<ParamType>(_binCenterDists[i - 1]);
 				// flux through the right face
-				WENO5Params.IS_0 = static_cast<ParamType>(_weno5->IS_0_coeff_1[i]) * (yCrystal[i + 2] - yCrystal[i + 1]) * (yCrystal[i + 2] - yCrystal[i + 1]) + static_cast<ParamType>(_weno5->IS_0_coeff_2[i]) * (yCrystal[i + 2] - yCrystal[i + 1]) * (yCrystal[i] - yCrystal[i + 1]) + static_cast<ParamType>(_weno5->IS_0_coeff_3[i]) * (yCrystal[i] - yCrystal[i + 1]) * (yCrystal[i] - yCrystal[i + 1]);
-				WENO5Params.IS_1 = static_cast<ParamType>(_weno5->IS_1_coeff_1[i]) * (yCrystal[i - 1] - yCrystal[i]) * (yCrystal[i - 1] - yCrystal[i]) + static_cast<ParamType>(_weno5->IS_1_coeff_2[i]) * (yCrystal[i + 1] - yCrystal[i]) * (yCrystal[i - 1] - yCrystal[i]) + static_cast<ParamType>(_weno5->IS_1_coeff_3[i]) * (yCrystal[i + 1] - yCrystal[i]) * (yCrystal[i + 1] - yCrystal[i]);
-				WENO5Params.IS_2 = static_cast<ParamType>(_weno5->IS_2_coeff_1[i]) * (yCrystal[i - 2] - yCrystal[i - 1]) * (yCrystal[i - 2] - yCrystal[i - 1]) + static_cast<ParamType>(_weno5->IS_2_coeff_2[i]) * (yCrystal[i] - yCrystal[i - 1]) * (yCrystal[i - 2] - yCrystal[i - 1]) + static_cast<ParamType>(_weno5->IS_2_coeff_3[i]) * (yCrystal[i] - yCrystal[i - 1]) * (yCrystal[i] - yCrystal[i - 1]);
-				WENO5Params.alpha_0 = static_cast<ParamType>(_weno5->C_0[i]) / (static_cast<ParamType>(_binSizes[i]) + WENO5Params.IS_0) / (static_cast<ParamType>(_binSizes[i]) + WENO5Params.IS_0);
-				WENO5Params.alpha_1 = static_cast<ParamType>(_weno5->C_1[i]) / (static_cast<ParamType>(_binSizes[i]) + WENO5Params.IS_1) / (static_cast<ParamType>(_binSizes[i]) + WENO5Params.IS_1);
-				WENO5Params.alpha_2 = static_cast<ParamType>(_weno5->C_2[i]) / (static_cast<ParamType>(_binSizes[i]) + WENO5Params.IS_2) / (static_cast<ParamType>(_binSizes[i]) + WENO5Params.IS_2);
-				WENO5Params.W_0 = WENO5Params.alpha_0 / (WENO5Params.alpha_0 + WENO5Params.alpha_1 + WENO5Params.alpha_2);
-				WENO5Params.W_1 = WENO5Params.alpha_1 / (WENO5Params.alpha_0 + WENO5Params.alpha_1 + WENO5Params.alpha_2);
-				WENO5Params.W_2 = 1.0 - WENO5Params.W_0 - WENO5Params.W_1;
-				WENO5Params.q_0 = yCrystal[i + 1] + static_cast<ParamType>(_weno5->q_0_coeff_1[i]) * (yCrystal[i] - yCrystal[i + 1]) + static_cast<ParamType>(_weno5->q_0_coeff_2[i]) * (yCrystal[i + 1] - yCrystal[i + 2]);
-				WENO5Params.q_1 = yCrystal[i] + static_cast<ParamType>(_weno5->q_1_coeff_1[i]) * (yCrystal[i + 1] - yCrystal[i]) + static_cast<ParamType>(_weno5->q_1_coeff_2[i]) * (yCrystal[i] - yCrystal[i - 1]);
-				WENO5Params.q_2 = yCrystal[i - 1] + static_cast<ParamType>(_weno5->q_2_coeff_1[i]) * (yCrystal[i - 2] - yCrystal[i - 1]) + static_cast<ParamType>(_weno5->q_2_coeff_2[i]) * (yCrystal[i] - yCrystal[i - 1]);
-				WENO5Params.v_g = WENO5Params.k_g_times_s_g * (static_cast<ParamType>(_a) + static_cast<ParamType>(_growthConstant) * pow(static_cast<ParamType>(_bins[i + 1]), static_cast<ParamType>(_p)));
-				resCrystal[i] -= factor / static_cast<ParamType>(_binSizes[i]) * WENO5Params.v_g * (WENO5Params.W_0 * WENO5Params.q_0 + WENO5Params.W_1 * WENO5Params.q_1 + WENO5Params.W_2 * WENO5Params.q_2) - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i + 1] - yCrystal[i]) / static_cast<ParamType>(_binCenterDists[i]);
+				WENO35Params.IS_0 = static_cast<ParamType>(WENO35Params.IS_0_coeff_1[i]) * (yCrystal[i + 2] - yCrystal[i + 1]) * (yCrystal[i + 2] - yCrystal[i + 1]) + static_cast<ParamType>(WENO35Params.IS_0_coeff_2[i]) * (yCrystal[i + 2] - yCrystal[i + 1]) * (yCrystal[i] - yCrystal[i + 1]) + static_cast<ParamType>(WENO35Params.IS_0_coeff_3[i]) * (yCrystal[i] - yCrystal[i + 1]) * (yCrystal[i] - yCrystal[i + 1]);
+				WENO35Params.IS_1 = static_cast<ParamType>(WENO35Params.IS_1_coeff_1[i]) * (yCrystal[i - 1] - yCrystal[i]) * (yCrystal[i - 1] - yCrystal[i]) + static_cast<ParamType>(WENO35Params.IS_1_coeff_2[i]) * (yCrystal[i + 1] - yCrystal[i]) * (yCrystal[i - 1] - yCrystal[i]) + static_cast<ParamType>(WENO35Params.IS_1_coeff_3[i]) * (yCrystal[i + 1] - yCrystal[i]) * (yCrystal[i + 1] - yCrystal[i]);
+				WENO35Params.IS_2 = static_cast<ParamType>(WENO35Params.IS_2_coeff_1[i]) * (yCrystal[i - 2] - yCrystal[i - 1]) * (yCrystal[i - 2] - yCrystal[i - 1]) + static_cast<ParamType>(WENO35Params.IS_2_coeff_2[i]) * (yCrystal[i] - yCrystal[i - 1]) * (yCrystal[i - 2] - yCrystal[i - 1]) + static_cast<ParamType>(WENO35Params.IS_2_coeff_3[i]) * (yCrystal[i] - yCrystal[i - 1]) * (yCrystal[i] - yCrystal[i - 1]);
+				WENO35Params.alpha_0 = static_cast<ParamType>(WENO35Params.C_0[i]) / (static_cast<ParamType>(_binSizes[i]) + static_cast<ResidualType>(WENO35Params.IS_0)) / (static_cast<ParamType>(_binSizes[i]) + static_cast<ResidualType>(WENO35Params.IS_0));
+				WENO35Params.alpha_1 = static_cast<ParamType>(WENO35Params.C_1[i]) / (static_cast<ParamType>(_binSizes[i]) + static_cast<ResidualType>(WENO35Params.IS_1)) / (static_cast<ParamType>(_binSizes[i]) + static_cast<ResidualType>(WENO35Params.IS_1));
+				WENO35Params.alpha_2 = static_cast<ParamType>(WENO35Params.C_2[i]) / (static_cast<ParamType>(_binSizes[i]) + static_cast<ResidualType>(WENO35Params.IS_2)) / (static_cast<ParamType>(_binSizes[i]) + static_cast<ResidualType>(WENO35Params.IS_2));
+				WENO35Params.W_0 = static_cast<ResidualType>(WENO35Params.alpha_0) / (static_cast<ResidualType>(WENO35Params.alpha_0) + static_cast<ResidualType>(WENO35Params.alpha_1) + static_cast<ResidualType>(WENO35Params.alpha_2));
+				WENO35Params.W_1 = static_cast<ResidualType>(WENO35Params.alpha_1) / (static_cast<ResidualType>(WENO35Params.alpha_0) + static_cast<ResidualType>(WENO35Params.alpha_1) + static_cast<ResidualType>(WENO35Params.alpha_2));
+				WENO35Params.W_2 = 1.0 - static_cast<ResidualType>(WENO35Params.W_0) - static_cast<ResidualType>(WENO35Params.W_1);
+				WENO35Params.q_0 = yCrystal[i + 1] + static_cast<ParamType>(WENO35Params.q_0_coeff_1[i]) * (yCrystal[i] - yCrystal[i + 1]) + static_cast<ParamType>(WENO35Params.q_0_coeff_2[i]) * (yCrystal[i + 1] - yCrystal[i + 2]);
+				WENO35Params.q_1 = yCrystal[i] + static_cast<ParamType>(WENO35Params.q_1_coeff_1[i]) * (yCrystal[i + 1] - yCrystal[i]) + static_cast<ParamType>(WENO35Params.q_1_coeff_2[i]) * (yCrystal[i] - yCrystal[i - 1]);
+				WENO35Params.q_2 = yCrystal[i - 1] + static_cast<ParamType>(WENO35Params.q_2_coeff_1[i]) * (yCrystal[i - 2] - yCrystal[i - 1]) + static_cast<ParamType>(WENO35Params.q_2_coeff_2[i]) * (yCrystal[i] - yCrystal[i - 1]);
+				WENO35Params.v_g = static_cast<ResidualType>(WENO35Params.k_g_times_s_g) * (static_cast<ParamType>(_a) + static_cast<ParamType>(_growthConstant) * pow(static_cast<ParamType>(_bins[i + 1]), static_cast<ParamType>(_p)));
+				resCrystal[i] -= factor / static_cast<ParamType>(_binSizes[i]) * static_cast<ResidualType>(WENO35Params.v_g) * (static_cast<ResidualType>(WENO35Params.W_0) * static_cast<ResidualType>(WENO35Params.q_0) + static_cast<ResidualType>(WENO35Params.W_1) * static_cast<ResidualType>(WENO35Params.q_1) + static_cast<ResidualType>(WENO35Params.W_2) * static_cast<ResidualType>(WENO35Params.q_2)) - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i + 1] - yCrystal[i]) / static_cast<ParamType>(_binCenterDists[i]);
 			}
 			else if (i == 2)
 			{
 				// weno23 applied to F_{2-1/2}
-				resCrystal[i] += factor / static_cast<ParamType>(_binSizes[i]) * WENO5Params.v_g * (WENO5Params.W_0 * WENO5Params.q_0 + WENO5Params.W_1 * WENO5Params.q_1) - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i] - yCrystal[i - 1]) / static_cast<ParamType>(_binCenterDists[i - 1]);
+				resCrystal[i] += factor / static_cast<ParamType>(_binSizes[i]) * static_cast<ResidualType>(WENO35Params.v_g) * (static_cast<ResidualType>(WENO35Params.W_0) * static_cast<ResidualType>(WENO35Params.q_0) + static_cast<ResidualType>(WENO35Params.W_1) * static_cast<ResidualType>(WENO35Params.q_1)) - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i] - yCrystal[i - 1]) / static_cast<ParamType>(_binCenterDists[i - 1]);
 				// weno35 applied to F_{2+1/2}
-				WENO5Params.IS_0 = static_cast<ParamType>(_weno5->IS_0_coeff_1[i]) * (yCrystal[i + 2] - yCrystal[i + 1]) * (yCrystal[i + 2] - yCrystal[i + 1]) + static_cast<ParamType>(_weno5->IS_0_coeff_2[i]) * (yCrystal[i + 2] - yCrystal[i + 1]) * (yCrystal[i] - yCrystal[i + 1]) + static_cast<ParamType>(_weno5->IS_0_coeff_3[i]) * (yCrystal[i] - yCrystal[i + 1]) * (yCrystal[i] - yCrystal[i + 1]);
-				WENO5Params.IS_1 = static_cast<ParamType>(_weno5->IS_1_coeff_1[i]) * (yCrystal[i - 1] - yCrystal[i]) * (yCrystal[i - 1] - yCrystal[i]) + static_cast<ParamType>(_weno5->IS_1_coeff_2[i]) * (yCrystal[i + 1] - yCrystal[i]) * (yCrystal[i - 1] - yCrystal[i]) + static_cast<ParamType>(_weno5->IS_1_coeff_3[i]) * (yCrystal[i + 1] - yCrystal[i]) * (yCrystal[i + 1] - yCrystal[i]);
-				WENO5Params.IS_2 = static_cast<ParamType>(_weno5->IS_2_coeff_1[i]) * (yCrystal[i - 2] - yCrystal[i - 1]) * (yCrystal[i - 2] - yCrystal[i - 1]) + static_cast<ParamType>(_weno5->IS_2_coeff_2[i]) * (yCrystal[i] - yCrystal[i - 1]) * (yCrystal[i - 2] - yCrystal[i - 1]) + static_cast<ParamType>(_weno5->IS_2_coeff_3[i]) * (yCrystal[i] - yCrystal[i - 1]) * (yCrystal[i] - yCrystal[i - 1]);
-				WENO5Params.alpha_0 = static_cast<ParamType>(_weno5->C_0[i]) / (static_cast<ParamType>(_binSizes[i]) + WENO5Params.IS_0) / (static_cast<ParamType>(_binSizes[i]) + WENO5Params.IS_0);
-				WENO5Params.alpha_1 = static_cast<ParamType>(_weno5->C_1[i]) / (static_cast<ParamType>(_binSizes[i]) + WENO5Params.IS_1) / (static_cast<ParamType>(_binSizes[i]) + WENO5Params.IS_1);
-				WENO5Params.alpha_2 = static_cast<ParamType>(_weno5->C_2[i]) / (static_cast<ParamType>(_binSizes[i]) + WENO5Params.IS_2) / (static_cast<ParamType>(_binSizes[i]) + WENO5Params.IS_2);
-				WENO5Params.W_0 = WENO5Params.alpha_0 / (WENO5Params.alpha_0 + WENO5Params.alpha_1 + WENO5Params.alpha_2);
-				WENO5Params.W_1 = WENO5Params.alpha_1 / (WENO5Params.alpha_0 + WENO5Params.alpha_1 + WENO5Params.alpha_2);
-				WENO5Params.W_2 = 1.0 - WENO5Params.W_0 - WENO5Params.W_1;
-				WENO5Params.q_0 = yCrystal[i + 1] + static_cast<ParamType>(_weno5->q_0_coeff_1[i]) * (yCrystal[i] - yCrystal[i + 1]) + static_cast<ParamType>(_weno5->q_0_coeff_2[i]) * (yCrystal[i + 1] - yCrystal[i + 2]);
-				WENO5Params.q_1 = yCrystal[i] + static_cast<ParamType>(_weno5->q_1_coeff_1[i]) * (yCrystal[i + 1] - yCrystal[i]) + static_cast<ParamType>(_weno5->q_1_coeff_2[i]) * (yCrystal[i] - yCrystal[i - 1]);
-				WENO5Params.q_2 = yCrystal[i - 1] + static_cast<ParamType>(_weno5->q_2_coeff_1[i]) * (yCrystal[i - 2] - yCrystal[i - 1]) + static_cast<ParamType>(_weno5->q_2_coeff_2[i]) * (yCrystal[i] - yCrystal[i - 1]);
-				WENO5Params.v_g = WENO5Params.k_g_times_s_g * (static_cast<ParamType>(_a) + static_cast<ParamType>(_growthConstant) * pow(static_cast<ParamType>(_bins[i + 1]), static_cast<ParamType>(_p)));
-				resCrystal[i] -= factor / static_cast<ParamType>(_binSizes[i]) * WENO5Params.v_g * (WENO5Params.W_0 * WENO5Params.q_0 + WENO5Params.W_1 * WENO5Params.q_1 + WENO5Params.W_2 * WENO5Params.q_2) - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i + 1] - yCrystal[i]) / static_cast<ParamType>(_binCenterDists[i]);
+				WENO35Params.IS_0 = static_cast<ParamType>(WENO35Params.IS_0_coeff_1[i]) * (yCrystal[i + 2] - yCrystal[i + 1]) * (yCrystal[i + 2] - yCrystal[i + 1]) + static_cast<ParamType>(WENO35Params.IS_0_coeff_2[i]) * (yCrystal[i + 2] - yCrystal[i + 1]) * (yCrystal[i] - yCrystal[i + 1]) + static_cast<ParamType>(WENO35Params.IS_0_coeff_3[i]) * (yCrystal[i] - yCrystal[i + 1]) * (yCrystal[i] - yCrystal[i + 1]);
+				WENO35Params.IS_1 = static_cast<ParamType>(WENO35Params.IS_1_coeff_1[i]) * (yCrystal[i - 1] - yCrystal[i]) * (yCrystal[i - 1] - yCrystal[i]) + static_cast<ParamType>(WENO35Params.IS_1_coeff_2[i]) * (yCrystal[i + 1] - yCrystal[i]) * (yCrystal[i - 1] - yCrystal[i]) + static_cast<ParamType>(WENO35Params.IS_1_coeff_3[i]) * (yCrystal[i + 1] - yCrystal[i]) * (yCrystal[i + 1] - yCrystal[i]);
+				WENO35Params.IS_2 = static_cast<ParamType>(WENO35Params.IS_2_coeff_1[i]) * (yCrystal[i - 2] - yCrystal[i - 1]) * (yCrystal[i - 2] - yCrystal[i - 1]) + static_cast<ParamType>(WENO35Params.IS_2_coeff_2[i]) * (yCrystal[i] - yCrystal[i - 1]) * (yCrystal[i - 2] - yCrystal[i - 1]) + static_cast<ParamType>(WENO35Params.IS_2_coeff_3[i]) * (yCrystal[i] - yCrystal[i - 1]) * (yCrystal[i] - yCrystal[i - 1]);
+				WENO35Params.alpha_0 = static_cast<ParamType>(WENO35Params.C_0[i]) / (static_cast<ParamType>(_binSizes[i]) + static_cast<ResidualType>(WENO35Params.IS_0)) / (static_cast<ParamType>(_binSizes[i]) + static_cast<ResidualType>(WENO35Params.IS_0));
+				WENO35Params.alpha_1 = static_cast<ParamType>(WENO35Params.C_1[i]) / (static_cast<ParamType>(_binSizes[i]) + static_cast<ResidualType>(WENO35Params.IS_1)) / (static_cast<ParamType>(_binSizes[i]) + static_cast<ResidualType>(WENO35Params.IS_1));
+				WENO35Params.alpha_2 = static_cast<ParamType>(WENO35Params.C_2[i]) / (static_cast<ParamType>(_binSizes[i]) + static_cast<ResidualType>(WENO35Params.IS_2)) / (static_cast<ParamType>(_binSizes[i]) + static_cast<ResidualType>(WENO35Params.IS_2));
+				WENO35Params.W_0 = static_cast<ResidualType>(WENO35Params.alpha_0) / (static_cast<ResidualType>(WENO35Params.alpha_0) + static_cast<ResidualType>(WENO35Params.alpha_1) + static_cast<ResidualType>(WENO35Params.alpha_2));
+				WENO35Params.W_1 = static_cast<ResidualType>(WENO35Params.alpha_1) / (static_cast<ResidualType>(WENO35Params.alpha_0) + static_cast<ResidualType>(WENO35Params.alpha_1) + static_cast<ResidualType>(WENO35Params.alpha_2));
+				WENO35Params.W_2 = 1.0 - static_cast<ResidualType>(WENO35Params.W_0) - static_cast<ResidualType>(WENO35Params.W_1);
+				WENO35Params.q_0 = yCrystal[i + 1] + static_cast<ParamType>(WENO35Params.q_0_coeff_1[i]) * (yCrystal[i] - yCrystal[i + 1]) + static_cast<ParamType>(WENO35Params.q_0_coeff_2[i]) * (yCrystal[i + 1] - yCrystal[i + 2]);
+				WENO35Params.q_1 = yCrystal[i] + static_cast<ParamType>(WENO35Params.q_1_coeff_1[i]) * (yCrystal[i + 1] - yCrystal[i]) + static_cast<ParamType>(WENO35Params.q_1_coeff_2[i]) * (yCrystal[i] - yCrystal[i - 1]);
+				WENO35Params.q_2 = yCrystal[i - 1] + static_cast<ParamType>(WENO35Params.q_2_coeff_1[i]) * (yCrystal[i - 2] - yCrystal[i - 1]) + static_cast<ParamType>(WENO35Params.q_2_coeff_2[i]) * (yCrystal[i] - yCrystal[i - 1]);
+				WENO35Params.v_g = static_cast<ResidualType>(WENO35Params.k_g_times_s_g) * (static_cast<ParamType>(_a) + static_cast<ParamType>(_growthConstant) * pow(static_cast<ParamType>(_bins[i + 1]), static_cast<ParamType>(_p)));
+				resCrystal[i] -= factor / static_cast<ParamType>(_binSizes[i]) * static_cast<ResidualType>(WENO35Params.v_g) * (static_cast<ResidualType>(WENO35Params.W_0) * static_cast<ResidualType>(WENO35Params.q_0) + static_cast<ResidualType>(WENO35Params.W_1) * static_cast<ResidualType>(WENO35Params.q_1) + static_cast<ResidualType>(WENO35Params.W_2) * static_cast<ResidualType>(WENO35Params.q_2)) - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i + 1] - yCrystal[i]) / static_cast<ParamType>(_binCenterDists[i]);
 			}
 			else if (i == 1)
 			{
 				// upwind applied to F_{1-1/2}
-				resCrystal[i] += factor / static_cast<ParamType>(_binSizes[i]) * WENO5Params.v_g * yCrystal[i - 1] - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i] - yCrystal[i - 1]) / static_cast<ParamType>(_binCenterDists[i - 1]);
+				resCrystal[i] += factor / static_cast<ParamType>(_binSizes[i]) * static_cast<ResidualType>(WENO35Params.v_g) * yCrystal[i - 1] - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i] - yCrystal[i - 1]) / static_cast<ParamType>(_binCenterDists[i - 1]);
 				// weno23 applied to F_{1+1/2}
-				WENO5Params.IS_0 = static_cast<ParamType>(_weno5->IS_0_coeff_weno3) * (yCrystal[i + 1] - yCrystal[i]) * (yCrystal[i + 1] - yCrystal[i]);
-				WENO5Params.IS_1 = static_cast<ParamType>(_weno5->IS_1_coeff_weno3) * (yCrystal[i] - yCrystal[i - 1]) * (yCrystal[i] - yCrystal[i - 1]);
-				WENO5Params.alpha_0 = static_cast<ParamType>(_weno5->C_coeff1_weno3) / (static_cast<ParamType>(_binSizes[i]) + WENO5Params.IS_0) / (static_cast<ParamType>(_binSizes[i]) + WENO5Params.IS_0);
-				WENO5Params.alpha_1 = static_cast<ParamType>(_weno5->C_coeff2_weno3) / (static_cast<ParamType>(_binSizes[i]) + WENO5Params.IS_1) / (static_cast<ParamType>(_binSizes[i]) + WENO5Params.IS_1);
-				WENO5Params.W_0 = WENO5Params.alpha_0 / (WENO5Params.alpha_0 + WENO5Params.alpha_1);
-				WENO5Params.W_1 = 1.0 - WENO5Params.W_0;
-				WENO5Params.q_0 = static_cast<ParamType>(_weno5->q0_coeff1_weno3) * yCrystal[i] + static_cast<ParamType>(_weno5->q0_coeff2_weno3) * yCrystal[i + 1];
-				WENO5Params.q_1 = static_cast<ParamType>(_weno5->q1_coeff1_weno3) * yCrystal[i] + static_cast<ParamType>(_weno5->q1_coeff2_weno3) * yCrystal[i - 1];
-				WENO5Params.v_g = WENO5Params.k_g_times_s_g * (static_cast<ParamType>(_a) + static_cast<ParamType>(_growthConstant) * pow(static_cast<ParamType>(_bins[i + 1]), static_cast<ParamType>(_p)));
-				resCrystal[i] -= factor / static_cast<ParamType>(_binSizes[i]) * WENO5Params.v_g * (WENO5Params.W_0 * WENO5Params.q_0 + WENO5Params.W_1 * WENO5Params.q_1) - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i + 1] - yCrystal[i]) / static_cast<ParamType>(_binCenterDists[i]);
+				WENO35Params.IS_0 = static_cast<ParamType>(WENO35Params.IS_0_coeff_weno3) * (yCrystal[i + 1] - yCrystal[i]) * (yCrystal[i + 1] - yCrystal[i]);
+				WENO35Params.IS_1 = static_cast<ParamType>(WENO35Params.IS_1_coeff_weno3) * (yCrystal[i] - yCrystal[i - 1]) * (yCrystal[i] - yCrystal[i - 1]);
+				WENO35Params.alpha_0 = static_cast<ParamType>(WENO35Params.C_coeff1_weno3) / (static_cast<ParamType>(_binSizes[i]) + static_cast<ResidualType>(WENO35Params.IS_0)) / (static_cast<ParamType>(_binSizes[i]) + static_cast<ResidualType>(WENO35Params.IS_0));
+				WENO35Params.alpha_1 = static_cast<ParamType>(WENO35Params.C_coeff2_weno3) / (static_cast<ParamType>(_binSizes[i]) + static_cast<ResidualType>(WENO35Params.IS_1)) / (static_cast<ParamType>(_binSizes[i]) + static_cast<ResidualType>(WENO35Params.IS_1));
+				WENO35Params.W_0 = static_cast<ResidualType>(WENO35Params.alpha_0) / (static_cast<ResidualType>(WENO35Params.alpha_0) + static_cast<ResidualType>(WENO35Params.alpha_1));
+				WENO35Params.W_1 = 1.0 - static_cast<ResidualType>(WENO35Params.W_0);
+				WENO35Params.q_0 = static_cast<ParamType>(WENO35Params.q0_coeff1_weno3) * yCrystal[i] + static_cast<ParamType>(WENO35Params.q0_coeff2_weno3) * yCrystal[i + 1];
+				WENO35Params.q_1 = static_cast<ParamType>(WENO35Params.q1_coeff1_weno3) * yCrystal[i] + static_cast<ParamType>(WENO35Params.q1_coeff2_weno3) * yCrystal[i - 1];
+				WENO35Params.v_g = static_cast<ResidualType>(WENO35Params.k_g_times_s_g) * (static_cast<ParamType>(_a) + static_cast<ParamType>(_growthConstant) * pow(static_cast<ParamType>(_bins[i + 1]), static_cast<ParamType>(_p)));
+				resCrystal[i] -= factor / static_cast<ParamType>(_binSizes[i]) * static_cast<ResidualType>(WENO35Params.v_g) * (static_cast<ResidualType>(WENO35Params.W_0) * static_cast<ResidualType>(WENO35Params.q_0) + static_cast<ResidualType>(WENO35Params.W_1) * static_cast<ResidualType>(WENO35Params.q_1)) - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i + 1] - yCrystal[i]) / static_cast<ParamType>(_binCenterDists[i]);
 			}
 			else if (i == 0)
 			{
 				// boundary condition
-				resCrystal[i] += factor / static_cast<ParamType>(_binSizes[i]) * WENO5Params.B_0;
+				resCrystal[i] += factor / static_cast<ParamType>(_binSizes[i]) * static_cast<ResidualType>(WENO35Params.B_0);
 				// upwind to F_{1/2}
-				WENO5Params.v_g = WENO5Params.k_g_times_s_g * (static_cast<ParamType>(_a) + static_cast<ParamType>(_growthConstant) * pow(static_cast<ParamType>(_bins[i + 1]), static_cast<ParamType>(_p)));
-				resCrystal[i] -= factor / static_cast<ParamType>(_binSizes[i]) * WENO5Params.v_g * yCrystal[i] - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i + 1] - yCrystal[i]) / static_cast<ParamType>(_binCenterDists[i]);
+				WENO35Params.v_g = static_cast<ResidualType>(WENO35Params.k_g_times_s_g) * (static_cast<ParamType>(_a) + static_cast<ParamType>(_growthConstant) * pow(static_cast<ParamType>(_bins[i + 1]), static_cast<ParamType>(_p)));
+				resCrystal[i] -= factor / static_cast<ParamType>(_binSizes[i]) * static_cast<ResidualType>(WENO35Params.v_g) * yCrystal[i] - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i + 1] - yCrystal[i]) / static_cast<ParamType>(_binCenterDists[i]);
 			}
 			else if (i + 2 == _nBins)
 			{
 				// weno35 applied to F_{nx-2-1/2}
-				resCrystal[i] += factor / static_cast<ParamType>(_binSizes[i]) * WENO5Params.v_g * (WENO5Params.W_0 * WENO5Params.q_0 + WENO5Params.W_1 * WENO5Params.q_1 + WENO5Params.W_2 * WENO5Params.q_2) - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i] - yCrystal[i - 1]) / static_cast<ParamType>(_binCenterDists[i - 1]);
+				resCrystal[i] += factor / static_cast<ParamType>(_binSizes[i]) * static_cast<ResidualType>(WENO35Params.v_g) * (static_cast<ResidualType>(WENO35Params.W_0) * static_cast<ResidualType>(WENO35Params.q_0) + static_cast<ResidualType>(WENO35Params.W_1) * static_cast<ResidualType>(WENO35Params.q_1) + static_cast<ResidualType>(WENO35Params.W_2) * static_cast<ResidualType>(WENO35Params.q_2)) - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i] - yCrystal[i - 1]) / static_cast<ParamType>(_binCenterDists[i - 1]);
 				// weno23 applied to F_{nx-2+1/2}
-				WENO5Params.IS_0 = static_cast<ParamType>(_weno5->IS_0_coeff_weno3_r) * (yCrystal[i + 1] - yCrystal[i]) * (yCrystal[i + 1] - yCrystal[i]);
-				WENO5Params.IS_1 = static_cast<ParamType>(_weno5->IS_1_coeff_weno3_r) * (yCrystal[i] - yCrystal[i - 1]) * (yCrystal[i] - yCrystal[i - 1]);
-				WENO5Params.alpha_0 = static_cast<ParamType>(_weno5->C_coeff1_weno3_r) / (static_cast<ParamType>(_binSizes[i]) + WENO5Params.IS_0) / (static_cast<ParamType>(_binSizes[i]) + WENO5Params.IS_0);
-				WENO5Params.alpha_1 = static_cast<ParamType>(_weno5->C_coeff2_weno3_r) / (static_cast<ParamType>(_binSizes[i]) + WENO5Params.IS_1) / (static_cast<ParamType>(_binSizes[i]) + WENO5Params.IS_1);
-				WENO5Params.W_0 = WENO5Params.alpha_0 / (WENO5Params.alpha_0 + WENO5Params.alpha_1);
-				WENO5Params.W_1 = 1.0 - WENO5Params.W_0;
-				WENO5Params.q_0 = static_cast<ParamType>(_weno5->q0_coeff1_weno3_r) * yCrystal[i] + static_cast<ParamType>(_weno5->q0_coeff2_weno3_r) * yCrystal[i + 1];
-				WENO5Params.q_1 = static_cast<ParamType>(_weno5->q1_coeff1_weno3_r) * yCrystal[i] + static_cast<ParamType>(_weno5->q1_coeff2_weno3_r) * yCrystal[i - 1];
-				WENO5Params.v_g = WENO5Params.k_g_times_s_g * (static_cast<ParamType>(_a) + static_cast<ParamType>(_growthConstant) * pow(static_cast<ParamType>(_bins[i + 1]), static_cast<ParamType>(_p)));
-				resCrystal[i] -= factor / static_cast<ParamType>(_binSizes[i]) * WENO5Params.v_g * (WENO5Params.W_0 * WENO5Params.q_0 + WENO5Params.W_1 * WENO5Params.q_1) - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i + 1] - yCrystal[i]) / static_cast<ParamType>(_binCenterDists[i]);
+				WENO35Params.IS_0 = static_cast<ParamType>(WENO35Params.IS_0_coeff_weno3_r) * (yCrystal[i + 1] - yCrystal[i]) * (yCrystal[i + 1] - yCrystal[i]);
+				WENO35Params.IS_1 = static_cast<ParamType>(WENO35Params.IS_1_coeff_weno3_r) * (yCrystal[i] - yCrystal[i - 1]) * (yCrystal[i] - yCrystal[i - 1]);
+				WENO35Params.alpha_0 = static_cast<ParamType>(WENO35Params.C_coeff1_weno3_r) / (static_cast<ParamType>(_binSizes[i]) + static_cast<ResidualType>(WENO35Params.IS_0)) / (static_cast<ParamType>(_binSizes[i]) + static_cast<ResidualType>(WENO35Params.IS_0));
+				WENO35Params.alpha_1 = static_cast<ParamType>(WENO35Params.C_coeff2_weno3_r) / (static_cast<ParamType>(_binSizes[i]) + static_cast<ResidualType>(WENO35Params.IS_1)) / (static_cast<ParamType>(_binSizes[i]) + static_cast<ResidualType>(WENO35Params.IS_1));
+				WENO35Params.W_0 = static_cast<ResidualType>(WENO35Params.alpha_0) / (static_cast<ResidualType>(WENO35Params.alpha_0) + static_cast<ResidualType>(WENO35Params.alpha_1));
+				WENO35Params.W_1 = 1.0 - static_cast<ResidualType>(WENO35Params.W_0);
+				WENO35Params.q_0 = static_cast<ParamType>(WENO35Params.q0_coeff1_weno3_r) * yCrystal[i] + static_cast<ParamType>(WENO35Params.q0_coeff2_weno3_r) * yCrystal[i + 1];
+				WENO35Params.q_1 = static_cast<ParamType>(WENO35Params.q1_coeff1_weno3_r) * yCrystal[i] + static_cast<ParamType>(WENO35Params.q1_coeff2_weno3_r) * yCrystal[i - 1];
+				WENO35Params.v_g = static_cast<ResidualType>(WENO35Params.k_g_times_s_g) * (static_cast<ParamType>(_a) + static_cast<ParamType>(_growthConstant) * pow(static_cast<ParamType>(_bins[i + 1]), static_cast<ParamType>(_p)));
+				resCrystal[i] -= factor / static_cast<ParamType>(_binSizes[i]) * static_cast<ResidualType>(WENO35Params.v_g) * (static_cast<ResidualType>(WENO35Params.W_0) * static_cast<ResidualType>(WENO35Params.q_0) + static_cast<ResidualType>(WENO35Params.W_1) * static_cast<ResidualType>(WENO35Params.q_1)) - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i + 1] - yCrystal[i]) / static_cast<ParamType>(_binCenterDists[i]);
 			}
 			else
 			{
 				// weno23 to F_{nx-1-1/2}
-				resCrystal[i] += factor / static_cast<ParamType>(_binSizes[i]) * WENO5Params.v_g * (WENO5Params.W_0 * WENO5Params.q_0 + WENO5Params.W_1 * WENO5Params.q_1) - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i] - yCrystal[i - 1]) / static_cast<ParamType>(_binCenterDists[i - 1]);
+				resCrystal[i] += factor / static_cast<ParamType>(_binSizes[i]) * static_cast<ResidualType>(WENO35Params.v_g) * (static_cast<ResidualType>(WENO35Params.W_0) * static_cast<ResidualType>(WENO35Params.q_0) + static_cast<ResidualType>(WENO35Params.W_1) * static_cast<ResidualType>(WENO35Params.q_1)) - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i] - yCrystal[i - 1]) / static_cast<ParamType>(_binCenterDists[i - 1]);
 				// no flux BC
 			}
 
@@ -929,41 +1305,40 @@ protected:
 	}
 
 	template <typename StateType, typename ResidualType, typename ParamType, typename FactorType>
-	void PBMKernel(StateType const* yCrystal, ResidualType* resCrystal, const FactorType& factor, detail::ReconstructionParams<ResidualType>& recParams, const int i) const
+	void PBMKernel(StateType const* yCrystal, ResidualType* resCrystal, const FactorType& factor, const int i) const
 	{
 		switch (_growthSchemeOrder)
 		{
 		case detail::PBMReconstruction::Upwind:
 		{
-			upwindKernel<StateType, ResidualType, ParamType, FactorType>(yCrystal, resCrystal, factor, recParams, i);
+			upwindKernel<StateType, ResidualType, ParamType, FactorType>(yCrystal, resCrystal, factor, *_reconstruction, i);
 		}
 		break;
 		case detail::PBMReconstruction::HRKoren:
 		{
-			HRKorenKernel<StateType, ResidualType, ParamType, FactorType>(yCrystal, resCrystal, factor, recParams, i);
+			HRKorenKernel<StateType, ResidualType, ParamType, FactorType>(yCrystal, resCrystal, factor, *static_cast<HRKorenParams<active>*>(_reconstruction), i);
 		}
 		break;
 		case detail::PBMReconstruction::WENO23:
 		{
-			WENO23Kernel<StateType, ResidualType, ParamType, FactorType>(yCrystal, resCrystal, factor, recParams, i);
+			WENO23Kernel<StateType, ResidualType, ParamType, FactorType>(yCrystal, resCrystal, factor, *static_cast<WENO23Params<active>*>(_reconstruction), i);
 		}
 		break;
 		case detail::PBMReconstruction::WENO35:
 		{
-			WENO35Kernel<StateType, ResidualType, ParamType, FactorType>(yCrystal, resCrystal, factor, recParams, i);
+			WENO35Kernel<StateType, ResidualType, ParamType, FactorType>(yCrystal, resCrystal, factor, *static_cast<WENO35Params<active>*>(_reconstruction), i);
 		}
 		break;
 		}
 	}
 
 	template <typename StateType, typename ResidualType, typename ParamType, typename FactorType>
-	int residualLiquidImpl(double t, unsigned int secIdx, const ColumnPosition& colPos,
-		StateType const* y, ResidualType* res, const FactorType& factor, LinearBufferAllocator workSpace) const
+	int residualLiquidImpl(double t, unsigned int secIdx, const ColumnPosition& colPos, StateType const* y, ResidualType* res, const FactorType& factor, LinearBufferAllocator workSpace) const
 	{
 		ResidualType B_0 = 0.0;
 		ResidualType k_g_times_s_g = 0.0;
 
-				if (_mode.hasPBM())
+		if (_mode.hasPBM())
 		{
 			// if we solve the mass balance, then we have the solubility entry (last state entry) and the solute entry (first position), which is why we advance the pointer.
 			StateType const* const yCrystal = y + 1;
@@ -990,19 +1365,19 @@ protected:
 
 			// mass balance
 			res[0] -= factor * massDensityShapeFactor * (B_0 * x_c_3 + substrateConversion);
+
+			// update growth flux reconstruction parameters
+			_reconstruction->updateParams(k_g_times_s_g, B_0);
 		}
 
 		// get pointer to crystal bins
 		StateType const* yCrystal = y;
 		ResidualType* resCrystal = res;
-				if (_mode.hasPBM()) // if we solve the mass balance, then we have the solubility entry (last state entry) and the solute entry (first position), which is why we advance the pointer.
+		if (_mode.hasPBM()) // if we solve the mass balance, then we have the solubility entry (last state entry) and the solute entry (first position), which is why we advance the pointer.
 		{
 			yCrystal++;
 			resCrystal++;
 		}
-
-		// initialize growth flux reconstruction parameters
-		detail::ReconstructionParams<ResidualType> ReconstructionParams{ 0.0, k_g_times_s_g, B_0 };
 
 		// define aggregation/fragmentation related local parameters
 		ResidualType source = 0.0;
@@ -1011,12 +1386,12 @@ protected:
 
 		for (int i = 0; i < _nBins; ++i)
 		{
-					if (_mode.hasPBM())
+			if (_mode.hasPBM())
 			{
-				PBMKernel<StateType, ResidualType, ParamType, FactorType>(yCrystal, resCrystal, factor, ReconstructionParams, i);
+				PBMKernel<StateType, ResidualType, ParamType, FactorType>(yCrystal, resCrystal, factor, i);
 			}
 
-					if (_mode.hasAggregation())
+			if (_mode.hasAggregation())
 			{
 				// reset the source and sink terms
 				source = 0.0;
@@ -1154,272 +1529,8 @@ protected:
 		return residualLiquidImpl<StateType, ResidualType, ParamType, double>(t, secIdx, colPos, yLiquid, resLiquid, factor, workSpace);
 	}
 
-	struct JacobianParams
-	{
-		const double vG_factor;
-		const double dBp_dc;
-		const double dBp_dceq;
-		const double dBs_dc;
-		const double dBs_dceq;
-		const double dvG_dc_factor;
-		const double dvG_dceq_factor;
-		const double dBs_dni_factor;
-
-		// HR Koren specific parameters
-		const double epsilon = 1e-10;
-		double r_x_i = 0.0;
-		double phi = 0.0;
-		double F_i = 0.0;
-		double dvG_dc_right = 0.0; // also used in weno schemes
-		double dvG_dceq_right = 0.0;
-		double vg_right = 0.0;
-
-		double r_cluster = 0.0;
-		double r_square_cluster = 0.0;
-		double A_cluster = 0.0;
-		double Ar_cluster = 0.0;
-		double ni_difference = 0.0;
-
-		double dFi_wrt_nim1 = 0.0;
-		double dFi_wrt_ni = 0.0;
-		double dFi_wrt_nip1 = 0.0;
-
-		// WENO23 related coefficients
-		double IS_0_right = 0.0;
-		double IS_1_right = 0.0;
-		double alpha_0_right = 0.0;
-		double alpha_1_right = 0.0;
-		double W_0_right = 0.0;
-		double W_1_right = 0.0;
-		double q_0_right = 0.0;
-		double q_1_right = 0.0;
-
-		//double dvG_dc_right = 0.0; // also used in HRKoren and WENO35 schemes
-		//double dvG_dceq_right = 0.0;
-		//double vg_right = 0.0;
-
-		// Jacobian related coefficients
-		double four_w1_B1_right = 0.0;
-		double four_w0_B0_right = 0.0;
-		double four_w0_w1_B1_right = 0.0;
-		double four_w0_w0_B0_right = 0.0;
-		double four_w1_w1_B1_right = 0.0;
-		double four_w0_w1_B0_right = 0.0;
-
-		double dw0_right_dni_m1 = 0.0;
-		double dw0_right_dni = 0.0;
-		double dw0_right_dni_p1 = 0.0;
-
-		double dw1_right_dni_m1 = 0.0;
-		double dw1_right_dni = 0.0;
-		double dw1_right_dni_p1 = 0.0;
-
-		double dq0_right_dni = 0.0;
-		double dq0_right_dni_p1 = 0.0;
-
-		double dq1_right_dni_m1 = 0.0;
-		double dq1_right_dni = 0.0;
-
-		// WENO35 boundary WENO23 related coefficients, for bin N_x-2
-		double IS_0_weno3_right = 0.0;
-		double IS_1_weno3_right = 0.0;
-		double alpha_0_weno3_right = 0.0;
-		double alpha_1_weno3_right = 0.0;
-		double W_0_weno3_right = 0.0;
-		double W_1_weno3_right = 0.0;
-		double q_0_weno3_right = 0.0;
-		double q_1_weno3_right = 0.0;
-
-		// WENO35 boundary WENO23 jacobian related coefficients, for bin N_x-2
-		double four_w0_B0_weno3_right = 0.0;
-		double four_w1_B1_weno3_right = 0.0;
-		double four_w0_w0_B0_weno3_right = 0.0;
-		double four_w0_w1_B1_weno3_right = 0.0;
-		double four_w0_w1_B0_weno3_right = 0.0;
-		double four_w1_w1_B1_weno3_right = 0.0;
-
-		double dw0_right_dni_m1_weno3_right = 0.0;
-		double dw0_right_dni_weno3_right = 0.0;
-		double dw0_right_dni_p1_weno3_right = 0.0;
-
-		double dw1_right_dni_m1_weno3_right = 0.0;
-		double dw1_right_dni_weno3_right = 0.0;
-		double dw1_right_dni_p1_weno3_right = 0.0;
-
-		double dq0_right_dni_weno3_right = 0.0;
-		double dq0_right_dni_p1_weno3_right = 0.0;
-		double dq1_right_dni_m1_weno3_right = 0.0;
-		double dq1_right_dni_weno3_right = 0.0;
-
-		// WENO35 boundary WENO23 related coefficients, for bin 2
-		double IS_0_weno3_left = 0.0;
-		double IS_1_weno3_left = 0.0;
-		double alpha_0_weno3_left = 0.0;
-		double alpha_1_weno3_left = 0.0;
-		double W_0_weno3_left = 0.0;
-		double W_1_weno3_left = 0.0;
-		double q_0_weno3_left = 0.0;
-		double q_1_weno3_left = 0.0;
-
-		// WENO35 boundary WENO23 Jacobian related coefficients, for bin 2
-		double four_w0_B0_weno3_left;
-		double four_w1_B1_weno3_left;
-		double four_w0_w0_B0_weno3_left;
-		double four_w0_w1_B1_weno3_left;
-		double four_w0_w1_B0_weno3_left;
-		double four_w1_w1_B1_weno3_left;
-
-		double dw0_right_dni_m1_weno3_left;
-		double dw0_right_dni_weno3_left;
-		double dw0_right_dni_p1_weno3_left;
-
-		double dw1_right_dni_m1_weno3_left;
-		double dw1_right_dni_weno3_left;
-		double dw1_right_dni_p1_weno3_left;
-
-		double dq0_right_dni_weno3_left;
-		double dq0_right_dni_p1_weno3_left;
-		double dq1_right_dni_m1_weno3_left;
-		double dq1_right_dni_weno3_left;
-
-		// WENO35 related coefficients
-		double IS_0 = 0.0;
-		double IS_1 = 0.0;
-		double IS_2 = 0.0;
-		double alpha_0 = 0.0;
-		double alpha_1 = 0.0;
-		double alpha_2 = 0.0;
-		double W_0 = 0.0;
-		double W_1 = 0.0;
-		double W_2 = 0.0;
-		double q_0 = 0.0;
-		double q_1 = 0.0;
-		double q_2 = 0.0;
-
-		//double dvG_dc_right = 0.0; // also used in HRKoren and WENO23
-		//double dvG_dceq_right = 0.0;
-		//double vg_right = 0.0;
-
-		// WENO35 Jacobian related coefficients
-		double dIS0_wrt_dni_p2 = 0.0;
-		double dIS0_wrt_dni_p1 = 0.0;
-		double dIS0_wrt_dni = 0.0;
-		double dIS1_wrt_dni_p1 = 0.0;
-		double dIS1_wrt_dni = 0.0;
-		double dIS1_wrt_dni_m1 = 0.0;
-		double dIS2_wrt_dni = 0.0;
-		double dIS2_wrt_dni_m1 = 0.0;
-		double dIS2_wrt_dni_m2 = 0.0;
-		double dq0_wrt_dni_p2 = 0.0;
-		double dq0_wrt_dni_p1 = 0.0;
-		double dq0_wrt_dni = 0.0;
-		double dq1_wrt_dni_p1 = 0.0;
-		double dq1_wrt_dni = 0.0;
-		double dq1_wrt_dni_m1 = 0.0;
-		double dq2_wrt_dni = 0.0;
-		double dq2_wrt_dni_m1 = 0.0;
-		double dq2_wrt_dni_m2 = 0.0;
-		double w0_w2_is2 = 0.0;
-		double w0_w1_is1 = 0.0;
-		double w0_w0_is0 = 0.0;
-		double w0_is0 = 0.0;
-		double dw0_wrt_dni_m2 = 0.0;
-		double dw0_wrt_dni_m1 = 0.0;
-		double dw0_wrt_dni = 0.0;
-		double dw0_wrt_dni_p1 = 0.0;
-		double dw0_wrt_dni_p2 = 0.0;
-		double w1_w2_is2 = 0.0;
-		double w1_w1_is1 = 0.0;
-		double w1_w0_is0 = 0.0;
-		double w1_is1 = 0.0;
-		double dw1_wrt_dni_m2 = 0.0;
-		double dw1_wrt_dni_m1 = 0.0;
-		double dw1_wrt_dni = 0.0;
-		double dw1_wrt_dni_p1 = 0.0;
-		double dw1_wrt_dni_p2 = 0.0;
-		double w2_is2 = 0.0;
-		double w2_w2_is2 = 0.0;
-		double w2_w1_is1 = 0.0;
-		double w2_w0_is0 = 0.0;
-		double dw2_wrt_dni_m2 = 0.0;
-		double dw2_wrt_dni_m1 = 0.0;
-		double dw2_wrt_dni = 0.0;
-		double dw2_wrt_dni_p1 = 0.0;
-		double dw2_wrt_dni_p2 = 0.0;
-
-		JacobianParams(double vG_factor, double dBp_dc, double dBp_dceq, double dBs_dc, double dBs_dceq, double dvG_dc_factor, double dvG_dceq_factor, double dBs_dni_factor, const double* yCrystal, const int nComp, const std::vector<active>& binSizes, detail::Weno5Coefficients* weno5)
-			: vG_factor(vG_factor), dBp_dc(dBp_dc), dBp_dceq(dBp_dceq), dBs_dc(dBs_dc), dBs_dceq(dBs_dceq), dvG_dc_factor(dvG_dc_factor), dvG_dceq_factor(dvG_dceq_factor), dBs_dni_factor(dBs_dni_factor)
-		{
-			if (weno5)
-			{
-				// WENO23 related coefficients, for bin N_x-2
-				IS_0_weno3_right = static_cast<double>(weno5->IS_0_coeff_weno3_r) * (yCrystal[nComp - 3] - yCrystal[nComp - 4]) * (yCrystal[nComp - 3] - yCrystal[nComp - 4]);
-				IS_1_weno3_right = static_cast<double>(weno5->IS_1_coeff_weno3_r) * (yCrystal[nComp - 4] - yCrystal[nComp - 5]) * (yCrystal[nComp - 4] - yCrystal[nComp - 5]);
-				alpha_0_weno3_right = static_cast<double>(weno5->C_coeff1_weno3_r) / (static_cast<double>(binSizes[nComp - 4]) + IS_0_weno3_right) / (static_cast<double>(binSizes[nComp - 4]) + IS_0_weno3_right);
-				alpha_1_weno3_right = static_cast<double>(weno5->C_coeff2_weno3_r) / (static_cast<double>(binSizes[nComp - 4]) + IS_1_weno3_right) / (static_cast<double>(binSizes[nComp - 4]) + IS_1_weno3_right);
-				W_0_weno3_right = alpha_0_weno3_right / (alpha_0_weno3_right + alpha_1_weno3_right);
-				W_1_weno3_right = 1.0 - W_0_weno3_right;
-				q_0_weno3_right = static_cast<double>(weno5->q0_coeff1_weno3_r) * yCrystal[nComp - 4] + static_cast<double>(weno5->q0_coeff2_weno3_r) * yCrystal[nComp - 3];
-				q_1_weno3_right = static_cast<double>(weno5->q1_coeff1_weno3_r) * yCrystal[nComp - 4] + static_cast<double>(weno5->q1_coeff2_weno3_r) * yCrystal[nComp - 5];
-
-				// WENO23 jacobian related coefficients, for bin N_x-2
-				four_w0_B0_weno3_right = 4.0 * W_0_weno3_right * static_cast<double>(weno5->IS_0_coeff_weno3_r) * (yCrystal[nComp - 3] - yCrystal[nComp - 4]) / (static_cast<double>(binSizes[nComp - 4]) + IS_0_weno3_right);
-				four_w1_B1_weno3_right = 4.0 * W_1_weno3_right * static_cast<double>(weno5->IS_1_coeff_weno3_r) * (yCrystal[nComp - 4] - yCrystal[nComp - 5]) / (static_cast<double>(binSizes[nComp - 4]) + IS_1_weno3_right);
-				four_w0_w0_B0_weno3_right = four_w0_B0_weno3_right * W_0_weno3_right;
-				four_w0_w1_B1_weno3_right = four_w1_B1_weno3_right * W_0_weno3_right;
-				four_w0_w1_B0_weno3_right = four_w0_B0_weno3_right * W_1_weno3_right;
-				four_w1_w1_B1_weno3_right = four_w1_B1_weno3_right * W_1_weno3_right;
-
-				dw0_right_dni_m1_weno3_right = -four_w0_w1_B1_weno3_right;
-				dw0_right_dni_weno3_right = four_w0_B0_weno3_right - four_w0_w0_B0_weno3_right + four_w0_w1_B1_weno3_right;
-				dw0_right_dni_p1_weno3_right = four_w0_w0_B0_weno3_right - four_w0_B0_weno3_right;
-
-				dw1_right_dni_m1_weno3_right = four_w1_B1_weno3_right - four_w1_w1_B1_weno3_right;
-				dw1_right_dni_weno3_right = -four_w1_B1_weno3_right - four_w0_w1_B0_weno3_right + four_w1_w1_B1_weno3_right;
-				dw1_right_dni_p1_weno3_right = four_w0_w1_B0_weno3_right;
-
-				dq0_right_dni_weno3_right = static_cast<double>(weno5->q0_coeff1_weno3_r);
-				dq0_right_dni_p1_weno3_right = static_cast<double>(weno5->q0_coeff2_weno3_r);
-				dq1_right_dni_m1_weno3_right = static_cast<double>(weno5->q1_coeff2_weno3_r);
-				dq1_right_dni_weno3_right = static_cast<double>(weno5->q1_coeff1_weno3_r);
-
-				// WENO23 related coefficients, for bin 2
-				IS_0_weno3_left = static_cast<double>(weno5->IS_0_coeff_weno3) * (yCrystal[2] - yCrystal[1]) * (yCrystal[2] - yCrystal[1]);
-				const double IS_1_weno3_left = static_cast<double>(weno5->IS_1_coeff_weno3) * (yCrystal[1] - yCrystal[0]) * (yCrystal[1] - yCrystal[0]);
-				alpha_0_weno3_left = static_cast<double>(weno5->C_coeff1_weno3) / (static_cast<double>(binSizes[1]) + IS_0_weno3_left) / (static_cast<double>(binSizes[1]) + IS_0_weno3_left);
-				alpha_1_weno3_left = static_cast<double>(weno5->C_coeff2_weno3) / (static_cast<double>(binSizes[1]) + IS_1_weno3_left) / (static_cast<double>(binSizes[1]) + IS_1_weno3_left);
-				W_0_weno3_left = alpha_0_weno3_left / (alpha_0_weno3_left + alpha_1_weno3_left);
-				W_1_weno3_left = 1.0 - W_0_weno3_left;
-				q_0_weno3_left = static_cast<double>(weno5->q0_coeff1_weno3) * yCrystal[1] + static_cast<double>(weno5->q0_coeff2_weno3) * yCrystal[2];
-				q_1_weno3_left = static_cast<double>(weno5->q1_coeff1_weno3) * yCrystal[1] + static_cast<double>(weno5->q1_coeff2_weno3) * yCrystal[0];
-
-				// WENO23 Jacobian related coefficients, for bin 2
-				four_w0_B0_weno3_left = 4.0 * W_0_weno3_left * static_cast<double>(weno5->IS_0_coeff_weno3) * (yCrystal[2] - yCrystal[1]) / (static_cast<double>(binSizes[1]) + IS_0_weno3_left);
-				four_w1_B1_weno3_left = 4.0 * W_1_weno3_left * static_cast<double>(weno5->IS_1_coeff_weno3) * (yCrystal[1] - yCrystal[0]) / (static_cast<double>(binSizes[1]) + IS_1_weno3_left);
-				four_w0_w0_B0_weno3_left = four_w0_B0_weno3_left * W_0_weno3_left;
-				four_w0_w1_B1_weno3_left = four_w1_B1_weno3_left * W_0_weno3_left;
-				four_w0_w1_B0_weno3_left = four_w0_B0_weno3_left * W_1_weno3_left;
-				four_w1_w1_B1_weno3_left = four_w1_B1_weno3_left * W_1_weno3_left;
-
-				dw0_right_dni_m1_weno3_left = -four_w0_w1_B1_weno3_left;
-				dw0_right_dni_weno3_left = four_w0_B0_weno3_left - four_w0_w0_B0_weno3_left + four_w0_w1_B1_weno3_left;
-				dw0_right_dni_p1_weno3_left = four_w0_w0_B0_weno3_left - four_w0_B0_weno3_left;
-
-				dw1_right_dni_m1_weno3_left = four_w1_B1_weno3_left - four_w1_w1_B1_weno3_left;
-				dw1_right_dni_weno3_left = -four_w1_B1_weno3_left - four_w0_w1_B0_weno3_left + four_w1_w1_B1_weno3_left;
-				dw1_right_dni_p1_weno3_left = four_w0_w1_B0_weno3_left;
-
-				dq0_right_dni_weno3_left = static_cast<double>(weno5->q0_coeff1_weno3);
-				dq0_right_dni_p1_weno3_left = static_cast<double>(weno5->q0_coeff2_weno3);
-				dq1_right_dni_m1_weno3_left = static_cast<double>(weno5->q1_coeff2_weno3);
-				dq1_right_dni_weno3_left = static_cast<double>(weno5->q1_coeff1_weno3);
-			}
-		}
-
-	};
-
 	template <typename RowIterator>
-	void jacobianUpwindKernel(double const* yCrystal, double factor, RowIterator& jac, JacobianParams& jacParams, const int i) const
+	void jacobianUpwindKernel(double const* yCrystal, double factor, RowIterator& jac, JacobianParamsBase& jacParams, const int i) const
 	{
 		int binIdx_i = 0;
 		int binIdx_j = 0;
@@ -1497,7 +1608,7 @@ protected:
 	}
 
 	template <typename RowIterator>
-	void jacobianHRKorenKernel(double const* yCrystal, double factor, RowIterator& jac, JacobianParams& jacParams, const int i) const
+	void jacobianHRKorenKernel(double const* yCrystal, double factor, RowIterator& jac, JacobianParamsHRKoren& jacParams, HRKorenParams<active>& HRKoren, const int i) const
 	{
 		int binIdx_i = 0;
 		int binIdx_j = 0;
@@ -1524,16 +1635,16 @@ protected:
 
 			// update all coefficients
 			// HR-related coefficients, right face
-			jacParams.r_x_i = static_cast<double>(_HR->A_coeff[binIdx_i]) * (yCrystal[binIdx_i] - yCrystal[binIdx_i - 1] + jacParams.epsilon) / (yCrystal[binIdx_i + 1] - yCrystal[binIdx_i] + jacParams.epsilon);
+			jacParams.r_x_i = static_cast<double>(HRKoren.A_coeff[binIdx_i]) * (yCrystal[binIdx_i] - yCrystal[binIdx_i - 1] + jacParams.epsilon) / (yCrystal[binIdx_i + 1] - yCrystal[binIdx_i] + jacParams.epsilon);
 			if (cadet_likely(jacParams.r_x_i > 0))
 			{
-				jacParams.phi = jacParams.r_x_i / (static_cast<double>(_HR->R_coeff[binIdx_i]) - 1.0 + jacParams.r_x_i);
+				jacParams.phi = jacParams.r_x_i / (static_cast<double>(HRKoren.R_coeff[binIdx_i]) - 1.0 + jacParams.r_x_i);
 				jacParams.F_i = yCrystal[binIdx_i] + jacParams.phi * (yCrystal[binIdx_i + 1] - yCrystal[binIdx_i]);
 
 				// Jacobian related coefficients, right face
 				jacParams.ni_difference = 1.0 - jacParams.epsilon / (yCrystal[binIdx_i + 1] - yCrystal[binIdx_i] + jacParams.epsilon);
 				jacParams.r_cluster = jacParams.phi;
-				jacParams.A_cluster = static_cast<double>(_HR->A_coeff[binIdx_i]) / (static_cast<double>(_HR->R_coeff[binIdx_i]) - 1.0 + jacParams.r_x_i);
+				jacParams.A_cluster = static_cast<double>(HRKoren.A_coeff[binIdx_i]) / (static_cast<double>(HRKoren.R_coeff[binIdx_i]) - 1.0 + jacParams.r_x_i);
 				jacParams.r_square_cluster = jacParams.phi * jacParams.phi;
 				jacParams.Ar_cluster = jacParams.phi * jacParams.A_cluster;
 
@@ -1614,16 +1725,16 @@ protected:
 		{
 			binIdx_i = i - 1;
 			// HR-related coefficients, right face
-			jacParams.r_x_i = static_cast<double>(_HR->A_coeff[binIdx_i]) * (yCrystal[binIdx_i] - yCrystal[binIdx_i - 1] + jacParams.epsilon) / (yCrystal[binIdx_i + 1] - yCrystal[binIdx_i] + jacParams.epsilon);
+			jacParams.r_x_i = static_cast<double>(HRKoren.A_coeff[binIdx_i]) * (yCrystal[binIdx_i] - yCrystal[binIdx_i - 1] + jacParams.epsilon) / (yCrystal[binIdx_i + 1] - yCrystal[binIdx_i] + jacParams.epsilon);
 			if (cadet_likely(jacParams.r_x_i > 0))
 			{
-				jacParams.phi = jacParams.r_x_i / (static_cast<double>(_HR->R_coeff[binIdx_i]) - 1.0 + jacParams.r_x_i);
+				jacParams.phi = jacParams.r_x_i / (static_cast<double>(HRKoren.R_coeff[binIdx_i]) - 1.0 + jacParams.r_x_i);
 				jacParams.F_i = yCrystal[binIdx_i] + jacParams.phi * (yCrystal[binIdx_i + 1] - yCrystal[binIdx_i]);
 
 				// Jacobian related coefficients, right face
 				jacParams.ni_difference = 1.0 - jacParams.epsilon / (yCrystal[binIdx_i + 1] - yCrystal[binIdx_i] + jacParams.epsilon);
 				jacParams.r_cluster = jacParams.phi;
-				jacParams.A_cluster = static_cast<double>(_HR->A_coeff[binIdx_i]) / (static_cast<double>(_HR->R_coeff[binIdx_i]) - 1.0 + jacParams.r_x_i);
+				jacParams.A_cluster = static_cast<double>(HRKoren.A_coeff[binIdx_i]) / (static_cast<double>(HRKoren.R_coeff[binIdx_i]) - 1.0 + jacParams.r_x_i);
 				jacParams.r_square_cluster = jacParams.phi * jacParams.phi;
 				jacParams.Ar_cluster = jacParams.phi * jacParams.A_cluster;
 
@@ -1687,7 +1798,7 @@ protected:
 	}
 
 	template <typename RowIterator>
-	void jacobianWENO23Kernel(double const* yCrystal, double factor, RowIterator& jac, JacobianParams& jacParams, const int i) const
+	void jacobianWENO23Kernel(double const* yCrystal, double factor, RowIterator& jac, JacobianParamsWENO23& jacParams, WENO23Params<active>& WENO23, const int i) const
 	{
 		int binIdx_i = 0;
 		int binIdx_j = 0; // note: binIdx_j is used only when B_s is involved.
@@ -1715,14 +1826,14 @@ protected:
 
 			// update all coefficients
 			// WENO23-related coefficients, right face
-			jacParams.IS_0_right = static_cast<double>(_weno3->IS_0_coeff[binIdx_i]) * (yCrystal[binIdx_i + 1] - yCrystal[binIdx_i]) * (yCrystal[binIdx_i + 1] - yCrystal[binIdx_i]);
-			jacParams.IS_1_right = static_cast<double>(_weno3->IS_1_coeff[binIdx_i]) * (yCrystal[binIdx_i] - yCrystal[binIdx_i - 1]) * (yCrystal[binIdx_i] - yCrystal[binIdx_i - 1]);
-			jacParams.alpha_0_right = static_cast<double>(_weno3->C_right_coeff[binIdx_i]) / (static_cast<double>(_binSizes[binIdx_i]) + jacParams.IS_0_right) / (static_cast<double>(_binSizes[binIdx_i]) + jacParams.IS_0_right);
-			jacParams.alpha_1_right = (1.0 - static_cast<double>(_weno3->C_right_coeff[binIdx_i])) / (static_cast<double>(_binSizes[binIdx_i]) + jacParams.IS_1_right) / (static_cast<double>(_binSizes[binIdx_i]) + jacParams.IS_1_right);
+			jacParams.IS_0_right = static_cast<double>(WENO23.IS_0_coeff[binIdx_i]) * (yCrystal[binIdx_i + 1] - yCrystal[binIdx_i]) * (yCrystal[binIdx_i + 1] - yCrystal[binIdx_i]);
+			jacParams.IS_1_right = static_cast<double>(WENO23.IS_1_coeff[binIdx_i]) * (yCrystal[binIdx_i] - yCrystal[binIdx_i - 1]) * (yCrystal[binIdx_i] - yCrystal[binIdx_i - 1]);
+			jacParams.alpha_0_right = static_cast<double>(WENO23.C_right_coeff[binIdx_i]) / (static_cast<double>(_binSizes[binIdx_i]) + jacParams.IS_0_right) / (static_cast<double>(_binSizes[binIdx_i]) + jacParams.IS_0_right);
+			jacParams.alpha_1_right = (1.0 - static_cast<double>(WENO23.C_right_coeff[binIdx_i])) / (static_cast<double>(_binSizes[binIdx_i]) + jacParams.IS_1_right) / (static_cast<double>(_binSizes[binIdx_i]) + jacParams.IS_1_right);
 			jacParams.W_0_right = jacParams.alpha_0_right / (jacParams.alpha_0_right + jacParams.alpha_1_right);
 			jacParams.W_1_right = 1.0 - jacParams.W_0_right;
-			jacParams.q_0_right = static_cast<double>(_weno3->q_0_right_coeff[binIdx_i]) * yCrystal[binIdx_i] + (1.0 - static_cast<double>(_weno3->q_0_right_coeff[binIdx_i])) * yCrystal[binIdx_i + 1];
-			jacParams.q_1_right = static_cast<double>(_weno3->q_1_right_coeff[binIdx_i]) * yCrystal[binIdx_i] + (1.0 - static_cast<double>(_weno3->q_1_right_coeff[binIdx_i])) * yCrystal[binIdx_i - 1];
+			jacParams.q_0_right = static_cast<double>(WENO23.q_0_right_coeff[binIdx_i]) * yCrystal[binIdx_i] + (1.0 - static_cast<double>(WENO23.q_0_right_coeff[binIdx_i])) * yCrystal[binIdx_i + 1];
+			jacParams.q_1_right = static_cast<double>(WENO23.q_1_right_coeff[binIdx_i]) * yCrystal[binIdx_i] + (1.0 - static_cast<double>(WENO23.q_1_right_coeff[binIdx_i])) * yCrystal[binIdx_i - 1];
 
 			jacParams.dvG_dc_right = jacParams.dvG_dc_factor * (static_cast<double>(_a) + static_cast<double>(_growthConstant) * pow(static_cast<double>(_bins[binIdx_i + 1]), static_cast<double>(_p)));
 			jacParams.dvG_dceq_right = jacParams.dvG_dceq_factor * (static_cast<double>(_a) + static_cast<double>(_growthConstant) * pow(static_cast<double>(_bins[binIdx_i + 1]), static_cast<double>(_p)));
@@ -1730,8 +1841,8 @@ protected:
 			jacParams.vg_right = jacParams.vG_factor * (static_cast<double>(_a) + static_cast<double>(_growthConstant) * pow(static_cast<double>(_bins[binIdx_i + 1]), static_cast<double>(_p)));
 
 			// Jacobian related coefficients, right face
-			jacParams.four_w0_B0_right = 4.0 * jacParams.W_0_right * static_cast<double>(_weno3->IS_0_coeff[binIdx_i]) * (yCrystal[binIdx_i + 1] - yCrystal[binIdx_i]) / (static_cast<double>(_binSizes[binIdx_i]) + jacParams.IS_0_right);
-			jacParams.four_w1_B1_right = 4.0 * jacParams.W_1_right * static_cast<double>(_weno3->IS_1_coeff[binIdx_i]) * (yCrystal[binIdx_i] - yCrystal[binIdx_i - 1]) / (static_cast<double>(_binSizes[binIdx_i]) + jacParams.IS_1_right);
+			jacParams.four_w0_B0_right = 4.0 * jacParams.W_0_right * static_cast<double>(WENO23.IS_0_coeff[binIdx_i]) * (yCrystal[binIdx_i + 1] - yCrystal[binIdx_i]) / (static_cast<double>(_binSizes[binIdx_i]) + jacParams.IS_0_right);
+			jacParams.four_w1_B1_right = 4.0 * jacParams.W_1_right * static_cast<double>(WENO23.IS_1_coeff[binIdx_i]) * (yCrystal[binIdx_i] - yCrystal[binIdx_i - 1]) / (static_cast<double>(_binSizes[binIdx_i]) + jacParams.IS_1_right);
 			jacParams.four_w0_w0_B0_right = jacParams.four_w0_B0_right * jacParams.W_0_right;
 			jacParams.four_w0_w1_B1_right = jacParams.four_w1_B1_right * jacParams.W_0_right;
 			jacParams.four_w0_w1_B0_right = jacParams.four_w0_B0_right * jacParams.W_1_right;
@@ -1745,11 +1856,11 @@ protected:
 			jacParams.dw1_right_dni = -jacParams.four_w1_B1_right - jacParams.four_w0_w1_B0_right + jacParams.four_w1_w1_B1_right;
 			jacParams.dw1_right_dni_p1 = jacParams.four_w0_w1_B0_right;
 
-			jacParams.dq0_right_dni = static_cast<double>(_weno3->q_0_right_coeff[binIdx_i]);
-			jacParams.dq0_right_dni_p1 = 1.0 - static_cast<double>(_weno3->q_0_right_coeff[binIdx_i]);
+			jacParams.dq0_right_dni = static_cast<double>(WENO23.q_0_right_coeff[binIdx_i]);
+			jacParams.dq0_right_dni_p1 = 1.0 - static_cast<double>(WENO23.q_0_right_coeff[binIdx_i]);
 
-			jacParams.dq1_right_dni_m1 = 1.0 - static_cast<double>(_weno3->q_1_right_coeff[binIdx_i]);
-			jacParams.dq1_right_dni = static_cast<double>(_weno3->q_1_right_coeff[binIdx_i]);
+			jacParams.dq1_right_dni_m1 = 1.0 - static_cast<double>(WENO23.q_1_right_coeff[binIdx_i]);
+			jacParams.dq1_right_dni = static_cast<double>(WENO23.q_1_right_coeff[binIdx_i]);
 
 			// jacobian, right face, and diffusion
 			// dQ_i/dc, j=0
@@ -1809,14 +1920,14 @@ protected:
 		{
 			binIdx_i = i - 1;
 			// WENO23-related coefficients, right face
-			jacParams.IS_0_right = static_cast<double>(_weno3->IS_0_coeff[binIdx_i]) * (yCrystal[binIdx_i + 1] - yCrystal[binIdx_i]) * (yCrystal[binIdx_i + 1] - yCrystal[binIdx_i]);
-			jacParams.IS_1_right = static_cast<double>(_weno3->IS_1_coeff[binIdx_i]) * (yCrystal[binIdx_i] - yCrystal[binIdx_i - 1]) * (yCrystal[binIdx_i] - yCrystal[binIdx_i - 1]);
-			jacParams.alpha_0_right = static_cast<double>(_weno3->C_right_coeff[binIdx_i]) / (static_cast<double>(_binSizes[binIdx_i]) + jacParams.IS_0_right) / (static_cast<double>(_binSizes[binIdx_i]) + jacParams.IS_0_right);
-			jacParams.alpha_1_right = (1.0 - static_cast<double>(_weno3->C_right_coeff[binIdx_i])) / (static_cast<double>(_binSizes[binIdx_i]) + jacParams.IS_1_right) / (static_cast<double>(_binSizes[binIdx_i]) + jacParams.IS_1_right);
+			jacParams.IS_0_right = static_cast<double>(WENO23.IS_0_coeff[binIdx_i]) * (yCrystal[binIdx_i + 1] - yCrystal[binIdx_i]) * (yCrystal[binIdx_i + 1] - yCrystal[binIdx_i]);
+			jacParams.IS_1_right = static_cast<double>(WENO23.IS_1_coeff[binIdx_i]) * (yCrystal[binIdx_i] - yCrystal[binIdx_i - 1]) * (yCrystal[binIdx_i] - yCrystal[binIdx_i - 1]);
+			jacParams.alpha_0_right = static_cast<double>(WENO23.C_right_coeff[binIdx_i]) / (static_cast<double>(_binSizes[binIdx_i]) + jacParams.IS_0_right) / (static_cast<double>(_binSizes[binIdx_i]) + jacParams.IS_0_right);
+			jacParams.alpha_1_right = (1.0 - static_cast<double>(WENO23.C_right_coeff[binIdx_i])) / (static_cast<double>(_binSizes[binIdx_i]) + jacParams.IS_1_right) / (static_cast<double>(_binSizes[binIdx_i]) + jacParams.IS_1_right);
 			jacParams.W_0_right = jacParams.alpha_0_right / (jacParams.alpha_0_right + jacParams.alpha_1_right);
 			jacParams.W_1_right = 1.0 - jacParams.W_0_right;
-			jacParams.q_0_right = static_cast<double>(_weno3->q_0_right_coeff[binIdx_i]) * yCrystal[binIdx_i] + (1.0 - static_cast<double>(_weno3->q_0_right_coeff[binIdx_i])) * yCrystal[binIdx_i + 1];
-			jacParams.q_1_right = static_cast<double>(_weno3->q_1_right_coeff[binIdx_i]) * yCrystal[binIdx_i] + (1.0 - static_cast<double>(_weno3->q_1_right_coeff[binIdx_i])) * yCrystal[binIdx_i - 1];
+			jacParams.q_0_right = static_cast<double>(WENO23.q_0_right_coeff[binIdx_i]) * yCrystal[binIdx_i] + (1.0 - static_cast<double>(WENO23.q_0_right_coeff[binIdx_i])) * yCrystal[binIdx_i + 1];
+			jacParams.q_1_right = static_cast<double>(WENO23.q_1_right_coeff[binIdx_i]) * yCrystal[binIdx_i] + (1.0 - static_cast<double>(WENO23.q_1_right_coeff[binIdx_i])) * yCrystal[binIdx_i - 1];
 
 			jacParams.dvG_dc_right = jacParams.dvG_dc_factor * (static_cast<double>(_a) + static_cast<double>(_growthConstant) * pow(static_cast<double>(_bins[binIdx_i + 1]), static_cast<double>(_p)));
 			jacParams.dvG_dceq_right = jacParams.dvG_dceq_factor * (static_cast<double>(_a) + static_cast<double>(_growthConstant) * pow(static_cast<double>(_bins[binIdx_i + 1]), static_cast<double>(_p)));
@@ -1824,8 +1935,8 @@ protected:
 			jacParams.vg_right = jacParams.vG_factor * (static_cast<double>(_a) + static_cast<double>(_growthConstant) * pow(static_cast<double>(_bins[binIdx_i + 1]), static_cast<double>(_p)));
 
 			// Jacobian related coefficients, right face
-			jacParams.four_w0_B0_right = 4.0 * jacParams.W_0_right * static_cast<double>(_weno3->IS_0_coeff[binIdx_i]) * (yCrystal[binIdx_i + 1] - yCrystal[binIdx_i]) / (static_cast<double>(_binSizes[binIdx_i]) + jacParams.IS_0_right);
-			jacParams.four_w1_B1_right = 4.0 * jacParams.W_1_right * static_cast<double>(_weno3->IS_1_coeff[binIdx_i]) * (yCrystal[binIdx_i] - yCrystal[binIdx_i - 1]) / (static_cast<double>(_binSizes[binIdx_i]) + jacParams.IS_1_right);
+			jacParams.four_w0_B0_right = 4.0 * jacParams.W_0_right * static_cast<double>(WENO23.IS_0_coeff[binIdx_i]) * (yCrystal[binIdx_i + 1] - yCrystal[binIdx_i]) / (static_cast<double>(_binSizes[binIdx_i]) + jacParams.IS_0_right);
+			jacParams.four_w1_B1_right = 4.0 * jacParams.W_1_right * static_cast<double>(WENO23.IS_1_coeff[binIdx_i]) * (yCrystal[binIdx_i] - yCrystal[binIdx_i - 1]) / (static_cast<double>(_binSizes[binIdx_i]) + jacParams.IS_1_right);
 			jacParams.four_w0_w0_B0_right = jacParams.four_w0_B0_right * jacParams.W_0_right;
 			jacParams.four_w0_w1_B1_right = jacParams.four_w1_B1_right * jacParams.W_0_right;
 			jacParams.four_w0_w1_B0_right = jacParams.four_w0_B0_right * jacParams.W_1_right;
@@ -1839,11 +1950,11 @@ protected:
 			jacParams.dw1_right_dni = -jacParams.four_w1_B1_right - jacParams.four_w0_w1_B0_right + jacParams.four_w1_w1_B1_right;
 			jacParams.dw1_right_dni_p1 = jacParams.four_w0_w1_B0_right;
 
-			jacParams.dq0_right_dni = static_cast<double>(_weno3->q_0_right_coeff[binIdx_i]);
-			jacParams.dq0_right_dni_p1 = 1.0 - static_cast<double>(_weno3->q_0_right_coeff[binIdx_i]);
+			jacParams.dq0_right_dni = static_cast<double>(WENO23.q_0_right_coeff[binIdx_i]);
+			jacParams.dq0_right_dni_p1 = 1.0 - static_cast<double>(WENO23.q_0_right_coeff[binIdx_i]);
 
-			jacParams.dq1_right_dni_m1 = 1.0 - static_cast<double>(_weno3->q_1_right_coeff[binIdx_i]);
-			jacParams.dq1_right_dni = static_cast<double>(_weno3->q_1_right_coeff[binIdx_i]);
+			jacParams.dq1_right_dni_m1 = 1.0 - static_cast<double>(WENO23.q_1_right_coeff[binIdx_i]);
+			jacParams.dq1_right_dni = static_cast<double>(WENO23.q_1_right_coeff[binIdx_i]);
 
 			// dQ_1/dc, j=0
 			jac[-2] += factor / static_cast<double>(_binSizes[binIdx_i]) * jacParams.dvG_dc_factor * (static_cast<double>(_a) + static_cast<double>(_growthConstant) * pow(static_cast<double>(_bins[binIdx_i]), static_cast<double>(_p))) * yCrystal[0]; // left face, upwind scheme
@@ -1886,7 +1997,7 @@ protected:
 	}
 
 	template <typename RowIterator>
-	void jacobianWENO35Kernel(double const* yCrystal, double factor, RowIterator& jac, JacobianParams& jacParams, const int i) const
+	void jacobianWENO35Kernel(double const* yCrystal, double factor, RowIterator& jac, JacobianParamsWENO35& jacParams, WENO35Params<active>& WENO35, const int i) const
 	{
 		int binIdx_i = 0;
 		int binIdx_j = 0; // note: binIdx_j is used only when B_s is involved.
@@ -1919,47 +2030,47 @@ protected:
 
 			// update all coefficients
 			// WENO5, right face
-			jacParams.IS_0 = static_cast<double>(_weno5->IS_0_coeff_1[binIdx_i]) * (yCrystal[binIdx_i + 2] - yCrystal[binIdx_i + 1]) * (yCrystal[binIdx_i + 2] - yCrystal[binIdx_i + 1]) + static_cast<double>(_weno5->IS_0_coeff_2[binIdx_i]) * (yCrystal[binIdx_i + 2] - yCrystal[binIdx_i + 1]) * (yCrystal[binIdx_i] - yCrystal[binIdx_i + 1]) + static_cast<double>(_weno5->IS_0_coeff_3[binIdx_i]) * (yCrystal[binIdx_i] - yCrystal[binIdx_i + 1]) * (yCrystal[binIdx_i] - yCrystal[binIdx_i + 1]);
-			jacParams.IS_1 = static_cast<double>(_weno5->IS_1_coeff_1[binIdx_i]) * (yCrystal[binIdx_i - 1] - yCrystal[binIdx_i]) * (yCrystal[binIdx_i - 1] - yCrystal[binIdx_i]) + static_cast<double>(_weno5->IS_1_coeff_2[binIdx_i]) * (yCrystal[binIdx_i + 1] - yCrystal[binIdx_i]) * (yCrystal[binIdx_i - 1] - yCrystal[binIdx_i]) + static_cast<double>(_weno5->IS_1_coeff_3[binIdx_i]) * (yCrystal[binIdx_i + 1] - yCrystal[binIdx_i]) * (yCrystal[binIdx_i + 1] - yCrystal[binIdx_i]);
-			jacParams.IS_2 = static_cast<double>(_weno5->IS_2_coeff_1[binIdx_i]) * (yCrystal[binIdx_i - 2] - yCrystal[binIdx_i - 1]) * (yCrystal[binIdx_i - 2] - yCrystal[binIdx_i - 1]) + static_cast<double>(_weno5->IS_2_coeff_2[binIdx_i]) * (yCrystal[binIdx_i] - yCrystal[binIdx_i - 1]) * (yCrystal[binIdx_i - 2] - yCrystal[binIdx_i - 1]) + static_cast<double>(_weno5->IS_2_coeff_3[binIdx_i]) * (yCrystal[binIdx_i] - yCrystal[binIdx_i - 1]) * (yCrystal[binIdx_i] - yCrystal[binIdx_i - 1]);
-			jacParams.alpha_0 = static_cast<double>(_weno5->C_0[binIdx_i]) / (static_cast<double>(_binSizes[binIdx_i]) + jacParams.IS_0) / (static_cast<double>(_binSizes[binIdx_i]) + jacParams.IS_0);
-			jacParams.alpha_1 = static_cast<double>(_weno5->C_1[binIdx_i]) / (static_cast<double>(_binSizes[binIdx_i]) + jacParams.IS_1) / (static_cast<double>(_binSizes[binIdx_i]) + jacParams.IS_1);
-			jacParams.alpha_2 = static_cast<double>(_weno5->C_2[binIdx_i]) / (static_cast<double>(_binSizes[binIdx_i]) + jacParams.IS_2) / (static_cast<double>(_binSizes[binIdx_i]) + jacParams.IS_2);
+			jacParams.IS_0 = static_cast<double>(WENO35.IS_0_coeff_1[binIdx_i]) * (yCrystal[binIdx_i + 2] - yCrystal[binIdx_i + 1]) * (yCrystal[binIdx_i + 2] - yCrystal[binIdx_i + 1]) + static_cast<double>(WENO35.IS_0_coeff_2[binIdx_i]) * (yCrystal[binIdx_i + 2] - yCrystal[binIdx_i + 1]) * (yCrystal[binIdx_i] - yCrystal[binIdx_i + 1]) + static_cast<double>(WENO35.IS_0_coeff_3[binIdx_i]) * (yCrystal[binIdx_i] - yCrystal[binIdx_i + 1]) * (yCrystal[binIdx_i] - yCrystal[binIdx_i + 1]);
+			jacParams.IS_1 = static_cast<double>(WENO35.IS_1_coeff_1[binIdx_i]) * (yCrystal[binIdx_i - 1] - yCrystal[binIdx_i]) * (yCrystal[binIdx_i - 1] - yCrystal[binIdx_i]) + static_cast<double>(WENO35.IS_1_coeff_2[binIdx_i]) * (yCrystal[binIdx_i + 1] - yCrystal[binIdx_i]) * (yCrystal[binIdx_i - 1] - yCrystal[binIdx_i]) + static_cast<double>(WENO35.IS_1_coeff_3[binIdx_i]) * (yCrystal[binIdx_i + 1] - yCrystal[binIdx_i]) * (yCrystal[binIdx_i + 1] - yCrystal[binIdx_i]);
+			jacParams.IS_2 = static_cast<double>(WENO35.IS_2_coeff_1[binIdx_i]) * (yCrystal[binIdx_i - 2] - yCrystal[binIdx_i - 1]) * (yCrystal[binIdx_i - 2] - yCrystal[binIdx_i - 1]) + static_cast<double>(WENO35.IS_2_coeff_2[binIdx_i]) * (yCrystal[binIdx_i] - yCrystal[binIdx_i - 1]) * (yCrystal[binIdx_i - 2] - yCrystal[binIdx_i - 1]) + static_cast<double>(WENO35.IS_2_coeff_3[binIdx_i]) * (yCrystal[binIdx_i] - yCrystal[binIdx_i - 1]) * (yCrystal[binIdx_i] - yCrystal[binIdx_i - 1]);
+			jacParams.alpha_0 = static_cast<double>(WENO35.C_0[binIdx_i]) / (static_cast<double>(_binSizes[binIdx_i]) + jacParams.IS_0) / (static_cast<double>(_binSizes[binIdx_i]) + jacParams.IS_0);
+			jacParams.alpha_1 = static_cast<double>(WENO35.C_1[binIdx_i]) / (static_cast<double>(_binSizes[binIdx_i]) + jacParams.IS_1) / (static_cast<double>(_binSizes[binIdx_i]) + jacParams.IS_1);
+			jacParams.alpha_2 = static_cast<double>(WENO35.C_2[binIdx_i]) / (static_cast<double>(_binSizes[binIdx_i]) + jacParams.IS_2) / (static_cast<double>(_binSizes[binIdx_i]) + jacParams.IS_2);
 			jacParams.W_0 = jacParams.alpha_0 / (jacParams.alpha_0 + jacParams.alpha_1 + jacParams.alpha_2);
 			jacParams.W_1 = jacParams.alpha_1 / (jacParams.alpha_0 + jacParams.alpha_1 + jacParams.alpha_2);
 			jacParams.W_2 = 1.0 - jacParams.W_0 - jacParams.W_1;
-			jacParams.q_0 = yCrystal[binIdx_i + 1] + static_cast<double>(_weno5->q_0_coeff_1[binIdx_i]) * (yCrystal[binIdx_i] - yCrystal[binIdx_i + 1]) + static_cast<double>(_weno5->q_0_coeff_2[binIdx_i]) * (yCrystal[binIdx_i + 1] - yCrystal[binIdx_i + 2]);
-			jacParams.q_1 = yCrystal[binIdx_i] + static_cast<double>(_weno5->q_1_coeff_1[binIdx_i]) * (yCrystal[binIdx_i + 1] - yCrystal[binIdx_i]) + static_cast<double>(_weno5->q_1_coeff_2[binIdx_i]) * (yCrystal[binIdx_i] - yCrystal[binIdx_i - 1]);
-			jacParams.q_2 = yCrystal[binIdx_i - 1] + static_cast<double>(_weno5->q_2_coeff_1[binIdx_i]) * (yCrystal[binIdx_i - 2] - yCrystal[binIdx_i - 1]) + static_cast<double>(_weno5->q_2_coeff_2[binIdx_i]) * (yCrystal[binIdx_i] - yCrystal[binIdx_i - 1]);
+			jacParams.q_0 = yCrystal[binIdx_i + 1] + static_cast<double>(WENO35.q_0_coeff_1[binIdx_i]) * (yCrystal[binIdx_i] - yCrystal[binIdx_i + 1]) + static_cast<double>(WENO35.q_0_coeff_2[binIdx_i]) * (yCrystal[binIdx_i + 1] - yCrystal[binIdx_i + 2]);
+			jacParams.q_1 = yCrystal[binIdx_i] + static_cast<double>(WENO35.q_1_coeff_1[binIdx_i]) * (yCrystal[binIdx_i + 1] - yCrystal[binIdx_i]) + static_cast<double>(WENO35.q_1_coeff_2[binIdx_i]) * (yCrystal[binIdx_i] - yCrystal[binIdx_i - 1]);
+			jacParams.q_2 = yCrystal[binIdx_i - 1] + static_cast<double>(WENO35.q_2_coeff_1[binIdx_i]) * (yCrystal[binIdx_i - 2] - yCrystal[binIdx_i - 1]) + static_cast<double>(WENO35.q_2_coeff_2[binIdx_i]) * (yCrystal[binIdx_i] - yCrystal[binIdx_i - 1]);
 
 			jacParams.dvG_dc_right = jacParams.dvG_dc_factor * (static_cast<double>(_a) + static_cast<double>(_growthConstant) * pow(static_cast<double>(_bins[binIdx_i + 1]), static_cast<double>(_p)));
 			jacParams.dvG_dceq_right = jacParams.dvG_dceq_factor * (static_cast<double>(_a) + static_cast<double>(_growthConstant) * pow(static_cast<double>(_bins[binIdx_i + 1]), static_cast<double>(_p)));
 			jacParams.vg_right = jacParams.vG_factor * (static_cast<double>(_a) + static_cast<double>(_growthConstant) * pow(static_cast<double>(_bins[binIdx_i + 1]), static_cast<double>(_p)));
 
 			// jacobian
-			jacParams.dIS0_wrt_dni_p2 = 2.0 * static_cast<double>(_weno5->IS_0_coeff_1[binIdx_i]) * (yCrystal[binIdx_i + 2] - yCrystal[binIdx_i + 1]) + static_cast<double>(_weno5->IS_0_coeff_2[binIdx_i]) * (yCrystal[binIdx_i] - yCrystal[binIdx_i + 1]);
-			jacParams.dIS0_wrt_dni_p1 = -2.0 * static_cast<double>(_weno5->IS_0_coeff_1[binIdx_i]) * (yCrystal[binIdx_i + 2] - yCrystal[binIdx_i + 1]) + static_cast<double>(_weno5->IS_0_coeff_2[binIdx_i]) * (2.0 * yCrystal[binIdx_i + 1] - yCrystal[binIdx_i + 2] - yCrystal[binIdx_i]) - 2.0 * static_cast<double>(_weno5->IS_0_coeff_3[binIdx_i]) * (yCrystal[binIdx_i] - yCrystal[binIdx_i + 1]);
-			jacParams.dIS0_wrt_dni = static_cast<double>(_weno5->IS_0_coeff_2[binIdx_i]) * (yCrystal[binIdx_i + 2] - yCrystal[binIdx_i + 1]) + 2.0 * static_cast<double>(_weno5->IS_0_coeff_3[binIdx_i]) * (yCrystal[binIdx_i] - yCrystal[binIdx_i + 1]);
+			jacParams.dIS0_wrt_dni_p2 = 2.0 * static_cast<double>(WENO35.IS_0_coeff_1[binIdx_i]) * (yCrystal[binIdx_i + 2] - yCrystal[binIdx_i + 1]) + static_cast<double>(WENO35.IS_0_coeff_2[binIdx_i]) * (yCrystal[binIdx_i] - yCrystal[binIdx_i + 1]);
+			jacParams.dIS0_wrt_dni_p1 = -2.0 * static_cast<double>(WENO35.IS_0_coeff_1[binIdx_i]) * (yCrystal[binIdx_i + 2] - yCrystal[binIdx_i + 1]) + static_cast<double>(WENO35.IS_0_coeff_2[binIdx_i]) * (2.0 * yCrystal[binIdx_i + 1] - yCrystal[binIdx_i + 2] - yCrystal[binIdx_i]) - 2.0 * static_cast<double>(WENO35.IS_0_coeff_3[binIdx_i]) * (yCrystal[binIdx_i] - yCrystal[binIdx_i + 1]);
+			jacParams.dIS0_wrt_dni = static_cast<double>(WENO35.IS_0_coeff_2[binIdx_i]) * (yCrystal[binIdx_i + 2] - yCrystal[binIdx_i + 1]) + 2.0 * static_cast<double>(WENO35.IS_0_coeff_3[binIdx_i]) * (yCrystal[binIdx_i] - yCrystal[binIdx_i + 1]);
 
-			jacParams.dIS1_wrt_dni_p1 = static_cast<double>(_weno5->IS_1_coeff_2[binIdx_i]) * (yCrystal[binIdx_i - 1] - yCrystal[binIdx_i]) + 2.0 * static_cast<double>(_weno5->IS_1_coeff_3[binIdx_i]) * (yCrystal[binIdx_i + 1] - yCrystal[binIdx_i]);
-			jacParams.dIS1_wrt_dni = -2.0 * static_cast<double>(_weno5->IS_1_coeff_1[binIdx_i]) * (yCrystal[binIdx_i - 1] - yCrystal[binIdx_i]) + static_cast<double>(_weno5->IS_1_coeff_2[binIdx_i]) * (2.0 * yCrystal[binIdx_i] - yCrystal[binIdx_i + 1] - yCrystal[binIdx_i - 1]) - 2.0 * static_cast<double>(_weno5->IS_1_coeff_3[binIdx_i]) * (yCrystal[binIdx_i + 1] - yCrystal[binIdx_i]);
-			jacParams.dIS1_wrt_dni_m1 = 2.0 * static_cast<double>(_weno5->IS_1_coeff_1[binIdx_i]) * (yCrystal[binIdx_i - 1] - yCrystal[binIdx_i]) + static_cast<double>(_weno5->IS_1_coeff_2[binIdx_i]) * (yCrystal[binIdx_i + 1] - yCrystal[binIdx_i]);
+			jacParams.dIS1_wrt_dni_p1 = static_cast<double>(WENO35.IS_1_coeff_2[binIdx_i]) * (yCrystal[binIdx_i - 1] - yCrystal[binIdx_i]) + 2.0 * static_cast<double>(WENO35.IS_1_coeff_3[binIdx_i]) * (yCrystal[binIdx_i + 1] - yCrystal[binIdx_i]);
+			jacParams.dIS1_wrt_dni = -2.0 * static_cast<double>(WENO35.IS_1_coeff_1[binIdx_i]) * (yCrystal[binIdx_i - 1] - yCrystal[binIdx_i]) + static_cast<double>(WENO35.IS_1_coeff_2[binIdx_i]) * (2.0 * yCrystal[binIdx_i] - yCrystal[binIdx_i + 1] - yCrystal[binIdx_i - 1]) - 2.0 * static_cast<double>(WENO35.IS_1_coeff_3[binIdx_i]) * (yCrystal[binIdx_i + 1] - yCrystal[binIdx_i]);
+			jacParams.dIS1_wrt_dni_m1 = 2.0 * static_cast<double>(WENO35.IS_1_coeff_1[binIdx_i]) * (yCrystal[binIdx_i - 1] - yCrystal[binIdx_i]) + static_cast<double>(WENO35.IS_1_coeff_2[binIdx_i]) * (yCrystal[binIdx_i + 1] - yCrystal[binIdx_i]);
 
-			jacParams.dIS2_wrt_dni = static_cast<double>(_weno5->IS_2_coeff_2[binIdx_i]) * (yCrystal[binIdx_i - 2] - yCrystal[binIdx_i - 1]) + 2.0 * static_cast<double>(_weno5->IS_2_coeff_3[binIdx_i]) * (yCrystal[binIdx_i] - yCrystal[binIdx_i - 1]);
-			jacParams.dIS2_wrt_dni_m1 = -2.0 * static_cast<double>(_weno5->IS_2_coeff_1[binIdx_i]) * (yCrystal[binIdx_i - 2] - yCrystal[binIdx_i - 1]) + static_cast<double>(_weno5->IS_2_coeff_2[binIdx_i]) * (2.0 * yCrystal[binIdx_i - 1] - yCrystal[binIdx_i] - yCrystal[binIdx_i - 2]) - 2.0 * static_cast<double>(_weno5->IS_2_coeff_3[binIdx_i]) * (yCrystal[binIdx_i] - yCrystal[binIdx_i - 1]);
-			jacParams.dIS2_wrt_dni_m2 = 2.0 * static_cast<double>(_weno5->IS_2_coeff_1[binIdx_i]) * (yCrystal[binIdx_i - 2] - yCrystal[binIdx_i - 1]) + static_cast<double>(_weno5->IS_2_coeff_2[binIdx_i]) * (yCrystal[binIdx_i] - yCrystal[binIdx_i - 1]);
+			jacParams.dIS2_wrt_dni = static_cast<double>(WENO35.IS_2_coeff_2[binIdx_i]) * (yCrystal[binIdx_i - 2] - yCrystal[binIdx_i - 1]) + 2.0 * static_cast<double>(WENO35.IS_2_coeff_3[binIdx_i]) * (yCrystal[binIdx_i] - yCrystal[binIdx_i - 1]);
+			jacParams.dIS2_wrt_dni_m1 = -2.0 * static_cast<double>(WENO35.IS_2_coeff_1[binIdx_i]) * (yCrystal[binIdx_i - 2] - yCrystal[binIdx_i - 1]) + static_cast<double>(WENO35.IS_2_coeff_2[binIdx_i]) * (2.0 * yCrystal[binIdx_i - 1] - yCrystal[binIdx_i] - yCrystal[binIdx_i - 2]) - 2.0 * static_cast<double>(WENO35.IS_2_coeff_3[binIdx_i]) * (yCrystal[binIdx_i] - yCrystal[binIdx_i - 1]);
+			jacParams.dIS2_wrt_dni_m2 = 2.0 * static_cast<double>(WENO35.IS_2_coeff_1[binIdx_i]) * (yCrystal[binIdx_i - 2] - yCrystal[binIdx_i - 1]) + static_cast<double>(WENO35.IS_2_coeff_2[binIdx_i]) * (yCrystal[binIdx_i] - yCrystal[binIdx_i - 1]);
 
-			jacParams.dq0_wrt_dni_p2 = -static_cast<double>(_weno5->q_0_coeff_2[binIdx_i]);
-			jacParams.dq0_wrt_dni_p1 = static_cast<double>(_weno5->q_0_coeff_2[binIdx_i]) - static_cast<double>(_weno5->q_0_coeff_1[binIdx_i]) + 1.0;
-			jacParams.dq0_wrt_dni = static_cast<double>(_weno5->q_0_coeff_1[binIdx_i]);
+			jacParams.dq0_wrt_dni_p2 = -static_cast<double>(WENO35.q_0_coeff_2[binIdx_i]);
+			jacParams.dq0_wrt_dni_p1 = static_cast<double>(WENO35.q_0_coeff_2[binIdx_i]) - static_cast<double>(WENO35.q_0_coeff_1[binIdx_i]) + 1.0;
+			jacParams.dq0_wrt_dni = static_cast<double>(WENO35.q_0_coeff_1[binIdx_i]);
 
-			jacParams.dq1_wrt_dni_p1 = static_cast<double>(_weno5->q_1_coeff_1[binIdx_i]);
-			jacParams.dq1_wrt_dni = -static_cast<double>(_weno5->q_1_coeff_1[binIdx_i]) + static_cast<double>(_weno5->q_1_coeff_2[binIdx_i]) + 1.0;
-			jacParams.dq1_wrt_dni_m1 = -static_cast<double>(_weno5->q_1_coeff_2[binIdx_i]);
+			jacParams.dq1_wrt_dni_p1 = static_cast<double>(WENO35.q_1_coeff_1[binIdx_i]);
+			jacParams.dq1_wrt_dni = -static_cast<double>(WENO35.q_1_coeff_1[binIdx_i]) + static_cast<double>(WENO35.q_1_coeff_2[binIdx_i]) + 1.0;
+			jacParams.dq1_wrt_dni_m1 = -static_cast<double>(WENO35.q_1_coeff_2[binIdx_i]);
 
-			jacParams.dq2_wrt_dni = static_cast<double>(_weno5->q_2_coeff_2[binIdx_i]);
-			jacParams.dq2_wrt_dni_m1 = -static_cast<double>(_weno5->q_2_coeff_1[binIdx_i]) - static_cast<double>(_weno5->q_2_coeff_2[binIdx_i]) + 1.0;
-			jacParams.dq2_wrt_dni_m2 = static_cast<double>(_weno5->q_2_coeff_1[binIdx_i]);
+			jacParams.dq2_wrt_dni = static_cast<double>(WENO35.q_2_coeff_2[binIdx_i]);
+			jacParams.dq2_wrt_dni_m1 = -static_cast<double>(WENO35.q_2_coeff_1[binIdx_i]) - static_cast<double>(WENO35.q_2_coeff_2[binIdx_i]) + 1.0;
+			jacParams.dq2_wrt_dni_m2 = static_cast<double>(WENO35.q_2_coeff_1[binIdx_i]);
 
 			// dw_0/dx
 			jacParams.w0_w2_is2 = 2.0 * jacParams.W_0 * jacParams.W_2 / (static_cast<double>(_binSizes[binIdx_i]) + jacParams.IS_2);
@@ -2106,47 +2217,47 @@ protected:
 			jac[_nComp - 4] += factor / static_cast<double>(_binSizes[binIdx_i]) * jacParams.dvG_dceq_right * (jacParams.W_0_weno3_left * jacParams.q_0_weno3_left + jacParams.W_1_weno3_left * jacParams.q_1_weno3_left);
 
 			// WENO5, right face
-			jacParams.IS_0 = static_cast<double>(_weno5->IS_0_coeff_1[binIdx_i]) * (yCrystal[binIdx_i + 2] - yCrystal[binIdx_i + 1]) * (yCrystal[binIdx_i + 2] - yCrystal[binIdx_i + 1]) + static_cast<double>(_weno5->IS_0_coeff_2[binIdx_i]) * (yCrystal[binIdx_i + 2] - yCrystal[binIdx_i + 1]) * (yCrystal[binIdx_i] - yCrystal[binIdx_i + 1]) + static_cast<double>(_weno5->IS_0_coeff_3[binIdx_i]) * (yCrystal[binIdx_i] - yCrystal[binIdx_i + 1]) * (yCrystal[binIdx_i] - yCrystal[binIdx_i + 1]);
-			jacParams.IS_1 = static_cast<double>(_weno5->IS_1_coeff_1[binIdx_i]) * (yCrystal[binIdx_i - 1] - yCrystal[binIdx_i]) * (yCrystal[binIdx_i - 1] - yCrystal[binIdx_i]) + static_cast<double>(_weno5->IS_1_coeff_2[binIdx_i]) * (yCrystal[binIdx_i + 1] - yCrystal[binIdx_i]) * (yCrystal[binIdx_i - 1] - yCrystal[binIdx_i]) + static_cast<double>(_weno5->IS_1_coeff_3[binIdx_i]) * (yCrystal[binIdx_i + 1] - yCrystal[binIdx_i]) * (yCrystal[binIdx_i + 1] - yCrystal[binIdx_i]);
-			jacParams.IS_2 = static_cast<double>(_weno5->IS_2_coeff_1[binIdx_i]) * (yCrystal[binIdx_i - 2] - yCrystal[binIdx_i - 1]) * (yCrystal[binIdx_i - 2] - yCrystal[binIdx_i - 1]) + static_cast<double>(_weno5->IS_2_coeff_2[binIdx_i]) * (yCrystal[binIdx_i] - yCrystal[binIdx_i - 1]) * (yCrystal[binIdx_i - 2] - yCrystal[binIdx_i - 1]) + static_cast<double>(_weno5->IS_2_coeff_3[binIdx_i]) * (yCrystal[binIdx_i] - yCrystal[binIdx_i - 1]) * (yCrystal[binIdx_i] - yCrystal[binIdx_i - 1]);
-			jacParams.alpha_0 = static_cast<double>(_weno5->C_0[binIdx_i]) / (static_cast<double>(_binSizes[binIdx_i]) + jacParams.IS_0) / (static_cast<double>(_binSizes[binIdx_i]) + jacParams.IS_0);
-			jacParams.alpha_1 = static_cast<double>(_weno5->C_1[binIdx_i]) / (static_cast<double>(_binSizes[binIdx_i]) + jacParams.IS_1) / (static_cast<double>(_binSizes[binIdx_i]) + jacParams.IS_1);
-			jacParams.alpha_2 = static_cast<double>(_weno5->C_2[binIdx_i]) / (static_cast<double>(_binSizes[binIdx_i]) + jacParams.IS_2) / (static_cast<double>(_binSizes[binIdx_i]) + jacParams.IS_2);
+			jacParams.IS_0 = static_cast<double>(WENO35.IS_0_coeff_1[binIdx_i]) * (yCrystal[binIdx_i + 2] - yCrystal[binIdx_i + 1]) * (yCrystal[binIdx_i + 2] - yCrystal[binIdx_i + 1]) + static_cast<double>(WENO35.IS_0_coeff_2[binIdx_i]) * (yCrystal[binIdx_i + 2] - yCrystal[binIdx_i + 1]) * (yCrystal[binIdx_i] - yCrystal[binIdx_i + 1]) + static_cast<double>(WENO35.IS_0_coeff_3[binIdx_i]) * (yCrystal[binIdx_i] - yCrystal[binIdx_i + 1]) * (yCrystal[binIdx_i] - yCrystal[binIdx_i + 1]);
+			jacParams.IS_1 = static_cast<double>(WENO35.IS_1_coeff_1[binIdx_i]) * (yCrystal[binIdx_i - 1] - yCrystal[binIdx_i]) * (yCrystal[binIdx_i - 1] - yCrystal[binIdx_i]) + static_cast<double>(WENO35.IS_1_coeff_2[binIdx_i]) * (yCrystal[binIdx_i + 1] - yCrystal[binIdx_i]) * (yCrystal[binIdx_i - 1] - yCrystal[binIdx_i]) + static_cast<double>(WENO35.IS_1_coeff_3[binIdx_i]) * (yCrystal[binIdx_i + 1] - yCrystal[binIdx_i]) * (yCrystal[binIdx_i + 1] - yCrystal[binIdx_i]);
+			jacParams.IS_2 = static_cast<double>(WENO35.IS_2_coeff_1[binIdx_i]) * (yCrystal[binIdx_i - 2] - yCrystal[binIdx_i - 1]) * (yCrystal[binIdx_i - 2] - yCrystal[binIdx_i - 1]) + static_cast<double>(WENO35.IS_2_coeff_2[binIdx_i]) * (yCrystal[binIdx_i] - yCrystal[binIdx_i - 1]) * (yCrystal[binIdx_i - 2] - yCrystal[binIdx_i - 1]) + static_cast<double>(WENO35.IS_2_coeff_3[binIdx_i]) * (yCrystal[binIdx_i] - yCrystal[binIdx_i - 1]) * (yCrystal[binIdx_i] - yCrystal[binIdx_i - 1]);
+			jacParams.alpha_0 = static_cast<double>(WENO35.C_0[binIdx_i]) / (static_cast<double>(_binSizes[binIdx_i]) + jacParams.IS_0) / (static_cast<double>(_binSizes[binIdx_i]) + jacParams.IS_0);
+			jacParams.alpha_1 = static_cast<double>(WENO35.C_1[binIdx_i]) / (static_cast<double>(_binSizes[binIdx_i]) + jacParams.IS_1) / (static_cast<double>(_binSizes[binIdx_i]) + jacParams.IS_1);
+			jacParams.alpha_2 = static_cast<double>(WENO35.C_2[binIdx_i]) / (static_cast<double>(_binSizes[binIdx_i]) + jacParams.IS_2) / (static_cast<double>(_binSizes[binIdx_i]) + jacParams.IS_2);
 			jacParams.W_0 = jacParams.alpha_0 / (jacParams.alpha_0 + jacParams.alpha_1 + jacParams.alpha_2);
 			jacParams.W_1 = jacParams.alpha_1 / (jacParams.alpha_0 + jacParams.alpha_1 + jacParams.alpha_2);
 			jacParams.W_2 = 1.0 - jacParams.W_0 - jacParams.W_1;
-			jacParams.q_0 = yCrystal[binIdx_i + 1] + static_cast<double>(_weno5->q_0_coeff_1[binIdx_i]) * (yCrystal[binIdx_i] - yCrystal[binIdx_i + 1]) + static_cast<double>(_weno5->q_0_coeff_2[binIdx_i]) * (yCrystal[binIdx_i + 1] - yCrystal[binIdx_i + 2]);
-			jacParams.q_1 = yCrystal[binIdx_i] + static_cast<double>(_weno5->q_1_coeff_1[binIdx_i]) * (yCrystal[binIdx_i + 1] - yCrystal[binIdx_i]) + static_cast<double>(_weno5->q_1_coeff_2[binIdx_i]) * (yCrystal[binIdx_i] - yCrystal[binIdx_i - 1]);
-			jacParams.q_2 = yCrystal[binIdx_i - 1] + static_cast<double>(_weno5->q_2_coeff_1[binIdx_i]) * (yCrystal[binIdx_i - 2] - yCrystal[binIdx_i - 1]) + static_cast<double>(_weno5->q_2_coeff_2[binIdx_i]) * (yCrystal[binIdx_i] - yCrystal[binIdx_i - 1]);
+			jacParams.q_0 = yCrystal[binIdx_i + 1] + static_cast<double>(WENO35.q_0_coeff_1[binIdx_i]) * (yCrystal[binIdx_i] - yCrystal[binIdx_i + 1]) + static_cast<double>(WENO35.q_0_coeff_2[binIdx_i]) * (yCrystal[binIdx_i + 1] - yCrystal[binIdx_i + 2]);
+			jacParams.q_1 = yCrystal[binIdx_i] + static_cast<double>(WENO35.q_1_coeff_1[binIdx_i]) * (yCrystal[binIdx_i + 1] - yCrystal[binIdx_i]) + static_cast<double>(WENO35.q_1_coeff_2[binIdx_i]) * (yCrystal[binIdx_i] - yCrystal[binIdx_i - 1]);
+			jacParams.q_2 = yCrystal[binIdx_i - 1] + static_cast<double>(WENO35.q_2_coeff_1[binIdx_i]) * (yCrystal[binIdx_i - 2] - yCrystal[binIdx_i - 1]) + static_cast<double>(WENO35.q_2_coeff_2[binIdx_i]) * (yCrystal[binIdx_i] - yCrystal[binIdx_i - 1]);
 
 			jacParams.dvG_dc_right = jacParams.dvG_dc_factor * (static_cast<double>(_a) + static_cast<double>(_growthConstant) * pow(static_cast<double>(_bins[binIdx_i + 1]), static_cast<double>(_p)));
 			jacParams.dvG_dceq_right = jacParams.dvG_dceq_factor * (static_cast<double>(_a) + static_cast<double>(_growthConstant) * pow(static_cast<double>(_bins[binIdx_i + 1]), static_cast<double>(_p)));
 			jacParams.vg_right = jacParams.vG_factor * (static_cast<double>(_a) + static_cast<double>(_growthConstant) * pow(static_cast<double>(_bins[binIdx_i + 1]), static_cast<double>(_p)));
 
 			// jacobian
-			jacParams.dIS0_wrt_dni_p2 = 2.0 * static_cast<double>(_weno5->IS_0_coeff_1[binIdx_i]) * (yCrystal[binIdx_i + 2] - yCrystal[binIdx_i + 1]) + static_cast<double>(_weno5->IS_0_coeff_2[binIdx_i]) * (yCrystal[binIdx_i] - yCrystal[binIdx_i + 1]);
-			jacParams.dIS0_wrt_dni_p1 = -2.0 * static_cast<double>(_weno5->IS_0_coeff_1[binIdx_i]) * (yCrystal[binIdx_i + 2] - yCrystal[binIdx_i + 1]) + static_cast<double>(_weno5->IS_0_coeff_2[binIdx_i]) * (2.0 * yCrystal[binIdx_i + 1] - yCrystal[binIdx_i + 2] - yCrystal[binIdx_i]) - 2.0 * static_cast<double>(_weno5->IS_0_coeff_3[binIdx_i]) * (yCrystal[binIdx_i] - yCrystal[binIdx_i + 1]);
-			jacParams.dIS0_wrt_dni = static_cast<double>(_weno5->IS_0_coeff_2[binIdx_i]) * (yCrystal[binIdx_i + 2] - yCrystal[binIdx_i + 1]) + 2.0 * static_cast<double>(_weno5->IS_0_coeff_3[binIdx_i]) * (yCrystal[binIdx_i] - yCrystal[binIdx_i + 1]);
+			jacParams.dIS0_wrt_dni_p2 = 2.0 * static_cast<double>(WENO35.IS_0_coeff_1[binIdx_i]) * (yCrystal[binIdx_i + 2] - yCrystal[binIdx_i + 1]) + static_cast<double>(WENO35.IS_0_coeff_2[binIdx_i]) * (yCrystal[binIdx_i] - yCrystal[binIdx_i + 1]);
+			jacParams.dIS0_wrt_dni_p1 = -2.0 * static_cast<double>(WENO35.IS_0_coeff_1[binIdx_i]) * (yCrystal[binIdx_i + 2] - yCrystal[binIdx_i + 1]) + static_cast<double>(WENO35.IS_0_coeff_2[binIdx_i]) * (2.0 * yCrystal[binIdx_i + 1] - yCrystal[binIdx_i + 2] - yCrystal[binIdx_i]) - 2.0 * static_cast<double>(WENO35.IS_0_coeff_3[binIdx_i]) * (yCrystal[binIdx_i] - yCrystal[binIdx_i + 1]);
+			jacParams.dIS0_wrt_dni = static_cast<double>(WENO35.IS_0_coeff_2[binIdx_i]) * (yCrystal[binIdx_i + 2] - yCrystal[binIdx_i + 1]) + 2.0 * static_cast<double>(WENO35.IS_0_coeff_3[binIdx_i]) * (yCrystal[binIdx_i] - yCrystal[binIdx_i + 1]);
 
-			jacParams.dIS1_wrt_dni_p1 = static_cast<double>(_weno5->IS_1_coeff_2[binIdx_i]) * (yCrystal[binIdx_i - 1] - yCrystal[binIdx_i]) + 2.0 * static_cast<double>(_weno5->IS_1_coeff_3[binIdx_i]) * (yCrystal[binIdx_i + 1] - yCrystal[binIdx_i]);
-			jacParams.dIS1_wrt_dni = -2.0 * static_cast<double>(_weno5->IS_1_coeff_1[binIdx_i]) * (yCrystal[binIdx_i - 1] - yCrystal[binIdx_i]) + static_cast<double>(_weno5->IS_1_coeff_2[binIdx_i]) * (2.0 * yCrystal[binIdx_i] - yCrystal[binIdx_i + 1] - yCrystal[binIdx_i - 1]) - 2.0 * static_cast<double>(_weno5->IS_1_coeff_3[binIdx_i]) * (yCrystal[binIdx_i + 1] - yCrystal[binIdx_i]);
-			jacParams.dIS1_wrt_dni_m1 = 2.0 * static_cast<double>(_weno5->IS_1_coeff_1[binIdx_i]) * (yCrystal[binIdx_i - 1] - yCrystal[binIdx_i]) + static_cast<double>(_weno5->IS_1_coeff_2[binIdx_i]) * (yCrystal[binIdx_i + 1] - yCrystal[binIdx_i]);
+			jacParams.dIS1_wrt_dni_p1 = static_cast<double>(WENO35.IS_1_coeff_2[binIdx_i]) * (yCrystal[binIdx_i - 1] - yCrystal[binIdx_i]) + 2.0 * static_cast<double>(WENO35.IS_1_coeff_3[binIdx_i]) * (yCrystal[binIdx_i + 1] - yCrystal[binIdx_i]);
+			jacParams.dIS1_wrt_dni = -2.0 * static_cast<double>(WENO35.IS_1_coeff_1[binIdx_i]) * (yCrystal[binIdx_i - 1] - yCrystal[binIdx_i]) + static_cast<double>(WENO35.IS_1_coeff_2[binIdx_i]) * (2.0 * yCrystal[binIdx_i] - yCrystal[binIdx_i + 1] - yCrystal[binIdx_i - 1]) - 2.0 * static_cast<double>(WENO35.IS_1_coeff_3[binIdx_i]) * (yCrystal[binIdx_i + 1] - yCrystal[binIdx_i]);
+			jacParams.dIS1_wrt_dni_m1 = 2.0 * static_cast<double>(WENO35.IS_1_coeff_1[binIdx_i]) * (yCrystal[binIdx_i - 1] - yCrystal[binIdx_i]) + static_cast<double>(WENO35.IS_1_coeff_2[binIdx_i]) * (yCrystal[binIdx_i + 1] - yCrystal[binIdx_i]);
 
-			jacParams.dIS2_wrt_dni = static_cast<double>(_weno5->IS_2_coeff_2[binIdx_i]) * (yCrystal[binIdx_i - 2] - yCrystal[binIdx_i - 1]) + 2.0 * static_cast<double>(_weno5->IS_2_coeff_3[binIdx_i]) * (yCrystal[binIdx_i] - yCrystal[binIdx_i - 1]);
-			jacParams.dIS2_wrt_dni_m1 = -2.0 * static_cast<double>(_weno5->IS_2_coeff_1[binIdx_i]) * (yCrystal[binIdx_i - 2] - yCrystal[binIdx_i - 1]) + static_cast<double>(_weno5->IS_2_coeff_2[binIdx_i]) * (2.0 * yCrystal[binIdx_i - 1] - yCrystal[binIdx_i] - yCrystal[binIdx_i - 2]) - 2.0 * static_cast<double>(_weno5->IS_2_coeff_3[binIdx_i]) * (yCrystal[binIdx_i] - yCrystal[binIdx_i - 1]);
-			jacParams.dIS2_wrt_dni_m2 = 2.0 * static_cast<double>(_weno5->IS_2_coeff_1[binIdx_i]) * (yCrystal[binIdx_i - 2] - yCrystal[binIdx_i - 1]) + static_cast<double>(_weno5->IS_2_coeff_2[binIdx_i]) * (yCrystal[binIdx_i] - yCrystal[binIdx_i - 1]);
+			jacParams.dIS2_wrt_dni = static_cast<double>(WENO35.IS_2_coeff_2[binIdx_i]) * (yCrystal[binIdx_i - 2] - yCrystal[binIdx_i - 1]) + 2.0 * static_cast<double>(WENO35.IS_2_coeff_3[binIdx_i]) * (yCrystal[binIdx_i] - yCrystal[binIdx_i - 1]);
+			jacParams.dIS2_wrt_dni_m1 = -2.0 * static_cast<double>(WENO35.IS_2_coeff_1[binIdx_i]) * (yCrystal[binIdx_i - 2] - yCrystal[binIdx_i - 1]) + static_cast<double>(WENO35.IS_2_coeff_2[binIdx_i]) * (2.0 * yCrystal[binIdx_i - 1] - yCrystal[binIdx_i] - yCrystal[binIdx_i - 2]) - 2.0 * static_cast<double>(WENO35.IS_2_coeff_3[binIdx_i]) * (yCrystal[binIdx_i] - yCrystal[binIdx_i - 1]);
+			jacParams.dIS2_wrt_dni_m2 = 2.0 * static_cast<double>(WENO35.IS_2_coeff_1[binIdx_i]) * (yCrystal[binIdx_i - 2] - yCrystal[binIdx_i - 1]) + static_cast<double>(WENO35.IS_2_coeff_2[binIdx_i]) * (yCrystal[binIdx_i] - yCrystal[binIdx_i - 1]);
 
-			jacParams.dq0_wrt_dni_p2 = -static_cast<double>(_weno5->q_0_coeff_2[binIdx_i]);
-			jacParams.dq0_wrt_dni_p1 = static_cast<double>(_weno5->q_0_coeff_2[binIdx_i]) - static_cast<double>(_weno5->q_0_coeff_1[binIdx_i]) + 1.0;
-			jacParams.dq0_wrt_dni = static_cast<double>(_weno5->q_0_coeff_1[binIdx_i]);
+			jacParams.dq0_wrt_dni_p2 = -static_cast<double>(WENO35.q_0_coeff_2[binIdx_i]);
+			jacParams.dq0_wrt_dni_p1 = static_cast<double>(WENO35.q_0_coeff_2[binIdx_i]) - static_cast<double>(WENO35.q_0_coeff_1[binIdx_i]) + 1.0;
+			jacParams.dq0_wrt_dni = static_cast<double>(WENO35.q_0_coeff_1[binIdx_i]);
 
-			jacParams.dq1_wrt_dni_p1 = static_cast<double>(_weno5->q_1_coeff_1[binIdx_i]);
-			jacParams.dq1_wrt_dni = -static_cast<double>(_weno5->q_1_coeff_1[binIdx_i]) + static_cast<double>(_weno5->q_1_coeff_2[binIdx_i]) + 1.0;
-			jacParams.dq1_wrt_dni_m1 = -static_cast<double>(_weno5->q_1_coeff_2[binIdx_i]);
+			jacParams.dq1_wrt_dni_p1 = static_cast<double>(WENO35.q_1_coeff_1[binIdx_i]);
+			jacParams.dq1_wrt_dni = -static_cast<double>(WENO35.q_1_coeff_1[binIdx_i]) + static_cast<double>(WENO35.q_1_coeff_2[binIdx_i]) + 1.0;
+			jacParams.dq1_wrt_dni_m1 = -static_cast<double>(WENO35.q_1_coeff_2[binIdx_i]);
 
-			jacParams.dq2_wrt_dni = static_cast<double>(_weno5->q_2_coeff_2[binIdx_i]);
-			jacParams.dq2_wrt_dni_m1 = -static_cast<double>(_weno5->q_2_coeff_1[binIdx_i]) - static_cast<double>(_weno5->q_2_coeff_2[binIdx_i]) + 1.0;
-			jacParams.dq2_wrt_dni_m2 = static_cast<double>(_weno5->q_2_coeff_1[binIdx_i]);
+			jacParams.dq2_wrt_dni = static_cast<double>(WENO35.q_2_coeff_2[binIdx_i]);
+			jacParams.dq2_wrt_dni_m1 = -static_cast<double>(WENO35.q_2_coeff_1[binIdx_i]) - static_cast<double>(WENO35.q_2_coeff_2[binIdx_i]) + 1.0;
+			jacParams.dq2_wrt_dni_m2 = static_cast<double>(WENO35.q_2_coeff_1[binIdx_i]);
 
 			// dw_0/dx
 			jacParams.w0_w2_is2 = 2.0 * jacParams.W_0 * jacParams.W_2 / (static_cast<double>(_binSizes[binIdx_i]) + jacParams.IS_2);
@@ -2280,8 +2391,6 @@ protected:
 	template <typename RowIterator>
 	void jacobianLiquidImpl(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, double factor, RowIterator& jac, LinearBufferAllocator workSpace) const
 	{
-		JacobianParams* jacParams = nullptr;// = JacobianParams{ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, nullptr, 0, _binSizes, nullptr };
-
 		if (_mode.hasPBM())
 		{
 			double const* const yCrystal = y + 1; // pointer to crystal bins. Jump over the solute entry, which only exists if we solve the mass balance
@@ -2339,7 +2448,12 @@ protected:
 			}
 			++jac;
 
-			jacParams = new JacobianParams{ vG_factor, dBp_dc, dBp_dceq, dBs_dc, dBs_dceq, dvG_dc_factor, dvG_dceq_factor, dBs_dni_factor, yCrystal, _nComp, _binSizes, _weno5 };
+			if (_growthSchemeOrder == detail::PBMReconstruction::WENO35)
+			{
+				static_cast<JacobianParamsWENO35*>(_jacParams)->updateParams(vG_factor, dBp_dc, dBp_dceq, dBs_dc, dBs_dceq, dvG_dc_factor, dvG_dceq_factor, dBs_dni_factor, yCrystal, _nComp, _binSizes, *static_cast<WENO35Params<active>*>(_reconstruction));
+			}
+			else
+				_jacParams->updateParams(vG_factor, dBp_dc, dBp_dceq, dBs_dc, dBs_dceq, dvG_dc_factor, dvG_dceq_factor, dBs_dni_factor);
 		}
 
 		double const* const yCrystal = y; // pointer to crystal bins
@@ -2355,22 +2469,22 @@ protected:
 				{
 				case detail::PBMReconstruction::Upwind:
 				{
-					jacobianUpwindKernel<RowIterator>(yCrystal + 1, factor, jac, *jacParams, l);
+					jacobianUpwindKernel<RowIterator>(yCrystal + 1, factor, jac, *_jacParams, l);
 				}
 				break;
 				case detail::PBMReconstruction::HRKoren:
 				{
-					jacobianHRKorenKernel<RowIterator>(yCrystal + 1, factor, jac, *jacParams, l);
+					jacobianHRKorenKernel<RowIterator>(yCrystal + 1, factor, jac, *static_cast<JacobianParamsHRKoren*>(_jacParams), *static_cast<HRKorenParams<active>*>(_reconstruction), l);
 				}
 				break;
 				case detail::PBMReconstruction::WENO23:
 				{
-					jacobianWENO23Kernel<RowIterator>(yCrystal + 1, factor, jac, *jacParams, l);
+					jacobianWENO23Kernel<RowIterator>(yCrystal + 1, factor, jac, *static_cast<JacobianParamsWENO23*>(_jacParams), *static_cast<WENO23Params<active>*>(_reconstruction), l);
 				}
 				break;
 				case detail::PBMReconstruction::WENO35:
 				{
-					jacobianWENO35Kernel<RowIterator>(yCrystal + 1, factor, jac, *jacParams, l);
+					jacobianWENO35Kernel<RowIterator>(yCrystal + 1, factor, jac, *static_cast<JacobianParamsWENO35*>(_jacParams), *static_cast<WENO35Params<active>*>(_reconstruction), l);
 				}
 				break;
 				}
@@ -2504,7 +2618,6 @@ protected:
 		if (_mode.hasPBM())
 			++jac; // the last row corresponding to Q_{ceq} is zero, and the interface expects the iterator to be moved to the end.
 
-		delete jacParams;
 	}
 
 	template <typename RowIteratorLiquid, typename RowIteratorSolid>
