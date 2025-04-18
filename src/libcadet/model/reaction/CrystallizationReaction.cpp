@@ -285,9 +285,14 @@ public:
 		{
 			_nBins = _nComp;
 
-			if (_mode.hasAggregation() && !paramProvider.exists("CRY_AGGREGATION_RATE_CONSTANT"))
-				throw InvalidParameterException("Crystallization mode specified as " + std::to_string(_mode.getMode()) + ", i.e. crystallization including aggregation, but field CRY_AGGREGATION_RATE_CONSTANT was not specified");
+			if (_mode.hasAggregation())
+			{
+				if (!paramProvider.exists("CRY_AGGREGATION_RATE_CONSTANT"))
+					throw InvalidParameterException("Crystallization mode specified as " + std::to_string(_mode.getMode()) + ", i.e. crystallization including aggregation, but field CRY_AGGREGATION_RATE_CONSTANT was not specified");
 
+				if (!paramProvider.exists("CRY_AGGREGATION_INDEX"))
+					throw InvalidParameterException("Crystallization mode specified as " + std::to_string(_mode.getMode()) + ", i.e. crystallization including aggregation, but field CRY_AGGREGATION_INDEX was not specified");
+			}
 			if (_mode.hasFragmentation() && !paramProvider.exists("CRY_FRAGMENTATION_RATE_CONSTANT"))
 				throw InvalidParameterException("Crystallization mode specified as " + std::to_string(_mode.getMode()) + ", i.e. crystallization including fragmentation, but field CRY_FRAGMENTATION_RATE_CONSTANT was not specified");
 		}
@@ -388,6 +393,8 @@ public:
 			_parameters[makeParamId(hashString("CRY_AGGREGATION_RATE_CONSTANT"), unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_aggregationRateConstant;
 
 			_aggregationIndex = paramProvider.getInt("CRY_AGGREGATION_INDEX");
+			if (_aggregationIndex < 0 || _aggregationIndex > 4)
+				throw InvalidParameterException("CRY_AGGREGATION_INDEX needs to be an integer in [0, 4]");
 
 			if (_agg) // clear scheme coefficients
 			{
