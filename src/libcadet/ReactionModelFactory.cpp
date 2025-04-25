@@ -22,8 +22,6 @@ namespace cadet
 			void registerMassActionLawReaction(std::unordered_map<std::string, std::function<model::IDynamicReactionModel*()>>& reactions);
 			void registerDummyReaction(std::unordered_map<std::string, std::function<model::IDynamicReactionModel*()>>& reactions);
 			void registerMichaelisMentenReaction(std::unordered_map<std::string, std::function<model::IDynamicReactionModel*()>>& reactions);
-			void registerMultiMichaelisMentenInhibitionReaction(std::unordered_map<std::string, std::function<model::IDynamicReactionModel* ()>>& reactions);
-
 
 			void registerCrystallizationReaction(std::unordered_map<std::string, std::function<model::IDynamicReactionModel*()>>& reactions);
 		}
@@ -35,7 +33,6 @@ namespace cadet
 		model::reaction::registerDummyReaction(_dynamicModels);
 		model::reaction::registerMassActionLawReaction(_dynamicModels);
 		model::reaction::registerMichaelisMentenReaction(_dynamicModels);
-		model::reaction::registerMultiMichaelisMentenInhibitionReaction(_dynamicModels);
 
 		model::reaction::registerCrystallizationReaction(_dynamicModels);
 	}
