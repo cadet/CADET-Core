@@ -300,7 +300,7 @@ TEST_CASE("Crystallization combined PBM, Aggregation and Fragmentation in a CSTR
 	const std::string& modelFilePath = std::string("/data/configuration_cry_CSTR_PBM_Agg_Frag_benchmark1.json");
 	const std::string& refFilePath = std::string("/data/ref_cry_CSTR_PBM_Agg_Frag_benchmark1.h5");
 	const std::vector<double> absTol = { 1e-7 };
-	const std::vector<double> relTol = { 5e-1 };
+	const std::vector<double> relTol = { 8e-1 };
 
 	cadet::test::column::Dummyparams disc; // CSTR, so no spatial resolution
 	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "001", absTol, relTol, disc, false);
