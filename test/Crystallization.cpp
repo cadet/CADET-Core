@@ -293,6 +293,36 @@ TEST_CASE("Crystallization Jacobian verification for combined Aggregation and Fr
 }
 
 /*
+ * Combined PBM, fragmentation, breakage tests
+*/
+TEST_CASE("Crystallization combined PBM, Aggregation and Fragmentation in a CSTR", "[Crystallization],[PBMAggFrag],[Simulation],[Reference],[CI]")
+{
+	const std::string& modelFilePath = std::string("/data/configuration_cry_CSTR_PBM_Agg_Frag_benchmark1.json");
+	const std::string& refFilePath = std::string("/data/ref_cry_CSTR_PBM_Agg_Frag_benchmark1.h5");
+	const std::vector<double> absTol = { 1e-8 };
+	const std::vector<double> relTol = { 1e-8 };
+
+	cadet::test::column::Dummyparams disc; // CSTR, so no spatial resolution
+	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "001", absTol, relTol, disc, false);
+}
+
+TEST_CASE("Crystallization Jacobian verification for combined PBM, Aggregation and Fragmentation in a CSTR", "[Crystallization],[PBMAggFrag],[UnitOp],[Jacobian],[CI]")
+{
+	// read json model setup file
+	const std::string& modelFileRelPath = std::string("/data/configuration_cry_CSTR_PBM_Agg_Frag_benchmark1.json");
+	const std::string setupFile = std::string(getTestDirectory()) + modelFileRelPath;
+	cadet::JsonParameterProvider pp_setup(cadet::JsonParameterProvider::fromFile(setupFile));
+
+	pp_setup.pushScope("model");
+	pp_setup.pushScope("unit_001");
+
+	const double ADabsTol = 1E-4;
+	const double FDabsTol = 1E+2;
+
+	cadet::test::column::testJacobianAD(pp_setup, FDabsTol, ADabsTol);
+}
+
+/*
  * Combined PBM, aggregation test in a DPFR
 */
 TEST_CASE("Crystallization combined PBM and Aggregation in a DPFR", "[Crystallization],[DPFR_PBMAgg],[Simulation],[Reference],[CI]")
