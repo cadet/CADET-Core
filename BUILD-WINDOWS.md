@@ -7,16 +7,16 @@
 * Optional: Git
 * Optional but not generally recommended*: Intel OneAPI TBB
 
-*For most use-cases it is more efficient to parallelize by running multiple CADET simulations instead 
-of parallelizing within one CADET simulation. Including the parallelization code in CADET can lead to performance
-losses, even if parallelization within CADET is not used. 
-Therefore, we recommend not including the parallelization library TBB 
+*For most use-cases it is more efficient to parallelize by running multiple CADET-Core simulations instead
+of parallelizing within one CADET-Core simulation. Including the parallelization code in CADET-Core can lead to performance
+losses, even if parallelization within CADET-Core is not used.
+Therefore, we recommend not including the parallelization library TBB
 unless you know your simulations are large enough to benefit from it.
 
 Assumed directory structure:
 
 <pre>
-|- CADET
+|- CADET-Core
 |    - src
 |    - include
 |    - [...]
@@ -45,14 +45,14 @@ We are using Visual Studio because it is the easiest way to install all required
 - Clink provides text completion, history, and line-editing to Windows Command Prompt
 - Download the [clink installer exe](https://github.com/chrisant996/clink) and install clink.
 
-## Obtain CADET code
+## Obtain CADET-Core code
 
-- Clone the CADET source code into a `CADET` folder: 
-  - `git clone https://github.com/cadet/cadet-core.git CADET`
+- Clone the CADET-Core source code into a `CADET-Core` folder:
+  - `git clone https://github.com/cadet/cadet-core.git CADET-Core`
 
-## Build CADET in Visual Studio
+## Build CADET-Core in Visual Studio
 
-- Open Visual Studio and open the `CADET` folder
+- Open Visual Studio and open the `CADET-Core` folder
 - Navigate to "Tools" - "Command Line" and open either a "Developer Command Prompt" or "Developer PowerShell"
 - Execute the following command:
     - `vcpkg integrate install` (this only needs to be run _once_ per PC and will require admin privileges)
@@ -61,17 +61,17 @@ We are using Visual Studio because it is the easiest way to install all required
 - Wait for `cmake generation` to finish (see `output` window)
 - From the status bar at the top select `Build`, `Build all`
 - Once that finishes, select `Build`, `Install CadetFramework`
-- The binaries will be located in `CADET\out\install\aRELEASE\bin`
+- The binaries will be located in `CADET-Core\out\install\aRELEASE\bin`
 
 
-## Build CADET from the command line
+## Build CADET-Core from the command line
 
 - Open Visual Studio and select "continue without code"
 - Navigate to "Tools" - "Command Line" and open either a "Developer Command Prompt" or "Developer PowerShell"
 - Execute the following commands:
 - For Command Prompt:
-    - `if not exist CADET\build mkdir CADET\build`
-    - `cd CADET\build`
+    - `if not exist CADET-Core\build mkdir CADET-Core\build`
+    - `cd CADET-Core\build`
     - `vcpkg integrate install` (this only needs to be run _once_ and will require admin privileges)
     - `set MKLROOT="C:/Program Files (x86)/Intel/oneAPI/mkl/latest"`
     - `cmake -DCMAKE_INSTALL_PREFIX=..\out\install\aRELEASE -G "Visual Studio 17 2022" -A x64 -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE="%VCPKG_ROOT%/scripts/buildsystems/vcpkg.cmake" -DVCPKG_TARGET_TRIPLET=x64-windows-static -DENABLE_STATIC_LINK_LAPACK=ON -DENABLE_STATIC_LINK_DEPS=ON -DBLA_VENDOR=Intel10_64lp_seq --fresh ../`
@@ -79,22 +79,22 @@ We are using Visual Studio because it is the easiest way to install all required
           execute `set TBBROOT="C:/Program Files (x86)/Intel/oneAPI/tbb/latest"` and
         - `cmake -DCMAKE_INSTALL_PREFIX=..\out\install\aRELEASE -G "Visual Studio 17 2022" -A x64 -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE="%VCPKG_ROOT%/scripts/buildsystems/vcpkg.cmake" -DVCPKG_TARGET_TRIPLET=x64-windows-static -DENABLE_STATIC_LINK_LAPACK=ON -DENABLE_STATIC_LINK_DEPS=ON -DBLA_VENDOR=Intel10_64lp --fresh ../`
     - `msbuild.exe INSTALL.vcxproj /p:Configuration=Release;Platform=x64`
-  
+
 - For PowerShell:
-    - `if (-Not(Test-Path CADET\build)){mkdir CADET\build}`
-    - `cd CADET\build`
+    - `if (-Not(Test-Path CADET-Core\build)){mkdir CADET-Core\build}`
+    - `cd CADET-Core\build`
     - `vcpkg integrate install` (this only needs to be run _once_ and will require admin privileges)
     - `$ENV:MKLROOT = "C:\Program Files (x86)\Intel\oneAPI\mkl\latest"`
     - `cmake -DCMAKE_INSTALL_PREFIX="..\out\install\aRELEASE" -G "Visual Studio 17 2022" -A x64 -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE="$ENV:VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" -DVCPKG_TARGET_TRIPLET=x64-windows-static -DENABLE_STATIC_LINK_LAPACK=ON -DENABLE_STATIC_LINK_DEPS=ON -DBLA_VENDOR=Intel10_64lp_seq "../" --fresh`
       - If you want to use parallelization and have installed TBB, instead
            execute `$ENV:TBBROOT = "C:\Program Files (x86)\Intel\oneAPI\tbb\latest"`
-      and 
+      and
       - `cmake -DCMAKE_INSTALL_PREFIX="..\out\install\aRELEASE" -G "Visual Studio 17 2022" -A x64 -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE="$ENV:VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" -DVCPKG_TARGET_TRIPLET=x64-windows-static -DENABLE_STATIC_LINK_LAPACK=ON -DENABLE_STATIC_LINK_DEPS=ON -DBLA_VENDOR=Intel10_64lp "../" --fresh`
     - `msbuild.exe INSTALL.vcxproj /p:Configuration="Release;Platform=x64"`
-- The binaries will be located in `CADET\out\install\aRELEASE\bin`
+- The binaries will be located in `CADET-Core\out\install\aRELEASE\bin`
 
 ## Test build results
-- Navigate to the install location `cd CADET\out\install\aRELEASE\bin`
+- Navigate to the install location `cd CADET-Core\out\install\aRELEASE\bin`
 - Run:
   - `cadet-cli.exe --version`
   - `createLWE.exe`
