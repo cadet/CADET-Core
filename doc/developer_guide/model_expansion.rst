@@ -63,9 +63,9 @@ Most important functionality to be implemented:
 3. residualImpl(): Implements the residual formulation (i.e. function :math:`F = 0`) of the equations. Triggers updates of the (possibly state dependent) system Jacobian.
 4. System Jacobian: Owned by the unit operation. Defined given by :math:`J := \frac{\partial F}{\partial y} + \alpha \frac{\partial F}{\partial \dot{y}}`, i.e. both the state and state derivative Jacobian need to be implemented.
 5. Linear solve: Solves the system :math:`J x = b` with given :math:`b`.
-6. Algorithmic differentiation (AD): 
+6. Algorithmic differentiation (AD):
    a. Parameter sensitivities: Use ``ParamType`` for all parameters and ``ResidualType`` for the residual. A more detailed guide on parameter sensitivities can be found in the corresponding section below.
-   b. Jacobian calculation via AD (can be used to verify the analytical implementation): Use ``StateType`` for the state and ``ResidualType`` for the residual. Additionally, you need to implement the following functions to enable the AD Jacobian: ``requiredADdirs()``, ``prepareADvectors``, ``extractJacobianFromAD()``, ``useAnalyticJacobian()``. For details please refer to `Püttmann et al. (2016) <https://doi.org/10.1016/j.ces.2015.08.050>`_.
+   b. Jacobian calculation via AD (can be used to verify the analytical implementation): Use ``StateType`` for the state and ``ResidualType`` for the residual. Additionally, you need to implement the following functions to enable the AD Jacobian: ``requiredADdirs()``, ``prepareADvectors``, ``extractJacobianFromAD()``, ``useAnalyticJacobian()``. For details please refer to `PÃ¼ttmann et al. (2016) <https://doi.org/10.1016/j.ces.2015.08.050>`_.
 
 Testing and Publication
 ^^^^^^^^^^^^^^^^^^^^^^^
@@ -89,14 +89,14 @@ Directions can either be the parameter(s) whose sensitivity we want to calculate
 
 To use AD for a new binding model, you only need to use the template types properly:
 Use ``ParamType`` and ``ResidualType`` for parameters and residual ``res`` to enable parameter sensitivities; that is, all parameters must be defined as actives in the binding model and used as ParamType in the residual function.
-Use ``StateType`` and ``ResidualType`` for the state ``y`` and residual ``res`` to enable the AD Jacobian. 
+Use ``StateType`` and ``ResidualType`` for the state ``y`` and residual ``res`` to enable the AD Jacobian.
 
-To use AD for a new unit operation, you can either apply dense AD or, in case of a model with many states or spatial resolution, you need to think of the shape of the Jacobian and apply sparse AD. 
+To use AD for a new unit operation, you can either apply dense AD or, in case of a model with many states or spatial resolution, you need to think of the shape of the Jacobian and apply sparse AD.
 
 Parameter sensitivities
 ^^^^^^^^^^^^^^^^^^^^^^^
 
-Parameter sensitivity estimation in CADET-Core leverages the capabilities provided by the time integrator module `IDAS <https://sundials.readthedocs.io/en/latest/idas/index.html>`_ to compute `forward sensitivities <https://sundials.readthedocs.io/en/latest/idas/Mathematics_link.html#forward-sensitivity-analysis>`_, combined with our custom implementation for algorithmic differentiation, as described in our publication `Püttmann et al. (2016) <https://doi.org/10.1016/j.ces.2015.08.050>`_.
+Parameter sensitivity estimation in CADET-Core leverages the capabilities provided by the time integrator module `IDAS <https://sundials.readthedocs.io/en/latest/idas/index.html>`_ to compute `forward sensitivities <https://sundials.readthedocs.io/en/latest/idas/Mathematics_link.html#forward-sensitivity-analysis>`_, combined with our custom implementation for algorithmic differentiation, as described in our publication `PÃ¼ttmann et al. (2016) <https://doi.org/10.1016/j.ces.2015.08.050>`_.
 To enable a parameter sensitivity for you model, you only have to take care about calling and interfacing to the existing infrastructure, which is briefly described in the following steps:
 - The parameter must be defined as an `active` type
 - In the residual function, the parameter must be used as a `ParamType`
