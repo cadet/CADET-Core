@@ -3,8 +3,8 @@
 Population Balance Models
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The population balance model (PBM) is given by a particle-number continuity equation which describes the evolution of the number density :math:`n` of the particles over time :math:`t` and with respect to size, the so-called internal coordinate :math:`x`, and external coordinate :math:`z`. 
-The external coordinate can be a characteristic dimension of the reactor itself, including its axial length. 
+The population balance model (PBM) is given by a particle-number continuity equation which describes the evolution of the number density :math:`n` of the particles over time :math:`t` and with respect to size, the so-called internal coordinate :math:`x`, and external coordinate :math:`z`.
+The external coordinate can be a characteristic dimension of the reactor itself, including its axial length.
 
 The PBM in CADET is implemented so that it can be used in any unit operation that supports reactions.
 Typical applications consider crystallization in a CSTR or, to model continuous processes, in a Dispersive Plug-Flow Reactor (DPFR), which is described by the LRM without solid phase.
@@ -14,7 +14,7 @@ These equations can be combined with :ref:`aggregation_model` and / or :ref:`fra
 For more information on the PBM as implemented in CADET, please refer to :cite:`Zhang2024` and :cite:`Zhang2025`.
 
 .. figure:: PBM_Part_I.png
-    
+
    Nucleation, growth and growth rate dispersion in PBM. Note that dispersion is used to model (random) variance in growth speed, not the reduction of particle size, which is feasible for a convection dominated process.
 
 Population Balance Model in a CSTR
@@ -32,7 +32,7 @@ The corresponding PBM is given as
 where :math:`F_{in}, F_{out}\in \mathbb{R}^+` are the volumetric inflow and outflow rates, :math:`V\in\mathbb{R}^+` is the reactor volume,
 :math:`n(t, x)\colon [0, T_\text{end}] \times (x_c, \infty) \mapsto \mathbb{R}^+` is the number density distribution,
 :math:`n_{in}\in\mathbb{R}^+` is the number density distribution of the inlet feed, :math:`v_{G}\in\mathbb{R}^+` is the particle growth rate,
-:math:`D_g\in\mathbb{R}^+` is the growth dispersion rate. 
+:math:`D_g\in\mathbb{R}^+` is the growth dispersion rate.
 
 The boundary conditions are given by the regularity boundary condition
 
@@ -172,3 +172,9 @@ The following expression for the growth rate is implemented:
 where :math:`k_g\in\mathbb{R}^+` is the growth rate constant, :math:`\gamma\in\mathbb{R}^+` quantifies the size dependence, and :math:`g, a, p\in\mathbb{R}^+` are system-related constants.
 
 For information on model parameters and how to specify the model interface, see :ref:`pbm_config`.
+
+.. toctree::
+    :hidden:
+    :glob:
+
+    *
