@@ -19,7 +19,7 @@ For information on model equations, refer to :ref:`lumped_rate_model_without_por
 ``UNIT_TYPE``
 
    Specifies the type of unit operation model
-   
+
    ================  =====================================================  =============
    **Type:** string  **Range:** :math:`\texttt{RADIAL_GENERAL_RATE_MODEL}`  **Length:** 1
    ================  =====================================================  =============
@@ -29,7 +29,7 @@ For information on model equations, refer to :ref:`lumped_rate_model_without_por
    Radial dispersion coefficient
 
    **Unit:** :math:`\mathrm{m}_{\mathrm{IV}}^{2}\,\mathrm{s}^{-1}`
-   
+
    ================  =========================  =========================================================
    **Type:** double  **Range:** :math:`\geq 0`  **Length:** see :math:`\texttt{COL_DISPERSION_MULTIPLEX}`
    ================  =========================  =========================================================
@@ -40,20 +40,20 @@ For information on model equations, refer to :ref:`lumped_rate_model_without_por
 
 ``COL_RADIUS_INNER``
 
-   Inner column radius 
+   Inner column radius
 
    **Unit:** :math:`\mathrm{m}`
-   
+
    ================  ======================  =============
    **Type:** double  **Range:** :math:`> 0`  **Length:** 1
    ================  ======================  =============
 
 ``COL_RADIUS_OUTER``
 
-   Outer column radius 
+   Outer column radius
 
    **Unit:** :math:`\mathrm{m}`
-   
+
    ================  ======================  =============
    **Type:** double  **Range:** :math:`> 0`  **Length:** 1
    ================  ======================  =============
@@ -64,10 +64,10 @@ For information on model equations, refer to :ref:`lumped_rate_model_without_por
 
 ``COL_LENGTH``
 
-   Column length/height (optional if :math:`\texttt{VELOCITY_COEFF}` is present, see Section :ref:`MUOPGRMflow`) 
+   Column length/height (optional if :math:`\texttt{VELOCITY_COEFF}` is present, see Section :ref:`MUOPGRMflow`)
 
    **Unit:** :math:`\mathrm{m}`
-   
+
    ================  ======================  =============
    **Type:** double  **Range:** :math:`> 0`  **Length:** 1
    ================  ======================  =============
@@ -76,9 +76,9 @@ For information on model equations, refer to :ref:`lumped_rate_model_without_por
 
    Interstitial velocity coefficient of the mobile phase (optional :math:`\texttt{COL_LENGTH}` is present, see Section :ref:`MUOPGRMflow`).
    This input replaces the ``VELOCITY`` field, which is used for axial flow models. The distinction is made to emphasize that radial flow models do not incorporate a global velocity but a variable velocity field that depends on the spatial position, for details see Section :ref:`MUOPGRMradialFlow`.
-   
+
    **Unit:** :math:`\mathrm{m}\,\mathrm{s}^{-1}`
-   
+
    ================  =============================  =======================================
    **Type:** double  **Range:** :math:`\mathbb{R}`  **Length:** :math:`1 / \texttt{NSEC}`
    ================  =============================  =======================================
@@ -90,7 +90,7 @@ Group /input/model/unit_XXX/discretization - UNIT_TYPE - RADIAL_GENERAL_RATE_MOD
 ``NCOL``
 
    Number of radial column discretization points
-   
+
    =============  =========================  =============
    **Type:** int  **Range:** :math:`\geq 1`  **Length:** 1
    =============  =========================  =============
@@ -101,9 +101,9 @@ Accordingly, the following specifications can be left out for radial flow models
 ``RECONSTRUCTION``
 
    Type of reconstruction method for fluxes
-   
+
    ================  ================================  =============
    **Type:** string  **Range:** :math:`\texttt{NONE}`  **Length:** 1
    ================  ================================  =============
 
-Parameters specified under :ref:`flux_restruction_methods` can also be ignored.
+Parameters specified under :ref:`flux_reconstruction_methods` can also be ignored.

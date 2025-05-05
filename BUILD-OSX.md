@@ -1,3 +1,5 @@
+# Build CADET-Core on MacOS
+
 ## Prerequisites
 
 * CMake (>= 3.12.0)

@@ -123,7 +123,7 @@ Multi Component Colloidal
 ===================  =========================  =========================================
 
 ``COL_BPP_SALT_EXPARGMULT``
-   Protein-protein interaction :math:`b_{pp,i}`: Constant power factor :math:`b_{d,i}` for salt in e-function 
+   Protein-protein interaction :math:`b_{pp,i}`: Constant power factor :math:`b_{d,i}` for salt in e-function
 
 ===================  =========================  =========================================
 **Type:** double     **Range:** :math:`\ge 0`   **Length:** NTOTALBND
@@ -151,7 +151,7 @@ Multi Component Colloidal
    Threshold concentration :math:`c_\epsilon` for switching to linear approximation
 
 ===================  =========================  =========================================
-**Type:** double     **Range:** :math:`> 0`   **Length:** 1
+**Type:** double     **Range:** :math:`> 0`     **Length:** 1
 ===================  =========================  =========================================
 
 ``COL_USE_PH``
@@ -160,4 +160,3 @@ Multi Component Colloidal
 ===================  =========================  =========================================
 **Type:** int        **Range:** {0,1}           **Length:** 1
 ===================  =========================  =========================================
-
