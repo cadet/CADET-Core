@@ -143,3 +143,5 @@ Adding :math:`\frac{1-\varepsilon_t}{\varepsilon_t}` times the second channel eq
         \frac{\partial c^\ell}{\partial t} + \frac{1-\varepsilon_t}{\varepsilon_t} \frac{\partial c^s}{\partial t} = - u \frac{\partial c^\ell}{\partial z} + D_\text{ax} \frac{\partial^2 c^\ell}{\partial z^2},
         \\
         \frac{\partial c^s}{\partial t} = k_a c^\ell - k_d c^s.
+
+For information on model parameters see :ref:`multi_channel_transport_model_config`.

@@ -106,3 +106,5 @@ This can be achieved by a (nonlinear) parameter transform
         F\left( k_{\mathrm{eq},i}, k_{\mathrm{bwd},i} \right) &= \begin{pmatrix} k_{\mathrm{eq},i} k_{\mathrm{bwd},i} \\ k_{\mathrm{bwd},i} \end{pmatrix} \\
         \text{ with Jacobian } J_F\left( k_{\mathrm{eq},i}, k_{\mathrm{bwd},i} \right) &= \begin{pmatrix} k_{\mathrm{bwd},i} & k_{\mathrm{eq},i} \\ 0 & 1 \end{pmatrix}.
     \end{aligned}
+
+For more information on model parameters required to define in CADET file format, see :ref:`mass_action_law_config`.

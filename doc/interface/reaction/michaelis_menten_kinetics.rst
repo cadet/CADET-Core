@@ -5,6 +5,8 @@ Michaelis Menten kinetics
 
 **Group /input/model/unit_XXX/reaction - REACTION_MODEL = MICHAELIS_MENTEN**
 
+For information on model equations, refer to :ref:`michaelis_menten_kinetics_model`.
+
 ``MM_STOICHIOMETRY_BULK``
 
    Stochiometric matrix :math:`S`.

@@ -40,3 +40,5 @@ Here, :math:k_{\mathrm{I},j,i} is the inhibition constant with respect to compon
 If :math:k_{\mathrm{I},j,i} \leq 0, component :math:i does not act as an inhibitor.
 
 Note: Currently, the model does not allow substrates to function as inhibitors.
+
+For more information on model parameters required to define in CADET file format, see :ref:`michaelis_menten_kinetics_config`.
