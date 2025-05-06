@@ -1,3 +1,5 @@
+# Build CADET-Core on MacOS
+
 ## Prerequisites
 
 * CMake (>= 3.12.0)
@@ -7,7 +9,7 @@
 Assumed directory structure:
 
 <pre>
-|- CADET
+|- CADET-Core
 |    - src
 |    - include
 |    - [...]
@@ -31,20 +33,19 @@ brew install eigen
 
 ### LAPACK
 
-You can either use the native LAPACK implementation provided by Mac OS X (vecLib, Accelerate) 
+You can either use the native LAPACK implementation provided by Mac OS X (vecLib, Accelerate)
 or install the freely available [Intel MKL](https://software.intel.com/sites/campaigns/nest/) which is very fast and probably faster than Accelerate.
 
-## Build CADET
+## Build CADET-Core
 
-- Clone the CADET source code `git clone https://github.com/cadet/cadet-core.git CADET`
-- Create the directories `CADET/build` and `CADET/install`
+- Clone the CADET-Core source code `git clone https://github.com/cadet/cadet-core.git CADET-Core`
+- Create the directories `CADET-Core/build` and `CADET-Core/install`
 
 * If using Intel MKL, execute `export MKLROOT=/opt/intel/mkl`
 * Using standard LAPACK: Execute `cmake -DCMAKE_INSTALL_PREFIX="<ROOT>/install" ../`
- 
+
     Using MKL (sequential): Execute `cmake -DCMAKE_INSTALL_PREFIX="<ROOT>/install" -DBLA_VENDOR=Intel10_64lp_seq ../`
- 
+
     Using MKL (parallel): Execute `cmake -DCMAKE_INSTALL_PREFIX="<ROOT>/install" -DBLA_VENDOR=Intel10_64lp ../`
 * Execute `make`
 * Execute `make install`
-
