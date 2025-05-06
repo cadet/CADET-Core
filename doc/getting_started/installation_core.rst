@@ -15,6 +15,9 @@ CADET-Core can be installed via `conda <https://github.com/conda-forge/miniforge
 Install from source
 ^^^^^^^^^^^^^^^^^^^
 
-- :ref:`build_linux`
-- :ref:`build_windows`
-- :ref:`build_osx`
+.. toctree::
+   :maxdepth: 1
+
+   build_linux
+   build_windows
+   build_osx

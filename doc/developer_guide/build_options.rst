@@ -1,7 +1,7 @@
 .. _build_options:
 
-CADET build options
-===================
+CADET-Core build options
+========================
 
 For builds on MS Windows, the CMake command arguments are specified for every build configuration in the cmakeSettings.json.
 For builds on Linux and MacOs, the CMake command arguments must be specified from the command line.
@@ -15,7 +15,7 @@ The ``DEBUG`` build compiles code suited for debugging, i.e. the code is compile
 This way, it is possible to go through the code line by line and to set breakpoints in an IDE such as MS Visual Studio.
 Additionally, the ``DEBUG`` build will print additional information during the simulation, such as the current step size and time point of the simulation.
 
-The ``RELEASE`` build compiles optimized code and should be used to actually use CADET for simulations.
+The ``RELEASE`` build compiles optimized code and should be used to actually use CADET-Core for simulations.
 
 The ``RELEASE_with_Debug_Info`` build compiles optimized code but some debug information will still be printed.
 
@@ -29,7 +29,7 @@ The following build arguments can be set in the cmakeSettings.json or from the c
 - ``DCMAKE_INSTALL_PREFIX``: location for the installed ``CADET-Core`` framework.
 - ``DENABLE_STATIC_LINK_LAPACK`` Prefer static over dynamic linking of LAPACK and BLAS into the ``CADET-Core`` framework. Static linking incorporates all necessary libraries into the final executable at compile time, while dynamic linking loads libraries at runtime. Static linking produces larger executables that are less dependent on changes in the operating system. Dynamic linking allows for dynamic updates of underlying libraries and smaller compiled software.
 - ``DENABLE_STATIC_LINK_DEPS``: Prefer static over dynamic linking of dependencies into the ``CADET-Core`` framework.
-- ``DENABLE_STATIC_LINK_CLI``: Prefers static over dynamic linking for CADET CLI.
+- ``DENABLE_STATIC_LINK_CLI``: Prefers static over dynamic linking for CADET-Core CLI.
 - ``DENABLE_TESTS``: Build the ``restRunner`` executable to evaluate the integrated tests in ``CADET-Core``.
 - ``DENABLE_ANALYTIC_JACOBIAN_CHECK``: Computes both the analytical and AD Jacobian and compares them for testing purpose.
 - ``DENABLE_THREADING``: Enables multi-threading capabilities. Parallelized code will be compiled, using the TBB library. Note that the non-parallelized code is faster compared to the parallelized code when only one thread is being used. The number of threads is specified in the filed ``N_THREADS``.
@@ -41,8 +41,8 @@ The following build arguments can be set in the cmakeSettings.json or from the c
 - ``DENABLE_2D_MODELS``: Builds 2D models such as the 2D general rate model and multichannel transport.
 - ``DENABLE_DG``: Constructs DG variants of models.
 - ``DENABLE_SUNDIALS_OPENMP``: Prefers the OpenMP vector implementation of SUNDIALS for large problems if available.
-- ``DENABLE_CADET_CLI``: Builds the CADET command line interface.
-- ``DENABLE_CADET_TOOLS``: Constructs CADET tools.
+- ``DENABLE_CADET_CLI``: Builds the CADET-Core command line interface.
+- ``DENABLE_CADET_TOOLS``: Constructs CADET-Core tools.
 - ``DENABLE_PACKAGED_SUNDIALS``: Uses packaged SUNDIALS code.
 - ``DENABLE_IPO``: Enables interprocedural optimization if the compiler supports it.
 - ``DCMAKE_INSTALL_RPATH_USE_LINK_PATH``: Adds paths to linker search and installed rpath.

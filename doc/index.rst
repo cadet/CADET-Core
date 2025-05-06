@@ -18,6 +18,7 @@
 
 .. image:: https://img.shields.io/badge/JuRSE_Code_Pick-Oct_2024-blue.svg
    :target: https://www.fz-juelich.de/en/rse/community-initiatives/jurse-code-of-the-month/october-2024
+
 |
 
 CADET-Core
@@ -49,7 +50,7 @@ CADET Platform
 --------------
 
 CADET-Core is part of `CADET <https://github.com/cadet>`_, a collective platform of software repositories that provide tools for biotechnology process modeling.
-CADET-Core can be used as a standalone simulator by interfacing via HDF5 files. Alternatively, CADET-Python provides a wrapper around an HDF5 file reader and writer, simplifying model configuration. 
+CADET-Core can be used as a standalone simulator by interfacing via HDF5 files. Alternatively, CADET-Python provides a wrapper around an HDF5 file reader and writer, simplifying model configuration.
 Furthermore, it is the interface for CADET-Process, an universal and user-friendly tool for biotechnology process modeling and evaluation.
 
 For more information on the different packages of the CADET platform, see :ref:`here <getting_started>`.
@@ -84,7 +85,7 @@ For non-developers, it is recommended to upgrade from release to release instead
 Bugs
 ----
 
-Please report any bugs that you find `here <https://github.com/cadet/cadet-core/issues>`_. Or, even better, fork the repository on `GitHub <https://github.com/cadet/cadet-core>`_ and create a pull request (PR) with the fix. 
+Please report any bugs that you find `here <https://github.com/cadet/cadet-core/issues>`_. Or, even better, fork the repository on `GitHub <https://github.com/cadet/cadet-core>`_ and create a pull request (PR) with the fix.
 
 Donations
 ---------
@@ -140,5 +141,3 @@ Please refer to the `list of authors and contributors <https://github.com/cadet/
     publications
     zbibliography
     Legal notice <https://www.fz-juelich.de/en/legal-notice>
-
-

@@ -1,13 +1,16 @@
+# Build CADET-Core on Linux
+
 ## Prerequisites
 
 * CMake (>= 3.12.0)
+
 * GCC >= 7.0, Clang >= 3.9, or Intel C++ 18.0
 * Optional: Git
 
 Assumed directory structure:
 
 <pre>
-|- CADET
+|- CADET-Core
 |    - src
 |    - include
 |    - [...]
@@ -41,12 +44,12 @@ for distro defaults run
 sudo apt -y install liblapack3 liblapack-dev libblas3 libblas-dev
 ```
 
-## Build CADET
+## Build CADET-Core
 
-- Clone the CADET source code `git clone https://github.com/cadet/cadet-core.git CADET`
-- Create the directories `CADET/build` and `CADET/install`
+- Clone the CADET-Core source code `git clone https://github.com/cadet/cadet-core.git CADET-Core`
+- Create the directories `CADET-Core/build` and `CADET-Core/install`
 
-- Open a terminal and change to `CADET/build`
+- Open a terminal and change to `CADET-Core/build`
 - If using MKL, execute `export MKLROOT=/opt/intel/mkl`
 - To compile:
 	- Using standard LAPACK: Execute `cmake -DCMAKE_INSTALL_PREFIX="../install" ../`

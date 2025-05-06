@@ -5,6 +5,8 @@ Mass Action Law
 
 **Group /input/model/unit_XXX/reaction - REACTION_MODEL = MASS_ACTION_LAW**
 
+For information on model equations, refer to :ref:`mass_action_law_model`.
+
 ``MAL_KFWD_BULK``
 
    Forward rate constants for bulk volume reactions (available for external functions)

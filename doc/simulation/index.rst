@@ -6,7 +6,7 @@ Simulation
 This chapter gives an overview of the simulation process and the different steps involved.
 
 CADET uses a backward-differentiation-formula (BDF) time discretization as implemented by the IDAS solver from SUNDIALS :cite:`Hindmarsh2005`.
-Each time step requires the solution of a nonlinear algebraic system of equations is performed by a Newton method. 
+Each time step requires the solution of a nonlinear algebraic system of equations is performed by a Newton method.
 Since chromatographic systems can exhibit strong nonlinearity and stiff systems, the Jacobian of the equation system is always updated (i.e., an “exact” Newton method is used).
 
 .. _SimFlowchart:
@@ -137,7 +137,7 @@ This *ansatz* is inserted into the DAE and the resulting nonlinear algebraic equ
     :label: BDFNonlinSystem
 
     \begin{aligned}
-        H(y_\tau) = F\left(t_\tau,y_\tau,\frac{1}{\Delta t_\tau} \,\sum_{i=0}^{q_\tau}{\alpha_{\tau,i} \, y_{\tau-i}}, p\right) = 0 
+        H(y_\tau) = F\left(t_\tau,y_\tau,\frac{1}{\Delta t_\tau} \,\sum_{i=0}^{q_\tau}{\alpha_{\tau,i} \, y_{\tau-i}}, p\right) = 0
     \end{aligned}
 
 This requires (possibly many) solutions of linear equation systems involving the Jacobian of :math:`H` given by
@@ -252,7 +252,7 @@ and the partial derivative :math:`\partial F / \partial p` can be computed autom
         \frac{\partial F}{\partial p} = \frac{\partial F}{\partial p_1} \alpha_1 + \dots + \frac{\partial F}{\partial p_n} \alpha_n.
     \end{aligned}
 
-In order to use this functionality, all parameters involved have to be specified in a single sensitivity instance (``param_XXX`` group, see Tables :ref:`FFSensitivity` and `FFSensitivityParam`) by using arrays for the name and indices instead of scalar values.
+In order to use this functionality, all parameters involved have to be specified in a single sensitivity instance (``param_XXX`` group, see Tables :ref:`FFSensitivity` and ref:`FFSensitivityParam`) by using arrays for the name and indices instead of scalar values.
 The coefficients :math:`\alpha_i` are provided in the ``SENS_FACTOR`` vector.
 
 A simple example for a situation, which benefits from having a single meta parameter, would be a chain of unit operations in a network in which the sensitivity with respect to the flow rate is to be computed.
@@ -265,5 +265,3 @@ Note that nonlinear relationships between original parameter and meta parameters
     \begin{aligned}
         \alpha_i = \frac{\partial p_i}{\partial p}.
     \end{aligned}
-
-

@@ -12,24 +12,27 @@ If you want to run tests in CADET-Core you need to ensure that in the `CMakeSett
      1. ``-DENABLE_TESTS=ON`` to enable building the test runner
      2. ``-DENABLE_STATIC_LINK_LAPACK=ON -DENABLE_STATIC_LINK_DEPS=ON`` to create statically linked dependencies
 2. The `variables` field contains:
-.. code-block:: json
-  {
-    "name": "HDF5_USE_STATIC_LIBRARIES",
-    "value": "1",
-    "type": "STRING"
-  },
-  {
-    "name": "BUILD_SHARED_LIBS",
-    "value": "0",
-    "type": "STRING"
-  }
+    .. code-block:: json
 
+        {
+          {
+            "name": "HDF5_USE_STATIC_LIBRARIES",
+            "value": "1",
+            "type": "STRING"
+          },
+          {
+            "name": "BUILD_SHARED_LIBS",
+            "value": "0",
+            "type": "STRING"
+          }
+        }
 
 After building, you can find the testRunner.exe in ``CADET-root/build/test/Release`` or, when build in debug mode, in ``CADET-root/build/test/Debug``.
 
 To debug specific tests (with flag [testHere]) from the Visual Studio IDE, you can add the following configuration to the launch.vs.json file mentioned in the :ref:`debugging` section:
 
 .. code-block:: json
+
     {
       "type": "default",
       "project": "CMakeLists.txt",

@@ -7,18 +7,18 @@ The CADET-Python API can be very useful for developers as it allows to create an
 This is especially useful when new methods and models are added, which are not (yet) supported by the CADET-Process frontend.
 To demonstrate the use of CADET-Python, we set up a simulation in the following.
 
-Performing a forward simulation comprises several steps: 
+Performing a forward simulation comprises several steps:
   * Setting up the model including all parameters and discretization options
-  * Defining sections and switches 
-  * Setting up the simulator and actually running the simulation 
+  * Defining sections and switches
+  * Setting up the simulator and actually running the simulation
   * Evaluating results (e.g., plotting)
 
 In this tutorial, we will build a simple forward simulation with a breakthrough of one component using the following system:
 
 .. figure:: _images/breakthrough_system.png
 
-For this purpose, we use :ref:`CADET-Python <cadet_python>`, a file based frontend for CADET.
-CADET still must be downloaded (or built from source) as explained in the :ref:`installation guide <installation>`.  
+For this purpose, we use :ref:`CADET-Python <cadet_python>`, a file based frontend for CADET-Core.
+CADET-Core still must be downloaded (or built from source) as explained in the :ref:`installation guide <installation_core>`.
 The Python frontend almost exactly maps to the documented :ref:`CADET file format <file_format>` except that all dataset names are lowercase.
 This simplifies using the frontend.
 The package includes a ``Cadet`` class which serves as a generic HDF5 frontend.
@@ -64,7 +64,7 @@ This allows for creating arbitrary nested dictionaries using dot-notation.
 Although the order of the parameter specification does not matter, it is reasonable to first specify the number of unit operations before we select the models and define the parameters.
 
 .. literalinclude:: examples/breakthrough.py
-    :lines: 12 
+    :lines: 12
 
 The available models are listed in the :ref:`unit operation chapter <unit_operation_models>`.
 The units of the different parameters and quantities are given in the corresponding :ref:`file format <unit_operation_config>` of the respective unit operation.
@@ -130,10 +130,10 @@ We choose ``20`` axial cells in the column ``ncol`` and ``5`` radial cells in th
   Note that the WENO scheme, which handles the advection, drastically reduces the required amount of cells compared to an upwind scheme.
 
 Moreover, we have to specify the number of bound states for each component.
-Finally, we set some other options for the discretization, which usually do not need to be changed.  
+Finally, we set some other options for the discretization, which usually do not need to be changed.
 
 .. literalinclude:: examples/breakthrough.py
-    :lines: 48-66 
+    :lines: 48-66
 
 Outlet Model
 ^^^^^^^^^^^^
@@ -143,7 +143,7 @@ The ``OUTLET`` is another pseudo unit operation that serves as sink for the syst
 .. note:: In this case, the outlet unit is actually not required. We could use the outlet concentration signal of the column model instead.
 
 .. literalinclude:: examples/breakthrough.py
-    :lines: 69-70 
+    :lines: 69-70
 
 
 2. Setting up Time Sections and Connections
@@ -166,9 +166,9 @@ If the transition is continuous, the time integrator can try to step over the tr
 If you are unsure about the continuity, just leave it at ``0``.
 
 .. literalinclude:: examples/breakthrough.py
-    :lines: 73-75  
+    :lines: 73-75
 
-As mentioned earlier, we now define the ``INLET`` profile using a piecewise cubic polynomial. 
+As mentioned earlier, we now define the ``INLET`` profile using a piecewise cubic polynomial.
 On each section :math:`[ t_i, t_{i+1} ]` a cubic polynomial :math:`p_i` is defined:
 
 .. math::
@@ -184,7 +184,7 @@ Since the column should be constantly fed with :math:`1.0 \cdot 10^{-3} mol / m^
 Note that for more components, a vector of coefficients needs to be specified.
 
 .. literalinclude:: examples/breakthrough.py
-    :lines: 78-81 
+    :lines: 78-81
 
 System Connectivity
 ^^^^^^^^^^^^^^^^^^^
@@ -203,7 +203,7 @@ Usually, ``Component from`` and ``Component to`` can be set to ``-1``, which wil
   Also, for the 2D General rate model inlet ports need to be speciefied.
   For more information on the parameters, see the :ref:`file format specification <FFModelSystemConnections>`.
 
-In this case, we connect all components of ``unit_000`` to ``unit_001``, and from ``unit_001`` to ``unit_002``. 
+In this case, we connect all components of ``unit_000`` to ``unit_001``, and from ``unit_001`` to ``unit_002``.
 
 .. literalinclude:: examples/breakthrough.py
     :lines: 84-88
@@ -234,21 +234,21 @@ In this example, we want to write the concentration profile of the inlet and out
 In addition, we are interested in the concentration in the interstitial volume (bulk volume) of the column.
 
 .. literalinclude:: examples/breakthrough.py
-    :lines: 106-115 
+    :lines: 106-115
 
 Finally, we have to set the time points at which we want to evaluate the solution.
 Note that the end time must not exceed the last section time specified in the model.
 If the time points are not set explicitly, the time integrator outputs the solution at arbitrary time points between ``0`` and ``section_times[-1]``.
 
 .. literalinclude:: examples/breakthrough.py
-    :lines: 117-118 
+    :lines: 117-118
 
 The last remaining step is to actually run the simulation.
 For this, we have to specify a filename, save the configuration to ``H5``-format and call call the ``model``\ ’s ``run()`` function.
 We check if the simulation has completed successfully and load the results.
 
 .. literalinclude:: examples/breakthrough.py
-    :lines: 121-131 
+    :lines: 121-131
 
 4. Plotting the Results
 -----------------------

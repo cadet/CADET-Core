@@ -164,6 +164,8 @@ add_feature_info(ENABLE_STATIC_LINK_CLI ENABLE_STATIC_LINK_CLI "Prefer static ov
 option(CMAKE_INSTALL_RPATH_USE_LINK_PATH "Add paths to linker search and installed rpath" ON)
 add_feature_info(CMAKE_INSTALL_RPATH_USE_LINK_PATH CMAKE_INSTALL_RPATH_USE_LINK_PATH "Add paths to linker search and installed rpath")
 
+set(EXTERNAL_TEMPLATE_CODEGEN "" CACHE STRING "Uses an external templateCodeGen instead of compiling one")
+
 # Hande RPATH on OSX when not installing to a system directory, see
 # https://groups.google.com/d/msg/fenics-dev/KSCrob4M_1M/zsJwdN-SCAAJ
 # and https://cmake.org/Wiki/CMake_RPATH_handling#Always_full_RPATH
@@ -438,6 +440,15 @@ if (ENABLE_IPO)
 endif()
 
 
+set(TEMPLATE_CODEGEN_CMD "templateCodeGen")
+if (NOT "${EXTERNAL_TEMPLATE_CODEGEN}" STREQUAL "")
+	if (EXISTS "${EXTERNAL_TEMPLATE_CODEGEN}")
+		set(TEMPLATE_CODEGEN_CMD "${EXTERNAL_TEMPLATE_CODEGEN}")
+	else()
+		message(WARNING "External templateCodeGen ${EXTERNAL_TEMPLATE_CODEGEN} not found, fallback to compiling")
+	endif()
+endif()
+
 # ---------------------------------------------------
 #   Add selected modules to the build system and add the targets to the list of all targets
 # ---------------------------------------------------
@@ -577,6 +588,7 @@ message("Install dir: ${CMAKE_INSTALL_PREFIX}")
 message("C Flags: ${CMAKE_C_FLAGS}")
 message("C++ Flags: ${CMAKE_CXX_FLAGS}")
 message("IPO enabled: ${IPO_AVAILABLE}")
+message("templateCodeGen: ${TEMPLATE_CODEGEN_CMD}")
 message("------------------------------- Modules -------------------------------")
 message("CADET-CLI: ${ENABLE_CADET_CLI}")
 message("Tools: ${ENABLE_CADET_TOOLS}")

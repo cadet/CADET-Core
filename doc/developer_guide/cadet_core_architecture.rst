@@ -3,7 +3,7 @@
 Software Architecture
 =====================
 
-This section gives a general overview of the object-oriented c++ implementation of CADET-Core and is based on the Software Architecture chapter 3.2 in Samuel Lewekes PhD thesis [1]_.
+This section gives a general overview of the object-oriented c++ implementation of CADET-Core and is based on the Software Architecture chapter 3.2 in Samuel Lewekes PhD thesis :cite:`Leweke2021_thesis`.
 
 The CADET-Core software is designed to be modular, extendable, maintainable and computationally efficient and robust.
 To promote these goals, CADET-Core is implemented in C++, a highly performant, object-oriented language that supports cross-platform compatibility.
@@ -11,13 +11,13 @@ To promote these goals, CADET-Core is implemented in C++, a highly performant, o
 Features and Capabilities
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 
-CADET-Core 
+CADET-Core
 
 - Builds on Windows, Linux and MacOs
 
 - Allows to easily add new frontends as the core simulator is implemented in the library ``libcadet``, which can be called from different frontends.
   Currently, CADET-Core features the command line interface ``cadet-cli`` and CADET-Python, which includes a ``Cadet`` class that serves as a generic HDF5 frontend and calls the ``cadet-cli``.
-  The CADET-Process frontend is a separate software that wraps CADET-Python and supports additional pre- and post-processing functionality, as described in the `CADET-Process documentation <https://cadet-process.readthedocs.io/en/latest/index.html>`_. 
+  The CADET-Process frontend is a separate software that wraps CADET-Python and supports additional pre- and post-processing functionality, as described in the `CADET-Process documentation <https://cadet-process.readthedocs.io/en/latest/index.html>`_.
   The Matlab frontend was deprecated in `commit 4b34e0d5 <https://github.com/cadet/CADET-Core/commits/4b34e0d5fcabee2ff84ff422acac75a6982d6df7/>`_ due to its maintenance overhead.
 
 - Can compute parameter sensitivities via a custom Algorithmic Differentiation (AD) implementation. The AD infrastructure allows for easy extension of new models to support parameter sensitivities, as described in the AD section of the :ref:`model_expansion` chapter.
@@ -34,7 +34,7 @@ Implementation Details
 
 Classes and realationships
 
-.. _LibcadetClasses: 
+.. _LibcadetClasses:
 .. figure:: _images/architecture_libcadet_classes.png
 
 
@@ -109,5 +109,4 @@ where:
   - :math:`\mathbf{y}_{in,n} \in \mathbb{R}^{N_{in, n} N_c,n}` is the inlet concentration of all ports and components,
   - :math:`\mathbf{y}_{n}` contains the state variables of the submodel, and :math:`\frac{\partial \mathbf{y}_{n}}{\partial t}` contains its time derivatives.
 
-- The outlet concentration :math:`\mathbf{c}_{out,n,j} \ \colon (0, T_\text{end}) \mapsto \mathbb{R}^{N_{c,n}}` of port :math:`j\in\{1,\dots , N_{out,n}\}` of submodel :math:`n` is a linear function of its state vector :math:`\mathbf{y}_n`. 
-
+- The outlet concentration :math:`\mathbf{c}_{out,n,j} \ \colon (0, T_\text{end}) \mapsto \mathbb{R}^{N_{c,n}}` of port :math:`j\in\{1,\dots , N_{out,n}\}` of submodel :math:`n` is a linear function of its state vector :math:`\mathbf{y}_n`.

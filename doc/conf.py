@@ -92,4 +92,4 @@ html_sidebars = {
 }
 
 html_style = 'css/custom.css'
-
+html_output_encoding = 'utf-8'

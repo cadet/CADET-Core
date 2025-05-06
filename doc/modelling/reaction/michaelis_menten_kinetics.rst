@@ -70,6 +70,7 @@ Non-competitive inhibition
        \nu_{i,j} =  \frac{\mu_{\mathrm{max},j} \, c_i}{(k_{\mathrm{MM},j} + c_i) \,(1 + \sum_k^{N_{inh}} \frac{c_{i,k}}{K_{i,j,k}})}
     \end{aligned}
 
+
 where
  - :math:`c_i` is the substrate component and :math:`c_{i,k}` is the inhibitor acting on substrate :math:`c_i`.
  - :math:`N_{inh}` is the number of inhibitors in the reaction,
@@ -86,3 +87,4 @@ The rate for reaction :math:`j` is given by the product of the individual reacti
     \begin{aligned}
         \nu_j = \prod_{i=1}^{N_{sub}} \nu_{i,j}.
     \end{aligned}
+
