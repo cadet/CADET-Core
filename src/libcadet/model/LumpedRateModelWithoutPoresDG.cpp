@@ -65,14 +65,14 @@ namespace cadet
 
 		unsigned int LumpedRateModelWithoutPoresDG::numDofs() const CADET_NOEXCEPT
 		{
-			// Column bulk DOFs: nCol * nNodes * nComp mobile phase and nCol * nNodes * (sum boundStates) solid phase
+			// Column bulk DOFs: nElem * nNodes * nComp mobile phase and nElem * nNodes * (sum boundStates) solid phase
 			// Inlet DOFs: nComp
 			return _disc.nPoints * (_disc.nComp + _disc.strideBound) + _disc.nComp;
 		}
 
 		unsigned int LumpedRateModelWithoutPoresDG::numPureDofs() const CADET_NOEXCEPT
 		{
-			// Column bulk DOFs: nCol * nNodes * nComp mobile phase and nCol * nNodes * (sum boundStates) solid phase
+			// Column bulk DOFs: nElem * nNodes * nComp mobile phase and nElem * nNodes * (sum boundStates) solid phase
 			return _disc.nPoints * (_disc.nComp + _disc.strideBound);
 		}
 
@@ -130,16 +130,16 @@ namespace cadet
 			_disc.nNodes = _disc.polyDeg + 1;
 
 			if (paramProvider.exists("NELEM"))
-				_disc.nCol = paramProvider.getInt("NELEM");
+				_disc.nElem = paramProvider.getInt("NELEM");
 			else if (paramProvider.exists("NCOL"))
-				_disc.nCol = std::max(1u, paramProvider.getInt("NCOL") / _disc.nNodes); // number of elements is rounded down
+				_disc.nElem = std::max(1u, paramProvider.getInt("NCOL") / _disc.nNodes); // number of elements is rounded down
 			else
 				throw InvalidParameterException("Specify field NELEM (or NCOL)");
 
-			if (_disc.nCol < 1)
+			if (_disc.nElem < 1)
 				throw InvalidParameterException("Number of column elements must be at least 1!");
 
-			_disc.nPoints = _disc.nNodes * _disc.nCol;
+			_disc.nPoints = _disc.nNodes * _disc.nElem;
 
 			int polynomial_integration_mode = 0;
 			if (paramProvider.exists("EXACT_INTEGRATION"))
@@ -165,8 +165,8 @@ namespace cadet
 #endif
 
 			// Allocate space for initial conditions
-			_initC.resize(_disc.nCol * _disc.nNodes * _disc.nComp);
-			_initQ.resize(_disc.nCol * _disc.nNodes * _disc.strideBound);
+			_initC.resize(_disc.nElem * _disc.nNodes * _disc.nComp);
+			_initQ.resize(_disc.nElem * _disc.nNodes * _disc.strideBound);
 
 			// Create nonlinear solver for consistent initialization
 			configureNonlinearSolver(paramProvider);
@@ -174,7 +174,7 @@ namespace cadet
 			paramProvider.popScope();
 
 			const unsigned int strideNode = _disc.nComp + _disc.strideBound;
-			const bool transportSuccess = _convDispOp.configureModelDiscretization(paramProvider, helper, _disc.nComp, polynomial_integration_mode, _disc.nCol, _disc.polyDeg, strideNode);
+			const bool transportSuccess = _convDispOp.configureModelDiscretization(paramProvider, helper, _disc.nComp, polynomial_integration_mode, _disc.nElem, _disc.polyDeg, strideNode);
 
 			_disc.curSection = -1;
 
@@ -761,7 +761,7 @@ namespace cadet
 
 			// Map inlet DOFs to the column inlet (first bulk cells)
 			// Inlet at z = 0 for forward flow, at z = L for backward flow.
-			unsigned int offInlet = _convDispOp.forwardFlow() ? 0 : (_disc.nCol - 1u) * idxr.strideColCell();
+			unsigned int offInlet = _convDispOp.forwardFlow() ? 0 : (_disc.nElem - 1u) * idxr.strideColCell();
 
 			for (unsigned int comp = 0; comp < _disc.nComp; comp++) {
 				for (unsigned int node = 0; node < (_disc.exactInt ? _disc.nNodes : 1); node++) {
@@ -888,7 +888,7 @@ namespace cadet
 
 			// Handle inlet DOFs:
 			// Inlet at z = 0 for forward flow, at z = L for backward flow.
-			unsigned int offInlet = _convDispOp.forwardFlow() ? 0 : (_disc.nCol - 1u) * idxr.strideColCell();
+			unsigned int offInlet = _convDispOp.forwardFlow() ? 0 : (_disc.nElem - 1u) * idxr.strideColCell();
 
 			for (unsigned int comp = 0; comp < _disc.nComp; comp++) {
 				for (unsigned int node = 0; node < (_disc.exactInt ? _disc.nNodes : 1); node++) {

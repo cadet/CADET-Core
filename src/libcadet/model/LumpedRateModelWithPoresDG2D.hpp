@@ -445,12 +445,12 @@ protected:
 			int offP = idxr.offsetCp(ParticleTypeIndex{ parType }) - idxr.offsetC(); // inlet DOFs not included in Jacobian
 
 			// add dependency of c^b, c^p and flux on another
-			for (unsigned int nCol = 0; nCol < _disc.nBulkPoints; nCol++) {
+			for (unsigned int node = 0; node < _disc.nBulkPoints; node++) {
 				for (unsigned int comp = 0; comp < _disc.nComp; comp++) {
 					// c^b on c^b entry already set
-					tripletList.push_back(T(offC + nCol * _disc.nComp + comp, offP + nCol * idxr.strideParBlock(parType) + comp, 0.0)); // c^b on c^p
+					tripletList.push_back(T(offC + node * _disc.nComp + comp, offP + node * idxr.strideParBlock(parType) + comp, 0.0)); // c^b on c^p
 					// c^p on c^p entry already set
-					tripletList.push_back(T(offP + nCol * idxr.strideParBlock(parType) + comp, offC + nCol * _disc.nComp + comp, 0.0)); // c^p on c^b
+					tripletList.push_back(T(offP + node * idxr.strideParBlock(parType) + comp, offC + node * _disc.nComp + comp, 0.0)); // c^p on c^b
 				}
 			}
 		}

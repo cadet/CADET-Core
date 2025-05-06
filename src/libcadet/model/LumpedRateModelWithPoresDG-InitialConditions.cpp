@@ -856,7 +856,7 @@ namespace cadet
 			// instead of the *negative* one. Fortunately, we are dealing with linear systems,
 			// which means that we can just negate the solution.
 			double* const yDotSlice = vecStateYdot + idxr.offsetC();
-			for (unsigned int i = 0; i < _disc.nCol * _disc.nComp; ++i)
+			for (unsigned int i = 0; i < _disc.nElem * _disc.nComp; ++i)
 				yDotSlice[i] = -resSlice[i];
 		}
 

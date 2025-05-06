@@ -261,7 +261,7 @@ protected:
 	struct Discretization
 	{
 		unsigned int nComp; //!< Number of components
-		unsigned int nCol; //!< Number of column cells
+		unsigned int nElem; //!< Number of DG elements
 		unsigned int polyDeg; //!< polynomial degree of column elements
 		unsigned int nNodes; //!< Number of nodes per column cell
 		unsigned int nPoints; //!< Number of discrete column Points
@@ -779,10 +779,10 @@ protected:
 		*/
 		virtual int writePrimaryCoordinates(double* coords) const
 		{
-			for (unsigned int i = 0; i < _disc.nCol; i++) {
+			for (unsigned int i = 0; i < _disc.nElem; i++) {
 				for (unsigned int j = 0; j < _disc.nNodes; j++) {
 					// mapping 
-					coords[i * _disc.nNodes + j] = _model._convDispOp.cellLeftBound(i) + 0.5 * (static_cast<double>(_model._convDispOp.columnLength()) / static_cast<double>(_disc.nCol)) * (1.0 + _model._convDispOp.LGLnodes()[j]);
+					coords[i * _disc.nNodes + j] = _model._convDispOp.elemLeftBound(i) + 0.5 * (static_cast<double>(_model._convDispOp.columnLength()) / static_cast<double>(_disc.nElem)) * (1.0 + _model._convDispOp.LGLnodes()[j]);
 				}
 			}
 			return _disc.nPoints;
@@ -1669,7 +1669,7 @@ protected:
 
 			linalg::BandedEigenSparseRowIterator jacIt(_globalJac, idxr.offsetCp(ParticleTypeIndex{ parType }, ParticleIndex{ colNode }) + idxr.strideParShell(parType) * 2); // row iterator starting at third cell, first component
 			
-																																											  // insert all (nCol - 4) inner cell blocks
+																																											  // insert all (nElem - 4) inner cell blocks
 			for (unsigned int cell = 2; cell < _disc.nParCell[parType] - 2; cell++)
 				insertParJacBlock(_disc.DGjacParDispBlocks[_disc.offsetMetric[parType] + cell], jacIt, idxr, parDiff, parSurfDiff, invBetaP, _binding[parType]->reactionQuasiStationarity(), parType, 1u, -(idxr.strideParShell(parType) + idxr.strideParNode(parType)));
 		}
