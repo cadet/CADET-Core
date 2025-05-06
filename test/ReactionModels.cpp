@@ -80,8 +80,8 @@ TEST_CASE("MassActionLaw kinetic analytic Jacobian vs AD", "[MassActionLaw],[Rea
 
 TEST_CASE("MichaelisMenten kinetic and specific mass action law micro-kinetics yield same result", "[MichaelisMenten],[ReactionModel],[Simulation],[CI]")
 {
-	const std::string& configFilePath1 = std::string("/data/configuration_CSTR_MichaelisMenten_benchmark1.json");
-	const std::string& configFilePath2 = std::string("/data/configuration_CSTR_MicroKineticsSMA_benchmark1.json");
+	const std::string& configFilePath1 = std::string("/data/model_CSTR_MichaelisMenten_benchmark1.json");
+	const std::string& configFilePath2 = std::string("/data/model_CSTR_MicroKineticsSMA_benchmark1.json");
 
 	const double absTol = 1e-12;
 	const double relTol = 5e-4;
@@ -91,8 +91,8 @@ TEST_CASE("MichaelisMenten kinetic and specific mass action law micro-kinetics y
 
 TEST_CASE("MichaelisMenten kinetic with two inhibitors and specific mass action law micro-kinetics yield same result", "[MichaelisMenten],[ReactionModel],[Simulation],[Reference],[CI]")
 {
-	const std::string& configFilePath1 = std::string("/data/configuration_CSTR_MichaelisMenten_twoInhib_benchmark1.json");
-	const std::string& configFilePath2 = std::string("/data/configuration_CSTR_MicroKineticsSMA_twoInhib_benchmark1.json");
+	const std::string& configFilePath1 = std::string("/data/model_CSTR_MichaelisMenten_twoInhib_benchmark1.json");
+	const std::string& configFilePath2 = std::string("/data/model_CSTR_MicroKineticsSMA_twoInhib_benchmark1.json");
 
 	const double absTol = 1e-3;
 	const double relTol = 5e-4;
@@ -102,7 +102,7 @@ TEST_CASE("MichaelisMenten kinetic with two inhibitors and specific mass action 
 
 TEST_CASE("MichaelisMenten kinetic and numerical reference with Crank-Nicolson yield same result", "[MichaelisMenten],[ReactionModel],[Simulation],[Reference],[CI]")
 {
-	const std::string& configFileRelPath = std::string("/data/configuration_CSTR_MichaelisMenten_benchmark2.json");
+	const std::string& configFileRelPath = std::string("/data/model_CSTR_MichaelisMenten_benchmark2.json");
 	const std::string& refFileRelPath = std::string("/data/ref_CSTR_MichaelisMenten_benchmark2.h5");
 
 	const double absTol = 1e-3;
