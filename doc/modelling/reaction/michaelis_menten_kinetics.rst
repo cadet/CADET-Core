@@ -36,7 +36,9 @@ In this case, the flux has the form
         \nu_j = \frac{\mu_{\mathrm{max},j} c_S}{k_{\mathrm{MM},j} + c_S} \cdot \frac{1}{1 + \sum_i c_{Ii}/k_{I,j,i}}.
     \end{aligned}
 
-Here, :math:k_{\mathrm{I},j,i} is the inhibition constant with respect to component :math:i in reaction :math:j.
-If :math:k_{\mathrm{I},j,i} \leq 0, component :math:i does not act as an inhibitor.
+Here, :math:`k_{\mathrm{I},j,i}` is the inhibition constant with respect to component :math:`i` in reaction :math:`j`.
+If :math:`k_{\mathrm{I},j,i} \leq 0`, component :math:`i` does not act as an inhibitor.
 
 Note: Currently, the model does not allow substrates to function as inhibitors.
+
+For more information on model parameters required to define in CADET file format, see :ref:`michaelis_menten_kinetics_config`.

@@ -16,17 +16,18 @@ Assuming that the fluid inside the tank is well-mixed and that the liquid volume
         \frac{\mathrm{d}}{\mathrm{d}t} (V^{\ell} c^\ell_i) + V^{s} \sum_j d_j \sum_{m_{j,i}}^{N_{\text{bnd},j,i}}  \frac{\mathrm{d}}{\mathrm{d}t} (c^s_{j,i,m_{j,i}}) &= F_{\text{in}} c^\ell_{\text{in},i} - F_{\text{out}} c^\ell_i + V^{\ell} f_{\text{react},i}^l\left( c^\ell \right) \\
         &+V^{s}\sum_j d_j f_{\text{react},j,i}^s\left( c^\ell, c_j^s \right)
     \end{aligned}
+
 where:
 
 - |component_li|
-- |component_sij| 
+- |component_sij|
 - |volume_liquid|
 - |volume_solid|
 - |flow_in_out|
 - |reaction|
 - |volume_fac_pat|
 
-Depending on whether quasi-stationary or dynamic binding is used the binding behavior of :math:`c_i^{\ell}` and :math:`c^s_j` is described by 
+Depending on whether quasi-stationary or dynamic binding is used the binding behavior of :math:`c_i^{\ell}` and :math:`c^s_j` is described by
 
 .. math::
 
@@ -51,5 +52,3 @@ The additional parameter :math:`F_{\text{filter}}`, which denotes the flow rate 
 Note that it is the user’s duty to make sure that the volume of the CSTR does not fall below 0. If it does, the simulation may fail to run or may produce unreasonable (e.g., unphysical) results.
 
 See :ref:`cstr_config`.
-
-

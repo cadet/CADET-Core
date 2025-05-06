@@ -26,7 +26,7 @@ The matrices :math:`E^l_{\mathrm{fwd}} = (e^l_{\mathrm{fwd},\ell,j}) \in \mathbb
 
     \begin{aligned}
         e^l_{\mathrm{fwd},\ell,j} &= \max(0, -s^l_{\ell,j}), \\
-        e^l_{\mathrm{bwd},\ell,j} &= \max(0, s^l_{\ell,j}). 
+        e^l_{\mathrm{bwd},\ell,j} &= \max(0, s^l_{\ell,j}).
     \end{aligned}
 
 However, these defaults can be changed by providing those matrices.
@@ -50,7 +50,7 @@ where
 
 The forward and backward rates of the liquid phase particle reactions can be modified by a power of every bound state in the solid phase of the particle.
 The exponents of these powers are given by the matrices :math:`E^{ps}_{\mathrm{fwd}} = (e^{ps}_{\mathrm{fwd},m,j})` and :math:`E^{ps}_{\mathrm{bwd}} = (e^{ps}_{\mathrm{bwd},m,j})`, which are both of size :math:`(\sum_i N_{\mathrm{bnd},i}) \times N_{\mathrm{react}}`.
-Whereas the exponent matrices :math:`E^{p}_{\mathrm{fwd}}, E^{p}_{\mathrm{bwd}} \in \mathbb{R}^{N_{\mathrm{comp}} \times N_{\mathrm{react}}}` are initialized based on the stoichiometric matrix :math:`S^{p} \in \mathbb{R}^{N_{\mathrm{comp}} \times N_{\mathrm{react}}}`, see Eq. :eq:`MRMassActionLawExpMatDefault`, the exponent matrices :math:`E^{ps}_{\mathrm{fwd}}, E^{ps}_{\mathrm{bwd}}` of the modifier terms default to :math:`0`.
+Whereas the exponent matrices :math:`E^{p}_{\mathrm{fwd}}, E^{p}_{\mathrm{bwd}} \in \mathbb{R}^{N_{\mathrm{comp}} \times N_{\mathrm{react}}}` are initialized based on the stoichiometric matrix :math:`S^{p} \in \mathbb{R}^{N_{\mathrm{comp}} \times N_{\mathrm{react}}}`, see Eq. :eq:`MRMassActionLawExpMatDefault`, the exponent matrices :math:`E^{ps}_{\mathrm{fwd}}, E^{ps}_{\mathrm{bwd}}` of the modifier terms default to :math:`0`.
 
 Vice versa, the rates of solid phase reactions can be modified by liquid phase concentrations.
 The corresponding exponent matrices :math:`E^{sp}_{\mathrm{fwd}} = (e^{sp}_{\mathrm{fwd},\ell,j})` and :math:`E^{sp}_{\mathrm{bwd}} = (e^{sp}_{\mathrm{bwd},\ell,j})` are both of size :math:`N_{\mathrm{comp}} \times N_{\mathrm{react}}`.
@@ -70,7 +70,7 @@ where
         - k^p_{\mathrm{bwd},j} &\left[\prod_{m=0}^{\sum_{i=0}^{N_{\mathrm{comp}}-1} N_{\mathrm{bnd},i}-1} \left(c^s_{m}\right)^{e^{s}_{\mathrm{bwd},m,j}}\right] \left[\prod_{\ell=0}^{N_{\mathrm{comp}}-1} \left(c^p_{\ell}\right)^{e^{sp}_{\mathrm{bwd},\ell,j}}\right].
     \end{split}
 
-Whereas the exponent matrices :math:`E^{s}_{\mathrm{fwd}}, E^{s}_{\mathrm{bwd}} \in \mathbb{R}^{(\sum_i N_{\mathrm{bnd},i}) \times N_{\mathrm{react}}}` are initialized based on the stoichiometric matrix :math:`S^{s} \in \mathbb{R}^{(\sum_i N_{\mathrm{bnd},i}) \times N_{\mathrm{react}}}`, see Eq. :eq:`MRMassActionLawExpMatDefault`, the exponent matrices :math:`E^{sp}_{\mathrm{fwd}}, E^{sp}_{\mathrm{bwd}}` of the modifier terms default to :math:`0`.
+Whereas the exponent matrices :math:`E^{s}_{\mathrm{fwd}}, E^{s}_{\mathrm{bwd}} \in \mathbb{R}^{(\sum_i N_{\mathrm{bnd},i}) \times N_{\mathrm{react}}}` are initialized based on the stoichiometric matrix :math:`S^{s} \in \mathbb{R}^{(\sum_i N_{\mathrm{bnd},i}) \times N_{\mathrm{react}}}`, see Eq. :eq:`MRMassActionLawExpMatDefault`, the exponent matrices :math:`E^{sp}_{\mathrm{fwd}}, E^{sp}_{\mathrm{bwd}}` of the modifier terms default to :math:`0`.
 
 
 Correlation of forward- and backward rate constants
@@ -106,3 +106,5 @@ This can be achieved by a (nonlinear) parameter transform
         F\left( k_{\mathrm{eq},i}, k_{\mathrm{bwd},i} \right) &= \begin{pmatrix} k_{\mathrm{eq},i} k_{\mathrm{bwd},i} \\ k_{\mathrm{bwd},i} \end{pmatrix} \\
         \text{ with Jacobian } J_F\left( k_{\mathrm{eq},i}, k_{\mathrm{bwd},i} \right) &= \begin{pmatrix} k_{\mathrm{bwd},i} & k_{\mathrm{eq},i} \\ 0 & 1 \end{pmatrix}.
     \end{aligned}
+
+For more information on model parameters required to define in CADET file format, see :ref:`mass_action_law_config`.

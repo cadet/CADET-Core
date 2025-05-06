@@ -43,3 +43,9 @@ By assigning only one index to ``EXTFUN``, all parameters use the same source.
 The ordering of the parameters in ``EXTFUN`` is given by the ordering in the file format specification.
 
 For the configuration of external function dependence and more information on model parameters required to define in CADET file format, see section :ref:`FFReaction`.
+
+.. toctree::
+    :hidden:
+    :glob:
+
+    *

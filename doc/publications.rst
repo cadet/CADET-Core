@@ -57,7 +57,7 @@ CADET-Core SELECTED APPLICATIONS AND USE-CASES
    :filter: False
 
    Lanzrath2024
-   Heymann2022advanced
+   Heymann2022
    Jaepel2022
    Schmoelder2020
    He2018
