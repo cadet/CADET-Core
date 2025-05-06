@@ -88,13 +88,13 @@ public:
 	void convDispJacPattern(std::vector<T>& tripletList, const int bulkOffset = 0);
 	bool computeConvDispJacobianBlocks();
 	template <typename Action>
-	void addAxElemBlockToJac(const Eigen::MatrixXd& block, const int offRow, const int offColumn, const int depElem, Action addEntry);
-	void addAxElemBlockToJac(const Eigen::MatrixXd& block, Eigen::SparseMatrix<double, Eigen::RowMajor>& jacobian, const int offRow, const int offColumn, const int depElem);
+	void addAxElemBlockToJac(const Eigen::MatrixXd& block, const int offRow, const int offColumn, const int depElem, Action addEntry, const active* const compFac = nullptr);
+	void addAxElemBlockToJac(const Eigen::MatrixXd& block, Eigen::SparseMatrix<double, Eigen::RowMajor>& jacobian, const int offRow, const int offColumn, const int depElem, const active* const compFac = nullptr);
 	void addAxElemBlockToJac(const Eigen::MatrixXd& block, std::vector<T>& tripletList, const int offRow, const int offColumn, const int depElem);
 	template <typename Action>
-	void addRadElemBlockToJac(const Eigen::MatrixXd& block, const int offRow, const int nLeftRadElemDep, const int depElem, Action addEntry);
-	void addRadElemBlockToJac(const Eigen::MatrixXd& block, Eigen::SparseMatrix<double, Eigen::RowMajor>& jacobian, const int offRow, const int nLeftRadElemDep, const int depElem);
-	void addRadElemBlockToJac(const Eigen::MatrixXd& block, std::vector<T>& tripletList, const int offRow, const int nLeftRadElemDep, const int depElem);
+	void addRadElemBlockToJac(const Eigen::MatrixXd* block, const int offRow, const int nLeftRadElemDep, const int depElem, Action addEntry);
+	void addRadElemBlockToJac(const Eigen::MatrixXd* block, Eigen::SparseMatrix<double, Eigen::RowMajor>& jacobian, const int offRow, const int nLeftRadElemDep, const int depElem);
+	void addRadElemBlockToJac(const Eigen::MatrixXd* block, std::vector<T>& tripletList, const int offRow, const int nLeftRadElemDep, const int depElem);
 	bool assembleConvDispJacobian(Eigen::SparseMatrix<double, Eigen::RowMajor>& jacobian, Eigen::MatrixXd& jacInlet, const int bulkOffset = 0);
 
 	void multiplyWithDerivativeJacobian(const SimulationTime& simTime, double const* sDot, double* ret) const;
@@ -114,6 +114,8 @@ public:
 	inline const int radNNodes() const { return _radNNodes; }
 	inline const int radNElem() const { return _radNElem; }
 	inline const int elemNPoints() const { return _elemNPoints; }
+	inline const unsigned int axNPoints() const { return _axNPoints; }
+	inline const unsigned int radNPoints() const { return _radNPoints; }
 
 	double relativeAxialCoordinate(unsigned int idx) const
 	{
@@ -128,8 +130,6 @@ public:
 		return (elem * static_cast<double>(_radDelta[elem]) + 0.5 * static_cast<double>(_radDelta[elem]) * (1.0 + _radNodes[idx % _radNNodes])) / static_cast<double>(_colRadius);
 	}
 
-	inline const unsigned int axNPoints() const CADET_NOEXCEPT { return _axNPoints; }
-	inline const unsigned int radNPoints() const CADET_NOEXCEPT { return _radNPoints; }
 	inline bool isCurrentFlowForward(int idx) const CADET_NOEXCEPT { return _curVelocity[idx] >= 0.0; }
 	const active& axialDispersion(unsigned int idxSec, int idxRad, int idxComp) const CADET_NOEXCEPT;
 	const active& radialDispersion(unsigned int idxSec, int idxRad, int idxComp) const CADET_NOEXCEPT;
@@ -153,11 +153,6 @@ protected:
 	 */
 	template <typename StateType>
 	using ConstMatrixMap = Eigen::Map<const Eigen::Matrix<StateType, Eigen::Dynamic, Eigen::Dynamic>, Eigen::Unaligned, Eigen::Stride<Eigen::Dynamic, Eigen::Dynamic>>;
-
-	void calcLiftingMatricesDash();
-	Eigen::MatrixXd calcTildeSrDash(const unsigned int elemIdx, const active* const dispersion);
-	Eigen::MatrixXd calcTildeMrDash(const unsigned int elemIdx, const active* const dispersion);
-	Eigen::MatrixXd calcTildeMr(const unsigned int elemIdx, const active* const dispersion);
 
 	template <typename StateType, typename ResidualType, typename ParamType>
 	int residualImpl(const IModel& model, double t, unsigned int secIdx, StateType const* y, double const* yDot, ResidualType* res);
@@ -197,9 +192,9 @@ protected:
 	unsigned int _radNElem; //!< Number of radial elements
 	unsigned int _radPolyDeg; //!< Polynomial degree of radial discretization
 	unsigned int _radNNodes; //!< Number of radial discrete points
-	unsigned int _quadratureRule; //!< Numerical quadrature rule
-	unsigned int _quadratureOrder; //!< Order of the numerical quadrature
-	unsigned int _qNNodes; //!< Number of quadrature nodes
+	unsigned int _quadratureRule; //!< Numerical quadrature rule // todo needed?
+	unsigned int _quadratureOrder; //!< Order of the numerical quadrature // todo needed?
+	unsigned int _qNNodes; //!< Number of quadrature nodes // todo needed?
 	unsigned int _elemNPoints; //!< Number of discrete points per 2D element
 	unsigned int _bulkNPoints; //!< Number of total 2D grid points (bulk grid)
 	// strides
@@ -212,8 +207,6 @@ protected:
 	Eigen::VectorXd _axInvWeights; //!< axial LGL inverted weights on the reference element
 	Eigen::VectorXd _radNodes; //!< radial LGL nodes on the reference element
 	Eigen::VectorXd _radInvWeights; //!< radial LGL inverted weights on the reference element
-	Eigen::VectorXd _qNodes; //!< quadrature nodes on the reference element
-	Eigen::VectorXd _qWeights; //!< quadrature weights on the reference element
 	// operators
 	Eigen::MatrixXd _axStiffM; //!< Radial stiffness matrix
 	Eigen::MatrixXd _axTransStiffM; //!< Axial transposed stiffness matrix
@@ -228,26 +221,20 @@ protected:
 	Eigen::MatrixXd* _radLiftMCyl; //!< Radial lifting matrices with radial metrics for each radial element
 	Eigen::MatrixXd* _transMrCyl; //!< Radial transposed mass matrix with cylinder metrics
 	Eigen::MatrixXd* _invTransMrCyl; //!< Radial inverted transposed mass matrix with cylinder metrics
-	Eigen::MatrixXd _radInterpolationM; //!< Polynomial interpolation matrix from (radial) LGL nodes to quadrature nodes
-	Eigen::MatrixXd* _transTildeMr; //!< Main eq. transposed mass matrix adjusted for cylindrical metrics and dispersion
-	Eigen::MatrixXd* _transTildeMrDash; //!< Main eq. transposed mass matrix on quadrature nodes adjusted for cylindrical metrics and dispersion
-	Eigen::MatrixXd* _transTildeSrDash; //!< Main eq. transposed stiffness matrix on quadrature nodes adjusted for cylindrical metrics and dispersion
 	Eigen::MatrixXd* _SrCyl; //!< Main eq. stiffness matrix with cylindrical metrics
 	// Jacobian blocks
 	Eigen::MatrixXd* _jacConvection; //!< Convection Jacobian blocks for each radial element
-	Eigen::MatrixXd* _jacAxDispersion; //!< Axial Dispersion Jacobian unique blocks
+	Eigen::MatrixXd* _jacAxDispersion; //!< Axial Dispersion Jacobian unique blocks (without axial dispersion)
 	Eigen::MatrixXd* _jacRadDispersion; //!< Radial Dispersion Jacobian unique blocks
 
 
 	// DG residual cache
 	std::vector<active> _axAuxStateG; //!< Auxiliary variable axial direction
 	std::vector<active> _radAuxStateG; //!< Auxiliary variable radial direction
-	std::vector<active> _axAuxStateGTilde; //!< Auxiliary variable axial direction on quadrature nodes
-	std::vector<active> _radAuxStateGTilde; //!< Auxiliary variable radial direction on quadrature nodes
 	std::vector<active> _fStarAux1; //!< Numerical flux auxiliary equation g^z
 	std::vector<active> _fStarAux2; //!< Numerical flux auxiliary equation g^r
 	std::vector<active> _fStarConv; //!< Numerical flux main equation convection (axial)
-	std::vector<active> _gZStarDispTilde; //!< Numerical flux main equation axial dispersion on quadrature nodes
+	std::vector<active> _gZStarDisp; //!< Numerical flux main equation axial dispersion
 	std::vector<active> _gRStarDisp; //!< Numerical flux main equation radial dispersion
 
 	std::vector<active> _matrixProductCache; //!< Cache for intermediate matrix products
@@ -260,7 +247,8 @@ protected:
 	active _axDelta; //!< Axial equidistant element spacing
 	std::vector<active> _radDelta; //!< Radial element spacing
 	std::vector<active> _radialElemInterfaces; //!< Coordinates of the element interfaces
-	std::vector<active> _nodalCrossSections; //!< cross section area for each node
+	std::vector<active> _elementCrossSections; //!< cross section area for each radial element
+	std::vector<active> _nodalCrossSections; //!< cross section area for each radial node
 
 	RadialDiscretizationMode _radialDiscretizationMode;
 
@@ -270,8 +258,6 @@ protected:
 	std::vector<active> _axialDispersion; //!< Axial dispersion coefficient \f$ D_{\text{ax}} \f$
 	MultiplexMode _axialDispersionMode; //!< Multiplex mode of the axial dispersion
 	std::vector<active> _radialDispersion; //!< Radial dispersion coefficient \f$ D_{\rho} \f$ at interpolation nodes
-	std::vector<active> _curRadialDispersionTilde; //!< Radial dispersion coefficient \f$ D_{\rho} \f$ at radial quadrature nodes
-	std::vector<active> _curAxialDispersionTilde; //!< Axial dispersion coefficient \f$ D_{\rho} \f$ at radial quadrature nodes
 	MultiplexMode _radialDispersionMode; //!< Multiplex mode of the radial dispersion
 	std::vector<active> _velocity; //!< Interstitial velocity parameter
 	std::vector<active> _curVelocity; //!< Current interstitial velocity \f$ u \f$

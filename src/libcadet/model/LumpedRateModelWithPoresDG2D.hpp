@@ -230,6 +230,8 @@ protected:
 		unsigned int nComp; //!< Number of components
 		unsigned int axNPoints; //!< Number of axial discrete points
 		unsigned int radNPoints; //!< Number of radial discrete points
+		unsigned int radNElem; //!< Number of radial DG elements, which can be used as radial zones for radial parameter inhomogeneities
+		unsigned int radNNodes; //!< Number of radial DG nodes per element
 		unsigned int nBulkPoints; //!< Number of total bulk discrete points
 		unsigned int nParType; //!< Number of particle types
 		unsigned int* parTypeOffset; //!< Array with offsets (in particle block) to particle type, additional last element contains total number of particle DOFs

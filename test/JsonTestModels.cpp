@@ -705,9 +705,20 @@ cadet::JsonParameterProvider createPulseInjectionColumn(const std::string& uoTyp
 				{
 					// Connection list is 3x7 since we have 1 connection between
 					// the two unit operations with 3 ports (and we need to have 7 columns)
-					sw["CONNECTIONS"] = {1.0, 0.0, 0.0, 0.0, -1.0, -1.0, 7.42637597e-09,
-					                     1.0, 0.0, 0.0, 1.0, -1.0, -1.0, 2.22791279e-08,
-					                     1.0, 0.0, 0.0, 2.0, -1.0, -1.0, 3.71318798e-08};
+
+					// Flow rates depend on the spatial method, since nodal/cell cross sections are different
+					if (spatialMethod == "FV")
+					{
+						sw["CONNECTIONS"] = { 1.0, 0.0, 0.0, 0.0, -1.0, -1.0, 7.42637597e-09,
+											 1.0, 0.0, 0.0, 1.0, -1.0, -1.0, 2.22791279e-08,
+											 1.0, 0.0, 0.0, 2.0, -1.0, -1.0, 3.71318798e-08 };
+					}
+					else if (spatialMethod == "DG")
+					{
+						sw["CONNECTIONS"] = { 1.0, 0.0, 0.0, 0.0, -1.0, -1.0, 2.2743276399659853e-10,
+											  1.0, 0.0, 0.0, 1.0, -1.0, -1.0, 5.458386335918363e-09,
+											  1.0, 0.0, 0.0, 2.0, -1.0, -1.0, 2.5017604039625835e-09 };
+					}
 					// Connections: From unit operation 1 port 0
 					//              to unit operation 0 port 0,
 					//              connect component -1 (i.e., all components)
@@ -997,9 +1008,20 @@ cadet::JsonParameterProvider createLinearBenchmark(bool dynamicBinding, bool non
 				{
 					// Connection list is 3x7 since we have 1 connection between
 					// the two unit operations with 3 ports (and we need to have 7 columns)
-					sw["CONNECTIONS"] = {1.0, 0.0, 0.0, 0.0, -1.0, -1.0, 1.16355283e-09,
-					                     1.0, 0.0, 0.0, 1.0, -1.0, -1.0, 3.49065850e-09,
-					                     1.0, 0.0, 0.0, 2.0, -1.0, -1.0, 5.81776417e-09};
+
+				// Flow rates depend on the spatial method, since nodal/cell cross sections are different
+				if (spatialMethod == "FV")
+				{
+					sw["CONNECTIONS"] = { 1.0, 0.0, 0.0, 0.0, -1.0, -1.0, 1.16355283e-09,
+					                      1.0, 0.0, 0.0, 1.0, -1.0, -1.0, 3.49065850e-09,
+					                      1.0, 0.0, 0.0, 2.0, -1.0, -1.0, 5.81776417e-09 };
+				}
+				else if (spatialMethod == "DG")
+				{
+					sw["CONNECTIONS"] = { 1.0, 0.0, 0.0, 0.0, -1.0, -1.0, 3.563380556155088e-11,
+										  1.0, 0.0, 0.0, 1.0, -1.0, -1.0, 8.552113334772209e-10,
+										  1.0, 0.0, 0.0, 2.0, -1.0, -1.0, 3.919718611770596e-10 };
+				}
 					// Connections: From unit operation 1 port 0
 					//              to unit operation 0 port 0,
 					//              connect component -1 (i.e., all components)

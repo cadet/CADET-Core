@@ -206,12 +206,25 @@ namespace column
 		jpp.pushScope("discretization");
 		jpp.set("SPATIAL_METHOD", "DG");
 
-		if (exactIntegration > -1)
-			jpp.set("EXACT_INTEGRATION", exactIntegration);
-		if (polyDeg)
-			jpp.set("POLYDEG", polyDeg);
-		if (nElem)
-			jpp.set("NELEM", nElem);
+		if (radPolyDeg)
+		{
+			jpp.set("RAD_POLYDEG", radPolyDeg);
+			if (radNelem)
+				jpp.set("RAD_NELEM", radNelem);
+			if (polyDeg)
+				jpp.set("AX_POLYDEG", polyDeg);
+			if (nElem)
+				jpp.set("AX_NELEM", nElem);
+		}
+		else
+		{
+			if (exactIntegration > -1)
+				jpp.set("EXACT_INTEGRATION", exactIntegration);
+			if (polyDeg)
+				jpp.set("POLYDEG", polyDeg);
+			if (nElem)
+				jpp.set("NELEM", nElem);
+		}
 		if (parNelem)
 			jpp.set("PAR_NELEM", parNelem);
 		if (parPolyDeg)
@@ -431,12 +444,12 @@ namespace column
 		{
 			pp.pushScope("discretization");
 			nlohmann::json discretization = setupJson["model"]["unit_" + unitID]["discretization"];
+			discretization["USE_ANALYTIC_JACOBIAN"] = 1;
+
 			if (pp.exists("NBOUND"))
 				discretization["NBOUND"] = pp.getIntArray("NBOUND"); // note: in the future this might be included somewhere else in the setup as its part of the model
 			if (pp.exists("RECONSTRUCTION"))
 				discretization["RECONSTRUCTION"] = pp.getString("RECONSTRUCTION");
-			if (pp.exists("USE_ANALYTIC_JACOBIAN"))
-				discretization["USE_ANALYTIC_JACOBIAN"] = pp.getInt("USE_ANALYTIC_JACOBIAN");
 			if (pp.exists("GS_TYPE"))
 				discretization["GS_TYPE"] = pp.getInt("GS_TYPE");
 			if (pp.exists("MAX_KRYLOV"))
@@ -1638,6 +1651,13 @@ namespace column
 	void testReferenceBenchmark(const std::string& modelFileRelPath, const std::string& refFileRelPath, const std::string& unitID, const std::vector<double> absTol, const std::vector<double> relTol, const DiscParams& disc, const bool compare_sens, const int simDataStride)
 	{
 		const int unitOpID = std::stoi(unitID);
+
+		// Enable AD
+		if (compare_sens)
+		{
+			REQUIRE(absTol.size() <= cadet::ad::getMaxDirections());
+			cadet::ad::setDirections(absTol.size());
+		}
 
 		// read json model setup file
 		const std::string setupFile = std::string(getTestDirectory()) + modelFileRelPath;
