@@ -157,16 +157,16 @@ bool GeneralRateModelDG::configureModelDiscretization(IParameterProvider& paramP
 	_disc.nNodes = _disc.polyDeg + 1;
 
 	if (paramProvider.exists("NELEM"))
-		_disc.nCol = paramProvider.getInt("NELEM");
+		_disc.nElem = paramProvider.getInt("NELEM");
 	else if (paramProvider.exists("NCOL"))
-		_disc.nCol = std::max(1u, paramProvider.getInt("NCOL") / _disc.nNodes); // number of elements is rounded down
+		_disc.nElem = std::max(1u, paramProvider.getInt("NCOL") / _disc.nNodes); // number of elements is rounded down
 	else
 		throw InvalidParameterException("Specify field NELEM (or NCOL)");
 
-	if (_disc.nCol < 1)
+	if (_disc.nElem < 1)
 		throw InvalidParameterException("Number of column elements must be at least 1!");
 
-	_disc.nPoints = _disc.nNodes * _disc.nCol;
+	_disc.nPoints = _disc.nNodes * _disc.nElem;
 
 	int polynomial_integration_mode = 0;
 	if (paramProvider.exists("EXACT_INTEGRATION"))
@@ -507,7 +507,7 @@ bool GeneralRateModelDG::configureModelDiscretization(IParameterProvider& paramP
 	}
 
 	unsigned int strideColNode = _disc.nComp;
-	const bool transportSuccess = _convDispOp.configureModelDiscretization(paramProvider, helper, _disc.nComp, polynomial_integration_mode, _disc.nCol, _disc.polyDeg, strideColNode);
+	const bool transportSuccess = _convDispOp.configureModelDiscretization(paramProvider, helper, _disc.nComp, polynomial_integration_mode, _disc.nElem, _disc.polyDeg, strideColNode);
 
 	_disc.curSection = -1;
 
@@ -1797,7 +1797,7 @@ void GeneralRateModelDG::multiplyWithJacobian(const SimulationTime& simTime, con
 
 	// Map inlet DOFs to the column inlet (first bulk cells)
 	// Inlet at z = 0 for forward flow, at z = L for backward flow.
-	unsigned int offInlet = _convDispOp.forwardFlow() ? 0 : (_disc.nCol - 1u) * idxr.strideColCell();
+	unsigned int offInlet = _convDispOp.forwardFlow() ? 0 : (_disc.nElem - 1u) * idxr.strideColCell();
 
 	for (unsigned int comp = 0; comp < _disc.nComp; comp++) {
 		for (unsigned int node = 0; node < (_disc.exactInt ? _disc.nNodes : 1); node++) {

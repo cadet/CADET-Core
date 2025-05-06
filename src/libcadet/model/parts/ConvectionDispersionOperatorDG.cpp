@@ -13,7 +13,6 @@
 #include "model/parts/ConvectionDispersionOperatorDG.hpp"
 #include "cadet/Exceptions.hpp"
 
-#include "Stencil.hpp"
 #include "ParamReaderHelper.hpp"
 #include "AdUtils.hpp"
 #include "SimulationTypes.hpp"
@@ -65,23 +64,23 @@ AxialConvectionDispersionOperatorBaseDG::~AxialConvectionDispersionOperatorBaseD
  * @param [in] helper Configures parameter dependencies
  * @param [in] nComp Number of components
  * @param [in] exact_integration DG volume integral computation
- * @param [in] nCells Number of axial cells
+ * @param [in] nElem Number of axial elements
  * @param [in] polyDeg Polynomial degree of DG approach
  * @param [in] strideNode node stride in state vector
  * @return @c true if configuration went fine, @c false otherwise
  */
-bool AxialConvectionDispersionOperatorBaseDG::configureModelDiscretization(IParameterProvider& paramProvider, const IConfigHelper& helper, unsigned int nComp, int polynomial_integration_mode, unsigned int nCells, unsigned int polyDeg, unsigned int strideNode)
+bool AxialConvectionDispersionOperatorBaseDG::configureModelDiscretization(IParameterProvider& paramProvider, const IConfigHelper& helper, unsigned int nComp, int polynomial_integration_mode, unsigned int nElem, unsigned int polyDeg, unsigned int strideNode)
 {
 	const bool firstConfigCall = _auxState == nullptr; // used to not multiply allocate memory
 
 	_nComp = nComp;
 	_exactInt = static_cast<bool>(polynomial_integration_mode); // only integration mode 0 applies the inexact collocated diagonal LGL mass matrix
-	_nCells = nCells;
+	_nElem = nElem;
 	_polyDeg = polyDeg;
 	_nNodes = _polyDeg + 1u;
-	_nPoints = _nNodes * _nCells;
+	_nPoints = _nNodes * _nElem;
 	_strideNode = strideNode;
-	_strideCell = _nNodes * strideNode;
+	_strideElem = _nNodes * strideNode;
 
 	/* Allocate space for DG discretization operations */
 	_nodes.resize(_nNodes);
@@ -102,7 +101,7 @@ bool AxialConvectionDispersionOperatorBaseDG::configureModelDiscretization(IPara
 		_subsState[i] = 0.0;
 	}
 	_boundary.setZero();
-	_surfaceFlux.resize(_nCells + 1u);
+	_surfaceFlux.resize(_nElem + 1u);
 	_surfaceFlux.setZero();
 
 	_newStaticJac = true;
@@ -143,23 +142,23 @@ bool AxialConvectionDispersionOperatorBaseDG::configure(UnitOpIdx unitOpIdx, IPa
 
 	// Read geometry parameters
 	_colLength = paramProvider.getDouble("COL_LENGTH");
-	_deltaZ = _colLength / _nCells;
+	_deltaZ = _colLength / _nElem;
 
 	/* compute dispersion jacobian blocks(without parameters except element spacing, i.e. static entries) */
-	// we only need unique dispersion blocks, which are given by cells 1, 2, nCol for inexact integration DG and by cells 1, 2, 3, nCol-1, nCol for eaxct integration DG
+	// we only need unique dispersion blocks, which are given by elements 1, 2, nElem for inexact integration DG and by elements 1, 2, 3, nElem-1, nElem for eaxct integration DG
 	if (firstConfigCall)
-		_DGjacAxDispBlocks = new Eigen::MatrixXd[(_exactInt ? std::min(_nCells, 5u) : std::min(_nCells, 3u))];
+		_DGjacAxDispBlocks = new Eigen::MatrixXd[(_exactInt ? std::min(_nElem, 5u) : std::min(_nElem, 3u))];
 	_DGjacAxDispBlocks[0] = DGjacobianDispBlock(1);
-	if (_nCells > 1)
+	if (_nElem > 1)
 		_DGjacAxDispBlocks[1] = DGjacobianDispBlock(2);
-	if (_nCells > 2 && _exactInt)
+	if (_nElem > 2 && _exactInt)
 		_DGjacAxDispBlocks[2] = DGjacobianDispBlock(3);
-	else if (_nCells > 2 && !_exactInt)
-		_DGjacAxDispBlocks[2] = DGjacobianDispBlock(_nCells);
-	if (_exactInt && _nCells > 3)
-		_DGjacAxDispBlocks[3] = DGjacobianDispBlock(std::max(4u, _nCells - 1u));
-	if (_exactInt && _nCells > 4)
-		_DGjacAxDispBlocks[4] = DGjacobianDispBlock(_nCells);
+	else if (_nElem > 2 && !_exactInt)
+		_DGjacAxDispBlocks[2] = DGjacobianDispBlock(_nElem);
+	if (_exactInt && _nElem > 3)
+		_DGjacAxDispBlocks[3] = DGjacobianDispBlock(std::max(4u, _nElem - 1u));
+	if (_exactInt && _nElem > 4)
+		_DGjacAxDispBlocks[4] = DGjacobianDispBlock(_nElem);
 
 	// note that convection jacobian block is computet in notifyDiscontinuousSectionTransition() since this block needs to be recomputed when flow direction changes
 
@@ -300,13 +299,13 @@ bool AxialConvectionDispersionOperatorBaseDG::notifyDiscontinuousSectionTransiti
 
 	if (_curVelocity >= 0.0) { // forward flow upwind convection
 		if (_exactInt)
-			jacInlet = static_cast<double>(_curVelocity) * _DGjacAxConvBlock.col(0); // only first cell depends on inlet concentration
+			jacInlet = static_cast<double>(_curVelocity) * _DGjacAxConvBlock.col(0); // only first element depends on inlet concentration
 		else
 			jacInlet(0, 0) = static_cast<double>(_curVelocity) * _DGjacAxConvBlock(0, 0); // only first node depends on inlet concentration
 	}
 	else {  // backward flow upwind convection
 		if (_exactInt)
-			jacInlet = static_cast<double>(_curVelocity) * _DGjacAxConvBlock.col(_DGjacAxConvBlock.cols() - 1); // only last cell depends on inlet concentration
+			jacInlet = static_cast<double>(_curVelocity) * _DGjacAxConvBlock.col(_DGjacAxConvBlock.cols() - 1); // only last element depends on inlet concentration
 		else
 			jacInlet(0, 0) = static_cast<double>(_curVelocity) * _DGjacAxConvBlock(_DGjacAxConvBlock.rows() - 1, _DGjacAxConvBlock.cols() - 1); // only last node depends on inlet concentration
 	}
@@ -424,10 +423,10 @@ int AxialConvectionDispersionOperatorBaseDG::residualImpl(const IModel& model, d
 		volumeIntegral<StateType, StateType>(_C, _g);
 
 		// calculate numerical flux values c*
-		InterfaceFluxAuxiliary<StateType>(y + offsetC() + comp, _strideNode, _strideCell);
+		InterfaceFluxAuxiliary<StateType>(y + offsetC() + comp, _strideNode, _strideElem);
 
 		// DG surface integral in strong form
-		surfaceIntegral<StateType, StateType>(y + offsetC() + comp, &_g[0], _strideNode, _strideCell, 1u, _nNodes);
+		surfaceIntegral<StateType, StateType>(y + offsetC() + comp, &_g[0], _strideNode, _strideElem, 1u, _nNodes);
 
 		// ======================================//
 		// solve main equation RHS  d h / d x    //
@@ -447,7 +446,7 @@ int AxialConvectionDispersionOperatorBaseDG::residualImpl(const IModel& model, d
 
 		// DG surface integral in strong form
 		surfaceIntegral<ResidualType, ResidualType>(&_h[0], res + offsetC() + comp,
-			1u, _nNodes, _strideNode, _strideCell);
+			1u, _nNodes, _strideNode, _strideElem);
 	}
 
 	return 0;
@@ -477,17 +476,17 @@ unsigned int AxialConvectionDispersionOperatorBaseDG::nConvDispEntries(bool pure
 
 	if (_exactInt) {
 		if (pureNNZ) {
-			return _nComp * ((3u * _nCells - 2u) * _nNodes * _nNodes + (2u * _nCells - 3u) * _nNodes); // dispersion entries
+			return _nComp * ((3u * _nElem - 2u) * _nNodes * _nNodes + (2u * _nElem - 3u) * _nNodes); // dispersion entries
 		}
 		return _nComp * _nNodes * _nNodes + _nNodes // convection entries
-			+ _nComp * ((3u * _nCells - 2u) * _nNodes * _nNodes + (2u * _nCells - 3u) * _nNodes); // dispersion entries
+			+ _nComp * ((3u * _nElem - 2u) * _nNodes * _nNodes + (2u * _nElem - 3u) * _nNodes); // dispersion entries
 	}
 	else {
 		if (pureNNZ) {
-			return _nComp * (_nCells * _nNodes * _nNodes + 8u * _nNodes); // dispersion entries
+			return _nComp * (_nElem * _nNodes * _nNodes + 8u * _nNodes); // dispersion entries
 		}
 		return _nComp * _nNodes * _nNodes + 1u // convection entries
-			+ _nComp * (_nCells * _nNodes * _nNodes + 8u * _nNodes); // dispersion entries
+			+ _nComp * (_nElem * _nNodes * _nNodes + 8u * _nNodes); // dispersion entries
 	}
 }
 void model::parts::AxialConvectionDispersionOperatorBaseDG::convDispJacPattern(std::vector<T>& tripletList, const int bulkOffset)
@@ -512,9 +511,9 @@ void AxialConvectionDispersionOperatorBaseDG::multiplyWithDerivativeJacobian(con
 {
 	double* localRet = ret + offsetC();
 	double const* localSdot = sDot + offsetC();
-	const int gapCell = strideColNode() - static_cast<int>(_nComp) * strideColComp();
+	const int gapelement = strideColNode() - static_cast<int>(_nComp) * strideColComp();
 
-	for (unsigned int i = 0; i < _nPoints; ++i, localRet += gapCell, localSdot += gapCell)
+	for (unsigned int i = 0; i < _nPoints; ++i, localRet += gapelement, localSdot += gapelement)
 	{
 		for (unsigned int j = 0; j < _nComp; ++j, ++localRet, ++localSdot)
 		{
@@ -532,10 +531,10 @@ void AxialConvectionDispersionOperatorBaseDG::multiplyWithDerivativeJacobian(con
  */
 void AxialConvectionDispersionOperatorBaseDG::addTimeDerivativeToJacobian(double alpha, Eigen::SparseMatrix<double, Eigen::RowMajor>& jacDisc, unsigned int blockOffset)
 {
-	const int gapCell = strideColNode() - static_cast<int>(_nComp) * strideColComp();
+	const int gapelement = strideColNode() - static_cast<int>(_nComp) * strideColComp();
 	linalg::BandedEigenSparseRowIterator jac(jacDisc, blockOffset);
 
-	for (unsigned int point = 0; point < _nPoints; ++point, jac+=gapCell) {
+	for (unsigned int point = 0; point < _nPoints; ++point, jac+=gapelement) {
 		for (unsigned int comp = 0; comp < _nComp; ++comp, ++jac) {
 			// dc_b / dt in transport equation
 			jac[0] += alpha;
@@ -725,20 +724,20 @@ int ConvectionDispersionOperatorDG<Operator>::requiredADdirs() const CADET_NOEXC
  * @param [in] paramProvider Parameter provider for reading parameters
  * @param [out] parameters Map in which local parameters are inserted
  * @param [in] nComp Number of components
- * @param [in] nCol Number of axial cells
+ * @param [in] nElem Number of axial elements
  * @return @c true if configuration went fine, @c false otherwise
  */
 template <typename Operator>
-bool ConvectionDispersionOperatorDG<Operator>::configureModelDiscretization(IParameterProvider& paramProvider, const IConfigHelper& helper, unsigned int nComp, int polynomial_integration_mode, unsigned int nCells, unsigned int polyDeg, unsigned int strideNode)
+bool ConvectionDispersionOperatorDG<Operator>::configureModelDiscretization(IParameterProvider& paramProvider, const IConfigHelper& helper, unsigned int nComp, int polynomial_integration_mode, unsigned int nElem, unsigned int polyDeg, unsigned int strideNode)
 {
-	const bool retVal = _baseOp.configureModelDiscretization(paramProvider, helper, nComp, polynomial_integration_mode, nCells, polyDeg, strideNode);
+	const bool retVal = _baseOp.configureModelDiscretization(paramProvider, helper, nComp, polynomial_integration_mode, nElem, polyDeg, strideNode);
 
 	// todo: manage jacobians in convDispOp instead of unitOp ?
 	//// Allocate memory
 	//if (_disc.exactInt)
-	//	_jacInlet.resize(_disc.nNodes, 1); // first cell depends on inlet concentration (same for every component)
+	//	_jacInlet.resize(_disc.nNodes, 1); // first element depends on inlet concentration (same for every component)
 	//else
-	//	_jacInlet.resize(1, 1); // first cell depends on inlet concentration (same for every component)
+	//	_jacInlet.resize(1, 1); // first element depends on inlet concentration (same for every component)
 	//_jac.resize((_disc.nComp + _disc.strideBound) * _disc.nPoints, (_disc.nComp + _disc.strideBound) * _disc.nPoints);
 	//_jacDisc.resize((_disc.nComp + _disc.strideBound) * _disc.nPoints, (_disc.nComp + _disc.strideBound) * _disc.nPoints);
 
@@ -772,9 +771,9 @@ template <typename Operator>
 bool ConvectionDispersionOperatorDG<Operator>::notifyDiscontinuousSectionTransition(double t, unsigned int secIdx, const AdJacobianParams& adJac)
 {
 	if (_baseOp.exactInt())
-		_jacInlet.resize(_baseOp.nNodes(), 1); // first cell depends on inlet concentration (same for every component)
+		_jacInlet.resize(_baseOp.nNodes(), 1); // first element depends on inlet concentration (same for every component)
 	else
-		_jacInlet.resize(1, 1); // first cell depends on inlet concentration (same for every component)
+		_jacInlet.resize(1, 1); // first element depends on inlet concentration (same for every component)
 
 	const bool hasChanged = _baseOp.notifyDiscontinuousSectionTransition(t, secIdx, _jacInlet);
 
