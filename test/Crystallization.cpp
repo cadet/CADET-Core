@@ -31,7 +31,7 @@ const char* getTestDirectory();
 */
 TEST_CASE("Crystallization in a CSTR with initial distribution and growth", "[Crystallization],[PBM],[Simulation],[Reference],[CI]")
 {
-	const std::string& modelFilePath = std::string("/data/configuration_cry_CSTR_PBM_growth_benchmark1.json");
+	const std::string& modelFilePath = std::string("/data/model_cry_CSTR_PBM_growth_benchmark1.json");
 	const std::string& refFilePath = std::string("/data/ref_cry_CSTR_PBM_growth_benchmark1.h5");
 	const std::vector<double> absTol = { 1e-10 };
 	const std::vector<double> relTol = { 1e-10 };
@@ -42,7 +42,7 @@ TEST_CASE("Crystallization in a CSTR with initial distribution and growth", "[Cr
 
 TEST_CASE("Crystallization in a CSTR with initial distribution and size-dependent growth", "[Crystallization],[PBM],[Simulation],[Reference],[CI]")
 {
-	const std::string& modelFilePath = std::string("/data/configuration_cry_CSTR_PBM_growthSizeDep_benchmark1.json");
+	const std::string& modelFilePath = std::string("/data/model_cry_CSTR_PBM_growthSizeDep_benchmark1.json");
 	const std::string& refFilePath = std::string("/data/ref_cry_CSTR_PBM_growthSizeDep_benchmark1.h5");
 	const std::vector<double> absTol = { 1e-10 };
 	const std::vector<double> relTol = { 1e-10 };
@@ -53,7 +53,7 @@ TEST_CASE("Crystallization in a CSTR with initial distribution and size-dependen
 
 TEST_CASE("Crystallization in a CSTR with primary nucleation and growth", "[Crystallization],[PBM],[Simulation],[Reference],[CI]")
 {
-	const std::string& modelFilePath = std::string("/data/configuration_cry_CSTR_PBM_primaryNucleationAndGrowth_benchmark1.json");
+	const std::string& modelFilePath = std::string("/data/model_cry_CSTR_PBM_primaryNucleationAndGrowth_benchmark1.json");
 	const std::string& refFilePath = std::string("/data/ref_cry_CSTR_PBM_primaryNucleationAndGrowth_benchmark1.h5");
 	const std::vector<double> absTol = { 1e-10 };
 	const std::vector<double> relTol = { 1e-10 };
@@ -64,7 +64,7 @@ TEST_CASE("Crystallization in a CSTR with primary nucleation and growth", "[Crys
 
 TEST_CASE("Crystallization in a CSTR with primary nucleation, growth and growth rate dispersion", "[Crystallization],[PBM],[Simulation],[Reference],[CI]")
 {
-	const std::string& modelFilePath = std::string("/data/configuration_cry_CSTR_PBM_primaryNucleationGrowthGrowthRateDispersion_benchmark1.json");
+	const std::string& modelFilePath = std::string("/data/model_cry_CSTR_PBM_primaryNucleationGrowthGrowthRateDispersion_benchmark1.json");
 	const std::string& refFilePath = std::string("/data/ref_cry_CSTR_PBM_primaryNucleationGrowthGrowthRateDispersion_benchmark1.h5");
 	const std::vector<double> absTol = { 1e-10 };
 	const std::vector<double> relTol = { 1e-10 };
@@ -75,7 +75,7 @@ TEST_CASE("Crystallization in a CSTR with primary nucleation, growth and growth 
 
 TEST_CASE("Crystallization in a CSTR with primary and secondary nucleation and growth", "[Crystallization],[PBM],[Simulation],[Reference],[CI]")
 {
-	const std::string& modelFilePath = std::string("/data/configuration_cry_CSTR_PBM_primarySecondaryNucleationAndGrowth_benchmark1.json");
+	const std::string& modelFilePath = std::string("/data/model_cry_CSTR_PBM_primarySecondaryNucleationAndGrowth_benchmark1.json");
 	const std::string& refFilePath = std::string("/data/ref_cry_CSTR_PBM_primarySecondaryNucleationAndGrowth_benchmark1.h5");
 	const std::vector<double> absTol = { 5e+6 };
 	const std::vector<double> relTol = { 1e-6 };
@@ -86,7 +86,7 @@ TEST_CASE("Crystallization in a CSTR with primary and secondary nucleation and g
 
 TEST_CASE("Crystallization in a DPFR/LRM with primary and secondary nucleation and growth", "[CrysToFix0],[Crystallization],[PBM],[Simulation],[Reference],[CI]") 
 {
-	const std::string& modelFilePath = std::string("/data/configuration_cry_DPFR_PBM_primarySecondaryNucleationGrowth_benchmark1.json");
+	const std::string& modelFilePath = std::string("/data/model_cry_DPFR_PBM_primarySecondaryNucleationGrowth_benchmark1.json");
 	const std::string& refFilePath = std::string("/data/ref_cry_DPFR_PBM_primarySecondaryNucleationGrowth_benchmark1.h5");
 	const std::vector<double> absTol = { 2e+8 };
 	const std::vector<double> relTol = { 5e-6 };
@@ -98,7 +98,7 @@ TEST_CASE("Crystallization in a DPFR/LRM with primary and secondary nucleation a
 TEST_CASE("Crystallization Jacobian verification for a CSTR with initial distribution and growth", "[Crystallization],[PBM],[UnitOp],[Jacobian],[CI]")
 {
 	// read json model setup file
-	const std::string& modelFileRelPath = std::string("/data/configuration_cry_CSTR_PBM_growth_benchmark1.json");
+	const std::string& modelFileRelPath = std::string("/data/model_cry_CSTR_PBM_growth_benchmark1.json");
 	const std::string setupFile = std::string(getTestDirectory()) + modelFileRelPath;
 	cadet::JsonParameterProvider pp_setup(cadet::JsonParameterProvider::fromFile(setupFile));
 
@@ -116,7 +116,7 @@ TEST_CASE("Crystallization Jacobian verification for a CSTR with initial distrib
 TEST_CASE("Crystallization Jacobian verification for a CSTR with initial distribution and size-dependent growth", "[Crystallization],[PBM],[UnitOp],[Jacobian],[CI]")
 {
 	// read json model setup file
-	const std::string& modelFileRelPath = std::string("/data/configuration_cry_CSTR_PBM_growthSizeDep_benchmark1.json");
+	const std::string& modelFileRelPath = std::string("/data/model_cry_CSTR_PBM_growthSizeDep_benchmark1.json");
 	const std::string setupFile = std::string(getTestDirectory()) + modelFileRelPath;
 	cadet::JsonParameterProvider pp_setup(cadet::JsonParameterProvider::fromFile(setupFile));
 
@@ -134,7 +134,7 @@ TEST_CASE("Crystallization Jacobian verification for a CSTR with initial distrib
 TEST_CASE("Crystallization Jacobian verification for a CSTR with primary nucleation and growth", "[Crystallization],[PBM],[UnitOp],[Jacobian],[CI]")
 {
 	// read json model setup file
-	const std::string& modelFileRelPath = std::string("/data/configuration_cry_CSTR_PBM_primaryNucleationAndGrowth_benchmark1.json");
+	const std::string& modelFileRelPath = std::string("/data/model_cry_CSTR_PBM_primaryNucleationAndGrowth_benchmark1.json");
 	const std::string setupFile = std::string(getTestDirectory()) + modelFileRelPath;
 	cadet::JsonParameterProvider pp_setup(cadet::JsonParameterProvider::fromFile(setupFile));
 
@@ -152,7 +152,7 @@ TEST_CASE("Crystallization Jacobian verification for a CSTR with primary nucleat
 TEST_CASE("Crystallization Jacobian verification for a CSTR with primary nucleation, growth and growth rate dispersion", "[Crystallization],[PBM],[UnitOp],[Jacobian],[CI]")
 {
 	// read json model setup file
-	const std::string& modelFileRelPath = std::string("/data/configuration_cry_CSTR_PBM_primaryNucleationGrowthGrowthRateDispersion_benchmark1.json");
+	const std::string& modelFileRelPath = std::string("/data/model_cry_CSTR_PBM_primaryNucleationGrowthGrowthRateDispersion_benchmark1.json");
 	const std::string setupFile = std::string(getTestDirectory()) + modelFileRelPath;
 	cadet::JsonParameterProvider pp_setup(cadet::JsonParameterProvider::fromFile(setupFile));
 
@@ -170,7 +170,7 @@ TEST_CASE("Crystallization Jacobian verification for a CSTR with primary nucleat
 TEST_CASE("Crystallization Jacobian verification for a CSTR with primary and secondary nucleation and growth", "[Crystallization],[PBM],[UnitOp],[Jacobian],[CI]")
 {
 	// read json model setup file
-	const std::string& modelFileRelPath = std::string("/data/configuration_cry_CSTR_PBM_primarySecondaryNucleationAndGrowth_benchmark1.json");
+	const std::string& modelFileRelPath = std::string("/data/model_cry_CSTR_PBM_primarySecondaryNucleationAndGrowth_benchmark1.json");
 	const std::string setupFile = std::string(getTestDirectory()) + modelFileRelPath;
 	cadet::JsonParameterProvider pp_setup(cadet::JsonParameterProvider::fromFile(setupFile));
 
@@ -188,7 +188,7 @@ TEST_CASE("Crystallization Jacobian verification for a CSTR with primary and sec
 TEST_CASE("Crystallization Jacobian verification for a DPFR/LRM with primary and secondary nucleation and growth", "[Crystallization1],[UnitOp],[Jacobian],[CI]")
 {
 	// read json model setup file
-	const std::string& modelFileRelPath = std::string("/data/configuration_cry_DPFR_PBM_primarySecondaryNucleationGrowth_benchmark1.json");
+	const std::string& modelFileRelPath = std::string("/data/model_cry_DPFR_PBM_primarySecondaryNucleationGrowth_benchmark1.json");
 	const std::string setupFile = std::string(getTestDirectory()) + modelFileRelPath;
 	cadet::JsonParameterProvider pp_setup(cadet::JsonParameterProvider::fromFile(setupFile));
 
@@ -207,7 +207,7 @@ TEST_CASE("Crystallization Jacobian verification for a DPFR/LRM with primary and
 */
 TEST_CASE("Crystallization Aggregation in a CSTR", "[Crystallization],[Aggregation],[Simulation],[Reference],[CI]")
 {
-	const std::string& modelFilePath = std::string("/data/configuration_cry_CSTR_aggregation_benchmark1.json");
+	const std::string& modelFilePath = std::string("/data/model_cry_CSTR_aggregation_benchmark1.json");
 	const std::string& refFilePath = std::string("/data/ref_cry_CSTR_aggregation_benchmark1.h5");
 	const std::vector<double> absTol = { 1e-10 };
 	const std::vector<double> relTol = { 1e-10 };
@@ -219,7 +219,7 @@ TEST_CASE("Crystallization Aggregation in a CSTR", "[Crystallization],[Aggregati
 TEST_CASE("Crystallization Jacobian verification for Aggregation in a CSTR", "[Crystallization],[Aggregation],[UnitOp],[Jacobian],[CI]")
 {
 	// read json model setup file
-	const std::string& modelFileRelPath = std::string("/data/configuration_cry_CSTR_aggregation_benchmark1.json");
+	const std::string& modelFileRelPath = std::string("/data/model_cry_CSTR_aggregation_benchmark1.json");
 	const std::string setupFile = std::string(getTestDirectory()) + modelFileRelPath;
 	cadet::JsonParameterProvider pp_setup(cadet::JsonParameterProvider::fromFile(setupFile));
 
@@ -237,7 +237,7 @@ TEST_CASE("Crystallization Jacobian verification for Aggregation in a CSTR", "[C
 */
 TEST_CASE("Crystallization Fragmentation in a CSTR", "[Crystallization],[Fragmentation],[Simulation],[Reference],[CI]")
 {
-	const std::string& modelFilePath = std::string("/data/configuration_cry_CSTR_fragmentation_benchmark1.json");
+	const std::string& modelFilePath = std::string("/data/model_cry_CSTR_fragmentation_benchmark1.json");
 	const std::string& refFilePath = std::string("/data/ref_cry_CSTR_fragmentation_benchmark1.h5");
 	const std::vector<double> absTol = { 1e-7 };
 	const std::vector<double> relTol = { 1e-7 };
@@ -249,7 +249,7 @@ TEST_CASE("Crystallization Fragmentation in a CSTR", "[Crystallization],[Fragmen
 TEST_CASE("Crystallization Jacobian verification for Fragmentation in a CSTR", "[Crystallization],[Fragmentation],[UnitOp],[Jacobian],[CI]")
 {
 	// read json model setup file
-	const std::string& modelFileRelPath = std::string("/data/configuration_cry_CSTR_fragmentation_benchmark1.json");
+	const std::string& modelFileRelPath = std::string("/data/model_cry_CSTR_fragmentation_benchmark1.json");
 	const std::string setupFile = std::string(getTestDirectory()) + modelFileRelPath;
 	cadet::JsonParameterProvider pp_setup(cadet::JsonParameterProvider::fromFile(setupFile));
 
@@ -267,7 +267,7 @@ TEST_CASE("Crystallization Jacobian verification for Fragmentation in a CSTR", "
 */
 TEST_CASE("Crystallization combined Aggregation and Fragmentation in a CSTR", "[Crystallization],[AggFrag],[Simulation],[Reference],[CI]")
 {
-	const std::string& modelFilePath = std::string("/data/configuration_cry_CSTR_aggFrag_benchmark1.json");
+	const std::string& modelFilePath = std::string("/data/model_cry_CSTR_aggFrag_benchmark1.json");
 	const std::string& refFilePath = std::string("/data/ref_cry_CSTR_aggFrag_benchmark1.h5");
 	const std::vector<double> absTol = { 1e-8 };
 	const std::vector<double> relTol = { 1e-8 };
@@ -279,7 +279,7 @@ TEST_CASE("Crystallization combined Aggregation and Fragmentation in a CSTR", "[
 TEST_CASE("Crystallization Jacobian verification for combined Aggregation and Fragmentation in a CSTR", "[Crystallization],[AggFrag],[UnitOp],[Jacobian],[CI]")
 {
 	// read json model setup file
-	const std::string& modelFileRelPath = std::string("/data/configuration_cry_CSTR_aggFrag_benchmark1.json");
+	const std::string& modelFileRelPath = std::string("/data/model_cry_CSTR_aggFrag_benchmark1.json");
 	const std::string setupFile = std::string(getTestDirectory()) + modelFileRelPath;
 	cadet::JsonParameterProvider pp_setup(cadet::JsonParameterProvider::fromFile(setupFile));
 
@@ -297,7 +297,7 @@ TEST_CASE("Crystallization Jacobian verification for combined Aggregation and Fr
 */
 TEST_CASE("Crystallization combined PBM, Aggregation and Fragmentation in a CSTR", "[Crystallization],[PBMAggFrag],[Simulation],[Reference],[CI]")
 {
-	const std::string& modelFilePath = std::string("/data/configuration_cry_CSTR_PBM_Agg_Frag_benchmark1.json");
+	const std::string& modelFilePath = std::string("/data/model_cry_CSTR_PBM_Agg_Frag_benchmark1.json");
 	const std::string& refFilePath = std::string("/data/ref_cry_CSTR_PBM_Agg_Frag_benchmark1.h5");
 	const std::vector<double> absTol = { 2e-7 };
 	const std::vector<double> relTol = { 8e-1 };
@@ -309,7 +309,7 @@ TEST_CASE("Crystallization combined PBM, Aggregation and Fragmentation in a CSTR
 TEST_CASE("Crystallization Jacobian verification for combined PBM, Aggregation and Fragmentation in a CSTR", "[Crystallization],[PBMAggFrag],[UnitOp],[Jacobian],[CI]")
 {
 	// read json model setup file
-	const std::string& modelFileRelPath = std::string("/data/configuration_cry_CSTR_PBM_Agg_Frag_benchmark1.json");
+	const std::string& modelFileRelPath = std::string("/data/model_cry_CSTR_PBM_Agg_Frag_benchmark1.json");
 	const std::string setupFile = std::string(getTestDirectory()) + modelFileRelPath;
 	cadet::JsonParameterProvider pp_setup(cadet::JsonParameterProvider::fromFile(setupFile));
 
@@ -327,7 +327,7 @@ TEST_CASE("Crystallization Jacobian verification for combined PBM, Aggregation a
 */
 TEST_CASE("Crystallization combined PBM and Aggregation in a DPFR", "[Crystallization],[DPFR_PBMAgg],[Simulation],[Reference],[CI]")
 {
-	const std::string& modelFilePath = std::string("/data/configuration_cry_DPFR_PBM_aggregation_benchmark1.json");
+	const std::string& modelFilePath = std::string("/data/model_cry_DPFR_PBM_aggregation_benchmark1.json");
 	const std::string& refFilePath = std::string("/data/ref_cry_DPFR_PBM_aggregation_benchmark1.h5");
 	const std::vector<double> absTol = { 1E+10 }; // we need to define a (high) tolerances as the numerical values in this test are extremely high, values of up to xE+27
 	const std::vector<double> relTol = { 1E-12 };
@@ -339,7 +339,7 @@ TEST_CASE("Crystallization combined PBM and Aggregation in a DPFR", "[Crystalliz
 TEST_CASE("Crystallization Jacobian verification for combined PBM and Aggregation in a DPFR", "[Crystallization],[DPFR_PBMAgg],[UnitOp],[Jacobian],[CI]")
 {
 	// read json model setup file
-	const std::string& modelFileRelPath = std::string("/data/configuration_cry_DPFR_PBM_aggregation_benchmark1.json");
+	const std::string& modelFileRelPath = std::string("/data/model_cry_DPFR_PBM_aggregation_benchmark1.json");
 	const std::string setupFile = std::string(getTestDirectory()) + modelFileRelPath;
 	cadet::JsonParameterProvider pp_setup(cadet::JsonParameterProvider::fromFile(setupFile));
 
