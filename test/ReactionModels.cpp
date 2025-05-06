@@ -78,7 +78,7 @@ TEST_CASE("MassActionLaw kinetic analytic Jacobian vs AD", "[MassActionLaw],[Rea
 	);
 }
 
-TEST_CASE("MichaelisMenten kinetic and specific mass action law micro-kinetics yield same result", "[MichaelisMenten],[ReactionModel],[Simulation],[CI]")
+TEST_CASE("MichaelisMenten kinetic and specific mass action law micro-kinetics yield same result", "[MichaelisMenten],[ReactionModel],[Simulation],[CI],[testHere]")
 {
 	const std::string& configFilePath1 = std::string("/data/configuration_CSTR_MichaelisMenten_benchmark1.json");
 	const std::string& configFilePath2 = std::string("/data/configuration_CSTR_MicroKineticsSMA_benchmark1.json");
@@ -89,7 +89,18 @@ TEST_CASE("MichaelisMenten kinetic and specific mass action law micro-kinetics y
 	cadet::test::reaction::testMichaelisMentenToSMAMicroKinetic(configFilePath1, configFilePath2, absTol, relTol);
 }
 
-TEST_CASE("MichaelisMenten kinetic with two inhibitors and specific mass action law micro-kinetics yield same result", "[MichaelisMenten],[ReactionModel],[Simulation],[Reference],[CI]")
+TEST_CASE("MichaelisMenten kinetic with two substrates and specific mass action law micro-kinetics yield same result", "[MichaelisMenten],[ReactionModel],[Simulation],[Reference],[CI],[testHere]")
+{
+	const std::string& configFilePath1 = std::string("/data/configuration_CSTR_MichaelisMenten_twoSubs_benchmark1.json");
+	const std::string& configFilePath2 = std::string("/data/configuration_CSTR_MicroKineticsSMA_twoSubs_benchmark1.json");
+
+	const double absTol = 1e-3;
+	const double relTol = 5e-4;
+
+	cadet::test::reaction::testMichaelisMentenToSMAMicroKinetic(configFilePath1, configFilePath2, absTol, relTol);
+}
+
+TEST_CASE("MichaelisMenten kinetic with two non-inhibitors and specific mass action law micro-kinetics yield same result", "[MichaelisMenten],[ReactionModel],[Simulation],[Reference],[CI],[testHere]")
 {
 	const std::string& configFilePath1 = std::string("/data/configuration_CSTR_MichaelisMenten_twoInhib_benchmark1.json");
 	const std::string& configFilePath2 = std::string("/data/configuration_CSTR_MicroKineticsSMA_twoInhib_benchmark1.json");
@@ -97,7 +108,19 @@ TEST_CASE("MichaelisMenten kinetic with two inhibitors and specific mass action 
 	const double absTol = 1e-3;
 	const double relTol = 5e-4;
 
-	cadet::test::reaction::testMichaelisMentenToSMAInhibitionMicroKinetic(configFilePath1, configFilePath2, absTol, relTol);
+	cadet::test::reaction::testMichaelisMentenToSMAMicroKinetic(configFilePath1, configFilePath2, absTol, relTol);
+}
+
+
+TEST_CASE("MichaelisMenten kinetic with two non-inhibitors and two substrates and specific mass action law micro-kinetics yield same result", "[MichaelisMenten],[ReactionModel],[Simulation],[Reference],[CI],[testHere]")
+{
+	const std::string& configFilePath1 = std::string("/data/configuration_CSTR_MichaelisMenten_twoSubs_twoInhib_benchmark1.json");
+	const std::string& configFilePath2 = std::string("/data/configuration_CSTR_MichaelisMenten_twoSubs_twoInhib_benchmark1.json");
+
+	const double absTol = 1e-3;
+	const double relTol = 5e-4;
+
+	cadet::test::reaction::testMichaelisMentenToSMAMicroKinetic(configFilePath1, configFilePath2, absTol, relTol);
 }
 
 TEST_CASE("MichaelisMenten kinetic and numerical reference with Crank-Nicolson yield same result", "[MichaelisMenten],[ReactionModel],[Simulation],[Reference],[CI]")
