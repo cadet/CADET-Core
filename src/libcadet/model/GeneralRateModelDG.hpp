@@ -23,6 +23,7 @@
 #include "cadet/StrongTypes.hpp"
 #include "cadet/SolutionExporter.hpp"
 #include "model/parts/ConvectionDispersionOperatorDG.hpp"
+#include "model/parts/ParticleDispersionOperatorDG.hpp"
 #include "AutoDiff.hpp"
 #include "linalg/BandedEigenSparseRowIterator.hpp"
 #include "linalg/EigenSolverWrapper.hpp"
@@ -814,6 +815,8 @@ protected:
 		double const* const _data;
 	};
 
+	parts::ParticleDispersionOperatorDG _parDispOp; //!< Particle dispersion operator
+
 // ===========================================================================================================================================================  //
 // ========================================			DG functions to compute particle discretization			==================================================  //
 // ===========================================================================================================================================================  //
@@ -864,7 +867,7 @@ protected:
 			// comp-cell-node state vector: use of Eigen lib performance
 			for (unsigned int Cell = 0; Cell < _disc.nParCell[parType]; Cell++) {
 				stateDer.segment(Cell * nNodes, nNodes)
-					-= (_disc.parPolyDerM[parType].template cast<StateType>() * state.segment(Cell * nNodes, nNodes)).template cast<ResidualType>();
+					-= (_parDispOp._parPolyDerM[parType].template cast<StateType>() * state.segment(Cell * nNodes, nNodes)).template cast<ResidualType>();
 			}
 		}
 		else if (_disc.parExactInt[parType] && _parGeomSurfToVol[parType] != _disc.SurfVolRatioSlab) {
@@ -889,7 +892,7 @@ protected:
 				stateDer[0] += static_cast<ResidualType>(
 					(state.segment(1, nNodes - 1).array()
 					* _disc.parInvWeights[parType].segment(1, nNodes - 1).array().cwiseInverse().template cast<StateType>()
-					* _disc.parPolyDerM[parType].block(1, 0, nNodes - 1, 1).array().template cast<StateType>()
+					* _parDispOp._parPolyDerM[parType].block(1, 0, nNodes - 1, 1).array().template cast<StateType>()
 					* _disc.Ir[_disc.offsetMetric[parType]].segment(1, nNodes - 1).array().template cast<StateType>()
 					).sum()
 					);
@@ -1724,7 +1727,7 @@ protected:
 			double invMap = (2.0 / static_cast<double>(_disc.deltaR[_disc.offsetMetric[parType]]));
 
 			if (_parGeomSurfToVol[parType] == _disc.SurfVolRatioSlab || _parCoreRadius[parType] != 0.0)
-				dispBlock = invMap * invMap * (_disc.Dr[parType] - _disc.parInvWeights[parType].asDiagonal() * B) * _disc.parPolyDerM[parType];
+				dispBlock = invMap * invMap * (_disc.Dr[parType] - _disc.parInvWeights[parType].asDiagonal() * B) * _parDispOp._parPolyDerM[parType];
 
 			else { // special treatment of inner boundary node for spherical and cylindrical particles without particle core
 
@@ -1734,14 +1737,14 @@ protected:
 				dispBlock.block(1, 0, nNodes - 1, nNodes)
 					= (_disc.Dr[parType].block(1, 1, nNodes - 1, nNodes - 1)
 						- _disc.parInvWeights[parType].segment(1, nNodes - 1).asDiagonal() * B.block(1, 1, nNodes - 1, nNodes - 1))
-					* _disc.parPolyDerM[parType].block(1, 0, nNodes - 1, nNodes);
+					* _parDispOp._parPolyDerM[parType].block(1, 0, nNodes - 1, nNodes);
 
 				// inner boundary node
 				dispBlock.block(0, 0, 1, nNodes)
 					= -(_disc.Ir[parType].segment(1, nNodes - 1).template cast<double>().cwiseProduct(
 						_disc.parInvWeights[parType].segment(1, nNodes - 1).cwiseInverse()).cwiseProduct(
-							_disc.parPolyDerM[parType].block(1, 0, nNodes - 1, 1))).transpose()
-					* _disc.parPolyDerM[parType].block(1, 0, nNodes - 1, nNodes);
+							_parDispOp._parPolyDerM[parType].block(1, 0, nNodes - 1, 1))).transpose()
+					* _parDispOp._parPolyDerM[parType].block(1, 0, nNodes - 1, nNodes);
 
 				dispBlock *= invMap * invMap;
 			}
@@ -1798,12 +1801,12 @@ protected:
 			// compute blocks used for inexact integration scheme
 			// auxiliary block [ d g(c) / d c ] for left boundary cell
 			MatrixXd GBlock_l = MatrixXd::Zero(nNodes, nNodes + 1);
-			GBlock_l.block(0, 0, nNodes, nNodes) = _disc.parPolyDerM[parType];
+			GBlock_l.block(0, 0, nNodes, nNodes) = _parDispOp._parPolyDerM[parType];
 			GBlock_l(nNodes - 1, nNodes - 1) -= 0.5 * _disc.parInvWeights[parType][nNodes - 1];
 			GBlock_l(nNodes - 1, nNodes) += 0.5 * _disc.parInvWeights[parType][nNodes - 1];
 			// auxiliary block [ d g(c) / d c ] for right boundary cell
 			MatrixXd GBlock_r = MatrixXd::Zero(nNodes, nNodes + 1);
-			GBlock_r.block(0, 1, nNodes, nNodes) = _disc.parPolyDerM[parType];
+			GBlock_r.block(0, 1, nNodes, nNodes) = _parDispOp._parPolyDerM[parType];
 			GBlock_r(0, 0) -= 0.5 * _disc.parInvWeights[parType][0];
 			GBlock_r(0, 1) += 0.5 * _disc.parInvWeights[parType][0];
 			// numerical flux contribution for right interface of left boundary cell -> d f^*_N / d cp
@@ -1828,7 +1831,7 @@ protected:
 				bnd_dispBlock.block(0, 0, 1, nNodes + 1)
 					= -(_disc.Ir[_disc.offsetMetric[parType]].template cast<double>().segment(1, nNodes - 1).cwiseProduct(
 						_disc.parInvWeights[parType].segment(1, nNodes - 1).cwiseInverse()).cwiseProduct(
-							_disc.parPolyDerM[parType].block(1, 0, nNodes - 1, 1))).transpose()
+							_parDispOp._parPolyDerM[parType].block(1, 0, nNodes - 1, 1))).transpose()
 					* GBlock_l.block(1, 0, nNodes - 1, nNodes + 1);
 
 				// reduced system for remaining nodes
@@ -1948,7 +1951,7 @@ protected:
 
 			// auxiliary block [ d g(c) / d c ] for inner cells
 			MatrixXd GBlock = MatrixXd::Zero(nNodes, nNodes + 2);
-			GBlock.block(0, 1, nNodes, nNodes) = _disc.parPolyDerM[parType];
+			GBlock.block(0, 1, nNodes, nNodes) = _parDispOp._parPolyDerM[parType];
 			GBlock(0, 0) -= 0.5 * _disc.parInvWeights[parType][0];
 			GBlock(0, 1) += 0.5 * _disc.parInvWeights[parType][0];
 			GBlock(nNodes - 1, nNodes) -= 0.5 * _disc.parInvWeights[parType][nNodes - 1];
@@ -2077,7 +2080,7 @@ protected:
 			double invMap = (2.0 / static_cast<double>(_disc.deltaR[_disc.offsetMetric[parType]]));
 
 			if (_parGeomSurfToVol[parType] == _disc.SurfVolRatioSlab || _parCoreRadius[parType] != 0.0)
-				dispBlock = invMap * invMap * (_disc.Dr[parType] - _disc.parInvWeights[parType].asDiagonal() * B) * _disc.parPolyDerM[parType];
+				dispBlock = invMap * invMap * (_disc.Dr[parType] - _disc.parInvWeights[parType].asDiagonal() * B) * _parDispOp._parPolyDerM[parType];
 
 			else { // special treatment of inner boundary node for spherical and cylindrical particles without particle core
 
@@ -2087,14 +2090,14 @@ protected:
 				dispBlock.block(1, 0, nNodes - 1, nNodes)
 					= (_disc.Dr[parType].block(1, 1, nNodes - 1, nNodes - 1)
 						- _disc.parInvWeights[parType].segment(1, nNodes - 1).asDiagonal() * B.block(1, 1, nNodes - 1, nNodes - 1))
-					* _disc.parPolyDerM[parType].block(1, 0, nNodes - 1, nNodes);
+					* _parDispOp._parPolyDerM[parType].block(1, 0, nNodes - 1, nNodes);
 
 				// inner boundary node
 				dispBlock.block(0, 0, 1, nNodes)
 					= -(_disc.Ir[parType].segment(1, nNodes - 1).template cast<double>().cwiseProduct(
 						_disc.parInvWeights[parType].segment(1, nNodes - 1).cwiseInverse()).cwiseProduct(
-							_disc.parPolyDerM[parType].block(1, 0, nNodes - 1, 1))).transpose()
-					* _disc.parPolyDerM[parType].block(1, 0, nNodes - 1, nNodes);
+							_parDispOp._parPolyDerM[parType].block(1, 0, nNodes - 1, 1))).transpose()
+					* _parDispOp._parPolyDerM[parType].block(1, 0, nNodes - 1, nNodes);
 
 				dispBlock *= invMap * invMap;
 			}
@@ -2129,12 +2132,12 @@ protected:
 
 			// auxiliary block [ d g(c) / d c ] for left boundary cell
 			MatrixXd GBlock_l = MatrixXd::Zero(nNodes, nNodes + 1);
-			GBlock_l.block(0, 0, nNodes, nNodes) = _disc.parPolyDerM[parType];
+			GBlock_l.block(0, 0, nNodes, nNodes) = _parDispOp._parPolyDerM[parType];
 			GBlock_l(nNodes - 1, nNodes - 1) -= 0.5 * _disc.parInvWeights[parType][nNodes - 1];
 			GBlock_l(nNodes - 1, nNodes) += 0.5 * _disc.parInvWeights[parType][nNodes - 1];
 			// auxiliary block [ d g(c) / d c ] for right boundary cell
 			MatrixXd GBlock_r = MatrixXd::Zero(nNodes, nNodes + 1);
-			GBlock_r.block(0, 1, nNodes, nNodes) = _disc.parPolyDerM[parType];
+			GBlock_r.block(0, 1, nNodes, nNodes) = _parDispOp._parPolyDerM[parType];
 			GBlock_r(0, 0) -= 0.5 * _disc.parInvWeights[parType][0];
 			GBlock_r(0, 1) += 0.5 * _disc.parInvWeights[parType][0];
 
@@ -2161,7 +2164,7 @@ protected:
 				bnd_dispBlock.block(0, 0, 1, nNodes + 1)
 					= -(_disc.Ir[_disc.offsetMetric[parType]].template cast<double>().segment(1, nNodes - 1).cwiseProduct(
 						_disc.parInvWeights[parType].segment(1, nNodes - 1).cwiseInverse()).cwiseProduct(
-							_disc.parPolyDerM[parType].block(1, 0, nNodes - 1, 1))).transpose()
+							_parDispOp._parPolyDerM[parType].block(1, 0, nNodes - 1, 1))).transpose()
 					* GBlock_l.block(1, 0, nNodes - 1, nNodes + 1);
 
 				// reduced system for remaining nodes
@@ -2231,7 +2234,7 @@ protected:
 
 				// auxiliary block [ d g(c) / d c ] for inner cells
 			MatrixXd GBlock = MatrixXd::Zero(nNodes, nNodes + 2);
-			GBlock.block(0, 1, nNodes, nNodes) = _disc.parPolyDerM[parType];
+			GBlock.block(0, 1, nNodes, nNodes) = _parDispOp._parPolyDerM[parType];
 			GBlock(0, 0) -= 0.5 * _disc.parInvWeights[parType][0];
 			GBlock(0, 1) += 0.5 * _disc.parInvWeights[parType][0];
 			GBlock(nNodes - 1, nNodes) -= 0.5 * _disc.parInvWeights[parType][nNodes - 1];

@@ -184,6 +184,12 @@ bool GeneralRateModelDG::configureModelDiscretization(IParameterProvider& paramP
 	else // Infer number of particle types
 		_disc.nParType = nBound.size() / _disc.nComp;
 
+	// todo
+	paramProvider.popScope();
+	_parDispOp.configureModelDiscretization(paramProvider, helper, _disc.nComp, _disc.nParType);
+	paramProvider.pushScope("discretization");
+	//
+
 	std::vector<int> parPolyDeg(_disc.nParType);
 	std::vector<int> ParNelem(_disc.nParType);
 	std::vector<bool> parExactInt(_disc.nParType, true);
@@ -271,6 +277,7 @@ bool GeneralRateModelDG::configureModelDiscretization(IParameterProvider& paramP
 		for (int type = 0; type < _disc.nParType; type++)
 			_disc.parGSM[type] = (_disc.nParCell[type] == 1);
 	}
+	// todo moved to particle module
 
 	// Compute discretization operators and initialize containers
 	_disc.initializeDG();
@@ -863,6 +870,8 @@ bool GeneralRateModelDG::configure(IParameterProvider& paramProvider)
 	// the solver repetitively solves the linear system with a static pattern of the jacobian (set above). 
 	// The goal of analyzePattern() is to reorder the nonzero elements of the matrix, such that the factorization step creates less fill-in
 	_linearSolver->analyzePattern(_globalJacDisc.block(_disc.nComp, _disc.nComp, numPureDofs(), numPureDofs()));
+
+	_parDispOp.configure(_unitOpIdx, paramProvider, _parameters);
 
 	return transportSuccess && parSurfDiffDepConfSuccess && bindingConfSuccess && dynReactionConfSuccess;
 }
