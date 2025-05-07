@@ -102,11 +102,14 @@ namespace parts
 		_parDepSurfDiffusion.clear();
 	}
 
-	bool ParticleDispersionOperatorDG::configureModelDiscretization(IParameterProvider& paramProvider, const IConfigHelper& helper, int nComp, int nParType)
+	bool ParticleDispersionOperatorDG::configureModelDiscretization(IParameterProvider& paramProvider, const IConfigHelper& helper, const int nComp, const int nParType, const int strideBulkComp)
 	{
+		_strideBulkComp = strideBulkComp;
 
 		_nParType = nParType;
 		_nComp = nComp;
+
+		_filmDiffusion.resize(_nComp * _nParType); // filled in notifyDiscontinuousSectionTransition
 
 		std::vector<int> nBound;
 		const bool newNBoundInterface = paramProvider.exists("NBOUND");
@@ -1168,13 +1171,17 @@ namespace parts
 	 * @param [in] secIdx Index of the new section that is about to be integrated
 	 * @return @c true if flow direction has changed, otherwise @c false
 	 */
-	bool ParticleDispersionOperatorDG::notifyDiscontinuousSectionTransition(double t, unsigned int secIdx, MatrixXd& jacInlet)
+	bool ParticleDispersionOperatorDG::notifyDiscontinuousSectionTransition(double t, unsigned int secIdx, active const* const filmDiff)
 	{
+		for (int fd = 0; fd < _nComp * _nParType; fd++)
+			_filmDiffusion[fd] = filmDiff[fd];
 
 		//_curSection = secIdx;
 		//_newStaticJac = true;
 
 		// todo update operators and Jacobian blocks
+
+		return true;
 	}
 
 	/**
@@ -1188,7 +1195,7 @@ namespace parts
 	 * @param [in] jac Matrix that holds the Jacobian
 	 * @return @c 0 on success, @c -1 on non-recoverable error, and @c +1 on recoverable error
 	 */
-	int ParticleDispersionOperatorDG::residual(const IModel& model, double t, unsigned int secIdx, double const* y, double const* yDot, double* res, Eigen::SparseMatrix<double, Eigen::RowMajor>& jac)
+	int ParticleDispersionOperatorDG::residual(const IModel& model, double t, unsigned int secIdx, double const* y, double const* yBulk, double const* yDot, double* res, Eigen::SparseMatrix<double, Eigen::RowMajor>& jac)
 	{
 		//// Reset Jacobian but keep pattern
 		//double* val = jac.valuePtr();
@@ -1197,57 +1204,55 @@ namespace parts
 
 		linalg::BandedEigenSparseRowIterator jacIt(jac, 0);
 
-		return residualImpl<double, double, double, linalg::BandedEigenSparseRowIterator, true>(model, t, secIdx, y, yDot, res, jacIt);
+		return residualImpl<double, double, double, linalg::BandedEigenSparseRowIterator, true>(model, t, secIdx, y, yBulk, yDot, res, jacIt);
 	}
 
-	int ParticleDispersionOperatorDG::residual(const IModel& model, double t, unsigned int secIdx, double const* y, double const* yDot, double* res, WithoutParamSensitivity)
+	int ParticleDispersionOperatorDG::residual(const IModel& model, double t, unsigned int secIdx, double const* y, double const* yBulk, double const* yDot, double* res, WithoutParamSensitivity)
 	{
-		return residualImpl<double, double, double, linalg::BandedEigenSparseRowIterator, false>(model, t, secIdx, y, yDot, res, linalg::BandedEigenSparseRowIterator());
+		return residualImpl<double, double, double, linalg::BandedEigenSparseRowIterator, false>(model, t, secIdx, y, yBulk, yDot, res, linalg::BandedEigenSparseRowIterator());
 	}
 
-	int ParticleDispersionOperatorDG::residual(const IModel& model, double t, unsigned int secIdx, active const* y, double const* yDot, active* res, WithoutParamSensitivity)
+	int ParticleDispersionOperatorDG::residual(const IModel& model, double t, unsigned int secIdx, active const* y, active const* yBulk, double const* yDot, active* res, WithoutParamSensitivity)
 	{
-		return residualImpl<active, active, double, linalg::BandedEigenSparseRowIterator, false>(model, t, secIdx, y, yDot, res, linalg::BandedEigenSparseRowIterator());
+		return residualImpl<active, active, double, linalg::BandedEigenSparseRowIterator, false>(model, t, secIdx, y, yBulk, yDot, res, linalg::BandedEigenSparseRowIterator());
 	}
 
-	int ParticleDispersionOperatorDG::residual(const IModel& model, double t, unsigned int secIdx, double const* y, double const* yDot, active* res, Eigen::SparseMatrix<double, Eigen::RowMajor>& jac)
+	int ParticleDispersionOperatorDG::residual(const IModel& model, double t, unsigned int secIdx, double const* y, double const* yBulk, double const* yDot, active* res, Eigen::SparseMatrix<double, Eigen::RowMajor>& jac)
 	{
 		linalg::BandedEigenSparseRowIterator jacIt(jac, 0);
 
-		return residualImpl<double, active, active, linalg::BandedEigenSparseRowIterator, true>(model, t, secIdx, y, yDot, res, jacIt);
+		return residualImpl<double, active, active, linalg::BandedEigenSparseRowIterator, true>(model, t, secIdx, y, yBulk, yDot, res, jacIt);
 	}
 
-	int ParticleDispersionOperatorDG::residual(const IModel& model, double t, unsigned int secIdx, double const* y, double const* yDot, active* res, WithParamSensitivity)
+	int ParticleDispersionOperatorDG::residual(const IModel& model, double t, unsigned int secIdx, double const* y, double const* yBulk, double const* yDot, active* res, WithParamSensitivity)
 	{
-		return residualImpl<double, active, active, linalg::BandedEigenSparseRowIterator, false>(model, t, secIdx, y, yDot, res, linalg::BandedEigenSparseRowIterator());
+		return residualImpl<double, active, active, linalg::BandedEigenSparseRowIterator, false>(model, t, secIdx, y, yBulk, yDot, res, linalg::BandedEigenSparseRowIterator());
 	}
 
-	int ParticleDispersionOperatorDG::residual(const IModel& model, double t, unsigned int secIdx, active const* y, double const* yDot, active* res, WithParamSensitivity)
+	int ParticleDispersionOperatorDG::residual(const IModel& model, double t, unsigned int secIdx, active const* y, active const* yBulk, double const* yDot, active* res, WithParamSensitivity)
 	{
-		return residualImpl<active, active, active, linalg::BandedEigenSparseRowIterator, false>(model, t, secIdx, y, yDot, res, linalg::BandedEigenSparseRowIterator());
+		return residualImpl<active, active, active, linalg::BandedEigenSparseRowIterator, false>(model, t, secIdx, y, yBulk, yDot, res, linalg::BandedEigenSparseRowIterator());
 	}
 
 	template <typename StateType, typename ResidualType, typename ParamType, typename RowIteratorType, bool wantJac>
-	int ParticleDispersionOperatorDG::residualImpl(const IModel& model, double t, unsigned int secIdx, StateType const* y, double const* yDot, ResidualType* res, RowIteratorType jacBegin)
+	int ParticleDispersionOperatorDG::residualImpl(const IModel& model, double t, unsigned int secIdx, StateType const* y, StateType const* yBulk, double const* yDot, ResidualType* res, RowIteratorType jacBegin)
 	{
 		/* Mobile phase RHS	*/
 
-		//// Get film diffusion flux at current node to compute boundary condition
-		//active const* const filmDiff = getSectionDependentSlice(_filmDiffusion, _disc.nComp * _disc.nParType, secIdx) + parType * _disc.nComp;
-		//for (unsigned int comp = 0; comp < _disc.nComp; comp++) {
-		//	_disc.localFlux[comp] = filmDiff[comp] * (yBase[idxr.offsetC() + colNode * idxr.strideColNode() + comp]
-		//		- yBase[idxr.offsetCp(ParticleTypeIndex{ parType }, ParticleIndex{ colNode }) + (_disc.nParPoints[parType] - 1) * idxr.strideParNode(parType) + comp]);
-		//}
+		// Get film diffusion flux at current node to compute boundary condition
+		for (unsigned int comp = 0; comp < _nComp; comp++) {
+			_localFlux[comp] = _filmDiffusion[comp] * (yBulk[comp * _strideBulkComp] - y[comp]);
+		}
 
-		//const int nNodes = _disc.nParNode[parType];
-		//const int nCells = _disc.nParCell[parType];
-		//const int nPoints = _disc.nParPoints[parType];
-		//const int nComp = _disc.nComp;
+		//const int nNodes = _nParNode[parType];
+		//const int nElem = _nParElem[parType];
+		//const int nPoints = _nParPoints[parType];
+		//const int nComp = _nComp;
 
 		//int strideParLiquid = idxr.strideParLiquid();
 		//int strideParNode = idxr.strideParNode(parType);
 
-		//if (_disc.parGSM[parType]) // GSM implementation
+		//if (_parGSM[parType]) // GSM implementation
 		//{
 		//	for (unsigned int comp = 0; comp < nComp; comp++)
 		//	{
@@ -1260,15 +1265,15 @@ namespace parts
 		//		Eigen::Map<const Vector<StateType, Dynamic>, 0, InnerStride<Dynamic>> Cp(c_p + comp, nPoints, InnerStride<Dynamic>(idxr.strideParNode(parType)));
 
 		//		// Use auxiliary variable to get c^p + \sum 1 / \Beta_p c^s
-		//		Eigen::Map<Vector<ResidualType, Dynamic>, 0, InnerStride<>> sum_cp_cs(reinterpret_cast<ResidualType*>(&_disc.g_pSum[parType][0]), nPoints, InnerStride<>(1));
+		//		Eigen::Map<Vector<ResidualType, Dynamic>, 0, InnerStride<>> sum_cp_cs(reinterpret_cast<ResidualType*>(&_g_pSum[parType][0]), nPoints, InnerStride<>(1));
 		//		sum_cp_cs = static_cast<ParamType>(parDiff[comp]) * Cp.template cast<ResidualType>();
 
-		//		for (int bnd = 0; bnd < _disc.nBound[parType * _disc.nComp + comp]; bnd++)
+		//		for (int bnd = 0; bnd < _nBound[parType * _nComp + comp]; bnd++)
 		//		{
 		//			if (parSurfDiff[getOffsetSurfDiff(parType, comp, bnd)] != 0.0) // some bound states might still not be effected by surface diffusion
 		//			{
-		//				Eigen::Map<const Vector<StateType, Dynamic>, 0, InnerStride<Dynamic>> c_s(c_p + _disc.nComp + idxr.offsetBoundComp(ParticleTypeIndex{ parType }, ComponentIndex{ comp }) + bnd, nPoints, InnerStride<Dynamic>(idxr.strideParNode(parType)));
-		//				ParamType invBetaP = (1.0 - static_cast<ParamType>(_parPorosity[parType])) / (static_cast<ParamType>(_poreAccessFactor[_disc.nComp * parType + comp]) * static_cast<ParamType>(_parPorosity[parType]));
+		//				Eigen::Map<const Vector<StateType, Dynamic>, 0, InnerStride<Dynamic>> c_s(c_p + _nComp + idxr.offsetBoundComp(ParticleTypeIndex{ parType }, ComponentIndex{ comp }) + bnd, nPoints, InnerStride<Dynamic>(idxr.strideParNode(parType)));
+		//				ParamType invBetaP = (1.0 - static_cast<ParamType>(_parPorosity[parType])) / (static_cast<ParamType>(_poreAccessFactor[_nComp * parType + comp]) * static_cast<ParamType>(_parPorosity[parType]));
 		//				sum_cp_cs += invBetaP * static_cast<ParamType>(parSurfDiff[getOffsetSurfDiff(parType, comp, bnd)]) * c_s;
 
 		//				/* For kinetic bindings with surface diffusion: add the additional DG-discretized particle mass balance equations to residual */
@@ -1280,10 +1285,10 @@ namespace parts
 		//						nPoints, InnerStride<Dynamic>(idxr.strideParNode(parType)));
 
 		//					// Use auxiliary variable to get \Beta_p D_s c^s
-		//					Eigen::Map<Vector<ResidualType, Dynamic>, 0, InnerStride<>> c_s_modified(reinterpret_cast<ResidualType*>(&_disc.g_p[parType][0]), nPoints, InnerStride<>(1));
+		//					Eigen::Map<Vector<ResidualType, Dynamic>, 0, InnerStride<>> c_s_modified(reinterpret_cast<ResidualType*>(&_g_p[parType][0]), nPoints, InnerStride<>(1));
 
 		//					// Apply squared inverse mapping and surface diffusion
-		//					c_s_modified = 2.0 / static_cast<ParamType>(_disc.deltaR[_disc.offsetMetric[parType]]) * 2.0 / static_cast<ParamType>(_disc.deltaR[_disc.offsetMetric[parType]]) *
+		//					c_s_modified = 2.0 / static_cast<ParamType>(_deltaR[_offsetMetric[parType]]) * 2.0 / static_cast<ParamType>(_deltaR[_offsetMetric[parType]]) *
 		//						static_cast<ParamType>(parSurfDiff[getOffsetSurfDiff(parType, comp, bnd)]) * c_s;
 
 		//					Eigen::Map<const Vector<ResidualType, Dynamic>, 0, InnerStride<Dynamic>> c_s_modified_const(&c_s_modified[0], nPoints, InnerStride<Dynamic>(1));
@@ -1295,7 +1300,7 @@ namespace parts
 		//		}
 
 		//		// Apply squared inverse mapping
-		//		sum_cp_cs *= 2.0 / static_cast<ParamType>(_disc.deltaR[_disc.offsetMetric[parType]]) * 2.0 / static_cast<ParamType>(_disc.deltaR[_disc.offsetMetric[parType]]);
+		//		sum_cp_cs *= 2.0 / static_cast<ParamType>(_deltaR[_offsetMetric[parType]]) * 2.0 / static_cast<ParamType>(_deltaR[_offsetMetric[parType]]);
 
 		//		Eigen::Map<const Vector<ResidualType, Dynamic>, 0, InnerStride<Dynamic>> sum_cp_cs_const(&sum_cp_cs[0], nPoints, InnerStride<Dynamic>(1));
 		//		parGSMVolumeIntegral<ResidualType, ResidualType>(parType, sum_cp_cs_const, resCp);
@@ -1310,7 +1315,7 @@ namespace parts
 		//	for (unsigned int comp = 0; comp < nComp; comp++)
 		//	{
 		//		// Component dependent (through access factor) inverse Beta_P
-		//		ParamType invBetaP = (1.0 - static_cast<ParamType>(_parPorosity[parType])) / (static_cast<ParamType>(_poreAccessFactor[_disc.nComp * parType + comp]) * static_cast<ParamType>(_parPorosity[parType]));
+		//		ParamType invBetaP = (1.0 - static_cast<ParamType>(_parPorosity[parType])) / (static_cast<ParamType>(_poreAccessFactor[_nComp * parType + comp]) * static_cast<ParamType>(_parPorosity[parType]));
 
 		//		// =====================================================================================================//
 		//		// Solve auxiliary systems  d_p g_p + d_s beta_p sum g_s= d (d_p c_p + d_s beta_p sum c_s) / d xi		//
@@ -1319,17 +1324,17 @@ namespace parts
 		//		unsigned int strideCell = nNodes;
 		//		unsigned int strideNode = 1u;
 		//		// Reset cache for auxiliary variable
-		//		Eigen::Map<Vector<StateType, Dynamic>, 0, InnerStride<>> _g_p(reinterpret_cast<StateType*>(&_disc.g_p[parType][0]), nPoints, InnerStride<>(1));
-		//		Eigen::Map<Vector<ResidualType, Dynamic>, 0, InnerStride<>> _g_pSum(reinterpret_cast<ResidualType*>(&_disc.g_pSum[parType][0]), nPoints, InnerStride<>(1));
+		//		Eigen::Map<Vector<StateType, Dynamic>, 0, InnerStride<>> _g_p(reinterpret_cast<StateType*>(&_g_p[parType][0]), nPoints, InnerStride<>(1));
+		//		Eigen::Map<Vector<ResidualType, Dynamic>, 0, InnerStride<>> _g_pSum(reinterpret_cast<ResidualType*>(&_g_pSum[parType][0]), nPoints, InnerStride<>(1));
 		//		_g_p.setZero();
 		//		_g_pSum.setZero();
 
-		//		Eigen::Map<const Vector<StateType, Dynamic>, 0, InnerStride<Dynamic>> cp(c_p + comp, _disc.nParPoints[parType], InnerStride<Dynamic>(idxr.strideParNode(parType)));
+		//		Eigen::Map<const Vector<StateType, Dynamic>, 0, InnerStride<Dynamic>> cp(c_p + comp, _nParPoints[parType], InnerStride<Dynamic>(idxr.strideParNode(parType)));
 
 		//		// Handle surface diffusion: Compute auxiliary variable; For kinetic bindings: add additional mass balance to residual of respective bound state
 		//		if (_hasSurfaceDiffusion[parType])
 		//		{
-		//			for (int bnd = 0; bnd < _disc.nBound[parType * _disc.nComp + comp]; bnd++)
+		//			for (int bnd = 0; bnd < _nBound[parType * _nComp + comp]; bnd++)
 		//			{
 		//				if (parSurfDiff[getOffsetSurfDiff(parType, comp, bnd)] != 0.0) // some bound states might still not be effected by surface diffusion
 		//				{
@@ -1355,7 +1360,7 @@ namespace parts
 		//							vectorPromoter(reinterpret_cast<double*>(&_g_p[0]), nPoints); // reinterpret_cast only required because statement is scanned also when StateType != double
 
 		//						// Access auxiliary variable as ResidualType
-		//						Eigen::Map<Vector<ResidualType, Dynamic>, 0, InnerStride<>> _g_p_ResType(reinterpret_cast<ResidualType*>(&_disc.g_p[parType][0]), nPoints, InnerStride<>(1));
+		//						Eigen::Map<Vector<ResidualType, Dynamic>, 0, InnerStride<>> _g_p_ResType(reinterpret_cast<ResidualType*>(&_g_p[parType][0]), nPoints, InnerStride<>(1));
 
 		//						applyParInvMap<ResidualType, ParamType>(_g_p_ResType, parType);
 		//						_g_p_ResType *= static_cast<ParamType>(parSurfDiff[getOffsetSurfDiff(parType, comp, bnd)]);

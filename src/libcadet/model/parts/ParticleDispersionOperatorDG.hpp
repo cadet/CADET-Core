@@ -18,6 +18,7 @@
 #ifndef LIBCADET_PARTICLEDISPERSIONOPERATORDG_HPP_
 #define LIBCADET_PARTICLEDISPERSIONOPERATORDG_HPP_
 
+#include "cadet/StrongTypes.hpp"
 #include "ParamIdUtil.hpp"
 #include "AutoDiff.hpp"
 #include "Memory.hpp"
@@ -85,7 +86,7 @@ namespace parts
 		ParticleDispersionOperatorDG();
 		~ParticleDispersionOperatorDG() CADET_NOEXCEPT;
 
-		bool configureModelDiscretization(IParameterProvider& paramProvider, const IConfigHelper& helper, int nComp, int nParType);
+		bool configureModelDiscretization(IParameterProvider& paramProvider, const IConfigHelper& helper, const int nComp, const int nParType, const int strideBulkComp);
 		bool configure(UnitOpIdx unitOpIdx, IParameterProvider& paramProvider, std::unordered_map<ParameterId, active*>& parameters);
 		
 		void setEquidistantRadialDisc(unsigned int parType);
@@ -95,14 +96,14 @@ namespace parts
 
 		void clearParDepSurfDiffusion();
 
-		bool notifyDiscontinuousSectionTransition(double t, unsigned int secIdx, Eigen::MatrixXd& jacInlet);
+		bool notifyDiscontinuousSectionTransition(double t, unsigned int secIdx, active const* const filmDiff);
 
-		int residual(const IModel& model, double t, unsigned int secIdx, double const* y, double const* yDot, double* res, Eigen::SparseMatrix<double, Eigen::RowMajor>& jac);
-		int residual(const IModel& model, double t, unsigned int secIdx, double const* y, double const* yDot, active* res, Eigen::SparseMatrix<double, Eigen::RowMajor>& jac);
-		int residual(const IModel& model, double t, unsigned int secIdx, double const* y, double const* yDot, double* res, WithoutParamSensitivity);
-		int residual(const IModel& model, double t, unsigned int secIdx, double const* y, double const* yDot, active* res, WithParamSensitivity);
-		int residual(const IModel& model, double t, unsigned int secIdx, active const* y, double const* yDot, active* res, WithParamSensitivity);
-		int residual(const IModel& model, double t, unsigned int secIdx, active const* y, double const* yDot, active* res, WithoutParamSensitivity);
+		int residual(const IModel& model, double t, unsigned int secIdx, double const* y, double const* yBulk, double const* yDot, double* res, Eigen::SparseMatrix<double, Eigen::RowMajor>& jac);
+		int residual(const IModel& model, double t, unsigned int secIdx, double const* y, double const* yBulk, double const* yDot, active* res, Eigen::SparseMatrix<double, Eigen::RowMajor>& jac);
+		int residual(const IModel& model, double t, unsigned int secIdx, double const* y, double const* yBulk, double const* yDot, double* res, WithoutParamSensitivity);
+		int residual(const IModel& model, double t, unsigned int secIdx, double const* y, double const* yBulk, double const* yDot, active* res, WithParamSensitivity);
+		int residual(const IModel& model, double t, unsigned int secIdx, active const* y, active const* yBulk, double const* yDot, active* res, WithParamSensitivity);
+		int residual(const IModel& model, double t, unsigned int secIdx, active const* y, active const* yBulk, double const* yDot, active* res, WithoutParamSensitivity);
 
 
 		/* Physical model parameters */
@@ -117,6 +118,8 @@ namespace parts
 		std::vector<active> _parOuterSurfAreaPerVolume; //!< Particle shell outer sphere surface to volume ratio
 		std::vector<active> _parInnerSurfAreaPerVolume; //!< Particle shell inner sphere surface to volume ratio
 
+		std::vector<active> _filmDiffusion; //!< Particle diffusion coefficient \f$ D_p \f$
+		MultiplexMode _filmDiffusionMode;
 		std::vector<active> _parDiffusion; //!< Particle diffusion coefficient \f$ D_p \f$
 		MultiplexMode _parDiffusionMode;
 		std::vector<active> _parSurfDiffusion; //!< Particle surface diffusion coefficient \f$ D_s \f$
@@ -125,6 +128,9 @@ namespace parts
 		bool _singleParDepSurfDiffusion; //!< Determines whether a single parameter dependence for particle surface diffusion is used
 		bool _hasParDepSurfDiffusion; //!< Determines whether particle surface diffusion parameter dependencies are present
 		std::vector<bool> _hasSurfaceDiffusion; //!< Determines whether surface diffusion is present in each particle type
+
+		unsigned int _nComp; //!< Number of components
+		unsigned int _nParType; //!< Number of particle types
 
 		/* Model discretization */
 
@@ -146,12 +152,24 @@ namespace parts
 			UserDefined
 		};
 
+		// todo when separating discretization and particle model
+		//class Indexer
+		//{
+		//public:
+
+		//	Indexer(const Discretization& disc) : _disc(disc) { }
+
+		//	inline int strideColNode() const CADET_NOEXCEPT { return static_cast<int>(_disc.nComp); }
+
+		//	protected:
+		//		_disc;
+		//};
+
+		int _strideBulkComp;
+
 		std::vector<ParticleDiscretizationMode> _parDiscMode; //!< Particle discretization mode
 
 		std::vector<double> _parDiscVector; //!< Particle discretization shell edges
-
-		unsigned int _nComp; //!< Number of components
-		unsigned int _nParType; //!< Number of particle types
 
 		unsigned int* _nParElem; //!< Array with number of radial elements in each particle type
 		unsigned int* _nParPointsBeforeType; //!< Array with total number of radial points before a particle type (cumulative sum of nParPoints), additional last element contains total number of particle shells
@@ -206,7 +224,7 @@ namespace parts
 	protected:
 
 		template <typename StateType, typename ResidualType, typename ParamType, typename RowIteratorType, bool wantJac>
-		int residualImpl(const IModel& model, double t, unsigned int secIdx, StateType const* y, double const* yDot, ResidualType* res, RowIteratorType jacBegin);
+		int residualImpl(const IModel& model, double t, unsigned int secIdx, StateType const* y, StateType const* yBulk, double const* yDot, ResidualType* res, RowIteratorType jacBegin);
 
 	};
 

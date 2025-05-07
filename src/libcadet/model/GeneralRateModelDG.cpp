@@ -185,9 +185,12 @@ bool GeneralRateModelDG::configureModelDiscretization(IParameterProvider& paramP
 		_disc.nParType = nBound.size() / _disc.nComp;
 
 	// todo
-	paramProvider.popScope();
-	_parDispOp.configureModelDiscretization(paramProvider, helper, _disc.nComp, _disc.nParType);
-	paramProvider.pushScope("discretization");
+	{
+		paramProvider.popScope();
+		Indexer idxr(_disc);
+		_parDispOp.configureModelDiscretization(paramProvider, helper, _disc.nComp, _disc.nParType, idxr.strideColComp());
+		paramProvider.pushScope("discretization");
+	}
 	//
 
 	std::vector<int> parPolyDeg(_disc.nParType);
@@ -961,6 +964,8 @@ void GeneralRateModelDG::notifyDiscontinuousSectionTransition(double t, unsigned
 	_globalJacDisc = _globalJac;
 
 	_convDispOp.notifyDiscontinuousSectionTransition(t, secIdx, _jacInlet);
+
+	_parDispOp.notifyDiscontinuousSectionTransition(t, secIdx, getSectionDependentSlice(_filmDiffusion, _disc.nComp * _disc.nParType, secIdx));
 
 	_disc.curSection = secIdx;
 	_disc.newStaticJac = true;
