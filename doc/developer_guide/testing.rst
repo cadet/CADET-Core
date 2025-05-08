@@ -44,6 +44,8 @@ To debug specific tests (with flag [testHere]) from the Visual Studio IDE, you c
     }
 
 Select the testRunner.exe in the startup item dropdown menu and you can start debugging tests with the specified flag.
+To see the options, run `testrunner --help`. To get the available test flags for instance, execute the testrunner with the corresponding option, i.e. `testrunner -t`.
+You can provide multiple arguments like `"[testHere][testHere2]"` to run all test that have both flags, or with comma separation `"[testHere],[testHere2]"` to run all tests with the first and/or the second flag.
 
 Adding tests for your model
 ---------------------------
