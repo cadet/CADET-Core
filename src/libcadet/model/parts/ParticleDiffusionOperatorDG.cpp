@@ -1202,34 +1202,34 @@ namespace parts
 	 * @param [in] jac Matrix that holds the Jacobian
 	 * @return @c 0 on success, @c -1 on non-recoverable error, and @c +1 on recoverable error
 	 */
-	int ParticleDiffusionOperatorDG::residual(double t, unsigned int parType, unsigned int colNode, unsigned int secIdx, double const* yPar, double const* yBulk, double const* yDotPar, double* resPar, int const* const qsBinding, WithoutParamSensitivity)
+	int ParticleDiffusionOperatorDG::residual(double t, unsigned int secIdx, unsigned int parType, unsigned int colNode, double const* yPar, double const* yBulk, double const* yDotPar, double* resPar, int const* const qsBinding, WithoutParamSensitivity)
 	{
-		return residualImpl<double, double, double>(t, parType, colNode, secIdx, yPar, yBulk, yDotPar, resPar, qsBinding);
+		return residualImpl<double, double, double>(t, secIdx, parType, colNode, yPar, yBulk, yDotPar, resPar, qsBinding);
 	}
 
-	int ParticleDiffusionOperatorDG::residual(double t, unsigned int parType, unsigned int colNode, unsigned int secIdx, active const* yPar, active const* yBulk, double const* yDotPar, active* resPar, int const* const qsBinding, WithoutParamSensitivity)
+	int ParticleDiffusionOperatorDG::residual(double t, unsigned int secIdx, unsigned int parType, unsigned int colNode, active const* yPar, active const* yBulk, double const* yDotPar, active* resPar, int const* const qsBinding, WithoutParamSensitivity)
 	{
-		return residualImpl<active, active, double>(t, parType, colNode, secIdx, yPar, yBulk, yDotPar, resPar, qsBinding);
+		return residualImpl<active, active, double>(t, secIdx, parType, colNode, yPar, yBulk, yDotPar, resPar, qsBinding);
 	}
 
-	int ParticleDiffusionOperatorDG::residual(double t, unsigned int parType, unsigned int colNode, unsigned int secIdx, double const* yPar, double const* yBulk, double const* yDotPar, active* resPar, int const* const qsBinding, WithParamSensitivity)
+	int ParticleDiffusionOperatorDG::residual(double t, unsigned int secIdx, unsigned int parType, unsigned int colNode, double const* yPar, double const* yBulk, double const* yDotPar, active* resPar, int const* const qsBinding, WithParamSensitivity)
 	{
-		return residualImpl<double, active, active>(t, parType, colNode, secIdx, yPar, yBulk, yDotPar, resPar, qsBinding);
+		return residualImpl<double, active, active>(t, secIdx, parType, colNode, yPar, yBulk, yDotPar, resPar, qsBinding);
 	}
 
-	int ParticleDiffusionOperatorDG::residual(double t, unsigned int parType, unsigned int colNode, unsigned int secIdx, active const* yPar, active const* yBulk, double const* yDotPar, active* resPar, int const* const qsBinding, WithParamSensitivity)
+	int ParticleDiffusionOperatorDG::residual(double t, unsigned int secIdx, unsigned int parType, unsigned int colNode, active const* yPar, active const* yBulk, double const* yDotPar, active* resPar, int const* const qsBinding, WithParamSensitivity)
 	{
-		return residualImpl<active, active, active>(t, parType, colNode, secIdx, yPar, yBulk, yDotPar, resPar, qsBinding);
+		return residualImpl<active, active, active>(t, secIdx, parType, colNode, yPar, yBulk, yDotPar, resPar, qsBinding);
 	}
 
 	template <typename StateType, typename ResidualType, typename ParamType>
-	int ParticleDiffusionOperatorDG::residualImpl(double t, unsigned int parType, unsigned int colNode, unsigned int secIdx, StateType const* yPar, StateType const* yBulk, double const* yDotPar, ResidualType* resPar, int const* const qsBinding)
+	int ParticleDiffusionOperatorDG::residualImpl(double t, unsigned int secIdx, unsigned int parType, unsigned int colNode, StateType const* yPar, StateType const* yBulk, double const* yDotPar, ResidualType* resPar, int const* const qsBinding)
 	{
 		/* Mobile phase RHS	*/
 
 		// Get film diffusion flux at current node to compute boundary condition
 		for (unsigned int comp = 0; comp < _nComp; comp++) {
-			_localFlux[comp] = _filmDiffusion[comp] * (yBulk[comp * _strideBulkComp] - yPar[comp]);
+			_localFlux[comp] = _filmDiffusion[comp] * (yBulk[comp * _strideBulkComp] - yPar[(_nParPoints[parType] - 1) * strideParNode(parType) + comp]);
 		}
 
 		active const* const parDiff = getSectionDependentSlice(_parDiffusion, _nComp * _nParType, secIdx) + parType * _nComp;
