@@ -280,10 +280,6 @@ bool GeneralRateModelDG::configureModelDiscretization(IParameterProvider& paramP
 		for (int type = 0; type < _disc.nParType; type++)
 			_disc.parGSM[type] = (_disc.nParCell[type] == 1);
 	}
-	// todo moved to particle module
-
-	// Compute discretization operators and initialize containers
-	_disc.initializeDG();
 
 	if (firstConfigCall)
 		_disc.nBound = new unsigned int[_disc.nComp * _disc.nParType];
@@ -339,31 +335,6 @@ bool GeneralRateModelDG::configureModelDiscretization(IParameterProvider& paramP
 		nTotalParPoints += _disc.nParPoints[j-1];
 	}
 	_disc.nParPointsBeforeType[_disc.nParType] = nTotalParPoints;
-
-	// Configure particle discretization
-	_parCellSize.resize(_disc.offsetMetric[_disc.nParType]);
-	_parCenterRadius.resize(_disc.offsetMetric[_disc.nParType]);
-	_parOuterSurfAreaPerVolume.resize(_disc.offsetMetric[_disc.nParType]);
-	_parInnerSurfAreaPerVolume.resize(_disc.offsetMetric[_disc.nParType]);
-
-	// Read particle discretization mode and default to "EQUIDISTANT_PAR"
-	_parDiscType = std::vector<ParticleDiscretizationMode>(_disc.nParType, ParticleDiscretizationMode::Equidistant);
-	std::vector<std::string> pdt = paramProvider.getStringArray("PAR_DISC_TYPE");
-	if ((pdt.size() == 1) && (_disc.nParType > 1))
-	{
-		// Multiplex using first value
-		pdt.resize(_disc.nParType, pdt[0]);
-	}
-	else if (pdt.size() < _disc.nParType)
-		throw InvalidParameterException("Field PAR_DISC_TYPE contains too few elements (" + std::to_string(_disc.nParType) + " required)");
-
-	for (unsigned int i = 0; i < _disc.nParType; ++i)
-	{
-		if (pdt[i] == "EQUIVOLUME_PAR")
-			_parDiscType[i] = ParticleDiscretizationMode::Equivolume;
-		else if (pdt[i] == "USER_DEFINED_PAR")
-			_parDiscType[i] = ParticleDiscretizationMode::UserDefined;
-	}
 
 	// Read particle geometry and default to "SPHERICAL"
 	paramProvider.popScope();
@@ -770,11 +741,6 @@ bool GeneralRateModelDG::configure(IParameterProvider& paramProvider)
 	else
 		registerParam2DArray(_parameters, _parTypeVolFrac, [=](bool multi, unsigned cell, unsigned int type) { return makeParamId(hashString("PAR_TYPE_VOLFRAC"), _unitOpIdx, CompIndep, type, BoundStateIndep, ReactionIndep, cell); }, _disc.nParType);
 
-	// Calculate the particle radial discretization variables (_parCellSize, _parCenterRadius, etc.)
-	if (firstConfigCall)
-		_disc.deltaR = new active[_disc.offsetMetric[_disc.nParType]];
-	updateRadialDisc();
-
 	// Register initial conditions parameters
 	registerParam1DArray(_parameters, _initC, [=](bool multi, unsigned int comp) { return makeParamId(hashString("INIT_C"), _unitOpIdx, comp, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep); });
 
@@ -954,13 +920,10 @@ void GeneralRateModelDG::useAnalyticJacobian(const bool analyticJac)
 
 void GeneralRateModelDG::notifyDiscontinuousSectionTransition(double t, unsigned int secIdx, const ConstSimulationState& simState, const AdJacobianParams& adJac)
 {
-	// calculate offsets between surface diffusion storage and state vector order
-	orderSurfDiff();
-
 	Indexer idxr(_disc);
 
 	// todo: only reset jacobian pattern if it changes, i.e. once in configuration and then only for changes in SurfDiff+kinetic binding.
- 	setJacobianPattern_GRM(_globalJac, 0, _dynReactionBulk);
+	setJacobianPattern_GRM(_globalJac, 0, _dynReactionBulk);
 	_globalJacDisc = _globalJac;
 
 	_convDispOp.notifyDiscontinuousSectionTransition(t, secIdx, _jacInlet);
@@ -969,8 +932,6 @@ void GeneralRateModelDG::notifyDiscontinuousSectionTransition(double t, unsigned
 
 	_disc.curSection = secIdx;
 	_disc.newStaticJac = true;
-
-	_disc.initializeDGjac(_parGeomSurfToVol);
 }
 
 void GeneralRateModelDG::setFlowRates(active const* in, active const* out) CADET_NOEXCEPT
@@ -1298,10 +1259,15 @@ int GeneralRateModelDG::residualImpl(double t, unsigned int secIdx, StateType co
 	// we need to add the DG discretized solid entries of the jacobian that get overwritten by the binding kernel.
 	// These entries only exist for the GRM with surface diffusion
 	if (wantJac) {
-		for (unsigned int parType = 0; parType < _disc.nParType; parType++) {
-			if (_binding[parType]->hasDynamicReactions() && _hasSurfaceDiffusion[parType]) {
+
+		Indexer idxr(_disc);
+
+		for (unsigned int parType = 0; parType < _disc.nParType; parType++)
+		{
+			if (_binding[parType]->hasDynamicReactions() && _hasSurfaceDiffusion[parType])
+			{
 				active const* const _parSurfDiff = getSectionDependentSlice(_parSurfDiffusion, _disc.strideBound[_disc.nParType], secIdx) + _disc.nBoundBeforeType[parType];
-				addSolidDGentries(parType, _parSurfDiff);
+				_parDiffOp.addSolidDGentries(parType, _parSurfDiff, _binding[parType]->reactionQuasiStationarity(), _disc.nPoints, idxr.offsetCp(ParticleTypeIndex{ parType }), _globalJac);
 			}
 		}
 	}
@@ -1415,8 +1381,8 @@ int GeneralRateModelDG::residualParticle(double t, unsigned int parType, unsigne
 
 		// r (particle) coordinate of current node (particle radius normed to 1) - needed in externally dependent adsorption kinetic
 		const double r = static_cast<double>(
-			(_disc.deltaR[_disc.offsetMetric[parType] + cell] * cell
-			+ 0.5 * _disc.deltaR[_disc.offsetMetric[parType] + cell] * (1 + _disc.parNodes[parType][par % _disc.nParNode[parType]]))
+			(_parDiffOp._deltaR[_parDiffOp._offsetMetric[parType] + cell] * cell
+			+ 0.5 * _parDiffOp._deltaR[_parDiffOp._offsetMetric[parType] + cell] * (1 + _parDiffOp._parNodes[parType][par % _disc.nParNode[parType]]))
 			/ (_parRadius[parType] - _parCoreRadius[parType])
 			);
 		const ColumnPosition colPos{ z, 0.0, r };
@@ -1745,319 +1711,6 @@ void GeneralRateModelDG::expandErrorTol(double const* errorSpec, unsigned int er
 	// @todo Write this function
 }
 
-void GeneralRateModelDG::setEquidistantRadialDisc(unsigned int parType)
-{
-	active* const ptrCenterRadius = _parCenterRadius.data() + _disc.offsetMetric[parType];
-	active* const ptrOuterSurfAreaPerVolume = _parOuterSurfAreaPerVolume.data() + _disc.offsetMetric[parType];
-	active* const ptrInnerSurfAreaPerVolume = _parInnerSurfAreaPerVolume.data() + _disc.offsetMetric[parType];
-
-	const active radius = _parRadius[parType] - _parCoreRadius[parType];
-	const active dr = radius / static_cast<double>(_disc.nParCell[parType]);
-	std::fill(_parCellSize.data() + _disc.offsetMetric[parType], _parCellSize.data() + _disc.offsetMetric[parType] + _disc.nParCell[parType], dr);
-
-	if (_parGeomSurfToVol[parType] == SurfVolRatioSphere)
-	{
-		for (unsigned int cell = 0; cell < _disc.nParCell[parType]; ++cell)
-		{
-			const active r_out = _parRadius[parType] - static_cast<double>(cell) * dr;
-			const active r_in = _parRadius[parType] - static_cast<double>(cell + 1) * dr;
-
-			ptrCenterRadius[cell] = _parRadius[parType] - (0.5 + static_cast<double>(cell)) * dr;
-
-			// Compute denominator -> corresponding to cell volume
-			const active vol = pow(r_out, 3.0) - pow(r_in, 3.0);
-
-			ptrOuterSurfAreaPerVolume[cell] = 3.0 * sqr(r_out) / vol;
-			ptrInnerSurfAreaPerVolume[cell] = 3.0 * sqr(r_in) / vol;
-		}
-	}
-	else if (_parGeomSurfToVol[parType] == SurfVolRatioCylinder)
-	{
-		for (unsigned int cell = 0; cell < _disc.nParCell[parType]; ++cell)
-		{
-			const active r_out = _parRadius[parType] - static_cast<double>(cell) * dr;
-			const active r_in = _parRadius[parType] - static_cast<double>(cell + 1) * dr;
-
-			ptrCenterRadius[cell] = _parRadius[parType] - (0.5 + static_cast<double>(cell)) * dr;
-
-			// Compute denominator -> corresponding to cell volume
-			const active vol = sqr(r_out) - sqr(r_in);
-
-			ptrOuterSurfAreaPerVolume[cell] = 2.0 * r_out / vol;
-			ptrInnerSurfAreaPerVolume[cell] = 2.0 * r_in / vol;
-		}
-	}
-	else if (_parGeomSurfToVol[parType] == SurfVolRatioSlab)
-	{
-		for (unsigned int cell = 0; cell < _disc.nParCell[parType]; ++cell)
-		{
-			const active r_out = _parRadius[parType] - static_cast<double>(cell) * dr;
-			const active r_in = _parRadius[parType] - static_cast<double>(cell + 1) * dr;
-
-			ptrCenterRadius[cell] = _parRadius[parType] - (0.5 + static_cast<double>(cell)) * dr;
-
-			// Compute denominator -> corresponding to cell volume
-			const active vol = r_out - r_in;
-
-			ptrOuterSurfAreaPerVolume[cell] = 1.0 / vol;
-			ptrInnerSurfAreaPerVolume[cell] = 1.0 / vol;
-		}
-	}
-}
-/**
- * @brief Computes the radial nodes in the beads in such a way that all shells have the same volume
- */
-void GeneralRateModelDG::setEquivolumeRadialDisc(unsigned int parType)
-{
-	active* const ptrCellSize = _parCellSize.data() + _disc.offsetMetric[parType];
-	active* const ptrCenterRadius = _parCenterRadius.data() + _disc.offsetMetric[parType];
-	active* const ptrOuterSurfAreaPerVolume = _parOuterSurfAreaPerVolume.data() + _disc.offsetMetric[parType];
-	active* const ptrInnerSurfAreaPerVolume = _parInnerSurfAreaPerVolume.data() + _disc.offsetMetric[parType];
-
-	if (_parGeomSurfToVol[parType] == SurfVolRatioSphere)
-	{
-		active r_out = _parRadius[parType];
-		active r_in = _parCoreRadius[parType];
-		const active volumePerShell = (pow(_parRadius[parType], 3.0) - pow(_parCoreRadius[parType], 3.0)) / static_cast<double>(_disc.nParCell[parType]);
-
-		for (unsigned int cell = 0; cell < _disc.nParCell[parType]; ++cell)
-		{
-			if (cell != (_disc.nParCell[parType] - 1))
-				r_in = pow(pow(r_out, 3.0) - volumePerShell, (1.0 / 3.0));
-			else
-				r_in = _parCoreRadius[parType];
-
-			ptrCellSize[cell] = r_out - r_in;
-			ptrCenterRadius[cell] = (r_out + r_in) * 0.5;
-
-			ptrOuterSurfAreaPerVolume[cell] = 3.0 * sqr(r_out) / volumePerShell;
-			ptrInnerSurfAreaPerVolume[cell] = 3.0 * sqr(r_in) / volumePerShell;
-			// Note that the DG particle shells are oppositely ordered compared to the FV particle shells
-			_disc.deltaR[_disc.offsetMetric[parType] + _disc.nParCell[parType] - (cell + 1)] = r_out - r_in;
-
-			// For the next cell: r_out == r_in of the current cell
-			r_out = r_in;
-		}
-	}
-	else if (_parGeomSurfToVol[parType] == SurfVolRatioCylinder)
-	{
-		active r_out = _parRadius[parType];
-		active r_in = _parCoreRadius[parType];
-		const active volumePerShell = (sqr(_parRadius[parType]) - sqr(_parCoreRadius[parType])) / static_cast<double>(_disc.nParCell[parType]);
-
-		for (unsigned int cell = 0; cell < _disc.nParCell[parType]; ++cell)
-		{
-			if (cell != (_disc.nParCell[parType] - 1))
-				r_in = sqrt(sqr(r_out) - volumePerShell);
-			else
-				r_in = _parCoreRadius[parType];
-
-			ptrCellSize[cell] = r_out - r_in;
-			ptrCenterRadius[cell] = (r_out + r_in) * 0.5;
-
-			ptrOuterSurfAreaPerVolume[cell] = 2.0 * r_out / volumePerShell;
-			ptrInnerSurfAreaPerVolume[cell] = 2.0 * r_in / volumePerShell;
-			// Note that the DG particle shells are oppositely ordered compared to the FV particle shells
-			_disc.deltaR[_disc.offsetMetric[parType] + _disc.nParCell[parType] - (cell + 1)] = r_out - r_in;
-
-			// For the next cell: r_out == r_in of the current cell
-			r_out = r_in;
-		}
-	}
-	else if (_parGeomSurfToVol[parType] == SurfVolRatioSlab)
-	{
-		active r_out = _parRadius[parType];
-		active r_in = _parCoreRadius[parType];
-		const active volumePerShell = (_parRadius[parType] - _parCoreRadius[parType]) / static_cast<double>(_disc.nParCell[parType]);
-
-		for (unsigned int cell = 0; cell < _disc.nParCell[parType]; ++cell)
-		{
-			if (cell != (_disc.nParCell[parType] - 1))
-				r_in = r_out - volumePerShell;
-			else
-				r_in = _parCoreRadius[parType];
-
-			ptrCellSize[cell] = r_out - r_in;
-			ptrCenterRadius[cell] = (r_out + r_in) * 0.5;
-
-			ptrOuterSurfAreaPerVolume[cell] = 1.0 / volumePerShell;
-			ptrInnerSurfAreaPerVolume[cell] = 1.0 / volumePerShell;
-			// Note that the DG particle shells are oppositely ordered compared to the FV particle shells
-			_disc.deltaR[_disc.offsetMetric[parType] + _disc.nParCell[parType] - (cell + 1)] = r_out - r_in;
-
-			// For the next cell: r_out == r_in of the current cell
-			r_out = r_in;
-		}
-	}
-}
-
-/**
- * @brief Computes all helper quantities for radial bead discretization from given radial cell boundaries
- * @details Calculates surface areas per volume for every shell and the radial shell centers.
- */
-void GeneralRateModelDG::setUserdefinedRadialDisc(unsigned int parType)
-{
-	active* const ptrCellSize = _parCellSize.data() + _disc.offsetMetric[parType];
-	active* const ptrCenterRadius = _parCenterRadius.data() + _disc.offsetMetric[parType];
-	active* const ptrOuterSurfAreaPerVolume = _parOuterSurfAreaPerVolume.data() + _disc.offsetMetric[parType];
-	active* const ptrInnerSurfAreaPerVolume = _parInnerSurfAreaPerVolume.data() + _disc.offsetMetric[parType];
-
-	// Care for the right ordering and include 0.0 / 1.0 if not already in the vector.
-	std::vector<active> orderedInterfaces = std::vector<active>(_parDiscVector.begin() + _disc.offsetMetric[parType] + parType,
-		_parDiscVector.begin() + _disc.offsetMetric[parType] + parType + _disc.nParCell[parType] + 1);
-
-	// Sort in descending order
-	std::sort(orderedInterfaces.begin(), orderedInterfaces.end(), std::greater<active>());
-
-	// Force first and last element to be 1.0 and 0.0, respectively
-	orderedInterfaces[0] = 1.0;
-	orderedInterfaces.back() = 0.0;
-
-	// Map [0, 1] -> [core radius, particle radius] via linear interpolation
-	for (unsigned int cell = 0; cell < _disc.nParCell[parType]; ++cell)
-		orderedInterfaces[cell] = static_cast<double>(orderedInterfaces[cell]) * (_parRadius[parType] - _parCoreRadius[parType]) + _parCoreRadius[parType];
-
-	if (_parGeomSurfToVol[parType] == SurfVolRatioSphere)
-	{
-		for (unsigned int cell = 0; cell < _disc.nParCell[parType]; ++cell)
-		{
-			ptrCellSize[cell] = orderedInterfaces[cell] - orderedInterfaces[cell + 1];
-			ptrCenterRadius[cell] = (orderedInterfaces[cell] + orderedInterfaces[cell + 1]) * 0.5;
-
-			// Compute denominator -> corresponding to cell volume
-			const active vol = pow(orderedInterfaces[cell], 3.0) - pow(orderedInterfaces[cell + 1], 3.0);
-
-			ptrOuterSurfAreaPerVolume[cell] = 3.0 * sqr(orderedInterfaces[cell]) / vol;
-			ptrInnerSurfAreaPerVolume[cell] = 3.0 * sqr(orderedInterfaces[cell + 1]) / vol;
-			// Note that the DG particle shells are oppositely ordered compared to the FV particle shells
-			_disc.deltaR[_disc.offsetMetric[parType] + _disc.nParCell[parType] - (cell + 1)] = ptrOuterSurfAreaPerVolume[cell] - ptrInnerSurfAreaPerVolume[cell];
-		}
-	}
-	else if (_parGeomSurfToVol[parType] == SurfVolRatioCylinder)
-	{
-		for (unsigned int cell = 0; cell < _disc.nParCell[parType]; ++cell)
-		{
-			ptrCellSize[cell] = orderedInterfaces[cell] - orderedInterfaces[cell + 1];
-			ptrCenterRadius[cell] = (orderedInterfaces[cell] + orderedInterfaces[cell + 1]) * 0.5;
-
-			// Compute denominator -> corresponding to cell volume
-			const active vol = sqr(orderedInterfaces[cell]) - sqr(orderedInterfaces[cell + 1]);
-
-			ptrOuterSurfAreaPerVolume[cell] = 2.0 * orderedInterfaces[cell] / vol;
-			ptrInnerSurfAreaPerVolume[cell] = 2.0 * orderedInterfaces[cell + 1] / vol;
-			// Note that the DG particle shells are oppositely ordered compared to the FV particle shells
-			_disc.deltaR[_disc.offsetMetric[parType] + _disc.nParCell[parType] - (cell + 1)] = ptrOuterSurfAreaPerVolume[cell] - ptrInnerSurfAreaPerVolume[cell];
-		}
-	}
-	else if (_parGeomSurfToVol[parType] == SurfVolRatioSlab)
-	{
-		for (unsigned int cell = 0; cell < _disc.nParCell[parType]; ++cell)
-		{
-			ptrCellSize[cell] = orderedInterfaces[cell] - orderedInterfaces[cell + 1];
-			ptrCenterRadius[cell] = (orderedInterfaces[cell] + orderedInterfaces[cell + 1]) * 0.5;
-
-			// Compute denominator -> corresponding to cell volume
-			const active vol = orderedInterfaces[cell] - orderedInterfaces[cell + 1];
-
-			ptrOuterSurfAreaPerVolume[cell] = 1.0 / vol;
-			ptrInnerSurfAreaPerVolume[cell] = 1.0 / vol;
-			// Note that the DG particle shells are oppositely ordered compared to the FV particle shells
-			_disc.deltaR[_disc.offsetMetric[parType] + _disc.nParCell[parType] - (cell + 1)] = ptrOuterSurfAreaPerVolume[cell] - ptrInnerSurfAreaPerVolume[cell];
-		}
-	}
-}
-
-// todo: parameter sensitivities for particle radius. Here, we have the problem that every DG operator becomes an active type.
-// alternatively (only for exact integration), we could store more matrices and compute the metric dependend calculations in the residual.
-// inexact integration approach is deprecated anyways but would require active type DG operators since every entry is multiplied by an individual metric term,
-// wherease for the exact integration approach we have sums of three matrices each multiplied by its own metric term, whcih could be applied iteratively to the residual/solution.
-// Not needed for Slab, and only two matrices (exact integration approach) required for Cylinder.
-// This approach should only be used when necessary, i.e. solely when particle radius parameter sensitivity is required.
-void GeneralRateModelDG::updateRadialDisc()
-{
-
-	for (unsigned int parType = 0; parType < _disc.nParType; ++parType)
-	{
-		if (_parDiscType[parType] == ParticleDiscretizationMode::Equidistant)
-		{
-			for (int cell = 0; cell < _disc.nParCell[parType]; cell++)
-			{
-				_disc.deltaR[_disc.offsetMetric[parType] + cell] = (_parRadius[parType] - _parCoreRadius[parType]) / _disc.nParCell[parType];
-			}
-				setEquidistantRadialDisc(parType);
-		}
-		else if (_parDiscType[parType] == ParticleDiscretizationMode::Equivolume)
-			setEquivolumeRadialDisc(parType);
-		else if (_parDiscType[parType] == ParticleDiscretizationMode::UserDefined)
-			setUserdefinedRadialDisc(parType);
-	}
-
-	/*		metrics		*/
-	// estimate cell dependent D_r
-
-	for (int parType = 0; parType < _disc.nParType; parType++)
-	{
-		for (int cell = 0; cell < _disc.nParCell[parType]; cell++)
-		{
-			for (int node = 0; node < _disc.nParNode[parType]; node++)
-				_disc.Ir[_disc.offsetMetric[parType] + cell][node] = _disc.deltaR[_disc.offsetMetric[parType] + cell] / 2.0 * (_disc.parNodes[parType][node] + 1.0);
-
-			active r_L = _parCoreRadius[parType] + cell * _disc.deltaR[_disc.offsetMetric[parType] + cell]; // left boundary of current cell
-
-			_disc.Ir[_disc.offsetMetric[parType] + cell] = _disc.Ir[_disc.offsetMetric[parType] + cell] + VectorXd::Ones(_disc.nParNode[parType]) * r_L;
-
-			if (_parGeomSurfToVol[parType] == SurfVolRatioSphere)
-				_disc.Ir[_disc.offsetMetric[parType] + cell] = _disc.Ir[_disc.offsetMetric[parType] + cell].array().square();
-			else if (_parGeomSurfToVol[parType] == SurfVolRatioSlab)
-				_disc.Ir[_disc.offsetMetric[parType] + cell].setOnes(); // no metric terms for slab
-
-			// (D_r)_{i, j} = D_{i, j} * (r_j / r_i) [only needed for inexact integration]
-			_disc.Dr[_disc.offsetMetric[parType] + cell] = _disc.parPolyDerM[parType];
-			_disc.Dr[_disc.offsetMetric[parType] + cell].array().rowwise() *= _disc.Ir[_disc.offsetMetric[parType] + cell].array().template cast<double>().transpose();
-			_disc.Dr[_disc.offsetMetric[parType] + cell].array().colwise() *= _disc.Ir[_disc.offsetMetric[parType] + cell].array().template cast<double>().cwiseInverse();
-
-			// compute mass matrices for exact integration based on particle geometry, via transformation to normalized Jacobi polynomials with weight function w
-			if (_parGeomSurfToVol[parType] == SurfVolRatioSphere) // r^2 =  r_i^2 + (1 + \xi) * r_i * DeltaR_i / 2.0 + (1 + \xi)^2 * (DeltaR_i / 2.0)^2
-			{
-				_disc.parInvMM[_disc.offsetMetric[parType] + cell] = parts::dgtoolbox::mMatrix(_disc.parPolyDeg[parType], _disc.parNodes[parType], 0.0, 2.0) * pow((static_cast<double>(_disc.deltaR[_disc.offsetMetric[parType] + cell]) / 2.0), 2.0);
-				if (cell > 0 || _parCoreRadius[parType] != 0.0) // following contributions are zero for first cell when R_c = 0 (no particle core)
-					_disc.parInvMM[_disc.offsetMetric[parType] + cell] += parts::dgtoolbox::mMatrix(_disc.parPolyDeg[parType], _disc.parNodes[parType], 0.0, 1.0) * (static_cast<double>(_disc.deltaR[_disc.offsetMetric[parType] + cell]) * static_cast<double>(r_L))
-					+ parts::dgtoolbox::mMatrix(_disc.parPolyDeg[parType], _disc.parNodes[parType], 0.0, 0.0) * pow(static_cast<double>(r_L), 2.0);
-
-				_disc.parInvMM[_disc.offsetMetric[parType] + cell] = _disc.parInvMM[_disc.offsetMetric[parType] + cell].inverse();
-				_disc.minus_InvMM_ST[_disc.offsetMetric[parType] + cell] = -_disc.parInvMM[_disc.offsetMetric[parType] + cell] * _disc.parPolyDerM[parType].transpose() * _disc.parInvMM[_disc.offsetMetric[parType] + cell].inverse();
-
-				// particle GSM specific second order stiffness matrix (single element, i.e. nParCell = 1)
-				_disc.secondOrderStiffnessM[parType] = std::pow(static_cast<double>(_parCoreRadius[parType]), 2.0) * parts::dgtoolbox::secondOrderStiffnessMatrix(_disc.parPolyDeg[parType], 0.0, 0.0, _disc.parNodes[parType]);
-				_disc.secondOrderStiffnessM[parType] += static_cast<double>(_disc.deltaR[_disc.offsetMetric[parType]]) * static_cast<double>(_parCoreRadius[parType]) * parts::dgtoolbox::secondOrderStiffnessMatrix(_disc.parPolyDeg[parType], 0.0, 1.0, _disc.parNodes[parType]);
-				_disc.secondOrderStiffnessM[parType] += std::pow(static_cast<double>(_disc.deltaR[_disc.offsetMetric[parType]]) / 2.0, 2.0) * parts::dgtoolbox::secondOrderStiffnessMatrix(_disc.parPolyDeg[parType], 0.0, 2.0, _disc.parNodes[parType]);
-			}
-			else if (_parGeomSurfToVol[parType] == SurfVolRatioCylinder) // r = r_i + (1 + \xi) * DeltaR_i / 2.0
-			{
-				_disc.parInvMM[_disc.offsetMetric[parType] + cell] = parts::dgtoolbox::mMatrix(_disc.parPolyDeg[parType], _disc.parNodes[parType], 0.0, 1.0) * (static_cast<double>(_disc.deltaR[_disc.offsetMetric[parType] + cell]) / 2.0);
-				if (cell > 0 || _parCoreRadius[parType] != 0.0) // following contribution is zero for first cell when R_c = 0 (no particle core)
-					_disc.parInvMM[_disc.offsetMetric[parType] + cell] += parts::dgtoolbox::mMatrix(_disc.parPolyDeg[parType], _disc.parNodes[parType], 0.0, 0.0) * static_cast<double>(r_L);
-
-				_disc.parInvMM[_disc.offsetMetric[parType] + cell] = _disc.parInvMM[_disc.offsetMetric[parType] + cell].inverse();
-				_disc.minus_InvMM_ST[_disc.offsetMetric[parType] + cell] = -_disc.parInvMM[_disc.offsetMetric[parType] + cell] * _disc.parPolyDerM[parType].transpose() * _disc.parInvMM[_disc.offsetMetric[parType] + cell].inverse();
-
-				// particle GSM specific second order stiffness matrix (single element, i.e. nParCell = 1)
-				_disc.secondOrderStiffnessM[parType] = static_cast<double>(_parCoreRadius[parType]) * parts::dgtoolbox::secondOrderStiffnessMatrix(_disc.parPolyDeg[parType], 0.0, 0.0, _disc.parNodes[parType]);
-				_disc.secondOrderStiffnessM[parType] += static_cast<double>(_disc.deltaR[_disc.offsetMetric[parType]]) / 2.0 * parts::dgtoolbox::secondOrderStiffnessMatrix(_disc.parPolyDeg[parType], 0.0, 1.0, _disc.parNodes[parType]);
-			}
-			else if (_parGeomSurfToVol[parType] == SurfVolRatioSlab) // r = 1
-			{
-				_disc.minus_InvMM_ST[_disc.offsetMetric[parType] + cell] = -_disc.parInvMM[_disc.offsetMetric[parType] + cell] * _disc.parPolyDerM[parType].transpose() * _disc.parInvMM[_disc.offsetMetric[parType] + cell].inverse();
-
-				_disc.secondOrderStiffnessM[parType] = parts::dgtoolbox::secondOrderStiffnessMatrix(_disc.parPolyDeg[parType], 0.0, 0.0, _disc.parNodes[parType]);
-				_disc.parInvMM[_disc.offsetMetric[parType] + cell] = parts::dgtoolbox::invMMatrix(_disc.parPolyDeg[parType], _disc.parNodes[parType], 0.0, 0.0);
-			}
-		}
-
-		_disc.minus_parInvMM_Ar[parType] = -_disc.parInvMM[_disc.offsetMetric[parType]] * _disc.secondOrderStiffnessM[parType];
-	}
-}
-
 bool GeneralRateModelDG::setParameter(const ParameterId& pId, double value)
 {
 	if (pId.unitOperation == _unitOpIdx)
@@ -2106,9 +1759,9 @@ bool GeneralRateModelDG::setParameter(const ParameterId& pId, double value)
 
 	const bool result = UnitOperationBase::setParameter(pId, value);
 
-	// Check whether particle radius or core radius has changed and update radial discretization if necessary
-	if (result && ((pId.name == hashString("PAR_RADIUS")) || (pId.name == hashString("PAR_CORERADIUS"))))
-		updateRadialDisc();
+	//// Check whether particle radius or core radius has changed and update radial discretization if necessary
+	//if (result && ((pId.name == hashString("PAR_RADIUS")) || (pId.name == hashString("PAR_CORERADIUS"))))
+	//	updateRadialDisc();
 
 	return result;
 }
@@ -2183,9 +1836,9 @@ void GeneralRateModelDG::setSensitiveParameterValue(const ParameterId& pId, doub
 
 	UnitOperationBase::setSensitiveParameterValue(pId, value);
 
-	// Check whether particle radius or core radius has changed and update radial discretization if necessary
-	if ((pId.name == hashString("PAR_RADIUS")) || (pId.name == hashString("PAR_CORERADIUS")))
-		updateRadialDisc();
+	//// Check whether particle radius or core radius has changed and update radial discretization if necessary
+	//if ((pId.name == hashString("PAR_RADIUS")) || (pId.name == hashString("PAR_CORERADIUS")))
+	//	updateRadialDisc();
 }
 
 bool GeneralRateModelDG::setSensitiveParameter(const ParameterId& pId, unsigned int adDirection, double adValue)
@@ -2276,11 +1929,11 @@ bool GeneralRateModelDG::setSensitiveParameter(const ParameterId& pId, unsigned 
 
 	const bool result = UnitOperationBase::setSensitiveParameter(pId, adDirection, adValue);
 
-	// Check whether particle radius or core radius has been set active and update radial discretization if necessary
-	// Note that we need to recompute the radial discretization variables (_parCellSize, _parCenterRadius, _parOuterSurfAreaPerVolume, _parInnerSurfAreaPerVolume)
-	// because their gradient has changed (although their nominal value has not changed).
-	if ((pId.name == hashString("PAR_RADIUS")) || (pId.name == hashString("PAR_CORERADIUS")))
-		updateRadialDisc();
+	//// Check whether particle radius or core radius has been set active and update radial discretization if necessary
+	//// Note that we need to recompute the radial discretization variables (_parCellSize, _parCenterRadius, _parOuterSurfAreaPerVolume, _parInnerSurfAreaPerVolume)
+	//// because their gradient has changed (although their nominal value has not changed).
+	//if ((pId.name == hashString("PAR_RADIUS")) || (pId.name == hashString("PAR_CORERADIUS")))
+	//	updateRadialDisc();
 
 	return result;
 }

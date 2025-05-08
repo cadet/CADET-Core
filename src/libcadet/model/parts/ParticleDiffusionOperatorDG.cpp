@@ -1186,7 +1186,8 @@ namespace parts
 		//_curSection = secIdx;
 		//_newStaticJac = true;
 
-		// todo update operators and Jacobian blocks
+		// todo update operators not just Jacobian blocks
+		initializeDGjac(_parGeomSurfToVol);
 
 		return true;
 	}
