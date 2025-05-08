@@ -1229,7 +1229,7 @@ namespace parts
 
 		// Get film diffusion flux at current node to compute boundary condition
 		for (unsigned int comp = 0; comp < _nComp; comp++) {
-			_localFlux[comp] = _filmDiffusion[comp] * (yBulk[comp * _strideBulkComp] - yPar[(_nParPoints[parType] - 1) * strideParNode(parType) + comp]);
+			_localFlux[comp] = _filmDiffusion[comp + parType * _nComp] * (yBulk[comp * _strideBulkComp] - yPar[(_nParPoints[parType] - 1) * strideParNode(parType) + comp]);
 		}
 
 		active const* const parDiff = getSectionDependentSlice(_parDiffusion, _nComp * _nParType, secIdx) + parType * _nComp;
