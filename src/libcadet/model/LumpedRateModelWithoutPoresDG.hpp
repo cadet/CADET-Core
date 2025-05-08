@@ -207,7 +207,7 @@ namespace cadet
 			{
 			public:
 				unsigned int nComp; //!< Number of components
-				unsigned int nCol; //!< Number of column cells
+				unsigned int nElem; //!< Number of column cells
 				unsigned int polyDeg; //!< polynomial degree
 				unsigned int nNodes; //!< Number of nodes per cell
 				unsigned int nPoints; //!< Number of discrete Points
@@ -340,10 +340,10 @@ namespace cadet
 				 */
 				virtual int writePrimaryCoordinates(double* coords) const
 				{
-					for (unsigned int i = 0; i < _disc.nCol; i++) {
+					for (unsigned int i = 0; i < _disc.nElem; i++) {
 						for (unsigned int j = 0; j < _disc.nNodes; j++) {
 							// mapping 
-							coords[i * _disc.nNodes + j] = _model._convDispOp.cellLeftBound(i) + 0.5 * (static_cast<double>(_model._convDispOp.columnLength()) / static_cast<double>(_disc.nCol)) * (1.0 + _model._convDispOp.LGLnodes()[j]);
+							coords[i * _disc.nNodes + j] = _model._convDispOp.elemLeftBound(i) + 0.5 * (static_cast<double>(_model._convDispOp.columnLength()) / static_cast<double>(_disc.nElem)) * (1.0 + _model._convDispOp.LGLnodes()[j]);
 						}
 					}
 					return _disc.nPoints;

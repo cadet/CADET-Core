@@ -134,7 +134,7 @@ TEST_CASE("LRMP2D with two component linear binding Jacobian", "[LRMP2D],[DG],[D
 	test2DLRMPJacobian(relModelFilePath, 6, 6, 2, 1);
 }
 
-TEST_CASE("LRMP2D numerical Benchmark for a pure bulk transport case with three radial zones", "[LRMP2D],[DG],[DG2D],[Simulation],[Reference],[testHere]")
+TEST_CASE("LRMP2D numerical Benchmark for a pure bulk transport case with three radial zones", "[LRMP2D],[DG],[DG2D],[Simulation],[Reference],[CI]")
 {
 	const std::string& modelFilePath = std::string("/data/model_2DLRMP3Zone_noFilmDiff_1Comp_benchmark1.json");
 	const std::string& refFilePath = std::string("/data/ref_2DLRMP3Zone_noFilmDiff_1Comp_benchmark1.h5");

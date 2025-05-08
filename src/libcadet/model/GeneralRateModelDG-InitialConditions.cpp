@@ -395,8 +395,8 @@ void GeneralRateModelDG::consistentInitialState(const SimulationTime& simTime, d
 				active* const localAdY = adJac.adY ? adJac.adY + localOffsetToParticle + localOffsetInParticle : nullptr;
 
 				// r (particle) coordinate of current node
-				const double r = static_cast<double>(_disc.deltaR[type]) * std::floor(node / _disc.nParNode[type])
-					+ 0.5 * static_cast<double>(_disc.deltaR[type]) * (1 + _disc.parNodes[type][node % _disc.nParNode[type]]);
+				const double r = static_cast<double>(_parDiffOp._deltaR[type]) * std::floor(node / _disc.nParNode[type])
+					+ 0.5 * static_cast<double>(_parDiffOp._deltaR[type]) * (1 + _parDiffOp._parNodes[type][node % _disc.nParNode[type]]);
 				const ColumnPosition colPos{ z, 0.0, r };
 
 				// Determine whether nonlinear solver is required
@@ -723,8 +723,8 @@ void GeneralRateModelDG::consistentInitialTimeDerivative(const SimulationTime& s
 			if (_binding[type]->dependsOnTime())
 			{
 				// r (particle) coordinate of current node (particle radius normed to 1) - needed in externally dependent adsorption kinetic
-				const double r = (static_cast<double>(_disc.deltaR[type]) * std::floor(j / _disc.nParNode[type])
-					+ 0.5 * static_cast<double>(_disc.deltaR[type]) * (1 + _disc.parNodes[type][j % _disc.nParNode[type]]))
+				const double r = (static_cast<double>(_parDiffOp._deltaR[type]) * std::floor(j / _disc.nParNode[type])
+					+ 0.5 * static_cast<double>(_parDiffOp._deltaR[type]) * (1 + _parDiffOp._parNodes[type][j % _disc.nParNode[type]]))
 					/ (static_cast<double>(_parRadius[type]) - static_cast<double>(_parCoreRadius[type]));
 				_binding[type]->timeDerivativeQuasiStationaryFluxes(simTime.t, simTime.secIdx,
 					ColumnPosition{ z, 0.0, r },
@@ -841,8 +841,8 @@ void GeneralRateModelDG::leanConsistentInitialState(const SimulationTime& simTim
 					const int localOffsetInParticle = static_cast<int>(shell) * idxr.strideParNode(type) + idxr.strideParLiquid();
 					double* const qShell = vecStateY + localOffsetToParticle + localOffsetInParticle;
 					// r (particle) coordinate of current node
-					const double r = static_cast<double>(_disc.deltaR[type]) * std::floor(shell / _disc.nParNode[type])
-						+ 0.5 * static_cast<double>(_disc.deltaR[type]) * (1 + _disc.parNodes[type][shell % _disc.nParNode[type]]);
+					const double r = static_cast<double>(_parDiffOp._deltaR[type]) * std::floor(shell / _disc.nParNode[type])
+						+ 0.5 * static_cast<double>(_parDiffOp._deltaR[type]) * (1 + _parDiffOp._parNodes[type][shell % _disc.nParNode[type]]);
 					const ColumnPosition colPos{ z, 0.0, r};
 
 					// Perform consistent initialization that does not require a full fledged nonlinear solver (that may fail or damage the current state vector)

@@ -141,7 +141,7 @@ int GeneralRateModelDG::linearSolve(double t, double alpha, double outerTol, dou
 
 	// Handle inlet DOFs:
 	// Inlet at z = 0 for forward flow, at z = L for backward flow.
-	unsigned int offInlet = _convDispOp.forwardFlow() ? 0 : (_disc.nCol - 1u) * idxr.strideColCell();
+	unsigned int offInlet = _convDispOp.forwardFlow() ? 0 : (_disc.nElem - 1u) * idxr.strideColCell();
 
 	for (int comp = 0; comp < _disc.nComp; comp++) {
 		for (int node = 0; node < (_disc.exactInt ? _disc.nNodes : 1); node++) {
@@ -205,7 +205,7 @@ void GeneralRateModelDG::assembleDiscretizedGlobalJacobian(double alpha, Indexer
 
 						// surface diffusion + kinetic binding -> additional DG-discretized mass balance equation for solid, for which the (inexact integration) discretization special case also holds
 						else if (_hasSurfaceDiffusion[parType]
-							&& static_cast<double>(getSectionDependentSlice(_parSurfDiffusion, _disc.strideBound[_disc.nParType], _disc.curSection)[_disc.nBoundBeforeType[parType] + getOffsetSurfDiff(parType, comp, bnd)]) != 0.0)
+							&& static_cast<double>(getSectionDependentSlice(_parSurfDiffusion, _disc.strideBound[_disc.nParType], _disc.curSection)[_disc.nBoundBeforeType[parType] + _parDiffOp.getOffsetSurfDiff(parType, comp, bnd)]) != 0.0)
 							continue;
 
 						// Add derivative with respect to dq / dt to Jacobian

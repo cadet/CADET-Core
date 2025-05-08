@@ -244,7 +244,7 @@ protected:
 		unsigned int nComp; //!< Number of components
 
 		bool exactInt;	//!< 1 for exact integration, 0 for LGL quadrature
-		unsigned int nCol; //!< Number of column cells
+		unsigned int nElem; //!< Number of column cells
 		unsigned int polyDeg; //!< polynomial degree
 		unsigned int nNodes; //!< Number of nodes per cell
 		unsigned int nPoints; //!< Number of discrete Points
@@ -408,10 +408,10 @@ protected:
 		*/
 		virtual int writePrimaryCoordinates(double* coords) const
 		{
-			for (unsigned int i = 0; i < _disc.nCol; i++) {
+			for (unsigned int i = 0; i < _disc.nElem; i++) {
 				for (unsigned int j = 0; j < _disc.nNodes; j++) {
 					// mapping 
-					coords[i * _disc.nNodes + j] = _model._convDispOp.cellLeftBound(i) + 0.5 * (static_cast<double>(_model._convDispOp.columnLength()) / static_cast<double>(_disc.nCol)) * (1.0 + _model._convDispOp.LGLnodes()[j]);
+					coords[i * _disc.nNodes + j] = _model._convDispOp.elemLeftBound(i) + 0.5 * (static_cast<double>(_model._convDispOp.columnLength()) / static_cast<double>(_disc.nElem)) * (1.0 + _model._convDispOp.LGLnodes()[j]);
 				}
 			}
 			return _disc.nPoints;
@@ -483,9 +483,9 @@ protected:
 		Indexer idxr(_disc);
 
 		for (unsigned int parType = 0; parType < _disc.nParType; parType++) {
-			for (unsigned int nCol = 0; nCol < _disc.nPoints; nCol++) {
+			for (unsigned int nElem = 0; nElem < _disc.nPoints; nElem++) {
 
-				int offset = idxr.offsetCp(ParticleTypeIndex{ parType }, ParticleIndex{ nCol }) - idxr.offsetC(); // inlet DOFs not included in Jacobian
+				int offset = idxr.offsetCp(ParticleTypeIndex{ parType }, ParticleIndex{ nElem }) - idxr.offsetC(); // inlet DOFs not included in Jacobian
 
 				// add dense nComp * nBound blocks, since all solid and liquid entries can be coupled through binding.
 				for (unsigned int parState = 0; parState < _disc.nComp + _disc.strideBound[parType]; parState++) {
@@ -511,12 +511,12 @@ protected:
 			int offP = idxr.offsetCp(ParticleTypeIndex{ parType }) - idxr.offsetC(); // inlet DOFs not included in Jacobian
 
 			// add dependency of c^b, c^p and flux on another
-			for (unsigned int nCol = 0; nCol < _disc.nPoints; nCol++) {
+			for (unsigned int nElem = 0; nElem < _disc.nPoints; nElem++) {
 				for (unsigned int comp = 0; comp < _disc.nComp; comp++) {
 					// c^b on c^b entry already set
-					tripletList.push_back(T(offC + nCol * _disc.nComp + comp, offP + nCol * idxr.strideParBlock(parType) + comp, 0.0)); // c^b on c^p
+					tripletList.push_back(T(offC + nElem * _disc.nComp + comp, offP + nElem * idxr.strideParBlock(parType) + comp, 0.0)); // c^b on c^p
 					// c^p on c^p entry already set
-					tripletList.push_back(T(offP + nCol * idxr.strideParBlock(parType) + comp, offC + nCol * _disc.nComp + comp, 0.0)); // c^p on c^b
+					tripletList.push_back(T(offP + nElem * idxr.strideParBlock(parType) + comp, offC + nElem * _disc.nComp + comp, 0.0)); // c^p on c^b
 				}
 			}
 		}
