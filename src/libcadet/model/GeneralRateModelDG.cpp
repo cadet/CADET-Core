@@ -188,7 +188,7 @@ bool GeneralRateModelDG::configureModelDiscretization(IParameterProvider& paramP
 	{
 		paramProvider.popScope();
 		Indexer idxr(_disc);
-		_parDispOp.configureModelDiscretization(paramProvider, helper, _disc.nComp, _disc.nParType, idxr.strideColComp());
+		_parDiffOp.configureModelDiscretization(paramProvider, helper, _disc.nComp, _disc.nParType, idxr.strideColComp());
 		paramProvider.pushScope("discretization");
 	}
 	//
@@ -874,7 +874,7 @@ bool GeneralRateModelDG::configure(IParameterProvider& paramProvider)
 	// The goal of analyzePattern() is to reorder the nonzero elements of the matrix, such that the factorization step creates less fill-in
 	_linearSolver->analyzePattern(_globalJacDisc.block(_disc.nComp, _disc.nComp, numPureDofs(), numPureDofs()));
 
-	_parDispOp.configure(_unitOpIdx, paramProvider, _parameters);
+	_parDiffOp.configure(_unitOpIdx, paramProvider, _parameters);
 
 	return transportSuccess && parSurfDiffDepConfSuccess && bindingConfSuccess && dynReactionConfSuccess;
 }
@@ -965,7 +965,7 @@ void GeneralRateModelDG::notifyDiscontinuousSectionTransition(double t, unsigned
 
 	_convDispOp.notifyDiscontinuousSectionTransition(t, secIdx, _jacInlet);
 
-	_parDispOp.notifyDiscontinuousSectionTransition(t, secIdx, getSectionDependentSlice(_filmDiffusion, _disc.nComp * _disc.nParType, secIdx));
+	_parDiffOp.notifyDiscontinuousSectionTransition(t, secIdx, getSectionDependentSlice(_filmDiffusion, _disc.nComp * _disc.nParType, secIdx), &_poreAccessFactor[0]);
 
 	_disc.curSection = secIdx;
 	_disc.newStaticJac = true;
@@ -1485,7 +1485,17 @@ int GeneralRateModelDG::residualParticle(double t, unsigned int parType, unsigne
 	if(!wantRes)
 		return 0;
 
-	// We still need to handle transport/diffusion
+	// We still need to handle transport via particle diffusion
+
+	//_parDiffOp.residual(t, secIdx, colNode, parType,
+	//	yBase + idxr.offsetCp(ParticleTypeIndex{ parType }, ParticleIndex{ colNode }),
+	//	yBase + idxr.offsetC() + colNode * idxr.strideColNode(),
+	//	yDotBase + idxr.offsetCp(ParticleTypeIndex{ parType }, ParticleIndex{ colNode }),
+	//	resBase + idxr.offsetCp(ParticleTypeIndex{ parType }, ParticleIndex{ colNode }),
+	//	_binding[parType]->reactionQuasiStationarity(),
+	//	typename cadet::ParamSens<ParamType>::enabled()
+	//);
+
 
 	// Get pointers to the particle block of the current column node, particle type
 	const StateType* c_p = yBase + idxr.offsetCp(ParticleTypeIndex{ parType }, ParticleIndex{ colNode });
