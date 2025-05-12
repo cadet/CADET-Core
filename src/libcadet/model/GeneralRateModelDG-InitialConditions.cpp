@@ -303,15 +303,6 @@ void GeneralRateModelDG::consistentInitialState(const SimulationTime& simTime, d
 
 	Indexer idxr(_disc);
 
-	// initialization for inexact integration DG discretization of particle mass balance not supported. This would require the consideration of the additional algebraic constraints,
-	// but the general performance (stiffness due to the additional algebraic constraints) of this scheme does not justify the effort here.
-	for (unsigned int type = 0; type < _disc.nParType; type++) {
-		if (_disc.parExactInt[type] == false) {
-			LOG(Error) << "No consistent initialization for inexact integration DG discretization in particles (cf. par_exact_integration). If consistent initialization is required, change to exact integration.";
-			return;
-		}
-	}
-
 	// Step 1: Solve algebraic equations
 
 	// Step 1a: Compute quasi-stationary binding model state

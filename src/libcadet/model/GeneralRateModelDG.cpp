@@ -186,12 +186,10 @@ bool GeneralRateModelDG::configureModelDiscretization(IParameterProvider& paramP
 
 	std::vector<int> parPolyDeg(_disc.nParType);
 	std::vector<int> ParNelem(_disc.nParType);
-	std::vector<bool> parExactInt(_disc.nParType, true);
 	if (firstConfigCall)
 	{
 		_disc.parPolyDeg = new unsigned int[_disc.nParType];
 		_disc.nParCell = new unsigned int[_disc.nParType];
-		_disc.parExactInt = new bool[_disc.nParType];
 		_disc.parGSM = new bool[_disc.nParType];
 	}
 
@@ -205,12 +203,6 @@ bool GeneralRateModelDG::configureModelDiscretization(IParameterProvider& paramP
 
 		if ((std::any_of(ParNelem.begin(), ParNelem.end(), [](int value) { return value < 1; })))
 			throw InvalidParameterException("Particle number of elements must be at least 1!");
-
-		if(paramProvider.exists("PAR_EXACT_INTEGRATION"))
-			parExactInt = paramProvider.getBoolArray("PAR_EXACT_INTEGRATION");
-
-		if ((std::any_of(parExactInt.begin(), parExactInt.end(), [](bool value) { return !value; })))
-			LOG(Warning) << "Inexact integration method (cf. PAR_EXACT_INTEGRATION) in particles might add severe! stiffness to the system and disables consistent initialization!";
 
 		if (parPolyDeg.size() == 1)
 		{
@@ -232,16 +224,6 @@ bool GeneralRateModelDG::configureModelDiscretization(IParameterProvider& paramP
 			throw InvalidParameterException("Field PAR_NELEM must have 1 or NPARTYPE (" + std::to_string(_disc.nParType) + ") entries");
 		else
 			std::copy_n(ParNelem.begin(), _disc.nParType, _disc.nParCell);
-		if (parExactInt.size() == 1)
-		{
-			// Multiplex number of particle shells to all particle types
-			for (unsigned int i = 0; i < _disc.nParType; ++i)
-				std::fill(_disc.parExactInt, _disc.parExactInt + _disc.nParType, parExactInt[0]);
-		}
-		else if (parExactInt.size() < _disc.nParType)
-			throw InvalidParameterException("Field PAR_EXACT_INTEGRATION must have 1 or NPARTYPE (" + std::to_string(_disc.nParType) + ") entries");
-		else
-			std::copy_n(parExactInt.begin(), _disc.nParType, _disc.parExactInt);
 	}
 	else if (paramProvider.exists("NPAR"))
 	{
@@ -1366,9 +1348,6 @@ int GeneralRateModelDG::residualParticle(double t, unsigned int parType, unsigne
 
 	LinearBufferAllocator tlmAlloc = threadLocalMem.get();
 
-	// Special case: individual treatment of time derivatives in particle mass balance at inner particle boundary node
-	bool specialCase = !_disc.parExactInt[parType] && (_parGeomSurfToVol[parType] != _disc.SurfVolRatioSlab && _parCoreRadius[parType] == 0.0);
-
 	// Prepare parameters
 	active const* const parDiff = getSectionDependentSlice(_parDiffusion, _disc.nComp * _disc.nParType, secIdx) + parType * _disc.nComp;
 
@@ -1407,62 +1386,14 @@ int GeneralRateModelDG::residualParticle(double t, unsigned int parType, unsigne
 			);
 		const ColumnPosition colPos{ z, 0.0, r };
 
-		// Handle time derivatives, binding, dynamic reactions.
-		// Special case: Dont add time derivatives to inner boundary node for DG discretized mass balance equations.
-		// This can be achieved by setting yDot pointer to null before passing to residual kernel, and adding only the time derivative for dynamic binding
-		// TODO Check Treatment of reactions (do we need yDot then?)
-		if (cadet_unlikely(par == 0 && specialCase))
-		{
-			if (wantRes)
-				parts::cell::residualKernel<StateType, ResidualType, ParamType, parts::cell::CellParameters, linalg::BandedEigenSparseRowIterator, wantJac, true>(
-					t, secIdx, colPos, local_y, nullptr, local_res, jac, cellResParams, tlmAlloc // TODO Check Treatment of reactions (do we need yDot then?)
-				);
-			else
-				parts::cell::residualKernel<StateType, ResidualType, ParamType, parts::cell::CellParameters, linalg::BandedEigenSparseRowIterator, wantJac, false, false>(
-					t, secIdx, colPos, local_y, nullptr, local_res, jac, cellResParams, tlmAlloc // TODO Check Treatment of reactions (do we need yDot then?)
-				);
-
-			if (!wantRes)
-				continue;
-
-			if (cellResParams.binding->hasDynamicReactions() && local_yDot)
-			{
-				unsigned int idx = 0;
-				for (unsigned int comp = 0; comp < cellResParams.nComp; ++comp)
-				{
-					for (unsigned int state = 0; state < cellResParams.nBound[comp]; ++state, ++idx)
-					{
-						// Skip quasi-stationary fluxes
-						if (cellResParams.qsReaction[idx])
-							continue;
-
-						// For kinetic bindings and surface diffusion, we have an additional DG-discretized mass balance eq.
-						// -> add time derivate at inner bonudary node only without surface diffusion 
-						else if (_hasSurfaceDiffusion[parType])
-							continue;
-						// Some bound states might still not be effected by surface diffusion
-						else if (parSurfDiff[idx] != 0.0)
-							continue;
-
-						// Add time derivative to solid phase
-						local_res[idxr.strideParLiquid() + idx] += local_yDot[idxr.strideParLiquid() + idx];
-					}
-				}
-			}
-		}
+		if (wantRes)
+			parts::cell::residualKernel<StateType, ResidualType, ParamType, parts::cell::CellParameters, linalg::BandedEigenSparseRowIterator, wantJac, true>(
+				t, secIdx, colPos, local_y, local_yDot, local_res, jac, cellResParams, tlmAlloc
+			);
 		else
-		{
-			if (wantRes)
-				parts::cell::residualKernel<StateType, ResidualType, ParamType, parts::cell::CellParameters, linalg::BandedEigenSparseRowIterator, wantJac, true>(
-					t, secIdx, colPos, local_y, local_yDot, local_res, jac, cellResParams, tlmAlloc
-				);
-			else
-			{
-				parts::cell::residualKernel<StateType, ResidualType, ParamType, parts::cell::CellParameters, linalg::BandedEigenSparseRowIterator, wantJac, false, false>(
-					t, secIdx, colPos, local_y, local_yDot, local_res, jac, cellResParams, tlmAlloc
-				);
-			}
-		}
+			parts::cell::residualKernel<StateType, ResidualType, ParamType, parts::cell::CellParameters, linalg::BandedEigenSparseRowIterator, wantJac, false, false>(
+				t, secIdx, colPos, local_y, local_yDot, local_res, jac, cellResParams, tlmAlloc
+			);
 
 		// Move rowiterator to next particle node
 		jac += idxr.strideParNode(parType);
