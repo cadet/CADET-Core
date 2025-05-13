@@ -18,15 +18,8 @@
 #include "JsonTestModels.hpp"
 #include "Utils.hpp"
 
-// todo add a meaningful backward flow test
 
-// todo find analytical solution with linear binding
-
-// todo find analytical solution without binding
-
-// todo add (more) numerical reference (and EOC) tests
-
-TEST_CASE("Radial GRM numerical Benchmark with parameter sensitivities for linear case", "[RadGRM],[Simulation],[Reference],[Sensitivity]") // todo CI flag: currently only runs locally but fails on server
+TEST_CASE("Radial GRM numerical Benchmark with parameter sensitivities for linear case", "[RadGRM],[Simulation],[Reference],[Sensitivity],[CI_sensitivity2]")
 {
 	const std::string& modelFilePath = std::string("/data/model_radGRM_dynLin_1comp_sensbenchmark1.json");
 	const std::string& refFilePath = std::string("/data/ref_radGRM_dynLin_1comp_sensbenchmark1_FV_Z32parZ4.h5");
@@ -42,7 +35,7 @@ TEST_CASE("Radial GRM transport Jacobian", "[RadGRM],[UnitOp],[Jacobian],[CI]")
 	cadet::test::column::testJacobianAD(jpp, std::numeric_limits<float>::epsilon() * 100.0);
 }
 
-// NOTE: THE FOLLOWING TESTS ARE ONLY INCLUDED IN THE RELEASE CI, NOT THE STANDARD CI SINCE THEY ARE (TO A HIGH DEGREE) REDUNDANT WITH THE AXIAL FLOW TESTS
+// NOTE: THE FOLLOWING TESTS ARE ONLY INCLUDED IN THE RELEASE CI, NOT THE STANDARD CI SINCE THEY ARE REDUNDANT WITH THE AXIAL FLOW TESTS
 
 TEST_CASE("Radial GRM Jacobian forward vs backward flow", "[RadGRM],[UnitOp],[Residual],[Jacobian],[AD],[ReleaseCI]")
 {
