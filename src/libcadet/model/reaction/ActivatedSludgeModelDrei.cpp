@@ -209,6 +209,11 @@ protected:
 		ParamType ft04 = 0.0; // eigentlich abhängig von temperatur (später Parameter-Parameter Dependencies) 
 		//ParamType KX = 0.0; // TODO: is this a param?
 
+		StateType SO = y[0];
+		StateType SS = y[1];
+		StateType SNH = y[2];
+		StateType SNO = y[3];
+
 		StateType XS = y[8];
 		StateType XH = y[9];
 		
@@ -228,25 +233,25 @@ protected:
 		fluxes[4] = muH * etaHNO3 * KHO2 / (KHO2 + SO) * SNH / (KHNH4 + SNH) * SALK / (KHALK + SALK) * XSTO / XH_S * 1 / (KHSTO + XSTO/XH_S) * SNO / (KHNO3 + SNO) * XH;
 
 		// r6: Aerobic endogenous respiration of heterotroph microorganisms (XH)
-		//fluxes[5] =
+		fluxes[5] = bH * SO / (SO + KHO2) * XH;
 
 		// r7: Anoxic endogenous respiration of heterotroph microorganisms (XH)
-		//fluxes[6] =
+		fluxes[6] = bH * etaHend * KHO2 / (SO + KHO2) * SNO / (SNO + KHNO3) * XH;
 
 		// r8: Aerobic respiration of internal cell storage products
-		//fluxes[7] =
+		fluxes[7] = bH * SO / (SO + KHO2) * XSTO;
 
 		// r9: Anoxic respiration of internal cell storage products 
-		//fluxes[8] =
+		fluxes[8] = bH * etaHend * KHO2 / (SO + KHO2) * SNO / (SNO + KHNO3) * XSTO;
 
 		// r10: Aerobic growth of autotrophic biomass (XAUT, nitrification)
-		//fluxes[9] =
+		fluxes[9] = muAUT * SO / (SO + KNO2) * SNH / (SNH + KNNH4) * SALK / (SALK + KNALK) * XA;
 
 		// r11: Aerobic endogenous respiration of autotrophic biomass (XAUT)
-		//fluxes[10] =
+		fluxes[10] = bAUT * SO / (SO + KHO2) * XA;
 
 		// r12: Anoxic endogenous respiration of autotrophic biomass (XAUT)
-		//fluxes[11] =
+		fluxes[11] = bAUT * etaNend * SNO / (SNO + KHNO3) * KHO2 / (SO + KHO2) * XA;
 		
 			
 		// Add reaction terms to residual
