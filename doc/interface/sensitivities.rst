@@ -39,7 +39,7 @@ Group /input/sensitivity/param_XXX
    
 ``SENS_NAME``
 
-   Name of the parameter (Note that ``PAR_RADIUS`` and ``PAR_CORE_RADIUS`` sensitivities are only available for Finite Volume discretization)
+   Name of the parameter (Note that ``PAR_RADIUS`` and ``PAR_CORERADIUS`` sensitivities are only available for Finite Volume discretization)
    
    ================  ===========================
    **Type:** string  **Length:** :math:`\geq 1`
@@ -47,7 +47,7 @@ Group /input/sensitivity/param_XXX
    
 ``SENS_COMP``
 
-   Component index (:math:`-1` if parameter is independent of components)
+   Component index (:math:`-1` if parameter is independent of components, see the multiplexing of the corresponding parameter, e.g. `FILM_DIFFUSION_MULTIPLEX`)
    
    =============  ==========================  ============================
    **Type:** int  **Range:** :math:`\geq -1`  **Length:** :math:`\geq 1`
@@ -55,7 +55,7 @@ Group /input/sensitivity/param_XXX
    
 ``SENS_PARTYPE``
 
-   Particle type index (:math:`-1` if parameter is independent of particle types)
+   Particle type index (:math:`-1` if parameter is independent of particle types, see the multiplexing of the corresponding parameter, e.g. `PAR_DIFFUSION_MULTIPLEX`)
    
    =============  ==========================  ===========================
    **Type:** int  **Range:** :math:`\geq -1`  **Length:** :math:`\geq 1`
