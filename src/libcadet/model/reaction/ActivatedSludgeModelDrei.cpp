@@ -205,27 +205,48 @@ protected:
 			| XMI | 12	 | */
 		
 		// flux 0: kh2o fto(T) HS/XH/(...
-		ParamType kh2o = 0.0;
-		ParamType ft04 = 0.0; // eigentlich abhännig von temperatur (später Parameter-Parameter Dependencies) 
-		ParamType kX = 0.0;
+		ParamType Kh20 = 0.0;
+		ParamType ft04 = 0.0; // eigentlich abhängig von temperatur (später Parameter-Parameter Dependencies) 
+		//ParamType KX = 0.0; // TODO: is this a param?
 
 		StateType XS = y[8];
 		StateType XH = y[9];
 		
-		fluxes[0] = kh2o * ft0 * (XS / XH) / (XS / XH) + kX * XH;
+		// p1: Hydrolysis of organic structures
+		fluxes[0] = Kh20 * ft04 * XS/XH_S / (XS/XH_S + KX) * XH;
 		
-		// flux 1:
-		fluxes[1] =
-		fluxes[2] =
-		fluxes[3] =
-		fluxes[4] =
-		fluxes[5] =
-		fluxes[6] =
-		fluxes[7] =
-		fluxes[8] =
-		fluxes[9] =
-		fluxes[10] =
-		fluxes[11] =
+		// p2: Aerobic storage of SS
+		fluxes[1] = k_sto * SO / (SO + KHO2) * SS / (SS + KHSS) * SNO / (SNO + KHNO3) * XH;
+
+		// p3: Anoxic storage of SS
+		fluxes[2] = k_sto * etaHNO3 * KHO2 / (SO + KHO2) * SS / (SS + KHSS) * SNO / (SNO + KHNO3) * XH;
+
+		// p4: Aerobic growth of heterotrophic biomass (XH)
+		fluxes[3] = muH * SO / (SO + KHO2) * SNH / (SNH + KHNH4) * SALK / (SALK + KHALK) * XSTO/XH_S / (XSTO/XH_S + KHSTO) * XH;
+
+		// p5: Anoxic growth of heterotrophic biomass (XH, denitrification)
+		fluxes[4] = muH * etaHNO3 * KHO2 / (KHO2 + SO) * SNH / (KHNH4 + SNH) * SALK / (KHALK + SALK) * XSTO / XH_S * 1 / (KHSTO + XSTO/XH_S) * SNO / (KHNO3 + SNO) * XH;
+
+		// r6: Aerobic endogenous respiration of heterotroph microorganisms (XH)
+		//fluxes[5] =
+
+		// r7: Anoxic endogenous respiration of heterotroph microorganisms (XH)
+		//fluxes[6] =
+
+		// r8: Aerobic respiration of internal cell storage products
+		//fluxes[7] =
+
+		// r9: Anoxic respiration of internal cell storage products 
+		//fluxes[8] =
+
+		// r10: Aerobic growth of autotrophic biomass (XAUT, nitrification)
+		//fluxes[9] =
+
+		// r11: Aerobic endogenous respiration of autotrophic biomass (XAUT)
+		//fluxes[10] =
+
+		// r12: Anoxic endogenous respiration of autotrophic biomass (XAUT)
+		//fluxes[11] =
 		
 			
 		// Add reaction terms to residual
