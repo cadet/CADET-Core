@@ -188,34 +188,54 @@ protected:
 		// Calculate fluxes
 		typedef typename DoubleActivePromoter<StateType, ParamType>::type flux_t;
 		BufferedArray<flux_t> fluxes = workSpace.array<flux_t>(_stoichiometry.columns());
-		/* | Component | Index |
-			| -------- - | ---- - |
-			| SO | 0     |
-			| SS | 1     |
-			| SNH | 2    |
-			| SNO | 3    |
-			| SN2 | 4    |
-			| SALK | 5   |
-			| SI | 6     |
-			| XI | 7     |
-			| XS | 8     |
-			| XH | 9     |
-			| XSTO | 10  |
-			| XA | 11	 |
-			| XMI | 12	 | */
 		
-		// flux 0: kh2o fto(T) HS/XH/(...
-		ParamType Kh20 = 0.0;
-		ParamType ft04 = 0.0; // eigentlich abhängig von temperatur (später Parameter-Parameter Dependencies) 
-		//ParamType KX = 0.0; // TODO: is this a param?
+		ParamType Kh20 = 10.2;
+		ParamType T = 20;
+		ParamType k_sto20 = 13.68;
+		ParamType KX = 1;
+		ParamType KHO2 = 0.2;
+		ParamType KHSS = 3;
+		ParamType KHNO3 = 0.5;
+		ParamType etaHNO3 = 0.5;
+		ParamType KHNH4 = 0.01;
+		ParamType KHALK = 0.1;
+		ParamType KHSTO = 0.11;
+		ParamType muH20 = 3;
+		ParamType etaHend = 0.5;
+		ParamType bH20 = 0.33;
+		ParamType muAUT20 = 1.12;
+		ParamType KNO2 = 0.5;
+		ParamType KNNH4 = 0.7;
+		ParamType KNALK = 0.5;
+		ParamType bAUT20 = 0.18;
+		ParamType etaNend = 0.5;
+
+		// derived parameters
+		// TODO use parameter-parameter dependency
+		double ft04 = exp(-0.04 * (20.0 - static_cast<double>(T)));
+		double ft07 = exp(-0.06952 * (20 - static_cast<double>(T)));
+		double ft105 = exp(-0.105 * (20 - static_cast<double>(T)));
+		double k_sto = static_cast<double>(k_sto20) * ft07;
+		double muH = static_cast<double>(muH20) * ft07;
+		double bH = static_cast<double>(bH20) * ft07;
+		double muAUT = static_cast<double>(muAUT20) * ft105;
+		double bAUT = static_cast<double>(bAUT20) * ft105;
 
 		StateType SO = y[0];
 		StateType SS = y[1];
 		StateType SNH = y[2];
 		StateType SNO = y[3];
-
+		StateType SN2 = y[4];
+		StateType SALK = y[5];
+		// StateType SI = y[6]; // unused
+		// StateType XI = y[7]; // unused
 		StateType XS = y[8];
 		StateType XH = y[9];
+		StateType XH_S = XH; // ASM3hC: XH_S = max(XH, 0.1)
+		StateType XSTO = y[10];
+		StateType XA = y[11];
+		// StateType XMI = y[12]; // unused
+
 		
 		// p1: Hydrolysis of organic structures
 		fluxes[0] = Kh20 * ft04 * XS/XH_S / (XS/XH_S + KX) * XH;
@@ -252,7 +272,6 @@ protected:
 
 		// r12: Anoxic endogenous respiration of autotrophic biomass (XAUT)
 		fluxes[11] = bAUT * etaNend * SNO / (SNO + KHNO3) * KHO2 / (SO + KHO2) * XA;
-		
 			
 		// Add reaction terms to residual
 		_stoichiometry.multiplyVector(static_cast<flux_t*>(fluxes), factor, res);
