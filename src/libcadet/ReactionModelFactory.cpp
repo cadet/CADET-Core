@@ -22,6 +22,7 @@ namespace cadet
 			void registerMassActionLawReaction(std::unordered_map<std::string, std::function<model::IDynamicReactionModel*()>>& reactions);
 			void registerDummyReaction(std::unordered_map<std::string, std::function<model::IDynamicReactionModel*()>>& reactions);
 			void registerMichaelisMentenReaction(std::unordered_map<std::string, std::function<model::IDynamicReactionModel*()>>& reactions);
+			void registerActivatedSludgeModelThreeReaction(std::unordered_map<std::string, std::function<model::IDynamicReactionModel* ()>>& reactions);
 
 			void registerCrystallizationReaction(std::unordered_map<std::string, std::function<model::IDynamicReactionModel*()>>& reactions);
 		}
