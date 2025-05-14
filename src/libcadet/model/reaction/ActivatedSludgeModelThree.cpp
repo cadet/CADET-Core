@@ -168,7 +168,101 @@ protected:
 
 	virtual bool configureImpl(IParameterProvider& paramProvider, UnitOpIdx unitOpIdx, ParticleTypeIdx parTypeIdx)
 	{
-		_paramHandler.configure(paramProvider, _stoichiometryBulk.columns(), _nComp, _nBoundStates);
+		_stoichiometry.resize(_nComp, 13);
+		_stoichiometry.setAll(0);
+
+		// SO
+		_stoichiometry.native(0, 1) = YSTO_aer - 1;
+		_stoichiometry.native(0, 3) = 1 - 1 / YH_aer;
+		_stoichiometry.native(0, 5) = -1 * (1 - fXI);
+		_stoichiometry.native(0, 7) = -1;
+		_stoichiometry.native(0, 9 = -64/14 * 1/YA + 1;
+		_stoichiometry.native(0, 10) = -1 * (1 - fXI);
+		_stoichiometry.native(0, 12) = 1;
+
+		// SS
+		_stoichiometry.native(1, 0) = 1 - fSI;
+		_stoichiometry.native(1, 1) = -1;
+		_stoichiometry.native(1, 2) = -1;
+
+		// SNH
+		_stoichiometry.native(2, 0) = c1n;
+		_stoichiometry.native(2, 1) = c2n;
+		_stoichiometry.native(2, 2) = c3n;
+		_stoichiometry.native(2, 3) = c4n;
+		_stoichiometry.native(2, 4) = c5n;
+		_stoichiometry.native(2, 5) = c6n;
+		_stoichiometry.native(2, 6) = c7n;
+		_stoichiometry.native(2, 9) = c10n;
+		_stoichiometry.native(2, 10) = c11n;
+		_stoichiometry.native(2, 11) = c12n;
+
+		// SNO
+		_stoichiometry.native(3, 2) = c3no;
+		_stoichiometry.native(3, 4) = c5no;
+		_stoichiometry.native(3, 6) = c7no;
+		_stoichiometry.native(3, 8) = c9no;
+		_stoichiometry.native(3, 9) = c10no;
+		_stoichiometry.native(3, 11) = c12no;
+
+		// SN2
+		_stoichiometry.native(4, 2) = -c3no;
+		_stoichiometry.native(4, 4) = -c5no;
+		_stoichiometry.native(4, 6) = -c7no;
+		_stoichiometry.native(4, 8) = -c9no;
+		_stoichiometry.native(4, 11) = -c12no;
+
+		// SALK
+		_stoichiometry.native(5, 0) = c1a;
+		_stoichiometry.native(5, 1) = c2a;
+		_stoichiometry.native(5, 2) = c3a;
+		_stoichiometry.native(5, 3) = c4a;
+		_stoichiometry.native(5, 4) = c5a;
+		_stoichiometry.native(5, 5) = c6a;
+		_stoichiometry.native(5, 6) = c7a;
+		_stoichiometry.native(5, 8) = c9a;
+		_stoichiometry.native(5, 9) = c10a;
+		_stoichiometry.native(5, 10) = c11a;
+		_stoichiometry.native(5, 11) = c12a;
+
+		// SI
+		_stoichiometry.native(6, 0) = fSI;
+
+		// XI
+		_stoichiometry.native(7, 5) = fXI;
+		_stoichiometry.native(7, 6) = fXI;
+		_stoichiometry.native(7, 10) = fXI;
+		_stoichiometry.native(7, 11) = fXI;
+
+		// XS
+		_stoichiometry.native(8, 0) = -1;
+
+		// XH
+		_stoichiometry.native(9, 3) = 1;
+		_stoichiometry.native(9, 4) = 1;
+		_stoichiometry.native(9, 5) = -1;
+		_stoichiometry.native(9, 6) = -1;
+
+		// XSTO
+		_stoichiometry.native(10, 1) = YSO_aer;
+		_stoichiometry.native(10, 2) = YSTO_anox;
+		_stoichiometry.native(10, 3) = -1 / YH_aer;
+		_stoichiometry.native(10, 4) = -1 / YH_anox;
+		_stoichiometry.native(10, 7) = -1;
+		_stoichiometry.native(10, 8) = -1;
+
+		// XA
+		_stoichiometry.native(11, 9) = 1;
+		_stoichiometry.native(11, 10) = -1;
+		_stoichiometry.native(11, 11) = -1;
+
+		// XMI
+		_stoichiometry.native(12, 5) = fXMI_BM;
+		_stoichiometry.native(12, 6) = fXMI_BM;
+		_stoichiometry.native(12, 10) = fXMI_BM;
+		_stoichiometry.native(12, 11) = fXMI_BM;
+
+		//_paramHandler.configure(paramProvider, _stoichiometry.columns(), _nComp, _nBoundStates);
 		_paramHandler.registerParameters(_parameters, unitOpIdx, parTypeIdx, _nComp, _nBoundStates);
 
 		// configure stoichiometric matrix from given parameters
