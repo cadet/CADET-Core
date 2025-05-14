@@ -32,9 +32,28 @@
 	"externalName": "ExtActivatedSludgeModelThreeParamHandler",
 	"parameters":
 		[
-			{ "type": "ScalarReactionDependentParameter", "varName": "vMax", "confName": "MM_VMAX"},
-			{ "type": "ScalarReactionDependentParameter", "varName": "kMM", "confName": "MM_KMM"},
-			{ "type": "ComponentDependentReactionDependentParameter", "varName": "kInhibit", "confName": "MM_KI"}
+			{ "type": "ScalarReactionDependentParameter", "varName": "Kh20", "confName": "ASM3_KH_20"},
+			{ "type": "ScalarReactionDependentParameter", "varName": "T", "confName": "ASM3_T"},
+			{ "type": "ScalarReactionDependentParameter", "varName": "iO2", "confName": "ASM3_I_O2"},
+			{ "type": "ScalarReactionDependentParameter", "varName": "V", "confName": "ASM3_V"},
+			{ "type": "ScalarReactionDependentParameter", "varName": "k_sto20", "confName": "ASM3_K_STO_20"},
+			{ "type": "ScalarReactionDependentParameter", "varName": "KX", "confName": "ASM3_KX"},
+			{ "type": "ScalarReactionDependentParameter", "varName": "KHO2", "confName": "ASM3_KHO2"},
+			{ "type": "ScalarReactionDependentParameter", "varName": "KHSS", "confName": "ASM3_KHSS"},
+			{ "type": "ScalarReactionDependentParameter", "varName": "KHNO3", "confName": "ASM3_KHNO3"},
+			{ "type": "ScalarReactionDependentParameter", "varName": "etaHNO3", "confName": "ASM3_ETA_HNO3"},
+			{ "type": "ScalarReactionDependentParameter", "varName": "KHNH4", "confName": "ASM3_KHNH4"},
+			{ "type": "ScalarReactionDependentParameter", "varName": "KHALK", "confName": "ASM3_KHALK"},
+			{ "type": "ScalarReactionDependentParameter", "varName": "KHSTO", "confName": "ASM3_KHSTO"},
+			{ "type": "ScalarReactionDependentParameter", "varName": "muH20", "confName": "ASM3_MU_H_20"},
+			{ "type": "ScalarReactionDependentParameter", "varName": "etaHend", "confName": "ASM3_ETA_H_END"},
+			{ "type": "ScalarReactionDependentParameter", "varName": "bH20", "confName": "ASM3_B_H_20"},
+			{ "type": "ScalarReactionDependentParameter", "varName": "muAUT20", "confName": "ASM3_MU_AUT_20"},
+			{ "type": "ScalarReactionDependentParameter", "varName": "KNO2", "confName": "ASM3_KNO2"},
+			{ "type": "ScalarReactionDependentParameter", "varName": "KNNH4", "confName": "ASM3_KNNH4"},
+			{ "type": "ScalarReactionDependentParameter", "varName": "KNALK", "confName": "ASM3_KNALK"},
+			{ "type": "ScalarReactionDependentParameter", "varName": "bAUT20", "confName": "ASM3_B_AUT_20"},
+			{ "type": "ScalarReactionDependentParameter", "varName": "etaNend", "confName": "ASM3_ETA_N_END"},
 		]
 }
 </codegen>*/
