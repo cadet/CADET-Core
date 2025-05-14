@@ -312,8 +312,6 @@ protected:
 		//_paramHandler.configure(paramProvider, _stoichiometry.columns(), _nComp, _nBoundStates);
 		_paramHandler.registerParameters(_parameters, unitOpIdx, parTypeIdx, _nComp, _nBoundStates);
 
-		// configure stoichiometric matrix from given parameters
-		//configureStoich(paramProvider,unitOpIdx, parTypeIdx)
 
 		//registerCompRowMatrix(_parameters, unitOpIdx, parTypeIdx, "MM_STOICHIOMETRY_BULK", _stoichiometryBulk); todo
 
@@ -416,7 +414,8 @@ protected:
 		fluxes[11] = bAUT * etaNend * SNO / (SNO + KHNO3) * KHO2 / (SO + KHO2) * XA;
 
 		// r13: Aeration
-		fluxes[12] = iO2 / V * 1000;
+		// TODO: is V in litres?
+		fluxes[12] = iO2 / V;
 			
 		// Add reaction terms to residual
 		_stoichiometry.multiplyVector(static_cast<flux_t*>(fluxes), factor, res);
@@ -442,96 +441,159 @@ protected:
 	void jacobianLiquidImpl(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, double factor, const RowIterator& jac, LinearBufferAllocator workSpace) const
 	{
 		typename ParamHandler_t::ParamsHandle const p = _paramHandler.update(t, secIdx, colPos, _nComp, _nBoundStates, workSpace);
+		RowIterator curJac = jac;
+
+		double Kh20 = 10.2;
+		double T = 20;
+		double iO2 = 0;
+		double V = 1;
+		double k_sto20 = 13.68;
+		double KX = 1;
+		double KHO2 = 0.2;
+		double KHSS = 3;
+		double KHNO3 = 0.5;
+		double etaHNO3 = 0.5;
+		double KHNH4 = 0.01;
+		double KHALK = 0.1;
+		double KHSTO = 0.11;
+		double muH20 = 3;
+		double etaHend = 0.5;
+		double bH20 = 0.33;
+		double muAUT20 = 1.12;
+		double KNO2 = 0.5;
+		double KNNH4 = 0.7;
+		double KNALK = 0.5;
+		double bAUT20 = 0.18;
+		double etaNend = 0.5;
+
+		// derived parameters
+		double ft04 = exp(-0.04 * (20.0 - static_cast<double>(T)));
+		double ft07 = exp(-0.06952 * (20 - static_cast<double>(T)));
+		double ft105 = exp(-0.105 * (20 - static_cast<double>(T)));
+		double k_sto = static_cast<double>(k_sto20) * ft07;
+		double muH = static_cast<double>(muH20) * ft07;
+		double bH = static_cast<double>(bH20) * ft07;
+		double muAUT = static_cast<double>(muAUT20) * ft105;
+		double bAUT = static_cast<double>(bAUT20) * ft105;
+
+		double SO = y[0];
+		double SS = y[1];
+		double SNH = y[2];
+		double SNO = y[3];
+		double SN2 = y[4];
+		double SALK = y[5];
+		double SI = y[6]; // unused
+		double XI = y[7]; // unused
+		double XS = y[8];
+		double XH = y[9];
+		double XH_S = XH; // ASM3hC: XH_S = max(XH, 0.1)
+		double XSTO = y[10];
+		double XA = y[11];
+		double XMI = y[12]; // unused
+
+		size_t idxSO = 0;
+		size_t idxSS = 1;
+		size_t idxSNH = 2;
+		size_t idxSNO = 3;
+		size_t idxSN2 = 4;
+		size_t idxSALK = 5;
+		size_t idxSI = 6;
+		size_t idxXI = 7;
+		size_t idxXS = 8;
+		size_t idxXH = 9;
+		size_t idxXSTO = 10;
+		size_t idxXA = 11;
+		size_t idxXMI = 12;
+
+		double d[13][13] = {};
+		//memset(d, 0, 13 * 13 * sizeof(double));
+		// p1: Kh20 * ft04 * XS/XH_S / (XS/XH_S + KX) * XH;
+		d[0][idxXS] = Kh20 * ft04 * XH / (XS/XH_S + KX) - Kh20 * ft04 * XS/XH_S / ((XS/XH_S + KX) * (XS/XH_S + KX)) * XH;
+		//double dp1_XH_S = -Kh20 * ft04 * XS / (XS/XH_S + KX) / (XH_S * XH_S) * XH;
+		d[0][idxXH] = Kh20 * ft04 * XS/XH_S / (XS/XH_S + KX);
+
+		/*
 		curJac = jac;
-			
-		// reaction 1: Kh20 * ft04 * XS/XH_S / (XS/XH_S + KX) * XH;
-		// dr1/XS = Kh20 * ft04 * XH / (XS/XH_S + KX) - Kh20 * ft04 * XS/XH_S / (XS/XH_S + KX)^2 * XH;
-		// dr1/XH_S = -Kh20 * ft04 * XS / (XS/XH_S + KX) / XH_S^2 * XH;
-		// dr1/HX = Kh20 * ft04 * XS/XH_S / (XS/XH_S + KX);
-
-		//curJac = jac;
-		// curJac[8] =  dr1/XS;
-		// curJac[X] =  dr1/XH_S; ??
-		// curJac[9] = dr1/XH;
-
-		// curjac++;
+		size_t curIdxXS = idxXS;
+		for (size_t i = 0; i < _stoichiometry.rows(); i++) {
+			curJac[idxXS] += _stoichiometry.native(i, 0) * dp1_XS;
+			curJac[idxXH] += _stoichiometry.native(i, 0) * dp1_XH;
+			curJac++;
+			curIdxXS--;
+		}
+		*/
 
 		// reaction2: k_sto * SO / (SO + KHO2) * SS / (SS + KHSS) * SNO / (SNO + KHNO3) * XH;
-		// dr2/S0 = k_sto * ft07 * SS / (SS + KHSS) * SNO / (SNO + KHNO3) / (SO + KHO2)^2 * XH;
-		// dr2/SS = k_sto * ft07 * SO / (SO + KHO2) * SNO / (SNO + KHNO3) / (SS + KHSS)^2 * XH;
-		// dr2/SNO = k_sto * ft07 * SO / (SO + KHO2) * SS / (SS + KHSS) / (SNO + KHNO3)^2 * XH;
-		// dr2/XH = k_sto * ft07 * SO / (SO + KHO2) * SS / (SS + KHSS) * SNO / (SNO + KHNO3);
-
-		//curJac[-1] = dr2/S0;
-		//curJac[0] = dr2/SS;
-		//curJac[1] = dr2/SNO;
-		//curJac[8] = dr2/XH;
-
-		// curJac++;
+		d[1][idxSO] = k_sto * ft07 * SS / (SS + KHSS) * SNO / (SNO + KHNO3) / ((SO + KHO2) * (SO + KHO2)) * XH;
+		d[1][idxSS] = k_sto * ft07 * SO / (SO + KHO2) * SNO / (SNO + KHNO3) / ((SS + KHSS) * (SS + KHSS)) * XH;
+		d[1][idxSNO] = k_sto * ft07 * SO / (SO + KHO2) * SS / (SS + KHSS) / ((SNO + KHNO3) * (SNO + KHNO3)) * XH;
+		d[1][idxXH] = k_sto * ft07 * SO / (SO + KHO2) * SS / (SS + KHSS) * SNO / (SNO + KHNO3);
 
 		//reaction3: k_sto * etaHNO3 * KHO2 / (SO + KHO2) * SS / (SS + KHSS) * SNO / (SNO + KHNO3) * XH;
-		// dr3/S0 = k_sto * ft07 * etaHNO3 * KHO2 / (SO + KHO2)^2 * SS / (SS + KHSS) * SNO / (SNO + KHNO3) * XH;
-		// dr3/SS = k_sto * ft07 * etaHNO3 * KHO2 / (SO + KHO2) * SS / (SS + KHSS)^2 * SNO / (SNO + KHNO3) * XH;
-		// dr3/SNO = k_sto * ft07 * etaHNO3 * KHO2 / (SO + KHO2) * SS / (SS + KHSS) / (SNO + KHNO3)^2 * XH;
-		// dr3/XH = k_sto * ft07 * etaHNO3 * KHO2 / (SO + KHO2) * SS / (SS + KHSS) * SNO / (SNO + KHNO3);
+		d[2][idxSO] = k_sto * ft07 * etaHNO3 * KHO2 / ((SO + KHO2) * (SO + KHO2)) * SS / (SS + KHSS) * SNO / (SNO + KHNO3) * XH;
+		d[2][idxSS] = k_sto * ft07 * etaHNO3 * KHO2 / (SO + KHO2) * SS / ((SS + KHSS) * (SS + KHSS)) * SNO / (SNO + KHNO3) * XH;
+		d[2][idxSNO] = k_sto * ft07 * etaHNO3 * KHO2 / (SO + KHO2) * SS / (SS + KHSS) / ((SNO + KHNO3) * (SNO + KHNO3)) * XH;
+		d[2][idxXH] = k_sto * ft07 * etaHNO3 * KHO2 / (SO + KHO2) * SS / (SS + KHSS) * SNO / (SNO + KHNO3);
 
 		//reaction4: muH * SO / (SO + KHO2) * SNH / (SNH + KHNH4) * SALK / (SALK + KHALK) * XSTO/XH_S / (XSTO/XH_S + KHSTO) * XH;
-		// dr4/S0 = muH * ft07 * SNH / (SNH + KHNH4) * SALK / (SALK + KHALK) * XSTO/XH_S / (XSTO/XH_S + KHSTO) / (SO + KHO2)^2 * XH;
-		// dr4/SNH = muH * ft07 * SO / (SO + KHO2) * SALK / (SALK + KHALK) * XSTO/XH_S / (XSTO/XH_S + KHSTO) / (SNH + KHNH4)^2 * XH;
-		// dr4/SALK = muH * ft07 * SO / (SO + KHO2) * SNH / (SNH + KHNH4) * XSTO/XH_S / (XSTO/XH_S + KHSTO) / (SALK + KHALK)^2 * XH;
-		// dr4/XSTO = muH * ft07 * SO / (SO + KHO2) * SNH / (SNH + KHNH4) * SALK / (SALK + KHALK) / (XSTO/XH_S + KHSTO)^2 * XH;
-		// dr4/XH_S = -muH * ft07 * SO / (SO + KHO2) * SNH / (SNH + KHNH4) * SALK / (SALK + KHALK) / XSTO/XH_S^2 * XH;
-		// dr4/XH = muH * ft07 * SO / (SO + KHO2) * SNH / (SNH + KHNH4) * SALK / (SALK + KHALK) * XSTO/XH_S / (XSTO/XH_S + KHSTO);
+		d[3][idxSO] = muH * ft07 * SNH / (SNH + KHNH4) * SALK / (SALK + KHALK) * XSTO/XH_S / (XSTO/XH_S + KHSTO) / ((SO + KHO2) * (SO + KHO2)) * XH;
+		d[3][idxSNH] = muH * ft07 * SO / (SO + KHO2) * SALK / (SALK + KHALK) * XSTO/XH_S / (XSTO/XH_S + KHSTO) / ((SNH + KHNH4) * (SNH + KHNH4)) * XH;
+		d[3][idxSALK] = muH * ft07 * SO / (SO + KHO2) * SNH / (SNH + KHNH4) * XSTO/XH_S / (XSTO/XH_S + KHSTO) / ((SALK + KHALK) * (SALK + KHALK)) * XH;
+		d[3][idxXSTO] = muH * ft07 * SO / (SO + KHO2) * SNH / (SNH + KHNH4) * SALK / (SALK + KHALK) / ((XSTO/XH_S + KHSTO) * (XSTO/XH_S + KHSTO)) * XH;
+		//double dp4_XH_S = -muH * ft07 * SO / (SO + KHO2) * SNH / (SNH + KHNH4) * SALK / (SALK + KHALK) / (XSTO/XH_S * XSTO/XH_S) * XH;
+		d[3][idxXH] = muH * ft07 * SO / (SO + KHO2) * SNH / (SNH + KHNH4) * SALK / (SALK + KHALK) * XSTO/XH_S / (XSTO/XH_S + KHSTO);
 
 		//reaction5: muH * etaHNO3 * KHO2 / (KHO2 + SO) * SNH / (KHNH4 + SNH) * SALK / (KHALK + SALK) * XSTO / XH_S * 1 / (KHSTO + XSTO/XH_S) * SNO / (KHNO3 + SNO) * XH;
-		// dr5/S0 = muH * ft07 * etaHNO3 * KHO2 / (KHO2 + SO)^2 * SNH / (KHNH4 + SNH) * SALK / (KHALK + SALK) * XSTO / XH_S * 1 / (KHSTO + XSTO/XH_S) * SNO / (KHNO3 + SNO) * XH;
-		// dr5/SNH = muH * ft07 * etaHNO3 * KHO2 / (KHO2 + SO) * SNH / (KHNH4 + SNH)^2 * SALK / (KHALK + SALK) * XSTO / XH_S * 1 / (KHSTO + XSTO/XH_S) * SNO / (KHNO3 + SNO) * XH;
-		// dr5/SALK = muH * ft07 * etaHNO3 * KHO2 / (KHO2 + SO) * SNH / (KHNH4 + SNH) * SALK / (KHALK + SALK)^2 * XSTO / XH_S * 1 / (KHSTO + XSTO/XH_S) * SNO / (KHNO3 + SNO) * XH;
-		// dr5/XSTO = muH * ft07 * etaHNO3 * KHO2 / (KHO2 + SO) * SNH / (KHNH4 + SNH) * SALK / (KHALK + SALK) / (XSTO/XH_S + KHSTO)^2 * SNO / (KHNO3 + SNO) * XH;
-		// dr5/XH_S = -muH * ft07 * etaHNO3 * KHO2 / (KHO2 + SO) * SNH / (KHNH4 + SNH) * SALK / (KHALK + SALK) / XSTO/XH_S^2 * SNO / (KHNO3 + SNO) * XH;
-		// dr5/SNO = muH * ft07 * etaHNO3 * KHO2 / (KHO2 + SO) * SNH / (KHNH4 + SNH) * SALK / (KHALK + SALK) * XSTO / XH_S * 1 / (KHSTO + XSTO/XH_S) / (KHNO3 + SNO)^2 * XH;
-		// dr5/XH = muH * ft07 * etaHNO3 * KHO2 / (KHO2 + SO) * SNH / (KHNH4 + SNH) * SALK / (KHALK + SALK) * XSTO / XH_S * 1 / (KHSTO + XSTO/XH_S) * SNO / (KHNO3 + SNO);
+		d[4][idxSO] = muH * ft07 * etaHNO3 * KHO2 / ((KHO2 + SO) * (KHO2 + SO)) * SNH / (KHNH4 + SNH) * SALK / (KHALK + SALK) * XSTO / XH_S * 1 / (KHSTO + XSTO/XH_S) * SNO / (KHNO3 + SNO) * XH;
+		d[4][idxSNH] = muH * ft07 * etaHNO3 * KHO2 / (KHO2 + SO) * SNH / ((KHNH4 + SNH) * (KHNH4 + SNH)) * SALK / (KHALK + SALK) * XSTO / XH_S * 1 / (KHSTO + XSTO/XH_S) * SNO / (KHNO3 + SNO) * XH;
+		d[4][idxSALK] = muH * ft07 * etaHNO3 * KHO2 / (KHO2 + SO) * SNH / (KHNH4 + SNH) * SALK / ((KHALK + SALK) * (KHALK + SALK)) * XSTO / XH_S * 1 / (KHSTO + XSTO/XH_S) * SNO / (KHNO3 + SNO) * XH;
+		d[4][idxXSTO] = muH * ft07 * etaHNO3 * KHO2 / (KHO2 + SO) * SNH / (KHNH4 + SNH) * SALK / (KHALK + SALK) / ((XSTO/XH_S + KHSTO) * (XSTO/XH_S + KHSTO)) * SNO / (KHNO3 + SNO) * XH;
+		//double dp5_XH_S = -muH * ft07 * etaHNO3 * KHO2 / (KHO2 + SO) * SNH / (KHNH4 + SNH) * SALK / (KHALK + SALK) / (XSTO/XH_S * XSTO/XH_S) * SNO / (KHNO3 + SNO) * XH;
+		d[4][idxSNO] = muH * ft07 * etaHNO3 * KHO2 / (KHO2 + SO) * SNH / (KHNH4 + SNH) * SALK / (KHALK + SALK) * XSTO / XH_S * 1 / (KHSTO + XSTO/XH_S) / ((KHNO3 + SNO) * (KHNO3 + SNO)) * XH;
+		d[4][idxXH] = muH * ft07 * etaHNO3 * KHO2 / (KHO2 + SO) * SNH / (KHNH4 + SNH) * SALK / (KHALK + SALK) * XSTO / XH_S * 1 / (KHSTO + XSTO/XH_S) * SNO / (KHNO3 + SNO);
 
 
 		//reaction6: bH * SO / (SO + KHO2) * XH;
-		// dr6/S0 = bH * ft07 * XH / (SO + KHO2)^2;
-		// dr6/XH = bH * ft07 * SO / (SO + KHO2);
+		d[5][idxSO] = bH * ft07 * XH / ((SO + KHO2) * (SO + KHO2));
+		d[5][idxXH] = bH * ft07 * SO / (SO + KHO2);
 		
 		//reaction7: bH * etaHend * KHO2 / (SO + KHO2) * SNO / (SNO + KHNO3) * XH;
-		// dr7/S0 = bH * ft07 * etaHend * KHO2 / (SO + KHO2)^2 * SNO / (SNO + KHNO3) * XH;
-		// dr7/SNO = bH * ft07 * etaHend * KHO2 / (SO + KHO2) * SNO / (SNO + KHNO3)^2 * XH;
-		// dr7/XH = bH * ft07 * etaHend * KHO2 / (SO + KHO2) * SNO / (SNO + KHNO3) * XH;
+		d[6][idxSO] = bH * ft07 * etaHend * KHO2 / ((SO + KHO2) * (SO + KHO2)) * SNO / (SNO + KHNO3) * XH;
+		d[6][idxSNO] = bH * ft07 * etaHend * KHO2 / (SO + KHO2) * SNO / ((SNO + KHNO3) * (SNO + KHNO3)) * XH;
+		d[6][idxXH] = bH * ft07 * etaHend * KHO2 / (SO + KHO2) * SNO / (SNO + KHNO3) * XH;
 
 		//reaction8: bH * SO / (SO + KHO2) * XSTO;
-		// dr8/S0 = bH * ft07 * XSTO / (SO + KHO2)^2;
-		// dr8/XSTO = bH * ft07 * SO / (SO + KHO2);
+		d[7][idxSO] = bH * ft07 * XSTO / ((SO + KHO2) * (SO + KHO2));
+		d[7][idxXSTO] = bH * ft07 * SO / (SO + KHO2);
 
 		//reaction9: bH * etaHend * KHO2 / (SO + KHO2) * SNO / (SNO + KHNO3) * XSTO;
-		// dr9/S0 = bH * ft07 * etaHend * KHO2 / (SO + KHO2)^2 * SNO / (SNO + KHNO3) * XSTO;
-		// dr9/SNO = bH * ft07 * etaHend * KHO2 / (SO + KHO2) * SNO / (SNO + KHNO3)^2 * XSTO;
+		d[8][idxSO] = bH * ft07 * etaHend * KHO2 / ((SO + KHO2) * (SO + KHO2)) * SNO / (SNO + KHNO3) * XSTO;
+		d[8][idxSNO] = bH * ft07 * etaHend * KHO2 / (SO + KHO2) * SNO / ((SNO + KHNO3) * (SNO + KHNO3)) * XSTO;
 
 		//reaction10: muAUT * SO / (SO + KNO2) * SNH / (SNH + KNNH4) * SALK / (SALK + KNALK) * XA;
-		// dr10/S0 = muAUT * ft105 * SNH / (SNH + KNNH4) * SALK / (SALK + KNALK) * XA / (SO + KNO2)^2;
-		// dr10/SNH = muAUT * ft105 * SO / (SO + KNO2) * SALK / (SALK + KNALK) / (SNH + KNNH4)^2 * XA;
-		// dr10/SALK = muAUT * ft105 * SO / (SO + KNO2) * SNH / (SNH + KNNH4) / (SALK + KNALK)^2 * XA;
+		d[9][idxSO] = muAUT * ft105 * SNH / (SNH + KNNH4) * SALK / (SALK + KNALK) * XA / ((SO + KNO2) * (SO + KNO2));
+		d[9][idxSNH] = muAUT * ft105 * SO / (SO + KNO2) * SALK / (SALK + KNALK) / ((SNH + KNNH4) * (SNH + KNNH4)) * XA;
+		d[9][idxSALK] = muAUT * ft105 * SO / (SO + KNO2) * SNH / (SNH + KNNH4) / ((SALK + KNALK) * (SALK + KNALK)) * XA;
 
 		//reaction11: bAUT * SO / (SO + KHO2) * XA;
-		// dr11/S0 = bAUT * ft105 * XA / (SO + KHO2)^2;
-		// dr11/XA = bAUT * ft105 * SO / (SO + KHO2);
+		d[10][idxSO] = bAUT * ft105 * XA / ((SO + KHO2) * (SO + KHO2));
+		d[10][idxXA] = bAUT * ft105 * SO / (SO + KHO2);
 
 
 		//reaction12: bAUT * etaNend * SNO / (SNO + KHNO3) * KHO2 / (SO + KHO2) * XA;
-		// dr12/S0 = bAUT * ft105 * etaNend * SNO / (SNO + KHNO3) * KHO2 / (SO + KHO2)^2 * XA;
-		// dr12/SNO = bAUT * ft105 * etaNend * KHO2 / (SO + KHO2) * SNO / (SNO + KHNO3)^2 * XA;
-		// dr12/XA = bAUT * ft105 * etaNend * SNO / (SNO + KHNO3) * KHO2 / (SO + KHO2) * XA;
+		d[11][idxSO] = bAUT * ft105 * etaNend * SNO / (SNO + KHNO3) * KHO2 / ((SO + KHO2) * (SO + KHO2)) * XA;
+		d[11][idxSNO] = bAUT * ft105 * etaNend * KHO2 / (SO + KHO2) * SNO / ((SNO + KHNO3) * (SNO + KHNO3)) * XA;
+		d[11][idxXA] = bAUT * ft105 * etaNend * SNO / (SNO + KHNO3) * KHO2 / (SO + KHO2) * XA;
 
-
-	
-		// StateType SI = y[6]; // unused
-		// StateType XI = y[7]; // unused
-		// StateType XMI = y[12]; // unused
-
-	
+		for (size_t rIdx = 0; rIdx < 13; rIdx++) {
+			for (size_t compIdx = 0; compIdx < 13; compIdx++) {
+				// TODO consider configurable component indices
+				for (size_t i = 0; i < _stoichiometry.rows(); i++) {
+					curJac = &jac[i];
+					curJac[compIdx] += _stoichiometry.native(i, rIdx) * d[rIdx][compIdx];
+				}
+			}
+		}
 		
 	}
 
