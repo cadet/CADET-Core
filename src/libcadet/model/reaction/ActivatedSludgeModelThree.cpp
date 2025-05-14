@@ -491,110 +491,88 @@ protected:
 		double XA = y[11];
 		double XMI = y[12]; // unused
 
+		/*
+		size_t idxSO = 0;
+		size_t idxSS = 1;
+		size_t idxSNH = 2;
+		size_t idxSNO = 3;
+		size_t idxSN2 = 4;
+		size_t idxSALK = 5;
+		size_t idxSI = 6;
+		size_t idxXI = 7;
+		size_t idxXS = 8;
+		size_t idxXH = 9;
+		size_t idxXSTO = 10;
+		size_t idxXA = 11;
+		size_t idxXMI = 12;
+		*/
+
 		// reaction 1: Kh20 * ft04 * XS/XH_S / (XS/XH_S + KX) * XH;
-		// dp1/XS = Kh20 * ft04 * XH / (XS/XH_S + KX) - Kh20 * ft04 * XS/XH_S / (XS/XH_S + KX)^2 * XH;
 		double dp1_XS = Kh20 * ft04 * XH / (XS/XH_S + KX) - Kh20 * ft04 * XS/XH_S / ((XS/XH_S + KX) * (XS/XH_S + KX)) * XH;
-		// dp1/XH_S = -Kh20 * ft04 * XS / (XS/XH_S + KX) / XH_S^2 * XH;
 		double dp1_XH_S = -Kh20 * ft04 * XS / (XS/XH_S + KX) / (XH_S * XH_S) * XH;
-		// dp1/XH = Kh20 * ft04 * XS/XH_S / (XS/XH_S + KX);
 		double dp1_XH = Kh20 * ft04 * XS/XH_S / (XS/XH_S + KX);
 
-		//curJac = jac;
-		// curJac[8] =  dr1/XS;
-		// curJac[X] =  dr1/XH_S; ??
-		// curJac[9] = dr1/XH;
-
-		// curjac++;
-
 		// reaction2: k_sto * SO / (SO + KHO2) * SS / (SS + KHSS) * SNO / (SNO + KHNO3) * XH;
-		// dp2/SO = k_sto * ft07 * SS / (SS + KHSS) * SNO / (SNO + KHNO3) / (SO + KHO2)^2 * XH;
 		double dp2_SO = k_sto * ft07 * SS / (SS + KHSS) * SNO / (SNO + KHNO3) / ((SO + KHO2) * (SO + KHO2)) * XH;
-		// dp2/SS = k_sto * ft07 * SO / (SO + KHO2) * SNO / (SNO + KHNO3) / (SS + KHSS)^2 * XH;
 		double dp2_SS = k_sto * ft07 * SO / (SO + KHO2) * SNO / (SNO + KHNO3) / ((SS + KHSS) * (SS + KHSS)) * XH;
-		// dp2/SNO = k_sto * ft07 * SO / (SO + KHO2) * SS / (SS + KHSS) / (SNO + KHNO3)^2 * XH;
 		double dp2_SNO = k_sto * ft07 * SO / (SO + KHO2) * SS / (SS + KHSS) / ((SNO + KHNO3) * (SNO + KHNO3)) * XH;
-		// dp2/XH = k_sto * ft07 * SO / (SO + KHO2) * SS / (SS + KHSS) * SNO / (SNO + KHNO3);
 		double dp2_XH = k_sto * ft07 * SO / (SO + KHO2) * SS / (SS + KHSS) * SNO / (SNO + KHNO3);
 
-		//curJac[-1] = dr2/S0;
-		//curJac[0] = dr2/SS;
-		//curJac[1] = dr2/SNO;
-		//curJac[8] = dr2/XH;
-
-		// curJac++;
-
 		//reaction3: k_sto * etaHNO3 * KHO2 / (SO + KHO2) * SS / (SS + KHSS) * SNO / (SNO + KHNO3) * XH;
-		// dp3/SO = k_sto * ft07 * etaHNO3 * KHO2 / (SO + KHO2)^2 * SS / (SS + KHSS) * SNO / (SNO + KHNO3) * XH;
 		double dp3_SO = k_sto * ft07 * etaHNO3 * KHO2 / ((SO + KHO2) * (SO + KHO2)) * SS / (SS + KHSS) * SNO / (SNO + KHNO3) * XH;
-		// dp3/SS = k_sto * ft07 * etaHNO3 * KHO2 / (SO + KHO2) * SS / (SS + KHSS)^2 * SNO / (SNO + KHNO3) * XH;
 		double dp3_SS = k_sto * ft07 * etaHNO3 * KHO2 / (SO + KHO2) * SS / ((SS + KHSS) * (SS + KHSS)) * SNO / (SNO + KHNO3) * XH;
-		// dp3/SNO = k_sto * ft07 * etaHNO3 * KHO2 / (SO + KHO2) * SS / (SS + KHSS) / (SNO + KHNO3)^2 * XH;
 		double dp3_SNO = k_sto * ft07 * etaHNO3 * KHO2 / (SO + KHO2) * SS / (SS + KHSS) / ((SNO + KHNO3) * (SNO + KHNO3)) * XH;
-		// dp3/XH = k_sto * ft07 * etaHNO3 * KHO2 / (SO + KHO2) * SS / (SS + KHSS) * SNO / (SNO + KHNO3);
 		double dp3_XH = k_sto * ft07 * etaHNO3 * KHO2 / (SO + KHO2) * SS / (SS + KHSS) * SNO / (SNO + KHNO3);
 
 		//reaction4: muH * SO / (SO + KHO2) * SNH / (SNH + KHNH4) * SALK / (SALK + KHALK) * XSTO/XH_S / (XSTO/XH_S + KHSTO) * XH;
-		// dp4/SO = muH * ft07 * SNH / (SNH + KHNH4) * SALK / (SALK + KHALK) * XSTO/XH_S / (XSTO/XH_S + KHSTO) / (SO + KHO2)^2 * XH;
 		double dp4_SO = muH * ft07 * SNH / (SNH + KHNH4) * SALK / (SALK + KHALK) * XSTO/XH_S / (XSTO/XH_S + KHSTO) / ((SO + KHO2) * (SO + KHO2)) * XH;
-		// dp4/SNH = muH * ft07 * SO / (SO + KHO2) * SALK / (SALK + KHALK) * XSTO/XH_S / (XSTO/XH_S + KHSTO) / (SNH + KHNH4)^2 * XH;
 		double dp4_SNH = muH * ft07 * SO / (SO + KHO2) * SALK / (SALK + KHALK) * XSTO/XH_S / (XSTO/XH_S + KHSTO) / ((SNH + KHNH4) * (SNH + KHNH4)) * XH;
-		// dp4/SALK = muH * ft07 * SO / (SO + KHO2) * SNH / (SNH + KHNH4) * XSTO/XH_S / (XSTO/XH_S + KHSTO) / (SALK + KHALK)^2 * XH;
 		double dp4_SALK = muH * ft07 * SO / (SO + KHO2) * SNH / (SNH + KHNH4) * XSTO/XH_S / (XSTO/XH_S + KHSTO) / ((SALK + KHALK) * (SALK + KHALK)) * XH;
-		// dp4/XSTO = muH * ft07 * SO / (SO + KHO2) * SNH / (SNH + KHNH4) * SALK / (SALK + KHALK) / (XSTO/XH_S + KHSTO)^2 * XH;
 		double dp4_XSTO = muH * ft07 * SO / (SO + KHO2) * SNH / (SNH + KHNH4) * SALK / (SALK + KHALK) / ((XSTO/XH_S + KHSTO) * (XSTO/XH_S + KHSTO)) * XH;
-		// dp4/XH_S = -muH * ft07 * SO / (SO + KHO2) * SNH / (SNH + KHNH4) * SALK / (SALK + KHALK) / XSTO/XH_S^2 * XH;
 		double dp4_XH_S = -muH * ft07 * SO / (SO + KHO2) * SNH / (SNH + KHNH4) * SALK / (SALK + KHALK) / (XSTO/XH_S * XSTO/XH_S) * XH;
-		// dp4/XH = muH * ft07 * SO / (SO + KHO2) * SNH / (SNH + KHNH4) * SALK / (SALK + KHALK) * XSTO/XH_S / (XSTO/XH_S + KHSTO);
 		double dp4_XH = muH * ft07 * SO / (SO + KHO2) * SNH / (SNH + KHNH4) * SALK / (SALK + KHALK) * XSTO/XH_S / (XSTO/XH_S + KHSTO);
 
 		//reaction5: muH * etaHNO3 * KHO2 / (KHO2 + SO) * SNH / (KHNH4 + SNH) * SALK / (KHALK + SALK) * XSTO / XH_S * 1 / (KHSTO + XSTO/XH_S) * SNO / (KHNO3 + SNO) * XH;
-		// dp5/SO = muH * ft07 * etaHNO3 * KHO2 / (KHO2 + SO)^2 * SNH / (KHNH4 + SNH) * SALK / (KHALK + SALK) * XSTO / XH_S * 1 / (KHSTO + XSTO/XH_S) * SNO / (KHNO3 + SNO) * XH;
 		double dp5_SO = muH * ft07 * etaHNO3 * KHO2 / ((KHO2 + SO) * (KHO2 + SO)) * SNH / (KHNH4 + SNH) * SALK / (KHALK + SALK) * XSTO / XH_S * 1 / (KHSTO + XSTO/XH_S) * SNO / (KHNO3 + SNO) * XH;
-		// dp5/SNH = muH * ft07 * etaHNO3 * KHO2 / (KHO2 + SO) * SNH / (KHNH4 + SNH)^2 * SALK / (KHALK + SALK) * XSTO / XH_S * 1 / (KHSTO + XSTO/XH_S) * SNO / (KHNO3 + SNO) * XH;
 		double dp5_SNH = muH * ft07 * etaHNO3 * KHO2 / (KHO2 + SO) * SNH / ((KHNH4 + SNH) * (KHNH4 + SNH)) * SALK / (KHALK + SALK) * XSTO / XH_S * 1 / (KHSTO + XSTO/XH_S) * SNO / (KHNO3 + SNO) * XH;
-		// dp5/SALK = muH * ft07 * etaHNO3 * KHO2 / (KHO2 + SO) * SNH / (KHNH4 + SNH) * SALK / (KHALK + SALK)^2 * XSTO / XH_S * 1 / (KHSTO + XSTO/XH_S) * SNO / (KHNO3 + SNO) * XH;
 		double dp5_SALK = muH * ft07 * etaHNO3 * KHO2 / (KHO2 + SO) * SNH / (KHNH4 + SNH) * SALK / ((KHALK + SALK) * (KHALK + SALK)) * XSTO / XH_S * 1 / (KHSTO + XSTO/XH_S) * SNO / (KHNO3 + SNO) * XH;
-		// dp5/XSTO = muH * ft07 * etaHNO3 * KHO2 / (KHO2 + SO) * SNH / (KHNH4 + SNH) * SALK / (KHALK + SALK) / (XSTO/XH_S + KHSTO)^2 * SNO / (KHNO3 + SNO) * XH;
 		double dp5_XSTO = muH * ft07 * etaHNO3 * KHO2 / (KHO2 + SO) * SNH / (KHNH4 + SNH) * SALK / (KHALK + SALK) / ((XSTO/XH_S + KHSTO) * (XSTO/XH_S + KHSTO)) * SNO / (KHNO3 + SNO) * XH;
-		// dp5/XH_S = -muH * ft07 * etaHNO3 * KHO2 / (KHO2 + SO) * SNH / (KHNH4 + SNH) * SALK / (KHALK + SALK) / XSTO/XH_S^2 * SNO / (KHNO3 + SNO) * XH;
 		double dp5_XH_S = -muH * ft07 * etaHNO3 * KHO2 / (KHO2 + SO) * SNH / (KHNH4 + SNH) * SALK / (KHALK + SALK) / (XSTO/XH_S * XSTO/XH_S) * SNO / (KHNO3 + SNO) * XH;
-		// dp5/SNO = muH * ft07 * etaHNO3 * KHO2 / (KHO2 + SO) * SNH / (KHNH4 + SNH) * SALK / (KHALK + SALK) * XSTO / XH_S * 1 / (KHSTO + XSTO/XH_S) / (KHNO3 + SNO)^2 * XH;
 		double dp5_SNO = muH * ft07 * etaHNO3 * KHO2 / (KHO2 + SO) * SNH / (KHNH4 + SNH) * SALK / (KHALK + SALK) * XSTO / XH_S * 1 / (KHSTO + XSTO/XH_S) / ((KHNO3 + SNO) * (KHNO3 + SNO)) * XH;
-		// dp5/XH = muH * ft07 * etaHNO3 * KHO2 / (KHO2 + SO) * SNH / (KHNH4 + SNH) * SALK / (KHALK + SALK) * XSTO / XH_S * 1 / (KHSTO + XSTO/XH_S) * SNO / (KHNO3 + SNO);
 		double dp5_XH = muH * ft07 * etaHNO3 * KHO2 / (KHO2 + SO) * SNH / (KHNH4 + SNH) * SALK / (KHALK + SALK) * XSTO / XH_S * 1 / (KHSTO + XSTO/XH_S) * SNO / (KHNO3 + SNO);
 
 
 		//reaction6: bH * SO / (SO + KHO2) * XH;
-		// dr6/S0 = bH * ft07 * XH / (SO + KHO2)^2;
-		// dr6/XH = bH * ft07 * SO / (SO + KHO2);
+		double dr6_SO = bH * ft07 * XH / ((SO + KHO2) * (SO + KHO2));
+		double dr6_XH = bH * ft07 * SO / (SO + KHO2);
 		
 		//reaction7: bH * etaHend * KHO2 / (SO + KHO2) * SNO / (SNO + KHNO3) * XH;
-		// dr7/S0 = bH * ft07 * etaHend * KHO2 / (SO + KHO2)^2 * SNO / (SNO + KHNO3) * XH;
-		// dr7/SNO = bH * ft07 * etaHend * KHO2 / (SO + KHO2) * SNO / (SNO + KHNO3)^2 * XH;
-		// dr7/XH = bH * ft07 * etaHend * KHO2 / (SO + KHO2) * SNO / (SNO + KHNO3) * XH;
+		double dr7_SO = bH * ft07 * etaHend * KHO2 / ((SO + KHO2) * (SO + KHO2)) * SNO / (SNO + KHNO3) * XH;
+		double dr7_SNO = bH * ft07 * etaHend * KHO2 / (SO + KHO2) * SNO / ((SNO + KHNO3) * (SNO + KHNO3)) * XH;
+		double dr7_XH = bH * ft07 * etaHend * KHO2 / (SO + KHO2) * SNO / (SNO + KHNO3) * XH;
 
 		//reaction8: bH * SO / (SO + KHO2) * XSTO;
-		// dr8/S0 = bH * ft07 * XSTO / (SO + KHO2)^2;
-		// dr8/XSTO = bH * ft07 * SO / (SO + KHO2);
+		double dr8_SO = bH * ft07 * XSTO / ((SO + KHO2) * (SO + KHO2));
+		double dr8_XSTO = bH * ft07 * SO / (SO + KHO2);
 
 		//reaction9: bH * etaHend * KHO2 / (SO + KHO2) * SNO / (SNO + KHNO3) * XSTO;
-		// dr9/S0 = bH * ft07 * etaHend * KHO2 / (SO + KHO2)^2 * SNO / (SNO + KHNO3) * XSTO;
-		// dr9/SNO = bH * ft07 * etaHend * KHO2 / (SO + KHO2) * SNO / (SNO + KHNO3)^2 * XSTO;
+		double dr9_SO = bH * ft07 * etaHend * KHO2 / ((SO + KHO2) * (SO + KHO2)) * SNO / (SNO + KHNO3) * XSTO;
+		double dr9_SNO = bH * ft07 * etaHend * KHO2 / (SO + KHO2) * SNO / ((SNO + KHNO3) * (SNO + KHNO3)) * XSTO;
 
 		//reaction10: muAUT * SO / (SO + KNO2) * SNH / (SNH + KNNH4) * SALK / (SALK + KNALK) * XA;
-		// dr10/S0 = muAUT * ft105 * SNH / (SNH + KNNH4) * SALK / (SALK + KNALK) * XA / (SO + KNO2)^2;
-		// dr10/SNH = muAUT * ft105 * SO / (SO + KNO2) * SALK / (SALK + KNALK) / (SNH + KNNH4)^2 * XA;
-		// dr10/SALK = muAUT * ft105 * SO / (SO + KNO2) * SNH / (SNH + KNNH4) / (SALK + KNALK)^2 * XA;
+		double dr10_SO = muAUT * ft105 * SNH / (SNH + KNNH4) * SALK / (SALK + KNALK) * XA / ((SO + KNO2) * (SO + KNO2));
+		double dr10_SNH = muAUT * ft105 * SO / (SO + KNO2) * SALK / (SALK + KNALK) / ((SNH + KNNH4) * (SNH + KNNH4)) * XA;
+		double dr10_SALK = muAUT * ft105 * SO / (SO + KNO2) * SNH / (SNH + KNNH4) / ((SALK + KNALK) * (SALK + KNALK)) * XA;
 
 		//reaction11: bAUT * SO / (SO + KHO2) * XA;
-		// dr11/S0 = bAUT * ft105 * XA / (SO + KHO2)^2;
-		// dr11/XA = bAUT * ft105 * SO / (SO + KHO2);
+		double dr11_SO = bAUT * ft105 * XA / ((SO + KHO2) * (SO + KHO2));
+		double dr11_XA = bAUT * ft105 * SO / (SO + KHO2);
 
 
 		//reaction12: bAUT * etaNend * SNO / (SNO + KHNO3) * KHO2 / (SO + KHO2) * XA;
-		// dr12/S0 = bAUT * ft105 * etaNend * SNO / (SNO + KHNO3) * KHO2 / (SO + KHO2)^2 * XA;
-		// dr12/SNO = bAUT * ft105 * etaNend * KHO2 / (SO + KHO2) * SNO / (SNO + KHNO3)^2 * XA;
-		// dr12/XA = bAUT * ft105 * etaNend * SNO / (SNO + KHNO3) * KHO2 / (SO + KHO2) * XA;
+		double dr12_SO = bAUT * ft105 * etaNend * SNO / (SNO + KHNO3) * KHO2 / ((SO + KHO2) * (SO + KHO2)) * XA;
+		double dr12_SNO = bAUT * ft105 * etaNend * KHO2 / (SO + KHO2) * SNO / ((SNO + KHNO3) * (SNO + KHNO3)) * XA;
+		double dr12_XA = bAUT * ft105 * etaNend * SNO / (SNO + KHNO3) * KHO2 / (SO + KHO2) * XA;
 
 
 	
