@@ -171,6 +171,7 @@ public:
 	 * @param [in] nBoundStates Array with number of bound states for each component
 	 */
 	inline void reserve(unsigned int numElem, unsigned int numSlices, unsigned int nComp, unsigned int const* nBoundStates) { }
+	inline void reserve(unsigned int numSlices, unsigned int nComp, unsigned int nBoundStates) { }
 
 	inline const active& get() const CADET_NOEXCEPT { return *_p; }
 	inline active& get() CADET_NOEXCEPT { return *_p; }
@@ -694,6 +695,8 @@ public:
 	 */
 	inline void reserve(unsigned int numElem, unsigned int numSlices, unsigned int nComp, unsigned int const* nBoundStates) { }
 
+	inline void reserve(unsigned int nReactions, unsigned int nComp, unsigned int nBoundStates) { }
+
 	/**
 	 * @brief Calculates a parameter in order to take the external profile into account
 	 * @param [out] result Stores the result of the paramter
@@ -767,6 +770,7 @@ public:
 	 * @return Amount of additional memory in bytes
 	 */
 	inline std::size_t additionalDynamicMemory(unsigned int nComp, unsigned int totalNumBoundStates, unsigned int const* nBoundStates) const CADET_NOEXCEPT { return 0; }
+	inline std::size_t additionalDynamicMemory(unsigned int nComp, unsigned int totalNumBoundStates, unsigned int nBoundStates) const CADET_NOEXCEPT { return 0; }
 
 	/**
 	 * @brief Prepares the cache for the updated values
