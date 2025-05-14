@@ -172,21 +172,24 @@ protected:
 		_stoichiometry.setAll(0);
 
 		// parameter set ASM3hC
-		double iNSI = 0.03;
-		double iNSS = 0.1;
-		double iNXI = 0.12;
-		double iNXS = 0.0975;
-		double iNBM = 0.2;
-		double fSI = 0;
-		double YH_aer = 0.850793651;
-		double YH_anox = 0.698148148;
-		double YSTO_aer = 0.8966167647;
-		double YSTO_anox = 0.74375;
-		double fXI = 0.2;
-		double YA = 0.09;
-		double fiSS_BM_prod = 1;
-		double iVSS_BM = 1.956181534;
-		double iTSS_VSS_BM = 1.086956522;
+		double iNSI = paramProvider.getDouble("ASM_iNSI");
+		double iNSS = paramProvider.getDouble("ASM_iNSS");
+		double iNXI = paramProvider.getDouble("ASM_iNXI");
+		double iNXS = paramProvider.getDouble("ASM_iNXS");
+		double iNBM = paramProvider.getDouble("ASM_iNBM");
+		
+		double fSI = paramProvider.getDouble("ASM_fSI");
+		double fXI = paramProvider.getDouble("ASM_fXI");
+
+		double YH_aer = paramProvider.getDouble("ASM_YH_aer");
+		double YH_anox = paramProvider.getDouble("ASM_YH_anox");
+		double YSTO_aer = paramProvider.getDouble("ASM_YSTO_aer");
+		double YSTO_anox = paramProvider.getDouble("ASM_YSTO_anox");
+		double YA = paramProvider.getDouble("ASM_YA");
+		
+		double fiSS_BM_prod = paramProvider.getDouble("ASM_fiSS_BM_prod");
+		double iVSS_BM = paramProvider.getDouble("ASM_iVSS_BM");
+		double iTSS_VSS_BM = paramProvider.getDouble("ASM_iTSS_VSS_BM");
 
 		// internal variables
 		double fXMI_BM = fiSS_BM_prod * fXI * iVSS_BM * (iTSS_VSS_BM - 1);
@@ -328,28 +331,28 @@ protected:
 		typedef typename DoubleActivePromoter<StateType, ParamType>::type flux_t;
 		BufferedArray<flux_t> fluxes = workSpace.array<flux_t>(_stoichiometry.columns());
 		
-		ParamType Kh20 = 10.2;
-		ParamType T = 20;
-		ParamType iO2 = 0;
-		ParamType V = 1;
-		ParamType k_sto20 = 13.68;
-		ParamType KX = 1;
-		ParamType KHO2 = 0.2;
-		ParamType KHSS = 3;
-		ParamType KHNO3 = 0.5;
-		ParamType etaHNO3 = 0.5;
-		ParamType KHNH4 = 0.01;
-		ParamType KHALK = 0.1;
-		ParamType KHSTO = 0.11;
-		ParamType muH20 = 3;
-		ParamType etaHend = 0.5;
-		ParamType bH20 = 0.33;
-		ParamType muAUT20 = 1.12;
-		ParamType KNO2 = 0.5;
-		ParamType KNNH4 = 0.7;
-		ParamType KNALK = 0.5;
-		ParamType bAUT20 = 0.18;
-		ParamType etaNend = 0.5;
+		flux_t Kh20		= static_cast<typename DoubleActiveDemoter<flux_t, active>::type>(p->Kh20);
+		flux_t T		= static_cast<typename DoubleActiveDemoter<flux_t, active>::type>(p->T);
+		flux_t iO2		= static_cast<typename DoubleActiveDemoter<flux_t, active>::type>(p->iO2);
+		flux_t V		= static_cast<typename DoubleActiveDemoter<flux_t, active>::type>(p->V);
+		flux_t k_sto20	= static_cast<typename DoubleActiveDemoter<flux_t, active>::type>(p->k_sto20);
+		flux_t KX		= static_cast<typename DoubleActiveDemoter<flux_t, active>::type>(p->KX);
+		flux_t KHO2		= static_cast<typename DoubleActiveDemoter<flux_t, active>::type>(p->KHO2);
+		flux_t KHSS		= static_cast<typename DoubleActiveDemoter<flux_t, active>::type>(p->KHSS);
+		flux_t KHNO3	= static_cast<typename DoubleActiveDemoter<flux_t, active>::type>(p->KHNO3);
+		flux_t etaHNO3	= static_cast<typename DoubleActiveDemoter<flux_t, active>::type>(p->etaHNO3);
+		flux_t KHNH4	= static_cast<typename DoubleActiveDemoter<flux_t, active>::type>(p->KHNH4);
+		flux_t KHALK	= static_cast<typename DoubleActiveDemoter<flux_t, active>::type>(p->KHALK);
+		flux_t KHSTO	= static_cast<typename DoubleActiveDemoter<flux_t, active>::type>(p->KHSTO);
+		flux_t muH20	= static_cast<typename DoubleActiveDemoter<flux_t, active>::type>(p->muH20);
+		flux_t etaHend	= static_cast<typename DoubleActiveDemoter<flux_t, active>::type>(p->etaHend);
+		flux_t bH20		= static_cast<typename DoubleActiveDemoter<flux_t, active>::type>(p->bH20);
+		flux_t muAUT20	= static_cast<typename DoubleActiveDemoter<flux_t, active>::type>(p->muAUT20);
+		flux_t KNO2		= static_cast<typename DoubleActiveDemoter<flux_t, active>::type>(p->KNO2);
+		flux_t KNNH4	= static_cast<typename DoubleActiveDemoter<flux_t, active>::type>(p->KNNH4);
+		flux_t KNALK	= static_cast<typename DoubleActiveDemoter<flux_t, active>::type>(p->KNALK);
+		flux_t bAUT20	= static_cast<typename DoubleActiveDemoter<flux_t, active>::type>(p->bAUT20);
+		flux_t etaNend	= static_cast<typename DoubleActiveDemoter<flux_t, active>::type>(p->etaNend);
 
 		// derived parameters
 		double ft04 = exp(-0.04 * (20.0 - static_cast<double>(T)));
@@ -443,28 +446,28 @@ protected:
 		typename ParamHandler_t::ParamsHandle const p = _paramHandler.update(t, secIdx, colPos, _nComp, _nBoundStates, workSpace);
 		RowIterator curJac = jac;
 
-		double Kh20 = 10.2;
-		double T = 20;
-		double iO2 = 0;
-		double V = 1;
-		double k_sto20 = 13.68;
-		double KX = 1;
-		double KHO2 = 0.2;
-		double KHSS = 3;
-		double KHNO3 = 0.5;
-		double etaHNO3 = 0.5;
-		double KHNH4 = 0.01;
-		double KHALK = 0.1;
-		double KHSTO = 0.11;
-		double muH20 = 3;
-		double etaHend = 0.5;
-		double bH20 = 0.33;
-		double muAUT20 = 1.12;
-		double KNO2 = 0.5;
-		double KNNH4 = 0.7;
-		double KNALK = 0.5;
-		double bAUT20 = 0.18;
-		double etaNend = 0.5;
+		double Kh20		= static_cast<double>(p->Kh20);
+		double T		= static_cast<double>(p->T);
+		double iO2		= static_cast<double>(p->iO2);
+		double V		= static_cast<double>(p->V);
+		double k_sto20	= static_cast<doublee>(p->k_sto20);
+		double KX		= static_cast<double>(p->KX);
+		double KHO2		= static_cast<double>(p->KHO2);
+		double KHSS		= static_cast<double>(p->KHSS);
+		double KHNO3	= static_cast<double>(p->KHNO3);
+		double etaHNO3	= static_cast<double>(p->etaHNO3);
+		double KHNH4	= static_cast<double>(p->KHNH4);
+		double KHALK	= static_cast<double>(p->KHALK);
+		double KHSTO	= static_cast<double>(p->KHSTO);
+		double muH20	= static_cast<double>(p->muH20);
+		double etaHend	= static_cast<double>(p->etaHend);
+		double bH20		= static_cast<double>(p->bH20);
+		double muAUT20	= static_cast<double>(p->muAUT20);
+		double KNO2		= static_cast<double>p->KNO2);
+		double KNNH4	= static_cast<double>(p->KNNH4);
+		double KNALK	= static_cast<double>(p->KNALK);
+		double bAUT20	= static_cast<double>(p->bAUT20);
+		double etaNend	= static_cast<double>(p->etaNend);
 
 		// derived parameters
 		double ft04 = exp(-0.04 * (20.0 - static_cast<double>(T)));
