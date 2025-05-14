@@ -462,7 +462,6 @@ protected:
 	void jacobianLiquidImpl(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, double factor, const RowIterator& jac, LinearBufferAllocator workSpace) const
 	{
 		typename ParamHandler_t::ParamsHandle const p = _paramHandler.update(t, secIdx, colPos, _nComp, _nBoundStates, workSpace);
-		RowIterator curJac = jac;
 
 		double Kh20		= static_cast<double>(p->Kh20);
 		double T		= static_cast<double>(p->T);
@@ -533,17 +532,6 @@ protected:
 		//double dp1_XH_S = -Kh20 * ft04 * XS / (XS/XH_S + KX) / (XH_S * XH_S) * XH;
 		d[0][idxXH] = Kh20 * ft04 * XS/XH_S / (XS/XH_S + KX);
 
-		/*
-		curJac = jac;
-		size_t curIdxXS = idxXS;
-		for (size_t i = 0; i < _stoichiometry.rows(); i++) {
-			curJac[idxXS] += _stoichiometry.native(i, 0) * dp1_XS;
-			curJac[idxXH] += _stoichiometry.native(i, 0) * dp1_XH;
-			curJac++;
-			curIdxXS--;
-		}
-		*/
-
 		// reaction2: k_sto * SO / (SO + KHO2) * SS / (SS + KHSS) * SNO / (SNO + KHNO3) * XH;
 		d[1][idxSO] = k_sto * ft07 * SS / (SS + KHSS) * SNO / (SNO + KHNO3) / ((SO + KHO2) * (SO + KHO2)) * XH;
 		d[1][idxSS] = k_sto * ft07 * SO / (SO + KHO2) * SNO / (SNO + KHNO3) / ((SS + KHSS) * (SS + KHSS)) * XH;
@@ -606,12 +594,13 @@ protected:
 		d[11][idxSNO] = bAUT * ft105 * etaNend * KHO2 / (SO + KHO2) * SNO / ((SNO + KHNO3) * (SNO + KHNO3)) * XA;
 		d[11][idxXA] = bAUT * ft105 * etaNend * SNO / (SNO + KHNO3) * KHO2 / (SO + KHO2) * XA;
 
-		for (size_t rIdx = 0; rIdx < 13; rIdx++) {
-			for (size_t compIdx = 0; compIdx < 13; compIdx++) {
-				// TODO consider configurable component indices
-				for (size_t i = 0; i < _stoichiometry.rows(); i++) {
-					curJac = &jac[i];
-					curJac[compIdx] += _stoichiometry.native(i, rIdx) * d[rIdx][compIdx];
+		RowIterator curJac = jac;
+		// TODO consider configurable component indices
+		for (int row = 0; row < _stoichiometry.rows(); ++row, ++curJac) {
+			for (size_t rIdx = 0; rIdx < 13; rIdx++) {
+				const double colFactor = static_cast<double>(_stoichiometry.native(row, rIdx));
+				for (size_t compIdx = 0; compIdx < 13; compIdx++) {
+					curJac[compIdx] += colFactor * d[rIdx][compIdx];
 				}
 			}
 		}
