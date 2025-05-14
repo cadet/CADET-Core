@@ -191,6 +191,8 @@ protected:
 		
 		ParamType Kh20 = 10.2;
 		ParamType T = 20;
+		ParamType iO2 = 0;
+		ParamType V = 1;
 		ParamType k_sto20 = 13.68;
 		ParamType KX = 1;
 		ParamType KHO2 = 0.2;
@@ -271,6 +273,9 @@ protected:
 
 		// r12: Anoxic endogenous respiration of autotrophic biomass (XAUT)
 		fluxes[11] = bAUT * etaNend * SNO / (SNO + KHNO3) * KHO2 / (SO + KHO2) * XA;
+
+		// r13: Aeration
+		fluxes[12] = iO2 / V * 1000;
 			
 		// Add reaction terms to residual
 		_stoichiometry.multiplyVector(static_cast<flux_t*>(fluxes), factor, res);
