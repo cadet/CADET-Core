@@ -126,7 +126,7 @@ public:
 	virtual bool requiresWorkspace() const CADET_NOEXCEPT { return true; }
 	virtual unsigned int workspaceSize(unsigned int nComp, unsigned int totalNumBoundStates, unsigned int const* nBoundStates) const CADET_NOEXCEPT
 	{
-		return _paramHandler.cacheSize(_stoichiometryBulk.columns(), nComp, totalNumBoundStates) + std::max(_stoichiometryBulk.columns() * sizeof(active), 2 * (_nComp + totalNumBoundStates) * sizeof(double));
+		return _paramHandler.cacheSize(_stoichiometry.columns(), nComp, totalNumBoundStates) + std::max(_stoichiometry.columns() * sizeof(active), 2 * (_nComp + totalNumBoundStates) * sizeof(double));
 	}
 
 	virtual bool configureModelDiscretization(IParameterProvider& paramProvider, unsigned int nComp, unsigned int const* nBound, unsigned int const* boundOffset)
@@ -141,14 +141,14 @@ public:
 
 			const unsigned int nReactions = numElements / nComp;
 
-			_stoichiometryBulk.resize(nComp, nReactions);
+			_stoichiometry.resize(nComp, nReactions);
 			_idxSubstrate = std::vector<int>(nReactions, -1);
 		}
 
 		return true;
 	}
 
-	virtual unsigned int numReactionsLiquid() const CADET_NOEXCEPT { return _stoichiometryBulk.columns(); }
+	virtual unsigned int numReactionsLiquid() const CADET_NOEXCEPT { return _stoichiometry.columns(); }
 	virtual unsigned int numReactionsCombined() const CADET_NOEXCEPT { return 0; }
 
 	CADET_DYNAMICREACTIONMODEL_BOILERPLATE
@@ -171,12 +171,59 @@ protected:
 		_stoichiometry.resize(_nComp, 13);
 		_stoichiometry.setAll(0);
 
+		// parameter set ASM3hC
+		double iNSI = 0.03;
+		double iNSS = 0.1;
+		double iNXI = 0.12;
+		double iNXS = 0.0975;
+		double iNBM = 0.2;
+		double fSI = 0;
+		double YH_aer = 0.850793651;
+		double YH_anox = 0.698148148;
+		double YSTO_aer = 0.8966167647;
+		double YSTO_anox = 0.74375;
+		double fXI = 0.2;
+		double YA = 0.09;
+		double fiSS_BM_prod = 1;
+		double iVSS_BM = 1.956181534;
+		double iTSS_VSS_BM = 1.086956522;
+
+		// internal variables
+		double fXMI_BM = fiSS_BM_prod * fXI * iVSS_BM * (iTSS_VSS_BM - 1);
+		double c1n = iNXS - iNSI * fSI - (1 - fSI) * iNSS;
+		double c2n = iNSS;
+		double c3n = iNSS;
+		double c4n = -iNBM;
+		double c5n = c4n;
+		double c6n = -fXI * iNXI + iNBM;
+		double c7n = c6n;
+		double c10n = -1 / YA - iNBM;
+		double c11n = -fXI * iNXI + iNBM;
+		double c12n = c11n;
+		double c3no = (YSTO_anox - 1) / (40 / 14);
+		double c5no = (1 - 1/YH_anox) / (40 / 14);
+		double c7no = (fXI - 1) / (40 / 14);
+		double c9no = -14 / 40;
+		double c10no = 1 / YA;
+		double c12no = c7no;
+		double c1a = c1n / 14;
+		double c2a = c2n / 14;
+		double c3a = (c3n - c3no) / 14;
+		double c4a = c4n / 14;
+		double c5a = (c5n - c5no) / 14;
+		double c6a = c6n / 14;
+		double c7a = (c7n - c7no) / 14;
+		double c9a = 1 / 40;
+		double c10a = (c10n - c10no) / 14;
+		double c11a = c11n / 14;
+		double c12a = (c12n - c12no) / 14;
+
 		// SO
 		_stoichiometry.native(0, 1) = YSTO_aer - 1;
 		_stoichiometry.native(0, 3) = 1 - 1 / YH_aer;
 		_stoichiometry.native(0, 5) = -1 * (1 - fXI);
 		_stoichiometry.native(0, 7) = -1;
-		_stoichiometry.native(0, 9 = -64/14 * 1/YA + 1;
+		_stoichiometry.native(0, 9) = -64/14 * 1/YA + 1;
 		_stoichiometry.native(0, 10) = -1 * (1 - fXI);
 		_stoichiometry.native(0, 12) = 1;
 
@@ -244,7 +291,7 @@ protected:
 		_stoichiometry.native(9, 6) = -1;
 
 		// XSTO
-		_stoichiometry.native(10, 1) = YSO_aer;
+		_stoichiometry.native(10, 1) = YSTO_aer;
 		_stoichiometry.native(10, 2) = YSTO_anox;
 		_stoichiometry.native(10, 3) = -1 / YH_aer;
 		_stoichiometry.native(10, 4) = -1 / YH_anox;
