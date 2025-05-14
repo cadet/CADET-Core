@@ -134,7 +134,7 @@ class ActivatedSludgeModelThreeBase : public DynamicReactionModelBase
 {
 public:
 
-	ActivatedSludgeModelThreeBase() : _idxSubstrate(0) { }
+	ActivatedSludgeModelThreeBase() CADET_NOEXCEPT { }
 	virtual ~ActivatedSludgeModelThreeBase() CADET_NOEXCEPT { }
 
 	static const char* identifier() { return ParamHandler_t::identifier(); }
@@ -161,7 +161,6 @@ public:
 			const unsigned int nReactions = numElements / nComp;
 
 			_stoichiometry.resize(nComp, nReactions);
-			_idxSubstrate = std::vector<int>(nReactions, -1);
 		}
 
 		return true;
@@ -469,7 +468,7 @@ protected:
 		double T		= static_cast<double>(p->T);
 		double iO2		= static_cast<double>(p->iO2);
 		double V		= static_cast<double>(p->V);
-		double k_sto20	= static_cast<doublee>(p->k_sto20);
+		double k_sto20	= static_cast<double>(p->k_sto20);
 		double KX		= static_cast<double>(p->KX);
 		double KHO2		= static_cast<double>(p->KHO2);
 		double KHSS		= static_cast<double>(p->KHSS);
@@ -482,21 +481,21 @@ protected:
 		double etaHend	= static_cast<double>(p->etaHend);
 		double bH20		= static_cast<double>(p->bH20);
 		double muAUT20	= static_cast<double>(p->muAUT20);
-		double KNO2		= static_cast<double>p->KNO2);
+		double KNO2		= static_cast<double>(p->KNO2);
 		double KNNH4	= static_cast<double>(p->KNNH4);
 		double KNALK	= static_cast<double>(p->KNALK);
 		double bAUT20	= static_cast<double>(p->bAUT20);
 		double etaNend	= static_cast<double>(p->etaNend);
 
 		// derived parameters
-		double ft04 = exp(-0.04 * (20.0 - static_cast<double>(T)));
-		double ft07 = exp(-0.06952 * (20 - static_cast<double>(T)));
-		double ft105 = exp(-0.105 * (20 - static_cast<double>(T)));
-		double k_sto = static_cast<double>(k_sto20) * ft07;
-		double muH = static_cast<double>(muH20) * ft07;
-		double bH = static_cast<double>(bH20) * ft07;
-		double muAUT = static_cast<double>(muAUT20) * ft105;
-		double bAUT = static_cast<double>(bAUT20) * ft105;
+		double ft04 = exp(-0.04 * (20.0 - static_cast<double>(p->T)));
+		double ft07 = exp(-0.06952 * (20 - static_cast<double>(p->T)));
+		double ft105 = exp(-0.105 * (20 - static_cast<double>(p->T)));
+		double k_sto = static_cast<double>(p->k_sto20) * ft07;
+		double muH = static_cast<double>(p->muH20) * ft07;
+		double bH = static_cast<double>(p->bH20) * ft07;
+		double muAUT = static_cast<double>(p->muAUT20) * ft105;
+		double bAUT = static_cast<double>(p->bAUT20) * ft105;
 
 		double SO = y[0];
 		double SS = y[1];
