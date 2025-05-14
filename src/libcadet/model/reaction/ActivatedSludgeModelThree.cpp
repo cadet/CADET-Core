@@ -53,7 +53,7 @@
 			{ "type": "ScalarReactionDependentParameter", "varName": "KNNH4", "confName": "ASM3_KNNH4"},
 			{ "type": "ScalarReactionDependentParameter", "varName": "KNALK", "confName": "ASM3_KNALK"},
 			{ "type": "ScalarReactionDependentParameter", "varName": "bAUT20", "confName": "ASM3_B_AUT_20"},
-			{ "type": "ScalarReactionDependentParameter", "varName": "etaNend", "confName": "ASM3_ETA_N_END"},
+			{ "type": "ScalarReactionDependentParameter", "varName": "etaNend", "confName": "ASM3_ETA_N_END"}
 		]
 }
 </codegen>*/
