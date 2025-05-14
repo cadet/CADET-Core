@@ -28,8 +28,8 @@
 
 /*<codegen>
 {
-	"name": "MichaelisMentenParamHandler",
-	"externalName": "ExtMichaelisMentenParamHandler",
+	"name": "ActivatedSludgeModelThreeParamHandler",
+	"externalName": "ExtActivatedSludgeModelThreeParamHandler",
 	"parameters":
 		[
 			{ "type": "ScalarReactionDependentParameter", "varName": "vMax", "confName": "MM_VMAX"},
@@ -50,16 +50,16 @@ namespace cadet
 namespace model
 {
 
-inline const char* MichaelisMentenParamHandler::identifier() CADET_NOEXCEPT { return "MICHAELIS_MENTEN"; }
+inline const char* ActivatedSludgeModelThreeParamHandler::identifier() CADET_NOEXCEPT { return "ACTIVATED_SLUDGE_MODEL3"; }
 
-inline bool MichaelisMentenParamHandler::validateConfig(unsigned int nReactions, unsigned int nComp, unsigned int const* nBoundStates)
+inline bool ActivatedSludgeModelThreeParamHandler::validateConfig(unsigned int nReactions, unsigned int nComp, unsigned int const* nBoundStates)
 {
 	return true;
 }
 
-inline const char* ExtMichaelisMentenParamHandler::identifier() CADET_NOEXCEPT { return "EXT_MICHAELIS_MENTEN"; }
+inline const char* ExtActivatedSludgeModelThreeParamHandler::identifier() CADET_NOEXCEPT { return "EXT_ACTIVATED_SLUDGE_MODEL3"; }
 
-inline bool ExtMichaelisMentenParamHandler::validateConfig(unsigned int nReactions, unsigned int nComp, unsigned int const* nBoundStates)
+inline bool ExtActivatedSludgeModelThreeParamHandler::validateConfig(unsigned int nReactions, unsigned int nComp, unsigned int const* nBoundStates)
 {
 	return true;
 }
@@ -111,12 +111,12 @@ namespace
  * @tparam ParamHandler_t Type that can add support for external function dependence
  */
 template <class ParamHandler_t>
-class MichaelisMentenReactionBase : public DynamicReactionModelBase
+class ActivatedSludgeModelThreeBase : public DynamicReactionModelBase
 {
 public:
 
-	MichaelisMentenReactionBase() : _idxSubstrate(0) { }
-	virtual ~MichaelisMentenReactionBase() CADET_NOEXCEPT { }
+	ActivatedSludgeModelThreeBase() : _idxSubstrate(0) { }
+	virtual ~ActivatedSludgeModelThreeBase() CADET_NOEXCEPT { }
 
 	static const char* identifier() { return ParamHandler_t::identifier(); }
 	virtual const char* name() const CADET_NOEXCEPT { return ParamHandler_t::identifier(); }
@@ -211,7 +211,6 @@ protected:
 		ParamType etaNend = 0.5;
 
 		// derived parameters
-		// TODO use parameter-parameter dependency
 		double ft04 = exp(-0.04 * (20.0 - static_cast<double>(T)));
 		double ft07 = exp(-0.06952 * (20 - static_cast<double>(T)));
 		double ft105 = exp(-0.105 * (20 - static_cast<double>(T)));
@@ -297,26 +296,96 @@ protected:
 	void jacobianLiquidImpl(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, double factor, const RowIterator& jac, LinearBufferAllocator workSpace) const
 	{
 		typename ParamHandler_t::ParamsHandle const p = _paramHandler.update(t, secIdx, colPos, _nComp, _nBoundStates, workSpace);
-
-
-
-
-
-		// for each inhibitor component
 		curJac = jac;
-		for (int row = 0; row < _nComp; ++row, ++curJac)
-		{
-			const double colFactor = static_cast<double>(_stoichiometryBulk.native(row, r)) * factor;
-			for (int comp = 0; comp < _nComp; ++comp)
-			{
-				const double kI = static_cast<double>(p->kInhibit[_nComp * r + comp]);
-				if (kI <= 0.0)
-					continue;
+			
+		// reaction 1: Kh20 * ft04 * XS/XH_S / (XS/XH_S + KX) * XH;
+		// dr1/XS = Kh20 * ft04 * XH / (XS/XH_S + KX) - Kh20 * ft04 * XS/XH_S / (XS/XH_S + KX)^2 * XH;
+		// dr1/XH_S = -Kh20 * ft04 * XS / (XS/XH_S + KX) / XH_S^2 * XH;
+		// dr1/HX = Kh20 * ft04 * XS/XH_S / (XS/XH_S + KX);
 
-				double dvdi = - (vMax * y[idxSubs] * (kMM + y[idxSubs])) / (denom * denom * kI);
-				curJac[comp - static_cast<int>(row)] += colFactor * dvdi;
-			}
-		}
+		//curJac = jac;
+		// curJac[8] =  dr1/XS;
+		// curJac[X] =  dr1/XH_S; ??
+		// curJac[9] = dr1/XH;
+
+		// curjac++;
+
+		// reaction2: k_sto * SO / (SO + KHO2) * SS / (SS + KHSS) * SNO / (SNO + KHNO3) * XH;
+		// dr2/S0 = k_sto * ft07 * SS / (SS + KHSS) * SNO / (SNO + KHNO3) / (SO + KHO2)^2 * XH;
+		// dr2/SS = k_sto * ft07 * SO / (SO + KHO2) * SNO / (SNO + KHNO3) / (SS + KHSS)^2 * XH;
+		// dr2/SNO = k_sto * ft07 * SO / (SO + KHO2) * SS / (SS + KHSS) / (SNO + KHNO3)^2 * XH;
+		// dr2/XH = k_sto * ft07 * SO / (SO + KHO2) * SS / (SS + KHSS) * SNO / (SNO + KHNO3);
+
+		//curJac[-1] = dr2/S0;
+		//curJac[0] = dr2/SS;
+		//curJac[1] = dr2/SNO;
+		//curJac[8] = dr2/XH;
+
+		// curJac++;
+
+		//reaction3: k_sto * etaHNO3 * KHO2 / (SO + KHO2) * SS / (SS + KHSS) * SNO / (SNO + KHNO3) * XH;
+		// dr3/S0 = k_sto * ft07 * etaHNO3 * KHO2 / (SO + KHO2)^2 * SS / (SS + KHSS) * SNO / (SNO + KHNO3) * XH;
+		// dr3/SS = k_sto * ft07 * etaHNO3 * KHO2 / (SO + KHO2) * SS / (SS + KHSS)^2 * SNO / (SNO + KHNO3) * XH;
+		// dr3/SNO = k_sto * ft07 * etaHNO3 * KHO2 / (SO + KHO2) * SS / (SS + KHSS) / (SNO + KHNO3)^2 * XH;
+		// dr3/XH = k_sto * ft07 * etaHNO3 * KHO2 / (SO + KHO2) * SS / (SS + KHSS) * SNO / (SNO + KHNO3);
+
+		//reaction4: muH * SO / (SO + KHO2) * SNH / (SNH + KHNH4) * SALK / (SALK + KHALK) * XSTO/XH_S / (XSTO/XH_S + KHSTO) * XH;
+		// dr4/S0 = muH * ft07 * SNH / (SNH + KHNH4) * SALK / (SALK + KHALK) * XSTO/XH_S / (XSTO/XH_S + KHSTO) / (SO + KHO2)^2 * XH;
+		// dr4/SNH = muH * ft07 * SO / (SO + KHO2) * SALK / (SALK + KHALK) * XSTO/XH_S / (XSTO/XH_S + KHSTO) / (SNH + KHNH4)^2 * XH;
+		// dr4/SALK = muH * ft07 * SO / (SO + KHO2) * SNH / (SNH + KHNH4) * XSTO/XH_S / (XSTO/XH_S + KHSTO) / (SALK + KHALK)^2 * XH;
+		// dr4/XSTO = muH * ft07 * SO / (SO + KHO2) * SNH / (SNH + KHNH4) * SALK / (SALK + KHALK) / (XSTO/XH_S + KHSTO)^2 * XH;
+		// dr4/XH_S = -muH * ft07 * SO / (SO + KHO2) * SNH / (SNH + KHNH4) * SALK / (SALK + KHALK) / XSTO/XH_S^2 * XH;
+		// dr4/XH = muH * ft07 * SO / (SO + KHO2) * SNH / (SNH + KHNH4) * SALK / (SALK + KHALK) * XSTO/XH_S / (XSTO/XH_S + KHSTO);
+
+		//reaction5: muH * etaHNO3 * KHO2 / (KHO2 + SO) * SNH / (KHNH4 + SNH) * SALK / (KHALK + SALK) * XSTO / XH_S * 1 / (KHSTO + XSTO/XH_S) * SNO / (KHNO3 + SNO) * XH;
+		// dr5/S0 = muH * ft07 * etaHNO3 * KHO2 / (KHO2 + SO)^2 * SNH / (KHNH4 + SNH) * SALK / (KHALK + SALK) * XSTO / XH_S * 1 / (KHSTO + XSTO/XH_S) * SNO / (KHNO3 + SNO) * XH;
+		// dr5/SNH = muH * ft07 * etaHNO3 * KHO2 / (KHO2 + SO) * SNH / (KHNH4 + SNH)^2 * SALK / (KHALK + SALK) * XSTO / XH_S * 1 / (KHSTO + XSTO/XH_S) * SNO / (KHNO3 + SNO) * XH;
+		// dr5/SALK = muH * ft07 * etaHNO3 * KHO2 / (KHO2 + SO) * SNH / (KHNH4 + SNH) * SALK / (KHALK + SALK)^2 * XSTO / XH_S * 1 / (KHSTO + XSTO/XH_S) * SNO / (KHNO3 + SNO) * XH;
+		// dr5/XSTO = muH * ft07 * etaHNO3 * KHO2 / (KHO2 + SO) * SNH / (KHNH4 + SNH) * SALK / (KHALK + SALK) / (XSTO/XH_S + KHSTO)^2 * SNO / (KHNO3 + SNO) * XH;
+		// dr5/XH_S = -muH * ft07 * etaHNO3 * KHO2 / (KHO2 + SO) * SNH / (KHNH4 + SNH) * SALK / (KHALK + SALK) / XSTO/XH_S^2 * SNO / (KHNO3 + SNO) * XH;
+		// dr5/SNO = muH * ft07 * etaHNO3 * KHO2 / (KHO2 + SO) * SNH / (KHNH4 + SNH) * SALK / (KHALK + SALK) * XSTO / XH_S * 1 / (KHSTO + XSTO/XH_S) / (KHNO3 + SNO)^2 * XH;
+		// dr5/XH = muH * ft07 * etaHNO3 * KHO2 / (KHO2 + SO) * SNH / (KHNH4 + SNH) * SALK / (KHALK + SALK) * XSTO / XH_S * 1 / (KHSTO + XSTO/XH_S) * SNO / (KHNO3 + SNO);
+
+
+		//reaction6: bH * SO / (SO + KHO2) * XH;
+		// dr6/S0 = bH * ft07 * XH / (SO + KHO2)^2;
+		// dr6/XH = bH * ft07 * SO / (SO + KHO2);
+		
+		//reaction7: bH * etaHend * KHO2 / (SO + KHO2) * SNO / (SNO + KHNO3) * XH;
+		// dr7/S0 = bH * ft07 * etaHend * KHO2 / (SO + KHO2)^2 * SNO / (SNO + KHNO3) * XH;
+		// dr7/SNO = bH * ft07 * etaHend * KHO2 / (SO + KHO2) * SNO / (SNO + KHNO3)^2 * XH;
+		// dr7/XH = bH * ft07 * etaHend * KHO2 / (SO + KHO2) * SNO / (SNO + KHNO3) * XH;
+
+		//reaction8: bH * SO / (SO + KHO2) * XSTO;
+		// dr8/S0 = bH * ft07 * XSTO / (SO + KHO2)^2;
+		// dr8/XSTO = bH * ft07 * SO / (SO + KHO2);
+
+		//reaction9: bH * etaHend * KHO2 / (SO + KHO2) * SNO / (SNO + KHNO3) * XSTO;
+		// dr9/S0 = bH * ft07 * etaHend * KHO2 / (SO + KHO2)^2 * SNO / (SNO + KHNO3) * XSTO;
+		// dr9/SNO = bH * ft07 * etaHend * KHO2 / (SO + KHO2) * SNO / (SNO + KHNO3)^2 * XSTO;
+
+		//reaction10: muAUT * SO / (SO + KNO2) * SNH / (SNH + KNNH4) * SALK / (SALK + KNALK) * XA;
+		// dr10/S0 = muAUT * ft105 * SNH / (SNH + KNNH4) * SALK / (SALK + KNALK) * XA / (SO + KNO2)^2;
+		// dr10/SNH = muAUT * ft105 * SO / (SO + KNO2) * SALK / (SALK + KNALK) / (SNH + KNNH4)^2 * XA;
+		// dr10/SALK = muAUT * ft105 * SO / (SO + KNO2) * SNH / (SNH + KNNH4) / (SALK + KNALK)^2 * XA;
+
+		//reaction11: bAUT * SO / (SO + KHO2) * XA;
+		// dr11/S0 = bAUT * ft105 * XA / (SO + KHO2)^2;
+		// dr11/XA = bAUT * ft105 * SO / (SO + KHO2);
+
+
+		//reaction12: bAUT * etaNend * SNO / (SNO + KHNO3) * KHO2 / (SO + KHO2) * XA;
+		// dr12/S0 = bAUT * ft105 * etaNend * SNO / (SNO + KHNO3) * KHO2 / (SO + KHO2)^2 * XA;
+		// dr12/SNO = bAUT * ft105 * etaNend * KHO2 / (SO + KHO2) * SNO / (SNO + KHNO3)^2 * XA;
+		// dr12/XA = bAUT * ft105 * etaNend * SNO / (SNO + KHNO3) * KHO2 / (SO + KHO2) * XA;
+
+
+	
+		// StateType SI = y[6]; // unused
+		// StateType XI = y[7]; // unused
+		// StateType XMI = y[12]; // unused
+
+	
 		
 	}
 
@@ -326,15 +395,15 @@ protected:
 	}
 };
 
-typedef MichaelisMentenReactionBase<MichaelisMentenParamHandler> MichaelisMentenReaction;
-typedef MichaelisMentenReactionBase<ExtMichaelisMentenParamHandler> ExternalMichaelisMentenReaction;
+typedef ActivatedSludgeModelThreeBase<ActivatedSludgeModelThreeParamHandler> ActivatedSludgeModelThreeReaction;
+typedef ActivatedSludgeModelThreeBase<ExtActivatedSludgeModelThreeParamHandler> ExternalActivatedSludgeModelThreeReaction;
 
 namespace reaction
 {
-	void registerMichaelisMentenReaction(std::unordered_map<std::string, std::function<model::IDynamicReactionModel*()>>& reactions)
+	void registerActivatedSludgeModelThreeReaction(std::unordered_map<std::string, std::function<model::IDynamicReactionModel*()>>& reactions)
 	{
-		reactions[MichaelisMentenReaction::identifier()] = []() { return new MichaelisMentenReaction(); };
-		reactions[ExternalMichaelisMentenReaction::identifier()] = []() { return new ExternalMichaelisMentenReaction(); };
+		reactions[ActivatedSludgeModelThreeReaction::identifier()] = []() { return new ActivatedSludgeModelThreeReaction(); };
+		reactions[ExternalActivatedSludgeModelThreeReaction::identifier()] = []() { return new ExternalActivatedSludgeModelThreeReaction(); };
 	}
 }  // namespace reaction
 

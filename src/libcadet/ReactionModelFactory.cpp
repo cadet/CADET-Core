@@ -33,6 +33,7 @@ namespace cadet
 		model::reaction::registerDummyReaction(_dynamicModels);
 		model::reaction::registerMassActionLawReaction(_dynamicModels);
 		model::reaction::registerMichaelisMentenReaction(_dynamicModels);
+		model::reaction::registerActivatedSludgeModelThreeReaction(_dynamicModels);
 
 		model::reaction::registerCrystallizationReaction(_dynamicModels);
 	}
