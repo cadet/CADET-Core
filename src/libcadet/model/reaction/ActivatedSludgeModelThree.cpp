@@ -216,30 +216,30 @@ protected:
 		double c10n = -1 / YA - iNBM;
 		double c11n = -fXI * iNXI + iNBM;
 		double c12n = c11n;
-		double c3no = (YSTO_anox - 1) / (40 / 14);
-		double c5no = (1 - 1/YH_anox) / (40 / 14);
-		double c7no = (fXI - 1) / (40 / 14);
-		double c9no = -14 / 40;
+		double c3no = (YSTO_anox - 1.0) / (40.0 / 14.0);
+		double c5no = (1.0 - 1 / YH_anox) / (40.0 / 14.0);
+		double c7no = (fXI - 1) / (40.0 / 14.0);
+		double c9no = -14.0 / 40.0;
 		double c10no = 1 / YA;
 		double c12no = c7no;
-		double c1a = c1n / 14;
-		double c2a = c2n / 14;
-		double c3a = (c3n - c3no) / 14;
-		double c4a = c4n / 14;
-		double c5a = (c5n - c5no) / 14;
-		double c6a = c6n / 14;
-		double c7a = (c7n - c7no) / 14;
-		double c9a = 1 / 40;
-		double c10a = (c10n - c10no) / 14;
-		double c11a = c11n / 14;
-		double c12a = (c12n - c12no) / 14;
+		double c1a = c1n / 14.0;
+		double c2a = c2n / 14.0;
+		double c3a = (c3n - c3no) / 14.0;
+		double c4a = c4n / 14.0;
+		double c5a = (c5n - c5no) / 14.0;
+		double c6a = c6n / 14.0;
+		double c7a = (c7n - c7no) / 14.0;
+		double c9a = 1 / 40.0;
+		double c10a = (c10n - c10no) / 14.0;
+		double c11a = c11n / 14.0;
+		double c12a = (c12n - c12no) / 14.0;
 
 		// SO
 		_stoichiometry.native(0, 1) = YSTO_aer - 1;
 		_stoichiometry.native(0, 3) = 1 - 1 / YH_aer;
 		_stoichiometry.native(0, 5) = -1 * (1 - fXI);
 		_stoichiometry.native(0, 7) = -1;
-		_stoichiometry.native(0, 9) = -64/14 * 1/YA + 1;
+		_stoichiometry.native(0, 9) = -64.0/14.0 * 1/YA + 1;
 		_stoichiometry.native(0, 10) = -1 * (1 - fXI);
 		_stoichiometry.native(0, 12) = 1;
 
@@ -369,8 +369,8 @@ protected:
 
 		// derived parameters
 		double ft04 = exp(-0.04 * (20.0 - static_cast<double>(T)));
-		double ft07 = exp(-0.06952 * (20 - static_cast<double>(T)));
-		double ft105 = exp(-0.105 * (20 - static_cast<double>(T)));
+		double ft07 = exp(-0.06952 * (20.0 - static_cast<double>(T)));
+		double ft105 = exp(-0.105 * (20.0 - static_cast<double>(T)));
 		double k_sto = static_cast<double>(k_sto20) * ft07;
 		double muH = static_cast<double>(muH20) * ft07;
 		double bH = static_cast<double>(bH20) * ft07;
@@ -483,8 +483,8 @@ protected:
 
 		// derived parameters
 		double ft04 = exp(-0.04 * (20.0 - static_cast<double>(p->T)));
-		double ft07 = exp(-0.06952 * (20 - static_cast<double>(p->T)));
-		double ft105 = exp(-0.105 * (20 - static_cast<double>(p->T)));
+		double ft07 = exp(-0.06952 * (20.0 - static_cast<double>(p->T)));
+		double ft105 = exp(-0.105 * (20.0 - static_cast<double>(p->T)));
 		double k_sto = static_cast<double>(p->k_sto20) * ft07;
 		double muH = static_cast<double>(p->muH20) * ft07;
 		double bH = static_cast<double>(p->bH20) * ft07;
