@@ -23,28 +23,44 @@
             "NCOMP": 2,
             "REACTION_MODEL": "MICHAELIS_MENTEN",
             "UNIT_TYPE": "CSTR",
-            "reaction_bulk": {
-                "MM_KI": [
-                    0,
-                    35,
-                    0,
-                    0
-                ],
-                "MM_KMM": [
-                    2.5,
-                    5.0
-                ],
-                "MM_STOICHIOMETRY_BULK": [
-                    -1e-09,
-                    0.0,
-                    1.0,
-                    -1.0
-                ],
-                "MM_VMAX": [
-                    400,
-                    100
-                ]
-            }
+          "reaction_bulk": {
+            "MM_KI_C": [
+              0,
+              35,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "MM_KI_UC": [
+              0,
+              35,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "MM_KMM": [
+              2.5,
+              0.0,
+              0.0,
+              5.0
+            ],
+            "MM_STOICHIOMETRY_BULK": [
+              -1e-09,
+              0.0,
+              1.0,
+              -1.0
+            ],
+            "MM_VMAX": [
+              400,
+              100
+            ]
+          }
         }
     },
     "return": {
