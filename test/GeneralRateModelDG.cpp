@@ -66,12 +66,17 @@ TEST_CASE("GRM_DG non-binding linear pulse vs analytic solution", "[GRM],[DG],[D
 
 TEST_CASE("GRM_DG numerical Benchmark with parameter sensitivities for linear case", "[GRM],[DG],[DG1D],[Simulation],[Reference],[Sensitivity],[CI_sensitivity1]")
 {
-	const std::string modelFilePath = std::string("/data/model_GRM_dynLin_1comp_benchmark1.json");
-	const std::string refFilePath = std::string("/data/ref_GRM_dynLin_1comp_sensbenchmark1_cDG_P3Z8_GSM_parP3parZ1.h5");
+	std::string modelFilePath = std::string("/data/model_GRM_dynLin_1comp_benchmark1.json");
+	std::string refFilePath = std::string("/data/ref_GRM_dynLin_1comp_sensbenchmark1_cDG_P3Z8_GSM_parP3parZ1.h5");
 	const std::vector<double> absTol = { 1e-12, 1e-6, 1e-6, 1e-12 };
-	const std::vector<double> relTol = { 1.0, 1.0, 1.0, 1.0 };
+	const std::vector<double> relTol = { 1e-4, 1e-3, 1e-4, 1e-4 };
 
 	cadet::test::column::DGparams disc(0, 3, 8, 3, 1);
+	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "001", absTol, relTol, disc, true);
+
+	modelFilePath = std::string("/data/model_GRM_dynLin_1comp_sensbenchmark2.json");
+	refFilePath = std::string("/data/ref_GRM_dynLin_1comp_sensbenchmark2_cDG_P3Z8_GSM_parP3parZ1.h5");
+
 	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "001", absTol, relTol, disc, true);
 }
 
