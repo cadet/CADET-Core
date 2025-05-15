@@ -214,6 +214,7 @@ if (ENABLE_DG)
 	list (APPEND LIBCADET_SOURCES
 		${CMAKE_SOURCE_DIR}/src/libcadet/model/parts/DGToolbox.cpp
 		${CMAKE_SOURCE_DIR}/src/libcadet/model/parts/ConvectionDispersionOperatorDG.cpp
+		${CMAKE_SOURCE_DIR}/src/libcadet/model/parts/ParticleDiffusionOperatorDG.cpp
 		${CMAKE_SOURCE_DIR}/src/libcadet/model/LumpedRateModelWithPoresDG.cpp
 		${CMAKE_SOURCE_DIR}/src/libcadet/model/LumpedRateModelWithoutPoresDG.cpp
 		${CMAKE_SOURCE_DIR}/src/libcadet/model/GeneralRateModelDG.cpp
