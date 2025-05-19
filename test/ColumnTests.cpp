@@ -1652,13 +1652,6 @@ namespace column
 	{
 		const int unitOpID = std::stoi(unitID);
 
-		// Enable AD
-		if (compare_sens)
-		{
-			REQUIRE(absTol.size() <= cadet::ad::getMaxDirections());
-			cadet::ad::setDirections(absTol.size());
-		}
-
 		// read json model setup file
 		const std::string setupFile = std::string(getTestDirectory()) + modelFileRelPath;
 		JsonParameterProvider pp_setup(JsonParameterProvider::fromFile(setupFile));

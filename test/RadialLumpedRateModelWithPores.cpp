@@ -26,7 +26,7 @@
 
 // todo add (more) numerical reference (and EOC) tests
  
-TEST_CASE("Radial LRMP numerical Benchmark with parameter sensitivities for linear case", "[RadLRMP],[Simulation],[Reference],[Sensitivity]") // todo CI flag: currently only runs locally but fails on server
+TEST_CASE("Radial LRMP numerical Benchmark with parameter sensitivities for linear case", "[RadLRMP],[Simulation],[Reference],[Sensitivity],[CI_sensitivity1]")
 {
 	const std::string& modelFilePath = std::string("/data/model_radLRMP_dynLin_1comp_sensbenchmark1.json");
 	const std::string& refFilePath = std::string("/data/ref_radLRMP_dynLin_1comp_sensbenchmark1_FV_Z32.h5");
