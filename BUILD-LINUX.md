@@ -52,6 +52,7 @@ sudo apt -y install liblapack3 liblapack-dev libblas3 libblas-dev
 - Open a terminal and change to `CADET-Core/build`
 - If using MKL, execute `export MKLROOT=/opt/intel/mkl`
 - To compile:
+
 	- Using standard LAPACK: Execute `cmake -DCMAKE_INSTALL_PREFIX="../install" ../`
 
 	- Using MKL (sequential): Execute `cmake -DCMAKE_INSTALL_PREFIX="../install" -DBLA_VENDOR=Intel10_64lp_seq ../`
