@@ -25,7 +25,7 @@ For information on model equations, refer to :ref:`activated_sludge_model`.
 
 ``ASM3_IO2``
 
-   Aeration xygen input :math:`iO_2`.
+   Aeration oxygen input :math:`iO_2`.
    
    ================  =============================  ========================================================
    **Type:** double  **Range:** :math:`\ge 0`       **Length:** 1
@@ -121,7 +121,7 @@ For information on model equations, refer to :ref:`activated_sludge_model`.
 
 ``ASM3_ETAH_END``
 
-   Reduction factor :math:`\eta_{H_end}` for :math:`b_H` under anoxic conditions.
+   Reduction factor :math:`\eta_{H_{end}}` for :math:`b_H` under anoxic conditions.
 
    ================  =============================  ========================================================
    **Type:** double  **Range:** :math:`\mathbb{R}`  **Length:** 1
@@ -177,7 +177,7 @@ For information on model equations, refer to :ref:`activated_sludge_model`.
 
 ``ASM3_ETAN_END``
 
-   Reduction factor :math:`\eta_{N_end}` for :math:`b_{AUT}` under anoxic conditions.
+   Reduction factor :math:`\eta_{N_{end}}` for :math:`b_{AUT}` under anoxic conditions.
 
    ================  =============================  ========================================================
    **Type:** double  **Range:** :math:`\mathbb{R}`  **Length:** 1
