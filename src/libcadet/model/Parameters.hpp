@@ -704,8 +704,7 @@ public:
 
 	/**
 	 * @brief Reserves space in the storage of the parameters
-	 * @param [in] numElem Total number of components in all slices / binding site types
-	 * @param [in] numSlices Number of slices / binding site types
+	 * @param [in] nReactions Number of reactions
 	 * @param [in] nComp Number of components
 	 * @param [in] nBoundStates Number of bound states
 	 */
