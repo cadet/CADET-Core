@@ -171,7 +171,6 @@ public:
 	 * @param [in] nBoundStates Array with number of bound states for each component
 	 */
 	inline void reserve(unsigned int numElem, unsigned int numSlices, unsigned int nComp, unsigned int const* nBoundStates) { }
-	inline void reserve(unsigned int numSlices, unsigned int nComp, unsigned int nBoundStates) { }
 
 	/**
 	 * @brief Reserves space in the storage of the parameter
@@ -703,8 +702,6 @@ public:
 	 */
 	inline void reserve(unsigned int numElem, unsigned int numSlices, unsigned int nComp, unsigned int const* nBoundStates) { }
 
-	inline void reserve(unsigned int nReactions, unsigned int nComp, unsigned int nBoundStates) { }
-
 	/**
 	 * @brief Reserves space in the storage of the parameters
 	 * @param [in] nReactions Number of reactions
@@ -786,7 +783,6 @@ public:
 	 * @return Amount of additional memory in bytes
 	 */
 	inline std::size_t additionalDynamicMemory(unsigned int nComp, unsigned int totalNumBoundStates, unsigned int const* nBoundStates) const CADET_NOEXCEPT { return 0; }
-	inline std::size_t additionalDynamicMemory(unsigned int nComp, unsigned int totalNumBoundStates, unsigned int nBoundStates) const CADET_NOEXCEPT { return 0; }
 
 	/**
 	 * @brief Returns the amount of additional memory (usually dynamically allocated by containers) for storing the final parameters
