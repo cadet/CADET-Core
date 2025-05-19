@@ -25,7 +25,7 @@ For information on model equations, refer to :ref:`activated_sludge_model`.
 
 ``ASM3_IO2``
 
-   Aeration rate :math:`iO_2`.
+   Aeration xygen input :math:`iO_2`.
    
    ================  =============================  ========================================================
    **Type:** double  **Range:** :math:`\ge 0`       **Length:** 1
@@ -41,7 +41,7 @@ For information on model equations, refer to :ref:`activated_sludge_model`.
 
 ``ASM3_KSTO20``
 
-   Saturation constant :math:`K_{STO}` at 20 °C.
+   Maximum storage rate :math:`K_{STO}` at 20 °C.
 
    ================  =============================  ========================================================
    **Type:** double  **Range:** :math:`\gt 0`       **Length:** 1
@@ -49,7 +49,7 @@ For information on model equations, refer to :ref:`activated_sludge_model`.
 
 ``ASM3_KX``
 
-   Hydrolysis saturation constant :math:`KX`.
+   Saturation/inhibition coefficient for particulate COD :math:`KX`.
 
    ================  =============================  ========================================================
    **Type:** double  **Range:** :math:`\mathbb{R}`  **Length:** 1
@@ -57,7 +57,7 @@ For information on model equations, refer to :ref:`activated_sludge_model`.
 
 ``ASM3_KHO2``
 
-   :math:`SO_2` saturation constant :math:`KHO_2`.
+   Saturation/inhibition coefficient for oxygen, heterotrophic growth :math:`KHO_2`.
 
    ================  =============================  ========================================================
    **Type:** double  **Range:** :math:`\mathbb{R}`  **Length:** 1
@@ -121,7 +121,7 @@ For information on model equations, refer to :ref:`activated_sludge_model`.
 
 ``ASM3_ETAH_END``
 
-   
+   Reduction factor :math:`\eta_{H_end}` for :math:`b_H` under anoxic conditions.
 
    ================  =============================  ========================================================
    **Type:** double  **Range:** :math:`\mathbb{R}`  **Length:** 1
@@ -129,7 +129,7 @@ For information on model equations, refer to :ref:`activated_sludge_model`.
 
 ``ASM3_BH20``
 
-   
+   Rate constant for lysis and decay :math:`b_H` at 20 °C.
 
    ================  =============================  ========================================================
    **Type:** double  **Range:** :math:`\mathbb{R}`  **Length:** 1
@@ -137,7 +137,7 @@ For information on model equations, refer to :ref:`activated_sludge_model`.
 
 ``ASM3_MU_AUT20``
 
-   
+   Maximum growth rate of :math:`XAUT`, :math:`\mu_{AUT}` at 20 °C.
 
    ================  =============================  ========================================================
    **Type:** double  **Range:** :math:`\mathbb{R}`  **Length:** 1
@@ -145,7 +145,7 @@ For information on model equations, refer to :ref:`activated_sludge_model`.
 
 ``ASM3_KNO2``
 
-   
+   Saturation coefficient :math:`K_{NO_2}` for oxygen, autotrophic growth.
 
    ================  =============================  ========================================================
    **Type:** double  **Range:** :math:`\mathbb{R}`  **Length:** 1
@@ -153,7 +153,7 @@ For information on model equations, refer to :ref:`activated_sludge_model`.
 
 ``ASM3_KNNH4``
 
-   
+   Saturation coefficient :math:`K_{NNH_4}` for ammonium (substrate), autotrophic growth.
 
    ================  =============================  ========================================================
    **Type:** double  **Range:** :math:`\mathbb{R}`  **Length:** 1
@@ -161,7 +161,7 @@ For information on model equations, refer to :ref:`activated_sludge_model`.
 
 ``ASM3_KNALK``
 
-   
+   Saturation coefficient :math:`K_{NALK}` for alkalinity, autotrophic growth.
 
    ================  =============================  ========================================================
    **Type:** double  **Range:** :math:`\mathbb{R}`  **Length:** 1
@@ -169,7 +169,7 @@ For information on model equations, refer to :ref:`activated_sludge_model`.
 
 ``ASM3_BAUT20``
 
-   
+   Decay rate :math:`b_{AUT}` of :math:`XAUT` at 20 °C.
 
    ================  =============================  ========================================================
    **Type:** double  **Range:** :math:`\mathbb{R}`  **Length:** 1
@@ -177,7 +177,7 @@ For information on model equations, refer to :ref:`activated_sludge_model`.
 
 ``ASM3_ETAN_END``
 
-   
+   Reduction factor :math:`\eta_{N_end}` for :math:`b_{AUT}` under anoxic conditions.
 
    ================  =============================  ========================================================
    **Type:** double  **Range:** :math:`\mathbb{R}`  **Length:** 1
