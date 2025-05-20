@@ -392,6 +392,127 @@ namespace reaction
 		ad::prepareAdVectorSeedsForDenseMatrix(adY, 0, numDofs);
 		ad::copyToAd(yState.data(), adY, numDofs);
 		ad::resetAd(adRes, numDofs);
+		crm.model().residualCombinedAdd(1.0, 0u, ColumnPosition{ 0.0, 0.0, 0.0 }, adY, adY + crm.nComp(), adRes, adRes + crm.nComp(), 1.0, crm.buffer());
+
+		// Extract Jacobian
+		cadet::linalg::DenseMatrix jacAD;
+		jacAD.resize(numDofs, numDofs);
+		ad::extractDenseJacobianFromAd(adRes, 0, jacAD);
+
+		// Calculate analytic Jacobian
+		cadet::linalg::DenseMatrix jacAna;
+		jacAna.resize(numDofs, numDofs);
+		crm.model().analyticJacobianCombinedAdd(1.0, 0u, ColumnPosition{ 0.0, 0.0, 0.0 }, yState.data(), yState.data() + crm.nComp(), 1.0, jacAna.row(0), jacAna.row(crm.nComp()), crm.buffer());
+
+		cadet::test::checkJacobianPatternFD(
+			[&](double const* lDir, double* res) -> void
+			{
+				std::fill_n(res, numDofs, 0.0);
+				crm.model().residualCombinedAdd(1.0, 0u, ColumnPosition{ 0.0, 0.0, 0.0 }, lDir, lDir + crm.nComp(), res, res + crm.nComp(), 1.0, crm.buffer());
+			},
+			[&](double const* lDir, double* res) -> void
+			{
+				jacAna.multiplyVector(lDir, res);
+			},
+			yState.data(), dir.data(), colA.data(), colB.data(), numDofs, numDofs);
+
+		cadet::test::checkJacobianPatternFD(
+			[&](double const* lDir, double* res) -> void
+			{
+				std::fill_n(res, numDofs, 0.0);
+				crm.model().residualCombinedAdd(1.0, 0u, ColumnPosition{ 0.0, 0.0, 0.0 }, lDir, lDir + crm.nComp(), res, res + crm.nComp(), 1.0, crm.buffer());
+			},
+			[&](double const* lDir, double* res) -> void
+			{
+				jacAD.multiplyVector(lDir, res);
+			},
+			yState.data(), dir.data(), colA.data(), colB.data(), numDofs, numDofs);
+
+		// Check Jacobians against each other
+		for (unsigned int row = 0; row < numDofs; ++row)
+		{
+			for (unsigned int col = 0; col < numDofs; ++col)
+			{
+				CAPTURE(row);
+				CAPTURE(col);
+				CHECK(jacAna.native(row, col) == makeApprox(jacAD.native(row, col), absTol, relTol));
+			}
+		}
+
+		// Only liquid phase
+
+		// Evaluate with AD
+		ad::resetAd(adRes, numDofs);
+		crm.model().residualLiquidAdd(1.0, 0u, ColumnPosition{ 0.0, 0.0, 0.0 }, adY, adRes, 1.0, crm.buffer());
+
+		// Extract Jacobian
+		jacAD.setAll(0.0);
+		ad::extractDenseJacobianFromAd(adRes, 0, jacAD);
+
+		// Calculate analytic Jacobian
+		jacAna.setAll(0.0);
+		crm.model().analyticJacobianLiquidAdd(1.0, 0u, ColumnPosition{ 0.0, 0.0, 0.0 }, yState.data(), 1.0, jacAna.row(0), crm.buffer());
+
+		delete[] adY;
+		delete[] adRes;
+
+		cadet::test::checkJacobianPatternFD(
+			[&](double const* lDir, double* res) -> void
+			{
+				std::fill_n(res, nComp, 0.0);
+				crm.model().residualLiquidAdd(1.0, 0u, ColumnPosition{ 0.0, 0.0, 0.0 }, lDir, res, 1.0, crm.buffer());
+			},
+			[&](double const* lDir, double* res) -> void
+			{
+				jacAna.submatrixMultiplyVector(lDir, 0, 0, nComp, nComp, res);
+			},
+			yState.data(), dir.data(), colA.data(), colB.data(), nComp, nComp);
+
+		cadet::test::checkJacobianPatternFD(
+			[&](double const* lDir, double* res) -> void
+			{
+				std::fill_n(res, nComp, 0.0);
+				crm.model().residualLiquidAdd(1.0, 0u, ColumnPosition{ 0.0, 0.0, 0.0 }, lDir, res, 1.0, crm.buffer());
+			},
+			[&](double const* lDir, double* res) -> void
+			{
+				jacAD.submatrixMultiplyVector(lDir, 0, 0, nComp, nComp, res);
+			},
+			yState.data(), dir.data(), colA.data(), colB.data(), nComp, nComp);
+
+		// Check Jacobians against each other
+		for (unsigned int row = 0; row < nComp; ++row)
+		{
+			for (unsigned int col = 0; col < nComp; ++col)
+			{
+				CAPTURE(row);
+				CAPTURE(col);
+				CHECK(jacAna.native(row, col) == makeApprox(jacAD.native(row, col), absTol, relTol));
+			}
+		}
+	}
+
+	void testLiquidReactionJacobianAD(const char* modelName, unsigned int nComp, unsigned int const* nBound, const char* config, double const* point, double absTol, double relTol)
+	{
+		ConfiguredDynamicReactionModel crm = ConfiguredDynamicReactionModel::create(modelName, nComp, nBound, config);
+
+		const unsigned int numDofs = crm.nComp() + crm.numBoundStates();
+		std::vector<double> yState(numDofs, 0.0);
+		std::copy_n(point, numDofs, yState.data());
+
+		std::vector<double> dir(numDofs, 0.0);
+		std::vector<double> colA(numDofs, 0.0);
+		std::vector<double> colB(numDofs, 0.0);
+
+		// Enable AD
+		cadet::ad::setDirections(cadet::ad::getMaxDirections());
+		cadet::active* adRes = new cadet::active[numDofs];
+		cadet::active* adY = new cadet::active[numDofs];
+
+		// Evaluate with AD
+		ad::prepareAdVectorSeedsForDenseMatrix(adY, 0, numDofs);
+		ad::copyToAd(yState.data(), adY, numDofs);
+		ad::resetAd(adRes, numDofs);
 
 		// Extract Jacobian
 		cadet::linalg::DenseMatrix jacAD;
@@ -402,13 +523,9 @@ namespace reaction
 		cadet::linalg::DenseMatrix jacAna;
 		jacAna.resize(numDofs, numDofs);
 
-	
-
-		// Only liquid phase
-
 		// Evaluate with AD
 		ad::resetAd(adRes, numDofs);
-		crm.model().residualLiquidAdd(1.0, 0u, ColumnPosition{0.0, 0.0, 0.0}, adY, adRes, 1.0, crm.buffer());
+		crm.model().residualLiquidAdd(1.0, 0u, ColumnPosition{ 0.0, 0.0, 0.0 }, adY, adRes, 1.0, crm.buffer());
 
 		// Extract Jacobian
 		jacAD.setAll(0.0);
@@ -416,33 +533,33 @@ namespace reaction
 
 		// Calculate analytic Jacobian
 		jacAna.setAll(0.0);
-		crm.model().analyticJacobianLiquidAdd(1.0, 0u, ColumnPosition{0.0, 0.0, 0.0}, yState.data(), 1.0, jacAna.row(0), crm.buffer());
+		crm.model().analyticJacobianLiquidAdd(1.0, 0u, ColumnPosition{ 0.0, 0.0, 0.0 }, yState.data(), 1.0, jacAna.row(0), crm.buffer());
 
 		delete[] adY;
 		delete[] adRes;
 
 		cadet::test::checkJacobianPatternFD(
 			[&](double const* lDir, double* res) -> void
-				{
-					std::fill_n(res, nComp, 0.0);
-					crm.model().residualLiquidAdd(1.0, 0u, ColumnPosition{0.0, 0.0, 0.0}, lDir, res, 1.0, crm.buffer());
-				},
-			[&](double const* lDir, double* res) -> void 
-				{
-					jacAna.submatrixMultiplyVector(lDir, 0, 0, nComp, nComp, res);
-				},
+			{
+				std::fill_n(res, nComp, 0.0);
+				crm.model().residualLiquidAdd(1.0, 0u, ColumnPosition{ 0.0, 0.0, 0.0 }, lDir, res, 1.0, crm.buffer());
+			},
+			[&](double const* lDir, double* res) -> void
+			{
+				jacAna.submatrixMultiplyVector(lDir, 0, 0, nComp, nComp, res);
+			},
 			yState.data(), dir.data(), colA.data(), colB.data(), nComp, nComp);
 
 		cadet::test::checkJacobianPatternFD(
 			[&](double const* lDir, double* res) -> void
-				{
-					std::fill_n(res, nComp, 0.0);
-					crm.model().residualLiquidAdd(1.0, 0u, ColumnPosition{0.0, 0.0, 0.0}, lDir, res, 1.0, crm.buffer());
-				},
-			[&](double const* lDir, double* res) -> void 
-				{
-					jacAD.submatrixMultiplyVector(lDir, 0, 0, nComp, nComp, res);
-				},
+			{
+				std::fill_n(res, nComp, 0.0);
+				crm.model().residualLiquidAdd(1.0, 0u, ColumnPosition{ 0.0, 0.0, 0.0 }, lDir, res, 1.0, crm.buffer());
+			},
+			[&](double const* lDir, double* res) -> void
+			{
+				jacAD.submatrixMultiplyVector(lDir, 0, 0, nComp, nComp, res);
+			},
 			yState.data(), dir.data(), colA.data(), colB.data(), nComp, nComp);
 
 		// Check Jacobians against each other

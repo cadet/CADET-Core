@@ -124,6 +124,18 @@ namespace reaction
 	void testMichaelisMentenToSMAInhibitionMicroKinetic(const std::string configFilePathMM, const std::string configFilePathSMA, const double absTol, const double relTol);
 
 	/**
+ * @brief Checks the analytic Jacobians of the dynamic reaction model against AD
+ * @param [in] modelName Name of the reaction model
+ * @param [in] nComp Number of components
+ * @param [in] nBound Array with number of bound states for each component
+ * @param [in] config JSON string with reaction model parameters
+ * @param [in] point Liquid phase and solid phase values to check Jacobian at
+ * @param [in] absTol Absolute error tolerance
+ * @param [in] relTol Relative error tolerance
+ */
+	void testDynamicJacobianAD(const char* modelName, unsigned int nComp, unsigned int const* nBound, const char* config, double const* point, double absTol = 0.0, double relTol = std::numeric_limits<float>::epsilon() * 100.0);
+
+	/**
 	 * @brief Checks the analytic Jacobians of the dynamic reaction model against AD
 	 * @param [in] modelName Name of the reaction model
 	 * @param [in] nComp Number of components
@@ -133,7 +145,7 @@ namespace reaction
 	 * @param [in] absTol Absolute error tolerance
 	 * @param [in] relTol Relative error tolerance
 	 */
-	void testDynamicJacobianAD(const char* modelName, unsigned int nComp, unsigned int const* nBound, const char* config, double const* point, double absTol = 0.0, double relTol = std::numeric_limits<float>::epsilon() * 100.0);
+	void testLiquidReactionJacobianAD(const char* modelName, unsigned int nComp, unsigned int const* nBound, const char* config, double const* point, double absTol = 0.0, double relTol = std::numeric_limits<float>::epsilon() * 100.0);
 
 	/**
 	 * @brief Extends a model with dynamic reactions in each phase and particle type
