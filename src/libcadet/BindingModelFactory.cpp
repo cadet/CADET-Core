@@ -48,6 +48,7 @@ namespace cadet
 			void registerSipsModel(std::unordered_map<std::string, std::function<model::IBindingModel*()>>& bindings);
 			void registerMultiComponentLDFFreundlichModel(std::unordered_map<std::string, std::function<model::IBindingModel*()>>& bindings);
 			void registerHICUnifiedModel(std::unordered_map<std::string, std::function<model::IBindingModel*()>>& bindings);
+			void registerAffinityComplexTitrationModel(std::unordered_map<std::string, std::function<model::IBindingModel* ()>>& bindings);
 		}
 	}
 
@@ -81,6 +82,7 @@ namespace cadet
 		model::binding::registerSipsModel(_bindingModels);
 		model::binding::registerMultiComponentLDFFreundlichModel(_bindingModels);
 		model::binding::registerHICUnifiedModel(_bindingModels);
+		model::binding::registerAffinityComplexTitrationModel(_bindingModels);
 		registerModel<model::SimplifiedMultiStateStericMassActionBinding>();
 	}
 
