@@ -141,7 +141,7 @@ int GeneralRateModelDG::linearSolve(double t, double alpha, double outerTol, dou
 
 	// Handle inlet DOFs:
 	// Inlet at z = 0 for forward flow, at z = L for backward flow.
-	unsigned int offInlet = _convDispOp.forwardFlow() ? 0 : (_disc.nCol - 1u) * idxr.strideColCell();
+	unsigned int offInlet = _convDispOp.forwardFlow() ? 0 : (_disc.nElem - 1u) * idxr.strideColCell();
 
 	for (int comp = 0; comp < _disc.nComp; comp++) {
 		for (int node = 0; node < (_disc.exactInt ? _disc.nNodes : 1); node++) {
@@ -189,33 +189,7 @@ void GeneralRateModelDG::assembleDiscretizedGlobalJacobian(double alpha, Indexer
 
 			linalg::BandedEigenSparseRowIterator jac(_globalJacDisc, idxr.offsetCp(ParticleTypeIndex{ parType }, ParticleIndex{ colNode }));
 
-			// If special case for inexact integration DG scheme:
-			// Do not add time derivative to particle mass balance equation at inner particle boundary for mass balance(s)
-			if (!_disc.parExactInt[parType] && _parGeomSurfToVol[parType] != _disc.SurfVolRatioSlab && _parCoreRadius[parType] == 0.0) {
-				// we still need to add the derivative for the binding
-				// move iterator to solid phase
-				jac += idxr.strideParLiquid();
-				// Solid phase
-				for (unsigned int comp = 0; comp < _disc.nComp; ++comp) {
-					for (unsigned int bnd = 0; bnd < _disc.nBound[parType * _disc.nComp + comp]; ++bnd, ++jac)
-					{
-						// Add derivative with respect to dynamic states to Jacobian
-						if (_binding[parType]->reactionQuasiStationarity()[idxr.offsetBoundComp(ParticleTypeIndex{ parType }, ComponentIndex{ comp }) + bnd])
-							continue;
-
-						// surface diffusion + kinetic binding -> additional DG-discretized mass balance equation for solid, for which the (inexact integration) discretization special case also holds
-						else if (_hasSurfaceDiffusion[parType]
-							&& static_cast<double>(getSectionDependentSlice(_parSurfDiffusion, _disc.strideBound[_disc.nParType], _disc.curSection)[_disc.nBoundBeforeType[parType] + getOffsetSurfDiff(parType, comp, bnd)]) != 0.0)
-							continue;
-
-						// Add derivative with respect to dq / dt to Jacobian
-						jac[0] += alpha;
-					}
-				}
-			}
-			else { // else, treat boundary node "normally"
-				addTimeDerivativeToJacobianParticleShell(jac, idxr, alpha, parType);
-			}
+			addTimeDerivativeToJacobianParticleShell(jac, idxr, alpha, parType);
 
 			// compute time derivative of remaining points
 			// Iterator jac has already been advanced to next shell

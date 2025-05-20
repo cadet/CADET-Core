@@ -157,15 +157,21 @@ jobs:
           cd "${BUILD_DIR}"
           cmake -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" -DCMAKE_BUILD_TYPE="${BUILD_TYPE}" "${SRC_DIR}" -DENABLE_TESTS=ON -DNUM_MAX_AD_DIRS=157
           make install -j$(nproc)
-      - name: Check if it runs
+      - name: Check executable
         run: |
           export LD_LIBRARY_PATH=${INSTALL_PREFIX}/lib:$LD_LIBRARY_PATH
           ${INSTALL_PREFIX}/bin/cadet-cli --version || true
           ${INSTALL_PREFIX}/bin/createLWE
           ${INSTALL_PREFIX}/bin/cadet-cli LWE.h5 || true
-      - name: Run tests
+      - name: Run CI test set I
         run: |
           ${BUILD_DIR}/test/testRunner [CI]
+      - name: Run CI test set II
+        run: |
+          ${BUILD_DIR}/test/testRunner [CI_sensitivity1]
+      - name: Run CI test set III
+        run: |
+          ${BUILD_DIR}/test/testRunner [CI_sensitivity2]
   MacOS:
     runs-on: macos-latest
     strategy:

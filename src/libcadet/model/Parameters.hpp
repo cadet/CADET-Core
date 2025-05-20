@@ -171,6 +171,13 @@ public:
 	 * @param [in] nBoundStates Array with number of bound states for each component
 	 */
 	inline void reserve(unsigned int numElem, unsigned int numSlices, unsigned int nComp, unsigned int const* nBoundStates) { }
+
+	/**
+	 * @brief Reserves space in the storage of the parameter
+	 * @param [in] numSlices Number of slices / binding site types
+	 * @param [in] nComp Number of components
+	 * @param [in] nBoundStates number of bound states
+	 */
 	inline void reserve(unsigned int numSlices, unsigned int nComp, unsigned int nBoundStates) { }
 
 	inline const active& get() const CADET_NOEXCEPT { return *_p; }
@@ -695,6 +702,12 @@ public:
 	 */
 	inline void reserve(unsigned int numElem, unsigned int numSlices, unsigned int nComp, unsigned int const* nBoundStates) { }
 
+	/**
+	 * @brief Reserves space in the storage of the parameters
+	 * @param [in] nReactions Number of reactions
+	 * @param [in] nComp Number of components
+	 * @param [in] nBoundStates Number of bound states
+	 */
 	inline void reserve(unsigned int nReactions, unsigned int nComp, unsigned int nBoundStates) { }
 
 	/**
@@ -770,6 +783,22 @@ public:
 	 * @return Amount of additional memory in bytes
 	 */
 	inline std::size_t additionalDynamicMemory(unsigned int nComp, unsigned int totalNumBoundStates, unsigned int const* nBoundStates) const CADET_NOEXCEPT { return 0; }
+
+	/**
+	 * @brief Returns the amount of additional memory (usually dynamically allocated by containers) for storing the final parameters
+	 * @details In a model, externally dependent parameters are stored in a struct, usually called
+	 *          VariableParams. This is sufficient for "static" parameter types that do
+	 *          not require additional memory (which is usually allocated dynamically).
+	 *          For containers using additional dynamic memory, only the container itself
+	 *          is stored in the struct. Memory for the content of the container (i.e., the
+	 *          elements) is still required. This function computes this amount of additional
+	 *          memory.
+	 *
+	 * @param [in] nComp Number of components
+	 * @param [in] totalNumBoundStates Total number of bound states
+	 * @param [in] nBoundStates Number of bound states
+	 * @return Amount of additional memory in bytes
+	 */
 	inline std::size_t additionalDynamicMemory(unsigned int nComp, unsigned int totalNumBoundStates, unsigned int nBoundStates) const CADET_NOEXCEPT { return 0; }
 
 	/**

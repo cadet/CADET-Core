@@ -59,7 +59,7 @@ TEST_CASE("LRMP Jacobian forward vs backward flow", "[LRMP],[FV],[UnitOp],[Resid
 	}
 }
 
-TEST_CASE("LRMP numerical Benchmark with parameter sensitivities for linear case", "[LRMP],[FV],[Simulation],[Reference],[Sensitivity]") // todo CI flag: currently only runs locally but fails on server
+TEST_CASE("LRMP numerical Benchmark with parameter sensitivities for linear case", "[LRMP],[FV],[Simulation],[Reference],[Sensitivity],[CI_sensitivity1]")
 {
 	const std::string& modelFilePath = std::string("/data/model_LRMP_dynLin_1comp_benchmark1.json");
 	const std::string& refFilePath = std::string("/data/ref_LRMP_dynLin_1comp_sensbenchmark1_FV_Z32.h5");
@@ -70,7 +70,7 @@ TEST_CASE("LRMP numerical Benchmark with parameter sensitivities for linear case
 	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "001", absTol, relTol, disc, true);
 }
 
-TEST_CASE("LRMP numerical Benchmark with parameter sensitivities for SMA LWE case", "[LRMP],[FV],[Simulation],[Reference],[Sensitivity]") // todo CI flag: currently only runs locally but fails on server
+TEST_CASE("LRMP numerical Benchmark with parameter sensitivities for SMA LWE case", "[LRMP],[FV],[Simulation],[Reference],[Sensitivity],[CI_sensitivity1]")
 {
 	const std::string& modelFilePath = std::string("/data/model_LRMP_reqSMA_4comp_benchmark1.json");
 	const std::string& refFilePath = std::string("/data/ref_LRMP_reqSMA_4comp_sensbenchmark1_FV_Z32.h5");
