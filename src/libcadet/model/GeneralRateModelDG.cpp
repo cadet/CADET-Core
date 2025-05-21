@@ -167,7 +167,12 @@ bool GeneralRateModelDG::configureModelDiscretization(IParameterProvider& paramP
 
 	paramProvider.popScope();
 	Indexer idxr(_disc);
-	const bool particleConfSuccess = _parDiffOp.configureModelDiscretization(paramProvider, helper, _disc.nComp, _disc.nParType, idxr.strideColComp());
+	_parDiffOp = new parts::ParticleDiffusionOperatorDG[_disc.nParType];
+	bool particleConfSuccess = true;
+	for (int parType = 0; parType < _disc.nParType; parType++)
+	{
+		particleConfSuccess = particleConfSuccess && _parDiffOp[parType].configureModelDiscretization(paramProvider, helper, _disc.nComp, idxr.strideColComp());
+	}
 	paramProvider.pushScope("discretization");
 
 	if (firstConfigCall)
@@ -175,7 +180,7 @@ bool GeneralRateModelDG::configureModelDiscretization(IParameterProvider& paramP
 		_disc.nParPoints = new unsigned int[_disc.nParType];
 		for (int type = 0; type < _disc.nParType; type++)
 		{
-			_disc.nParPoints[type] = _parDiffOp._nParPoints[type];
+			_disc.nParPoints[type] = _parDiffOp[type]._nParPoints;
 		}
 	}
 
@@ -380,8 +385,6 @@ bool GeneralRateModelDG::configure(IParameterProvider& paramProvider)
 {
 	_parameters.clear();
 
-	const bool firstConfigCall = _parDiffOp._deltaR == nullptr; // used to not multiply allocate memory
-
 	const bool transportSuccess = _convDispOp.configure(_unitOpIdx, paramProvider, _parameters);
 
 	// Read geometry parameters handled by unit operation
@@ -547,8 +550,11 @@ bool GeneralRateModelDG::configure(IParameterProvider& paramProvider)
 		}
 	}
 
-	const bool particleConfSuccess = _parDiffOp.configure(_unitOpIdx, paramProvider, _parameters);
-
+	bool particleConfSuccess = true;
+	for (int parType = 0; parType < _disc.nParType; parType++)
+	{
+		particleConfSuccess = particleConfSuccess && _parDiffOp[parType].configure(_unitOpIdx, paramProvider, _parameters);
+	}
 	// jaobian pattern set after binding and particle surface diffusion are configured
 	setJacobianPattern_GRM(_globalJac, 0, _dynReactionBulk);
 	_globalJacDisc = _globalJac;
@@ -642,7 +648,10 @@ void GeneralRateModelDG::notifyDiscontinuousSectionTransition(double t, unsigned
 
 	_convDispOp.notifyDiscontinuousSectionTransition(t, secIdx, _jacInlet);
 
-	_parDiffOp.notifyDiscontinuousSectionTransition(t, secIdx, getSectionDependentSlice(_filmDiffusion, _disc.nComp * _disc.nParType, secIdx), &_poreAccessFactor[0]);
+	for (int parType = 0; parType < _disc.nParType; parType++)
+	{
+		_parDiffOp[parType].notifyDiscontinuousSectionTransition(t, secIdx, getSectionDependentSlice(_filmDiffusion, _disc.nComp * _disc.nParType, secIdx), &_poreAccessFactor[0]);
+	}
 
 	_disc.curSection = secIdx;
 	_disc.newStaticJac = true;
@@ -771,7 +780,7 @@ void GeneralRateModelDG::extractJacobianFromAD(active const* const adRes, unsign
 	// todo extract these entries instead of analytical calculation?
 	for (unsigned int parType = 0; parType < _disc.nParType; parType++)
 	{
-		_parDiffOp.calcFilmDiffJacobian(_disc.curSection, parType, idxr.offsetCp(ParticleTypeIndex{ static_cast<unsigned int>(parType) }), idxr.offsetC(), _disc.nPoints, static_cast<double>(_colPorosity), &_parTypeVolFrac[0], _globalJac, true);
+		_parDiffOp[parType].calcFilmDiffJacobian(_disc.curSection, idxr.offsetCp(ParticleTypeIndex{static_cast<unsigned int>(parType)}), idxr.offsetC(), _disc.nPoints, static_cast<double>(_colPorosity), _parTypeVolFrac[parType], _globalJac, true);
 	}
 }
 
@@ -1172,7 +1181,7 @@ parts::cell::CellParameters GeneralRateModelDG::makeCellResidualParams(unsigned 
 			_disc.boundOffset + _disc.nComp * parType,
 			_disc.strideBound[parType],
 			qsReaction,
-			_parDiffOp._parPorosity[parType],
+			_parDiffOp[parType]._parPorosity,
 			_poreAccessFactor.data() + _disc.nComp * parType,
 			_binding[parType],
 			(_dynReaction[parType] && (_dynReaction[parType]->numReactionsCombined() > 0)) ? _dynReaction[parType] : nullptr
@@ -1301,7 +1310,7 @@ void GeneralRateModelDG::multiplyWithDerivativeJacobian(const SimulationTime& si
 			const unsigned int pblk = idxParLoop % _disc.nPoints;
 			const unsigned int type = idxParLoop / _disc.nPoints;
 
-			const double invBetaP = (1.0 / static_cast<double>(_parDiffOp._parPorosity[type]) - 1.0);
+			const double invBetaP = (1.0 / static_cast<double>(_parDiffOp[type]._parPorosity) - 1.0);
 			unsigned int const* const nBound = _disc.nBound + type * _disc.nComp;
 			unsigned int const* const boundOffset = _disc.boundOffset + type * _disc.nComp;
 			int const* const qsReaction = _binding[type]->reactionQuasiStationarity();
@@ -1392,8 +1401,11 @@ bool GeneralRateModelDG::setParameter(const ParameterId& pId, double value)
 			return true;
 		}
 
-		if (_parDiffOp.setParameter(pId, value))
-			return true;
+		for (int parType = 0; parType < _disc.nParType; parType++)
+		{
+			if (_parDiffOp[parType].setParameter(pId, value))
+				return true;
+		}
 
 		if (_convDispOp.setParameter(pId, value))
 			return true;
@@ -1404,7 +1416,12 @@ bool GeneralRateModelDG::setParameter(const ParameterId& pId, double value)
 
 	// Check whether particle radius or core radius has changed and update radial discretization if necessary
 	if (result && ((pId.name == hashString("PAR_RADIUS")) || (pId.name == hashString("PAR_CORERADIUS"))))
-		_parDiffOp.updateRadialDisc();
+	{
+		for (int parType = 0; parType < _disc.nParType; parType++)
+		{
+			_parDiffOp[parType].updateRadialDisc();
+		}
+	}
 
 	return result;
 }
@@ -1414,8 +1431,11 @@ bool GeneralRateModelDG::setParameter(const ParameterId& pId, int value)
 	if ((pId.unitOperation != _unitOpIdx) && (pId.unitOperation != UnitOpIndep))
 		return false;
 
-	if (_parDiffOp.setParameter(pId, value))
-		return true;
+	for (int parType = 0; parType < _disc.nParType; parType++)
+	{
+		if (_parDiffOp[parType].setParameter(pId, value))
+			return true;
+	}
 
 	return UnitOperationBase::setParameter(pId, value);
 }
@@ -1425,8 +1445,11 @@ bool GeneralRateModelDG::setParameter(const ParameterId& pId, bool value)
 	if ((pId.unitOperation != _unitOpIdx) && (pId.unitOperation != UnitOpIndep))
 		return false;
 
-	if (_parDiffOp.setParameter(pId, value))
-		return true;
+	for (int parType = 0; parType < _disc.nParType; parType++)
+	{
+		if (_parDiffOp[parType].setParameter(pId, value))
+			return true;
+	}
 
 	return UnitOperationBase::setParameter(pId, value);
 }
@@ -1459,8 +1482,11 @@ void GeneralRateModelDG::setSensitiveParameterValue(const ParameterId& pId, doub
 			return;
 		}
 
-		if (_parDiffOp.setSensitiveParameterValue(_sensParams, pId, value))
-			return;
+		for (int parType = 0; parType < _disc.nParType; parType++)
+		{
+			if (_parDiffOp[parType].setSensitiveParameterValue(_sensParams, pId, value))
+				return;
+		}
 
 		if (_convDispOp.setSensitiveParameterValue(_sensParams, pId, value))
 			return;
@@ -1470,7 +1496,12 @@ void GeneralRateModelDG::setSensitiveParameterValue(const ParameterId& pId, doub
 
 	// Check whether particle radius or core radius has changed and update radial discretization if necessary
 	if ((pId.name == hashString("PAR_RADIUS")) || (pId.name == hashString("PAR_CORERADIUS")))
-		_parDiffOp.updateRadialDisc();
+	{
+		for (int parType = 0; parType < _disc.nParType; parType++)
+		{
+			_parDiffOp[parType].updateRadialDisc();
+		}
+	}
 }
 
 bool GeneralRateModelDG::setSensitiveParameter(const ParameterId& pId, unsigned int adDirection, double adValue)
@@ -1516,10 +1547,13 @@ bool GeneralRateModelDG::setSensitiveParameter(const ParameterId& pId, unsigned 
 			return true;
 		}
 
-		if (_parDiffOp.setSensitiveParameter(_sensParams, pId, adDirection, adValue))
+		for (int parType = 0; parType < _disc.nParType; parType++)
 		{
-			LOG(Debug) << "Found parameter " << pId << ": Dir " << adDirection << " is set to " << adValue;
-			return true;
+			if (_parDiffOp[parType].setSensitiveParameter(_sensParams, pId, adDirection, adValue))
+			{
+				LOG(Debug) << "Found parameter " << pId << ": Dir " << adDirection << " is set to " << adValue;
+				return true;
+			}
 		}
 
 		if (_convDispOp.setSensitiveParameter(_sensParams, pId, adDirection, adValue))
@@ -1535,7 +1569,12 @@ bool GeneralRateModelDG::setSensitiveParameter(const ParameterId& pId, unsigned 
 	// Note that we need to recompute the radial discretization variables (_parCellSize, _parCenterRadius, _parOuterSurfAreaPerVolume, _parInnerSurfAreaPerVolume)
 	// because their gradient has changed (although their nominal value has not changed).
 	if ((pId.name == hashString("PAR_RADIUS")) || (pId.name == hashString("PAR_CORERADIUS")))
-		_parDiffOp.updateRadialDisc();
+	{
+		for (int parType = 0; parType < _disc.nParType; parType++)
+		{
+			_parDiffOp[parType].updateRadialDisc();
+		}
+	}
 
 	return result;
 }
@@ -1551,8 +1590,11 @@ std::unordered_map<ParameterId, double> GeneralRateModelDG::getAllParameterValue
 double GeneralRateModelDG::getParameterDouble(const ParameterId& pId) const
 {
 	double val = 0.0;
-	if (model::getParameterDouble(pId, _parDiffOp._parDepSurfDiffusion, _parDiffOp._singleParDepSurfDiffusion, val))
-		return val;
+	for (int parType = 0; parType < _disc.nParType; parType++)
+	{
+		if (model::getParameterDouble(pId, _parDiffOp[parType]._parDepSurfDiffusion, _parDiffOp[parType]._singleParDepSurfDiffusion, val))
+			return val;
+	}
 
 	// Not found
 	return UnitOperationBase::getParameterDouble(pId);
@@ -1560,8 +1602,11 @@ double GeneralRateModelDG::getParameterDouble(const ParameterId& pId) const
 
 bool GeneralRateModelDG::hasParameter(const ParameterId& pId) const
 {
-	if (model::hasParameter(pId, _parDiffOp._parDepSurfDiffusion, _parDiffOp._singleParDepSurfDiffusion))
-		return true;
+	for (int parType = 0; parType < _disc.nParType; parType++)
+	{
+		if (model::hasParameter(pId, _parDiffOp[parType]._parDepSurfDiffusion, _parDiffOp[parType]._singleParDepSurfDiffusion))
+			return true;
+	}
 
 	return UnitOperationBase::hasParameter(pId);
 }

@@ -88,8 +88,8 @@ namespace parts
 		ParticleDiffusionOperatorDG();
 		~ParticleDiffusionOperatorDG() CADET_NOEXCEPT;
 
-		bool configureModelDiscretization(IParameterProvider& paramProvider, const IConfigHelper& helper, const int nComp, const int nParType, const int strideBulkComp);
-		bool configure(UnitOpIdx unitOpIdx, IParameterProvider& paramProvider, std::unordered_map<ParameterId, active*>& parameters);
+		bool configureModelDiscretization(IParameterProvider& paramProvider, const IConfigHelper& helper, const int nComp, const int parTypeIdx, const int nParType, const int strideBulkComp);
+		bool configure(UnitOpIdx unitOpIdx, IParameterProvider& paramProvider, std::unordered_map<ParameterId, active*>& parameters, const int nParType);
 
 		void setEquidistantRadialDisc(unsigned int parType);
 		void setEquivolumeRadialDisc(unsigned int parType);
@@ -105,19 +105,20 @@ namespace parts
 		int residual(double t, unsigned int secIdx, unsigned int parType, unsigned int colNode, active const* yPar, active const* yBulk, double const* yDotPar, active* resPar, int const* const qsBinding, WithParamSensitivity);
 		int residual(double t, unsigned int secIdx, unsigned int parType, unsigned int colNode, active const* yPar, active const* yBulk, double const* yDotPar, active* resPar, int const* const qsBinding, WithoutParamSensitivity);
 
+		int _parTypeIdx; //!< Particle type index (wrt the unit operation that owns this particle model)
 
 		/* Physical model parameters */
 
-		std::vector<active> _parRadius; //!< Particle radius \f$ r_p \f$
+		active _parRadius; //!< Particle radius \f$ r_p \f$
 		bool _singleParRadius;
-		std::vector<active> _parCoreRadius; //!< Particle core radius \f$ r_c \f$
+		active _parCoreRadius; //!< Particle core radius \f$ r_c \f$
 		bool _singleParCoreRadius;
-		std::vector<active> _parPorosity; //!< Particle porosity (internal porosity) \f$ \varepsilon_p \f$
+		active _parPorosity; //!< Particle porosity (internal porosity) \f$ \varepsilon_p \f$
 		bool _singleParPorosity;
 		std::vector<active> _invBetaP; //!< Ratio of solid to liquid particle volume
-		std::vector<double> _parGeomSurfToVol; //!< Particle surface to volume ratio factor (i.e., 3.0 for spherical, 2.0 for cylindrical, 1.0 for hexahedral)
-		std::vector<active> _parOuterSurfAreaPerVolume; //!< Particle element outer sphere surface to volume ratio
-		std::vector<active> _parInnerSurfAreaPerVolume; //!< Particle element inner sphere surface to volume ratio
+		double _parGeomSurfToVol; //!< Particle surface to volume ratio factor (i.e., 3.0 for spherical, 2.0 for cylindrical, 1.0 for hexahedral)
+		active _parOuterSurfAreaPerVolume; //!< Particle element outer sphere surface to volume ratio
+		active _parInnerSurfAreaPerVolume; //!< Particle element inner sphere surface to volume ratio
 
 		std::vector<active> _filmDiffusion; //!< Particle diffusion coefficient \f$ D_p \f$
 		//MultiplexMode _filmDiffusionMode;
@@ -127,13 +128,12 @@ namespace parts
 		MultiplexMode _parDiffusionMode;
 		std::vector<active> _parSurfDiffusion; //!< Particle surface diffusion coefficient \f$ D_s \f$
 		MultiplexMode _parSurfDiffusionMode;
-		std::vector<IParameterStateDependence*> _parDepSurfDiffusion; //!< Parameter dependencies for particle surface diffusion
+		IParameterStateDependence* _parDepSurfDiffusion; //!< Parameter dependencies for particle surface diffusion
 		bool _singleParDepSurfDiffusion; //!< Determines whether a single parameter dependence for particle surface diffusion is used
 		bool _hasParDepSurfDiffusion; //!< Determines whether particle surface diffusion parameter dependencies are present
-		std::vector<bool> _hasSurfaceDiffusion; //!< Determines whether surface diffusion is present in each particle type
+		bool _hasSurfaceDiffusion; //!< Determines whether surface diffusion is present
 
 		unsigned int _nComp; //!< Number of components
-		unsigned int _nParType; //!< Number of particle types
 
 		/* Model discretization */
 
@@ -170,66 +170,63 @@ namespace parts
 
 		double relativeCoordinate(const unsigned int parType, const unsigned int nodeIdx) const CADET_NOEXCEPT
 		{
-			const unsigned int element = floor(nodeIdx / _nParNode[parType]);
-			const unsigned int node = nodeIdx % _nParNode[parType];
+			const unsigned int element = floor(nodeIdx / _nParNode);
+			const unsigned int node = nodeIdx % _nParNode;
 			// divide by particle radius to get relative position
-			return static_cast<double>((_deltaR[_offsetMetric[parType] + element] * element + 0.5 * _deltaR[_offsetMetric[parType] + element] * (1 + _parNodes[parType][node])) / (_parRadius[parType] - _parCoreRadius[parType]));;
+			return static_cast<double>((_deltaR[element] * element + 0.5 * _deltaR[element] * (1 + _parNodes[node])) / (_parRadius - _parCoreRadius));;
 		}
 
 		template<typename ParamType>
 		ParamType surfaceToVolumeRatio(const unsigned int parType) const CADET_NOEXCEPT
 		{
-			return _parGeomSurfToVol[parType] / static_cast<ParamType>(_parRadius[parType]);
+			return _parGeomSurfToVol / static_cast<ParamType>(_parRadius);
 		}
 
 		int _strideBulkComp;
 		inline int strideBulkComp() const CADET_NOEXCEPT { return _strideBulkComp; }
 		inline int strideParComp() const CADET_NOEXCEPT { return 1; }
 		inline int strideParLiquid() const CADET_NOEXCEPT { return static_cast<int>(_nComp); }
-		inline int strideParBound(int parType) const CADET_NOEXCEPT { return static_cast<int>(_strideBound[parType]); }
-		inline int strideParNode(int parType) const CADET_NOEXCEPT { return strideParLiquid() + strideParBound(parType); }
-		inline int strideParElem(int parType) const CADET_NOEXCEPT { return strideParNode(parType) * _nParNode[parType]; }
-		inline int strideParBlock(int parType) const CADET_NOEXCEPT { return static_cast<int>(_nParPoints[parType]) * strideParNode(parType); }
-		inline int offsetBoundComp(ParticleTypeIndex pti, ComponentIndex comp) const CADET_NOEXCEPT { return _boundOffset[pti.value * _nComp + comp.value]; }
+		inline int strideParBound() const CADET_NOEXCEPT { return static_cast<int>(_strideBound); }
+		inline int strideParNode() const CADET_NOEXCEPT { return strideParLiquid() + strideParBound(); }
+		inline int strideParElem() const CADET_NOEXCEPT { return strideParNode() * _nParNode; }
+		inline int strideParBlock() const CADET_NOEXCEPT { return static_cast<int>(_nParPoints) * strideParNode(); }
+		inline int offsetBoundComp(ComponentIndex comp) const CADET_NOEXCEPT { return _boundOffset[comp.value]; }
 
-		std::vector<ParticleDiscretizationMode> _parDiscMode; //!< Particle discretization mode
+		ParticleDiscretizationMode _parDiscMode; //!< Particle discretization mode
 
-		std::vector<double> _parDiscVector; //!< Particle discretization element edges
+		double* _parDiscVector; //!< Particle discretization element boundary coodinates
 
-		unsigned int* _nParElem; //!< Array with number of radial elements in each particle type
-		unsigned int* _nParPointsBeforeType; //!< Array with total number of radial points before a particle type (cumulative sum of nParPoints), additional last element contains total number of particle elements
-		unsigned int* _parPolyDeg; //!< polynomial degree of particle elements
-		unsigned int* _nParNode; //!< Array with number of radial nodes per element in each particle type
-		unsigned int* _nParPoints; //!< Array with number of radial nodes per element in each particle type
-		bool* _parGSM; //!< specifies whether (single element) Galerkin spectral method should be used in particles
+		unsigned int _nParElem; //!< Array with number of radial elements
+		unsigned int _parPolyDeg; //!< polynomial degree of particle elements
+		unsigned int _nParNode; //!< Array with number of radial nodes per element
+		unsigned int _nParPoints; //!< Array with number of radial nodes per element
+		bool _parGSM; //!< specifies whether (single element) Galerkin spectral method should be used in particles
 		//unsigned int* _parTypeOffset; //!< Array with offsets (in particle block) to particle type, additional last element contains total number of particle DOFs
-		unsigned int* _nBound; //!< Array with number of bound states for each component and particle type (particle type major ordering)
-		unsigned int* _boundOffset; //!< Array with offset to the first bound state of each component in the solid phase (particle type major ordering)
-		unsigned int* _strideBound; //!< Total number of bound states for each particle type, additional last element contains total number of bound states for all types
-		unsigned int* _nBoundBeforeType; //!< Array with number of bound states before a particle type (cumulative sum of strideBound)
+		unsigned int* _nBound; //!< Array with number of bound states for each component
+		unsigned int* _boundOffset; //!< Array with offset to the first bound state of each component in the solid phase
+		unsigned int _strideBound; //!< Total number of bound states
 
 		std::vector<active> _parElementSize; //!< Particle element size
 		std::vector<active> _parCenterRadius; //!< Particle node-centered position for each particle node
 
 		/* DG specific operators */
 
-		active* _deltaR; //!< equidistant particle element spacing for each particle type
-		Eigen::VectorXd* _parNodes; //!< Array with positions of nodes in radial reference element for each particle
-		Eigen::MatrixXd* _parPolyDerM; //!< Array with polynomial derivative Matrix for each particle
-		Eigen::MatrixXd* _minus_InvMM_ST; //!< equals minus inverse mass matrix times transposed stiffness matrix.
-		Eigen::VectorXd* _parInvWeights; //!< Array with weights for LGL quadrature of size nNodes for each particle
-		Eigen::MatrixXd* _parInvMM; //!< dense inverse mass matrix for exact integration of integrals with metrics, for each particle
-		Eigen::MatrixXd* _parInvMM_Leg; //!< dense inverse mass matrix (Legendre) for exact integration of integral without metric, for each particle
-		Eigen::MatrixXd* _secondOrderStiffnessM; //!< specific second order stiffness matrix
-		Eigen::MatrixXd* _minus_parInvMM_Ar; //!< inverse mass matrix times specific second order stiffness matrix
-		Eigen::Vector<active, Dynamic>* _Ir; //!< metric part for each particle type and element, particle type major ordering
-		Eigen::VectorXi _offsetMetric; //!< offset required to access metric dependent DG operator storage of Ir, Dr -> summed up nCells of all previous parTypes
+		active _deltaR; //!< equidistant particle element spacing
+		Eigen::VectorXd _parNodes; //!< Array with positions of nodes in radial reference element for each particle
+		Eigen::MatrixXd _parPolyDerM; //!< Array with polynomial derivative Matrix for each particle
+		Eigen::MatrixXd _minus_InvMM_ST; //!< equals minus inverse mass matrix times transposed stiffness matrix.
+		Eigen::VectorXd _parInvWeights; //!< Array with weights for LGL quadrature of size nNodes for each particle
+		Eigen::MatrixXd _parInvMM; //!< dense inverse mass matrix for exact integration of integrals with metrics, for each particle
+		Eigen::MatrixXd _parInvMM_Leg; //!< dense inverse mass matrix (Legendre) for exact integration of integral without metric, for each particle
+		Eigen::MatrixXd _secondOrderStiffnessM; //!< specific second order stiffness matrix
+		Eigen::MatrixXd _minus_parInvMM_Ar; //!< inverse mass matrix times specific second order stiffness matrix
+		Eigen::Vector<active, Dynamic> _Ir; //!< metric part for each and element
 
 		Eigen::MatrixXd* _DGjacParDispBlocks; //!< particle dispersion blocks of DG jacobian
 
-		Eigen::Vector<active, Dynamic>* _g_p; //!< auxiliary variable g = dc_p / dr
-		Eigen::Vector<active, Dynamic>* _g_pSum; //!< auxiliary variable g = sum_{k \in p, s_i} dc_k / dr
-		Eigen::Vector<active, Dynamic>* _surfaceFluxParticle; //!< stores the surface flux values for each particle
+		Eigen::Vector<active, Dynamic> _g_p; //!< auxiliary variable g = dc_p / dr
+		Eigen::Vector<active, Dynamic> _g_pSum; //!< auxiliary variable g = sum_{k \in p, s_i} dc_k / dr
+		Eigen::Vector<active, Dynamic> _surfaceFluxParticle; //!< stores the surface flux values for each particle
 		active* _localFlux; //!< stores the local (at respective particle) film diffusion flux
 
 		void initializeDG();

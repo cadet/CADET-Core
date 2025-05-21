@@ -40,83 +40,32 @@ namespace parts
 	/**
 	 * @brief Creates a ParticleDiffusionOperatorDG
 	 */
-	ParticleDiffusionOperatorDG::ParticleDiffusionOperatorDG() : _nParElem(nullptr), _nParPointsBeforeType(nullptr),
-		_parPolyDeg(nullptr), _nParNode(nullptr), _nParPoints(nullptr), _parGSM(nullptr), //_parTypeOffset(nullptr),
-		_nBound(nullptr), _boundOffset(nullptr), _strideBound(nullptr), _nBoundBeforeType(nullptr), _deltaR(nullptr), _parNodes(nullptr),
-		_parPolyDerM(nullptr), _minus_InvMM_ST(nullptr), _minus_parInvMM_Ar(nullptr), _parInvWeights(nullptr), _parInvMM(nullptr), _parInvMM_Leg(nullptr),
-		_Ir(nullptr), _secondOrderStiffnessM(nullptr), _DGjacParDispBlocks(nullptr), _g_p(nullptr), _g_pSum(nullptr),
-		_surfaceFluxParticle(nullptr), _localFlux(nullptr)
+	ParticleDiffusionOperatorDG::ParticleDiffusionOperatorDG() : _boundOffset(nullptr), _localFlux(nullptr)
 	{
 	}
 
 	ParticleDiffusionOperatorDG::~ParticleDiffusionOperatorDG() CADET_NOEXCEPT
 	{
-		delete[] _nParElem;
-		delete[] _nParPointsBeforeType;
-		delete[] _parPolyDeg;
-		delete[] _nParNode;
-		delete[] _nParPoints;
-		delete[] _parGSM;
-		//delete[] _parTypeOffset;
-		delete[] _nBound;
-		delete[] _boundOffset;
-		delete[] _strideBound;
-		delete[] _nBoundBeforeType;
-
-		delete[] _deltaR;
-		delete[] _parNodes;
-		delete[] _parPolyDerM;
-		delete[] _minus_InvMM_ST;
-		delete[] _minus_parInvMM_Ar;
-		delete[] _parInvWeights;
-		delete[] _parInvMM;
-		delete[] _parInvMM_Leg;
-		delete[] _Ir;
-		delete[] _secondOrderStiffnessM;
-
 		delete[] _DGjacParDispBlocks;
 
-		delete[] _g_p;
-		delete[] _g_pSum;
-		delete[] _surfaceFluxParticle;
 		delete[] _localFlux;
-
-		clearParDepSurfDiffusion();
 	}
 
-	void ParticleDiffusionOperatorDG::clearParDepSurfDiffusion()
-	{
-		if (_singleParDepSurfDiffusion)
-		{
-			if (!_parDepSurfDiffusion.empty())
-				delete _parDepSurfDiffusion[0];
-		}
-		else
-		{
-			for (IParameterStateDependence* pd : _parDepSurfDiffusion)
-				delete pd;
-		}
-
-		_parDepSurfDiffusion.clear();
-	}
-
-	bool ParticleDiffusionOperatorDG::configureModelDiscretization(IParameterProvider& paramProvider, const IConfigHelper& helper, const int nComp, const int nParType, const int strideBulkComp)
+	bool ParticleDiffusionOperatorDG::configureModelDiscretization(IParameterProvider& paramProvider, const IConfigHelper& helper, const int nComp, const int parTypeIdx, const int nParType, const int strideBulkComp)
 	{
 		_strideBulkComp = strideBulkComp;
 
-		_nParType = nParType;
+		_parTypeIdx;
 		_nComp = nComp;
 
-		_filmDiffusion.resize(_nComp * _nParType); // filled in notifyDiscontinuousSectionTransition
-		_poreAccessFactor.resize(_nComp * _nParType); // filled in notifyDiscontinuousSectionTransition
-		_invBetaP.resize(_nComp * _nParType); // filled in notifyDiscontinuousSectionTransition
+		_filmDiffusion.resize(_nComp); // filled in notifyDiscontinuousSectionTransition
+		_poreAccessFactor.resize(_nComp); // filled in notifyDiscontinuousSectionTransition
+		_invBetaP.resize(_nComp); // filled in notifyDiscontinuousSectionTransition
 		
 		std::vector<int> nBound;
 		const bool newNBoundInterface = paramProvider.exists("NBOUND");
 
 		paramProvider.pushScope("discretization");
-
-		const bool firstConfigCall = _parPolyDeg == nullptr;
 
 		if (!newNBoundInterface && paramProvider.exists("NBOUND")) // done here and in this order for backwards compatibility
 			nBound = paramProvider.getIntArray("NBOUND");
@@ -129,56 +78,72 @@ namespace parts
 		if (nBound.size() < _nComp)
 			throw InvalidParameterException("Field NBOUND contains too few elements (NCOMP = " + std::to_string(_nComp) + " required)");
 
-		std::vector<int> parPolyDegs(_nParType);
-		std::vector<int> parNelements(_nParType);
+		std::vector<int> parPolyDegs(nParType);
+		std::vector<int> parNelements(nParType);
 
-		if (firstConfigCall) // avoid memory leaks from reinitialization
-		{
-			_parPolyDeg = new unsigned int[_nParType];
-			_nParElem = new unsigned int[_nParType];
-			_parGSM = new bool[_nParType];
-		}
+		int nTotalParPoints = 0;
 
 		if (paramProvider.exists("PAR_POLYDEG"))
 		{
+			std::vector<int> nParPoints(nParType);
+
 			parPolyDegs = paramProvider.getIntArray("PAR_POLYDEG");
 
 			if ((std::any_of(parPolyDegs.begin(), parPolyDegs.end(), [](int value) { return value < 1; })))
-				throw InvalidParameterException("Particle polynomial degrees must be at least 1!");
+				throw InvalidParameterException("Particle polynomial degree (PAR_POLYDEG) must be at least 1!");
 			parNelements = paramProvider.getIntArray("PAR_NELEM");
 
 			if ((std::any_of(parNelements.begin(), parNelements.end(), [](int value) { return value < 1; })))
-				throw InvalidParameterException("Particle number of elements must be at least 1!");
+				throw InvalidParameterException("Particle number of elements (PAR_NELEM) must be at least 1!");
 
 			if (parPolyDegs.size() == 1)
 			{
-				// Multiplex number of particle elements to all particle types
-				for (unsigned int i = 0; i < _nParType; ++i)
-					std::fill(_parPolyDeg, _parPolyDeg + _nParType, parPolyDegs[0]);
+				_parPolyDeg = parPolyDegs[0];
+				std::fill_n(nParPoints.begin(), nParPoints.end(), _parPolyDeg + 1);
 			}
-			else if (parPolyDegs.size() < _nParType)
-				throw InvalidParameterException("Field PAR_POLYDEG must have 1 or _nParType (" + std::to_string(_nParType) + ") entries");
+			else if (parPolyDegs.size() < nParType)
+				throw InvalidParameterException("Field PAR_POLYDEG must have 1 or _nParType (" + std::to_string(nParType) + ") entries");
 			else
-				std::copy_n(parPolyDegs.begin(), _nParType, _parPolyDeg);
+			{
+				_parPolyDeg = parPolyDegs[_parTypeIdx];
+				for (int parType = 0; parType < nParType; parType++)
+				{
+					nParPoints[parType] = parPolyDegs[parType] + 1;
+				}
+			}
 			if (parNelements.size() == 1)
 			{
-				// Multiplex number of particle elements to all particle types
-				for (unsigned int i = 0; i < _nParType; ++i)
-					std::fill(_nParElem, _nParElem + _nParType, parNelements[0]);
+				_nParElem = parNelements[0];
+				for (int parType = 0; parType < nParType; parType++)
+				{
+					nParPoints[parType] *= _nParElem;
+				}
 			}
-			else if (parNelements.size() < _nParType)
-				throw InvalidParameterException("Field PAR_NELEM must have 1 or _nParType (" + std::to_string(_nParType) + ") entries");
+			else if (parNelements.size() < nParType)
+				throw InvalidParameterException("Field PAR_NELEM must have 1 or _nParType (" + std::to_string(nParType) + ") entries");
 			else
-				std::copy_n(parNelements.begin(), _nParType, _nParElem);
+			{
+				_nParElem = parNelements[_parTypeIdx];
+				for (int parType = 0; parType < nParType; parType++)
+				{
+					nParPoints[parType] *= parNelements[parType];
+				}
+			}
+
+			nTotalParPoints = std::accumulate(nParPoints.begin(), nParPoints.end(), 0);
 		}
 		else if (paramProvider.exists("NPAR"))
 		{
-			const std::vector<int> _nParPoints = paramProvider.getIntArray("NPAR");
-			if ((_nParPoints.size() > 1) && (_nParPoints.size() < _nParType))
-				throw InvalidParameterException("Field NPAR must have 1 or _nParType (" + std::to_string(_nParType) + ") entries");
+			const std::vector<int> nParPoints = paramProvider.getIntArray("NPAR");
+			if ((nParPoints.size() > 1) && (nParPoints.size() < nParType))
+				throw InvalidParameterException("Field NPAR must have 1 or NPARTYPE (" + std::to_string(nParType) + ") entries");
 
-			for (unsigned int par = 0; par < _nParType; par++)
-				_parPolyDeg[par] = std::max(1, std::min(_nParPoints[par] - 1, 4));
+			if (nParPoints.size() == 1)
+				_parPolyDeg = std::max(1, std::min(nParPoints[0] - 1, 4));
+			else
+				_parPolyDeg = std::max(1, std::min(nParPoints[_parTypeIdx] - 1, 4));
+
+			nTotalParPoints = std::accumulate(nParPoints.begin(), nParPoints.end(), 0);
 		}
 		else
 			throw InvalidParameterException("Specify field PAR_POLYDEG (or NPAR)");
@@ -187,149 +152,126 @@ namespace parts
 		{
 			std::vector<bool> parGSMs = paramProvider.getBoolArray("PAR_GSM");
 			if (parGSMs.size() == 1)
-				std::fill(_parGSM, _parGSM + _nParType, parGSMs[0]);
+				_parGSM = parGSMs[0];
+			else if (parGSMs.size() < nParType)
+				throw InvalidParameterException("Field PAR_GSM must have 1 or NPARTYPE (" + std::to_string(nParType) + ") entries");
 			else
-				std::copy_n(parGSMs.begin(), _nParType, _parGSM);
-			for (int type = 0; type < _nParType; type++)
-				if (_parGSM[type] && _nParElem[type] != 1)
-					throw InvalidParameterException("Field PAR_NELEM must equal one to use a GSM discretization in the corresponding particle type");
+				_parGSM = parGSMs[_parTypeIdx];
+			if (_parGSM && _nParElem != 1)
+				throw InvalidParameterException("Field PAR_NELEM must equal one to use a GSM discretization in the corresponding particle type");
 		}
 		else // Use GSM as default for particle discretization
 		{
-			for (int type = 0; type < _nParType; type++)
-				_parGSM[type] = (_nParElem[type] == 1);
+			_parGSM = (_nParElem == 1);
 		}
 
 		initializeDG();
 
-		if (firstConfigCall)
-			_nBound = new unsigned int[_nComp * _nParType];
-		if (nBound.size() < _nComp * _nParType)
+		std::vector<int> stridesParTypeBound(nParType + 1);
+		std::vector<int> nBoundBeforeType(nParType);
+
+		if (nBound.size() < _nComp * nParType)
 		{
-			// Multiplex number of bound states to all particle types
-			for (unsigned int i = 0; i < _nParType; ++i)
-				std::copy_n(nBound.begin(), _nComp, _nBound + i * _nComp);
+			std::copy_n(nBound.begin(), _nComp, _nBound);
+
+			stridesParTypeBound[0] = std::accumulate(nBound.begin(), nBound.begin() + _nComp, 0);
+			nBoundBeforeType[0] = 0;
+
+			for (int type = 1; type < nParType; type++)
+			{
+				stridesParTypeBound[type] = stridesParTypeBound[0];
+				nBoundBeforeType[type] += nBoundBeforeType[type - 1] + _nBound[type - 1];
+			}
 		}
 		else
-			std::copy_n(nBound.begin(), _nComp * _nParType, _nBound);
+		{
+			std::copy_n(nBound.begin() + nParType * _nComp, _nComp, _nBound);
 
-		const unsigned int nTotalBound = std::accumulate(_nBound, _nBound + _nComp * _nParType, 0u);
+			stridesParTypeBound[0] = std::accumulate(nBound.begin(), nBound.begin() + _nComp, 0);
+			nBoundBeforeType[0] = 0;
+
+			for (int type = 1; type < nParType; type++)
+			{
+				stridesParTypeBound[type] = std::accumulate(nBound.begin() + type * _nComp, nBound.begin() + (type + 1) * _nComp, 0);
+				nBoundBeforeType[type] += nBoundBeforeType[type - 1] + _nBound[type - 1];
+			}
+		}
+
+		const unsigned int nTotalBound = std::accumulate(_nBound, _nBound + _nComp, 0u);
 
 		// Precompute offsets and total number of bound states (DOFs in solid phase)
-		if (firstConfigCall)
+		if (_boundOffset == nullptr)
 		{
-			_boundOffset = new unsigned int[_nComp * _nParType];
-			_strideBound = new unsigned int[_nParType + 1];
-			_nBoundBeforeType = new unsigned int[_nParType];
+			_boundOffset = new unsigned int[_nComp];
 		}
-		_strideBound[_nParType] = nTotalBound;
-		_nBoundBeforeType[0] = 0;
-		for (unsigned int j = 0; j < _nParType; ++j)
+		_strideBound = nTotalBound;
+
+		for (unsigned int i = 1; i < _nComp; ++i)
 		{
-			unsigned int* const ptrOffset = _boundOffset + j * _nComp;
-			unsigned int* const ptrBound = _nBound + j * _nComp;
-
-			ptrOffset[0] = 0;
-			for (unsigned int i = 1; i < _nComp; ++i)
-			{
-				ptrOffset[i] = ptrOffset[i - 1] + ptrBound[i - 1];
-			}
-			_strideBound[j] = ptrOffset[_nComp - 1] + ptrBound[_nComp - 1];
-
-			if (j != _nParType - 1)
-				_nBoundBeforeType[j + 1] = _nBoundBeforeType[j] + _strideBound[j];
+			_boundOffset[i] = _boundOffset[i - 1] + _nBound[i - 1];
 		}
-
-		// Precompute offsets of particle type DOFs
-		if (firstConfigCall)
-		{
-			//_parTypeOffset = new unsigned int[_nParType + 1];
-			_nParPointsBeforeType = new unsigned int[_nParType + 1];
-		}
-		//_parTypeOffset[0] = 0;
-		_nParPointsBeforeType[0] = 0;
-		unsigned int nTotalParPoints = 0;
-		for (unsigned int j = 1; j < _nParType + 1; ++j)
-		{
-			//_parTypeOffset[j] = _parTypeOffset[j - 1] + (_nComp + _strideBound[j - 1]) * _nParPoints[j - 1] * _nPoints;
-			_nParPointsBeforeType[j] = _nParPointsBeforeType[j - 1] + _nParPoints[j - 1];
-			nTotalParPoints += _nParPoints[j - 1];
-		}
-		_nParPointsBeforeType[_nParType] = nTotalParPoints;
-
-		// Configure particle discretization
-		_parElementSize.resize(_offsetMetric[_nParType]);
-		_parCenterRadius.resize(_offsetMetric[_nParType]);
-		_parOuterSurfAreaPerVolume.resize(_offsetMetric[_nParType]);
-		_parInnerSurfAreaPerVolume.resize(_offsetMetric[_nParType]);
 
 		// Read particle discretization mode and default to "EQUIDISTANT_PAR"
-		_parDiscMode = std::vector<ParticleDiscretizationMode>(_nParType, ParticleDiscretizationMode::Equidistant);
+		_parDiscMode = ParticleDiscretizationMode::Equidistant;
 		std::vector<std::string> pdt = paramProvider.getStringArray("PAR_DISC_TYPE");
-		if ((pdt.size() == 1) && (_nParType > 1))
+		if ((pdt.size() == 1) && (nParType > 1))
 		{
 			// Multiplex using first value
-			pdt.resize(_nParType, pdt[0]);
+			pdt.resize(nParType, pdt[0]);
 		}
-		else if (pdt.size() < _nParType)
-			throw InvalidParameterException("Field PAR_DISC_TYPE contains too few elements (" + std::to_string(_nParType) + " required)");
+		else if (pdt.size() < nParType)
+			throw InvalidParameterException("Field PAR_DISC_TYPE contains too few elements (" + std::to_string(nParType) + " required)");
 
-		for (unsigned int i = 0; i < _nParType; ++i)
-		{
-			if (pdt[i] == "EQUIVOLUME_PAR")
-				_parDiscMode[i] = ParticleDiscretizationMode::Equivolume;
-			else if (pdt[i] == "USER_DEFINED_PAR")
-				_parDiscMode[i] = ParticleDiscretizationMode::UserDefined;
-		}
+		if (pdt[_parTypeIdx] == "EQUIVOLUME_PAR")
+			_parDiscMode = ParticleDiscretizationMode::Equivolume;
+		else if (pdt[_parTypeIdx] == "USER_DEFINED_PAR")
+			_parDiscMode = ParticleDiscretizationMode::UserDefined;
 
 		// Read particle geometry and default to "SPHERICAL"
 		paramProvider.popScope();
-		_parGeomSurfToVol = std::vector<double>(_nParType, _SurfVolRatioSphere);
+		_parGeomSurfToVol = _SurfVolRatioSphere;
 		if (paramProvider.exists("PAR_GEOM"))
 		{
 			std::vector<std::string> pg = paramProvider.getStringArray("PAR_GEOM");
-			if ((pg.size() == 1) && (_nParType > 1))
+			if ((pg.size() == 1) && (nParType > 1))
 			{
 				// Multiplex using first value
-				pg.resize(_nParType, pg[0]);
+				pg.resize(nParType, pg[0]);
 			}
-			else if (pg.size() < _nParType)
-				throw InvalidParameterException("Field PAR_GEOM contains too few elements (" + std::to_string(_nParType) + " required)");
+			else if (pg.size() < nParType)
+				throw InvalidParameterException("Field PAR_GEOM contains too few elements (" + std::to_string(nParType) + " required)");
 
-			for (unsigned int i = 0; i < _nParType; ++i)
-			{
-				if (pg[i] == "SPHERE")
-					_parGeomSurfToVol[i] = _SurfVolRatioSphere;
-				else if (pg[i] == "CYLINDER")
-					_parGeomSurfToVol[i] = _SurfVolRatioCylinder;
-				else if (pg[i] == "SLAB")
-					_parGeomSurfToVol[i] = _SurfVolRatioSlab;
-				else
-					throw InvalidParameterException("Unknown particle geometry type \"" + pg[i] + "\" at index " + std::to_string(i) + " of field PAR_GEOM");
-			}
+			if (pg[_parTypeIdx] == "SPHERE")
+				_parGeomSurfToVol = _SurfVolRatioSphere;
+			else if (pg[_parTypeIdx] == "CYLINDER")
+				_parGeomSurfToVol = _SurfVolRatioCylinder;
+			else if (pg[_parTypeIdx] == "SLAB")
+				_parGeomSurfToVol = _SurfVolRatioSlab;
+			else
+				throw InvalidParameterException("Unknown particle geometry type \"" + pg[_parTypeIdx] + "\" at index " + std::to_string(_parTypeIdx) + " of field PAR_GEOM");
 		}
 		paramProvider.pushScope("discretization");
 
 		if (paramProvider.exists("PAR_DISC_VECTOR"))
 		{
-			_parDiscVector = paramProvider.getDoubleArray("PAR_DISC_VECTOR");
-			if (_parDiscVector.size() < nTotalParPoints + _nParType)
-				throw InvalidParameterException("Field PAR_DISC_VECTOR contains too few elements (Sum [NPAR + 1] = " + std::to_string(nTotalParPoints + _nParType) + " required)");
+			std::vector<double> pdv = paramProvider.getDoubleArray("PAR_DISC_VECTOR");
+			if (pdv.size() < nTotalParPoints + nParType)
+				throw InvalidParameterException("Field PAR_DISC_VECTOR contains too few elements (Sum [NPAR + 1] = " + std::to_string(nTotalParPoints + nParType) + " required)");
 		}
 
 		paramProvider.popScope();
 
 		// ==== Construct and configure parameter dependencies
-		clearParDepSurfDiffusion();
+		delete _parDepSurfDiffusion;
 		bool parSurfDiffDepConfSuccess = true;
 		if (paramProvider.exists("PAR_SURFDIFFUSION_DEP"))
 		{
 			const std::vector<std::string> psdDepNames = paramProvider.getStringArray("PAR_SURFDIFFUSION_DEP");
-			if ((psdDepNames.size() == 1) || (_nParType == 1))
+			if ((psdDepNames.size() == 1) || (nParType == 1))
 				_singleParDepSurfDiffusion = true;
 
-			if (!_singleParDepSurfDiffusion && (psdDepNames.size() < _nParType))
-				throw InvalidParameterException("Field PAR_SURFDIFFUSION_DEP contains too few elements (" + std::to_string(_nParType) + " required)");
+			if (!_singleParDepSurfDiffusion && (psdDepNames.size() < nParType))
+				throw InvalidParameterException("Field PAR_SURFDIFFUSION_DEP contains too few elements (" + std::to_string(nParType) + " required)");
 			else if (_singleParDepSurfDiffusion && (psdDepNames.size() != 1))
 				throw InvalidParameterException("Field PAR_SURFDIFFUSION_DEP requires (only) 1 element");
 
@@ -339,67 +281,59 @@ namespace parts
 				{
 					_hasParDepSurfDiffusion = false;
 					_singleParDepSurfDiffusion = true;
-					_parDepSurfDiffusion = std::vector<IParameterStateDependence*>(_nParType, nullptr);
+					_parDepSurfDiffusion = nullptr;
 				}
 				else
 				{
-					IParameterStateDependence* const pd = helper.createParameterStateDependence(psdDepNames[0]);
-					if (!pd)
+					_parDepSurfDiffusion = helper.createParameterStateDependence(psdDepNames[0]);
+					if (!_parDepSurfDiffusion)
 						throw InvalidParameterException("Unknown parameter dependence " + psdDepNames[0]);
 
-					_parDepSurfDiffusion = std::vector<IParameterStateDependence*>(_nParType, pd);
-					parSurfDiffDepConfSuccess = pd->configureModelDiscretization(paramProvider, _nComp, _nBound, _boundOffset);
+					parSurfDiffDepConfSuccess = _parDepSurfDiffusion->configureModelDiscretization(paramProvider, _nComp, _nBound, _boundOffset);
 					_hasParDepSurfDiffusion = true;
 				}
 			}
 			else
 			{
-				_parDepSurfDiffusion = std::vector<IParameterStateDependence*>(_nParType, nullptr);
-
-				for (unsigned int i = 0; i < _nParType; ++i)
+				if (!(psdDepNames[0] == "") || (psdDepNames[0] == "NONE") || (psdDepNames[0] == "DUMMY"))
 				{
-					if ((psdDepNames[0] == "") || (psdDepNames[0] == "NONE") || (psdDepNames[0] == "DUMMY"))
-						continue;
+					_parDepSurfDiffusion = helper.createParameterStateDependence(psdDepNames[_parTypeIdx]);
+					if (!_parDepSurfDiffusion)
+						throw InvalidParameterException("Unknown parameter dependence " + psdDepNames[parTypeIdx]);
 
-					_parDepSurfDiffusion[i] = helper.createParameterStateDependence(psdDepNames[i]);
-					if (!_parDepSurfDiffusion[i])
-						throw InvalidParameterException("Unknown parameter dependence " + psdDepNames[i]);
-
-					parSurfDiffDepConfSuccess = _parDepSurfDiffusion[i]->configureModelDiscretization(paramProvider, _nComp, _nBound + i * _nComp, _boundOffset + i * _nComp) && parSurfDiffDepConfSuccess;
+					parSurfDiffDepConfSuccess = _parDepSurfDiffusion->configureModelDiscretization(paramProvider, _nComp, _nBound, _boundOffset) && parSurfDiffDepConfSuccess;
 				}
 
-				_hasParDepSurfDiffusion = std::any_of(_parDepSurfDiffusion.cbegin(), _parDepSurfDiffusion.cend(), [](IParameterStateDependence const* pd) -> bool { return pd; });
+				_hasParDepSurfDiffusion = _parDepSurfDiffusion;
 			}
 		}
 		else
 		{
 			_hasParDepSurfDiffusion = false;
 			_singleParDepSurfDiffusion = true;
-			_parDepSurfDiffusion = std::vector<IParameterStateDependence*>(_nParType, nullptr);
+			_parDepSurfDiffusion = false;
 		}
 
 		// Check whether surface diffusion is present
-		_hasSurfaceDiffusion = std::vector<bool>(_nParType, false);
+		_hasSurfaceDiffusion = false;
 		if (paramProvider.exists("PAR_SURFDIFFUSION"))
 		{
 			const std::vector<double> surfDiff = paramProvider.getDoubleArray("PAR_SURFDIFFUSION");
-			for (unsigned int i = 0; i < _nParType; ++i)
+			// Assume particle surface diffusion if a parameter dependence is present
+			if (_parDepSurfDiffusion)
 			{
-				// Assume particle surface diffusion if a parameter dependence is present
-				if (_parDepSurfDiffusion[i])
-				{
-					_hasSurfaceDiffusion[i] = true;
-					continue;
-				}
+				_hasSurfaceDiffusion = true;
+			}
+			else
+			{
+				double const* const lsd = surfDiff.data() + nBoundBeforeType[_parTypeIdx];
 
-				double const* const lsd = surfDiff.data() + _nBoundBeforeType[i];
-
-				// Check surface diffusion coefficients of each particle type
-				for (unsigned int j = 0; j < _strideBound[i]; ++j)
+				// Check surface diffusion coefficients
+				for (unsigned int j = 0; j < stridesParTypeBound[_parTypeIdx]; ++j)
 				{
 					if (lsd[j] != 0.0)
 					{
-						_hasSurfaceDiffusion[i] = true;
+						_hasSurfaceDiffusion = true;
 						break;
 					}
 				}
@@ -514,25 +448,43 @@ namespace parts
 		return parSurfDiffDepConfSuccess /*&& bindingConfSuccess*/ /*&& reactionConfSuccess*/;
 	}
 
-	bool ParticleDiffusionOperatorDG::configure(UnitOpIdx unitOpIdx, IParameterProvider& paramProvider, std::unordered_map<ParameterId, active*>& parameters)
+	bool ParticleDiffusionOperatorDG::configure(UnitOpIdx unitOpIdx, IParameterProvider& paramProvider, std::unordered_map<ParameterId, active*>& parameters, const int nParType)
 	{
 		const bool firstConfigCall = _deltaR == nullptr; // used to not multiply allocate memory
 
 		// Read geometry parameters
-		_singleParRadius = readAndRegisterMultiplexTypeParam(paramProvider, parameters, _parRadius, "PAR_RADIUS", _nParType, unitOpIdx);
-		_singleParPorosity = readAndRegisterMultiplexTypeParam(paramProvider, parameters, _parPorosity, "PAR_POROSITY", _nParType, unitOpIdx);
+		std::vector<double> parRadii(nParType);
+		_singleParRadius = readScalarParameterOrArray(parRadii, paramProvider, "PAR_RADIUS", nParType);
+		if (_singleParRadius)
+			parameters[makeParamId(hashStringRuntime("PAR_RADIUS"), unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_parRadius;
+		else
+			parameters[makeParamId(hashStringRuntime("PAR_RADIUS"), unitOpIdx, CompIndep, _parTypeIdx, BoundStateIndep, ReactionIndep, SectionIndep)] = &_parRadius;
+
+		std::vector<double> parPorosities(nParType);
+		_singleParPorosity = readScalarParameterOrArray(parRadii, paramProvider, "PAR_POROSITY", nParType);
+		if (_singleParPorosity)
+			parameters[makeParamId(hashStringRuntime("PAR_POROSITY"), unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_parPorosity;
+		else
+			parameters[makeParamId(hashStringRuntime("PAR_POROSITY"), unitOpIdx, CompIndep, _parTypeIdx, BoundStateIndep, ReactionIndep, SectionIndep)] = &_parPorosity;
 
 		// Let PAR_CORERADIUS default to 0.0 for backwards compatibility
 		if (paramProvider.exists("PAR_CORERADIUS"))
-			_singleParCoreRadius = readAndRegisterMultiplexTypeParam(paramProvider, parameters, _parCoreRadius, "PAR_CORERADIUS", _nParType, unitOpIdx);
+		{
+			std::vector<double> parCoreRadius(nParType);
+			_singleParCoreRadius = readScalarParameterOrArray(parCoreRadius, paramProvider, "PAR_CORERADIUS", nParType);
+			if (_singleParCoreRadius)
+				parameters[makeParamId(hashStringRuntime("PAR_CORERADIUS"), unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_parCoreRadius;
+			else
+				parameters[makeParamId(hashStringRuntime("PAR_CORERADIUS"), unitOpIdx, CompIndep, _parTypeIdx, BoundStateIndep, ReactionIndep, SectionIndep)] = &_parCoreRadius;
+		}
 		else
 		{
 			_singleParCoreRadius = true;
-			_parCoreRadius = std::vector<active>(_nParType, 0.0);
+			_parCoreRadius = 0.0;
 		}
 
 		// Check whether PAR_TYPE_VOLFRAC is required or not
-		if ((_nParType > 1) && !paramProvider.exists("PAR_TYPE_VOLFRAC"))
+		if ((nParType > 1) && !paramProvider.exists("PAR_TYPE_VOLFRAC"))
 			throw InvalidParameterException("The required parameter \"PAR_TYPE_VOLFRAC\" was not found");
 
 		// todo: PAR_TYPE_VOLFRAC remains parameter of the unit, not the particles?
@@ -558,16 +510,6 @@ namespace parts
 		//	_axiallyConstantParTypeVolFrac = false;
 		//}
 
-		// Check whether all sizes are matched
-		if (_nParType != _parRadius.size())
-			throw InvalidParameterException("Number of elements in field PAR_RADIUS does not match number of particle types");
-		//if (_nParType * nPoints != _parTypeVolFrac.size())
-		//	throw InvalidParameterException("Number of elements in field PAR_TYPE_VOLFRAC does not match number of particle types times number of axial elements");
-		if (_nParType != _parPorosity.size())
-			throw InvalidParameterException("Number of elements in field PAR_POROSITY does not match number of particle types");
-		if (_nParType != _parCoreRadius.size())
-			throw InvalidParameterException("Number of elements in field PAR_CORERADIUS does not match number of particle types");
-
 		//// Check that particle volume fractions sum to 1.0
 		//for (unsigned int i = 0; i < nPoints; ++i)
 		//{
@@ -579,6 +521,7 @@ namespace parts
 
 		// Read vectorial parameters (which may also be section dependent; transport)
 		//_filmDiffusionMode = readAndRegisterMultiplexCompTypeSecParam(paramProvider, parameters, _filmDiffusion, "FILM_DIFFUSION", _nParType, nComp, unitOpIdx); // todo film diffusion remains unit operation parameter?
+
 		_parDiffusionMode = readAndRegisterMultiplexCompTypeSecParam(paramProvider, parameters, _parDiffusion, "PAR_DIFFUSION", _nParType, _nComp, unitOpIdx);
 
 		if (paramProvider.exists("PAR_SURFDIFFUSION"))
