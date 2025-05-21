@@ -75,6 +75,17 @@ TEST_CASE("GRM numerical Benchmark with parameter sensitivities for linear case"
 	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "001", absTol, relTol, disc, true);
 }
 
+TEST_CASE("GRM numerical Benchmark with parameter sensitivities and multiplexing for 2parType 2comp linear case", "[GRM],[FV],[Simulation],[Reference],[Sensitivity],[CI_sens15]")
+{
+	const std::string modelFilePath = std::string("/data/model_GRMparType2_dynLin_2comp_sensbenchmark1.json");
+	const std::string refFilePath = std::string("/data/ref_GRMparType2_dynLin_2comp_sensbenchmark1_FV_Z16parZ8.h5");
+	const std::vector<double> absTol = { 1e-12, 1e-6, 1e-6, 1e-6, 1e-6, 1e-6, 1e-6 };
+	const std::vector<double> relTol = { 1e-4, 1e-1, 1e-1, 1e-1, 1e-1, 1e-1, 1e-1 };
+
+	const cadet::test::column::FVparams disc(16, 8);
+	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "001", absTol, relTol, disc, true);
+}
+
 TEST_CASE("GRM numerical Benchmark with parameter sensitivities for SMA LWE case", "[GRM],[FV],[Simulation],[Reference],[Sensitivity],[CI_sens2]")
 {
 	const std::string& modelFilePath = std::string("/data/model_GRM_reqSMA_4comp_benchmark1.json");
