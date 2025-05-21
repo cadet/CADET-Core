@@ -1395,7 +1395,7 @@ int GeneralRateModel2D::residualParticle(double t, unsigned int parType, unsigne
 	active const* const parDiff = getSectionDependentSlice(_parDiffusion, _disc.nComp * _disc.nParType, secIdx) + parType * _disc.nComp;
 
 	// Ordering of particle surface diffusion:
-	// bnd0comp0, bnd0comp1, bnd0comp2, bnd1comp0, bnd1comp1, bnd1comp2
+	// bnd0comp0, bnd1comp0, bnd0comp1, bnd1comp1, bnd0comp2, bnd1comp2
 	active const* const parSurfDiff = getSectionDependentSlice(_parSurfDiffusion, _disc.strideBound[_disc.nParType], secIdx) + _disc.nBoundBeforeType[parType];
 
 	// Midpoint of current column cell (z, rho coordinate) - needed in externally dependent adsorption kinetic
@@ -1697,7 +1697,7 @@ int GeneralRateModel2D::residualFlux(double t, unsigned int secIdx, StateType co
 			int const* const qsReaction = _binding[type]->reactionQuasiStationarity();
 
 			// Ordering of particle surface diffusion:
-			// bnd0comp0, bnd0comp1, bnd0comp2, bnd1comp0, bnd1comp1, bnd1comp2
+			// bnd0comp0, bnd1comp0, bnd0comp1, bnd1comp1, bnd0comp2, bnd1comp2
 			active const* const parSurfDiff = getSectionDependentSlice(_parSurfDiffusion, _disc.strideBound[_disc.nParType], secIdx) + _disc.nBoundBeforeType[type];
 			active const* const parCenterRadius = _parCenterRadius.data() + _disc.nParCellsBeforeType[type];
 			const ParamType absOuterShellHalfRadius = 0.5 * static_cast<ParamType>(_parCellSize[_disc.nParCellsBeforeType[type]]);
@@ -1844,7 +1844,7 @@ void GeneralRateModel2D::assembleOffdiagJac(double t, unsigned int secIdx)
 			int const* const qsReaction = _binding[type]->reactionQuasiStationarity();
 
 			// Ordering of particle surface diffusion:
-			// bnd0comp0, bnd0comp1, bnd0comp2, bnd1comp0, bnd1comp1, bnd1comp2
+			// bnd0comp0, bnd1comp0, bnd0comp1, bnd1comp1, bnd0comp2, bnd1comp2
 			active const* const parSurfDiff = getSectionDependentSlice(_parSurfDiffusion, _disc.strideBound[_disc.nParType], secIdx) + _disc.nBoundBeforeType[type];
 			active const* const parCenterRadius = _parCenterRadius.data() + _disc.nParCellsBeforeType[type];
 			const double absOuterShellHalfRadius = 0.5 * static_cast<double>(_parCellSize[_disc.nParCellsBeforeType[type]]);
