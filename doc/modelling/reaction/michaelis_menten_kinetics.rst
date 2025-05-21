@@ -1,6 +1,6 @@
-.. _michaelis_menten_kinetics_model_with_inhibition:
+.. _michaelis_menten_kinetics_model:
 
-Michaelis Menten kinetics with inhibition
+Michaelis Menten kinetics
 -------------------------
 
 Implements liquid phase Michaelis-Menten reaction kinetics of the form
@@ -15,7 +15,7 @@ where :math:`S` is the stoichiometric matrix and the fluxes are given by
 .. math::
 
     \begin{aligned}
-        \nu_j = \prod_i^{N_{sub}} \frac{\mu_{\mathrm{max},j} \, c_i}{k_{\mathrm{MM},j} + c_i},
+        \nu_{i,j} = \prod_{i = 1}^{N_{sub}} \frac{\mu_{\mathrm{max},j} \, c_i}{k_{\mathrm{MM},j} + c_i},
     \end{aligned}
 
 where
@@ -28,15 +28,16 @@ where
 
 
 In addition, a substrate :math:`i` might be inhibited by other components.
-There are three types of inhibition implemented.
+Three types of inhibition are implemented.
+In this case the rate :math:`\nu_{i,j}` is modified as follows:
 
 Competitive inhibition
-^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^
 
 .. math::
 
     \begin{aligned}
-        \nu_{i,j} =  \frac{\mu_{\mathrm{max},j} \cdot c_i}{k_{\mathrm{MM},j}(1+\sum_k^{N_{inh}} \frac{c_{i,k}}{K_{i,j,k}}) + c_i},
+        \nu_{i,j} =  \frac{\mu_{\mathrm{max},j} \, c_i}{k_{\mathrm{MM},j}\,(1+\sum_{k = 1}^{N_{inh}} \frac{c_{i,k}}{K_{i,j,k}}) + c_i},
     \end{aligned}
 
 where
@@ -47,12 +48,12 @@ where
 
 
 Uncompetitive inhibition
-^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. math::
 
     \begin{aligned}
-        \nu_{i,j} = \frac{\mu_{\mathrm{max},j} \, c_i}{k_{\mathrm{MM},j} + c_i \, (1 + \sum_k^{N_{inh}} \frac{c_{i,k}}{\tilde{K}_{i,j,k}})}
+        \nu_{i,j} = \frac{\mu_{\mathrm{max},j} \, c_i}{k_{\mathrm{MM},j} + c_i \, (1 + \sum_{k = 1}^{N_{inh}} \frac{c_{i,k}}{\tilde{K}_{i,j,k}})}
     \end{aligned}
 
 where
@@ -62,12 +63,12 @@ where
     If :math:`\tilde{K}_{i,j,k} \leq 0`, component :math:`c_{i,k}` does not act as an inhibitor.
 
 Non-competitive inhibition
-^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. math::
 
     \begin{aligned}
-       \nu_{i,j} =  \frac{\mu_{\mathrm{max},j} \, c_i}{(k_{\mathrm{MM},j} + c_i) \,(1 + \sum_k^{N_{inh}} \frac{c_{i,k}}{K_{i,j,k}})}
+       \nu_{i,j} =  \frac{\mu_{\mathrm{max},j} \, c_i}{(k_{\mathrm{MM},j} + c_i) \,(1 + \sum_{k = 1}^{N_{inh}} \frac{c_{i,k}}{K_{i,j,k}})}
     \end{aligned}
 
 where
@@ -79,10 +80,8 @@ Non-competitive inhibition can be viewed as a combination of competitive and unc
 If the inhibition constant for uncompetitive inhibition :math:`\tilde{K}_{i,j,k}` is set to the same positive value as the inhibition constant for the 
 competitive inhibition :math:`K_{i,j,k}`, the inhibition type is non-competitive.
 
-The rate for reaction :math:`j` is given by the product of the individual reaction rates of each substrate
-    
-.. math::
+For configuration information please refer to :ref:`michaelis_menten_kinetics_config`.
 
-    \begin{aligned}
-        \nu_j = \prod_{i=1}^{N_{sub}} \nu_{i,j}.
-    \end{aligned}
+Literature
+^^^^^^^^^^
+- Segel, I. H. (1993). Enzyme kinetics: Behavior and analysis of rapid equilibrium and steady-state enzyme systems. John Wiley & Sons.
