@@ -14,41 +14,62 @@
             "MAX_RESTARTS": 10,
             "SCHUR_SAFETY": 1e-08
         },
-      "unit_000": {
-        "INIT_C": [
-          500.0,
-          0.0,
-          0.001,
-          0.0
-        ],
-        "INIT_LIQUID_VOLUME": 1000,
-        "NCOMP": 4,
-        "REACTION_MODEL": "MASS_ACTION_LAW",
-        "UNIT_TYPE": "CSTR",
-        "reaction_bulk": {
-          "MAL_KBWD_BULK": [
-            60000.0,
+        "unit_000": {
+          "INIT_C": [
+            1.0,
+            2.0,
             0.0
           ],
-          "MAL_KFWD_BULK": [
-            1000.0,
-            40000.0
-          ],
-          "MAL_STOICHIOMETRY_BULK": [
-            -1,
-            0,
+            "INIT_LIQUID_VOLUME": 1000,
+            "NCOMP": 3,
+            "REACTION_MODEL": "MICHAELIS_MENTEN",
+            "UNIT_TYPE": "CSTR",
+          "reaction_bulk": {
+            "MM_KI_C": [
+              0.0,
+              0.0,
+              0.0,
+             
 
-            0,
-            1,
+              0.0,
+              0.0,
+              0.0,
+             
 
-            -1,
-            1,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "MM_KI_UC": [
+              0.0,
+              0.0,
+              0.0,
 
-            1,
-            -1
-          ]
+
+              0.0,
+              0.0,
+              0.0,
+
+
+              0.0,
+              0.0,
+              0.0
+            ],
+            "MM_KMM": [
+              0.7,
+              0.8,
+              0.0
+            ],
+            "MM_STOICHIOMETRY_BULK": [
+              -1,
+              -1,
+              1
+            ],
+            "MM_VMAX": [
+              1.2
+            ]
+          }
         }
-      }
     },
     "return": {
         "SPLIT_COMPONENTS_DATA": false,
