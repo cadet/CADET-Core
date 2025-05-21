@@ -143,7 +143,7 @@ MultiplexMode readAndRegisterMultiplexCompTypeSecParam(IParameterProvider& param
 
 				values = std::move(p);
 
-				for (std::size_t s = 0; s < values.size() / nComp; ++s)
+				for (std::size_t s = 0; s < values.size() / nComp / nParType; ++s)
 				{
 					for (unsigned int i = 0; i < nComp; ++i)
 						parameters[makeParamId(nameHash, uoi, i, ParTypeIndep, BoundStateIndep, ReactionIndep, s)] = &values[s * nParType * nComp + i];
@@ -206,7 +206,32 @@ bool multiplexCompTypeSecParameterValue(const ParameterId& pId, StringHash nameH
 				return true;
 			}
 		case MultiplexMode::ComponentType:
+		{
+			if ((pId.component == CompIndep) || (pId.particleType == ParTypeIndep) || (pId.boundState != BoundStateIndep)
+				|| (pId.reaction != ReactionIndep) || (pId.section != SectionIndep))
+				return false;
+
+			if (sensParams && !contains(*sensParams, &data[pId.particleType * nComp + pId.component]))
+				return false;
+
+			for (unsigned int s = 0; s < data.size() / nComp / nParType; ++s)
+				data[s * nComp * nParType + pId.particleType * nComp + pId.component].setValue(value);
+
+			return true;
+		}
 		case MultiplexMode::ComponentSectionType:
+		{
+			if ((pId.component == CompIndep) || (pId.particleType == ParTypeIndep) || (pId.boundState != BoundStateIndep)
+				|| (pId.reaction != ReactionIndep) || (pId.section == SectionIndep))
+				return false;
+
+			if (sensParams && !contains(*sensParams, &data[pId.section * nComp * nParType + pId.particleType * nComp + pId.component]))
+				return false;
+
+			data[pId.section * nComp * nParType + pId.particleType * nComp + pId.component].setValue(value);
+
+			return true;
+		}
 		case MultiplexMode::RadialSection:
 		case MultiplexMode::Independent:
 		case MultiplexMode::ComponentRadial:
@@ -231,33 +256,56 @@ bool multiplexCompTypeSecParameterAD(const ParameterId& pId, StringHash nameHash
 	switch (mode)
 	{
 		case MultiplexMode::Component:
-			{
-				if ((pId.component == CompIndep) || (pId.particleType != ParTypeIndep) || (pId.boundState != BoundStateIndep)
-					|| (pId.reaction != ReactionIndep) || (pId.section != SectionIndep))
-					return false;
+		{
+			if ((pId.component == CompIndep) || (pId.particleType != ParTypeIndep) || (pId.boundState != BoundStateIndep)
+				|| (pId.reaction != ReactionIndep) || (pId.section != SectionIndep))
+				return false;
 
-				sensParams.insert(&data[pId.component]);
+			sensParams.insert(&data[pId.component]);
 
-				for (unsigned int i = 0; i < nParType; ++i)
-					data[i * nComp + pId.component].setADValue(adDirection, adValue);
+			for (unsigned int i = 0; i < nParType; ++i)
+				data[i * nComp + pId.component].setADValue(adDirection, adValue);
 
-				return true;
-			}
+			return true;
+		}
 		case MultiplexMode::ComponentSection:
-			{
-				if ((pId.component == CompIndep) || (pId.particleType != ParTypeIndep) || (pId.boundState != BoundStateIndep)
-					|| (pId.reaction != ReactionIndep) || (pId.section == SectionIndep))
-					return false;
+		{
+			if ((pId.component == CompIndep) || (pId.particleType != ParTypeIndep) || (pId.boundState != BoundStateIndep)
+				|| (pId.reaction != ReactionIndep) || (pId.section == SectionIndep))
+				return false;
 
-				sensParams.insert(&data[pId.section * nComp * nParType + pId.component]);
+			sensParams.insert(&data[pId.section * nComp * nParType + pId.component]);
 
-				for (unsigned int i = 0; i < nParType; ++i)
-					data[i * nComp + pId.section * nComp * nParType + pId.component].setADValue(adDirection, adValue);
+			for (unsigned int i = 0; i < nParType; ++i)
+				data[i * nComp + pId.section * nComp * nParType + pId.component].setADValue(adDirection, adValue);
 
-				return true;
-			}
+			return true;
+		}
 		case MultiplexMode::ComponentType:
+		{
+			if ((pId.component == CompIndep) || (pId.particleType == ParTypeIndep) || (pId.boundState != BoundStateIndep)
+				|| (pId.reaction != ReactionIndep) || (pId.section != SectionIndep))
+				return false;
+
+			sensParams.insert(&data[pId.particleType * nComp + pId.component]);
+
+			for (unsigned int s = 0; s < data.size() / nComp / nParType; ++s)
+				data[s * nComp * nParType + pId.particleType * nComp + pId.component].setADValue(adDirection, adValue);
+
+			return true;
+		}
 		case MultiplexMode::ComponentSectionType:
+		{
+			if ((pId.component == CompIndep) || (pId.particleType == ParTypeIndep) || (pId.boundState != BoundStateIndep)
+				|| (pId.reaction != ReactionIndep) || (pId.section == SectionIndep))
+				return false;
+
+			sensParams.insert(&data[pId.section * nComp * nParType + pId.particleType * nComp + pId.component]);
+
+			data[pId.section * nComp * nParType + pId.particleType * nComp + pId.component].setADValue(adDirection, adValue);
+
+			return true;
+		}
 		case MultiplexMode::RadialSection:
 		case MultiplexMode::Independent:
 		case MultiplexMode::ComponentRadial:
@@ -404,7 +452,7 @@ MultiplexMode readAndRegisterMultiplexBndCompTypeSecParam(IParameterProvider& pa
 }
 
 bool multiplexBndCompTypeSecParameterValue(const ParameterId& pId, StringHash nameHash, MultiplexMode mode, std::vector<active>& data,
-	unsigned int nParType, unsigned int nComp, unsigned int const* strideBound, unsigned int const* nBound, unsigned int const* boundOffset, double value, std::unordered_set<active*> const* sensParams)
+	unsigned int nParType, unsigned int nComp, unsigned int const* strideBound, unsigned int const* nBound, unsigned int const* boundOffset, unsigned int const* nBoundBeforeType, double value, std::unordered_set<active*> const* sensParams)
 {
 	if (pId.name != nameHash)
 		return false;
@@ -443,7 +491,32 @@ bool multiplexBndCompTypeSecParameterValue(const ParameterId& pId, StringHash na
 				return true;
 			}
 		case MultiplexMode::ComponentType:
+		{
+			if ((pId.component == CompIndep) || (pId.particleType != ParTypeIndep) || (pId.boundState == BoundStateIndep)
+				|| (pId.reaction != ReactionIndep) || (pId.section != SectionIndep))
+				return false;
+
+			if (sensParams && !contains(*sensParams, &data[nBoundBeforeType[pId.particleType] + boundOffset[pId.particleType * nComp + pId.component] + pId.boundState]))
+				return false;
+
+			for (unsigned int s = 0; s < data.size() / nComp / nParType; ++s)
+				data[s * strideBound[nParType] + nBoundBeforeType[pId.particleType] + boundOffset[pId.particleType * nComp + pId.component] + pId.boundState].setValue(value);
+
+			return true;
+		}
 		case MultiplexMode::ComponentSectionType:
+		{
+			if ((pId.component == CompIndep) || (pId.particleType != ParTypeIndep) || (pId.boundState == BoundStateIndep)
+				|| (pId.reaction != ReactionIndep) || (pId.section == SectionIndep))
+				return false;
+
+			if (sensParams && !contains(*sensParams, &data[pId.section * strideBound[nParType] + nBoundBeforeType[pId.particleType] + boundOffset[pId.particleType * nComp + pId.component] + pId.boundState]))
+				return false;
+
+			data[pId.section * strideBound[nParType] + nBoundBeforeType[pId.particleType] + boundOffset[pId.particleType * nComp + pId.component] + pId.boundState].setValue(value);
+
+			return true;
+		}
 		case MultiplexMode::RadialSection:
 		case MultiplexMode::Independent:
 		case MultiplexMode::ComponentRadial:
@@ -461,7 +534,7 @@ bool multiplexBndCompTypeSecParameterValue(const ParameterId& pId, StringHash na
 }
 
 bool multiplexBndCompTypeSecParameterAD(const ParameterId& pId, StringHash nameHash, MultiplexMode mode, std::vector<active>& data,
-	unsigned int nParType, unsigned int nComp, unsigned int const* strideBound, unsigned int const* nBound, unsigned int const* boundOffset, unsigned int adDirection, double adValue, std::unordered_set<active*>& sensParams)
+	unsigned int nParType, unsigned int nComp, unsigned int const* strideBound, unsigned int const* nBound, unsigned int const* boundOffset, unsigned int const* nBoundBeforeType, unsigned int adDirection, double adValue, std::unordered_set<active*>& sensParams)
 {
 	if (pId.name != nameHash)
 		return false;
@@ -472,33 +545,56 @@ bool multiplexBndCompTypeSecParameterAD(const ParameterId& pId, StringHash nameH
 	switch (mode)
 	{
 		case MultiplexMode::Component:
-			{
-				if ((pId.component == CompIndep) || (pId.particleType != ParTypeIndep) || (pId.boundState == BoundStateIndep)
-					|| (pId.reaction != ReactionIndep) || (pId.section != SectionIndep))
-					return false;
+		{
+			if ((pId.component == CompIndep) || (pId.particleType != ParTypeIndep) || (pId.boundState == BoundStateIndep)
+				|| (pId.reaction != ReactionIndep) || (pId.section != SectionIndep))
+				return false;
 
-				sensParams.insert(&data[boundOffset[pId.component] + pId.boundState]);
+			sensParams.insert(&data[boundOffset[pId.component] + pId.boundState]);
 
-				for (unsigned int i = 0; i < nParType; ++i)
-					data[boundOffset[pId.component] + pId.boundState + i * strideBound[0]].setADValue(adDirection, adValue);
+			for (unsigned int i = 0; i < nParType; ++i)
+				data[boundOffset[pId.component] + pId.boundState + i * strideBound[0]].setADValue(adDirection, adValue);
 
-				return true;
-			}
-		case MultiplexMode::ComponentSection:
-			{
-				if ((pId.component == CompIndep) || (pId.particleType != ParTypeIndep) || (pId.boundState == BoundStateIndep)
-					|| (pId.reaction != ReactionIndep) || (pId.section == SectionIndep))
-					return false;
+			return true;
+		}
+		case MultiplexMode::ComponentSection: // note that due to ParTypeIndep, boundOffsets and strideBounds are the same for all particle types
+		{
+			if ((pId.component == CompIndep) || (pId.particleType != ParTypeIndep) || (pId.boundState == BoundStateIndep)
+				|| (pId.reaction != ReactionIndep) || (pId.section == SectionIndep))
+				return false;
 
 				sensParams.insert(&data[pId.section * strideBound[nParType] + boundOffset[pId.component] + pId.boundState]);
 
-				for (unsigned int i = 0; i < nParType; ++i)
+			for (unsigned int i = 0; i < nParType; ++i)
 					data[pId.section * strideBound[nParType] + boundOffset[pId.component] + pId.boundState + i * strideBound[0]].setADValue(adDirection, adValue);
 
-				return true;
-			}
+			return true;
+		}
 		case MultiplexMode::ComponentType:
+		{
+			if ((pId.component == CompIndep) || (pId.particleType != ParTypeIndep) || (pId.boundState == BoundStateIndep)
+				|| (pId.reaction != ReactionIndep) || (pId.section != SectionIndep))
+				return false;
+
+			sensParams.insert(&data[nBoundBeforeType[pId.particleType] + boundOffset[pId.particleType * nComp + pId.component] + pId.boundState]);
+
+			for (unsigned int s = 0; s < data.size() / nComp / nParType; ++s)
+				data[s * strideBound[nParType] + nBoundBeforeType[pId.particleType] + boundOffset[pId.particleType * nComp + pId.component] + pId.boundState].setADValue(adDirection, adValue);
+
+			return true;
+		}
 		case MultiplexMode::ComponentSectionType:
+		{
+			if ((pId.component == CompIndep) || (pId.particleType != ParTypeIndep) || (pId.boundState == BoundStateIndep)
+				|| (pId.reaction != ReactionIndep) || (pId.section == SectionIndep))
+				return false;
+
+			sensParams.insert(&data[pId.section * strideBound[nParType] + nBoundBeforeType[pId.particleType] + boundOffset[pId.particleType * nComp + pId.component] + pId.boundState]);
+
+			data[pId.section * strideBound[nParType] + nBoundBeforeType[pId.particleType] + boundOffset[pId.particleType * nComp + pId.component] + pId.boundState].setADValue(adDirection, adValue);
+
+			return true;
+		}
 		case MultiplexMode::RadialSection:
 		case MultiplexMode::Independent:
 		case MultiplexMode::ComponentRadial:
