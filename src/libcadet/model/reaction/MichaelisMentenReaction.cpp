@@ -33,7 +33,7 @@
     "parameters":
         [
             { "type": "ScalarReactionDependentParameter", "varName": "vMax", "confName": "MM_VMAX"},
-            { "type": "ScalarReactionDependentParameter", "varName": "kMM", "confName": "MM_KMM"},
+            { "type": "ComponentDependentReactionDependentParameter", "varName": "kMM", "confName": "MM_KMM"},
             
             { "type": "ComponentDependentReactionDependentParameter", "varName": "kInhibitComp", "confName": "MM_KI_C"},
             { "type": "ComponentDependentReactionDependentParameter", "varName": "kInhibitUnComp", "confName": "MM_KI_UC"},
