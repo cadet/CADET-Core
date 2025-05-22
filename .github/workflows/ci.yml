@@ -168,8 +168,11 @@ jobs:
           ${BUILD_DIR}/test/testRunner [CI]
       - name: Run CI test set II
         run: |
-          ${BUILD_DIR}/test/testRunner [CI_sensitivity1]
+          ${BUILD_DIR}/test/testRunner [CI_binding]
       - name: Run CI test set III
+        run: |
+          ${BUILD_DIR}/test/testRunner [CI_sensitivity1]
+      - name: Run CI test set IV
         run: |
           ${BUILD_DIR}/test/testRunner [CI_sensitivity2]
   MacOS:

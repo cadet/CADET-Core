@@ -32,7 +32,7 @@
 #define CADET_BINDINGTEST_SINGLE_IMPL_NONBNDJACCONST_false(modelName, tagName, postFix, someNonBinding, stateSomeNon, configSomeNon)
 
 #define CADET_BINDINGTEST_SINGLE_IMPL_NONBNDJACCONST_true(modelName, tagName, postFix, someNonBinding, stateSomeNon, configSomeNon) \
-	TEST_CASE(modelName " binding model consistency of non-binding Jacobian columns" postFix, "[BindingModel],[Jacobian]," tagName) \
+	TEST_CASE(modelName " binding model consistency of non-binding Jacobian columns" postFix, "[BindingModel],[CI_binding],[Jacobian]," tagName) \
 	{ \
 		const unsigned int nBound3[] = BRACED_INIT_LIST someNonBinding; \
 		const double state3[] = BRACED_INIT_LIST stateSomeNon; \
@@ -68,7 +68,7 @@
 #define CADET_BINDINGTEST_SINGLE_IMPL_BNDVSNONBND_false(modelName, tagName, postFix, allBinding, someNonBinding, stateAll, stateSomeNon, configAll, configSomeNon)
 
 #define CADET_BINDINGTEST_SINGLE_IMPL_BNDVSNONBND_true(modelName, tagName, postFix, allBinding, someNonBinding, stateAll, stateSomeNon, configAll, configSomeNon) \
-	TEST_CASE(modelName " binding model consistency of non-binding vs binding" postFix, "[BindingModel],[Jacobian]," tagName) \
+	TEST_CASE(modelName " binding model consistency of non-binding vs binding" postFix, "[BindingModel],[CI_binding],[Jacobian]," tagName) \
 	{ \
 		const unsigned int nBound2[] = BRACED_INIT_LIST allBinding; \
 		const unsigned int nBound3[] = BRACED_INIT_LIST someNonBinding; \
@@ -115,7 +115,7 @@
  * @param cmpBndVsNonbnd Determines whether a test for all-binding vs non-binding variant (Jacobian and residual) is created
  */
 #define CADET_BINDINGTEST_SINGLE_IMPL(modelName, tagName, postFix, allBinding, someNonBinding, stateAll, stateSomeNon, configAll, configSomeNon, consInitTol, consInitCheckTol, usesNonBindingLiquidPhase, cmpBndVsNonbnd) \
-	TEST_CASE(modelName " binding model analytic Jacobian vs AD" postFix, "[Jacobian],[AD],[BindingModel]," tagName) \
+	TEST_CASE(modelName " binding model analytic Jacobian vs AD" postFix, "[Jacobian],[AD],[BindingModel],[CI_binding]," tagName) \
 	{ \
 		const unsigned int nBound2[] = BRACED_INIT_LIST allBinding; \
 		const unsigned int nBound3[] = BRACED_INIT_LIST someNonBinding; \
@@ -180,7 +180,7 @@
 #define CADET_BINDINGTEST_MULTI(modelName, extModelName, postFix, allBinding, someNonBinding, stateAll, stateSomeNon, configAll, configSomeNon, extConfigAll, extConfigSomeNon, consInitTol, consInitCheckTol, usesNonBindingLiquidPhase, cmpBndVsNonbnd) \
 	CADET_BINDINGTEST_SINGLE_IMPL(modelName, "[" modelName "]", postFix, allBinding, someNonBinding, stateAll, stateSomeNon, configAll, configSomeNon, consInitTol, consInitCheckTol, usesNonBindingLiquidPhase, cmpBndVsNonbnd) \
 	CADET_BINDINGTEST_SINGLE_IMPL(extModelName, "[ExternalFunction],[" extModelName "]", postFix, allBinding, someNonBinding, stateAll, stateSomeNon, extConfigAll, extConfigSomeNon, consInitTol, consInitCheckTol, usesNonBindingLiquidPhase, cmpBndVsNonbnd) \
-	TEST_CASE(modelName " binding model consistent with externally dependent variant" postFix, "[BindingModel],[ExternalFunction],[" modelName "],[" extModelName "]") \
+	TEST_CASE(modelName " binding model consistent with externally dependent variant" postFix, "[BindingModel],[CI_binding],[ExternalFunction],[" modelName "],[" extModelName "]") \
 	{ \
 		const unsigned int nBound2[] = BRACED_INIT_LIST allBinding; \
 		const unsigned int nBound3[] = BRACED_INIT_LIST someNonBinding; \
@@ -235,7 +235,7 @@
  * @param consInitCheckTol Error tolerance for residual check in consistent initialization
  */
 #define CADET_BINDINGTEST_ALLBINDING_SINGLE_IMPL(modelName, tagName, allBinding, stateAll, configAll, consInitTol, consInitCheckTol) \
-	TEST_CASE(modelName " binding model analytic Jacobian vs AD", "[Jacobian],[AD],[BindingModel]," tagName) \
+	TEST_CASE(modelName " binding model analytic Jacobian vs AD", "[Jacobian],[AD],[BindingModel],[CI_binding]," tagName) \
 	{ \
 		const unsigned int nBound2[] = BRACED_INIT_LIST allBinding; \
 		const double state2[] = BRACED_INIT_LIST stateAll; \
@@ -277,7 +277,7 @@
 #define CADET_BINDINGTEST_ALLBINDING(modelName, extModelName, allBinding, stateAll, configAll, extConfigAll, consInitTol, consInitCheckTol) \
 	CADET_BINDINGTEST_ALLBINDING_SINGLE_IMPL(modelName, "[" modelName "]", allBinding, stateAll, configAll, consInitTol, consInitCheckTol) \
 	CADET_BINDINGTEST_ALLBINDING_SINGLE_IMPL(extModelName, "[ExternalFunction],[" extModelName "]", allBinding, stateAll, extConfigAll, consInitTol, consInitCheckTol) \
-	TEST_CASE(modelName " binding model consistent with externally dependent variant", "[BindingModel],[ExternalFunction],[" modelName "],[" extModelName "]") \
+	TEST_CASE(modelName " binding model consistent with externally dependent variant", "[BindingModel],[CI_binding],[ExternalFunction],[" modelName "],[" extModelName "]") \
 	{ \
 		const unsigned int nBound2[] = BRACED_INIT_LIST allBinding; \
 		const double state2[] = BRACED_INIT_LIST stateAll; \
