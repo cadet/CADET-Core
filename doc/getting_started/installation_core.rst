@@ -6,6 +6,10 @@ CADET-Core Installation
 The core simulator can be compiled from source, or you can download pre-built binaries.
 If you want to extend or modify CADET-Core (e.g., add a custom binding model), you will need to build CADET-Core from source.
 
+.. note::
+
+   For now, CADET-Core must be built from source on MacOS-ARM64 systems following the :ref:`build_osx` instructions.
+
 Install pre-built binaries
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
 CADET-Core can be installed via `conda <https://github.com/conda-forge/miniforge>`_ from the ``conda-forge channel``.
