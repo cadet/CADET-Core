@@ -8,7 +8,7 @@ If you want to extend or modify CADET-Core (e.g., add a custom binding model), y
 
 .. note::
 
-   For now, CADET-Core must be built from source on MacOS-ARM64 systems following the :ref:`build_osx` instructions.
+   On macOS ARM64 systems, CADET-Core must be built from source for now; see :ref:`build_osx` for instructions.
 
 Install pre-built binaries
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
