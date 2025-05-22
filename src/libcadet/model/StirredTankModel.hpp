@@ -179,10 +179,7 @@ namespace cadet
 
 			IDynamicReactionModel* _dynReactionBulk; //!< Dynamic reactions in the bulk volume
 
-			Eigen::Matrix<active, Eigen::Dynamic, Eigen::Dynamic> _MconvMoityBulk; //!<  Matrix with conservation of moieties in the bulk volume
 			bool _hasQuasiStationaryReactionBulk; //!< Flag that determines whether there are quasi-stationary reactions in the bulk volume
-			std::vector<int> _QsCompBulk; //!< Indices of components that are conserved in the bulk volume
-			int _nConservedQuants;
 
 			class Exporter : public ISolutionExporter
 			{

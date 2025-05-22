@@ -357,25 +357,19 @@ namespace cadet
 
 			// Reconfigure reaction model
 			bool dynReactionConfSuccess = true;
+			bool conservedMoitiesSuccess = true;
 			_hasQuasiStationaryReactionBulk = false;
-			_MconvMoityBulk = Eigen::Matrix<active, Eigen::Dynamic, Eigen::Dynamic>::Zero(0, 0); // matrix for conserved moities
-			_QsCompBulk.clear();
-			_nConservedQuants = 0;
 			if (_dynReactionBulk && _dynReactionBulk->requiresConfiguration())
 			{
 				paramProvider.pushScope("reaction_bulk");
 				dynReactionConfSuccess = _dynReactionBulk->configure(paramProvider, _unitOpIdx, ParTypeIndep);
 				paramProvider.popScope();
 
-				// Get quasi stationary reactions information vector
-				_dynReactionBulk->hasQuasiStationaryReactionsBulk();
 
 				if (_dynReactionBulk->hasQuasiStationaryReactionsBulk())
 				{
-					_QsCompBulk.resize(_nComp);
-					_dynReactionBulk->fillConservedMoietiesBulk(_MconvMoityBulk, _nConservedQuants, _QsCompBulk);
-
-
+					conservedMoitiesSuccess =  _dynReactionBulk->configureConservedMoity();
+					
 					bool hasQSBinding = false;
 					for (int i = 0; i < _nParType; i++)
 					{
@@ -403,7 +397,7 @@ namespace cadet
 				dynReactionConfSuccess = _dynReaction[type]->configure(paramProvider, _unitOpIdx, type) && dynReactionConfSuccess;
 			}
 
-			return bindingConfSuccess && dynReactionConfSuccess;
+			return bindingConfSuccess && dynReactionConfSuccess && conservedMoitiesSuccess;
 		}
 
 		unsigned int CSTRModel::threadLocalMemorySize() const CADET_NOEXCEPT
@@ -654,9 +648,10 @@ namespace cadet
 				BufferedArray<int> qsMask = tlmAlloc.array<int>(_nComp);
 
 				// mark which concentrations need to be reacalculated
-				qsMask.copyFromVector(_QsCompBulk);
+				std::vector<int> qsCompBulk = _dynReactionBulk->quasiStationaryComponentMap();
+				qsMask.copyFromVector(qsCompBulk);
 
-				int nActiveStates = std::count(_QsCompBulk.begin(), _QsCompBulk.end(), 1);
+				int nActiveStates = std::count(qsCompBulk.begin(), qsCompBulk.end(), 1);
 
 				const linalg::ConstMaskArray mask{ static_cast<int*>(qsMask), static_cast<int>(_nComp) };
 				const int probSize = linalg::numMaskActive(mask);
@@ -667,20 +662,20 @@ namespace cadet
 
 				// Save values of conserved moieties;
 				const unsigned int numActiveComp = numMaskActive(mask, _nComp);
-				BufferedArray<double> conservedQuants = tlmAlloc.array<double>(nActiveStates); // number of conserved quantities
+				std::unique_ptr<double[]> conservedQuants = std::make_unique<double[]>(numActiveComp);
 
 				// Calculate conserved quantities for the inital state 
-
+				int numConsQuants = _dynReactionBulk->numConservedMoities();
 				int mIdx = 0;
 				for (unsigned int i = 0; i < _nComp; ++i)
 				{
-					if (_QsCompBulk[i] == 0)
+					if (qsCompBulk[i] == 0)
 						continue;
-					if (mIdx >= _nConservedQuants)
+					if (mIdx >= numConsQuants)
 						continue;
 					double dotProduct = 0.0;
-					for (unsigned int j = 0; j < _MconvMoityBulk.cols(); ++j)
-						dotProduct += static_cast<double>(_MconvMoityBulk(i, j)) * c[j];
+					for (unsigned int j = 0; j < _dynReactionBulk->matrixMoietiesBulk().cols(); ++j)
+						dotProduct += static_cast<double>(_dynReactionBulk->matrixMoietiesBulk()(i, j)) * c[j];
 
 					conservedQuants[mIdx] = dotProduct;
 					mIdx++;
@@ -741,20 +736,21 @@ namespace cadet
 
 							// Replace upper part with conservation relations
 							int  mIdx = 0;
+							int numConsQuants = _dynReactionBulk->numConservedMoities();
 							for (unsigned int i = 0; i < _nComp; ++i)
 							{
-								if (_QsCompBulk[i] == 0)
+								if (qsCompBulk[i] == 0)
 									continue;
-								if (mIdx >= _nConservedQuants)
+								if (mIdx >= numConsQuants)
 									continue;
 
 								int jIdx = 0;
-								for (unsigned int j = 0; j < _MconvMoityBulk.cols(); ++j)
+								for (unsigned int j = 0; j < _dynReactionBulk->matrixMoietiesBulk().cols(); ++j)
 								{
-									if (_QsCompBulk[j] == 0)
+									if (qsCompBulk[j] == 0)
 										continue;
 
-									mat.native(mIdx, jIdx) = static_cast<double>(_MconvMoityBulk(i, j));
+									mat.native(mIdx, jIdx) = static_cast<double>(_dynReactionBulk->matrixMoietiesBulk()(i, j));
 									jIdx++;
 								}
 								mIdx++;
@@ -779,21 +775,21 @@ namespace cadet
 							linalg::copyMatrixSubset(_jac, mask, mask, mat);
 							// Replace upper part with conservation relations
 							int  mIdx = 0;
-							int nConservedComps = _nComp - numActiveComp; // _nComp - _dynReactionBulk->numReactionQuasiStationary();
+							int numConsQuants = _dynReactionBulk->numConservedMoities();
 							for (unsigned int i = 0; i < _nComp; ++i)
 							{
-								if (_QsCompBulk[i] == 0)
+								if (qsCompBulk[i] == 0)
 									continue;
-								if (mIdx >= _nConservedQuants)
+								if (mIdx >= numConsQuants)
 									continue;
 
 								int jIdx = 0;
-								for (unsigned int j = 0; j < _MconvMoityBulk.cols(); ++j)
+								for (unsigned int j = 0; j < _dynReactionBulk->matrixMoietiesBulk().cols(); ++j)
 								{
-									if (_QsCompBulk[j] == 0)
+									if (qsCompBulk[j] == 0)
 										continue;
 
-									mat.native(mIdx, jIdx) = static_cast<double>(_MconvMoityBulk(i, j));
+									mat.native(mIdx, jIdx) = static_cast<double>(_dynReactionBulk->matrixMoietiesBulk()(i, j));
 									jIdx++;
 								}
 								mIdx++;
@@ -816,21 +812,21 @@ namespace cadet
 						// Extract values from residual
 						linalg::selectVectorSubset(fullResidual + _nComp, mask, r);
 
-						int nConservedComps = _nComp - nActiveStates; // _nComp - _dynReactionBulk->numReactionQuasiStationary();
+						int numConsQuants = _dynReactionBulk->numConservedMoities();
 						int  mIdx = 0;
 						for (unsigned int i = 0; i < _nComp; ++i)
 						{
-							if (_QsCompBulk[i] == 0) // 
+							if (qsCompBulk[i] == 0) // 
 								continue;
-							if (mIdx >= _nConservedQuants)
+							if (mIdx >= numConsQuants)
 								continue;
 							int jIdx = 0;
 							double dotProduct = 0.0;
-							for (unsigned int j = 0; j < _MconvMoityBulk.cols(); ++j)
+							for (unsigned int j = 0; j < _dynReactionBulk->matrixMoietiesBulk().cols(); ++j)
 							{
-								if (_QsCompBulk[j] == 0)
+								if (qsCompBulk[j] == 0)
 									continue;
-								dotProduct += static_cast<double>(_MconvMoityBulk(i, j)) * x[jIdx];
+								dotProduct += static_cast<double>(_dynReactionBulk->matrixMoietiesBulk()(i, j)) * x[jIdx];
 								jIdx++;
 							}
 							r[mIdx] = dotProduct - conservedQuants[mIdx];
@@ -1232,7 +1228,7 @@ namespace cadet
 				LinearBufferAllocator tlmAlloc = threadLocalMem.get();
 
 				// Overwrite rows corresponding to algebraic equations with the Jacobian and set right hand side to 0
-				BufferedArray<double> dReacDt = tlmAlloc.array<double>(_nComp + 1);
+				BufferedArray<double> dReacDt = tlmAlloc.array<double>(_nComp + _totalBound + 1);
 
 				// Obtain derivative of fluxes wrt. time
 				std::fill_n(static_cast<double*>(dReacDt), _nComp + 1, 0.0);
@@ -1241,8 +1237,8 @@ namespace cadet
 
 				// Copy row assioated to algebraic equation from original Jacobian and set right hand side
 				double* const cDot = vecStateYdot + _nComp;
-				int test = _nComp - _dynReactionBulk->numReactionQuasiStationary();
-				for (int i = test; i < _nComp; ++i)
+				int startIdx = _nComp - _dynReactionBulk->numReactionQuasiStationary();
+				for (int i = startIdx; i < _nComp; ++i)
 				{
 					_jacFact.copyRowFrom(_jac, i, i);
 					cDot[i] = -dReacDt[i];
@@ -1263,7 +1259,8 @@ namespace cadet
 					LOG(Error) << "Solve() failed";
 				}
 			}
-			else {
+			else 
+			{
 				// Overwrite rows corresponding to algebraic equations with the Jacobian and set right hand side to 0
 				LinearBufferAllocator tlmAlloc = threadLocalMem.get();
 				BufferedArray<double> dFluxDt = tlmAlloc.array<double>(_nComp + _totalBound + 1);
@@ -1578,30 +1575,32 @@ namespace cadet
 			Eigen::Map<Eigen::Vector<ResidualType, Eigen::Dynamic>> mapResC(resC, _nComp);
 
 			// calculate flux for quasi stationary reactions
-			BufferedArray<ResidualType> temp2 = subAlloc.array<ResidualType>(_nComp);
-			Eigen::Map<Eigen::Vector<ResidualType, Eigen::Dynamic>> qsFlux(static_cast<ResidualType*>(temp2), _dynReactionBulk->numReactionsLiquid());
+			std::unique_ptr<ResidualType[]> temp1 = std::make_unique<ResidualType[]>(_nComp);
+			Eigen::Map<Eigen::Vector<ResidualType, Eigen::Dynamic>> qsFlux(temp1.get(), _dynReactionBulk->numReactionsLiquid());
 			qsFlux.setZero();
 			_dynReactionBulk->computeQuasiStationaryReactionFlux(t, secIdx, colPos, c, qsFlux, subAlloc);
 
 			// buffer memory for transformed residual
-			BufferedArray<ResidualType> temp = subAlloc.array<ResidualType>(_nComp);
-			Eigen::Map<Eigen::Vector<ResidualType, Eigen::Dynamic>> resCWithMoities(static_cast<ResidualType*>(temp), _nComp);
+			std::unique_ptr<ResidualType[]> temp = std::make_unique<ResidualType[]>(_nComp);
+			Eigen::Map<Eigen::Vector<ResidualType, Eigen::Dynamic>> resCWithMoities(temp.get(), _nComp);
 			resCWithMoities.setZero();
 
-			Eigen::Matrix<ResidualType, Eigen::Dynamic, Eigen::Dynamic> MconvMoityBulkCast = _MconvMoityBulk.template cast<ResidualType>();
+			Eigen::Matrix<ResidualType, Eigen::Dynamic, Eigen::Dynamic> MconvMoityBulkCast = _dynReactionBulk->matrixMoietiesBulk().template cast<ResidualType>();
 
 			// multiply conserved moities matrix with residual
 			resCWithMoities = MconvMoityBulkCast * mapResC;
 
 			// add quasi stationary reaction to residium
 			const int nQsReac = _dynReactionBulk->numReactionQuasiStationary();
+			std::vector<int> qsCompBulk = _dynReactionBulk->quasiStationaryComponentMap();
+			int numConsQuants = _dynReactionBulk->numConservedMoities();
 			int mIdx = 0;
 			int rIdx = 0;
 			for (int i = 0; i < _nComp; i++)
 			{
-				if (_QsCompBulk[i] == 0)
+				if (qsCompBulk[i] == 0)
 					continue;
-				else if (mIdx < _nConservedQuants)
+				else if (mIdx < numConsQuants)
 					mIdx++;
 				else if (rIdx < nQsReac)
 				{
@@ -1616,18 +1615,19 @@ namespace cadet
 			if (wantJac)
 			{
 				EigenMatrixTimesDenseMatrix(MconvMoityBulkCast, _jac);
+				int numConsQuants = _dynReactionBulk->numConservedMoities();
 				int mIdx = 0;
 				int rIdx = 0;
-				for (int i = 0; i < _nComp; i++)
+				for (int state = 0; state < _nComp; state++)
 				{
-					if (_QsCompBulk[i] == 0)
+					if (qsCompBulk[state] == 0)
 						continue;
-					else if (mIdx < _nConservedQuants)
+					else if (mIdx < numConsQuants)
 						mIdx++;
 					else if (rIdx < nQsReac)
 					{
-						_dynReactionBulk->analyticJacobianQuasiStationaryReaction(t, secIdx, colPos, reinterpret_cast<double const*>(c), i, rIdx, _jac.row(i), subAlloc);
-						_jac.native(i, _nComp + _totalBound) = 0.0; // dF_{ci}/dvliquid = 0
+						_dynReactionBulk->analyticJacobianQuasiStationaryReaction(t, secIdx, colPos, reinterpret_cast<double const*>(c), state, rIdx, _jac.row(state), subAlloc);
+						_jac.native(state, _nComp + _totalBound) = 0.0; // dF_{ci}/dvliquid = 0
 					}
 
 				}
@@ -2246,21 +2246,23 @@ namespace cadet
 
 			if (_hasQuasiStationaryReactionBulk)
 			{
+				std::vector<int> qsCompBulk = _dynReactionBulk->quasiStationaryComponentMap();
+				int numConsQuants = _dynReactionBulk->numConservedMoities();
 				int  MoityIdx = 0;
 				for (unsigned int i = 0; i < _nComp; i++)
 				{
-					if (_QsCompBulk[i] == 0)
+					if (qsCompBulk[i] == 0)
 					{
 						mat.native(i, i) += timeV; // dRes / dcDot
 					}
-					else if (MoityIdx >= _nConservedQuants)
+					else if (MoityIdx >= numConsQuants)
 						continue;
 					else
 					{
 						for (int j = 0; j < _nComp; j++)
 						{
-							mat.native(i, j) += timeV * static_cast<double>(_MconvMoityBulk(i, j)); // dRes / dcDot
-							mat.native(i, _nComp + _totalBound) += alpha * static_cast<double>(_MconvMoityBulk(i, j)) * c[j]; // dRes / dVlDot
+							mat.native(i, j) += timeV * static_cast<double>(_dynReactionBulk->matrixMoietiesBulk()(i, j)); // dRes / dcDot
+							mat.native(i, _nComp + _totalBound) += alpha * static_cast<double>(_dynReactionBulk->matrixMoietiesBulk()(i, j)) * c[j]; // dRes / dVlDot
 						}
 						MoityIdx++;
 					}
@@ -2319,20 +2321,6 @@ namespace cadet
 
 			// Volume: \dot{V} - F_{in} + F_{out} + F_{filter} == 0
 			mat.native(_nComp + _totalBound, _nComp + _totalBound) += alpha;
-
-			//std::cout << "Jacobian Derivative: " << std::endl;
-			//std::cout << "Before:" << std::endl;
-			//for (unsigned int i = 0; i < _nComp + 1; ++i)
-			//{
-			//	for (unsigned int j = 0; j < _nComp + 1; ++j)
-			//		std::cout << mat.native(i, j) << " ";
-			//	std::cout << std::endl;
-			//}
-
-			/*if (_hasQuasiStationaryReactionBulk)
-			{
-				EigenMatrixTimesDenseMatrix(_MconvMoityBulk, mat);
-			}*/
 
 		}
 
