@@ -1436,11 +1436,11 @@ int GeneralRateModelDG::residualParticle(double t, unsigned int parType, unsigne
 
 			for (int bnd = 0; bnd < _disc.nBound[parType * _disc.nComp + comp]; bnd++)
 			{
-				if (parSurfDiff[_disc.nBoundBeforeType[parType] + _disc.boundOffset[parType * _disc.nComp + comp] + bnd] != 0.0) // some bound states might still not be effected by surface diffusion
+				if (parSurfDiff[_disc.boundOffset[parType * _disc.nComp + comp] + bnd] != 0.0) // some bound states might still not be effected by surface diffusion
 				{
 					Eigen::Map<const Vector<StateType, Dynamic>, 0, InnerStride<Dynamic>> c_s(c_p + _disc.nComp + idxr.offsetBoundComp(ParticleTypeIndex{ parType }, ComponentIndex{ comp }) + bnd, nPoints, InnerStride<Dynamic>(idxr.strideParNode(parType)));
 					ParamType invBetaP = (1.0 - static_cast<ParamType>(_parPorosity[parType])) / (static_cast<ParamType>(_poreAccessFactor[_disc.nComp * parType + comp]) * static_cast<ParamType>(_parPorosity[parType]));
-					sum_cp_cs += invBetaP * static_cast<ParamType>(parSurfDiff[_disc.nBoundBeforeType[parType] + _disc.boundOffset[parType * _disc.nComp + comp] + bnd]) * c_s;
+					sum_cp_cs += invBetaP * static_cast<ParamType>(parSurfDiff[_disc.boundOffset[parType * _disc.nComp + comp] + bnd]) * c_s;
 
 					/* For kinetic bindings with surface diffusion: add the additional DG-discretized particle mass balance equations to residual */
 
@@ -1455,7 +1455,7 @@ int GeneralRateModelDG::residualParticle(double t, unsigned int parType, unsigne
 
 						// Apply squared inverse mapping and surface diffusion
 						c_s_modified = 2.0 / static_cast<ParamType>(_disc.deltaR[_disc.offsetMetric[parType]]) * 2.0 / static_cast<ParamType>(_disc.deltaR[_disc.offsetMetric[parType]]) *
-							static_cast<ParamType>(parSurfDiff[_disc.nBoundBeforeType[parType] + _disc.boundOffset[parType * _disc.nComp + comp] + bnd]) * c_s;
+							static_cast<ParamType>(parSurfDiff[_disc.boundOffset[parType * _disc.nComp + comp] + bnd]) * c_s;
 
 						Eigen::Map<const Vector<ResidualType, Dynamic>, 0, InnerStride<Dynamic>> c_s_modified_const(&c_s_modified[0], nPoints, InnerStride<Dynamic>(1));
 						parGSMVolumeIntegral<ResidualType, ResidualType>(parType, c_s_modified_const, resCs);
@@ -1502,7 +1502,7 @@ int GeneralRateModelDG::residualParticle(double t, unsigned int parType, unsigne
 			{
 				for (int bnd = 0; bnd < _disc.nBound[parType * _disc.nComp + comp]; bnd++)
 				{
-					if (parSurfDiff[_disc.nBoundBeforeType[parType] + _disc.boundOffset[parType * _disc.nComp + comp] + bnd] != 0.0) // some bound states might still not be effected by surface diffusion
+					if (parSurfDiff[_disc.boundOffset[parType * _disc.nComp + comp] + bnd] != 0.0) // some bound states might still not be effected by surface diffusion
 					{
 						// Get solid phase vector
 						Eigen::Map<const Vector<StateType, Dynamic>, 0, InnerStride<Dynamic>> c_s(c_p + strideParLiquid + idxr.offsetBoundComp(ParticleTypeIndex{ parType }, ComponentIndex{ comp }) + bnd,
@@ -1510,7 +1510,7 @@ int GeneralRateModelDG::residualParticle(double t, unsigned int parType, unsigne
 						// Compute g_s = d c_s / d xi
 						solve_auxiliary_DG<StateType>(parType, c_s, strideCell, strideNode, comp);
 						// Apply invBeta_p, d_s and add to sum -> gSum += d_s * invBeta_p * (D c - M^-1 B [c - c^*])
-						_g_pSum += _g_p.template cast<ResidualType>() * invBetaP * static_cast<ParamType>(parSurfDiff[_disc.nBoundBeforeType[parType] + _disc.boundOffset[parType * _disc.nComp + comp] + bnd]);
+						_g_pSum += _g_p.template cast<ResidualType>() * invBetaP * static_cast<ParamType>(parSurfDiff[_disc.boundOffset[parType * _disc.nComp + comp] + bnd]);
 
 						/* For kinetic bindings with surface diffusion: add the additional DG-discretized particle mass balance equations to residual */
 
@@ -1529,7 +1529,7 @@ int GeneralRateModelDG::residualParticle(double t, unsigned int parType, unsigne
 							Eigen::Map<Vector<ResidualType, Dynamic>, 0, InnerStride<>> _g_p_ResType(reinterpret_cast<ResidualType*>(&_disc.g_p[parType][0]), nPoints, InnerStride<>(1));
 
 							applyParInvMap<ResidualType, ParamType>(_g_p_ResType, parType);
-							_g_p_ResType *= static_cast<ParamType>(parSurfDiff[_disc.nBoundBeforeType[parType] + _disc.boundOffset[parType * _disc.nComp + comp] + bnd]);
+							_g_p_ResType *= static_cast<ParamType>(parSurfDiff[_disc.boundOffset[parType * _disc.nComp + comp] + bnd]);
 
 							// Eigen access to auxiliary variable of current bound state
 							Eigen::Map<const Vector<ResidualType, Dynamic>, 0, InnerStride<Dynamic>> _g_p_ResType_const(&_g_p_ResType[0], nPoints, InnerStride<Dynamic>(1));
