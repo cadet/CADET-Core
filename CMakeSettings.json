@@ -50,7 +50,7 @@
       "configurationType": "Debug",
       "inheritEnvironments": [ "msvc_x64_x64" ],
       "buildRoot": "${env.BUILDROOT}_DEBUG_with_Tests",
-      "cmakeCommandArgs": "-DVCPKG_TARGET_TRIPLET=x64-windows-static -DENABLE_STATIC_LINK_LAPACK=ON -DENABLE_STATIC_LINK_DEPS=ON -DENABLE_TESTS=ON -DNUM_MAX_AD_DIRS=157 -DENABLE_ANALYTIC_JACOBIAN_CHECK=OFF --fresh",
+      "cmakeCommandArgs": "-DVCPKG_TARGET_TRIPLET=x64-windows-static -DENABLE_STATIC_LINK_LAPACK=ON -DENABLE_STATIC_LINK_DEPS=ON -DENABLE_TESTS=ON -DNUM_MAX_AD_DIRS=160 -DENABLE_ANALYTIC_JACOBIAN_CHECK=OFF --fresh",
       "buildCommandArgs": "-m -v:minimal",
       "variables": [
         {
@@ -158,7 +158,7 @@
       "configurationType": "RelWithDebInfo",
       "inheritEnvironments": [ "msvc_x64_x64" ],
       "buildRoot": "${env.BUILDROOT}_RELEASE_with_Tests",
-      "cmakeCommandArgs": "-DVCPKG_TARGET_TRIPLET=x64-windows-static -DENABLE_STATIC_LINK_LAPACK=ON -DENABLE_STATIC_LINK_DEPS=ON -DENABLE_TESTS=ON -DNUM_MAX_AD_DIRS=157 -DENABLE_ANALYTIC_JACOBIAN_CHECK=OFF --fresh",
+      "cmakeCommandArgs": "-DVCPKG_TARGET_TRIPLET=x64-windows-static -DENABLE_STATIC_LINK_LAPACK=ON -DENABLE_STATIC_LINK_DEPS=ON -DENABLE_TESTS=ON -DNUM_MAX_AD_DIRS=160 -DENABLE_ANALYTIC_JACOBIAN_CHECK=OFF --fresh",
       "buildCommandArgs": "-m -v:minimal",
       "variables": [
         {
