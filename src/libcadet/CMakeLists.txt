@@ -102,6 +102,7 @@ set(LIBCADET_BINDINGMODEL_SOURCES
 	${CMAKE_SOURCE_DIR}/src/libcadet/model/binding/HICConstantWaterActivityBinding.cpp
 	${CMAKE_SOURCE_DIR}/src/libcadet/model/binding/SipsBinding.cpp
 	${CMAKE_SOURCE_DIR}/src/libcadet/model/binding/MultiComponentLDFFreundlichBinding.cpp
+        ${CMAKE_SOURCE_DIR}/src/libcadet/model/binding/AffinityComplexTitrationBinding.cpp
 )
 set(LIBCADET_EXCHANGEMODEL_SOURCES
 	${CMAKE_SOURCE_DIR}/src/libcadet/model/exchange/LinearExchange.cpp

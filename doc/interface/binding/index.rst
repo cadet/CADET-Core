@@ -73,4 +73,4 @@ This group also takes precedence over a possibly existing ``/input/model/unit_XX
     hic_water_on_hydrophobic_surfaces
     hic_constant_water_activity
     multi_component_colloidal
-
+    affinity_complex_titration
