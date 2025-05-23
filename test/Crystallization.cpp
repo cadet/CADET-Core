@@ -195,6 +195,11 @@ TEST_CASE("Crystallization Jacobian verification for a DPFR/LRM with primary and
 	pp_setup.pushScope("model");
 	pp_setup.pushScope("unit_001");
 
+	// reduce axial discretization to stay within the allowed number of AD directions
+	pp_setup.pushScope("discretization");
+	pp_setup.set("NCOL", 3); // 3 * 52 < 157
+	pp_setup.popScope();
+
 	// for this specific test, we need to define a (high) tolerances as the values in this test are numerically very challenging (values of ca. 1E+24)
 	const double ADabsTol = 5e+8;
 	const double FDabsTol = 1e+10;
