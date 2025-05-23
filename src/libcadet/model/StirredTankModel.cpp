@@ -667,12 +667,8 @@ namespace cadet
 				// Calculate conserved quantities for the inital state 
 				int numConsQuants = _dynReactionBulk->numConservedMoities();
 				int mIdx = 0;
-				for (unsigned int i = 0; i < _nComp; ++i)
+				for (int i: _dynReactionBulk->consMoityIdx())
 				{
-					if (qsCompBulk[i] == 0)
-						continue;
-					if (mIdx >= numConsQuants)
-						continue;
 					double dotProduct = 0.0;
 					for (unsigned int j = 0; j < _dynReactionBulk->matrixMoietiesBulk().cols(); ++j)
 						dotProduct += static_cast<double>(_dynReactionBulk->matrixMoietiesBulk()(i, j)) * c[j];
@@ -736,13 +732,8 @@ namespace cadet
 
 							// Replace upper part with conservation relations
 							int  mIdx = 0;
-							int numConsQuants = _dynReactionBulk->numConservedMoities();
-							for (unsigned int i = 0; i < _nComp; ++i)
+							for (int i: _dynReactionBulk->consMoityIdx())
 							{
-								if (qsCompBulk[i] == 0)
-									continue;
-								if (mIdx >= numConsQuants)
-									continue;
 
 								int jIdx = 0;
 								for (unsigned int j = 0; j < _dynReactionBulk->matrixMoietiesBulk().cols(); ++j)
@@ -775,20 +766,13 @@ namespace cadet
 							linalg::copyMatrixSubset(_jac, mask, mask, mat);
 							// Replace upper part with conservation relations
 							int  mIdx = 0;
-							int numConsQuants = _dynReactionBulk->numConservedMoities();
-							for (unsigned int i = 0; i < _nComp; ++i)
+							for (int i : _dynReactionBulk->consMoityIdx())
 							{
-								if (qsCompBulk[i] == 0)
-									continue;
-								if (mIdx >= numConsQuants)
-									continue;
-
 								int jIdx = 0;
 								for (unsigned int j = 0; j < _dynReactionBulk->matrixMoietiesBulk().cols(); ++j)
 								{
-									if (qsCompBulk[j] == 0)
+									if (_dynReactionBulk->quasiStationaryComponentMap()[j] == 0)
 										continue;
-
 									mat.native(mIdx, jIdx) = static_cast<double>(_dynReactionBulk->matrixMoietiesBulk()(i, j));
 									jIdx++;
 								}
@@ -812,19 +796,14 @@ namespace cadet
 						// Extract values from residual
 						linalg::selectVectorSubset(fullResidual + _nComp, mask, r);
 
-						int numConsQuants = _dynReactionBulk->numConservedMoities();
 						int  mIdx = 0;
-						for (unsigned int i = 0; i < _nComp; ++i)
+						for (int i : _dynReactionBulk->consMoityIdx())
 						{
-							if (qsCompBulk[i] == 0) // 
-								continue;
-							if (mIdx >= numConsQuants)
-								continue;
 							int jIdx = 0;
 							double dotProduct = 0.0;
 							for (unsigned int j = 0; j < _dynReactionBulk->matrixMoietiesBulk().cols(); ++j)
 							{
-								if (qsCompBulk[j] == 0)
+								if (_dynReactionBulk->quasiStationaryComponentMap()[j] == 0)
 									continue;
 								dotProduct += static_cast<double>(_dynReactionBulk->matrixMoietiesBulk()(i, j)) * x[jIdx];
 								jIdx++;
@@ -832,7 +811,6 @@ namespace cadet
 							r[mIdx] = dotProduct - conservedQuants[mIdx];
 							mIdx++;
 						}
-
 						return true;
 					},
 					jacFunc, errorTol, static_cast<double*>(solution), nonlinMem, jacobianMatrix, probSize);
@@ -1244,7 +1222,6 @@ namespace cadet
 					cDot[i] = -dReacDt[i];
 				}
 
-
 				// Factorize
 				const bool result = _jacFact.robustFactorize(static_cast<double*>(dReacDt));
 				if (!result)
@@ -1516,9 +1493,8 @@ namespace cadet
 		}
 
 		template <typename ResidualType>
-		void CSTRModel::EigenMatrixTimesDenseMatrix(Eigen::Matrix<ResidualType, Eigen::Dynamic, Eigen::Dynamic> A, linalg::DenseMatrix& B)
+		void CSTRModel::EigenMatrixTimesDenseMatrix(const Eigen::Matrix<ResidualType, Eigen::Dynamic, Eigen::Dynamic>& A, linalg::DenseMatrix& B)
 		{
-
 
 			Eigen::SparseMatrix<double> jacSparse(_nComp + 1, _nComp + 1);
 
@@ -1561,8 +1537,6 @@ namespace cadet
 					B.native(it.row(), it.col()) = it.value();
 				}
 			}
-
-
 		}
 
 		template <typename StateType, typename ResidualType, typename ParamType, bool wantJac>
@@ -1585,54 +1559,29 @@ namespace cadet
 			Eigen::Map<Eigen::Vector<ResidualType, Eigen::Dynamic>> resCWithMoities(temp.get(), _nComp);
 			resCWithMoities.setZero();
 
-			Eigen::Matrix<ResidualType, Eigen::Dynamic, Eigen::Dynamic> MconvMoityBulkCast = _dynReactionBulk->matrixMoietiesBulk().template cast<ResidualType>();
 
 			// multiply conserved moities matrix with residual
-			resCWithMoities = MconvMoityBulkCast * mapResC;
+			resCWithMoities = _dynReactionBulk->matrixMoietiesBulk().template cast<ResidualType>() * mapResC;
 
 			// add quasi stationary reaction to residium
-			const int nQsReac = _dynReactionBulk->numReactionQuasiStationary();
-			std::vector<int> qsCompBulk = _dynReactionBulk->quasiStationaryComponentMap();
-			int numConsQuants = _dynReactionBulk->numConservedMoities();
-			int mIdx = 0;
 			int rIdx = 0;
-			for (int i = 0; i < _nComp; i++)
+			for (int i : _dynReactionBulk->algIdx())
 			{
-				if (qsCompBulk[i] == 0)
-					continue;
-				else if (mIdx < numConsQuants)
-					mIdx++;
-				else if (rIdx < nQsReac)
-				{
-					resCWithMoities[i] = qsFlux[rIdx];
-					rIdx++;
-				}
-
+				resCWithMoities[i] = qsFlux[rIdx];
+				rIdx++;
 			}
 
 			mapResC = resCWithMoities;
 
 			if (wantJac)
 			{
-				EigenMatrixTimesDenseMatrix(MconvMoityBulkCast, _jac);
-				int numConsQuants = _dynReactionBulk->numConservedMoities();
-				int mIdx = 0;
-				int rIdx = 0;
-				for (int state = 0; state < _nComp; state++)
+				EigenMatrixTimesDenseMatrix(_dynReactionBulk->matrixMoietiesBulk(), _jac);
+				for (int state : _dynReactionBulk->algIdx())
 				{
-					if (qsCompBulk[state] == 0)
-						continue;
-					else if (mIdx < numConsQuants)
-						mIdx++;
-					else if (rIdx < nQsReac)
-					{
-						_dynReactionBulk->analyticJacobianQuasiStationaryReaction(t, secIdx, colPos, reinterpret_cast<double const*>(c), state, rIdx, _jac.row(state), subAlloc);
-						_jac.native(state, _nComp + _totalBound) = 0.0; // dF_{ci}/dvliquid = 0
-					}
-
+					_dynReactionBulk->analyticJacobianQuasiStationaryReaction(t, secIdx, colPos, reinterpret_cast<double const*>(c), state, rIdx, _jac.row(state), subAlloc);
+					_jac.native(state, _nComp + _totalBound) = 0.0; // dF_{ci}/dvliquid = 0
 				}
 			}
-
 		}
 
 
@@ -2246,25 +2195,20 @@ namespace cadet
 
 			if (_hasQuasiStationaryReactionBulk)
 			{
-				std::vector<int> qsCompBulk = _dynReactionBulk->quasiStationaryComponentMap();
-				int numConsQuants = _dynReactionBulk->numConservedMoities();
-				int  MoityIdx = 0;
+
 				for (unsigned int i = 0; i < _nComp; i++)
 				{
-					if (qsCompBulk[i] == 0)
+					if (_dynReactionBulk->quasiStationaryComponentMap()[i] == 0)
 					{
 						mat.native(i, i) += timeV; // dRes / dcDot
 					}
-					else if (MoityIdx >= numConsQuants)
-						continue;
-					else
+				}
+				for (int i : _dynReactionBulk->consMoityIdx())
+				{
+					for (int j = 0; j < _nComp; j++)
 					{
-						for (int j = 0; j < _nComp; j++)
-						{
-							mat.native(i, j) += timeV * static_cast<double>(_dynReactionBulk->matrixMoietiesBulk()(i, j)); // dRes / dcDot
-							mat.native(i, _nComp + _totalBound) += alpha * static_cast<double>(_dynReactionBulk->matrixMoietiesBulk()(i, j)) * c[j]; // dRes / dVlDot
-						}
-						MoityIdx++;
+						mat.native(i, j) += timeV * static_cast<double>(_dynReactionBulk->matrixMoietiesBulk()(i, j)); // dRes / dcDot
+						mat.native(i, _nComp + _totalBound) += alpha * static_cast<double>(_dynReactionBulk->matrixMoietiesBulk()(i, j)) * c[j]; // dRes / dVlDot
 					}
 				}
 

@@ -81,7 +81,7 @@ namespace cadet
 			virtual int residual(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res, const AdJacobianParams& adJac, util::ThreadLocalStorage& threadLocalMem, bool updateJacobian, bool paramSensitivity);
 
 			template <typename ResidualType>
-			void EigenMatrixTimesDenseMatrix(Eigen::Matrix<ResidualType, Eigen::Dynamic, Eigen::Dynamic> A, linalg::DenseMatrix& B);
+			void EigenMatrixTimesDenseMatrix(const Eigen::Matrix<ResidualType, Eigen::Dynamic, Eigen::Dynamic>& A, linalg::DenseMatrix& B);
 
 			template <typename StateType, typename ResidualType, typename ParamType, bool wantJac>
 			void applyConservedMoitiesBulk(double t, unsigned int secIdx, const ColumnPosition& colPos, StateType const* const y, double const* const yDot, ResidualType* const resC, LinearBufferAllocator tlmAlloc);

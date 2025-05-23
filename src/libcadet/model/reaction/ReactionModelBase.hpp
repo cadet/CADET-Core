@@ -235,14 +235,6 @@ protected:
 		return quasiStationaryFlux( t, secIdx,   colPos,  y, fluxes,  workSpace);																			\
 	}																																					\
 																																						\
-	virtual void fillConservedMoietiesBulk(Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic>& M, int& nConservedQuants, std::vector<int>& QsCompBulk)\
-	{\
-		ConservedMoietiesBulk(M, nConservedQuants, QsCompBulk);\
-	}\
-	virtual void fillConservedMoietiesBulk(Eigen::Matrix<active, Eigen::Dynamic, Eigen::Dynamic>& M, int& nConservedQuants, std::vector<int>& QsCompBulk)\
-	{\
-		ConservedMoietiesBulk(M, nConservedQuants, QsCompBulk);\
-	}\
 
 #else
 #define CADET_DYNAMICREACTIONMODEL_BOILERPLATE                                                                                                          \

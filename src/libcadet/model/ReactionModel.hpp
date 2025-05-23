@@ -290,6 +290,17 @@ namespace cadet
 				Eigen::Matrix<active, Eigen::Dynamic, Eigen::Dynamic> M;
 				return M;
 			}
+			virtual auto algIdx() -> std::vector<int>
+			{
+				std::vector<int> v{ 0 };
+				return v;
+			}
+
+			virtual auto consMoityIdx() -> std::vector<int> 
+			{
+				std::vector<int> v{ 0 };
+				return v;
+			}
 
 
 #ifdef ENABLE_DG

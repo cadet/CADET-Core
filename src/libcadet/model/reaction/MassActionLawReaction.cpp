@@ -437,7 +437,7 @@ namespace cadet
 
 			auto configureConservedMoity() -> bool override
 			{
-				CalcConservedMoietiesBulk();
+				ConservedMoietiesBulk();
 				return true;
 			}
 			auto matrixMoietiesBulk() -> Eigen::Matrix<active, Eigen::Dynamic, Eigen::Dynamic> override
@@ -448,6 +448,16 @@ namespace cadet
 			auto quasiStationaryComponentMap() const -> std::vector<int> override
 			{
 				return _quasiStationaryComponentBulkMap;
+			}
+			
+			auto algIdx() -> std::vector<int> override
+			{
+				return _algIdxBulk;
+			}
+
+			auto consMoityIdx() -> std::vector<int> override
+			{
+				return _consMoityIdxBulk;
 			}
 
 
@@ -476,10 +486,10 @@ namespace cadet
 			//todo add these to workspace
 			std::vector<int> _reactionQuasiStationarity;
 			std::vector<int> _quasiStationaryReactionIndices;
-			std::vector<int> _quasiStationaryComponentBulkIndices; //!< Indices of components that are conserved in the bulk volume
+			std::vector<int> _algIdxBulk; //!< Indices of components that are conserved in the bulk volume
+			std::vector<int> _consMoityIdxBulk; //!< Indices of components that are conserved in the bulk volume
 			std::vector<int> _quasiStationaryComponentBulkMap;
-
-
+			
 			Eigen::Matrix<active, Eigen::Dynamic, Eigen::Dynamic> _MconvMoityBulk; //!<  Matrix with conservation of moieties in the bulk volume
 			unsigned int _nConservedQuants;
 
@@ -1082,122 +1092,7 @@ namespace cadet
 			 * @param [in,out] componentsInQssReactions Vector marking components that participate in quasi-stationary reactions (1 if active, 0 otherwise)
 			 * @tparam ResidualType Type used for the residual calculations
 			 */
-			template<typename ResidualType>
-			void ConservedMoietiesBulk(Eigen::Matrix<ResidualType, Eigen::Dynamic, Eigen::Dynamic>& conservationMatrix, int& numConservationLaws, std::vector<int>& componentsInQssReactions)
-			{
-				// Count the number of quasi-stationary reactions
-				int numQuasiStationaryReactions = std::count(_reactionQuasiStationarity.begin(), _reactionQuasiStationarity.end(), true);
-				std::fill(componentsInQssReactions.begin(), componentsInQssReactions.end(), 0);
-
-				if (numQuasiStationaryReactions == 0)
-				{
-					numConservationLaws = 0;
-					return;
-				}
-				// Create quasiStationaryStoichiometry matrix with stoichiometry of quasi-stationary reactions
-				Eigen::MatrixXd quasiStationaryStoichiometry(_stoichiometryBulk.rows(), numQuasiStationaryReactions);
-
-				int reactionIndex = 0;
-				for (int j = 0; j < _stoichiometryBulk.columns(); j++)
-				{
-					if (_reactionQuasiStationarity[j] == 0)
-						continue;
-
-					for (int i = 0; i < _stoichiometryBulk.rows(); ++i)
-					{
-						quasiStationaryStoichiometry(i, reactionIndex) = static_cast<double>(_stoichiometryBulk.native(i, j));
-					}
-					reactionIndex++;
-				}
-
-				// Count active components and mark them in componentsInQssReactions
-				std::vector<int> quasiStationaryCompIdx;
-				quasiStationaryCompIdx.reserve(_nComp);
-
-				std::vector<int> notQuasiStationaryCompIdx;
-				notQuasiStationaryCompIdx.reserve(_nComp);
-
-				if (componentsInQssReactions.size() != _nComp)
-				{
-					throw InvalidParameterException("Calculating conserved Moities: Vector for marking components in quasi stationary reactions must have size equal to number of components");
-				}
-
-				for (int i = 0; i < quasiStationaryStoichiometry.rows(); ++i)
-				{
-					bool isActive = (quasiStationaryStoichiometry.row(i).norm() >= 1e-15);
-					componentsInQssReactions[i] = isActive ? 1 : 0;
-					if (isActive)
-					{
-						quasiStationaryCompIdx.push_back(i);
-					}
-					else
-					{
-						notQuasiStationaryCompIdx.push_back(i);
-					}
-				}
-
-				// Create compressed matrix of only active rows
-				const int nActiveComponents = quasiStationaryCompIdx.size();
-				if (nActiveComponents == 0)
-				{
-					throw InvalidParameterException(
-						"Calculating conserved Moities: No components participate in quasi-stationary reactions. "
-						"Check your stoichiometry matrix."
-					);
-				}
-
-				// Extract active rows to compressed matrix
-				Eigen::MatrixXd compactStoichiometry(nActiveComponents, numQuasiStationaryReactions);
-				for (int i = 0; i < nActiveComponents; ++i)
-				{
-					compactStoichiometry.row(i) = quasiStationaryStoichiometry.row(quasiStationaryCompIdx[i]);
-				}
-
-				// Check matrix rank
-				int rank = compactStoichiometry.fullPivLu().rank();
-				if (rank != numQuasiStationaryReactions)
-				{
-					throw InvalidParameterException(
-						"Calculating conserved moieties: The stoichiometric matrix for quasi-stationary reactions "
-						"has rank " + std::to_string(rank) + " but " + std::to_string(numQuasiStationaryReactions) +
-						" reactions. This indicates redundant reactions or conservation laws, which are "
-						"not supported in combination with quasi-stationary reactions yet."
-					);
-				}
-
-				// Calculate null space of stoichiometry for conservation relations with LU decomposition
-				// This corresponds to the left null space of the stoichiometry matrix
-				Eigen::MatrixXd conservationRelations = compactStoichiometry.transpose().fullPivLu().kernel().transpose();
-				numConservationLaws = conservationRelations.rows();
-
-
-				// Create final matrix conservationMatrix with proper dimensions
-				// acording to componentsInQssReactions: 0 -> not conserved 1-> conserved (either dynamic or not)
-				int idx = 0;
-				int nonActiveIdx = 0;
-				conservationMatrix = Eigen::Matrix<ResidualType, Eigen::Dynamic, Eigen::Dynamic>::Zero(_nComp, _nComp);
-				for (int i = 0; i < _nComp; ++i)
-				{
-					if (componentsInQssReactions[i] == 0) // dynamic but not active
-					{
-						conservationMatrix(i, notQuasiStationaryCompIdx[nonActiveIdx]) = static_cast<ResidualType>(1.0);
-						nonActiveIdx++;
-					}
-					else if (idx < conservationRelations.rows())
-					{
-						int activeIdx = 0;
-						for (int j = 0; j < conservationRelations.cols(); ++j)
-						{
-							conservationMatrix(i, quasiStationaryCompIdx[activeIdx]) = static_cast<ResidualType>(conservationRelations(idx, j));
-							activeIdx++;
-						}
-						idx++;
-					}
-				}
-
-			}
-
-			void CalcConservedMoietiesBulk()
+			void ConservedMoietiesBulk()
 			{
 				// Count the number of quasi-stationary reactions
 				int numQuasiStationaryReactions = std::count(_reactionQuasiStationarity.begin(), _reactionQuasiStationarity.end(), true);
@@ -1286,7 +1181,7 @@ namespace cadet
 
 				// Create final matrix conservationMatrix with proper dimensions
 				// acording to componentsInQssReactions: 0 -> not conserved 1-> conserved (either dynamic or not)
-				int idx = 0;
+				int mIdx = 0;
 				int nonActiveIdx = 0;
 				_MconvMoityBulk = Eigen::Matrix<active, Eigen::Dynamic, Eigen::Dynamic>::Zero(_nComp, _nComp);
 				for (int i = 0; i < _nComp; ++i)
@@ -1296,16 +1191,20 @@ namespace cadet
 						_MconvMoityBulk(i, notQuasiStationaryCompIdx[nonActiveIdx]) = static_cast<active>(1.0);
 						nonActiveIdx++;
 					}
-					else if (idx < conservationRelations.rows())
+					else if (mIdx < conservationRelations.rows()) // dynamic and active
 					{
 						int activeIdx = 0;
 						for (int j = 0; j < conservationRelations.cols(); ++j)
 						{
-							_MconvMoityBulk(i, quasiStationaryCompIdx[activeIdx]) = static_cast<active>(conservationRelations(idx, j));
+							_MconvMoityBulk(i, quasiStationaryCompIdx[activeIdx]) = static_cast<active>(conservationRelations(mIdx, j));
 							activeIdx++;
 						}
-						idx++;
+						mIdx++;
+						_consMoityIdxBulk.push_back(i);
 					}
+					else if (mIdx >= conservationRelations.rows()) // not dynamic (alg)
+						_algIdxBulk.push_back(i);
+
 				}
 
 			}
