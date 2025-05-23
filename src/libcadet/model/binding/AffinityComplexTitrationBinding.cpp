@@ -46,10 +46,10 @@
  kA = Adsorption rate
  kD = Desorption rate
  qMax = Binding apacity
- etaA = Denote binding sensitivity against pH changes, qmax
- pKaA = Denote binding strength against pH changes, qmax
- etaG = Denote binding sensitivity against pH changes, keq
- pKaG = Denote binding strength against pH changes, keq
+ etaA = Slope for the binding capacity changes against pH
+ pKaA = Center for the binding capacity changes against pH
+ etaG = Slope for the equilibrium constant changes against pH
+ pKaG = Center for the equilibrium constant changes against pH
 */
 
 namespace cadet
@@ -99,6 +99,12 @@ namespace cadet
 				// Guarantee that pH is not a bound speies
 				if (nBound[0] != 0)
 					throw InvalidParameterException("Affinity complex titration binding model requires the first component pH to be non-binding");
+
+				for (int i = 0; i < nComp; ++i)
+				{
+					if (nBound[i] > 1)
+						throw InvalidParameterException("Currently the ACT isotherm model supports at most one bound state per component");
+				}
 
 				return res;
 			}
