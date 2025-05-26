@@ -2195,23 +2195,34 @@ namespace cadet
 
 			if (_hasQuasiStationaryReactionBulk)
 			{
+				
+				// prepare dres/ddy for eigen operations
+				double* const matData = mat.data();
+				const std::vector<int>& qsCompMap = _dynReactionBulk->quasiStationaryComponentMap();
+				Eigen::Map<Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>>
+					dresddy(matData, mat.rows(), mat.columns());
+				
+				std::vector<int> qsCompMapInv(_nComp);
+				std::transform(qsCompMap.begin(), qsCompMap.end(), qsCompMapInv.begin(),
+					[](int val) { return (val == 0) ? 1 : 0; });
 
-				for (unsigned int i = 0; i < _nComp; i++)
-				{
-					if (_dynReactionBulk->quasiStationaryComponentMap()[i] == 0)
-					{
-						mat.native(i, i) += timeV; // dRes / dcDot
-					}
-				}
-				for (int i : _dynReactionBulk->consMoityIdx())
-				{
-					for (int j = 0; j < _nComp; j++)
-					{
-						mat.native(i, j) += timeV * static_cast<double>(_dynReactionBulk->matrixMoietiesBulk()(i, j)); // dRes / dcDot
-						mat.native(i, _nComp + _totalBound) += alpha * static_cast<double>(_dynReactionBulk->matrixMoietiesBulk()(i, j)) * c[j]; // dRes / dVlDot
-					}
-				}
+				Eigen::Map<const Eigen::VectorXi> qsMapInv(qsCompMapInv.data(), _nComp);
 
+				// apply timeV to diagonal elements for non-quasi-stationary reactions
+				dresddy.diagonal().head(_nComp) += timeV * qsMapInv.cast<double>(); // dRes / dcDot
+
+
+				const auto& matMoities = _dynReactionBulk->matrixMoietiesBulk();
+				const std::vector<int>& consMoityIdx = _dynReactionBulk->consMoityIdx();
+
+				Eigen::Map<const Eigen::VectorXd> concVector(c, _nComp);
+
+				for (int i : consMoityIdx)
+				{
+					dresddy.block(i, 0, 1, _nComp) += timeV * matMoities.row(i).cast<double>();
+					dresddy(i, _nComp + _totalBound) += (alpha * matMoities.row(i).cast<double>()).dot(concVector);
+				}
+				
 			}
 			else
 			{
