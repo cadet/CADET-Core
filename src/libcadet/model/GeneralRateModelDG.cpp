@@ -1582,7 +1582,19 @@ bool GeneralRateModelDG::setSensitiveParameter(const ParameterId& pId, unsigned 
 std::unordered_map<ParameterId, double> GeneralRateModelDG::getAllParameterValues() const
 {
 	std::unordered_map<ParameterId, double> data = UnitOperationBase::getAllParameterValues();
-	model::getAllParameterValues(data, _parDiffOp._parDepSurfDiffusion, _parDiffOp._singleParDepSurfDiffusion);
+
+	std::vector<IParameterStateDependence*> parDepSurfDiffusion(_disc.nParType, nullptr);
+	bool singleParDepSurfDiffusion = false;
+
+	for (int type = 0; type < _disc.nParType; type++)
+	{
+		parDepSurfDiffusion[type] = _parDiffOp[type]._parDepSurfDiffusion;
+		singleParDepSurfDiffusion = _parDiffOp[0]._singleParDepSurfDiffusion;
+		if (_parDiffOp[type]._singleParDepSurfDiffusion != singleParDepSurfDiffusion)
+			throw InvalidParameterException("Something went wrong configuring the surface diffusion parameter dependence");
+	}
+
+	model::getAllParameterValues(data, parDepSurfDiffusion, singleParDepSurfDiffusion);
 
 	return data;
 }
@@ -1590,9 +1602,21 @@ std::unordered_map<ParameterId, double> GeneralRateModelDG::getAllParameterValue
 double GeneralRateModelDG::getParameterDouble(const ParameterId& pId) const
 {
 	double val = 0.0;
+
+	std::vector<IParameterStateDependence*> parDepSurfDiffusion(_disc.nParType, nullptr);
+	bool singleParDepSurfDiffusion = false;
+
+	for (int type = 0; type < _disc.nParType; type++)
+	{
+		parDepSurfDiffusion[type] = _parDiffOp[type]._parDepSurfDiffusion;
+		singleParDepSurfDiffusion = _parDiffOp[0]._singleParDepSurfDiffusion;
+		if (_parDiffOp[type]._singleParDepSurfDiffusion != singleParDepSurfDiffusion)
+			throw InvalidParameterException("Something went wrong configuring the surface diffusion parameter dependence");
+	}
+
 	for (int parType = 0; parType < _disc.nParType; parType++)
 	{
-		if (model::getParameterDouble(pId, _parDiffOp[parType]._parDepSurfDiffusion, _parDiffOp[parType]._singleParDepSurfDiffusion, val))
+		if (model::getParameterDouble(pId, parDepSurfDiffusion, singleParDepSurfDiffusion, val))
 			return val;
 	}
 
@@ -1602,9 +1626,20 @@ double GeneralRateModelDG::getParameterDouble(const ParameterId& pId) const
 
 bool GeneralRateModelDG::hasParameter(const ParameterId& pId) const
 {
+	std::vector<IParameterStateDependence*> parDepSurfDiffusion(_disc.nParType, nullptr);
+	bool singleParDepSurfDiffusion = false;
+
+	for (int type = 0; type < _disc.nParType; type++)
+	{
+		parDepSurfDiffusion[type] = _parDiffOp[type]._parDepSurfDiffusion;
+		singleParDepSurfDiffusion = _parDiffOp[0]._singleParDepSurfDiffusion;
+		if (_parDiffOp[type]._singleParDepSurfDiffusion != singleParDepSurfDiffusion)
+			throw InvalidParameterException("Something went wrong configuring the surface diffusion parameter dependence");
+	}
+
 	for (int parType = 0; parType < _disc.nParType; parType++)
 	{
-		if (model::hasParameter(pId, _parDiffOp[parType]._parDepSurfDiffusion, _parDiffOp[parType]._singleParDepSurfDiffusion))
+		if (model::hasParameter(pId, parDepSurfDiffusion, singleParDepSurfDiffusion))
 			return true;
 	}
 
