@@ -1047,7 +1047,7 @@ namespace parts
 			{
 				_filmDiffusion[comp] = filmDiff[_parTypeIdx * _nComp + comp];
 				_poreAccessFactor[comp] = poreAccessFactor[_parTypeIdx * _nComp + comp];
-				_invBetaP[comp] = (1.0 - _parPorosity) / (_poreAccessFactor[_parTypeIdx * _nComp + comp] * _parPorosity);
+				_invBetaP[comp] = (1.0 - _parPorosity) / (_poreAccessFactor[comp] * _parPorosity);
 			}
 
 		//_curSection = secIdx;
