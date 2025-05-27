@@ -88,34 +88,35 @@ namespace parts
 		ParticleDiffusionOperatorDG();
 		~ParticleDiffusionOperatorDG() CADET_NOEXCEPT;
 
-		bool configureModelDiscretization(IParameterProvider& paramProvider, const IConfigHelper& helper, const int nComp, const int nParType, const int strideBulkComp);
-		bool configure(UnitOpIdx unitOpIdx, IParameterProvider& paramProvider, std::unordered_map<ParameterId, active*>& parameters);
+		bool configureModelDiscretization(IParameterProvider& paramProvider, const IConfigHelper& helper, const int nComp, const int parTypeIdx, const int nParType, const int strideBulkComp);
+		bool configure(UnitOpIdx unitOpIdx, IParameterProvider& paramProvider, std::unordered_map<ParameterId, active*>& parameters, const int nParType, const unsigned int* nBoundBeforeType, const int nTotalBound);
 
-		void setEquidistantRadialDisc(unsigned int parType);
-		void setEquivolumeRadialDisc(unsigned int parType);
-		void setUserdefinedRadialDisc(unsigned int parType);
+		void setEquidistantRadialDisc();
+		void setEquivolumeRadialDisc();
+		void setUserdefinedRadialDisc();
 		void updateRadialDisc();
 
 		void clearParDepSurfDiffusion();
 
 		bool notifyDiscontinuousSectionTransition(double t, unsigned int secIdx, active const* const filmDiff, active const* const poreAccessFactor);
 
-		int residual(double t, unsigned int secIdx, unsigned int parType, unsigned int colNode, double const* yPar, double const* yBulk, double const* yDotPar, double* resPar, int const* const qsBinding, WithoutParamSensitivity);
-		int residual(double t, unsigned int secIdx, unsigned int parType, unsigned int colNode, double const* yPar, double const* yBulk, double const* yDotPar, active* resPar, int const* const qsBinding, WithParamSensitivity);
-		int residual(double t, unsigned int secIdx, unsigned int parType, unsigned int colNode, active const* yPar, active const* yBulk, double const* yDotPar, active* resPar, int const* const qsBinding, WithParamSensitivity);
-		int residual(double t, unsigned int secIdx, unsigned int parType, unsigned int colNode, active const* yPar, active const* yBulk, double const* yDotPar, active* resPar, int const* const qsBinding, WithoutParamSensitivity);
+		int residual(double t, unsigned int secIdx, unsigned int colNode, double const* yPar, double const* yBulk, double const* yDotPar, double* resPar, int const* const qsBinding, WithoutParamSensitivity);
+		int residual(double t, unsigned int secIdx, unsigned int colNode, double const* yPar, double const* yBulk, double const* yDotPar, active* resPar, int const* const qsBinding, WithParamSensitivity);
+		int residual(double t, unsigned int secIdx, unsigned int colNode, active const* yPar, active const* yBulk, double const* yDotPar, active* resPar, int const* const qsBinding, WithParamSensitivity);
+		int residual(double t, unsigned int secIdx, unsigned int colNode, active const* yPar, active const* yBulk, double const* yDotPar, active* resPar, int const* const qsBinding, WithoutParamSensitivity);
 
+		unsigned int _parTypeIdx; //!< Particle type index (wrt the unit operation that owns this particle model)
 
 		/* Physical model parameters */
 
-		std::vector<active> _parRadius; //!< Particle radius \f$ r_p \f$
+		active _parRadius; //!< Particle radius \f$ r_p \f$
 		bool _singleParRadius;
-		std::vector<active> _parCoreRadius; //!< Particle core radius \f$ r_c \f$
+		active _parCoreRadius; //!< Particle core radius \f$ r_c \f$
 		bool _singleParCoreRadius;
-		std::vector<active> _parPorosity; //!< Particle porosity (internal porosity) \f$ \varepsilon_p \f$
+		active _parPorosity; //!< Particle porosity (internal porosity) \f$ \varepsilon_p \f$
 		bool _singleParPorosity;
 		std::vector<active> _invBetaP; //!< Ratio of solid to liquid particle volume
-		std::vector<double> _parGeomSurfToVol; //!< Particle surface to volume ratio factor (i.e., 3.0 for spherical, 2.0 for cylindrical, 1.0 for hexahedral)
+		double _parGeomSurfToVol; //!< Particle surface to volume ratio factor (i.e., 3.0 for spherical, 2.0 for cylindrical, 1.0 for hexahedral)
 		std::vector<active> _parOuterSurfAreaPerVolume; //!< Particle element outer sphere surface to volume ratio
 		std::vector<active> _parInnerSurfAreaPerVolume; //!< Particle element inner sphere surface to volume ratio
 
@@ -127,13 +128,12 @@ namespace parts
 		MultiplexMode _parDiffusionMode;
 		std::vector<active> _parSurfDiffusion; //!< Particle surface diffusion coefficient \f$ D_s \f$
 		MultiplexMode _parSurfDiffusionMode;
-		std::vector<IParameterStateDependence*> _parDepSurfDiffusion; //!< Parameter dependencies for particle surface diffusion
+		IParameterStateDependence* _parDepSurfDiffusion; //!< Parameter dependencies for particle surface diffusion
 		bool _singleParDepSurfDiffusion; //!< Determines whether a single parameter dependence for particle surface diffusion is used
 		bool _hasParDepSurfDiffusion; //!< Determines whether particle surface diffusion parameter dependencies are present
-		std::vector<bool> _hasSurfaceDiffusion; //!< Determines whether surface diffusion is present in each particle type
+		bool _hasSurfaceDiffusion; //!< Determines whether surface diffusion is present
 
 		unsigned int _nComp; //!< Number of components
-		unsigned int _nParType; //!< Number of particle types
 
 		/* Model discretization */
 
@@ -168,96 +168,92 @@ namespace parts
 		//		_disc;
 		//};
 
-		double relativeCoordinate(const unsigned int parType, const unsigned int nodeIdx) const CADET_NOEXCEPT
+		double relativeCoordinate(const unsigned int nodeIdx) const CADET_NOEXCEPT
 		{
-			const unsigned int element = floor(nodeIdx / _nParNode[parType]);
-			const unsigned int node = nodeIdx % _nParNode[parType];
+			const unsigned int element = floor(nodeIdx / _nParNode);
+			const unsigned int node = nodeIdx % _nParNode;
 			// divide by particle radius to get relative position
-			return static_cast<double>((_deltaR[_offsetMetric[parType] + element] * element + 0.5 * _deltaR[_offsetMetric[parType] + element] * (1 + _parNodes[parType][node])) / (_parRadius[parType] - _parCoreRadius[parType]));;
+			return static_cast<double>((_deltaR[element] * element + 0.5 * _deltaR[element] * (1 + _parNodes[node])) / (_parRadius - _parCoreRadius));;
 		}
 
 		template<typename ParamType>
-		ParamType surfaceToVolumeRatio(const unsigned int parType) const CADET_NOEXCEPT
+		ParamType surfaceToVolumeRatio() const CADET_NOEXCEPT
 		{
-			return _parGeomSurfToVol[parType] / static_cast<ParamType>(_parRadius[parType]);
+			return _parGeomSurfToVol / static_cast<ParamType>(_parRadius);
 		}
 
 		int _strideBulkComp;
 		inline int strideBulkComp() const CADET_NOEXCEPT { return _strideBulkComp; }
 		inline int strideParComp() const CADET_NOEXCEPT { return 1; }
 		inline int strideParLiquid() const CADET_NOEXCEPT { return static_cast<int>(_nComp); }
-		inline int strideParBound(int parType) const CADET_NOEXCEPT { return static_cast<int>(_strideBound[parType]); }
-		inline int strideParNode(int parType) const CADET_NOEXCEPT { return strideParLiquid() + strideParBound(parType); }
-		inline int strideParElem(int parType) const CADET_NOEXCEPT { return strideParNode(parType) * _nParNode[parType]; }
-		inline int strideParBlock(int parType) const CADET_NOEXCEPT { return static_cast<int>(_nParPoints[parType]) * strideParNode(parType); }
-		inline int offsetBoundComp(ParticleTypeIndex pti, ComponentIndex comp) const CADET_NOEXCEPT { return _boundOffset[pti.value * _nComp + comp.value]; }
+		inline int strideParBound() const CADET_NOEXCEPT { return static_cast<int>(_strideBound); }
+		inline int strideParNode() const CADET_NOEXCEPT { return strideParLiquid() + strideParBound(); }
+		inline int strideParElem() const CADET_NOEXCEPT { return strideParNode() * _nParNode; }
+		inline int strideParBlock() const CADET_NOEXCEPT { return static_cast<int>(_nParPoints) * strideParNode(); }
+		inline int offsetBoundComp(ComponentIndex comp) const CADET_NOEXCEPT { return _boundOffset[comp.value]; }
 
-		std::vector<ParticleDiscretizationMode> _parDiscMode; //!< Particle discretization mode
+		ParticleDiscretizationMode _parDiscMode; //!< Particle discretization mode
 
-		std::vector<double> _parDiscVector; //!< Particle discretization element edges
+		std::vector<double> _parDiscVector; //!< Particle discretization element boundary coodinates
 
-		unsigned int* _nParElem; //!< Array with number of radial elements in each particle type
-		unsigned int* _nParPointsBeforeType; //!< Array with total number of radial points before a particle type (cumulative sum of nParPoints), additional last element contains total number of particle elements
-		unsigned int* _parPolyDeg; //!< polynomial degree of particle elements
-		unsigned int* _nParNode; //!< Array with number of radial nodes per element in each particle type
-		unsigned int* _nParPoints; //!< Array with number of radial nodes per element in each particle type
-		bool* _parGSM; //!< specifies whether (single element) Galerkin spectral method should be used in particles
-		//unsigned int* _parTypeOffset; //!< Array with offsets (in particle block) to particle type, additional last element contains total number of particle DOFs
-		unsigned int* _nBound; //!< Array with number of bound states for each component and particle type (particle type major ordering)
-		unsigned int* _boundOffset; //!< Array with offset to the first bound state of each component in the solid phase (particle type major ordering)
-		unsigned int* _strideBound; //!< Total number of bound states for each particle type, additional last element contains total number of bound states for all types
-		unsigned int* _nBoundBeforeType; //!< Array with number of bound states before a particle type (cumulative sum of strideBound)
+		unsigned int _nParElem; //!< Array with number of radial elements
+		unsigned int _parPolyDeg; //!< polynomial degree of particle elements
+		unsigned int _nParNode; //!< Array with number of radial nodes per element
+		unsigned int _nParPoints; //!< Array with number of radial nodes per element
+		bool _parGSM; //!< specifies whether (single element) Galerkin spectral method should be used in particles
+		unsigned int* _nBound; //!< Array with number of bound states for each component
+		unsigned int* _boundOffset; //!< Array with offset to the first bound state of each component in the solid phase
+		unsigned int _strideBound; //!< Total number of bound states
 
 		std::vector<active> _parElementSize; //!< Particle element size
 		std::vector<active> _parCenterRadius; //!< Particle node-centered position for each particle node
 
 		/* DG specific operators */
 
-		active* _deltaR; //!< equidistant particle element spacing for each particle type
-		Eigen::VectorXd* _parNodes; //!< Array with positions of nodes in radial reference element for each particle
-		Eigen::MatrixXd* _parPolyDerM; //!< Array with polynomial derivative Matrix for each particle
+		active* _deltaR; //!< equidistant particle element spacing
+		Eigen::VectorXd _parNodes; //!< Array with positions of nodes in radial reference element for each particle
+		Eigen::MatrixXd _parPolyDerM; //!< Array with polynomial derivative Matrix for each particle
 		Eigen::MatrixXd* _minus_InvMM_ST; //!< equals minus inverse mass matrix times transposed stiffness matrix.
-		Eigen::VectorXd* _parInvWeights; //!< Array with weights for LGL quadrature of size nNodes for each particle
+		Eigen::VectorXd _parInvWeights; //!< Array with weights for LGL quadrature of size nNodes for each particle
 		Eigen::MatrixXd* _parInvMM; //!< dense inverse mass matrix for exact integration of integrals with metrics, for each particle
-		Eigen::MatrixXd* _parInvMM_Leg; //!< dense inverse mass matrix (Legendre) for exact integration of integral without metric, for each particle
-		Eigen::MatrixXd* _secondOrderStiffnessM; //!< specific second order stiffness matrix
-		Eigen::MatrixXd* _minus_parInvMM_Ar; //!< inverse mass matrix times specific second order stiffness matrix
-		Eigen::Vector<active, Dynamic>* _Ir; //!< metric part for each particle type and element, particle type major ordering
-		Eigen::VectorXi _offsetMetric; //!< offset required to access metric dependent DG operator storage of Ir, Dr -> summed up nCells of all previous parTypes
+		Eigen::MatrixXd _parInvMM_Leg; //!< dense inverse mass matrix (Legendre) for exact integration of integral without metric, for each particle
+		Eigen::MatrixXd _secondOrderStiffnessM; //!< specific second order stiffness matrix
+		Eigen::MatrixXd _minus_parInvMM_Ar; //!< inverse mass matrix times specific second order stiffness matrix
+		Eigen::Vector<active, Dynamic>* _Ir; //!< metric part for each element
 
 		Eigen::MatrixXd* _DGjacParDispBlocks; //!< particle dispersion blocks of DG jacobian
 
-		Eigen::Vector<active, Dynamic>* _g_p; //!< auxiliary variable g = dc_p / dr
-		Eigen::Vector<active, Dynamic>* _g_pSum; //!< auxiliary variable g = sum_{k \in p, s_i} dc_k / dr
-		Eigen::Vector<active, Dynamic>* _surfaceFluxParticle; //!< stores the surface flux values for each particle
+		Eigen::Vector<active, Dynamic> _g_p; //!< auxiliary variable g = dc_p / dr
+		Eigen::Vector<active, Dynamic> _g_pSum; //!< auxiliary variable g = sum_{k \in p, s_i} dc_k / dr
+		Eigen::Vector<active, Dynamic> _surfaceFluxParticle; //!< stores the surface flux values for each particle
 		active* _localFlux; //!< stores the local (at respective particle) film diffusion flux
 
 		void initializeDG();
 
-		void initializeDGjac(std::vector<double> parGeomSurfToVol);
+		void initializeDGjac(const double parGeomSurfToVol);
 
-		int calcFilmDiffJacobian(unsigned int secIdx, const int parType, const int offsetCp, const int offsetC, const int nBulkPoints, const double colPorosity, const active* const parTypeVolFrac, Eigen::SparseMatrix<double, RowMajor>& globalJac, bool outliersOnly = false);
+		int calcFilmDiffJacobian(unsigned int secIdx, const int offsetCp, const int offsetC, const int nBulkPoints, const int nParType, const double colPorosity, const active* const parTypeVolFrac, Eigen::SparseMatrix<double, RowMajor>& globalJac, bool outliersOnly = false);
 
-		int getParticleCoordinates(unsigned int parType, double* coords) const;
+		int getParticleCoordinates(double* coords) const;
 
 		typedef Eigen::Triplet<double> T;
 
 		/**
 		 * @brief sets the particle sparsity pattern wrt the global Jacobian
 		 */
-		void setParJacPattern(std::vector<T>& tripletList, const int offsetCp, unsigned int parType, unsigned int colNode, unsigned int secIdx, int const* const qsBinding)
+		void setParJacPattern(std::vector<T>& tripletList, const int offsetCp, unsigned int colNode, unsigned int secIdx, int const* const qsBinding)
 		{
-			calcParticleJacobianPattern(tripletList, offsetCp, parType, colNode, secIdx, qsBinding);
+			calcParticleJacobianPattern(tripletList, offsetCp, colNode, secIdx, qsBinding);
 
-			parTimeDerJacPattern_GRM(tripletList, offsetCp, parType, colNode, secIdx);
+			parTimeDerJacPattern_GRM(tripletList, offsetCp, colNode, secIdx);
 
-			parBindingPattern_GRM(tripletList, offsetCp, parType, colNode);
+			parBindingPattern_GRM(tripletList, offsetCp, colNode);
 		}
 
-		unsigned int calcParDispNNZ(int parType);
+		unsigned int calcParDispNNZ();
 
-		int calcStaticAnaParticleDiffJacobian(const int secIdx, const int parType, const int colNode, const int* const reqBinding, const int offsetLocalCp, Eigen::SparseMatrix<double, RowMajor>& globalJac);
-		int addSolidDGentries(const int secIdx, const int parType, const int nBulk, const int* const reqBinding, const int offsetCp, Eigen::SparseMatrix<double, RowMajor>& globalJac);
+		int calcStaticAnaParticleDiffJacobian(const int secIdx, const int colNode, const int* const reqBinding, const int offsetLocalCp, Eigen::SparseMatrix<double, RowMajor>& globalJac);
+		int addSolidDGentries(const int secIdx, const int nBulk, const int* const reqBinding, const int offsetCp, Eigen::SparseMatrix<double, RowMajor>& globalJac);
 
 		bool setParameter(const ParameterId& pId, double value);
 		bool setParameter(const ParameterId& pId, int value);
@@ -270,44 +266,44 @@ namespace parts
 		/*		DG particle Residual		*/
 
 		template <typename StateType, typename ResidualType, typename ParamType>
-		int residualImpl(double t, unsigned int secIdx, unsigned int parType, unsigned int colNode, StateType const* yPar, StateType const* yBulk, double const* yDotPar, ResidualType* resPar, int const* const qsBinding);
+		int residualImpl(double t, unsigned int secIdx, unsigned int colNode, StateType const* yPar, StateType const* yBulk, double const* yDotPar, ResidualType* resPar, int const* const qsBinding);
 
 		template<typename ResidualType, typename ParamType>
-		void applyParInvMap(Eigen::Map<Vector<ResidualType, Dynamic>, 0, InnerStride<>>& state, unsigned int parType);
+		void applyParInvMap(Eigen::Map<Vector<ResidualType, Dynamic>, 0, InnerStride<>>& state);
 
 		template<typename StateType, typename ResidualType>
-		void parGSMVolumeIntegral(const int parType, Eigen::Map<const Vector<StateType, Dynamic>, 0, InnerStride<Dynamic>>& state, Eigen::Map<Vector<ResidualType, Dynamic>, 0, InnerStride<Dynamic>>& stateDer);
+		void parGSMVolumeIntegral(Eigen::Map<const Vector<StateType, Dynamic>, 0, InnerStride<Dynamic>>& state, Eigen::Map<Vector<ResidualType, Dynamic>, 0, InnerStride<Dynamic>>& stateDer);
 
 		template<typename StateType, typename ResidualType>
-		void parVolumeIntegral(const int parType, const bool aux, Eigen::Map<const Vector<StateType, Dynamic>, 0, InnerStride<Dynamic>>& state, Eigen::Map<Vector<ResidualType, Dynamic>, 0, InnerStride<Dynamic>>& stateDer);
+		void parVolumeIntegral(const bool aux, Eigen::Map<const Vector<StateType, Dynamic>, 0, InnerStride<Dynamic>>& state, Eigen::Map<Vector<ResidualType, Dynamic>, 0, InnerStride<Dynamic>>& stateDer);
 
 		template<typename StateType>
-		void InterfaceFluxParticle(int parType, Eigen::Map<const Vector<StateType, Dynamic>, 0, InnerStride<Dynamic>>& state, const unsigned int strideCell, const unsigned int strideNode, const bool aux, const int comp, const bool addParDisc = false);
+		void InterfaceFluxParticle(Eigen::Map<const Vector<StateType, Dynamic>, 0, InnerStride<Dynamic>>& state, const unsigned int strideCell, const unsigned int strideNode, const bool aux, const int comp, const bool addParDisc = false);
 
 		template<typename StateType, typename ResidualType>
-		void parSurfaceIntegral(int parType, Eigen::Map<const Vector<StateType, Dynamic>, 0, InnerStride<Dynamic>>& state,
+		void parSurfaceIntegral(Eigen::Map<const Vector<StateType, Dynamic>, 0, InnerStride<Dynamic>>& state,
 			Eigen::Map<Vector<ResidualType, Dynamic>, 0, InnerStride<Dynamic>>& stateDer, unsigned const int strideCell, unsigned const int strideNode,
 			const bool aux, const int comp = 0, const bool addParDisc = false);
 
 		template<typename StateType>
-		void solve_auxiliary_DG(int parType, Eigen::Map<const Vector<StateType, Dynamic>, 0, InnerStride<>>& conc, unsigned int strideCell, unsigned int strideNode, int comp);
+		void solve_auxiliary_DG(Eigen::Map<const Vector<StateType, Dynamic>, 0, InnerStride<>>& conc, unsigned int strideCell, unsigned int strideNode, int comp);
 
 		/*		DG particle Jacobian		*/
 
-		Eigen::MatrixXd DGjacobianParDispBlock(unsigned int elemIdx, unsigned int parType, double parGeomSurfToVol);
-		Eigen::MatrixXd GSMjacobianParDispBlock(unsigned int parType, double parGeomSurfToVol);
-		Eigen::MatrixXd getParBMatrix(int parType, int element, double parGeomSurfToVol);
-		Eigen::MatrixXd parAuxBlockGstar(unsigned int elemIdx, unsigned int parType, MatrixXd leftG, MatrixXd middleG, MatrixXd rightG);
-		Eigen::MatrixXd getParGBlock(unsigned int elemIdx, unsigned int parType);
+		Eigen::MatrixXd DGjacobianParDispBlock(unsigned int elemIdx,double parGeomSurfToVol);
+		Eigen::MatrixXd GSMjacobianParDispBlock(double parGeomSurfToVol);
+		Eigen::MatrixXd getParBMatrix(int element, double parGeomSurfToVol);
+		Eigen::MatrixXd parAuxBlockGstar(unsigned int elemIdx, MatrixXd leftG, MatrixXd middleG, MatrixXd rightG);
+		Eigen::MatrixXd getParGBlock(unsigned int elemIdx);
 
-		void calcParticleJacobianPattern(std::vector<T>& tripletList, unsigned int offset, unsigned int parType, unsigned int colNode, unsigned int secIdx, int const* const qsBinding);
+		void calcParticleJacobianPattern(std::vector<T>& tripletList, unsigned int offset, unsigned int colNode, unsigned int secIdx, int const* const qsBinding);
 
-		void parTimeDerJacPattern_GRM(std::vector<T>& tripletList, unsigned int offset, unsigned int parType, unsigned int colNode, unsigned int secIdx);
+		void parTimeDerJacPattern_GRM(std::vector<T>& tripletList, unsigned int offset, unsigned int colNode, unsigned int secIdx);
 
-		void parBindingPattern_GRM(std::vector<T>& tripletList, const int offset, const unsigned int parType, const unsigned int colNode);
+		void parBindingPattern_GRM(std::vector<T>& tripletList, const int offset, const unsigned int colNode);
 
-		void insertParJacBlock(Eigen::MatrixXd block, linalg::BandedEigenSparseRowIterator& jac, const active* const parDiff, const active* const surfDiff, const active* const beta_p, const int* nonKinetic, unsigned int type, unsigned int nBlocks, int offRowToCol);
-		void addDiagonalSolidJacobianEntries(Eigen::MatrixXd block, linalg::BandedEigenSparseRowIterator& jac, const int* const reqBinding, const active* const surfDiffPtr, unsigned int type);
+		void insertParJacBlock(Eigen::MatrixXd block, linalg::BandedEigenSparseRowIterator& jac, const active* const parDiff, const active* const surfDiff, const active* const beta_p, const int* nonKinetic, unsigned int nBlocks, int offRowToCol);
+		void addDiagonalSolidJacobianEntries(Eigen::MatrixXd block, linalg::BandedEigenSparseRowIterator& jac, const int* const reqBinding, const active* const surfDiffPtr);
 
 	};
 
