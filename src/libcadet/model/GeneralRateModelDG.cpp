@@ -262,10 +262,10 @@ bool GeneralRateModelDG::configureModelDiscretization(IParameterProvider& paramP
 
 	_disc.curSection = -1;
 
-	// ==== Construct and configure binding model
+	// ====Legacy code since originally bindings were handled by the unit operation
+	// Cannot remove _binding which is a member of the base class; also we need the _singleBinding information here
 	clearBindingModels();
 	_binding = std::vector<IBindingModel*>(_disc.nParType, nullptr);
-
 	std::vector<std::string> bindModelNames = { "NONE" };
 	if (paramProvider.exists("ADSORPTION_MODEL"))
 		bindModelNames = paramProvider.getStringArray("ADSORPTION_MODEL");
@@ -278,27 +278,19 @@ bool GeneralRateModelDG::configureModelDiscretization(IParameterProvider& paramP
 		_singleBinding = (bindModelNames.size() == 1);
 	}
 
-	if (!_singleBinding && (bindModelNames.size() < _disc.nParType))
-		throw InvalidParameterException("Field ADSORPTION_MODEL contains too few elements (" + std::to_string(_disc.nParType) + " required)");
-	else if (_singleBinding && (bindModelNames.size() != 1))
-		throw InvalidParameterException("Field ADSORPTION_MODEL requires (only) 1 element");
-
-	bool bindingConfSuccess = true;
-	for (unsigned int i = 0; i < _disc.nParType; ++i)
+	// legacy code for particle reactions
+	clearDynamicReactionModels();
+	_dynReaction = std::vector<IDynamicReactionModel*>(_disc.nParType, nullptr);;
+	if (paramProvider.exists("REACTION_MODEL_PARTICLES"))
 	{
-		if (_singleBinding && (i > 0))
-		{
-			// Reuse first binding model
-			_binding[i] = _binding[0];
-		}
+		const std::vector<std::string> dynReactModelNames = paramProvider.getStringArray("REACTION_MODEL_PARTICLES");
+
+		if (paramProvider.exists("REACTION_MODEL_PARTICLES_MULTIPLEX"))
+			_singleDynReaction = (paramProvider.getInt("REACTION_MODEL_PARTICLES_MULTIPLEX") == 1);
 		else
 		{
-			_binding[i] = helper.createBindingModel(bindModelNames[i]);
-			if (!_binding[i])
-				throw InvalidParameterException("Unknown binding model " + bindModelNames[i]);
-
-			MultiplexedScopeSelector scopeGuard(paramProvider, "adsorption", _singleBinding, i, _disc.nParType == 1, _binding[i]->usesParamProviderInDiscretizationConfig());
-			bindingConfSuccess = _binding[i]->configureModelDiscretization(paramProvider, _disc.nComp, _disc.nBound + i * _disc.nComp, _disc.boundOffset + i * _disc.nComp) && bindingConfSuccess;
+			// Infer multiplex mode
+			_singleDynReaction = (dynReactModelNames.size() == 1);
 		}
 	}
 
@@ -322,45 +314,6 @@ bool GeneralRateModelDG::configureModelDiscretization(IParameterProvider& paramP
 			paramProvider.popScope();
 	}
 
-	clearDynamicReactionModels();
-	_dynReaction = std::vector<IDynamicReactionModel*>(_disc.nParType, nullptr);
-
-	if (paramProvider.exists("REACTION_MODEL_PARTICLES"))
-	{
-		const std::vector<std::string> dynReactModelNames = paramProvider.getStringArray("REACTION_MODEL_PARTICLES");
-
-		if (paramProvider.exists("REACTION_MODEL_PARTICLES_MULTIPLEX"))
-			_singleDynReaction = (paramProvider.getInt("REACTION_MODEL_PARTICLES_MULTIPLEX") == 1);
-		else
-		{
-			// Infer multiplex mode
-			_singleDynReaction = (dynReactModelNames.size() == 1);
-		}
-
-		if (!_singleDynReaction && (dynReactModelNames.size() < _disc.nParType))
-			throw InvalidParameterException("Field REACTION_MODEL_PARTICLES contains too few elements (" + std::to_string(_disc.nParType) + " required)");
-		else if (_singleDynReaction && (dynReactModelNames.size() != 1))
-			throw InvalidParameterException("Field REACTION_MODEL_PARTICLES requires (only) 1 element");
-
-		for (unsigned int i = 0; i < _disc.nParType; ++i)
-		{
-			if (_singleDynReaction && (i > 0))
-			{
-				// Reuse first binding model
-				_dynReaction[i] = _dynReaction[0];
-			}
-			else
-			{
-				_dynReaction[i] = helper.createDynamicReactionModel(dynReactModelNames[i]);
-				if (!_dynReaction[i])
-					throw InvalidParameterException("Unknown dynamic reaction model " + dynReactModelNames[i]);
-
-				MultiplexedScopeSelector scopeGuard(paramProvider, "reaction_particle", _singleDynReaction, i, _disc.nParType == 1, _dynReaction[i]->usesParamProviderInDiscretizationConfig());
-				reactionConfSuccess = _dynReaction[i]->configureModelDiscretization(paramProvider, _disc.nComp, _disc.nBound + i * _disc.nComp, _disc.boundOffset + i * _disc.nComp) && reactionConfSuccess;
-			}
-		}
-	}
-
 	// Allocate memory
 	if (firstConfigCall)
 		_tempState = new double[numDofs()];
@@ -378,7 +331,7 @@ bool GeneralRateModelDG::configureModelDiscretization(IParameterProvider& paramP
 	// Set whether analytic Jacobian is used
 	useAnalyticJacobian(analyticJac);
 
-	return transportSuccess && particleConfSuccess && bindingConfSuccess && reactionConfSuccess;
+	return transportSuccess && particleConfSuccess && reactionConfSuccess;
 }
  
 bool GeneralRateModelDG::configure(IParameterProvider& paramProvider)
@@ -496,32 +449,7 @@ bool GeneralRateModelDG::configure(IParameterProvider& paramProvider)
 		}
 	}
 
-	// Reconfigure binding model
-	bool bindingConfSuccess = true;
-	if (!_binding.empty())
-	{
-		if (_singleBinding)
-		{
-			if (_binding[0] && _binding[0]->requiresConfiguration())
-			{
-				MultiplexedScopeSelector scopeGuard(paramProvider, "adsorption", true);
-				bindingConfSuccess = _binding[0]->configure(paramProvider, _unitOpIdx, ParTypeIndep);
-			}
-		}
-		else
-		{
-			for (unsigned int type = 0; type < _disc.nParType; ++type)
-			{
-	 			if (!_binding[type] || !_binding[type]->requiresConfiguration())
-	 				continue;
-
-				MultiplexedScopeSelector scopeGuard(paramProvider, "adsorption", type, _disc.nParType == 1, true);
-				bindingConfSuccess = _binding[type]->configure(paramProvider, _unitOpIdx, type) && bindingConfSuccess;
-			}
-		}
-	}
-
-	// Reconfigure reaction model
+	// Reconfigure bulk reaction model
 	bool dynReactionConfSuccess = true;
 	if (_dynReactionBulk && _dynReactionBulk->requiresConfiguration())
 	{
@@ -529,27 +457,8 @@ bool GeneralRateModelDG::configure(IParameterProvider& paramProvider)
 		dynReactionConfSuccess = _dynReactionBulk->configure(paramProvider, _unitOpIdx, ParTypeIndep);
 		paramProvider.popScope();
 	}
-
-	if (_singleDynReaction)
-	{
-		if (_dynReaction[0] && _dynReaction[0]->requiresConfiguration())
-		{
-			MultiplexedScopeSelector scopeGuard(paramProvider, "reaction_particle", true);
-			dynReactionConfSuccess = _dynReaction[0]->configure(paramProvider, _unitOpIdx, ParTypeIndep) && dynReactionConfSuccess;
-		}
-	}
-	else
-	{
-		for (unsigned int type = 0; type < _disc.nParType; ++type)
-		{
- 			if (!_dynReaction[type] || !_dynReaction[type]->requiresConfiguration())
- 				continue;
-
-			MultiplexedScopeSelector scopeGuard(paramProvider, "reaction_particle", type, _disc.nParType == 1, true);
-			dynReactionConfSuccess = _dynReaction[type]->configure(paramProvider, _unitOpIdx, type) && dynReactionConfSuccess;
-		}
-	}
-
+	
+	// reconfigure particle model
 	bool particleConfSuccess = true;
 	for (int parType = 0; parType < _disc.nParType; parType++)
 	{
@@ -562,7 +471,7 @@ bool GeneralRateModelDG::configure(IParameterProvider& paramProvider)
 	// The goal of analyzePattern() is to reorder the nonzero elements of the matrix, such that the factorization step creates less fill-in
 	_linearSolver->analyzePattern(_globalJacDisc.block(_disc.nComp, _disc.nComp, numPureDofs(), numPureDofs()));
 
-	return transportSuccess && particleConfSuccess && bindingConfSuccess && dynReactionConfSuccess;
+	return transportSuccess && particleConfSuccess && dynReactionConfSuccess;
 }
 
 unsigned int GeneralRateModelDG::threadLocalMemorySize() const CADET_NOEXCEPT
@@ -572,11 +481,11 @@ unsigned int GeneralRateModelDG::threadLocalMemorySize() const CADET_NOEXCEPT
 	// Memory for residualImpl()
 	for (unsigned int i = 0; i < _disc.nParType; ++i)
 	{
-		if (_binding[i] && _binding[i]->requiresWorkspace())
-			lms.fitBlock(_binding[i]->workspaceSize(_disc.nComp, _disc.strideBound[i], _disc.nBound + i * _disc.nComp));
+		if (_parDiffOp[i]._binding && _parDiffOp[i]._binding->requiresWorkspace())
+			lms.fitBlock(_parDiffOp[i]._binding->workspaceSize(_disc.nComp, _disc.strideBound[i], _disc.nBound + i * _disc.nComp));
 
-		if (_dynReaction[i] && _dynReaction[i]->requiresWorkspace())
-			lms.fitBlock(_dynReaction[i]->workspaceSize(_disc.nComp, _disc.strideBound[i], _disc.nBound + i * _disc.nComp));
+		if (_parDiffOp[i]._dynReaction && _parDiffOp[i]._dynReaction->requiresWorkspace())
+			lms.fitBlock(_parDiffOp[i]._dynReaction->workspaceSize(_disc.nComp, _disc.strideBound[i], _disc.nBound + i * _disc.nComp));
 	}
 
 	if (_dynReactionBulk && _dynReactionBulk->requiresWorkspace())
@@ -990,10 +899,8 @@ int GeneralRateModelDG::residualImpl(double t, unsigned int secIdx, StateType co
 
 		for (unsigned int parType = 0; parType < _disc.nParType; parType++)
 		{
-			if (_binding[parType]->hasDynamicReactions() && _parDiffOp[parType]._hasSurfaceDiffusion)
-			{
-				_parDiffOp[parType].addSolidDGentries(secIdx, _disc.nPoints, _binding[parType]->reactionQuasiStationarity(), idxr.offsetCp(ParticleTypeIndex{parType}), _globalJac);
-			}
+			// note that entries are only added if the model has dynamic reactions and surface diffusion
+			_parDiffOp[parType].addSolidDGentries(secIdx, _disc.nPoints, idxr.offsetCp(ParticleTypeIndex{parType}), _globalJac);
 		}
 	}
 
@@ -1079,7 +986,7 @@ int GeneralRateModelDG::residualParticle(double t, unsigned int parType, unsigne
 	// and jac[1] is the first upper diagonal. We can also access the rows from left to
 	// right beginning with the last lower diagonal moving towards the main diagonal and
 	// continuing to the last upper diagonal by using the native() method.
-	linalg::BandedEigenSparseRowIterator jac(_globalJac, idxr.offsetCp(ParticleTypeIndex{ parType }, ParticleIndex{ colNode }));
+	linalg::BandedEigenSparseRowIterator jacIt(_globalJac, idxr.offsetCp(ParticleTypeIndex{ parType }, ParticleIndex{ colNode }));
 
 	int const* const qsReaction = _binding[parType]->reactionQuasiStationarity();
 	const parts::cell::CellParameters cellResParams = makeCellResidualParams(parType, qsReaction);
@@ -1099,28 +1006,26 @@ int GeneralRateModelDG::residualParticle(double t, unsigned int parType, unsigne
 
 		if (wantRes)
 			parts::cell::residualKernel<StateType, ResidualType, ParamType, parts::cell::CellParameters, linalg::BandedEigenSparseRowIterator, wantJac, true>(
-				t, secIdx, colPos, local_y, local_yDot, local_res, jac, cellResParams, tlmAlloc
+				t, secIdx, colPos, local_y, local_yDot, local_res, jacIt, cellResParams, tlmAlloc
 			);
 		else
 			parts::cell::residualKernel<StateType, ResidualType, ParamType, parts::cell::CellParameters, linalg::BandedEigenSparseRowIterator, wantJac, false, false>(
-				t, secIdx, colPos, local_y, local_yDot, local_res, jac, cellResParams, tlmAlloc
+				t, secIdx, colPos, local_y, local_yDot, local_res, jacIt, cellResParams, tlmAlloc
 			);
 
 		// Move rowiterator to next particle node
-		jac += idxr.strideParNode(parType);
+		jacIt += idxr.strideParNode(parType);
 	}
 
-	if(!wantRes)
-		return 0;
-
 	// Particle transport equations: particle and surface diffusion
+	const ColumnPosition colPos{ 0.0, 0.0, 0.0 };
 
-	_parDiffOp[parType].residual(t, secIdx, colNode,
+	_parDiffOp[parType].residual(t, secIdx,
 		yBase + idxr.offsetCp(ParticleTypeIndex{ parType }, ParticleIndex{ colNode }),
 		yBase + idxr.offsetC() + colNode * idxr.strideColNode(),
 		yDotBase + idxr.offsetCp(ParticleTypeIndex{ parType }, ParticleIndex{ colNode }),
 		resBase + idxr.offsetCp(ParticleTypeIndex{ parType }, ParticleIndex{ colNode }),
-		_binding[parType]->reactionQuasiStationarity(),
+		colPos, wantRes, jacIt,
 		typename cadet::ParamSens<ParamType>::enabled()
 	);
 
