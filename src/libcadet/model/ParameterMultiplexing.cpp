@@ -650,7 +650,7 @@ bool singleTypeMultiplexTypeParameterValue(const ParameterId& pId, StringHash na
 	return true;
 }
 
-bool singleTypeMultiplexTypeParameterADSingleType(const ParameterId& pId, StringHash nameHash, bool mode, active& data, unsigned int adDirection, double adValue, std::unordered_set<active*>& sensParams)
+bool singleTypeMultiplexTypeParameterAD(const ParameterId& pId, StringHash nameHash, bool mode, active& data, unsigned int adDirection, double adValue, std::unordered_set<active*>& sensParams)
 {
 	if (!mode || (pId.name != nameHash))
 		return false;

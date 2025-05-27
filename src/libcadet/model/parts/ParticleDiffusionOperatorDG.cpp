@@ -2204,21 +2204,21 @@ namespace parts
 
 	bool ParticleDiffusionOperatorDG::setParameter(const ParameterId& pId, double value)
 	{
-		//if (singleTypeMultiplexCompTypeSecParameterValue(pId, hashString("PAR_DIFFUSION"), _parDiffusionMode, _parDiffusion, _nComp, _parTypeIdx, value, nullptr))
-		//	return true;
-		//if (singleTypeMultiplexBndCompTypeSecParameterValue(pId, hashString("PAR_SURFDIFFUSION"), _parSurfDiffusionMode, _parSurfDiffusion, _nComp, _strideBound, _boundOffset, _parTypeIdx, value, nullptr))
-		//	return true;
+		if (singleTypeMultiplexCompTypeSecParameterValue(pId, hashString("PAR_DIFFUSION"), _parDiffusionMode, _parDiffusion, _nComp, _parTypeIdx, value, nullptr))
+			return true;
+		if (singleTypeMultiplexBndCompTypeSecParameterValue(pId, hashString("PAR_SURFDIFFUSION"), _parSurfDiffusionMode, _parSurfDiffusion, _nComp, _strideBound, _boundOffset, _parTypeIdx, value, nullptr))
+			return true;
 
-		//if (singleTypeMultiplexTypeParameterValue(pId, hashString("PAR_RADIUS"), _singleParRadius, _parRadius, value, nullptr))
-		//	return true;
-		//if (singleTypeMultiplexTypeParameterValue(pId, hashString("PAR_CORERADIUS"), _singleParCoreRadius, _parCoreRadius, value, nullptr))
-		//	return true;
-		//if (singleTypeMultiplexTypeParameterValue(pId, hashString("PAR_POROSITY"), _singleParPorosity, _parPorosity, value, nullptr))
-		//	return true;
+		if (singleTypeMultiplexTypeParameterValue(pId, hashString("PAR_RADIUS"), _singleParRadius, _parRadius, value, nullptr))
+			return true;
+		if (singleTypeMultiplexTypeParameterValue(pId, hashString("PAR_CORERADIUS"), _singleParCoreRadius, _parCoreRadius, value, nullptr))
+			return true;
+		if (singleTypeMultiplexTypeParameterValue(pId, hashString("PAR_POROSITY"), _singleParPorosity, _parPorosity, value, nullptr))
+			return true;
 
-		//if (_singleParDepSurfDiffusion)
-		//	if (_parDepSurfDiffusion && _parDepSurfDiffusion->setParameter(pId, value))
-		//		return true;
+		if (_singleParDepSurfDiffusion)
+			if (_parDepSurfDiffusion && _parDepSurfDiffusion->setParameter(pId, value))
+				return true;
 
 		return false;
 	}
@@ -2243,61 +2243,61 @@ namespace parts
 
 	bool ParticleDiffusionOperatorDG::setSensitiveParameterValue(const std::unordered_set<active*>& sensParams, const ParameterId& pId, double value)
 	{
-		//if (singleTypeMultiplexCompTypeSecParameterValue(pId, hashString("PAR_DIFFUSION"), _parDiffusionMode, _parDiffusion, _nParType, _nComp, value, &sensParams))
-		//	return true;
-		//if (singleTypeMultiplexBndCompTypeSecParameterValue(pId, hashString("PAR_SURFDIFFUSION"), _parSurfDiffusionMode, _parSurfDiffusion, _nParType, _nComp, _strideBound, _nBound, _boundOffset, _nBoundBeforeType, value, &sensParams))
-		//	return true;
+		if (singleTypeMultiplexCompTypeSecParameterValue(pId, hashString("PAR_DIFFUSION"), _parDiffusionMode, _parDiffusion, _nComp, _parTypeIdx, value, &sensParams))
+			return true;
+		if (singleTypeMultiplexBndCompTypeSecParameterValue(pId, hashString("PAR_SURFDIFFUSION"), _parSurfDiffusionMode, _parSurfDiffusion, _nComp, _strideBound, _boundOffset, _parTypeIdx, value, &sensParams))
+			return true;
 
-		//if (singleTypeMultiplexTypeParameterValue(pId, hashString("PAR_RADIUS"), _singleParRadius, _parRadius, value, &sensParams))
-		//	return true;
-		//if (singleTypeMultiplexTypeParameterValue(pId, hashString("PAR_CORERADIUS"), _singleParCoreRadius, _parCoreRadius, value, &sensParams))
-		//	return true;
-		//if (singleTypeMultiplexTypeParameterValue(pId, hashString("PAR_POROSITY"), _singleParPorosity, _parPorosity, value, &sensParams))
-		//	return true;
+		if (singleTypeMultiplexTypeParameterValue(pId, hashString("PAR_RADIUS"), _singleParRadius, _parRadius, value, &sensParams))
+			return true;
+		if (singleTypeMultiplexTypeParameterValue(pId, hashString("PAR_CORERADIUS"), _singleParCoreRadius, _parCoreRadius, value, &sensParams))
+			return true;
+		if (singleTypeMultiplexTypeParameterValue(pId, hashString("PAR_POROSITY"), _singleParPorosity, _parPorosity, value, &sensParams))
+			return true;
 
-		//if (model::setSensitiveParameterValue(pId, value, sensParams, _parDepSurfDiffusion, _singleParDepSurfDiffusion))
-		//	return true;
+		if (model::setSensitiveParameterValue(pId, value, sensParams, std::vector< IParameterStateDependence*>(1, _parDepSurfDiffusion), _singleParDepSurfDiffusion))
+			return true;
 
 		return false;
 	}
 
 	bool ParticleDiffusionOperatorDG::setSensitiveParameter(std::unordered_set<active*>& sensParams, const ParameterId& pId, unsigned int adDirection, double adValue)
 	{
-		//if (multiplexCompTypeSecParameterAD(pId, hashString("PAR_DIFFUSION"), _parDiffusionMode, _parDiffusion, _nParType, _nComp, adDirection, adValue, sensParams))
-		//{
-		//	LOG(Debug) << "Found parameter " << pId << ": Dir " << adDirection << " is set to " << adValue;
-		//	return true;
-		//}
+		if (singleTypeMultiplexCompTypeSecParameterAD(pId, hashString("PAR_DIFFUSION"), _parDiffusionMode, _parDiffusion, _nComp, adDirection, adValue, sensParams))
+		{
+			LOG(Debug) << "Found parameter " << pId << ": Dir " << adDirection << " is set to " << adValue;
+			return true;
+		}
 
-		//if (multiplexBndCompTypeSecParameterAD(pId, hashString("PAR_SURFDIFFUSION"), _parSurfDiffusionMode, _parSurfDiffusion, _nParType, _nComp, _strideBound, _nBound, _boundOffset, _nBoundBeforeType, adDirection, adValue, sensParams))
-		//{
-		//	LOG(Debug) << "Found parameter " << pId << ": Dir " << adDirection << " is set to " << adValue;
-		//	return true;
-		//}
+		if (singleTypeMultiplexBndCompTypeSecParameterAD(pId, hashString("PAR_SURFDIFFUSION"), _parSurfDiffusionMode, _parSurfDiffusion, _nComp, _strideBound, _boundOffset, adDirection, adValue, sensParams))
+		{
+			LOG(Debug) << "Found parameter " << pId << ": Dir " << adDirection << " is set to " << adValue;
+			return true;
+		}
 
-		//if (model::setSensitiveParameter(pId, adDirection, adValue, sensParams, _parDepSurfDiffusion, _singleParDepSurfDiffusion))
-		//{
-		//	LOG(Debug) << "Found parameter " << pId << " in surface diffusion parameter dependence: Dir " << adDirection << " is set to " << adValue;
-		//	return true;
-		//}
+		if (model::setSensitiveParameter(pId, adDirection, adValue, sensParams, std::vector< IParameterStateDependence*>(1, _parDepSurfDiffusion), _singleParDepSurfDiffusion))
+		{
+			LOG(Debug) << "Found parameter " << pId << " in surface diffusion parameter dependence: Dir " << adDirection << " is set to " << adValue;
+			return true;
+		}
 
-		//if (multiplexTypeParameterAD(pId, hashString("PAR_RADIUS"), _singleParRadius, _parRadius, adDirection, adValue, sensParams))
-		//{
-		//	LOG(Debug) << "Found parameter " << pId << ": Dir " << adDirection << " is set to " << adValue;
-		//	return true;
-		//}
+		if (singleTypeMultiplexTypeParameterAD(pId, hashString("PAR_RADIUS"), _singleParRadius, _parRadius, adDirection, adValue, sensParams))
+		{
+			LOG(Debug) << "Found parameter " << pId << ": Dir " << adDirection << " is set to " << adValue;
+			return true;
+		}
 
-		//if (multiplexTypeParameterAD(pId, hashString("PAR_CORERADIUS"), _singleParCoreRadius, _parCoreRadius, adDirection, adValue, sensParams))
-		//{
-		//	LOG(Debug) << "Found parameter " << pId << ": Dir " << adDirection << " is set to " << adValue;
-		//	return true;
-		//}
+		if (singleTypeMultiplexTypeParameterAD(pId, hashString("PAR_CORERADIUS"), _singleParCoreRadius, _parCoreRadius, adDirection, adValue, sensParams))
+		{
+			LOG(Debug) << "Found parameter " << pId << ": Dir " << adDirection << " is set to " << adValue;
+			return true;
+		}
 
-		//if (multiplexTypeParameterAD(pId, hashString("PAR_POROSITY"), _singleParPorosity, _parPorosity, adDirection, adValue, sensParams))
-		//{
-		//	LOG(Debug) << "Found parameter " << pId << ": Dir " << adDirection << " is set to " << adValue;
-		//	return true;
-		//}
+		if (singleTypeMultiplexTypeParameterAD(pId, hashString("PAR_POROSITY"), _singleParPorosity, _parPorosity, adDirection, adValue, sensParams))
+		{
+			LOG(Debug) << "Found parameter " << pId << ": Dir " << adDirection << " is set to " << adValue;
+			return true;
+		}
 
 		return false;
 	}
