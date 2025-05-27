@@ -1551,8 +1551,11 @@ bool GeneralRateModelDG::setSensitiveParameter(const ParameterId& pId, unsigned 
 		{
 			if (_parDiffOp[parType].setSensitiveParameter(_sensParams, pId, adDirection, adValue))
 			{
-				LOG(Debug) << "Found parameter " << pId << ": Dir " << adDirection << " is set to " << adValue;
-				return true;
+				if ((pId.particleType != ParTypeIndep && parType == pId.particleType) || (pId.particleType == ParTypeIndep && parType == _disc.nParType - 1))
+				{
+					LOG(Debug) << "Found parameter " << pId << ": Dir " << adDirection << " is set to " << adValue;
+					return true;
+				}
 			}
 		}
 

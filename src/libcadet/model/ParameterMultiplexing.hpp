@@ -313,12 +313,13 @@ namespace model
 	 * @param [in] nameHash Hash of the parameter name
 	 * @param [in] mode Multiplexing mode as obtained by readAndRegisterMultiplexTypeParam()
 	 * @param [in,out] data Array with parameters whose values are updated
+	 * @param [in] parTypeIdx index of the current particle type
 	 * @param [in] val Value to apply to the parameter(s)
 	 * @param [in] sensParams If not @c nullptr, the set is checked for the specified parameter.
 	 *                        If it is not contained in the set, the value is not applied to the parameter.
 	 * @return @c true if the value has been applied, or @c false otherwise
 	 */
-	bool singleTypeMultiplexTypeParameterValue(const ParameterId& pId, StringHash nameHash, bool mode, active& data, double value, std::unordered_set<active*> const* sensParams);
+	bool singleTypeMultiplexTypeParameterValue(const ParameterId& pId, StringHash nameHash, bool mode, active& data, unsigned int parTypeIdx, double value, std::unordered_set<active*> const* sensParams);
 
 	/**
 	 * @brief For a specific particle type: Sets AD info of a multiplexed parameter that may depend on particle type
@@ -333,12 +334,13 @@ namespace model
 	 * @param [in] nameHash Hash of the parameter name
 	 * @param [in] mode Multiplexing mode as obtained by readAndRegisterMultiplexTypeParam()
 	 * @param [in,out] data Array with parameters whose AD info are updated
+	 * @param [in] parTypeIdx index of the current particle type
 	 * @param [in] adDirection AD direction
 	 * @param [in] adValue AD seed value
 	 * @param [in,out] sensParams The parameter(s) are marked sensitive by adding them to this set
 	 * @return @c true if the parameter has been found, or @c false otherwise
 	 */
-	bool singleTypeMultiplexTypeParameterAD(const ParameterId& pId, StringHash nameHash, bool mode, active& data, unsigned int adDirection, double adValue, std::unordered_set<active*>& sensParams);
+	bool singleTypeMultiplexTypeParameterAD(const ParameterId& pId, StringHash nameHash, bool mode, active& data, unsigned int parTypeIdx, unsigned int adDirection, double adValue, std::unordered_set<active*>& sensParams);
 
 	/**
 	 * @brief Reads, multiplexes, and registers a parameter that depends on particle type, component, and (optionally) section
@@ -411,7 +413,7 @@ namespace model
 	 * @param [in,out] sensParams The parameter(s) are marked sensitive by adding them to this set
 	 * @return @c true if the parameter has been found, or @c false otherwise
 	 */
-	bool singleTypeMultiplexCompTypeSecParameterAD(const ParameterId& pId, StringHash nameHash, MultiplexMode mode, std::vector<active>& data, unsigned int nComp, unsigned int adDirection, double adValue, std::unordered_set<active*>& sensParams);
+	bool singleTypeMultiplexCompTypeSecParameterAD(const ParameterId& pId, StringHash nameHash, MultiplexMode mode, std::vector<active>& data, unsigned int nComp, unsigned int parTypeIdx, unsigned int adDirection, double adValue, std::unordered_set<active*>& sensParams);
 
 	/**
 	 * @brief For a specific particle type: Reads, multiplexes, and registers a parameter that depends on particle type, component, bound state, and (optionally) section
@@ -488,13 +490,14 @@ namespace model
 	 * @param [in] nComp Number of components
 	 * @param [in] strideBound Array with number of bound states
 	 * @param [in] boundOffset Array with offset to component in bound-phase (cumulative sum of nBound per particle type) for this particle type
+	 * @param [in] parTypeIdx index of the current particle type
 	 * @param [in] adDirection AD direction
 	 * @param [in] adValue AD seed value
 	 * @param [in,out] sensParams The parameter(s) are marked sensitive by adding them to this set
 	 * @return @c true if the parameter has been found, or @c false otherwise
 	 */
 	bool singleTypeMultiplexBndCompTypeSecParameterAD(const ParameterId& pId, StringHash nameHash, MultiplexMode mode, std::vector<active>& data,
-		unsigned int nComp, unsigned int strideBound, unsigned int const* boundOffset, unsigned int adDirection, double adValue, std::unordered_set<active*>& sensParams);
+		unsigned int nComp, unsigned int strideBound, unsigned int const* boundOffset, unsigned int parTypeIdx, unsigned int adDirection, double adValue, std::unordered_set<active*>& sensParams);
 
 } // namespace model
 

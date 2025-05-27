@@ -635,9 +635,9 @@ bool readAndRegisterSingleTypeMultiplexTypeParam(IParameterProvider& paramProvid
 	return singleValue;
 }
 
-bool singleTypeMultiplexTypeParameterValue(const ParameterId& pId, StringHash nameHash, bool mode, active& data, double value, std::unordered_set<active*> const* sensParams)
+bool singleTypeMultiplexTypeParameterValue(const ParameterId& pId, StringHash nameHash, bool mode, active& data, unsigned int parTypeIdx, double value, std::unordered_set<active*> const* sensParams)
 {
-	if (!mode || (pId.name != nameHash))
+	if (!mode || (pId.name != nameHash) || (pId.particleType != ParTypeIndep && pId.particleType != parTypeIdx))
 		return false;
 
 	if ((pId.section != SectionIndep) || (pId.component != CompIndep) || (pId.boundState != BoundStateIndep) || (pId.reaction != ReactionIndep) || (pId.particleType != ParTypeIndep))
@@ -650,9 +650,9 @@ bool singleTypeMultiplexTypeParameterValue(const ParameterId& pId, StringHash na
 	return true;
 }
 
-bool singleTypeMultiplexTypeParameterAD(const ParameterId& pId, StringHash nameHash, bool mode, active& data, unsigned int adDirection, double adValue, std::unordered_set<active*>& sensParams)
+bool singleTypeMultiplexTypeParameterAD(const ParameterId& pId, StringHash nameHash, bool mode, active& data, unsigned int parTypeIdx, unsigned int adDirection, double adValue, std::unordered_set<active*>& sensParams)
 {
-	if (!mode || (pId.name != nameHash))
+	if (!mode || (pId.name != nameHash) || (pId.particleType != ParTypeIndep && pId.particleType != parTypeIdx))
 		return false;
 
 	if ((pId.section != SectionIndep) || (pId.component != CompIndep) || (pId.boundState != BoundStateIndep) || (pId.reaction != ReactionIndep) || (pId.particleType != ParTypeIndep))
@@ -787,7 +787,7 @@ MultiplexMode readAndRegisterSingleTypeMultiplexCompTypeSecParam(IParameterProvi
 
 bool singleTypeMultiplexCompTypeSecParameterValue(const ParameterId& pId, StringHash nameHash, MultiplexMode mode, std::vector<active>& data, unsigned int nComp, unsigned int parTypeIdx, double value, std::unordered_set<active*> const* sensParams)
 {
-	if (pId.name != nameHash)
+	if (pId.name != nameHash || (pId.particleType != ParTypeIndep && pId.particleType != parTypeIdx))
 		return false;
 
 	switch (mode)
@@ -841,7 +841,8 @@ bool singleTypeMultiplexCompTypeSecParameterValue(const ParameterId& pId, String
 			return false;
 
 		if (sensParams && !contains(*sensParams, &data[pId.section * nComp + pId.component]))
-			return false;
+			if (parTypeIdx == 0)
+				return false; // sensParams is only expected to contain this address for the first particle type since the parameter is parTypeIndep
 
 		data[pId.section * nComp + pId.component].setValue(value);
 
@@ -863,9 +864,9 @@ bool singleTypeMultiplexCompTypeSecParameterValue(const ParameterId& pId, String
 	return false;
 }
 
-bool singleTypeMultiplexCompTypeSecParameterAD(const ParameterId& pId, StringHash nameHash, MultiplexMode mode, std::vector<active>& data, unsigned int nComp, unsigned int adDirection, double adValue, std::unordered_set<active*>& sensParams)
+bool singleTypeMultiplexCompTypeSecParameterAD(const ParameterId& pId, StringHash nameHash, MultiplexMode mode, std::vector<active>& data, unsigned int nComp, unsigned int parTypeIdx, unsigned int adDirection, double adValue, std::unordered_set<active*>& sensParams)
 {
-	if (pId.name != nameHash)
+	if (pId.name != nameHash || (pId.particleType != ParTypeIndep && pId.particleType != parTypeIdx))
 		return false;
 
 	switch (mode)
@@ -876,7 +877,8 @@ bool singleTypeMultiplexCompTypeSecParameterAD(const ParameterId& pId, StringHas
 			|| (pId.reaction != ReactionIndep) || (pId.section != SectionIndep))
 			return false;
 
-		sensParams.insert(&data[pId.component]);
+		if (parTypeIdx == 0)
+			sensParams.insert(&data[pId.component]);
 
 		data[pId.component].setADValue(adDirection, adValue);
 
@@ -888,7 +890,8 @@ bool singleTypeMultiplexCompTypeSecParameterAD(const ParameterId& pId, StringHas
 			|| (pId.reaction != ReactionIndep) || (pId.section == SectionIndep))
 			return false;
 
-		sensParams.insert(&data[pId.section * nComp + pId.component]);
+		if (parTypeIdx == 0)
+			sensParams.insert(&data[pId.section * nComp + pId.component]);
 
 		data[pId.section * nComp + pId.component].setADValue(adDirection, adValue);
 
@@ -1076,7 +1079,7 @@ MultiplexMode readAndRegisterSingleTypeMultiplexBndCompTypeSecParam(IParameterPr
 bool singleTypeMultiplexBndCompTypeSecParameterValue(const ParameterId& pId, StringHash nameHash, MultiplexMode mode, std::vector<active>& data,
 	unsigned int nComp, unsigned int strideBound, unsigned int const* boundOffset, unsigned int parTypeIdx, double value, std::unordered_set<active*> const* sensParams)
 {
-	if (pId.name != nameHash)
+	if (pId.name != nameHash || (pId.particleType != ParTypeIndep && pId.particleType != parTypeIdx))
 		return false;
 
 	if (strideBound == 0)
@@ -1158,9 +1161,9 @@ bool singleTypeMultiplexBndCompTypeSecParameterValue(const ParameterId& pId, Str
 }
 
 bool singleTypeMultiplexBndCompTypeSecParameterAD(const ParameterId& pId, StringHash nameHash, MultiplexMode mode, std::vector<active>& data,
-	unsigned int nComp, unsigned int strideBound, unsigned int const* boundOffset, unsigned int adDirection, double adValue, std::unordered_set<active*>& sensParams)
+	unsigned int nComp, unsigned int strideBound, unsigned int const* boundOffset, unsigned int parTypeIdx, unsigned int adDirection, double adValue, std::unordered_set<active*>& sensParams)
 {
-	if (pId.name != nameHash)
+	if (pId.name != nameHash || (pId.particleType != ParTypeIndep && pId.particleType != parTypeIdx))
 		return false;
 
 	if (strideBound == 0)
@@ -1174,7 +1177,8 @@ bool singleTypeMultiplexBndCompTypeSecParameterAD(const ParameterId& pId, String
 			|| (pId.reaction != ReactionIndep) || (pId.section != SectionIndep))
 			return false;
 
-		sensParams.insert(&data[boundOffset[pId.component] + pId.boundState]);
+		if (parTypeIdx == 0)
+			sensParams.insert(&data[boundOffset[pId.component] + pId.boundState]);
 
 		data[boundOffset[pId.component] + pId.boundState].setADValue(adDirection, adValue);
 
@@ -1186,7 +1190,8 @@ bool singleTypeMultiplexBndCompTypeSecParameterAD(const ParameterId& pId, String
 			|| (pId.reaction != ReactionIndep) || (pId.section == SectionIndep))
 			return false;
 
-		sensParams.insert(&data[pId.section * strideBound + boundOffset[pId.component] + pId.boundState]);
+		if (parTypeIdx == 0)
+			sensParams.insert(&data[pId.section * strideBound + boundOffset[pId.component] + pId.boundState]);
 
 		data[pId.section * strideBound + boundOffset[pId.component] + pId.boundState].setADValue(adDirection, adValue);
 
