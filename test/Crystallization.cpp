@@ -29,7 +29,7 @@ const char* getTestDirectory();
 /*
  * Pure PBM tests
 */
-TEST_CASE("Crystallization in a CSTR with initial distribution and growth", "[Crystallization],[PBM],[Simulation],[Reference],[CI]")
+TEST_CASE("Crystallization in a CSTR with initial distribution and growth", "[Crystallization],[PBM],[Simulation],[Reference],[CI_cry1]")
 {
 	const std::string& modelFilePath = std::string("/data/model_cry_CSTR_PBM_growth_benchmark1.json");
 	const std::string& refFilePath = std::string("/data/ref_cry_CSTR_PBM_growth_benchmark1.h5");
@@ -40,7 +40,7 @@ TEST_CASE("Crystallization in a CSTR with initial distribution and growth", "[Cr
 	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "001", absTol, relTol, disc, false);
 }
 
-TEST_CASE("Crystallization in a CSTR with initial distribution and size-dependent growth", "[Crystallization],[PBM],[Simulation],[Reference],[CI]")
+TEST_CASE("Crystallization in a CSTR with initial distribution and size-dependent growth", "[Crystallization],[PBM],[Simulation],[Reference],[CI_cry2]")
 {
 	const std::string& modelFilePath = std::string("/data/model_cry_CSTR_PBM_growthSizeDep_benchmark1.json");
 	const std::string& refFilePath = std::string("/data/ref_cry_CSTR_PBM_growthSizeDep_benchmark1.h5");
@@ -51,7 +51,7 @@ TEST_CASE("Crystallization in a CSTR with initial distribution and size-dependen
 	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "001", absTol, relTol, disc, false);
 }
 
-TEST_CASE("Crystallization in a CSTR with primary nucleation and growth", "[Crystallization],[PBM],[Simulation],[Reference],[CI]")
+TEST_CASE("Crystallization in a CSTR with primary nucleation and growth", "[Crystallization],[PBM],[Simulation],[Reference],[CI_cry3]")
 {
 	const std::string& modelFilePath = std::string("/data/model_cry_CSTR_PBM_primaryNucleationAndGrowth_benchmark1.json");
 	const std::string& refFilePath = std::string("/data/ref_cry_CSTR_PBM_primaryNucleationAndGrowth_benchmark1.h5");
@@ -62,7 +62,7 @@ TEST_CASE("Crystallization in a CSTR with primary nucleation and growth", "[Crys
 	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "001", absTol, relTol, disc, false);
 }
 
-TEST_CASE("Crystallization in a CSTR with primary nucleation, growth and growth rate dispersion", "[Crystallization],[PBM],[Simulation],[Reference],[CI]")
+TEST_CASE("Crystallization in a CSTR with primary nucleation, growth and growth rate dispersion", "[Crystallization],[PBM],[Simulation],[Reference],[CI_cry4]")
 {
 	const std::string& modelFilePath = std::string("/data/model_cry_CSTR_PBM_primaryNucleationGrowthGrowthRateDispersion_benchmark1.json");
 	const std::string& refFilePath = std::string("/data/ref_cry_CSTR_PBM_primaryNucleationGrowthGrowthRateDispersion_benchmark1.h5");
@@ -73,7 +73,7 @@ TEST_CASE("Crystallization in a CSTR with primary nucleation, growth and growth 
 	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "001", absTol, relTol, disc, false);
 }
 
-TEST_CASE("Crystallization in a CSTR with primary and secondary nucleation and growth", "[Crystallization],[PBM],[Simulation],[Reference],[CI]")
+TEST_CASE("Crystallization in a CSTR with primary and secondary nucleation and growth", "[Crystallization],[PBM],[Simulation],[Reference],[CI_cry5]")
 {
 	const std::string& modelFilePath = std::string("/data/model_cry_CSTR_PBM_primarySecondaryNucleationAndGrowth_benchmark1.json");
 	const std::string& refFilePath = std::string("/data/ref_cry_CSTR_PBM_primarySecondaryNucleationAndGrowth_benchmark1.h5");
@@ -84,7 +84,7 @@ TEST_CASE("Crystallization in a CSTR with primary and secondary nucleation and g
 	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "001", absTol, relTol, disc, false);
 }
 
-TEST_CASE("Crystallization in a DPFR/LRM with primary and secondary nucleation and growth", "[CrysToFix0],[Crystallization],[PBM],[Simulation],[Reference],[CI]") 
+TEST_CASE("Crystallization in a DPFR/LRM with primary and secondary nucleation and growth", "[Crystallization],[PBM],[Simulation],[Reference],[CI_cry6]") 
 {
 	const std::string& modelFilePath = std::string("/data/model_cry_DPFR_PBM_primarySecondaryNucleationGrowth_benchmark1.json");
 	const std::string& refFilePath = std::string("/data/ref_cry_DPFR_PBM_primarySecondaryNucleationGrowth_benchmark1.h5");
@@ -95,7 +95,7 @@ TEST_CASE("Crystallization in a DPFR/LRM with primary and secondary nucleation a
 	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "001", absTol, relTol, disc, false);
 }
 
-TEST_CASE("Crystallization Jacobian verification for a CSTR with initial distribution and growth", "[Crystallization],[PBM],[UnitOp],[Jacobian],[CI]")
+TEST_CASE("Crystallization Jacobian verification for a CSTR with initial distribution and growth", "[Crystallization],[PBM],[UnitOp],[Jacobian],[CI_cry7]")
 {
 	// read json model setup file
 	const std::string& modelFileRelPath = std::string("/data/model_cry_CSTR_PBM_growth_benchmark1.json");
@@ -113,7 +113,7 @@ TEST_CASE("Crystallization Jacobian verification for a CSTR with initial distrib
 	cadet::test::column::testJacobianAD(pp_setup, std::numeric_limits<float>::epsilon() * 100.0);
 }
 
-TEST_CASE("Crystallization Jacobian verification for a CSTR with initial distribution and size-dependent growth", "[Crystallization],[PBM],[UnitOp],[Jacobian],[CI]")
+TEST_CASE("Crystallization Jacobian verification for a CSTR with initial distribution and size-dependent growth", "[Crystallization],[PBM],[UnitOp],[Jacobian],[CI_cry8]")
 {
 	// read json model setup file
 	const std::string& modelFileRelPath = std::string("/data/model_cry_CSTR_PBM_growthSizeDep_benchmark1.json");
@@ -131,7 +131,7 @@ TEST_CASE("Crystallization Jacobian verification for a CSTR with initial distrib
 	cadet::test::column::testJacobianAD(pp_setup, std::numeric_limits<float>::epsilon() * 100.0);
 }
 
-TEST_CASE("Crystallization Jacobian verification for a CSTR with primary nucleation and growth", "[Crystallization],[PBM],[UnitOp],[Jacobian],[CI]")
+TEST_CASE("Crystallization Jacobian verification for a CSTR with primary nucleation and growth", "[Crystallization],[PBM],[UnitOp],[Jacobian],[CI_cry9]")
 {
 	// read json model setup file
 	const std::string& modelFileRelPath = std::string("/data/model_cry_CSTR_PBM_primaryNucleationAndGrowth_benchmark1.json");
@@ -149,7 +149,7 @@ TEST_CASE("Crystallization Jacobian verification for a CSTR with primary nucleat
 	cadet::test::column::testJacobianAD(pp_setup, std::numeric_limits<float>::epsilon() * 100.0);
 }
 
-TEST_CASE("Crystallization Jacobian verification for a CSTR with primary nucleation, growth and growth rate dispersion", "[Crystallization],[PBM],[UnitOp],[Jacobian],[CI]")
+TEST_CASE("Crystallization Jacobian verification for a CSTR with primary nucleation, growth and growth rate dispersion", "[Crystallization],[PBM],[UnitOp],[Jacobian],[CI_cry10]")
 {
 	// read json model setup file
 	const std::string& modelFileRelPath = std::string("/data/model_cry_CSTR_PBM_primaryNucleationGrowthGrowthRateDispersion_benchmark1.json");
@@ -167,7 +167,7 @@ TEST_CASE("Crystallization Jacobian verification for a CSTR with primary nucleat
 	cadet::test::column::testJacobianAD(pp_setup, std::numeric_limits<float>::epsilon() * 100.0);
 }
 
-TEST_CASE("Crystallization Jacobian verification for a CSTR with primary and secondary nucleation and growth", "[Crystallization],[PBM],[UnitOp],[Jacobian],[CI]")
+TEST_CASE("Crystallization Jacobian verification for a CSTR with primary and secondary nucleation and growth", "[Crystallization],[PBM],[UnitOp],[Jacobian],[CI_cry11]")
 {
 	// read json model setup file
 	const std::string& modelFileRelPath = std::string("/data/model_cry_CSTR_PBM_primarySecondaryNucleationAndGrowth_benchmark1.json");
@@ -185,7 +185,7 @@ TEST_CASE("Crystallization Jacobian verification for a CSTR with primary and sec
 	cadet::test::column::testJacobianAD(pp_setup, std::numeric_limits<float>::epsilon() * 100.0);
 }
 
-TEST_CASE("Crystallization Jacobian verification for a DPFR/LRM with primary and secondary nucleation and growth", "[Crystallization1],[UnitOp],[Jacobian],[CI]")
+TEST_CASE("Crystallization Jacobian verification for a DPFR/LRM with primary and secondary nucleation and growth", "[Crystallization1],[UnitOp],[Jacobian],[CI_cry12]")
 {
 	// read json model setup file
 	const std::string& modelFileRelPath = std::string("/data/model_cry_DPFR_PBM_primarySecondaryNucleationGrowth_benchmark1.json");
@@ -194,6 +194,11 @@ TEST_CASE("Crystallization Jacobian verification for a DPFR/LRM with primary and
 
 	pp_setup.pushScope("model");
 	pp_setup.pushScope("unit_001");
+
+	// reduce axial discretization to stay within the allowed number of AD directions
+	pp_setup.pushScope("discretization");
+	pp_setup.set("NCOL", 3); // 3 * 52 < 157
+	pp_setup.popScope();
 
 	// for this specific test, we need to define a (high) tolerances as the values in this test are numerically very challenging (values of ca. 1E+24)
 	const double ADabsTol = 5e+8;
@@ -205,7 +210,7 @@ TEST_CASE("Crystallization Jacobian verification for a DPFR/LRM with primary and
 /*
  * Pure aggregation tests
 */
-TEST_CASE("Crystallization Aggregation in a CSTR", "[Crystallization],[Aggregation],[Simulation],[Reference],[CI]")
+TEST_CASE("Crystallization Aggregation in a CSTR", "[Crystallization],[Aggregation],[Simulation],[Reference],[CI_cry13]")
 {
 	const std::string& modelFilePath = std::string("/data/model_cry_CSTR_aggregation_benchmark1.json");
 	const std::string& refFilePath = std::string("/data/ref_cry_CSTR_aggregation_benchmark1.h5");
@@ -216,7 +221,7 @@ TEST_CASE("Crystallization Aggregation in a CSTR", "[Crystallization],[Aggregati
 	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "001", absTol, relTol, disc, false);
 }
 
-TEST_CASE("Crystallization Jacobian verification for Aggregation in a CSTR", "[Crystallization],[Aggregation],[UnitOp],[Jacobian],[CI]")
+TEST_CASE("Crystallization Jacobian verification for Aggregation in a CSTR", "[Crystallization],[Aggregation],[UnitOp],[Jacobian],[CI_cry14]")
 {
 	// read json model setup file
 	const std::string& modelFileRelPath = std::string("/data/model_cry_CSTR_aggregation_benchmark1.json");
@@ -235,7 +240,7 @@ TEST_CASE("Crystallization Jacobian verification for Aggregation in a CSTR", "[C
 /*
  * Pure fragmentation/breakage tests
 */
-TEST_CASE("Crystallization Fragmentation in a CSTR", "[Crystallization],[Fragmentation],[Simulation],[Reference],[CI]")
+TEST_CASE("Crystallization Fragmentation in a CSTR", "[Crystallization],[Fragmentation],[Simulation],[Reference],[CI_cry15]")
 {
 	const std::string& modelFilePath = std::string("/data/model_cry_CSTR_fragmentation_benchmark1.json");
 	const std::string& refFilePath = std::string("/data/ref_cry_CSTR_fragmentation_benchmark1.h5");
@@ -246,7 +251,7 @@ TEST_CASE("Crystallization Fragmentation in a CSTR", "[Crystallization],[Fragmen
 	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "001", absTol, relTol, disc, false);
 }
 
-TEST_CASE("Crystallization Jacobian verification for Fragmentation in a CSTR", "[Crystallization],[Fragmentation],[UnitOp],[Jacobian],[CI]")
+TEST_CASE("Crystallization Jacobian verification for Fragmentation in a CSTR", "[Crystallization],[Fragmentation],[UnitOp],[Jacobian],[CI_cry16]")
 {
 	// read json model setup file
 	const std::string& modelFileRelPath = std::string("/data/model_cry_CSTR_fragmentation_benchmark1.json");
@@ -265,7 +270,7 @@ TEST_CASE("Crystallization Jacobian verification for Fragmentation in a CSTR", "
 /*
  * Combined fragmentation, breakage tests
 */
-TEST_CASE("Crystallization combined Aggregation and Fragmentation in a CSTR", "[Crystallization],[AggFrag],[Simulation],[Reference],[CI]")
+TEST_CASE("Crystallization combined Aggregation and Fragmentation in a CSTR", "[Crystallization],[AggFrag],[Simulation],[Reference],[CI_cry17]")
 {
 	const std::string& modelFilePath = std::string("/data/model_cry_CSTR_aggFrag_benchmark1.json");
 	const std::string& refFilePath = std::string("/data/ref_cry_CSTR_aggFrag_benchmark1.h5");
@@ -276,7 +281,7 @@ TEST_CASE("Crystallization combined Aggregation and Fragmentation in a CSTR", "[
 	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "001", absTol, relTol, disc, false);
 }
 
-TEST_CASE("Crystallization Jacobian verification for combined Aggregation and Fragmentation in a CSTR", "[Crystallization],[AggFrag],[UnitOp],[Jacobian],[CI]")
+TEST_CASE("Crystallization Jacobian verification for combined Aggregation and Fragmentation in a CSTR", "[Crystallization],[AggFrag],[UnitOp],[Jacobian],[CI_cry18]")
 {
 	// read json model setup file
 	const std::string& modelFileRelPath = std::string("/data/model_cry_CSTR_aggFrag_benchmark1.json");
@@ -295,7 +300,7 @@ TEST_CASE("Crystallization Jacobian verification for combined Aggregation and Fr
 /*
  * Combined PBM, fragmentation, breakage tests
 */
-TEST_CASE("Crystallization combined PBM, Aggregation and Fragmentation in a CSTR", "[Crystallization],[PBMAggFrag],[Simulation],[Reference],[CI]")
+TEST_CASE("Crystallization combined PBM, Aggregation and Fragmentation in a CSTR", "[Crystallization],[PBMAggFrag],[Simulation],[Reference],[CI_cry19]")
 {
 	const std::string& modelFilePath = std::string("/data/model_cry_CSTR_PBM_Agg_Frag_benchmark1.json");
 	const std::string& refFilePath = std::string("/data/ref_cry_CSTR_PBM_Agg_Frag_benchmark1.h5");
@@ -306,7 +311,7 @@ TEST_CASE("Crystallization combined PBM, Aggregation and Fragmentation in a CSTR
 	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "001", absTol, relTol, disc, false);
 }
 
-TEST_CASE("Crystallization Jacobian verification for combined PBM, Aggregation and Fragmentation in a CSTR", "[Crystallization],[PBMAggFrag],[UnitOp],[Jacobian],[CI]")
+TEST_CASE("Crystallization Jacobian verification for combined PBM, Aggregation and Fragmentation in a CSTR", "[Crystallization],[PBMAggFrag],[UnitOp],[Jacobian],[CI_cry20]")
 {
 	// read json model setup file
 	const std::string& modelFileRelPath = std::string("/data/model_cry_CSTR_PBM_Agg_Frag_benchmark1.json");
@@ -325,7 +330,7 @@ TEST_CASE("Crystallization Jacobian verification for combined PBM, Aggregation a
 /*
  * Combined PBM, aggregation test in a DPFR
 */
-TEST_CASE("Crystallization combined PBM and Aggregation in a DPFR", "[Crystallization],[DPFR_PBMAgg],[Simulation],[Reference],[CI]")
+TEST_CASE("Crystallization combined PBM and Aggregation in a DPFR", "[Crystallization],[DPFR_PBMAgg],[Simulation],[Reference],[CI_cry21]")
 {
 	const std::string& modelFilePath = std::string("/data/model_cry_DPFR_PBM_aggregation_benchmark1.json");
 	const std::string& refFilePath = std::string("/data/ref_cry_DPFR_PBM_aggregation_benchmark1.h5");
@@ -336,7 +341,7 @@ TEST_CASE("Crystallization combined PBM and Aggregation in a DPFR", "[Crystalliz
 	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "001", absTol, relTol, disc, false);
 }
 
-TEST_CASE("Crystallization Jacobian verification for combined PBM and Aggregation in a DPFR", "[Crystallization],[DPFR_PBMAgg],[UnitOp],[Jacobian],[CI]")
+TEST_CASE("Crystallization Jacobian verification for combined PBM and Aggregation in a DPFR", "[Crystallization],[DPFR_PBMAgg],[UnitOp],[Jacobian],[CI_cry22]")
 {
 	// read json model setup file
 	const std::string& modelFileRelPath = std::string("/data/model_cry_DPFR_PBM_aggregation_benchmark1.json");

@@ -1395,7 +1395,7 @@ int GeneralRateModel2D::residualParticle(double t, unsigned int parType, unsigne
 	active const* const parDiff = getSectionDependentSlice(_parDiffusion, _disc.nComp * _disc.nParType, secIdx) + parType * _disc.nComp;
 
 	// Ordering of particle surface diffusion:
-	// bnd0comp0, bnd0comp1, bnd0comp2, bnd1comp0, bnd1comp1, bnd1comp2
+	// bnd0comp0, bnd1comp0, bnd0comp1, bnd1comp1, bnd0comp2, bnd1comp2
 	active const* const parSurfDiff = getSectionDependentSlice(_parSurfDiffusion, _disc.strideBound[_disc.nParType], secIdx) + _disc.nBoundBeforeType[parType];
 
 	// Midpoint of current column cell (z, rho coordinate) - needed in externally dependent adsorption kinetic
@@ -1697,7 +1697,7 @@ int GeneralRateModel2D::residualFlux(double t, unsigned int secIdx, StateType co
 			int const* const qsReaction = _binding[type]->reactionQuasiStationarity();
 
 			// Ordering of particle surface diffusion:
-			// bnd0comp0, bnd0comp1, bnd0comp2, bnd1comp0, bnd1comp1, bnd1comp2
+			// bnd0comp0, bnd1comp0, bnd0comp1, bnd1comp1, bnd0comp2, bnd1comp2
 			active const* const parSurfDiff = getSectionDependentSlice(_parSurfDiffusion, _disc.strideBound[_disc.nParType], secIdx) + _disc.nBoundBeforeType[type];
 			active const* const parCenterRadius = _parCenterRadius.data() + _disc.nParCellsBeforeType[type];
 			const ParamType absOuterShellHalfRadius = 0.5 * static_cast<ParamType>(_parCellSize[_disc.nParCellsBeforeType[type]]);
@@ -1844,7 +1844,7 @@ void GeneralRateModel2D::assembleOffdiagJac(double t, unsigned int secIdx)
 			int const* const qsReaction = _binding[type]->reactionQuasiStationarity();
 
 			// Ordering of particle surface diffusion:
-			// bnd0comp0, bnd0comp1, bnd0comp2, bnd1comp0, bnd1comp1, bnd1comp2
+			// bnd0comp0, bnd1comp0, bnd0comp1, bnd1comp1, bnd0comp2, bnd1comp2
 			active const* const parSurfDiff = getSectionDependentSlice(_parSurfDiffusion, _disc.strideBound[_disc.nParType], secIdx) + _disc.nBoundBeforeType[type];
 			active const* const parCenterRadius = _parCenterRadius.data() + _disc.nParCellsBeforeType[type];
 			const double absOuterShellHalfRadius = 0.5 * static_cast<double>(_parCellSize[_disc.nParCellsBeforeType[type]]);
@@ -2341,7 +2341,7 @@ bool GeneralRateModel2D::setParameter(const ParameterId& pId, double value)
 			return true;
 		if (multiplexCompTypeSecParameterValue(pId, hashString("PAR_DIFFUSION"), _parDiffusionMode, _parDiffusion, _disc.nParType, _disc.nComp, value, nullptr))
 			return true;
-		if (multiplexBndCompTypeSecParameterValue(pId, hashString("PAR_SURFDIFFUSION"), _parSurfDiffusionMode, _parSurfDiffusion, _disc.nParType, _disc.nComp, _disc.strideBound, _disc.nBound, _disc.boundOffset, value, nullptr))
+		if (multiplexBndCompTypeSecParameterValue(pId, hashString("PAR_SURFDIFFUSION"), _parSurfDiffusionMode, _parSurfDiffusion, _disc.nParType, _disc.nComp, _disc.strideBound, _disc.nBound, _disc.boundOffset, _disc.nBoundBeforeType, value, nullptr))
 			return true;
 		const int mpIc = multiplexInitialConditions(pId, value, false);
 		if (mpIc > 0)
@@ -2381,7 +2381,7 @@ void GeneralRateModel2D::setSensitiveParameterValue(const ParameterId& pId, doub
 			return;
 		if (multiplexCompTypeSecParameterValue(pId, hashString("PAR_DIFFUSION"), _parDiffusionMode, _parDiffusion, _disc.nParType, _disc.nComp, value, &_sensParams))
 			return;
-		if (multiplexBndCompTypeSecParameterValue(pId, hashString("PAR_SURFDIFFUSION"), _parSurfDiffusionMode, _parSurfDiffusion, _disc.nParType, _disc.nComp, _disc.strideBound, _disc.nBound, _disc.boundOffset, value, &_sensParams))
+		if (multiplexBndCompTypeSecParameterValue(pId, hashString("PAR_SURFDIFFUSION"), _parSurfDiffusionMode, _parSurfDiffusion, _disc.nParType, _disc.nComp, _disc.strideBound, _disc.nBound, _disc.boundOffset, _disc.nBoundBeforeType, value, &_sensParams))
 			return;
 		if (multiplexInitialConditions(pId, value, true) != 0)
 			return;
@@ -2432,7 +2432,7 @@ bool GeneralRateModel2D::setSensitiveParameter(const ParameterId& pId, unsigned 
 			return true;
 		}
 
-		if (multiplexBndCompTypeSecParameterAD(pId, hashString("PAR_SURFDIFFUSION"), _parSurfDiffusionMode, _parSurfDiffusion, _disc.nParType, _disc.nComp, _disc.strideBound, _disc.nBound, _disc.boundOffset, adDirection, adValue, _sensParams))
+		if (multiplexBndCompTypeSecParameterAD(pId, hashString("PAR_SURFDIFFUSION"), _parSurfDiffusionMode, _parSurfDiffusion, _disc.nParType, _disc.nComp, _disc.strideBound, _disc.nBound, _disc.boundOffset, _disc.nBoundBeforeType, adDirection, adValue, _sensParams))
 		{
 			LOG(Debug) << "Found parameter " << pId << ": Dir " << adDirection << " is set to " << adValue;
 			return true;

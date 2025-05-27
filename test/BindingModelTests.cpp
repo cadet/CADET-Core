@@ -187,7 +187,7 @@ int ConfiguredBindingModel::requiredBufferSize() CADET_NOEXCEPT
 	return 0;
 }
 
-void testJacobianAD(const char* modelName, unsigned int nComp, unsigned int const* nBound, bool isKinetic, const char* config, double const* point, bool skipStructureTest, double absTol, double relTol)
+void testJacobianAD(const char* modelName, unsigned int nComp, unsigned int const* nBound, bool isKinetic, const char* config, double const* point, bool skipStructureTest, double FDsignAbsTol, double absTol, double relTol)
 {
 	ConfiguredBindingModel cbm = ConfiguredBindingModel::create(modelName, nComp, nBound, isKinetic, config);
 
@@ -229,12 +229,12 @@ void testJacobianAD(const char* modelName, unsigned int nComp, unsigned int cons
 		cadet::test::checkJacobianPatternFD(
 			[&](double const* lDir, double* res) -> void { cbm.model().flux(1.0, 0u, ColumnPosition{0.0, 0.0, 0.0}, lDir + cbm.nComp(), lDir, res, cbm.buffer()); },
 			[&](double const* lDir, double* res) -> void { jacAna.submatrixMultiplyVector(lDir, cbm.nComp(), 0, numEq, numDofs, res); },
-			yState.data(), dir.data(), colA.data(), colB.data(), numDofs, numEq);
+			yState.data(), dir.data(), colA.data(), colB.data(), numDofs, numEq, FDsignAbsTol);
 
 		cadet::test::checkJacobianPatternFD(
 			[&](double const* lDir, double* res) -> void { cbm.model().flux(1.0, 0u, ColumnPosition{0.0, 0.0, 0.0}, lDir + cbm.nComp(), lDir, res, cbm.buffer()); },
 			[&](double const* lDir, double* res) -> void { jacAD.multiplyVector(lDir, res); },
-			yState.data(), dir.data(), colA.data(), colB.data(), numDofs, numEq);
+			yState.data(), dir.data(), colA.data(), colB.data(), numDofs, numEq, FDsignAbsTol);
 	}
 
 	// Check Jacobians against each other

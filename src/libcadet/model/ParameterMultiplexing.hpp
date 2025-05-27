@@ -240,13 +240,14 @@ namespace model
 	 * @param [in] strideBound Array with number of bound states per particle type (additional last element is total number of bound states)
 	 * @param [in] nBound Array with number of bound states per component and particle type in type-major ordering
 	 * @param [in] boundOffset Array with offset to component in bound-phase (cumulative sum of nBound per particle type) per particle type in type-major ordering
+	 * @param [in] boundOffset Array with number of bound states before a particle type (cumulative sum of strideBound)
 	 * @param [in] val Value to apply to the parameter(s)
 	 * @param [in] sensParams If not @c nullptr, the set is checked for the specified parameter.
 	 *                        If it is not contained in the set, the value is not applied to the parameter.
 	 * @return @c true if the value has been applied, or @c false otherwise
 	 */
 	bool multiplexBndCompTypeSecParameterValue(const ParameterId& pId, StringHash nameHash, MultiplexMode mode, std::vector<active>& data,
-		unsigned int nParType, unsigned int nComp, unsigned int const* strideBound, unsigned int const* nBound, unsigned int const* boundOffset, double value, std::unordered_set<active*> const* sensParams);
+		unsigned int nParType, unsigned int nComp, unsigned int const* strideBound, unsigned int const* nBound, unsigned int const* boundOffset, unsigned int const* nBoundBeforeType, double value, std::unordered_set<active*> const* sensParams);
 
 	/**
 	 * @brief Sets AD info of a multiplexed parameter that depends on particle type, component, bound state, and (optionally) section
@@ -267,13 +268,14 @@ namespace model
 	 * @param [in] strideBound Array with number of bound states per particle type (additional last element is total number of bound states)
 	 * @param [in] nBound Array with number of bound states per component and particle type in type-major ordering
 	 * @param [in] boundOffset Array with offset to component in bound-phase (cumulative sum of nBound per particle type) per particle type in type-major ordering
+	 * @param [in] nBoundBeforeType Array with number of bound states before a particle type (cumulative sum of strideBound)
 	 * @param [in] adDirection AD direction
 	 * @param [in] adValue AD seed value
 	 * @param [in,out] sensParams The parameter(s) are marked sensitive by adding them to this set
 	 * @return @c true if the parameter has been found, or @c false otherwise
 	 */
 	bool multiplexBndCompTypeSecParameterAD(const ParameterId& pId, StringHash nameHash, MultiplexMode mode, std::vector<active>& data,
-		unsigned int nParType, unsigned int nComp, unsigned int const* strideBound, unsigned int const* nBound, unsigned int const* boundOffset, unsigned int adDirection, double adValue, std::unordered_set<active*>& sensParams);
+		unsigned int nParType, unsigned int nComp, unsigned int const* strideBound, unsigned int const* nBound, unsigned int const* boundOffset, unsigned int const* nBoundBeforeType, unsigned int adDirection, double adValue, std::unordered_set<active*>& sensParams);
 
 } // namespace model
 

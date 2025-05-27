@@ -27,33 +27,41 @@
         },
         "unit_000": {
             "INLET_TYPE": "PIECEWISE_CUBIC_POLY",
-            "NCOMP": 1,
+            "NCOMP": 2,
             "UNIT_TYPE": "INLET",
             "sec_000": {
                 "CONST_COEFF": [
+                    1.0,
                     1.0
                 ],
                 "CUBE_COEFF": [
+                    0.0,
                     0.0
                 ],
                 "LIN_COEFF": [
+                    0.0,
                     0.0
                 ],
                 "QUAD_COEFF": [
+                    0.0,
                     0.0
                 ]
             },
             "sec_001": {
                 "CONST_COEFF": [
+                    0.0,
                     0.0
                 ],
                 "CUBE_COEFF": [
+                    0.0,
                     0.0
                 ],
                 "LIN_COEFF": [
+                    0.0,
                     0.0
                 ],
                 "QUAD_COEFF": [
+                    0.0,
                     0.0
                 ]
             }
@@ -61,58 +69,94 @@
         "unit_001": {
             "ADSORPTION_MODEL": "LINEAR",
             "ADSORPTION_MODEL_MULTIPLEX": 1,
-            "COL_DISPERSION": 5.75e-08,
+            "COL_DISPERSION": [
+                5.75e-08
+            ],
             "COL_LENGTH": 0.014,
             "COL_POROSITY": 0.37,
-            "FILM_DIFFUSION": 6.9e-06,
-            "FILM_DIFFUSION_MULTIPLEX": 0,
+            "FILM_DIFFUSION": [
+                6.9e-06,
+                2e-06,
+                6.900000000000001e-07,
+                2e-07
+            ],
+            "FILM_DIFFUSION_MULTIPLEX": 1,
             "INIT_C": [
+                0.0,
                 0.0
             ],
             "INIT_CP": [
+                0.0,
                 0.0
             ],
             "INIT_Q": [
+                0.0,
                 0.0
             ],
-            "NCOMP": 1,
+            "NBOUND": [
+                1,
+                1
+            ],
+            "NCOMP": 2,
+            "NPARTYPE": 2,
             "PAR_CORERADIUS": 0.0,
-            "PAR_DIFFUSION": 6.07e-11,
+            "PAR_DIFFUSION": [
+                1.214e-10,
+                2e-11,
+                6.07e-11,
+                1e-11,
+                2.428e-10,
+                4e-11,
+                1.214e-10,
+                2e-11
+            ],
+            "PAR_DIFFUSION_MULTIPLEX": 3,
+            "PAR_GEOM": [
+                "SPHERE"
+            ],
             "PAR_POROSITY": 0.75,
             "PAR_RADIUS": 4.5e-05,
-            "PAR_SURFDIFFUSION": 5.0e-11,
-            "PAR_TYPE_VOLFRAC": 1,
+            "PAR_SURFDIFFUSION": [
+                5e-11,
+                2e-11,
+                1e-10,
+                4e-11
+            ],
+            "PAR_SURFDIFFUSION_MULTIPLEX": 2,
+            "PAR_TYPE_VOLFRAC": [
+                0.4,
+                0.6
+            ],
             "UNIT_TYPE": "GENERAL_RATE_MODEL",
             "VELOCITY": 0.000575,
             "adsorption": {
                 "IS_KINETIC": true,
                 "LIN_KA": [
-                    3.55
+                    3.55,
+                    2.0
                 ],
                 "LIN_KD": [
-                    0.1
+                    0.1,
+                    1.0
                 ]
             },
             "discretization": {
                 "GS_TYPE": 0,
                 "MAX_KRYLOV": 10,
                 "MAX_RESTARTS": 100,
-                "NBOUND": [
-                    1
-                ],
                 "NCOL": 8,
+                "NELEM": 4,
                 "NPAR": 2,
-                "NPARTYPE": 1,
                 "PAR_BOUNDARY_ORDER": 2,
                 "PAR_DISC_TYPE": [
                     "EQUIDISTANT_PAR"
                 ],
-                "PAR_GEOM": [
-                    "SPHERE"
-                ],
+                "PAR_NELEM": 2,
+                "PAR_POLYDEG": 3,
+                "POLYDEG": 3,
                 "RECONSTRUCTION": "WENO",
                 "SCHUR_SAFETY": 0.1,
-                "SPATIAL_METHOD": "FV",
+                "SPATIAL_METHOD": "DG",
                 "USE_ANALYTIC_JACOBIAN": true,
                 "weno": {
                     "BOUNDARY_MODEL": 0,
@@ -122,7 +166,7 @@
             }
         },
         "unit_002": {
-            "NCOMP": 1,
+            "NCOMP": 2,
             "UNIT_TYPE": "OUTLET"
         }
     },
@@ -151,7 +195,7 @@
         }
     },
     "sensitivity": {
-        "NSENS": 3,
+        "NSENS": 6,
         "SENS_METHOD": "ad1",
         "param_000": {
             "SENS_BOUNDPHASE": -1,
@@ -159,23 +203,50 @@
             "SENS_NAME": "FILM_DIFFUSION",
             "SENS_PARTYPE": -1,
             "SENS_REACTION": -1,
-            "SENS_SECTION": -1,
+            "SENS_SECTION": 0,
             "SENS_UNIT": 1
         },
         "param_001": {
-            "SENS_BOUNDPHASE": 0,
+            "SENS_BOUNDPHASE": -1,
             "SENS_COMP": 0,
-            "SENS_NAME": "PAR_SURFDIFFUSION",
+            "SENS_NAME": "FILM_DIFFUSION",
             "SENS_PARTYPE": -1,
             "SENS_REACTION": -1,
-            "SENS_SECTION": -1,
+            "SENS_SECTION": 1,
             "SENS_UNIT": 1
         },
         "param_002": {
             "SENS_BOUNDPHASE": -1,
-            "SENS_COMP": -1,
-            "SENS_NAME": "PAR_RADIUS",
-            "SENS_PARTYPE": -1,
+            "SENS_COMP": 0,
+            "SENS_NAME": "PAR_DIFFUSION",
+            "SENS_PARTYPE": 0,
+            "SENS_REACTION": -1,
+            "SENS_SECTION": 0,
+            "SENS_UNIT": 1
+        },
+        "param_003": {
+            "SENS_BOUNDPHASE": -1,
+            "SENS_COMP": 0,
+            "SENS_NAME": "PAR_DIFFUSION",
+            "SENS_PARTYPE": 1,
+            "SENS_REACTION": -1,
+            "SENS_SECTION": 0,
+            "SENS_UNIT": 1
+        },
+        "param_004": {
+            "SENS_BOUNDPHASE": 0,
+            "SENS_COMP": 0,
+            "SENS_NAME": "PAR_SURFDIFFUSION",
+            "SENS_PARTYPE": 0,
+            "SENS_REACTION": -1,
+            "SENS_SECTION": -1,
+            "SENS_UNIT": 1
+        },
+        "param_005": {
+            "SENS_BOUNDPHASE": 0,
+            "SENS_COMP": 1,
+            "SENS_NAME": "PAR_SURFDIFFUSION",
+            "SENS_PARTYPE": 0,
             "SENS_REACTION": -1,
             "SENS_SECTION": -1,
             "SENS_UNIT": 1
@@ -6200,11 +6271,11 @@
             ]
         },
         "time_integrator": {
-            "ABSTOL": 1e-10,
-            "ALGTOL": 1e-08,
+            "ABSTOL": 1e-08,
+            "ALGTOL": 1e-06,
             "INIT_STEP_SIZE": 1e-10,
             "MAX_STEPS": 1000000,
-            "RELTOL": 1e-08
+            "RELTOL": 1e-06
         }
     }
 }

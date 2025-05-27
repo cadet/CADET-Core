@@ -58,7 +58,7 @@ TEST_CASE("LRMP_DG non-binding linear pulse vs analytic solution", "[LRMP],[DG],
 //	}
 //}
 
-TEST_CASE("LRMP_DG numerical Benchmark with parameter sensitivities for linear case", "[LRMP],[DG],[DG1D],[Simulation],[Reference],[Sensitivity],[CI]")
+TEST_CASE("LRMP_DG numerical Benchmark with parameter sensitivities for linear case", "[LRMP],[DG],[DG1D],[Simulation],[Reference],[Sensitivity],[CI_sens14]")
 {
 	const std::string& modelFilePath = std::string("/data/model_LRMP_dynLin_1comp_benchmark1.json");
 	const std::string& refFilePath = std::string("/data/ref_LRMP_dynLin_1comp_sensbenchmark1_DG_P3Z8.h5");
@@ -69,7 +69,7 @@ TEST_CASE("LRMP_DG numerical Benchmark with parameter sensitivities for linear c
 	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "001", absTol, relTol, disc, true);
 }
 
-TEST_CASE("LRMP_DG numerical Benchmark with parameter sensitivities for SMA LWE case", "[LRMP],[DG],[DG1D],[Simulation],[Reference],[Sensitivity],[CI]")
+TEST_CASE("LRMP_DG numerical Benchmark with parameter sensitivities for SMA LWE case", "[LRMP],[DG],[DG1D],[Simulation],[Reference],[Sensitivity],[CI_sens15]")
 {
 	const std::string& modelFilePath = std::string("/data/model_LRMP_reqSMA_4comp_benchmark1.json");
 	const std::string& refFilePath = std::string("/data/ref_LRMP_reqSMA_4comp_sensbenchmark1_DG_P3Z8.h5");

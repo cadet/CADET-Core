@@ -58,7 +58,7 @@ TEST_CASE("LRM Jacobian forward vs backward flow", "[LRM],[FV],[UnitOp],[Residua
 	}
 }
 
-TEST_CASE("LRM numerical Benchmark with parameter sensitivities for linear case", "[LRM],[FV],[Simulation],[Reference],[Sensitivity],[CI_sensitivity1]")
+TEST_CASE("LRM numerical Benchmark with parameter sensitivities for linear case", "[LRM],[FV],[Simulation],[Reference],[Sensitivity],[CI_sens5]")
 {
 	const std::string& modelFilePath = std::string("/data/model_LRM_dynLin_1comp_benchmark1.json");
 	const std::string& refFilePath = std::string("/data/ref_LRM_dynLin_1comp_sensbenchmark1_FV_Z32.h5");
@@ -69,7 +69,7 @@ TEST_CASE("LRM numerical Benchmark with parameter sensitivities for linear case"
 	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "001", absTol, relTol, disc, true);
 }
 
-TEST_CASE("LRM numerical Benchmark with parameter sensitivities for SMA LWE case", "[LRM],[FV],[Simulation],[Reference],[Sensitivity],[CI_sensitivity2]")
+TEST_CASE("LRM numerical Benchmark with parameter sensitivities for SMA LWE case", "[LRM],[FV],[Simulation],[Reference],[Sensitivity],[CI_sens6]")
 {
 	const std::string& modelFilePath = std::string("/data/model_LRM_reqSMA_4comp_benchmark1.json");
 	const std::string& refFilePath = std::string("/data/ref_LRM_reqSMA_4comp_sensbenchmark1_FV_Z32.h5");

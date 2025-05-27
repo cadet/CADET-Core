@@ -856,10 +856,10 @@ namespace column
 
 		cadet::IUnitOperation* const unitAna = unitoperation::createAndConfigureUnit(jpp, *mb);
 		cadet::IUnitOperation* const unitAD = unitoperation::createAndConfigureUnit(jpp, *mb);
+		unitAD->useAnalyticJacobian(false);
 
 		// Enable AD
 		REQUIRE(unitAD->requiredADdirs() <= cadet::ad::getMaxDirections());
-		unitAD->useAnalyticJacobian(false);
 		cadet::ad::setDirections(unitAD->requiredADdirs());
 
 		cadet::active* adRes = new cadet::active[unitAD->numDofs()];
