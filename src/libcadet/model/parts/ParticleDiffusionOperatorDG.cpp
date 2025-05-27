@@ -40,13 +40,14 @@ namespace parts
 	/**
 	 * @brief Creates a ParticleDiffusionOperatorDG
 	 */
-	ParticleDiffusionOperatorDG::ParticleDiffusionOperatorDG() : _boundOffset(nullptr), _localFlux(nullptr), _deltaR(nullptr), _Ir(nullptr), _DGjacParDispBlocks(nullptr), _minus_InvMM_ST(nullptr), _parInvMM(nullptr), _parDepSurfDiffusion(nullptr)
+	ParticleDiffusionOperatorDG::ParticleDiffusionOperatorDG() : _boundOffset(nullptr), _nBound(nullptr), _localFlux(nullptr), _deltaR(nullptr), _Ir(nullptr), _DGjacParDispBlocks(nullptr), _minus_InvMM_ST(nullptr), _parInvMM(nullptr), _parDepSurfDiffusion(nullptr)
 	{
 	}
 
 	ParticleDiffusionOperatorDG::~ParticleDiffusionOperatorDG() CADET_NOEXCEPT
 	{
 		delete[] _boundOffset;
+		delete[] _nBound;
 		delete[] _localFlux;
 		delete[] _deltaR;
 		delete[] _Ir;
@@ -154,6 +155,8 @@ namespace parts
 
 		std::vector<int> stridesParTypeBound(nParType + 1);
 		std::vector<int> nBoundBeforeType(nParType);
+		if (!_nBound)
+			_nBound = new unsigned int[_nComp];
 
 		if (nBound.size() < _nComp * nParType)
 		{
@@ -170,7 +173,6 @@ namespace parts
 		}
 		else
 		{
-			_nBound = new unsigned int[_nComp];
 			std::copy_n(nBound.begin() + _parTypeIdx * _nComp, _nComp, _nBound);
 
 			stridesParTypeBound[0] = std::accumulate(nBound.begin(), nBound.begin() + _nComp, 0);
@@ -184,10 +186,8 @@ namespace parts
 		}
 
 		// Precompute offsets and total number of bound states (DOFs in solid phase)
-		if (_boundOffset == nullptr)
-		{
+		if (!_boundOffset)
 			_boundOffset = new unsigned int[_nComp];
-		}
 
 		_boundOffset[0] = 0.0;
 		_strideBound = std::accumulate(_nBound, _nBound + _nComp, 0u);

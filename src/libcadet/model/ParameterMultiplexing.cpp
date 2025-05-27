@@ -762,7 +762,7 @@ MultiplexMode readAndRegisterSingleTypeMultiplexCompTypeSecParam(IParameterProvi
 		std::vector<active> p(nComp * nSec);
 
 		for (int s = 0; s < nSec; s++)
-			std::copy(values.begin() + nSec * nParType * nComp + parTypeIdx * nComp, values.begin() + nSec * nParType * nComp + parTypeIdx * nComp + nComp, p.begin() + s * nComp);
+			std::copy(values.begin() + s * nParType * nComp + parTypeIdx * nComp, values.begin() + s * nParType * nComp + parTypeIdx * nComp + nComp, p.begin() + s * nComp);
 
 		values = std::move(p);
 
