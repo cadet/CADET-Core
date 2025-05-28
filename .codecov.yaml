@@ -1,0 +1,9 @@
+coverage:
+  status:
+    project:
+      default:
+        target: 55%
+
+  ignore:
+    - ".*ThirdParty.*"
+    - ".*/test/.*"

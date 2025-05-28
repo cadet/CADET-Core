@@ -118,3 +118,14 @@ Maintenance of the tests
 
 Some changes will break the tests without them being necessarily wrong. A change in the numerics for instance, will most likely break some tests.
 This can be fixed by carefully adapting the absolute and relative tolerances for the broken tests. These changes should not change the magnitude of the tolerances, except if this is within an acceptable and expected new tolerance).
+
+Test coverage
+-------------
+
+``Codecov`` is used to analyze test coverage through an automated workflow (see ``coverage.yml``), which runs on changes to the ``test/coverage`` branch and can also be triggered manually (workflow dispatch).
+Coverage reports are automatically uploaded to ``Codecov``, providing detailed insights into tested code areas, uncovered lines, and coverage trends over time.
+Tests marked with the ``[CI]`` flag are automatically included in the coverage analysis; otherwise, they can be added manually in the workflow file.
+The goal is to maintain complete test coverage by ensuring every new functionality or code change includes corresponding tests executed with Codecov.
+The file ``.codecov.yml`` defines a target coverage percentage. If the coverage falls below that, the workflow fails.
+This percentage should be updated as we continuously expand our test coverage.
+Further, the file defines ignored paths, such as the `ThirdParty` directory as we dont consider test coverage of third party software.

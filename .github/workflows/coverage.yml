@@ -106,8 +106,15 @@ jobs:
 
       - name: Generate Coverage Report
         run: |
-            gcovr --root "${SRC_DIR}" --filter "${SRC_DIR}" --exclude "ThirdParty" --xml -o coverage.xml
-            gcovr --root "${SRC_DIR}" --filter "${SRC_DIR}" --exclude "ThirdParty" --html --html-details -o coverage.html
+          gcovr \
+            --root "${{ github.workspace }}" \
+            --filter "$SRC_DIR/src" \
+            --filter "$SRC_DIR/include" \
+            --filter "$BUILD_DIR/src" \
+            --exclude '.*ThirdParty.*' \
+            --html --html-details -o coverage.html \
+            --xml -o coverage.xml \
+            --print-summary
       
       - name: Upload Coverage to Codecov
         uses: codecov/codecov-action@v5
