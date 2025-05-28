@@ -2,10 +2,42 @@ name: CI
 
 on:
   push:
+    paths-ignore:
+      - 'doc/**'
+      - '.zenodo.json'
+      - 'AUTHORS.md'
+      - 'BUILD-LINUX.md'
+      - 'BUILD-WINDOWS.md'
+      - 'BUILD-OSX.md'
+      - 'CITATION.bib'
+      - 'CLA.md'
+      - 'CODE_OF_CONDUCT.md'
+      - 'CONTRIBUTING.md'
+      - 'LICENSE.txt'
+      - 'README.rst'
+      - 'SECURITY.md'
+      - 'ThirdParty-LICENSES.txt'
+      - 'version.txt'
     branches:
       - master
       - dev
   pull_request:
+    paths-ignore:
+      - 'doc/**'
+      - '.zenodo.json'
+      - 'AUTHORS.md'
+      - 'BUILD-LINUX.md'
+      - 'BUILD-WINDOWS.md'
+      - 'BUILD-OSX.md'
+      - 'CITATION.bib'
+      - 'CLA.md'
+      - 'CODE_OF_CONDUCT.md'
+      - 'CONTRIBUTING.md'
+      - 'LICENSE.txt'
+      - 'README.rst'
+      - 'SECURITY.md'
+      - 'ThirdParty-LICENSES.txt'
+      - 'version.txt'
   workflow_dispatch:
     inputs:
       ref:
