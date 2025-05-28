@@ -48,7 +48,7 @@
  MM_KMM     - Michaelis-Menten constant for each component (dim: number of reactions x number of components)
  MM_KI_C    - Competitive inhibition constants (K̃_{i,j,k}) ( dim: number of reactions x number of components x number of componetns)
  MM_KI_UC   - Uncompetitive inhibition constants (K_{i,j,k}) (dim: number of reactions x number of components x number of componetns)
- MM_KI      - Old infterface for non competative inhibition constants (K_{i,k}) (dim: number of reactions x number of componetns) 
+ MM_KI      - Old interface for non competitive inhibition constants (K_{i,k}) (dim: number of reactions x number of components) 
                 In the new interface non competative inhibition is initialized with K̃_{i,j,k} = K_{i,j,k}
 */
 
