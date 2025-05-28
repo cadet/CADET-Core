@@ -164,6 +164,18 @@ add_feature_info(ENABLE_STATIC_LINK_CLI ENABLE_STATIC_LINK_CLI "Prefer static ov
 option(CMAKE_INSTALL_RPATH_USE_LINK_PATH "Add paths to linker search and installed rpath" ON)
 add_feature_info(CMAKE_INSTALL_RPATH_USE_LINK_PATH CMAKE_INSTALL_RPATH_USE_LINK_PATH "Add paths to linker search and installed rpath")
 
+option(CODE_COVERAGE "Enable coverage reporting" OFF)
+
+if(CODE_COVERAGE)
+    if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+        message(STATUS "Enabling coverage flags")
+        add_compile_options(-g --coverage)
+        add_link_options(--coverage)
+    else()
+        message(WARNING "Coverage only supported with GCC/Clang")
+    endif()
+endif()
+
 set(EXTERNAL_TEMPLATE_CODEGEN "" CACHE STRING "Uses an external templateCodeGen instead of compiling one")
 
 # Hande RPATH on OSX when not installing to a system directory, see
