@@ -59,6 +59,8 @@ sudo apt -y install liblapack3 liblapack-dev libblas3 libblas-dev
 
 	- Using MKL (parallel): Execute `cmake -DCMAKE_INSTALL_PREFIX="../install" -DBLA_VENDOR=Intel10_64lp ../`
 
+There are further compile flags that can be passed to the above cmake command, please refer to the build options described in the developer guide.
+
 - To build:
 	- Execute `make`
 - To install:
