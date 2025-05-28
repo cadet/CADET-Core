@@ -556,7 +556,7 @@ protected:
 		typename ParamHandler_t::ParamsHandle const p = _paramHandler.update(t, secIdx, colPos, _nComp, _nBoundStates, workSpace);
 
 		// Calculate fluxes
-		typedef typename DoubleActivePromoter<StateType, ParamType>::type flux_t;
+		typedef typename DoubleActivePromoter<StateType, active>::type flux_t;
 		BufferedArray<flux_t> fluxes = workSpace.array<flux_t>(maxNumReactions());
 		for (int r = 0; r < _stoichiometryBulk.columns(); ++r)
 		{
