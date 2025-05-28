@@ -108,9 +108,11 @@ jobs:
         run: |
           gcovr --root "${SRC_DIR}" --filter "${SRC_DIR}" --xml -o coverage.xml
           gcovr --root "${SRC_DIR}" --filter "${SRC_DIR}" --html --html-details -o coverage.html
-
+      
       - name: Upload Coverage to Codecov
-        uses: codecov/codecov-action@v4
+        uses: codecov/codecov-action@v5
         with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          slug: cadet/cadet-core
           files: coverage.xml
 
