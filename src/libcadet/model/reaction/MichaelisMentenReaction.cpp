@@ -262,7 +262,7 @@ protected:
                 if (idxSubstrateReaction_r.empty())
                     throw InvalidParameterException("Michaelis Menten: No substrates found for reaction " + std::to_string(r));
                 if (idxSubstrateReaction_r.size() > 1 && _oldInterface)
-                    throw InvalidParameterException("Michaelis Menten: The old interface is used which does not support multible substrats. Pleas refer to the documentation of CADET version >= 5.2.0");
+                    throw InvalidParameterException("Michaelis Menten: The old interface is used which does not support multiple substrats. Please refer to the documentation of CADET version >= 5.2.0");
 
                 _idxSubstrate.push_back(idxSubstrateReaction_r);
 

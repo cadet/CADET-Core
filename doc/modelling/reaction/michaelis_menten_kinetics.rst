@@ -6,6 +6,7 @@ Michaelis Menten kinetics
 Implements liquid phase Michaelis-Menten reaction kinetics of the form
 
 .. math::
+
     \begin{aligned}
         f_\text{react} = S \mathbf{\nu},
     \end{aligned}
@@ -15,7 +16,7 @@ where :math:`S` is the stoichiometric matrix and the fluxes are given by
 .. math::
 
     \begin{aligned}
-        \nu_{i,j} = \prod_{i = 1}^{N_{sub}} \frac{\mu_{\mathrm{max},j} \, c_i}{k_{\mathrm{MM},j} + c_i},
+        \nu_{j} = \prod_{i = 1}^{N_{sub}} \frac{\mu_{\mathrm{max},j} \, c_i}{k_{\mathrm{MM},j} + c_i},
     \end{aligned}
 
 where
@@ -23,13 +24,13 @@ where
 - :math:`j` is the reaction index,
 - :math:`N_{sub}` is the number of substrates in the reaction,
 - :math:`c_i` is the substrate component,
-- :math:`\mu_{\mathrm{max},j}`, is the limiting rate approached by the system at saturation,
-- :math:`k_{\mathrm{MM},j}` is the Michaelis constant, which is defined as the concentration of substrate at which the reaction rate is half of :math:`\mu_{\mathrm{max},j}`.
+- :math:`\mu_{\mathrm{max},j}`, is the limiting flux approached by the system at saturation,
+- :math:`k_{\mathrm{MM},j}` is the Michaelis constant, which is defined as the concentration of substrate at which the reaction flux is half of :math:`\mu_{\mathrm{max},j}`.
 
 
 In addition, a substrate :math:`i` might be inhibited by other components.
 Three types of inhibition are implemented.
-In this case the rate :math:`\nu_{i,j}` is modified as follows:
+In this case the flux :math:`\nu_{i,j}` is modified as follows:
 
 Competitive inhibition
 ^^^^^^^^^^^^^^^^^^^^^^
@@ -41,7 +42,7 @@ Competitive inhibition
     \end{aligned}
 
 where
- - :math:`c_i` is the substrate component and :math:`c_{i,k}` is the inhibitor  acting on substrate :math:`c_i`.
+ - :math:`c_i` is the substrate component and :math:`c_{i,k}` is the inhibitor acting on substrate :math:`c_i`.
  - :math:`N_{inh}` is the number of inhibitors in the reaction,
  - :math:`K_{i,j,k}` is the inhibition constant with respect to component :math:`c_{i,k}` in reaction :math:`j`.
         If :math:`K_{i,j,k} \leq 0`, component :math:`c_{i,k}` does not act as an inhibitor.
