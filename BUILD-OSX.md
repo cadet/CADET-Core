@@ -47,5 +47,8 @@ or install the freely available [Intel MKL](https://software.intel.com/sites/cam
     Using MKL (sequential): Execute `cmake -DCMAKE_INSTALL_PREFIX="<ROOT>/install" -DBLA_VENDOR=Intel10_64lp_seq ../`
 
     Using MKL (parallel): Execute `cmake -DCMAKE_INSTALL_PREFIX="<ROOT>/install" -DBLA_VENDOR=Intel10_64lp ../`
+
+There are further compile flags that can be passed to the above cmake command, please refer to the build options described in the developer guide.
+
 * Execute `make`
 * Execute `make install`
