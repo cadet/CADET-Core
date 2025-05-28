@@ -2179,6 +2179,9 @@ bool GeneralRateModelDG::setParameter(const ParameterId& pId, double value)
 
 		if (_convDispOp.setParameter(pId, value))
 			return true;
+
+		if (model::setParameter(pId, value, std::vector<IDynamicReactionModel*>{ _dynReactionBulk }, true))
+			return true;
 	}
 
 	const bool result = UnitOperationBase::setParameter(pId, value);
@@ -2198,6 +2201,12 @@ bool GeneralRateModelDG::setParameter(const ParameterId& pId, int value)
 	if (model::setParameter(pId, value, _parDepSurfDiffusion, _singleParDepSurfDiffusion))
 		return true;
 
+	if (pId.unitOperation == _unitOpIdx)
+	{
+		if (model::setParameter(pId, value, std::vector<IDynamicReactionModel*>{ _dynReactionBulk }, true))
+			return true;
+	}
+
 	return UnitOperationBase::setParameter(pId, value);
 }
 
@@ -2208,6 +2217,12 @@ bool GeneralRateModelDG::setParameter(const ParameterId& pId, bool value)
 
 	if (model::setParameter(pId, value, _parDepSurfDiffusion, _singleParDepSurfDiffusion))
 		return true;
+
+	if (pId.unitOperation == _unitOpIdx)
+	{
+		if (model::setParameter(pId, value, std::vector<IDynamicReactionModel*>{ _dynReactionBulk }, true))
+			return true;
+	}
 
 	return UnitOperationBase::setParameter(pId, value);
 }
@@ -2255,6 +2270,9 @@ void GeneralRateModelDG::setSensitiveParameterValue(const ParameterId& pId, doub
 			return;
 
 		if (_convDispOp.setSensitiveParameterValue(_sensParams, pId, value))
+			return;
+
+		if (model::setSensitiveParameterValue(pId, value, _sensParams, std::vector<IDynamicReactionModel*>{ _dynReactionBulk }, true))
 			return;
 	}
 
@@ -2347,6 +2365,12 @@ bool GeneralRateModelDG::setSensitiveParameter(const ParameterId& pId, unsigned 
 		if (_convDispOp.setSensitiveParameter(_sensParams, pId, adDirection, adValue))
 		{
 			LOG(Debug) << "Found parameter " << pId << ": Dir " << adDirection << " is set to " << adValue;
+			return true;
+		}
+
+		if (model::setSensitiveParameter(pId, adDirection, adValue, _sensParams, std::vector<IDynamicReactionModel*> { _dynReactionBulk }, true))
+		{
+			LOG(Debug) << "Found parameter " << pId << " in DynamicBulkReactionModel: Dir " << adDirection << " is set to " << adValue;
 			return true;
 		}
 	}
