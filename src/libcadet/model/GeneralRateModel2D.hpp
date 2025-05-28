@@ -149,6 +149,8 @@ public:
 	}
 
 	virtual bool setParameter(const ParameterId& pId, double value);
+	virtual bool setParameter(const ParameterId& pId, int value);
+	virtual bool setParameter(const ParameterId& pId, bool value);
 	virtual bool setSensitiveParameter(const ParameterId& pId, unsigned int adDirection, double adValue);
 	virtual void setSensitiveParameterValue(const ParameterId& id, double value);
 
