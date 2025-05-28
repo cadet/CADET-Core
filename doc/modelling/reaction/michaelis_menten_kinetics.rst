@@ -57,7 +57,7 @@ Uncompetitive inhibition
     \end{aligned}
 
 where
- - :math:`c_i` is the substrate component and :math:`c_{i,k}` is the inhibitor  acting on substrate :math:`c_i`.
+ - :math:`c_i` is the substrate component and :math:`c_{i,k}` is the inhibitor acting on substrate :math:`c_i`.
  - :math:`N_{inh}` is the number of inhibitors in the reaction,
  - :math:`\tilde{K}_{i,j,k}` is the inhibition constant with respect to component :math:`c_{i,k}` in reaction :math:`j`.
     If :math:`\tilde{K}_{i,j,k} \leq 0`, component :math:`c_{i,k}` does not act as an inhibitor.
