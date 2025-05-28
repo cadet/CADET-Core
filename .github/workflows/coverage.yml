@@ -2,6 +2,8 @@ name: test-coverage
 
 on:
   push:
+    branches:
+      - test/coverage
     tags:
       - 'v*'         # for version tags
   workflow_dispatch:
