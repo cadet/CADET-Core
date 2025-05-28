@@ -91,6 +91,7 @@ We are using Visual Studio because it is the easiest way to install all required
       and
       - `cmake -DCMAKE_INSTALL_PREFIX="..\out\install\aRELEASE" -G "Visual Studio 17 2022" -A x64 -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE="$ENV:VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" -DVCPKG_TARGET_TRIPLET=x64-windows-static -DENABLE_STATIC_LINK_LAPACK=ON -DENABLE_STATIC_LINK_DEPS=ON -DBLA_VENDOR=Intel10_64lp "../" --fresh`
     - `msbuild.exe INSTALL.vcxproj /p:Configuration="Release;Platform=x64"`
+- There are further compile flags that can be passed to the above cmake command, please refer to the build options described in the developer guide.
 - The binaries will be located in `CADET-Core\out\install\aRELEASE\bin`
 
 ## Test build results
