@@ -26,6 +26,7 @@ Options
 
 The following build arguments can be set in the cmakeSettings.json or from the cmake command line:
 
+- ``DCMAKE_BUILD_TYPE``: Specifies the configuration type for the build. This can be set to ``Debug``, ``DEBUG_with_Tests``, ``RelWithDebInfo`` or ``Release``. The default is ``Release``, ``DEBUG_with_Tests`` and ``RelWithDebInfo`` needs to be specified to additionally build the respective debug or release mode testrunner.
 - ``DCMAKE_INSTALL_PREFIX``: location for the installed ``CADET-Core`` framework.
 - ``DENABLE_STATIC_LINK_LAPACK`` Prefer static over dynamic linking of LAPACK and BLAS into the ``CADET-Core`` framework. Static linking incorporates all necessary libraries into the final executable at compile time, while dynamic linking loads libraries at runtime. Static linking produces larger executables that are less dependent on changes in the operating system. Dynamic linking allows for dynamic updates of underlying libraries and smaller compiled software.
 - ``DENABLE_STATIC_LINK_DEPS``: Prefer static over dynamic linking of dependencies into the ``CADET-Core`` framework.
