@@ -1910,6 +1910,62 @@ void CSTRModel::checkAnalyticJacobianAgainstAd(active const* const adRes, unsign
 
 #endif
 
+bool CSTRModel::setParameter(const ParameterId& pId, double value)
+{
+	if (pId.unitOperation == _unitOpIdx)
+	{
+		if (model::setParameter(pId, value, std::vector<IDynamicReactionModel*>{ _dynReactionBulk }, true))
+			return true;
+	}
+
+	return UnitOperationBase::setParameter(pId, value);
+}
+
+bool CSTRModel::setParameter(const ParameterId& pId, int value)
+{
+	if (pId.unitOperation == _unitOpIdx)
+	{
+		if (model::setParameter(pId, value, std::vector<IDynamicReactionModel*>{ _dynReactionBulk }, true))
+			return true;
+	}
+
+	return UnitOperationBase::setParameter(pId, value);
+}
+
+bool CSTRModel::setParameter(const ParameterId& pId, bool value)
+{
+	if (pId.unitOperation == _unitOpIdx)
+	{
+		if (model::setParameter(pId, value, std::vector<IDynamicReactionModel*>{ _dynReactionBulk }, true))
+			return true;
+	}
+
+	return UnitOperationBase::setParameter(pId, value);
+}
+
+void CSTRModel::setSensitiveParameterValue(const ParameterId& pId, double value)
+{
+	if (pId.unitOperation == _unitOpIdx)
+	{
+		if (model::setSensitiveParameterValue(pId, value, _sensParams, std::vector<IDynamicReactionModel*>{ _dynReactionBulk }, true))
+			return;
+	}
+
+	UnitOperationBase::setSensitiveParameterValue(pId, value);
+}
+
+bool CSTRModel::setSensitiveParameter(const ParameterId& pId, unsigned int adDirection, double adValue)
+{
+	if (model::setSensitiveParameter(pId, adDirection, adValue, _sensParams, std::vector<IDynamicReactionModel*>{ _dynReactionBulk }, true))
+	{
+		LOG(Debug) << "Found parameter " << pId << " in DynamicBulkReactionModel: Dir " << adDirection << " is set to " << adValue;
+		return true;
+	}
+
+	const bool result = UnitOperationBase::setSensitiveParameter(pId, adDirection, adValue);
+
+	return result;
+}
 
 unsigned int CSTRModel::Exporter::numSolidPhaseDofs() const CADET_NOEXCEPT
 {
