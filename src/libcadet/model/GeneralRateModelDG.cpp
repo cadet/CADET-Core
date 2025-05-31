@@ -265,7 +265,7 @@ bool GeneralRateModelDG::configureModelDiscretization(IParameterProvider& paramP
 	// ====Legacy code since originally bindings were handled by the unit operation
 	// Cannot remove _binding which is a member of the base class; also we need the _singleBinding information here
 	clearBindingModels();
-	_binding = std::vector<IBindingModel*>(_disc.nParType, nullptr);
+
 	std::vector<std::string> bindModelNames = { "NONE" };
 	if (paramProvider.exists("ADSORPTION_MODEL"))
 		bindModelNames = paramProvider.getStringArray("ADSORPTION_MODEL");
@@ -411,6 +411,24 @@ bool GeneralRateModelDG::configure(IParameterProvider& paramProvider)
 	else
 		registerParam2DArray(_parameters, _parTypeVolFrac, [=](bool multi, unsigned cell, unsigned int type) { return makeParamId(hashString("PAR_TYPE_VOLFRAC"), _unitOpIdx, CompIndep, type, BoundStateIndep, ReactionIndep, cell); }, _disc.nParType);
 
+	// Reconfigure bulk reaction model
+	bool dynReactionConfSuccess = true;
+	if (_dynReactionBulk && _dynReactionBulk->requiresConfiguration())
+	{
+		paramProvider.pushScope("reaction_bulk");
+		dynReactionConfSuccess = _dynReactionBulk->configure(paramProvider, _unitOpIdx, ParTypeIndep);
+		paramProvider.popScope();
+	}
+	
+	// Reconfigure particle model
+	bool particleConfSuccess = true;
+	_binding = std::vector<IBindingModel*>(_disc.nParType, nullptr);
+	for (int parType = 0; parType < _disc.nParType; parType++)
+	{
+		particleConfSuccess = particleConfSuccess && _parDiffOp[parType].configure(_unitOpIdx, paramProvider, _parameters, _disc.nParType, _disc.nBoundBeforeType, _disc.strideBound[_disc.nParType]);
+		_binding[parType] = _parDiffOp[parType]._binding;
+	}
+
 	// Register initial conditions parameters
 	registerParam1DArray(_parameters, _initC, [=](bool multi, unsigned int comp) { return makeParamId(hashString("INIT_C"), _unitOpIdx, comp, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep); });
 
@@ -449,21 +467,6 @@ bool GeneralRateModelDG::configure(IParameterProvider& paramProvider)
 		}
 	}
 
-	// Reconfigure bulk reaction model
-	bool dynReactionConfSuccess = true;
-	if (_dynReactionBulk && _dynReactionBulk->requiresConfiguration())
-	{
-		paramProvider.pushScope("reaction_bulk");
-		dynReactionConfSuccess = _dynReactionBulk->configure(paramProvider, _unitOpIdx, ParTypeIndep);
-		paramProvider.popScope();
-	}
-	
-	// reconfigure particle model
-	bool particleConfSuccess = true;
-	for (int parType = 0; parType < _disc.nParType; parType++)
-	{
-		particleConfSuccess = particleConfSuccess && _parDiffOp[parType].configure(_unitOpIdx, paramProvider, _parameters, _disc.nParType, _disc.nBoundBeforeType, _disc.strideBound[_disc.nParType]);
-	}
 	// jaobian pattern set after binding and particle surface diffusion are configured
 	setJacobianPattern_GRM(_globalJac, 0, _dynReactionBulk);
 	_globalJacDisc = _globalJac;
@@ -891,19 +894,6 @@ int GeneralRateModelDG::residualImpl(double t, unsigned int secIdx, StateType co
 		residualParticle<StateType, ResidualType, ParamType, wantJac, wantRes>(t, parType, par, secIdx, y, yDot, res, threadLocalMem);
 	}
 
-	// we need to add the DG discretized solid entries of the jacobian that get overwritten by the binding kernel.
-	// These entries only exist for the GRM with surface diffusion
-	if (wantJac)
-	{
-		Indexer idxr(_disc);
-
-		for (unsigned int parType = 0; parType < _disc.nParType; parType++)
-		{
-			// note that entries are only added if the model has dynamic reactions and surface diffusion
-			_parDiffOp[parType].addSolidDGentries(secIdx, _disc.nPoints, idxr.offsetCp(ParticleTypeIndex{parType}), _globalJac);
-		}
-	}
-
 	if (!wantRes)
 		return 0;
 
@@ -988,44 +978,15 @@ int GeneralRateModelDG::residualParticle(double t, unsigned int parType, unsigne
 	// continuing to the last upper diagonal by using the native() method.
 	linalg::BandedEigenSparseRowIterator jacIt(_globalJac, idxr.offsetCp(ParticleTypeIndex{ parType }, ParticleIndex{ colNode }));
 
-	int const* const qsReaction = _binding[parType]->reactionQuasiStationarity();
-	const parts::cell::CellParameters cellResParams = makeCellResidualParams(parType, qsReaction);
-
-	// Handle time derivatives, binding, dynamic reactions: residualKernel computes discrete point wise,
-	// so we loop over each discrete particle point
-	for (unsigned int par = 0; par < _disc.nParPoints[parType]; ++par)
-	{
-		// local Pointers to current particle node, needed in residualKernel
-		StateType const* local_y = yBase + idxr.offsetCp(ParticleTypeIndex{ parType }, ParticleIndex{ colNode }) + par * idxr.strideParNode(parType);
-		double const* local_yDot = yDotBase ? yDotBase + idxr.offsetCp(ParticleTypeIndex{ parType }, ParticleIndex{ colNode }) + par * idxr.strideParNode(parType) : nullptr;
-		ResidualType* local_res = resBase ? resBase + idxr.offsetCp(ParticleTypeIndex{ parType }, ParticleIndex{ colNode }) + par * idxr.strideParNode(parType) : nullptr;
-
-		// r (particle) coordinate of current node (particle radius normed to 1) - needed in externally dependent adsorption kinetic
-		const double r = _parDiffOp[parType].relativeCoordinate(par);
-		const ColumnPosition colPos{ z, 0.0, r };
-
-		if (wantRes)
-			parts::cell::residualKernel<StateType, ResidualType, ParamType, parts::cell::CellParameters, linalg::BandedEigenSparseRowIterator, wantJac, true>(
-				t, secIdx, colPos, local_y, local_yDot, local_res, jacIt, cellResParams, tlmAlloc
-			);
-		else
-			parts::cell::residualKernel<StateType, ResidualType, ParamType, parts::cell::CellParameters, linalg::BandedEigenSparseRowIterator, wantJac, false, false>(
-				t, secIdx, colPos, local_y, local_yDot, local_res, jacIt, cellResParams, tlmAlloc
-			);
-
-		// Move rowiterator to next particle node
-		jacIt += idxr.strideParNode(parType);
-	}
-
 	// Particle transport equations: particle and surface diffusion
 	const ColumnPosition colPos{ 0.0, 0.0, 0.0 };
 
-	_parDiffOp[parType].residual(t, secIdx,
+	_parDiffOp[parType].residual<wantJac, wantRes>(t, secIdx,
 		yBase + idxr.offsetCp(ParticleTypeIndex{ parType }, ParticleIndex{ colNode }),
 		yBase + idxr.offsetC() + colNode * idxr.strideColNode(),
-		yDotBase + idxr.offsetCp(ParticleTypeIndex{ parType }, ParticleIndex{ colNode }),
-		resBase + idxr.offsetCp(ParticleTypeIndex{ parType }, ParticleIndex{ colNode }),
-		colPos, wantRes, jacIt,
+		yDotBase ? yDotBase + idxr.offsetCp(ParticleTypeIndex{ parType }, ParticleIndex{ colNode }) : nullptr,
+		resBase ? resBase + idxr.offsetCp(ParticleTypeIndex{ parType }, ParticleIndex{ colNode }) : nullptr,
+		colPos, jacIt, tlmAlloc,
 		typename cadet::ParamSens<ParamType>::enabled()
 	);
 

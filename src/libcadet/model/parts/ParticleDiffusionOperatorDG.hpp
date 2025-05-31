@@ -52,6 +52,10 @@ class IParameterStateDependence;
 
 namespace parts
 {
+	namespace cell
+	{
+		struct CellParameters;
+	}
 
 	constexpr double _SurfVolRatioSphere = 3.0; //!< Surface to volume ratio for a spherical particle
 	constexpr double _SurfVolRatioCylinder = 2.0; //!< Surface to volume ratio for a cylindrical particle
@@ -94,16 +98,20 @@ namespace parts
 		void setUserdefinedRadialDisc();
 		void updateRadialDisc();
 
-		//parts::cell::CellParameters makeCellResidualParams(int const* qsReaction) const;
+		cell::CellParameters makeCellResidualParams(int const* qsReaction) const;
 
 		void clearParDepSurfDiffusion();
 
 		bool notifyDiscontinuousSectionTransition(double t, unsigned int secIdx, active const* const filmDiff, active const* const poreAccessFactor);
 
-		int residual(double t, unsigned int secIdx, double const* yPar, double const* yBulk, double const* yDotPar, double* resPar, ColumnPosition colPos, const bool wantRes, linalg::BandedEigenSparseRowIterator& jacIt, WithoutParamSensitivity);
-		int residual(double t, unsigned int secIdx, double const* yPar, double const* yBulk, double const* yDotPar, active* resPar, ColumnPosition colPos, const bool wantRes, linalg::BandedEigenSparseRowIterator& jacIt, WithParamSensitivity);
-		int residual(double t, unsigned int secIdx, active const* yPar, active const* yBulk, double const* yDotPar, active* resPar, ColumnPosition colPos, const bool wantRes, linalg::BandedEigenSparseRowIterator& jacIt, WithParamSensitivity);
-		int residual(double t, unsigned int secIdx, active const* yPar, active const* yBulk, double const* yDotPar, active* resPar, ColumnPosition colPos, const bool wantRes, linalg::BandedEigenSparseRowIterator& jacIt, WithoutParamSensitivity);
+		template<bool wantJac, bool wantRes>
+		int residual(double t, unsigned int secIdx, double const* yPar, double const* yBulk, double const* yDotPar, double* resPar, ColumnPosition colPos, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc, WithoutParamSensitivity);
+		template<bool wantJac, bool wantRes>
+		int residual(double t, unsigned int secIdx, double const* yPar, double const* yBulk, double const* yDotPar, active* resPar, ColumnPosition colPos, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc, WithParamSensitivity);
+		template<bool wantJac, bool wantRes>
+		int residual(double t, unsigned int secIdx, active const* yPar, active const* yBulk, double const* yDotPar, active* resPar, ColumnPosition colPos, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc, WithParamSensitivity);
+		template<bool wantJac, bool wantRes>
+		int residual(double t, unsigned int secIdx, active const* yPar, active const* yBulk, double const* yDotPar, active* resPar, ColumnPosition colPos, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc, WithoutParamSensitivity);
 
 		unsigned int _parTypeIdx; //!< Particle type index (wrt the unit operation that owns this particle model)
 
@@ -258,7 +266,7 @@ namespace parts
 		unsigned int calcParDispNNZ();
 
 		int calcStaticAnaParticleDiffJacobian(const int secIdx, const int offsetLocalCp, Eigen::SparseMatrix<double, RowMajor>& globalJac);
-		int addSolidDGentries(const int secIdx, const int nBulk, const int offsetCp, Eigen::SparseMatrix<double, RowMajor>& globalJac);
+		int addSolidDGentries(const int secIdx, linalg::BandedEigenSparseRowIterator& jacIt);
 
 		bool setParameter(const ParameterId& pId, double value);
 		bool setParameter(const ParameterId& pId, int value);
@@ -276,8 +284,8 @@ namespace parts
 		template <typename StateType, typename ResidualType, typename ParamType>
 		int particleDiffusionImpl(double t, unsigned int secIdx, StateType const* yPar, StateType const* yBulk, double const* yDotPar, ResidualType* resPar);
 
-		template <typename StateType, typename ResidualType, typename ParamType>
-		int residualImpl(double t, unsigned int secIdx, StateType const* yPar, StateType const* yBulk, double const* yDotPar, ResidualType* resPar, ColumnPosition colPos, const bool wantRes, linalg::BandedEigenSparseRowIterator& jacIt);
+		template <typename StateType, typename ResidualType, typename ParamType, bool wantJac, bool wantRes>
+		int residualImpl(double t, unsigned int secIdx, StateType const* yPar, StateType const* yBulk, double const* yDotPar, ResidualType* resPar, ColumnPosition colPos, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc);
 
 		template<typename ResidualType, typename ParamType>
 		void applyParInvMap(Eigen::Map<Vector<ResidualType, Dynamic>, 0, InnerStride<>>& state);

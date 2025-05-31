@@ -20,6 +20,7 @@
 #include "AdUtils.hpp"
 #include "SimulationTypes.hpp"
 #include "model/ParameterDependence.hpp"
+#include "model/parts/BindingCellKernel.hpp"
 #include "SensParamUtil.hpp"
 #include "ConfigurationHelper.hpp"
 #include "model/BindingModel.hpp"
@@ -52,6 +53,7 @@ namespace parts
 	ParticleDiffusionOperatorDG::~ParticleDiffusionOperatorDG() CADET_NOEXCEPT
 	{
 		delete[] _binding;
+		delete[] _dynReaction;
 		delete[] _boundOffset;
 		delete[] _nBound;
 		delete[] _localFlux;
@@ -61,18 +63,6 @@ namespace parts
 		delete[] _minus_InvMM_ST;
 		delete[] _parInvMM;
 		delete[] _parDepSurfDiffusion;
-	}
-
-	// note: currently only single bindings are supported
-	void ParticleDiffusionOperatorDG::clearBindingModels() CADET_NOEXCEPT
-	{
-		if (_binding)
-			delete _binding;
-	}
-	void ParticleDiffusionOperatorDG::clearDynamicReactionModels() CADET_NOEXCEPT
-	{
-		if (_dynReaction)
-			delete _dynReaction;
 	}
 
 	bool ParticleDiffusionOperatorDG::configureModelDiscretization(IParameterProvider& paramProvider, const IConfigHelper& helper, const int nComp, const int parTypeIdx, const int nParType, const int strideBulkComp)
@@ -351,7 +341,6 @@ namespace parts
 		}
 
 		// ==== Construct and configure binding model
-		clearBindingModels();
 		_binding = nullptr;
 
 		std::vector<std::string> bindModelNames = { "NONE" };
@@ -382,12 +371,11 @@ namespace parts
 
 		// the following scopeguard enters the correct scope in the parameterprovider
 		MultiplexedScopeSelector scopeGuard(paramProvider, "adsorption", _singleBinding, _parTypeIdx, nParType == 1, _binding->usesParamProviderInDiscretizationConfig());
-		bindingConfSuccess = _binding->configureModelDiscretization(paramProvider, _nComp, _nBound + _parTypeIdx * _nComp, _boundOffset + _parTypeIdx * _nComp) && bindingConfSuccess;
+		bindingConfSuccess = _binding->configureModelDiscretization(paramProvider, _nComp, _nBound, _boundOffset) && bindingConfSuccess;
 
 		// ==== Construct and configure dynamic reaction model
 		bool reactionConfSuccess = true;
 
-		clearDynamicReactionModels();
 		_dynReaction = nullptr;
 
 		if (paramProvider.exists("REACTION_MODEL_PARTICLES"))
@@ -417,7 +405,7 @@ namespace parts
 				throw InvalidParameterException("Unknown dynamic reaction model " + dynReactModelNames[_singleDynReaction ? 0 : _parTypeIdx]);
 
 			MultiplexedScopeSelector scopeGuard(paramProvider, "reaction_particle", _singleDynReaction, _parTypeIdx, nParType == 1, _dynReaction->usesParamProviderInDiscretizationConfig());
-			reactionConfSuccess = _dynReaction->configureModelDiscretization(paramProvider, _nComp, _nBound + _parTypeIdx * _nComp, _boundOffset + _parTypeIdx * _nComp) && reactionConfSuccess;
+			reactionConfSuccess = _dynReaction->configureModelDiscretization(paramProvider, _nComp, _nBound, _boundOffset) && reactionConfSuccess;
 		}
 
 		return parSurfDiffDepConfSuccess && bindingConfSuccess && reactionConfSuccess;
@@ -576,7 +564,7 @@ namespace parts
 
 		// Reconfigure binding model
 		bool bindingConfSuccess = true;
-		if (!_binding)
+		if (_binding)
 		{
 			if (_singleBinding)
 			{
@@ -879,38 +867,38 @@ namespace parts
 			// compute mass matrices for exact integration based on particle geometry, via transformation to normalized Jacobi polynomials with weight function w
 			if (_parGeomSurfToVol == _SurfVolRatioSphere) // r^2 =  r_i^2 + (1 + \xi) * r_i * DeltaR_i / 2.0 + (1 + \xi)^2 * (DeltaR_i / 2.0)^2
 			{
-				_parInvMM[elem] = parts::dgtoolbox::mMatrix(_parPolyDeg, _parNodes, 0.0, 2.0) * pow((static_cast<double>(_deltaR[elem]) / 2.0), 2.0);
+				_parInvMM[elem] = dgtoolbox::mMatrix(_parPolyDeg, _parNodes, 0.0, 2.0) * pow((static_cast<double>(_deltaR[elem]) / 2.0), 2.0);
 				if (elem > 0 || _parCoreRadius != 0.0) // following contributions are zero for f_Irst elem when R_c = 0 (no particle core)
-					_parInvMM[elem] += parts::dgtoolbox::mMatrix(_parPolyDeg, _parNodes, 0.0, 1.0) * (static_cast<double>(_deltaR[elem]) * static_cast<double>(r_L))
-					+ parts::dgtoolbox::mMatrix(_parPolyDeg, _parNodes, 0.0, 0.0) * pow(static_cast<double>(r_L), 2.0);
+					_parInvMM[elem] += dgtoolbox::mMatrix(_parPolyDeg, _parNodes, 0.0, 1.0) * (static_cast<double>(_deltaR[elem]) * static_cast<double>(r_L))
+					+ dgtoolbox::mMatrix(_parPolyDeg, _parNodes, 0.0, 0.0) * pow(static_cast<double>(r_L), 2.0);
 
 				_parInvMM[elem] = _parInvMM[elem].inverse();
 				_minus_InvMM_ST[elem] = -_parInvMM[elem] * _parPolyDerM.transpose() * _parInvMM[elem].inverse();
 
 				// particle GSM specific second order stiffness matrix (single element, i.e. _nParElem = 1)
-				_secondOrderStiffnessM = std::pow(static_cast<double>(_parCoreRadius), 2.0) * parts::dgtoolbox::secondOrderStiffnessMatrix(_parPolyDeg, 0.0, 0.0, _parNodes);
-				_secondOrderStiffnessM += static_cast<double>(_deltaR[0]) * static_cast<double>(_parCoreRadius) * parts::dgtoolbox::secondOrderStiffnessMatrix(_parPolyDeg, 0.0, 1.0, _parNodes);
-				_secondOrderStiffnessM += std::pow(static_cast<double>(_deltaR[0]) / 2.0, 2.0) * parts::dgtoolbox::secondOrderStiffnessMatrix(_parPolyDeg, 0.0, 2.0, _parNodes);
+				_secondOrderStiffnessM = std::pow(static_cast<double>(_parCoreRadius), 2.0) * dgtoolbox::secondOrderStiffnessMatrix(_parPolyDeg, 0.0, 0.0, _parNodes);
+				_secondOrderStiffnessM += static_cast<double>(_deltaR[0]) * static_cast<double>(_parCoreRadius) * dgtoolbox::secondOrderStiffnessMatrix(_parPolyDeg, 0.0, 1.0, _parNodes);
+				_secondOrderStiffnessM += std::pow(static_cast<double>(_deltaR[0]) / 2.0, 2.0) * dgtoolbox::secondOrderStiffnessMatrix(_parPolyDeg, 0.0, 2.0, _parNodes);
 			}
 			else if (_parGeomSurfToVol == _SurfVolRatioCylinder) // r = r_i + (1 + \xi) * DeltaR_i / 2.0
 			{
-				_parInvMM[elem] = parts::dgtoolbox::mMatrix(_parPolyDeg, _parNodes, 0.0, 1.0) * (static_cast<double>(_deltaR[elem]) / 2.0);
+				_parInvMM[elem] = dgtoolbox::mMatrix(_parPolyDeg, _parNodes, 0.0, 1.0) * (static_cast<double>(_deltaR[elem]) / 2.0);
 				if (elem > 0 || _parCoreRadius != 0.0) // following contribution is zero for f_Irst elem when R_c = 0 (no particle core)
-					_parInvMM[elem] += parts::dgtoolbox::mMatrix(_parPolyDeg, _parNodes, 0.0, 0.0) * static_cast<double>(r_L);
+					_parInvMM[elem] += dgtoolbox::mMatrix(_parPolyDeg, _parNodes, 0.0, 0.0) * static_cast<double>(r_L);
 
 				_parInvMM[elem] = _parInvMM[elem].inverse();
 				_minus_InvMM_ST[elem] = -_parInvMM[elem] * _parPolyDerM.transpose() * _parInvMM[elem].inverse();
 
 				// particle GSM specific second order stiffness matrix (single element, i.e. _nParElem = 1)
-				_secondOrderStiffnessM = static_cast<double>(_parCoreRadius) * parts::dgtoolbox::secondOrderStiffnessMatrix(_parPolyDeg, 0.0, 0.0, _parNodes);
-				_secondOrderStiffnessM += static_cast<double>(_deltaR[0]) / 2.0 * parts::dgtoolbox::secondOrderStiffnessMatrix(_parPolyDeg, 0.0, 1.0, _parNodes);
+				_secondOrderStiffnessM = static_cast<double>(_parCoreRadius) * dgtoolbox::secondOrderStiffnessMatrix(_parPolyDeg, 0.0, 0.0, _parNodes);
+				_secondOrderStiffnessM += static_cast<double>(_deltaR[0]) / 2.0 * dgtoolbox::secondOrderStiffnessMatrix(_parPolyDeg, 0.0, 1.0, _parNodes);
 			}
 			else if (_parGeomSurfToVol == _SurfVolRatioSlab) // r = 1
 			{
 				_minus_InvMM_ST[elem] = -_parInvMM[elem] * _parPolyDerM.transpose() * _parInvMM[elem].inverse();
 
-				_secondOrderStiffnessM = parts::dgtoolbox::secondOrderStiffnessMatrix(_parPolyDeg, 0.0, 0.0, _parNodes);
-				_parInvMM[elem] = parts::dgtoolbox::invMMatrix(_parPolyDeg, _parNodes, 0.0, 0.0);
+				_secondOrderStiffnessM = dgtoolbox::secondOrderStiffnessMatrix(_parPolyDeg, 0.0, 0.0, _parNodes);
+				_parInvMM[elem] = dgtoolbox::invMMatrix(_parPolyDeg, _parNodes, 0.0, 0.0);
 			}
 		}
 
@@ -963,9 +951,9 @@ namespace parts
 
 		/* compute metric independent DG operators for bulk and particles. Note that metric dependent DG operators are computet in updateRadialDisc(). */
 
-		parts::dgtoolbox::lglNodesWeights(_parPolyDeg, _parNodes, _parInvWeights, true);
-		_parPolyDerM = parts::dgtoolbox::derivativeMatrix(_parPolyDeg, _parNodes);
-		_parInvMM_Leg = parts::dgtoolbox::invMMatrix(_parPolyDeg, _parNodes, 0.0, 0.0);
+		dgtoolbox::lglNodesWeights(_parPolyDeg, _parNodes, _parInvWeights, true);
+		_parPolyDerM = dgtoolbox::derivativeMatrix(_parPolyDeg, _parNodes);
+		_parInvMM_Leg = dgtoolbox::invMMatrix(_parPolyDeg, _parNodes, 0.0, 0.0);
 	}
 
 
@@ -1020,30 +1008,46 @@ namespace parts
 	 * @param [in] yBulk Pointer to corresponding bulk phase entry in unit state vector
 	 * @param [in] yDotPar Pointer to particle phase derivative entry in unit state vector
 	 * @param [out] resPar Pointer Pointer to particle phase entry in unit residual vector
-	 * @param [out] wantRes specifies whether the residual (or just the Jacobian) should be computed
 	 * @param [out] colPos column position of the particle (particle coordinate zero)
 	 * @param [in] jacIt Matrix iterator pointing to the particle phase entry in the unit Jacobian
 	 * @return @c 0 on success, @c -1 on non-recoverable error, and @c +1 on recoverable error
 	 */
-	int ParticleDiffusionOperatorDG::residual(double t, unsigned int secIdx, double const* yPar, double const* yBulk, double const* yDotPar, double* resPar, ColumnPosition colPos, const bool wantRes, linalg::BandedEigenSparseRowIterator& jacIt, WithoutParamSensitivity)
+	template<bool wantJac, bool wantRes>
+	int ParticleDiffusionOperatorDG::residual(double t, unsigned int secIdx, double const* yPar, double const* yBulk, double const* yDotPar, double* resPar, ColumnPosition colPos, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc, WithoutParamSensitivity)
 	{
-		return residualImpl<double, double, double>(t, secIdx, yPar, yBulk, yDotPar, resPar, colPos, wantRes, jacIt);
+		return residualImpl<double, double, double, wantJac, wantRes>(t, secIdx, yPar, yBulk, yDotPar, resPar, colPos, jacIt, tlmAlloc);
 	}
 
-	int ParticleDiffusionOperatorDG::residual(double t, unsigned int secIdx, active const* yPar, active const* yBulk, double const* yDotPar, active* resPar, ColumnPosition colPos, const bool wantRes, linalg::BandedEigenSparseRowIterator& jacIt, WithoutParamSensitivity)
+	template<bool wantJac, bool wantRes>
+	int ParticleDiffusionOperatorDG::residual(double t, unsigned int secIdx, active const* yPar, active const* yBulk, double const* yDotPar, active* resPar, ColumnPosition colPos, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc, WithoutParamSensitivity)
 	{
-		return residualImpl<active, active, double>(t, secIdx, yPar, yBulk, yDotPar, resPar, colPos, wantRes, jacIt);
+		return residualImpl<active, active, double, wantJac, wantRes>(t, secIdx, yPar, yBulk, yDotPar, resPar, colPos, jacIt, tlmAlloc);
 	}
 
-	int ParticleDiffusionOperatorDG::residual(double t, unsigned int secIdx, double const* yPar, double const* yBulk, double const* yDotPar, active* resPar, ColumnPosition colPos, const bool wantRes, linalg::BandedEigenSparseRowIterator& jacIt, WithParamSensitivity)
+	template<bool wantJac, bool wantRes>
+	int ParticleDiffusionOperatorDG::residual(double t, unsigned int secIdx, double const* yPar, double const* yBulk, double const* yDotPar, active* resPar, ColumnPosition colPos, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc, WithParamSensitivity)
 	{
-		return residualImpl<double, active, active>(t, secIdx, yPar, yBulk, yDotPar, resPar, colPos, wantRes, jacIt);
+		return residualImpl<double, active, active, wantJac, wantRes>(t, secIdx, yPar, yBulk, yDotPar, resPar, colPos, jacIt, tlmAlloc);
 	}
 
-	int ParticleDiffusionOperatorDG::residual(double t, unsigned int secIdx, active const* yPar, active const* yBulk, double const* yDotPar, active* resPar, ColumnPosition colPos, const bool wantRes, linalg::BandedEigenSparseRowIterator& jacIt, WithParamSensitivity)
+	template<bool wantJac, bool wantRes>
+	int ParticleDiffusionOperatorDG::residual(double t, unsigned int secIdx, active const* yPar, active const* yBulk, double const* yDotPar, active* resPar, ColumnPosition colPos, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc, WithParamSensitivity)
 	{
-		return residualImpl<active, active, active>(t, secIdx, yPar, yBulk, yDotPar, resPar, colPos, wantRes, jacIt);
+		return residualImpl<active, active, active, wantJac, wantRes>(t, secIdx, yPar, yBulk, yDotPar, resPar, colPos, jacIt, tlmAlloc);
 	}
+
+	template int ParticleDiffusionOperatorDG::residual<true, true>(double t, unsigned int secIdx, double const* yPar, double const* yBulk, double const* yDotPar, double* resPar, ColumnPosition colPos, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc, WithoutParamSensitivity);
+	template int ParticleDiffusionOperatorDG::residual<false, true>(double t, unsigned int secIdx, double const* yPar, double const* yBulk, double const* yDotPar, double* resPar, ColumnPosition colPos, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc, WithoutParamSensitivity);
+	template int ParticleDiffusionOperatorDG::residual<true, false>(double t, unsigned int secIdx, double const* yPar, double const* yBulk, double const* yDotPar, double* resPar, ColumnPosition colPos, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc, WithoutParamSensitivity);
+
+	template int ParticleDiffusionOperatorDG::residual<true, true>(double t, unsigned int secIdx, active const* yPar, active const* yBulk, double const* yDotPar, active* resPar, ColumnPosition colPos, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc, WithoutParamSensitivity);
+	template int ParticleDiffusionOperatorDG::residual<false, true>(double t, unsigned int secIdx, active const* yPar, active const* yBulk, double const* yDotPar, active* resPar, ColumnPosition colPos, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc, WithoutParamSensitivity);
+		
+	template int ParticleDiffusionOperatorDG::residual<true, true>(double t, unsigned int secIdx, double const* yPar, double const* yBulk, double const* yDotPar, active* resPar, ColumnPosition colPos, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc, WithParamSensitivity);
+	template int ParticleDiffusionOperatorDG::residual<false, true>(double t, unsigned int secIdx, double const* yPar, double const* yBulk, double const* yDotPar, active* resPar, ColumnPosition colPos, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc, WithParamSensitivity);
+		
+	template int ParticleDiffusionOperatorDG::residual<true, true>(double t, unsigned int secIdx, active const* yPar, active const* yBulk, double const* yDotPar, active* resPar, ColumnPosition colPos, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc, WithParamSensitivity);
+	template int ParticleDiffusionOperatorDG::residual<false, true>(double t, unsigned int secIdx, active const* yPar, active const* yBulk, double const* yDotPar, active* resPar, ColumnPosition colPos, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc, WithParamSensitivity);
 
 	/**
 	 * @brief promotes doubles to actives
@@ -1243,25 +1247,60 @@ namespace parts
 		return true;
 	}
 
-	//parts::cell::CellParameters ParticleDiffusionOperatorDG::makeCellResidualParams(int const* qsReaction) const
-	//{
-	//	return parts::cell::CellParameters
-	//	{
-	//		_nComp,
-	//		_nBound,
-	//		_boundOffset,
-	//		_strideBound,
-	//		qsReaction,
-	//		_parPorosity,
-	//		_poreAccessFactor.data() + _disc.nComp * parType,
-	//		_binding,
-	//		(_dynReaction && (_dynReaction->numReactionsCombined() > 0)) ? _dynReaction : nullptr
-	//	};
-	//}
-
-	template <typename StateType, typename ResidualType, typename ParamType>
-	int ParticleDiffusionOperatorDG::residualImpl(double t, unsigned int secIdx, StateType const* yPar, StateType const* yBulk, double const* yDotPar, ResidualType* resPar, ColumnPosition colPos, const bool wantRes, linalg::BandedEigenSparseRowIterator& jacIt)
+	cell::CellParameters ParticleDiffusionOperatorDG::makeCellResidualParams(int const* qsReaction) const
 	{
+		return cell::CellParameters
+		{
+			_nComp,
+			_nBound,
+			_boundOffset,
+			_strideBound,
+			qsReaction,
+			_parPorosity,
+			_poreAccessFactor.data(),
+			_binding,
+			(_dynReaction && (_dynReaction->numReactionsCombined() > 0)) ? _dynReaction : nullptr
+		};
+	}
+
+	template <typename StateType, typename ResidualType, typename ParamType, bool wantJac, bool wantRes>
+	int ParticleDiffusionOperatorDG::residualImpl(double t, unsigned int secIdx, StateType const* yPar, StateType const* yBulk, double const* yDotPar, ResidualType* resPar, ColumnPosition colPos, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc)
+	{
+		int const* const qsReaction = _binding->reactionQuasiStationarity();
+		const cell::CellParameters cellResParams = makeCellResidualParams(qsReaction);
+
+		linalg::BandedEigenSparseRowIterator jacBase = jacIt;
+
+		// Handle time derivatives, binding, dynamic reactions: residualKernel computes discrete point wise,
+		// so we loop over each discrete particle point
+		for (unsigned int par = 0; par < _nParPoints; ++par)
+		{
+			// local pointers to current particle node, needed in residualKernel
+			StateType const* local_y = yPar + par * strideParNode();
+			double const* local_yDot = yDotPar ? yDotPar + par * strideParNode() : nullptr;
+			ResidualType* local_res = resPar ? resPar + par * strideParNode() : nullptr;
+
+			// r (particle) coordinate of current node (particle radius normed to 1) - needed in externally dependent adsorption kinetic
+			colPos.particle = relativeCoordinate(par);
+
+			if (wantRes)
+				cell::residualKernel<StateType, ResidualType, ParamType, cell::CellParameters, linalg::BandedEigenSparseRowIterator, wantJac, true>(
+					t, secIdx, colPos, local_y, local_yDot, local_res, jacIt, cellResParams, tlmAlloc
+				);
+			else
+				cell::residualKernel<StateType, ResidualType, ParamType, cell::CellParameters, linalg::BandedEigenSparseRowIterator, wantJac, false, false>(
+					t, secIdx, colPos, local_y, local_yDot, local_res, jacIt, cellResParams, tlmAlloc
+				);
+
+			// Move rowiterator to next particle node
+			jacIt += strideParNode();
+		}
+
+		// Add the DG discretized solid entries of the jacobian that get overwritten by the binding kernel.
+		// These entries only exist for the GRM with surface diffusion
+		if (wantJac)
+			addSolidDGentries(secIdx, jacBase);
+
 		if (!wantRes)
 			return 0;
 
@@ -1936,23 +1975,22 @@ namespace parts
 	 * @brief adds jacobian entries which have been overwritten by the binding kernel (only for surface diffusion combined with kinetic binding)
 	 * @detail only adds the entries d RHS_i / d c^s_i, which lie on the main diagonal
 	 */
-	int ParticleDiffusionOperatorDG::addSolidDGentries(const int secIdx, const int nBulk, const int offsetCp, Eigen::SparseMatrix<double, RowMajor>& globalJac)
+	int ParticleDiffusionOperatorDG::addSolidDGentries(const int secIdx, linalg::BandedEigenSparseRowIterator& jacBase)
 	{
 		if (!_binding->hasDynamicReactions() || !_hasSurfaceDiffusion)
 			return 1;
 
 		active const* const parSurfDiff = getSectionDependentSlice(_parSurfDiffusion, _strideBound, secIdx);
 
-		for (unsigned int blk = 0; blk < nBulk; blk++) {
-			// Get jacobian iterator at first solid entry of first particle of current type
-			linalg::BandedEigenSparseRowIterator jac(globalJac, offsetCp + blk * strideParBlock() + strideParLiquid());
+		// Get jacobian iterator at first solid entry of first particle of current type
+		linalg::BandedEigenSparseRowIterator jac = jacBase + strideParLiquid();
 
-			for (unsigned int elem = 0; elem < _nParElem; elem++)
-				addDiagonalSolidJacobianEntries(_DGjacParDispBlocks[elem].block(0, _nParNode + 1, _nParNode, _nParNode), jac, parSurfDiff);
-		}
+		for (unsigned int elem = 0; elem < _nParElem; elem++)
+			addDiagonalSolidJacobianEntries(_DGjacParDispBlocks[elem].block(0, _nParNode + 1, _nParNode, _nParNode), jac, parSurfDiff);
 
 		return 1;
 	}
+
 	/**
 	 * @brief adds a state block into the system jacobian.
 	 * @param [in] block (sub)block whose diagonal entries are to be added
@@ -2191,6 +2229,8 @@ namespace parts
 			if (_parDepSurfDiffusion && _parDepSurfDiffusion->setParameter(pId, value))
 				return true;
 
+		// Note: binding setParameter handled by unitOperation
+
 		return false;
 	}
 
@@ -2199,6 +2239,7 @@ namespace parts
 		if (_singleParDepSurfDiffusion)
 			if (_parDepSurfDiffusion && _parDepSurfDiffusion->setParameter(pId, value))
 				return true;
+		// Note: binding setParameter handled by unitOperation
 
 		return false;
 	}
@@ -2208,6 +2249,8 @@ namespace parts
 		if (_singleParDepSurfDiffusion)
 			if (_parDepSurfDiffusion && _parDepSurfDiffusion->setParameter(pId, value))
 				return true;
+		
+		// Note: binding setParameter handled by unitOperation
 
 		return false;
 	}
@@ -2226,8 +2269,10 @@ namespace parts
 		if (singleTypeMultiplexTypeParameterValue(pId, hashString("PAR_POROSITY"), _singleParPorosity, _parPorosity, _parTypeIdx, value, &sensParams))
 			return true;
 
-		if (model::setSensitiveParameterValue(pId, value, sensParams, std::vector< IParameterStateDependence*>(1, _parDepSurfDiffusion), _singleParDepSurfDiffusion))
+		if (model::setSensitiveParameterValue(pId, value, sensParams, std::vector<IParameterStateDependence*>(1, _parDepSurfDiffusion), _singleParDepSurfDiffusion))
 			return true;
+
+		// Note: binding setSensitiveParameterValue handled by unitOperation
 
 		return false;
 	}
@@ -2246,7 +2291,7 @@ namespace parts
 			return true;
 		}
 
-		if (model::setSensitiveParameter(pId, adDirection, adValue, sensParams, std::vector< IParameterStateDependence*>(1, _parDepSurfDiffusion), _singleParDepSurfDiffusion))
+		if (model::setSensitiveParameter(pId, adDirection, adValue, sensParams, std::vector<IParameterStateDependence*>(1, _parDepSurfDiffusion), _singleParDepSurfDiffusion))
 		{
 			LOG(Debug) << "Found parameter " << pId << " in surface diffusion parameter dependence: Dir " << adDirection << " is set to " << adValue;
 			return true;
@@ -2269,6 +2314,8 @@ namespace parts
 			LOG(Debug) << "Found parameter " << pId << ": Dir " << adDirection << " is set to " << adValue;
 			return true;
 		}
+
+		// Note: binding setSensitiveParameter handled by unitOperation
 
 		return false;
 	}
