@@ -1,0 +1,110 @@
+{
+    "model": {
+        "NUNITS": 3,
+        "connections": {
+            "NSWITCHES": 1,
+            "switch_000": {
+                "CONNECTIONS": [
+                    0.0,
+                    1.0,
+                    -1.0,
+                    -1.0,
+                    0.0,
+                    1.0,
+                    2.0,
+                    -1.0,
+                    -1.0,
+                    0.0
+                ],
+                "SECTION": 0
+            }
+        },
+        "unit_000": {
+            "INLET_TYPE": "PIECEWISE_CUBIC_POLY",
+            "NCOMP": 2,
+            "UNIT_TYPE": "INLET",
+            "sec_000": {
+                "CONST_COEFF": [
+                    0.0,
+                    0.0
+                ],
+                "CUBE_COEFF": [
+                    0.0,
+                    0.0
+                ],
+                "LIN_COEFF": [
+                    0.0,
+                    0.0
+                ],
+                "QUAD_COEFF": [
+                    0.0,
+                    0.0
+                ]
+            }
+        },
+        "unit_001": {
+            "COL_DISPERSION": 1e-08,
+            "COL_DISPERSION_RADIAL": 1e-06,
+            "COL_LENGTH": 0.1,
+            "COL_POROSITY": 0.37,
+            "FILM_DIFFUSION": [
+                1e-05,
+                1e-05
+            ],
+            "INIT_C": [
+                1.0,
+                0.0
+            ],
+            "INIT_Q": [
+                0.0,
+                0.0
+            ],
+            "NBOUND": [
+                0,
+                0
+            ],
+            "NCOMP": 2,
+            "PAR_CORERADIUS": 0,
+            "PAR_DIFFUSION": [
+                1e-10,
+                1e-10
+            ],
+            "PAR_POROSITY": 0.33,
+            "PAR_RADIUS": 1e-06,
+            "PAR_SURFDIFFUSION": [
+                0.0,
+                0.0
+            ],
+            "REACTION_MODEL": "MASS_ACTION_LAW",
+            "TOTAL_POROSITY": 0.84,
+            "UNIT_TYPE": "GENERAL_RATE_MODEL",
+            "VELOCITY": 0.000575,
+            "reaction_bulk": {
+                "MAL_KBWD_BULK": [
+                    3.0
+                ],
+                "MAL_KFWD_BULK": [
+                    1.0
+                ],
+                "MAL_STOICHIOMETRY_BULK": [
+                    -1,
+                    1
+                ]
+            }
+        },
+        "unit_002": {
+            "NCOMP": 2,
+            "UNIT_TYPE": "OUTLET"
+        }
+    },
+    "solver": {
+        "sections": {
+            "NSEC": 1,
+            "SECTION_CONTINUITY": [],
+            "SECTION_TIMES": [
+                0.0,
+                1.0
+            ]
+        }
+    }
+}

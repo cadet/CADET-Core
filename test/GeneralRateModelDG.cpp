@@ -102,6 +102,19 @@ TEST_CASE("GRM_DG numerical Benchmark with parameter sensitivities for SMA LWE c
 	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "000", absTol, relTol, disc, true);
 }
 
+
+TEST_CASE("GRM_DG numerical Benchmark with parameter sensitivities for MAL in bulk phase", "[GRM],[DG],[DG1D],[Simulation],[Reference],[Sensitivity],[CI_sensitivity2],[testHere]")
+{
+	const std::string modelFilePath = std::string("/data/model_GRM_reacMAL_2comp_DG_sensbenchmark1.json");
+	const std::string refFilePath = std::string("/data/ref_GRM_reacMAL_2comp_DG_sensbenchmark1.h5");
+	const std::vector<double> absTol = { 1e-12, 1e-6, 1e-6, 1e-12 };
+	const std::vector<double> relTol = { 1.0, 1.0, 1.0, 1.0 };
+
+	cadet::test::column::DGparams disc(0, 3, 8, 3, 1);
+	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "001", absTol, relTol, disc, true);
+}
+
+
 TEST_CASE("GRM_DG LWE DGSEM and GSM particle discretization yields similar accuracy", "[GRM],[DG],[DG1D],[Simulation],[CI]")
 {
 	cadet::JsonParameterProvider jpp = createLWE("GENERAL_RATE_MODEL", "DG");
