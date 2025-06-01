@@ -225,6 +225,26 @@ namespace cadet
 		}
 	}
 
+	/*
+	*Todo	
+	 */
+	template  <typename ValType>
+	inline void readMatrixValuedComponentDependentParameter(std::vector<active>& dest, IParameterProvider& paramProvider, const std::string& dataSet, unsigned int nComp, unsigned int nReac)
+	{
+		dest.clear();
+		const std::vector<double> vals = paramProvider.getDoubleArray(dataSet);
+
+		unsigned int curIdx = 0;
+		for (unsigned int i = 0; i < nReac; ++i)
+		{
+			for (auto j = 0; i < nComp * nComp; j++)
+			{
+				dest[i] = vals[i];
+			}
+		}
+
+	}
+
 
 	/**
 	 * @brief Selects an array of possible section dependent vectorial parameters from a list

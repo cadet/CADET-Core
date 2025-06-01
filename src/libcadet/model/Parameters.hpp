@@ -353,6 +353,44 @@ protected:
 	std::vector<active>* _p;
 };
 
+/**
+ * @brief Reaction dependent component matrix valued external parameter
+ * @details Holds a square matrix for each reaction that has the size of the number of components.
+ */
+class ReactionDependentComponentMatrixDependentParameter
+{
+public:
+
+	typedef std::vector<active> storage_t;
+
+	ReactionDependentComponentMatrixDependentParameter(std::vector<active>& p) : _p(&p) { }
+	ReactionDependentComponentMatrixDependentParameter(std::vector<active>* p) : _p(p) { }
+
+	inline void configure(const std::string& varName, IParameterProvider& paramProvider, unsigned int nComp, unsigned int nReac)
+	{
+		readMatrixValuedComponentDependentParameter<active>(*_p, paramProvider, varName, nComp, nReac);
+	}
+
+	inline void registerParam(const std::string& varName, std::unordered_map<ParameterId, active*>& parameters, UnitOpIdx unitOpIdx, ParticleTypeIdx parTypeIdx, unsigned int nComp, unsigned int nReac)
+	{
+		const StringHash nameHash = hashStringRuntime(varName); 
+		registerParam3DArray(parameters, *_p, [=](bool multi, unsigned r, unsigned int cmid, unsigned int cin) { return makeParamId(nameHash, unitOpIdx, cmid, parTypeIdx, BoundStateIndep, r, SectionIndep); }, nReac, nComp);
+	}
+
+	inline void reserve(unsigned int numElem, unsigned int numSlices, unsigned int nComp, unsigned int nReac)
+	{
+		_p->reserve(nComp * nComp * nReac);
+	}
+
+	inline typename std::vector<active>::size_type size() const CADET_NOEXCEPT { return _p->size(); }
+
+	inline const std::vector<active>& get() const CADET_NOEXCEPT { return *_p; }
+	inline std::vector<active>& get() CADET_NOEXCEPT { return *_p; }
+
+protected:
+	std::vector<active>* _p;
+};
+
 
 /**
  * @brief Component and bound state dependent external parameter
@@ -1156,6 +1194,7 @@ protected:
 	std::vector<active> _quad;
 	std::vector<active> _cube;
 };
+
 
 
 /**
