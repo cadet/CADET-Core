@@ -1195,7 +1195,76 @@ protected:
 	std::vector<active> _cube;
 };
 
+/**
+ * @brief Reaction dependent component matrix valued external parameter
+ * @details Holds a square matrix for each reaction that has the size of the number of components.
+ */
+class ExternalReactionDependentComponentMatrixDependentParameter
+{
+public:
 
+	typedef std::vector<active> storage_t;
+
+	inline void configure(const std::string& varName, IParameterProvider& paramProvider, unsigned int nComp, unsigned int nReac)
+	{
+		//todo
+	}
+
+	inline void registerParam(const std::string& varName, std::unordered_map<ParameterId, active*>& parameters, UnitOpIdx unitOpIdx, ParticleTypeIdx parTypeIdx, unsigned int nComp, unsigned int nReac)
+	{
+		//todo
+	}
+
+	inline void reserve(unsigned int numElem, unsigned int numSlices, unsigned int nComp, unsigned int nReac)
+	{
+		_base.reserve(nReac * nComp * nComp);
+		_linear.reserve(nReac * nComp * nComp);
+		_quad.reserve(nReac * nComp * nComp);
+		_cube.reserve(nReac * nComp * nComp);
+	}
+
+	inline void update(std::vector<active>& result, double extVal, unsigned int nComp, unsigned int const* nBoundStates) const
+	{
+		update(result.data(), extVal, nComp, nBoundStates);
+	}
+
+	inline void update(active* result, double extVal, unsigned int nComp, unsigned int const* nBoundStates) const
+	{
+		for (std::size_t i = 0; i < _base.size(); ++i)
+			result[i] = _base[i] + extVal * (_linear[i] + extVal * (_quad[i] + extVal * _cube[i]));
+	}
+
+	inline void updateTimeDerivative(std::vector<active>& result, double extVal, double extTimeDiff, unsigned int nComp, unsigned int const* nBoundStates) const
+	{
+		updateTimeDerivative(result.data(), extVal, extTimeDiff, nComp, nBoundStates);
+	}
+
+	inline void updateTimeDerivative(active* result, double extVal, double extTimeDiff, unsigned int nComp, unsigned int const* nBoundStates) const
+	{
+		for (std::size_t i = 0; i < _base.size(); ++i)
+			result[i] = extTimeDiff * (static_cast<double>(_linear[i]) + extVal * (2.0 * static_cast<double>(_quad[i]) + 3.0 * extVal * static_cast<double>(_cube[i])));
+	}
+
+	inline std::size_t size() const CADET_NOEXCEPT { return _base.size(); }
+	inline bool allSameSize() const CADET_NOEXCEPT { return (_base.size() == _linear.size()) && (_base.size() == _quad.size()) && (_base.size() == _cube.size()); }
+
+	inline std::size_t additionalDynamicMemory(unsigned int nReactions, unsigned int nComp, unsigned int totalNumBoundStates) const CADET_NOEXCEPT { return nReactions * sizeof(active) + alignof(active); }
+
+	inline storage_t& base() CADET_NOEXCEPT { return _base; }
+	inline const storage_t& base() const CADET_NOEXCEPT { return _base; }
+
+	template <typename T>
+	inline void prepareCache(T& cache, LinearBufferAllocator& buffer) const
+	{
+		cache.fromTemplate(buffer, _base);
+	}
+
+protected:
+	std::vector<active> _base;
+	std::vector<active> _linear;
+	std::vector<active> _quad;
+	std::vector<active> _cube;
+};
 
 /**
  * @brief Component and bound state dependent external parameter
