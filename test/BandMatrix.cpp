@@ -64,7 +64,7 @@ inline void extractDenseSubMatrix(const cadet::linalg::BandMatrix& mat, unsigned
 	}
 }
 
-TEST_CASE("Copying BandMatrix to FactorizableBandMatrix", "[BandMatrix],[LinAlg]")
+TEST_CASE("Copying BandMatrix to FactorizableBandMatrix", "[BandMatrix],[LinAlg],[testHere1]")
 {
 	using cadet::linalg::BandMatrix;
 	using cadet::linalg::FactorizableBandMatrix;
@@ -83,7 +83,7 @@ TEST_CASE("Copying BandMatrix to FactorizableBandMatrix", "[BandMatrix],[LinAlg]
 	}
 }
 
-TEST_CASE("FactorizableBandMatrix iterator read access", "[BandMatrix],[LinAlg]")
+TEST_CASE("FactorizableBandMatrix iterator read access", "[BandMatrix],[LinAlg],[testHere1]")
 {
 	using cadet::linalg::FactorizableBandMatrix;
 
@@ -100,7 +100,7 @@ TEST_CASE("FactorizableBandMatrix iterator read access", "[BandMatrix],[LinAlg]"
 	}
 }
 
-TEST_CASE("FactorizableBandMatrix solves", "[BandMatrix],[LinAlg]")
+TEST_CASE("FactorizableBandMatrix solves", "[BandMatrix],[LinAlg],[testHere1]")
 {
 	using cadet::linalg::FactorizableBandMatrix;
 	using cadet::linalg::BandMatrix;
@@ -144,7 +144,7 @@ void testSubMatrixMultiply(const cadet::linalg::BandMatrix& bm, int startRow, in
 	}
 }
 
-TEST_CASE("BandMatrix::submatrixMultiplyVector", "[BandMatrix],[LinAlg]")
+TEST_CASE("BandMatrix::submatrixMultiplyVector", "[BandMatrix],[LinAlg],[testHere1]")
 {
 	using cadet::linalg::BandMatrix;
 

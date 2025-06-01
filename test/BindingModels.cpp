@@ -1421,7 +1421,7 @@ CADET_BINDINGTEST("GENERALIZED_ION_EXCHANGE", "EXT_GENERALIZED_ION_EXCHANGE", (1
 	)json", \
 	1e-10, 1e-8, CADET_NONBINDING_LIQUIDPHASE_COMP_USED, CADET_COMPARE_BINDING_VS_NONBINDING)
 
-	TEST_CASE("MULTI_COMPONENT_COLLOIDAL binding model analytic Jacobian vs AD with PH single protein", "[Jacobian],[AD],[BindingModel],[MULTI_COMPONENT_COLLOIDAL]")
+	TEST_CASE("MULTI_COMPONENT_COLLOIDAL binding model analytic Jacobian vs AD with PH single protein", "[Jacobian],[AD],[BindingModel],[MULTI_COMPONENT_COLLOIDAL],[CI_binding]")
 			{
 				const unsigned int nBound[] = { 0, 0, 1 };
 				const double state[] = { 0.9, 1.1, 1.5e-2, 3.2e-2 };
@@ -1457,7 +1457,7 @@ CADET_BINDINGTEST("GENERALIZED_ION_EXCHANGE", "EXT_GENERALIZED_ION_EXCHANGE", (1
 			}	
 
 
-	TEST_CASE("MULTI_COMPONENT_COLLOIDAL binding model analytic Jacobian vs AD with PH multi protein", "[Jacobian],[AD],[BindingModel],[MULTI_COMPONENT_COLLOIDAL]")
+	TEST_CASE("MULTI_COMPONENT_COLLOIDAL binding model analytic Jacobian vs AD with PH multi protein", "[Jacobian],[AD],[BindingModel],[MULTI_COMPONENT_COLLOIDAL],[CI_binding]")
 	{
 		const unsigned int nBound[] = { 0, 0, 1, 1, 1};
 		const double state[] = { 0.9, 1.1, 1.5e-2, 3.2e-3, 1.5e-5, 3.2e-5, 1.5e-5, 3.2e-5 };
@@ -1493,7 +1493,7 @@ CADET_BINDINGTEST("GENERALIZED_ION_EXCHANGE", "EXT_GENERALIZED_ION_EXCHANGE", (1
 		}
 	}
 
-TEST_CASE("MULTI_COMPONENT_COLLOIDAL binding model analytic Jacobian vs AD without PH", "[Jacobian],[AD],[BindingModel],[MULTI_COMPONENT_COLLOIDAL]")
+TEST_CASE("MULTI_COMPONENT_COLLOIDAL binding model analytic Jacobian vs AD without PH", "[Jacobian],[AD],[BindingModel],[MULTI_COMPONENT_COLLOIDAL],[CI_binding]")
 {
 	const unsigned int nBound[] = {0, 1, 1, 1};
 	const double state[] = {0.9, 1.1e-1, 3.2e-3, 1e-2, 2e-3, 1e-4, 1e-3};
@@ -1528,7 +1528,7 @@ TEST_CASE("MULTI_COMPONENT_COLLOIDAL binding model analytic Jacobian vs AD witho
 	}
 }
 
-TEST_CASE("MULTI_COMPONENT_COLLOIDAL binding model analytic Jacobian vs AD with PH low conc", "[Jacobian],[AD],[BindingModel],[MULTI_COMPONENT_COLLOIDAL]")
+TEST_CASE("MULTI_COMPONENT_COLLOIDAL binding model analytic Jacobian vs AD with PH low conc", "[Jacobian],[AD],[BindingModel],[MULTI_COMPONENT_COLLOIDAL],[CI_binding]")
 {
 	const unsigned int nBound[] = {0, 0, 1, 1, 1};
 	const double state[] = {0.9, 1.1, 1.5, 2.3, 2.9, 1e-7, 2e-7, 5e-7};
@@ -1563,7 +1563,7 @@ TEST_CASE("MULTI_COMPONENT_COLLOIDAL binding model analytic Jacobian vs AD with 
 	}
 }
 
-TEST_CASE("MULTI_COMPONENT_COLLOIDAL binding model analytic Jacobian vs AD without PH low conc", "[Jacobian],[AD],[BindingModel],[MULTI_COMPONENT_COLLOIDAL]")
+TEST_CASE("MULTI_COMPONENT_COLLOIDAL binding model analytic Jacobian vs AD without PH low conc", "[Jacobian],[AD],[BindingModel],[MULTI_COMPONENT_COLLOIDAL],[CI_binding]")
 {
 	const unsigned int nBound[] = {0, 1, 1, 1};
 	const double state[] = {0.9, 1.1, 2.3, 2.9, 1e-7, 2e-7, 5e-7};

@@ -140,7 +140,7 @@ TEST_CASE("Automatic AD binding model Jacobian vs FD", "[BindingModel],[Jacobian
 	);
 }
 
-TEST_CASE("Automatic AD disabled for binding model with Jacobian", "[BindingModel],[Jacobian],[CI]")
+TEST_CASE("Automatic AD disabled for binding model with Jacobian", "[BindingModel],[Jacobian],[CI],[testHere1]")
 {
 	cadet::BindingWithJacobian bm;
 	const int nComp = 4;

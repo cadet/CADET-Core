@@ -15,7 +15,7 @@
 #include "ReactionModelTests.hpp"
 #include "ColumnTests.hpp"
 
-TEST_CASE("MassActionLaw kinetic analytic Jacobian vs AD", "[MassActionLaw],[ReactionModel],[Jacobian],[AD]")
+TEST_CASE("MassActionLaw kinetic analytic Jacobian vs AD", "[MassActionLaw],[ReactionModel],[Jacobian],[AD],[testHere]")
 {
 	const unsigned int nBound[] = {1, 2, 1};
 	const double point[] = {1.0, 2.0, 1.4, 2.1, 0.2, 1.1, 1.8};

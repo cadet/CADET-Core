@@ -54,7 +54,7 @@ void bandMatrixJacobian(T const* x, T* out, unsigned int rows, unsigned int lowe
 	}
 }
 
-TEST_CASE("Extract banded Jacobian via AD", "[AD],[BandMatrix]")
+TEST_CASE("Extract banded Jacobian via AD", "[AD],[BandMatrix],[testHere]")
 {
 	// Matrix size
 	const unsigned int matSize = 10;
@@ -94,7 +94,7 @@ TEST_CASE("Extract banded Jacobian via AD", "[AD],[BandMatrix]")
 	delete[] res;
 }
 
-TEST_CASE("Extract dense submatrix from banded Jacobian via AD", "[AD],[DenseMatrix]")
+TEST_CASE("Extract dense submatrix from banded Jacobian via AD", "[AD],[DenseMatrix],[testHere]")
 {
 	// Matrix size
 	const unsigned int matSize = 10;
@@ -151,7 +151,7 @@ TEST_CASE("Extract dense submatrix from banded Jacobian via AD", "[AD],[DenseMat
 	delete[] res;
 }
 
-TEST_CASE("Extract square dense submatrix from banded Jacobian via AD", "[AD],[DenseMatrix]")
+TEST_CASE("Extract square dense submatrix from banded Jacobian via AD", "[AD],[DenseMatrix],[testHere]")
 {
 	// Matrix size
 	const unsigned int matSize = 32;
@@ -200,7 +200,7 @@ TEST_CASE("Extract square dense submatrix from banded Jacobian via AD", "[AD],[D
 	delete[] res;
 }
 
-TEST_CASE("Banded AD Jacobian vs FD", "[AD],[BandMatrix]")
+TEST_CASE("Banded AD Jacobian vs FD", "[AD],[BandMatrix],[testHere]")
 {
 	// Matrix size
 	const unsigned int matSize = 32;
