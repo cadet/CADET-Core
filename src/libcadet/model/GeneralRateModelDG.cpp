@@ -949,51 +949,8 @@ int GeneralRateModelDG::residualParticle(double t, unsigned int parType, unsigne
 	Indexer idxr(_disc);
 
 	LinearBufferAllocator tlmAlloc = threadLocalMem.get();
-
-	// Relative position of current node - needed in externally dependent adsorption kinetic
-	const double z = _convDispOp.relativeCoordinate(colNode);
-
-	// The RowIterator is always centered on the main diagonal.
-	// This means that jac[0] is the main diagonal, jac[-1] is the first lower diagonal,
-	// and jac[1] is the first upper diagonal. We can also access the rows from left to
-	// right beginning with the last lower diagonal moving towards the main diagonal and
-	// continuing to the last upper diagonal by using the native() method.
-	linalg::BandedEigenSparseRowIterator jac(_globalJac, idxr.offsetCp(ParticleTypeIndex{ parType }, ParticleIndex{ colNode }));
-
-	int const* const qsReaction = _binding[parType]->reactionQuasiStationarity();
-	const parts::cell::CellParameters cellResParams = makeCellResidualParams(parType, qsReaction);
-
-	// Handle time derivatives, binding, dynamic reactions: residualKernel computes discrete point wise,
-	// so we loop over each discrete particle point
-	for (unsigned int par = 0; par < _disc.nParPoints[parType]; ++par)
-	{
-		// local Pointers to current particle node, needed in residualKernel
-		StateType const* local_y = yBase + idxr.offsetCp(ParticleTypeIndex{ parType }, ParticleIndex{ colNode }) + par * idxr.strideParNode(parType);
-		double const* local_yDot = yDotBase ? yDotBase + idxr.offsetCp(ParticleTypeIndex{ parType }, ParticleIndex{ colNode }) + par * idxr.strideParNode(parType) : nullptr;
-		ResidualType* local_res = resBase ? resBase + idxr.offsetCp(ParticleTypeIndex{ parType }, ParticleIndex{ colNode }) + par * idxr.strideParNode(parType) : nullptr;
-
-		// r (particle) coordinate of current node (particle radius normed to 1) - needed in externally dependent adsorption kinetic
-		const double r = _parDiffOp[parType].relativeCoordinate(par);
-		const ColumnPosition colPos{ z, 0.0, r };
-
-		if (wantRes)
-			parts::cell::residualKernel<StateType, ResidualType, ParamType, parts::cell::CellParameters, linalg::BandedEigenSparseRowIterator, wantJac, true>(
-				t, secIdx, colPos, local_y, local_yDot, local_res, jac, cellResParams, tlmAlloc
-			);
-		else
-			parts::cell::residualKernel<StateType, ResidualType, ParamType, parts::cell::CellParameters, linalg::BandedEigenSparseRowIterator, wantJac, false, false>(
-				t, secIdx, colPos, local_y, local_yDot, local_res, jac, cellResParams, tlmAlloc
-			);
-
-		// Move rowiterator to next particle node
-		jac += idxr.strideParNode(parType);
-	}
-
-	if(!wantRes)
-		return 0;
-
 	linalg::BandedEigenSparseRowIterator jacIt(_globalJac, idxr.offsetCp(ParticleTypeIndex{ parType }, ParticleIndex{ colNode }));
-	ColumnPosition colPos{ z, 0.0, 0.0 };
+	ColumnPosition colPos{ _convDispOp.relativeCoordinate(colNode), 0.0, 0.0 }; // Relative position of current node - needed in externally dependent adsorption kinetic
 
 	_parDiffOp[parType].residual<wantJac, wantRes>(t, secIdx,
 		yBase + idxr.offsetCp(ParticleTypeIndex{ parType }, ParticleIndex{ colNode }),

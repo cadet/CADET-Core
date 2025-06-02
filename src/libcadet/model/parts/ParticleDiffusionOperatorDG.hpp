@@ -98,6 +98,8 @@ namespace parts
 		void setUserdefinedRadialDisc();
 		void updateRadialDisc();
 
+		cell::CellParameters makeCellResidualParams(int const* qsReaction) const;
+
 		void clearParDepSurfDiffusion();
 
 		bool notifyDiscontinuousSectionTransition(double t, unsigned int secIdx, active const* const filmDiff, active const* const poreAccessFactor);

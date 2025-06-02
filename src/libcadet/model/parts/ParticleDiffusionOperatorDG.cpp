@@ -1089,38 +1089,54 @@ namespace parts
 		}
 	}
 
+	cell::CellParameters ParticleDiffusionOperatorDG::makeCellResidualParams(int const* qsReaction) const
+	{
+		return cell::CellParameters
+		{
+			_nComp,
+			_nBound,
+			_boundOffset,
+			_strideBound,
+			qsReaction,
+			_parPorosity,
+			_poreAccessFactor.data(),
+			_binding,
+			(_dynReaction && (_dynReaction->numReactionsCombined() > 0)) ? _dynReaction : nullptr
+		};
+	}
+
 	template <typename StateType, typename ResidualType, typename ParamType, bool wantJac, bool wantRes>
 	int ParticleDiffusionOperatorDG::residualImpl(double t, unsigned int secIdx, StateType const* yPar, StateType const* yBulk, double const* yDotPar, ResidualType* resPar, ColumnPosition colPos, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc)
 	{
 		int const* const qsBinding = _binding->reactionQuasiStationarity();
-		//const cell::CellParameters cellResParams = makeCellResidualParams(qsBinding);
+		const cell::CellParameters cellResParams = makeCellResidualParams(qsBinding);
 
 		linalg::BandedEigenSparseRowIterator jacBase = jacIt;
 
-		//// Handle time derivatives, binding, dynamic reactions: residualKernel computes discrete point wise,
-		//// so we loop over each discrete particle point
-		//for (unsigned int par = 0; par < _nParPoints; ++par)
-		//{
-		//	// local pointers to current particle node, needed in residualKernel
-		//	StateType const* local_y = yPar + par * strideParNode();
-		//	double const* local_yDot = yDotPar ? yDotPar + par * strideParNode() : nullptr;
-		//	ResidualType* local_res = resPar ? resPar + par * strideParNode() : nullptr;
+		// Handle time derivatives, binding, dynamic reactions: residualKernel computes discrete point wise,
+		// so we loop over each discrete particle point
+		for (unsigned int par = 0; par < _nParPoints; ++par)
+		{
+			// local pointers to current particle node, needed in residualKernel
+			StateType const* local_y = yPar + par * strideParNode();
+			double const* local_yDot = yDotPar ? yDotPar + par * strideParNode() : nullptr;
+			ResidualType* local_res = resPar ? resPar + par * strideParNode() : nullptr;
 
-		//	// r (particle) coordinate of current node (particle radius normed to 1) - needed in externally dependent adsorption kinetic
-		//	colPos.particle = relativeCoordinate(par);
+			// r (particle) coordinate of current node (particle radius normed to 1) - needed in externally dependent adsorption kinetic
+			colPos.particle = relativeCoordinate(par);
 
-		//	if (wantRes)
-		//		cell::residualKernel<StateType, ResidualType, ParamType, cell::CellParameters, linalg::BandedEigenSparseRowIterator, wantJac, true>(
-		//			t, secIdx, colPos, local_y, local_yDot, local_res, jacIt, cellResParams, tlmAlloc
-		//		);
-		//	else
-		//		cell::residualKernel<StateType, ResidualType, ParamType, cell::CellParameters, linalg::BandedEigenSparseRowIterator, wantJac, false, false>(
-		//			t, secIdx, colPos, local_y, local_yDot, local_res, jacIt, cellResParams, tlmAlloc
-		//		);
+			if (wantRes)
+				cell::residualKernel<StateType, ResidualType, ParamType, cell::CellParameters, linalg::BandedEigenSparseRowIterator, wantJac, true>(
+					t, secIdx, colPos, local_y, local_yDot, local_res, jacIt, cellResParams, tlmAlloc
+				);
+			else
+				cell::residualKernel<StateType, ResidualType, ParamType, cell::CellParameters, linalg::BandedEigenSparseRowIterator, wantJac, false, false>(
+					t, secIdx, colPos, local_y, local_yDot, local_res, jacIt, cellResParams, tlmAlloc
+				);
 
-		//	// Move rowiterator to next particle node
-		//	jacIt += strideParNode();
-		//}
+			// Move rowiterator to next particle node
+			jacIt += strideParNode();
+		}
 
 		// Add the DG discretized solid entries of the jacobian that get overwritten by the binding kernel.
 		// These entries only exist for the GRM with surface diffusion
