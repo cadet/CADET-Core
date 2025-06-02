@@ -55,7 +55,7 @@ constexpr double SurfVolRatioSlab = 1.0;
 
 
 GeneralRateModelDG::GeneralRateModelDG(UnitOpIdx unitOpIdx) : UnitOperationBase(unitOpIdx),
-	_globalJac(), _globalJacDisc(), _jacInlet(), _dynReactionBulk(nullptr),
+	_globalJac(), _globalJacDisc(), _jacInlet(), _parDiffOp(nullptr), _dynReactionBulk(nullptr),
 	_analyticJac(true), _jacobianAdDirs(0), _factorizeJacobian(false), _tempState(nullptr),
 	_initC(0), _initCp(0), _initQ(0), _initState(0), _initStateDot(0)
 {
@@ -882,11 +882,16 @@ int GeneralRateModelDG::residualImpl(double t, unsigned int secIdx, StateType co
 	{
 		Indexer idxr(_disc);
 
-		for (unsigned int parType = 0; parType < _disc.nParType; parType++)
+		for (unsigned int blk = 0; blk < _disc.nPoints; blk++)
 		{
-			if (_binding[parType]->hasDynamicReactions() && _parDiffOp[parType]._hasSurfaceDiffusion)
+			for (unsigned int parType = 0; parType < _disc.nParType; parType++)
 			{
-				_parDiffOp[parType].addSolidDGentries(secIdx, _disc.nPoints, idxr.offsetCp(ParticleTypeIndex{parType}), _globalJac);
+				if (_binding[parType]->hasDynamicReactions() && _parDiffOp[parType]._hasSurfaceDiffusion)
+				{
+					linalg::BandedEigenSparseRowIterator jac(_globalJac, idxr.offsetCp(ParticleTypeIndex{ parType }, ParticleIndex{ blk }));
+
+					_parDiffOp[parType].addSolidDGentries(secIdx, jac);
+				}
 			}
 		}
 	}

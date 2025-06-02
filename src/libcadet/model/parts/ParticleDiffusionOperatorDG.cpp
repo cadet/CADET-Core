@@ -1917,23 +1917,22 @@ namespace parts
 	 * @brief adds jacobian entries which have been overwritten by the binding kernel (only use for surface diffusion combined with kinetic binding)
 	 * @detail only adds the entries d RHS_i / d c^s_i, which lie on the diagonal
 	 */
-	int ParticleDiffusionOperatorDG::addSolidDGentries(const int secIdx, const int nBulk, const int offsetCp, Eigen::SparseMatrix<double, RowMajor>& globalJac)
-	{
-		active const* const parSurfDiff = getSectionDependentSlice(_parSurfDiffusion, _strideBound, secIdx);
+	 int ParticleDiffusionOperatorDG::addSolidDGentries(const int secIdx, linalg::BandedEigenSparseRowIterator& jacBase)
+	 {
+	 	if (!_binding->hasDynamicReactions() || !_hasSurfaceDiffusion)
+	 		return 1;
 
+	 	active const* const parSurfDiff = getSectionDependentSlice(_parSurfDiffusion, _strideBound, secIdx);
 		const int* const reqBinding = _binding->reactionQuasiStationarity();
 
-		for (unsigned int blk = 0; blk < nBulk; blk++)
-		{
-			// Get jacobian iterator at first solid entry of first particle of current type
-			linalg::BandedEigenSparseRowIterator jac(globalJac, offsetCp + blk * strideParBlock() + strideParLiquid());
+	 	// Get jacobian iterator at first solid entry of first particle of current type
+	 	linalg::BandedEigenSparseRowIterator jac = jacBase + strideParLiquid();
 
-			for (unsigned int elem = 0; elem < _nParElem; elem++)
-				addDiagonalSolidJacobianEntries(_DGjacParDispBlocks[elem].block(0, _nParNode + 1, _nParNode, _nParNode), jac, reqBinding, parSurfDiff);
-		}
+	 	for (unsigned int elem = 0; elem < _nParElem; elem++)
+	 		addDiagonalSolidJacobianEntries(_DGjacParDispBlocks[elem].block(0, _nParNode + 1, _nParNode, _nParNode), jac, reqBinding, parSurfDiff);
 
-		return 1;
-	}
+	 	return 1;
+	 }
 	/**
 	 * @brief adds a state block into the system jacobian.
 	 * @param [in] block (sub)block whose diagonal entries are to be added

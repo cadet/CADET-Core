@@ -260,7 +260,7 @@ namespace parts
 		unsigned int calcParDispNNZ();
 
 		int calcStaticAnaParticleDiffJacobian(const int secIdx, const int colNode, const int offsetLocalCp, Eigen::SparseMatrix<double, RowMajor>& globalJac);
-		int addSolidDGentries(const int secIdx, const int nBulk, const int offsetCp, Eigen::SparseMatrix<double, RowMajor>& globalJac);
+		int addSolidDGentries(const int secIdx, linalg::BandedEigenSparseRowIterator& jacBase);
 
 		bool setParameter(const ParameterId& pId, double value);
 		bool setParameter(const ParameterId& pId, int value);
