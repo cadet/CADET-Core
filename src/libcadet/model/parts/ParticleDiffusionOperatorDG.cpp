@@ -45,7 +45,7 @@ namespace parts
 	/**
 	 * @brief Creates a ParticleDiffusionOperatorDG
 	 */
-	ParticleDiffusionOperatorDG::ParticleDiffusionOperatorDG() : _binding(nullptr), _dynReaction(nullptr), _boundOffset(nullptr), _nBound(nullptr), _localFlux(nullptr), _deltaR(nullptr), _Ir(nullptr), _DGjacParDispBlocks(nullptr), _minus_InvMM_ST(nullptr), _parInvMM(nullptr), _parDepSurfDiffusion(nullptr)
+	ParticleDiffusionOperatorDG::ParticleDiffusionOperatorDG() : _binding(nullptr), _boundOffset(nullptr), _nBound(nullptr), _localFlux(nullptr), _deltaR(nullptr), _Ir(nullptr), _DGjacParDispBlocks(nullptr), _minus_InvMM_ST(nullptr), _parInvMM(nullptr), _parDepSurfDiffusion(nullptr)
 	{
 	}
 
@@ -340,7 +340,7 @@ namespace parts
 		}
 
 		// ==== Construct and configure binding model
-
+		_binding = nullptr;
 		std::vector<std::string> bindModelNames = { "NONE" };
 		if (paramProvider.exists("ADSORPTION_MODEL"))
 			bindModelNames = paramProvider.getStringArray("ADSORPTION_MODEL");

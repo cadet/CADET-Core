@@ -55,7 +55,7 @@ constexpr double SurfVolRatioSlab = 1.0;
 
 
 GeneralRateModelDG::GeneralRateModelDG(UnitOpIdx unitOpIdx) : UnitOperationBase(unitOpIdx),
-	_globalJac(), _globalJacDisc(), _jacInlet(), _parDiffOp(nullptr), _dynReactionBulk(nullptr),
+	_globalJac(), _globalJacDisc(), _jacInlet(), _dynReactionBulk(nullptr),
 	_analyticJac(true), _jacobianAdDirs(0), _factorizeJacobian(false), _tempState(nullptr),
 	_initC(0), _initCp(0), _initQ(0), _initState(0), _initStateDot(0)
 {
@@ -869,11 +869,25 @@ int GeneralRateModelDG::residualImpl(double t, unsigned int secIdx, StateType co
 
 	BENCH_START(_timerResidualPar);
 
+	LinearBufferAllocator tlmAlloc = threadLocalMem.get();
+	Indexer idxr(_disc);
+
 	for (unsigned int pblk = 0; pblk < _disc.nPoints * _disc.nParType; ++pblk)
 	{
 		const unsigned int parType = pblk / _disc.nPoints;
-		const unsigned int par = pblk % _disc.nPoints;
-		residualParticle<StateType, ResidualType, ParamType, wantJac, wantRes>(t, parType, par, secIdx, y, yDot, res, threadLocalMem);
+		const unsigned int colNode = pblk % _disc.nPoints;
+
+		linalg::BandedEigenSparseRowIterator jacIt(_globalJac, idxr.offsetCp(ParticleTypeIndex{ parType }, ParticleIndex{ colNode }));
+		ColumnPosition colPos{ _convDispOp.relativeCoordinate(colNode), 0.0, 0.0 }; // Relative position of current node - needed in externally dependent adsorption kinetic
+
+		_parDiffOp[parType].residual<wantJac, wantRes>(t, secIdx,
+			y + idxr.offsetCp(ParticleTypeIndex{ parType }, ParticleIndex{ colNode }),
+			y + idxr.offsetC() + colNode * idxr.strideColNode(),
+			yDot ? yDot + idxr.offsetCp(ParticleTypeIndex{ parType }, ParticleIndex{ colNode }) : nullptr,
+			res ? res + idxr.offsetCp(ParticleTypeIndex{ parType }, ParticleIndex{ colNode }) : nullptr,
+			colPos, jacIt, tlmAlloc,
+			typename cadet::ParamSens<ParamType>::enabled()
+		);
 	}
 
 	if (!wantRes)
@@ -942,28 +956,6 @@ int GeneralRateModelDG::residualBulk(double t, unsigned int secIdx, StateType co
 	return 0;
 }
 
-template <typename StateType, typename ResidualType, typename ParamType, bool wantJac, bool wantRes>
-int GeneralRateModelDG::residualParticle(double t, unsigned int parType, unsigned int colNode, unsigned int secIdx, StateType const* yBase,
-	double const* yDotBase, ResidualType* resBase, util::ThreadLocalStorage& threadLocalMem)
-{
-	Indexer idxr(_disc);
-
-	LinearBufferAllocator tlmAlloc = threadLocalMem.get();
-	linalg::BandedEigenSparseRowIterator jacIt(_globalJac, idxr.offsetCp(ParticleTypeIndex{ parType }, ParticleIndex{ colNode }));
-	ColumnPosition colPos{ _convDispOp.relativeCoordinate(colNode), 0.0, 0.0 }; // Relative position of current node - needed in externally dependent adsorption kinetic
-
-	_parDiffOp[parType].residual<wantJac, wantRes>(t, secIdx,
-		yBase + idxr.offsetCp(ParticleTypeIndex{ parType }, ParticleIndex{ colNode }),
-		yBase + idxr.offsetC() + colNode * idxr.strideColNode(),
-		yDotBase ? yDotBase + idxr.offsetCp(ParticleTypeIndex{ parType }, ParticleIndex{ colNode }) : nullptr,
-		resBase ? resBase + idxr.offsetCp(ParticleTypeIndex{ parType }, ParticleIndex{ colNode }) : nullptr,
-		colPos, jacIt, tlmAlloc,
-		typename cadet::ParamSens<ParamType>::enabled()
-	);
-
-	return 0;
-}
-
 template <typename StateType, typename ResidualType, typename ParamType>
 int GeneralRateModelDG::residualFlux(double t, unsigned int secIdx, StateType const* yBase, double const* yDotBase, ResidualType* resBase)
 {
@@ -1002,7 +994,7 @@ int GeneralRateModelDG::residualFlux(double t, unsigned int secIdx, StateType co
 				        * (yCol[i] - yParType[colNode * idxr.strideParBlock(type) + (_disc.nParPoints[type] - 1) * idxr.strideParNode(type) + comp]);
 		}
 
-		//  Note: Bead boundary condition is computed in residualParticle().
+		//  Bead boundary condition is computed in particle residual.
 
 	}
 
