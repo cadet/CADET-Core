@@ -262,46 +262,6 @@ bool GeneralRateModelDG::configureModelDiscretization(IParameterProvider& paramP
 
 	_disc.curSection = -1;
 
-	// ==== Construct and configure binding model
-	clearBindingModels();
-	_binding = std::vector<IBindingModel*>(_disc.nParType, nullptr);
-
-	std::vector<std::string> bindModelNames = { "NONE" };
-	if (paramProvider.exists("ADSORPTION_MODEL"))
-		bindModelNames = paramProvider.getStringArray("ADSORPTION_MODEL");
-
-	if (paramProvider.exists("ADSORPTION_MODEL_MULTIPLEX"))
-		_singleBinding = (paramProvider.getInt("ADSORPTION_MODEL_MULTIPLEX") == 1);
-	else
-	{
-		// Infer multiplex mode
-		_singleBinding = (bindModelNames.size() == 1);
-	}
-
-	if (!_singleBinding && (bindModelNames.size() < _disc.nParType))
-		throw InvalidParameterException("Field ADSORPTION_MODEL contains too few elements (" + std::to_string(_disc.nParType) + " required)");
-	else if (_singleBinding && (bindModelNames.size() != 1))
-		throw InvalidParameterException("Field ADSORPTION_MODEL requires (only) 1 element");
-
-	bool bindingConfSuccess = true;
-	for (unsigned int i = 0; i < _disc.nParType; ++i)
-	{
-		if (_singleBinding && (i > 0))
-		{
-			// Reuse first binding model
-			_binding[i] = _binding[0];
-		}
-		else
-		{
-			_binding[i] = helper.createBindingModel(bindModelNames[i]);
-			if (!_binding[i])
-				throw InvalidParameterException("Unknown binding model " + bindModelNames[i]);
-
-			MultiplexedScopeSelector scopeGuard(paramProvider, "adsorption", _singleBinding, i, _disc.nParType == 1, _binding[i]->usesParamProviderInDiscretizationConfig());
-			bindingConfSuccess = _binding[i]->configureModelDiscretization(paramProvider, _disc.nComp, _disc.nBound + i * _disc.nComp, _disc.boundOffset + i * _disc.nComp) && bindingConfSuccess;
-		}
-	}
-
 	// ==== Construct and configure dynamic reaction model
 	bool reactionConfSuccess = true;
 
@@ -322,43 +282,16 @@ bool GeneralRateModelDG::configureModelDiscretization(IParameterProvider& paramP
 			paramProvider.popScope();
 	}
 
-	clearDynamicReactionModels();
+	// ==== Construct and configure binding and particle reaction -> done in particle model, only pointers are copied here.
+	_binding = std::vector<IBindingModel*>(_disc.nParType, nullptr);
 	_dynReaction = std::vector<IDynamicReactionModel*>(_disc.nParType, nullptr);
 
-	if (paramProvider.exists("REACTION_MODEL_PARTICLES"))
+	for (unsigned int i = 0; i < _disc.nParType; ++i)
 	{
-		const std::vector<std::string> dynReactModelNames = paramProvider.getStringArray("REACTION_MODEL_PARTICLES");
-
-		if (paramProvider.exists("REACTION_MODEL_PARTICLES_MULTIPLEX"))
-			_singleDynReaction = (paramProvider.getInt("REACTION_MODEL_PARTICLES_MULTIPLEX") == 1);
-		else
-		{
-			// Infer multiplex mode
-			_singleDynReaction = (dynReactModelNames.size() == 1);
-		}
-
-		if (!_singleDynReaction && (dynReactModelNames.size() < _disc.nParType))
-			throw InvalidParameterException("Field REACTION_MODEL_PARTICLES contains too few elements (" + std::to_string(_disc.nParType) + " required)");
-		else if (_singleDynReaction && (dynReactModelNames.size() != 1))
-			throw InvalidParameterException("Field REACTION_MODEL_PARTICLES requires (only) 1 element");
-
-		for (unsigned int i = 0; i < _disc.nParType; ++i)
-		{
-			if (_singleDynReaction && (i > 0))
-			{
-				// Reuse first binding model
-				_dynReaction[i] = _dynReaction[0];
-			}
-			else
-			{
-				_dynReaction[i] = helper.createDynamicReactionModel(dynReactModelNames[i]);
-				if (!_dynReaction[i])
-					throw InvalidParameterException("Unknown dynamic reaction model " + dynReactModelNames[i]);
-
-				MultiplexedScopeSelector scopeGuard(paramProvider, "reaction_particle", _singleDynReaction, i, _disc.nParType == 1, _dynReaction[i]->usesParamProviderInDiscretizationConfig());
-				reactionConfSuccess = _dynReaction[i]->configureModelDiscretization(paramProvider, _disc.nComp, _disc.nBound + i * _disc.nComp, _disc.boundOffset + i * _disc.nComp) && reactionConfSuccess;
-			}
-		}
+		_binding[i] = _parDiffOp[i]._binding;
+		_singleBinding = _parDiffOp[i]._singleBinding;
+		_dynReaction[i] = _parDiffOp[i]._dynReaction;
+		_singleDynReaction = _parDiffOp[i]._singleDynReaction;
 	}
 
 	// Allocate memory
@@ -378,7 +311,7 @@ bool GeneralRateModelDG::configureModelDiscretization(IParameterProvider& paramP
 	// Set whether analytic Jacobian is used
 	useAnalyticJacobian(analyticJac);
 
-	return transportSuccess && particleConfSuccess && bindingConfSuccess && reactionConfSuccess;
+	return transportSuccess && particleConfSuccess && reactionConfSuccess;
 }
  
 bool GeneralRateModelDG::configure(IParameterProvider& paramProvider)
@@ -496,29 +429,11 @@ bool GeneralRateModelDG::configure(IParameterProvider& paramProvider)
 		}
 	}
 
-	// Reconfigure binding model
-	bool bindingConfSuccess = true;
-	if (!_binding.empty())
+	// Reconfigure particle model
+	bool particleConfSuccess = true;
+	for (int parType = 0; parType < _disc.nParType; parType++)
 	{
-		if (_singleBinding)
-		{
-			if (_binding[0] && _binding[0]->requiresConfiguration())
-			{
-				MultiplexedScopeSelector scopeGuard(paramProvider, "adsorption", true);
-				bindingConfSuccess = _binding[0]->configure(paramProvider, _unitOpIdx, ParTypeIndep);
-			}
-		}
-		else
-		{
-			for (unsigned int type = 0; type < _disc.nParType; ++type)
-			{
-	 			if (!_binding[type] || !_binding[type]->requiresConfiguration())
-	 				continue;
-
-				MultiplexedScopeSelector scopeGuard(paramProvider, "adsorption", type, _disc.nParType == 1, true);
-				bindingConfSuccess = _binding[type]->configure(paramProvider, _unitOpIdx, type) && bindingConfSuccess;
-			}
-		}
+		particleConfSuccess = particleConfSuccess && _parDiffOp[parType].configure(_unitOpIdx, paramProvider, _parameters, _disc.nParType, _disc.nBoundBeforeType, _disc.strideBound[_disc.nParType]);
 	}
 
 	// Reconfigure reaction model
@@ -530,31 +445,6 @@ bool GeneralRateModelDG::configure(IParameterProvider& paramProvider)
 		paramProvider.popScope();
 	}
 
-	if (_singleDynReaction)
-	{
-		if (_dynReaction[0] && _dynReaction[0]->requiresConfiguration())
-		{
-			MultiplexedScopeSelector scopeGuard(paramProvider, "reaction_particle", true);
-			dynReactionConfSuccess = _dynReaction[0]->configure(paramProvider, _unitOpIdx, ParTypeIndep) && dynReactionConfSuccess;
-		}
-	}
-	else
-	{
-		for (unsigned int type = 0; type < _disc.nParType; ++type)
-		{
- 			if (!_dynReaction[type] || !_dynReaction[type]->requiresConfiguration())
- 				continue;
-
-			MultiplexedScopeSelector scopeGuard(paramProvider, "reaction_particle", type, _disc.nParType == 1, true);
-			dynReactionConfSuccess = _dynReaction[type]->configure(paramProvider, _unitOpIdx, type) && dynReactionConfSuccess;
-		}
-	}
-
-	bool particleConfSuccess = true;
-	for (int parType = 0; parType < _disc.nParType; parType++)
-	{
-		particleConfSuccess = particleConfSuccess && _parDiffOp[parType].configure(_unitOpIdx, paramProvider, _parameters, _disc.nParType, _disc.nBoundBeforeType, _disc.strideBound[_disc.nParType]);
-	}
 	// jaobian pattern set after binding and particle surface diffusion are configured
 	setJacobianPattern_GRM(_globalJac, 0, _dynReactionBulk);
 	_globalJacDisc = _globalJac;
@@ -562,7 +452,7 @@ bool GeneralRateModelDG::configure(IParameterProvider& paramProvider)
 	// The goal of analyzePattern() is to reorder the nonzero elements of the matrix, such that the factorization step creates less fill-in
 	_linearSolver->analyzePattern(_globalJacDisc.block(_disc.nComp, _disc.nComp, numPureDofs(), numPureDofs()));
 
-	return transportSuccess && particleConfSuccess && bindingConfSuccess && dynReactionConfSuccess;
+	return transportSuccess && particleConfSuccess && dynReactionConfSuccess;
 }
 
 unsigned int GeneralRateModelDG::threadLocalMemorySize() const CADET_NOEXCEPT
@@ -1164,7 +1054,7 @@ int GeneralRateModelDG::residualFlux(double t, unsigned int secIdx, StateType co
 				        * (yCol[i] - yParType[colNode * idxr.strideParBlock(type) + (_disc.nParPoints[type] - 1) * idxr.strideParNode(type) + comp]);
 		}
 
-		//  Bead boundary condition is computed in residualParticle().
+		//  Note: Bead boundary condition is computed in residualParticle().
 
 	}
 
