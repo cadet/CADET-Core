@@ -516,7 +516,7 @@ protected:
 		// particle jacobian (including isotherm and time derivative)
 		for (int colNode = 0; colNode < _disc.nPoints; colNode++) {
 			for (int type = 0; type < _disc.nParType; type++) {
-				_parDiffOp[type].setParJacPattern(tripletList, idxr.offsetCp(ParticleTypeIndex{static_cast<unsigned int>(type)}, ParticleIndex{static_cast<unsigned int>(colNode)}), colNode, secIdx, _binding[type]->reactionQuasiStationarity());
+				_parDiffOp[type].setParJacPattern(tripletList, idxr.offsetCp(ParticleTypeIndex{static_cast<unsigned int>(type)}, ParticleIndex{static_cast<unsigned int>(colNode)}), colNode, secIdx);
 			}
 		}
 
@@ -555,7 +555,7 @@ protected:
 		{
 			for (int parType = 0; parType < _disc.nParType; parType++)
 			{
-				_parDiffOp[parType].calcStaticAnaParticleDiffJacobian(secIdx, colNode, _binding[parType]->reactionQuasiStationarity(), idxr.offsetCp(ParticleTypeIndex{ static_cast<unsigned int>(parType) }, ParticleIndex{ static_cast<unsigned int>(colNode) }), _globalJac);
+				_parDiffOp[parType].calcStaticAnaParticleDiffJacobian(secIdx, colNode, idxr.offsetCp(ParticleTypeIndex{ static_cast<unsigned int>(parType) }, ParticleIndex{ static_cast<unsigned int>(colNode) }), _globalJac);
 			}
 		}
 

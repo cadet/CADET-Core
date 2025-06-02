@@ -18,6 +18,7 @@
 #ifndef LIBCADET_PARTCICLEDIFFUSIONOPERATORDG_HPP_
 #define LIBCADET_PARTCICLEDIFFUSIONOPERATORDG_HPP_
 
+#include "model/BindingModel.hpp"
 #include "cadet/StrongTypes.hpp"
 #include "ParamIdUtil.hpp"
 #include "AutoDiff.hpp"
@@ -41,19 +42,20 @@ using namespace Eigen;
 namespace cadet
 {
 
-class IParameterProvider;
-class IConfigHelper;
-struct AdJacobianParams;
-struct SimulationTime;
-class IModel;
+	class IConfigHelper;
 
 namespace model
 {
 
+class IDynamicReactionModel;
 class IParameterStateDependence;
 
 namespace parts
 {
+	namespace cell
+	{
+		struct CellParameters;
+	}
 
 	constexpr double _SurfVolRatioSphere = 3.0; //!< Surface to volume ratio for a spherical particle
 	constexpr double _SurfVolRatioCylinder = 2.0; //!< Surface to volume ratio for a cylindrical particle
@@ -96,14 +98,20 @@ namespace parts
 		void setUserdefinedRadialDisc();
 		void updateRadialDisc();
 
+		cell::CellParameters makeCellResidualParams(int const* qsReaction) const;
+
 		void clearParDepSurfDiffusion();
 
 		bool notifyDiscontinuousSectionTransition(double t, unsigned int secIdx, active const* const filmDiff, active const* const poreAccessFactor);
 
-		int residual(double t, unsigned int secIdx, unsigned int colNode, double const* yPar, double const* yBulk, double const* yDotPar, double* resPar, int const* const qsBinding, WithoutParamSensitivity);
-		int residual(double t, unsigned int secIdx, unsigned int colNode, double const* yPar, double const* yBulk, double const* yDotPar, active* resPar, int const* const qsBinding, WithParamSensitivity);
-		int residual(double t, unsigned int secIdx, unsigned int colNode, active const* yPar, active const* yBulk, double const* yDotPar, active* resPar, int const* const qsBinding, WithParamSensitivity);
-		int residual(double t, unsigned int secIdx, unsigned int colNode, active const* yPar, active const* yBulk, double const* yDotPar, active* resPar, int const* const qsBinding, WithoutParamSensitivity);
+		template<bool wantJac, bool wantRes>
+		int residual(double t, unsigned int secIdx, double const* yPar, double const* yBulk, double const* yDotPar, double* resPar, ColumnPosition colPos, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc, WithoutParamSensitivity);
+		template<bool wantJac, bool wantRes>
+		int residual(double t, unsigned int secIdx, double const* yPar, double const* yBulk, double const* yDotPar, active* resPar, ColumnPosition colPos, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc, WithParamSensitivity);
+		template<bool wantJac, bool wantRes>
+		int residual(double t, unsigned int secIdx, active const* yPar, active const* yBulk, double const* yDotPar, active* resPar, ColumnPosition colPos, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc, WithParamSensitivity);
+		template<bool wantJac, bool wantRes>
+		int residual(double t, unsigned int secIdx, active const* yPar, active const* yBulk, double const* yDotPar, active* resPar, ColumnPosition colPos, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc, WithoutParamSensitivity);
 
 		unsigned int _parTypeIdx; //!< Particle type index (wrt the unit operation that owns this particle model)
 
@@ -134,6 +142,11 @@ namespace parts
 		bool _hasSurfaceDiffusion; //!< Determines whether surface diffusion is present
 
 		unsigned int _nComp; //!< Number of components
+
+		IBindingModel* _binding; //!< Binding model
+		bool _singleBinding; //!< Determines whether only a single binding model is present in the whole unit
+		IDynamicReactionModel* _dynReaction; //!< Dynamic reaction model
+		bool _singleDynReaction; //!< Determines whether only a single particle reaction model is present in the whole unit
 
 		/* Model discretization */
 
@@ -241,9 +254,9 @@ namespace parts
 		/**
 		 * @brief sets the particle sparsity pattern wrt the global Jacobian
 		 */
-		void setParJacPattern(std::vector<T>& tripletList, const int offsetCp, unsigned int colNode, unsigned int secIdx, int const* const qsBinding)
+		void setParJacPattern(std::vector<T>& tripletList, const int offsetCp, unsigned int colNode, unsigned int secIdx)
 		{
-			calcParticleJacobianPattern(tripletList, offsetCp, colNode, secIdx, qsBinding);
+			calcParticleJacobianPattern(tripletList, offsetCp, colNode, secIdx);
 
 			parTimeDerJacPattern_GRM(tripletList, offsetCp, colNode, secIdx);
 
@@ -252,8 +265,7 @@ namespace parts
 
 		unsigned int calcParDispNNZ();
 
-		int calcStaticAnaParticleDiffJacobian(const int secIdx, const int colNode, const int* const reqBinding, const int offsetLocalCp, Eigen::SparseMatrix<double, RowMajor>& globalJac);
-		int addSolidDGentries(const int secIdx, const int nBulk, const int* const reqBinding, const int offsetCp, Eigen::SparseMatrix<double, RowMajor>& globalJac);
+		int calcStaticAnaParticleDiffJacobian(const int secIdx, const int colNode, const int offsetLocalCp, Eigen::SparseMatrix<double, RowMajor>& globalJac);
 
 		bool setParameter(const ParameterId& pId, double value);
 		bool setParameter(const ParameterId& pId, int value);
@@ -263,10 +275,13 @@ namespace parts
 
 	protected:
 
-		/*		DG particle Residual		*/
+		int addSolidDGentries(const int secIdx, linalg::BandedEigenSparseRowIterator& jacBase, const int* const qsBinding);
 
-		template <typename StateType, typename ResidualType, typename ParamType>
-		int residualImpl(double t, unsigned int secIdx, unsigned int colNode, StateType const* yPar, StateType const* yBulk, double const* yDotPar, ResidualType* resPar, int const* const qsBinding);
+		template <typename StateType, typename ResidualType, typename ParamType, bool wantJac, bool wantRes>
+		int particleDiffusionImpl(double t, unsigned int secIdx, StateType const* yPar, StateType const* yBulk, double const* yDotPar, ResidualType* resPar, const int* const qsBinding, const bool hasDynamicReactions, linalg::BandedEigenSparseRowIterator& jacBase);
+
+		template <typename StateType, typename ResidualType, typename ParamType, bool wantJac, bool wantRes>
+		int residualImpl(double t, unsigned int secIdx, StateType const* yPar, StateType const* yBulk, double const* yDotPar, ResidualType* resPar, ColumnPosition colPos, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc);
 
 		template<typename ResidualType, typename ParamType>
 		void applyParInvMap(Eigen::Map<Vector<ResidualType, Dynamic>, 0, InnerStride<>>& state);
@@ -296,7 +311,7 @@ namespace parts
 		Eigen::MatrixXd parAuxBlockGstar(unsigned int elemIdx, MatrixXd leftG, MatrixXd middleG, MatrixXd rightG);
 		Eigen::MatrixXd getParGBlock(unsigned int elemIdx);
 
-		void calcParticleJacobianPattern(std::vector<T>& tripletList, unsigned int offset, unsigned int colNode, unsigned int secIdx, int const* const qsBinding);
+		void calcParticleJacobianPattern(std::vector<T>& tripletList, unsigned int offset, unsigned int colNode, unsigned int secIdx);
 
 		void parTimeDerJacPattern_GRM(std::vector<T>& tripletList, unsigned int offset, unsigned int colNode, unsigned int secIdx);
 
