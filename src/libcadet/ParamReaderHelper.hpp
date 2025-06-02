@@ -225,25 +225,45 @@ namespace cadet
 		}
 	}
 
-	/*
-	*Todo
-	* algemeiner
-	*/
-	template  <typename ValType>
-	inline void readMatrixValuedComponentDependentParameter(std::vector<active>& dest, IParameterProvider& paramProvider, const std::string& dataSet, unsigned int nComp, unsigned int nReac)
+	
+
+	/**
+	 * @brief Reads a one-dimensional array parameter from the parameter provider.
+	 * @details Reads all values from the specified data set and stores them in the destination vector.
+	 * The size of the destination vector is automatically adjusted to match the nu
+	 *
+	 * @param [out] Destination vector to store the data.
+	 * @param [in] Parameter provider to read from
+	 * @param [in] Name of the data set.
+	 * @param [in] length of the array.
+	*/	
+	inline void readArray(std::vector<active>& dest, IParameterProvider& paramProvider, const std::string& dataSet, unsigned int length)
 	{
 		dest.clear();
 		const std::vector<double> vals = paramProvider.getDoubleArray(dataSet);
-		// todo throw exception 
-		unsigned int curIdx = 0;
-		for (unsigned int i = 0; i < nReac; ++i)
+		for (unsigned int i = 0; i < length; ++i)
 		{
-			for (auto j = 0; j < nComp * nComp; j++)
-			{
-				dest[i] = vals[j];
-			}
+			dest[i] = vals[i];
 		}
+	}
 
+	/**
+	 * @brief Reads a 3D array (flatten) from the ParameterProvider
+	 * The function reads the values of a three-dimensional array that is available in memory as a flat array (linearised).
+	 * The values are expected in the order [outer dimension][middle dimension][inner dimension] and written to the target vector.
+	 * The total number of values must correspond to dimOut * dimMid * dimInn.
+	 *
+	 * @param [out] dest Target vector into which the data is written
+	 * @param [in] paramProvider ParameterProvider from which the data is read
+	 * @param [in] dataSet Name of the data set
+	 * @param [in] dimOut Size of the outer dimension
+	 * @param [in] dimMid Size of the middle dimension
+	 * @param [in] dimInn Size of the inner dimension
+	 */
+	inline void read3DArraylinear(std::vector<active>& dest, IParameterProvider& paramProvider, const std::string& dataSet, unsigned int dimOut, unsigned int dimMid, unsigned int dimInn)
+	{
+		unsigned int length = dimOut * dimMid * dimInn;
+		readArray(dest, paramProvider, dataSet, length);
 	}
 
 

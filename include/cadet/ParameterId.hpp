@@ -30,7 +30,7 @@ namespace cadet
 {
 
 typedef uint16_t UnitOpIdx;
-typedef uint8_t ComponentIdx;
+typedef uint16_t ComponentIdx;
 typedef uint8_t ParticleTypeIdx;
 typedef uint8_t BoundStateIdx;
 typedef uint8_t ReactionIdx;
@@ -42,6 +42,31 @@ const ParticleTypeIdx ParTypeIndep = static_cast<ParticleTypeIdx>(-1);
 const BoundStateIdx BoundStateIndep = static_cast<BoundStateIdx>(-1);
 const ReactionIdx ReactionIndep = static_cast<ReactionIdx>(-1);
 const SectionIdx SectionIndep = static_cast<SectionIdx>(-1);
+
+namespace CompUtil{
+	/**
+     * @brief Packt two 8-Bit Component-Index in one 16-Bit ComponentIdx
+     */
+    inline ComponentIdx pack(uint8_t comp1, uint8_t comp2 = 255) {
+        return (static_cast<ComponentIdx>(comp1) << 8) | static_cast<ComponentIdx>(comp2);
+    }
+    
+    /**
+     * @brief Create a ComponentIdx out of one index
+     */
+    inline ComponentIdx single(uint8_t comp) {
+        return pack(comp, 255); // 255 = "nicht verwendet"
+    }
+
+	/**
+     * @brief Create a ComponentIdx out of two indices
+     */
+    inline ComponentIdx dual(uint8_t comp1, uint8_t comp2) {
+        return pack(comp1, comp2);
+    }
+} // namespace CompUtil
+
+
 
 /**
  * @brief Uniquely identifies a parameter
