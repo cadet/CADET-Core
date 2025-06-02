@@ -290,12 +290,17 @@ bool GeneralRateModelDG::configureModelDiscretization(IParameterProvider& paramP
 	_binding = std::vector<IBindingModel*>(_disc.nParType, nullptr);
 	_dynReaction = std::vector<IDynamicReactionModel*>(_disc.nParType, nullptr);
 
-	for (unsigned int i = 0; i < _disc.nParType; ++i)
+	for (unsigned int parType = 0; parType < _disc.nParType; ++parType)
 	{
-		_binding[i] = _parDiffOp[i]._binding;
-		_singleBinding = _parDiffOp[i]._singleBinding;
-		_dynReaction[i] = _parDiffOp[i]._dynReaction;
-		_singleDynReaction = _parDiffOp[i]._singleDynReaction;
+		_binding[parType] = _parDiffOp[parType]._binding;
+		_singleBinding = _parDiffOp[parType]._singleBinding;
+		if (parType > 0 && _singleBinding != _parDiffOp[parType]._singleBinding)
+			throw InvalidParameterException("Configuration of binding went wrong");
+
+		_dynReaction[parType] = _parDiffOp[parType]._dynReaction;
+		_singleDynReaction = _parDiffOp[parType]._singleDynReaction;
+		if (parType > 0 && _singleDynReaction != _parDiffOp[parType]._singleDynReaction)
+			throw InvalidParameterException("Configuration of particle reaction went wrong");
 	}
 
 	// Allocate memory
