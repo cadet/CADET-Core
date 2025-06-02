@@ -65,6 +65,10 @@ GeneralRateModelDG::~GeneralRateModelDG() CADET_NOEXCEPT
 {
 	delete[] _tempState;
 
+	_binding.clear(); // binding models are deleted in the respective particle model
+	_dynReaction.clear(); // particle reaction models are deleted in the respective particle model
+	delete[] _parDiffOp;
+
 	delete _dynReactionBulk;
 
 	delete _linearSolver;
