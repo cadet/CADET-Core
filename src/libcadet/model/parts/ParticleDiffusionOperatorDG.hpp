@@ -266,7 +266,6 @@ namespace parts
 		unsigned int calcParDispNNZ();
 
 		int calcStaticAnaParticleDiffJacobian(const int secIdx, const int colNode, const int offsetLocalCp, Eigen::SparseMatrix<double, RowMajor>& globalJac);
-		int addSolidDGentries(const int secIdx, linalg::BandedEigenSparseRowIterator& jacBase);
 
 		bool setParameter(const ParameterId& pId, double value);
 		bool setParameter(const ParameterId& pId, int value);
@@ -276,7 +275,10 @@ namespace parts
 
 	protected:
 
-		/*		DG particle Residual		*/
+		int addSolidDGentries(const int secIdx, linalg::BandedEigenSparseRowIterator& jacBase, const int* const qsBinding);
+
+		template <typename StateType, typename ResidualType, typename ParamType, bool wantJac, bool wantRes>
+		int particleDiffusionImpl(double t, unsigned int secIdx, StateType const* yPar, StateType const* yBulk, double const* yDotPar, ResidualType* resPar, const int* const qsBinding, const bool hasDynamicReactions, linalg::BandedEigenSparseRowIterator& jacBase);
 
 		template <typename StateType, typename ResidualType, typename ParamType, bool wantJac, bool wantRes>
 		int residualImpl(double t, unsigned int secIdx, StateType const* yPar, StateType const* yBulk, double const* yDotPar, ResidualType* resPar, ColumnPosition colPos, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc);

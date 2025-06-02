@@ -1106,42 +1106,12 @@ namespace parts
 	}
 
 	template <typename StateType, typename ResidualType, typename ParamType, bool wantJac, bool wantRes>
-	int ParticleDiffusionOperatorDG::residualImpl(double t, unsigned int secIdx, StateType const* yPar, StateType const* yBulk, double const* yDotPar, ResidualType* resPar, ColumnPosition colPos, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc)
+	int ParticleDiffusionOperatorDG::particleDiffusionImpl(double t, unsigned int secIdx, StateType const* yPar, StateType const* yBulk, double const* yDotPar, ResidualType* resPar, const int* const qsBinding, const bool hasDynamicReactions, linalg::BandedEigenSparseRowIterator& jacBase)
 	{
-		int const* const qsBinding = _binding->reactionQuasiStationarity();
-		const cell::CellParameters cellResParams = makeCellResidualParams(qsBinding);
-
-		linalg::BandedEigenSparseRowIterator jacBase = jacIt;
-
-		// Handle time derivatives, binding, dynamic reactions: residualKernel computes discrete point wise,
-		// so we loop over each discrete particle point
-		for (unsigned int par = 0; par < _nParPoints; ++par)
-		{
-			// local pointers to current particle node, needed in residualKernel
-			StateType const* local_y = yPar + par * strideParNode();
-			double const* local_yDot = yDotPar ? yDotPar + par * strideParNode() : nullptr;
-			ResidualType* local_res = resPar ? resPar + par * strideParNode() : nullptr;
-
-			// r (particle) coordinate of current node (particle radius normed to 1) - needed in externally dependent adsorption kinetic
-			colPos.particle = relativeCoordinate(par);
-
-			if (wantRes)
-				cell::residualKernel<StateType, ResidualType, ParamType, cell::CellParameters, linalg::BandedEigenSparseRowIterator, wantJac, true>(
-					t, secIdx, colPos, local_y, local_yDot, local_res, jacIt, cellResParams, tlmAlloc
-				);
-			else
-				cell::residualKernel<StateType, ResidualType, ParamType, cell::CellParameters, linalg::BandedEigenSparseRowIterator, wantJac, false, false>(
-					t, secIdx, colPos, local_y, local_yDot, local_res, jacIt, cellResParams, tlmAlloc
-				);
-
-			// Move rowiterator to next particle node
-			jacIt += strideParNode();
-		}
-
 		// Add the DG discretized solid entries of the jacobian that get overwritten by the binding kernel.
 		// These entries only exist for the GRM with surface diffusion
-		if (wantJac && _binding->hasDynamicReactions() && _hasSurfaceDiffusion)
-			addSolidDGentries(secIdx, jacBase);
+		if (wantJac && hasDynamicReactions && _hasSurfaceDiffusion)
+			addSolidDGentries(secIdx, jacBase, qsBinding);
 
 		if (!wantRes)
 			return 0;
@@ -1228,7 +1198,7 @@ namespace parts
 				// =====================================================================================================//
 				// Solve auxiliary systems  d_p g_p + d_s beta_p sum g_s= d (d_p c_p + d_s beta_p sum c_s) / d xi		//
 				// =====================================================================================================//
-				
+
 				// Component-wise! strides
 				unsigned int strideelem = nNodes;
 				unsigned int strideNode = 1u;
@@ -1316,6 +1286,45 @@ namespace parts
 
 			}
 		}
+
+		return true;
+	}
+
+
+	template <typename StateType, typename ResidualType, typename ParamType, bool wantJac, bool wantRes>
+	int ParticleDiffusionOperatorDG::residualImpl(double t, unsigned int secIdx, StateType const* yPar, StateType const* yBulk, double const* yDotPar, ResidualType* resPar, ColumnPosition colPos, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc)
+	{
+		int const* const qsBinding = _binding->reactionQuasiStationarity();
+		const cell::CellParameters cellResParams = makeCellResidualParams(qsBinding);
+
+		linalg::BandedEigenSparseRowIterator jacBase = jacIt;
+
+		// Handle time derivatives, binding, dynamic reactions: residualKernel computes discrete point wise,
+		// so we loop over each discrete particle point
+		for (unsigned int par = 0; par < _nParPoints; ++par)
+		{
+			// local pointers to current particle node, needed in residualKernel
+			StateType const* local_y = yPar + par * strideParNode();
+			double const* local_yDot = yDotPar ? yDotPar + par * strideParNode() : nullptr;
+			ResidualType* local_res = resPar ? resPar + par * strideParNode() : nullptr;
+
+			// r (particle) coordinate of current node (particle radius normed to 1) - needed in externally dependent adsorption kinetic
+			colPos.particle = relativeCoordinate(par);
+
+			if (wantRes)
+				cell::residualKernel<StateType, ResidualType, ParamType, cell::CellParameters, linalg::BandedEigenSparseRowIterator, wantJac, true>(
+					t, secIdx, colPos, local_y, local_yDot, local_res, jacIt, cellResParams, tlmAlloc
+				);
+			else
+				cell::residualKernel<StateType, ResidualType, ParamType, cell::CellParameters, linalg::BandedEigenSparseRowIterator, wantJac, false, false>(
+					t, secIdx, colPos, local_y, local_yDot, local_res, jacIt, cellResParams, tlmAlloc
+				);
+
+			// Move rowiterator to next particle node
+			jacIt += strideParNode();
+		}
+
+		particleDiffusionImpl<StateType, ResidualType, ParamType, wantJac, wantRes>(t, secIdx, yPar, yBulk, yDotPar, resPar, qsBinding, _binding->hasDynamicReactions(), jacBase);
 
 		return true;
 	}
@@ -1988,13 +1997,9 @@ namespace parts
 	 * @brief adds jacobian entries which have been overwritten by the binding kernel (only use for surface diffusion combined with kinetic binding)
 	 * @detail only adds the entries d RHS_i / d c^s_i, which lie on the diagonal
 	 */
-	 int ParticleDiffusionOperatorDG::addSolidDGentries(const int secIdx, linalg::BandedEigenSparseRowIterator& jacBase)
+	 int ParticleDiffusionOperatorDG::addSolidDGentries(const int secIdx, linalg::BandedEigenSparseRowIterator& jacBase, const int* const reqBinding)
 	 {
-	 	if (!_binding->hasDynamicReactions() || !_hasSurfaceDiffusion)
-	 		return 1;
-
 	 	active const* const parSurfDiff = getSectionDependentSlice(_parSurfDiffusion, _strideBound, secIdx);
-		const int* const reqBinding = _binding->reactionQuasiStationarity();
 
 	 	// Get jacobian iterator at first solid entry of first particle of current type
 	 	linalg::BandedEigenSparseRowIterator jac = jacBase + strideParLiquid();
