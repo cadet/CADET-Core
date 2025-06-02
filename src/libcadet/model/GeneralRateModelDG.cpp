@@ -1012,13 +1012,15 @@ int GeneralRateModelDG::residualParticle(double t, unsigned int parType, unsigne
 	if(!wantRes)
 		return 0;
 
-	// Particle transport equations: particle and surface diffusion
+	linalg::BandedEigenSparseRowIterator jacIt(_globalJac, idxr.offsetCp(ParticleTypeIndex{ parType }, ParticleIndex{ colNode }));
+	ColumnPosition colPos{ z, 0.0, 0.0 };
 
-	_parDiffOp[parType].residual(t, secIdx, colNode,
+	_parDiffOp[parType].residual<wantJac, wantRes>(t, secIdx,
 		yBase + idxr.offsetCp(ParticleTypeIndex{ parType }, ParticleIndex{ colNode }),
 		yBase + idxr.offsetC() + colNode * idxr.strideColNode(),
-		yDotBase + idxr.offsetCp(ParticleTypeIndex{ parType }, ParticleIndex{ colNode }),
-		resBase + idxr.offsetCp(ParticleTypeIndex{ parType }, ParticleIndex{ colNode }),
+		yDotBase ? yDotBase + idxr.offsetCp(ParticleTypeIndex{ parType }, ParticleIndex{ colNode }) : nullptr,
+		resBase ? resBase + idxr.offsetCp(ParticleTypeIndex{ parType }, ParticleIndex{ colNode }) : nullptr,
+		colPos, jacIt, tlmAlloc,
 		typename cadet::ParamSens<ParamType>::enabled()
 	);
 

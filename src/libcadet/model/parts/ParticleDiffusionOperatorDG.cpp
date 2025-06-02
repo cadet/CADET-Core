@@ -1025,31 +1025,50 @@ namespace parts
 	 * @param [in] model Model that owns the operator
 	 * @param [in] t Current time point
 	 * @param [in] secIdx Index of the current section
-	 * @param [in] y Pointer to unit operation's state vector
-	 * @param [in] yDot Pointer to unit operation's time derivative state vector
-	 * @param [out] res Pointer to unit operation's residual vector
-	 * @param [in] jac Matrix that holds the Jacobian
+	 * @param [in] yPar Pointer to particle phase entry in unit state vector
+	 * @param [in] yBulk Pointer to corresponding bulk phase entry in unit state vector
+	 * @param [in] yDotPar Pointer to particle phase derivative entry in unit state vector
+	 * @param [out] resPar Pointer Pointer to particle phase entry in unit residual vector
+	 * @param [out] colPos column position of the particle (particle coordinate zero)
+	 * @param [in] jacIt Matrix iterator pointing to the particle phase entry in the unit Jacobian
 	 * @return @c 0 on success, @c -1 on non-recoverable error, and @c +1 on recoverable error
 	 */
-	int ParticleDiffusionOperatorDG::residual(double t, unsigned int secIdx, unsigned int colNode, double const* yPar, double const* yBulk, double const* yDotPar, double* resPar, WithoutParamSensitivity)
+	template<bool wantJac, bool wantRes>
+	int ParticleDiffusionOperatorDG::residual(double t, unsigned int secIdx, double const* yPar, double const* yBulk, double const* yDotPar, double* resPar, ColumnPosition colPos, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc, WithoutParamSensitivity)
 	{
-		return residualImpl<double, double, double>(t, secIdx, colNode, yPar, yBulk, yDotPar, resPar);
+		return residualImpl<double, double, double, wantJac, wantRes>(t, secIdx, yPar, yBulk, yDotPar, resPar, colPos, jacIt, tlmAlloc);
 	}
 
-	int ParticleDiffusionOperatorDG::residual(double t, unsigned int secIdx, unsigned int colNode, active const* yPar, active const* yBulk, double const* yDotPar, active* resPar, WithoutParamSensitivity)
+	template<bool wantJac, bool wantRes>
+	int ParticleDiffusionOperatorDG::residual(double t, unsigned int secIdx, active const* yPar, active const* yBulk, double const* yDotPar, active* resPar, ColumnPosition colPos, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc, WithoutParamSensitivity)
 	{
-		return residualImpl<active, active, double>(t, secIdx, colNode, yPar, yBulk, yDotPar, resPar);
+		return residualImpl<active, active, double, wantJac, wantRes>(t, secIdx, yPar, yBulk, yDotPar, resPar, colPos, jacIt, tlmAlloc);
 	}
 
-	int ParticleDiffusionOperatorDG::residual(double t, unsigned int secIdx, unsigned int colNode, double const* yPar, double const* yBulk, double const* yDotPar, active* resPar, WithParamSensitivity)
+	template<bool wantJac, bool wantRes>
+	int ParticleDiffusionOperatorDG::residual(double t, unsigned int secIdx, double const* yPar, double const* yBulk, double const* yDotPar, active* resPar, ColumnPosition colPos, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc, WithParamSensitivity)
 	{
-		return residualImpl<double, active, active>(t, secIdx, colNode, yPar, yBulk, yDotPar, resPar);
+		return residualImpl<double, active, active, wantJac, wantRes>(t, secIdx, yPar, yBulk, yDotPar, resPar, colPos, jacIt, tlmAlloc);
 	}
 
-	int ParticleDiffusionOperatorDG::residual(double t, unsigned int secIdx, unsigned int colNode, active const* yPar, active const* yBulk, double const* yDotPar, active* resPar, WithParamSensitivity)
+	template<bool wantJac, bool wantRes>
+	int ParticleDiffusionOperatorDG::residual(double t, unsigned int secIdx, active const* yPar, active const* yBulk, double const* yDotPar, active* resPar, ColumnPosition colPos, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc, WithParamSensitivity)
 	{
-		return residualImpl<active, active, active>(t, secIdx, colNode, yPar, yBulk, yDotPar, resPar);
+		return residualImpl<active, active, active, wantJac, wantRes>(t, secIdx, yPar, yBulk, yDotPar, resPar, colPos, jacIt, tlmAlloc);
 	}
+
+	template int ParticleDiffusionOperatorDG::residual<true, true>(double t, unsigned int secIdx, double const* yPar, double const* yBulk, double const* yDotPar, double* resPar, ColumnPosition colPos, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc, WithoutParamSensitivity);
+	template int ParticleDiffusionOperatorDG::residual<false, true>(double t, unsigned int secIdx, double const* yPar, double const* yBulk, double const* yDotPar, double* resPar, ColumnPosition colPos, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc, WithoutParamSensitivity);
+	template int ParticleDiffusionOperatorDG::residual<true, false>(double t, unsigned int secIdx, double const* yPar, double const* yBulk, double const* yDotPar, double* resPar, ColumnPosition colPos, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc, WithoutParamSensitivity);
+
+	template int ParticleDiffusionOperatorDG::residual<true, true>(double t, unsigned int secIdx, active const* yPar, active const* yBulk, double const* yDotPar, active* resPar, ColumnPosition colPos, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc, WithoutParamSensitivity);
+	template int ParticleDiffusionOperatorDG::residual<false, true>(double t, unsigned int secIdx, active const* yPar, active const* yBulk, double const* yDotPar, active* resPar, ColumnPosition colPos, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc, WithoutParamSensitivity);
+
+	template int ParticleDiffusionOperatorDG::residual<true, true>(double t, unsigned int secIdx, double const* yPar, double const* yBulk, double const* yDotPar, active* resPar, ColumnPosition colPos, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc, WithParamSensitivity);
+	template int ParticleDiffusionOperatorDG::residual<false, true>(double t, unsigned int secIdx, double const* yPar, double const* yBulk, double const* yDotPar, active* resPar, ColumnPosition colPos, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc, WithParamSensitivity);
+
+	template int ParticleDiffusionOperatorDG::residual<true, true>(double t, unsigned int secIdx, active const* yPar, active const* yBulk, double const* yDotPar, active* resPar, ColumnPosition colPos, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc, WithParamSensitivity);
+	template int ParticleDiffusionOperatorDG::residual<false, true>(double t, unsigned int secIdx, active const* yPar, active const* yBulk, double const* yDotPar, active* resPar, ColumnPosition colPos, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc, WithParamSensitivity);
 
 	/**
 	 * @brief promotes doubles to actives
@@ -1070,9 +1089,47 @@ namespace parts
 		}
 	}
 
-	template <typename StateType, typename ResidualType, typename ParamType>
-	int ParticleDiffusionOperatorDG::residualImpl(double t, unsigned int secIdx, unsigned int colNode, StateType const* yPar, StateType const* yBulk, double const* yDotPar, ResidualType* resPar)
+	template <typename StateType, typename ResidualType, typename ParamType, bool wantJac, bool wantRes>
+	int ParticleDiffusionOperatorDG::residualImpl(double t, unsigned int secIdx, StateType const* yPar, StateType const* yBulk, double const* yDotPar, ResidualType* resPar, ColumnPosition colPos, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc)
 	{
+		//int const* const qsReaction = _binding->reactionQuasiStationarity();
+		//const cell::CellParameters cellResParams = makeCellResidualParams(qsReaction);
+
+		//linalg::BandedEigenSparseRowIterator jacBase = jacIt;
+
+		//// Handle time derivatives, binding, dynamic reactions: residualKernel computes discrete point wise,
+		//// so we loop over each discrete particle point
+		//for (unsigned int par = 0; par < _nParPoints; ++par)
+		//{
+		//	// local pointers to current particle node, needed in residualKernel
+		//	StateType const* local_y = yPar + par * strideParNode();
+		//	double const* local_yDot = yDotPar ? yDotPar + par * strideParNode() : nullptr;
+		//	ResidualType* local_res = resPar ? resPar + par * strideParNode() : nullptr;
+
+		//	// r (particle) coordinate of current node (particle radius normed to 1) - needed in externally dependent adsorption kinetic
+		//	colPos.particle = relativeCoordinate(par);
+
+		//	if (wantRes)
+		//		cell::residualKernel<StateType, ResidualType, ParamType, cell::CellParameters, linalg::BandedEigenSparseRowIterator, wantJac, true>(
+		//			t, secIdx, colPos, local_y, local_yDot, local_res, jacIt, cellResParams, tlmAlloc
+		//		);
+		//	else
+		//		cell::residualKernel<StateType, ResidualType, ParamType, cell::CellParameters, linalg::BandedEigenSparseRowIterator, wantJac, false, false>(
+		//			t, secIdx, colPos, local_y, local_yDot, local_res, jacIt, cellResParams, tlmAlloc
+		//		);
+
+		//	// Move rowiterator to next particle node
+		//	jacIt += strideParNode();
+		//}
+
+		//// Add the DG discretized solid entries of the jacobian that get overwritten by the binding kernel.
+		//// These entries only exist for the GRM with surface diffusion
+		//if (wantJac)
+		//	addSolidDGentries(secIdx, jacBase);
+
+		if (!wantRes)
+			return 0;
+
 		int const* const qsBinding = _binding->reactionQuasiStationarity();
 
 		/* Mobile phase RHS	*/
