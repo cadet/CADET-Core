@@ -1031,24 +1031,24 @@ namespace parts
 	 * @param [in] jac Matrix that holds the Jacobian
 	 * @return @c 0 on success, @c -1 on non-recoverable error, and @c +1 on recoverable error
 	 */
-	int ParticleDiffusionOperatorDG::residual(double t, unsigned int secIdx, unsigned int colNode, double const* yPar, double const* yBulk, double const* yDotPar, double* resPar, int const* const qsBinding, WithoutParamSensitivity)
+	int ParticleDiffusionOperatorDG::residual(double t, unsigned int secIdx, unsigned int colNode, double const* yPar, double const* yBulk, double const* yDotPar, double* resPar, WithoutParamSensitivity)
 	{
-		return residualImpl<double, double, double>(t, secIdx, colNode, yPar, yBulk, yDotPar, resPar, qsBinding);
+		return residualImpl<double, double, double>(t, secIdx, colNode, yPar, yBulk, yDotPar, resPar);
 	}
 
-	int ParticleDiffusionOperatorDG::residual(double t, unsigned int secIdx, unsigned int colNode, active const* yPar, active const* yBulk, double const* yDotPar, active* resPar, int const* const qsBinding, WithoutParamSensitivity)
+	int ParticleDiffusionOperatorDG::residual(double t, unsigned int secIdx, unsigned int colNode, active const* yPar, active const* yBulk, double const* yDotPar, active* resPar, WithoutParamSensitivity)
 	{
-		return residualImpl<active, active, double>(t, secIdx, colNode, yPar, yBulk, yDotPar, resPar, qsBinding);
+		return residualImpl<active, active, double>(t, secIdx, colNode, yPar, yBulk, yDotPar, resPar);
 	}
 
-	int ParticleDiffusionOperatorDG::residual(double t, unsigned int secIdx, unsigned int colNode, double const* yPar, double const* yBulk, double const* yDotPar, active* resPar, int const* const qsBinding, WithParamSensitivity)
+	int ParticleDiffusionOperatorDG::residual(double t, unsigned int secIdx, unsigned int colNode, double const* yPar, double const* yBulk, double const* yDotPar, active* resPar, WithParamSensitivity)
 	{
-		return residualImpl<double, active, active>(t, secIdx, colNode, yPar, yBulk, yDotPar, resPar, qsBinding);
+		return residualImpl<double, active, active>(t, secIdx, colNode, yPar, yBulk, yDotPar, resPar);
 	}
 
-	int ParticleDiffusionOperatorDG::residual(double t, unsigned int secIdx, unsigned int colNode, active const* yPar, active const* yBulk, double const* yDotPar, active* resPar, int const* const qsBinding, WithParamSensitivity)
+	int ParticleDiffusionOperatorDG::residual(double t, unsigned int secIdx, unsigned int colNode, active const* yPar, active const* yBulk, double const* yDotPar, active* resPar, WithParamSensitivity)
 	{
-		return residualImpl<active, active, active>(t, secIdx, colNode, yPar, yBulk, yDotPar, resPar, qsBinding);
+		return residualImpl<active, active, active>(t, secIdx, colNode, yPar, yBulk, yDotPar, resPar);
 	}
 
 	/**
@@ -1071,8 +1071,10 @@ namespace parts
 	}
 
 	template <typename StateType, typename ResidualType, typename ParamType>
-	int ParticleDiffusionOperatorDG::residualImpl(double t, unsigned int secIdx, unsigned int colNode, StateType const* yPar, StateType const* yBulk, double const* yDotPar, ResidualType* resPar, int const* const qsBinding)
+	int ParticleDiffusionOperatorDG::residualImpl(double t, unsigned int secIdx, unsigned int colNode, StateType const* yPar, StateType const* yBulk, double const* yDotPar, ResidualType* resPar)
 	{
+		int const* const qsBinding = _binding->reactionQuasiStationarity();
+
 		/* Mobile phase RHS	*/
 
 		// Get film diffusion flux at current node to compute boundary condition
@@ -1416,11 +1418,13 @@ namespace parts
 	/**
 	 * @brief calculates the particle dispersion jacobian Pattern of the DG scheme for the given particle type and bead
 	*/
-	void ParticleDiffusionOperatorDG::calcParticleJacobianPattern(std::vector<ParticleDiffusionOperatorDG::T>& tripletList, unsigned int offset, unsigned int colNode, unsigned int secIdx, int const* const qsBinding)
+	void ParticleDiffusionOperatorDG::calcParticleJacobianPattern(std::vector<ParticleDiffusionOperatorDG::T>& tripletList, unsigned int offset, unsigned int colNode, unsigned int secIdx)
 	{
 		// Ordering of particle surface diffusion:
 		// bnd0comp0, bnd1comp0, bnd0comp1, bnd1comp1, bnd0comp2, bnd1comp2
 		active const* const _parSurfDiff = getSectionDependentSlice(_parSurfDiffusion, _strideBound, secIdx);
+
+		int const* const qsBinding = _binding->reactionQuasiStationarity();
 
 		// (global) strides
 		unsigned int selem = _nParNode * strideParNode();
@@ -1913,11 +1917,14 @@ namespace parts
 	 * @brief adds jacobian entries which have been overwritten by the binding kernel (only use for surface diffusion combined with kinetic binding)
 	 * @detail only adds the entries d RHS_i / d c^s_i, which lie on the diagonal
 	 */
-	int ParticleDiffusionOperatorDG::addSolidDGentries(const int secIdx, const int nBulk, const int* const reqBinding, const int offsetCp, Eigen::SparseMatrix<double, RowMajor>& globalJac)
+	int ParticleDiffusionOperatorDG::addSolidDGentries(const int secIdx, const int nBulk, const int offsetCp, Eigen::SparseMatrix<double, RowMajor>& globalJac)
 	{
 		active const* const parSurfDiff = getSectionDependentSlice(_parSurfDiffusion, _strideBound, secIdx);
 
-		for (unsigned int blk = 0; blk < nBulk; blk++) {
+		const int* const reqBinding = _binding->reactionQuasiStationarity();
+
+		for (unsigned int blk = 0; blk < nBulk; blk++)
+		{
 			// Get jacobian iterator at first solid entry of first particle of current type
 			linalg::BandedEigenSparseRowIterator jac(globalJac, offsetCp + blk * strideParBlock() + strideParLiquid());
 
@@ -2010,7 +2017,7 @@ namespace parts
 	 * @brief analytically calculates the static (per section) particle diffusion Jacobian
 	 * @return 1 if jacobain calculation fits the predefined pattern of the jacobian, 0 if not.
 	 */
-	int ParticleDiffusionOperatorDG::calcStaticAnaParticleDiffJacobian(const int secIdx, const int colNode, const int* const reqBinding, const int offsetLocalCp, Eigen::SparseMatrix<double, RowMajor>& globalJac)
+	int ParticleDiffusionOperatorDG::calcStaticAnaParticleDiffJacobian(const int secIdx, const int colNode, const int offsetLocalCp, Eigen::SparseMatrix<double, RowMajor>& globalJac)
 	{
 		// Prepare parameters
 		const active* const parDiff = getSectionDependentSlice(_parDiffusion, _nComp, secIdx);
@@ -2020,6 +2027,8 @@ namespace parts
 		const active* const  parSurfDiff = getSectionDependentSlice(_parSurfDiffusion, _strideBound, secIdx);
 
 		const active* const invBetaP = &_invBetaP[0];
+
+		const int* const reqBinding = _binding->reactionQuasiStationarity();
 
 		// (global) strides
 		unsigned int selem = _nParNode * strideParNode();

@@ -992,7 +992,7 @@ int GeneralRateModelDG::residualImpl(double t, unsigned int secIdx, StateType co
 		{
 			if (_binding[parType]->hasDynamicReactions() && _parDiffOp[parType]._hasSurfaceDiffusion)
 			{
-				_parDiffOp[parType].addSolidDGentries(secIdx, _disc.nPoints, _binding[parType]->reactionQuasiStationarity(), idxr.offsetCp(ParticleTypeIndex{parType}), _globalJac);
+				_parDiffOp[parType].addSolidDGentries(secIdx, _disc.nPoints, idxr.offsetCp(ParticleTypeIndex{parType}), _globalJac);
 			}
 		}
 	}
@@ -1120,7 +1120,6 @@ int GeneralRateModelDG::residualParticle(double t, unsigned int parType, unsigne
 		yBase + idxr.offsetC() + colNode * idxr.strideColNode(),
 		yDotBase + idxr.offsetCp(ParticleTypeIndex{ parType }, ParticleIndex{ colNode }),
 		resBase + idxr.offsetCp(ParticleTypeIndex{ parType }, ParticleIndex{ colNode }),
-		_binding[parType]->reactionQuasiStationarity(),
 		typename cadet::ParamSens<ParamType>::enabled()
 	);
 

@@ -102,10 +102,10 @@ namespace parts
 
 		bool notifyDiscontinuousSectionTransition(double t, unsigned int secIdx, active const* const filmDiff, active const* const poreAccessFactor);
 
-		int residual(double t, unsigned int secIdx, unsigned int colNode, double const* yPar, double const* yBulk, double const* yDotPar, double* resPar, int const* const qsBinding, WithoutParamSensitivity);
-		int residual(double t, unsigned int secIdx, unsigned int colNode, double const* yPar, double const* yBulk, double const* yDotPar, active* resPar, int const* const qsBinding, WithParamSensitivity);
-		int residual(double t, unsigned int secIdx, unsigned int colNode, active const* yPar, active const* yBulk, double const* yDotPar, active* resPar, int const* const qsBinding, WithParamSensitivity);
-		int residual(double t, unsigned int secIdx, unsigned int colNode, active const* yPar, active const* yBulk, double const* yDotPar, active* resPar, int const* const qsBinding, WithoutParamSensitivity);
+		int residual(double t, unsigned int secIdx, unsigned int colNode, double const* yPar, double const* yBulk, double const* yDotPar, double* resPar, WithoutParamSensitivity);
+		int residual(double t, unsigned int secIdx, unsigned int colNode, double const* yPar, double const* yBulk, double const* yDotPar, active* resPar, WithParamSensitivity);
+		int residual(double t, unsigned int secIdx, unsigned int colNode, active const* yPar, active const* yBulk, double const* yDotPar, active* resPar, WithParamSensitivity);
+		int residual(double t, unsigned int secIdx, unsigned int colNode, active const* yPar, active const* yBulk, double const* yDotPar, active* resPar, WithoutParamSensitivity);
 
 		unsigned int _parTypeIdx; //!< Particle type index (wrt the unit operation that owns this particle model)
 
@@ -248,9 +248,9 @@ namespace parts
 		/**
 		 * @brief sets the particle sparsity pattern wrt the global Jacobian
 		 */
-		void setParJacPattern(std::vector<T>& tripletList, const int offsetCp, unsigned int colNode, unsigned int secIdx, int const* const qsBinding)
+		void setParJacPattern(std::vector<T>& tripletList, const int offsetCp, unsigned int colNode, unsigned int secIdx)
 		{
-			calcParticleJacobianPattern(tripletList, offsetCp, colNode, secIdx, qsBinding);
+			calcParticleJacobianPattern(tripletList, offsetCp, colNode, secIdx);
 
 			parTimeDerJacPattern_GRM(tripletList, offsetCp, colNode, secIdx);
 
@@ -259,8 +259,8 @@ namespace parts
 
 		unsigned int calcParDispNNZ();
 
-		int calcStaticAnaParticleDiffJacobian(const int secIdx, const int colNode, const int* const reqBinding, const int offsetLocalCp, Eigen::SparseMatrix<double, RowMajor>& globalJac);
-		int addSolidDGentries(const int secIdx, const int nBulk, const int* const reqBinding, const int offsetCp, Eigen::SparseMatrix<double, RowMajor>& globalJac);
+		int calcStaticAnaParticleDiffJacobian(const int secIdx, const int colNode, const int offsetLocalCp, Eigen::SparseMatrix<double, RowMajor>& globalJac);
+		int addSolidDGentries(const int secIdx, const int nBulk, const int offsetCp, Eigen::SparseMatrix<double, RowMajor>& globalJac);
 
 		bool setParameter(const ParameterId& pId, double value);
 		bool setParameter(const ParameterId& pId, int value);
@@ -273,7 +273,7 @@ namespace parts
 		/*		DG particle Residual		*/
 
 		template <typename StateType, typename ResidualType, typename ParamType>
-		int residualImpl(double t, unsigned int secIdx, unsigned int colNode, StateType const* yPar, StateType const* yBulk, double const* yDotPar, ResidualType* resPar, int const* const qsBinding);
+		int residualImpl(double t, unsigned int secIdx, unsigned int colNode, StateType const* yPar, StateType const* yBulk, double const* yDotPar, ResidualType* resPar);
 
 		template<typename ResidualType, typename ParamType>
 		void applyParInvMap(Eigen::Map<Vector<ResidualType, Dynamic>, 0, InnerStride<>>& state);
@@ -303,7 +303,7 @@ namespace parts
 		Eigen::MatrixXd parAuxBlockGstar(unsigned int elemIdx, MatrixXd leftG, MatrixXd middleG, MatrixXd rightG);
 		Eigen::MatrixXd getParGBlock(unsigned int elemIdx);
 
-		void calcParticleJacobianPattern(std::vector<T>& tripletList, unsigned int offset, unsigned int colNode, unsigned int secIdx, int const* const qsBinding);
+		void calcParticleJacobianPattern(std::vector<T>& tripletList, unsigned int offset, unsigned int colNode, unsigned int secIdx);
 
 		void parTimeDerJacPattern_GRM(std::vector<T>& tripletList, unsigned int offset, unsigned int colNode, unsigned int secIdx);
 
