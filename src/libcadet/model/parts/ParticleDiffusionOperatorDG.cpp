@@ -13,12 +13,18 @@
 #include "model/parts/ParticleDiffusionOperatorDG.hpp"
 #include "cadet/Exceptions.hpp"
 
+#include "BindingModelFactory.hpp"
+#include "ReactionModelFactory.hpp"
 #include "ParamReaderHelper.hpp"
+#include "ParamReaderScopes.hpp"
 #include "AdUtils.hpp"
 #include "SimulationTypes.hpp"
 #include "model/ParameterDependence.hpp"
+#include "model/parts/BindingCellKernel.hpp"
 #include "SensParamUtil.hpp"
 #include "ConfigurationHelper.hpp"
+#include "model/BindingModel.hpp"
+#include "model/ReactionModel.hpp"
 
 #include "LoggingUtils.hpp"
 #include "Logging.hpp"
@@ -36,16 +42,17 @@ namespace model
 
 namespace parts
 {
-
 	/**
 	 * @brief Creates a ParticleDiffusionOperatorDG
 	 */
-	ParticleDiffusionOperatorDG::ParticleDiffusionOperatorDG() : _boundOffset(nullptr), _nBound(nullptr), _localFlux(nullptr), _deltaR(nullptr), _Ir(nullptr), _DGjacParDispBlocks(nullptr), _minus_InvMM_ST(nullptr), _parInvMM(nullptr), _parDepSurfDiffusion(nullptr)
+	ParticleDiffusionOperatorDG::ParticleDiffusionOperatorDG() : _binding(nullptr), _dynReaction(nullptr), _boundOffset(nullptr), _nBound(nullptr), _localFlux(nullptr), _deltaR(nullptr), _Ir(nullptr), _DGjacParDispBlocks(nullptr), _minus_InvMM_ST(nullptr), _parInvMM(nullptr), _parDepSurfDiffusion(nullptr)
 	{
 	}
 
 	ParticleDiffusionOperatorDG::~ParticleDiffusionOperatorDG() CADET_NOEXCEPT
 	{
+		delete _binding;
+		delete _dynReaction;
 		delete[] _boundOffset;
 		delete[] _nBound;
 		delete[] _localFlux;

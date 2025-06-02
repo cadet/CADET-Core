@@ -18,6 +18,7 @@
 #ifndef LIBCADET_PARTCICLEDIFFUSIONOPERATORDG_HPP_
 #define LIBCADET_PARTCICLEDIFFUSIONOPERATORDG_HPP_
 
+#include "model/BindingModel.hpp"
 #include "cadet/StrongTypes.hpp"
 #include "ParamIdUtil.hpp"
 #include "AutoDiff.hpp"
@@ -41,19 +42,20 @@ using namespace Eigen;
 namespace cadet
 {
 
-class IParameterProvider;
-class IConfigHelper;
-struct AdJacobianParams;
-struct SimulationTime;
-class IModel;
+	class IConfigHelper;
 
 namespace model
 {
 
+class IDynamicReactionModel;
 class IParameterStateDependence;
 
 namespace parts
 {
+	namespace cell
+	{
+		struct CellParameters;
+	}
 
 	constexpr double _SurfVolRatioSphere = 3.0; //!< Surface to volume ratio for a spherical particle
 	constexpr double _SurfVolRatioCylinder = 2.0; //!< Surface to volume ratio for a cylindrical particle
@@ -134,6 +136,11 @@ namespace parts
 		bool _hasSurfaceDiffusion; //!< Determines whether surface diffusion is present
 
 		unsigned int _nComp; //!< Number of components
+
+		IBindingModel* _binding; //!< Binding model
+		bool _singleBinding; //!< Determines whether only a single binding model is present in the whole unit
+		IDynamicReactionModel* _dynReaction; //!< Dynamic reaction model
+		bool _singleDynReaction; //!< Determines whether only a single particle reaction model is present in the whole unit
 
 		/* Model discretization */
 
