@@ -876,26 +876,6 @@ int GeneralRateModelDG::residualImpl(double t, unsigned int secIdx, StateType co
 		residualParticle<StateType, ResidualType, ParamType, wantJac, wantRes>(t, parType, par, secIdx, y, yDot, res, threadLocalMem);
 	}
 
-	// we need to add the DG discretized solid entries of the jacobian that get overwritten by the binding kernel.
-	// These entries only exist for the GRM with surface diffusion
-	if (wantJac)
-	{
-		Indexer idxr(_disc);
-
-		for (unsigned int blk = 0; blk < _disc.nPoints; blk++)
-		{
-			for (unsigned int parType = 0; parType < _disc.nParType; parType++)
-			{
-				if (_binding[parType]->hasDynamicReactions() && _parDiffOp[parType]._hasSurfaceDiffusion)
-				{
-					linalg::BandedEigenSparseRowIterator jac(_globalJac, idxr.offsetCp(ParticleTypeIndex{ parType }, ParticleIndex{ blk }));
-
-					_parDiffOp[parType].addSolidDGentries(secIdx, jac);
-				}
-			}
-		}
-	}
-
 	if (!wantRes)
 		return 0;
 

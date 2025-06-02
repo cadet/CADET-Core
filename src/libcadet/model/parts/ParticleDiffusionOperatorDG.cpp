@@ -1092,10 +1092,10 @@ namespace parts
 	template <typename StateType, typename ResidualType, typename ParamType, bool wantJac, bool wantRes>
 	int ParticleDiffusionOperatorDG::residualImpl(double t, unsigned int secIdx, StateType const* yPar, StateType const* yBulk, double const* yDotPar, ResidualType* resPar, ColumnPosition colPos, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc)
 	{
-		//int const* const qsReaction = _binding->reactionQuasiStationarity();
-		//const cell::CellParameters cellResParams = makeCellResidualParams(qsReaction);
+		int const* const qsBinding = _binding->reactionQuasiStationarity();
+		//const cell::CellParameters cellResParams = makeCellResidualParams(qsBinding);
 
-		//linalg::BandedEigenSparseRowIterator jacBase = jacIt;
+		linalg::BandedEigenSparseRowIterator jacBase = jacIt;
 
 		//// Handle time derivatives, binding, dynamic reactions: residualKernel computes discrete point wise,
 		//// so we loop over each discrete particle point
@@ -1122,15 +1122,13 @@ namespace parts
 		//	jacIt += strideParNode();
 		//}
 
-		//// Add the DG discretized solid entries of the jacobian that get overwritten by the binding kernel.
-		//// These entries only exist for the GRM with surface diffusion
-		//if (wantJac)
-		//	addSolidDGentries(secIdx, jacBase);
+		// Add the DG discretized solid entries of the jacobian that get overwritten by the binding kernel.
+		// These entries only exist for the GRM with surface diffusion
+		if (wantJac && _binding->hasDynamicReactions() && _hasSurfaceDiffusion)
+			addSolidDGentries(secIdx, jacBase);
 
 		if (!wantRes)
 			return 0;
-
-		int const* const qsBinding = _binding->reactionQuasiStationarity();
 
 		/* Mobile phase RHS	*/
 
