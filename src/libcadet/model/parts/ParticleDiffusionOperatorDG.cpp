@@ -339,108 +339,66 @@ namespace parts
 			}
 		}
 
-		//_curSection = -1;
+		// ==== Construct and configure binding model
 
-		//// ==== Construct and configure binding model
-		//clearBindingModels();
-		//_binding = std::vector<IBindingModel*>(_nParType, nullptr);
+		std::vector<std::string> bindModelNames = { "NONE" };
+		if (paramProvider.exists("ADSORPTION_MODEL"))
+			bindModelNames = paramProvider.getStringArray("ADSORPTION_MODEL");
 
-		//std::vector<std::string> bindModelNames = { "NONE" };
-		//if (paramProvider.exists("ADSORPTION_MODEL"))
-		//	bindModelNames = paramProvider.getStringArray("ADSORPTION_MODEL");
+		if (paramProvider.exists("ADSORPTION_MODEL_MULTIPLEX"))
+			_singleBinding = (paramProvider.getInt("ADSORPTION_MODEL_MULTIPLEX") == 1);
+		else
+		{
+			// Infer multiplex mode
+			_singleBinding = (bindModelNames.size() == 1);
+		}
 
-		//if (paramProvider.exists("ADSORPTION_MODEL_MULTIPLEX"))
-		//	_singleBinding = (paramProvider.getInt("ADSORPTION_MODEL_MULTIPLEX") == 1);
-		//else
-		//{
-		//	// Infer multiplex mode
-		//	_singleBinding = (bindModelNames.size() == 1);
-		//}
+		if (!_singleBinding && (bindModelNames.size() < nParType))
+			throw InvalidParameterException("Field ADSORPTION_MODEL contains too few elements (" + std::to_string(nParType) + " required)");
+		else if (_singleBinding && (bindModelNames.size() != 1))
+			throw InvalidParameterException("Field ADSORPTION_MODEL requires (only) 1 element");
 
-		//if (!_singleBinding && (bindModelNames.size() < _nParType))
-		//	throw InvalidParameterException("Field ADSORPTION_MODEL contains too few elements (" + std::to_string(_nParType) + " required)");
-		//else if (_singleBinding && (bindModelNames.size() != 1))
-		//	throw InvalidParameterException("Field ADSORPTION_MODEL requires (only) 1 element");
+		bool bindingConfSuccess = true;
 
-		//bool bindingConfSuccess = true;
-		//for (unsigned int i = 0; i < _nParType; ++i)
-		//{
-		//	if (_singleBinding && (i > 0))
-		//	{
-		//		// Reuse first binding model
-		//		_binding[i] = _binding[0];
-		//	}
-		//	else
-		//	{
-		//		_binding[i] = helper.createBindingModel(bindModelNames[i]);
-		//		if (!_binding[i])
-		//			throw InvalidParameterException("Unknown binding model " + bindModelNames[i]);
+		_binding = helper.createBindingModel(bindModelNames[_singleBinding ? 0 : _parTypeIdx]);
+		if (!_binding)
+			throw InvalidParameterException("Unknown binding model " + bindModelNames[_singleBinding ? 0 : _parTypeIdx]);
 
-		//		MultiplexedScopeSelector scopeGuard(paramProvider, "adsorption", _singleBinding, i, _nParType == 1, _binding[i]->usesParamProviderInDiscretizationConfig());
-		//		bindingConfSuccess = _binding[i]->configureModelDiscretization(paramProvider, _nComp, _nBound + i * _nComp, _boundOffset + i * _nComp) && bindingConfSuccess;
-		//	}
-		//}
+		MultiplexedScopeSelector scopeGuard(paramProvider, "adsorption", _singleBinding, _parTypeIdx, nParType == 1, _binding->usesParamProviderInDiscretizationConfig());
+		bindingConfSuccess = _binding->configureModelDiscretization(paramProvider, _nComp, _nBound, _boundOffset);
 
-		//// ==== Construct and configure dynamic reaction model
-		//bool reactionConfSuccess = true;
+		// ==== Construct and configure dynamic reaction model
+		bool reactionConfSuccess = true;
 
-		//_dynReactionBulk = nullptr;
-		//if (paramProvider.exists("REACTION_MODEL"))
-		//{
-		//	const std::string dynReactName = paramProvider.getString("REACTION_MODEL");
-		//	_dynReactionBulk = helper.createDynamicReactionModel(dynReactName);
-		//	if (!_dynReactionBulk)
-		//		throw InvalidParameterException("Unknown dynamic reaction model " + dynReactName);
+		_dynReaction = nullptr;
 
-		//	if (_dynReactionBulk->usesParamProviderInDiscretizationConfig())
-		//		paramProvider.pushScope("reaction_bulk");
+		if (paramProvider.exists("REACTION_MODEL_PARTICLES"))
+		{
+			const std::vector<std::string> dynReactModelNames = paramProvider.getStringArray("REACTION_MODEL_PARTICLES");
 
-		//	reactionConfSuccess = _dynReactionBulk->configureModelDiscretization(paramProvider, _nComp, nullptr, nullptr);
+			if (paramProvider.exists("REACTION_MODEL_PARTICLES_MULTIPLEX"))
+				_singleDynReaction = (paramProvider.getInt("REACTION_MODEL_PARTICLES_MULTIPLEX") == 1);
+			else
+			{
+				// Infer multiplex mode
+				_singleDynReaction = (dynReactModelNames.size() == 1);
+			}
 
-		//	if (_dynReactionBulk->usesParamProviderInDiscretizationConfig())
-		//		paramProvider.popScope();
-		//}
+			if (!_singleDynReaction && (dynReactModelNames.size() < nParType))
+				throw InvalidParameterException("Field REACTION_MODEL_PARTICLES contains too few elements (" + std::to_string(nParType) + " required)");
+			else if (_singleDynReaction && (dynReactModelNames.size() != 1))
+				throw InvalidParameterException("Field REACTION_MODEL_PARTICLES requires (only) 1 element");
 
-		//clearDynamicReactionModels();
-		//_dynReaction = std::vector<IDynamicReactionModel*>(_nParType, nullptr);
+			_dynReaction = helper.createDynamicReactionModel(dynReactModelNames[_singleDynReaction ? 0 : _parTypeIdx]);
 
-		//if (paramProvider.exists("REACTION_MODEL_PARTICLES"))
-		//{
-		//	const std::vector<std::string> dynReactModelNames = paramProvider.getStringArray("REACTION_MODEL_PARTICLES");
+			if (!_dynReaction)
+				throw InvalidParameterException("Unknown dynamic reaction model " + dynReactModelNames[_singleDynReaction ? 0 : _parTypeIdx]);
 
-		//	if (paramProvider.exists("REACTION_MODEL_PARTICLES_MULTIPLEX"))
-		//		_singleDynReaction = (paramProvider.getInt("REACTION_MODEL_PARTICLES_MULTIPLEX") == 1);
-		//	else
-		//	{
-		//		// Infer multiplex mode
-		//		_singleDynReaction = (dynReactModelNames.size() == 1);
-		//	}
+			MultiplexedScopeSelector scopeGuard(paramProvider, "reaction_particle", _singleDynReaction, _parTypeIdx, nParType == 1, _dynReaction->usesParamProviderInDiscretizationConfig());
+			reactionConfSuccess = _dynReaction->configureModelDiscretization(paramProvider, _nComp, _nBound, _boundOffset) && reactionConfSuccess;
+		}
 
-		//	if (!_singleDynReaction && (dynReactModelNames.size() < _nParType))
-		//		throw InvalidParameterException("Field REACTION_MODEL_PARTICLES contains too few elements (" + std::to_string(_nParType) + " required)");
-		//	else if (_singleDynReaction && (dynReactModelNames.size() != 1))
-		//		throw InvalidParameterException("Field REACTION_MODEL_PARTICLES requires (only) 1 element");
-
-		//	for (unsigned int i = 0; i < _nParType; ++i)
-		//	{
-		//		if (_singleDynReaction && (i > 0))
-		//		{
-		//			// Reuse first binding model
-		//			_dynReaction[i] = _dynReaction[0];
-		//		}
-		//		else
-		//		{
-		//			_dynReaction[i] = helper.createDynamicReactionModel(dynReactModelNames[i]);
-		//			if (!_dynReaction[i])
-		//				throw InvalidParameterException("Unknown dynamic reaction model " + dynReactModelNames[i]);
-
-		//			MultiplexedScopeSelector scopeGuard(paramProvider, "reaction_particle", _singleDynReaction, i, _nParType == 1, _dynReaction[i]->usesParamProviderInDiscretizationConfig());
-		//			reactionConfSuccess = _dynReaction[i]->configureModelDiscretization(paramProvider, _nComp, _nBound + i * _nComp, _boundOffset + i * _nComp) && reactionConfSuccess;
-		//		}
-		//	}
-		//}
-
-		return parSurfDiffDepConfSuccess /*&& bindingConfSuccess*/ /*&& reactionConfSuccess*/;
+		return parSurfDiffDepConfSuccess && bindingConfSuccess && reactionConfSuccess;
 	}
 
 	bool ParticleDiffusionOperatorDG::configure(UnitOpIdx unitOpIdx, IParameterProvider& paramProvider, std::unordered_map<ParameterId, active*>& parameters, const int nParType, const unsigned int* nBoundBeforeType, const int nTotalBound)
