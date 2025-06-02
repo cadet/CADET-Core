@@ -226,20 +226,21 @@ namespace cadet
 	}
 
 	/*
-	*Todo	
-	 */
+	*Todo
+	* algemeiner
+	*/
 	template  <typename ValType>
 	inline void readMatrixValuedComponentDependentParameter(std::vector<active>& dest, IParameterProvider& paramProvider, const std::string& dataSet, unsigned int nComp, unsigned int nReac)
 	{
 		dest.clear();
 		const std::vector<double> vals = paramProvider.getDoubleArray(dataSet);
-
+		// todo throw exception 
 		unsigned int curIdx = 0;
 		for (unsigned int i = 0; i < nReac; ++i)
 		{
-			for (auto j = 0; i < nComp * nComp; j++)
+			for (auto j = 0; j < nComp * nComp; j++)
 			{
-				dest[i] = vals[i];
+				dest[i] = vals[j];
 			}
 		}
 

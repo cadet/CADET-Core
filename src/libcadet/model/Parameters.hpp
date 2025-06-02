@@ -373,7 +373,7 @@ public:
 
 	inline void registerParam(const std::string& varName, std::unordered_map<ParameterId, active*>& parameters, UnitOpIdx unitOpIdx, ParticleTypeIdx parTypeIdx, unsigned int nComp, unsigned int nReac)
 	{
-		const StringHash nameHash = hashStringRuntime(varName); 
+		const StringHash nameHash = hashStringRuntime(varName);
 		registerParam3DArray(parameters, *_p, [=](bool multi, unsigned r, unsigned int cmid, unsigned int cin) { return makeParamId(nameHash, unitOpIdx, cmid, parTypeIdx, BoundStateIndep, r, SectionIndep); }, nReac, nComp);
 	}
 
