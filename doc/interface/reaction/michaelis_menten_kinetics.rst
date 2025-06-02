@@ -50,3 +50,46 @@ For information on model equations, refer to :ref:`michaelis_menten_kinetics_mod
    ================  =============================  =============================================================================
    **Type:** double  **Range:** :math:`\mathbb{R}`  **Length:** :math:`\texttt{NREACT} \cdot \texttt{NCOMP} \cdot \texttt{NCOMP}`
    ================  =============================  =============================================================================
+
+Example configuration
+^^^^^^^^^^^^^^^^^^^^^
+This example shows how to configure a Michaelis Menten reaction system in CADET-Python.
+For a system with two components A and B, where A is the substrate and B is the product with 
+* Michaelis constant of `km_a`,
+* competitive inhibition constant of `ki_b` for B inhibiting A
+* and a maximum rate of `vmax`.
+
+.. code-block:: Python3
+
+   #Configure the reaction system
+model.root.input.model.unit_001.reaction_model = 'MICHAELIS_MENTEN'
+        
+# Km values 2D array [reaction][components]
+model.root.input.model.unit_001.reaction_bulk.mm_kmm = [
+    [km_a, 0.0] # A is substrate
+]
+
+# Competitive inhibition constants - 3D array [reaction][components][components]
+model.root.input.model.unit_001.reaction_bulk.mm_ki_c = [
+    [
+        [0.0, ki_b], # Inhibition konstant for A (Product inhibtion B inhibits A)
+        [0.0, 0.0],  # Inhibition konstant for B
+    ]
+]
+
+# Uncompetitive inhibition constants - 3D array [reaction][components][components]
+model.root.input.model.unit_001.reaction_bulk.mm_ki_uc = [
+    [
+        [0.0, 0.0], # Inhibition konstant for A 
+        [0.0, 0.0], # Inhibition konstant for B
+    ]
+]
+
+# Vmax values 1D array [reaction]
+model.root.input.model.unit_001.reaction_bulk.mm_vmax = [vmax]
+
+# Stoichiometry matrix 2D array [components][reaction]
+model.root.input.model.unit_001.reaction_bulk.mm_stoichiometry_bulk = [
+    [-1],
+    [1] # A -> B
+]
