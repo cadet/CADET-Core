@@ -590,64 +590,42 @@ namespace parts
 		//	}
 		//}
 
-		//// Reconfigure binding model
-		//bool bindingConfSuccess = true;
-		//if (!_binding.empty())
-		//{
-		//	if (_singleBinding)
-		//	{
-		//		if (_binding[0] && _binding[0]->requiresConfiguration())
-		//		{
-		//			MultiplexedScopeSelector scopeGuard(paramProvider, "adsorption", true);
-		//			bindingConfSuccess = _binding[0]->configure(paramProvider, unitOpIdx, ParTypeIndep);
-		//		}
-		//	}
-		//	else
-		//	{
-		//		for (unsigned int type = 0; type < _nParType; ++type)
-		//		{
-		//			if (!_binding[type] || !_binding[type]->requiresConfiguration())
-		//				continue;
+		// Reconfigure binding model
+		bool bindingConfSuccess = true;
+		if (_binding)
+		{
+			if (_binding->requiresConfiguration())
+			{
+				if (_singleBinding)
+				{
+					MultiplexedScopeSelector scopeGuard(paramProvider, "adsorption", true);
+					bindingConfSuccess = _binding->configure(paramProvider, unitOpIdx, ParTypeIndep);
+				}
+				else
+				{
+					MultiplexedScopeSelector scopeGuard(paramProvider, "adsorption", _parTypeIdx, nParType == 1, true);
+					bindingConfSuccess = _binding->configure(paramProvider, unitOpIdx, _parTypeIdx);
+				}
+			}
+		}
 
-		//			MultiplexedScopeSelector scopeGuard(paramProvider, "adsorption", type, _nParType == 1, true);
-		//			bindingConfSuccess = _binding[type]->configure(paramProvider, unitOpIdx, type) && bindingConfSuccess;
-		//		}
-		//	}
-		//}
+		// Reconfigure reaction model
+		bool dynReactionConfSuccess = true;
+		if (_dynReaction && _dynReaction->requiresConfiguration())
+		{
+			if (_singleDynReaction)
+			{
+				MultiplexedScopeSelector scopeGuard(paramProvider, "reaction_particle", true);
+				dynReactionConfSuccess = _dynReaction->configure(paramProvider, unitOpIdx, ParTypeIndep) && dynReactionConfSuccess;
+			}
+			else
+			{
+				MultiplexedScopeSelector scopeGuard(paramProvider, "reaction_particle", _parTypeIdx, nParType == 1, true);
+				dynReactionConfSuccess = _dynReaction->configure(paramProvider, unitOpIdx, _parTypeIdx) && dynReactionConfSuccess;
+			}
+		}
 
-		//// Reconfigure reaction model
-		//bool dynReactionConfSuccess = true;
-		//if (_dynReactionBulk && _dynReactionBulk->requiresConfiguration())
-		//{
-		//	paramProvider.pushScope("reaction_bulk");
-		//	dynReactionConfSuccess = _dynReactionBulk->configure(paramProvider, unitOpIdx, ParTypeIndep);
-		//	paramProvider.popScope();
-		//}
-
-		//if (_singleDynReaction)
-		//{
-		//	if (_dynReaction[0] && _dynReaction[0]->requiresConfiguration())
-		//	{
-		//		MultiplexedScopeSelector scopeGuard(paramProvider, "reaction_particle", true);
-		//		dynReactionConfSuccess = _dynReaction[0]->configure(paramProvider, unitOpIdx, ParTypeIndep) && dynReactionConfSuccess;
-		//	}
-		//}
-		//else
-		//{
-		//	for (unsigned int type = 0; type < _nParType; ++type)
-		//	{
-		//		if (!_dynReaction[type] || !_dynReaction[type]->requiresConfiguration())
-		//			continue;
-
-		//		MultiplexedScopeSelector scopeGuard(paramProvider, "reaction_particle", type, _nParType == 1, true);
-		//		dynReactionConfSuccess = _dynReaction[type]->configure(paramProvider, unitOpIdx, type) && dynReactionConfSuccess;
-		//	}
-		//}
-
-		// jaobian pattern set after binding and particle surface diffusion are configured
-		//setJacobianPattern_GRM(globalJac, 0, _dynReactionBulk); // todo set pattern for particles in global unit operation Jacobain
-
-		return parSurfDiffDepConfSuccess/* && bindingConfSuccess && dynReactionConfSuccess*/;
+		return parSurfDiffDepConfSuccess && bindingConfSuccess && dynReactionConfSuccess;
 	}
 
 	void ParticleDiffusionOperatorDG::setEquidistantRadialDisc()
