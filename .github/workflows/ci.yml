@@ -200,6 +200,7 @@ jobs:
           ${BUILD_DIR}/test/testRunner [CI_binding]
       - name: Run CI test set II - sensitivities
         run: |
+          set -e
           ${BUILD_DIR}/test/testRunner [CI_sens1]
           ${BUILD_DIR}/test/testRunner [CI_sens2]
           ${BUILD_DIR}/test/testRunner [CI_sens3]
@@ -217,6 +218,7 @@ jobs:
           ${BUILD_DIR}/test/testRunner [CI_sens16]
       - name: Run CI test set III - crystallization
         run: |
+          set -e
           ${BUILD_DIR}/test/testRunner [CI_cry1]
           ${BUILD_DIR}/test/testRunner [CI_cry2]
           ${BUILD_DIR}/test/testRunner [CI_cry3]
