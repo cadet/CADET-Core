@@ -40,8 +40,6 @@ namespace cadet
 namespace model
 {
 
-namespace parts
-{
 	/**
 	 * @brief Creates a GeneralRateParticle
 	 */
@@ -93,7 +91,7 @@ namespace parts
 			throw InvalidParameterException("Unknown binding model " + bindModelNames[_singleBinding ? 0 : _parTypeIdx]);
 
 		MultiplexedScopeSelector scopeGuard(paramProvider, "adsorption", _singleBinding, _parTypeIdx, nParType == 1, _binding->usesParamProviderInDiscretizationConfig());
-		bindingConfSuccess = _binding->configureModelDiscretization(paramProvider, _nComp, nBound(), boundOffset());
+		bindingConfSuccess = _binding->configureModelDiscretization(paramProvider, _nComp, nBound(), offsetBoundComp());
 
 		// ==== Construct and configure dynamic reaction model
 		bool reactionConfSuccess = true;
@@ -123,7 +121,7 @@ namespace parts
 				throw InvalidParameterException("Unknown dynamic reaction model " + dynReactModelNames[_singleDynReaction ? 0 : _parTypeIdx]);
 
 			MultiplexedScopeSelector scopeGuard(paramProvider, "reaction_particle", _singleDynReaction, _parTypeIdx, nParType == 1, _dynReaction->usesParamProviderInDiscretizationConfig());
-			reactionConfSuccess = _dynReaction->configureModelDiscretization(paramProvider, _nComp, nBound(), boundOffset()) && reactionConfSuccess;
+			reactionConfSuccess = _dynReaction->configureModelDiscretization(paramProvider, _nComp, nBound(), offsetBoundComp()) && reactionConfSuccess;
 		}
 
 		return particleTransportConfigSuccess && bindingConfSuccess && reactionConfSuccess;
@@ -277,13 +275,13 @@ namespace parts
 	template int GeneralRateParticle::residual<true, true>(double t, unsigned int secIdx, active const* yPar, active const* yBulk, double const* yDotPar, active* resPar, ColumnPosition colPos, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc, WithParamSensitivity);
 	template int GeneralRateParticle::residual<false, true>(double t, unsigned int secIdx, active const* yPar, active const* yBulk, double const* yDotPar, active* resPar, ColumnPosition colPos, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc, WithParamSensitivity);
 
-	cell::CellParameters GeneralRateParticle::makeCellResidualParams(int const* qsReaction, unsigned int const* nBound) const
+	parts::cell::CellParameters GeneralRateParticle::makeCellResidualParams(int const* qsReaction, unsigned int const* nBound) const
 	{
-		return cell::CellParameters
+		return parts::cell::CellParameters
 		{
 			_nComp,
 			nBound,
-			boundOffset(),
+			offsetBoundComp(),
 			strideBound(),
 			qsReaction,
 			getPorosity(),
@@ -297,7 +295,7 @@ namespace parts
 	int GeneralRateParticle::residualImpl(double t, unsigned int secIdx, StateType const* yPar, StateType const* yBulk, double const* yDotPar, ResidualType* resPar, ColumnPosition colPos, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc)
 	{
 		int const* const qsBinding = _binding->reactionQuasiStationarity();
-		const cell::CellParameters cellResParams = makeCellResidualParams(qsBinding, nBound());
+		const parts::cell::CellParameters cellResParams = makeCellResidualParams(qsBinding, nBound());
 
 		linalg::BandedEigenSparseRowIterator jacBase = jacIt;
 
@@ -306,24 +304,24 @@ namespace parts
 		for (unsigned int par = 0; par < nDiscPoints(); ++par)
 		{
 			// local pointers to current particle node, needed in residualKernel
-			StateType const* local_y = yPar + par * strideParNode();
-			double const* local_yDot = yDotPar ? yDotPar + par * strideParNode() : nullptr;
-			ResidualType* local_res = resPar ? resPar + par * strideParNode() : nullptr;
+			StateType const* local_y = yPar + par * stridePoint();
+			double const* local_yDot = yDotPar ? yDotPar + par * stridePoint() : nullptr;
+			ResidualType* local_res = resPar ? resPar + par * stridePoint() : nullptr;
 
 			// r (particle) coordinate of current node (particle radius normed to 1) - needed in externally dependent adsorption kinetic
 			colPos.particle = relativeCoordinate(par);
 
 			if (wantRes)
-				cell::residualKernel<StateType, ResidualType, ParamType, cell::CellParameters, linalg::BandedEigenSparseRowIterator, wantJac, true>(
+				parts::cell::residualKernel<StateType, ResidualType, ParamType, parts::cell::CellParameters, linalg::BandedEigenSparseRowIterator, wantJac, true>(
 					t, secIdx, colPos, local_y, local_yDot, local_res, jacIt, cellResParams, tlmAlloc
 				);
 			else
-				cell::residualKernel<StateType, ResidualType, ParamType, cell::CellParameters, linalg::BandedEigenSparseRowIterator, wantJac, false, false>(
+				parts::cell::residualKernel<StateType, ResidualType, ParamType, parts::cell::CellParameters, linalg::BandedEigenSparseRowIterator, wantJac, false, false>(
 					t, secIdx, colPos, local_y, local_yDot, local_res, jacIt, cellResParams, tlmAlloc
 				);
 
 			// Move rowiterator to next particle node
-			jacIt += strideParNode();
+			jacIt += stridePoint();
 		}
 
 		return _parDiffOp->residualImpl<StateType, ResidualType, ParamType, wantJac, wantRes>(t, secIdx, yPar, yBulk, yDotPar, resPar, jacBase);
@@ -372,8 +370,6 @@ namespace parts
 	{
 		return _parDiffOp->setSensitiveParameter(sensParams, pId, adDirection, adValue);
 	}
-
-}  // namespace parts
 
 }  // namespace model
 

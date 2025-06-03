@@ -171,7 +171,7 @@ bool GeneralRateModelDG::configureModelDiscretization(IParameterProvider& paramP
 
 	paramProvider.popScope();
 	Indexer idxr(_disc);
-	_particle = new parts::GeneralRateParticle[_disc.nParType];
+	_particle = new GeneralRateParticle[_disc.nParType];
 	bool particleConfSuccess = true;
 	for (int parType = 0; parType < _disc.nParType; parType++)
 	{

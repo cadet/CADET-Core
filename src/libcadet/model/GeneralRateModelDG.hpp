@@ -467,7 +467,7 @@ protected:
 		double const* const _data;
 	};
 
-	parts::GeneralRateParticle* _particle; //!< Particle dispersion operator
+	GeneralRateParticle* _particle; //!< Particle dispersion operator
 
 	typedef Eigen::Triplet<double> T;
 
@@ -531,13 +531,6 @@ protected:
 						idxr.offsetCp(ParticleTypeIndex{ type }, ParticleIndex{ colNode }) + (_disc.nParPoints[type] - 1) * idxr.strideParNode(type) + comp * idxr.strideParComp(), 0.0));
 
 					// Note: Cp on Cl entries are handled by particle model setParJacPattern()
-					//for (unsigned int node = 0; node < _particle[type]._nParNode; node++) {
-					//	// row: add particle offset to current parType and particle, go to last cell and current node and add component offset
-					//	// col: add flux offset to current component, jump over previous nodes and components
-					//	tripletList.push_back(T(idxr.offsetCp(ParticleTypeIndex{ type }, ParticleIndex{ colNode }) + (_particle[type]._nParElem - 1) * _particle[type]._nParNode * idxr.strideParNode(type)
-					//		+ node * idxr.strideParNode(type) + comp * idxr.strideParComp(),
-					//		idxr.offsetC() + colNode * idxr.strideColNode() + comp, 0.0));
-					//}
 				}
 			}
 		}
