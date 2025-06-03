@@ -67,7 +67,7 @@ GeneralRateModelDG::~GeneralRateModelDG() CADET_NOEXCEPT
 
 	_binding.clear(); // binding models are deleted in the respective particle model
 	_dynReaction.clear(); // particle reaction models are deleted in the respective particle model
-	delete[] _parDiffOp;
+	delete[] _particle;
 
 	delete _dynReactionBulk;
 
@@ -171,11 +171,11 @@ bool GeneralRateModelDG::configureModelDiscretization(IParameterProvider& paramP
 
 	paramProvider.popScope();
 	Indexer idxr(_disc);
-	_parDiffOp = new parts::ParticleDiffusionOperatorDG[_disc.nParType];
+	_particle = new parts::GeneralRateParticle[_disc.nParType];
 	bool particleConfSuccess = true;
 	for (int parType = 0; parType < _disc.nParType; parType++)
 	{
-		particleConfSuccess = particleConfSuccess && _parDiffOp[parType].configureModelDiscretization(paramProvider, helper, _disc.nComp, parType, _disc.nParType, idxr.strideColComp());
+		particleConfSuccess = particleConfSuccess && _particle[parType].configureModelDiscretization(paramProvider, helper, _disc.nComp, parType, _disc.nParType, idxr.strideColComp());
 	}
 	paramProvider.pushScope("discretization");
 
@@ -184,7 +184,7 @@ bool GeneralRateModelDG::configureModelDiscretization(IParameterProvider& paramP
 		_disc.nParPoints = new unsigned int[_disc.nParType];
 		for (int type = 0; type < _disc.nParType; type++)
 		{
-			_disc.nParPoints[type] = _parDiffOp[type]._nParPoints;
+			_disc.nParPoints[type] = _particle[type].nDiscPoints();
 		}
 	}
 
@@ -292,14 +292,14 @@ bool GeneralRateModelDG::configureModelDiscretization(IParameterProvider& paramP
 
 	for (unsigned int parType = 0; parType < _disc.nParType; ++parType)
 	{
-		_binding[parType] = _parDiffOp[parType]._binding;
-		_singleBinding = _parDiffOp[parType]._singleBinding;
-		if (parType > 0 && _singleBinding != _parDiffOp[parType]._singleBinding)
+		_binding[parType] = _particle[parType].getBinding();
+		_singleBinding = _particle[parType].singleBinding();
+		if (parType > 0 && _singleBinding != _particle[parType].singleBinding())
 			throw InvalidParameterException("Configuration of binding went wrong");
 
-		_dynReaction[parType] = _parDiffOp[parType]._dynReaction;
-		_singleDynReaction = _parDiffOp[parType]._singleDynReaction;
-		if (parType > 0 && _singleDynReaction != _parDiffOp[parType]._singleDynReaction)
+		_dynReaction[parType] = _particle[parType].getReaction();
+		_singleDynReaction = _particle[parType].singleReaction();
+		if (parType > 0 && _singleDynReaction != _particle[parType].singleReaction())
 			throw InvalidParameterException("Configuration of particle reaction went wrong");
 	}
 
@@ -442,7 +442,7 @@ bool GeneralRateModelDG::configure(IParameterProvider& paramProvider)
 	bool particleConfSuccess = true;
 	for (int parType = 0; parType < _disc.nParType; parType++)
 	{
-		particleConfSuccess = particleConfSuccess && _parDiffOp[parType].configure(_unitOpIdx, paramProvider, _parameters, _disc.nParType, _disc.nBoundBeforeType, _disc.strideBound[_disc.nParType]);
+		particleConfSuccess = particleConfSuccess && _particle[parType].configure(_unitOpIdx, paramProvider, _parameters, _disc.nParType, _disc.nBoundBeforeType, _disc.strideBound[_disc.nParType]);
 	}
 
 	// Reconfigure reaction model
@@ -549,7 +549,7 @@ void GeneralRateModelDG::notifyDiscontinuousSectionTransition(double t, unsigned
 
 	for (int parType = 0; parType < _disc.nParType; parType++)
 	{
-		_parDiffOp[parType].notifyDiscontinuousSectionTransition(t, secIdx, getSectionDependentSlice(_filmDiffusion, _disc.nComp * _disc.nParType, secIdx), &_poreAccessFactor[0]);
+		_particle[parType].notifyDiscontinuousSectionTransition(t, secIdx, getSectionDependentSlice(_filmDiffusion, _disc.nComp * _disc.nParType, secIdx), &_poreAccessFactor[0]);
 	}
 
 	_disc.curSection = secIdx;
@@ -679,7 +679,7 @@ void GeneralRateModelDG::extractJacobianFromAD(active const* const adRes, unsign
 	// todo extract these entries instead of analytical calculation?
 	for (unsigned int parType = 0; parType < _disc.nParType; parType++)
 	{
-		_parDiffOp[parType].calcFilmDiffJacobian(_disc.curSection, idxr.offsetCp(ParticleTypeIndex{static_cast<unsigned int>(parType)}), idxr.offsetC(), _disc.nPoints, _disc.nParType, static_cast<double>(_colPorosity), &_parTypeVolFrac[0], _globalJac, true);
+		_particle[parType].calcFilmDiffJacobian(_disc.curSection, idxr.offsetCp(ParticleTypeIndex{static_cast<unsigned int>(parType)}), idxr.offsetC(), _disc.nPoints, _disc.nParType, static_cast<double>(_colPorosity), &_parTypeVolFrac[0], _globalJac, true);
 	}
 }
 
@@ -885,7 +885,7 @@ int GeneralRateModelDG::residualImpl(double t, unsigned int secIdx, StateType co
 		linalg::BandedEigenSparseRowIterator jacIt(_globalJac, idxr.offsetCp(ParticleTypeIndex{ parType }, ParticleIndex{ colNode }));
 		ColumnPosition colPos{ _convDispOp.relativeCoordinate(colNode), 0.0, 0.0 }; // Relative position of current node - needed in externally dependent adsorption kinetic
 
-		_parDiffOp[parType].residual<wantJac, wantRes>(t, secIdx,
+		_particle[parType].residual<wantJac, wantRes>(t, secIdx,
 			y + idxr.offsetCp(ParticleTypeIndex{ parType }, ParticleIndex{ colNode }),
 			y + idxr.offsetC() + colNode * idxr.strideColNode(),
 			yDot ? yDot + idxr.offsetCp(ParticleTypeIndex{ parType }, ParticleIndex{ colNode }) : nullptr,
@@ -977,14 +977,14 @@ int GeneralRateModelDG::residualFlux(double t, unsigned int secIdx, StateType co
 		ResidualType* const resParType = resBase + idxr.offsetCp(ParticleTypeIndex{type});
 		StateType const* const yParType = yBase + idxr.offsetCp(ParticleTypeIndex{type});
 
-		const ParamType epsP = static_cast<ParamType>(_parDiffOp[type]._parPorosity);
+		const ParamType epsP = static_cast<ParamType>(_particle[type].getPorosity());
 
 		// Ordering of diffusion:
 		// sec0type0comp0, sec0type0comp1, sec0type0comp2, sec0type1comp0, sec0type1comp1, sec0type1comp2,
 		// sec1type0comp0, sec1type0comp1, sec1type0comp2, sec1type1comp0, sec1type1comp1, sec1type1comp2, ...
 		active const* const filmDiff = getSectionDependentSlice(_filmDiffusion, _disc.nComp * _disc.nParType, secIdx) + type * _disc.nComp;
 
-		const ParamType surfaceToVolumeRatio = _parDiffOp[type].surfaceToVolumeRatio<ParamType>();
+		const ParamType surfaceToVolumeRatio = _particle[type].surfaceToVolumeRatio<ParamType>();
 
 		const ParamType jacCF_val = invBetaC * surfaceToVolumeRatio;
 		const ParamType jacPF_val = -1.0 / epsP;
@@ -1015,7 +1015,7 @@ parts::cell::CellParameters GeneralRateModelDG::makeCellResidualParams(unsigned 
 			_disc.boundOffset + _disc.nComp * parType,
 			_disc.strideBound[parType],
 			qsReaction,
-			_parDiffOp[parType]._parPorosity,
+			_particle[parType].getPorosity(),
 			_poreAccessFactor.data() + _disc.nComp * parType,
 			_binding[parType],
 			(_dynReaction[parType] && (_dynReaction[parType]->numReactionsCombined() > 0)) ? _dynReaction[parType] : nullptr
@@ -1144,7 +1144,7 @@ void GeneralRateModelDG::multiplyWithDerivativeJacobian(const SimulationTime& si
 			const unsigned int pblk = idxParLoop % _disc.nPoints;
 			const unsigned int type = idxParLoop / _disc.nPoints;
 
-			const double invBetaP = (1.0 / static_cast<double>(_parDiffOp[type]._parPorosity) - 1.0);
+			const double invBetaP = (1.0 / static_cast<double>(_particle[type].getPorosity()) - 1.0);
 			unsigned int const* const nBound = _disc.nBound + type * _disc.nComp;
 			unsigned int const* const boundOffset = _disc.boundOffset + type * _disc.nComp;
 			int const* const qsReaction = _binding[type]->reactionQuasiStationarity();
@@ -1237,7 +1237,7 @@ bool GeneralRateModelDG::setParameter(const ParameterId& pId, double value)
 
 		for (int parType = 0; parType < _disc.nParType; parType++)
 		{
-			if (_parDiffOp[parType].setParameter(pId, value))
+			if (_particle[parType].setParameter(pId, value))
 				return true;
 		}
 
@@ -1255,7 +1255,7 @@ bool GeneralRateModelDG::setParameter(const ParameterId& pId, double value)
 	{
 		for (int parType = 0; parType < _disc.nParType; parType++)
 		{
-			_parDiffOp[parType].updateRadialDisc();
+			_particle[parType].updateRadialDisc();
 		}
 	}
 
@@ -1269,7 +1269,7 @@ bool GeneralRateModelDG::setParameter(const ParameterId& pId, int value)
 
 	for (int parType = 0; parType < _disc.nParType; parType++)
 	{
-		if (_parDiffOp[parType].setParameter(pId, value))
+		if (_particle[parType].setParameter(pId, value))
 			return true;
 	}
 
@@ -1289,7 +1289,7 @@ bool GeneralRateModelDG::setParameter(const ParameterId& pId, bool value)
 
 	for (int parType = 0; parType < _disc.nParType; parType++)
 	{
-		if (_parDiffOp[parType].setParameter(pId, value))
+		if (_particle[parType].setParameter(pId, value))
 			return true;
 	}
 
@@ -1332,7 +1332,7 @@ void GeneralRateModelDG::setSensitiveParameterValue(const ParameterId& pId, doub
 
 		for (int parType = 0; parType < _disc.nParType; parType++)
 		{
-			if (_parDiffOp[parType].setSensitiveParameterValue(_sensParams, pId, value))
+			if (_particle[parType].setSensitiveParameterValue(_sensParams, pId, value))
 				return;
 		}
 
@@ -1350,7 +1350,7 @@ void GeneralRateModelDG::setSensitiveParameterValue(const ParameterId& pId, doub
 	{
 		for (int parType = 0; parType < _disc.nParType; parType++)
 		{
-			_parDiffOp[parType].updateRadialDisc();
+			_particle[parType].updateRadialDisc();
 		}
 	}
 }
@@ -1400,7 +1400,7 @@ bool GeneralRateModelDG::setSensitiveParameter(const ParameterId& pId, unsigned 
 
 		for (int parType = 0; parType < _disc.nParType; parType++)
 		{
-			if (_parDiffOp[parType].setSensitiveParameter(_sensParams, pId, adDirection, adValue))
+			if (_particle[parType].setSensitiveParameter(_sensParams, pId, adDirection, adValue))
 			{
 				if ((pId.particleType != ParTypeIndep && parType == pId.particleType) || (pId.particleType == ParTypeIndep && parType == _disc.nParType - 1))
 				{
@@ -1432,7 +1432,7 @@ bool GeneralRateModelDG::setSensitiveParameter(const ParameterId& pId, unsigned 
 	{
 		for (int parType = 0; parType < _disc.nParType; parType++)
 		{
-			_parDiffOp[parType].updateRadialDisc();
+			_particle[parType].updateRadialDisc();
 		}
 	}
 
@@ -1448,9 +1448,9 @@ std::unordered_map<ParameterId, double> GeneralRateModelDG::getAllParameterValue
 
 	for (int type = 0; type < _disc.nParType; type++)
 	{
-		parDepSurfDiffusion[type] = _parDiffOp[type]._parDepSurfDiffusion;
-		singleParDepSurfDiffusion = _parDiffOp[0]._singleParDepSurfDiffusion;
-		if (_parDiffOp[type]._singleParDepSurfDiffusion != singleParDepSurfDiffusion)
+		parDepSurfDiffusion[type] = _particle[type].getParDepSurfDiffusion();
+		singleParDepSurfDiffusion = _particle[0].singleParDepSurfDiffusion();
+		if (_particle[type].singleParDepSurfDiffusion() != singleParDepSurfDiffusion)
 			throw InvalidParameterException("Something went wrong configuring the surface diffusion parameter dependence");
 	}
 
@@ -1468,9 +1468,9 @@ double GeneralRateModelDG::getParameterDouble(const ParameterId& pId) const
 
 	for (int type = 0; type < _disc.nParType; type++)
 	{
-		parDepSurfDiffusion[type] = _parDiffOp[type]._parDepSurfDiffusion;
-		singleParDepSurfDiffusion = _parDiffOp[0]._singleParDepSurfDiffusion;
-		if (_parDiffOp[type]._singleParDepSurfDiffusion != singleParDepSurfDiffusion)
+		parDepSurfDiffusion[type] = _particle[type].getParDepSurfDiffusion();
+		singleParDepSurfDiffusion = _particle[0].singleParDepSurfDiffusion();
+		if (_particle[type].singleParDepSurfDiffusion() != singleParDepSurfDiffusion)
 			throw InvalidParameterException("Something went wrong configuring the surface diffusion parameter dependence");
 	}
 
@@ -1491,9 +1491,9 @@ bool GeneralRateModelDG::hasParameter(const ParameterId& pId) const
 
 	for (int type = 0; type < _disc.nParType; type++)
 	{
-		parDepSurfDiffusion[type] = _parDiffOp[type]._parDepSurfDiffusion;
-		singleParDepSurfDiffusion = _parDiffOp[0]._singleParDepSurfDiffusion;
-		if (_parDiffOp[type]._singleParDepSurfDiffusion != singleParDepSurfDiffusion)
+		parDepSurfDiffusion[type] = _particle[type].getParDepSurfDiffusion();
+		singleParDepSurfDiffusion = _particle[0].singleParDepSurfDiffusion();
+		if (_particle[type].singleParDepSurfDiffusion() != singleParDepSurfDiffusion)
 			throw InvalidParameterException("Something went wrong configuring the surface diffusion parameter dependence");
 	}
 

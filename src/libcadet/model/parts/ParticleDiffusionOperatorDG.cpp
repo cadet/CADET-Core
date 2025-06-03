@@ -1815,7 +1815,7 @@ namespace parts
 
 	}
 	
-	unsigned int ParticleDiffusionOperatorDG::calcParDispNNZ()
+	unsigned int ParticleDiffusionOperatorDG::calcParDiffNNZ()
 	{
 		return _nComp * ((3u * _nParElem - 2u) * _nParNode * _nParNode + (2u * _nParElem - 3u) * _nParNode);
 	}

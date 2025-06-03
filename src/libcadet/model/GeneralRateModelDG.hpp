@@ -23,7 +23,7 @@
 #include "cadet/StrongTypes.hpp"
 #include "cadet/SolutionExporter.hpp"
 #include "model/parts/ConvectionDispersionOperatorDG.hpp"
-#include "model/parts/ParticleDiffusionOperatorDG.hpp"
+#include "model/particle/GeneralRateParticle.hpp"
 #include "AutoDiff.hpp"
 #include "linalg/BandedEigenSparseRowIterator.hpp"
 #include "linalg/EigenSolverWrapper.hpp"
@@ -457,7 +457,7 @@ protected:
 		*/
 		virtual int writeParticleCoordinates(unsigned int parType, double* coords) const
 		{
-			return _model._parDiffOp[parType].getParticleCoordinates(coords);
+			return _model._particle[parType].getParticleCoordinates(coords);
 		}
 
 	protected:
@@ -467,7 +467,7 @@ protected:
 		double const* const _data;
 	};
 
-	parts::ParticleDiffusionOperatorDG* _parDiffOp; //!< Particle dispersion operator
+	parts::GeneralRateParticle* _particle; //!< Particle dispersion operator
 
 	typedef Eigen::Triplet<double> T;
 
@@ -488,7 +488,7 @@ protected:
 		for (int type = 0; type < _disc.nParType; type++) {
 			isothermNNZ = (idxr.strideParNode(type)) * _disc.nParPoints[type] * _disc.strideBound[type]; // every bound satte might depend on every bound and liquid state
 			addTimeDer = _disc.nParPoints[type] * _disc.strideBound[type];
-			particleEntries += _parDiffOp[type].calcParDispNNZ() + addTimeDer + isothermNNZ;
+			particleEntries += _particle[type].calcParDiffNNZ() + addTimeDer + isothermNNZ;
 		}
 
 		int fluxEntries = 4 * _disc.nParType * _disc.nPoints * _disc.nComp;
@@ -516,7 +516,7 @@ protected:
 		// particle jacobian (including isotherm and time derivative)
 		for (int colNode = 0; colNode < _disc.nPoints; colNode++) {
 			for (int type = 0; type < _disc.nParType; type++) {
-				_parDiffOp[type].setParJacPattern(tripletList, idxr.offsetCp(ParticleTypeIndex{static_cast<unsigned int>(type)}, ParticleIndex{static_cast<unsigned int>(colNode)}), idxr.offsetC() + colNode * idxr.strideColNode(), colNode, secIdx);
+				_particle[type].setParJacPattern(tripletList, idxr.offsetCp(ParticleTypeIndex{static_cast<unsigned int>(type)}, ParticleIndex{static_cast<unsigned int>(colNode)}), idxr.offsetC() + colNode * idxr.strideColNode(), colNode, secIdx);
 			}
 		}
 
@@ -556,13 +556,13 @@ protected:
 		{
 			for (int parType = 0; parType < _disc.nParType; parType++)
 			{
-				_parDiffOp[parType].calcStaticAnaParticleDiffJacobian(secIdx, colNode, idxr.offsetCp(ParticleTypeIndex{ static_cast<unsigned int>(parType) }, ParticleIndex{ static_cast<unsigned int>(colNode) }), _globalJac);
+				_particle[parType].calcStaticAnaParticleDiffJacobian(secIdx, colNode, idxr.offsetCp(ParticleTypeIndex{ static_cast<unsigned int>(parType) }, ParticleIndex{ static_cast<unsigned int>(colNode) }), _globalJac);
 			}
 		}
 
 		for (unsigned int parType = 0; parType < _disc.nParType; parType++)
 		{
-			_parDiffOp[parType].calcFilmDiffJacobian(secIdx, idxr.offsetCp(ParticleTypeIndex{ static_cast<unsigned int>(parType) }), idxr.offsetC(), _disc.nPoints, _disc.nParType, static_cast<double>(_colPorosity), &_parTypeVolFrac[0], _globalJac);
+			_particle[parType].calcFilmDiffJacobian(secIdx, idxr.offsetCp(ParticleTypeIndex{ static_cast<unsigned int>(parType) }), idxr.offsetC(), _disc.nPoints, _disc.nParType, static_cast<double>(_colPorosity), &_parTypeVolFrac[0], _globalJac);
 		}
 
 		return _globalJac.isCompressed(); // check if the jacobian estimation fits the pattern
