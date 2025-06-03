@@ -94,12 +94,9 @@ namespace parts
 		bool configureModelDiscretization(IParameterProvider& paramProvider, const IConfigHelper& helper, const int nComp, const int parTypeIdx, const int nParType, const int strideBulkComp);
 		bool configure(UnitOpIdx unitOpIdx, IParameterProvider& paramProvider, std::unordered_map<ParameterId, active*>& parameters, const int nParType, const unsigned int* nBoundBeforeType, const int nTotalBound);
 
-		//void setEquidistantRadialDisc();
-		//void setEquivolumeRadialDisc();
-		//void setUserdefinedRadialDisc();
 		void updateRadialDisc() { _parDiffOp->updateRadialDisc(); }
 
-		//cell::CellParameters makeCellResidualParams(int const* qsReaction) const;
+		cell::CellParameters makeCellResidualParams(int const* qsReaction, unsigned int const* nBound) const;
 
 		//void clearParDepSurfDiffusion();
 
@@ -114,7 +111,7 @@ namespace parts
 		template<bool wantJac, bool wantRes>
 		int residual(double t, unsigned int secIdx, active const* yPar, active const* yBulk, double const* yDotPar, active* resPar, ColumnPosition colPos, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc, WithoutParamSensitivity);
 
-		//unsigned int _parTypeIdx; //!< Particle type index (wrt the unit operation that owns this particle model)
+		unsigned int _parTypeIdx; //!< Particle type index (wrt the unit operation that owns this particle model)
 
 		///* Physical model parameters */
 
@@ -142,32 +139,12 @@ namespace parts
 		//bool _hasParDepSurfDiffusion; //!< Determines whether particle surface diffusion parameter dependencies are present
 		//bool _hasSurfaceDiffusion; //!< Determines whether surface diffusion is present
 
-		//unsigned int _nComp; //!< Number of components
+		unsigned int _nComp; //!< Number of components
 
-		//IBindingModel* _binding; //!< Binding model
-		//bool _singleBinding; //!< Determines whether only a single binding model is present in the whole unit
-		//IDynamicReactionModel* _dynReaction; //!< Dynamic reaction model
-		//bool _singleDynReaction; //!< Determines whether only a single particle reaction model is present in the whole unit
-
-		/* Model discretization */
-
-		//enum class ParticleDiscretizationMode : int
-		//{
-		//	/**
-		//	 * Equidistant distribution of element edges
-		//	 */
-		//	Equidistant,
-
-		//	/**
-		//	 * Volumes of elements are uniform
-		//	 */
-		//	Equivolume,
-
-		//	/**
-		//	 * element edges specified by user
-		//	 */
-		//	UserDefined
-		//};
+		IBindingModel* _binding; //!< Binding model
+		bool _singleBinding; //!< Determines whether only a single binding model is present in the whole unit
+		IDynamicReactionModel* _dynReaction; //!< Dynamic reaction model
+		bool _singleDynReaction; //!< Determines whether only a single particle reaction model is present in the whole unit
 
 		// todo when separating discretization and particle model
 		//class Indexer
@@ -192,24 +169,28 @@ namespace parts
 
 		ParticleDiffusionOperatorDG* _parDiffOp;
 
-		inline IBindingModel* getBinding() const CADET_NOEXCEPT { return _parDiffOp->_binding; }
-		inline bool singleBinding() const CADET_NOEXCEPT { return _parDiffOp->_singleBinding; }
-		inline IDynamicReactionModel* getReaction() const CADET_NOEXCEPT { return _parDiffOp->_dynReaction; }
-		inline bool singleReaction() const CADET_NOEXCEPT { return _parDiffOp->_singleDynReaction; }
+		unsigned int* nBound() CADET_NOEXCEPT { return _parDiffOp->_nBound; }; //!< Array with number of bound states for each component
+		inline IBindingModel* getBinding() const CADET_NOEXCEPT { return _binding; }
+		inline bool singleBinding() const CADET_NOEXCEPT { return _singleBinding; }
+		inline IDynamicReactionModel* getReaction() const CADET_NOEXCEPT { return _dynReaction; }
+		inline bool singleReaction() const CADET_NOEXCEPT { return _singleDynReaction; }
 
-		inline active getPorosity() const CADET_NOEXCEPT { return _parDiffOp->_parPorosity; }
+		inline active& getPorosity() const CADET_NOEXCEPT { return _parDiffOp->_parPorosity; }
+		inline active* getPoreAccessfactor() const CADET_NOEXCEPT { return &_parDiffOp->_poreAccessFactor[0]; }
 		inline IParameterStateDependence* getParDepSurfDiffusion() const CADET_NOEXCEPT { return _parDiffOp->_parDepSurfDiffusion; }
 		inline bool singleParDepSurfDiffusion() const CADET_NOEXCEPT { return _parDiffOp->_singleParDepSurfDiffusion; }
 		inline MultiplexMode parDiffMode() const CADET_NOEXCEPT { return _parDiffOp->_parDiffusionMode; }
 		inline MultiplexMode parSurfDiffMode() const CADET_NOEXCEPT { return _parDiffOp->_parSurfDiffusionMode; }
 
+		inline unsigned int* boundOffset() const CADET_NOEXCEPT { return _parDiffOp->_boundOffset; }; //!< Array with offset to the first bound state of each component in the solid phase
+		inline unsigned int strideBound() const CADET_NOEXCEPT { return _parDiffOp->_strideBound; }; //!< Total number of bound states
 		//int _strideBulkComp;
 		inline int nDiscPoints() const CADET_NOEXCEPT { return _parDiffOp->_nParPoints; }
 		//inline int strideBulkComp() const CADET_NOEXCEPT { return _strideBulkComp; }
 		//inline int strideParComp() const CADET_NOEXCEPT { return 1; }
-		//inline int strideParLiquid() const CADET_NOEXCEPT { return static_cast<int>(_nComp); }
-		//inline int strideParBound() const CADET_NOEXCEPT { return static_cast<int>(_strideBound); }
-		//inline int strideParNode() const CADET_NOEXCEPT { return strideParLiquid() + strideParBound(); }
+		inline int strideParLiquid() const CADET_NOEXCEPT { return static_cast<int>(_nComp); }
+		inline int strideParBound() const CADET_NOEXCEPT { return static_cast<int>(strideBound()); }
+		inline int strideParNode() const CADET_NOEXCEPT { return strideParLiquid() + strideParBound(); }
 		//inline int strideParElem() const CADET_NOEXCEPT { return strideParNode() * _nParNode; }
 		//inline int strideParBlock() const CADET_NOEXCEPT { return static_cast<int>(_nParPoints) * strideParNode(); }
 		//inline int offsetBoundComp(ComponentIndex comp) const CADET_NOEXCEPT { return _boundOffset[comp.value]; }
@@ -223,9 +204,6 @@ namespace parts
 		//unsigned int _nParNode; //!< Array with number of radial nodes per element
 		//unsigned int _nParPoints; //!< Array with number of radial nodes per element
 		//bool _parGSM; //!< specifies whether (single element) Galerkin spectral method should be used in particles
-		//unsigned int* _nBound; //!< Array with number of bound states for each component
-		//unsigned int* _boundOffset; //!< Array with offset to the first bound state of each component in the solid phase
-		//unsigned int _strideBound; //!< Total number of bound states
 
 		//std::vector<active> _parElementSize; //!< Particle element size
 		//std::vector<active> _parCenterRadius; //!< Particle node-centered position for each particle node

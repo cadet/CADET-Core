@@ -45,25 +45,169 @@ namespace parts
 	/**
 	 * @brief Creates a GeneralRateParticle
 	 */
-	GeneralRateParticle::GeneralRateParticle()
+	GeneralRateParticle::GeneralRateParticle() : _binding(nullptr), _dynReaction(nullptr)
 	{
 	}
 
 	GeneralRateParticle::~GeneralRateParticle() CADET_NOEXCEPT
 	{
+		delete _binding;
+		delete _dynReaction;
 		delete _parDiffOp;
 	}
 
 	bool GeneralRateParticle::configureModelDiscretization(IParameterProvider& paramProvider, const IConfigHelper& helper, const int nComp, const int parTypeIdx, const int nParType, const int strideBulkComp)
 	{
+		_parTypeIdx = parTypeIdx;
+		_nComp = nComp;
+
+		// ==== Construct and configure particle transport and discretization
+
 		_parDiffOp = new parts::ParticleDiffusionOperatorDG();
 
-		return _parDiffOp->configureModelDiscretization(paramProvider, helper, nComp, parTypeIdx, nParType, strideBulkComp);
+		const bool particleTransportConfigSuccess = _parDiffOp->configureModelDiscretization(paramProvider, helper, nComp, parTypeIdx, nParType, strideBulkComp);
+
+		// ==== Construct and configure binding model
+		_binding = nullptr;
+		std::vector<std::string> bindModelNames = { "NONE" };
+		if (paramProvider.exists("ADSORPTION_MODEL"))
+			bindModelNames = paramProvider.getStringArray("ADSORPTION_MODEL");
+
+		if (paramProvider.exists("ADSORPTION_MODEL_MULTIPLEX"))
+			_singleBinding = (paramProvider.getInt("ADSORPTION_MODEL_MULTIPLEX") == 1);
+		else
+		{
+			// Infer multiplex mode
+			_singleBinding = (bindModelNames.size() == 1);
+		}
+
+		if (!_singleBinding && (bindModelNames.size() < nParType))
+			throw InvalidParameterException("Field ADSORPTION_MODEL contains too few elements (" + std::to_string(nParType) + " required)");
+		else if (_singleBinding && (bindModelNames.size() != 1))
+			throw InvalidParameterException("Field ADSORPTION_MODEL requires (only) 1 element");
+
+		bool bindingConfSuccess = true;
+
+		_binding = helper.createBindingModel(bindModelNames[_singleBinding ? 0 : _parTypeIdx]);
+		if (!_binding)
+			throw InvalidParameterException("Unknown binding model " + bindModelNames[_singleBinding ? 0 : _parTypeIdx]);
+
+		MultiplexedScopeSelector scopeGuard(paramProvider, "adsorption", _singleBinding, _parTypeIdx, nParType == 1, _binding->usesParamProviderInDiscretizationConfig());
+		bindingConfSuccess = _binding->configureModelDiscretization(paramProvider, _nComp, nBound(), boundOffset());
+
+		// ==== Construct and configure dynamic reaction model
+		bool reactionConfSuccess = true;
+
+		_dynReaction = nullptr;
+
+		if (paramProvider.exists("REACTION_MODEL_PARTICLES"))
+		{
+			const std::vector<std::string> dynReactModelNames = paramProvider.getStringArray("REACTION_MODEL_PARTICLES");
+
+			if (paramProvider.exists("REACTION_MODEL_PARTICLES_MULTIPLEX"))
+				_singleDynReaction = (paramProvider.getInt("REACTION_MODEL_PARTICLES_MULTIPLEX") == 1);
+			else
+			{
+				// Infer multiplex mode
+				_singleDynReaction = (dynReactModelNames.size() == 1);
+			}
+
+			if (!_singleDynReaction && (dynReactModelNames.size() < nParType))
+				throw InvalidParameterException("Field REACTION_MODEL_PARTICLES contains too few elements (" + std::to_string(nParType) + " required)");
+			else if (_singleDynReaction && (dynReactModelNames.size() != 1))
+				throw InvalidParameterException("Field REACTION_MODEL_PARTICLES requires (only) 1 element");
+
+			_dynReaction = helper.createDynamicReactionModel(dynReactModelNames[_singleDynReaction ? 0 : _parTypeIdx]);
+
+			if (!_dynReaction)
+				throw InvalidParameterException("Unknown dynamic reaction model " + dynReactModelNames[_singleDynReaction ? 0 : _parTypeIdx]);
+
+			MultiplexedScopeSelector scopeGuard(paramProvider, "reaction_particle", _singleDynReaction, _parTypeIdx, nParType == 1, _dynReaction->usesParamProviderInDiscretizationConfig());
+			reactionConfSuccess = _dynReaction->configureModelDiscretization(paramProvider, _nComp, nBound(), boundOffset()) && reactionConfSuccess;
+		}
+
+		return particleTransportConfigSuccess && bindingConfSuccess && reactionConfSuccess;
 	}
 
 	bool GeneralRateParticle::configure(UnitOpIdx unitOpIdx, IParameterProvider& paramProvider, std::unordered_map<ParameterId, active*>& parameters, const int nParType, const unsigned int* nBoundBeforeType, const int nTotalBound)
 	{
-		return _parDiffOp->configure(unitOpIdx, paramProvider, parameters, nParType, nBoundBeforeType, nTotalBound);
+		//// Done in the unit operation: Register initial conditions parameters
+		//registerParam1DArray(parameters, _initC, [=](bool multi, unsigned int comp) { return makeParamId(hashString("INIT_C"), unitOpIdx, comp, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep); });
+
+		//if (_singleBinding)
+		//{
+		//	for (unsigned int c = 0; c < nComp; ++c)
+		//		parameters[makeParamId(hashString("INIT_CP"), unitOpIdx, c, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_initCp[c];
+		//}
+		//else
+		//	registerParam2DArray(parameters, _initCp, [=](bool multi, unsigned int type, unsigned int comp) { return makeParamId(hashString("INIT_CP"), unitOpIdx, comp, type, BoundStateIndep, ReactionIndep, SectionIndep); }, nComp);
+
+
+		//if (!_binding.empty())
+		//{
+		//	const unsigned int maxBoundStates = *std::max_element(_strideBound, _strideBound + _nParType);
+		//	std::vector<ParameterId> initParams(maxBoundStates);
+
+		//	if (_singleBinding)
+		//	{
+		//		_binding[0]->fillBoundPhaseInitialParameters(initParams.data(), unitOpIdx, ParTypeIndep);
+
+		//		active* const iq = _initQ.data() + _nBoundBeforeType[0];
+		//		for (unsigned int i = 0; i < _strideBound[0]; ++i)
+		//			parameters[initParams[i]] = iq + i;
+		//	}
+		//	else
+		//	{
+		//		for (unsigned int type = 0; type < _nParType; ++type)
+		//		{
+		//			_binding[type]->fillBoundPhaseInitialParameters(initParams.data(), unitOpIdx, type);
+
+		//			active* const iq = _initQ.data() + _nBoundBeforeType[type];
+		//			for (unsigned int i = 0; i < _strideBound[type]; ++i)
+		//				parameters[initParams[i]] = iq + i;
+		//		}
+		//	}
+		//}
+
+		// Reconfigure binding model
+		bool bindingConfSuccess = true;
+		if (_binding)
+		{
+			if (_binding->requiresConfiguration())
+			{
+				if (_singleBinding)
+				{
+					MultiplexedScopeSelector scopeGuard(paramProvider, "adsorption", true);
+					bindingConfSuccess = _binding->configure(paramProvider, unitOpIdx, ParTypeIndep);
+				}
+				else
+				{
+					MultiplexedScopeSelector scopeGuard(paramProvider, "adsorption", _parTypeIdx, nParType == 1, true);
+					bindingConfSuccess = _binding->configure(paramProvider, unitOpIdx, _parTypeIdx);
+				}
+			}
+		}
+
+		// Reconfigure reaction model
+		bool dynReactionConfSuccess = true;
+		if (_dynReaction && _dynReaction->requiresConfiguration())
+		{
+			if (_singleDynReaction)
+			{
+				MultiplexedScopeSelector scopeGuard(paramProvider, "reaction_particle", true);
+				dynReactionConfSuccess = _dynReaction->configure(paramProvider, unitOpIdx, ParTypeIndep) && dynReactionConfSuccess;
+			}
+			else
+			{
+				MultiplexedScopeSelector scopeGuard(paramProvider, "reaction_particle", _parTypeIdx, nParType == 1, true);
+				dynReactionConfSuccess = _dynReaction->configure(paramProvider, unitOpIdx, _parTypeIdx) && dynReactionConfSuccess;
+			}
+		}
+
+		// Reconfigure particle transport and discretization
+		const bool parTransportConfigSuccess = _parDiffOp->configure(unitOpIdx, paramProvider, parameters, nParType, nBoundBeforeType, nTotalBound, _binding->reactionQuasiStationarity(), _binding->hasDynamicReactions());
+
+		return parTransportConfigSuccess && bindingConfSuccess && dynReactionConfSuccess;
 	}
 
 	/**
@@ -133,10 +277,56 @@ namespace parts
 	template int GeneralRateParticle::residual<true, true>(double t, unsigned int secIdx, active const* yPar, active const* yBulk, double const* yDotPar, active* resPar, ColumnPosition colPos, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc, WithParamSensitivity);
 	template int GeneralRateParticle::residual<false, true>(double t, unsigned int secIdx, active const* yPar, active const* yBulk, double const* yDotPar, active* resPar, ColumnPosition colPos, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc, WithParamSensitivity);
 
+	cell::CellParameters GeneralRateParticle::makeCellResidualParams(int const* qsReaction, unsigned int const* nBound) const
+	{
+		return cell::CellParameters
+		{
+			_nComp,
+			nBound,
+			boundOffset(),
+			strideBound(),
+			qsReaction,
+			getPorosity(),
+			getPoreAccessfactor(),
+			_binding,
+			(_dynReaction && (_dynReaction->numReactionsCombined() > 0)) ? _dynReaction : nullptr
+		};
+	}
+
 	template <typename StateType, typename ResidualType, typename ParamType, bool wantJac, bool wantRes>
 	int GeneralRateParticle::residualImpl(double t, unsigned int secIdx, StateType const* yPar, StateType const* yBulk, double const* yDotPar, ResidualType* resPar, ColumnPosition colPos, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc)
 	{
-		return _parDiffOp->residualImpl<StateType, ResidualType, ParamType, wantJac, wantRes>(t, secIdx, yPar, yBulk, yDotPar, resPar, colPos, jacIt, tlmAlloc);
+		int const* const qsBinding = _binding->reactionQuasiStationarity();
+		const cell::CellParameters cellResParams = makeCellResidualParams(qsBinding, nBound());
+
+		linalg::BandedEigenSparseRowIterator jacBase = jacIt;
+
+		// Handle time derivatives, binding, dynamic reactions: residualKernel computes discrete point wise,
+		// so we loop over each discrete particle point
+		for (unsigned int par = 0; par < nDiscPoints(); ++par)
+		{
+			// local pointers to current particle node, needed in residualKernel
+			StateType const* local_y = yPar + par * strideParNode();
+			double const* local_yDot = yDotPar ? yDotPar + par * strideParNode() : nullptr;
+			ResidualType* local_res = resPar ? resPar + par * strideParNode() : nullptr;
+
+			// r (particle) coordinate of current node (particle radius normed to 1) - needed in externally dependent adsorption kinetic
+			colPos.particle = relativeCoordinate(par);
+
+			if (wantRes)
+				cell::residualKernel<StateType, ResidualType, ParamType, cell::CellParameters, linalg::BandedEigenSparseRowIterator, wantJac, true>(
+					t, secIdx, colPos, local_y, local_yDot, local_res, jacIt, cellResParams, tlmAlloc
+				);
+			else
+				cell::residualKernel<StateType, ResidualType, ParamType, cell::CellParameters, linalg::BandedEigenSparseRowIterator, wantJac, false, false>(
+					t, secIdx, colPos, local_y, local_yDot, local_res, jacIt, cellResParams, tlmAlloc
+				);
+
+			// Move rowiterator to next particle node
+			jacIt += strideParNode();
+		}
+
+		return _parDiffOp->residualImpl<StateType, ResidualType, ParamType, wantJac, wantRes>(t, secIdx, yPar, yBulk, yDotPar, resPar, jacBase);
 	}
 
 	unsigned int GeneralRateParticle::calcParDiffNNZ()

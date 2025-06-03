@@ -91,27 +91,40 @@ namespace parts
 		~ParticleDiffusionOperatorDG() CADET_NOEXCEPT;
 
 		bool configureModelDiscretization(IParameterProvider& paramProvider, const IConfigHelper& helper, const int nComp, const int parTypeIdx, const int nParType, const int strideBulkComp);
-		bool configure(UnitOpIdx unitOpIdx, IParameterProvider& paramProvider, std::unordered_map<ParameterId, active*>& parameters, const int nParType, const unsigned int* nBoundBeforeType, const int nTotalBound);
+		bool configure(UnitOpIdx unitOpIdx, IParameterProvider& paramProvider, std::unordered_map<ParameterId, active*>& parameters, const int nParType, const unsigned int* nBoundBeforeType, const int nTotalBound, const int* reqBinding, const bool hasDynamicReactions);
 
 		void setEquidistantRadialDisc();
 		void setEquivolumeRadialDisc();
 		void setUserdefinedRadialDisc();
 		void updateRadialDisc();
 
-		cell::CellParameters makeCellResidualParams(int const* qsReaction) const;
-
 		void clearParDepSurfDiffusion();
 
 		bool notifyDiscontinuousSectionTransition(double t, unsigned int secIdx, active const* const filmDiff, active const* const poreAccessFactor);
 
-		template<bool wantJac, bool wantRes>
-		int residual(double t, unsigned int secIdx, double const* yPar, double const* yBulk, double const* yDotPar, double* resPar, ColumnPosition colPos, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc, WithoutParamSensitivity);
-		template<bool wantJac, bool wantRes>
-		int residual(double t, unsigned int secIdx, double const* yPar, double const* yBulk, double const* yDotPar, active* resPar, ColumnPosition colPos, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc, WithParamSensitivity);
-		template<bool wantJac, bool wantRes>
-		int residual(double t, unsigned int secIdx, active const* yPar, active const* yBulk, double const* yDotPar, active* resPar, ColumnPosition colPos, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc, WithParamSensitivity);
-		template<bool wantJac, bool wantRes>
-		int residual(double t, unsigned int secIdx, active const* yPar, active const* yBulk, double const* yDotPar, active* resPar, ColumnPosition colPos, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc, WithoutParamSensitivity);
+		/**
+		 * @brief Computes the residual of the transport equations
+		 * @param [in] model Model that owns the operator
+		 * @param [in] t Current time point
+		 * @param [in] secIdx Index of the current section
+		 * @param [in] yPar Pointer to particle phase entry in unit state vector
+		 * @param [in] yBulk Pointer to corresponding bulk phase entry in unit state vector
+		 * @param [in] yDotPar Pointer to particle phase derivative entry in unit state vector
+		 * @param [out] resPar Pointer Pointer to particle phase entry in unit residual vector
+		 * @param [out] colPos column position of the particle (particle coordinate zero)
+		 * @param [in] jacIt Matrix iterator pointing to the particle phase entry in the unit Jacobian
+		 * @return @c 0 on success, @c -1 on non-recoverable error, and @c +1 on recoverable error
+		 */
+		template <typename StateType, typename ResidualType, typename ParamType, bool wantJac, bool wantRes>
+		int residualImpl(double t, unsigned int secIdx, StateType const* yPar, StateType const* yBulk, double const* yDotPar, ResidualType* resPar, linalg::BandedEigenSparseRowIterator& jacBase);
+		//template<bool wantJac, bool wantRes>
+		//int residual(double t, unsigned int secIdx, double const* yPar, double const* yBulk, double const* yDotPar, double* resPar, linalg::BandedEigenSparseRowIterator& jacIt, WithoutParamSensitivity);
+		//template<bool wantJac, bool wantRes>
+		//int residual(double t, unsigned int secIdx, double const* yPar, double const* yBulk, double const* yDotPar, active* resPar, linalg::BandedEigenSparseRowIterator& jacIt, WithParamSensitivity);
+		//template<bool wantJac, bool wantRes>
+		//int residual(double t, unsigned int secIdx, active const* yPar, active const* yBulk, double const* yDotPar, active* resPar, linalg::BandedEigenSparseRowIterator& jacIt, WithParamSensitivity);
+		//template<bool wantJac, bool wantRes>
+		//int residual(double t, unsigned int secIdx, active const* yPar, active const* yBulk, double const* yDotPar, active* resPar, linalg::BandedEigenSparseRowIterator& jacIt, WithoutParamSensitivity);
 
 		unsigned int _parTypeIdx; //!< Particle type index (wrt the unit operation that owns this particle model)
 
@@ -140,13 +153,10 @@ namespace parts
 		bool _singleParDepSurfDiffusion; //!< Determines whether a single parameter dependence for particle surface diffusion is used
 		bool _hasParDepSurfDiffusion; //!< Determines whether particle surface diffusion parameter dependencies are present
 		bool _hasSurfaceDiffusion; //!< Determines whether surface diffusion is present
+		const int* _reqBinding; //!< Array of size @p _strideBound with flags whether binding is in rapid equilibrium for each bound state
+		bool _hasDynamicReactions; //! Determines whether or not the binding has any dynamic reactions
 
 		unsigned int _nComp; //!< Number of components
-
-		IBindingModel* _binding; //!< Binding model
-		bool _singleBinding; //!< Determines whether only a single binding model is present in the whole unit
-		IDynamicReactionModel* _dynReaction; //!< Dynamic reaction model
-		bool _singleDynReaction; //!< Determines whether only a single particle reaction model is present in the whole unit
 
 		/* Model discretization */
 
@@ -265,15 +275,9 @@ namespace parts
 		bool setSensitiveParameter(std::unordered_set<active*>& sensParams, const ParameterId& pId, unsigned int adDirection, double adValue);
 		bool setSensitiveParameterValue(const std::unordered_set<active*>& sensParams, const ParameterId& pId, double value);
 		
-		template <typename StateType, typename ResidualType, typename ParamType, bool wantJac, bool wantRes>
-		int residualImpl(double t, unsigned int secIdx, StateType const* yPar, StateType const* yBulk, double const* yDotPar, ResidualType* resPar, ColumnPosition colPos, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc);
-
 	protected:
 
-		int addSolidDGentries(const int secIdx, linalg::BandedEigenSparseRowIterator& jacBase, const int* const qsBinding);
-
-		template <typename StateType, typename ResidualType, typename ParamType, bool wantJac, bool wantRes>
-		int particleDiffusionImpl(double t, unsigned int secIdx, StateType const* yPar, StateType const* yBulk, double const* yDotPar, ResidualType* resPar, const int* const qsBinding, const bool hasDynamicReactions, linalg::BandedEigenSparseRowIterator& jacBase);
+		int addSolidDGentries(const int secIdx, linalg::BandedEigenSparseRowIterator& jacBase, const int* const reqBinding);
 
 		template<typename ResidualType, typename ParamType>
 		void applyParInvMap(Eigen::Map<Vector<ResidualType, Dynamic>, 0, InnerStride<>>& state);
