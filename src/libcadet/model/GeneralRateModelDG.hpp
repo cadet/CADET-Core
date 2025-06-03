@@ -516,7 +516,7 @@ protected:
 		// particle jacobian (including isotherm and time derivative)
 		for (int colNode = 0; colNode < _disc.nPoints; colNode++) {
 			for (int type = 0; type < _disc.nParType; type++) {
-				_parDiffOp[type].setParJacPattern(tripletList, idxr.offsetCp(ParticleTypeIndex{static_cast<unsigned int>(type)}, ParticleIndex{static_cast<unsigned int>(colNode)}), colNode, secIdx);
+				_parDiffOp[type].setParJacPattern(tripletList, idxr.offsetCp(ParticleTypeIndex{static_cast<unsigned int>(type)}, ParticleIndex{static_cast<unsigned int>(colNode)}), idxr.offsetC() + colNode * idxr.strideColNode(), colNode, secIdx);
 			}
 		}
 
@@ -530,13 +530,14 @@ protected:
 					tripletList.push_back(T(idxr.offsetC() + colNode * idxr.strideColNode() + comp * idxr.strideColComp(),
 						idxr.offsetCp(ParticleTypeIndex{ type }, ParticleIndex{ colNode }) + (_disc.nParPoints[type] - 1) * idxr.strideParNode(type) + comp * idxr.strideParComp(), 0.0));
 
-					for (unsigned int node = 0; node < _parDiffOp[type]._nParNode; node++) {
-						// row: add particle offset to current parType and particle, go to last cell and current node and add component offset
-						// col: add flux offset to current component, jump over previous nodes and components
-						tripletList.push_back(T(idxr.offsetCp(ParticleTypeIndex{ type }, ParticleIndex{ colNode }) + (_parDiffOp[type]._nParElem - 1) * _parDiffOp[type]._nParNode * idxr.strideParNode(type)
-							+ node * idxr.strideParNode(type) + comp * idxr.strideParComp(),
-							idxr.offsetC() + colNode * idxr.strideColNode() + comp, 0.0));
-					}
+					// Note: Cp on Cl entries are handled by particle model setParJacPattern()
+					//for (unsigned int node = 0; node < _particle[type]._nParNode; node++) {
+					//	// row: add particle offset to current parType and particle, go to last cell and current node and add component offset
+					//	// col: add flux offset to current component, jump over previous nodes and components
+					//	tripletList.push_back(T(idxr.offsetCp(ParticleTypeIndex{ type }, ParticleIndex{ colNode }) + (_particle[type]._nParElem - 1) * _particle[type]._nParNode * idxr.strideParNode(type)
+					//		+ node * idxr.strideParNode(type) + comp * idxr.strideParComp(),
+					//		idxr.offsetC() + colNode * idxr.strideColNode() + comp, 0.0));
+					//}
 				}
 			}
 		}

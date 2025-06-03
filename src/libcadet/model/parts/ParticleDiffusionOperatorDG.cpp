@@ -1496,9 +1496,10 @@ namespace parts
 	// ==========================================================================================================================================================  //
 
 	/**
-	 * @brief calculates the particle dispersion jacobian Pattern of the DG scheme for the given particle type and bead
+	 * @brief calculates the particle dispersion jacobian Pattern, including entries for the dependence of particle entries on bulk entries through film diffusion boundary condition
+	 * @detail Does NOT add film diffusion entries for the dependence of bulk conc. on particle conc.
 	*/
-	void ParticleDiffusionOperatorDG::calcParticleJacobianPattern(std::vector<ParticleDiffusionOperatorDG::T>& tripletList, unsigned int offset, unsigned int colNode, unsigned int secIdx)
+	void ParticleDiffusionOperatorDG::calcParticleJacobianPattern(std::vector<ParticleDiffusionOperatorDG::T>& tripletList, unsigned int offsetPar, unsigned int offsetBulk, unsigned int colNode, unsigned int secIdx)
 	{
 		// Ordering of particle surface diffusion:
 		// bnd0comp0, bnd1comp0, bnd0comp1, bnd1comp1, bnd0comp2, bnd1comp2
@@ -1522,8 +1523,8 @@ namespace parts
 						// handle liquid state
 						// row: add component offset and go node strides from there for each dispersion block entry
 						// col: add component offset and go node strides from there for each dispersion block entry
-						tripletList.push_back(T(offset + comp * sComp + i * sNode,
-							offset + comp * sComp + j * sNode, 0.0));
+						tripletList.push_back(T(offsetPar + comp * sComp + i * sNode,
+							offsetPar + comp * sComp + j * sNode, 0.0));
 
 						// handle surface diffusion of bound states.
 						if (_hasSurfaceDiffusion) {
@@ -1532,15 +1533,15 @@ namespace parts
 								if (_parSurfDiff[_boundOffset[comp] + bnd] != 0.0) {
 									// row: add current component offset and go node strides from there for each dispersion block entry
 									// col: jump oover liquid states, add current bound state offset and go node strides from there for each dispersion block entry
-									tripletList.push_back(T(offset + comp * sComp + i * sNode,
-										offset + strideParLiquid() + offsetBoundComp(ComponentIndex{ comp }) + bnd + j * sNode, 0.0));
+									tripletList.push_back(T(offsetPar + comp * sComp + i * sNode,
+										offsetPar + strideParLiquid() + offsetBoundComp(ComponentIndex{ comp }) + bnd + j * sNode, 0.0));
 
 									/* add surface diffusion dispersion block to solid */
 									if (!qsBinding[offsetBoundComp(ComponentIndex{ comp }) + bnd]) {
 										// row: jump over liquid states, add current bound state offset and go node strides from there for each dispersion block entry
 										// col: jump over liquid states, add current bound state offset and go node strides from there for each dispersion block entry
-										tripletList.push_back(T(offset + strideParLiquid() + offsetBoundComp(ComponentIndex{ comp }) + bnd + i * sNode,
-											offset + strideParLiquid() + offsetBoundComp(ComponentIndex{ comp }) + bnd + j * sNode, 0.0));
+										tripletList.push_back(T(offsetPar + strideParLiquid() + offsetBoundComp(ComponentIndex{ comp }) + bnd + i * sNode,
+											offsetPar + strideParLiquid() + offsetBoundComp(ComponentIndex{ comp }) + bnd + j * sNode, 0.0));
 
 									}
 								}
@@ -1563,8 +1564,8 @@ namespace parts
 						// handle liquid state
 						// row: add component offset and go node strides from there for each dispersion block entry
 						// col: add component offset and go node strides from there for each dispersion block entry. adjust for j start
-						tripletList.push_back(T(offset + comp * sComp + i * sNode,
-							offset + comp * sComp + j * sNode - (nNodes + 1) * sNode,
+						tripletList.push_back(T(offsetPar + comp * sComp + i * sNode,
+							offsetPar + comp * sComp + j * sNode - (nNodes + 1) * sNode,
 							0.0));
 
 						// handle surface diffusion of bound states. binding is handled in residualKernel().
@@ -1574,16 +1575,16 @@ namespace parts
 								if (_parSurfDiff[_boundOffset[comp] + bnd] != 0.0) {
 									// row: add current component offset and go node strides from there for each dispersion block entry
 									// col: jump over liquid states, add current bound state offset and go node strides from there for each dispersion block entry. adjust for j start
-									tripletList.push_back(T(offset + comp * sComp + i * sNode,
-										offset + strideParLiquid() + offsetBoundComp(ComponentIndex{ comp }) + bnd + j * sNode - (nNodes + 1) * sNode,
+									tripletList.push_back(T(offsetPar + comp * sComp + i * sNode,
+										offsetPar + strideParLiquid() + offsetBoundComp(ComponentIndex{ comp }) + bnd + j * sNode - (nNodes + 1) * sNode,
 										0.0));
 
 									/* add surface diffusion dispersion block to solid */
 									if (!qsBinding[offsetBoundComp(ComponentIndex{ comp }) + bnd]) {
 										// row: jump over liquid states, add current bound state offset and go node strides from there for each dispersion block entry
 										// col: jump over liquid states, add current bound state offset and go node strides from there for each dispersion block entry. adjust for j start
-										tripletList.push_back(T(offset + strideParLiquid() + offsetBoundComp(ComponentIndex{ comp }) + bnd + i * sNode,
-											offset + strideParLiquid() + offsetBoundComp(ComponentIndex{ comp }) + bnd + j * sNode - (nNodes + 1) * sNode,
+										tripletList.push_back(T(offsetPar + strideParLiquid() + offsetBoundComp(ComponentIndex{ comp }) + bnd + i * sNode,
+											offsetPar + strideParLiquid() + offsetBoundComp(ComponentIndex{ comp }) + bnd + j * sNode - (nNodes + 1) * sNode,
 											0.0));
 
 									}
@@ -1604,8 +1605,8 @@ namespace parts
 						// handle liquid state
 						// row: add component offset and jump over previous elements. Go node strides from there for each dispersion block entry
 						// col: add component offset and jump over previous elements. Go back one elem (and node or adjust for start) and go node strides from there for each dispersion block entry.
-						tripletList.push_back(T(offset + comp * sComp + (_nParElem - 1) * selem + i * sNode,
-							offset + comp * sComp + (_nParElem - 1) * selem - selem - sNode + j * sNode,
+						tripletList.push_back(T(offsetPar + comp * sComp + (_nParElem - 1) * selem + i * sNode,
+							offsetPar + comp * sComp + (_nParElem - 1) * selem - selem - sNode + j * sNode,
 							0.0));
 
 						// handle surface diffusion of bound states. binding is handled in residualKernel().
@@ -1615,16 +1616,16 @@ namespace parts
 								if (_parSurfDiff[_boundOffset[comp] + bnd] != 0.0) {
 									// row: add component offset and jump over previous elements. Go node strides from there for each dispersion block entry
 									// col: jump over liquid states, add current bound state offset and jump over previous elements. Go back one elem (and node or adjust for start) and go node strides from there for each dispersion block entry.
-									tripletList.push_back(T(offset + comp * sComp + (_nParElem - 1) * selem + i * sNode,
-										offset + strideParLiquid() + offsetBoundComp(ComponentIndex{ comp }) + bnd + (_nParElem - 2) * selem - sNode + j * sNode,
+									tripletList.push_back(T(offsetPar + comp * sComp + (_nParElem - 1) * selem + i * sNode,
+										offsetPar + strideParLiquid() + offsetBoundComp(ComponentIndex{ comp }) + bnd + (_nParElem - 2) * selem - sNode + j * sNode,
 										0.0));
 
 									/* add surface diffusion dispersion block to solid */
 									if (!qsBinding[offsetBoundComp(ComponentIndex{ comp }) + bnd]) {
 										// row: jump over previous elements and over liquid states, add current bound state offset. go node strides from there for each dispersion block entry
 										// col: jump over previous elements and over liquid states, add current bound state offset. go back one elem (and node or adjust for start) and go node strides from there for each dispersion block entry.
-										tripletList.push_back(T(offset + (_nParElem - 1) * selem + strideParLiquid() + offsetBoundComp(ComponentIndex{ comp }) + bnd + i * sNode,
-											offset + (_nParElem - 2) * selem + strideParLiquid() + offsetBoundComp(ComponentIndex{ comp }) - sNode + bnd + j * sNode,
+										tripletList.push_back(T(offsetPar + (_nParElem - 1) * selem + strideParLiquid() + offsetBoundComp(ComponentIndex{ comp }) + bnd + i * sNode,
+											offsetPar + (_nParElem - 2) * selem + strideParLiquid() + offsetBoundComp(ComponentIndex{ comp }) - sNode + bnd + j * sNode,
 											0.0));
 									}
 								}
@@ -1640,8 +1641,8 @@ namespace parts
 							// handle liquid state
 							// row: add component offset and jump over previous elem. Go node strides from there for each dispersion block entry
 							// col: add component offset. Go node strides from there for each dispersion block entry. adjust for j start
-							tripletList.push_back(T(offset + comp * sComp + selem + i * sNode,
-								offset + comp * sComp + j * sNode - sNode,
+							tripletList.push_back(T(offsetPar + comp * sComp + selem + i * sNode,
+								offsetPar + comp * sComp + j * sNode - sNode,
 								0.0));
 
 							// handle surface diffusion of bound states. binding is handled in residualKernel().
@@ -1651,16 +1652,16 @@ namespace parts
 									if (_parSurfDiff[_boundOffset[comp] + bnd] != 0.0) {
 										// row: add component offset and jump over previous elements. Go node strides from there for each dispersion block entry
 										// col: jump over liquid states, add current bound state offset and jump over previous elem. go back one elem and go node strides from there for each dispersion block entry. adjust for j start
-										tripletList.push_back(T(offset + comp * sComp + selem + i * sNode,
-											offset + strideParLiquid() + offsetBoundComp(ComponentIndex{ comp }) + bnd + j * sNode - sNode,
+										tripletList.push_back(T(offsetPar + comp * sComp + selem + i * sNode,
+											offsetPar + strideParLiquid() + offsetBoundComp(ComponentIndex{ comp }) + bnd + j * sNode - sNode,
 											0.0));
 
 										/* add surface diffusion dispersion block to solid */
 										if (!qsBinding[offsetBoundComp(ComponentIndex{ comp }) + bnd]) {
 											// row: jump over previous elements and over liquid states, add current bound state offset. go node strides from there for each dispersion block entry
 											// col: jump over liquid states, add current bound state offset and jump over previous elem. go node strides from there for each dispersion block entry. adjust for j start
-											tripletList.push_back(T(offset + selem + strideParLiquid() + offsetBoundComp(ComponentIndex{ comp }) + bnd + i * sNode,
-												offset + strideParLiquid() + offsetBoundComp(ComponentIndex{ comp }) + bnd + j * sNode - sNode,
+											tripletList.push_back(T(offsetPar + selem + strideParLiquid() + offsetBoundComp(ComponentIndex{ comp }) + bnd + i * sNode,
+												offsetPar + strideParLiquid() + offsetBoundComp(ComponentIndex{ comp }) + bnd + j * sNode - sNode,
 												0.0));
 
 										}
@@ -1681,8 +1682,8 @@ namespace parts
 							// handle liquid state
 							// row: add component offset and jump over previous elem. Go node strides from there for each dispersion block entry
 							// col: add component offset. Go node strides from there for each dispersion block entry. adjust for j start
-							tripletList.push_back(T(offset + comp * sComp + selem + i * sNode,
-								offset + comp * sComp + j * sNode - sNode,
+							tripletList.push_back(T(offsetPar + comp * sComp + selem + i * sNode,
+								offsetPar + comp * sComp + j * sNode - sNode,
 								0.0));
 
 							// handle surface diffusion of bound states. binding is handled in residualKernel().
@@ -1692,16 +1693,16 @@ namespace parts
 									if (_parSurfDiff[_boundOffset[comp] + bnd] != 0.0) {
 										// row: add component offset and jump over previous elements. Go node strides from there for each dispersion block entry
 										// col: jump over liquid states, add current bound state offset and jump over previous elements. Go back one elem and go node strides from there for each dispersion block entry. adjust for j start
-										tripletList.push_back(T(offset + comp * sComp + selem + i * sNode,
-											offset + strideParLiquid() + offsetBoundComp(ComponentIndex{ comp }) + bnd + j * sNode - sNode,
+										tripletList.push_back(T(offsetPar + comp * sComp + selem + i * sNode,
+											offsetPar + strideParLiquid() + offsetBoundComp(ComponentIndex{ comp }) + bnd + j * sNode - sNode,
 											0.0));
 
 										/* add surface diffusion dispersion block to solid */
 										if (!qsBinding[offsetBoundComp(ComponentIndex{ comp }) + bnd]) {
 											// row: jump over previous elements and over liquid states, add current bound state offset. go node strides from there for each dispersion block entry
 											// col: jump over previous elements and over liquid states, add current bound state offset. go back one elem and go node strides from there for each dispersion block entry. adjust for j start
-											tripletList.push_back(T(offset + selem + strideParLiquid() + offsetBoundComp(ComponentIndex{ comp }) + bnd + i * sNode,
-												offset + strideParLiquid() + offsetBoundComp(ComponentIndex{ comp }) + bnd + j * sNode - sNode,
+											tripletList.push_back(T(offsetPar + selem + strideParLiquid() + offsetBoundComp(ComponentIndex{ comp }) + bnd + i * sNode,
+												offsetPar + strideParLiquid() + offsetBoundComp(ComponentIndex{ comp }) + bnd + j * sNode - sNode,
 												0.0));
 
 										}
@@ -1719,8 +1720,8 @@ namespace parts
 							// handle liquid state
 							// row: add component offset and jump over previous elements. Go node strides from there for each dispersion block entry
 							// col: add component offset and jump over previous elements. Go back one elem and node. Go node strides from there for each dispersion block entry.
-							tripletList.push_back(T(offset + comp * sComp + (_nParElem - 2) * selem + i * sNode,
-								offset + comp * sComp + (_nParElem - 2) * selem - selem - sNode + j * sNode,
+							tripletList.push_back(T(offsetPar + comp * sComp + (_nParElem - 2) * selem + i * sNode,
+								offsetPar + comp * sComp + (_nParElem - 2) * selem - selem - sNode + j * sNode,
 								0.0));
 
 							// handle surface diffusion of bound states. binding is handled in residualKernel().
@@ -1730,16 +1731,16 @@ namespace parts
 									if (_parSurfDiff[_boundOffset[comp] + bnd] != 0.0) {
 										// row: add component offset and jump over previous elements. Go node strides from there for each dispersion block entry
 										// col: jump over liquid states, add current bound state offset and jump over previous elements. Go back one elem and node and go node strides from there for each dispersion block entry
-										tripletList.push_back(T(offset + comp * sComp + (_nParElem - 2) * selem + i * sNode,
-											offset + strideParLiquid() + offsetBoundComp(ComponentIndex{ comp }) + bnd + (_nParElem - 2) * selem - selem - sNode + j * sNode,
+										tripletList.push_back(T(offsetPar + comp * sComp + (_nParElem - 2) * selem + i * sNode,
+											offsetPar + strideParLiquid() + offsetBoundComp(ComponentIndex{ comp }) + bnd + (_nParElem - 2) * selem - selem - sNode + j * sNode,
 											0.0));
 
 										/* add surface diffusion dispersion block to solid */
 										if (!qsBinding[offsetBoundComp(ComponentIndex{ comp }) + bnd]) {
 											// row: jump over previous elements and over liquid states, add current bound state offset. go node strides from there for each dispersion block entry
 											// col: jump over previous elements and over liquid states, add current bound state offset. go back one elem and node and go node strides from there for each dispersion block entry
-											tripletList.push_back(T(offset + (_nParElem - 2) * selem + strideParLiquid() + offsetBoundComp(ComponentIndex{ comp }) + bnd + i * sNode,
-												offset + (_nParElem - 2) * selem + strideParLiquid() + offsetBoundComp(ComponentIndex{ comp }) - selem - sNode + bnd + j * sNode,
+											tripletList.push_back(T(offsetPar + (_nParElem - 2) * selem + strideParLiquid() + offsetBoundComp(ComponentIndex{ comp }) + bnd + i * sNode,
+												offsetPar + (_nParElem - 2) * selem + strideParLiquid() + offsetBoundComp(ComponentIndex{ comp }) - selem - sNode + bnd + j * sNode,
 												0.0));
 
 										}
@@ -1763,8 +1764,8 @@ namespace parts
 								// handle liquid state
 								// row: add component offset and jump over previous elements. Go node strides from there for each dispersion block entry
 								// col: add component offset and jump over previous elements. Go back one elem and node. Go node strides from there for each dispersion block entry.
-								tripletList.push_back(T(offset + comp * sComp + elem * selem + i * sNode,
-									offset + comp * sComp + elem * selem - selem - sNode + j * sNode,
+								tripletList.push_back(T(offsetPar + comp * sComp + elem * selem + i * sNode,
+									offsetPar + comp * sComp + elem * selem - selem - sNode + j * sNode,
 									0.0));
 
 								// handle surface diffusion of bound states. binding is handled in residualKernel().
@@ -1774,16 +1775,16 @@ namespace parts
 										if (_parSurfDiff[_boundOffset[comp] + bnd] != 0.0) {
 											// row: add component offset and jump over previous elements. Go node strides from there for each dispersion block entry
 											// col: jump over liquid states, add current bound state offset and jump over previous elements. Go back one elem and node and go node strides from there for each dispersion block entry
-											tripletList.push_back(T(offset + comp * sComp + elem * selem + i * sNode,
-												offset + strideParLiquid() + offsetBoundComp(ComponentIndex{ comp }) + bnd + elem * selem - selem - sNode + j * sNode,
+											tripletList.push_back(T(offsetPar + comp * sComp + elem * selem + i * sNode,
+												offsetPar + strideParLiquid() + offsetBoundComp(ComponentIndex{ comp }) + bnd + elem * selem - selem - sNode + j * sNode,
 												0.0));
 
 											/* add surface diffusion dispersion block to solid */
 											if (!qsBinding[offsetBoundComp(ComponentIndex{ comp }) + bnd]) {
 												// row: jump over previous elements and over liquid states, add current bound state offset. go node strides from there for each dispersion block entry
 												// col: jump over previous elements and over liquid states, add current bound state offset. go back one elem and node and go node strides from there for each dispersion block entry
-												tripletList.push_back(T(offset + elem * selem + strideParLiquid() + offsetBoundComp(ComponentIndex{ comp }) + bnd + i * sNode,
-													offset + elem * selem + strideParLiquid() + offsetBoundComp(ComponentIndex{ comp }) + bnd - selem - sNode + j * sNode,
+												tripletList.push_back(T(offsetPar + elem * selem + strideParLiquid() + offsetBoundComp(ComponentIndex{ comp }) + bnd + i * sNode,
+													offsetPar + elem * selem + strideParLiquid() + offsetBoundComp(ComponentIndex{ comp }) + bnd - selem - sNode + j * sNode,
 													0.0));
 
 											}
@@ -1798,6 +1799,20 @@ namespace parts
 			}
 
 		} // if nelements > 1
+
+		/* Flux Jacobian: dependence of particle entries on bulk entries through BC */
+
+		for (unsigned int comp = 0; comp < _nComp; comp++)
+		{
+			for (unsigned int node = 0; node < _nParNode; node++) {
+				// row: add particle offset to current parType and particle, go to last cell and current node and add component offset
+				// col: add flux offset to current component, jump over previous nodes and components
+				tripletList.push_back(T(offsetPar + (_nParElem - 1) * _nParNode * strideParNode() + node * strideParNode() + comp * strideParComp(),
+					offsetBulk + comp,
+					0.0));
+			}
+		}
+
 	}
 	
 	unsigned int ParticleDiffusionOperatorDG::calcParDispNNZ()

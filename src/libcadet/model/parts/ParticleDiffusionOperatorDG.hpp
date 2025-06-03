@@ -186,7 +186,7 @@ namespace parts
 			const unsigned int element = floor(nodeIdx / _nParNode);
 			const unsigned int node = nodeIdx % _nParNode;
 			// divide by particle radius to get relative position
-			return static_cast<double>((_deltaR[element] * element + 0.5 * _deltaR[element] * (1 + _parNodes[node])) / (_parRadius - _parCoreRadius));;
+			return static_cast<double>((_deltaR[element] * element + 0.5 * _deltaR[element] * (1 + _parNodes[node])) / (_parRadius - _parCoreRadius));
 		}
 
 		template<typename ParamType>
@@ -254,9 +254,9 @@ namespace parts
 		/**
 		 * @brief sets the particle sparsity pattern wrt the global Jacobian
 		 */
-		void setParJacPattern(std::vector<T>& tripletList, const int offsetCp, unsigned int colNode, unsigned int secIdx)
+		void setParJacPattern(std::vector<T>& tripletList, const int offsetCp, const int offsetCl, unsigned int colNode, unsigned int secIdx)
 		{
-			calcParticleJacobianPattern(tripletList, offsetCp, colNode, secIdx);
+			calcParticleJacobianPattern(tripletList, offsetCp, offsetCl, colNode, secIdx);
 
 			parTimeDerJacPattern_GRM(tripletList, offsetCp, colNode, secIdx);
 
@@ -311,7 +311,7 @@ namespace parts
 		Eigen::MatrixXd parAuxBlockGstar(unsigned int elemIdx, MatrixXd leftG, MatrixXd middleG, MatrixXd rightG);
 		Eigen::MatrixXd getParGBlock(unsigned int elemIdx);
 
-		void calcParticleJacobianPattern(std::vector<T>& tripletList, unsigned int offset, unsigned int colNode, unsigned int secIdx);
+		void calcParticleJacobianPattern(std::vector<T>& tripletList, unsigned int offsetCp, unsigned int offsetCl, unsigned int colNode, unsigned int secIdx);
 
 		void parTimeDerJacPattern_GRM(std::vector<T>& tripletList, unsigned int offset, unsigned int colNode, unsigned int secIdx);
 
