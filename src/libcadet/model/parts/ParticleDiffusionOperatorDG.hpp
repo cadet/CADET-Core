@@ -18,6 +18,7 @@
 #ifndef LIBCADET_PARTCICLEDIFFUSIONOPERATORDG_HPP_
 #define LIBCADET_PARTCICLEDIFFUSIONOPERATORDG_HPP_
 
+#include "model/parts/ParticleDiffusionOperatorBase.hpp"
 #include "cadet/StrongTypes.hpp"
 #include "ParamIdUtil.hpp"
 #include "AutoDiff.hpp"
@@ -82,7 +83,7 @@ namespace parts
 	 * This class does not store the Jacobian. It only fills existing matrices given to its residual() functions.
 	 * It assumes that there is no offset to the particle entries in the local state vector
 	 */
-	class ParticleDiffusionOperatorDG
+	class ParticleDiffusionOperatorDG : public ParticleDiffusionOperatorBase
 	{
 	public:
 
@@ -117,8 +118,6 @@ namespace parts
 		template <typename StateType, typename ResidualType, typename ParamType, bool wantJac, bool wantRes>
 		int residualImpl(double t, unsigned int secIdx, StateType const* yPar, StateType const* yBulk, double const* yDotPar, ResidualType* resPar, linalg::BandedEigenSparseRowIterator& jacBase);
 
-		unsigned int _parTypeIdx; //!< Particle type index (wrt the unit operation that owns this particle model)
-
 		/* Physical model parameters */
 
 		active _parRadius; //!< Particle radius \f$ r_p \f$
@@ -127,15 +126,10 @@ namespace parts
 		bool _singleParCoreRadius;
 		active _parPorosity; //!< Particle porosity (internal porosity) \f$ \varepsilon_p \f$
 		bool _singleParPorosity;
-		std::vector<active> _invBetaP; //!< Ratio of solid to liquid particle volume
 		double _parGeomSurfToVol; //!< Particle surface to volume ratio factor (i.e., 3.0 for spherical, 2.0 for cylindrical, 1.0 for hexahedral)
 		std::vector<active> _parOuterSurfAreaPerVolume; //!< Particle element outer sphere surface to volume ratio
 		std::vector<active> _parInnerSurfAreaPerVolume; //!< Particle element inner sphere surface to volume ratio
 
-		std::vector<active> _filmDiffusion; //!< Particle diffusion coefficient \f$ D_p \f$
-		//MultiplexMode _filmDiffusionMode;
-		std::vector<active> _poreAccessFactor; //!< Pore accessibility factor \f$ F_{\text{acc}} \f$
-		//MultiplexMode _poreAccessFactorMode;
 		std::vector<active> _parDiffusion; //!< Particle diffusion coefficient \f$ D_p \f$
 		MultiplexMode _parDiffusionMode;
 		std::vector<active> _parSurfDiffusion; //!< Particle surface diffusion coefficient \f$ D_s \f$
@@ -146,8 +140,6 @@ namespace parts
 		bool _hasSurfaceDiffusion; //!< Determines whether surface diffusion is present
 		const int* _reqBinding; //!< Array of size @p _strideBound with flags whether binding is in rapid equilibrium for each bound state
 		bool _hasDynamicReactions; //! Determines whether or not the binding has any dynamic reactions
-
-		unsigned int _nComp; //!< Number of components
 
 		/* Model discretization */
 
@@ -183,7 +175,6 @@ namespace parts
 			return _parGeomSurfToVol / static_cast<ParamType>(_parRadius);
 		}
 
-		int _strideBulkComp;
 		inline int strideBulkComp() const CADET_NOEXCEPT { return _strideBulkComp; }
 		inline int strideParComp() const CADET_NOEXCEPT { return 1; }
 		inline int strideParLiquid() const CADET_NOEXCEPT { return static_cast<int>(_nComp); }
@@ -202,9 +193,6 @@ namespace parts
 		unsigned int _nParNode; //!< Array with number of radial nodes per element
 		unsigned int _nParPoints; //!< Array with number of radial nodes per element
 		bool _parGSM; //!< specifies whether (single element) Galerkin spectral method should be used in particles
-		unsigned int* _nBound; //!< Array with number of bound states for each component
-		unsigned int* _boundOffset; //!< Array with offset to the first bound state of each component in the solid phase
-		unsigned int _strideBound; //!< Total number of bound states
 
 		std::vector<active> _parElementSize; //!< Particle element size
 		std::vector<active> _parCenterRadius; //!< Particle node-centered position for each particle node
