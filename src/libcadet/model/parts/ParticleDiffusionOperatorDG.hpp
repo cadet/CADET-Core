@@ -18,7 +18,6 @@
 #ifndef LIBCADET_PARTCICLEDIFFUSIONOPERATORDG_HPP_
 #define LIBCADET_PARTCICLEDIFFUSIONOPERATORDG_HPP_
 
-#include "model/BindingModel.hpp"
 #include "cadet/StrongTypes.hpp"
 #include "ParamIdUtil.hpp"
 #include "AutoDiff.hpp"
@@ -117,14 +116,6 @@ namespace parts
 		 */
 		template <typename StateType, typename ResidualType, typename ParamType, bool wantJac, bool wantRes>
 		int residualImpl(double t, unsigned int secIdx, StateType const* yPar, StateType const* yBulk, double const* yDotPar, ResidualType* resPar, linalg::BandedEigenSparseRowIterator& jacBase);
-		//template<bool wantJac, bool wantRes>
-		//int residual(double t, unsigned int secIdx, double const* yPar, double const* yBulk, double const* yDotPar, double* resPar, linalg::BandedEigenSparseRowIterator& jacIt, WithoutParamSensitivity);
-		//template<bool wantJac, bool wantRes>
-		//int residual(double t, unsigned int secIdx, double const* yPar, double const* yBulk, double const* yDotPar, active* resPar, linalg::BandedEigenSparseRowIterator& jacIt, WithParamSensitivity);
-		//template<bool wantJac, bool wantRes>
-		//int residual(double t, unsigned int secIdx, active const* yPar, active const* yBulk, double const* yDotPar, active* resPar, linalg::BandedEigenSparseRowIterator& jacIt, WithParamSensitivity);
-		//template<bool wantJac, bool wantRes>
-		//int residual(double t, unsigned int secIdx, active const* yPar, active const* yBulk, double const* yDotPar, active* resPar, linalg::BandedEigenSparseRowIterator& jacIt, WithoutParamSensitivity);
 
 		unsigned int _parTypeIdx; //!< Particle type index (wrt the unit operation that owns this particle model)
 
@@ -177,19 +168,6 @@ namespace parts
 			 */
 			UserDefined
 		};
-
-		// todo when separating discretization and particle model
-		//class Indexer
-		//{
-		//public:
-
-		//	Indexer(const Discretization& disc) : _disc(disc) { }
-
-		//	inline int strideColNode() const CADET_NOEXCEPT { return static_cast<int>(_nComp); }
-
-		//	protected:
-		//		_disc;
-		//};
 
 		double relativeCoordinate(const unsigned int nodeIdx) const CADET_NOEXCEPT
 		{

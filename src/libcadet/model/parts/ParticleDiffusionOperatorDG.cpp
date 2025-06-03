@@ -12,19 +12,13 @@
 
 #include "model/parts/ParticleDiffusionOperatorDG.hpp"
 #include "cadet/Exceptions.hpp"
-
-#include "BindingModelFactory.hpp"
-#include "ReactionModelFactory.hpp"
 #include "ParamReaderHelper.hpp"
 #include "ParamReaderScopes.hpp"
 #include "AdUtils.hpp"
 #include "SimulationTypes.hpp"
 #include "model/ParameterDependence.hpp"
-#include "model/parts/BindingCellKernel.hpp"
 #include "SensParamUtil.hpp"
 #include "ConfigurationHelper.hpp"
-#include "model/BindingModel.hpp"
-#include "model/ReactionModel.hpp"
 
 #include "LoggingUtils.hpp"
 #include "Logging.hpp"
@@ -861,11 +855,6 @@ namespace parts
 				_poreAccessFactor[comp] = poreAccessFactor[_parTypeIdx * _nComp + comp];
 				_invBetaP[comp] = (1.0 - _parPorosity) / (_poreAccessFactor[comp] * _parPorosity);
 			}
-
-		//_curSection = secIdx;
-		//_newStaticJac = true;
-
-		// todo update operators
 
 		initializeDGjac(_parGeomSurfToVol);
 
