@@ -192,10 +192,6 @@ namespace parts
 		Eigen::Vector<active, Dynamic> _surfaceFluxParticle; //!< stores the surface flux values for each particle
 		active* _localFlux; //!< stores the local (at respective particle) film diffusion flux
 
-		void initializeDG();
-
-		void initializeDGjac(const double parGeomSurfToVol);
-
 		int calcFilmDiffJacobian(unsigned int secIdx, const int offsetCp, const int offsetC, const int nBulkPoints, const int nParType, const double colPorosity, const active* const parTypeVolFrac, Eigen::SparseMatrix<double, RowMajor>& globalJac, bool outliersOnly = false);
 
 		int getParticleCoordinates(double* coords) const;
@@ -217,6 +213,10 @@ namespace parts
 		bool setSensitiveParameterValue(const std::unordered_set<active*>& sensParams, const ParameterId& pId, double value);
 		
 	protected:
+
+		void initializeDG();
+
+		void initializeDGjac(const double parGeomSurfToVol);
 
 		int addSolidDGentries(const int secIdx, linalg::BandedEigenSparseRowIterator& jacBase, const int* const reqBinding);
 

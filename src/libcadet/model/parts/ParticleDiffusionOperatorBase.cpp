@@ -275,38 +275,7 @@ namespace parts
 		if ((nParType > 1) && !paramProvider.exists("PAR_TYPE_VOLFRAC"))
 			throw InvalidParameterException("The required parameter \"PAR_TYPE_VOLFRAC\" was not found");
 
-		// todo: PAR_TYPE_VOLFRAC remains parameter of the unit, not the particles?
-		//// Let PAR_TYPE_VOLFRAC default to 1.0 for backwards compatibility
-		//if (paramProvider.exists("PAR_TYPE_VOLFRAC"))
-		//{
-		//	readScalarParameterOrArray(_parTypeVolFrac, paramProvider, "PAR_TYPE_VOLFRAC", 1);
-		//	if (_parTypeVolFrac.size() == _nParType)
-		//	{
-		//		_axiallyConstantParTypeVolFrac = true;
-
-		//		// Expand to all axial elements
-		//		_parTypeVolFrac.resize(nPoints * _nParType, 1.0);
-		//		for (unsigned int i = 1; i < nPoints; ++i)
-		//			std::copy(_parTypeVolFrac.begin(), _parTypeVolFrac.begin() + _nParType, _parTypeVolFrac.begin() + _nParType * i);
-		//	}
-		//	else
-		//		_axiallyConstantParTypeVolFrac = false;
-		//}
-		//else
-		//{
-		//	_parTypeVolFrac.resize(nPoints, 1.0);
-		//	_axiallyConstantParTypeVolFrac = false;
-		//}
-
-		//// Check that particle volume fractions sum to 1.0
-		//for (unsigned int i = 0; i < nPoints; ++i)
-		//{
-		//	const double volFracSum = std::accumulate(_parTypeVolFrac.begin() + i * _nParType, _parTypeVolFrac.begin() + (i + 1) * _nParType, 0.0,
-		//		[](double a, const active& b) -> double { return a + static_cast<double>(b); });
-		//	if (std::abs(1.0 - volFracSum) > 1e-10)
-		//		throw InvalidParameterException("Sum of field PAR_TYPE_VOLFRAC differs from 1.0 (is " + std::to_string(volFracSum) + ") in axial elem " + std::to_string(i));
-		//}
-
+		// For now, film diffusion remains parameter of the unit, not the particles
 		// Read vectorial parameters (which may also be section dependent; transport)
 		//_filmDiffusionMode = readAndRegisterMultiplexCompTypeSecParam(paramProvider, parameters, _filmDiffusion, "FILM_DIFFUSION", _nParType, nComp, unitOpIdx); // todo film diffusion remains unit operation parameter?
 
@@ -340,6 +309,7 @@ namespace parts
 		if ((_parSurfDiffusion.size() < _strideBound) || ((nTotalBound > 0) && (_parSurfDiffusion.size() % _strideBound != 0)))
 			throw InvalidParameterException("Number of elements in field PAR_SURFDIFFUSION is not a positive multiple of NTOTALBND (" + std::to_string(nTotalBound) + ")");
 
+		// For now, pore access factor remains parameter of the unit, not the particles
 		//if (paramProvider.exists("PORE_ACCESSIBILITY"))
 		//	_poreAccessFactorMode = readAndRegisterMultiplexCompTypeSecParam(paramProvider, parameters, _poreAccessFactor, "PORE_ACCESSIBILITY", _nParType, nComp, unitOpIdx);
 		//else
@@ -351,20 +321,21 @@ namespace parts
 		//if (nComp * _nParType != _poreAccessFactor.size())
 		//	throw InvalidParameterException("Number of elements in field PORE_ACCESSIBILITY differs from NCOMP * _nParType (" + std::to_string(nComp * _nParType) + ")");
 
-		//// Add parameters to map
-		//parameters[makeParamId(hashString("COL_POROSITY"), unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_colPorosity;
+		return true;
+	}
 
-		//if (_axiallyConstantParTypeVolFrac)
-		//{
-		//	// Register only the first _nParType items
-		//	for (unsigned int i = 0; i < _nParType; ++i)
-		//		parameters[makeParamId(hashString("PAR_TYPE_VOLFRAC"), unitOpIdx, CompIndep, i, BoundStateIndep, ReactionIndep, SectionIndep)] = &_parTypeVolFrac[i];
-		//}
-		//else
-		//	registerParam2DArray(parameters, _parTypeVolFrac, [=](bool multi, unsigned elem, unsigned int type) { return makeParamId(hashString("PAR_TYPE_VOLFRAC"), unitOpIdx, CompIndep, type, BoundStateIndep, ReactionIndep, elem); }, _nParType);
+	bool ParticleDiffusionOperatorBase::notifyDiscontinuousSectionTransition(double t, unsigned int secIdx, active const* const filmDiff, active const* const poreAccessFactor)
+	{
+		for (int comp = 0; comp < _nComp; comp++)
+		{
+			_filmDiffusion[comp] = filmDiff[_parTypeIdx * _nComp + comp];
+			_poreAccessFactor[comp] = poreAccessFactor[_parTypeIdx * _nComp + comp];
+			_invBetaP[comp] = (1.0 - _parPorosity) / (_poreAccessFactor[comp] * _parPorosity);
+		}
 
 		return true;
 	}
+
 
 } // namespace parts
 } // namespace model

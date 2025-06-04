@@ -521,24 +521,13 @@ namespace parts
 	}
 
 
-	/**
-	 * @brief Notifies the operator that a discontinuous section transition is in progress
-	 * @param [in] t Current time point
-	 * @param [in] secIdx Index of the new section that is about to be integrated
-	 * @return @c true if flow direction has changed, otherwise @c false
-	 */
 	bool ParticleDiffusionOperatorDG::notifyDiscontinuousSectionTransition(double t, unsigned int secIdx, active const* const filmDiff, active const* const poreAccessFactor)
 	{
-			for (int comp = 0; comp < _nComp; comp++)
-			{
-				_filmDiffusion[comp] = filmDiff[_parTypeIdx * _nComp + comp];
-				_poreAccessFactor[comp] = poreAccessFactor[_parTypeIdx * _nComp + comp];
-				_invBetaP[comp] = (1.0 - _parPorosity) / (_poreAccessFactor[comp] * _parPorosity);
-			}
+		const bool success = ParticleDiffusionOperatorBase::notifyDiscontinuousSectionTransition(t, secIdx, filmDiff, poreAccessFactor);
 
 		initializeDGjac(_parGeomSurfToVol);
 
-		return true;
+		return true && success;
 	}
 	/**
 	 * @brief calculates the physical radial/particle coordinates of the DG discretization with double! interface nodes
