@@ -273,8 +273,6 @@ namespace cadet
 			 */
 			virtual bool hasQuasiStationaryReactionsBulk() const CADET_NOEXCEPT { return false; }
 
-			virtual void timeDerivativeQuasiStationaryReaction(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, double* dReacDt, LinearBufferAllocator workSpace) = 0;
-
 			virtual int const* reactionQuasiStationarity() const = 0;
 
 			virtual auto numConservedMoities() const -> unsigned int { return 0; }
@@ -290,7 +288,7 @@ namespace cadet
 				Eigen::Matrix<active, Eigen::Dynamic, Eigen::Dynamic> M;
 				return M;
 			}
-			virtual auto algIdx() -> std::vector<int>
+			virtual auto algIdx() const -> std::vector<int>
 			{
 				std::vector<int> v{ 0 };
 				return v;

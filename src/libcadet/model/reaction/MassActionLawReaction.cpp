@@ -311,6 +311,7 @@ namespace cadet
 			static const char* identifier() { return ParamHandler_t::identifier(); }
 			virtual const char* name() const CADET_NOEXCEPT { return ParamHandler_t::identifier(); }
 
+
 			virtual void setExternalFunctions(IExternalFunction** extFuns, unsigned int size) { _paramHandler.setExternalFunctions(extFuns, size); }
 			virtual bool dependsOnTime() const CADET_NOEXCEPT { return ParamHandler_t::dependsOnTime(); }
 			virtual bool requiresWorkspace() const CADET_NOEXCEPT { return true; }
@@ -381,6 +382,9 @@ namespace cadet
 							}
 						}
 					}
+					// configure conserved moities
+					ConservedMoietiesBulk();
+
 				}
 
 
@@ -450,7 +454,7 @@ namespace cadet
 				return _quasiStationaryComponentBulkMap;
 			}
 			
-			auto algIdx() -> std::vector<int> override
+			auto algIdx()const -> std::vector<int> override
 			{
 				return _algIdxBulk;
 			}
@@ -492,6 +496,7 @@ namespace cadet
 			
 			Eigen::Matrix<active, Eigen::Dynamic, Eigen::Dynamic> _MconvMoityBulk; //!<  Matrix with conservation of moieties in the bulk volume
 			unsigned int _nConservedQuants;
+
 
 
 			inline int maxNumReactions() const CADET_NOEXCEPT { return std::max(std::max(_stoichiometryBulk.columns(), _stoichiometryLiquid.columns()), _stoichiometrySolid.columns()); }
@@ -644,7 +649,119 @@ namespace cadet
 				readAndRegisterExponents(paramProvider, _parameters, unitOpIdx, parTypeIdx, "MAL_EXPONENTS_SOLID_FWD_MODLIQUID", _expSolidFwdLiquid, _nComp, nullptr);
 				readAndRegisterExponents(paramProvider, _parameters, unitOpIdx, parTypeIdx, "MAL_EXPONENTS_SOLID_BWD_MODLIQUID", _expSolidBwdLiquid, _nComp, nullptr);
 
+
 				return true;
+			}
+			
+			/**
+			* @brief Calculates fluxes for quasi-stationary reactions
+			* @details Computes reaction rates for all quasi-stationary reactions
+			*          using mass action kinetics formulation
+			*
+			* @param [in] t Current time point
+			* @param [in] secIdx Current section index
+			* @param [in] colPos Column position information
+			* @param [in] c Array of component concentrations
+			* @param [out] fluxes Vector to store calculated fluxes
+			* @param [in] workSpace Workspace for temporary data
+			* @return Error code (0 if successful)
+			* @tparam StateType Type of state variables (concentrations)
+			* @tparam ResidualType Type of the result
+			*/
+			template<typename StateType, typename ResidualType>
+			int quasiStationaryFlux(double t, unsigned int secIdx, const ColumnPosition& colPos, StateType const* c,
+				Eigen::Map<Eigen::Vector<ResidualType, Eigen::Dynamic>> fluxes, LinearBufferAllocator workSpace) const
+			{
+				typename ParamHandler_t::ParamsHandle const p = _paramHandler.update(t, secIdx, colPos, _nComp, _nBoundStates, workSpace);
+				const int numQuasiStationaryReactions = std::count(_reactionQuasiStationarity.begin(), _reactionQuasiStationarity.end(), true);
+				if (numQuasiStationaryReactions == 0)
+					return 0;
+
+				for (int qsr = 0; qsr < numQuasiStationaryReactions; ++qsr)
+				{
+					int r = _quasiStationaryReactionIndices[qsr];
+					double kFwdBulk_r = static_cast<double>(p->kFwdBulk[r]);
+					double kBwdBulk_r = static_cast<double>(p->kBwdBulk[r]);
+
+					fluxes[qsr] = calculateReactionRate<StateType, ResidualType>(r, c, kFwdBulk_r, kBwdBulk_r);
+
+				}
+				return 0;
+			}
+
+			/**
+			 * @brief Calculates the Jacobian contribution of a quasistatonary reaction
+			 * @details Computes the derivatives of the flux with respect to each component for
+			 *          a specific reaction and adds them to the corresponding row of the Jacobian.
+			 *
+			 * @param [in] t Current time point
+			 * @param [in] secIdx Current section index
+			 * @param [in] colPos Column position information
+			 * @param [in] y Array of component concentrations
+			 * @param [in] state State (component) for which to calculate the Jacobian row
+			 * @param [in] reaction Index of the reaction to consider
+			 * @param [in,out] jac Iterator to the Jacobian row to be updated
+			 * @param [in] workSpace Workspace for temporary data
+			 * @tparam RowIterator Type of the Jacobian row iterator
+			 */
+			template <typename RowIterator>
+			void jacobianQuasiStationaryBulkImpl(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, int state, int reaction, const RowIterator& jac, LinearBufferAllocator workSpace) const
+			{
+				typename ParamHandler_t::ParamsHandle const p = _paramHandler.update(t, secIdx, colPos, _nComp, _nBoundStates, workSpace);
+
+				BufferedArray<double> fluxes = workSpace.array<double>(2 * _nComp);
+				double* const fluxGradFwd = static_cast<double*>(fluxes);
+				double* const fluxGradBwd = fluxGradFwd + _nComp;
+
+				int r = _quasiStationaryReactionIndices[reaction];
+				// Calculate gradients of forward and backward fluxes
+				fluxGradLiquid(fluxGradFwd, r, _nComp, static_cast<double>(p->kFwdBulk[r]), _expBulkFwd, y);
+				fluxGradLiquid(fluxGradBwd, r, _nComp, static_cast<double>(p->kBwdBulk[r]), _expBulkBwd, y);
+
+				// Add gradients to Jacobian
+				RowIterator curJac = jac;
+				const double colFactor = static_cast<double>(_stoichiometryBulk.native(state, r));
+				for (int col = 0; col < _nComp; ++col)
+				{	// Row iterator is diagonal centerd 
+					curJac[col - state] += colFactor * (fluxGradFwd[col] - fluxGradBwd[col]);
+				}
+			}
+			
+			template <typename StateType, typename ResidualType, typename ParamType>
+			void applyConservedMoitiesResidualBulk(double t, unsigned int secIdx, const ColumnPosition& colPos, StateType const* const c, ResidualType* const resC, LinearBufferAllocator tlmAlloc) const
+			{
+				// prepare memory
+				LinearBufferAllocator subAlloc = tlmAlloc.manageRemainingMemory();
+
+				// create map to residual vector of concentrations
+				Eigen::Map<Eigen::Vector<ResidualType, Eigen::Dynamic>> mapResC(resC, _nComp);
+
+				// calculate flux for quasi stationary reactions
+				std::unique_ptr<ResidualType[]> temp1 = std::make_unique<ResidualType[]>(numReactionsLiquid());
+				Eigen::Map<Eigen::Vector<ResidualType, Eigen::Dynamic>> qsFlux(temp1.get(), numReactionsLiquid());
+				
+				qsFlux.setZero();
+				quasiStationaryFlux(t, secIdx, colPos, c, qsFlux, subAlloc);
+
+				// buffer memory for transformed residual
+				std::unique_ptr<ResidualType[]> temp = std::make_unique<ResidualType[]>(_nComp);
+				Eigen::Map<Eigen::Vector<ResidualType, Eigen::Dynamic>> resCWithMoities(temp.get(), _nComp);
+				resCWithMoities.setZero();
+
+
+				// multiply conserved moities matrix with residual
+				resCWithMoities = _MconvMoityBulk.template cast<ResidualType>() * mapResC;
+
+				// add quasi stationary reaction to residium
+				int rIdx = 0;
+				for (int i : algIdx())
+				{
+					resCWithMoities[i] = qsFlux[rIdx];
+					rIdx++;
+				}
+
+				mapResC = resCWithMoities;
+
 			}
 			/**
 			 * @brief Calculates the net reaction rate for a single reaction
@@ -661,7 +778,7 @@ namespace cadet
 			 * @tparam ResidualType Type of the result
 			 */
 			template <typename StateType, typename ResidualType>
-			ResidualType calculateReactionRate(int reactionIdx, StateType const* c, double kFwdBulk_r, double kBwdBulk_r)
+			ResidualType calculateReactionRate(int reactionIdx, StateType const* c, double kFwdBulk_r, double kBwdBulk_r) const
 			{
 				constexpr double CONCENTRATION_THRESHOLD = 1e-15;
 
@@ -704,42 +821,6 @@ namespace cadet
 					}
 				}
 				return fwd - bwd;
-			}
-
-			/**
-		 * @brief Calculates fluxes for quasi-stationary reactions
-		 * @details Computes reaction rates for all quasi-stationary reactions
-		 *          using mass action kinetics formulation
-		 *
-		 * @param [in] t Current time point
-		 * @param [in] secIdx Current section index
-		 * @param [in] colPos Column position information
-		 * @param [in] c Array of component concentrations
-		 * @param [out] fluxes Vector to store calculated fluxes
-		 * @param [in] workSpace Workspace for temporary data
-		 * @return Error code (0 if successful)
-		 * @tparam StateType Type of state variables (concentrations)
-		 * @tparam ResidualType Type of the result
-		 */
-			template<typename StateType, typename ResidualType>
-			int quasiStationaryFlux(double t, unsigned int secIdx, const ColumnPosition& colPos, StateType const* c,
-				Eigen::Map<Eigen::Vector<ResidualType, Eigen::Dynamic>> fluxes, LinearBufferAllocator workSpace)
-			{
-				typename ParamHandler_t::ParamsHandle const p = _paramHandler.update(t, secIdx, colPos, _nComp, _nBoundStates, workSpace);
-				const int numQuasiStationaryReactions = std::count(_reactionQuasiStationarity.begin(), _reactionQuasiStationarity.end(), true);
-				if (numQuasiStationaryReactions == 0)
-					return 0;
-
-				for (int qsr = 0; qsr < numQuasiStationaryReactions; ++qsr)
-				{
-					int r = _quasiStationaryReactionIndices[qsr];
-					double kFwdBulk_r = static_cast<double>(p->kFwdBulk[r]);
-					double kBwdBulk_r = static_cast<double>(p->kBwdBulk[r]);
-
-					fluxes[qsr] = calculateReactionRate<StateType, ResidualType>(r, c, kFwdBulk_r, kBwdBulk_r);
-
-				}
-				return 0;
 			}
 
 			template <typename StateType, typename ResidualType, typename ParamType, typename FactorType>
@@ -790,6 +871,10 @@ namespace cadet
 
 				// Add reaction terms to residual
 				_stoichiometryBulk.multiplyVector(static_cast<flux_t*>(fluxes), factor, res);
+
+				// if quasi stationary reactions exisists apply conserved Moities to the residual
+				if(hasQuasiStationaryReactionsBulk())
+					applyConservedMoitiesResidualBulk<StateType, ResidualType, ParamType>( t, secIdx, colPos, y, res, workSpace);
 
 				return 0;
 			}
@@ -946,6 +1031,31 @@ namespace cadet
 				return 0;
 			}
 
+			void timeDerivativeQuasiStationaryReaction(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, double* dY, LinearBufferAllocator workSpace) const
+			{
+				if (!this->hasQuasiStationaryReactionsBulk())
+					return;
+
+				//if (!ParamHandler_t::dependsOnTime())
+				//	return;
+
+				typename ParamHandler_t::ParamsHandle const p = _paramHandler.update(t, secIdx, colPos, _nComp, _nBoundStates, workSpace);
+
+				for (int r = 0; r < _stoichiometryBulk.columns(); ++r)
+				{
+					if (_reactionQuasiStationarity[r] == 0)
+						continue;
+
+					double kFwdBulk_r = static_cast<double>(p->kFwdBulk[r]);
+					double kBwdBulk_r = static_cast<double>(p->kBwdBulk[r]);
+
+					double flow = calculateReactionRate<double, double>(r, y, kFwdBulk_r, kBwdBulk_r);
+					for (int c = 0; c < _nComp; ++c)
+						dY[c] = -static_cast<double>(_stoichiometryBulk.native(c, r)) * flow;
+				}
+
+			}
+
 			template <typename RowIterator>
 			void jacobianLiquidImpl(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, double factor, const RowIterator& jac, LinearBufferAllocator workSpace) const
 			{
@@ -969,46 +1079,39 @@ namespace cadet
 							curJac[col - static_cast<int>(row)] += colFactor * (fluxGradFwd[col] - fluxGradBwd[col]);
 					}
 				}
-			}
 
-			/**
-			 * @brief Calculates the Jacobian contribution of a quasistatonary reaction
-			 * @details Computes the derivatives of the flux with respect to each component for
-			 *          a specific reaction and adds them to the corresponding row of the Jacobian.
-			 *
-			 * @param [in] t Current time point
-			 * @param [in] secIdx Current section index
-			 * @param [in] colPos Column position information
-			 * @param [in] y Array of component concentrations
-			 * @param [in] state State (component) for which to calculate the Jacobian row
-			 * @param [in] reaction Index of the reaction to consider
-			 * @param [in,out] jac Iterator to the Jacobian row to be updated
-			 * @param [in] workSpace Workspace for temporary data
-			 * @tparam RowIterator Type of the Jacobian row iterator
-			 */
-			template <typename RowIterator>
-			void jacobianQuasiStationaryBulkImpl(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, int state, int reaction, const RowIterator& jac, LinearBufferAllocator workSpace) const
-			{
-				typename ParamHandler_t::ParamsHandle const p = _paramHandler.update(t, secIdx, colPos, _nComp, _nBoundStates, workSpace);
+				if (hasQuasiStationaryReactionsBulk())
+				{
+					
+					//multiply jac with conserved moities
+					BufferedArray<double> tempRow = workSpace.array<double>(_nComp);
 
-				BufferedArray<double> fluxes = workSpace.array<double>(2 * _nComp);
-				double* const fluxGradFwd = static_cast<double*>(fluxes);
-				double* const fluxGradBwd = fluxGradFwd + _nComp;
+					RowIterator rowIt = jac;
+					for (int row = 0; row < _nComp; ++row, ++rowIt)
+					{
+						for (int col = 0; col < _nComp; ++col)
+						{
+							tempRow[col] = 0.0;
+							for (int k = 0; k < _nComp; ++k)
+							{
+								tempRow[col] += static_cast<double>(_MconvMoityBulk(row, k)) * rowIt[k - row];
+							}
+						}
 
-				int r = _quasiStationaryReactionIndices[reaction];
-				// Calculate gradients of forward and backward fluxes
-				fluxGradLiquid(fluxGradFwd, r, _nComp, static_cast<double>(p->kFwdBulk[r]), _expBulkFwd, y);
-				fluxGradLiquid(fluxGradBwd, r, _nComp, static_cast<double>(p->kBwdBulk[r]), _expBulkBwd, y);
-
-				// Add gradients to Jacobian
-				RowIterator curJac = jac;
-				const double colFactor = static_cast<double>(_stoichiometryBulk.native(state, r));
-				for (int col = 0; col < _nComp; ++col)
-				{	// Row iterator is diagonal centerd 
-					curJac[col - state] += colFactor * (fluxGradFwd[col] - fluxGradBwd[col]);
+						for (int col = 0; col < _nComp; ++col)
+						{
+							rowIt[col - row] = tempRow[col];
+						}
+					}
+					int rIdx = 0;
+					for (int state : algIdx())
+					{
+						jacobianQuasiStationaryBulkImpl(t, secIdx, colPos, reinterpret_cast<double const*>(y), state, rIdx, jac + state, workSpace);
+						rIdx++;
+					}
 				}
-
 			}
+
 
 			template <typename RowIteratorLiquid, typename RowIteratorSolid>
 			void jacobianCombinedImpl(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* yLiquid, double const* ySolid, double factor, const RowIteratorLiquid& jacLiquid, const RowIteratorSolid& jacSolid, LinearBufferAllocator workSpace) const
@@ -1055,30 +1158,7 @@ namespace cadet
 				}
 			}
 
-			virtual void timeDerivativeQuasiStationaryReaction(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, double* dY, LinearBufferAllocator workSpace)
-			{
-				if (!this->hasQuasiStationaryReactionsBulk())
-					return;
 
-				//if (!ParamHandler_t::dependsOnTime())
-				//	return;
-
-				typename ParamHandler_t::ParamsHandle const p = _paramHandler.update(t, secIdx, colPos, _nComp, _nBoundStates, workSpace);
-
-				for (int r = 0; r < _stoichiometryBulk.columns(); ++r)
-				{
-					if (_reactionQuasiStationarity[r] == 0)
-						continue;
-
-					double kFwdBulk_r = static_cast<double>(p->kFwdBulk[r]);
-					double kBwdBulk_r = static_cast<double>(p->kBwdBulk[r]);
-
-					double flow = calculateReactionRate<double, double>(r, y, kFwdBulk_r, kBwdBulk_r);
-					for (int c = 0; c < _nComp; ++c)
-						dY[c] = -static_cast<double>(_stoichiometryBulk.native(c, r)) * flow;
-				}
-
-			}
 
 			/**
 			 * @brief Calculates conservation relations for quasi-stationary reactions in bulk phase
@@ -1183,8 +1263,8 @@ namespace cadet
 				// acording to componentsInQssReactions: 0 -> not conserved 1-> conserved (either dynamic or not)
 				int mIdx = 0;
 				int nonActiveIdx = 0;
-				_MconvMoityBulk = Eigen::Matrix<active, Eigen::Dynamic, Eigen::Dynamic>::Zero(_nComp, _nComp);
-				for (int i = 0; i < _nComp; ++i)
+				_MconvMoityBulk = Eigen::Matrix<active, Eigen::Dynamic, Eigen::Dynamic>::Zero(_nComp , _nComp); //todo so groß wie der ganze state vector vielleicht als einheintsmatrix anlegen?
+				for (int i = 0; i < _nComp; ++i) //todo den ganzen state vector entlang
 				{
 					if (_quasiStationaryComponentBulkMap[i] == 0) // dynamic but not active
 					{
@@ -1206,6 +1286,8 @@ namespace cadet
 						_algIdxBulk.push_back(i);
 
 				}
+
+				//todo M als SparseMatrix anlegen
 
 			}
 		};

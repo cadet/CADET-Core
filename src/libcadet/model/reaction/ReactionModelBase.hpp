@@ -61,7 +61,6 @@ public:
 	virtual bool hasQuasiStationaryReactionsBulk() const CADET_NOEXCEPT { return false;}
 	virtual int const* reactionQuasiStationarity() const = 0;
 
-	virtual void timeDerivativeQuasiStationaryReaction(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, double* dReacDt, LinearBufferAllocator workSpace) = 0;
 	
 protected:
 	int _nComp; //!< Number of components
