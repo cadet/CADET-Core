@@ -25,8 +25,6 @@
 #include "model/ModelUtils.hpp"
 #include "SimulationTypes.hpp"
 #include "ParamReaderHelper.hpp"
-#include "linalg/BandedEigenSparseRowIterator.hpp"
-#include "model/parts/DGToolbox.hpp"
 #include "model/ParameterMultiplexing.hpp"
 
 #include <unordered_map>
@@ -44,8 +42,13 @@ class IConfigHelper;
 namespace model
 {
 
+class IParameterStateDependence;
+
 namespace parts
 {
+	constexpr double _SurfVolRatioSphere = 3.0; //!< Surface to volume ratio for a spherical particle
+	constexpr double _SurfVolRatioCylinder = 2.0; //!< Surface to volume ratio for a cylindrical particle
+	constexpr double _SurfVolRatioSlab = 1.0; //!< Surface to volume ratio for a slab-shaped particle
 
 	class ParticleDiffusionOperatorBase
 	{
@@ -53,7 +56,7 @@ namespace parts
 
 		ParticleDiffusionOperatorBase();
 
-		virtual ~ParticleDiffusionOperatorBase() CADET_NOEXCEPT {}
+		virtual ~ParticleDiffusionOperatorBase() CADET_NOEXCEPT;
 
 		/**
 			* @brief Sets fixed parameters of the particle diffusion operator (e.g., the number of discretization points, components, bound states)
@@ -88,6 +91,7 @@ namespace parts
 		unsigned int _parTypeIdx; //!< Particle type index (wrt the unit operation that owns this particle model)
 		unsigned int _nComp; //!< Number of components
 		int _strideBulkComp; //!< Component stride in bulk state vector
+		double _parGeomSurfToVol; //!< Particle surface to volume ratio factor (i.e., 3.0 for spherical, 2.0 for cylindrical, 1.0 for hexahedral)
 		std::vector<active> _filmDiffusion; //!< Particle diffusion coefficient \f$ D_p \f$
 		//MultiplexMode _filmDiffusionMode;
 		std::vector<active> _poreAccessFactor; //!< Pore accessibility factor \f$ F_{\text{acc}} \f$
@@ -96,6 +100,22 @@ namespace parts
 		unsigned int* _nBound; //!< Array with number of bound states for each component
 		unsigned int* _boundOffset; //!< Array with offset to the first bound state of each component in the solid phase
 		unsigned int _strideBound; //!< Total number of bound states
+		const int* _reqBinding; //!< Array of size @p _strideBound with flags whether binding is in rapid equilibrium for each bound state
+		bool _hasDynamicReactions; //! Determines whether or not the binding has any dynamic reactions
+		active _parRadius; //!< Particle radius \f$ r_p \f$
+		bool _singleParRadius;
+		active _parCoreRadius; //!< Particle core radius \f$ r_c \f$
+		bool _singleParCoreRadius;
+		active _parPorosity; //!< Particle porosity (internal porosity) \f$ \varepsilon_p \f$
+		bool _singleParPorosity;
+		std::vector<active> _parDiffusion; //!< Particle diffusion coefficient \f$ D_p \f$
+		MultiplexMode _parDiffusionMode;
+		std::vector<active> _parSurfDiffusion; //!< Particle surface diffusion coefficient \f$ D_s \f$
+		MultiplexMode _parSurfDiffusionMode;
+		IParameterStateDependence* _parDepSurfDiffusion; //!< Parameter dependencies for particle surface diffusion
+		bool _singleParDepSurfDiffusion; //!< Determines whether a single parameter dependence for particle surface diffusion is used
+		bool _hasParDepSurfDiffusion; //!< Determines whether particle surface diffusion parameter dependencies are present
+		bool _hasSurfaceDiffusion; //!< Determines whether surface diffusion is present
 	};
 
 } // namespace parts

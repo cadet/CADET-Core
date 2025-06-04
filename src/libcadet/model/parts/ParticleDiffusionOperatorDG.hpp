@@ -48,7 +48,6 @@ namespace model
 {
 
 class IDynamicReactionModel;
-class IParameterStateDependence;
 
 namespace parts
 {
@@ -56,10 +55,6 @@ namespace parts
 	{
 		struct CellParameters;
 	}
-
-	constexpr double _SurfVolRatioSphere = 3.0; //!< Surface to volume ratio for a spherical particle
-	constexpr double _SurfVolRatioCylinder = 2.0; //!< Surface to volume ratio for a cylindrical particle
-	constexpr double _SurfVolRatioSlab = 1.0; //!< Surface to volume ratio for a slab-shaped particle
 
 	/**
 	 * @brief Particle dispersion transport operator
@@ -118,28 +113,8 @@ namespace parts
 		template <typename StateType, typename ResidualType, typename ParamType, bool wantJac, bool wantRes>
 		int residualImpl(double t, unsigned int secIdx, StateType const* yPar, StateType const* yBulk, double const* yDotPar, ResidualType* resPar, linalg::BandedEigenSparseRowIterator& jacBase);
 
-		/* Physical model parameters */
-
-		active _parRadius; //!< Particle radius \f$ r_p \f$
-		bool _singleParRadius;
-		active _parCoreRadius; //!< Particle core radius \f$ r_c \f$
-		bool _singleParCoreRadius;
-		active _parPorosity; //!< Particle porosity (internal porosity) \f$ \varepsilon_p \f$
-		bool _singleParPorosity;
-		double _parGeomSurfToVol; //!< Particle surface to volume ratio factor (i.e., 3.0 for spherical, 2.0 for cylindrical, 1.0 for hexahedral)
 		std::vector<active> _parOuterSurfAreaPerVolume; //!< Particle element outer sphere surface to volume ratio
 		std::vector<active> _parInnerSurfAreaPerVolume; //!< Particle element inner sphere surface to volume ratio
-
-		std::vector<active> _parDiffusion; //!< Particle diffusion coefficient \f$ D_p \f$
-		MultiplexMode _parDiffusionMode;
-		std::vector<active> _parSurfDiffusion; //!< Particle surface diffusion coefficient \f$ D_s \f$
-		MultiplexMode _parSurfDiffusionMode;
-		IParameterStateDependence* _parDepSurfDiffusion; //!< Parameter dependencies for particle surface diffusion
-		bool _singleParDepSurfDiffusion; //!< Determines whether a single parameter dependence for particle surface diffusion is used
-		bool _hasParDepSurfDiffusion; //!< Determines whether particle surface diffusion parameter dependencies are present
-		bool _hasSurfaceDiffusion; //!< Determines whether surface diffusion is present
-		const int* _reqBinding; //!< Array of size @p _strideBound with flags whether binding is in rapid equilibrium for each bound state
-		bool _hasDynamicReactions; //! Determines whether or not the binding has any dynamic reactions
 
 		/* Model discretization */
 
