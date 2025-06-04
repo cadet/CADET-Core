@@ -216,152 +216,152 @@ namespace parts
 
 	bool ParticleDiffusionOperatorBase::configure(UnitOpIdx unitOpIdx, IParameterProvider& paramProvider, std::unordered_map<ParameterId, active*>& parameters, const int nParType, const unsigned int* nBoundBeforeType, const int nTotalBound, const int* reqBinding, const bool hasDynamicReactions)
 	{
-		//_reqBinding = reqBinding;
-		//_hasDynamicReactions = hasDynamicReactions;
+		_reqBinding = reqBinding;
+		_hasDynamicReactions = hasDynamicReactions;
 
-		//// Read geometry parameters
-		//std::vector<double> parRadii(nParType);
-		//_singleParRadius = readScalarParameterOrArray(parRadii, paramProvider, "PAR_RADIUS", nParType);
+		// Read geometry parameters
+		std::vector<double> parRadii(nParType);
+		_singleParRadius = readScalarParameterOrArray(parRadii, paramProvider, "PAR_RADIUS", nParType);
 
-		//if (_singleParRadius)
-		//{
-		//	_parRadius = parRadii[0];
-		//	if (_parTypeIdx == 0)
-		//		parameters[makeParamId(hashStringRuntime("PAR_RADIUS"), unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_parRadius;
-		//}
-		//else
-		//{
-		//	_parRadius = parRadii[_parTypeIdx];
-		//	parameters[makeParamId(hashStringRuntime("PAR_RADIUS"), unitOpIdx, CompIndep, _parTypeIdx, BoundStateIndep, ReactionIndep, SectionIndep)] = &_parRadius;
-		//}
+		if (_singleParRadius)
+		{
+			_parRadius = parRadii[0];
+			if (_parTypeIdx == 0)
+				parameters[makeParamId(hashStringRuntime("PAR_RADIUS"), unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_parRadius;
+		}
+		else
+		{
+			_parRadius = parRadii[_parTypeIdx];
+			parameters[makeParamId(hashStringRuntime("PAR_RADIUS"), unitOpIdx, CompIndep, _parTypeIdx, BoundStateIndep, ReactionIndep, SectionIndep)] = &_parRadius;
+		}
 
-		//std::vector<double> parPorosities(nParType);
-		//_singleParPorosity = readScalarParameterOrArray(parPorosities, paramProvider, "PAR_POROSITY", nParType);
-		//if (_singleParPorosity)
+		std::vector<double> parPorosities(nParType);
+		_singleParPorosity = readScalarParameterOrArray(parPorosities, paramProvider, "PAR_POROSITY", nParType);
+		if (_singleParPorosity)
+		{
+			_parPorosity = parPorosities[0];
+			if (_parTypeIdx == 0)
+				parameters[makeParamId(hashStringRuntime("PAR_POROSITY"), unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_parPorosity;
+		}
+		else
+		{
+			_parPorosity = parPorosities[_parTypeIdx];
+			parameters[makeParamId(hashStringRuntime("PAR_POROSITY"), unitOpIdx, CompIndep, _parTypeIdx, BoundStateIndep, ReactionIndep, SectionIndep)] = &_parPorosity;
+		}
+		// Let PAR_CORERADIUS default to 0.0 for backwards compatibility
+		if (paramProvider.exists("PAR_CORERADIUS"))
+		{
+			std::vector<double> parCoreRadii(nParType);
+			_singleParCoreRadius = readScalarParameterOrArray(parCoreRadii, paramProvider, "PAR_CORERADIUS", nParType);
+			if (_singleParCoreRadius)
+			{
+				_parCoreRadius = parCoreRadii[0];
+				if (_parTypeIdx == 0)
+					parameters[makeParamId(hashStringRuntime("PAR_CORERADIUS"), unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_parCoreRadius;
+			}
+			else
+			{
+				_parCoreRadius = parCoreRadii[_parTypeIdx];
+				parameters[makeParamId(hashStringRuntime("PAR_CORERADIUS"), unitOpIdx, CompIndep, _parTypeIdx, BoundStateIndep, ReactionIndep, SectionIndep)] = &_parCoreRadius;
+			}
+		}
+		else
+		{
+			_singleParCoreRadius = true;
+			_parCoreRadius = 0.0;
+		}
+
+		// Check whether PAR_TYPE_VOLFRAC is required or not
+		if ((nParType > 1) && !paramProvider.exists("PAR_TYPE_VOLFRAC"))
+			throw InvalidParameterException("The required parameter \"PAR_TYPE_VOLFRAC\" was not found");
+
+		// todo: PAR_TYPE_VOLFRAC remains parameter of the unit, not the particles?
+		//// Let PAR_TYPE_VOLFRAC default to 1.0 for backwards compatibility
+		//if (paramProvider.exists("PAR_TYPE_VOLFRAC"))
 		//{
-		//	_parPorosity = parPorosities[0];
-		//	if (_parTypeIdx == 0)
-		//		parameters[makeParamId(hashStringRuntime("PAR_POROSITY"), unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_parPorosity;
-		//}
-		//else
-		//{
-		//	_parPorosity = parPorosities[_parTypeIdx];
-		//	parameters[makeParamId(hashStringRuntime("PAR_POROSITY"), unitOpIdx, CompIndep, _parTypeIdx, BoundStateIndep, ReactionIndep, SectionIndep)] = &_parPorosity;
-		//}
-		//// Let PAR_CORERADIUS default to 0.0 for backwards compatibility
-		//if (paramProvider.exists("PAR_CORERADIUS"))
-		//{
-		//	std::vector<double> parCoreRadii(nParType);
-		//	_singleParCoreRadius = readScalarParameterOrArray(parCoreRadii, paramProvider, "PAR_CORERADIUS", nParType);
-		//	if (_singleParCoreRadius)
+		//	readScalarParameterOrArray(_parTypeVolFrac, paramProvider, "PAR_TYPE_VOLFRAC", 1);
+		//	if (_parTypeVolFrac.size() == _nParType)
 		//	{
-		//		_parCoreRadius = parCoreRadii[0];
-		//		if (_parTypeIdx == 0)
-		//			parameters[makeParamId(hashStringRuntime("PAR_CORERADIUS"), unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_parCoreRadius;
+		//		_axiallyConstantParTypeVolFrac = true;
+
+		//		// Expand to all axial elements
+		//		_parTypeVolFrac.resize(nPoints * _nParType, 1.0);
+		//		for (unsigned int i = 1; i < nPoints; ++i)
+		//			std::copy(_parTypeVolFrac.begin(), _parTypeVolFrac.begin() + _nParType, _parTypeVolFrac.begin() + _nParType * i);
 		//	}
 		//	else
-		//	{
-		//		_parCoreRadius = parCoreRadii[_parTypeIdx];
-		//		parameters[makeParamId(hashStringRuntime("PAR_CORERADIUS"), unitOpIdx, CompIndep, _parTypeIdx, BoundStateIndep, ReactionIndep, SectionIndep)] = &_parCoreRadius;
-		//	}
+		//		_axiallyConstantParTypeVolFrac = false;
 		//}
 		//else
 		//{
-		//	_singleParCoreRadius = true;
-		//	_parCoreRadius = 0.0;
+		//	_parTypeVolFrac.resize(nPoints, 1.0);
+		//	_axiallyConstantParTypeVolFrac = false;
 		//}
 
-		//// Check whether PAR_TYPE_VOLFRAC is required or not
-		//if ((nParType > 1) && !paramProvider.exists("PAR_TYPE_VOLFRAC"))
-		//	throw InvalidParameterException("The required parameter \"PAR_TYPE_VOLFRAC\" was not found");
+		//// Check that particle volume fractions sum to 1.0
+		//for (unsigned int i = 0; i < nPoints; ++i)
+		//{
+		//	const double volFracSum = std::accumulate(_parTypeVolFrac.begin() + i * _nParType, _parTypeVolFrac.begin() + (i + 1) * _nParType, 0.0,
+		//		[](double a, const active& b) -> double { return a + static_cast<double>(b); });
+		//	if (std::abs(1.0 - volFracSum) > 1e-10)
+		//		throw InvalidParameterException("Sum of field PAR_TYPE_VOLFRAC differs from 1.0 (is " + std::to_string(volFracSum) + ") in axial elem " + std::to_string(i));
+		//}
 
-		//// todo: PAR_TYPE_VOLFRAC remains parameter of the unit, not the particles?
-		////// Let PAR_TYPE_VOLFRAC default to 1.0 for backwards compatibility
-		////if (paramProvider.exists("PAR_TYPE_VOLFRAC"))
-		////{
-		////	readScalarParameterOrArray(_parTypeVolFrac, paramProvider, "PAR_TYPE_VOLFRAC", 1);
-		////	if (_parTypeVolFrac.size() == _nParType)
-		////	{
-		////		_axiallyConstantParTypeVolFrac = true;
+		// Read vectorial parameters (which may also be section dependent; transport)
+		//_filmDiffusionMode = readAndRegisterMultiplexCompTypeSecParam(paramProvider, parameters, _filmDiffusion, "FILM_DIFFUSION", _nParType, nComp, unitOpIdx); // todo film diffusion remains unit operation parameter?
 
-		////		// Expand to all axial elements
-		////		_parTypeVolFrac.resize(nPoints * _nParType, 1.0);
-		////		for (unsigned int i = 1; i < nPoints; ++i)
-		////			std::copy(_parTypeVolFrac.begin(), _parTypeVolFrac.begin() + _nParType, _parTypeVolFrac.begin() + _nParType * i);
-		////	}
-		////	else
-		////		_axiallyConstantParTypeVolFrac = false;
-		////}
-		////else
-		////{
-		////	_parTypeVolFrac.resize(nPoints, 1.0);
-		////	_axiallyConstantParTypeVolFrac = false;
-		////}
+		_parDiffusionMode = readAndRegisterSingleTypeMultiplexCompTypeSecParam(paramProvider, parameters, _parDiffusion, "PAR_DIFFUSION", nParType, _nComp, _parTypeIdx, unitOpIdx);
 
-		////// Check that particle volume fractions sum to 1.0
-		////for (unsigned int i = 0; i < nPoints; ++i)
-		////{
-		////	const double volFracSum = std::accumulate(_parTypeVolFrac.begin() + i * _nParType, _parTypeVolFrac.begin() + (i + 1) * _nParType, 0.0,
-		////		[](double a, const active& b) -> double { return a + static_cast<double>(b); });
-		////	if (std::abs(1.0 - volFracSum) > 1e-10)
-		////		throw InvalidParameterException("Sum of field PAR_TYPE_VOLFRAC differs from 1.0 (is " + std::to_string(volFracSum) + ") in axial elem " + std::to_string(i));
-		////}
+		if (paramProvider.exists("PAR_SURFDIFFUSION"))
+			_parSurfDiffusionMode = readAndRegisterSingleTypeMultiplexBndCompTypeSecParam(paramProvider, parameters, _parSurfDiffusion, "PAR_SURFDIFFUSION", nTotalBound, _nComp, _strideBound, _nBound, nBoundBeforeType, _parTypeIdx, unitOpIdx);
+		else
+		{
+			_parSurfDiffusionMode = MultiplexMode::Component;
+			_parSurfDiffusion.resize(_strideBound, 0.0);
+		}
 
-		//// Read vectorial parameters (which may also be section dependent; transport)
-		////_filmDiffusionMode = readAndRegisterMultiplexCompTypeSecParam(paramProvider, parameters, _filmDiffusion, "FILM_DIFFUSION", _nParType, nComp, unitOpIdx); // todo film diffusion remains unit operation parameter?
+		bool parSurfDiffDepConfSuccess = true;
+		if (_hasParDepSurfDiffusion)
+		{
+			if (_singleParDepSurfDiffusion && _parDepSurfDiffusion)
+			{
+				parSurfDiffDepConfSuccess = _parDepSurfDiffusion->configure(paramProvider, unitOpIdx, ParTypeIndep, "PAR_SURFDIFFUSION");
+			}
+			else if (!_singleParDepSurfDiffusion && _parDepSurfDiffusion)
+			{
+				parSurfDiffDepConfSuccess = _parDepSurfDiffusion->configure(paramProvider, unitOpIdx, _parTypeIdx, "PAR_SURFDIFFUSION") && parSurfDiffDepConfSuccess;
+			}
+		}
 
-		//_parDiffusionMode = readAndRegisterSingleTypeMultiplexCompTypeSecParam(paramProvider, parameters, _parDiffusion, "PAR_DIFFUSION", nParType, _nComp, _parTypeIdx, unitOpIdx);
+		//if ((_filmDiffusion.size() < nComp * _nParType) || (_filmDiffusion.size() % (nComp * _nParType) != 0))
+		//	throw InvalidParameterException("Number of elements in field FILM_DIFFUSION is not a positive multiple of NCOMP * _nParType (" + std::to_string(nComp * _nParType) + ")");
+		if ((_parDiffusion.size() < _nComp) || (_parDiffusion.size() % (_nComp) != 0))
+			throw InvalidParameterException("Number of elements in field PAR_DIFFUSION is not a positive multiple of NCOMP * NPARTYPE (" + std::to_string(_nComp * nParType) + ")");
+		if ((_parSurfDiffusion.size() < _strideBound) || ((nTotalBound > 0) && (_parSurfDiffusion.size() % _strideBound != 0)))
+			throw InvalidParameterException("Number of elements in field PAR_SURFDIFFUSION is not a positive multiple of NTOTALBND (" + std::to_string(nTotalBound) + ")");
 
-		//if (paramProvider.exists("PAR_SURFDIFFUSION"))
-		//	_parSurfDiffusionMode = readAndRegisterSingleTypeMultiplexBndCompTypeSecParam(paramProvider, parameters, _parSurfDiffusion, "PAR_SURFDIFFUSION", nTotalBound, _nComp, _strideBound, _nBound, nBoundBeforeType, _parTypeIdx, unitOpIdx);
+		//if (paramProvider.exists("PORE_ACCESSIBILITY"))
+		//	_poreAccessFactorMode = readAndRegisterMultiplexCompTypeSecParam(paramProvider, parameters, _poreAccessFactor, "PORE_ACCESSIBILITY", _nParType, nComp, unitOpIdx);
 		//else
 		//{
-		//	_parSurfDiffusionMode = MultiplexMode::Component;
-		//	_parSurfDiffusion.resize(_strideBound, 0.0);
+		//	_poreAccessFactorMode = MultiplexMode::ComponentType;
+		//	_poreAccessFactor = std::vector<cadet::active>(nComp * _nParType, 1.0);
 		//}
 
-		//bool parSurfDiffDepConfSuccess = true;
-		//if (_hasParDepSurfDiffusion)
+		//if (nComp * _nParType != _poreAccessFactor.size())
+		//	throw InvalidParameterException("Number of elements in field PORE_ACCESSIBILITY differs from NCOMP * _nParType (" + std::to_string(nComp * _nParType) + ")");
+
+		//// Add parameters to map
+		//parameters[makeParamId(hashString("COL_POROSITY"), unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_colPorosity;
+
+		//if (_axiallyConstantParTypeVolFrac)
 		//{
-		//	if (_singleParDepSurfDiffusion && _parDepSurfDiffusion)
-		//	{
-		//		parSurfDiffDepConfSuccess = _parDepSurfDiffusion->configure(paramProvider, unitOpIdx, ParTypeIndep, "PAR_SURFDIFFUSION");
-		//	}
-		//	else if (!_singleParDepSurfDiffusion && _parDepSurfDiffusion)
-		//	{
-		//		parSurfDiffDepConfSuccess = _parDepSurfDiffusion->configure(paramProvider, unitOpIdx, _parTypeIdx, "PAR_SURFDIFFUSION") && parSurfDiffDepConfSuccess;
-		//	}
+		//	// Register only the first _nParType items
+		//	for (unsigned int i = 0; i < _nParType; ++i)
+		//		parameters[makeParamId(hashString("PAR_TYPE_VOLFRAC"), unitOpIdx, CompIndep, i, BoundStateIndep, ReactionIndep, SectionIndep)] = &_parTypeVolFrac[i];
 		//}
-
-		////if ((_filmDiffusion.size() < nComp * _nParType) || (_filmDiffusion.size() % (nComp * _nParType) != 0))
-		////	throw InvalidParameterException("Number of elements in field FILM_DIFFUSION is not a positive multiple of NCOMP * _nParType (" + std::to_string(nComp * _nParType) + ")");
-		//if ((_parDiffusion.size() < _nComp) || (_parDiffusion.size() % (_nComp) != 0))
-		//	throw InvalidParameterException("Number of elements in field PAR_DIFFUSION is not a positive multiple of NCOMP * NPARTYPE (" + std::to_string(_nComp * nParType) + ")");
-		//if ((_parSurfDiffusion.size() < _strideBound) || ((nTotalBound > 0) && (_parSurfDiffusion.size() % _strideBound != 0)))
-		//	throw InvalidParameterException("Number of elements in field PAR_SURFDIFFUSION is not a positive multiple of NTOTALBND (" + std::to_string(nTotalBound) + ")");
-
-		////if (paramProvider.exists("PORE_ACCESSIBILITY"))
-		////	_poreAccessFactorMode = readAndRegisterMultiplexCompTypeSecParam(paramProvider, parameters, _poreAccessFactor, "PORE_ACCESSIBILITY", _nParType, nComp, unitOpIdx);
-		////else
-		////{
-		////	_poreAccessFactorMode = MultiplexMode::ComponentType;
-		////	_poreAccessFactor = std::vector<cadet::active>(nComp * _nParType, 1.0);
-		////}
-
-		////if (nComp * _nParType != _poreAccessFactor.size())
-		////	throw InvalidParameterException("Number of elements in field PORE_ACCESSIBILITY differs from NCOMP * _nParType (" + std::to_string(nComp * _nParType) + ")");
-
-		////// Add parameters to map
-		////parameters[makeParamId(hashString("COL_POROSITY"), unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_colPorosity;
-
-		////if (_axiallyConstantParTypeVolFrac)
-		////{
-		////	// Register only the first _nParType items
-		////	for (unsigned int i = 0; i < _nParType; ++i)
-		////		parameters[makeParamId(hashString("PAR_TYPE_VOLFRAC"), unitOpIdx, CompIndep, i, BoundStateIndep, ReactionIndep, SectionIndep)] = &_parTypeVolFrac[i];
-		////}
-		////else
-		////	registerParam2DArray(parameters, _parTypeVolFrac, [=](bool multi, unsigned elem, unsigned int type) { return makeParamId(hashString("PAR_TYPE_VOLFRAC"), unitOpIdx, CompIndep, type, BoundStateIndep, ReactionIndep, elem); }, _nParType);
+		//else
+		//	registerParam2DArray(parameters, _parTypeVolFrac, [=](bool multi, unsigned elem, unsigned int type) { return makeParamId(hashString("PAR_TYPE_VOLFRAC"), unitOpIdx, CompIndep, type, BoundStateIndep, ReactionIndep, elem); }, _nParType);
 
 		return true;
 	}
